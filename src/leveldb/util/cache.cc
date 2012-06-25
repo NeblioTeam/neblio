@@ -116,6 +116,7 @@ class HandleTable {
       LRUHandle* h = list_[i];
       while (h != NULL) {
         LRUHandle* next = h->next_hash;
+        Slice key = h->key();
         uint32_t hash = h->hash;
         LRUHandle** ptr = &new_list[hash & (new_length - 1)];
         h->next_hash = *ptr;
@@ -159,6 +160,7 @@ class LRUCache {
   // mutex_ protects the following state.
   port::Mutex mutex_;
   size_t usage_;
+  uint64_t last_id_;
 
   // Dummy head of LRU list.
   // lru.prev is newest entry, lru.next is oldest entry.
@@ -168,7 +170,8 @@ class LRUCache {
 };
 
 LRUCache::LRUCache()
-    : usage_(0) {
+    : usage_(0),
+      last_id_(0) {
   // Make empty circular linked list
   lru_.next = &lru_;
   lru_.prev = &lru_;

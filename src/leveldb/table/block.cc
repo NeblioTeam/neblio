@@ -16,7 +16,7 @@
 namespace leveldb {
 
 inline uint32_t Block::NumRestarts() const {
-  assert(size_ >= sizeof(uint32_t));
+  assert(size_ >= 2*sizeof(uint32_t));
   return DecodeFixed32(data_ + size_ - sizeof(uint32_t));
 }
 
@@ -27,12 +27,11 @@ Block::Block(const BlockContents& contents)
   if (size_ < sizeof(uint32_t)) {
     size_ = 0;  // Error marker
   } else {
-    size_t max_restarts_allowed = (size_-sizeof(uint32_t)) / sizeof(uint32_t);
-    if (NumRestarts() > max_restarts_allowed) {
-      // The size is too small for NumRestarts()
+    restart_offset_ = size_ - (1 + NumRestarts()) * sizeof(uint32_t);
+    if (restart_offset_ > size_ - sizeof(uint32_t)) {
+      // The size is too small for NumRestarts() and therefore
+      // restart_offset_ wrapped around.
       size_ = 0;
-    } else {
-      restart_offset_ = size_ - (1 + NumRestarts()) * sizeof(uint32_t);
     }
   }
 }
@@ -163,8 +162,8 @@ class Block::Iter : public Iterator {
   }
 
   virtual void Seek(const Slice& target) {
-    // Binary search in restart array to find the last restart point
-    // with a key < target
+    // Binary search in restart array to find the first restart point
+    // with a key >= target
     uint32_t left = 0;
     uint32_t right = num_restarts_ - 1;
     while (left < right) {
@@ -254,7 +253,7 @@ class Block::Iter : public Iterator {
 };
 
 Iterator* Block::NewIterator(const Comparator* cmp) {
-  if (size_ < sizeof(uint32_t)) {
+  if (size_ < 2*sizeof(uint32_t)) {
     return NewErrorIterator(Status::Corruption("bad block contents"));
   }
   const uint32_t num_restarts = NumRestarts();

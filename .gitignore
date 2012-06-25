@@ -12,28 +12,21 @@ src/leveldb/build_config.mk
 *.orig
 *.o
 *.patch
-*.Debug
-*.Release
-debug
-.neblio
+.bitcoin
 
-#compilation and Qt preprocessor part
+# Compilation and Qt preprocessor part
 *.qm
 Makefile
-neblio-Qt.app
-#resources cpp
+bitcoin-qt
+
+# Resources cpp
 qrc_*.cpp
 
-#qt creator
+# Qt creator
 *.pro.user
-.qmake.stash
 
-#mac specific
+# Mac specific
 .DS_Store
 build
-build-notes.txt
-*.sublime*
-modifierIntervalCalc.rb
 
-!src/leveldb/Makefile
-hash.py
+!src/leveldb-*/Makefile
