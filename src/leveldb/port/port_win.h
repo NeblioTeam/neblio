@@ -6,7 +6,7 @@
 
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
-// 
+//
 //  * Redistributions of source code must retain the above copyright
 //    notice, this list of conditions and the following disclaimer.
 //  * Redistributions in binary form must reproduce the above copyright
@@ -15,7 +15,7 @@
 //  * Neither the name of the University of California, Berkeley nor the
 //    names of its contributors may be used to endorse or promote products
 //    derived from this software without specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 // WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -37,11 +37,14 @@
 #define fread_unlocked _fread_nolock
 #endif
 
-#include <string>
-#include <stdint.h>
+
 #ifdef SNAPPY
-#include <snappy.h>
+#include <snappy/snappy.h>
 #endif
+
+#include <string>
+
+#include <stdint.h>
 
 namespace leveldb {
 namespace port {
@@ -64,8 +67,9 @@ class Mutex {
   friend class CondVar;
   // critical sections are more efficient than mutexes
   // but they are not recursive and can only be used to synchronize threads within the same process
+  // additionnaly they cannot be used with SignalObjectAndWait that we use for CondVar
   // we use opaque void * to avoid including windows.h in port_win.h
-  void * cs_;
+  void * mutex_;
 
   // No copying
   Mutex(const Mutex&);
@@ -75,7 +79,7 @@ class Mutex {
 // the Win32 API offers a dependable condition variable mechanism, but only starting with
 // Windows 2008 and Vista
 // no matter what we will implement our own condition variable with a semaphore
-// implementation as described in a paper written by Andrew D. Birrell in 2003
+// implementation as described in a paper written by Douglas C. Schmidt and Irfan Pyarali
 class CondVar {
  public:
   explicit CondVar(Mutex* mu);
@@ -85,45 +89,23 @@ class CondVar {
   void SignalAll();
  private:
   Mutex* mu_;
-  
+
   Mutex wait_mtx_;
   long waiting_;
-  
-  void * sem1_;
-  void * sem2_;
-  
-  
+
+  void * sema_;
+  void * event_;
+
+  bool broadcasted_;
 };
-
-class OnceType {
-public:
-//    OnceType() : init_(false) {}
-    OnceType(const OnceType &once) : init_(once.init_) {}
-    OnceType(bool f) : init_(f) {}
-    void InitOnce(void (*initializer)()) {
-        mutex_.Lock();
-        if (!init_) {
-            init_ = true;
-            initializer();
-        }
-        mutex_.Unlock();
-    }
-
-private:
-    bool init_;
-    Mutex mutex_;
-};
-
-#define LEVELDB_ONCE_INIT false
-extern void InitOnce(port::OnceType*, void (*initializer)());
 
 // Storage for a lock-free pointer
 class AtomicPointer {
  private:
   void * rep_;
  public:
-  AtomicPointer() : rep_(NULL) { }
-  explicit AtomicPointer(void* v); 
+  AtomicPointer() : rep_(nullptr) { }
+  explicit AtomicPointer(void* v);
   void* Acquire_Load() const;
 
   void Release_Store(void* v);
@@ -132,6 +114,11 @@ class AtomicPointer {
 
   void NoBarrier_Store(void* v);
 };
+
+typedef volatile long OnceType;
+#define LEVELDB_ONCE_INIT (0)
+
+extern void InitOnce(OnceType* once, void (*initializer)());
 
 inline bool Snappy_Compress(const char* input, size_t length,
                             ::std::string* output) {

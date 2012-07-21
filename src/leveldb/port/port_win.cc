@@ -6,7 +6,7 @@
 
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
-// 
+//
 //  * Redistributions of source code must retain the above copyright
 //    notice, this list of conditions and the following disclaimer.
 //  * Redistributions in binary form must reproduce the above copyright
@@ -15,7 +15,7 @@
 //  * Neither the name of the University of California, Berkeley nor the
 //    names of its contributors may be used to endorse or promote products
 //    derived from this software without specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 // WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -37,96 +37,104 @@ namespace leveldb {
 namespace port {
 
 Mutex::Mutex() :
-    cs_(NULL) {
-  assert(!cs_);
-  cs_ = static_cast<void *>(new CRITICAL_SECTION());
-  ::InitializeCriticalSection(static_cast<CRITICAL_SECTION *>(cs_));
-  assert(cs_);
+    mutex_(::CreateMutex(NULL, FALSE, NULL)) {
+  assert(mutex_);
 }
 
 Mutex::~Mutex() {
-  assert(cs_);
-  ::DeleteCriticalSection(static_cast<CRITICAL_SECTION *>(cs_));
-  delete static_cast<CRITICAL_SECTION *>(cs_);
-  cs_ = NULL;
-  assert(!cs_);
+  assert(mutex_);
+  ::CloseHandle(mutex_);
 }
 
 void Mutex::Lock() {
-  assert(cs_);
-  ::EnterCriticalSection(static_cast<CRITICAL_SECTION *>(cs_));
+  assert(mutex_);
+  ::WaitForSingleObject(mutex_, INFINITE);
 }
 
 void Mutex::Unlock() {
-  assert(cs_);
-  ::LeaveCriticalSection(static_cast<CRITICAL_SECTION *>(cs_));
+  assert(mutex_);
+  ::ReleaseMutex(mutex_);
 }
 
 void Mutex::AssertHeld() {
-  assert(cs_);
+  assert(mutex_);
   assert(1);
 }
 
 CondVar::CondVar(Mutex* mu) :
-    waiting_(0), 
-    mu_(mu), 
-    sem1_(::CreateSemaphore(NULL, 0, 10000, NULL)), 
-    sem2_(::CreateSemaphore(NULL, 0, 10000, NULL)) {
+    waiting_(0),
+    mu_(mu),
+    sema_(::CreateSemaphore(NULL, 0, 0x7fffffff, NULL)),
+    event_(::CreateEvent(NULL, FALSE, FALSE, NULL)),
+    broadcasted_(false){
   assert(mu_);
 }
 
 CondVar::~CondVar() {
-  ::CloseHandle(sem1_);
-  ::CloseHandle(sem2_);
+  ::CloseHandle(sema_);
+  ::CloseHandle(event_);
 }
 
 void CondVar::Wait() {
-  mu_->AssertHeld();
-
   wait_mtx_.Lock();
   ++waiting_;
+  assert(waiting_ > 0);
   wait_mtx_.Unlock();
 
-  mu_->Unlock();
+  ::SignalObjectAndWait(mu_->mutex_, sema_, INFINITE, FALSE);
 
-  // initiate handshake
-  ::WaitForSingleObject(sem1_, INFINITE);
-  ::ReleaseSemaphore(sem2_, 1, NULL);
-  mu_->Lock();
+  wait_mtx_.Lock();
+  bool last = broadcasted_ && (--waiting_ == 0);
+  assert(waiting_ >= 0);
+  wait_mtx_.Unlock();
+
+  // we leave this function with the mutex held
+  if (last)
+  {
+    ::SignalObjectAndWait(event_, mu_->mutex_, INFINITE, FALSE);
+  }
+  else
+  {
+    ::WaitForSingleObject(mu_->mutex_, INFINITE);
+  }
 }
 
 void CondVar::Signal() {
   wait_mtx_.Lock();
-  if (waiting_ > 0) {
-    --waiting_;
-
-    // finalize handshake
-    ::ReleaseSemaphore(sem1_, 1, NULL);
-    ::WaitForSingleObject(sem2_, INFINITE);
-  }
+  bool waiters = waiting_ > 0;
   wait_mtx_.Unlock();
+
+  if (waiters)
+  {
+    ::ReleaseSemaphore(sema_, 1, 0);
+  }
 }
 
 void CondVar::SignalAll() {
   wait_mtx_.Lock();
-  ::ReleaseSemaphore(sem1_, waiting_, NULL);
-  while(waiting_ > 0) {
-    --waiting_;
-    ::WaitForSingleObject(sem2_, INFINITE);
+
+  broadcasted_ = (waiting_ > 0);
+
+  if (broadcasted_)
+  {
+      // release all
+    ::ReleaseSemaphore(sema_, waiting_, 0);
+    wait_mtx_.Unlock();
+    ::WaitForSingleObject(event_, INFINITE);
+    broadcasted_ = false;
   }
-  wait_mtx_.Unlock();
+  else
+  {
+    wait_mtx_.Unlock();
+  }
 }
 
 AtomicPointer::AtomicPointer(void* v) {
   Release_Store(v);
 }
 
-void InitOnce(OnceType* once, void (*initializer)()) {
-  once->InitOnce(initializer);
-}
-
 void* AtomicPointer::Acquire_Load() const {
-  void * p = NULL;
+  void * p = nullptr;
   InterlockedExchangePointer(&p, rep_);
   return p;
 }
@@ -141,6 +149,33 @@ void* AtomicPointer::NoBarrier_Load() const {
 
 void AtomicPointer::NoBarrier_Store(void* v) {
   rep_ = v;
+}
+
+enum InitializationState
+{
+    Uninitialized = 0,
+    Running = 1,
+    Initialized = 2
+};
+
+void InitOnce(OnceType* once, void (*initializer)()) {
+
+  static_assert(Uninitialized == LEVELDB_ONCE_INIT, "Invalid uninitialized state value");
+
+  InitializationState state = static_cast<InitializationState>(InterlockedCompareExchange(once, Running, Uninitialized));
+
+  if (state == Uninitialized) {
+      initializer();
+      *once = Initialized;
+  }
+
+  if (state == Running) {
+      while(*once != Initialized) {
+          Sleep(0); // yield
+      }
+  }
+
+  assert(*once == Initialized);
 }
 
 }
