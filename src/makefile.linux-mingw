@@ -85,6 +85,7 @@ OBJS= \
     obj/walletdb.o \
     obj/noui.o \
     obj/hash.o \
+    obj/bloom.o \
     obj/kernel.o \
     obj/pbkdf2.o \
     obj/scrypt.o \
