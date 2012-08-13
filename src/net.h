@@ -19,6 +19,7 @@
 #include "protocol.h"
 #include "addrman.h"
 #include "hash.h"
+#include "bloom.h"
 
 class CRequestTracker;
 class CNode;
@@ -219,8 +220,10 @@ public:
     bool fSuccessfullyConnected;
     bool fDisconnect;
     CSemaphoreGrant grantOutbound;
-    int nRefCount;
+    CCriticalSection cs_filter;
+    CBloomFilter* pfilter;
 protected:
+    int nRefCount;
 
     // Denial-of-service detection/prevention
     // Key is IP address, value is banned-until-time
@@ -279,6 +282,7 @@ public:
         nMisbehavior = 0;
         hashCheckpointKnown = 0;
         setInventoryKnown.max_size(SendBufferSize() / 1000);
+        pfilter = NULL;
 
         // Be shy and don't send version until we hear
         if (hSocket != INVALID_SOCKET && !fInbound)
@@ -292,6 +296,8 @@ public:
             closesocket(hSocket);
             hSocket = INVALID_SOCKET;
         }
+        if (pfilter)
+            delete pfilter;
     }
 
 private:
