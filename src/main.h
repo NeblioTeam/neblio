@@ -1913,4 +1913,152 @@ public:
 
 extern CTxMemPool mempool;
 
+struct CCoinsStats
+{
+    int nHeight;
+    uint64 nTransactions;
+    uint64 nTransactionOutputs;
+    uint64 nSerializedSize;
+
+    CCoinsStats() : nHeight(0), nTransactions(0), nTransactionOutputs(0), nSerializedSize(0) {}
+};
+
+/** Abstract view on the open txout dataset. */
+class CCoinsView
+{
+public:
+    // Retrieve the CCoins (unspent transaction outputs) for a given txid
+    virtual bool GetCoins(uint256 txid, CCoins &coins);
+
+    // Modify the CCoins for a given txid
+    virtual bool SetCoins(uint256 txid, const CCoins &coins);
+
+    // Just check whether we have data for a given txid.
+    // This may (but cannot always) return true for fully spent transactions
+    virtual bool HaveCoins(uint256 txid);
+
+    // Retrieve the block index whose state this CCoinsView currently represents
+    virtual CBlockIndex *GetBestBlock();
+
+    // Modify the currently active block index
+    virtual bool SetBestBlock(CBlockIndex *pindex);
+
+    // Do a bulk modification (multiple SetCoins + one SetBestBlock)
+    virtual bool BatchWrite(const std::map<uint256, CCoins> &mapCoins, CBlockIndex *pindex);
+
+    // Calculate statistics about the unspent transaction output set
+    virtual bool GetStats(CCoinsStats &stats);
+
+    // As we use CCoinsViews polymorphically, have a virtual destructor
+    virtual ~CCoinsView() {}
+};
+
+/** CCoinsView backed by another CCoinsView */
+class CCoinsViewBacked : public CCoinsView
+{
+protected:
+    CCoinsView *base;
+
+public:
+    CCoinsViewBacked(CCoinsView &viewIn);
+    bool GetCoins(uint256 txid, CCoins &coins);
+    bool SetCoins(uint256 txid, const CCoins &coins);
+    bool HaveCoins(uint256 txid);
+    CBlockIndex *GetBestBlock();
+    bool SetBestBlock(CBlockIndex *pindex);
+    void SetBackend(CCoinsView &viewIn);
+    bool BatchWrite(const std::map<uint256, CCoins> &mapCoins, CBlockIndex *pindex);
+    bool GetStats(CCoinsStats &stats);
+};
+
+/** CCoinsView that adds a memory cache for transactions to another CCoinsView */
+class CCoinsViewCache : public CCoinsViewBacked
+{
+protected:
+    CBlockIndex *pindexTip;
+    std::map<uint256,CCoins> cacheCoins;
+
+public:
+    CCoinsViewCache(CCoinsView &baseIn, bool fDummy = false);
+
+    // Standard CCoinsView methods
+    bool GetCoins(uint256 txid, CCoins &coins);
+    bool SetCoins(uint256 txid, const CCoins &coins);
+    bool HaveCoins(uint256 txid);
+    CBlockIndex *GetBestBlock();
+    bool SetBestBlock(CBlockIndex *pindex);
+    bool BatchWrite(const std::map<uint256, CCoins> &mapCoins, CBlockIndex *pindex);
+
+    // Return a modifiable reference to a CCoins. Check HaveCoins first.
+    // Many methods explicitly require a CCoinsViewCache because of this method, to reduce
+    // copying.
+    CCoins &GetCoins(uint256 txid);
+
+    // Push the modifications applied to this cache to its base.
+    // Failure to call this method before destruction will cause the changes to be forgotten.
+    bool Flush();
+
+    // Calculate the size of the cache (in number of transactions)
+    unsigned int GetCacheSize();
+
+private:
+    std::map<uint256,CCoins>::iterator FetchCoins(uint256 txid);
+};
+
+/** CCoinsView that brings transactions from a memorypool into view.
+    It does not check for spendings by memory pool transactions. */
+class CCoinsViewMemPool : public CCoinsViewBacked
+{
+protected:
+    CTxMemPool &mempool;
+
+public:
+    CCoinsViewMemPool(CCoinsView &baseIn, CTxMemPool &mempoolIn);
+    bool GetCoins(uint256 txid, CCoins &coins);
+    bool HaveCoins(uint256 txid);
+};
+
+/** Global variable that points to the active CCoinsView (protected by cs_main) */
+extern CCoinsViewCache *pcoinsTip;
+
+/** Global variable that points to the active block tree (protected by cs_main) */
+extern CBlockTreeDB *pblocktree;
+
+struct CBlockTemplate
+{
+    CBlock block;
+    std::vector<int64_t> vTxFees;
+    std::vector<int64_t> vTxSigOps;
+};
+
+
+
+
+
+
+/** Used to relay blocks as header + vector<merkle branch>
+ * to filtered nodes.
+ */
+class CMerkleBlock
+{
+public:
+    CBlock header;
+
+    // We could optimize this a bit to deduplicate partial branches,
+    // but it's not worth much unless a node has a ton of txes in a single block
+    //                       tx index    , tx hash, merkle branch
+    std::vector<boost::tuple<unsigned int, uint256, std::vector<uint256> > > vtx;
+
+    // Create from a CBlock, filtering transactions according to filter
+    // Note that this will call IsRelevantAndUpdate on the filter for each transaction,
+    // thus the filter will likely be modified.
+    CMerkleBlock(const CBlock& block, CBloomFilter& filter);
+
+    IMPLEMENT_SERIALIZE
+    (
+        READWRITE(header);
+        READWRITE(vtx);
+    )
+};
+
 #endif

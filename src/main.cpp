@@ -2441,6 +2441,32 @@ bool CBlock::CheckBlockSignature() const
     return false;
 }
 
+
+
+
+CMerkleBlock::CMerkleBlock(const CBlock& block, CBloomFilter& filter)
+{
+    header = block.GetBlockHeader();
+    vtx.reserve(block.vtx.size());
+
+    for(unsigned int i = 0; i < block.vtx.size(); i++)
+    {
+        vector<uint256> branch = block.GetMerkleBranch(i);
+        uint256 hash = block.vtx[i].GetHash();
+        if (filter.IsRelevantAndUpdate(block.vtx[i], hash))
+        {
+            vtx.push_back(make_tuple(i, hash, branch));
+        }
+    }
+}
+
+
+
+
+
+
+
+
 bool CheckDiskSpace(uint64_t nAdditionalBytes)
 {
     uint64_t nFreeBytesAvailable = filesystem::space(GetDataDir()).available;
