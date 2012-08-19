@@ -20,11 +20,11 @@ static const unsigned int MAX_HASH_FUNCS = 50;
 /**
  * BloomFilter is a probabilistic filter which SPV clients provide
  * so that we can filter the transactions we sends them.
- * 
+ *
  * This allows for significantly more efficient transaction and block downloads.
- * 
+ *
  * Because bloom filters are probabilistic, an SPV node can increase the false-
- * positive rate, making us send them transactions which aren't actually theirs, 
+ * positive rate, making us send them transactions which aren't actually theirs,
  * allowing clients to trade more bandwidth for more privacy by obfuscating which
  * keys are owned by them.
  */
@@ -64,7 +64,8 @@ public:
     // (catch a filter which was just deserialized which was too big)
     bool IsWithinSizeConstraints() const;
 
-    bool IsTransactionRelevantToFilter(const CTransaction& tx) const;
+    // Also adds any outputs which match the filter to the filter (to match their spending txes)
+    bool IsRelevantAndUpdate(const CTransaction& tx, const uint256& hash);
 };
 
 #endif /* BITCOIN_BLOOM_H */
