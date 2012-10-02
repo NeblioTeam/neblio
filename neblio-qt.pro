@@ -198,7 +198,6 @@ HEADERS += src/qt/bitcoingui.h \
     src/zerocoin/ZeroTest.h \
     src/zerocoin/Zerocoin.h \
     src/serialize.h \
-    src/strlcpy.h \
     src/main.h \
     src/miner.h \
     src/net.h \
