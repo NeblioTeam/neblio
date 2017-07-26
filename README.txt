@@ -5,6 +5,6 @@ https://nebl.io
 #Neblio Specification
 
 125,000,000 Tokens Premined For August 2017 Pre-Sale
-Tokens stake at a 10% yearly rate
+Proof-of-Stake Token
 
 
