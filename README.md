@@ -4,7 +4,7 @@ https://nebl.io
 
 #Neblio Specification
 
-125,000,000 Tokens Premined For August 2017 Pre-Sale
+~13,000,000 Tokens In cirulation after token sale
 Proof-of-Stake Token
 
 
