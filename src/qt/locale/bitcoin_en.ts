@@ -2404,7 +2404,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="+3"/>
         <source>Generated but not accepted</source>
-        <translation>Generated but not accepted</translation>
+        <translation>Stake Rejected - Another User Staked Block First</translation>
     </message>
     <message>
         <location line="+42"/>
