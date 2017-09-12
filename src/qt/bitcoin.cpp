@@ -116,6 +116,10 @@ int main(int argc, char *argv[])
     // Do this early as we don't want to bother initializing if we are just calling IPC
     ipcScanRelay(argc, argv);
 
+#if QT_VERSION >= 0x050600
+     QGuiApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
+#endif
+
 #if QT_VERSION < 0x050000
     // Internal string conversion is all UTF-8
     QTextCodec::setCodecForTr(QTextCodec::codecForName("UTF-8"));
