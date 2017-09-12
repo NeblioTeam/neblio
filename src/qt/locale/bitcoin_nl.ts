@@ -3010,11 +3010,6 @@ Het wordt ook aanbevolen om alertnotify instellen zodat u een melding van proble
 bijvoorbeeld: alertnotify = echo %%s | mail -s &quot;neblio Alert&quot; admin@foo.com </translation>
     </message>
     <message>
-        <location line="+51"/>
-        <source>Find peers using internet relay chat (default: 0)</source>
-        <translation>Zoek peers door gebruik van Internet Relay Chat (standaard: 1) {? 0)}</translation>
-    </message>
-    <message>
         <location line="+5"/>
         <source>Sync time with other nodes. Disable if time on your system is precise e.g. syncing with NTP (default: 1)</source>
         <translation>Synchroniseer tijd met andere connecties. Uitschakelen als de tijd op uw systeem nauwkeurig is bijv. synchroniseren met NTP (standaard: 1)</translation>

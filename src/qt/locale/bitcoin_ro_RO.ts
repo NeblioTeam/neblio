@@ -3009,11 +3009,6 @@ de exemplu: alertnotify=echo %%s | mail -s &quot;neblio Alert&quot; admin@foo.co
 </translation>
     </message>
     <message>
-        <location line="+51"/>
-        <source>Find peers using internet relay chat (default: 0)</source>
-        <translation>Gaseste noduri fosoling irc (implicit: 1) {0)?}</translation>
-    </message>
-    <message>
         <location line="+5"/>
         <source>Sync time with other nodes. Disable if time on your system is precise e.g. syncing with NTP (default: 1)</source>
         <translation>Sincronizează timp cu alte noduri. Dezactivează daca timpul de pe sistemul dumneavoastră este precis ex: sincronizare cu NTP (implicit: 1)</translation>

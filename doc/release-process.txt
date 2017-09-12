@@ -1,4 +1,3 @@
-* update translations (ping tcatm on IRC for now)
 
 * update (commit) version in sources
   bitcoin-qt.pro

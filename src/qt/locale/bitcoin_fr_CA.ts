@@ -3012,11 +3012,6 @@ par exemple: alertnotify=echo %%s | mail -s &quot;Alerte neblio&quot; admin@foo.
 </translation>
     </message>
     <message>
-        <location line="+51"/>
-        <source>Find peers using internet relay chat (default: 0)</source>
-        <translation>Find peers using internet relay chat (default: 1) {0)?}</translation>
-    </message>
-    <message>
         <location line="+5"/>
         <source>Sync time with other nodes. Disable if time on your system is precise e.g. syncing with NTP (default: 1)</source>
         <translation>Synchronisation de l&apos;horloge avec d&apos;autres noeuds. Désactiver si votre serveur est déjà synchronisé avec le protocole NTP (défaut: 1)</translation>

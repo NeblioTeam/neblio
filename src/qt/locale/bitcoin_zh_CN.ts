@@ -3012,11 +3012,6 @@ alertnotify=echo %%s | mail -s &quot;neblio Alert&quot; admin@foo.com
 </translation>
     </message>
     <message>
-        <location line="+51"/>
-        <source>Find peers using internet relay chat (default: 0)</source>
-        <translation>寻找使用互联网接力聊天的节点 (默认: 1) {0)?}</translation>
-    </message>
-    <message>
         <location line="+5"/>
         <source>Sync time with other nodes. Disable if time on your system is precise e.g. syncing with NTP (default: 1)</source>
         <translation>自动和其它节点同步时间。如果本地计算机世界是准确的，建议关闭。(默认: 1)</translation>

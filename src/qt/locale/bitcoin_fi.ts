@@ -3008,11 +3008,6 @@ On myös suositeltavaa asettaa alertnotify jolloin olet tiedotettu ongelmista; e
 </translation>
     </message>
     <message>
-        <location line="+51"/>
-        <source>Find peers using internet relay chat (default: 0)</source>
-        <translation>Etsi vertaisiasi käyttäen Internet Relay Chatia (oletus: 1) {0)?}</translation>
-    </message>
-    <message>
         <location line="+5"/>
         <source>Sync time with other nodes. Disable if time on your system is precise e.g. syncing with NTP (default: 1)</source>
         <translation>Synkronoi kello muiden noodien kanssa. Poista käytöstä, jos järjestelmäsi aika on tarkka esim. päivittää itsensä NTP-palvelimelta. (oletus: 1)</translation>
