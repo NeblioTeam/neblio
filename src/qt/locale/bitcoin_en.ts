@@ -2429,7 +2429,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="+2"/>
         <source>Mined</source>
-        <translation>Mined</translation>
+        <translation>Stake Reward</translation>
     </message>
     <message>
         <location line="+38"/>
@@ -2518,7 +2518,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="+1"/>
         <source>Mined</source>
-        <translation>Mined</translation>
+        <translation>Stake Reward</translation>
     </message>
     <message>
         <location line="+1"/>
