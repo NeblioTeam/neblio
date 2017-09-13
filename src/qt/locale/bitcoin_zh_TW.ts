@@ -4,12 +4,12 @@
     <message>
         <location filename="../forms/aboutdialog.ui" line="+14"/>
         <source>About neblio</source>
-        <translation>關于黑幣</translation>
+        <translation>關于牛币</translation>
     </message>
     <message>
         <location line="+39"/>
         <source>&lt;b&gt;neblio&lt;/b&gt; version</source>
-        <translation>&lt;b&gt;黑幣客戶端&lt;/b&gt; 版本</translation>
+        <translation>&lt;b&gt;牛币客戶端&lt;/b&gt; 版本</translation>
     </message>
     <message>
         <location line="+41"/>
@@ -66,7 +66,7 @@ This product includes software developed by the OpenSSL Project for use in the O
     <message>
         <location line="-46"/>
         <source>These are your neblio addresses for receiving payments. You may want to give a different one to each sender so you can keep track of who is paying you.</source>
-        <translation>這是您用來接收支付的黑幣地址列表。爲不同的支付方建立不同的地址以便于了解支付來源。</translation>
+        <translation>這是您用來接收支付的牛币地址列表。爲不同的支付方建立不同的地址以便于了解支付來源。</translation>
     </message>
     <message>
         <location line="+60"/>
@@ -81,7 +81,7 @@ This product includes software developed by the OpenSSL Project for use in the O
     <message>
         <location line="+11"/>
         <source>Sign a message to prove you own a neblio address</source>
-        <translation>對信息進行簽名以證明您對該黑幣地址的所有權</translation>
+        <translation>對信息進行簽名以證明您對該牛币地址的所有權</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -96,7 +96,7 @@ This product includes software developed by the OpenSSL Project for use in the O
     <message>
         <location line="-14"/>
         <source>Verify a message to ensure it was signed with a specified neblio address</source>
-        <translation>驗證信息以保證其經過指定黑幣地址的簽名</translation>
+        <translation>驗證信息以保證其經過指定牛币地址的簽名</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -237,7 +237,7 @@ This product includes software developed by the OpenSSL Project for use in the O
     <message>
         <location line="+1"/>
         <source>Warning: If you encrypt your wallet and lose your passphrase, you will &lt;b&gt;LOSE ALL OF YOUR COINS&lt;/b&gt;!</source>
-        <translation>警告：如果您丟失了加密該錢包的密碼，其中所有的黑幣將會丟失！</translation>
+        <translation>警告：如果您丟失了加密該錢包的密碼，其中所有的牛币將會丟失！</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -264,7 +264,7 @@ This product includes software developed by the OpenSSL Project for use in the O
     <message>
         <location line="-58"/>
         <source>neblio will close now to finish the encryption process. Remember that encrypting your wallet cannot fully protect your tokens from being stolen by malware infecting your computer.</source>
-        <translation>黑幣客戶端即將關閉以完成加密過程。請記住，加密錢包並不能完全防止您的電子貨幣被入侵您計算機的木馬軟件盜竊。</translation>
+        <translation>牛币客戶端即將關閉以完成加密過程。請記住，加密錢包並不能完全防止您的電子貨幣被入侵您計算機的木馬軟件盜竊。</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -353,7 +353,7 @@ This product includes software developed by the OpenSSL Project for use in the O
     <message>
         <location line="-13"/>
         <source>&amp;Receive tokens</source>
-        <translation>接收黑幣(&amp;R) </translation>
+        <translation>接收牛币(&amp;R) </translation>
     </message>
     <message>
         <location line="+1"/>
@@ -363,7 +363,7 @@ This product includes software developed by the OpenSSL Project for use in the O
     <message>
         <location line="-7"/>
         <source>&amp;Send tokens</source>
-        <translation>發送黑幣(&amp;S) </translation>
+        <translation>發送牛币(&amp;S) </translation>
     </message>
     <message>
         <location line="+35"/>
@@ -378,7 +378,7 @@ This product includes software developed by the OpenSSL Project for use in the O
     <message>
         <location line="+4"/>
         <source>Show information about neblio</source>
-        <translation>關于黑幣 </translation>
+        <translation>關于牛币 </translation>
     </message>
     <message>
         <location line="+2"/>
@@ -428,7 +428,7 @@ This product includes software developed by the OpenSSL Project for use in the O
     <message>
         <location line="-62"/>
         <source>Send tokens to a neblio address</source>
-        <translation>向指定的地址發送黑幣</translation>
+        <translation>向指定的地址發送牛币</translation>
     </message>
     <message>
         <location line="+45"/>
@@ -540,12 +540,12 @@ This product includes software developed by the OpenSSL Project for use in the O
         <location line="+0"/>
         <location line="+60"/>
         <source>neblio client</source>
-        <translation>黑幣客戶端</translation>
+        <translation>牛币客戶端</translation>
     </message>
     <message numerus="yes">
         <location line="+70"/>
         <source>%n active connection(s) to neblio network</source>
-        <translation><numerusform>與黑幣網絡建立了 %n 個連接</numerusform></translation>
+        <translation><numerusform>與牛币網絡建立了 %n 個連接</numerusform></translation>
     </message>
     <message>
         <location line="+40"/>
