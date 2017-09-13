@@ -10,11 +10,6 @@ class QMenu;
 class QWidget;
 QT_END_NAMESPACE
 
-#ifdef __OBJC__
-@class DockIconClickEventHandler;
-#else
-class DockIconClickEventHandler;
-#endif
 
 /** Macintosh-specific dock icon handler.
  */
@@ -30,6 +25,7 @@ public:
     void setMainWindow(QMainWindow *window);
     static MacDockIconHandler *instance();
 
+    static void cleanup();
     void handleDockIconClickEvent();
 
 signals:
@@ -38,7 +34,6 @@ signals:
 private:
     MacDockIconHandler();
 
-    DockIconClickEventHandler *m_dockIconClickEventHandler;
     QWidget *m_dummyWidget;
     QMenu *m_dockMenu;
     QMainWindow *mainWindow;
