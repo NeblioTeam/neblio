@@ -1358,7 +1358,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="-160"/>
         <source>Stake:</source>
-        <translation>Stake:</translation>
+        <translation>Recently Staked:</translation>
     </message>
     <message>
         <location line="+29"/>
@@ -1378,7 +1378,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="+16"/>
         <source>Your current spendable balance</source>
-        <translation type="unfinished"></translation>
+        <translation>Your current spendable balance that may also be trying to stake.</translation>
     </message>
     <message>
         <location line="+71"/>
@@ -1413,7 +1413,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="-29"/>
         <source>Total number of tokens that were staked, and do not yet count toward the current balance</source>
-        <translation>Total number of tokens that were staked, and do not yet count toward the current balance</translation>
+        <translation>Total number of tokens that recently staked, are not spendable, and do not yet count toward the current balance until 30 confirmations</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="+113"/>
