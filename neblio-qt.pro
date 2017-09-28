@@ -182,7 +182,6 @@ HEADERS += src/qt/bitcoingui.h \
     src/coincontrol.h \
     src/sync.h \
     src/util.h \
-    src/hash.h \
     src/uint256.h \
     src/kernel.h \
     src/scrypt.h \
