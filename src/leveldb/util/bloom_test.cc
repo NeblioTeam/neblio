@@ -4,6 +4,7 @@
 
 #include "leveldb/filter_policy.h"
 
+#include "util/coding.h"
 #include "util/logging.h"
 #include "util/testharness.h"
 #include "util/testutil.h"
@@ -13,8 +14,8 @@ namespace leveldb {
 static const int kVerbose = 1;
 
 static Slice Key(int i, char* buffer) {
-  memcpy(buffer, &i, sizeof(i));
-  return Slice(buffer, sizeof(i));
+  EncodeFixed32(buffer, i);
+  return Slice(buffer, sizeof(uint32_t));
 }
 
 class BloomTest {
@@ -125,7 +126,8 @@ TEST(BloomTest, VaryingLengths) {
     }
     Build();
 
-    ASSERT_LE(FilterSize(), (length * 10 / 8) + 40) << length;
+    ASSERT_LE(FilterSize(), static_cast<size_t>((length * 10 / 8) + 40))
+        << length;
 
     // All added keys must match
     for (int i = 0; i < length; i++) {

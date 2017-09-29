@@ -6,3 +6,8 @@ build_config.mk
 *.so.*
 *_test
 db_bench
+leveldbutil
+Release
+Debug
+Benchmark
+vs2010.*

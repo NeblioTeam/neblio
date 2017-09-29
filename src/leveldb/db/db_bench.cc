@@ -128,7 +128,7 @@ class RandomGenerator {
     pos_ = 0;
   }
 
-  Slice Generate(int len) {
+  Slice Generate(size_t len) {
     if (pos_ + len > data_.size()) {
       pos_ = 0;
       assert(len < data_.size());
@@ -139,11 +139,11 @@ class RandomGenerator {
 };
 
 static Slice TrimSpace(Slice s) {
-  int start = 0;
+  size_t start = 0;
   while (start < s.size() && isspace(s[start])) {
     start++;
   }
-  int limit = s.size();
+  size_t limit = s.size();
   while (limit > start && isspace(s[limit-1])) {
     limit--;
   }
@@ -399,7 +399,7 @@ class Benchmark {
     heap_counter_(0) {
     std::vector<std::string> files;
     Env::Default()->GetChildren(FLAGS_db, &files);
-    for (int i = 0; i < files.size(); i++) {
+    for (size_t i = 0; i < files.size(); i++) {
       if (Slice(files[i]).starts_with("heap-")) {
         Env::Default()->DeleteFile(std::string(FLAGS_db) + "/" + files[i]);
       }
@@ -693,6 +693,7 @@ class Benchmark {
     options.create_if_missing = !FLAGS_use_existing_db;
     options.block_cache = cache_;
     options.write_buffer_size = FLAGS_write_buffer_size;
+    options.max_open_files = FLAGS_open_files;
     options.filter_policy = filter_policy_;
     Status s = DB::Open(options, FLAGS_db, &db_);
     if (!s.ok()) {
