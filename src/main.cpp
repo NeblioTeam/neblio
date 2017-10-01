@@ -2455,7 +2455,7 @@ CMerkleBlock::CMerkleBlock(const CBlock& block, CBloomFilter& filter)
         uint256 hash = block.vtx[i].GetHash();
         if (filter.IsRelevantAndUpdate(block.vtx[i], hash))
         {
-            vtx.push_back(make_tuple(i, hash, branch));
+            vtx.push_back(boost::make_tuple(i, hash, branch));
         }
     }
 }

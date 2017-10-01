@@ -1209,6 +1209,18 @@ public:
         nDoS = 0;
     }
 
+    CBlock GetBlockHeader() const
+    {
+        CBlock block;
+        block.nVersion       = nVersion;
+        block.hashPrevBlock  = hashPrevBlock;
+        block.hashMerkleRoot = hashMerkleRoot;
+        block.nTime          = nTime;
+        block.nBits          = nBits;
+        block.nNonce         = nNonce;
+        return block;
+    }
+
     bool IsNull() const
     {
         return (nBits == 0);
@@ -1916,9 +1928,9 @@ extern CTxMemPool mempool;
 struct CCoinsStats
 {
     int nHeight;
-    uint64 nTransactions;
-    uint64 nTransactionOutputs;
-    uint64 nSerializedSize;
+    uint64_t nTransactions;
+    uint64_t nTransactionOutputs;
+    uint64_t nSerializedSize;
 
     CCoinsStats() : nHeight(0), nTransactions(0), nTransactionOutputs(0), nSerializedSize(0) {}
 };
@@ -2022,7 +2034,7 @@ public:
 extern CCoinsViewCache *pcoinsTip;
 
 /** Global variable that points to the active block tree (protected by cs_main) */
-extern CBlockTreeDB *pblocktree;
+extern CTxDB *pblocktree;
 
 struct CBlockTemplate
 {
