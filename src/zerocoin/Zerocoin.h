@@ -49,6 +49,7 @@ public:
 #include "../serialize.h"
 #include "../bignum.h"
 #include "../util.h"
+#include "../hash.h"
 #include "Params.h"
 #include "Coin.h"
 #include "Commitment.h"
