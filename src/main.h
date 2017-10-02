@@ -2013,6 +2013,12 @@ public:
         result = i->second;
         return true;
     }
+
+    CTransaction& lookup(uint256 hash)
+    {
+        return mapTx[hash];
+    }
+
 };
 
 extern CTxMemPool mempool;
