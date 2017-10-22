@@ -2947,7 +2947,7 @@ void ThreadImport(void *data) {
     vnThreadsRunning[THREAD_IMPORT]++;
 
     // -loadblock=
-    uiInterface.InitMessage(_("Starting block import..."));
+    //uiInterface.InitMessage(_("Starting block import..."));
     BOOST_FOREACH(boost::filesystem::path &path, *vFiles) {
         FILE *file = fopen(path.string().c_str(), "rb");
         if (file)
@@ -2957,7 +2957,7 @@ void ThreadImport(void *data) {
     // hardcoded $DATADIR/bootstrap.dat
     filesystem::path pathBootstrap = GetDataDir() / "bootstrap.dat";
     if (filesystem::exists(pathBootstrap)) {
-        uiInterface.InitMessage(_("Importing bootstrap blockchain data file."));
+        //uiInterface.InitMessage(_("Importing bootstrap blockchain data file."));
 
         FILE *file = fopen(pathBootstrap.string().c_str(), "rb");
         if (file) {
