@@ -12,6 +12,7 @@
 #include "serialize.h"
 #include "uint256.h"
 #include "util.h"
+#include "hash.h"
 
 #include <openssl/ec.h> // for EC_KEY definition
 
@@ -113,9 +114,8 @@ protected:
     bool fSet;
     bool fCompressedPubKey;
 
-    void SetCompressedPubKey();
-
 public:
+    void SetCompressedPubKey(bool fCompressed = true);
 
     void Reset();
 

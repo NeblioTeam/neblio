@@ -36,3 +36,4 @@ build-notes.txt
 modifierIntervalCalc.rb
 
 !src/leveldb/Makefile
+hash.py
