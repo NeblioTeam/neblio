@@ -185,7 +185,7 @@ public:
 private:
   void Open() {
     // we truncate the file as implemented in env_posix
-     file_.open(path_.generic_string().c_str(), 
+     file_.open(path_.generic_string().c_str(),
          std::ios_base::trunc | std::ios_base::out | std::ios_base::binary);
      written_ = 0;
   }
@@ -434,7 +434,7 @@ class PosixEnv : public Env {
 
   virtual Status GetTestDirectory(std::string* result) {
     boost::system::error_code ec;
-    boost::filesystem::path temp_dir = 
+    boost::filesystem::path temp_dir =
         boost::filesystem::temp_directory_path(ec);
     if (ec != 0) {
       temp_dir = "tmp";
@@ -577,7 +577,7 @@ void PosixEnv::StartThread(void (*function)(void* arg), void* arg) {
 
 static boost::once_flag once = BOOST_ONCE_INIT;
 static Env* default_env;
-static void InitDefaultEnv() { 
+static void InitDefaultEnv() {
   ::memset(global_read_only_buf, 0, sizeof(global_read_only_buf));
   default_env = new PosixEnv;
 }
