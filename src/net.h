@@ -230,7 +230,6 @@ public:
     CBloomFilter* pfilter;
     int nRefCount;
 protected:
-    int nRefCount;
 
     // Denial-of-service detection/prevention
     // Key is IP address, value is banned-until-time
@@ -698,6 +697,15 @@ public:
     void copyStats(CNodeStats &stats);
 };
 
+inline void RelayInventory(const CInv& inv)
+{
+    // Put on lists to offer to the other nodes
+    {
+        LOCK(cs_vNodes);
+        BOOST_FOREACH(CNode* pnode, vNodes)
+            pnode->PushInventory(inv);
+    }
+}
 
 class CTransaction;
 void RelayTransaction(const CTransaction& tx, const uint256& hash);

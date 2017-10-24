@@ -8,7 +8,6 @@
 #include "init.h"
 #include "addrman.h"
 #include "ui_interface.h"
-#include "script.h"
 
 #ifdef WIN32
 #include <string.h>
@@ -2023,12 +2022,6 @@ public:
     }
 }
 instance_of_cnetcleanup;
-
-
-
-
-
-
 
 void RelayTransaction(const CTransaction& tx, const uint256& hash)
 {

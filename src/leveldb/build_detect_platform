@@ -170,8 +170,12 @@ set -f # temporarily disable globbing so that our patterns aren't expanded
 PRUNE_TEST="-name *test*.cc -prune"
 PRUNE_BENCH="-name *_bench.cc -prune"
 PRUNE_TOOL="-name leveldb_main.cc -prune"
-PRUNE_WIN="-name win_logger.cc -prune"
-PORTABLE_FILES=`find $DIRS $PRUNE_TEST -o $PRUNE_BENCH -o $PRUNE_TOOL -o $PRUNE_WIN -o -name '*.cc' -print | sort | sed "s,^$PREFIX/,," | tr "\n" " "`
+if [ "$PLATFORM" != "OS_WINDOWS" ]; then
+    PRUNE_WIN="-name win_logger.cc -prune"
+    PORTABLE_FILES=`find $DIRS $PRUNE_TEST -o $PRUNE_BENCH -o $PRUNE_TOOL -o $PRUNE_WIN -o -name '*.cc' -print | sort | sed "s,^$PREFIX/,," | tr "\n" " "`
+else
+    PORTABLE_FILES=`find $DIRS $PRUNE_TEST -o $PRUNE_BENCH -o $PRUNE_TOOL -o -name '*.cc' -print | sort | sed "s,^$PREFIX/,," | tr "\n" " "`
+fi
 
 set +f # re-enable globbing
 

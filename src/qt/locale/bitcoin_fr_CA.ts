@@ -96,7 +96,7 @@ This product includes software developed by the OpenSSL Project for use in the O
     <message>
         <location line="-14"/>
         <source>Verify a message to ensure it was signed with a specified neblio address</source>
-        <translation>Vérifier un message pour s&apos;assurer qu&apos;il vient d&apos;une adresse neblio spécifique.</translation>
+        <translation>Vérifier un message pour s&apos;assurer qu&apos;il vient d&apos;un adresse neblio spécifique.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -720,7 +720,7 @@ Adresse : %4
     <message>
         <location filename="../bitcoin.cpp" line="+109"/>
         <source>A fatal error occurred. neblio can no longer continue safely and will quit.</source>
-        <translation>Une erreur fatale a été rencontrée. L&apos;application neblio ne peut plus s&apos;exécuter de façon correcte et doit se terminer.</translation>
+        <translation>Une erreur fatale a été rencontrée. L&apos;application neblio ne peut plus être s&apos;exécuter de façon correcte et doit se terminer.</translation>
     </message>
 </context>
 <context>
@@ -1256,7 +1256,7 @@ Les montants inférieurs à  0.546 fois les frais minimum de relais apparaissent
     <message>
         <location line="+13"/>
         <source>The user interface language can be set here. This setting will take effect after restarting neblio.</source>
-        <translation>La langue d&apos;interface de de l&apos;utilisateur peut être définie ici. Ces modifications seront effectives après redémarrage de l&apos;application neblio</translation>
+        <translation>La langue d&apos;interface de de l&apos;utilisateur peut être définie ici. Ces modification seront effectives après redémarrage de l&apos;application neblio</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -1553,7 +1553,7 @@ Les montants inférieurs à  0.546 fois les frais minimum de relais apparaissent
     <message>
         <location line="+7"/>
         <source>Show the neblio-Qt help message to get a list with possible neblio command-line options.</source>
-        <translation>Afficher le message d&apos;aide neblio-Qt afin d&apos;obtenir la liste des options de l&apos;outil en ligne de commande neblio</translation>
+        <translation>Afficher le message d&apos;aide neblio-Qt afin d&apos;obtenir la liste des options de de L&apos;outil en ligne de commande neblio</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -1857,7 +1857,7 @@ Les montants inférieurs à  0.546 fois les frais minimum de relais apparaissent
     <message>
         <location line="+251"/>
         <source>WARNING: Invalid neblio address</source>
-        <translation>AVERTISSEMENT: Adresse neblio invalide</translation>
+        <translation>AVERTISSEMENT: Adresse neblio Invalide</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -1867,7 +1867,7 @@ Les montants inférieurs à  0.546 fois les frais minimum de relais apparaissent
     <message>
         <location line="+4"/>
         <source>WARNING: unknown change address</source>
-        <translation>AVERTISSEMET: Adresse neblio invalide</translation>
+        <translation>AVERTISSEMET: Adresse neblio Invalide</translation>
     </message>
 </context>
 <context>
@@ -2626,7 +2626,7 @@ Les montants inférieurs à  0.546 fois les frais minimum de relais apparaissent
     <message>
         <location line="+1"/>
         <source>Send command to -server or nebliod</source>
-        <translation>Envoyer la commande au -server ou nebliod</translation>
+        <translation>Envoyer commande à -server ou nebliod</translation>
     </message>
     <message>
         <location line="+1"/>
