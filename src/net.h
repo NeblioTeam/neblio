@@ -70,11 +70,11 @@ void SetReachable(enum Network net, bool fFlag = true);
 CAddress GetLocalAddress(const CNetAddr *paddrPeer = NULL);
 
 
-enum
-{
-    MSG_TX = 1,
-    MSG_BLOCK,
-};
+// enum
+// {
+//     MSG_TX = 1,
+//     MSG_BLOCK,
+// };
 
 class CRequestTracker
 {
@@ -108,6 +108,7 @@ enum threadId
     THREAD_DUMPADDRESS,
     THREAD_RPCHANDLER,
     THREAD_STAKE_MINER,
+    THREAD_IMPORT,
 
     THREAD_MAX
 };
@@ -219,9 +220,15 @@ public:
     bool fNetworkNode;
     bool fSuccessfullyConnected;
     bool fDisconnect;
+    // We use fRelayTxes for two purposes -
+    // a) it allows us to not relay tx invs before receiving the peer's version message
+    // b) the peer may tell us in their version message that we should not relay tx invs
+    //    until they have initialized their bloom filter.
+    bool fRelayTxes;
     CSemaphoreGrant grantOutbound;
     CCriticalSection cs_filter;
     CBloomFilter* pfilter;
+    int nRefCount;
 protected:
     int nRefCount;
 
@@ -281,6 +288,7 @@ public:
         fGetAddr = false;
         nMisbehavior = 0;
         hashCheckpointKnown = 0;
+        fRelayTxes = false;
         setInventoryKnown.max_size(SendBufferSize() / 1000);
         pfilter = NULL;
 

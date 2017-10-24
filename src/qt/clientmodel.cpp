@@ -114,6 +114,11 @@ bool ClientModel::inInitialBlockDownload() const
     return IsInitialBlockDownload();
 }
 
+bool ClientModel::isImporting() const
+{
+    return fImporting;
+}
+
 int ClientModel::getNumBlocksOfPeers() const
 {
     return GetNumBlocksOfPeers();

@@ -6,7 +6,6 @@
 #include "db.h"
 #include "net.h"
 #include "init.h"
-#include "strlcpy.h"
 #include "addrman.h"
 #include "ui_interface.h"
 #include "script.h"
@@ -2058,6 +2057,8 @@ void RelayTransaction(const CTransaction& tx, const uint256& hash, const CDataSt
     LOCK(cs_vNodes);
     BOOST_FOREACH(CNode* pnode, vNodes)
     {
+        if(!pnode->fRelayTxes)
+            continue;
         LOCK(pnode->cs_filter);
         if (pnode->pfilter)
         {

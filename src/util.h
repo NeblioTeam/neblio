@@ -443,6 +443,7 @@ static inline uint32_t insecure_rand(void)
  */
 void seed_insecure_rand(bool fDeterministic=false);
 
+
 /**
  * Timing-attack-resistant comparison.
  * Takes time proportional to length

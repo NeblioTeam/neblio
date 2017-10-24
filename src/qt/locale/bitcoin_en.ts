@@ -86,12 +86,12 @@ This product includes software developed by the OpenSSL Project for use in the O
     <message>
         <location line="+3"/>
         <source>Sign &amp;Message</source>
-        <translation></translation>
+        <translation>Sign &amp;Message</translation>
     </message>
     <message>
         <location line="+25"/>
         <source>Delete the currently selected address from the list</source>
-        <translation></translation>
+        <translation>Delete the currently selected address from the list</translation>
     </message>
     <message>
         <location line="-14"/>
@@ -247,7 +247,7 @@ This product includes software developed by the OpenSSL Project for use in the O
     <message>
         <location line="+15"/>
         <source>IMPORTANT: Any previous backups you have made of your wallet file should be replaced with the newly generated, encrypted wallet file. For security reasons, previous backups of the unencrypted wallet file will become useless as soon as you start using the new, encrypted wallet.</source>
-        <translation></translation>
+        <translation>IMPORTANT: Any previous backups you have made of your wallet file should be replaced with the newly generated, encrypted wallet file. For security reasons, previous backups of the unencrypted wallet file will become useless as soon as you start using the new, encrypted wallet.</translation>
     </message>
     <message>
         <location line="+103"/>
@@ -1738,7 +1738,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="+3"/>
         <source>Add &amp;Recipient</source>
-        <translation type="unfinished"></translation>
+        <translation>Add &amp;Recipient</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -1768,7 +1768,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="+3"/>
         <source>S&amp;end</source>
-        <translation type="unfinished"></translation>
+        <translation>S&amp;end</translation>
     </message>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="-173"/>
@@ -2744,7 +2744,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="-44"/>
         <source>An error occurred while setting up the RPC port %u for listening on IPv4: %s</source>
-        <translation></translation>
+        <translation>An error occurred while setting up the RPC port %u for listening on IPv4: %s</translation>
     </message>
     <message>
         <location line="+51"/>
@@ -2784,12 +2784,12 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="-8"/>
         <source>Importing blockchain data file.</source>
-        <translation></translation>
+        <translation>Importing blockchain data file.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Importing bootstrap blockchain data file.</source>
-        <translation></translation>
+        <translation>Importing bootstrap blockchain data file.</translation>
     </message>
     <message>
         <location line="-88"/>
@@ -2809,7 +2809,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="-38"/>
         <source>An error occurred while setting up the RPC port %u for listening on IPv6, falling back to IPv4: %s</source>
-        <translation></translation>
+        <translation>An error occurred while setting up the RPC port %u for listening on IPv6, falling back to IPv4: %s</translation>
     </message>
     <message>
         <location line="+117"/>

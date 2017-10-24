@@ -15,7 +15,7 @@ using namespace std;
 
 static const unsigned char bit_mask[8] = {0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80};
 
-CBloomFilter::CBloomFilter(unsigned int nElements, double nFPRate) :
+CBloomFilter::CBloomFilter(unsigned int nElements, double nFPRate, unsigned int nTweakIn, unsigned char nFlagsIn) :
 // The ideal size for a bloom filter with a given number of elements and false positive rate is:
 // - nElements * log(fp rate) / ln(2)^2
 // We ignore filter parameters which will create a bloom filter larger than the protocol limits
@@ -23,14 +23,16 @@ vData(min((unsigned int)(-1  / LN2SQUARED * nElements * log(nFPRate)), MAX_BLOOM
 // The ideal number of hash functions is filter size * ln(2) / number of elements
 // Again, we ignore filter parameters which will create a bloom filter with more hash functions than the protocol limits
 // See http://en.wikipedia.org/wiki/Bloom_filter for an explanation of these formulas
-nHashFuncs(min((unsigned int)(vData.size() * 8 / nElements * LN2), MAX_HASH_FUNCS))
+nHashFuncs(min((unsigned int)(vData.size() * 8 / nElements * LN2), MAX_HASH_FUNCS)),
+nTweak(nTweakIn),
+nFlags(nFlagsIn)
 {
 }
 
 inline unsigned int CBloomFilter::Hash(unsigned int nHashNum, const std::vector<unsigned char>& vDataToHash) const
 {
     // 0xFBA4C795 chosen as it guarantees a reasonable bit difference between nHashNum values.
-    return MurmurHash3(nHashNum * 0xFBA4C795, vDataToHash) % (vData.size() * 8);
+    return MurmurHash3(nHashNum * 0xFBA4C795 + nTweak, vDataToHash) % (vData.size() * 8);
 }
 
 void CBloomFilter::insert(const vector<unsigned char>& vKey)
@@ -101,7 +103,7 @@ bool CBloomFilter::IsRelevantAndUpdate(const CTransaction& tx, const uint256& ha
         const CTxOut& txout = tx.vout[i];
         // Match if the filter contains any arbitrary script data element in any scriptPubKey in tx
         // If this matches, also add the specific output that was matched.
-        // This means clients don't have to update the filter themselves when a new relevant tx 
+        // This means clients don't have to update the filter themselves when a new relevant tx
         // is discovered in order to find spending transactions, which avoids round-tripping and race conditions.
         CScript::const_iterator pc = txout.scriptPubKey.begin();
         vector<unsigned char> data;
@@ -113,7 +115,16 @@ bool CBloomFilter::IsRelevantAndUpdate(const CTransaction& tx, const uint256& ha
             if (data.size() != 0 && contains(data))
             {
                 fFound = true;
-                insert(COutPoint(hash, i));
+                if ((nFlags & BLOOM_UPDATE_MASK) == BLOOM_UPDATE_ALL)
+                    insert(COutPoint(hash, i));
+                else if ((nFlags & BLOOM_UPDATE_MASK) == BLOOM_UPDATE_P2PUBKEY_ONLY)
+                {
+                    txnouttype type;
+                    vector<vector<unsigned char> > vSolutions;
+                    if (Solver(txout.scriptPubKey, type, vSolutions) &&
+                            (type == TX_PUBKEY || type == TX_MULTISIG))
+                        insert(COutPoint(hash, i));
+                }
                 break;
             }
         }
