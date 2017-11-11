@@ -64,7 +64,7 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message>
         <location line="-46"/>
         <source>These are your neblio addresses for receiving payments. You may want to give a different one to each sender so you can keep track of who is paying you.</source>
-        <translation>Das sind Ihre neblio Adressen um Zahlungen zu erhalten. Sie werden vielleicht verschiedene an jeden Sender vergeben, damit Sie im Auge behalten können wer sie bezahlt.</translation>
+        <translation>Das sind Ihre neblio Adressen um Zahlungen zu erhalten. Sie kÖnnen jedem Sender eine andere Adresse gebenn, damit Sie im Auge behalten können wer sie bezahlt.</translation>
     </message>
     <message>
         <location line="+60"/>
@@ -240,7 +240,7 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message>
         <location line="+0"/>
         <source>Are you sure you wish to encrypt your wallet?</source>
-        <translation>Sind Sie sich sicher, dass Sie ihre Wallet verschlüsseln möchten?</translation>
+        <translation>Sind Sie sicher, dass Sie ihre Wallet verschlüsseln möchten?</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -262,7 +262,7 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message>
         <location line="-58"/>
         <source>neblio will close now to finish the encryption process. Remember that encrypting your wallet cannot fully protect your tokens from being stolen by malware infecting your computer.</source>
-        <translation type="unfinished"/>
+          <translation>Neblio wird beendet, um den Verschlüsselungsprozess fertigzustellen. Achtung! Auch ein verschlüsseltes Wallet kann Ihre Tokens nicht gänzlich davor schützen, durch auf Ihrem Computer installierte Schadsoftware gestohlen zu werden </translation>
     </message>
     <message>
         <location line="+13"/>
