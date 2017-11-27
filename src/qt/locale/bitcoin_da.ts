@@ -575,7 +575,7 @@ Produktet indeholder software, som er udviklet af OpenSSL Project til brug i Ope
     <message>
         <location line="+2"/>
         <source>Not staking because you don&apos;t have mature tokens</source>
-        <translation>Ingen rente fordi der ingen modne mønter eksistere </translation>
+        <translation>Ingen rente fordi der ingen modne mønter eksisterer </translation>
     </message>
     <message numerus="yes">
         <location line="-403"/>
@@ -1126,7 +1126,7 @@ Det betyder, at et gebyr på mindst %2 er påkrævet.</translation>
     <message>
         <location line="+6"/>
         <source>Optional transaction fee per kB that helps make sure your transactions are processed quickly. Most transactions are 1 kB. Fee 0.01 recommended.</source>
-        <translation>Valgfri transaktionsgebyr pr kB, som hjælper med at sikre dine transaktioner bliver behandlet hurtigt. De fleste transaktioner er 1 kB. Gebyr 0,01 anbefales.</translation>
+        <translation>Valgfrit transaktionsgebyr pr. kB, som hjælper med at sikre, at dine transaktioner bliver behandlet hurtigt. De fleste transaktioner er 1 kB. Gebyr 0,01 anbefales.</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -1136,7 +1136,7 @@ Det betyder, at et gebyr på mindst %2 er påkrævet.</translation>
     <message>
         <location line="+31"/>
         <source>Reserved amount does not participate in staking and is therefore spendable at any time.</source>
-        <translation>Reserveret beløb deltager ikke i forrentning og er derfor tilrådighed til enhver tid.</translation>
+        <translation>Reserveret beløb deltager ikke i forrentning og er derfor til rådighed til enhver tid.</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -1151,7 +1151,7 @@ Det betyder, at et gebyr på mindst %2 er påkrævet.</translation>
     <message>
         <location line="+3"/>
         <source>&amp;Start neblio on system login</source>
-        <translation>&amp;Start neblio ved systems login</translation>
+        <translation>&amp;Start neblio ved systemets login</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -1281,7 +1281,7 @@ Det betyder, at et gebyr på mindst %2 er påkrævet.</translation>
     <message>
         <location line="+7"/>
         <source>Whether to show coin control features or not.</source>
-        <translation> Vis mønt kontrol funktioner eller ej.</translation>
+        <translation> Vis møntkontrolfunktioner eller ej.</translation>
     </message>
     <message>
         <location line="+3"/>
