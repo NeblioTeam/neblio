@@ -854,6 +854,7 @@ bool AppInit2()
         BOOST_FOREACH(string strFile, mapMultiArgs["-loadblock"])
             vPath->push_back(strFile);
     }
+    uiInterface.InitMessage(_("Importing blockchain data file."));
     NewThread(ThreadImport, vPath);
 
     // ********************************************************* Step 10: load peers
