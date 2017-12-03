@@ -1,8 +1,47 @@
 <?xml version="1.0" ?><!DOCTYPE TS><TS language="de" version="2.1">
 <context>
     <name>AboutDialog</name>
-    <message>
-        <location filename="../forms/aboutdialog.ui" line="+14"/>
+    <message><?xml version="1.0" ?><!DOCTYPE TS><TS language="de" version="2.1">
+<context>
+    <name>AboutDialog</name>
+    <message>
+        <location filename="../forms/aboutdialog.ui" line="+14"/>
+        <source>About neblio</source>
+        <translation>Über neblio</translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <source>&lt;b&gt;neblio&lt;/b&gt; version</source>
+        <translation>&lt;b&gt;neblio&lt;/b&gt; Version</translation>
+    </message>
+    <message>
+        <location line="+41"/>
+        <source>Copyright © 2009-2014 The Bitcoin developers
+Copyright © 2012-2014 The NovaCoin developers
+Copyright © 2017 The Neblio developers</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>
+This is experimental software.
+Distributed under the MIT/X11 software license, see the accompanying file COPYING or http://www.opensource.org/licenses/mit-license.php.
+This product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit (http://www.openssl.org/) and cryptographic software written by Eric Young (eay@cryptsoft.com) and UPnP software written by Thomas Bernard.</source>
+        <translation>
+Dies ist experimentelle Software.
+Veröffentlicht unter der MIT/X11-Softwarelizenz, siehe beiligende Datei COPYING oder http://www.opensource.org/licenses/mit-license.php.
+Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im OpenSSL-Toolkit (http://www.openssl.org/) entwickelt wurde, sowie kryptographische Software geschrieben von Eric Young (eay@cryptsoft.com) und UPnP-Software geschrieben von Thomas Bernard.</translation>
+    </message>
+</context>
+<context>
+    <name>AddressBookPage</name>
+    <message>
+        <location filename="../forms/addressbookpage.ui" line="+14"/>
+        <source>Address Book</source>
+        <translation>Adressbuch</translation>
+    </message>
+    <message>
+           <location filename="../forms/aboutdialog.ui" line="+14"/>
         <source>About neblio</source>
         <translation>Über neblio</translation>
     </message>
@@ -64,7 +103,7 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message>
         <location line="-46"/>
         <source>These are your neblio addresses for receiving payments. You may want to give a different one to each sender so you can keep track of who is paying you.</source>
-        <translation>Das sind Ihre neblio Adressen um Zahlungen zu erhalten. Sie kÖnnen jedem Sender eine andere Adresse gebenn, damit Sie im Auge behalten können wer sie bezahlt.</translation>
+        <translation>Das sind Ihre neblio Adressen, um Zahlungen zu erhalten. Sie können jedem Sender eine andere Adresse geben, um besser nachvollziehen zu können, von wem Sie Zahlungen erhalten.</translation>
     </message>
     <message>
         <location line="+60"/>
@@ -79,27 +118,27 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message>
         <location line="+11"/>
         <source>Sign a message to prove you own a neblio address</source>
-        <translation type="unfinished"/>
+        <translation>Eine nachricht signieren, um zu beweisen, dass Sie eine neblio Adresse besitzen</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Sign &amp;Message</source>
-        <translation type="unfinished"/>
+        <translation>Nachricht &amp; signieren</translation>
     </message>
     <message>
         <location line="+25"/>
         <source>Delete the currently selected address from the list</source>
-        <translation>Ausgewählte Adresse aus der Liste entfernen</translation>
+        <translation>Ausgewählte Adresse aus der Liste löschen</translation>
     </message>
     <message>
         <location line="-14"/>
         <source>Verify a message to ensure it was signed with a specified neblio address</source>
-        <translation type="unfinished"/>
+        <translation>Eine Nachricht verifizieren, um sicherzustellen, dass sie mit einer bestimmten neblio Adresse signiert wurde</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>&amp;Verify Message</source>
-        <translation type="unfinished"/>
+        <translation>&amp;Nachricht verifizieren</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -119,7 +158,7 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message>
         <location line="+250"/>
         <source>Export Address Book Data</source>
-        <translation type="unfinished"/>
+        <translation>Adressbuchdaten exportieren</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -129,12 +168,12 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message>
         <location line="+13"/>
         <source>Error exporting</source>
-        <translation type="unfinished"/>
+        <translation>Fehler beim Exportieren</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Could not write to file %1.</source>
-        <translation type="unfinished"/>
+        <translation>Datei %1 konnte nicht geschrieben werden</translation>
     </message>
 </context>
 <context>
@@ -180,7 +219,7 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message>
         <location line="+33"/>
         <source>Serves to disable the trivial sendmoney when OS account compromised. Provides no real security.</source>
-        <translation type="unfinished"/>
+        <translation>Dient zur Deaktivierung des einfachen Sendens von Tokens, wenn das Betriebsystemkonto komprimittiert wurde. Bietet keine richtige Sicherheit.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -200,7 +239,7 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message>
         <location line="+7"/>
         <source>This operation needs your wallet passphrase to unlock the wallet.</source>
-        <translation>Dieser Vorgang benötigt ihre Passphrase, um die Wallet zu entsperren.</translation>
+        <translation>Dieser Vorgang benötigt ihre Wallet-Passphrase, um die Wallet zu entsperren.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -210,7 +249,7 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message>
         <location line="+3"/>
         <source>This operation needs your wallet passphrase to decrypt the wallet.</source>
-        <translation>Dieser Vorgang benötigt ihre Passphrase, um die Wallet zu entschlüsseln.</translation>
+        <translation>Dieser Vorgang benötigt ihre Wallet-Passphrase, um die Wallet zu entschlüsseln.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -235,17 +274,17 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message>
         <location line="+1"/>
         <source>Warning: If you encrypt your wallet and lose your passphrase, you will &lt;b&gt;LOSE ALL OF YOUR COINS&lt;/b&gt;!</source>
-        <translation type="unfinished"/>
+        <translation>WARNUNG: Wenn Sie Ihre Wallet verschlüsseln und dann Ihre Passphrase vergessen, werden Sie&lt;b&gt; ALLE IHRE COINS VERLIEREN&lt;/b&gt;!</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Are you sure you wish to encrypt your wallet?</source>
-        <translation>Sind Sie sicher, dass Sie ihre Wallet verschlüsseln möchten?</translation>
+        <translation>Sind Sie sicher, dass Sie Ihre Wallet verschlüsseln möchten?</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>IMPORTANT: Any previous backups you have made of your wallet file should be replaced with the newly generated, encrypted wallet file. For security reasons, previous backups of the unencrypted wallet file will become useless as soon as you start using the new, encrypted wallet.</source>
-        <translation>WICHTIG: Alle vorherigen Wallet-Sicherungen sollten durch die neu erzeugte, verschlüsselte Wallet ersetzt werden. Aus Sicherheitsgründen werden vorherige Sicherungen der unverschlüsselten Wallet nutzlos, sobald Sie die neue, verschlüsselte Wallet verwenden.</translation>
+        <translation>WICHTIG: Alle vorherigen Wallet-Sicherungen sollten durch die neu erzeugte, verschlüsselte Wallet-Datei  ersetzt werden. Aus Sicherheitsgründen werden vorherige Sicherungen der unverschlüsselten Wallet nutzlos, sobald Sie die neue, verschlüsselte Wallet verwenden.</translation>
     </message>
     <message>
         <location line="+103"/>
@@ -262,7 +301,7 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message>
         <location line="-58"/>
         <source>neblio will close now to finish the encryption process. Remember that encrypting your wallet cannot fully protect your tokens from being stolen by malware infecting your computer.</source>
-          <translation>Neblio wird beendet, um den Verschlüsselungsprozess fertigzustellen. Achtung! Auch ein verschlüsseltes Wallet kann Ihre Tokens nicht gänzlich davor schützen, durch auf Ihrem Computer installierte Schadsoftware gestohlen zu werden </translation>
+          <translation>Neblio wird beendet, um den Verschlüsselungsprozess fertigzustellen. WARNUNG! Auch eine verschlüsselte Wallet kann Ihre Tokens nicht gänzlich davor schützen, durch auf Ihrem Computer installierte Schadsoftware gestohlen zu werden </translation>
     </message>
     <message>
         <location line="+13"/>
@@ -341,27 +380,27 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message>
         <location line="+5"/>
         <source>&amp;Address Book</source>
-        <translation type="unfinished"/>
+        <translation>&amp;Adressbuch</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Edit the list of stored addresses and labels</source>
-        <translation type="unfinished"/>
+        <translation>Liste der gespeicherten Adressen und Bezeichnungen bearbeiten</translation>
     </message>
     <message>
         <location line="-13"/>
         <source>&amp;Receive tokens</source>
-        <translation type="unfinished"/>
+        <translation>Tokens Empfangen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Show the list of addresses for receiving payments</source>
-        <translation type="unfinished"/>
+        <translation>Liste der Adressen zum Erhalt von Zahlungen anzeigen</translation>
     </message>
     <message>
         <location line="-7"/>
         <source>&amp;Send tokens</source>
-        <translation type="unfinished"/>
+        <translation>&amp;Tokens senden</translate>
     </message>
     <message>
         <location line="+35"/>
@@ -376,7 +415,7 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message>
         <location line="+4"/>
         <source>Show information about neblio</source>
-        <translation type="unfinished"/>
+        <translation>Informationen über neblio anzeigen</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -411,37 +450,37 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message numerus="yes">
         <location line="+250"/>
         <source>~%n block(s) remaining</source>
-        <translation type="unfinished"><numerusform></numerusform><numerusform></numerusform></translation>
+        <translation>~%n Blöcke verbleiben</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Downloaded %1 of %2 blocks of transaction history (%3% done).</source>
-        <translation type="unfinished"/>
+        <translation>%1 von %2 Blöcken der Transaktionshistorie heruntergeladen (%3%).</translation>
     </message>
     <message>
         <location line="-247"/>
         <source>&amp;Export...</source>
-        <translation type="unfinished"/>
+        <translation>&amp;Exportiere...</translation>
     </message>
     <message>
         <location line="-62"/>
         <source>Send tokens to a neblio address</source>
-        <translation type="unfinished"/>
+        <translation>Token an eine neblio Adresse senden</translation>
     </message>
     <message>
         <location line="+45"/>
         <source>Modify configuration options for neblio</source>
-        <translation type="unfinished"/>
+        <translation>neblio Konfiguration anpassen</translate>
     </message>
     <message>
         <location line="+18"/>
         <source>Export the data in the current tab to a file</source>
-        <translation type="unfinished"/>
+        <translation>Daten in aktueller Registerkarte in eine Datei exportieren</translation>
     </message>
     <message>
         <location line="-14"/>
         <source>Encrypt or decrypt wallet</source>
-        <translation type="unfinished"/>
+        <translation>Wallet Verschlüsseln oder Entschlüsseln</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -481,7 +520,7 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message>
         <location line="+178"/>
         <source>&amp;About neblio</source>
-        <translation type="unfinished"/>
+        <translation>&amp;Über neblio</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -491,17 +530,17 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message>
         <location line="+9"/>
         <source>Unlock wallet</source>
-        <translation type="unfinished"/>
+        <translation>Wallet entsperren</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>&amp;Lock Wallet</source>
-        <translation type="unfinished"/>
+        <translation>&amp;Wallet sperren</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Lock wallet</source>
-        <translation type="unfinished"/>
+        <translation>Wallet sperren</translation>
     </message>
     <message>
         <location line="+34"/>
@@ -538,67 +577,67 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
         <location line="+0"/>
         <location line="+60"/>
         <source>neblio client</source>
-        <translation type="unfinished"/>
+        <translation>neblio Client</translation>
     </message>
     <message numerus="yes">
         <location line="+70"/>
         <source>%n active connection(s) to neblio network</source>
-        <translation type="unfinished"><numerusform></numerusform><numerusform></numerusform></translation>
+        <translation>%n aktive Verbindungen zum neblio-Netzwerk</translation>
     </message>
     <message>
         <location line="+40"/>
         <source>Downloaded %1 blocks of transaction history.</source>
-        <translation type="unfinished"/>
+        <translation>%1 Blöcke der Transaktionshistorie heruntergeladen.</translation>
     </message>
     <message>
         <location line="+413"/>
         <source>Staking.&lt;br&gt;Your weight is %1&lt;br&gt;Network weight is %2&lt;br&gt;Expected time to earn reward is %3</source>
-        <translation type="unfinished"/>
+        <translatiion>Staking.&lt;br&gt;Ihre Gewicht ist %1&lt;br&gt;Netzwerk Gewicht ist %2&lt;br&gt;Belohnung ungefähr in %3 erwartet</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Not staking because wallet is locked</source>
-        <translation type="unfinished"/>
+        <translation>Kein Staking, weil die Wallet gesperrt ist</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Not staking because wallet is offline</source>
-        <translation type="unfinished"/>
+        <translation>Kein Staking, weil die Wallet offline ist</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Not staking because wallet is syncing</source>
-        <translation type="unfinished"/>
+        <translation>Kein Staking, weil die Wallet noch synchronisiert wird</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Not staking because you don&apos;t have mature tokens</source>
-        <translation type="unfinished"/>
+        <translation>Kein Staking, weil Sie keine gereiften Tokens haben</translation>
     </message>
     <message numerus="yes">
         <location line="-403"/>
         <source>%n second(s) ago</source>
-        <translation type="unfinished"><numerusform></numerusform><numerusform></numerusform></translation>
+        <translation>vor %n Sekunden</translation>
     </message>
     <message>
         <location line="-284"/>
         <source>&amp;Unlock Wallet...</source>
-        <translation type="unfinished"/>
+        <translation>&amp;Wallet entsperren...</translation>
     </message>
     <message numerus="yes">
         <location line="+288"/>
         <source>%n minute(s) ago</source>
-        <translation type="unfinished"><numerusform></numerusform><numerusform></numerusform></translation>
+        <translation>vor %n Minuten</translation>
     </message>
     <message numerus="yes">
         <location line="+4"/>
         <source>%n hour(s) ago</source>
-        <translation type="unfinished"><numerusform></numerusform><numerusform></numerusform></translation>
+        <translation>vor %n Stunden</translation>
     </message>
     <message numerus="yes">
         <location line="+4"/>
         <source>%n day(s) ago</source>
-        <translation type="unfinished"><numerusform></numerusform><numerusform></numerusform></translation>
+        <translation>vor %n Tagen</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -613,17 +652,17 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message>
         <location line="+10"/>
         <source>Last received block was generated %1.</source>
-        <translation type="unfinished"/>
+        <translation>Letzter empfangener Block wurde %1 generiert</translation>
     </message>
     <message>
         <location line="+59"/>
         <source>This transaction is over the size limit.  You can still send it for a fee of %1, which goes to the nodes that process your transaction and helps to support the network.  Do you want to pay the fee?</source>
-        <translation type="unfinished"/>
+        <translation>Diese Transaktion überschreitet die maximale Grösse. Sie können Sie gegen eine Gebühr von %1 dennoch senden. Diese Gebühr geht an die Knoten, die die Transaktion durchführen und hilft, das Netzwerk aufrecht zu erhalten. Möchten Sie die Gebühr bezahlen?</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Confirm transaction fee</source>
-        <translation type="unfinished"/>
+        <translation>Transaktionsgebühr bestätigen</translation>
     </message>
     <message>
         <location line="+27"/>
@@ -651,13 +690,13 @@ Adresse: %4</translation>
         <location line="+100"/>
         <location line="+15"/>
         <source>URI handling</source>
-        <translation type="unfinished"/>
+        <translation>URI Handhabung</translation>
     </message>
     <message>
         <location line="-15"/>
         <location line="+15"/>
         <source>URI can not be parsed! This can be caused by an invalid neblio address or malformed URI parameters.</source>
-        <translation type="unfinished"/>
+        <translation>URI kann nicht geparsed werden! Dies kann an einer ungültigen neblio Adresse oder falschen URI Parametern liegen</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -672,37 +711,37 @@ Adresse: %4</translation>
     <message>
         <location line="+25"/>
         <source>Backup Wallet</source>
-        <translation type="unfinished"/>
+        <translation>Sicherheitskopie der Wallet speichern</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Wallet Data (*.dat)</source>
-        <translation type="unfinished"/>
+        <translation>Wallet Datei (*.dat)</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Backup Failed</source>
-        <translation type="unfinished"/>
+        <translation>Speichern der Sicherheitskopie fehlgeschlagen</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>There was an error trying to save the wallet data to the new location.</source>
-        <translation type="unfinished"/>
+        <translation>Fehler beim Versuch, die Wallet-Datei an einem anderen Ort zu speichern.</translation>
     </message>
     <message numerus="yes">
         <location line="+76"/>
         <source>%n second(s)</source>
-        <translation type="unfinished"><numerusform></numerusform><numerusform></numerusform></translation>
+        <translation>%n Sekunde(n)</translation>
     </message>
     <message numerus="yes">
         <location line="+4"/>
         <source>%n minute(s)</source>
-        <translation type="unfinished"><numerusform></numerusform><numerusform></numerusform></translation>
+        <translation>%n Minute(n)</translation>
     </message>
     <message numerus="yes">
         <location line="+4"/>
         <source>%n hour(s)</source>
-        <translation><numerusform>%n Stunde</numerusform><numerusform>%n Stunden</numerusform></translation>
+        <translation>%n Stunde(n)</translation>
     </message>
     <message numerus="yes">
         <location line="+4"/>
@@ -712,12 +751,12 @@ Adresse: %4</translation>
     <message>
         <location line="+18"/>
         <source>Not staking</source>
-        <translation type="unfinished"/>
+        <translation type>Kein Staking</translation>
     </message>
     <message>
         <location filename="../bitcoin.cpp" line="+109"/>
         <source>A fatal error occurred. neblio can no longer continue safely and will quit.</source>
-        <translation type="unfinished"/>
+        <translation type>Ein schwerwiegender Fehler ist aufgetreten. neblio kann nicht mehr sicher ausgeführt werden und wird beendet</translation>
     </message>
 </context>
 <context>
@@ -938,7 +977,11 @@ Adresse: %4</translation>
  This means a fee of at least %1 per kb is required.
 
  Can vary +/- 1 Byte per input.</source>
-        <translation type="unfinished"/>
+        <translation>Diese Anzeige wird rot, wenn die Grösse einer Transaktion 10000 byte überschreitet.
+
+ In diesem Fall wird eine Transaktionsgebühr von mindestens %1 pro kb fällig.
+
+ Kann +/- 1 Byte pro Eingabe variieren.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -947,7 +990,11 @@ Adresse: %4</translation>
 This label turns red, if the priority is smaller than &quot;medium&quot;.
 
  This means a fee of at least %1 per kb is required.</source>
-        <translation type="unfinished"/>
+        <translation>Je höher die Priorität einer Transaktion, desto wahrscheinlicher ist es, einem Block zu gewinnen.
+
+Diese Anzeige wird rot, wenn die Grösse einer Transaktion 10000 byte überschreitet.
+
+ In diesem Fall wird eine Transaktionsgebühr von mindestens %1 pro kb fällig.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -956,14 +1003,20 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
  This means a fee of at least %2 is required.
 
  Amounts below 0.546 times the minimum relay fee are shown as DUST.</source>
-        <translation type="unfinished"/>
+        <translation>Diese Anzeige wird rot, wenn die ein Empfänger einen kleineren Betrag als %1 empfängt.
+
+ In diesem Fall wird eine Transaktionsgebühr von mindestens %2 fällig.
+
+ Beträge unter dem 0,546-fachen der fälligen Gebühr werden als DUST angezeigt.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This label turns red, if the change is smaller than %1.
 
  This means a fee of at least %2 is required.</source>
-        <translation type="unfinished"/>
+        <translation>Diese Anzeige wird rot, wenn die Veränderung weniger als %1 ist.
+
+ In diesem Fall wird eine Transaktionsgebühr von mindestens %2 fällig.</translation>
     </message>
     <message>
         <location line="+37"/>
@@ -997,7 +1050,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="+10"/>
         <source>The label associated with this address book entry</source>
-        <translation>Die Kennzeichnung verbunden mit diesem Adressbucheintrag.</translation>
+        <translation>Mit diesem Adressbucheintrag verknüpfte Bezeichnung.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -1007,7 +1060,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="+10"/>
         <source>The address associated with this address book entry. This can only be modified for sending addresses.</source>
-        <translation>Die Adresse verknüpft mit diesem Adressbucheintrag. Kann nur bei Ausgangsadressen verändert werden.</translation>
+        <translation>Mit diesem Adressbucheintrag verknüpfte Bezeichnung. Kann nur bei Ausgangsadressen verändert werden.</translation>
     </message>
     <message>
         <location filename="../editaddressdialog.cpp" line="+20"/>
@@ -1061,7 +1114,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="-12"/>
         <source>version</source>
-        <translation>version</translation>
+        <translation>Version</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -1076,12 +1129,12 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="+4"/>
         <source>UI options</source>
-        <translation type="unfinished"/>
+        <translation>Einstellungen der Benutzeroberfläche</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Set language, for example &quot;de_DE&quot; (default: system locale)</source>
-        <translation type="unfinished"/>
+        <translation>Sprache einstellen, z.B. &quot;de_DE&quot; (Standard: Systemeinstellung)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -1091,7 +1144,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="+1"/>
         <source>Show splash screen on startup (default: 1)</source>
-        <translation type="unfinished"/>
+        <translation>Beim Starten Startbild anzeigen (standard:1)</translation>
     </message>
 </context>
 <context>
@@ -1109,7 +1162,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="+6"/>
         <source>Optional transaction fee per kB that helps make sure your transactions are processed quickly. Most transactions are 1 kB. Fee 0.01 recommended.</source>
-        <translation type="unfinished"/>
+        <translation>Optionale Transaktionsgebühr pro kB, die hilft, dass Ihre Transaktion schnell durchgeführt wird</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -1119,7 +1172,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="+31"/>
         <source>Reserved amount does not participate in staking and is therefore spendable at any time.</source>
-        <translation type="unfinished"/>
+        <translation>Reservierte Beträge nehmen nicht am Staking teil und können deswegen nicht ausgegeben werden</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -1129,12 +1182,12 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="+31"/>
         <source>Automatically start neblio after logging in to the system.</source>
-        <translation>Automatisch neblio starten beim Einloggen in das System.</translation>
+        <translation>Neblio beim Systemstart automatisch starten.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>&amp;Start neblio on system login</source>
-        <translation>&amp;Starte neblio bei Systemstart</translation>
+        <translation>&amp;Starte neblio bei der Benutzeranmeldung</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -1154,7 +1207,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="+6"/>
         <source>Automatically open the neblio client port on the router. This only works when your router supports UPnP and it is enabled.</source>
-        <translation>Automatisch den neblio client port auf dem Router öffnen. Das funktioniert nur wenn der Router UPnP unterstützt und UPnP aktiviert ist.</translation>
+        <translation>Automatisch den neblio Client Port auf dem Router öffnen. Das funktioniert nur wenn der Router UPnP unterstützt und UPnP aktiviert ist.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -1164,12 +1217,12 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="+7"/>
         <source>Connect to the neblio network through a SOCKS proxy (e.g. when connecting through Tor).</source>
-        <translation type="unfinished"/>
+        <translation>Verbindung zum neblio Netzwerk über einen SOCKS Proxy herstellen (z.B. bei Verbindung über Tor).</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>&amp;Connect through SOCKS proxy:</source>
-        <translation type="unfinished"/>
+        <translation>&amp;Verbinde über SOCKS Proxy</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -1269,7 +1322,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="+3"/>
         <source>Display coin &amp;control features (experts only!)</source>
-        <translation>Coin &amp;control features anzeigen (nur experten!)</translation>
+        <translation>Coin &amp;control features anzeigen (nur Experten!)</translation>
     </message>
     <message>
         <location line="+71"/>
@@ -1320,7 +1373,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
         <location line="+33"/>
         <location line="+231"/>
         <source>The displayed information may be out of date. Your wallet automatically synchronizes with the neblio network after a connection is established, but this process has not completed yet.</source>
-        <translation>Die angezeigte Information kann falsch sein. Die Brieftasche synchronisiert automatisch mit dem neblio Netzwerk nachdem eine Verbindung zustande gekommen ist, aber dieser Prozess ist nicht abgeschlossen.</translation>
+        <translation>Die angezeigte Information kann falsch sein. Die Wallet synchronisiert automatisch mit dem neblio Netzwerk nachdem eine Verbindung zustande gekommen ist, aber dieser Prozess ist nicht abgeschlossen.</translation>
     </message>
     <message>
         <location line="-160"/>
@@ -1380,7 +1433,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="-29"/>
         <source>Total number of tokens that were staked, and do not yet count toward the current balance</source>
-        <translation type="unfinished"/>
+        <translation>Summe der Tokens, die durch Staking verdient wurden, und noch nicht zum gesamten Guthaben zählen</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="+113"/>
@@ -1536,7 +1589,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="+7"/>
         <source>Show the neblio-Qt help message to get a list with possible neblio command-line options.</source>
-        <translation type="unfinished"/>
+        <translation>Anzeige der neblio-Qt Hilfe, um eine Liste der möglichen Kommandozeilenoptionen zu sehen.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -1561,7 +1614,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="+25"/>
         <source>neblio Core</source>
-        <translation>neblio Kern</translation>
+        <translation>neblio Core</translation>
     </message>
     <message>
         <location line="+279"/>
@@ -1571,7 +1624,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="+7"/>
         <source>Open the neblio debug log file from the current data directory. This can take a few seconds for large log files.</source>
-        <translation type="unfinished"/>
+        <translation>Die neblio Debug Log-Datei im aktuellen Datenberzeichnis öffnen. Dies kann bei grossen Dateien einige Sekunden dauern</translation>
     </message>
     <message>
         <location line="+102"/>
@@ -1581,12 +1634,12 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location filename="../rpcconsole.cpp" line="-33"/>
         <source>Welcome to the neblio RPC console.</source>
-        <translation type="unfinished"/>
+        <translation>Willkommen in der neblio RPC Konsole.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Use up and down arrows to navigate history, and &lt;b&gt;Ctrl-L&lt;/b&gt; to clear screen.</source>
-        <translation>Pfeiltaste hoch und runter, um den Verlauf durchzublättern und &lt;b&gt;Strg-L&lt;/b&gt;, um die Konsole zurückzusetzen.</translation>
+        <translation>Pfeiltaste hoch und runter, um den Verlauf durchzublättern und &lt;b&gt;Strg-L&lt;/b&gt;, um die Anzeige zurückzusetzen.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -1606,12 +1659,12 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
         <location line="+5"/>
         <location line="+5"/>
         <source>Send Coins</source>
-        <translation>Bitcoins überweisen</translation>
+        <translation>Tokens senden</translation>
     </message>
     <message>
         <location line="+76"/>
         <source>Coin Control Features</source>
-        <translation>&quot;Coin Control&quot;-Funktionen</translation>
+        <translation>&quot;Token Control&quot;-Funktionen</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -1665,7 +1718,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="+19"/>
         <source>medium</source>
-        <translation type="unfinished"/>
+        <translation>mittel</translation>
     </message>
     <message>
         <location line="+32"/>
@@ -1690,7 +1743,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="+35"/>
         <source>Change</source>
-        <translation type="unfinished"/>
+        <translation>Veränderung</translation>
     </message>
     <message>
         <location line="+50"/>
@@ -1710,12 +1763,12 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="+20"/>
         <source>Remove all transaction fields</source>
-        <translation type="unfinished"/>
+        <translation>alle Felder entfernen</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Clear &amp;All</source>
-        <translation>&amp;Zurücksetzen</translation>
+        <translation>Alle &amp;zurücksetzen</translation>
     </message>
     <message>
         <location line="+28"/>
@@ -1740,7 +1793,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location filename="../sendcoinsdialog.cpp" line="-173"/>
         <source>Enter a neblio address (e.g. 8dpZqgY4r2RoEdqYk3QsAqFckyf9pRHN6i)</source>
-        <translation type="unfinished"/>
+        <translation>Geben Sie eine neblio Adresse ein (z.B. 8dpZqgY4r2RoEdqYk3QsAqFckyf9pRHN6i)</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -1795,12 +1848,12 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="+1"/>
         <source>Are you sure you want to send %1?</source>
-        <translation type="unfinished"/>
+        <translation>Möchten sie wirklich %1 senden?</translation>
     </message>
     <message>
         <location line="+0"/>
         <source> and </source>
-        <translation type="unfinished"/>
+	<translation>und</translation>
     </message>
     <message>
         <location line="+29"/>
@@ -1830,7 +1883,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="+5"/>
         <source>Error: Transaction creation failed.</source>
-        <translation type="unfinished"/>
+        <translation>Fehler: Erstellung der Transaktion fehlgeschlagen.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -2719,7 +2772,7 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location line="-87"/>
         <source>Listen for JSON-RPC connections on &lt;port&gt; (default: 6326 or testnet: 16326)</source>
-        <translation type="unfinished"/>
+             <translation type="unfinished"/>
     </message>
     <message>
         <location line="-11"/>
