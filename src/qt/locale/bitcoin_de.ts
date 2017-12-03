@@ -1,7 +1,6 @@
-<?xml version="1.0" ?><!DOCTYPE TS><TS language="de" version="2.1">
-<context>
-    <name>AboutDialog</name>
-    <message><?xml version="1.0" ?><!DOCTYPE TS><TS language="de" version="2.1">
+<?xml version="1.0" ?>
+<!DOCTYPE TS>
+<TS language="de" version="2.1">
 <context>
     <name>AboutDialog</name>
     <message>
