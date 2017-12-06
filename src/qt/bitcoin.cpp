@@ -116,8 +116,11 @@ int main(int argc, char *argv[])
     // Do this early as we don't want to bother initializing if we are just calling IPC
     ipcScanRelay(argc, argv);
 
-#if QT_VERSION >= 0x050600
-     QGuiApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
+#ifdef Q_OS_WIN
+    #if QT_VERSION >= 0x050600
+         QGuiApplication::setAttribute(Qt::AA_DisableHighDpiScaling);
+         qputenv("QT_AUTO_SCREEN_SCALE_FACTOR", "1");
+    #endif
 #endif
 
 #if QT_VERSION < 0x050000
