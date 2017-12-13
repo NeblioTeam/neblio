@@ -150,7 +150,7 @@ case "$TARGET_OS" in
     OS_WINDOWS_CROSSCOMPILE | NATIVE_WINDOWS)
         PLATFORM=OS_WINDOWS
         COMMON_FLAGS="-fno-builtin-memcmp -D_REENTRANT -DOS_WINDOWS -DLEVELDB_PLATFORM_WINDOWS -DWINVER=0x0500 -D__USE_MINGW_ANSI_STDIO=1"
-        PLATFORM_SOURCES="util/env_win.cc"
+        PLATFORM_SOURCES="util/env_win.cc util/win_logger.cc"
         PLATFORM_LIBS="-lshlwapi"
         PORT_FILE=port/port_win.cc
         CROSS_COMPILE=true
@@ -170,7 +170,12 @@ set -f # temporarily disable globbing so that our patterns aren't expanded
 PRUNE_TEST="-name *test*.cc -prune"
 PRUNE_BENCH="-name *_bench.cc -prune"
 PRUNE_TOOL="-name leveldb_main.cc -prune"
-PORTABLE_FILES=`find $DIRS $PRUNE_TEST -o $PRUNE_BENCH -o $PRUNE_TOOL -o -name '*.cc' -print | sort | sed "s,^$PREFIX/,," | tr "\n" " "`
+if [ "$PLATFORM" != "OS_WINDOWS" ]; then
+    PRUNE_WIN="-name win_logger.cc -prune"
+    PORTABLE_FILES=`find $DIRS $PRUNE_TEST -o $PRUNE_BENCH -o $PRUNE_TOOL -o $PRUNE_WIN -o -name '*.cc' -print | sort | sed "s,^$PREFIX/,," | tr "\n" " "`
+else
+    PORTABLE_FILES=`find $DIRS $PRUNE_TEST -o $PRUNE_BENCH -o $PRUNE_TOOL -o -name '*.cc' -print | sort | sed "s,^$PREFIX/,," | tr "\n" " "`
+fi
 
 set +f # re-enable globbing
 
