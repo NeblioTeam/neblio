@@ -33,12 +33,6 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     </message>
 </context>
 <context>
-    <name>AddressBookPage</name>
-    <message>
-        <location filename="../forms/addressbookpage.ui" line="+14"/>
-        <source>Address Book</source>
-        <translation>Adressbuch</translation>
-    </message>
     <message>
            <location filename="../forms/aboutdialog.ui" line="+14"/>
         <source>About neblio</source>
@@ -399,7 +393,7 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message>
         <location line="-7"/>
         <source>&amp;Send tokens</source>
-        <translation>&amp;Tokens senden</translate>
+        <translation>&amp;Tokens senden</translation>
     </message>
     <message>
         <location line="+35"/>
@@ -449,7 +443,7 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message numerus="yes">
         <location line="+250"/>
         <source>~%n block(s) remaining</source>
-        <translation>~%n Blöcke verbleiben</translation>
+        <translation><numerusform>~%n Block verbleiben</numerusform><numerusform>~%n Blöcke verbleiben</numerusform></translation>
     </message>
     <message>
         <location line="+6"/>
@@ -469,7 +463,7 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message>
         <location line="+45"/>
         <source>Modify configuration options for neblio</source>
-        <translation>neblio Konfiguration anpassen</translate>
+        <translation>neblio Konfiguration anpassen</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -581,7 +575,7 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message numerus="yes">
         <location line="+70"/>
         <source>%n active connection(s) to neblio network</source>
-        <translation>%n aktive Verbindungen zum neblio-Netzwerk</translation>
+        <translation><numerusform>%n aktive Verbindung zum neblio-Netzwerk</numerusform><numerusform>%n aktive Verbindungen zum neblio-Netzwerk</numerusform></translation>
     </message>
     <message>
         <location line="+40"/>
@@ -591,7 +585,7 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message>
         <location line="+413"/>
         <source>Staking.&lt;br&gt;Your weight is %1&lt;br&gt;Network weight is %2&lt;br&gt;Expected time to earn reward is %3</source>
-        <translatiion>Staking.&lt;br&gt;Ihre Gewicht ist %1&lt;br&gt;Netzwerk Gewicht ist %2&lt;br&gt;Belohnung ungefähr in %3 erwartet</translation>
+        <translation>Staking.&lt;br&gt;Ihre Gewicht ist %1&lt;br&gt;Netzwerk Gewicht ist %2&lt;br&gt;Belohnung ungefähr in %3 erwartet</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -616,7 +610,7 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message numerus="yes">
         <location line="-403"/>
         <source>%n second(s) ago</source>
-        <translation>vor %n Sekunden</translation>
+        <translation><numerusform>vor %n Sekunde</numerusform><numerusform>vor %n Sekunden</numerusform></translation>
     </message>
     <message>
         <location line="-284"/>
@@ -626,17 +620,17 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message numerus="yes">
         <location line="+288"/>
         <source>%n minute(s) ago</source>
-        <translation>vor %n Minuten</translation>
+        <translation><numerusform>vor %n Minuten</numerusform><numerusform>vor %n Minuten</numerusform></translation>
     </message>
     <message numerus="yes">
         <location line="+4"/>
         <source>%n hour(s) ago</source>
-        <translation>vor %n Stunden</translation>
+        <translation><numerusform>vor %n Stunde</numerusform><numerusform>vor %n Stunden</numerusform></translation>
     </message>
     <message numerus="yes">
         <location line="+4"/>
         <source>%n day(s) ago</source>
-        <translation>vor %n Tagen</translation>
+        <translation><numerusform>vor %n Tag</numerusform><numerusform>vor %n Tagen</numerusform></translation>
     </message>
     <message>
         <location line="+6"/>
@@ -730,17 +724,17 @@ Adresse: %4</translation>
     <message numerus="yes">
         <location line="+76"/>
         <source>%n second(s)</source>
-        <translation>%n Sekunde(n)</translation>
+        <translation><numerusform>%n Sekunde</numerusform><numerusform>%n Sekunden</numerusform></translation>
     </message>
     <message numerus="yes">
         <location line="+4"/>
         <source>%n minute(s)</source>
-        <translation>%n Minute(n)</translation>
+        <translation><numerusform>%n Minute</numerusform><numerusform>%n Minuten</numerusform></translation>
     </message>
     <message numerus="yes">
         <location line="+4"/>
         <source>%n hour(s)</source>
-        <translation>%n Stunde(n)</translation>
+        <translation><numerusform>%n Stunde</numerusform><numerusform>%n Stunden</numerusform></translation>
     </message>
     <message numerus="yes">
         <location line="+4"/>
@@ -750,12 +744,12 @@ Adresse: %4</translation>
     <message>
         <location line="+18"/>
         <source>Not staking</source>
-        <translation type>Kein Staking</translation>
+        <translation>Kein Staking</translation>
     </message>
     <message>
         <location filename="../bitcoin.cpp" line="+109"/>
         <source>A fatal error occurred. neblio can no longer continue safely and will quit.</source>
-        <translation type>Ein schwerwiegender Fehler ist aufgetreten. neblio kann nicht mehr sicher ausgeführt werden und wird beendet</translation>
+        <translation>Ein schwerwiegender Fehler ist aufgetreten. neblio kann nicht mehr sicher ausgeführt werden und wird beendet</translation>
     </message>
 </context>
 <context>
