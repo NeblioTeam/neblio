@@ -5,6 +5,9 @@
 #include "txdb.h"
 #include "walletdb.h"
 #include "bitcoinrpc.h"
+#ifdef REST
+#include "nebliorest.h"
+#endif
 #include "net.h"
 #include "init.h"
 #include "util.h"
@@ -892,7 +895,15 @@ bool AppInit2()
     if (fServer)
         NewThread(ThreadRPCServer, NULL);
 
-    // ********************************************************* Step 12: finished
+    // ********************************************************* Step 12: start rest listenser
+
+#ifdef REST
+    uiInterface.InitMessage(_("Starting RESTful API Listener"));
+    printf("Starting RESTful API Listener\n");
+    NewThread(ThreadRESTServer, NULL);
+#endif
+
+    // ********************************************************* Step 13: finished
 
     uiInterface.InitMessage(_("Done loading"));
     printf("Done loading\n");

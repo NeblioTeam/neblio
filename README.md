@@ -4,7 +4,8 @@ https://nebl.io
 
 #Neblio Specification
 
-~13,000,000 Tokens In cirulation after token sale
+~13,000,000 Tokens In Cirulation
+
 Proof-of-Stake Token
 
 

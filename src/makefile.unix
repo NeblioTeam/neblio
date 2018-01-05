@@ -25,6 +25,17 @@ else
     TESTDEFS += -DBOOST_TEST_DYN_LINK
 endif
 
+ifdef REST
+    DEFS += -DREST=$(REST)
+    # restbed
+    LIBS += -L"$(CURDIR)/restbed/distribution/library"
+    DEFS += -I"$(CURDIR)/restbed/distribution/include/"
+    CXX += -std=c++11
+
+    all:
+	@echo "Building restbed ..." && mkdir -p restbed/build && cd restbed/build && cmake .. && make install && cd ../..
+endif
+
 # for boost 1.37, add -mt to the boost libraries
 LIBS += \
  -Wl,-B$(LMODE) \
@@ -34,7 +45,10 @@ LIBS += \
    -l boost_thread$(BOOST_LIB_SUFFIX) \
    -l db_cxx$(BDB_LIB_SUFFIX) \
    -l ssl \
-   -l crypto
+   -l crypto 
+ifdef REST
+   LIBS += -l restbed
+endif
 
 ifndef USE_UPNP
 	override USE_UPNP = -
@@ -75,8 +89,10 @@ LIBS+= \
     # offered by some kernels.
     # see doc/build-unix.txt for more information.
     #ifdef PIE
-        HARDENING+=-fPIE
-        LDHARDENING+=-pie
+        ifndef STATIC
+            HARDENING+=-fPIE
+            LDHARDENING+=-pie
+        endif
     #endif
 
     # -D_FORTIFY_SOURCE=2 does some checking for potentially exploitable code patterns in
@@ -103,6 +119,7 @@ xCXXFLAGS=-O2 $(EXT_OPTIONS) -pthread -Wall -Wextra -Wno-ignored-qualifiers -Wfo
 xLDFLAGS=$(LDHARDENING) $(LDFLAGS)
 
 OBJS= \
+    leveldb/libleveldb.a \
     obj/alert.o \
     obj/version.o \
     obj/checkpoints.o \
@@ -149,6 +166,10 @@ OBJS= \
     obj/zerocoin/SpendMetaData.o \
     obj/zerocoin/ZeroTest.o
 
+ifdef REST
+    OBJS += obj/nebliorest.o 
+endif
+
 all: nebliod
 
 LIBS += $(CURDIR)/leveldb/libleveldb.a $(CURDIR)/leveldb/libmemenv.a
@@ -156,7 +177,7 @@ DEFS += $(addprefix -I,$(CURDIR)/leveldb/include)
 DEFS += $(addprefix -I,$(CURDIR)/leveldb/helpers)
 OBJS += obj/txdb-leveldb.o
 leveldb/libleveldb.a:
-	@echo "Building LevelDB ..."; cd leveldb; make libleveldb.a libmemenv.a; cd ..;
+	@echo "Building LevelDB ..." && cd leveldb && $(MAKE) CC=$(CC) CXX="$(CXX)" OPT="$(xCXXFLAGS)" libleveldb.a libmemenv.a && cd ..
 obj/txdb-leveldb.o: leveldb/libleveldb.a
 
 # auto-generated dependencies:
@@ -216,5 +237,6 @@ clean:
 	-rm -f obj-test/*.P
 	-rm -f obj/zerocoin/*.P
 	-rm -f obj/build.h
+	-rm -rf restbed/build
 
 FORCE:

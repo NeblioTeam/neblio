@@ -16,6 +16,7 @@ src/leveldb/build_config.mk
 *.Release
 debug
 .neblio
+release/
 
 #compilation and Qt preprocessor part
 *.qm
@@ -37,3 +38,27 @@ modifierIntervalCalc.rb
 
 !src/leveldb/Makefile
 hash.py
+
+neblio-qt
+
+neblio-qt_plugin_import\.cpp
+
+nebliod
+
+bits\.pyc
+
+contrib/seeds/
+
+*.P
+
+src/obj/
+
+._*
+
+src/restbed/build
+
+src/nebliorest\.cpp
+
+src/nebliorest\.h
+
+src/restbed/
