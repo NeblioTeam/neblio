@@ -241,10 +241,12 @@ const char* GetOpName(opcodetype opcode)
     case OP_NOP9                   : return "OP_NOP9";
     case OP_NOP10                  : return "OP_NOP10";
 
+    case OP_SMALLDATA              : return "OP_SMALLDATA";
+
     case OP_INVALIDOPCODE          : return "OP_INVALIDOPCODE";
 
     // Note:
-    //  The template matching params OP_SMALLDATA/etc are defined in opcodetype enum
+    //  The template matching params etc are defined in opcodetype enum
     //  as kind of implementation hack, they are *NOT* real opcodes.  If found in real
     //  Script, just let the default: case deal with them.
 
@@ -1304,7 +1306,7 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
         mTemplates.insert(make_pair(TX_MULTISIG, CScript() << OP_SMALLINTEGER << OP_PUBKEYS << OP_SMALLINTEGER << OP_CHECKMULTISIG));
 
         // Empty, provably prunable, data-carrying output
-        mTemplates.insert(make_pair(TX_NULL_DATA, CScript() << OP_RETURN));
+        mTemplates.insert(make_pair(TX_NULL_DATA, CScript() << OP_RETURN << OP_SMALLDATA));
     }
 
     // Shortcut for pay-to-script-hash, which are more constrained than the other types:
@@ -1387,6 +1389,12 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
                     vSolutionsRet.push_back(valtype(1, n));
                 }
                 else
+                    break;
+            }
+            else if (opcode2 == OP_SMALLDATA)
+            {
+                // small pushdata, <= 80 bytes
+                if (vch1.size() > 80)
                     break;
             }
             else if (opcode1 != opcode2 || vch1 != vch2)
@@ -2030,7 +2038,7 @@ void CScript::SetMultisig(int nRequired, const std::vector<CKey>& keys)
 
 bool CScriptCompressor::IsToKeyID(CKeyID &hash) const
 {
-    if (script.size() == 25 && script[0] == OP_DUP && script[1] == OP_HASH160 
+    if (script.size() == 25 && script[0] == OP_DUP && script[1] == OP_HASH160
                             && script[2] == 20 && script[23] == OP_EQUALVERIFY
                             && script[24] == OP_CHECKSIG) {
         memcpy(&hash, &script[3], 20);

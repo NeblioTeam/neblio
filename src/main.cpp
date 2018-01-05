@@ -297,10 +297,12 @@ bool CTransaction::ReadFromDisk(COutPoint prevout)
     return ReadFromDisk(txdb, prevout, txindex);
 }
 
-bool IsStandardTx(const CTransaction& tx)
+bool IsStandardTx(const CTransaction& tx, string& reason)
 {
-    if (tx.nVersion > CTransaction::CURRENT_VERSION)
+    if (tx.nVersion > CTransaction::CURRENT_VERSION) {
+    	reason = "version";
         return false;
+    }
 
     // Treat non-final transactions as non-standard to prevent a specific type
     // of double-spend attack, as well as DoS attacks. (if the transaction
@@ -320,10 +322,12 @@ bool IsStandardTx(const CTransaction& tx)
     // can't know what timestamp the next block will have, and there aren't
     // timestamp applications where it matters.
     if (!IsFinalTx(tx, nBestHeight + 1)) {
+    	reason = "non-final";
         return false;
     }
     // nTime has different purpose from nLockTime but can be used in similar attacks
     if (tx.nTime > FutureDrift(GetAdjustedTime())) {
+    	reason = "time-too-new";
         return false;
     }
 
@@ -332,19 +336,26 @@ bool IsStandardTx(const CTransaction& tx)
     // computing signature hashes is O(ninputs*txsize). Limiting transactions
     // to MAX_STANDARD_TX_SIZE mitigates CPU exhaustion attacks.
     unsigned int sz = tx.GetSerializeSize(SER_NETWORK, CTransaction::CURRENT_VERSION);
-    if (sz >= MAX_STANDARD_TX_SIZE)
+    if (sz >= MAX_STANDARD_TX_SIZE) {
+    	reason = "tx-size";
         return false;
+    }
 
     BOOST_FOREACH(const CTxIn& txin, tx.vin)
     {
         // Biggest 'standard' txin is a 3-signature 3-of-3 CHECKMULTISIG
         // pay-to-script-hash, which is 3 ~80-byte signatures, 3
         // ~65-byte public keys, plus a few script ops.
-        if (txin.scriptSig.size() > 500)
+        if (txin.scriptSig.size() > 500) {
+        	reason = "scriptsig-size";
             return false;
-        if (!txin.scriptSig.IsPushOnly())
+        }
+        if (!txin.scriptSig.IsPushOnly()) {
+        	reason = "scriptsig-not-pushonly";
             return false;
+        }
         if (fEnforceCanonical && !txin.scriptSig.HasCanonicalPushes()) {
+        	reason = "scriptsig-non-canonical-push";
             return false;
         }
     }
@@ -352,19 +363,26 @@ bool IsStandardTx(const CTransaction& tx)
     unsigned int nDataOut = 0;
     txnouttype whichType;
     BOOST_FOREACH(const CTxOut& txout, tx.vout) {
-        if (!::IsStandard(txout.scriptPubKey, whichType))
+        if (!::IsStandard(txout.scriptPubKey, whichType)) {
+        	reason = "scriptpubkey";
             return false;
-        if (whichType == TX_NULL_DATA)
+        }
+        if (whichType == TX_NULL_DATA) {
             nDataOut++;
-        if (txout.nValue == 0)
+        }
+        if (txout.nValue == 0) {
+        	reason = "dust";
             return false;
+        }
         if (fEnforceCanonical && !txout.scriptPubKey.HasCanonicalPushes()) {
+        	reason = "scriptpubkey-non-canonical-push";
             return false;
         }
     }
 
     // only one OP_RETURN txout is permitted
     if (nDataOut > 1) {
+    	reason = "multi-op-return";
         return false;
     }
 
@@ -621,8 +639,10 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction &tx,
         return tx.DoS(100, error("AcceptToMemoryPool : coinstake as individual tx"));
 
     // Rather not work on nonstandard transactions (unless -testnet)
-    if (!fTestNet && !IsStandardTx(tx))
-        return error("AcceptToMemoryPool : nonstandard transaction type");
+    string reason;
+    if (!fTestNet && !IsStandardTx(tx, reason))
+        return error("AcceptToMemoryPool : nonstandard transaction: %s",
+                     reason.c_str());
 
     // is it already in the memory pool?
     uint256 hash = tx.GetHash();
