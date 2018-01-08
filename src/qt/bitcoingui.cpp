@@ -347,6 +347,7 @@ void BitcoinGUI::createToolBars()
     toolbar->addAction(addressBookAction);
 
     QToolBar *toolbar2 = addToolBar(tr("Actions toolbar"));
+    toolbar2->setStyleSheet("background-color: white;");
     toolbar2->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     toolbar2->addAction(exportAction);
 }
