@@ -46,10 +46,13 @@
     </qresource>
     <qresource prefix="/images">
         <file alias="about">res/images/about.png</file>
-		<file alias="bkg">res/images/bkg.png</file>
-		<file alias="bkg2">res/images/bkg2.png</file>
-		<file alias="gr">res/images/gr.png</file>
+        <file alias="bkg">res/images/bkg.png</file>
+        <file alias="bkg2">res/images/bkg2.png</file>
+        <file alias="gr">res/images/gr.png</file>
         <file alias="splash">res/images/splash3.png</file>
+        <file alias="logo_left">res/images/logo_left.png</file>
+        <file alias="neblio_vector">res/images/neblio.svg</file>
+        <file alias="neblio">res/images/neblio.png</file>
     </qresource>
     <qresource prefix="/movies">
         <file alias="update_spinner">res/movies/update_spinner.mng</file>
