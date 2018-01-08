@@ -238,6 +238,7 @@ HEADERS += src/qt/bitcoingui.h \
     src/qt/walletmodel.h \
     src/bitcoinrpc.h \
     src/qt/overviewpage.h \
+    src/qt/ui_overviewpage.h \
     src/qt/csvmodelwriter.h \
     src/crypter.h \
     src/qt/sendcoinsentry.h \
@@ -347,7 +348,7 @@ FORMS += \
     src/qt/forms/aboutdialog.ui \
     src/qt/forms/editaddressdialog.ui \
     src/qt/forms/transactiondescdialog.ui \
-    src/qt/forms/overviewpage.ui \
+#    src/qt/forms/overviewpage.ui \
     src/qt/forms/sendcoinsentry.ui \
     src/qt/forms/askpassphrasedialog.ui \
     src/qt/forms/rpcconsole.ui \
