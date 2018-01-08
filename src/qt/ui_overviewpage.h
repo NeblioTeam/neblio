@@ -28,12 +28,12 @@ QT_BEGIN_NAMESPACE
 class Ui_OverviewPage
 {
 public:
-    QHBoxLayout *horizontalLayout;
-    QVBoxLayout *verticalLayout_2;
-    QFrame *frame;
-    QVBoxLayout *verticalLayout_4;
-    QHBoxLayout *horizontalLayout_4;
-    QVBoxLayout *verticalLayout_3;
+    QPixmap left_logo_pix;
+    QGridLayout *main_layout;
+    QVBoxLayout *left_logo_layout;
+    QLabel *left_logo_label;
+    QVBoxLayout *logo_layout;
+    QVBoxLayout *right_balance_layout;
     QFrame *wallet_contents_frame;
     QVBoxLayout *verticalLayout;
     QHBoxLayout *horizontalLayout_2;
@@ -54,39 +54,59 @@ public:
     QLabel *labelTotalText;
     QLabel *total_value_label;
 
+    QWidget *bottom_bar_widget;
+    QLabel *bottom_bar_label;
+    QGridLayout *bottom_layout;
+    QPixmap bottom_logo_pix;
+
     void setupUi(QWidget *OverviewPage)
     {
         if (OverviewPage->objectName().isEmpty())
             OverviewPage->setObjectName(QStringLiteral("OverviewPage"));
         OverviewPage->resize(761, 452);
-        horizontalLayout = new QHBoxLayout(OverviewPage);
-        horizontalLayout->setObjectName(QStringLiteral("horizontalLayout"));
-        verticalLayout_2 = new QVBoxLayout();
-        verticalLayout_2->setObjectName(QStringLiteral("verticalLayout_2"));
-        frame = new QFrame(OverviewPage);
-        frame->setObjectName(QStringLiteral("frame"));
-        frame->setFrameShape(QFrame::NoFrame);
-        frame->setFrameShadow(QFrame::Raised);
-        frame->setLineWidth(0);
-        verticalLayout_4 = new QVBoxLayout(frame);
-        verticalLayout_4->setObjectName(QStringLiteral("verticalLayout_4"));
-        horizontalLayout_4 = new QHBoxLayout();
-        horizontalLayout_4->setObjectName(QStringLiteral("horizontalLayout_4"));
+        main_layout = new QGridLayout(OverviewPage);
+        main_layout->setObjectName(QStringLiteral("horizontalLayout"));
+        left_logo_layout = new QVBoxLayout();
+        left_logo_layout->setObjectName(QStringLiteral("verticalLayout_2"));
+        left_logo_label = new QLabel(OverviewPage);
+        left_logo_label->setObjectName(QStringLiteral("frame"));
 
-        verticalLayout_4->addLayout(horizontalLayout_4);
+//        logo_label->setFrameShadow(QFrame::Raised);
+        left_logo_label->setLineWidth(0);
+//        logo_label->setFrameStyle(QFrame::StyledPanel);
+
+        left_logo_pix = QPixmap(":images/logo_left");
+        left_logo_label->setPixmap(left_logo_pix);
+        left_logo_label->setAlignment(Qt::AlignCenter);
+
+        logo_layout = new QVBoxLayout(left_logo_label);
+        logo_layout->setObjectName(QStringLiteral("verticalLayout_4"));
+
+        left_logo_layout->addWidget(left_logo_label);
+
+        main_layout->addLayout(left_logo_layout, 0, 0, 1, 1);
+
+        left_logo_pix = QPixmap(":images/neblio");
+        bottom_bar_widget = new QWidget(OverviewPage);
+        bottom_layout = new QGridLayout(bottom_bar_widget);
+        bottom_bar_label = new QLabel(bottom_bar_widget);
 
 
-        verticalLayout_2->addWidget(frame);
+        main_layout->addWidget(bottom_bar_widget, 1, 0, 1, 2);
+        bottom_bar_widget->setLayout(bottom_layout);
+        bottom_layout->addWidget(bottom_bar_label, 0, 0, 1, 1);
+        bottom_bar_widget->setStyleSheet("background-color: #555555;");
+        left_logo_pix = left_logo_pix.scaledToHeight(OverviewPage->height()/10, Qt::SmoothTransformation);
+        bottom_bar_label->setPixmap(left_logo_pix);
+        bottom_bar_label->setAlignment(Qt::AlignRight);
 
 
-        horizontalLayout->addLayout(verticalLayout_2);
-
-        verticalLayout_3 = new QVBoxLayout();
-        verticalLayout_3->setObjectName(QStringLiteral("verticalLayout_3"));
+        right_balance_layout = new QVBoxLayout();
+        right_balance_layout->setObjectName(QStringLiteral("verticalLayout_3"));
         wallet_contents_frame = new QFrame(OverviewPage);
         wallet_contents_frame->setObjectName(QStringLiteral("frame_2"));
         wallet_contents_frame->setFrameShape(QFrame::StyledPanel);
-        wallet_contents_frame->setFrameShadow(QFrame::Raised);
+//        wallet_contents_frame->setFrameShadow(QFrame::Raised);
         verticalLayout = new QVBoxLayout(wallet_contents_frame);
         verticalLayout->setObjectName(QStringLiteral("verticalLayout"));
         horizontalLayout_2 = new QHBoxLayout();
@@ -137,12 +157,12 @@ public:
         balance_layout = new QGridLayout();
         balance_layout->setObjectName(QStringLiteral("formLayout_2"));
 //        balance_layout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
-        balance_layout->setHorizontalSpacing(12);
-        balance_layout->setVerticalSpacing(12);
+//        balance_layout->setHorizontalSpacing(12);
+//        balance_layout->setVerticalSpacing(12);
         spendable_title_label = new QLabel(wallet_contents_frame);
         spendable_title_label->setObjectName(QStringLiteral("label"));
         QFont font1;
-        font1.setPointSize(10);
+//        font1.setPointSize(10);
         spendable_title_label->setFont(font1);
 
         balance_layout->addWidget(spendable_title_label, 0, 0);
@@ -230,12 +250,9 @@ public:
 
         verticalLayout->addWidget(total_value_label);
 
-        verticalLayout_3->addWidget(wallet_contents_frame);
+        right_balance_layout->addWidget(wallet_contents_frame);
 
-        horizontalLayout->addLayout(verticalLayout_3);
-
-        horizontalLayout->setStretch(0, 1);
-        horizontalLayout->setStretch(1, 1);
+        main_layout->addLayout(right_balance_layout, 0, 1, 1, 1);
 
         retranslateUi(OverviewPage);
 
