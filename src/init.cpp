@@ -5,6 +5,9 @@
 #include "txdb.h"
 #include "walletdb.h"
 #include "bitcoinrpc.h"
+#ifdef NEBLIO_REST
+#include "nebliorest.h"
+#endif
 #include "net.h"
 #include "init.h"
 #include "util.h"
@@ -892,8 +895,17 @@ bool AppInit2()
     if (fServer)
         NewThread(ThreadRPCServer, NULL);
 
-    // ********************************************************* Step 12: finished
+    // ********************************************************* Step 12: start rest listenser
 
+#ifdef NEBLIO_REST
+    uiInterface.InitMessage(_("Starting RESTful API Listener"));
+    printf("Starting RESTful API Listener\n");
+    NewThread(ThreadRESTServer, NULL);
+#endif
+
+    // ********************************************************* Step 13: finished
+    //TODO should wait for REST server to finish loading here but this only affects the 
+    // drawing of the QT GUI and the log statement
     uiInterface.InitMessage(_("Done loading"));
     printf("Done loading\n");
 

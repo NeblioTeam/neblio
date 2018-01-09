@@ -41,6 +41,7 @@ windows:QRENCODE_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/
 #    BOOST_INCLUDE_PATH, BOOST_LIB_PATH, BDB_INCLUDE_PATH,
 #    BDB_LIB_PATH, OPENSSL_INCLUDE_PATH and OPENSSL_LIB_PATH respectively
 
+
 OBJECTS_DIR = build
 MOC_DIR = build
 UI_DIR = build
@@ -54,6 +55,15 @@ contains(RELEASE, 1) {
         # Linux: static link
         LIBS += -Wl,-Bstatic
     }
+}
+
+# use: qmake "NEBLIO_REST=1"
+contains(NEBLIO_REST, 1) {
+    DEFINES += NEBLIO_REST   
+    # restbed
+    LIBS += -L"$(CURDIR)/src/restbed/distribution/library" -lrestbed
+    INCLUDEPATH += "$(CURDIR)/src/restbed/distribution/include/"
+    QMAKE_CXXFLAGS += -std=c++11
 }
 
 !win32 {
@@ -256,6 +266,10 @@ HEADERS += src/qt/bitcoingui.h \
     src/clientversion.h \
     src/threadsafety.h
 
+contains(NEBLIO_REST, 1) {
+    HEADERS += src/nebliorest.h
+}
+
 SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/qt/transactiontablemodel.cpp \
     src/qt/addresstablemodel.cpp \
@@ -335,6 +349,11 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/zerocoin/SerialNumberSignatureOfKnowledge.cpp \
     src/zerocoin/SpendMetaData.cpp \
     src/zerocoin/ZeroTest.cpp
+
+contains(NEBLIO_REST, 1) {
+    SOURCES += src/nebliorest.cpp
+}
+
 
 RESOURCES += \
     src/qt/bitcoin.qrc
