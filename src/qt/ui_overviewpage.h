@@ -75,8 +75,8 @@ public:
         left_logo_label->setLineWidth(0);
 //        logo_label->setFrameStyle(QFrame::StyledPanel);
 
-        left_logo_pix = QPixmap(":images/logo_left");
-//        left_logo_pix = left_logo_pix.scaledToHeight(OverviewPage->height()/2, Qt::SmoothTransformation);
+        left_logo_pix = QPixmap(":images/neblio_vertical");
+        left_logo_pix = left_logo_pix.scaledToHeight(OverviewPage->height()*3./4., Qt::SmoothTransformation);
         left_logo_label->setPixmap(left_logo_pix);
         left_logo_label->setAlignment(Qt::AlignCenter);
 
@@ -87,7 +87,7 @@ public:
 
         main_layout->addLayout(left_logo_layout, 0, 0, 1, 1);
 
-        bottom_logo_pix = QPixmap(":images/neblio");
+        bottom_logo_pix = QPixmap(":images/neblio_horizontal");
         bottom_bar_widget = new QWidget(OverviewPage);
         bottom_layout = new QGridLayout(bottom_bar_widget);
         bottom_bar_label = new QLabel(bottom_bar_widget);
@@ -96,8 +96,8 @@ public:
         main_layout->addWidget(bottom_bar_widget, 1, 0, 1, 2);
         bottom_bar_widget->setLayout(bottom_layout);
         bottom_layout->addWidget(bottom_bar_label, 0, 0, 1, 1);
-        bottom_bar_widget->setStyleSheet("background-color: #555555;");
-        bottom_logo_pix = bottom_logo_pix.scaledToHeight(OverviewPage->height()/10, Qt::SmoothTransformation);
+        bottom_bar_widget->setStyleSheet("background-color: #333333;");
+        bottom_logo_pix = bottom_logo_pix.scaledToHeight(OverviewPage->height()/4, Qt::SmoothTransformation);
         bottom_bar_label->setPixmap(bottom_logo_pix);
         bottom_bar_label->setAlignment(Qt::AlignRight);
 
