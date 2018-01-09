@@ -46,7 +46,7 @@ public:
         if (AddressBookPage->objectName().isEmpty())
             AddressBookPage->setObjectName(QStringLiteral("AddressBookPage"));
         AddressBookPage->resize(760, 380);
-        AddressBookPage->setStyleSheet(QStringLiteral("background-image: url(:/images/gr);"));
+//        AddressBookPage->setStyleSheet(QStringLiteral("background-image: url(:/images/gr);"));
         verticalLayout = new QVBoxLayout(AddressBookPage);
         verticalLayout->setObjectName(QStringLiteral("verticalLayout"));
         labelExplanation = new QLabel(AddressBookPage);

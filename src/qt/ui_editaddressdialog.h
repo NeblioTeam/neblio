@@ -39,7 +39,7 @@ public:
         if (EditAddressDialog->objectName().isEmpty())
             EditAddressDialog->setObjectName(QStringLiteral("EditAddressDialog"));
         EditAddressDialog->resize(457, 126);
-        EditAddressDialog->setStyleSheet(QStringLiteral("background-image: url(:/images/gr);"));
+        EditAddressDialog->setStyleSheet(QStringLiteral("background-color: white;"));
         verticalLayout = new QVBoxLayout(EditAddressDialog);
         verticalLayout->setObjectName(QStringLiteral("verticalLayout"));
         formLayout = new QFormLayout();
