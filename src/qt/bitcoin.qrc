@@ -53,6 +53,7 @@
         <file alias="logo_left">res/images/logo_left.png</file>
         <file alias="neblio_vector">res/images/neblio.svg</file>
         <file alias="neblio">res/images/neblio.png</file>
+        <file alias="upper_bar">res/images/upper_bar.png</file>
     </qresource>
     <qresource prefix="/movies">
         <file alias="update_spinner">res/movies/update_spinner.mng</file>
