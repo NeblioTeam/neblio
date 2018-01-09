@@ -11,7 +11,7 @@
 const std::string CLIENT_NAME("Satoshi");
 
 // Client version number
-#ifdef REST
+#ifdef NEBLIO_REST
 #define CLIENT_VERSION_SUFFIX   "-REST-Enabled"
 #else
 #define CLIENT_VERSION_SUFFIX   ""

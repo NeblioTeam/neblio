@@ -57,9 +57,9 @@ contains(RELEASE, 1) {
     }
 }
 
-# use: qmake "REST=1"
-contains(REST, 1) {
-    DEFINES += REST   
+# use: qmake "NEBLIO_REST=1"
+contains(NEBLIO_REST, 1) {
+    DEFINES += NEBLIO_REST   
     # restbed
     LIBS += -L"$(CURDIR)/src/restbed/distribution/library" -lrestbed
     INCLUDEPATH += "$(CURDIR)/src/restbed/distribution/include/"
@@ -266,7 +266,7 @@ HEADERS += src/qt/bitcoingui.h \
     src/clientversion.h \
     src/threadsafety.h
 
-contains(REST, 1) {
+contains(NEBLIO_REST, 1) {
     HEADERS += src/nebliorest.h
 }
 
@@ -350,7 +350,7 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/zerocoin/SpendMetaData.cpp \
     src/zerocoin/ZeroTest.cpp
 
-contains(REST, 1) {
+contains(NEBLIO_REST, 1) {
     SOURCES += src/nebliorest.cpp
 }
 

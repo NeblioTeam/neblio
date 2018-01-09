@@ -25,8 +25,8 @@ else
     TESTDEFS += -DBOOST_TEST_DYN_LINK
 endif
 
-ifdef REST
-    DEFS += -DREST=$(REST)
+ifdef NEBLIO_REST
+    DEFS += -DNEBLIO_REST=$(NEBLIO_REST)
     # restbed
     LIBS += -L"$(CURDIR)/restbed/distribution/library"
     DEFS += -I"$(CURDIR)/restbed/distribution/include/"
@@ -46,7 +46,7 @@ LIBS += \
    -l db_cxx$(BDB_LIB_SUFFIX) \
    -l ssl \
    -l crypto 
-ifdef REST
+ifdef NEBLIO_REST
    LIBS += -l restbed
 endif
 
@@ -166,7 +166,7 @@ OBJS= \
     obj/zerocoin/SpendMetaData.o \
     obj/zerocoin/ZeroTest.o
 
-ifdef REST
+ifdef NEBLIO_REST
     OBJS += obj/nebliorest.o 
 endif
 
