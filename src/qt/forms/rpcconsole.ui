@@ -351,7 +351,7 @@
        <item row="17" column="0">
         <widget class="QPushButton" name="showCLOptionsButton">
          <property name="toolTip">
-          <string>Show the neblio-Qt help message to get a list with possible neblio command-line options.</string>
+          <string>Show the neblio-Core help message to get a list with possible neblio command-line options.</string>
          </property>
          <property name="text">
           <string>&amp;Show</string>

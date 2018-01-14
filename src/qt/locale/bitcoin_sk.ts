@@ -1071,8 +1071,8 @@ To znamená, že je potrebný poplatok aspoň %2.</translation>
     <message>
         <location filename="../guiutil.cpp" line="+420"/>
         <location line="+12"/>
-        <source>neblio-Qt</source>
-        <translation>neblio-Qt</translation>
+        <source>neblio-Core</source>
+        <translation>neblio-Core</translation>
     </message>
     <message>
         <location line="-12"/>
@@ -1551,8 +1551,8 @@ To znamená, že je potrebný poplatok aspoň %2.</translation>
     </message>
     <message>
         <location line="+7"/>
-        <source>Show the neblio-Qt help message to get a list with possible neblio command-line options.</source>
-        <translation>Zobraziť neblio-Qt nápovedu k získaniu zoznamu pre možnosti  príkazového riadku neblio.</translation>
+        <source>Show the neblio-Core help message to get a list with possible neblio command-line options.</source>
+        <translation>Zobraziť neblio-Core nápovedu k získaniu zoznamu pre možnosti  príkazového riadku neblio.</translation>
     </message>
     <message>
         <location line="+3"/>

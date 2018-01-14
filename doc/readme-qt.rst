@@ -1,4 +1,4 @@
-neblio-qt: Qt5 GUI for neblio
+neblio-core: Qt5 GUI for neblio
 ===============================
 
 Build instructions
@@ -24,9 +24,9 @@ then execute the following:
     qmake
     make
 
-Alternatively, install Qt Creator and open the `neblio-qt.pro` file.
+Alternatively, install Qt Creator and open the `neblio-core.pro` file.
 
-An executable named `neblio-qt` will be built.
+An executable named `neblio-core` will be built.
 
 
 Windows

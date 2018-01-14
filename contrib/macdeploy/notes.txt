@@ -19,7 +19,7 @@ Fill in the following.
 Enable custom process step: [x]
 Command: %{sourceDir}/contrib/macdeploy/macdeployqtplus
 Working directory: %{buildDir}
-Command arguments: neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -dmg -fancy %{sourceDir}/contrib/macdeploy/fancy.plist -verbose 3
+Command arguments: neblio-Core.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -dmg -fancy %{sourceDir}/contrib/macdeploy/fancy.plist -verbose 3
 
 After that you can start the deployment process through the menu with
 Build -> Deploy Project "novacoin-qt"
