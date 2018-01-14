@@ -1101,7 +1101,7 @@ Diese Anzeige wird rot, wenn die Grösse einer Transaktion 10000 byte überschre
     <message>
         <location filename="../guiutil.cpp" line="+420"/>
         <location line="+12"/>
-        <source>neblio-Qt</source>
+        <source>neblio-Core</source>
         <translation type="unfinished"/>
     </message>
     <message>
@@ -1581,8 +1581,8 @@ Diese Anzeige wird rot, wenn die Grösse einer Transaktion 10000 byte überschre
     </message>
     <message>
         <location line="+7"/>
-        <source>Show the neblio-Qt help message to get a list with possible neblio command-line options.</source>
-        <translation>Anzeige der neblio-Qt Hilfe, um eine Liste der möglichen Kommandozeilenoptionen zu sehen.</translation>
+        <source>Show the neblio-Core help message to get a list with possible neblio command-line options.</source>
+        <translation>Anzeige der neblio-Core Hilfe, um eine Liste der möglichen Kommandozeilenoptionen zu sehen.</translation>
     </message>
     <message>
         <location line="+3"/>

@@ -1,4 +1,4 @@
-neblio-qt: Qt5 GUI for neblio
+neblio-core: Qt5 GUI for neblio
 ===============================
 
 Build instructions
@@ -15,7 +15,7 @@ distribution are installed, for Debian and Ubuntu these are:
     apt-get install qt5-default qt5-qmake qtbase5-dev-tools qttools5-dev-tools \
         build-essential libboost-dev libboost-system-dev \
         libboost-filesystem-dev libboost-program-options-dev libboost-thread-dev \
-        libssl-dev libdb++-dev
+        libssl-dev libdb++-dev libminiupnpc-dev
 
 then execute the following:
 
@@ -24,9 +24,9 @@ then execute the following:
     qmake
     make
 
-Alternatively, install Qt Creator and open the `neblio-qt.pro` file.
+Alternatively, install Qt Creator and open the `neblio-core.pro` file.
 
-An executable named `neblio-qt` will be built.
+An executable named `neblio-core` will be built.
 
 
 Windows

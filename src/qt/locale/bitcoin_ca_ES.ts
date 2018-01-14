@@ -1063,8 +1063,8 @@ En aquest cas es requereix una comisió d&apos;almenys 2%.</translation>
     <message>
         <location filename="../guiutil.cpp" line="+420"/>
         <location line="+12"/>
-        <source>neblio-Qt</source>
-        <translation>neblio-Qt</translation>
+        <source>neblio-Core</source>
+        <translation>neblio-Core</translation>
     </message>
     <message>
         <location line="-12"/>
@@ -1543,8 +1543,8 @@ En aquest cas es requereix una comisió d&apos;almenys 2%.</translation>
     </message>
     <message>
         <location line="+7"/>
-        <source>Show the neblio-Qt help message to get a list with possible neblio command-line options.</source>
-        <translation>Mostra el missatge d&apos;ajuda de neblio-Qt per obtenir una llista amb les possibles opcions de línia d&apos;ordres neblio.</translation>
+        <source>Show the neblio-Core help message to get a list with possible neblio command-line options.</source>
+        <translation>Mostra el missatge d&apos;ajuda de neblio-Core per obtenir una llista amb les possibles opcions de línia d&apos;ordres neblio.</translation>
     </message>
     <message>
         <location line="+3"/>

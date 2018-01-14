@@ -1070,8 +1070,8 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     <message>
         <location filename="../guiutil.cpp" line="+420"/>
         <location line="+12"/>
-        <source>neblio-Qt</source>
-        <translation>neblio-Qt</translation>
+        <source>neblio-Core</source>
+        <translation>neblio-Core</translation>
     </message>
     <message>
         <location line="-12"/>
@@ -1550,8 +1550,8 @@ This label turns red, if the priority is smaller than &quot;medium&quot;.
     </message>
     <message>
         <location line="+7"/>
-        <source>Show the neblio-Qt help message to get a list with possible neblio command-line options.</source>
-        <translation>Muhtemel neblio komut satırı seçeneklerinin bir listesini getirmek için neblio-Qt yardım mesajını göster</translation>
+        <source>Show the neblio-Core help message to get a list with possible neblio command-line options.</source>
+        <translation>Muhtemel neblio komut satırı seçeneklerinin bir listesini getirmek için neblio-Core yardım mesajını göster</translation>
     </message>
     <message>
         <location line="+3"/>
