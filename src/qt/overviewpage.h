@@ -2,6 +2,7 @@
 #define OVERVIEWPAGE_H
 
 #include <QWidget>
+#include <ui_overviewpage.h>
 
 QT_BEGIN_NAMESPACE
 class QModelIndex;
@@ -32,8 +33,10 @@ public slots:
 signals:
     void transactionClicked(const QModelIndex &index);
 
-private:
+public:
     Ui::OverviewPage *ui;
+
+private:
     WalletModel *model;
     qint64 currentBalance;
     qint64 currentStake;

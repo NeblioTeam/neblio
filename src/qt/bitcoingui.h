@@ -3,6 +3,9 @@
 
 #include <QMainWindow>
 #include <QSystemTrayIcon>
+#include <QPainter>
+#include <overviewpage.h>
+#include <QStatusBar>
 
 #include <stdint.h>
 
@@ -61,7 +64,7 @@ private:
 
     QStackedWidget *centralWidget;
 
-    OverviewPage *overviewPage;
+    OverviewPage *overviewPage = NULL;
     QWidget *transactionsPage;
     AddressBookPage *addressBookPage;
     AddressBookPage *receiveCoinsPage;
@@ -105,6 +108,8 @@ private:
 
     uint64_t nWeight;
 
+    bool overviewPageShown = true;
+
     /** Create the main UI actions. */
     void createActions();
     /** Create the menu bar and sub-menus. */
@@ -115,6 +120,22 @@ private:
     void createTrayIcon();
     /** Create system tray menu (or setup the dock menu) */
     void createTrayIconMenu();
+
+    void paintEvent(QPaintEvent *)
+    {
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.setBrush(QBrush(QColor(65,65,65)));
+        if(overviewPage == NULL) return;
+
+        // This draws the bottom gray bar after calculating its position
+        if(!overviewPageShown) return;
+        painter.drawRect(0,
+                         overviewPage->ui->bottom_bar_widget->mapTo(
+                             overviewPage->ui->bottom_bar_widget->window(), QPoint(0,0)).y(),
+                         this->size().width(),
+                         overviewPage->ui->bottom_bar_widget->height());
+    }
 
 public slots:
     /** Set number of connections shown in the UI */

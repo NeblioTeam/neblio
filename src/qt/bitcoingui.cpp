@@ -719,6 +719,8 @@ void BitcoinGUI::incomingTransaction(const QModelIndex & parent, int start, int 
 
 void BitcoinGUI::gotoOverviewPage()
 {
+    overviewPageShown = true;
+
     overviewAction->setChecked(true);
     centralWidget->setCurrentWidget(overviewPage);
 
@@ -728,6 +730,8 @@ void BitcoinGUI::gotoOverviewPage()
 
 void BitcoinGUI::gotoHistoryPage()
 {
+    overviewPageShown = false;
+
     historyAction->setChecked(true);
     centralWidget->setCurrentWidget(transactionsPage);
 
@@ -738,6 +742,8 @@ void BitcoinGUI::gotoHistoryPage()
 
 void BitcoinGUI::gotoAddressBookPage()
 {
+    overviewPageShown = false;
+
     addressBookAction->setChecked(true);
     centralWidget->setCurrentWidget(addressBookPage);
 
@@ -748,6 +754,8 @@ void BitcoinGUI::gotoAddressBookPage()
 
 void BitcoinGUI::gotoReceiveCoinsPage()
 {
+    overviewPageShown = false;
+
     receiveCoinsAction->setChecked(true);
     centralWidget->setCurrentWidget(receiveCoinsPage);
 
@@ -758,6 +766,8 @@ void BitcoinGUI::gotoReceiveCoinsPage()
 
 void BitcoinGUI::gotoSendCoinsPage()
 {
+    overviewPageShown = false;
+
     sendCoinsAction->setChecked(true);
     centralWidget->setCurrentWidget(sendCoinsPage);
 
@@ -767,6 +777,8 @@ void BitcoinGUI::gotoSendCoinsPage()
 
 void BitcoinGUI::gotoSignMessageTab(QString addr)
 {
+    overviewPageShown = false;
+
     // call show() in showTab_SM()
     signVerifyMessageDialog->showTab_SM(true);
 
@@ -776,6 +788,8 @@ void BitcoinGUI::gotoSignMessageTab(QString addr)
 
 void BitcoinGUI::gotoVerifyMessageTab(QString addr)
 {
+    overviewPageShown = false;
+
     // call show() in showTab_VM()
     signVerifyMessageDialog->showTab_VM(true);
 
@@ -785,6 +799,8 @@ void BitcoinGUI::gotoVerifyMessageTab(QString addr)
 
 void BitcoinGUI::dragEnterEvent(QDragEnterEvent *event)
 {
+    overviewPageShown = false;
+
     // Accept only URIs
     if(event->mimeData()->hasUrls())
         event->acceptProposedAction();
