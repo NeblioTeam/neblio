@@ -1075,8 +1075,8 @@ Esto significa que se requiere una cuota de al menos %2.</translation>
     <message>
         <location filename="../guiutil.cpp" line="+420"/>
         <location line="+12"/>
-        <source>neblio-Qt</source>
-        <translation>neblio-Qt</translation>
+        <source>neblio-Core</source>
+        <translation>neblio-Core</translation>
     </message>
     <message>
         <location line="-12"/>
@@ -1555,8 +1555,8 @@ Esto significa que se requiere una cuota de al menos %2.</translation>
     </message>
     <message>
         <location line="+7"/>
-        <source>Show the neblio-Qt help message to get a list with possible neblio command-line options.</source>
-        <translation>Mostrar el mensaje de ayuda de neblio-Qt para obtener una lista con las posibles opciones de línea de comandos para neblio.</translation>
+        <source>Show the neblio-Core help message to get a list with possible neblio command-line options.</source>
+        <translation>Mostrar el mensaje de ayuda de neblio-Core para obtener una lista con las posibles opciones de línea de comandos para neblio.</translation>
     </message>
     <message>
         <location line="+3"/>

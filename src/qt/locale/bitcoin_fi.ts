@@ -1070,8 +1070,8 @@ Tämä tarkoittaa, että ainakin %2 rahansiirtopalkkio tarvitaan.</translation>
     <message>
         <location filename="../guiutil.cpp" line="+420"/>
         <location line="+12"/>
-        <source>neblio-Qt</source>
-        <translation>neblio-Qt</translation>
+        <source>neblio-Core</source>
+        <translation>neblio-Core</translation>
     </message>
     <message>
         <location line="-12"/>
@@ -1550,8 +1550,8 @@ Tämä tarkoittaa, että ainakin %2 rahansiirtopalkkio tarvitaan.</translation>
     </message>
     <message>
         <location line="+7"/>
-        <source>Show the neblio-Qt help message to get a list with possible neblio command-line options.</source>
-        <translation>Näytä neblio-Qt:n avustusohje saadaksesi listan käytettävistä neblioin komentokehotteen määritteistä.</translation>
+        <source>Show the neblio-Core help message to get a list with possible neblio command-line options.</source>
+        <translation>Näytä neblio-Core:n avustusohje saadaksesi listan käytettävistä neblioin komentokehotteen määritteistä.</translation>
     </message>
     <message>
         <location line="+3"/>
