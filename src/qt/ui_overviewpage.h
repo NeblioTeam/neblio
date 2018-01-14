@@ -97,7 +97,7 @@ public:
         bottom_bar_widget->setLayout(bottom_layout);
         bottom_layout->addWidget(bottom_bar_label, 0, 0, 1, 1);
         bottom_bar_widget->setStyleSheet("background-color: #333333;");
-        bottom_logo_pix = bottom_logo_pix.scaledToHeight(OverviewPage->height()/4, Qt::SmoothTransformation);
+        bottom_logo_pix = bottom_logo_pix.scaledToHeight(OverviewPage->height()/8, Qt::SmoothTransformation);
         bottom_bar_label->setPixmap(bottom_logo_pix);
         bottom_bar_label->setAlignment(Qt::AlignRight);
 
