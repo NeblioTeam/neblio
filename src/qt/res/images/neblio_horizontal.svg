@@ -18,10 +18,13 @@
    inkscape:version="0.91 r13725"
    sodipodi:docname="neblio_horizontal.svg"
    width="1260"
-   height="480"><metadata
+   height="480"
+   inkscape:export-filename="/home/samer/neblio/neblio/src/qt/res/images/neblio_horizontal.png"
+   inkscape:export-xdpi="90"
+   inkscape:export-ydpi="90"><metadata
      id="metadata3745"><rdf:RDF><cc:Work
          rdf:about=""><dc:format>image/svg+xml</dc:format><dc:type
-           rdf:resource="http://purl.org/dc/dcmitype/StillImage" /><dc:title></dc:title></cc:Work></rdf:RDF></metadata><defs
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" /><dc:title /></cc:Work></rdf:RDF></metadata><defs
      id="defs3743" /><sodipodi:namedview
      pagecolor="#ffffff"
      bordercolor="#666666"
@@ -36,7 +39,7 @@
      id="namedview3741"
      showgrid="false"
      inkscape:zoom="1.94"
-     inkscape:cx="407.84337"
+     inkscape:cx="261.70935"
      inkscape:cy="300"
      inkscape:window-x="130"
      inkscape:window-y="48"

@@ -54,8 +54,10 @@
         <file alias="neblio_vector">res/images/neblio.svg</file>
         <file alias="neblio">res/images/neblio.png</file>
         <file alias="upper_bar">res/images/upper_bar.png</file>
-        <file alias="neblio_horizontal">res/images/neblio_horizontal.svg</file>
-        <file alias="neblio_vertical">res/images/neblio_vertical.svg</file>
+        <file alias="neblio_horizontal_vector">res/images/neblio_horizontal.svg</file>
+        <file alias="neblio_horizontal">res/images/neblio_horizontal.png</file>
+        <file alias="neblio_vertical_vector">res/images/neblio_vertical.svg</file>
+        <file alias="neblio_vertical">res/images/neblio_vertical.png</file>
     </qresource>
     <qresource prefix="/movies">
         <file alias="update_spinner">res/movies/update_spinner.mng</file>
