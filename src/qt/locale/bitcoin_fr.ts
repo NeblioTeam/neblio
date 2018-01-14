@@ -96,7 +96,7 @@ This product includes software developed by the OpenSSL Project for use in the O
     <message>
         <location line="-14"/>
         <source>Verify a message to ensure it was signed with a specified neblio address</source>
-        <translation>Vérifier un message pour s&apos;assurer qu&apos;il vient d&apos;un adresse neblio spécifique.</translation>
+        <translation>Vérifier un message pour s&apos;assurer qu&apos;il vient d&apos;une adresse neblio spécifique.</translation>
     </message>
     <message>
         <location line="+3"/>
