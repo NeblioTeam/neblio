@@ -134,7 +134,8 @@ private:
             toolbar->setStyleSheet("background-color: rgba(255, 255, 255, 0);");
             painter.setRenderHint(QPainter::Antialiasing);
             painter.setBrush(QBrush(QColor(0,0,255)));
-            QRect rect(0, 0,
+            QRect rect(0,
+                       toolbar->pos().y(),
                        this->size().width(),
                        toolbar->height());
             QLinearGradient gradient(rect.topLeft(), rect.topRight()); // diagonal gradient from top-left to bottom-right
