@@ -66,7 +66,7 @@ private:
 
     QStackedWidget *centralWidget;
 
-    OverviewPage *overviewPage = NULL;
+    OverviewPage *overviewPage;
     QWidget *transactionsPage;
     AddressBookPage *addressBookPage;
     AddressBookPage *receiveCoinsPage;

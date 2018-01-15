@@ -90,6 +90,9 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     //program starts with overview window shown
     overviewPageShown = true;
 
+    //initialization for safety
+    overviewPage = NULL;
+
     // Accept D&D of URIs
     setAcceptDrops(true);
 
