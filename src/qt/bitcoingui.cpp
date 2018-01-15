@@ -86,6 +86,10 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     setUnifiedTitleAndToolBarOnMac(true);
     QApplication::setAttribute(Qt::AA_DontShowIconsInMenus);
 #endif
+
+    //program starts with overview window shown
+    overviewPageShown = true;
+
     // Accept D&D of URIs
     setAcceptDrops(true);
 

@@ -112,7 +112,7 @@ private:
 
     uint64_t nWeight;
 
-    bool overviewPageShown = true; //TODO: move to constructor
+    bool overviewPageShown;
 
     /** Create the main UI actions. */
     void createActions();
