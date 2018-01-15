@@ -6,6 +6,8 @@
 #include <QPainter>
 #include <overviewpage.h>
 #include <QStatusBar>
+#include <QLinearGradient>
+#include <QToolBar>
 
 #include <stdint.h>
 
@@ -106,9 +108,11 @@ private:
 
     QMovie *syncIconMovie;
 
+    QToolBar *toolbar = NULL;
+
     uint64_t nWeight;
 
-    bool overviewPageShown = true;
+    bool overviewPageShown = true; //TODO: move to constructor
 
     /** Create the main UI actions. */
     void createActions();
@@ -124,8 +128,25 @@ private:
     void paintEvent(QPaintEvent *)
     {
         QPainter painter(this);
+
+        // paint the upper bar with blue gradient
+        if(toolbar != NULL) {
+            toolbar->setStyleSheet("background-color: rgba(255, 255, 255, 0);");
+            painter.setRenderHint(QPainter::Antialiasing);
+            painter.setBrush(QBrush(QColor(0,0,255)));
+            QRect rect(0, 0,
+                       this->size().width(),
+                       toolbar->height());
+            QLinearGradient gradient(rect.topLeft(), rect.topRight()); // diagonal gradient from top-left to bottom-right
+            gradient.setColorAt(0, QColor(86,167,225));
+            gradient.setColorAt(1, QColor(96,98,173));
+
+            painter.fillRect(rect, gradient);
+        }
+
         painter.setRenderHint(QPainter::Antialiasing);
         painter.setBrush(QBrush(QColor(65,65,65)));
+
         if(overviewPage == NULL) return;
 
         // This draws the bottom gray bar after calculating its position
