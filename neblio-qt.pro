@@ -59,7 +59,7 @@ contains(RELEASE, 1) {
 
 # use: qmake "NEBLIO_REST=1"
 contains(NEBLIO_REST, 1) {
-    DEFINES += NEBLIO_REST   
+    DEFINES += NEBLIO_REST
     # restbed
     LIBS += -L"$(CURDIR)/src/restbed/distribution/library" -lrestbed
     INCLUDEPATH += "$(CURDIR)/src/restbed/distribution/include/"
@@ -389,7 +389,7 @@ FORMS += \
 contains(USE_QRCODE, 1) {
 HEADERS += src/qt/qrcodedialog.h
 SOURCES += src/qt/qrcodedialog.cpp
-#FORMS += src/qt/forms/qrcodedialog.ui
+FORMS += src/qt/forms/qrcodedialog.ui
 }
 
 CODECFORTR = UTF-8
