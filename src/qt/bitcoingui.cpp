@@ -77,9 +77,8 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     rpcConsole(0),
     nWeight(0)
 {
-    setFixedSize(1190, 645);
     setWindowTitle(tr("neblio") + " - " + tr("Wallet"));
-	qApp->setStyleSheet("QMainWindow { background-image:url(:images/bkg);border:none;font-family:'Open Sans,sans-serif'; }");
+    qApp->setStyleSheet("QMainWindow { background-color: white;border:none;font-family:'Open Sans,sans-serif'; }");
 #ifndef Q_OS_MAC
     qApp->setWindowIcon(QIcon(":icons/bitcoin"));
     setWindowIcon(QIcon(":icons/bitcoin"));
@@ -87,6 +86,13 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     setUnifiedTitleAndToolBarOnMac(true);
     QApplication::setAttribute(Qt::AA_DontShowIconsInMenus);
 #endif
+
+    //program starts with overview window shown
+    overviewPageShown = true;
+
+    //initialization for safety
+    overviewPage = NULL;
+
     // Accept D&D of URIs
     setAcceptDrops(true);
 
@@ -178,6 +184,8 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     statusBar()->addWidget(progressBarLabel);
     statusBar()->addWidget(progressBar);
     statusBar()->addPermanentWidget(frameBlocks);
+
+    statusBar()->setStyleSheet("QStatusBar { background-color: white; border: none; }");
 
     syncIconMovie = new QMovie(":/movies/update_spinner", "mng", this);
 
@@ -336,18 +344,20 @@ void BitcoinGUI::createMenuBar()
 }
 
 void BitcoinGUI::createToolBars()
-{
-    QToolBar *toolbar = addToolBar(tr("Tabs toolbar"));
+{    
+    toolbar = addToolBar(tr("Tabs toolbar"));
+    toolbar->setMovable(false); //Not movable because the color bar would not be commpatible
+    toolbar->setStyleSheet("QToolBar {background-color: white; border:none;font-family:'Open Sans,sans-serif';}");
+
     toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     toolbar->addAction(overviewAction);
     toolbar->addAction(sendCoinsAction);
     toolbar->addAction(receiveCoinsAction);
     toolbar->addAction(historyAction);
     toolbar->addAction(addressBookAction);
-
-    QToolBar *toolbar2 = addToolBar(tr("Actions toolbar"));
-    toolbar2->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-    toolbar2->addAction(exportAction);
+    toolbar->setStyleSheet("background-color: white;");
+    toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    toolbar->addAction(exportAction);
 }
 
 void BitcoinGUI::setClientModel(ClientModel *clientModel)
@@ -717,6 +727,8 @@ void BitcoinGUI::incomingTransaction(const QModelIndex & parent, int start, int 
 
 void BitcoinGUI::gotoOverviewPage()
 {
+    overviewPageShown = true;
+
     overviewAction->setChecked(true);
     centralWidget->setCurrentWidget(overviewPage);
 
@@ -726,6 +738,8 @@ void BitcoinGUI::gotoOverviewPage()
 
 void BitcoinGUI::gotoHistoryPage()
 {
+    overviewPageShown = false;
+
     historyAction->setChecked(true);
     centralWidget->setCurrentWidget(transactionsPage);
 
@@ -736,6 +750,8 @@ void BitcoinGUI::gotoHistoryPage()
 
 void BitcoinGUI::gotoAddressBookPage()
 {
+    overviewPageShown = false;
+
     addressBookAction->setChecked(true);
     centralWidget->setCurrentWidget(addressBookPage);
 
@@ -746,6 +762,8 @@ void BitcoinGUI::gotoAddressBookPage()
 
 void BitcoinGUI::gotoReceiveCoinsPage()
 {
+    overviewPageShown = false;
+
     receiveCoinsAction->setChecked(true);
     centralWidget->setCurrentWidget(receiveCoinsPage);
 
@@ -756,6 +774,8 @@ void BitcoinGUI::gotoReceiveCoinsPage()
 
 void BitcoinGUI::gotoSendCoinsPage()
 {
+    overviewPageShown = false;
+
     sendCoinsAction->setChecked(true);
     centralWidget->setCurrentWidget(sendCoinsPage);
 
@@ -765,6 +785,8 @@ void BitcoinGUI::gotoSendCoinsPage()
 
 void BitcoinGUI::gotoSignMessageTab(QString addr)
 {
+    overviewPageShown = false;
+
     // call show() in showTab_SM()
     signVerifyMessageDialog->showTab_SM(true);
 
@@ -774,6 +796,8 @@ void BitcoinGUI::gotoSignMessageTab(QString addr)
 
 void BitcoinGUI::gotoVerifyMessageTab(QString addr)
 {
+    overviewPageShown = false;
+
     // call show() in showTab_VM()
     signVerifyMessageDialog->showTab_VM(true);
 
@@ -783,6 +807,8 @@ void BitcoinGUI::gotoVerifyMessageTab(QString addr)
 
 void BitcoinGUI::dragEnterEvent(QDragEnterEvent *event)
 {
+    overviewPageShown = false;
+
     // Accept only URIs
     if(event->mimeData()->hasUrls())
         event->acceptProposedAction();
