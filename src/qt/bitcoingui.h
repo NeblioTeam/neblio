@@ -131,7 +131,6 @@ private:
 
         // paint the upper bar with blue gradient
         if(toolbar != NULL) {
-            toolbar->setStyleSheet("background-color: rgba(255, 255, 255, 0);");
             painter.setRenderHint(QPainter::Antialiasing);
             painter.setBrush(QBrush(QColor(0,0,255)));
             QRect rect(0,
