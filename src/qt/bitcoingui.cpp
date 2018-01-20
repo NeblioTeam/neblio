@@ -347,7 +347,7 @@ void BitcoinGUI::createToolBars()
 {    
     toolbar = addToolBar(tr("Tabs toolbar"));
     toolbar->setMovable(false); //Not movable because the color bar would not be commpatible
-    toolbar->setStyleSheet("background-color: rgba(255, 255, 255, 0);");
+    toolbar->setStyleSheet("QToolBar {background-color: rgba(255, 255, 255, 0);}");
 
     toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     toolbar->addAction(overviewAction);
