@@ -1455,7 +1455,14 @@ Value walletpassphrase(const Array& params, bool fHelp)
 
     NewThread(ThreadTopUpKeyPool, NULL);
     int64_t* pnSleepTime = new int64_t(params[1].get_int64());
-    NewThread(ThreadCleanWalletPassphrase, pnSleepTime);
+    if (pnSleepTime > 99999999) {
+    	throw runtime_error(
+            "walletpassphrase <passphrase> <timeout> [stakingonly]\n"
+            "Maximum timeout value is 99999999 use timeout of 0 to never re-lock");
+    }
+    if (pnSleepTime > 0) {
+        NewThread(ThreadCleanWalletPassphrase, pnSleepTime);
+    }
 
     // ppcoin: if user OS account compromised prevent trivial sendmoney commands
     if (params.size() > 2)
