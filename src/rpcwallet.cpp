@@ -1429,6 +1429,11 @@ Value walletpassphrase(const Array& params, bool fHelp)
             "walletpassphrase <passphrase> <timeout> [stakingonly]\n"
             "Stores the wallet decryption key in memory for <timeout> seconds.\n"
             "if [stakingonly] is true sending functions are disabled.");
+    if (params[1].get_int64() > 99999999 || params[1].get_int64() < 0) {
+    	throw runtime_error(
+            "walletpassphrase <passphrase> <timeout> [stakingonly]\n"
+            "Maximum timeout value is 99999999 use timeout of 0 to never re-lock, negative values not allowed");
+    }
     if (fHelp)
         return true;
     if (!pwalletMain->IsCrypted())
@@ -1455,7 +1460,9 @@ Value walletpassphrase(const Array& params, bool fHelp)
 
     NewThread(ThreadTopUpKeyPool, NULL);
     int64_t* pnSleepTime = new int64_t(params[1].get_int64());
-    NewThread(ThreadCleanWalletPassphrase, pnSleepTime);
+    if (params[1].get_int64() > 0) {
+        NewThread(ThreadCleanWalletPassphrase, pnSleepTime);
+    }
 
     // ppcoin: if user OS account compromised prevent trivial sendmoney commands
     if (params.size() > 2)
