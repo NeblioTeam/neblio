@@ -59,7 +59,7 @@ contains(RELEASE, 1) {
 
 # use: qmake "NEBLIO_REST=1"
 contains(NEBLIO_REST, 1) {
-    DEFINES += NEBLIO_REST   
+    DEFINES += NEBLIO_REST
     # restbed
     LIBS += -L"$(CURDIR)/src/restbed/distribution/library" -lrestbed
     INCLUDEPATH += "$(CURDIR)/src/restbed/distribution/include/"
@@ -248,6 +248,20 @@ HEADERS += src/qt/bitcoingui.h \
     src/qt/walletmodel.h \
     src/bitcoinrpc.h \
     src/qt/overviewpage.h \
+    src/qt/ui_overviewpage.h \
+    src/qt/ui_sendcoinsdialog.h \
+    src/qt/ui_coincontroldialog.h \
+    src/qt/ui_sendcoinsdialog.h \
+    src/qt/ui_addressbookpage.h \
+    src/qt/ui_signverifymessagedialog.h \
+    src/qt/ui_aboutdialog.h \
+    src/qt/ui_editaddressdialog.h \
+    src/qt/ui_transactiondescdialog.h \
+    src/qt/ui_overviewpage.h \
+    src/qt/ui_sendcoinsentry.h \
+    src/qt/ui_askpassphrasedialog.h \
+    src/qt/ui_rpcconsole.h \
+    src/qt/ui_optionsdialog.h \
     src/qt/csvmodelwriter.h \
     src/crypter.h \
     src/qt/sendcoinsentry.h \
@@ -359,18 +373,18 @@ RESOURCES += \
     src/qt/bitcoin.qrc
 
 FORMS += \
-    src/qt/forms/coincontroldialog.ui \
-    src/qt/forms/sendcoinsdialog.ui \
-    src/qt/forms/addressbookpage.ui \
-    src/qt/forms/signverifymessagedialog.ui \
-    src/qt/forms/aboutdialog.ui \
-    src/qt/forms/editaddressdialog.ui \
-    src/qt/forms/transactiondescdialog.ui \
-    src/qt/forms/overviewpage.ui \
-    src/qt/forms/sendcoinsentry.ui \
-    src/qt/forms/askpassphrasedialog.ui \
-    src/qt/forms/rpcconsole.ui \
-    src/qt/forms/optionsdialog.ui
+#    src/qt/forms/coincontroldialog.ui \
+#    src/qt/forms/sendcoinsdialog.ui \
+#    src/qt/forms/addressbookpage.ui \
+#    src/qt/forms/signverifymessagedialog.ui \
+#    src/qt/forms/aboutdialog.ui \
+#    src/qt/forms/editaddressdialog.ui \
+#    src/qt/forms/transactiondescdialog.ui \
+#    src/qt/forms/overviewpage.ui \
+#    src/qt/forms/sendcoinsentry.ui \
+#    src/qt/forms/askpassphrasedialog.ui \
+#    src/qt/forms/rpcconsole.ui \
+#    src/qt/forms/optionsdialog.ui
 
 contains(USE_QRCODE, 1) {
 HEADERS += src/qt/qrcodedialog.h

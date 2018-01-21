@@ -585,7 +585,7 @@ Dieses Produkt enthält Software, die vom OpenSSL-Projekt zur Verwendung im Open
     <message>
         <location line="+413"/>
         <source>Staking.&lt;br&gt;Your weight is %1&lt;br&gt;Network weight is %2&lt;br&gt;Expected time to earn reward is %3</source>
-        <translation>Staking.&lt;br&gt;Ihre Gewicht ist %1&lt;br&gt;Netzwerk Gewicht ist %2&lt;br&gt;Belohnung ungefähr in %3 erwartet</translation>
+        <translation>Staking.&lt;br&gt;Ihr Gewicht ist %1&lt;br&gt;Netzwerk Gewicht ist %2&lt;br&gt;Belohnung ungefähr in %3 erwartet</translation>
     </message>
     <message>
         <location line="+6"/>

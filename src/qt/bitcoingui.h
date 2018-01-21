@@ -3,6 +3,11 @@
 
 #include <QMainWindow>
 #include <QSystemTrayIcon>
+#include <QPainter>
+#include <overviewpage.h>
+#include <QStatusBar>
+#include <QLinearGradient>
+#include <QToolBar>
 
 #include <stdint.h>
 
@@ -103,7 +108,11 @@ private:
 
     QMovie *syncIconMovie;
 
+    QToolBar *toolbar = NULL;
+
     uint64_t nWeight;
+
+    bool overviewPageShown;
 
     /** Create the main UI actions. */
     void createActions();
@@ -115,6 +124,39 @@ private:
     void createTrayIcon();
     /** Create system tray menu (or setup the dock menu) */
     void createTrayIconMenu();
+
+    void paintEvent(QPaintEvent *)
+    {
+        QPainter painter(this);
+
+        // paint the upper bar with blue gradient
+        if(toolbar != NULL) {
+            painter.setRenderHint(QPainter::Antialiasing);
+            painter.setBrush(QBrush(QColor(0,0,255)));
+            QRect rect(0,
+                       toolbar->pos().y(),
+                       this->size().width(),
+                       toolbar->height());
+            QLinearGradient gradient(rect.topLeft(), rect.topRight()); // diagonal gradient from top-left to bottom-right
+            gradient.setColorAt(0, QColor(86,167,225));
+            gradient.setColorAt(1, QColor(96,98,173));
+
+            painter.fillRect(rect, gradient);
+        }
+
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.setBrush(QBrush(QColor(65,65,65)));
+
+        if(overviewPage == NULL) return;
+
+        // This draws the bottom gray bar after calculating its position
+        if(!overviewPageShown) return;
+        painter.drawRect(0,
+                         overviewPage->ui->bottom_bar_widget->mapTo(
+                             overviewPage->ui->bottom_bar_widget->window(), QPoint(0,0)).y(),
+                         this->size().width(),
+                         overviewPage->ui->bottom_bar_widget->height());
+    }
 
 public slots:
     /** Set number of connections shown in the UI */
