@@ -29,7 +29,8 @@ before_script:
     - cd build
 
 script:
-    - make distdir VERSION=$HOST
+    - qmake ..
+    - make
 
 after_script:
     - echo "Done"
