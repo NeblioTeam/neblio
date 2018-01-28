@@ -25,10 +25,17 @@ env:
 before_install:
 install:
 before_script:
-    - mkdir build
-    - cd build
+    - mkdir -p src/obj/zerocoin
+    - mkdir -p build
 
 script:
+#build daemon
+    - cd src
+    - make "STATIC=1" -B -w -f makefile.unix -j3
+    - cd ..
+
+#build gui wallet
+    - cd build
     - qmake ..
     - make -j3
 
