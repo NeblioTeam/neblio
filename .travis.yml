@@ -38,6 +38,7 @@ script:
     - cd build
     - qmake ..
     - make -j3
+    - cd ..
 
 after_script:
     - echo "Done"
