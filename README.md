@@ -1,3 +1,5 @@
+![Build Status](https://travis-ci.org/NeblioTeam/neblio.svg?branch=master)
+
 #General Introduction of Neblio
 Neblio is a secure and energy efficient PoS Token on which the Neblio Platform is built
 https://nebl.io
