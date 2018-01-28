@@ -30,7 +30,7 @@ before_script:
 
 script:
     - qmake ..
-    - make
+    - make -j3
 
 after_script:
     - echo "Done"
