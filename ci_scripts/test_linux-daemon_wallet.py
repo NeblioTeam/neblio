@@ -4,7 +4,7 @@
 import os
 import neblio_ci_libs as nci
 
-build_dir = "build"
+build_dir = "src"
 
 packages_to_install = \
 [
@@ -26,11 +26,9 @@ packages_to_install = \
 
 nci.install_packages_debian(packages_to_install)
 
-nci.mkdir_p(build_dir)
+nci.mkdir_p("src/obj/zerocoin")
 os.chdir(build_dir)
-nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=0" "RELEASE=1" ../neblio-qt.pro')
-nci.call_with_err_code("make -j3")
-
+nci.call_with_err_code('make "STATIC=1" -B -w -f makefile.unix -j3')
 
 print("")
 print("")

@@ -10,6 +10,7 @@ install:
 before_script:
 script:
     - python ci_scripts/test_linux-gui_wallet.py
+    - python ci_scripts/test_linux-daemon_wallet.py
 
 after_script:
     - echo "Done"

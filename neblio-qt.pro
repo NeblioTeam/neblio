@@ -496,3 +496,6 @@ system($$QMAKE_LRELEASE -silent $$_PRO_FILE_)
 DISTFILES += \
     .travis.yml \
     ci_scripts/test_linux-gui_wallet.py
+    ci_scripts/test_linux-daemon_wallet.py
+    ci_scripts/neblio_ci_libs/__init__.py
+    ci_scripts/neblio_ci_libs/common.py
