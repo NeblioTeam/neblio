@@ -492,3 +492,7 @@ contains(RELEASE, 1) {
 }
 
 system($$QMAKE_LRELEASE -silent $$_PRO_FILE_)
+
+DISTFILES += \
+    .travis.yml \
+    ci_scripts/test_linux-gui_wallet.py
