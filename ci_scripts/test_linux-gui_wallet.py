@@ -12,7 +12,10 @@ import shutil
 import errno
 
 neblio_src = "neblio"
-neblio_target = "neblio-build"
+build_dir = "build"
+
+CC_path  = "gcc"
+CXX_path = "g++"
 
 packages_to_install = \
 [
@@ -32,9 +35,6 @@ packages_to_install = \
 "libqrencode-dev"
 ]
 
-def install_packages():
-    call('sudo apt-get -y install ' + " ".join(packages_to_install), shell=True)
-
 def mkdir_p(path):
     try:
         os.makedirs(path)
@@ -44,25 +44,32 @@ def mkdir_p(path):
         else:
             raise
 
+def call_with_err_code(cmd):
+    err_code = call(cmd, shell=True)
+    if err_code != 0:
+        print("")
+        print("")
+        sys.stderr.write('call \'' + cmd + '\' exited with error code ' + str(err_code) +' \n')
+        print("")
+        exit(err_code)
+
+def install_packages():
+    call_with_err_code('sudo apt-get -y install ' + " ".join(packages_to_install))
+
 install_packages()
 
 working_dir = os.getcwd()
 
-CC_path  = "gcc"
-CXX_path = "g++"
 os.chdir(working_dir)
 
-#Go to build dir
-build_dir = "build"
 mkdir_p(build_dir)
 os.chdir(build_dir)
-call('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-qt.pro', shell=True)
-call("make -j3", shell=True)
+call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=0" "RELEASE=1" ../neblio-qt.pro')
+call_with_err_code("make -j3")
 
-#back to working dir
 os.chdir(working_dir)
 
 print("")
 print("")
-print("Building finished. Find the executable in " + build_dir)
+print("Building finished successfully.")
 print("")
