@@ -32,3 +32,8 @@ def call_with_err_code(cmd):
 def install_packages_debian(packages_to_install):
     call_with_err_code('sudo apt-get update')
     call_with_err_code('sudo apt-get -y install ' + " ".join(packages_to_install))
+
+
+def install_packages_osx(packages_to_install):
+    call_with_err_code('sudo brew update')
+    call_with_err_code('sudo brew -y install ' + " ".join(packages_to_install))
