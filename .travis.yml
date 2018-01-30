@@ -6,7 +6,9 @@ os:
 language: minimal
 env:
   global:
-
+  matrix:
+    - os_v=win
+    - os_v=linux
 before_install:
 install:
 before_script:
@@ -15,7 +17,7 @@ script:
 #    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then python ci_scripts/test_linux-daemon_wallet.py ; fi
 
 #    - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then x86_64-apple-darwin11 ; fi
-    - x86_64-apple-darwin11 --help
+    - echo $os_v
 
 after_script:
     - echo "Done"
