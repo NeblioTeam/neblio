@@ -1,6 +1,8 @@
 sudo: required
 dist: trusty
-os: linux
+os:
+    - linux
+    - os
 language: minimal
 env:
   global:
@@ -9,8 +11,10 @@ before_install:
 install:
 before_script:
 script:
-    - python ci_scripts/test_linux-gui_wallet.py
-    - python ci_scripts/test_linux-daemon_wallet.py
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then python ci_scripts/test_linux-gui_wallet.py ; fi
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then python ci_scripts/test_linux-daemon_wallet.py; fi
+
+    - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; echo "BUILDING ON OSX" ; fi
 
 after_script:
     - echo "Done"
