@@ -16,7 +16,7 @@ script:
     - echo $os_v
     - if [[ "$target_v" == "linux_daemon" ]]; then python ci_scripts/test_linux-daemon.py        ; fi
     - if [[ "$target_v" == "linux_wallet" ]]; then python ci_scripts/test_linux-gui_wallet.py    ; fi
-    - if [[ "$target_v" == "windows" ]];      then python ci_scripts/test_win32-gui_wallet.py.py ; fi
+    - if [[ "$target_v" == "windows" ]];      then python ci_scripts/test_win32-gui_wallet.py    ; fi
 
 
 after_script:
