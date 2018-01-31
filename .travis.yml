@@ -2,22 +2,22 @@ sudo: required
 dist: trusty
 os:
     - linux
-    - os
 language: minimal
 env:
   global:
   matrix:
-    - os_v=win
-    - os_v=linux
+    - target_v=windows
+    - target_v=linux_daemon
+    - target_v=linux_wallet
 before_install:
 install:
 before_script:
 script:
-#    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then python ci_scripts/test_linux-gui_wallet.py    ; fi
-#    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then python ci_scripts/test_linux-daemon_wallet.py ; fi
-
-#    - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then x86_64-apple-darwin11 ; fi
     - echo $os_v
+    - if [[ "$target_v" == "linux_daemon" ]]; then python ci_scripts/test_linux-daemon.py        ; fi
+    - if [[ "$target_v" == "linux_wallet" ]]; then python ci_scripts/test_linux-gui_wallet.py    ; fi
+    - if [[ "$target_v" == "windows" ]];      then python ci_scripts/test_win32-gui_wallet.py.py ; fi
+
 
 after_script:
     - echo "Done"

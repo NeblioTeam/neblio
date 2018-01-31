@@ -1,12 +1,8 @@
 import os
 from subprocess import call
 import sys
-import re
-import multiprocessing as mp
-import string
-import urllib
-import shutil
 import errno
+import urllib
 
 
 def mkdir_p(path):
@@ -31,7 +27,8 @@ def call_with_err_code(cmd):
 
 def install_packages_debian(packages_to_install):
     call_with_err_code('sudo apt-get update')
-    call_with_err_code('sudo apt-get -y install ' + " ".join(packages_to_install))
+    if len(packages_to_install) > 0:
+        call_with_err_code('sudo apt-get -y install ' + " ".join(packages_to_install))
 
 
 def install_packages_osx(packages_to_install):
