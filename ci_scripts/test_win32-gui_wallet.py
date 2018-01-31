@@ -13,7 +13,7 @@ mxe_path = "/mxe/mxe/"
 # download the toolchain for windows
 nci.call_with_err_code("wget https://download.afach.de/mxe-trusty.tar.gz")
 # extract it
-nci.call_with_err_code("tar -xvf mxe-trusty.tar.gz")
+nci.call_with_err_code("tar -xf mxe-trusty.tar.gz")
 # move it to /mxe, where it was built the first time
 nci.call_with_err_code("sudo mv mxe /")
 
