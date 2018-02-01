@@ -1,44 +1,22 @@
 sudo: required
 dist: trusty
-os: linux
+os:
+    - linux
 language: minimal
-addons:
-  apt:
-    packages:
-    - qt5-default
-    - qt5-qmake
-    - qtbase5-dev-tools
-    - qttools5-dev-tools
-    - build-essential
-    - libboost-dev
-    - libboost-system-dev
-    - libboost-filesystem-dev
-    - libboost-program-options-dev
-    - libboost-thread-dev
-    - libssl-dev
-    - libdb++-dev
-    - libminiupnpc-dev
-    - libqrencode-dev
 env:
   global:
-
+  matrix:
+    - target_v=windows
+    - target_v=linux_daemon
+    - target_v=linux_wallet
 before_install:
 install:
 before_script:
-    - mkdir -p src/obj/zerocoin
-    - mkdir -p build
-
 script:
-#build daemon
-    - cd src
-    - make "STATIC=1" -B -w -f makefile.unix -j3
-    - cd ..
+    - if [[ "$target_v" == "linux_daemon" ]]; then python ci_scripts/test_linux-daemon.py        ; fi
+    - if [[ "$target_v" == "linux_wallet" ]]; then python ci_scripts/test_linux-gui_wallet.py    ; fi
+    - if [[ "$target_v" == "windows" ]];      then python ci_scripts/test_win32-gui_wallet.py    ; fi
 
-#build gui wallet
-    - cd build
-    - qmake ..
-    - make -j3
-    - cd ..
 
 after_script:
     - echo "Done"
