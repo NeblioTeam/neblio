@@ -60,6 +60,8 @@ public:
     QLabel *label_2;
     QLabel *lastBlockTime;
     QSpacerItem *verticalSpacer_2;
+    QLabel *labelShowDataDir;
+    QPushButton *openDataDirButton;
     QLabel *labelDebugLogfile;
     QPushButton *openDebugLogfileButton;
     QLabel *labelCLOptions;
@@ -254,21 +256,33 @@ public:
 
         gridLayout->addWidget(openDebugLogfileButton, 15, 0, 1, 1);
 
+        labelShowDataDir = new QLabel(tab_info);
+        labelShowDataDir->setObjectName(QStringLiteral("labelShowDataDir"));
+        labelShowDataDir->setFont(font);
+
+        gridLayout->addWidget(labelShowDataDir, 16, 0, 1, 1);
+
+        openDataDirButton = new QPushButton(tab_info);
+        openDataDirButton->setObjectName(QStringLiteral("openDataDirButton"));
+        openDataDirButton->setAutoDefault(false);
+
+        gridLayout->addWidget(openDataDirButton, 17, 0, 1, 1);
+
         labelCLOptions = new QLabel(tab_info);
         labelCLOptions->setObjectName(QStringLiteral("labelCLOptions"));
         labelCLOptions->setFont(font);
 
-        gridLayout->addWidget(labelCLOptions, 16, 0, 1, 1);
+        gridLayout->addWidget(labelCLOptions, 18, 0, 1, 1);
 
         showCLOptionsButton = new QPushButton(tab_info);
         showCLOptionsButton->setObjectName(QStringLiteral("showCLOptionsButton"));
         showCLOptionsButton->setAutoDefault(false);
 
-        gridLayout->addWidget(showCLOptionsButton, 17, 0, 1, 1);
+        gridLayout->addWidget(showCLOptionsButton, 19, 0, 1, 1);
 
         verticalSpacer = new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding);
 
-        gridLayout->addItem(verticalSpacer, 18, 0, 1, 1);
+        gridLayout->addItem(verticalSpacer, 20, 0, 1, 1);
 
         gridLayout->setColumnStretch(1, 1);
         tabWidget->addTab(tab_info, QString());
@@ -354,10 +368,13 @@ public:
         label_2->setText(QApplication::translate("RPCConsole", "Last block time", Q_NULLPTR));
         lastBlockTime->setText(QApplication::translate("RPCConsole", "N/A", Q_NULLPTR));
         labelDebugLogfile->setText(QApplication::translate("RPCConsole", "Debug log file", Q_NULLPTR));
+        labelShowDataDir->setText(QApplication::translate("RPCConsole", "Show data directory", Q_NULLPTR));
 #ifndef QT_NO_TOOLTIP
         openDebugLogfileButton->setToolTip(QApplication::translate("RPCConsole", "Open the neblio debug log file from the current data directory. This can take a few seconds for large log files.", Q_NULLPTR));
+        openDataDirButton->setToolTip(QApplication::translate("RPCConsole", "Show the data directory of Neblio, that includes the blockchain, the wallet and configuration files, the logs and more.", Q_NULLPTR));
 #endif // QT_NO_TOOLTIP
-        openDebugLogfileButton->setText(QApplication::translate("RPCConsole", "&Open", Q_NULLPTR));
+        openDebugLogfileButton->setText(QApplication::translate("RPCConsole", "&View", Q_NULLPTR));
+        openDataDirButton->setText(QApplication::translate("RPCConsole", "&Open", Q_NULLPTR));
         labelCLOptions->setText(QApplication::translate("RPCConsole", "Command-line options", Q_NULLPTR));
 #ifndef QT_NO_TOOLTIP
         showCLOptionsButton->setToolTip(QApplication::translate("RPCConsole", "Show the neblio-Qt help message to get a list with possible neblio command-line options.", Q_NULLPTR));
