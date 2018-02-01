@@ -11,7 +11,7 @@ working_dir = os.getcwd()
 
 mxe_path = "/mxe/mxe/"
 # download the toolchain for windows
-nci.call_with_err_code("wget https://download.afach.de/mxe-trusty.tar.gz")
+nci.call_with_err_code("wget https://nebl.io/dependencies/mxe-trusty.tar.gz")
 # extract it
 nci.call_with_err_code("tar -xf mxe-trusty.tar.gz")
 # move it to /mxe, where it was built the first time
