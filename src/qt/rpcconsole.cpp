@@ -13,6 +13,10 @@
 #include <QUrl>
 #include <QScrollBar>
 
+#include <QDir>
+#include <QProcess>
+#include <QProcessEnvironment>
+
 #include <openssl/crypto.h>
 
 // TODO: make it possible to filter out categories (esp debug messages when implemented)
@@ -193,7 +197,8 @@ RPCConsole::RPCConsole(QWidget *parent) :
     ui->setupUi(this);
 
 #ifndef Q_OS_MAC
-    ui->openDebugLogfileButton->setIcon(QIcon(":/icons/export"));
+    ui->openDebugLogfileButton->setIcon(QIcon(":/icons/editpaste"));
+    ui->openDataDirButton->setIcon(QIcon(":/icons/open"));
     ui->showCLOptionsButton->setIcon(QIcon(":/icons/options"));
 #endif
 
@@ -422,6 +427,65 @@ void RPCConsole::on_tabWidget_currentChanged(int index)
 void RPCConsole::on_openDebugLogfileButton_clicked()
 {
     GUIUtil::openDebugLogfile();
+}
+
+bool fileExists(const QString& path)
+{
+    QFileInfo check_file(path);
+    // check if file exists and if yes: Is it really a file and no directory?
+    if (check_file.exists() && check_file.isFile()) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+QString joinPaths(const QString& path1, const QString& path2)
+{
+    return QDir::cleanPath(path1 + QDir::separator() + path2);
+}
+
+bool fileExistsInDir(const QString& dir, const QString& filename)
+{
+    return fileExists(joinPaths(dir,filename));
+}
+
+bool fileExistsInOneOfDirs(const QStringList& dirs, const QString& filename)
+{
+    for(long i = 0; i < dirs.size(); i++)
+    {
+        if(fileExistsInDir(dirs[i], filename))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void RPCConsole::on_openDataDirButton_clicked()
+{
+#if defined(Q_OS_WIN)
+    QString fileManagerProgram = "explorer.exe";
+    QChar pathEnvVarSeparator = ';';
+#elif defined(Q_OS_OSX)
+    QString fileManagerProgram = "open";
+    QChar pathEnvVarSeparator = ':';
+#else
+    QString fileManagerProgram = "xdg-open";
+    QChar pathEnvVarSeparator = ':';
+#endif
+    QString pathEnvVar = QProcessEnvironment::systemEnvironment().value("PATH");
+    QStringList pathEnvVarPaths = pathEnvVar.split(pathEnvVarSeparator);
+    QString dataDir = QString::fromStdWString(GetDataDir().wstring());
+    if(fileExistsInOneOfDirs(pathEnvVarPaths, fileManagerProgram))
+    {
+        QString command = fileManagerProgram + " \"" + dataDir + "\"";
+        QProcess::startDetached(command);
+    }
+    else
+    {
+        QMessageBox::information(this, "Could not open file manager", "Unable to open a file manager. The path of the data directory is:\n\n" + dataDir);
+    }
 }
 
 void RPCConsole::scrollToEnd()
