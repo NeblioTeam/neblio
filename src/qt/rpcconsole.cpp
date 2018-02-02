@@ -15,6 +15,7 @@
 
 #include <QDir>
 #include <QProcess>
+#include <QProcessEnvironment>
 
 #include <openssl/crypto.h>
 
@@ -473,7 +474,7 @@ void RPCConsole::on_openDataDirButton_clicked()
     QString fileManagerProgram = "xdg-open";
     QChar pathEnvVarSeparator = ':';
 #endif
-    QString pathEnvVar = QString::fromStdString(qgetenv("PATH").toStdString());
+    QString pathEnvVar = QProcessEnvironment::systemEnvironment().value("PATH");
     QStringList pathEnvVarPaths = pathEnvVar.split(pathEnvVarSeparator);
     QString dataDir = QString::fromStdWString(GetDataDir().wstring());
     if(fileExistsInOneOfDirs(pathEnvVarPaths, fileManagerProgram))
