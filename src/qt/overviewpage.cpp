@@ -101,6 +101,8 @@ OverviewPage::OverviewPage(QWidget *parent) :
 {
     ui->setupUi(this);
 
+    setupUpdateAnimations();
+
     // Recent transactions
     ui->listTransactions->setItemDelegate(txdelegate);
     ui->listTransactions->setIconSize(QSize(DECORATION_SIZE, DECORATION_SIZE));
@@ -121,6 +123,12 @@ void OverviewPage::handleTransactionClicked(const QModelIndex &index)
 {
     if(filter)
         emit transactionClicked(filter->mapToSource(index));
+}
+
+void OverviewPage::updateCheckAnimation_frameChanged(int frameNumber) {
+    if(frameNumber == (bottom_bar_updater_check_movie->frameCount()-1)) {
+        bottom_bar_updater_check_movie->stop();
+    }
 }
 
 OverviewPage::~OverviewPage()
@@ -146,6 +154,27 @@ void OverviewPage::setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBa
     bool showImmature = immatureBalance != 0;
     ui->immature_value_label->setVisible(showImmature);
     ui->immature_title_label->setVisible(showImmature);
+}
+
+void OverviewPage::setupUpdateAnimations()
+{
+    // Updater animations
+    bottom_bar_updater_check_movie = new QMovie(":images/update-animated-check", QByteArray(), ui->bottom_bar_widget);
+    bottom_bar_updater_check_movie->setScaledSize(
+                QSize(this->height()/ui->bottom_bar_downscale_factor,
+                      this->height()/ui->bottom_bar_downscale_factor));
+    bottom_bar_updater_check_movie->start();
+
+    bottom_bar_updater_spinner_movie = new QMovie(":images/update-spinner", QByteArray(), ui->bottom_bar_widget);
+    bottom_bar_updater_spinner_movie->setScaledSize(
+                QSize(this->height()/ui->bottom_bar_downscale_factor,
+                      this->height()/ui->bottom_bar_downscale_factor));
+    bottom_bar_updater_spinner_movie->start();
+
+//    ui->bottom_bar_updater_label->setMovie(bottom_bar_updater_check_movie);
+
+    connect(bottom_bar_updater_check_movie, &QMovie::frameChanged,
+            this, &OverviewPage::updateCheckAnimation_frameChanged);
 }
 
 void OverviewPage::setModel(WalletModel *model)

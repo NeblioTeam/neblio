@@ -46,9 +46,16 @@ private:
     TxViewDelegate *txdelegate;
     TransactionFilterProxy *filter;
 
+    QMovie *bottom_bar_updater_spinner_movie;
+    QMovie *bottom_bar_updater_check_movie;
+
+    void setupUpdateAnimations();
 private slots:
     void updateDisplayUnit();
     void handleTransactionClicked(const QModelIndex &index);
+
+    // Stop the animation after playing once
+    void updateCheckAnimation_frameChanged(int frameNumber);
 };
 
 #endif // OVERVIEWPAGE_H
