@@ -144,6 +144,7 @@ void OverviewPage::checkForNeblioUpdates()
 {
     if(!isUpdateRunning) {
         printf("Checking for updates...\n");
+        ui->bottom_bar_updater_label->setToolTip("Checking for updates...");
         ui->bottom_bar_updater_label->setMovie(bottom_bar_updater_spinner_movie);
         bottom_bar_updater_spinner_movie->start();
         latestVersion.clear();
@@ -221,7 +222,7 @@ void OverviewPage::setupUpdateControls()
     bottom_bar_updater_check_movie->setScaledSize(updaterIconSize);
     bottom_bar_updater_check_movie->start();
 
-    bottom_bar_updater_no_update_movie = new QMovie(":images/update-no-update", QByteArray(), ui->bottom_bar_widget);
+    bottom_bar_updater_no_update_movie = new QMovie(":images/update-update-available", QByteArray(), ui->bottom_bar_widget);
     bottom_bar_updater_no_update_movie->setScaledSize(updaterIconSize);
     bottom_bar_updater_no_update_movie->start();
 
