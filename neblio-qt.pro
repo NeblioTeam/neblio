@@ -498,10 +498,12 @@ contains(RELEASE, 1) {
 }
 
 !win32 {
-    LIBS += -lcurl
+    cURL_LIBS = $$system("pkg-config libcurl --libs")
+    LIBS += $$cURL_LIBS
 } else {
     # for mxe
-    LIBS += -lcurl -lwldap32 -lgnutls -lgmp
+    cURL_LIBS = $$system("i686-w64-mingw32.static-pkg-config libcurl --libs")
+    LIBS += $$cURL_LIBS
 }
 
 system($$QMAKE_LRELEASE -silent $$_PRO_FILE_)
