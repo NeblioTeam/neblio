@@ -99,9 +99,15 @@ OverviewPage::OverviewPage(QWidget *parent) :
     txdelegate(new TxViewDelegate()),
     filter(0)
 {
+    isUpdateRunning = false;
+    updateConcluderTimer = new QTimer(this);
+    updateConcluderTimeout = 3000;
+    updateCheckTimer = new QTimer(this);
+    updateCheckTimerTimeout = 15*60*1000; //check for updates every 15 minutes
+
     ui->setupUi(this);
 
-    setupUpdateAnimations();
+    setupUpdateControls();
 
     // Recent transactions
     ui->listTransactions->setItemDelegate(txdelegate);
@@ -117,6 +123,9 @@ OverviewPage::OverviewPage(QWidget *parent) :
 
     // start with displaying the "out of sync" warnings
     showOutOfSyncWarning(true);
+
+    updateCheckTimer->start(updateCheckTimerTimeout);
+    checkForNeblioUpdates();
 }
 
 void OverviewPage::handleTransactionClicked(const QModelIndex &index)
@@ -128,6 +137,52 @@ void OverviewPage::handleTransactionClicked(const QModelIndex &index)
 void OverviewPage::updateCheckAnimation_frameChanged(int frameNumber) {
     if(frameNumber == (bottom_bar_updater_check_movie->frameCount()-1)) {
         bottom_bar_updater_check_movie->stop();
+    }
+}
+
+void OverviewPage::checkForNeblioUpdates()
+{
+    if(!isUpdateRunning) {
+        printf("Checking for updates...\n");
+        ui->bottom_bar_updater_label->setMovie(bottom_bar_updater_spinner_movie);
+        bottom_bar_updater_spinner_movie->start();
+        latestVersion.clear();
+        updateAvailablePromise = boost::promise<bool>();
+        updateAvailableFuture = updateAvailablePromise.get_future();
+        boost::thread updaterThread(boost::bind(&NeblioUpdater::checkIfUpdateIsAvailable,
+                                    &neblioUpdater,
+                                    boost::ref(updateAvailablePromise),
+                                    boost::ref(latestVersion)
+                                    ));
+        updaterThread.detach();
+        updateConcluderTimer->start(updateConcluderTimeout);
+        isUpdateRunning = true;
+    }
+}
+
+void OverviewPage::finishCheckForNeblioUpdates()
+{
+    if(isUpdateRunning) {
+        printf("Concluding update check...\n");
+        try {
+            bool updateAvailable = updateAvailableFuture.get();
+            if(updateAvailable) {
+                ui->bottom_bar_updater_label->setMovie(bottom_bar_updater_no_update_movie);
+                bottom_bar_updater_no_update_movie->start();
+                ui->bottom_bar_updater_label->setToolTip("An update exists. Please visit nebl.io and download it.");
+            } else {
+                ui->bottom_bar_updater_label->setMovie(bottom_bar_updater_check_movie);
+                bottom_bar_updater_check_movie->start();
+                ui->bottom_bar_updater_label->setToolTip("Your Neblio client is up-to-date.");
+            }
+        } catch (std::exception& ex) {
+            ui->bottom_bar_updater_label->setMovie(bottom_bar_updater_error_movie);
+            bottom_bar_updater_error_movie->start();
+            ui->bottom_bar_updater_label->setToolTip(QString("Unable to retrieve update information: ") + QString(ex.what()));
+        }
+        updateConcluderTimer->stop();
+        printf("Done with updates check.\n");
+        isUpdateRunning = false;
     }
 }
 
@@ -156,25 +211,39 @@ void OverviewPage::setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBa
     ui->immature_title_label->setVisible(showImmature);
 }
 
-void OverviewPage::setupUpdateAnimations()
+void OverviewPage::setupUpdateControls()
 {
     // Updater animations
+    QSize updaterIconSize(this->height()/ui->bottom_bar_downscale_factor,
+                          this->height()/ui->bottom_bar_downscale_factor);
+
     bottom_bar_updater_check_movie = new QMovie(":images/update-animated-check", QByteArray(), ui->bottom_bar_widget);
-    bottom_bar_updater_check_movie->setScaledSize(
-                QSize(this->height()/ui->bottom_bar_downscale_factor,
-                      this->height()/ui->bottom_bar_downscale_factor));
+    bottom_bar_updater_check_movie->setScaledSize(updaterIconSize);
     bottom_bar_updater_check_movie->start();
 
-    bottom_bar_updater_spinner_movie = new QMovie(":images/update-spinner", QByteArray(), ui->bottom_bar_widget);
-    bottom_bar_updater_spinner_movie->setScaledSize(
-                QSize(this->height()/ui->bottom_bar_downscale_factor,
-                      this->height()/ui->bottom_bar_downscale_factor));
-    bottom_bar_updater_spinner_movie->start();
+    bottom_bar_updater_no_update_movie = new QMovie(":images/update-no-update", QByteArray(), ui->bottom_bar_widget);
+    bottom_bar_updater_no_update_movie->setScaledSize(updaterIconSize);
+    bottom_bar_updater_no_update_movie->start();
 
-//    ui->bottom_bar_updater_label->setMovie(bottom_bar_updater_check_movie);
+    bottom_bar_updater_error_movie = new QMovie(":images/update-error", QByteArray(), ui->bottom_bar_widget);
+    bottom_bar_updater_error_movie->setScaledSize(updaterIconSize);
+    bottom_bar_updater_error_movie->start();
+
+    bottom_bar_updater_spinner_movie = new QMovie(":images/update-spinner", QByteArray(), ui->bottom_bar_widget);
+    bottom_bar_updater_spinner_movie->setScaledSize(updaterIconSize);
+    bottom_bar_updater_spinner_movie->start();
 
     connect(bottom_bar_updater_check_movie, &QMovie::frameChanged,
             this, &OverviewPage::updateCheckAnimation_frameChanged);
+
+    connect(ui->bottom_bar_updater_label, &ClickableLabel::clicked,
+            this, &OverviewPage::checkForNeblioUpdates);
+
+    connect(updateConcluderTimer, &QTimer::timeout,
+            this, &OverviewPage::finishCheckForNeblioUpdates);
+
+    connect(updateCheckTimer, &QTimer::timeout,
+            this, &OverviewPage::checkForNeblioUpdates);
 }
 
 void OverviewPage::setModel(WalletModel *model)

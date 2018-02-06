@@ -24,6 +24,7 @@
 #include <QtWidgets/QWidget>
 
 #include <QMovie>
+#include <ClickableLabel.h>
 
 QT_BEGIN_NAMESPACE
 
@@ -57,7 +58,7 @@ public:
     QLabel *total_value_label;
 
     QWidget *bottom_bar_widget;
-    QLabel *bottom_bar_updater_label;
+    ClickableLabel *bottom_bar_updater_label;
     QLabel *bottom_bar_logo_label;
     QGridLayout *bottom_layout;
     QPixmap bottom_logo_pix;
@@ -96,7 +97,7 @@ public:
         bottom_bar_widget = new QWidget(OverviewPage);
         bottom_layout = new QGridLayout(bottom_bar_widget);
         bottom_bar_logo_label = new QLabel(bottom_bar_widget);
-        bottom_bar_updater_label = new QLabel(bottom_bar_widget);
+        bottom_bar_updater_label = new ClickableLabel(bottom_bar_widget);
         bottom_bar_updater_label->setAlignment(Qt::AlignLeft);
         bottom_bar_downscale_factor = 8;
 

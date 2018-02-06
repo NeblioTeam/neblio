@@ -235,12 +235,24 @@ std::string FormatSubVersion(const std::string& name, int nClientVersion, const 
 void AddTimeData(const CNetAddr& ip, int64_t nTime);
 void runCommand(std::string strCommand);
 
+template <typename T>
+std::string ToString(T const& value)
+{
+    std::stringstream sstr;
 
+    sstr << value;
+    return sstr.str();
+}
 
-
-
-
-
+template <typename T>
+T FromString(std::string str)
+{
+    std::stringstream ss;
+    ss << str;
+    T ret;
+    ss >> ret;
+    return ret;
+}
 
 
 inline std::string i64tostr(int64_t n)
