@@ -47,8 +47,8 @@ std::string NeblioUpdater::GetFileFromHTTPS(const std::string &url, bool Include
   if (curl) {
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L); // verify ssl peer
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 1L); // verify ssl hostname
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); // verify ssl peer
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L); // verify ssl hostname
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION,
                      CurlWrite_CallbackFunc_StdString);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &s);
