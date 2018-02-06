@@ -112,7 +112,7 @@ void NeblioUpdater::checkIfUpdateIsAvailable(boost::promise<bool> &updateIsAvail
         std::stringstream msg;
         msg << "Unable to parse version data during update check: " << ex.what() << std::endl;
         printf("%s", msg.str().c_str());
-        updateIsAvailablePromise.set_exception(ex);
+        updateIsAvailablePromise.set_exception(boost::current_exception());
         return;
     }
     lastVersion = remoteVersion;
