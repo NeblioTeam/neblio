@@ -170,7 +170,7 @@ void OverviewPage::finishCheckForNeblioUpdates()
             if(updateAvailable) {
                 ui->bottom_bar_updater_label->setMovie(bottom_bar_updater_no_update_movie);
                 bottom_bar_updater_no_update_movie->start();
-                ui->bottom_bar_updater_label->setToolTip("An update exists. Please visit nebl.io and download it.");
+                ui->bottom_bar_updater_label->setToolTip("An update exists. Please visit https://nebl.io/wallets and download it.");
             } else {
                 ui->bottom_bar_updater_label->setMovie(bottom_bar_updater_check_movie);
                 bottom_bar_updater_check_movie->start();

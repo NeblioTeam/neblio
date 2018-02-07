@@ -34,6 +34,7 @@ macx:MINIUPNPC_INCLUDE_PATH=/usr/local/Cellar/miniupnpc/2.0.20170509/include
 macx:MINIUPNPC_LIB_PATH=/usr/local/Cellar/miniupnpc/2.0.20170509/lib
 macx:QRENCODE_INCLUDE_PATH=/usr/local/Cellar/qrencode/3.4.4/include
 macx:QRENCODE_LIB_PATH=/usr/local/Cellar/qrencode/3.4.4/lib
+macx:CURL_LIB_PATH=/usr/local/opt/curl/lib
 windows:QRENCODE_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include
 windows:QRENCODE_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/libc
 
@@ -479,11 +480,13 @@ macx:QMAKE_CXXFLAGS_THREAD += -pthread
 # Set libraries and includes at end, to use platform-defined defaults if not overridden
 INCLUDEPATH += $$BOOST_INCLUDE_PATH $$BDB_INCLUDE_PATH $$OPENSSL_INCLUDE_PATH $$QRENCODE_INCLUDE_PATH
 LIBS += $$join(BOOST_LIB_PATH,,-L,) $$join(BDB_LIB_PATH,,-L,) $$join(OPENSSL_LIB_PATH,,-L,) $$join(QRENCODE_LIB_PATH,,-L,)
+macx: LIBS += $$join(CURL_LIB_PATH,,-L,)
 LIBS += -lssl -lcrypto -ldb_cxx$$BDB_LIB_SUFFIX
 # -lgdi32 has to happen after -lcrypto (see  #681)
 windows:LIBS += -lws2_32 -lshlwapi -lmswsock -lole32 -loleaut32 -luuid -lgdi32
 LIBS += -lboost_system$$BOOST_LIB_SUFFIX -lboost_filesystem$$BOOST_LIB_SUFFIX -lboost_program_options$$BOOST_LIB_SUFFIX -lboost_thread$$BOOST_THREAD_LIB_SUFFIX -lboost_regex$$BOOST_LIB_SUFFIX
 windows:LIBS += -lboost_chrono$$BOOST_LIB_SUFFIX
+macx: LIBS += -lcurl
 
 contains(RELEASE, 1) {
     !windows:!macx {
@@ -497,10 +500,11 @@ contains(RELEASE, 1) {
     LIBS += -lrt -ldl
 }
 
-!win32 {
+!win32:!macx {
     cURL_LIBS = $$system("pkg-config libcurl --libs")
     LIBS += $$cURL_LIBS
-} else {
+}
+win32 {
     # for mxe
     cURL_LIBS = $$system("i686-w64-mingw32.static-pkg-config libcurl --libs")
     LIBS += $$cURL_LIBS
