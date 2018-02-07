@@ -58,7 +58,6 @@ public:
     QLabel *total_value_label;
 
     QWidget *bottom_bar_widget;
-    ClickableLabel *bottom_bar_updater_label;
     QLabel *bottom_bar_logo_label;
     QGridLayout *bottom_layout;
     QPixmap bottom_logo_pix;
@@ -97,14 +96,11 @@ public:
         bottom_bar_widget = new QWidget(OverviewPage);
         bottom_layout = new QGridLayout(bottom_bar_widget);
         bottom_bar_logo_label = new QLabel(bottom_bar_widget);
-        bottom_bar_updater_label = new ClickableLabel(bottom_bar_widget);
-        bottom_bar_updater_label->setAlignment(Qt::AlignLeft);
         bottom_bar_downscale_factor = 8;
 
         main_layout->addWidget(bottom_bar_widget, 1, 0, 1, 2);
         bottom_bar_widget->setLayout(bottom_layout);
-        bottom_layout->addWidget(bottom_bar_updater_label, 0, 0, 1, 1);
-        bottom_layout->addWidget(bottom_bar_logo_label, 0, 1, 1, 1);
+        bottom_layout->addWidget(bottom_bar_logo_label, 0, 0, 1, 1);
         bottom_logo_pix = bottom_logo_pix.scaledToHeight(OverviewPage->height()/bottom_bar_downscale_factor, Qt::SmoothTransformation);
         bottom_bar_logo_label->setPixmap(bottom_logo_pix);
         bottom_bar_logo_label->setAlignment(Qt::AlignRight);

@@ -11,6 +11,8 @@
 
 #include <stdint.h>
 
+#include "neblioupdater.h"
+
 class TransactionTableModel;
 class ClientModel;
 class WalletModel;
@@ -40,6 +42,26 @@ QT_END_NAMESPACE
 class BitcoinGUI : public QMainWindow
 {
     Q_OBJECT
+
+    ClickableLabel *updaterLabel;
+    NeblioUpdater neblioUpdater;
+    NeblioVersion latestVersion;
+    boost::promise<bool> updateAvailablePromise;
+    boost::unique_future<bool> updateAvailableFuture;
+    QTimer* updateConcluderTimer;
+    int updateConcluderTimeout;
+    QTimer* updateCheckTimer;
+    int updateCheckTimerTimeout;
+
+    bool isUpdateRunning; // since update check is asynchronous, this is true while checking is running
+    //The following are the images that can show up in the updater
+    QMovie *updaterSpinnerMovie;
+    QMovie *updaterCheckMovie;
+    QMovie *updaterNoUpdateMovie;
+    QMovie *updaterErrorMovie;
+
+    void setupUpdateControls();
+
 public:
     explicit BitcoinGUI(QWidget *parent = 0);
     ~BitcoinGUI();
@@ -230,6 +252,13 @@ private slots:
 
     void updateWeight();
     void updateStakingIcon();
+
+    // Stop the animation after playing once
+    void updateCheckAnimation_frameChanged(int frameNumber);
+    // This function calls the update check asynchronously
+    void checkForNeblioUpdates();
+    // Called periodically to asynchronously check if the update process is finished
+    void finishCheckForNeblioUpdates();
 };
 
 #endif
