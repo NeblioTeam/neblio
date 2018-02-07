@@ -170,11 +170,11 @@ void OverviewPage::finishCheckForNeblioUpdates()
             if(updateAvailable) {
                 ui->bottom_bar_updater_label->setMovie(bottom_bar_updater_no_update_movie);
                 bottom_bar_updater_no_update_movie->start();
-                ui->bottom_bar_updater_label->setToolTip("An update exists. Please visit https://nebl.io/wallets and download it.");
+                ui->bottom_bar_updater_label->setToolTip("A new neblio wallet version exists! Please visit https://nebl.io/wallets and download it.");
             } else {
                 ui->bottom_bar_updater_label->setMovie(bottom_bar_updater_check_movie);
                 bottom_bar_updater_check_movie->start();
-                ui->bottom_bar_updater_label->setToolTip("Your Neblio client is up-to-date.");
+                ui->bottom_bar_updater_label->setToolTip("Your Neblio wallet application is up-to-date.");
             }
         } catch (std::exception& ex) {
             ui->bottom_bar_updater_label->setMovie(bottom_bar_updater_error_movie);
