@@ -1073,7 +1073,7 @@ void BitcoinGUI::checkForNeblioUpdates()
 
 void BitcoinGUI::finishCheckForNeblioUpdates()
 {
-    if(isUpdateRunning) {
+    if(isUpdateRunning && updateAvailableFuture.is_ready()) {
         printf("Concluding update check...\n");
         try {
             bool updateAvailable = updateAvailableFuture.get();
