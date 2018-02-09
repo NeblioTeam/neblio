@@ -1081,6 +1081,15 @@ void BitcoinGUI::finishCheckForNeblioUpdates()
                 updaterLabel->setMovie(updaterNoUpdateMovie);
                 updaterNoUpdateMovie->start();
                 updaterLabel->setToolTip("A new neblio wallet version exists! Please visit https://nebl.io/wallets and download it.");
+
+                // change the action of clicking on the update icon to show the dialog
+                disconnect(updaterLabel, &ClickableLabel::clicked,
+                        this, &BitcoinGUI::checkForNeblioUpdates);
+                connect(updaterLabel, &ClickableLabel::clicked,
+                        updateDialog, &NeblioUpdateDialog::show);
+
+                // stop checking for updates
+                updateCheckTimer->stop();
             } else {
                 updaterLabel->setMovie(updaterCheckMovie);
                 updaterCheckMovie->start();
@@ -1114,6 +1123,8 @@ void BitcoinGUI::setupUpdateControls()
 
     updaterSpinnerMovie = new QMovie(":images/update-spinner", QByteArray(), this->statusBar());
     updaterSpinnerMovie->start();
+
+    updateDialog = new NeblioUpdateDialog(this);
 
     connect(updaterCheckMovie, &QMovie::frameChanged,
             this, &BitcoinGUI::updateCheckAnimation_frameChanged);

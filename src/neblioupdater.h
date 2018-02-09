@@ -16,6 +16,7 @@ class NeblioUpdater
 
 public:
     static const std::string UpdateInfoLink;
+    static const std::string ReleasesInfoURL;
 
     NeblioUpdater();
     void checkIfUpdateIsAvailable(boost::promise<bool> &updateIsAvailablePromise, NeblioVersion &lastVersion);

@@ -7,7 +7,8 @@
 #include <sstream>
 #include <boost/algorithm/string.hpp>
 
-const std::string NeblioUpdater::UpdateInfoLink = "https://raw.githubusercontent.com/NeblioTeam/neblio/master/src/clientversion.h";
+const std::string NeblioUpdater::UpdateInfoLink  = "https://raw.githubusercontent.com/NeblioTeam/neblio/master/src/clientversion.h";
+const std::string NeblioUpdater::ReleasesInfoURL = "https://api.github.com/repos/NeblioTeam/neblio/releases";
 
 size_t CurlWrite_CallbackFunc_StdString(void *contents, size_t size,
                                         size_t nmemb, std::deque<char> *s) {
@@ -51,6 +52,7 @@ std::string NeblioUpdater::GetFileFromHTTPS(const std::string &url, bool Include
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L); // verify ssl hostname
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION,
                      CurlWrite_CallbackFunc_StdString);
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "Dark Secret Ninja/1.0");
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &s);
 
     if (IncludeProgressBar) {
@@ -72,8 +74,8 @@ std::string NeblioUpdater::GetFileFromHTTPS(const std::string &url, bool Include
       long http_response_code;
       curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_response_code);
       if (http_response_code != 200) {
-        throw std::runtime_error("Error retrieving data with https protocol. "
-                                 "Probably the URL is invalid.");
+          throw std::runtime_error("Error retrieving data with https protocol, error . " + ToString(http_response_code) +
+                                   "Probably the URL is invalid.");
       }
     }
 
