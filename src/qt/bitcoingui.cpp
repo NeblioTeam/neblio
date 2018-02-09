@@ -1088,7 +1088,7 @@ void BitcoinGUI::finishCheckForNeblioUpdates()
                 connect(updaterLabel, &ClickableLabel::clicked,
                         updateDialog, &NeblioUpdateDialog::show);
 
-                // stop checking for updates
+                // stop checking for updates periodically
                 updateCheckTimer->stop();
             } else {
                 updaterLabel->setMovie(updaterCheckMovie);
