@@ -1092,6 +1092,9 @@ void BitcoinGUI::finishCheckForNeblioUpdates()
 
                 updateDialog->setUpdateRelease(latestRelease);
                 animationStopperTimer->start(animationStopperTimerTimeout);
+
+                //stop periodic update checking
+                updateCheckTimer->stop();
             } else {
                 updaterLabel->setMovie(updaterCheckMovie);
                 updaterCheckMovie->start();
