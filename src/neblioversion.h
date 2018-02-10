@@ -22,6 +22,18 @@ public:
     bool operator!=(const NeblioVersion& rhs);
     std::string toString();
     void clear();
+
+    void setMajor(int value);
+    void setMinor(int value);
+    void setRevision(int value);
+    void setBuild(int value);
+
+    int getMajor() const;
+    int getMinor() const;
+    int getRevision() const;
+    int getBuild() const;
+
+    static NeblioVersion GetCurrentNeblioVersion();
 };
 
 #endif // NEBLIOVERSION_H

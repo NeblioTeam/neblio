@@ -7,7 +7,7 @@
 #include <sstream>
 #include <boost/algorithm/string.hpp>
 
-const std::string NeblioUpdater::UpdateInfoLink  = "https://raw.githubusercontent.com/NeblioTeam/neblio/master/src/clientversion.h";
+const std::string NeblioUpdater::ClientVersionSrcFileLink  = "https://raw.githubusercontent.com/NeblioTeam/neblio/master/src/clientversion.h";
 const std::string NeblioUpdater::ReleasesInfoURL = "https://api.github.com/repos/NeblioTeam/neblio/releases";
 
 size_t CurlWrite_CallbackFunc_StdString(void *contents, size_t size,
@@ -90,26 +90,36 @@ NeblioUpdater::NeblioUpdater()
 {
 }
 
-void NeblioUpdater::checkIfUpdateIsAvailable(boost::promise<bool> &updateIsAvailablePromise, NeblioVersion& lastVersion)
+void NeblioUpdater::checkIfUpdateIsAvailable(boost::promise<bool> &updateIsAvailablePromise, NeblioReleaseInfo& lastRelease)
 {
-    NeblioVersion remoteVersion;
+    NeblioReleaseInfo remoteRelease;
     NeblioVersion localVersion;
-    std::string versionFile;
+    std::string releaseData;
+    std::vector<NeblioReleaseInfo> neblioReleases;
     try {
-        versionFile = GetFileFromHTTPS(UpdateInfoLink, 0);
-        versionFile = RemoveCFileComments(versionFile);
+        releaseData = GetFileFromHTTPS(ReleasesInfoURL, 0);
+        neblioReleases = NeblioReleaseInfo::ParseAllReleaseDataFromJSON(releaseData);
+
+        // remove prerelease versions
+        neblioReleases.erase(std::remove_if(neblioReleases.begin(), neblioReleases.end(),
+                RemovePreReleaseFunctor()), neblioReleases.end());
+//        std::for_each(neblioReleases.begin(), neblioReleases.end(), [](const NeblioReleaseInfo& v) {std::cout<<v.versionStr<<std::endl;});
+        // sort in descending order
+        std::sort(neblioReleases.begin(), neblioReleases.end(), NeblioReleaseVersionGreaterComparator());
+//        std::for_each(neblioReleases.begin(), neblioReleases.end(), [](const NeblioReleaseInfo& v) {std::cout<<v.versionStr<<std::endl;});
+        if(neblioReleases.size() <= 0) {
+            throw std::length_error("The list of releases retrieved is empty.");
+        }
     } catch (std::exception& ex) {
-        std::string m("Unable to download update file: " + std::string(ex.what()) + "\n");
-        printf("%s", m.c_str());
+        std::string msg("Unable to download update file: " + std::string(ex.what()) + "\n");
+        printf("%s", msg.c_str());
         updateIsAvailablePromise.set_exception(boost::current_exception());
         return;
     }
+
     try {
-        remoteVersion = ParseVersion(versionFile);
-        localVersion  = NeblioVersion(CLIENT_VERSION_MAJOR,
-                                      CLIENT_VERSION_MINOR,
-                                      CLIENT_VERSION_REVISION,
-                                      CLIENT_VERSION_BUILD);
+        remoteRelease = neblioReleases[0]; // get highest version
+        localVersion  = NeblioVersion::GetCurrentNeblioVersion();
     } catch (std::exception& ex) {
         std::stringstream msg;
         msg << "Unable to parse version data during update check: " << ex.what() << std::endl;
@@ -117,8 +127,8 @@ void NeblioUpdater::checkIfUpdateIsAvailable(boost::promise<bool> &updateIsAvail
         updateIsAvailablePromise.set_exception(boost::current_exception());
         return;
     }
-    lastVersion = remoteVersion;
-    updateIsAvailablePromise.set_value(remoteVersion > localVersion);
+    lastRelease = remoteRelease;
+    updateIsAvailablePromise.set_value(remoteRelease.getVersion() > localVersion);
 }
 
 NeblioVersion NeblioUpdater::ParseVersion(const std::string &versionFile)
@@ -127,12 +137,6 @@ NeblioVersion NeblioUpdater::ParseVersion(const std::string &versionFile)
     int minorVersion    = FromString<int>(GetDefineFromCFile(versionFile, "CLIENT_VERSION_MINOR"));
     int revisionVersion = FromString<int>(GetDefineFromCFile(versionFile, "CLIENT_VERSION_REVISION"));
     int buildVersion    = FromString<int>(GetDefineFromCFile(versionFile, "CLIENT_VERSION_BUILD"));
-    std::stringstream msg;
-    msg << majorVersion    << "." <<
-           minorVersion    << "." <<
-           revisionVersion << "." <<
-           buildVersion    << std::endl;
-    printf("%s", msg.str().c_str());
     return NeblioVersion(majorVersion, minorVersion, revisionVersion, buildVersion);
 }
 

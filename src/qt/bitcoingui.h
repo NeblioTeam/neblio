@@ -46,7 +46,7 @@ class BitcoinGUI : public QMainWindow
 
     ClickableLabel *updaterLabel;
     NeblioUpdater neblioUpdater;
-    NeblioVersion latestVersion;
+    NeblioReleaseInfo latestRelease;
     boost::promise<bool> updateAvailablePromise;
     boost::unique_future<bool> updateAvailableFuture;
     QTimer* updateConcluderTimer;

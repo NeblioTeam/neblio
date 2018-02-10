@@ -1,7 +1,8 @@
 #include "neblioversion.h"
+#include "util.h"
+#include "clientversion.h"
 
 #include <stdexcept>
-#include <util.h>
 
 void NeblioVersion::checkInitialization()
 {
@@ -83,4 +84,52 @@ std::string NeblioVersion::toString()
 void NeblioVersion::clear()
 {
     *this = NeblioVersion();
+}
+
+void NeblioVersion::setMajor(int value)
+{
+    major = value;
+}
+
+void NeblioVersion::setMinor(int value)
+{
+    minor = value;
+}
+
+void NeblioVersion::setRevision(int value)
+{
+    revision = value;
+}
+
+void NeblioVersion::setBuild(int value)
+{
+    build = value;
+}
+
+int NeblioVersion::getMajor() const
+{
+    return major;
+}
+
+int NeblioVersion::getMinor() const
+{
+    return minor;
+}
+
+int NeblioVersion::getRevision() const
+{
+    return revision;
+}
+
+int NeblioVersion::getBuild() const
+{
+    return build;
+}
+
+NeblioVersion NeblioVersion::GetCurrentNeblioVersion()
+{
+    return NeblioVersion(CLIENT_VERSION_MAJOR,
+                         CLIENT_VERSION_MINOR,
+                         CLIENT_VERSION_REVISION,
+                         CLIENT_VERSION_BUILD);
 }

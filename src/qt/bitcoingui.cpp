@@ -1057,13 +1057,13 @@ void BitcoinGUI::checkForNeblioUpdates()
         updaterLabel->setToolTip("Checking for updates...");
         updaterLabel->setMovie(updaterSpinnerMovie);
         updaterSpinnerMovie->start();
-        latestVersion.clear();
+        latestRelease.clear();
         updateAvailablePromise = boost::promise<bool>();
         updateAvailableFuture = updateAvailablePromise.get_future();
         boost::thread updaterThread(boost::bind(&NeblioUpdater::checkIfUpdateIsAvailable,
                                     &neblioUpdater,
                                     boost::ref(updateAvailablePromise),
-                                    boost::ref(latestVersion)
+                                    boost::ref(latestRelease)
                                     ));
         updaterThread.detach();
         updateConcluderTimer->start(updateConcluderTimeout);
@@ -1088,8 +1088,7 @@ void BitcoinGUI::finishCheckForNeblioUpdates()
                 connect(updaterLabel, &ClickableLabel::clicked,
                         updateDialog, &NeblioUpdateDialog::show);
 
-                // stop checking for updates periodically
-                updateCheckTimer->stop();
+                updateDialog->setUpdateRelease(latestRelease);
             } else {
                 updaterLabel->setMovie(updaterCheckMovie);
                 updaterCheckMovie->start();

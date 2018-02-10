@@ -127,6 +127,7 @@ INCLUDEPATH += src/leveldb/include src/leveldb/helpers
 macx: INCLUDEPATH += /usr/include /usr/local/opt/berkeley-db@4/include /usr/local/opt/boost/include /usr/local/opt/openssl/include
 LIBS += $$PWD/src/leveldb/libleveldb.a $$PWD/src/leveldb/libmemenv.a
 SOURCES += src/txdb-leveldb.cpp
+
 !win32 {
     # we use QMAKE_CXXFLAGS_RELEASE even without RELEASE=1 because we use RELEASE to indicate linking preferences not -O preferences
     genleveldb.commands = cd $$PWD/src/leveldb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\" libleveldb.a libmemenv.a
@@ -270,6 +271,7 @@ HEADERS += src/qt/bitcoingui.h \
     src/qt/bitcoinunits.h \
     src/qt/qvaluecombobox.h \
     src/qt/askpassphrasedialog.h \
+    src/qt/neblioupdatedialog.h \
     src/protocol.h \
     src/qt/notificator.h \
     src/qt/qtipcserver.h \
@@ -282,7 +284,8 @@ HEADERS += src/qt/bitcoingui.h \
     src/clientversion.h \
     src/threadsafety.h \
     src/neblioupdater.h \
-    src/neblioversion.h
+    src/neblioversion.h \
+    src/neblioreleaseinfo.h
 
 contains(NEBLIO_REST, 1) {
     HEADERS += src/nebliorest.h
@@ -351,6 +354,7 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/qt/qtipcserver.cpp \
     src/qt/rpcconsole.cpp \
     src/qt/ClickableLabel.cpp \
+    src/qt/neblioupdatedialog.cpp \
     src/noui.cpp \
     src/kernel.cpp \
     src/scrypt-arm.S \
@@ -369,6 +373,10 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/zerocoin/SpendMetaData.cpp \
     src/neblioupdater.cpp \
     src/neblioversion.cpp \
+    src/json/json_spirit_value.cpp \
+    src/json/json_spirit_reader.cpp \
+    src/json/json_spirit_writer.cpp \
+    src/neblioreleaseinfo.cpp \
     src/zerocoin/ZeroTest.cpp
 
 contains(NEBLIO_REST, 1) {
