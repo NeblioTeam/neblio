@@ -61,5 +61,5 @@ void NeblioUpdateDialog::setUpdateRelease(const NeblioReleaseInfo& rel)
     this->setCurrentVersion(QString::fromStdString(NeblioVersion::GetCurrentNeblioVersion().toString()));
     this->setRemoteVersion(QString::fromStdString(rel.getVersion().toString()));
     this->setBodyText(QString::fromStdString(rel.getUpdateDescription()));
-    this->setDownloadLink(QString::fromStdString(rel.getDownloadLink()));
+    this->setDownloadLink(QString::fromStdString(NeblioUpdater::LatestReleaseURL));
 }
