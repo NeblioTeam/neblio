@@ -18,6 +18,7 @@ class NeblioUpdater
 public:
     static const std::string ClientVersionSrcFileLink;
     static const std::string ReleasesInfoURL;
+    static const std::string LatestReleaseURL;
 
     NeblioUpdater();
     void checkIfUpdateIsAvailable(boost::promise<bool> &updateIsAvailablePromise, NeblioReleaseInfo &lastRelease);

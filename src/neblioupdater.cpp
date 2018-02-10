@@ -9,6 +9,7 @@
 
 const std::string NeblioUpdater::ClientVersionSrcFileLink  = "https://raw.githubusercontent.com/NeblioTeam/neblio/master/src/clientversion.h";
 const std::string NeblioUpdater::ReleasesInfoURL = "https://api.github.com/repos/NeblioTeam/neblio/releases";
+const std::string NeblioUpdater::LatestReleaseURL = "https://github.com/NeblioTeam/neblio/releases/latest";
 
 size_t CurlWrite_CallbackFunc_StdString(void *contents, size_t size,
                                         size_t nmemb, std::deque<char> *s) {
