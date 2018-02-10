@@ -362,7 +362,7 @@ void BitcoinGUI::createMenuBar()
 }
 
 void BitcoinGUI::createToolBars()
-{    
+{
     toolbar = addToolBar(tr("Tabs toolbar"));
     toolbar->setMovable(false); //Not movable because the color bar would not be commpatible
     toolbar->setStyleSheet("QToolBar {background-color: rgba(255, 255, 255, 0);}");
@@ -1080,7 +1080,7 @@ void BitcoinGUI::finishCheckForNeblioUpdates()
             if(updateAvailable) {
                 updaterLabel->setMovie(updaterNoUpdateMovie);
                 updaterNoUpdateMovie->start();
-                updaterLabel->setToolTip("A new neblio wallet version exists! Please visit https://nebl.io/wallets and download it.");
+                updaterLabel->setToolTip("A new neblio wallet version exists! Please click here for release notes and a download link");
 
                 // change the action of clicking on the update icon to show the dialog
                 disconnect(updaterLabel, &ClickableLabel::clicked,
