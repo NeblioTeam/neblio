@@ -140,6 +140,8 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     updateConcluderTimeout = 3000;
     updateCheckTimer = new QTimer(this);
     updateCheckTimerTimeout = 15*60*1000; //check for updates every 15 minutes
+    animationStopperTimer = new QTimer(this);
+    animationStopperTimerTimeout = 2*60*1000; //stop animations in 2 minutes
     setupUpdateControls();
     updateCheckTimer->start(updateCheckTimerTimeout);
     checkForNeblioUpdates();
@@ -219,7 +221,7 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     QSize updaterIconSize(labelEncryptionIcon->height(),
                           labelEncryptionIcon->height());
     updaterCheckMovie->setScaledSize(updaterIconSize);
-    updaterNoUpdateMovie->setScaledSize(updaterIconSize);
+    updaterUpdateExistsMovie->setScaledSize(updaterIconSize);
     updaterErrorMovie->setScaledSize(updaterIconSize);
     updaterSpinnerMovie->setScaledSize(updaterIconSize);
 
@@ -1078,8 +1080,8 @@ void BitcoinGUI::finishCheckForNeblioUpdates()
         try {
             bool updateAvailable = updateAvailableFuture.get();
             if(updateAvailable) {
-                updaterLabel->setMovie(updaterNoUpdateMovie);
-                updaterNoUpdateMovie->start();
+                updaterLabel->setMovie(updaterUpdateExistsMovie);
+                updaterUpdateExistsMovie->start();
                 updaterLabel->setToolTip("A new neblio wallet version exists! Please click here for release notes and a download link");
 
                 // change the action of clicking on the update icon to show the dialog
@@ -1089,6 +1091,7 @@ void BitcoinGUI::finishCheckForNeblioUpdates()
                         updateDialog, &NeblioUpdateDialog::show);
 
                 updateDialog->setUpdateRelease(latestRelease);
+                animationStopperTimer->start(animationStopperTimerTimeout);
             } else {
                 updaterLabel->setMovie(updaterCheckMovie);
                 updaterCheckMovie->start();
@@ -1097,12 +1100,27 @@ void BitcoinGUI::finishCheckForNeblioUpdates()
         } catch (std::exception& ex) {
             updaterLabel->setMovie(updaterErrorMovie);
             updaterErrorMovie->start();
+            animationStopperTimer->start(animationStopperTimerTimeout);
             updaterLabel->setToolTip(QString("Unable to retrieve update information: ") + QString(ex.what()));
         }
+        updaterSpinnerMovie->stop();
         updateConcluderTimer->stop();
         printf("Done with updates check.\n");
         isUpdateRunning = false;
     }
+}
+
+void BitcoinGUI::stopAnimations()
+{
+    // start and stop the movies to go back to frame 1
+    updaterErrorMovie->stop();
+    updaterErrorMovie->start();
+    updaterErrorMovie->stop();
+    updaterUpdateExistsMovie->stop();
+    updaterUpdateExistsMovie->start();
+    updaterUpdateExistsMovie->stop();
+
+    animationStopperTimer->stop();
 }
 
 void BitcoinGUI::setupUpdateControls()
@@ -1112,16 +1130,12 @@ void BitcoinGUI::setupUpdateControls()
     // Updater animations
 
     updaterCheckMovie = new QMovie(":images/update-animated-check", QByteArray(), this->statusBar());
-    updaterCheckMovie->start();
 
-    updaterNoUpdateMovie = new QMovie(":images/update-update-available", QByteArray(), this->statusBar());
-    updaterNoUpdateMovie->start();
+    updaterUpdateExistsMovie = new QMovie(":images/update-update-available", QByteArray(), this->statusBar());
 
     updaterErrorMovie = new QMovie(":images/update-error", QByteArray(), this->statusBar());
-    updaterErrorMovie->start();
 
     updaterSpinnerMovie = new QMovie(":images/update-spinner", QByteArray(), this->statusBar());
-    updaterSpinnerMovie->start();
 
     updateDialog = new NeblioUpdateDialog(this);
 
@@ -1136,5 +1150,8 @@ void BitcoinGUI::setupUpdateControls()
 
     connect(updateCheckTimer, &QTimer::timeout,
             this, &BitcoinGUI::checkForNeblioUpdates);
+
+    connect(animationStopperTimer, &QTimer::timeout,
+            this, &BitcoinGUI::stopAnimations);
 }
 

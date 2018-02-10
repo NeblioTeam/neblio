@@ -53,13 +53,15 @@ class BitcoinGUI : public QMainWindow
     int updateConcluderTimeout;
     QTimer* updateCheckTimer;
     int updateCheckTimerTimeout;
+    QTimer* animationStopperTimer;
+    int animationStopperTimerTimeout;
     NeblioUpdateDialog* updateDialog;
 
     bool isUpdateRunning; // since update check is asynchronous, this is true while checking is running
     //The following are the images that can show up in the updater
     QMovie *updaterSpinnerMovie;
     QMovie *updaterCheckMovie;
-    QMovie *updaterNoUpdateMovie;
+    QMovie *updaterUpdateExistsMovie;
     QMovie *updaterErrorMovie;
 
     void setupUpdateControls();
@@ -261,6 +263,8 @@ private slots:
     void checkForNeblioUpdates();
     // Called periodically to asynchronously check if the update process is finished
     void finishCheckForNeblioUpdates();
+
+    void stopAnimations();
 };
 
 #endif
