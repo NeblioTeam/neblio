@@ -23,6 +23,9 @@
 #include <QtWidgets/QVBoxLayout>
 #include <QtWidgets/QWidget>
 
+#include <QMovie>
+#include <ClickableLabel.h>
+
 QT_BEGIN_NAMESPACE
 
 class Ui_OverviewPage
@@ -55,9 +58,11 @@ public:
     QLabel *total_value_label;
 
     QWidget *bottom_bar_widget;
-    QLabel *bottom_bar_label;
+    QLabel *bottom_bar_logo_label;
     QGridLayout *bottom_layout;
     QPixmap bottom_logo_pix;
+
+    int bottom_bar_downscale_factor;
 
     void setupUi(QWidget *OverviewPage)
     {
@@ -90,16 +95,15 @@ public:
         bottom_logo_pix = QPixmap(":images/neblio_horizontal");
         bottom_bar_widget = new QWidget(OverviewPage);
         bottom_layout = new QGridLayout(bottom_bar_widget);
-        bottom_bar_label = new QLabel(bottom_bar_widget);
-
+        bottom_bar_logo_label = new QLabel(bottom_bar_widget);
+        bottom_bar_downscale_factor = 8;
 
         main_layout->addWidget(bottom_bar_widget, 1, 0, 1, 2);
         bottom_bar_widget->setLayout(bottom_layout);
-        bottom_layout->addWidget(bottom_bar_label, 0, 0, 1, 1);
-//        bottom_bar_widget->setStyleSheet("background-color: #333333;");
-        bottom_logo_pix = bottom_logo_pix.scaledToHeight(OverviewPage->height()/8, Qt::SmoothTransformation);
-        bottom_bar_label->setPixmap(bottom_logo_pix);
-        bottom_bar_label->setAlignment(Qt::AlignRight);
+        bottom_layout->addWidget(bottom_bar_logo_label, 0, 0, 1, 1);
+        bottom_logo_pix = bottom_logo_pix.scaledToHeight(OverviewPage->height()/bottom_bar_downscale_factor, Qt::SmoothTransformation);
+        bottom_bar_logo_label->setPixmap(bottom_logo_pix);
+        bottom_bar_logo_label->setAlignment(Qt::AlignRight);
 
         right_balance_layout = new QVBoxLayout();
         right_balance_layout->setObjectName(QStringLiteral("verticalLayout_3"));
@@ -291,7 +295,6 @@ public:
         total_value_label->setToolTip(QApplication::translate("OverviewPage", "Your current total balance", Q_NULLPTR));
 #endif // QT_NO_TOOLTIP
     } // retranslateUi
-
 };
 
 namespace Ui {

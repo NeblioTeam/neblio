@@ -18,10 +18,12 @@ packages_to_install = \
 "libboost-filesystem-dev",
 "libboost-program-options-dev",
 "libboost-thread-dev",
+"libboost-regex-dev",
 "libssl-dev",
 "libdb++-dev",
 "libminiupnpc-dev",
-"libqrencode-dev"
+"libqrencode-dev",
+"libcurl4-openssl-dev"
 ]
 
 nci.install_packages_debian(packages_to_install)

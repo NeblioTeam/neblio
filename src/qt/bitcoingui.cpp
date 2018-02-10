@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Qt4 bitcoin GUI.
  *
  * W.J. van der Laan 2011-2012
@@ -78,7 +78,7 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     nWeight(0)
 {
     setWindowTitle(tr("neblio") + " - " + tr("Wallet"));
-    qApp->setStyleSheet("QMainWindow { background-color: white;border:none;font-family:'Open Sans,sans-serif'; }");
+    qApp->setStyleSheet("QMainWindow { background-color: white;border:none;font-family:'Open Sans,sans-serif'; } QStatusBar::item { border: 0px;}");
 #ifndef Q_OS_MAC
     qApp->setWindowIcon(QIcon(":icons/bitcoin"));
     setWindowIcon(QIcon(":icons/bitcoin"));
@@ -133,8 +133,18 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     centralWidget->addWidget(sendCoinsPage);
     setCentralWidget(centralWidget);
 
-    // Create status bar
-    statusBar();
+
+    // updater stuff
+    isUpdateRunning = false;
+    updateConcluderTimer = new QTimer(this);
+    updateConcluderTimeout = 3000;
+    updateCheckTimer = new QTimer(this);
+    updateCheckTimerTimeout = 15*60*1000; //check for updates every 15 minutes
+    animationStopperTimer = new QTimer(this);
+    animationStopperTimerTimeout = 2*60*1000; //stop animations in 2 minutes
+    setupUpdateControls();
+    updateCheckTimer->start(updateCheckTimerTimeout);
+    checkForNeblioUpdates();
 
     // Status bar notification icons
     QFrame *frameBlocks = new QFrame();
@@ -172,6 +182,7 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     progressBar->setAlignment(Qt::AlignCenter);
     progressBar->setVisible(false);
 
+
     // Override style sheet for progress bar for styles that have a segmented progress bar,
     // as they make the text unreadable (workaround for issue #1071)
     // See https://qt-project.org/doc/qt-4.8/gallery.html
@@ -181,6 +192,8 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
         progressBar->setStyleSheet("QProgressBar { background-color: #e8e8e8; border: 1px solid grey; border-radius: 7px; padding: 1px; text-align: center; } QProgressBar::chunk { background: QLinearGradient(x1: 0, y1: 0, x2: 1, y2: 0, stop: 0 #FF8000, stop: 1 orange); border-radius: 7px; margin: 0px; }");
     }
 
+    statusBar()->addWidget(updaterLabel);
+    updaterLabel->setAlignment(Qt::AlignCenter);
     statusBar()->addWidget(progressBarLabel);
     statusBar()->addWidget(progressBar);
     statusBar()->addPermanentWidget(frameBlocks);
@@ -205,6 +218,13 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     connect(receiveCoinsPage, SIGNAL(signMessage(QString)), this, SLOT(gotoSignMessageTab(QString)));
 
     gotoOverviewPage();
+    QSize updaterIconSize(labelEncryptionIcon->height(),
+                          labelEncryptionIcon->height());
+    updaterCheckMovie->setScaledSize(updaterIconSize);
+    updaterUpdateExistsMovie->setScaledSize(updaterIconSize);
+    updaterErrorMovie->setScaledSize(updaterIconSize);
+    updaterSpinnerMovie->setScaledSize(updaterIconSize);
+
 }
 
 BitcoinGUI::~BitcoinGUI()
@@ -344,7 +364,7 @@ void BitcoinGUI::createMenuBar()
 }
 
 void BitcoinGUI::createToolBars()
-{    
+{
     toolbar = addToolBar(tr("Tabs toolbar"));
     toolbar->setMovable(false); //Not movable because the color bar would not be commpatible
     toolbar->setStyleSheet("QToolBar {background-color: rgba(255, 255, 255, 0);}");
@@ -1025,3 +1045,116 @@ void BitcoinGUI::updateStakingIcon()
             labelStakingIcon->setToolTip(tr("Not staking"));
     }
 }
+
+void BitcoinGUI::updateCheckAnimation_frameChanged(int frameNumber) {
+    if(frameNumber == (updaterCheckMovie->frameCount()-1)) {
+        updaterCheckMovie->stop();
+    }
+}
+
+void BitcoinGUI::checkForNeblioUpdates()
+{
+    if(!isUpdateRunning) {
+        printf("Checking for updates...\n");
+        updaterLabel->setToolTip("Checking for updates...");
+        updaterLabel->setMovie(updaterSpinnerMovie);
+        updaterSpinnerMovie->start();
+        latestRelease.clear();
+        updateAvailablePromise = boost::promise<bool>();
+        updateAvailableFuture = updateAvailablePromise.get_future();
+        boost::thread updaterThread(boost::bind(&NeblioUpdater::checkIfUpdateIsAvailable,
+                                    &neblioUpdater,
+                                    boost::ref(updateAvailablePromise),
+                                    boost::ref(latestRelease)
+                                    ));
+        updaterThread.detach();
+        updateConcluderTimer->start(updateConcluderTimeout);
+        isUpdateRunning = true;
+    }
+}
+
+void BitcoinGUI::finishCheckForNeblioUpdates()
+{
+    if(isUpdateRunning && updateAvailableFuture.is_ready()) {
+        printf("Concluding update check...\n");
+        try {
+            bool updateAvailable = updateAvailableFuture.get();
+            if(updateAvailable) {
+                updaterLabel->setMovie(updaterUpdateExistsMovie);
+                updaterUpdateExistsMovie->start();
+                updaterLabel->setToolTip("A new neblio wallet version exists! Please click here for release notes and a download link");
+
+                // change the action of clicking on the update icon to show the dialog
+                disconnect(updaterLabel, &ClickableLabel::clicked,
+                        this, &BitcoinGUI::checkForNeblioUpdates);
+                connect(updaterLabel, &ClickableLabel::clicked,
+                        updateDialog, &NeblioUpdateDialog::show);
+
+                updateDialog->setUpdateRelease(latestRelease);
+                animationStopperTimer->start(animationStopperTimerTimeout);
+
+                //stop periodic update checking
+                updateCheckTimer->stop();
+            } else {
+                updaterLabel->setMovie(updaterCheckMovie);
+                updaterCheckMovie->start();
+                updaterLabel->setToolTip("Your Neblio wallet application is up-to-date.");
+            }
+        } catch (std::exception& ex) {
+            updaterLabel->setMovie(updaterErrorMovie);
+            updaterErrorMovie->start();
+            animationStopperTimer->start(animationStopperTimerTimeout);
+            updaterLabel->setToolTip(QString("Unable to retrieve update information: ") + QString(ex.what()));
+        }
+        updaterSpinnerMovie->stop();
+        updateConcluderTimer->stop();
+        printf("Done with updates check.\n");
+        isUpdateRunning = false;
+    }
+}
+
+void BitcoinGUI::stopAnimations()
+{
+    // start and stop the movies to go back to frame 1
+    updaterErrorMovie->stop();
+    updaterErrorMovie->start();
+    updaterErrorMovie->stop();
+    updaterUpdateExistsMovie->stop();
+    updaterUpdateExistsMovie->start();
+    updaterUpdateExistsMovie->stop();
+
+    animationStopperTimer->stop();
+}
+
+void BitcoinGUI::setupUpdateControls()
+{
+    updaterLabel = new ClickableLabel(this->statusBar());
+
+    // Updater animations
+
+    updaterCheckMovie = new QMovie(":images/update-animated-check", QByteArray(), this->statusBar());
+
+    updaterUpdateExistsMovie = new QMovie(":images/update-update-available", QByteArray(), this->statusBar());
+
+    updaterErrorMovie = new QMovie(":images/update-error", QByteArray(), this->statusBar());
+
+    updaterSpinnerMovie = new QMovie(":images/update-spinner", QByteArray(), this->statusBar());
+
+    updateDialog = new NeblioUpdateDialog(this);
+
+    connect(updaterCheckMovie, &QMovie::frameChanged,
+            this, &BitcoinGUI::updateCheckAnimation_frameChanged);
+
+    connect(updaterLabel, &ClickableLabel::clicked,
+            this, &BitcoinGUI::checkForNeblioUpdates);
+
+    connect(updateConcluderTimer, &QTimer::timeout,
+            this, &BitcoinGUI::finishCheckForNeblioUpdates);
+
+    connect(updateCheckTimer, &QTimer::timeout,
+            this, &BitcoinGUI::checkForNeblioUpdates);
+
+    connect(animationStopperTimer, &QTimer::timeout,
+            this, &BitcoinGUI::stopAnimations);
+}
+

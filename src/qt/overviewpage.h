@@ -2,7 +2,11 @@
 #define OVERVIEWPAGE_H
 
 #include <QWidget>
+#include <QTimer>
 #include <ui_overviewpage.h>
+
+#include <boost/thread.hpp>
+#include <boost/thread/future.hpp>
 
 QT_BEGIN_NAMESPACE
 class QModelIndex;
