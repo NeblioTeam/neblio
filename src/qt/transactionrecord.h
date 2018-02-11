@@ -77,21 +77,20 @@ public:
     static const int RecommendedNumConfirmations = 3;/** Number of confirmation recommended for accepting a transaction */
 
     TransactionRecord():
-            hash(), time(0), type(Other), address(""), debit(0), credit(0), idx(0)
+            hash(), time(0), type(Other), address(""), debit(0), credit(0)
     {
     }
 
     TransactionRecord(uint256 hash, int64_t time):
             hash(hash), time(time), type(Other), address(""), debit(0),
-            credit(0), idx(0)
+            credit(0)
     {
     }
 
     TransactionRecord(uint256 hash, int64_t time,
                 Type type, const std::string &address,
                 int64_t debit, int64_t credit):
-            hash(hash), time(time), type(type), address(address), debit(debit), credit(credit),
-            idx(0)
+            hash(hash), time(time), type(type), address(address), debit(debit), credit(credit)
     {
     }
 
@@ -109,9 +108,6 @@ public:
     qint64 debit;
     qint64 credit;
     /**@}*/
-
-    /** Subtransaction index, for sort key */
-    int idx;
 
     /** Status: can change with block chain update */
     TransactionStatus status;
