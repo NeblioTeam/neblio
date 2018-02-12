@@ -1461,7 +1461,7 @@ Value walletpassphrase(const Array& params, bool fHelp)
             "Stores the wallet decryption key in memory for <timeout> seconds.");
 
     NewThread(ThreadTopUpKeyPool, NULL);
-    if(params.size() >= 1) {
+    if(params.size() >= 2) {
         int64_t* pnSleepTime = new int64_t(params[1].get_int64());
         if (params[1].get_int64() > 0) {
             NewThread(ThreadCleanWalletPassphrase, pnSleepTime);
