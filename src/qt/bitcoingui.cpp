@@ -56,6 +56,7 @@
 #include <QDragEnterEvent>
 #include <QUrl>
 #include <QStyle>
+#include <QInputDialog>
 
 #include <iostream>
 
@@ -301,6 +302,8 @@ void BitcoinGUI::createActions()
     encryptWalletAction->setCheckable(true);
     backupWalletAction = new QAction(QIcon(":/icons/filesave"), tr("&Backup Wallet..."), this);
     backupWalletAction->setToolTip(tr("Backup wallet to another location"));
+    importWalletAction = new QAction(QIcon(":/icons/open"), tr("&Import Wallet..."), this);
+    importWalletAction->setToolTip(tr("Import a wallet from another location that was backed up before"));
     changePassphraseAction = new QAction(QIcon(":/icons/key"), tr("&Change Passphrase..."), this);
     changePassphraseAction->setToolTip(tr("Change the passphrase used for wallet encryption"));
     unlockWalletAction = new QAction(QIcon(":/icons/lock_open"), tr("&Unlock Wallet..."), this);
@@ -322,6 +325,7 @@ void BitcoinGUI::createActions()
     connect(toggleHideAction, SIGNAL(triggered()), this, SLOT(toggleHidden()));
     connect(encryptWalletAction, SIGNAL(triggered(bool)), this, SLOT(encryptWallet(bool)));
     connect(backupWalletAction, SIGNAL(triggered()), this, SLOT(backupWallet()));
+    connect(importWalletAction, SIGNAL(triggered()), this, SLOT(importWallet()));
     connect(changePassphraseAction, SIGNAL(triggered()), this, SLOT(changePassphrase()));
     connect(unlockWalletAction, SIGNAL(triggered()), this, SLOT(unlockWallet()));
     connect(lockWalletAction, SIGNAL(triggered()), this, SLOT(lockWallet()));
@@ -342,6 +346,7 @@ void BitcoinGUI::createMenuBar()
     // Configure the menus
     QMenu *file = appMenuBar->addMenu(tr("&File"));
     file->addAction(backupWalletAction);
+    file->addAction(importWalletAction);
     file->addAction(exportAction);
     file->addAction(signMessageAction);
     file->addAction(verifyMessageAction);
@@ -922,6 +927,39 @@ void BitcoinGUI::backupWallet()
     if(!filename.isEmpty()) {
         if(!walletModel->backupWallet(filename)) {
             QMessageBox::warning(this, tr("Backup Failed"), tr("There was an error trying to save the wallet data to the new location."));
+        }
+    }
+}
+
+void BitcoinGUI::importWallet()
+{
+    QString openDir = QDesktopServices::storageLocation(QDesktopServices::DocumentsLocation);
+    QString filename = QFileDialog::getOpenFileName(this, tr("Import Wallet"), openDir, tr("Wallet Data (*.dat)"));
+    if(!filename.isEmpty()) {
+        // get passphrase, if required
+        std::string passphrase;
+        bool okPressed;
+        QString passFromDialog;
+        if(IsWalletEncrypted(filename.toStdString())) {
+            passFromDialog = QInputDialog::getText(this, tr("QInputDialog::getText()"),
+                                                   tr("Wallet passphrase:"), QLineEdit::Password, "", &okPressed);
+            if(!okPressed) return;
+            passphrase = passFromDialog.toStdString();
+        }
+        QMessageBox::warning(this, tr("Attention!"), "Please be advised that the import process might take a while due to the necessity of rescanning the blockchain. "
+                                                     "The program might become non-responseive for some time. "
+                                                     "Please be patient and do not terminate the program until it is finished importing. "
+                                                     "Interrupting the program might result in corrupting your current wallet.");
+        // add the keys from the wallet
+        try {
+            std::pair<long,long> keysAddedOutOfTotal = ImportBackupWallet(filename.toStdString(), passphrase, 0);
+            QMessageBox::information(this, tr("Import status"), QString("The result of import is: ") +
+                                                                QString::fromStdString(ToString(keysAddedOutOfTotal.first)) +
+                                                                QString(" out of ") +
+                                                                QString::fromStdString(ToString(keysAddedOutOfTotal.second)) +
+                                                                QString(" added to your wallet."));
+        } catch(std::exception& ex) {
+            QMessageBox::warning(this, "Error", "Error: " + QString::fromStdString(std::string(ex.what())));
         }
     }
 }

@@ -327,3 +327,120 @@ Value dumpwallet(const Array& params, bool fHelp)
     file.close();
     return Value::null;
 }
+
+void _RescanBlockchain(int64_t earliestTime) {
+    CBlockIndex *pindex = pindexBest;
+    while (pindex && pindex->pprev && pindex->nTime > earliestTime - 7200)
+        pindex = pindex->pprev;
+
+    if (!pwalletMain->nTimeFirstKey || earliestTime < pwalletMain->nTimeFirstKey)
+        pwalletMain->nTimeFirstKey = earliestTime;
+
+    printf("Rescanning last %i blocks\n", pindexBest->nHeight - pindex->nHeight + 1);
+    pwalletMain->ScanForWalletTransactions(pindex);
+    pwalletMain->ReacceptWalletTransactions();
+    pwalletMain->MarkDirty();
+}
+
+bool _AddKeyToLocalWallet(const CKey& Key, const std::string& strLabel, int64_t KeyCreationTime, int64_t& earliestTime) {
+    CKeyID keyid = Key.GetPubKey().GetID();
+    printf("Importing %s...\n", CBitcoinAddress(keyid).ToString().c_str());
+    if (!pwalletMain->AddKey(Key)) {
+        return false;
+    }
+    pwalletMain->mapKeyMetadata[keyid].nCreateTime = KeyCreationTime;
+    if (!strLabel.empty()) {
+        pwalletMain->SetAddressBookName(keyid, strLabel);
+    }
+    earliestTime = std::min(earliestTime, KeyCreationTime);
+    return true;
+}
+
+/**
+ * Tells whether the wallet in Src path is encrypted
+ * @brief IsWalletEncrypted
+ * @param Src
+ * @return true if encrypted, falls otherwise
+ */
+bool IsWalletEncrypted(const std::string& Src) {
+    CWallet walletObj(Src);
+    bool firstRun = true;
+    walletObj.LoadWallet(firstRun);
+    return walletObj.IsCrypted();
+}
+
+
+/**
+ * This function imports a wallet located in the path Src so the default wallet in the program
+ * The passphrase is ignored in case the wallet is not encrypted.
+ * @brief ImportBackupWallet
+ * @param Src path to the wallet
+ * @param PassPhrase
+ * @param importReserveToAddressBook, if enabled, all reserve keys from the backup wallet will be imported into the address book
+ * @return A pair of two numbers, the second number is the total number of keys in the backup wallet, and the first is the number of successfully added keys
+ */
+std::pair<long,long> ImportBackupWallet(const std::string& Src, std::string& PassPhrase, bool importReserveToAddressBook)
+{
+    std::pair<long,long> succeessfullyAddedOutOfTotal = std::make_pair<long,long>(0,0);
+    CWallet backupWallet(Src);
+    bool firstRun = true;
+    backupWallet.LoadWallet(firstRun);
+    bool isEncrypted = backupWallet.IsCrypted();
+    SecureString pass;
+    // TODO: Move this 1024 to MAX_PASSPHRASE_SIZE
+    pass.reserve(1024);
+    if(isEncrypted) {
+        pass.assign(PassPhrase.c_str());
+        PassPhrase.clear();
+        bool unlockSuccess = backupWallet.Unlock(pass);
+        if(!unlockSuccess) {
+            throw std::runtime_error("Unable to unlock wallet. Invalid passphrase.");
+        }
+    }
+
+    // earliest time to rescan the blockchain
+    int64_t earliestTime = pindexBest->nTime;
+
+    // import address book keys
+    for(std::map<CTxDestination, std::string>::iterator it = backupWallet.mapAddressBook.begin();
+        it != backupWallet.mapAddressBook.end();
+        ++it) {
+        succeessfullyAddedOutOfTotal.second++;
+        CKey key;
+        backupWallet.GetKey(boost::get<CKeyID>(it->first),key);
+        if(pwalletMain->HaveKey(key.GetPubKey().GetID())) {
+            continue;
+        }
+        CBitcoinAddress a;
+        a.Set(key.GetPubKey().GetID());
+        bool addSucceeded = _AddKeyToLocalWallet(key,
+                                                it->second,
+                                                backupWallet.mapKeyMetadata[boost::get<CKeyID>(it->first)].nCreateTime,
+                                                earliestTime);
+        if(!addSucceeded) continue;
+        succeessfullyAddedOutOfTotal.first++;
+    }
+
+
+    // import reserve keys
+    std::set<CKeyID> pubKeys;
+    backupWallet.GetAllReserveKeys(pubKeys);
+    for(std::set<CKeyID>::iterator it = pubKeys.begin(); it != pubKeys.end(); ++it) {
+        succeessfullyAddedOutOfTotal.second++;
+        CKey key;
+        backupWallet.GetKey(*it,key);
+        if(pwalletMain->HaveKey(key.GetPubKey().GetID())) {
+            continue;
+        }
+        CBitcoinAddress a;
+        a.Set(key.GetPubKey().GetID());
+        bool addSucceeded = _AddKeyToLocalWallet(key,
+                                                 (importReserveToAddressBook ? "(no label)" : ""),
+                                                 backupWallet.mapKeyMetadata[*it].nCreateTime,
+                                                 earliestTime);
+        if(!addSucceeded) continue;
+        succeessfullyAddedOutOfTotal.first++;
+    }
+    _RescanBlockchain(earliestTime);
+    return succeessfullyAddedOutOfTotal;
+}

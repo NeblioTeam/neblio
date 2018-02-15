@@ -59,6 +59,8 @@ public:
 class CWalletDB : public CDB
 {
 public:
+    // WARNING: TODO: The fact that the filename is std::string may be a problem with non-ascii filenames, check!
+    // Keep in mind that this may work with wallet.dat, but any other name (which may come from a backup) may not work.
     CWalletDB(std::string strFilename, const char* pszMode="r+") : CDB(strFilename.c_str(), pszMode)
     {
     }
