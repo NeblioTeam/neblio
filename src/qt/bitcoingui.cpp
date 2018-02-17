@@ -957,7 +957,9 @@ void BitcoinGUI::importWallet()
                                                                 QString::fromStdString(ToString(keysAddedOutOfTotal.first)) +
                                                                 QString(" out of ") +
                                                                 QString::fromStdString(ToString(keysAddedOutOfTotal.second)) +
-                                                                QString(" added to your wallet."));
+                                                                QString(" added to your wallet. ") +
+                                                                QString(keysAddedOutOfTotal.first != keysAddedOutOfTotal.second ?
+                                                                        "\n\nKeys that are not added are usually skipped because they are already in your wallet." : ""));
         } catch(std::exception& ex) {
             QMessageBox::warning(this, "Error", "Error: " + QString::fromStdString(std::string(ex.what())));
         }
