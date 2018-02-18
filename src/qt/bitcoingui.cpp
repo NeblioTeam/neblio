@@ -941,7 +941,7 @@ void BitcoinGUI::importWallet()
         bool okPressed;
         QString passFromDialog;
         if(IsWalletEncrypted(filename.toStdString())) {
-            passFromDialog = QInputDialog::getText(this, tr("QInputDialog::getText()"),
+            passFromDialog = QInputDialog::getText(this, tr("Input passphrase"),
                                                    tr("Backup wallet passphrase:"), QLineEdit::Password, "", &okPressed);
             if(!okPressed) return;
             passphrase = passFromDialog.toStdString();
