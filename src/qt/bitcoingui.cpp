@@ -936,6 +936,16 @@ void BitcoinGUI::importWallet()
     QString openDir = QDesktopServices::storageLocation(QDesktopServices::DocumentsLocation);
     QString filename = QFileDialog::getOpenFileName(this, tr("Import Wallet"), openDir, tr("Wallet Data (*.dat)"));
     if(!filename.isEmpty()) {
+        // make sure the local wallet is unlocked
+        if (pwalletMain->IsLocked()) {
+            QMessageBox::warning(this, tr("Error"), "Please unlock the wallet before importing.");
+            return;
+        }
+        if (fWalletUnlockStakingOnly) {
+            QMessageBox::warning(this, tr("Error"), "Please unlock the wallet before importing; unlocking should NOT be for staking only.");
+            return;
+        }
+
         // get passphrase, if required
         std::string passphrase;
         bool okPressed;
