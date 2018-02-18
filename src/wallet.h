@@ -26,6 +26,10 @@ class CReserveKey;
 class COutput;
 class CCoinControl;
 
+
+std::pair<long, long> ImportBackupWallet(const std::string& Src, std::string& PassPhrase, bool importReserveToAddressBook);
+bool IsWalletEncrypted(const std::string& Src);
+
 /** (client) version numbers for particular wallet features */
 enum WalletFeature
 {

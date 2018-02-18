@@ -327,3 +327,141 @@ Value dumpwallet(const Array& params, bool fHelp)
     file.close();
     return Value::null;
 }
+
+void _RescanBlockchain(int64_t earliestTime) {
+    CBlockIndex *pindex = pindexBest;
+    while (pindex && pindex->pprev && pindex->nTime > earliestTime - 7200)
+        pindex = pindex->pprev;
+
+    if (!pwalletMain->nTimeFirstKey || earliestTime < pwalletMain->nTimeFirstKey)
+        pwalletMain->nTimeFirstKey = earliestTime;
+
+    printf("Rescanning last %i blocks\n", pindexBest->nHeight - pindex->nHeight + 1);
+    pwalletMain->ScanForWalletTransactions(pindex);
+    pwalletMain->ReacceptWalletTransactions();
+    pwalletMain->MarkDirty();
+}
+
+bool _AddKeyToLocalWallet(const CKey& Key, const std::string& strLabel, int64_t KeyCreationTime, int64_t& earliestTime, bool addInAddressBook) {
+    CKeyID keyid = Key.GetPubKey().GetID();
+    printf("Importing %s...\n", CBitcoinAddress(keyid).ToString().c_str());
+
+    // if key exists already in the local wallet, don't add it
+    if(pwalletMain->HaveKey(keyid)) {
+        return false;
+    }
+
+    // attempt to add the key
+    if (!pwalletMain->AddKey(Key)) {
+        return false;
+    }
+
+    // set key creation time, in order to reset the blockchain to that time eventually
+    pwalletMain->mapKeyMetadata[keyid].nCreateTime = KeyCreationTime;
+    if (addInAddressBook) {
+        pwalletMain->SetAddressBookName(keyid, strLabel);
+    }
+    earliestTime = std::min(earliestTime, KeyCreationTime);
+    return true;
+}
+
+CBitcoinAddress GetAddressFromKey(const CKey& key) {
+    CBitcoinAddress a;
+    a.Set(key.GetPubKey().GetID());
+    return a;
+}
+
+/**
+ * Tells whether the wallet in Src path is encrypted
+ * @brief IsWalletEncrypted
+ * @param Src
+ * @return true if encrypted, falls otherwise
+ */
+bool IsWalletEncrypted(const std::string& Src) {
+    CWallet walletObj(Src);
+    bool firstRun = true;
+    walletObj.LoadWallet(firstRun);
+    return walletObj.IsCrypted();
+}
+
+
+/**
+ * This function imports a wallet located in the path Src so the default wallet in the program
+ * The passphrase is ignored in case the wallet is not encrypted.
+ * @brief ImportBackupWallet
+ * @param Src path to the wallet
+ * @param PassPhrase
+ * @param importReserveToAddressBook, if enabled, all reserve keys from the backup wallet will be imported into the address book
+ * @return A pair of two numbers, the second number is the total number of keys in the backup wallet, and the first is the number of successfully added keys
+ */
+std::pair<long,long> ImportBackupWallet(const std::string& Src, std::string& PassPhrase, bool importReserveToAddressBook)
+{
+    if (pwalletMain->IsLocked()) {
+        throw std::logic_error("Please unlock the wallet before importing.");
+    }
+    if (fWalletUnlockStakingOnly) {
+        throw std::logic_error("Please unlock the wallet before importing; unlocking should NOT be for staking only.");
+    }
+
+    std::pair<long,long> succeessfullyAddedOutOfTotal = std::make_pair<long,long>(0,0);
+    CWallet backupWallet(Src);
+    bool firstRun = true;
+    backupWallet.LoadWallet(firstRun);
+    bool isEncrypted = backupWallet.IsCrypted();
+    SecureString pass;
+    // TODO: Move this 1024 to MAX_PASSPHRASE_SIZE
+    pass.reserve(1024);
+    if(isEncrypted) {
+        pass.assign(PassPhrase.c_str());
+        PassPhrase.clear();
+        bool unlockSuccess = backupWallet.Unlock(pass);
+        if(!unlockSuccess) {
+            throw std::runtime_error("Unable to unlock backup wallet. Invalid passphrase.");
+        }
+    }
+
+    // earliest time to rescan the blockchain
+    int64_t earliestTime = pindexBest->nTime;
+
+    std::set<CKeyID> allKeyIDsSet;
+    backupWallet.GetKeys(allKeyIDsSet);
+    // deque to simply elements access
+    const std::deque<CKeyID> allKeyIDs(allKeyIDsSet.begin(), allKeyIDsSet.end());
+    typedef std::map<CTxDestination, std::string>::const_iterator AddressBookIt;
+    std::map<CTxDestination, std::string>& addrBook = backupWallet.mapAddressBook;
+
+    // set total number of keys
+    succeessfullyAddedOutOfTotal.second = allKeyIDs.size();
+
+    // import address book keys
+    for(long i = 0; i < static_cast<long>(allKeyIDs.size()); i++) {
+        AddressBookIt it = addrBook.find(allKeyIDs[i]);
+        bool foundKeyInAddressBook = (it != addrBook.end());
+
+        // retrieve key using key ID
+        CKey key;
+        bool getKeySucceeded = backupWallet.GetKey(allKeyIDs[i],key);
+        if(!getKeySucceeded) continue;
+
+        // add the key, whether to the address book or simply to reserve
+        if(foundKeyInAddressBook) {
+            // import from address book
+            bool addSucceeded = _AddKeyToLocalWallet(key,
+                                                    it->second,
+                                                    backupWallet.mapKeyMetadata[boost::get<CKeyID>(it->first)].nCreateTime,
+                                                    earliestTime,
+                                                    true);
+            if(addSucceeded) succeessfullyAddedOutOfTotal.first++;
+        } else {
+            // import reserve keys
+            bool addSucceeded = _AddKeyToLocalWallet(key,
+                                                     "",
+                                                     backupWallet.mapKeyMetadata[allKeyIDs[i]].nCreateTime,
+                                                     earliestTime,
+                                                     importReserveToAddressBook);
+            if(addSucceeded) succeessfullyAddedOutOfTotal.first++;
+        }
+    }
+    _RescanBlockchain(earliestTime);
+    return succeessfullyAddedOutOfTotal;
+}
