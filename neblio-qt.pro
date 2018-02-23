@@ -47,6 +47,10 @@ OBJECTS_DIR = build
 MOC_DIR = build
 UI_DIR = build
 
+# fixes an issue with boost 1.66 and the number of template parameters of basic_socket_acceptor
+DEFINES += BOOST_ASIO_ENABLE_OLD_SERVICES
+# TODO: Move to the new standard of boost as current code is deprecated
+
 # use: qmake "RELEASE=1"
 contains(RELEASE, 1) {
     # Mac: compile for maximum compatibility (10.5, 32-bit)
