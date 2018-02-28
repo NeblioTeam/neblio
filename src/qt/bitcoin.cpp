@@ -154,9 +154,9 @@ int main(int argc, char *argv[])
     app.setOrganizationName("neblio");
     //XXX app.setOrganizationDomain("");
     if(GetBoolArg("-testnet")) // Separate UI settings for testnet
-        app.setApplicationName("neblio-Qt-testnet");
+        app.setApplicationName("neblio-Core-testnet");
     else
-        app.setApplicationName("neblio-Qt");
+        app.setApplicationName("neblio-Core");
 
     // ... then GUI settings:
     OptionsModel optionsModel;
