@@ -4,6 +4,8 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <boost/move/unique_ptr.hpp>
+
 #include "txdb.h"
 #include "miner.h"
 #include "kernel.h"
@@ -110,7 +112,7 @@ public:
 CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
 {
     // Create new block
-    auto_ptr<CBlock> pblock(new CBlock());
+    boost::movelib::unique_ptr<CBlock> pblock(new CBlock());
     if (!pblock.get())
         return NULL;
 
@@ -564,7 +566,7 @@ void StakeMiner(CWallet *pwallet)
         // Create new block
         //
         int64_t nFees;
-        auto_ptr<CBlock> pblock(CreateNewBlock(pwallet, true, &nFees));
+        boost::movelib::unique_ptr<CBlock> pblock(CreateNewBlock(pwallet, true, &nFees));
         if (!pblock.get())
             return;
 
