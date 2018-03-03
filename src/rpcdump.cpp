@@ -475,10 +475,9 @@ std::string MD5FromString(const std::string &str) {
 
   std::ostringstream sout;
   sout << std::hex << std::setfill('0');
-  for (long long c : result) {
-    sout << std::setw(2) << (long long)c;
+  for (long long i = 0; i < MD5_DIGEST_LENGTH; i++) {
+    sout << std::setw(2) << (long long)result[i];
   }
-
   return sout.str();
 }
 
