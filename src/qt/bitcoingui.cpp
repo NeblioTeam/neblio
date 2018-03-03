@@ -948,10 +948,24 @@ void BitcoinGUI::backupWallet()
         return;
     }
 
+    unlockWallet();
+
+    bool userDoesNotWantToUnlock = false;
+
     // before running a backup, the wallet should be unlocked, so that a the wallet hash can be stored
     if (pwalletMain->IsLocked()) {
-        QMessageBox::warning(this, tr("Backup Failed"), tr("Please unlock your wallet before running backup."));
-        return;
+        QMessageBox::StandardButton answer;
+        answer = QMessageBox::question(this, "Wallet is still locked!",
+                                       tr("Unlocking your wallet will help Neblio Wallet notify you when the next backup is necessary. Are you sure you want to keep the wallet locked before the backup process?"),
+                                       QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel);
+        if (answer == QMessageBox::No) {
+            backupWallet();
+            return;
+        } else if(answer == QMessageBox::Cancel) {
+            return;
+        } else {
+            userDoesNotWantToUnlock = true;
+        }
     }
 
     QString saveDir = QDesktopServices::storageLocation(QDesktopServices::DocumentsLocation);
@@ -963,7 +977,10 @@ void BitcoinGUI::backupWallet()
             try {
                 WriteWalletBackupHash();
             } catch (std::exception& ex) {
-                QMessageBox::warning(this, tr("Registering backup event failed"), QString("There was an error trying register that the backup was done. The error is: ") + QString(ex.what()));
+                if(!userDoesNotWantToUnlock) {
+                    QMessageBox::warning(this, tr("Registering backup event failed"),
+                                         QString("There was an error trying register that the backup was done. This means that the Wallet Application would not be able to notify you when another backup is necessary. The error is: ") + QString(ex.what()));
+                }
             }
         }
     }
@@ -1037,7 +1054,7 @@ void BitcoinGUI::unlockWallet()
         dlg.setModel(walletModel);
         dlg.exec();
     }
-    ShouldWalletBeBackedUp();
+    checkWhetherBackupIsMade();
 }
 
 void BitcoinGUI::lockWallet()
