@@ -147,6 +147,13 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     updateCheckTimer->start(updateCheckTimerTimeout);
     checkForNeblioUpdates();
 
+    // backup alert timers
+    backupCheckerTimer = new QTimer(this);
+    backupCheckerTimerPeriod = 30000;
+    backupCheckerTimer->start(backupCheckerTimerPeriod);
+    backupBlinkerTimer = new QTimer(this);
+    backupBlinkerTimerPeriod = 500;
+
     // Status bar notification icons
     QFrame *frameBlocks = new QFrame();
     frameBlocks->setContentsMargins(0,0,0,0);
@@ -158,6 +165,12 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     labelStakingIcon = new QLabel();
     labelConnectionsIcon = new QLabel();
     labelBlocksIcon = new QLabel();
+    labelBackupAlertIcon = new QLabel();
+    labelBackupAlertIcon->setPixmap(QIcon(":/images/no-backup-made").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+    labelBackupAlertIcon->setToolTip("You have not made a backup of your wallet since it was last changed");
+    stopBackupAlertBlinker();
+    frameBlocksLayout->addStretch();
+    frameBlocksLayout->addWidget(labelBackupAlertIcon);
     frameBlocksLayout->addStretch();
     frameBlocksLayout->addWidget(labelEncryptionIcon);
     frameBlocksLayout->addStretch();
@@ -167,6 +180,12 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     frameBlocksLayout->addStretch();
     frameBlocksLayout->addWidget(labelBlocksIcon);
     frameBlocksLayout->addStretch();
+
+    // backup alert connections
+    connect(backupCheckerTimer, &QTimer::timeout,
+            this, &BitcoinGUI::checkWhetherBackupIsMade);
+    connect(backupBlinkerTimer, &QTimer::timeout,
+            this, &BitcoinGUI::blinkBackupAlertIcon);
 
     if (GetBoolArg("-staking", true))
     {
@@ -226,6 +245,7 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     updaterErrorMovie->setScaledSize(updaterIconSize);
     updaterSpinnerMovie->setScaledSize(updaterIconSize);
 
+    checkWhetherBackupIsMade();
 }
 
 BitcoinGUI::~BitcoinGUI()
@@ -922,13 +942,34 @@ void BitcoinGUI::encryptWallet(bool status)
 
 void BitcoinGUI::backupWallet()
 {
+    // check if the wallet pointer is accessible (safety check)
+    if(pwalletMain == NULL) {
+        QMessageBox::warning(this, tr("Backup Failed"), tr("Unable to read the local wallet."));
+        return;
+    }
+
+    // before running a backup, the wallet should be unlocked, so that a the wallet hash can be stored
+    if (pwalletMain->IsLocked()) {
+        QMessageBox::warning(this, tr("Backup Failed"), tr("Please unlock your wallet before running backup."));
+        return;
+    }
+
     QString saveDir = QDesktopServices::storageLocation(QDesktopServices::DocumentsLocation);
     QString filename = QFileDialog::getSaveFileName(this, tr("Backup Wallet"), saveDir, tr("Wallet Data (*.dat)"));
     if(!filename.isEmpty()) {
         if(!walletModel->backupWallet(filename)) {
             QMessageBox::warning(this, tr("Backup Failed"), tr("There was an error trying to save the wallet data to the new location."));
+        } else {
+            try {
+                WriteWalletBackupHash();
+            } catch (std::exception& ex) {
+                QMessageBox::warning(this, tr("Registering backup event failed"), QString("There was an error trying register that the backup was done. The error is: ") + QString(ex.what()));
+            }
         }
     }
+
+    // after having backed up the wallet, we recheck if a backup should be made, which resets the status of the alert
+    checkWhetherBackupIsMade();
 }
 
 void BitcoinGUI::importWallet()
@@ -996,6 +1037,7 @@ void BitcoinGUI::unlockWallet()
         dlg.setModel(walletModel);
         dlg.exec();
     }
+    ShouldWalletBeBackedUp();
 }
 
 void BitcoinGUI::lockWallet()
@@ -1176,6 +1218,44 @@ void BitcoinGUI::stopAnimations()
     animationStopperTimer->stop();
 }
 
+void BitcoinGUI::checkWhetherBackupIsMade()
+{
+    try {
+        if(ShouldWalletBeBackedUp()) {
+            startBackupAlertBlinker();
+        } else {
+            stopBackupAlertBlinker();
+        }
+    } catch(std::exception& ex) {
+        printf("%s", ex.what());
+        std::cerr<<ex.what()<<std::endl;
+    }
+}
+
+void BitcoinGUI::startBackupAlertBlinker()
+{
+    backupBlinkerTimer->start(backupBlinkerTimerPeriod);
+    labelBackupAlertIcon->setVisible(true);
+}
+
+void BitcoinGUI::stopBackupAlertBlinker()
+{
+    backupBlinkerTimer->stop();
+    backupBlinkerOn = false;
+    labelBackupAlertIcon->setVisible(false);
+}
+
+void BitcoinGUI::blinkBackupAlertIcon()
+{
+    if(backupBlinkerOn) {
+        labelBackupAlertIcon->setPixmap(QIcon().pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+        backupBlinkerOn = false;
+    } else {
+        labelBackupAlertIcon->setPixmap(QIcon(":/images/no-backup-made").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+        backupBlinkerOn = true;
+    }
+}
+
 void BitcoinGUI::setupUpdateControls()
 {
     updaterLabel = new ClickableLabel(this->statusBar());
@@ -1207,4 +1287,3 @@ void BitcoinGUI::setupUpdateControls()
     connect(animationStopperTimer, &QTimer::timeout,
             this, &BitcoinGUI::stopAnimations);
 }
-

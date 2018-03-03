@@ -55,6 +55,7 @@
         <file alias="logo_left">res/images/logo_left.png</file>
         <file alias="neblio_vector">res/images/neblio.svg</file>
         <file alias="neblio">res/images/neblio.png</file>
+        <file alias="no-backup-made">res/images/no-backup-made.png</file>
         <file alias="update-animated-check">res/images/update-animated-check.gif</file>
         <file alias="update-spinner">res/images/update-spinner.gif</file>
         <file alias="update-update-available">res/images/update-update-available.gif</file>

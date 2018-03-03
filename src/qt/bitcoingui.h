@@ -66,6 +66,12 @@ class BitcoinGUI : public QMainWindow
 
     void setupUpdateControls();
 
+    QTimer* backupCheckerTimer;
+    int backupCheckerTimerPeriod;
+    QTimer* backupBlinkerTimer;
+    int backupBlinkerTimerPeriod;
+    bool backupBlinkerOn;
+
 public:
     explicit BitcoinGUI(QWidget *parent = 0);
     ~BitcoinGUI();
@@ -103,6 +109,7 @@ private:
     QLabel *labelStakingIcon;
     QLabel *labelConnectionsIcon;
     QLabel *labelBlocksIcon;
+    QLabel *labelBackupAlertIcon;
     QLabel *progressBarLabel;
     QProgressBar *progressBar;
 
@@ -268,6 +275,11 @@ private slots:
     void finishCheckForNeblioUpdates();
 
     void stopAnimations();
+
+    void checkWhetherBackupIsMade();
+    void startBackupAlertBlinker();
+    void stopBackupAlertBlinker();
+    void blinkBackupAlertIcon();
 };
 
 #endif

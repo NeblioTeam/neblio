@@ -30,6 +30,9 @@ class CCoinControl;
 std::pair<long, long> ImportBackupWallet(const std::string& Src, std::string& PassPhrase, bool importReserveToAddressBook);
 bool IsWalletEncrypted(const std::string& Src);
 
+bool ShouldWalletBeBackedUp();
+void WriteWalletBackupHash();
+
 /** (client) version numbers for particular wallet features */
 enum WalletFeature
 {
@@ -99,6 +102,7 @@ public:
     std::set<int64_t> setKeyPool;
     std::map<CKeyID, CKeyMetadata> mapKeyMetadata;
 
+    static const boost::filesystem::path BackupHashFilePath;
 
     typedef std::map<unsigned int, CMasterKey> MasterKeyMap;
     MasterKeyMap mapMasterKeys;
