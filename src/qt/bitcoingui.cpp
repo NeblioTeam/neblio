@@ -1265,7 +1265,7 @@ void BitcoinGUI::stopBackupAlertBlinker()
 void BitcoinGUI::blinkBackupAlertIcon()
 {
     if(backupBlinkerOn) {
-        labelBackupAlertIcon->setPixmap(QIcon().pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+        labelBackupAlertIcon->setPixmap(QIcon(":/images/no-backup-made-empty").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
         backupBlinkerOn = false;
     } else {
         labelBackupAlertIcon->setPixmap(QIcon(":/images/no-backup-made").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
