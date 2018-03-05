@@ -13,6 +13,9 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/variant/get.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/filesystem/fstream.hpp>
+
+#include <openssl/md5.h>
 
 #define printf OutputDebugStringF
 
@@ -464,4 +467,109 @@ std::pair<long,long> ImportBackupWallet(const std::string& Src, std::string& Pas
     }
     _RescanBlockchain(earliestTime);
     return succeessfullyAddedOutOfTotal;
+}
+
+std::string MD5FromString(const std::string &str) {
+  unsigned char result[MD5_DIGEST_LENGTH];
+  MD5((unsigned char *)str.c_str(), str.size(), result);
+
+  std::ostringstream sout;
+  sout << std::hex << std::setfill('0');
+  for (long long i = 0; i < MD5_DIGEST_LENGTH; i++) {
+    sout << std::setw(2) << (long long)result[i];
+  }
+  return sout.str();
+}
+
+bool WriteStringToFile(const boost::filesystem::path& filepath, const std::string& strToWrite) {
+    if(boost::filesystem::exists(filepath)) {
+        boost::filesystem::remove(filepath);
+    }
+    boost::filesystem::fstream file(filepath, std::ios::out);
+    file << strToWrite;
+    file.close();
+}
+
+std::string ReadStringFromFile(const boost::filesystem::path& filepath) {
+    if(!boost::filesystem::exists(filepath)) {
+        return std::string();
+    }
+    boost::filesystem::fstream file(filepath, std::ios::in);
+    std::string result;
+    file >> result;
+    file.close();
+    return result;
+}
+
+std::string GetCurrentWalletHash() {
+    std::set<CKeyID> allKeyIDsSet;
+    pwalletMain->GetKeys(allKeyIDsSet);
+    // deque to simply elements access
+    const std::deque<CKeyID> allKeyIDs(allKeyIDsSet.begin(), allKeyIDsSet.end());
+
+
+    // concatenate all public keys into one string
+    std::string finalStringToHash;
+    for(long i = 0; i < static_cast<long>(allKeyIDs.size()); i++) {
+        // retrieve key using key ID
+        CKey key;
+        bool getKeySucceeded = pwalletMain->GetKey(allKeyIDs[i],key);
+        if(!getKeySucceeded) {
+            std::cout << "Failed to get key number " << i << std::endl;
+            continue;
+        }
+        finalStringToHash += key.GetPubKey().GetHash().ToString();
+    }
+    if(finalStringToHash.empty()) {
+        throw std::runtime_error("Error: Backup public keys hash is empty. This should not happen.");
+    }
+    // calculate the MD5 hash of all public keys and return it
+    std::string theHash = MD5FromString(finalStringToHash);
+    return theHash;
+}
+
+void WriteWalletBackupHash() {
+    // if the hash file doesn't exist, then the wallet was never backed-up
+    if(!boost::filesystem::exists(CWallet::BackupHashFilePath)) {
+        boost::filesystem::remove(CWallet::BackupHashFilePath);
+    }
+
+    // if the wallet is not accessible
+    if(pwalletMain == NULL) {
+        throw std::runtime_error("Wallet pointer is NULL. Can't write backup hash.");
+    }
+
+    // if the wallet is locked
+    if (pwalletMain->IsLocked()) {
+        throw std::runtime_error("Can't backup wallets that are locked.");
+    }
+
+    std::string finalHash = GetCurrentWalletHash();
+    WriteStringToFile(CWallet::BackupHashFilePath, finalHash);
+}
+
+bool ShouldWalletBeBackedUp()
+{
+    // if the hash file doesn't exist, then the wallet was never backed-up
+    if(!boost::filesystem::exists(CWallet::BackupHashFilePath)) {
+        return true;
+    }
+
+    // if the wallet is not accessible, just ignore checking
+    if(pwalletMain == NULL) {
+        return false;
+    }
+
+    // if the wallet is locked, just ignore checking
+    if (pwalletMain->IsLocked()) {
+        return false;
+    }
+
+    std::string finalHash = GetCurrentWalletHash();
+    std::string storedHash = ReadStringFromFile(CWallet::BackupHashFilePath);
+    if(storedHash == finalHash) {
+        return false;
+    } else {
+        return true;
+    }
 }

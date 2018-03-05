@@ -18,6 +18,8 @@ using namespace std;
 unsigned int nStakeSplitAge = 1 * 24 * 60 * 60;
 int64_t nStakeCombineThreshold = 1000 * COIN;
 
+const boost::filesystem::path CWallet::BackupHashFilePath = GetDataDir() / "wallet-hash.txt";
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // mapWallet
