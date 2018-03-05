@@ -289,7 +289,8 @@ HEADERS += src/qt/bitcoingui.h \
     src/threadsafety.h \
     src/neblioupdater.h \
     src/neblioversion.h \
-    src/neblioreleaseinfo.h
+    src/neblioreleaseinfo.h \
+    src/curltools.h
 
 contains(NEBLIO_REST, 1) {
     HEADERS += src/nebliorest.h
@@ -381,7 +382,9 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/json/json_spirit_reader.cpp \
     src/json/json_spirit_writer.cpp \
     src/neblioreleaseinfo.cpp \
-    src/zerocoin/ZeroTest.cpp
+    src/zerocoin/ZeroTest.cpp \
+    src/curltools.cpp
+
 
 contains(NEBLIO_REST, 1) {
     SOURCES += src/nebliorest.cpp
