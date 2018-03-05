@@ -4,11 +4,22 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <boost/interprocess/smart_ptr/unique_ptr.hpp>
+
 #include "txdb.h"
 #include "miner.h"
 #include "kernel.h"
 
 using namespace std;
+
+template <typename T>
+struct GenericDeleter
+{
+    void operator()(T *ptr)
+    {
+        delete ptr;
+    }
+};
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -110,7 +121,7 @@ public:
 CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
 {
     // Create new block
-    auto_ptr<CBlock> pblock(new CBlock());
+    boost::interprocess::unique_ptr<CBlock, GenericDeleter<CBlock> > pblock(new CBlock());
     if (!pblock.get())
         return NULL;
 
@@ -564,7 +575,7 @@ void StakeMiner(CWallet *pwallet)
         // Create new block
         //
         int64_t nFees;
-        auto_ptr<CBlock> pblock(CreateNewBlock(pwallet, true, &nFees));
+        boost::interprocess::unique_ptr<CBlock, GenericDeleter<CBlock> > pblock(CreateNewBlock(pwallet, true, &nFees));
         if (!pblock.get())
             return;
 
