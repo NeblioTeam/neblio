@@ -17,7 +17,7 @@
  * Instantiate an object in your QWidget derivative and make it parent
  * use addButton() to add buttons to your message box
  * use addButtonToWaitOn() to add buttons that should be disabled for some time
- * use showWithWait() instead of show()
+ * use exec() instead of show() or open()
  */
 class MessageBoxWithTimer : public QMessageBox
 {
@@ -37,12 +37,11 @@ public:
     void setDisablePeriod(long period = 10000);
     void clearButtonsToEnable();
     /**
-     * @brief showWithWait
+     * @brief exec
      * This is the alternative to the normal QWidget::show() in this class
      * which is supposed to activate the disabled buttons
      */
-    void showWithWait();
-
+    int exec() Q_DECL_OVERRIDE;
 private slots:
     void enableDisabledButtons();
     void updateButtonsLabels();

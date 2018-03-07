@@ -28,10 +28,10 @@ void MessageBoxWithTimer::clearButtonsToEnable()
     buttonsToEnable.clear();
 }
 
-void MessageBoxWithTimer::showWithWait()
+int MessageBoxWithTimer::exec()
 {
     messageShown();
-    QMessageBox::show();
+    return QMessageBox::exec();
 }
 
 void MessageBoxWithTimer::enableDisabledButtons()
