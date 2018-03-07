@@ -51,7 +51,7 @@ void MessageBoxWithTimer::updateButtonsLabels()
     }
 
     long remainingTime = buttonsEnableTimer->remainingTime();
-    QString timerText = QString::number(remainingTime/1000);
+    QString timerText = QString::number(remainingTime/1000 + 1);
     if(buttonsEnableTimer->isActive()) {
         for(long i = 0; i < buttonsToEnable.size(); i++) {
             buttonsToEnable[i]->setText(originalButtonLabels[i] + " (" + timerText + ")");
