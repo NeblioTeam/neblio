@@ -1,5 +1,4 @@
 #include "messageboxwithtimer.h"
-#include <iostream>
 
 MessageBoxWithTimer::MessageBoxWithTimer(QWidget *parent) : QMessageBox(parent)
 {
