@@ -18,9 +18,9 @@ void MessageBoxWithTimer::addButtonToWaitOn(QPushButton *button)
     buttonsToEnable.push_back(button);
 }
 
-void MessageBoxWithTimer::setDisablePeriod(long period)
+void MessageBoxWithTimer::setDisablePeriod(long period_in_ms)
 {
-    disablePeriod = period;
+    disablePeriod = period_in_ms;
 }
 
 void MessageBoxWithTimer::clearButtonsToEnable()

@@ -34,7 +34,7 @@ public:
     QTimer* buttonsEnableTimer;
     QTimer* buttonLabelUpdateTimer;
     void addButtonToWaitOn(QPushButton *button);
-    void setDisablePeriod(long period = 10000);
+    void setDisablePeriod(long period_in_ms = 10000);
     void clearButtonsToEnable();
     /**
      * @brief exec
