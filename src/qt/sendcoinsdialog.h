@@ -3,6 +3,8 @@
 
 #include <QDialog>
 #include <QString>
+#include <QMessageBox>
+#include <QTimer>
 
 namespace Ui {
     class SendCoinsDialog;
@@ -46,6 +48,15 @@ private:
     WalletModel *model;
     bool fNewRecipientAllowed;
 
+    void initializeMessageBoxForAddressWithNTPTokensWarning();
+    void showMessageBoxForAddressWithNTPTokensWarning(const QString& address);
+    QString getNTPWarningMessage(const QString& address);
+    QMessageBox *NTPWarning_messageBox;
+    QPushButton *NTPWarning_yesButton;
+    QPushButton *NTPWarning_noButton;
+    QTimer* NTPWarning_yesButtonEnableTimer;
+    QTimer* NTPWarning_yesButtonLabelTimer;
+
 private slots:
     void on_sendButton_clicked();
     void removeEntry(SendCoinsEntry* entry);
@@ -63,6 +74,8 @@ private slots:
     void coinControlClipboardPriority();
     void coinControlClipboardLowOutput();
     void coinControlClipboardChange();
+    void enableNTPWarningYesButton();
+    void updateNTPWarningYesButtonLabel();
 };
 
 #endif // SENDCOINSDIALOG_H
