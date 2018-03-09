@@ -17,21 +17,22 @@ public:
     explicit OptionsModel(QObject *parent = 0);
 
     enum OptionID {
-        StartAtStartup,    // bool
-        MinimizeToTray,    // bool
-        MapPortUPnP,       // bool
-        MinimizeOnClose,   // bool
-        ProxyUse,          // bool
-        ProxyIP,           // QString
-        ProxyPort,         // int
-        ProxySocksVersion, // int
-        Fee,               // qint64
-        ReserveBalance,    // qint64
-        DisplayUnit,       // BitcoinUnits::Unit
-        DisplayAddresses,  // bool
-        Language,          // QString
+        StartAtStartup,      // bool
+        MinimizeToTray,      // bool
+        MapPortUPnP,         // bool
+        MinimizeOnClose,     // bool
+        ProxyUse,            // bool
+        ProxyIP,             // QString
+        ProxyPort,           // int
+        ProxySocksVersion,   // int
+        Fee,                 // qint64
+        ReserveBalance,      // qint64
+        DisplayUnit,         // BitcoinUnits::Unit
+        DisplayAddresses,    // bool
+        Language,            // QString
         CoinControlFeatures, // bool
-        OptionIDRowCount,
+        BlockNTPAddresses,   // bool
+        OptionIDRowCount,    // last element defines the size, this must be last
     };
 
     void Init();

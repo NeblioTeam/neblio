@@ -110,6 +110,8 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
             return settings.value("language", "");
         case CoinControlFeatures:
             return QVariant(fCoinControlFeatures);
+        case BlockNTPAddresses:
+            return QVariant(settings.value("fBlockNTPAddresses", true));
         default:
             return QVariant();
         }
@@ -203,6 +205,8 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
             settings.setValue("fCoinControlFeatures", fCoinControlFeatures);
             emit coinControlFeaturesChanged(fCoinControlFeatures);
             }
+        case BlockNTPAddresses:
+            settings.setValue("fBlockNTPAddresses", value.toBool());
             break;
         default:
             break;

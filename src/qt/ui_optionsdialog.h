@@ -27,6 +27,7 @@
 #include "bitcoinamountfield.h"
 #include "qvalidatedlineedit.h"
 #include "qvaluecombobox.h"
+#include "messageboxwithtimer.h"
 
 QT_BEGIN_NAMESPACE
 
@@ -85,6 +86,9 @@ public:
     QPushButton *okButton;
     QPushButton *cancelButton;
     QPushButton *applyButton;
+    QWidget *tabNTPOptions;
+    QGridLayout *tabNTPOptionsLayout;
+    QCheckBox *tabNTP_blockTxFromAddressWithNTPTokensCheckbox;
 
     void setupUi(QDialog *OptionsDialog)
     {
@@ -317,6 +321,18 @@ public:
         statusLabel->setFont(font);
         statusLabel->setTextFormat(Qt::PlainText);
         statusLabel->setWordWrap(true);
+
+        /////// NTP options tab
+        tabNTPOptions = new QWidget();
+        tabNTPOptions->setObjectName(QStringLiteral("tabNTPOptions"));
+        tabWidget->addTab(tabNTPOptions, QString("N&TP Options"));
+        tabNTPOptionsLayout = new QGridLayout;
+        tabNTPOptions->setLayout(tabNTPOptionsLayout);
+        tabNTP_blockTxFromAddressWithNTPTokensCheckbox = new QCheckBox(tabNTPOptions);
+        tabNTP_blockTxFromAddressWithNTPTokensCheckbox->setText("Block transactions from addresses that have NTP tokens (otherwise tokens may be lost)");
+        tabNTPOptionsLayout->addWidget(tabNTP_blockTxFromAddressWithNTPTokensCheckbox);
+        tabNTPOptionsLayout->setAlignment(Qt::AlignTop);
+        ///////
 
         horizontalLayout_Buttons->addWidget(statusLabel);
 

@@ -79,8 +79,6 @@ SendCoinsDialog::SendCoinsDialog(QWidget *parent) :
     ui->labelCoinControlChange->addAction(clipboardChangeAction);
 
     fNewRecipientAllowed = true;
-
-    initializeMessageBoxForAddressWithNTPTokensWarning();
 }
 
 void SendCoinsDialog::setModel(WalletModel *model)
@@ -361,43 +359,6 @@ void SendCoinsDialog::setBalance(qint64 balance, qint64 stake, qint64 unconfirme
     ui->labelBalance->setText(BitcoinUnits::formatWithUnit(unit, balance));
 }
 
-void SendCoinsDialog::initializeMessageBoxForAddressWithNTPTokensWarning()
-{
-    NTPWarning_messageBox = new QMessageBox(this);
-    NTPWarning_yesButtonEnableTimer = new QTimer(this);
-    NTPWarning_yesButtonLabelTimer  = new QTimer(this);
-    NTPWarning_yesButton = NTPWarning_messageBox->addButton(QMessageBox::Yes);
-    NTPWarning_noButton  = NTPWarning_messageBox->addButton(QMessageBox::No);
-    connect(NTPWarning_yesButtonEnableTimer, &QTimer::timeout,
-            this, &SendCoinsDialog::enableNTPWarningYesButton);
-    connect(NTPWarning_yesButtonLabelTimer,  &QTimer::timeout,
-            this, &SendCoinsDialog::updateNTPWarningYesButtonLabel);
-}
-
-void SendCoinsDialog::showMessageBoxForAddressWithNTPTokensWarning(const QString& address)
-{
-    int timerPeriod = 10000;
-    QString msg = getNTPWarningMessage(address);
-    NTPWarning_messageBox->setText(msg);
-
-    NTPWarning_yesButton->setEnabled(false);
-    NTPWarning_messageBox->show();
-    NTPWarning_yesButtonEnableTimer->start(timerPeriod);
-    NTPWarning_yesButtonLabelTimer->start(100);
-}
-
-QString SendCoinsDialog::getNTPWarningMessage(const QString &address)
-{
-    return QString("WARNING: Unspent Transaction Outputs (UTXOs) at this address contain one or more NTP1 tokens. "
-                   "neblio-Qt does not currently support NTP1 tokens. "
-                   "Until the NTP1 tokens are swept safely back into Orion, sending any transaction from this address in neblio-Qt could result in your NTP1 tokens being permanently burned. "
-                   "It is recommended you sweep all NTP1 tokens back to Orion before sending this transaction. You have been warned.\n"
-                   "To sweep your NTP1 tokens back to Orion:\n\n"
-                   "1) Unlock your wallet (completely, not just for staking)\n"
-                   "2) Open the debug console and type: dumpprivkey " + address + "\n"
-                   "3) Visit https://orion.nebl.io/#/sweepTokens and paste your private key, keep sweeping until all the tokens are safely back in Orion");
-}
-
 void SendCoinsDialog::updateDisplayUnit()
 {
     if(model && model->getOptionsModel())
@@ -453,24 +414,6 @@ void SendCoinsDialog::coinControlClipboardLowOutput()
 void SendCoinsDialog::coinControlClipboardChange()
 {
     QApplication::clipboard()->setText(ui->labelCoinControlChange->text().left(ui->labelCoinControlChange->text().indexOf(" ")));
-}
-
-void SendCoinsDialog::enableNTPWarningYesButton()
-{
-    NTPWarning_yesButton->setEnabled(true);
-    NTPWarning_yesButtonEnableTimer->stop();
-}
-
-void SendCoinsDialog::updateNTPWarningYesButtonLabel()
-{
-    long remainingTime = NTPWarning_yesButtonEnableTimer->remainingTime();
-    QString timerText = QString::fromStdString(ToString(remainingTime/1000));
-    if(NTPWarning_yesButtonEnableTimer->isActive()) {
-        NTPWarning_yesButton->setText("Yes (" + timerText + ")");
-    } else {
-        NTPWarning_yesButton->setText("Yes");
-        NTPWarning_yesButtonLabelTimer->stop();
-    }
 }
 
 // Coin Control: settings menu - coin control enabled/disabled by user
