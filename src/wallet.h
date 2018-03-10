@@ -102,7 +102,7 @@ public:
     std::set<int64_t> setKeyPool;
     std::map<CKeyID, CKeyMetadata> mapKeyMetadata;
 
-    static const boost::filesystem::path BackupHashFilePath;
+    static const boost::filesystem::path BackupHashFilename;
 
     typedef std::map<unsigned int, CMasterKey> MasterKeyMap;
     MasterKeyMap mapMasterKeys;
