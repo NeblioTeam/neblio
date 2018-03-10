@@ -69,7 +69,6 @@ public:
         if (CoinControlDialog->objectName().isEmpty())
             CoinControlDialog->setObjectName(QStringLiteral("CoinControlDialog"));
         CoinControlDialog->resize(1000, 500);
-        CoinControlDialog->setStyleSheet(QStringLiteral("background-image: url(:/images/gr);"));
         verticalLayout = new QVBoxLayout(CoinControlDialog);
         verticalLayout->setObjectName(QStringLiteral("verticalLayout"));
         horizontalLayoutTop = new QHBoxLayout();

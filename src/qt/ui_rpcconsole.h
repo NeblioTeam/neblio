@@ -80,7 +80,6 @@ public:
         if (RPCConsole->objectName().isEmpty())
             RPCConsole->setObjectName(QStringLiteral("RPCConsole"));
         RPCConsole->resize(740, 450);
-        RPCConsole->setStyleSheet(QStringLiteral("background-image: url(:/images/gr);"));
         verticalLayout_2 = new QVBoxLayout(RPCConsole);
         verticalLayout_2->setObjectName(QStringLiteral("verticalLayout_2"));
         tabWidget = new QTabWidget(RPCConsole);

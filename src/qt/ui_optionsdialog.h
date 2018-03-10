@@ -95,8 +95,6 @@ public:
         if (OptionsDialog->objectName().isEmpty())
             OptionsDialog->setObjectName(QStringLiteral("OptionsDialog"));
         OptionsDialog->resize(540, 380);
-        OptionsDialog->setStyleSheet(QLatin1String("background-image: url(:/images/bkg2);\n"
-"background-image: url(:/images/gr);"));
         OptionsDialog->setModal(true);
         verticalLayout = new QVBoxLayout(OptionsDialog);
         verticalLayout->setObjectName(QStringLiteral("verticalLayout"));

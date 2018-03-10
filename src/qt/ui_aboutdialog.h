@@ -44,7 +44,6 @@ public:
         if (AboutDialog->objectName().isEmpty())
             AboutDialog->setObjectName(QStringLiteral("AboutDialog"));
         AboutDialog->resize(593, 319);
-        AboutDialog->setStyleSheet(QStringLiteral("background-image: url(:/images/bkg2);"));
         horizontalLayout_2 = new QHBoxLayout(AboutDialog);
         horizontalLayout_2->setObjectName(QStringLiteral("horizontalLayout_2"));
         label_4 = new QLabel(AboutDialog);
