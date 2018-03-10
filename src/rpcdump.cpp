@@ -530,8 +530,9 @@ std::string GetCurrentWalletHash() {
 
 void WriteWalletBackupHash() {
     // if the hash file doesn't exist, then the wallet was never backed-up
-    if(!boost::filesystem::exists(CWallet::BackupHashFilePath)) {
-        boost::filesystem::remove(CWallet::BackupHashFilePath);
+    boost::filesystem::path BackupHashFilePath = GetDataDir() / CWallet::BackupHashFilename;
+    if(!boost::filesystem::exists(BackupHashFilePath)) {
+        boost::filesystem::remove(BackupHashFilePath);
     }
 
     // if the wallet is not accessible
@@ -545,13 +546,15 @@ void WriteWalletBackupHash() {
     }
 
     std::string finalHash = GetCurrentWalletHash();
-    WriteStringToFile(CWallet::BackupHashFilePath, finalHash);
+    WriteStringToFile(BackupHashFilePath, finalHash);
 }
 
 bool ShouldWalletBeBackedUp()
 {
+    boost::filesystem::path BackupHashFilePath = GetDataDir() / CWallet::BackupHashFilename;
+
     // if the hash file doesn't exist, then the wallet was never backed-up
-    if(!boost::filesystem::exists(CWallet::BackupHashFilePath)) {
+    if(!boost::filesystem::exists(BackupHashFilePath)) {
         return true;
     }
 
@@ -566,7 +569,7 @@ bool ShouldWalletBeBackedUp()
     }
 
     std::string finalHash = GetCurrentWalletHash();
-    std::string storedHash = ReadStringFromFile(CWallet::BackupHashFilePath);
+    std::string storedHash = ReadStringFromFile(BackupHashFilePath);
     if(storedHash == finalHash) {
         return false;
     } else {
