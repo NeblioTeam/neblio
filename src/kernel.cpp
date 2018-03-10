@@ -23,6 +23,7 @@ static std::map<int, unsigned int> mapStakeModifierCheckpoints =
 static std::map<int, unsigned int> mapStakeModifierCheckpointsTestNet =
     boost::assign::map_list_of
         ( 0,    0xfd11f4e7 ) // genesis
+        (500,   0x40a2c119 ) // premine
     ;
 
 // Get time weight
