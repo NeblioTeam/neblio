@@ -217,6 +217,33 @@ void SendCoinsDialog::on_sendButton_clicked()
         break;
     case WalletModel::Aborted: // User aborted, nothing to do
         break;
+    case WalletModel::AddressContainsNTP1Tokens:
+        QMessageBox::warning(this, tr("Send Coins - NTP1 tokens problem"),
+            "Error: The addresses that were picked contain NTP1 tokens. You should send nebls from these addresses in this wallet. "
+            "This address contains NTP1 tokens: " + sendstatus.address + "\n"
+            "Proceeding with such a transaction will make you lose your NTP1 tokens. "
+            "You have the following options:\n\n"
+            "1. Use coin control and choose addresses that do not have NTP1 tokens.\n"
+            "2. Go to your Orion wallet and move the NTP1 tokens from there.\n"
+            "3. Go to options, and disable this check. Please be aware that your NTP1 tokens WILL BE DESTROYED.\n",
+            QMessageBox::Ok, QMessageBox::Ok);
+        break;
+    case WalletModel::AddressNTP1TokensCheckFailed:
+        QMessageBox::warning(this, tr("Send Coins - NTP1 tokens problem"),
+            "Error: Unable to check whether your addresses contain NTP1 tokens (for address: " + sendstatus.address + ")\n"
+            "Sending nebls from addresses that have NTP1 tokens will make you lose them. "
+            "If you would like to proceed with this at your own risk, "
+            "please go to options and disable this check.",
+            QMessageBox::Ok, QMessageBox::Ok);
+        break;
+    case WalletModel::AddressNTP1TokensCheckFailedFailedToDecodeScriptSig:
+        QMessageBox::warning(this, tr("Send Coins - NTP1 tokens problem"),
+            "Error: Unable to check whether your addresses contain NTP1 tokens (Decoding ScriptSig failed)"
+            "Sending nebls from addresses that have NTP1 tokens will make you lose them. "
+            "If you would like to proceed with this at your own risk, "
+            "please go to options and disable this check.",
+            QMessageBox::Ok, QMessageBox::Ok);
+        break;
     case WalletModel::OK:
         accept();
         CoinControlDialog::coinControl->UnSelectAll();

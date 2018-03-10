@@ -11,6 +11,9 @@
 
 #include <QSet>
 #include <QTimer>
+#include <QSettings>
+
+#include "ntp1tools.h"
 
 WalletModel::WalletModel(CWallet *wallet, OptionsModel *optionsModel, QObject *parent) :
     QObject(parent), wallet(wallet), optionsModel(optionsModel), addressTableModel(0),
@@ -207,6 +210,33 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
         CReserveKey keyChange(wallet);
         int64_t nFeeRequired = 0;
         bool fCreated = wallet->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, coinControl);
+
+        // check if the addresses chosen contain NTP1 addresses
+        QSettings settings;
+        bool isNTP1CheckEnabled = QVariant(settings.value("fBlockNTPAddresses", true)).toBool();
+        if(isNTP1CheckEnabled) {
+            for(long i = 0; i < static_cast<long>(wtx.vout.size()); i++) {
+                CTxDestination dest;
+                if(!ExtractDestination(wtx.vin.at(i).scriptSig, dest)) {
+                    return SendCoinsReturn(AddressNTP1TokensCheckFailedFailedToDecodeScriptSig);
+                }
+                CKeyID keyID = boost::get<CKeyID>(dest);
+                std::string strAddr = CBitcoinAddress(keyID).ToString();
+                try {
+                    bool containsNTP1Tokens = NTP1Tools::AddressContainsNTP1Tokens(strAddr);
+                    if(containsNTP1Tokens) {
+                        SendCoinsReturn retStatus(AddressContainsNTP1Tokens);
+                        retStatus.address = QString::fromStdString(strAddr);
+                        return retStatus;
+                    }
+                } catch(std::exception&) {
+                    SendCoinsReturn retStatus(AddressNTP1TokensCheckFailed);
+                    retStatus.address = QString::fromStdString(strAddr);
+                    return retStatus;
+                }
+            }
+            // end NTP1 token check
+        }
 
         if(!fCreated)
         {
