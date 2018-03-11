@@ -7,6 +7,15 @@ import neblio_ci_libs as nci
 
 build_dir = "build"
 
+packages_to_install = \
+[
+"wget",
+"make",
+"binutils"
+]
+
+nci.install_packages_debian(packages_to_install)
+
 working_dir = os.getcwd()
 
 mxe_path = "/mxe/mxe/"
