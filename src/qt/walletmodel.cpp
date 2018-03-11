@@ -222,6 +222,10 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
                 // get the input transaction hash
                 const uint256& currOutputHash = vin.at(i).prevout.hash;
                 // get its transaction object (when it was input)
+                // return with error if tx is not found
+                if(pwalletMain->mapWallet.find(currOutputHash) == pwalletMain->mapWallet.end()) {
+                    return SendCoinsReturn(AddressNTP1TokensCheckFailedTxNotFound);
+                }
                 const CWalletTx& prevTx = pwalletMain->mapWallet[currOutputHash];
                 // ensure that the transaction output number is valid
                 if(prevTx.vout.size() < vin.at(i).prevout.n + 1) {

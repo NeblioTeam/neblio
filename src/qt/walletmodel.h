@@ -52,6 +52,7 @@ public:
         AddressContainsNTP1Tokens,
         AddressNTP1TokensCheckFailed,
         AddressNTP1TokensCheckFailedWrongNumberOfOutputs,
+        AddressNTP1TokensCheckFailedTxNotFound,
         AddressNTP1TokensCheckFailedFailedToDecodeScriptPubKey,
         Aborted
     };
