@@ -1,84 +1,71 @@
-Copyright (c) 2009-2012 Bitcoin Developers
-Distributed under the MIT/X11 software license, see the accompanying
-file license.txt or http://www.opensource.org/licenses/mit-license.php.
-This product includes software developed by the OpenSSL Project for use in
-the OpenSSL Toolkit (http://www.openssl.org/).  This product includes
-cryptographic software written by Eric Young (eay@cryptsoft.com) and UPnP
-software written by Thomas Bernard.
+# Windows build notes
 
+We use CI (Continuous Integration) scripts in github with Travis CI. If you face any problems, these should be your reference for building.
 
-See readme-qt.rst for instructions on building neblio QT, the
-graphical user interface.
+## Compilers Supported
+The windows version of the Neblio Wallet is built in a Linux environment using MXE. MXE is a cross compiler that compiles Windows applications on Linux. You can get MXE from: https://github.com/mxe/mxe
 
-WINDOWS BUILD NOTES
-===================
+## Your options with MXE
+You can:
+1. Compile MXE yourself, then use that to compile Neblio Wallet for Windows
+2. Use Docker and just use the MXE we use in CI
 
-Compilers Supported
--------------------
-TODO: What works?
-Note: releases are cross-compiled using mingw running on Linux.
+## Building MXE yourself
 
+The following instructions are for Ubuntu (16.04). Other Linux distributions might require some minor changes.
 
-Dependencies
-------------
-Libraries you need to download separately and build:
+These are MXE dependencies:
 
-                default path               download
-OpenSSL         \openssl-1.0.1b-mgw        http://www.openssl.org/source/
-Berkeley DB     \db-4.8.30.NC-mgw          http://www.oracle.com/technology/software/products/berkeley-db/index.html
-Boost           \boost-1.47.0-mgw          http://www.boost.org/users/download/
-miniupnpc       \miniupnpc-1.6-mgw         http://miniupnp.tuxfamily.org/files/
+```
+sudo apt-get update
+sudo apt-get -y install autoconf automake autopoint bash bison bzip2 flex gettext git g++ gperf intltool libffi-dev libgdk-pixbuf2.0-dev libltdl-dev libssl-dev libxml-parser-perl make openssl p7zip-full patch perl pkg-config python ruby scons sed unzip wget xz-utils g++-multilib libc6-dev-i386
+```
 
-Their licenses:
-OpenSSL        Old BSD license with the problematic advertising requirement
-Berkeley DB    New BSD license with additional requirement that linked software must be free open source
-Boost          MIT-like license
-miniupnpc      New (3-clause) BSD license
+The following are the steps to prepare a working MXE for Neblio Wallet:
+```
+git clone https://github.com/mxe/mxe.git
+#change libcurl dependencies as Neblio needs
+sed -i 's/--with-libidn2/--without-libidn2/g' mxe/src/curl.mk
+sed -i 's/--with-libssh2/--without-libssh2/g' mxe/src/curl.mk
+cd mxe
+#openssl must be before curl
+make openssl && make boost && make db && make miniupnpc && make libqrencode && make curl && make qt5
+```
 
-Versions used in this release:
-OpenSSL      1.0.1b
-Berkeley DB  4.8.30.NC
-Boost        1.47.0
-miniupnpc    1.6
+## Use Docker and just use the MXE we use in CI and get the CI script to build Neblio for you
 
+```
+docker container prune
+docker run --name=cont -it -u root ubuntu:trusty /bin/bash
+```
+Now you can go to the home directory with `cd`, then compile neblio:
 
-OpenSSL
--------
-MSYS shell:
-un-tar sources with MSYS 'tar xfz' to avoid issue with symlinks (OpenSSL ticket 2377)
-change 'MAKE' env. variable from 'C:\MinGW32\bin\mingw32-make.exe' to '/c/MinGW32/bin/mingw32-make.exe'
+```
+cd
+apt-get update && apt-get install git python nano -y
+git clone https://github.com/NeblioTeam/neblio
+cd neblio
+python ci_scripts/test_win32-gui_wallet.py
+```
 
-cd /c/openssl-1.0.1b-mgw
-./config
-make
+Now you can copy the executable to your local machine (Do this before using prune to clean-up, if you'd like to do it):
+```
+docker cp cont:/root/neblio/build/release/neblio-qt.exe ~/
+```
+And now the executable is in your home directory.
 
-Berkeley DB
------------
-MSYS shell:
-cd /c/db-4.8.30.NC-mgw/build_unix
-sh ../dist/configure --enable-mingw --enable-cxx
-make
+## Building Neblio Wallet yourself
 
-Boost
------
-DOS prompt:
-downloaded boost jam 3.1.18
-cd \boost-1.47.0-mgw
-bjam toolset=gcc --build-type=complete stage
+If you'd not like to use Docker, and you succeeded in building MXE, then follow the following steps to build Neblio for Windows:
 
-MiniUPnPc
----------
-UPnP support is optional, make with USE_UPNP= to disable it.
-
-MSYS shell:
-cd /c/miniupnpc-1.6-mgw
-make -f Makefile.mingw
-mkdir miniupnpc
-cp *.h miniupnpc/
-
-neblio
--------
-DOS prompt:
-cd \neblio\src
-mingw32-make -f makefile.mingw
-strip nebliod.exe
+1. Define `mxe_bin_path` environment variable to point to the bin directory of MXE
+2. export PATH=$mxe_bin_path:$PATH
+3. Clone neblio from https://github.com/NeblioTeam/neblio (or get the neblio source from somewhere else)
+4. go to the directory src/leveldb
+5. call `make clean`
+6. call `TARGET_OS=NATIVE_WINDOWS make libleveldb.a libmemenv.a CC=${mxe_bin_path}/i686-w64-mingw32.static-gcc CXX=${mxe_bin_path}/i686-w64-mingw32.static-g++`
+7. go back to the neblio root directory
+8. make a build directory, with `mkdir build`, then go to it with `cd build`
+9. call `i686-w64-mingw32.static-qmake-qt5 "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-qt.pro`
+10. call `make`
+11. A directory `release` will have your executable.
