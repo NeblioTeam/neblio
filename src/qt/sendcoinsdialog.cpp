@@ -238,7 +238,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         break;
     case WalletModel::AddressNTP1TokensCheckFailedFailedToDecodeScriptSig:
         QMessageBox::warning(this, tr("Send Coins - NTP1 tokens problem"),
-            "Error: Unable to check whether your addresses contain NTP1 tokens (Decoding ScriptSig failed)"
+            "Error: Unable to check whether your addresses contain NTP1 tokens (Decoding ScriptSig failed) "
             "Sending nebls from addresses that have NTP1 tokens will make you lose them. "
             "If you would like to proceed with this at your own risk, "
             "please go to options and disable this check.",
