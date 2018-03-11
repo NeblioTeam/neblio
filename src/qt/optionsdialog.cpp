@@ -123,15 +123,15 @@ void OptionsDialog::showMessageBoxForAddressWithNTPTokensWarning()
 
 QString OptionsDialog::getNTPWarningMessage()
 {
-    return QString("WARNING: Unspent Transaction Outputs (UTXOs) of some of your addresses may have NTP1 tokens. This option protects your NTP1 tokens."
+    return QString("WARNING: Unspent Transaction Outputs (UTXOs) of some of the addresses in this wallet may have NTP1 tokens. This option protects your NTP1 tokens. "
                    "neblio-Qt does not currently support NTP1 tokens. "
-                   "Until the NTP1 tokens are swept safely back into Orion, sending any transaction from this address in neblio-Qt could result in your NTP1 tokens being permanently burned. "
-                   "It is recommended you sweep all NTP1 tokens back to Orion before sending this transaction. You have been warned.\n"
-                   "To sweep your NTP1 tokens back to Orion:\n\n"
-                   "1) Unlock your wallet (completely, not just for staking)\n"
-                   "2) Open the debug console and type: dumpprivkey\n"
-                   "3) Visit https://orion.nebl.io/#/sweepTokens and paste your private key, keep sweeping until all the tokens are safely back in Orion\n\n"
-                   "Are you sure you want to uncheck this box?");
+                   "Until the NTP1 tokens are swept safely back into Orion, sending any transaction from an address with NTP1 tokens in neblio-Qt could result in your NTP1 tokens being permanently burned. "
+                   "It is recommended you sweep all NTP1 tokens back to Orion immediately and do not disable this check. You have been warned.\n\n"
+                   "To sweep your NTP1 tokens back to Orion:\n"
+                   "1) Unlock your neblio-Qt wallet (completely, not just for staking)\n"
+                   "2) Open the debug console and type: dumpprivkey address\n"
+                   "3) Visit https://orion.nebl.io/#/sweepTokens and paste your private key, repeat until all the tokens are safely back in Orion\n\n"
+                   "Are you sure you want to disable this check?");
 }
 
 OptionsDialog::~OptionsDialog()

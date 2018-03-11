@@ -320,14 +320,14 @@ public:
         statusLabel->setTextFormat(Qt::PlainText);
         statusLabel->setWordWrap(true);
 
-        /////// NTP options tab
+        /////// NTP1 options tab
         tabNTPOptions = new QWidget();
         tabNTPOptions->setObjectName(QStringLiteral("tabNTPOptions"));
-        tabWidget->addTab(tabNTPOptions, QString("N&TP Options"));
+        tabWidget->addTab(tabNTPOptions, QString("N&TP1 Options"));
         tabNTPOptionsLayout = new QGridLayout;
         tabNTPOptions->setLayout(tabNTPOptionsLayout);
         tabNTP_blockTxFromAddressWithNTPTokensCheckbox = new QCheckBox(tabNTPOptions);
-        tabNTP_blockTxFromAddressWithNTPTokensCheckbox->setText("Block transactions from addresses that have NTP tokens (otherwise tokens may be lost)");
+        tabNTP_blockTxFromAddressWithNTPTokensCheckbox->setText("Block sending from addresses that contain NTP1 tokens (otherwise tokens may be lost)");
         tabNTPOptionsLayout->addWidget(tabNTP_blockTxFromAddressWithNTPTokensCheckbox);
         tabNTPOptionsLayout->setAlignment(Qt::AlignTop);
         ///////

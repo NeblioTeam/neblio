@@ -219,49 +219,48 @@ void SendCoinsDialog::on_sendButton_clicked()
         break;
     case WalletModel::AddressContainsNTP1Tokens:
         QMessageBox::warning(this, tr("Send Coins - NTP1 tokens problem"),
-            "Error: The addresses that were picked contain NTP1 tokens. You should send nebls from these addresses in this wallet. "
-            "This address contains NTP1 tokens: " + sendstatus.address + "\n"
-            "Proceeding with such a transaction will make you lose your NTP1 tokens. "
-            "You have the following options:\n\n"
-            "1. Use coin control and choose addresses that do not have NTP1 tokens.\n"
-            "2. Go to your Orion wallet and move the NTP1 tokens from there.\n"
+            "Error: One of the addresses chosen as an input for this transaction contains NTP1 tokens. You should NOT send NEBL from these addresses or the NTP1 tokens could be permanently burned. "
+            "This address contains NTP1 tokens: " + sendstatus.address + "\n\n"
+            "You have the following options:\n"
+            "1. Use coin control and choose addresses that do not contain NTP1 tokens.\n"
+            "2. Go to the Orion wallet and sweep the NTP1 tokens to Orion.\n"
             "3. Go to options, and disable this check. Please be aware that your NTP1 tokens WILL BE DESTROYED.\n",
             QMessageBox::Ok, QMessageBox::Ok);
         break;
     case WalletModel::AddressNTP1TokensCheckFailed:
         QMessageBox::warning(this, tr("Send Coins - NTP1 tokens problem"),
             "Error: Unable to check whether your addresses contain NTP1 tokens (for address: " + sendstatus.address + ")\n"
-            "Sending nebls from addresses that have NTP1 tokens from this wallet will make you lose them. "
-            "Sweep your tokens first using Orion wallet. "
+            "Sending NEBL from an address that contains NTP1 tokens could result in those tokens being permanently burned. "
+            "Sweep your NTP1 tokens back to an Orion address using the Orion wallet. "
             "If you would like to proceed with this at your own risk, "
-            "please go to options and disable this check.",
+            "please go to options and disable this NTP1 token check.",
             QMessageBox::Ok, QMessageBox::Ok);
         break;
     case WalletModel::AddressNTP1TokensCheckFailedFailedToDecodeScriptPubKey:
         QMessageBox::warning(this, tr("Send Coins - NTP1 tokens problem"),
             "Error: Unable to check whether your addresses contain NTP1 tokens (Decoding scriptPubKey failed) "
-            "Sending nebls from addresses that have NTP1 tokens from this wallet will make you lose them. "
-            "Sweep your tokens first using Orion wallet. "
+            "Sending NEBL from an address that contains NTP1 tokens could result in those tokens being permanently burned. "
+            "Sweep your NTP1 tokens back to an Orion address using the Orion wallet. "
             "If you would like to proceed with this at your own risk, "
-            "please go to options and disable this check.",
+            "please go to options and disable this NTP1 token check.",
             QMessageBox::Ok, QMessageBox::Ok);
         break;
     case WalletModel::AddressNTP1TokensCheckFailedTxNotFound:
         QMessageBox::warning(this, tr("Send Coins - NTP1 tokens problem"),
             "Error: Unable to check whether your addresses contain NTP1 tokens (Reference input transaction not found in the wallet) "
-            "Sending nebls from addresses that have NTP1 tokens from this wallet will make you lose them. "
-            "Sweep your tokens first using Orion wallet. "
+            "Sending NEBL from an address that contains NTP1 tokens could result in those tokens being permanently burned. "
+            "Sweep your NTP1 tokens back to an Orion address using the Orion wallet. "
             "If you would like to proceed with this at your own risk, "
-            "please go to options and disable this check.",
+            "please go to options and disable this NTP1 token check.",
             QMessageBox::Ok, QMessageBox::Ok);
         break;
     case WalletModel::AddressNTP1TokensCheckFailedWrongNumberOfOutputs:
         QMessageBox::warning(this, tr("Send Coins - NTP1 tokens problem"),
             "Error: Unable to check whether your addresses contain NTP1 tokens (number of outputs in the transaction used for input is wrong) "
-            "Sending nebls from addresses that have NTP1 tokens from this wallet will make you lose them. "
-            "Sweep your tokens first using Orion wallet. "
+            "Sending NEBL from an address that contains NTP1 tokens could result in those tokens being permanently burned. "
+            "Sweep your NTP1 tokens back to an Orion address using the Orion wallet. "
             "If you would like to proceed with this at your own risk, "
-            "please go to options and disable this check.",
+            "please go to options and disable this NTP1 token check.",
             QMessageBox::Ok, QMessageBox::Ok);
         break;
     case WalletModel::OK:
