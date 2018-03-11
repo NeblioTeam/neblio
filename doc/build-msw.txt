@@ -24,10 +24,11 @@ sudo apt-get -y install autoconf automake autopoint bash bison bzip2 flex gettex
 The following are the steps to prepare a working MXE for Neblio Wallet:
 ```
 git clone https://github.com/mxe/mxe.git
-#change libcurl dependencies as Neblio needs
-sed -i 's/--with-libidn2/--without-libidn2/g' mxe/src/curl.mk
-sed -i 's/--with-libssh2/--without-libssh2/g' mxe/src/curl.mk
 cd mxe
+git checkout 1b7d2e0562f2ec93848f536d2a9d4cd414356d9e
+#change libcurl dependencies as Neblio needs
+sed -i 's/--with-libidn2/--without-libidn2/g' src/curl.mk
+sed -i 's/--with-libssh2/--without-libssh2/g' src/curl.mk
 #openssl must be before curl
 make openssl && make boost && make db && make miniupnpc && make libqrencode && make curl && make qt5
 ```
