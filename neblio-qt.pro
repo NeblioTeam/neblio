@@ -289,7 +289,10 @@ HEADERS += src/qt/bitcoingui.h \
     src/threadsafety.h \
     src/neblioupdater.h \
     src/neblioversion.h \
-    src/neblioreleaseinfo.h
+    src/neblioreleaseinfo.h \
+    src/curltools.h \
+    src/ntp1tools.h \
+    src/qt/messageboxwithtimer.h
 
 contains(NEBLIO_REST, 1) {
     HEADERS += src/nebliorest.h
@@ -359,6 +362,7 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/qt/rpcconsole.cpp \
     src/qt/ClickableLabel.cpp \
     src/qt/neblioupdatedialog.cpp \
+    src/qt/messageboxwithtimer.cpp \
     src/noui.cpp \
     src/kernel.cpp \
     src/scrypt-arm.S \
@@ -381,7 +385,10 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/json/json_spirit_reader.cpp \
     src/json/json_spirit_writer.cpp \
     src/neblioreleaseinfo.cpp \
-    src/zerocoin/ZeroTest.cpp
+    src/zerocoin/ZeroTest.cpp \
+    src/curltools.cpp \
+    src/ntp1tools.cpp
+
 
 contains(NEBLIO_REST, 1) {
     SOURCES += src/nebliorest.cpp

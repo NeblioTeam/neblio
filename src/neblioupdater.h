@@ -4,13 +4,11 @@
 #include <string>
 
 #include "version.h"
-#include "util.h"
 #include "clientversion.h"
 #include "neblioversion.h"
 #include "neblioreleaseinfo.h"
 
-#define CURL_STATICLIB
-#include <curl/curl.h>
+#include "curltools.h"
 
 class NeblioUpdater
 {
@@ -23,7 +21,6 @@ public:
     NeblioUpdater();
     void checkIfUpdateIsAvailable(boost::promise<bool> &updateIsAvailablePromise, NeblioReleaseInfo &lastRelease);
 
-    static std::string GetFileFromHTTPS(const std::string &url, bool IncludeProgressBar);
     static NeblioVersion ParseVersion(const std::string& versionFile);
     static std::string GetDefineFromCFile(const std::string& fileData, const std::string &fieldName);
     static std::string RemoveCFileComments(const std::string& fileData);

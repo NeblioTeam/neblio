@@ -51,7 +51,6 @@ public:
         sizePolicy.setHeightForWidth(AskPassphraseDialog->sizePolicy().hasHeightForWidth());
         AskPassphraseDialog->setSizePolicy(sizePolicy);
         AskPassphraseDialog->setMinimumSize(QSize(550, 0));
-        AskPassphraseDialog->setStyleSheet(QStringLiteral("background-image: url(:/images/gr);"));
         verticalLayout = new QVBoxLayout(AskPassphraseDialog);
         verticalLayout->setObjectName(QStringLiteral("verticalLayout"));
         warningLabel = new QLabel(AskPassphraseDialog);

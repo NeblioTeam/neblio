@@ -14,8 +14,7 @@
    <string>QR Code Dialog</string>
   </property>
   <property name="styleSheet">
-   <string notr="true">background-image: url(:/images/bkg2);
-background-image: url(:/images/gr);</string>
+   <string notr="true"/>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout_3">
    <item>

@@ -70,7 +70,6 @@ public:
         if (SignVerifyMessageDialog->objectName().isEmpty())
             SignVerifyMessageDialog->setObjectName(QStringLiteral("SignVerifyMessageDialog"));
         SignVerifyMessageDialog->resize(700, 380);
-        SignVerifyMessageDialog->setStyleSheet(QStringLiteral("background-image: url(:/images/gr);"));
         SignVerifyMessageDialog->setModal(true);
         verticalLayout = new QVBoxLayout(SignVerifyMessageDialog);
         verticalLayout->setObjectName(QStringLiteral("verticalLayout"));

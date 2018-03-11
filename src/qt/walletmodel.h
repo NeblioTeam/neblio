@@ -49,6 +49,11 @@ public:
         DuplicateAddress,
         TransactionCreationFailed, // Error returned when wallet is still locked
         TransactionCommitFailed,
+        AddressContainsNTP1Tokens,
+        AddressNTP1TokensCheckFailed,
+        AddressNTP1TokensCheckFailedWrongNumberOfOutputs,
+        AddressNTP1TokensCheckFailedTxNotFound,
+        AddressNTP1TokensCheckFailedFailedToDecodeScriptPubKey,
         Aborted
     };
 
@@ -83,6 +88,7 @@ public:
         StatusCode status;
         qint64 fee; // is used in case status is "AmountWithFeeExceedsBalance"
         QString hex; // is filled with the transaction hash if status is "OK"
+        QString address; // is filled with address if a problem with an address exists (due to NTP1 tokens)
     };
 
     // Send coins to a list of recipients

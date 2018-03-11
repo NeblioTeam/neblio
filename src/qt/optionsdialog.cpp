@@ -87,12 +87,51 @@ OptionsDialog::OptionsDialog(QWidget *parent) :
     mapper->setSubmitPolicy(QDataWidgetMapper::ManualSubmit);
     mapper->setOrientation(Qt::Vertical);
 
+    initializeMessageBoxForAddressWithNTPTokensWarning();
+    connect(this->ui->tabNTP_blockTxFromAddressWithNTPTokensCheckbox, &QCheckBox::clicked,
+            this, &OptionsDialog::showMessageBoxForAddressWithNTPTokensWarning);
+
     /* enable apply button when data modified */
     connect(mapper, SIGNAL(viewModified()), this, SLOT(enableApplyButton()));
     /* disable apply button when new data loaded */
     connect(mapper, SIGNAL(currentIndexChanged(int)), this, SLOT(disableApplyButton()));
     /* setup/change UI elements when proxy IP is invalid/valid */
     connect(this, SIGNAL(proxyIpValid(QValidatedLineEdit *, bool)), this, SLOT(handleProxyIpValid(QValidatedLineEdit *, bool)));
+}
+
+void OptionsDialog::initializeMessageBoxForAddressWithNTPTokensWarning()
+{
+    NTPWarning_messageBox = new MessageBoxWithTimer(this);
+    NTPWarning_yesButton = NTPWarning_messageBox->addButton(QMessageBox::Yes);
+    NTPWarning_noButton  = NTPWarning_messageBox->addButton(QMessageBox::No);
+    NTPWarning_messageBox->addButtonToWaitOn(NTPWarning_yesButton);
+}
+
+void OptionsDialog::showMessageBoxForAddressWithNTPTokensWarning()
+{
+    if(!ui->tabNTP_blockTxFromAddressWithNTPTokensCheckbox->isChecked()) {
+        QString msg = getNTPWarningMessage();
+        NTPWarning_messageBox->setText(msg);
+        NTPWarning_messageBox->exec();
+        if(NTPWarning_messageBox->clickedButton() == NTPWarning_yesButton) {
+            ui->tabNTP_blockTxFromAddressWithNTPTokensCheckbox->setChecked(false);
+        } else {
+            ui->tabNTP_blockTxFromAddressWithNTPTokensCheckbox->setChecked(true);
+        }
+    }
+}
+
+QString OptionsDialog::getNTPWarningMessage()
+{
+    return QString("WARNING: Unspent Transaction Outputs (UTXOs) of some of the addresses in this wallet may have NTP1 tokens. This option protects your NTP1 tokens. "
+                   "neblio-Qt does not currently support NTP1 tokens. "
+                   "Until the NTP1 tokens are swept safely back into Orion, sending any transaction from an address with NTP1 tokens in neblio-Qt could result in your NTP1 tokens being permanently burned. "
+                   "It is recommended you sweep all NTP1 tokens back to Orion immediately and do not disable this check. You have been warned.\n\n"
+                   "To sweep your NTP1 tokens back to Orion:\n"
+                   "1) Unlock your neblio-Qt wallet (completely, not just for staking)\n"
+                   "2) Open the debug console and type: dumpprivkey address\n"
+                   "3) Visit https://orion.nebl.io/#/sweepTokens and paste your private key, repeat until all the tokens are safely back in Orion\n\n"
+                   "Are you sure you want to disable this check?");
 }
 
 OptionsDialog::~OptionsDialog()
@@ -149,6 +188,9 @@ void OptionsDialog::setMapper()
     mapper->addMapping(ui->unit, OptionsModel::DisplayUnit);
     mapper->addMapping(ui->displayAddresses, OptionsModel::DisplayAddresses);
     mapper->addMapping(ui->coinControlFeatures, OptionsModel::CoinControlFeatures);
+
+    /* NTP Options */
+    mapper->addMapping(ui->tabNTP_blockTxFromAddressWithNTPTokensCheckbox, OptionsModel::BlockNTPAddresses);
 }
 
 void OptionsDialog::enableApplyButton()

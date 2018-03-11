@@ -2,6 +2,7 @@
 #define OPTIONSDIALOG_H
 
 #include <QDialog>
+#include "messageboxwithtimer.h"
 
 namespace Ui {
 class OptionsDialog;
@@ -55,6 +56,14 @@ private:
     bool fRestartWarningDisplayed_Proxy;
     bool fRestartWarningDisplayed_Lang;
     bool fProxyIpValid;
+    MessageBoxWithTimer *NTPWarning_messageBox;
+    QPushButton *NTPWarning_yesButton;
+    QPushButton *NTPWarning_noButton;
+    void initializeMessageBoxForAddressWithNTPTokensWarning();
+    static QString getNTPWarningMessage();
+
+private slots:
+    void showMessageBoxForAddressWithNTPTokensWarning();
 };
 
 #endif // OPTIONSDIALOG_H

@@ -27,6 +27,7 @@
 #include "bitcoinamountfield.h"
 #include "qvalidatedlineedit.h"
 #include "qvaluecombobox.h"
+#include "messageboxwithtimer.h"
 
 QT_BEGIN_NAMESPACE
 
@@ -85,14 +86,15 @@ public:
     QPushButton *okButton;
     QPushButton *cancelButton;
     QPushButton *applyButton;
+    QWidget *tabNTPOptions;
+    QGridLayout *tabNTPOptionsLayout;
+    QCheckBox *tabNTP_blockTxFromAddressWithNTPTokensCheckbox;
 
     void setupUi(QDialog *OptionsDialog)
     {
         if (OptionsDialog->objectName().isEmpty())
             OptionsDialog->setObjectName(QStringLiteral("OptionsDialog"));
         OptionsDialog->resize(540, 380);
-        OptionsDialog->setStyleSheet(QLatin1String("background-image: url(:/images/bkg2);\n"
-"background-image: url(:/images/gr);"));
         OptionsDialog->setModal(true);
         verticalLayout = new QVBoxLayout(OptionsDialog);
         verticalLayout->setObjectName(QStringLiteral("verticalLayout"));
@@ -317,6 +319,18 @@ public:
         statusLabel->setFont(font);
         statusLabel->setTextFormat(Qt::PlainText);
         statusLabel->setWordWrap(true);
+
+        /////// NTP1 options tab
+        tabNTPOptions = new QWidget();
+        tabNTPOptions->setObjectName(QStringLiteral("tabNTPOptions"));
+        tabWidget->addTab(tabNTPOptions, QString("N&TP1 Options"));
+        tabNTPOptionsLayout = new QGridLayout;
+        tabNTPOptions->setLayout(tabNTPOptionsLayout);
+        tabNTP_blockTxFromAddressWithNTPTokensCheckbox = new QCheckBox(tabNTPOptions);
+        tabNTP_blockTxFromAddressWithNTPTokensCheckbox->setText("Block sending from addresses that contain NTP1 tokens (otherwise tokens may be lost)");
+        tabNTPOptionsLayout->addWidget(tabNTP_blockTxFromAddressWithNTPTokensCheckbox);
+        tabNTPOptionsLayout->setAlignment(Qt::AlignTop);
+        ///////
 
         horizontalLayout_Buttons->addWidget(statusLabel);
 
