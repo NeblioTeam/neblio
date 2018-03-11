@@ -215,7 +215,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
         QSettings settings;
         bool isNTP1CheckEnabled = QVariant(settings.value("fBlockNTPAddresses", true)).toBool();
         if(isNTP1CheckEnabled) {
-            for(long i = 0; i < static_cast<long>(wtx.vout.size()); i++) {
+            for(long i = 0; i < static_cast<long>(wtx.vin.size()); i++) {
                 CTxDestination dest;
                 if(!ExtractDestination(wtx.vin.at(i).scriptSig, dest)) {
                     return SendCoinsReturn(AddressNTP1TokensCheckFailedFailedToDecodeScriptSig);
