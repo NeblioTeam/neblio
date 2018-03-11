@@ -231,15 +231,26 @@ void SendCoinsDialog::on_sendButton_clicked()
     case WalletModel::AddressNTP1TokensCheckFailed:
         QMessageBox::warning(this, tr("Send Coins - NTP1 tokens problem"),
             "Error: Unable to check whether your addresses contain NTP1 tokens (for address: " + sendstatus.address + ")\n"
-            "Sending nebls from addresses that have NTP1 tokens will make you lose them. "
+            "Sending nebls from addresses that have NTP1 tokens from this wallet will make you lose them. "
+            "Sweep your tokens first using Orion wallet. "
             "If you would like to proceed with this at your own risk, "
             "please go to options and disable this check.",
             QMessageBox::Ok, QMessageBox::Ok);
         break;
-    case WalletModel::AddressNTP1TokensCheckFailedFailedToDecodeScriptSig:
+    case WalletModel::AddressNTP1TokensCheckFailedFailedToDecodeScriptPubKey:
         QMessageBox::warning(this, tr("Send Coins - NTP1 tokens problem"),
-            "Error: Unable to check whether your addresses contain NTP1 tokens (Decoding ScriptSig failed) "
-            "Sending nebls from addresses that have NTP1 tokens will make you lose them. "
+            "Error: Unable to check whether your addresses contain NTP1 tokens (Decoding scriptPubKey failed) "
+            "Sending nebls from addresses that have NTP1 tokens from this wallet will make you lose them. "
+            "Sweep your tokens first using Orion wallet. "
+            "If you would like to proceed with this at your own risk, "
+            "please go to options and disable this check.",
+            QMessageBox::Ok, QMessageBox::Ok);
+        break;
+    case WalletModel::AddressNTP1TokensCheckFailedWrongNumberOfOutputs:
+        QMessageBox::warning(this, tr("Send Coins - NTP1 tokens problem"),
+            "Error: Unable to check whether your addresses contain NTP1 tokens (number of outputs in the transaction used for input is wrong) "
+            "Sending nebls from addresses that have NTP1 tokens from this wallet will make you lose them. "
+            "Sweep your tokens first using Orion wallet. "
             "If you would like to proceed with this at your own risk, "
             "please go to options and disable this check.",
             QMessageBox::Ok, QMessageBox::Ok);

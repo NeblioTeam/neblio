@@ -51,7 +51,8 @@ public:
         TransactionCommitFailed,
         AddressContainsNTP1Tokens,
         AddressNTP1TokensCheckFailed,
-        AddressNTP1TokensCheckFailedFailedToDecodeScriptSig,
+        AddressNTP1TokensCheckFailedWrongNumberOfOutputs,
+        AddressNTP1TokensCheckFailedFailedToDecodeScriptPubKey,
         Aborted
     };
 

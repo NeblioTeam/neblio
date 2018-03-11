@@ -13,6 +13,7 @@
 #include <QTimer>
 #include <QSettings>
 
+#include "init.h"
 #include "ntp1tools.h"
 
 WalletModel::WalletModel(CWallet *wallet, OptionsModel *optionsModel, QObject *parent) :
@@ -215,12 +216,26 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
         QSettings settings;
         bool isNTP1CheckEnabled = QVariant(settings.value("fBlockNTPAddresses", true)).toBool();
         if(isNTP1CheckEnabled) {
+            // get all inputs and loop over them and check whether their addresses contain NTP1 tokens
             const std::vector<CTxIn>& vin = wtx.vin;
             for(long i = 0; i < static_cast<long>(vin.size()); i++) {
-                CTxDestination dest;
-                if(!ExtractDestination(vin.at(i).scriptSig, dest)) {
-                    return SendCoinsReturn(AddressNTP1TokensCheckFailedFailedToDecodeScriptSig);
+                // get the input transaction hash
+                const uint256& currOutputHash = vin.at(i).prevout.hash;
+                // get its transaction object (when it was input)
+                const CWalletTx& prevTx = pwalletMain->mapWallet[currOutputHash];
+                // ensure that the transaction output number is valid
+                if(prevTx.vout.size() < vin.at(i).prevout.n + 1) {
+                    return SendCoinsReturn(AddressNTP1TokensCheckFailedWrongNumberOfOutputs);
                 }
+                // get the output number N from that transaction
+                const CTxOut& output = prevTx.vout.at(vin.at(i).prevout.n);
+                // extract the destination of that transaction
+                CTxDestination dest;
+                bool addrExtractionSuccess = ExtractDestination(output.scriptPubKey, dest);
+                if(!addrExtractionSuccess) {
+                    return SendCoinsReturn(AddressNTP1TokensCheckFailedFailedToDecodeScriptPubKey);
+                }
+                // extract the key id then address the destination
                 CKeyID keyID = boost::get<CKeyID>(dest);
                 std::string strAddr = CBitcoinAddress(keyID).ToString();
                 try {
@@ -236,8 +251,8 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
                     return retStatus;
                 }
             }
-            // end NTP1 token check
         }
+        // end NTP1 token check
 
         if(!fCreated)
         {
