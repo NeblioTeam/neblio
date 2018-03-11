@@ -31,19 +31,19 @@ json_spirit::Array NTP1Tools::GetArrayField(const json_spirit::Object &data, con
 
 bool NTP1Tools::AddressContainsNTP1Tokens(const std::string& address)
 {
-    return GetNumOfNTP1UTXOs(address) != 0;
-}
-
-long NTP1Tools::GetNumOfNTP1UTXOs(const std::string &address)
-{
     try {
         std::string addressNTPInfoURL = GetRestAPIAddressURL(address);
         std::string ntpData = cURLTools::GetFileFromHTTPS(addressNTPInfoURL, false);
         json_spirit::Value parsedData;
         json_spirit::read_or_throw(ntpData, parsedData);
         json_spirit::Array utxosArray = GetArrayField(parsedData.get_obj(), "utxos");
-        long numOfUTXOs = static_cast<long>(utxosArray.size());
-        return numOfUTXOs;
+        for(long i = 0; i < static_cast<long>(utxosArray.size()); i++) {
+            json_spirit::Array tokensArray = GetArrayField(utxosArray[i].get_obj(), "tokens");
+            if(tokensArray.size() > 0) {
+                return true;
+            }
+        }
+        return false;
     } catch(std::exception& ex) {
         printf("%s",ex.what());
         throw;
