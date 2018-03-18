@@ -1,4 +1,4 @@
-#include <boost/test/unit_test.hpp>
+#include "googletest/googletest/include/gtest/gtest.h"
 
 using namespace std;
 
@@ -22,14 +22,12 @@ public:
     {
         mru.insert(n);
         set.insert(n);
-        BOOST_CHECK(mru == set);
+        EXPECT_TRUE(mru == set);
     }
 };
 
-BOOST_AUTO_TEST_SUITE(mruset_tests)
-
 // Test that an mruset behaves like a set, as long as no more than MAX_SIZE elements are in it
-BOOST_AUTO_TEST_CASE(mruset_like_set)
+TEST(mruset_tests, mruset_like_set)
 {
 
     for (int nTest=0; nTest<NUM_TESTS; nTest++)
@@ -42,7 +40,7 @@ BOOST_AUTO_TEST_CASE(mruset_like_set)
 }
 
 // Test that an mruset's size never exceeds its max_size
-BOOST_AUTO_TEST_CASE(mruset_limited_size)
+TEST(mruset_tests, mruset_limited_size)
 {
     for (int nTest=0; nTest<NUM_TESTS; nTest++)
     {
@@ -51,7 +49,7 @@ BOOST_AUTO_TEST_CASE(mruset_limited_size)
         {
             int n = GetRandInt(2 * MAX_SIZE);
             mru.insert(n);
-            BOOST_CHECK(mru.size() <= MAX_SIZE);
+            EXPECT_TRUE(mru.size() <= MAX_SIZE);
         }
     }
 }
@@ -72,7 +70,7 @@ int static permute(int n)
 }
 
 // Test that an mruset acts like a moving window, if no duplicate elements are added
-BOOST_AUTO_TEST_CASE(mruset_window)
+TEST(mruset_tests, mruset_window)
 {
     mruset<int> mru(MAX_SIZE);
     for (int n=0; n<10*MAX_SIZE; n++)
@@ -83,8 +81,6 @@ BOOST_AUTO_TEST_CASE(mruset_window)
         for (int m=max(0,n-MAX_SIZE+1); m<=n; m++)
             tester.insert(permute(m));
 
-        BOOST_CHECK(mru == tester);
+        EXPECT_TRUE(mru == tester);
     }
 }
-
-BOOST_AUTO_TEST_SUITE_END()

@@ -1,4 +1,4 @@
-#include <boost/test/unit_test.hpp>
+#include "googletest/googletest/include/gtest/gtest.h"
 
 #include <string>
 #include <vector>
@@ -19,44 +19,40 @@
 
 using namespace std;
 
-BOOST_AUTO_TEST_SUITE(compress_tests)
-
-bool static TestEncode(uint64 in) {
+bool static TestEncode(uint64_t in) {
     return in == CTxOutCompressor::DecompressAmount(CTxOutCompressor::CompressAmount(in));
 }
 
-bool static TestDecode(uint64 in) {
+bool static TestDecode(uint64_t in) {
     return in == CTxOutCompressor::CompressAmount(CTxOutCompressor::DecompressAmount(in));
 }
 
-bool static TestPair(uint64 dec, uint64 enc) {
+bool static TestPair(uint64_t dec, uint64_t enc) {
     return CTxOutCompressor::CompressAmount(dec) == enc &&
            CTxOutCompressor::DecompressAmount(enc) == dec;
 }
 
-BOOST_AUTO_TEST_CASE(compress_amounts)
+TEST(compress_tests, compress_amounts)
 {
-    BOOST_CHECK(TestPair(            0,       0x0));
-    BOOST_CHECK(TestPair(            1,       0x1));
-    BOOST_CHECK(TestPair(         CENT,       0x7));
-    BOOST_CHECK(TestPair(         COIN,       0x9));
-    BOOST_CHECK(TestPair(      50*COIN,      0x32));
-    BOOST_CHECK(TestPair(21000000*COIN, 0x1406f40));
+    EXPECT_TRUE(TestPair(            0,       0x0));
+    EXPECT_TRUE(TestPair(            1,       0x1));
+    EXPECT_TRUE(TestPair(         CENT,       0x7));
+    EXPECT_TRUE(TestPair(         COIN,       0x9));
+    EXPECT_TRUE(TestPair(      50*COIN,      0x32));
+    EXPECT_TRUE(TestPair(21000000*COIN, 0x1406f40));
 
-    for (uint64 i = 1; i <= NUM_MULTIPLES_UNIT; i++)
-        BOOST_CHECK(TestEncode(i));
+    for (uint64_t i = 1; i <= NUM_MULTIPLES_UNIT; i++)
+        EXPECT_TRUE(TestEncode(i));
 
-    for (uint64 i = 1; i <= NUM_MULTIPLES_CENT; i++)
-        BOOST_CHECK(TestEncode(i * CENT));
+    for (uint64_t i = 1; i <= NUM_MULTIPLES_CENT; i++)
+        EXPECT_TRUE(TestEncode(i * CENT));
 
-    for (uint64 i = 1; i <= NUM_MULTIPLES_1BTC; i++)
-        BOOST_CHECK(TestEncode(i * COIN));
+    for (uint64_t i = 1; i <= NUM_MULTIPLES_1BTC; i++)
+        EXPECT_TRUE(TestEncode(i * COIN));
 
-    for (uint64 i = 1; i <= NUM_MULTIPLES_50BTC; i++)
-        BOOST_CHECK(TestEncode(i * 50 * COIN));
+    for (uint64_t i = 1; i <= NUM_MULTIPLES_50BTC; i++)
+        EXPECT_TRUE(TestEncode(i * 50 * COIN));
 
-    for (uint64 i = 0; i < 100000; i++)
-        BOOST_CHECK(TestDecode(i));
+    for (uint64_t i = 0; i < 100000; i++)
+        EXPECT_TRUE(TestDecode(i));
 }
-
-BOOST_AUTO_TEST_SUITE_END()

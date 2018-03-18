@@ -1,10 +1,8 @@
-#include <boost/test/unit_test.hpp>
+#include "googletest/googletest/include/gtest/gtest.h"
 #include <limits>
 
 #include "bignum.h"
 #include "util.h"
-
-BOOST_AUTO_TEST_SUITE(bignum_tests)
 
 // Unfortunately there's no standard way of preventing a function from being
 // inlined, so we define a macro for it.
@@ -53,73 +51,71 @@ NOINLINE void mysetint64(CBigNum& num, int64_t n)
 
 // For each number, we do 2 tests: one with inline code, then we reset the
 // value to 0, then the second one with a non-inlined function.
-BOOST_AUTO_TEST_CASE(bignum_setint64)
+TEST(bignum_tests, bignum_setint64)
 {
     int64_t n;
 
     {
         n = 0;
         CBigNum num(n);
-        BOOST_CHECK(num.ToString() == "0");
+        EXPECT_TRUE(num.ToString() == "0");
         num.setulong(0);
-        BOOST_CHECK(num.ToString() == "0");
+        EXPECT_TRUE(num.ToString() == "0");
         mysetint64(num, n);
-        BOOST_CHECK(num.ToString() == "0");
+        EXPECT_TRUE(num.ToString() == "0");
     }
     {
         n = 1;
         CBigNum num(n);
-        BOOST_CHECK(num.ToString() == "1");
+        EXPECT_TRUE(num.ToString() == "1");
         num.setulong(0);
-        BOOST_CHECK(num.ToString() == "0");
+        EXPECT_TRUE(num.ToString() == "0");
         mysetint64(num, n);
-        BOOST_CHECK(num.ToString() == "1");
+        EXPECT_TRUE(num.ToString() == "1");
     }
     {
         n = -1;
         CBigNum num(n);
-        BOOST_CHECK(num.ToString() == "-1");
+        EXPECT_TRUE(num.ToString() == "-1");
         num.setulong(0);
-        BOOST_CHECK(num.ToString() == "0");
+        EXPECT_TRUE(num.ToString() == "0");
         mysetint64(num, n);
-        BOOST_CHECK(num.ToString() == "-1");
+        EXPECT_TRUE(num.ToString() == "-1");
     }
     {
         n = 5;
         CBigNum num(n);
-        BOOST_CHECK(num.ToString() == "5");
+        EXPECT_TRUE(num.ToString() == "5");
         num.setulong(0);
-        BOOST_CHECK(num.ToString() == "0");
+        EXPECT_TRUE(num.ToString() == "0");
         mysetint64(num, n);
-        BOOST_CHECK(num.ToString() == "5");
+        EXPECT_TRUE(num.ToString() == "5");
     }
     {
         n = -5;
         CBigNum num(n);
-        BOOST_CHECK(num.ToString() == "-5");
+        EXPECT_TRUE(num.ToString() == "-5");
         num.setulong(0);
-        BOOST_CHECK(num.ToString() == "0");
+        EXPECT_TRUE(num.ToString() == "0");
         mysetint64(num, n);
-        BOOST_CHECK(num.ToString() == "-5");
+        EXPECT_TRUE(num.ToString() == "-5");
     }
     {
         n = std::numeric_limits<int64_t>::min();
         CBigNum num(n);
-        BOOST_CHECK(num.ToString() == "-9223372036854775808");
+        EXPECT_TRUE(num.ToString() == "-9223372036854775808");
         num.setulong(0);
-        BOOST_CHECK(num.ToString() == "0");
+        EXPECT_TRUE(num.ToString() == "0");
         mysetint64(num, n);
-        BOOST_CHECK(num.ToString() == "-9223372036854775808");
+        EXPECT_TRUE(num.ToString() == "-9223372036854775808");
     }
     {
         n = std::numeric_limits<int64_t>::max();
         CBigNum num(n);
-        BOOST_CHECK(num.ToString() == "9223372036854775807");
+        EXPECT_TRUE(num.ToString() == "9223372036854775807");
         num.setulong(0);
-        BOOST_CHECK(num.ToString() == "0");
+        EXPECT_TRUE(num.ToString() == "0");
         mysetint64(num, n);
-        BOOST_CHECK(num.ToString() == "9223372036854775807");
+        EXPECT_TRUE(num.ToString() == "9223372036854775807");
     }
 }
-
-BOOST_AUTO_TEST_SUITE_END()

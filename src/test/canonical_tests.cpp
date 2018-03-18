@@ -2,8 +2,8 @@
 // Unit tests for canonical signatures
 
 #include "json/json_spirit_writer_template.h"
-#include <boost/test/unit_test.hpp>
 #include <openssl/ecdsa.h>
+#include "googletest/googletest/include/gtest/gtest.h"
 
 #include "key.h"
 #include "script.h"
@@ -15,8 +15,6 @@ using namespace json_spirit;
 
 // In script_tests.cpp
 extern Array read_json(const std::string& filename);
-
-BOOST_AUTO_TEST_SUITE(canonical_tests)
 
 // OpenSSL-based test for canonical signature (without test for hashtype byte)
 bool static IsCanonicalSignature_OpenSSL_inner(const std::vector<unsigned char>& vchSig)
@@ -56,7 +54,7 @@ bool static IsCanonicalSignature_OpenSSL(const std::vector<unsigned char> &vchSi
     return true;
 }
 
-BOOST_AUTO_TEST_CASE(script_canon)
+TEST(canonical_tests, script_canon)
 {
     Array tests = read_json("sig_canonical.json");
 
@@ -64,13 +62,13 @@ BOOST_AUTO_TEST_CASE(script_canon)
         string test = tv.get_str();
         if (IsHex(test)) {
             std::vector<unsigned char> sig = ParseHex(test);
-            BOOST_CHECK_MESSAGE(IsCanonicalSignature(sig), test);
-            BOOST_CHECK_MESSAGE(IsCanonicalSignature_OpenSSL(sig), test);
+            EXPECT_TRUE(IsCanonicalSignature(sig)) << test;
+            EXPECT_TRUE(IsCanonicalSignature_OpenSSL(sig)) << test;
         }
     }
 }
 
-BOOST_AUTO_TEST_CASE(script_noncanon)
+TEST(canonical_tests, script_noncanon)
 {
     Array tests = read_json("sig_noncanonical.json");
 
@@ -78,10 +76,8 @@ BOOST_AUTO_TEST_CASE(script_noncanon)
         string test = tv.get_str();
         if (IsHex(test)) {
             std::vector<unsigned char> sig = ParseHex(test);
-            BOOST_CHECK_MESSAGE(!IsCanonicalSignature(sig), test);
-            BOOST_CHECK_MESSAGE(!IsCanonicalSignature_OpenSSL(sig), test);
+            EXPECT_TRUE(!IsCanonicalSignature(sig)) << test;
+            EXPECT_TRUE(!IsCanonicalSignature_OpenSSL(sig)) << test;
         }
     }
 }
-
-BOOST_AUTO_TEST_SUITE_END()

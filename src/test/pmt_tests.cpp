@@ -1,4 +1,4 @@
-#include <boost/test/unit_test.hpp>
+#include "googletest/googletest/include/gtest/gtest.h"
 
 #include "uint256.h"
 #include "main.h"
@@ -17,9 +17,7 @@ public:
     }
 };
 
-BOOST_AUTO_TEST_SUITE(pmt_tests)
-
-BOOST_AUTO_TEST_CASE(pmt_test1)
+TEST(pmt_tests, pmt_test1)
 {
     static const unsigned int nTxCounts[] = {1, 4, 7, 17, 56, 100, 127, 256, 312, 513, 1000, 4095};
 
@@ -66,7 +64,7 @@ BOOST_AUTO_TEST_CASE(pmt_test1)
 
             // verify CPartialMerkleTree's size guarantees
             unsigned int n = std::min<unsigned int>(nTx, 1 + vMatchTxid1.size()*nHeight);
-            BOOST_CHECK(ss.size() <= 10 + (258*n+7)/8);
+            EXPECT_TRUE(ss.size() <= 10 + (258*n+7)/8);
 
             // deserialize into a tester copy
             CPartialMerkleTreeTester pmt2;
@@ -77,11 +75,11 @@ BOOST_AUTO_TEST_CASE(pmt_test1)
             uint256 merkleRoot2 = pmt2.ExtractMatches(vMatchTxid2);
 
             // check that it has the same merkle root as the original, and a valid one
-            BOOST_CHECK(merkleRoot1 == merkleRoot2);
-            BOOST_CHECK(merkleRoot2 != 0);
+            EXPECT_TRUE(merkleRoot1 == merkleRoot2);
+            EXPECT_TRUE(merkleRoot2 != 0);
 
             // check that it contains the matched transactions (in the same order!)
-            BOOST_CHECK(vMatchTxid1 == vMatchTxid2);
+            EXPECT_TRUE(vMatchTxid1 == vMatchTxid2);
 
             // check that random bit flips break the authentication
             for (int j=0; j<4; j++) {
@@ -89,10 +87,8 @@ BOOST_AUTO_TEST_CASE(pmt_test1)
                 pmt3.Damage();
                 std::vector<uint256> vMatchTxid3;
                 uint256 merkleRoot3 = pmt3.ExtractMatches(vMatchTxid3);
-                BOOST_CHECK(merkleRoot3 != merkleRoot1);
+                EXPECT_TRUE(merkleRoot3 != merkleRoot1);
             }
         }
     }
 }
-
-BOOST_AUTO_TEST_SUITE_END()

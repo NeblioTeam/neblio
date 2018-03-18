@@ -1,10 +1,8 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/foreach.hpp>
-#include <boost/test/unit_test.hpp>
+#include "googletest/googletest/include/gtest/gtest.h"
 
 #include "util.h"
-
-BOOST_AUTO_TEST_SUITE(getarg_tests)
 
 static void
 ResetArgs(const std::string& strArg)
@@ -23,145 +21,143 @@ ResetArgs(const std::string& strArg)
     ParseParameters(vecChar.size(), &vecChar[0]);
 }
 
-BOOST_AUTO_TEST_CASE(boolarg)
+TEST(getarg_tests, boolarg)
 {
     ResetArgs("-foo");
-    BOOST_CHECK(GetBoolArg("-foo"));
-    BOOST_CHECK(GetBoolArg("-foo", false));
-    BOOST_CHECK(GetBoolArg("-foo", true));
+    EXPECT_TRUE(GetBoolArg("-foo"));
+    EXPECT_TRUE(GetBoolArg("-foo", false));
+    EXPECT_TRUE(GetBoolArg("-foo", true));
 
-    BOOST_CHECK(!GetBoolArg("-fo"));
-    BOOST_CHECK(!GetBoolArg("-fo", false));
-    BOOST_CHECK(GetBoolArg("-fo", true));
+    EXPECT_TRUE(!GetBoolArg("-fo"));
+    EXPECT_TRUE(!GetBoolArg("-fo", false));
+    EXPECT_TRUE(GetBoolArg("-fo", true));
 
-    BOOST_CHECK(!GetBoolArg("-fooo"));
-    BOOST_CHECK(!GetBoolArg("-fooo", false));
-    BOOST_CHECK(GetBoolArg("-fooo", true));
+    EXPECT_TRUE(!GetBoolArg("-fooo"));
+    EXPECT_TRUE(!GetBoolArg("-fooo", false));
+    EXPECT_TRUE(GetBoolArg("-fooo", true));
 
     ResetArgs("-foo=0");
-    BOOST_CHECK(!GetBoolArg("-foo"));
-    BOOST_CHECK(!GetBoolArg("-foo", false));
-    BOOST_CHECK(!GetBoolArg("-foo", true));
+    EXPECT_TRUE(!GetBoolArg("-foo"));
+    EXPECT_TRUE(!GetBoolArg("-foo", false));
+    EXPECT_TRUE(!GetBoolArg("-foo", true));
 
     ResetArgs("-foo=1");
-    BOOST_CHECK(GetBoolArg("-foo"));
-    BOOST_CHECK(GetBoolArg("-foo", false));
-    BOOST_CHECK(GetBoolArg("-foo", true));
+    EXPECT_TRUE(GetBoolArg("-foo"));
+    EXPECT_TRUE(GetBoolArg("-foo", false));
+    EXPECT_TRUE(GetBoolArg("-foo", true));
 
     // New 0.6 feature: auto-map -nosomething to !-something:
     ResetArgs("-nofoo");
-    BOOST_CHECK(!GetBoolArg("-foo"));
-    BOOST_CHECK(!GetBoolArg("-foo", false));
-    BOOST_CHECK(!GetBoolArg("-foo", true));
+    EXPECT_TRUE(!GetBoolArg("-foo"));
+    EXPECT_TRUE(!GetBoolArg("-foo", false));
+    EXPECT_TRUE(!GetBoolArg("-foo", true));
 
     ResetArgs("-nofoo=1");
-    BOOST_CHECK(!GetBoolArg("-foo"));
-    BOOST_CHECK(!GetBoolArg("-foo", false));
-    BOOST_CHECK(!GetBoolArg("-foo", true));
+    EXPECT_TRUE(!GetBoolArg("-foo"));
+    EXPECT_TRUE(!GetBoolArg("-foo", false));
+    EXPECT_TRUE(!GetBoolArg("-foo", true));
 
     ResetArgs("-foo -nofoo");  // -foo should win
-    BOOST_CHECK(GetBoolArg("-foo"));
-    BOOST_CHECK(GetBoolArg("-foo", false));
-    BOOST_CHECK(GetBoolArg("-foo", true));
+    EXPECT_TRUE(GetBoolArg("-foo"));
+    EXPECT_TRUE(GetBoolArg("-foo", false));
+    EXPECT_TRUE(GetBoolArg("-foo", true));
 
     ResetArgs("-foo=1 -nofoo=1");  // -foo should win
-    BOOST_CHECK(GetBoolArg("-foo"));
-    BOOST_CHECK(GetBoolArg("-foo", false));
-    BOOST_CHECK(GetBoolArg("-foo", true));
+    EXPECT_TRUE(GetBoolArg("-foo"));
+    EXPECT_TRUE(GetBoolArg("-foo", false));
+    EXPECT_TRUE(GetBoolArg("-foo", true));
 
     ResetArgs("-foo=0 -nofoo=0");  // -foo should win
-    BOOST_CHECK(!GetBoolArg("-foo"));
-    BOOST_CHECK(!GetBoolArg("-foo", false));
-    BOOST_CHECK(!GetBoolArg("-foo", true));
+    EXPECT_TRUE(!GetBoolArg("-foo"));
+    EXPECT_TRUE(!GetBoolArg("-foo", false));
+    EXPECT_TRUE(!GetBoolArg("-foo", true));
 
     // New 0.6 feature: treat -- same as -:
     ResetArgs("--foo=1");
-    BOOST_CHECK(GetBoolArg("-foo"));
-    BOOST_CHECK(GetBoolArg("-foo", false));
-    BOOST_CHECK(GetBoolArg("-foo", true));
+    EXPECT_TRUE(GetBoolArg("-foo"));
+    EXPECT_TRUE(GetBoolArg("-foo", false));
+    EXPECT_TRUE(GetBoolArg("-foo", true));
 
     ResetArgs("--nofoo=1");
-    BOOST_CHECK(!GetBoolArg("-foo"));
-    BOOST_CHECK(!GetBoolArg("-foo", false));
-    BOOST_CHECK(!GetBoolArg("-foo", true));
+    EXPECT_TRUE(!GetBoolArg("-foo"));
+    EXPECT_TRUE(!GetBoolArg("-foo", false));
+    EXPECT_TRUE(!GetBoolArg("-foo", true));
 
 }
 
-BOOST_AUTO_TEST_CASE(stringarg)
+TEST(getarg_tests, stringarg)
 {
     ResetArgs("");
-    BOOST_CHECK_EQUAL(GetArg("-foo", ""), "");
-    BOOST_CHECK_EQUAL(GetArg("-foo", "eleven"), "eleven");
+    EXPECT_EQ(GetArg("-foo", ""), "");
+    EXPECT_EQ(GetArg("-foo", "eleven"), "eleven");
 
     ResetArgs("-foo -bar");
-    BOOST_CHECK_EQUAL(GetArg("-foo", ""), "");
-    BOOST_CHECK_EQUAL(GetArg("-foo", "eleven"), "");
+    EXPECT_EQ(GetArg("-foo", ""), "");
+    EXPECT_EQ(GetArg("-foo", "eleven"), "");
 
     ResetArgs("-foo=");
-    BOOST_CHECK_EQUAL(GetArg("-foo", ""), "");
-    BOOST_CHECK_EQUAL(GetArg("-foo", "eleven"), "");
+    EXPECT_EQ(GetArg("-foo", ""), "");
+    EXPECT_EQ(GetArg("-foo", "eleven"), "");
 
     ResetArgs("-foo=11");
-    BOOST_CHECK_EQUAL(GetArg("-foo", ""), "11");
-    BOOST_CHECK_EQUAL(GetArg("-foo", "eleven"), "11");
+    EXPECT_EQ(GetArg("-foo", ""), "11");
+    EXPECT_EQ(GetArg("-foo", "eleven"), "11");
 
     ResetArgs("-foo=eleven");
-    BOOST_CHECK_EQUAL(GetArg("-foo", ""), "eleven");
-    BOOST_CHECK_EQUAL(GetArg("-foo", "eleven"), "eleven");
+    EXPECT_EQ(GetArg("-foo", ""), "eleven");
+    EXPECT_EQ(GetArg("-foo", "eleven"), "eleven");
 
 }
 
-BOOST_AUTO_TEST_CASE(intarg)
+TEST(getarg_tests, intarg)
 {
     ResetArgs("");
-    BOOST_CHECK_EQUAL(GetArg("-foo", 11), 11);
-    BOOST_CHECK_EQUAL(GetArg("-foo", 0), 0);
+    EXPECT_EQ(GetArg("-foo", 11), 11);
+    EXPECT_EQ(GetArg("-foo", 0), 0);
 
     ResetArgs("-foo -bar");
-    BOOST_CHECK_EQUAL(GetArg("-foo", 11), 0);
-    BOOST_CHECK_EQUAL(GetArg("-bar", 11), 0);
+    EXPECT_EQ(GetArg("-foo", 11), 0);
+    EXPECT_EQ(GetArg("-bar", 11), 0);
 
     ResetArgs("-foo=11 -bar=12");
-    BOOST_CHECK_EQUAL(GetArg("-foo", 0), 11);
-    BOOST_CHECK_EQUAL(GetArg("-bar", 11), 12);
+    EXPECT_EQ(GetArg("-foo", 0), 11);
+    EXPECT_EQ(GetArg("-bar", 11), 12);
 
     ResetArgs("-foo=NaN -bar=NotANumber");
-    BOOST_CHECK_EQUAL(GetArg("-foo", 1), 0);
-    BOOST_CHECK_EQUAL(GetArg("-bar", 11), 0);
+    EXPECT_EQ(GetArg("-foo", 1), 0);
+    EXPECT_EQ(GetArg("-bar", 11), 0);
 }
 
-BOOST_AUTO_TEST_CASE(doubledash)
+TEST(getarg_tests, doubledash)
 {
     ResetArgs("--foo");
-    BOOST_CHECK_EQUAL(GetBoolArg("-foo"), true);
+    EXPECT_EQ(GetBoolArg("-foo"), true);
 
     ResetArgs("--foo=verbose --bar=1");
-    BOOST_CHECK_EQUAL(GetArg("-foo", ""), "verbose");
-    BOOST_CHECK_EQUAL(GetArg("-bar", 0), 1);
+    EXPECT_EQ(GetArg("-foo", ""), "verbose");
+    EXPECT_EQ(GetArg("-bar", 0), 1);
 }
 
-BOOST_AUTO_TEST_CASE(boolargno)
+TEST(getarg_tests, boolargno)
 {
     ResetArgs("-nofoo");
-    BOOST_CHECK(!GetBoolArg("-foo"));
-    BOOST_CHECK(!GetBoolArg("-foo", true));
-    BOOST_CHECK(!GetBoolArg("-foo", false));
+    EXPECT_TRUE(!GetBoolArg("-foo"));
+    EXPECT_TRUE(!GetBoolArg("-foo", true));
+    EXPECT_TRUE(!GetBoolArg("-foo", false));
 
     ResetArgs("-nofoo=1");
-    BOOST_CHECK(!GetBoolArg("-foo"));
-    BOOST_CHECK(!GetBoolArg("-foo", true));
-    BOOST_CHECK(!GetBoolArg("-foo", false));
+    EXPECT_TRUE(!GetBoolArg("-foo"));
+    EXPECT_TRUE(!GetBoolArg("-foo", true));
+    EXPECT_TRUE(!GetBoolArg("-foo", false));
 
     ResetArgs("-nofoo=0");
-    BOOST_CHECK(GetBoolArg("-foo"));
-    BOOST_CHECK(GetBoolArg("-foo", true));
-    BOOST_CHECK(GetBoolArg("-foo", false));
+    EXPECT_TRUE(GetBoolArg("-foo"));
+    EXPECT_TRUE(GetBoolArg("-foo", true));
+    EXPECT_TRUE(GetBoolArg("-foo", false));
 
     ResetArgs("-foo --nofoo");
-    BOOST_CHECK(GetBoolArg("-foo"));
+    EXPECT_TRUE(GetBoolArg("-foo"));
 
     ResetArgs("-nofoo -foo"); // foo always wins:
-    BOOST_CHECK(GetBoolArg("-foo"));
+    EXPECT_TRUE(GetBoolArg("-foo"));
 }
-
-BOOST_AUTO_TEST_SUITE_END()

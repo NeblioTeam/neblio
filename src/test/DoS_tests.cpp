@@ -5,8 +5,8 @@
 
 #include <boost/assign/list_of.hpp> // for 'map_list_of()'
 #include <boost/date_time/posix_time/posix_time_types.hpp>
-#include <boost/test/unit_test.hpp>
 #include <boost/foreach.hpp>
+#include "googletest/googletest/include/gtest/gtest.h"
 
 #include "main.h"
 #include "wallet.h"
@@ -28,42 +28,40 @@ CService ip(uint32_t i)
     return CService(CNetAddr(s), GetDefaultPort());
 }
 
-BOOST_AUTO_TEST_SUITE(DoS_tests)
-
-BOOST_AUTO_TEST_CASE(DoS_banning)
+TEST(DoS_tests, DoS_banning)
 {
     CNode::ClearBanned();
     CAddress addr1(ip(0xa0b0c001));
     CNode dummyNode1(INVALID_SOCKET, addr1, "", true);
     dummyNode1.Misbehaving(100); // Should get banned
-    BOOST_CHECK(CNode::IsBanned(addr1));
-    BOOST_CHECK(!CNode::IsBanned(ip(0xa0b0c001|0x0000ff00))); // Different IP, not banned
+    EXPECT_TRUE(CNode::IsBanned(addr1));
+    EXPECT_TRUE(!CNode::IsBanned(ip(0xa0b0c001|0x0000ff00))); // Different IP, not banned
 
     CAddress addr2(ip(0xa0b0c002));
     CNode dummyNode2(INVALID_SOCKET, addr2, "", true);
     dummyNode2.Misbehaving(50);
-    BOOST_CHECK(!CNode::IsBanned(addr2)); // 2 not banned yet...
-    BOOST_CHECK(CNode::IsBanned(addr1));  // ... but 1 still should be
+    EXPECT_TRUE(!CNode::IsBanned(addr2)); // 2 not banned yet...
+    EXPECT_TRUE(CNode::IsBanned(addr1));  // ... but 1 still should be
     dummyNode2.Misbehaving(50);
-    BOOST_CHECK(CNode::IsBanned(addr2));
+    EXPECT_TRUE(CNode::IsBanned(addr2));
 }
 
-BOOST_AUTO_TEST_CASE(DoS_banscore)
+TEST(DoS_tests, DoS_banscore)
 {
     CNode::ClearBanned();
     mapArgs["-banscore"] = "111"; // because 11 is my favorite number
     CAddress addr1(ip(0xa0b0c001));
     CNode dummyNode1(INVALID_SOCKET, addr1, "", true);
     dummyNode1.Misbehaving(100);
-    BOOST_CHECK(!CNode::IsBanned(addr1));
+    EXPECT_TRUE(!CNode::IsBanned(addr1));
     dummyNode1.Misbehaving(10);
-    BOOST_CHECK(!CNode::IsBanned(addr1));
+    EXPECT_TRUE(!CNode::IsBanned(addr1));
     dummyNode1.Misbehaving(1);
-    BOOST_CHECK(CNode::IsBanned(addr1));
+    EXPECT_TRUE(CNode::IsBanned(addr1));
     mapArgs.erase("-banscore");
 }
 
-BOOST_AUTO_TEST_CASE(DoS_bantime)
+TEST(DoS_tests, DoS_bantime)
 {
     CNode::ClearBanned();
     int64_t nStartTime = GetTime();
@@ -73,13 +71,13 @@ BOOST_AUTO_TEST_CASE(DoS_bantime)
     CNode dummyNode(INVALID_SOCKET, addr, "", true);
 
     dummyNode.Misbehaving(100);
-    BOOST_CHECK(CNode::IsBanned(addr));
+    EXPECT_TRUE(CNode::IsBanned(addr));
 
     SetMockTime(nStartTime+60*60);
-    BOOST_CHECK(CNode::IsBanned(addr));
+    EXPECT_TRUE(CNode::IsBanned(addr));
 
     SetMockTime(nStartTime+60*60*24+1);
-    BOOST_CHECK(!CNode::IsBanned(addr));
+    EXPECT_TRUE(!CNode::IsBanned(addr));
 }
 
 static bool CheckNBits(unsigned int nbits1, int64_t time1, unsigned int nbits2, int64_t time2)\
@@ -95,7 +93,7 @@ static bool CheckNBits(unsigned int nbits1, int64_t time1, unsigned int nbits2, 
     return (have <= required);
 }
 
-BOOST_AUTO_TEST_CASE(DoS_checknbits)
+TEST(DoS_tests, DoS_checknbits)
 {
     using namespace boost::assign; // for 'map_list_of()'
 
@@ -114,7 +112,7 @@ BOOST_AUTO_TEST_CASE(DoS_checknbits)
     {
         BOOST_FOREACH(const BlockData::value_type& j, chainData)
         {
-            BOOST_CHECK(CheckNBits(i.second, i.first, j.second, j.first));
+            EXPECT_TRUE(CheckNBits(i.second, i.first, j.second, j.first));
         }
     }
 
@@ -124,11 +122,11 @@ BOOST_AUTO_TEST_CASE(DoS_checknbits)
 
     // First checkpoint difficulty at or a while after the last checkpoint time should fail when
     // compared to last checkpoint
-    BOOST_CHECK(!CheckNBits(firstcheck.second, lastcheck.first+60*10, lastcheck.second, lastcheck.first));
-    BOOST_CHECK(!CheckNBits(firstcheck.second, lastcheck.first+60*60*24*14, lastcheck.second, lastcheck.first));
+    EXPECT_TRUE(!CheckNBits(firstcheck.second, lastcheck.first+60*10, lastcheck.second, lastcheck.first));
+    EXPECT_TRUE(!CheckNBits(firstcheck.second, lastcheck.first+60*60*24*14, lastcheck.second, lastcheck.first));
 
     // ... but OK if enough time passed for difficulty to adjust downward:
-    BOOST_CHECK(CheckNBits(firstcheck.second, lastcheck.first+60*60*24*365*4, lastcheck.second, lastcheck.first));
+    EXPECT_TRUE(CheckNBits(firstcheck.second, lastcheck.first+60*60*24*365*4, lastcheck.second, lastcheck.first));
 
 }
 
@@ -144,7 +142,7 @@ CTransaction RandomOrphan()
     return tx;
 }
 
-BOOST_AUTO_TEST_CASE(DoS_mapOrphans)
+TEST(DoS_tests, DoS_mapOrphans)
 {
     CKey key;
     key.MakeNewKey(true);
@@ -210,20 +208,20 @@ BOOST_AUTO_TEST_CASE(DoS_mapOrphans)
 
         CDataStream ds(SER_DISK, CLIENT_VERSION);
         ds << tx;
-        BOOST_CHECK(!AddOrphanTx(ds));
+        EXPECT_TRUE(!AddOrphanTx(ds));
     }
 
     // Test LimitOrphanTxSize() function:
     LimitOrphanTxSize(40);
-    BOOST_CHECK(mapOrphanTransactions.size() <= 40);
+    EXPECT_TRUE(mapOrphanTransactions.size() <= 40);
     LimitOrphanTxSize(10);
-    BOOST_CHECK(mapOrphanTransactions.size() <= 10);
+    EXPECT_TRUE(mapOrphanTransactions.size() <= 10);
     LimitOrphanTxSize(0);
-    BOOST_CHECK(mapOrphanTransactions.empty());
-    BOOST_CHECK(mapOrphanTransactionsByPrev.empty());
+    EXPECT_TRUE(mapOrphanTransactions.empty());
+    EXPECT_TRUE(mapOrphanTransactionsByPrev.empty());
 }
 
-BOOST_AUTO_TEST_CASE(DoS_checkSig)
+TEST(DoS_tests, DoS_checkSig)
 {
     // Test signature caching code (see key.cpp Verify() methods)
 
@@ -265,7 +263,7 @@ BOOST_AUTO_TEST_CASE(DoS_checkSig)
     // Creating signatures primes the cache:
     boost::posix_time::ptime mst1 = boost::posix_time::microsec_clock::local_time();
     for (unsigned int j = 0; j < tx.vin.size(); j++)
-        BOOST_CHECK(SignSignature(keystore, orphans[j], tx, j));
+        EXPECT_TRUE(SignSignature(keystore, orphans[j], tx, j));
     boost::posix_time::ptime mst2 = boost::posix_time::microsec_clock::local_time();
     boost::posix_time::time_duration msdiff = mst2 - mst1;
     long nOneValidate = msdiff.total_milliseconds();
@@ -278,37 +276,35 @@ BOOST_AUTO_TEST_CASE(DoS_checkSig)
     mst1 = boost::posix_time::microsec_clock::local_time();
     for (unsigned int i = 0; i < 5; i++)
         for (unsigned int j = 0; j < tx.vin.size(); j++)
-            BOOST_CHECK(VerifySignature(orphans[j], tx, j, true, true, SIGHASH_ALL));
+            EXPECT_TRUE(VerifySignature(orphans[j], tx, j, true, true, SIGHASH_ALL));
     mst2 = boost::posix_time::microsec_clock::local_time();
     msdiff = mst2 - mst1;
     long nManyValidate = msdiff.total_milliseconds();
     if (fDebug) printf("DoS_Checksig five: %ld\n", nManyValidate);
 
-    BOOST_CHECK_MESSAGE(nManyValidate < nOneValidate, "Signature cache timing failed");
+    EXPECT_TRUE(nManyValidate < nOneValidate) << "Signature cache timing failed";
 
     // Empty a signature, validation should fail:
     CScript save = tx.vin[0].scriptSig;
     tx.vin[0].scriptSig = CScript();
-    BOOST_CHECK(!VerifySignature(orphans[0], tx, 0, true, true, SIGHASH_ALL));
+    EXPECT_TRUE(!VerifySignature(orphans[0], tx, 0, true, true, SIGHASH_ALL));
     tx.vin[0].scriptSig = save;
 
     // Swap signatures, validation should fail:
     std::swap(tx.vin[0].scriptSig, tx.vin[1].scriptSig);
-    BOOST_CHECK(!VerifySignature(orphans[0], tx, 0, true, true, SIGHASH_ALL));
-    BOOST_CHECK(!VerifySignature(orphans[1], tx, 1, true, true, SIGHASH_ALL));
+    EXPECT_TRUE(!VerifySignature(orphans[0], tx, 0, true, true, SIGHASH_ALL));
+    EXPECT_TRUE(!VerifySignature(orphans[1], tx, 1, true, true, SIGHASH_ALL));
     std::swap(tx.vin[0].scriptSig, tx.vin[1].scriptSig);
 
     // Exercise -maxsigcachesize code:
     mapArgs["-maxsigcachesize"] = "10";
     // Generate a new, different signature for vin[0] to trigger cache clear:
     CScript oldSig = tx.vin[0].scriptSig;
-    BOOST_CHECK(SignSignature(keystore, orphans[0], tx, 0));
-    BOOST_CHECK(tx.vin[0].scriptSig != oldSig);
+    EXPECT_TRUE(SignSignature(keystore, orphans[0], tx, 0));
+    EXPECT_TRUE(tx.vin[0].scriptSig != oldSig);
     for (unsigned int j = 0; j < tx.vin.size(); j++)
-        BOOST_CHECK(VerifySignature(orphans[j], tx, j, true, true, SIGHASH_ALL));
+        EXPECT_TRUE(VerifySignature(orphans[j], tx, j, true, true, SIGHASH_ALL));
     mapArgs.erase("-maxsigcachesize");
 
     LimitOrphanTxSize(0);
 }
-
-BOOST_AUTO_TEST_SUITE_END()

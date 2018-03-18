@@ -1,4 +1,4 @@
-#include <boost/test/unit_test.hpp>
+#include "googletest/googletest/include/gtest/gtest.h"
 
 #include <string>
 #include <vector>
@@ -50,30 +50,27 @@ void dumpKeyInfo(uint256 privkey)
 }
 #endif
 
-
-BOOST_AUTO_TEST_SUITE(key_tests)
-
-BOOST_AUTO_TEST_CASE(key_test1)
+TEST(key_tests, key_test1)
 {
     CBitcoinSecret bsecret1, bsecret2, bsecret1C, bsecret2C, baddress1;
-    BOOST_CHECK( bsecret1.SetString (strSecret1));
-    BOOST_CHECK( bsecret2.SetString (strSecret2));
-    BOOST_CHECK( bsecret1C.SetString(strSecret1C));
-    BOOST_CHECK( bsecret2C.SetString(strSecret2C));
-    BOOST_CHECK(!baddress1.SetString(strAddressBad));
+    EXPECT_TRUE( bsecret1.SetString (strSecret1));
+    EXPECT_TRUE( bsecret2.SetString (strSecret2));
+    EXPECT_TRUE( bsecret1C.SetString(strSecret1C));
+    EXPECT_TRUE( bsecret2C.SetString(strSecret2C));
+    EXPECT_TRUE(!baddress1.SetString(strAddressBad));
 
     bool fCompressed;
     CSecret secret1  = bsecret1.GetSecret (fCompressed);
-    BOOST_CHECK(fCompressed == false);
+    EXPECT_TRUE(fCompressed == false);
     CSecret secret2  = bsecret2.GetSecret (fCompressed);
-    BOOST_CHECK(fCompressed == false);
+    EXPECT_TRUE(fCompressed == false);
     CSecret secret1C = bsecret1C.GetSecret(fCompressed);
-    BOOST_CHECK(fCompressed == true);
+    EXPECT_TRUE(fCompressed == true);
     CSecret secret2C = bsecret2C.GetSecret(fCompressed);
-    BOOST_CHECK(fCompressed == true);
+    EXPECT_TRUE(fCompressed == true);
 
-    BOOST_CHECK(secret1 == secret1C);
-    BOOST_CHECK(secret2 == secret2C);
+    EXPECT_TRUE(secret1 == secret1C);
+    EXPECT_TRUE(secret2 == secret2C);
 
     CKey key1, key2, key1C, key2C;
     key1.SetSecret(secret1, false);
@@ -81,10 +78,10 @@ BOOST_AUTO_TEST_CASE(key_test1)
     key1C.SetSecret(secret1, true);
     key2C.SetSecret(secret2, true);
 
-    BOOST_CHECK(addr1.Get()  == CTxDestination(key1.GetPubKey().GetID()));
-    BOOST_CHECK(addr2.Get()  == CTxDestination(key2.GetPubKey().GetID()));
-    BOOST_CHECK(addr1C.Get() == CTxDestination(key1C.GetPubKey().GetID()));
-    BOOST_CHECK(addr2C.Get() == CTxDestination(key2C.GetPubKey().GetID()));
+    EXPECT_TRUE(addr1.Get()  == CTxDestination(key1.GetPubKey().GetID()));
+    EXPECT_TRUE(addr2.Get()  == CTxDestination(key2.GetPubKey().GetID()));
+    EXPECT_TRUE(addr1C.Get() == CTxDestination(key1C.GetPubKey().GetID()));
+    EXPECT_TRUE(addr2C.Get() == CTxDestination(key2C.GetPubKey().GetID()));
 
     for (int n=0; n<16; n++)
     {
@@ -95,53 +92,51 @@ BOOST_AUTO_TEST_CASE(key_test1)
 
         vector<unsigned char> sign1, sign2, sign1C, sign2C;
 
-        BOOST_CHECK(key1.Sign (hashMsg, sign1));
-        BOOST_CHECK(key2.Sign (hashMsg, sign2));
-        BOOST_CHECK(key1C.Sign(hashMsg, sign1C));
-        BOOST_CHECK(key2C.Sign(hashMsg, sign2C));
+        EXPECT_TRUE(key1.Sign (hashMsg, sign1));
+        EXPECT_TRUE(key2.Sign (hashMsg, sign2));
+        EXPECT_TRUE(key1C.Sign(hashMsg, sign1C));
+        EXPECT_TRUE(key2C.Sign(hashMsg, sign2C));
 
-        BOOST_CHECK( key1.Verify(hashMsg, sign1));
-        BOOST_CHECK(!key1.Verify(hashMsg, sign2));
-        BOOST_CHECK( key1.Verify(hashMsg, sign1C));
-        BOOST_CHECK(!key1.Verify(hashMsg, sign2C));
+        EXPECT_TRUE( key1.Verify(hashMsg, sign1));
+        EXPECT_TRUE(!key1.Verify(hashMsg, sign2));
+        EXPECT_TRUE( key1.Verify(hashMsg, sign1C));
+        EXPECT_TRUE(!key1.Verify(hashMsg, sign2C));
 
-        BOOST_CHECK(!key2.Verify(hashMsg, sign1));
-        BOOST_CHECK( key2.Verify(hashMsg, sign2));
-        BOOST_CHECK(!key2.Verify(hashMsg, sign1C));
-        BOOST_CHECK( key2.Verify(hashMsg, sign2C));
+        EXPECT_TRUE(!key2.Verify(hashMsg, sign1));
+        EXPECT_TRUE( key2.Verify(hashMsg, sign2));
+        EXPECT_TRUE(!key2.Verify(hashMsg, sign1C));
+        EXPECT_TRUE( key2.Verify(hashMsg, sign2C));
 
-        BOOST_CHECK( key1C.Verify(hashMsg, sign1));
-        BOOST_CHECK(!key1C.Verify(hashMsg, sign2));
-        BOOST_CHECK( key1C.Verify(hashMsg, sign1C));
-        BOOST_CHECK(!key1C.Verify(hashMsg, sign2C));
+        EXPECT_TRUE( key1C.Verify(hashMsg, sign1));
+        EXPECT_TRUE(!key1C.Verify(hashMsg, sign2));
+        EXPECT_TRUE( key1C.Verify(hashMsg, sign1C));
+        EXPECT_TRUE(!key1C.Verify(hashMsg, sign2C));
 
-        BOOST_CHECK(!key2C.Verify(hashMsg, sign1));
-        BOOST_CHECK( key2C.Verify(hashMsg, sign2));
-        BOOST_CHECK(!key2C.Verify(hashMsg, sign1C));
-        BOOST_CHECK( key2C.Verify(hashMsg, sign2C));
+        EXPECT_TRUE(!key2C.Verify(hashMsg, sign1));
+        EXPECT_TRUE( key2C.Verify(hashMsg, sign2));
+        EXPECT_TRUE(!key2C.Verify(hashMsg, sign1C));
+        EXPECT_TRUE( key2C.Verify(hashMsg, sign2C));
 
         // compact signatures (with key recovery)
 
         vector<unsigned char> csign1, csign2, csign1C, csign2C;
 
-        BOOST_CHECK(key1.SignCompact (hashMsg, csign1));
-        BOOST_CHECK(key2.SignCompact (hashMsg, csign2));
-        BOOST_CHECK(key1C.SignCompact(hashMsg, csign1C));
-        BOOST_CHECK(key2C.SignCompact(hashMsg, csign2C));
+        EXPECT_TRUE(key1.SignCompact (hashMsg, csign1));
+        EXPECT_TRUE(key2.SignCompact (hashMsg, csign2));
+        EXPECT_TRUE(key1C.SignCompact(hashMsg, csign1C));
+        EXPECT_TRUE(key2C.SignCompact(hashMsg, csign2C));
 
         CKey rkey1, rkey2, rkey1C, rkey2C;
 
-        BOOST_CHECK(rkey1.SetCompactSignature (hashMsg, csign1));
-        BOOST_CHECK(rkey2.SetCompactSignature (hashMsg, csign2));
-        BOOST_CHECK(rkey1C.SetCompactSignature(hashMsg, csign1C));
-        BOOST_CHECK(rkey2C.SetCompactSignature(hashMsg, csign2C));
+        EXPECT_TRUE(rkey1.SetCompactSignature (hashMsg, csign1));
+        EXPECT_TRUE(rkey2.SetCompactSignature (hashMsg, csign2));
+        EXPECT_TRUE(rkey1C.SetCompactSignature(hashMsg, csign1C));
+        EXPECT_TRUE(rkey2C.SetCompactSignature(hashMsg, csign2C));
 
 
-        BOOST_CHECK(rkey1.GetPubKey()  == key1.GetPubKey());
-        BOOST_CHECK(rkey2.GetPubKey()  == key2.GetPubKey());
-        BOOST_CHECK(rkey1C.GetPubKey() == key1C.GetPubKey());
-        BOOST_CHECK(rkey2C.GetPubKey() == key2C.GetPubKey());
+        EXPECT_TRUE(rkey1.GetPubKey()  == key1.GetPubKey());
+        EXPECT_TRUE(rkey2.GetPubKey()  == key2.GetPubKey());
+        EXPECT_TRUE(rkey1C.GetPubKey() == key1C.GetPubKey());
+        EXPECT_TRUE(rkey2C.GetPubKey() == key2C.GetPubKey());
     }
 }
-
-BOOST_AUTO_TEST_SUITE_END()

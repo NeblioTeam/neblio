@@ -1,4 +1,4 @@
-#include <boost/test/unit_test.hpp>
+#include "googletest/googletest/include/gtest/gtest.h"
 
 #include <string>
 #include <vector>
@@ -7,9 +7,7 @@
 
 using namespace std;
 
-BOOST_AUTO_TEST_SUITE(serialize_tests)
-
-BOOST_AUTO_TEST_CASE(varints)
+TEST(serialize_tests, varints)
 {
     // encode
 
@@ -18,28 +16,26 @@ BOOST_AUTO_TEST_CASE(varints)
     for (int i = 0; i < 100000; i++) {
         ss << VARINT(i);
         size += ::GetSerializeSize(VARINT(i), 0, 0);
-        BOOST_CHECK(size == ss.size());
+        EXPECT_TRUE(size == ss.size());
     }
 
-    for (uint64 i = 0;  i < 100000000000ULL; i += 999999937) {
+    for (uint64_t i = 0;  i < 100000000000ULL; i += 999999937) {
         ss << VARINT(i);
         size += ::GetSerializeSize(VARINT(i), 0, 0);
-        BOOST_CHECK(size == ss.size());
+        EXPECT_TRUE(size == ss.size());
     }
 
     // decode
     for (int i = 0; i < 100000; i++) {
         int j;
         ss >> VARINT(j);
-        BOOST_CHECK_MESSAGE(i == j, "decoded:" << j << " expected:" << i);
+        EXPECT_TRUE(i == j) << "decoded:" << j << " expected:" << i;
     }
 
-    for (uint64 i = 0;  i < 100000000000ULL; i += 999999937) {
-        uint64 j;
+    for (uint64_t i = 0;  i < 100000000000ULL; i += 999999937) {
+        uint64_t j;
         ss >> VARINT(j);
-        BOOST_CHECK_MESSAGE(i == j, "decoded:" << j << " expected:" << i);
+        EXPECT_TRUE(i == j) << "decoded:" << j << " expected:" << i;
     }
 
 }
-
-BOOST_AUTO_TEST_SUITE_END()
