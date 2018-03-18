@@ -28,7 +28,8 @@ TEST(accounting_tests, acc_orderupgrade)
     if(boost::filesystem::exists(walletPath)) {
         ASSERT_TRUE(boost::filesystem::remove(walletPath));
     }
-    boost::scoped_ptr<CWallet> wallet(new CWallet(walletPath));
+    // Do not use smart pointers here; other tests use this
+    CWallet* wallet = new CWallet(walletPath);
     DBErrors nLoadWalletRet = wallet->LoadWallet(fFirstRun);
     if (nLoadWalletRet != DB_LOAD_OK)
     {
@@ -75,7 +76,7 @@ TEST(accounting_tests, acc_orderupgrade)
     ae.strOtherAccount = "c";
     walletdb.WriteAccountingEntry(ae);
 
-    GetResults(wallet.get(), walletdb, results);
+    GetResults(wallet, walletdb, results);
 
     EXPECT_TRUE(wallet->nOrderPosNext == 3);
     EXPECT_TRUE(2 == results.size());
@@ -91,7 +92,7 @@ TEST(accounting_tests, acc_orderupgrade)
     ae.nOrderPos = wallet->IncOrderPosNext();
     walletdb.WriteAccountingEntry(ae);
 
-    GetResults(wallet.get(), walletdb, results);
+    GetResults(wallet, walletdb, results);
 
     EXPECT_TRUE(results.size() == 3);
     EXPECT_TRUE(wallet->nOrderPosNext == 4);
@@ -115,7 +116,7 @@ TEST(accounting_tests, acc_orderupgrade)
     vpwtx[2]->nTimeReceived = (unsigned int)1333333329;
     vpwtx[2]->nOrderPos = -1;
 
-    GetResults(wallet.get(), walletdb, results);
+    GetResults(wallet, walletdb, results);
 
     EXPECT_TRUE(results.size() == 3);
     EXPECT_TRUE(wallet->nOrderPosNext == 6);
@@ -133,7 +134,7 @@ TEST(accounting_tests, acc_orderupgrade)
     ae.nOrderPos = -1;
     walletdb.WriteAccountingEntry(ae);
 
-    GetResults(wallet.get(), walletdb, results);
+    GetResults(wallet, walletdb, results);
 
     EXPECT_TRUE(results.size() == 4);
     EXPECT_TRUE(wallet->nOrderPosNext == 7);
@@ -146,7 +147,4 @@ TEST(accounting_tests, acc_orderupgrade)
     EXPECT_TRUE(results[4].strComment.empty());
     EXPECT_TRUE(results[5].nTime == 1333333334);
     EXPECT_TRUE(6 == vpwtx[1]->nOrderPos);
-
-    walletdb.Close();
-    wallet->SetNull();
 }
