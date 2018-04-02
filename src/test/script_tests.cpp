@@ -33,7 +33,7 @@ ParseScript(string s)
 
     if (mapOpNames.size() == 0)
     {
-        for (int op = OP_NOP; op <= OP_NOP10; op++)
+        for (int op = 0; op <= OP_NOP10; op++)
         {
             const char* name = GetOpName((opcodetype)op);
             if (strcmp(name, "OP_UNKNOWN") == 0)
@@ -62,7 +62,7 @@ ParseScript(string s)
         {
             // Raw hex data, inserted NOT pushed onto stack:
             std::vector<unsigned char> raw = ParseHex(string(w.begin()+2, w.end()));
-            result.insert(result.end(), raw.begin(), raw.end());
+            result << raw;
         }
         else if (w.size() >= 2 && starts_with(w, "'") && ends_with(w, "'"))
         {
@@ -81,6 +81,8 @@ ParseScript(string s)
             ADD_FAILURE() << "Parse error: " << s;
             return CScript();
         }
+        // print script progression
+//        std::cout << result.ToString() << std::endl;
     }
 
     return result;
@@ -126,7 +128,7 @@ TEST(script_tests, script_valid)
     // Inner arrays are [ "scriptSig", "scriptPubKey" ]
     // ... where scriptSig and scriptPubKey are stringified
     // scripts.
-    Array tests = read_json("data/script_valid.json");
+    Array tests = read_json("script_valid.json");
 
     BOOST_FOREACH(Value& tv, tests)
     {
@@ -150,7 +152,7 @@ TEST(script_tests, script_valid)
 TEST(script_tests, script_invalid)
 {
     // Scripts that should evaluate as invalid
-    Array tests = read_json("data/script_invalid.json");
+    Array tests = read_json("script_invalid.json");
 
     BOOST_FOREACH(Value& tv, tests)
     {
@@ -167,7 +169,7 @@ TEST(script_tests, script_invalid)
         CScript scriptPubKey = ParseScript(scriptPubKeyString);
 
         CTransaction tx;
-        EXPECT_TRUE(!VerifyScript(scriptSig, scriptPubKey, tx, 0, true, true, SIGHASH_NONE)) << strTest;
+        EXPECT_FALSE(VerifyScript(scriptSig, scriptPubKey, tx, 0, true, true, SIGHASH_NONE)) << strTest;
     }
 }
 
