@@ -60,7 +60,7 @@ ParseScript(string s)
         }
         else if (starts_with(w, "0x") && IsHex(string(w.begin()+2, w.end())))
         {
-            // Raw hex data, inserted NOT pushed onto stack:
+            // Raw hex data
             std::vector<unsigned char> raw = ParseHex(string(w.begin()+2, w.end()));
             result << raw;
         }
