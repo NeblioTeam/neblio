@@ -7,6 +7,8 @@
 #include "base58.h"
 #include "util.h"
 
+#include <boost/algorithm/hex.hpp>
+
 using namespace json_spirit;
 extern Array read_json(const std::string& filename);
 
@@ -184,4 +186,68 @@ TEST(base58_tests, base58_keys_invalid)
     }
 }
 
-// TODO: Create tests that take private keys, and generate public keys and addresses
+template<typename TInputIter>
+std::string make_hex_string(TInputIter first, TInputIter last, bool use_uppercase = true, bool insert_spaces = false)
+{
+    std::ostringstream ss;
+    ss << std::hex << std::setfill('0');
+    if (use_uppercase)
+        ss << std::uppercase;
+    while (first != last)
+    {
+        ss << std::setw(2) << static_cast<int>(*first++);
+        if (insert_spaces && first != last)
+            ss << " ";
+    }
+    return ss.str();
+}
+
+void test_priv_key_vs_address(const std::string& privkey, std::string pubkey, const std::string& address)
+{
+    CBitcoinSecret vchSecret;
+    EXPECT_TRUE(vchSecret.SetString(privkey));
+    bool fCompressed;
+    CKey key;
+    CSecret secret = vchSecret.GetSecret(fCompressed);
+    key.SetSecret(secret, fCompressed);
+    EXPECT_TRUE(key.GetPubKey().IsValid());
+    std::vector<unsigned char> v = key.GetPubKey().Raw();
+    std::transform(pubkey.begin(), pubkey.end(), pubkey.begin(), ::tolower); // make pubkey lower-case
+    EXPECT_EQ(make_hex_string(v.begin(),v.end(), false), pubkey);
+    CKeyID keyid = key.GetPubKey().GetID();
+    EXPECT_EQ(CBitcoinAddress(keyid).ToString(), address);
+}
+
+TEST(base58_tests, base58_keys_generation)
+{
+    // Save global test-net state
+    bool fTestNet_stored = fTestNet;
+
+    // real-net
+    test_priv_key_vs_address("TtnutkcnaPcu3zmjWcrJazf42fp1YAKRpm8grKRRuYjtiykmGuM7",
+                             "037f41ae8b46979087562e65494eb3a3b9d8addde9b9568ef5cbb8197fd26c0ff2",
+                             "NVFdK9ik6mBCG6syVw2gD1gBwJzKF5me5i");
+    test_priv_key_vs_address("TnNwg92Wpw8iuBRwaeJydzw2c6MMqTe2c6cA5hn3NBBdqFWvpViF",
+                             "03c7f8863df49735b1a1906a5f5939beb8622074b3ddf8fccc5462362271145f09",
+                             "NSTdV7BgFeYXR61ywiMyAoof2ihwUPDPpj");
+    test_priv_key_vs_address("TpWmAWxNCGN7tj218djRJjegAVy34K2eEx8Zbt7xbf2H9GNUBgci",
+                             "029cbf0da830b83a457877fcf009160e9de9f0383fe0c97769ce9a4c2d52949f4b",
+                             "NdLGazEn51ofFuztenM7bNfquNBV1FWMGG");
+
+    // test-net
+    fTestNet = true;
+    test_priv_key_vs_address("Vgg5VL2TW1NMNKt4wkazRkUygpnPiQXnztA2h3ALQxGUhk1tQUag",
+                             "0243bab8b87abbd42493ca577dee9befc15cc5565f2792e18c52eb90cdfa13dc2a",
+                             "TVPDsVw4vSbNkRPkfnwCJmbCygEuJEVpwW");
+
+    test_priv_key_vs_address("VfCCG4Ew6XAtxpEEnuWTTfUgX92fvyq2kPh7cghHtPDQs7PTmwSn",
+                             "02f20e5d83d939edc1169296250503b71cc37438ab608fbffb0ea11539d9341c7f",
+                             "TPiGYtUnB3qCjYBuXAj6QX7CiW5sJQ7Sdk");
+
+    test_priv_key_vs_address("VfAy2E8BhcFat6dLGaZotaZJReEU2jWHzZi6a5XQqD9q5qFAWzuK",
+                             "023ecc7eee129e8b009461b67b9f55120675c61957a7bb7f02726f73215051cb76",
+                             "THs3Lec52yQPfErz7Z32Yi3KJnBTzicEiz");
+
+    // Restore global state
+    fTestNet = fTestNet_stored;
+}
