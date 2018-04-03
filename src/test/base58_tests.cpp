@@ -118,7 +118,7 @@ TEST(base58_tests, base58_keys_valid_parse)
             continue;
         }
         std::string exp_base58string = test[0].get_str();
-        std::vector<unsigned char> exp_payload = ParseHex(test[1].get_str());
+        std::vector<unsigned char> privkey_bin_from_hex = ParseHex(test[1].get_str());
         const Object &metadata = test[2].get_obj();
         bool isPrivkey = find_value(metadata, "isPrivkey").get_bool();
         bool isTestnet = find_value(metadata, "isTestnet").get_bool();
@@ -127,13 +127,12 @@ TEST(base58_tests, base58_keys_valid_parse)
         {
             bool isCompressed = find_value(metadata, "isCompressed").get_bool();
             // Must be valid private key
-            // Note: CBitcoinSecret::SetString tests isValid, whereas CBitcoinAddress does not!
             EXPECT_TRUE(secret.SetString(exp_base58string)) << "!SetString:"+ strTest;
             EXPECT_TRUE(secret.IsValid()) << "!IsValid:" + strTest;
             bool fCompressedOut = false;
             CSecret privkey = secret.GetSecret(fCompressedOut);
             EXPECT_TRUE(fCompressedOut == isCompressed) << "compressed mismatch:" + strTest;
-            EXPECT_TRUE(privkey.size() == exp_payload.size() && std::equal(privkey.begin(), privkey.end(), exp_payload.begin())) << "key mismatch:" + strTest;
+            EXPECT_TRUE(privkey.size() == privkey_bin_from_hex.size() && std::equal(privkey.begin(), privkey.end(), privkey_bin_from_hex.begin())) << "key mismatch:" + strTest;
 
             // Private key must be invalid public key
             addr.SetString(exp_base58string);
