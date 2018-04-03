@@ -183,3 +183,5 @@ TEST(base58_tests, base58_keys_invalid)
         EXPECT_TRUE(!secret.IsValid()) << "IsValid privkey:" + strTest;
     }
 }
+
+// TODO: Create tests that take private keys, and generate public keys and addresses
