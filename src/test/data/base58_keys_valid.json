@@ -42,7 +42,9 @@
             "isCompressed": true, 
             "isPrivkey": true, 
             "isTestnet": false
-        }
+        },
+        "Comment: The second input is a hex version created by converting the base58 key to bytex, then to hex (Sam: I used boost::algorithm::hex())",
+        "Comment: Sam: Compression here doesn't make sense; compression is for public keys only as to keep one coordinate in the elliptic curve instead of both. No idea why it exists"
     ], 
     [
         "Vgg5VL2TW1NMNKt4wkazRkUygpnPiQXnztA2h3ALQxGUhk1tQUag",
@@ -51,6 +53,8 @@
             "isCompressed": true, 
             "isPrivkey": true, 
             "isTestnet": true
-        }
+        },
+        "Comment: The second input is a hex version created by converting the base58 key to bytex, then to hex (Sam: I used boost::algorithm::hex())",
+        "Comment: Sam: Compression here doesn't make sense; compression is for public keys only as to keep one coordinate in the elliptic curve instead of both. No idea why it exists"
     ]
 ]
