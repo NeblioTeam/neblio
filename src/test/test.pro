@@ -34,7 +34,6 @@ SOURCES += \
     bloom_tests.cpp       \
     canonical_tests.cpp   \
     compress_tests.cpp    \
-#    DoS_tests.cpp         \
     getarg_tests.cpp      \
     key_tests.cpp         \
     mruset_tests.cpp      \
@@ -44,12 +43,10 @@ SOURCES += \
     script_tests.cpp      \
     serialize_tests.cpp   \
     sigopcount_tests.cpp  \
-#    test_bitcoin.cpp      \
     transaction_tests.cpp \
     uint160_tests.cpp     \
     uint256_tests.cpp     \
     util_tests.cpp        \
     wallet_tests.cpp
-
 
 DEFINES += BITCOIN_QT_TEST
