@@ -10,17 +10,13 @@
 
 using namespace std;
 
-static const string strSecret1     ("5HxWvvfubhXpYYpS3tJkw6fq9jE9j18THftkZjHHfmFiWtmAbrj");
-static const string strSecret2     ("5KC4ejrDjv152FGwP386VD1i2NYc5KkfSMyv1nGy1VGDxGHqVY3");
-static const string strSecret1C    ("Kwr371tjA9u2rFSMZjTNun2PXXP3WPZu2afRHTcta6KxEUdm1vEw");
-static const string strSecret2C    ("L3Hq7a8FEQwJkW1M2GNKDW28546Vp5miewcCzSqUD9kCAXrJdS3g");
-static const CBitcoinAddress addr1 ("1QFqqMUD55ZV3PJEJZtaKCsQmjLT6JkjvJ");
-static const CBitcoinAddress addr2 ("1F5y5E5FMc5YzdJtB9hLaUe43GDxEKXENJ");
-static const CBitcoinAddress addr1C("1NoJrossxPBKfCHuJXT4HadJrXRE9Fxiqs");
-static const CBitcoinAddress addr2C("1CRj2HyM1CXWzHAXLQtiGLyggNT9WQqsDs");
+static const string strSecret1C    ("TtnutkcnaPcu3zmjWcrJazf42fp1YAKRpm8grKRRuYjtiykmGuM7");
+static const string strSecret2C    ("TnNwg92Wpw8iuBRwaeJydzw2c6MMqTe2c6cA5hn3NBBdqFWvpViF");
+static const CBitcoinAddress addr1C("NVFdK9ik6mBCG6syVw2gD1gBwJzKF5me5i");
+static const CBitcoinAddress addr2C("NSTdV7BgFeYXR61ywiMyAoof2ihwUPDPpj");
 
 
-static const string strAddressBad("1HV9Lc3sNHZxwj4Zk6fB38tEmBryq2cBiF");
+static const string strAddressBad("NSTdV7BgFeYXR61ywiMyAoof2ihwUPDPp");
 
 
 #ifdef KEY_TESTS_DUMPINFO
@@ -52,34 +48,21 @@ void dumpKeyInfo(uint256 privkey)
 
 TEST(key_tests, key_test1)
 {
-    CBitcoinSecret bsecret1, bsecret2, bsecret1C, bsecret2C, baddress1;
-    EXPECT_TRUE( bsecret1.SetString (strSecret1));
-    EXPECT_TRUE( bsecret2.SetString (strSecret2));
+    CBitcoinSecret bsecret1C, bsecret2C, baddress1;
     EXPECT_TRUE( bsecret1C.SetString(strSecret1C));
     EXPECT_TRUE( bsecret2C.SetString(strSecret2C));
     EXPECT_TRUE(!baddress1.SetString(strAddressBad));
 
     bool fCompressed;
-    CSecret secret1  = bsecret1.GetSecret (fCompressed);
-    EXPECT_TRUE(fCompressed == false);
-    CSecret secret2  = bsecret2.GetSecret (fCompressed);
-    EXPECT_TRUE(fCompressed == false);
     CSecret secret1C = bsecret1C.GetSecret(fCompressed);
     EXPECT_TRUE(fCompressed == true);
     CSecret secret2C = bsecret2C.GetSecret(fCompressed);
     EXPECT_TRUE(fCompressed == true);
 
-    EXPECT_TRUE(secret1 == secret1C);
-    EXPECT_TRUE(secret2 == secret2C);
+    CKey key1C, key2C;
+    key1C.SetSecret(secret1C, true);
+    key2C.SetSecret(secret2C, true);
 
-    CKey key1, key2, key1C, key2C;
-    key1.SetSecret(secret1, false);
-    key2.SetSecret(secret2, false);
-    key1C.SetSecret(secret1, true);
-    key2C.SetSecret(secret2, true);
-
-    EXPECT_TRUE(addr1.Get()  == CTxDestination(key1.GetPubKey().GetID()));
-    EXPECT_TRUE(addr2.Get()  == CTxDestination(key2.GetPubKey().GetID()));
     EXPECT_TRUE(addr1C.Get() == CTxDestination(key1C.GetPubKey().GetID()));
     EXPECT_TRUE(addr2C.Get() == CTxDestination(key2C.GetPubKey().GetID()));
 
@@ -90,52 +73,35 @@ TEST(key_tests, key_test1)
 
         // normal signatures
 
-        vector<unsigned char> sign1, sign2, sign1C, sign2C;
+        vector<unsigned char> sign1C, sign2C;
 
-        EXPECT_TRUE(key1.Sign (hashMsg, sign1));
-        EXPECT_TRUE(key2.Sign (hashMsg, sign2));
         EXPECT_TRUE(key1C.Sign(hashMsg, sign1C));
         EXPECT_TRUE(key2C.Sign(hashMsg, sign2C));
 
-        EXPECT_TRUE( key1.Verify(hashMsg, sign1));
-        EXPECT_TRUE(!key1.Verify(hashMsg, sign2));
-        EXPECT_TRUE( key1.Verify(hashMsg, sign1C));
-        EXPECT_TRUE(!key1.Verify(hashMsg, sign2C));
-
-        EXPECT_TRUE(!key2.Verify(hashMsg, sign1));
-        EXPECT_TRUE( key2.Verify(hashMsg, sign2));
-        EXPECT_TRUE(!key2.Verify(hashMsg, sign1C));
-        EXPECT_TRUE( key2.Verify(hashMsg, sign2C));
-
-        EXPECT_TRUE( key1C.Verify(hashMsg, sign1));
-        EXPECT_TRUE(!key1C.Verify(hashMsg, sign2));
         EXPECT_TRUE( key1C.Verify(hashMsg, sign1C));
         EXPECT_TRUE(!key1C.Verify(hashMsg, sign2C));
 
-        EXPECT_TRUE(!key2C.Verify(hashMsg, sign1));
-        EXPECT_TRUE( key2C.Verify(hashMsg, sign2));
+        EXPECT_TRUE(!key2C.Verify(hashMsg, sign1C));
+        EXPECT_TRUE( key2C.Verify(hashMsg, sign2C));
+
+        EXPECT_TRUE( key1C.Verify(hashMsg, sign1C));
+        EXPECT_TRUE(!key1C.Verify(hashMsg, sign2C));
+
         EXPECT_TRUE(!key2C.Verify(hashMsg, sign1C));
         EXPECT_TRUE( key2C.Verify(hashMsg, sign2C));
 
         // compact signatures (with key recovery)
 
-        vector<unsigned char> csign1, csign2, csign1C, csign2C;
+        vector<unsigned char> csign1C, csign2C;
 
-        EXPECT_TRUE(key1.SignCompact (hashMsg, csign1));
-        EXPECT_TRUE(key2.SignCompact (hashMsg, csign2));
         EXPECT_TRUE(key1C.SignCompact(hashMsg, csign1C));
         EXPECT_TRUE(key2C.SignCompact(hashMsg, csign2C));
 
-        CKey rkey1, rkey2, rkey1C, rkey2C;
+        CKey rkey1C, rkey2C;
 
-        EXPECT_TRUE(rkey1.SetCompactSignature (hashMsg, csign1));
-        EXPECT_TRUE(rkey2.SetCompactSignature (hashMsg, csign2));
         EXPECT_TRUE(rkey1C.SetCompactSignature(hashMsg, csign1C));
         EXPECT_TRUE(rkey2C.SetCompactSignature(hashMsg, csign2C));
 
-
-        EXPECT_TRUE(rkey1.GetPubKey()  == key1.GetPubKey());
-        EXPECT_TRUE(rkey2.GetPubKey()  == key2.GetPubKey());
         EXPECT_TRUE(rkey1C.GetPubKey() == key1C.GetPubKey());
         EXPECT_TRUE(rkey2C.GetPubKey() == key2C.GetPubKey());
     }
