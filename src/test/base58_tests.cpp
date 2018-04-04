@@ -209,13 +209,42 @@ void test_priv_key_vs_address(const std::string& privkey, std::string pubkey, co
     bool fCompressed;
     CKey key;
     CSecret secret = vchSecret.GetSecret(fCompressed);
+    EXPECT_TRUE(fCompressed);
     key.SetSecret(secret, fCompressed);
     EXPECT_TRUE(key.GetPubKey().IsValid());
-    std::vector<unsigned char> v = key.GetPubKey().Raw();
+    std::vector<unsigned char> rawPubKey = key.GetPubKey().Raw();
     std::transform(pubkey.begin(), pubkey.end(), pubkey.begin(), ::tolower); // make pubkey lower-case
-    EXPECT_EQ(make_hex_string(v.begin(),v.end(), false), pubkey);
+    EXPECT_EQ(make_hex_string(rawPubKey.begin(),rawPubKey.end(), false), pubkey);
     CKeyID keyid = key.GetPubKey().GetID();
     EXPECT_EQ(CBitcoinAddress(keyid).ToString(), address);
+}
+
+void test_random_key_generation()
+{
+    // create private key from scratch
+    CKey key;
+    key.MakeNewKey(true);
+
+    // create private key string from raw
+    CBitcoinSecret vchSecret;
+    bool compressed = false;
+    vchSecret.SetSecret(key.GetSecret(compressed), true);
+    EXPECT_TRUE(compressed); // currently keys are only compressed
+
+    // validate public key
+    EXPECT_TRUE(key.GetPubKey().IsValid());
+
+    // get raw public key
+    std::vector<unsigned char> rawPubKey = key.GetPubKey().Raw();
+
+    // get address
+    CKeyID keyid = key.GetPubKey().GetID();
+    CBitcoinAddress address(keyid);
+
+    //test
+    test_priv_key_vs_address(vchSecret.ToString(),
+                             make_hex_string(rawPubKey.begin(), rawPubKey.end(), false),
+                             address.ToString());
 }
 
 TEST(base58_tests, base58_keys_generation)
@@ -234,6 +263,10 @@ TEST(base58_tests, base58_keys_generation)
                              "029cbf0da830b83a457877fcf009160e9de9f0383fe0c97769ce9a4c2d52949f4b",
                              "NdLGazEn51ofFuztenM7bNfquNBV1FWMGG");
 
+    for(int i = 0; i < 10; i++) {
+        test_random_key_generation();
+    }
+
     // test-net
     fTestNet = true;
     test_priv_key_vs_address("Vgg5VL2TW1NMNKt4wkazRkUygpnPiQXnztA2h3ALQxGUhk1tQUag",
@@ -247,6 +280,10 @@ TEST(base58_tests, base58_keys_generation)
     test_priv_key_vs_address("VfAy2E8BhcFat6dLGaZotaZJReEU2jWHzZi6a5XQqD9q5qFAWzuK",
                              "023ecc7eee129e8b009461b67b9f55120675c61957a7bb7f02726f73215051cb76",
                              "THs3Lec52yQPfErz7Z32Yi3KJnBTzicEiz");
+
+    for(int i = 0; i < 10; i++) {
+        test_random_key_generation();
+    }
 
     // Restore global state
     fTestNet = fTestNet_stored;
