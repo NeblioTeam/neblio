@@ -76,8 +76,8 @@ TEST(canonical_tests, script_noncanon)
         string test = tv.get_str();
         if (IsHex(test)) {
             std::vector<unsigned char> sig = ParseHex(test);
-            EXPECT_TRUE(!IsCanonicalSignature(sig)) << test;
-            EXPECT_TRUE(!IsCanonicalSignature_OpenSSL(sig)) << test;
+            EXPECT_FALSE(IsCanonicalSignature(sig)) << test;
+            EXPECT_FALSE(IsCanonicalSignature_OpenSSL(sig)) << test;
         }
     }
 }
