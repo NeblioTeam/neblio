@@ -102,22 +102,22 @@ TEST(wallet_tests, coin_selection_tests)
         // try making 34 cents from 1,2,5,10,20 - we can't do it exactly
         EXPECT_TRUE( wallet.SelectCoinsMinConf(34 * CENT, GetAdjustedTime(), 1, 1, vCoins, setCoinsRet, nValueRet));
         EXPECT_GT(nValueRet, 34 * CENT);         // but should get more than 34 cents
-        EXPECT_EQ(setCoinsRet.size(), 3);     // the best should be 20+10+5.  it's incredibly unlikely the 1 or 2 got included (but possible)
+        EXPECT_EQ(setCoinsRet.size(), (unsigned)3);     // the best should be 20+10+5.  it's incredibly unlikely the 1 or 2 got included (but possible)
 
         // when we try making 7 cents, the smaller coins (1,2,5) are enough.  We should see just 2+5
         EXPECT_TRUE( wallet.SelectCoinsMinConf( 7 * CENT, GetAdjustedTime(), 1, 1, vCoins, setCoinsRet, nValueRet));
         EXPECT_EQ(nValueRet, 7 * CENT);
-        EXPECT_EQ(setCoinsRet.size(), 2);
+        EXPECT_EQ(setCoinsRet.size(), (unsigned)2);
 
         // when we try making 8 cents, the smaller coins (1,2,5) are exactly enough.
         EXPECT_TRUE( wallet.SelectCoinsMinConf( 8 * CENT, GetAdjustedTime(), 1, 1, vCoins, setCoinsRet, nValueRet));
         EXPECT_TRUE(nValueRet == 8 * CENT);
-        EXPECT_EQ(setCoinsRet.size(), 3);
+        EXPECT_EQ(setCoinsRet.size(), (unsigned)3);
 
         // when we try making 9 cents, no subset of smaller coins is enough, and we get the next bigger coin (10)
         EXPECT_TRUE( wallet.SelectCoinsMinConf( 9 * CENT, GetAdjustedTime(), 1, 1, vCoins, setCoinsRet, nValueRet));
         EXPECT_EQ(nValueRet, 10 * CENT);
-        EXPECT_EQ(setCoinsRet.size(), 1);
+        EXPECT_EQ(setCoinsRet.size(), (unsigned)1);
 
         // now clear out the wallet and start again to test choosing between subsets of smaller coins and the next biggest coin
         empty_wallet();
@@ -135,26 +135,26 @@ TEST(wallet_tests, coin_selection_tests)
         // now try making 16 cents.  the best smaller coins can do is 6+7+8 = 21; not as good at the next biggest coin, 20
         EXPECT_TRUE( wallet.SelectCoinsMinConf(16 * CENT, GetAdjustedTime(), 1, 1, vCoins, setCoinsRet, nValueRet));
         EXPECT_EQ(nValueRet, 20 * CENT); // we should get 20 in one coin
-        EXPECT_EQ(setCoinsRet.size(), 1);
+        EXPECT_EQ(setCoinsRet.size(), (unsigned)1);
 
         add_coin( 5*CENT); // now we have 5+6+7+8+20+30 = 75 cents total
 
         // now if we try making 16 cents again, the smaller coins can make 5+6+7 = 18 cents, better than the next biggest coin, 20
         EXPECT_TRUE( wallet.SelectCoinsMinConf(16 * CENT, GetAdjustedTime(), 1, 1, vCoins, setCoinsRet, nValueRet));
         EXPECT_EQ(nValueRet, 18 * CENT); // we should get 18 in 3 coins
-        EXPECT_EQ(setCoinsRet.size(), 3);
+        EXPECT_EQ(setCoinsRet.size(), (unsigned)3);
 
         add_coin( 18*CENT); // now we have 5+6+7+8+18+20+30
 
         // and now if we try making 16 cents again, the smaller coins can make 5+6+7 = 18 cents, the same as the next biggest coin, 18
         EXPECT_TRUE( wallet.SelectCoinsMinConf(16 * CENT, GetAdjustedTime(), 1, 1, vCoins, setCoinsRet, nValueRet));
         EXPECT_EQ(nValueRet, 18 * CENT);  // we should get 18 in 1 coin
-        EXPECT_EQ(setCoinsRet.size(), 1); // because in the event of a tie, the biggest coin wins
+        EXPECT_EQ(setCoinsRet.size(), (unsigned)1); // because in the event of a tie, the biggest coin wins
 
         // now try making 11 cents.  we should get 5+6
         EXPECT_TRUE( wallet.SelectCoinsMinConf(11 * CENT, GetAdjustedTime(), 1, 1, vCoins, setCoinsRet, nValueRet));
         EXPECT_EQ(nValueRet, 11 * CENT);
-        EXPECT_EQ(setCoinsRet.size(), 2);
+        EXPECT_EQ(setCoinsRet.size(), (unsigned)2);
 
         // check that the smallest bigger coin is used
         add_coin( 1*COIN);
@@ -163,11 +163,11 @@ TEST(wallet_tests, coin_selection_tests)
         add_coin( 4*COIN); // now we have 5+6+7+8+18+20+30+100+200+300+400 = 1094 cents
         EXPECT_TRUE( wallet.SelectCoinsMinConf(95 * CENT, GetAdjustedTime(), 1, 1, vCoins, setCoinsRet, nValueRet));
         EXPECT_EQ(nValueRet, 1 * COIN);  // we should get 1 BTC in 1 coin
-        EXPECT_EQ(setCoinsRet.size(), 1);
+        EXPECT_EQ(setCoinsRet.size(), (unsigned)1);
 
         EXPECT_TRUE( wallet.SelectCoinsMinConf(195 * CENT, GetAdjustedTime(), 1, 1, vCoins, setCoinsRet, nValueRet));
         EXPECT_EQ(nValueRet, 2 * COIN);  // we should get 2 BTC in 1 coin
-        EXPECT_EQ(setCoinsRet.size(), 1);
+        EXPECT_EQ(setCoinsRet.size(), (unsigned)1);
 
         // empty the wallet and start again, now with fractions of a cent, to test sub-cent change avoidance
         empty_wallet();
@@ -205,7 +205,7 @@ TEST(wallet_tests, coin_selection_tests)
 
         EXPECT_TRUE( wallet.SelectCoinsMinConf(500000 * COIN, GetAdjustedTime(), 1, 1, vCoins, setCoinsRet, nValueRet));
         EXPECT_EQ(nValueRet, 500000 * COIN); // we should get the exact amount
-        EXPECT_EQ(setCoinsRet.size(), 10); // in ten coins
+        EXPECT_EQ(setCoinsRet.size(), (unsigned)10); // in ten coins
 
         // if there's not enough in the smaller coins to make at least 1 cent change (0.5+0.6+0.7 < 1.0+1.0),
         // we need to try finding an exact subset anyway
@@ -218,7 +218,7 @@ TEST(wallet_tests, coin_selection_tests)
         add_coin(1111 * CENT);
         EXPECT_TRUE( wallet.SelectCoinsMinConf(1 * CENT, GetAdjustedTime(), 1, 1, vCoins, setCoinsRet, nValueRet));
         EXPECT_EQ(nValueRet, 1111 * CENT); // we get the bigger coin
-        EXPECT_EQ(setCoinsRet.size(), 1);
+        EXPECT_EQ(setCoinsRet.size(), (unsigned)1);
 
         // but sometimes it's possible, and we use an exact subset (0.4 + 0.6 = 1.0)
         empty_wallet();
@@ -228,7 +228,7 @@ TEST(wallet_tests, coin_selection_tests)
         add_coin(1111 * CENT);
         EXPECT_TRUE( wallet.SelectCoinsMinConf(1 * CENT, GetAdjustedTime(), 1, 1, vCoins, setCoinsRet, nValueRet));
         EXPECT_EQ(nValueRet, 1 * CENT);   // we should get the exact amount
-        EXPECT_EQ(setCoinsRet.size(), 2); // in two coins 0.4+0.6
+        EXPECT_EQ(setCoinsRet.size(), (unsigned)2); // in two coins 0.4+0.6
 
         // test avoiding sub-cent change
         empty_wallet();
@@ -239,12 +239,12 @@ TEST(wallet_tests, coin_selection_tests)
         // trying to make 1.0001 from these three coins
         EXPECT_TRUE( wallet.SelectCoinsMinConf(1.0001 * COIN, GetAdjustedTime(), 1, 1, vCoins, setCoinsRet, nValueRet));
         EXPECT_EQ(nValueRet, 1.0105 * COIN);   // we should get all coins
-        EXPECT_EQ(setCoinsRet.size(), 3);
+        EXPECT_EQ(setCoinsRet.size(), (unsigned)3);
 
         // but if we try to make 0.999, we should take the bigger of the two small coins to avoid sub-cent change
         EXPECT_TRUE( wallet.SelectCoinsMinConf(0.999 * COIN, GetAdjustedTime(), 1, 1, vCoins, setCoinsRet, nValueRet));
         EXPECT_EQ(nValueRet, 1.01 * COIN);   // we should get 1 + 0.01
-        EXPECT_EQ(setCoinsRet.size(), 2);
+        EXPECT_EQ(setCoinsRet.size(), (unsigned)2);
 
         // test randomness
         {
