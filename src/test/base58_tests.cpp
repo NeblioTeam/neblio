@@ -7,8 +7,6 @@
 #include "base58.h"
 #include "util.h"
 
-#include <boost/algorithm/hex.hpp>
-
 using namespace json_spirit;
 extern Array read_json(const std::string& filename);
 
