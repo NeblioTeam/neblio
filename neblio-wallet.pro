@@ -3,10 +3,10 @@ include(neblio-wallet.pri)
 TEMPLATE = subdirs
 CONFIG += ordered
 
-SUBDIRS += src
+SUBDIRS += wallet
 
 #NEBLIO_CONFIG += Tests
 
 contains( NEBLIO_CONFIG, Tests ) {
-    SUBDIRS += src/test
+    SUBDIRS += wallet/test
 }

@@ -8,7 +8,7 @@ CONFIG += thread
 
 NEBLIO_ROOT = $${PWD}/../
 
-VPATH += $${NEBLIO_ROOT}/src/ $${NEBLIO_ROOT}/src/json $${NEBLIO_ROOT}/src/qt
+VPATH += $${NEBLIO_ROOT}/wallet/ $${NEBLIO_ROOT}/wallet/json $${NEBLIO_ROOT}/wallet/qt
 
 
 # use: qmake "NEBLIO_REST=1"
@@ -20,7 +20,7 @@ contains(NEBLIO_REST, 1) {
     QMAKE_CXXFLAGS += -std=c++11
 }
 
-include(src.pri)
+include(wallet.pri)
 include(neblio-qt-libs.pri)
 
 RESOURCES += \

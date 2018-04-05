@@ -10,15 +10,15 @@ greaterThan(QT_MAJOR_VERSION, 4) {
 }
 
 NEBLIO_ROOT = $${PWD}/../..
-TEST_ROOT = $${NEBLIO_ROOT}/src/test/
+TEST_ROOT = $${NEBLIO_ROOT}/wallet/test/
 DEFINES += "TEST_ROOT_PATH=\"\\\"$${TEST_ROOT}\\\"\""
-VPATH       += $${NEBLIO_ROOT}/src $${NEBLIO_ROOT}/src/json $${NEBLIO_ROOT}/src/qt
-INCLUDEPATH += $${NEBLIO_ROOT}/src $${NEBLIO_ROOT}/src/json $${NEBLIO_ROOT}/src/qt
+VPATH       += $${NEBLIO_ROOT}/wallet $${NEBLIO_ROOT}/wallet/json $${NEBLIO_ROOT}/wallet/qt
+INCLUDEPATH += $${NEBLIO_ROOT}/wallet $${NEBLIO_ROOT}/wallet/json $${NEBLIO_ROOT}/wallet/qt
 
 INCLUDEPATH += googletest/googletest googletest/googletest/include
 
-include($${NEBLIO_ROOT}/src/src.pri)
-include($${NEBLIO_ROOT}/src/neblio-qt-libs.pri)
+include($${NEBLIO_ROOT}/wallet/wallet.pri)
+include($${NEBLIO_ROOT}/wallet/neblio-qt-libs.pri)
 
 SOURCES += \
     googletest/googletest/src/gtest-all.cc \
