@@ -177,22 +177,6 @@ TEST(bloom_tests, bloom_create_insert_serialize_with_tweak)
     EXPECT_TRUE(std::equal(stream.begin(), stream.end(), expected.begin()));
 }
 
-template<typename TInputIter>
-std::string make_hex_string_bloom(TInputIter first, TInputIter last, bool use_uppercase = true, bool insert_spaces = false)
-{
-    std::ostringstream ss;
-    ss << std::hex << std::setfill('0');
-    if (use_uppercase)
-        ss << std::uppercase;
-    while (first != last)
-    {
-        ss << std::setw(2) << static_cast<int>(*first++);
-        if (insert_spaces && first != last)
-            ss << " ";
-    }
-    return ss.str();
-}
-
 TEST(bloom_tests, bloom_create_insert_key)
 {
     string strSecret = string("TtnutkcnaPcu3zmjWcrJazf42fp1YAKRpm8grKRRuYjtiykmGuM7");
