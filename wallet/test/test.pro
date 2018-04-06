@@ -18,7 +18,7 @@ INCLUDEPATH += $${NEBLIO_ROOT}/wallet $${NEBLIO_ROOT}/wallet/json $${NEBLIO_ROOT
 INCLUDEPATH += googletest/googletest googletest/googletest/include
 
 include($${NEBLIO_ROOT}/wallet/wallet.pri)
-include($${NEBLIO_ROOT}/wallet/neblio-qt-libs.pri)
+include($${NEBLIO_ROOT}/wallet/wallet-libs.pri)
 
 SOURCES += \
     googletest/googletest/src/gtest-all.cc \
