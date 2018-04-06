@@ -34,7 +34,7 @@ nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=0" "RELEASE=1" "NEBLIO_CO
 nci.call_with_err_code("make -j3")
 
 # run tests
-nci.call_with_err_code("./build/wallet/test/neblio-tests")
+nci.call_with_err_code("./wallet/test/neblio-tests")
 
 print("")
 print("")
