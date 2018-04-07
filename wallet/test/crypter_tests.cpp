@@ -29,7 +29,7 @@ TEST(crypter_tests, basic_tests)
     std::transform(expectedCipherHex.begin(), expectedCipherHex.end(), expectedCipherHex.begin(), ::toupper);
 
     // after ciphering, the string is not the same
-    EXPECT_TRUE(std::equal(cipherHex.cbegin(), cipherHex.cend(), expectedCipherHex.cbegin()));
+    EXPECT_TRUE(std::equal(cipherHex.begin(), cipherHex.end(), expectedCipherHex.begin()));
 
     // decrypt
     EXPECT_TRUE(crypter.Decrypt(cipherText, decryptedText));
