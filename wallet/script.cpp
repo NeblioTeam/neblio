@@ -881,17 +881,17 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, co
                         break;
 
                     case OP_MUL:
-                        if (!BN_mul(&bn, &bn1, &bn2, pctx))
+                        if (!BN_mul(bn.get_raw(), bn1.get_raw(), bn2.get_raw(), pctx))
                             return false;
                         break;
 
                     case OP_DIV:
-                        if (!BN_div(&bn, NULL, &bn1, &bn2, pctx))
+                        if (!BN_div(bn.get_raw(), NULL, bn1.get_raw(), bn2.get_raw(), pctx))
                             return false;
                         break;
 
                     case OP_MOD:
-                        if (!BN_mod(&bn, &bn1, &bn2, pctx))
+                        if (!BN_mod(bn.get_raw(), bn1.get_raw(), bn2.get_raw(), pctx))
                             return false;
                         break;
 
