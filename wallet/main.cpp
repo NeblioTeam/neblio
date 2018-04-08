@@ -1058,11 +1058,11 @@ int64_t GetProofOfStakeReward(int64_t nCoinAge, int64_t nFees)
     printf("Block Number %d \n",nBestHeight);
 
     int64_t nSubsidy = nCoinAge * nRewardCoinYear * 33 / (365 * 33 + 8);
-    printf("coin-Subsidy %d\n",nSubsidy);
-    printf("coin-Age %d\n",nCoinAge);
-    printf("Coin Reward %d\n",nRewardCoinYear);
+    printf("coin-Subsidy %" PRId64 "\n",nSubsidy);
+    printf("coin-Age %" PRId64 "\n",nCoinAge);
+    printf("Coin Reward %" PRId64 "\n",nRewardCoinYear);
     if (fDebug)
-        printf("GetProofOfStakeReward(): create=%s nCoinAge=%" PRId64"\n", FormatMoney(nSubsidy).c_str(), nCoinAge);
+        printf("GetProofOfStakeReward(): create=%s nCoinAge=%" PRId64 "\n", FormatMoney(nSubsidy).c_str(), nCoinAge);
 
     return nSubsidy + nFees;
 }
