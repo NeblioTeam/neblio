@@ -250,6 +250,10 @@ LIBS += -lboost_system$$BOOST_LIB_SUFFIX -lboost_filesystem$$BOOST_LIB_SUFFIX -l
 windows:LIBS += -lboost_chrono$$BOOST_LIB_SUFFIX
 macx: LIBS += -lcurl
 
+# For Fedora
+unix:INCLUDEPATH += /usr/include/libdb4/
+unix:LIBS        += -L/usr/lib64/libdb4/
+
 contains(RELEASE, 1) {
     !windows:!macx {
         # Linux: turn dynamic linking back on for c/c++ runtime libraries
