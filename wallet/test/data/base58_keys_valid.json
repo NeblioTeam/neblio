@@ -1,0 +1,60 @@
+[
+    [
+        "NVFdK9ik6mBCG6syVw2gD1gBwJzKF5me5i",
+        "",
+        {
+            "addrType": "pubkey", 
+            "isPrivkey": false, 
+            "isTestnet": false
+        }
+    ], 
+    [
+        "nCfH2TPWF7GAqv3DtNLQ8GSEFaN9Bean4N",
+        "",
+        {
+            "addrType": "script", 
+            "isPrivkey": false, 
+            "isTestnet": false
+        }
+    ], 
+    [
+        "TVPDsVw4vSbNkRPkfnwCJmbCygEuJEVpwW",
+        "",
+        {
+            "addrType": "pubkey", 
+            "isPrivkey": false, 
+            "isTestnet": true
+        }
+    ], 
+    [
+        "tRowvMnfMpYF2XKNsCPAYsQcVKvqZGvEMT",
+        "",
+        {
+            "addrType": "script", 
+            "isPrivkey": false, 
+            "isTestnet": true
+        }
+    ], 
+    [
+        "TtnutkcnaPcu3zmjWcrJazf42fp1YAKRpm8grKRRuYjtiykmGuM7",
+        "cc1ec0dc437f5817c19437e1a9809d6b7f849147c1290180219f3e94e5ed3cf9",
+        {
+            "isCompressed": true, 
+            "isPrivkey": true, 
+            "isTestnet": false
+        },
+        "Comment: The second input is a hex version created by converting the base58 key to bytex, then to hex (Sam: I used boost::algorithm::hex())",
+        "Comment: Sam: Compression here doesn't make sense; compression is for public keys only as to keep one coordinate in the elliptic curve instead of both. No idea why it exists"
+    ], 
+    [
+        "Vgg5VL2TW1NMNKt4wkazRkUygpnPiQXnztA2h3ALQxGUhk1tQUag",
+        "e7b1845010a24bec7dea72f6829e3ef0e9a63af673541835e013e70ed0dcecde",
+        {
+            "isCompressed": true, 
+            "isPrivkey": true, 
+            "isTestnet": true
+        },
+        "Comment: The second input is a hex version created by converting the base58 key to bytex, then to hex (Sam: I used boost::algorithm::hex())",
+        "Comment: Sam: Compression here doesn't make sense; compression is for public keys only as to keep one coordinate in the elliptic curve instead of both. No idea why it exists"
+    ]
+]

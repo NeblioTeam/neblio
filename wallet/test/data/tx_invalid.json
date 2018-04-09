@@ -1,0 +1,22 @@
+[
+    ["The following are deserialized transactions which are valid."],
+    ["They are in the form"],
+    ["[[[prevout hash, prevout index, prevout scriptPubKey], [input 2], ...],"],
+    ["serializedTransaction, enforceP2SH]"],
+    ["Objects that are only a single string (like this one) are ignored"],
+
+    ["The following is 23b397edccd3740a74adb603c9756370fafcde9bcc4483eb271ecad09a94dd63"],
+    ["It is of particular interest because it contains an invalidly-encoded signature which OpenSSL accepts"],
+    ["See http://r6.ca/blog/20111119T211504Z.html"],
+    [
+        [
+            [
+                "357398be9e06adb096b3d6637c1daa90829850e5683c6bc7ecee5192511cdbd3",
+                0,
+                "OP_DUP OP_HASH160 0x111176ee35e3f2d5dcf87f849d7c2722a52fd660 OP_EQUALVERIFY OP_CHECKSIG"
+            ]
+        ],
+        "010000004d73435a01d3db1c519251eeecc76b3c68e550988290aa1d7c63d6b396b0ad069ebe987335000000006b483045022100f06dc9beaca5ae1fceffdeb19cef066beb5cc8c3ef56061c16f53a086c52be420220603639d99a1da9f258b2a7875608258728a8ee0369c1d7701ccd5999cce32d980121027a4fab48b61923e4c18b1697b1c61481f1843e865d059a178e1940a7a4d10dbfffffffff02b592849f300000001976a91401854abf39d84762ebeeb332e3116be49f1c4dad88ac00e87648170000001976a91438f54f511df07214284de94d7cffda10b38004d988ac00000000",
+        false
+    ]
+]

@@ -62,7 +62,7 @@ If you'd not like to use Docker, and you succeeded in building MXE, then follow 
 1. Define `mxe_bin_path` environment variable to point to the bin directory of MXE
 2. export PATH=$mxe_bin_path:$PATH
 3. Clone neblio from https://github.com/NeblioTeam/neblio (or get the neblio source from somewhere else)
-4. go to the directory src/leveldb
+4. go to the directory wallet/leveldb
 5. call `make clean`
 6. call `TARGET_OS=NATIVE_WINDOWS make libleveldb.a libmemenv.a CC=${mxe_bin_path}/i686-w64-mingw32.static-gcc CXX=${mxe_bin_path}/i686-w64-mingw32.static-g++`
 7. go back to the neblio root directory

@@ -34,7 +34,7 @@ os.environ["PATH"] += (":" + mxe_bin_path)
 print("Building leveldb...")
 CC_path = os.path.join(mxe_bin_path, "i686-w64-mingw32.static-gcc")
 CXX_path = os.path.join(mxe_bin_path, "i686-w64-mingw32.static-g++")
-os.chdir("src/leveldb")
+os.chdir("wallet/leveldb")
 print("Cleaning leveldb...")
 nci.call_with_err_code("make clean")
 print("Done cleaning.")
@@ -47,7 +47,7 @@ os.chdir(working_dir)
 #Go to build dir and build
 nci.mkdir_p(build_dir)
 os.chdir(build_dir)
-nci.call_with_err_code('i686-w64-mingw32.static-qmake-qt5 "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-qt.pro')
+nci.call_with_err_code('i686-w64-mingw32.static-qmake-qt5 "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-wallet.pro')
 nci.call_with_err_code("make -j6")
 ################
 
