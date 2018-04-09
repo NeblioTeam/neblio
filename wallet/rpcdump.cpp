@@ -486,8 +486,12 @@ bool WriteStringToFile(const boost::filesystem::path& filepath, const std::strin
         boost::filesystem::remove(filepath);
     }
     boost::filesystem::fstream file(filepath, std::ios::out);
+    if(!file.good()) {
+        return false;
+    }
     file << strToWrite;
     file.close();
+    return true;
 }
 
 std::string ReadStringFromFile(const boost::filesystem::path& filepath) {
@@ -546,7 +550,9 @@ void WriteWalletBackupHash() {
     }
 
     std::string finalHash = GetCurrentWalletHash();
-    WriteStringToFile(BackupHashFilePath, finalHash);
+    if(!WriteStringToFile(BackupHashFilePath, finalHash)) {
+        throw std::runtime_error("Writing wallet backup data failed.");
+    }
 }
 
 bool ShouldWalletBeBackedUp()
