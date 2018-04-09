@@ -241,6 +241,13 @@ bool RPCConsole::eventFilter(QObject* obj, QEvent *event)
                 return true;
             }
             break;
+        case Qt::Key_Enter:
+            // forward these events to lineEdit
+            if(obj == autocompleter->popup()) {
+                QApplication::postEvent(ui->lineEdit, new QKeyEvent(*keyevt));
+                return true;
+            }
+            break;
         default:
             // Typing in messages widget brings focus to line edit, and redirects key there
             // Exclude most combinations and keys that emit no text, except paste shortcuts
@@ -277,6 +284,21 @@ void RPCConsole::setClientModel(ClientModel *model)
         ui->isTestNet->setChecked(model->isTestNet());
 
         setNumBlocks(model->getNumBlocks(), model->getNumBlocksOfPeers());
+
+        //Setup autocomplete and attach it
+        QStringList autocompleteCommandList;
+        std::vector<std::string> commandList = tableRPC.listCommands();
+        for (size_t i = 0; i < commandList.size(); ++i)
+        {
+            autocompleteCommandList << commandList[i].c_str();
+            autocompleteCommandList << ("help " + commandList[i]).c_str();
+        }
+
+        autocompleteCommandList.sort();
+        autocompleter = new QCompleter(autocompleteCommandList, this);
+        autocompleter->setModelSorting(QCompleter::CaseSensitivelySortedModel);
+        ui->lineEdit->setCompleter(autocompleter);
+        autocompleter->popup()->installEventFilter(this);
     }
 }
 

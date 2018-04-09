@@ -2,6 +2,7 @@
 #define RPCCONSOLE_H
 
 #include <QDialog>
+#include <QCompleter>
 
 namespace Ui {
     class RPCConsole;
@@ -61,6 +62,7 @@ private:
     ClientModel *clientModel;
     QStringList history;
     int historyPtr;
+    QCompleter *autocompleter;
 
     void startExecutor();
 };
