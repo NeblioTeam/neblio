@@ -42,6 +42,7 @@ signals:
 protected:
     /** Intercept focus-in event and ',' key presses */
     bool eventFilter(QObject *object, QEvent *event);
+    void focusInEvent(QFocusEvent *);
 
 private:
     QDoubleSpinBox *amount;

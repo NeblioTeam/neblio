@@ -90,12 +90,7 @@ QString BitcoinAmountField::text() const
 
 bool BitcoinAmountField::eventFilter(QObject *object, QEvent *event)
 {
-    if (event->type() == QEvent::FocusIn)
-    {
-        // Clear invalid flag on focus
-        setValid(true);
-    }
-    else if (event->type() == QEvent::KeyPress || event->type() == QEvent::KeyRelease)
+    if (event->type() == QEvent::KeyPress || event->type() == QEvent::KeyRelease)
     {
         QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
         if (keyEvent->key() == Qt::Key_Comma)
@@ -107,6 +102,12 @@ bool BitcoinAmountField::eventFilter(QObject *object, QEvent *event)
         }
     }
     return QWidget::eventFilter(object, event);
+}
+
+void BitcoinAmountField::focusInEvent(QFocusEvent*)
+{
+    // Clear invalid flag on focus
+    setValid(true);
 }
 
 QWidget *BitcoinAmountField::setupTabChain(QWidget *prev)
