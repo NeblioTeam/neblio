@@ -12,7 +12,7 @@ greaterThan(QT_MAJOR_VERSION, 4) {
 BOOST_LIB_SUFFIX=
 windows:BOOST_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include/boost
 windows:BOOST_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/lib
-macx:BOOST_LIB_PATH=/usr/local/Cellar/boost/1.64.0_1/lib
+macx:BOOST_LIB_PATH=/usr/local/opt/boost@1.60/lib
 windows:BDB_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include
 windows:BDB_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/lib
 macx:BDB_LIB_PATH=/usr/local/Cellar/berkeley-db\@4/4.8.30/lib/
