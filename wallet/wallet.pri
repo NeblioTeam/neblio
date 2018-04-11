@@ -112,8 +112,11 @@ HEADERS += qt/bitcoingui.h \
     neblioversion.h \
     neblioreleaseinfo.h \
     curltools.h \
-    ntp1tools.h \
     qt/messageboxwithtimer.h
+
+HEADERS += \
+    ntp1/ntp1tools.h
+
 
 SOURCES += qt/bitcoin.cpp \
     qt/bitcoingui.cpp \
@@ -204,8 +207,10 @@ SOURCES += qt/bitcoin.cpp \
     json/json_spirit_writer.cpp \
     neblioreleaseinfo.cpp \
     zerocoin/ZeroTest.cpp \
-    curltools.cpp \
-    ntp1tools.cpp
+    curltools.cpp
+
+SOURCES += \
+    ntp1/ntp1tools.cpp
 
 contains(NEBLIO_REST, 1) {
     HEADERS += nebliorest.h

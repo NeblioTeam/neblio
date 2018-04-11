@@ -21,7 +21,7 @@
 #include <QScrollBar>
 #include <QClipboard>
 
-#include "ntp1tools.h"
+#include "ntp1/ntp1tools.h"
 
 SendCoinsDialog::SendCoinsDialog(QWidget *parent) :
     QDialog(parent),

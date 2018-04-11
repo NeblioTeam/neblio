@@ -14,7 +14,7 @@
 #include <QSettings>
 
 #include "init.h"
-#include "ntp1tools.h"
+#include "ntp1/ntp1tools.h"
 
 WalletModel::WalletModel(CWallet *wallet, OptionsModel *optionsModel, QObject *parent) :
     QObject(parent), wallet(wallet), optionsModel(optionsModel), addressTableModel(0),
