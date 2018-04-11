@@ -10,15 +10,37 @@ class NTP1Tools
 public:
     NTP1Tools();
 
-    static const std::string NTPAPIURL_prefix_local;
-    static const std::string NTPAPIURL_prefix_external;
+    static const std::string NTPAPI_base_url_mainnet_local;
+    static const std::string NTPAPI_base_url_testnet_local;
 
+    static const std::string NTPAPI_base_url_mainnet_remote;
+    static const std::string NTPAPI_base_url_testnet_remote;
+
+    static const std::string NTPAPI_addressInfo;
+    static const std::string NTPAPI_transactionInfo;
+    static const std::string NTPAPI_tokenId;
+    static const std::string NTPAPI_tokenMetaData;
+    static const std::string NTPAPI_stakeHolders;
+
+    // json parsing methods
     static std::string GetStrField(const json_spirit::Object &data, const std::string &fieldName);
     static bool GetBoolField(const json_spirit::Object &data, const std::string &fieldName);
-    static bool AddressContainsNTP1Tokens(const std::string &address);
-    static long GetNumOfNTP1UTXOs(const std::string &address);
-    static std::string GetRestAPIAddressURL(const std::string& address);
     static json_spirit::Array GetArrayField(const json_spirit::Object &data, const std::string &fieldName);
+
+    // local string manipulation methods
+    static std::string GetURL_APIBase(bool testnet);
+    static std::string GetURL_AddressInfo(const std::string& address, bool testnet);
+    static std::string GetURL_TransactionInfo(const std::string& txHash, bool testnet);
+    static std::string GetURL_TokenID(const std::string& tokenSymbol, bool testnet);
+    static std::string GetURL_TokenMetaData(const std::string& tokenID, bool testnet);
+    static std::string GetURL_TokenUTXOMetaData(const std::string& tokenID,
+                                                const std::string &txHash,
+                                                unsigned long outputIndex,
+                                                bool testnet);
+    static std::string GetURL_StakeHolders(const std::string& tokenID, bool testnet);
+
+    // methods that call the API
+    static bool RetrieveData_AddressContainsNTP1Tokens(const std::string &address, bool testnet);
 };
 
 #endif // NTP1TOOLS_H

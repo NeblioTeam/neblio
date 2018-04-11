@@ -243,7 +243,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
                 CKeyID keyID = boost::get<CKeyID>(dest);
                 std::string strAddr = CBitcoinAddress(keyID).ToString();
                 try {
-                    bool containsNTP1Tokens = NTP1Tools::AddressContainsNTP1Tokens(strAddr);
+                    bool containsNTP1Tokens = NTP1Tools::RetrieveData_AddressContainsNTP1Tokens(strAddr, fTestNet);
                     if(containsNTP1Tokens) {
                         SendCoinsReturn retStatus(AddressContainsNTP1Tokens);
                         retStatus.address = QString::fromStdString(strAddr);
