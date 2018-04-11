@@ -17,6 +17,9 @@ INCLUDEPATH += $${NEBLIO_ROOT}/wallet $${NEBLIO_ROOT}/wallet/json $${NEBLIO_ROOT
 
 INCLUDEPATH += googletest/googletest googletest/googletest/include
 
+# since this is for tests, unused functions can exist
+unix:QMAKE_CXXFLAGS += -Wno-unused-function
+
 include($${NEBLIO_ROOT}/wallet/wallet.pri)
 include($${NEBLIO_ROOT}/wallet/wallet-libs.pri)
 
