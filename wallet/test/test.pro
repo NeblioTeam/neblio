@@ -37,11 +37,12 @@ SOURCES += \
     bloom_tests.cpp       \
     canonical_tests.cpp   \
     compress_tests.cpp    \
-    crypter_tests.cpp    \
+    crypter_tests.cpp     \
     getarg_tests.cpp      \
     key_tests.cpp         \
     mruset_tests.cpp      \
     netbase_tests.cpp     \
+    ntp1_tests.cpp        \
     pmt_tests.cpp         \
     rpc_tests.cpp         \
     script_tests.cpp      \
