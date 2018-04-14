@@ -114,9 +114,14 @@ HEADERS += qt/bitcoingui.h \
     curltools.h \
     qt/messageboxwithtimer.h
 
-HEADERS += \
-    ntp1/ntp1tools.h
-
+HEADERS +=                 \
+    ntp1/ntp1tools.h       \
+    ntp1/ntp1inpoint.h     \
+    ntp1/ntp1outpoint.h    \
+    ntp1/ntp1transaction.h \
+    ntp1/ntp1txin.h        \
+    ntp1/ntp1txout.h       \
+    ntp1/ntp1tokentxdata.h
 
 SOURCES += qt/bitcoin.cpp \
     qt/bitcoingui.cpp \
@@ -209,8 +214,14 @@ SOURCES += qt/bitcoin.cpp \
     zerocoin/ZeroTest.cpp \
     curltools.cpp
 
-SOURCES += \
-    ntp1/ntp1tools.cpp
+SOURCES +=                   \
+    ntp1/ntp1tools.cpp       \
+    ntp1/ntp1inpoint.cpp     \
+    ntp1/ntp1outpoint.cpp    \
+    ntp1/ntp1transaction.cpp \
+    ntp1/ntp1txin.cpp        \
+    ntp1/ntp1txout.cpp       \
+    ntp1/ntp1tokentxdata.cpp
 
 contains(NEBLIO_REST, 1) {
     HEADERS += nebliorest.h

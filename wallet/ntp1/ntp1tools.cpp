@@ -30,6 +30,13 @@ bool NTP1Tools::GetBoolField(const json_spirit::Object &data, const std::string 
     return val.get_bool();
 }
 
+uint64_t NTP1Tools::GetUint64Field(const json_spirit::Object &data, const std::string &fieldName)
+{
+    json_spirit::Value val;
+    val = json_spirit::find_value(data, fieldName);
+    return val.get_uint64();
+}
+
 std::string NTP1Tools::GetURL_APIBase(bool testnet)
 {
 #ifdef NEBLIO_REST
@@ -44,6 +51,13 @@ json_spirit::Array NTP1Tools::GetArrayField(const json_spirit::Object &data, con
     json_spirit::Value val;
     val = json_spirit::find_value(data, fieldName);
     return val.get_array();
+}
+
+json_spirit::Object NTP1Tools::GetObjectField(const json_spirit::Object &data, const std::string &fieldName)
+{
+    json_spirit::Value val;
+    val = json_spirit::find_value(data, fieldName);
+    return val.get_obj();
 }
 
 bool NTP1Tools::RetrieveData_AddressContainsNTP1Tokens(const std::string& address, bool testnet)
