@@ -25,7 +25,7 @@ void NTP1Wallet::__getOutputs()
 
     // this helps in persisting to get the wallet data when the application is launched for the first time and nebl wallet is null still
     // the 100 number is just a protection against infinite waiting
-    for(int i = 0; i < 100 && (!everSucceededInLoadingTokens && pwalletMain == NULL); i++) {
+    for(int i = 0; i < 100 && ((!everSucceededInLoadingTokens && pwalletMain == NULL) || !appInitiated); i++) {
         boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
     }
 
@@ -233,6 +233,7 @@ string NTP1Wallet::getTokenIcon(int index) const
             tokenIcons[tokenId] = cURLTools::GetFileFromHTTPS(IconURL, false);
         } catch (std::exception& ex) {
             printf("Error: Failed at downloading icon from %s. Error says: %s", IconURL.c_str(), ex.what());
+            // TODO: if download fails, make it try again later.
             tokenIcons[tokenId] = "";
         }
         return tokenIcons[tokenId];
