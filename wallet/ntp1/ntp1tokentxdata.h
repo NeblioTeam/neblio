@@ -3,7 +3,7 @@
 
 #include <string>
 #include "uint256.h"
-#include "ntp1tools.h"
+#include "json_spirit.h"
 
 class NTP1TokenTxData
 {
@@ -27,6 +27,17 @@ public:
     uint256 getIssueTxId() const;
     bool getLockStatus() const;
     const std::string& getAggregationPolicy() const;
+    friend inline bool operator==(const NTP1TokenTxData& lhs, const NTP1TokenTxData& rhs);
 };
+
+bool operator==(const NTP1TokenTxData &lhs, const NTP1TokenTxData &rhs)
+{
+    return (lhs.tokenId == rhs.tokenId &&
+            lhs.amount == rhs.amount &&
+            lhs.issueTxId == rhs.issueTxId &&
+            lhs.divisibility == rhs.divisibility &&
+            lhs.lockStatus == rhs.lockStatus &&
+            lhs.aggregationPolicy == rhs.aggregationPolicy);
+}
 
 #endif // NTP1TOKENTXDATA_H

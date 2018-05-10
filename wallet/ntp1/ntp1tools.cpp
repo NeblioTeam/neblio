@@ -60,27 +60,6 @@ json_spirit::Object NTP1Tools::GetObjectField(const json_spirit::Object &data, c
     return val.get_obj();
 }
 
-bool NTP1Tools::RetrieveData_AddressContainsNTP1Tokens(const std::string& address, bool testnet)
-{
-    try {
-        std::string addressNTPInfoURL = GetURL_AddressInfo(address, testnet);
-        std::string ntpData = cURLTools::GetFileFromHTTPS(addressNTPInfoURL, false);
-        json_spirit::Value parsedData;
-        json_spirit::read_or_throw(ntpData, parsedData);
-        json_spirit::Array utxosArray = GetArrayField(parsedData.get_obj(), "utxos");
-        for(long i = 0; i < static_cast<long>(utxosArray.size()); i++) {
-            json_spirit::Array tokensArray = GetArrayField(utxosArray[i].get_obj(), "tokens");
-            if(tokensArray.size() > 0) {
-                return true;
-            }
-        }
-        return false;
-    } catch(std::exception& ex) {
-        printf("%s", ex.what());
-        throw;
-    }
-}
-
 std::string NTP1Tools::GetURL_TransactionInfo(const std::string &txHash, bool testnet)
 {
     return GetURL_APIBase(testnet) + NTPAPI_transactionInfo + txHash;
