@@ -1,4 +1,5 @@
 #include "ntp1tokentxdata.h"
+#include "ntp1tools.h"
 
 #include "base58.h"
 

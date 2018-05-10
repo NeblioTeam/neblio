@@ -27,6 +27,15 @@ public:
     uint64_t getSequence() const;
     const NTP1TokenTxData& getToken(unsigned long index) const;
     unsigned long getNumOfTokens() const;
+    friend inline bool operator==(const NTP1TxIn& lhs, const NTP1TxIn& rhs);
 };
+
+bool operator==(const NTP1TxIn &lhs, const NTP1TxIn &rhs)
+{
+    return (lhs.prevout == rhs.prevout &&
+            lhs.scriptSigHex == rhs.scriptSigHex &&
+            lhs.nSequence == rhs.nSequence &&
+            lhs.tokens == rhs.tokens);
+}
 
 #endif // NTP1TXIN_H

@@ -1,4 +1,7 @@
 #include "ntp1transaction.h"
+#include "ntp1tools.h"
+#include "ntp1txin.h"
+#include "ntp1txout.h"
 
 #include "util.h"
 

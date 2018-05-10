@@ -2,7 +2,6 @@
 #define NTP1TOOLS_H
 
 #include "curltools.h"
-#include "json_spirit.h"
 #include "json/json_spirit.h"
 
 class NTP1Tools
@@ -40,9 +39,6 @@ public:
                                                 unsigned long outputIndex,
                                                 bool testnet);
     static std::string GetURL_StakeHolders(const std::string& tokenID, bool testnet);
-
-    // methods that call the API
-    static bool RetrieveData_AddressContainsNTP1Tokens(const std::string &address, bool testnet);
 };
 
 #endif // NTP1TOOLS_H

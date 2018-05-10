@@ -89,7 +89,7 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
 #endif
 
     //program starts with overview window shown
-    overviewPageShown = true;
+    showBottomBlackBar = true;
 
     //initialization for safety
     overviewPage = NULL;
@@ -111,6 +111,7 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
 
     // Create tabs
     overviewPage = new OverviewPage();
+    ntp1SummaryPage = new NTP1Summary();
 
     transactionsPage = new QWidget(this);
     QVBoxLayout *vbox = new QVBoxLayout();
@@ -128,6 +129,7 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
 
     centralWidget = new QStackedWidget(this);
     centralWidget->addWidget(overviewPage);
+    centralWidget->addWidget(ntp1SummaryPage);
     centralWidget->addWidget(transactionsPage);
     centralWidget->addWidget(addressBookPage);
     centralWidget->addWidget(receiveCoinsPage);
@@ -268,32 +270,40 @@ void BitcoinGUI::createActions()
     overviewAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_1));
     tabGroup->addAction(overviewAction);
 
+    ntp1tokensAction = new QAction(QIcon(":/icons/overview"), tr("&NTP1 summary"), this);
+    ntp1tokensAction->setToolTip(tr("Show general overview of NTP1 tokens"));
+    ntp1tokensAction->setCheckable(true);
+    ntp1tokensAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_2));
+    tabGroup->addAction(ntp1tokensAction);
+
     sendCoinsAction = new QAction(QIcon(":/icons/send"), tr("&Send tokens"), this);
     sendCoinsAction->setToolTip(tr("Send tokens to a neblio address"));
     sendCoinsAction->setCheckable(true);
-    sendCoinsAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_2));
+    sendCoinsAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_3));
     tabGroup->addAction(sendCoinsAction);
 
     receiveCoinsAction = new QAction(QIcon(":/icons/receiving_addresses"), tr("&Receive tokens"), this);
     receiveCoinsAction->setToolTip(tr("Show the list of addresses for receiving payments"));
     receiveCoinsAction->setCheckable(true);
-    receiveCoinsAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_3));
+    receiveCoinsAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_4));
     tabGroup->addAction(receiveCoinsAction);
 
     historyAction = new QAction(QIcon(":/icons/history"), tr("&Transactions"), this);
     historyAction->setToolTip(tr("Browse transaction history"));
     historyAction->setCheckable(true);
-    historyAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_4));
+    historyAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_5));
     tabGroup->addAction(historyAction);
 
     addressBookAction = new QAction(QIcon(":/icons/address-book"), tr("&Address Book"), this);
     addressBookAction->setToolTip(tr("Edit the list of stored addresses and labels"));
     addressBookAction->setCheckable(true);
-    addressBookAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_5));
+    addressBookAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_6));
     tabGroup->addAction(addressBookAction);
 
     connect(overviewAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(overviewAction, SIGNAL(triggered()), this, SLOT(gotoOverviewPage()));
+    connect(ntp1tokensAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+    connect(ntp1tokensAction, SIGNAL(triggered()), this, SLOT(gotoNTP1SummaryPage()));
     connect(sendCoinsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(sendCoinsAction, SIGNAL(triggered()), this, SLOT(gotoSendCoinsPage()));
     connect(receiveCoinsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
@@ -396,6 +406,7 @@ void BitcoinGUI::createToolBars()
 
     toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     toolbar->addAction(overviewAction);
+    toolbar->addAction(ntp1tokensAction);
     toolbar->addAction(sendCoinsAction);
     toolbar->addAction(receiveCoinsAction);
     toolbar->addAction(historyAction);
@@ -653,6 +664,7 @@ void BitcoinGUI::setNumBlocks(int count, int nTotalBlocks)
         labelBlocksIcon->setPixmap(QIcon(":/icons/synced").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
 
         overviewPage->showOutOfSyncWarning(false);
+        ntp1SummaryPage->showOutOfSyncWarning(false);
     }
     else
     {
@@ -661,6 +673,7 @@ void BitcoinGUI::setNumBlocks(int count, int nTotalBlocks)
         syncIconMovie->start();
 
         overviewPage->showOutOfSyncWarning(true);
+        ntp1SummaryPage->showOutOfSyncWarning(true);
     }
 
     if(!text.isEmpty())
@@ -772,7 +785,7 @@ void BitcoinGUI::incomingTransaction(const QModelIndex & parent, int start, int 
 
 void BitcoinGUI::gotoOverviewPage()
 {
-    overviewPageShown = true;
+    showBottomBlackBar = true;
 
     overviewAction->setChecked(true);
     centralWidget->setCurrentWidget(overviewPage);
@@ -781,9 +794,20 @@ void BitcoinGUI::gotoOverviewPage()
     disconnect(exportAction, SIGNAL(triggered()), 0, 0);
 }
 
+void BitcoinGUI::gotoNTP1SummaryPage()
+{
+    showBottomBlackBar = true;
+
+    ntp1tokensAction->setChecked(true);
+    centralWidget->setCurrentWidget(ntp1SummaryPage);
+
+    exportAction->setEnabled(false);
+    disconnect(exportAction, SIGNAL(triggered()), 0, 0);
+}
+
 void BitcoinGUI::gotoHistoryPage()
 {
-    overviewPageShown = false;
+    showBottomBlackBar = false;
 
     historyAction->setChecked(true);
     centralWidget->setCurrentWidget(transactionsPage);
@@ -795,7 +819,7 @@ void BitcoinGUI::gotoHistoryPage()
 
 void BitcoinGUI::gotoAddressBookPage()
 {
-    overviewPageShown = false;
+    showBottomBlackBar = false;
 
     addressBookAction->setChecked(true);
     centralWidget->setCurrentWidget(addressBookPage);
@@ -807,7 +831,7 @@ void BitcoinGUI::gotoAddressBookPage()
 
 void BitcoinGUI::gotoReceiveCoinsPage()
 {
-    overviewPageShown = false;
+    showBottomBlackBar = false;
 
     receiveCoinsAction->setChecked(true);
     centralWidget->setCurrentWidget(receiveCoinsPage);
@@ -819,7 +843,7 @@ void BitcoinGUI::gotoReceiveCoinsPage()
 
 void BitcoinGUI::gotoSendCoinsPage()
 {
-    overviewPageShown = false;
+    showBottomBlackBar = false;
 
     sendCoinsAction->setChecked(true);
     centralWidget->setCurrentWidget(sendCoinsPage);
@@ -830,7 +854,7 @@ void BitcoinGUI::gotoSendCoinsPage()
 
 void BitcoinGUI::gotoSignMessageTab(QString addr)
 {
-    overviewPageShown = false;
+    showBottomBlackBar = false;
 
     // call show() in showTab_SM()
     signVerifyMessageDialog->showTab_SM(true);
@@ -841,7 +865,7 @@ void BitcoinGUI::gotoSignMessageTab(QString addr)
 
 void BitcoinGUI::gotoVerifyMessageTab(QString addr)
 {
-    overviewPageShown = false;
+    showBottomBlackBar = false;
 
     // call show() in showTab_VM()
     signVerifyMessageDialog->showTab_VM(true);
@@ -852,7 +876,7 @@ void BitcoinGUI::gotoVerifyMessageTab(QString addr)
 
 void BitcoinGUI::dragEnterEvent(QDragEnterEvent *event)
 {
-    overviewPageShown = false;
+    showBottomBlackBar = false;
 
     // Accept only URIs
     if(event->mimeData()->hasUrls())

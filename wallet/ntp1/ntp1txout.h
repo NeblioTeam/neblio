@@ -4,7 +4,6 @@
 #include <inttypes.h>
 #include <string>
 
-#include "ntp1tools.h"
 #include "ntp1tokentxdata.h"
 
 /**
@@ -28,6 +27,14 @@ public:
     const std::string& getScriptPubKeyHex() const;
     const NTP1TokenTxData &getToken(unsigned long index) const;
     unsigned long getNumOfTokens() const;
+    friend inline bool operator==(const NTP1TxOut& lhs, const NTP1TxOut& rhs);
 };
+
+bool operator==(const NTP1TxOut &lhs, const NTP1TxOut &rhs)
+{
+    return (lhs.nValue == rhs.nValue &&
+            lhs.scriptPubKeyHex == rhs.scriptPubKeyHex &&
+            lhs.tokens == rhs.tokens);
+}
 
 #endif // NTP1TXOUT_H

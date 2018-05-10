@@ -1,4 +1,5 @@
 #include "ntp1txout.h"
+#include "ntp1tools.h"
 
 NTP1TxOut::NTP1TxOut()
 {

@@ -76,6 +76,8 @@ HEADERS += qt/bitcoingui.h \
     bitcoinrpc.h \
     qt/overviewpage.h \
     qt/ui_overviewpage.h \
+    qt/ntp1summary.h \
+    qt/ui_ntp1summary.h \
     qt/ui_sendcoinsdialog.h \
     qt/ui_coincontroldialog.h \
     qt/ui_sendcoinsdialog.h \
@@ -84,7 +86,6 @@ HEADERS += qt/bitcoingui.h \
     qt/ui_aboutdialog.h \
     qt/ui_editaddressdialog.h \
     qt/ui_transactiondescdialog.h \
-    qt/ui_overviewpage.h \
     qt/ui_sendcoinsentry.h \
     qt/ui_askpassphrasedialog.h \
     qt/ui_rpcconsole.h \
@@ -112,7 +113,13 @@ HEADERS += qt/bitcoingui.h \
     neblioversion.h \
     neblioreleaseinfo.h \
     curltools.h \
-    qt/messageboxwithtimer.h
+    qt/messageboxwithtimer.h \
+    qt/ntp1/ntp1tokenlistmodel.h \
+    qt/ntp1/ntp1tokenlistfilterproxy.h \
+    ntp1/ntp1tokenmetadata.h \
+    ntp1/ntp1wallet.h \
+    qt/ntp1/ntp1tokenlistitemdelegate.h
+
 
 HEADERS +=                 \
     ntp1/ntp1tools.h       \
@@ -121,7 +128,9 @@ HEADERS +=                 \
     ntp1/ntp1transaction.h \
     ntp1/ntp1txin.h        \
     ntp1/ntp1txout.h       \
-    ntp1/ntp1tokentxdata.h
+    ntp1/ntp1tokentxdata.h \
+    ntp1/ntp1apicalls.h
+
 
 SOURCES += qt/bitcoin.cpp \
     qt/bitcoingui.cpp \
@@ -175,6 +184,7 @@ SOURCES += qt/bitcoin.cpp \
     rpcblockchain.cpp \
     rpcrawtransaction.cpp \
     qt/overviewpage.cpp \
+    qt/ntp1summary.cpp \
     qt/csvmodelwriter.cpp \
     crypter.cpp \
     qt/sendcoinsentry.cpp \
@@ -212,7 +222,12 @@ SOURCES += qt/bitcoin.cpp \
     json/json_spirit_writer.cpp \
     neblioreleaseinfo.cpp \
     zerocoin/ZeroTest.cpp \
-    curltools.cpp
+    curltools.cpp \
+    qt/ntp1/ntp1tokenlistmodel.cpp \
+    qt/ntp1/ntp1tokenlistfilterproxy.cpp \
+    ntp1/ntp1tokenmetadata.cpp \
+    ntp1/ntp1wallet.cpp \
+    qt/ntp1/ntp1tokenlistitemdelegate.cpp
 
 SOURCES +=                   \
     ntp1/ntp1tools.cpp       \
@@ -221,7 +236,8 @@ SOURCES +=                   \
     ntp1/ntp1transaction.cpp \
     ntp1/ntp1txin.cpp        \
     ntp1/ntp1txout.cpp       \
-    ntp1/ntp1tokentxdata.cpp
+    ntp1/ntp1tokentxdata.cpp \
+    ntp1/ntp1apicalls.cpp
 
 contains(NEBLIO_REST, 1) {
     HEADERS += nebliorest.h

@@ -3,6 +3,7 @@
 
 #include "ntp1txin.h"
 #include "ntp1txout.h"
+#include "uint256.h"
 
 #include <string>
 #include <vector>
@@ -35,6 +36,18 @@ public:
     const NTP1TxIn& getTxIn(unsigned long index) const;
     unsigned long getTxOutCount() const;
     const NTP1TxOut& getTxOut(unsigned long index) const;
+    friend inline bool operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs);
 };
+
+bool operator==(const NTP1Transaction &lhs, const NTP1Transaction &rhs)
+{
+    return (lhs.nVersion == rhs.nVersion &&
+            lhs.txHash == rhs.txHash &&
+            lhs.txSerialized == rhs.txSerialized &&
+            lhs.vin == rhs.vin &&
+            lhs.vout == rhs.vout &&
+            lhs.nLockTime == rhs.nLockTime &&
+            lhs.nTime == rhs.nTime);
+}
 
 #endif // NTP1TRANSACTION_H

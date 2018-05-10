@@ -15,6 +15,7 @@
 
 #include "init.h"
 #include "ntp1/ntp1tools.h"
+#include "ntp1/ntp1apicalls.h"
 
 WalletModel::WalletModel(CWallet *wallet, OptionsModel *optionsModel, QObject *parent) :
     QObject(parent), wallet(wallet), optionsModel(optionsModel), addressTableModel(0),
@@ -243,7 +244,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
                 CKeyID keyID = boost::get<CKeyID>(dest);
                 std::string strAddr = CBitcoinAddress(keyID).ToString();
                 try {
-                    bool containsNTP1Tokens = NTP1Tools::RetrieveData_AddressContainsNTP1Tokens(strAddr, fTestNet);
+                    bool containsNTP1Tokens = NTP1APICalls::RetrieveData_AddressContainsNTP1Tokens(strAddr, fTestNet);
                     if(containsNTP1Tokens) {
                         SendCoinsReturn retStatus(AddressContainsNTP1Tokens);
                         retStatus.address = QString::fromStdString(strAddr);
