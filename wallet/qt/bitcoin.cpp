@@ -110,6 +110,8 @@ static void handleRunawayException(std::exception *e)
     exit(1);
 }
 
+boost::atomic<bool> appInitiated(false);
+
 #ifndef BITCOIN_QT_TEST
 int main(int argc, char *argv[])
 {
@@ -227,6 +229,7 @@ int main(int argc, char *argv[])
         if(AppInit2())
         {
             {
+                appInitiated = true;
                 // Put this in a block, so that the Model objects are cleaned up before
                 // calling Shutdown().
 
