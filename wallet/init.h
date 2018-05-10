@@ -8,6 +8,7 @@
 #include "wallet.h"
 
 extern CWallet* pwalletMain;
+extern boost::atomic<bool> appInitiated;
 void StartShutdown();
 void Shutdown(void* parg);
 bool AppInit2();
