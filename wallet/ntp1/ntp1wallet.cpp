@@ -3,6 +3,8 @@
 // the following is a necessary include for pwalletMain and CWalletTx objects
 #include "init.h"
 
+const std::string NTP1Wallet::ICON_ERROR_CONTENT = "<DownloadError>";
+
 NTP1Wallet::NTP1Wallet()
 {
     lastSizeFound = 0;
@@ -216,6 +218,15 @@ int64_t NTP1Wallet::getTokenBalance(int index) const
     }
 }
 
+std::string NTP1Wallet::__downloadIcon(const std::string& IconURL) const {
+    try {
+        return cURLTools::GetFileFromHTTPS(IconURL, false);
+    } catch (std::exception& ex) {
+        printf("Error: Failed at downloading icon from %s. Error says: %s", IconURL.c_str(), ex.what());
+        return ICON_ERROR_CONTENT;
+    }
+}
+
 string NTP1Wallet::getTokenIcon(int index) const
 {
     std::map<std::string, int64_t>::const_iterator it = balances.begin();
@@ -228,15 +239,14 @@ string NTP1Wallet::getTokenIcon(int index) const
         if(IconURL.empty()) {
             return "";
         }
-        try {
-            tokenIcons[tokenId] = cURLTools::GetFileFromHTTPS(IconURL, false);
-        } catch (std::exception& ex) {
-            printf("Error: Failed at downloading icon from %s. Error says: %s", IconURL.c_str(), ex.what());
-            // TODO: if download fails, make it try again later.
-            tokenIcons[tokenId] = "";
-        }
+        tokenIcons[tokenId] = __downloadIcon(IconURL);
         return tokenIcons[tokenId];
     } else {
+        if(itIcon->second == ICON_ERROR_CONTENT) {
+            boost::unordered_map<std::string,  NTP1TokenMetaData>::const_iterator itToken = tokenInformation.find(tokenId);
+            const std::string& IconURL = itToken->second.getIconURL();
+            tokenIcons[tokenId] = __downloadIcon(IconURL);
+        }
         return itIcon->second;
     }
 }

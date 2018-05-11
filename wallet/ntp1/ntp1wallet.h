@@ -28,9 +28,12 @@ class NTP1Wallet
     // remains false until a successful attempt to retrieve tokens is over (for display purposes)
     bool everSucceededInLoadingTokens;
 
+    static const std::string ICON_ERROR_CONTENT;
+
 
     void __getOutputs();
     void __RecalculateTokensBalances();
+    std::string __downloadIcon(const std::string &IconURL) const;
     static void AddOutputToWalletBalance(const NTP1Transaction& tx, int outputIndex, std::map<std::string, int64_t>& balancesTable);
     static void SubtractOutputFromWalletBalance(const NTP1Transaction& tx, int outputIndex, std::map<std::string, int64_t>& balancesTable);
     // returns true if removed
