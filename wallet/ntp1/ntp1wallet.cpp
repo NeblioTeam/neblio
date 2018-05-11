@@ -57,6 +57,7 @@ void NTP1Wallet::__getOutputs()
         if(removeOutputIfSpent(output, neblTx)) continue;
 
         NTP1Transaction ntp1tx = NTP1APICalls::RetrieveData_TransactionInfo(txHash.ToString(), fTestNet);
+        // TODO: handle exceptions when downloading the wallet; on error, the download should be attempted again later
         if(walletOutputsWithTokens.find(output) != walletOutputsWithTokens.end()) {
             throw std::logic_error("Error while loading NTP1 tokens. Transaction hash found twice.");
         }
