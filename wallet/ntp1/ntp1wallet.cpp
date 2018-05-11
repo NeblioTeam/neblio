@@ -3,6 +3,8 @@
 // the following is a necessary include for pwalletMain and CWalletTx objects
 #include "init.h"
 
+#include <boost/thread.hpp>
+
 const std::string NTP1Wallet::ICON_ERROR_CONTENT = "<DownloadError>";
 
 NTP1Wallet::NTP1Wallet()
@@ -228,6 +230,12 @@ std::string NTP1Wallet::__downloadIcon(const std::string& IconURL) {
     }
 }
 
+void NTP1Wallet::__asyncDownloadAndSetIcon(std::string IconURL, std::string tokenId, ThreadSafeHashMap<std::string, std::string>& IconsMap)
+{
+    IconsMap.set(tokenId, __downloadIcon(IconURL));
+}
+
+
 string NTP1Wallet::getTokenIcon(int index) const
 {
     std::map<std::string, int64_t>::const_iterator it = balances.begin();
@@ -241,16 +249,17 @@ string NTP1Wallet::getTokenIcon(int index) const
             tokenIcons.set(tokenId, "");
             return "";
         }
-        std::string icon = __downloadIcon(IconURL);
-        tokenIcons.set(tokenId, icon);
-        return icon;
+        boost::thread IconDownloadThread(boost::bind(__asyncDownloadAndSetIcon, IconURL, tokenId, boost::ref(tokenIcons)));
+        IconDownloadThread.detach();
+        return "";
     } else {
         std::string icon;
         tokenIcons.get(tokenId, icon);
-        // if there was an error before OR the icon is empty, and a download URL now exists, download again
+        // if there was an error getting the icon OR the icon is empty, and a download URL now exists, download again
         if(icon == ICON_ERROR_CONTENT || (icon == "" && !itToken->second.getIconURL().empty())) {
             const std::string& IconURL = itToken->second.getIconURL();
-            tokenIcons.set(tokenId, __downloadIcon(IconURL));
+            boost::thread IconDownloadThread(boost::bind(__asyncDownloadAndSetIcon, IconURL, tokenId, boost::ref(tokenIcons)));
+            IconDownloadThread.detach();
         }
 
         tokenIcons.get(tokenId, icon);

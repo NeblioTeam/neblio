@@ -31,6 +31,7 @@ class NTP1Wallet
 
     void __getOutputs();
     void __RecalculateTokensBalances();
+    static void __asyncDownloadAndSetIcon(std::string IconURL, std::string tokenId, ThreadSafeHashMap<std::string, std::string> &IconsMap);
     static std::string __downloadIcon(const std::string &IconURL);
     static void AddOutputToWalletBalance(const NTP1Transaction& tx, int outputIndex, std::map<std::string, int64_t>& balancesTable);
     static void SubtractOutputFromWalletBalance(const NTP1Transaction& tx, int outputIndex, std::map<std::string, int64_t>& balancesTable);
