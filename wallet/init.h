@@ -6,6 +6,7 @@
 #define BITCOIN_INIT_H
 
 #include "wallet.h"
+#include "boost/atomic.hpp"
 
 extern CWallet* pwalletMain;
 extern boost::atomic<bool> appInitiated;
