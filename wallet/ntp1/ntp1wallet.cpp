@@ -232,22 +232,28 @@ string NTP1Wallet::getTokenIcon(int index) const
     std::map<std::string, int64_t>::const_iterator it = balances.begin();
     std::advance(it, index);
     std::string tokenId = it->first;
-    boost::unordered_map<std::string,  std::string>::const_iterator itIcon = tokenIcons.find(tokenId);
-    if(itIcon == tokenIcons.end()) {
-        boost::unordered_map<std::string,  NTP1TokenMetaData>::const_iterator itToken = tokenInformation.find(tokenId);
+    boost::unordered_map<std::string,  NTP1TokenMetaData>::const_iterator itToken = tokenInformation.find(tokenId);
+    if(!tokenIcons.exists(tokenId)) {
         const std::string& IconURL = itToken->second.getIconURL();
         if(IconURL.empty()) {
+            // no icon URL provided, set empty icon and return
+            tokenIcons.set(tokenId, "");
             return "";
         }
-        tokenIcons[tokenId] = __downloadIcon(IconURL);
-        return tokenIcons[tokenId];
+        std::string icon = __downloadIcon(IconURL);
+        tokenIcons.set(tokenId, icon);
+        return icon;
     } else {
-        if(itIcon->second == ICON_ERROR_CONTENT) {
-            boost::unordered_map<std::string,  NTP1TokenMetaData>::const_iterator itToken = tokenInformation.find(tokenId);
+        std::string icon;
+        tokenIcons.get(tokenId, icon);
+        // if there was an error before OR the icon is empty, and a download URL now exists, download again
+        if(icon == ICON_ERROR_CONTENT || (icon == "" && !itToken->second.getIconURL().empty())) {
             const std::string& IconURL = itToken->second.getIconURL();
-            tokenIcons[tokenId] = __downloadIcon(IconURL);
+            tokenIcons.set(tokenId, __downloadIcon(IconURL));
         }
-        return tokenIcons[tokenId];
+
+        tokenIcons.get(tokenId, icon);
+        return icon;
     }
 }
 

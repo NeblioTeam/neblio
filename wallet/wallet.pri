@@ -118,7 +118,8 @@ HEADERS += qt/bitcoingui.h \
     qt/ntp1/ntp1tokenlistfilterproxy.h \
     ntp1/ntp1tokenmetadata.h \
     ntp1/ntp1wallet.h \
-    qt/ntp1/ntp1tokenlistitemdelegate.h
+    qt/ntp1/ntp1tokenlistitemdelegate.h \
+    ThreadSafeHashMap.h
 
 
 HEADERS +=                 \
@@ -227,7 +228,8 @@ SOURCES += qt/bitcoin.cpp \
     qt/ntp1/ntp1tokenlistfilterproxy.cpp \
     ntp1/ntp1tokenmetadata.cpp \
     ntp1/ntp1wallet.cpp \
-    qt/ntp1/ntp1tokenlistitemdelegate.cpp
+    qt/ntp1/ntp1tokenlistitemdelegate.cpp \
+    ThreadSafeHashMap.cpp
 
 SOURCES +=                   \
     ntp1/ntp1tools.cpp       \

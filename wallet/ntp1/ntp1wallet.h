@@ -6,6 +6,7 @@
 #include "ntp1/ntp1tokenmetadata.h"
 #include "ntp1/ntp1outpoint.h"
 #include "curltools.h"
+#include "ThreadSafeHashMap.h"
 
 #include <boost/unordered_map.hpp>
 
@@ -21,7 +22,7 @@ class NTP1Wallet
     // wallet balances
     std::map<std::string, int64_t> balances;
     // map from token id vs icon image data
-    mutable boost::unordered_map<std::string, std::string> tokenIcons;
+    mutable ThreadSafeHashMap<std::string, std::string> tokenIcons;
 
     bool updateBalance;
 
