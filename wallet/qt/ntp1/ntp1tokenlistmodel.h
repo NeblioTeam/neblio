@@ -10,7 +10,7 @@ class NTP1TokenListModel : public QAbstractTableModel
 {
     Q_OBJECT
 
-    NTP1Wallet ntp1wallet;
+    boost::shared_ptr<NTP1Wallet> ntp1wallet;
     QString __getTokenName(int index) const;
     QString __getTokenDescription(int index) const;
     QString __getTokenBalance(int index) const;

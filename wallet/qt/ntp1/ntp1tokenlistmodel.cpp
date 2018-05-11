@@ -8,22 +8,22 @@
 
 QString NTP1TokenListModel::__getTokenName(int index) const
 {
-    return QString::fromStdString(ntp1wallet.getTokenName(index));
+    return QString::fromStdString(ntp1wallet->getTokenName(index));
 }
 
 QString NTP1TokenListModel::__getTokenDescription(int index) const
 {
-    return QString::fromStdString(ntp1wallet.getTokenDescription(index));
+    return QString::fromStdString(ntp1wallet->getTokenDescription(index));
 }
 
 QString NTP1TokenListModel::__getTokenBalance(int index) const
 {
-    return QString::number(ntp1wallet.getTokenBalance(index));
+    return QString::number(ntp1wallet->getTokenBalance(index));
 }
 
 QIcon NTP1TokenListModel::__getTokenIcon(int index) const
 {
-    const std::string& iconData = ntp1wallet.getTokenIcon(index);
+    const std::string& iconData = ntp1wallet->getTokenIcon(index);
     if(iconData.empty()) {
         return QIcon();
     }
@@ -44,6 +44,7 @@ void NTP1TokenListModel::UpdateWalletBalances(boost::shared_ptr<NTP1Wallet> wall
 
 NTP1TokenListModel::NTP1TokenListModel()
 {
+    ntp1wallet = boost::make_shared<NTP1Wallet>();
     walletLocked = false;
     walletUpdateRunning = false;
     walletUpdateBeginnerTimer = new QTimer(this);
@@ -66,7 +67,7 @@ void NTP1TokenListModel::beginWalletUpdate()
     if(!walletUpdateRunning) {
         emit signal_walletUpdateRunning(true);
         walletUpdateRunning = true;
-        boost::shared_ptr<NTP1Wallet> wallet = boost::make_shared<NTP1Wallet>(ntp1wallet);
+        boost::shared_ptr<NTP1Wallet> wallet = boost::make_shared<NTP1Wallet>(*ntp1wallet);
         updateWalletPromise = boost::promise<boost::shared_ptr<NTP1Wallet> >();
         updateWalletFuture = updateWalletPromise.get_future();
         boost::thread t(boost::bind(&NTP1TokenListModel::UpdateWalletBalances, wallet, boost::ref(updateWalletPromise)));
@@ -79,9 +80,9 @@ void NTP1TokenListModel::endWalletUpdate()
     if(walletUpdateRunning && updateWalletFuture.is_ready()) {
         try {
             boost::shared_ptr<NTP1Wallet> wallet = updateWalletFuture.get();
-            if(!(*wallet == ntp1wallet)) {
+            if(!(*wallet == *ntp1wallet)) {
                 beginResetModel();
-                ntp1wallet = *wallet;
+                ntp1wallet = wallet;
                 endResetModel();
             }
         } catch(std::exception& ex) {
@@ -94,7 +95,7 @@ void NTP1TokenListModel::endWalletUpdate()
 
 int NTP1TokenListModel::rowCount(const QModelIndex &parent) const
 {
-    return ntp1wallet.getNumberOfTokens();
+    return ntp1wallet->getNumberOfTokens();
 }
 
 int NTP1TokenListModel::columnCount(const QModelIndex &parent) const
@@ -107,7 +108,7 @@ QVariant NTP1TokenListModel::data(const QModelIndex &index, int role) const
     if (!index.isValid())
         return QVariant();
 
-    if(index.row() >= static_cast<int>(ntp1wallet.getNumberOfTokens()))
+    if(index.row() >= static_cast<int>(ntp1wallet->getNumberOfTokens()))
         return QVariant();
 
     if(role == NTP1TokenListModel::AmountRole) {
