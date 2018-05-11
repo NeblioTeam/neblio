@@ -82,7 +82,7 @@ void NTP1TokenListModel::endWalletUpdate()
             boost::shared_ptr<NTP1Wallet> wallet = updateWalletFuture.get();
             if(!(*wallet == *ntp1wallet)) {
                 beginResetModel();
-                ntp1wallet = wallet;
+                boost::atomic_store(&ntp1wallet, wallet);
                 endResetModel();
             }
         } catch(std::exception& ex) {
