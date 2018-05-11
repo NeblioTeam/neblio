@@ -42,15 +42,14 @@ void NTP1Wallet::__getOutputs()
     updateBalance = true;
 
     for(unsigned long i = 0; i < vecOutputs.size(); i++) {
-        uint256 txHash = vecOutputs[i].tx->GetHash();
+        NTP1OutPoint output = ConvertNeblOutputToNTP1(vecOutputs[i]);
+        uint256 txHash = output.getHash();
         CWalletTx neblTx;
         if(!pwalletMain->GetTransaction(txHash, neblTx)) {
             // TODO: Check the severity of this error
             printf("Error: Although the output number %i of transaction %s belongs to you, it couldn't be found in your wallet.", vecOutputs[i].i, txHash.ToString().c_str());
             continue;
         }
-
-        NTP1OutPoint output = ConvertNeblOutputToNTP1(vecOutputs[i]);
 
         // if output already exists, check if it's spent, if it's remove it
         if(removeOutputIfSpent(output, neblTx)) continue;
@@ -65,11 +64,11 @@ void NTP1Wallet::__getOutputs()
             // transaction with output index
             walletOutputsWithTokens[output] = ntp1tx;
             for(long j = 0; j < static_cast<long>(ntp1tx.getTxOut(output.getIndex()).getNumOfTokens()); j++) {
-                NTP1TokenTxData tokenTx = ntp1tx.getTxOut(i).getToken(j);
+                NTP1TokenTxData tokenTx = ntp1tx.getTxOut(output.getIndex()).getToken(j);
                 tokenInformation[tokenTx.getTokenIdBase58()] =
                         NTP1APICalls::RetrieveData_NTP1TokensMetaData(tokenTx.getTokenIdBase58(),
                                                                       txHash.ToString(),
-                                                                      i,
+                                                                      output.getIndex(),
                                                                       fTestNet);
             }
         }
