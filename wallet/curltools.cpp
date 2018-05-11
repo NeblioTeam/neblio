@@ -64,8 +64,8 @@ std::string cURLTools::GetFileFromHTTPS(const std::string &url, bool IncludeProg
       long http_response_code;
       curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_response_code);
       if (http_response_code != 200) {
-          throw std::runtime_error("Error retrieving data with https protocol, error . " + ToString(http_response_code) +
-                                   "Probably the URL is invalid.");
+          throw std::runtime_error("Error retrieving data with https protocol, error code: " + ToString(http_response_code) +
+                                   ". Probably the URL is invalid.");
       }
     }
 
