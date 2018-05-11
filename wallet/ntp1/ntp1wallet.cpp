@@ -266,3 +266,8 @@ bool NTP1Wallet::hasEverSucceeded() const
 {
     return everSucceededInLoadingTokens;
 }
+
+bool NTP1Wallet::IconHasErrorContent(const string &icon)
+{
+    return icon == ICON_ERROR_CONTENT;
+}
