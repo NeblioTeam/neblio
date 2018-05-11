@@ -247,7 +247,7 @@ string NTP1Wallet::getTokenIcon(int index) const
             const std::string& IconURL = itToken->second.getIconURL();
             tokenIcons[tokenId] = __downloadIcon(IconURL);
         }
-        return itIcon->second;
+        return tokenIcons[tokenId];
     }
 }
 
