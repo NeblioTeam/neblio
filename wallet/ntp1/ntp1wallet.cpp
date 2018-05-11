@@ -219,7 +219,7 @@ int64_t NTP1Wallet::getTokenBalance(int index) const
     }
 }
 
-std::string NTP1Wallet::__downloadIcon(const std::string& IconURL) const {
+std::string NTP1Wallet::__downloadIcon(const std::string& IconURL) {
     try {
         return cURLTools::GetFileFromHTTPS(IconURL, false);
     } catch (std::exception& ex) {

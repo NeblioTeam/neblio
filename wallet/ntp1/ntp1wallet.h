@@ -31,7 +31,7 @@ class NTP1Wallet
 
     void __getOutputs();
     void __RecalculateTokensBalances();
-    std::string __downloadIcon(const std::string &IconURL) const;
+    static std::string __downloadIcon(const std::string &IconURL);
     static void AddOutputToWalletBalance(const NTP1Transaction& tx, int outputIndex, std::map<std::string, int64_t>& balancesTable);
     static void SubtractOutputFromWalletBalance(const NTP1Transaction& tx, int outputIndex, std::map<std::string, int64_t>& balancesTable);
     // returns true if removed
