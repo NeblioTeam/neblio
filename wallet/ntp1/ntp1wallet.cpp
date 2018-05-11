@@ -45,12 +45,13 @@ void NTP1Wallet::__getOutputs()
 
     updateBalance = true;
 
+    int failedRetrievals = 0;
+
     for(unsigned long i = 0; i < vecOutputs.size(); i++) {
         NTP1OutPoint output = ConvertNeblOutputToNTP1(vecOutputs[i]);
         uint256 txHash = output.getHash();
         CWalletTx neblTx;
         if(!pwalletMain->GetTransaction(txHash, neblTx)) {
-            // TODO: Check the severity of this error
             printf("Error: Although the output number %i of transaction %s belongs to you, it couldn't be found in your wallet.", vecOutputs[i].i, txHash.ToString().c_str());
             continue;
         }
@@ -58,8 +59,15 @@ void NTP1Wallet::__getOutputs()
         // if output already exists, check if it's spent, if it's remove it
         if(removeOutputIfSpent(output, neblTx)) continue;
 
-        NTP1Transaction ntp1tx = NTP1APICalls::RetrieveData_TransactionInfo(txHash.ToString(), fTestNet);
-        // TODO: handle exceptions when downloading the wallet; on error, the download should be attempted again later
+        NTP1Transaction ntp1tx;
+        try {
+            ntp1tx = NTP1APICalls::RetrieveData_TransactionInfo(txHash.ToString(), fTestNet);
+        } catch (std::exception& ex) {
+            printf("Unable to download transaction information. Error says: %s", ex.what());
+            failedRetrievals++;
+            continue;
+        }
+
         if(walletOutputsWithTokens.find(output) != walletOutputsWithTokens.end()) {
             throw std::logic_error("Error while loading NTP1 tokens. Transaction hash found twice.");
         }
@@ -78,7 +86,7 @@ void NTP1Wallet::__getOutputs()
             }
         }
     }
-    lastSizeFound = vecOutputs.size();
+    lastSizeFound = vecOutputs.size() - failedRetrievals;
 }
 
 void NTP1Wallet::__RecalculateTokensBalances()
