@@ -8,6 +8,8 @@
 #include "guiconstants.h"
 #include "ntp1/ntp1tokenlistitemdelegate.h"
 
+#include <QKeyEvent>
+
 NTP1Summary::NTP1Summary(QWidget *parent) :
     QWidget(parent),
     ui(new Ui_NTP1Summary),
@@ -35,17 +37,26 @@ NTP1Summary::NTP1Summary(QWidget *parent) :
     showOutOfSyncWarning(true);
 
     model = new NTP1TokenListModel;
-    filter = new NTP1TokenListFilterProxy;
+    filter = new NTP1TokenListFilterProxy(ui->filter_lineEdit);
     setModel(model);
 
     connect(model, &NTP1TokenListModel::signal_walletUpdateRunning,
-            this->ui->upper_table_loading_label, &QLabel::setVisible);
+            ui->upper_table_loading_label, &QLabel::setVisible);
+    connect(ui->filter_lineEdit, &QLineEdit::textChanged,
+            filter, &NTP1TokenListFilterProxy::setFilterWildcard);
 }
 
 void NTP1Summary::handleTokenClicked(const QModelIndex &index)
 {
     if(filter)
         emit tokenClicked(filter->mapToSource(index));
+}
+
+void NTP1Summary::keyPressEvent(QKeyEvent *event)
+{
+    if(event->key() == Qt::Key_F && (event->modifiers() & Qt::ControlModifier)) {
+        ui->filter_lineEdit->setFocus();
+    }
 }
 
 NTP1Summary::~NTP1Summary()
