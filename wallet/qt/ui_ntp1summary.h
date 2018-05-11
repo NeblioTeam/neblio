@@ -14,6 +14,7 @@
 #include <QtWidgets/QSpacerItem>
 #include <QtWidgets/QVBoxLayout>
 #include <QtWidgets/QWidget>
+#include <QtWidgets/QLineEdit>
 
 #include <QMovie>
 #include <ClickableLabel.h>
@@ -34,6 +35,7 @@ public:
     QHBoxLayout *horizontalLayout_2;
     QLabel *upper_table_label;
     QLabel *upper_table_loading_label;
+    QLineEdit *filter_lineEdit;
     QLabel *labelBlockchainSyncStatus;
     QListView *listTokens;
 
@@ -100,6 +102,8 @@ public:
         upper_table_loading_label = new QLabel(wallet_contents_frame);
         upper_table_loading_label->setObjectName(QStringLiteral("upper_table_loading_label"));
         upper_table_loading_label->setText("(Updating...)");
+        filter_lineEdit = new QLineEdit(wallet_contents_frame);
+        filter_lineEdit->setPlaceholderText("Filter (Ctrl+F)");
 
         horizontalLayout_2->addWidget(upper_table_label);
         horizontalLayout_2->addWidget(upper_table_loading_label);
@@ -113,6 +117,7 @@ public:
         horizontalLayout_2->addWidget(labelBlockchainSyncStatus);
 
         verticalLayout->addLayout(horizontalLayout_2);
+        verticalLayout->addWidget(filter_lineEdit);
 
         listTokens = new QListView(wallet_contents_frame);
         listTokens->setObjectName(QStringLiteral("listTokens"));

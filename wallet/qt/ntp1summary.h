@@ -52,6 +52,10 @@ private:
 
 private slots:
     void handleTokenClicked(const QModelIndex &index);
+
+    // QWidget interface
+protected:
+    void keyPressEvent(QKeyEvent *event);
 };
 
 #endif // NTP1SUMMARY_H
