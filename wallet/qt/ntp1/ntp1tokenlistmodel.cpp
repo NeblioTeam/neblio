@@ -24,7 +24,7 @@ QString NTP1TokenListModel::__getTokenBalance(int index) const
 QIcon NTP1TokenListModel::__getTokenIcon(int index) const
 {
     const std::string& iconData = ntp1wallet->getTokenIcon(index);
-    if(iconData.empty()) {
+    if(iconData.empty() || NTP1Wallet::IconHasErrorContent(iconData)) {
         return QIcon();
     }
     QImage iconImage;

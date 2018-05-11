@@ -29,9 +29,6 @@ class NTP1Wallet
     // remains false until a successful attempt to retrieve tokens is over (for display purposes)
     bool everSucceededInLoadingTokens;
 
-    static const std::string ICON_ERROR_CONTENT;
-
-
     void __getOutputs();
     void __RecalculateTokensBalances();
     std::string __downloadIcon(const std::string &IconURL) const;
@@ -46,6 +43,8 @@ class NTP1Wallet
     // when scanning the neblio wallet, this is the number of relevant transactions found
     int64_t lastSizeFound;
 
+    static const std::string ICON_ERROR_CONTENT;
+
 public:
     NTP1Wallet();
     void update();
@@ -58,6 +57,7 @@ public:
     int64_t getNumberOfTokens() const;
     bool hasEverSucceeded() const;
     friend inline bool operator==(const NTP1Wallet& lhs, const NTP1Wallet& rhs);
+    static bool IconHasErrorContent(const std::string& icon);
 };
 
 bool operator==(const NTP1Wallet &lhs, const NTP1Wallet &rhs)
