@@ -25,8 +25,6 @@ void NTP1Wallet::update()
 
 void NTP1Wallet::__getOutputs()
 {
-    std::vector<COutput> vecOutputs;
-
     // this helps in persisting to get the wallet data when the application is launched for the first time and nebl wallet is null still
     // the 100 number is just a protection against infinite waiting
     for(int i = 0; i < 100 && ((!everSucceededInLoadingTokens && pwalletMain == NULL) || !appInitiated); i++) {
@@ -36,12 +34,19 @@ void NTP1Wallet::__getOutputs()
     if(pwalletMain == NULL) {
         return;
     }
-    pwalletMain->AvailableCoins(vecOutputs);
 
-    // if no new outpust are available
-    if(lastSizeFound == static_cast<int64_t>(vecOutputs.size())) {
-        return;
+    {
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+        pwalletMain->mapWallet.size();
+
+        // if no new outpust are available
+        if(lastSizeFound == static_cast<int64_t>(pwalletMain->mapWallet.size())) {
+            return;
+        }
     }
+
+    std::vector<COutput> vecOutputs;
+    pwalletMain->AvailableCoins(vecOutputs);
 
     updateBalance = true;
 
