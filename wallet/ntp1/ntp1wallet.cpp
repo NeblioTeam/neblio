@@ -39,7 +39,7 @@ void NTP1Wallet::__getOutputs()
         LOCK2(cs_main, pwalletMain->cs_wallet);
         pwalletMain->mapWallet.size();
 
-        // if no new outpust are available
+        // if no new outputs are available
         if(lastSizeFound == static_cast<int64_t>(pwalletMain->mapWallet.size())) {
             return;
         }
