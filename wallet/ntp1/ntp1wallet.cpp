@@ -57,6 +57,8 @@ void NTP1Wallet::__getOutputs()
         NTP1OutPoint output = ConvertNeblOutputToNTP1(vecOutputs[i]);
         uint256 txHash = output.getHash();
         CWalletTx neblTx;
+
+        // get the transaction from the wallet
         if(!pwalletMain->GetTransaction(txHash, neblTx)) {
             printf("Error: Although the output number %i of transaction %s belongs to you, it couldn't be found in your wallet.", vecOutputs[i].i, txHash.ToString().c_str());
             continue;
