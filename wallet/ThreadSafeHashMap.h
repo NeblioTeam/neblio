@@ -19,6 +19,7 @@ public:
     template<typename K_, typename V_>
     friend inline bool operator==(const ThreadSafeHashMap<K_,V_>& lhs, const ThreadSafeHashMap<K_,V_>& rhs);
     bool get(const K &key, V &value) const;
+    void clear();
 };
 
 template<typename K, typename V>
@@ -68,6 +69,13 @@ bool ThreadSafeHashMap<K,V>::get(const K& key, V& value) const
         value = it->second;
         return true;
     }
+}
+
+template<typename K, typename V>
+void ThreadSafeHashMap<K,V>::clear()
+{
+    boost::unique_lock<boost::shared_mutex> lock(mtx);
+    theMap.clear();
 }
 
 template<typename K, typename V>
