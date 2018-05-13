@@ -26,7 +26,7 @@ void NTP1TokenListItemDelegate::paint(QPainter *painter, const QStyleOptionViewI
     int ypad = 6;
     int halfheight = (mainRect.height() - 2*ypad)/2;
     QRect amountRect(mainRect.left() + xspace, mainRect.top()+ypad, mainRect.width() - xspace, halfheight);
-    QRect addressRect(mainRect.left() + xspace, mainRect.top()+ypad+halfheight, mainRect.width() - xspace, halfheight);
+    QRect descriptionRect(mainRect.left() + xspace, mainRect.top()+ypad+halfheight, mainRect.width() - static_cast<int>(1.1*xspace), halfheight);
     icon.paint(painter, decorationRect);
 
     QString amount = index.data(NTP1TokenListModel::AmountRole).toString();
@@ -37,7 +37,7 @@ void NTP1TokenListItemDelegate::paint(QPainter *painter, const QStyleOptionViewI
     bool confirmed = true;
 
     painter->setPen(foreground);
-    painter->drawText(addressRect, Qt::AlignRight|Qt::AlignVCenter, description);
+    painter->drawText(descriptionRect, Qt::AlignRight|Qt::AlignVCenter, description);
 
     if(amount < 0)
     {
