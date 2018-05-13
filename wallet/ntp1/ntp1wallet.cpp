@@ -9,7 +9,8 @@ const std::string NTP1Wallet::ICON_ERROR_CONTENT = "<DownloadError>";
 
 NTP1Wallet::NTP1Wallet()
 {
-    lastSizeFound = 0;
+    lastTxCount = 0;
+    lastOutputsCount = 0;
     updateBalance = false;
     everSucceededInLoadingTokens = false;
 }
@@ -35,18 +36,18 @@ void NTP1Wallet::__getOutputs()
         return;
     }
 
+    std::vector<COutput> vecOutputs;
+    pwalletMain->AvailableCoins(vecOutputs);
+
     {
         LOCK2(cs_main, pwalletMain->cs_wallet);
-        pwalletMain->mapWallet.size();
 
         // if no new outputs are available
-        if(lastSizeFound == static_cast<int64_t>(pwalletMain->mapWallet.size())) {
+        if(lastTxCount == static_cast<int64_t>(pwalletMain->mapWallet.size()) &&
+           lastOutputsCount == static_cast<int64_t>(vecOutputs.size())) {
             return;
         }
     }
-
-    std::vector<COutput> vecOutputs;
-    pwalletMain->AvailableCoins(vecOutputs);
 
     updateBalance = true;
 
@@ -73,10 +74,6 @@ void NTP1Wallet::__getOutputs()
             continue;
         }
 
-        if(walletOutputsWithTokens.find(output) != walletOutputsWithTokens.end()) {
-            throw std::logic_error("Error while loading NTP1 tokens. Transaction hash found twice.");
-        }
-
         // include only NTP1 transactions
         if(ntp1tx.getTxOut(output.getIndex()).getNumOfTokens() > 0) {
             // transaction with output index
@@ -91,7 +88,15 @@ void NTP1Wallet::__getOutputs()
             }
         }
     }
-    lastSizeFound = vecOutputs.size() - failedRetrievals;
+
+    scanSpentTransactions();
+
+    {
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+
+        lastTxCount = static_cast<int64_t>(pwalletMain->mapWallet.size()) - failedRetrievals;
+        lastOutputsCount = static_cast<int64_t>(vecOutputs.size()) - failedRetrievals;
+    }
 }
 
 void NTP1Wallet::__RecalculateTokensBalances()
@@ -138,7 +143,7 @@ bool NTP1Wallet::removeOutputIfSpent(const NTP1OutPoint &output, const CWalletTx
     boost::unordered_map<NTP1OutPoint, NTP1Transaction>::iterator outputIt = walletOutputsWithTokens.find(output);
     if(outputIt != walletOutputsWithTokens.end()) {
         if(neblTx.IsSpent(output.getIndex())) {
-            SubtractOutputFromWalletBalance(outputIt->second, output.getIndex(), balances);
+//            SubtractOutputFromWalletBalance(outputIt->second, output.getIndex(), balances);
             walletOutputsWithTokens.erase(outputIt);
         }
         return true;
@@ -158,7 +163,7 @@ void NTP1Wallet::scanSpentTransactions()
         const uint256& txHash = it->first.getHash();
         if(!pwalletMain->GetTransaction(txHash, neblTx)) continue;
         if(neblTx.IsSpent(outputIndex)) {
-            considerNTP1OutputSpent(it->first);
+            it = walletOutputsWithTokens.erase(it);
         }
     }
 }
