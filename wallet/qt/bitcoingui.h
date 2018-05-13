@@ -149,8 +149,6 @@ private:
 
     uint64_t nWeight;
 
-    bool showBottomBlackBar;
-
     /** Create the main UI actions. */
     void createActions();
     /** Create the menu bar and sub-menus. */
@@ -187,12 +185,20 @@ private:
         if(overviewPage == NULL) return;
 
         // This draws the bottom gray bar after calculating its position
-        if(!showBottomBlackBar) return;
-        painter.drawRect(0,
-                         overviewPage->ui->bottom_bar_widget->mapTo(
-                             overviewPage->ui->bottom_bar_widget->window(), QPoint(0,0)).y(),
-                         this->size().width(),
-                         overviewPage->ui->bottom_bar_widget->height());
+        if(overviewAction->isChecked()) {
+            painter.drawRect(0,
+                             overviewPage->ui->bottom_bar_widget->mapTo(
+                                 overviewPage->ui->bottom_bar_widget->window(), QPoint(0,0)).y(),
+                             this->size().width(),
+                             overviewPage->ui->bottom_bar_widget->height());
+        }
+        if(ntp1tokensAction->isChecked()) {
+            painter.drawRect(0,
+                             ntp1SummaryPage->ui->bottom_bar_widget->mapTo(
+                                 ntp1SummaryPage->ui->bottom_bar_widget->window(), QPoint(0,0)).y(),
+                             this->size().width(),
+                             ntp1SummaryPage->ui->bottom_bar_widget->height());
+        }
     }
 
 public slots:

@@ -88,9 +88,6 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     QApplication::setAttribute(Qt::AA_DontShowIconsInMenus);
 #endif
 
-    //program starts with overview window shown
-    showBottomBlackBar = true;
-
     //initialization for safety
     overviewPage = NULL;
 
@@ -785,8 +782,6 @@ void BitcoinGUI::incomingTransaction(const QModelIndex & parent, int start, int 
 
 void BitcoinGUI::gotoOverviewPage()
 {
-    showBottomBlackBar = true;
-
     overviewAction->setChecked(true);
     centralWidget->setCurrentWidget(overviewPage);
 
@@ -796,8 +791,6 @@ void BitcoinGUI::gotoOverviewPage()
 
 void BitcoinGUI::gotoNTP1SummaryPage()
 {
-    showBottomBlackBar = true;
-
     ntp1tokensAction->setChecked(true);
     centralWidget->setCurrentWidget(ntp1SummaryPage);
 
@@ -807,8 +800,6 @@ void BitcoinGUI::gotoNTP1SummaryPage()
 
 void BitcoinGUI::gotoHistoryPage()
 {
-    showBottomBlackBar = false;
-
     historyAction->setChecked(true);
     centralWidget->setCurrentWidget(transactionsPage);
 
@@ -819,8 +810,6 @@ void BitcoinGUI::gotoHistoryPage()
 
 void BitcoinGUI::gotoAddressBookPage()
 {
-    showBottomBlackBar = false;
-
     addressBookAction->setChecked(true);
     centralWidget->setCurrentWidget(addressBookPage);
 
@@ -831,8 +820,6 @@ void BitcoinGUI::gotoAddressBookPage()
 
 void BitcoinGUI::gotoReceiveCoinsPage()
 {
-    showBottomBlackBar = false;
-
     receiveCoinsAction->setChecked(true);
     centralWidget->setCurrentWidget(receiveCoinsPage);
 
@@ -843,8 +830,6 @@ void BitcoinGUI::gotoReceiveCoinsPage()
 
 void BitcoinGUI::gotoSendCoinsPage()
 {
-    showBottomBlackBar = false;
-
     sendCoinsAction->setChecked(true);
     centralWidget->setCurrentWidget(sendCoinsPage);
 
@@ -854,8 +839,6 @@ void BitcoinGUI::gotoSendCoinsPage()
 
 void BitcoinGUI::gotoSignMessageTab(QString addr)
 {
-    showBottomBlackBar = false;
-
     // call show() in showTab_SM()
     signVerifyMessageDialog->showTab_SM(true);
 
@@ -865,8 +848,6 @@ void BitcoinGUI::gotoSignMessageTab(QString addr)
 
 void BitcoinGUI::gotoVerifyMessageTab(QString addr)
 {
-    showBottomBlackBar = false;
-
     // call show() in showTab_VM()
     signVerifyMessageDialog->showTab_VM(true);
 
@@ -876,8 +857,6 @@ void BitcoinGUI::gotoVerifyMessageTab(QString addr)
 
 void BitcoinGUI::dragEnterEvent(QDragEnterEvent *event)
 {
-    showBottomBlackBar = false;
-
     // Accept only URIs
     if(event->mimeData()->hasUrls())
         event->acceptProposedAction();
