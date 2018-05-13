@@ -42,7 +42,8 @@ class NTP1Wallet
     static NTP1OutPoint ConvertNeblOutputToNTP1(const COutput& output);
 
     // when scanning the neblio wallet, this is the number of relevant transactions found
-    int64_t lastSizeFound;
+    int64_t lastTxCount;
+    int64_t lastOutputsCount;
 
     static const std::string ICON_ERROR_CONTENT;
 
@@ -67,7 +68,9 @@ bool operator==(const NTP1Wallet &lhs, const NTP1Wallet &rhs)
             lhs.tokenInformation        == rhs.tokenInformation        &&
             lhs.walletOutputsWithTokens == rhs.walletOutputsWithTokens &&
             lhs.tokenIcons              == rhs.tokenIcons              &&
-            lhs.balances                == rhs.balances);
+            lhs.balances                == rhs.balances                &&
+            lhs.lastTxCount             == rhs.lastTxCount             &&
+            lhs.lastOutputsCount        == rhs.lastOutputsCount);
 }
 
 #endif // NTP1WALLET_H
