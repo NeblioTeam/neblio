@@ -59,6 +59,32 @@ void NTP1TokenTxData::importJsonData(const json_spirit::Value &data)
     }
 }
 
+json_spirit::Value NTP1TokenTxData::exportDatabaseJsonData() const
+{
+    json_spirit::Object root;
+
+    root.push_back(json_spirit::Pair("tokenId", getTokenIdBase58()));
+    root.push_back(json_spirit::Pair("issueTxid", getIssueTxId().ToString()));
+    root.push_back(json_spirit::Pair("amount", amount));
+    root.push_back(json_spirit::Pair("divisibility", divisibility));
+    root.push_back(json_spirit::Pair("lockStatus", lockStatus));
+    root.push_back(json_spirit::Pair("aggregationPolicy", aggregationPolicy));
+
+    return json_spirit::Value(root);
+}
+
+void NTP1TokenTxData::importDatabaseJsonData(const json_spirit::Value &data)
+{
+    setNull();
+
+    setTokenIdBase58(NTP1Tools::GetStrField(data.get_obj(), "tokenId"));
+    setIssueTxIdHex(NTP1Tools::GetStrField(data.get_obj(), "issueTxid"));
+    amount = NTP1Tools::GetUint64Field(data.get_obj(), "amount");
+    divisibility = NTP1Tools::GetUint64Field(data.get_obj(), "divisibility");
+    lockStatus = NTP1Tools::GetBoolField(data.get_obj(), "lockStatus");
+    aggregationPolicy = NTP1Tools::GetStrField(data.get_obj(), "aggregationPolicy");
+}
+
 std::string NTP1TokenTxData::getTokenIdBase58() const
 {
     return EncodeBase58(tokenId);

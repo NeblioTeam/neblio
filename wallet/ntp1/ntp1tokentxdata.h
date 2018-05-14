@@ -21,6 +21,8 @@ public:
     void setIssueTxIdHex(const std::string& hex);
     void importJsonData(const std::string& data);
     void importJsonData(const json_spirit::Value& data);
+    json_spirit::Value exportDatabaseJsonData() const;
+    void importDatabaseJsonData(const json_spirit::Value& data);
     std::string getTokenIdBase58() const;
     uint64_t getAmount() const;
     uint64_t getDivisibility() const;

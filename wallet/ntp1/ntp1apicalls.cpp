@@ -39,7 +39,7 @@ NTP1TokenMetaData NTP1APICalls::RetrieveData_NTP1TokensMetaData(const std::strin
                                                                           testnet);
         std::string ntpData = cURLTools::GetFileFromHTTPS(ntp1MetaDataURL, false);
         NTP1TokenMetaData metadata;
-        metadata.importJsonData(ntpData);
+        metadata.importRestfulAPIJsonData(ntpData);
         return metadata;
     } catch(std::exception& ex) {
         printf("%s", ex.what());

@@ -5,6 +5,14 @@ NTP1TxIn::NTP1TxIn()
     nSequence = std::numeric_limits<unsigned int>::max();
 }
 
+void NTP1TxIn::setNull()
+{
+    prevout.setNull();
+    scriptSigHex.clear();
+    nSequence = 0;
+    tokens.clear();
+}
+
 void NTP1TxIn::importJsonData(const json_spirit::Value& parsedData)
 {
     try {
@@ -25,6 +33,38 @@ void NTP1TxIn::importJsonData(const json_spirit::Value& parsedData)
     } catch(std::exception& ex) {
         printf("%s", ex.what());
         throw;
+    }
+}
+
+json_spirit::Value NTP1TxIn::exportDatabaseJsonData() const
+{
+    json_spirit::Object root;
+
+    root.push_back(json_spirit::Pair("prevout", prevout.exportDatabaseJsonData()));
+    root.push_back(json_spirit::Pair("scriptSig", scriptSigHex));
+    root.push_back(json_spirit::Pair("sequence", nSequence));
+    json_spirit::Array tokensArray;
+
+    for(long i = 0; i < static_cast<long>(tokens.size()); i++) {
+        tokensArray.push_back(tokens[i].exportDatabaseJsonData());
+    }
+    root.push_back(json_spirit::Pair("tokens", json_spirit::Value(tokensArray)));
+
+    return json_spirit::Value(root);
+}
+
+void NTP1TxIn::importDatabaseJsonData(const json_spirit::Value &data)
+{
+    setNull();
+
+    prevout.importDatabaseJsonData(NTP1Tools::GetObjectField(data.get_obj(), "prevout"));
+    scriptSigHex = NTP1Tools::GetStrField(data.get_obj(), "scriptSig");
+    nSequence = NTP1Tools::GetUint64Field(data.get_obj(), "sequence");
+    json_spirit::Array tokens_list = NTP1Tools::GetArrayField(data.get_obj(), "tokens");
+    tokens.clear();
+    tokens.resize(tokens_list.size());
+    for(unsigned long i = 0; i < tokens_list.size(); i++) {
+        tokens[i].importDatabaseJsonData(tokens_list[i]);
     }
 }
 void NTP1TxIn::importJsonData(const std::string &data)

@@ -31,9 +31,8 @@ void NTP1Transaction::importJsonData(const std::string &data)
     try {
         json_spirit::Value parsedData;
         json_spirit::read_or_throw(data, parsedData);
-        std::string hex = NTP1Tools::GetStrField(parsedData.get_obj(), "hex");
-        boost::algorithm::unhex(hex.begin(), hex.end(), std::back_inserter(txSerialized));
-        assert(hex.size()/2 == txSerialized.size());
+
+        setHex(NTP1Tools::GetStrField(parsedData.get_obj(), "hex"));
         std::string hash = NTP1Tools::GetStrField(parsedData.get_obj(), "txid");
         txHash.SetHex(hash);
         nLockTime = NTP1Tools::GetUint64Field(parsedData.get_obj(), "locktime");
@@ -57,11 +56,67 @@ void NTP1Transaction::importJsonData(const std::string &data)
     }
 }
 
+json_spirit::Value NTP1Transaction::exportDatabaseJsonData() const
+{
+    json_spirit::Object root;
+
+    root.push_back(json_spirit::Pair("version", nVersion));
+    root.push_back(json_spirit::Pair("txid", txHash.GetHex()));
+    root.push_back(json_spirit::Pair("locktime", nLockTime));
+    root.push_back(json_spirit::Pair("time", nTime));
+    root.push_back(json_spirit::Pair("hex", getHex()));
+
+    json_spirit::Array vinArray;
+    for(long i = 0; i < static_cast<long>(vin.size()); i++) {
+        vinArray.push_back(vin[i].exportDatabaseJsonData());
+    }
+    root.push_back(json_spirit::Pair("vin", json_spirit::Value(vinArray)));
+
+    json_spirit::Array voutArray;
+    for(long i = 0; i < static_cast<long>(vout.size()); i++) {
+        voutArray.push_back(vout[i].exportDatabaseJsonData());
+    }
+    root.push_back(json_spirit::Pair("vout", json_spirit::Value(voutArray)));
+
+    return json_spirit::Value(root);
+}
+
+void NTP1Transaction::importDatabaseJsonData(const json_spirit::Value &data)
+{
+    setNull();
+
+    nVersion = NTP1Tools::GetUint64Field(data.get_obj(), "version");
+    txHash.SetHex(NTP1Tools::GetStrField(data.get_obj(), "txid"));
+    nLockTime = NTP1Tools::GetUint64Field(data.get_obj(), "locktime");
+    nTime = NTP1Tools::GetUint64Field(data.get_obj(), "time");
+    setHex(NTP1Tools::GetStrField(data.get_obj(), "hex"));
+
+    json_spirit::Array vin_list = NTP1Tools::GetArrayField(data.get_obj(), "vin");
+    vin.clear();
+    vin.resize(vin_list.size());
+    for(unsigned long i = 0; i < vin_list.size(); i++) {
+        vin[i].importDatabaseJsonData(vin_list[i]);
+    }
+
+    json_spirit::Array vout_list = NTP1Tools::GetArrayField(data.get_obj(), "vout");
+    vout.clear();
+    vout.resize(vout_list.size());
+    for(unsigned long i = 0; i < vout_list.size(); i++) {
+        vout[i].importDatabaseJsonData(vout_list[i]);
+    }
+}
+
 std::string NTP1Transaction::getHex() const
 {
     std::string out;
     boost::algorithm::hex(txSerialized.begin(), txSerialized.end(), std::back_inserter(out));
     return out;
+}
+
+void NTP1Transaction::setHex(const std::string& Hex)
+{
+    txSerialized.clear();
+    boost::algorithm::unhex(Hex.begin(), Hex.end(), std::back_inserter(txSerialized));
 }
 
 uint256 NTP1Transaction::getTxHash() const

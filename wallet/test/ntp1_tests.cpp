@@ -54,6 +54,12 @@ TEST(ntp1_tests, parse_NTP1TokenData)
     EXPECT_EQ(token_good.getLockStatus(), true);
     EXPECT_EQ(token_good.getAggregationPolicy(), "aggregatable");
     EXPECT_EQ(token_good.getIssueTxId().ToString(), "8e5b8361d16f166afd4f091d50554b93395dc44bd18a0904ac1e4f5532925d6b");
+
+    // test database saving
+    json_spirit::Value v = token_good.exportDatabaseJsonData();
+    NTP1TokenTxData m;
+    m.importDatabaseJsonData(v);
+    EXPECT_EQ(m, token_good);
 }
 
 TEST(ntp1_tests, parse_NTP1Transaction)
@@ -114,12 +120,17 @@ TEST(ntp1_tests, parse_NTP1Transaction)
     EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getIssueTxId().ToString(), "8e5b8361d16f166afd4f091d50554b93395dc44bd18a0904ac1e4f5532925d6b");
     EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getTokenIdBase58(), "LaAGekc9oBLcxMUXWzzbMoHRsZXYwhw1Ciox3z");
     EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getLockStatus(), true);
+
+    json_spirit::Value v = tx_good.exportDatabaseJsonData();
+    NTP1Transaction t;
+    t.importDatabaseJsonData(v);
+    EXPECT_EQ(t, tx_good);
 }
 
 TEST(ntp1_tests, token_meta_data) {
     std::string metadata = "{\"tokenId\":\"La3QxvUgFwKz2jjQR2HSrwaKcRgotf4tGVkMJx\",\"divisibility\":7,\"lockStatus\":true,\"aggregationPolicy\":\"aggregatable\",\"someUtxo\":\"0001e26e6b5e98d1b4e96987f1e010f351f4fa2d6d0bacfafc7f501787bbf4f6:8\",\"numOfHolders\":8281,\"totalSupply\":1607509562,\"numOfTransfers\":1679,\"numOfIssuance\":1,\"numOfBurns\":1,\"firstBlock\":159746,\"issuanceTxid\":\"578a788a8a86ccc7fa0c045ee63ff1dd9c05ae38b08ef10ac62d18ff9783ee56\",\"issueAddress\":\"NMi41ze2XnxJrMNGtSGheGqLR3h4dabREW\",\"metadataOfIssuence\":{\"data\":{\"tokenName\":\"TRIF\",\"description\":\"Trifid\",\"issuer\":\"TrifidTeam\",\"urls\":[{\"name\":\"icon\",\"url\":\"https://ntp1-icons.ams3.digitaloceanspaces.com/24d000d478d72d6a43b89bbabbe41a45acde9ba0.png\",\"mimeType\":\"image/png\"}],\"userData\":{\"meta\":[]}}},\"sha2Issue\":\"c5f374b0f087cd3ebba03c0046123459e5e8adb2071af6cbae840e1f778cc113\"}";
     NTP1TokenMetaData tokenMetaData;
-    EXPECT_NO_THROW(tokenMetaData.importJsonData(metadata));
+    EXPECT_NO_THROW(tokenMetaData.importRestfulAPIJsonData(metadata));
 
     EXPECT_EQ(tokenMetaData.getTokenIdBase58(), "La3QxvUgFwKz2jjQR2HSrwaKcRgotf4tGVkMJx");
     EXPECT_EQ(tokenMetaData.getAggregationPolicy(), "aggregatable");
@@ -145,7 +156,7 @@ TEST(ntp1_tests, token_meta_data) {
 TEST(ntp1_tests, token_meta_data_without_url) {
     std::string metadata = "{\"tokenId\":\"La3QxvUgFwKz2jjQR2HSrwaKcRgotf4tGVkMJx\",\"divisibility\":7,\"lockStatus\":true,\"aggregationPolicy\":\"aggregatable\",\"someUtxo\":\"0001e26e6b5e98d1b4e96987f1e010f351f4fa2d6d0bacfafc7f501787bbf4f6:8\",\"numOfHolders\":8281,\"totalSupply\":1607509562,\"numOfTransfers\":1679,\"numOfIssuance\":1,\"numOfBurns\":1,\"firstBlock\":159746,\"issuanceTxid\":\"578a788a8a86ccc7fa0c045ee63ff1dd9c05ae38b08ef10ac62d18ff9783ee56\",\"issueAddress\":\"NMi41ze2XnxJrMNGtSGheGqLR3h4dabREW\",\"metadataOfIssuence\":{\"data\":{\"tokenName\":\"TRIF\",\"description\":\"Trifid\",\"issuer\":\"TrifidTeam\",\"userData\":{\"meta\":[]}}},\"sha2Issue\":\"c5f374b0f087cd3ebba03c0046123459e5e8adb2071af6cbae840e1f778cc113\"}";
     NTP1TokenMetaData tokenMetaData;
-    EXPECT_NO_THROW(tokenMetaData.importJsonData(metadata));
+    EXPECT_NO_THROW(tokenMetaData.importRestfulAPIJsonData(metadata));
 
     EXPECT_EQ(tokenMetaData.getTokenIdBase58(), "La3QxvUgFwKz2jjQR2HSrwaKcRgotf4tGVkMJx");
     EXPECT_EQ(tokenMetaData.getAggregationPolicy(), "aggregatable");
@@ -166,4 +177,10 @@ TEST(ntp1_tests, token_meta_data_without_url) {
     EXPECT_EQ(tokenMetaData.getTokenName(), "TRIF");
     EXPECT_EQ(tokenMetaData.getTokenIssuer(), "TrifidTeam");
     EXPECT_EQ(tokenMetaData.getTotalSupply(), (unsigned)1607509562);
+
+    // test database saving
+    json_spirit::Value v = tokenMetaData.exportDatabaseJsonData();
+    NTP1TokenMetaData m;
+    m.importDatabaseJsonData(v);
+    EXPECT_EQ(m, tokenMetaData);
 }

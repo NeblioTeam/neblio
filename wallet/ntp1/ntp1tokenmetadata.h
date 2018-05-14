@@ -34,8 +34,10 @@ public:
     void setNull();
     bool isNull() const;
 
-    void importJsonData(const std::string& data);
-    void importJsonData(const json_spirit::Value& data);
+    void importRestfulAPIJsonData(const std::string& data);
+    void importRestfulAPIJsonData(const json_spirit::Value& data);
+    json_spirit::Value exportDatabaseJsonData() const;
+    void importDatabaseJsonData(const json_spirit::Value& data);
 
     NTP1TokenMetaData();
     std::string getTokenIdBase58() const;
