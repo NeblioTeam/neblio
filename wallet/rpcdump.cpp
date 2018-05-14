@@ -519,7 +519,7 @@ std::string GetCurrentWalletHash() {
         CKey key;
         bool getKeySucceeded = pwalletMain->GetKey(allKeyIDs[i],key);
         if(!getKeySucceeded) {
-            printf("Failed to get key number %i", i);
+            printf("Failed to get key number %ld", i);
             continue;
         }
         finalStringToHash += key.GetPubKey().GetHash().ToString();
