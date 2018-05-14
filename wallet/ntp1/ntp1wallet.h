@@ -7,6 +7,7 @@
 #include "ntp1/ntp1outpoint.h"
 #include "curltools.h"
 #include "ThreadSafeHashMap.h"
+#include "json/json_spirit.h"
 
 #include <boost/unordered_map.hpp>
 
@@ -60,6 +61,13 @@ public:
     bool hasEverSucceeded() const;
     friend inline bool operator==(const NTP1Wallet& lhs, const NTP1Wallet& rhs);
     static bool IconHasErrorContent(const std::string& icon);
+    void clear();
+    static std::string Serialize(const NTP1Wallet& wallet);
+    static NTP1Wallet Deserialize(const std::string& data);
+    template <typename Container>
+        static json_spirit::Value SerializeMap(const Container& TheMap);
+    template <typename Container>
+        static Container DeserializeMap(const json_spirit::Object& json_obj);
 };
 
 bool operator==(const NTP1Wallet &lhs, const NTP1Wallet &rhs)

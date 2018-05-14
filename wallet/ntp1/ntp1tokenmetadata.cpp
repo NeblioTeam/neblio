@@ -34,19 +34,19 @@ bool NTP1TokenMetaData::isNull() const
     return tokenId.size() == 0;
 }
 
-void NTP1TokenMetaData::importJsonData(const std::string &data)
+void NTP1TokenMetaData::importRestfulAPIJsonData(const std::string &data)
 {
     try {
         json_spirit::Value parsedData;
         json_spirit::read_or_throw(data, parsedData);
-        importJsonData(parsedData);
+        importRestfulAPIJsonData(parsedData);
     } catch(std::exception& ex) {
         printf("%s", ex.what());
         throw;
     }
 }
 
-void NTP1TokenMetaData::importJsonData(const json_spirit::Value &data)
+void NTP1TokenMetaData::importRestfulAPIJsonData(const json_spirit::Value &data)
 {
     try {
         setTokenIdBase58(NTP1Tools::GetStrField(data.get_obj(), "tokenId"));
@@ -83,18 +83,63 @@ void NTP1TokenMetaData::importJsonData(const json_spirit::Value &data)
         } catch (...) {}
         sha2Issue = NTP1Tools::GetStrField(data.get_obj(), "sha2Issue");
 
-//        tokenName.clear();
-//        tokenDescription.clear();
-//        tokenIssuer.clear();
-//        iconURL.clear();
-//        iconType.clear();
-//        sha2Issue.clear();
-
     } catch(std::exception& ex) {
         printf("%s", ex.what());
         throw;
     }
 }
+
+json_spirit::Value NTP1TokenMetaData::exportDatabaseJsonData() const
+{
+    json_spirit::Object root;
+
+    root.push_back(json_spirit::Pair("tokenId", getTokenIdBase58()));
+    root.push_back(json_spirit::Pair("issuanceTxid", getIssuanceTxIdHex()));
+    root.push_back(json_spirit::Pair("divisibility", divisibility));
+    root.push_back(json_spirit::Pair("lockStatus", lockStatus));
+    root.push_back(json_spirit::Pair("aggregationPolicy", aggregationPolicy));
+    root.push_back(json_spirit::Pair("numOfHolders", numOfHolders));
+    root.push_back(json_spirit::Pair("totalSupply", totalSupply));
+    root.push_back(json_spirit::Pair("numOfTransfers", numOfTransfers));
+    root.push_back(json_spirit::Pair("numOfIssuance", numOfIssuance));
+    root.push_back(json_spirit::Pair("numOfBurns", numOfBurns));
+    root.push_back(json_spirit::Pair("firstBlock", firstBlock));
+    root.push_back(json_spirit::Pair("issueAddress", issueAddress.ToString()));
+    root.push_back(json_spirit::Pair("tokenName", tokenName));
+    root.push_back(json_spirit::Pair("tokenDescription", tokenDescription));
+    root.push_back(json_spirit::Pair("tokenIssuer", tokenIssuer));
+    root.push_back(json_spirit::Pair("iconURL", iconURL));
+    root.push_back(json_spirit::Pair("iconImageType", iconImageType));
+    root.push_back(json_spirit::Pair("sha2Issue", sha2Issue));
+
+    return json_spirit::Value(root);
+}
+
+void NTP1TokenMetaData::importDatabaseJsonData(const json_spirit::Value &data)
+{
+    setNull();
+
+    setTokenIdBase58(NTP1Tools::GetStrField(data.get_obj(), "tokenId"));
+    setIssuanceTxIdHex(NTP1Tools::GetStrField(data.get_obj(), "issuanceTxid"));
+    divisibility = NTP1Tools::GetUint64Field(data.get_obj(), "divisibility");
+    lockStatus = NTP1Tools::GetBoolField(data.get_obj(), "lockStatus");
+    aggregationPolicy = NTP1Tools::GetStrField(data.get_obj(), "aggregationPolicy");
+    numOfHolders = NTP1Tools::GetUint64Field(data.get_obj(), "numOfHolders");
+    totalSupply = NTP1Tools::GetUint64Field(data.get_obj(), "totalSupply");
+    numOfTransfers = NTP1Tools::GetUint64Field(data.get_obj(), "numOfTransfers");
+    numOfIssuance = NTP1Tools::GetUint64Field(data.get_obj(), "numOfIssuance");
+    numOfBurns = NTP1Tools::GetUint64Field(data.get_obj(), "numOfBurns");
+    firstBlock = NTP1Tools::GetUint64Field(data.get_obj(), "firstBlock");
+    issueAddress = CBitcoinAddress(NTP1Tools::GetStrField(data.get_obj(), "issueAddress"));
+    tokenName = NTP1Tools::GetStrField(data.get_obj(), "tokenName");
+    tokenDescription = NTP1Tools::GetStrField(data.get_obj(), "tokenDescription");
+    tokenIssuer = NTP1Tools::GetStrField(data.get_obj(), "tokenIssuer");
+    iconURL = NTP1Tools::GetStrField(data.get_obj(), "iconURL");
+    iconImageType = NTP1Tools::GetStrField(data.get_obj(), "iconImageType");
+    sha2Issue = NTP1Tools::GetStrField(data.get_obj(), "sha2Issue");
+
+}
+
 
 void NTP1TokenMetaData::setTokenIdBase58(const std::string &Str)
 {

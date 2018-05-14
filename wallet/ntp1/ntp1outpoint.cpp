@@ -1,4 +1,5 @@
 #include "ntp1outpoint.h"
+#include "ntp1tools.h"
 
 NTP1OutPoint::NTP1OutPoint()
 {
@@ -30,4 +31,22 @@ uint256 NTP1OutPoint::getHash() const
 unsigned int NTP1OutPoint::getIndex() const
 {
     return index;
+}
+
+json_spirit::Value NTP1OutPoint::exportDatabaseJsonData() const
+{
+    json_spirit::Object root;
+
+    root.push_back(json_spirit::Pair("hash", hash.ToString()));
+    root.push_back(json_spirit::Pair("index", uint64_t(index)));
+
+    return json_spirit::Value(root);
+}
+
+void NTP1OutPoint::importDatabaseJsonData(const json_spirit::Value &data)
+{
+    setNull();
+
+    index = NTP1Tools::GetUint64Field(data.get_obj(), "index");
+    hash.SetHex(NTP1Tools::GetStrField(data.get_obj(), "hash"));
 }

@@ -20,8 +20,11 @@ class NTP1TxIn
 
 public:
     NTP1TxIn();
+    void setNull();
     void importJsonData(const std::string& data);
     void importJsonData(const json_spirit::Value& parsedData);
+    json_spirit::Value exportDatabaseJsonData() const;
+    void importDatabaseJsonData(const json_spirit::Value& data);
     NTP1OutPoint getOutPoint() const;
     std::string getScriptSigHex() const;
     uint64_t getSequence() const;

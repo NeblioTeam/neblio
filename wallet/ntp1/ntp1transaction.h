@@ -28,6 +28,9 @@ public:
     void setNull();
     bool isNull() const;
     void importJsonData(const std::string& data);
+    json_spirit::Value exportDatabaseJsonData() const;
+    void importDatabaseJsonData(const json_spirit::Value& data);
+    void setHex(const std::string &Hex);
     std::string getHex() const;
     uint256 getTxHash() const;
     uint64_t getLockTime() const;

@@ -54,6 +54,35 @@ void NTP1TxOut::importJsonData(const json_spirit::Value &parsedData)
     }
 }
 
+json_spirit::Value NTP1TxOut::exportDatabaseJsonData() const
+{
+    json_spirit::Object root;
+
+    root.push_back(json_spirit::Pair("value", nValue));
+    root.push_back(json_spirit::Pair("scriptPubKey", scriptPubKeyHex));
+    json_spirit::Array tokensArray;
+    for(long i = 0; i < static_cast<long>(tokens.size()); i++) {
+        tokensArray.push_back(tokens[i].exportDatabaseJsonData());
+    }
+    root.push_back(json_spirit::Pair("tokens", json_spirit::Value(tokensArray)));
+
+    return json_spirit::Value(root);
+}
+
+void NTP1TxOut::importDatabaseJsonData(const json_spirit::Value &data)
+{
+    setNull();
+
+    nValue = NTP1Tools::GetUint64Field(data.get_obj(), "value");
+    scriptPubKeyHex = NTP1Tools::GetStrField(data.get_obj(), "scriptPubKey");
+    json_spirit::Array tokens_list = NTP1Tools::GetArrayField(data.get_obj(), "tokens");
+    tokens.clear();
+    tokens.resize(tokens_list.size());
+    for(unsigned long i = 0; i < tokens_list.size(); i++) {
+        tokens[i].importDatabaseJsonData(tokens_list[i]);
+    }
+}
+
 int64_t NTP1TxOut::getValue() const
 {
     return nValue;

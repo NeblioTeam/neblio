@@ -8,6 +8,8 @@
 
 #include <boost/functional/hash.hpp>
 
+#include "json/json_spirit.h"
+
 class NTP1OutPoint
 {
     uint256 hash;
@@ -20,6 +22,8 @@ public:
     uint256 getHash() const;
     unsigned int getIndex() const;
     friend inline bool operator==(const NTP1OutPoint& lhs, const NTP1OutPoint& rhs);
+    json_spirit::Value exportDatabaseJsonData() const;
+    void importDatabaseJsonData(const json_spirit::Value& data);
 };
 
 

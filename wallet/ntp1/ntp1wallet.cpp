@@ -301,3 +301,79 @@ bool NTP1Wallet::IconHasErrorContent(const string &icon)
 {
     return icon == ICON_ERROR_CONTENT;
 }
+
+void NTP1Wallet::clear()
+{
+    tokenInformation.clear();
+    walletOutputsWithTokens.clear();
+    tokenIcons.clear();
+    balances.clear();
+    lastTxCount = 0;
+    lastOutputsCount = 0;
+}
+
+string NTP1Wallet::Serialize(const NTP1Wallet &wallet)
+{
+    json_spirit::Object root;
+
+    root.push_back(json_spirit::Pair("token_info", SerializeMap(wallet.tokenInformation)));
+
+    root.push_back( json_spirit::Pair( "identifier", "id" ) );
+    root.push_back( json_spirit::Pair( "label", "name" ) );
+    root.push_back( json_spirit::Pair( "items", json_spirit::Array() ) );
+
+    json_spirit::Array& items_array = root.back().value_.get_array();
+    items_array.push_back( json_spirit::Object() );
+
+    json_spirit::Object& item_1 = items_array.back().get_obj();
+    item_1.push_back( json_spirit::Pair( "id", "Vehicle_n" ) );
+    item_1.push_back( json_spirit::Pair( "name", "Vehicle" ) );
+    item_1.push_back( json_spirit::Pair( "type", "root" ) );
+    item_1.push_back( json_spirit::Pair( "children", json_spirit::Array() ) );
+
+    json_spirit::Array& children_array = item_1.back().value_.get_array();
+
+    children_array.push_back( json_spirit::Object() );
+    json_spirit::Object& child_1 = children_array.back().get_obj();
+    child_1.push_back( json_spirit::Pair( "_reference", "Passenger_n" ) );
+
+    children_array.push_back( json_spirit::Object() );
+    json_spirit::Object& child_2 = children_array.back().get_obj();
+    child_2.push_back( json_spirit::Pair( "_reference", "Commercial_n" ) );
+
+    return json_spirit::write_formatted( root );
+}
+
+NTP1Wallet NTP1Wallet::Deserialize(const string &data)
+{
+    NTP1Wallet result;
+
+    return result;
+}
+
+template<typename Container>
+json_spirit::Value NTP1Wallet::SerializeMap(const Container &TheMap)
+{
+    json_spirit::Object json_obj;
+    for(typename Container::const_iterator it = TheMap.begin();
+        it != TheMap.end();
+        it++) {
+        std::string first = it->first;
+        json_spirit::Value second = it->second.exportDatabaseJsonData();
+        json_obj.push_back( json_spirit::Pair(first, second) );
+    }
+    json_spirit::Value json_value(json_obj);
+    return json_value;
+}
+
+template<typename Container>
+Container NTP1Wallet::DeserializeMap(const json_spirit::Object &json_obj)
+{
+    Container result;
+    for(typename json_spirit::Object::const_iterator it = json_obj.begin();
+        it != json_obj.end();
+        ++it) {
+        result.insert(*it);
+    }
+    return result;
+}
