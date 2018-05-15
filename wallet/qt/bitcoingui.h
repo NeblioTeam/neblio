@@ -145,7 +145,7 @@ private:
 
     QMovie *syncIconMovie;
 
-    QToolBar *toolbar = NULL;
+    QToolBar *toolbar;
 
     uint64_t nWeight;
 

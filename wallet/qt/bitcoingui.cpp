@@ -88,6 +88,8 @@ BitcoinGUI::BitcoinGUI(QWidget *parent):
     QApplication::setAttribute(Qt::AA_DontShowIconsInMenus);
 #endif
 
+    toolbar = NULL;
+
     //initialization for safety
     overviewPage = NULL;
 
