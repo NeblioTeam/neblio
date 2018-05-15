@@ -17,7 +17,7 @@ public:
     void set(const K &key, const V &value);
     bool exists(const K &key) const;
     template<typename K_, typename V_>
-    friend inline bool operator==(const ThreadSafeHashMap<K_,V_>& lhs, const ThreadSafeHashMap<K_,V_>& rhs);
+    friend bool operator==(const ThreadSafeHashMap<K_,V_>& lhs, const ThreadSafeHashMap<K_,V_>& rhs);
     bool get(const K &key, V &value) const;
     void clear();
     boost::unordered_map<K,V> getInternalMap() const;
