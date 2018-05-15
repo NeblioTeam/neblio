@@ -12,7 +12,7 @@ class ThreadSafeHashMap
 public:
     ThreadSafeHashMap();
     ThreadSafeHashMap(const ThreadSafeHashMap<K,V>& rhs);
-//    ThreadSafeHashMap<K,V>& operator=(const ThreadSafeHashMap<K,V>& rhs);
+    ThreadSafeHashMap<K,V>& operator=(const ThreadSafeHashMap<K,V>& rhs);
     std::size_t erase(const K &key);
     void set(const K &key, const V &value);
     bool exists(const K &key) const;
@@ -20,6 +20,8 @@ public:
     friend inline bool operator==(const ThreadSafeHashMap<K_,V_>& lhs, const ThreadSafeHashMap<K_,V_>& rhs);
     bool get(const K &key, V &value) const;
     void clear();
+    boost::unordered_map<K,V> getInternalMap() const;
+    void setInternalMap(const boost::unordered_map<K,V>& TheMap);
 };
 
 template<typename K, typename V>
@@ -31,14 +33,14 @@ ThreadSafeHashMap<K,V>::ThreadSafeHashMap(const ThreadSafeHashMap<K, V> &rhs)
 }
 
 
-//template<typename K, typename V>
-//ThreadSafeHashMap<K,V> &ThreadSafeHashMap<K,V>::operator=(const ThreadSafeHashMap<K, V> &rhs)
-//{
-//    boost::unique_lock<boost::shared_mutex> lock1(mtx);
-//    boost::shared_lock<boost::shared_mutex> lock2(rhs.mtx);
-//    this->theMap = rhs.theMap;
-//    return this;
-//}
+template<typename K, typename V>
+ThreadSafeHashMap<K,V> &ThreadSafeHashMap<K,V>::operator=(const ThreadSafeHashMap<K, V> &rhs)
+{
+    boost::unique_lock<boost::shared_mutex> lock1(mtx);
+    boost::shared_lock<boost::shared_mutex> lock2(rhs.mtx);
+    this->theMap = rhs.theMap;
+    return *this;
+}
 
 template<typename K_, typename V_>
 bool operator==(const ThreadSafeHashMap<K_, V_> &lhs, const ThreadSafeHashMap<K_, V_> &rhs)
@@ -95,6 +97,22 @@ std::size_t ThreadSafeHashMap<K,V>::erase(const K &key)
 {
     boost::unique_lock<boost::shared_mutex> lock(mtx);
     return theMap.erase(key);
+}
+
+
+template<typename K, typename V>
+boost::unordered_map<K, V> ThreadSafeHashMap<K,V>::getInternalMap() const
+{
+    boost::unique_lock<boost::shared_mutex> lock(mtx);
+    boost::unordered_map<K, V> safeCopy = theMap;
+    return safeCopy;
+}
+
+template<typename K, typename V>
+void ThreadSafeHashMap<K,V>::setInternalMap(const boost::unordered_map<K, V> &TheMap)
+{
+    boost::unique_lock<boost::shared_mutex> lock(mtx);
+    theMap = TheMap;
 }
 
 #endif // THREADSAFEHASHMAP_H
