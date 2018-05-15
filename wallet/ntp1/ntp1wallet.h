@@ -14,7 +14,7 @@
 class COutput;
 class CWalletTx;
 
-class NTP1Wallet
+class NTP1Wallet : public boost::enable_shared_from_this<NTP1Wallet>
 {
     // base58 token id vs NTP1 token meta data object
     boost::unordered_map<std::string,  NTP1TokenMetaData> tokenInformation;
@@ -23,7 +23,7 @@ class NTP1Wallet
     // wallet balances
     std::map<std::string, int64_t> balances;
     // map from token id vs icon image data
-    mutable ThreadSafeHashMap<std::string, std::string> tokenIcons;
+    ThreadSafeHashMap<std::string, std::string> tokenIcons;
 
     bool updateBalance;
 
@@ -32,14 +32,18 @@ class NTP1Wallet
 
     void __getOutputs();
     void __RecalculateTokensBalances();
-    static void __asyncDownloadAndSetIcon(std::string IconURL, std::string tokenId, ThreadSafeHashMap<std::string, std::string> &IconsMap);
+
+
+    // it's very important to use shared_from_this() here to guarantee thread-safety
+    // if the shared_ptr's content gets deleted before the thread gets executed, it will lead to a segfault
+    // passing a shared_ptr guarantees that the object will survive until the end
+    static void __asyncDownloadAndSetIcon(std::string IconURL, std::string tokenId, boost::shared_ptr<NTP1Wallet> wallet);
+
     static std::string __downloadIcon(const std::string &IconURL);
     static void AddOutputToWalletBalance(const NTP1Transaction& tx, int outputIndex, std::map<std::string, int64_t>& balancesTable);
-    static void SubtractOutputFromWalletBalance(const NTP1Transaction& tx, int outputIndex, std::map<std::string, int64_t>& balancesTable);
     // returns true if removed
     bool removeOutputIfSpent(const NTP1OutPoint& output, const CWalletTx& neblTx);
     void scanSpentTransactions();
-    void considerNTP1OutputSpent(const NTP1OutPoint &output);
     static NTP1OutPoint ConvertNeblOutputToNTP1(const COutput& output);
 
     // when scanning the neblio wallet, this is the number of relevant transactions found
@@ -56,7 +60,7 @@ public:
     std::string getTokenName(int index) const;
     std::string getTokenDescription(int index) const;
     int64_t getTokenBalance(int index) const;
-    std::string getTokenIcon(int index) const;
+    std::string getTokenIcon(int index);
     int64_t getNumberOfTokens() const;
     bool hasEverSucceeded() const;
     friend inline bool operator==(const NTP1Wallet& lhs, const NTP1Wallet& rhs);
@@ -64,10 +68,30 @@ public:
     void clear();
     static std::string Serialize(const NTP1Wallet& wallet);
     static NTP1Wallet Deserialize(const std::string& data);
+
+    // Serialize and deserialize maps basically is a generic serializer for any map
+    // Notice that the type considerations are taking in __KeyToString/__KeyFromString/__ValToJson/__ValFromJson
     template <typename Container>
-        static json_spirit::Value SerializeMap(const Container& TheMap);
+        static json_spirit::Value SerializeMap(const Container& TheMap, bool serializeKey, bool serializeValue);
     template <typename Container>
-        static Container DeserializeMap(const json_spirit::Object& json_obj);
+        static Container DeserializeMap(const json_spirit::Value& json_val, bool deserializeKey, bool deserializeValue);
+
+    void exportToFile(const boost::filesystem::path& filePath) const;
+    void importFromFile(const boost::filesystem::path& filePath);
+
+private:
+    static std::string __KeyToString(const std::string& str, bool serialize);
+    static void __KeyFromString(const std::string& str, bool deserialize, std::string& result);
+    static std::string __KeyToString(const NTP1OutPoint& op, bool);
+    static void __KeyFromString(const std::string& outputString, bool deserialize, NTP1OutPoint& result);
+    static json_spirit::Value __ValToJson(const NTP1TokenMetaData& input, bool serialize);
+    static void  __ValFromJson(const json_spirit::Value& input, bool deserialize, NTP1TokenMetaData& result);
+    static json_spirit::Value __ValToJson(const NTP1Transaction& input, bool serialize);
+    static void  __ValFromJson(const json_spirit::Value& input, bool deserialize, NTP1Transaction& result);
+    static json_spirit::Value __ValToJson(const std::string& input, bool serialize);
+    static void  __ValFromJson(const json_spirit::Value& input, bool deserialize, std::string& result);
+    static json_spirit::Value __ValToJson(const int64_t& input, bool serialize);
+    static void  __ValFromJson(const json_spirit::Value& input, bool deserialize, int64_t& result);
 };
 
 bool operator==(const NTP1Wallet &lhs, const NTP1Wallet &rhs)

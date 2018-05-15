@@ -43,6 +43,10 @@ public:
         TokenDescriptionRole,
         AmountRole
     };
+
+    void saveWalletToFile();
+    void loadWalletFromFile();
+    static const std::string WalletFileName;
 signals:
     void signal_walletUpdateRunning(bool running);
 
