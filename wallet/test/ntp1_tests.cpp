@@ -5,6 +5,7 @@
 #include "ntp1/ntp1tokentxdata.h"
 #include "ntp1/ntp1transaction.h"
 #include "ntp1/ntp1tokenmetadata.h"
+#include "ntp1/ntp1wallet.h"
 
 TEST(ntp1_tests, parse_NTP1TxIn_from_json)
 {
@@ -183,4 +184,15 @@ TEST(ntp1_tests, token_meta_data_without_url) {
     NTP1TokenMetaData m;
     m.importDatabaseJsonData(v);
     EXPECT_EQ(m, tokenMetaData);
+}
+
+TEST(ntp1_tests, wallet_tests) {
+    NTP1Wallet wallet1;
+    typedef boost::filesystem::path Path;
+    EXPECT_NO_THROW(wallet1.importFromFile(Path(TEST_ROOT_PATH) / Path("/data/NTP1Wallet.json")));
+    Path tempWalletPath = Path(TEST_ROOT_PATH) / Path("/data/tmp.json");
+    EXPECT_NO_THROW(wallet1.exportToFile(tempWalletPath));
+    NTP1Wallet wallet2;
+    EXPECT_NO_THROW(wallet2.importFromFile(tempWalletPath));
+    EXPECT_NO_THROW(boost::filesystem::remove(Path(TEST_ROOT_PATH) / Path("/data/tmp.json")));
 }

@@ -4,6 +4,9 @@
 #include "init.h"
 
 #include <boost/thread.hpp>
+#include <boost/algorithm/hex.hpp>
+#include <boost/algorithm/string.hpp>
+#include <boost/filesystem/fstream.hpp>
 
 const std::string NTP1Wallet::ICON_ERROR_CONTENT = "<DownloadError>";
 
@@ -127,25 +130,11 @@ void NTP1Wallet::AddOutputToWalletBalance(const NTP1Transaction &tx, int outputI
     }
 }
 
-void NTP1Wallet::SubtractOutputFromWalletBalance(const NTP1Transaction &tx, int outputIndex, std::map<string, int64_t> &balancesTable)
-{
-    for(long j = 0; j < static_cast<long>(tx.getTxOut(outputIndex).getNumOfTokens()); j++) {
-        NTP1TokenTxData tokenTx = tx.getTxOut(outputIndex).getToken(j);
-        const std::string& tokenID = tokenTx.getTokenIdBase58();
-        if(balancesTable.find(tokenID) != balancesTable.end()) {
-            balancesTable[tokenID] -= tokenTx.getAmount();
-        } else {
-            // TODO: raise exception
-        }
-    }
-}
-
 bool NTP1Wallet::removeOutputIfSpent(const NTP1OutPoint &output, const CWalletTx& neblTx)
 {
     boost::unordered_map<NTP1OutPoint, NTP1Transaction>::iterator outputIt = walletOutputsWithTokens.find(output);
     if(outputIt != walletOutputsWithTokens.end()) {
         if(neblTx.IsSpent(output.getIndex())) {
-//            SubtractOutputFromWalletBalance(outputIt->second, output.getIndex(), balances);
             walletOutputsWithTokens.erase(outputIt);
         }
         return true;
@@ -168,16 +157,6 @@ void NTP1Wallet::scanSpentTransactions()
             it = walletOutputsWithTokens.erase(it);
         }
     }
-}
-
-void NTP1Wallet::considerNTP1OutputSpent(const NTP1OutPoint& output)
-{
-    boost::unordered_map<NTP1OutPoint, NTP1Transaction>::iterator outputIt = walletOutputsWithTokens.find(output);
-    if(outputIt == walletOutputsWithTokens.end()) {
-        // TODO: this should throw an exception, and should be inside a class that has all token stuff
-        return;
-    }
-    SubtractOutputFromWalletBalance(walletOutputsWithTokens[output], output.getIndex(), balances);
 }
 
 NTP1OutPoint NTP1Wallet::ConvertNeblOutputToNTP1(const COutput &output)
@@ -250,13 +229,15 @@ std::string NTP1Wallet::__downloadIcon(const std::string& IconURL) {
     }
 }
 
-void NTP1Wallet::__asyncDownloadAndSetIcon(std::string IconURL, std::string tokenId, ThreadSafeHashMap<std::string, std::string>& IconsMap)
+void
+NTP1Wallet::__asyncDownloadAndSetIcon(std::string IconURL, std::string tokenId,
+                                      boost::shared_ptr<NTP1Wallet> wallet)
 {
-    IconsMap.set(tokenId, __downloadIcon(IconURL));
+    wallet->tokenIcons.set(tokenId, __downloadIcon(IconURL));
 }
 
 
-string NTP1Wallet::getTokenIcon(int index) const
+string NTP1Wallet::getTokenIcon(int index)
 {
     std::map<std::string, int64_t>::const_iterator it = balances.begin();
     std::advance(it, index);
@@ -269,7 +250,7 @@ string NTP1Wallet::getTokenIcon(int index) const
             tokenIcons.set(tokenId, "");
             return "";
         }
-        boost::thread IconDownloadThread(boost::bind(__asyncDownloadAndSetIcon, IconURL, tokenId, boost::ref(tokenIcons)));
+        boost::thread IconDownloadThread(boost::bind(__asyncDownloadAndSetIcon, IconURL, tokenId, shared_from_this()));
         IconDownloadThread.detach();
         return "";
     } else {
@@ -278,7 +259,7 @@ string NTP1Wallet::getTokenIcon(int index) const
         // if there was an error getting the icon OR the icon is empty, and a download URL now exists, download again
         if(icon == ICON_ERROR_CONTENT || (icon == "" && !itToken->second.getIconURL().empty())) {
             const std::string& IconURL = itToken->second.getIconURL();
-            boost::thread IconDownloadThread(boost::bind(__asyncDownloadAndSetIcon, IconURL, tokenId, boost::ref(tokenIcons)));
+            boost::thread IconDownloadThread(boost::bind(__asyncDownloadAndSetIcon, IconURL, tokenId, shared_from_this()));
             IconDownloadThread.detach();
         }
 
@@ -316,30 +297,10 @@ string NTP1Wallet::Serialize(const NTP1Wallet &wallet)
 {
     json_spirit::Object root;
 
-    root.push_back(json_spirit::Pair("token_info", SerializeMap(wallet.tokenInformation)));
-
-    root.push_back( json_spirit::Pair( "identifier", "id" ) );
-    root.push_back( json_spirit::Pair( "label", "name" ) );
-    root.push_back( json_spirit::Pair( "items", json_spirit::Array() ) );
-
-    json_spirit::Array& items_array = root.back().value_.get_array();
-    items_array.push_back( json_spirit::Object() );
-
-    json_spirit::Object& item_1 = items_array.back().get_obj();
-    item_1.push_back( json_spirit::Pair( "id", "Vehicle_n" ) );
-    item_1.push_back( json_spirit::Pair( "name", "Vehicle" ) );
-    item_1.push_back( json_spirit::Pair( "type", "root" ) );
-    item_1.push_back( json_spirit::Pair( "children", json_spirit::Array() ) );
-
-    json_spirit::Array& children_array = item_1.back().value_.get_array();
-
-    children_array.push_back( json_spirit::Object() );
-    json_spirit::Object& child_1 = children_array.back().get_obj();
-    child_1.push_back( json_spirit::Pair( "_reference", "Passenger_n" ) );
-
-    children_array.push_back( json_spirit::Object() );
-    json_spirit::Object& child_2 = children_array.back().get_obj();
-    child_2.push_back( json_spirit::Pair( "_reference", "Commercial_n" ) );
+    root.push_back(json_spirit::Pair("token_info", SerializeMap(wallet.tokenInformation, false, false)));
+    root.push_back(json_spirit::Pair("outputs", SerializeMap(wallet.walletOutputsWithTokens, false, false)));
+    root.push_back(json_spirit::Pair("icons", SerializeMap(wallet.tokenIcons.getInternalMap(), false, true)));
+    root.push_back(json_spirit::Pair("balances", SerializeMap(wallet.balances, false, false)));
 
     return json_spirit::write_formatted( root );
 }
@@ -348,18 +309,144 @@ NTP1Wallet NTP1Wallet::Deserialize(const string &data)
 {
     NTP1Wallet result;
 
+    json_spirit::Value parsedData;
+    json_spirit::read_or_throw(data, parsedData);
+
+    json_spirit::Value tokenInfoData(NTP1Tools::GetObjectField(parsedData.get_obj(), "token_info"));
+    result.tokenInformation =
+            DeserializeMap<boost::unordered_map<std::string,  NTP1TokenMetaData> >(tokenInfoData, false, false);
+    json_spirit::Value outputsData(NTP1Tools::GetObjectField(parsedData.get_obj(), "outputs"));
+    result.walletOutputsWithTokens =
+            DeserializeMap<boost::unordered_map<NTP1OutPoint,  NTP1Transaction> >(outputsData, false, false);
+    json_spirit::Value iconsData(NTP1Tools::GetObjectField(parsedData.get_obj(), "icons"));
+    result.tokenIcons.setInternalMap(
+            DeserializeMap<boost::unordered_map<std::string,  std::string> >(iconsData, false, true));
+    json_spirit::Value balancesData(NTP1Tools::GetObjectField(parsedData.get_obj(), "balances"));
+    result.balances =
+            DeserializeMap<std::map<std::string, int64_t> >(balancesData, false, false);
+
     return result;
 }
 
+void NTP1Wallet::exportToFile(const boost::filesystem::path &filePath) const
+{
+    std::string output = Serialize(*this);
+    boost::filesystem::fstream fileObj(filePath, std::ios::out);
+    fileObj.write(output.c_str(), output.size());
+    fileObj.close();
+}
+
+void NTP1Wallet::importFromFile(const boost::filesystem::path &filePath)
+{
+    boost::filesystem::fstream fileObj(filePath, std::ios::in);
+    std::string data((std::istreambuf_iterator<char>(fileObj)),
+                      std::istreambuf_iterator<char>());
+    fileObj.close();
+    this->clear();
+    *this = Deserialize(data);
+}
+
+string NTP1Wallet::__KeyToString(const string &str, bool serialize)
+{
+    if(serialize) {
+        std::string res;
+        boost::algorithm::hex(str.begin(), str.end(), std::back_inserter(res));
+        return res;
+    } else {
+        return str;
+    }
+}
+
+void NTP1Wallet::__KeyFromString(const string &str, bool deserialize, std::string &result)
+{
+    if(deserialize) {
+        result.clear();
+        boost::algorithm::unhex(str.begin(), str.end(), std::back_inserter(result));
+    } else {
+        result = str;
+    }
+}
+
+string NTP1Wallet::__KeyToString(const NTP1OutPoint &op, bool)
+{
+    return op.getHash().ToString() + ":" + ToString(op.getIndex());
+}
+
+void NTP1Wallet::__KeyFromString(const string &outputString, bool deserialize, NTP1OutPoint &result)
+{
+    vector<string> strs;
+    boost::split(strs, outputString, boost::is_any_of(":"));
+    if(strs.size() != 2) {
+        throw std::runtime_error("The output string is of invalid format. The string given is: \"" + outputString + "\". The correct format is hash:index");
+    }
+    uint256 hash;
+    hash.SetHex(strs.at(0));
+    result = NTP1OutPoint(hash, FromString<unsigned int>(strs.at(1)));
+}
+
+json_spirit::Value NTP1Wallet::__ValToJson(const NTP1TokenMetaData &input, bool)
+{
+    return input.exportDatabaseJsonData();
+}
+
+void NTP1Wallet::__ValFromJson(const json_spirit::Value &input, bool deserialize, NTP1TokenMetaData& result)
+{
+    result.setNull();
+    result.importDatabaseJsonData(input);
+}
+
+json_spirit::Value NTP1Wallet::__ValToJson(const NTP1Transaction &input, bool)
+{
+    return input.exportDatabaseJsonData();
+}
+
+void NTP1Wallet::__ValFromJson(const json_spirit::Value &input, bool deserialize, NTP1Transaction &result)
+{
+    result.setNull();
+    result.importDatabaseJsonData(input);
+}
+
+json_spirit::Value NTP1Wallet::__ValToJson(const string &input, bool serialize)
+{
+    if(serialize) {
+        std::string res;
+        boost::algorithm::hex(input.begin(), input.end(), std::back_inserter(res));
+        return res;
+    } else {
+        return input;
+    }
+}
+
+void NTP1Wallet::__ValFromJson(const json_spirit::Value &input, bool deserialize, string &result)
+{
+    if(deserialize) {
+        result.clear();
+        std::string inputStr = input.get_str();
+        boost::algorithm::unhex(inputStr.begin(), inputStr.end(), std::back_inserter(result));
+    } else {
+        result = input.get_str();
+    }
+}
+
+json_spirit::Value NTP1Wallet::__ValToJson(const int64_t &input, bool)
+{
+    return json_spirit::Value(input);
+}
+
+void NTP1Wallet::__ValFromJson(const json_spirit::Value &input, bool deserialize, int64_t &result)
+{
+    result = input.get_int64();
+}
+
 template<typename Container>
-json_spirit::Value NTP1Wallet::SerializeMap(const Container &TheMap)
+json_spirit::Value NTP1Wallet::SerializeMap(const Container &TheMap, bool serializeKey, bool serializeValue)
 {
     json_spirit::Object json_obj;
     for(typename Container::const_iterator it = TheMap.begin();
         it != TheMap.end();
         it++) {
-        std::string first = it->first;
-        json_spirit::Value second = it->second.exportDatabaseJsonData();
+        std::string first = __KeyToString(it->first, serializeKey);
+        json_spirit::Value second = __ValToJson(it->second, serializeValue);
         json_obj.push_back( json_spirit::Pair(first, second) );
     }
     json_spirit::Value json_value(json_obj);
@@ -367,13 +454,18 @@ json_spirit::Value NTP1Wallet::SerializeMap(const Container &TheMap)
 }
 
 template<typename Container>
-Container NTP1Wallet::DeserializeMap(const json_spirit::Object &json_obj)
+Container NTP1Wallet::DeserializeMap(const json_spirit::Value &json_val, bool deserializeKey, bool deserializeValue)
 {
     Container result;
+    json_spirit::Object json_obj = json_val.get_obj();
     for(typename json_spirit::Object::const_iterator it = json_obj.begin();
         it != json_obj.end();
         ++it) {
-        result.insert(*it);
+        typename Container::key_type first;
+        __KeyFromString(it->name_, deserializeKey, first);
+        typename Container::mapped_type second;
+        __ValFromJson(it->value_, deserializeValue, second);
+        result[first] = second;
     }
     return result;
 }

@@ -6,6 +6,8 @@
 #include <QImage>
 #include <QIcon>
 
+const std::string NTP1TokenListModel::WalletFileName = "NTP1Wallet.json";
+
 QString NTP1TokenListModel::__getTokenName(int index) const
 {
     return QString::fromStdString(ntp1wallet->getTokenName(index));
@@ -49,6 +51,7 @@ NTP1TokenListModel::NTP1TokenListModel()
     walletUpdateRunning = false;
     walletUpdateBeginnerTimer = new QTimer(this);
     walletUpdateEnderTimer    = new QTimer(this);
+    loadWalletFromFile();
     connect(walletUpdateBeginnerTimer, &QTimer::timeout,
             this, &NTP1TokenListModel::beginWalletUpdate);
     connect(walletUpdateEnderTimer, &QTimer::timeout,
@@ -83,6 +86,7 @@ void NTP1TokenListModel::endWalletUpdate()
             if(!(*wallet == *ntp1wallet)) {
                 beginResetModel();
                 boost::atomic_store(&ntp1wallet, wallet);
+                saveWalletToFile();
                 endResetModel();
             }
         } catch(std::exception& ex) {
@@ -124,4 +128,43 @@ QVariant NTP1TokenListModel::data(const QModelIndex &index, int role) const
         return QVariant(__getTokenIcon(index.row()));
     }
     return QVariant();
+}
+
+void NTP1TokenListModel::saveWalletToFile()
+{
+    try {
+        if(!ntp1wallet) {
+            throw std::runtime_error("Error: NTP1 wallet is a null pointer!");
+        }
+
+        // The temp file here ensures that the target file is not tampered with before a successful writing happens
+        // This is helpful to avoid corrupt files in cases such as diskspace issues
+        srand(time(NULL));
+        boost::filesystem::path tempFile = GetDataDir() / WalletFileName;
+        tempFile.replace_extension(".json." + ToString(rand()));
+        boost::filesystem::path permFile = GetDataDir() / WalletFileName;
+        ntp1wallet->exportToFile(tempFile);
+        if(boost::filesystem::exists(permFile)) boost::filesystem::remove(permFile);
+        boost::filesystem::rename(tempFile, permFile);
+    } catch (std::exception& ex) {
+        printf("Failed at exporting wallet data. Error says %s", ex.what());
+    }
+}
+
+void NTP1TokenListModel::loadWalletFromFile()
+{
+    try {
+        if(!ntp1wallet) {
+            throw std::runtime_error("Error: NTP1 wallet is a null pointer!");
+        }
+        boost::filesystem::path file = GetDataDir() / WalletFileName;
+        if(boost::filesystem::exists(file)) {
+            ntp1wallet->importFromFile(file);
+        } else {
+            printf("NTP1 wallet not found. One will be created soon.");
+        }
+    } catch (std::exception& ex) {
+        ntp1wallet->clear();
+        printf("Failed at exporting wallet data. Error says %s", ex.what());
+    }
 }
