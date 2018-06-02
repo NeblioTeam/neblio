@@ -14,7 +14,7 @@ public:
     static int CurlProgress_CallbackFunc(void *, double TotalToDownload,
                                          double NowDownloaded, double /*TotalToUpload*/,
                                          double /*NowUploaded*/);
-    static std::string GetFileFromHTTPS(const std::string &url, bool IncludeProgressBar);
+    static std::string GetFileFromHTTPS(const std::string &URL, long ConnectionTimeout, bool IncludeProgressBar);
 };
 
 #endif // CURLTOOLS_H

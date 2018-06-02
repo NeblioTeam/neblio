@@ -33,7 +33,6 @@ class NTP1Wallet : public boost::enable_shared_from_this<NTP1Wallet>
     void __getOutputs();
     void __RecalculateTokensBalances();
 
-
     // it's very important to use shared_from_this() here to guarantee thread-safety
     // if the shared_ptr's content gets deleted before the thread gets executed, it will lead to a segfault
     // passing a shared_ptr guarantees that the object will survive until the end

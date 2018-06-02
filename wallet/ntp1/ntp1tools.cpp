@@ -1,10 +1,10 @@
 #include "ntp1tools.h"
 
-const std::string NTP1Tools::NTPAPI_base_url_mainnet_local = "https://ntp1node.nebl.io/ntp1/";
-const std::string NTP1Tools::NTPAPI_base_url_testnet_local = "https://ntp1node.nebl.io:1443/ntp1/";
+const std::string NTP1Tools::NTPAPI_base_url_mainnet_local  = "https://ntp1node.nebl.io/ntp1/";
+const std::string NTP1Tools::NTPAPI_base_url_testnet_local  = "https://ntp1node.nebl.io/testnet/ntp1/";
 
 const std::string NTP1Tools::NTPAPI_base_url_mainnet_remote = "https://ntp1node.nebl.io/ntp1/";
-const std::string NTP1Tools::NTPAPI_base_url_testnet_remote = "https://ntp1node.nebl.io:1443/ntp1/";
+const std::string NTP1Tools::NTPAPI_base_url_testnet_remote = "https://ntp1node.nebl.io/testnet/ntp1/";
 
 const std::string NTP1Tools::NTPAPI_addressInfo     = "addressinfo/";
 const std::string NTP1Tools::NTPAPI_transactionInfo = "transactioninfo/";

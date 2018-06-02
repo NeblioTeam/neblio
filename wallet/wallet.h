@@ -44,6 +44,12 @@ enum WalletFeature
     FEATURE_LATEST = 60000
 };
 
+class WalletNewTxUpdateFunctor : public boost::enable_shared_from_this<WalletNewTxUpdateFunctor>
+{
+public:
+    virtual void run(uint256 txhash) {}
+};
+
 /** A key pool entry */
 class CKeyPool
 {
@@ -95,6 +101,12 @@ public:
     ///      fFileBacked (immutable after instantiation)
     ///      strWalletFile (immutable after instantiation)
     mutable CCriticalSection cs_wallet;
+
+    // this function is supposed to be called every time a new transcation is added to the wallet
+    boost::shared_ptr<WalletNewTxUpdateFunctor> walletNewTxUpdateFunctor;
+    void setFunctorOnTxInsert(boost::shared_ptr<WalletNewTxUpdateFunctor> func) {
+        boost::atomic_store(&walletNewTxUpdateFunctor, func);
+    }
 
     bool fFileBacked;
     std::string strWalletFile;
@@ -535,6 +547,9 @@ public:
                 fAvailableCreditCached = false;
             }
         }
+        if(pwallet->walletNewTxUpdateFunctor) {
+            pwallet->walletNewTxUpdateFunctor->run(this->GetHash());
+        }
         return fReturn;
     }
 
@@ -562,6 +577,9 @@ public:
         {
             vfSpent[nOut] = true;
             fAvailableCreditCached = false;
+        }
+        if(pwallet->walletNewTxUpdateFunctor) {
+            pwallet->walletNewTxUpdateFunctor->run(this->GetHash());
         }
     }
 

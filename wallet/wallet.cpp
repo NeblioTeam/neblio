@@ -429,6 +429,10 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn)
         LOCK(cs_wallet);
         // Inserts only if not already there, returns tx inserted or tx found
         pair<map<uint256, CWalletTx>::iterator, bool> ret = mapWallet.insert(make_pair(hash, wtxIn));
+        // update NTP1 transactions
+        if(walletNewTxUpdateFunctor) {
+            walletNewTxUpdateFunctor->run(hash);
+        }
         CWalletTx& wtx = (*ret.first).second;
         wtx.BindWallet(this);
         bool fInsertedNew = ret.second;

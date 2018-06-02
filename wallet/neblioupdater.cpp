@@ -22,7 +22,7 @@ void NeblioUpdater::checkIfUpdateIsAvailable(boost::promise<bool> &updateIsAvail
     std::string releaseData;
     std::vector<NeblioReleaseInfo> neblioReleases;
     try {
-        releaseData = cURLTools::GetFileFromHTTPS(ReleasesInfoURL, 0);
+        releaseData = cURLTools::GetFileFromHTTPS(ReleasesInfoURL, 30, 0);
         neblioReleases = NeblioReleaseInfo::ParseAllReleaseDataFromJSON(releaseData);
 
         // remove prerelease versions
