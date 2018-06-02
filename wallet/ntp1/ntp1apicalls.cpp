@@ -3,14 +3,13 @@
 
 NTP1APICalls::NTP1APICalls()
 {
-
 }
 
 bool NTP1APICalls::RetrieveData_AddressContainsNTP1Tokens(const std::string& address, bool testnet)
 {
     try {
         std::string addressNTPInfoURL = NTP1Tools::GetURL_AddressInfo(address, testnet);
-        std::string ntpData = cURLTools::GetFileFromHTTPS(addressNTPInfoURL, false);
+        std::string ntpData = cURLTools::GetFileFromHTTPS(addressNTPInfoURL, NTP1_CONNECTION_TIMEOUT, false);
         json_spirit::Value parsedData;
         json_spirit::read_or_throw(ntpData, parsedData);
         json_spirit::Array utxosArray = NTP1Tools::GetArrayField(parsedData.get_obj(), "utxos");
@@ -37,7 +36,7 @@ NTP1TokenMetaData NTP1APICalls::RetrieveData_NTP1TokensMetaData(const std::strin
                                                                           tx,
                                                                           outputIndex,
                                                                           testnet);
-        std::string ntpData = cURLTools::GetFileFromHTTPS(ntp1MetaDataURL, false);
+        std::string ntpData = cURLTools::GetFileFromHTTPS(ntp1MetaDataURL, NTP1_CONNECTION_TIMEOUT, false);
         NTP1TokenMetaData metadata;
         metadata.importRestfulAPIJsonData(ntpData);
         return metadata;
@@ -50,7 +49,7 @@ NTP1TokenMetaData NTP1APICalls::RetrieveData_NTP1TokensMetaData(const std::strin
 NTP1Transaction NTP1APICalls::RetrieveData_TransactionInfo(const std::string &txHash, bool testnet)
 {
     std::string url = NTP1Tools::GetURL_TransactionInfo(txHash, testnet);
-    std::string ntpData = cURLTools::GetFileFromHTTPS(url, false);
+    std::string ntpData = cURLTools::GetFileFromHTTPS(url, NTP1_CONNECTION_TIMEOUT, false);
     NTP1Transaction tx;
     tx.importJsonData(ntpData);
     return tx;

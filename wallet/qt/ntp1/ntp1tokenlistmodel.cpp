@@ -44,20 +44,24 @@ void NTP1TokenListModel::UpdateWalletBalances(boost::shared_ptr<NTP1Wallet> wall
     }
 }
 
-NTP1TokenListModel::NTP1TokenListModel()
+NTP1TokenListModel::NTP1TokenListModel() : ntp1WalletTxUpdater(boost::make_shared<NTP1WalletTxUpdater>(this))
 {
     ntp1wallet = boost::make_shared<NTP1Wallet>();
     walletLocked = false;
     walletUpdateRunning = false;
-    walletUpdateBeginnerTimer = new QTimer(this);
     walletUpdateEnderTimer    = new QTimer(this);
     loadWalletFromFile();
-    connect(walletUpdateBeginnerTimer, &QTimer::timeout,
-            this, &NTP1TokenListModel::beginWalletUpdate);
     connect(walletUpdateEnderTimer, &QTimer::timeout,
             this, &NTP1TokenListModel::endWalletUpdate);
-    walletUpdateBeginnerTimer->start(10e3);
-    walletUpdateEnderTimer->start(500);
+    walletUpdateEnderTimer->start(1000);
+    reloadBalances();
+    boost::thread t(&NTP1TokenListModel::SetupNTP1WalletTxUpdaterToWallet, this);
+    t.detach();
+}
+
+NTP1TokenListModel::~NTP1TokenListModel()
+{
+    ntp1WalletTxUpdater.reset();
 }
 
 void NTP1TokenListModel::reloadBalances()

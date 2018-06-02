@@ -5,6 +5,8 @@
 #include <QTimer>
 
 #include "ntp1/ntp1wallet.h"
+#include "wallet.h"
+#include "init.h"
 
 class NTP1TokenListModel : public QAbstractTableModel
 {
@@ -18,7 +20,6 @@ class NTP1TokenListModel : public QAbstractTableModel
     bool walletLocked;
     bool walletUpdateRunning;
 
-    QTimer* walletUpdateBeginnerTimer;
     QTimer* walletUpdateEnderTimer;
 
     boost::promise<boost::shared_ptr<NTP1Wallet> > updateWalletPromise;
@@ -27,8 +28,31 @@ class NTP1TokenListModel : public QAbstractTableModel
 
     static void UpdateWalletBalances(boost::shared_ptr<NTP1Wallet> wallet, boost::promise<boost::shared_ptr<NTP1Wallet> >& promise);
 
+    class NTP1WalletTxUpdater : public WalletNewTxUpdateFunctor
+    {
+        NTP1TokenListModel* model;
+    public:
+        NTP1WalletTxUpdater(NTP1TokenListModel* Model) : model(Model)
+        {}
+
+        void run(uint256) Q_DECL_OVERRIDE
+        {
+            model->reloadBalances();
+        }
+    };
+
+    boost::shared_ptr<NTP1WalletTxUpdater> ntp1WalletTxUpdater;
+    void SetupNTP1WalletTxUpdaterToWallet()
+    {
+        while(!pwalletMain) {
+            boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
+        }
+        pwalletMain->setFunctorOnTxInsert(ntp1WalletTxUpdater);
+    }
+
 public:
     NTP1TokenListModel();
+    ~NTP1TokenListModel();
     void reloadBalances();
 
     int rowCount(const QModelIndex &parent) const Q_DECL_OVERRIDE;

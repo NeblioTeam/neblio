@@ -222,7 +222,7 @@ int64_t NTP1Wallet::getTokenBalance(int index) const
 
 std::string NTP1Wallet::__downloadIcon(const std::string& IconURL) {
     try {
-        return cURLTools::GetFileFromHTTPS(IconURL, false);
+        return cURLTools::GetFileFromHTTPS(IconURL, 30, false);
     } catch (std::exception& ex) {
         printf("Error: Failed at downloading icon from %s. Error says: %s", IconURL.c_str(), ex.what());
         return ICON_ERROR_CONTENT;
