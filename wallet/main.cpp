@@ -137,7 +137,7 @@ void SyncWithWallets(const CTransaction& tx, const CBlock* pblock, bool fUpdate,
 {
     // update NTP1 transactions
     if(pwalletMain->walletNewTxUpdateFunctor) {
-        pwalletMain->walletNewTxUpdateFunctor->run(tx.GetHash());
+        pwalletMain->walletNewTxUpdateFunctor->run(tx.GetHash(), nBestHeight);
     }
 
     if (!fConnect)
