@@ -431,7 +431,8 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn)
         pair<map<uint256, CWalletTx>::iterator, bool> ret = mapWallet.insert(make_pair(hash, wtxIn));
         // update NTP1 transactions
         if(walletNewTxUpdateFunctor) {
-            walletNewTxUpdateFunctor->run(hash);
+            walletNewTxUpdateFunctor->setReferenceBlockHeight();
+            walletNewTxUpdateFunctor->run(hash, nBestHeight);
         }
         CWalletTx& wtx = (*ret.first).second;
         wtx.BindWallet(this);

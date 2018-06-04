@@ -66,6 +66,7 @@ NTP1TokenListModel::~NTP1TokenListModel()
 
 void NTP1TokenListModel::reloadBalances()
 {
+    boost::lock_guard<boost::recursive_mutex> lg(walletUpdateBeginLock);
     beginWalletUpdate();
 }
 

@@ -19,6 +19,7 @@ class NTP1TokenListModel : public QAbstractTableModel
     QIcon __getTokenIcon(int index) const;
     bool walletLocked;
     bool walletUpdateRunning;
+    boost::recursive_mutex walletUpdateBeginLock;
 
     QTimer* walletUpdateEnderTimer;
 
@@ -31,13 +32,26 @@ class NTP1TokenListModel : public QAbstractTableModel
     class NTP1WalletTxUpdater : public WalletNewTxUpdateFunctor
     {
         NTP1TokenListModel* model;
+        int currentBlockHeight;
     public:
-        NTP1WalletTxUpdater(NTP1TokenListModel* Model) : model(Model)
+        NTP1WalletTxUpdater(NTP1TokenListModel* Model) : model(Model), currentBlockHeight(-1)
         {}
 
-        void run(uint256) Q_DECL_OVERRIDE
+        void run(uint256,int currentHeight) Q_DECL_OVERRIDE
         {
-            model->reloadBalances();
+            if(currentBlockHeight < 0) {
+                setReferenceBlockHeight();
+            }
+            if(currentHeight <= currentBlockHeight + HEIGHT_OFFSET_TOLERANCE) {
+                model->reloadBalances();
+            }
+        }
+
+        // WalletNewTxUpdateFunctor interface
+    public:
+        void setReferenceBlockHeight() Q_DECL_OVERRIDE
+        {
+            currentBlockHeight = nBestHeight;
         }
     };
 

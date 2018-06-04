@@ -46,8 +46,11 @@ enum WalletFeature
 
 class WalletNewTxUpdateFunctor : public boost::enable_shared_from_this<WalletNewTxUpdateFunctor>
 {
+    // reload balances if the current height less than the registered height plus this next value
 public:
-    virtual void run(uint256 txhash) {}
+    static const int HEIGHT_OFFSET_TOLERANCE = 10;
+    virtual void run(uint256 txhash, int CurrentBlockHeight) {}
+    virtual void setReferenceBlockHeight() {}
 };
 
 /** A key pool entry */
@@ -548,7 +551,8 @@ public:
             }
         }
         if(pwallet->walletNewTxUpdateFunctor) {
-            pwallet->walletNewTxUpdateFunctor->run(this->GetHash());
+            pwallet->walletNewTxUpdateFunctor->setReferenceBlockHeight();
+            pwallet->walletNewTxUpdateFunctor->run(this->GetHash(), nBestHeight);
         }
         return fReturn;
     }
@@ -579,7 +583,8 @@ public:
             fAvailableCreditCached = false;
         }
         if(pwallet->walletNewTxUpdateFunctor) {
-            pwallet->walletNewTxUpdateFunctor->run(this->GetHash());
+            pwallet->walletNewTxUpdateFunctor->setReferenceBlockHeight();
+            pwallet->walletNewTxUpdateFunctor->run(this->GetHash(), nBestHeight);
         }
     }
 
