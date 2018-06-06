@@ -145,6 +145,7 @@ bool NTP1Wallet::removeOutputIfSpent(const NTP1OutPoint &output, const CWalletTx
 void NTP1Wallet::scanSpentTransactions()
 {
     if(pwalletMain == NULL) return;
+    std::deque<NTP1OutPoint> toRemove;
     for(boost::unordered_map<NTP1OutPoint, NTP1Transaction>::iterator it = walletOutputsWithTokens.begin();
         it != walletOutputsWithTokens.end();
         it++)
@@ -154,7 +155,17 @@ void NTP1Wallet::scanSpentTransactions()
         const uint256& txHash = it->first.getHash();
         if(!pwalletMain->GetTransaction(txHash, neblTx)) continue;
         if(neblTx.IsSpent(outputIndex)) {
-            it = walletOutputsWithTokens.erase(it);
+            // this, although the right way to do things, causes a crash. A safer plan is chosen
+            // it = walletOutputsWithTokens.erase(it);
+            toRemove.push_back(it->first);
+        }
+    }
+    for(unsigned long i = 0; i < toRemove.size(); i++) {
+        if(walletOutputsWithTokens.find(toRemove[i]) != walletOutputsWithTokens.end()) {
+            walletOutputsWithTokens.erase(toRemove[i]);
+        } else {
+            printf("Unable to find output %s:%s, although it was found before and marked for removal.", toRemove[i].getHash().ToString().c_str(), ToString(toRemove[i].getIndex()).c_str());
+//            std::cerr<<"Unable to find output " << toRemove[i].getHash().ToString() << ":" << ToString(toRemove[i].getIndex()) << ", although it was found before and marked for removal." << std::endl;
         }
     }
 }
