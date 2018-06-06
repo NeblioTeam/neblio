@@ -1,5 +1,7 @@
 #include "curltools.h"
 
+#include <iostream>
+
 size_t cURLTools::CurlWrite_CallbackFunc_StdString(void *contents, size_t size,
                                         size_t nmemb, std::deque<char> *s) {
   size_t newLength = size * nmemb;
