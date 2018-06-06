@@ -29,7 +29,7 @@ int cURLTools::CurlProgress_CallbackFunc(void *, double TotalToDownload,
   return CURLE_OK;
 }
 
-std::string cURLTools::GetFileFromHTTPS(const std::string &url, bool IncludeProgressBar) {
+std::string cURLTools::GetFileFromHTTPS(const std::string &URL, long ConnectionTimeout, bool IncludeProgressBar) {
   CURL *curl;
   CURLcode res;
 
@@ -39,7 +39,7 @@ std::string cURLTools::GetFileFromHTTPS(const std::string &url, bool IncludeProg
   std::deque<char> s;
   if (curl) {
 
-    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_URL, URL.c_str());
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); // verify ssl peer
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L); // verify ssl hostname
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION,
@@ -55,6 +55,7 @@ std::string cURLTools::GetFileFromHTTPS(const std::string &url, bool IncludeProg
       curl_easy_setopt(curl, CURLOPT_NOPROGRESS, true);
     }
     //        curl_easy_setopt (curl, CURLOPT_VERBOSE, 1L); //verbose output
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, ConnectionTimeout);
 
     /* Perform the request, res will get the return code */
     res = curl_easy_perform(curl);
@@ -66,8 +67,8 @@ std::string cURLTools::GetFileFromHTTPS(const std::string &url, bool IncludeProg
       long http_response_code;
       curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_response_code);
       if (http_response_code != 200) {
-          throw std::runtime_error("Error retrieving data with https protocol, error . " + ToString(http_response_code) +
-                                   "Probably the URL is invalid.");
+          throw std::runtime_error("Error retrieving data with https protocol, error code: " + ToString(http_response_code) +
+                                   ". Probably the URL is invalid.");
       }
     }
 

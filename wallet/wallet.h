@@ -44,6 +44,15 @@ enum WalletFeature
     FEATURE_LATEST = 60000
 };
 
+class WalletNewTxUpdateFunctor : public boost::enable_shared_from_this<WalletNewTxUpdateFunctor>
+{
+    // reload balances if the current height less than the registered height plus this next value
+public:
+    static const int HEIGHT_OFFSET_TOLERANCE = 10;
+    virtual void run(uint256 txhash, int CurrentBlockHeight) {}
+    virtual void setReferenceBlockHeight() {}
+};
+
 /** A key pool entry */
 class CKeyPool
 {
@@ -95,6 +104,12 @@ public:
     ///      fFileBacked (immutable after instantiation)
     ///      strWalletFile (immutable after instantiation)
     mutable CCriticalSection cs_wallet;
+
+    // this function is supposed to be called every time a new transcation is added to the wallet
+    boost::shared_ptr<WalletNewTxUpdateFunctor> walletNewTxUpdateFunctor;
+    void setFunctorOnTxInsert(boost::shared_ptr<WalletNewTxUpdateFunctor> func) {
+        boost::atomic_store(&walletNewTxUpdateFunctor, func);
+    }
 
     bool fFileBacked;
     std::string strWalletFile;
@@ -535,6 +550,10 @@ public:
                 fAvailableCreditCached = false;
             }
         }
+        if(pwallet->walletNewTxUpdateFunctor) {
+            pwallet->walletNewTxUpdateFunctor->setReferenceBlockHeight();
+            pwallet->walletNewTxUpdateFunctor->run(this->GetHash(), nBestHeight);
+        }
         return fReturn;
     }
 
@@ -562,6 +581,10 @@ public:
         {
             vfSpent[nOut] = true;
             fAvailableCreditCached = false;
+        }
+        if(pwallet->walletNewTxUpdateFunctor) {
+            pwallet->walletNewTxUpdateFunctor->setReferenceBlockHeight();
+            pwallet->walletNewTxUpdateFunctor->run(this->GetHash(), nBestHeight);
         }
     }
 

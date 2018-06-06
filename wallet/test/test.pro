@@ -17,6 +17,9 @@ INCLUDEPATH += $${NEBLIO_ROOT}/wallet $${NEBLIO_ROOT}/wallet/json $${NEBLIO_ROOT
 
 INCLUDEPATH += googletest/googletest googletest/googletest/include
 
+# since this is for tests, unused functions can exist
+unix:QMAKE_CXXFLAGS += -Wno-unused-function
+
 include($${NEBLIO_ROOT}/wallet/wallet.pri)
 include($${NEBLIO_ROOT}/wallet/wallet-libs.pri)
 
@@ -34,11 +37,12 @@ SOURCES += \
     bloom_tests.cpp       \
     canonical_tests.cpp   \
     compress_tests.cpp    \
-    crypter_tests.cpp    \
+    crypter_tests.cpp     \
     getarg_tests.cpp      \
     key_tests.cpp         \
     mruset_tests.cpp      \
     netbase_tests.cpp     \
+    ntp1_tests.cpp        \
     pmt_tests.cpp         \
     rpc_tests.cpp         \
     script_tests.cpp      \

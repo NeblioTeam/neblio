@@ -5,6 +5,7 @@
 #include <QSystemTrayIcon>
 #include <QPainter>
 #include <overviewpage.h>
+#include "ntp1summary.h"
 #include <QStatusBar>
 #include <QLinearGradient>
 #include <QToolBar>
@@ -99,6 +100,7 @@ private:
     QStackedWidget *centralWidget;
 
     OverviewPage *overviewPage;
+    NTP1Summary *ntp1SummaryPage;
     QWidget *transactionsPage;
     AddressBookPage *addressBookPage;
     AddressBookPage *receiveCoinsPage;
@@ -115,6 +117,7 @@ private:
 
     QMenuBar *appMenuBar;
     QAction *overviewAction;
+    QAction *ntp1tokensAction;
     QAction *historyAction;
     QAction *quitAction;
     QAction *sendCoinsAction;
@@ -142,11 +145,9 @@ private:
 
     QMovie *syncIconMovie;
 
-    QToolBar *toolbar = NULL;
+    QToolBar *toolbar;
 
     uint64_t nWeight;
-
-    bool overviewPageShown;
 
     /** Create the main UI actions. */
     void createActions();
@@ -184,12 +185,20 @@ private:
         if(overviewPage == NULL) return;
 
         // This draws the bottom gray bar after calculating its position
-        if(!overviewPageShown) return;
-        painter.drawRect(0,
-                         overviewPage->ui->bottom_bar_widget->mapTo(
-                             overviewPage->ui->bottom_bar_widget->window(), QPoint(0,0)).y(),
-                         this->size().width(),
-                         overviewPage->ui->bottom_bar_widget->height());
+        if(overviewAction->isChecked()) {
+            painter.drawRect(0,
+                             overviewPage->ui->bottom_bar_widget->mapTo(
+                                 overviewPage->ui->bottom_bar_widget->window(), QPoint(0,0)).y(),
+                             this->size().width(),
+                             overviewPage->ui->bottom_bar_widget->height());
+        }
+        if(ntp1tokensAction->isChecked()) {
+            painter.drawRect(0,
+                             ntp1SummaryPage->ui->bottom_bar_widget->mapTo(
+                                 ntp1SummaryPage->ui->bottom_bar_widget->window(), QPoint(0,0)).y(),
+                             this->size().width(),
+                             ntp1SummaryPage->ui->bottom_bar_widget->height());
+        }
     }
 
 public slots:
@@ -219,6 +228,8 @@ public slots:
 private slots:
     /** Switch to overview (home) page */
     void gotoOverviewPage();
+    /** Switch to NTP1 tokens summary page */
+    void gotoNTP1SummaryPage();
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
     /** Switch to address book page */

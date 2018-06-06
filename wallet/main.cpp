@@ -135,6 +135,11 @@ void static EraseFromWallets(uint256 hash)
 // make sure all wallets know about the given transaction, in the given block
 void SyncWithWallets(const CTransaction& tx, const CBlock* pblock, bool fUpdate, bool fConnect)
 {
+    // update NTP1 transactions
+    if(pwalletMain->walletNewTxUpdateFunctor) {
+        pwalletMain->walletNewTxUpdateFunctor->run(tx.GetHash(), nBestHeight);
+    }
+
     if (!fConnect)
     {
         // ppcoin: wallets need to refund inputs when disconnecting coinstake
