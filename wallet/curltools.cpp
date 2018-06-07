@@ -1,8 +1,10 @@
 #include "curltools.h"
 
 #include <openssl/ssl.h>
+#include <boost/thread.hpp>
 
 boost::once_flag init_openssl_once_flag = BOOST_ONCE_INIT;
+boost::mutex curl_global_init_lock;
 
 class CurlCleaner
 {
@@ -54,7 +56,10 @@ std::string cURLTools::GetFileFromHTTPS(const std::string &URL, long ConnectionT
   CURL *curl;
   CURLcode res;
 
-  curl_global_init(CURL_GLOBAL_DEFAULT);
+  {
+      boost::lock_guard<boost::mutex> lg(curl_global_init_lock);
+      curl_global_init(CURL_GLOBAL_DEFAULT);
+  }
 
   curl = curl_easy_init();
   std::deque<char> s;
