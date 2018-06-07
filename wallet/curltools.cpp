@@ -1,6 +1,21 @@
 #include "curltools.h"
 
 #include <iostream>
+#include <openssl/ssl.h>
+
+boost::once_flag init_openssl_once_flag = BOOST_ONCE_INIT;
+
+class CurlCleaner
+{
+    CURL* curl_obj_to_clean;
+public:
+    CurlCleaner(CURL* Curl_obj_to_clean) : curl_obj_to_clean(Curl_obj_to_clean)
+    {}
+
+    ~CurlCleaner() {
+        curl_easy_cleanup(curl_obj_to_clean);
+    }
+};
 
 size_t cURLTools::CurlWrite_CallbackFunc_StdString(void *contents, size_t size,
                                         size_t nmemb, std::deque<char> *s) {
@@ -30,6 +45,8 @@ int cURLTools::CurlProgress_CallbackFunc(void *, double TotalToDownload,
 }
 
 std::string cURLTools::GetFileFromHTTPS(const std::string &URL, long ConnectionTimeout, bool IncludeProgressBar) {
+  boost::call_once(init_openssl_once_flag, SSL_library_init);
+
   CURL *curl;
   CURLcode res;
 
@@ -39,9 +56,12 @@ std::string cURLTools::GetFileFromHTTPS(const std::string &URL, long ConnectionT
   std::deque<char> s;
   if (curl) {
 
+    CurlCleaner cleaner(curl);
+
     curl_easy_setopt(curl, CURLOPT_URL, URL.c_str());
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); // verify ssl peer
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L); // verify ssl hostname
+    curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION,
                      CurlWrite_CallbackFunc_StdString);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "Dark Secret Ninja/1.0");
@@ -73,7 +93,8 @@ std::string cURLTools::GetFileFromHTTPS(const std::string &URL, long ConnectionT
     }
 
     /* always cleanup */
-    curl_easy_cleanup(curl);
+    // This is replaced by a smart cleaning object with the destructor (CurlCleaner)
+    // curl_easy_cleanup(curl);
   }
   std::string fileStr(s.begin(), s.end());
   return fileStr;
