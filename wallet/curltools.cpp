@@ -45,7 +45,12 @@ int cURLTools::CurlProgress_CallbackFunc(void *, double TotalToDownload,
 }
 
 std::string cURLTools::GetFileFromHTTPS(const std::string &URL, long ConnectionTimeout, bool IncludeProgressBar) {
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   boost::call_once(init_openssl_once_flag, SSL_library_init);
+#else
+  boost::call_once(init_openssl_once_flag, OPENSSL_init_ssl, 0, static_cast<const ossl_init_settings_st*>(NULL));
+#endif
 
   CURL *curl;
   CURLcode res;
