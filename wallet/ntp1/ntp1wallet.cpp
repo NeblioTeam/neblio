@@ -63,7 +63,7 @@ void NTP1Wallet::__getOutputs()
 
         // get the transaction from the wallet
         if(!pwalletMain->GetTransaction(txHash, neblTx)) {
-            printf("Error: Although the output number %i of transaction %s belongs to you, it couldn't be found in your wallet.", vecOutputs[i].i, txHash.ToString().c_str());
+            printf("Error: Although the output number %i of transaction %s belongs to you, it couldn't be found in your wallet.\n", vecOutputs[i].i, txHash.ToString().c_str());
             continue;
         }
 
@@ -74,7 +74,7 @@ void NTP1Wallet::__getOutputs()
         try {
             ntp1tx = NTP1APICalls::RetrieveData_TransactionInfo(txHash.ToString(), fTestNet);
         } catch (std::exception& ex) {
-            printf("Unable to download transaction information. Error says: %s", ex.what());
+            printf("Unable to download transaction information. Error says: %s\n", ex.what());
             failedRetrievals++;
             continue;
         }
@@ -164,7 +164,7 @@ void NTP1Wallet::scanSpentTransactions()
         if(walletOutputsWithTokens.find(toRemove[i]) != walletOutputsWithTokens.end()) {
             walletOutputsWithTokens.erase(toRemove[i]);
         } else {
-            printf("Unable to find output %s:%s, although it was found before and marked for removal.", toRemove[i].getHash().ToString().c_str(), ToString(toRemove[i].getIndex()).c_str());
+            printf("Unable to find output %s:%s, although it was found before and marked for removal.\n", toRemove[i].getHash().ToString().c_str(), ToString(toRemove[i].getIndex()).c_str());
 //            std::cerr<<"Unable to find output " << toRemove[i].getHash().ToString() << ":" << ToString(toRemove[i].getIndex()) << ", although it was found before and marked for removal." << std::endl;
         }
     }
@@ -235,7 +235,7 @@ std::string NTP1Wallet::__downloadIcon(const std::string& IconURL) {
     try {
         return cURLTools::GetFileFromHTTPS(IconURL, 30, false);
     } catch (std::exception& ex) {
-        printf("Error: Failed at downloading icon from %s. Error says: %s", IconURL.c_str(), ex.what());
+        printf("Error: Failed at downloading icon from %s. Error says: %s\n", IconURL.c_str(), ex.what());
         return ICON_ERROR_CONTENT;
     }
 }
