@@ -4242,3 +4242,18 @@ uint64_t CTxOutCompressor::DecompressAmount(uint64_t x)
     }
     return n;
 }
+
+bool TxContainsOpReturn(const CTransaction *tx) {
+    if(!tx) {
+        return false;
+    }
+
+    static const std::string OP_RET_STR = "OP_RETURN";
+    for (unsigned long j = 0; j < tx->vout.size(); j++) {
+        // if the string OP_RET_STR is found in scriptPubKey
+        if(tx->vout[j].scriptPubKey.ToString().find(OP_RET_STR) != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
