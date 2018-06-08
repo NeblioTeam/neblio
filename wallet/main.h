@@ -717,6 +717,8 @@ public:
 
 bool IsFinalTx(const CTransaction &tx, int nBlockHeight = 0, int64_t nBlockTime = 0);
 
+bool TxContainsOpReturn(const CTransaction *tx);
+
 
 
 

@@ -59,11 +59,16 @@ void NTP1Wallet::__getOutputs()
     for(unsigned long i = 0; i < vecOutputs.size(); i++) {
         NTP1OutPoint output = ConvertNeblOutputToNTP1(vecOutputs[i]);
         uint256 txHash = output.getHash();
-        CWalletTx neblTx;
 
         // get the transaction from the wallet
+        CWalletTx neblTx;
         if(!pwalletMain->GetTransaction(txHash, neblTx)) {
             printf("Error: Although the output number %i of transaction %s belongs to you, it couldn't be found in your wallet.\n", vecOutputs[i].i, txHash.ToString().c_str());
+            continue;
+        }
+
+        // NTP1 transactions strictly contain OP_RETURN in one of their vouts
+        if(!TxContainsOpReturn(&neblTx)) {
             continue;
         }
 
