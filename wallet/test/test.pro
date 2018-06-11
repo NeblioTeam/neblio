@@ -34,8 +34,9 @@ SOURCES += \
     bloom_tests.cpp       \
     canonical_tests.cpp   \
     compress_tests.cpp    \
-    crypter_tests.cpp    \
+    crypter_tests.cpp     \
     getarg_tests.cpp      \
+    hash_tests.cpp        \
     key_tests.cpp         \
     mruset_tests.cpp      \
     netbase_tests.cpp     \
