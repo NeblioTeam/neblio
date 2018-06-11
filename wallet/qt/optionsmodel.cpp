@@ -204,6 +204,7 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
             fCoinControlFeatures = value.toBool();
             settings.setValue("fCoinControlFeatures", fCoinControlFeatures);
             emit coinControlFeaturesChanged(fCoinControlFeatures);
+            break;
             }
         case BlockNTPAddresses:
             settings.setValue("fBlockNTPAddresses", value.toBool());
