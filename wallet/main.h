@@ -695,7 +695,7 @@ protected:
 /** Check for standard transaction types
     @return True if all outputs (scriptPubKeys) use only standard transaction forms
 */
-bool IsStandardTx(const CTransaction& tx);
+bool IsStandardTx(const CTransaction& tx, std::string& reason);
 
 
 /** wrapper for CTxOut that provides a more compact serialization */

@@ -566,5 +566,9 @@ inline uint32_t ByteReverse(uint32_t value)
     return (value<<16) | (value>>16);
 }
 
+std::string GeneratePseudoRandomString(const int len);
+
+std::string GeneratePseudoRandomHex(const int len);
+
 #endif
 

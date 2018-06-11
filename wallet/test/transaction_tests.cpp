@@ -255,3 +255,62 @@ TEST(transaction_tests, test_GetThrow)
     EXPECT_THROW(t1.AreInputsStandard(missingInputs), runtime_error);
     EXPECT_THROW(t1.GetValueIn(missingInputs), runtime_error);
 }
+
+TEST(transaction_tests, op_return_size)
+{
+    LOCK(cs_main);
+    CBasicKeyStore keystore;
+    MapPrevTx dummyInputs;
+    std::vector<CTransaction> dummyTransactions = SetupDummyInputs(keystore, dummyInputs);
+
+    {
+        CTransaction t;
+        t.vin.resize(1);
+        t.vin[0].prevout.hash = dummyTransactions[0].GetHash();
+        t.vin[0].prevout.n = 1;
+        t.vin[0].scriptSig << std::vector<unsigned char>(65, 0);
+        t.vout.resize(1);
+        t.vout[0].nValue = 90*CENT;
+        CKey key;
+        key.MakeNewKey(true);
+        t.vout[0].scriptPubKey = GetScriptForDestination(key.GetPubKey().GetID());
+
+        std::string reason;
+        EXPECT_TRUE(IsStandardTx(t, reason)) << reason;
+
+        t.vout[0].scriptPubKey = CScript() << OP_RETURN << ParseHex("");
+        EXPECT_TRUE(IsStandardTx(t, reason)) << reason;
+
+        // 80 bytes (exactly the allowed data size)
+        t.vout[0].scriptPubKey = CScript() << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2*80));
+        EXPECT_TRUE(IsStandardTx(t, reason)) << reason;
+
+        // 81 bytes (1-byte over the limit)
+        t.vout[0].scriptPubKey = CScript() << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2*81));
+        EXPECT_FALSE(IsStandardTx(t, reason)) << reason;
+
+
+        // Only one TX_NULL_DATA permitted in all cases
+        t.vout.resize(2);
+        t.vout[0].scriptPubKey = GetScriptForDestination(key.GetPubKey().GetID());;
+        t.vout[1].scriptPubKey = CScript() << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2*80));
+        EXPECT_TRUE(IsStandardTx(t, reason)) << reason;
+
+        t.vout.resize(2);
+        t.vout[0].scriptPubKey = CScript() << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2*80));
+        t.vout[1].scriptPubKey = GetScriptForDestination(key.GetPubKey().GetID());;
+        EXPECT_TRUE(IsStandardTx(t, reason)) << reason;
+
+        t.vout[0].scriptPubKey = CScript() << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2*80));
+        t.vout[1].scriptPubKey = CScript() << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2*80));
+        EXPECT_FALSE(IsStandardTx(t, reason)) << reason;
+
+        t.vout[0].scriptPubKey = CScript() << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2*80));
+        t.vout[1].scriptPubKey = CScript() << OP_RETURN;
+        EXPECT_FALSE(IsStandardTx(t, reason)) << reason;
+
+        t.vout[0].scriptPubKey = CScript() << OP_RETURN;
+        t.vout[1].scriptPubKey = CScript() << OP_RETURN;
+        EXPECT_FALSE(IsStandardTx(t, reason)) << reason;
+    }
+}
