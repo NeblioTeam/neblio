@@ -13,6 +13,9 @@
 #include <QListView>
 #include <QMenu>
 
+const QString NTP1Summary::sendDialogHiddenStr = "Send tokens to...";
+const QString NTP1Summary::sendDialogShownStr  = "Hide send tokens dialog";
+
 NTP1Summary::NTP1Summary(QWidget* parent)
     : QWidget(parent), ui(new Ui_NTP1Summary), currentBalance(-1), currentStake(0),
       currentUnconfirmedBalance(-1), currentImmatureBalance(-1), model(0), filter(0),
@@ -62,8 +65,6 @@ void NTP1Summary::keyPressEvent(QKeyEvent* event)
 
 void NTP1Summary::setupContextMenu()
 {
-    const QString sendDialogHiddenStr = "Send tokens to...";
-    const QString sendDialogShownStr  = "Hide send tokens dialog";
     ui->listTokens->setContextMenuPolicy(Qt::CustomContextMenu);
     contextMenu      = new QMenu(this);
     sendTokensAction = new QAction(sendDialogHiddenStr, this);
@@ -73,12 +74,14 @@ void NTP1Summary::setupContextMenu()
     connect(ui->listTokens, &QListView::customContextMenuRequested, this,
             &NTP1Summary::slot_contextMenuRequested);
 
-    connect(sendTokensAction, &QAction::triggered, this,
-            [this, sendDialogHiddenStr, sendDialogShownStr]() {
-                ui->sendTokensWidgetGroupBox->setVisible(!ui->sendTokensWidgetGroupBox->isVisible());
-                sendTokensAction->setText(
-                    ui->sendTokensWidgetGroupBox->isVisible() ? sendDialogShownStr : sendDialogShownStr);
-            });
+    connect(sendTokensAction, &QAction::triggered, this, &NTP1Summary::slot_actToShowSendTokensView);
+}
+
+void NTP1Summary::slot_actToShowSendTokensView()
+{
+    ui->sendTokensWidgetGroupBox->setVisible(!ui->sendTokensWidgetGroupBox->isVisible());
+    sendTokensAction->setText(
+        ui->sendTokensWidgetGroupBox->isVisible() ? sendDialogShownStr : sendDialogShownStr);
 }
 
 NTP1Summary::~NTP1Summary() { delete ui; }

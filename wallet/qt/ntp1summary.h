@@ -41,6 +41,9 @@ public:
     Ui_NTP1Summary* ui;
 
 private:
+    static const QString sendDialogHiddenStr;
+    static const QString sendDialogShownStr;
+
     qint64                    currentBalance;
     qint64                    currentStake;
     qint64                    currentUnconfirmedBalance;
@@ -56,6 +59,7 @@ private:
 private slots:
     void handleTokenClicked(const QModelIndex& index);
     void slot_contextMenuRequested(QPoint pos);
+    void slot_actToShowSendTokensView();
 
     // QWidget interface
 protected:
