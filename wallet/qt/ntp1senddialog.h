@@ -11,7 +11,7 @@
 
 class NTP1SendSingleTokenFields;
 
-class NTP1SendDialog : public QWidget
+class NTP1SendDialog Q_DECL_FINAL : public QWidget
 {
     Q_OBJECT
     QGridLayout* mainLayout;

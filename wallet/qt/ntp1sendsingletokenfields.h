@@ -6,7 +6,7 @@
 #include <QLineEdit>
 #include <QPushButton>
 
-class NTP1SendSingleTokenFields final : public QWidget
+class NTP1SendSingleTokenFields Q_DECL_FINAL : public QWidget
 {
     Q_OBJECT
 
