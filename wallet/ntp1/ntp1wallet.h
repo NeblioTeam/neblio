@@ -78,6 +78,8 @@ public:
     void exportToFile(const boost::filesystem::path& filePath) const;
     void importFromFile(const boost::filesystem::path& filePath);
 
+//    static void CreateNTP1SendTransaction(uint64_t fee);
+
 private:
     static std::string __KeyToString(const std::string& str, bool serialize);
     static void __KeyFromString(const std::string& str, bool deserialize, std::string& result);

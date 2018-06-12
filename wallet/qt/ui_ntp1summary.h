@@ -5,48 +5,54 @@
 #include <QtWidgets/QAction>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QButtonGroup>
-#include <QtWidgets/QGridLayout>
 #include <QtWidgets/QFrame>
+#include <QtWidgets/QGridLayout>
 #include <QtWidgets/QHBoxLayout>
 #include <QtWidgets/QHeaderView>
 #include <QtWidgets/QLabel>
+#include <QtWidgets/QLineEdit>
 #include <QtWidgets/QListView>
 #include <QtWidgets/QSpacerItem>
 #include <QtWidgets/QVBoxLayout>
 #include <QtWidgets/QWidget>
-#include <QtWidgets/QLineEdit>
 
-#include <QMovie>
 #include <ClickableLabel.h>
+#include <QMovie>
+
+#include "ntp1senddialog.h"
 
 QT_BEGIN_NAMESPACE
 
 class Ui_NTP1Summary
 {
 public:
-    QPixmap left_logo_pix;
-    QGridLayout *main_layout;
-    QVBoxLayout *left_logo_layout;
-    QLabel *left_logo_label;
-    QVBoxLayout *logo_layout;
-    QVBoxLayout *right_balance_layout;
-    QFrame *wallet_contents_frame;
-    QVBoxLayout *verticalLayout;
-    QHBoxLayout *horizontalLayout_2;
-    QLabel *upper_table_label;
-    QLabel *upper_table_loading_label;
-    QLineEdit *filter_lineEdit;
-    QLabel *labelBlockchainSyncStatus;
-    QListView *listTokens;
+    QPixmap      left_logo_pix;
+    QGridLayout* main_layout;
+    QVBoxLayout* left_logo_layout;
+    QLabel*      left_logo_label;
+    QVBoxLayout* logo_layout;
+    QVBoxLayout* right_balance_layout;
+    QFrame*      wallet_contents_frame;
+    QVBoxLayout* verticalLayout;
+    QHBoxLayout* horizontalLayout_2;
+    QLabel*      upper_table_label;
+    QLabel*      upper_table_loading_label;
+    QLineEdit*   filter_lineEdit;
+    QLabel*      labelBlockchainSyncStatus;
+    QListView*   listTokens;
 
-    QWidget *bottom_bar_widget;
-    QLabel *bottom_bar_logo_label;
-    QGridLayout *bottom_layout;
-    QPixmap bottom_logo_pix;
+    QWidget*     bottom_bar_widget;
+    QLabel*      bottom_bar_logo_label;
+    QGridLayout* bottom_layout;
+    QPixmap      bottom_logo_pix;
+
+    QGroupBox*      sendTokensWidgetGroupBox;
+    QGridLayout*    sendTokensWidgetGroupBoxLayout;
+    NTP1SendDialog* sendTokensWidget;
 
     int bottom_bar_downscale_factor;
 
-    void setupUi(QWidget *NTP1SummaryPage)
+    void setupUi(QWidget* NTP1SummaryPage)
     {
         if (NTP1SummaryPage->objectName().isEmpty())
             NTP1SummaryPage->setObjectName(QStringLiteral("NTP1SummaryPage"));
@@ -58,14 +64,23 @@ public:
         left_logo_label = new QLabel(NTP1SummaryPage);
         left_logo_label->setObjectName(QStringLiteral("frame"));
 
-//        logo_label->setFrameShadow(QFrame::Raised);
+        //        logo_label->setFrameShadow(QFrame::Raised);
         left_logo_label->setLineWidth(0);
-//        logo_label->setFrameStyle(QFrame::StyledPanel);
+        //        logo_label->setFrameStyle(QFrame::StyledPanel);
 
         left_logo_pix = QPixmap(":images/neblio_vertical");
-        left_logo_pix = left_logo_pix.scaledToHeight(NTP1SummaryPage->height()*3./4., Qt::SmoothTransformation);
+        left_logo_pix =
+            left_logo_pix.scaledToHeight(NTP1SummaryPage->height() * 3. / 4., Qt::SmoothTransformation);
         left_logo_label->setPixmap(left_logo_pix);
         left_logo_label->setAlignment(Qt::AlignCenter);
+
+        sendTokensWidget               = new NTP1SendDialog;
+        sendTokensWidgetGroupBoxLayout = new QGridLayout;
+        sendTokensWidgetGroupBox       = new QGroupBox;
+        sendTokensWidgetGroupBox->setLayout(sendTokensWidgetGroupBoxLayout);
+        sendTokensWidgetGroupBoxLayout->addWidget(sendTokensWidget);
+        sendTokensWidgetGroupBox->setStyleSheet(
+            "QGroupBox { background-color: white; border: 1px solid #BBBBBB ;}");
 
         logo_layout = new QVBoxLayout(left_logo_label);
         logo_layout->setObjectName(QStringLiteral("verticalLayout_4"));
@@ -74,16 +89,17 @@ public:
 
         main_layout->addLayout(left_logo_layout, 0, 0, 1, 1);
 
-        bottom_logo_pix = QPixmap(":images/neblio_horizontal");
-        bottom_bar_widget = new QWidget(NTP1SummaryPage);
-        bottom_layout = new QGridLayout(bottom_bar_widget);
-        bottom_bar_logo_label = new QLabel(bottom_bar_widget);
+        bottom_logo_pix             = QPixmap(":images/neblio_horizontal");
+        bottom_bar_widget           = new QWidget(NTP1SummaryPage);
+        bottom_layout               = new QGridLayout(bottom_bar_widget);
+        bottom_bar_logo_label       = new QLabel(bottom_bar_widget);
         bottom_bar_downscale_factor = 8;
 
         main_layout->addWidget(bottom_bar_widget, 1, 0, 1, 2);
         bottom_bar_widget->setLayout(bottom_layout);
         bottom_layout->addWidget(bottom_bar_logo_label, 0, 0, 1, 1);
-        bottom_logo_pix = bottom_logo_pix.scaledToHeight(NTP1SummaryPage->height()/bottom_bar_downscale_factor, Qt::SmoothTransformation);
+        bottom_logo_pix = bottom_logo_pix.scaledToHeight(
+            NTP1SummaryPage->height() / bottom_bar_downscale_factor, Qt::SmoothTransformation);
         bottom_bar_logo_label->setPixmap(bottom_logo_pix);
         bottom_bar_logo_label->setAlignment(Qt::AlignRight);
 
@@ -92,7 +108,7 @@ public:
         wallet_contents_frame = new QFrame(NTP1SummaryPage);
         wallet_contents_frame->setObjectName(QStringLiteral("frame_2"));
         wallet_contents_frame->setFrameShape(QFrame::StyledPanel);
-//        wallet_contents_frame->setFrameShadow(QFrame::Raised);
+        //        wallet_contents_frame->setFrameShadow(QFrame::Raised);
         verticalLayout = new QVBoxLayout(wallet_contents_frame);
         verticalLayout->setObjectName(QStringLiteral("verticalLayout"));
         horizontalLayout_2 = new QHBoxLayout();
@@ -112,7 +128,7 @@ public:
         labelBlockchainSyncStatus->setObjectName(QStringLiteral("labelBlockchainSyncStatus"));
         labelBlockchainSyncStatus->setStyleSheet(QStringLiteral("QLabel { color: red; }"));
         labelBlockchainSyncStatus->setText(QStringLiteral("(blockchain out of sync)"));
-        labelBlockchainSyncStatus->setAlignment(Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter);
+        labelBlockchainSyncStatus->setAlignment(Qt::AlignRight | Qt::AlignTrailing | Qt::AlignVCenter);
 
         horizontalLayout_2->addWidget(labelBlockchainSyncStatus);
 
@@ -123,14 +139,14 @@ public:
         listTokens->setObjectName(QStringLiteral("listTokens"));
         listTokens->setStyleSheet(QStringLiteral("QListView { background: transparent; }"));
         listTokens->setFrameShape(QFrame::NoFrame);
-//        listTokens->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-//        listTokens->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        //        listTokens->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        //        listTokens->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         listTokens->setSelectionMode(QAbstractItemView::NoSelection);
 
         verticalLayout->addWidget(listTokens);
 
-
         right_balance_layout->addWidget(wallet_contents_frame);
+        right_balance_layout->addWidget(sendTokensWidgetGroupBox);
 
         main_layout->addLayout(right_balance_layout, 0, 1, 1, 1);
 
@@ -139,14 +155,20 @@ public:
         QMetaObject::connectSlotsByName(NTP1SummaryPage);
     } // setupUi
 
-    void retranslateUi(QWidget *NTP1SummaryPage)
+    void retranslateUi(QWidget* NTP1SummaryPage)
     {
         NTP1SummaryPage->setWindowTitle(QApplication::translate("NTP1Summary", "Form", Q_NULLPTR));
-        upper_table_label->setText(QApplication::translate("NTP1Summary", "<b>NTP1 Tokens</b>", Q_NULLPTR));
+        upper_table_label->setText(
+            QApplication::translate("NTP1Summary", "<b>NTP1 Tokens</b>", Q_NULLPTR));
 #ifndef QT_NO_TOOLTIP
-        labelBlockchainSyncStatus->setToolTip(QApplication::translate("NTP1Summary", "The displayed information may be out of date. Your wallet automatically synchronizes with the neblio network after a connection is established, but this process has not completed yet.", Q_NULLPTR));
+        labelBlockchainSyncStatus->setToolTip(
+            QApplication::translate("NTP1Summary",
+                                    "The displayed information may be out of date. Your wallet "
+                                    "automatically synchronizes with the neblio network after a "
+                                    "connection is established, but this process has not completed yet.",
+                                    Q_NULLPTR));
 #endif // QT_NO_TOOLTIP
-    } // retranslateUi
+    }  // retranslateUi
 };
 
 QT_END_NAMESPACE
