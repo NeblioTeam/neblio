@@ -21,7 +21,8 @@ NTP1Summary::NTP1Summary(QWidget* parent)
       currentUnconfirmedBalance(-1), currentImmatureBalance(-1), model(0), filter(0),
       tokenDelegate(new NTP1TokenListItemDelegate)
 {
-    ui->setupUi(this);
+    model = new NTP1TokenListModel;
+    ui->setupUi(this, model);
 
     ui->listTokens->setItemDelegate(tokenDelegate);
     ui->listTokens->setIconSize(
@@ -40,7 +41,6 @@ NTP1Summary::NTP1Summary(QWidget* parent)
 
     setupContextMenu();
 
-    model  = new NTP1TokenListModel;
     filter = new NTP1TokenListFilterProxy(ui->filter_lineEdit);
     setModel(model);
 
@@ -79,9 +79,10 @@ void NTP1Summary::setupContextMenu()
 
 void NTP1Summary::slot_actToShowSendTokensView()
 {
+    ui->sendTokensWidget->slot_updateAllRecipientDialogsTokens();
     ui->sendTokensWidgetGroupBox->setVisible(!ui->sendTokensWidgetGroupBox->isVisible());
-    sendTokensAction->setText(
-        ui->sendTokensWidgetGroupBox->isVisible() ? sendDialogShownStr : sendDialogShownStr);
+    sendTokensAction->setText(ui->sendTokensWidgetGroupBox->isVisible() ? sendDialogShownStr
+                                                                        : sendDialogHiddenStr);
 }
 
 NTP1Summary::~NTP1Summary() { delete ui; }
@@ -94,6 +95,8 @@ void NTP1Summary::setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBal
     currentUnconfirmedBalance = unconfirmedBalance;
     currentImmatureBalance    = immatureBalance;
 }
+
+NTP1TokenListModel* NTP1Summary::getTokenListModel() const { return model; }
 
 void NTP1Summary::setModel(NTP1TokenListModel* model)
 {

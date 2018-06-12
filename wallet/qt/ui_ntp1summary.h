@@ -52,7 +52,7 @@ public:
 
     int bottom_bar_downscale_factor;
 
-    void setupUi(QWidget* NTP1SummaryPage)
+    void setupUi(QWidget* NTP1SummaryPage, NTP1TokenListModel* tokenListModel)
     {
         if (NTP1SummaryPage->objectName().isEmpty())
             NTP1SummaryPage->setObjectName(QStringLiteral("NTP1SummaryPage"));
@@ -74,7 +74,7 @@ public:
         left_logo_label->setPixmap(left_logo_pix);
         left_logo_label->setAlignment(Qt::AlignCenter);
 
-        sendTokensWidget               = new NTP1SendDialog;
+        sendTokensWidget               = new NTP1SendDialog(tokenListModel);
         sendTokensWidgetGroupBoxLayout = new QGridLayout;
         sendTokensWidgetGroupBox       = new QGroupBox;
         sendTokensWidgetGroupBox->setLayout(sendTokensWidgetGroupBoxLayout);

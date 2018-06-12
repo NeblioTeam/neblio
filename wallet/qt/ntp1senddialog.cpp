@@ -2,7 +2,11 @@
 
 #include "ntp1sendsingletokenfields.h"
 
-NTP1SendDialog::NTP1SendDialog(QWidget* parent) : QWidget(parent) { createWidgets(); }
+NTP1SendDialog::NTP1SendDialog(NTP1TokenListModel* tokenListModel, QWidget* parent) : QWidget(parent)
+{
+    tokenListDataModel = tokenListModel;
+    createWidgets();
+}
 
 NTP1SendDialog::~NTP1SendDialog() {}
 
@@ -42,11 +46,24 @@ void NTP1SendDialog::createWidgets()
     slot_addRecipientWidget();
 }
 
+boost::shared_ptr<NTP1Wallet> NTP1SendDialog::getLatestNTP1Wallet() const
+{
+    if (tokenListDataModel != Q_NULLPTR) {
+        return tokenListDataModel->getCurrentWallet();
+    } else {
+        printf("Error while retrieving latest wallet. Token list data model is nullptr.");
+        return Q_NULLPTR;
+    }
+}
+
 void NTP1SendDialog::slot_addRecipientWidget()
 {
-    NTP1SendSingleTokenFields* widget = new NTP1SendSingleTokenFields;
+    NTP1SendSingleTokenFields* widget =
+        new NTP1SendSingleTokenFields(boost::bind(&NTP1SendDialog::getLatestNTP1Wallet, this));
     connect(widget, &NTP1SendSingleTokenFields::signal_closeThis, this,
             &NTP1SendDialog::slot_removeRecipientWidget);
+    connect(this, &NTP1SendDialog::signal_updateAllRecipientDialogsTokens, widget,
+            &NTP1SendSingleTokenFields::slot_updateTokenList);
     widget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
     recipientWidgets.push_back(widget);
     recipientWidgetsLayout->addWidget(widget, 0, Qt::AlignTop);
@@ -76,6 +93,11 @@ void NTP1SendDialog::slot_actToShowOrHideCloseButtons()
     } else {
         hideAllCloseButtons();
     }
+}
+
+void NTP1SendDialog::slot_updateAllRecipientDialogsTokens()
+{
+    emit signal_updateAllRecipientDialogsTokens();
 }
 
 void NTP1SendDialog::showAllCloseButtons()

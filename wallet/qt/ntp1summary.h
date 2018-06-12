@@ -38,7 +38,8 @@ signals:
     void tokenClicked(const QModelIndex& index);
 
 public:
-    Ui_NTP1Summary* ui;
+    Ui_NTP1Summary*     ui;
+    NTP1TokenListModel* getTokenListModel() const;
 
 private:
     static const QString sendDialogHiddenStr;
