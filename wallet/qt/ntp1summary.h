@@ -50,8 +50,8 @@ private:
 
     NTP1TokenListItemDelegate* tokenDelegate;
 
-    QMenu*   contextMenu      = nullptr;
-    QAction* sendTokensAction = nullptr;
+    QMenu*   contextMenu      = Q_NULLPTR;
+    QAction* sendTokensAction = Q_NULLPTR;
 
 private slots:
     void handleTokenClicked(const QModelIndex& index);
