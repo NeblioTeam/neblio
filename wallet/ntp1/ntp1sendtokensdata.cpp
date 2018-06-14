@@ -125,7 +125,8 @@ void NTP1SendTokensData::calculateSources(boost::shared_ptr<NTP1Wallet> wallet, 
     }
 
     if (fee > currentTotalNeblsInSelectedAddresses) {
-        throw std::runtime_error("Insufficient nebls to pay for fees (" + ToString(fee / 1.e8) + ")");
+        throw std::runtime_error("Insufficient nebls to pay for fees (" +
+                                 ToString(static_cast<double>(fee) / 1.e8) + ")");
     }
 }
 
