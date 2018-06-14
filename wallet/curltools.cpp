@@ -1,59 +1,57 @@
 #include "curltools.h"
 
+#include <boost/thread.hpp>
 #include <iostream>
 #include <openssl/ssl.h>
-#include <boost/thread.hpp>
 
-boost::once_flag init_openssl_once_flag = BOOST_ONCE_INIT;
+boost::once_flag init_openssl_once_flag     = BOOST_ONCE_INIT;
 boost::once_flag init_curl_global_once_flag = BOOST_ONCE_INIT;
-boost::mutex curl_global_init_lock;
+boost::mutex     curl_global_init_lock;
 
 class CurlCleaner
 {
     CURL* curl_obj_to_clean;
-public:
-    CurlCleaner(CURL* Curl_obj_to_clean) : curl_obj_to_clean(Curl_obj_to_clean)
-    {}
 
-    ~CurlCleaner() {
-        curl_easy_cleanup(curl_obj_to_clean);
-    }
+public:
+    CurlCleaner(CURL* Curl_obj_to_clean) : curl_obj_to_clean(Curl_obj_to_clean) {}
+
+    ~CurlCleaner() { curl_easy_cleanup(curl_obj_to_clean); }
 };
 
-size_t cURLTools::CurlWrite_CallbackFunc_StdString(void *contents, size_t size,
-                                                   size_t nmemb, std::deque<char> *s) {
+size_t cURLTools::CurlWrite_CallbackFunc_StdString(void* contents, size_t size, size_t nmemb,
+                                                   std::deque<char>* s)
+{
     size_t newLength = size * nmemb;
     size_t oldLength = s->size();
     try {
         s->resize(oldLength + newLength);
-    } catch (std::bad_alloc &e) {
+    } catch (std::bad_alloc& e) {
         std::stringstream msg;
         msg << "Error allocating memory: " << e.what() << std::endl;
         printf("%s", msg.str().c_str());
         return 0;
     }
 
-    std::copy((char *)contents, (char *)contents + newLength,
-              s->begin() + oldLength);
+    std::copy((char*)contents, (char*)contents + newLength, s->begin() + oldLength);
     return size * nmemb;
 }
 
-size_t cURLTools::CurlRead_CallbackFunc_StdString(void *dest, size_t /*size*/, size_t /*nmemb*/, void *userp)
+size_t cURLTools::CurlRead_CallbackFunc_StdString(void* dest, size_t /*size*/, size_t /*nmemb*/,
+                                                  void* userp)
 {
-    std::string *from = (std::string*)userp;
-    std::string *to = (std::string*)dest;
+    std::string* from = (std::string*)userp;
+    std::string* to   = (std::string*)dest;
 
     std::copy(from->begin(), from->end(), std::back_inserter(*to));
 
     return 0; /* no more data left to deliver */
 }
 
-int cURLTools::CurlProgress_CallbackFunc(void *, double TotalToDownload,
-                                         double NowDownloaded, double /*TotalToUpload*/,
-                                         double /*NowUploaded*/) {
-    std::clog << "Download progress: " <<
-                 ToString(NowDownloaded) << " / " <<
-                 ToString(TotalToDownload) << std::endl;
+int cURLTools::CurlProgress_CallbackFunc(void*, double TotalToDownload, double NowDownloaded,
+                                         double /*TotalToUpload*/, double /*NowUploaded*/)
+{
+    std::clog << "Download progress: " << ToString(NowDownloaded) << " / " << ToString(TotalToDownload)
+              << std::endl;
     return CURLE_OK;
 }
 
@@ -63,15 +61,18 @@ void cURLTools::CurlGlobalInit_ThreadSafe()
     curl_global_init(CURL_GLOBAL_DEFAULT);
 }
 
-std::string cURLTools::GetFileFromHTTPS(const std::string &URL, long ConnectionTimeout, bool IncludeProgressBar) {
+std::string cURLTools::GetFileFromHTTPS(const std::string& URL, long ConnectionTimeout,
+                                        bool IncludeProgressBar)
+{
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     boost::call_once(init_openssl_once_flag, SSL_library_init);
 #else
-    boost::call_once(init_openssl_once_flag, OPENSSL_init_ssl, 0, static_cast<const ossl_init_settings_st*>(NULL));
+    boost::call_once(init_openssl_once_flag, OPENSSL_init_ssl, 0,
+                     static_cast<const ossl_init_settings_st*>(NULL));
 #endif
 
-    CURL *curl;
+    CURL*    curl;
     CURLcode res;
 
     boost::call_once(init_curl_global_once_flag, CurlGlobalInit_ThreadSafe);
@@ -86,15 +87,13 @@ std::string cURLTools::GetFileFromHTTPS(const std::string &URL, long ConnectionT
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); // verify ssl peer
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L); // verify ssl hostname
         curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION,
-                         CurlWrite_CallbackFunc_StdString);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlWrite_CallbackFunc_StdString);
         curl_easy_setopt(curl, CURLOPT_USERAGENT, "Dark Secret Ninja/1.0");
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &s);
 
         if (IncludeProgressBar) {
             curl_easy_setopt(curl, CURLOPT_NOPROGRESS, false);
-            curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION,
-                             CurlProgress_CallbackFunc);
+            curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, CurlProgress_CallbackFunc);
         } else {
             curl_easy_setopt(curl, CURLOPT_NOPROGRESS, true);
         }
@@ -111,7 +110,8 @@ std::string cURLTools::GetFileFromHTTPS(const std::string &URL, long ConnectionT
             long http_response_code;
             curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_response_code);
             if (http_response_code != 200) {
-                throw std::runtime_error("Error retrieving data with https protocol, error code: " + ToString(http_response_code) +
+                throw std::runtime_error("Error retrieving data with https protocol, error code: " +
+                                         ToString(http_response_code) +
                                          ". Probably the URL is invalid.");
             }
         }
@@ -124,22 +124,25 @@ std::string cURLTools::GetFileFromHTTPS(const std::string &URL, long ConnectionT
     return fileStr;
 }
 
-void cURLTools::PostDataToHTTPS(const std::string &URL, long ConnectionTimeout, const std::string &data, bool chunked)
+std::string cURLTools::PostDataToHTTPS(const std::string& URL, long ConnectionTimeout,
+                                       const std::string& readdata, bool chunked)
 {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     boost::call_once(init_openssl_once_flag, SSL_library_init);
 #else
-    boost::call_once(init_openssl_once_flag, OPENSSL_init_ssl, 0, static_cast<const ossl_init_settings_st*>(NULL));
+    boost::call_once(init_openssl_once_flag, OPENSSL_init_ssl, 0,
+                     static_cast<const ossl_init_settings_st*>(NULL));
 #endif
 
-    CURL *curl;
+    CURL*    curl;
     CURLcode res;
 
     boost::call_once(init_curl_global_once_flag, CurlGlobalInit_ThreadSafe);
 
     /* get a curl handle */
     curl = curl_easy_init();
-    if(curl) {
+    std::deque<char> writedata;
+    if (curl) {
 
         CurlCleaner cleaner(curl);
 
@@ -147,7 +150,8 @@ void cURLTools::PostDataToHTTPS(const std::string &URL, long ConnectionTimeout, 
          just as well be a https:// URL if that is what should receive the
          data. */
         curl_easy_setopt(curl, CURLOPT_URL, URL.c_str());
-        curl_easy_setopt(curl, CURLOPT_READDATA, &data);
+        curl_easy_setopt(curl, CURLOPT_READDATA, &readdata);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &writedata);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); // verify ssl peer
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L); // verify ssl hostname
         curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
@@ -165,17 +169,17 @@ void cURLTools::PostDataToHTTPS(const std::string &URL, long ConnectionTimeout, 
           CURLOPT_HTTPHEADER. With HTTP 1.0 or without chunked transfer, you must
           specify the size in the request.
         */
-        if(chunked) {
-            struct curl_slist *chunk = NULL;
+        if (chunked) {
+            struct curl_slist* chunk = NULL;
 
             chunk = curl_slist_append(chunk, "Transfer-Encoding: chunked");
-            res = curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
+            res   = curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
             /* use curl_slist_free_all() after the *perform() call to free this
          list again */
         } else {
             /* Set the expected POST size. If you want to POST large amounts of data,
        consider CURLOPT_POSTFIELDSIZE_LARGE */
-            curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (curl_off_t)data.size());
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (curl_off_t)readdata.size());
         }
 
         /*
@@ -187,12 +191,11 @@ void cURLTools::PostDataToHTTPS(const std::string &URL, long ConnectionTimeout, 
         /* A less good option would be to enforce HTTP 1.0, but that might also
                have other implications. */
         const bool disable_expect = false;
-        if(disable_expect)
-        {
-            struct curl_slist *chunk = NULL;
+        if (disable_expect) {
+            struct curl_slist* chunk = NULL;
 
             chunk = curl_slist_append(chunk, "Expect:");
-            res = curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
+            res   = curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
             /* use curl_slist_free_all() after the *perform() call to free this
                  list again */
         }
@@ -207,7 +210,8 @@ void cURLTools::PostDataToHTTPS(const std::string &URL, long ConnectionTimeout, 
             long http_response_code;
             curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_response_code);
             if (http_response_code != 200) {
-                throw std::runtime_error("Error posting data with https protocol, error code: " + ToString(http_response_code) +
+                throw std::runtime_error("Error posting data with https protocol, error code: " +
+                                         ToString(http_response_code) +
                                          ". Probably the URL is invalid.");
             }
         }
@@ -216,5 +220,6 @@ void cURLTools::PostDataToHTTPS(const std::string &URL, long ConnectionTimeout, 
         // This is replaced by a smart cleaning object with the destructor (CurlCleaner)
         // curl_easy_cleanup(curl);
     }
-    return;
+    std::string fileStr(writedata.begin(), writedata.end());
+    return fileStr;
 }

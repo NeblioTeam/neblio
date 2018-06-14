@@ -1,6 +1,8 @@
 #include "ntp1senddialog.h"
 
+#include "bitcoinrpc.h"
 #include "ntp1sendsingletokenfields.h"
+#include <QMessageBox>
 
 NTP1SendDialog::NTP1SendDialog(NTP1TokenListModel* tokenListModel, QWidget* parent) : QWidget(parent)
 {
@@ -16,6 +18,7 @@ void NTP1SendDialog::createWidgets()
     addRecipientButton     = new QPushButton(this);
     sendButton             = new QPushButton(this);
     recipientWidgetsWidget = new QWidget;
+    feeWidget              = new NTP1SendTokensFeeWidget;
     addRecipientButton->setText("Add &Recipient");
     addRecipientButton->setIcon(QIcon(":/icons/add"));
     sendButton->setText("Send");
@@ -36,11 +39,14 @@ void NTP1SendDialog::createWidgets()
     recipientWidgetsScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     recipientWidgetsScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
+    recipientWidgetsLayout->addWidget(feeWidget, 0, Qt::AlignTop);
+
     mainLayout->addWidget(recipientWidgetsScrollArea, 0, 0, 1, 3);
     mainLayout->addWidget(addRecipientButton, 1, 0, 1, 1);
     mainLayout->addWidget(sendButton, 1, 2, 1, 1);
 
     connect(addRecipientButton, &QPushButton::clicked, this, &NTP1SendDialog::slot_addRecipientWidget);
+    connect(sendButton, &QPushButton::clicked, this, &NTP1SendDialog::slot_sendClicked);
 
     // add one widget
     slot_addRecipientWidget();
@@ -54,6 +60,32 @@ boost::shared_ptr<NTP1Wallet> NTP1SendDialog::getLatestNTP1Wallet() const
         printf("Error while retrieving latest wallet. Token list data model is nullptr.");
         return Q_NULLPTR;
     }
+}
+
+NTP1SendTokensData NTP1SendDialog::createTransactionData() const
+{
+    NTP1SendTokensData result;
+    try {
+        EnsureWalletIsUnlocked();
+        for (auto w : recipientWidgets) {
+            result.addRecipient(w->createRecipientData());
+        }
+        bool calcFee = false;
+        if (feeWidget->isAutoCalcFeeSelected()) {
+            calcFee = true;
+            result.setFee(0);
+        } else {
+            calcFee = false;
+            result.setFee(
+                static_cast<int64_t>(std::ceil(FromString<double>(feeWidget->getEnteredFee()) * 1.e8)));
+        }
+        result.calculateSources(getLatestNTP1Wallet(), calcFee);
+        std::cout << result.exportToAPIFormat() << std::endl;
+    } catch (std::exception& ex) {
+        printf("Error while creating recipient send data: %s", ex.what());
+        throw;
+    }
+    return result;
 }
 
 void NTP1SendDialog::slot_addRecipientWidget()
@@ -98,6 +130,18 @@ void NTP1SendDialog::slot_actToShowOrHideCloseButtons()
 void NTP1SendDialog::slot_updateAllRecipientDialogsTokens()
 {
     emit signal_updateAllRecipientDialogsTokens();
+}
+
+void NTP1SendDialog::slot_sendClicked()
+{
+    try {
+        NTP1SendTokensData txData = createTransactionData();
+        std::string        apiMsg = txData.exportToAPIFormat();
+        // TODO
+    } catch (std::exception& ex) {
+        printf("Error while constructing transaction %s\n", ex.what());
+        QMessageBox::warning(this, "Error sending", QString(ex.what()));
+    }
 }
 
 void NTP1SendDialog::showAllCloseButtons()

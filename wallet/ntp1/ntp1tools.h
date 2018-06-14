@@ -20,13 +20,16 @@ public:
     static const std::string NTPAPI_tokenId;
     static const std::string NTPAPI_tokenMetaData;
     static const std::string NTPAPI_stakeHolders;
+    static const std::string NTPAPI_sendTokens;
 
     // json parsing methods
-    static std::string GetStrField(const json_spirit::Object &data, const std::string &fieldName);
-    static bool GetBoolField(const json_spirit::Object &data, const std::string &fieldName);
-    static uint64_t GetUint64Field(const json_spirit::Object &data, const std::string &fieldName);
-    static json_spirit::Array GetArrayField(const json_spirit::Object &data, const std::string &fieldName);
-    static json_spirit::Object GetObjectField(const json_spirit::Object &data, const std::string &fieldName);
+    static std::string GetStrField(const json_spirit::Object& data, const std::string& fieldName);
+    static bool        GetBoolField(const json_spirit::Object& data, const std::string& fieldName);
+    static uint64_t    GetUint64Field(const json_spirit::Object& data, const std::string& fieldName);
+    static json_spirit::Array  GetArrayField(const json_spirit::Object& data,
+                                             const std::string&         fieldName);
+    static json_spirit::Object GetObjectField(const json_spirit::Object& data,
+                                              const std::string&         fieldName);
 
     // local string manipulation methods
     static std::string GetURL_APIBase(bool testnet);
@@ -34,11 +37,10 @@ public:
     static std::string GetURL_TransactionInfo(const std::string& txHash, bool testnet);
     static std::string GetURL_TokenID(const std::string& tokenSymbol, bool testnet);
     static std::string GetURL_TokenMetaData(const std::string& tokenID, bool testnet);
-    static std::string GetURL_TokenUTXOMetaData(const std::string& tokenID,
-                                                const std::string &txHash,
-                                                unsigned long outputIndex,
-                                                bool testnet);
+    static std::string GetURL_TokenUTXOMetaData(const std::string& tokenID, const std::string& txHash,
+                                                unsigned long outputIndex, bool testnet);
     static std::string GetURL_StakeHolders(const std::string& tokenID, bool testnet);
+    static std::string GetURL_SendTokens(bool testnet);
 };
 
 #endif // NTP1TOOLS_H

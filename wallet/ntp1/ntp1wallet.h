@@ -55,16 +55,18 @@ class NTP1Wallet : public boost::enable_shared_from_this<NTP1Wallet>
 
 public:
     NTP1Wallet();
-    void               update();
-    std::string        getTokenName(const std::string& tokenID) const;
-    int64_t            getTokenBalance(const std::string& tokenID) const;
-    std::string        getTokenName(int index) const;
-    std::string        getTokenId(int index) const;
-    std::string        getTokenDescription(int index) const;
-    int64_t            getTokenBalance(int index) const;
-    std::string        getTokenIcon(int index);
-    int64_t            getNumberOfTokens() const;
-    bool               hasEverSucceeded() const;
+    void                                  update();
+    std::string                           getTokenName(const std::string& tokenID) const;
+    int64_t                               getTokenBalance(const std::string& tokenID) const;
+    std::string                           getTokenName(int index) const;
+    std::string                           getTokenId(int index) const;
+    std::string                           getTokenDescription(int index) const;
+    int64_t                               getTokenBalance(int index) const;
+    std::string                           getTokenIcon(int index);
+    int64_t                               getNumberOfTokens() const;
+    const std::map<std::string, int64_t>& getBalancesMap() const;
+    const boost::unordered_map<NTP1OutPoint, NTP1Transaction>& getWalletOutputsWithTokens();
+    bool                                                       hasEverSucceeded() const;
     friend inline bool operator==(const NTP1Wallet& lhs, const NTP1Wallet& rhs);
     static bool        IconHasErrorContent(const std::string& icon);
     void               clear();

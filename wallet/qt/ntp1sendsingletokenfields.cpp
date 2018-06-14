@@ -10,6 +10,47 @@ NTP1SendSingleTokenFields::NTP1SendSingleTokenFields(
 
 NTP1SendSingleTokenFields::~NTP1SendSingleTokenFields() {}
 
+NTP1SendTokensOneRecipientData NTP1SendSingleTokenFields::createRecipientData() const
+{
+    NTP1SendTokensOneRecipientData result;
+    auto                           selectedTokenIndex = tokenTypeComboBox->currentIndex();
+    std::string                    selectedTokenName  = tokenTypeComboBox->currentText().toStdString();
+    if (selectedTokenIndex >= static_cast<long>(currentTokens.size())) {
+        std::string errorMsg = "While constructing recipient data for token number " +
+                               ToString(selectedTokenIndex) + " (name: " + selectedTokenName +
+                               "), an error occurred: "
+                               "The selected token index exceeds the available tokens in the wallet.\n";
+        printf("%s\n", errorMsg.c_str());
+        throw std::runtime_error(errorMsg.c_str());
+    }
+    if (currentTokens[selectedTokenIndex].name.toStdString() != selectedTokenName) {
+        std::string errorMsg = "While constructing recipient data for token number " +
+                               ToString(selectedTokenIndex) + " (name: " + selectedTokenName +
+                               "), an error occurred: "
+                               "The selected token name does not match the expected index.\n";
+        printf("%s\n", errorMsg.c_str());
+        throw std::runtime_error(errorMsg.c_str());
+    }
+    if (amount->text().isEmpty() || destination->text().isEmpty()) {
+        std::string errorMsg = "Please fill all the fields before attempting to send.\n";
+        throw std::runtime_error(errorMsg.c_str());
+    }
+    {
+        CBitcoinAddress address;
+        address.SetString(destination->text().toStdString());
+        if (!address.IsValid()) {
+            std::string errorMsg =
+                "The address \"" + destination->text().toStdString() + "\" is not valid.\n";
+            printf("%s\n", errorMsg.c_str());
+            throw std::runtime_error(errorMsg.c_str());
+        }
+    }
+    result.amount      = FromString<uint64_t>(amount->text().toStdString());
+    result.tokenId     = currentTokens[selectedTokenIndex].tokenId.toStdString();
+    result.destination = destination->text().toStdString();
+    return result;
+}
+
 void NTP1SendSingleTokenFields::slot_closeThis() { emit signal_closeThis(this); }
 
 void NTP1SendSingleTokenFields::slot_hideClose() { closeButton->hide(); }
@@ -23,19 +64,19 @@ void NTP1SendSingleTokenFields::slot_updateTokenList()
     destination->clear();
     amount->clear();
 
-    tokenType->clear();
+    tokenTypeComboBox->clear();
     for (unsigned i = 0; i < currentTokens.size(); i++) {
-        tokenType->addItem(currentTokens[i].icon, currentTokens[i].name);
+        tokenTypeComboBox->addItem(currentTokens[i].icon, currentTokens[i].name);
     }
 }
 
 void NTP1SendSingleTokenFields::createWidgets()
 {
-    mainLayout  = new QGridLayout(this);
-    amount      = new QLineEdit(this);
-    destination = new QLineEdit(this);
-    tokenType   = new QComboBox(this);
-    closeButton = new QPushButton(this);
+    mainLayout        = new QGridLayout(this);
+    destination       = new QLineEdit(this);
+    amount            = new QLineEdit(this);
+    tokenTypeComboBox = new QComboBox(this);
+    closeButton       = new QPushButton(this);
 
     {
         QFontMetrics fm    = amount->fontMetrics();
@@ -51,7 +92,7 @@ void NTP1SendSingleTokenFields::createWidgets()
 
     mainLayout->addWidget(destination, 0, 0, 1, 1);
     mainLayout->addWidget(amount, 0, 1, 1, 1);
-    mainLayout->addWidget(tokenType, 0, 2, 1, 1);
+    mainLayout->addWidget(tokenTypeComboBox, 0, 2, 1, 1);
     mainLayout->addWidget(closeButton, 0, 3, 1, 1);
 
     closeButton->setIcon(QIcon(":/icons/remove"));

@@ -7,6 +7,7 @@
 #include <QPushButton>
 #include <functional>
 
+#include "ntp1/ntp1sendtokensonerecipientdata.h"
 #include "ntp1senddialog.h"
 
 struct TokenData
@@ -34,7 +35,7 @@ class NTP1SendSingleTokenFields Q_DECL_FINAL : public QWidget
     QGridLayout*                                       mainLayout;
     QLineEdit*                                         amount;
     QLineEdit*                                         destination;
-    QComboBox*                                         tokenType;
+    QComboBox*                                         tokenTypeComboBox;
     QPushButton*                                       closeButton;
     void                                               createWidgets();
     std::function<boost::shared_ptr<NTP1Wallet>(void)> retrieveLatestWallet;
@@ -45,6 +46,7 @@ public:
     explicit NTP1SendSingleTokenFields(
         std::function<boost::shared_ptr<NTP1Wallet>(void)> WalletRetriever, QWidget* parent = Q_NULLPTR);
     virtual ~NTP1SendSingleTokenFields();
+    NTP1SendTokensOneRecipientData createRecipientData() const;
 
 signals:
     void signal_closeThis(QWidget* theWidget);

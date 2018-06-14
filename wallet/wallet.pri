@@ -121,7 +121,9 @@ HEADERS += qt/bitcoingui.h \
     qt/ntp1/ntp1tokenlistitemdelegate.h \
     ThreadSafeHashMap.h \
     qt/ntp1senddialog.h \
-    qt/ntp1sendsingletokenfields.h
+    qt/ntp1sendsingletokenfields.h \
+    ntp1/ntp1sendtokensdata.h \
+    qt/ntp1sendtokensfeewidget.h
 
 
 HEADERS +=                 \
@@ -132,7 +134,8 @@ HEADERS +=                 \
     ntp1/ntp1txin.h        \
     ntp1/ntp1txout.h       \
     ntp1/ntp1tokentxdata.h \
-    ntp1/ntp1apicalls.h
+    ntp1/ntp1apicalls.h    \
+    ntp1/ntp1sendtokensonerecipientdata.h
 
 
 SOURCES += qt/bitcoin.cpp \
@@ -233,7 +236,10 @@ SOURCES += qt/bitcoin.cpp \
     qt/ntp1/ntp1tokenlistitemdelegate.cpp \
     ThreadSafeHashMap.cpp \
     qt/ntp1senddialog.cpp \
-    qt/ntp1sendsingletokenfields.cpp
+    qt/ntp1sendsingletokenfields.cpp \
+    ntp1/ntp1sendtokensdata.cpp \
+    ntp1/ntp1sendtokensonerecipientdata.cpp \
+    qt/ntp1sendtokensfeewidget.cpp
 
 SOURCES +=                   \
     ntp1/ntp1tools.cpp       \
