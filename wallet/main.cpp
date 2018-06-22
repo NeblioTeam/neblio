@@ -547,7 +547,8 @@ bool CTransaction::CheckTransaction() const
     if (vout.empty())
         return DoS(10, error("CTransaction::CheckTransaction() : vout empty"));
     // Size limits
-    if (::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > MAX_BLOCK_SIZE)
+    unsigned int nSizeLimit = MaxBlockSize(nBestHeight);
+    if (::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > nSizeLimit)
         return DoS(100, error("CTransaction::CheckTransaction() : size limits failed"));
 
     // Check for negative or overflow output values
@@ -607,11 +608,12 @@ int64_t CTransaction::GetMinFee(unsigned int nBlockSize, enum GetMinFee_mode mod
     }
 
     // Raise the price as the block approaches full
-    if (nBlockSize != 1 && nNewBlockSize >= MAX_BLOCK_SIZE_GEN/2)
+    unsigned int nSizeLimit = MaxBlockSize(nBestHeight);
+    if (nBlockSize != 1 && nNewBlockSize >= nSizeLimit/2)
     {
-        if (nNewBlockSize >= MAX_BLOCK_SIZE_GEN)
+        if (nNewBlockSize >= nSizeLimit)
             return MAX_MONEY;
-        nMinFee *= MAX_BLOCK_SIZE_GEN / (MAX_BLOCK_SIZE_GEN - nNewBlockSize);
+        nMinFee *= nSizeLimit / (nSizeLimit - nNewBlockSize);
     }
 
     if (!MoneyRange(nMinFee))
@@ -2073,7 +2075,8 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
     // that can be verified before saving an orphan block.
 
     // Size limits
-    if (vtx.empty() || vtx.size() > MAX_BLOCK_SIZE || ::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > MAX_BLOCK_SIZE)
+    unsigned int nSizeLimit = MaxBlockSize(nBestHeight);
+    if (vtx.empty() || vtx.size() > nSizeLimit || ::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > nSizeLimit)
         return DoS(100, error("CheckBlock() : size limits failed"));
 
     // Check proof of work matches claimed amount
@@ -2584,7 +2587,8 @@ uint256 CPartialMerkleTree::ExtractMatches(std::vector<uint256> &vMatch) {
     if (nTransactions == 0)
         return 0;
     // check for excessively high numbers of transactions
-    if (nTransactions > MAX_BLOCK_SIZE / 60) // 60 is the lower bound for the size of a serialized CTransaction
+    unsigned int nSizeLimit = MaxBlockSize(nBestHeight);
+    if (nTransactions > nSizeLimit / 60) // 60 is the lower bound for the size of a serialized CTransaction
         return 0;
     // there can never be more hashes provided than one for every txid
     if (vHash.size() > nTransactions)
@@ -2888,6 +2892,7 @@ void PrintBlockTree()
 bool LoadExternalBlockFile(FILE* fileIn)
 {
     int64_t nStart = GetTimeMillis();
+    unsigned int nSizeLimit = MaxBlockSize(nBestHeight);
 
     int nLoaded = 0;
     {
@@ -2923,7 +2928,7 @@ bool LoadExternalBlockFile(FILE* fileIn)
                 fseek(blkdat, nPos, SEEK_SET);
                 unsigned int nSize;
                 blkdat >> nSize;
-                if (nSize > 0 && nSize <= MAX_BLOCK_SIZE)
+                if (nSize > 0 && nSize <= nSizeLimit)
                 {
                     CBlock block;
                     blkdat >> block;
@@ -4098,6 +4103,17 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
 
     }
     return true;
+}
+
+
+/** Maximum size of a block */
+unsigned int MaxBlockSize(uint32_t nBestHeight)
+{
+    if (nBestHeight >= 1925 && fTestNet) {
+        return MAX_BLOCK_SIZE;
+    } else {
+    	return OLD_MAX_BLOCK_SIZE;
+    }
 }
 
 
