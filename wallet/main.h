@@ -34,7 +34,7 @@ static const int LAST_POW_BLOCK = 1000;// 1000 PoW Blocks to kickstart
 static const unsigned int MAX_BLOCK_SIZE = 8000000;
 static const unsigned int OLD_MAX_BLOCK_SIZE = 1000000;
 /** The maximum size for transactions we're willing to relay/mine **/
-static const unsigned int MAX_STANDARD_TX_SIZE = OLD_MAX_BLOCK_SIZE_GEN/5;
+static const unsigned int MAX_STANDARD_TX_SIZE = OLD_MAX_BLOCK_SIZE/5;
 /** The maximum allowed number of signature check operations in a block (network rule) */
 static const unsigned int MAX_BLOCK_SIGOPS = OLD_MAX_BLOCK_SIZE/50;
 /** The maximum number of orphan transactions kept in memory */
