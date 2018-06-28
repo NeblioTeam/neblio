@@ -1172,7 +1172,6 @@ static unsigned int GetNextTargetRequiredV2(const CBlockIndex* pindexLast, bool 
     // ppcoin: retarget with exponential moving toward target spacing
     CBigNum bnNew;
     bnNew.SetCompact(pindexPrev->nBits);
-    unsigned int nTS = TargetSpacing(nBestHeight);
     int64_t nInterval = nTargetTimespan / nTS;
     bnNew *= ((nInterval - 1) * nTS + nActualSpacing + nActualSpacing);
     bnNew /= ((nInterval + 1) * nTS);
@@ -4131,7 +4130,7 @@ unsigned int TargetSpacing(uint32_t nBestHeight)
 }
 
 /** Coinbase Maturity */
-unsigned int CoinbaseMaturity(uint32_t nBestHeight)
+int CoinbaseMaturity(uint32_t nBestHeight)
 {
     if (nBestHeight >= 7000 && fTestNet) {
         return nCoinbaseMaturity;

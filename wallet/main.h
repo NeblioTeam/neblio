@@ -144,7 +144,7 @@ unsigned int MaxBlockSize(uint32_t nBestHeight);
 unsigned int TargetSpacing(uint32_t nBestHeight);
 
 /** Coinbase Maturity */
-unsigned int CoinbaseMaturity(uint32_t nBestHeight);
+int CoinbaseMaturity(uint32_t nBestHeight);
 
 
 
