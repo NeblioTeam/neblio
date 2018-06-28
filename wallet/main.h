@@ -140,6 +140,12 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction &tx,
 /** Maximum size of a block */
 unsigned int MaxBlockSize(uint32_t nBestHeight);
 
+/** Target time between blocks */
+unsigned int TargetSpacing(uint32_t nBestHeight);
+
+/** Coinbase Maturity */
+unsigned int CoinbaseMaturity(uint32_t nBestHeight);
+
 
 
 

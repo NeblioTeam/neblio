@@ -42,7 +42,8 @@ CBigNum bnProofOfWorkLimitTestNet(~uint256(0) >> 1);
 // Set PoS difficulty to standard
 CBigNum bnProofOfStakeLimit(~uint256(0) >> 20);
 
-unsigned int nTargetSpacing = 2 * 60; //Block spacing 2 minutes
+unsigned int nTargetSpacing = 30; //Block spacing 30 seconds
+unsigned int nOldTargetSpacing = 2 * 60; //Old Block spacing 2 minutes
 unsigned int nStakeMinAge = 24 * 60 * 60; //Minimum stake age
 unsigned int nStakeMaxAge = 7 * 24 * 60 * 60; //Maximum stake age 7 days
 unsigned int nModifierInterval = 10 * 60; // time to elapse before new modifier is computed
@@ -50,7 +51,8 @@ unsigned int nModifierInterval = 10 * 60; // time to elapse before new modifier 
 //static const int64_t nTargetTimespan = 16 * 60;  // 16 mins
 static const int64_t nTargetTimespan = 2 * 60 * 60;  // 2 hours
 
-int nCoinbaseMaturity = 30; //Coin Base Maturity
+int nCoinbaseMaturity = 120; //Coin Base Maturity
+int nOldCoinbaseMaturity = 30; //Old Coin Base Maturity
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
 
@@ -888,7 +890,8 @@ int CMerkleTx::GetBlocksToMaturity() const
 {
     if (!(IsCoinBase() || IsCoinStake()))
         return 0;
-    return max(0, (nCoinbaseMaturity+0) - GetDepthInMainChain());
+    unsigned int nCbM = CoinbaseMaturity(nBestHeight);
+    return max(0, (nCbM+0) - GetDepthInMainChain());
 }
 
 
@@ -1135,9 +1138,10 @@ static unsigned int GetNextTargetRequiredV1(const CBlockIndex* pindexLast, bool 
     // ppcoin: retarget with exponential moving toward target spacing
     CBigNum bnNew;
     bnNew.SetCompact(pindexPrev->nBits);
-    int64_t nInterval = nTargetTimespan / nTargetSpacing;
-    bnNew *= ((nInterval - 1) * nTargetSpacing + nActualSpacing + nActualSpacing);
-    bnNew /= ((nInterval + 1) * nTargetSpacing);
+    unsigned int nTS = TargetSpacing(nBestHeight);
+    int64_t nInterval = nTargetTimespan / nTS;
+    bnNew *= ((nInterval - 1) * nTS + nActualSpacing + nActualSpacing);
+    bnNew /= ((nInterval + 1) * nTS);
 
     if (bnNew > bnTargetLimit)
         bnNew = bnTargetLimit;
@@ -1160,16 +1164,18 @@ static unsigned int GetNextTargetRequiredV2(const CBlockIndex* pindexLast, bool 
         return bnTargetLimit.GetCompact(); // second block
 
     int64_t nActualSpacing = pindexPrev->GetBlockTime() - pindexPrevPrev->GetBlockTime();
+    unsigned int nTS = TargetSpacing(nBestHeight);
     if (nActualSpacing < 0)
-        nActualSpacing = nTargetSpacing;
+        nActualSpacing = nTS;
 
     // ppcoin: target change every block
     // ppcoin: retarget with exponential moving toward target spacing
     CBigNum bnNew;
     bnNew.SetCompact(pindexPrev->nBits);
-    int64_t nInterval = nTargetTimespan / nTargetSpacing;
-    bnNew *= ((nInterval - 1) * nTargetSpacing + nActualSpacing + nActualSpacing);
-    bnNew /= ((nInterval + 1) * nTargetSpacing);
+    unsigned int nTS = TargetSpacing(nBestHeight);
+    int64_t nInterval = nTargetTimespan / nTS;
+    bnNew *= ((nInterval - 1) * nTS + nActualSpacing + nActualSpacing);
+    bnNew /= ((nInterval + 1) * nTS);
 
     if (bnNew <= 0 || bnNew > bnTargetLimit)
         bnNew = bnTargetLimit;
@@ -4110,6 +4116,27 @@ unsigned int MaxBlockSize(uint32_t nBestHeight)
         return MAX_BLOCK_SIZE;
     } else {
     	return OLD_MAX_BLOCK_SIZE;
+    }
+}
+
+
+/** Spacing between blocks */
+unsigned int TargetSpacing(uint32_t nBestHeight)
+{
+    if (nBestHeight >= 7000 && fTestNet) {
+        return nTargetSpacing;
+    } else {
+    	return nOldTargetSpacing;
+    }
+}
+
+/** Coinbase Maturity */
+unsigned int CoinbaseMaturity(uint32_t nBestHeight)
+{
+    if (nBestHeight >= 7000 && fTestNet) {
+        return nCoinbaseMaturity;
+    } else {
+    	return nOldCoinbaseMaturity;
     }
 }
 
