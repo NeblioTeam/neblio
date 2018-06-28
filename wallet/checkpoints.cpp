@@ -344,7 +344,7 @@ namespace Checkpoints
         LOCK(cs_hashSyncCheckpoint);
         // sync-checkpoint should always be accepted block
         assert(mapBlockIndex.count(hashSyncCheckpoint));
-        unsigned int nCbM = CoinbaseMaturity(nBestHeight);
+        int nCbM = CoinbaseMaturity(nBestHeight);
         const CBlockIndex* pindexSync = mapBlockIndex[hashSyncCheckpoint];
         return (nBestHeight >= pindexSync->nHeight + nCbM ||
                 pindexSync->GetBlockTime() + nStakeMinAge < GetAdjustedTime());
