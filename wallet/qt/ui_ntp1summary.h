@@ -34,10 +34,12 @@ public:
     QVBoxLayout* right_balance_layout;
     QFrame*      wallet_contents_frame;
     QVBoxLayout* verticalLayout;
+    QHBoxLayout* verticalLayoutContent;
     QHBoxLayout* horizontalLayout_2;
     QLabel*      upper_table_label;
     QLabel*      upper_table_loading_label;
     QLineEdit*   filter_lineEdit;
+    QPushButton* showSendDialogButton;
     QLabel*      labelBlockchainSyncStatus;
     QListView*   listTokens;
 
@@ -109,9 +111,11 @@ public:
         wallet_contents_frame->setObjectName(QStringLiteral("frame_2"));
         wallet_contents_frame->setFrameShape(QFrame::StyledPanel);
         //        wallet_contents_frame->setFrameShadow(QFrame::Raised);
-        verticalLayout = new QVBoxLayout(wallet_contents_frame);
+        verticalLayout        = new QVBoxLayout(wallet_contents_frame);
+        verticalLayoutContent = new QHBoxLayout;
         verticalLayout->setObjectName(QStringLiteral("verticalLayout"));
-        horizontalLayout_2 = new QHBoxLayout();
+        showSendDialogButton = new QPushButton;
+        horizontalLayout_2   = new QHBoxLayout();
         horizontalLayout_2->setObjectName(QStringLiteral("horizontalLayout_2"));
         upper_table_label = new QLabel(wallet_contents_frame);
         upper_table_label->setObjectName(QStringLiteral("label_4"));
@@ -133,7 +137,9 @@ public:
         horizontalLayout_2->addWidget(labelBlockchainSyncStatus);
 
         verticalLayout->addLayout(horizontalLayout_2);
-        verticalLayout->addWidget(filter_lineEdit);
+        verticalLayout->addLayout(verticalLayoutContent);
+        verticalLayoutContent->addWidget(filter_lineEdit);
+        verticalLayoutContent->addWidget(showSendDialogButton);
 
         listTokens = new QListView(wallet_contents_frame);
         listTokens->setObjectName(QStringLiteral("listTokens"));

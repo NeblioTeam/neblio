@@ -33,6 +33,10 @@ NTP1Summary::NTP1Summary(QWidget* parent)
 
     connect(ui->listTokens, SIGNAL(clicked(QModelIndex)), this, SLOT(handleTokenClicked(QModelIndex)));
 
+    ui->showSendDialogButton->setText(sendDialogHiddenStr);
+    connect(ui->showSendDialogButton, &QPushButton::clicked, this,
+            &NTP1Summary::slot_actToShowSendTokensView);
+
     // init "out of sync" warning labels
     ui->labelBlockchainSyncStatus->setText("(" + tr("out of sync") + ")");
 
@@ -83,6 +87,8 @@ void NTP1Summary::slot_actToShowSendTokensView()
     ui->sendTokensWidgetGroupBox->setVisible(!ui->sendTokensWidgetGroupBox->isVisible());
     sendTokensAction->setText(ui->sendTokensWidgetGroupBox->isVisible() ? sendDialogShownStr
                                                                         : sendDialogHiddenStr);
+    ui->showSendDialogButton->setText(ui->sendTokensWidgetGroupBox->isVisible() ? sendDialogShownStr
+                                                                                : sendDialogHiddenStr);
 }
 
 NTP1Summary::~NTP1Summary() { delete ui; }

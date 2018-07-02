@@ -36,6 +36,12 @@ std::string NTP1SendTokensFeeWidget::getEnteredFee() const
     return feeAmountLineEdit->text().toStdString();
 }
 
+void NTP1SendTokensFeeWidget::resetAllFields()
+{
+    autoCalculateFeeCheckbox->setChecked(true);
+    feeAmountLineEdit->clear();
+}
+
 void NTP1SendTokensFeeWidget::slot_autoCalculateFeeStatusChanged(bool selected)
 {
     if (selected) {

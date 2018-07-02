@@ -47,6 +47,7 @@ public:
         std::function<boost::shared_ptr<NTP1Wallet>(void)> WalletRetriever, QWidget* parent = Q_NULLPTR);
     virtual ~NTP1SendSingleTokenFields();
     NTP1SendTokensOneRecipientData createRecipientData() const;
+    void                           resetAllFields();
 
 signals:
     void signal_closeThis(QWidget* theWidget);

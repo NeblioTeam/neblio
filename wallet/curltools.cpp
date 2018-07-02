@@ -146,34 +146,31 @@ std::string cURLTools::PostDataToHTTPS(const std::string& URL, long ConnectionTi
 
         CurlCleaner cleaner(curl);
 
+        struct curl_slist* headers = NULL;
+
         /* First set the URL that is about to receive our POST. This URL can
          just as well be a https:// URL if that is what should receive the
          data. */
         curl_easy_setopt(curl, CURLOPT_URL, URL.c_str());
-        curl_easy_setopt(curl, CURLOPT_READDATA, &readdata);
+        //        curl_easy_setopt(curl, CURLOPT_READDATA, &readdata);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &writedata);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); // verify ssl peer
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L); // verify ssl hostname
         curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
         curl_easy_setopt(curl, CURLOPT_READFUNCTION, CurlRead_CallbackFunc_StdString);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlWrite_CallbackFunc_StdString);
         /* Now specify the POST data */
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "name=daniel&project=curl");
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, readdata.c_str());
+        curl_easy_setopt(curl, CURLOPT_POST, 1);
 
-        //        curl_easy_setopt (curl, CURLOPT_VERBOSE, 1L); //verbose output
+        headers = curl_slist_append(headers, "Content-Type: application/json");
+        headers = curl_slist_append(headers, "charsets: utf-8");
+
+        //        curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L); // verbose output
         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, ConnectionTimeout);
-
-        /*
-          If you use POST to a HTTP 1.1 server, you can send data without knowing
-          the size before starting the POST if you use chunked encoding. You
-          enable this by adding a header like "Transfer-Encoding: chunked" with
-          CURLOPT_HTTPHEADER. With HTTP 1.0 or without chunked transfer, you must
-          specify the size in the request.
-        */
         if (chunked) {
-            struct curl_slist* chunk = NULL;
 
-            chunk = curl_slist_append(chunk, "Transfer-Encoding: chunked");
-            res   = curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
+            headers = curl_slist_append(headers, "Transfer-Encoding: chunked");
             /* use curl_slist_free_all() after the *perform() call to free this
          list again */
         } else {
@@ -192,13 +189,12 @@ std::string cURLTools::PostDataToHTTPS(const std::string& URL, long ConnectionTi
                have other implications. */
         const bool disable_expect = false;
         if (disable_expect) {
-            struct curl_slist* chunk = NULL;
-
-            chunk = curl_slist_append(chunk, "Expect:");
-            res   = curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
+            headers = curl_slist_append(headers, "Expect:");
             /* use curl_slist_free_all() after the *perform() call to free this
                  list again */
         }
+
+        res = curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
         /* Perform the request, res will get the return code */
         res = curl_easy_perform(curl);

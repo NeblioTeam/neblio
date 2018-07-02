@@ -20,6 +20,7 @@ public:
     explicit NTP1SendTokensFeeWidget(QWidget* parent = nullptr);
     bool        isAutoCalcFeeSelected() const;
     std::string getEnteredFee() const;
+    void        resetAllFields();
 
 signals:
 

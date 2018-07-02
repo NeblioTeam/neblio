@@ -18,7 +18,7 @@ public:
     static std::string GetFileFromHTTPS(const std::string& URL, long ConnectionTimeout,
                                         bool IncludeProgressBar);
     static std::string PostDataToHTTPS(const std::string& URL, long ConnectionTimeout,
-                                       const std::string& data, bool chunked = false);
+                                       const std::string& data, bool chunked);
 };
 
 #endif // CURLTOOLS_H

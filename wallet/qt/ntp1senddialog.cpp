@@ -76,11 +76,11 @@ NTP1SendTokensData NTP1SendDialog::createTransactionData() const
             result.setFee(0);
         } else {
             calcFee = false;
-            result.setFee(
-                static_cast<int64_t>(std::ceil(FromString<double>(feeWidget->getEnteredFee()) * 1.e8)));
+            result.setFee(static_cast<int64_t>(std::ceil(
+                FromString<long double>(feeWidget->getEnteredFee()) * static_cast<long double>(1.e8))));
         }
         result.calculateSources(getLatestNTP1Wallet(), calcFee);
-        std::cout << result.exportToAPIFormat() << std::endl;
+        //        std::cout << result.exportToAPIFormat() << std::endl;
     } catch (std::exception& ex) {
         printf("Error while creating recipient send data: %s", ex.what());
         throw;
@@ -137,10 +137,65 @@ void NTP1SendDialog::slot_sendClicked()
     try {
         NTP1SendTokensData txData = createTransactionData();
         std::string        apiMsg = txData.exportToAPIFormat();
-        // TODO
+        //        std::cout << apiMsg << std::endl;
+        std::string response = cURLTools::PostDataToHTTPS(
+            NTP1Tools::GetURL_SendTokens(fTestNet), NTP1APICalls::NTP1_CONNECTION_TIMEOUT, apiMsg, true);
+        //        std::cout << response << std::endl;
+
+        json_spirit::Value signedTxJsonVal;
+        {
+            json_spirit::Value parsedNTP1RawTx;
+            json_spirit::read_or_throw(response, parsedNTP1RawTx);
+
+            std::string unsignedRawTx = NTP1Tools::GetStrField(parsedNTP1RawTx.get_obj(), "txHex");
+            json_spirit::Array tempArray;
+            tempArray.push_back(unsignedRawTx);
+            signedTxJsonVal = signrawtransaction(tempArray, false);
+        }
+        {
+            bool signSuccess = NTP1Tools::GetBoolField(signedTxJsonVal.get_obj(), "complete");
+            if (signSuccess) {
+                std::string signedRawTx = NTP1Tools::GetStrField(signedTxJsonVal.get_obj(), "hex");
+                //                std::cout << signedRawTx << std::endl;
+                json_spirit::Array tempArray;
+                tempArray.push_back(signedRawTx);
+                QMessageBox::StandardButton reply = QMessageBox::question(
+                    this, "Transaction confirmation",
+                    "Transaction ready to be send. Are you sure you want to submit it to the network?",
+                    QMessageBox::Yes | QMessageBox::No);
+                if (reply == QMessageBox::Yes) {
+                    json_spirit::Value submitResult = sendrawtransaction(tempArray, false);
+
+                    std::string txid = json_spirit::write_string(submitResult, false);
+
+                    QMessageBox::StandardButton reply = QMessageBox::question(
+                        this, "Transaction submitted",
+                        "Transaction is submitted to the network. The transaction id provided is: " +
+                            QString::fromStdString(txid) + ".\n\nWould you like to reset all fields?",
+                        QMessageBox::Yes | QMessageBox::No);
+                    if (reply == QMessageBox::Yes) {
+                        resetAllFields();
+                    }
+                }
+            } else {
+                throw std::runtime_error("Failed to sign transaction");
+            }
+        }
+
     } catch (std::exception& ex) {
         printf("Error while constructing transaction %s\n", ex.what());
         QMessageBox::warning(this, "Error sending", QString(ex.what()));
+    }
+}
+
+void NTP1SendDialog::resetAllFields()
+{
+    feeWidget->resetAllFields();
+    while (recipientWidgets.size() > 1) {
+        slot_removeRecipientWidget(*recipientWidgets.begin());
+    }
+    if (recipientWidgets.size() > 0) {
+        (*recipientWidgets.begin())->resetAllFields();
     }
 }
 

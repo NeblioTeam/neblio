@@ -43,6 +43,7 @@ public slots:
     void slot_actToShowOrHideCloseButtons();
     void slot_updateAllRecipientDialogsTokens();
     void slot_sendClicked();
+    void resetAllFields();
 
 protected:
     void showAllCloseButtons();

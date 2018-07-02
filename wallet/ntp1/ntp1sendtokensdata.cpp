@@ -119,6 +119,8 @@ void NTP1SendTokensData::calculateSources(boost::shared_ptr<NTP1Wallet> wallet, 
 
         currentTotalNeblsInSelectedAddresses = __addAddressesThatCoverFees();
 
+        // if trying to add more addresses didn't change the number of addresses, then stop because
+        // there's no more
         if (tokenSourceAddresses.size() == numbeOfAddressesAtBeginning) {
             break;
         }
@@ -187,10 +189,10 @@ int64_t NTP1SendTokensData::__addAddressesThatCoverFees()
                                              el.second);
                    });
 
-    // TODO: exclude NTP1 UTXOs from fee calculation
     int64_t currentTotalNeblsInSelectedAddresses = 0;
     for (const auto& address : tokenSourceAddresses) {
-        currentTotalNeblsInSelectedAddresses += neblBalancesMap[address];
+        currentTotalNeblsInSelectedAddresses +=
+            static_cast<int64_t>(NTP1APICalls::RetrieveData_TotalNeblsExcludingNTP1(address, fTestNet));
     }
 
     // check if the total amount in selected addresses is sufficient for fees
@@ -221,7 +223,8 @@ int64_t NTP1SendTokensData::__addAddressesThatCoverFees()
         // add more addresses to satisfy the balance
         for (const auto& el : neblBalancesVector) {
             tokenSourceAddresses.push_back(el.first);
-            currentTotalNeblsInSelectedAddresses += el.second;
+            currentTotalNeblsInSelectedAddresses += static_cast<int64_t>(
+                NTP1APICalls::RetrieveData_TotalNeblsExcludingNTP1(el.first, fTestNet));
             if (fee <= currentTotalNeblsInSelectedAddresses) {
                 break;
             }

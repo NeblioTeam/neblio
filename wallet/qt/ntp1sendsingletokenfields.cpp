@@ -51,6 +51,12 @@ NTP1SendTokensOneRecipientData NTP1SendSingleTokenFields::createRecipientData() 
     return result;
 }
 
+void NTP1SendSingleTokenFields::resetAllFields()
+{
+    amount->clear();
+    destination->clear();
+}
+
 void NTP1SendSingleTokenFields::slot_closeThis() { emit signal_closeThis(this); }
 
 void NTP1SendSingleTokenFields::slot_hideClose() { closeButton->hide(); }
