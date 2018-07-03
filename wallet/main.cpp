@@ -4111,7 +4111,7 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
 /** Maximum size of a block */
 unsigned int MaxBlockSize(uint32_t nBestHeight)
 {
-    if (nBestHeight >= 1925 && fTestNet) {
+    if (nBestHeight >= HF_HEIGHT_TESTNET && fTestNet) {
         return MAX_BLOCK_SIZE;
     } else {
     	return OLD_MAX_BLOCK_SIZE;
@@ -4122,7 +4122,7 @@ unsigned int MaxBlockSize(uint32_t nBestHeight)
 /** Spacing between blocks */
 unsigned int TargetSpacing(uint32_t nBestHeight)
 {
-    if (nBestHeight >= 7000 && fTestNet) {
+    if (nBestHeight >= HF_HEIGHT_TESTNET && fTestNet) {
         return nTargetSpacing;
     } else {
     	return nOldTargetSpacing;
@@ -4132,7 +4132,7 @@ unsigned int TargetSpacing(uint32_t nBestHeight)
 /** Coinbase Maturity */
 int CoinbaseMaturity(uint32_t nBestHeight)
 {
-    if (nBestHeight >= 7000 && fTestNet) {
+    if (nBestHeight >= HF_HEIGHT_TESTNET && fTestNet) {
         return nCoinbaseMaturity;
     } else {
     	return nOldCoinbaseMaturity;

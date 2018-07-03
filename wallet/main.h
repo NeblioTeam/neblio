@@ -53,6 +53,9 @@ static const unsigned int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20
 
 static const int64_t COIN_YEAR_REWARD = 10 * CENT; // 10%
 
+/** blockheight to fork and upgrade testnet */
+static const unsigned int HF_HEIGHT_TESTNET = 110100; // Roughly Aug 1 2018 Noon EDT
+
 static const uint256 hashGenesisBlock("0x7286972be4dbc1463d256049b7471c252e6557e222cab9be73181d359cd28bcc");
 static const uint256 hashGenesisBlockTestNet("0x7286972be4dbc1463d256049b7471c252e6557e222cab9be73181d359cd28bcc");
 
