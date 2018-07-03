@@ -2701,9 +2701,6 @@ bool LoadBlockIndex(bool fAllowNew)
         pchMessageStart[3] = 0xc5;
 
         bnTrustedModulus.SetHex("bee2a4e394e8d268702b94138c5659130ac83b6d93fe6940cb0738384b18366ce1f3ca05624c3dbd89f8eac83d5f95706a26faeff38efc560f0bf22d31a9828d454a79a35b5abf892635f37637fba3c0358df3fe204066e42075ae079f45296c520b942dfbb030c17c95da6ac60870a614df5def2324f710a61df35d83993f3cc38b7252a79732282b7ae12fe5edfcdb87f0e980d1b1dc0d1881708f2ff95f416c339b1ff513bf70555df587b98dfd7a122c9bb1e7ac81b665101f23f172a1c2159d630f429934abcb41c7659ff86a862b39086f4bf8263ae52d6e3c21ff92fd5d3984197b5683fb41c3bdbc8aa07e5db0041dce17b2bd8b929d09c0d3af58bc6920cfa55b187cc6486d805ed8c244250637eab0f7e8143f0af6b2f6a9e7a7253e8fd805ae5eab3b4540b0ec6768ec883ee38ae57e8e4e023f35bd640d91482d2e6345b6c598e1d78a7a34b8235288fae59f928f820e69badaf98fa15ff1ae53a7a9d158f5c323a3bdef2227f0138c1e2fe701d2d152905f48301c3b83e130dd");
-        bnProofOfWorkLimit = bnProofOfWorkLimitTestNet; // 1 bit PoW target limit for testnet
-        nStakeMinAge = 60; // test net min age
-        nCoinbaseMaturity = 10; // test maturity is 30 blocks
     }
     else
     {
