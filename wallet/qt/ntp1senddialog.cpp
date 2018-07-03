@@ -138,7 +138,7 @@ void NTP1SendDialog::slot_sendClicked()
         NTP1SendTokensData txData = createTransactionData();
         std::string        apiMsg = txData.exportToAPIFormat();
         //        std::cout << apiMsg << std::endl;
-        std::string response = cURLTools::PostDataToHTTPS(
+        std::string response = cURLTools::PostJsonToHTTPS(
             NTP1Tools::GetURL_SendTokens(fTestNet), NTP1APICalls::NTP1_CONNECTION_TIMEOUT, apiMsg, true);
         //        std::cout << response << std::endl;
 

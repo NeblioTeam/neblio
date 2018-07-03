@@ -1,5 +1,6 @@
 #include "curltools.h"
 
+#include "json_spirit.h"
 #include <boost/thread.hpp>
 #include <iostream>
 #include <openssl/ssl.h>
@@ -124,7 +125,7 @@ std::string cURLTools::GetFileFromHTTPS(const std::string& URL, long ConnectionT
     return fileStr;
 }
 
-std::string cURLTools::PostDataToHTTPS(const std::string& URL, long ConnectionTimeout,
+std::string cURLTools::PostJsonToHTTPS(const std::string& URL, long ConnectionTimeout,
                                        const std::string& readdata, bool chunked)
 {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
@@ -206,9 +207,19 @@ std::string cURLTools::PostDataToHTTPS(const std::string& URL, long ConnectionTi
             long http_response_code;
             curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_response_code);
             if (http_response_code != 200) {
-                throw std::runtime_error("Error posting data with https protocol, error code: " +
-                                         ToString(http_response_code) +
-                                         ". Probably the URL is invalid.");
+                std::cout << std::string(writedata.begin(), writedata.end()) << std::endl;
+                json_spirit::Value errorData;
+                if (json_spirit::read(std::string(writedata.begin(), writedata.end()), errorData)) {
+                    json_spirit::Value errorMsg;
+                    errorMsg = json_spirit::find_value(errorData.get_obj(), "message");
+                    throw std::runtime_error("Failed to create transaction with error: " +
+                                             errorMsg.get_str());
+                } else {
+                    throw std::runtime_error("Error posting data with https protocol, error code: " +
+                                             ToString(http_response_code) +
+                                             ". Probably the URL is invalid. Could not retrieve more "
+                                             "information on the error.");
+                }
             }
         }
 

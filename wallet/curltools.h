@@ -17,7 +17,7 @@ public:
     static void   CurlGlobalInit_ThreadSafe();
     static std::string GetFileFromHTTPS(const std::string& URL, long ConnectionTimeout,
                                         bool IncludeProgressBar);
-    static std::string PostDataToHTTPS(const std::string& URL, long ConnectionTimeout,
+    static std::string PostJsonToHTTPS(const std::string& URL, long ConnectionTimeout,
                                        const std::string& data, bool chunked);
 };
 
