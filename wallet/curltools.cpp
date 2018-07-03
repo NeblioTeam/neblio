@@ -207,7 +207,6 @@ std::string cURLTools::PostJsonToHTTPS(const std::string& URL, long ConnectionTi
             long http_response_code;
             curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_response_code);
             if (http_response_code != 200) {
-                std::cout << std::string(writedata.begin(), writedata.end()) << std::endl;
                 json_spirit::Value errorData;
                 if (json_spirit::read(std::string(writedata.begin(), writedata.end()), errorData)) {
                     json_spirit::Value errorMsg;
