@@ -164,10 +164,8 @@ void NTP1SendDialog::slot_sendClicked()
                     "Transaction ready to be send. Are you sure you want to submit it to the network?",
                     QMessageBox::Yes | QMessageBox::No);
                 if (reply == QMessageBox::Yes) {
-                    json_spirit::Value submitResult = sendrawtransaction(tempArray, false);
-
-                    std::string txid = json_spirit::write_string(submitResult, false);
-
+                    json_spirit::Value          submitResult = sendrawtransaction(tempArray, false);
+                    std::string                 txid  = json_spirit::write_string(submitResult, false);
                     QMessageBox::StandardButton reply = QMessageBox::question(
                         this, "Transaction submitted",
                         "Transaction is submitted to the network. The transaction id provided is: " +
@@ -185,6 +183,12 @@ void NTP1SendDialog::slot_sendClicked()
     } catch (std::exception& ex) {
         printf("Error while constructing transaction %s\n", ex.what());
         QMessageBox::warning(this, "Error sending", QString(ex.what()));
+    } catch (json_spirit::Object& ex) {
+        std::string errorMsg = NTP1Tools::GetStrField(ex, "message");
+        printf("Error while constructing transaction %s\n", errorMsg.c_str());
+        QMessageBox::warning(this, "Error sending",
+                             "Error while attempting to submit the transaction: " +
+                                 QString::fromStdString(errorMsg));
     }
 }
 

@@ -36,6 +36,13 @@ uint64_t NTP1Tools::GetUint64Field(const json_spirit::Object& data, const std::s
     return val.get_uint64();
 }
 
+int64_t NTP1Tools::GetInt64Field(const json_spirit::Object& data, const std::string& fieldName)
+{
+    json_spirit::Value val;
+    val = json_spirit::find_value(data, fieldName);
+    return val.get_int64();
+}
+
 std::string NTP1Tools::GetURL_APIBase(bool testnet)
 {
 #ifdef NEBLIO_REST

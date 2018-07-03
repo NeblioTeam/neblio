@@ -26,6 +26,7 @@ public:
     static std::string GetStrField(const json_spirit::Object& data, const std::string& fieldName);
     static bool        GetBoolField(const json_spirit::Object& data, const std::string& fieldName);
     static uint64_t    GetUint64Field(const json_spirit::Object& data, const std::string& fieldName);
+    static int64_t     GetInt64Field(const json_spirit::Object& data, const std::string& fieldName);
     static json_spirit::Array  GetArrayField(const json_spirit::Object& data,
                                              const std::string&         fieldName);
     static json_spirit::Object GetObjectField(const json_spirit::Object& data,
