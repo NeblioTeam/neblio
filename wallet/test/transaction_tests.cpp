@@ -287,7 +287,7 @@ TEST(transaction_tests, op_return_size)
         EXPECT_TRUE(IsStandardTx(t, reason)) << reason;
 
         // 81 bytes (1-byte over the limit)
-        t.vout[0].scriptPubKey = CScript() << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2*(allowedSize+1));
+        t.vout[0].scriptPubKey = CScript() << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2*(allowedSize+1)));
         EXPECT_FALSE(IsStandardTx(t, reason)) << reason;
 
 
