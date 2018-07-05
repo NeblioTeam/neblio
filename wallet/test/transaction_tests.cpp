@@ -281,7 +281,7 @@ TEST(transaction_tests, op_return_size)
         t.vout[0].scriptPubKey = CScript() << OP_RETURN << ParseHex("");
         EXPECT_TRUE(IsStandardTx(t, reason)) << reason;
 
-        unsigned int allowedSize = DataSize(nBestHeight)
+        unsigned int allowedSize = DataSize(nBestHeight);
         // exactly the allowed data size
         t.vout[0].scriptPubKey = CScript() << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2*allowedSize));
         EXPECT_TRUE(IsStandardTx(t, reason)) << reason;
