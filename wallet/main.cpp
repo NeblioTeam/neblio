@@ -4139,6 +4139,16 @@ int CoinbaseMaturity(uint32_t nBestHeight)
     }
 }
 
+/** Max OP_RETURN Size */
+unsigned int DataSize(uint32_t nBestHeight)
+{
+    if (nBestHeight >= HF_HEIGHT_TESTNET && fTestNet) {
+        return MAX_DATA_SIZE;
+    } else {
+    	return OLD_MAX_DATA_SIZE;
+    }
+}
+
 
 // Amount compression:
 // * If the amount is 0, output 0

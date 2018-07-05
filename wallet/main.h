@@ -56,6 +56,10 @@ static const int64_t COIN_YEAR_REWARD = 10 * CENT; // 10%
 /** blockheight to fork and upgrade testnet */
 static const unsigned int HF_HEIGHT_TESTNET = 110100; // Roughly Aug 1 2018 Noon EDT
 
+/** The maximum allowed OP_RETURN size in bytes (network rule) */
+static const unsigned int MAX_DATA_SIZE = 4096;
+static const unsigned int OLD_MAX_DATA_SIZE = 80;
+
 static const uint256 hashGenesisBlock("0x7286972be4dbc1463d256049b7471c252e6557e222cab9be73181d359cd28bcc");
 static const uint256 hashGenesisBlockTestNet("0x7286972be4dbc1463d256049b7471c252e6557e222cab9be73181d359cd28bcc");
 
@@ -148,6 +152,9 @@ unsigned int TargetSpacing(uint32_t nBestHeight);
 
 /** Coinbase Maturity */
 int CoinbaseMaturity(uint32_t nBestHeight);
+
+/** max OP_RETURN size */
+unsigned int DataSize(uint32_t nBestHeight);
 
 
 
