@@ -42,7 +42,8 @@ CBigNum bnProofOfWorkLimitTestNet(~uint256(0) >> 1);
 // Set PoS difficulty to standard
 CBigNum bnProofOfStakeLimit(~uint256(0) >> 20);
 
-unsigned int nTargetSpacing = 2 * 60; //Block spacing 2 minutes
+unsigned int nTargetSpacing = 30; //Block spacing 30 seconds
+unsigned int nOldTargetSpacing = 2 * 60; //Old Block spacing 2 minutes
 unsigned int nStakeMinAge = 24 * 60 * 60; //Minimum stake age
 unsigned int nStakeMaxAge = 7 * 24 * 60 * 60; //Maximum stake age 7 days
 unsigned int nModifierInterval = 10 * 60; // time to elapse before new modifier is computed
@@ -50,7 +51,8 @@ unsigned int nModifierInterval = 10 * 60; // time to elapse before new modifier 
 //static const int64_t nTargetTimespan = 16 * 60;  // 16 mins
 static const int64_t nTargetTimespan = 2 * 60 * 60;  // 2 hours
 
-int nCoinbaseMaturity = 30; //Coin Base Maturity
+int nCoinbaseMaturity = 120; //Coin Base Maturity
+int nOldCoinbaseMaturity = 30; //Old Coin Base Maturity
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
 
@@ -547,7 +549,8 @@ bool CTransaction::CheckTransaction() const
     if (vout.empty())
         return DoS(10, error("CTransaction::CheckTransaction() : vout empty"));
     // Size limits
-    if (::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > MAX_BLOCK_SIZE)
+    unsigned int nSizeLimit = MaxBlockSize(nBestHeight);
+    if (::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > nSizeLimit)
         return DoS(100, error("CTransaction::CheckTransaction() : size limits failed"));
 
     // Check for negative or overflow output values
@@ -607,11 +610,12 @@ int64_t CTransaction::GetMinFee(unsigned int nBlockSize, enum GetMinFee_mode mod
     }
 
     // Raise the price as the block approaches full
-    if (nBlockSize != 1 && nNewBlockSize >= MAX_BLOCK_SIZE_GEN/2)
+    unsigned int nSizeLimit = MaxBlockSize(nBestHeight);
+    if (nBlockSize != 1 && nNewBlockSize >= nSizeLimit/2)
     {
-        if (nNewBlockSize >= MAX_BLOCK_SIZE_GEN)
+        if (nNewBlockSize >= nSizeLimit)
             return MAX_MONEY;
-        nMinFee *= MAX_BLOCK_SIZE_GEN / (MAX_BLOCK_SIZE_GEN - nNewBlockSize);
+        nMinFee *= nSizeLimit / (nSizeLimit - nNewBlockSize);
     }
 
     if (!MoneyRange(nMinFee))
@@ -886,7 +890,8 @@ int CMerkleTx::GetBlocksToMaturity() const
 {
     if (!(IsCoinBase() || IsCoinStake()))
         return 0;
-    return max(0, (nCoinbaseMaturity+0) - GetDepthInMainChain());
+    int nCbM = CoinbaseMaturity(nBestHeight);
+    return max(0, (nCbM+0) - GetDepthInMainChain());
 }
 
 
@@ -1133,9 +1138,10 @@ static unsigned int GetNextTargetRequiredV1(const CBlockIndex* pindexLast, bool 
     // ppcoin: retarget with exponential moving toward target spacing
     CBigNum bnNew;
     bnNew.SetCompact(pindexPrev->nBits);
-    int64_t nInterval = nTargetTimespan / nTargetSpacing;
-    bnNew *= ((nInterval - 1) * nTargetSpacing + nActualSpacing + nActualSpacing);
-    bnNew /= ((nInterval + 1) * nTargetSpacing);
+    unsigned int nTS = TargetSpacing(nBestHeight);
+    int64_t nInterval = nTargetTimespan / nTS;
+    bnNew *= ((nInterval - 1) * nTS + nActualSpacing + nActualSpacing);
+    bnNew /= ((nInterval + 1) * nTS);
 
     if (bnNew > bnTargetLimit)
         bnNew = bnTargetLimit;
@@ -1158,16 +1164,17 @@ static unsigned int GetNextTargetRequiredV2(const CBlockIndex* pindexLast, bool 
         return bnTargetLimit.GetCompact(); // second block
 
     int64_t nActualSpacing = pindexPrev->GetBlockTime() - pindexPrevPrev->GetBlockTime();
+    unsigned int nTS = TargetSpacing(nBestHeight);
     if (nActualSpacing < 0)
-        nActualSpacing = nTargetSpacing;
+        nActualSpacing = nTS;
 
     // ppcoin: target change every block
     // ppcoin: retarget with exponential moving toward target spacing
     CBigNum bnNew;
     bnNew.SetCompact(pindexPrev->nBits);
-    int64_t nInterval = nTargetTimespan / nTargetSpacing;
-    bnNew *= ((nInterval - 1) * nTargetSpacing + nActualSpacing + nActualSpacing);
-    bnNew /= ((nInterval + 1) * nTargetSpacing);
+    int64_t nInterval = nTargetTimespan / nTS;
+    bnNew *= ((nInterval - 1) * nTS + nActualSpacing + nActualSpacing);
+    bnNew /= ((nInterval + 1) * nTS);
 
     if (bnNew <= 0 || bnNew > bnTargetLimit)
         bnNew = bnTargetLimit;
@@ -2073,7 +2080,8 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
     // that can be verified before saving an orphan block.
 
     // Size limits
-    if (vtx.empty() || vtx.size() > MAX_BLOCK_SIZE || ::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > MAX_BLOCK_SIZE)
+    unsigned int nSizeLimit = MaxBlockSize(nBestHeight);
+    if (vtx.empty() || vtx.size() > nSizeLimit || ::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > nSizeLimit)
         return DoS(100, error("CheckBlock() : size limits failed"));
 
     // Check proof of work matches claimed amount
@@ -2584,7 +2592,8 @@ uint256 CPartialMerkleTree::ExtractMatches(std::vector<uint256> &vMatch) {
     if (nTransactions == 0)
         return 0;
     // check for excessively high numbers of transactions
-    if (nTransactions > MAX_BLOCK_SIZE / 60) // 60 is the lower bound for the size of a serialized CTransaction
+    unsigned int nSizeLimit = MaxBlockSize(nBestHeight);
+    if (nTransactions > nSizeLimit / 60) // 60 is the lower bound for the size of a serialized CTransaction
         return 0;
     // there can never be more hashes provided than one for every txid
     if (vHash.size() > nTransactions)
@@ -2697,9 +2706,6 @@ bool LoadBlockIndex(bool fAllowNew)
         pchMessageStart[3] = 0xc5;
 
         bnTrustedModulus.SetHex("bee2a4e394e8d268702b94138c5659130ac83b6d93fe6940cb0738384b18366ce1f3ca05624c3dbd89f8eac83d5f95706a26faeff38efc560f0bf22d31a9828d454a79a35b5abf892635f37637fba3c0358df3fe204066e42075ae079f45296c520b942dfbb030c17c95da6ac60870a614df5def2324f710a61df35d83993f3cc38b7252a79732282b7ae12fe5edfcdb87f0e980d1b1dc0d1881708f2ff95f416c339b1ff513bf70555df587b98dfd7a122c9bb1e7ac81b665101f23f172a1c2159d630f429934abcb41c7659ff86a862b39086f4bf8263ae52d6e3c21ff92fd5d3984197b5683fb41c3bdbc8aa07e5db0041dce17b2bd8b929d09c0d3af58bc6920cfa55b187cc6486d805ed8c244250637eab0f7e8143f0af6b2f6a9e7a7253e8fd805ae5eab3b4540b0ec6768ec883ee38ae57e8e4e023f35bd640d91482d2e6345b6c598e1d78a7a34b8235288fae59f928f820e69badaf98fa15ff1ae53a7a9d158f5c323a3bdef2227f0138c1e2fe701d2d152905f48301c3b83e130dd");
-        bnProofOfWorkLimit = bnProofOfWorkLimitTestNet; // 1 bit PoW target limit for testnet
-        nStakeMinAge = 60; // test net min age
-        nCoinbaseMaturity = 10; // test maturity is 30 blocks
     }
     else
     {
@@ -2888,6 +2894,7 @@ void PrintBlockTree()
 bool LoadExternalBlockFile(FILE* fileIn)
 {
     int64_t nStart = GetTimeMillis();
+    unsigned int nSizeLimit = MaxBlockSize(nBestHeight);
 
     int nLoaded = 0;
     {
@@ -2923,7 +2930,7 @@ bool LoadExternalBlockFile(FILE* fileIn)
                 fseek(blkdat, nPos, SEEK_SET);
                 unsigned int nSize;
                 blkdat >> nSize;
-                if (nSize > 0 && nSize <= MAX_BLOCK_SIZE)
+                if (nSize > 0 && nSize <= nSizeLimit)
                 {
                     CBlock block;
                     blkdat >> block;
@@ -3124,7 +3131,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         CAddress addrFrom;
         uint64_t nNonce = 1;
         vRecv >> pfrom->nVersion >> pfrom->nServices >> nTime >> addrMe;
-        if (pfrom->nVersion < MIN_PEER_PROTO_VERSION)
+        int minPeerVer = MinPeerVersion(nBestHeight);
+        if (pfrom->nVersion < minPeerVer)
         {
             // disconnect from peers older than this proto version
             printf("partner %s using obsolete version %i; disconnecting\n", pfrom->addr.ToString().c_str(), pfrom->nVersion);
@@ -4098,6 +4106,62 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
 
     }
     return true;
+}
+
+/** the conditions for considering the upgraded network configuration */
+bool PassedNetworkUpgradeBlock(uint32_t nBestHeight, bool isTestnet) {
+    return (nBestHeight >= HF_HEIGHT_TESTNET && fTestNet);
+}
+
+/** Maximum size of a block */
+unsigned int MaxBlockSize(uint32_t nBestHeight)
+{
+    if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+        return MAX_BLOCK_SIZE;
+    } else {
+    	return OLD_MAX_BLOCK_SIZE;
+    }
+}
+
+
+/** Spacing between blocks */
+unsigned int TargetSpacing(uint32_t nBestHeight)
+{
+    if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+        return nTargetSpacing;
+    } else {
+    	return nOldTargetSpacing;
+    }
+}
+
+/** Coinbase Maturity */
+int CoinbaseMaturity(uint32_t nBestHeight)
+{
+    if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+        return nCoinbaseMaturity;
+    } else {
+    	return nOldCoinbaseMaturity;
+    }
+}
+
+/** Max OP_RETURN Size */
+unsigned int DataSize(uint32_t nBestHeight)
+{
+    if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+        return MAX_DATA_SIZE;
+    } else {
+    	return OLD_MAX_DATA_SIZE;
+    }
+}
+
+/** Minimum Peer Version */
+int MinPeerVersion(uint32_t nBestHeight)
+{
+    if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+        return MIN_PEER_PROTO_VERSION;
+    } else {
+    	return OLD_MIN_PEER_PROTO_VERSION;
+    }
 }
 
 

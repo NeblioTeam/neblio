@@ -153,10 +153,12 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
     // Add our coinbase tx as first transaction
     pblock->vtx.push_back(txNew);
 
+    unsigned int nSizeLimit = MaxBlockSize(nBestHeight);
+
     // Largest block you're willing to create:
-    unsigned int nBlockMaxSize = GetArg("-blockmaxsize", MAX_BLOCK_SIZE_GEN/2);
-    // Limit to betweeen 1K and MAX_BLOCK_SIZE-1K for sanity:
-    nBlockMaxSize = std::max((unsigned int)1000, std::min((unsigned int)(MAX_BLOCK_SIZE-1000), nBlockMaxSize));
+    unsigned int nBlockMaxSize = GetArg("-blockmaxsize", nSizeLimit);
+    // Limit to betweeen 1K and nSizeLimit-1K for sanity:
+    nBlockMaxSize = std::max((unsigned int)1000, std::min((unsigned int)(nSizeLimit-1000), nBlockMaxSize));
 
     // How much of the block should be dedicated to high-priority transactions,
     // included regardless of the fees they pay

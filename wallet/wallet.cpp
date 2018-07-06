@@ -1763,7 +1763,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
 
     // Limit size
     unsigned int nBytes = ::GetSerializeSize(txNew, SER_NETWORK, PROTOCOL_VERSION);
-    if (nBytes >= MAX_BLOCK_SIZE_GEN/5)
+    if (nBytes >= OLD_MAX_BLOCK_SIZE/5)
         return error("CreateCoinStake : exceeded coinstake size limit");
 
     // Successfully generated coinstake
