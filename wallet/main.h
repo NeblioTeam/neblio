@@ -143,6 +143,8 @@ void ResendWalletTransactions(bool fForce = false);
 bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction &tx,
                         bool* pfMissingInputs);
 
+/** the conditions for considering the upgraded network configuration */
+bool PassedNetworkUpgradeBlock(uint32_t nBestHeight, bool isTestnet);
 
 /** Maximum size of a block */
 unsigned int MaxBlockSize(uint32_t nBestHeight);

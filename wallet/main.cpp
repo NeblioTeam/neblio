@@ -4107,11 +4107,15 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
     return true;
 }
 
+/** the conditions for considering the upgraded network configuration */
+bool PassedNetworkUpgradeBlock(uint32_t nBestHeight, bool isTestnet) {
+    return (nBestHeight >= HF_HEIGHT_TESTNET && fTestNet);
+}
 
 /** Maximum size of a block */
 unsigned int MaxBlockSize(uint32_t nBestHeight)
 {
-    if (nBestHeight >= HF_HEIGHT_TESTNET && fTestNet) {
+    if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
         return MAX_BLOCK_SIZE;
     } else {
     	return OLD_MAX_BLOCK_SIZE;
@@ -4122,7 +4126,7 @@ unsigned int MaxBlockSize(uint32_t nBestHeight)
 /** Spacing between blocks */
 unsigned int TargetSpacing(uint32_t nBestHeight)
 {
-    if (nBestHeight >= HF_HEIGHT_TESTNET && fTestNet) {
+    if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
         return nTargetSpacing;
     } else {
     	return nOldTargetSpacing;
@@ -4132,7 +4136,7 @@ unsigned int TargetSpacing(uint32_t nBestHeight)
 /** Coinbase Maturity */
 int CoinbaseMaturity(uint32_t nBestHeight)
 {
-    if (nBestHeight >= HF_HEIGHT_TESTNET && fTestNet) {
+    if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
         return nCoinbaseMaturity;
     } else {
     	return nOldCoinbaseMaturity;
@@ -4142,7 +4146,7 @@ int CoinbaseMaturity(uint32_t nBestHeight)
 /** Max OP_RETURN Size */
 unsigned int DataSize(uint32_t nBestHeight)
 {
-    if (nBestHeight >= HF_HEIGHT_TESTNET && fTestNet) {
+    if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
         return MAX_DATA_SIZE;
     } else {
     	return OLD_MAX_DATA_SIZE;
