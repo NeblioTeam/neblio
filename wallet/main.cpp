@@ -3131,7 +3131,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         CAddress addrFrom;
         uint64_t nNonce = 1;
         vRecv >> pfrom->nVersion >> pfrom->nServices >> nTime >> addrMe;
-        if (pfrom->nVersion < MIN_PEER_PROTO_VERSION)
+        int minPeerVer = MinPeerVersion(nBestHeight);
+        if (pfrom->nVersion < minPeerVer)
         {
             // disconnect from peers older than this proto version
             printf("partner %s using obsolete version %i; disconnecting\n", pfrom->addr.ToString().c_str(), pfrom->nVersion);
@@ -4150,6 +4151,16 @@ unsigned int DataSize(uint32_t nBestHeight)
         return MAX_DATA_SIZE;
     } else {
     	return OLD_MAX_DATA_SIZE;
+    }
+}
+
+/** Minimum Peer Version */
+int MinPeerVersion(uint32_t nBestHeight)
+{
+    if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+        return MIN_PEER_PROTO_VERSION;
+    } else {
+    	return OLD_MIN_PEER_PROTO_VERSION;
     }
 }
 
