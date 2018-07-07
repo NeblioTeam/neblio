@@ -167,7 +167,7 @@ unsigned int DataSize(uint32_t nBestHeight);
 int MinPeerVersion(uint32_t nBestHeight);
 
 /** Minimum Staking Age */
-unsigned int StakeMinAge(uint32_t nBestHeight)
+unsigned int StakeMinAge(uint32_t nBestHeight);
 
 
 
