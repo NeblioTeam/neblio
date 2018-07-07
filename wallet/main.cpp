@@ -4139,10 +4139,10 @@ unsigned int TargetSpacing(uint32_t nBestHeight)
 int CoinbaseMaturity(uint32_t nBestHeight)
 {
     if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
-        //return nCoinbaseMaturity;
-        return 10; // testnet maturity is 10, mainnet will be 30
+        return nCoinbaseMaturity;
     } else {
-    	return nOldCoinbaseMaturity;
+    	//return nOldCoinbaseMaturity;
+    	return 10; // testnet maturity is 10, mainnet will be 30
     }
 }
 
