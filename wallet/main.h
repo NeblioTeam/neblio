@@ -166,6 +166,9 @@ unsigned int DataSize(uint32_t nBestHeight);
 /** Minimum Peer Protocol Version */
 int MinPeerVersion(uint32_t nBestHeight);
 
+/** Minimum Staking Age */
+unsigned int StakeMinAge(uint32_t nBestHeight)
+
 
 
 
