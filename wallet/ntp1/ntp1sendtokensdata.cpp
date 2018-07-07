@@ -180,7 +180,7 @@ int64_t NTP1SendTokensData::__addAddressesThatCoverFees()
     // get the address vs balance map
     std::map<CTxDestination, int64_t> neblAddressesBalancesMap = pwalletMain->GetAddressBalances();
 
-    // create a map og address vs balance, to check the addresses that are already used easily
+    // create a map of address vs balance, to check the addresses that are already used easily
     std::map<std::string, int64_t> neblBalancesMap;
     std::transform(neblAddressesBalancesMap.begin(), neblAddressesBalancesMap.end(),
                    std::inserter(neblBalancesMap, neblBalancesMap.end()),
@@ -222,6 +222,14 @@ int64_t NTP1SendTokensData::__addAddressesThatCoverFees()
 
         // add more addresses to satisfy the balance
         for (const auto& el : neblBalancesVector) {
+            auto addressInMapIt = neblBalancesMap.find(el.first);
+            if (addressInMapIt != neblBalancesMap.end()) {
+                // neglect zero-balance addresses
+                if (addressInMapIt->second == 0) {
+                    continue;
+                }
+            }
+
             tokenSourceAddresses.push_back(el.first);
             currentTotalNeblsInSelectedAddresses += static_cast<int64_t>(
                 NTP1APICalls::RetrieveData_TotalNeblsExcludingNTP1(el.first, fTestNet));
