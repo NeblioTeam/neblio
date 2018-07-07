@@ -42,17 +42,17 @@ CBigNum bnProofOfWorkLimitTestNet(~uint256(0) >> 1);
 // Set PoS difficulty to standard
 CBigNum bnProofOfStakeLimit(~uint256(0) >> 20);
 
-unsigned int nTargetSpacing = 30; //Block spacing 30 seconds
-unsigned int nOldTargetSpacing = 2 * 60; //Old Block spacing 2 minutes
-unsigned int nStakeMinAge = 24 * 60 * 60; //Minimum stake age
-unsigned int nOldTestnetStakeMinAge = 60; //Minimum stake age on testnet before the hard fork
+unsigned int TARGET_SPACING = 30; //Block spacing 30 seconds
+unsigned int OLD_TARGET_SPACING = 2 * 60; //Old Block spacing 2 minutes
+unsigned int STAKE_MIN_AGE = 24 * 60 * 60; //Minimum stake age
+unsigned int OLD_TESTNET_STAKE_MIN_AGE = 60; //Minimum stake age on testnet before the hard fork
 unsigned int nStakeMaxAge = 7 * 24 * 60 * 60; //Maximum stake age 7 days
 unsigned int nModifierInterval = 10 * 60; // time to elapse before new modifier is computed
 
 //static const int64_t nTargetTimespan = 16 * 60;  // 16 mins
 static const int64_t nTargetTimespan = 2 * 60 * 60;  // 2 hours
 
-int nCoinbaseMaturity = 120; //Coin Base Maturity
+int COINBASE_MATURITY = 120; //Coin Base Maturity
 int nOldCoinbaseMaturity = 30; //Old Coin Base Maturity
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
@@ -891,8 +891,8 @@ int CMerkleTx::GetBlocksToMaturity() const
 {
     if (!(IsCoinBase() || IsCoinStake()))
         return 0;
-    int nCbM = CoinbaseMaturity(nBestHeight);
-    return max(0, (nCbM+0) - GetDepthInMainChain());
+    int nCoinbaseMaturity = CoinbaseMaturity(nBestHeight);
+    return max(0, (nCoinbaseMaturity+0) - GetDepthInMainChain());
 }
 
 
@@ -1439,9 +1439,9 @@ bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs, map<uint256, CTx
                 return DoS(100, error("ConnectInputs() : %s prevout.n out of range %d %" PRIszu" %" PRIszu" prev tx %s\n%s", GetHash().ToString().substr(0,10).c_str(), prevout.n, txPrev.vout.size(), txindex.vSpent.size(), prevout.hash.ToString().substr(0,10).c_str(), txPrev.ToString().c_str()));
 
             // If prev is coinbase or coinstake, check that it's matured
-            int nCbM = CoinbaseMaturity(nBestHeight);
+            int nCoinbaseMaturity = CoinbaseMaturity(nBestHeight);
             if (txPrev.IsCoinBase() || txPrev.IsCoinStake())
-                for (const CBlockIndex* pindex = pindexBlock; pindex && pindexBlock->nHeight - pindex->nHeight < nCbM; pindex = pindex->pprev)
+                for (const CBlockIndex* pindex = pindexBlock; pindex && pindexBlock->nHeight - pindex->nHeight < nCoinbaseMaturity; pindex = pindex->pprev)
                     if (pindex->nBlockPos == txindex.pos.nBlockPos && pindex->nFile == txindex.pos.nFile)
                         return error("ConnectInputs() : tried to spend %s at depth %d", txPrev.IsCoinBase() ? "coinbase" : "coinstake", pindexBlock->nHeight - pindex->nHeight);
 
@@ -1942,7 +1942,7 @@ bool CBlock::SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew)
 bool CTransaction::GetCoinAge(CTxDB& txdb, uint64_t& nCoinAge) const
 {
     CBigNum bnCentSecond = 0;  // coin age in the unit of cent-seconds
-    unsigned int nSMA = StakeMinAge(nBestHeight);
+    unsigned int nStakeMinAge = StakeMinAge(nBestHeight);
     nCoinAge = 0;
 
     if (IsCoinBase())
@@ -1962,7 +1962,7 @@ bool CTransaction::GetCoinAge(CTxDB& txdb, uint64_t& nCoinAge) const
         CBlock block;
         if (!block.ReadFromDisk(txindex.pos.nFile, txindex.pos.nBlockPos, false))
             return false; // unable to read block of previous transaction
-        if (block.GetBlockTime() + nSMA > nTime)
+        if (block.GetBlockTime() + nStakeMinAge > nTime)
             continue; // only count coins meeting min age requirement
 
         int64_t nValueIn = txPrev.vout[txin.prevout.n].nValue;
@@ -3494,10 +3494,10 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
             if (pindex->GetBlockHash() == hashStop)
             {
                 printf("  getblocks stopping at %d %s\n", pindex->nHeight, pindex->GetBlockHash().ToString().substr(0,20).c_str());
-                unsigned int nSMA = StakeMinAge(nBestHeight);
+                unsigned int nStakeMinAge = StakeMinAge(nBestHeight);
                 // ppcoin: tell downloading node about the latest block if it's
                 // without risk being rejected due to stake connection check
-                if (hashStop != hashBestChain && pindex->GetBlockTime() + nSMA > pindexBest->GetBlockTime())
+                if (hashStop != hashBestChain && pindex->GetBlockTime() + nStakeMinAge > pindexBest->GetBlockTime())
                     pfrom->PushInventory(CInv(MSG_BLOCK, hashBestChain));
                 break;
             }
@@ -4132,9 +4132,9 @@ unsigned int MaxBlockSize(uint32_t nBestHeight)
 unsigned int TargetSpacing(uint32_t nBestHeight)
 {
     if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
-        return nTargetSpacing;
+        return TARGET_SPACING;
     } else {
-    	return nOldTargetSpacing;
+        return OLD_TARGET_SPACING;
     }
 }
 
@@ -4142,7 +4142,7 @@ unsigned int TargetSpacing(uint32_t nBestHeight)
 int CoinbaseMaturity(uint32_t nBestHeight)
 {
     if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
-        return nCoinbaseMaturity;
+        return COINBASE_MATURITY;
     } else {
     	//return nOldCoinbaseMaturity;
     	return 10; // testnet maturity is 10, mainnet will be 30
@@ -4174,14 +4174,13 @@ unsigned int StakeMinAge(uint32_t nBestHeight)
 {
 	if (fTestNet) {
 		if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
-        	return nStakeMinAge;
+            return STAKE_MIN_AGE;
 	    } else {
-	    	return nOldTestnetStakeMinAge;
+            return OLD_TESTNET_STAKE_MIN_AGE;
 	    }
 	} else {
-		return nStakeMinAge;
+        return STAKE_MIN_AGE;
 	}
-
 }
 
 // Amount compression:
