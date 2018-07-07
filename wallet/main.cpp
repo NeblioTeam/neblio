@@ -45,6 +45,7 @@ CBigNum bnProofOfStakeLimit(~uint256(0) >> 20);
 unsigned int nTargetSpacing = 30; //Block spacing 30 seconds
 unsigned int nOldTargetSpacing = 2 * 60; //Old Block spacing 2 minutes
 unsigned int nStakeMinAge = 24 * 60 * 60; //Minimum stake age
+unsigned int nOldTestnetStakeMinAge = 60; //Minimum stake age on testnet before the hard fork
 unsigned int nStakeMaxAge = 7 * 24 * 60 * 60; //Maximum stake age 7 days
 unsigned int nModifierInterval = 10 * 60; // time to elapse before new modifier is computed
 
@@ -1941,6 +1942,7 @@ bool CBlock::SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew)
 bool CTransaction::GetCoinAge(CTxDB& txdb, uint64_t& nCoinAge) const
 {
     CBigNum bnCentSecond = 0;  // coin age in the unit of cent-seconds
+    unsigned int nSMA = StakeMinAge(nBestHeight);
     nCoinAge = 0;
 
     if (IsCoinBase())
@@ -1960,7 +1962,7 @@ bool CTransaction::GetCoinAge(CTxDB& txdb, uint64_t& nCoinAge) const
         CBlock block;
         if (!block.ReadFromDisk(txindex.pos.nFile, txindex.pos.nBlockPos, false))
             return false; // unable to read block of previous transaction
-        if (block.GetBlockTime() + nStakeMinAge > nTime)
+        if (block.GetBlockTime() + nSMA > nTime)
             continue; // only count coins meeting min age requirement
 
         int64_t nValueIn = txPrev.vout[txin.prevout.n].nValue;
@@ -2707,7 +2709,6 @@ bool LoadBlockIndex(bool fAllowNew)
         pchMessageStart[3] = 0xc5;
 
         bnTrustedModulus.SetHex("bee2a4e394e8d268702b94138c5659130ac83b6d93fe6940cb0738384b18366ce1f3ca05624c3dbd89f8eac83d5f95706a26faeff38efc560f0bf22d31a9828d454a79a35b5abf892635f37637fba3c0358df3fe204066e42075ae079f45296c520b942dfbb030c17c95da6ac60870a614df5def2324f710a61df35d83993f3cc38b7252a79732282b7ae12fe5edfcdb87f0e980d1b1dc0d1881708f2ff95f416c339b1ff513bf70555df587b98dfd7a122c9bb1e7ac81b665101f23f172a1c2159d630f429934abcb41c7659ff86a862b39086f4bf8263ae52d6e3c21ff92fd5d3984197b5683fb41c3bdbc8aa07e5db0041dce17b2bd8b929d09c0d3af58bc6920cfa55b187cc6486d805ed8c244250637eab0f7e8143f0af6b2f6a9e7a7253e8fd805ae5eab3b4540b0ec6768ec883ee38ae57e8e4e023f35bd640d91482d2e6345b6c598e1d78a7a34b8235288fae59f928f820e69badaf98fa15ff1ae53a7a9d158f5c323a3bdef2227f0138c1e2fe701d2d152905f48301c3b83e130dd");
-	    nStakeMinAge = 60; // test net min age before the hard
     }
     else
     {
@@ -3493,9 +3494,10 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
             if (pindex->GetBlockHash() == hashStop)
             {
                 printf("  getblocks stopping at %d %s\n", pindex->nHeight, pindex->GetBlockHash().ToString().substr(0,20).c_str());
+                unsigned int nSMA = StakeMinAge(nBestHeight);
                 // ppcoin: tell downloading node about the latest block if it's
                 // without risk being rejected due to stake connection check
-                if (hashStop != hashBestChain && pindex->GetBlockTime() + nStakeMinAge > pindexBest->GetBlockTime())
+                if (hashStop != hashBestChain && pindex->GetBlockTime() + nSMA > pindexBest->GetBlockTime())
                     pfrom->PushInventory(CInv(MSG_BLOCK, hashBestChain));
                 break;
             }
@@ -4167,6 +4169,20 @@ int MinPeerVersion(uint32_t nBestHeight)
     }
 }
 
+/** Minimum Staking Age */
+unsigned int StakeMinAge(uint32_t nBestHeight)
+{
+	if (fTestNet) {
+		if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+        	return nStakeMinAge;
+	    } else {
+	    	return nOldTestnetStakeMinAge;
+	    }
+	} else {
+		return nStakeMinAge;
+	}
+
+}
 
 // Amount compression:
 // * If the amount is 0, output 0
