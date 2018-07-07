@@ -4114,7 +4114,7 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
 
 /** the conditions for considering the upgraded network configuration */
 bool PassedNetworkUpgradeBlock(uint32_t nBestHeight, bool isTestnet) {
-    return (nBestHeight >= HF_HEIGHT_TESTNET && fTestNet);
+    return (nBestHeight >= HF_HEIGHT_TESTNET && isTestnet);
 }
 
 /** Maximum size of a block */
