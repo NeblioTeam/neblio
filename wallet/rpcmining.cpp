@@ -71,8 +71,8 @@ Value getstakinginfo(const Array& params, bool fHelp)
 
     uint64_t nNetworkWeight = GetPoSKernelPS();
     bool staking = nLastCoinStakeSearchInterval && nWeight;
-    unsigned int nTS = TargetSpacing(nBestHeight);
-    int nExpectedTime = staking ? (nTS * nNetworkWeight / nWeight) : -1;
+    unsigned int nTargetSpacing = TargetSpacing(nBestHeight);
+    int nExpectedTime = staking ? (nTargetSpacing * nNetworkWeight / nWeight) : -1;
 
     Object obj;
 
