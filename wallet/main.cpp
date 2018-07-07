@@ -42,17 +42,17 @@ CBigNum bnProofOfWorkLimitTestNet(~uint256(0) >> 1);
 // Set PoS difficulty to standard
 CBigNum bnProofOfStakeLimit(~uint256(0) >> 20);
 
-unsigned int nTargetSpacing = 30; //Block spacing 30 seconds
-unsigned int nOldTargetSpacing = 2 * 60; //Old Block spacing 2 minutes
-unsigned int nStakeMinAge = 24 * 60 * 60; //Minimum stake age
-unsigned int nOldTestnetStakeMinAge = 60; //Minimum stake age on testnet before the hard fork
+unsigned int TARGET_SPACING = 30; //Block spacing 30 seconds
+unsigned int OLD_TARGET_SPACING = 2 * 60; //Old Block spacing 2 minutes
+unsigned int STAKE_MIN_AGE = 24 * 60 * 60; //Minimum stake age
+unsigned int OLD_TESTNET_STAKE_MIN_AGE = 60; //Minimum stake age on testnet before the hard fork
 unsigned int nStakeMaxAge = 7 * 24 * 60 * 60; //Maximum stake age 7 days
 unsigned int nModifierInterval = 10 * 60; // time to elapse before new modifier is computed
 
 //static const int64_t nTargetTimespan = 16 * 60;  // 16 mins
 static const int64_t nTargetTimespan = 2 * 60 * 60;  // 2 hours
 
-int nCoinbaseMaturity = 120; //Coin Base Maturity
+int COINBASE_MATURITY = 120; //Coin Base Maturity
 int nOldCoinbaseMaturity = 30; //Old Coin Base Maturity
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
@@ -4132,9 +4132,9 @@ unsigned int MaxBlockSize(uint32_t nBestHeight)
 unsigned int TargetSpacing(uint32_t nBestHeight)
 {
     if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
-        return nTargetSpacing;
+        return TARGET_SPACING;
     } else {
-    	return nOldTargetSpacing;
+        return OLD_TARGET_SPACING;
     }
 }
 
@@ -4142,7 +4142,7 @@ unsigned int TargetSpacing(uint32_t nBestHeight)
 int CoinbaseMaturity(uint32_t nBestHeight)
 {
     if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
-        return nCoinbaseMaturity;
+        return COINBASE_MATURITY;
     } else {
     	//return nOldCoinbaseMaturity;
     	return 10; // testnet maturity is 10, mainnet will be 30
@@ -4174,14 +4174,13 @@ unsigned int StakeMinAge(uint32_t nBestHeight)
 {
 	if (fTestNet) {
 		if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
-        	return nStakeMinAge;
+            return STAKE_MIN_AGE;
 	    } else {
-	    	return nOldTestnetStakeMinAge;
+            return OLD_TESTNET_STAKE_MIN_AGE;
 	    }
 	} else {
-		return nStakeMinAge;
+        return STAKE_MIN_AGE;
 	}
-
 }
 
 // Amount compression:
