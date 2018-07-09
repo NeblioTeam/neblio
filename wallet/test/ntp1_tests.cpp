@@ -431,18 +431,18 @@ TEST(ntp1_tests, amount_to_int)
     EXPECT_ANY_THROW(NTP1AmountHexToNumber<int64_t>("ssdsdmwdmo"));
     EXPECT_ANY_THROW(NTP1AmountHexToNumber<int64_t>("999999999999999999999999999999999999999999999999"));
 
-    EXPECT_EQ(NumberToNTP1Amount(999901700), "69892a92");
-    EXPECT_EQ(NumberToNTP1Amount(8478457292922), "c007b60b6f687a");
-    EXPECT_EQ(NumberToNTP1Amount(38290000), "40ef54");
-    EXPECT_EQ(NumberToNTP1Amount(1000000000000000), "201f");
-    EXPECT_EQ(NumberToNTP1Amount(723782), "60b0b460");
-    EXPECT_EQ(NumberToNTP1Amount(871340), "5545e1");
-    EXPECT_EQ(NumberToNTP1Amount(8478457292922), "c007b60b6f687a");
-    EXPECT_EQ(NumberToNTP1Amount(17), "11");
-    EXPECT_EQ(NumberToNTP1Amount(100), "2012");
-    EXPECT_EQ(NumberToNTP1Amount(479320), "4bb3c1");
-    EXPECT_EQ(NumberToNTP1Amount(9207387000), "68c7e5b3");
-    EXPECT_EQ(NumberToNTP1Amount(8723709100), "8029990f1a");
-    EXPECT_EQ(NumberToNTP1Amount(839027891720), "a09c47f7b1a1");
-    EXPECT_EQ(NumberToNTP1Amount(182582987368701), "c0a60eea1aa8fd");
+    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(999901700), "69892a92");
+    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(8478457292922), "c007b60b6f687a");
+    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(38290000), "40ef54");
+    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(1000000000000000), "201f");
+    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(723782), "60b0b460");
+    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(871340), "5545e1");
+    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(8478457292922), "c007b60b6f687a");
+    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(17), "11");
+    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(100), "2012");
+    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(479320), "4bb3c1");
+    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(9207387000), "68c7e5b3");
+    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(8723709100), "8029990f1a");
+    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(839027891720), "a09c47f7b1a1");
+    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(182582987368701), "c0a60eea1aa8fd");
 }

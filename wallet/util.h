@@ -620,7 +620,8 @@ T NTP1AmountHexToNumber(std::string hexVal)
 }
 
 template <typename T>
-std::string NumberToNTP1Amount(T&& num, bool caps = false)
+typename std::enable_if<std::is_unsigned<T>::value, std::string>::type
+NumberToNTP1Amount(T&& num, bool caps = false)
 {
     std::string numStr     = boost::to_string(num);
     int         zerosCount = 0;
