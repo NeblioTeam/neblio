@@ -9,111 +9,116 @@
 #include "uint256.h"
 
 #ifndef WIN32
-#include <sys/types.h>
-#include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/time.h>
+#include <sys/types.h>
 #endif
 
 #include <map>
-#include <vector>
+#include <regex>
 #include <string>
+#include <vector>
 
-#include <boost/thread.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/filesystem/path.hpp>
+#include <boost/algorithm/hex.hpp>
 #include <boost/date_time/gregorian/gregorian_types.hpp>
 #include <boost/date_time/posix_time/posix_time_types.hpp>
+#include <boost/dynamic_bitset.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/path.hpp>
+#include <boost/thread.hpp>
 
 #include "netbase.h" // for AddTimeData
 
 // to obtain PRId64 on some old systems
 #define __STDC_FORMAT_MACROS 1
 
-#include <stdint.h>
 #include <inttypes.h>
+#include <stdint.h>
 
 static const int64_t COIN = 100000000;
 static const int64_t CENT = 1000000;
 
-#define BEGIN(a)            ((char*)&(a))
-#define END(a)              ((char*)&((&(a))[1]))
-#define UBEGIN(a)           ((unsigned char*)&(a))
-#define UEND(a)             ((unsigned char*)&((&(a))[1]))
-#define ARRAYLEN(array)     (sizeof(array)/sizeof((array)[0]))
+const std::string HexBytesRegexStr("^([0-9a-fA-F][0-9a-fA-F])+$");
+const std::regex  HexBytexRegex(HexBytesRegexStr);
 
-#define UVOIDBEGIN(a)        ((void*)&(a))
-#define CVOIDBEGIN(a)        ((const void*)&(a))
-#define UINTBEGIN(a)        ((uint32_t*)&(a))
-#define CUINTBEGIN(a)        ((const uint32_t*)&(a))
+#define BEGIN(a) ((char*)&(a))
+#define END(a) ((char*)&((&(a))[1]))
+#define UBEGIN(a) ((unsigned char*)&(a))
+#define UEND(a) ((unsigned char*)&((&(a))[1]))
+#define ARRAYLEN(array) (sizeof(array) / sizeof((array)[0]))
+
+#define UVOIDBEGIN(a) ((void*)&(a))
+#define CVOIDBEGIN(a) ((const void*)&(a))
+#define UINTBEGIN(a) ((uint32_t*)&(a))
+#define CUINTBEGIN(a) ((const uint32_t*)&(a))
 
 #ifndef PRId64
 #if defined(_MSC_VER) || defined(__MSVCRT__)
-#define PRId64  "I64d"
-#define PRIu64  "I64u"
-#define PRIx64  "I64x"
+#define PRId64 "I64d"
+#define PRIu64 "I64u"
+#define PRIx64 "I64x"
 #else
-#define PRId64  "lld"
-#define PRIu64  "llu"
-#define PRIx64  "llx"
+#define PRId64 "lld"
+#define PRIu64 "llu"
+#define PRIx64 "llx"
 #endif
 #endif
 
 #ifndef THROW_WITH_STACKTRACE
-#define THROW_WITH_STACKTRACE(exception)  \
-{                                         \
-    LogStackTrace();                      \
-    throw (exception);                    \
-}
+#define THROW_WITH_STACKTRACE(exception)                                                                \
+    {                                                                                                   \
+        LogStackTrace();                                                                                \
+        throw(exception);                                                                               \
+    }
 void LogStackTrace();
 #endif
 
 /* Format characters for (s)size_t and ptrdiff_t */
 #if defined(_MSC_VER) || defined(__MSVCRT__)
-  /* (s)size_t and ptrdiff_t have the same size specifier in MSVC:
-     http://msdn.microsoft.com/en-us/library/tcxf1dw6%28v=vs.100%29.aspx
-   */
-  #define PRIszx    "Ix"
-  #define PRIszu    "Iu"
-  #define PRIszd    "Id"
-  #define PRIpdx    "Ix"
-  #define PRIpdu    "Iu"
-  #define PRIpdd    "Id"
+/* (s)size_t and ptrdiff_t have the same size specifier in MSVC:
+   http://msdn.microsoft.com/en-us/library/tcxf1dw6%28v=vs.100%29.aspx
+ */
+#define PRIszx "Ix"
+#define PRIszu "Iu"
+#define PRIszd "Id"
+#define PRIpdx "Ix"
+#define PRIpdu "Iu"
+#define PRIpdd "Id"
 #else /* C99 standard */
-  #define PRIszx    "zx"
-  #define PRIszu    "zu"
-  #define PRIszd    "zd"
-  #define PRIpdx    "tx"
-  #define PRIpdu    "tu"
-  #define PRIpdd    "td"
+#define PRIszx "zx"
+#define PRIszu "zu"
+#define PRIszd "zd"
+#define PRIpdx "tx"
+#define PRIpdu "tu"
+#define PRIpdd "td"
 #endif
 
 // This is needed because the foreach macro can't get over the comma in pair<t1, t2>
-#define PAIRTYPE(t1, t2)    std::pair<t1, t2>
+#define PAIRTYPE(t1, t2) std::pair<t1, t2>
 
 // Align by increasing pointer, must have extra space at end of buffer
 template <size_t nBytes, typename T>
 T* alignup(T* p)
 {
-    union
-    {
-        T* ptr;
+    union {
+        T*     ptr;
         size_t n;
     } u;
     u.ptr = p;
-    u.n = (u.n + (nBytes-1)) & ~(nBytes-1);
+    u.n   = (u.n + (nBytes - 1)) & ~(nBytes - 1);
     return u.ptr;
 }
 
 #ifdef WIN32
-#define MSG_NOSIGNAL        0
-#define MSG_DONTWAIT        0
+#define MSG_NOSIGNAL 0
+#define MSG_DONTWAIT 0
 
 #ifndef S_IRUSR
-#define S_IRUSR             0400
-#define S_IWUSR             0200
+#define S_IRUSR 0400
+#define S_IWUSR 0200
 #endif
 #else
-#define MAX_PATH            1024
+#define MAX_PATH 1024
 #endif
 
 inline void MilliSleep(int64_t n)
@@ -130,38 +135,31 @@ inline void MilliSleep(int64_t n)
  * Parameters count from 1.
  */
 #ifdef __GNUC__
-#define ATTR_WARN_PRINTF(X,Y) __attribute__((format(printf,X,Y)))
+#define ATTR_WARN_PRINTF(X, Y) __attribute__((format(printf, X, Y)))
 #else
-#define ATTR_WARN_PRINTF(X,Y)
+#define ATTR_WARN_PRINTF(X, Y)
 #endif
 
-
-
-
-
-
-
-
-extern std::map<std::string, std::string> mapArgs;
-extern std::map<std::string, std::vector<std::string> > mapMultiArgs;
-extern bool fDebug;
-extern bool fDebugNet;
-extern bool fPrintToConsole;
-extern bool fPrintToDebugger;
-extern bool fRequestShutdown;
-extern bool fShutdown;
-extern bool fDaemon;
-extern bool fServer;
-extern bool fCommandLine;
-extern std::string strMiscWarning;
-extern bool fTestNet;
-extern bool fNoListen;
-extern bool fLogTimestamps;
-extern bool fReopenDebugLog;
+extern std::map<std::string, std::string>              mapArgs;
+extern std::map<std::string, std::vector<std::string>> mapMultiArgs;
+extern bool                                            fDebug;
+extern bool                                            fDebugNet;
+extern bool                                            fPrintToConsole;
+extern bool                                            fPrintToDebugger;
+extern bool                                            fRequestShutdown;
+extern bool                                            fShutdown;
+extern bool                                            fDaemon;
+extern bool                                            fServer;
+extern bool                                            fCommandLine;
+extern std::string                                     strMiscWarning;
+extern bool                                            fTestNet;
+extern bool                                            fNoListen;
+extern bool                                            fLogTimestamps;
+extern bool                                            fReopenDebugLog;
 
 void RandAddSeed();
 void RandAddSeedPerfmon();
-int ATTR_WARN_PRINTF(1,2) OutputDebugStringF(const char* pszFormat, ...);
+int  ATTR_WARN_PRINTF(1, 2) OutputDebugStringF(const char* pszFormat, ...);
 
 /*
   Rationale for the real_strprintf / strprintf construction:
@@ -171,15 +169,15 @@ int ATTR_WARN_PRINTF(1,2) OutputDebugStringF(const char* pszFormat, ...);
 */
 
 /** Overload strprintf for char*, so that GCC format type warnings can be given */
-std::string ATTR_WARN_PRINTF(1,3) real_strprintf(const char *format, int dummy, ...);
+std::string ATTR_WARN_PRINTF(1, 3) real_strprintf(const char* format, int dummy, ...);
 /** Overload strprintf for std::string, to be able to use it with _ (translation).
  * This will not support GCC format type warnings (-Wformat) so be careful.
  */
-std::string real_strprintf(const std::string &format, int dummy, ...);
+std::string real_strprintf(const std::string& format, int dummy, ...);
 #define strprintf(format, ...) real_strprintf(format, 0, __VA_ARGS__)
-std::string vstrprintf(const char *format, va_list ap);
+std::string vstrprintf(const char* format, va_list ap);
 
-bool ATTR_WARN_PRINTF(1,2) error(const char *format, ...);
+bool ATTR_WARN_PRINTF(1, 2) error(const char* format, ...);
 
 /* Redefine printf so that it directs output to debug.log
  *
@@ -189,51 +187,53 @@ bool ATTR_WARN_PRINTF(1,2) error(const char *format, ...);
  */
 #define printf OutputDebugStringF
 
-void PrintException(std::exception* pex, const char* pszThread);
-void PrintExceptionContinue(std::exception* pex, const char* pszThread);
-void ParseString(const std::string& str, char c, std::vector<std::string>& v);
-std::string FormatMoney(int64_t n, bool fPlus=false);
-bool ParseMoney(const std::string& str, int64_t& nRet);
-bool ParseMoney(const char* pszIn, int64_t& nRet);
-std::vector<unsigned char> ParseHex(const char* psz);
-std::vector<unsigned char> ParseHex(const std::string& str);
-bool IsHex(const std::string& str);
-std::vector<unsigned char> DecodeBase64(const char* p, bool* pfInvalid = NULL);
-std::string DecodeBase64(const std::string& str);
-std::string EncodeBase64(const unsigned char* pch, size_t len);
-std::string EncodeBase64(const std::string& str);
-std::vector<unsigned char> DecodeBase32(const char* p, bool* pfInvalid = NULL);
-std::string DecodeBase32(const std::string& str);
-std::string EncodeBase32(const unsigned char* pch, size_t len);
-std::string EncodeBase32(const std::string& str);
-void ParseParameters(int argc, const char*const argv[]);
-bool WildcardMatch(const char* psz, const char* mask);
-bool WildcardMatch(const std::string& str, const std::string& mask);
-void FileCommit(FILE *fileout);
-bool RenameOver(boost::filesystem::path src, boost::filesystem::path dest);
-boost::filesystem::path GetDefaultDataDir();
-const boost::filesystem::path &GetDataDir(bool fNetSpecific = true);
-boost::filesystem::path GetConfigFile();
-boost::filesystem::path GetPidFile();
+void                           PrintException(std::exception* pex, const char* pszThread);
+void                           PrintExceptionContinue(std::exception* pex, const char* pszThread);
+void                           ParseString(const std::string& str, char c, std::vector<std::string>& v);
+std::string                    FormatMoney(int64_t n, bool fPlus = false);
+bool                           ParseMoney(const std::string& str, int64_t& nRet);
+bool                           ParseMoney(const char* pszIn, int64_t& nRet);
+std::vector<unsigned char>     ParseHex(const char* psz);
+std::vector<unsigned char>     ParseHex(const std::string& str);
+bool                           IsHex(const std::string& str);
+std::vector<unsigned char>     DecodeBase64(const char* p, bool* pfInvalid = NULL);
+std::string                    DecodeBase64(const std::string& str);
+std::string                    EncodeBase64(const unsigned char* pch, size_t len);
+std::string                    EncodeBase64(const std::string& str);
+std::vector<unsigned char>     DecodeBase32(const char* p, bool* pfInvalid = NULL);
+std::string                    DecodeBase32(const std::string& str);
+std::string                    EncodeBase32(const unsigned char* pch, size_t len);
+std::string                    EncodeBase32(const std::string& str);
+void                           ParseParameters(int argc, const char* const argv[]);
+bool                           WildcardMatch(const char* psz, const char* mask);
+bool                           WildcardMatch(const std::string& str, const std::string& mask);
+void                           FileCommit(FILE* fileout);
+bool                           RenameOver(boost::filesystem::path src, boost::filesystem::path dest);
+boost::filesystem::path        GetDefaultDataDir();
+const boost::filesystem::path& GetDataDir(bool fNetSpecific = true);
+boost::filesystem::path        GetConfigFile();
+boost::filesystem::path        GetPidFile();
 #ifndef WIN32
-void CreatePidFile(const boost::filesystem::path &path, pid_t pid);
+void CreatePidFile(const boost::filesystem::path& path, pid_t pid);
 #endif
-void ReadConfigFile(std::map<std::string, std::string>& mapSettingsRet, std::map<std::string, std::vector<std::string> >& mapMultiSettingsRet);
+void ReadConfigFile(std::map<std::string, std::string>&              mapSettingsRet,
+                    std::map<std::string, std::vector<std::string>>& mapMultiSettingsRet);
 #ifdef WIN32
 boost::filesystem::path GetSpecialFolderPath(int nFolder, bool fCreate = true);
 #endif
-void ShrinkDebugFile();
-int GetRandInt(int nMax);
-uint64_t GetRand(uint64_t nMax);
-uint256 GetRandHash();
-int64_t GetTime();
-void SetMockTime(int64_t nMockTimeIn);
-int64_t GetAdjustedTime();
-int64_t GetTimeOffset();
+void        ShrinkDebugFile();
+int         GetRandInt(int nMax);
+uint64_t    GetRand(uint64_t nMax);
+uint256     GetRandHash();
+int64_t     GetTime();
+void        SetMockTime(int64_t nMockTimeIn);
+int64_t     GetAdjustedTime();
+int64_t     GetTimeOffset();
 std::string FormatFullVersion();
-std::string FormatSubVersion(const std::string& name, int nClientVersion, const std::vector<std::string>& comments);
-void AddTimeData(const CNetAddr& ip, int64_t nTime);
-void runCommand(std::string strCommand);
+std::string FormatSubVersion(const std::string& name, int nClientVersion,
+                             const std::vector<std::string>& comments);
+void        AddTimeData(const CNetAddr& ip, int64_t nTime);
+void        runCommand(std::string strCommand);
 
 template <typename T>
 std::string ToString(T const& value)
@@ -254,16 +254,9 @@ T FromString(std::string str)
     return ret;
 }
 
+inline std::string i64tostr(int64_t n) { return strprintf("%" PRId64, n); }
 
-inline std::string i64tostr(int64_t n)
-{
-    return strprintf("%" PRId64, n);
-}
-
-inline std::string itostr(int n)
-{
-    return strprintf("%d", n);
-}
+inline std::string itostr(int n) { return strprintf("%d", n); }
 
 inline int64_t atoi64(const char* psz)
 {
@@ -283,56 +276,43 @@ inline int64_t atoi64(const std::string& str)
 #endif
 }
 
-inline int atoi(const std::string& str)
-{
-    return atoi(str.c_str());
-}
+inline int atoi(const std::string& str) { return atoi(str.c_str()); }
 
-inline int roundint(double d)
-{
-    return (int)(d > 0 ? d + 0.5 : d - 0.5);
-}
+inline int roundint(double d) { return (int)(d > 0 ? d + 0.5 : d - 0.5); }
 
-inline int64_t roundint64(double d)
-{
-    return (int64_t)(d > 0 ? d + 0.5 : d - 0.5);
-}
+inline int64_t roundint64(double d) { return (int64_t)(d > 0 ? d + 0.5 : d - 0.5); }
 
-inline int64_t abs64(int64_t n)
-{
-    return (n >= 0 ? n : -n);
-}
+inline int64_t abs64(int64_t n) { return (n >= 0 ? n : -n); }
 
 inline std::string leftTrim(std::string src, char chr)
 {
     std::string::size_type pos = src.find_first_not_of(chr, 0);
 
-    if(pos > 0)
+    if (pos > 0)
         src.erase(0, pos);
 
     return src;
 }
 
-template<typename T>
-std::string HexStr(const T itbegin, const T itend, bool fSpaces=false)
+template <typename T>
+std::string HexStr(const T itbegin, const T itend, bool fSpaces = false)
 {
-    std::string rv;
-    static const char hexmap[16] = { '0', '1', '2', '3', '4', '5', '6', '7',
-                                     '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
-    rv.reserve((itend-itbegin)*3);
-    for(T it = itbegin; it < itend; ++it)
-    {
+    std::string       rv;
+    static const char hexmap[16] = {'0', '1', '2', '3', '4', '5', '6', '7',
+                                    '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+    rv.reserve((itend - itbegin) * 3);
+    for (T it = itbegin; it < itend; ++it) {
         unsigned char val = (unsigned char)(*it);
-        if(fSpaces && it != itbegin)
+        if (fSpaces && it != itbegin)
             rv.push_back(' ');
-        rv.push_back(hexmap[val>>4]);
-        rv.push_back(hexmap[val&15]);
+        rv.push_back(hexmap[val >> 4]);
+        rv.push_back(hexmap[val & 15]);
     }
 
     return rv;
 }
 
-inline std::string HexStr(const std::vector<unsigned char>& vch, bool fSpaces=false)
+inline std::string HexStr(const std::vector<unsigned char>& vch, bool fSpaces = false)
 {
     return HexStr(vch.begin(), vch.end(), fSpaces);
 }
@@ -345,7 +325,7 @@ inline int64_t GetPerformanceCounter()
 #else
     timeval t;
     gettimeofday(&t, NULL);
-    nCounter = (int64_t) t.tv_sec * 1000000 + t.tv_usec;
+    nCounter = (int64_t)t.tv_sec * 1000000 + t.tv_usec;
 #endif
     return nCounter;
 }
@@ -353,26 +333,26 @@ inline int64_t GetPerformanceCounter()
 inline int64_t GetTimeMillis()
 {
     return (boost::posix_time::ptime(boost::posix_time::microsec_clock::universal_time()) -
-            boost::posix_time::ptime(boost::gregorian::date(1970,1,1))).total_milliseconds();
+            boost::posix_time::ptime(boost::gregorian::date(1970, 1, 1)))
+        .total_milliseconds();
 }
 
 inline std::string DateTimeStrFormat(const char* pszFormat, int64_t nTime)
 {
-    time_t n = nTime;
+    time_t     n       = nTime;
     struct tm* ptmTime = gmtime(&n);
-    char pszTime[200];
+    char       pszTime[200];
     strftime(pszTime, sizeof(pszTime), pszFormat, ptmTime);
     return pszTime;
 }
 
 static const std::string strTimestampFormat = "%Y-%m-%d %H:%M:%S UTC";
-inline std::string DateTimeStrFormat(int64_t nTime)
+inline std::string       DateTimeStrFormat(int64_t nTime)
 {
     return DateTimeStrFormat(strTimestampFormat.c_str(), nTime);
 }
 
-
-template<typename T>
+template <typename T>
 void skipspaces(T& it)
 {
     while (isspace(*it))
@@ -413,7 +393,7 @@ int64_t GetArg(const std::string& strArg, int64_t nDefault);
  * @param default (true or false)
  * @return command-line argument or default value
  */
-bool GetBoolArg(const std::string& strArg, bool fDefault=false);
+bool GetBoolArg(const std::string& strArg, bool fDefault = false);
 
 /**
  * Set an argument if it doesn't already have a value
@@ -440,21 +420,20 @@ bool SoftSetBoolArg(const std::string& strArg, bool fValue);
  *
  * @return random value
  */
-extern uint32_t insecure_rand_Rz;
-extern uint32_t insecure_rand_Rw;
+extern uint32_t        insecure_rand_Rz;
+extern uint32_t        insecure_rand_Rw;
 static inline uint32_t insecure_rand(void)
 {
-  insecure_rand_Rz=36969*(insecure_rand_Rz&65535)+(insecure_rand_Rz>>16);
-  insecure_rand_Rw=18000*(insecure_rand_Rw&65535)+(insecure_rand_Rw>>16);
-  return (insecure_rand_Rw<<16)+insecure_rand_Rz;
+    insecure_rand_Rz = 36969 * (insecure_rand_Rz & 65535) + (insecure_rand_Rz >> 16);
+    insecure_rand_Rw = 18000 * (insecure_rand_Rw & 65535) + (insecure_rand_Rw >> 16);
+    return (insecure_rand_Rw << 16) + insecure_rand_Rz;
 }
 
 /**
  * Seed insecure_rand using the random pool.
  * @param Deterministic Use a determinstic seed
  */
-void seed_insecure_rand(bool fDeterministic=false);
-
+void seed_insecure_rand(bool fDeterministic = false);
 
 /**
  * Timing-attack-resistant comparison.
@@ -464,25 +443,27 @@ void seed_insecure_rand(bool fDeterministic=false);
 template <typename T>
 bool TimingResistantEqual(const T& a, const T& b)
 {
-    if (b.size() == 0) return a.size() == 0;
+    if (b.size() == 0)
+        return a.size() == 0;
     size_t accumulator = a.size() ^ b.size();
     for (size_t i = 0; i < a.size(); i++)
-        accumulator |= a[i] ^ b[i%b.size()];
+        accumulator |= a[i] ^ b[i % b.size()];
     return accumulator == 0;
 }
 
 /** Median filter over a stream of values.
  * Returns the median of the last N numbers
  */
-template <typename T> class CMedianFilter
+template <typename T>
+class CMedianFilter
 {
 private:
     std::vector<T> vValues;
     std::vector<T> vSorted;
-    unsigned int nSize;
+    unsigned int   nSize;
+
 public:
-    CMedianFilter(unsigned int size, T initial_value):
-        nSize(size)
+    CMedianFilter(unsigned int size, T initial_value) : nSize(size)
     {
         vValues.reserve(size);
         vValues.push_back(initial_value);
@@ -491,8 +472,7 @@ public:
 
     void input(T value)
     {
-        if(vValues.size() == nSize)
-        {
+        if (vValues.size() == nSize) {
             vValues.erase(vValues.begin());
         }
         vValues.push_back(value);
@@ -505,46 +485,36 @@ public:
     T median() const
     {
         int size = vSorted.size();
-        assert(size>0);
-        if(size & 1) // Odd number of elements
+        assert(size > 0);
+        if (size & 1) // Odd number of elements
         {
-            return vSorted[size/2];
-        }
-        else // Even number of elements
+            return vSorted[size / 2];
+        } else // Even number of elements
         {
-            return (vSorted[size/2-1] + vSorted[size/2]) / 2;
+            return (vSorted[size / 2 - 1] + vSorted[size / 2]) / 2;
         }
     }
 
-    int size() const
-    {
-        return vValues.size();
-    }
+    int size() const { return vValues.size(); }
 
-    std::vector<T> sorted () const
-    {
-        return vSorted;
-    }
+    std::vector<T> sorted() const { return vSorted; }
 };
 
-bool NewThread(void(*pfn)(void*), void* parg);
+bool NewThread(void (*pfn)(void*), void* parg);
 
 #ifdef WIN32
-inline void SetThreadPriority(int nPriority)
-{
-    SetThreadPriority(GetCurrentThread(), nPriority);
-}
+inline void SetThreadPriority(int nPriority) { SetThreadPriority(GetCurrentThread(), nPriority); }
 #else
 
-#define THREAD_PRIORITY_LOWEST          PRIO_MAX
-#define THREAD_PRIORITY_BELOW_NORMAL    2
-#define THREAD_PRIORITY_NORMAL          0
-#define THREAD_PRIORITY_ABOVE_NORMAL    0
+#define THREAD_PRIORITY_LOWEST PRIO_MAX
+#define THREAD_PRIORITY_BELOW_NORMAL 2
+#define THREAD_PRIORITY_NORMAL 0
+#define THREAD_PRIORITY_ABOVE_NORMAL 0
 
 inline void SetThreadPriority(int nPriority)
 {
-    // It's unclear if it's even possible to change thread priorities on Linux,
-    // but we really and truly need it for the generation threads.
+// It's unclear if it's even possible to change thread priorities on Linux,
+// but we really and truly need it for the generation threads.
 #ifdef PRIO_THREAD
     setpriority(PRIO_THREAD, 0, nPriority);
 #else
@@ -552,10 +522,7 @@ inline void SetThreadPriority(int nPriority)
 #endif
 }
 
-inline void ExitThread(size_t nExitCode)
-{
-    pthread_exit((void*)nExitCode);
-}
+inline void ExitThread(size_t nExitCode) { pthread_exit((void*)nExitCode); }
 #endif
 
 void RenameThread(const char* name);
@@ -563,12 +530,200 @@ void RenameThread(const char* name);
 inline uint32_t ByteReverse(uint32_t value)
 {
     value = ((value & 0xFF00FF00) >> 8) | ((value & 0x00FF00FF) << 8);
-    return (value<<16) | (value>>16);
+    return (value << 16) | (value >> 16);
 }
 
 std::string GeneratePseudoRandomString(const int len);
 
 std::string GeneratePseudoRandomHex(const int len);
 
-#endif
+template <typename Bitset>
+void set_in_range(Bitset& b, uint8_t value, int from, int to)
+{
+    for (int i = from; i < to; ++i, value >>= 1) {
+        b[i] = (value & 1);
+    }
+}
 
+template <typename T>
+T NTP1AmountHexToNumber(std::string hexVal)
+{
+    // remove spaces
+    hexVal.erase(std::remove_if(hexVal.begin(), hexVal.end(), [](char c) { return c == ' '; }),
+                 hexVal.end());
+
+    if (!std::regex_match(hexVal, HexBytexRegex)) {
+        throw std::runtime_error("invalid hex binary string");
+    }
+    std::string bin = boost::algorithm::unhex(hexVal);
+    if (bin.size() > 7) {
+        throw std::out_of_range("Amount can't be bigger than 7 bytes.");
+    }
+
+    // convert the hex to a bitset
+    boost::dynamic_bitset<> bits(bin.size() * 8, 0);
+    for (unsigned i = 0; i < bin.size(); i++) {
+        set_in_range(bits, bin[bin.size() - i - 1], i * 8 + 0, (i + 1) * 8);
+    }
+
+    bool bit0 = bits[bits.size() - 1];
+    bool bit1 = bits[bits.size() - 2];
+    bool bit2 = bits[bits.size() - 3];
+
+    // sizes in bits
+    int headerSize   = 0;
+    int mantissaSize = 0;
+    int exponentSize = 0;
+    if (bit0 && bit1) {
+        headerSize   = 2;
+        mantissaSize = 54;
+        exponentSize = 0;
+    } else {
+        headerSize = 3;
+        if (bit0 == 0 && bit1 == 0 && bit2 == 0) {
+            mantissaSize = 5;
+            exponentSize = 0;
+        } else if (bit0 == 0 && bit1 == 0 && bit2 == 1) {
+            mantissaSize = 9;
+            exponentSize = 4;
+        } else if (bit0 == 0 && bit1 == 1 && bit2 == 0) {
+            mantissaSize = 17;
+            exponentSize = 4;
+        } else if (bit0 == 0 && bit1 == 1 && bit2 == 1) {
+            mantissaSize = 25;
+            exponentSize = 4;
+        } else if (bit0 == 1 && bit1 == 0 && bit2 == 0) {
+            mantissaSize = 34;
+            exponentSize = 3;
+        } else if (bit0 == 1 && bit1 == 0 && bit2 == 1) {
+            mantissaSize = 42;
+            exponentSize = 3;
+        } else {
+            throw std::logic_error("Unexpected binary structure. This should never happen.");
+        }
+    }
+
+    // ensure that the total size makes sense
+    {
+        unsigned totalBitSize = headerSize + mantissaSize + exponentSize;
+        if ((totalBitSize / 8) != bin.size() || (totalBitSize % 8) != 0) {
+            throw std::logic_error("The total bits don't make a byte. This should never happen.");
+        }
+    }
+
+    std::string bitString = boost::to_string(bits);
+    std::string mantissa  = bitString.substr(headerSize, mantissaSize);
+    std::string exponent  = bitString.substr(headerSize + mantissaSize, exponentSize);
+
+    return static_cast<T>(std::bitset<std::numeric_limits<T>::digits>(mantissa).to_ullong() *
+                          std::pow(10, boost::dynamic_bitset<>(exponent).to_ulong()));
+}
+
+template <typename T>
+std::string NumberToNTP1Amount(T&& num, bool caps = false)
+{
+    std::string numStr     = boost::to_string(num);
+    int         zerosCount = 0;
+    for (unsigned i = 0; i < numStr.size(); i++) {
+        if (numStr[numStr.size() - i - 1] == '0') {
+            zerosCount++;
+        } else {
+            break;
+        }
+    }
+
+    T mantissaDecimal = FromString<T>(numStr.substr(0, numStr.size() - zerosCount));
+    boost::dynamic_bitset<> mantissa(64, mantissaDecimal);
+    boost::dynamic_bitset<> exponent(64, zerosCount);
+    std::string             mantissaStr = boost::to_string(mantissa);
+    std::string             exponentStr = boost::to_string(exponent);
+    {
+        // trim mantissa leading zeros
+        int toTrim = 0;
+        for (unsigned i = 0; i < mantissaStr.size(); i++) {
+            if (mantissaStr[i] == '0') {
+                toTrim++;
+            } else {
+                break;
+            }
+        }
+        mantissaStr = mantissaStr.substr(toTrim, mantissaStr.size() - toTrim);
+    }
+    {
+        // trim exponent leading zeros
+        int toTrim = 0;
+        for (unsigned i = 0; i < exponentStr.size(); i++) {
+            if (exponentStr[i] == '0') {
+                toTrim++;
+            } else {
+                break;
+            }
+        }
+        exponentStr = exponentStr.substr(toTrim, exponentStr.size() - toTrim);
+    }
+
+    int         mantissaSize = 0;
+    int         exponentSize = 0;
+    std::string header;
+
+    if (mantissaStr.size() <= 5 && exponentStr.size() == 0) {
+        header       = "000";
+        mantissaSize = 5;
+        exponentSize = 0;
+    } else if (mantissaStr.size() <= 9 && exponentStr.size() <= 4) {
+        header       = "001";
+        mantissaSize = 9;
+        exponentSize = 4;
+    } else if (mantissaStr.size() <= 17 && exponentStr.size() <= 4) {
+        header       = "010";
+        mantissaSize = 17;
+        exponentSize = 4;
+    } else if (mantissaStr.size() <= 25 && exponentStr.size() <= 4) {
+        header       = "011";
+        mantissaSize = 25;
+        exponentSize = 4;
+    } else if (mantissaStr.size() <= 34 && exponentStr.size() <= 3) {
+        header       = "100";
+        mantissaSize = 34;
+        exponentSize = 3;
+    } else if (mantissaStr.size() <= 42 && exponentStr.size() <= 3) {
+        header       = "101";
+        mantissaSize = 42;
+        exponentSize = 3;
+    } else if (mantissaStr.size() <= 54 && exponentStr.size() == 0) {
+        header       = "11";
+        mantissaSize = 54;
+        exponentSize = 0;
+    } else {
+        throw std::runtime_error("Unable to encode the number " + std::to_string(num) +
+                                 " to NTP1 amount hex; its mantissa and exponent do not fit in the "
+                                 "expected binary representation.");
+    }
+
+    mantissaStr = std::string(mantissaSize - mantissaStr.size(), '0') + mantissaStr;
+    exponentStr = std::string(exponentSize - exponentStr.size(), '0') + exponentStr;
+
+    std::string finalBinString = header + mantissaStr + exponentStr;
+
+    if ((finalBinString.size() % 8) != 0) {
+        throw std::runtime_error("The constructed binary string does not have the expected size.");
+    }
+
+    std::string encodedData;
+    encodedData.resize(finalBinString.size() / 8);
+    for (unsigned i = 0; i < finalBinString.size(); i += 8) {
+        boost::dynamic_bitset<> singleByteBitset(finalBinString.substr(i, 8));
+        encodedData[i / 8] = static_cast<char>(singleByteBitset.to_ulong());
+    }
+    if (caps) {
+        std::string res = boost::algorithm::hex(encodedData);
+        std::transform(res.begin(), res.end(), res.begin(), ::toupper);
+        return res;
+    } else {
+        std::string res = boost::algorithm::hex(encodedData);
+        std::transform(res.begin(), res.end(), res.begin(), ::tolower);
+        return res;
+    }
+}
+
+#endif

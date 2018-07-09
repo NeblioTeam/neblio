@@ -408,3 +408,41 @@ TEST(ntp1_tests, send_tests)
     EXPECT_EQ(NTP1Tools::GetStrField(to[1].get_obj(), "tokenId"), "tokenid2");
     EXPECT_EQ(NTP1Tools::GetUint64Field(to[1].get_obj(), "amount"), 2u);
 }
+
+TEST(ntp1_tests, amount_to_int)
+{
+    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("69892a92"), 999901700);
+    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("c007b60b6f687a"), 8478457292922);
+    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("40ef54"), 38290000);
+    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("201f"), 1000000000000000);
+    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("60b0b460"), 723782);
+    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("5545e1"), 871340);
+    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("c007b60b6f687a"), 8478457292922);
+    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("11"), 17);
+    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("2012"), 100);
+    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("4bb3c1"), 479320);
+    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("68c7e5b3"), 9207387000);
+    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("8029990f1a"), 8723709100);
+    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("a09c47f7b1a1"), 839027891720);
+    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("c0a60eea1aa8fd"), 182582987368701);
+
+    EXPECT_ANY_THROW(NTP1AmountHexToNumber<int64_t>("x"));
+    EXPECT_ANY_THROW(NTP1AmountHexToNumber<int64_t>(" "));
+    EXPECT_ANY_THROW(NTP1AmountHexToNumber<int64_t>("ssdsdmwdmo"));
+    EXPECT_ANY_THROW(NTP1AmountHexToNumber<int64_t>("999999999999999999999999999999999999999999999999"));
+
+    EXPECT_EQ(NumberToNTP1Amount(999901700), "69892a92");
+    EXPECT_EQ(NumberToNTP1Amount(8478457292922), "c007b60b6f687a");
+    EXPECT_EQ(NumberToNTP1Amount(38290000), "40ef54");
+    EXPECT_EQ(NumberToNTP1Amount(1000000000000000), "201f");
+    EXPECT_EQ(NumberToNTP1Amount(723782), "60b0b460");
+    EXPECT_EQ(NumberToNTP1Amount(871340), "5545e1");
+    EXPECT_EQ(NumberToNTP1Amount(8478457292922), "c007b60b6f687a");
+    EXPECT_EQ(NumberToNTP1Amount(17), "11");
+    EXPECT_EQ(NumberToNTP1Amount(100), "2012");
+    EXPECT_EQ(NumberToNTP1Amount(479320), "4bb3c1");
+    EXPECT_EQ(NumberToNTP1Amount(9207387000), "68c7e5b3");
+    EXPECT_EQ(NumberToNTP1Amount(8723709100), "8029990f1a");
+    EXPECT_EQ(NumberToNTP1Amount(839027891720), "a09c47f7b1a1");
+    EXPECT_EQ(NumberToNTP1Amount(182582987368701), "c0a60eea1aa8fd");
+}
