@@ -548,6 +548,12 @@ void set_in_range(Bitset& b, uint8_t value, int from, int to)
 template <typename T>
 T NTP1AmountHexToNumber(std::string hexVal)
 {
+#ifdef __BYTE_ORDER__
+#if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
+    throw std::runtime_error("Big and pdp endian systems are not supported");
+#endif
+#endif
+
     // remove spaces
     hexVal.erase(std::remove_if(hexVal.begin(), hexVal.end(), [](char c) { return c == ' '; }),
                  hexVal.end());
