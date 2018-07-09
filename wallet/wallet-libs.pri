@@ -3,6 +3,7 @@ greaterThan(QT_MAJOR_VERSION, 4) {
     DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0
 }
 
+CONFIG += c++11
 QMAKE_CXXFLAGS += -std=c++11
 
 # for boost 1.37, add -mt to the boost libraries
