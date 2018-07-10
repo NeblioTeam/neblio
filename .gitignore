@@ -62,3 +62,4 @@ wallet/nebliorest\.cpp
 wallet/nebliorest\.h
 
 wallet/restbed/
+wallet/test/data/wallet.dat
