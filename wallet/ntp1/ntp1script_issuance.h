@@ -28,7 +28,7 @@ public:
     uint64_t                                    getAmount() const;
     unsigned                                    getTransferInstructionsCount() const;
     TransferInstruction                         getTransferInstruction(unsigned index) const;
-    static std::shared_ptr<NTP1Script_Issuance> ParseIssuancePostHeaderData(std::string scriptBin,
+    static std::shared_ptr<NTP1Script_Issuance> ParseIssuancePostHeaderData(std::string ScriptBin,
                                                                             std::string OpCodeBin);
 };
 

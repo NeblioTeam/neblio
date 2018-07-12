@@ -2,6 +2,7 @@
 
 #include "ntp1/ntp1script.h"
 #include "ntp1/ntp1script_issuance.h"
+#include "ntp1/ntp1script_transfer.h"
 #include "ntp1/ntp1sendtokensdata.h"
 #include "ntp1/ntp1sendtokensonerecipientdata.h"
 #include "ntp1/ntp1tokenmetadata.h"
@@ -451,11 +452,24 @@ TEST(ntp1_tests, amount_to_int)
 
 TEST(ntp1_tests, script)
 {
-    //    const std::string toParse_transfer = "4e5401150069892a92";
-    //    NTP1Script        script;
-    //    script.ParseScript(toParse_transfer);
-    //    EXPECT_EQ(script.getHeader(), boost::algorithm::unhex(toParse_transfer.substr(0, 6)));
-    //    EXPECT_EQ(script.getMetadata().size(), (unsigned)0);
+    {
+        const std::string                    toParse_transfer = "4e5401150069892a92";
+        std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScript(toParse_transfer);
+        std::shared_ptr<NTP1Script_Transfer> script_transfer =
+            std::dynamic_pointer_cast<NTP1Script_Transfer>(script);
+        EXPECT_EQ(script_transfer->getHeader(), boost::algorithm::unhex(toParse_transfer.substr(0, 6)));
+        EXPECT_EQ(script_transfer->getHexMetadata().size(), (unsigned)0);
+        EXPECT_EQ(boost::algorithm::hex(script_transfer->getOpCodeBin()), "15");
+        EXPECT_EQ(script_transfer->getTxType(), NTP1Script::TxType::TxType_Transfer);
+
+        EXPECT_EQ(script_transfer->getTransferInstructionsCount(), (unsigned)1);
+        EXPECT_EQ(script_transfer->getTransferInstruction(0).amount, (uint64_t)999901700);
+        EXPECT_EQ(script_transfer->getTransferInstruction(0).skip, false);
+        EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, 0);
+        EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(0).rawAmount),
+                  "69892A92");
+        EXPECT_EQ(script_transfer->getTransferInstruction(0).firstRawByte, 0);
+    }
     {
         std::string toParse_issuance =
             "4e5401014e4942424cab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"

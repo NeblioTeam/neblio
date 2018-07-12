@@ -137,7 +137,9 @@ HEADERS +=                 \
     ntp1/ntp1apicalls.h    \
     ntp1/ntp1sendtokensonerecipientdata.h \
     ntp1/ntp1script.h      \
-    ntp1/ntp1script_issuance.h
+    ntp1/ntp1script_issuance.h \
+    ntp1/ntp1script_transfer.h
+
 
 
 
@@ -254,7 +256,8 @@ SOURCES +=                   \
     ntp1/ntp1tokentxdata.cpp \
     ntp1/ntp1apicalls.cpp    \
     ntp1/ntp1script.cpp      \
-    ntp1/ntp1script_issuance.cpp
+    ntp1/ntp1script_issuance.cpp \
+    ntp1/ntp1script_transfer.cpp
 
 
 contains(NEBLIO_REST, 1) {

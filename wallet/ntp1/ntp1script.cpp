@@ -7,6 +7,7 @@
 #include <util.h>
 
 #include "ntp1script_issuance.h"
+#include "ntp1script_transfer.h"
 
 // TODO: remove
 #include <iostream>
@@ -206,13 +207,14 @@ std::shared_ptr<NTP1Script> NTP1Script::ParseScript(const std::string& scriptHex
 
         if (txType == TxType::TxType_Issuance) {
             result_ = NTP1Script_Issuance::ParseIssuancePostHeaderData(scriptBin, opCodeBin);
-            result_->setCommonParams(header, protocolVersion, opCodeBin);
-        } else if (txType == TxType::TxType_Transfer || txType == TxType::TxType_Burn) {
+        } else if (txType == TxType::TxType_Transfer) {
+            result_ = NTP1Script_Transfer::ParseTransferPostHeaderData(scriptBin, opCodeBin);
+        } else if (txType == TxType::TxType_Burn) {
             throw std::runtime_error("Unimplemented");
-            result_->setCommonParams(header, protocolVersion, opCodeBin);
         } else {
             throw std::runtime_error("Unknown transaction type to parse");
         }
+        result_->setCommonParams(header, protocolVersion, opCodeBin);
 
         return result_;
 
