@@ -1,5 +1,7 @@
 #include "googletest/googletest/include/gtest/gtest.h"
 
+#include "ntp1/ntp1script.h"
+#include "ntp1/ntp1script_issuance.h"
 #include "ntp1/ntp1sendtokensdata.h"
 #include "ntp1/ntp1sendtokensonerecipientdata.h"
 #include "ntp1/ntp1tokenmetadata.h"
@@ -445,4 +447,58 @@ TEST(ntp1_tests, amount_to_int)
     EXPECT_EQ(NumberToNTP1Amount<uint64_t>(8723709100), "8029990f1a");
     EXPECT_EQ(NumberToNTP1Amount<uint64_t>(839027891720), "a09c47f7b1a1");
     EXPECT_EQ(NumberToNTP1Amount<uint64_t>(182582987368701), "c0a60eea1aa8fd");
+}
+
+TEST(ntp1_tests, script)
+{
+    //    const std::string toParse_transfer = "4e5401150069892a92";
+    //    NTP1Script        script;
+    //    script.ParseScript(toParse_transfer);
+    //    EXPECT_EQ(script.getHeader(), boost::algorithm::unhex(toParse_transfer.substr(0, 6)));
+    //    EXPECT_EQ(script.getMetadata().size(), (unsigned)0);
+    {
+        std::string toParse_issuance =
+            "4e5401014e4942424cab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
+            "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
+        std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScript(toParse_issuance);
+        std::shared_ptr<NTP1Script_Issuance> script_issuance =
+            std::dynamic_pointer_cast<NTP1Script_Issuance>(script);
+        EXPECT_NE(script_issuance.get(), nullptr);
+        EXPECT_EQ(script_issuance->getAggregationPolicy(),
+                  NTP1Script::IssuanceFlags::AggregationPolicy::AggregationPolicy_Aggregatable);
+        EXPECT_EQ(script_issuance->getAmount(), (uint64_t)1000000000);
+        EXPECT_EQ(script_issuance->getDivisibility(), 7);
+        EXPECT_EQ(boost::algorithm::hex(script_issuance->getHeader()), "4E5401");
+        EXPECT_EQ(script_issuance->getHexMetadata(), "AB10C04E20E0AEC73D58C8FBF2A9C26A6DC3ED666C7B80FEF2"
+                                                     "15620C817703B1E5D8B1870211CE7CDF50718B4789245FB80F"
+                                                     "5899");
+        EXPECT_EQ(boost::algorithm::hex(script_issuance->getOpCodeBin()), "01");
+        EXPECT_EQ(script_issuance->getTokenSymbol(), "NIBBL");
+        EXPECT_EQ(script_issuance->getTxType(), NTP1Script::TxType::TxType_Issuance);
+
+        EXPECT_EQ(script_issuance->getTransferInstructionsCount(), (unsigned)1);
+        EXPECT_EQ(script_issuance->getTransferInstruction(0).amount, (uint64_t)1000000000);
+        EXPECT_EQ(script_issuance->getTransferInstruction(0).skip, false);
+        EXPECT_EQ(script_issuance->getTransferInstruction(0).outputIndex, 0);
+        EXPECT_EQ(boost::algorithm::hex(script_issuance->getTransferInstruction(0).rawAmount), "2019");
+        EXPECT_EQ(script_issuance->getTransferInstruction(0).firstRawByte, 0);
+    }
+}
+
+TEST(ntp1_tests, script_get_amount_size)
+{
+    EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("11"))[0]),
+              (unsigned)1);
+    EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("2012"))[0]),
+              (unsigned)2);
+    EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("4bb3c1"))[0]),
+              (unsigned)3);
+    EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("68c7e5b3"))[0]),
+              (unsigned)4);
+    EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("8029990f1a"))[0]),
+              (unsigned)5);
+    EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("a09c47f7b1a1"))[0]),
+              (unsigned)6);
+    EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("c0a60eea1aa8fd"))[0]),
+              (unsigned)7);
 }

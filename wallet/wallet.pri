@@ -135,7 +135,10 @@ HEADERS +=                 \
     ntp1/ntp1txout.h       \
     ntp1/ntp1tokentxdata.h \
     ntp1/ntp1apicalls.h    \
-    ntp1/ntp1sendtokensonerecipientdata.h
+    ntp1/ntp1sendtokensonerecipientdata.h \
+    ntp1/ntp1script.h      \
+    ntp1/ntp1script_issuance.h
+
 
 
 SOURCES += qt/bitcoin.cpp \
@@ -249,7 +252,10 @@ SOURCES +=                   \
     ntp1/ntp1txin.cpp        \
     ntp1/ntp1txout.cpp       \
     ntp1/ntp1tokentxdata.cpp \
-    ntp1/ntp1apicalls.cpp
+    ntp1/ntp1apicalls.cpp    \
+    ntp1/ntp1script.cpp      \
+    ntp1/ntp1script_issuance.cpp
+
 
 contains(NEBLIO_REST, 1) {
     HEADERS += nebliorest.h
