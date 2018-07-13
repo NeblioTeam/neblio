@@ -123,7 +123,8 @@ HEADERS += qt/bitcoingui.h \
     qt/ntp1senddialog.h \
     qt/ntp1sendsingletokenfields.h \
     ntp1/ntp1sendtokensdata.h \
-    qt/ntp1sendtokensfeewidget.h
+    qt/ntp1sendtokensfeewidget.h \
+    ntp1/ntp1script_burn.h
 
 
 HEADERS +=                 \
@@ -244,7 +245,8 @@ SOURCES += qt/bitcoin.cpp \
     qt/ntp1sendsingletokenfields.cpp \
     ntp1/ntp1sendtokensdata.cpp \
     ntp1/ntp1sendtokensonerecipientdata.cpp \
-    qt/ntp1sendtokensfeewidget.cpp
+    qt/ntp1sendtokensfeewidget.cpp \
+    ntp1/ntp1script_burn.cpp
 
 SOURCES +=                   \
     ntp1/ntp1tools.cpp       \

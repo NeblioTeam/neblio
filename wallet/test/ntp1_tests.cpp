@@ -1,6 +1,7 @@
 #include "googletest/googletest/include/gtest/gtest.h"
 
 #include "ntp1/ntp1script.h"
+#include "ntp1/ntp1script_burn.h"
 #include "ntp1/ntp1script_issuance.h"
 #include "ntp1/ntp1script_transfer.h"
 #include "ntp1/ntp1sendtokensdata.h"
@@ -450,27 +451,30 @@ TEST(ntp1_tests, amount_to_int)
     EXPECT_EQ(NumberToNTP1Amount<uint64_t>(182582987368701), "c0a60eea1aa8fd");
 }
 
-TEST(ntp1_tests, script)
+TEST(ntp1_tests, script_transfer)
+{
+    // transfer some tokens
+    const std::string                    toParse_transfer = "4e5401150069892a92";
+    std::shared_ptr<NTP1Script>          script           = NTP1Script::ParseScript(toParse_transfer);
+    std::shared_ptr<NTP1Script_Transfer> script_transfer =
+        std::dynamic_pointer_cast<NTP1Script_Transfer>(script);
+    EXPECT_EQ(script_transfer->getHeader(), boost::algorithm::unhex(toParse_transfer.substr(0, 6)));
+    EXPECT_EQ(script_transfer->getHexMetadata().size(), (unsigned)0);
+    EXPECT_EQ(boost::algorithm::hex(script_transfer->getOpCodeBin()), "15");
+    EXPECT_EQ(script_transfer->getTxType(), NTP1Script::TxType::TxType_Transfer);
+
+    EXPECT_EQ(script_transfer->getTransferInstructionsCount(), (unsigned)1);
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).amount, (uint64_t)999901700);
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).skipInput, false);
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, 0);
+    EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(0).rawAmount), "69892A92");
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).firstRawByte, 0);
+}
+
+TEST(ntp1_tests, script_issuance)
 {
     {
-        const std::string                    toParse_transfer = "4e5401150069892a92";
-        std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScript(toParse_transfer);
-        std::shared_ptr<NTP1Script_Transfer> script_transfer =
-            std::dynamic_pointer_cast<NTP1Script_Transfer>(script);
-        EXPECT_EQ(script_transfer->getHeader(), boost::algorithm::unhex(toParse_transfer.substr(0, 6)));
-        EXPECT_EQ(script_transfer->getHexMetadata().size(), (unsigned)0);
-        EXPECT_EQ(boost::algorithm::hex(script_transfer->getOpCodeBin()), "15");
-        EXPECT_EQ(script_transfer->getTxType(), NTP1Script::TxType::TxType_Transfer);
-
-        EXPECT_EQ(script_transfer->getTransferInstructionsCount(), (unsigned)1);
-        EXPECT_EQ(script_transfer->getTransferInstruction(0).amount, (uint64_t)999901700);
-        EXPECT_EQ(script_transfer->getTransferInstruction(0).skipInput, false);
-        EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, 0);
-        EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(0).rawAmount),
-                  "69892A92");
-        EXPECT_EQ(script_transfer->getTransferInstruction(0).firstRawByte, 0);
-    }
-    {
+        // issue NIBBL
         std::string toParse_issuance =
             "4e5401014e4942424cab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
             "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
@@ -497,6 +501,25 @@ TEST(ntp1_tests, script)
         EXPECT_EQ(boost::algorithm::hex(script_issuance->getTransferInstruction(0).rawAmount), "2019");
         EXPECT_EQ(script_issuance->getTransferInstruction(0).firstRawByte, 0);
     }
+}
+
+TEST(ntp1_tests, script_burn)
+{
+    // burn some tokens
+    std::string                      toParse_burn = "4e5401251f2013";
+    std::shared_ptr<NTP1Script>      script       = NTP1Script::ParseScript(toParse_burn);
+    std::shared_ptr<NTP1Script_Burn> script_burn  = std::dynamic_pointer_cast<NTP1Script_Burn>(script);
+    EXPECT_EQ(script_burn->getHeader(), boost::algorithm::unhex(toParse_burn.substr(0, 6)));
+    EXPECT_EQ(script_burn->getHexMetadata().size(), (unsigned)0);
+    EXPECT_EQ(boost::algorithm::hex(script_burn->getOpCodeBin()), "25");
+    EXPECT_EQ(script_burn->getTxType(), NTP1Script::TxType::TxType_Burn);
+
+    EXPECT_EQ(script_burn->getTransferInstructionsCount(), (unsigned)1);
+    EXPECT_EQ(script_burn->getTransferInstruction(0).amount, (uint64_t)1000);
+    EXPECT_EQ(script_burn->getTransferInstruction(0).skipInput, false);
+    EXPECT_EQ(script_burn->getTransferInstruction(0).outputIndex, 31);
+    EXPECT_EQ(boost::algorithm::hex(script_burn->getTransferInstruction(0).rawAmount), "2013");
+    EXPECT_EQ(script_burn->getTransferInstruction(0).firstRawByte, 31);
 }
 
 TEST(ntp1_tests, script_get_amount_size)

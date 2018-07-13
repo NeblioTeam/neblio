@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <util.h>
 
+#include "ntp1script_burn.h"
 #include "ntp1script_issuance.h"
 #include "ntp1script_transfer.h"
 
@@ -191,8 +192,9 @@ std::vector<NTP1Script::TransferInstruction> NTP1Script::ParseTransferInstructio
 
         // parse data from raw
         std::bitset<8> rawByte(transferInst.firstRawByte);
-        transferInst.skipInput   = rawByte.test(0);
-        transferInst.outputIndex = static_cast<int>(std::bitset<5>(rawByte.to_string()).to_ulong());
+        std::bitset<5> outputIndex(rawByte.to_string().substr(3, 5));
+        transferInst.skipInput   = rawByte.test(7); // first big-endian bit (is the last one in bitset)
+        transferInst.outputIndex = static_cast<int>(outputIndex.to_ulong());
 
         transferInst.amount = NTP1AmountHexToNumber<decltype(transferInst.amount)>(
             boost::algorithm::hex(transferInst.rawAmount));
@@ -231,7 +233,7 @@ std::shared_ptr<NTP1Script> NTP1Script::ParseScript(const std::string& scriptHex
         } else if (txType == TxType::TxType_Transfer) {
             result_ = NTP1Script_Transfer::ParseTransferPostHeaderData(scriptBin, opCodeBin);
         } else if (txType == TxType::TxType_Burn) {
-            throw std::runtime_error("Unimplemented");
+            result_ = NTP1Script_Burn::ParseBurnPostHeaderData(scriptBin, opCodeBin);
         } else {
             throw std::runtime_error("Unknown transaction type to parse");
         }
@@ -251,7 +253,7 @@ NTP1Script::IssuanceFlags NTP1Script::IssuanceFlags::ParseIssuanceFlag(uint8_t f
     // first 3 bits
     result.divisibility = static_cast<decltype(result.divisibility)>(
         std::bitset<3>(bits.to_string().substr(0, 3)).to_ulong());
-    result.locked = bits.test(3); // 4th bit
+    result.locked = bits.test(4); // 4th bit (3rd bit from the lsb, 7-(4-1)=3)
     // 5th + 6th bits
     int aggrPolicy = static_cast<decltype(result.divisibility)>(
         std::bitset<2>(bits.to_string().substr(4, 2)).to_ulong());
