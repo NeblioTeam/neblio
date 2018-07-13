@@ -28,8 +28,9 @@ public:
     struct TransferInstruction
     {
         unsigned char firstRawByte;
-        bool          skip;
-        int           outputIndex;
+        // transfer instruction number N applies to input number N; this skips input number N
+        bool skipInput;
+        int  outputIndex;
 
         std::string rawAmount;
         uint64_t    amount;
@@ -60,6 +61,8 @@ public:
     static std::string ParseMetadataFromLongEnoughString(const std::string& BinMetadataStartsAtByte0,
                                                          const std::string& op_code_bin,
                                                          const std::string& wholeScriptHex = "");
+    static std::string
+    ParseTokenSymbolFromLongEnoughString(const std::string& BinTokenSymbolStartsAtByte0);
     static std::vector<TransferInstruction>
     ParseTransferInstructionsFromLongEnoughString(const std::string& BinInstructionsStartFromByte0,
                                                   int&               totalRawSize);

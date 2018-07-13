@@ -149,6 +149,27 @@ std::string NTP1Script::ParseMetadataFromLongEnoughString(const std::string& Bin
     return BinMetadataStartsAtByte0.substr(0, metadataSize);
 }
 
+std::string
+NTP1Script::ParseTokenSymbolFromLongEnoughString(const std::string& BinTokenSymbolStartsAtByte0)
+{
+    const std::string& ScriptBin = BinTokenSymbolStartsAtByte0;
+    std::string        result;
+    result = ScriptBin.substr(0, 5);
+    // drop 0x01 chars from the beginning
+    while (result.size() > 0) {
+        if (*reinterpret_cast<uint8_t*>(&(result[0])) == 0x01) {
+            result.erase(result.begin());
+        } else {
+            break;
+        }
+    }
+
+    if (result.size() == 0) {
+        throw std::runtime_error("Invalid token symbol; it cannot be empty.");
+    }
+    return result;
+}
+
 std::vector<NTP1Script::TransferInstruction> NTP1Script::ParseTransferInstructionsFromLongEnoughString(
     const std::string& BinInstructionsStartFromByte0, int& totalRawSize)
 {
@@ -170,7 +191,7 @@ std::vector<NTP1Script::TransferInstruction> NTP1Script::ParseTransferInstructio
 
         // parse data from raw
         std::bitset<8> rawByte(transferInst.firstRawByte);
-        transferInst.skip        = rawByte.test(0);
+        transferInst.skipInput   = rawByte.test(0);
         transferInst.outputIndex = static_cast<int>(std::bitset<5>(rawByte.to_string()).to_ulong());
 
         transferInst.amount = NTP1AmountHexToNumber<decltype(transferInst.amount)>(

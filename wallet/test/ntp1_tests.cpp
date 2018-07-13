@@ -464,7 +464,7 @@ TEST(ntp1_tests, script)
 
         EXPECT_EQ(script_transfer->getTransferInstructionsCount(), (unsigned)1);
         EXPECT_EQ(script_transfer->getTransferInstruction(0).amount, (uint64_t)999901700);
-        EXPECT_EQ(script_transfer->getTransferInstruction(0).skip, false);
+        EXPECT_EQ(script_transfer->getTransferInstruction(0).skipInput, false);
         EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, 0);
         EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(0).rawAmount),
                   "69892A92");
@@ -492,7 +492,7 @@ TEST(ntp1_tests, script)
 
         EXPECT_EQ(script_issuance->getTransferInstructionsCount(), (unsigned)1);
         EXPECT_EQ(script_issuance->getTransferInstruction(0).amount, (uint64_t)1000000000);
-        EXPECT_EQ(script_issuance->getTransferInstruction(0).skip, false);
+        EXPECT_EQ(script_issuance->getTransferInstruction(0).skipInput, false);
         EXPECT_EQ(script_issuance->getTransferInstruction(0).outputIndex, 0);
         EXPECT_EQ(boost::algorithm::hex(script_issuance->getTransferInstruction(0).rawAmount), "2019");
         EXPECT_EQ(script_issuance->getTransferInstruction(0).firstRawByte, 0);

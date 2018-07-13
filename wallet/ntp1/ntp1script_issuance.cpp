@@ -36,10 +36,9 @@ NTP1Script_Issuance::ParseIssuancePostHeaderData(std::string ScriptBin, std::str
 {
     std::shared_ptr<NTP1Script_Issuance> result = std::make_shared<NTP1Script_Issuance>();
 
-    // get token symbol
-    // TODO: is the size always 5?
-    result->tokenSymbol = ScriptBin.substr(0, 5);
-    ScriptBin.erase(ScriptBin.begin(), ScriptBin.begin() + result->tokenSymbol.size());
+    // get token symbol (size always = 5 bytes)
+    result->tokenSymbol = ParseTokenSymbolFromLongEnoughString(ScriptBin);
+    ScriptBin.erase(ScriptBin.begin(), ScriptBin.begin() + 5);
 
     // get metadata then drop it
     result->metadata = ParseMetadataFromLongEnoughString(ScriptBin, OpCodeBin);
