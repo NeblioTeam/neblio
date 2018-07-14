@@ -15,7 +15,7 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
-#include <boost/regex.h>
+#include <regex>
 
 using namespace std;
 using namespace boost;
@@ -31,6 +31,9 @@ CCriticalSection cs_main;
 
 CTxMemPool   mempool;
 unsigned int nTransactionsUpdated = 0;
+
+const std::string NTP1OpReturnRegexStr = R"(^OP_RETURN\s+(4e5401[a-fA-F0-9]*)$)";
+const std::regex  NTP1OpReturnRegex(NTP1OpReturnRegexStr);
 
 map<uint256, CBlockIndex*>         mapBlockIndex;
 set<pair<COutPoint, unsigned int>> setStakeSeen;
@@ -4034,6 +4037,21 @@ bool TxContainsOpReturn(const CTransaction* tx)
     for (unsigned long j = 0; j < tx->vout.size(); j++) {
         // if the string OP_RET_STR is found in scriptPubKey
         if (tx->vout[j].scriptPubKey.ToString().find(OP_RET_STR) != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool IsTxNTP1(const CTransaction* tx)
+{
+    if (!tx) {
+        return false;
+    }
+
+    for (unsigned long j = 0; j < tx->vout.size(); j++) {
+        std::string scriptPubKeyStr = tx->vout[j].scriptPubKey.ToString();
+        if (std::regex_match(scriptPubKeyStr, NTP1OpReturnRegex)) {
             return true;
         }
     }

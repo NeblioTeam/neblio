@@ -666,6 +666,8 @@ bool IsFinalTx(const CTransaction& tx, int nBlockHeight = 0, int64_t nBlockTime 
 
 bool TxContainsOpReturn(const CTransaction* tx);
 
+bool IsTxNTP1(const CTransaction* tx);
+
 /** Undo information for a CTxIn
  *
  *  Contains the prevout's CTxOut being spent, and if this was the
@@ -1807,6 +1809,9 @@ public:
 };
 
 extern CTxMemPool mempool;
+
+extern const std::string NTP1OpReturnRegexStr;
+extern const std::regex  NTP1OpReturnRegex;
 
 struct CCoinsStats
 {

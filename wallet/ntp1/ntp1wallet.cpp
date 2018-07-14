@@ -71,7 +71,7 @@ void NTP1Wallet::__getOutputs()
         }
 
         // NTP1 transactions strictly contain OP_RETURN in one of their vouts
-        if (!TxContainsOpReturn(&neblTx)) {
+        if (!IsTxNTP1(&neblTx)) {
             continue;
         }
 
