@@ -12,20 +12,20 @@
 
 class NTP1OutPoint
 {
-    uint256 hash;
+    uint256      hash;
     unsigned int index;
+
 public:
     NTP1OutPoint();
-    NTP1OutPoint(uint256 hashIn, unsigned int indexIn);
-    void setNull();
-    bool isNull() const;
-    uint256 getHash() const;
-    unsigned int getIndex() const;
+    NTP1OutPoint(const uint256& hashIn, unsigned int indexIn);
+    void               setNull();
+    bool               isNull() const;
+    uint256            getHash() const;
+    unsigned int       getIndex() const;
     friend inline bool operator==(const NTP1OutPoint& lhs, const NTP1OutPoint& rhs);
     json_spirit::Value exportDatabaseJsonData() const;
-    void importDatabaseJsonData(const json_spirit::Value& data);
+    void               importDatabaseJsonData(const json_spirit::Value& data);
 };
-
 
 namespace boost {
 
@@ -42,9 +42,9 @@ struct hash<NTP1OutPoint>
     }
 };
 
-}
+} // namespace boost
 
-bool operator==(const NTP1OutPoint &lhs, const NTP1OutPoint &rhs)
+bool operator==(const NTP1OutPoint& lhs, const NTP1OutPoint& rhs)
 {
     return (lhs.hash == rhs.hash && lhs.index == rhs.index);
 }
