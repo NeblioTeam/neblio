@@ -151,6 +151,8 @@ void               ResendWalletTransactions(bool fForce = false);
 /** (try to) add transaction to memory pool **/
 bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInputs);
 
+bool IsValidIfTxIsNTP1(const CTransaction& tx, int64_t nFees);
+
 /** the conditions for considering the upgraded network configuration */
 bool PassedNetworkUpgradeBlock(uint32_t nBestHeight, bool isTestnet);
 

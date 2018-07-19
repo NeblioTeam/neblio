@@ -475,6 +475,7 @@ TEST(ntp1_tests, script_issuance)
 {
     {
         // issue NIBBL
+        // txid: 66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80
         std::string toParse_issuance =
             "4e5401014e4942424cab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
             "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";

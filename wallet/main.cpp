@@ -9,6 +9,10 @@
 #include "init.h"
 #include "kernel.h"
 #include "net.h"
+#include "ntp1/ntp1script.h"
+#include "ntp1/ntp1script_burn.h"
+#include "ntp1/ntp1script_issuance.h"
+#include "ntp1/ntp1script_transfer.h"
 #include "txdb.h"
 #include "ui_interface.h"
 #include "zerocoin/Zerocoin.h"
@@ -716,6 +720,17 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
                               false)) {
             return error("AcceptToMemoryPool : ConnectInputs failed %s",
                          hash.ToString().substr(0, 10).c_str());
+        }
+
+        try {
+            if (!IsValidIfTxIsNTP1(tx, nFees))
+                return false;
+        } catch (std::exception& ex) {
+            printf("Failed to parse OP_RETURN data safely; an exception was thrown: %s", ex.what());
+            return false;
+        } catch (...) {
+            printf("Failed to parse OP_RETURN data safely; an unknown exception was thrown.");
+            return false;
         }
     }
 
@@ -4056,4 +4071,170 @@ bool IsTxNTP1(const CTransaction* tx)
         }
     }
     return false;
+}
+
+bool IsNTP1IssuanceScriptValid(std::shared_ptr<NTP1Script> parsedOpRetScript, const CTransaction& tx,
+                               int64_t nFees, const std::string& opReturnArg)
+{
+    std::shared_ptr<NTP1Script_Issuance> scriptPtr =
+        std::dynamic_pointer_cast<NTP1Script_Issuance>(parsedOpRetScript);
+    if (scriptPtr.get() == nullptr) {
+        printf("Failed to cast NTP1Script pointer to issuance type, although the parsing "
+               "went to that type; for OP_RETURN argument: %s",
+               opReturnArg.c_str());
+        return false;
+    }
+    // TODO: Should we include other fees in the calculations (with the formula) or just
+    // worry about the 10 nebls for issuing here? What if many inputs and outputs are put in
+    // this transaction?
+    if (nFees <= 1000000000 /* 10 nebls */) {
+        printf("Attempted to issue tokens with fees less than 10 nebls in transaction: %s",
+               tx.GetHash().ToString().c_str());
+        return false;
+    }
+    if (scriptPtr->getTransferInstructionsCount() > tx.vin.size()) {
+        printf("Invalid OP_RETURN transaction where transfer instructions are more than "
+               "inputs for tx %s and OP_RETURN argument: %s",
+               tx.GetHash().ToString().c_str(), opReturnArg.c_str());
+        return false;
+    }
+    for (long i = 0; i < scriptPtr->getTransferInstructionsCount(); i++) {
+        if (scriptPtr->getTransferInstruction(i).outputIndex >= static_cast<int>(tx.vout.size())) {
+            printf("Invalid transaction %s where OP_RETURN %s was pointing to a non "
+                   "existing output",
+                   tx.GetHash().ToString().c_str(), opReturnArg.c_str());
+            return false;
+        }
+    }
+    // TODO: what other checks to be done here?
+    return true;
+}
+
+bool IsNTP1TransferScriptValid(std::shared_ptr<NTP1Script> parsedOpRetScript, const CTransaction& tx,
+                               int64_t nFees, const std::string& opReturnArg)
+{
+    std::shared_ptr<NTP1Script_Issuance> scriptPtr =
+        std::dynamic_pointer_cast<NTP1Script_Issuance>(parsedOpRetScript);
+    if (scriptPtr.get() == nullptr) {
+        printf("Failed to cast NTP1Script pointer to issuance type, although the parsing "
+               "went to that type; for OP_RETURN argument: %s",
+               opReturnArg.c_str());
+        return false;
+    }
+    if (scriptPtr->getTransferInstructionsCount() > tx.vin.size()) {
+        printf("Invalid OP_RETURN transaction where transfer instructions are more than "
+               "inputs for tx %s and OP_RETURN argument: %s",
+               tx.GetHash().ToString().c_str(), opReturnArg.c_str());
+        return false;
+    }
+    for (long i = 0; i < scriptPtr->getTransferInstructionsCount(); i++) {
+        if (scriptPtr->getTransferInstruction(i).outputIndex >= static_cast<int>(tx.vout.size())) {
+            printf("Invalid transaction %s where OP_RETURN %s was pointing to a non "
+                   "existing output",
+                   tx.GetHash().ToString().c_str(), opReturnArg.c_str());
+            return false;
+        }
+    }
+    // TODO: what other checks to be done here?
+    return true;
+}
+
+bool IsNTP1BurnScriptValid(std::shared_ptr<NTP1Script> parsedOpRetScript, const CTransaction& tx,
+                           int64_t nFees, const std::string& opReturnArg)
+{
+    std::shared_ptr<NTP1Script_Issuance> scriptPtr =
+        std::dynamic_pointer_cast<NTP1Script_Issuance>(parsedOpRetScript);
+    if (scriptPtr.get() == nullptr) {
+        printf("Failed to cast NTP1Script pointer to issuance type, although the parsing "
+               "went to that type; for OP_RETURN argument: %s",
+               opReturnArg.c_str());
+        return false;
+    }
+    if (scriptPtr->getTransferInstructionsCount() > tx.vin.size()) {
+        printf("Invalid OP_RETURN transaction where transfer instructions are more than "
+               "inputs for tx %s and OP_RETURN argument: %s",
+               tx.GetHash().ToString().c_str(), opReturnArg.c_str());
+        return false;
+    }
+    bool hasOutputIndex31 = false;
+    for (long i = 0; i < scriptPtr->getTransferInstructionsCount(); i++) {
+        if (scriptPtr->getTransferInstruction(i).outputIndex >= static_cast<int>(tx.vout.size())) {
+            printf("Invalid transaction %s where OP_RETURN %s was pointing to a non "
+                   "existing output",
+                   tx.GetHash().ToString().c_str(), opReturnArg.c_str());
+            return false;
+        }
+        if (scriptPtr->getTransferInstruction(i).outputIndex == 31) {
+            hasOutputIndex31 = true;
+        }
+    }
+    if (!hasOutputIndex31) {
+        printf("Invalid burn OP_RETURN transaction without output index 31: %s", opReturnArg.c_str());
+        return false;
+    }
+    // TODO: what other checks to be done here?
+    return true;
+}
+
+bool IsValidIfTxIsNTP1(const CTransaction& tx, int64_t nFees)
+{
+    /**
+     * returns true if:
+     * 1. The tx is a valid NTP1 tx
+     * 2. The tx is not an NTP1 tx
+     */
+
+    unsigned int nDataOut    = 0;
+    int          opRetOutput = -1;
+    txnouttype   whichType;
+    for (int i = 0; i < static_cast<int>(tx.vout.size()); i++) {
+        if (!::IsStandard(tx.vout[i].scriptPubKey, whichType)) {
+            return false;
+        }
+        if (whichType == TX_NULL_DATA) {
+            nDataOut++;
+        }
+    }
+
+    // only one OP_RETURN txout is permitted
+    if (nDataOut > 1) {
+        return false;
+    }
+
+    // this is no NTP1 tx
+    if (nDataOut == 0 || opRetOutput == -1) {
+        return true;
+    }
+
+    std::smatch        opReturnArgMatch;
+    const std::string& scriptPubKeyStr = tx.vout[opRetOutput].ToString();
+    bool               isNTP1Tx = std::regex_match(scriptPubKeyStr, opReturnArgMatch, NTP1OpReturnRegex);
+    if (isNTP1Tx) {
+        if (opReturnArgMatch[1].matched) {
+            std::string opReturnArg = std::string(opReturnArgMatch[1]);
+
+            std::shared_ptr<NTP1Script> parsedOpRetScript = NTP1Script::ParseScript(opReturnArg);
+            if (parsedOpRetScript->getTxType() == NTP1Script::TxType::TxType_Issuance) {
+                return IsNTP1IssuanceScriptValid(parsedOpRetScript, tx, nFees, opReturnArg);
+            } else if (parsedOpRetScript->getTxType() == NTP1Script::TxType::TxType_Transfer) {
+                return IsNTP1TransferScriptValid(parsedOpRetScript, tx, nFees, opReturnArg);
+            } else if (parsedOpRetScript->getTxType() == NTP1Script::TxType::TxType_Burn) {
+                return IsNTP1BurnScriptValid(parsedOpRetScript, tx, nFees, opReturnArg);
+            } else {
+                printf("Unknown OP_RETURN NTP1 transaction type. OP_RETURN argument is: %s",
+                       opReturnArg.c_str());
+                return false;
+            }
+        } else {
+            // could not read OP_RETURN data
+            printf("Ununderstandable error. An OP_RETURN transaction was found, and was matched, but "
+                   "could not match the regex capture group that provides the OP_RETURN argument. The "
+                   "scriptPubKey is: %s",
+                   tx.vout[opRetOutput].ToString().c_str());
+            return false;
+        }
+    } else {
+        // OP_RETURN, but not NTP1
+        return true;
+    }
 }
