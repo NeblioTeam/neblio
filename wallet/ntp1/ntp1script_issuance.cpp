@@ -55,6 +55,14 @@ NTP1Script_Issuance::ParseIssuancePostHeaderData(std::string ScriptBin, std::str
         ParseTransferInstructionsFromLongEnoughString(ScriptBin, totalTransferInstructionsSize);
     ScriptBin.erase(ScriptBin.begin(), ScriptBin.begin() + totalTransferInstructionsSize);
 
+    // check that no skip transfer instructions exist; as it's forbidden in issuance
+    for (const auto& inst : result->transferInstructions) {
+        if (inst.skipInput) {
+            throw std::runtime_error("An issuance script contained a skip transfer instruction: " +
+                                     boost::algorithm::hex(ScriptBin));
+        }
+    }
+
     // the expected remaining byte is the issuance flag, otherwise a problem is there
     if (ScriptBin.size() != 1) {
         throw std::runtime_error(
