@@ -437,8 +437,16 @@ public:
 
     CTransaction() { SetNull(); }
 
-    IMPLEMENT_SERIALIZE(READWRITE(this->nVersion); nVersion = this->nVersion; READWRITE(nTime);
-                        READWRITE(vin); READWRITE(vout); READWRITE(nLockTime);)
+    // clang-format off
+    IMPLEMENT_SERIALIZE(
+                        READWRITE(this->nVersion);
+                        nVersion = this->nVersion;
+                        READWRITE(nTime);
+                        READWRITE(vin);
+                        READWRITE(vout);
+                        READWRITE(nLockTime);
+                        )
+    // clang-format on
 
     void SetNull()
     {
