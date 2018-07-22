@@ -17,6 +17,18 @@ NTP1Script::IssuanceFlags::AggregationPolicy NTP1Script_Issuance::getAggregation
     return issuanceFlags.aggregationPolicty;
 }
 
+std::string NTP1Script_Issuance::getAggregationPolicyStr() const
+{
+    if (issuanceFlags.aggregationPolicty == NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable) {
+        return "aggregable";
+    } else if (issuanceFlags.aggregationPolicty ==
+               NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable) {
+        return "nonaggregable";
+    } else {
+        return "aggregable";
+    }
+}
+
 std::string NTP1Script_Issuance::getTokenSymbol() const { return tokenSymbol; }
 
 uint64_t NTP1Script_Issuance::getAmount() const { return amount; }

@@ -24,6 +24,7 @@ public:
     int                                         getDivisibility() const;
     bool                                        isLocked() const;
     IssuanceFlags::AggregationPolicy            getAggregationPolicy() const;
+    std::string                                 getAggregationPolicyStr() const;
     std::string                                 getTokenSymbol() const;
     uint64_t                                    getAmount() const;
     unsigned                                    getTransferInstructionsCount() const;

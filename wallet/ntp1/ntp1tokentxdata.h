@@ -1,44 +1,60 @@
 #ifndef NTP1TOKENTXDATA_H
 #define NTP1TOKENTXDATA_H
 
-#include <string>
-#include "uint256.h"
 #include "json_spirit.h"
+#include "serialize.h"
+#include "uint256.h"
+#include <string>
 
 class NTP1TokenTxData
 {
+    uint64_t                   amount;
     std::vector<unsigned char> tokenId;
-    uint64_t amount;
-    uint256 issueTxId;
-    uint64_t divisibility;
-    bool lockStatus;
-    std::string aggregationPolicy;
+    uint256                    issueTxId;
+    uint64_t                   divisibility;
+    bool                       lockStatus;
+    std::string                aggregationPolicy;
+    std::string                tokenSymbol;
 
 public:
     NTP1TokenTxData();
-    void setNull();
-    void setTokenIdBase58(const std::string& Str);
-    void setIssueTxIdHex(const std::string& hex);
-    void importJsonData(const std::string& data);
-    void importJsonData(const json_spirit::Value& data);
+    void               setNull();
+    void               setTokenIdBase58(const std::string& Str);
+    void               setIssueTxIdHex(const std::string& hex);
+    void               importJsonData(const std::string& data);
+    void               importJsonData(const json_spirit::Value& data);
     json_spirit::Value exportDatabaseJsonData() const;
-    void importDatabaseJsonData(const json_spirit::Value& data);
-    std::string getTokenIdBase58() const;
-    uint64_t getAmount() const;
-    uint64_t getDivisibility() const;
-    uint256 getIssueTxId() const;
-    bool getLockStatus() const;
+    void               importDatabaseJsonData(const json_spirit::Value& data);
+    std::string        getTokenIdBase58() const;
+    uint64_t           getAmount() const;
+    void               setAmount(const uint64_t& value);
+    uint64_t           getDivisibility() const;
+    uint256            getIssueTxId() const;
+    bool               getLockStatus() const;
     const std::string& getAggregationPolicy() const;
+    void               setDivisibility(const uint64_t& value);
+    void               setLockStatus(bool value);
+    void               setAggregationPolicy(const std::string& value);
+    std::string        getTokenSymbol() const;
+    void               setTokenSymbol(const std::string& value);
     friend inline bool operator==(const NTP1TokenTxData& lhs, const NTP1TokenTxData& rhs);
+
+    // clang-format off
+    IMPLEMENT_SERIALIZE(
+                        READWRITE(tokenId);
+                        READWRITE(amount);
+                        READWRITE(issueTxId);
+                        READWRITE(divisibility);
+                        READWRITE(lockStatus);
+                        READWRITE(aggregationPolicy);
+                       )
+    // clang-format on
 };
 
-bool operator==(const NTP1TokenTxData &lhs, const NTP1TokenTxData &rhs)
+bool operator==(const NTP1TokenTxData& lhs, const NTP1TokenTxData& rhs)
 {
-    return (lhs.tokenId == rhs.tokenId &&
-            lhs.amount == rhs.amount &&
-            lhs.issueTxId == rhs.issueTxId &&
-            lhs.divisibility == rhs.divisibility &&
-            lhs.lockStatus == rhs.lockStatus &&
+    return (lhs.tokenId == rhs.tokenId && lhs.amount == rhs.amount && lhs.issueTxId == rhs.issueTxId &&
+            lhs.divisibility == rhs.divisibility && lhs.lockStatus == rhs.lockStatus &&
             lhs.aggregationPolicy == rhs.aggregationPolicy);
 }
 

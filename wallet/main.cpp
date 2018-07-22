@@ -13,6 +13,7 @@
 #include "ntp1/ntp1script_burn.h"
 #include "ntp1/ntp1script_issuance.h"
 #include "ntp1/ntp1script_transfer.h"
+#include "ntp1/ntp1transaction.h"
 #include "txdb.h"
 #include "ui_interface.h"
 #include "zerocoin/Zerocoin.h"
@@ -722,16 +723,16 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
                          hash.ToString().substr(0, 10).c_str());
         }
 
-        try {
-            if (!IsValidIfTxIsNTP1(tx, nFees))
-                return false;
-        } catch (std::exception& ex) {
-            printf("Failed to parse OP_RETURN data safely; an exception was thrown: %s", ex.what());
-            return false;
-        } catch (...) {
-            printf("Failed to parse OP_RETURN data safely; an unknown exception was thrown.");
-            return false;
-        }
+        //        try {
+        //            if (!IsValidIfTxIsNTP1(tx, nFees))
+        //                return false;
+        //        } catch (std::exception& ex) {
+        //            printf("Failed to parse OP_RETURN data safely; an exception was thrown: %s",
+        //            ex.what()); return false;
+        //        } catch (...) {
+        //            printf("Failed to parse OP_RETURN data safely; an unknown exception was thrown.");
+        //            return false;
+        //        }
     }
 
     // Store transaction in memory
@@ -1512,12 +1513,13 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
         nTxPos = pindex->nBlockPos + ::GetSerializeSize(CBlock(), SER_DISK, CLIENT_VERSION) -
                  (2 * GetSizeOfCompactSize(0)) + GetSizeOfCompactSize(vtx.size());
 
-    map<uint256, CTxIndex> mapQueuedChanges;
-    int64_t                nFees        = 0;
-    int64_t                nValueIn     = 0;
-    int64_t                nValueOut    = 0;
-    int64_t                nStakeReward = 0;
-    unsigned int           nSigOps      = 0;
+    map<uint256, CTxIndex>      mapQueuedChanges;
+    map<uint256, DiskNTP1TxPos> mapNTP1QueuedChanges;
+    int64_t                     nFees        = 0;
+    int64_t                     nValueIn     = 0;
+    int64_t                     nValueOut    = 0;
+    int64_t                     nStakeReward = 0;
+    unsigned int                nSigOps      = 0;
     BOOST_FOREACH (CTransaction& tx, vtx) {
         uint256 hashTx = tx.GetHash();
 
@@ -2591,6 +2593,12 @@ static filesystem::path BlockFilePath(unsigned int nFile)
     return GetDataDir() / strBlockFn;
 }
 
+static filesystem::path NTP1TxsFilePath(unsigned int nFile)
+{
+    string strNTP1TxsFn = strprintf("ntp1txs%04u.dat", nFile);
+    return GetDataDir() / strNTP1TxsFn;
+}
+
 FILE* OpenBlockFile(unsigned int nFile, unsigned int nBlockPos, const char* pszMode)
 {
     if ((nFile < 1) || (nFile == (unsigned int)-1))
@@ -2607,7 +2615,24 @@ FILE* OpenBlockFile(unsigned int nFile, unsigned int nBlockPos, const char* pszM
     return file;
 }
 
-static unsigned int nCurrentBlockFile = 1;
+FILE* OpenNTP1TxsFile(unsigned int nFile, unsigned int nTxPos, const char* pszMode)
+{
+    if ((nFile < 1) || (nFile == (unsigned int)-1))
+        return NULL;
+    FILE* file = fopen(NTP1TxsFilePath(nFile).string().c_str(), pszMode);
+    if (!file)
+        return NULL;
+    if (nTxPos != 0 && !strchr(pszMode, 'a') && !strchr(pszMode, 'w')) {
+        if (fseek(file, nTxPos, SEEK_SET) != 0) {
+            fclose(file);
+            return NULL;
+        }
+    }
+    return file;
+}
+
+static unsigned int nCurrentBlockFile   = 1;
+static unsigned int nCurrentNTP1TxsFile = 1;
 
 FILE* AppendBlockFile(unsigned int& nFileRet)
 {
@@ -2628,7 +2653,27 @@ FILE* AppendBlockFile(unsigned int& nFileRet)
     }
 }
 
+FILE* AppendNTP1TxsFile(unsigned int& nFileRet)
+{
+    nFileRet = 0;
+    while (true) {
+        FILE* file = OpenNTP1TxsFile(nCurrentNTP1TxsFile, 0, "ab");
+        if (!file)
+            return NULL;
+        if (fseek(file, 0, SEEK_END) != 0)
+            return NULL;
+        // FAT32 file size max 4GB, fseek and ftell max 2GB, so we must stay under 2GB
+        if (ftell(file) < (long)(0x7F000000 - MAX_SIZE)) {
+            nFileRet = nCurrentNTP1TxsFile;
+            return file;
+        }
+        fclose(file);
+        nCurrentNTP1TxsFile++;
+    }
+}
+
 bool LoadBlockIndex(bool fAllowNew)
+
 {
     LOCK(cs_main);
 
@@ -4058,16 +4103,22 @@ bool TxContainsOpReturn(const CTransaction* tx)
     return false;
 }
 
-bool IsTxNTP1(const CTransaction* tx)
+bool IsTxNTP1(const CTransaction* tx, std::string* opReturnArg)
 {
     if (!tx) {
         return false;
     }
 
+    std::smatch opReturnArgMatch;
+
     for (unsigned long j = 0; j < tx->vout.size(); j++) {
         std::string scriptPubKeyStr = tx->vout[j].scriptPubKey.ToString();
-        if (std::regex_match(scriptPubKeyStr, NTP1OpReturnRegex)) {
-            return true;
+        if (std::regex_match(scriptPubKeyStr, opReturnArgMatch, NTP1OpReturnRegex)) {
+            if (opReturnArg != nullptr && opReturnArgMatch[1].matched) {
+                *opReturnArg = std::string(opReturnArgMatch[1]);
+                return true;
+            }
+            return false; // could not retrieve OP_RETURN argument
         }
     }
     return false;

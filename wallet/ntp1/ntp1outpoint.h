@@ -25,6 +25,13 @@ public:
     friend inline bool operator==(const NTP1OutPoint& lhs, const NTP1OutPoint& rhs);
     json_spirit::Value exportDatabaseJsonData() const;
     void               importDatabaseJsonData(const json_spirit::Value& data);
+
+    // clang-format off
+    IMPLEMENT_SERIALIZE(
+                        READWRITE(hash);
+                        READWRITE(index);
+                       )
+    // clang-format on
 };
 
 namespace boost {

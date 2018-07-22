@@ -540,3 +540,226 @@ TEST(ntp1_tests, script_get_amount_size)
     EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("c0a60eea1aa8fd"))[0]),
               (unsigned)7);
 }
+
+TEST(ntp1_tests, parsig_ntp1_from_ctransaction)
+{
+    {
+        // issuance
+        string transaction =
+            "010000001af29a5a012081139a3e0d764e9fb415bf1601c5bc24eba093c3f6a735aaa9d81d27d55dc5010000006"
+            "b483045022100ea2baf384bb518ed939a1dfc02df634be2186c5e35d79a09fc7c1f1379987bc102200e286cc382"
+            "9fbe574bda0cacfe8e918755574685bcb8af8a67b2d24f0087122d012103bd4c76349aae4b81011eddce127f36c"
+            "ffd6b7beaf84c80d5d4e6cf06e5c8596cffffffff0310270000000000001976a9144e2a50f7e8c58ff9a0175f95"
+            "616a1657b49a06a888ac1027000000000000456a434e5401014e4942424cab10c04e20e0aec73d58c8fbf2a9c26"
+            "a6dc3ed666c7b80fef215620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0e073eb"
+            "0b000000001976a9144e2a50f7e8c58ff9a0175f95616a1657b49a06a888ac00000000";
+        CDataStream  stream(ParseHex(transaction), SER_NETWORK, PROTOCOL_VERSION);
+        CTransaction tx;
+        stream >> tx;
+        EXPECT_EQ(tx.GetHash().ToString(),
+                  "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+        EXPECT_TRUE(tx.CheckTransaction());
+
+        std::string opReturnArg;
+        EXPECT_TRUE(IsTxNTP1(&tx, &opReturnArg));
+        std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScript(opReturnArg);
+        std::shared_ptr<NTP1Script_Issuance> script_issuance =
+            std::dynamic_pointer_cast<NTP1Script_Issuance>(script);
+        EXPECT_NE(script_issuance.get(), nullptr);
+        EXPECT_EQ(script_issuance->getAggregationPolicy(),
+                  NTP1Script::IssuanceFlags::AggregationPolicy::AggregationPolicy_Aggregatable);
+        EXPECT_EQ(script_issuance->getAmount(), (uint64_t)1000000000);
+        EXPECT_EQ(script_issuance->getDivisibility(), 7);
+        EXPECT_EQ(boost::algorithm::hex(script_issuance->getHeader()), "4E5401");
+        EXPECT_EQ(script_issuance->getHexMetadata(), "AB10C04E20E0AEC73D58C8FBF2A9C26A6DC3ED666C7B80FEF2"
+                                                     "15620C817703B1E5D8B1870211CE7CDF50718B4789245FB80F"
+                                                     "5899");
+        EXPECT_EQ(boost::algorithm::hex(script_issuance->getOpCodeBin()), "01");
+        EXPECT_EQ(script_issuance->getTokenSymbol(), "NIBBL");
+        EXPECT_EQ(script_issuance->getTxType(), NTP1Script::TxType::TxType_Issuance);
+
+        EXPECT_EQ(script_issuance->getTransferInstructionsCount(), (unsigned)1);
+        EXPECT_EQ(script_issuance->getTransferInstruction(0).amount, (uint64_t)1000000000);
+        EXPECT_EQ(script_issuance->getTransferInstruction(0).skipInput, false);
+        EXPECT_EQ(script_issuance->getTransferInstruction(0).outputIndex, 0);
+        EXPECT_EQ(boost::algorithm::hex(script_issuance->getTransferInstruction(0).rawAmount), "2019");
+        EXPECT_EQ(script_issuance->getTransferInstruction(0).firstRawByte, 0);
+        EXPECT_EQ(tx.GetHash().ToString(),
+                  "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+        ////////////////////////////////////////////////////
+
+        NTP1Transaction ntp1tx;
+        EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx));
+        EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)1);
+        EXPECT_EQ(ntp1tx.getTxIn(0).getNumOfTokens(), (unsigned)0);
+        EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)3);
+        EXPECT_EQ(ntp1tx.getTxOut(0).getNumOfTokens(), (unsigned)1);
+        EXPECT_EQ(ntp1tx.getTxOut(1).getNumOfTokens(), (unsigned)0);
+        EXPECT_EQ(ntp1tx.getTxOut(2).getNumOfTokens(), (unsigned)0);
+        EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), (unsigned)1000000000);
+        EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getDivisibility(), (unsigned)7);
+        EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getIssueTxId().ToString(),
+                  "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+        EXPECT_TRUE(ntp1tx.getTxOut(0).getToken(0).getLockStatus());
+        EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getTokenSymbol(), "NIBBL");
+        EXPECT_EQ(ntp1tx.getTxHash().ToString(),
+                  "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+
+        // TODO
+        //        EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getTokenIdBase58(), "");
+    }
+    {
+        // transfer
+        string transaction =
+            "01000000f554a35a0247b394148396ef78de65f4792e57bb93f9322e0a42f923e52d39530915a96617010000006"
+            "a47304402200cfdd8969cb137ee5a1dde2bed954ab8ae88fb4703125e4ec103b2f21787fa27022079ffc6a52a62"
+            "d1eb8aa78f831faa038fde8549ec446cb0f7427db77c7d3ddb59012103331393f9487ef4b318ae79972f3ccc84b"
+            "15d0718d7e05720c454404e67d51d1affffffff120665b0c7b62c2b7e3b3d3bacd9947eefc5b80d42b9a15a2c84"
+            "bd1f40811411030000006a47304402205c7d97ee153e83c54f5c61221acec7b8b60786fca80e59e45ecbf1736a7"
+            "f459a02207147d019151d91143d6289d37d49b3ad63952830dc42a79bf262ebaee5da6040012103331393f9487e"
+            "f4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff0410270000000000001976a91471877"
+            "06893521dd4d61a843d241c5f52f32d7e6188ac10270000000000001976a9143f7eb8c3da2cbe606fd5d46b11ab"
+            "9211705770db88ac10270000000000000e6a0c4e5401150020120169895242409c0000000000001976a9143f7eb"
+            "8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
+        CDataStream  stream(ParseHex(transaction), SER_NETWORK, PROTOCOL_VERSION);
+        CTransaction tx;
+        stream >> tx;
+        EXPECT_TRUE(tx.CheckTransaction());
+
+        std::string opReturnArg;
+        EXPECT_TRUE(IsTxNTP1(&tx, &opReturnArg));
+        std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScript(opReturnArg);
+        std::shared_ptr<NTP1Script_Transfer> script_transfer =
+            std::dynamic_pointer_cast<NTP1Script_Transfer>(script);
+        EXPECT_EQ(script_transfer->getHeader(), boost::algorithm::unhex(opReturnArg.substr(0, 6)));
+        EXPECT_EQ(script_transfer->getHexMetadata().size(), (unsigned)0);
+        EXPECT_EQ(boost::algorithm::hex(script_transfer->getOpCodeBin()), "15");
+        EXPECT_EQ(script_transfer->getTxType(), NTP1Script::TxType::TxType_Transfer);
+
+        EXPECT_EQ(script_transfer->getTransferInstructionsCount(), (unsigned)2);
+
+        EXPECT_EQ(script_transfer->getTransferInstruction(0).amount, (uint64_t)100);
+        EXPECT_EQ(script_transfer->getTransferInstruction(0).skipInput, false);
+        EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, 0);
+        EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(0).rawAmount), "2012");
+        EXPECT_EQ(script_transfer->getTransferInstruction(0).firstRawByte, 0);
+
+        EXPECT_EQ(script_transfer->getTransferInstruction(1).amount, (uint64_t)999965200);
+        EXPECT_EQ(script_transfer->getTransferInstruction(1).skipInput, false);
+        EXPECT_EQ(script_transfer->getTransferInstruction(1).outputIndex, 1);
+        EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(1).rawAmount),
+                  "69895242");
+        EXPECT_EQ(script_transfer->getTransferInstruction(1).firstRawByte, 1);
+        EXPECT_EQ(tx.GetHash().ToString(),
+                  "006bd375946e903aa20aced1b411d61d14175488650e1deab3cb5ff8f354467d");
+
+        ////////////////////////////////////////////
+
+        NTP1Transaction ntp1tx;
+        EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx));
+        EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)2);
+        // inputs are unknown, so no more tests
+        EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)4);
+        EXPECT_EQ(ntp1tx.getTxOut(0).getNumOfTokens(), (unsigned)1);
+        EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), (uint64_t)100);
+        EXPECT_EQ(ntp1tx.getTxOut(1).getNumOfTokens(), (unsigned)1);
+        EXPECT_EQ(ntp1tx.getTxOut(1).getToken(0).getAmount(), (uint64_t)999965200);
+        EXPECT_EQ(ntp1tx.getTxOut(2).getNumOfTokens(), (unsigned)0);
+        EXPECT_EQ(ntp1tx.getTxOut(3).getNumOfTokens(), (unsigned)0);
+        EXPECT_EQ(ntp1tx.getTxHash().ToString(),
+                  "006bd375946e903aa20aced1b411d61d14175488650e1deab3cb5ff8f354467d");
+    }
+    {
+        // burn
+        string transaction =
+            "01000000e49d535b04e935973056fce6856f04bdcf6f9f6c8759e495c5f9bc19d5688fe9cecc3c56c0010000006"
+            "a47304402204dfb2ba718f2aea4ccf967734c976335c2a06e8c8b418e36d79287b8414517f802202128769cf45c"
+            "2d4e3606020751255fb51f79147bb2ddfc350437e29a2a3f4622012103331393f9487ef4b318ae79972f3ccc84b"
+            "15d0718d7e05720c454404e67d51d1affffffff05dbb77b0d5990f177f9f7a7d36657ec886653f3dec7441621d8"
+            "1e9c55494803030000006b483045022100cffec58852a662899b2deefcb7891eab14a764701aed6f4a616515403"
+            "91de81a02200505a50a19afb9af55c9ccb53536a745b0165c664e741cd8f210fdbb59ddd69a012103331393f948"
+            "7ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffffdf712745b40af1feb73f3a0d9cffe"
+            "f4101033f20c3e827344098a2f338cf3201030000006a4730440220044608b1c6ddb10a8899810d00673c81ed93"
+            "03f7f72675439719e5ae54478b1d02205c4a94a74c866b6c27b56b1acb27c808bf308e36d0596158bb9fa6b23fd"
+            "3bca9012103331393f9487ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff98128fe8"
+            "5f695f77584a02d20569674c557056e689c342a18ecd3803f2c31703030000006a473044022013a58a0ac64af79"
+            "f6d2ddefe07f86afc3866d9e1eaae173d6f83872e28c913a9022069f5f056641e8818b6d9a4bfd8909f9a47e9c5"
+            "811e1a2d7e8490cd94a0fddcb8012103331393f9487ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d"
+            "51d1affffffff0310270000000000001976a9147f5aff9c5ec060a45b8405a7b4f65fce5909773e88ac10270000"
+            "000000000a6a084e540125000a1f1410270000000000001976a9143f7eb8c3da2cbe606fd5d46b11ab921170577"
+            "0db88ac00000000";
+        CDataStream  stream(ParseHex(transaction), SER_NETWORK, PROTOCOL_VERSION);
+        CTransaction tx;
+        stream >> tx;
+        EXPECT_TRUE(tx.CheckTransaction());
+
+        std::string opReturnArg;
+        EXPECT_TRUE(IsTxNTP1(&tx, &opReturnArg));
+        std::shared_ptr<NTP1Script>      scriptPtr = NTP1Script::ParseScript(opReturnArg);
+        std::shared_ptr<NTP1Script_Burn> scriptPtrD =
+            std::dynamic_pointer_cast<NTP1Script_Burn>(scriptPtr);
+        EXPECT_NE(scriptPtr.get(), nullptr);
+        EXPECT_NE(scriptPtrD.get(), nullptr);
+        EXPECT_EQ(scriptPtrD->getTxType(), NTP1Script::TxType::TxType_Burn);
+
+        NTP1Transaction ntp1tx;
+        EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx));
+        EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)4);
+        // inputs are unknown, so no more tests
+        EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)3);
+        // TODO: This transaction was not broadcast successfully
+        //        EXPECT_EQ(ntp1tx.getTxOut(0).getNumOfTokens(), (unsigned)1);
+        //        EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), (uint64_t)10);
+        //        EXPECT_EQ(ntp1tx.getTxOut(1).getNumOfTokens(), (unsigned)0);
+        //        EXPECT_EQ(ntp1tx.getTxOut(2).getNumOfTokens(), (unsigned)1);
+        //        EXPECT_EQ(ntp1tx.getTxOut(2).getToken(0).getAmount(), (uint64_t)999897350);
+        EXPECT_EQ(ntp1tx.getTxHash().ToString(), tx.GetHash().ToString());
+    }
+    //    {
+    //        // burn with transfer
+    //        string transaction =
+    //            "0100000048b1535b04e935973056fce6856f04bdcf6f9f6c8759e495c5f9bc19d5688fe9cecc3c56c0010000006"
+    //            "b483045022100b004a3201d922e25579d2feba02dad95df573e5dee5efb6cc4c761348e08c580022003a860417f"
+    //            "0de670b3a08df43d244aa16661f5218830bf5eb73b938050c8112a012103331393f9487ef4b318ae79972f3ccc8"
+    //            "4b15d0718d7e05720c454404e67d51d1affffffff05dbb77b0d5990f177f9f7a7d36657ec886653f3dec7441621"
+    //            "d81e9c55494803030000006a473044022039b3c6719b340f77a178e781a2f3bc6be0dcc78ea03ec413cc6527dff"
+    //            "6abf96902204abf71cc27430089bed9c7692cd67af66ece912d67b60f401da0b2a4bfa5bc38012103331393f948"
+    //            "7ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffffdf712745b40af1feb73f3a0d9cffe"
+    //            "f4101033f20c3e827344098a2f338cf3201030000006a47304402201a8fdafcb5d0528eee7d3abf02ec4f9acdd6"
+    //            "90c26ded4ec87d36f803daa1abd00220470b9225d0f5acb7af807af1cb43638f134492bc07d8d60f17295f9096d"
+    //            "25296012103331393f9487ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff98128fe8"
+    //            "5f695f77584a02d20569674c557056e689c342a18ecd3803f2c31703030000006a47304402206b521b8663386ab"
+    //            "faa861150ea9a1f444edf78e22682aef95791d2817177661a0220553f5c2bf0cd67053fbc3058f122522f7cb94f"
+    //            "9c2bea157d4df16d1dca9f9e4a012103331393f9487ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d"
+    //            "51d1affffffff0310270000000000001976a9147f5aff9c5ec060a45b8405a7b4f65fce5909773e88ac10270000"
+    //            "000000000a6a084e540125000a1f1410270000000000001976a9143f7eb8c3da2cbe606fd5d46b11ab921170577"
+    //            "0db88ac00000000";
+    //        CDataStream  stream(ParseHex(transaction), SER_NETWORK, PROTOCOL_VERSION);
+    //        CTransaction tx;
+    //        stream >> tx;
+    //        EXPECT_TRUE(tx.CheckTransaction());
+
+    //        std::string opReturnArg;
+    //        EXPECT_TRUE(IsTxNTP1(&tx, &opReturnArg));
+    //        std::shared_ptr<NTP1Script>      scriptPtr = NTP1Script::ParseScript(opReturnArg);
+    //        std::shared_ptr<NTP1Script_Burn> scriptPtrD =
+    //            std::dynamic_pointer_cast<NTP1Script_Burn>(scriptPtr);
+    //        EXPECT_NE(scriptPtr.get(), nullptr);
+    //        EXPECT_NE(scriptPtrD.get(), nullptr);
+    //        EXPECT_EQ(scriptPtrD->getTxType(), NTP1Script::TxType::TxType_Burn);
+
+    //        NTP1Transaction ntp1tx;
+    //        EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx));
+    //        EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)4);
+    //        // inputs are unknown, so no more tests
+    //        EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)3);
+    //        // TODO
+    //        //        EXPECT_EQ(ntp1tx.getTxOut(0).getNumOfTokens(), (unsigned)1);
+    //        //        EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), (uint64_t)10);
+    //        //        EXPECT_EQ(ntp1tx.getTxOut(1).getNumOfTokens(), (unsigned)0);
+    //        //        EXPECT_EQ(ntp1tx.getTxOut(2).getNumOfTokens(), (unsigned)1);
+    //        //        EXPECT_EQ(ntp1tx.getTxOut(2).getToken(0).getAmount(), (uint64_t)999897350);
+    //        EXPECT_EQ(ntp1tx.getTxHash().ToString(),
+    //                  "008d329611fcbdb82b4adb097c29f1d6a56707bfb232c8c124390756e80a9e44");
+    //    }
+}

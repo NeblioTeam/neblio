@@ -27,6 +27,8 @@ private:
     std::vector<NTP1TokenTxData> tokens;
     std::string                  address;
 
+    friend class NTP1Transaction;
+
 public:
     NTP1TxOut();
     NTP1TxOut(int64_t nValueIn, const std::string& scriptPubKeyIn);
@@ -44,6 +46,16 @@ public:
     std::string            getAddress() const;
     OutputType             getType() const;
     std::string            getScriptPubKeyAsm() const;
+
+    // clang-format off
+    IMPLEMENT_SERIALIZE(
+                        READWRITE(nValue);
+                        READWRITE(scriptPubKeyHex);
+                        READWRITE(scriptPubKeyAsm);
+                        READWRITE(tokens);
+                        READWRITE(address);
+                       )
+    // clang-format on
 };
 
 bool operator==(const NTP1TxOut& lhs, const NTP1TxOut& rhs)

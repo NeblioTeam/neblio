@@ -15,6 +15,8 @@
 #include <leveldb/db.h>
 #include <leveldb/write_batch.h>
 
+#include "ntp1/ntp1transaction.h"
+
 // Class that provides access to a LevelDB. Note that this class is frequently
 // instantiated on the stack and then destroyed again, so instantiation has to
 // be very cheap. Unfortunately that means, a CTxDB instance is actually just a
@@ -185,6 +187,8 @@ public:
 
     bool ReadTxIndex(uint256 hash, CTxIndex& txindex);
     bool UpdateTxIndex(uint256 hash, const CTxIndex& txindex);
+    bool ReadNTP1TxIndex(uint256 hash, DiskNTP1TxPos &txindex);
+    bool WriteNTP1TxIndex(uint256 hash, const DiskNTP1TxPos& txindex);
     bool AddTxIndex(const CTransaction& tx, const CDiskTxPos& pos, int nHeight);
     bool EraseTxIndex(const CTransaction& tx);
     bool ContainsTx(uint256 hash);

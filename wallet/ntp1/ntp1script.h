@@ -5,11 +5,19 @@
 #include <string>
 #include <vector>
 
+typedef uint32_t          NTP1TransactionType;
+const NTP1TransactionType NTP1TxType_INVALID  = 0;
+const NTP1TransactionType NTP1TxType_NOT_NTP1 = 1;
+const NTP1TransactionType NTP1TxType_ISSUANCE = 2;
+const NTP1TransactionType NTP1TxType_TRANSFER = 3;
+const NTP1TransactionType NTP1TxType_BURN     = 4;
+
 class NTP1Script
 {
 public:
     enum TxType
     {
+        TxType_None = 0,
         TxType_Issuance,
         TxType_Transfer,
         TxType_Burn

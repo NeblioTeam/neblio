@@ -7,6 +7,10 @@
 
 #include "bignum.h"
 #include "net.h"
+#include "ntp1/ntp1script.h"
+#include "ntp1/ntp1script_burn.h"
+#include "ntp1/ntp1script_issuance.h"
+#include "ntp1/ntp1script_transfer.h"
 #include "script.h"
 #include "scrypt.h"
 #include "sync.h"
@@ -127,6 +131,7 @@ bool         ProcessBlock(CNode* pfrom, CBlock* pblock);
 bool         CheckDiskSpace(uint64_t nAdditionalBytes = 0);
 FILE*        OpenBlockFile(unsigned int nFile, unsigned int nBlockPos, const char* pszMode = "rb");
 FILE*        AppendBlockFile(unsigned int& nFileRet);
+FILE*        AppendNTP1TxsFile(unsigned int& nFileRet);
 bool         LoadBlockIndex(bool fAllowNew = true);
 void         PrintBlockTree();
 CBlockIndex* FindBlockByHeight(int nHeight);
@@ -311,7 +316,13 @@ public:
         nSequence = nSequenceIn;
     }
 
-    IMPLEMENT_SERIALIZE(READWRITE(prevout); READWRITE(scriptSig); READWRITE(nSequence);)
+    // clang-format off
+    IMPLEMENT_SERIALIZE(
+                        READWRITE(prevout);
+                        READWRITE(scriptSig);
+                        READWRITE(nSequence);
+                       )
+    // clang-format on
 
     bool IsFinal() const { return (nSequence == std::numeric_limits<unsigned int>::max()); }
 
@@ -345,6 +356,10 @@ public:
     void print() const { printf("%s\n", ToString().c_str()); }
 };
 
+bool TxContainsOpReturn(const CTransaction* tx);
+
+bool IsTxNTP1(const CTransaction* tx, string* opReturnArg = nullptr);
+
 /** An output of a transaction.  It contains the public key that the next input
  * must be able to sign with to claim it.
  */
@@ -362,7 +377,12 @@ public:
         scriptPubKey = scriptPubKeyIn;
     }
 
-    IMPLEMENT_SERIALIZE(READWRITE(nValue); READWRITE(scriptPubKey);)
+    // clang-format off
+    IMPLEMENT_SERIALIZE(
+                        READWRITE(nValue);
+                        READWRITE(scriptPubKey);
+                       )
+    // clang-format on
 
     void SetNull()
     {
@@ -673,10 +693,6 @@ public:
 };
 
 bool IsFinalTx(const CTransaction& tx, int nBlockHeight = 0, int64_t nBlockTime = 0);
-
-bool TxContainsOpReturn(const CTransaction* tx);
-
-bool IsTxNTP1(const CTransaction* tx);
 
 /** Undo information for a CTxIn
  *
