@@ -12,6 +12,8 @@ class NTP1Script_Issuance : public NTP1Script
 
     friend class NTP1Script;
 
+    std::string __getAggregAndLockStatusTokenIDHexValue() const;
+
 protected:
     std::vector<TransferInstruction> transferInstructions;
 
@@ -31,6 +33,7 @@ public:
     TransferInstruction                         getTransferInstruction(unsigned index) const;
     static std::shared_ptr<NTP1Script_Issuance> ParseIssuancePostHeaderData(std::string ScriptBin,
                                                                             std::string OpCodeBin);
+    std::string getTokenID(std::string input0txid, unsigned int input0index) const;
 };
 
 #endif // NTP1SCRIPT_ISSUANCE_H

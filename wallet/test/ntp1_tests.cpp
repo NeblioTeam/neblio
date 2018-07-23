@@ -42,7 +42,7 @@ TEST(ntp1_tests, parse_NTP1TxIn_from_json)
                                          "e5223c2da74938a725ed7b0244a8");
     EXPECT_EQ(tx_good.getSequence(), (uint64_t)4294967295);
     EXPECT_EQ(tx_good.getNumOfTokens(), (unsigned long)1);
-    EXPECT_EQ(tx_good.getToken(0).getTokenIdBase58(), "LaAGekc9oBLcxMUXWzzbMoHRsZXYwhw1Ciox3z");
+    EXPECT_EQ(tx_good.getToken(0).getTokenId(), "LaAGekc9oBLcxMUXWzzbMoHRsZXYwhw1Ciox3z");
     EXPECT_EQ(tx_good.getToken(0).getDivisibility(), (unsigned)7);
     EXPECT_EQ(tx_good.getToken(0).getAmount(), (unsigned)997000);
     EXPECT_EQ(tx_good.getToken(0).getLockStatus(), true);
@@ -69,7 +69,7 @@ TEST(ntp1_tests, parse_NTP1TxOut_from_json)
     EXPECT_EQ(tx_good.getScriptPubKeyHex(), "76a914930b31797c0e6f0d4239909b044aaadfde37199588ac");
     EXPECT_EQ(tx_good.getAddress(), "NZKTvgBXGBFDde73TizBmxVPzNauT1ivxV");
     EXPECT_EQ(tx_good.getNumOfTokens(), (unsigned long)1);
-    EXPECT_EQ(tx_good.getToken(0).getTokenIdBase58(), "LaAGekc9oBLcxMUXWzzbMoHRsZXYwhw1Ciox3z");
+    EXPECT_EQ(tx_good.getToken(0).getTokenId(), "LaAGekc9oBLcxMUXWzzbMoHRsZXYwhw1Ciox3z");
     EXPECT_EQ(tx_good.getToken(0).getDivisibility(), (unsigned)7);
     EXPECT_EQ(tx_good.getToken(0).getAmount(), (unsigned)1000);
     EXPECT_EQ(tx_good.getToken(0).getLockStatus(), true);
@@ -87,7 +87,7 @@ TEST(ntp1_tests, parse_NTP1TokenData)
     NTP1TokenTxData token_good, token_nogood;
     EXPECT_NO_THROW(token_good.importJsonData(token_str));
     EXPECT_ANY_THROW(token_nogood.importJsonData(token_str.substr(0, token_str.size() - 1)));
-    EXPECT_EQ(token_good.getTokenIdBase58(), "LaAGekc9oBLcxMUXWzzbMoHRsZXYwhw1Ciox3z");
+    EXPECT_EQ(token_good.getTokenId(), "LaAGekc9oBLcxMUXWzzbMoHRsZXYwhw1Ciox3z");
     EXPECT_EQ(token_good.getDivisibility(), (unsigned)7);
     EXPECT_EQ(token_good.getAmount(), (unsigned)512345);
     EXPECT_EQ(token_good.getLockStatus(), true);
@@ -219,8 +219,7 @@ TEST(ntp1_tests, parse_NTP1Transaction)
     EXPECT_EQ(tx_good.getTxIn(0).getToken(0).getIssueTxId().ToString(),
               "8e5b8361d16f166afd4f091d50554b93395dc44bd18a0904ac1e4f5532925d6b");
     EXPECT_EQ(tx_good.getTxIn(0).getToken(0).getLockStatus(), true);
-    EXPECT_EQ(tx_good.getTxIn(0).getToken(0).getTokenIdBase58(),
-              "LaAGekc9oBLcxMUXWzzbMoHRsZXYwhw1Ciox3z");
+    EXPECT_EQ(tx_good.getTxIn(0).getToken(0).getTokenId(), "LaAGekc9oBLcxMUXWzzbMoHRsZXYwhw1Ciox3z");
 
     EXPECT_EQ(tx_good.getTxOutCount(), (unsigned long)4);
     EXPECT_EQ(tx_good.getTxOut(0).getNumOfTokens(), (unsigned long)1);
@@ -236,8 +235,7 @@ TEST(ntp1_tests, parse_NTP1Transaction)
     EXPECT_EQ(tx_good.getTxOut(0).getToken(0).getDivisibility(), (uint64_t)7);
     EXPECT_EQ(tx_good.getTxOut(0).getToken(0).getIssueTxId().ToString(),
               "8e5b8361d16f166afd4f091d50554b93395dc44bd18a0904ac1e4f5532925d6b");
-    EXPECT_EQ(tx_good.getTxOut(0).getToken(0).getTokenIdBase58(),
-              "LaAGekc9oBLcxMUXWzzbMoHRsZXYwhw1Ciox3z");
+    EXPECT_EQ(tx_good.getTxOut(0).getToken(0).getTokenId(), "LaAGekc9oBLcxMUXWzzbMoHRsZXYwhw1Ciox3z");
     EXPECT_EQ(tx_good.getTxOut(0).getToken(0).getLockStatus(), true);
     EXPECT_EQ(tx_good.getTxOut(0).getAddress(), "NZKTvgBXGBFDde73TizBmxVPzNauT1ivxV");
     EXPECT_EQ(tx_good.getTxOut(0).getType(), NTP1TxOut::OutputType::NormalOutput);
@@ -250,8 +248,7 @@ TEST(ntp1_tests, parse_NTP1Transaction)
     EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getDivisibility(), (uint64_t)7);
     EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getIssueTxId().ToString(),
               "8e5b8361d16f166afd4f091d50554b93395dc44bd18a0904ac1e4f5532925d6b");
-    EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getTokenIdBase58(),
-              "LaAGekc9oBLcxMUXWzzbMoHRsZXYwhw1Ciox3z");
+    EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getTokenId(), "LaAGekc9oBLcxMUXWzzbMoHRsZXYwhw1Ciox3z");
     EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getLockStatus(), true);
     EXPECT_EQ(tx_good.getTxOut(1).getAddress(), "NaMk49sEa6z5jUQVVtkjsraSV7HtsRvR1D");
     EXPECT_EQ(tx_good.getTxOut(1).getType(), NTP1TxOut::OutputType::NormalOutput);
@@ -285,7 +282,7 @@ TEST(ntp1_tests, token_meta_data)
     NTP1TokenMetaData tokenMetaData;
     EXPECT_NO_THROW(tokenMetaData.importRestfulAPIJsonData(metadata));
 
-    EXPECT_EQ(tokenMetaData.getTokenIdBase58(), "La3QxvUgFwKz2jjQR2HSrwaKcRgotf4tGVkMJx");
+    EXPECT_EQ(tokenMetaData.getTokenId(), "La3QxvUgFwKz2jjQR2HSrwaKcRgotf4tGVkMJx");
     EXPECT_EQ(tokenMetaData.getAggregationPolicy(), "aggregatable");
     EXPECT_EQ(tokenMetaData.getLockStatus(), true);
     EXPECT_EQ(tokenMetaData.getDivisibility(), (unsigned)7);
@@ -326,7 +323,7 @@ TEST(ntp1_tests, token_meta_data_without_url)
     NTP1TokenMetaData tokenMetaData;
     EXPECT_NO_THROW(tokenMetaData.importRestfulAPIJsonData(metadata));
 
-    EXPECT_EQ(tokenMetaData.getTokenIdBase58(), "La3QxvUgFwKz2jjQR2HSrwaKcRgotf4tGVkMJx");
+    EXPECT_EQ(tokenMetaData.getTokenId(), "La3QxvUgFwKz2jjQR2HSrwaKcRgotf4tGVkMJx");
     EXPECT_EQ(tokenMetaData.getAggregationPolicy(), "aggregatable");
     EXPECT_EQ(tokenMetaData.getLockStatus(), true);
     EXPECT_EQ(tokenMetaData.getDivisibility(), (unsigned)7);
@@ -501,6 +498,9 @@ TEST(ntp1_tests, script_issuance)
         EXPECT_EQ(script_issuance->getTransferInstruction(0).outputIndex, 0);
         EXPECT_EQ(boost::algorithm::hex(script_issuance->getTransferInstruction(0).rawAmount), "2019");
         EXPECT_EQ(script_issuance->getTransferInstruction(0).firstRawByte, 0);
+        EXPECT_EQ(script_issuance->getTokenID(
+                      "c55dd5271dd8a9aa35a7f6c393a0eb24bcc50116bf15b49f4e760d3e9a138120", 1),
+                  "LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
     }
 }
 
@@ -541,6 +541,14 @@ TEST(ntp1_tests, script_get_amount_size)
               (unsigned)7);
 }
 
+CTransaction TxFromHex(const std::string& hex)
+{
+    CDataStream  stream(ParseHex(hex), SER_NETWORK, PROTOCOL_VERSION);
+    CTransaction tx;
+    stream >> tx;
+    return tx;
+}
+
 TEST(ntp1_tests, parsig_ntp1_from_ctransaction)
 {
     {
@@ -553,9 +561,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction)
             "616a1657b49a06a888ac1027000000000000456a434e5401014e4942424cab10c04e20e0aec73d58c8fbf2a9c26"
             "a6dc3ed666c7b80fef215620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0e073eb"
             "0b000000001976a9144e2a50f7e8c58ff9a0175f95616a1657b49a06a888ac00000000";
-        CDataStream  stream(ParseHex(transaction), SER_NETWORK, PROTOCOL_VERSION);
-        CTransaction tx;
-        stream >> tx;
+        CTransaction tx = TxFromHex(transaction);
         EXPECT_EQ(tx.GetHash().ToString(),
                   "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
         EXPECT_TRUE(tx.CheckTransaction());
@@ -574,6 +580,10 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction)
         EXPECT_EQ(script_issuance->getHexMetadata(), "AB10C04E20E0AEC73D58C8FBF2A9C26A6DC3ED666C7B80FEF2"
                                                      "15620C817703B1E5D8B1870211CE7CDF50718B4789245FB80F"
                                                      "5899");
+        EXPECT_EQ(script_issuance->getTokenID(
+                      "c55dd5271dd8a9aa35a7f6c393a0eb24bcc50116bf15b49f4e760d3e9a138120", 1),
+                  "LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
+
         EXPECT_EQ(boost::algorithm::hex(script_issuance->getOpCodeBin()), "01");
         EXPECT_EQ(script_issuance->getTokenSymbol(), "NIBBL");
         EXPECT_EQ(script_issuance->getTxType(), NTP1Script::TxType::TxType_Issuance);
@@ -586,10 +596,21 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction)
         EXPECT_EQ(script_issuance->getTransferInstruction(0).firstRawByte, 0);
         EXPECT_EQ(tx.GetHash().ToString(),
                   "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+
+        std::string vinA =
+            "0100000089f3995a013458f5fa9bc91103a1dcdd6f1e582bc35e3ca513a924bad1e3098dd540f"
+            "b4e030100000049483045022100e8dedce5f1950a07dbbd60dfb959e21113523b9d98df2fc197"
+            "3e530beafd53b3022047450cd1a16d74f83c2ba769cb0a0ba28c848e440cc915d268218e7b8d0"
+            "e541701ffffffff02306a04c2210000001976a91494229f861ecf642374f132de7cc739f314ee"
+            "4ada88ac008c8647000000001976a9144e2a50f7e8c58ff9a0175f95616a1657b49a06a888ac0"
+            "0000000";
+        CTransaction txVinA = TxFromHex(vinA);
+
+        std::vector<CTransaction> inputs{txVinA};
         ////////////////////////////////////////////////////
 
         NTP1Transaction ntp1tx;
-        EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx));
+        EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs));
         EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)1);
         EXPECT_EQ(ntp1tx.getTxIn(0).getNumOfTokens(), (unsigned)0);
         EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)3);
@@ -604,9 +625,11 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction)
         EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getTokenSymbol(), "NIBBL");
         EXPECT_EQ(ntp1tx.getTxHash().ToString(),
                   "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+        EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getTokenId(), "LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
 
-        // TODO
-        //        EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getTokenIdBase58(), "");
+        EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getHash().ToString(),
+                  "c55dd5271dd8a9aa35a7f6c393a0eb24bcc50116bf15b49f4e760d3e9a138120");
+        EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), (unsigned)1);
     }
     {
         // transfer
@@ -621,9 +644,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction)
             "06893521dd4d61a843d241c5f52f32d7e6188ac10270000000000001976a9143f7eb8c3da2cbe606fd5d46b11ab"
             "9211705770db88ac10270000000000000e6a0c4e5401150020120169895242409c0000000000001976a9143f7eb"
             "8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
-        CDataStream  stream(ParseHex(transaction), SER_NETWORK, PROTOCOL_VERSION);
-        CTransaction tx;
-        stream >> tx;
+        CTransaction tx = TxFromHex(transaction);
         EXPECT_TRUE(tx.CheckTransaction());
 
         std::string opReturnArg;
@@ -653,10 +674,38 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction)
         EXPECT_EQ(tx.GetHash().ToString(),
                   "006bd375946e903aa20aced1b411d61d14175488650e1deab3cb5ff8f354467d");
 
+        std::string vinA =
+            "01000000d654a35a02b5b4c0f4608d996f7ccf68a74c7832b151fed86376defd0be51570f6695ea42a010000006"
+            "b483045022100ecbaf16008ccb4c7084d2e28b875adbfcb8cb1012e305ae503b646a075693f340220404eb96ab6"
+            "0496c8d52a06a4286e2916e9f70304b1ff3f1663c938cae7f08f01012103331393f9487ef4b318ae79972f3ccc8"
+            "4b15d0718d7e05720c454404e67d51d1affffffffebd3fcb84b4019229f8c85e5d0c736f4eb17637cce245369d6"
+            "a7b51b56a2026b030000006b483045022100b02f6f5d4c0b2e88d5d7226e0f22ed37938b79e242b0f8d6260b14e"
+            "00ab728120220549ecc61e8318105ad9255a54af4ee0966810e42fbf84a9fa7ef7c4892c41c35012103331393f9"
+            "487ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff0410270000000000001976a9148"
+            "6061d16eafa0ea7a6be8875fb5bbc09a5f210a588ac10270000000000001976a9143f7eb8c3da2cbe606fd5d46b"
+            "11ab9211705770db88ac10270000000000000e6a0c4e5401150020120169895252409c0000000000001976a9143"
+            "f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
+        CTransaction txVinA = TxFromHex(vinA);
+
+        std::string vinB =
+            "010000007c3fa35a0220b900bf90ba01c5e0b560261871c35ec84b2bcf1bb6a4c38f76554a53d9378e010000006"
+            "b483045022100fa4e87b9bc64d12b757a1ddd8a680239e8b11c8ca6496a212ffa726b0b79c1c202204e39d5776e"
+            "c175580429acdf7f2d80b6ee42c845c64c884f70138811c6931db0012103331393f9487ef4b318ae79972f3ccc8"
+            "4b15d0718d7e05720c454404e67d51d1affffffff04946f748b2ec8662ad584e09f6408636effbadf7dc59b168a"
+            "50d028aa0f827a010000006b483045022100c04d60412ff55eae4e735ca2022f84d797a72156c26523a55579f5e"
+            "8f8e7ffd702201c1e361451496b00ef8d47cd0e11fb2a30aca335583bf53b76fec3951a4d5576012103331393f9"
+            "487ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff0410270000000000001976a9146"
+            "732468b6fe071d7004a5d9bddaacc3a71423acd88ac10270000000000001976a9143f7eb8c3da2cbe606fd5d46b"
+            "11ab9211705770db88ac10270000000000000e6a0c4e5401150020120169895c3270110100000000001976a9143"
+            "f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
+        CTransaction txVinB = TxFromHex(vinB);
+
+        std::vector<CTransaction> inputs{txVinA, txVinB};
+
         ////////////////////////////////////////////
 
         NTP1Transaction ntp1tx;
-        EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx));
+        EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs));
         EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)2);
         // inputs are unknown, so no more tests
         EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)4);
@@ -668,30 +717,89 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction)
         EXPECT_EQ(ntp1tx.getTxOut(3).getNumOfTokens(), (unsigned)0);
         EXPECT_EQ(ntp1tx.getTxHash().ToString(),
                   "006bd375946e903aa20aced1b411d61d14175488650e1deab3cb5ff8f354467d");
+
+        EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getHash().ToString(),
+                  "1766a9150953392de523f9420a2e32f993bb572e79f465de78ef96831494b347");
+        EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), (unsigned)1);
+        EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getHash().ToString(),
+                  "111481401fbd842c5aa1b9420db8c5ef7e94d9ac3b3d3b7e2b2cb6c7b0650612");
+        EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getIndex(), (unsigned)3);
     }
     {
-        // burn
+        // burn with transfer
         string transaction =
-            "01000000e49d535b04e935973056fce6856f04bdcf6f9f6c8759e495c5f9bc19d5688fe9cecc3c56c0010000006"
-            "a47304402204dfb2ba718f2aea4ccf967734c976335c2a06e8c8b418e36d79287b8414517f802202128769cf45c"
-            "2d4e3606020751255fb51f79147bb2ddfc350437e29a2a3f4622012103331393f9487ef4b318ae79972f3ccc84b"
-            "15d0718d7e05720c454404e67d51d1affffffff05dbb77b0d5990f177f9f7a7d36657ec886653f3dec7441621d8"
-            "1e9c55494803030000006b483045022100cffec58852a662899b2deefcb7891eab14a764701aed6f4a616515403"
-            "91de81a02200505a50a19afb9af55c9ccb53536a745b0165c664e741cd8f210fdbb59ddd69a012103331393f948"
+            "0100000048b1535b04e935973056fce6856f04bdcf6f9f6c8759e495c5f9bc19d5688fe9cecc3c56c0010000006"
+            "b483045022100b004a3201d922e25579d2feba02dad95df573e5dee5efb6cc4c761348e08c580022003a860417f"
+            "0de670b3a08df43d244aa16661f5218830bf5eb73b938050c8112a012103331393f9487ef4b318ae79972f3ccc8"
+            "4b15d0718d7e05720c454404e67d51d1affffffff05dbb77b0d5990f177f9f7a7d36657ec886653f3dec7441621"
+            "d81e9c55494803030000006a473044022039b3c6719b340f77a178e781a2f3bc6be0dcc78ea03ec413cc6527dff"
+            "6abf96902204abf71cc27430089bed9c7692cd67af66ece912d67b60f401da0b2a4bfa5bc38012103331393f948"
             "7ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffffdf712745b40af1feb73f3a0d9cffe"
-            "f4101033f20c3e827344098a2f338cf3201030000006a4730440220044608b1c6ddb10a8899810d00673c81ed93"
-            "03f7f72675439719e5ae54478b1d02205c4a94a74c866b6c27b56b1acb27c808bf308e36d0596158bb9fa6b23fd"
-            "3bca9012103331393f9487ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff98128fe8"
-            "5f695f77584a02d20569674c557056e689c342a18ecd3803f2c31703030000006a473044022013a58a0ac64af79"
-            "f6d2ddefe07f86afc3866d9e1eaae173d6f83872e28c913a9022069f5f056641e8818b6d9a4bfd8909f9a47e9c5"
-            "811e1a2d7e8490cd94a0fddcb8012103331393f9487ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d"
+            "f4101033f20c3e827344098a2f338cf3201030000006a47304402201a8fdafcb5d0528eee7d3abf02ec4f9acdd6"
+            "90c26ded4ec87d36f803daa1abd00220470b9225d0f5acb7af807af1cb43638f134492bc07d8d60f17295f9096d"
+            "25296012103331393f9487ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff98128fe8"
+            "5f695f77584a02d20569674c557056e689c342a18ecd3803f2c31703030000006a47304402206b521b8663386ab"
+            "faa861150ea9a1f444edf78e22682aef95791d2817177661a0220553f5c2bf0cd67053fbc3058f122522f7cb94f"
+            "9c2bea157d4df16d1dca9f9e4a012103331393f9487ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d"
             "51d1affffffff0310270000000000001976a9147f5aff9c5ec060a45b8405a7b4f65fce5909773e88ac10270000"
             "000000000a6a084e540125000a1f1410270000000000001976a9143f7eb8c3da2cbe606fd5d46b11ab921170577"
             "0db88ac00000000";
-        CDataStream  stream(ParseHex(transaction), SER_NETWORK, PROTOCOL_VERSION);
-        CTransaction tx;
-        stream >> tx;
+        CTransaction tx = TxFromHex(transaction);
         EXPECT_TRUE(tx.CheckTransaction());
+
+        std::string vinA =
+            "010000005944185b0226d0e3af9cf2fa36d2cbecd53d54dc68e35489c85fae907e050165dc1a980413010000006"
+            "a4730440220024193e8b8fad41d5672e6629b03ae662b61cf39bdf6a74ce3c4dac7cfb302a10220602741901ff9"
+            "898c922ad0da52e558361bea8b0bbcdd8a8e5f3810e1e48a63ee012103331393f9487ef4b318ae79972f3ccc84b"
+            "15d0718d7e05720c454404e67d51d1affffffffc486eeb847a82fcc78ed0a3cd83c2b7156bc5677b6488e7822f6"
+            "0df0ec42accd030000006a473044022052458345ebaa51676f3469174e086a3b4c65c8a0c1cee99cee1b7190835"
+            "c456702204f442eccdcbe25aab24b5ddb5ad3098b676699b3df47f5a1651667a23759c058012103331393f9487e"
+            "f4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff0410270000000000001976a9144440c"
+            "2f1bdc0ce2498f135a3e67434d0e765c57f88ac10270000000000001976a9143f7eb8c3da2cbe606fd5d46b11ab"
+            "9211705770db88ac10270000000000000f6a0d4e54011500201201802fadc75120830c00000000001976a9143f7"
+            "eb8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
+        CTransaction txVinA = TxFromHex(vinA);
+
+        std::string vinB =
+            "010000005764a35a02da1b4ac76bbcee52883fa9dca66badcf26419cbebad3649bad1716b07bfb9b42010000006"
+            "a473044022044cf586c7ff83f70e7826a1f1dca6b94a578fd00202ff0796022821fa5f0accf022003e4a5e7cd13"
+            "780eb237074ee0bdb8ca718c61db69f69dcf3eca186a075b185a012103331393f9487ef4b318ae79972f3ccc84b"
+            "15d0718d7e05720c454404e67d51d1affffffffe6f3e0c696cbf8478bcaf21ec97df5ae6619499813a4e84f2ff8"
+            "02644f4d4bc1030000006a47304402207fa6cd4be5571f207a379a3da6f908b3b4cda3f4e8464219357d99f46f6"
+            "5ddb0022037fe0c24e01d0a549313eab5699bf9e8cb098eea89df5aea49e3db377cdb1cf5012103331393f9487e"
+            "f4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff0410270000000000001976a91413d4f"
+            "e22b1d29a1bbeb3755441003e2380dcf13288ac10270000000000001976a9143f7eb8c3da2cbe606fd5d46b11ab"
+            "9211705770db88ac10270000000000000e6a0c4e5401150020120169894ba210270000000000001976a9143f7eb"
+            "8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
+        CTransaction txVinB = TxFromHex(vinB);
+
+        std::string vinC =
+            "010000006066a35a02d5e4c9c957fdfc9a737a22bc0a28d2260476687eb5c9b0b9debc1dd281f84e0f010000006"
+            "a47304402206e9241b719ceeeb35803170ff2f502779f3fdab1072481b1a2326618148dc4cf022048f478a43e8a"
+            "4301d9a877645f530c430a158e6aa81c4627b5fc21a9bfa8e4ff012103331393f9487ef4b318ae79972f3ccc84b"
+            "15d0718d7e05720c454404e67d51d1affffffff47750a9c7c1804b8e3ceaf092038df2f8289e827a10ae8daa547"
+            "2f3cae6cc9a2030000006b483045022100e01ba371ca19f4890a381f804e9cf6223e174ad9a558ee3adb1b74d88"
+            "d87a62f02205e688a1173dd8eaaf2173ae9958880c3eb3c8122ffd5fb22b793a0c292eea3c9012103331393f948"
+            "7ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff0410270000000000001976a914e1a"
+            "a4fabe4db6c5f6d262c830571288a746a06df88ac10270000000000001976a9143f7eb8c3da2cbe606fd5d46b11"
+            "ab9211705770db88ac10270000000000000e6a0c4e5401150020120169894a9210270000000000001976a9143f7"
+            "eb8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
+        CTransaction txVinC = TxFromHex(vinC);
+
+        std::string vinD =
+            "01000000c87ba35a028ce101d93f5d2a443f368f91a8eff8c86d13be0779db72d8e6b5d53b051444e4010000006"
+            "b483045022100a1b6d0ee3a9b5002735431d8b12ecb2dad7fd6a2b9086f072ca8c787ddd8781802201a7fe4cd73"
+            "d994ef4d620cde94292d46cb54744679bd1238cda064adf7a00e1a012103331393f9487ef4b318ae79972f3ccc8"
+            "4b15d0718d7e05720c454404e67d51d1afffffffff97366c14d0f369505f6fc90d7643e5c9484ad6c5e4353593c"
+            "b4c733b590a843030000006a47304402202b68c6b9ec4b5ae3caeed7c13036c414624a93196bd6a3c7bcab3bb35"
+            "0a4136d02206b2c5536f0624f2ed58ecc1e976a55b9124960c1f60939af3c6a232aa0e8d69c012103331393f948"
+            "7ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff0410270000000000001976a9148a4"
+            "b68e051ba56f5ef5fd101e23eabd6c5969c0488ac10270000000000001976a9143f7eb8c3da2cbe606fd5d46b11"
+            "ab9211705770db88ac10270000000000000e6a0c4e540115002012016989403210270000000000001976a9143f7"
+            "eb8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
+        CTransaction txVinD = TxFromHex(vinD);
+
+        std::vector<CTransaction> inputs{txVinA, txVinB, txVinC, txVinD};
 
         std::string opReturnArg;
         EXPECT_TRUE(IsTxNTP1(&tx, &opReturnArg));
@@ -703,63 +811,30 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction)
         EXPECT_EQ(scriptPtrD->getTxType(), NTP1Script::TxType::TxType_Burn);
 
         NTP1Transaction ntp1tx;
-        EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx));
+        EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs));
         EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)4);
         // inputs are unknown, so no more tests
         EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)3);
-        // TODO: This transaction was not broadcast successfully
-        //        EXPECT_EQ(ntp1tx.getTxOut(0).getNumOfTokens(), (unsigned)1);
-        //        EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), (uint64_t)10);
-        //        EXPECT_EQ(ntp1tx.getTxOut(1).getNumOfTokens(), (unsigned)0);
-        //        EXPECT_EQ(ntp1tx.getTxOut(2).getNumOfTokens(), (unsigned)1);
-        //        EXPECT_EQ(ntp1tx.getTxOut(2).getToken(0).getAmount(), (uint64_t)999897350);
-        EXPECT_EQ(ntp1tx.getTxHash().ToString(), tx.GetHash().ToString());
+        EXPECT_EQ(ntp1tx.getTxOut(0).getNumOfTokens(), (unsigned)1);
+        EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), (uint64_t)10);
+        EXPECT_EQ(ntp1tx.getTxOut(1).getNumOfTokens(), (unsigned)0);
+        EXPECT_EQ(ntp1tx.getTxOut(2).getNumOfTokens(), (unsigned)0);
+
+        EXPECT_EQ(ntp1tx.getTxHash().ToString(),
+                  "008d329611fcbdb82b4adb097c29f1d6a56707bfb232c8c124390756e80a9e44");
+
+        // inputs
+        EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getHash().ToString(),
+                  "c0563ccccee98f68d519bcf9c595e459876c9f6fcfbd046f85e6fc56309735e9");
+        EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), (unsigned)1);
+        EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getHash().ToString(),
+                  "034849559c1ed8211644c7def3536688ec5766d3a7f7f977f190590d7bb7db05");
+        EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getIndex(), (unsigned)3);
+        EXPECT_EQ(ntp1tx.getTxIn(2).getPrevout().getHash().ToString(),
+                  "0132cf38f3a298403427e8c3203f030141efff9c0d3a3fb7fef10ab4452771df");
+        EXPECT_EQ(ntp1tx.getTxIn(2).getPrevout().getIndex(), (unsigned)3);
+        EXPECT_EQ(ntp1tx.getTxIn(3).getPrevout().getHash().ToString(),
+                  "0317c3f20338cd8ea142c389e65670554c676905d2024a58775f695fe88f1298");
+        EXPECT_EQ(ntp1tx.getTxIn(3).getPrevout().getIndex(), (unsigned)3);
     }
-    //    {
-    //        // burn with transfer
-    //        string transaction =
-    //            "0100000048b1535b04e935973056fce6856f04bdcf6f9f6c8759e495c5f9bc19d5688fe9cecc3c56c0010000006"
-    //            "b483045022100b004a3201d922e25579d2feba02dad95df573e5dee5efb6cc4c761348e08c580022003a860417f"
-    //            "0de670b3a08df43d244aa16661f5218830bf5eb73b938050c8112a012103331393f9487ef4b318ae79972f3ccc8"
-    //            "4b15d0718d7e05720c454404e67d51d1affffffff05dbb77b0d5990f177f9f7a7d36657ec886653f3dec7441621"
-    //            "d81e9c55494803030000006a473044022039b3c6719b340f77a178e781a2f3bc6be0dcc78ea03ec413cc6527dff"
-    //            "6abf96902204abf71cc27430089bed9c7692cd67af66ece912d67b60f401da0b2a4bfa5bc38012103331393f948"
-    //            "7ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffffdf712745b40af1feb73f3a0d9cffe"
-    //            "f4101033f20c3e827344098a2f338cf3201030000006a47304402201a8fdafcb5d0528eee7d3abf02ec4f9acdd6"
-    //            "90c26ded4ec87d36f803daa1abd00220470b9225d0f5acb7af807af1cb43638f134492bc07d8d60f17295f9096d"
-    //            "25296012103331393f9487ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff98128fe8"
-    //            "5f695f77584a02d20569674c557056e689c342a18ecd3803f2c31703030000006a47304402206b521b8663386ab"
-    //            "faa861150ea9a1f444edf78e22682aef95791d2817177661a0220553f5c2bf0cd67053fbc3058f122522f7cb94f"
-    //            "9c2bea157d4df16d1dca9f9e4a012103331393f9487ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d"
-    //            "51d1affffffff0310270000000000001976a9147f5aff9c5ec060a45b8405a7b4f65fce5909773e88ac10270000"
-    //            "000000000a6a084e540125000a1f1410270000000000001976a9143f7eb8c3da2cbe606fd5d46b11ab921170577"
-    //            "0db88ac00000000";
-    //        CDataStream  stream(ParseHex(transaction), SER_NETWORK, PROTOCOL_VERSION);
-    //        CTransaction tx;
-    //        stream >> tx;
-    //        EXPECT_TRUE(tx.CheckTransaction());
-
-    //        std::string opReturnArg;
-    //        EXPECT_TRUE(IsTxNTP1(&tx, &opReturnArg));
-    //        std::shared_ptr<NTP1Script>      scriptPtr = NTP1Script::ParseScript(opReturnArg);
-    //        std::shared_ptr<NTP1Script_Burn> scriptPtrD =
-    //            std::dynamic_pointer_cast<NTP1Script_Burn>(scriptPtr);
-    //        EXPECT_NE(scriptPtr.get(), nullptr);
-    //        EXPECT_NE(scriptPtrD.get(), nullptr);
-    //        EXPECT_EQ(scriptPtrD->getTxType(), NTP1Script::TxType::TxType_Burn);
-
-    //        NTP1Transaction ntp1tx;
-    //        EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx));
-    //        EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)4);
-    //        // inputs are unknown, so no more tests
-    //        EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)3);
-    //        // TODO
-    //        //        EXPECT_EQ(ntp1tx.getTxOut(0).getNumOfTokens(), (unsigned)1);
-    //        //        EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), (uint64_t)10);
-    //        //        EXPECT_EQ(ntp1tx.getTxOut(1).getNumOfTokens(), (unsigned)0);
-    //        //        EXPECT_EQ(ntp1tx.getTxOut(2).getNumOfTokens(), (unsigned)1);
-    //        //        EXPECT_EQ(ntp1tx.getTxOut(2).getToken(0).getAmount(), (uint64_t)999897350);
-    //        EXPECT_EQ(ntp1tx.getTxHash().ToString(),
-    //                  "008d329611fcbdb82b4adb097c29f1d6a56707bfb232c8c124390756e80a9e44");
-    //    }
 }

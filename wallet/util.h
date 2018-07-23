@@ -236,7 +236,25 @@ void        AddTimeData(const CNetAddr& ip, int64_t nTime);
 void        runCommand(std::string strCommand);
 
 template <typename T>
-std::string ToString(T const& value)
+std::string ToHexString(T&& value, bool prepend_0x = true)
+{
+    std::ostringstream ss;
+    ss << (prepend_0x ? "0x" : "") << std::hex << std::uppercase << value;
+    return ss.str();
+}
+
+template <typename T, typename U>
+typename std::enable_if<std::is_convertible<U, std::string>::value, T>::type FromHexString(U&& str)
+{
+    std::stringstream ss;
+    ss << std::hex << str;
+    T res;
+    ss >> res;
+    return res;
+}
+
+template <typename T>
+std::string ToString(T&& value)
 {
     std::stringstream sstr;
 
@@ -244,8 +262,8 @@ std::string ToString(T const& value)
     return sstr.str();
 }
 
-template <typename T>
-T FromString(std::string str)
+template <typename T, typename U>
+typename std::enable_if<std::is_convertible<U, std::string>::value, T>::type FromString(U&& str)
 {
     std::stringstream ss;
     ss << str;

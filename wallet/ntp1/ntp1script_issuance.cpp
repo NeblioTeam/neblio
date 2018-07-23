@@ -1,6 +1,34 @@
 #include "ntp1script_issuance.h"
 
+#include "base58.h"
+#include "hash.h"
+#include "util.h"
 #include <boost/algorithm/hex.hpp>
+
+std::string NTP1Script_Issuance::__getAggregAndLockStatusTokenIDHexValue() const
+{
+    std::string aggregatableHex;
+    if (isLocked()) {
+        if (getAggregationPolicy() == IssuanceFlags::AggregationPolicy::AggregationPolicy_Aggregatable) {
+            aggregatableHex = "20ce";
+        } else if (getAggregationPolicy() ==
+                   IssuanceFlags::AggregationPolicy::AggregationPolicy_NonAggregatable) {
+            aggregatableHex = "20e4";
+        } else {
+            throw std::runtime_error("Unknown aggregation policity for token: " + getTokenSymbol());
+        }
+    } else {
+        if (getAggregationPolicy() == IssuanceFlags::AggregationPolicy::AggregationPolicy_Aggregatable) {
+            aggregatableHex = "2e37";
+        } else if (getAggregationPolicy() ==
+                   IssuanceFlags::AggregationPolicy::AggregationPolicy_NonAggregatable) {
+            aggregatableHex = "2e4e";
+        } else {
+            throw std::runtime_error("Unknown aggregation policity for token: " + getTokenSymbol());
+        }
+    }
+    return aggregatableHex;
+}
 
 NTP1Script_Issuance::NTP1Script_Issuance() {}
 
@@ -83,5 +111,40 @@ NTP1Script_Issuance::ParseIssuancePostHeaderData(std::string ScriptBin, std::str
     }
 
     result->issuanceFlags = IssuanceFlags::ParseIssuanceFlag(ScriptBin.at(0));
+    return result;
+}
+
+std::string NTP1Script_Issuance::getTokenID(std::string input0txid, unsigned int input0index) const
+{
+    // txid should be lower case
+    std::transform(input0txid.begin(), input0txid.end(), input0txid.begin(), ::tolower);
+
+    std::string tohash = input0txid + ":" + std::to_string(input0index);
+
+    std::vector<unsigned char> sha256_result(32);
+    std::vector<unsigned char> rip160_result(20);
+    SHA256(reinterpret_cast<unsigned char*>(&tohash.front()), tohash.size(), &sha256_result.front());
+    RIPEMD160(&sha256_result.front(), sha256_result.size(), &rip160_result.front());
+
+    // get padded divisibility
+    std::string divisibilityHex = ToHexString(getDivisibility(), false);
+    if (divisibilityHex.size() > 4) {
+        throw std::runtime_error("Divisibility hex value has more than 4 digits for token " +
+                                 getTokenSymbol());
+    }
+    divisibilityHex             = std::string(4 - divisibilityHex.size(), '0') + divisibilityHex;
+    std::string divisibilityBin = boost::algorithm::unhex(divisibilityHex);
+
+    // aggregation policy and lock status
+    std::string aggregatableHex = __getAggregAndLockStatusTokenIDHexValue();
+    std::string aggregatableBin = boost::algorithm::unhex(aggregatableHex);
+
+    std::vector<unsigned char> toBase58Check;
+    toBase58Check.insert(toBase58Check.end(), aggregatableBin.begin(), aggregatableBin.end());
+    toBase58Check.insert(toBase58Check.end(), rip160_result.begin(), rip160_result.end());
+    toBase58Check.insert(toBase58Check.end(), divisibilityBin.begin(), divisibilityBin.end());
+
+    std::string result = EncodeBase58Check(toBase58Check);
+
     return result;
 }

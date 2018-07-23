@@ -8,24 +8,24 @@
 
 class NTP1TokenTxData
 {
-    uint64_t                   amount;
-    std::vector<unsigned char> tokenId;
-    uint256                    issueTxId;
-    uint64_t                   divisibility;
-    bool                       lockStatus;
-    std::string                aggregationPolicy;
-    std::string                tokenSymbol;
+    uint64_t    amount;
+    std::string tokenId;
+    uint256     issueTxId;
+    uint64_t    divisibility;
+    bool        lockStatus;
+    std::string aggregationPolicy;
+    std::string tokenSymbol;
 
 public:
     NTP1TokenTxData();
     void               setNull();
-    void               setTokenIdBase58(const std::string& Str);
+    void               setTokenId(const std::string& Str);
     void               setIssueTxIdHex(const std::string& hex);
     void               importJsonData(const std::string& data);
     void               importJsonData(const json_spirit::Value& data);
     json_spirit::Value exportDatabaseJsonData() const;
     void               importDatabaseJsonData(const json_spirit::Value& data);
-    std::string        getTokenIdBase58() const;
+    std::string        getTokenId() const;
     uint64_t           getAmount() const;
     void               setAmount(const uint64_t& value);
     uint64_t           getDivisibility() const;

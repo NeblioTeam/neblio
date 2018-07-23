@@ -28,6 +28,8 @@ public:
     json_spirit::Value     exportDatabaseJsonData() const;
     void                   importDatabaseJsonData(const json_spirit::Value& data);
     NTP1OutPoint           getOutPoint() const;
+    NTP1OutPoint           getPrevout() const;
+    void                   setPrevout(const NTP1OutPoint& value);
     std::string            getScriptSigHex() const;
     uint64_t               getSequence() const;
     const NTP1TokenTxData& getToken(unsigned long index) const;

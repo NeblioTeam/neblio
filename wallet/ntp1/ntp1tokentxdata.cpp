@@ -25,14 +25,7 @@ void NTP1TokenTxData::setNull()
     aggregationPolicy.clear();
 }
 
-void NTP1TokenTxData::setTokenIdBase58(const std::string& Str)
-{
-    if (!DecodeBase58(Str, tokenId)) {
-        std::string errorMsg = "Failed to decode token ID base58: " + Str;
-        printf("%s", errorMsg.c_str());
-        throw std::runtime_error(errorMsg.c_str());
-    }
-}
+void NTP1TokenTxData::setTokenId(const std::string& Str) { tokenId = Str; }
 
 void NTP1TokenTxData::setIssueTxIdHex(const std::string& hex) { issueTxId.SetHex(hex); }
 
@@ -51,7 +44,7 @@ void NTP1TokenTxData::importJsonData(const std::string& data)
 void NTP1TokenTxData::importJsonData(const json_spirit::Value& data)
 {
     try {
-        setTokenIdBase58(NTP1Tools::GetStrField(data.get_obj(), "tokenId"));
+        setTokenId(NTP1Tools::GetStrField(data.get_obj(), "tokenId"));
         setIssueTxIdHex(NTP1Tools::GetStrField(data.get_obj(), "issueTxid"));
         amount            = NTP1Tools::GetUint64Field(data.get_obj(), "amount");
         divisibility      = NTP1Tools::GetUint64Field(data.get_obj(), "divisibility");
@@ -67,7 +60,7 @@ json_spirit::Value NTP1TokenTxData::exportDatabaseJsonData() const
 {
     json_spirit::Object root;
 
-    root.push_back(json_spirit::Pair("tokenId", getTokenIdBase58()));
+    root.push_back(json_spirit::Pair("tokenId", getTokenId()));
     root.push_back(json_spirit::Pair("issueTxid", getIssueTxId().ToString()));
     root.push_back(json_spirit::Pair("amount", amount));
     root.push_back(json_spirit::Pair("divisibility", divisibility));
@@ -81,7 +74,7 @@ void NTP1TokenTxData::importDatabaseJsonData(const json_spirit::Value& data)
 {
     setNull();
 
-    setTokenIdBase58(NTP1Tools::GetStrField(data.get_obj(), "tokenId"));
+    setTokenId(NTP1Tools::GetStrField(data.get_obj(), "tokenId"));
     setIssueTxIdHex(NTP1Tools::GetStrField(data.get_obj(), "issueTxid"));
     amount            = NTP1Tools::GetUint64Field(data.get_obj(), "amount");
     divisibility      = NTP1Tools::GetUint64Field(data.get_obj(), "divisibility");
@@ -89,7 +82,7 @@ void NTP1TokenTxData::importDatabaseJsonData(const json_spirit::Value& data)
     aggregationPolicy = NTP1Tools::GetStrField(data.get_obj(), "aggregationPolicy");
 }
 
-std::string NTP1TokenTxData::getTokenIdBase58() const { return EncodeBase58(tokenId); }
+std::string NTP1TokenTxData::getTokenId() const { return tokenId; }
 
 uint64_t NTP1TokenTxData::getAmount() const { return amount; }
 

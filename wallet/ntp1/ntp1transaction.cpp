@@ -11,6 +11,8 @@
 
 #include <boost/algorithm/hex.hpp>
 
+unsigned int nCurrentNTP1TxsFile = 1;
+
 NTP1Transaction::NTP1Transaction() { setNull(); }
 
 void NTP1Transaction::setNull()
@@ -131,7 +133,7 @@ unsigned long NTP1Transaction::getTxOutCount() const { return vout.size(); }
 
 const NTP1TxOut& NTP1Transaction::getTxOut(unsigned long index) const { return vout[index]; }
 
-void NTP1Transaction::readNTP1DataFromTx(const CTransaction& tx)
+void NTP1Transaction::readNTP1DataFromTx(const CTransaction& tx, const std::vector<CTransaction>& inputs)
 {
     std::string opReturnArg;
     if (!IsTxNTP1(&tx, &opReturnArg)) {
@@ -139,10 +141,32 @@ void NTP1Transaction::readNTP1DataFromTx(const CTransaction& tx)
         return;
     }
 
+    // resize NTP1 input size to match normal outputs size and clear tokens for recalculation
     for (auto&& in : vin) {
         in.tokens.clear();
     }
     vin.resize(tx.vin.size());
+
+    // null elements are supposed to be non-NTP1 transactions; invalid inputs throw exceptions
+    std::vector<std::shared_ptr<NTP1Script>> inputNTP1Scripts(vin.size());
+    for (unsigned i = 0; i < tx.vin.size(); i++) {
+        vin[i].setPrevout(NTP1OutPoint(tx.vin[i].prevout.hash, tx.vin[i].prevout.n));
+        // find inputs in the list of inputs and parse their OP_RETURN
+        auto it = std::find_if(inputs.cbegin(), inputs.cend(), [this, i](const CTransaction& in) {
+            return in.GetHash() == vin[i].getPrevout().getHash();
+        });
+        if (it == inputs.end()) {
+            throw std::runtime_error("Could not find all relevant inputs in the inputs list");
+        }
+        std::string opReturnArgInput;
+        // if the transaction is not NTP1, continue
+        if (!IsTxNTP1(&(*it), &opReturnArgInput)) {
+            continue;
+        }
+        inputNTP1Scripts[i] = NTP1Script::ParseScript(opReturnArgInput);
+    }
+
+    // resize NTP1 output size to match normal outputs size and clear tokens for recalculation
     for (auto&& out : vout) {
         out.tokens.clear();
     }
@@ -156,7 +180,12 @@ void NTP1Transaction::readNTP1DataFromTx(const CTransaction& tx)
         std::shared_ptr<NTP1Script_Issuance> scriptPtrD =
             std::dynamic_pointer_cast<NTP1Script_Issuance>(scriptPtr);
         uint64_t totalAmountLeft = scriptPtrD->getAmount();
+        if (tx.vin.size() < 1) {
+            throw std::runtime_error("Number of inputs is zero for transaction: " +
+                                     tx.GetHash().ToString());
+        }
         for (long i = 0; i < scriptPtrD->getTransferInstructionsCount(); i++) {
+            // TODO: verify fees; do we have to check the fees here?
             NTP1TokenTxData ntp1tokenTxData;
             const auto&     instruction = scriptPtrD->getTransferInstruction(i);
             if (instruction.outputIndex >= static_cast<int>(tx.vout.size())) {
@@ -180,9 +209,10 @@ void NTP1Transaction::readNTP1DataFromTx(const CTransaction& tx)
             ntp1tokenTxData.setAggregationPolicy(scriptPtrD->getAggregationPolicyStr());
             ntp1tokenTxData.setDivisibility(scriptPtrD->getDivisibility());
             ntp1tokenTxData.setTokenSymbol(scriptPtrD->getTokenSymbol());
+            ntp1tokenTxData.setLockStatus(scriptPtrD->isLocked());
             ntp1tokenTxData.setIssueTxIdHex(tx.GetHash().ToString());
-            // TODO: fill these
-            //            ntp1tokenTxData.setTokenIdBase58();
+            ntp1tokenTxData.setTokenId(
+                scriptPtrD->getTokenID(tx.vin[0].prevout.hash.ToString(), tx.vin[0].prevout.n));
             vout[instruction.outputIndex].tokens.push_back(ntp1tokenTxData);
         }
 
@@ -276,6 +306,154 @@ void NTP1Transaction::readNTP1DataFromTx(const CTransaction& tx)
     }
 }
 
+// void NTP1Transaction::readNTP1DataFromTx(const CTransaction& tx)
+//{
+//    std::string opReturnArg;
+//    if (!IsTxNTP1(&tx, &opReturnArg)) {
+//        ntp1TransactionType = NTP1TxType_NOT_NTP1;
+//        return;
+//    }
+
+//    for (auto&& in : vin) {
+//        in.tokens.clear();
+//    }
+//    vin.resize(tx.vin.size());
+//    for (unsigned i = 0; i < tx.vin.size(); i++) {
+//        vin[i].setPrevout(NTP1OutPoint(tx.vin[i].prevout.hash, tx.vin[i].prevout.n));
+//    }
+//    for (auto&& out : vout) {
+//        out.tokens.clear();
+//    }
+//    vout.resize(tx.vout.size());
+
+//    txHash = tx.GetHash();
+
+//    std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScript(opReturnArg);
+//    if (scriptPtr->getTxType() == NTP1Script::TxType::TxType_Issuance) {
+//        ntp1TransactionType = NTP1TxType_ISSUANCE;
+//        std::shared_ptr<NTP1Script_Issuance> scriptPtrD =
+//            std::dynamic_pointer_cast<NTP1Script_Issuance>(scriptPtr);
+//        uint64_t totalAmountLeft = scriptPtrD->getAmount();
+//        for (long i = 0; i < scriptPtrD->getTransferInstructionsCount(); i++) {
+//            NTP1TokenTxData ntp1tokenTxData;
+//            const auto&     instruction = scriptPtrD->getTransferInstruction(i);
+//            if (instruction.outputIndex >= static_cast<int>(tx.vout.size())) {
+//                throw std::runtime_error("An output of issuance is outside the available range of "
+//                                         "outputs in NTP1 OP_RETURN argument: " +
+//                                         opReturnArg + ", where the number of available outputs is " +
+//                                         ::ToString(tx.vout.size()) + " in transaction " +
+//                                         tx.GetHash().ToString());
+//            }
+//            uint64_t currentAmount = instruction.amount;
+
+//            // ensure the output is larger than input
+//            if (totalAmountLeft < currentAmount) {
+//                throw std::runtime_error("The amount targeted to outputs in bigger than the amount "
+//                                         "issued in NTP1 OP_RETURN argument: " +
+//                                         opReturnArg);
+//            }
+
+//            totalAmountLeft -= currentAmount;
+//            ntp1tokenTxData.setAmount(currentAmount);
+//            ntp1tokenTxData.setAggregationPolicy(scriptPtrD->getAggregationPolicyStr());
+//            ntp1tokenTxData.setDivisibility(scriptPtrD->getDivisibility());
+//            ntp1tokenTxData.setTokenSymbol(scriptPtrD->getTokenSymbol());
+//            ntp1tokenTxData.setIssueTxIdHex(tx.GetHash().ToString());
+//            // TODO: fill these
+//            //            ntp1tokenTxData.setTokenIdBase58();
+//            vout[instruction.outputIndex].tokens.push_back(ntp1tokenTxData);
+//        }
+
+//    } else if (scriptPtr->getTxType() == NTP1Script::TxType::TxType_Transfer) {
+//        ntp1TransactionType = NTP1TxType_TRANSFER;
+//        std::shared_ptr<NTP1Script_Transfer> scriptPtrD =
+//            std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
+//        int currentInputIndex = 0;
+//        for (long i = 0; i < scriptPtrD->getTransferInstructionsCount(); i++) {
+//            const auto& instruction = scriptPtrD->getTransferInstruction(i);
+
+//            // if skip, move on to the next input
+//            if (instruction.skipInput) {
+//                currentInputIndex++;
+//                continue;
+//            }
+//            if (currentInputIndex >= static_cast<int>(vin.size())) {
+//                throw std::runtime_error("An input of transfer instruction is outside the available "
+//                                         "range of inputs in NTP1 OP_RETURN argument: " +
+//                                         opReturnArg + ", where the number of available inputs is " +
+//                                         ::ToString(tx.vin.size()) + " in transaction " +
+//                                         tx.GetHash().ToString());
+//            }
+//            int outputIndex = instruction.outputIndex;
+//            if (outputIndex >= static_cast<int>(vout.size())) {
+//                throw std::runtime_error("An output of transfer instruction is outside the available "
+//                                         "range of outputs in NTP1 OP_RETURN argument: " +
+//                                         opReturnArg + ", where the number of available outputs is " +
+//                                         ::ToString(tx.vout.size()) + " in transaction " +
+//                                         tx.GetHash().ToString());
+//            }
+//            uint64_t currentAmount = instruction.amount;
+
+//            NTP1TokenTxData ntp1tokenTxData;
+//            ntp1tokenTxData.setAmount(currentAmount);
+
+//            // we set only the amount because the other stuff is still unknown
+//            // we don't set inputs because that's still unknown from OP_RETURN
+//            vout[outputIndex].tokens.push_back(ntp1tokenTxData);
+
+//            currentInputIndex++;
+//        }
+//    } else if (scriptPtr->getTxType() == NTP1Script::TxType::TxType_Burn) {
+//        ntp1TransactionType = NTP1TxType_BURN;
+//        std::shared_ptr<NTP1Script_Burn> scriptPtrD =
+//            std::dynamic_pointer_cast<NTP1Script_Burn>(scriptPtr);
+//        int currentInputIndex = 0;
+//        for (long i = 0; i < scriptPtrD->getTransferInstructionsCount(); i++) {
+//            const auto& instruction = scriptPtrD->getTransferInstruction(i);
+
+//            // if skip, move on to the next input
+//            if (instruction.skipInput) {
+//                currentInputIndex++;
+//                continue;
+//            }
+//            if (currentInputIndex >= static_cast<int>(vin.size())) {
+//                throw std::runtime_error("An input of transfer instruction is outside the available "
+//                                         "range of inputs in NTP1 OP_RETURN argument: " +
+//                                         opReturnArg + ", where the number of available inputs is " +
+//                                         ::ToString(tx.vin.size()) + " in transaction " +
+//                                         tx.GetHash().ToString());
+//            }
+//            int outputIndex = instruction.outputIndex;
+//            // output 31 is for burning
+//            if (outputIndex == 31) {
+//                currentInputIndex++;
+//                continue;
+//            }
+//            if (outputIndex >= static_cast<int>(vout.size())) {
+//                throw std::runtime_error("An output of transfer instruction is outside the available "
+//                                         "range of outputs in NTP1 OP_RETURN argument: " +
+//                                         opReturnArg + ", where the number of available outputs is " +
+//                                         ::ToString(tx.vout.size()) + " in transaction " +
+//                                         tx.GetHash().ToString());
+//            }
+//            uint64_t currentAmount = instruction.amount;
+
+//            NTP1TokenTxData ntp1tokenTxData;
+//            ntp1tokenTxData.setAmount(currentAmount);
+
+//            // we set only the amount because the other stuff is still unknown
+//            // we don't set inputs because that's still unknown from OP_RETURN
+//            vout[outputIndex].tokens.push_back(ntp1tokenTxData);
+
+//            currentInputIndex++;
+//        }
+
+//    } else {
+//        ntp1TransactionType = NTP1TxType_INVALID;
+//        throw std::runtime_error("Unknown NTP1 transaction type");
+//    }
+//}
+
 bool NTP1Transaction::writeToDisk(unsigned int& nFileRet, unsigned int& nTxPosRet)
 {
     // Open history file to append
@@ -300,9 +478,9 @@ bool NTP1Transaction::writeToDisk(unsigned int& nFileRet, unsigned int& nTxPosRe
 bool NTP1Transaction::readFromDisk(DiskNTP1TxPos pos, FILE** pfileRet)
 {
     CAutoFile filein =
-        CAutoFile(OpenBlockFile(pos.nFile, 0, pfileRet ? "rb+" : "rb"), SER_DISK, CLIENT_VERSION);
+        CAutoFile(OpenNTP1TxsFile(pos.nFile, 0, pfileRet ? "rb+" : "rb"), SER_DISK, CLIENT_VERSION);
     if (!filein)
-        return error("NTP1Transaction::ReadFromDisk() : OpenBlockFile failed");
+        return error("NTP1Transaction::ReadFromDisk() : OpenNTP1TxsFile failed");
 
     // Read transaction
     if (fseek(filein, pos.nTxPos, SEEK_SET) != 0)
@@ -321,4 +499,45 @@ bool NTP1Transaction::readFromDisk(DiskNTP1TxPos pos, FILE** pfileRet)
         *pfileRet = filein.release();
     }
     return true;
+}
+
+FILE* OpenNTP1TxsFile(unsigned int nFile, unsigned int nTxPos, const char* pszMode)
+{
+    if ((nFile < 1) || (nFile == (unsigned int)-1))
+        return NULL;
+    FILE* file = fopen(NTP1TxsFilePath(nFile).string().c_str(), pszMode);
+    if (!file)
+        return NULL;
+    if (nTxPos != 0 && !strchr(pszMode, 'a') && !strchr(pszMode, 'w')) {
+        if (fseek(file, nTxPos, SEEK_SET) != 0) {
+            fclose(file);
+            return NULL;
+        }
+    }
+    return file;
+}
+
+FILE* AppendNTP1TxsFile(unsigned int& nFileRet)
+{
+    nFileRet = 0;
+    while (true) {
+        FILE* file = OpenNTP1TxsFile(nCurrentNTP1TxsFile, 0, "ab");
+        if (!file)
+            return NULL;
+        if (fseek(file, 0, SEEK_END) != 0)
+            return NULL;
+        // FAT32 file size max 4GB, fseek and ftell max 2GB, so we must stay under 2GB
+        if (ftell(file) < (long)(0x7F000000 - MAX_SIZE)) {
+            nFileRet = nCurrentNTP1TxsFile;
+            return file;
+        }
+        fclose(file);
+        nCurrentNTP1TxsFile++;
+    }
+}
+
+boost::filesystem::path NTP1TxsFilePath(unsigned int nFile)
+{
+    string strNTP1TxsFn = strprintf("ntp1txs%04u.dat", nFile);
+    return GetDataDir() / strNTP1TxsFn;
 }

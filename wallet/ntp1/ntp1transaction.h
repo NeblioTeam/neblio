@@ -6,6 +6,7 @@
 #include "ntp1txout.h"
 #include "uint256.h"
 
+#include <boost/filesystem/path.hpp>
 #include <string>
 #include <vector>
 
@@ -18,7 +19,7 @@ public:
 
     DiskNTP1TxPos() { SetNull(); }
 
-    DiskNTP1TxPos(unsigned int nFileIn, unsigned int nBlockPosIn, unsigned int nTxPosIn)
+    DiskNTP1TxPos(unsigned int nFileIn, unsigned int nTxPosIn)
     {
         nFile  = nFileIn;
         nTxPos = nTxPosIn;
@@ -49,6 +50,14 @@ public:
 
     void print() const { printf("%s", ToString().c_str()); }
 };
+
+boost::filesystem::path NTP1TxsFilePath(unsigned int nFile);
+
+extern unsigned int nCurrentNTP1TxsFile;
+
+extern FILE* AppendNTP1TxsFile(unsigned int& nFileRet);
+
+extern FILE* OpenNTP1TxsFile(unsigned int nFile, unsigned int nTxPos, const char* pszMode);
 
 /**
  * @brief The NTP1Transaction class
@@ -97,7 +106,7 @@ public:
     const NTP1TxOut&   getTxOut(unsigned long index) const;
     friend inline bool operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs);
 
-    void readNTP1DataFromTx(const CTransaction& tx);
+    void readNTP1DataFromTx(const CTransaction& tx, const std::vector<CTransaction>& inputs);
 
     bool writeToDisk(unsigned int& nFileRet, unsigned int& nTxPosRet);
     bool readFromDisk(DiskNTP1TxPos pos, FILE** pfileRet = NULL);

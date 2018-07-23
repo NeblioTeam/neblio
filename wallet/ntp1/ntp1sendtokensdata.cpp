@@ -71,7 +71,7 @@ void NTP1SendTokensData::calculateSources(boost::shared_ptr<NTP1Wallet> wallet, 
             auto numOfTokensInOutput = ntp1txOut.getNumOfTokens();
             bool takeThisTransaction = false;
             for (auto i = 0u; i < numOfTokensInOutput; i++) {
-                std::string outputTokenId = ntp1txOut.getToken(i).getTokenIdBase58();
+                std::string outputTokenId = ntp1txOut.getToken(i).getTokenId();
                 // if token id matches in the transaction with the required one, take it into account
                 int64_t required_amount_still =
                     required_amount.second - fulfilledTokenAmounts[outputTokenId];
@@ -87,7 +87,7 @@ void NTP1SendTokensData::calculateSources(boost::shared_ptr<NTP1Wallet> wallet, 
             // 3. add the address to the list of addresses to use
             if (takeThisTransaction) {
                 for (auto i = 0u; i < numOfTokensInOutput; i++) {
-                    std::string outputTokenId = ntp1txOut.getToken(i).getTokenIdBase58();
+                    std::string outputTokenId = ntp1txOut.getToken(i).getTokenId();
                     fulfilledTokenAmounts[outputTokenId] += ntp1txOut.getToken(i).getAmount();
                 }
                 tokenSourceAddresses.push_back(ntp1txOut.getAddress());

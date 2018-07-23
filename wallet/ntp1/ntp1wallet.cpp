@@ -94,10 +94,9 @@ void NTP1Wallet::__getOutputs()
             walletOutputsWithTokens[output] = ntp1tx;
             for (long j = 0; j < static_cast<long>(ntp1tx.getTxOut(output.getIndex()).getNumOfTokens());
                  j++) {
-                NTP1TokenTxData tokenTx = ntp1tx.getTxOut(output.getIndex()).getToken(j);
-                tokenInformation[tokenTx.getTokenIdBase58()] =
-                    NTP1APICalls::RetrieveData_NTP1TokensMetaData(
-                        tokenTx.getTokenIdBase58(), txHash.ToString(), output.getIndex(), fTestNet);
+                NTP1TokenTxData tokenTx                = ntp1tx.getTxOut(output.getIndex()).getToken(j);
+                tokenInformation[tokenTx.getTokenId()] = NTP1APICalls::RetrieveData_NTP1TokensMetaData(
+                    tokenTx.getTokenId(), txHash.ToString(), output.getIndex(), fTestNet);
             }
         }
     }
@@ -130,7 +129,7 @@ void NTP1Wallet::AddOutputToWalletBalance(const NTP1Transaction& tx, int outputI
 {
     for (long j = 0; j < static_cast<long>(tx.getTxOut(outputIndex).getNumOfTokens()); j++) {
         NTP1TokenTxData    tokenTx = tx.getTxOut(outputIndex).getToken(j);
-        const std::string& tokenID = tokenTx.getTokenIdBase58();
+        const std::string& tokenID = tokenTx.getTokenId();
         if (balancesTable.find(tokenID) == balancesTable.end()) {
             balancesTable[tokenID] = tokenTx.getAmount();
         } else {
@@ -232,7 +231,7 @@ string NTP1Wallet::getTokenId(int index) const
     if (itToken == tokenInformation.end()) {
         return std::string("<TokenIdError>");
     } else {
-        return itToken->second.getTokenIdBase58();
+        return itToken->second.getTokenId();
     }
 }
 
