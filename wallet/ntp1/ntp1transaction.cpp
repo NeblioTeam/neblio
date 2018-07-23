@@ -133,7 +133,8 @@ unsigned long NTP1Transaction::getTxOutCount() const { return vout.size(); }
 
 const NTP1TxOut& NTP1Transaction::getTxOut(unsigned long index) const { return vout[index]; }
 
-void NTP1Transaction::readNTP1DataFromTx(const CTransaction& tx, const std::vector<CTransaction>& inputs)
+void NTP1Transaction::readNTP1DataFromTx(const CTransaction& tx, const std::vector<CTransaction>& inputs,
+                                         const std::vector<CTransaction>& issuanceTxs)
 {
     std::string opReturnArg;
     if (!IsTxNTP1(&tx, &opReturnArg)) {
@@ -454,10 +455,11 @@ void NTP1Transaction::readNTP1DataFromTx(const CTransaction& tx, const std::vect
 //    }
 //}
 
-bool NTP1Transaction::writeToDisk(unsigned int& nFileRet, unsigned int& nTxPosRet)
+bool NTP1Transaction::writeToDisk(unsigned int& nFileRet, unsigned int& nTxPosRet, FILE* customFile)
 {
     // Open history file to append
-    CAutoFile fileout = CAutoFile(AppendNTP1TxsFile(nFileRet), SER_DISK, CLIENT_VERSION);
+    CAutoFile fileout = CAutoFile((customFile == nullptr ? AppendNTP1TxsFile(nFileRet) : customFile),
+                                  SER_DISK, CLIENT_VERSION);
     if (!fileout)
         return error("NTP1Transaction::WriteToDisk() : AppendNTP1TxsFile failed");
 
@@ -475,10 +477,11 @@ bool NTP1Transaction::writeToDisk(unsigned int& nFileRet, unsigned int& nTxPosRe
     return true;
 }
 
-bool NTP1Transaction::readFromDisk(DiskNTP1TxPos pos, FILE** pfileRet)
+bool NTP1Transaction::readFromDisk(DiskNTP1TxPos pos, FILE** pfileRet, FILE* customFile)
 {
-    CAutoFile filein =
-        CAutoFile(OpenNTP1TxsFile(pos.nFile, 0, pfileRet ? "rb+" : "rb"), SER_DISK, CLIENT_VERSION);
+    CAutoFile filein = CAutoFile(
+        (customFile == nullptr ? OpenNTP1TxsFile(pos.nFile, 0, pfileRet ? "rb+" : "rb") : customFile),
+        SER_DISK, CLIENT_VERSION);
     if (!filein)
         return error("NTP1Transaction::ReadFromDisk() : OpenNTP1TxsFile failed");
 

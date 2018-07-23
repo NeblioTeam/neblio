@@ -12,7 +12,8 @@ class NTP1TokenTxData
     std::string tokenId;
     uint256     issueTxId;
     uint64_t    divisibility;
-    bool        lockStatus;
+    // should be bool, but bool doesn't play well with the serializer
+    int         lockStatus;
     std::string aggregationPolicy;
     std::string tokenSymbol;
 

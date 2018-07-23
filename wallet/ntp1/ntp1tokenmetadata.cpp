@@ -92,7 +92,7 @@ json_spirit::Value NTP1TokenMetaData::exportDatabaseJsonData() const
     root.push_back(json_spirit::Pair("tokenId", getTokenId()));
     root.push_back(json_spirit::Pair("issuanceTxid", getIssuanceTxIdHex()));
     root.push_back(json_spirit::Pair("divisibility", divisibility));
-    root.push_back(json_spirit::Pair("lockStatus", lockStatus));
+    root.push_back(json_spirit::Pair("lockStatus", static_cast<bool>(lockStatus)));
     root.push_back(json_spirit::Pair("aggregationPolicy", aggregationPolicy));
     root.push_back(json_spirit::Pair("numOfHolders", numOfHolders));
     root.push_back(json_spirit::Pair("totalSupply", totalSupply));
@@ -118,7 +118,7 @@ void NTP1TokenMetaData::importDatabaseJsonData(const json_spirit::Value& data)
     setTokenId(NTP1Tools::GetStrField(data.get_obj(), "tokenId"));
     setIssuanceTxIdHex(NTP1Tools::GetStrField(data.get_obj(), "issuanceTxid"));
     divisibility      = NTP1Tools::GetUint64Field(data.get_obj(), "divisibility");
-    lockStatus        = NTP1Tools::GetBoolField(data.get_obj(), "lockStatus");
+    lockStatus        = (int)NTP1Tools::GetBoolField(data.get_obj(), "lockStatus");
     aggregationPolicy = NTP1Tools::GetStrField(data.get_obj(), "aggregationPolicy");
     numOfHolders      = NTP1Tools::GetUint64Field(data.get_obj(), "numOfHolders");
     totalSupply       = NTP1Tools::GetUint64Field(data.get_obj(), "totalSupply");

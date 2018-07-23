@@ -13,6 +13,8 @@
 #include "ntp1/ntp1txout.h"
 #include "ntp1/ntp1wallet.h"
 
+const std::string TempNTP1File("ntp1txout.bin");
+
 TEST(ntp1_tests, parse_NTP1TxIn_from_json)
 {
     std::string tx_str =
@@ -610,7 +612,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction)
         ////////////////////////////////////////////////////
 
         NTP1Transaction ntp1tx;
-        EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs));
+        EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs, std::vector<CTransaction>()));
         EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)1);
         EXPECT_EQ(ntp1tx.getTxIn(0).getNumOfTokens(), (unsigned)0);
         EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)3);
@@ -630,6 +632,41 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction)
         EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getHash().ToString(),
                   "c55dd5271dd8a9aa35a7f6c393a0eb24bcc50116bf15b49f4e760d3e9a138120");
         EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), (unsigned)1);
+
+        /// READ AND WRITE
+        ///
+        std::remove(TempNTP1File.c_str());
+        {
+            // will be freed automatically by writeFromDisk
+            FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
+            EXPECT_NE(fileWrite, nullptr);
+
+            unsigned int nFileRet = -1;
+            unsigned int nTxPos   = -1;
+            EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
+
+            FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
+            EXPECT_NE(fileRead, nullptr);
+
+            NTP1Transaction ntp1tx2;
+            ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
+            EXPECT_EQ(ntp1tx, ntp1tx2);
+        }
+        {
+            FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
+            EXPECT_NE(fileWrite, nullptr);
+
+            unsigned int nFileRet = -1;
+            unsigned int nTxPos   = -1;
+            EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
+
+            FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
+            EXPECT_NE(fileRead, nullptr);
+
+            NTP1Transaction ntp1tx2;
+            ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
+            EXPECT_EQ(ntp1tx, ntp1tx2);
+        }
     }
     {
         // transfer
@@ -702,10 +739,22 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction)
 
         std::vector<CTransaction> inputs{txVinA, txVinB};
 
+        string issueTxData =
+            "010000001af29a5a012081139a3e0d764e9fb415bf1601c5bc24eba093c3f6a735aaa9d81d27d55dc5010000006"
+            "b483045022100ea2baf384bb518ed939a1dfc02df634be2186c5e35d79a09fc7c1f1379987bc102200e286cc382"
+            "9fbe574bda0cacfe8e918755574685bcb8af8a67b2d24f0087122d012103bd4c76349aae4b81011eddce127f36c"
+            "ffd6b7beaf84c80d5d4e6cf06e5c8596cffffffff0310270000000000001976a9144e2a50f7e8c58ff9a0175f95"
+            "616a1657b49a06a888ac1027000000000000456a434e5401014e4942424cab10c04e20e0aec73d58c8fbf2a9c26"
+            "a6dc3ed666c7b80fef215620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0e073eb"
+            "0b000000001976a9144e2a50f7e8c58ff9a0175f95616a1657b49a06a888ac00000000";
+        CTransaction issueTx = TxFromHex(issueTxData);
+
+        std::vector<CTransaction> issueTxs({issueTx});
+
         ////////////////////////////////////////////
 
         NTP1Transaction ntp1tx;
-        EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs));
+        EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs, issueTxs));
         EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)2);
         // inputs are unknown, so no more tests
         EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)4);
@@ -724,6 +773,40 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction)
         EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getHash().ToString(),
                   "111481401fbd842c5aa1b9420db8c5ef7e94d9ac3b3d3b7e2b2cb6c7b0650612");
         EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getIndex(), (unsigned)3);
+
+        /// READ AND WRITE
+        ///
+        {
+            // will be freed automatically by writeFromDisk
+            FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
+            EXPECT_NE(fileWrite, nullptr);
+
+            unsigned int nFileRet = -1;
+            unsigned int nTxPos   = -1;
+            EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
+
+            FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
+            EXPECT_NE(fileRead, nullptr);
+
+            NTP1Transaction ntp1tx2;
+            ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
+            EXPECT_EQ(ntp1tx, ntp1tx2);
+        }
+        {
+            FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
+            EXPECT_NE(fileWrite, nullptr);
+
+            unsigned int nFileRet = -1;
+            unsigned int nTxPos   = -1;
+            EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
+
+            FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
+            EXPECT_NE(fileRead, nullptr);
+
+            NTP1Transaction ntp1tx2;
+            ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
+            EXPECT_EQ(ntp1tx, ntp1tx2);
+        }
     }
     {
         // burn with transfer
@@ -811,7 +894,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction)
         EXPECT_EQ(scriptPtrD->getTxType(), NTP1Script::TxType::TxType_Burn);
 
         NTP1Transaction ntp1tx;
-        EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs));
+        EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs, std::vector<CTransaction>()));
         EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)4);
         // inputs are unknown, so no more tests
         EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)3);
@@ -836,5 +919,39 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction)
         EXPECT_EQ(ntp1tx.getTxIn(3).getPrevout().getHash().ToString(),
                   "0317c3f20338cd8ea142c389e65670554c676905d2024a58775f695fe88f1298");
         EXPECT_EQ(ntp1tx.getTxIn(3).getPrevout().getIndex(), (unsigned)3);
+
+        /// READ AND WRITE
+        ///
+        {
+            // will be freed automatically by writeFromDisk
+            FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
+            EXPECT_NE(fileWrite, nullptr);
+
+            unsigned int nFileRet = -1;
+            unsigned int nTxPos   = -1;
+            EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
+
+            FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
+            EXPECT_NE(fileRead, nullptr);
+
+            NTP1Transaction ntp1tx2;
+            ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
+            EXPECT_EQ(ntp1tx, ntp1tx2);
+        }
+        {
+            FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
+            EXPECT_NE(fileWrite, nullptr);
+
+            unsigned int nFileRet = -1;
+            unsigned int nTxPos   = -1;
+            EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
+
+            FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
+            EXPECT_NE(fileRead, nullptr);
+
+            NTP1Transaction ntp1tx2;
+            ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
+            EXPECT_EQ(ntp1tx, ntp1tx2);
+        }
     }
 }

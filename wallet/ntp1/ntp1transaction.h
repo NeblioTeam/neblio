@@ -106,17 +106,19 @@ public:
     const NTP1TxOut&   getTxOut(unsigned long index) const;
     friend inline bool operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs);
 
-    void readNTP1DataFromTx(const CTransaction& tx, const std::vector<CTransaction>& inputs);
+    void readNTP1DataFromTx(const CTransaction& tx, const std::vector<CTransaction>& inputs,
+                            const std::vector<CTransaction>& issuanceTxs);
 
-    bool writeToDisk(unsigned int& nFileRet, unsigned int& nTxPosRet);
-    bool readFromDisk(DiskNTP1TxPos pos, FILE** pfileRet = NULL);
+    bool writeToDisk(unsigned int& nFileRet, unsigned int& nTxPosRet, FILE* customFile = nullptr);
+    bool readFromDisk(DiskNTP1TxPos pos, FILE** pfileRet = nullptr, FILE* customFile = nullptr);
 };
 
 bool operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs)
 {
     return (lhs.nVersion == rhs.nVersion && lhs.txHash == rhs.txHash &&
             lhs.txSerialized == rhs.txSerialized && lhs.vin == rhs.vin && lhs.vout == rhs.vout &&
-            lhs.nLockTime == rhs.nLockTime && lhs.nTime == rhs.nTime);
+            lhs.nLockTime == rhs.nLockTime && lhs.nTime == rhs.nTime &&
+            lhs.ntp1TransactionType == rhs.ntp1TransactionType);
 }
 
 #endif // NTP1TRANSACTION_H

@@ -5,7 +5,7 @@
 
 void NTP1TokenTxData::setDivisibility(const uint64_t& value) { divisibility = value; }
 
-void NTP1TokenTxData::setLockStatus(bool value) { lockStatus = value; }
+void NTP1TokenTxData::setLockStatus(bool value) { lockStatus = static_cast<int>(value); }
 
 void NTP1TokenTxData::setAggregationPolicy(const std::string& value) { aggregationPolicy = value; }
 
@@ -13,7 +13,7 @@ std::string NTP1TokenTxData::getTokenSymbol() const { return tokenSymbol; }
 
 void NTP1TokenTxData::setTokenSymbol(const std::string& value) { tokenSymbol = value; }
 
-NTP1TokenTxData::NTP1TokenTxData() {}
+NTP1TokenTxData::NTP1TokenTxData() { setNull(); }
 
 void NTP1TokenTxData::setNull()
 {
@@ -21,7 +21,7 @@ void NTP1TokenTxData::setNull()
     amount       = 0;
     issueTxId    = 0;
     divisibility = 0;
-    lockStatus   = false;
+    lockStatus   = 0;
     aggregationPolicy.clear();
 }
 
@@ -48,7 +48,7 @@ void NTP1TokenTxData::importJsonData(const json_spirit::Value& data)
         setIssueTxIdHex(NTP1Tools::GetStrField(data.get_obj(), "issueTxid"));
         amount            = NTP1Tools::GetUint64Field(data.get_obj(), "amount");
         divisibility      = NTP1Tools::GetUint64Field(data.get_obj(), "divisibility");
-        lockStatus        = NTP1Tools::GetBoolField(data.get_obj(), "lockStatus");
+        lockStatus        = (int)NTP1Tools::GetBoolField(data.get_obj(), "lockStatus");
         aggregationPolicy = NTP1Tools::GetStrField(data.get_obj(), "aggregationPolicy");
     } catch (std::exception& ex) {
         printf("%s", ex.what());
@@ -64,7 +64,7 @@ json_spirit::Value NTP1TokenTxData::exportDatabaseJsonData() const
     root.push_back(json_spirit::Pair("issueTxid", getIssueTxId().ToString()));
     root.push_back(json_spirit::Pair("amount", amount));
     root.push_back(json_spirit::Pair("divisibility", divisibility));
-    root.push_back(json_spirit::Pair("lockStatus", lockStatus));
+    root.push_back(json_spirit::Pair("lockStatus", static_cast<bool>(lockStatus)));
     root.push_back(json_spirit::Pair("aggregationPolicy", aggregationPolicy));
 
     return json_spirit::Value(root);
@@ -78,7 +78,7 @@ void NTP1TokenTxData::importDatabaseJsonData(const json_spirit::Value& data)
     setIssueTxIdHex(NTP1Tools::GetStrField(data.get_obj(), "issueTxid"));
     amount            = NTP1Tools::GetUint64Field(data.get_obj(), "amount");
     divisibility      = NTP1Tools::GetUint64Field(data.get_obj(), "divisibility");
-    lockStatus        = NTP1Tools::GetBoolField(data.get_obj(), "lockStatus");
+    lockStatus        = (int)NTP1Tools::GetBoolField(data.get_obj(), "lockStatus");
     aggregationPolicy = NTP1Tools::GetStrField(data.get_obj(), "aggregationPolicy");
 }
 
@@ -92,6 +92,6 @@ uint64_t NTP1TokenTxData::getDivisibility() const { return divisibility; }
 
 uint256 NTP1TokenTxData::getIssueTxId() const { return issueTxId; }
 
-bool NTP1TokenTxData::getLockStatus() const { return lockStatus; }
+bool NTP1TokenTxData::getLockStatus() const { return static_cast<bool>(lockStatus); }
 
 const std::string& NTP1TokenTxData::getAggregationPolicy() const { return aggregationPolicy; }

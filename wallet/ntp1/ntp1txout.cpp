@@ -3,7 +3,20 @@
 
 std::string NTP1TxOut::getAddress() const { return address; }
 
-typename NTP1TxOut::OutputType NTP1TxOut::getType() const { return type; }
+typename NTP1TxOut::OutputType NTP1TxOut::getType() const
+{
+    if (scriptPubKeyAsm.empty()) {
+        throw std::runtime_error("Cannot deduce NTP1TxOut type when scriptPubKey ASM is empty");
+    }
+    NTP1TxOut::OutputType type;
+    if (scriptPubKeyAsm.find("OP_RETURN") != std::string::npos) {
+        type = OutputType::OPReturn;
+    } else {
+        type = OutputType::NormalOutput;
+    }
+
+    return type;
+}
 
 std::string NTP1TxOut::getScriptPubKeyAsm() const { return scriptPubKeyAsm; }
 
@@ -44,12 +57,7 @@ void NTP1TxOut::importJsonData(const json_spirit::Value& parsedData)
             NTP1Tools::GetObjectField(parsedData.get_obj(), "scriptPubKey");
         scriptPubKeyHex = NTP1Tools::GetStrField(scriptPubKeyJsonObj, "hex");
         scriptPubKeyAsm = NTP1Tools::GetStrField(scriptPubKeyJsonObj, "asm");
-        if (scriptPubKeyAsm.find("OP_RETURN") != std::string::npos) {
-            type = OutputType::OPReturn;
-        } else {
-            type = OutputType::NormalOutput;
-        }
-        if (type == OutputType::NormalOutput) {
+        if (getType() == OutputType::NormalOutput) {
             json_spirit::Array addresses = NTP1Tools::GetArrayField(scriptPubKeyJsonObj, "addresses");
             if (addresses.size() != 1) {
                 throw std::runtime_error(
@@ -95,11 +103,6 @@ void NTP1TxOut::importDatabaseJsonData(const json_spirit::Value& data)
     scriptPubKeyAsm                = NTP1Tools::GetStrField(data.get_obj(), "scriptPubKeyAsm");
     address                        = NTP1Tools::GetStrField(data.get_obj(), "address");
     json_spirit::Array tokens_list = NTP1Tools::GetArrayField(data.get_obj(), "tokens");
-    if (scriptPubKeyAsm.find("OP_RETURN") != std::string::npos) {
-        type = OutputType::OPReturn;
-    } else {
-        type = OutputType::NormalOutput;
-    }
     tokens.clear();
     tokens.resize(tokens_list.size());
     for (unsigned long i = 0; i < tokens_list.size(); i++) {

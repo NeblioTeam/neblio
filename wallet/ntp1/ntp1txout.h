@@ -18,7 +18,6 @@ public:
         NormalOutput = 0,
         OPReturn
     };
-    OutputType type;
 
 private:
     int64_t                      nValue;
@@ -61,7 +60,8 @@ public:
 bool operator==(const NTP1TxOut& lhs, const NTP1TxOut& rhs)
 {
     return (lhs.nValue == rhs.nValue && lhs.scriptPubKeyHex == rhs.scriptPubKeyHex &&
-            lhs.tokens == rhs.tokens);
+            lhs.scriptPubKeyAsm == rhs.scriptPubKeyAsm && lhs.tokens == rhs.tokens &&
+            lhs.address == rhs.address);
 }
 
 #endif // NTP1TXOUT_H
