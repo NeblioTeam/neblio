@@ -53,7 +53,7 @@ public:
     void print() const { printf("%s", ToString().c_str()); }
 };
 
-boost::filesystem::path NTP1TxsFilePath(unsigned int nFile);
+extern boost::filesystem::path NTP1TxsFilePath(unsigned int nFile);
 
 extern FILE* AppendNTP1TxsFile(unsigned int& nFileRet);
 
@@ -183,7 +183,6 @@ void NTP1Transaction::__TransferTokens(
         // if skip, move on to the next input
         if (TIs[i].skipInput) {
             currentInputIndex++;
-            continue;
         }
 
         if (currentInputIndex >= static_cast<int>(vin.size())) {
