@@ -321,6 +321,10 @@ void NTP1Transaction::__TransferTokens(
             ntp1tokenTxData.setLockStatus(currentTokenObj.getLockStatus());
             ntp1tokenTxData.setIssueTxIdHex(currentTokenObj.getIssueTxId().ToString());
 
+            if (vout.size() == 0) {
+                throw std::runtime_error("No outputs in transaction: " + tx.GetHash().ToString());
+            }
+
             // add the token to the last output
             vout.back().tokens.push_back(ntp1tokenTxData);
 

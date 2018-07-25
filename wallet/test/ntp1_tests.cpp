@@ -551,502 +551,943 @@ CTransaction TxFromHex(const std::string& hex)
     return tx;
 }
 
-TEST(ntp1_tests, parsig_ntp1_from_ctransaction)
+TEST(ntp1_tests, parsig_ntp1_from_ctransaction_issuance)
 {
+    // issuance
+    string transaction =
+        "010000001af29a5a012081139a3e0d764e9fb415bf1601c5bc24eba093c3f6a735aaa9d81d27d55dc5010000006"
+        "b483045022100ea2baf384bb518ed939a1dfc02df634be2186c5e35d79a09fc7c1f1379987bc102200e286cc382"
+        "9fbe574bda0cacfe8e918755574685bcb8af8a67b2d24f0087122d012103bd4c76349aae4b81011eddce127f36c"
+        "ffd6b7beaf84c80d5d4e6cf06e5c8596cffffffff0310270000000000001976a9144e2a50f7e8c58ff9a0175f95"
+        "616a1657b49a06a888ac1027000000000000456a434e5401014e4942424cab10c04e20e0aec73d58c8fbf2a9c26"
+        "a6dc3ed666c7b80fef215620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0e073eb"
+        "0b000000001976a9144e2a50f7e8c58ff9a0175f95616a1657b49a06a888ac00000000";
+    CTransaction tx = TxFromHex(transaction);
+    EXPECT_EQ(tx.GetHash().ToString(),
+              "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+    EXPECT_TRUE(tx.CheckTransaction());
+
+    std::string opReturnArg;
+    EXPECT_TRUE(IsTxNTP1(&tx, &opReturnArg));
+    std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScript(opReturnArg);
+    std::shared_ptr<NTP1Script_Issuance> script_issuance =
+        std::dynamic_pointer_cast<NTP1Script_Issuance>(script);
+    EXPECT_NE(script_issuance.get(), nullptr);
+    EXPECT_EQ(script_issuance->getAggregationPolicy(),
+              NTP1Script::IssuanceFlags::AggregationPolicy::AggregationPolicy_Aggregatable);
+    EXPECT_EQ(script_issuance->getAmount(), (uint64_t)1000000000);
+    EXPECT_EQ(script_issuance->getDivisibility(), 7);
+    EXPECT_EQ(boost::algorithm::hex(script_issuance->getHeader()), "4E5401");
+    EXPECT_EQ(script_issuance->getHexMetadata(), "AB10C04E20E0AEC73D58C8FBF2A9C26A6DC3ED666C7B80FEF2"
+                                                 "15620C817703B1E5D8B1870211CE7CDF50718B4789245FB80F"
+                                                 "5899");
+    EXPECT_EQ(script_issuance->getTokenID(
+                  "c55dd5271dd8a9aa35a7f6c393a0eb24bcc50116bf15b49f4e760d3e9a138120", 1),
+              "LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
+
+    EXPECT_EQ(boost::algorithm::hex(script_issuance->getOpCodeBin()), "01");
+    EXPECT_EQ(script_issuance->getTokenSymbol(), "NIBBL");
+    EXPECT_EQ(script_issuance->getTxType(), NTP1Script::TxType::TxType_Issuance);
+
+    EXPECT_EQ(script_issuance->getTransferInstructionsCount(), (unsigned)1);
+    EXPECT_EQ(script_issuance->getTransferInstruction(0).amount, (uint64_t)1000000000);
+    EXPECT_EQ(script_issuance->getTransferInstruction(0).skipInput, false);
+    EXPECT_EQ(script_issuance->getTransferInstruction(0).outputIndex, 0);
+    EXPECT_EQ(boost::algorithm::hex(script_issuance->getTransferInstruction(0).rawAmount), "2019");
+    EXPECT_EQ(script_issuance->getTransferInstruction(0).firstRawByte, 0);
+    EXPECT_EQ(tx.GetHash().ToString(),
+              "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+
+    std::string vinA = "0100000089f3995a013458f5fa9bc91103a1dcdd6f1e582bc35e3ca513a924bad1e3098dd540f"
+                       "b4e030100000049483045022100e8dedce5f1950a07dbbd60dfb959e21113523b9d98df2fc197"
+                       "3e530beafd53b3022047450cd1a16d74f83c2ba769cb0a0ba28c848e440cc915d268218e7b8d0"
+                       "e541701ffffffff02306a04c2210000001976a91494229f861ecf642374f132de7cc739f314ee"
+                       "4ada88ac008c8647000000001976a9144e2a50f7e8c58ff9a0175f95616a1657b49a06a888ac0"
+                       "0000000";
+    CTransaction txVinA = TxFromHex(vinA);
+
+    std::vector<std::pair<CTransaction, NTP1Transaction>> inputs{{txVinA, NTP1Transaction()}};
+    ////////////////////////////////////////////////////
+
+    NTP1Transaction ntp1tx;
+    EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs));
+    EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)1);
+    EXPECT_EQ(ntp1tx.getTxIn(0).getNumOfTokens(), (unsigned)0);
+    EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)3);
+    EXPECT_EQ(ntp1tx.getTxOut(0).getNumOfTokens(), (unsigned)1);
+    EXPECT_EQ(ntp1tx.getTxOut(1).getNumOfTokens(), (unsigned)0);
+    EXPECT_EQ(ntp1tx.getTxOut(2).getNumOfTokens(), (unsigned)0);
+    EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), (unsigned)1000000000);
+    EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getDivisibility(), (unsigned)7);
+    EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getIssueTxId().ToString(),
+              "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+    EXPECT_TRUE(ntp1tx.getTxOut(0).getToken(0).getLockStatus());
+    EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getTokenSymbol(), "NIBBL");
+    EXPECT_EQ(ntp1tx.getTxHash().ToString(),
+              "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+    EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getTokenId(), "LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
+
+    EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getHash().ToString(),
+              "c55dd5271dd8a9aa35a7f6c393a0eb24bcc50116bf15b49f4e760d3e9a138120");
+    EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), (unsigned)1);
+
+    /// READ AND WRITE
+    ///
+    std::remove(TempNTP1File.c_str());
     {
-        // issuance
-        string transaction =
-            "010000001af29a5a012081139a3e0d764e9fb415bf1601c5bc24eba093c3f6a735aaa9d81d27d55dc5010000006"
-            "b483045022100ea2baf384bb518ed939a1dfc02df634be2186c5e35d79a09fc7c1f1379987bc102200e286cc382"
-            "9fbe574bda0cacfe8e918755574685bcb8af8a67b2d24f0087122d012103bd4c76349aae4b81011eddce127f36c"
-            "ffd6b7beaf84c80d5d4e6cf06e5c8596cffffffff0310270000000000001976a9144e2a50f7e8c58ff9a0175f95"
-            "616a1657b49a06a888ac1027000000000000456a434e5401014e4942424cab10c04e20e0aec73d58c8fbf2a9c26"
-            "a6dc3ed666c7b80fef215620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0e073eb"
-            "0b000000001976a9144e2a50f7e8c58ff9a0175f95616a1657b49a06a888ac00000000";
-        CTransaction tx = TxFromHex(transaction);
-        EXPECT_EQ(tx.GetHash().ToString(),
-                  "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
-        EXPECT_TRUE(tx.CheckTransaction());
+        // will be freed automatically by writeFromDisk
+        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
+        EXPECT_NE(fileWrite, nullptr);
 
-        std::string opReturnArg;
-        EXPECT_TRUE(IsTxNTP1(&tx, &opReturnArg));
-        std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScript(opReturnArg);
-        std::shared_ptr<NTP1Script_Issuance> script_issuance =
-            std::dynamic_pointer_cast<NTP1Script_Issuance>(script);
-        EXPECT_NE(script_issuance.get(), nullptr);
-        EXPECT_EQ(script_issuance->getAggregationPolicy(),
-                  NTP1Script::IssuanceFlags::AggregationPolicy::AggregationPolicy_Aggregatable);
-        EXPECT_EQ(script_issuance->getAmount(), (uint64_t)1000000000);
-        EXPECT_EQ(script_issuance->getDivisibility(), 7);
-        EXPECT_EQ(boost::algorithm::hex(script_issuance->getHeader()), "4E5401");
-        EXPECT_EQ(script_issuance->getHexMetadata(), "AB10C04E20E0AEC73D58C8FBF2A9C26A6DC3ED666C7B80FEF2"
-                                                     "15620C817703B1E5D8B1870211CE7CDF50718B4789245FB80F"
-                                                     "5899");
-        EXPECT_EQ(script_issuance->getTokenID(
-                      "c55dd5271dd8a9aa35a7f6c393a0eb24bcc50116bf15b49f4e760d3e9a138120", 1),
-                  "LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
+        unsigned int nFileRet = -1;
+        unsigned int nTxPos   = -1;
+        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
 
-        EXPECT_EQ(boost::algorithm::hex(script_issuance->getOpCodeBin()), "01");
-        EXPECT_EQ(script_issuance->getTokenSymbol(), "NIBBL");
-        EXPECT_EQ(script_issuance->getTxType(), NTP1Script::TxType::TxType_Issuance);
+        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
+        EXPECT_NE(fileRead, nullptr);
 
-        EXPECT_EQ(script_issuance->getTransferInstructionsCount(), (unsigned)1);
-        EXPECT_EQ(script_issuance->getTransferInstruction(0).amount, (uint64_t)1000000000);
-        EXPECT_EQ(script_issuance->getTransferInstruction(0).skipInput, false);
-        EXPECT_EQ(script_issuance->getTransferInstruction(0).outputIndex, 0);
-        EXPECT_EQ(boost::algorithm::hex(script_issuance->getTransferInstruction(0).rawAmount), "2019");
-        EXPECT_EQ(script_issuance->getTransferInstruction(0).firstRawByte, 0);
-        EXPECT_EQ(tx.GetHash().ToString(),
-                  "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
-
-        std::string vinA =
-            "0100000089f3995a013458f5fa9bc91103a1dcdd6f1e582bc35e3ca513a924bad1e3098dd540f"
-            "b4e030100000049483045022100e8dedce5f1950a07dbbd60dfb959e21113523b9d98df2fc197"
-            "3e530beafd53b3022047450cd1a16d74f83c2ba769cb0a0ba28c848e440cc915d268218e7b8d0"
-            "e541701ffffffff02306a04c2210000001976a91494229f861ecf642374f132de7cc739f314ee"
-            "4ada88ac008c8647000000001976a9144e2a50f7e8c58ff9a0175f95616a1657b49a06a888ac0"
-            "0000000";
-        CTransaction txVinA = TxFromHex(vinA);
-
-        std::vector<std::pair<CTransaction, NTP1Transaction>> inputs{{txVinA, NTP1Transaction()}};
-        ////////////////////////////////////////////////////
-
-        NTP1Transaction ntp1tx;
-        EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs));
-        EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)1);
-        EXPECT_EQ(ntp1tx.getTxIn(0).getNumOfTokens(), (unsigned)0);
-        EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)3);
-        EXPECT_EQ(ntp1tx.getTxOut(0).getNumOfTokens(), (unsigned)1);
-        EXPECT_EQ(ntp1tx.getTxOut(1).getNumOfTokens(), (unsigned)0);
-        EXPECT_EQ(ntp1tx.getTxOut(2).getNumOfTokens(), (unsigned)0);
-        EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), (unsigned)1000000000);
-        EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getDivisibility(), (unsigned)7);
-        EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getIssueTxId().ToString(),
-                  "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
-        EXPECT_TRUE(ntp1tx.getTxOut(0).getToken(0).getLockStatus());
-        EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getTokenSymbol(), "NIBBL");
-        EXPECT_EQ(ntp1tx.getTxHash().ToString(),
-                  "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
-        EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getTokenId(), "LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
-
-        EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getHash().ToString(),
-                  "c55dd5271dd8a9aa35a7f6c393a0eb24bcc50116bf15b49f4e760d3e9a138120");
-        EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), (unsigned)1);
-
-        /// READ AND WRITE
-        ///
-        std::remove(TempNTP1File.c_str());
-        {
-            // will be freed automatically by writeFromDisk
-            FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-            EXPECT_NE(fileWrite, nullptr);
-
-            unsigned int nFileRet = -1;
-            unsigned int nTxPos   = -1;
-            EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-            FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-            EXPECT_NE(fileRead, nullptr);
-
-            NTP1Transaction ntp1tx2;
-            ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-            EXPECT_EQ(ntp1tx, ntp1tx2);
-        }
-        {
-            FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-            EXPECT_NE(fileWrite, nullptr);
-
-            unsigned int nFileRet = -1;
-            unsigned int nTxPos   = -1;
-            EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-            FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-            EXPECT_NE(fileRead, nullptr);
-
-            NTP1Transaction ntp1tx2;
-            ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-            EXPECT_EQ(ntp1tx, ntp1tx2);
-        }
+        NTP1Transaction ntp1tx2;
+        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
+        EXPECT_EQ(ntp1tx, ntp1tx2);
     }
     {
-        // transfer
-        string transaction =
-            "01000000f554a35a0247b394148396ef78de65f4792e57bb93f9322e0a42f923e52d39530915a96617010000006"
-            "a47304402200cfdd8969cb137ee5a1dde2bed954ab8ae88fb4703125e4ec103b2f21787fa27022079ffc6a52a62"
-            "d1eb8aa78f831faa038fde8549ec446cb0f7427db77c7d3ddb59012103331393f9487ef4b318ae79972f3ccc84b"
-            "15d0718d7e05720c454404e67d51d1affffffff120665b0c7b62c2b7e3b3d3bacd9947eefc5b80d42b9a15a2c84"
-            "bd1f40811411030000006a47304402205c7d97ee153e83c54f5c61221acec7b8b60786fca80e59e45ecbf1736a7"
-            "f459a02207147d019151d91143d6289d37d49b3ad63952830dc42a79bf262ebaee5da6040012103331393f9487e"
-            "f4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff0410270000000000001976a91471877"
-            "06893521dd4d61a843d241c5f52f32d7e6188ac10270000000000001976a9143f7eb8c3da2cbe606fd5d46b11ab"
-            "9211705770db88ac10270000000000000e6a0c4e5401150020120169895242409c0000000000001976a9143f7eb"
-            "8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
-        CTransaction tx = TxFromHex(transaction);
-        EXPECT_TRUE(tx.CheckTransaction());
+        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
+        EXPECT_NE(fileWrite, nullptr);
 
-        std::string opReturnArg;
-        EXPECT_TRUE(IsTxNTP1(&tx, &opReturnArg));
-        std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScript(opReturnArg);
-        std::shared_ptr<NTP1Script_Transfer> script_transfer =
-            std::dynamic_pointer_cast<NTP1Script_Transfer>(script);
-        EXPECT_EQ(script_transfer->getHeader(), boost::algorithm::unhex(opReturnArg.substr(0, 6)));
-        EXPECT_EQ(script_transfer->getHexMetadata().size(), (unsigned)0);
-        EXPECT_EQ(boost::algorithm::hex(script_transfer->getOpCodeBin()), "15");
-        EXPECT_EQ(script_transfer->getTxType(), NTP1Script::TxType::TxType_Transfer);
+        unsigned int nFileRet = -1;
+        unsigned int nTxPos   = -1;
+        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
 
-        EXPECT_EQ(script_transfer->getTransferInstructionsCount(), (unsigned)2);
+        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
+        EXPECT_NE(fileRead, nullptr);
 
-        EXPECT_EQ(script_transfer->getTransferInstruction(0).amount, (uint64_t)100);
-        EXPECT_EQ(script_transfer->getTransferInstruction(0).skipInput, false);
-        EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, 0);
-        EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(0).rawAmount), "2012");
-        EXPECT_EQ(script_transfer->getTransferInstruction(0).firstRawByte, 0);
-
-        EXPECT_EQ(script_transfer->getTransferInstruction(1).amount, (uint64_t)999965200);
-        EXPECT_EQ(script_transfer->getTransferInstruction(1).skipInput, false);
-        EXPECT_EQ(script_transfer->getTransferInstruction(1).outputIndex, 1);
-        EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(1).rawAmount),
-                  "69895242");
-        EXPECT_EQ(script_transfer->getTransferInstruction(1).firstRawByte, 1);
-        EXPECT_EQ(tx.GetHash().ToString(),
-                  "006bd375946e903aa20aced1b411d61d14175488650e1deab3cb5ff8f354467d");
-
-        /// Input 0
-
-        std::string vinA =
-            "01000000d654a35a02b5b4c0f4608d996f7ccf68a74c7832b151fed86376defd0be51570f6695ea42a010000006"
-            "b483045022100ecbaf16008ccb4c7084d2e28b875adbfcb8cb1012e305ae503b646a075693f340220404eb96ab6"
-            "0496c8d52a06a4286e2916e9f70304b1ff3f1663c938cae7f08f01012103331393f9487ef4b318ae79972f3ccc8"
-            "4b15d0718d7e05720c454404e67d51d1affffffffebd3fcb84b4019229f8c85e5d0c736f4eb17637cce245369d6"
-            "a7b51b56a2026b030000006b483045022100b02f6f5d4c0b2e88d5d7226e0f22ed37938b79e242b0f8d6260b14e"
-            "00ab728120220549ecc61e8318105ad9255a54af4ee0966810e42fbf84a9fa7ef7c4892c41c35012103331393f9"
-            "487ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff0410270000000000001976a9148"
-            "6061d16eafa0ea7a6be8875fb5bbc09a5f210a588ac10270000000000001976a9143f7eb8c3da2cbe606fd5d46b"
-            "11ab9211705770db88ac10270000000000000e6a0c4e5401150020120169895252409c0000000000001976a9143"
-            "f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
-        CTransaction    txVinA = TxFromHex(vinA);
-        NTP1Transaction ntp1txVinA;
-
-        NTP1TokenTxData vinA_vout0_token0;
-        vinA_vout0_token0.setAggregationPolicy("aggregable");
-        vinA_vout0_token0.setAmount(100);
-        vinA_vout0_token0.setDivisibility(7);
-        vinA_vout0_token0.setIssueTxIdHex(
-            "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
-        vinA_vout0_token0.setLockStatus(true);
-        vinA_vout0_token0.setTokenId("LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
-        vinA_vout0_token0.setTokenSymbol("NIBBL");
-
-        NTP1TxOut vinA_vout0;
-        vinA_vout0.__manualSet(
-            10000, "76a91486061d16eafa0ea7a6be8875fb5bbc09a5f210a588ac",
-            "OP_DUP OP_HASH160 86061d16eafa0ea7a6be8875fb5bbc09a5f210a5 OP_EQUALVERIFY OP_CHECKSIG",
-            std::vector<NTP1TokenTxData>({vinA_vout0_token0}), "NY8d4F6EZQH1y5KoqvdybTUgfwAMUYW3qF");
-
-        NTP1TokenTxData vinA_vout1_token0;
-        vinA_vout1_token0.setAggregationPolicy("aggregable");
-        vinA_vout1_token0.setAmount(999965300);
-        vinA_vout1_token0.setDivisibility(7);
-        vinA_vout1_token0.setIssueTxIdHex(
-            "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
-        vinA_vout1_token0.setLockStatus(true);
-        vinA_vout1_token0.setTokenId("LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
-        vinA_vout1_token0.setTokenSymbol("NIBBL");
-
-        NTP1TxOut vinA_vout1;
-        vinA_vout1.__manualSet(
-            10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
-            "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
-            std::vector<NTP1TokenTxData>({vinA_vout1_token0}), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
-
-        NTP1TxOut vinA_vout2;
-        vinA_vout2.__manualSet(10000, "6a0c4e5401150020120169895252",
-                               "OP_RETURN 4e5401150020120169895252", std::vector<NTP1TokenTxData>(), "");
-
-        NTP1TxOut vinA_vout3;
-        vinA_vout3.__manualSet(
-            40000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
-            "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
-            std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
-
-        // inputs are not important
-        ntp1txVinA.__manualSet(
-            1, uint256("1766a9150953392de523f9420a2e32f993bb572e79f465de78ef96831494b347"),
-            std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
-            std::vector<NTP1TxOut>{vinA_vout0, vinA_vout1, vinA_vout2, vinA_vout3}, 0, 1520653825000,
-            NTP1TxType_TRANSFER);
-
-        /// Input 1
-
-        std::string vinB =
-            "010000007c3fa35a0220b900bf90ba01c5e0b560261871c35ec84b2bcf1bb6a4c38f76554a53d9378e010000006"
-            "b483045022100fa4e87b9bc64d12b757a1ddd8a680239e8b11c8ca6496a212ffa726b0b79c1c202204e39d5776e"
-            "c175580429acdf7f2d80b6ee42c845c64c884f70138811c6931db0012103331393f9487ef4b318ae79972f3ccc8"
-            "4b15d0718d7e05720c454404e67d51d1affffffff04946f748b2ec8662ad584e09f6408636effbadf7dc59b168a"
-            "50d028aa0f827a010000006b483045022100c04d60412ff55eae4e735ca2022f84d797a72156c26523a55579f5e"
-            "8f8e7ffd702201c1e361451496b00ef8d47cd0e11fb2a30aca335583bf53b76fec3951a4d5576012103331393f9"
-            "487ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff0410270000000000001976a9146"
-            "732468b6fe071d7004a5d9bddaacc3a71423acd88ac10270000000000001976a9143f7eb8c3da2cbe606fd5d46b"
-            "11ab9211705770db88ac10270000000000000e6a0c4e5401150020120169895c3270110100000000001976a9143"
-            "f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
-        CTransaction    txVinB = TxFromHex(vinB);
-        NTP1Transaction ntp1txVinB;
-
-        NTP1TokenTxData vinB_vout0_token0;
-        vinB_vout0_token0.setAggregationPolicy("aggregable");
-        vinB_vout0_token0.setAmount(100);
-        vinB_vout0_token0.setDivisibility(7);
-        vinB_vout0_token0.setIssueTxIdHex(
-            "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
-        vinB_vout0_token0.setLockStatus(true);
-        vinB_vout0_token0.setTokenId("LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
-        vinB_vout0_token0.setTokenSymbol("NIBBL");
-
-        NTP1TxOut vinB_vout0;
-        vinB_vout0.__manualSet(
-            10000, "76a9146732468b6fe071d7004a5d9bddaacc3a71423acd88ac",
-            "OP_DUP OP_HASH160 6732468b6fe071d7004a5d9bddaacc3a71423acd OP_EQUALVERIFY OP_CHECKSIG",
-            std::vector<NTP1TokenTxData>({vinB_vout0_token0}), "NVKd1iq2UF8RZThEN4MDGMBcKnFPnuPF6v");
-
-        NTP1TokenTxData vinB_vout1_token0;
-        vinB_vout1_token0.setAggregationPolicy("aggregable");
-        vinB_vout1_token0.setAmount(999981100);
-        vinB_vout1_token0.setDivisibility(7);
-        vinB_vout1_token0.setIssueTxIdHex(
-            "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
-        vinB_vout1_token0.setLockStatus(true);
-        vinB_vout1_token0.setTokenId("LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
-        vinB_vout1_token0.setTokenSymbol("NIBBL");
-
-        NTP1TxOut vinB_vout1;
-        vinB_vout1.__manualSet(
-            10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
-            "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
-            std::vector<NTP1TokenTxData>({vinB_vout1_token0}), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
-
-        NTP1TxOut vinB_vout2;
-        vinB_vout2.__manualSet(10000, "6a0c4e5401150020120169895c32",
-                               "OP_RETURN 4e5401150020120169895c32", std::vector<NTP1TokenTxData>(), "");
-
-        NTP1TxOut vinB_vout3;
-        vinB_vout3.__manualSet(
-            70000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
-            "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
-            std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
-
-        // inputs are not important
-        ntp1txVinB.__manualSet(
-            1, uint256("111481401fbd842c5aa1b9420db8c5ef7e94d9ac3b3d3b7e2b2cb6c7b0650612"),
-            std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
-            std::vector<NTP1TxOut>{vinB_vout0, vinB_vout1, vinB_vout2, vinB_vout3}, 0, 1520653825000,
-            NTP1TxType_TRANSFER);
-
-        std::vector<std::pair<CTransaction, NTP1Transaction>> inputs{std::make_pair(txVinA, ntp1txVinA),
-                                                                     std::make_pair(txVinB, ntp1txVinB)};
-
-        ////////////////////////////////////////////
-
-        NTP1Transaction ntp1tx;
-        // TODO: uncomment
-        //        ASSERT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs));
-        ntp1tx.readNTP1DataFromTx(tx, inputs);
-        EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)2);
-        // inputs are unknown, so no more tests
-        EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)4);
-        EXPECT_EQ(ntp1tx.getTxOut(0).getNumOfTokens(), (unsigned)1);
-        EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), (uint64_t)100);
-        EXPECT_EQ(ntp1tx.getTxOut(1).getNumOfTokens(), (unsigned)1);
-        EXPECT_EQ(ntp1tx.getTxOut(1).getToken(0).getAmount(), (uint64_t)999965200);
-        EXPECT_EQ(ntp1tx.getTxOut(2).getNumOfTokens(), (unsigned)0);
-        EXPECT_EQ(ntp1tx.getTxOut(3).getNumOfTokens(), (unsigned)0);
-        EXPECT_EQ(ntp1tx.getTxHash().ToString(),
-                  "006bd375946e903aa20aced1b411d61d14175488650e1deab3cb5ff8f354467d");
-
-        EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getHash().ToString(),
-                  "1766a9150953392de523f9420a2e32f993bb572e79f465de78ef96831494b347");
-        EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), (unsigned)1);
-        EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getHash().ToString(),
-                  "111481401fbd842c5aa1b9420db8c5ef7e94d9ac3b3d3b7e2b2cb6c7b0650612");
-        EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getIndex(), (unsigned)3);
-
-        /// READ AND WRITE
-        ///
-        {
-            // will be freed automatically by writeFromDisk
-            FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-            EXPECT_NE(fileWrite, nullptr);
-
-            unsigned int nFileRet = -1;
-            unsigned int nTxPos   = -1;
-            EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-            FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-            EXPECT_NE(fileRead, nullptr);
-
-            NTP1Transaction ntp1tx2;
-            ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-            EXPECT_EQ(ntp1tx, ntp1tx2);
-        }
-        {
-            FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-            EXPECT_NE(fileWrite, nullptr);
-
-            unsigned int nFileRet = -1;
-            unsigned int nTxPos   = -1;
-            EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-            FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-            EXPECT_NE(fileRead, nullptr);
-
-            NTP1Transaction ntp1tx2;
-            ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-            EXPECT_EQ(ntp1tx, ntp1tx2);
-        }
+        NTP1Transaction ntp1tx2;
+        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
+        EXPECT_EQ(ntp1tx, ntp1tx2);
     }
-    //    {
-    //        // burn with transfer
-    //        string transaction =
-    //            "0100000048b1535b04e935973056fce6856f04bdcf6f9f6c8759e495c5f9bc19d5688fe9cecc3c56c0010000006"
-    //            "b483045022100b004a3201d922e25579d2feba02dad95df573e5dee5efb6cc4c761348e08c580022003a860417f"
-    //            "0de670b3a08df43d244aa16661f5218830bf5eb73b938050c8112a012103331393f9487ef4b318ae79972f3ccc8"
-    //            "4b15d0718d7e05720c454404e67d51d1affffffff05dbb77b0d5990f177f9f7a7d36657ec886653f3dec7441621"
-    //            "d81e9c55494803030000006a473044022039b3c6719b340f77a178e781a2f3bc6be0dcc78ea03ec413cc6527dff"
-    //            "6abf96902204abf71cc27430089bed9c7692cd67af66ece912d67b60f401da0b2a4bfa5bc38012103331393f948"
-    //            "7ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffffdf712745b40af1feb73f3a0d9cffe"
-    //            "f4101033f20c3e827344098a2f338cf3201030000006a47304402201a8fdafcb5d0528eee7d3abf02ec4f9acdd6"
-    //            "90c26ded4ec87d36f803daa1abd00220470b9225d0f5acb7af807af1cb43638f134492bc07d8d60f17295f9096d"
-    //            "25296012103331393f9487ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff98128fe8"
-    //            "5f695f77584a02d20569674c557056e689c342a18ecd3803f2c31703030000006a47304402206b521b8663386ab"
-    //            "faa861150ea9a1f444edf78e22682aef95791d2817177661a0220553f5c2bf0cd67053fbc3058f122522f7cb94f"
-    //            "9c2bea157d4df16d1dca9f9e4a012103331393f9487ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d"
-    //            "51d1affffffff0310270000000000001976a9147f5aff9c5ec060a45b8405a7b4f65fce5909773e88ac10270000"
-    //            "000000000a6a084e540125000a1f1410270000000000001976a9143f7eb8c3da2cbe606fd5d46b11ab921170577"
-    //            "0db88ac00000000";
-    //        CTransaction tx = TxFromHex(transaction);
-    //        EXPECT_TRUE(tx.CheckTransaction());
+}
 
-    //        std::string vinA =
-    //            "010000005944185b0226d0e3af9cf2fa36d2cbecd53d54dc68e35489c85fae907e050165dc1a980413010000006"
-    //            "a4730440220024193e8b8fad41d5672e6629b03ae662b61cf39bdf6a74ce3c4dac7cfb302a10220602741901ff9"
-    //            "898c922ad0da52e558361bea8b0bbcdd8a8e5f3810e1e48a63ee012103331393f9487ef4b318ae79972f3ccc84b"
-    //            "15d0718d7e05720c454404e67d51d1affffffffc486eeb847a82fcc78ed0a3cd83c2b7156bc5677b6488e7822f6"
-    //            "0df0ec42accd030000006a473044022052458345ebaa51676f3469174e086a3b4c65c8a0c1cee99cee1b7190835"
-    //            "c456702204f442eccdcbe25aab24b5ddb5ad3098b676699b3df47f5a1651667a23759c058012103331393f9487e"
-    //            "f4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff0410270000000000001976a9144440c"
-    //            "2f1bdc0ce2498f135a3e67434d0e765c57f88ac10270000000000001976a9143f7eb8c3da2cbe606fd5d46b11ab"
-    //            "9211705770db88ac10270000000000000f6a0d4e54011500201201802fadc75120830c00000000001976a9143f7"
-    //            "eb8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
-    //        CTransaction txVinA = TxFromHex(vinA);
+TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
+{
+    // transfer
+    string transaction =
+        "01000000f554a35a0247b394148396ef78de65f4792e57bb93f9322e0a42f923e52d39530915a96617010000006"
+        "a47304402200cfdd8969cb137ee5a1dde2bed954ab8ae88fb4703125e4ec103b2f21787fa27022079ffc6a52a62"
+        "d1eb8aa78f831faa038fde8549ec446cb0f7427db77c7d3ddb59012103331393f9487ef4b318ae79972f3ccc84b"
+        "15d0718d7e05720c454404e67d51d1affffffff120665b0c7b62c2b7e3b3d3bacd9947eefc5b80d42b9a15a2c84"
+        "bd1f40811411030000006a47304402205c7d97ee153e83c54f5c61221acec7b8b60786fca80e59e45ecbf1736a7"
+        "f459a02207147d019151d91143d6289d37d49b3ad63952830dc42a79bf262ebaee5da6040012103331393f9487e"
+        "f4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff0410270000000000001976a91471877"
+        "06893521dd4d61a843d241c5f52f32d7e6188ac10270000000000001976a9143f7eb8c3da2cbe606fd5d46b11ab"
+        "9211705770db88ac10270000000000000e6a0c4e5401150020120169895242409c0000000000001976a9143f7eb"
+        "8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
+    CTransaction tx = TxFromHex(transaction);
+    EXPECT_TRUE(tx.CheckTransaction());
 
-    //        std::string vinB =
-    //            "010000005764a35a02da1b4ac76bbcee52883fa9dca66badcf26419cbebad3649bad1716b07bfb9b42010000006"
-    //            "a473044022044cf586c7ff83f70e7826a1f1dca6b94a578fd00202ff0796022821fa5f0accf022003e4a5e7cd13"
-    //            "780eb237074ee0bdb8ca718c61db69f69dcf3eca186a075b185a012103331393f9487ef4b318ae79972f3ccc84b"
-    //            "15d0718d7e05720c454404e67d51d1affffffffe6f3e0c696cbf8478bcaf21ec97df5ae6619499813a4e84f2ff8"
-    //            "02644f4d4bc1030000006a47304402207fa6cd4be5571f207a379a3da6f908b3b4cda3f4e8464219357d99f46f6"
-    //            "5ddb0022037fe0c24e01d0a549313eab5699bf9e8cb098eea89df5aea49e3db377cdb1cf5012103331393f9487e"
-    //            "f4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff0410270000000000001976a91413d4f"
-    //            "e22b1d29a1bbeb3755441003e2380dcf13288ac10270000000000001976a9143f7eb8c3da2cbe606fd5d46b11ab"
-    //            "9211705770db88ac10270000000000000e6a0c4e5401150020120169894ba210270000000000001976a9143f7eb"
-    //            "8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
-    //        CTransaction txVinB = TxFromHex(vinB);
+    std::string opReturnArg;
+    EXPECT_TRUE(IsTxNTP1(&tx, &opReturnArg));
+    std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScript(opReturnArg);
+    std::shared_ptr<NTP1Script_Transfer> script_transfer =
+        std::dynamic_pointer_cast<NTP1Script_Transfer>(script);
+    EXPECT_EQ(script_transfer->getHeader(), boost::algorithm::unhex(opReturnArg.substr(0, 6)));
+    EXPECT_EQ(script_transfer->getHexMetadata().size(), (unsigned)0);
+    EXPECT_EQ(boost::algorithm::hex(script_transfer->getOpCodeBin()), "15");
+    EXPECT_EQ(script_transfer->getTxType(), NTP1Script::TxType::TxType_Transfer);
 
-    //        std::string vinC =
-    //            "010000006066a35a02d5e4c9c957fdfc9a737a22bc0a28d2260476687eb5c9b0b9debc1dd281f84e0f010000006"
-    //            "a47304402206e9241b719ceeeb35803170ff2f502779f3fdab1072481b1a2326618148dc4cf022048f478a43e8a"
-    //            "4301d9a877645f530c430a158e6aa81c4627b5fc21a9bfa8e4ff012103331393f9487ef4b318ae79972f3ccc84b"
-    //            "15d0718d7e05720c454404e67d51d1affffffff47750a9c7c1804b8e3ceaf092038df2f8289e827a10ae8daa547"
-    //            "2f3cae6cc9a2030000006b483045022100e01ba371ca19f4890a381f804e9cf6223e174ad9a558ee3adb1b74d88"
-    //            "d87a62f02205e688a1173dd8eaaf2173ae9958880c3eb3c8122ffd5fb22b793a0c292eea3c9012103331393f948"
-    //            "7ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff0410270000000000001976a914e1a"
-    //            "a4fabe4db6c5f6d262c830571288a746a06df88ac10270000000000001976a9143f7eb8c3da2cbe606fd5d46b11"
-    //            "ab9211705770db88ac10270000000000000e6a0c4e5401150020120169894a9210270000000000001976a9143f7"
-    //            "eb8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
-    //        CTransaction txVinC = TxFromHex(vinC);
+    EXPECT_EQ(script_transfer->getTransferInstructionsCount(), (unsigned)2);
 
-    //        std::string vinD =
-    //            "01000000c87ba35a028ce101d93f5d2a443f368f91a8eff8c86d13be0779db72d8e6b5d53b051444e4010000006"
-    //            "b483045022100a1b6d0ee3a9b5002735431d8b12ecb2dad7fd6a2b9086f072ca8c787ddd8781802201a7fe4cd73"
-    //            "d994ef4d620cde94292d46cb54744679bd1238cda064adf7a00e1a012103331393f9487ef4b318ae79972f3ccc8"
-    //            "4b15d0718d7e05720c454404e67d51d1afffffffff97366c14d0f369505f6fc90d7643e5c9484ad6c5e4353593c"
-    //            "b4c733b590a843030000006a47304402202b68c6b9ec4b5ae3caeed7c13036c414624a93196bd6a3c7bcab3bb35"
-    //            "0a4136d02206b2c5536f0624f2ed58ecc1e976a55b9124960c1f60939af3c6a232aa0e8d69c012103331393f948"
-    //            "7ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff0410270000000000001976a9148a4"
-    //            "b68e051ba56f5ef5fd101e23eabd6c5969c0488ac10270000000000001976a9143f7eb8c3da2cbe606fd5d46b11"
-    //            "ab9211705770db88ac10270000000000000e6a0c4e540115002012016989403210270000000000001976a9143f7"
-    //            "eb8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
-    //        CTransaction txVinD = TxFromHex(vinD);
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).amount, (uint64_t)100);
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).skipInput, false);
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, 0);
+    EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(0).rawAmount), "2012");
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).firstRawByte, 0);
 
-    //        std::vector<CTransaction> inputs{txVinA, txVinB, txVinC, txVinD};
+    EXPECT_EQ(script_transfer->getTransferInstruction(1).amount, (uint64_t)999965200);
+    EXPECT_EQ(script_transfer->getTransferInstruction(1).skipInput, false);
+    EXPECT_EQ(script_transfer->getTransferInstruction(1).outputIndex, 1);
+    EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(1).rawAmount), "69895242");
+    EXPECT_EQ(script_transfer->getTransferInstruction(1).firstRawByte, 1);
+    EXPECT_EQ(tx.GetHash().ToString(),
+              "006bd375946e903aa20aced1b411d61d14175488650e1deab3cb5ff8f354467d");
 
-    //        std::string opReturnArg;
-    //        EXPECT_TRUE(IsTxNTP1(&tx, &opReturnArg));
-    //        std::shared_ptr<NTP1Script>      scriptPtr = NTP1Script::ParseScript(opReturnArg);
-    //        std::shared_ptr<NTP1Script_Burn> scriptPtrD =
-    //            std::dynamic_pointer_cast<NTP1Script_Burn>(scriptPtr);
-    //        EXPECT_NE(scriptPtr.get(), nullptr);
-    //        EXPECT_NE(scriptPtrD.get(), nullptr);
-    //        EXPECT_EQ(scriptPtrD->getTxType(), NTP1Script::TxType::TxType_Burn);
+    /// Input 0
 
-    //        NTP1Transaction ntp1tx;
-    //        EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs));
-    //        EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)4);
-    //        // inputs are unknown, so no more tests
-    //        EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)3);
-    //        EXPECT_EQ(ntp1tx.getTxOut(0).getNumOfTokens(), (unsigned)1);
-    //        EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), (uint64_t)10);
-    //        EXPECT_EQ(ntp1tx.getTxOut(1).getNumOfTokens(), (unsigned)0);
-    //        EXPECT_EQ(ntp1tx.getTxOut(2).getNumOfTokens(), (unsigned)0);
+    std::string vinA =
+        "01000000d654a35a02b5b4c0f4608d996f7ccf68a74c7832b151fed86376defd0be51570f6695ea42a010000006"
+        "b483045022100ecbaf16008ccb4c7084d2e28b875adbfcb8cb1012e305ae503b646a075693f340220404eb96ab6"
+        "0496c8d52a06a4286e2916e9f70304b1ff3f1663c938cae7f08f01012103331393f9487ef4b318ae79972f3ccc8"
+        "4b15d0718d7e05720c454404e67d51d1affffffffebd3fcb84b4019229f8c85e5d0c736f4eb17637cce245369d6"
+        "a7b51b56a2026b030000006b483045022100b02f6f5d4c0b2e88d5d7226e0f22ed37938b79e242b0f8d6260b14e"
+        "00ab728120220549ecc61e8318105ad9255a54af4ee0966810e42fbf84a9fa7ef7c4892c41c35012103331393f9"
+        "487ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff0410270000000000001976a9148"
+        "6061d16eafa0ea7a6be8875fb5bbc09a5f210a588ac10270000000000001976a9143f7eb8c3da2cbe606fd5d46b"
+        "11ab9211705770db88ac10270000000000000e6a0c4e5401150020120169895252409c0000000000001976a9143"
+        "f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
+    CTransaction    txVinA = TxFromHex(vinA);
+    NTP1Transaction ntp1txVinA;
 
-    //        EXPECT_EQ(ntp1tx.getTxHash().ToString(),
-    //                  "008d329611fcbdb82b4adb097c29f1d6a56707bfb232c8c124390756e80a9e44");
+    NTP1TokenTxData vinA_vout0_token0;
+    vinA_vout0_token0.setAggregationPolicy("aggregable");
+    vinA_vout0_token0.setAmount(100);
+    vinA_vout0_token0.setDivisibility(7);
+    vinA_vout0_token0.setIssueTxIdHex(
+        "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+    vinA_vout0_token0.setLockStatus(true);
+    vinA_vout0_token0.setTokenId("LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
+    vinA_vout0_token0.setTokenSymbol("NIBBL");
 
-    //        // inputs
-    //        EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getHash().ToString(),
-    //                  "c0563ccccee98f68d519bcf9c595e459876c9f6fcfbd046f85e6fc56309735e9");
-    //        EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), (unsigned)1);
-    //        EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getHash().ToString(),
-    //                  "034849559c1ed8211644c7def3536688ec5766d3a7f7f977f190590d7bb7db05");
-    //        EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getIndex(), (unsigned)3);
-    //        EXPECT_EQ(ntp1tx.getTxIn(2).getPrevout().getHash().ToString(),
-    //                  "0132cf38f3a298403427e8c3203f030141efff9c0d3a3fb7fef10ab4452771df");
-    //        EXPECT_EQ(ntp1tx.getTxIn(2).getPrevout().getIndex(), (unsigned)3);
-    //        EXPECT_EQ(ntp1tx.getTxIn(3).getPrevout().getHash().ToString(),
-    //                  "0317c3f20338cd8ea142c389e65670554c676905d2024a58775f695fe88f1298");
-    //        EXPECT_EQ(ntp1tx.getTxIn(3).getPrevout().getIndex(), (unsigned)3);
+    NTP1TxOut vinA_vout0;
+    vinA_vout0.__manualSet(
+        10000, "76a91486061d16eafa0ea7a6be8875fb5bbc09a5f210a588ac",
+        "OP_DUP OP_HASH160 86061d16eafa0ea7a6be8875fb5bbc09a5f210a5 OP_EQUALVERIFY OP_CHECKSIG",
+        std::vector<NTP1TokenTxData>({vinA_vout0_token0}), "NY8d4F6EZQH1y5KoqvdybTUgfwAMUYW3qF");
 
-    //        /// READ AND WRITE
-    //        ///
-    //        {
-    //            // will be freed automatically by writeFromDisk
-    //            FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-    //            EXPECT_NE(fileWrite, nullptr);
+    NTP1TokenTxData vinA_vout1_token0;
+    vinA_vout1_token0.setAggregationPolicy("aggregable");
+    vinA_vout1_token0.setAmount(999965300);
+    vinA_vout1_token0.setDivisibility(7);
+    vinA_vout1_token0.setIssueTxIdHex(
+        "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+    vinA_vout1_token0.setLockStatus(true);
+    vinA_vout1_token0.setTokenId("LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
+    vinA_vout1_token0.setTokenSymbol("NIBBL");
 
-    //            unsigned int nFileRet = -1;
-    //            unsigned int nTxPos   = -1;
-    //            EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
+    NTP1TxOut vinA_vout1;
+    vinA_vout1.__manualSet(
+        10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
+        std::vector<NTP1TokenTxData>({vinA_vout1_token0}), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
-    //            FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-    //            EXPECT_NE(fileRead, nullptr);
+    NTP1TxOut vinA_vout2;
+    vinA_vout2.__manualSet(10000, "6a0c4e5401150020120169895252", "OP_RETURN 4e5401150020120169895252",
+                           std::vector<NTP1TokenTxData>(), "");
 
-    //            NTP1Transaction ntp1tx2;
-    //            ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-    //            EXPECT_EQ(ntp1tx, ntp1tx2);
-    //        }
-    //        {
-    //            FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-    //            EXPECT_NE(fileWrite, nullptr);
+    NTP1TxOut vinA_vout3;
+    vinA_vout3.__manualSet(
+        40000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
+        std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
-    //            unsigned int nFileRet = -1;
-    //            unsigned int nTxPos   = -1;
-    //            EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
+    // inputs are not important
+    ntp1txVinA.__manualSet(1,
+                           uint256("1766a9150953392de523f9420a2e32f993bb572e79f465de78ef96831494b347"),
+                           std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
+                           std::vector<NTP1TxOut>{vinA_vout0, vinA_vout1, vinA_vout2, vinA_vout3}, 0,
+                           1520653825000, NTP1TxType_TRANSFER);
 
-    //            FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-    //            EXPECT_NE(fileRead, nullptr);
+    /// Input 1
 
-    //            NTP1Transaction ntp1tx2;
-    //            ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-    //            EXPECT_EQ(ntp1tx, ntp1tx2);
-    //        }
-    //    }
+    std::string vinB =
+        "010000007c3fa35a0220b900bf90ba01c5e0b560261871c35ec84b2bcf1bb6a4c38f76554a53d9378e010000006"
+        "b483045022100fa4e87b9bc64d12b757a1ddd8a680239e8b11c8ca6496a212ffa726b0b79c1c202204e39d5776e"
+        "c175580429acdf7f2d80b6ee42c845c64c884f70138811c6931db0012103331393f9487ef4b318ae79972f3ccc8"
+        "4b15d0718d7e05720c454404e67d51d1affffffff04946f748b2ec8662ad584e09f6408636effbadf7dc59b168a"
+        "50d028aa0f827a010000006b483045022100c04d60412ff55eae4e735ca2022f84d797a72156c26523a55579f5e"
+        "8f8e7ffd702201c1e361451496b00ef8d47cd0e11fb2a30aca335583bf53b76fec3951a4d5576012103331393f9"
+        "487ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff0410270000000000001976a9146"
+        "732468b6fe071d7004a5d9bddaacc3a71423acd88ac10270000000000001976a9143f7eb8c3da2cbe606fd5d46b"
+        "11ab9211705770db88ac10270000000000000e6a0c4e5401150020120169895c3270110100000000001976a9143"
+        "f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
+    CTransaction    txVinB = TxFromHex(vinB);
+    NTP1Transaction ntp1txVinB;
+
+    NTP1TokenTxData vinB_vout0_token0;
+    vinB_vout0_token0.setAggregationPolicy("aggregable");
+    vinB_vout0_token0.setAmount(100);
+    vinB_vout0_token0.setDivisibility(7);
+    vinB_vout0_token0.setIssueTxIdHex(
+        "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+    vinB_vout0_token0.setLockStatus(true);
+    vinB_vout0_token0.setTokenId("LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
+    vinB_vout0_token0.setTokenSymbol("NIBBL");
+
+    NTP1TxOut vinB_vout0;
+    vinB_vout0.__manualSet(
+        10000, "76a9146732468b6fe071d7004a5d9bddaacc3a71423acd88ac",
+        "OP_DUP OP_HASH160 6732468b6fe071d7004a5d9bddaacc3a71423acd OP_EQUALVERIFY OP_CHECKSIG",
+        std::vector<NTP1TokenTxData>({vinB_vout0_token0}), "NVKd1iq2UF8RZThEN4MDGMBcKnFPnuPF6v");
+
+    NTP1TokenTxData vinB_vout1_token0;
+    vinB_vout1_token0.setAggregationPolicy("aggregable");
+    vinB_vout1_token0.setAmount(999981100);
+    vinB_vout1_token0.setDivisibility(7);
+    vinB_vout1_token0.setIssueTxIdHex(
+        "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+    vinB_vout1_token0.setLockStatus(true);
+    vinB_vout1_token0.setTokenId("LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
+    vinB_vout1_token0.setTokenSymbol("NIBBL");
+
+    NTP1TxOut vinB_vout1;
+    vinB_vout1.__manualSet(
+        10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
+        std::vector<NTP1TokenTxData>({vinB_vout1_token0}), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+
+    NTP1TxOut vinB_vout2;
+    vinB_vout2.__manualSet(10000, "6a0c4e5401150020120169895c32", "OP_RETURN 4e5401150020120169895c32",
+                           std::vector<NTP1TokenTxData>(), "");
+
+    NTP1TxOut vinB_vout3;
+    vinB_vout3.__manualSet(
+        70000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
+        std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+
+    // inputs are not important
+    ntp1txVinB.__manualSet(1,
+                           uint256("111481401fbd842c5aa1b9420db8c5ef7e94d9ac3b3d3b7e2b2cb6c7b0650612"),
+                           std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
+                           std::vector<NTP1TxOut>{vinB_vout0, vinB_vout1, vinB_vout2, vinB_vout3}, 0,
+                           1520653825000, NTP1TxType_TRANSFER);
+
+    std::vector<std::pair<CTransaction, NTP1Transaction>> inputs{std::make_pair(txVinA, ntp1txVinA),
+                                                                 std::make_pair(txVinB, ntp1txVinB)};
+
+    ////////////////////////////////////////////
+
+    NTP1Transaction ntp1tx;
+    // TODO: uncomment
+    //        ASSERT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs));
+    ntp1tx.readNTP1DataFromTx(tx, inputs);
+    EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)2);
+    // inputs are unknown, so no more tests
+    EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)4);
+    EXPECT_EQ(ntp1tx.getTxOut(0).getNumOfTokens(), (unsigned)1);
+    EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), (uint64_t)100);
+    EXPECT_EQ(ntp1tx.getTxOut(1).getNumOfTokens(), (unsigned)1);
+    EXPECT_EQ(ntp1tx.getTxOut(1).getToken(0).getAmount(), (uint64_t)999965200);
+    EXPECT_EQ(ntp1tx.getTxOut(2).getNumOfTokens(), (unsigned)0);
+    EXPECT_EQ(ntp1tx.getTxOut(3).getNumOfTokens(), (unsigned)0);
+    EXPECT_EQ(ntp1tx.getTxHash().ToString(),
+              "006bd375946e903aa20aced1b411d61d14175488650e1deab3cb5ff8f354467d");
+
+    EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getHash().ToString(),
+              "1766a9150953392de523f9420a2e32f993bb572e79f465de78ef96831494b347");
+    EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), (unsigned)1);
+    EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getHash().ToString(),
+              "111481401fbd842c5aa1b9420db8c5ef7e94d9ac3b3d3b7e2b2cb6c7b0650612");
+    EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getIndex(), (unsigned)3);
+
+    /// READ AND WRITE
+    ///
+    {
+        // will be freed automatically by writeFromDisk
+        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
+        EXPECT_NE(fileWrite, nullptr);
+
+        unsigned int nFileRet = -1;
+        unsigned int nTxPos   = -1;
+        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
+
+        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
+        EXPECT_NE(fileRead, nullptr);
+
+        NTP1Transaction ntp1tx2;
+        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
+        EXPECT_EQ(ntp1tx, ntp1tx2);
+    }
+    {
+        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
+        EXPECT_NE(fileWrite, nullptr);
+
+        unsigned int nFileRet = -1;
+        unsigned int nTxPos   = -1;
+        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
+
+        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
+        EXPECT_NE(fileRead, nullptr);
+
+        NTP1Transaction ntp1tx2;
+        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
+        EXPECT_EQ(ntp1tx, ntp1tx2);
+    }
+}
+
+TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
+{
+    // transfer
+    string transaction =
+        "01000000f554a35a0247b394148396ef78de65f4792e57bb93f9322e0a42f923e52d39530915a96617010000006"
+        "a47304402200cfdd8969cb137ee5a1dde2bed954ab8ae88fb4703125e4ec103b2f21787fa27022079ffc6a52a62"
+        "d1eb8aa78f831faa038fde8549ec446cb0f7427db77c7d3ddb59012103331393f9487ef4b318ae79972f3ccc84b"
+        "15d0718d7e05720c454404e67d51d1affffffff120665b0c7b62c2b7e3b3d3bacd9947eefc5b80d42b9a15a2c84"
+        "bd1f40811411030000006a47304402205c7d97ee153e83c54f5c61221acec7b8b60786fca80e59e45ecbf1736a7"
+        "f459a02207147d019151d91143d6289d37d49b3ad63952830dc42a79bf262ebaee5da6040012103331393f9487e"
+        "f4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff0410270000000000001976a91471877"
+        "06893521dd4d61a843d241c5f52f32d7e6188ac10270000000000001976a9143f7eb8c3da2cbe606fd5d46b11ab"
+        "9211705770db88ac10270000000000000e6a0c4e5401150020120169895242409c0000000000001976a9143f7eb"
+        "8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
+    CTransaction tx = TxFromHex(transaction);
+    EXPECT_TRUE(tx.CheckTransaction());
+
+    std::string opReturnArg;
+    EXPECT_TRUE(IsTxNTP1(&tx, &opReturnArg));
+    std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScript(opReturnArg);
+    std::shared_ptr<NTP1Script_Transfer> script_transfer =
+        std::dynamic_pointer_cast<NTP1Script_Transfer>(script);
+    EXPECT_EQ(script_transfer->getHeader(), boost::algorithm::unhex(opReturnArg.substr(0, 6)));
+    EXPECT_EQ(script_transfer->getHexMetadata().size(), (unsigned)0);
+    EXPECT_EQ(boost::algorithm::hex(script_transfer->getOpCodeBin()), "15");
+    EXPECT_EQ(script_transfer->getTxType(), NTP1Script::TxType::TxType_Transfer);
+
+    EXPECT_EQ(script_transfer->getTransferInstructionsCount(), (unsigned)2);
+
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).amount, (uint64_t)100);
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).skipInput, false);
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, 0);
+    EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(0).rawAmount), "2012");
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).firstRawByte, 0);
+
+    EXPECT_EQ(script_transfer->getTransferInstruction(1).amount, (uint64_t)999965200);
+    EXPECT_EQ(script_transfer->getTransferInstruction(1).skipInput, false);
+    EXPECT_EQ(script_transfer->getTransferInstruction(1).outputIndex, 1);
+    EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(1).rawAmount), "69895242");
+    EXPECT_EQ(script_transfer->getTransferInstruction(1).firstRawByte, 1);
+    EXPECT_EQ(tx.GetHash().ToString(),
+              "006bd375946e903aa20aced1b411d61d14175488650e1deab3cb5ff8f354467d");
+
+    /// Input 0
+
+    std::string vinA =
+        "01000000d654a35a02b5b4c0f4608d996f7ccf68a74c7832b151fed86376defd0be51570f6695ea42a010000006"
+        "b483045022100ecbaf16008ccb4c7084d2e28b875adbfcb8cb1012e305ae503b646a075693f340220404eb96ab6"
+        "0496c8d52a06a4286e2916e9f70304b1ff3f1663c938cae7f08f01012103331393f9487ef4b318ae79972f3ccc8"
+        "4b15d0718d7e05720c454404e67d51d1affffffffebd3fcb84b4019229f8c85e5d0c736f4eb17637cce245369d6"
+        "a7b51b56a2026b030000006b483045022100b02f6f5d4c0b2e88d5d7226e0f22ed37938b79e242b0f8d6260b14e"
+        "00ab728120220549ecc61e8318105ad9255a54af4ee0966810e42fbf84a9fa7ef7c4892c41c35012103331393f9"
+        "487ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff0410270000000000001976a9148"
+        "6061d16eafa0ea7a6be8875fb5bbc09a5f210a588ac10270000000000001976a9143f7eb8c3da2cbe606fd5d46b"
+        "11ab9211705770db88ac10270000000000000e6a0c4e5401150020120169895252409c0000000000001976a9143"
+        "f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
+    CTransaction    txVinA = TxFromHex(vinA);
+    NTP1Transaction ntp1txVinA;
+
+    NTP1TokenTxData vinA_vout0_token0;
+    vinA_vout0_token0.setAggregationPolicy("aggregable");
+    vinA_vout0_token0.setAmount(100);
+    vinA_vout0_token0.setDivisibility(7);
+    vinA_vout0_token0.setIssueTxIdHex(
+        "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+    vinA_vout0_token0.setLockStatus(true);
+    vinA_vout0_token0.setTokenId("LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
+    vinA_vout0_token0.setTokenSymbol("NIBBL");
+
+    NTP1TxOut vinA_vout0;
+    vinA_vout0.__manualSet(
+        10000, "76a91486061d16eafa0ea7a6be8875fb5bbc09a5f210a588ac",
+        "OP_DUP OP_HASH160 86061d16eafa0ea7a6be8875fb5bbc09a5f210a5 OP_EQUALVERIFY OP_CHECKSIG",
+        std::vector<NTP1TokenTxData>({vinA_vout0_token0}), "NY8d4F6EZQH1y5KoqvdybTUgfwAMUYW3qF");
+
+    NTP1TokenTxData vinA_vout1_token0;
+    vinA_vout1_token0.setAggregationPolicy("aggregable");
+    vinA_vout1_token0.setAmount(999965500);
+    vinA_vout1_token0.setDivisibility(7);
+    vinA_vout1_token0.setIssueTxIdHex(
+        "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+    vinA_vout1_token0.setLockStatus(true);
+    vinA_vout1_token0.setTokenId("LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
+    vinA_vout1_token0.setTokenSymbol("NIBBL");
+
+    NTP1TxOut vinA_vout1;
+    vinA_vout1.__manualSet(
+        10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
+        std::vector<NTP1TokenTxData>({vinA_vout1_token0}), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+
+    NTP1TxOut vinA_vout2;
+    vinA_vout2.__manualSet(10000, "6a0c4e5401150020120169895252", "OP_RETURN 4e5401150020120169895252",
+                           std::vector<NTP1TokenTxData>(), "");
+
+    NTP1TxOut vinA_vout3;
+    vinA_vout3.__manualSet(
+        40000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
+        std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+
+    // inputs are not important
+    ntp1txVinA.__manualSet(1,
+                           uint256("1766a9150953392de523f9420a2e32f993bb572e79f465de78ef96831494b347"),
+                           std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
+                           std::vector<NTP1TxOut>{vinA_vout0, vinA_vout1, vinA_vout2, vinA_vout3}, 0,
+                           1520653825000, NTP1TxType_TRANSFER);
+
+    /// Input 1
+
+    std::string vinB =
+        "010000007c3fa35a0220b900bf90ba01c5e0b560261871c35ec84b2bcf1bb6a4c38f76554a53d9378e010000006"
+        "b483045022100fa4e87b9bc64d12b757a1ddd8a680239e8b11c8ca6496a212ffa726b0b79c1c202204e39d5776e"
+        "c175580429acdf7f2d80b6ee42c845c64c884f70138811c6931db0012103331393f9487ef4b318ae79972f3ccc8"
+        "4b15d0718d7e05720c454404e67d51d1affffffff04946f748b2ec8662ad584e09f6408636effbadf7dc59b168a"
+        "50d028aa0f827a010000006b483045022100c04d60412ff55eae4e735ca2022f84d797a72156c26523a55579f5e"
+        "8f8e7ffd702201c1e361451496b00ef8d47cd0e11fb2a30aca335583bf53b76fec3951a4d5576012103331393f9"
+        "487ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff0410270000000000001976a9146"
+        "732468b6fe071d7004a5d9bddaacc3a71423acd88ac10270000000000001976a9143f7eb8c3da2cbe606fd5d46b"
+        "11ab9211705770db88ac10270000000000000e6a0c4e5401150020120169895c3270110100000000001976a9143"
+        "f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
+    CTransaction    txVinB = TxFromHex(vinB);
+    NTP1Transaction ntp1txVinB;
+
+    NTP1TokenTxData vinB_vout0_token0;
+    vinB_vout0_token0.setAggregationPolicy("aggregable");
+    vinB_vout0_token0.setAmount(100);
+    vinB_vout0_token0.setDivisibility(7);
+    vinB_vout0_token0.setIssueTxIdHex(
+        "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+    vinB_vout0_token0.setLockStatus(true);
+    vinB_vout0_token0.setTokenId("LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
+    vinB_vout0_token0.setTokenSymbol("NIBBL");
+
+    NTP1TxOut vinB_vout0;
+    vinB_vout0.__manualSet(
+        10000, "76a9146732468b6fe071d7004a5d9bddaacc3a71423acd88ac",
+        "OP_DUP OP_HASH160 6732468b6fe071d7004a5d9bddaacc3a71423acd OP_EQUALVERIFY OP_CHECKSIG",
+        std::vector<NTP1TokenTxData>({vinB_vout0_token0}), "NVKd1iq2UF8RZThEN4MDGMBcKnFPnuPF6v");
+
+    NTP1TokenTxData vinB_vout1_token0;
+    vinB_vout1_token0.setAggregationPolicy("aggregable");
+    vinB_vout1_token0.setAmount(999981100);
+    vinB_vout1_token0.setDivisibility(7);
+    vinB_vout1_token0.setIssueTxIdHex(
+        "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+    vinB_vout1_token0.setLockStatus(true);
+    vinB_vout1_token0.setTokenId("LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
+    vinB_vout1_token0.setTokenSymbol("NIBBL");
+
+    NTP1TxOut vinB_vout1;
+    vinB_vout1.__manualSet(
+        10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
+        std::vector<NTP1TokenTxData>({vinB_vout1_token0}), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+
+    NTP1TxOut vinB_vout2;
+    vinB_vout2.__manualSet(10000, "6a0c4e5401150020120169895c32", "OP_RETURN 4e5401150020120169895c32",
+                           std::vector<NTP1TokenTxData>(), "");
+
+    NTP1TxOut vinB_vout3;
+    vinB_vout3.__manualSet(
+        70000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
+        std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+
+    // inputs are not important
+    ntp1txVinB.__manualSet(1,
+                           uint256("111481401fbd842c5aa1b9420db8c5ef7e94d9ac3b3d3b7e2b2cb6c7b0650612"),
+                           std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
+                           std::vector<NTP1TxOut>{vinB_vout0, vinB_vout1, vinB_vout2, vinB_vout3}, 0,
+                           1520653825000, NTP1TxType_TRANSFER);
+
+    std::vector<std::pair<CTransaction, NTP1Transaction>> inputs{std::make_pair(txVinB, ntp1txVinB),
+                                                                 std::make_pair(txVinA, ntp1txVinA)};
+
+    ////////////////////////////////////////////
+
+    NTP1Transaction ntp1tx;
+    // TODO: uncomment
+    ASSERT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs));
+    EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)2);
+    // inputs are unknown, so no more tests
+    EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)4);
+    EXPECT_EQ(ntp1tx.getTxOut(0).getNumOfTokens(), (unsigned)1);
+    EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), (uint64_t)100);
+    EXPECT_EQ(ntp1tx.getTxOut(1).getNumOfTokens(), (unsigned)1);
+    EXPECT_EQ(ntp1tx.getTxOut(1).getToken(0).getAmount(), (uint64_t)999965200);
+    EXPECT_EQ(ntp1tx.getTxOut(2).getNumOfTokens(), (unsigned)0);
+    EXPECT_EQ(ntp1tx.getTxOut(3).getNumOfTokens(), (unsigned)1);
+    EXPECT_EQ(ntp1tx.getTxOut(3).getToken(0).getAmount(), (uint64_t)200);
+    EXPECT_EQ(ntp1tx.getTxHash().ToString(),
+              "006bd375946e903aa20aced1b411d61d14175488650e1deab3cb5ff8f354467d");
+
+    EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getHash().ToString(),
+              "1766a9150953392de523f9420a2e32f993bb572e79f465de78ef96831494b347");
+    EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), (unsigned)1);
+    EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getHash().ToString(),
+              "111481401fbd842c5aa1b9420db8c5ef7e94d9ac3b3d3b7e2b2cb6c7b0650612");
+    EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getIndex(), (unsigned)3);
+
+    /// READ AND WRITE
+    ///
+    {
+        // will be freed automatically by writeFromDisk
+        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
+        EXPECT_NE(fileWrite, nullptr);
+
+        unsigned int nFileRet = -1;
+        unsigned int nTxPos   = -1;
+        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
+
+        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
+        EXPECT_NE(fileRead, nullptr);
+
+        NTP1Transaction ntp1tx2;
+        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
+        EXPECT_EQ(ntp1tx, ntp1tx2);
+    }
+    {
+        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
+        EXPECT_NE(fileWrite, nullptr);
+
+        unsigned int nFileRet = -1;
+        unsigned int nTxPos   = -1;
+        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
+
+        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
+        EXPECT_NE(fileRead, nullptr);
+
+        NTP1Transaction ntp1tx2;
+        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
+        EXPECT_EQ(ntp1tx, ntp1tx2);
+    }
+}
+
+TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
+{
+    // burn with transfer
+    string transaction =
+        "0100000048b1535b04e935973056fce6856f04bdcf6f9f6c8759e495c5f9bc19d5688fe9cecc3c56c0010000006"
+        "b483045022100b004a3201d922e25579d2feba02dad95df573e5dee5efb6cc4c761348e08c580022003a860417f"
+        "0de670b3a08df43d244aa16661f5218830bf5eb73b938050c8112a012103331393f9487ef4b318ae79972f3ccc8"
+        "4b15d0718d7e05720c454404e67d51d1affffffff05dbb77b0d5990f177f9f7a7d36657ec886653f3dec7441621"
+        "d81e9c55494803030000006a473044022039b3c6719b340f77a178e781a2f3bc6be0dcc78ea03ec413cc6527dff"
+        "6abf96902204abf71cc27430089bed9c7692cd67af66ece912d67b60f401da0b2a4bfa5bc38012103331393f948"
+        "7ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffffdf712745b40af1feb73f3a0d9cffe"
+        "f4101033f20c3e827344098a2f338cf3201030000006a47304402201a8fdafcb5d0528eee7d3abf02ec4f9acdd6"
+        "90c26ded4ec87d36f803daa1abd00220470b9225d0f5acb7af807af1cb43638f134492bc07d8d60f17295f9096d"
+        "25296012103331393f9487ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff98128fe8"
+        "5f695f77584a02d20569674c557056e689c342a18ecd3803f2c31703030000006a47304402206b521b8663386ab"
+        "faa861150ea9a1f444edf78e22682aef95791d2817177661a0220553f5c2bf0cd67053fbc3058f122522f7cb94f"
+        "9c2bea157d4df16d1dca9f9e4a012103331393f9487ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d"
+        "51d1affffffff0310270000000000001976a9147f5aff9c5ec060a45b8405a7b4f65fce5909773e88ac10270000"
+        "000000000a6a084e540125000a1f1410270000000000001976a9143f7eb8c3da2cbe606fd5d46b11ab921170577"
+        "0db88ac00000000";
+    CTransaction tx = TxFromHex(transaction);
+    EXPECT_TRUE(tx.CheckTransaction());
+
+    std::string vinA =
+        "010000005944185b0226d0e3af9cf2fa36d2cbecd53d54dc68e35489c85fae907e050165dc1a980413010000006"
+        "a4730440220024193e8b8fad41d5672e6629b03ae662b61cf39bdf6a74ce3c4dac7cfb302a10220602741901ff9"
+        "898c922ad0da52e558361bea8b0bbcdd8a8e5f3810e1e48a63ee012103331393f9487ef4b318ae79972f3ccc84b"
+        "15d0718d7e05720c454404e67d51d1affffffffc486eeb847a82fcc78ed0a3cd83c2b7156bc5677b6488e7822f6"
+        "0df0ec42accd030000006a473044022052458345ebaa51676f3469174e086a3b4c65c8a0c1cee99cee1b7190835"
+        "c456702204f442eccdcbe25aab24b5ddb5ad3098b676699b3df47f5a1651667a23759c058012103331393f9487e"
+        "f4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff0410270000000000001976a9144440c"
+        "2f1bdc0ce2498f135a3e67434d0e765c57f88ac10270000000000001976a9143f7eb8c3da2cbe606fd5d46b11ab"
+        "9211705770db88ac10270000000000000f6a0d4e54011500201201802fadc75120830c00000000001976a9143f7"
+        "eb8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
+    CTransaction    txVinA = TxFromHex(vinA);
+    NTP1Transaction ntp1txVinA;
+
+    NTP1TokenTxData vinA_vout0_token0;
+    vinA_vout0_token0.setAggregationPolicy("aggregable");
+    vinA_vout0_token0.setAmount(100);
+    vinA_vout0_token0.setDivisibility(7);
+    vinA_vout0_token0.setIssueTxIdHex(
+        "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+    vinA_vout0_token0.setLockStatus(true);
+    vinA_vout0_token0.setTokenId("LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
+    vinA_vout0_token0.setTokenSymbol("NIBBL");
+
+    NTP1TxOut vinA_vout0;
+    vinA_vout0.__manualSet(
+        10000, "76a91486061d16eafa0ea7a6be8875fb5bbc09a5f210a588ac",
+        "OP_DUP OP_HASH160 86061d16eafa0ea7a6be8875fb5bbc09a5f210a5 OP_EQUALVERIFY OP_CHECKSIG",
+        std::vector<NTP1TokenTxData>({vinA_vout0_token0}), "NS8riWSXkBwWLK1wDDqReNHiLA5pTHeHbg");
+
+    NTP1TokenTxData vinA_vout1_token0;
+    vinA_vout1_token0.setAggregationPolicy("aggregable");
+    vinA_vout1_token0.setAmount(999897380);
+    vinA_vout1_token0.setDivisibility(7);
+    vinA_vout1_token0.setIssueTxIdHex(
+        "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+    vinA_vout1_token0.setLockStatus(true);
+    vinA_vout1_token0.setTokenId("LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
+    vinA_vout1_token0.setTokenSymbol("NIBBL");
+
+    NTP1TxOut vinA_vout1;
+    vinA_vout1.__manualSet(
+        10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
+        std::vector<NTP1TokenTxData>({vinA_vout1_token0}), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+
+    NTP1TxOut vinA_vout2;
+    vinA_vout2.__manualSet(10000, "6a0d4e54011500201201802fadc751",
+                           "OP_RETURN 4e54011500201201802fadc751", std::vector<NTP1TokenTxData>(), "");
+
+    NTP1TxOut vinA_vout3;
+    vinA_vout3.__manualSet(
+        820000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
+        std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+
+    // inputs are not important
+    ntp1txVinA.__manualSet(1,
+                           uint256("c0563ccccee98f68d519bcf9c595e459876c9f6fcfbd046f85e6fc56309735e9"),
+                           std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
+                           std::vector<NTP1TxOut>{vinA_vout0, vinA_vout1, vinA_vout2, vinA_vout3}, 0,
+                           1520653825000, NTP1TxType_TRANSFER);
+
+    std::string vinB =
+        "010000005764a35a02da1b4ac76bbcee52883fa9dca66badcf26419cbebad3649bad1716b07bfb9b42010000006"
+        "a473044022044cf586c7ff83f70e7826a1f1dca6b94a578fd00202ff0796022821fa5f0accf022003e4a5e7cd13"
+        "780eb237074ee0bdb8ca718c61db69f69dcf3eca186a075b185a012103331393f9487ef4b318ae79972f3ccc84b"
+        "15d0718d7e05720c454404e67d51d1affffffffe6f3e0c696cbf8478bcaf21ec97df5ae6619499813a4e84f2ff8"
+        "02644f4d4bc1030000006a47304402207fa6cd4be5571f207a379a3da6f908b3b4cda3f4e8464219357d99f46f6"
+        "5ddb0022037fe0c24e01d0a549313eab5699bf9e8cb098eea89df5aea49e3db377cdb1cf5012103331393f9487e"
+        "f4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff0410270000000000001976a91413d4f"
+        "e22b1d29a1bbeb3755441003e2380dcf13288ac10270000000000001976a9143f7eb8c3da2cbe606fd5d46b11ab"
+        "9211705770db88ac10270000000000000e6a0c4e5401150020120169894ba210270000000000001976a9143f7eb"
+        "8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
+    CTransaction    txVinB = TxFromHex(vinB);
+    NTP1Transaction ntp1txVinB;
+
+    NTP1TokenTxData vinB_vout0_token0;
+    vinB_vout0_token0.setAggregationPolicy("aggregable");
+    vinB_vout0_token0.setAmount(100);
+    vinB_vout0_token0.setDivisibility(7);
+    vinB_vout0_token0.setIssueTxIdHex(
+        "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+    vinB_vout0_token0.setLockStatus(true);
+    vinB_vout0_token0.setTokenId("LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
+    vinB_vout0_token0.setTokenSymbol("NIBBL");
+
+    NTP1TxOut vinB_vout0;
+    vinB_vout0.__manualSet(
+        10000, "76a91486061d16eafa0ea7a6be8875fb5bbc09a5f210a588ac",
+        "OP_DUP OP_HASH160 86061d16eafa0ea7a6be8875fb5bbc09a5f210a5 OP_EQUALVERIFY OP_CHECKSIG",
+        std::vector<NTP1TokenTxData>({vinB_vout0_token0}), "NMiqBPp9WkE7bZo3d1CLcVd1orGdapY1VN");
+
+    NTP1TokenTxData vinB_vout1_token0;
+    vinB_vout1_token0.setAggregationPolicy("aggregable");
+    vinB_vout1_token0.setAmount(999954600);
+    vinB_vout1_token0.setDivisibility(7);
+    vinB_vout1_token0.setIssueTxIdHex(
+        "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+    vinB_vout1_token0.setLockStatus(true);
+    vinB_vout1_token0.setTokenId("LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
+    vinB_vout1_token0.setTokenSymbol("NIBBL");
+
+    NTP1TxOut vinB_vout1;
+    vinB_vout1.__manualSet(
+        10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
+        std::vector<NTP1TokenTxData>({vinB_vout1_token0}), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+
+    NTP1TxOut vinB_vout2;
+    vinB_vout2.__manualSet(10000, "6a0c4e5401150020120169894ba2", "OP_RETURN 4e5401150020120169894ba2",
+                           std::vector<NTP1TokenTxData>(), "");
+
+    NTP1TxOut vinB_vout3;
+    vinB_vout3.__manualSet(
+        10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
+        std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+
+    // inputs are not important
+    ntp1txVinB.__manualSet(1,
+                           uint256("034849559c1ed8211644c7def3536688ec5766d3a7f7f977f190590d7bb7db05"),
+                           std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
+                           std::vector<NTP1TxOut>{vinB_vout0, vinB_vout1, vinB_vout2, vinB_vout3}, 0,
+                           1520653825000, NTP1TxType_TRANSFER);
+
+    std::string vinC =
+        "010000006066a35a02d5e4c9c957fdfc9a737a22bc0a28d2260476687eb5c9b0b9debc1dd281f84e0f010000006"
+        "a47304402206e9241b719ceeeb35803170ff2f502779f3fdab1072481b1a2326618148dc4cf022048f478a43e8a"
+        "4301d9a877645f530c430a158e6aa81c4627b5fc21a9bfa8e4ff012103331393f9487ef4b318ae79972f3ccc84b"
+        "15d0718d7e05720c454404e67d51d1affffffff47750a9c7c1804b8e3ceaf092038df2f8289e827a10ae8daa547"
+        "2f3cae6cc9a2030000006b483045022100e01ba371ca19f4890a381f804e9cf6223e174ad9a558ee3adb1b74d88"
+        "d87a62f02205e688a1173dd8eaaf2173ae9958880c3eb3c8122ffd5fb22b793a0c292eea3c9012103331393f948"
+        "7ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff0410270000000000001976a914e1a"
+        "a4fabe4db6c5f6d262c830571288a746a06df88ac10270000000000001976a9143f7eb8c3da2cbe606fd5d46b11"
+        "ab9211705770db88ac10270000000000000e6a0c4e5401150020120169894a9210270000000000001976a9143f7"
+        "eb8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
+    CTransaction    txVinC = TxFromHex(vinC);
+    NTP1Transaction ntp1txVinC;
+
+    NTP1TokenTxData vinC_vout0_token0;
+    vinC_vout0_token0.setAggregationPolicy("aggregable");
+    vinC_vout0_token0.setAmount(100);
+    vinC_vout0_token0.setDivisibility(7);
+    vinC_vout0_token0.setIssueTxIdHex(
+        "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+    vinC_vout0_token0.setLockStatus(true);
+    vinC_vout0_token0.setTokenId("LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
+    vinC_vout0_token0.setTokenSymbol("NIBBL");
+
+    NTP1TxOut vinC_vout0;
+    vinC_vout0.__manualSet(
+        10000, "76a914e1aa4fabe4db6c5f6d262c830571288a746a06df88ac",
+        "OP_DUP OP_HASH160 e1aa4fabe4db6c5f6d262c830571288a746a06df OP_EQUALVERIFY OP_CHECKSIG",
+        std::vector<NTP1TokenTxData>({vinC_vout0_token0}), "NgVBFMAt1moZrPS2LX7ud7zJGDd8rtNsvu");
+
+    NTP1TokenTxData vinC_vout1_token0;
+    vinC_vout1_token0.setAggregationPolicy("aggregable");
+    vinC_vout1_token0.setAmount(999952900);
+    vinC_vout1_token0.setDivisibility(7);
+    vinC_vout1_token0.setIssueTxIdHex(
+        "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+    vinC_vout1_token0.setLockStatus(true);
+    vinC_vout1_token0.setTokenId("LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
+    vinC_vout1_token0.setTokenSymbol("NIBBL");
+
+    NTP1TxOut vinC_vout1;
+    vinC_vout1.__manualSet(
+        10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
+        std::vector<NTP1TokenTxData>({vinC_vout1_token0}), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+
+    NTP1TxOut vinC_vout2;
+    vinC_vout2.__manualSet(10000, "6a0c4e5401150020120169894a92", "OP_RETURN 4e5401150020120169894a92",
+                           std::vector<NTP1TokenTxData>(), "");
+
+    NTP1TxOut vinC_vout3;
+    vinC_vout3.__manualSet(
+        10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
+        std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+
+    // inputs are not important
+    ntp1txVinC.__manualSet(1,
+                           uint256("0132cf38f3a298403427e8c3203f030141efff9c0d3a3fb7fef10ab4452771df"),
+                           std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
+                           std::vector<NTP1TxOut>{vinC_vout0, vinC_vout1, vinC_vout2, vinC_vout3}, 0,
+                           1520653825000, NTP1TxType_TRANSFER);
+
+    std::string vinD =
+        "01000000c87ba35a028ce101d93f5d2a443f368f91a8eff8c86d13be0779db72d8e6b5d53b051444e4010000006"
+        "b483045022100a1b6d0ee3a9b5002735431d8b12ecb2dad7fd6a2b9086f072ca8c787ddd8781802201a7fe4cd73"
+        "d994ef4d620cde94292d46cb54744679bd1238cda064adf7a00e1a012103331393f9487ef4b318ae79972f3ccc8"
+        "4b15d0718d7e05720c454404e67d51d1afffffffff97366c14d0f369505f6fc90d7643e5c9484ad6c5e4353593c"
+        "b4c733b590a843030000006a47304402202b68c6b9ec4b5ae3caeed7c13036c414624a93196bd6a3c7bcab3bb35"
+        "0a4136d02206b2c5536f0624f2ed58ecc1e976a55b9124960c1f60939af3c6a232aa0e8d69c012103331393f948"
+        "7ef4b318ae79972f3ccc84b15d0718d7e05720c454404e67d51d1affffffff0410270000000000001976a9148a4"
+        "b68e051ba56f5ef5fd101e23eabd6c5969c0488ac10270000000000001976a9143f7eb8c3da2cbe606fd5d46b11"
+        "ab9211705770db88ac10270000000000000e6a0c4e540115002012016989403210270000000000001976a9143f7"
+        "eb8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
+    CTransaction    txVinD = TxFromHex(vinD);
+    NTP1Transaction ntp1txVinD;
+
+    NTP1TokenTxData vinD_vout0_token0;
+    vinD_vout0_token0.setAggregationPolicy("aggregable");
+    vinD_vout0_token0.setAmount(100);
+    vinD_vout0_token0.setDivisibility(7);
+    vinD_vout0_token0.setIssueTxIdHex(
+        "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+    vinD_vout0_token0.setLockStatus(true);
+    vinD_vout0_token0.setTokenId("LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
+    vinD_vout0_token0.setTokenSymbol("NIBBL");
+
+    NTP1TxOut vinD_vout0;
+    vinD_vout0.__manualSet(
+        10000, "76a9148a4b68e051ba56f5ef5fd101e23eabd6c5969c0488ac",
+        "OP_DUP OP_HASH160 8a4b68e051ba56f5ef5fd101e23eabd6c5969c04 OP_EQUALVERIFY OP_CHECKSIG",
+        std::vector<NTP1TokenTxData>({vinD_vout0_token0}), "NYXCmnTDhV8hBx7QB1QrqG6XqSutzxAgQ7");
+
+    NTP1TokenTxData vinD_vout1_token0;
+    vinD_vout1_token0.setAggregationPolicy("aggregable");
+    vinD_vout1_token0.setAmount(999936300);
+    vinD_vout1_token0.setDivisibility(7);
+    vinD_vout1_token0.setIssueTxIdHex(
+        "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
+    vinD_vout1_token0.setLockStatus(true);
+    vinD_vout1_token0.setTokenId("LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
+    vinD_vout1_token0.setTokenSymbol("NIBBL");
+
+    NTP1TxOut vinD_vout1;
+    vinD_vout1.__manualSet(
+        10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
+        std::vector<NTP1TokenTxData>({vinD_vout1_token0}), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+
+    NTP1TxOut vinD_vout2;
+    vinD_vout2.__manualSet(10000, "6a0c4e5401150020120169894032", "OP_RETURN 4e5401150020120169894032",
+                           std::vector<NTP1TokenTxData>(), "");
+
+    NTP1TxOut vinD_vout3;
+    vinD_vout3.__manualSet(
+        10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
+        std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+
+    // inputs are not important
+    ntp1txVinD.__manualSet(1,
+                           uint256("0317c3f20338cd8ea142c389e65670554c676905d2024a58775f695fe88f1298"),
+                           std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
+                           std::vector<NTP1TxOut>{vinD_vout0, vinD_vout1, vinD_vout2, vinD_vout3}, 0,
+                           1520653825000, NTP1TxType_TRANSFER);
+
+    std::vector<std::pair<CTransaction, NTP1Transaction>> inputs{
+        std::make_pair(txVinA, ntp1txVinA), std::make_pair(txVinB, ntp1txVinB),
+        std::make_pair(txVinC, ntp1txVinC), std::make_pair(txVinD, ntp1txVinD)};
+
+    std::string opReturnArg;
+    EXPECT_TRUE(IsTxNTP1(&tx, &opReturnArg));
+    std::shared_ptr<NTP1Script>      scriptPtr  = NTP1Script::ParseScript(opReturnArg);
+    std::shared_ptr<NTP1Script_Burn> scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Burn>(scriptPtr);
+    EXPECT_NE(scriptPtr.get(), nullptr);
+    EXPECT_NE(scriptPtrD.get(), nullptr);
+    EXPECT_EQ(scriptPtrD->getTxType(), NTP1Script::TxType::TxType_Burn);
+
+    NTP1Transaction ntp1tx;
+    ntp1tx.readNTP1DataFromTx(tx, inputs);
+    // TODO: uncomment
+    //    EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs));
+    EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)4);
+    // inputs are unknown, so no more tests
+    EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)3);
+    EXPECT_EQ(ntp1tx.getTxOut(0).getNumOfTokens(), (unsigned)1);
+    EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), (uint64_t)10);
+    EXPECT_EQ(ntp1tx.getTxOut(1).getNumOfTokens(), (unsigned)0);
+    EXPECT_EQ(ntp1tx.getTxOut(2).getNumOfTokens(), (unsigned)1);
+    EXPECT_EQ(ntp1tx.getTxOut(2).getToken(0).getAmount(), (unsigned)999897350);
+
+    EXPECT_EQ(ntp1tx.getTxHash().ToString(),
+              "008d329611fcbdb82b4adb097c29f1d6a56707bfb232c8c124390756e80a9e44");
+
+    // inputs
+    EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getHash().ToString(),
+              "c0563ccccee98f68d519bcf9c595e459876c9f6fcfbd046f85e6fc56309735e9");
+    EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), (unsigned)1);
+    EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getHash().ToString(),
+              "034849559c1ed8211644c7def3536688ec5766d3a7f7f977f190590d7bb7db05");
+    EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getIndex(), (unsigned)3);
+    EXPECT_EQ(ntp1tx.getTxIn(2).getPrevout().getHash().ToString(),
+              "0132cf38f3a298403427e8c3203f030141efff9c0d3a3fb7fef10ab4452771df");
+    EXPECT_EQ(ntp1tx.getTxIn(2).getPrevout().getIndex(), (unsigned)3);
+    EXPECT_EQ(ntp1tx.getTxIn(3).getPrevout().getHash().ToString(),
+              "0317c3f20338cd8ea142c389e65670554c676905d2024a58775f695fe88f1298");
+    EXPECT_EQ(ntp1tx.getTxIn(3).getPrevout().getIndex(), (unsigned)3);
+
+    /// READ AND WRITE
+    ///
+    {
+        // will be freed automatically by writeFromDisk
+        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
+        EXPECT_NE(fileWrite, nullptr);
+
+        unsigned int nFileRet = -1;
+        unsigned int nTxPos   = -1;
+        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
+
+        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
+        EXPECT_NE(fileRead, nullptr);
+
+        NTP1Transaction ntp1tx2;
+
+        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
+        EXPECT_EQ(ntp1tx, ntp1tx2);
+    }
+    {
+        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
+        EXPECT_NE(fileWrite, nullptr);
+
+        unsigned int nFileRet = -1;
+        unsigned int nTxPos   = -1;
+        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
+
+        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
+        EXPECT_NE(fileRead, nullptr);
+
+        NTP1Transaction ntp1tx2;
+        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
+        EXPECT_EQ(ntp1tx, ntp1tx2);
+    }
 }
