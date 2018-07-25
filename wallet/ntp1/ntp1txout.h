@@ -46,6 +46,9 @@ public:
     OutputType             getType() const;
     std::string            getScriptPubKeyAsm() const;
 
+    void __manualSet(int64_t NValue, std::string ScriptPubKeyHex, std::string ScriptPubKeyAsm,
+                     std::vector<NTP1TokenTxData> Tokens, std::string Address);
+
     // clang-format off
     IMPLEMENT_SERIALIZE(
                         READWRITE(nValue);

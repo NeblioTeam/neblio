@@ -20,6 +20,16 @@ typename NTP1TxOut::OutputType NTP1TxOut::getType() const
 
 std::string NTP1TxOut::getScriptPubKeyAsm() const { return scriptPubKeyAsm; }
 
+void NTP1TxOut::__manualSet(int64_t NValue, std::string ScriptPubKeyHex, std::string ScriptPubKeyAsm,
+                            std::vector<NTP1TokenTxData> Tokens, std::string Address)
+{
+    nValue          = NValue;
+    scriptPubKeyHex = ScriptPubKeyHex;
+    scriptPubKeyAsm = ScriptPubKeyAsm;
+    tokens          = Tokens;
+    address         = Address;
+}
+
 NTP1TxOut::NTP1TxOut() { setNull(); }
 
 NTP1TxOut::NTP1TxOut(int64_t nValueIn, const std::string& scriptPubKeyIn)

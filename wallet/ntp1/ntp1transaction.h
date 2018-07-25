@@ -7,6 +7,7 @@
 #include "uint256.h"
 
 #include <boost/filesystem/path.hpp>
+#include <numeric>
 #include <string>
 #include <vector>
 
@@ -75,6 +76,11 @@ class NTP1Transaction
     uint64_t                   nTime;
     NTP1TransactionType        ntp1TransactionType = NTP1TxType_NOT_NTP1;
 
+    template <typename ScriptType>
+    void __TransferTokens(std::shared_ptr<ScriptType> scriptPtrD, const CTransaction& tx,
+                          const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs,
+                          const std::string& opReturnArg, bool burnOutput31);
+
 public:
     // clang-format off
     IMPLEMENT_SERIALIZE(
@@ -106,8 +112,12 @@ public:
     const NTP1TxOut&   getTxOut(unsigned long index) const;
     friend inline bool operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs);
 
-    void readNTP1DataFromTx(const CTransaction& tx, const std::vector<CTransaction>& inputs,
-                            const std::vector<CTransaction>& issuanceTxs);
+    void __manualSet(int NVersion, uint256 TxHash, std::vector<unsigned char> TxSerialized,
+                     std::vector<NTP1TxIn> Vin, std::vector<NTP1TxOut> Vout, uint64_t NLockTime,
+                     uint64_t NTime, NTP1TransactionType Ntp1TransactionType);
+
+    void readNTP1DataFromTx(const CTransaction&                                          tx,
+                            const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs);
 
     bool writeToDisk(unsigned int& nFileRet, unsigned int& nTxPosRet, FILE* customFile = nullptr);
     bool readFromDisk(DiskNTP1TxPos pos, FILE** pfileRet = nullptr, FILE* customFile = nullptr);
@@ -119,6 +129,159 @@ bool operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs)
             lhs.txSerialized == rhs.txSerialized && lhs.vin == rhs.vin && lhs.vout == rhs.vout &&
             lhs.nLockTime == rhs.nLockTime && lhs.nTime == rhs.nTime &&
             lhs.ntp1TransactionType == rhs.ntp1TransactionType);
+}
+
+template <typename ScriptType>
+void NTP1Transaction::__TransferTokens(
+    std::shared_ptr<ScriptType> scriptPtrD, const CTransaction& tx,
+    const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs,
+    const std::string& opReturnArg, bool burnOutput31)
+{
+    static_assert(std::is_same<ScriptType, NTP1Script_Transfer>::value ||
+                      std::is_same<ScriptType, NTP1Script_Burn>::value,
+                  "Script types can only be Transfer and Burn in this function");
+
+    int currentInputIndex = 0;
+
+    // calculate total tokens in inputs
+    std::vector<std::vector<uint64_t>>        totalTokensLeftInInputs(inputsTxs.size());
+    std::vector<std::vector<NTP1TokenTxData>> tokensKindsInInputs(inputsTxs.size());
+    for (unsigned i = 0; i < tx.vin.size(); i++) {
+        const auto& n    = tx.vin[i].prevout.n;
+        const auto& hash = tx.vin[i].prevout.hash;
+
+        auto it = std::find_if(inputsTxs.cbegin(), inputsTxs.cend(),
+                               [this, i, &hash](const std::pair<CTransaction, NTP1Transaction>& in) {
+                                   return in.first.GetHash() == hash;
+                               });
+
+        if (it == inputsTxs.end()) {
+            throw std::runtime_error("Could not find all relevant inputs in the inputs list while "
+                                     "attempting to calculate total required tokens");
+        }
+
+        if (it->second.getTxHash() != hash) {
+            throw std::runtime_error(
+                "Inputs in pair of CTransaction and NTP1Transaction don't have matching hashes");
+        }
+
+        const NTP1Transaction& ntp1tx = it->second;
+        // this array keeps track of all tokens left
+        totalTokensLeftInInputs[i].resize(ntp1tx.getTxOut(n).getNumOfTokens());
+        // this object relates tokens in the last list to their corresponding information
+        tokensKindsInInputs[i].resize(ntp1tx.getTxOut(n).getNumOfTokens());
+        // loop over tokens of a single input (outputs from previous transactions)
+        for (int j = 0; j < (int)ntp1tx.getTxOut(n).getNumOfTokens(); j++) {
+            const auto& tokenObj          = ntp1tx.getTxOut(n).getToken(j);
+            totalTokensLeftInInputs[i][j] = tokenObj.getAmount();
+            tokensKindsInInputs[i][j]     = tokenObj;
+        }
+    }
+
+    for (long i = 0; i < scriptPtrD->getTransferInstructionsCount(); i++) {
+        const auto& instruction = scriptPtrD->getTransferInstruction(i);
+
+        // if skip, move on to the next input
+        if (instruction.skipInput) {
+            currentInputIndex++;
+            continue;
+        }
+        if (currentInputIndex >= static_cast<int>(vin.size())) {
+            throw std::runtime_error("An input of transfer instruction is outside the available "
+                                     "range of inputs in NTP1 OP_RETURN argument: " +
+                                     opReturnArg + ", where the number of available inputs is " +
+                                     ::ToString(tx.vin.size()) + " in transaction " +
+                                     tx.GetHash().ToString());
+        }
+
+        const int outputIndex    = instruction.outputIndex;
+        bool      burnThisOutput = (burnOutput31 && outputIndex == 31);
+
+        if (outputIndex >= static_cast<int>(vout.size()) && !burnThisOutput) {
+            throw std::runtime_error("An output of transfer instruction is outside the available "
+                                     "range of outputs in NTP1 OP_RETURN argument: " +
+                                     opReturnArg + ", where the number of available outputs is " +
+                                     ::ToString(tx.vout.size()) + " in transaction " +
+                                     tx.GetHash().ToString());
+        }
+
+        // loop over the kinds of tokens in the input and distribute them over outputs
+        // note: there's no way to switch from one token to the next unless its content depletes
+        uint64_t currentOutputAmount = instruction.amount;
+        for (int j = 0; j < (int)totalTokensLeftInInputs[currentInputIndex].size(); j++) {
+
+            // keep in mind that tokens are indistinguishable in one input until distributed
+            const auto& tokens                 = totalTokensLeftInInputs[currentInputIndex];
+            uint64_t    totalTokensInThisInput = std::accumulate(tokens.cbegin(), tokens.cend(), 0);
+
+            if (currentOutputAmount > totalTokensInThisInput) {
+                throw std::runtime_error(
+                    "Insufficient tokens for transaction from inputs for transaction: " +
+                    tx.GetHash().ToString() + " from input: " + ::ToString(j));
+            }
+
+            const auto& currentTokenObj = tokensKindsInInputs[currentInputIndex][j];
+            uint64_t    amountToCredit =
+                std::min(totalTokensLeftInInputs[currentInputIndex][j], currentOutputAmount);
+
+            if (!burnThisOutput) {
+                // create the token object that will be added to the output
+                NTP1TokenTxData ntp1tokenTxData;
+                ntp1tokenTxData.setAmount(amountToCredit);
+                ntp1tokenTxData.setTokenId(currentTokenObj.getTokenId());
+                ntp1tokenTxData.setAggregationPolicy(currentTokenObj.getAggregationPolicy());
+                ntp1tokenTxData.setDivisibility(currentTokenObj.getDivisibility());
+                ntp1tokenTxData.setTokenSymbol(currentTokenObj.getTokenSymbol());
+                ntp1tokenTxData.setLockStatus(currentTokenObj.getLockStatus());
+                ntp1tokenTxData.setIssueTxIdHex(currentTokenObj.getIssueTxId().ToString());
+
+                // add the token to the output
+                vout[outputIndex].tokens.push_back(ntp1tokenTxData);
+            }
+
+            // reduce the available balance
+            totalTokensLeftInInputs[currentInputIndex][j] -= amountToCredit;
+            currentOutputAmount -= amountToCredit;
+
+            // all required output amount is spent. The rest will be redirected as change
+            if (currentOutputAmount == 0) {
+                break;
+            }
+
+            if (totalTokensLeftInInputs[currentInputIndex][j] == 0) {
+                currentInputIndex++;
+            }
+
+            // TODO: aggregation of adjacent tokens of the same kind
+        }
+    }
+
+    for (int i = 0; i < (int)totalTokensLeftInInputs.size(); i++) {
+        for (int j = 0; j < (int)totalTokensLeftInInputs[i].size(); j++) {
+            if (totalTokensLeftInInputs[i][j] == 0) {
+                continue;
+            }
+
+            const auto& currentTokenObj = tokensKindsInInputs[currentInputIndex][j];
+            uint64_t    amountToCredit  = totalTokensLeftInInputs[currentInputIndex][j];
+
+            // create the token object that will be added to the output
+            NTP1TokenTxData ntp1tokenTxData;
+            ntp1tokenTxData.setAmount(amountToCredit);
+            ntp1tokenTxData.setTokenId(currentTokenObj.getTokenId());
+            ntp1tokenTxData.setAggregationPolicy(currentTokenObj.getAggregationPolicy());
+            ntp1tokenTxData.setDivisibility(currentTokenObj.getDivisibility());
+            ntp1tokenTxData.setTokenSymbol(currentTokenObj.getTokenSymbol());
+            ntp1tokenTxData.setLockStatus(currentTokenObj.getLockStatus());
+            ntp1tokenTxData.setIssueTxIdHex(currentTokenObj.getIssueTxId().ToString());
+
+            // add the token to the last output
+            vout.back().tokens.push_back(ntp1tokenTxData);
+
+            // reduce the available balance
+            totalTokensLeftInInputs[currentInputIndex][j] -= amountToCredit;
+        }
+    }
 }
 
 #endif // NTP1TRANSACTION_H

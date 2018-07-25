@@ -133,8 +133,23 @@ unsigned long NTP1Transaction::getTxOutCount() const { return vout.size(); }
 
 const NTP1TxOut& NTP1Transaction::getTxOut(unsigned long index) const { return vout[index]; }
 
-void NTP1Transaction::readNTP1DataFromTx(const CTransaction& tx, const std::vector<CTransaction>& inputs,
-                                         const std::vector<CTransaction>& issuanceTxs)
+void NTP1Transaction::__manualSet(int NVersion, uint256 TxHash, std::vector<unsigned char> TxSerialized,
+                                  std::vector<NTP1TxIn> Vin, std::vector<NTP1TxOut> Vout,
+                                  uint64_t NLockTime, uint64_t NTime,
+                                  NTP1TransactionType Ntp1TransactionType)
+{
+    nVersion            = NVersion;
+    txHash              = TxHash;
+    txSerialized        = TxSerialized;
+    vin                 = Vin;
+    vout                = Vout;
+    nLockTime           = NLockTime;
+    nTime               = NTime;
+    ntp1TransactionType = Ntp1TransactionType;
+}
+
+void NTP1Transaction::readNTP1DataFromTx(
+    const CTransaction& tx, const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs)
 {
     std::string opReturnArg;
     if (!IsTxNTP1(&tx, &opReturnArg)) {
@@ -148,20 +163,22 @@ void NTP1Transaction::readNTP1DataFromTx(const CTransaction& tx, const std::vect
     }
     vin.resize(tx.vin.size());
 
+    // TODO: parts of this may not be needed at all
     // null elements are supposed to be non-NTP1 transactions; invalid inputs throw exceptions
     std::vector<std::shared_ptr<NTP1Script>> inputNTP1Scripts(vin.size());
     for (unsigned i = 0; i < tx.vin.size(); i++) {
         vin[i].setPrevout(NTP1OutPoint(tx.vin[i].prevout.hash, tx.vin[i].prevout.n));
         // find inputs in the list of inputs and parse their OP_RETURN
-        auto it = std::find_if(inputs.cbegin(), inputs.cend(), [this, i](const CTransaction& in) {
-            return in.GetHash() == vin[i].getPrevout().getHash();
-        });
-        if (it == inputs.end()) {
+        auto it = std::find_if(inputsTxs.cbegin(), inputsTxs.cend(),
+                               [this, i](const std::pair<CTransaction, NTP1Transaction>& in) {
+                                   return in.first.GetHash() == vin[i].getPrevout().getHash();
+                               });
+        if (it == inputsTxs.end()) {
             throw std::runtime_error("Could not find all relevant inputs in the inputs list");
         }
         std::string opReturnArgInput;
         // if the transaction is not NTP1, continue
-        if (!IsTxNTP1(&(*it), &opReturnArgInput)) {
+        if (!IsTxNTP1(&(it->first), &opReturnArgInput)) {
             continue;
         }
         inputNTP1Scripts[i] = NTP1Script::ParseScript(opReturnArgInput);
@@ -221,85 +238,23 @@ void NTP1Transaction::readNTP1DataFromTx(const CTransaction& tx, const std::vect
         ntp1TransactionType = NTP1TxType_TRANSFER;
         std::shared_ptr<NTP1Script_Transfer> scriptPtrD =
             std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
-        int currentInputIndex = 0;
-        for (long i = 0; i < scriptPtrD->getTransferInstructionsCount(); i++) {
-            const auto& instruction = scriptPtrD->getTransferInstruction(i);
 
-            // if skip, move on to the next input
-            if (instruction.skipInput) {
-                currentInputIndex++;
-                continue;
-            }
-            if (currentInputIndex >= static_cast<int>(vin.size())) {
-                throw std::runtime_error("An input of transfer instruction is outside the available "
-                                         "range of inputs in NTP1 OP_RETURN argument: " +
-                                         opReturnArg + ", where the number of available inputs is " +
-                                         ::ToString(tx.vin.size()) + " in transaction " +
-                                         tx.GetHash().ToString());
-            }
-            int outputIndex = instruction.outputIndex;
-            if (outputIndex >= static_cast<int>(vout.size())) {
-                throw std::runtime_error("An output of transfer instruction is outside the available "
-                                         "range of outputs in NTP1 OP_RETURN argument: " +
-                                         opReturnArg + ", where the number of available outputs is " +
-                                         ::ToString(tx.vout.size()) + " in transaction " +
-                                         tx.GetHash().ToString());
-            }
-            uint64_t currentAmount = instruction.amount;
-
-            NTP1TokenTxData ntp1tokenTxData;
-            ntp1tokenTxData.setAmount(currentAmount);
-
-            // we set only the amount because the other stuff is still unknown
-            // we don't set inputs because that's still unknown from OP_RETURN
-            vout[outputIndex].tokens.push_back(ntp1tokenTxData);
-
-            currentInputIndex++;
+        if (!scriptPtrD) {
+            throw std::runtime_error("Casting script point to transfer type failed: " + opReturnArg);
         }
+
+        __TransferTokens<NTP1Script_Transfer>(scriptPtrD, tx, inputsTxs, opReturnArg, false);
+
     } else if (scriptPtr->getTxType() == NTP1Script::TxType::TxType_Burn) {
         ntp1TransactionType = NTP1TxType_BURN;
         std::shared_ptr<NTP1Script_Burn> scriptPtrD =
             std::dynamic_pointer_cast<NTP1Script_Burn>(scriptPtr);
-        int currentInputIndex = 0;
-        for (long i = 0; i < scriptPtrD->getTransferInstructionsCount(); i++) {
-            const auto& instruction = scriptPtrD->getTransferInstruction(i);
 
-            // if skip, move on to the next input
-            if (instruction.skipInput) {
-                currentInputIndex++;
-                continue;
-            }
-            if (currentInputIndex >= static_cast<int>(vin.size())) {
-                throw std::runtime_error("An input of transfer instruction is outside the available "
-                                         "range of inputs in NTP1 OP_RETURN argument: " +
-                                         opReturnArg + ", where the number of available inputs is " +
-                                         ::ToString(tx.vin.size()) + " in transaction " +
-                                         tx.GetHash().ToString());
-            }
-            int outputIndex = instruction.outputIndex;
-            // output 31 is for burning
-            if (outputIndex == 31) {
-                currentInputIndex++;
-                continue;
-            }
-            if (outputIndex >= static_cast<int>(vout.size())) {
-                throw std::runtime_error("An output of transfer instruction is outside the available "
-                                         "range of outputs in NTP1 OP_RETURN argument: " +
-                                         opReturnArg + ", where the number of available outputs is " +
-                                         ::ToString(tx.vout.size()) + " in transaction " +
-                                         tx.GetHash().ToString());
-            }
-            uint64_t currentAmount = instruction.amount;
-
-            NTP1TokenTxData ntp1tokenTxData;
-            ntp1tokenTxData.setAmount(currentAmount);
-
-            // we set only the amount because the other stuff is still unknown
-            // we don't set inputs because that's still unknown from OP_RETURN
-            vout[outputIndex].tokens.push_back(ntp1tokenTxData);
-
-            currentInputIndex++;
+        if (!scriptPtrD) {
+            throw std::runtime_error("Casting script point to burn type failed: " + opReturnArg);
         }
+
+        __TransferTokens<NTP1Script_Burn>(scriptPtrD, tx, inputsTxs, opReturnArg, false);
 
     } else {
         ntp1TransactionType = NTP1TxType_INVALID;
