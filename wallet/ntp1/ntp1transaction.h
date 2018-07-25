@@ -15,8 +15,9 @@
 class DiskNTP1TxPos
 {
 public:
-    unsigned int nFile;
-    unsigned int nTxPos;
+    static unsigned int nCurrentNTP1TxsFile;
+    unsigned int        nFile;
+    unsigned int        nTxPos;
 
     DiskNTP1TxPos() { SetNull(); }
 
@@ -53,8 +54,6 @@ public:
 };
 
 boost::filesystem::path NTP1TxsFilePath(unsigned int nFile);
-
-extern unsigned int nCurrentNTP1TxsFile;
 
 extern FILE* AppendNTP1TxsFile(unsigned int& nFileRet);
 

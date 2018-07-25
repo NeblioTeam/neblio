@@ -11,7 +11,7 @@
 
 #include <boost/algorithm/hex.hpp>
 
-unsigned int nCurrentNTP1TxsFile = 1;
+unsigned int DiskNTP1TxPos::nCurrentNTP1TxsFile = 1;
 
 NTP1Transaction::NTP1Transaction() { setNull(); }
 
@@ -331,18 +331,18 @@ FILE* AppendNTP1TxsFile(unsigned int& nFileRet)
 {
     nFileRet = 0;
     while (true) {
-        FILE* file = OpenNTP1TxsFile(nCurrentNTP1TxsFile, 0, "ab");
+        FILE* file = OpenNTP1TxsFile(DiskNTP1TxPos::nCurrentNTP1TxsFile, 0, "ab");
         if (!file)
             return NULL;
         if (fseek(file, 0, SEEK_END) != 0)
             return NULL;
         // FAT32 file size max 4GB, fseek and ftell max 2GB, so we must stay under 2GB
         if (ftell(file) < (long)(0x7F000000 - MAX_SIZE)) {
-            nFileRet = nCurrentNTP1TxsFile;
+            nFileRet = DiskNTP1TxPos::nCurrentNTP1TxsFile;
             return file;
         }
         fclose(file);
-        nCurrentNTP1TxsFile++;
+        DiskNTP1TxPos::nCurrentNTP1TxsFile++;
     }
 }
 
