@@ -13,10 +13,11 @@ protected:
 public:
     NTP1Script_Transfer();
 
-    std::string         getHexMetadata() const;
-    std::string         getRawMetadata() const;
-    unsigned            getTransferInstructionsCount() const;
-    TransferInstruction getTransferInstruction(unsigned index) const;
+    std::string                      getHexMetadata() const;
+    std::string                      getRawMetadata() const;
+    unsigned                         getTransferInstructionsCount() const;
+    TransferInstruction              getTransferInstruction(unsigned index) const;
+    std::vector<TransferInstruction> getTransferInstructions() const;
 
     static std::shared_ptr<NTP1Script_Transfer> ParseTransferPostHeaderData(std::string ScriptBin,
                                                                             std::string OpCodeBin);

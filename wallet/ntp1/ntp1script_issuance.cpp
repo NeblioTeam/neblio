@@ -71,6 +71,11 @@ NTP1Script::TransferInstruction NTP1Script_Issuance::getTransferInstruction(unsi
     return transferInstructions[index];
 }
 
+std::vector<NTP1Script::TransferInstruction> NTP1Script_Issuance::getTransferInstructions() const
+{
+    return transferInstructions;
+}
+
 std::shared_ptr<NTP1Script_Issuance>
 NTP1Script_Issuance::ParseIssuancePostHeaderData(std::string ScriptBin, std::string OpCodeBin)
 {

@@ -15,6 +15,11 @@ NTP1Script_Burn::TransferInstruction NTP1Script_Burn::getTransferInstruction(uns
     return transferInstructions[index];
 }
 
+std::vector<NTP1Script::TransferInstruction> NTP1Script_Burn::getTransferInstructions() const
+{
+    return transferInstructions;
+}
+
 std::shared_ptr<NTP1Script_Burn> NTP1Script_Burn::ParseBurnPostHeaderData(std::string ScriptBin,
                                                                           std::string OpCodeBin)
 {

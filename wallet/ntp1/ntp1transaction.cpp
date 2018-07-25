@@ -243,7 +243,7 @@ void NTP1Transaction::readNTP1DataFromTx(
             throw std::runtime_error("Casting script point to transfer type failed: " + opReturnArg);
         }
 
-        __TransferTokens<NTP1Script_Transfer>(scriptPtrD, tx, inputsTxs, opReturnArg, false);
+        __TransferTokens<NTP1Script_Transfer>(scriptPtrD, tx, inputsTxs, false);
 
     } else if (scriptPtr->getTxType() == NTP1Script::TxType::TxType_Burn) {
         ntp1TransactionType = NTP1TxType_BURN;
@@ -254,7 +254,7 @@ void NTP1Transaction::readNTP1DataFromTx(
             throw std::runtime_error("Casting script point to burn type failed: " + opReturnArg);
         }
 
-        __TransferTokens<NTP1Script_Burn>(scriptPtrD, tx, inputsTxs, opReturnArg, false);
+        __TransferTokens<NTP1Script_Burn>(scriptPtrD, tx, inputsTxs, false);
 
     } else {
         ntp1TransactionType = NTP1TxType_INVALID;

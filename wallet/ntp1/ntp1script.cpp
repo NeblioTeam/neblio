@@ -19,6 +19,8 @@ std::string NTP1Script::getOpCodeBin() const { return opCodeBin; }
 
 NTP1Script::TxType NTP1Script::getTxType() const { return txType; }
 
+std::string NTP1Script::getParsedScript() const { return parsedScript; }
+
 void NTP1Script::setCommonParams(std::string Header, int ProtocolVersion, std::string OpCodeBin)
 {
     header          = Header;
@@ -238,6 +240,8 @@ std::shared_ptr<NTP1Script> NTP1Script::ParseScript(const std::string& scriptHex
             throw std::runtime_error("Unknown transaction type to parse");
         }
         result_->setCommonParams(header, protocolVersion, opCodeBin);
+
+        result_->parsedScript = scriptHex;
 
         return result_;
 

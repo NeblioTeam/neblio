@@ -14,6 +14,8 @@ const NTP1TransactionType NTP1TxType_BURN     = 4;
 
 class NTP1Script
 {
+    std::string parsedScript;
+
 public:
     enum TxType
     {
@@ -82,6 +84,7 @@ public:
     TxType      getTxType() const;
 
     static std::shared_ptr<NTP1Script> ParseScript(const std::string& scriptHex);
+    std::string                        getParsedScript() const;
 };
 
 #endif // NTP1SCRIPT_H

@@ -31,6 +31,7 @@ public:
     uint64_t                                    getAmount() const;
     unsigned                                    getTransferInstructionsCount() const;
     TransferInstruction                         getTransferInstruction(unsigned index) const;
+    std::vector<TransferInstruction>            getTransferInstructions() const;
     static std::shared_ptr<NTP1Script_Issuance> ParseIssuancePostHeaderData(std::string ScriptBin,
                                                                             std::string OpCodeBin);
     std::string getTokenID(std::string input0txid, unsigned int input0index) const;

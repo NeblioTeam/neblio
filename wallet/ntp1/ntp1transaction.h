@@ -77,9 +77,9 @@ class NTP1Transaction
     NTP1TransactionType        ntp1TransactionType = NTP1TxType_NOT_NTP1;
 
     template <typename ScriptType>
-    void __TransferTokens(std::shared_ptr<ScriptType> scriptPtrD, const CTransaction& tx,
+    void __TransferTokens(const std::shared_ptr<ScriptType>& scriptPtrD, const CTransaction& tx,
                           const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs,
-                          const std::string& opReturnArg, bool burnOutput31);
+                          bool                                                         burnOutput31);
 
 public:
     // clang-format off
@@ -133,9 +133,8 @@ bool operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs)
 
 template <typename ScriptType>
 void NTP1Transaction::__TransferTokens(
-    std::shared_ptr<ScriptType> scriptPtrD, const CTransaction& tx,
-    const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs,
-    const std::string& opReturnArg, bool burnOutput31)
+    const std::shared_ptr<ScriptType>& scriptPtrD, const CTransaction& tx,
+    const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs, bool burnOutput31)
 {
     static_assert(std::is_same<ScriptType, NTP1Script_Transfer>::value ||
                       std::is_same<ScriptType, NTP1Script_Burn>::value,
@@ -178,50 +177,64 @@ void NTP1Transaction::__TransferTokens(
         }
     }
 
-    for (long i = 0; i < scriptPtrD->getTransferInstructionsCount(); i++) {
-        const auto& instruction = scriptPtrD->getTransferInstruction(i);
+    std::vector<NTP1Script::TransferInstruction> TIs = scriptPtrD->getTransferInstructions();
+
+    for (int i = 0; i < (int)scriptPtrD->getTransferInstructionsCount(); i++) {
 
         // if skip, move on to the next input
-        if (instruction.skipInput) {
+        if (TIs[i].skipInput) {
             currentInputIndex++;
             continue;
         }
+
         if (currentInputIndex >= static_cast<int>(vin.size())) {
-            throw std::runtime_error("An input of transfer instruction is outside the available "
-                                     "range of inputs in NTP1 OP_RETURN argument: " +
-                                     opReturnArg + ", where the number of available inputs is " +
-                                     ::ToString(tx.vin.size()) + " in transaction " +
-                                     tx.GetHash().ToString());
+            throw std::runtime_error(
+                "An input of transfer instruction is outside the available "
+                "range of inputs in NTP1 OP_RETURN argument: " +
+                scriptPtrD->getParsedScript() + ", where the number of available inputs is " +
+                ::ToString(tx.vin.size()) + " in transaction " + tx.GetHash().ToString());
         }
 
-        const int outputIndex    = instruction.outputIndex;
+        const int outputIndex    = TIs[i].outputIndex;
         bool      burnThisOutput = (burnOutput31 && outputIndex == 31);
 
         if (outputIndex >= static_cast<int>(vout.size()) && !burnThisOutput) {
-            throw std::runtime_error("An output of transfer instruction is outside the available "
-                                     "range of outputs in NTP1 OP_RETURN argument: " +
-                                     opReturnArg + ", where the number of available outputs is " +
-                                     ::ToString(tx.vout.size()) + " in transaction " +
-                                     tx.GetHash().ToString());
+            throw std::runtime_error(
+                "An output of transfer instruction is outside the available "
+                "range of outputs in NTP1 OP_RETURN argument: " +
+                scriptPtrD->getParsedScript() + ", where the number of available outputs is " +
+                ::ToString(tx.vout.size()) + " in transaction " + tx.GetHash().ToString());
         }
 
         // loop over the kinds of tokens in the input and distribute them over outputs
         // note: there's no way to switch from one token to the next unless its content depletes
-        uint64_t currentOutputAmount = instruction.amount;
+        uint64_t currentOutputAmount = TIs[i].amount;
         for (int j = 0; j < (int)totalTokensLeftInInputs[currentInputIndex].size(); j++) {
 
-            // keep in mind that tokens are indistinguishable in one input until distributed
-            const auto& tokens                 = totalTokensLeftInInputs[currentInputIndex];
-            uint64_t    totalTokensInThisInput = std::accumulate(tokens.cbegin(), tokens.cend(), 0);
+            uint64_t totalAdjacentTokensOfOneKind = totalTokensLeftInInputs[currentInputIndex][j];
+            auto     currentTokenId = tokensKindsInInputs[currentInputIndex][j].getTokenId();
+            for (int k = currentInputIndex + 1; k < (int)totalTokensLeftInInputs.size(); k++) {
+                // an empty input in between means inputs are not adjacent
+                if (totalTokensLeftInInputs[k].size() == 0) {
+                    break;
+                }
+                for (int l = j + 1; l < (int)totalTokensLeftInInputs[k].size(); l++) {
+                    if (tokensKindsInInputs[k][l].getTokenId() == currentTokenId) {
+                        totalAdjacentTokensOfOneKind += totalTokensLeftInInputs[k][l];
+                    } else {
+                        break;
+                    }
+                }
+            }
 
-            if (currentOutputAmount > totalTokensInThisInput) {
+            if (currentOutputAmount > totalAdjacentTokensOfOneKind) {
                 throw std::runtime_error(
                     "Insufficient tokens for transaction from inputs for transaction: " +
                     tx.GetHash().ToString() + " from input: " + ::ToString(j));
             }
 
-            const auto& currentTokenObj = tokensKindsInInputs[currentInputIndex][j];
-            uint64_t    amountToCredit =
+            const auto&    currentTokenObj = tokensKindsInInputs[currentInputIndex][j];
+            const uint64_t amountToCredit =
                 std::min(totalTokensLeftInInputs[currentInputIndex][j], currentOutputAmount);
 
             if (!burnThisOutput) {
@@ -239,9 +252,42 @@ void NTP1Transaction::__TransferTokens(
                 vout[outputIndex].tokens.push_back(ntp1tokenTxData);
             }
 
-            // reduce the available balance
-            totalTokensLeftInInputs[currentInputIndex][j] -= amountToCredit;
-            currentOutputAmount -= amountToCredit;
+            // reduce the available output amount
+            if (amountToCredit > currentOutputAmount) {
+                currentOutputAmount = 0;
+            } else {
+                currentOutputAmount -= amountToCredit;
+            }
+
+            // reduce the available balance from the array that tracks all available inputs
+            uint64_t amountLeftToSubtract = amountToCredit;
+            for (int k = currentInputIndex; k < (int)totalTokensLeftInInputs.size(); k++) {
+                // an empty input in between means inputs are not adjacent
+                for (int l = j; l < (int)totalTokensLeftInInputs[k].size(); l++) {
+                    if (tokensKindsInInputs[k][l].getTokenId() == currentTokenId) {
+                        if (totalTokensLeftInInputs[k][l] >= amountLeftToSubtract) {
+                            totalTokensLeftInInputs[k][l] -= amountLeftToSubtract;
+                            amountLeftToSubtract = 0;
+                        } else {
+                            amountLeftToSubtract -= totalTokensLeftInInputs[k][l];
+                            totalTokensLeftInInputs[k][l] = 0;
+                        }
+                    } else {
+                        if (amountLeftToSubtract == 0) {
+                            break;
+                        } else {
+                            throw std::runtime_error(
+                                "Unable to decredit the available balances from inputs");
+                        }
+                    }
+                    if (amountLeftToSubtract == 0) {
+                        break;
+                    }
+                }
+                if (totalTokensLeftInInputs[k].size() == 0 && amountLeftToSubtract > 0) {
+                    throw std::runtime_error("Unable to decredit the available balances from inputs");
+                }
+            }
 
             // all required output amount is spent. The rest will be redirected as change
             if (currentOutputAmount == 0) {
