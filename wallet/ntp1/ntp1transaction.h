@@ -328,6 +328,16 @@ void NTP1Transaction::__TransferTokens(
             totalTokensLeftInInputs[currentInputIndex][j] -= amountToCredit;
         }
     }
+
+    // delete empty token slots
+    for (int i = 0; i < (int)vout.size(); i++) {
+        for (int j = 0; j < (int)vout[i].getNumOfTokens(); j++) {
+            if (vout[i].getToken(j).getAmount() == 0) {
+                vout[i].tokens.erase(vout[i].tokens.begin() + j);
+                j--;
+            }
+        }
+    }
 }
 
 #endif // NTP1TRANSACTION_H
