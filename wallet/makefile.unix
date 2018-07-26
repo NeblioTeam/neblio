@@ -4,13 +4,15 @@
 
 USE_UPNP:=1
 
+MKDIR_P = mkdir -p
+
 LINK:=$(CXX)
 ARCH:=$(system lscpu | head -n 1 | awk '{print $2}')
 
 DEFS=-DBOOST_SPIRIT_THREADSAFE
 
 DEFS += $(addprefix -I,$(CURDIR) $(CURDIR)/obj $(BOOST_INCLUDE_PATH) $(BDB_INCLUDE_PATH) $(OPENSSL_INCLUDE_PATH))
-LIBS = $(addprefix -L,$(BOOST_LIB_PATH) $(BDB_LIB_PATH) $(OPENSSL_LIB_PATH))
+LIBS = $(addprefix -L,$(BOOST_LIB_PATH) $(BDB_LIB_PATH) $(OPENSSL_LIB_PATH)) $(shell pkg-config libcurl --libs)
 
 TESTDEFS = -DTEST_DATA_DIR=$(abspath test/data)
 
@@ -35,6 +37,8 @@ ifdef NEBLIO_REST
     all:
 	@echo "Building restbed ..." && mkdir -p restbed/build && cd restbed/build && cmake .. && make install && cd ../..
 endif
+
+DEFS += -I"$(CURDIR)/json/"
 
 # for boost 1.37, add -mt to the boost libraries
 LIBS += \
@@ -63,7 +67,6 @@ LIBS+= \
    -l z \
    -l dl \
    -l pthread
-
 
 # Hardening
 # Make some classes of vulnerabilities unexploitable in case one is discovered.
@@ -164,7 +167,27 @@ OBJS= \
     obj/zerocoin/Params.o \
     obj/zerocoin/SerialNumberSignatureOfKnowledge.o \
     obj/zerocoin/SpendMetaData.o \
-    obj/zerocoin/ZeroTest.o
+    obj/zerocoin/ZeroTest.o \
+    obj/curltools.o                           \
+    obj/json/json_spirit_reader.o             \
+    obj/json/json_spirit_value.o              \
+    obj/json/json_spirit_writer.o             \
+    obj/ntp1/ntp1apicalls.o                   \
+    obj/ntp1/ntp1inpoint.o                    \
+    obj/ntp1/ntp1outpoint.o                   \
+    obj/ntp1/ntp1script_burn.o                \
+    obj/ntp1/ntp1script.o                     \
+    obj/ntp1/ntp1script_issuance.o            \
+    obj/ntp1/ntp1script_transfer.o            \
+    obj/ntp1/ntp1sendtokensdata.o             \
+    obj/ntp1/ntp1sendtokensonerecipientdata.o \
+    obj/ntp1/ntp1tokenmetadata.o              \
+    obj/ntp1/ntp1tokentxdata.o                \
+    obj/ntp1/ntp1tools.o                      \
+    obj/ntp1/ntp1transaction.o                \
+    obj/ntp1/ntp1txin.o                       \
+    obj/ntp1/ntp1txout.o                      \
+    obj/ntp1/ntp1wallet.o                     
 
 ifdef NEBLIO_REST
     OBJS += obj/nebliorest.o 
@@ -190,15 +213,27 @@ version.cpp: obj/build.h
 DEFS += -DHAVE_BUILD_INFO
 
 obj/scrypt-x86.o: scrypt-x86.S
+	${MKDIR_P} obj
 	$(CXX) -c $(xCXXFLAGS) -MMD -o $@ $<
 
 obj/scrypt-x86_64.o: scrypt-x86_64.S
+	${MKDIR_P} obj
 	$(CXX) -c $(xCXXFLAGS) -MMD -o $@ $<
 
 obj/scrypt-arm.o: scrypt-arm.S
+	${MKDIR_P} obj
 	$(CXX) -c $(xCXXFLAGS) -MMD -o $@ $<
 
 obj/%.o: %.cpp
+	${MKDIR_P} obj obj/json
+	$(CXX) -c $(xCXXFLAGS) -MMD -MF $(@:%.o=%.d) -o $@ $<
+	@cp $(@:%.o=%.d) $(@:%.o=%.P); \
+	  sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
+	      -e '/^$$/ d' -e 's/$$/ :/' < $(@:%.o=%.d) >> $(@:%.o=%.P); \
+	  rm -f $(@:%.o=%.d)
+
+obj/ntp1/%.o: ntp1/%.cpp
+	${MKDIR_P} obj/ntp1 obj/json
 	$(CXX) -c $(xCXXFLAGS) -MMD -MF $(@:%.o=%.d) -o $@ $<
 	@cp $(@:%.o=%.d) $(@:%.o=%.P); \
 	  sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
@@ -206,6 +241,7 @@ obj/%.o: %.cpp
 	  rm -f $(@:%.o=%.d)
 
 obj/zerocoin/%.o: zerocoin/%.cpp
+	${MKDIR_P} obj/zerocoin obj/json
 	$(CXX) -c $(xCXXFLAGS) -MMD -MF $(@:%.o=%.d) -o $@ $<
 	@cp $(@:%.o=%.d) $(@:%.o=%.P); \
 	  sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
@@ -213,7 +249,8 @@ obj/zerocoin/%.o: zerocoin/%.cpp
 	  rm -f $(@:%.o=%.d)
 
 nebliod: $(OBJS:obj/%=obj/%)
-	$(LINK) $(xCXXFLAGS) -o $@ $^ $(xLDFLAGS) $(LIBS)
+	${MKDIR_P} obj obj/json
+	$(LINK) $(xCXXFLAGS) -o $@ $^ $(xLDFLAGS) $(LIBS) $(pkg-config libcurl --libs)
 
 TESTOBJS := $(patsubst test/%.cpp,obj-test/%.o,$(wildcard test/*.cpp))
 
@@ -233,10 +270,16 @@ clean:
 	-rm -f obj/*.o
 	-rm -f obj-test/*.o
 	-rm -f obj/zerocoin/*.o
+	-rm -f obj/ntp1/*.o
+	-rm -f obj/json/*.o
 	-rm -f obj/*.P
 	-rm -f obj-test/*.P
 	-rm -f obj/zerocoin/*.P
+	-rm -f obj/ntp1/*.P
+	-rm -f obj/json/*.P
 	-rm -f obj/build.h
+	-rm -rf obj
+	-rm -rf obj-test
 	-rm -rf restbed/build
 
 FORCE:

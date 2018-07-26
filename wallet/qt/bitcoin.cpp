@@ -110,8 +110,6 @@ static void handleRunawayException(std::exception *e)
     exit(1);
 }
 
-boost::atomic<bool> appInitiated(false);
-
 #ifndef BITCOIN_QT_TEST
 int main(int argc, char *argv[])
 {

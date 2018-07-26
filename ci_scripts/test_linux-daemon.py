@@ -28,7 +28,6 @@ packages_to_install = \
 
 nci.install_packages_debian(packages_to_install)
 
-nci.mkdir_p(build_dir + "/obj/zerocoin")
 os.chdir(build_dir)
 nci.call_with_err_code('make "STATIC=1" -B -w -f makefile.unix -j3')
 

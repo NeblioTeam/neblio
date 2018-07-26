@@ -52,6 +52,7 @@ contrib/seeds/
 *.P
 
 wallet/obj/
+wallet/obj-test/
 
 ._*
 

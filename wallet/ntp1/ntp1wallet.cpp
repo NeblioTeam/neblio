@@ -10,6 +10,8 @@
 
 const std::string NTP1Wallet::ICON_ERROR_CONTENT = "<DownloadError>";
 
+boost::atomic<bool> appInitiated(false);
+
 NTP1Wallet::NTP1Wallet()
 {
     lastTxCount                  = 0;
