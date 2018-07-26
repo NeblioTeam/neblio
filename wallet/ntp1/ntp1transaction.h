@@ -51,13 +51,13 @@ public:
     }
 
     void print() const { printf("%s", ToString().c_str()); }
+
+    static boost::filesystem::path NTP1TxsFilePath(unsigned int nFile);
+
+    static FILE* AppendNTP1TxsFile(unsigned int& nFileRet);
+
+    static FILE* OpenNTP1TxsFile(unsigned int nFile, unsigned int nTxPos, const char* pszMode);
 };
-
-extern boost::filesystem::path NTP1TxsFilePath(unsigned int nFile);
-
-extern FILE* AppendNTP1TxsFile(unsigned int& nFileRet);
-
-extern FILE* OpenNTP1TxsFile(unsigned int nFile, unsigned int nTxPos, const char* pszMode);
 
 /**
  * @brief The NTP1Transaction class

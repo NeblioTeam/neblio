@@ -276,8 +276,9 @@ void NTP1Transaction::readNTP1DataFromTx(
 bool NTP1Transaction::writeToDisk(unsigned int& nFileRet, unsigned int& nTxPosRet, FILE* customFile)
 {
     // Open history file to append
-    CAutoFile fileout = CAutoFile((customFile == nullptr ? AppendNTP1TxsFile(nFileRet) : customFile),
-                                  SER_DISK, CLIENT_VERSION);
+    CAutoFile fileout =
+        CAutoFile((customFile == nullptr ? DiskNTP1TxPos::AppendNTP1TxsFile(nFileRet) : customFile),
+                  SER_DISK, CLIENT_VERSION);
     if (!fileout)
         return error("NTP1Transaction::WriteToDisk() : AppendNTP1TxsFile failed");
 
@@ -298,7 +299,8 @@ bool NTP1Transaction::writeToDisk(unsigned int& nFileRet, unsigned int& nTxPosRe
 bool NTP1Transaction::readFromDisk(DiskNTP1TxPos pos, FILE** pfileRet, FILE* customFile)
 {
     CAutoFile filein = CAutoFile(
-        (customFile == nullptr ? OpenNTP1TxsFile(pos.nFile, 0, pfileRet ? "rb+" : "rb") : customFile),
+        (customFile == nullptr ? DiskNTP1TxPos::OpenNTP1TxsFile(pos.nFile, 0, pfileRet ? "rb+" : "rb")
+                               : customFile),
         SER_DISK, CLIENT_VERSION);
     if (!filein)
         return error("NTP1Transaction::ReadFromDisk() : OpenNTP1TxsFile failed");
@@ -322,11 +324,11 @@ bool NTP1Transaction::readFromDisk(DiskNTP1TxPos pos, FILE** pfileRet, FILE* cus
     return true;
 }
 
-FILE* OpenNTP1TxsFile(unsigned int nFile, unsigned int nTxPos, const char* pszMode)
+FILE* DiskNTP1TxPos::OpenNTP1TxsFile(unsigned int nFile, unsigned int nTxPos, const char* pszMode)
 {
     if ((nFile < 1) || (nFile == (unsigned int)-1))
         return NULL;
-    FILE* file = fopen(NTP1TxsFilePath(nFile).string().c_str(), pszMode);
+    FILE* file = fopen(DiskNTP1TxPos::NTP1TxsFilePath(nFile).string().c_str(), pszMode);
     if (!file)
         return NULL;
     if (nTxPos != 0 && !strchr(pszMode, 'a') && !strchr(pszMode, 'w')) {
@@ -338,11 +340,11 @@ FILE* OpenNTP1TxsFile(unsigned int nFile, unsigned int nTxPos, const char* pszMo
     return file;
 }
 
-FILE* AppendNTP1TxsFile(unsigned int& nFileRet)
+FILE* DiskNTP1TxPos::AppendNTP1TxsFile(unsigned int& nFileRet)
 {
     nFileRet = 0;
     while (true) {
-        FILE* file = OpenNTP1TxsFile(DiskNTP1TxPos::nCurrentNTP1TxsFile, 0, "ab");
+        FILE* file = DiskNTP1TxPos::OpenNTP1TxsFile(DiskNTP1TxPos::nCurrentNTP1TxsFile, 0, "ab");
         if (!file)
             return NULL;
         if (fseek(file, 0, SEEK_END) != 0)
@@ -357,7 +359,7 @@ FILE* AppendNTP1TxsFile(unsigned int& nFileRet)
     }
 }
 
-boost::filesystem::path NTP1TxsFilePath(unsigned int nFile)
+boost::filesystem::path DiskNTP1TxPos::NTP1TxsFilePath(unsigned int nFile)
 {
     string strNTP1TxsFn = strprintf("ntp1txs%04u.dat", nFile);
     return GetDataDir() / strNTP1TxsFn;
