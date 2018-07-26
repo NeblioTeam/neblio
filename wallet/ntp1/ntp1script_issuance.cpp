@@ -48,12 +48,12 @@ NTP1Script::IssuanceFlags::AggregationPolicy NTP1Script_Issuance::getAggregation
 std::string NTP1Script_Issuance::getAggregationPolicyStr() const
 {
     if (issuanceFlags.aggregationPolicty == NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable) {
-        return "aggregable";
+        return "aggregatable";
     } else if (issuanceFlags.aggregationPolicty ==
                NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable) {
-        return "nonaggregable";
+        return "nonaggregatable";
     } else {
-        return "aggregable";
+        return "aggregatable";
     }
 }
 

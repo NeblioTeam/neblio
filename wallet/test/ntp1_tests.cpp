@@ -1,5 +1,6 @@
 #include "googletest/googletest/include/gtest/gtest.h"
 
+#include "curltools.h"
 #include "ntp1/ntp1script.h"
 #include "ntp1/ntp1script_burn.h"
 #include "ntp1/ntp1script_issuance.h"
@@ -12,6 +13,8 @@
 #include "ntp1/ntp1txin.h"
 #include "ntp1/ntp1txout.h"
 #include "ntp1/ntp1wallet.h"
+#include <fstream>
+#include <unordered_map>
 
 const std::string TempNTP1File("ntp1txout.bin");
 
@@ -1491,3 +1494,350 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
         EXPECT_EQ(ntp1tx, ntp1tx2);
     }
 }
+
+std::string GetRawTxURL(const std::string& txid)
+{
+    return "https://explorer.nebl.io/api/getrawtransaction?txid=" + txid;
+}
+
+std::size_t GetFileSize(const std::string& filename)
+{
+    std::ifstream file(filename, std::ios::binary | std::ios::ate);
+    return static_cast<size_t>(file.tellg());
+}
+
+std::string ReadFileToString(const std::string& filename)
+{
+    std::fstream fileObject(filename, std::ios::in | std::ios::binary);
+    if (!fileObject.good()) {
+        throw std::runtime_error("Unable to open file: " + filename);
+    }
+    std::string data;
+    size_t      filesize = GetFileSize(filename);
+    if (filesize == 0) {
+        throw std::runtime_error("File is empty");
+    }
+
+    try {
+        data.resize(filesize);
+    } catch (std::exception& ex) {
+        throw std::runtime_error(
+            "Unable to allocate memory to read file: " + filename +
+            ". Memory full? Size required to allocate is: " + std::to_string(filesize) +
+            ". Exception message: " + std::string(ex.what()));
+    } catch (...) {
+        throw std::runtime_error("Unable to allocate memory to read file: " + filename +
+                                 ". An unknown exception was thrown.");
+    }
+
+    if (filesize > 0) {
+        fileObject.read(&data.front(), filesize);
+        fileObject.close();
+        return data;
+    } else {
+        throw std::runtime_error("Although a file exist, but it has zero bytes size. The file is: " +
+                                 filename);
+    }
+}
+
+json_spirit::Object read_json_obj(const std::string& filename)
+{
+    namespace fs          = boost::filesystem;
+    fs::path testRootPath = TEST_ROOT_PATH;
+    fs::path testFile     = testRootPath / "data" / filename;
+
+#ifdef TEST_DATA_DIR
+    if (!fs::exists(testFile)) {
+        testFile = fs::path(BOOST_PP_STRINGIZE(TEST_DATA_DIR)) / filename;
+    }
+#endif
+
+    std::string        jsonFileData = ReadFileToString(testFile.string());
+    json_spirit::Value v;
+    json_spirit::read_or_throw(jsonFileData, v);
+    return v.get_obj();
+}
+
+std::vector<std::string> read_line_by_line(const std::string& filename)
+{
+    namespace fs          = boost::filesystem;
+    fs::path testRootPath = TEST_ROOT_PATH;
+    fs::path testFile     = testRootPath / "data" / filename;
+
+    if (!fs::exists(testFile.string().c_str())) {
+        throw std::runtime_error("File doesn't exist");
+    }
+
+    ifstream                 ifs(testFile.string().c_str(), ifstream::in);
+    std::vector<std::string> result;
+    std::string              line;
+    while (std::getline(ifs, line)) {
+        if (line.empty())
+            continue;
+        result.push_back(line);
+    }
+    return result;
+}
+
+void TestNTP1TxParsing(const std::string& txid, bool testnet)
+{
+    std::string           rawTx      = cURLTools::GetFileFromHTTPS(GetRawTxURL(txid), 10000, 0);
+    CTransaction          tx         = TxFromHex(rawTx);
+    const NTP1Transaction ntp1tx_ref = NTP1APICalls::RetrieveData_TransactionInfo(txid, testnet);
+    EXPECT_TRUE(tx.CheckTransaction()) << "Failed tx: " << txid;
+
+    std::vector<std::pair<CTransaction, NTP1Transaction>> inputs;
+
+    for (int i = 0; i < (int)tx.vin.size(); i++) {
+        std::string  inputTxid  = tx.vin[i].prevout.hash.ToString();
+        std::string  inputRawTx = cURLTools::GetFileFromHTTPS(GetRawTxURL(inputTxid), 10000, 0);
+        CTransaction inputTx    = TxFromHex(inputRawTx);
+
+        NTP1Transaction inputNTP1Tx = NTP1APICalls::RetrieveData_TransactionInfo(inputTxid, testnet);
+
+        inputs.push_back(std::make_pair(inputTx, inputNTP1Tx));
+    }
+
+    NTP1Transaction ntp1tx;
+    ntp1tx.readNTP1DataFromTx(tx, inputs);
+
+    EXPECT_EQ(ntp1tx.getTxOutCount(), ntp1tx_ref.getTxOutCount()) << "Failed tx: " << txid;
+    for (int i = 0; i < (int)ntp1tx.getTxOutCount(); i++) {
+        ASSERT_EQ(ntp1tx.getTxOut(i).getNumOfTokens(), ntp1tx_ref.getTxOut(i).getNumOfTokens())
+            << "Failed tx: " << txid;
+        for (int j = 0; j < (int)ntp1tx.getTxOut(i).getNumOfTokens(); j++) {
+            EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getAmount(),
+                      ntp1tx_ref.getTxOut(i).getToken(j).getAmount())
+                << "Failed tx: " << txid;
+            EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getAggregationPolicy(),
+                      ntp1tx_ref.getTxOut(i).getToken(j).getAggregationPolicy())
+                << "Failed tx: " << txid;
+            EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getDivisibility(),
+                      ntp1tx_ref.getTxOut(i).getToken(j).getDivisibility())
+                << "Failed tx: " << txid;
+            EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getIssueTxId(),
+                      ntp1tx_ref.getTxOut(i).getToken(j).getIssueTxId())
+                << "Failed tx: " << txid;
+            EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getLockStatus(),
+                      ntp1tx_ref.getTxOut(i).getToken(j).getLockStatus())
+                << "Failed tx: " << txid;
+            //            EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getTokenSymbol(),
+            //                      ntp1tx_ref.getTxOut(i).getToken(j).getTokenSymbol())
+            //                << "Failed tx: " << txid;
+        }
+    }
+
+    EXPECT_EQ(ntp1tx.getTxInCount(), ntp1tx_ref.getTxInCount());
+    for (int i = 0; i < (int)ntp1tx.getTxInCount(); i++) {
+        ASSERT_EQ(ntp1tx.getTxIn(i).getNumOfTokens(), ntp1tx_ref.getTxIn(i).getNumOfTokens())
+            << "Failed tx: " << txid;
+        for (int j = 0; j < (int)ntp1tx.getTxIn(i).getNumOfTokens(); j++) {
+            EXPECT_EQ(ntp1tx.getTxIn(i).getToken(j).getAmount(),
+                      ntp1tx_ref.getTxIn(i).getToken(j).getAmount())
+                << "Failed tx: " << txid;
+            EXPECT_EQ(ntp1tx.getTxIn(i).getToken(j).getAggregationPolicy(),
+                      ntp1tx_ref.getTxIn(i).getToken(j).getAggregationPolicy())
+                << "Failed tx: " << txid;
+            EXPECT_EQ(ntp1tx.getTxIn(i).getToken(j).getDivisibility(),
+                      ntp1tx_ref.getTxIn(i).getToken(j).getDivisibility())
+                << "Failed tx: " << txid;
+            EXPECT_EQ(ntp1tx.getTxIn(i).getToken(j).getIssueTxId(),
+                      ntp1tx_ref.getTxIn(i).getToken(j).getIssueTxId())
+                << "Failed tx: " << txid;
+            EXPECT_EQ(ntp1tx.getTxIn(i).getToken(j).getLockStatus(),
+                      ntp1tx_ref.getTxIn(i).getToken(j).getLockStatus())
+                << "Failed tx: " << txid;
+            EXPECT_EQ(ntp1tx.getTxIn(i).getToken(j).getTokenSymbol(),
+                      ntp1tx_ref.getTxIn(i).getToken(j).getTokenSymbol())
+                << "Failed tx: " << txid;
+        }
+    }
+
+    EXPECT_EQ(ntp1tx.getTxHash(), ntp1tx_ref.getTxHash()) << "Failed tx: " << txid;
+}
+
+void TestSingleNTP1TxParsingLocally(const std::string&                                  txid,
+                                    const std::unordered_map<std::string, std::string>& nebltxs_map,
+                                    const std::unordered_map<std::string, std::string>& ntp1txs_map)
+{
+    const std::string  rawTx          = nebltxs_map.find(txid)->second;
+    const CTransaction tx             = TxFromHex(rawTx);
+    const std::string  ntp1tx_ref_str = ntp1txs_map.find(txid)->second;
+    NTP1Transaction    ntp1tx_ref;
+    ntp1tx_ref.importJsonData(ntp1tx_ref_str);
+    EXPECT_TRUE(tx.CheckTransaction()) << "Failed tx: " << txid;
+
+    std::vector<std::pair<CTransaction, NTP1Transaction>> inputs;
+
+    for (int i = 0; i < (int)tx.vin.size(); i++) {
+        std::string  inputTxid  = tx.vin[i].prevout.hash.ToString();
+        std::string  inputRawTx = nebltxs_map.find(inputTxid)->second;
+        CTransaction inputTx    = TxFromHex(inputRawTx);
+
+        const std::string inputNTP1TxStr = ntp1txs_map.find(inputTxid)->second;
+        NTP1Transaction   inputNTP1Tx;
+        inputNTP1Tx.importJsonData(inputNTP1TxStr);
+
+        inputs.push_back(std::make_pair(inputTx, inputNTP1Tx));
+    }
+
+    NTP1Transaction ntp1tx;
+    ntp1tx.readNTP1DataFromTx(tx, inputs);
+
+    EXPECT_EQ(ntp1tx.getTxOutCount(), ntp1tx_ref.getTxOutCount()) << "Failed tx: " << txid;
+    for (int i = 0; i < (int)ntp1tx.getTxOutCount(); i++) {
+        ASSERT_EQ(ntp1tx.getTxOut(i).getNumOfTokens(), ntp1tx_ref.getTxOut(i).getNumOfTokens())
+            << "Failed tx: " << txid;
+        for (int j = 0; j < (int)ntp1tx.getTxOut(i).getNumOfTokens(); j++) {
+            EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getAmount(),
+                      ntp1tx_ref.getTxOut(i).getToken(j).getAmount())
+                << "Failed tx: " << txid;
+            EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getAggregationPolicy(),
+                      ntp1tx_ref.getTxOut(i).getToken(j).getAggregationPolicy())
+                << "Failed tx: " << txid;
+            EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getDivisibility(),
+                      ntp1tx_ref.getTxOut(i).getToken(j).getDivisibility())
+                << "Failed tx: " << txid;
+            EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getIssueTxId(),
+                      ntp1tx_ref.getTxOut(i).getToken(j).getIssueTxId())
+                << "Failed tx: " << txid;
+            EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getLockStatus(),
+                      ntp1tx_ref.getTxOut(i).getToken(j).getLockStatus())
+                << "Failed tx: " << txid;
+            // skipping testing input token name as it's not available in the NTP1 API
+
+            //            EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getTokenSymbol(),
+            //                      ntp1tx_ref.getTxOut(i).getToken(j).getTokenSymbol())
+            //                << "Failed tx: " << txid;
+        }
+    }
+
+    EXPECT_EQ(ntp1tx.getTxInCount(), ntp1tx_ref.getTxInCount());
+    for (int i = 0; i < (int)ntp1tx.getTxInCount(); i++) {
+        ASSERT_EQ(ntp1tx.getTxIn(i).getNumOfTokens(), ntp1tx_ref.getTxIn(i).getNumOfTokens())
+            << "Failed tx: " << txid;
+        for (int j = 0; j < (int)ntp1tx.getTxIn(i).getNumOfTokens(); j++) {
+            EXPECT_EQ(ntp1tx.getTxIn(i).getToken(j).getAmount(),
+                      ntp1tx_ref.getTxIn(i).getToken(j).getAmount())
+                << "Failed tx: " << txid;
+            EXPECT_EQ(ntp1tx.getTxIn(i).getToken(j).getAggregationPolicy(),
+                      ntp1tx_ref.getTxIn(i).getToken(j).getAggregationPolicy())
+                << "Failed tx: " << txid;
+            EXPECT_EQ(ntp1tx.getTxIn(i).getToken(j).getDivisibility(),
+                      ntp1tx_ref.getTxIn(i).getToken(j).getDivisibility())
+                << "Failed tx: " << txid;
+            EXPECT_EQ(ntp1tx.getTxIn(i).getToken(j).getIssueTxId(),
+                      ntp1tx_ref.getTxIn(i).getToken(j).getIssueTxId())
+                << "Failed tx: " << txid;
+            EXPECT_EQ(ntp1tx.getTxIn(i).getToken(j).getLockStatus(),
+                      ntp1tx_ref.getTxIn(i).getToken(j).getLockStatus())
+                << "Failed tx: " << txid;
+            EXPECT_EQ(ntp1tx.getTxIn(i).getToken(j).getTokenSymbol(),
+                      ntp1tx_ref.getTxIn(i).getToken(j).getTokenSymbol())
+                << "Failed tx: " << txid;
+        }
+    }
+
+    EXPECT_EQ(ntp1tx.getTxHash(), ntp1tx_ref.getTxHash()) << "Failed tx: " << txid;
+}
+
+void TestNTP1TxParsingLocally()
+{
+    std::unordered_map<std::string, std::string> ntp1txs_map;
+    std::unordered_map<std::string, std::string> nebltxs_map;
+
+    std::vector<std::string> txids = read_line_by_line("ntp1txids_to_test.txt");
+
+    // save memory by ensuring the destruction of json objects
+    {
+        json_spirit::Object nebltxs = read_json_obj("txs_ntp1tests_raw_neblio_txs.json");
+        json_spirit::Object ntp1txs = read_json_obj("txs_ntp1tests_ntp1_txs.json");
+
+        for (const auto& el : nebltxs) {
+            nebltxs_map[el.name_] = el.value_.get_str();
+        }
+        for (const auto& el : ntp1txs) {
+            ntp1txs_map[el.name_] = boost::algorithm::unhex(el.value_.get_str());
+        }
+    }
+
+    uint64_t count = 0;
+    for (const auto& txid : txids) {
+        if (count % 100 == 0)
+            std::cout << "Finished testing " << count << " transactions" << std::endl;
+        count++;
+        TestSingleNTP1TxParsingLocally(txid, nebltxs_map, ntp1txs_map);
+    }
+}
+
+void write_json_file(const json_spirit::Object& obj, const std::string& filename)
+{
+    namespace fs          = boost::filesystem;
+    fs::path testRootPath = TEST_ROOT_PATH;
+    fs::path testFile     = testRootPath / "data" / filename;
+
+    ofstream os(testFile.string().c_str());
+
+    json_spirit::write_formatted(obj, os);
+}
+
+void DownloadData()
+{
+    std::vector<std::string> txids = read_line_by_line("ntp1txids_to_test.txt");
+
+    std::unordered_map<std::string, std::string> rawNeblioTxsMap;
+    std::unordered_map<std::string, std::string> ntp1TxsMap;
+
+    json_spirit::Object rawNeblioTxs;
+    json_spirit::Object ntp1Txs;
+
+    const bool testnet = false;
+
+    for (uint64_t i = 0; i < (uint64_t)txids.size(); i++) {
+        std::cout << "Downloading tx: " << i << std::endl;
+
+        std::string       rawTx      = cURLTools::GetFileFromHTTPS(GetRawTxURL(txids[i]), 10000, 0);
+        CTransaction      tx         = TxFromHex(rawTx);
+        const std::string ntp1tx_ref = NTP1APICalls::RetrieveData_TransactionInfo_Str(txids[i], testnet);
+
+        rawNeblioTxsMap[txids[i]] = rawTx;
+        ntp1TxsMap[txids[i]]      = boost::algorithm::hex(ntp1tx_ref);
+
+        for (int i = 0; i < (int)tx.vin.size(); i++) {
+            std::string inputTxid  = tx.vin[i].prevout.hash.ToString();
+            std::string inputRawTx = cURLTools::GetFileFromHTTPS(GetRawTxURL(inputTxid), 10000, 0);
+
+            std::string inputNTP1Tx = NTP1APICalls::RetrieveData_TransactionInfo_Str(inputTxid, testnet);
+
+            rawNeblioTxsMap[inputTxid] = inputRawTx;
+            ntp1TxsMap[inputTxid]      = boost::algorithm::hex(inputNTP1Tx);
+        }
+    }
+
+    for (const auto& el : rawNeblioTxsMap) {
+        rawNeblioTxs.push_back(json_spirit::Pair(el.first, el.second));
+    }
+    for (const auto& el : ntp1TxsMap) {
+        ntp1Txs.push_back(json_spirit::Pair(el.first, el.second));
+    }
+
+    std::string f1 = "txs_ntp1tests_raw_neblio_txs.json";
+    std::string f2 = "txs_ntp1tests_ntp1_txs.json";
+
+    std::remove(f1.c_str());
+    std::remove(f2.c_str());
+
+    write_json_file(rawNeblioTxs, f1);
+    write_json_file(ntp1Txs, f2);
+}
+
+#ifdef UNITTEST_DOWNLOAD_TX_DATA
+TEST(ntp1_tests, download_data_to_files) { DownloadData(); }
+#endif
+
+#ifdef UNITTEST_RUN_NTP_PARSE_TESTS
+TEST(ntp1_tests, parsig_ntp1_from_ctransaction_automated)
+{
+    EXPECT_NO_THROW(TestNTP1TxParsingLocally());
+}
+#endif

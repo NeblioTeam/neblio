@@ -180,11 +180,6 @@ void NTP1Transaction::__TransferTokens(
 
     for (int i = 0; i < (int)scriptPtrD->getTransferInstructionsCount(); i++) {
 
-        // if skip, move on to the next input
-        if (TIs[i].skipInput) {
-            currentInputIndex++;
-        }
-
         if (currentInputIndex >= static_cast<int>(vin.size())) {
             throw std::runtime_error(
                 "An input of transfer instruction is outside the available "
@@ -209,6 +204,7 @@ void NTP1Transaction::__TransferTokens(
         uint64_t currentOutputAmount = TIs[i].amount;
         for (int j = 0; j < (int)totalTokensLeftInInputs[currentInputIndex].size(); j++) {
 
+            // calculate the total number of available tokens for spending
             uint64_t totalAdjacentTokensOfOneKind = totalTokensLeftInInputs[currentInputIndex][j];
             auto     currentTokenId = tokensKindsInInputs[currentInputIndex][j].getTokenId();
             for (int k = currentInputIndex + 1; k < (int)totalTokensLeftInInputs.size(); k++) {
@@ -216,7 +212,7 @@ void NTP1Transaction::__TransferTokens(
                 if (totalTokensLeftInInputs[k].size() == 0) {
                     break;
                 }
-                for (int l = j + 1; l < (int)totalTokensLeftInInputs[k].size(); l++) {
+                for (int l = j; l < (int)totalTokensLeftInInputs[k].size(); l++) {
                     if (tokensKindsInInputs[k][l].getTokenId() == currentTokenId) {
                         totalAdjacentTokensOfOneKind += totalTokensLeftInInputs[k][l];
                     } else {
@@ -232,8 +228,7 @@ void NTP1Transaction::__TransferTokens(
             }
 
             const auto&    currentTokenObj = tokensKindsInInputs[currentInputIndex][j];
-            const uint64_t amountToCredit =
-                std::min(totalTokensLeftInInputs[currentInputIndex][j], currentOutputAmount);
+            const uint64_t amountToCredit  = std::min(totalAdjacentTokensOfOneKind, currentOutputAmount);
 
             if (!burnThisOutput) {
                 // create the token object that will be added to the output
@@ -269,6 +264,7 @@ void NTP1Transaction::__TransferTokens(
                         } else {
                             amountLeftToSubtract -= totalTokensLeftInInputs[k][l];
                             totalTokensLeftInInputs[k][l] = 0;
+                            currentInputIndex++;
                         }
                     } else {
                         if (amountLeftToSubtract == 0) {
@@ -287,6 +283,11 @@ void NTP1Transaction::__TransferTokens(
                 }
             }
 
+            // if skip, move on to the next input
+            if (TIs[i].skipInput) {
+                currentInputIndex++;
+            }
+
             // all required output amount is spent. The rest will be redirected as change
             if (currentOutputAmount == 0) {
                 break;
@@ -295,8 +296,6 @@ void NTP1Transaction::__TransferTokens(
             if (totalTokensLeftInInputs[currentInputIndex][j] == 0) {
                 currentInputIndex++;
             }
-
-            // TODO: aggregation of adjacent tokens of the same kind
         }
     }
 
@@ -306,8 +305,8 @@ void NTP1Transaction::__TransferTokens(
                 continue;
             }
 
-            const auto& currentTokenObj = tokensKindsInInputs[currentInputIndex][j];
-            uint64_t    amountToCredit  = totalTokensLeftInInputs[currentInputIndex][j];
+            const auto& currentTokenObj = tokensKindsInInputs[i][j];
+            uint64_t    amountToCredit  = totalTokensLeftInInputs[i][j];
 
             // create the token object that will be added to the output
             NTP1TokenTxData ntp1tokenTxData;
@@ -327,7 +326,7 @@ void NTP1Transaction::__TransferTokens(
             vout.back().tokens.push_back(ntp1tokenTxData);
 
             // reduce the available balance
-            totalTokensLeftInInputs[currentInputIndex][j] -= amountToCredit;
+            totalTokensLeftInInputs[i][j] -= amountToCredit;
         }
     }
 

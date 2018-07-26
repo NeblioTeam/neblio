@@ -16,6 +16,7 @@ public:
                                                              bool testnet);
     static const long        NTP1_CONNECTION_TIMEOUT = 10;
     static NTP1Transaction   RetrieveData_TransactionInfo(const std::string& txHash, bool testnet);
+    static std::string       RetrieveData_TransactionInfo_Str(const std::string& txHash, bool testnet);
 };
 
 #endif // NTP1APICALLS_H

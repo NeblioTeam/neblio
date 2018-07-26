@@ -5,11 +5,10 @@ std::string NTP1TxOut::getAddress() const { return address; }
 
 typename NTP1TxOut::OutputType NTP1TxOut::getType() const
 {
-    if (scriptPubKeyAsm.empty()) {
-        throw std::runtime_error("Cannot deduce NTP1TxOut type when scriptPubKey ASM is empty");
-    }
     NTP1TxOut::OutputType type;
-    if (scriptPubKeyAsm.find("OP_RETURN") != std::string::npos) {
+    if (scriptPubKeyAsm.empty()) {
+        type = OutputType::NonStandard;
+    } else if (scriptPubKeyAsm.find("OP_RETURN") != std::string::npos) {
         type = OutputType::OPReturn;
     } else {
         type = OutputType::NormalOutput;

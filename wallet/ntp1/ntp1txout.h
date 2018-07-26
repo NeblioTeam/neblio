@@ -16,7 +16,8 @@ public:
     enum OutputType
     {
         NormalOutput = 0,
-        OPReturn
+        OPReturn,
+        NonStandard
     };
 
 private:

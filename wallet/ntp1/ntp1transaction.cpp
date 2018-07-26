@@ -18,7 +18,7 @@ NTP1Transaction::NTP1Transaction() { setNull(); }
 void NTP1Transaction::setNull()
 {
     nVersion = NTP1Transaction::CURRENT_VERSION;
-    nTime    = GetAdjustedTime();
+    nTime    = GetAdjustedTime() * 1000;
     vin.clear();
     vout.clear();
     nLockTime = 0;
@@ -167,7 +167,11 @@ void NTP1Transaction::readNTP1DataFromTx(
     // null elements are supposed to be non-NTP1 transactions; invalid inputs throw exceptions
     std::vector<std::shared_ptr<NTP1Script>> inputNTP1Scripts(vin.size());
     for (unsigned i = 0; i < tx.vin.size(); i++) {
-        vin[i].setPrevout(NTP1OutPoint(tx.vin[i].prevout.hash, tx.vin[i].prevout.n));
+        const auto& currInputHash  = tx.vin[i].prevout.hash;
+        const auto& currInputIndex = tx.vin[i].prevout.n;
+
+        vin[i].setPrevout(NTP1OutPoint(currInputHash, currInputIndex));
+
         // find inputs in the list of inputs and parse their OP_RETURN
         auto it = std::find_if(inputsTxs.cbegin(), inputsTxs.cend(),
                                [this, i](const std::pair<CTransaction, NTP1Transaction>& in) {
@@ -177,12 +181,19 @@ void NTP1Transaction::readNTP1DataFromTx(
             throw std::runtime_error("Could not find all relevant inputs in the inputs list");
         }
         std::string opReturnArgInput;
+
+        const CTransaction&    currStdInput  = it->first;
+        const NTP1Transaction& currNTP1Input = it->second;
         // if the transaction is not NTP1, continue
-        if (!IsTxNTP1(&(it->first), &opReturnArgInput)) {
+        if (!IsTxNTP1(&currStdInput, &opReturnArgInput)) {
             continue;
         }
         inputNTP1Scripts[i] = NTP1Script::ParseScript(opReturnArgInput);
+        vin[i].tokens       = currNTP1Input.vout.at(currInputIndex).tokens;
     }
+
+    this->nTime     = tx.nTime;
+    this->nLockTime = tx.nLockTime;
 
     // resize NTP1 output size to match normal outputs size and clear tokens for recalculation
     for (auto&& out : vout) {

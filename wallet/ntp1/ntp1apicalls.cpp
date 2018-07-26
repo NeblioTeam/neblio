@@ -74,3 +74,10 @@ NTP1Transaction NTP1APICalls::RetrieveData_TransactionInfo(const std::string& tx
     tx.importJsonData(ntpData);
     return tx;
 }
+
+std::string NTP1APICalls::RetrieveData_TransactionInfo_Str(const std::string& txHash, bool testnet)
+{
+    std::string url     = NTP1Tools::GetURL_TransactionInfo(txHash, testnet);
+    std::string ntpData = cURLTools::GetFileFromHTTPS(url, NTP1_CONNECTION_TIMEOUT, false);
+    return ntpData;
+}
