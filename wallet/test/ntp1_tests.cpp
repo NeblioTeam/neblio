@@ -1497,7 +1497,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
 
 std::string GetRawTxURL(const std::string& txid)
 {
-    return "https://explorer.nebl.io/api/getrawtransaction?txid=" + txid;
+    return "https://ntp1node.nebl.io/ins/rawtx/" + txid;
 }
 
 std::size_t GetFileSize(const std::string& filename)
@@ -1796,7 +1796,11 @@ void DownloadData()
     for (uint64_t i = 0; i < (uint64_t)txids.size(); i++) {
         std::cout << "Downloading tx: " << i << std::endl;
 
-        std::string       rawTx      = cURLTools::GetFileFromHTTPS(GetRawTxURL(txids[i]), 10000, 0);
+        std::string       rawTxJson      = cURLTools::GetFileFromHTTPS(GetRawTxURL(txids[i]), 10000, 0);
+        json_spirit::Value v;
+        json_spirit::read_or_throw(rawTxJson, v);
+        json_spirit::Object rawTxObj = v.get_obj();
+        std::string rawTx = NTP1Tools::GetStrField(rawTxObj, "rawtx");
         CTransaction      tx         = TxFromHex(rawTx);
         const std::string ntp1tx_ref = NTP1APICalls::RetrieveData_TransactionInfo_Str(txids[i], testnet);
 
@@ -1805,7 +1809,12 @@ void DownloadData()
 
         for (int i = 0; i < (int)tx.vin.size(); i++) {
             std::string inputTxid  = tx.vin[i].prevout.hash.ToString();
-            std::string inputRawTx = cURLTools::GetFileFromHTTPS(GetRawTxURL(inputTxid), 10000, 0);
+
+            std::string       inputRawTxJson      = cURLTools::GetFileFromHTTPS(GetRawTxURL(inputTxid), 10000, 0);
+        	json_spirit::Value v;
+        	json_spirit::read_or_throw(inputRawTxJson, v);
+        	json_spirit::Object inputRawTxObj = v.get_obj();
+        	std::string inputRawTx = NTP1Tools::GetStrField(inputRawTxObj, "rawtx");
 
             std::string inputNTP1Tx = NTP1APICalls::RetrieveData_TransactionInfo_Str(inputTxid, testnet);
 
