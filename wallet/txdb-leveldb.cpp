@@ -41,18 +41,39 @@ void init_blockindex(leveldb::Options& options, bool fRemoveOld = false)
 
     if (fRemoveOld) {
         filesystem::remove_all(directory); // remove directory
-        unsigned int nFile = 1;
 
-        while (true) {
-            filesystem::path strBlockFile = GetDataDir() / strprintf("blk%04u.dat", nFile);
+        // delete block data files
+        {
+            unsigned int nFile = 1;
 
-            // Break if no such file
-            if (!filesystem::exists(strBlockFile))
-                break;
+            while (true) {
+                filesystem::path strBlockFile = GetDataDir() / strprintf("blk%04u.dat", nFile);
 
-            filesystem::remove(strBlockFile);
+                // Break if no such file
+                if (!filesystem::exists(strBlockFile))
+                    break;
 
-            nFile++;
+                filesystem::remove(strBlockFile);
+
+                nFile++;
+            }
+        }
+
+        // delete NTP1 transaction data files
+        {
+            unsigned int nFile = 1;
+
+            while (true) {
+                filesystem::path strBlockFile = GetDataDir() / strprintf("ntp1txs%04u.dat", nFile);
+
+                // Break if no such file
+                if (!filesystem::exists(strBlockFile))
+                    break;
+
+                filesystem::remove(strBlockFile);
+
+                nFile++;
+            }
         }
     }
 

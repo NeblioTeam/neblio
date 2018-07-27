@@ -6,7 +6,7 @@
 #include <vector>
 
 typedef uint32_t          NTP1TransactionType;
-const NTP1TransactionType NTP1TxType_INVALID  = 0;
+const NTP1TransactionType NTP1TxType_UNKNOWN  = 0;
 const NTP1TransactionType NTP1TxType_NOT_NTP1 = 1;
 const NTP1TransactionType NTP1TxType_ISSUANCE = 2;
 const NTP1TransactionType NTP1TxType_TRANSFER = 3;

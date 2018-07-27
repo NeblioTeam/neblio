@@ -148,6 +148,27 @@ void NTP1Transaction::__manualSet(int NVersion, uint256 TxHash, std::vector<unsi
     ntp1TransactionType = Ntp1TransactionType;
 }
 
+void NTP1Transaction::readNTP1DataFromTx_minimal(const CTransaction& tx)
+{
+    txHash = tx.GetHash();
+    vin.clear();
+    vin.resize(tx.vin.size());
+    for (int i = 0; i < (int)tx.vin.size(); i++) {
+        vin[i].setNull();
+        vin[i].setPrevout(NTP1OutPoint(tx.vin[i].prevout.hash, tx.vin[i].prevout.n));
+    }
+    vout.clear();
+    vout.resize(tx.vout.size());
+    for (int i = 0; i < (int)tx.vout.size(); i++) {
+        vout[i].nValue = tx.vout[i].nValue;
+        vout[i].scriptPubKeyHex.clear();
+        boost::algorithm::hex(tx.vout[i].scriptPubKey.begin(), tx.vout[i].scriptPubKey.end(),
+                              std::back_inserter(vout[i].scriptPubKeyHex));
+        vout[i].scriptPubKeyAsm = tx.vout[i].scriptPubKey.ToString();
+    }
+    ntp1TransactionType = NTP1TxType_NOT_NTP1;
+}
+
 void NTP1Transaction::readNTP1DataFromTx(
     const CTransaction& tx, const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs)
 {
@@ -155,6 +176,12 @@ void NTP1Transaction::readNTP1DataFromTx(
     if (!IsTxNTP1(&tx, &opReturnArg)) {
         ntp1TransactionType = NTP1TxType_NOT_NTP1;
         return;
+    }
+
+    if (tx.vin.size() != inputsTxs.size()) {
+        throw std::runtime_error("The number of input transactions must match the number of inputs in "
+                                 "the provided transaction. Error in tx: " +
+                                 tx.GetHash().ToString());
     }
 
     // resize NTP1 input size to match normal outputs size and clear tokens for recalculation
@@ -195,7 +222,11 @@ void NTP1Transaction::readNTP1DataFromTx(
             continue;
         }
         inputNTP1Scripts[i] = NTP1Script::ParseScript(opReturnArgInput);
-        vin[i].tokens       = currNTP1Input.vout.at(currInputIndex).tokens;
+
+        // if the input is not an NTP1 transaction, then currNTP1Input.vout.size() is zero
+        if (currNTP1Input.vout.size() > 0) {
+            vin[i].tokens = currNTP1Input.vout.at(currInputIndex).tokens;
+        }
     }
 
     if (totalInput == 0) {
@@ -285,12 +316,13 @@ void NTP1Transaction::readNTP1DataFromTx(
         __TransferTokens<NTP1Script_Burn>(scriptPtrD, tx, inputsTxs, true);
 
     } else {
-        ntp1TransactionType = NTP1TxType_INVALID;
+        ntp1TransactionType = NTP1TxType_UNKNOWN;
         throw std::runtime_error("Unknown NTP1 transaction type");
     }
 }
 
-bool NTP1Transaction::writeToDisk(unsigned int& nFileRet, unsigned int& nTxPosRet, FILE* customFile)
+bool NTP1Transaction::writeToDisk(unsigned int& nFileRet, unsigned int& nTxPosRet,
+                                  FILE* customFile) const
 {
     // Open history file to append
     CAutoFile fileout =

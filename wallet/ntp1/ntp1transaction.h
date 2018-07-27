@@ -2,6 +2,10 @@
 #define NTP1TRANSACTION_H
 
 #include "main.h"
+#include "ntp1/ntp1script.h"
+#include "ntp1/ntp1script_burn.h"
+#include "ntp1/ntp1script_issuance.h"
+#include "ntp1/ntp1script_transfer.h"
 #include "ntp1txin.h"
 #include "ntp1txout.h"
 #include "uint256.h"
@@ -117,10 +121,19 @@ public:
                      std::vector<NTP1TxIn> Vin, std::vector<NTP1TxOut> Vout, uint64_t NLockTime,
                      uint64_t NTime, NTP1TransactionType Ntp1TransactionType);
 
+    /**
+     * sets only shallow information from the source transaction (no token information)
+     * it's not possible to set token information without prev inputs information; for that, use the
+     * non-minimal version
+     * @brief readNTP1DataFromTx_minimal
+     * @param tx the source Neblio transcation
+     */
+    void readNTP1DataFromTx_minimal(const CTransaction& tx);
+
     void readNTP1DataFromTx(const CTransaction&                                          tx,
                             const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs);
 
-    bool writeToDisk(unsigned int& nFileRet, unsigned int& nTxPosRet, FILE* customFile = nullptr);
+    bool writeToDisk(unsigned int& nFileRet, unsigned int& nTxPosRet, FILE* customFile = nullptr) const;
     bool readFromDisk(DiskNTP1TxPos pos, FILE** pfileRet = nullptr, FILE* customFile = nullptr);
 };
 
@@ -144,8 +157,8 @@ void NTP1Transaction::__TransferTokens(
     int currentInputIndex = 0;
 
     // calculate total tokens in inputs
-    std::vector<std::vector<uint64_t>>        totalTokensLeftInInputs(inputsTxs.size());
-    std::vector<std::vector<NTP1TokenTxData>> tokensKindsInInputs(inputsTxs.size());
+    std::vector<std::vector<uint64_t>>        totalTokensLeftInInputs(tx.vin.size());
+    std::vector<std::vector<NTP1TokenTxData>> tokensKindsInInputs(tx.vin.size());
     for (unsigned i = 0; i < tx.vin.size(); i++) {
         const auto& n    = tx.vin[i].prevout.n;
         const auto& hash = tx.vin[i].prevout.hash;

@@ -7,10 +7,6 @@
 
 #include "bignum.h"
 #include "net.h"
-#include "ntp1/ntp1script.h"
-#include "ntp1/ntp1script_burn.h"
-#include "ntp1/ntp1script_issuance.h"
-#include "ntp1/ntp1script_transfer.h"
 #include "script.h"
 #include "scrypt.h"
 #include "sync.h"
@@ -356,7 +352,7 @@ public:
     void print() const { printf("%s\n", ToString().c_str()); }
 };
 
-bool TxContainsOpReturn(const CTransaction* tx);
+bool TxContainsOpReturn(const CTransaction* tx, string* opReturnArg = nullptr);
 
 bool IsTxNTP1(const CTransaction* tx, string* opReturnArg = nullptr);
 

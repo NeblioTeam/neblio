@@ -39,6 +39,8 @@ unsigned int nTransactionsUpdated = 0;
 
 const std::string NTP1OpReturnRegexStr = R"(^OP_RETURN\s+(4e5401[a-fA-F0-9]*)$)";
 const std::regex  NTP1OpReturnRegex(NTP1OpReturnRegexStr);
+const std::string OpReturnRegexStr = R"(^OP_RETURN\s+([a-fA-F0-9]*)$)";
+const std::regex  OpReturnRegex(OpReturnRegexStr);
 
 map<uint256, CBlockIndex*>         mapBlockIndex;
 set<pair<COutPoint, unsigned int>> setStakeSeen;
@@ -2104,6 +2106,112 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
     return true;
 }
 
+void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair)
+{
+    if (!IsTxNTP1(&txPair.first)) {
+        return;
+    }
+    DiskNTP1TxPos ntp1txPos;
+    if (!CTxDB().ReadNTP1TxIndex(txPair.first.GetHash(), ntp1txPos)) {
+        printf("Unable to read NTP1 transaction from leveldb: %s\n",
+               txPair.first.GetHash().ToString().c_str());
+        return;
+    }
+    if (!txPair.second.readFromDisk(ntp1txPos)) {
+        printf("Unable to read NTP1 transaction from disk with the "
+               "index given by leveldb: %s\n",
+               txPair.first.GetHash().ToString().c_str());
+        return;
+    }
+}
+
+void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx)
+{
+    // write to disk
+    unsigned int nFile;
+    unsigned int nTxPosRet;
+    if (!ntp1tx.writeToDisk(nFile, nTxPosRet)) {
+        throw std::runtime_error("unable to write NTP1 transaction serialized data to disk: " +
+                                 ntp1tx.getTxHash().ToString());
+    }
+
+    // write index to leveldb
+    DiskNTP1TxPos ntp1txPos(nFile, nTxPosRet);
+    if (!CTxDB().WriteNTP1TxIndex(ntp1tx.getTxHash(), ntp1txPos)) {
+        throw std::runtime_error("unable to write NTP1 transaction index to leveldb database: " +
+                                 ntp1tx.getTxHash().ToString());
+    }
+}
+
+std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTransaction tx)
+{
+    std::vector<std::pair<CTransaction, NTP1Transaction>> inputsWithNTP1;
+    CTxDB                                                 txdb("r");
+
+    // rertrieve standard transaction inputs (NOT NTP1)
+    MapPrevTx              mapInputs;
+    map<uint256, CTxIndex> mapUnused;
+    bool                   fInvalid = false;
+    if (!tx.FetchInputs(txdb, mapUnused, false, false, mapInputs, fInvalid)) {
+        if (fInvalid) {
+            printf("Error: For NTP1, FetchInputs found invalid tx %s\n",
+                   tx.GetHash().ToString().c_str());
+            throw std::runtime_error("Error: For NTP1, FetchInputs found invalid tx " +
+                                     tx.GetHash().ToString());
+        }
+    }
+
+    // put the input transactions in a vector with their corresponding NTP1 transactions
+    {
+        inputsWithNTP1.clear();
+        std::transform(tx.vin.begin(), tx.vin.end(), std::back_inserter(inputsWithNTP1),
+                       [&mapInputs, &tx](const CTxIn& in) {
+                           if (mapInputs.count(in.prevout.hash) == 0) {
+                               throw std::runtime_error("Could not find input after having fetched it "
+                                                        "(for NTP1 database storage); for tx: " +
+                                                        tx.GetHash().ToString());
+                           }
+                           auto result =
+                               std::make_pair(mapInputs[in.prevout.hash].second, NTP1Transaction());
+                           result.second.readNTP1DataFromTx_minimal(result.first);
+                           return result;
+                       });
+    }
+
+    for (auto&& inTx : inputsWithNTP1) {
+        // read NTP1 transaction inputs. If they fail, that's OK, because they will
+        // fail later if they're necessary
+        FetchNTP1TxFromDisk(inTx);
+    }
+
+    return inputsWithNTP1;
+}
+
+void WriteNTP1BlockTransactionsToDisk(std::vector<CTransaction> vtx)
+{
+    if (nBestHeight >= 157528 || (fTestNet && nBestHeight >= 10313)) {
+        std::vector<std::pair<CTransaction, NTP1Transaction>> inputsWithNTP1;
+        // read previous transactions (inputs) which are necessary to validate an NTP1
+        // transaction
+        for (CTransaction& tx : vtx) {
+            if (!IsTxNTP1(&tx)) {
+                continue;
+            }
+
+            inputsWithNTP1 = GetAllNTP1InputsOfTx(tx);
+
+            // write NTP1 transactions' data
+            std::string opReturnArg;
+            if (IsTxNTP1(&tx, &opReturnArg)) {
+                NTP1Transaction ntp1tx;
+                ntp1tx.readNTP1DataFromTx(tx, inputsWithNTP1);
+
+                WriteNTP1TxToDbAndDisk(ntp1tx);
+            }
+        }
+    }
+}
+
 bool CBlock::AcceptBlock()
 {
     AssertLockHeld(cs_main);
@@ -2197,6 +2305,18 @@ bool CBlock::AcceptBlock()
 
     // ppcoin: check pending sync-checkpoint
     Checkpoints::AcceptPendingSyncCheckpoint();
+
+    // This scope does NTP1 data writing
+    {
+        try {
+            WriteNTP1BlockTransactionsToDisk(vtx);
+        } catch (std::exception& ex) {
+            printf("Unable to get NTP1 transaction written to the blockchain. Error: %s\n", ex.what());
+        } catch (...) {
+            printf("Unable to get NTP1 transaction written to the blockchain. An unknown exception was "
+                   "thrown");
+        }
+    }
 
     return true;
 }
@@ -2593,12 +2713,6 @@ static filesystem::path BlockFilePath(unsigned int nFile)
     return GetDataDir() / strBlockFn;
 }
 
-static filesystem::path NTP1TxsFilePath(unsigned int nFile)
-{
-    string strNTP1TxsFn = strprintf("ntp1txs%04u.dat", nFile);
-    return GetDataDir() / strNTP1TxsFn;
-}
-
 FILE* OpenBlockFile(unsigned int nFile, unsigned int nBlockPos, const char* pszMode)
 {
     if ((nFile < 1) || (nFile == (unsigned int)-1))
@@ -2615,24 +2729,7 @@ FILE* OpenBlockFile(unsigned int nFile, unsigned int nBlockPos, const char* pszM
     return file;
 }
 
-FILE* OpenNTP1TxsFile(unsigned int nFile, unsigned int nTxPos, const char* pszMode)
-{
-    if ((nFile < 1) || (nFile == (unsigned int)-1))
-        return NULL;
-    FILE* file = fopen(NTP1TxsFilePath(nFile).string().c_str(), pszMode);
-    if (!file)
-        return NULL;
-    if (nTxPos != 0 && !strchr(pszMode, 'a') && !strchr(pszMode, 'w')) {
-        if (fseek(file, nTxPos, SEEK_SET) != 0) {
-            fclose(file);
-            return NULL;
-        }
-    }
-    return file;
-}
-
-static unsigned int nCurrentBlockFile   = 1;
-static unsigned int nCurrentNTP1TxsFile = 1;
+static unsigned int nCurrentBlockFile = 1;
 
 FILE* AppendBlockFile(unsigned int& nFileRet)
 {
@@ -2650,25 +2747,6 @@ FILE* AppendBlockFile(unsigned int& nFileRet)
         }
         fclose(file);
         nCurrentBlockFile++;
-    }
-}
-
-FILE* AppendNTP1TxsFile(unsigned int& nFileRet)
-{
-    nFileRet = 0;
-    while (true) {
-        FILE* file = OpenNTP1TxsFile(nCurrentNTP1TxsFile, 0, "ab");
-        if (!file)
-            return NULL;
-        if (fseek(file, 0, SEEK_END) != 0)
-            return NULL;
-        // FAT32 file size max 4GB, fseek and ftell max 2GB, so we must stay under 2GB
-        if (ftell(file) < (long)(0x7F000000 - MAX_SIZE)) {
-            nFileRet = nCurrentNTP1TxsFile;
-            return file;
-        }
-        fclose(file);
-        nCurrentNTP1TxsFile++;
     }
 }
 
@@ -4087,17 +4165,24 @@ uint64_t CTxOutCompressor::DecompressAmount(uint64_t x)
     return n;
 }
 
-bool TxContainsOpReturn(const CTransaction* tx)
+bool TxContainsOpReturn(const CTransaction* tx, std::string* opReturnArg)
 {
     if (!tx) {
         return false;
     }
 
+    std::smatch opReturnArgMatch;
+
     static const std::string OP_RET_STR = "OP_RETURN";
     for (unsigned long j = 0; j < tx->vout.size(); j++) {
         // if the string OP_RET_STR is found in scriptPubKey
-        if (tx->vout[j].scriptPubKey.ToString().find(OP_RET_STR) != std::string::npos) {
-            return true;
+        std::string scriptPubKeyStr = tx->vout[j].scriptPubKey.ToString();
+        if (std::regex_match(scriptPubKeyStr, opReturnArgMatch, OpReturnRegex)) {
+            if (opReturnArg != nullptr && opReturnArgMatch[1].matched) {
+                *opReturnArg = std::string(opReturnArgMatch[1]);
+                return true;
+            }
+            return true; // could not retrieve OP_RETURN argument
         }
     }
     return false;
@@ -4118,174 +4203,8 @@ bool IsTxNTP1(const CTransaction* tx, std::string* opReturnArg)
                 *opReturnArg = std::string(opReturnArgMatch[1]);
                 return true;
             }
-            return false; // could not retrieve OP_RETURN argument
+            return true; // could not retrieve OP_RETURN argument
         }
     }
     return false;
-}
-
-bool IsNTP1IssuanceScriptValid(std::shared_ptr<NTP1Script> parsedOpRetScript, const CTransaction& tx,
-                               int64_t nFees, const std::string& opReturnArg)
-{
-    std::shared_ptr<NTP1Script_Issuance> scriptPtr =
-        std::dynamic_pointer_cast<NTP1Script_Issuance>(parsedOpRetScript);
-    if (scriptPtr.get() == nullptr) {
-        printf("Failed to cast NTP1Script pointer to issuance type, although the parsing "
-               "went to that type; for OP_RETURN argument: %s",
-               opReturnArg.c_str());
-        return false;
-    }
-    // TODO: Should we include other fees in the calculations (with the formula) or just
-    // worry about the 10 nebls for issuing here? What if many inputs and outputs are put in
-    // this transaction?
-    if (nFees <= 1000000000 /* 10 nebls */) {
-        printf("Attempted to issue tokens with fees less than 10 nebls in transaction: %s",
-               tx.GetHash().ToString().c_str());
-        return false;
-    }
-    if (scriptPtr->getTransferInstructionsCount() > tx.vin.size()) {
-        printf("Invalid OP_RETURN transaction where transfer instructions are more than "
-               "inputs for tx %s and OP_RETURN argument: %s",
-               tx.GetHash().ToString().c_str(), opReturnArg.c_str());
-        return false;
-    }
-    for (long i = 0; i < scriptPtr->getTransferInstructionsCount(); i++) {
-        if (scriptPtr->getTransferInstruction(i).outputIndex >= static_cast<int>(tx.vout.size())) {
-            printf("Invalid transaction %s where OP_RETURN %s was pointing to a non "
-                   "existing output",
-                   tx.GetHash().ToString().c_str(), opReturnArg.c_str());
-            return false;
-        }
-    }
-    // TODO: what other checks to be done here?
-    return true;
-}
-
-bool IsNTP1TransferScriptValid(std::shared_ptr<NTP1Script> parsedOpRetScript, const CTransaction& tx,
-                               int64_t nFees, const std::string& opReturnArg)
-{
-    std::shared_ptr<NTP1Script_Issuance> scriptPtr =
-        std::dynamic_pointer_cast<NTP1Script_Issuance>(parsedOpRetScript);
-    if (scriptPtr.get() == nullptr) {
-        printf("Failed to cast NTP1Script pointer to issuance type, although the parsing "
-               "went to that type; for OP_RETURN argument: %s",
-               opReturnArg.c_str());
-        return false;
-    }
-    if (scriptPtr->getTransferInstructionsCount() > tx.vin.size()) {
-        printf("Invalid OP_RETURN transaction where transfer instructions are more than "
-               "inputs for tx %s and OP_RETURN argument: %s",
-               tx.GetHash().ToString().c_str(), opReturnArg.c_str());
-        return false;
-    }
-    for (long i = 0; i < scriptPtr->getTransferInstructionsCount(); i++) {
-        if (scriptPtr->getTransferInstruction(i).outputIndex >= static_cast<int>(tx.vout.size())) {
-            printf("Invalid transaction %s where OP_RETURN %s was pointing to a non "
-                   "existing output",
-                   tx.GetHash().ToString().c_str(), opReturnArg.c_str());
-            return false;
-        }
-    }
-    // TODO: what other checks to be done here?
-    return true;
-}
-
-bool IsNTP1BurnScriptValid(std::shared_ptr<NTP1Script> parsedOpRetScript, const CTransaction& tx,
-                           int64_t nFees, const std::string& opReturnArg)
-{
-    std::shared_ptr<NTP1Script_Issuance> scriptPtr =
-        std::dynamic_pointer_cast<NTP1Script_Issuance>(parsedOpRetScript);
-    if (scriptPtr.get() == nullptr) {
-        printf("Failed to cast NTP1Script pointer to issuance type, although the parsing "
-               "went to that type; for OP_RETURN argument: %s",
-               opReturnArg.c_str());
-        return false;
-    }
-    if (scriptPtr->getTransferInstructionsCount() > tx.vin.size()) {
-        printf("Invalid OP_RETURN transaction where transfer instructions are more than "
-               "inputs for tx %s and OP_RETURN argument: %s",
-               tx.GetHash().ToString().c_str(), opReturnArg.c_str());
-        return false;
-    }
-    bool hasOutputIndex31 = false;
-    for (long i = 0; i < scriptPtr->getTransferInstructionsCount(); i++) {
-        if (scriptPtr->getTransferInstruction(i).outputIndex >= static_cast<int>(tx.vout.size())) {
-            printf("Invalid transaction %s where OP_RETURN %s was pointing to a non "
-                   "existing output",
-                   tx.GetHash().ToString().c_str(), opReturnArg.c_str());
-            return false;
-        }
-        if (scriptPtr->getTransferInstruction(i).outputIndex == 31) {
-            hasOutputIndex31 = true;
-        }
-    }
-    if (!hasOutputIndex31) {
-        printf("Invalid burn OP_RETURN transaction without output index 31: %s", opReturnArg.c_str());
-        return false;
-    }
-    // TODO: what other checks to be done here?
-    return true;
-}
-
-bool IsValidIfTxIsNTP1(const CTransaction& tx, int64_t nFees)
-{
-    /**
-     * returns true if:
-     * 1. The tx is a valid NTP1 tx
-     * 2. The tx is not an NTP1 tx
-     */
-
-    unsigned int nDataOut    = 0;
-    int          opRetOutput = -1;
-    txnouttype   whichType;
-    for (int i = 0; i < static_cast<int>(tx.vout.size()); i++) {
-        if (!::IsStandard(tx.vout[i].scriptPubKey, whichType)) {
-            return false;
-        }
-        if (whichType == TX_NULL_DATA) {
-            nDataOut++;
-        }
-    }
-
-    // only one OP_RETURN txout is permitted
-    if (nDataOut > 1) {
-        return false;
-    }
-
-    // this is no NTP1 tx
-    if (nDataOut == 0 || opRetOutput == -1) {
-        return true;
-    }
-
-    std::smatch        opReturnArgMatch;
-    const std::string& scriptPubKeyStr = tx.vout[opRetOutput].ToString();
-    bool               isNTP1Tx = std::regex_match(scriptPubKeyStr, opReturnArgMatch, NTP1OpReturnRegex);
-    if (isNTP1Tx) {
-        if (opReturnArgMatch[1].matched) {
-            std::string opReturnArg = std::string(opReturnArgMatch[1]);
-
-            std::shared_ptr<NTP1Script> parsedOpRetScript = NTP1Script::ParseScript(opReturnArg);
-            if (parsedOpRetScript->getTxType() == NTP1Script::TxType::TxType_Issuance) {
-                return IsNTP1IssuanceScriptValid(parsedOpRetScript, tx, nFees, opReturnArg);
-            } else if (parsedOpRetScript->getTxType() == NTP1Script::TxType::TxType_Transfer) {
-                return IsNTP1TransferScriptValid(parsedOpRetScript, tx, nFees, opReturnArg);
-            } else if (parsedOpRetScript->getTxType() == NTP1Script::TxType::TxType_Burn) {
-                return IsNTP1BurnScriptValid(parsedOpRetScript, tx, nFees, opReturnArg);
-            } else {
-                printf("Unknown OP_RETURN NTP1 transaction type. OP_RETURN argument is: %s",
-                       opReturnArg.c_str());
-                return false;
-            }
-        } else {
-            // could not read OP_RETURN data
-            printf("Ununderstandable error. An OP_RETURN transaction was found, and was matched, but "
-                   "could not match the regex capture group that provides the OP_RETURN argument. The "
-                   "scriptPubKey is: %s",
-                   tx.vout[opRetOutput].ToString().c_str());
-            return false;
-        }
-    } else {
-        // OP_RETURN, but not NTP1
-        return true;
-    }
 }

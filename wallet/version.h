@@ -11,11 +11,13 @@
 // client versioning
 //
 
+// clang-format off
 static const int CLIENT_VERSION =
                            1000000 * CLIENT_VERSION_MAJOR
                          +   10000 * CLIENT_VERSION_MINOR
                          +     100 * CLIENT_VERSION_REVISION
                          +       1 * CLIENT_VERSION_BUILD;
+// clang-format on
 
 extern const std::string CLIENT_NAME;
 extern const std::string CLIENT_BUILD;
@@ -24,7 +26,7 @@ extern const std::string CLIENT_DATE;
 //
 // database format versioning
 //
-static const int DATABASE_VERSION = 70509;
+static const int DATABASE_VERSION = 70510;
 
 //
 // network protocol versioning
@@ -41,7 +43,7 @@ static const int CADDR_TIME_VERSION = 31402;
 
 // only request blocks from nodes outside this range of versions
 static const int NOBLKS_VERSION_START = 60002;
-static const int NOBLKS_VERSION_END = 60006;
+static const int NOBLKS_VERSION_END   = 60006;
 
 // BIP 0031, pong message, is enabled for all versions AFTER this one
 static const int BIP0031_VERSION = 60000;
