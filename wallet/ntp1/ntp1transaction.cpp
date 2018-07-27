@@ -163,7 +163,9 @@ void NTP1Transaction::readNTP1DataFromTx(
     }
     vin.resize(tx.vin.size());
 
-    // TODO: parts of this may not be needed at all
+    uint64_t totalOutput = tx.GetValueOut();
+    uint64_t totalInput  = 0;
+
     // null elements are supposed to be non-NTP1 transactions; invalid inputs throw exceptions
     std::vector<std::shared_ptr<NTP1Script>> inputNTP1Scripts(vin.size());
     for (unsigned i = 0; i < tx.vin.size(); i++) {
@@ -182,14 +184,23 @@ void NTP1Transaction::readNTP1DataFromTx(
         }
         std::string opReturnArgInput;
 
+        // The transaction that has an input that matches currInputHash
         const CTransaction&    currStdInput  = it->first;
         const NTP1Transaction& currNTP1Input = it->second;
+
+        totalInput += currStdInput.vout.at(currInputIndex).nValue;
+
         // if the transaction is not NTP1, continue
         if (!IsTxNTP1(&currStdInput, &opReturnArgInput)) {
             continue;
         }
         inputNTP1Scripts[i] = NTP1Script::ParseScript(opReturnArgInput);
         vin[i].tokens       = currNTP1Input.vout.at(currInputIndex).tokens;
+    }
+
+    if (totalInput == 0) {
+        throw std::runtime_error("Total input is zero; that's invalid; in transaction: " +
+                                 tx.GetHash().ToString());
     }
 
     this->nTime     = tx.nTime;
@@ -206,15 +217,21 @@ void NTP1Transaction::readNTP1DataFromTx(
     std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScript(opReturnArg);
     if (scriptPtr->getTxType() == NTP1Script::TxType::TxType_Issuance) {
         ntp1TransactionType = NTP1TxType_ISSUANCE;
+
         std::shared_ptr<NTP1Script_Issuance> scriptPtrD =
             std::dynamic_pointer_cast<NTP1Script_Issuance>(scriptPtr);
+
+        if (static_cast<int64_t>(totalInput) - static_cast<int64_t>(totalOutput) <
+            static_cast<int64_t>(IssuanceFee)) {
+            throw std::runtime_error("Issuance fee is less than 10 nebls");
+        }
+
         uint64_t totalAmountLeft = scriptPtrD->getAmount();
         if (tx.vin.size() < 1) {
             throw std::runtime_error("Number of inputs is zero for transaction: " +
                                      tx.GetHash().ToString());
         }
         for (long i = 0; i < scriptPtrD->getTransferInstructionsCount(); i++) {
-            // TODO: verify fees; do we have to check the fees here?
             NTP1TokenTxData ntp1tokenTxData;
             const auto&     instruction = scriptPtrD->getTransferInstruction(i);
             if (instruction.outputIndex >= static_cast<int>(tx.vout.size())) {

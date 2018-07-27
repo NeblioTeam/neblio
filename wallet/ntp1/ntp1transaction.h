@@ -80,6 +80,8 @@ class NTP1Transaction
                           const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs,
                           bool                                                         burnOutput31);
 
+    static const uint64_t IssuanceFee = 1000000000; // 10 nebls
+
 public:
     // clang-format off
     IMPLEMENT_SERIALIZE(
