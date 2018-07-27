@@ -237,6 +237,8 @@ bool CTxDB::EraseTxIndex(const CTransaction& tx)
 
 bool CTxDB::ContainsTx(uint256 hash) { return Exists(make_pair(string("tx"), hash)); }
 
+bool CTxDB::ContainsNTP1Tx(uint256 hash) { return Exists(make_pair(string("ntp1tx"), hash)); }
+
 bool CTxDB::ReadDiskTx(uint256 hash, CTransaction& tx, CTxIndex& txindex)
 {
     tx.SetNull();
