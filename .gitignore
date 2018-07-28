@@ -64,3 +64,5 @@ wallet/nebliorest\.h
 
 wallet/restbed/
 wallet/test/data/wallet.dat
+wallet/test/data/txs_ntp1tests_ntp1_txs.json
+wallet/test/data/txs_ntp1tests_raw_neblio_txs.json

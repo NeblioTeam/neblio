@@ -1837,8 +1837,40 @@ void DownloadData()
     write_json_file(ntp1Txs, f2);
 }
 
+void DownloadPreMadeData()
+{
+    typedef boost::filesystem::path Path;
+
+    namespace fs          = boost::filesystem;
+    fs::path testRootPath = TEST_ROOT_PATH;
+
+    std::vector<std::string> files;
+    files.push_back("ntp1txids_to_test.txt");
+    files.push_back("txs_ntp1tests_raw_neblio_txs.json");
+    files.push_back("txs_ntp1tests_ntp1_txs.json");
+
+    for (uint64_t i=0; i < (uint64_t)files.size(); i++) {
+    	std::cout << "Downloading test data file " << files[i] << std::endl;
+    	EXPECT_NO_THROW(boost::filesystem::remove(Path(TEST_ROOT_PATH) / Path("/data/" + files[i])));
+    	std::string content = cURLTools::GetFileFromHTTPS("https://neblio-files.ams3.digitaloceanspaces.com/" + files[i],  10000, 0);
+    	fs::path testFile = testRootPath / "data" / files[i];
+    	ofstream os(testFile.string().c_str());
+    	os << content;
+    	os.close();
+    }
+}
+
+
 #ifdef UNITTEST_DOWNLOAD_TX_DATA
 TEST(ntp1_tests, download_data_to_files) { DownloadData(); }
+#endif
+
+#ifdef UNITTEST_DOWNLOAD_PREMADE_TX_DATA_AND_RUN_PARSE_TESTS
+TEST(ntp1_tests, download_premade_data_to_files_and_run_parse_test)
+{
+	DownloadPreMadeData();
+	EXPECT_NO_THROW(TestNTP1TxParsingLocally());
+}
 #endif
 
 #ifdef UNITTEST_RUN_NTP_PARSE_TESTS
