@@ -425,6 +425,7 @@ TEST(ntp1_tests, amount_to_int)
     EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("5545e1"), 871340);
     EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("c007b60b6f687a"), 8478457292922);
     EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("11"), 17);
+    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("2011"), 10);
     EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("2012"), 100);
     EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("4bb3c1"), 479320);
     EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("68c7e5b3"), 9207387000);
@@ -1653,6 +1654,16 @@ void TestNTP1TxParsing(const std::string& txid, bool testnet)
     EXPECT_EQ(ntp1tx.getTxHash(), ntp1tx_ref.getTxHash()) << "Failed tx: " << txid;
 }
 
+void TestScriptParsing(std::string OpReturnArg)
+{
+    std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScript(OpReturnArg);
+    std::string calculatedScript          = boost::algorithm::hex(scriptPtr->calculateScriptBin());
+    std::transform(OpReturnArg.begin(), OpReturnArg.end(), OpReturnArg.begin(), ::tolower);
+    std::transform(calculatedScript.begin(), calculatedScript.end(), calculatedScript.begin(),
+                   ::tolower);
+    EXPECT_EQ(calculatedScript, OpReturnArg) << "Calculated script doesn't match input script";
+}
+
 void TestSingleNTP1TxParsingLocally(const std::string&                                  txid,
                                     const std::unordered_map<std::string, std::string>& nebltxs_map,
                                     const std::unordered_map<std::string, std::string>& ntp1txs_map)
@@ -1663,6 +1674,11 @@ void TestSingleNTP1TxParsingLocally(const std::string&                          
     NTP1Transaction    ntp1tx_ref;
     ntp1tx_ref.importJsonData(ntp1tx_ref_str);
     EXPECT_TRUE(tx.CheckTransaction()) << "Failed tx: " << txid;
+
+    std::string OpReturnArg;
+    EXPECT_TRUE(IsTxNTP1(&tx, &OpReturnArg));
+
+    TestScriptParsing(OpReturnArg);
 
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputs;
 
@@ -1849,17 +1865,17 @@ void DownloadPreMadeData()
     files.push_back("txs_ntp1tests_raw_neblio_txs.json");
     files.push_back("txs_ntp1tests_ntp1_txs.json");
 
-    for (uint64_t i=0; i < (uint64_t)files.size(); i++) {
-    	std::cout << "Downloading test data file " << files[i] << std::endl;
-    	EXPECT_NO_THROW(boost::filesystem::remove(Path(TEST_ROOT_PATH) / Path("/data/" + files[i])));
-    	std::string content = cURLTools::GetFileFromHTTPS("https://neblio-files.ams3.digitaloceanspaces.com/" + files[i],  10000, 0);
-    	fs::path testFile = testRootPath / "data" / files[i];
-    	ofstream os(testFile.string().c_str());
-    	os << content;
-    	os.close();
+    for (uint64_t i = 0; i < (uint64_t)files.size(); i++) {
+        std::cout << "Downloading test data file " << files[i] << std::endl;
+        EXPECT_NO_THROW(boost::filesystem::remove(Path(TEST_ROOT_PATH) / Path("/data/" + files[i])));
+        std::string content = cURLTools::GetFileFromHTTPS(
+            "https://neblio-files.ams3.digitaloceanspaces.com/" + files[i], 10000, 0);
+        fs::path testFile = testRootPath / "data" / files[i];
+        ofstream os(testFile.string().c_str());
+        os << content;
+        os.close();
     }
 }
-
 
 #ifdef UNITTEST_DOWNLOAD_TX_DATA
 TEST(ntp1_tests, download_data_to_files) { DownloadData(); }
@@ -1868,8 +1884,8 @@ TEST(ntp1_tests, download_data_to_files) { DownloadData(); }
 #ifdef UNITTEST_DOWNLOAD_PREMADE_TX_DATA_AND_RUN_PARSE_TESTS
 TEST(ntp1_tests, download_premade_data_to_files_and_run_parse_test)
 {
-	DownloadPreMadeData();
-	EXPECT_NO_THROW(TestNTP1TxParsingLocally());
+    DownloadPreMadeData();
+    EXPECT_NO_THROW(TestNTP1TxParsingLocally());
 }
 #endif
 

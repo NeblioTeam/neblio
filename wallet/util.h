@@ -651,15 +651,19 @@ NumberToHexNTP1Amount(const T& num, bool caps = false)
 {
     std::string numStr     = boost::to_string(num);
     int         zerosCount = 0;
-    for (unsigned i = 0; i < numStr.size(); i++) {
-        if (numStr[numStr.size() - i - 1] == '0') {
-            zerosCount++;
-        } else {
-            break;
+    // numbers less than 32 can fit in a single byte with no exponent
+    if (num >= 32) {
+        for (unsigned i = 0; i < numStr.size(); i++) {
+            if (numStr[numStr.size() - i - 1] == '0') {
+                zerosCount++;
+            } else {
+                break;
+            }
         }
     }
 
     T mantissaDecimal = FromString<T>(numStr.substr(0, numStr.size() - zerosCount));
+    // create binary values of mantissa and exponent (exponent's zero-count)
     boost::dynamic_bitset<> mantissa(64, mantissaDecimal);
     boost::dynamic_bitset<> exponent(64, zerosCount);
     std::string             mantissaStr = boost::to_string(mantissa);
