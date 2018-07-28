@@ -175,6 +175,14 @@ int MinPeerVersion(uint32_t nBestHeight);
 /** Minimum Staking Age */
 unsigned int StakeMinAge(uint32_t nBestHeight);
 
+class NTP1Transaction;
+
+typedef std::map<uint256, std::pair<CTxIndex, CTransaction>> MapPrevTx;
+
+/** Take a list of standard neblio transactions and return pairs of neblio and NTP1 transactions */
+std::vector<std::pair<CTransaction, NTP1Transaction>> StdInputsTxsToNTP1(const CTransaction& tx,
+                                                                         const MapPrevTx&    mapInputs);
+
 bool GetWalletFile(CWallet* pwallet, std::string& strWalletFileOut);
 
 /** Position on disk for a particular transaction. */
@@ -427,8 +435,6 @@ enum GetMinFee_mode
     GMF_RELAY,
     GMF_SEND,
 };
-
-typedef std::map<uint256, std::pair<CTxIndex, CTransaction>> MapPrevTx;
 
 /** The basic transaction that is broadcasted on the network and contained in
  * blocks.  A transaction can contain multiple inputs and outputs.

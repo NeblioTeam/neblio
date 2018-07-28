@@ -725,16 +725,22 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
                          hash.ToString().substr(0, 10).c_str());
         }
 
-        //        try {
-        //            if (!IsValidIfTxIsNTP1(tx, nFees))
-        //                return false;
-        //        } catch (std::exception& ex) {
-        //            printf("Failed to parse OP_RETURN data safely; an exception was thrown: %s",
-        //            ex.what()); return false;
-        //        } catch (...) {
-        //            printf("Failed to parse OP_RETURN data safely; an unknown exception was thrown.");
-        //            return false;
-        //        }
+        try {
+            std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
+                StdInputsTxsToNTP1(tx, mapInputs);
+            NTP1Transaction ntp1tx;
+            ntp1tx.readNTP1DataFromTx(tx, inputsTxs);
+        } catch (std::exception& ex) {
+            printf("An invalid NTP1 transaction was submitted to the memory pool; an exception was "
+                   "thrown: %s",
+                   ex.what());
+            return false;
+        } catch (...) {
+            printf(
+                "An invalid NTP1 transaction was submitted to the memory pool; an unknown exception was "
+                "thrown.");
+            return false;
+        }
     }
 
     // Store transaction in memory
@@ -755,6 +761,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
 
     printf("AcceptToMemoryPool : accepted %s (poolsz %" PRIszu ")\n",
            hash.ToString().substr(0, 10).c_str(), pool.mapTx.size());
+
     return true;
 }
 
@@ -2143,10 +2150,38 @@ void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx)
     }
 }
 
-std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTransaction tx)
+std::vector<std::pair<CTransaction, NTP1Transaction>> StdInputsTxsToNTP1(const CTransaction& tx,
+                                                                         const MapPrevTx&    mapInputs)
 {
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputsWithNTP1;
-    CTxDB                                                 txdb("r");
+    // put the input transactions in a vector with their corresponding NTP1 transactions
+    {
+        inputsWithNTP1.clear();
+        std::transform(tx.vin.begin(), tx.vin.end(), std::back_inserter(inputsWithNTP1),
+                       [&mapInputs, &tx](const CTxIn& in) {
+                           if (mapInputs.count(in.prevout.hash) == 0) {
+                               throw std::runtime_error("Could not find input after having fetched it "
+                                                        "(for NTP1 database storage); for tx: " +
+                                                        tx.GetHash().ToString());
+                           }
+                           auto result = std::make_pair(mapInputs.find(in.prevout.hash)->second.second,
+                                                        NTP1Transaction());
+                           result.second.readNTP1DataFromTx_minimal(result.first);
+                           return result;
+                       });
+    }
+
+    for (auto&& inTx : inputsWithNTP1) {
+        // read NTP1 transaction inputs. If they fail, that's OK, because they will
+        // fail later if they're necessary
+        FetchNTP1TxFromDisk(inTx);
+    }
+    return inputsWithNTP1;
+}
+
+std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTransaction tx)
+{
+    CTxDB txdb("r");
 
     // rertrieve standard transaction inputs (NOT NTP1)
     MapPrevTx              mapInputs;
@@ -2161,34 +2196,12 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTran
         }
     }
 
-    // put the input transactions in a vector with their corresponding NTP1 transactions
-    {
-        inputsWithNTP1.clear();
-        std::transform(tx.vin.begin(), tx.vin.end(), std::back_inserter(inputsWithNTP1),
-                       [&mapInputs, &tx](const CTxIn& in) {
-                           if (mapInputs.count(in.prevout.hash) == 0) {
-                               throw std::runtime_error("Could not find input after having fetched it "
-                                                        "(for NTP1 database storage); for tx: " +
-                                                        tx.GetHash().ToString());
-                           }
-                           auto result =
-                               std::make_pair(mapInputs[in.prevout.hash].second, NTP1Transaction());
-                           result.second.readNTP1DataFromTx_minimal(result.first);
-                           return result;
-                       });
-    }
-
-    for (auto&& inTx : inputsWithNTP1) {
-        // read NTP1 transaction inputs. If they fail, that's OK, because they will
-        // fail later if they're necessary
-        FetchNTP1TxFromDisk(inTx);
-    }
-
-    return inputsWithNTP1;
+    return StdInputsTxsToNTP1(tx, mapInputs);
 }
 
 void WriteNTP1BlockTransactionsToDisk(std::vector<CTransaction> vtx)
 {
+    std::cout << nBestHeight << std::endl;
     if (nBestHeight >= 157528 || (fTestNet && nBestHeight >= 10313)) {
         std::vector<std::pair<CTransaction, NTP1Transaction>> inputsWithNTP1;
         // read previous transactions (inputs) which are necessary to validate an NTP1
