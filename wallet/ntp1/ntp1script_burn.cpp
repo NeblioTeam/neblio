@@ -48,3 +48,19 @@ std::shared_ptr<NTP1Script_Burn> NTP1Script_Burn::ParseBurnPostHeaderData(std::s
 
     return result;
 }
+
+std::string NTP1Script_Burn::calculateScriptBin() const
+{
+    using namespace boost::algorithm;
+
+    std::string result;
+    result += headerBin;
+    result += opCodeBin;
+    result += metadata;
+
+    for (const auto& ti : transferInstructions) {
+        result += TransferInstructionToBinScript(ti);
+    }
+
+    return result;
+}

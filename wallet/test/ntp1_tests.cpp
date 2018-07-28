@@ -437,20 +437,20 @@ TEST(ntp1_tests, amount_to_int)
     EXPECT_ANY_THROW(NTP1AmountHexToNumber<int64_t>("ssdsdmwdmo"));
     EXPECT_ANY_THROW(NTP1AmountHexToNumber<int64_t>("999999999999999999999999999999999999999999999999"));
 
-    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(999901700), "69892a92");
-    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(8478457292922), "c007b60b6f687a");
-    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(38290000), "40ef54");
-    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(1000000000000000), "201f");
-    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(723782), "60b0b460");
-    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(871340), "5545e1");
-    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(8478457292922), "c007b60b6f687a");
-    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(17), "11");
-    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(100), "2012");
-    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(479320), "4bb3c1");
-    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(9207387000), "68c7e5b3");
-    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(8723709100), "8029990f1a");
-    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(839027891720), "a09c47f7b1a1");
-    EXPECT_EQ(NumberToNTP1Amount<uint64_t>(182582987368701), "c0a60eea1aa8fd");
+    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(999901700), "69892a92");
+    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(8478457292922), "c007b60b6f687a");
+    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(38290000), "40ef54");
+    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(1000000000000000), "201f");
+    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(723782), "60b0b460");
+    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(871340), "5545e1");
+    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(8478457292922), "c007b60b6f687a");
+    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(17), "11");
+    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(100), "2012");
+    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(479320), "4bb3c1");
+    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(9207387000), "68c7e5b3");
+    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(8723709100), "8029990f1a");
+    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(839027891720), "a09c47f7b1a1");
+    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(182582987368701), "c0a60eea1aa8fd");
 }
 
 TEST(ntp1_tests, script_transfer)
@@ -1495,10 +1495,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
     }
 }
 
-std::string GetRawTxURL(const std::string& txid)
-{
-    return "https://ntp1node.nebl.io/ins/rawtx/" + txid;
-}
+std::string GetRawTxURL(const std::string& txid) { return "https://ntp1node.nebl.io/ins/rawtx/" + txid; }
 
 std::size_t GetFileSize(const std::string& filename)
 {
@@ -1796,25 +1793,25 @@ void DownloadData()
     for (uint64_t i = 0; i < (uint64_t)txids.size(); i++) {
         std::cout << "Downloading tx: " << i << std::endl;
 
-        std::string       rawTxJson      = cURLTools::GetFileFromHTTPS(GetRawTxURL(txids[i]), 10000, 0);
+        std::string        rawTxJson = cURLTools::GetFileFromHTTPS(GetRawTxURL(txids[i]), 10000, 0);
         json_spirit::Value v;
         json_spirit::read_or_throw(rawTxJson, v);
         json_spirit::Object rawTxObj = v.get_obj();
-        std::string rawTx = NTP1Tools::GetStrField(rawTxObj, "rawtx");
-        CTransaction      tx         = TxFromHex(rawTx);
+        std::string         rawTx    = NTP1Tools::GetStrField(rawTxObj, "rawtx");
+        CTransaction        tx       = TxFromHex(rawTx);
         const std::string ntp1tx_ref = NTP1APICalls::RetrieveData_TransactionInfo_Str(txids[i], testnet);
 
         rawNeblioTxsMap[txids[i]] = rawTx;
         ntp1TxsMap[txids[i]]      = boost::algorithm::hex(ntp1tx_ref);
 
         for (int i = 0; i < (int)tx.vin.size(); i++) {
-            std::string inputTxid  = tx.vin[i].prevout.hash.ToString();
+            std::string inputTxid = tx.vin[i].prevout.hash.ToString();
 
-            std::string       inputRawTxJson      = cURLTools::GetFileFromHTTPS(GetRawTxURL(inputTxid), 10000, 0);
-        	json_spirit::Value v;
-        	json_spirit::read_or_throw(inputRawTxJson, v);
-        	json_spirit::Object inputRawTxObj = v.get_obj();
-        	std::string inputRawTx = NTP1Tools::GetStrField(inputRawTxObj, "rawtx");
+            std::string inputRawTxJson = cURLTools::GetFileFromHTTPS(GetRawTxURL(inputTxid), 10000, 0);
+            json_spirit::Value v;
+            json_spirit::read_or_throw(inputRawTxJson, v);
+            json_spirit::Object inputRawTxObj = v.get_obj();
+            std::string         inputRawTx    = NTP1Tools::GetStrField(inputRawTxObj, "rawtx");
 
             std::string inputNTP1Tx = NTP1APICalls::RetrieveData_TransactionInfo_Str(inputTxid, testnet);
 
@@ -1850,3 +1847,58 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_automated)
     EXPECT_NO_THROW(TestNTP1TxParsingLocally());
 }
 #endif
+
+TEST(ntp1_tests, construct_scripts)
+{
+    {
+        // test transfer instruction string script creator
+        NTP1Script::TransferInstruction inst_manual;
+        inst_manual.amount    = 1000000000;
+        inst_manual.skipInput = 0; // TODO: throw error when parsing, skip doesn't make sense in issuance
+        inst_manual.outputIndex = 0;
+        std::string ti = boost::algorithm::hex(NTP1Script::TransferInstructionToBinScript(inst_manual));
+        std::transform(ti.begin(), ti.end(), ti.begin(), ::tolower);
+        EXPECT_EQ(ti, "002019");
+
+        // test recreating NIBBL script
+        std::string toParse_issuance =
+            "4e5401014e4942424cab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
+            "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
+        std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScript(toParse_issuance);
+        std::shared_ptr<NTP1Script_Issuance> script_issuance =
+            std::dynamic_pointer_cast<NTP1Script_Issuance>(script);
+        ASSERT_NE(script_issuance.get(), nullptr);
+        std::string calculatedScript = boost::algorithm::hex(script_issuance->calculateScriptBin());
+        std::transform(calculatedScript.begin(), calculatedScript.end(), calculatedScript.begin(),
+                       ::tolower);
+        EXPECT_EQ(calculatedScript, toParse_issuance);
+    }
+    {
+        // transfer some tokens
+        const std::string                    toParse_transfer = "4e5401150069892a92";
+        std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScript(toParse_transfer);
+        std::shared_ptr<NTP1Script_Transfer> script_transfer =
+            std::dynamic_pointer_cast<NTP1Script_Transfer>(script);
+        ASSERT_NE(script_transfer, nullptr);
+
+        std::string calculatedScript = boost::algorithm::hex(script->calculateScriptBin());
+
+        std::transform(calculatedScript.begin(), calculatedScript.end(), calculatedScript.begin(),
+                       ::tolower);
+        EXPECT_EQ(calculatedScript, toParse_transfer);
+    }
+    {
+        // burn some tokens
+        std::string                      toParse_burn = "4e5401251f2013";
+        std::shared_ptr<NTP1Script>      script       = NTP1Script::ParseScript(toParse_burn);
+        std::shared_ptr<NTP1Script_Burn> script_burn =
+            std::dynamic_pointer_cast<NTP1Script_Burn>(script);
+        ASSERT_NE(script_burn, nullptr);
+
+        std::string calculatedScript = boost::algorithm::hex(script->calculateScriptBin());
+
+        std::transform(calculatedScript.begin(), calculatedScript.end(), calculatedScript.begin(),
+                       ::tolower);
+        EXPECT_EQ(calculatedScript, toParse_burn);
+    }
+}

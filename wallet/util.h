@@ -567,6 +567,8 @@ template <typename T>
 T NTP1AmountHexToNumber(std::string hexVal)
 {
 #ifdef __BYTE_ORDER__
+    static_assert(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__,
+                  "Non little-endian systems are not supported");
 #if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
     throw std::runtime_error("Big and pdp endian systems are not supported");
 #endif
@@ -644,8 +646,8 @@ T NTP1AmountHexToNumber(std::string hexVal)
 }
 
 template <typename T>
-typename std::enable_if<std::is_unsigned<T>::value, std::string>::type
-NumberToNTP1Amount(T&& num, bool caps = false)
+typename std::enable_if<!std::numeric_limits<T>::is_signed, std::string>::type
+NumberToHexNTP1Amount(const T& num, bool caps = false)
 {
     std::string numStr     = boost::to_string(num);
     int         zerosCount = 0;

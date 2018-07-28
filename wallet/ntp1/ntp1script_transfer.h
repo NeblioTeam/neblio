@@ -21,6 +21,10 @@ public:
 
     static std::shared_ptr<NTP1Script_Transfer> ParseTransferPostHeaderData(std::string ScriptBin,
                                                                             std::string OpCodeBin);
+
+    // NTP1Script interface
+public:
+    std::string calculateScriptBin() const override;
 };
 
 #endif // NTP1SCRIPT_TRANSFER_H

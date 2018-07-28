@@ -42,14 +42,14 @@ bool NTP1Script_Issuance::isLocked() const { return issuanceFlags.locked; }
 
 NTP1Script::IssuanceFlags::AggregationPolicy NTP1Script_Issuance::getAggregationPolicy() const
 {
-    return issuanceFlags.aggregationPolicty;
+    return issuanceFlags.aggregationPolicy;
 }
 
 std::string NTP1Script_Issuance::getAggregationPolicyStr() const
 {
-    if (issuanceFlags.aggregationPolicty == NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable) {
+    if (issuanceFlags.aggregationPolicy == NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable) {
         return "aggregatable";
-    } else if (issuanceFlags.aggregationPolicty ==
+    } else if (issuanceFlags.aggregationPolicy ==
                NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable) {
         return "nonaggregatable";
     } else {
@@ -151,5 +151,78 @@ std::string NTP1Script_Issuance::getTokenID(std::string input0txid, unsigned int
 
     std::string result = EncodeBase58Check(toBase58Check);
 
+    return result;
+}
+
+std::string NTP1Script_Issuance::calculateScriptBin() const
+{
+    using namespace boost::algorithm;
+
+    std::string result;
+    result += headerBin;
+    result += opCodeBin;
+    result += Create_ProcessTokenSymbol(tokenSymbol);
+    result += metadata;
+    result += unhex(NumberToHexNTP1Amount<decltype(amount)>(amount));
+
+    for (const auto& ti : transferInstructions) {
+        result += TransferInstructionToBinScript(ti);
+    }
+
+    uint8_t issuanceFlagsByte = issuanceFlags.convertToByte();
+    result.push_back(*reinterpret_cast<char*>(&issuanceFlagsByte));
+
+    return result;
+}
+
+std::shared_ptr<NTP1Script_Issuance>
+NTP1Script_Issuance::CreateScript(const std::string& Symbol, uint64_t amount,
+                                  const std::string& Metadata, bool Locked, unsigned int Divisibility,
+                                  IssuanceFlags::AggregationPolicy AggrPolicy)
+{
+    std::shared_ptr<NTP1Script_Issuance> script = std::make_shared<NTP1Script_Issuance>();
+
+    script->metadata    = Metadata;
+    script->opCodeBin   = Create_OpCodeFromMetadata(Metadata);
+    script->tokenSymbol = Symbol;
+    script->amount      = amount;
+    IssuanceFlags issuanceFlags;
+    issuanceFlags.aggregationPolicy = AggrPolicy;
+    issuanceFlags.divisibility      = static_cast<int>(Divisibility);
+    issuanceFlags.locked            = Locked;
+    script->issuanceFlags           = issuanceFlags;
+    script->headerBin               = boost::algorithm::unhex(std::string("4e5401"));
+    script->protocolVersion         = 1;
+    script->opCodeBin;
+    script->txType = TxType::TxType_Issuance;
+
+    return script;
+}
+
+std::string NTP1Script_Issuance::Create_OpCodeFromMetadata(const std::string& metadata)
+{
+    const auto& sz = metadata.size();
+    std::string result;
+    if (sz == 0) {
+        return result = "03";
+    } else if (sz == 20) {
+        return result = "02";
+    } else if (sz == 52) {
+        return result = "01";
+    } else {
+        throw std::runtime_error("Invalid metadata size; can only be 0, 20 or 52");
+    }
+    return boost::algorithm::unhex(result);
+}
+
+std::string NTP1Script_Issuance::Create_ProcessTokenSymbol(const std::string& symbol)
+{
+    if (symbol.size() > 5) {
+        throw std::runtime_error("Symbol cannot be more than 5 characters");
+    }
+    std::string result = symbol;
+    while (result.size() < 5) {
+        result.push_back(01);
+    }
     return result;
 }

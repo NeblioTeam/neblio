@@ -1,6 +1,7 @@
 #ifndef NTP1SCRIPT_H
 #define NTP1SCRIPT_H
 
+#include <bitset>
 #include <memory>
 #include <string>
 #include <vector>
@@ -26,7 +27,7 @@ public:
     };
 
 protected:
-    std::string header;
+    std::string headerBin;
     int         protocolVersion;
     std::string opCodeBin;
 
@@ -50,18 +51,49 @@ public:
 
     struct IssuanceFlags
     {
-        int  divisibility;
-        bool locked; // no more issuing allowed
+        unsigned int divisibility;
+        bool         locked; // no more issuing allowed
         enum AggregationPolicy
         {
             AggregationPolicy_Aggregatable,
             AggregationPolicy_NonAggregatable,
             AggregationPolicy_Unknown
         };
-        AggregationPolicy aggregationPolicty;
+        AggregationPolicy aggregationPolicy;
 
         static IssuanceFlags ParseIssuanceFlag(uint8_t flags);
+        uint8_t              convertToByte() const
+        {
+            if (this->divisibility > 7) {
+                throw std::runtime_error("Divisibility cannot be larger than 7");
+            }
+
+            std::bitset<3> divisibility_bits(static_cast<uint8_t>(this->divisibility));
+            std::string    lockStatusStrBits = (this->locked ? "1" : "0");
+            std::string    aggrPolicyStrBits;
+            if (this->aggregationPolicy ==
+                IssuanceFlags::AggregationPolicy::AggregationPolicy_Aggregatable) {
+                aggrPolicyStrBits = "00";
+            } else if (this->aggregationPolicy ==
+                       IssuanceFlags::AggregationPolicy::AggregationPolicy_NonAggregatable) {
+                aggrPolicyStrBits = "10";
+            } else {
+                throw std::runtime_error("Unknown aggregation policy:" +
+                                         static_cast<int>(this->aggregationPolicy));
+            }
+            std::string issuanceFlagsBitsStr =
+                divisibility_bits.to_string() + lockStatusStrBits + aggrPolicyStrBits + "00";
+            if (issuanceFlagsBitsStr.size() != 8) {
+                throw std::runtime_error("Error while constructing issuance flags");
+            }
+            std::bitset<8> issuanceFlagsBits(issuanceFlagsBitsStr);
+            return static_cast<uint8_t>(issuanceFlagsBits.to_ulong());
+        }
     };
+
+    static std::string TransferInstructionToBinScript(const TransferInstruction& inst);
+
+    virtual std::string calculateScriptBin() const = 0;
 
     virtual ~NTP1Script() = default;
     static uint64_t    CalculateMetadataSize(const std::string& op_code_bin);

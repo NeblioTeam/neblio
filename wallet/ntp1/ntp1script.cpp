@@ -13,7 +13,7 @@
 // TODO: remove
 #include <iostream>
 
-std::string NTP1Script::getHeader() const { return header; }
+std::string NTP1Script::getHeader() const { return headerBin; }
 
 std::string NTP1Script::getOpCodeBin() const { return opCodeBin; }
 
@@ -23,10 +23,32 @@ std::string NTP1Script::getParsedScript() const { return parsedScript; }
 
 void NTP1Script::setCommonParams(std::string Header, int ProtocolVersion, std::string OpCodeBin)
 {
-    header          = Header;
+    headerBin       = Header;
     protocolVersion = ProtocolVersion;
     opCodeBin       = OpCodeBin;
     txType          = CalculateTxType(opCodeBin);
+}
+
+std::string NTP1Script::TransferInstructionToBinScript(const NTP1Script::TransferInstruction& inst)
+{
+    std::string result;
+
+    std::string    skipBitStr = (inst.skipInput ? "1" : "0");
+    std::bitset<5> outputIndexBits(inst.outputIndex);
+    std::string    amountStr = NumberToHexNTP1Amount(inst.amount);
+
+    std::string allStr = skipBitStr + "00" + outputIndexBits.to_string();
+    if (allStr.size() != 8) {
+        throw std::string("Unable to correctly construct transfer instruction with parameters: skip (" +
+                          ToString(inst.skipInput) + "), output index (" + ToString(inst.outputIndex) +
+                          ")");
+    }
+    uint8_t allUChar = static_cast<uint8_t>(std::bitset<8>(allStr).to_ulong());
+    result += *reinterpret_cast<char*>(&allUChar);
+
+    result += boost::algorithm::unhex(amountStr);
+
+    return result;
 }
 
 uint64_t NTP1Script::CalculateMetadataSize(const std::string& op_code_bin)
@@ -155,17 +177,19 @@ std::string NTP1Script::ParseMetadataFromLongEnoughString(const std::string& Bin
 std::string
 NTP1Script::ParseTokenSymbolFromLongEnoughString(const std::string& BinTokenSymbolStartsAtByte0)
 {
+    if ((int)BinTokenSymbolStartsAtByte0.size() < 0) {
+        throw std::runtime_error(
+            "Error parsing script (starting at this point a symbol is expected). " +
+            (BinTokenSymbolStartsAtByte0.size() > 0 ? ": " + BinTokenSymbolStartsAtByte0 : "") +
+            "; the token symbol size is longer than what is available in the script");
+    }
     const std::string& ScriptBin = BinTokenSymbolStartsAtByte0;
     std::string        result;
     result = ScriptBin.substr(0, 5);
     // drop 0x01 chars from the beginning
-    while (result.size() > 0) {
-        if (*reinterpret_cast<uint8_t*>(&(result[0])) == 0x01) {
-            result.erase(result.begin());
-        } else {
-            break;
-        }
-    }
+    result.erase(std::remove_if(result.begin(), result.end(),
+                                [](char c) { return *reinterpret_cast<uint8_t*>(&(c)) == 0x01; }),
+                 result.end());
 
     if (result.size() == 0) {
         throw std::runtime_error("Invalid token symbol; it cannot be empty.");
@@ -263,10 +287,10 @@ NTP1Script::IssuanceFlags NTP1Script::IssuanceFlags::ParseIssuanceFlag(uint8_t f
         std::bitset<2>(bits.to_string().substr(4, 2)).to_ulong());
     switch (aggrPolicy) {
     case 0: // 00
-        result.aggregationPolicty = AggregationPolicy::AggregationPolicy_Aggregatable;
+        result.aggregationPolicy = AggregationPolicy::AggregationPolicy_Aggregatable;
         break;
     case 2: // 10
-        result.aggregationPolicty = AggregationPolicy::AggregationPolicy_NonAggregatable;
+        result.aggregationPolicy = AggregationPolicy::AggregationPolicy_NonAggregatable;
         break;
     default: // everything else is not known (01 and 11)
         throw std::runtime_error("Unknown aggregation policy: " + std::to_string(aggrPolicy));
