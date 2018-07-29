@@ -2201,7 +2201,6 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTran
 
 void WriteNTP1BlockTransactionsToDisk(std::vector<CTransaction> vtx)
 {
-    std::cout << nBestHeight << std::endl;
     if (nBestHeight >= 157528 || (fTestNet && nBestHeight >= 10313)) {
         std::vector<std::pair<CTransaction, NTP1Transaction>> inputsWithNTP1;
         // read previous transactions (inputs) which are necessary to validate an NTP1
