@@ -38,8 +38,10 @@ public:
     std::string calculateScriptBin() const;
 
     static std::shared_ptr<NTP1Script_Issuance>
-                       CreateScript(const std::string& Symbol, uint64_t amount, const std::string& Metadata, bool locked,
-                                    unsigned int divisibility, IssuanceFlags::AggregationPolicy aggrPolicy);
+                       CreateScript(const std::string& Symbol, uint64_t amount,
+                                    const std::vector<TransferInstruction>& transferInstructions,
+                                    const std::string& Metadata, bool locked, unsigned int divisibility,
+                                    IssuanceFlags::AggregationPolicy aggrPolicy);
     static std::string Create_OpCodeFromMetadata(const std::string& metadata);
     static std::string Create_ProcessTokenSymbol(const std::string& symbol);
 };

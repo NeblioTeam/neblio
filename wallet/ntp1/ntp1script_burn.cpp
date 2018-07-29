@@ -64,3 +64,35 @@ std::string NTP1Script_Burn::calculateScriptBin() const
 
     return result;
 }
+
+std::shared_ptr<NTP1Script_Burn>
+NTP1Script_Burn::CreateScript(const std::vector<NTP1Script::TransferInstruction>& transferInstructions,
+                              const std::string&                                  Metadata)
+{
+    std::shared_ptr<NTP1Script_Burn> script = std::make_shared<NTP1Script_Burn>();
+
+    script->protocolVersion      = 1;
+    script->headerBin            = boost::algorithm::unhex(std::string("4e5401"));
+    script->metadata             = Metadata;
+    script->opCodeBin            = Create_OpCodeFromMetadata(Metadata);
+    script->transferInstructions = transferInstructions;
+    script->txType               = TxType::TxType_Burn;
+
+    return script;
+}
+
+std::string NTP1Script_Burn::Create_OpCodeFromMetadata(const std::string& metadata)
+{
+    const auto& sz = metadata.size();
+    std::string result;
+    if (sz == 0) {
+        return result = "22";
+    } else if (sz == 20) {
+        return result = "21";
+    } else if (sz == 52) {
+        return result = "20";
+    } else {
+        throw std::runtime_error("Invalid metadata size; can only be 0, 20 or 52");
+    }
+    return boost::algorithm::unhex(result);
+}

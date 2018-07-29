@@ -21,6 +21,10 @@ public:
 
     static std::shared_ptr<NTP1Script_Burn> ParseBurnPostHeaderData(std::string ScriptBin,
                                                                     std::string OpCodeBin);
+    static std::string                      Create_OpCodeFromMetadata(const std::string& metadata);
+    static std::shared_ptr<NTP1Script_Burn>
+    CreateScript(const std::vector<NTP1Script::TransferInstruction>& transferInstructions,
+                 const std::string&                                  Metadata);
 
     // NTP1Script interface
 public:
