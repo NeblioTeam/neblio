@@ -1496,7 +1496,14 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
     }
 }
 
-std::string GetRawTxURL(const std::string& txid) { return "https://ntp1node.nebl.io/ins/rawtx/" + txid; }
+std::string GetRawTxURL(const std::string& txid, bool testnet)
+{
+    if (!testnet) {
+        return "https://ntp1node.nebl.io/ins/rawtx/" + txid;
+    } else {
+        return "https://ntp1node.nebl.io/testnet/ins/rawtx/" + txid;
+    }
+}
 
 std::size_t GetFileSize(const std::string& filename)
 {
@@ -1577,9 +1584,46 @@ std::vector<std::string> read_line_by_line(const std::string& filename)
     return result;
 }
 
+std::string NTP1Tests_GetTxidListFileName(bool testnet)
+{
+    if (!testnet) {
+        return "ntp1txids_to_test.txt";
+    } else {
+        return "ntp1txids_to_test_testnet.txt";
+    }
+}
+
+std::string NTP1Tests_GetRawNeblioTxsFileName(bool testnet)
+{
+    if (!testnet) {
+        return "txs_ntp1tests_raw_neblio_txs.json";
+    } else {
+        return "txs_ntp1tests_raw_neblio_txs_testnet.json";
+    }
+}
+
+std::string NTP1Tests_GetNTP1RawTxsFileName(bool testnet)
+{
+    if (!testnet) {
+        return "txs_ntp1tests_ntp1_txs.json";
+    } else {
+        return "txs_ntp1tests_ntp1_txs_testnet.json";
+    }
+}
+
+std::string GetRawTxOnline(const std::string& txid, bool testnet)
+{
+    std::string        rawTxJson = cURLTools::GetFileFromHTTPS(GetRawTxURL(txid, testnet), 10000, 0);
+    json_spirit::Value v;
+    json_spirit::read_or_throw(rawTxJson, v);
+    json_spirit::Object rawTxObj = v.get_obj();
+    std::string         rawTx    = NTP1Tools::GetStrField(rawTxObj, "rawtx");
+    return rawTx;
+}
+
 void TestNTP1TxParsing(const std::string& txid, bool testnet)
 {
-    std::string           rawTx      = cURLTools::GetFileFromHTTPS(GetRawTxURL(txid), 10000, 0);
+    std::string           rawTx      = GetRawTxOnline(txid, testnet);
     CTransaction          tx         = TxFromHex(rawTx);
     const NTP1Transaction ntp1tx_ref = NTP1APICalls::RetrieveData_TransactionInfo(txid, testnet);
     EXPECT_TRUE(tx.CheckTransaction()) << "Failed tx: " << txid;
@@ -1588,7 +1632,7 @@ void TestNTP1TxParsing(const std::string& txid, bool testnet)
 
     for (int i = 0; i < (int)tx.vin.size(); i++) {
         std::string  inputTxid  = tx.vin[i].prevout.hash.ToString();
-        std::string  inputRawTx = cURLTools::GetFileFromHTTPS(GetRawTxURL(inputTxid), 10000, 0);
+        std::string  inputRawTx = GetRawTxOnline(inputTxid, testnet);
         CTransaction inputTx    = TxFromHex(inputRawTx);
 
         NTP1Transaction inputNTP1Tx = NTP1APICalls::RetrieveData_TransactionInfo(inputTxid, testnet);
@@ -1754,17 +1798,17 @@ void TestSingleNTP1TxParsingLocally(const std::string&                          
     EXPECT_EQ(ntp1tx.getTxHash(), ntp1tx_ref.getTxHash()) << "Failed tx: " << txid;
 }
 
-void TestNTP1TxParsingLocally()
+void TestNTP1TxParsingLocally(bool testnet)
 {
     std::unordered_map<std::string, std::string> ntp1txs_map;
     std::unordered_map<std::string, std::string> nebltxs_map;
 
-    std::vector<std::string> txids = read_line_by_line("ntp1txids_to_test.txt");
+    std::vector<std::string> txids = read_line_by_line(NTP1Tests_GetTxidListFileName(testnet));
 
     // save memory by ensuring the destruction of json objects
     {
-        json_spirit::Object nebltxs = read_json_obj("txs_ntp1tests_raw_neblio_txs.json");
-        json_spirit::Object ntp1txs = read_json_obj("txs_ntp1tests_ntp1_txs.json");
+        json_spirit::Object nebltxs = read_json_obj(NTP1Tests_GetRawNeblioTxsFileName(testnet));
+        json_spirit::Object ntp1txs = read_json_obj(NTP1Tests_GetNTP1RawTxsFileName(testnet));
 
         for (const auto& el : nebltxs) {
             nebltxs_map[el.name_] = el.value_.get_str();
@@ -1794,9 +1838,9 @@ void write_json_file(const json_spirit::Object& obj, const std::string& filename
     json_spirit::write_formatted(obj, os);
 }
 
-void DownloadData()
+void DownloadData(bool testnet)
 {
-    std::vector<std::string> txids = read_line_by_line("ntp1txids_to_test.txt");
+    std::vector<std::string> txids = read_line_by_line(NTP1Tests_GetTxidListFileName(testnet));
 
     std::unordered_map<std::string, std::string> rawNeblioTxsMap;
     std::unordered_map<std::string, std::string> ntp1TxsMap;
@@ -1804,17 +1848,11 @@ void DownloadData()
     json_spirit::Object rawNeblioTxs;
     json_spirit::Object ntp1Txs;
 
-    const bool testnet = false;
-
     for (uint64_t i = 0; i < (uint64_t)txids.size(); i++) {
         std::cout << "Downloading tx: " << i << std::endl;
 
-        std::string        rawTxJson = cURLTools::GetFileFromHTTPS(GetRawTxURL(txids[i]), 10000, 0);
-        json_spirit::Value v;
-        json_spirit::read_or_throw(rawTxJson, v);
-        json_spirit::Object rawTxObj = v.get_obj();
-        std::string         rawTx    = NTP1Tools::GetStrField(rawTxObj, "rawtx");
-        CTransaction        tx       = TxFromHex(rawTx);
+        std::string       rawTx      = GetRawTxOnline(txids[i], testnet);
+        CTransaction      tx         = TxFromHex(rawTx);
         const std::string ntp1tx_ref = NTP1APICalls::RetrieveData_TransactionInfo_Str(txids[i], testnet);
 
         rawNeblioTxsMap[txids[i]] = rawTx;
@@ -1823,7 +1861,8 @@ void DownloadData()
         for (int i = 0; i < (int)tx.vin.size(); i++) {
             std::string inputTxid = tx.vin[i].prevout.hash.ToString();
 
-            std::string inputRawTxJson = cURLTools::GetFileFromHTTPS(GetRawTxURL(inputTxid), 10000, 0);
+            std::string inputRawTxJson =
+                cURLTools::GetFileFromHTTPS(GetRawTxURL(inputTxid, testnet), 10000, 0);
             json_spirit::Value v;
             json_spirit::read_or_throw(inputRawTxJson, v);
             json_spirit::Object inputRawTxObj = v.get_obj();
@@ -1843,8 +1882,8 @@ void DownloadData()
         ntp1Txs.push_back(json_spirit::Pair(el.first, el.second));
     }
 
-    std::string f1 = "txs_ntp1tests_raw_neblio_txs.json";
-    std::string f2 = "txs_ntp1tests_ntp1_txs.json";
+    std::string f1 = NTP1Tests_GetRawNeblioTxsFileName(testnet);
+    std::string f2 = NTP1Tests_GetNTP1RawTxsFileName(testnet);
 
     std::remove(f1.c_str());
     std::remove(f2.c_str());
@@ -1853,7 +1892,7 @@ void DownloadData()
     write_json_file(ntp1Txs, f2);
 }
 
-void DownloadPreMadeData()
+void DownloadPreMadeData(bool testnet)
 {
     typedef boost::filesystem::path Path;
 
@@ -1861,9 +1900,9 @@ void DownloadPreMadeData()
     fs::path testRootPath = TEST_ROOT_PATH;
 
     std::vector<std::string> files;
-    files.push_back("ntp1txids_to_test.txt");
-    files.push_back("txs_ntp1tests_raw_neblio_txs.json");
-    files.push_back("txs_ntp1tests_ntp1_txs.json");
+    files.push_back(NTP1Tests_GetTxidListFileName(testnet));
+    files.push_back(NTP1Tests_GetRawNeblioTxsFileName(testnet));
+    files.push_back(NTP1Tests_GetNTP1RawTxsFileName(testnet));
 
     for (uint64_t i = 0; i < (uint64_t)files.size(); i++) {
         std::cout << "Downloading test data file " << files[i] << std::endl;
@@ -1878,21 +1917,28 @@ void DownloadPreMadeData()
 }
 
 #ifdef UNITTEST_DOWNLOAD_TX_DATA
-TEST(ntp1_tests, download_data_to_files) { DownloadData(); }
+TEST(ntp1_tests, download_data_to_files)
+{
+    DownloadData(false);
+    DownloadData(true);
+}
 #endif
 
 #ifdef UNITTEST_DOWNLOAD_PREMADE_TX_DATA_AND_RUN_PARSE_TESTS
 TEST(ntp1_tests, download_premade_data_to_files_and_run_parse_test)
 {
-    DownloadPreMadeData();
-    EXPECT_NO_THROW(TestNTP1TxParsingLocally());
+    DownloadPreMadeData(false);
+    EXPECT_NO_THROW(TestNTP1TxParsingLocally(false));
+    DownloadPreMadeData(true);
+    EXPECT_NO_THROW(TestNTP1TxParsingLocally(true));
 }
 #endif
 
 #ifdef UNITTEST_RUN_NTP_PARSE_TESTS
 TEST(ntp1_tests, parsig_ntp1_from_ctransaction_automated)
 {
-    EXPECT_NO_THROW(TestNTP1TxParsingLocally());
+    EXPECT_NO_THROW(TestNTP1TxParsingLocally(false));
+    EXPECT_NO_THROW(TestNTP1TxParsingLocally(true));
 }
 #endif
 
