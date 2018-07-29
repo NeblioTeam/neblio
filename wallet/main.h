@@ -149,10 +149,13 @@ const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfSta
 void               StakeMiner(CWallet* pwallet);
 void               ResendWalletTransactions(bool fForce = false);
 
+class NTP1Transaction;
+
+/** for a certain transaction, retrieve all NTP1 data from the database */
+std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTransaction tx);
+
 /** (try to) add transaction to memory pool **/
 bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInputs);
-
-bool IsValidIfTxIsNTP1(const CTransaction& tx, int64_t nFees);
 
 /** the conditions for considering the upgraded network configuration */
 bool PassedNetworkUpgradeBlock(uint32_t nBestHeight, bool isTestnet);
@@ -174,8 +177,6 @@ int MinPeerVersion(uint32_t nBestHeight);
 
 /** Minimum Staking Age */
 unsigned int StakeMinAge(uint32_t nBestHeight);
-
-class NTP1Transaction;
 
 typedef std::map<uint256, std::pair<CTxIndex, CTransaction>> MapPrevTx;
 

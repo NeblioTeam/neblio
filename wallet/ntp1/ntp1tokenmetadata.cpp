@@ -2,15 +2,10 @@
 
 #include "ntp1tools.h"
 
-NTP1TokenMetaData::NTP1TokenMetaData() {}
+NTP1TokenMetaData::NTP1TokenMetaData() { setNull(); }
 
 void NTP1TokenMetaData::setNull()
 {
-    tokenId.clear();
-    issuanceTxId = 0;
-    divisibility = -1;
-    lockStatus   = false;
-    aggregationPolicy.clear();
     numOfHolders   = 0;
     totalSupply    = 0;
     numOfTransfers = 0;
@@ -26,7 +21,7 @@ void NTP1TokenMetaData::setNull()
     sha2Issue.clear();
 }
 
-bool NTP1TokenMetaData::isNull() const { return tokenId.size() == 0; }
+bool NTP1TokenMetaData::isNull() const { return getTokenId().size() == 0; }
 
 void NTP1TokenMetaData::importRestfulAPIJsonData(const std::string& data)
 {
@@ -135,18 +130,6 @@ void NTP1TokenMetaData::importDatabaseJsonData(const json_spirit::Value& data)
     sha2Issue         = NTP1Tools::GetStrField(data.get_obj(), "sha2Issue");
 }
 
-void NTP1TokenMetaData::setTokenId(const std::string& Str) { tokenId = Str; }
-
-std::string NTP1TokenMetaData::getTokenId() const { return tokenId; }
-
-std::string NTP1TokenMetaData::getIssuanceTxIdHex() const { return issuanceTxId.ToString(); }
-
-uint64_t NTP1TokenMetaData::getDivisibility() const { return divisibility; }
-
-bool NTP1TokenMetaData::getLockStatus() const { return lockStatus; }
-
-const std::string& NTP1TokenMetaData::getAggregationPolicy() const { return aggregationPolicy; }
-
 uint64_t NTP1TokenMetaData::getNumOfHolders() const { return numOfHolders; }
 
 uint64_t NTP1TokenMetaData::getTotalSupply() const { return totalSupply; }
@@ -158,8 +141,6 @@ uint64_t NTP1TokenMetaData::getNumOfIssuance() const { return numOfIssuance; }
 uint64_t NTP1TokenMetaData::getNumOfBurns() const { return numOfBurns; }
 
 uint64_t NTP1TokenMetaData::getFirstBlock() const { return firstBlock; }
-
-uint256 NTP1TokenMetaData::getIssuanceTxId() const { return issuanceTxId; }
 
 const CBitcoinAddress& NTP1TokenMetaData::getIssueAddress() const { return issueAddress; }
 
@@ -174,5 +155,3 @@ const std::string& NTP1TokenMetaData::getIconURL() const { return iconURL; }
 const std::string& NTP1TokenMetaData::getIconImageType() const { return iconImageType; }
 
 const std::string& NTP1TokenMetaData::getSha2Issue() const { return sha2Issue; }
-
-void NTP1TokenMetaData::setIssuanceTxIdHex(const std::string& hex) { issuanceTxId.SetHex(hex); }
