@@ -84,6 +84,10 @@ NTP1SendTokensData NTP1SendDialog::createTransactionData() const
     } catch (std::exception& ex) {
         printf("Error while creating recipient send data: %s", ex.what());
         throw;
+    } catch (json_spirit::Object& ex) {
+        std::string errorMsg = NTP1Tools::GetStrField(ex, "message");
+        printf("Error while creating recipient send data: %s", errorMsg.c_str());
+        throw;
     }
     return result;
 }
