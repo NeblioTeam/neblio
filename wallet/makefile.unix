@@ -182,6 +182,7 @@ OBJS= \
     obj/ntp1/ntp1sendtokensdata.o             \
     obj/ntp1/ntp1sendtokensonerecipientdata.o \
     obj/ntp1/ntp1tokenmetadata.o              \
+    obj/ntp1/ntp1tokenminimalmetadata.o       \
     obj/ntp1/ntp1tokentxdata.o                \
     obj/ntp1/ntp1tools.o                      \
     obj/ntp1/ntp1transaction.o                \
