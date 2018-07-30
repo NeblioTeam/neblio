@@ -73,7 +73,8 @@ void NTP1Wallet::__getOutputs()
         }
 
         // NTP1 transactions strictly contain OP_RETURN in one of their vouts
-        if (!IsTxNTP1(&neblTx)) {
+        std::string opReturnArg;
+        if (!IsTxNTP1(&neblTx, &opReturnArg)) {
             continue;
         }
 
@@ -83,7 +84,9 @@ void NTP1Wallet::__getOutputs()
 
         NTP1Transaction ntp1tx;
         try {
-            ntp1tx = NTP1APICalls::RetrieveData_TransactionInfo(txHash.ToString(), fTestNet);
+            std::vector<std::pair<CTransaction, NTP1Transaction>> prevTxs = GetAllNTP1InputsOfTx(neblTx);
+            // write NTP1 transactions' data
+            ntp1tx.readNTP1DataFromTx(neblTx, prevTxs);
         } catch (std::exception& ex) {
             printf("Unable to download transaction information. Error says: %s\n", ex.what());
             failedRetrievals++;
@@ -96,7 +99,8 @@ void NTP1Wallet::__getOutputs()
             walletOutputsWithTokens[output] = ntp1tx;
             for (long j = 0; j < static_cast<long>(ntp1tx.getTxOut(output.getIndex()).getNumOfTokens());
                  j++) {
-                NTP1TokenTxData tokenTx                = ntp1tx.getTxOut(output.getIndex()).getToken(j);
+                NTP1TokenTxData tokenTx = ntp1tx.getTxOut(output.getIndex()).getToken(j);
+                // additional metadata is retrieved from the API; like the icon of the token
                 tokenInformation[tokenTx.getTokenId()] = NTP1APICalls::RetrieveData_NTP1TokensMetaData(
                     tokenTx.getTokenId(), txHash.ToString(), output.getIndex(), fTestNet);
             }
@@ -176,9 +180,11 @@ void NTP1Wallet::scanSpentTransactions()
         if (walletOutputsWithTokens.find(toRemove[i]) != walletOutputsWithTokens.end()) {
             walletOutputsWithTokens.erase(toRemove[i]);
         } else {
-            printf("Unable to find output %s:%s, although it was found before and marked for removal.\n",
+            printf("Unable to find output %s:%s, although it was found before and marked for "
+                   "removal.\n",
                    toRemove[i].getHash().ToString().c_str(), ToString(toRemove[i].getIndex()).c_str());
-            //            std::cerr<<"Unable to find output " << toRemove[i].getHash().ToString() << ":"
+            //            std::cerr<<"Unable to find output " << toRemove[i].getHash().ToString() <<
+            //            ":"
             //            << ToString(toRemove[i].getIndex()) << ", although it was found before and
             //            marked for removal." << std::endl;
         }
@@ -301,8 +307,8 @@ string NTP1Wallet::getTokenIcon(int index)
     } else {
         std::string icon;
         tokenIcons.get(tokenId, icon);
-        // if there was an error getting the icon OR the icon is empty, and a download URL now exists,
-        // download again
+        // if there was an error getting the icon OR the icon is empty, and a download URL now
+        // exists, download again
         if (icon == ICON_ERROR_CONTENT || (icon == "" && !itToken->second.getIconURL().empty())) {
             const std::string& IconURL = itToken->second.getIconURL();
             boost::thread      IconDownloadThread(
