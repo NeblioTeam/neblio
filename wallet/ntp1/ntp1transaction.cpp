@@ -193,8 +193,6 @@ void NTP1Transaction::readNTP1DataFromTx(
     uint64_t totalOutput = tx.GetValueOut();
     uint64_t totalInput  = 0;
 
-    // null elements are supposed to be non-NTP1 transactions; invalid inputs throw exceptions
-    std::vector<std::shared_ptr<NTP1Script>> inputNTP1Scripts(vin.size());
     for (unsigned i = 0; i < tx.vin.size(); i++) {
         const auto& currInputHash  = tx.vin[i].prevout.hash;
         const auto& currInputIndex = tx.vin[i].prevout.n;
@@ -221,11 +219,30 @@ void NTP1Transaction::readNTP1DataFromTx(
         if (!IsTxNTP1(&currStdInput, &opReturnArgInput)) {
             continue;
         }
-        inputNTP1Scripts[i] = NTP1Script::ParseScript(opReturnArgInput);
 
         // if the input is not an NTP1 transaction, then currNTP1Input.vout.size() is zero
         if (currNTP1Input.vout.size() > 0) {
             vin[i].tokens = currNTP1Input.vout.at(currInputIndex).tokens;
+        }
+    }
+
+    // ensure that input pairs match
+    for (const auto& in : inputsTxs) {
+        if (in.first.GetHash() != in.second.getTxHash()) {
+            throw std::runtime_error(
+                "Input transactions in the NTP1 parser do not have matching hashes.");
+        }
+    }
+
+    // ensure that all inputs are relevant to this transaction (to protect from double-spending tokens)
+    for (unsigned i = 0; i < inputsTxs.size(); i++) {
+        uint256 currentHash = inputsTxs[i].first.GetHash(); // the tx-hash of the input
+        auto    it = std::find_if(tx.vin.begin(), tx.vin.end(), [&currentHash](const CTxIn& in) {
+            return in.prevout.hash == currentHash;
+        });
+        if (it == tx.vin.end()) {
+            throw std::runtime_error("An input was included in NTP1 transaction parser while it was not "
+                                     "being spent by the spending transaction. This is not allowed.");
         }
     }
 
@@ -293,6 +310,53 @@ void NTP1Transaction::readNTP1DataFromTx(
             vout[instruction.outputIndex].tokens.push_back(ntp1tokenTxData);
         }
 
+        // distribute the remainder of the issued tokens
+        if (totalAmountLeft > 0) {
+            if (vout.size() > 0) {
+                NTP1TokenTxData ntp1tokenTxData;
+
+                ntp1tokenTxData.setAmount(totalAmountLeft);
+                totalAmountLeft = 0;
+                ntp1tokenTxData.setAggregationPolicy(scriptPtrD->getAggregationPolicyStr());
+                ntp1tokenTxData.setDivisibility(scriptPtrD->getDivisibility());
+                ntp1tokenTxData.setTokenSymbol(scriptPtrD->getTokenSymbol());
+                ntp1tokenTxData.setLockStatus(scriptPtrD->isLocked());
+                ntp1tokenTxData.setIssueTxIdHex(tx.GetHash().ToString());
+                ntp1tokenTxData.setTokenId(
+                    scriptPtrD->getTokenID(tx.vin[0].prevout.hash.ToString(), tx.vin[0].prevout.n));
+                vout.back().tokens.push_back(ntp1tokenTxData);
+            } else {
+                throw std::runtime_error(
+                    "Unable to send token change to the last output; the number of outputs is zero.");
+            }
+        }
+
+        // loop over all inputs and add their tokens to the last output
+        for (const auto& in : tx.vin) {
+            const uint256&      currHash  = in.prevout.hash;
+            const unsigned int& currIndex = in.prevout.n;
+            // find the input tx from the list of inputs that matches the input hash from the tx in
+            // question
+            auto it = std::find_if(
+                inputsTxs.cbegin(), inputsTxs.cend(),
+                [&currHash, currIndex](const std::pair<CTransaction, NTP1Transaction>& inFromList) {
+                    return inFromList.first.GetHash() == currHash;
+                });
+            if (it == inputsTxs.end()) {
+                throw std::runtime_error(
+                    "Could not find all relevant inputs in the inputs list of tx: " +
+                    tx.GetHash().ToString());
+            }
+            const std::pair<CTransaction, NTP1Transaction>& input = *it;
+            for (int i = 0; i < (int)input.second.vout[currIndex].getNumOfTokens(); i++) {
+                if (vout.size() > 0) {
+                    vout.back().tokens.push_back(input.second.vout[currIndex].getToken(i));
+                } else {
+                    throw std::runtime_error("Unable to send token change to the last output; the "
+                                             "number of outputs is zero.");
+                }
+            }
+        }
     } else if (scriptPtr->getTxType() == NTP1Script::TxType::TxType_Transfer) {
         ntp1TransactionType = NTP1TxType_TRANSFER;
         std::shared_ptr<NTP1Script_Transfer> scriptPtrD =
