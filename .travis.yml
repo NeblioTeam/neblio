@@ -20,3 +20,8 @@ script:
 
 after_script:
     - echo "Done"
+    
+notifications:
+  email:
+    recipients:
+      - info@nebl.io
