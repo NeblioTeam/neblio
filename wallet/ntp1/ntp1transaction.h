@@ -223,10 +223,10 @@ void NTP1Transaction::__TransferTokens(
             uint64_t totalAdjacentTokensOfOneKind = totalTokensLeftInInputs[currentInputIndex][j];
             auto     currentTokenId = tokensKindsInInputs[currentInputIndex][j].getTokenId();
             for (int k = currentInputIndex + 1; k < (int)totalTokensLeftInInputs.size(); k++) {
-                // an empty input in between means inputs are not adjacent
-                if (totalTokensLeftInInputs[k].size() == 0) {
-                    break;
-                }
+                // an empty input in between doesn't break adjacency
+                //                if (totalTokensLeftInInputs[k].size() == 0) {
+                //                    break;
+                //                }
                 for (int l = j; l < (int)totalTokensLeftInInputs[k].size(); l++) {
                     if (tokensKindsInInputs[k][l].getTokenId() == currentTokenId) {
                         totalAdjacentTokensOfOneKind += totalTokensLeftInInputs[k][l];
@@ -236,10 +236,19 @@ void NTP1Transaction::__TransferTokens(
                 }
             }
 
+            // ensure that gaps won't create a problem; an empty input is automatically skipped here
+            if (totalAdjacentTokensOfOneKind == 0) {
+                if (j + 1 >= (int)totalTokensLeftInInputs[currentInputIndex].size()) {
+                    currentInputIndex++;
+                    j = -1; // resets j to 0 in the next iteration
+                }
+                continue;
+            }
+
             if (currentOutputAmount > totalAdjacentTokensOfOneKind) {
                 throw std::runtime_error(
                     "Insufficient tokens for transaction from inputs for transaction: " +
-                    tx.GetHash().ToString() + " from input: " + ::ToString(j));
+                    tx.GetHash().ToString() + " from input: " + ::ToString(currentInputIndex));
             }
 
             const auto&    currentTokenObj = tokensKindsInInputs[currentInputIndex][j];
@@ -293,9 +302,12 @@ void NTP1Transaction::__TransferTokens(
                         break;
                     }
                 }
-                if (totalTokensLeftInInputs[k].size() == 0 && amountLeftToSubtract > 0) {
-                    throw std::runtime_error("Unable to decredit the available balances from inputs");
+                if (amountLeftToSubtract == 0) {
+                    break;
                 }
+            }
+            if (amountLeftToSubtract > 0) {
+                throw std::runtime_error("Unable to decredit the available balances from inputs");
             }
 
             // if skip, move on to the next input
@@ -337,11 +349,34 @@ void NTP1Transaction::__TransferTokens(
                 throw std::runtime_error("No outputs in transaction: " + tx.GetHash().ToString());
             }
 
-            // add the token to the last output
-            vout.back().tokens.push_back(ntp1tokenTxData);
-
             // reduce the available balance
             totalTokensLeftInInputs[i][j] -= amountToCredit;
+            amountToCredit = 0;
+
+            bool stopLooping = false;
+            for (int k = i; k < (int)totalTokensLeftInInputs.size(); k++) {
+                for (int l = j; l < (int)totalTokensLeftInInputs[k].size(); l++) {
+                    if (k == i && l == j) {
+                        continue; // ignore the balance that was already credited
+                    }
+                    if (tokensKindsInInputs[i][j].getTokenId() !=
+                        tokensKindsInInputs[k][l].getTokenId()) {
+                        stopLooping = true;
+                        break;
+                    }
+                    amountToCredit                = totalTokensLeftInInputs[k][l];
+                    totalTokensLeftInInputs[k][l] = 0;
+                    ntp1tokenTxData.setAmount(ntp1tokenTxData.getAmount() + amountToCredit);
+                }
+
+                // stop the outer loop
+                if (stopLooping) {
+                    break;
+                }
+            }
+
+            // add the token to the last output
+            vout.back().tokens.push_back(ntp1tokenTxData);
         }
     }
 

@@ -613,6 +613,10 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_issuance)
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputs{{txVinA, NTP1Transaction()}};
     ////////////////////////////////////////////////////
 
+    for (auto&& input : inputs) {
+        input.second.readNTP1DataFromTx_minimal(input.first);
+    }
+
     NTP1Transaction ntp1tx;
     EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs));
     EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)1);
@@ -1646,23 +1650,23 @@ void TestNTP1TxParsing(const std::string& txid, bool testnet)
     EXPECT_EQ(ntp1tx.getTxOutCount(), ntp1tx_ref.getTxOutCount()) << "Failed tx: " << txid;
     for (int i = 0; i < (int)ntp1tx.getTxOutCount(); i++) {
         ASSERT_EQ(ntp1tx.getTxOut(i).getNumOfTokens(), ntp1tx_ref.getTxOut(i).getNumOfTokens())
-            << "Failed tx: " << txid;
+            << "Failed tx: " << txid << "; Failed at TxOut: " << i;
         for (int j = 0; j < (int)ntp1tx.getTxOut(i).getNumOfTokens(); j++) {
             EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getAmount(),
                       ntp1tx_ref.getTxOut(i).getToken(j).getAmount())
-                << "Failed tx: " << txid;
+                << "Failed tx: " << txid << "; Failed at TxOut: " << i << "; at token: " << j;
             EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getAggregationPolicy(),
                       ntp1tx_ref.getTxOut(i).getToken(j).getAggregationPolicy())
-                << "Failed tx: " << txid;
+                << "Failed tx: " << txid << "; Failed at TxOut: " << i << "; at token: " << j;
             EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getDivisibility(),
                       ntp1tx_ref.getTxOut(i).getToken(j).getDivisibility())
-                << "Failed tx: " << txid;
+                << "Failed tx: " << txid << "; Failed at TxOut: " << i << "; at token: " << j;
             EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getIssueTxId(),
                       ntp1tx_ref.getTxOut(i).getToken(j).getIssueTxId())
-                << "Failed tx: " << txid;
+                << "Failed tx: " << txid << "; Failed at TxOut: " << i << "; at token: " << j;
             EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getLockStatus(),
                       ntp1tx_ref.getTxOut(i).getToken(j).getLockStatus())
-                << "Failed tx: " << txid;
+                << "Failed tx: " << txid << "; Failed at TxOut: " << i << "; at token: " << j;
             //            EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getTokenSymbol(),
             //                      ntp1tx_ref.getTxOut(i).getToken(j).getTokenSymbol())
             //                << "Failed tx: " << txid;
@@ -1672,26 +1676,26 @@ void TestNTP1TxParsing(const std::string& txid, bool testnet)
     EXPECT_EQ(ntp1tx.getTxInCount(), ntp1tx_ref.getTxInCount());
     for (int i = 0; i < (int)ntp1tx.getTxInCount(); i++) {
         ASSERT_EQ(ntp1tx.getTxIn(i).getNumOfTokens(), ntp1tx_ref.getTxIn(i).getNumOfTokens())
-            << "Failed tx: " << txid;
+            << "Failed tx: " << txid << "; Failed at TxIn: " << i;
         for (int j = 0; j < (int)ntp1tx.getTxIn(i).getNumOfTokens(); j++) {
             EXPECT_EQ(ntp1tx.getTxIn(i).getToken(j).getAmount(),
                       ntp1tx_ref.getTxIn(i).getToken(j).getAmount())
-                << "Failed tx: " << txid;
+                << "Failed tx: " << txid << "; Failed at TxIn: " << i << "; at token: " << j;
             EXPECT_EQ(ntp1tx.getTxIn(i).getToken(j).getAggregationPolicy(),
                       ntp1tx_ref.getTxIn(i).getToken(j).getAggregationPolicy())
-                << "Failed tx: " << txid;
+                << "Failed tx: " << txid << "; Failed at TxIn: " << i << "; at token: " << j;
             EXPECT_EQ(ntp1tx.getTxIn(i).getToken(j).getDivisibility(),
                       ntp1tx_ref.getTxIn(i).getToken(j).getDivisibility())
-                << "Failed tx: " << txid;
+                << "Failed tx: " << txid << "; Failed at TxIn: " << i << "; at token: " << j;
             EXPECT_EQ(ntp1tx.getTxIn(i).getToken(j).getIssueTxId(),
                       ntp1tx_ref.getTxIn(i).getToken(j).getIssueTxId())
-                << "Failed tx: " << txid;
+                << "Failed tx: " << txid << "; Failed at TxIn: " << i << "; at token: " << j;
             EXPECT_EQ(ntp1tx.getTxIn(i).getToken(j).getLockStatus(),
                       ntp1tx_ref.getTxIn(i).getToken(j).getLockStatus())
-                << "Failed tx: " << txid;
+                << "Failed tx: " << txid << "; Failed at TxIn: " << i << "; at token: " << j;
             EXPECT_EQ(ntp1tx.getTxIn(i).getToken(j).getTokenSymbol(),
                       ntp1tx_ref.getTxIn(i).getToken(j).getTokenSymbol())
-                << "Failed tx: " << txid;
+                << "Failed tx: " << txid << "; Failed at TxIn: " << i << "; at token: " << j;
         }
     }
 
@@ -1927,10 +1931,10 @@ TEST(ntp1_tests, download_data_to_files)
 #ifdef UNITTEST_DOWNLOAD_PREMADE_TX_DATA_AND_RUN_PARSE_TESTS
 TEST(ntp1_tests, download_premade_data_to_files_and_run_parse_test)
 {
-    DownloadPreMadeData(false);
-    EXPECT_NO_THROW(TestNTP1TxParsingLocally(false));
     DownloadPreMadeData(true);
-    EXPECT_NO_THROW(TestNTP1TxParsingLocally(true));
+    TestNTP1TxParsingLocally(true);
+    DownloadPreMadeData(false);
+    TestNTP1TxParsingLocally(false);
 }
 #endif
 
