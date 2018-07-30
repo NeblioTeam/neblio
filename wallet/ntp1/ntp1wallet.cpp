@@ -95,14 +95,20 @@ void NTP1Wallet::__getOutputs()
 
         // include only NTP1 transactions
         if (ntp1tx.getTxOut(output.getIndex()).getNumOfTokens() > 0) {
-            // transaction with output index
-            walletOutputsWithTokens[output] = ntp1tx;
-            for (long j = 0; j < static_cast<long>(ntp1tx.getTxOut(output.getIndex()).getNumOfTokens());
-                 j++) {
-                NTP1TokenTxData tokenTx = ntp1tx.getTxOut(output.getIndex()).getToken(j);
-                // additional metadata is retrieved from the API; like the icon of the token
-                tokenInformation[tokenTx.getTokenId()] = NTP1APICalls::RetrieveData_NTP1TokensMetaData(
-                    tokenTx.getTokenId(), txHash.ToString(), output.getIndex(), fTestNet);
+            try {
+                // transaction with output index
+                walletOutputsWithTokens[output] = ntp1tx;
+                for (long j = 0;
+                     j < static_cast<long>(ntp1tx.getTxOut(output.getIndex()).getNumOfTokens()); j++) {
+                    NTP1TokenTxData tokenTx = ntp1tx.getTxOut(output.getIndex()).getToken(j);
+                    // additional metadata is retrieved from the API; like the icon of the token
+                    tokenInformation[tokenTx.getTokenId()] =
+                        NTP1APICalls::RetrieveData_NTP1TokensMetaData(
+                            tokenTx.getTokenId(), txHash.ToString(), output.getIndex(), fTestNet);
+                }
+            } catch (std::exception& ex) {
+                printf("Unable to download token metadata. Error says: %s\n", ex.what());
+                continue;
             }
         }
     }
