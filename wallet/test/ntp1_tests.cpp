@@ -854,9 +854,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
     ////////////////////////////////////////////
 
     NTP1Transaction ntp1tx;
-    // TODO: uncomment
-    //        ASSERT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs));
-    ntp1tx.readNTP1DataFromTx(tx, inputs);
+    ASSERT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs));
     EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)2);
     // inputs are unknown, so no more tests
     EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)4);
@@ -1090,7 +1088,6 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
     ////////////////////////////////////////////
 
     NTP1Transaction ntp1tx;
-    // TODO: uncomment
     ASSERT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs));
     EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)2);
     // inputs are unknown, so no more tests
@@ -1435,9 +1432,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
     EXPECT_EQ(scriptPtrD->getTxType(), NTP1Script::TxType::TxType_Burn);
 
     NTP1Transaction ntp1tx;
-    ntp1tx.readNTP1DataFromTx(tx, inputs);
-    // TODO: uncomment
-    //    EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs));
+    EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs));
     EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)4);
     // inputs are unknown, so no more tests
     EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)3);
@@ -1951,8 +1946,8 @@ TEST(ntp1_tests, construct_scripts)
     {
         // test transfer instruction string script creator
         NTP1Script::TransferInstruction inst_manual;
-        inst_manual.amount    = 1000000000;
-        inst_manual.skipInput = 0; // TODO: throw error when parsing, skip doesn't make sense in issuance
+        inst_manual.amount      = 1000000000;
+        inst_manual.skipInput   = 0;
         inst_manual.outputIndex = 0;
         std::string ti = boost::algorithm::hex(NTP1Script::TransferInstructionToBinScript(inst_manual));
         std::transform(ti.begin(), ti.end(), ti.begin(), ::tolower);

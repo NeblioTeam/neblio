@@ -10,9 +10,6 @@
 #include "ntp1script_issuance.h"
 #include "ntp1script_transfer.h"
 
-// TODO: remove
-#include <iostream>
-
 std::string NTP1Script::getHeader() const { return headerBin; }
 
 std::string NTP1Script::getOpCodeBin() const { return opCodeBin; }
