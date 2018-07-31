@@ -65,6 +65,18 @@ std::string NTP1Script_Burn::calculateScriptBin() const
     return result;
 }
 
+std::set<unsigned int> NTP1Script_Burn::getNTP1OutputIndices() const
+{
+    std::set<unsigned int> result;
+    for (const auto& ti : transferInstructions) {
+        // output index 31 is for burning, doesn't count
+        if (ti.outputIndex != 31) {
+            result.insert(ti.outputIndex);
+        }
+    }
+    return result;
+}
+
 std::shared_ptr<NTP1Script_Burn>
 NTP1Script_Burn::CreateScript(const std::vector<NTP1Script::TransferInstruction>& transferInstructions,
                               const std::string&                                  Metadata)

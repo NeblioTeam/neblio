@@ -469,7 +469,7 @@ TEST(ntp1_tests, script_transfer)
     EXPECT_EQ(script_transfer->getTransferInstructionsCount(), (unsigned)1);
     EXPECT_EQ(script_transfer->getTransferInstruction(0).amount, (uint64_t)999901700);
     EXPECT_EQ(script_transfer->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, 0);
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, (unsigned)0);
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(0).rawAmount), "69892A92");
     EXPECT_EQ(script_transfer->getTransferInstruction(0).firstRawByte, 0);
 }
@@ -501,7 +501,7 @@ TEST(ntp1_tests, script_issuance)
         EXPECT_EQ(script_issuance->getTransferInstructionsCount(), (unsigned)1);
         EXPECT_EQ(script_issuance->getTransferInstruction(0).amount, (uint64_t)1000000000);
         EXPECT_EQ(script_issuance->getTransferInstruction(0).skipInput, false);
-        EXPECT_EQ(script_issuance->getTransferInstruction(0).outputIndex, 0);
+        EXPECT_EQ(script_issuance->getTransferInstruction(0).outputIndex, (unsigned)0);
         EXPECT_EQ(boost::algorithm::hex(script_issuance->getTransferInstruction(0).rawAmount), "2019");
         EXPECT_EQ(script_issuance->getTransferInstruction(0).firstRawByte, 0);
         EXPECT_EQ(script_issuance->getTokenID(
@@ -524,7 +524,7 @@ TEST(ntp1_tests, script_burn)
     EXPECT_EQ(script_burn->getTransferInstructionsCount(), (unsigned)1);
     EXPECT_EQ(script_burn->getTransferInstruction(0).amount, (uint64_t)1000);
     EXPECT_EQ(script_burn->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(script_burn->getTransferInstruction(0).outputIndex, 31);
+    EXPECT_EQ(script_burn->getTransferInstruction(0).outputIndex, (unsigned)31);
     EXPECT_EQ(boost::algorithm::hex(script_burn->getTransferInstruction(0).rawAmount), "2013");
     EXPECT_EQ(script_burn->getTransferInstruction(0).firstRawByte, 31);
 }
@@ -596,7 +596,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_issuance)
     EXPECT_EQ(script_issuance->getTransferInstructionsCount(), (unsigned)1);
     EXPECT_EQ(script_issuance->getTransferInstruction(0).amount, (uint64_t)1000000000);
     EXPECT_EQ(script_issuance->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(script_issuance->getTransferInstruction(0).outputIndex, 0);
+    EXPECT_EQ(script_issuance->getTransferInstruction(0).outputIndex, (unsigned)0);
     EXPECT_EQ(boost::algorithm::hex(script_issuance->getTransferInstruction(0).rawAmount), "2019");
     EXPECT_EQ(script_issuance->getTransferInstruction(0).firstRawByte, 0);
     EXPECT_EQ(tx.GetHash().ToString(),
@@ -706,13 +706,13 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
 
     EXPECT_EQ(script_transfer->getTransferInstruction(0).amount, (uint64_t)100);
     EXPECT_EQ(script_transfer->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, 0);
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, (unsigned)0);
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(0).rawAmount), "2012");
     EXPECT_EQ(script_transfer->getTransferInstruction(0).firstRawByte, 0);
 
     EXPECT_EQ(script_transfer->getTransferInstruction(1).amount, (uint64_t)999965200);
     EXPECT_EQ(script_transfer->getTransferInstruction(1).skipInput, false);
-    EXPECT_EQ(script_transfer->getTransferInstruction(1).outputIndex, 1);
+    EXPECT_EQ(script_transfer->getTransferInstruction(1).outputIndex, (unsigned)1);
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(1).rawAmount), "69895242");
     EXPECT_EQ(script_transfer->getTransferInstruction(1).firstRawByte, 1);
     EXPECT_EQ(tx.GetHash().ToString(),
@@ -942,13 +942,13 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
 
     EXPECT_EQ(script_transfer->getTransferInstruction(0).amount, (uint64_t)100);
     EXPECT_EQ(script_transfer->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, 0);
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, (unsigned)0);
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(0).rawAmount), "2012");
     EXPECT_EQ(script_transfer->getTransferInstruction(0).firstRawByte, 0);
 
     EXPECT_EQ(script_transfer->getTransferInstruction(1).amount, (uint64_t)999965200);
     EXPECT_EQ(script_transfer->getTransferInstruction(1).skipInput, false);
-    EXPECT_EQ(script_transfer->getTransferInstruction(1).outputIndex, 1);
+    EXPECT_EQ(script_transfer->getTransferInstruction(1).outputIndex, (unsigned)1);
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(1).rawAmount), "69895242");
     EXPECT_EQ(script_transfer->getTransferInstruction(1).firstRawByte, 1);
     EXPECT_EQ(tx.GetHash().ToString(),

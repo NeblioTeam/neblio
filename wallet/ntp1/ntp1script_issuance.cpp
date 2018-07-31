@@ -227,3 +227,12 @@ std::string NTP1Script_Issuance::Create_ProcessTokenSymbol(const std::string& sy
     }
     return result;
 }
+
+std::set<unsigned int> NTP1Script_Issuance::getNTP1OutputIndices() const
+{
+    std::set<unsigned int> result;
+    for (const auto& ti : transferInstructions) {
+        result.insert(ti.outputIndex);
+    }
+    return result;
+}

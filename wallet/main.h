@@ -364,6 +364,7 @@ public:
 bool TxContainsOpReturn(const CTransaction* tx, string* opReturnArg = nullptr);
 
 bool IsTxNTP1(const CTransaction* tx, string* opReturnArg = nullptr);
+bool IsTxOutputNTP1OpRet(const CTransaction* tx, unsigned int index, string* opReturnArg = nullptr);
 
 /** An output of a transaction.  It contains the public key that the next input
  * must be able to sign with to claim it.

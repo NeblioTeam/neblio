@@ -282,7 +282,7 @@ void NTP1Transaction::readNTP1DataFromTx(
         for (long i = 0; i < scriptPtrD->getTransferInstructionsCount(); i++) {
             NTP1TokenTxData ntp1tokenTxData;
             const auto&     instruction = scriptPtrD->getTransferInstruction(i);
-            if (instruction.outputIndex >= static_cast<int>(tx.vout.size())) {
+            if (instruction.outputIndex >= tx.vout.size()) {
                 throw std::runtime_error("An output of issuance is outside the available range of "
                                          "outputs in NTP1 OP_RETURN argument: " +
                                          opReturnArg + ", where the number of available outputs is " +

@@ -35,7 +35,6 @@ public:
     static std::shared_ptr<NTP1Script_Issuance> ParseIssuancePostHeaderData(std::string ScriptBin,
                                                                             std::string OpCodeBin);
     std::string getTokenID(std::string input0txid, unsigned int input0index) const;
-    std::string calculateScriptBin() const;
 
     static std::shared_ptr<NTP1Script_Issuance>
                        CreateScript(const std::string& Symbol, uint64_t amount,
@@ -44,6 +43,11 @@ public:
                                     IssuanceFlags::AggregationPolicy aggrPolicy);
     static std::string Create_OpCodeFromMetadata(const std::string& metadata);
     static std::string Create_ProcessTokenSymbol(const std::string& symbol);
+
+    // NTP1Script interface
+public:
+    std::string            calculateScriptBin() const;
+    std::set<unsigned int> getNTP1OutputIndices() const override;
 };
 
 #endif // NTP1SCRIPT_ISSUANCE_H

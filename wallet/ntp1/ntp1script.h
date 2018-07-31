@@ -3,6 +3,7 @@
 
 #include <bitset>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -42,8 +43,8 @@ public:
         // transfer instructions act on inputs in order until they're empty, so instruction 0 will act on
         // input 0, and instruction 1 will act on input 0, etc... until input 0 is empty, or a skip
         // instruction is given to move to the next input
-        bool skipInput;
-        int  outputIndex;
+        bool         skipInput;
+        unsigned int outputIndex;
 
         std::string rawAmount;
         uint64_t    amount;
@@ -94,6 +95,11 @@ public:
     static std::string TransferInstructionToBinScript(const TransferInstruction& inst);
 
     virtual std::string calculateScriptBin() const = 0;
+    /**
+     * @brief getNTP1Indices
+     * @return a list of all NTP1 output indices in this script
+     */
+    virtual std::set<unsigned int> getNTP1OutputIndices() const = 0;
 
     virtual ~NTP1Script() = default;
     static uint64_t    CalculateMetadataSize(const std::string& op_code_bin);

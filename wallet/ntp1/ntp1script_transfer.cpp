@@ -58,6 +58,15 @@ std::string NTP1Script_Transfer::calculateScriptBin() const
     return result;
 }
 
+std::set<unsigned int> NTP1Script_Transfer::getNTP1OutputIndices() const
+{
+    std::set<unsigned int> result;
+    for (const auto& ti : transferInstructions) {
+        result.insert(ti.outputIndex);
+    }
+    return result;
+}
+
 std::shared_ptr<NTP1Script_Transfer> NTP1Script_Transfer::CreateScript(
     const std::vector<NTP1Script::TransferInstruction>& transferInstructions,
     const std::string&                                  Metadata)
