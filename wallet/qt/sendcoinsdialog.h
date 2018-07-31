@@ -5,7 +5,7 @@
 #include <QString>
 
 namespace Ui {
-    class SendCoinsDialog;
+class SendCoinsDialog;
 }
 class WalletModel;
 class SendCoinsEntry;
@@ -21,30 +21,31 @@ class SendCoinsDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit SendCoinsDialog(QWidget *parent = 0);
+    explicit SendCoinsDialog(QWidget* parent = 0);
     ~SendCoinsDialog();
 
-    void setModel(WalletModel *model);
+    void setModel(WalletModel* model);
 
-    /** Set up the tab chain manually, as Qt messes up the tab chain by default in some cases (issue https://bugreports.qt-project.org/browse/QTBUG-10907).
+    /** Set up the tab chain manually, as Qt messes up the tab chain by default in some cases (issue
+     * https://bugreports.qt-project.org/browse/QTBUG-10907).
      */
-    QWidget *setupTabChain(QWidget *prev);
+    QWidget* setupTabChain(QWidget* prev);
 
-    void pasteEntry(const SendCoinsRecipient &rv);
-    bool handleURI(const QString &uri);
+    void pasteEntry(const SendCoinsRecipient& rv);
+    bool handleURI(const QString& uri);
 
 public slots:
-    void clear();
-    void reject();
-    void accept();
-    SendCoinsEntry *addEntry();
-    void updateRemoveEnabled();
+    void            clear();
+    void            reject();
+    void            accept();
+    SendCoinsEntry* addEntry();
+    void            updateRemoveEnabled();
     void setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBalance, qint64 immatureBalance);
 
 private:
-    Ui::SendCoinsDialog *ui;
-    WalletModel *model;
-    bool fNewRecipientAllowed;
+    Ui::SendCoinsDialog* ui;
+    WalletModel*         model;
+    bool                 fNewRecipientAllowed;
 
 private slots:
     void on_sendButton_clicked();
@@ -53,7 +54,7 @@ private slots:
     void coinControlFeatureChanged(bool);
     void coinControlButtonClicked();
     void coinControlChangeChecked(int);
-    void coinControlChangeEdited(const QString &);
+    void coinControlChangeEdited(const QString&);
     void coinControlUpdateLabels();
     void coinControlClipboardQuantity();
     void coinControlClipboardAmount();

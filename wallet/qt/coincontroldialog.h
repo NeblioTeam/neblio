@@ -11,7 +11,7 @@
 #include <QTreeWidgetItem>
 
 namespace Ui {
-    class CoinControlDialog;
+class CoinControlDialog;
 }
 class WalletModel;
 class CCoinControl;
@@ -21,33 +21,33 @@ class CoinControlDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit CoinControlDialog(QWidget *parent = 0);
+    explicit CoinControlDialog(QWidget* parent = 0);
     ~CoinControlDialog();
 
-    void setModel(WalletModel *model);
+    void setModel(WalletModel* model);
 
     // static because also called from sendcoinsdialog
-    static void updateLabels(WalletModel*, QDialog*);
+    static void    updateLabels(WalletModel*, QDialog*);
     static QString getPriorityLabel(double);
 
     static QList<qint64> payAmounts;
-    static CCoinControl *coinControl;
+    static CCoinControl* coinControl;
 
 private:
-    Ui::CoinControlDialog *ui;
-    WalletModel *model;
-    int sortColumn;
-    Qt::SortOrder sortOrder;
+    Ui::CoinControlDialog* ui;
+    WalletModel*           model;
+    int                    sortColumn;
+    Qt::SortOrder          sortOrder;
 
-    QMenu *contextMenu;
-    QTreeWidgetItem *contextMenuItem;
-    QAction *copyTransactionHashAction;
-    //QAction *lockAction;
-    //QAction *unlockAction;
+    QMenu*           contextMenu;
+    QTreeWidgetItem* contextMenuItem;
+    QAction*         copyTransactionHashAction;
+    // QAction *lockAction;
+    // QAction *unlockAction;
 
     QString strPad(QString, int, QString);
-    void sortView(int, Qt::SortOrder);
-    void updateView();
+    void    sortView(int, Qt::SortOrder);
+    void    updateView();
 
     enum
     {
@@ -65,13 +65,13 @@ private:
     };
 
 private slots:
-    void showMenu(const QPoint &);
+    void showMenu(const QPoint&);
     void copyAmount();
     void copyLabel();
     void copyAddress();
     void copyTransactionHash();
-    //void lockCoin();
-    //void unlockCoin();
+    // void lockCoin();
+    // void unlockCoin();
     void clipboardQuantity();
     void clipboardAmount();
     void clipboardFee();
@@ -86,7 +86,7 @@ private slots:
     void headerSectionClicked(int);
     void buttonBoxClicked(QAbstractButton*);
     void buttonSelectAllClicked();
-    //void updateLabelLocked();
+    // void updateLabelLocked();
 };
 
 #endif // COINCONTROLDIALOG_H
