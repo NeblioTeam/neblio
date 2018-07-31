@@ -85,7 +85,6 @@ void NTP1Wallet::__getOutputs()
         NTP1Transaction ntp1tx;
         try {
             std::vector<std::pair<CTransaction, NTP1Transaction>> prevTxs = GetAllNTP1InputsOfTx(neblTx);
-            // write NTP1 transactions' data
             ntp1tx.readNTP1DataFromTx(neblTx, prevTxs);
         } catch (std::exception& ex) {
             printf("Unable to download transaction information. Error says: %s\n", ex.what());
