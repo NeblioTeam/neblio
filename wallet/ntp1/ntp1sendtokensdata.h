@@ -6,6 +6,13 @@
 #include <deque>
 #include <string>
 
+/**
+ * This class is used for a systematic construction of NTP1 transactions. Follow the steps:
+ * 1. Add recipients
+ * 2. Call calculateSources() to calculate the spending addresses of NTP1 tokens
+ *
+ * @brief The NTP1SendTokensData class
+ */
 class NTP1SendTokensData
 {
     std::deque<NTP1SendTokensOneRecipientData> recipients;
