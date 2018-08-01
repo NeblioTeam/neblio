@@ -133,6 +133,93 @@ unsigned long NTP1Transaction::getTxOutCount() const { return vout.size(); }
 
 const NTP1TxOut& NTP1Transaction::getTxOut(unsigned long index) const { return vout[index]; }
 
+unsigned int NTP1Transaction::CountTokensKindsInInputs(
+    const CTransaction& tx, const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs)
+{
+    unsigned result = 0;
+
+    for (const auto& in : tx.vin) {
+        auto it = GetPrevInputIt(tx, in.prevout.hash, inputsTxs);
+
+        const CTransaction&    neblInTx = it->first;
+        const NTP1Transaction& ntp1InTx = it->second;
+
+        if (in.prevout.n + 1 >= ntp1InTx.getTxOutCount()) {
+            throw std::runtime_error("Failed at retrieving the number of tokens from transaction " +
+                                     tx.GetHash().ToString() + " at input " +
+                                     neblInTx.GetHash().ToString() +
+                                     "; input: " + ToString(in.prevout.n) + " is out of range.");
+        }
+
+        result += ntp1InTx.getTxOut(in.prevout.n).getNumOfTokens();
+    }
+
+    return result;
+}
+
+void NTP1Transaction::EnsureInputsHashesMatch(
+    const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs)
+{
+    // ensure that input pairs match
+    for (const auto& in : inputsTxs) {
+        if (in.first.GetHash() != in.second.getTxHash()) {
+            throw std::runtime_error(
+                "Input transactions in the NTP1 parser do not have matching hashes.");
+        }
+    }
+}
+
+void NTP1Transaction::EnsureInputTokensRelateToTx(
+    const CTransaction& tx, const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs)
+{
+    // ensure that all inputs are relevant to this transaction (to protect from double-spending
+    // tokens)
+    for (unsigned i = 0; i < inputsTxs.size(); i++) {
+        uint256 currentHash = inputsTxs[i].first.GetHash(); // the tx-hash of the input
+        auto    it = std::find_if(tx.vin.begin(), tx.vin.end(), [&currentHash](const CTxIn& in) {
+            return in.prevout.hash == currentHash;
+        });
+        if (it == tx.vin.end()) {
+            throw std::runtime_error("An input was included in NTP1 transaction parser while it was not "
+                                     "being spent by the spending transaction. This is not allowed.");
+        }
+    }
+}
+
+std::vector<std::pair<CTransaction, NTP1Transaction>>::const_iterator
+NTP1Transaction::GetPrevInputIt(const CTransaction& tx, const uint256& inputTxHash,
+                                const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs)
+{
+    auto it = std::find_if(inputsTxs.cbegin(), inputsTxs.cend(),
+                           [&inputTxHash](const std::pair<CTransaction, NTP1Transaction>& inPair) {
+                               return inPair.first.GetHash() == inputTxHash;
+                           });
+    if (it == inputsTxs.end()) {
+        throw std::runtime_error(
+            "Could not find input related to transaction: " + tx.GetHash().ToString() +
+            " with a prevout hash: " + inputTxHash.ToString());
+    }
+
+    return it;
+}
+
+void NTP1Transaction::ComplementStdTxWithNTP1(CTransaction& tx)
+{
+    std::vector<std::pair<CTransaction, NTP1Transaction>> inputs = GetAllNTP1InputsOfTx(tx);
+
+    EnsureInputsHashesMatch(inputs);
+
+    EnsureInputTokensRelateToTx(tx, inputs);
+
+    unsigned tokenKinds = CountTokensKindsInInputs(tx, inputs);
+
+    // if no inputs contain NTP1 AND no OP_RETURN argument exists, then this is a pure NEBL transaction
+    // with no NTP1
+    if (!IsTxNTP1(&tx) && tokenKinds == 0) {
+        return;
+    }
+}
+
 void NTP1Transaction::__manualSet(int NVersion, uint256 TxHash, std::vector<unsigned char> TxSerialized,
                                   std::vector<NTP1TxIn> Vin, std::vector<NTP1TxOut> Vout,
                                   uint64_t NLockTime, uint64_t NTime,
@@ -200,13 +287,8 @@ void NTP1Transaction::readNTP1DataFromTx(
         vin[i].setPrevout(NTP1OutPoint(currInputHash, currInputIndex));
 
         // find inputs in the list of inputs and parse their OP_RETURN
-        auto it = std::find_if(inputsTxs.cbegin(), inputsTxs.cend(),
-                               [this, i](const std::pair<CTransaction, NTP1Transaction>& in) {
-                                   return in.first.GetHash() == vin[i].getPrevout().getHash();
-                               });
-        if (it == inputsTxs.end()) {
-            throw std::runtime_error("Could not find all relevant inputs in the inputs list");
-        }
+        auto it = GetPrevInputIt(tx, vin[i].getPrevout().getHash(), inputsTxs);
+
         std::string opReturnArgInput;
 
         // The transaction that has an input that matches currInputHash
@@ -226,25 +308,9 @@ void NTP1Transaction::readNTP1DataFromTx(
         }
     }
 
-    // ensure that input pairs match
-    for (const auto& in : inputsTxs) {
-        if (in.first.GetHash() != in.second.getTxHash()) {
-            throw std::runtime_error(
-                "Input transactions in the NTP1 parser do not have matching hashes.");
-        }
-    }
+    EnsureInputsHashesMatch(inputsTxs);
 
-    // ensure that all inputs are relevant to this transaction (to protect from double-spending tokens)
-    for (unsigned i = 0; i < inputsTxs.size(); i++) {
-        uint256 currentHash = inputsTxs[i].first.GetHash(); // the tx-hash of the input
-        auto    it = std::find_if(tx.vin.begin(), tx.vin.end(), [&currentHash](const CTxIn& in) {
-            return in.prevout.hash == currentHash;
-        });
-        if (it == tx.vin.end()) {
-            throw std::runtime_error("An input was included in NTP1 transaction parser while it was not "
-                                     "being spent by the spending transaction. This is not allowed.");
-        }
-    }
+    EnsureInputTokensRelateToTx(tx, inputsTxs);
 
     if (totalInput == 0) {
         throw std::runtime_error("Total input is zero; that's invalid; in transaction: " +
@@ -337,17 +403,10 @@ void NTP1Transaction::readNTP1DataFromTx(
             const unsigned int& currIndex = in.prevout.n;
             // find the input tx from the list of inputs that matches the input hash from the tx in
             // question
-            auto it = std::find_if(
-                inputsTxs.cbegin(), inputsTxs.cend(),
-                [&currHash, currIndex](const std::pair<CTransaction, NTP1Transaction>& inFromList) {
-                    return inFromList.first.GetHash() == currHash;
-                });
-            if (it == inputsTxs.end()) {
-                throw std::runtime_error(
-                    "Could not find all relevant inputs in the inputs list of tx: " +
-                    tx.GetHash().ToString());
-            }
+            auto it = GetPrevInputIt(tx, currHash, inputsTxs);
+
             const std::pair<CTransaction, NTP1Transaction>& input = *it;
+
             for (int i = 0; i < (int)input.second.vout[currIndex].getNumOfTokens(); i++) {
                 if (vout.size() > 0) {
                     vout.back().tokens.push_back(input.second.vout[currIndex].getToken(i));

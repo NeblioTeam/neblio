@@ -117,6 +117,40 @@ public:
     const NTP1TxOut&   getTxOut(unsigned long index) const;
     friend inline bool operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs);
 
+    static unsigned int
+    CountTokensKindsInInputs(const CTransaction&                                          tx,
+                             const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs);
+
+    static void
+    EnsureInputsHashesMatch(const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs);
+
+    static void
+    EnsureInputTokensRelateToTx(const CTransaction&                                          tx,
+                                const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs);
+
+    /**
+     * from a list of previous transactions, get the pair of CTransaction/NTP1Transaction that matches
+     * the given hash
+     *
+     * @brief GetPrevInputIt
+     * @param tx is the current transaction; used only for hash information
+     * @param hash
+     * @param inputsTxs
+     * @return
+     */
+    static std::vector<std::pair<CTransaction, NTP1Transaction>>::const_iterator
+    GetPrevInputIt(const CTransaction& tx, const uint256& hash,
+                   const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs);
+
+    /**
+     * takes a standard transaction and deals and tries to find NTP1-related problems in this transaction
+     * and solve them; for example, change is located and is put in the transaction
+     *
+     * @brief ComplementStdTxWithNTP1
+     * @param tx
+     */
+    static void ComplementStdTxWithNTP1(CTransaction& tx);
+
     void __manualSet(int NVersion, uint256 TxHash, std::vector<unsigned char> TxSerialized,
                      std::vector<NTP1TxIn> Vin, std::vector<NTP1TxOut> Vout, uint64_t NLockTime,
                      uint64_t NTime, NTP1TransactionType Ntp1TransactionType);
@@ -156,6 +190,9 @@ void NTP1Transaction::__TransferTokens(
 
     int currentInputIndex = 0;
 
+    EnsureInputsHashesMatch(inputsTxs);
+    EnsureInputTokensRelateToTx(tx, inputsTxs);
+
     // calculate total tokens in inputs
     std::vector<std::vector<uint64_t>>        totalTokensLeftInInputs(tx.vin.size());
     std::vector<std::vector<NTP1TokenTxData>> tokensKindsInInputs(tx.vin.size());
@@ -163,20 +200,7 @@ void NTP1Transaction::__TransferTokens(
         const auto& n    = tx.vin[i].prevout.n;
         const auto& hash = tx.vin[i].prevout.hash;
 
-        auto it = std::find_if(inputsTxs.cbegin(), inputsTxs.cend(),
-                               [this, i, &hash](const std::pair<CTransaction, NTP1Transaction>& in) {
-                                   return in.first.GetHash() == hash;
-                               });
-
-        if (it == inputsTxs.end()) {
-            throw std::runtime_error("Could not find all relevant inputs in the inputs list while "
-                                     "attempting to calculate total required tokens");
-        }
-
-        if (it->second.getTxHash() != hash) {
-            throw std::runtime_error(
-                "Inputs in pair of CTransaction and NTP1Transaction don't have matching hashes");
-        }
+        auto it = GetPrevInputIt(tx, hash, inputsTxs);
 
         const NTP1Transaction& ntp1tx = it->second;
         // this array keeps track of all tokens left
