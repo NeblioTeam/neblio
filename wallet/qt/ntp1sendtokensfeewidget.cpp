@@ -44,9 +44,5 @@ void NTP1SendTokensFeeWidget::resetAllFields()
 
 void NTP1SendTokensFeeWidget::slot_autoCalculateFeeStatusChanged(bool selected)
 {
-    if (selected) {
-        feeAmountLineEdit->setDisabled(1);
-    } else {
-        feeAmountLineEdit->setEnabled(1);
-    }
+    feeAmountLineEdit->setEnabled(!selected);
 }
