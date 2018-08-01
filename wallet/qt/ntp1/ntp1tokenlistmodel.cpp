@@ -92,7 +92,9 @@ void NTP1TokenListModel::endWalletUpdate()
     if (walletUpdateRunning && updateWalletFuture.is_ready()) {
         try {
             boost::shared_ptr<NTP1Wallet> wallet = updateWalletFuture.get();
-            if (!(*wallet == *ntp1wallet)) {
+            // the nullptr check is done after having a nullptr once happen.
+            // Although this should never happen, having it doesn't hurt and is safer
+            if ((wallet.get() != nullptr) && !(*wallet == *ntp1wallet)) {
                 beginResetModel();
                 boost::atomic_store(&ntp1wallet, wallet);
                 saveWalletToFile();
