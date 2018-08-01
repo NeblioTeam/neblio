@@ -213,9 +213,12 @@ void NTP1Transaction::ComplementStdTxWithNTP1(CTransaction& tx)
 
     unsigned tokenKinds = CountTokensKindsInInputs(tx, inputs);
 
+    std::string opReturnArg;
+    bool        txIsNTP1 = IsTxNTP1(&tx, &opReturnArg);
+
     // if no inputs contain NTP1 AND no OP_RETURN argument exists, then this is a pure NEBL transaction
     // with no NTP1
-    if (!IsTxNTP1(&tx) && tokenKinds == 0) {
+    if (!txIsNTP1 && tokenKinds == 0) {
         return;
     }
 }
