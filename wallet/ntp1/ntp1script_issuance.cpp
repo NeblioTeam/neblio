@@ -223,7 +223,7 @@ std::string NTP1Script_Issuance::Create_ProcessTokenSymbol(const std::string& sy
     }
     std::string result = symbol;
     while (result.size() < 5) {
-        result.push_back(01);
+        result.push_back(0x20);
     }
     return result;
 }
