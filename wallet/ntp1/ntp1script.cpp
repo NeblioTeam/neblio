@@ -185,7 +185,7 @@ NTP1Script::ParseTokenSymbolFromLongEnoughString(const std::string& BinTokenSymb
     result = ScriptBin.substr(0, 5);
     // drop 0x01 chars from the beginning
     result.erase(std::remove_if(result.begin(), result.end(),
-                                [](char c) { return *reinterpret_cast<uint8_t*>(&(c)) == 0x01; }),
+                                [](char c) { return *reinterpret_cast<uint8_t*>(&(c)) == 0x20; }),
                  result.end());
 
     if (result.size() == 0) {
