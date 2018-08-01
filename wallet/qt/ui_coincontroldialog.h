@@ -68,7 +68,7 @@ public:
     {
         if (CoinControlDialog->objectName().isEmpty())
             CoinControlDialog->setObjectName(QStringLiteral("CoinControlDialog"));
-        CoinControlDialog->resize(1000, 500);
+        CoinControlDialog->resize(1100, 500);
         verticalLayout = new QVBoxLayout(CoinControlDialog);
         verticalLayout->setObjectName(QStringLiteral("verticalLayout"));
         horizontalLayoutTop = new QHBoxLayout();
@@ -325,7 +325,7 @@ public:
         labelCoinControlAmountText->setText(QApplication::translate("CoinControlDialog", "Amount:", Q_NULLPTR));
         labelCoinControlPriorityText->setText(QApplication::translate("CoinControlDialog", "Priority:", Q_NULLPTR));
         labelCoinControlPriority->setText(QString());
-        labelCoinControlFeeText->setText(QApplication::translate("CoinControlDialog", "Fee:", Q_NULLPTR));
+        labelCoinControlFeeText->setText(QApplication::translate("CoinControlDialog", "Approx. Fee:", Q_NULLPTR));
         labelCoinControlLowOutputText->setText(QApplication::translate("CoinControlDialog", "Low Output:", Q_NULLPTR));
         labelCoinControlAfterFeeText->setText(QApplication::translate("CoinControlDialog", "After Fee:", Q_NULLPTR));
         labelCoinControlChangeText->setText(QApplication::translate("CoinControlDialog", "Change:", Q_NULLPTR));
@@ -336,8 +336,8 @@ public:
         ___qtreewidgetitem->setText(6, QApplication::translate("CoinControlDialog", "Priority", Q_NULLPTR));
         ___qtreewidgetitem->setText(5, QApplication::translate("CoinControlDialog", "Confirmations", Q_NULLPTR));
         ___qtreewidgetitem->setText(4, QApplication::translate("CoinControlDialog", "Date", Q_NULLPTR));
-        ___qtreewidgetitem->setText(3, QApplication::translate("CoinControlDialog", "Address", Q_NULLPTR));
-        ___qtreewidgetitem->setText(2, QApplication::translate("CoinControlDialog", "Label", Q_NULLPTR));
+        ___qtreewidgetitem->setText(3, QApplication::translate("CoinControlDialog", "Address/Token ID", Q_NULLPTR));
+        ___qtreewidgetitem->setText(2, QApplication::translate("CoinControlDialog", "Label/Token Symbol", Q_NULLPTR));
         ___qtreewidgetitem->setText(1, QApplication::translate("CoinControlDialog", "Amount", Q_NULLPTR));
 #ifndef QT_NO_TOOLTIP
         ___qtreewidgetitem->setToolTip(5, QApplication::translate("CoinControlDialog", "Confirmed", Q_NULLPTR));

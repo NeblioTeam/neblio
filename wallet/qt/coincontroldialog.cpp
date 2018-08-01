@@ -1,10 +1,11 @@
-#include "coincontroldialog.h"
+﻿#include "coincontroldialog.h"
 #include "ui_coincontroldialog.h"
 
 #include "addresstablemodel.h"
 #include "bitcoinunits.h"
 #include "coincontrol.h"
 #include "init.h"
+#include "ntp1/ntp1transaction.h"
 #include "optionsmodel.h"
 #include "walletmodel.h"
 
@@ -31,8 +32,8 @@ CoinControlDialog::CoinControlDialog(QWidget* parent)
     ui->setupUi(this);
 
     // context menu actions
-    QAction* copyAddressAction = new QAction(tr("Copy address"), this);
-    QAction* copyLabelAction   = new QAction(tr("Copy label"), this);
+    QAction* copyAddressAction = new QAction(tr("Copy address/Token ID"), this);
+    QAction* copyLabelAction   = new QAction(tr("Copy label/Token Symbol"), this);
     QAction* copyAmountAction  = new QAction(tr("Copy amount"), this);
     copyTransactionHashAction =
         new QAction(tr("Copy transaction ID"), this); // we need to enable/disable this
@@ -110,7 +111,7 @@ CoinControlDialog::CoinControlDialog(QWidget* parent)
     ui->treeWidget->setColumnWidth(COLUMN_CHECKBOX, 84);
     ui->treeWidget->setColumnWidth(COLUMN_AMOUNT, 100);
     ui->treeWidget->setColumnWidth(COLUMN_LABEL, 170);
-    ui->treeWidget->setColumnWidth(COLUMN_ADDRESS, 290);
+    ui->treeWidget->setColumnWidth(COLUMN_ADDRESS, 350);
     ui->treeWidget->setColumnWidth(COLUMN_DATE, 110);
     ui->treeWidget->setColumnWidth(COLUMN_CONFIRMATIONS, 100);
     ui->treeWidget->setColumnWidth(COLUMN_PRIORITY, 100);
@@ -478,8 +479,28 @@ void CoinControlDialog::updateLabels(WalletModel* model, QDialog* dialog)
         // Quantity
         nQuantity++;
 
+        // check for NTP1 inputs, to avoid adding NTP1 inputs to the amount
+        bool txIsNTP1     = IsTxNTP1(out.tx);
+        bool outputIsNTP1 = false;
+        if (txIsNTP1) {
+            try {
+                NTP1Transaction                                       ntp1tx;
+                std::vector<std::pair<CTransaction, NTP1Transaction>> prevTxs =
+                    GetAllNTP1InputsOfTx(*out.tx);
+                ntp1tx.readNTP1DataFromTx(*out.tx, prevTxs);
+                outputIsNTP1 = (ntp1tx.getTxOut(out.i).getNumOfTokens() != 0);
+
+            } catch (std::exception& ex) {
+                printf("Unable to read NTP1 transaction for coin control: %s. Error says: %s",
+                       out.tx->GetHash().ToString().c_str(), ex.what());
+                outputIsNTP1 = false;
+            }
+        }
+
         // Amount
-        nAmount += out.tx->vout[out.i].nValue;
+        if (!outputIsNTP1) {
+            nAmount += out.tx->vout[out.i].nValue;
+        }
 
         // Priority
         dPriorityInputs += (double)out.tx->vout[out.i].nValue * (out.nDepth + 1);
@@ -615,7 +636,8 @@ void CoinControlDialog::updateView()
     ui->treeWidget->clear();
     ui->treeWidget->setEnabled(
         false); // performance, otherwise updateLabels would be called for every checked checkbox
-    ui->treeWidget->setAlternatingRowColors(!treeMode);
+                //    ui->treeWidget->setAlternatingRowColors(!treeMode);
+    ui->treeWidget->setAlternatingRowColors(true);
     QFlags<Qt::ItemFlag> flgCheckbox =
         Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsUserCheckable;
     QFlags<Qt::ItemFlag> flgTristate =
@@ -704,12 +726,62 @@ void CoinControlDialog::updateView()
                 itemOutput->setText(COLUMN_LABEL, sLabel);
             }
 
+            // figure out token type
+            QString sTokenType        = "";
+            QString sTokenId          = "";
+            QString sNTP1TokenAmounts = "";
+            bool    txIsNTP1          = IsTxNTP1(out.tx);
+            if (txIsNTP1) {
+                try {
+                    NTP1Transaction                                       ntp1tx;
+                    std::vector<std::pair<CTransaction, NTP1Transaction>> prevTxs =
+                        GetAllNTP1InputsOfTx(*out.tx);
+                    ntp1tx.readNTP1DataFromTx(*out.tx, prevTxs);
+                    const NTP1TxOut& ntp1txOut = ntp1tx.getTxOut(out.i);
+                    for (int i = 0; i < (int)ntp1txOut.getNumOfTokens(); i++) {
+                        if (ntp1txOut.getToken(i).getAmount() == 0) {
+                            continue;
+                        }
+                        if (i > 0) {
+                            // +'s are kept because we're not sure that all Qt versions support new lines
+                            sTokenType += "+\n";
+                            sNTP1TokenAmounts += "+\n";
+                            sTokenId += "+\n";
+                        }
+                        sTokenType += QString::fromStdString(ntp1txOut.getToken(i).getTokenSymbol());
+                        sNTP1TokenAmounts += QString::number(ntp1txOut.getToken(i).getAmount());
+                        sTokenId += QString::fromStdString(ntp1txOut.getToken(i).getTokenId());
+                    }
+
+                } catch (std::exception& ex) {
+                    printf("Unable to read NTP1 transaction for coin control: %s. Error says: %s",
+                           out.tx->GetHash().ToString().c_str(), ex.what());
+                    sTokenType        = "(Unknown)";
+                    sNTP1TokenAmounts = "(Unknown)";
+                    sTokenId          = "(Unknown)";
+                }
+            }
+            // in case it's not a token, then it's nebls
+            if (sTokenId.isEmpty() && sTokenType.isEmpty() && sNTP1TokenAmounts.isEmpty()) {
+                sTokenType = "NEBL";
+            }
+
+            itemOutput->setText(COLUMN_LABEL, sTokenType);
+
+            if (!sTokenId.isEmpty()) {
+                itemOutput->setText(COLUMN_ADDRESS, sTokenId);
+            }
+
             // amount
             itemOutput->setText(COLUMN_AMOUNT,
-                                BitcoinUnits::format(nDisplayUnit, out.tx->vout[out.i].nValue));
+                                (sNTP1TokenAmounts.isEmpty()
+                                     ? BitcoinUnits::format(nDisplayUnit, out.tx->vout[out.i].nValue)
+                                     : sNTP1TokenAmounts));
             itemOutput->setText(COLUMN_AMOUNT_INT64,
-                                strPad(QString::number(out.tx->vout[out.i].nValue), 15,
-                                       " ")); // padding so that sorting works correctly
+                                (sNTP1TokenAmounts.isEmpty()
+                                     ? strPad(QString::number(out.tx->vout[out.i].nValue), 15,
+                                              " ")
+                                     : sNTP1TokenAmounts)); // padding so that sorting works correctly
 
             // date
             itemOutput->setText(
