@@ -8,8 +8,8 @@
 
 class NTP1TokenTxData
 {
-    uint64_t    amount;
     std::string tokenId;
+    uint64_t    amount;
     uint256     issueTxId;
     uint64_t    divisibility;
     // should be bool, but bool doesn't play well with the serializer
@@ -48,6 +48,7 @@ public:
                         READWRITE(divisibility);
                         READWRITE(lockStatus);
                         READWRITE(aggregationPolicy);
+                        READWRITE(tokenSymbol);
                        )
     // clang-format on
 };
