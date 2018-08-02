@@ -726,6 +726,7 @@ void CoinControlDialog::updateView()
                 itemOutput->setText(COLUMN_LABEL, sLabel);
             }
 
+            // TODO: check if big amounts of nebls are stored with the tokens
             // figure out token type
             QString sTokenType        = "";
             QString sTokenId          = "";
