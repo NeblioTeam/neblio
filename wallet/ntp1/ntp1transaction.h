@@ -183,6 +183,8 @@ bool operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs)
             lhs.ntp1TransactionType == rhs.ntp1TransactionType);
 }
 
+// TODO: aggregate only if aggregation policy allows so
+
 template <typename ScriptType>
 void NTP1Transaction::__TransferTokens(
     const std::shared_ptr<ScriptType>& scriptPtrD, const CTransaction& tx,
