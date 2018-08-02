@@ -259,7 +259,12 @@ Value createrawtransaction(const Array& params, bool fHelp)
         rawTx.vout.push_back(out);
     }
 
-    NTP1Transaction::AmendStdTxWithNTP1(rawTx);
+    try {
+        NTP1Transaction::AmendStdTxWithNTP1(rawTx);
+    } catch (std::exception& e) {
+        throw JSONRPCError(RPC_TX_AMEND_FAILED,
+                           std::string("Transaction NTP1-amendment failed. Error: ") + e.what());
+    }
 
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
     ss << rawTx;

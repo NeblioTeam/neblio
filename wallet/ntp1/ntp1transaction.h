@@ -154,6 +154,8 @@ public:
      * @param tx
      */
     static void AmendStdTxWithNTP1(CTransaction& tx);
+    static void AmendStdTxWithNTP1(CTransaction&                                                tx_,
+                                   const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputs);
 
     void __manualSet(int NVersion, uint256 TxHash, std::vector<unsigned char> TxSerialized,
                      std::vector<NTP1TxIn> Vin, std::vector<NTP1TxOut> Vout, uint64_t NLockTime,

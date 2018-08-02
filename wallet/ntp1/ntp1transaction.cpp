@@ -240,14 +240,23 @@ void NTP1Transaction::AmendStdTxWithNTP1(CTransaction& tx)
 {
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputs = GetAllNTP1InputsOfTx(tx);
 
+    AmendStdTxWithNTP1(tx, inputs);
+}
+
+void NTP1Transaction::AmendStdTxWithNTP1(
+    CTransaction& tx, const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputs)
+{
+    // temp copy to avoid changing the original if the operation fails
+    CTransaction tx_ = tx;
+
     EnsureInputsHashesMatch(inputs);
 
-    EnsureInputTokensRelateToTx(tx, inputs);
+    EnsureInputTokensRelateToTx(tx_, inputs);
 
-    unsigned inputTokenKinds = CountTokenKindsInInputs(tx, inputs);
+    unsigned inputTokenKinds = CountTokenKindsInInputs(tx_, inputs);
 
     std::string opReturnArg;
-    bool        txIsNTP1 = IsTxNTP1(&tx, &opReturnArg);
+    bool        txIsNTP1 = IsTxNTP1(&tx_, &opReturnArg);
 
     // if no inputs contain NTP1 AND no OP_RETURN argument exists, then this is a pure NEBL transaction
     // with no NTP1
@@ -256,23 +265,23 @@ void NTP1Transaction::AmendStdTxWithNTP1(CTransaction& tx)
     }
 
     if (txIsNTP1) {
-        throw std::runtime_error("Cannot NTP1-amend transaction " + tx.GetHash().ToString() +
+        throw std::runtime_error("Cannot NTP1-amend transaction " + tx_.GetHash().ToString() +
                                  " because it already has an OP_RETURN");
     }
 
-    ReorderTokenInputsToGoFirst(tx, inputs);
+    ReorderTokenInputsToGoFirst(tx_, inputs);
 
     if (!txIsNTP1 && inputTokenKinds > 0) {
         // no OP_RETURN output, but there are input tokens to be diverted to output
-        tx.vout.push_back(CTxOut(0, CScript())); // pushed now, but will be filled later
-        unsigned opRetIdx = tx.vout.size() - 1;
+        tx_.vout.push_back(CTxOut(0, CScript())); // pushed now, but will be filled later
+        unsigned opRetIdx = tx_.vout.size() - 1;
 
         std::vector<NTP1Script::TransferInstruction> TIs;
 
-        for (int i = 0; i < (int)tx.vin.size(); i++) {
-            const auto& inHash  = tx.vin[i].prevout.hash;
-            const auto& inIndex = tx.vin[i].prevout.n;
-            auto        it      = GetPrevInputIt(tx, inHash, inputs);
+        for (int i = 0; i < (int)tx_.vin.size(); i++) {
+            const auto& inHash  = tx_.vin[i].prevout.hash;
+            const auto& inIndex = tx_.vin[i].prevout.n;
+            auto        it      = GetPrevInputIt(tx_, inHash, inputs);
 
             const CTransaction&    inputTxNebl = it->first;
             const NTP1Transaction& inputTxNTP1 = it->second;
@@ -294,20 +303,20 @@ void NTP1Transaction::AmendStdTxWithNTP1(CTransaction& tx)
                 if (!ExtractDestination(inputTxNebl.vout.at(inIndex).scriptPubKey,
                                         currentTokenAddress)) {
                     throw std::runtime_error("Unable to extract address from previous output; tx: " +
-                                             tx.GetHash().ToString() + " and prevout: " +
+                                             tx_.GetHash().ToString() + " and prevout: " +
                                              inHash.ToString() + ":" + ToString(inIndex));
                 }
 
                 CScript outputScript;
                 outputScript.SetDestination(currentTokenAddress);
-                tx.vout.push_back(CTxOut(MIN_TX_FEE, outputScript));
+                tx_.vout.push_back(CTxOut(MIN_TX_FEE, outputScript));
 
                 // create the transfer instruction
                 NTP1Script::TransferInstruction ti;
                 ti.amount    = inputTxNTP1.vout.at(inIndex).getToken(j).getAmount();
                 ti.skipInput = false;
                 // set the output index based on the number of outputs (since we added the last output)
-                ti.outputIndex = tx.vout.size() - 1;
+                ti.outputIndex = tx_.vout.size() - 1;
 
                 // push the transfer instruction
                 TIs.push_back(ti);
@@ -319,9 +328,10 @@ void NTP1Transaction::AmendStdTxWithNTP1(CTransaction& tx)
         std::string script    = scriptPtrT->calculateScriptBin();
         std::string scriptHex = boost::algorithm::hex(script);
 
-        tx.vout[opRetIdx].scriptPubKey = CScript() << OP_RETURN << ParseHex(scriptHex);
-        tx.vout[opRetIdx].nValue       = MIN_TX_FEE;
+        tx_.vout[opRetIdx].scriptPubKey = CScript() << OP_RETURN << ParseHex(scriptHex);
+        tx_.vout[opRetIdx].nValue       = MIN_TX_FEE;
     }
+    tx = tx_;
 }
 
 void NTP1Transaction::__manualSet(int NVersion, uint256 TxHash, std::vector<unsigned char> TxSerialized,
