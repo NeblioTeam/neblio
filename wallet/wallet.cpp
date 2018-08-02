@@ -1081,31 +1081,34 @@ void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins, unsigned int nSp
             if (nDepth < 1)
                 continue;
 
-            // prevent staking NTP1 UTXOs
-            std::set<unsigned int> ntp1OutputIndices;
-            std::string            opReturnArg;
-
             // get NTP1 information of this transaction
-            bool txIsNTP1 = IsTxNTP1(pcoin, &opReturnArg);
-            if (txIsNTP1) {
-                try {
-                    std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScript(opReturnArg);
-                    if (scriptPtr.get() != nullptr) {
-                        ntp1OutputIndices = scriptPtr->getNTP1OutputIndices();
-                    }
-                } catch (std::exception& ex) {
-                    printf(
-                        "Unable to parse script to check whether an output is stakable; error says: %s",
-                        ex.what());
-                }
-            }
+            bool txIsNTP1 = IsTxNTP1(pcoin);
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
                 if (!(pcoin->IsSpent(i)) && IsMine(pcoin->vout[i]) &&
                     pcoin->vout[i].nValue >= nMinimumInputValue) {
-                    // if this output is an NTP1 output, skip it
-                    if (txIsNTP1 && (ntp1OutputIndices.find(i) != ntp1OutputIndices.end())) {
-                        continue;
+                    if (txIsNTP1) {
+                        // if this output is an NTP1 output, skip it
+                        try {
+                            const CTransaction* tx = dynamic_cast<const CTransaction*>(pcoin);
+                            if (tx == nullptr) {
+                                throw std::runtime_error(
+                                    "Unable to case transaction: " + pcoin->GetHash().ToString() +
+                                    " to CTransaction");
+                            }
+                            std::vector<std::pair<CTransaction, NTP1Transaction>> inputs =
+                                GetAllNTP1InputsOfTx(*tx);
+                            NTP1Transaction ntp1tx;
+                            ntp1tx.readNTP1DataFromTx(*tx, inputs);
+                            if (ntp1tx.getTxOut(i).getNumOfTokens() > 0) {
+                                continue;
+                            }
+                        } catch (std::exception& ex) {
+                            printf(
+                                "Unable to parse script to check whether an output is stakable; error "
+                                "says: %s",
+                                ex.what());
+                        }
                     }
                     vCoins.push_back(COutput(pcoin, i, nDepth));
                 }
