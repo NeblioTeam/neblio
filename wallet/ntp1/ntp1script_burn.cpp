@@ -98,11 +98,11 @@ std::string NTP1Script_Burn::Create_OpCodeFromMetadata(const std::string& metada
     const auto& sz = metadata.size();
     std::string result;
     if (sz == 0) {
-        return result = "22";
+        return result = std::to_string(0x22);
     } else if (sz == 20) {
-        return result = "21";
+        return result = std::to_string(0x21);
     } else if (sz == 52) {
-        return result = "20";
+        return result = std::to_string(0x20);
     } else {
         throw std::runtime_error("Invalid metadata size; can only be 0, 20 or 52");
     }

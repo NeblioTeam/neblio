@@ -86,11 +86,11 @@ std::string NTP1Script_Transfer::Create_OpCodeFromMetadata(const std::string& me
     const auto& sz = metadata.size();
     std::string result;
     if (sz == 0) {
-        return result = "12";
+        return result = std::to_string(0x12);
     } else if (sz == 20) {
-        return result = "11";
+        return result = std::to_string(0x11);
     } else if (sz == 52) {
-        return result = "15";
+        return result = std::to_string(0x15);
     } else {
         throw std::runtime_error("Invalid metadata size; can only be 0, 20 or 52");
     }

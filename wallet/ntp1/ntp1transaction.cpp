@@ -264,8 +264,8 @@ void NTP1Transaction::AmendStdTxWithNTP1(CTransaction& tx)
 
     if (!txIsNTP1 && inputTokenKinds > 0) {
         // no OP_RETURN output, but there are input tokens to be diverted to output
-        tx.vout.push_back(CTxOut());
-        CTxOut& opRetOutput = tx.vout.back(); // reference to OP_RETURN
+        tx.vout.push_back(CTxOut(0, CScript())); // pushed now, but will be filled later
+        unsigned opRetIdx = tx.vout.size() - 1;
 
         std::vector<NTP1Script::TransferInstruction> TIs;
 
@@ -316,12 +316,11 @@ void NTP1Transaction::AmendStdTxWithNTP1(CTransaction& tx)
 
         std::shared_ptr<NTP1Script_Transfer> scriptPtrT = NTP1Script_Transfer::CreateScript(TIs, "");
 
-        std::string script = scriptPtrT->calculateScriptBin();
+        std::string script    = scriptPtrT->calculateScriptBin();
+        std::string scriptHex = boost::algorithm::hex(script);
 
-        CScript opRetOutputScript;
-        opRetOutputScript << OP_RETURN << std::vector<unsigned char>(script.begin(), script.end());
-        opRetOutput.scriptPubKey = opRetOutputScript;
-        opRetOutput.nValue       = MIN_TX_FEE;
+        tx.vout[opRetIdx].scriptPubKey = CScript() << OP_RETURN << ParseHex(scriptHex);
+        tx.vout[opRetIdx].nValue       = MIN_TX_FEE;
     }
 }
 

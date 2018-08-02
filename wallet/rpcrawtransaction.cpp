@@ -10,6 +10,7 @@
 #include "init.h"
 #include "main.h"
 #include "net.h"
+#include "ntp1/ntp1transaction.h"
 #include "txdb.h"
 #include "wallet.h"
 
@@ -257,6 +258,8 @@ Value createrawtransaction(const Array& params, bool fHelp)
         CTxOut out(nAmount, scriptPubKey);
         rawTx.vout.push_back(out);
     }
+
+    NTP1Transaction::AmendStdTxWithNTP1(rawTx);
 
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
     ss << rawTx;
