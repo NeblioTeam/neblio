@@ -133,7 +133,7 @@ unsigned long NTP1Transaction::getTxOutCount() const { return vout.size(); }
 
 const NTP1TxOut& NTP1Transaction::getTxOut(unsigned long index) const { return vout[index]; }
 
-void NTP1Transaction::reorderTokenInputsToGoFirst(
+void NTP1Transaction::ReorderTokenInputsToGoFirst(
     CTransaction& tx, const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs)
 {
 
@@ -260,7 +260,7 @@ void NTP1Transaction::AmendStdTxWithNTP1(CTransaction& tx)
                                  " because it already has an OP_RETURN");
     }
 
-    reorderTokenInputsToGoFirst(tx, inputs);
+    ReorderTokenInputsToGoFirst(tx, inputs);
 
     if (!txIsNTP1 && inputTokenKinds > 0) {
         // no OP_RETURN output, but there are input tokens to be diverted to output

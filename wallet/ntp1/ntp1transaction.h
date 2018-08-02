@@ -118,7 +118,7 @@ public:
     friend inline bool operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs);
 
     static void
-    reorderTokenInputsToGoFirst(CTransaction&                                                tx,
+    ReorderTokenInputsToGoFirst(CTransaction&                                                tx,
                                 const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs);
 
     static unsigned int
