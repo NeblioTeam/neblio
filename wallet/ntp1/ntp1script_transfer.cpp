@@ -44,8 +44,6 @@ NTP1Script_Transfer::ParseTransferPostHeaderData(std::string ScriptBin, std::str
 
 std::string NTP1Script_Transfer::calculateScriptBin() const
 {
-    using namespace boost::algorithm;
-
     std::string result;
     result += headerBin;
     result += opCodeBin;
