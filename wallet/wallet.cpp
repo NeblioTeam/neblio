@@ -1100,6 +1100,7 @@ void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins, unsigned int nSp
                                 GetAllNTP1InputsOfTx(*tx);
                             NTP1Transaction ntp1tx;
                             ntp1tx.readNTP1DataFromTx(*tx, inputs);
+                            // if this output contains tokens, skip it to avoid burning them
                             if (ntp1tx.getTxOut(i).getNumOfTokens() > 0) {
                                 continue;
                             }
