@@ -117,9 +117,13 @@ public:
     const NTP1TxOut&   getTxOut(unsigned long index) const;
     friend inline bool operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs);
 
+    static void
+    reorderTokenInputsToGoFirst(CTransaction&                                                tx,
+                                const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs);
+
     static unsigned int
-    CountTokensKindsInInputs(const CTransaction&                                          tx,
-                             const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs);
+    CountTokenKindsInInputs(const CTransaction&                                          tx,
+                            const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs);
 
     static void
     EnsureInputsHashesMatch(const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs);
@@ -149,7 +153,7 @@ public:
      * @brief ComplementStdTxWithNTP1
      * @param tx
      */
-    static void ComplementStdTxWithNTP1(CTransaction& tx);
+    static void AmendStdTxWithNTP1(CTransaction& tx);
 
     void __manualSet(int NVersion, uint256 TxHash, std::vector<unsigned char> TxSerialized,
                      std::vector<NTP1TxIn> Vin, std::vector<NTP1TxOut> Vout, uint64_t NLockTime,

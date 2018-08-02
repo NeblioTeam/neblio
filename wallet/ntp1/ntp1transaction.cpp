@@ -133,7 +133,40 @@ unsigned long NTP1Transaction::getTxOutCount() const { return vout.size(); }
 
 const NTP1TxOut& NTP1Transaction::getTxOut(unsigned long index) const { return vout[index]; }
 
-unsigned int NTP1Transaction::CountTokensKindsInInputs(
+void NTP1Transaction::reorderTokenInputsToGoFirst(
+    CTransaction& tx, const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs)
+{
+
+    EnsureInputTokensRelateToTx(tx, inputsTxs);
+    EnsureInputsHashesMatch(inputsTxs);
+
+    if (CountTokenKindsInInputs(tx, inputsTxs) == 0) {
+        return;
+    }
+
+    // loop over vin's with no tokens, and swap them with ones that do to make them first
+    for (int i = 0; i < (int)tx.vin.size(); i++) {
+        auto it1 = GetPrevInputIt(tx, tx.vin[i].prevout.hash, inputsTxs);
+
+        const NTP1Transaction& ntp1InTx1 = it1->second;
+
+        // if there are no tokens in this instance, find next ones that do, and move tokens here
+        if (ntp1InTx1.getTxOut(tx.vin[i].prevout.n).getNumOfTokens() == 0) {
+            for (int j = i + 1; j < (int)tx.vin.size(); j++) {
+                auto it2 = GetPrevInputIt(tx, tx.vin[j].prevout.hash, inputsTxs);
+
+                const NTP1Transaction& ntp1InTx2 = it2->second;
+
+                if (ntp1InTx2.getTxOut(tx.vin[j].prevout.n).getNumOfTokens() != 0) {
+                    std::swap(tx.vin[i], tx.vin[j]);
+                    break;
+                }
+            }
+        }
+    }
+}
+
+unsigned int NTP1Transaction::CountTokenKindsInInputs(
     const CTransaction& tx, const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs)
 {
     unsigned result = 0;
@@ -203,7 +236,7 @@ NTP1Transaction::GetPrevInputIt(const CTransaction& tx, const uint256& inputTxHa
     return it;
 }
 
-void NTP1Transaction::ComplementStdTxWithNTP1(CTransaction& tx)
+void NTP1Transaction::AmendStdTxWithNTP1(CTransaction& tx)
 {
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputs = GetAllNTP1InputsOfTx(tx);
 
@@ -211,15 +244,84 @@ void NTP1Transaction::ComplementStdTxWithNTP1(CTransaction& tx)
 
     EnsureInputTokensRelateToTx(tx, inputs);
 
-    unsigned tokenKinds = CountTokensKindsInInputs(tx, inputs);
+    unsigned inputTokenKinds = CountTokenKindsInInputs(tx, inputs);
 
     std::string opReturnArg;
     bool        txIsNTP1 = IsTxNTP1(&tx, &opReturnArg);
 
     // if no inputs contain NTP1 AND no OP_RETURN argument exists, then this is a pure NEBL transaction
     // with no NTP1
-    if (!txIsNTP1 && tokenKinds == 0) {
+    if (!txIsNTP1 && inputTokenKinds == 0) {
         return;
+    }
+
+    if (txIsNTP1) {
+        throw std::runtime_error("Cannot NTP1-amend transaction " + tx.GetHash().ToString() +
+                                 " because it already has an OP_RETURN");
+    }
+
+    reorderTokenInputsToGoFirst(tx, inputs);
+
+    if (!txIsNTP1 && inputTokenKinds > 0) {
+        // no OP_RETURN output, but there are input tokens to be diverted to output
+        tx.vout.push_back(CTxOut());
+        CTxOut& opRetOutput = tx.vout.back(); // reference to OP_RETURN
+
+        std::vector<NTP1Script::TransferInstruction> TIs;
+
+        for (int i = 0; i < (int)tx.vin.size(); i++) {
+            const auto& inHash  = tx.vin[i].prevout.hash;
+            const auto& inIndex = tx.vin[i].prevout.n;
+            auto        it      = GetPrevInputIt(tx, inHash, inputs);
+
+            const CTransaction&    inputTxNebl = it->first;
+            const NTP1Transaction& inputTxNTP1 = it->second;
+
+            for (int j = 0; j < (int)inputTxNTP1.vout.at(inIndex).getNumOfTokens(); j++) {
+                if (inputTxNTP1.vout.at(inIndex).getToken(j).getAmount() == 0) {
+                    if (j == 0) {
+                        throw std::runtime_error("While amending a native neblio transactions, the "
+                                                 "first input is empty. This basically cannot be "
+                                                 "amended. Inputs must be reordered to have tokens in "
+                                                 "first inputs");
+                    }
+                    continue;
+                }
+
+                // prepare native Neblio output
+                CTxDestination currentTokenAddress;
+                // get the current address where the token is
+                if (!ExtractDestination(inputTxNebl.vout.at(inIndex).scriptPubKey,
+                                        currentTokenAddress)) {
+                    throw std::runtime_error("Unable to extract address from previous output; tx: " +
+                                             tx.GetHash().ToString() + " and prevout: " +
+                                             inHash.ToString() + ":" + ToString(inIndex));
+                }
+
+                CScript outputScript;
+                outputScript.SetDestination(currentTokenAddress);
+                tx.vout.push_back(CTxOut(MIN_TX_FEE, outputScript));
+
+                // create the transfer instruction
+                NTP1Script::TransferInstruction ti;
+                ti.amount    = inputTxNTP1.vout.at(inIndex).getToken(j).getAmount();
+                ti.skipInput = false;
+                // set the output index based on the number of outputs (since we added the last output)
+                ti.outputIndex = tx.vout.size() - 1;
+
+                // push the transfer instruction
+                TIs.push_back(ti);
+            }
+        }
+
+        std::shared_ptr<NTP1Script_Transfer> scriptPtrT = NTP1Script_Transfer::CreateScript(TIs, "");
+
+        std::string script = scriptPtrT->calculateScriptBin();
+
+        CScript opRetOutputScript;
+        opRetOutputScript << OP_RETURN << std::vector<unsigned char>(script.begin(), script.end());
+        opRetOutput.scriptPubKey = opRetOutputScript;
+        opRetOutput.nValue       = MIN_TX_FEE;
     }
 }
 
