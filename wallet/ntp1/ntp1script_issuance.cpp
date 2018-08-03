@@ -205,11 +205,11 @@ std::string NTP1Script_Issuance::Create_OpCodeFromMetadata(const std::string& me
     const auto& sz = metadata.size();
     std::string result;
     if (sz == 0) {
-        return result = std::to_string(0x03);
+        return std::string(1, static_cast<char>(uint8_t(0x03)));
     } else if (sz == 20) {
-        return result = std::to_string(0x02);
+        return std::string(1, static_cast<char>(uint8_t(0x02)));
     } else if (sz == 52) {
-        return result = std::to_string(0x01);
+        return std::string(1, static_cast<char>(uint8_t(0x01)));
     } else {
         throw std::runtime_error("Invalid metadata size; can only be 0, 20 or 52");
     }
