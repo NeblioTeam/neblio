@@ -39,7 +39,7 @@ unsigned int nTransactionsUpdated = 0;
 
 const std::string NTP1OpReturnRegexStr = R"(^OP_RETURN\s+(4e5401[a-fA-F0-9]*)$)";
 const std::regex  NTP1OpReturnRegex(NTP1OpReturnRegexStr);
-const std::string OpReturnRegexStr = R"(^OP_RETURN\s+.*$)";
+const std::string OpReturnRegexStr = R"(^OP_RETURN\s+(.*)$)";
 const std::regex  OpReturnRegex(OpReturnRegexStr);
 
 map<uint256, CBlockIndex*>         mapBlockIndex;
