@@ -39,7 +39,7 @@ unsigned int nTransactionsUpdated = 0;
 
 const std::string NTP1OpReturnRegexStr = R"(^OP_RETURN\s+(4e5401[a-fA-F0-9]*)$)";
 const std::regex  NTP1OpReturnRegex(NTP1OpReturnRegexStr);
-const std::string OpReturnRegexStr = R"(^OP_RETURN\s+([a-fA-F0-9]*)$)";
+const std::string OpReturnRegexStr = R"(^OP_RETURN\s+.*$)";
 const std::regex  OpReturnRegex(OpReturnRegexStr);
 
 map<uint256, CBlockIndex*>         mapBlockIndex;
@@ -4185,7 +4185,6 @@ bool TxContainsOpReturn(const CTransaction* tx, std::string* opReturnArg)
 
     std::smatch opReturnArgMatch;
 
-    static const std::string OP_RET_STR = "OP_RETURN";
     for (unsigned long j = 0; j < tx->vout.size(); j++) {
         // if the string OP_RET_STR is found in scriptPubKey
         std::string scriptPubKeyStr = tx->vout[j].scriptPubKey.ToString();
