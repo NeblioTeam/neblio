@@ -148,7 +148,7 @@ public:
 
     /**
      * takes a standard transaction and deals and tries to find NTP1-related problems in this transaction
-     * and solve them; for example, change is located and is put in the transaction
+     * and solve them; for example, NTP1 token change is located and is put in the transaction
      *
      * @brief ComplementStdTxWithNTP1
      * @param tx
