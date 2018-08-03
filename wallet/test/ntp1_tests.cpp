@@ -1620,6 +1620,24 @@ std::string GetRawTxOnline(const std::string& txid, bool testnet)
     return rawTx;
 }
 
+std::vector<std::pair<CTransaction, NTP1Transaction>> GetNTP1InputsOnline(const CTransaction& tx,
+                                                                          bool                testnet)
+{
+    std::vector<std::pair<CTransaction, NTP1Transaction>> inputs;
+
+    for (int i = 0; i < (int)tx.vin.size(); i++) {
+        std::string  inputTxid  = tx.vin[i].prevout.hash.ToString();
+        std::string  inputRawTx = GetRawTxOnline(inputTxid, testnet);
+        CTransaction inputTx    = TxFromHex(inputRawTx);
+
+        NTP1Transaction inputNTP1Tx = NTP1APICalls::RetrieveData_TransactionInfo(inputTxid, testnet);
+
+        inputs.push_back(std::make_pair(inputTx, inputNTP1Tx));
+    }
+
+    return inputs;
+}
+
 void TestNTP1TxParsing(const std::string& txid, bool testnet)
 {
     std::string           rawTx      = GetRawTxOnline(txid, testnet);
@@ -1994,4 +2012,380 @@ TEST(ntp1_tests, construct_scripts)
                        ::tolower);
         EXPECT_EQ(calculatedScript, toParse_burn);
     }
+}
+
+CTransaction GetTxOnline(const std::string& txid, bool testnet)
+{
+    std::string rawTx = GetRawTxOnline(txid, testnet);
+    return TxFromHex(rawTx);
+}
+
+TEST(ntp1_tests, amend_tx_1)
+{
+    fTestNet = true; // ensure testnet state will be reset on exit
+    std::unique_ptr<int, void (*)(int*)> temp(new int, [](int* i) {
+        fTestNet = false;
+        delete i;
+    });
+
+    std::string txidIn1 = "cee0c719a0375fde4137a415eb3f14fbf7afe6d83a9eca547a2134c4bc652c4f";
+    std::string txidIn2 = "a9b000ba0eb6b88ba8daad4b89997b2b457164983a18bbf2bffa0515b0c84348";
+    CTxIn       in0(uint256(txidIn1), 2);
+    CTxIn       in1(uint256(txidIn2), 0);
+
+    CScript script1;
+    CKeyID  keyId;
+    EXPECT_TRUE(CBitcoinAddress("TXM3QJ8DR2tSikeAYLY9UF6t3Lkjvt2Dva").GetKeyID(keyId));
+    script1.SetDestination(keyId);
+    CTxOut out0(96900000, script1);
+    CTxOut out1(1000000, script1);
+
+    CTransaction tx;
+
+    tx.vin.push_back(in0);
+    tx.vin.push_back(in1);
+
+    tx.vout.push_back(out0);
+    tx.vout.push_back(out1);
+
+    auto inputs = GetNTP1InputsOnline(tx, true);
+    NTP1Transaction::AmendStdTxWithNTP1(tx, inputs, 1);
+
+    EXPECT_EQ(tx.vout.size(), (unsigned)4);
+    EXPECT_EQ(tx.vout[0], out0);
+    EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue, out1.nValue);
+    std::string opRetArg;
+    EXPECT_TRUE(TxContainsOpReturn(&tx, &opRetArg));
+    EXPECT_EQ(opRetArg, "4e540112032051");
+
+    auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
+    auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
+    EXPECT_NE(scriptPtrD, nullptr);
+
+    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), (unsigned)1);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, (unsigned)50);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).skipInput, false);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, (unsigned)3);
+}
+
+TEST(ntp1_tests, amend_tx_2)
+{
+    fTestNet = true; // ensure testnet state will be reset on exit
+    std::unique_ptr<int, void (*)(int*)> temp(new int, [](int* i) {
+        fTestNet = false;
+        delete i;
+    });
+
+    std::string txidIn1 = "cee0c719a0375fde4137a415eb3f14fbf7afe6d83a9eca547a2134c4bc652c4f";
+    CTxIn       in0(uint256(txidIn1), 2);
+
+    CScript script1;
+    CKeyID  keyId;
+    EXPECT_TRUE(CBitcoinAddress("TXM3QJ8DR2tSikeAYLY9UF6t3Lkjvt2Dva").GetKeyID(keyId));
+    script1.SetDestination(keyId);
+    CTxOut out0(96900000, script1);
+    CTxOut out1(1000000, script1);
+
+    CTransaction tx;
+
+    tx.vin.push_back(in0);
+
+    tx.vout.push_back(out0);
+    tx.vout.push_back(out1);
+
+    auto inputs = GetNTP1InputsOnline(tx, true);
+    NTP1Transaction::AmendStdTxWithNTP1(tx, inputs, 1);
+
+    EXPECT_EQ(tx.vout.size(), (unsigned)2);
+    EXPECT_EQ(tx.vout[0], out0);
+    EXPECT_EQ(tx.vout[1], out1);
+    EXPECT_FALSE(TxContainsOpReturn(&tx));
+}
+
+TEST(ntp1_tests, amend_tx_3)
+{
+    fTestNet = true; // ensure testnet state will be reset on exit
+    std::unique_ptr<int, void (*)(int*)> temp(new int, [](int* i) {
+        fTestNet = false;
+        delete i;
+    });
+
+    std::string txidIn1 = "cee0c719a0375fde4137a415eb3f14fbf7afe6d83a9eca547a2134c4bc652c4f";
+    std::string txidIn2 = "a9b000ba0eb6b88ba8daad4b89997b2b457164983a18bbf2bffa0515b0c84348";
+    CTxIn       in0(uint256(txidIn2), 0); // flipped order
+    CTxIn       in1(uint256(txidIn1), 2);
+
+    CScript script1;
+    CKeyID  keyId;
+    EXPECT_TRUE(CBitcoinAddress("TXM3QJ8DR2tSikeAYLY9UF6t3Lkjvt2Dva").GetKeyID(keyId));
+    script1.SetDestination(keyId);
+    CTxOut out0(96900000, script1);
+    CTxOut out1(1000000, script1);
+
+    CTransaction tx;
+
+    tx.vin.push_back(in0);
+    tx.vin.push_back(in1);
+
+    tx.vout.push_back(out0);
+    tx.vout.push_back(out1);
+
+    auto inputs = GetNTP1InputsOnline(tx, true);
+    NTP1Transaction::AmendStdTxWithNTP1(tx, inputs, 1);
+
+    EXPECT_EQ(tx.vout.size(), (unsigned)4);
+    EXPECT_EQ(tx.vout[0], out0);
+    EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue, out1.nValue);
+    std::string opRetArg;
+    EXPECT_TRUE(TxContainsOpReturn(&tx, &opRetArg));
+    EXPECT_EQ(opRetArg, "4e540112032051");
+
+    auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
+    auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
+    EXPECT_NE(scriptPtrD, nullptr);
+
+    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), (unsigned)1);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, (unsigned)50);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).skipInput, false);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, (unsigned)3);
+}
+
+TEST(ntp1_tests, amend_tx_4)
+{
+    fTestNet = true; // ensure testnet state will be reset on exit
+    std::unique_ptr<int, void (*)(int*)> temp(new int, [](int* i) {
+        fTestNet = false;
+        delete i;
+    });
+
+    std::string txidIn0 = "cee0c719a0375fde4137a415eb3f14fbf7afe6d83a9eca547a2134c4bc652c4f";
+    std::string txidIn1 = "a9b000ba0eb6b88ba8daad4b89997b2b457164983a18bbf2bffa0515b0c84348";
+    std::string txidIn2 = "4ffa03b170ea85c9138e4c8547b36ecfbd97105f57c206fce2703b372641f775";
+    CTxIn       in0(uint256(txidIn0), 2);
+    CTxIn       in1(uint256(txidIn1), 0);
+    CTxIn       in2(uint256(txidIn2), 0);
+
+    CScript script1;
+    CKeyID  keyId;
+    EXPECT_TRUE(CBitcoinAddress("TXM3QJ8DR2tSikeAYLY9UF6t3Lkjvt2Dva").GetKeyID(keyId));
+    script1.SetDestination(keyId);
+    CTxOut out0(96900000, script1);
+    CTxOut out1(1000000, script1);
+
+    CTransaction tx;
+
+    tx.vin.push_back(in0);
+    tx.vin.push_back(in1);
+    tx.vin.push_back(in2);
+
+    tx.vout.push_back(out0);
+    tx.vout.push_back(out1);
+
+    auto inputs = GetNTP1InputsOnline(tx, true);
+    NTP1Transaction::AmendStdTxWithNTP1(tx, inputs, 1);
+
+    ASSERT_EQ(tx.vout.size(), (unsigned)5);
+    EXPECT_EQ(tx.vout[0], out0);
+    EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue + tx.vout[4].nValue,
+              out1.nValue);
+    std::string opRetArg;
+    EXPECT_TRUE(TxContainsOpReturn(&tx, &opRetArg));
+    EXPECT_EQ(opRetArg, "4e540112032051042041");
+
+    auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
+    auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
+    EXPECT_NE(scriptPtrD, nullptr);
+
+    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), (unsigned)2);
+
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, (unsigned)50);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).skipInput, false);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, (unsigned)3);
+
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).amount, (unsigned)40);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).skipInput, false);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).outputIndex, (unsigned)4);
+}
+
+TEST(ntp1_tests, amend_tx_5)
+{
+    fTestNet = true; // ensure testnet state will be reset on exit
+    std::unique_ptr<int, void (*)(int*)> temp(new int, [](int* i) {
+        fTestNet = false;
+        delete i;
+    });
+
+    std::string txidIn0 = "cee0c719a0375fde4137a415eb3f14fbf7afe6d83a9eca547a2134c4bc652c4f";
+    std::string txidIn1 = "a9b000ba0eb6b88ba8daad4b89997b2b457164983a18bbf2bffa0515b0c84348";
+    std::string txidIn2 = "4ffa03b170ea85c9138e4c8547b36ecfbd97105f57c206fce2703b372641f775";
+    std::string txidIn3 = "cee0c719a0375fde4137a415eb3f14fbf7afe6d83a9eca547a2134c4bc652c4f";
+    CTxIn       in0(uint256(txidIn0), 2);
+    CTxIn       in1(uint256(txidIn1), 0);
+    CTxIn       in2(uint256(txidIn2), 0);
+    CTxIn       in3(uint256(txidIn3), 3);
+
+    CScript script1;
+    CKeyID  keyId;
+    EXPECT_TRUE(CBitcoinAddress("TXM3QJ8DR2tSikeAYLY9UF6t3Lkjvt2Dva").GetKeyID(keyId));
+    script1.SetDestination(keyId);
+    CTxOut out0(96900000, script1);
+    CTxOut out1(1000000, script1);
+
+    CTransaction tx;
+
+    tx.vin.push_back(in0);
+    tx.vin.push_back(in1);
+    tx.vin.push_back(in2);
+    tx.vin.push_back(in3);
+
+    tx.vout.push_back(out0);
+    tx.vout.push_back(out1);
+
+    auto inputs = GetNTP1InputsOnline(tx, true);
+    NTP1Transaction::AmendStdTxWithNTP1(tx, inputs, 1);
+
+    ASSERT_EQ(tx.vout.size(), (unsigned)8);
+    EXPECT_EQ(tx.vout[0], out0);
+    EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue + tx.vout[4].nValue +
+                  tx.vout[5].nValue + tx.vout[6].nValue + tx.vout[7].nValue,
+              out1.nValue);
+    std::string opRetArg;
+    EXPECT_TRUE(TxContainsOpReturn(&tx, &opRetArg));
+    EXPECT_EQ(opRetArg, "4e5401120320510420410520e20638b10719");
+
+    auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
+    auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
+    EXPECT_NE(scriptPtrD, nullptr);
+
+    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), (unsigned)5);
+
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, (unsigned)50);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).skipInput, false);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, (unsigned)3);
+
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).amount, (unsigned)40);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).skipInput, false);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).outputIndex, (unsigned)4);
+
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).amount, (unsigned)1400);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).skipInput, false);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).outputIndex, (unsigned)5);
+
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).amount, (unsigned)3950);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).skipInput, false);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).outputIndex, (unsigned)6);
+
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).amount, (unsigned)25);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).skipInput, false);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).outputIndex, (unsigned)7);
+}
+
+TEST(ntp1_tests, amend_tx_6)
+{
+    fTestNet = true; // ensure testnet state will be reset on exit
+    std::unique_ptr<int, void (*)(int*)> temp(new int, [](int* i) {
+        fTestNet = false;
+        delete i;
+    });
+
+    std::string txidIn0 = "cee0c719a0375fde4137a415eb3f14fbf7afe6d83a9eca547a2134c4bc652c4f";
+    std::string txidIn1 = "a9b000ba0eb6b88ba8daad4b89997b2b457164983a18bbf2bffa0515b0c84348";
+    std::string txidIn2 = "4ffa03b170ea85c9138e4c8547b36ecfbd97105f57c206fce2703b372641f775";
+    std::string txidIn3 = "cee0c719a0375fde4137a415eb3f14fbf7afe6d83a9eca547a2134c4bc652c4f";
+    // different order than the other test
+    CTxIn in0(uint256(txidIn1), 0);
+    CTxIn in1(uint256(txidIn0), 2);
+    CTxIn in2(uint256(txidIn2), 0);
+    CTxIn in3(uint256(txidIn3), 3);
+
+    CScript script1;
+    CKeyID  keyId;
+    EXPECT_TRUE(CBitcoinAddress("TXM3QJ8DR2tSikeAYLY9UF6t3Lkjvt2Dva").GetKeyID(keyId));
+    script1.SetDestination(keyId);
+    CTxOut out0(96900000, script1);
+    CTxOut out1(1000000, script1);
+
+    CTransaction tx;
+
+    tx.vin.push_back(in0);
+    tx.vin.push_back(in1);
+    tx.vin.push_back(in2);
+    tx.vin.push_back(in3);
+
+    tx.vout.push_back(out0);
+    tx.vout.push_back(out1);
+
+    auto inputs = GetNTP1InputsOnline(tx, true);
+    NTP1Transaction::AmendStdTxWithNTP1(tx, inputs, 1);
+
+    ASSERT_EQ(tx.vout.size(), (unsigned)8);
+    EXPECT_EQ(tx.vout[0], out0);
+    EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue + tx.vout[4].nValue +
+                  tx.vout[5].nValue + tx.vout[6].nValue + tx.vout[7].nValue,
+              out1.nValue);
+    std::string opRetArg;
+    EXPECT_TRUE(TxContainsOpReturn(&tx, &opRetArg));
+    EXPECT_EQ(opRetArg, "4e5401120320510420410520e20638b10719");
+
+    auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
+    auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
+    EXPECT_NE(scriptPtrD, nullptr);
+
+    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), (unsigned)5);
+
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, (unsigned)50);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).skipInput, false);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, (unsigned)3);
+
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).amount, (unsigned)40);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).skipInput, false);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).outputIndex, (unsigned)4);
+
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).amount, (unsigned)1400);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).skipInput, false);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).outputIndex, (unsigned)5);
+
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).amount, (unsigned)3950);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).skipInput, false);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).outputIndex, (unsigned)6);
+
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).amount, (unsigned)25);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).skipInput, false);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).outputIndex, (unsigned)7);
+}
+
+TEST(ntp1_tests, amend_tx_with_op_return)
+{
+    fTestNet = true; // ensure testnet state will be reset on exit
+    std::unique_ptr<int, void (*)(int*)> temp(new int, [](int* i) {
+        fTestNet = false;
+        delete i;
+    });
+
+    std::string txidIn1 = "cee0c719a0375fde4137a415eb3f14fbf7afe6d83a9eca547a2134c4bc652c4f";
+    std::string txidIn2 = "a9b000ba0eb6b88ba8daad4b89997b2b457164983a18bbf2bffa0515b0c84348";
+    CTxIn       in0(uint256(txidIn1), 2);
+    CTxIn       in1(uint256(txidIn2), 0);
+
+    CScript script1;
+    CKeyID  keyId;
+    EXPECT_TRUE(CBitcoinAddress("TXM3QJ8DR2tSikeAYLY9UF6t3Lkjvt2Dva").GetKeyID(keyId));
+    CScript script2;
+    script2 = CScript() << OP_RETURN << ParseHex("ABC");
+    script1.SetDestination(keyId);
+    CTxOut out0(96900000, script1);
+    CTxOut out1(1000000, script1);
+    CTxOut out2(10000, script2);
+
+    CTransaction tx;
+
+    tx.vin.push_back(in0);
+    tx.vin.push_back(in1);
+
+    tx.vout.push_back(out0);
+    tx.vout.push_back(out1);
+    tx.vout.push_back(out2);
+
+    auto inputs = GetNTP1InputsOnline(tx, true);
+    EXPECT_ANY_THROW(NTP1Transaction::AmendStdTxWithNTP1(tx, inputs, 1));
 }

@@ -177,7 +177,7 @@ unsigned int NTP1Transaction::CountTokenKindsInInputs(
         const CTransaction&    neblInTx = it->first;
         const NTP1Transaction& ntp1InTx = it->second;
 
-        if (in.prevout.n + 1 >= ntp1InTx.getTxOutCount()) {
+        if (in.prevout.n + 1 > ntp1InTx.getTxOutCount()) {
             throw std::runtime_error("Failed at retrieving the number of tokens from transaction " +
                                      tx.GetHash().ToString() + " at input " +
                                      neblInTx.GetHash().ToString() +
@@ -236,15 +236,16 @@ NTP1Transaction::GetPrevInputIt(const CTransaction& tx, const uint256& inputTxHa
     return it;
 }
 
-void NTP1Transaction::AmendStdTxWithNTP1(CTransaction& tx)
+void NTP1Transaction::AmendStdTxWithNTP1(CTransaction& tx, int changeIndex)
 {
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputs = GetAllNTP1InputsOfTx(tx);
 
-    AmendStdTxWithNTP1(tx, inputs);
+    AmendStdTxWithNTP1(tx, inputs, changeIndex);
 }
 
 void NTP1Transaction::AmendStdTxWithNTP1(
-    CTransaction& tx, const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputs)
+    CTransaction& tx, const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputs,
+    int changeIndex)
 {
     // temp copy to avoid changing the original if the operation fails
     CTransaction tx_ = tx;
@@ -255,23 +256,23 @@ void NTP1Transaction::AmendStdTxWithNTP1(
 
     unsigned inputTokenKinds = CountTokenKindsInInputs(tx_, inputs);
 
-    std::string opReturnArg;
-    bool        txIsNTP1 = IsTxNTP1(&tx_, &opReturnArg);
+    bool txContainsOpReturn = TxContainsOpReturn(&tx_);
 
     // if no inputs contain NTP1 AND no OP_RETURN argument exists, then this is a pure NEBL transaction
     // with no NTP1
-    if (!txIsNTP1 && inputTokenKinds == 0) {
+    if (inputTokenKinds == 0) {
         return;
     }
 
-    if (txIsNTP1) {
+    // there are tokens, but there is already OP_RETURN
+    if (txContainsOpReturn) {
         throw std::runtime_error("Cannot NTP1-amend transaction " + tx_.GetHash().ToString() +
-                                 " because it already has an OP_RETURN");
+                                 " because it already has an OP_RETURN output");
     }
 
     ReorderTokenInputsToGoFirst(tx_, inputs);
 
-    if (!txIsNTP1 && inputTokenKinds > 0) {
+    if (!txContainsOpReturn && inputTokenKinds > 0) {
         // no OP_RETURN output, but there are input tokens to be diverted to output
         tx_.vout.push_back(CTxOut(0, CScript())); // pushed now, but will be filled later
         unsigned opRetIdx = tx_.vout.size() - 1;
@@ -288,11 +289,11 @@ void NTP1Transaction::AmendStdTxWithNTP1(
 
             for (int j = 0; j < (int)inputTxNTP1.vout.at(inIndex).getNumOfTokens(); j++) {
                 if (inputTxNTP1.vout.at(inIndex).getToken(j).getAmount() == 0) {
-                    if (j == 0) {
+                    if (i == 0) {
                         throw std::runtime_error("While amending a native neblio transactions, the "
                                                  "first input is empty. This basically cannot be "
                                                  "amended. Inputs must be reordered to have tokens in "
-                                                 "first inputs");
+                                                 "first inputs, and it seems that reordering failed");
                     }
                     continue;
                 }
@@ -307,8 +308,24 @@ void NTP1Transaction::AmendStdTxWithNTP1(
                                              inHash.ToString() + ":" + ToString(inIndex));
                 }
 
+                if (changeIndex + 1 > (int)tx_.vout.size()) {
+                    throw std::runtime_error("Invalid change index provided to fund moving NTP1 tokens");
+                }
+
+                if (changeIndex < 0) {
+                    throw std::runtime_error(
+                        "Could not find a change output from which NTP1 token moving can be funded");
+                }
+
+                if (tx_.vout.at(changeIndex).nValue < MIN_TX_FEE) {
+                    throw std::runtime_error(
+                        "Insufficient balance in change to create fund moving an NTP1 token");
+                }
+
                 CScript outputScript;
                 outputScript.SetDestination(currentTokenAddress);
+                // create a new output
+                tx_.vout[changeIndex].nValue -= MIN_TX_FEE; // subtract
                 tx_.vout.push_back(CTxOut(MIN_TX_FEE, outputScript));
 
                 // create the transfer instruction
@@ -323,14 +340,44 @@ void NTP1Transaction::AmendStdTxWithNTP1(
             }
         }
 
+        if (changeIndex + 1 > (int)tx_.vout.size()) {
+            throw std::runtime_error("Invalid change index provided to fund moving NTP1 tokens");
+        }
+
+        if (changeIndex < 0) {
+            throw std::runtime_error(
+                "Could not find a change output from which NTP1 token moving can be funded");
+        }
+
+        if (tx_.vout.at(changeIndex).nValue < MIN_TX_FEE) {
+            throw std::runtime_error(
+                "Insufficient balance in change to create fund moving an NTP1 token");
+        }
+
+        // if the change left equals exactly the amount required to create OP_RETURN, make it there
+        bool setOpRetAtChangeOutput = false;
+        if (tx_.vout[changeIndex].nValue == MIN_TX_FEE) {
+            setOpRetAtChangeOutput = true;
+        }
+
         std::shared_ptr<NTP1Script_Transfer> scriptPtrT = NTP1Script_Transfer::CreateScript(TIs, "");
 
         std::string script    = scriptPtrT->calculateScriptBin();
         std::string scriptHex = boost::algorithm::hex(script);
 
-        tx_.vout[opRetIdx].scriptPubKey = CScript() << OP_RETURN << ParseHex(scriptHex);
-        tx_.vout[opRetIdx].nValue       = MIN_TX_FEE;
+        CScript outputScript = CScript() << OP_RETURN << ParseHex(scriptHex);
+        if (setOpRetAtChangeOutput) {
+            // use the change output to move the tokens there
+            tx_.vout[changeIndex] = CTxOut(MIN_TX_FEE, outputScript);
+            // delete the unused index since change index was replaced
+            tx_.vout.erase(tx_.vout.begin() + opRetIdx);
+        } else {
+            tx_.vout[opRetIdx] = CTxOut(MIN_TX_FEE, outputScript);
+            tx_.vout[changeIndex].nValue -= MIN_TX_FEE; // subtract
+        }
     }
+
+    // copy the result to the input
     tx = tx_;
 }
 
