@@ -28,6 +28,8 @@ SendCoinsEntry::SendCoinsEntry(QWidget* parent) : QFrame(parent), ui(new Ui::Sen
     setFocusProxy(ui->payTo);
 
     GUIUtil::setupAddressWidget(ui->payTo, this);
+
+    updateNTP1TokensList();
 }
 
 SendCoinsEntry::~SendCoinsEntry() { delete ui; }
