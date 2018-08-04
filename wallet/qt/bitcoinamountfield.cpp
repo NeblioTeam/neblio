@@ -1,5 +1,6 @@
 #include "bitcoinamountfield.h"
 #include "bitcoinunits.h"
+#include "ntp1/ntp1listelementtokendata.h"
 #include "qvaluecombobox.h"
 
 #include "guiconstants.h"
@@ -14,8 +15,11 @@
 #include <QRegExpValidator>
 #include <qmath.h>
 
-BitcoinAmountField::BitcoinAmountField(QWidget* parent) : QWidget(parent), amount(0), currentUnit(-1)
+BitcoinAmountField::BitcoinAmountField(bool EnableNTP1Tokens, QWidget* parent)
+    : QWidget(parent), amount(0), currentUnit(-1)
 {
+    enableNTP1Tokens = EnableNTP1Tokens;
+
     amount = new QDoubleSpinBox(this);
     amount->setLocale(QLocale::c());
     amount->setDecimals(8);
@@ -30,6 +34,25 @@ BitcoinAmountField::BitcoinAmountField(QWidget* parent) : QWidget(parent), amoun
     layout->addWidget(unit);
     //    layout->addStretch(1);
     layout->setContentsMargins(0, 0, 0, 0);
+
+    if (enableNTP1Tokens) {
+        tokenKindsComboBox = new QComboBox;
+        tokenKindsComboBox->addItem(QIcon(QStringLiteral(":/icons/bitcoin")), "NEBL");
+        layout->addWidget(tokenKindsComboBox);
+
+        refreshTokensButton = new QToolButton;
+        QIcon icon;
+        icon.addFile(QStringLiteral(":/icons/refresh"), QSize(), QIcon::Normal, QIcon::Off);
+        refreshTokensButton->setIcon(icon);
+        refreshTokensButton->setToolTip("Refresh tokens list");
+        layout->addWidget(refreshTokensButton);
+
+        connect(refreshTokensButton, &QToolButton::clicked, this,
+                &BitcoinAmountField::slot_updateTokensList);
+        connect(tokenKindsComboBox,
+                static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this,
+                &BitcoinAmountField::slot_tokenChanged);
+    }
 
     setLayout(layout);
 
@@ -54,8 +77,12 @@ void BitcoinAmountField::setText(const QString& text)
 
 void BitcoinAmountField::clear()
 {
-    amount->clear();
-    unit->setCurrentIndex(0);
+    if (enableNTP1Tokens) {
+        amount->clear();
+        unit->setCurrentIndex(0);
+        tokenKindsComboBox->setCurrentIndex(0);
+        slot_updateTokensList();
+    }
 }
 
 bool BitcoinAmountField::validate()
@@ -85,6 +112,41 @@ QString BitcoinAmountField::text() const
         return QString();
     else
         return amount->text();
+}
+
+void BitcoinAmountField::slot_updateTokensList()
+{
+    if (enableNTP1Tokens) {
+        boost::shared_ptr<NTP1Wallet> wallet;
+        if (ntp1TokenListModelInstance.load()) {
+            wallet = ntp1TokenListModelInstance.load()->getCurrentWallet();
+        }
+
+        // update the internal list
+        tokenKindsList.clear();
+        for (long i = 0; i < wallet->getNumberOfTokens(); i++) {
+            NTP1ListElementTokenData d;
+            d.fill(i, wallet);
+            tokenKindsList.push_back(d);
+        }
+
+        // update the combobox
+        tokenKindsComboBox->clear();
+        tokenKindsComboBox->addItem(QIcon(QStringLiteral(":/icons/bitcoin")), "NEBL");
+        for (unsigned i = 0; i < tokenKindsList.size(); i++) {
+            tokenKindsComboBox->addItem(tokenKindsList[i].icon,
+                                        tokenKindsList[i].name + " (" +
+                                            QString::number(tokenKindsList[i].amount) + ") (" +
+                                            tokenKindsList[i].tokenId.left(10) + ")");
+        }
+    }
+}
+
+void BitcoinAmountField::slot_tokenChanged()
+{
+    if (enableNTP1Tokens) {
+        unit->setEnabled(tokenKindsComboBox->currentIndex() == 0);
+    }
 }
 
 bool BitcoinAmountField::eventFilter(QObject* object, QEvent* event)
@@ -125,6 +187,19 @@ qint64 BitcoinAmountField::value(bool* valid_out) const
 }
 
 void BitcoinAmountField::setValue(qint64 value) { setText(BitcoinUnits::format(currentUnit, value)); }
+
+std::string BitcoinAmountField::getSelectedTokenId() const
+{
+    if (enableNTP1Tokens) {
+        int selectedIndex = tokenKindsComboBox->currentIndex();
+        if (selectedIndex == 0) {
+            return "NEBL";
+        } else {
+            return tokenKindsList.at(selectedIndex - 1).tokenId.toStdString(); // element 0 is NEBL
+        }
+    }
+    return "";
+}
 
 void BitcoinAmountField::unitChanged(int idx)
 {

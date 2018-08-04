@@ -463,6 +463,15 @@ void SendCoinsDialog::coinControlClipboardChange()
         ui->labelCoinControlChange->text().left(ui->labelCoinControlChange->text().indexOf(" ")));
 }
 
+void SendCoinsDialog::updateAllTokenLists()
+{
+    for (int i = 0; i < ui->entries->count(); ++i) {
+        SendCoinsEntry* entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
+        if (entry)
+            entry->updateNTP1TokensList();
+    }
+}
+
 // Coin Control: settings menu - coin control enabled/disabled by user
 void SendCoinsDialog::coinControlFeatureChanged(bool checked)
 {

@@ -7,26 +7,9 @@
 #include <QPushButton>
 #include <functional>
 
+#include "ntp1/ntp1listelementtokendata.h"
 #include "ntp1/ntp1sendtokensonerecipientdata.h"
 #include "ntp1senddialog.h"
-
-struct TokenData
-{
-    QString name;
-    QString tokenId;
-    qint64  amount;
-    QIcon   icon;
-    void    fill(int index, boost::shared_ptr<NTP1Wallet> wallet)
-    {
-        name = NTP1TokenListModel::__getTokenName(index, wallet);
-        icon = NTP1TokenListModel::__getTokenIcon(index, wallet);
-        if (icon.isNull()) {
-            icon = QIcon(":/images/orion");
-        }
-        tokenId = NTP1TokenListModel::__getTokenId(index, wallet);
-        amount  = FromString<qint64>(NTP1TokenListModel::__getTokenBalance(index, wallet).toStdString());
-    }
-};
 
 class NTP1SendSingleTokenFields Q_DECL_FINAL : public QWidget
 {
@@ -39,7 +22,7 @@ class NTP1SendSingleTokenFields Q_DECL_FINAL : public QWidget
     QPushButton*                                       closeButton;
     void                                               createWidgets();
     std::function<boost::shared_ptr<NTP1Wallet>(void)> retrieveLatestWallet;
-    std::deque<TokenData>                              currentTokens;
+    std::deque<NTP1ListElementTokenData>               currentTokens;
     void                                               fillCurrentTokens();
 
 public:

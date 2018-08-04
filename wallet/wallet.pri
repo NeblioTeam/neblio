@@ -125,7 +125,8 @@ HEADERS += qt/bitcoingui.h \
     ntp1/ntp1sendtokensdata.h \
     qt/ntp1sendtokensfeewidget.h \
     ntp1/ntp1script_burn.h \
-    ntp1/ntp1tokenminimalmetadata.h
+    ntp1/ntp1tokenminimalmetadata.h \
+    qt/ntp1/ntp1listelementtokendata.h
 
 
 HEADERS +=                 \

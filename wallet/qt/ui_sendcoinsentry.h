@@ -9,6 +9,8 @@
 #ifndef UI_SENDCOINSENTRY_H
 #define UI_SENDCOINSENTRY_H
 
+#include "bitcoinamountfield.h"
+#include "qvalidatedlineedit.h"
 #include <QtCore/QVariant>
 #include <QtWidgets/QAction>
 #include <QtWidgets/QApplication>
@@ -19,34 +21,33 @@
 #include <QtWidgets/QHeaderView>
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QToolButton>
-#include "bitcoinamountfield.h"
-#include "qvalidatedlineedit.h"
 
 QT_BEGIN_NAMESPACE
 
 class Ui_SendCoinsEntry
 {
 public:
-    QGridLayout *gridLayout;
-    QLabel *label;
-    QLabel *label_2;
-    BitcoinAmountField *payAmount;
-    QHBoxLayout *horizontalLayout_2;
-    QValidatedLineEdit *addAsLabel;
-    QLabel *label_4;
-    QHBoxLayout *payToLayout;
-    QValidatedLineEdit *payTo;
-    QToolButton *addressBookButton;
-    QToolButton *pasteButton;
-    QToolButton *deleteButton;
+    QGridLayout*        gridLayout;
+    QLabel*             label;
+    QLabel*             label_2;
+    BitcoinAmountField* payAmount;
+    QHBoxLayout*        horizontalLayout_2;
+    QValidatedLineEdit* addAsLabel;
+    QLabel*             label_4;
+    QHBoxLayout*        payToLayout;
+    QValidatedLineEdit* payTo;
+    QToolButton*        addressBookButton;
+    QToolButton*        pasteButton;
+    QToolButton*        deleteButton;
 
-    void setupUi(QFrame *SendCoinsEntry)
+    void setupUi(QFrame* SendCoinsEntry)
     {
         if (SendCoinsEntry->objectName().isEmpty())
             SendCoinsEntry->setObjectName(QStringLiteral("SendCoinsEntry"));
-//        SendCoinsEntry->resize(729, 136);
-        SendCoinsEntry->setStyleSheet(QStringLiteral("QComboBox QAbstractItemView { selection-background-color: #698DCD;}"
-                                                     "QComboBox::item:selected { background-color: #698DCD;}"));
+        //        SendCoinsEntry->resize(729, 136);
+        SendCoinsEntry->setStyleSheet(
+            QStringLiteral("QComboBox QAbstractItemView { selection-background-color: #698DCD;}"
+                           "QComboBox::item:selected { background-color: #698DCD;}"));
         SendCoinsEntry->setFrameShape(QFrame::StyledPanel);
         SendCoinsEntry->setFrameShadow(QFrame::Sunken);
         gridLayout = new QGridLayout(SendCoinsEntry);
@@ -54,17 +55,17 @@ public:
         gridLayout->setObjectName(QStringLiteral("gridLayout"));
         label = new QLabel(SendCoinsEntry);
         label->setObjectName(QStringLiteral("label"));
-        label->setAlignment(Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter);
+        label->setAlignment(Qt::AlignRight | Qt::AlignTrailing | Qt::AlignVCenter);
 
         gridLayout->addWidget(label, 5, 0, 1, 1);
 
         label_2 = new QLabel(SendCoinsEntry);
         label_2->setObjectName(QStringLiteral("label_2"));
-        label_2->setAlignment(Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter);
+        label_2->setAlignment(Qt::AlignRight | Qt::AlignTrailing | Qt::AlignVCenter);
 
         gridLayout->addWidget(label_2, 3, 0, 1, 1);
 
-        payAmount = new BitcoinAmountField(SendCoinsEntry);
+        payAmount = new BitcoinAmountField(true, SendCoinsEntry);
         payAmount->setObjectName(QStringLiteral("payAmount"));
 
         gridLayout->addWidget(payAmount, 5, 1, 1, 1);
@@ -78,12 +79,11 @@ public:
 
         horizontalLayout_2->addWidget(addAsLabel);
 
-
         gridLayout->addLayout(horizontalLayout_2, 4, 1, 1, 1);
 
         label_4 = new QLabel(SendCoinsEntry);
         label_4->setObjectName(QStringLiteral("label_4"));
-        label_4->setAlignment(Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter);
+        label_4->setAlignment(Qt::AlignRight | Qt::AlignTrailing | Qt::AlignVCenter);
 
         gridLayout->addWidget(label_4, 4, 0, 1, 1);
 
@@ -120,7 +120,6 @@ public:
 
         payToLayout->addWidget(deleteButton);
 
-
         gridLayout->addLayout(payToLayout, 3, 1, 1, 1);
 
 #ifndef QT_NO_SHORTCUT
@@ -134,38 +133,46 @@ public:
         QMetaObject::connectSlotsByName(SendCoinsEntry);
     } // setupUi
 
-    void retranslateUi(QFrame *SendCoinsEntry)
+    void retranslateUi(QFrame* SendCoinsEntry)
     {
         SendCoinsEntry->setWindowTitle(QApplication::translate("SendCoinsEntry", "Form", Q_NULLPTR));
         label->setText(QApplication::translate("SendCoinsEntry", "A&mount:", Q_NULLPTR));
         label_2->setText(QApplication::translate("SendCoinsEntry", "Pay &To:", Q_NULLPTR));
 #ifndef QT_NO_TOOLTIP
-        addAsLabel->setToolTip(QApplication::translate("SendCoinsEntry", "Enter a label for this address to add it to your address book", Q_NULLPTR));
+        addAsLabel->setToolTip(QApplication::translate(
+            "SendCoinsEntry", "Enter a label for this address to add it to your address book",
+            Q_NULLPTR));
 #endif // QT_NO_TOOLTIP
         label_4->setText(QApplication::translate("SendCoinsEntry", "&Label:", Q_NULLPTR));
 #ifndef QT_NO_TOOLTIP
-        payTo->setToolTip(QApplication::translate("SendCoinsEntry", "The address to send the payment to  (e.g. 8dpZqgY4r2RoEdqYk3QsAqFckyf9pRHN6i)", Q_NULLPTR));
+        payTo->setToolTip(QApplication::translate(
+            "SendCoinsEntry",
+            "The address to send the payment to  (e.g. 8dpZqgY4r2RoEdqYk3QsAqFckyf9pRHN6i)", Q_NULLPTR));
 #endif // QT_NO_TOOLTIP
 #ifndef QT_NO_TOOLTIP
-        addressBookButton->setToolTip(QApplication::translate("SendCoinsEntry", "Choose address from address book", Q_NULLPTR));
+        addressBookButton->setToolTip(
+            QApplication::translate("SendCoinsEntry", "Choose address from address book", Q_NULLPTR));
 #endif // QT_NO_TOOLTIP
         addressBookButton->setText(QString());
         addressBookButton->setShortcut(QApplication::translate("SendCoinsEntry", "Alt+A", Q_NULLPTR));
 #ifndef QT_NO_TOOLTIP
-        pasteButton->setToolTip(QApplication::translate("SendCoinsEntry", "Paste address from clipboard", Q_NULLPTR));
+        pasteButton->setToolTip(
+            QApplication::translate("SendCoinsEntry", "Paste address from clipboard", Q_NULLPTR));
 #endif // QT_NO_TOOLTIP
         pasteButton->setText(QString());
         pasteButton->setShortcut(QApplication::translate("SendCoinsEntry", "Alt+P", Q_NULLPTR));
 #ifndef QT_NO_TOOLTIP
-        deleteButton->setToolTip(QApplication::translate("SendCoinsEntry", "Remove this recipient", Q_NULLPTR));
+        deleteButton->setToolTip(
+            QApplication::translate("SendCoinsEntry", "Remove this recipient", Q_NULLPTR));
 #endif // QT_NO_TOOLTIP
         deleteButton->setText(QString());
     } // retranslateUi
-
 };
 
 namespace Ui {
-    class SendCoinsEntry: public Ui_SendCoinsEntry {};
+class SendCoinsEntry : public Ui_SendCoinsEntry
+{
+};
 } // namespace Ui
 
 QT_END_NAMESPACE

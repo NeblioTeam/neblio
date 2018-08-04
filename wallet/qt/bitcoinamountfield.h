@@ -1,6 +1,10 @@
 #ifndef BITCOINFIELD_H
 #define BITCOINFIELD_H
 
+#include "qt/ntp1/ntp1listelementtokendata.h"
+#include "qt/ntp1/ntp1tokenlistmodel.h"
+#include <QComboBox>
+#include <QToolButton>
 #include <QWidget>
 
 QT_BEGIN_NAMESPACE
@@ -15,10 +19,11 @@ class BitcoinAmountField : public QWidget
     Q_OBJECT
     Q_PROPERTY(qint64 value READ value WRITE setValue NOTIFY textChanged USER true)
 public:
-    explicit BitcoinAmountField(QWidget* parent = 0);
+    explicit BitcoinAmountField(bool EnableNTP1Tokens, QWidget* parent);
 
-    qint64 value(bool* valid = 0) const;
-    void   setValue(qint64 value);
+    qint64      value(bool* valid = 0) const;
+    void        setValue(qint64 value);
+    std::string getSelectedTokenId() const;
 
     /** Mark current value as invalid in UI. */
     void setValid(bool valid);
@@ -40,6 +45,10 @@ public:
 signals:
     void textChanged();
 
+public slots:
+    void slot_updateTokensList();
+    void slot_tokenChanged();
+
 protected:
     /** Intercept focus-in event and ',' key presses */
     bool eventFilter(QObject* object, QEvent* event);
@@ -48,10 +57,17 @@ protected:
 private:
     QDoubleSpinBox* amount;
     QValueComboBox* unit;
+    QComboBox*      tokenKindsComboBox;
+    QToolButton*    refreshTokensButton;
     int             currentUnit;
+
+    NTP1TokenListModel*                  tokenListDataModel;
+    std::deque<NTP1ListElementTokenData> tokenKindsList;
 
     void    setText(const QString& text);
     QString text() const;
+
+    bool enableNTP1Tokens = false;
 
 private slots:
     void unitChanged(int idx);

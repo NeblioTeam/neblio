@@ -94,4 +94,6 @@ private slots:
     void endWalletUpdate();
 };
 
+extern std::atomic<NTP1TokenListModel*> ntp1TokenListModelInstance;
+
 #endif // NTP1TOKENLISTMODEL_H

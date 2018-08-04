@@ -6,6 +6,8 @@
 #include <QIcon>
 #include <QImage>
 
+std::atomic<NTP1TokenListModel*> ntp1TokenListModelInstance{nullptr};
+
 const std::string NTP1TokenListModel::WalletFileName = "NTP1Wallet.json";
 
 QString NTP1TokenListModel::__getTokenName(int index, boost::shared_ptr<NTP1Wallet> theWallet)
@@ -63,9 +65,14 @@ NTP1TokenListModel::NTP1TokenListModel()
     reloadBalances();
     boost::thread t(&NTP1TokenListModel::SetupNTP1WalletTxUpdaterToWallet, this);
     t.detach();
+    ntp1TokenListModelInstance.store(this);
 }
 
-NTP1TokenListModel::~NTP1TokenListModel() { ntp1WalletTxUpdater.reset(); }
+NTP1TokenListModel::~NTP1TokenListModel()
+{
+    ntp1TokenListModelInstance.store(nullptr);
+    ntp1WalletTxUpdater.reset();
+}
 
 void NTP1TokenListModel::reloadBalances()
 {

@@ -117,7 +117,7 @@ void NTP1SendSingleTokenFields::fillCurrentTokens()
 
     currentTokens.clear();
     for (long i = 0; i < wallet->getNumberOfTokens(); i++) {
-        TokenData d;
+        NTP1ListElementTokenData d;
         d.fill(i, wallet);
         currentTokens.push_back(d);
     }
