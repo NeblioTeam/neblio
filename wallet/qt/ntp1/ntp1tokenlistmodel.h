@@ -3,6 +3,7 @@
 
 #include <QAbstractTableModel>
 #include <QTimer>
+#include <atomic>
 
 #include "init.h"
 #include "ntp1/ntp1wallet.h"
