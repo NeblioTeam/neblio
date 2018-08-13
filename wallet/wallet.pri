@@ -76,6 +76,7 @@ HEADERS += qt/bitcoingui.h \
     bitcoinrpc.h \
     qt/overviewpage.h \
     qt/ui_overviewpage.h \
+    qt/ui_qrcodedialog.h \
     qt/ntp1summary.h \
     qt/ui_ntp1summary.h \
     qt/ui_sendcoinsdialog.h \

@@ -62,7 +62,9 @@ BitcoinAmountField::BitcoinAmountField(bool EnableNTP1Tokens, QWidget* parent)
     // If one if the widgets changes, the combined content changes as well
     connect(amount, SIGNAL(valueChanged(QString)), this, SIGNAL(textChanged()));
     connect(unit, SIGNAL(currentIndexChanged(int)), this, SLOT(unitChanged(int)));
-    connect(tokenKindsComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(unitChanged(int)));
+    if (enableNTP1Tokens) {
+        connect(tokenKindsComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(unitChanged(int)));
+    }
 
     // Set default based on configuration
     unitChanged(unit->currentIndex());
@@ -78,9 +80,9 @@ void BitcoinAmountField::setText(const QString& text)
 
 void BitcoinAmountField::clear()
 {
+    amount->clear();
+    unit->setCurrentIndex(0);
     if (enableNTP1Tokens) {
-        amount->clear();
-        unit->setCurrentIndex(0);
         tokenKindsComboBox->setCurrentIndex(0);
         slot_updateTokensList();
     }
@@ -209,7 +211,7 @@ QString BitcoinAmountField::getSelectedTokenId() const
 
 bool BitcoinAmountField::isNTP1TokenSelected() const
 {
-    return (tokenKindsComboBox->currentIndex() != 0);
+    return (enableNTP1Tokens && tokenKindsComboBox->currentIndex() != 0);
 }
 
 void BitcoinAmountField::unitChanged(int idx)
