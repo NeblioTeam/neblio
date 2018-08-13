@@ -39,18 +39,18 @@ public:
     QLabel*      upper_table_label;
     QLabel*      upper_table_loading_label;
     QLineEdit*   filter_lineEdit;
-    QPushButton* showSendDialogButton;
-    QLabel*      labelBlockchainSyncStatus;
-    QListView*   listTokens;
+    //    QPushButton* showSendDialogButton;
+    QLabel*    labelBlockchainSyncStatus;
+    QListView* listTokens;
 
     QWidget*     bottom_bar_widget;
     QLabel*      bottom_bar_logo_label;
     QGridLayout* bottom_layout;
     QPixmap      bottom_logo_pix;
 
-    QGroupBox*      sendTokensWidgetGroupBox;
-    QGridLayout*    sendTokensWidgetGroupBoxLayout;
-    NTP1SendDialog* sendTokensWidget;
+    //    QGroupBox*      sendTokensWidgetGroupBox;
+    //    QGridLayout*    sendTokensWidgetGroupBoxLayout;
+    //    NTP1SendDialog* sendTokensWidget;
 
     int bottom_bar_downscale_factor;
 
@@ -76,13 +76,13 @@ public:
         left_logo_label->setPixmap(left_logo_pix);
         left_logo_label->setAlignment(Qt::AlignCenter);
 
-        sendTokensWidget               = new NTP1SendDialog(tokenListModel);
-        sendTokensWidgetGroupBoxLayout = new QGridLayout;
-        sendTokensWidgetGroupBox       = new QGroupBox;
-        sendTokensWidgetGroupBox->setLayout(sendTokensWidgetGroupBoxLayout);
-        sendTokensWidgetGroupBoxLayout->addWidget(sendTokensWidget);
-        sendTokensWidgetGroupBox->setStyleSheet(
-            "QGroupBox { background-color: white; border: 1px solid #BBBBBB ;}");
+        //        sendTokensWidget               = new NTP1SendDialog(tokenListModel);
+        //        sendTokensWidgetGroupBoxLayout = new QGridLayout;
+        //        sendTokensWidgetGroupBox       = new QGroupBox;
+        //        sendTokensWidgetGroupBox->setLayout(sendTokensWidgetGroupBoxLayout);
+        //        sendTokensWidgetGroupBoxLayout->addWidget(sendTokensWidget);
+        //        sendTokensWidgetGroupBox->setStyleSheet(
+        //            "QGroupBox { background-color: white; border: 1px solid #BBBBBB ;}");
 
         logo_layout = new QVBoxLayout(left_logo_label);
         logo_layout->setObjectName(QStringLiteral("verticalLayout_4"));
@@ -114,8 +114,8 @@ public:
         verticalLayout        = new QVBoxLayout(wallet_contents_frame);
         verticalLayoutContent = new QHBoxLayout;
         verticalLayout->setObjectName(QStringLiteral("verticalLayout"));
-        showSendDialogButton = new QPushButton;
-        horizontalLayout_2   = new QHBoxLayout();
+        //        showSendDialogButton = new QPushButton;
+        horizontalLayout_2 = new QHBoxLayout();
         horizontalLayout_2->setObjectName(QStringLiteral("horizontalLayout_2"));
         upper_table_label = new QLabel(wallet_contents_frame);
         upper_table_label->setObjectName(QStringLiteral("label_4"));
@@ -139,7 +139,7 @@ public:
         verticalLayout->addLayout(horizontalLayout_2);
         verticalLayout->addLayout(verticalLayoutContent);
         verticalLayoutContent->addWidget(filter_lineEdit);
-        verticalLayoutContent->addWidget(showSendDialogButton);
+        //        verticalLayoutContent->addWidget(showSendDialogButton);
 
         listTokens = new QListView(wallet_contents_frame);
         listTokens->setObjectName(QStringLiteral("listTokens"));
@@ -152,7 +152,7 @@ public:
         verticalLayout->addWidget(listTokens);
 
         right_balance_layout->addWidget(wallet_contents_frame);
-        right_balance_layout->addWidget(sendTokensWidgetGroupBox);
+        //        right_balance_layout->addWidget(sendTokensWidgetGroupBox);
 
         main_layout->addLayout(right_balance_layout, 0, 1, 1, 1);
 

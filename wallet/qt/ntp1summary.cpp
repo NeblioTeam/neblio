@@ -33,9 +33,9 @@ NTP1Summary::NTP1Summary(QWidget* parent)
 
     connect(ui->listTokens, SIGNAL(clicked(QModelIndex)), this, SLOT(handleTokenClicked(QModelIndex)));
 
-    ui->showSendDialogButton->setText(sendDialogHiddenStr);
-    connect(ui->showSendDialogButton, &QPushButton::clicked, this,
-            &NTP1Summary::slot_actToShowSendTokensView);
+    //    ui->showSendDialogButton->setText(sendDialogHiddenStr);
+    //    connect(ui->showSendDialogButton, &QPushButton::clicked, this,
+    //            &NTP1Summary::slot_actToShowSendTokensView);
 
     // init "out of sync" warning labels
     ui->labelBlockchainSyncStatus->setText("(" + tr("out of sync") + ")");
@@ -43,7 +43,7 @@ NTP1Summary::NTP1Summary(QWidget* parent)
     // start with displaying the "out of sync" warnings
     showOutOfSyncWarning(true);
 
-    setupContextMenu();
+    //    setupContextMenu();
 
     filter = new NTP1TokenListFilterProxy(ui->filter_lineEdit);
     setModel(model);
@@ -73,7 +73,7 @@ void NTP1Summary::setupContextMenu()
     contextMenu      = new QMenu(this);
     sendTokensAction = new QAction(sendDialogHiddenStr, this);
     contextMenu->addAction(sendTokensAction);
-    ui->sendTokensWidgetGroupBox->setVisible(false);
+    //    ui->sendTokensWidgetGroupBox->setVisible(false);
 
     connect(ui->listTokens, &QListView::customContextMenuRequested, this,
             &NTP1Summary::slot_contextMenuRequested);
@@ -83,12 +83,14 @@ void NTP1Summary::setupContextMenu()
 
 void NTP1Summary::slot_actToShowSendTokensView()
 {
-    ui->sendTokensWidget->slot_updateAllRecipientDialogsTokens();
-    ui->sendTokensWidgetGroupBox->setVisible(!ui->sendTokensWidgetGroupBox->isVisible());
-    sendTokensAction->setText(ui->sendTokensWidgetGroupBox->isVisible() ? sendDialogShownStr
-                                                                        : sendDialogHiddenStr);
-    ui->showSendDialogButton->setText(ui->sendTokensWidgetGroupBox->isVisible() ? sendDialogShownStr
-                                                                                : sendDialogHiddenStr);
+    //    ui->sendTokensWidget->slot_updateAllRecipientDialogsTokens();
+    //    ui->sendTokensWidgetGroupBox->setVisible(!ui->sendTokensWidgetGroupBox->isVisible());
+    //    sendTokensAction->setText(ui->sendTokensWidgetGroupBox->isVisible() ? sendDialogShownStr
+    //                                                                        : sendDialogHiddenStr);
+    //    ui->showSendDialogButton->setText(ui->sendTokensWidgetGroupBox->isVisible() ?
+    //    sendDialogShownStr
+    //                                                                                :
+    //                                                                                sendDialogHiddenStr);
 }
 
 NTP1Summary::~NTP1Summary() { delete ui; }
