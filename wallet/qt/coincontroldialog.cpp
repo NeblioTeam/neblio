@@ -738,12 +738,20 @@ void CoinControlDialog::updateView()
                     std::vector<std::pair<CTransaction, NTP1Transaction>> prevTxs =
                         GetAllNTP1InputsOfTx(*out.tx);
                     ntp1tx.readNTP1DataFromTx(*out.tx, prevTxs);
+                    bool considerNeblsToo = (out.tx->vout[out.i].nValue > MIN_TX_FEE);
+                    if (considerNeblsToo) {
+                        sTokenType += "NEBL";
+                        sNTP1TokenAmounts +=
+                            BitcoinUnits::format(nDisplayUnit, out.tx->vout[out.i].nValue);
+                        sTokenId += QString::fromStdString(NTP1SendTxData::NEBL_TOKEN_ID);
+                    }
+
                     const NTP1TxOut& ntp1txOut = ntp1tx.getTxOut(out.i);
                     for (int i = 0; i < (int)ntp1txOut.getNumOfTokens(); i++) {
                         if (ntp1txOut.getToken(i).getAmount() == 0) {
                             continue;
                         }
-                        if (i > 0) {
+                        if (i > 0 || considerNeblsToo) {
                             // +'s are kept because we're not sure that all Qt versions support new lines
                             sTokenType += "+\n";
                             sNTP1TokenAmounts += "+\n";
@@ -755,7 +763,7 @@ void CoinControlDialog::updateView()
                     }
 
                 } catch (std::exception& ex) {
-                    printf("Unable to read NTP1 transaction for coin control: %s. Error says: %s",
+                    printf("Unable to read NTP1 transaction for coin control: %s. Error says: %s\n",
                            out.tx->GetHash().ToString().c_str(), ex.what());
                     sTokenType        = "(Unknown)";
                     sNTP1TokenAmounts = "(Unknown)";

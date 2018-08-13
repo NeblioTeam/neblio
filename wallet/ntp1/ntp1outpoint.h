@@ -15,6 +15,8 @@ class NTP1OutPoint
     uint256      hash;
     unsigned int index;
 
+    std::string hashStr; // for debugging
+
 public:
     NTP1OutPoint();
     NTP1OutPoint(const uint256& hashIn, unsigned int indexIn);
@@ -34,22 +36,19 @@ public:
     // clang-format on
 };
 
-namespace boost {
+namespace std {
 
 template <>
 struct hash<NTP1OutPoint>
 {
     std::size_t operator()(const NTP1OutPoint& k) const
     {
-        // Compute individual hash values for first,
-        // second and third and combine them using XOR
-        // and bit shifting:
         std::string toHash = k.getHash().ToString() + ":" + ToString(k.getIndex());
         return boost::hash<std::string>()(toHash);
     }
 };
 
-} // namespace boost
+} // namespace std
 
 bool operator==(const NTP1OutPoint& lhs, const NTP1OutPoint& rhs)
 {

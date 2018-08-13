@@ -121,6 +121,7 @@ SendCoinsRecipient SendCoinsEntry::getValue()
     rv.address = ui->payTo->text();
     rv.label   = ui->addAsLabel->text();
     rv.amount  = ui->payAmount->value();
+    rv.tokenId = ui->payAmount->getSelectedTokenId();
 
     return rv;
 }

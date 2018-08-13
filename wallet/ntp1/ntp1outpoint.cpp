@@ -5,14 +5,16 @@ NTP1OutPoint::NTP1OutPoint() { setNull(); }
 
 NTP1OutPoint::NTP1OutPoint(const uint256& hashIn, unsigned int indexIn)
 {
-    hash  = hashIn;
-    index = indexIn;
+    hash    = hashIn;
+    index   = indexIn;
+    hashStr = hashIn.ToString();
 }
 
 void NTP1OutPoint::setNull()
 {
-    hash  = 0;
-    index = (unsigned int)-1;
+    hash    = 0;
+    index   = (unsigned int)-1;
+    hashStr = "";
 }
 
 bool NTP1OutPoint::isNull() const { return (hash == 0 && index == (unsigned int)-1); }

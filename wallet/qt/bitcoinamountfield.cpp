@@ -62,6 +62,7 @@ BitcoinAmountField::BitcoinAmountField(bool EnableNTP1Tokens, QWidget* parent)
     // If one if the widgets changes, the combined content changes as well
     connect(amount, SIGNAL(valueChanged(QString)), this, SIGNAL(textChanged()));
     connect(unit, SIGNAL(currentIndexChanged(int)), this, SLOT(unitChanged(int)));
+    connect(tokenKindsComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(unitChanged(int)));
 
     // Set default based on configuration
     unitChanged(unit->currentIndex());
@@ -130,6 +131,11 @@ void BitcoinAmountField::slot_updateTokensList()
             tokenKindsList.push_back(d);
         }
 
+        std::sort(tokenKindsList.begin(), tokenKindsList.end(),
+                  [](const NTP1ListElementTokenData& k1, const NTP1ListElementTokenData& k2) {
+                      return k1.name < k2.name;
+                  });
+
         // update the combobox
         tokenKindsComboBox->clear();
         tokenKindsComboBox->addItem(QIcon(QStringLiteral(":/icons/bitcoin")), "NEBL");
@@ -144,7 +150,7 @@ void BitcoinAmountField::slot_updateTokensList()
 
 void BitcoinAmountField::slot_tokenChanged()
 {
-    if (enableNTP1Tokens) {
+    if (enableNTP1Tokens && tokenKindsComboBox->count() > 0) {
         unit->setEnabled(tokenKindsComboBox->currentIndex() == 0);
     }
 }
@@ -188,17 +194,22 @@ qint64 BitcoinAmountField::value(bool* valid_out) const
 
 void BitcoinAmountField::setValue(qint64 value) { setText(BitcoinUnits::format(currentUnit, value)); }
 
-std::string BitcoinAmountField::getSelectedTokenId() const
+QString BitcoinAmountField::getSelectedTokenId() const
 {
-    if (enableNTP1Tokens) {
+    if (enableNTP1Tokens && tokenKindsComboBox->count() > 0) {
         int selectedIndex = tokenKindsComboBox->currentIndex();
         if (selectedIndex == 0) {
-            return "NEBL";
+            return QString::fromStdString(NTP1SendTxData::NEBL_TOKEN_ID);
         } else {
-            return tokenKindsList.at(selectedIndex - 1).tokenId.toStdString(); // element 0 is NEBL
+            return tokenKindsList.at(selectedIndex - 1).tokenId; // element 0 is NEBL
         }
     }
     return "";
+}
+
+bool BitcoinAmountField::isNTP1TokenSelected() const
+{
+    return (tokenKindsComboBox->currentIndex() != 0);
 }
 
 void BitcoinAmountField::unitChanged(int idx)
@@ -207,7 +218,12 @@ void BitcoinAmountField::unitChanged(int idx)
     unit->setToolTip(unit->itemData(idx, Qt::ToolTipRole).toString());
 
     // Determine new unit ID
-    int newUnit = unit->itemData(idx, BitcoinUnits::UnitRole).toInt();
+    int newUnit = 0;
+    if (!isNTP1TokenSelected()) {
+        newUnit = unit->itemData(idx, BitcoinUnits::UnitRole).toInt();
+    } else {
+        newUnit = static_cast<int>(BitcoinUnit::NTP1);
+    }
 
     // Parse current value and convert to new unit
     bool   valid        = false;
@@ -222,7 +238,11 @@ void BitcoinAmountField::unitChanged(int idx)
 
     if (valid) {
         // If value was valid, re-place it in the widget with the new unit
-        setValue(currentValue);
+        if (!isNTP1TokenSelected()) {
+            setValue(currentValue);
+        } else {
+            setText("");
+        }
     } else {
         // If current value is invalid, just clear field
         setText("");

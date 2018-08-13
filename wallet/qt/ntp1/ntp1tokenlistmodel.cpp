@@ -83,8 +83,8 @@ void NTP1TokenListModel::reloadBalances()
 void NTP1TokenListModel::beginWalletUpdate()
 {
     if (!walletUpdateRunning) {
-        emit signal_walletUpdateRunning(true);
-        walletUpdateRunning                  = true;
+        walletUpdateRunning = true;
+        emit                          signal_walletUpdateRunning(true);
         boost::shared_ptr<NTP1Wallet> wallet = boost::make_shared<NTP1Wallet>(*ntp1wallet);
         updateWalletPromise                  = boost::promise<boost::shared_ptr<NTP1Wallet>>();
         updateWalletFuture                   = updateWalletPromise.get_future();

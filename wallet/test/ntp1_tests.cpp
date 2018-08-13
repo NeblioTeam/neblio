@@ -15,6 +15,7 @@
 #include "ntp1/ntp1wallet.h"
 #include <fstream>
 #include <unordered_map>
+#include <unordered_set>
 
 const std::string TempNTP1File("ntp1txout.bin");
 
@@ -1638,10 +1639,29 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> GetNTP1InputsOnline(const 
     return inputs;
 }
 
-void TestNTP1TxParsing(const std::string& txid, bool testnet)
+void TestNTP1TxParsing_onlyRead(const CTransaction& tx, bool testnet)
 {
-    std::string           rawTx      = GetRawTxOnline(txid, testnet);
-    CTransaction          tx         = TxFromHex(rawTx);
+    const std::string& txid = tx.GetHash().ToString();
+
+    std::vector<std::pair<CTransaction, NTP1Transaction>> inputs;
+
+    for (int i = 0; i < (int)tx.vin.size(); i++) {
+        std::string  inputTxid  = tx.vin[i].prevout.hash.ToString();
+        std::string  inputRawTx = GetRawTxOnline(inputTxid, testnet);
+        CTransaction inputTx    = TxFromHex(inputRawTx);
+
+        NTP1Transaction inputNTP1Tx = NTP1APICalls::RetrieveData_TransactionInfo(inputTxid, testnet);
+
+        inputs.push_back(std::make_pair(inputTx, inputNTP1Tx));
+    }
+
+    NTP1Transaction ntp1tx;
+    ntp1tx.readNTP1DataFromTx(tx, inputs);
+}
+
+void TestNTP1TxParsing(const CTransaction& tx, bool testnet)
+{
+    const std::string&    txid       = tx.GetHash().ToString();
     const NTP1Transaction ntp1tx_ref = NTP1APICalls::RetrieveData_TransactionInfo(txid, testnet);
     EXPECT_TRUE(tx.CheckTransaction()) << "Failed tx: " << txid;
 
@@ -1674,8 +1694,8 @@ void TestNTP1TxParsing(const std::string& txid, bool testnet)
             EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getDivisibility(),
                       ntp1tx_ref.getTxOut(i).getToken(j).getDivisibility())
                 << "Failed tx: " << txid << "; Failed at TxOut: " << i << "; at token: " << j;
-            EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getIssueTxId(),
-                      ntp1tx_ref.getTxOut(i).getToken(j).getIssueTxId())
+            EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getIssueTxId().ToString(),
+                      ntp1tx_ref.getTxOut(i).getToken(j).getIssueTxId().ToString())
                 << "Failed tx: " << txid << "; Failed at TxOut: " << i << "; at token: " << j;
             EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getLockStatus(),
                       ntp1tx_ref.getTxOut(i).getToken(j).getLockStatus())
@@ -1715,6 +1735,13 @@ void TestNTP1TxParsing(const std::string& txid, bool testnet)
     EXPECT_EQ(ntp1tx.getTxHash(), ntp1tx_ref.getTxHash()) << "Failed tx: " << txid;
 }
 
+void TestNTP1TxParsing(const std::string& txid, bool testnet)
+{
+    std::string  rawTx = GetRawTxOnline(txid, testnet);
+    CTransaction tx    = TxFromHex(rawTx);
+    TestNTP1TxParsing(tx, testnet);
+}
+
 void TestScriptParsing(std::string OpReturnArg)
 {
     std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScript(OpReturnArg);
@@ -1725,12 +1752,11 @@ void TestScriptParsing(std::string OpReturnArg)
     EXPECT_EQ(calculatedScript, OpReturnArg) << "Calculated script doesn't match input script";
 }
 
-void TestSingleNTP1TxParsingLocally(const std::string&                                  txid,
+void TestSingleNTP1TxParsingLocally(const CTransaction&                                 tx,
                                     const std::unordered_map<std::string, std::string>& nebltxs_map,
                                     const std::unordered_map<std::string, std::string>& ntp1txs_map)
 {
-    const std::string  rawTx          = nebltxs_map.find(txid)->second;
-    const CTransaction tx             = TxFromHex(rawTx);
+    const std::string& txid           = tx.GetHash().ToString();
     const std::string  ntp1tx_ref_str = ntp1txs_map.find(txid)->second;
     NTP1Transaction    ntp1tx_ref;
     ntp1tx_ref.importJsonData(ntp1tx_ref_str);
@@ -1815,6 +1841,21 @@ void TestSingleNTP1TxParsingLocally(const std::string&                          
     EXPECT_EQ(ntp1tx.getTxHash(), ntp1tx_ref.getTxHash()) << "Failed tx: " << txid;
 }
 
+void TestSingleNTP1TxParsingLocally(const std::string&                                  txid,
+                                    const std::unordered_map<std::string, std::string>& nebltxs_map,
+                                    const std::unordered_map<std::string, std::string>& ntp1txs_map)
+{
+    const std::string  rawTx = nebltxs_map.find(txid)->second;
+    const CTransaction tx    = TxFromHex(rawTx);
+    TestSingleNTP1TxParsingLocally(tx, nebltxs_map, ntp1txs_map);
+}
+
+// list of transactions to be excluded from tests
+std::unordered_set<std::string> excluded_txs_testnet = {
+    "826e7b74b24e458e39d779b1033567d325b8d93b507282f983e3c4b3f950fca1"};
+
+std::unordered_set<std::string> excluded_txs_mainnet = {};
+
 void TestNTP1TxParsingLocally(bool testnet)
 {
     std::unordered_map<std::string, std::string> ntp1txs_map;
@@ -1840,6 +1881,13 @@ void TestNTP1TxParsingLocally(bool testnet)
         if (count % 100 == 0)
             std::cout << "Finished testing " << count << " transactions" << std::endl;
         count++;
+        if (testnet) {
+            if (excluded_txs_testnet.find(txid) != excluded_txs_testnet.end())
+                continue;
+        } else {
+            if (excluded_txs_mainnet.find(txid) != excluded_txs_mainnet.end())
+                continue;
+        }
         TestSingleNTP1TxParsingLocally(txid, nebltxs_map, ntp1txs_map);
     }
 }

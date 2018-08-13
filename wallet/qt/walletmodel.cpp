@@ -1,5 +1,6 @@
 #include "walletmodel.h"
 #include "addresstablemodel.h"
+#include "coincontrol.h"
 #include "guiconstants.h"
 #include "optionsmodel.h"
 #include "transactiontablemodel.h"
@@ -15,6 +16,7 @@
 
 #include "init.h"
 #include "ntp1/ntp1apicalls.h"
+#include "ntp1/ntp1sendtxdata.h"
 #include "ntp1/ntp1tools.h"
 
 WalletModel::WalletModel(CWallet* wallet, OptionsModel* optionsModel, QObject* parent)
@@ -131,11 +133,11 @@ bool WalletModel::validateAddress(const QString& address)
 }
 
 WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipient>& recipients,
+                                                    boost::shared_ptr<NTP1Wallet>    ntp1wallet,
                                                     const CCoinControl*              coinControl)
 {
-    qint64        total = 0;
-    QSet<QString> setAddress;
-    QString       hex;
+    qint64  total = 0;
+    QString hex;
 
     if (recipients.empty()) {
         return OK;
@@ -146,16 +148,14 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
         if (!validateAddress(rcp.address)) {
             return InvalidAddress;
         }
-        setAddress.insert(rcp.address);
 
         if (rcp.amount <= 0) {
             return InvalidAmount;
         }
-        total += rcp.amount;
-    }
-
-    if (recipients.size() > setAddress.size()) {
-        return DuplicateAddress;
+        if (rcp.tokenId == QString::fromStdString(NTP1SendTxData::NEBL_TOKEN_ID)) {
+            // add only nebl amounts
+            total += rcp.amount;
+        }
     }
 
     int64_t              nBalance = 0;
@@ -176,65 +176,61 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
     {
         LOCK2(cs_main, wallet->cs_wallet);
 
+        bool outputsContainsNTP1Tokens = false;
+
+        // does this contain any NTP1 tokens?
+        foreach (const SendCoinsRecipient& rcp, recipients) {
+            if (rcp.tokenId == "") {
+                return SendCoinsReturn(EmptyNTP1TokenID);
+            }
+            if (rcp.tokenId != QString::fromStdString(NTP1SendTxData::NEBL_TOKEN_ID)) {
+                outputsContainsNTP1Tokens = true;
+                break;
+            }
+        }
+
+        bool           takeInputsFromCoinControl = coinControl != nullptr && coinControl->HasSelected();
+        NTP1SendTxData tokenCalculator;
+        if (outputsContainsNTP1Tokens) // NTP1
+        {
+            // create recipients list
+            std::vector<NTP1SendTokensOneRecipientData> ntp1recipients;
+            std::transform(recipients.begin(), recipients.end(), std::back_inserter(ntp1recipients),
+                           [](const SendCoinsRecipient& r) {
+                               NTP1SendTokensOneRecipientData res;
+                               res.amount      = r.amount;
+                               res.destination = r.address.toStdString();
+                               res.tokenId     = r.tokenId.toStdString();
+                               return res;
+                           });
+
+            try {
+                tokenCalculator.selectNTP1Tokens(ntp1wallet, coinControl->GetSelected(), ntp1recipients,
+                                                 !takeInputsFromCoinControl);
+            } catch (std::exception& ex) {
+                SendCoinsReturn ret(StatusCode::NTP1TokenCalculationsFailed);
+                ret.msg =
+                    QString("Could not reserve the outputs necessary for spending. Error: ") + ex.what();
+                return ret;
+            }
+        }
+
         // Sendmany
         std::vector<std::pair<CScript, int64_t>> vecSend;
         foreach (const SendCoinsRecipient& rcp, recipients) {
             CScript scriptPubKey;
             scriptPubKey.SetDestination(CBitcoinAddress(rcp.address.toStdString()).Get());
-            vecSend.push_back(make_pair(scriptPubKey, rcp.amount));
+            // here we add only nebls. NTP1 tokens will be added at CreateTransaction()
+            if (rcp.tokenId == QString::fromStdString(NTP1SendTxData::NEBL_TOKEN_ID)) {
+                vecSend.push_back(make_pair(scriptPubKey, rcp.amount));
+            }
         }
 
         CWalletTx   wtx;
         CReserveKey keyChange(wallet);
         int64_t     nFeeRequired = 0;
-        bool fCreated = wallet->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, coinControl);
-
-        // check if the addresses chosen contain NTP1 addresses
-        QSettings settings;
-        bool      isNTP1CheckEnabled = QVariant(settings.value("fBlockNTPAddresses", true)).toBool();
-        if (isNTP1CheckEnabled) {
-            // get all inputs and loop over them and check whether their addresses contain NTP1 tokens
-            const std::vector<CTxIn>& vin = wtx.vin;
-            for (long i = 0; i < static_cast<long>(vin.size()); i++) {
-                // get the input transaction hash
-                const uint256& currOutputHash = vin.at(i).prevout.hash;
-                // get its transaction object (when it was input)
-                // return with error if tx is not found
-                if (pwalletMain->mapWallet.find(currOutputHash) == pwalletMain->mapWallet.end()) {
-                    return SendCoinsReturn(AddressNTP1TokensCheckFailedTxNotFound);
-                }
-                const CWalletTx& prevTx = pwalletMain->mapWallet[currOutputHash];
-                // ensure that the transaction output number is valid
-                if (prevTx.vout.size() < vin.at(i).prevout.n + 1) {
-                    return SendCoinsReturn(AddressNTP1TokensCheckFailedWrongNumberOfOutputs);
-                }
-                // get the output number N from that transaction
-                const CTxOut& output = prevTx.vout.at(vin.at(i).prevout.n);
-                // extract the destination of that transaction
-                CTxDestination dest;
-                bool           addrExtractionSuccess = ExtractDestination(output.scriptPubKey, dest);
-                if (!addrExtractionSuccess) {
-                    return SendCoinsReturn(AddressNTP1TokensCheckFailedFailedToDecodeScriptPubKey);
-                }
-                // extract the key id then address the destination
-                CKeyID      keyID   = boost::get<CKeyID>(dest);
-                std::string strAddr = CBitcoinAddress(keyID).ToString();
-                try {
-                    bool containsNTP1Tokens =
-                        NTP1APICalls::RetrieveData_AddressContainsNTP1Tokens(strAddr, fTestNet);
-                    if (containsNTP1Tokens) {
-                        SendCoinsReturn retStatus(AddressContainsNTP1Tokens);
-                        retStatus.address = QString::fromStdString(strAddr);
-                        return retStatus;
-                    }
-                } catch (std::exception&) {
-                    SendCoinsReturn retStatus(AddressNTP1TokensCheckFailed);
-                    retStatus.address = QString::fromStdString(strAddr);
-                    return retStatus;
-                }
-            }
-        }
-        // end NTP1 token check
+        bool fCreated = wallet->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, tokenCalculator,
+                                                  coinControl);
 
         if (!fCreated) {
             if ((total + nFeeRequired) > nBalance) // FIXME: could cause collisions in the future

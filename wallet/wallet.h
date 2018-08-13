@@ -13,6 +13,7 @@
 #include "key.h"
 #include "keystore.h"
 #include "main.h"
+#include "ntp1/ntp1sendtxdata.h"
 #include "script.h"
 #include "ui_interface.h"
 #include "util.h"
@@ -226,10 +227,10 @@ public:
     int64_t GetStake() const;
     int64_t GetNewMint() const;
     bool    CreateTransaction(const std::vector<std::pair<CScript, int64_t>>& vecSend, CWalletTx& wtxNew,
-                              CReserveKey& reservekey, int64_t& nFeeRet,
+                              CReserveKey& reservekey, int64_t& nFeeRet, NTP1SendTxData ntp1TxData,
                               const CCoinControl* coinControl = NULL);
     bool    CreateTransaction(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew,
-                              CReserveKey& reservekey, int64_t& nFeeRet,
+                              CReserveKey& reservekey, int64_t& nFeeRet, const NTP1SendTxData& ntp1TxData,
                               const CCoinControl* coinControl = NULL);
     bool    CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
 

@@ -188,6 +188,7 @@ OBJS= \
     obj/ntp1/ntp1transaction.o                \
     obj/ntp1/ntp1txin.o                       \
     obj/ntp1/ntp1txout.o                      \
+    obj/ntp1/ntp1sendtxdata.o                 \
     obj/ntp1/ntp1wallet.o                     
 
 ifdef NEBLIO_REST

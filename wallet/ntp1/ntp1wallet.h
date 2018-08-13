@@ -9,7 +9,7 @@
 #include "ntp1/ntp1transaction.h"
 #include "json/json_spirit.h"
 
-#include <boost/unordered_map.hpp>
+#include <unordered_map>
 
 class COutput;
 class CWalletTx;
@@ -17,9 +17,9 @@ class CWalletTx;
 class NTP1Wallet : public boost::enable_shared_from_this<NTP1Wallet>
 {
     // base58 token id vs NTP1 token meta data object
-    boost::unordered_map<std::string, NTP1TokenMetaData> tokenInformation;
+    std::unordered_map<std::string, NTP1TokenMetaData> tokenInformation;
     // transaction with output index
-    boost::unordered_map<NTP1OutPoint, NTP1Transaction> walletOutputsWithTokens;
+    std::unordered_map<NTP1OutPoint, NTP1Transaction> walletOutputsWithTokens;
     // wallet balances
     std::map<std::string, int64_t> balances;
     // map from token id vs icon image data
@@ -65,8 +65,8 @@ public:
     std::string                           getTokenIcon(int index);
     int64_t                               getNumberOfTokens() const;
     const std::map<std::string, int64_t>& getBalancesMap() const;
-    const boost::unordered_map<NTP1OutPoint, NTP1Transaction>& getWalletOutputsWithTokens();
-    bool                                                       hasEverSucceeded() const;
+    const std::unordered_map<NTP1OutPoint, NTP1Transaction>& getWalletOutputsWithTokens();
+    bool                                                     hasEverSucceeded() const;
     friend inline bool operator==(const NTP1Wallet& lhs, const NTP1Wallet& rhs);
     static bool        IconHasErrorContent(const std::string& icon);
     void               clear();

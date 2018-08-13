@@ -100,7 +100,7 @@ void NTP1Wallet::__getOutputs()
                 for (long j = 0;
                      j < static_cast<long>(ntp1tx.getTxOut(output.getIndex()).getNumOfTokens()); j++) {
                     NTP1TokenTxData tokenTx = ntp1tx.getTxOut(output.getIndex()).getToken(j);
-                    // additional metadata is retrieved from the API; like the icon of the token
+                    // additional metadata is retrieved from the API; like the icon
                     tokenInformation[tokenTx.getTokenId()] =
                         NTP1APICalls::RetrieveData_NTP1TokensMetaData(
                             tokenTx.getTokenId(), txHash.ToString(), output.getIndex(), fTestNet);
@@ -125,7 +125,7 @@ void NTP1Wallet::__getOutputs()
 void NTP1Wallet::__RecalculateTokensBalances()
 {
     balances.clear();
-    for (boost::unordered_map<NTP1OutPoint, NTP1Transaction>::iterator it =
+    for (std::unordered_map<NTP1OutPoint, NTP1Transaction>::iterator it =
              walletOutputsWithTokens.begin();
          it != walletOutputsWithTokens.end(); it++) {
         const NTP1Transaction& tx          = it->second;
@@ -151,7 +151,7 @@ void NTP1Wallet::AddOutputToWalletBalance(const NTP1Transaction& tx, int outputI
 
 bool NTP1Wallet::removeOutputIfSpent(const NTP1OutPoint& output, const CWalletTx& neblTx)
 {
-    boost::unordered_map<NTP1OutPoint, NTP1Transaction>::iterator outputIt =
+    std::unordered_map<NTP1OutPoint, NTP1Transaction>::iterator outputIt =
         walletOutputsWithTokens.find(output);
     if (outputIt != walletOutputsWithTokens.end()) {
         if (neblTx.IsSpent(output.getIndex())) {
@@ -167,7 +167,7 @@ void NTP1Wallet::scanSpentTransactions()
     if (pwalletMain == NULL)
         return;
     std::deque<NTP1OutPoint> toRemove;
-    for (boost::unordered_map<NTP1OutPoint, NTP1Transaction>::iterator it =
+    for (std::unordered_map<NTP1OutPoint, NTP1Transaction>::iterator it =
              walletOutputsWithTokens.begin();
          it != walletOutputsWithTokens.end(); it++) {
         CWalletTx      neblTx;
@@ -203,7 +203,7 @@ NTP1OutPoint NTP1Wallet::ConvertNeblOutputToNTP1(const COutput& output)
 
 std::string NTP1Wallet::getTokenName(const std::string& tokenID) const
 {
-    boost::unordered_map<std::string, NTP1TokenMetaData>::const_iterator it =
+    std::unordered_map<std::string, NTP1TokenMetaData>::const_iterator it =
         tokenInformation.find(tokenID);
     if (it == tokenInformation.end()) {
         return std::string("<NameError>");
@@ -226,7 +226,7 @@ string NTP1Wallet::getTokenName(int index) const
 {
     std::map<std::string, int64_t>::const_iterator it = balances.begin();
     std::advance(it, index);
-    boost::unordered_map<std::string, NTP1TokenMetaData>::const_iterator itToken =
+    std::unordered_map<std::string, NTP1TokenMetaData>::const_iterator itToken =
         tokenInformation.find(it->first);
     if (itToken == tokenInformation.end()) {
         return std::string("<NameError>");
@@ -239,7 +239,7 @@ string NTP1Wallet::getTokenId(int index) const
 {
     std::map<std::string, int64_t>::const_iterator it = balances.begin();
     std::advance(it, index);
-    boost::unordered_map<std::string, NTP1TokenMetaData>::const_iterator itToken =
+    std::unordered_map<std::string, NTP1TokenMetaData>::const_iterator itToken =
         tokenInformation.find(it->first);
     if (itToken == tokenInformation.end()) {
         return std::string("<TokenIdError>");
@@ -252,7 +252,7 @@ string NTP1Wallet::getTokenDescription(int index) const
 {
     std::map<std::string, int64_t>::const_iterator it = balances.begin();
     std::advance(it, index);
-    boost::unordered_map<std::string, NTP1TokenMetaData>::const_iterator itToken =
+    std::unordered_map<std::string, NTP1TokenMetaData>::const_iterator itToken =
         tokenInformation.find(it->first);
     if (itToken == tokenInformation.end()) {
         return std::string("<DescError>");
@@ -295,8 +295,8 @@ string NTP1Wallet::getTokenIcon(int index)
 {
     std::map<std::string, int64_t>::const_iterator it = balances.begin();
     std::advance(it, index);
-    std::string                                                          tokenId = it->first;
-    boost::unordered_map<std::string, NTP1TokenMetaData>::const_iterator itToken =
+    std::string                                                        tokenId = it->first;
+    std::unordered_map<std::string, NTP1TokenMetaData>::const_iterator itToken =
         tokenInformation.find(tokenId);
     if (!tokenIcons.exists(tokenId)) {
         const std::string& IconURL = itToken->second.getIconURL();
@@ -330,7 +330,7 @@ int64_t NTP1Wallet::getNumberOfTokens() const { return balances.size(); }
 
 const std::map<string, int64_t>& NTP1Wallet::getBalancesMap() const { return balances; }
 
-const boost::unordered_map<NTP1OutPoint, NTP1Transaction>& NTP1Wallet::getWalletOutputsWithTokens()
+const std::unordered_map<NTP1OutPoint, NTP1Transaction>& NTP1Wallet::getWalletOutputsWithTokens()
 {
     return walletOutputsWithTokens;
 }
@@ -371,14 +371,14 @@ NTP1Wallet NTP1Wallet::Deserialize(const string& data)
     json_spirit::read_or_throw(data, parsedData);
 
     json_spirit::Value tokenInfoData(NTP1Tools::GetObjectField(parsedData.get_obj(), "token_info"));
-    result.tokenInformation = DeserializeMap<boost::unordered_map<std::string, NTP1TokenMetaData>>(
-        tokenInfoData, false, false);
+    result.tokenInformation =
+        DeserializeMap<std::unordered_map<std::string, NTP1TokenMetaData>>(tokenInfoData, false, false);
     json_spirit::Value outputsData(NTP1Tools::GetObjectField(parsedData.get_obj(), "outputs"));
     result.walletOutputsWithTokens =
-        DeserializeMap<boost::unordered_map<NTP1OutPoint, NTP1Transaction>>(outputsData, false, false);
+        DeserializeMap<std::unordered_map<NTP1OutPoint, NTP1Transaction>>(outputsData, false, false);
     json_spirit::Value iconsData(NTP1Tools::GetObjectField(parsedData.get_obj(), "icons"));
     result.tokenIcons.setInternalMap(
-        DeserializeMap<boost::unordered_map<std::string, std::string>>(iconsData, false, true));
+        DeserializeMap<std::unordered_map<std::string, std::string>>(iconsData, false, true));
     json_spirit::Value balancesData(NTP1Tools::GetObjectField(parsedData.get_obj(), "balances"));
     result.balances = DeserializeMap<std::map<std::string, int64_t>>(balancesData, false, false);
 

@@ -63,7 +63,7 @@ void NTP1SendTokensData::calculateSources(boost::shared_ptr<NTP1Wallet> wallet, 
     }
     tokenSourceAddresses.clear();
     for (const auto& required_amount : required_amounts) {
-        for (auto it = availableOutputs.begin(); it != availableOutputs.end(); ++it) {
+        for (auto it = availableOutputs.begin(); it != availableOutputs.end();) {
             const auto&            output    = *it;
             const NTP1Transaction& txData    = availableOutputsMap.find(output)->second;
             const NTP1TxOut&       ntp1txOut = txData.getTxOut(output.getIndex());
@@ -92,6 +92,8 @@ void NTP1SendTokensData::calculateSources(boost::shared_ptr<NTP1Wallet> wallet, 
                 }
                 tokenSourceAddresses.push_back(ntp1txOut.getAddress());
                 it = availableOutputs.erase(it);
+            } else {
+                ++it;
             }
         }
     }

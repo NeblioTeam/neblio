@@ -732,7 +732,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
             ntp1tx.readNTP1DataFromTx(tx, inputsTxs);
         } catch (std::exception& ex) {
             printf("An invalid NTP1 transaction was submitted to the memory pool; an exception was "
-                   "thrown: %s",
+                   "thrown: %s\n",
                    ex.what());
             return false;
         } catch (...) {

@@ -226,7 +226,22 @@ void NTP1Transaction::__TransferTokens(
 
     std::vector<NTP1Script::TransferInstruction> TIs = scriptPtrD->getTransferInstructions();
 
+    // the operation is invalid if input 0 has no tokens; this artificial failure is forced for this to
+    // be compliant with the API
+    bool invalid = false;
+    if (totalTokensLeftInInputs.size() == 0) {
+        invalid = true;
+    } else {
+        uint64_t totalTokensInInput0 =
+            std::accumulate(totalTokensLeftInInputs[0].begin(), totalTokensLeftInInputs[0].end(), 0);
+        invalid = !totalTokensInInput0;
+    }
+
     for (int i = 0; i < (int)scriptPtrD->getTransferInstructionsCount(); i++) {
+        // if the transaction is invalid, break here and go straight to change calculations
+        if (invalid) {
+            break;
+        }
 
         if (currentInputIndex >= static_cast<int>(vin.size())) {
             throw std::runtime_error(
@@ -250,22 +265,61 @@ void NTP1Transaction::__TransferTokens(
         // loop over the kinds of tokens in the input and distribute them over outputs
         // note: there's no way to switch from one token to the next unless its content depletes
         uint64_t currentOutputAmount = TIs[i].amount;
+
+        //  token index at which to start subtraction, helps in skipping empty tokens when
+        // subtracting spent amount
+        int startTokenIndex = 0;
+
+        // if input is empty, just move to the next one since empty inputs don't break adjacency
+        bool     stopInstructions = false;
+        uint64_t totalTokensInCurrentInput =
+            std::accumulate(totalTokensLeftInInputs[currentInputIndex].begin(),
+                            totalTokensLeftInInputs[currentInputIndex].end(), 0);
+        while (totalTokensLeftInInputs[currentInputIndex].size() == 0 ||
+               totalTokensInCurrentInput == 0) {
+            currentInputIndex++;
+            if (currentInputIndex >= static_cast<int>(vin.size())) {
+                stopInstructions = true;
+                break;
+            }
+            totalTokensInCurrentInput =
+                std::accumulate(totalTokensLeftInInputs[currentInputIndex].begin(),
+                                totalTokensLeftInInputs[currentInputIndex].end(), 0);
+        }
+
+        if (stopInstructions) {
+            break;
+        }
+
         for (int j = 0; j < (int)totalTokensLeftInInputs[currentInputIndex].size(); j++) {
 
             // calculate the total number of available tokens for spending
-            uint64_t totalAdjacentTokensOfOneKind = totalTokensLeftInInputs[currentInputIndex][j];
-            auto     currentTokenId = tokensKindsInInputs[currentInputIndex][j].getTokenId();
-            for (int k = currentInputIndex + 1; k < (int)totalTokensLeftInInputs.size(); k++) {
+            uint64_t    totalAdjacentTokensOfOneKind = 0;
+            std::string currentTokenId;
+            bool        inputDone = false;
+            for (int k = currentInputIndex; k < (int)totalTokensLeftInInputs.size(); k++) {
                 // an empty input in between doesn't break adjacency
                 //                if (totalTokensLeftInInputs[k].size() == 0) {
                 //                    break;
                 //                }
-                for (int l = j; l < (int)totalTokensLeftInInputs[k].size(); l++) {
-                    if (tokensKindsInInputs[k][l].getTokenId() == currentTokenId) {
-                        totalAdjacentTokensOfOneKind += totalTokensLeftInInputs[k][l];
-                    } else {
+                for (int l = (k == currentInputIndex ? j : 0);
+                     l < (int)totalTokensLeftInInputs[k].size(); l++) {
+                    // if the amount of tokens currently is zero, it's simply skipped and the token ID is
+                    // changed to the next adjacent kind
+                    if (tokensKindsInInputs[k][l].getTokenId() != currentTokenId &&
+                        totalAdjacentTokensOfOneKind > 0) {
+                        inputDone = true;
                         break;
+                    } else {
+                        if (totalAdjacentTokensOfOneKind == 0) {
+                            startTokenIndex = l;
+                            currentTokenId  = tokensKindsInInputs[currentInputIndex][l].getTokenId();
+                        }
+                        totalAdjacentTokensOfOneKind += totalTokensLeftInInputs[k][l];
                     }
+                }
+                if (inputDone) {
+                    break;
                 }
             }
 
@@ -281,10 +335,14 @@ void NTP1Transaction::__TransferTokens(
             if (currentOutputAmount > totalAdjacentTokensOfOneKind) {
                 throw std::runtime_error(
                     "Insufficient tokens for transaction from inputs for transaction: " +
-                    tx.GetHash().ToString() + " from input: " + ::ToString(currentInputIndex));
+                    tx.GetHash().ToString() + " from input: " + ::ToString(currentInputIndex) +
+                    ". Required output amount: " + ::ToString(currentOutputAmount) +
+                    "; and the total available amount in all (possibly adjacent) inputs: " +
+                    ::ToString(totalAdjacentTokensOfOneKind) +
+                    "; in transfer instruction number: " + ::ToString(i));
             }
 
-            const auto&    currentTokenObj = tokensKindsInInputs[currentInputIndex][j];
+            const auto&    currentTokenObj = tokensKindsInInputs[currentInputIndex][startTokenIndex];
             const uint64_t amountToCredit  = std::min(totalAdjacentTokensOfOneKind, currentOutputAmount);
 
             if (!burnThisOutput) {
@@ -313,7 +371,8 @@ void NTP1Transaction::__TransferTokens(
             uint64_t amountLeftToSubtract = amountToCredit;
             for (int k = currentInputIndex; k < (int)totalTokensLeftInInputs.size(); k++) {
                 // an empty input in between means inputs are not adjacent
-                for (int l = j; l < (int)totalTokensLeftInInputs[k].size(); l++) {
+                for (int l = (k == currentInputIndex ? startTokenIndex : 0);
+                     l < (int)totalTokensLeftInInputs[k].size(); l++) {
                     if (tokensKindsInInputs[k][l].getTokenId() == currentTokenId) {
                         if (totalTokensLeftInInputs[k][l] >= amountLeftToSubtract) {
                             totalTokensLeftInInputs[k][l] -= amountLeftToSubtract;
@@ -321,7 +380,6 @@ void NTP1Transaction::__TransferTokens(
                         } else {
                             amountLeftToSubtract -= totalTokensLeftInInputs[k][l];
                             totalTokensLeftInInputs[k][l] = 0;
-                            currentInputIndex++;
                         }
                     } else {
                         if (amountLeftToSubtract == 0) {
@@ -348,13 +406,19 @@ void NTP1Transaction::__TransferTokens(
                 currentInputIndex++;
             }
 
+            uint64_t totalTokensLeftInCurrentInput =
+                std::accumulate(totalTokensLeftInInputs[currentInputIndex].begin(),
+                                totalTokensLeftInInputs[currentInputIndex].end(), 0);
+            if (totalTokensLeftInCurrentInput == 0) {
+                // avoid incrementing twice
+                if (!TIs[i].skipInput) {
+                    currentInputIndex++;
+                }
+            }
+
             // all required output amount is spent. The rest will be redirected as change
             if (currentOutputAmount == 0) {
                 break;
-            }
-
-            if (totalTokensLeftInInputs[currentInputIndex][j] == 0) {
-                currentInputIndex++;
             }
         }
     }

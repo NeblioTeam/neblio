@@ -21,6 +21,7 @@
 #include <QScrollBar>
 #include <QTextDocument>
 
+#include "ntp1/ntp1tokenlistmodel.h"
 #include "ntp1/ntp1tools.h"
 
 SendCoinsDialog::SendCoinsDialog(QWidget* parent)
@@ -137,6 +138,12 @@ void SendCoinsDialog::on_sendButton_clicked()
         return;
     }
 
+    NTP1TokenListModel*           ntp1TokenListModel = ntp1TokenListModelInstance.load();
+    boost::shared_ptr<NTP1Wallet> ntp1wallet;
+    if (ntp1TokenListModel) {
+        ntp1wallet = ntp1TokenListModel->getCurrentWallet();
+    }
+
     // Format confirmation message
     QStringList formatted;
     foreach (const SendCoinsRecipient& rcp, recipients) {
@@ -147,10 +154,9 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     fNewRecipientAllowed = false;
 
-    QMessageBox::StandardButton retval =
-        QMessageBox::question(this, tr("Confirm send coins"),
-                              tr("Are you sure you want to send %1?").arg(formatted.join(tr(" and "))),
-                              QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel);
+    QMessageBox::StandardButton retval = QMessageBox::question(
+        this, tr("Confirm send coins"), tr("Are you sure you want to send these tokens?"),
+        QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel);
 
     if (retval != QMessageBox::Yes) {
         fNewRecipientAllowed = true;
@@ -167,9 +173,9 @@ void SendCoinsDialog::on_sendButton_clicked()
     WalletModel::SendCoinsReturn sendstatus;
 
     if (!model->getOptionsModel() || !model->getOptionsModel()->getCoinControlFeatures())
-        sendstatus = model->sendCoins(recipients);
+        sendstatus = model->sendCoins(recipients, ntp1wallet);
     else
-        sendstatus = model->sendCoins(recipients, CoinControlDialog::coinControl);
+        sendstatus = model->sendCoins(recipients, ntp1wallet, CoinControlDialog::coinControl);
 
     switch (sendstatus.status) {
     case WalletModel::InvalidAddress:
@@ -273,6 +279,18 @@ void SendCoinsDialog::on_sendButton_clicked()
                              "If you would like to proceed with this at your own risk, "
                              "please go to options and disable this NTP1 token check.",
                              QMessageBox::Ok, QMessageBox::Ok);
+        break;
+    case WalletModel::EmptyNTP1TokenID:
+        QMessageBox::warning(this, tr("Send Coins - Empty token ID"),
+                             "Error: a token in the inputs was found to have an empty token ID.",
+                             QMessageBox::Ok, QMessageBox::Ok);
+        break;
+    case WalletModel::NTP1TokenCalculationsFailed:
+        QMessageBox::warning(
+            this, tr("Send Coins - NTP1 calculations failed"),
+            "Error: Unable to calculate reserve tokens to be spent in this transaction. Error: " +
+                sendstatus.msg,
+            QMessageBox::Ok, QMessageBox::Ok);
         break;
     case WalletModel::OK:
         accept();

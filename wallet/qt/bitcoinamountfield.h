@@ -21,9 +21,11 @@ class BitcoinAmountField : public QWidget
 public:
     explicit BitcoinAmountField(bool EnableNTP1Tokens, QWidget* parent);
 
-    qint64      value(bool* valid = 0) const;
-    void        setValue(qint64 value);
-    std::string getSelectedTokenId() const;
+    qint64  value(bool* valid = 0) const;
+    void    setValue(qint64 value);
+    QString getSelectedTokenId() const;
+
+    bool isNTP1TokenSelected() const;
 
     /** Mark current value as invalid in UI. */
     void setValid(bool valid);

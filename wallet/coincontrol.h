@@ -31,9 +31,14 @@ public:
 
     void UnSelectAll() { setSelected.clear(); }
 
-    void ListSelected(std::vector<COutPoint>& vOutpoints)
+    void ListSelected(std::vector<COutPoint>& vOutpoints) const
     {
-        vOutpoints.assign(setSelected.begin(), setSelected.end());
+        vOutpoints.assign(setSelected.cbegin(), setSelected.cend());
+    }
+
+    std::vector<COutPoint> GetSelected() const
+    {
+        return std::vector<COutPoint>(setSelected.cbegin(), setSelected.cend());
     }
 
 private:

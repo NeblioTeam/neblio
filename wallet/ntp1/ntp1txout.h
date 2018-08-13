@@ -41,6 +41,7 @@ public:
     int64_t                getValue() const;
     const std::string&     getScriptPubKeyHex() const;
     const NTP1TokenTxData& getToken(unsigned long index) const;
+    NTP1TokenTxData&       getToken(unsigned long index);
     unsigned long          getNumOfTokens() const;
     friend inline bool     operator==(const NTP1TxOut& lhs, const NTP1TxOut& rhs);
     std::string            getAddress() const;

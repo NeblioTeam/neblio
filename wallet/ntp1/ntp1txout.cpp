@@ -125,4 +125,6 @@ const std::string& NTP1TxOut::getScriptPubKeyHex() const { return scriptPubKeyHe
 
 const NTP1TokenTxData& NTP1TxOut::getToken(unsigned long index) const { return tokens[index]; }
 
+NTP1TokenTxData& NTP1TxOut::getToken(unsigned long index) { return tokens[index]; }
+
 unsigned long NTP1TxOut::getNumOfTokens() const { return tokens.size(); }
