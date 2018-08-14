@@ -1370,6 +1370,10 @@ void AddNTP1TokensToTx(CWalletTx& wtxNew, set<pair<const CWalletTx*, unsigned in
 
     bool txContainsNTP1 = ntp1recipients.size() > 0 || ntp1change.size() > 0;
 
+    if (!txContainsNTP1) {
+        return;
+    }
+
     if (txContainsNTP1) {
         CScript scriptPubKey;
         opReturnIndex = wtxNew.vout.size();
@@ -1438,6 +1442,37 @@ void AddNTP1TokensToTx(CWalletTx& wtxNew, set<pair<const CWalletTx*, unsigned in
     wtxNew.vout[opReturnIndex].scriptPubKey = CScript() << OP_RETURN << ParseHex(opRetScriptHex);
 }
 
+uint64_t GetTotalNeblsInInputs(const std::vector<NTP1OutPoint>& inputs)
+{
+    uint64_t total = 0;
+
+    std::vector<COutput> avOutputs;
+    pwalletMain->AvailableCoins(avOutputs);
+
+    for (const auto& input : inputs) {
+        // find the output (now input) in the list of available coins
+        auto it = std::find_if(avOutputs.begin(), avOutputs.end(), [&input](const COutput& avOutput) {
+            return (input.getHash() == avOutput.tx->GetHash() && (int)input.getIndex() == avOutput.i);
+        });
+        if (it == avOutputs.end()) {
+            throw std::runtime_error("A used input: " + input.getHash().ToString() + ":" +
+                                     ::ToString(input.getIndex()) +
+                                     " was not found in the available outputs.");
+        }
+
+        // add the output value to the total
+        const CTransaction* tx    = it->tx;
+        int                 index = it->i;
+        if (index + 1 > (int)tx->vout.size()) {
+            throw std::runtime_error("A used input: " + input.getHash().ToString() + ":" +
+                                     ::ToString(input.getIndex()) +
+                                     " has an index that's out of range.");
+        }
+        total += tx->vout[index].nValue;
+    }
+    return total;
+}
+
 bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, CWalletTx& wtxNew,
                                 CReserveKey& reservekey, int64_t& nFeeRet, NTP1SendTxData ntp1TxData,
                                 const CCoinControl* coinControl)
@@ -1489,16 +1524,6 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
                     dPriority += (double)nCredit * pcoin.first->GetDepthInMainChain();
                 }
 
-                int64_t nChange = nValueIn - nValue - nFeeRet;
-                // if sub-cent change is required, the fee must be raised to at least MIN_TX_FEE
-                // or until nChange becomes zero
-                // NOTE: this depends on the exact behaviour of GetMinFee
-                if (nFeeRet < MIN_TX_FEE && nChange > 0 && nChange < CENT) {
-                    int64_t nMoveToFee = min(nChange, MIN_TX_FEE - nFeeRet);
-                    nChange -= nMoveToFee;
-                    nFeeRet += nMoveToFee;
-                }
-
                 bool ntp1TokenChangeExists = false;
                 if (ntp1TxData.hasNTP1Tokens()) {
                     ntp1TokenChangeExists = (ntp1TxData.getChangeTokens().size() != 0);
@@ -1523,10 +1548,27 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
                         ntp1TxData.selectNTP1Tokens(
                             ntp1TxData.getWallet(), std::vector<COutPoint>(inputs.begin(), inputs.end()),
                             ntp1TxData.getNTP1TokenRecipientsList(), !takeInputsFromCoinControl);
+
+                        // calculate the total nebls in all inputs (the other place where this is
+                        // calculated is basically legacy and will be remove in the future)
+                        std::vector<NTP1OutPoint> usedInputs = ntp1TxData.getUsedInputs();
+
+                        nValueIn = GetTotalNeblsInInputs(usedInputs);
+
                     } catch (std::exception& ex) {
                         printf("Failed to select NTP1 tokens with error: %s\n", ex.what());
                         return false;
                     }
+                }
+
+                int64_t nChange = nValueIn - nValue - nFeeRet;
+                // if sub-cent change is required, the fee must be raised to at least MIN_TX_FEE
+                // or until nChange becomes zero
+                // NOTE: this depends on the exact behaviour of GetMinFee
+                if (nFeeRet < MIN_TX_FEE && nChange > 0 && nChange < CENT) {
+                    int64_t nMoveToFee = min(nChange, MIN_TX_FEE - nFeeRet);
+                    nChange -= nMoveToFee;
+                    nFeeRet += nMoveToFee;
                 }
 
                 CKeyID changeKeyID;
@@ -1583,25 +1625,25 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
                     return false;
                 }
 
-                if (ntp1TxData.hasNTP1Tokens()) {
-                    try {
-                        AddNTP1TokensToTx(wtxNew, setCoins, ntp1TxData, changeOutputIndex);
-                    } catch (std::exception& ex) {
-                        printf("Error in CreateTransaction(): %s\n", ex.what());
-                        return false;
-                    }
-                } else {
-                    try {
-                        NTP1Transaction::AmendStdTxWithNTP1(wtxNew, changeOutputIndex);
-                    } catch (std::exception& ex) {
-                        printf("Failed to amend native Neblio transaction. Error: %s\n", ex.what());
-                        return false;
-                    }
-                }
-
                 if (changeOutputIndex >= 0 && wtxNew.vout[changeOutputIndex].nValue < MIN_TX_FEE) {
                     wtxNew.vout[changeOutputIndex].nValue = MIN_TX_FEE;
                 }
+
+                try {
+                    AddNTP1TokensToTx(wtxNew, setCoins, ntp1TxData, changeOutputIndex);
+                } catch (std::exception& ex) {
+                    printf("Error in CreateTransaction(): %s\n", ex.what());
+                    return false;
+                }
+                //                if (ntp1TxData.hasNTP1Tokens()) {
+                //                } else {
+                //                    try {
+                //                        NTP1Transaction::AmendStdTxWithNTP1(wtxNew, changeOutputIndex);
+                //                    } catch (std::exception& ex) {
+                //                        printf("Failed to amend native Neblio transaction. Error:
+                //                        %s\n", ex.what()); return false;
+                //                    }
+                //                }
 
                 // Sign
                 for (const PAIRTYPE(const CWalletTx*, unsigned int) & coin : setCoins) {
