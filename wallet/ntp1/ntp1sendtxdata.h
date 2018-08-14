@@ -23,6 +23,7 @@ struct IntermediaryTI
  */
 class NTP1SendTxData
 {
+    // this is a vector because order must be preserved
     std::vector<NTP1OutPoint>                   tokenSourceInputs;
     std::vector<IntermediaryTI>                 intermediaryTIs;
     std::map<std::string, int64_t>              totalChangeTokens;
