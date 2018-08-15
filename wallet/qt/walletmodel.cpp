@@ -176,22 +176,9 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
     {
         LOCK2(cs_main, wallet->cs_wallet);
 
-        bool outputsContainsNTP1Tokens = false;
-
-        // does this contain any NTP1 tokens?
-        foreach (const SendCoinsRecipient& rcp, recipients) {
-            if (rcp.tokenId == "") {
-                return SendCoinsReturn(EmptyNTP1TokenID);
-            }
-            if (rcp.tokenId != QString::fromStdString(NTP1SendTxData::NEBL_TOKEN_ID)) {
-                outputsContainsNTP1Tokens = true;
-                break;
-            }
-        }
-
+        // This first time selection is used adds recipients and the amounts to the selector
         bool           takeInputsFromCoinControl = coinControl != nullptr && coinControl->HasSelected();
         NTP1SendTxData tokenCalculator;
-        if (outputsContainsNTP1Tokens) // NTP1
         {
             // create recipients list
             std::vector<NTP1SendTokensOneRecipientData> ntp1recipients;
@@ -205,8 +192,10 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
                            });
 
             try {
-                tokenCalculator.selectNTP1Tokens(ntp1wallet, coinControl->GetSelected(), ntp1recipients,
-                                                 !takeInputsFromCoinControl);
+                tokenCalculator.selectNTP1Tokens(
+                    ntp1wallet,
+                    (takeInputsFromCoinControl ? coinControl->GetSelected() : vector<COutPoint>()),
+                    ntp1recipients, !takeInputsFromCoinControl);
             } catch (std::exception& ex) {
                 SendCoinsReturn ret(StatusCode::NTP1TokenCalculationsFailed);
                 ret.msg =

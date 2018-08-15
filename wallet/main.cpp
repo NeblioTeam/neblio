@@ -4243,3 +4243,27 @@ bool IsTxOutputNTP1OpRet(const CTransaction* tx, unsigned int index, std::string
     }
     return false;
 }
+
+bool IsTxOutputOpRet(const CTransaction* tx, unsigned int index, std::string* opReturnArg)
+{
+    if (!tx) {
+        return false;
+    }
+
+    std::smatch opReturnArgMatch;
+
+    // out of range index
+    if (index + 1 >= tx->vout.size()) {
+        return false;
+    }
+
+    std::string scriptPubKeyStr = tx->vout[index].scriptPubKey.ToString();
+    if (std::regex_match(scriptPubKeyStr, opReturnArgMatch, OpReturnRegex)) {
+        if (opReturnArg != nullptr && opReturnArgMatch[1].matched) {
+            *opReturnArg = std::string(opReturnArgMatch[1]);
+            return true;
+        }
+        return true; // could not retrieve OP_RETURN argument
+    }
+    return false;
+}

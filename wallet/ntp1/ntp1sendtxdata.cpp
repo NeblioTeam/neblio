@@ -40,10 +40,11 @@ CalculateRequiredTokenAmounts(const std::vector<NTP1SendTokensOneRecipientData>&
 
 // get available balances, either from inputs (if provided) or from the wallet
 std::map<string, int64_t> GetAvailableTokenBalances(boost::shared_ptr<NTP1Wallet>    wallet,
-                                                    const std::vector<NTP1OutPoint>& inputs)
+                                                    const std::vector<NTP1OutPoint>& inputs,
+                                                    bool useBalancesFromWallet)
 {
     std::map<string, int64_t> balancesMap;
-    if (inputs.size() == 0) {
+    if (useBalancesFromWallet) {
         // get token balances from the wallet
         balancesMap = wallet->getBalancesMap();
     } else {
@@ -149,7 +150,8 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
     }
 
     // get available balances, either from inputs (if provided) or from the wallet
-    std::map<string, int64_t> balancesMap = GetAvailableTokenBalances(wallet, inputs);
+    std::map<string, int64_t> balancesMap =
+        GetAvailableTokenBalances(wallet, inputs, addMoreInputsIfRequired);
 
     // check whether the required amounts can be covered by the available balances
     for (const auto& required_amount : targetAmounts) {
@@ -183,15 +185,8 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
         }
     } else {
         for (const auto& el : inputs) {
-            if (availableOutputsMap.find(el) != availableOutputsMap.end()) {
-                tokenSourceInputs.push_back(el);
-                availableOutputs.push_back(el);
-            } else {
-                throw std::runtime_error("The output " + el.getHash().ToString() + ":" +
-                                         ::ToString(el.getIndex()) +
-                                         " is not an output you own (not in your wallet), and yet a "
-                                         "transaction is trying to spend it.");
-            }
+            tokenSourceInputs.push_back(el);
+            availableOutputs.push_back(el);
         }
     }
 
@@ -473,7 +468,11 @@ uint64_t NTP1SendTxData::getRequiredNeblsForOutputs() const
 {
     if (!ready)
         throw std::runtime_error("NTP1SendTxData not ready; cannot get required fees");
-    return MIN_TX_FEE * (recipientsList.size() + 1); // + 1 is for OP_RETURN output
+    if (intermediaryTIs.size() > 0) {
+        return MIN_TX_FEE * (recipientsList.size() + 1); // + 1 is for OP_RETURN output
+    } else {
+        return 0;
+    }
 }
 
 int64_t NTP1SendTxData::EstimateTxSizeInBytes(int64_t num_of_inputs, int64_t num_of_outputs)

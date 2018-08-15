@@ -1359,41 +1359,58 @@ void AddCoinsToInputsSet(set<pair<const CWalletTx*, unsigned int>>& setInputs, c
     setInputs.insert(std::make_pair(it->tx, it->i));
 }
 
-void AddNTP1TokensToTx(CWalletTx& wtxNew, set<pair<const CWalletTx*, unsigned int>>& nativeInputs,
-                       const NTP1SendTxData& ntp1TxData, int changeOutputIndex)
+void FixTIsChangeOutputIndex(std::vector<NTP1Script::TransferInstruction>& TIs, int changeOutputIndex)
 {
-    int opReturnIndex = -1;
+    for (auto& ti : TIs) {
+        if (ti.outputIndex == IntermediaryTI::CHANGE_OUTPUT_FAKE_INDEX) {
+            ti.outputIndex = changeOutputIndex;
+        }
+    }
+}
 
-    std::vector<NTP1SendTokensOneRecipientData> ntp1recipients = ntp1TxData.getNTP1TokenRecipientsList();
-
-    std::map<std::string, int64_t> ntp1change = ntp1TxData.getChangeTokens();
-
-    bool txContainsNTP1 = ntp1recipients.size() > 0 || ntp1change.size() > 0;
-
-    if (!txContainsNTP1) {
+void SetTxNTP1OpRet(CWalletTx& wtxNew, const std::vector<NTP1Script::TransferInstruction>& TIs)
+{
+    if (TIs.empty()) {
+        // no OP_RETURN, no NTP1 outputs
         return;
     }
 
-    if (txContainsNTP1) {
-        CScript scriptPubKey;
-        opReturnIndex = wtxNew.vout.size();
-        wtxNew.vout.push_back(CTxOut(MIN_TX_FEE, scriptPubKey));
+    // set the OP_RETURN script
+    std::shared_ptr<NTP1Script_Transfer> transferScript = NTP1Script_Transfer::CreateScript(TIs, "");
+
+    std::string opRetScriptBin = transferScript->calculateScriptBin();
+    std::string opRetScriptHex = boost::algorithm::hex(opRetScriptBin);
+
+    // find OP_RETURN output
+    auto it = std::find_if(wtxNew.vout.begin(), wtxNew.vout.end(), [](const CTxOut& o) {
+        std::string scriptPubKeyStr = o.scriptPubKey.ToString();
+        return scriptPubKeyStr.substr(0, std::string("OP_RETURN").length()) == "OP_RETURN";
+    });
+
+    if (it == wtxNew.vout.end()) {
+        // no OP_RETURN found and there are TIs. Something is wrong.
+        throw std::runtime_error("Could not find OP_RETURN output to fix change output index");
     }
 
-    const int tokenOutputsOffset = opReturnIndex + 1;
+    it->scriptPubKey = CScript() << OP_RETURN << ParseHex(opRetScriptHex);
+}
 
-    std::vector<IntermediaryTI> ntp1IntermediaryTIs = ntp1TxData.getIntermediaryTIs();
-
+/**
+ * @brief AddNTP1TokenInputsToTx
+ * @param wtxNew
+ * @param nativeInputs
+ * @param ntp1TxData
+ * @param tokenOutputsOffset
+ * @return returns transfer instructions that are compatible with these
+ * inputs for everything EXCEPT change, where change will remain unchanged from intermediary TIs
+ */
+std::vector<NTP1Script::TransferInstruction>
+AddNTP1TokenInputsToTx(CWalletTx& wtxNew, set<pair<const CWalletTx*, unsigned int>>& nativeInputs,
+                       const NTP1SendTxData& ntp1TxData, const int tokenOutputsOffset)
+{
     std::vector<NTP1Script::TransferInstruction> TIs;
 
-    // create token outputs, basically the output number will be tokenOutputsOffset + i
-    // where i is the recipient number in the list
-    for (const auto& r : ntp1TxData.getNTP1TokenRecipientsList()) {
-        CScript scriptPubKey;
-        scriptPubKey.SetDestination(CBitcoinAddress(r.destination).Get());
-        wtxNew.vout.push_back(CTxOut(MIN_TX_FEE, scriptPubKey));
-    }
-
+    std::vector<IntermediaryTI> ntp1IntermediaryTIs = ntp1TxData.getIntermediaryTIs();
     // loop over inputs and insert them to inputs in order and at the beginning of vin array
     for (int i = 0; i < (int)ntp1IntermediaryTIs.size(); i++) {
         auto& iti = ntp1IntermediaryTIs[i];
@@ -1417,11 +1434,12 @@ void AddNTP1TokensToTx(CWalletTx& wtxNew, set<pair<const CWalletTx*, unsigned in
         for (int j = 0; j < (int)iti.TIs.size(); j++) {
             auto& ti = iti.TIs[j];
             if (ti.outputIndex == IntermediaryTI::CHANGE_OUTPUT_FAKE_INDEX) {
-                if (changeOutputIndex < 0) {
-                    throw std::runtime_error("While the transaction has change in its outputs, a change "
-                                             "address was not reserved.");
-                }
-                ti.outputIndex = changeOutputIndex;
+                //                if (changeOutputIndex < 0) {
+                //                    throw std::runtime_error("While the transaction has change in its
+                //                    outputs, a change "
+                //                                             "address was not reserved.");
+                //                }
+                //                ti.outputIndex = changeOutputIndex;
             } else {
                 // the outputs the come from the IntermediaryTI start at zero, but the outputs in reality
                 // are shifted by an offset because there are other outputs that are added by Neblio with
@@ -1433,13 +1451,43 @@ void AddNTP1TokensToTx(CWalletTx& wtxNew, set<pair<const CWalletTx*, unsigned in
         }
     }
 
-    // set the OP_RETURN script
-    std::shared_ptr<NTP1Script_Transfer> transferScript = NTP1Script_Transfer::CreateScript(TIs, "");
+    return TIs;
+}
 
-    std::string opRetScriptBin = transferScript->calculateScriptBin();
-    std::string opRetScriptHex = boost::algorithm::hex(opRetScriptBin);
+/**
+ * creates outputs in transaction. This
+ * is important because the outputs have to be determined BEFORE change is determined
+ *
+ * @brief AddNTP1TokenOutputsToTx
+ * @param wtxNew
+ * @param nativeInputs
+ * @param ntp1TxData
+ * @return token outputs offset (to be used with TIs)
+ */
 
-    wtxNew.vout[opReturnIndex].scriptPubKey = CScript() << OP_RETURN << ParseHex(opRetScriptHex);
+int AddNTP1TokenOutputsToTx(CWalletTx& wtxNew, const NTP1SendTxData& ntp1TxData)
+{
+    // some invalid value
+    int opReturnIndex = -10;
+
+    if (ntp1TxData.getIntermediaryTIs().size() > 0) {
+        // it's important to set this as OP_RETURN to find it later; it's searched for
+        CScript scriptPubKey = CScript() << OP_RETURN << ParseHex("00");
+        opReturnIndex        = wtxNew.vout.size();
+        wtxNew.vout.push_back(CTxOut(MIN_TX_FEE, scriptPubKey));
+    }
+
+    const int tokenOutputsOffset = opReturnIndex + 1;
+
+    // create token outputs, basically the output number will be tokenOutputsOffset + i
+    // where i is the recipient number in the list
+    for (const auto& r : ntp1TxData.getNTP1TokenRecipientsList()) {
+        CScript scriptPubKey;
+        scriptPubKey.SetDestination(CBitcoinAddress(r.destination).Get());
+        wtxNew.vout.push_back(CTxOut(MIN_TX_FEE, scriptPubKey));
+    }
+
+    return tokenOutputsOffset;
 }
 
 uint64_t GetTotalNeblsInInputs(const std::vector<NTP1OutPoint>& inputs)
@@ -1484,10 +1532,6 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
         nValue += s.second;
     }
 
-    if (ntp1TxData.hasNTP1Tokens()) {
-        nValue += ntp1TxData.getRequiredNeblsForOutputs();
-    }
-
     if ((vecSend.empty() || nValue < 0) && ntp1TxData.getTotalTokensInInputs().size() == 0)
         return false;
 
@@ -1511,7 +1555,7 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
                     wtxNew.vout.push_back(CTxOut(s.second, s.first));
                 }
 
-                int changeOutputIndex = -1;
+                int changeOutputIndex = -10;
 
                 // Choose coins to use
                 set<pair<const CWalletTx*, unsigned int>> setCoins;
@@ -1522,11 +1566,6 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
                 for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
                     int64_t nCredit = pcoin.first->vout[pcoin.second].nValue;
                     dPriority += (double)nCredit * pcoin.first->GetDepthInMainChain();
-                }
-
-                bool ntp1TokenChangeExists = false;
-                if (ntp1TxData.hasNTP1Tokens()) {
-                    ntp1TokenChangeExists = (ntp1TxData.getChangeTokens().size() != 0);
                 }
 
                 // select NTP1 tokens to determine change (this may be superfluous the first time this is
@@ -1542,9 +1581,16 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
                         for (const auto s : setCoins) {
                             inputs.insert(COutPoint(s.first->GetHash(), s.second));
                         }
-                        for (const auto s : ntp1TxData.getUsedInputs()) {
-                            inputs.insert(COutPoint(s.getHash(), s.getIndex()));
-                        }
+                        //                        for (const auto s : ntp1TxData.getUsedInputs()) {
+                        //                            inputs.insert(COutPoint(s.getHash(),
+                        //                            s.getIndex()));
+                        //                        }
+
+                        std::vector<COutPoint> inputsFromCoinControl =
+                            (takeInputsFromCoinControl ? coinControl->GetSelected()
+                                                       : vector<COutPoint>());
+                        inputs.insert(inputsFromCoinControl.begin(), inputsFromCoinControl.end());
+
                         ntp1TxData.selectNTP1Tokens(
                             ntp1TxData.getWallet(), std::vector<COutPoint>(inputs.begin(), inputs.end()),
                             ntp1TxData.getNTP1TokenRecipientsList(), !takeInputsFromCoinControl);
@@ -1559,6 +1605,21 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
                         printf("Failed to select NTP1 tokens with error: %s\n", ex.what());
                         return false;
                     }
+                }
+
+                int tokenOutputOffset = -1;
+
+                // add NTP1 outputs to tx
+                try {
+                    tokenOutputOffset = AddNTP1TokenOutputsToTx(wtxNew, ntp1TxData);
+                } catch (std::exception& ex) {
+                    printf("Error in CreateTransaction() while adding NTP1 outputs: %s\n", ex.what());
+                    return false;
+                }
+
+                bool ntp1TokenChangeExists = false;
+                if (ntp1TxData.hasNTP1Tokens()) {
+                    ntp1TokenChangeExists = (ntp1TxData.getChangeTokens().size() != 0);
                 }
 
                 int64_t nChange = nValueIn - nValue - nFeeRet;
@@ -1606,11 +1667,9 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
                     }
 
                     // Insert change txn at random position:
-                    int randInt = GetRandInt(wtxNew.vout.size());
-
-                    vector<CTxOut>::iterator position = wtxNew.vout.begin() + randInt;
-                    wtxNew.vout.insert(position, CTxOut(nChange, scriptChange));
-                    changeOutputIndex = randInt;
+                    //                    int randInt = GetRandInt(wtxNew.vout.size());
+                    changeOutputIndex = wtxNew.vout.size();
+                    wtxNew.vout.push_back(CTxOut(nChange, scriptChange));
                 } else {
                     reservekey.ReturnKey();
                 }
@@ -1618,6 +1677,15 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
                 // Fill vin
                 for (const PAIRTYPE(const CWalletTx*, unsigned int) & coin : setCoins) {
                     wtxNew.vin.push_back(CTxIn(coin.first->GetHash(), coin.second));
+                }
+
+                // add NTP1 inputs to tx
+                std::vector<NTP1Script::TransferInstruction> TIs;
+                try {
+                    TIs = AddNTP1TokenInputsToTx(wtxNew, setCoins, ntp1TxData, tokenOutputOffset);
+                } catch (std::exception& ex) {
+                    printf("Error in CreateTransaction() while adding NTP1 inputs: %s\n", ex.what());
+                    return false;
                 }
 
                 if (ntp1TokenChangeExists && changeOutputIndex < 0) {
@@ -1630,20 +1698,12 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
                 }
 
                 try {
-                    AddNTP1TokensToTx(wtxNew, setCoins, ntp1TxData, changeOutputIndex);
+                    FixTIsChangeOutputIndex(TIs, changeOutputIndex);
+                    SetTxNTP1OpRet(wtxNew, TIs);
                 } catch (std::exception& ex) {
-                    printf("Error in CreateTransaction(): %s\n", ex.what());
+                    printf("Error in CreateTransaction() while setting up NTP1 data: %s\n", ex.what());
                     return false;
                 }
-                //                if (ntp1TxData.hasNTP1Tokens()) {
-                //                } else {
-                //                    try {
-                //                        NTP1Transaction::AmendStdTxWithNTP1(wtxNew, changeOutputIndex);
-                //                    } catch (std::exception& ex) {
-                //                        printf("Failed to amend native Neblio transaction. Error:
-                //                        %s\n", ex.what()); return false;
-                //                    }
-                //                }
 
                 // Sign
                 for (const PAIRTYPE(const CWalletTx*, unsigned int) & coin : setCoins) {
@@ -1668,8 +1728,9 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
                 dPriority /= nBytes;
 
                 // Check that enough fee is included
-                int64_t nPayFee = nTransactionFee * (1 + (int64_t)nBytes / 1000);
-                int64_t nMinFee = wtxNew.GetMinFee(1, GMF_SEND, nBytes);
+                int64_t NTP1Fee = ntp1TxData.getRequiredNeblsForOutputs();
+                int64_t nPayFee = nTransactionFee * (1 + (int64_t)nBytes / 1000) + NTP1Fee;
+                int64_t nMinFee = wtxNew.GetMinFee(1, GMF_SEND, nBytes) + NTP1Fee;
 
                 if (nFeeRet < max(nPayFee, nMinFee)) {
                     nFeeRet = max(nPayFee, nMinFee);
