@@ -4,6 +4,11 @@
 
 NTP1TokenMetaData::NTP1TokenMetaData() { setNull(); }
 
+void NTP1TokenMetaData::setTokenName(const std::string &value)
+{
+    tokenName = value;
+}
+
 void NTP1TokenMetaData::setNull()
 {
     numOfHolders   = 0;

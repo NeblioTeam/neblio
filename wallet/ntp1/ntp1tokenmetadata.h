@@ -47,6 +47,7 @@ public:
     const std::string&     getIconImageType() const;
     const std::string&     getSha2Issue() const;
     friend inline bool     operator==(const NTP1TokenMetaData& lhs, const NTP1TokenMetaData& rhs);
+    void                   setTokenName(const std::string& value);
 };
 
 bool operator==(const NTP1TokenMetaData& lhs, const NTP1TokenMetaData& rhs)
