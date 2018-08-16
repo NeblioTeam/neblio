@@ -581,6 +581,37 @@ Value getbalance(const Array& params, bool fHelp)
     return ValueFromAmount(nBalance);
 }
 
+Value getntp1balances(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 0)
+        throw runtime_error("getntp1balance\n");
+
+    boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();
+
+    ntp1wallet->setRetrieveMetadataFromAPI(false);
+
+    ntp1wallet->update();
+
+    int tokenCount = ntp1wallet->getNumberOfTokens();
+
+    json_spirit::Object root;
+
+    for (int i = 0; i < tokenCount; i++) {
+        std::string tokenId   = ntp1wallet->getTokenId(i);
+        std::string tokenName = ntp1wallet->getTokenName(tokenId);
+        int64_t     balance   = ntp1wallet->getTokenBalance(tokenId);
+
+        json_spirit::Object tokenJsonData;
+        tokenJsonData.push_back(json_spirit::Pair("Name", tokenName));
+        tokenJsonData.push_back(json_spirit::Pair("TokenId", tokenId));
+        tokenJsonData.push_back(json_spirit::Pair("Balance", balance));
+
+        root.push_back(json_spirit::Pair(tokenId, tokenJsonData));
+    }
+
+    return json_spirit::Value(root);
+}
+
 Value movecmd(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 3 || params.size() > 5)
