@@ -98,7 +98,7 @@ std::string NTP1Script_Burn::Create_OpCodeFromMetadata(const std::string& metada
     const auto& sz = metadata.size();
     std::string result;
     if (sz == 0) {
-        return std::string(1, static_cast<char>(uint8_t(0x22)));
+        return std::string(1, static_cast<char>(uint8_t(0x25)));
     } else if (sz == 20) {
         return std::string(1, static_cast<char>(uint8_t(0x21)));
     } else if (sz == 52) {

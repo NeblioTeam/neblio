@@ -205,7 +205,7 @@ std::string NTP1Script_Issuance::Create_OpCodeFromMetadata(const std::string& me
     const auto& sz = metadata.size();
     std::string result;
     if (sz == 0) {
-        return std::string(1, static_cast<char>(uint8_t(0x03)));
+        return std::string(1, static_cast<char>(uint8_t(0x05)));
     } else if (sz == 20) {
         return std::string(1, static_cast<char>(uint8_t(0x02)));
     } else if (sz == 52) {
