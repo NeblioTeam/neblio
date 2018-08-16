@@ -5,14 +5,14 @@
 #ifndef BITCOIN_INIT_H
 #define BITCOIN_INIT_H
 
-#include "wallet.h"
 #include "boost/atomic.hpp"
+#include "wallet.h"
 
-extern CWallet* pwalletMain;
+extern CWallet*            pwalletMain;
 extern boost::atomic<bool> appInitiated;
-void StartShutdown();
-void Shutdown(void* parg);
-bool AppInit2();
-std::string HelpMessage();
+void                       StartShutdown();
+void                       Shutdown(void* parg);
+bool                       AppInit2();
+std::string                HelpMessage();
 
 #endif
