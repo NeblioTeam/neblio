@@ -93,6 +93,8 @@ public:
     bool getRetrieveMetadataFromAPI() const;
     void setRetrieveMetadataFromAPI(bool value);
 
+    std::map<std::string, int64_t> getBalances() const;
+
 private:
     static std::string __KeyToString(const std::string& str, bool serialize);
     static void        __KeyFromString(const std::string& str, bool deserialize, std::string& result);
