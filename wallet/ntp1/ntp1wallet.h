@@ -16,6 +16,8 @@ class CWalletTx;
 
 class NTP1Wallet : public boost::enable_shared_from_this<NTP1Wallet>
 {
+    bool retrieveMetadataFromAPI = true;
+
     // base58 token id vs NTP1 token meta data object
     std::unordered_map<std::string, NTP1TokenMetaData> tokenInformation;
     // transaction with output index
@@ -87,6 +89,9 @@ public:
     void importFromFile(const boost::filesystem::path& filePath);
 
     //    static void CreateNTP1SendTransaction(uint64_t fee);
+
+    bool getRetrieveMetadataFromAPI() const;
+    void setRetrieveMetadataFromAPI(bool value);
 
 private:
     static std::string __KeyToString(const std::string& str, bool serialize);

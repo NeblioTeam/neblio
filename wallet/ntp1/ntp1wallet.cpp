@@ -29,6 +29,10 @@ void NTP1Wallet::update()
     }
 }
 
+bool NTP1Wallet::getRetrieveMetadataFromAPI() const { return retrieveMetadataFromAPI; }
+
+void NTP1Wallet::setRetrieveMetadataFromAPI(bool value) { retrieveMetadataFromAPI = value; }
+
 void NTP1Wallet::__getOutputs()
 {
     // this helps in persisting to get the wallet data when the application is launched for the first
@@ -100,10 +104,19 @@ void NTP1Wallet::__getOutputs()
                 for (long j = 0;
                      j < static_cast<long>(ntp1tx.getTxOut(output.getIndex()).getNumOfTokens()); j++) {
                     NTP1TokenTxData tokenTx = ntp1tx.getTxOut(output.getIndex()).getToken(j);
-                    // additional metadata is retrieved from the API; like the icon
-                    tokenInformation[tokenTx.getTokenId()] =
-                        NTP1APICalls::RetrieveData_NTP1TokensMetaData(
-                            tokenTx.getTokenId(), txHash.ToString(), output.getIndex(), fTestNet);
+                    if (retrieveMetadataFromAPI) {
+                        // additional metadata is retrieved from the API; like the icon
+                        tokenInformation[tokenTx.getTokenId()] =
+                            NTP1APICalls::RetrieveData_NTP1TokensMetaData(
+                                tokenTx.getTokenId(), txHash.ToString(), output.getIndex(), fTestNet);
+                    } else {
+                        // no metadata available, set the name manually
+                        tokenInformation[tokenTx.getTokenId()] = NTP1TokenMetaData();
+                        tokenInformation[tokenTx.getTokenId()].setTokenName(tokenTx.getTokenSymbol());
+                        tokenInformation[tokenTx.getTokenId()].setTokenId(tokenTx.getTokenId());
+                        tokenInformation[tokenTx.getTokenId()].setIssuanceTxIdHex(
+                            tokenTx.getIssueTxId().ToString());
+                    }
                 }
             } catch (std::exception& ex) {
                 printf("Unable to download token metadata. Error says: %s\n", ex.what());
@@ -298,6 +311,9 @@ string NTP1Wallet::getTokenIcon(int index)
     std::string                                                        tokenId = it->first;
     std::unordered_map<std::string, NTP1TokenMetaData>::const_iterator itToken =
         tokenInformation.find(tokenId);
+    if (itToken == tokenInformation.end()) {
+        return "";
+    }
     if (!tokenIcons.exists(tokenId)) {
         const std::string& IconURL = itToken->second.getIconURL();
         if (IconURL.empty()) {
