@@ -24,9 +24,12 @@ void NTP1TxIn::importJsonData(const json_spirit::Value& parsedData)
         unsigned int        index = NTP1Tools::GetUint64Field(parsedData.get_obj(), "vout");
         json_spirit::Object scriptSigJsonObj =
             NTP1Tools::GetObjectField(parsedData.get_obj(), "scriptSig");
-        prevout                        = NTP1OutPoint(txid, index);
-        scriptSigHex                   = NTP1Tools::GetStrField(scriptSigJsonObj, "hex");
-        json_spirit::Array tokens_list = NTP1Tools::GetArrayField(parsedData.get_obj(), "tokens");
+        prevout      = NTP1OutPoint(txid, index);
+        scriptSigHex = NTP1Tools::GetStrField(scriptSigJsonObj, "hex");
+        json_spirit::Array tokens_list;
+        if (!json_spirit::find_value(parsedData.get_obj(), "tokens").is_null()) {
+            tokens_list = NTP1Tools::GetArrayField(parsedData.get_obj(), "tokens");
+        }
         tokens.clear();
         tokens.resize(tokens_list.size());
         for (unsigned long i = 0; i < tokens_list.size(); i++) {
