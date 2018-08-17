@@ -399,14 +399,15 @@ Value createrawntp1transaction(const Array& params, bool fHelp)
 
                 std::string tokenName = ntp1wallet->getTokenMetadataMap().at(tokenId).getTokenName();
 
-                except_msg = "The transaction has change. Please spend all NTP1 tokens in the "
-                             "transaction. Token with name " +
-                             tokenName + " and ID " + tokenId +
-                             " has the following amount unspent: " + ::ToString(changeAmount);
+                except_msg =
+                    "The transaction has NTP1 tokens change. Please spend all NTP1 tokens in the "
+                    "transaction. Token with name " +
+                    tokenName + " and ID " + tokenId +
+                    " has the following amount unspent: " + ::ToString(changeAmount);
             }
         } catch (std::exception&) {
-            throw std::runtime_error(
-                "The transaction has change. Please spend all NTP1 tokens in the transaction");
+            throw std::runtime_error("The transaction has NTP1 tokens change. Please spend all NTP1 "
+                                     "tokens in the transaction");
         }
 
         throw std::runtime_error(except_msg);
