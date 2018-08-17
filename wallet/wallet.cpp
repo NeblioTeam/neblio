@@ -1348,15 +1348,23 @@ void AddCoinsToInputsSet(set<pair<const CWalletTx*, unsigned int>>& setInputs, c
 {
     std::vector<COutput> coins;
     pwalletMain->AvailableCoins(coins);
-    auto it = std::find_if(coins.begin(), coins.end(), [&input](const COutput& o) {
+    auto itCoin = std::find_if(coins.begin(), coins.end(), [&input](const COutput& o) {
         return (o.tx->GetHash() == input.getHash() && o.i == (int)input.getIndex());
     });
-    if (it == coins.end()) {
+    if (itCoin == coins.end()) {
         throw std::runtime_error("In the main wallet, could not find the output " +
                                  input.getHash().ToString() + ":" + ::ToString(input.getIndex()) +
                                  " which was used as an input");
     }
-    setInputs.insert(std::make_pair(it->tx, it->i));
+    // add the input if it's not alreadt in setInputs (comparison conditions are not the default ones,
+    // that's why find_if is used)
+    auto itInput = std::find_if(
+        setInputs.begin(), setInputs.end(), [&input](const pair<const CWalletTx*, unsigned int>& p) {
+            return p.first->GetHash() == input.getHash() && p.second == input.getIndex();
+        });
+    if (itInput == setInputs.end()) {
+        setInputs.insert(std::make_pair(itCoin->tx, itCoin->i));
+    }
 }
 
 void FixTIsChangeOutputIndex(std::vector<NTP1Script::TransferInstruction>& TIs, int changeOutputIndex)
@@ -1404,9 +1412,9 @@ void SetTxNTP1OpRet(CWalletTx& wtxNew, const std::vector<NTP1Script::TransferIns
  * @return returns transfer instructions that are compatible with these
  * inputs for everything EXCEPT change, where change will remain unchanged from intermediary TIs
  */
-std::vector<NTP1Script::TransferInstruction>
-AddNTP1TokenInputsToTx(CTransaction& wtxNew, set<pair<const CWalletTx*, unsigned int>>& nativeInputs,
-                       const NTP1SendTxData& ntp1TxData, const int tokenOutputsOffset)
+std::vector<NTP1Script::TransferInstruction> AddNTP1TokenInputsToTx(CTransaction&         wtxNew,
+                                                                    const NTP1SendTxData& ntp1TxData,
+                                                                    const int tokenOutputsOffset)
 {
     std::vector<NTP1Script::TransferInstruction> TIs;
 
@@ -1421,8 +1429,6 @@ AddNTP1TokenInputsToTx(CTransaction& wtxNew, set<pair<const CWalletTx*, unsigned
         if (inputIt == wtxNew.vin.end()) {
             // add the input only if it doesn't exist
             wtxNew.vin.insert(wtxNew.vin.begin() + i, CTxIn(iti.input.getHash(), iti.input.getIndex()));
-
-            AddCoinsToInputsSet(nativeInputs, iti.input);
         } else {
             // if the input already exists, move it to position i
             CTxIn toMove = *inputIt;
@@ -1682,7 +1688,10 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
                 // add NTP1 inputs to tx
                 std::vector<NTP1Script::TransferInstruction> TIs;
                 try {
-                    TIs = AddNTP1TokenInputsToTx(wtxNew, setCoins, ntp1TxData, tokenOutputOffset);
+                    TIs = AddNTP1TokenInputsToTx(wtxNew, ntp1TxData, tokenOutputOffset);
+                    for (const auto& iti : ntp1TxData.getIntermediaryTIs()) {
+                        AddCoinsToInputsSet(setCoins, iti.input);
+                    }
                 } catch (std::exception& ex) {
                     printf("Error in CreateTransaction() while adding NTP1 inputs: %s\n", ex.what());
                     return false;
