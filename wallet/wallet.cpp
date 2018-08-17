@@ -1405,7 +1405,7 @@ void SetTxNTP1OpRet(CWalletTx& wtxNew, const std::vector<NTP1Script::TransferIns
  * inputs for everything EXCEPT change, where change will remain unchanged from intermediary TIs
  */
 std::vector<NTP1Script::TransferInstruction>
-AddNTP1TokenInputsToTx(CWalletTx& wtxNew, set<pair<const CWalletTx*, unsigned int>>& nativeInputs,
+AddNTP1TokenInputsToTx(CTransaction& wtxNew, set<pair<const CWalletTx*, unsigned int>>& nativeInputs,
                        const NTP1SendTxData& ntp1TxData, const int tokenOutputsOffset)
 {
     std::vector<NTP1Script::TransferInstruction> TIs;
