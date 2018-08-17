@@ -13,6 +13,7 @@
 #include "ntp1/ntp1txin.h"
 #include "ntp1/ntp1txout.h"
 #include "ntp1/ntp1wallet.h"
+#include <boost/algorithm/string.hpp>
 #include <fstream>
 #include <unordered_map>
 #include <unordered_set>
@@ -1684,6 +1685,14 @@ void TestNTP1TxParsing(const CTransaction& tx, bool testnet)
     for (int i = 0; i < (int)ntp1tx.getTxOutCount(); i++) {
         ASSERT_EQ(ntp1tx.getTxOut(i).getNumOfTokens(), ntp1tx_ref.getTxOut(i).getNumOfTokens())
             << "Failed tx: " << txid << "; Failed at TxOut: " << i;
+        EXPECT_EQ(ntp1tx_ref.getTxOut(i).getValue(), ntp1tx.getTxOut(i).getValue());
+        EXPECT_EQ(ntp1tx_ref.getTxOut(i).getAddress(), ntp1tx.getTxOut(i).getAddress());
+        std::string script1 = ntp1tx_ref.getTxOut(i).getScriptPubKeyHex();
+        std::string script2 = ntp1tx.getTxOut(i).getScriptPubKeyHex();
+        std::transform(script1.begin(), script1.end(), script1.begin(), ::toupper);
+        std::transform(script2.begin(), script2.end(), script2.begin(), ::toupper);
+        EXPECT_EQ(script1, script2);
+        EXPECT_EQ(ntp1tx_ref.getTxOut(i).getScriptPubKeyAsm(), ntp1tx.getTxOut(i).getScriptPubKeyAsm());
         for (int j = 0; j < (int)ntp1tx.getTxOut(i).getNumOfTokens(); j++) {
             EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getAmount(),
                       ntp1tx_ref.getTxOut(i).getToken(j).getAmount())
@@ -1710,6 +1719,13 @@ void TestNTP1TxParsing(const CTransaction& tx, bool testnet)
     for (int i = 0; i < (int)ntp1tx.getTxInCount(); i++) {
         ASSERT_EQ(ntp1tx.getTxIn(i).getNumOfTokens(), ntp1tx_ref.getTxIn(i).getNumOfTokens())
             << "Failed tx: " << txid << "; Failed at TxIn: " << i;
+        EXPECT_EQ(ntp1tx_ref.getTxIn(i).getOutPoint(), ntp1tx.getTxIn(i).getOutPoint());
+        EXPECT_EQ(ntp1tx_ref.getTxIn(i).getPrevout(), ntp1tx.getTxIn(i).getPrevout());
+        std::string sig1 = ntp1tx_ref.getTxIn(i).getScriptSigHex();
+        std::string sig2 = ntp1tx.getTxIn(i).getScriptSigHex();
+        std::transform(sig1.begin(), sig1.end(), sig1.begin(), ::toupper);
+        std::transform(sig2.begin(), sig2.end(), sig2.begin(), ::toupper);
+        EXPECT_EQ(sig1, sig2);
         for (int j = 0; j < (int)ntp1tx.getTxIn(i).getNumOfTokens(); j++) {
             EXPECT_EQ(ntp1tx.getTxIn(i).getToken(j).getAmount(),
                       ntp1tx_ref.getTxIn(i).getToken(j).getAmount())
@@ -2104,7 +2120,7 @@ TEST(ntp1_tests, amend_tx_1)
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue, out1.nValue);
     std::string opRetArg;
     EXPECT_TRUE(TxContainsOpReturn(&tx, &opRetArg));
-    EXPECT_EQ(opRetArg, "4e540112032051");
+    EXPECT_EQ(opRetArg, "4e540115032051");
 
     auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
@@ -2186,7 +2202,7 @@ TEST(ntp1_tests, amend_tx_3)
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue, out1.nValue);
     std::string opRetArg;
     EXPECT_TRUE(TxContainsOpReturn(&tx, &opRetArg));
-    EXPECT_EQ(opRetArg, "4e540112032051");
+    EXPECT_EQ(opRetArg, "4e540115032051");
 
     auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
@@ -2238,7 +2254,7 @@ TEST(ntp1_tests, amend_tx_4)
               out1.nValue);
     std::string opRetArg;
     EXPECT_TRUE(TxContainsOpReturn(&tx, &opRetArg));
-    EXPECT_EQ(opRetArg, "4e540112032051042041");
+    EXPECT_EQ(opRetArg, "4e540115032051042041");
 
     auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
@@ -2299,7 +2315,7 @@ TEST(ntp1_tests, amend_tx_5)
               out1.nValue);
     std::string opRetArg;
     EXPECT_TRUE(TxContainsOpReturn(&tx, &opRetArg));
-    EXPECT_EQ(opRetArg, "4e5401120320510420410520e20638b10719");
+    EXPECT_EQ(opRetArg, "4e5401150320510420410520e20638b10719");
 
     auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
@@ -2373,7 +2389,7 @@ TEST(ntp1_tests, amend_tx_6)
               out1.nValue);
     std::string opRetArg;
     EXPECT_TRUE(TxContainsOpReturn(&tx, &opRetArg));
-    EXPECT_EQ(opRetArg, "4e5401120320510420410520e20638b10719");
+    EXPECT_EQ(opRetArg, "4e5401150320510420410520e20638b10719");
 
     auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
