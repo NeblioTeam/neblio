@@ -74,7 +74,10 @@ void NTP1TxOut::importJsonData(const json_spirit::Value& parsedData)
             }
             address = addresses[0].get_str();
         }
-        json_spirit::Array tokens_list = NTP1Tools::GetArrayField(parsedData.get_obj(), "tokens");
+        json_spirit::Array tokens_list;
+        if (!json_spirit::find_value(parsedData.get_obj(), "tokens").is_null()) {
+            tokens_list = NTP1Tools::GetArrayField(parsedData.get_obj(), "tokens");
+        }
         tokens.clear();
         tokens.resize(tokens_list.size());
         for (unsigned long i = 0; i < tokens_list.size(); i++) {
