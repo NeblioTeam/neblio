@@ -420,6 +420,8 @@ void NTP1Transaction::readNTP1DataFromTx_minimal(const CTransaction& tx)
 void NTP1Transaction::readNTP1DataFromTx(
     const CTransaction& tx, const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs)
 {
+    readNTP1DataFromTx_minimal(tx);
+
     std::string opReturnArg;
     if (!IsTxNTP1(&tx, &opReturnArg)) {
         ntp1TransactionType = NTP1TxType_NOT_NTP1;
@@ -431,12 +433,6 @@ void NTP1Transaction::readNTP1DataFromTx(
                                  "the provided transaction. Error in tx: " +
                                  tx.GetHash().ToString());
     }
-
-    // resize NTP1 input size to match normal outputs size and clear tokens for recalculation
-    for (auto&& in : vin) {
-        in.tokens.clear();
-    }
-    vin.resize(tx.vin.size());
 
     uint64_t totalOutput = tx.GetValueOut();
     uint64_t totalInput  = 0;
@@ -480,14 +476,6 @@ void NTP1Transaction::readNTP1DataFromTx(
 
     this->nTime     = tx.nTime;
     this->nLockTime = tx.nLockTime;
-
-    // resize NTP1 output size to match normal outputs size and clear tokens for recalculation
-    for (auto&& out : vout) {
-        out.tokens.clear();
-    }
-    vout.resize(tx.vout.size());
-
-    txHash = tx.GetHash();
 
     std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScript(opReturnArg);
     if (scriptPtr->getTxType() == NTP1Script::TxType::TxType_Issuance) {
