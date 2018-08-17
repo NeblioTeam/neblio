@@ -1367,16 +1367,8 @@ void AddCoinsToInputsSet(set<pair<const CWalletTx*, unsigned int>>& setInputs, c
     }
 }
 
-void FixTIsChangeOutputIndex(std::vector<NTP1Script::TransferInstruction>& TIs, int changeOutputIndex)
-{
-    for (auto& ti : TIs) {
-        if (ti.outputIndex == IntermediaryTI::CHANGE_OUTPUT_FAKE_INDEX) {
-            ti.outputIndex = changeOutputIndex;
-        }
-    }
-}
-
-void SetTxNTP1OpRet(CWalletTx& wtxNew, const std::vector<NTP1Script::TransferInstruction>& TIs)
+void CWallet::SetTxNTP1OpRet(CTransaction&                                       wtxNew,
+                             const std::vector<NTP1Script::TransferInstruction>& TIs)
 {
     if (TIs.empty()) {
         // no OP_RETURN, no NTP1 outputs
@@ -1403,18 +1395,9 @@ void SetTxNTP1OpRet(CWalletTx& wtxNew, const std::vector<NTP1Script::TransferIns
     it->scriptPubKey = CScript() << OP_RETURN << ParseHex(opRetScriptHex);
 }
 
-/**
- * @brief AddNTP1TokenInputsToTx
- * @param wtxNew
- * @param nativeInputs
- * @param ntp1TxData
- * @param tokenOutputsOffset
- * @return returns transfer instructions that are compatible with these
- * inputs for everything EXCEPT change, where change will remain unchanged from intermediary TIs
- */
-std::vector<NTP1Script::TransferInstruction> AddNTP1TokenInputsToTx(CTransaction&         wtxNew,
-                                                                    const NTP1SendTxData& ntp1TxData,
-                                                                    const int tokenOutputsOffset)
+std::vector<NTP1Script::TransferInstruction>
+CWallet::AddNTP1TokenInputsToTx(CTransaction& wtxNew, const NTP1SendTxData& ntp1TxData,
+                                const int tokenOutputsOffset)
 {
     std::vector<NTP1Script::TransferInstruction> TIs;
 
@@ -1460,18 +1443,7 @@ std::vector<NTP1Script::TransferInstruction> AddNTP1TokenInputsToTx(CTransaction
     return TIs;
 }
 
-/**
- * creates outputs in transaction. This
- * is important because the outputs have to be determined BEFORE change is determined
- *
- * @brief AddNTP1TokenOutputsToTx
- * @param wtxNew
- * @param nativeInputs
- * @param ntp1TxData
- * @return token outputs offset (to be used with TIs)
- */
-
-int AddNTP1TokenOutputsToTx(CWalletTx& wtxNew, const NTP1SendTxData& ntp1TxData)
+int CWallet::AddNTP1TokenOutputsToTx(CTransaction& wtxNew, const NTP1SendTxData& ntp1TxData)
 {
     // some invalid value
     int opReturnIndex = -10;
@@ -1707,8 +1679,8 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
                 }
 
                 try {
-                    FixTIsChangeOutputIndex(TIs, changeOutputIndex);
-                    SetTxNTP1OpRet(wtxNew, TIs);
+                    NTP1SendTxData::FixTIsChangeOutputIndex(TIs, changeOutputIndex);
+                    CWallet::SetTxNTP1OpRet(wtxNew, TIs);
                 } catch (std::exception& ex) {
                     printf("Error in CreateTransaction() while setting up NTP1 data: %s\n", ex.what());
                     return false;

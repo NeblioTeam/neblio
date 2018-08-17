@@ -69,6 +69,9 @@ public:
     std::vector<IntermediaryTI> getIntermediaryTIs() const;
     bool                        hasNTP1Tokens() const;
     uint64_t                    getRequiredNeblsForOutputs() const;
+
+    static void FixTIsChangeOutputIndex(std::vector<NTP1Script::TransferInstruction>& TIs,
+                                        int                                           changeOutputIndex);
 };
 
 #endif // NTP1SENDTXDATA_H

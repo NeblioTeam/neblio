@@ -372,6 +372,42 @@ public:
      */
     boost::signals2::signal<void(CWallet* wallet, const uint256& hashTx, ChangeType status)>
         NotifyTransactionChanged;
+
+    /**
+     * @brief AddNTP1TokenInputsToTx
+     * @param wtxNew
+     * @param nativeInputs
+     * @param ntp1TxData
+     * @param tokenOutputsOffset
+     * @return returns transfer instructions that are compatible with these
+     * inputs for everything EXCEPT change, where change will remain unchanged from intermediary TIs
+     */
+    static std::vector<NTP1Script::TransferInstruction>
+    AddNTP1TokenInputsToTx(CTransaction& wtxNew, const NTP1SendTxData& ntp1TxData,
+                           const int tokenOutputsOffset);
+
+    /**
+     * creates outputs in transaction. This
+     * is important because the outputs have to be determined BEFORE change is determined
+     *
+     * @brief AddNTP1TokenOutputsToTx
+     * @param wtxNew
+     * @param nativeInputs
+     * @param ntp1TxData
+     * @return token outputs offset (to be used with TIs)
+     */
+    static int AddNTP1TokenOutputsToTx(CTransaction& wtxNew, const NTP1SendTxData& ntp1TxData);
+
+    /**
+     * Find the OP_RETURN output and set the correct OP_RETURN argument in it based on the given TIs
+     * (transfer instructions). If TIs list is empty, noting will be changed.
+     *
+     * @brief SetTxNTP1OpRet
+     * @param wtxNew
+     * @param TIs
+     */
+    static void SetTxNTP1OpRet(CTransaction&                                       wtxNew,
+                               const std::vector<NTP1Script::TransferInstruction>& TIs);
 };
 
 /** A key allocated from the key pool. */

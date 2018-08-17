@@ -95,6 +95,8 @@ public:
 
     std::map<std::string, int64_t> getBalances() const;
 
+    const std::unordered_map<std::string, NTP1TokenMetaData>& getTokenMetadataMap() const;
+
 private:
     static std::string __KeyToString(const std::string& str, bool serialize);
     static void        __KeyFromString(const std::string& str, bool deserialize, std::string& result);

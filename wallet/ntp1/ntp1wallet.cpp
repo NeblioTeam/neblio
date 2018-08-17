@@ -35,6 +35,11 @@ void NTP1Wallet::setRetrieveMetadataFromAPI(bool value) { retrieveMetadataFromAP
 
 std::map<std::string, int64_t> NTP1Wallet::getBalances() const { return balances; }
 
+const std::unordered_map<std::string, NTP1TokenMetaData>& NTP1Wallet::getTokenMetadataMap() const
+{
+    return tokenInformation;
+}
+
 void NTP1Wallet::__getOutputs()
 {
     // this helps in persisting to get the wallet data when the application is launched for the first

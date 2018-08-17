@@ -259,6 +259,7 @@ static const CRPCCommand vRPCCommands[] =
     { "listunspent",               &listunspent,               false,  false },
     { "getrawtransaction",         &getrawtransaction,         false,  false },
     { "createrawtransaction",      &createrawtransaction,      false,  false },
+    { "createrawntp1transaction",  &createrawntp1transaction,  false,  false },
     { "decoderawtransaction",      &decoderawtransaction,      false,  false },
     { "decodescript",              &decodescript,              false,  false },
     { "signrawtransaction",        &signrawtransaction,        false,  false },
@@ -1217,6 +1218,10 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
     if (strMethod == "createrawtransaction" && n > 0)
         ConvertTo<Array>(params[0]);
     if (strMethod == "createrawtransaction" && n > 1)
+        ConvertTo<Object>(params[1]);
+    if (strMethod == "createrawntp1transaction" && n > 0)
+        ConvertTo<Array>(params[0]);
+    if (strMethod == "createrawntp1transaction" && n > 1)
         ConvertTo<Object>(params[1]);
     if (strMethod == "signrawtransaction" && n > 1)
         ConvertTo<Array>(params[1], true);

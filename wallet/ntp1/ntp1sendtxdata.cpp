@@ -166,18 +166,19 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
                                          wallet->getTokenName(required_amount.first));
             }
         } else {
-            throw std::runtime_error("You're trying to spend tokens that you don't own; namely: " +
+            throw std::runtime_error("You're trying to spend tokens that you don't own or are not "
+                                     "included in the inputs you selected; namely: " +
                                      wallet->getTokenName(required_amount.first));
         }
     }
 
     // calculate reserved balances to be used in this transaction
-    const std::unordered_map<NTP1OutPoint, NTP1Transaction> availableOutputsMap =
+    const std::unordered_map<NTP1OutPoint, NTP1Transaction> walletOutputsMap =
         wallet->getWalletOutputsWithTokens();
     std::deque<NTP1OutPoint> availableOutputs;
     if (addMoreInputsIfRequired) {
         // assume that inputs automatically has to be gathered from the wallet
-        for (const auto& el : availableOutputsMap) {
+        for (const auto& el : walletOutputsMap) {
             availableOutputs.push_back(el.first);
         }
         for (const auto& el : inputs) {
@@ -208,9 +209,15 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
 
     // fill tokenSourceInputs if inputs are not given
     for (const std::pair<std::string, int64_t>& targetAmount : targetAmounts) {
-        for (auto it = availableOutputs.begin(); it != availableOutputs.end();) {
-            const auto&            output    = *it;
-            const NTP1Transaction& txData    = availableOutputsMap.find(output)->second;
+        for (int i = 0; i < (int)availableOutputs.size(); i++) {
+            const auto& output   = availableOutputs.at(i);
+            auto        ntp1TxIt = walletOutputsMap.find(output);
+            if (ntp1TxIt == walletOutputsMap.end()) {
+                // if the output is not found the NTP1 wallet outputs, it means that it doesn't have NTP1
+                // tokens, so skip
+                continue;
+            }
+            const NTP1Transaction& txData    = ntp1TxIt->second;
             const NTP1TxOut&       ntp1txOut = txData.getTxOut(output.getIndex());
 
             auto numOfTokensInOutput = ntp1txOut.getNumOfTokens();
@@ -243,12 +250,11 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
                         ntp1txOut.getToken(i).getAmount();
                 }
                 tokenSourceInputs.push_back(output);
-                it = availableOutputs.erase(it);
+                availableOutputs.erase(availableOutputs.begin() + i);
+                i--;
                 if (availableOutputs.size() == 0) {
                     break;
                 }
-            } else {
-                ++it;
             }
         }
     }
@@ -486,4 +492,14 @@ int64_t NTP1SendTxData::EstimateTxFee(int64_t num_of_inputs, int64_t num_of_outp
                  (static_cast<double>(EstimateTxSizeInBytes(num_of_inputs, num_of_outputs)) / 1000.);
     // nearest 10000
     return static_cast<int64_t>(std::ceil(Fee / 10000) * 10000);
+}
+
+void NTP1SendTxData::FixTIsChangeOutputIndex(std::vector<NTP1Script::TransferInstruction>& TIs,
+                                             int changeOutputIndex)
+{
+    for (auto& ti : TIs) {
+        if (ti.outputIndex == IntermediaryTI::CHANGE_OUTPUT_FAKE_INDEX) {
+            ti.outputIndex = changeOutputIndex;
+        }
+    }
 }
