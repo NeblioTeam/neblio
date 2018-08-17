@@ -204,7 +204,6 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
     // reset fulfilled amounts and change to zero
     for (const std::pair<std::string, int64_t>& el : targetAmounts) {
         totalTokenAmountsInSelectedInputs[el.first] = 0;
-        totalChangeTokens[el.first]                 = 0;
     }
 
     // fill tokenSourceInputs if inputs are not given
@@ -259,20 +258,6 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
         }
     }
 
-    // finally, verify that the balances caught cover the amount to be sent
-    for (const std::pair<std::string, int64_t>& targetAmount : targetAmounts) {
-        // we don't do NEBL calculations here
-        if (targetAmount.first == NTP1SendTxData::NEBL_TOKEN_ID) {
-            continue;
-        }
-        if (totalTokenAmountsInSelectedInputs[targetAmount.first] < targetAmount.second) {
-            throw std::runtime_error("Failed to cover required balance of " +
-                                     wallet->getTokenName(targetAmount.first));
-        }
-        totalChangeTokens[targetAmount.first] =
-            totalTokenAmountsInSelectedInputs[targetAmount.first] - targetAmount.second;
-    }
-
     recipientsList.assign(recipients.begin(), recipients.end());
 
     // remove empty elements from total from inputs
@@ -280,14 +265,6 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
          it != totalTokenAmountsInSelectedInputs.end();) {
         if (it->second == 0)
             it = totalTokenAmountsInSelectedInputs.erase(it);
-        else
-            ++it;
-    }
-
-    // remove empty elements from change
-    for (auto it = totalChangeTokens.begin(); it != totalChangeTokens.end();) {
-        if (it->second == 0)
-            it = totalChangeTokens.erase(it);
         else
             ++it;
     }
@@ -379,6 +356,13 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
                 NTP1Script::TransferInstruction ti;
                 ti.amount = token.getAmount();
 
+                // add change to total change
+                const std::string tokenId = ntp1txOut.getToken(i).getTokenId();
+                if (totalChangeTokens.find(tokenId) == totalChangeTokens.end()) {
+                    totalChangeTokens[tokenId] = 0;
+                }
+                totalChangeTokens[tokenId] += token.getAmount();
+
                 // add that this input will go to recipient j
                 ti.outputIndex = IntermediaryTI::CHANGE_OUTPUT_FAKE_INDEX;
                 ti.skipInput   = false;
@@ -402,6 +386,14 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
                                      "; still has an unfulfilled amount: " + ::ToString(r.amount) +
                                      ". This should've been spotted earlier.");
         }
+    }
+
+    // remove empty elements from change
+    for (auto it = totalChangeTokens.begin(); it != totalChangeTokens.end();) {
+        if (it->second == 0)
+            it = totalChangeTokens.erase(it);
+        else
+            ++it;
     }
 
     usedWallet = wallet;
