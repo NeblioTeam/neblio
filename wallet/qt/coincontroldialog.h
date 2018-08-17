@@ -42,6 +42,7 @@ private:
     QMenu*           contextMenu;
     QTreeWidgetItem* contextMenuItem;
     QAction*         copyTransactionHashAction;
+    QAction*         copyTransactionOutputIndexAction;
     // QAction *lockAction;
     // QAction *unlockAction;
 
@@ -70,6 +71,7 @@ private slots:
     void copyLabel();
     void copyAddress();
     void copyTransactionHash();
+    void copyTransactionOutputIndex();
     // void lockCoin();
     // void unlockCoin();
     void clipboardQuantity();

@@ -37,6 +37,7 @@ CoinControlDialog::CoinControlDialog(QWidget* parent)
     QAction* copyAmountAction  = new QAction(tr("Copy amount"), this);
     copyTransactionHashAction =
         new QAction(tr("Copy transaction ID"), this); // we need to enable/disable this
+    copyTransactionOutputIndexAction = new QAction(tr("Copy transaction output index"), this);
     // lockAction = new QAction(tr("Lock unspent"), this);                        // we need to
     // enable/disable this  unlockAction = new QAction(tr("Unlock unspent"), this);                    //
     // we need to enable/disable this
@@ -47,6 +48,7 @@ CoinControlDialog::CoinControlDialog(QWidget* parent)
     contextMenu->addAction(copyLabelAction);
     contextMenu->addAction(copyAmountAction);
     contextMenu->addAction(copyTransactionHashAction);
+    contextMenu->addAction(copyTransactionOutputIndexAction);
     // contextMenu->addSeparator();
     // contextMenu->addAction(lockAction);
     // contextMenu->addAction(unlockAction);
@@ -57,6 +59,8 @@ CoinControlDialog::CoinControlDialog(QWidget* parent)
     connect(copyLabelAction, SIGNAL(triggered()), this, SLOT(copyLabel()));
     connect(copyAmountAction, SIGNAL(triggered()), this, SLOT(copyAmount()));
     connect(copyTransactionHashAction, SIGNAL(triggered()), this, SLOT(copyTransactionHash()));
+    connect(copyTransactionOutputIndexAction, SIGNAL(triggered()), this,
+            SLOT(copyTransactionOutputIndex()));
     // connect(lockAction, SIGNAL(triggered()), this, SLOT(lockCoin()));
     // connect(unlockAction, SIGNAL(triggered()), this, SLOT(unlockCoin()));
 
@@ -241,6 +245,11 @@ void CoinControlDialog::copyAddress()
 void CoinControlDialog::copyTransactionHash()
 {
     QApplication::clipboard()->setText(contextMenuItem->text(COLUMN_TXHASH));
+}
+
+void CoinControlDialog::copyTransactionOutputIndex()
+{
+    QApplication::clipboard()->setText(contextMenuItem->text(COLUMN_VOUT_INDEX));
 }
 
 // context menu action: lock coin
@@ -769,17 +778,19 @@ void CoinControlDialog::updateView()
                     sNTP1TokenAmounts = "(Unknown)";
                     sTokenId          = "(Unknown)";
                 }
+            } else {
+                sTokenId   = QString::fromStdString(NTP1SendTxData::NEBL_TOKEN_ID);
+                sTokenType = "NEBL";
             }
             // in case it's not a token, then it's nebls
             if (sTokenId.isEmpty() && sTokenType.isEmpty() && sNTP1TokenAmounts.isEmpty()) {
+                sTokenId   = QString::fromStdString(NTP1SendTxData::NEBL_TOKEN_ID);
                 sTokenType = "NEBL";
             }
 
             itemOutput->setText(COLUMN_LABEL, sTokenType);
 
-            if (!sTokenId.isEmpty()) {
-                itemOutput->setText(COLUMN_ADDRESS, sTokenId);
-            }
+            itemOutput->setText(COLUMN_ADDRESS, sTokenId);
 
             // amount
             itemOutput->setText(COLUMN_AMOUNT,
