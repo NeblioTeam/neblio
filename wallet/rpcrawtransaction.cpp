@@ -7,6 +7,7 @@
 
 #include "base58.h"
 #include "bitcoinrpc.h"
+#include "boost/make_shared.hpp"
 #include "init.h"
 #include "main.h"
 #include "net.h"
