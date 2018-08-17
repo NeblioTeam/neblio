@@ -192,6 +192,7 @@ void CoinControlDialog::showMenu(const QPoint& point)
                                                       // tree mode)
         {
             copyTransactionHashAction->setEnabled(true);
+            copyTransactionOutputIndexAction->setEnabled(true);
             // if (model->isLockedCoin(uint256(item->text(COLUMN_TXHASH).toStdString()),
             // item->text(COLUMN_VOUT_INDEX).toUInt()))
             //{
@@ -206,6 +207,7 @@ void CoinControlDialog::showMenu(const QPoint& point)
         } else // this means click on parent node in tree mode -> disable all
         {
             copyTransactionHashAction->setEnabled(false);
+            copyTransactionOutputIndexAction->setEnabled(false);
             // lockAction->setEnabled(false);
             // unlockAction->setEnabled(false);
         }
