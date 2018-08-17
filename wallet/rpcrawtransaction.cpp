@@ -355,6 +355,7 @@ Value createrawntp1transaction(const Array& params, bool fHelp)
     ntp1wallet->setRetrieveMetadataFromAPI(false);
     ntp1wallet->update();
 
+    // create the list of recipients that's compatible with NTP1 token selector
     std::vector<NTP1SendTokensOneRecipientData> ntp1recipients =
         GetNTP1RecipientsVector(sendTo, ntp1wallet);
 
@@ -389,8 +390,26 @@ Value createrawntp1transaction(const Array& params, bool fHelp)
         [](int64_t n, const std::pair<std::string, int64_t>& p1) { return n + p1.second; });
 
     if (changeTokens > 0) {
-        throw std::runtime_error(
-            "The transaction has change. Please spend all NTP1 tokens in the transaction");
+        std::string except_msg;
+        try {
+            // safety
+            if (changeMap.size() > 0) {
+                std::string tokenId      = changeMap.begin()->first;
+                int64_t     changeAmount = changeMap.begin()->second;
+
+                std::string tokenName = ntp1wallet->getTokenMetadataMap().at(tokenId).getTokenName();
+
+                except_msg = "The transaction has change. Please spend all NTP1 tokens in the "
+                             "transaction. Token with name " +
+                             tokenName + " and ID " + tokenId +
+                             " has the following amount unspent: " + ::ToString(changeAmount);
+            }
+        } catch (std::exception&) {
+            throw std::runtime_error(
+                "The transaction has change. Please spend all NTP1 tokens in the transaction");
+        }
+
+        throw std::runtime_error(except_msg);
     }
 
     std::vector<NTP1OutPoint> usedInputs = tokenSelector.getUsedInputs();
