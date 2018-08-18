@@ -2062,8 +2062,29 @@ string CWallet::SendMoney(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNe
         printf("SendMoney() : %s\n", strError.c_str());
         return strError;
     }
-    // TODO: Sam: fix NTP1SendTxData() and use a correct object
-    if (!CreateTransaction(scriptPubKey, nValue, wtxNew, reservekey, nFeeRequired, NTP1SendTxData())) {
+
+    CTxDestination dest;
+    if (!ExtractDestination(scriptPubKey, dest)) {
+        throw std::runtime_error("Unable to extract address from scriptPubKey.");
+    }
+
+    CBitcoinAddress destAddress(dest);
+
+    NTP1SendTokensOneRecipientData ntp1recipient;
+    ntp1recipient.amount      = nValue;
+    ntp1recipient.destination = destAddress.ToString();
+    ntp1recipient.tokenId     = NTP1SendTxData::NEBL_TOKEN_ID;
+
+    std::vector<NTP1SendTokensOneRecipientData> ntp1recipients(1, ntp1recipient);
+
+    boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();
+    ntp1wallet->setRetrieveMetadataFromAPI(false);
+    ntp1wallet->update();
+
+    NTP1SendTxData tokenSelector;
+    tokenSelector.selectNTP1Tokens(ntp1wallet, vector<COutPoint>(), ntp1recipients, true);
+
+    if (!CreateTransaction(scriptPubKey, nValue, wtxNew, reservekey, nFeeRequired, tokenSelector)) {
         string strError;
         if (nValue + nFeeRequired > GetBalance())
             strError =
