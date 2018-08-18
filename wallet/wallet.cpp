@@ -13,6 +13,7 @@
 #include "ui_interface.h"
 #include "walletdb.h"
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/make_shared.hpp>
 
 using namespace std;
 
