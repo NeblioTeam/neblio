@@ -1156,6 +1156,8 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
         ConvertTo<bool>(params[1]);
     if (strMethod == "getbalance" && n > 1)
         ConvertTo<int64_t>(params[1]);
+    if (strMethod == "getntp1balances" && n > 0)
+        ConvertTo<int64_t>(params[0]);
     if (strMethod == "getblock" && n > 1)
         ConvertTo<bool>(params[1]);
     if (strMethod == "getblockbynumber" && n > 0)

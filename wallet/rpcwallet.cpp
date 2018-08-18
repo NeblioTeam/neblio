@@ -648,13 +648,17 @@ Value getbalance(const Array& params, bool fHelp)
 
 Value getntp1balances(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 0)
-        throw runtime_error("getntp1balance\n");
+    if (fHelp || params.size() > 1)
+        throw runtime_error("getntp1balance [minconf=1]\n");
 
     boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();
 
-    ntp1wallet->setRetrieveMetadataFromAPI(false);
+    int nMinDepth = 0;
+    if (params.size() > 0)
+        nMinDepth = params[0].get_int();
 
+    ntp1wallet->setRetrieveMetadataFromAPI(false);
+    ntp1wallet->setMinMaxConfirmations(nMinDepth);
     ntp1wallet->update();
 
     int tokenCount = ntp1wallet->getNumberOfTokens();
