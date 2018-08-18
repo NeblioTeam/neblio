@@ -172,6 +172,11 @@ Value listunspent(const Array& params, bool fHelp)
         if (out.nDepth < nMinDepth || out.nDepth > nMaxDepth)
             continue;
 
+        std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs =
+            GetAllNTP1InputsOfTx(static_cast<CTransaction>(*out.tx));
+        NTP1Transaction ntp1tx;
+        ntp1tx.readNTP1DataFromTx(static_cast<CTransaction>(*out.tx), ntp1inputs);
+
         if (setAddress.size()) {
             CTxDestination address;
             if (!ExtractDestination(out.tx->vout[out.i].scriptPubKey, address))
@@ -195,6 +200,11 @@ Value listunspent(const Array& params, bool fHelp)
         entry.push_back(Pair("scriptPubKey", HexStr(pk.begin(), pk.end())));
         entry.push_back(Pair("amount", ValueFromAmount(nValue)));
         entry.push_back(Pair("confirmations", out.nDepth));
+        json_spirit::Array tokensRoot;
+        for (int i = 0; i < (int)ntp1tx.getTxOut(out.i).getNumOfTokens(); i++) {
+            tokensRoot.push_back(ntp1tx.getTxOut(out.i).getToken(i).exportDatabaseJsonData());
+        }
+        entry.push_back(Pair("tokens", Value(tokensRoot)));
         results.push_back(entry);
     }
 
