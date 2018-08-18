@@ -317,7 +317,7 @@ GetNTP1RecipientsVector(const Object& sendTo, boost::shared_ptr<NTP1Wallet> ntp1
                     throw std::runtime_error("Found multiple tokens by the name " + providedId);
                 }
             } else {
-                res.tokenId = obj[0].name_;
+                res.tokenId = providedId;
             }
         } else {
             // nebls
