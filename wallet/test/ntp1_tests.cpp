@@ -53,7 +53,8 @@ TEST(ntp1_tests, parse_NTP1TxIn_from_json)
     EXPECT_EQ(tx_good.getToken(0).getDivisibility(), (unsigned)7);
     EXPECT_EQ(tx_good.getToken(0).getAmount(), (unsigned)997000);
     EXPECT_EQ(tx_good.getToken(0).getLockStatus(), true);
-    EXPECT_EQ(tx_good.getToken(0).getAggregationPolicy(), "aggregatable");
+    EXPECT_EQ(tx_good.getToken(0).getAggregationPolicy(),
+              NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str);
     EXPECT_EQ(tx_good.getToken(0).getIssueTxId().ToString(),
               "8e5b8361d16f166afd4f091d50554b93395dc44bd18a0904ac1e4f5532925d6b");
 }
@@ -80,7 +81,8 @@ TEST(ntp1_tests, parse_NTP1TxOut_from_json)
     EXPECT_EQ(tx_good.getToken(0).getDivisibility(), (unsigned)7);
     EXPECT_EQ(tx_good.getToken(0).getAmount(), (unsigned)1000);
     EXPECT_EQ(tx_good.getToken(0).getLockStatus(), true);
-    EXPECT_EQ(tx_good.getToken(0).getAggregationPolicy(), "aggregatable");
+    EXPECT_EQ(tx_good.getToken(0).getAggregationPolicy(),
+              NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str);
     EXPECT_EQ(tx_good.getToken(0).getIssueTxId().ToString(),
               "8e5b8361d16f166afd4f091d50554b93395dc44bd18a0904ac1e4f5532925d6b");
 }
@@ -98,7 +100,8 @@ TEST(ntp1_tests, parse_NTP1TokenData)
     EXPECT_EQ(token_good.getDivisibility(), (unsigned)7);
     EXPECT_EQ(token_good.getAmount(), (unsigned)512345);
     EXPECT_EQ(token_good.getLockStatus(), true);
-    EXPECT_EQ(token_good.getAggregationPolicy(), "aggregatable");
+    EXPECT_EQ(token_good.getAggregationPolicy(),
+              NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str);
     EXPECT_EQ(token_good.getIssueTxId().ToString(),
               "8e5b8361d16f166afd4f091d50554b93395dc44bd18a0904ac1e4f5532925d6b");
 
@@ -220,7 +223,8 @@ TEST(ntp1_tests, parse_NTP1Transaction)
               "fdd4e8e5223c2da74938a725ed7b0244a8");
     EXPECT_EQ(tx_good.getTxIn(1).getSequence(), (uint64_t)4294967295);
 
-    EXPECT_EQ(tx_good.getTxIn(0).getToken(0).getAggregationPolicy(), "aggregatable");
+    EXPECT_EQ(tx_good.getTxIn(0).getToken(0).getAggregationPolicy(),
+              NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str);
     EXPECT_EQ(tx_good.getTxIn(0).getToken(0).getAmount(), (uint64_t)997000);
     EXPECT_EQ(tx_good.getTxIn(0).getToken(0).getDivisibility(), (uint64_t)7);
     EXPECT_EQ(tx_good.getTxIn(0).getToken(0).getIssueTxId().ToString(),
@@ -237,7 +241,8 @@ TEST(ntp1_tests, parse_NTP1Transaction)
     EXPECT_EQ(tx_good.getTxOut(0).getScriptPubKeyHex(),
               "76a914930b31797c0e6f0d4239909b044aaadfde37199588ac");
     EXPECT_EQ(tx_good.getTxOut(0).getValue(), 10000);
-    EXPECT_EQ(tx_good.getTxOut(0).getToken(0).getAggregationPolicy(), "aggregatable");
+    EXPECT_EQ(tx_good.getTxOut(0).getToken(0).getAggregationPolicy(),
+              NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str);
     EXPECT_EQ(tx_good.getTxOut(0).getToken(0).getAmount(), (uint64_t)1000);
     EXPECT_EQ(tx_good.getTxOut(0).getToken(0).getDivisibility(), (uint64_t)7);
     EXPECT_EQ(tx_good.getTxOut(0).getToken(0).getIssueTxId().ToString(),
@@ -250,7 +255,8 @@ TEST(ntp1_tests, parse_NTP1Transaction)
     EXPECT_EQ(tx_good.getTxOut(1).getScriptPubKeyHex(),
               "76a9149e719d5db5e01bb357188f7ab25e336a9c2de11288ac");
     EXPECT_EQ(tx_good.getTxOut(1).getValue(), 10000);
-    EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getAggregationPolicy(), "aggregatable");
+    EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getAggregationPolicy(),
+              NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str);
     EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getAmount(), (uint64_t)996000);
     EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getDivisibility(), (uint64_t)7);
     EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getIssueTxId().ToString(),
@@ -290,7 +296,8 @@ TEST(ntp1_tests, token_meta_data)
     EXPECT_NO_THROW(tokenMetaData.importRestfulAPIJsonData(metadata));
 
     EXPECT_EQ(tokenMetaData.getTokenId(), "La3QxvUgFwKz2jjQR2HSrwaKcRgotf4tGVkMJx");
-    EXPECT_EQ(tokenMetaData.getAggregationPolicy(), "aggregatable");
+    EXPECT_EQ(tokenMetaData.getAggregationPolicy(),
+              NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str);
     EXPECT_EQ(tokenMetaData.getLockStatus(), true);
     EXPECT_EQ(tokenMetaData.getDivisibility(), (unsigned)7);
     EXPECT_EQ(tokenMetaData.getFirstBlock(), (unsigned)159746);
@@ -331,7 +338,8 @@ TEST(ntp1_tests, token_meta_data_without_url)
     EXPECT_NO_THROW(tokenMetaData.importRestfulAPIJsonData(metadata));
 
     EXPECT_EQ(tokenMetaData.getTokenId(), "La3QxvUgFwKz2jjQR2HSrwaKcRgotf4tGVkMJx");
-    EXPECT_EQ(tokenMetaData.getAggregationPolicy(), "aggregatable");
+    EXPECT_EQ(tokenMetaData.getAggregationPolicy(),
+              NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str);
     EXPECT_EQ(tokenMetaData.getLockStatus(), true);
     EXPECT_EQ(tokenMetaData.getDivisibility(), (unsigned)7);
     EXPECT_EQ(tokenMetaData.getFirstBlock(), (unsigned)159746);

@@ -10,6 +10,9 @@
 #include "ntp1script_issuance.h"
 #include "ntp1script_transfer.h"
 
+const std::string NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str    = "aggregatable";
+const std::string NTP1Script::IssuanceFlags::AggregationPolicy_NonAggregatable_Str = "nonaggregatable";
+
 std::string NTP1Script::getHeader() const { return headerBin; }
 
 std::string NTP1Script::getOpCodeBin() const { return opCodeBin; }

@@ -186,8 +186,6 @@ bool operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs)
             lhs.ntp1TransactionType == rhs.ntp1TransactionType);
 }
 
-// TODO: aggregate only if aggregation policy allows so
-
 template <typename ScriptType>
 void NTP1Transaction::__TransferTokens(
     const std::shared_ptr<ScriptType>& scriptPtrD, const CTransaction& tx,
@@ -450,25 +448,29 @@ void NTP1Transaction::__TransferTokens(
             totalTokensLeftInInputs[i][j] -= amountToCredit;
             amountToCredit = 0;
 
-            bool stopLooping = false;
-            for (int k = i; k < (int)totalTokensLeftInInputs.size(); k++) {
-                for (int l = j; l < (int)totalTokensLeftInInputs[k].size(); l++) {
-                    if (k == i && l == j) {
-                        continue; // ignore the balance that was already credited
+            if (ntp1tokenTxData.getAggregationPolicy() ==
+                NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str) {
+                // aggregate coins from next inputs
+                bool stopLooping = false;
+                for (int k = i; k < (int)totalTokensLeftInInputs.size(); k++) {
+                    for (int l = (k == i ? j : 0); l < (int)totalTokensLeftInInputs[k].size(); l++) {
+                        if (k == i && l == j) {
+                            continue; // ignore the balance that was already credited
+                        }
+                        if (tokensKindsInInputs[i][j].getTokenId() !=
+                            tokensKindsInInputs[k][l].getTokenId()) {
+                            stopLooping = true;
+                            break;
+                        }
+                        amountToCredit                = totalTokensLeftInInputs[k][l];
+                        totalTokensLeftInInputs[k][l] = 0;
+                        ntp1tokenTxData.setAmount(ntp1tokenTxData.getAmount() + amountToCredit);
                     }
-                    if (tokensKindsInInputs[i][j].getTokenId() !=
-                        tokensKindsInInputs[k][l].getTokenId()) {
-                        stopLooping = true;
+
+                    // stop the outer loop
+                    if (stopLooping) {
                         break;
                     }
-                    amountToCredit                = totalTokensLeftInInputs[k][l];
-                    totalTokensLeftInInputs[k][l] = 0;
-                    ntp1tokenTxData.setAmount(ntp1tokenTxData.getAmount() + amountToCredit);
-                }
-
-                // stop the outer loop
-                if (stopLooping) {
-                    break;
                 }
             }
 

@@ -62,6 +62,9 @@ public:
         };
         AggregationPolicy aggregationPolicy;
 
+        static const std::string AggregationPolicy_Aggregatable_Str;
+        static const std::string AggregationPolicy_NonAggregatable_Str;
+
         static IssuanceFlags ParseIssuanceFlag(uint8_t flags);
         uint8_t              convertToByte() const
         {
