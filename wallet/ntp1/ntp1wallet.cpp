@@ -56,6 +56,19 @@ void NTP1Wallet::__getOutputs()
     std::vector<COutput> vecOutputs;
     pwalletMain->AvailableCoins(vecOutputs);
 
+    // remove outputs that are outside confirmation bounds
+    auto outputToRemoveIt =
+        std::remove_if(vecOutputs.begin(), vecOutputs.end(), [this](const COutput& output) {
+            if (maxConfirmations >= 0 && output.tx->GetDepthInMainChain() > maxConfirmations) {
+                return true;
+            }
+            if (minConfirmations >= 0 && output.tx->GetDepthInMainChain() < minConfirmations) {
+                return true;
+            }
+            return false;
+        });
+    vecOutputs.erase(outputToRemoveIt, vecOutputs.end());
+
     {
         LOCK2(cs_main, pwalletMain->cs_wallet);
 
@@ -370,6 +383,12 @@ void NTP1Wallet::clear()
     balances.clear();
     lastTxCount      = 0;
     lastOutputsCount = 0;
+}
+
+void NTP1Wallet::setMinMaxConfirmations(int minConfs, int maxConfs)
+{
+    minConfirmations = minConfs;
+    maxConfirmations = maxConfs;
 }
 
 string NTP1Wallet::Serialize(const NTP1Wallet& wallet)

@@ -18,6 +18,9 @@ class NTP1Wallet : public boost::enable_shared_from_this<NTP1Wallet>
 {
     bool retrieveMetadataFromAPI = true;
 
+    int minConfirmations = -1; // default value -1 will not make any constraints
+    int maxConfirmations = -1; // default value -1 will not make any constraints
+
     // base58 token id vs NTP1 token meta data object
     std::unordered_map<std::string, NTP1TokenMetaData> tokenInformation;
     // transaction with output index
@@ -72,6 +75,7 @@ public:
     friend inline bool operator==(const NTP1Wallet& lhs, const NTP1Wallet& rhs);
     static bool        IconHasErrorContent(const std::string& icon);
     void               clear();
+    void               setMinMaxConfirmations(int minConfs, int maxConfs = -1);
     static std::string Serialize(const NTP1Wallet& wallet);
     static NTP1Wallet  Deserialize(const std::string& data);
 
