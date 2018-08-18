@@ -388,9 +388,9 @@ Value listaddressgroupings(const Array& params, bool fHelp)
 
     Array                        jsonGroupings;
     map<CTxDestination, int64_t> balances = pwalletMain->GetAddressBalances();
-    BOOST_FOREACH (set<CTxDestination> grouping, pwalletMain->GetAddressGroupings()) {
+    for (set<CTxDestination> grouping : pwalletMain->GetAddressGroupings()) {
         Array jsonGrouping;
-        BOOST_FOREACH (CTxDestination address, grouping) {
+        for (CTxDestination address : grouping) {
             Array addressInfo;
             addressInfo.push_back(CBitcoinAddress(address).ToString());
             addressInfo.push_back(ValueFromAmount(balances[address]));
