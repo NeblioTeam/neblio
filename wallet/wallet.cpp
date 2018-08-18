@@ -2124,6 +2124,63 @@ string CWallet::SendMoneyToDestination(const CTxDestination& address, int64_t nV
     return SendMoney(scriptPubKey, nValue, wtxNew, fAskFee);
 }
 
+string CWallet::SendNTP1ToDestination(const CTxDestination& address, int64_t nValue,
+                                      const std::string& TokenId, CWalletTx& wtxNew,
+                                      boost::shared_ptr<NTP1Wallet> ntp1wallet, bool fAskFee)
+{
+    // Check amount
+    if (nValue <= 0)
+        return _("Invalid amount");
+
+    CReserveKey reservekey(this);
+    int64_t     nFeeRequired;
+
+    if (IsLocked()) {
+        string strError = _("Error: Wallet locked, unable to create transaction  ");
+        printf("SendMoney() : %s\n", strError.c_str());
+        return strError;
+    }
+    if (fWalletUnlockStakingOnly) {
+        string strError = _("Error: Wallet unlocked for staking only, unable to create transaction.");
+        printf("SendMoney() : %s\n", strError.c_str());
+        return strError;
+    }
+
+    NTP1SendTokensOneRecipientData ntp1recipient;
+    ntp1recipient.amount      = nValue;
+    ntp1recipient.destination = CBitcoinAddress(address).ToString();
+    ntp1recipient.tokenId     = TokenId;
+
+    std::vector<NTP1SendTokensOneRecipientData> ntp1recipients(1, ntp1recipient);
+
+    NTP1SendTxData tokenSelector;
+    tokenSelector.selectNTP1Tokens(ntp1wallet, vector<COutPoint>(), ntp1recipients, true);
+
+    if (!CreateTransaction(vector<pair<CScript, int64_t>>(), wtxNew, reservekey, nFeeRequired,
+                           tokenSelector)) {
+        string strError;
+        if (nValue + nFeeRequired > GetBalance())
+            strError =
+                strprintf(_("Error: This transaction requires a transaction fee of at least %s because "
+                            "of its amount, complexity, or use of recently received funds  "),
+                          FormatMoney(nFeeRequired).c_str());
+        else
+            strError = _("Error: Transaction creation failed  ");
+        printf("SendMoney() : %s\n", strError.c_str());
+        return strError;
+    }
+
+    if (fAskFee && !uiInterface.ThreadSafeAskFee(nFeeRequired, _("Sending...")))
+        return "ABORTED";
+
+    if (!CommitTransaction(wtxNew, reservekey))
+        return _("Error: The transaction was rejected.  This might happen if some of the coins in your "
+                 "wallet were already spent, such as if you used a copy of wallet.dat and coins were "
+                 "spent in the copy but not marked as spent here.");
+
+    return "";
+}
+
 DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
 {
     if (!fFileBacked)

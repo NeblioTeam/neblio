@@ -314,6 +314,70 @@ Value sendtoaddress(const Array& params, bool fHelp)
     return wtx.GetHash().GetHex();
 }
 
+Value sendntp1toaddress(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 3 || params.size() > 5)
+        throw runtime_error(
+            "sendntp1toaddress <neblioaddress> <amount> <tokenId/tokenName> [comment] [comment-to]\n" +
+            HelpRequiringPassphrase());
+
+    CBitcoinAddress address(params[0].get_str());
+    if (!address.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio address");
+
+    // Amount
+    int64_t nAmount = params[1].get_int64();
+
+    // Get NTP1 wallet
+    boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();
+    ntp1wallet->setRetrieveMetadataFromAPI(false);
+    ntp1wallet->update();
+
+    // figure out token id from either the id or the name
+    std::string tokenId;
+    std::string providedId = params[2].get_str();
+
+    const std::unordered_map<std::string, NTP1TokenMetaData> tokenMetadataMap =
+        ntp1wallet->getTokenMetadataMap();
+    // token id was not found
+    if (tokenMetadataMap.find(providedId) == tokenMetadataMap.end()) {
+        int nameCount = 0; // number of tokens that have that name
+        // try to find whether the name of the token matches with what's provided
+        for (const auto& tokenMetadata : tokenMetadataMap) {
+            if (tokenMetadata.second.getTokenName() == providedId) {
+                tokenId = tokenMetadata.second.getTokenId();
+                nameCount++;
+            }
+        }
+        if (tokenId == "") {
+            throw std::runtime_error("Failed to find token by the id/name: " + providedId);
+        }
+        if (nameCount > 1) {
+            throw std::runtime_error("Found multiple tokens by the name " + providedId);
+        }
+    } else {
+        tokenId = params[2].get_str();
+    }
+
+    // Wallet comments
+    CWalletTx wtx;
+    if (params.size() > 3 && params[3].type() != null_type && !params[3].get_str().empty())
+        wtx.mapValue["comment"] = params[3].get_str();
+    if (params.size() > 4 && params[4].type() != null_type && !params[4].get_str().empty())
+        wtx.mapValue["to"] = params[4].get_str();
+
+    if (pwalletMain->IsLocked())
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
+                           "Error: Please enter the wallet passphrase with walletpassphrase first.");
+
+    string strError =
+        pwalletMain->SendNTP1ToDestination(address.Get(), nAmount, tokenId, wtx, ntp1wallet);
+    if (strError != "")
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+    return wtx.GetHash().GetHex();
+}
+
 Value listaddressgroupings(const Array& params, bool fHelp)
 {
     if (fHelp)
