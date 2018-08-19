@@ -39,6 +39,13 @@ protected:
 public:
     struct TransferInstruction
     {
+        TransferInstruction()
+        {
+            amount       = 0;
+            skipInput    = false;
+            outputIndex  = -1;
+            firstRawByte = 1;
+        }
         unsigned char firstRawByte;
         // transfer instructions act on inputs in order until they're empty, so instruction 0 will act on
         // input 0, and instruction 1 will act on input 0, etc... until input 0 is empty, or a skip
