@@ -307,7 +307,8 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
             return count1 > count2;
         });
 
-    std::vector<NTP1SendTokensOneRecipientData> recps = recipients;
+    // this map has depletable balances to be consumed while filling TIs
+    std::unordered_map<NTP1OutPoint, NTP1TxOut> decreditMap;
     for (const auto& in : tokenSourceInputs) {
         // get the output
         auto it = walletOutputs.find(in);
@@ -324,9 +325,19 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
                 in.getHash().ToString() + ":" + ::ToString(in.getIndex()));
         }
 
-        IntermediaryTI iti;
+        decreditMap[in] = ntp1tx.getTxOut(in.getIndex());
+    }
 
-        NTP1TxOut ntp1txOut = ntp1tx.getTxOut(in.getIndex());
+    // copy of the recipients to deduce the amounts they recieved
+    std::vector<NTP1SendTokensOneRecipientData> recps = recipients;
+    for (int u = 0; u < (int)tokenSourceInputs.size(); u++) {
+        const auto& in = tokenSourceInputs[u];
+
+        IntermediaryTI iti;
+        iti.input = in;
+
+        // "in" is guaranteed to be in the map because it comes from tokenSourceInputs
+        NTP1TxOut& ntp1txOut = decreditMap[in];
         for (int i = 0; i < (int)ntp1txOut.getNumOfTokens(); i++) {
             NTP1TokenTxData& token = ntp1txOut.getToken(i);
             for (int j = 0; j < (int)recps.size(); j++) {
@@ -334,41 +345,94 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
                 if (ntp1txOut.getToken(i).getTokenId() == recps[j].tokenId && recps[j].amount > 0) {
                     NTP1Script::TransferInstruction ti;
 
-                    if (recps[j].amount >= token.getAmount()) {
-                        recps[j].amount -= token.getAmount();
-                        ti.amount = token.getAmount();
-                        token.setAmount(0);
-                    } else {
-                        token.setAmount(token.getAmount() - recps[j].amount);
-                        ti.amount       = recps[j].amount;
-                        recps[j].amount = 0;
+                    // there's still more for the recipient. Aggregate from possible adjacent tokens!
+                    // aggregation: loop over inputs and tokens, check the ids, and add them to the
+                    // current recipient
+                    bool stop = false;
+                    for (int v = u; v < (int)tokenSourceInputs.size(); v++) {
+                        // "inComp" is guaranteed to be in the map because it comes from
+                        // tokenSourceInputs
+                        const auto& inComp        = tokenSourceInputs[v];
+                        NTP1TxOut&  ntp1txOutComp = decreditMap[inComp];
+                        for (int k = (v == u ? i : 0); k < (int)ntp1txOutComp.getNumOfTokens(); k++) {
+                            // if the adjacent token id is not the same, break and move on
+                            if (ntp1txOut.getToken(i).getTokenId() !=
+                                ntp1txOutComp.getToken(k).getTokenId()) {
+                                stop = true;
+                                break;
+                            }
+                            // the token slot that the recipient will take from for aggregation
+                            NTP1TokenTxData& tokenComp = ntp1txOutComp.getToken(k);
+                            if (recps[j].amount >= tokenComp.getAmount()) {
+                                // the token amount required by the recipient is larger than the
+                                // amount in the token slot, hence the amount in the slot is set to
+                                // zero
+
+                                recps[j].amount -= tokenComp.getAmount();
+                                ti.amount += tokenComp.getAmount();
+                                tokenComp.setAmount(0);
+                            } else {
+                                // the token amount required by the recipient is smaller than the
+                                // amount in the token slot, hence the recipient is set to zero
+
+                                tokenComp.setAmount(tokenComp.getAmount() - recps[j].amount);
+                                ti.amount += recps[j].amount;
+                                recps[j].amount = 0;
+
+                                // recipient amount is fulfilled. Break and move on
+                                stop = true;
+                                break;
+                            }
+                        }
+                        if (stop) {
+                            break;
+                        }
                     }
 
                     // add that this input will go to recipient j
                     ti.outputIndex = j;
                     ti.skipInput   = false;
 
-                    iti.TIs.push_back(ti);
+                    if (ti.amount > 0) {
+                        iti.TIs.push_back(ti);
+                    }
                 }
             }
-            iti.input = in;
+
             if (token.getAmount() > 0) {
                 NTP1Script::TransferInstruction ti;
-                ti.amount = token.getAmount();
 
-                // add change to total change
-                const std::string tokenId = ntp1txOut.getToken(i).getTokenId();
-                if (totalChangeTokens.find(tokenId) == totalChangeTokens.end()) {
-                    totalChangeTokens[tokenId] = 0;
+                // Aggregate ajacent change tokens. Aggregate from possible adjacent tokens!
+                for (int v = u; v < (int)tokenSourceInputs.size(); v++) {
+                    // "inComp" is guaranteed to be in the map because it comes from
+                    // tokenSourceInputs
+                    const auto& inComp        = tokenSourceInputs[v];
+                    NTP1TxOut&  ntp1txOutComp = decreditMap[inComp];
+                    for (int k = (v == u ? i : 0); k < (int)ntp1txOutComp.getNumOfTokens(); k++) {
+                        // if the adjacent token id is not the same, break and move on
+                        if (ntp1txOut.getToken(i).getTokenId() !=
+                            ntp1txOutComp.getToken(k).getTokenId()) {
+                            break;
+                        }
+                        // the token slot that the recipient will take from for aggregation
+                        NTP1TokenTxData& tokenComp = ntp1txOutComp.getToken(k);
+                        ti.amount += tokenComp.getAmount();
+
+                        // add change to total change
+                        const std::string tokenId = ntp1txOut.getToken(i).getTokenId();
+                        if (totalChangeTokens.find(tokenId) == totalChangeTokens.end()) {
+                            totalChangeTokens[tokenId] = 0;
+                        }
+                        totalChangeTokens[tokenId] += tokenComp.getAmount();
+
+                        tokenComp.setAmount(0);
+                    }
                 }
-                totalChangeTokens[tokenId] += token.getAmount();
 
                 // add that this input will go to recipient j
                 ti.outputIndex = IntermediaryTI::CHANGE_OUTPUT_FAKE_INDEX;
                 ti.skipInput   = false;
                 iti.TIs.push_back(ti);
-
-                token.setAmount(0);
             }
         }
 
