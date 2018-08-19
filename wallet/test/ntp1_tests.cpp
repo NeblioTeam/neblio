@@ -372,7 +372,7 @@ TEST(ntp1_tests, wallet_tests)
 {
     NTP1Wallet                      wallet1;
     typedef boost::filesystem::path Path;
-    EXPECT_NO_THROW(wallet1.importFromFile(Path(TEST_ROOT_PATH) / Path("/data/NTP1Wallet.json")));
+    EXPECT_NO_THROW(wallet1.importFromFile(Path(TEST_ROOT_PATH) / Path("/data/NTP1DataCache.json")));
     Path tempWalletPath = Path(TEST_ROOT_PATH) / Path("/data/tmp.json");
     EXPECT_NO_THROW(wallet1.exportToFile(tempWalletPath));
     NTP1Wallet wallet2;

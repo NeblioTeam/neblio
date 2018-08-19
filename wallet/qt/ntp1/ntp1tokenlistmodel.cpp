@@ -8,7 +8,7 @@
 
 std::atomic<NTP1TokenListModel*> ntp1TokenListModelInstance{nullptr};
 
-const std::string NTP1TokenListModel::WalletFileName = "NTP1Wallet.json";
+const std::string NTP1TokenListModel::WalletFileName = "NTP1DataCache.json";
 
 QString NTP1TokenListModel::__getTokenName(int index, boost::shared_ptr<NTP1Wallet> theWallet)
 {
