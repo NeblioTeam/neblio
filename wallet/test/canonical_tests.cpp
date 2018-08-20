@@ -1,9 +1,9 @@
 //
 // Unit tests for canonical signatures
 
+#include "googletest/googletest/include/gtest/gtest.h"
 #include "json/json_spirit_writer_template.h"
 #include <openssl/ecdsa.h>
-#include "googletest/googletest/include/gtest/gtest.h"
 
 #include "key.h"
 #include "script.h"
@@ -11,7 +11,6 @@
 
 using namespace std;
 using namespace json_spirit;
-
 
 // In script_tests.cpp
 extern Array read_json(const std::string& filename);
@@ -21,14 +20,14 @@ bool static IsCanonicalSignature_OpenSSL_inner(const std::vector<unsigned char>&
 {
     if (vchSig.size() == 0)
         return false;
-    const unsigned char *input = &vchSig[0];
-    ECDSA_SIG *psig = NULL;
+    const unsigned char* input = &vchSig[0];
+    ECDSA_SIG*           psig  = NULL;
     d2i_ECDSA_SIG(&psig, &input, vchSig.size());
     if (psig == NULL)
         return false;
-    unsigned char buf[256];
-    unsigned char *pbuf = buf;
-    unsigned int nLen = i2d_ECDSA_SIG(psig, NULL);
+    unsigned char  buf[256];
+    unsigned char* pbuf = buf;
+    unsigned int   nLen = i2d_ECDSA_SIG(psig, NULL);
     if (nLen != vchSig.size()) {
         ECDSA_SIG_free(psig);
         return false;
@@ -39,7 +38,8 @@ bool static IsCanonicalSignature_OpenSSL_inner(const std::vector<unsigned char>&
 }
 
 // OpenSSL-based test for canonical signature
-bool static IsCanonicalSignature_OpenSSL(const std::vector<unsigned char> &vchSignature) {
+bool static IsCanonicalSignature_OpenSSL(const std::vector<unsigned char>& vchSignature)
+{
     if (vchSignature.size() < 1)
         return false;
     if (vchSignature.size() > 127)
@@ -58,7 +58,7 @@ TEST(canonical_tests, script_canon)
 {
     Array tests = read_json("sig_canonical.json");
 
-    BOOST_FOREACH(Value &tv, tests) {
+    BOOST_FOREACH (Value& tv, tests) {
         string test = tv.get_str();
         if (IsHex(test)) {
             std::vector<unsigned char> sig = ParseHex(test);
@@ -72,7 +72,7 @@ TEST(canonical_tests, script_noncanon)
 {
     Array tests = read_json("sig_noncanonical.json");
 
-    BOOST_FOREACH(Value &tv, tests) {
+    BOOST_FOREACH (Value& tv, tests) {
         string test = tv.get_str();
         if (IsHex(test)) {
             std::vector<unsigned char> sig = ParseHex(test);
