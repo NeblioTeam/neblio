@@ -378,6 +378,49 @@ Value sendntp1toaddress(const Array& params, bool fHelp)
     return wtx.GetHash().GetHex();
 }
 
+std::unordered_map<std::string, std::unordered_map<std::string, std::pair<std::string, uint64_t>>>
+GetNTP1AddressVsTokenBalances()
+{
+    boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();
+    ntp1wallet->setRetrieveMetadataFromAPI(false);
+    ntp1wallet->update();
+
+    // map<address, map<tokenId, pair<name,balance>>>
+    std::unordered_map<std::string, std::unordered_map<std::string, std::pair<std::string, uint64_t>>>
+        addressBalances;
+
+    const std::unordered_map<NTP1OutPoint, NTP1Transaction>& ntp1outputs =
+        ntp1wallet->getWalletOutputsWithTokens();
+
+    for (const auto& outPair : ntp1outputs) {
+        const NTP1Transaction& ntp1tx  = outPair.second;
+        const NTP1TxOut&       ntp1out = ntp1tx.getTxOut(outPair.first.getIndex());
+        const std::string      addr    = ntp1out.getAddress();
+        if (addr.empty()) {
+            continue;
+        }
+        if (addressBalances.find(addr) == addressBalances.end()) {
+            addressBalances[addr] = std::unordered_map<std::string, std::pair<std::string, uint64_t>>();
+        }
+        for (int i = 0; i < (int)ntp1out.getNumOfTokens(); i++) {
+            std::string tokenId   = ntp1out.getToken(i).getTokenId();
+            std::string tokenName = ntp1out.getToken(i).getTokenSymbol();
+            if (addressBalances[addr].find(tokenId) == addressBalances[addr].end()) {
+                addressBalances[addr][tokenId] = std::make_pair(tokenName, 0);
+            }
+            addressBalances[addr][tokenId].second += ntp1out.getToken(i).getAmount();
+        }
+    }
+
+    // print all content to cout for testing
+    //    for (const auto& a : addressBalances) {
+    //        for (const auto& t : a.second) {
+    //            std::cout << a.first << "\t" << t.first << "\t" << t.second << std::endl;
+    //        }
+    //    }
+    return addressBalances;
+}
+
 Value listaddressgroupings(const Array& params, bool fHelp)
 {
     if (fHelp)
@@ -386,20 +429,40 @@ Value listaddressgroupings(const Array& params, bool fHelp)
                             "made public by common use as inputs or as the resulting change\n"
                             "in past transactions");
 
+    std::unordered_map<std::string, std::unordered_map<std::string, std::pair<std::string, uint64_t>>>
+        ntp1AddressVsTokenBalances = GetNTP1AddressVsTokenBalances();
+
     Array                        jsonGroupings;
     map<CTxDestination, int64_t> balances = pwalletMain->GetAddressBalances();
     for (set<CTxDestination> grouping : pwalletMain->GetAddressGroupings()) {
         Array jsonGrouping;
         for (CTxDestination address : grouping) {
-            Array addressInfo;
-            addressInfo.push_back(CBitcoinAddress(address).ToString());
+            Array       addressInfo;
+            std::string addrStr = CBitcoinAddress(address).ToString();
+            addressInfo.push_back(addrStr);
             addressInfo.push_back(ValueFromAmount(balances[address]));
             {
                 LOCK(pwalletMain->cs_wallet);
                 if (pwalletMain->mapAddressBook.find(CBitcoinAddress(address).Get()) !=
-                    pwalletMain->mapAddressBook.end())
+                    pwalletMain->mapAddressBook.end()) {
                     addressInfo.push_back(
                         pwalletMain->mapAddressBook.find(CBitcoinAddress(address).Get())->second);
+                }
+            }
+            // add NTP1 tokens
+            {
+                Array ntp1SingleTokenBalance;
+                if (ntp1AddressVsTokenBalances.find(addrStr) != ntp1AddressVsTokenBalances.end()) {
+                    for (const std::pair<std::string, std::pair<std::string, uint64_t>>& tokenBalance :
+                         ntp1AddressVsTokenBalances[addrStr]) {
+                        Array inner;
+                        inner.push_back(tokenBalance.second.first);  // token name
+                        inner.push_back(tokenBalance.second.second); // balance
+                        inner.push_back(tokenBalance.first);         // token-id
+                        ntp1SingleTokenBalance.push_back(inner);
+                    }
+                }
+                addressInfo.push_back(ntp1SingleTokenBalance);
             }
             jsonGrouping.push_back(addressInfo);
         }

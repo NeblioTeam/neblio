@@ -1,5 +1,6 @@
 #include "ntp1transaction.h"
 
+#include "base58.h"
 #include "ntp1/ntp1script.h"
 #include "ntp1/ntp1script_burn.h"
 #include "ntp1/ntp1script_issuance.h"
@@ -413,6 +414,12 @@ void NTP1Transaction::readNTP1DataFromTx_minimal(const CTransaction& tx)
         boost::algorithm::hex(tx.vout[i].scriptPubKey.begin(), tx.vout[i].scriptPubKey.end(),
                               std::back_inserter(vout[i].scriptPubKeyHex));
         vout[i].scriptPubKeyAsm = tx.vout[i].scriptPubKey.ToString();
+        CTxDestination dest;
+        if (ExtractDestination(tx.vout[i].scriptPubKey, dest)) {
+            vout[i].setAddress(CBitcoinAddress(dest).ToString());
+        } else {
+            vout[i].setAddress("");
+        }
     }
     ntp1TransactionType = NTP1TxType_NOT_NTP1;
 }

@@ -45,6 +45,7 @@ public:
     unsigned long          getNumOfTokens() const;
     friend inline bool     operator==(const NTP1TxOut& lhs, const NTP1TxOut& rhs);
     std::string            getAddress() const;
+    void                   setAddress(const std::string& Address);
     OutputType             getType() const;
     std::string            getScriptPubKeyAsm() const;
 

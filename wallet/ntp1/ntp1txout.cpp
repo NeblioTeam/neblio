@@ -3,6 +3,8 @@
 
 std::string NTP1TxOut::getAddress() const { return address; }
 
+void NTP1TxOut::setAddress(const std::string& Address) { address = Address; }
+
 typename NTP1TxOut::OutputType NTP1TxOut::getType() const
 {
     NTP1TxOut::OutputType type;
