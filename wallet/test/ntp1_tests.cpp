@@ -1876,7 +1876,10 @@ void TestSingleNTP1TxParsingLocally(const std::string&                          
 
 // list of transactions to be excluded from tests
 std::unordered_set<std::string> excluded_txs_testnet = {
-    "826e7b74b24e458e39d779b1033567d325b8d93b507282f983e3c4b3f950fca1"};
+    "826e7b74b24e458e39d779b1033567d325b8d93b507282f983e3c4b3f950fca1",
+    "c378447562be04c6803fdb9f829c9ba0dda462b269e15bcfc7fac3b3561d2eef",
+    "7e71508abef696d6c0427cc85073e0d56da9380f3d333354c7dd9370acd422bc",
+    "adb421a497e25375a88848b17b5c632a8d60db3d02dcc61dbecd397e6c1fb1ca"};
 
 std::unordered_set<std::string> excluded_txs_mainnet = {};
 
