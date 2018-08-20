@@ -123,12 +123,46 @@ void NTP1Wallet::__getOutputs()
                 walletOutputsWithTokens[output] = ntp1tx;
                 for (long j = 0;
                      j < static_cast<long>(ntp1tx.getTxOut(output.getIndex()).getNumOfTokens()); j++) {
+
                     NTP1TokenTxData tokenTx = ntp1tx.getTxOut(output.getIndex()).getToken(j);
+
+                    // find issue transaction to get meta data from
+                    uint256      issueTxid = tokenTx.getIssueTxId();
+                    CTransaction issueTx   = FetchTxFromDisk(issueTxid);
+                    std::vector<std::pair<CTransaction, NTP1Transaction>> issueTxInputs =
+                        GetAllNTP1InputsOfTx(issueTx);
+                    NTP1Transaction issueNTP1Tx;
+                    issueNTP1Tx.readNTP1DataFromTx(issueTx, issueTxInputs);
+
+                    // find the correct output in the issuance transaction that has the token in question
+                    // issued
+                    int  relevantIssueOutputIndex = -1;
+                    bool stop                     = false;
+                    for (int k = 0; k < (int)issueNTP1Tx.getTxOutCount(); k++) {
+                        for (int l = 0; l < (int)issueNTP1Tx.getTxOut(k).getNumOfTokens(); l++) {
+                            if (issueNTP1Tx.getTxOut(k).getToken(l).getTokenId() ==
+                                tokenTx.getTokenId()) {
+                                relevantIssueOutputIndex = k;
+                                stop                     = true;
+                                break;
+                            }
+                        }
+                        if (stop) {
+                            break;
+                        }
+                    }
+
+                    if (relevantIssueOutputIndex < 0) {
+                        throw std::runtime_error("Could not find the correct output index for token: " +
+                                                 tokenTx.getTokenId());
+                    }
+
                     if (retrieveMetadataFromAPI) {
                         // additional metadata is retrieved from the API; like the icon
                         tokenInformation[tokenTx.getTokenId()] =
                             NTP1APICalls::RetrieveData_NTP1TokensMetaData(
-                                tokenTx.getTokenId(), txHash.ToString(), output.getIndex(), fTestNet);
+                                tokenTx.getTokenId(), issueTxid.ToString(), relevantIssueOutputIndex,
+                                fTestNet);
                     } else {
                         // no metadata available, set the name manually
                         tokenInformation[tokenTx.getTokenId()] = NTP1TokenMetaData();
