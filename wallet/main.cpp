@@ -2113,6 +2113,25 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
     return true;
 }
 
+CTransaction FetchTxFromDisk(const uint256& txid)
+{
+    CTransaction result;
+    CTxIndex     txPos;
+    if (!CTxDB().ReadTxIndex(txid, txPos)) {
+        printf("Unable to read standard transaction from leveldb: %s\n", txid.ToString().c_str());
+        throw std::runtime_error("Unable to read standard transaction from leveldb: %s\n" +
+                                 txid.ToString());
+    }
+    if (!result.ReadFromDisk(txPos.pos)) {
+        printf("Unable to read NTP1 transaction from disk with the "
+               "index given by leveldb: %s\n",
+               txid.ToString().c_str());
+        throw std::runtime_error("Unable to read standard transaction from leveldb: %s\n" +
+                                 txid.ToString());
+    }
+    return result;
+}
+
 void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair)
 {
     if (!IsTxNTP1(&txPair.first)) {
