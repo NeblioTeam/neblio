@@ -76,6 +76,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
 
         bool fAllToMe = true;
         for (const CTxOut& txout : wtx.vout) {
+            // OP_RETURN is not to decide whether an output is mine
             if (IsTxOutputOpRet(&txout, nullptr)) {
                 continue;
             }
