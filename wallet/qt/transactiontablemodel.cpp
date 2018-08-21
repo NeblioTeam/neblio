@@ -385,8 +385,22 @@ QVariant TransactionTableModel::addressColor(const TransactionRecord* wtx) const
 
 QString TransactionTableModel::formatTxAmount(const TransactionRecord* wtx, bool showUnconfirmed) const
 {
-    QString str =
-        BitcoinUnits::format(walletModel->getOptionsModel()->getDisplayUnit(), wtx->credit + wtx->debit);
+    // count total NTP1 tokens
+    int64_t totalTokens = 0;
+    if (wtx->ntp1DataLoaded) {
+        for (int i = 0; i < (int)wtx->ntp1tx.getTxOutCount(); i++) {
+            for (int j = 0; j < (int)wtx->ntp1tx.getTxOut(i).getNumOfTokens(); j++) {
+                totalTokens += wtx->ntp1tx.getTxOut(i).getToken(j).getAmount();
+            }
+        }
+    }
+    QString str;
+    if (totalTokens == 0) {
+        str = BitcoinUnits::format(walletModel->getOptionsModel()->getDisplayUnit(),
+                                   wtx->credit + wtx->debit);
+    } else {
+        str = "NTP1";
+    }
     if (showUnconfirmed) {
         if (!wtx->status.countsForBalance) {
             str = QString("[") + str + QString("]");
