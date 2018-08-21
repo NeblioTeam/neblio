@@ -70,12 +70,17 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
         }
     } else {
         bool fAllFromMe = true;
-        for (const CTxIn& txin : wtx.vin)
+        for (const CTxIn& txin : wtx.vin) {
             fAllFromMe = fAllFromMe && wallet->IsMine(txin);
+        }
 
         bool fAllToMe = true;
-        for (const CTxOut& txout : wtx.vout)
+        for (const CTxOut& txout : wtx.vout) {
+            if (IsTxOutputOpRet(&txout, nullptr)) {
+                continue;
+            }
             fAllToMe = fAllToMe && wallet->IsMine(txout);
+        }
 
         if (fAllFromMe && fAllToMe) {
             // Payment to self
