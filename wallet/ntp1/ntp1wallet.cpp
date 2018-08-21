@@ -69,12 +69,16 @@ void NTP1Wallet::__getOutputs()
         });
     vecOutputs.erase(outputToRemoveIt, vecOutputs.end());
 
+    int64_t currTxCount      = 0;
+    int64_t currOutputsCount = 0;
     {
         LOCK2(cs_main, pwalletMain->cs_wallet);
 
+        currTxCount      = static_cast<int64_t>(pwalletMain->mapWallet.size());
+        currOutputsCount = static_cast<int64_t>(vecOutputs.size());
+
         // if no new outputs are available
-        if (lastTxCount == static_cast<int64_t>(pwalletMain->mapWallet.size()) &&
-            lastOutputsCount == static_cast<int64_t>(vecOutputs.size())) {
+        if (lastTxCount == currTxCount && lastOutputsCount == currOutputsCount) {
             return;
         }
     }
@@ -181,12 +185,8 @@ void NTP1Wallet::__getOutputs()
 
     scanSpentTransactions();
 
-    {
-        LOCK2(cs_main, pwalletMain->cs_wallet);
-
-        lastTxCount      = static_cast<int64_t>(pwalletMain->mapWallet.size()) - failedRetrievals;
-        lastOutputsCount = static_cast<int64_t>(vecOutputs.size()) - failedRetrievals;
-    }
+    lastTxCount      = currTxCount - failedRetrievals;
+    lastOutputsCount = currOutputsCount - failedRetrievals;
 }
 
 void NTP1Wallet::__RecalculateTokensBalances()
