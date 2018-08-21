@@ -35,6 +35,9 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
         // Credit
         //
         for (const CTxOut& txout : wtx.vout) {
+            if (IsTxOutputOpRet(&txout, nullptr)) {
+                continue;
+            }
             if (wallet->IsMine(txout)) {
                 TransactionRecord sub(hash, nTime);
                 CTxDestination    address;
@@ -96,7 +99,10 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
             int64_t nTxFee = nDebit - wtx.GetValueOut();
 
             for (unsigned int nOut = 0; nOut < wtx.vout.size(); nOut++) {
-                const CTxOut&     txout = wtx.vout[nOut];
+                const CTxOut& txout = wtx.vout[nOut];
+                if (IsTxOutputOpRet(&txout, nullptr)) {
+                    continue;
+                }
                 TransactionRecord sub(hash, nTime);
                 sub.idx = parts.size();
 
