@@ -2,23 +2,19 @@
 #include "bitcoinunits.h"
 #include <QSettings>
 
+#include "guiutil.h"
 #include "init.h"
 #include "walletdb.h"
-#include "guiutil.h"
 
-OptionsModel::OptionsModel(QObject *parent) :
-    QAbstractListModel(parent)
-{
-    Init();
-}
+OptionsModel::OptionsModel(QObject* parent) : QAbstractListModel(parent) { Init(); }
 
 bool static ApplyProxySettings()
 {
     QSettings settings;
-    CService addrProxy(settings.value("addrProxy", "127.0.0.1:9050").toString().toStdString());
-    int nSocksVersion(settings.value("nSocksVersion", 5).toInt());
+    CService  addrProxy(settings.value("addrProxy", "127.0.0.1:9050").toString().toStdString());
+    int       nSocksVersion(settings.value("nSocksVersion", 5).toInt());
     if (!settings.value("fUseProxy", false).toBool()) {
-        addrProxy = CService();
+        addrProxy     = CService();
         nSocksVersion = 0;
         return false;
     }
@@ -39,14 +35,14 @@ void OptionsModel::Init()
     QSettings settings;
 
     // These are Qt-only settings:
-    nDisplayUnit = settings.value("nDisplayUnit", BitcoinUnits::BTC).toInt();
-    bDisplayAddresses = settings.value("bDisplayAddresses", false).toBool();
-    fMinimizeToTray = settings.value("fMinimizeToTray", false).toBool();
-    fMinimizeOnClose = settings.value("fMinimizeOnClose", false).toBool();
+    nDisplayUnit         = settings.value("nDisplayUnit", BitcoinUnits::BTC).toInt();
+    bDisplayAddresses    = settings.value("bDisplayAddresses", false).toBool();
+    fMinimizeToTray      = settings.value("fMinimizeToTray", false).toBool();
+    fMinimizeOnClose     = settings.value("fMinimizeOnClose", false).toBool();
     fCoinControlFeatures = settings.value("fCoinControlFeatures", false).toBool();
-    nTransactionFee = settings.value("nTransactionFee").toLongLong();
-    nReserveBalance = settings.value("nReserveBalance").toLongLong();
-    language = settings.value("language", "").toString();
+    nTransactionFee      = settings.value("nTransactionFee").toLongLong();
+    nReserveBalance      = settings.value("nReserveBalance").toLongLong();
+    language             = settings.value("language", "").toString();
 
     // These are shared with core Bitcoin; we want
     // command-line options to override the GUI settings:
@@ -60,18 +56,13 @@ void OptionsModel::Init()
         SoftSetArg("-lang", language.toStdString());
 }
 
-int OptionsModel::rowCount(const QModelIndex & parent) const
-{
-    return OptionIDRowCount;
-}
+int OptionsModel::rowCount(const QModelIndex& parent) const { return OptionIDRowCount; }
 
-QVariant OptionsModel::data(const QModelIndex & index, int role) const
+QVariant OptionsModel::data(const QModelIndex& index, int role) const
 {
-    if(role == Qt::EditRole)
-    {
+    if (role == Qt::EditRole) {
         QSettings settings;
-        switch(index.row())
-        {
+        switch (index.row()) {
         case StartAtStartup:
             return QVariant(GUIUtil::GetStartOnSystemStartup());
         case MinimizeToTray:
@@ -99,9 +90,9 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
         case ProxySocksVersion:
             return settings.value("nSocksVersion", 5);
         case Fee:
-            return QVariant((qint64) nTransactionFee);
+            return QVariant((qint64)nTransactionFee);
         case ReserveBalance:
-            return QVariant((qint64) nReserveBalance);
+            return QVariant((qint64)nReserveBalance);
         case DisplayUnit:
             return QVariant(nDisplayUnit);
         case DisplayAddresses:
@@ -110,8 +101,6 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
             return settings.value("language", "");
         case CoinControlFeatures:
             return QVariant(fCoinControlFeatures);
-        case BlockNTPAddresses:
-            return QVariant(settings.value("fBlockNTPAddresses", true));
         default:
             return QVariant();
         }
@@ -119,14 +108,12 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
     return QVariant();
 }
 
-bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, int role)
+bool OptionsModel::setData(const QModelIndex& index, const QVariant& value, int role)
 {
     bool successful = true; /* set to false on parse error */
-    if(role == Qt::EditRole)
-    {
+    if (role == Qt::EditRole) {
         QSettings settings;
-        switch(index.row())
-        {
+        switch (index.row()) {
         case StartAtStartup:
             successful = GUIUtil::SetStartOnSystemStartup(value.toBool());
             break;
@@ -156,8 +143,7 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
             proxy.first.SetIP(addr);
             settings.setValue("addrProxy", proxy.first.ToStringIPPort().c_str());
             successful = ApplyProxySettings();
-        }
-        break;
+        } break;
         case ProxyPort: {
             proxyType proxy;
             proxy.first = CService("127.0.0.1", 9050);
@@ -166,8 +152,7 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
             proxy.first.SetPort(value.toInt());
             settings.setValue("addrProxy", proxy.first.ToStringIPPort().c_str());
             successful = ApplyProxySettings();
-        }
-        break;
+        } break;
         case ProxySocksVersion: {
             proxyType proxy;
             proxy.second = 5;
@@ -176,16 +161,15 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
             proxy.second = value.toInt();
             settings.setValue("nSocksVersion", proxy.second);
             successful = ApplyProxySettings();
-        }
-        break;
+        } break;
         case Fee:
             nTransactionFee = value.toLongLong();
-            settings.setValue("nTransactionFee", (qint64) nTransactionFee);
+            settings.setValue("nTransactionFee", (qint64)nTransactionFee);
             emit transactionFeeChanged(nTransactionFee);
             break;
         case ReserveBalance:
             nReserveBalance = value.toLongLong();
-            settings.setValue("nReserveBalance", (qint64) nReserveBalance);
+            settings.setValue("nReserveBalance", (qint64)nReserveBalance);
             emit reserveBalanceChanged(nReserveBalance);
             break;
         case DisplayUnit:
@@ -205,10 +189,7 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
             settings.setValue("fCoinControlFeatures", fCoinControlFeatures);
             emit coinControlFeaturesChanged(fCoinControlFeatures);
             break;
-            }
-        case BlockNTPAddresses:
-            settings.setValue("fBlockNTPAddresses", value.toBool());
-            break;
+        }
         default:
             break;
         }
@@ -218,17 +199,8 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
     return successful;
 }
 
-qint64 OptionsModel::getTransactionFee()
-{
-    return nTransactionFee;
-}
+qint64 OptionsModel::getTransactionFee() { return nTransactionFee; }
 
-qint64 OptionsModel::getReserveBalance()
-{
-    return nReserveBalance;
-}
+qint64 OptionsModel::getReserveBalance() { return nReserveBalance; }
 
-bool OptionsModel::getCoinControlFeatures()
-{
-    return fCoinControlFeatures;
-}
+bool OptionsModel::getCoinControlFeatures() { return fCoinControlFeatures; }

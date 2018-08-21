@@ -4,6 +4,7 @@
 #include "bitcoinunits.h"
 #include "monitoreddatamapper.h"
 #include "netbase.h"
+#include "ntp1/ntp1tokenlistmodel.h"
 #include "optionsmodel.h"
 
 #include <QDir>
@@ -13,14 +14,9 @@
 #include <QRegExp>
 #include <QRegExpValidator>
 
-OptionsDialog::OptionsDialog(QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::OptionsDialog),
-    model(0),
-    mapper(0),
-    fRestartWarningDisplayed_Proxy(false),
-    fRestartWarningDisplayed_Lang(false),
-    fProxyIpValid(true)
+OptionsDialog::OptionsDialog(QWidget* parent)
+    : QDialog(parent), ui(new Ui::OptionsDialog), model(0), mapper(0),
+      fRestartWarningDisplayed_Proxy(false), fRestartWarningDisplayed_Lang(false), fProxyIpValid(true)
 {
     ui->setupUi(this);
 
@@ -53,29 +49,35 @@ OptionsDialog::OptionsDialog(QWidget *parent) :
     /* Display elements init */
     QDir translations(":translations");
     ui->lang->addItem(QString("(") + tr("default") + QString(")"), QVariant(""));
-    foreach(const QString &langStr, translations.entryList())
-    {
+    foreach (const QString& langStr, translations.entryList()) {
         QLocale locale(langStr);
 
         /** check if the locale name consists of 2 parts (language_country) */
-        if(langStr.contains("_"))
-        {
+        if (langStr.contains("_")) {
 #if QT_VERSION >= 0x040800
-            /** display language strings as "native language - native country (locale name)", e.g. "Deutsch - Deutschland (de)" */
-            ui->lang->addItem(locale.nativeLanguageName() + QString(" - ") + locale.nativeCountryName() + QString(" (") + langStr + QString(")"), QVariant(langStr));
+            /** display language strings as "native language - native country (locale name)", e.g.
+             * "Deutsch - Deutschland (de)" */
+            ui->lang->addItem(locale.nativeLanguageName() + QString(" - ") + locale.nativeCountryName() +
+                                  QString(" (") + langStr + QString(")"),
+                              QVariant(langStr));
 #else
-            /** display language strings as "language - country (locale name)", e.g. "German - Germany (de)" */
-            ui->lang->addItem(QLocale::languageToString(locale.language()) + QString(" - ") + QLocale::countryToString(locale.country()) + QString(" (") + langStr + QString(")"), QVariant(langStr));
+            /** display language strings as "language - country (locale name)", e.g. "German - Germany
+             * (de)" */
+            ui->lang->addItem(QLocale::languageToString(locale.language()) + QString(" - ") +
+                                  QLocale::countryToString(locale.country()) + QString(" (") + langStr +
+                                  QString(")"),
+                              QVariant(langStr));
 #endif
-        }
-        else
-        {
+        } else {
 #if QT_VERSION >= 0x040800
             /** display language strings as "native language (locale name)", e.g. "Deutsch (de)" */
-            ui->lang->addItem(locale.nativeLanguageName() + QString(" (") + langStr + QString(")"), QVariant(langStr));
+            ui->lang->addItem(locale.nativeLanguageName() + QString(" (") + langStr + QString(")"),
+                              QVariant(langStr));
 #else
             /** display language strings as "language (locale name)", e.g. "German (de)" */
-            ui->lang->addItem(QLocale::languageToString(locale.language()) + QString(" (") + langStr + QString(")"), QVariant(langStr));
+            ui->lang->addItem(QLocale::languageToString(locale.language()) + QString(" (") + langStr +
+                                  QString(")"),
+                              QVariant(langStr));
 #endif
         }
     }
@@ -87,64 +89,25 @@ OptionsDialog::OptionsDialog(QWidget *parent) :
     mapper->setSubmitPolicy(QDataWidgetMapper::ManualSubmit);
     mapper->setOrientation(Qt::Vertical);
 
-    initializeMessageBoxForAddressWithNTPTokensWarning();
-    connect(this->ui->tabNTP_blockTxFromAddressWithNTPTokensCheckbox, &QCheckBox::clicked,
-            this, &OptionsDialog::showMessageBoxForAddressWithNTPTokensWarning);
+    connect(ui->clearNTP1DataCacheButton, &QPushButton::clicked, this,
+            &OptionsDialog::slot_clearNTP1DataCache);
 
     /* enable apply button when data modified */
     connect(mapper, SIGNAL(viewModified()), this, SLOT(enableApplyButton()));
     /* disable apply button when new data loaded */
     connect(mapper, SIGNAL(currentIndexChanged(int)), this, SLOT(disableApplyButton()));
     /* setup/change UI elements when proxy IP is invalid/valid */
-    connect(this, SIGNAL(proxyIpValid(QValidatedLineEdit *, bool)), this, SLOT(handleProxyIpValid(QValidatedLineEdit *, bool)));
+    connect(this, SIGNAL(proxyIpValid(QValidatedLineEdit*, bool)), this,
+            SLOT(handleProxyIpValid(QValidatedLineEdit*, bool)));
 }
 
-void OptionsDialog::initializeMessageBoxForAddressWithNTPTokensWarning()
-{
-    NTPWarning_messageBox = new MessageBoxWithTimer(this);
-    NTPWarning_yesButton = NTPWarning_messageBox->addButton(QMessageBox::Yes);
-    NTPWarning_noButton  = NTPWarning_messageBox->addButton(QMessageBox::No);
-    NTPWarning_messageBox->addButtonToWaitOn(NTPWarning_yesButton);
-}
+OptionsDialog::~OptionsDialog() { delete ui; }
 
-void OptionsDialog::showMessageBoxForAddressWithNTPTokensWarning()
-{
-    if(!ui->tabNTP_blockTxFromAddressWithNTPTokensCheckbox->isChecked()) {
-        QString msg = getNTPWarningMessage();
-        NTPWarning_messageBox->setText(msg);
-        NTPWarning_messageBox->exec();
-        if(NTPWarning_messageBox->clickedButton() == NTPWarning_yesButton) {
-            ui->tabNTP_blockTxFromAddressWithNTPTokensCheckbox->setChecked(false);
-        } else {
-            ui->tabNTP_blockTxFromAddressWithNTPTokensCheckbox->setChecked(true);
-        }
-    }
-}
-
-QString OptionsDialog::getNTPWarningMessage()
-{
-    return QString("WARNING: Unspent Transaction Outputs (UTXOs) of some of the addresses in this wallet may have NTP1 tokens. This option protects your NTP1 tokens. "
-                   "neblio-Qt does not currently support NTP1 tokens. "
-                   "Until the NTP1 tokens are swept safely back into Orion, sending any transaction from an address with NTP1 tokens in neblio-Qt could result in your NTP1 tokens being permanently burned. "
-                   "It is recommended you sweep all NTP1 tokens back to Orion immediately and do not disable this check. You have been warned.\n\n"
-                   "To sweep your NTP1 tokens back to Orion:\n"
-                   "1) Unlock your neblio-Qt wallet (completely, not just for staking)\n"
-                   "2) Open the debug console and type: dumpprivkey address\n"
-                   "3) Visit https://orion.nebl.io/#/sweepTokens and paste your private key, repeat until all the tokens are safely back in Orion\n\n"
-                   "Are you sure you want to disable this check?");
-}
-
-OptionsDialog::~OptionsDialog()
-{
-    delete ui;
-}
-
-void OptionsDialog::setModel(OptionsModel *model)
+void OptionsDialog::setModel(OptionsModel* model)
 {
     this->model = model;
 
-    if(model)
-    {
+    if (model) {
         connect(model, SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
 
         mapper->setModel(model);
@@ -155,7 +118,8 @@ void OptionsDialog::setModel(OptionsModel *model)
     /* update the display unit, to not use the default ("BTC") */
     updateDisplayUnit();
 
-    /* warn only when language selection changes by user action (placed here so init via mapper doesn't trigger this) */
+    /* warn only when language selection changes by user action (placed here so init via mapper doesn't
+     * trigger this) */
     connect(ui->lang, SIGNAL(valueChanged()), this, SLOT(showRestartWarning_Lang()));
 
     /* disable apply button after settings are loaded as there is nothing to save */
@@ -188,32 +152,21 @@ void OptionsDialog::setMapper()
     mapper->addMapping(ui->unit, OptionsModel::DisplayUnit);
     mapper->addMapping(ui->displayAddresses, OptionsModel::DisplayAddresses);
     mapper->addMapping(ui->coinControlFeatures, OptionsModel::CoinControlFeatures);
-
-    /* NTP Options */
-    mapper->addMapping(ui->tabNTP_blockTxFromAddressWithNTPTokensCheckbox, OptionsModel::BlockNTPAddresses);
 }
 
-void OptionsDialog::enableApplyButton()
-{
-    ui->applyButton->setEnabled(true);
-}
+void OptionsDialog::enableApplyButton() { ui->applyButton->setEnabled(true); }
 
-void OptionsDialog::disableApplyButton()
-{
-    ui->applyButton->setEnabled(false);
-}
+void OptionsDialog::disableApplyButton() { ui->applyButton->setEnabled(false); }
 
 void OptionsDialog::enableSaveButtons()
 {
-    /* prevent enabling of the save buttons when data modified, if there is an invalid proxy address present */
-    if(fProxyIpValid)
+    /* prevent enabling of the save buttons when data modified, if there is an invalid proxy address
+     * present */
+    if (fProxyIpValid)
         setSaveButtonState(true);
 }
 
-void OptionsDialog::disableSaveButtons()
-{
-    setSaveButtonState(false);
-}
+void OptionsDialog::disableSaveButtons() { setSaveButtonState(false); }
 
 void OptionsDialog::setSaveButtonState(bool fState)
 {
@@ -227,10 +180,7 @@ void OptionsDialog::on_okButton_clicked()
     accept();
 }
 
-void OptionsDialog::on_cancelButton_clicked()
-{
-    reject();
-}
+void OptionsDialog::on_cancelButton_clicked() { reject(); }
 
 void OptionsDialog::on_applyButton_clicked()
 {
@@ -240,43 +190,41 @@ void OptionsDialog::on_applyButton_clicked()
 
 void OptionsDialog::showRestartWarning_Proxy()
 {
-    if(!fRestartWarningDisplayed_Proxy)
-    {
-        QMessageBox::warning(this, tr("Warning"), tr("This setting will take effect after restarting neblio."), QMessageBox::Ok);
+    if (!fRestartWarningDisplayed_Proxy) {
+        QMessageBox::warning(this, tr("Warning"),
+                             tr("This setting will take effect after restarting neblio."),
+                             QMessageBox::Ok);
         fRestartWarningDisplayed_Proxy = true;
     }
 }
 
 void OptionsDialog::showRestartWarning_Lang()
 {
-    if(!fRestartWarningDisplayed_Lang)
-    {
-        QMessageBox::warning(this, tr("Warning"), tr("This setting will take effect after restarting neblio."), QMessageBox::Ok);
+    if (!fRestartWarningDisplayed_Lang) {
+        QMessageBox::warning(this, tr("Warning"),
+                             tr("This setting will take effect after restarting neblio."),
+                             QMessageBox::Ok);
         fRestartWarningDisplayed_Lang = true;
     }
 }
 
 void OptionsDialog::updateDisplayUnit()
 {
-    if(model)
-    {
+    if (model) {
         /* Update transactionFee with the current unit */
         ui->transactionFee->setDisplayUnit(model->getDisplayUnit());
     }
 }
 
-void OptionsDialog::handleProxyIpValid(QValidatedLineEdit *object, bool fState)
+void OptionsDialog::handleProxyIpValid(QValidatedLineEdit* object, bool fState)
 {
     // this is used in a check before re-enabling the save buttons
     fProxyIpValid = fState;
 
-    if(fProxyIpValid)
-    {
+    if (fProxyIpValid) {
         enableSaveButtons();
         ui->statusLabel->clear();
-    }
-    else
-    {
+    } else {
         disableSaveButtons();
         object->setValid(fProxyIpValid);
         ui->statusLabel->setStyleSheet("QLabel { color: red; }");
@@ -284,15 +232,34 @@ void OptionsDialog::handleProxyIpValid(QValidatedLineEdit *object, bool fState)
     }
 }
 
-bool OptionsDialog::eventFilter(QObject *object, QEvent *event)
+void OptionsDialog::slot_clearNTP1DataCache()
 {
-    if(event->type() == QEvent::FocusOut)
-    {
-        if(object == ui->proxyIp)
-        {
+    try {
+        boost::filesystem::remove(GetDataDir() / NTP1TokenListModel::WalletFileName);
+        NTP1TokenListModel* ptr;
+        if ((ptr = ntp1TokenListModelInstance.load()) != nullptr) {
+            QMessageBox::StandardButton reply;
+            reply = QMessageBox::question(
+                this, "Clear NTP1 cache?",
+                "This will require closing neblio-qt. Are you sure you want to proceed?",
+                QMessageBox::Yes | QMessageBox::No);
+            if (reply == QMessageBox::Yes) {
+                ptr->clearNTP1Wallet();
+                QApplication::quit();
+            }
+        }
+    } catch (...) {
+    }
+}
+
+bool OptionsDialog::eventFilter(QObject* object, QEvent* event)
+{
+    if (event->type() == QEvent::FocusOut) {
+        if (object == ui->proxyIp) {
             CService addr;
             /* Check proxyIp for a valid IPv4/IPv6 address and emit the proxyIpValid signal */
-            emit proxyIpValid(ui->proxyIp, LookupNumeric(ui->proxyIp->text().toStdString().c_str(), addr));
+            emit proxyIpValid(ui->proxyIp,
+                              LookupNumeric(ui->proxyIp->text().toStdString().c_str(), addr));
         }
     }
     return QDialog::eventFilter(object, event);

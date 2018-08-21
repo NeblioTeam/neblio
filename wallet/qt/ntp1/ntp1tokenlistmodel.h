@@ -65,6 +65,9 @@ public:
     static QString __getTokenBalance(int index, boost::shared_ptr<NTP1Wallet> theWallet);
     static QIcon   __getTokenIcon(int index, boost::shared_ptr<NTP1Wallet> theWallet);
 
+    void clearNTP1Wallet();
+    void refreshNTP1Wallet();
+
     NTP1TokenListModel();
     ~NTP1TokenListModel();
     void reloadBalances();

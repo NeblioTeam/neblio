@@ -88,7 +88,7 @@ public:
     QPushButton*        applyButton;
     QWidget*            tabNTPOptions;
     QGridLayout*        tabNTPOptionsLayout;
-    QCheckBox*          tabNTP_blockTxFromAddressWithNTPTokensCheckbox;
+    QPushButton*        clearNTP1DataCacheButton;
 
     void setupUi(QDialog* OptionsDialog)
     {
@@ -322,10 +322,15 @@ public:
         tabWidget->addTab(tabNTPOptions, QString("N&TP1 Options"));
         tabNTPOptionsLayout = new QGridLayout;
         tabNTPOptions->setLayout(tabNTPOptionsLayout);
-        tabNTP_blockTxFromAddressWithNTPTokensCheckbox = new QCheckBox(tabNTPOptions);
-        tabNTP_blockTxFromAddressWithNTPTokensCheckbox->setText(
-            "Block sending from addresses that contain NTP1 tokens (otherwise tokens may be lost)");
-        tabNTPOptionsLayout->addWidget(tabNTP_blockTxFromAddressWithNTPTokensCheckbox);
+        clearNTP1DataCacheButton = new QPushButton(tabNTPOptions);
+        clearNTP1DataCacheButton->setText("Clear NTP1 data cache");
+        clearNTP1DataCacheButton->setToolTip(
+            "The NTP1 wallet data is cached in your data directory to avoid exhausting resources with "
+            "rescans. Clicking this button triggers the deletion of the cache and restarting the scan. "
+            "Use this if you see wrong information about your NTP1 tokens. DO NOT click this just "
+            "because you are waiting for a transaction, this does not accelerate retrieving "
+            "transactions.");
+        tabNTPOptionsLayout->addWidget(clearNTP1DataCacheButton);
         tabNTPOptionsLayout->setAlignment(Qt::AlignTop);
         ///////
 

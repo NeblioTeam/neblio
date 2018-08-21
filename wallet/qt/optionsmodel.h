@@ -14,9 +14,10 @@ class OptionsModel : public QAbstractListModel
     Q_OBJECT
 
 public:
-    explicit OptionsModel(QObject *parent = 0);
+    explicit OptionsModel(QObject* parent = 0);
 
-    enum OptionID {
+    enum OptionID
+    {
         StartAtStartup,      // bool
         MinimizeToTray,      // bool
         MapPortUPnP,         // bool
@@ -31,32 +32,31 @@ public:
         DisplayAddresses,    // bool
         Language,            // QString
         CoinControlFeatures, // bool
-        BlockNTPAddresses,   // bool
         OptionIDRowCount,    // last element defines the size, this must be last
     };
 
     void Init();
 
-    int rowCount(const QModelIndex & parent = QModelIndex()) const;
-    QVariant data(const QModelIndex & index, int role = Qt::DisplayRole) const;
-    bool setData(const QModelIndex & index, const QVariant & value, int role = Qt::EditRole);
+    int      rowCount(const QModelIndex& parent = QModelIndex()) const;
+    QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const;
+    bool     setData(const QModelIndex& index, const QVariant& value, int role = Qt::EditRole);
 
     /* Explicit getters */
-    qint64 getTransactionFee();
-    qint64 getReserveBalance();
-    bool getCoinControlFeatures();
-    bool getMinimizeToTray() { return fMinimizeToTray; }
-    bool getMinimizeOnClose() { return fMinimizeOnClose; }
-    int getDisplayUnit() { return nDisplayUnit; }
-    bool getDisplayAddresses() { return bDisplayAddresses; }
+    qint64  getTransactionFee();
+    qint64  getReserveBalance();
+    bool    getCoinControlFeatures();
+    bool    getMinimizeToTray() { return fMinimizeToTray; }
+    bool    getMinimizeOnClose() { return fMinimizeOnClose; }
+    int     getDisplayUnit() { return nDisplayUnit; }
+    bool    getDisplayAddresses() { return bDisplayAddresses; }
     QString getLanguage() { return language; }
 
 private:
-    int nDisplayUnit;
-    bool bDisplayAddresses;
-    bool fMinimizeToTray;
-    bool fMinimizeOnClose;
-    bool fCoinControlFeatures;
+    int     nDisplayUnit;
+    bool    bDisplayAddresses;
+    bool    fMinimizeToTray;
+    bool    fMinimizeOnClose;
+    bool    fCoinControlFeatures;
     QString language;
 
 signals:
