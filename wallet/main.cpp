@@ -4286,3 +4286,22 @@ bool IsTxOutputOpRet(const CTransaction* tx, unsigned int index, std::string* op
     }
     return false;
 }
+
+bool IsTxOutputOpRet(const CTxOut* output, string* opReturnArg)
+{
+    if (!output) {
+        return false;
+    }
+
+    std::smatch opReturnArgMatch;
+
+    std::string scriptPubKeyStr = output->scriptPubKey.ToString();
+    if (std::regex_match(scriptPubKeyStr, opReturnArgMatch, OpReturnRegex)) {
+        if (opReturnArg != nullptr && opReturnArgMatch[1].matched) {
+            *opReturnArg = std::string(opReturnArgMatch[1]);
+            return true;
+        }
+        return true; // could not retrieve OP_RETURN argument
+    }
+    return false;
+}
