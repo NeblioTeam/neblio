@@ -1,6 +1,7 @@
 #ifndef TRANSACTIONRECORD_H
 #define TRANSACTIONRECORD_H
 
+#include "ntp1/ntp1transaction.h"
 #include "uint256.h"
 
 #include <QList>
@@ -79,17 +80,25 @@ public:
     static const int RecommendedNumConfirmations =
         3; /** Number of confirmation recommended for accepting a transaction */
 
-    TransactionRecord() : hash(), time(0), type(Other), address(""), debit(0), credit(0), idx(0) {}
+    TransactionRecord()
+        : hash(), time(0), type(Other), address(""), debit(0), credit(0), idx(0), ntp1DataLoaded(false),
+          ntp1DataLoadError(false)
+    {
+    }
 
     TransactionRecord(uint256 hash, int64_t time)
-        : hash(hash), time(time), type(Other), address(""), debit(0), credit(0), idx(0)
+        : hash(hash), time(time), type(Other), address(""), debit(0), credit(0), idx(0),
+          ntp1DataLoaded(false), ntp1DataLoadError(false)
     {
+        readNTP1TxData();
     }
 
     TransactionRecord(uint256 hash, int64_t time, Type type, const std::string& address, int64_t debit,
                       int64_t credit)
-        : hash(hash), time(time), type(type), address(address), debit(debit), credit(credit), idx(0)
+        : hash(hash), time(time), type(type), address(address), debit(debit), credit(credit), idx(0),
+          ntp1DataLoaded(false), ntp1DataLoadError(false)
     {
+        readNTP1TxData();
     }
 
     /** Decompose CWallet transaction to model transaction records.
@@ -99,16 +108,22 @@ public:
 
     /** @name Immutable transaction attributes
       @{*/
-    uint256     hash;
-    qint64      time;
-    Type        type;
-    std::string address;
-    qint64      debit;
-    qint64      credit;
+    uint256         hash;
+    qint64          time;
+    Type            type;
+    std::string     address;
+    qint64          debit;
+    qint64          credit;
+    NTP1Transaction ntp1tx;
     /**@}*/
+
+    void readNTP1TxData();
 
     /** Subtransaction index, for sort key */
     int idx;
+
+    bool ntp1DataLoaded;
+    bool ntp1DataLoadError;
 
     /** Status: can change with block chain update */
     TransactionStatus status;
