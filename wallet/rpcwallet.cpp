@@ -712,7 +712,7 @@ Value getbalance(const Array& params, bool fHelp)
 Value getntp1balances(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() > 1)
-        throw runtime_error("getntp1balance [minconf=1]\n");
+        throw runtime_error("getntp1balances [minconf=1]\n");
 
     boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();
 
