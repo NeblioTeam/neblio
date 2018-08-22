@@ -646,13 +646,29 @@ T NTP1AmountHexToNumber(std::string hexVal)
 }
 
 template <typename T>
+T GetSignificantDigits(const T& num)
+{
+    if (num == 0) {
+        return 0;
+    }
+    std::string numStr   = std::to_string(num);
+    int         toRemove = 0;
+    for (int i = numStr.size() - 1; i >= 0; i--) {
+        if (numStr[i] == '0') {
+            toRemove++;
+        }
+    }
+    return FromString<T>(numStr.substr(0, numStr.size() - toRemove));
+}
+
+template <typename T>
 typename std::enable_if<!std::numeric_limits<T>::is_signed, std::string>::type
 NumberToHexNTP1Amount(const T& num, bool caps = false)
 {
     std::string numStr     = boost::to_string(num);
     int         zerosCount = 0;
     // numbers less than 32 can fit in a single byte with no exponent
-    if (num >= 32) {
+    if (num >= 32 && std::to_string(GetSignificantDigits(num)).size() <= 12) {
         for (unsigned i = 0; i < numStr.size(); i++) {
             if (numStr[numStr.size() - i - 1] == '0') {
                 zerosCount++;
