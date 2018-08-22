@@ -403,6 +403,7 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
                 NTP1Script::TransferInstruction ti;
 
                 // Aggregate ajacent change tokens. Aggregate from possible adjacent tokens!
+                bool stop = false;
                 for (int v = u; v < (int)tokenSourceInputs.size(); v++) {
                     // "inComp" is guaranteed to be in the map because it comes from
                     // tokenSourceInputs
@@ -412,6 +413,7 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
                         // if the adjacent token id is not the same, break and move on
                         if (ntp1txOut.getToken(i).getTokenId() !=
                             ntp1txOutComp.getToken(k).getTokenId()) {
+                            stop = true;
                             break;
                         }
                         // the token slot that the recipient will take from for aggregation
@@ -426,6 +428,9 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
                         totalChangeTokens[tokenId] += tokenComp.getAmount();
 
                         tokenComp.setAmount(0);
+                    }
+                    if (stop) {
+                        break;
                     }
                 }
 
