@@ -286,11 +286,10 @@ void SendCoinsDialog::on_sendButton_clicked()
                              QMessageBox::Ok, QMessageBox::Ok);
         break;
     case WalletModel::NTP1TokenCalculationsFailed:
-        QMessageBox::warning(
-            this, tr("Send Coins - NTP1 calculations failed"),
-            "Error: Unable to calculate reserve tokens to be spent in this transaction. Error: " +
-                sendstatus.msg,
-            QMessageBox::Ok, QMessageBox::Ok);
+        QMessageBox::warning(this, tr("Send Coins - NTP1 calculations failed"),
+                             "Unable to calculate reserve tokens to be spent in this transaction. " +
+                                 sendstatus.msg,
+                             QMessageBox::Ok, QMessageBox::Ok);
         break;
     case WalletModel::OK:
         accept();
