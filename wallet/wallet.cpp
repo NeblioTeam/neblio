@@ -1102,7 +1102,7 @@ void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins, unsigned int nSp
                             NTP1Transaction ntp1tx;
                             ntp1tx.readNTP1DataFromTx(*tx, inputs);
                             // if this output contains tokens, skip it to avoid burning them
-                            if (ntp1tx.getTxOut(i).getNumOfTokens() > 0) {
+                            if (ntp1tx.getTxOut(i).tokenCount() > 0) {
                                 continue;
                             }
                         } catch (std::exception& ex) {

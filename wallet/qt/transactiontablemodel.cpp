@@ -389,7 +389,7 @@ QString TransactionTableModel::formatTxAmount(const TransactionRecord* wtx, bool
     int64_t totalTokens = 0;
     if (wtx->ntp1DataLoaded) {
         for (int i = 0; i < (int)wtx->ntp1tx.getTxOutCount(); i++) {
-            for (int j = 0; j < (int)wtx->ntp1tx.getTxOut(i).getNumOfTokens(); j++) {
+            for (int j = 0; j < (int)wtx->ntp1tx.getTxOut(i).tokenCount(); j++) {
                 totalTokens += wtx->ntp1tx.getTxOut(i).getToken(j).getAmount();
             }
         }

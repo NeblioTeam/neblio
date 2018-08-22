@@ -219,7 +219,7 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
                            BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, -txout.nValue) + "<br>";
 
                 if (successInRetrievingNTP1Tx && i < (int)ntp1tx.getTxOutCount()) {
-                    for (int j = 0; j < (int)ntp1tx.getTxOut(i).getNumOfTokens(); j++) {
+                    for (int j = 0; j < (int)ntp1tx.getTxOut(i).tokenCount(); j++) {
                         const NTP1TokenTxData& token = ntp1tx.getTxOut(i).getToken(j);
                         strHTML += "<b>" + tr("NTP1 Debit") + ":</b> " +
                                    QString::fromStdString(FormatNTP1TokenAmount(token)) + "<br>";
@@ -327,7 +327,7 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
                            BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, wallet->GetCredit(txout)) +
                            "<br>";
                 if (successInRetrievingNTP1Tx && i < (int)ntp1tx.getTxOutCount()) {
-                    for (int j = 0; j < (int)ntp1tx.getTxOut(i).getNumOfTokens(); j++) {
+                    for (int j = 0; j < (int)ntp1tx.getTxOut(i).tokenCount(); j++) {
                         const NTP1TokenTxData& token = ntp1tx.getTxOut(i).getToken(j);
                         strHTML += "<b>" + tr("NTP1 Credit") + ":</b> " +
                                    QString::fromStdString(FormatNTP1TokenAmount(token)) + "<br>";

@@ -226,11 +226,11 @@ void NTP1Transaction::__TransferTokens(
 
         const NTP1Transaction& ntp1tx = it->second;
         // this array keeps track of all tokens left
-        totalTokensLeftInInputs[i].resize(ntp1tx.getTxOut(n).getNumOfTokens());
+        totalTokensLeftInInputs[i].resize(ntp1tx.getTxOut(n).tokenCount());
         // this object relates tokens in the last list to their corresponding information
-        tokensKindsInInputs[i].resize(ntp1tx.getTxOut(n).getNumOfTokens());
+        tokensKindsInInputs[i].resize(ntp1tx.getTxOut(n).tokenCount());
         // loop over tokens of a single input (outputs from previous transactions)
-        for (int j = 0; j < (int)ntp1tx.getTxOut(n).getNumOfTokens(); j++) {
+        for (int j = 0; j < (int)ntp1tx.getTxOut(n).tokenCount(); j++) {
             const auto& tokenObj          = ntp1tx.getTxOut(n).getToken(j);
             totalTokensLeftInInputs[i][j] = tokenObj.getAmount();
             tokensKindsInInputs[i][j]     = tokenObj;
@@ -502,7 +502,7 @@ void NTP1Transaction::__TransferTokens(
 
     // delete empty token slots
     for (int i = 0; i < (int)vout.size(); i++) {
-        for (int j = 0; j < (int)vout[i].getNumOfTokens(); j++) {
+        for (int j = 0; j < (int)vout[i].tokenCount(); j++) {
             if (vout[i].getToken(j).getAmount() == 0) {
                 vout[i].tokens.erase(vout[i].tokens.begin() + j);
                 j--;

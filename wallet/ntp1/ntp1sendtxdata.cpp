@@ -62,7 +62,7 @@ std::map<string, int64_t> GetAvailableTokenBalances(boost::shared_ptr<NTP1Wallet
                                              ::ToString(input.getIndex()));
                 }
                 // loop over tokens
-                for (int i = 0; i < (int)ntp1tx.getTxOut(input.getIndex()).getNumOfTokens(); i++) {
+                for (int i = 0; i < (int)ntp1tx.getTxOut(input.getIndex()).tokenCount(); i++) {
                     const NTP1TokenTxData& tokenT    = ntp1tx.getTxOut(input.getIndex()).getToken(i);
                     auto                   balanceIt = balancesMap.find(tokenT.getTokenId());
                     if (balanceIt == balancesMap.end()) {
@@ -219,7 +219,7 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
             const NTP1Transaction& txData    = ntp1TxIt->second;
             const NTP1TxOut&       ntp1txOut = txData.getTxOut(output.getIndex());
 
-            auto numOfTokensInOutput = ntp1txOut.getNumOfTokens();
+            auto numOfTokensInOutput = ntp1txOut.tokenCount();
             bool takeThisOutput      = false;
             if (addMoreInputsIfRequired) {
                 for (auto i = 0u; i < numOfTokensInOutput; i++) {
@@ -293,7 +293,7 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
                         "While sorting inputs in NTP1 selector, output index is out of range for: " +
                         o1.getHash().ToString() + ":" + ::ToString(o1.getIndex()));
                 }
-                count1 = tx1.getTxOut(o1.getIndex()).getNumOfTokens();
+                count1 = tx1.getTxOut(o1.getIndex()).tokenCount();
             }
             if (it2 != walletOutputs.end()) {
                 const NTP1Transaction& tx2 = it2->second;
@@ -302,7 +302,7 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
                         "While sorting inputs in NTP1 selector, output index is out of range for: " +
                         o2.getHash().ToString() + ":" + ::ToString(o2.getIndex()));
                 }
-                count2 = tx2.getTxOut(o2.getIndex()).getNumOfTokens();
+                count2 = tx2.getTxOut(o2.getIndex()).tokenCount();
             }
             return count1 > count2;
         });
@@ -338,7 +338,7 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
 
         // "in" is guaranteed to be in the map because it comes from tokenSourceInputs
         NTP1TxOut& ntp1txOut = decreditMap[in];
-        for (int i = 0; i < (int)ntp1txOut.getNumOfTokens(); i++) {
+        for (int i = 0; i < (int)ntp1txOut.tokenCount(); i++) {
             NTP1TokenTxData& token = ntp1txOut.getToken(i);
             for (int j = 0; j < (int)recps.size(); j++) {
                 // if the token id matches and the recipient needs more, give them that amount
@@ -354,7 +354,7 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
                         // tokenSourceInputs
                         const auto& inComp        = tokenSourceInputs[v];
                         NTP1TxOut&  ntp1txOutComp = decreditMap[inComp];
-                        for (int k = (v == u ? i : 0); k < (int)ntp1txOutComp.getNumOfTokens(); k++) {
+                        for (int k = (v == u ? i : 0); k < (int)ntp1txOutComp.tokenCount(); k++) {
                             // if the adjacent token id is not the same, break and move on
                             if (ntp1txOut.getToken(i).getTokenId() !=
                                 ntp1txOutComp.getToken(k).getTokenId()) {
@@ -409,7 +409,7 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
                     // tokenSourceInputs
                     const auto& inComp        = tokenSourceInputs[v];
                     NTP1TxOut&  ntp1txOutComp = decreditMap[inComp];
-                    for (int k = (v == u ? i : 0); k < (int)ntp1txOutComp.getNumOfTokens(); k++) {
+                    for (int k = (v == u ? i : 0); k < (int)ntp1txOutComp.tokenCount(); k++) {
                         // if the adjacent token id is not the same, break and move on
                         if (ntp1txOut.getToken(i).getTokenId() !=
                             ntp1txOutComp.getToken(k).getTokenId()) {

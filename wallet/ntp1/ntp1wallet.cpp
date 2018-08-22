@@ -121,12 +121,12 @@ void NTP1Wallet::__getOutputs()
         }
 
         // include only NTP1 transactions
-        if (ntp1tx.getTxOut(output.getIndex()).getNumOfTokens() > 0) {
+        if (ntp1tx.getTxOut(output.getIndex()).tokenCount() > 0) {
             try {
                 // transaction with output index
                 walletOutputsWithTokens[output] = ntp1tx;
                 for (long j = 0;
-                     j < static_cast<long>(ntp1tx.getTxOut(output.getIndex()).getNumOfTokens()); j++) {
+                     j < static_cast<long>(ntp1tx.getTxOut(output.getIndex()).tokenCount()); j++) {
 
                     NTP1TokenTxData tokenTx = ntp1tx.getTxOut(output.getIndex()).getToken(j);
 
@@ -143,7 +143,7 @@ void NTP1Wallet::__getOutputs()
                     int  relevantIssueOutputIndex = -1;
                     bool stop                     = false;
                     for (int k = 0; k < (int)issueNTP1Tx.getTxOutCount(); k++) {
-                        for (int l = 0; l < (int)issueNTP1Tx.getTxOut(k).getNumOfTokens(); l++) {
+                        for (int l = 0; l < (int)issueNTP1Tx.getTxOut(k).tokenCount(); l++) {
                             if (issueNTP1Tx.getTxOut(k).getToken(l).getTokenId() ==
                                 tokenTx.getTokenId()) {
                                 relevantIssueOutputIndex = k;
@@ -205,7 +205,7 @@ void NTP1Wallet::__RecalculateTokensBalances()
 void NTP1Wallet::AddOutputToWalletBalance(const NTP1Transaction& tx, int outputIndex,
                                           std::map<string, int64_t>& balancesTable)
 {
-    for (long j = 0; j < static_cast<long>(tx.getTxOut(outputIndex).getNumOfTokens()); j++) {
+    for (long j = 0; j < static_cast<long>(tx.getTxOut(outputIndex).tokenCount()); j++) {
         NTP1TokenTxData    tokenTx = tx.getTxOut(outputIndex).getToken(j);
         const std::string& tokenID = tokenTx.getTokenId();
         if (balancesTable.find(tokenID) == balancesTable.end()) {

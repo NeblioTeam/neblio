@@ -194,13 +194,13 @@ void NTP1Transaction::ReorderTokenInputsToGoFirst(
         const NTP1Transaction& ntp1InTx1 = it1->second;
 
         // if there are no tokens in this instance, find next ones that do, and move tokens here
-        if (ntp1InTx1.getTxOut(tx.vin[i].prevout.n).getNumOfTokens() == 0) {
+        if (ntp1InTx1.getTxOut(tx.vin[i].prevout.n).tokenCount() == 0) {
             for (int j = i + 1; j < (int)tx.vin.size(); j++) {
                 auto it2 = GetPrevInputIt(tx, tx.vin[j].prevout.hash, inputsTxs);
 
                 const NTP1Transaction& ntp1InTx2 = it2->second;
 
-                if (ntp1InTx2.getTxOut(tx.vin[j].prevout.n).getNumOfTokens() != 0) {
+                if (ntp1InTx2.getTxOut(tx.vin[j].prevout.n).tokenCount() != 0) {
                     std::swap(tx.vin[i], tx.vin[j]);
                     break;
                 }
@@ -227,7 +227,7 @@ unsigned int NTP1Transaction::CountTokenKindsInInputs(
                                      "; input: " + ToString(in.prevout.n) + " is out of range.");
         }
 
-        result += ntp1InTx.getTxOut(in.prevout.n).getNumOfTokens();
+        result += ntp1InTx.getTxOut(in.prevout.n).tokenCount();
     }
 
     return result;
@@ -330,7 +330,7 @@ void NTP1Transaction::AmendStdTxWithNTP1(
             const CTransaction&    inputTxNebl = it->first;
             const NTP1Transaction& inputTxNTP1 = it->second;
 
-            for (int j = 0; j < (int)inputTxNTP1.vout.at(inIndex).getNumOfTokens(); j++) {
+            for (int j = 0; j < (int)inputTxNTP1.vout.at(inIndex).tokenCount(); j++) {
                 if (inputTxNTP1.vout.at(inIndex).getToken(j).getAmount() == 0) {
                     if (i == 0) {
                         throw std::runtime_error("While amending a native neblio transactions, the "
@@ -605,7 +605,7 @@ void NTP1Transaction::readNTP1DataFromTx(
 
             const std::pair<CTransaction, NTP1Transaction>& input = *it;
 
-            for (int i = 0; i < (int)input.second.vout[currIndex].getNumOfTokens(); i++) {
+            for (int i = 0; i < (int)input.second.vout[currIndex].tokenCount(); i++) {
                 if (vout.size() > 0) {
                     vout.back().tokens.push_back(input.second.vout[currIndex].getToken(i));
                 } else {

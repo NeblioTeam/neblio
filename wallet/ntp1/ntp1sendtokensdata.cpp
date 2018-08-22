@@ -68,7 +68,7 @@ void NTP1SendTokensData::calculateSources(boost::shared_ptr<NTP1Wallet> wallet, 
             const NTP1Transaction& txData    = availableOutputsMap.find(output)->second;
             const NTP1TxOut&       ntp1txOut = txData.getTxOut(output.getIndex());
 
-            auto numOfTokensInOutput = ntp1txOut.getNumOfTokens();
+            auto numOfTokensInOutput = ntp1txOut.tokenCount();
             bool takeThisTransaction = false;
             for (auto i = 0u; i < numOfTokensInOutput; i++) {
                 std::string outputTokenId = ntp1txOut.getToken(i).getTokenId();

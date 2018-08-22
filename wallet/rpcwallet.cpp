@@ -402,7 +402,7 @@ GetNTP1AddressVsTokenBalances()
         if (addressBalances.find(addr) == addressBalances.end()) {
             addressBalances[addr] = std::unordered_map<std::string, std::pair<std::string, uint64_t>>();
         }
-        for (int i = 0; i < (int)ntp1out.getNumOfTokens(); i++) {
+        for (int i = 0; i < (int)ntp1out.tokenCount(); i++) {
             std::string tokenId   = ntp1out.getToken(i).getTokenId();
             std::string tokenName = ntp1out.getToken(i).getTokenSymbol();
             if (addressBalances[addr].find(tokenId) == addressBalances[addr].end()) {

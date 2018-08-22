@@ -201,7 +201,7 @@ Value listunspent(const Array& params, bool fHelp)
         entry.push_back(Pair("amount", ValueFromAmount(nValue)));
         entry.push_back(Pair("confirmations", out.nDepth));
         json_spirit::Array tokensRoot;
-        for (int i = 0; i < (int)ntp1tx.getTxOut(out.i).getNumOfTokens(); i++) {
+        for (int i = 0; i < (int)ntp1tx.getTxOut(out.i).tokenCount(); i++) {
             tokensRoot.push_back(ntp1tx.getTxOut(out.i).getToken(i).exportDatabaseJsonData());
         }
         entry.push_back(Pair("tokens", Value(tokensRoot)));

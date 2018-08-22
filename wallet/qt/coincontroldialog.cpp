@@ -499,7 +499,7 @@ void CoinControlDialog::updateLabels(WalletModel* model, QDialog* dialog)
                 std::vector<std::pair<CTransaction, NTP1Transaction>> prevTxs =
                     GetAllNTP1InputsOfTx(*out.tx);
                 ntp1tx.readNTP1DataFromTx(*out.tx, prevTxs);
-                outputIsNTP1 = (ntp1tx.getTxOut(out.i).getNumOfTokens() != 0);
+                outputIsNTP1 = (ntp1tx.getTxOut(out.i).tokenCount() != 0);
 
             } catch (std::exception& ex) {
                 printf("Unable to read NTP1 transaction for coin control: %s. Error says: %s",
@@ -758,7 +758,7 @@ void CoinControlDialog::updateView()
                     }
 
                     const NTP1TxOut& ntp1txOut = ntp1tx.getTxOut(out.i);
-                    for (int i = 0; i < (int)ntp1txOut.getNumOfTokens(); i++) {
+                    for (int i = 0; i < (int)ntp1txOut.tokenCount(); i++) {
                         if (ntp1txOut.getToken(i).getAmount() == 0) {
                             continue;
                         }

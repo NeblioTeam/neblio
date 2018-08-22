@@ -76,7 +76,7 @@ TEST(ntp1_tests, parse_NTP1TxOut_from_json)
     EXPECT_EQ(tx_good.getValue(), 10000);
     EXPECT_EQ(tx_good.getScriptPubKeyHex(), "76a914930b31797c0e6f0d4239909b044aaadfde37199588ac");
     EXPECT_EQ(tx_good.getAddress(), "NZKTvgBXGBFDde73TizBmxVPzNauT1ivxV");
-    EXPECT_EQ(tx_good.getNumOfTokens(), (unsigned long)1);
+    EXPECT_EQ(tx_good.tokenCount(), (unsigned long)1);
     EXPECT_EQ(tx_good.getToken(0).getTokenId(), "LaAGekc9oBLcxMUXWzzbMoHRsZXYwhw1Ciox3z");
     EXPECT_EQ(tx_good.getToken(0).getDivisibility(), (unsigned)7);
     EXPECT_EQ(tx_good.getToken(0).getAmount(), (unsigned)1000);
@@ -233,10 +233,10 @@ TEST(ntp1_tests, parse_NTP1Transaction)
     EXPECT_EQ(tx_good.getTxIn(0).getToken(0).getTokenId(), "LaAGekc9oBLcxMUXWzzbMoHRsZXYwhw1Ciox3z");
 
     EXPECT_EQ(tx_good.getTxOutCount(), (unsigned long)4);
-    EXPECT_EQ(tx_good.getTxOut(0).getNumOfTokens(), (unsigned long)1);
-    EXPECT_EQ(tx_good.getTxOut(1).getNumOfTokens(), (unsigned long)1);
-    EXPECT_EQ(tx_good.getTxOut(2).getNumOfTokens(), (unsigned long)0);
-    EXPECT_EQ(tx_good.getTxOut(3).getNumOfTokens(), (unsigned long)0);
+    EXPECT_EQ(tx_good.getTxOut(0).tokenCount(), (unsigned long)1);
+    EXPECT_EQ(tx_good.getTxOut(1).tokenCount(), (unsigned long)1);
+    EXPECT_EQ(tx_good.getTxOut(2).tokenCount(), (unsigned long)0);
+    EXPECT_EQ(tx_good.getTxOut(3).tokenCount(), (unsigned long)0);
 
     EXPECT_EQ(tx_good.getTxOut(0).getScriptPubKeyHex(),
               "76a914930b31797c0e6f0d4239909b044aaadfde37199588ac");
@@ -268,7 +268,7 @@ TEST(ntp1_tests, parse_NTP1Transaction)
 
     EXPECT_EQ(tx_good.getTxOut(2).getScriptPubKeyHex(), "6a0b4e54011500201301403e43");
     EXPECT_EQ(tx_good.getTxOut(2).getValue(), 10000);
-    EXPECT_EQ(tx_good.getTxOut(2).getNumOfTokens(), 0u);
+    EXPECT_EQ(tx_good.getTxOut(2).tokenCount(), 0u);
     EXPECT_EQ(tx_good.getTxOut(2).getType(), NTP1TxOut::OutputType::OPReturn);
 
     json_spirit::Value v = tx_good.exportDatabaseJsonData();
@@ -637,9 +637,9 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_issuance)
     EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)1);
     EXPECT_EQ(ntp1tx.getTxIn(0).getNumOfTokens(), (unsigned)0);
     EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)3);
-    EXPECT_EQ(ntp1tx.getTxOut(0).getNumOfTokens(), (unsigned)1);
-    EXPECT_EQ(ntp1tx.getTxOut(1).getNumOfTokens(), (unsigned)0);
-    EXPECT_EQ(ntp1tx.getTxOut(2).getNumOfTokens(), (unsigned)0);
+    EXPECT_EQ(ntp1tx.getTxOut(0).tokenCount(), (unsigned)1);
+    EXPECT_EQ(ntp1tx.getTxOut(1).tokenCount(), (unsigned)0);
+    EXPECT_EQ(ntp1tx.getTxOut(2).tokenCount(), (unsigned)0);
     EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), (unsigned)1000000000);
     EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getDivisibility(), (unsigned)7);
     EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getIssueTxId().ToString(),
@@ -873,12 +873,12 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
     EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)2);
     // inputs are unknown, so no more tests
     EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)4);
-    EXPECT_EQ(ntp1tx.getTxOut(0).getNumOfTokens(), (unsigned)1);
+    EXPECT_EQ(ntp1tx.getTxOut(0).tokenCount(), (unsigned)1);
     EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), (uint64_t)100);
-    EXPECT_EQ(ntp1tx.getTxOut(1).getNumOfTokens(), (unsigned)1);
+    EXPECT_EQ(ntp1tx.getTxOut(1).tokenCount(), (unsigned)1);
     EXPECT_EQ(ntp1tx.getTxOut(1).getToken(0).getAmount(), (uint64_t)999965200);
-    EXPECT_EQ(ntp1tx.getTxOut(2).getNumOfTokens(), (unsigned)0);
-    EXPECT_EQ(ntp1tx.getTxOut(3).getNumOfTokens(), (unsigned)0);
+    EXPECT_EQ(ntp1tx.getTxOut(2).tokenCount(), (unsigned)0);
+    EXPECT_EQ(ntp1tx.getTxOut(3).tokenCount(), (unsigned)0);
     EXPECT_EQ(ntp1tx.getTxHash().ToString(),
               "006bd375946e903aa20aced1b411d61d14175488650e1deab3cb5ff8f354467d");
 
@@ -1107,12 +1107,12 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
     EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)2);
     // inputs are unknown, so no more tests
     EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)4);
-    EXPECT_EQ(ntp1tx.getTxOut(0).getNumOfTokens(), (unsigned)1);
+    EXPECT_EQ(ntp1tx.getTxOut(0).tokenCount(), (unsigned)1);
     EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), (uint64_t)100);
-    EXPECT_EQ(ntp1tx.getTxOut(1).getNumOfTokens(), (unsigned)1);
+    EXPECT_EQ(ntp1tx.getTxOut(1).tokenCount(), (unsigned)1);
     EXPECT_EQ(ntp1tx.getTxOut(1).getToken(0).getAmount(), (uint64_t)999965200);
-    EXPECT_EQ(ntp1tx.getTxOut(2).getNumOfTokens(), (unsigned)0);
-    EXPECT_EQ(ntp1tx.getTxOut(3).getNumOfTokens(), (unsigned)1);
+    EXPECT_EQ(ntp1tx.getTxOut(2).tokenCount(), (unsigned)0);
+    EXPECT_EQ(ntp1tx.getTxOut(3).tokenCount(), (unsigned)1);
     EXPECT_EQ(ntp1tx.getTxOut(3).getToken(0).getAmount(), (uint64_t)200);
     EXPECT_EQ(ntp1tx.getTxHash().ToString(),
               "006bd375946e903aa20aced1b411d61d14175488650e1deab3cb5ff8f354467d");
@@ -1451,10 +1451,10 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
     EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)4);
     // inputs are unknown, so no more tests
     EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)3);
-    EXPECT_EQ(ntp1tx.getTxOut(0).getNumOfTokens(), (unsigned)1);
+    EXPECT_EQ(ntp1tx.getTxOut(0).tokenCount(), (unsigned)1);
     EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), (uint64_t)10);
-    EXPECT_EQ(ntp1tx.getTxOut(1).getNumOfTokens(), (unsigned)0);
-    EXPECT_EQ(ntp1tx.getTxOut(2).getNumOfTokens(), (unsigned)1);
+    EXPECT_EQ(ntp1tx.getTxOut(1).tokenCount(), (unsigned)0);
+    EXPECT_EQ(ntp1tx.getTxOut(2).tokenCount(), (unsigned)1);
     EXPECT_EQ(ntp1tx.getTxOut(2).getToken(0).getAmount(), (unsigned)999897350);
 
     EXPECT_EQ(ntp1tx.getTxHash().ToString(),
@@ -1696,7 +1696,7 @@ void TestNTP1TxParsing(const CTransaction& tx, bool testnet)
 
     EXPECT_EQ(ntp1tx.getTxOutCount(), ntp1tx_ref.getTxOutCount()) << "Failed tx: " << txid;
     for (int i = 0; i < (int)ntp1tx.getTxOutCount(); i++) {
-        ASSERT_EQ(ntp1tx.getTxOut(i).getNumOfTokens(), ntp1tx_ref.getTxOut(i).getNumOfTokens())
+        ASSERT_EQ(ntp1tx.getTxOut(i).tokenCount(), ntp1tx_ref.getTxOut(i).tokenCount())
             << "Failed tx: " << txid << "; Failed at TxOut: " << i;
         EXPECT_EQ(ntp1tx_ref.getTxOut(i).getValue(), ntp1tx.getTxOut(i).getValue());
         EXPECT_EQ(ntp1tx_ref.getTxOut(i).getAddress(), ntp1tx.getTxOut(i).getAddress());
@@ -1706,7 +1706,7 @@ void TestNTP1TxParsing(const CTransaction& tx, bool testnet)
         std::transform(script2.begin(), script2.end(), script2.begin(), ::toupper);
         EXPECT_EQ(script1, script2);
         EXPECT_EQ(ntp1tx_ref.getTxOut(i).getScriptPubKeyAsm(), ntp1tx.getTxOut(i).getScriptPubKeyAsm());
-        for (int j = 0; j < (int)ntp1tx.getTxOut(i).getNumOfTokens(); j++) {
+        for (int j = 0; j < (int)ntp1tx.getTxOut(i).tokenCount(); j++) {
             EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getAmount(),
                       ntp1tx_ref.getTxOut(i).getToken(j).getAmount())
                 << "Failed tx: " << txid << "; Failed at TxOut: " << i << "; at token: " << j;
@@ -1815,9 +1815,9 @@ void TestSingleNTP1TxParsingLocally(const CTransaction&                         
 
     EXPECT_EQ(ntp1tx.getTxOutCount(), ntp1tx_ref.getTxOutCount()) << "Failed tx: " << txid;
     for (int i = 0; i < (int)ntp1tx.getTxOutCount(); i++) {
-        ASSERT_EQ(ntp1tx.getTxOut(i).getNumOfTokens(), ntp1tx_ref.getTxOut(i).getNumOfTokens())
+        ASSERT_EQ(ntp1tx.getTxOut(i).tokenCount(), ntp1tx_ref.getTxOut(i).tokenCount())
             << "Failed tx: " << txid;
-        for (int j = 0; j < (int)ntp1tx.getTxOut(i).getNumOfTokens(); j++) {
+        for (int j = 0; j < (int)ntp1tx.getTxOut(i).tokenCount(); j++) {
             EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getAmount(),
                       ntp1tx_ref.getTxOut(i).getToken(j).getAmount())
                 << "Failed tx: " << txid;
