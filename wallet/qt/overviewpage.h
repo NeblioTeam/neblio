@@ -1,8 +1,8 @@
 #ifndef OVERVIEWPAGE_H
 #define OVERVIEWPAGE_H
 
-#include <QWidget>
 #include <QTimer>
+#include <QWidget>
 #include <ui_overviewpage.h>
 
 #include <boost/thread.hpp>
@@ -13,7 +13,7 @@ class QModelIndex;
 QT_END_NAMESPACE
 
 namespace Ui {
-    class OverviewPage;
+class OverviewPage;
 }
 class WalletModel;
 class TxViewDelegate;
@@ -25,34 +25,34 @@ class OverviewPage : public QWidget
     Q_OBJECT
 
 public:
-    explicit OverviewPage(QWidget *parent = 0);
+    explicit OverviewPage(QWidget* parent = 0);
     ~OverviewPage();
 
-    void setModel(WalletModel *model);
+    void setModel(WalletModel* model);
     void showOutOfSyncWarning(bool fShow);
 
 public slots:
     void setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBalance, qint64 immatureBalance);
 
 signals:
-    void transactionClicked(const QModelIndex &index);
+    void transactionClicked(const QModelIndex& index);
 
 public:
-    Ui::OverviewPage *ui;
+    Ui::OverviewPage* ui;
 
 private:
-    WalletModel *model;
-    qint64 currentBalance;
-    qint64 currentStake;
-    qint64 currentUnconfirmedBalance;
-    qint64 currentImmatureBalance;
+    WalletModel* model;
+    qint64       currentBalance;
+    qint64       currentStake;
+    qint64       currentUnconfirmedBalance;
+    qint64       currentImmatureBalance;
 
-    TxViewDelegate *txdelegate;
-    TransactionFilterProxy *filter;
+    TxViewDelegate*         txdelegate;
+    TransactionFilterProxy* filter;
 
 private slots:
     void updateDisplayUnit();
-    void handleTransactionClicked(const QModelIndex &index);
+    void handleTransactionClicked(const QModelIndex& index);
 };
 
 #endif // OVERVIEWPAGE_H
