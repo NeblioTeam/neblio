@@ -13,6 +13,7 @@
 #include <boost/filesystem/path.hpp>
 #include <numeric>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 /** Position on disk for a particular transaction. */
@@ -61,6 +62,15 @@ public:
     static FILE* AppendNTP1TxsFile(unsigned int& nFileRet);
 
     static FILE* OpenNTP1TxsFile(unsigned int nFile, unsigned int nTxPos, const char* pszMode);
+};
+
+struct TokenMinimalData
+{
+    int64_t     amount;
+    std::string tokenName;
+    std::string tokenId;
+
+    TokenMinimalData() : amount(0) {}
 };
 
 /**
@@ -116,6 +126,11 @@ public:
     unsigned long      getTxOutCount() const;
     const NTP1TxOut&   getTxOut(unsigned long index) const;
     friend inline bool operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs);
+
+    static std::unordered_map<std::string, TokenMinimalData>
+    CalculateTotalInputTokens(const NTP1Transaction& ntp1tx);
+    static std::unordered_map<std::string, TokenMinimalData>
+    CalculateTotalOutputTokens(const NTP1Transaction& ntp1tx);
 
     static void
     ReorderTokenInputsToGoFirst(CTransaction&                                                tx,
@@ -337,7 +352,13 @@ void NTP1Transaction::__TransferTokens(
                     ". Required output amount: " + ::ToString(currentOutputAmount) +
                     "; and the total available amount in all (possibly adjacent) inputs: " +
                     ::ToString(totalAdjacentTokensOfOneKind) +
-                    "; in transfer instruction number: " + ::ToString(i));
+                    "; in transfer instruction number: " + ::ToString(i) + ". Inputs in order are: " +
+                    std::accumulate(tx.vin.begin(), tx.vin.end(), std::string(),
+                                    [](const std::string& currRes, const CTxIn& inp) {
+                                        return currRes + " - " + inp.prevout.hash.ToString() + ":" +
+                                               ::ToString(inp.prevout.n);
+                                    }) +
+                    "; and OP_RETURN script: " + scriptPtrD->getParsedScript());
             }
 
             const auto&    currentTokenObj = tokensKindsInInputs[currentInputIndex][startTokenIndex];

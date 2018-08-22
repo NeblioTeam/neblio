@@ -134,6 +134,48 @@ unsigned long NTP1Transaction::getTxOutCount() const { return vout.size(); }
 
 const NTP1TxOut& NTP1Transaction::getTxOut(unsigned long index) const { return vout[index]; }
 
+std::unordered_map<string, TokenMinimalData>
+NTP1Transaction::CalculateTotalInputTokens(const NTP1Transaction& ntp1tx)
+{
+    std::unordered_map<string, TokenMinimalData> result;
+    for (const NTP1TxIn& in : ntp1tx.vin) {
+        for (const NTP1TokenTxData& token : in.tokens) {
+            const std::string& tokenId = token.getTokenId();
+            if (result.find(tokenId) == result.end()) {
+                TokenMinimalData tokenData;
+                tokenData.amount    = token.getAmount();
+                tokenData.tokenId   = token.getTokenId();
+                tokenData.tokenName = token.getTokenSymbol();
+                result[tokenId]     = tokenData;
+            } else {
+                result[tokenId].amount += token.getAmount();
+            }
+        }
+    }
+    return result;
+}
+
+std::unordered_map<string, TokenMinimalData>
+NTP1Transaction::CalculateTotalOutputTokens(const NTP1Transaction& ntp1tx)
+{
+    std::unordered_map<string, TokenMinimalData> result;
+    for (const NTP1TxOut& in : ntp1tx.vout) {
+        for (const NTP1TokenTxData& token : in.tokens) {
+            const std::string& tokenId = token.getTokenId();
+            if (result.find(tokenId) == result.end()) {
+                TokenMinimalData tokenData;
+                tokenData.amount    = token.getAmount();
+                tokenData.tokenId   = token.getTokenId();
+                tokenData.tokenName = token.getTokenSymbol();
+                result[tokenId]     = tokenData;
+            } else {
+                result[tokenId].amount += token.getAmount();
+            }
+        }
+    }
+    return result;
+}
+
 void NTP1Transaction::ReorderTokenInputsToGoFirst(
     CTransaction& tx, const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs)
 {
