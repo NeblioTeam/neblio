@@ -30,6 +30,17 @@ QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
     }
 }
 
+std::string FormatNTP1TokenAmount(const NTP1TokenTxData& token)
+{
+    return ::ToString(token.getAmount()) + " " + token.getTokenSymbol() +
+           " (Token ID: " + token.getTokenId() + ")";
+}
+
+std::string FormatNTP1TokenAmount(const TokenMinimalData& token)
+{
+    return ::ToString(token.amount) + " " + token.tokenName + " (Token ID: " + token.tokenId + ")";
+}
+
 QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
 {
     QString strHTML;
@@ -68,6 +79,9 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
         if (nNet > 0) {
             // Credit
             for (const CTxOut& txout : wtx.vout) {
+                if (IsTxOutputOpRet(&txout)) {
+                    continue;
+                }
                 if (wallet->IsMine(txout)) {
                     CTxDestination address;
                     if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address)) {
@@ -87,6 +101,19 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
                 }
             }
         }
+    }
+
+    bool successInRetrievingNTP1Tx = true;
+
+    NTP1Transaction ntp1tx;
+    try {
+        std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs = GetAllNTP1InputsOfTx(wtx);
+        ntp1tx.readNTP1DataFromTx(wtx, ntp1inputs);
+    } catch (std::exception& ex) {
+        printf("(This doesn't have to be an error if the tx is not NTP1). For transaction details, "
+               "failed to retrieve NTP1 data of transaction: %s. Error: %s",
+               wtx.GetHash().ToString().c_str(), ex.what());
+        successInRetrievingNTP1Tx = false;
     }
 
     //
@@ -110,14 +137,19 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
         // Coinbase
         //
         int64_t nUnmatured = 0;
-        for (const CTxOut& txout : wtx.vout)
+        for (const CTxOut& txout : wtx.vout) {
+            if (IsTxOutputOpRet(&txout)) {
+                continue;
+            }
             nUnmatured += wallet->GetCredit(txout);
+        }
         strHTML += "<b>" + tr("Credit") + ":</b> ";
-        if (wtx.IsInMainChain())
+        if (wtx.IsInMainChain()) {
             strHTML += BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, nUnmatured) + " (" +
                        tr("matures in %n more block(s)", "", wtx.GetBlocksToMaturity()) + ")";
-        else
+        } else {
             strHTML += "(" + tr("not accepted") + ")";
+        }
         strHTML += "<br>";
     } else if (nNet > 0) {
         //
@@ -125,20 +157,48 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
         //
         strHTML += "<b>" + tr("Credit") + ":</b> " +
                    BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, nNet) + "<br>";
+        if (successInRetrievingNTP1Tx) {
+            // get token amounts in outputs of the transaction
+            std::unordered_map<string, TokenMinimalData> outputsTokens =
+                NTP1Transaction::CalculateTotalOutputTokens(ntp1tx);
+
+            // calculate total tokens of all kinds to see if there's any tokens involved in the
+            // transaction
+            int64_t totalOutputsTokens =
+                std::accumulate(outputsTokens.begin(), outputsTokens.end(), 0,
+                                [](int64_t currRes, const std::pair<std::string, TokenMinimalData>& t) {
+                                    return currRes + t.second.amount;
+                                });
+            if (totalOutputsTokens != 0) {
+                for (const auto& in : outputsTokens) {
+                    strHTML += "<b>" + tr("NTP1 credit") + ":</b> " +
+                               QString::fromStdString(FormatNTP1TokenAmount(in.second)) + "<br>";
+                }
+            }
+        }
     } else {
         bool fAllFromMe = true;
-        for (const CTxIn& txin : wtx.vin)
+        for (const CTxIn& txin : wtx.vin) {
             fAllFromMe = fAllFromMe && wallet->IsMine(txin);
+        }
 
         bool fAllToMe = true;
-        for (const CTxOut& txout : wtx.vout)
+        for (const CTxOut& txout : wtx.vout) {
+            if (IsTxOutputOpRet(&txout)) {
+                continue;
+            }
             fAllToMe = fAllToMe && wallet->IsMine(txout);
+        }
 
         if (fAllFromMe) {
             //
             // Debit
             //
-            for (const CTxOut& txout : wtx.vout) {
+            for (int i = 0; i < (int)wtx.vout.size(); i++) {
+                const CTxOut& txout = wtx.vout[i];
+                if (IsTxOutputOpRet(&txout)) {
+                    continue;
+                }
                 if (wallet->IsMine(txout))
                     continue;
 
@@ -157,6 +217,14 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
 
                 strHTML += "<b>" + tr("Debit") + ":</b> " +
                            BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, -txout.nValue) + "<br>";
+
+                if (successInRetrievingNTP1Tx && i < (int)ntp1tx.getTxOutCount()) {
+                    for (int j = 0; j < (int)ntp1tx.getTxOut(i).getNumOfTokens(); j++) {
+                        const NTP1TokenTxData& token = ntp1tx.getTxOut(i).getToken(j);
+                        strHTML += "<b>" + tr("NTP1 Debit") + ":</b> " +
+                                   QString::fromStdString(FormatNTP1TokenAmount(token)) + "<br>";
+                    }
+                }
             }
 
             if (fAllToMe) {
@@ -167,6 +235,25 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
                            BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, -nValue) + "<br>";
                 strHTML += "<b>" + tr("Credit") + ":</b> " +
                            BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, nValue) + "<br>";
+                if (successInRetrievingNTP1Tx) {
+                    // get token amounts in outputs of the transaction
+                    std::unordered_map<string, TokenMinimalData> outputsTokens =
+                        NTP1Transaction::CalculateTotalOutputTokens(ntp1tx);
+
+                    // calculate total tokens of all kinds to see if there's any tokens involved in the
+                    // transaction
+                    int64_t totalOutputsTokens = std::accumulate(
+                        outputsTokens.begin(), outputsTokens.end(), 0,
+                        [](int64_t currRes, const std::pair<std::string, TokenMinimalData>& t) {
+                            return currRes + t.second.amount;
+                        });
+                    if (totalOutputsTokens != 0) {
+                        for (const auto& in : outputsTokens) {
+                            strHTML += "<b>" + tr("NTP1 credit") + ":</b> " +
+                                       QString::fromStdString(FormatNTP1TokenAmount(in.second)) + "<br>";
+                        }
+                    }
+                }
             }
 
             int64_t nTxFee = nDebit - wtx.GetValueOut();
@@ -177,17 +264,22 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
             //
             // Mixed debit transaction
             //
-            for (const CTxIn& txin : wtx.vin)
+            for (const CTxIn& txin : wtx.vin) {
                 if (wallet->IsMine(txin))
                     strHTML += "<b>" + tr("Debit") + ":</b> " +
                                BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, -wallet->GetDebit(txin)) +
                                "<br>";
-            for (const CTxOut& txout : wtx.vout)
+            }
+            for (const CTxOut& txout : wtx.vout) {
+                if (IsTxOutputOpRet(&txout)) {
+                    continue;
+                }
                 if (wallet->IsMine(txout))
                     strHTML +=
                         "<b>" + tr("Credit") + ":</b> " +
                         BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, wallet->GetCredit(txout)) +
                         "<br>";
+            }
         }
     }
 
@@ -225,11 +317,24 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
                 strHTML += "<b>" + tr("Debit") + ":</b> " +
                            BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, -wallet->GetDebit(txin)) +
                            "<br>";
-        for (const CTxOut& txout : wtx.vout)
-            if (wallet->IsMine(txout))
+        for (int i = 0; i < (int)wtx.vout.size(); i++) {
+            const CTxOut& txout = wtx.vout[i];
+            if (IsTxOutputOpRet(&txout)) {
+                continue;
+            }
+            if (wallet->IsMine(txout)) {
                 strHTML += "<b>" + tr("Credit") + ":</b> " +
                            BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, wallet->GetCredit(txout)) +
                            "<br>";
+                if (successInRetrievingNTP1Tx && i < (int)ntp1tx.getTxOutCount()) {
+                    for (int j = 0; j < (int)ntp1tx.getTxOut(i).getNumOfTokens(); j++) {
+                        const NTP1TokenTxData& token = ntp1tx.getTxOut(i).getToken(j);
+                        strHTML += "<b>" + tr("NTP1 Credit") + ":</b> " +
+                                   QString::fromStdString(FormatNTP1TokenAmount(token)) + "<br>";
+                    }
+                }
+            }
+        }
 
         strHTML += "<br><b>" + tr("Transaction") + ":</b><br>";
         strHTML += GUIUtil::HtmlEscape(wtx.ToString(), true);
