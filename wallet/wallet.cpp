@@ -1449,7 +1449,14 @@ int CWallet::AddNTP1TokenOutputsToTx(CTransaction& wtxNew, const NTP1SendTxData&
     // some invalid value
     int opReturnIndex = -10;
 
-    if (ntp1TxData.getIntermediaryTIs().size() > 0) {
+    const std::vector<IntermediaryTI>&             ITIs = ntp1TxData.getIntermediaryTIs();
+    typedef std::vector<IntermediaryTI>::size_type s_t;
+    // calculate total number of TIs
+    int totalTIs =
+        std::accumulate(ITIs.begin(), ITIs.end(), 0, [](const s_t& current, const IntermediaryTI& iti) {
+            return current + iti.TIs.size();
+        });
+    if (totalTIs > 0) {
         // it's important to set this as OP_RETURN to find it later; it's searched for
         CScript scriptPubKey = CScript() << OP_RETURN << ParseHex("00");
         opReturnIndex        = wtxNew.vout.size();
