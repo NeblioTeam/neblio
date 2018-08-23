@@ -441,6 +441,7 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
             }
         }
 
+        // ITIs can have zero TIs, because they carry important input information still
         intermediaryTIs.push_back(iti);
     }
 
