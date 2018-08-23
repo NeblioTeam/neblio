@@ -228,6 +228,21 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
             }
             return TransactionCreationFailed;
         }
+        // verify the NTP1 transaction before commiting
+        try {
+            std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs = GetAllNTP1InputsOfTx(wtx);
+            NTP1Transaction                                       ntp1tx;
+            ntp1tx.readNTP1DataFromTx(wtx, inputsTxs);
+        } catch (std::exception& ex) {
+            printf("An invalid NTP1 transaction was created; an exception was thrown: %s\n", ex.what());
+            SendCoinsReturn ret(StatusCode::NTP1TokenCalculationsFailed);
+            ret.msg =
+                "Unable to create the transaction. The transaction created would result in an invalid "
+                "transaction. Please report your transaction details to the Neblio team. The "
+                "error is: " +
+                QString(ex.what());
+            return ret;
+        }
         if (!uiInterface.ThreadSafeAskFee(nFeeRequired, tr("Sending...").toStdString())) {
             return Aborted;
         }
