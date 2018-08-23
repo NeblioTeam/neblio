@@ -1321,3 +1321,71 @@ int main(int argc, char* argv[])
 #endif
 
 const CRPCTable tableRPC;
+
+std::vector<NTP1SendTokensOneRecipientData>
+GetNTP1RecipientsVector(const Object& sendTo, boost::shared_ptr<NTP1Wallet> ntp1wallet)
+{
+    std::vector<NTP1SendTokensOneRecipientData> result;
+    for (const json_spirit::Pair& s : sendTo) {
+        set<CBitcoinAddress> setAddress;
+        CBitcoinAddress      address(s.name_);
+        if (!address.IsValid())
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid neblio address: ") + s.name_);
+
+        if (setAddress.count(address))
+            throw JSONRPCError(RPC_INVALID_PARAMETER,
+                               string("Invalid parameter, duplicated address: ") + s.name_);
+        setAddress.insert(address);
+
+        CScript scriptPubKey;
+        scriptPubKey.SetDestination(address.Get());
+
+        NTP1SendTokensOneRecipientData res;
+        res.destination = address.ToString();
+        if (s.value_.type() == json_spirit::Value_type::obj_type) {
+            json_spirit::Object obj = s.value_.get_obj();
+            if (obj.size() != 1) {
+                throw std::runtime_error("Invalid tokenId and amount pair.");
+            }
+            int64_t nAmount = obj[0].value_.get_int64();
+            if (nAmount <= 0) {
+                throw std::runtime_error("Invalid amount: " + ::ToString(res.amount));
+            }
+            res.amount             = static_cast<uint64_t>(nAmount);
+            std::string providedId = obj[0].name_;
+
+            const std::unordered_map<std::string, NTP1TokenMetaData> tokenMetadataMap =
+                ntp1wallet->getTokenMetadataMap();
+            // token id was not found
+            if (tokenMetadataMap.find(providedId) == tokenMetadataMap.end()) {
+                res.tokenId   = "";
+                int nameCount = 0; // number of tokens that have that name
+                // try to find whether the name of the token matches with what's provided
+                for (const auto& tokenMetadata : tokenMetadataMap) {
+                    if (tokenMetadata.second.getTokenName() == providedId) {
+                        res.tokenId = tokenMetadata.second.getTokenId();
+                        nameCount++;
+                    }
+                }
+                if (res.tokenId == "") {
+                    throw std::runtime_error("Failed to find token by the id/name: " + providedId);
+                }
+                if (nameCount > 1) {
+                    throw std::runtime_error("Found multiple tokens by the name " + providedId);
+                }
+            } else {
+                res.tokenId = providedId;
+            }
+        } else {
+            // nebls
+            int64_t nAmount = AmountFromValue(s.value_);
+            res.amount      = static_cast<uint64_t>(nAmount);
+            if (nAmount <= 0) {
+                throw std::runtime_error("Invalid amount: " + ::ToString(res.amount));
+            }
+            res.tokenId = NTP1SendTxData::NEBL_TOKEN_ID;
+        }
+        result.push_back(res);
+    }
+    return result;
+}

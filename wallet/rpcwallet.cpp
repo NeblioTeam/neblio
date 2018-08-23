@@ -838,22 +838,26 @@ Value sendfrom(const Array& params, bool fHelp)
 Value sendmany(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 2 || params.size() > 4)
-        throw runtime_error("sendmany <fromaccount> {address:amount,...} [minconf=1] [comment]\n"
+        throw runtime_error("sendmany <fromaccount (must be empty, unsupported)> {address:amount,...} "
+                            "[comment]\n"
                             "amounts are double-precision floating point numbers" +
                             HelpRequiringPassphrase());
 
-    string strAccount = AccountFromValue(params[0]);
-    Object sendTo     = params[1].get_obj();
-    int    nMinDepth  = 1;
-    if (params.size() > 2)
-        nMinDepth = params[2].get_int();
+    string strAccount = params[0].get_str();
+    if (!strAccount.empty()) {
+        throw std::runtime_error("Accounts are not supported anymore. The account field must be empty");
+    }
+    Object sendTo = params[1].get_obj();
+
+    // Get NTP1 wallet
+    boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();
+    ntp1wallet->setRetrieveMetadataFromAPI(false);
+    ntp1wallet->update();
 
     CWalletTx wtx;
-    wtx.strFromAccount = strAccount;
-    if (params.size() > 3 && params[3].type() != null_type && !params[3].get_str().empty())
-        wtx.mapValue["comment"] = params[3].get_str();
+    if (params.size() > 2 && params[2].type() != null_type && !params[2].get_str().empty())
+        wtx.mapValue["comment"] = params[2].get_str();
 
-    set<CBitcoinAddress>           setAddress;
     vector<pair<CScript, int64_t>> vecSend;
 
     int64_t totalAmount = 0;
@@ -861,11 +865,6 @@ Value sendmany(const Array& params, bool fHelp)
         CBitcoinAddress address(s.name_);
         if (!address.IsValid())
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid neblio address: ") + s.name_);
-
-        if (setAddress.count(address))
-            throw JSONRPCError(RPC_INVALID_PARAMETER,
-                               string("Invalid parameter, duplicated address: ") + s.name_);
-        setAddress.insert(address);
 
         CScript scriptPubKey;
         scriptPubKey.SetDestination(address.Get());
@@ -879,20 +878,40 @@ Value sendmany(const Array& params, bool fHelp)
     EnsureWalletIsUnlocked();
 
     // Check funds
-    int64_t nBalance = GetAccountBalance(strAccount, nMinDepth);
+    int64_t nBalance = pwalletMain->GetBalance();
     if (totalAmount > nBalance)
-        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Account has insufficient funds");
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
+
+    std::vector<NTP1SendTokensOneRecipientData> ntp1recipients =
+        GetNTP1RecipientsVector(sendTo, ntp1wallet);
+
+    // initial selection of NTP1 tokens
+    NTP1SendTxData tokenSelector;
+    tokenSelector.selectNTP1Tokens(ntp1wallet, std::vector<COutPoint>(), ntp1recipients, false);
 
     // Send
     CReserveKey keyChange(pwalletMain);
     int64_t     nFeeRequired = 0;
-    // TODO: Sam: Fix NTP1SendTxData()
-    bool fCreated =
-        pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, NTP1SendTxData());
+
+    bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, tokenSelector);
     if (!fCreated) {
         if (totalAmount + nFeeRequired > pwalletMain->GetBalance())
             throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
         throw JSONRPCError(RPC_WALLET_ERROR, "Transaction creation failed");
+    }
+
+    // verify the NTP1 transaction before commiting
+    try {
+        std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs = GetAllNTP1InputsOfTx(wtx);
+        NTP1Transaction                                       ntp1tx;
+        ntp1tx.readNTP1DataFromTx(wtx, inputsTxs);
+    } catch (std::exception& ex) {
+        printf("An invalid NTP1 transaction was created; an exception was thrown: %s\n", ex.what());
+        throw std::runtime_error(
+            "Unable to create the transaction. The transaction created would result in an invalid "
+            "transaction. Please report your transaction details to the Neblio team. The "
+            "error is: " +
+            std::string(ex.what()));
     }
     if (!pwalletMain->CommitTransaction(wtx, keyChange))
         throw JSONRPCError(RPC_WALLET_ERROR, "Transaction commit failed");
