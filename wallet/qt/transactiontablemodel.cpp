@@ -534,6 +534,8 @@ QVariant TransactionTableModel::data(const QModelIndex& index, int role) const
         return QString::fromStdString(rec->getTxID());
     case ConfirmedRole:
         return rec->status.countsForBalance;
+    case IsNTP1Role:
+        return rec->ntp1DataLoaded;
     case FormattedAmountRole:
         return formatTxAmount(rec, false);
     case StatusRole:

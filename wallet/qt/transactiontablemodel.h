@@ -50,6 +50,7 @@ public:
         ConfirmedRole,
         /** Formatted amount, without brackets when unconfirmed */
         FormattedAmountRole,
+        IsNTP1Role,
         /** Transaction status (TransactionRecord::Status) */
         StatusRole
     };
