@@ -537,7 +537,8 @@ uint64_t NTP1SendTxData::getRequiredNeblsForOutputs() const
     if (!ready)
         throw std::runtime_error("NTP1SendTxData not ready; cannot get required fees");
     if (intermediaryTIs.size() > 0) {
-        return MIN_TX_FEE * (recipientsList.size() + 1); // + 1 is for OP_RETURN output
+        return MIN_TX_FEE * (recipientsList.size() + 1 + // + 1 is for OP_RETURN output
+                             (this->getChangeTokens().size() > 0 ? 1 : 0));
     } else {
         return 0;
     }

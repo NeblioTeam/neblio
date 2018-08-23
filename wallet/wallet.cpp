@@ -1652,10 +1652,15 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
                         changeKeyID = vchPubKey.GetID();
                     }
 
-                    // Insert change txn at random position:
-                    //                    int randInt = GetRandInt(wtxNew.vout.size());
-                    changeOutputIndex = wtxNew.vout.size();
-                    wtxNew.vout.push_back(CTxOut(nChange, scriptChange));
+                    // create change for NEBLs, if that exists
+                    if (nChange > 0) {
+                        wtxNew.vout.push_back(CTxOut(nChange, scriptChange));
+                    }
+                    // create change for NTP1, if that exists
+                    if (ntp1TokenChangeExists) {
+                        changeOutputIndex = wtxNew.vout.size();
+                        wtxNew.vout.push_back(CTxOut(MIN_TX_FEE, scriptChange));
+                    }
                 } else {
                     reservekey.ReturnKey();
                 }
