@@ -480,6 +480,10 @@ void ParseParameters(int argc, const char* const argv[])
         mapMultiArgs[str].push_back(strValue);
     }
 
+    mapArgs["-addnode"] = "nebliodseed2.nebl.io";
+    mapMultiArgs["-addnode"].push_back("nebliodseed1.nebl.io");
+    mapMultiArgs["-addnode"].push_back("nebliodseed2.nebl.io");
+
     // New 0.6 features:
     BOOST_FOREACH (const PAIRTYPE(string, string) & entry, mapArgs) {
         string name = entry.first;
