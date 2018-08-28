@@ -114,17 +114,19 @@ TEST(util_tests, util_ParseParameters)
 {
     const char *argv_test[] = {"-ignored", "-a", "-b", "-ccc=argument", "-ccc=multiple", "f", "-d=e"};
 
+    // arg size changes from empty to 1 due to the addition of hardcoding 'addnode'
     ParseParameters(0, (char**)argv_test);
-    EXPECT_TRUE(mapArgs.empty() && mapMultiArgs.empty());
+    EXPECT_TRUE(mapArgs.size() == 1 && mapMultiArgs.size() == 1);
 
     ParseParameters(1, (char**)argv_test);
-    EXPECT_TRUE(mapArgs.empty() && mapMultiArgs.empty());
+    EXPECT_TRUE(mapArgs.size() == 1 && mapMultiArgs.size() == 1);
 
     ParseParameters(5, (char**)argv_test);
     // expectation: -ignored is ignored (program name argument),
     // -a, -b and -ccc end up in map, -d ignored because it is after
     // a non-option argument (non-GNU option parsing)
-    EXPECT_TRUE(mapArgs.size() == 3 && mapMultiArgs.size() == 3);
+    // arg size changes from 3 to 4 due to the addition of hardcoding 'addnode'
+    EXPECT_TRUE(mapArgs.size() == 4 && mapMultiArgs.size() == 4);
     EXPECT_TRUE(mapArgs.count("-a") && mapArgs.count("-b") && mapArgs.count("-ccc")
                 && !mapArgs.count("f") && !mapArgs.count("-d"));
     EXPECT_TRUE(mapMultiArgs.count("-a") && mapMultiArgs.count("-b") && mapMultiArgs.count("-ccc")
