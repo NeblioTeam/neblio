@@ -145,7 +145,7 @@ void BitcoinAmountField::slot_updateTokensList()
             tokenKindsComboBox->addItem(tokenKindsList[i].icon,
                                         tokenKindsList[i].name + " (" +
                                             QString::number(tokenKindsList[i].amount) + ") (" +
-                                            tokenKindsList[i].tokenId.left(10) + ")");
+                                            tokenKindsList[i].tokenId.left(10) + "...)");
         }
     }
 }
