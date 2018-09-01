@@ -1393,6 +1393,13 @@ void CWallet::SetTxNTP1OpRet(CTransaction&                                      
         throw std::runtime_error("Could not find OP_RETURN output to fix change output index");
     }
 
+    if (opRetScriptBin.size() > DataSize(nBestHeight)) {
+        // the blockchain consensus rules prevents OP_RETURN sizes larger than DataSize(nBestHeight)
+        throw std::runtime_error("The data associated with the transaction is larger than the maximum "
+                                 "allowed size for metadata (" +
+                                 ToString(DataSize(nBestHeight) + " bytes)."));
+    }
+
     it->scriptPubKey = CScript() << OP_RETURN << ParseHex(opRetScriptHex);
 }
 
