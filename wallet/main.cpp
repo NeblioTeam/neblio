@@ -2119,15 +2119,13 @@ CTransaction FetchTxFromDisk(const uint256& txid)
     CTxIndex     txPos;
     if (!CTxDB().ReadTxIndex(txid, txPos)) {
         printf("Unable to read standard transaction from leveldb: %s\n", txid.ToString().c_str());
-        throw std::runtime_error("Unable to read standard transaction from leveldb: %s\n" +
-                                 txid.ToString());
+        throw std::runtime_error("Unable to read standard transaction from leveldb: " + txid.ToString());
     }
     if (!result.ReadFromDisk(txPos.pos)) {
         printf("Unable to read NTP1 transaction from disk with the "
                "index given by leveldb: %s\n",
                txid.ToString().c_str());
-        throw std::runtime_error("Unable to read standard transaction from leveldb: %s\n" +
-                                 txid.ToString());
+        throw std::runtime_error("Unable to read standard transaction from leveldb: " + txid.ToString());
     }
     return result;
 }
