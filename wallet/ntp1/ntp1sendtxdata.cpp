@@ -141,14 +141,6 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
     // collect all required amounts in one map, with tokenId vs amount
     std::map<std::string, int64_t> targetAmounts = CalculateRequiredTokenAmounts(recipients);
 
-    {
-        uint64_t total = 0;
-        for (const auto& ta : targetAmounts) {
-            total += ta.second;
-        }
-        txHasNTP1Tokens = (total != 0);
-    }
-
     // get available balances, either from inputs (if provided) or from the wallet
     std::map<string, int64_t> balancesMap =
         GetAvailableTokenBalances(wallet, inputs, addMoreInputsIfRequired);
@@ -530,7 +522,14 @@ int64_t NTP1SendTxData::__addInputsThatCoversNeblAmount(uint64_t neblAmount)
     return currentTotalNeblsInSelectedInputs;
 }
 
-bool NTP1SendTxData::hasNTP1Tokens() const { return txHasNTP1Tokens; }
+bool NTP1SendTxData::hasNTP1Tokens() const
+{
+    uint64_t total =
+        std::accumulate(intermediaryTIs.begin(), intermediaryTIs.end(), 0,
+                        [](uint64_t curr, const IntermediaryTI& iti) { return curr + iti.TIs.size(); });
+
+    return (total != 0);
+}
 
 uint64_t NTP1SendTxData::getRequiredNeblsForOutputs() const
 {

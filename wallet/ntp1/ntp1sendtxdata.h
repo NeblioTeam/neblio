@@ -32,8 +32,7 @@ class NTP1SendTxData
     boost::shared_ptr<NTP1Wallet>               usedWallet;
 
     int64_t __addInputsThatCoversNeblAmount(uint64_t neblAmount);
-    bool    txHasNTP1Tokens = false;
-    bool    ready           = false;
+    bool    ready = false;
 
 public:
     NTP1SendTxData();
@@ -67,8 +66,12 @@ public:
     boost::shared_ptr<NTP1Wallet>               getWallet() const;
 
     std::vector<IntermediaryTI> getIntermediaryTIs() const;
-    bool                        hasNTP1Tokens() const;
-    uint64_t                    getRequiredNeblsForOutputs() const;
+    /**
+     * @brief hasNTP1Tokens
+     * @return true if the resulting inputs have NTP1 tokens
+     */
+    bool     hasNTP1Tokens() const;
+    uint64_t getRequiredNeblsForOutputs() const;
 
     static void FixTIsChangeOutputIndex(std::vector<NTP1Script::TransferInstruction>& TIs,
                                         int                                           changeOutputIndex);
