@@ -2162,7 +2162,7 @@ void RecoverNTP1TxInDatabase(const CTransaction& tx)
         NTP1Transaction ntp1tx;
         ntp1tx.readNTP1DataFromTx(tx, ntp1inputs);
         WriteNTP1TxToDbAndDisk(ntp1tx);
-        printf("Recovering transation: %s is done successfully.", tx.GetHash().ToString().c_str());
+        printf("Recovering transation: %s is done successfully.\n", tx.GetHash().ToString().c_str());
     } catch (std::exception& ex) {
         printf("Error: Failed to retrieve read NTP1 transaction while attempting to recover NTP1 "
                "transaction %s; Error: %s\n",
@@ -2170,7 +2170,7 @@ void RecoverNTP1TxInDatabase(const CTransaction& tx)
     }
 }
 
-void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair)
+void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, unsigned recurseDepth)
 {
     if (!IsTxNTP1(&txPair.first)) {
         return;
@@ -2179,8 +2179,13 @@ void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair)
     if (!CTxDB().ReadNTP1TxIndex(txPair.first.GetHash(), ntp1txPos)) {
         printf("Unable to read NTP1 transaction from leveldb: %s\n",
                txPair.first.GetHash().ToString().c_str());
-        RecoverNTP1TxInDatabase(txPair.first);
-        FetchNTP1TxFromDisk(txPair);
+        if (recurseDepth < 32) {
+            RecoverNTP1TxInDatabase(txPair.first);
+            FetchNTP1TxFromDisk(txPair, recurseDepth + 1);
+        } else {
+            printf("Error: max recursion depth, %u, reached while fetching transaction %s. Stopping!\n",
+                   recurseDepth, txPair.first.GetHash().ToString().c_str());
+        }
         return;
     }
     if (!txPair.second.readFromDisk(ntp1txPos)) {

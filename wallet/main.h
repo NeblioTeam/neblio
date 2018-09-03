@@ -151,8 +151,8 @@ const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfSta
 void               StakeMiner(CWallet* pwallet);
 void               ResendWalletTransactions(bool fForce = false);
 CTransaction       FetchTxFromDisk(const uint256& txid);
-void               FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair);
-void               WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx);
+void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, unsigned recurseDepth = 0);
+void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx);
 
 /** for a certain transaction, retrieve all NTP1 data from the database */
 std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTransaction tx);
