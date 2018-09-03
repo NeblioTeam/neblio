@@ -2042,11 +2042,18 @@ bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey)
             // Mark old coins as spent
             set<CWalletTx*> setCoins;
             for (const CTxIn& txin : wtxNew.vin) {
-                CWalletTx& coin = mapWallet[txin.prevout.hash];
-                coin.BindWallet(this);
-                coin.MarkSpent(txin.prevout.n);
-                coin.WriteToDisk();
-                NotifyTransactionChanged(this, coin.GetHash(), CT_UPDATED);
+                auto it = mapWallet.find(txin.prevout.hash);
+                if (it != mapWallet.end()) {
+                    CWalletTx& coin = it->second;
+                    coin.BindWallet(this);
+                    coin.MarkSpent(txin.prevout.n);
+                    coin.WriteToDisk();
+                    NotifyTransactionChanged(this, coin.GetHash(), CT_UPDATED);
+                } else {
+                    printf("Failed to commit transaction %s. An input was not found in the local wallet",
+                           wtxNew.GetHash().ToString().c_str());
+                    return false;
+                }
             }
 
             if (fFileBacked)
@@ -2509,14 +2516,14 @@ set<set<CTxDestination>> CWallet::GetAddressGroupings()
         CWalletTx* pcoin = &walletEntry.second;
 
         if (pcoin->vin.size() > 0) {
-        	bool any_mine = false;
+            bool any_mine = false;
             // group all input addresses with each other
             for (CTxIn txin : pcoin->vin) {
                 CTxDestination address;
-                if(!IsMine(txin)) /* If this input isn't mine, ignore it */
+                if (!IsMine(txin)) /* If this input isn't mine, ignore it */
                     continue;
-                if (!ExtractDestination(mapWallet[txin.prevout.hash].vout[txin.prevout.n].scriptPubKey,
-                                        address))
+                if (!ExtractDestination(
+                        mapWallet.at(txin.prevout.hash).vout.at(txin.prevout.n).scriptPubKey, address))
                     continue;
                 grouping.insert(address);
                 any_mine = true;
@@ -2524,15 +2531,15 @@ set<set<CTxDestination>> CWallet::GetAddressGroupings()
 
             // group change with input addresses
             if (any_mine) {
-	            for (CTxOut txout : pcoin->vout)
-	                if (IsChange(txout)) {
-	                    CWalletTx      tx = mapWallet[pcoin->vin[0].prevout.hash];
-	                    CTxDestination txoutAddr;
-	                    if (!ExtractDestination(txout.scriptPubKey, txoutAddr))
-	                        continue;
-	                    grouping.insert(txoutAddr);
-	                }
-	        }
+                for (CTxOut txout : pcoin->vout)
+                    if (IsChange(txout)) {
+                        CWalletTx      tx = mapWallet.at(pcoin->vin[0].prevout.hash);
+                        CTxDestination txoutAddr;
+                        if (!ExtractDestination(txout.scriptPubKey, txoutAddr))
+                            continue;
+                        grouping.insert(txoutAddr);
+                    }
+            }
             if (grouping.size() > 0) {
                 groupings.insert(grouping);
                 grouping.clear();
