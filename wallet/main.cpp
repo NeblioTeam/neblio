@@ -2130,6 +2130,46 @@ CTransaction FetchTxFromDisk(const uint256& txid)
     return result;
 }
 
+void RecoverNTP1TxInDatabase(const CTransaction& tx)
+{
+    printf("Recovering NTP1 transaction in database: %s\n", tx.GetHash().ToString().c_str());
+    std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs;
+    try {
+        ntp1inputs = GetAllNTP1InputsOfTx(tx);
+    } catch (std::exception& ex) {
+        printf("Error: Attempting to recursively recover the inputs. Failed to recover NTP1 "
+               "transaction: %s; with error: %s\n",
+               tx.GetHash().ToString().c_str(), ex.what());
+        ntp1inputs.clear();
+        for (const auto& in : tx.vin) {
+            CTransaction inputTx;
+            try {
+                inputTx = FetchTxFromDisk(in.prevout.hash);
+            } catch (std::exception& exIn) {
+                printf("Error: Failed to retrieve standard neblio tranasction %s; this happened in the "
+                       "context of recovering the NTP1 transaction: %s\n, making recovery not "
+                       "possible. Error given: %s\n",
+                       tx.GetHash().ToString().c_str(), in.prevout.hash.ToString().c_str(), exIn.what());
+                return;
+            }
+            std::pair<CTransaction, NTP1Transaction> inputTxPair =
+                std::make_pair(inputTx, NTP1Transaction());
+            FetchNTP1TxFromDisk(inputTxPair);
+            ntp1inputs.push_back(inputTxPair);
+        }
+    }
+    try {
+        NTP1Transaction ntp1tx;
+        ntp1tx.readNTP1DataFromTx(tx, ntp1inputs);
+        WriteNTP1TxToDbAndDisk(ntp1tx);
+        printf("Recovering transation: %s is done successfully.", tx.GetHash().ToString().c_str());
+    } catch (std::exception& ex) {
+        printf("Error: Failed to retrieve read NTP1 transaction while attempting to recover NTP1 "
+               "transaction %s; Error: %s\n",
+               tx.GetHash().ToString().c_str(), ex.what());
+    }
+}
+
 void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair)
 {
     if (!IsTxNTP1(&txPair.first)) {
@@ -2139,6 +2179,8 @@ void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair)
     if (!CTxDB().ReadNTP1TxIndex(txPair.first.GetHash(), ntp1txPos)) {
         printf("Unable to read NTP1 transaction from leveldb: %s\n",
                txPair.first.GetHash().ToString().c_str());
+        RecoverNTP1TxInDatabase(txPair.first);
+        FetchNTP1TxFromDisk(txPair);
         return;
     }
     if (!txPair.second.readFromDisk(ntp1txPos)) {
@@ -2223,20 +2265,18 @@ void WriteNTP1BlockTransactionsToDisk(std::vector<CTransaction> vtx)
         // read previous transactions (inputs) which are necessary to validate an NTP1
         // transaction
         for (CTransaction& tx : vtx) {
-            if (!IsTxNTP1(&tx)) {
+            std::string opReturnArg;
+            if (!IsTxNTP1(&tx, &opReturnArg)) {
                 continue;
             }
 
             inputsWithNTP1 = GetAllNTP1InputsOfTx(tx);
 
             // write NTP1 transactions' data
-            std::string opReturnArg;
-            if (IsTxNTP1(&tx, &opReturnArg)) {
-                NTP1Transaction ntp1tx;
-                ntp1tx.readNTP1DataFromTx(tx, inputsWithNTP1);
+            NTP1Transaction ntp1tx;
+            ntp1tx.readNTP1DataFromTx(tx, inputsWithNTP1);
 
-                WriteNTP1TxToDbAndDisk(ntp1tx);
-            }
+            WriteNTP1TxToDbAndDisk(ntp1tx);
         }
     }
 }
