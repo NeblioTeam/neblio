@@ -2130,7 +2130,7 @@ CTransaction FetchTxFromDisk(const uint256& txid)
     return result;
 }
 
-void RecoverNTP1TxInDatabase(const CTransaction& tx)
+void RecoverNTP1TxInDatabase(const CTransaction& tx, unsigned recurseDepth)
 {
     printf("Recovering NTP1 transaction in database: %s\n", tx.GetHash().ToString().c_str());
     std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs;
@@ -2154,7 +2154,7 @@ void RecoverNTP1TxInDatabase(const CTransaction& tx)
             }
             std::pair<CTransaction, NTP1Transaction> inputTxPair =
                 std::make_pair(inputTx, NTP1Transaction());
-            FetchNTP1TxFromDisk(inputTxPair);
+            FetchNTP1TxFromDisk(inputTxPair, recurseDepth);
             ntp1inputs.push_back(inputTxPair);
         }
     }
@@ -2180,7 +2180,7 @@ void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, unsig
         printf("Unable to read NTP1 transaction from leveldb: %s\n",
                txPair.first.GetHash().ToString().c_str());
         if (recurseDepth < 32) {
-            RecoverNTP1TxInDatabase(txPair.first);
+            RecoverNTP1TxInDatabase(txPair.first, recurseDepth + 1);
             FetchNTP1TxFromDisk(txPair, recurseDepth + 1);
         } else {
             printf("Error: max recursion depth, %u, reached while fetching transaction %s. Stopping!\n",
