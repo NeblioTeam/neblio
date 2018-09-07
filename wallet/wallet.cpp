@@ -1765,6 +1765,8 @@ bool CWallet::GetStakeWeight(const CKeyStore& keystore, uint64_t& nMinWeight, ui
     // Choose coins to use
     int64_t nBalance = GetBalance();
 
+    nMinWeight = nMaxWeight = nWeight = 0;
+
     if (nBalance <= nReserveBalance)
         return false;
 
@@ -1778,8 +1780,6 @@ bool CWallet::GetStakeWeight(const CKeyStore& keystore, uint64_t& nMinWeight, ui
 
     if (setCoins.empty())
         return false;
-
-    nMinWeight = nMaxWeight = nWeight = 0;
 
     CTxDB txdb("r");
     for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
