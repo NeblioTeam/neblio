@@ -63,8 +63,8 @@ static const unsigned int MAX_DATA_SIZE     = 4096;
 static const unsigned int OLD_MAX_DATA_SIZE = 80;
 
 /** The maximum allowed Peer Protocol Version */
-static const unsigned int MIN_PEER_PROTO_VERSION     = 60016;
-static const unsigned int OLD_MIN_PEER_PROTO_VERSION = 209;
+static const unsigned int MIN_PEER_PROTO_VERSION = 60016;
+static const unsigned int OLD_MIN_PEER_PROTO_VERSION = 60016;
 
 static const uint256
     hashGenesisBlock("0x7286972be4dbc1463d256049b7471c252e6557e222cab9be73181d359cd28bcc");
@@ -74,34 +74,34 @@ static const uint256
 inline int64_t PastDrift(int64_t nTime) { return nTime - 10 * 60; }   // up to 10 minutes from the past
 inline int64_t FutureDrift(int64_t nTime) { return nTime + 10 * 60; } // up to 10 minutes in the future
 
-extern libzerocoin::Params*                         ZCParams;
-extern CScript                                      COINBASE_FLAGS;
-extern CCriticalSection                             cs_main;
-extern std::map<uint256, CBlockIndex*>              mapBlockIndex;
-extern std::set<std::pair<COutPoint, unsigned int>> setStakeSeen;
-extern CBlockIndex*                                 pindexGenesisBlock;
-extern unsigned int                                 nTargetSpacing;
-extern unsigned int                                 nStakeMinAge;
-extern unsigned int                                 nOldTestnetStakeMinAge;
-extern unsigned int                                 nStakeMaxAge;
-extern unsigned int                                 nNodeLifespan;
-extern int                                          nCoinbaseMaturity;
-extern int                                          nBestHeight;
-extern uint256                                      nBestChainTrust;
-extern uint256                                      nBestInvalidTrust;
-extern uint256                                      hashBestChain;
-extern CBlockIndex*                                 pindexBest;
-extern unsigned int                                 nTransactionsUpdated;
-extern uint64_t                                     nLastBlockTx;
-extern uint64_t                                     nLastBlockSize;
-extern int64_t                                      nLastCoinStakeSearchInterval;
-extern const std::string                            strMessageMagic;
-extern int64_t                                      nTimeBestReceived;
-extern CCriticalSection                             cs_setpwalletRegistered;
-extern std::set<CWallet*>                           setpwalletRegistered;
-extern unsigned char                                pchMessageStart[4];
-extern std::map<uint256, CBlock*>                   mapOrphanBlocks;
-extern bool                                         fImporting;
+extern libzerocoin::Params* ZCParams;
+extern CScript COINBASE_FLAGS;
+extern CCriticalSection cs_main;
+extern std::map<uint256, CBlockIndex*> mapBlockIndex;
+extern std::set<std::pair<COutPoint, unsigned int> > setStakeSeen;
+extern CBlockIndex* pindexGenesisBlock;
+extern unsigned int TARGET_SPACING;
+extern unsigned int STAKE_MIN_AGE;
+extern unsigned int OLD_TESTNET_STAKE_MIN_AGE;
+extern unsigned int nStakeMaxAge;
+extern unsigned int nNodeLifespan;
+extern int COINBASE_MATURITY;
+extern int nBestHeight;
+extern uint256 nBestChainTrust;
+extern uint256 nBestInvalidTrust;
+extern uint256 hashBestChain;
+extern CBlockIndex* pindexBest;
+extern unsigned int nTransactionsUpdated;
+extern uint64_t nLastBlockTx;
+extern uint64_t nLastBlockSize;
+extern int64_t nLastCoinStakeSearchInterval;
+extern const std::string strMessageMagic;
+extern int64_t nTimeBestReceived;
+extern CCriticalSection cs_setpwalletRegistered;
+extern std::set<CWallet*> setpwalletRegistered;
+extern unsigned char pchMessageStart[4];
+extern std::map<uint256, CBlock*> mapOrphanBlocks;
+extern bool fImporting;
 
 // Settings
 extern int64_t      nTransactionFee;
