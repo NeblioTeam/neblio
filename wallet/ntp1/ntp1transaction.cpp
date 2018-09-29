@@ -439,6 +439,27 @@ void NTP1Transaction::__manualSet(int NVersion, uint256 TxHash, std::vector<unsi
     ntp1TransactionType = Ntp1TransactionType;
 }
 
+string NTP1Transaction::getNTP1OpReturnScriptHex() const
+{
+    const static std::string NTP1OpReturnRegexStr = R"(^OP_RETURN\s+(4e5401[a-fA-F0-9]*)$)";
+    const static std::regex  NTP1OpReturnRegex(NTP1OpReturnRegexStr);
+
+    std::smatch opReturnArgMatch;
+    std::string opReturnArg;
+
+    for (unsigned long j = 0; j < vout.size(); j++) {
+        std::string scriptPubKeyStr = vout[j].scriptPubKeyAsm;
+        if (std::regex_match(scriptPubKeyStr, opReturnArgMatch, NTP1OpReturnRegex)) {
+            if (opReturnArgMatch[1].matched) {
+                opReturnArg = std::string(opReturnArgMatch[1]);
+                return opReturnArg;
+            }
+        }
+    }
+    throw std::runtime_error("Could not extract NTP1 script from OP_RETURN for transaction " +
+                             txHash.ToString());
+}
+
 void NTP1Transaction::readNTP1DataFromTx_minimal(const CTransaction& tx)
 {
     txHash = tx.GetHash();

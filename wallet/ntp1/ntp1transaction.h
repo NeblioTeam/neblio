@@ -177,6 +177,8 @@ public:
                      std::vector<NTP1TxIn> Vin, std::vector<NTP1TxOut> Vout, uint64_t NLockTime,
                      uint64_t NTime, NTP1TransactionType Ntp1TransactionType);
 
+    std::string getNTP1OpReturnScriptHex() const;
+
     /**
      * sets only shallow information from the source transaction (no token information)
      * it's not possible to set token information without prev inputs information; for that, use the
