@@ -191,6 +191,14 @@ NTP1Script::ParseTokenSymbolFromLongEnoughString(const std::string& BinTokenSymb
                                 [](char c) { return *reinterpret_cast<uint8_t*>(&(c)) == 0x20; }),
                  result.end());
 
+    auto it = std::find_if(result.begin(), result.end(), [](char c) { return !isalnum(c); });
+    if (it != result.end()) {
+        throw std::runtime_error("Invalid token symbol. Token symbols can only contain English letters "
+                                 "and numbers. The current name \"" +
+                                 result + "\", has an invalid character: \"" + std::string(1, *it) +
+                                 "\"");
+    }
+
     if (result.size() == 0) {
         throw std::runtime_error("Invalid token symbol; it cannot be empty.");
     }

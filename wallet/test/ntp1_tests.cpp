@@ -489,11 +489,88 @@ TEST(ntp1_tests, script_transfer)
     EXPECT_EQ(script_transfer->getTransferInstruction(0).firstRawByte, 0);
 }
 
+TEST(ntp1_tests, script_issuance_allowed_chars_in_token_symbol)
+{
+    std::string                 toParse_issuance;
+    std::shared_ptr<NTP1Script> script;
+    {
+        // NIBBL name 4e4942424c
+        toParse_issuance = "4e5401014e4942424cab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
+                           "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
+        EXPECT_NO_THROW(script = NTP1Script::ParseScript(toParse_issuance));
+    }
+    {
+        // -IBBL name
+        toParse_issuance = "4e5401012d4942424cab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
+                           "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
+        EXPECT_THROW(script = NTP1Script::ParseScript(toParse_issuance), runtime_error);
+    }
+    {
+        // NI~BL name 4e497e424c
+        toParse_issuance = "4e5401014e497e424cab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
+                           "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
+        EXPECT_THROW(script = NTP1Script::ParseScript(toParse_issuance), runtime_error);
+    }
+    {
+        // NIBB. name 4e4942422e
+        toParse_issuance = "4e5401014e4942422eab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
+                           "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
+        EXPECT_THROW(script = NTP1Script::ParseScript(toParse_issuance), runtime_error);
+    }
+
+    // a string of all invalid characters from the ascii table
+    std::string invalid_chars;
+    // append chars up to ascii 0
+    for (char i = 0; i <= 47; i++) {
+        if (i == 32) // space is allowed as padding
+            continue;
+        invalid_chars.push_back(i);
+    }
+    // from > 9 to < A
+    for (char i = 58; i <= 64; i++) {
+        invalid_chars.push_back(i);
+    }
+    // from > Z to < a
+    for (char i = 91; i <= 96; i++) {
+        invalid_chars.push_back(i);
+    }
+    // from > z to <= 0xff
+    for (int i = 123; i <= 0xff; i++) {
+        invalid_chars.push_back(static_cast<char>(i));
+    }
+
+    // we'll test all invalid characters by replacing a random character from NIBBL with an invalid
+    // character
+    std::string to_parse_prefix = "4e540101";
+    std::string to_parse_suffix = "ab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
+                                  "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
+    for (const auto& c : invalid_chars) {
+        std::string  tokenName                   = "4e4942424c"; // NIBBL
+        std::string  tokenNameRaw                = boost::algorithm::unhex(tokenName);
+        unsigned int random_char_num_to_replace  = rand() % 5;
+        tokenNameRaw[random_char_num_to_replace] = c; // replace one char with an invalid one
+
+        // No exception is thrown before replacing the char with an invalid char
+        toParse_issuance = to_parse_prefix + tokenName + to_parse_suffix;
+        EXPECT_NO_THROW(script = NTP1Script::ParseScript(toParse_issuance));
+
+        // Exception is thrown after replacing the char with an invalid char
+        tokenName        = boost::algorithm::hex(tokenNameRaw); // new name with one invalid character
+        toParse_issuance = to_parse_prefix + tokenName + to_parse_suffix;
+        EXPECT_THROW(script = NTP1Script::ParseScript(toParse_issuance), runtime_error)
+            << "The char \"" << boost::algorithm::hex(std::string(1, c))
+            << "\" in a token name didn't throw an exception";
+    }
+}
+
 TEST(ntp1_tests, script_issuance)
 {
     {
         // issue NIBBL
         // txid: 66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80
+        // 4e5401 01
+        // 4e4942424c
+        // ab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef215620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0
         std::string toParse_issuance =
             "4e5401014e4942424cab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
             "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
