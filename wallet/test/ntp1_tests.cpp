@@ -1732,7 +1732,7 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> GetNTP1InputsOnline(const 
 
 void TestNTP1TxParsing_onlyRead(const CTransaction& tx, bool testnet)
 {
-    const std::string& txid = tx.GetHash().ToString();
+    //    const std::string& txid = tx.GetHash().ToString();
 
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputs;
 
