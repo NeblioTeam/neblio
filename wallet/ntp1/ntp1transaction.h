@@ -260,7 +260,7 @@ void NTP1Transaction::__TransferTokens(
             throw std::runtime_error(
                 "An input of transfer instruction is outside the available "
                 "range of inputs in NTP1 OP_RETURN argument: " +
-                scriptPtrD->getParsedScript() + ", where the number of available inputs is " +
+                scriptPtrD->getParsedScriptHex() + ", where the number of available inputs is " +
                 ::ToString(tx.vin.size()) + " in transaction " + tx.GetHash().ToString());
         }
 
@@ -271,7 +271,7 @@ void NTP1Transaction::__TransferTokens(
             throw std::runtime_error(
                 "An output of transfer instruction is outside the available "
                 "range of outputs in NTP1 OP_RETURN argument: " +
-                scriptPtrD->getParsedScript() + ", where the number of available outputs is " +
+                scriptPtrD->getParsedScriptHex() + ", where the number of available outputs is " +
                 ::ToString(tx.vout.size()) + " in transaction " + tx.GetHash().ToString());
         }
 
@@ -358,7 +358,7 @@ void NTP1Transaction::__TransferTokens(
                                         return currRes + " - " + inp.prevout.hash.ToString() + ":" +
                                                ::ToString(inp.prevout.n);
                                     }) +
-                    "; and OP_RETURN script: " + scriptPtrD->getParsedScript());
+                    "; and OP_RETURN script: " + scriptPtrD->getParsedScriptHex());
             }
 
             const auto&    currentTokenObj = tokensKindsInInputs[currentInputIndex][startTokenIndex];

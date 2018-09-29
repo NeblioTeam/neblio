@@ -19,7 +19,7 @@ std::string NTP1Script::getOpCodeBin() const { return opCodeBin; }
 
 NTP1Script::TxType NTP1Script::getTxType() const { return txType; }
 
-std::string NTP1Script::getParsedScript() const { return parsedScript; }
+std::string NTP1Script::getParsedScriptHex() const { return parsedScriptHex; }
 
 void NTP1Script::setCommonParams(std::string Header, int ProtocolVersion, std::string OpCodeBin)
 {
@@ -273,7 +273,7 @@ std::shared_ptr<NTP1Script> NTP1Script::ParseScript(const std::string& scriptHex
         }
         result_->setCommonParams(header, protocolVersion, opCodeBin);
 
-        result_->parsedScript = scriptHex;
+        result_->parsedScriptHex = scriptHex;
 
         return result_;
 
