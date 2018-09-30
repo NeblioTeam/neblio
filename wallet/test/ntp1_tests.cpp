@@ -520,6 +520,7 @@ TEST(ntp1_tests, script_issuance_allowed_chars_in_token_symbol)
 
     // a string of all invalid characters from the ascii table
     std::string invalid_chars;
+    std::string valid_chars;
     // append chars up to ascii 0
     for (char i = 0; i <= 47; i++) {
         if (i == 32) // space is allowed as padding
@@ -539,27 +540,80 @@ TEST(ntp1_tests, script_issuance_allowed_chars_in_token_symbol)
         invalid_chars.push_back(static_cast<char>(i));
     }
 
-    // we'll test all invalid characters by replacing a random character from NIBBL with an invalid
-    // character
-    std::string to_parse_prefix = "4e540101";
-    std::string to_parse_suffix = "ab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
-                                  "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
-    for (const auto& c : invalid_chars) {
-        std::string  tokenName                   = "4e4942424c"; // NIBBL
-        std::string  tokenNameRaw                = boost::algorithm::unhex(tokenName);
-        unsigned int random_char_num_to_replace  = rand() % 5;
-        tokenNameRaw[random_char_num_to_replace] = c; // replace one char with an invalid one
+    valid_chars.push_back(32); // space
+    // append digital chars
+    for (char i = 48; i <= 57; i++) {
+        valid_chars.push_back(i);
+    }
 
-        // No exception is thrown before replacing the char with an invalid char
-        toParse_issuance = to_parse_prefix + tokenName + to_parse_suffix;
-        EXPECT_NO_THROW(script = NTP1Script::ParseScript(toParse_issuance));
+    // append A-Z
+    for (char i = 65; i <= 90; i++) {
+        valid_chars.push_back(i);
+    }
 
-        // Exception is thrown after replacing the char with an invalid char
-        tokenName        = boost::algorithm::hex(tokenNameRaw); // new name with one invalid character
-        toParse_issuance = to_parse_prefix + tokenName + to_parse_suffix;
-        EXPECT_THROW(script = NTP1Script::ParseScript(toParse_issuance), runtime_error)
-            << "The char \"" << boost::algorithm::hex(std::string(1, c))
-            << "\" in a token name didn't throw an exception";
+    // append a-z
+    for (char i = 97; i <= 122; i++) {
+        valid_chars.push_back(i);
+    }
+
+    {
+        // we'll test all invalid characters by replacing a random character from NIBBL with an invalid
+        // character
+        std::string to_parse_prefix = "4e540101";
+        std::string to_parse_suffix =
+            "ab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
+            "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
+        for (const auto& c : invalid_chars) {
+            std::string  tokenName                   = "4e4942424c"; // NIBBL
+            std::string  tokenNameRaw                = boost::algorithm::unhex(tokenName);
+            unsigned int random_char_num_to_replace  = rand() % 5;
+            tokenNameRaw[random_char_num_to_replace] = c; // replace one char with an invalid one
+
+            // No exception is thrown before replacing the char with an invalid char
+            toParse_issuance = to_parse_prefix + tokenName + to_parse_suffix;
+            EXPECT_NO_THROW(script = NTP1Script::ParseScript(toParse_issuance));
+
+            // Exception is thrown after replacing the char with an invalid char
+            tokenName = boost::algorithm::hex(tokenNameRaw); // new name with one invalid character
+            toParse_issuance = to_parse_prefix + tokenName + to_parse_suffix;
+            EXPECT_THROW(script = NTP1Script::ParseScript(toParse_issuance), runtime_error)
+                << "The char \"" << boost::algorithm::hex(std::string(1, c))
+                << "\" in a token name didn't throw an exception";
+        }
+    }
+
+    {
+        // we'll test now all valid characters by replacing a random character from NIBBL with a valid
+        // character
+        std::string to_parse_prefix = "4e540101";
+        std::string to_parse_suffix =
+            "ab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
+            "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
+        for (const auto& c : valid_chars) {
+            std::string  tokenName                   = "4e4942424c"; // NIBBL
+            std::string  tokenNameRaw                = boost::algorithm::unhex(tokenName);
+            unsigned int random_char_num_to_replace  = rand() % 5;
+            tokenNameRaw[random_char_num_to_replace] = c; // replace one char with an invalid one
+
+            // No exception is thrown before
+            toParse_issuance = to_parse_prefix + tokenName + to_parse_suffix;
+            EXPECT_NO_THROW(script = NTP1Script::ParseScript(toParse_issuance));
+
+            // No exception is thrown after putting in another valid char
+            tokenName = boost::algorithm::hex(tokenNameRaw); // new name with one invalid character
+            toParse_issuance = to_parse_prefix + tokenName + to_parse_suffix;
+            EXPECT_NO_THROW(script = NTP1Script::ParseScript(toParse_issuance))
+                << "The char \"" << boost::algorithm::hex(std::string(1, c))
+                << "\" in a token name didn't throw an exception";
+        }
+    }
+
+    {
+        // ensure that all characters were tested, from 0x0 to 0xff
+        std::unordered_set<char> allChars;
+        allChars.insert(invalid_chars.begin(), invalid_chars.end());
+        allChars.insert(valid_chars.begin(), valid_chars.end());
+        EXPECT_EQ(allChars.size(), static_cast<unsigned>(256));
     }
 }
 
