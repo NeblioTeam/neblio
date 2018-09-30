@@ -725,21 +725,23 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
                          hash.ToString().substr(0, 10).c_str());
         }
 
-        try {
-            std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
-                StdInputsTxsToNTP1(tx, mapInputs);
-            NTP1Transaction ntp1tx;
-            ntp1tx.readNTP1DataFromTx(tx, inputsTxs);
-        } catch (std::exception& ex) {
-            printf("An invalid NTP1 transaction was submitted to the memory pool; an exception was "
-                   "thrown: %s\n",
-                   ex.what());
-            return false;
-        } catch (...) {
-            printf(
-                "An invalid NTP1 transaction was submitted to the memory pool; an unknown exception was "
-                "thrown.");
-            return false;
+        if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+            try {
+                std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
+                    StdInputsTxsToNTP1(tx, mapInputs);
+                NTP1Transaction ntp1tx;
+                ntp1tx.readNTP1DataFromTx(tx, inputsTxs);
+            } catch (std::exception& ex) {
+                printf("An invalid NTP1 transaction was submitted to the memory pool; an exception was "
+                       "thrown: %s\n",
+                       ex.what());
+                return false;
+            } catch (...) {
+                printf("An invalid NTP1 transaction was submitted to the memory pool; an unknown "
+                       "exception was "
+                       "thrown.");
+                return false;
+            }
         }
     }
 
