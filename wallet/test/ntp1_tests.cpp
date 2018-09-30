@@ -613,6 +613,7 @@ TEST(ntp1_tests, script_issuance_allowed_chars_in_token_symbol)
         std::unordered_set<char> allChars;
         allChars.insert(invalid_chars.begin(), invalid_chars.end());
         allChars.insert(valid_chars.begin(), valid_chars.end());
+        EXPECT_EQ(invalid_chars.size() + valid_chars.size(), static_cast<unsigned>(256));
         EXPECT_EQ(allChars.size(), static_cast<unsigned>(256));
     }
 }
