@@ -99,6 +99,9 @@ class SpecialEnv : public EnvWrapper {
           : env_(env),
             base_(base) {
       }
+      virtual std::string GetName() const {
+          return base_->GetName();
+      }
       ~DataFile() { delete base_; }
       Status Append(const Slice& data) {
         if (env_->no_space_.Acquire_Load() != NULL) {
@@ -127,6 +130,9 @@ class SpecialEnv : public EnvWrapper {
      public:
       ManifestFile(SpecialEnv* env, WritableFile* b) : env_(env), base_(b) { }
       ~ManifestFile() { delete base_; }
+      virtual std::string GetName() const {
+          return base_->GetName();
+      }
       Status Append(const Slice& data) {
         if (env_->manifest_write_error_.Acquire_Load() != NULL) {
           return Status::IOError("simulated writer error");
@@ -175,6 +181,9 @@ class SpecialEnv : public EnvWrapper {
                           char* scratch) const {
         counter_->Increment();
         return target_->Read(offset, n, result, scratch);
+      }
+      virtual std::string GetName() const {
+          return target_->GetName();
       }
     };
 

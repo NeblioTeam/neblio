@@ -91,6 +91,10 @@ class StringSink: public WritableFile {
  public:
   ~StringSink() { }
 
+  virtual std::string GetName() const {
+      return "";
+  }
+
   const std::string& contents() const { return contents_; }
 
   virtual Status Close() { return Status::OK(); }
@@ -114,6 +118,10 @@ class StringSource: public RandomAccessFile {
   }
 
   virtual ~StringSource() { }
+
+  virtual std::string GetName() const {
+      return "";
+  }
 
   uint64_t Size() const { return contents_.size(); }
 

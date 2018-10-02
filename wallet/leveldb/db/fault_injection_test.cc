@@ -115,6 +115,10 @@ class TestWritableFile : public WritableFile {
   virtual Status Flush();
   virtual Status Sync();
 
+  virtual std::string GetName() const {
+      return target_->GetName();
+  }
+
  private:
   FileState state_;
   WritableFile* target_;

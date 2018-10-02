@@ -42,6 +42,10 @@ class LogTest {
    public:
     std::string contents_;
 
+    virtual std::string GetName() const {
+        return "";
+    }
+
     virtual Status Close() { return Status::OK(); }
     virtual Status Flush() { return Status::OK(); }
     virtual Status Sync() { return Status::OK(); }
@@ -57,6 +61,10 @@ class LogTest {
     bool force_error_;
     bool returned_partial_;
     StringSource() : force_error_(false), returned_partial_(false) { }
+
+    virtual std::string GetName() const {
+        return "";
+    }
 
     virtual Status Read(size_t n, Slice* result, char* scratch) {
       ASSERT_TRUE(!returned_partial_) << "must not Read() after eof/error";

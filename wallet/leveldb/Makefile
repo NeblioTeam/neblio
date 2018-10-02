@@ -24,7 +24,7 @@ TESTS = \
 	db/autocompact_test \
 	db/c_test \
 	db/corruption_test \
-#	db/db_test \
+	db/db_test \
 	db/dbformat_test \
 	db/fault_injection_test \
 	db/filename_test \
