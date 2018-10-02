@@ -180,22 +180,22 @@ clean:
 	-rm -f leveldbutil
 
 $(STATIC_OUTDIR):
-	mkdir $@
+	mkdir -p $@
 
 $(STATIC_OUTDIR)/db: | $(STATIC_OUTDIR)
-	mkdir $@
+	mkdir -p $@
 
 $(STATIC_OUTDIR)/helpers/memenv: | $(STATIC_OUTDIR)
 	mkdir -p $@
 
 $(STATIC_OUTDIR)/port: | $(STATIC_OUTDIR)
-	mkdir $@
+	mkdir -p $@
 
 $(STATIC_OUTDIR)/table: | $(STATIC_OUTDIR)
-	mkdir $@
+	mkdir -p $@
 
 $(STATIC_OUTDIR)/util: | $(STATIC_OUTDIR)
-	mkdir $@
+	mkdir -p $@
 
 .PHONY: STATIC_OBJDIRS
 STATIC_OBJDIRS: \
@@ -206,22 +206,22 @@ STATIC_OBJDIRS: \
 	$(STATIC_OUTDIR)/helpers/memenv
 
 $(SHARED_OUTDIR):
-	mkdir $@
+	mkdir -p $@
 
 $(SHARED_OUTDIR)/db: | $(SHARED_OUTDIR)
-	mkdir $@
+	mkdir -p $@
 
 $(SHARED_OUTDIR)/helpers/memenv: | $(SHARED_OUTDIR)
 	mkdir -p $@
 
 $(SHARED_OUTDIR)/port: | $(SHARED_OUTDIR)
-	mkdir $@
+	mkdir -p $@
 
 $(SHARED_OUTDIR)/table: | $(SHARED_OUTDIR)
-	mkdir $@
+	mkdir -p $@
 
 $(SHARED_OUTDIR)/util: | $(SHARED_OUTDIR)
-	mkdir $@
+	mkdir -p $@
 
 .PHONY: SHARED_OBJDIRS
 SHARED_OBJDIRS: \
@@ -232,22 +232,22 @@ SHARED_OBJDIRS: \
 	$(SHARED_OUTDIR)/helpers/memenv
 
 $(DEVICE_OUTDIR):
-	mkdir $@
+	mkdir -p $@
 
 $(DEVICE_OUTDIR)/db: | $(DEVICE_OUTDIR)
-	mkdir $@
+	mkdir -p $@
 
 $(DEVICE_OUTDIR)/helpers/memenv: | $(DEVICE_OUTDIR)
 	mkdir -p $@
 
 $(DEVICE_OUTDIR)/port: | $(DEVICE_OUTDIR)
-	mkdir $@
+	mkdir -p $@
 
 $(DEVICE_OUTDIR)/table: | $(DEVICE_OUTDIR)
-	mkdir $@
+	mkdir -p $@
 
 $(DEVICE_OUTDIR)/util: | $(DEVICE_OUTDIR)
-	mkdir $@
+	mkdir -p $@
 
 .PHONY: DEVICE_OBJDIRS
 DEVICE_OBJDIRS: \
@@ -258,22 +258,22 @@ DEVICE_OBJDIRS: \
 	$(DEVICE_OUTDIR)/helpers/memenv
 
 $(SIMULATOR_OUTDIR):
-	mkdir $@
+	mkdir -p $@
 
 $(SIMULATOR_OUTDIR)/db: | $(SIMULATOR_OUTDIR)
-	mkdir $@
+	mkdir -p $@
 
 $(SIMULATOR_OUTDIR)/helpers/memenv: | $(SIMULATOR_OUTDIR)
 	mkdir -p $@
 
 $(SIMULATOR_OUTDIR)/port: | $(SIMULATOR_OUTDIR)
-	mkdir $@
+	mkdir -p $@
 
 $(SIMULATOR_OUTDIR)/table: | $(SIMULATOR_OUTDIR)
-	mkdir $@
+	mkdir -p $@
 
 $(SIMULATOR_OUTDIR)/util: | $(SIMULATOR_OUTDIR)
-	mkdir $@
+	mkdir -p $@
 
 .PHONY: SIMULATOR_OBJDIRS
 SIMULATOR_OBJDIRS: \
