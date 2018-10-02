@@ -144,14 +144,15 @@ void AtomicPointer::NoBarrier_Store(void* v) {
   rep_ = v;
 }
 
+// Note: these are disabled by Sam for safety
 bool HasAcceleratedCRC32C() {
-#if defined(__x86_64__) || defined(__i386__)
-  int cpu_info[4];
-  __cpuid(cpu_info, 1);
-  return (cpu_info[2] & (1 << 20)) != 0;
-#else
+//#if defined(__x86_64__) || defined(__i386__)
+//  int cpu_info[4];
+//  __cpuid(cpu_info, 1);
+//  return (cpu_info[2] & (1 << 20)) != 0;
+//#else
   return false;
-#endif
+//#endif
 }
 
 }
