@@ -56,7 +56,7 @@ fi
 COMMON_FLAGS=
 CROSS_COMPILE=
 PLATFORM_CCFLAGS=
-PLATFORM_CXXFLAGS=
+PLATFORM_CXXFLAGS="-std=c++11"
 PLATFORM_LDFLAGS=
 PLATFORM_LIBS=
 PLATFORM_SHARED_EXT="so"
@@ -171,6 +171,7 @@ case "$TARGET_OS" in
         PLATFORM_SOURCES="util/env_win.cc"
         PLATFORM_LIBS="-lshlwapi"
         PORT_FILE=port/port_win.cc
+        PORT_SSE_FILE=port/port_posix_sse.cc
         CROSS_COMPILE=true
         ;;
     *)

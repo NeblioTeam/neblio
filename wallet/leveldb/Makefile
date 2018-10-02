@@ -21,47 +21,47 @@ $(shell CC="$(CC)" CXX="$(CXX)" TARGET_OS="$(TARGET_OS)" \
 include build_config.mk
 
 TESTS = \
-	db/autocompact_test \
-	db/c_test \
-	db/corruption_test \
-	db/db_test \
-	db/dbformat_test \
-	db/fault_injection_test \
-	db/filename_test \
-	db/log_test \
-	db/recovery_test \
-	db/skiplist_test \
-	db/version_edit_test \
-	db/version_set_test \
-	db/write_batch_test \
-	helpers/memenv/memenv_test \
-	issues/issue178_test \
-	issues/issue200_test \
-	table/filter_block_test \
-	table/table_test \
-	util/arena_test \
-	util/bloom_test \
-	util/cache_test \
-	util/coding_test \
-	util/crc32c_test \
-	util/env_posix_test \
-	util/env_test \
-	util/hash_test
+        db/autocompact_test \
+        db/c_test \
+        db/corruption_test \
+        db/db_test \
+        db/dbformat_test \
+        db/fault_injection_test \
+        db/filename_test \
+        db/log_test \
+        db/recovery_test \
+        db/skiplist_test \
+        db/version_edit_test \
+        db/version_set_test \
+        db/write_batch_test \
+        helpers/memenv/memenv_test \
+        issues/issue178_test \
+        issues/issue200_test \
+        table/filter_block_test \
+        table/table_test \
+        util/arena_test \
+        util/bloom_test \
+        util/cache_test \
+        util/coding_test \
+        util/crc32c_test \
+        util/env_posix_test \
+        util/env_test \
+        util/hash_test
 
 UTILS = \
-	db/db_bench \
-	db/leveldbutil
+        db/db_bench \
+        db/leveldbutil
 
 # Put the object files in a subdirectory, but the application at the top of the object dir.
 PROGNAMES := $(notdir $(TESTS) $(UTILS))
 
 # On Linux may need libkyotocabinet-dev for dependency.
 BENCHMARKS = \
-	doc/bench/db_bench_sqlite3 \
-	doc/bench/db_bench_tree_db
+        doc/bench/db_bench_sqlite3 \
+        doc/bench/db_bench_tree_db
 
 CFLAGS += -I. -I./include $(PLATFORM_CCFLAGS) $(OPT)
-CXXFLAGS += -I. -I./include $(PLATFORM_CXXFLAGS) $(OPT)
+CXXFLAGS += -I. -I./include $(PLATFORM_CXXFLAGS) $(OPT) -std=c++11
 
 LDFLAGS += $(PLATFORM_LDFLAGS)
 LIBS += $(PLATFORM_LIBS)
@@ -149,6 +149,35 @@ clean:
 	-rm -f build_config.mk
 	-rm -rf ios-x86 ios-arm
 	-rm -f libleveldb.a libmemenv.a
+	-find -iname "*.o" | xargs rm -f
+	-rm -f arena_test
+	-rm -f cache_test
+	-rm -f env_test
+	-rm -f table_test
+	-rm -f write_batch_test
+	-rm -f coding_test
+	-rm -f db_bench
+	-rm -f fault_injection_test
+	-rm -f issue178_test
+	-rm -f autocompact_test
+	-rm -f dbformat_test
+	-rm -f filename_test
+	-rm -f issue200_test
+	-rm -f log_test
+	-rm -f bloom_test
+	-rm -f corruption_test
+	-rm -f db_test
+	-rm -f filter_block_test
+	-rm -f recovery_test
+	-rm -f version_edit_test
+	-rm -f crc32c_test
+	-rm -f hash_test
+	-rm -f memenv_test
+	-rm -f skiplist_test
+	-rm -f version_set_test
+	-rm -f c_test
+	-rm -f env_posix_test
+	-rm -f leveldbutil
 
 $(STATIC_OUTDIR):
 	mkdir $@
