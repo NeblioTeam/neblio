@@ -115,9 +115,14 @@ macx: INCLUDEPATH += /usr/include /usr/local/opt/berkeley-db@4/include /usr/loca
 LIBS += $$PWD/leveldb/libleveldb.a $$PWD/leveldb/libmemenv.a
 SOURCES += txdb-leveldb.cpp
 
+#NEBLIO_CONFIG += LEVELDB_TESTS
+
 !win32 {
     # we use QMAKE_CXXFLAGS_RELEASE even without RELEASE=1 because we use RELEASE to indicate linking preferences not -O preferences
     genleveldb.commands = cd $$PWD/leveldb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\" libleveldb.a libmemenv.a
+    contains( NEBLIO_CONFIG, LEVELDB_TESTS ) {
+        genleveldb.commands += ./arena_test && ./cache_test && ./env_test && ./table_test && ./write_batch_test && ./coding_test && ./db_bench && ./fault_injection_test && ./issue178_test && ./autocompact_test && ./dbformat_test && ./filename_test && ./issue200_test && ./log_test && ./bloom_test && ./corruption_test && ./db_test && ./filter_block_test && ./recovery_test && ./version_edit_test && ./crc32c_test && ./hash_test && ./memenv_test && ./skiplist_test && ./version_set_test && ./c_test && ./env_posix_test
+    }
 } else {
     # make an educated guess about what the ranlib command is called
     isEmpty(QMAKE_RANLIB) {
@@ -239,8 +244,8 @@ macx:QMAKE_CXXFLAGS_THREAD += -pthread
 
 # do not include resources while testing
 !contains( NEBLIO_TEST, TRUE ) {
-	macx:ICON = qt/res/icons/bitcoin.icns
-	windows:RC_FILE = qt/res/bitcoin-qt.rc
+    macx:ICON = qt/res/icons/bitcoin.icns
+    windows:RC_FILE = qt/res/bitcoin-qt.rc
 }
 
 # Set libraries and includes at end, to use platform-defined defaults if not overridden
