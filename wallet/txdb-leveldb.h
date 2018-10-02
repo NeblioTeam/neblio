@@ -42,6 +42,7 @@ public:
     // Destroys the underlying shared global state accessed by this TxDB.
     void Close();
 
+    static const int WriteReps = 32;
 private:
     leveldb::DB *pdb;  // Points to the global instance.
 
@@ -100,7 +101,22 @@ protected:
     }
 
     template<typename K, typename T>
-    bool Write(const K& key, const T& value)
+    bool Write(const K& key, const T& value, unsigned repititions = CTxDB::WriteReps)
+    {
+        bool success = false;
+        for(unsigned i = 0; i < repititions; i++) {
+            if(WriteOnce(key,value)) {
+                success = true;
+                break;
+            } else {
+                printf("Failed at writing to leveldb (attempt %u/%u)",i+1,repititions);
+            }
+        }
+        return success;
+    }
+
+    template<typename K, typename T>
+    bool WriteOnce(const K& key, const T& value)
     {
         if (fReadOnly)
             assert(!"Write called on database in read-only mode");
