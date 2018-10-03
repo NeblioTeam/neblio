@@ -275,13 +275,20 @@ contains(RELEASE, 1) {
     LIBS += -lrt -ldl
 }
 
-!win32:!macx {
-    cURL_LIBS = $$system("pkg-config libcurl --libs")
-    LIBS += $$cURL_LIBS
+!macx {
+    INCLUDEPATH += $$system("$${CROSS_COMPILE}pkg-config libcurl --cflags-only-I")
+    QMAKE_CFLAGS += $$system("$${CROSS_COMPILE}pkg-config libcurl --cflags-only-other")
+    QMAKE_CXXFLAGS += $$system("$${CROSS_COMPILE}pkg-config libcurl --cflags-only-other")
+    # static when release
+    contains(RELEASE, 1) {
+        libcurlPkgconfCmd = "$${CROSS_COMPILE}pkg-config libcurl --libs --static"
+    } else {
+        libcurlPkgconfCmd = "$${CROSS_COMPILE}pkg-config libcurl --libs"
+    }
+    cURL_LIBS = $$system($$libcurlPkgconfCmd,, curlPkgConfSuccess)
+    isEqual(curlPkgConfSuccess, 0) {
+        LIBS += $$cURL_LIBS
+    } else {
+        error(Failed to run pkg-config to find curl libs. Failed to run: $${libcurlPkgconfCmd})
+    }
 }
-win32 {
-    # for mxe
-    cURL_LIBS = $$system("i686-w64-mingw32.static-pkg-config libcurl --libs")
-    LIBS += $$cURL_LIBS
-}
-
