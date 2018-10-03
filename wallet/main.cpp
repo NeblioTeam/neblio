@@ -1524,12 +1524,13 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
         nTxPos = pindex->nBlockPos + ::GetSerializeSize(CBlock(), SER_DISK, CLIENT_VERSION) -
                  (2 * GetSizeOfCompactSize(0)) + GetSizeOfCompactSize(vtx.size());
 
-    map<uint256, CTxIndex> mapQueuedChanges;
-    int64_t                nFees        = 0;
-    int64_t                nValueIn     = 0;
-    int64_t                nValueOut    = 0;
-    int64_t                nStakeReward = 0;
-    unsigned int           nSigOps      = 0;
+    map<uint256, CTxIndex>     mapQueuedChanges;
+    map<uint256, CTransaction> mapQueuedChangesTxs;
+    int64_t                    nFees        = 0;
+    int64_t                    nValueIn     = 0;
+    int64_t                    nValueOut    = 0;
+    int64_t                    nStakeReward = 0;
+    unsigned int               nSigOps      = 0;
     for (CTransaction& tx : vtx) {
         uint256 hashTx = tx.GetHash();
 
@@ -1589,7 +1590,8 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
                 return false;
         }
 
-        mapQueuedChanges[hashTx] = CTxIndex(posThisTx, tx.vout.size());
+        mapQueuedChanges[hashTx]    = CTxIndex(posThisTx, tx.vout.size());
+        mapQueuedChangesTxs[hashTx] = tx;
     }
 
     if (IsProofOfWork()) {
@@ -1627,6 +1629,15 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
     // Write queued txindex changes
     for (map<uint256, CTxIndex>::iterator mi = mapQueuedChanges.begin(); mi != mapQueuedChanges.end();
          ++mi) {
+        try {
+            const uint256& txHash = (*mi).first;
+            WriteNTP1TxToDiskFromRawTx(mapQueuedChangesTxs.at(txHash));
+        } catch (std::exception& ex) {
+            printf("Error while writing NTP1 transaction to database in ConnectBlocks(): %s", ex.what());
+        } catch (...) {
+            printf("Error while writing NTP1 transaction to database in ConnectBlocks(). Unknown "
+                   "exception thrown");
+        }
         if (!txdb.UpdateTxIndex((*mi).first, (*mi).second))
             return error("ConnectBlock() : UpdateTxIndex failed");
     }
@@ -2270,25 +2281,31 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTran
     return StdInputsTxsToNTP1(tx, mapInputs);
 }
 
-void WriteNTP1BlockTransactionsToDisk(std::vector<CTransaction> vtx)
+void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx)
 {
-    if (nBestHeight >= 157528 || (fTestNet && nBestHeight >= 10313)) {
-        std::vector<std::pair<CTransaction, NTP1Transaction>> inputsWithNTP1;
+    if (PassedFirstValidNTP1Tx(nBestHeight, fTestNet)) {
         // read previous transactions (inputs) which are necessary to validate an NTP1
         // transaction
+        std::string opReturnArg;
+        if (!IsTxNTP1(&tx, &opReturnArg)) {
+            return;
+        }
+
+        std::vector<std::pair<CTransaction, NTP1Transaction>> inputsWithNTP1 = GetAllNTP1InputsOfTx(tx);
+
+        // write NTP1 transactions' data
+        NTP1Transaction ntp1tx;
+        ntp1tx.readNTP1DataFromTx(tx, inputsWithNTP1);
+
+        WriteNTP1TxToDbAndDisk(ntp1tx);
+    }
+}
+
+void WriteNTP1BlockTransactionsToDisk(std::vector<CTransaction> vtx)
+{
+    if (PassedFirstValidNTP1Tx(nBestHeight, fTestNet)) {
         for (CTransaction& tx : vtx) {
-            std::string opReturnArg;
-            if (!IsTxNTP1(&tx, &opReturnArg)) {
-                continue;
-            }
-
-            inputsWithNTP1 = GetAllNTP1InputsOfTx(tx);
-
-            // write NTP1 transactions' data
-            NTP1Transaction ntp1tx;
-            ntp1tx.readNTP1DataFromTx(tx, inputsWithNTP1);
-
-            WriteNTP1TxToDbAndDisk(ntp1tx);
+            WriteNTP1TxToDiskFromRawTx(tx);
         }
     }
 }
@@ -4123,6 +4140,11 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
 bool PassedNetworkUpgradeBlock(uint32_t nBestHeight, bool isTestnet)
 {
     return (nBestHeight >= HF_HEIGHT_TESTNET && isTestnet);
+}
+
+bool PassedFirstValidNTP1Tx(const int bestHeight, const bool isTestnet)
+{
+    return (bestHeight >= 157528 || (isTestnet && bestHeight >= 10313));
 }
 
 /** Maximum size of a block */

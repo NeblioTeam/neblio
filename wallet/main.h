@@ -154,6 +154,8 @@ CTransaction       FetchTxFromDisk(const uint256& txid);
 void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, unsigned recurseDepth = 0);
 void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx);
 
+void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx);
+
 /** for a certain transaction, retrieve all NTP1 data from the database */
 std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTransaction tx);
 
@@ -162,6 +164,10 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
 
 /** the conditions for considering the upgraded network configuration */
 bool PassedNetworkUpgradeBlock(uint32_t nBestHeight, bool isTestnet);
+
+/** the condition for the first valid NTP1 transaction; transactions before this point are invalid in the
+ * network*/
+bool PassedFirstValidNTP1Tx(const int bestHeight, const bool isTestnet);
 
 /** Maximum size of a block */
 unsigned int MaxBlockSize(uint32_t nBestHeight);
