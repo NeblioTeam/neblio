@@ -25,7 +25,8 @@ packages_to_install = \
 "libqrencode-dev",
 "libcurl4-openssl-dev",
 "libldap2-dev",
-"libidn11-dev"
+"libidn11-dev",
+"librtmp-dev"
 ]
 
 nci.install_packages_debian(packages_to_install)
