@@ -10,7 +10,7 @@ import shutil
 configure_flags = "no-shared"
 cflags = "-fPIC"
 
-base_openssl_version = "1.1.1"
+base_openssl_version = "1.0.2"
 
 def get_openssl_filename(ver):
     return "openssl-" + ver + ".tar.gz"
