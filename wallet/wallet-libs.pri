@@ -285,10 +285,12 @@ contains(RELEASE, 1) {
     } else {
         libcurlPkgconfCmd = "$${CROSS_COMPILE}pkg-config libcurl --libs"
     }
-    cURL_LIBS = $$system($$libcurlPkgconfCmd,, curlPkgConfSuccess)
-    isEqual(curlPkgConfSuccess, 0) {
-        LIBS += $$cURL_LIBS
-    } else {
-        error(Failed to run pkg-config to find curl libs. Failed to run: $${libcurlPkgconfCmd})
-    }
+    # the testing whether system() has a zero exit code with the third parameter of system() doesn't work on all Qt versions
+#    cURL_LIBS = system($$libcurlPkgconfCmd,, curlPkgConfSuccess)
+    cURL_LIBS = system($$libcurlPkgconfCmd)
+#    isEqual(curlPkgConfSuccess, 0) {
+    LIBS += $$cURL_LIBS
+#    } else {
+#        error(Failed to run pkg-config to find curl libs. Failed to run: $${libcurlPkgconfCmd})
+#    }
 }
