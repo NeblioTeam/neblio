@@ -287,7 +287,7 @@ contains(RELEASE, 1) {
     }
     # the testing whether system() has a zero exit code with the third parameter of system() doesn't work on all Qt versions
 #    cURL_LIBS = system($$libcurlPkgconfCmd,, curlPkgConfSuccess)
-    cURL_LIBS = system($$libcurlPkgconfCmd)
+    cURL_LIBS = $$system($$libcurlPkgconfCmd)
 #    isEqual(curlPkgConfSuccess, 0) {
     LIBS += $$cURL_LIBS
 #    } else {
