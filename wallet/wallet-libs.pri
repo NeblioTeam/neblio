@@ -263,18 +263,6 @@ macx: LIBS += -lcurl
 unix:INCLUDEPATH += /usr/include/libdb4/
 unix:LIBS        += -L/usr/lib64/libdb4/
 
-contains(RELEASE, 1) {
-    !windows:!macx {
-        # Linux: turn dynamic linking back on for c/c++ runtime libraries
-        LIBS += -Wl,-Bdynamic
-    }
-}
-
-!windows:!macx {
-    DEFINES += LINUX
-    LIBS += -lrt -ldl
-}
-
 !macx {
     INCLUDEPATH += $$system("$${CROSS_COMPILE}pkg-config libcurl --cflags-only-I")
     QMAKE_CFLAGS += $$system("$${CROSS_COMPILE}pkg-config libcurl --cflags-only-other")
@@ -293,4 +281,16 @@ contains(RELEASE, 1) {
 #    } else {
 #        error(Failed to run pkg-config to find curl libs. Failed to run: $${libcurlPkgconfCmd})
 #    }
+}
+
+contains(RELEASE, 1) {
+    !windows:!macx {
+        # Linux: turn dynamic linking back on for c/c++ runtime libraries
+        LIBS += -Wl,-Bdynamic
+    }
+}
+
+!windows:!macx {
+    DEFINES += LINUX
+    LIBS += -lrt -ldl
 }
