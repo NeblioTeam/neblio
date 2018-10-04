@@ -23,7 +23,9 @@ packages_to_install = \
 "libdb++-dev",
 "libminiupnpc-dev",
 "libqrencode-dev",
-"libcurl4-openssl-dev"
+"libcurl4-openssl-dev",
+"libldap2-dev",
+"libidn11-dev"
 ]
 
 nci.install_packages_debian(packages_to_install)
