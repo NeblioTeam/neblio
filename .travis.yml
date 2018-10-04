@@ -7,7 +7,7 @@ env:
   global:
   matrix:
     - target_v=windows
-    - target_v=linux_daemon OPENSSL_INCLUDE_PATH=$TRAVIS_BUILD_DIR/openssl_build/include/ OPENSSL_LIB_PATH=$TRAVIS_BUILD_DIR/openssl_build/lib/ PKG_CONFIG_PATH=$TRAVIS_BUILD_DIR/curl_build/lib/pkgconfig/
+    - target_v=linux_daemon
     - target_v=linux_wallet
 before_install:
 install:

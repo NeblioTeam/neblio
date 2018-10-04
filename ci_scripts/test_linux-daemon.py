@@ -4,6 +4,7 @@
 import os
 import neblio_ci_libs as nci
 
+working_dir = os.getcwd()
 build_dir = "wallet"
 
 packages_to_install = \
@@ -35,6 +36,10 @@ os.chdir(build_dir)
 
 nci.call_with_err_code('python $TRAVIS_BUILD_DIR/build_scripts/CompileOpenSSL-Linux.py')
 nci.call_with_err_code('python $TRAVIS_BUILD_DIR/build_scripts/CompileCurl-Linux.py')
+
+os.environ['PKG_CONFIG_PATH'] = os.path.join(working_dir, 'curl_build/lib/pkgconfig/')
+os.environ['OPENSSL_INCLUDE_PATH'] = os.path.join(working_dir, '/openssl_build/include/')
+os.environ['OPENSSL_LIB_PATH'] = os.path.join(working_dir, 'openssl_build/lib/')
 
 nci.call_with_err_code('make "STATIC=1" -B -w -f makefile.unix -j3')
 
