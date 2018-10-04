@@ -30,12 +30,14 @@ nci.install_packages_debian(packages_to_install)
 
 os.chdir(build_dir)
 
-nci.call_with_err_code('python $TRAVIS_BUILD_DIR/build_scripts/CompileOpenSSL-Linux.py \
-    && export OPENSSL_INCLUDE_PATH=$TRAVIS_BUILD_DIR/openssl_build/include/ \
-    && export OPENSSL_LIB_PATH=$TRAVIS_BUILD_DIR/openssl_build/lib/ \
-    && python $TRAVIS_BUILD_DIR/build_scripts/CompileCurl-Linux.py \
-    && export PKG_CONFIG_PATH=$TRAVIS_BUILD_DIR/curl_build/lib/pkgconfig/ \
-    && make "STATIC=1" -B -w -f makefile.unix -j3')
+nci.call_with_err_code('python $TRAVIS_BUILD_DIR/build_scripts/CompileOpenSSL-Linux.py)
+os.environ['OPENSSL_INCLUDE_PATH'] = '$TRAVIS_BUILD_DIR/openssl_build/include/'
+os.environ['OPENSSL_LIB_PATH'] = '$TRAVIS_BUILD_DIR/openssl_build/lib/'
+
+nci.call_with_err_code('python $TRAVIS_BUILD_DIR/build_scripts/CompileCurl-Linux.py)
+os.environ['PKG_CONFIG_PATH'] = '$TRAVIS_BUILD_DIR/curl_build/lib/pkgconfig/
+
+nci.call_with_err_code('make "STATIC=1" -B -w -f makefile.unix -j3')
 
 print("")
 print("")
