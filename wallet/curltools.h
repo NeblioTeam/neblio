@@ -3,7 +3,6 @@
 
 #include "util.h"
 
-#define CURL_STATICLIB
 #include <curl/curl.h>
 
 class cURLTools
