@@ -37,11 +37,11 @@ os.chdir(build_dir)
 nci.call_with_err_code('python $TRAVIS_BUILD_DIR/build_scripts/CompileOpenSSL-Linux.py')
 nci.call_with_err_code('python $TRAVIS_BUILD_DIR/build_scripts/CompileCurl-Linux.py')
 
-os.environ['PKG_CONFIG_PATH'] = os.path.join(build_dir, 'curl_build/lib/pkgconfig/')
-os.environ['OPENSSL_INCLUDE_PATH'] = os.path.join(build_dir, '/openssl_build/include/')
-os.environ['OPENSSL_LIB_PATH'] = os.path.join(build_dir, 'openssl_build/lib/')
+pkg_config_path = os.path.join(build_dir, 'curl_build/lib/pkgconfig/')
+openssl_include_path = os.path.join(build_dir, '/openssl_build/include/')
+openssl_lib_path = os.path.join(build_dir, 'openssl_build/lib/')
 
-nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=0" "RELEASE=1" "NEBLIO_CONFIG += Tests" ../neblio-wallet.pro')
+nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=0" "RELEASE=1" "PKG_CONFIG_PATH=' + pkg_config_path + '" "OPENSSL_INCLUDE_PATH=' + openssl_include_path + '" "OPENSSL_LIB_PATH=' + openssl_lib_path + '" "NEBLIO_CONFIG += Tests" ../neblio-wallet.pro')
 nci.call_with_err_code("make -j3")
 
 # run tests
