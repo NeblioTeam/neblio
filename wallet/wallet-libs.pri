@@ -264,14 +264,25 @@ unix:INCLUDEPATH += /usr/include/libdb4/
 unix:LIBS        += -L/usr/lib64/libdb4/
 
 !macx {
-    INCLUDEPATH += $$system("$${CROSS_COMPILE}pkg-config libcurl --cflags-only-I")
-    QMAKE_CFLAGS += $$system("$${CROSS_COMPILE}pkg-config libcurl --cflags-only-other")
-    QMAKE_CXXFLAGS += $$system("$${CROSS_COMPILE}pkg-config libcurl --cflags-only-other")
+    pkgConfPathEnvVar = $$(PKG_CONFIG_PATH)
+    isEmpty(pkgConfPathEnvVar) {
+        message("PKGCONFIG enviroment variable is not set")
+        pkgConfPrefix = ""
+    } else {
+        message("PKGCONFIG enviroment variable is found to be set to: \"$${pkgConfPathEnvVar}\"; it will be used for pkg-config")
+        pkgConfPrefix = "PKGCONFIG=$${pkgConfPathEnvVar}"
+    }
+
+    pkgconf_exec = "$${pkgConfPrefix} $${CROSS_COMPILE}pkg-config"
+
+    INCLUDEPATH += $$system("$${pkgconf_exec} --cflags-only-I")
+    QMAKE_CFLAGS += $$system("$${pkgconf_exec} libcurl --cflags-only-other")
+    QMAKE_CXXFLAGS += $$system("$${pkgconf_exec} libcurl --cflags-only-other")
     # static when release
     contains(RELEASE, 1) {
-        libcurlPkgconfCmd = "$${CROSS_COMPILE}pkg-config libcurl --libs --static"
+        libcurlPkgconfCmd = "$${pkgconf_exec} libcurl --libs --static"
     } else {
-        libcurlPkgconfCmd = "$${CROSS_COMPILE}pkg-config libcurl --libs"
+        libcurlPkgconfCmd = "$${pkgconf_exec} libcurl --libs"
     }
     # the testing whether system() has a zero exit code with the third parameter of system() doesn't work on all Qt versions
 #    cURL_LIBS = system($$libcurlPkgconfCmd,, curlPkgConfSuccess)
