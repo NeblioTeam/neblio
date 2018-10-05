@@ -13,6 +13,11 @@ const std::string NTP1Tools::NTPAPI_tokenMetaData   = "tokenmetadata/";
 const std::string NTP1Tools::NTPAPI_stakeHolders    = "stakeholders/";
 const std::string NTP1Tools::NTPAPI_sendTokens      = "sendtoken/";
 
+const std::string NTP1Tools::EXPLORER_base_url_testnet = "https://testnet.explorer.nebl.io/";
+const std::string NTP1Tools::EXPLORER_base_url_mainnet = "https://explorer.nebl.io/";
+
+const std::string NTP1Tools::EXPLORER_tokenInfo = "token/";
+
 NTP1Tools::NTP1Tools() {}
 
 std::string NTP1Tools::GetStrField(const json_spirit::Object& data, const std::string& fieldName)
@@ -103,4 +108,14 @@ std::string NTP1Tools::GetURL_AddressInfo(const std::string& address, bool testn
 std::string NTP1Tools::GetURL_SendTokens(bool testnet)
 {
     return GetURL_APIBase(testnet) + NTPAPI_sendTokens;
+}
+
+std::string NTP1Tools::GetURL_ExplorerBase(bool testnet)
+{
+    return (testnet ? EXPLORER_base_url_testnet : EXPLORER_base_url_mainnet);
+}
+
+std::string NTP1Tools::GetURL_TokenInfo(const std::string& tokenId, bool testnet)
+{
+    return GetURL_ExplorerBase(testnet) + EXPLORER_tokenInfo + tokenId;
 }

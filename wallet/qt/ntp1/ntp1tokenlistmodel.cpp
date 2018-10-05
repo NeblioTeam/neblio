@@ -154,6 +154,9 @@ QVariant NTP1TokenListModel::data(const QModelIndex& index, int role) const
     if (role == NTP1TokenListModel::TokenDescriptionRole) {
         return __getTokenDescription(index.row(), ntp1wallet);
     }
+    if (role == NTP1TokenListModel::TokenIdRole) {
+        return __getTokenId(index.row(), ntp1wallet);
+    }
     if (role == NTP1TokenListModel::TokenNameRole) {
         return __getTokenName(index.row(), ntp1wallet);
     }

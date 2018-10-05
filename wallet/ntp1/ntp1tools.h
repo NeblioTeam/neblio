@@ -22,6 +22,11 @@ public:
     static const std::string NTPAPI_stakeHolders;
     static const std::string NTPAPI_sendTokens;
 
+    static const std::string EXPLORER_base_url_mainnet;
+    static const std::string EXPLORER_base_url_testnet;
+
+    static const std::string EXPLORER_tokenInfo;
+
     // json parsing methods
     static std::string GetStrField(const json_spirit::Object& data, const std::string& fieldName);
     static bool        GetBoolField(const json_spirit::Object& data, const std::string& fieldName);
@@ -42,6 +47,9 @@ public:
                                                 unsigned long outputIndex, bool testnet);
     static std::string GetURL_StakeHolders(const std::string& tokenID, bool testnet);
     static std::string GetURL_SendTokens(bool testnet);
+
+    static std::string GetURL_ExplorerBase(bool testnet);
+    static std::string GetURL_TokenInfo(const std::string& tokenId, bool testnet);
 };
 
 #endif // NTP1TOOLS_H
