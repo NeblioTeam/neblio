@@ -19,6 +19,7 @@ macx:BDB_LIB_PATH=/usr/local/Cellar/berkeley-db\@4/4.8.30/lib/
 MINIUPNPC_LIB_SUFFIX=-miniupnpc
 windows:MINIUPNPC_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include
 windows:MINIUPNPC_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/libc
+macx:OPENSSL_LIB_PATH=/usr/local/opt/openssl/lib
 macx:MINIUPNPC_INCLUDE_PATH=/usr/local/Cellar/miniupnpc/2.0.20170509/include
 macx:MINIUPNPC_LIB_PATH=/usr/local/Cellar/miniupnpc/2.0.20170509/lib
 macx:QRENCODE_INCLUDE_PATH=/usr/local/Cellar/qrencode/3.4.4/include
@@ -246,8 +247,8 @@ macx:QMAKE_CXXFLAGS_THREAD += -pthread
 }
 
 # Set libraries and includes at end, to use platform-defined defaults if not overridden
-INCLUDEPATH += $$BOOST_INCLUDE_PATH $$BDB_INCLUDE_PATH $$QRENCODE_INCLUDE_PATH
-LIBS += $$join(BOOST_LIB_PATH,,-L,) $$join(BDB_LIB_PATH,,-L,) $$join(QRENCODE_LIB_PATH,,-L,)
+INCLUDEPATH += $$BOOST_INCLUDE_PATH $$BDB_INCLUDE_PATH $$OPENSSL_INCLUDE_PATH $$QRENCODE_INCLUDE_PATH
+LIBS += $$join(BOOST_LIB_PATH,,-L,) $$join(BDB_LIB_PATH,,-L,) $$join(OPENSSL_LIB_PATH,,-L,) $$join(QRENCODE_LIB_PATH,,-L,)
 macx: LIBS += $$join(CURL_LIB_PATH,,-L,)
 LIBS += -lssl -lcrypto -ldb_cxx$$BDB_LIB_SUFFIX
 # -lgdi32 has to happen after -lcrypto (see  #681)
@@ -276,24 +277,17 @@ isEmpty(PKG_CONFIG_PATH_ENV_VAR) {
     message("Setting PKG_CONFIG_PATH to $${PKG_CONFIG_PATH}")
 }
 
-!macx {
-    pkgconf_exec = "$${pkgConfPrefix} $${CROSS_COMPILE}pkg-config"
-} else {
-    pkgconf_exec = "$${pkgConfPrefix} /usr/local/bin/pkg-config"
-}
+macx:pkgconf_exec  = "$${pkgConfPrefix} /usr/local/bin/pkg-config"
+!macx:pkgconf_exec = "$${pkgConfPrefix} $${CROSS_COMPILE}pkg-config"
 
 QMAKE_CFLAGS += $$system("$${pkgconf_exec} libcurl --cflags")
 QMAKE_CXXFLAGS += $$system("$${pkgconf_exec} libcurl --cflags")
-QMAKE_CFLAGS += $$system("$${pkgconf_exec} openssl --cflags")
-QMAKE_CXXFLAGS += $$system("$${pkgconf_exec} openssl --cflags")
 
 # static when release
 contains(RELEASE, 1) {
     libcurlPkgconfCmd = "$${pkgconf_exec} libcurl --libs --static"
-    opensslPkgconfCmd = "$${pkgconf_exec} openssl --libs --static"
 } else {
     libcurlPkgconfCmd = "$${pkgconf_exec} libcurl --libs"
-    opensslPkgconfCmd = "$${pkgconf_exec} openssl --libs"
 }
 # the testing whether system() has a zero exit code with the third parameter of system() doesn't work on all Qt versions
 libcURL_LIBS = $$system($$libcurlPkgconfCmd)
