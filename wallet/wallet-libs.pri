@@ -264,13 +264,20 @@ unix:INCLUDEPATH += /usr/include/libdb4/
 unix:LIBS        += -L/usr/lib64/libdb4/
 
 !macx {
-    pkgConfPathEnvVar = $$(PKG_CONFIG_PATH)
-    isEmpty(pkgConfPathEnvVar) {
+    PKG_CONFIG_ENV_VAR = $$(PKG_CONFIG_PATH)
+    !isEmpty(PKG_CONFIG_ENV_VAR) {
+        PKG_CONFIG_PATH = $$(PKG_CONFIG_PATH)
+    }
+    isEmpty(PKG_CONFIG_PATH_ENV_VAR) {
         message("PKGCONFIG enviroment variable is not set")
         pkgConfPrefix = ""
     } else {
-        message("PKGCONFIG enviroment variable is found to be set to: \"$${pkgConfPathEnvVar}\"; it will be used for pkg-config")
-        pkgConfPrefix = "PKGCONFIG=$${pkgConfPathEnvVar}"
+        message("PKGCONFIG enviroment variable is found to be set to: \"$${PKG_CONFIG_ENV_VAR}\"; it will be used for pkg-config")
+        pkgConfPrefix = "PKGCONFIG=$${PKG_CONFIG_PATH}"
+    }
+
+    !isEmpty(PKG_CONFIG_PATH) {
+        message("Setting PKG_CONFIG_PATH to $${PKG_CONFIG_PATH}")
     }
 
     pkgconf_exec = "$${pkgConfPrefix} $${CROSS_COMPILE}pkg-config"
