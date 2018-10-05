@@ -16,9 +16,6 @@ macx:BOOST_LIB_PATH=/usr/local/opt/boost@1.60/lib
 windows:BDB_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include
 windows:BDB_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/lib
 macx:BDB_LIB_PATH=/usr/local/Cellar/berkeley-db\@4/4.8.30/lib/
-windows:OPENSSL_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include/openssl
-windows:OPENSSL_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/lib
-macx:OPENSSL_LIB_PATH=/usr/local/opt/openssl/lib
 MINIUPNPC_LIB_SUFFIX=-miniupnpc
 windows:MINIUPNPC_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include
 windows:MINIUPNPC_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/libc
@@ -249,8 +246,8 @@ macx:QMAKE_CXXFLAGS_THREAD += -pthread
 }
 
 # Set libraries and includes at end, to use platform-defined defaults if not overridden
-INCLUDEPATH += $$BOOST_INCLUDE_PATH $$BDB_INCLUDE_PATH $$OPENSSL_INCLUDE_PATH $$QRENCODE_INCLUDE_PATH
-LIBS += $$join(BOOST_LIB_PATH,,-L,) $$join(BDB_LIB_PATH,,-L,) $$join(OPENSSL_LIB_PATH,,-L,) $$join(QRENCODE_LIB_PATH,,-L,)
+INCLUDEPATH += $$BOOST_INCLUDE_PATH $$BDB_INCLUDE_PATH $$QRENCODE_INCLUDE_PATH
+LIBS += $$join(BOOST_LIB_PATH,,-L,) $$join(BDB_LIB_PATH,,-L,) $$join(QRENCODE_LIB_PATH,,-L,)
 macx: LIBS += $$join(CURL_LIB_PATH,,-L,)
 LIBS += -lssl -lcrypto -ldb_cxx$$BDB_LIB_SUFFIX
 # -lgdi32 has to happen after -lcrypto (see  #681)
@@ -263,43 +260,47 @@ macx: LIBS += -lcurl
 unix:INCLUDEPATH += /usr/include/libdb4/
 unix:LIBS        += -L/usr/lib64/libdb4/
 
-!macx {
-    PKG_CONFIG_ENV_VAR = $$(PKG_CONFIG_PATH)
-    !isEmpty(PKG_CONFIG_ENV_VAR) {
-        PKG_CONFIG_PATH = $$(PKG_CONFIG_PATH)
-    }
-    isEmpty(PKG_CONFIG_PATH_ENV_VAR) {
-        message("PKGCONFIG enviroment variable is not set")
-        pkgConfPrefix = ""
-    } else {
-        message("PKGCONFIG enviroment variable is found to be set to: \"$${PKG_CONFIG_ENV_VAR}\"; it will be used for pkg-config")
-        pkgConfPrefix = "PKGCONFIG=$${PKG_CONFIG_PATH}"
-    }
-
-    !isEmpty(PKG_CONFIG_PATH) {
-        message("Setting PKG_CONFIG_PATH to $${PKG_CONFIG_PATH}")
-    }
-
-    pkgconf_exec = "$${pkgConfPrefix} $${CROSS_COMPILE}pkg-config"
-
-    INCLUDEPATH += $$system("$${pkgconf_exec} --cflags-only-I")
-    QMAKE_CFLAGS += $$system("$${pkgconf_exec} libcurl --cflags-only-other")
-    QMAKE_CXXFLAGS += $$system("$${pkgconf_exec} libcurl --cflags-only-other")
-    # static when release
-    contains(RELEASE, 1) {
-        libcurlPkgconfCmd = "$${pkgconf_exec} libcurl --libs --static"
-    } else {
-        libcurlPkgconfCmd = "$${pkgconf_exec} libcurl --libs"
-    }
-    # the testing whether system() has a zero exit code with the third parameter of system() doesn't work on all Qt versions
-#    cURL_LIBS = system($$libcurlPkgconfCmd,, curlPkgConfSuccess)
-    cURL_LIBS = $$system($$libcurlPkgconfCmd)
-#    isEqual(curlPkgConfSuccess, 0) {
-    LIBS += $$cURL_LIBS
-#    } else {
-#        error(Failed to run pkg-config to find curl libs. Failed to run: $${libcurlPkgconfCmd})
-#    }
+PKG_CONFIG_ENV_VAR = $$(PKG_CONFIG_PATH)
+!isEmpty(PKG_CONFIG_ENV_VAR) {
+    PKG_CONFIG_PATH = $$(PKG_CONFIG_PATH)
 }
+isEmpty(PKG_CONFIG_PATH_ENV_VAR) {
+    message("PKGCONFIG enviroment variable is not set")
+    pkgConfPrefix = ""
+} else {
+    message("PKGCONFIG enviroment variable is found to be set to: \"$${PKG_CONFIG_ENV_VAR}\"; it will be used for pkg-config")
+    pkgConfPrefix = "PKGCONFIG=$${PKG_CONFIG_PATH}"
+}
+
+!isEmpty(PKG_CONFIG_PATH) {
+    message("Setting PKG_CONFIG_PATH to $${PKG_CONFIG_PATH}")
+}
+
+!macx {
+    pkgconf_exec = "$${pkgConfPrefix} $${CROSS_COMPILE}pkg-config"
+} else {
+    pkgconf_exec = "$${pkgConfPrefix} /usr/local/bin/pkg-config"
+}
+
+QMAKE_CFLAGS += $$system("$${pkgconf_exec} libcurl --cflags")
+QMAKE_CXXFLAGS += $$system("$${pkgconf_exec} libcurl --cflags")
+QMAKE_CFLAGS += $$system("$${pkgconf_exec} openssl --cflags")
+QMAKE_CXXFLAGS += $$system("$${pkgconf_exec} openssl --cflags")
+
+# static when release
+contains(RELEASE, 1) {
+    libcurlPkgconfCmd = "$${pkgconf_exec} libcurl --libs --static"
+    opensslPkgconfCmd = "$${pkgconf_exec} openssl --libs --static"
+} else {
+    libcurlPkgconfCmd = "$${pkgconf_exec} libcurl --libs"
+    opensslPkgconfCmd = "$${pkgconf_exec} openssl --libs"
+}
+# the testing whether system() has a zero exit code with the third parameter of system() doesn't work on all Qt versions
+libcURL_LIBS = $$system($$libcurlPkgconfCmd)
+# OpenSSL linking is not necessary as it comes with curl
+# openssl_LIBS = $$system($$opensslPkgconfCmd)
+LIBS += $$libcURL_LIBS $$openssl_LIBS
+
 
 contains(RELEASE, 1) {
     !windows:!macx {
