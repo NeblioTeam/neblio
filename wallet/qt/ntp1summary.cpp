@@ -191,9 +191,13 @@ void NTP1Summary::slot_visitInBlockExplorerAction()
             ->data(ui->listTokens->model()->index(*rows.begin(), 0), NTP1TokenListModel::TokenIdRole)
             .toString();
     if (resultStr.size() > 0) {
-        QString link =
-            QString::fromStdString(NTP1Tools::GetURL_TokenInfo(resultStr.toStdString(), fTestNet));
-        QDesktopServices::openUrl(QUrl(link));
+        QString link = QString::fromStdString(
+            NTP1Tools::GetURL_ExplorerTokenInfo(resultStr.toStdString(), fTestNet));
+        if (!QDesktopServices::openUrl(QUrl(link))) {
+            QMessageBox::warning(
+                this, "Failed to open browser",
+                "Could not open the web browser to view token information in block explorer");
+        }
     } else {
         QMessageBox::warning(this, "Failed to get token ID", "No information retrieved for token ID");
     }

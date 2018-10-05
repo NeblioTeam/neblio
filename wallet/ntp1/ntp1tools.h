@@ -26,6 +26,7 @@ public:
     static const std::string EXPLORER_base_url_testnet;
 
     static const std::string EXPLORER_tokenInfo;
+    static const std::string EXPLORER_transactionInfo;
 
     // json parsing methods
     static std::string GetStrField(const json_spirit::Object& data, const std::string& fieldName);
@@ -49,7 +50,8 @@ public:
     static std::string GetURL_SendTokens(bool testnet);
 
     static std::string GetURL_ExplorerBase(bool testnet);
-    static std::string GetURL_TokenInfo(const std::string& tokenId, bool testnet);
+    static std::string GetURL_ExplorerTokenInfo(const std::string& tokenId, bool testnet);
+    static std::string GetURL_ExplorerTransactionInfo(const std::string& txId, bool testnet);
 };
 
 #endif // NTP1TOOLS_H
