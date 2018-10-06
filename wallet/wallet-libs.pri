@@ -261,40 +261,40 @@ macx: LIBS += -lcurl
 unix:INCLUDEPATH += /usr/include/libdb4/
 unix:LIBS        += -L/usr/lib64/libdb4/
 
-PKG_CONFIG_ENV_VAR = $$(PKG_CONFIG_PATH)
-!isEmpty(PKG_CONFIG_ENV_VAR) {
-    PKG_CONFIG_PATH = $$(PKG_CONFIG_PATH)
+!macx {
+    PKG_CONFIG_ENV_VAR = $$(PKG_CONFIG_PATH)
+    !isEmpty(PKG_CONFIG_ENV_VAR) {
+        PKG_CONFIG_PATH = $$(PKG_CONFIG_PATH)
+    }
+    isEmpty(PKG_CONFIG_PATH_ENV_VAR) {
+        message("PKGCONFIG enviroment variable is not set")
+        pkgConfPrefix = ""
+    } else {
+        message("PKGCONFIG enviroment variable is found to be set to: \"$${PKG_CONFIG_ENV_VAR}\"; it will be used for pkg-config")
+        pkgConfPrefix = "PKGCONFIG=$${PKG_CONFIG_PATH}"
+    }
+
+    !isEmpty(PKG_CONFIG_PATH) {
+        message("Setting PKG_CONFIG_PATH to $${PKG_CONFIG_PATH}")
+    }
+
+        pkgconf_exec = "$${pkgConfPrefix} $${CROSS_COMPILE}pkg-config"
+
+    QMAKE_CFLAGS += $$system("$${pkgconf_exec} libcurl --cflags")
+    QMAKE_CXXFLAGS += $$system("$${pkgconf_exec} libcurl --cflags")
+
+    # static when release
+    contains(RELEASE, 1) {
+        libcurlPkgconfCmd = "$${pkgconf_exec} libcurl --libs --static"
+    } else {
+        libcurlPkgconfCmd = "$${pkgconf_exec} libcurl --libs"
+    }
+    # the testing whether system() has a zero exit code with the third parameter of system() doesn't work on all Qt versions
+    libcURL_LIBS = $$system($$libcurlPkgconfCmd)
+    # OpenSSL linking is not necessary as it comes with curl
+    # openssl_LIBS = $$system($$opensslPkgconfCmd)
+    LIBS += $$libcURL_LIBS $$openssl_LIBS
 }
-isEmpty(PKG_CONFIG_PATH_ENV_VAR) {
-    message("PKGCONFIG enviroment variable is not set")
-    pkgConfPrefix = ""
-} else {
-    message("PKGCONFIG enviroment variable is found to be set to: \"$${PKG_CONFIG_ENV_VAR}\"; it will be used for pkg-config")
-    pkgConfPrefix = "PKGCONFIG=$${PKG_CONFIG_PATH}"
-}
-
-!isEmpty(PKG_CONFIG_PATH) {
-    message("Setting PKG_CONFIG_PATH to $${PKG_CONFIG_PATH}")
-}
-
-macx:pkgconf_exec  = "$${pkgConfPrefix} /usr/local/bin/pkg-config"
-!macx:pkgconf_exec = "$${pkgConfPrefix} $${CROSS_COMPILE}pkg-config"
-
-QMAKE_CFLAGS += $$system("$${pkgconf_exec} libcurl --cflags")
-QMAKE_CXXFLAGS += $$system("$${pkgconf_exec} libcurl --cflags")
-
-# static when release
-contains(RELEASE, 1) {
-    libcurlPkgconfCmd = "$${pkgconf_exec} libcurl --libs --static"
-} else {
-    libcurlPkgconfCmd = "$${pkgconf_exec} libcurl --libs"
-}
-# the testing whether system() has a zero exit code with the third parameter of system() doesn't work on all Qt versions
-libcURL_LIBS = $$system($$libcurlPkgconfCmd)
-# OpenSSL linking is not necessary as it comes with curl
-# openssl_LIBS = $$system($$opensslPkgconfCmd)
-LIBS += $$libcURL_LIBS $$openssl_LIBS
-
 
 contains(RELEASE, 1) {
     !windows:!macx {
