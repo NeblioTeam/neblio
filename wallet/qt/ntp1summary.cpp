@@ -14,6 +14,7 @@
 #include <QDesktopServices>
 #include <QKeyEvent>
 #include <QMenu>
+#include <QUrl>
 
 const QString NTP1Summary::copyTokenIdText         = "Copy Token ID";
 const QString NTP1Summary::copyTokenSymbolText     = "Copy Token Symbol";

@@ -28,6 +28,7 @@
 #include <QPushButton>
 #include <QScrollBar>
 #include <QTableView>
+#include <QUrl>
 #include <QVBoxLayout>
 
 TransactionView::TransactionView(QWidget* parent)
