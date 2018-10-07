@@ -16,8 +16,11 @@ nci.call_with_err_code('brew install qt && brew link --force --overwrite qt')
 nci.call_with_err_code('brew install berkeley-db@4 && brew link --force --overwrite berkeley-db@4')
 nci.call_with_err_code('brew install boost@1.60 && brew link --force --overwrite boost@1.60')
 nci.call_with_err_code('brew install miniupnpc && brew link --force --overwrite miniupnpc')
+nci.call_with_err_code('brew install curl && brew link --force --overwrite curl')
+nci.call_with_err_code('brew install openssl && brew link --force --overwrite openssl')
+nci.call_with_err_code('brew install qrencode && brew link --force --overwrite qrencode')
 
-nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=0" "RELEASE=1" "NEBLIO_CONFIG += Tests" ../neblio-wallet.pro')
+nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "NEBLIO_CONFIG += Tests" ../neblio-wallet.pro')
 nci.call_with_err_code("make -j" + str(mp.cpu_count()))
 
 # run tests
