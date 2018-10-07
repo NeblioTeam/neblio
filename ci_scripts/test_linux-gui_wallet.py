@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import multiprocessing as mp
 import neblio_ci_libs as nci
 
 working_dir = os.getcwd()
