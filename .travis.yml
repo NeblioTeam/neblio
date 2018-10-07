@@ -11,15 +11,16 @@ env:
     - target_v=linux_daemon
     - target_v=linux_wallet
     - target_v=osx
-    exclude:
-      - os: osx
-        env: target_v=windows
-      - os: osx
-        env: target_v=linux_daemon
-      - os: osx
-        env: target_v=linux_wallet
-      - os: linux
-        env: target_v=osx
+matrix:
+  exclude:
+    - os: osx
+      env: target_v=windows
+    - os: osx
+      env: target_v=linux_daemon
+    - os: osx
+      env: target_v=linux_wallet
+    - os: linux
+      env: target_v=osx
 before_install:
     - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update          ; fi
     - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install qt      ; fi
