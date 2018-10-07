@@ -15,6 +15,7 @@ nci.call_with_err_code('brew update')
 nci.call_with_err_code('brew install qt')
 nci.call_with_err_code('brew link --force qt')
 nci.call_with_err_code('brew install berkeley-db@4')
+nci.call_with_err_code('brew install boost@1.60')
 
 nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=0" "RELEASE=1" "NEBLIO_CONFIG += Tests" ../neblio-wallet.pro')
 nci.call_with_err_code("make -j" + str(mp.cpu_count()))
