@@ -6,6 +6,7 @@ os:
 language: minimal
 env:
   global:
+    osx_image: xcode8.3
   matrix:
     - target_v=windows
     - target_v=linux_daemon
