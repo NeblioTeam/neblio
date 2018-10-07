@@ -12,7 +12,7 @@ nci.mkdir_p(build_dir)
 os.chdir(build_dir)
 
 nci.call_with_err_code('brew update')
-nci.call_with_err_code('brew install qt@5.5 && brew link --force --overwrite qt@5.5')
+nci.call_with_err_code('brew install qt && brew link --force --overwrite qt')
 nci.call_with_err_code('brew install berkeley-db@4 && brew link --force --overwrite berkeley-db@4')
 nci.call_with_err_code('brew install boost@1.60 && brew link --force --overwrite boost@1.60')
 nci.call_with_err_code('brew install miniupnpc && brew link --force --overwrite miniupnpc')
