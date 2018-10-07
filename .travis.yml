@@ -2,6 +2,7 @@ sudo: required
 dist: xenial
 os:
     - linux
+    - osx
 language: minimal
 env:
   global:
@@ -9,13 +10,17 @@ env:
     - target_v=windows
     - target_v=linux_daemon
     - target_v=linux_wallet
+    - target_v=osx
 before_install:
+    - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update          ; fi
+    - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install qt      ; fi
 install:
 before_script:
 script:
     - if [[ "$target_v" == "linux_daemon" ]]; then python ci_scripts/test_linux-daemon.py        ; fi
     - if [[ "$target_v" == "linux_wallet" ]]; then python ci_scripts/test_linux-gui_wallet.py    ; fi
     - if [[ "$target_v" == "windows" ]];      then python ci_scripts/test_win32-gui_wallet.py    ; fi
+    - if [[ "$target_v" == "osx" ]];          then python ci_scripts/test_osx-gui_wallet.py      ; fi
 
 
 after_script:
