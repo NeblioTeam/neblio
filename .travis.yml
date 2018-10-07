@@ -1,6 +1,5 @@
 sudo: required
 dist: xenial
-osx_image: xcode8.3
 os:
     - linux
     - osx
@@ -12,6 +11,7 @@ env:
     - target_v=linux_daemon
     - target_v=linux_wallet
     - target_v=osx
+      osx_image: xcode8.3
 matrix:
   exclude:
     - os: osx
