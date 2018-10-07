@@ -43,7 +43,7 @@ os.environ['OPENSSL_INCLUDE_PATH'] = os.path.join(working_dir, build_dir, 'opens
 os.environ['OPENSSL_LIB_PATH'] = os.path.join(working_dir, build_dir, 'openssl_build/lib/')
 
 nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=0" "RELEASE=1" "NEBLIO_CONFIG += Tests" ../neblio-wallet.pro')
-nci.call_with_err_code("make -j3")
+nci.call_with_err_code("make -j" + str(mp.cpu_count()))
 
 # run tests
 nci.call_with_err_code("./wallet/test/neblio-tests")

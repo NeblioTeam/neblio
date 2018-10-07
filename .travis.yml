@@ -24,6 +24,7 @@ matrix:
 before_install:
     - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update          ; fi
     - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install qt      ; fi
+    - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew link --force qt ; fi
 install:
 before_script:
 script:

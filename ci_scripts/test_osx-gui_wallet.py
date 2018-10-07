@@ -7,8 +7,6 @@ import neblio_ci_libs as nci
 working_dir = os.getcwd()
 build_dir = "build"
 
-nci.call_with_err_code('echo \'export PATH="/usr/local/opt/qt/bin:$PATH"\' >> ~/.bash_profile)
-
 nci.mkdir_p(build_dir)
 os.chdir(build_dir)
 
