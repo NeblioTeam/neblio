@@ -50,13 +50,16 @@ os.environ['OPENSSL_INCLUDE_PATH'] = os.path.join(working_dir, build_dir, 'opens
 os.environ['OPENSSL_LIB_PATH'] = os.path.join(working_dir, build_dir, 'openssl_build/lib/')
 
 if (args.test):
-	nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "NEBLIO_CONFIG += Only_Tests" ../neblio-wallet.pro')
+	nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
 	nci.call_with_err_code("make -j" + str(mp.cpu_count()))
 	# run tests
 	nci.call_with_err_code("./wallet/test/neblio-tests")
 else:
 	nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-wallet.pro')
 	nci.call_with_err_code("make -j" + str(mp.cpu_count()))
+	nci.call_with_err_code('pwd && ls -al')
+	nci.call_with_err_code('tar -zcvf "neblio-Qt-ubuntu16.04---$(date +%Y-%m-%d).tar.gz" ./neblio-qt')
+	nci.call_with_err_code('echo "Binary package at neblio-Qt-ubuntu16.04---$(date +%Y-%m-%d).tar.gz"')
 
 print("")
 print("")

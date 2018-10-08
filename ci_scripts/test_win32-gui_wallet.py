@@ -50,6 +50,9 @@ nci.mkdir_p(build_dir)
 os.chdir(build_dir)
 nci.call_with_err_code('i686-w64-mingw32.static-qmake-qt5 "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-wallet.pro')
 nci.call_with_err_code("make -j" + str(mp.cpu_count()))
+nci.call_with_err_code('pwd && ls -al')
+nci.call_with_err_code('zip neblio-windows---$(date +%Y-%m-%d).zip ./release/neblio.exe')
+nci.call_with_err_code('echo "Binary package at neblio-windows---$(date +%Y-%m-%d).zip"')
 ################
 
 #back to working dir

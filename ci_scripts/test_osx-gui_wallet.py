@@ -46,10 +46,9 @@ nci.call_with_err_code('brew unlink python        && brew link --force --overwri
 nci.call_with_err_code('brew unlink openssl       && brew link --force --overwrite openssl')
 nci.call_with_err_code('brew unlink qrencode      && brew link --force --overwrite qrencode')
 
-#nci.call_with_err_code('ls -alR /usr/local/opt/qt/')
 
 if (args.test):
-	nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "NEBLIO_CONFIG += Only_Tests" ../neblio-wallet.pro')
+	nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
 	nci.call_with_err_code("make -j" + str(mp.cpu_count()))
 	# run tests
 	nci.call_with_err_code("./wallet/test/neblio-Qt.app/Contents/MacOS/neblio-Qt")
@@ -58,7 +57,10 @@ else:
 	nci.call_with_err_code("make -j" + str(mp.cpu_count()))
 	# build our .dmg
 	nci.call_with_err_code('sudo easy_install appscript')
-	nci.call_with_err_code('../contrib/macdeploy/macdeployqtplus ./wallet/neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -dmg -fancy ../contrib/macdeploy/fancy.plist -verbose 1 -rpath /usr/local/opt/qt/lib')
+	nci.call_with_err_code('../contrib/macdeploy/macdeployqtplus ./wallet/neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -dmg -verbose 1 -rpath /usr/local/opt/qt/lib')
+	nci.call_with_err_code('pwd && ls -al')
+	nci.call_with_err_code('neblio-macOS---$(date +%Y-%m-%d).zip wallet/neblio-QT.dmg')
+	nci.call_with_err_code('echo "Binary package at neblio-macOS---$(date +%Y-%m-%d).zip"')
 
 
 # nci.call_with_err_code('pwd')
