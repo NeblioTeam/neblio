@@ -37,7 +37,6 @@ nci.call_with_err_code('brew unlink berkeley-db@4 && brew link --force --overwri
 nci.call_with_err_code('brew unlink boost@1.60    && brew link --force --overwrite boost@1.60')
 nci.call_with_err_code('brew unlink miniupnpc     && brew link --force --overwrite miniupnpc')
 nci.call_with_err_code('brew unlink curl          && brew link --force --overwrite curl')
-nci.call_with_err_code('brew unlink numpy         && brew link --force --overwrite numpy')
 nci.call_with_err_code('brew unlink python        && brew link --force --overwrite python')
 nci.call_with_err_code('brew unlink openssl       && brew link --force --overwrite openssl')
 nci.call_with_err_code('brew unlink qrencode      && brew link --force --overwrite qrencode')
