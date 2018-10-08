@@ -14,7 +14,6 @@ env:
     - target_v=linux_wallet_test
     - target_v=windows
     - target_v=linux_daemon
-
 matrix:
   exclude:
     - os: osx
