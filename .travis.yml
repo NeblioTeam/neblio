@@ -13,15 +13,15 @@ env:
     - target_v=linux_wallet
     - target_v=osx
 matrix:
-  exclude:
+  include:
     - os: osx
-      env: target_v=windows
-    - os: osx
+      env: target_v=osx
+    - os: linux
       env: target_v=linux_daemon
-    - os: osx
+    - os: linux
       env: target_v=linux_wallet
     - os: linux
-      env: target_v=osx
+      env: target_v=windows
 before_install:
 install:
 before_script:
