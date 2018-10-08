@@ -58,9 +58,8 @@ else:
 	# build our .dmg
 	nci.call_with_err_code('sudo easy_install appscript')
 	nci.call_with_err_code('../contrib/macdeploy/macdeployqtplus ./wallet/neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -dmg -verbose 1 -rpath /usr/local/opt/qt/lib')
-	nci.call_with_err_code('zip -j neblio-macOS---$(date +%Y-%m-%d).zip ./neblio-QT.dmg')
-	nci.call_with_err_code('echo "Binary package at neblio-macOS---$(date +%Y-%m-%d).zip"')
-	nci.call_with_err_code('pwd && ls -al')
+	nci.call_with_err_code('zip -j neblio-Qt---macOS---$(date +%Y-%m-%d).zip ./neblio-QT.dmg')
+	nci.call_with_err_code('echo "Binary package at neblio-Qt---macOS---$(date +%Y-%m-%d).zip"')
 
 
 # nci.call_with_err_code('pwd')
