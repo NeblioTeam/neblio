@@ -23,7 +23,7 @@
 using namespace std;
 using namespace boost;
 
-leveldb::DB* txdb; // global pointer for LevelDB object instance
+std::unique_ptr<leveldb::DB> txdb; // global pointer for LevelDB object instance
 
 static leveldb::Options GetOptions()
 {
@@ -79,7 +79,9 @@ void init_blockindex(leveldb::Options& options, bool fRemoveOld = false)
 
     filesystem::create_directory(directory);
     printf("Opening LevelDB in %s\n", directory.string().c_str());
-    leveldb::Status status = leveldb::DB::Open(options, directory.string(), &txdb);
+    leveldb::DB*    txdbPtr = nullptr;
+    leveldb::Status status  = leveldb::DB::Open(options, directory.string(), &txdbPtr);
+    txdb.reset(txdbPtr);
     if (!status.ok()) {
         throw runtime_error(strprintf("init_blockindex(): error opening database environment %s",
                                       status.ToString().c_str()));
@@ -91,11 +93,11 @@ void init_blockindex(leveldb::Options& options, bool fRemoveOld = false)
 CTxDB::CTxDB(const char* pszMode)
 {
     assert(pszMode);
-    activeBatch = NULL;
-    fReadOnly   = (!strchr(pszMode, '+') && !strchr(pszMode, 'w'));
+    activeBatch.reset();
+    fReadOnly = (!strchr(pszMode, '+') && !strchr(pszMode, 'w'));
 
     if (txdb) {
-        pdb = txdb;
+        pdb = txdb.get();
         return;
     }
 
@@ -106,7 +108,7 @@ CTxDB::CTxDB(const char* pszMode)
     options.filter_policy     = leveldb::NewBloomFilterPolicy(10);
 
     init_blockindex(options); // Init directory
-    pdb = txdb;
+    pdb = txdb.get();
 
     if (Exists(string("version"))) {
         ReadVersion(nVersion);
@@ -116,13 +118,12 @@ CTxDB::CTxDB(const char* pszMode)
             printf("Required index version is %d, removing old database\n", DATABASE_VERSION);
 
             // Leveldb instance destruction
-            delete txdb;
-            txdb = pdb = NULL;
-            delete activeBatch;
-            activeBatch = NULL;
+            pdb = nullptr;
+            txdb.reset();
+            activeBatch.reset();
 
             init_blockindex(options, true); // Remove directory and create new database
-            pdb = txdb;
+            pdb = txdb.get();
 
             bool fTmp = fReadOnly;
             fReadOnly = false;
@@ -141,29 +142,28 @@ CTxDB::CTxDB(const char* pszMode)
 
 void CTxDB::Close()
 {
-    delete txdb;
-    txdb = pdb = NULL;
+    txdb.reset();
+    pdb = nullptr;
     delete options.filter_policy;
-    options.filter_policy = NULL;
+    options.filter_policy = nullptr;
     delete options.block_cache;
-    options.block_cache = NULL;
-    delete activeBatch;
-    activeBatch = NULL;
+    options.block_cache = nullptr;
+    activeBatch.reset();
 }
 
 bool CTxDB::TxnBegin()
 {
     assert(!activeBatch);
-    activeBatch = new leveldb::WriteBatch();
+    activeBatch.reset(new leveldb::WriteBatch());
     return true;
 }
 
 bool CTxDB::TxnCommit()
 {
     assert(activeBatch);
-    leveldb::Status status = pdb->Write(leveldb::WriteOptions(), activeBatch);
-    delete activeBatch;
-    activeBatch = NULL;
+    leveldb::Status status = pdb->Write(leveldb::WriteOptions(), activeBatch.get());
+    activeBatch.reset();
+    activeBatch = nullptr;
     if (!status.ok()) {
         printf("LevelDB batch commit failure: %s\n", status.ToString().c_str());
         return false;
@@ -241,7 +241,7 @@ bool CTxDB::WriteNTP1TxIndex(uint256 hash, const DiskNTP1TxPos& txindex)
     return Write(make_pair(string("ntp1tx"), hash), txindex);
 }
 
-bool CTxDB::AddTxIndex(const CTransaction& tx, const CDiskTxPos& pos, int nHeight)
+bool CTxDB::AddTxIndex(const CTransaction& tx, const CDiskTxPos& pos, int /*nHeight*/)
 {
     // Add to tx index
     uint256  hash = tx.GetHash();
@@ -333,7 +333,7 @@ bool CTxDB::WriteCheckpointPubKey(const string& strPubKey)
 static CBlockIndex* InsertBlockIndex(uint256 hash)
 {
     if (hash == 0)
-        return NULL;
+        return nullptr;
 
     // Return existing
     map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hash);
@@ -360,7 +360,7 @@ bool CTxDB::LoadBlockIndex()
     // The block index is an in-memory structure that maps hashes to on-disk
     // locations where the contents of the block can be found. Here, we scan it
     // out of the DB and into mapBlockIndex.
-    leveldb::Iterator* iterator = pdb->NewIterator(leveldb::ReadOptions());
+    std::unique_ptr<leveldb::Iterator> iterator(pdb->NewIterator(leveldb::ReadOptions()));
     // Seek to start key.
     CDataStream ssStartKey(SER_DISK, CLIENT_VERSION);
     ssStartKey << make_pair(string("blockindex"), uint256(0));
@@ -403,12 +403,12 @@ bool CTxDB::LoadBlockIndex()
         pindexNew->nNonce         = diskindex.nNonce;
 
         // Watch for genesis block
-        if (pindexGenesisBlock == NULL &&
+        if (pindexGenesisBlock == nullptr &&
             blockHash == (!fTestNet ? hashGenesisBlock : hashGenesisBlockTestNet))
             pindexGenesisBlock = pindexNew;
 
         if (!pindexNew->CheckIndex()) {
-            delete iterator;
+            iterator.reset();
             return error("LoadBlockIndex() : CheckIndex failed at %d", pindexNew->nHeight);
         }
 
@@ -418,7 +418,7 @@ bool CTxDB::LoadBlockIndex()
 
         iterator->Next();
     }
-    delete iterator;
+    iterator.reset();
 
     if (fRequestShutdown)
         return true;
@@ -444,7 +444,7 @@ bool CTxDB::LoadBlockIndex()
 
     // Load hashBestChain pointer to end of best chain
     if (!ReadHashBestChain(hashBestChain)) {
-        if (pindexGenesisBlock == NULL)
+        if (pindexGenesisBlock == nullptr)
             return true;
         return error("CTxDB::LoadBlockIndex() : hashBestChain not loaded");
     }
@@ -478,7 +478,7 @@ bool CTxDB::LoadBlockIndex()
     if (nCheckDepth > nBestHeight)
         nCheckDepth = nBestHeight;
     printf("Verifying last %i blocks at level %i\n", nCheckDepth, nCheckLevel);
-    CBlockIndex*                                        pindexFork = NULL;
+    CBlockIndex*                                        pindexFork = nullptr;
     map<pair<unsigned int, unsigned int>, CBlockIndex*> mapBlockPos;
     for (CBlockIndex* pindex = pindexBest; pindex && pindex->pprev; pindex = pindex->pprev) {
         if (fRequestShutdown || pindex->nHeight < nBestHeight - nCheckDepth)
