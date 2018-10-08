@@ -10,3 +10,8 @@ SUBDIRS += wallet
 contains( NEBLIO_CONFIG, Tests ) {
     SUBDIRS += wallet/test
 }
+
+contains( NEBLIO_CONFIG, Only_Tests ) {
+    SUBDIRS += wallet/test
+    SUBDIRS -= wallet
+}

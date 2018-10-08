@@ -2,11 +2,16 @@
 # -*- coding: utf-8 -*-
 
 import os
+import argparse
 import multiprocessing as mp
 import neblio_ci_libs as nci
 
 working_dir = os.getcwd()
 build_dir = "build"
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--test', '-t', help='Only build and run tests', action='store_true')
+args = parser.parse_args()
 
 nci.mkdir_p(build_dir)
 os.chdir(build_dir)
@@ -43,18 +48,21 @@ nci.call_with_err_code('brew unlink qrencode      && brew link --force --overwri
 
 #nci.call_with_err_code('ls -alR /usr/local/opt/qt/')
 
-nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "NEBLIO_CONFIG += Tests" ../neblio-wallet.pro')
-nci.call_with_err_code("make -j" + str(mp.cpu_count()))
+if (args.test):
+	nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "NEBLIO_CONFIG += Only_Tests" ../neblio-wallet.pro')
+	nci.call_with_err_code("make -j" + str(mp.cpu_count()))
+	# run tests
+	nci.call_with_err_code("./wallet/test/neblio-Qt.app/Contents/MacOS/neblio-Qt")
+else:
+	nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-wallet.pro')
+	nci.call_with_err_code("make -j" + str(mp.cpu_count()))
+	# build our .dmg
+	nci.call_with_err_code('sudo easy_install appscript')
+	nci.call_with_err_code('../contrib/macdeploy/macdeployqtplus ./wallet/neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -dmg -fancy ../contrib/macdeploy/fancy.plist -verbose 3 -rpath /usr/local/opt/qt/lib')
+
 
 # nci.call_with_err_code('pwd')
 # nci.call_with_err_code('ls -alR ../')
-
-# run tests
-nci.call_with_err_code("./wallet/test/neblio-Qt.app/Contents/MacOS/neblio-Qt")
-
-# build our .dmg
-nci.call_with_err_code('sudo easy_install appscript')
-nci.call_with_err_code('../contrib/macdeploy/macdeployqtplus ./wallet/neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -dmg -fancy ../contrib/macdeploy/fancy.plist -verbose 3 -rpath /usr/local/opt/qt/lib')
 
 print("")
 print("")

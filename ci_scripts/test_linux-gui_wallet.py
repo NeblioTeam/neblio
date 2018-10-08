@@ -2,11 +2,16 @@
 # -*- coding: utf-8 -*-
 
 import os
+import argparse
 import multiprocessing as mp
 import neblio_ci_libs as nci
 
 working_dir = os.getcwd()
 build_dir = "build"
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--test', '-t', help='Only build and run tests', action='store_true')
+args = parser.parse_args()
 
 packages_to_install = \
 [
@@ -43,11 +48,14 @@ os.environ['PKG_CONFIG_PATH'] = os.path.join(working_dir, build_dir, 'curl_build
 os.environ['OPENSSL_INCLUDE_PATH'] = os.path.join(working_dir, build_dir, 'openssl_build/include/')
 os.environ['OPENSSL_LIB_PATH'] = os.path.join(working_dir, build_dir, 'openssl_build/lib/')
 
-nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=0" "RELEASE=1" "NEBLIO_CONFIG += Tests" ../neblio-wallet.pro')
-nci.call_with_err_code("make -j" + str(mp.cpu_count()))
-
-# run tests
-nci.call_with_err_code("./wallet/test/neblio-tests")
+if (args.test):
+	nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "NEBLIO_CONFIG += Only_Tests" ../neblio-wallet.pro')
+	nci.call_with_err_code("make -j" + str(mp.cpu_count()))
+	# run tests
+	nci.call_with_err_code("./wallet/test/neblio-tests")
+else:
+	nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-wallet.pro')
+	nci.call_with_err_code("make -j" + str(mp.cpu_count()))
 
 print("")
 print("")
