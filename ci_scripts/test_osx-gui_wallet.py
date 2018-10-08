@@ -44,6 +44,8 @@ nci.call_with_err_code('brew unlink qrencode      && brew link --force --overwri
 nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "NEBLIO_CONFIG += Tests" ../neblio-wallet.pro')
 nci.call_with_err_code("make -j" + str(mp.cpu_count()))
 
+nci.call_with_err_code('../contrib/macdeploy/macdeployqtplus neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -dmg -fancy ../contrib/macdeploy/fancy.plist -verbose 3')
+
 print("")
 print("")
 print("Building finished successfully.")
