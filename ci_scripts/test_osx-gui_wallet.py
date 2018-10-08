@@ -58,7 +58,7 @@ else:
 	nci.call_with_err_code("make -j" + str(mp.cpu_count()))
 	# build our .dmg
 	nci.call_with_err_code('sudo easy_install appscript')
-	nci.call_with_err_code('../contrib/macdeploy/macdeployqtplus ./wallet/neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -dmg -fancy ../contrib/macdeploy/fancy.plist -verbose 3 -rpath /usr/local/opt/qt/lib')
+	nci.call_with_err_code('../contrib/macdeploy/macdeployqtplus ./wallet/neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -dmg -fancy ../contrib/macdeploy/fancy.plist -verbose 1 -rpath /usr/local/opt/qt/lib')
 
 
 # nci.call_with_err_code('pwd')
