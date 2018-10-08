@@ -2,8 +2,8 @@ sudo: required
 dist: xenial
 osx_image: xcode8.3
 os:
-    - linux
     - osx
+    - linux
 language: minimal
 env:
   global:
