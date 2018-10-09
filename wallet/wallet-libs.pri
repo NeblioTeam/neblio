@@ -12,8 +12,8 @@ greaterThan(QT_MAJOR_VERSION, 4) {
 BOOST_LIB_SUFFIX=
 windows:BOOST_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include/boost
 windows:BOOST_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/lib
-macx:BOOST_LIB_PATH=/usr/local/opt/boost/lib
-macx:BOOST_INCLUDE_PATH=/usr/local/opt/boost/include
+macx:BOOST_LIB_PATH=/usr/local/opt/boost@1.60/lib
+macx:BOOST_INCLUDE_PATH=/usr/local/opt/boost@1.60/include
 windows:BDB_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include
 windows:BDB_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/lib
 macx:BDB_LIB_PATH=/usr/local/opt/berkeley-db\@4/lib/
@@ -110,7 +110,6 @@ contains(BITCOIN_NEED_QT_PLUGINS, 1) {
 }
 
 INCLUDEPATH += $$PWD/leveldb/include $$PWD/leveldb/helpers
-macx: INCLUDEPATH += /usr/local/opt/berkeley-db@4/include /usr/local/opt/boost/include /usr/local/opt/openssl/include
 LIBS += $$PWD/leveldb/libleveldb.a $$PWD/leveldb/libmemenv.a
 SOURCES += txdb-leveldb.cpp
 
