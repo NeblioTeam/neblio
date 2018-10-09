@@ -110,6 +110,7 @@ contains(BITCOIN_NEED_QT_PLUGINS, 1) {
 }
 
 INCLUDEPATH += $$PWD/leveldb/include $$PWD/leveldb/helpers
+macx: INCLUDEPATH += /usr/local/opt/berkeley-db@4/include /usr/local/opt/boost@1.60/include /usr/local/opt/openssl/include
 LIBS += $$PWD/leveldb/libleveldb.a $$PWD/leveldb/libmemenv.a
 SOURCES += txdb-leveldb.cpp
 
