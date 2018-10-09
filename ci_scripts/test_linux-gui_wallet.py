@@ -8,6 +8,7 @@ import neblio_ci_libs as nci
 
 working_dir = os.getcwd()
 build_dir = "build"
+deploy_dir = os.path.join(working_dir,'deploy', '')
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--test', '-t', help='Only build and run tests', action='store_true')
@@ -58,7 +59,8 @@ else:
 	nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-wallet.pro')
 	nci.call_with_err_code("make -j" + str(mp.cpu_count()))
 	nci.call_with_err_code('tar -zcvf "neblio-Qt---ubuntu16.04---$(date +%Y-%m-%d).tar.gz" -C ./wallet neblio-qt')
-	nci.call_with_err_code('echo "Binary package at $PWD neblio-Qt---ubuntu16.04---$(date +%Y-%m-%d).tar.gz"')
+	nci.call_with_err_code('mv neblio-Qt---ubuntu16.04---$(date +%Y-%m-%d).tar.gz ' + deploy_dir)
+	nci.call_with_err_code('echo "Binary package at ' + deploy_dir + 'neblio-Qt---ubuntu16.04---$(date +%Y-%m-%d).tar.gz"')
 
 print("")
 print("")

@@ -18,6 +18,7 @@ packages_to_install = \
 nci.install_packages_debian(packages_to_install)
 
 working_dir = os.getcwd()
+deploy_dir = os.path.join(working_dir,'deploy', '')
 
 mxe_path = "/mxe/mxe/"
 # download the toolchain for windows
@@ -51,7 +52,8 @@ os.chdir(build_dir)
 nci.call_with_err_code('i686-w64-mingw32.static-qmake-qt5 "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-wallet.pro')
 nci.call_with_err_code("make -j" + str(mp.cpu_count()))
 nci.call_with_err_code('zip -j neblio-Qt---windows---$(date +%Y-%m-%d).zip ./wallet/release/neblio-qt.exe')
-nci.call_with_err_code('echo "Binary package at $PWD neblio-Qt---windows---$(date +%Y-%m-%d).zip"')
+nci.call_with_err_code('mv neblio-Qt---windows---$(date +%Y-%m-%d).zip ' + deploy_dir)
+nci.call_with_err_code('echo "Binary package at ' + deploy_dir + 'neblio-Qt---windows---$(date +%Y-%m-%d).zip"')
 
 ################
 

@@ -8,6 +8,7 @@ import neblio_ci_libs as nci
 
 working_dir = os.getcwd()
 build_dir = "build"
+deploy_dir = os.path.join(working_dir,'deploy', '')
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--test', '-t', help='Only build and run tests', action='store_true')
@@ -48,7 +49,8 @@ else:
 	nci.call_with_err_code('sudo easy_install appscript')
 	nci.call_with_err_code('../contrib/macdeploy/macdeployqtplus ./wallet/neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -dmg -verbose 1 -rpath /usr/local/opt/qt/lib')
 	nci.call_with_err_code('zip -j neblio-Qt---macOS---$(date +%Y-%m-%d).zip ./neblio-QT.dmg')
-	nci.call_with_err_code('echo "Binary package at $PWD neblio-Qt---macOS---$(date +%Y-%m-%d).zip"')
+	nci.call_with_err_code('mv neblio-Qt---macOS---$(date +%Y-%m-%d).zip ' + deploy_dir)
+	nci.call_with_err_code('echo "Binary package at ' + deploy_dir + 'neblio-Qt---macOS---$(date +%Y-%m-%d).zip"')
 
 
 print("")

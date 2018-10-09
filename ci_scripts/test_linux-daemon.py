@@ -7,6 +7,7 @@ import neblio_ci_libs as nci
 
 working_dir = os.getcwd()
 build_dir = "wallet"
+deploy_dir = os.path.join(working_dir,'deploy', '')
 
 packages_to_install = \
 [
@@ -44,7 +45,8 @@ os.environ['OPENSSL_LIB_PATH'] = os.path.join(working_dir, build_dir, 'openssl_b
 
 nci.call_with_err_code('make "STATIC=1" -B -w -f makefile.unix -j' + str(mp.cpu_count()))
 nci.call_with_err_code('tar -zcvf "nebliod---ubuntu16.04---$(date +%Y-%m-%d).tar.gz" ./nebliod')
-nci.call_with_err_code('echo "Binary package at $PWD nebliod---ubuntu16.04---$(date +%Y-%m-%d).tar.gz"')
+nci.call_with_err_code('mv nebliod---ubuntu16.04---$(date +%Y-%m-%d).tar.gz ' + deploy_dir)
+nci.call_with_err_code('echo "Binary package at ' + deploy_dir + 'nebliod---ubuntu16.04---$(date +%Y-%m-%d).tar.gz"')
 
 print("")
 print("")
