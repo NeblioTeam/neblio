@@ -49,7 +49,7 @@ else:
 	# build our .dmg
 	nci.call_with_err_code('sudo easy_install appscript')
 	os.chdir("wallet")
-	nci.call_with_err_code('../contrib/macdeploy/macdeployqtplus ./neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -dmg -verbose 1 -rpath /usr/local/opt/qt/lib')
+	nci.call_with_err_code('../../contrib/macdeploy/macdeployqtplus ./neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -dmg -verbose 1 -rpath /usr/local/opt/qt/lib')
 
 	file_name = '$(date +%Y-%m-%d)---' + os.environ['TRAVIS_BRANCH'] + '---' + os.environ['TRAVIS_COMMIT'] + '---neblio-Qt---macOS.zip'
 
