@@ -18,7 +18,8 @@ packages_to_install = \
 nci.install_packages_debian(packages_to_install)
 
 working_dir = os.getcwd()
-deploy_dir = os.path.join(working_dir,'deploy', '')
+deploy_dir = os.path.join(os.environ['TRAVIS_BUILD_DIR'],'deploy', '')
+nci.mkdir_p(deploydir)
 
 mxe_path = "/mxe/mxe/"
 # download the toolchain for windows

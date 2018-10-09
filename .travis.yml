@@ -2,49 +2,67 @@ sudo: required
 dist: xenial
 osx_image: xcode9.4
 os:
-    - osx
-    - linux
+- osx
+- linux
 language: minimal
 env:
   global:
   matrix:
-    - target_v=osx
-    - target_v=osx_test
-    - target_v=linux_wallet
-    - target_v=linux_wallet_test
-    - target_v=windows
-    - target_v=linux_daemon
+  - target_v=osx
+  - target_v=osx_test
+  - target_v=linux_wallet
+  - target_v=linux_wallet_test
+  - target_v=windows
+  - target_v=linux_daemon
 matrix:
   exclude:
-    - os: osx
-      env: target_v=windows
-    - os: osx
-      env: target_v=linux_daemon
-    - os: osx
-      env: target_v=linux_wallet
-    - os: osx
-      env: target_v=linux_wallet_test
-    - os: linux
-      env: target_v=osx
-    - os: linux
-      env: target_v=osx_test
+  - os: osx
+    env: target_v=windows
+  - os: osx
+    env: target_v=linux_daemon
+  - os: osx
+    env: target_v=linux_wallet
+  - os: osx
+    env: target_v=linux_wallet_test
+  - os: linux
+    env: target_v=osx
+  - os: linux
+    env: target_v=osx_test
 before_install:
 install:
 before_script:
 script:
-    - if [[ "$target_v" == "osx"               ]]; then python ci_scripts/test_osx-gui_wallet.py       ; fi
-    - if [[ "$target_v" == "osx_test"          ]]; then python ci_scripts/test_osx-gui_wallet.py -t    ; fi
-    - if [[ "$target_v" == "linux_wallet"      ]]; then python ci_scripts/test_linux-gui_wallet.py     ; fi
-    - if [[ "$target_v" == "linux_wallet_test" ]]; then python ci_scripts/test_linux-gui_wallet.py -t  ; fi
-    - if [[ "$target_v" == "windows"           ]]; then python ci_scripts/test_win32-gui_wallet.py     ; fi
-    - if [[ "$target_v" == "linux_daemon"      ]]; then python ci_scripts/test_linux-daemon.py         ; fi
-
-
-
+- if [[ "$target_v" == "osx"               ]]; then python ci_scripts/test_osx-gui_wallet.py       ;
+  fi
+- if [[ "$target_v" == "osx_test"          ]]; then python ci_scripts/test_osx-gui_wallet.py
+  -t    ; fi
+- if [[ "$target_v" == "linux_wallet"      ]]; then python ci_scripts/test_linux-gui_wallet.py     ;
+  fi
+- if [[ "$target_v" == "linux_wallet_test" ]]; then python ci_scripts/test_linux-gui_wallet.py
+  -t  ; fi
+- if [[ "$target_v" == "windows"           ]]; then python ci_scripts/test_win32-gui_wallet.py     ;
+  fi
+- if [[ "$target_v" == "linux_daemon"      ]]; then python ci_scripts/test_linux-daemon.py         ;
+  fi
 after_script:
-    - echo "Done"
-
+- echo "Done"
 notifications:
   email:
     recipients:
-      - info@nebl.io
+    - info@nebl.io
+before_deploy:
+- cd $TRAVIS_BUILD_DIR
+deploy:
+  provider: s3
+  endpoint: https://ams3.digitaloceanspaces.com
+  access_key_id: 2VUF47CKX6AGTOKSGPBC
+  secret_access_key:
+    secure: DgrrcxBrf2mgfWN30ACSIgEhQJaIaWuJKO3/gAQR/1la434O5U+hnJ0nFzF431eogeBXwV5gdcsuIQaxcg2pB40orrQ1QEnwL8CQZfB0A9dyAr0YRFS9aWg4vF2UjvYkLF1iFaRjjpdxjLtdamlXG5Ea7jsxn4vLNRQm09SYoBLVXn7JYiLvyVsrtpaVR0E/hCl+U7rQVtkVSI5d0jUKUQimV7cgYhYGUsDnOQZcGdXHhQp7Hv0IQ8KSLdmH6At0DQiAmr6p0z6ToEn0uq2iZip6pPcz/VrnbUIPV8zJjlyyZ9I9MQ8h+V33iSeHCgOGXqIRH6E5IR3yfWUfvk6qUt3vVxU+wI0avceOC1wrV8qTqr6CJ8rvTnCMzHTuDtBK4lyNYregz+3Omj7zIKEiHt3lsyM1ClJixD0xJVuxNr2CRxgK4A53eHvRhZ+wjAPseVT06tfs3JaR0wxuO1QB5Xp4BUUwQF9jGnUu2GazIbJVkhFQMFmuwTDk8kwpVaQmVlkOMuYkThpxOf3vSMztKvtZ8lImFh7Ci8leQ8TQOxloZLPJwIvYadILjatX2k7btAKTkCawQSdmOZJh22c8M1aYxR/TxcnEyah43FhMyRQ/LNdWkvsWHFwpHHryLD8sEuZy2liotFFIgqfiaAFTF94Sm6F29DhHglh1SdGEznM=
+  bucket: neblio-build-staging
+  skip_cleanup: true
+  detect_encoding: true
+  local_dir: deploy
+  acl: public_read
+  on:
+    repo: NeblioTeam/neblio
+

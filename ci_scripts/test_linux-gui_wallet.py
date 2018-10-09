@@ -8,7 +8,7 @@ import neblio_ci_libs as nci
 
 working_dir = os.getcwd()
 build_dir = "build"
-deploy_dir = os.path.join(working_dir,'deploy', '')
+deploy_dir = os.path.join(os.environ['TRAVIS_BUILD_DIR'],'deploy', '')
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--test', '-t', help='Only build and run tests', action='store_true')
@@ -39,6 +39,7 @@ packages_to_install = \
 
 nci.install_packages_debian(packages_to_install)
 
+nci.mkdir_p(deploydir)
 nci.mkdir_p(build_dir)
 os.chdir(build_dir)
 

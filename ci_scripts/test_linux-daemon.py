@@ -7,7 +7,7 @@ import neblio_ci_libs as nci
 
 working_dir = os.getcwd()
 build_dir = "wallet"
-deploy_dir = os.path.join(working_dir,'deploy', '')
+deploy_dir = os.path.join(os.environ['TRAVIS_BUILD_DIR'],'deploy', '')
 
 packages_to_install = \
 [
@@ -34,6 +34,7 @@ packages_to_install = \
 
 nci.install_packages_debian(packages_to_install)
 
+nci.mkdir_p(deploydir)
 os.chdir(build_dir)
 
 nci.call_with_err_code('python $TRAVIS_BUILD_DIR/build_scripts/CompileOpenSSL-Linux.py')
