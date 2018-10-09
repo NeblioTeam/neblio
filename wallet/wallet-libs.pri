@@ -13,6 +13,7 @@ BOOST_LIB_SUFFIX=
 windows:BOOST_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include/boost
 windows:BOOST_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/lib
 macx:BOOST_LIB_PATH=/usr/local/opt/boost/lib
+macx:BOOST_INCLUDE_PATH=/usr/local/opt/boost/include
 windows:BDB_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include
 windows:BDB_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/lib
 macx:BDB_LIB_PATH=/usr/local/opt/berkeley-db\@4/lib/
@@ -197,26 +198,6 @@ isEmpty(BOOST_THREAD_LIB_SUFFIX) {
     else:BOOST_THREAD_LIB_SUFFIX = $$BOOST_LIB_SUFFIX
 }
 
-isEmpty(BDB_LIB_PATH) {
-    macx:BDB_LIB_PATH = /opt/local/lib/db48
-}
-
-isEmpty(BDB_LIB_SUFFIX) {
-    macx:BDB_LIB_SUFFIX = -4.8
-}
-
-isEmpty(BDB_INCLUDE_PATH) {
-    macx:BDB_INCLUDE_PATH = /opt/local/include/db48
-}
-
-isEmpty(BOOST_LIB_PATH) {
-    macx:BOOST_LIB_PATH = /opt/local/lib
-}
-
-isEmpty(BOOST_INCLUDE_PATH) {
-    #macx:BOOST_INCLUDE_PATH = /opt/local/include
-    macx:BOOST_INCLUDE_PATH = /usr/local/include
-}
 
 windows:DEFINES += WIN32
 
