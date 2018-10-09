@@ -1,14 +1,9 @@
 ![Build Status](https://travis-ci.org/NeblioTeam/neblio.svg?branch=master)
 
-#General Introduction of Neblio
-Neblio is a secure and energy efficient PoS Token on which the Neblio Platform is built
-https://nebl.io
+# Open Source Repository for Neblio Nodes & Wallets
+More infomration here: https://nebl.io
 
-#Neblio Specification
+Alpha Builds for commits that pass testing can be found here:
+https://neblio-build-staging.ams3.digitaloceanspaces.com/index.html
 
-~13,000,000 Tokens In Cirulation
-
-Proof-of-Stake Token
-
-
-
+Pull Requests Welcome
