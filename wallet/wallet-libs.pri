@@ -215,7 +215,7 @@ isEmpty(BOOST_LIB_PATH) {
 
 isEmpty(BOOST_INCLUDE_PATH) {
     #macx:BOOST_INCLUDE_PATH = /opt/local/include
-    macx:BOOST_INCLUDE_PATH = /usr/local/include
+    #macx:BOOST_INCLUDE_PATH = /usr/local/include
 }
 
 windows:DEFINES += WIN32
