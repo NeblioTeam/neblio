@@ -42,8 +42,8 @@ DEFINES += BOOST_ASIO_ENABLE_OLD_SERVICES
 
 # use: qmake "RELEASE=1"
 contains(RELEASE, 1) {
-    # Mac: compile for maximum compatibility (10.10, 32-bit)
-    macx:QMAKE_CXXFLAGS += -mmacosx-version-min=10.10 -arch x86_64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.12.sdk -Wno-nullability-completeness -Wno-unused-command-line-argument
+    # Mac: compile for maximum compatibility (10.12, 32-bit)
+    macx:QMAKE_CXXFLAGS += -mmacosx-version-min=10.12 -arch x86_64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.13.sdk -Wno-nullability-completeness -Wno-unused-command-line-argument
 
     !windows:!macx {
         # Linux: static link
