@@ -12,7 +12,7 @@ greaterThan(QT_MAJOR_VERSION, 4) {
 BOOST_LIB_SUFFIX=
 windows:BOOST_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include/boost
 windows:BOOST_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/lib
-macx:BOOST_LIB_PATH=/usr/local/opt/boost@1.60/lib
+macx:BOOST_LIB_PATH=/usr/local/opt/boost/lib
 windows:BDB_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include
 windows:BDB_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/lib
 macx:BDB_LIB_PATH=/usr/local/opt/berkeley-db\@4/lib/
@@ -37,7 +37,7 @@ MOC_DIR = build
 UI_DIR = build
 
 # fixes an issue with boost 1.66 and the number of template parameters of basic_socket_acceptor
-DEFINES += BOOST_ASIO_ENABLE_OLD_SERVICES
+#DEFINES += BOOST_ASIO_ENABLE_OLD_SERVICES
 # TODO: Move to the new standard of boost as current code is deprecated
 
 # use: qmake "RELEASE=1"
