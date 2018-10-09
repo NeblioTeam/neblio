@@ -51,7 +51,7 @@ else:
 	os.chdir("wallet")
 	nci.call_with_err_code('../../contrib/macdeploy/macdeployqtplus ./neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -dmg -verbose 1 -rpath /usr/local/opt/qt/lib')
 
-	file_name = '$(date +%Y-%m-%d)---' + os.environ['TRAVIS_BRANCH'] + '---' + os.environ['TRAVIS_COMMIT'] + '---neblio-Qt---macOS.zip'
+	file_name = '$(date +%Y-%m-%d)---' + os.environ['TRAVIS_BRANCH'] + '-' + os.environ['TRAVIS_COMMIT'][:7] + '---neblio-Qt---macOS.zip'
 
 	nci.call_with_err_code('zip -j ' + file_name + ' ./neblio-QT.dmg')
 	nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)
