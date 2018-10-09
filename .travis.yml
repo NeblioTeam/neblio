@@ -63,6 +63,7 @@ deploy:
   detect_encoding: true
   local_dir: deploy
   acl: public_read
+  overwrite: true
   on:
     repo: NeblioTeam/neblio
     all_branches: true

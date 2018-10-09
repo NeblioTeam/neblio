@@ -52,9 +52,12 @@ nci.mkdir_p(build_dir)
 os.chdir(build_dir)
 nci.call_with_err_code('i686-w64-mingw32.static-qmake-qt5 "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-wallet.pro')
 nci.call_with_err_code("make -j" + str(mp.cpu_count()))
-nci.call_with_err_code('zip -j neblio-Qt---windows---$(date +%Y-%m-%d).zip ./wallet/release/neblio-qt.exe')
-nci.call_with_err_code('mv neblio-Qt---windows---$(date +%Y-%m-%d).zip ' + deploy_dir)
-nci.call_with_err_code('echo "Binary package at ' + deploy_dir + 'neblio-Qt---windows---$(date +%Y-%m-%d).zip"')
+
+file_name = '$(date +%Y-%m-%d)---' + os.environ['TRAVIS_BRANCH'] + '---' + os.environ['TRAVIS_COMMIT'] + '---neblio-Qt---windows.zip'
+
+nci.call_with_err_code('zip -j ' + file_name + ' ./wallet/release/neblio-qt.exe')
+nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)
+nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
 
 ################
 

@@ -48,10 +48,14 @@ else:
 	nci.call_with_err_code("make -j" + str(mp.cpu_count()))
 	# build our .dmg
 	nci.call_with_err_code('sudo easy_install appscript')
-	nci.call_with_err_code('../contrib/macdeploy/macdeployqtplus ./wallet/neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -dmg -verbose 1 -rpath /usr/local/opt/qt/lib')
-	nci.call_with_err_code('zip -j neblio-Qt---macOS---$(date +%Y-%m-%d).zip ./neblio-QT.dmg')
-	nci.call_with_err_code('mv neblio-Qt---macOS---$(date +%Y-%m-%d).zip ' + deploy_dir)
-	nci.call_with_err_code('echo "Binary package at ' + deploy_dir + 'neblio-Qt---macOS---$(date +%Y-%m-%d).zip"')
+	os.chdir("wallet")
+	nci.call_with_err_code('../contrib/macdeploy/macdeployqtplus ./neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -dmg -verbose 1 -rpath /usr/local/opt/qt/lib')
+
+	file_name = '$(date +%Y-%m-%d)---' + os.environ['TRAVIS_BRANCH'] + '---' + os.environ['TRAVIS_COMMIT'] + '---neblio-Qt---macOS.zip'
+
+	nci.call_with_err_code('zip -j ' + file_name + ' ./neblio-QT.dmg')
+	nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)
+	nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
 
 
 print("")

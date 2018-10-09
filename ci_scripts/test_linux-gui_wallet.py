@@ -59,9 +59,12 @@ if (args.test):
 else:
 	nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-wallet.pro')
 	nci.call_with_err_code("make -j" + str(mp.cpu_count()))
-	nci.call_with_err_code('tar -zcvf "neblio-Qt---ubuntu16.04---$(date +%Y-%m-%d).tar.gz" -C ./wallet neblio-qt')
-	nci.call_with_err_code('mv neblio-Qt---ubuntu16.04---$(date +%Y-%m-%d).tar.gz ' + deploy_dir)
-	nci.call_with_err_code('echo "Binary package at ' + deploy_dir + 'neblio-Qt---ubuntu16.04---$(date +%Y-%m-%d).tar.gz"')
+
+	file_name = '$(date +%Y-%m-%d)---' + os.environ['TRAVIS_BRANCH'] + '---' + os.environ['TRAVIS_COMMIT'] + '---neblio-Qt---ubuntu16.04.zip'
+
+	nci.call_with_err_code('tar -zcvf "' + file_name + '" -C ./wallet neblio-qt')
+	nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)
+	nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
 
 print("")
 print("")
