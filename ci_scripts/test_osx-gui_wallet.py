@@ -16,7 +16,7 @@ args = parser.parse_args()
 nci.mkdir_p(build_dir)
 os.chdir(build_dir)
 
-nci.call_with_err_code('brew update')
+nci.call_with_err_code('brew update && brew upgrade')
 
 nci.call_with_err_code('brew outdated qt            || brew upgrade qt')
 nci.call_with_err_code('brew outdated berkeley-db@4 || brew upgrade berkeley-db@4')
