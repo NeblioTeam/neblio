@@ -51,7 +51,7 @@ os.chdir(build_dir)
 nci.call_with_err_code('i686-w64-mingw32.static-qmake-qt5 "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-wallet.pro')
 nci.call_with_err_code("make -j" + str(mp.cpu_count()))
 nci.call_with_err_code('zip -j neblio-Qt---windows---$(date +%Y-%m-%d).zip ./wallet/release/neblio-qt.exe')
-nci.call_with_err_code('echo "Binary package at neblio-Qt---windows---$(date +%Y-%m-%d).zip"')
+nci.call_with_err_code('echo "Binary package at $PWD neblio-Qt---windows---$(date +%Y-%m-%d).zip"')
 
 ################
 
