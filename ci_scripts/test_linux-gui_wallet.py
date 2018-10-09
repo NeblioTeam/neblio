@@ -39,7 +39,7 @@ packages_to_install = \
 
 nci.install_packages_debian(packages_to_install)
 
-nci.mkdir_p(deploydir)
+nci.mkdir_p(deploy_dir)
 nci.mkdir_p(build_dir)
 os.chdir(build_dir)
 

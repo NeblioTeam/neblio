@@ -14,7 +14,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--test', '-t', help='Only build and run tests', action='store_true')
 args = parser.parse_args()
 
-nci.mkdir_p(deploydir)
+nci.mkdir_p(deploy_dir)
 nci.mkdir_p(build_dir)
 os.chdir(build_dir)
 

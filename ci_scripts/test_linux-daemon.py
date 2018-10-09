@@ -34,7 +34,7 @@ packages_to_install = \
 
 nci.install_packages_debian(packages_to_install)
 
-nci.mkdir_p(deploydir)
+nci.mkdir_p(deploy_dir)
 os.chdir(build_dir)
 
 nci.call_with_err_code('python $TRAVIS_BUILD_DIR/build_scripts/CompileOpenSSL-Linux.py')
