@@ -71,7 +71,7 @@ deploy:
     api_key:
       secure: h0Cgy4kPdBLSnIrBSeAqAqFVBmblD21+UPLn/NeyL3CRODjWmwggE9il6b3Y8aPhkKwfQmCuzjO4ZAHK8tRc+F/jncdu8xEc4L6r7OEoPESujqOqWcFikj2RoU9IThNyzvwfXqDJ9IHHn0bvsl//Npro0llBjltpe2bODhqhKEwTEt79XgQ+v9S/QRM6lkO1CAPXPS/2iVBqSQfMytP70ZK9WnZ5M1yjS4msysbGOAS00hfwewyqU6KxzSRDnUGpTet6fStMCNxjO2xJaSqyFMKG/ROSk6InGDOKomcIEF4KWG4i5iyl/m63/1F4/mlyupvGhitf5hYcQHZW/23Fddec3cBYb4oSLB+uVHyuxm1c5BqyJsUD/MuWOFgIfRb2UIfko2EOS8rMDUZUGlJYPTjsoqWbqnAJEb3cBdT2WP8bYjxn+65T7KK4ysP+1U63KSG7Dn/+NJZxQXZRl74JjRDhueFrDsgbQMo1M1cC14WpUZIC2FZQ8y+b9BggMb+VLOOWwxzG+y24vcntTVWyFvfHBhSY2yfJnvMGvO6E1isFnIG60MOTJd63PX5jkKN/AhIDneh1lCGx+3i0LzyHuddh8mP6d5ZJsEbvHBFk54Rv76I0MUKiJXKc1Mmxzm48heptK9pL5/xvxrmo+LoKjONG+w9A2NcgzoSqOqFxuHE=
     file_glob: true
-    file: directory/*
+    file: deploy/*
     skip_cleanup: true
     on:
       repo: NeblioTeam/neblio
