@@ -47,7 +47,7 @@ os.environ['OPENSSL_LIB_PATH'] = os.path.join(working_dir, build_dir, 'openssl_b
 nci.call_with_err_code('make "STATIC=1" -B -w -f makefile.unix -j' + str(mp.cpu_count()))
 nci.call_with_err_code('strip ./nebliod')
 
-file_name = '$(date +%Y-%m-%d)---' + os.environ['TRAVIS_BRANCH'] + '-' + os.environ['TRAVIS_COMMIT'][:7] + '---nebliod---ubuntu16.04.tar.gz'
+file_name = '$(date +%Y-%m-%d-%T)---' + os.environ['TRAVIS_BRANCH'] + '-' + os.environ['TRAVIS_COMMIT'][:7] + '---nebliod---ubuntu16.04.tar.gz'
 
 nci.call_with_err_code('tar -zcvf "' + file_name + '" ./nebliod')
 nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)
