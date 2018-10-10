@@ -73,6 +73,7 @@ deploy:
     file_glob: true
     file: deploy/*
     skip_cleanup: true
+    prerelease: true
     on:
       repo: NeblioTeam/neblio
       all_branches: true
