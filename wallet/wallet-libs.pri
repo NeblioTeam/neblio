@@ -13,17 +13,18 @@ BOOST_LIB_SUFFIX=
 windows:BOOST_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include/boost
 windows:BOOST_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/lib
 macx:BOOST_LIB_PATH=/usr/local/opt/boost@1.60/lib
+macx:BOOST_INCLUDE_PATH=/usr/local/opt/boost@1.60/include
 windows:BDB_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include
 windows:BDB_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/lib
-macx:BDB_LIB_PATH=/usr/local/Cellar/berkeley-db\@4/4.8.30/lib/
+macx:BDB_LIB_PATH=/usr/local/opt/berkeley-db\@4/lib/
 MINIUPNPC_LIB_SUFFIX=-miniupnpc
 windows:MINIUPNPC_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include
 windows:MINIUPNPC_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/libc
 macx:OPENSSL_LIB_PATH=/usr/local/opt/openssl/lib
-macx:MINIUPNPC_INCLUDE_PATH=/usr/local/Cellar/miniupnpc/2.0.20170509/include
-macx:MINIUPNPC_LIB_PATH=/usr/local/Cellar/miniupnpc/2.0.20170509/lib
-macx:QRENCODE_INCLUDE_PATH=/usr/local/Cellar/qrencode/3.4.4/include
-macx:QRENCODE_LIB_PATH=/usr/local/Cellar/qrencode/3.4.4/lib
+macx:MINIUPNPC_INCLUDE_PATH=/usr/local/opt/miniupnpc/include
+macx:MINIUPNPC_LIB_PATH=/usr/local/opt/miniupnpc/lib
+macx:QRENCODE_INCLUDE_PATH=/usr/local/opt/qrencode/include
+macx:QRENCODE_LIB_PATH=/usr/local/opt/qrencode/lib
 macx:CURL_LIB_PATH=/usr/local/opt/curl/lib
 windows:QRENCODE_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include
 windows:QRENCODE_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/libc
@@ -37,13 +38,13 @@ MOC_DIR = build
 UI_DIR = build
 
 # fixes an issue with boost 1.66 and the number of template parameters of basic_socket_acceptor
-DEFINES += BOOST_ASIO_ENABLE_OLD_SERVICES
+#DEFINES += BOOST_ASIO_ENABLE_OLD_SERVICES
 # TODO: Move to the new standard of boost as current code is deprecated
 
 # use: qmake "RELEASE=1"
 contains(RELEASE, 1) {
-    # Mac: compile for maximum compatibility (10.5, 32-bit)
-    macx:QMAKE_CXXFLAGS += -mmacosx-version-min=10.5 -arch x86_64 -isysroot /Developer/SDKs/MacOSX10.5.sdk
+    # Mac: compile for maximum compatibility (10.12, 32-bit)
+    macx:QMAKE_CXXFLAGS += -mmacosx-version-min=10.12 -arch x86_64 -Wno-nullability-completeness -Wno-unused-command-line-argument
 
     !windows:!macx {
         # Linux: static link
@@ -109,7 +110,7 @@ contains(BITCOIN_NEED_QT_PLUGINS, 1) {
 }
 
 INCLUDEPATH += $$PWD/leveldb/include $$PWD/leveldb/helpers
-macx: INCLUDEPATH += /usr/include /usr/local/opt/berkeley-db@4/include /usr/local/opt/boost/include /usr/local/opt/openssl/include
+macx: INCLUDEPATH += /usr/local/opt/berkeley-db@4/include /usr/local/opt/boost@1.60/include /usr/local/opt/openssl/include
 LIBS += $$PWD/leveldb/libleveldb.a $$PWD/leveldb/libmemenv.a
 SOURCES += txdb-leveldb.cpp
 
@@ -197,26 +198,6 @@ isEmpty(BOOST_THREAD_LIB_SUFFIX) {
     else:BOOST_THREAD_LIB_SUFFIX = $$BOOST_LIB_SUFFIX
 }
 
-isEmpty(BDB_LIB_PATH) {
-    macx:BDB_LIB_PATH = /opt/local/lib/db48
-}
-
-isEmpty(BDB_LIB_SUFFIX) {
-    macx:BDB_LIB_SUFFIX = -4.8
-}
-
-isEmpty(BDB_INCLUDE_PATH) {
-    macx:BDB_INCLUDE_PATH = /opt/local/include/db48
-}
-
-isEmpty(BOOST_LIB_PATH) {
-    macx:BOOST_LIB_PATH = /opt/local/lib
-}
-
-isEmpty(BOOST_INCLUDE_PATH) {
-    #macx:BOOST_INCLUDE_PATH = /opt/local/include
-    macx:BOOST_INCLUDE_PATH = /usr/local/include
-}
 
 windows:DEFINES += WIN32
 
