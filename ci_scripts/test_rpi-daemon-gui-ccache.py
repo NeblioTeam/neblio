@@ -24,8 +24,7 @@ except urllib2.HTTPError as err:
 # Install docker
 nci.call_with_err_code('curl -fsSL https://get.docker.com -o get-docker.sh && sudo sh get-docker.sh')
 
-# Download Build Cache & Extract
-nci.call_with_err_code('wget https://neblio-build-staging.ams3.digitaloceanspaces.com/' + build_cache_name)
+# Extract Build ccache File
 nci.call_with_err_code('tar -zxf ' + build_cache_name)
 
 # Start Docker Container to Build nebliod & neblio-Qt
