@@ -14,6 +14,7 @@ env:
   - target_v=linux_wallet_test
   - target_v=windows
   - target_v=linux_daemon
+  - target_v=rpi_daemon_wallet
 matrix:
   exclude:
   - os: osx
@@ -24,6 +25,8 @@ matrix:
     env: target_v=linux_wallet
   - os: osx
     env: target_v=linux_wallet_test
+  - os: osx
+    env: target_v=rpi_daemon_wallet
   - os: linux
     env: target_v=osx
   - os: linux
@@ -43,6 +46,8 @@ script:
 - if [[ "$target_v" == "windows"           ]]; then python ci_scripts/test_win32-gui_wallet.py     ;
   fi
 - if [[ "$target_v" == "linux_daemon"      ]]; then python ci_scripts/test_linux-daemon.py         ;
+  fi
+- if [[ "$target_v" == "rpi_daemon_wallet" ]]; then python ci_scripts/test_rpi-daemon-gui-ccache.py         ;
   fi
 after_script:
 - echo "Done"
