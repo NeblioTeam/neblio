@@ -10,11 +10,11 @@ env:
   matrix:
   - target_v=osx
   - target_v=osx_test
+  - target_v=rpi_daemon_wallet
   - target_v=linux_wallet
   - target_v=linux_wallet_test
   - target_v=windows
   - target_v=linux_daemon
-  - target_v=rpi_daemon_wallet
 matrix:
   exclude:
   - os: osx
@@ -35,20 +35,14 @@ before_install:
 install:
 before_script:
 script:
-- if [[ "$target_v" == "osx"               ]]; then python ci_scripts/test_osx-gui_wallet.py       ;
-  fi
-- if [[ "$target_v" == "osx_test"          ]]; then python ci_scripts/test_osx-gui_wallet.py
-  -t    ; fi
-- if [[ "$target_v" == "linux_wallet"      ]]; then python ci_scripts/test_linux-gui_wallet.py     ;
-  fi
-- if [[ "$target_v" == "linux_wallet_test" ]]; then python ci_scripts/test_linux-gui_wallet.py
-  -t  ; fi
-- if [[ "$target_v" == "windows"           ]]; then python ci_scripts/test_win32-gui_wallet.py     ;
-  fi
-- if [[ "$target_v" == "linux_daemon"      ]]; then python ci_scripts/test_linux-daemon.py         ;
-  fi
-- if [[ "$target_v" == "rpi_daemon_wallet" ]]; then python ci_scripts/test_rpi-daemon-gui-ccache.py         ;
-  fi
+- if [[ "$target_v" == "osx"               ]]; then python ci_scripts/test_osx-gui_wallet.py        ; fi
+- if [[ "$target_v" == "osx_test"          ]]; then python ci_scripts/test_osx-gui_wallet.py -t     ; fi
+- if [[ "$target_v" == "rpi_daemon_wallet" ]]; then python ci_scripts/test_rpi-daemon-gui-ccache.py ; fi
+- if [[ "$target_v" == "linux_wallet"      ]]; then python ci_scripts/test_linux-gui_wallet.py      ; fi
+- if [[ "$target_v" == "linux_wallet_test" ]]; then python ci_scripts/test_linux-gui_wallet.py -t   ; fi
+- if [[ "$target_v" == "windows"           ]]; then python ci_scripts/test_win32-gui_wallet.py      ; fi
+- if [[ "$target_v" == "linux_daemon"      ]]; then python ci_scripts/test_linux-daemon.py          ; fi
+
 after_script:
 - echo "Done"
 notifications:
