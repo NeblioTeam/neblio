@@ -25,6 +25,9 @@ except urllib2.HTTPError as err:
 # Install docker
 nci.call_with_err_code('curl -fsSL https://get.docker.com -o get-docker.sh && sudo sh get-docker.sh')
 
+# Prepare qemu
+nci.call_with_err_code('docker run --rm --privileged multiarch/qemu-user-static:register --reset')
+
 # Extract Build ccache File
 nci.call_with_err_code('tar -zxf ' + build_cache_name)
 
