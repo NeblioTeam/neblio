@@ -29,7 +29,7 @@ nci.call_with_err_code('curl -fsSL https://get.docker.com -o get-docker.sh && su
 nci.call_with_err_code('tar -zxf ' + build_cache_name)
 
 # Start Docker Container to Build nebliod & neblio-Qt
-nci.call_with_err_code('sudo docker run -e BRANCH=' + os.environ['TRAVIS_BRANCH'] + '-v ' + deploy_dir + ':/root/deploy -t neblioteam/nebliod-build-ccache-rpi')
+nci.call_with_err_code('sudo docker run -e BRANCH=' + os.environ['TRAVIS_BRANCH'] + ' -v ' + deploy_dir + ':/root/deploy -t neblioteam/nebliod-build-ccache-rpi')
 
 # Package Binaries & Cache
 nci.call_with_err_code('tar -zcf ' + deploy_dir + build_cache_name + ' ' + deploy_dir + '.ccache')
