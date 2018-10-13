@@ -35,7 +35,7 @@ nci.call_with_err_code('tar -zxf ' + build_cache_name)
 nci.call_with_err_code('sudo docker run -e BRANCH=' + os.environ['TRAVIS_BRANCH'] + ' -v ' + deploy_dir + ':/root/deploy -t neblioteam/nebliod-build-ccache-rpi')
 
 # Package Binaries & Cache
-nci.call_with_err_code('tar -zcf ' + deploy_dir + build_cache_name + ' ' + deploy_dir + ' -C ./ .ccache')
+nci.call_with_err_code('tar -zcf ' + deploy_dir + build_cache_name + ' ' + deploy_dir + ' -C ' + deploy_dir + ' .ccache')
 nci.call_with_err_code('rm -rf ' + deploy_dir + '.ccache')
 
 file_name = '$(date +%Y-%m-%d)---' + os.environ['TRAVIS_BRANCH'] + '-' + os.environ['TRAVIS_COMMIT'][:7] + '---RPi-neblio-Qt-nebliod---raspbian-stretch.tar.gz'
