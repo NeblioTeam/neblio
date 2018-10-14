@@ -10,7 +10,7 @@ build_cache_name = 'rpi-build-ccache-' + os.environ['TRAVIS_BRANCH'] + '.tar.gz'
 nci.mkdir_p(deploy_dir)
 os.chdir(deploy_dir)
 
-Download our ccache file, if it does not exist, skip building
+# Download our ccache file, if it does not exist, skip building
 try:
   url = 'https://neblio-build-staging.ams3.digitaloceanspaces.com/' + build_cache_name
   response = urllib2.urlopen(url)
