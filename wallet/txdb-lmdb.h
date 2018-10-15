@@ -12,6 +12,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <atomic>
 
 #include "liblmdb/lmdb.h"
 
