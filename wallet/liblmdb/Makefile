@@ -45,28 +45,28 @@ PROGS   = $(IPROGS) mtest mtest2 mtest3 mtest4 mtest5
 all:    $(ILIBS) $(PROGS)
 
 install: $(ILIBS) $(IPROGS) $(IHDRS)
-        mkdir -p $(DESTDIR)$(bindir)
-        mkdir -p $(DESTDIR)$(libdir)
-        mkdir -p $(DESTDIR)$(includedir)
-        mkdir -p $(DESTDIR)$(mandir)/man1
-        for f in $(IPROGS); do cp $$f $(DESTDIR)$(bindir); done
-        for f in $(ILIBS); do cp $$f $(DESTDIR)$(libdir); done
-        for f in $(IHDRS); do cp $$f $(DESTDIR)$(includedir); done
-        for f in $(IDOCS); do cp $$f $(DESTDIR)$(mandir)/man1; done
+	mkdir -p $(DESTDIR)$(bindir)
+	mkdir -p $(DESTDIR)$(libdir)
+	mkdir -p $(DESTDIR)$(includedir)	
+	mkdir -p $(DESTDIR)$(mandir)/man1
+	for f in $(IPROGS); do cp $$f $(DESTDIR)$(bindir); done
+	for f in $(ILIBS); do cp $$f $(DESTDIR)$(libdir); done
+	for f in $(IHDRS); do cp $$f $(DESTDIR)$(includedir); done
+	for f in $(IDOCS); do cp $$f $(DESTDIR)$(mandir)/man1; done
 
 clean:
-        rm -rf $(PROGS) *.[ao] *.[ls]o *~ testdb
+	rm -rf $(PROGS) *.[ao] *.[ls]o *~ testdb
 
 test:   all
-        rm -rf testdb && mkdir testdb
-        ./mtest && ./mdb_stat testdb
+	rm -rf testdb && mkdir testdb
+	./mtest && ./mdb_stat testdb
 
 liblmdb.a:      mdb.o midl.o
-        $(AR) rs $@ mdb.o midl.o
+	$(AR) rs $@ mdb.o midl.o
 
 liblmdb$(SOEXT):        mdb.lo midl.lo
 #       $(CC) $(LDFLAGS) -pthread -shared -Wl,-Bsymbolic -o $@ mdb.o midl.o $(SOLIBS)
-        $(CC) $(LDFLAGS) -pthread -shared -o $@ mdb.lo midl.lo $(SOLIBS)
+	$(CC) $(LDFLAGS) -pthread -shared -o $@ mdb.lo midl.lo $(SOLIBS)
 
 mdb_stat: mdb_stat.o liblmdb.a
 mdb_copy: mdb_copy.o liblmdb.a
@@ -80,38 +80,38 @@ mtest5: mtest5.o liblmdb.a
 mtest6: mtest6.o liblmdb.a
 
 mdb.o: mdb.c lmdb.h midl.h
-        $(CC) $(CFLAGS) $(CPPFLAGS) -c mdb.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c mdb.c
 
 midl.o: midl.c midl.h
-        $(CC) $(CFLAGS) $(CPPFLAGS) -c midl.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c midl.c
 
 mdb.lo: mdb.c lmdb.h midl.h
-        $(CC) $(CFLAGS) -fPIC $(CPPFLAGS) -c mdb.c -o $@
+	$(CC) $(CFLAGS) -fPIC $(CPPFLAGS) -c mdb.c -o $@
 
 midl.lo: midl.c midl.h
-        $(CC) $(CFLAGS) -fPIC $(CPPFLAGS) -c midl.c -o $@
+	$(CC) $(CFLAGS) -fPIC $(CPPFLAGS) -c midl.c -o $@
 
 %:      %.o
-        $(CC) $(CFLAGS) $(LDFLAGS) $^ $(LDLIBS) -o $@
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 %.o:    %.c lmdb.h
-        $(CC) $(CFLAGS) $(CPPFLAGS) -c $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
 
 COV_FLAGS=-fprofile-arcs -ftest-coverage
 COV_OBJS=xmdb.o xmidl.o
 
 coverage: xmtest
-        for i in mtest*.c [0-9]*.c; do j=`basename \$$i .c`; $(MAKE) $$j.o; \
-                gcc -o x$$j $$j.o $(COV_OBJS) -pthread $(COV_FLAGS); \
-                rm -rf testdb; mkdir testdb; ./x$$j; done
-        gcov xmdb.c
-        gcov xmidl.c
+	for i in mtest*.c [0-9]*.c; do j=`basename \$$i .c`; $(MAKE) $$j.o; \
+		gcc -o x$$j $$j.o $(COV_OBJS) -pthread $(COV_FLAGS); \
+		rm -rf testdb; mkdir testdb; ./x$$j; done
+	gcov xmdb.c
+	gcov xmidl.c
 
 xmtest: mtest.o xmdb.o xmidl.o
-        gcc -o xmtest mtest.o xmdb.o xmidl.o -pthread $(COV_FLAGS)
+	gcc -o xmtest mtest.o xmdb.o xmidl.o -pthread $(COV_FLAGS)
 
 xmdb.o: mdb.c lmdb.h midl.h
-        $(CC) $(CFLAGS) -fPIC $(CPPFLAGS) -O0 $(COV_FLAGS) -c mdb.c -o $@
+	$(CC) $(CFLAGS) -fPIC $(CPPFLAGS) -O0 $(COV_FLAGS) -c mdb.c -o $@
 
 xmidl.o: midl.c midl.h
-        $(CC) $(CFLAGS) -fPIC $(CPPFLAGS) -O0 $(COV_FLAGS) -c midl.c -o $@
+	$(CC) $(CFLAGS) -fPIC $(CPPFLAGS) -O0 $(COV_FLAGS) -c midl.c -o $@
