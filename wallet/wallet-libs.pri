@@ -148,7 +148,7 @@ contains(BITCOIN_NEED_QT_PLUGINS, 1) {
     DEFINES += USE_LMDB
 
     message("Using lmdb...")
-    LIBS += -llmdb
+#    LIBS += -llmdb
 
     INCLUDEPATH += $$PWD/liblmdb
     macx: INCLUDEPATH += /usr/include /usr/local/opt/berkeley-db@4/include /usr/local/opt/boost/include /usr/local/opt/openssl/include
