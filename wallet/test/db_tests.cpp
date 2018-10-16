@@ -24,10 +24,13 @@ std::string RandomString(const int len)
 
 #ifdef USE_LMDB
 
+#define CUSTOM_LMDB_DB_SIZE (1 << 14)
 #include "../txdb-lmdb.h"
 
 TEST(lmdb_tests, basic)
 {
+    std::cout << "LMDB DB size: " << DB_DEFAULT_MAPSIZE << std::endl;
+
     CTxDB::DB_DIR = "test-txdb"; // avoid writing to the main database
 
     CTxDB::__deleteDb(); // clean up
@@ -46,6 +49,8 @@ TEST(lmdb_tests, basic)
 
     EXPECT_TRUE(db.Erase(k1));
     EXPECT_FALSE(db.Exists(k1));
+
+    db.Close();
 }
 
 TEST(lmdb_tests, basic_in_1_tx)
@@ -72,6 +77,8 @@ TEST(lmdb_tests, basic_in_1_tx)
 
     // uncommitted data shouldn't exist
     EXPECT_FALSE(db.Exists(k1));
+
+    db.Close();
 }
 
 TEST(lmdb_tests, many_inputs)
@@ -84,12 +91,12 @@ TEST(lmdb_tests, many_inputs)
 
     std::unordered_map<std::string, std::string> entries;
 
-    std::cout << mdb_env_get_maxkeysize(dbEnv.get()) << std::endl;
-
-    const uint64_t entriesCount = 1;
+    const uint64_t entriesCount = 100;
     for (uint64_t i = 0; i < entriesCount; i++) {
-        std::string k = RandomString(14);
-        std::string v = RandomString(14);
+        std::string k = RandomString(100);
+        std::string v = RandomString(1000000);
+        //        std::string k = "abcdefghijklmnopqrstuv";
+        //        std::string v = "abcdefghijklmn";
 
         if (entries.find(k) != entries.end()) {
             continue;
@@ -99,14 +106,67 @@ TEST(lmdb_tests, many_inputs)
 
         EXPECT_TRUE(db.Write(k, v));
         std::string out;
+
         EXPECT_TRUE(db.Read(k, out));
         EXPECT_EQ(out, v);
 
         EXPECT_TRUE(db.Exists(k));
     }
-    std::string tmp;
-    std::cout << db.Read(std::string("version"), tmp) << std::endl;
-    std::cout << tmp << std::endl;
+
+    for (const auto& pair : entries) {
+        std::string out;
+        EXPECT_TRUE(db.Read(pair.first, out));
+        EXPECT_EQ(out, pair.second);
+
+        EXPECT_TRUE(db.Exists(pair.first));
+    }
+    db.Close();
+}
+
+TEST(lmdb_tests, many_inputs_one_tx)
+{
+    CTxDB::DB_DIR = "test-txdb"; // avoid writing to the main database
+
+    CTxDB::__deleteDb(); // clean up
+
+    CTxDB db;
+
+    std::unordered_map<std::string, std::string> entries;
+
+    const uint64_t entriesCount = 100;
+
+    std::size_t keySize = 100;
+    std::size_t valSize = 1000000;
+
+    db.TxnBegin(keySize * valSize * 11 / 10);
+    for (uint64_t i = 0; i < entriesCount; i++) {
+        std::string k = RandomString(keySize);
+        std::string v = RandomString(valSize);
+
+        if (entries.find(k) != entries.end()) {
+            continue;
+        }
+
+        entries[k] = v;
+
+        EXPECT_TRUE(db.Write(k, v));
+        std::string out;
+
+        EXPECT_TRUE(db.Read(k, out));
+        EXPECT_EQ(out, v);
+
+        EXPECT_TRUE(db.Exists(k));
+    }
+    db.TxnCommit();
+
+    for (const auto& pair : entries) {
+        std::string out;
+        EXPECT_TRUE(db.Read(pair.first, out));
+        EXPECT_EQ(out, pair.second);
+
+        EXPECT_TRUE(db.Exists(pair.first));
+    }
+    db.Close();
 }
 
 #endif

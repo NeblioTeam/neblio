@@ -152,25 +152,26 @@ contains(BITCOIN_NEED_QT_PLUGINS, 1) {
 
     INCLUDEPATH += $$PWD/liblmdb
     macx: INCLUDEPATH += /usr/include /usr/local/opt/berkeley-db@4/include /usr/local/opt/boost/include /usr/local/opt/openssl/include
-    LIBS += $$PWD/liblmdb/liblmdb.a
     SOURCES += txdb-lmdb.cpp
-#    SOURCES += $$PWD/liblmdb/mdb.c
+#    SOURCES += $$PWD/liblmdb/mdb.c $$PWD/liblmdb/midl.c
 
     #NEBLIO_CONFIG += LMDB_TESTS
 
     !win32 {
+        LIBS += $$PWD/liblmdb/liblmdb.a
         # we use QMAKE_CXXFLAGS_RELEASE even without RELEASE=1 because we use RELEASE to indicate linking preferences not -O preferences
         genlmdb.commands = cd $$PWD/liblmdb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\" liblmdb.a
 #        contains( NEBLIO_CONFIG, LMDB_TESTS ) {
 #            genlmdb.commands += ./arena_test && ./cache_test && ./env_test && ./table_test && ./write_batch_test && ./coding_test && ./db_bench && ./fault_injection_test && ./issue178_test && ./autocompact_test && ./dbformat_test && ./filename_test && ./issue200_test && ./log_test && ./bloom_test && ./corruption_test && ./db_test && ./filter_block_test && ./recovery_test && ./version_edit_test && ./crc32c_test && ./hash_test && ./memenv_test && ./skiplist_test && ./version_set_test && ./c_test && ./env_posix_test
 #        }
     } else {
+        SOURCES += $$PWD/liblmdb/mdb.c $$PWD/liblmdb/midl.c
         # make an educated guess about what the ranlib command is called
         isEmpty(QMAKE_RANLIB) {
             QMAKE_RANLIB = $$replace(QMAKE_STRIP, strip, ranlib)
         }
         LIBS += -lshlwapi
-       # genlmdb.commands = cd $$PWD/lmdb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX TARGET_OS=OS_WINDOWS_CROSSCOMPILE $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\" liblmdb.a libmemenv.a && $$QMAKE_RANLIB $$PWD/liblmdb/liblmdb.a
+#        genlmdb.commands = cd $$PWD/liblmdb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) clean && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) liblmdb.a && $$QMAKE_RANLIB -t $$PWD/liblmdb/liblmdb.a
     }
     genlmdb.target = $$PWD/liblmdb/liblmdb.a
     genlmdb.depends = FORCE

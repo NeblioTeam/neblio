@@ -8,11 +8,11 @@
 
 #include "main.h"
 
+#include <atomic>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
-#include <atomic>
 
 #include "liblmdb/lmdb.h"
 
@@ -21,10 +21,14 @@
 #define ENABLE_AUTO_RESIZE
 
 extern std::unique_ptr<MDB_env, std::function<void(MDB_env*)>> dbEnv;
-extern std::unique_ptr<MDB_dbi, std::function<void(MDB_dbi*)>> txdb; // global pointer for lmdb object instance
+extern std::unique_ptr<MDB_dbi, std::function<void(MDB_dbi*)>>
+    txdb; // global pointer for lmdb database object instance
 
 constexpr static float DB_RESIZE_PERCENT = 0.9f;
 
+
+// this custom size is used in tests
+#ifndef CUSTOM_LMDB_DB_SIZE
 #if defined(__arm__)
 // force a value so it can compile with 32-bit ARM
 constexpr static uint64_t DB_DEFAULT_MAPSIZE = UINT64_C(1) << 31;
@@ -35,6 +39,9 @@ constexpr static uint64_t DB_DEFAULT_MAPSIZE = UINT64_C(1) << 30;
 constexpr static uint64_t DB_DEFAULT_MAPSIZE = UINT64_C(1) << 33;
 #endif
 #endif
+#else
+constexpr static uint64_t DB_DEFAULT_MAPSIZE = CUSTOM_LMDB_DB_SIZE;
+#endif
 
 const std::string LMDB_MAINDB = "maindb";
 
@@ -42,20 +49,25 @@ class CTxDB;
 
 void lmdb_resized(MDB_env* env);
 
-inline int lmdb_txn_begin(MDB_env *env, MDB_txn *parent, unsigned int flags, MDB_txn **txn)
+inline int lmdb_txn_begin(MDB_env* env, MDB_txn* parent, unsigned int flags, MDB_txn** txn)
 {
-  int res = mdb_txn_begin(env, parent, flags, txn);
-  if (res == MDB_MAP_RESIZED) {
-    lmdb_resized(env);
-    res = mdb_txn_begin(env, parent, flags, txn);
-  }
-  return res;
+    int res = mdb_txn_begin(env, parent, flags, txn);
+    if (res == MDB_MAP_RESIZED) {
+        lmdb_resized(env);
+        res = mdb_txn_begin(env, parent, flags, txn);
+    }
+    return res;
 }
 
 struct mdb_txn_safe
 {
     mdb_txn_safe(const bool check = true);
+    mdb_txn_safe(const mdb_txn_safe&) = delete;
+    mdb_txn_safe& operator=(const mdb_txn_safe&) = delete;
     ~mdb_txn_safe();
+
+    mdb_txn_safe(mdb_txn_safe&& other);
+    mdb_txn_safe& operator=(mdb_txn_safe&& other);
 
     void commit(std::string message = "");
     void commitIfValid(std::string message = "");
@@ -124,13 +136,12 @@ private:
 
     // A batch stores up writes and deletes for atomic application. When this
     // field is non-NULL, writes/deletes go there instead of directly to disk.
-    mdb_txn_safe activeBatch;
-    bool         fReadOnly;
-    int          nVersion;
+    std::unique_ptr<mdb_txn_safe> activeBatch;
+    bool                          fReadOnly;
+    int                           nVersion;
 
 protected:
 public:
-
     static void __deleteDb();
 
     // Returns true and sets (value,false) if activeBatch contains the given key
@@ -146,49 +157,31 @@ public:
         ssKey << key;
         std::string strValue;
 
-        bool readFromDb = true;
-        //        if (activeBatch) {
-        //            // First we must search for it in the currently pending set of
-        //            // changes to the db. If not found in the batch, go on to read disk.
-        //            bool deleted = false;
-        //            readFromDb   = ScanBatch(ssKey, &strValue, &deleted) == false;
-        //            if (deleted) {
-        //                return false;
-        //            }
-        //        }
-        mdb_txn_safe localTxn;
-        if (!activeBatch.rawPtr()) {
+        mdb_txn_safe localTxn(false);
+        if (!activeBatch) {
             localTxn = mdb_txn_safe();
-            lmdb_txn_begin(dbEnv.get(), nullptr, MDB_RDONLY, localTxn);
-        }
-
-        // only one of them should be active
-        assert(localTxn.rawPtr() == nullptr || activeBatch.rawPtr() == nullptr);
-
-        if (readFromDb) {
-            MDB_val kS = {ssKey.size(), (void*)ssKey.str().c_str()};
-            MDB_val vS;
-            if (auto ret = mdb_get((localTxn.rawPtr() ? localTxn : activeBatch), *pdb, &kS, &vS)) {
-                if (ret == MDB_NOTFOUND) {
-                    printf("Failed to read lmdb key %s as it doesn't exist\n", ssKey.str().c_str());
-                } else {
-                    printf("Failed to read lmdb key with an unknown error of code %i", ret);
-                }
-                if (localTxn.rawPtr()) {
-                    localTxn.abort();
-                }
-                return false;
+            if(auto res = lmdb_txn_begin(dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
+                printf("Failed to begin transaction at read with error code %i; and error code: %s\n", res, mdb_strerror(res));
             }
-            strValue.assign(static_cast<const char*>(vS.mv_data), vS.mv_size);
-            //            leveldb::Status status = pdb->Get(leveldb::ReadOptions(), ssKey.str(),
-            //            &strValue); if (!status.ok()) {
-            //                if (status.IsNotFound())
-            //                    return false;
-            //                // Some unexpected error.
-            //                printf("lmdb read failure: %s\n", status.ToString().c_str());
-            //                return false;
-            //            }
         }
+        // only one of them should be active
+        assert(localTxn.rawPtr() == nullptr || activeBatch == nullptr);
+
+        std::string keyBin = ssKey.str();
+        MDB_val     kS     = {keyBin.size(), (void*)(keyBin.c_str())};
+        MDB_val     vS     = {0, nullptr};
+        if (auto ret = mdb_get((!activeBatch ? localTxn : *activeBatch), *pdb, &kS, &vS)) {
+            if (ret == MDB_NOTFOUND) {
+                printf("Failed to read lmdb key %s as it doesn't exist\n", ssKey.str().c_str());
+            } else {
+                printf("Failed to read lmdb key with an unknown error of code %i; and error: %s\n", ret, mdb_strerror(ret));
+            }
+            if (localTxn.rawPtr()) {
+                localTxn.abort();
+            }
+            return false;
+        }
+        strValue.assign(static_cast<const char*>(vS.mv_data), vS.mv_size);
         // Unserialize value
         try {
             CDataStream ssValue(strValue.data(), strValue.data() + strValue.size(), SER_DISK,
@@ -204,8 +197,11 @@ public:
     template <typename K, typename T>
     bool Write(const K& key, const T& value)
     {
-        if (fReadOnly)
-            assert(!"Write called on database in read-only mode");
+        if (fReadOnly){
+            printf("Accessing lmdb write function in read only mode");
+            assert("Write called on database in read-only mode");
+            return false;
+        }
 
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         ssKey.reserve(1000);
@@ -214,28 +210,29 @@ public:
         ssValue.reserve(10000);
         ssValue << value;
 
-        if (CTxDB::need_resize()) {
+        // you can't resize the db when a tx is active
+        if (!activeBatch && CTxDB::need_resize()) {
             printf("LMDB memory map needs to be resized, doing that now.\n");
             CTxDB::do_resize();
         }
 
-        //        if (activeBatch) {
-        //            activeBatch->Put(ssKey.str(), ssValue.str());
-        //            return true;
-        //        }
-        mdb_txn_safe localTxn;
-        if (!activeBatch.rawPtr()) {
+        mdb_txn_safe localTxn(false);
+        if (!activeBatch) {
             localTxn = mdb_txn_safe();
-            lmdb_txn_begin(dbEnv.get(), nullptr, 0, localTxn);
+            if(auto res = lmdb_txn_begin(dbEnv.get(), nullptr, 0, localTxn)) {
+                printf("Failed to begin transaction at read with error code %i; and error: %s\n", res, mdb_strerror(res));
+            }
         }
 
         // only one of them should be active
-        assert(localTxn.rawPtr() == nullptr || activeBatch.rawPtr() == nullptr);
+        assert(localTxn.rawPtr() == nullptr || activeBatch == nullptr);
 
-        MDB_val kS = {ssKey.size(), (void*)ssKey.str().c_str()};
-        MDB_val vS = {ssValue.size(), (void*)ssValue.str().c_str()};
+        std::string keyBin = ssKey.str();
+        MDB_val     kS     = {keyBin.size(), (void*)(keyBin.c_str())};
+        std::string valBin = ssValue.str();
+        MDB_val     vS     = {valBin.size(), (void*)(valBin.c_str())};
 
-        if (auto ret = mdb_put((localTxn.rawPtr() ? localTxn : activeBatch), *pdb, &kS, &vS, 0)) {
+        if (auto ret = mdb_put((!activeBatch ? localTxn : *activeBatch), *pdb, &kS, &vS, 0)) {
             if (ret == MDB_MAP_FULL) {
                 printf("Failed to write key %s with lmdb, MDB_MAP_FULL\n", ssKey.str().c_str());
             } else {
@@ -246,12 +243,9 @@ public:
             }
             return false;
         }
-        //        leveldb::Status status = pdb->Put(leveldb::WriteOptions(), ssKey.str(), ssValue.str());
-        //        if (!status.ok()) {
-        //            printf("LevelDB write failure: %s\n", status.ToString().c_str());
-        //            return false;
-        //        }
-        localTxn.commitIfValid("Tx while writing");
+        if (localTxn.rawPtr()) {
+            localTxn.commitIfValid("Tx while writing");
+        }
         return true;
     }
 
@@ -260,26 +254,32 @@ public:
     {
         if (!pdb)
             return false;
-        if (fReadOnly)
-            assert(!"Erase called on database in read-only mode");
+        if (fReadOnly) {
+            printf("Accessing lmdb erase function in read-only mode.");
+            assert("Erase called on database in read-only mode");
+            return false;
+        }
 
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         ssKey.reserve(1000);
         ssKey << key;
 
-        mdb_txn_safe localTxn;
-        if (!activeBatch.rawPtr()) {
+        mdb_txn_safe localTxn(false);
+        if (!activeBatch) {
             localTxn = mdb_txn_safe();
-            lmdb_txn_begin(dbEnv.get(), nullptr, 0, localTxn);
+            if(auto res = lmdb_txn_begin(dbEnv.get(), nullptr, 0, localTxn)) {
+                printf("Failed to begin transaction at read with error code %i; and error: %s\n", res, mdb_strerror(res));
+            }
         }
 
         // only one of them should be active
-        assert(localTxn.rawPtr() == nullptr || activeBatch.rawPtr() == nullptr);
+        assert(localTxn.rawPtr() == nullptr || activeBatch == nullptr);
 
-        MDB_val kS = {ssKey.size(), (void*)ssKey.str().c_str()};
-        MDB_val vS;
+        std::string keyBin = ssKey.str();
+        MDB_val     kS     = {keyBin.size(), (void*)(keyBin.c_str())};
+        MDB_val     vS{0, nullptr};
 
-        if (auto ret = mdb_del((localTxn.rawPtr() ? localTxn : activeBatch), *pdb, &kS, &vS)) {
+        if (auto ret = mdb_del((!activeBatch ? localTxn : *activeBatch), *pdb, &kS, &vS)) {
             printf("Failed to delete entry with key %s with lmdb\n", ssKey.str().c_str());
             if (localTxn.rawPtr()) {
                 localTxn.abort();
@@ -287,12 +287,6 @@ public:
             return false;
         }
 
-        //        if (activeBatch) {
-        //            activeBatch->Delete(ssKey.str());
-        //            return true;
-        //        }
-        //        leveldb::Status status = pdb->Delete(leveldb::WriteOptions(), ssKey.str());
-        //        return (status.ok() || status.IsNotFound());
         localTxn.commitIfValid("Tx while erasing");
         return true;
     }
@@ -305,41 +299,35 @@ public:
         ssKey << key;
         std::string unused;
 
-        mdb_txn_safe localTxn;
-        if (!activeBatch.rawPtr()) {
+        mdb_txn_safe localTxn(false);
+        if (!activeBatch) {
             localTxn = mdb_txn_safe();
-            lmdb_txn_begin(dbEnv.get(), nullptr, MDB_RDONLY, localTxn);
+            if(auto res = lmdb_txn_begin(dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
+                printf("Failed to begin transaction at read with error code %i; and error: %s\n", res, mdb_strerror(res));
+            }
         }
 
         // only one of them should be active
-        assert(localTxn.rawPtr() == nullptr || activeBatch.rawPtr() == nullptr);
+        assert(localTxn.rawPtr() == nullptr || activeBatch == nullptr);
 
-        MDB_val kS = {ssKey.size(), (void*)ssKey.str().c_str()};
-        MDB_val vS;
-        if (auto ret = mdb_get((localTxn.rawPtr() ? localTxn : activeBatch), *pdb, &kS, &vS)) {
+        std::string keyBin = ssKey.str();
+        MDB_val     kS     = {keyBin.size(), (void*)(keyBin.c_str())};
+        MDB_val     vS{0, nullptr};
+
+        if (auto ret = mdb_get((!activeBatch ? localTxn : *activeBatch), *pdb, &kS, &vS)) {
             if (localTxn.rawPtr()) {
                 localTxn.abort();
             }
             if (ret == MDB_NOTFOUND) {
                 return false;
             } else {
-                printf("Failed to check whether key %s exists with an unknown error of code %i\n",
-                       ssKey.str().c_str(), ret);
+                printf("Failed to check whether key %s exists with an unknown error of code %i; and error: %s\n",
+                       ssKey.str().c_str(), ret, mdb_strerror(ret));
             }
             return false;
         } else {
             return true;
         }
-
-        //        if (activeBatch) {
-        //            bool deleted;
-        //            if (ScanBatch(ssKey, &unused, &deleted) && !deleted) {
-        //                return true;
-        //            }
-        //        }
-
-        //        leveldb::Status status = pdb->Get(leveldb::ReadOptions(), ssKey.str(), &unused);
-        //        return status.IsNotFound() == false;
     }
 
 public:
@@ -347,29 +335,19 @@ public:
                                     const std::string& error_string)
     {
         if (int res = mdb_dbi_open(txn, name, flags, &dbi)) {
-            printf("Error opening lmdb database. Error code: %d\n", res);
+            printf("Error opening lmdb database. Error code: %d; and error: %s\n", res, mdb_strerror(res));
             throw std::runtime_error(error_string + ": " + std::to_string(res));
         }
     }
 
     static bool need_resize(uint64_t threshold_size = 0);
     void        do_resize(uint64_t increase_size = 0);
-    bool        TxnBegin();
+    bool        TxnBegin(std::size_t required_size = 0);
     bool        TxnCommit();
-    bool        TxnAbort()
-    {
-        activeBatch.abort();
-        return true;
-    }
+    bool        TxnAbort();
 
-    bool ReadVersion(int& nVersion)
-    {
-        nVersion = 0;
-        return Read(std::string("version"), nVersion);
-    }
-
+    bool ReadVersion(int& nVersion);
     bool WriteVersion(int nVersion) { return Write(std::string("version"), nVersion); }
-
     bool ReadTxIndex(uint256 hash, CTxIndex& txindex);
     bool UpdateTxIndex(uint256 hash, const CTxIndex& txindex);
     bool ReadNTP1TxIndex(uint256 hash, DiskNTP1TxPos& txindex);

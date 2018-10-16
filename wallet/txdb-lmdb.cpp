@@ -8,7 +8,6 @@
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/version.hpp>
-#include <thread>
 
 #include "checkpoints.h"
 #include "kernel.h"
@@ -143,7 +142,7 @@ void CTxDB::do_resize(uint64_t increase_size)
 
     mdb_txn_safe::prevent_new_txns();
 
-    if (activeBatch.rawPtr()) {
+    if (activeBatch) {
         throw std::runtime_error(
             "attempting resize with write transaction in progress, this should not happen!");
     }
@@ -280,6 +279,7 @@ CTxDB::CTxDB(const char* pszMode)
         return;
     }
 
+    printf("Initializing lmdb with db size: %lu\n", DB_DEFAULT_MAPSIZE);
     bool fCreate = strchr(pszMode, 'c');
 
     //    options                   = GetOptions();
@@ -299,7 +299,10 @@ CTxDB::CTxDB(const char* pszMode)
             // lmdb instance destruction
             pdb = nullptr;
             txdb.reset();
-            activeBatch.abort();
+            if (activeBatch) {
+                activeBatch->abort();
+                activeBatch.reset();
+            }
 
             init_blockindex(true); // Remove directory and create new database
             pdb = txdb.get();
@@ -321,7 +324,10 @@ CTxDB::CTxDB(const char* pszMode)
 
 void CTxDB::Close()
 {
-    activeBatch.abort();
+    if (activeBatch) {
+        activeBatch->abort();
+        activeBatch.reset();
+    }
     txdb.reset();
     pdb = nullptr;
 }
@@ -334,23 +340,46 @@ void CTxDB::__deleteDb()
     }
 }
 
-bool CTxDB::TxnBegin()
+bool CTxDB::TxnBegin(size_t required_size)
 {
-    assert(activeBatch.rawPtr() == nullptr);
-    activeBatch = mdb_txn_safe();
-    lmdb_txn_begin(dbEnv.get(), nullptr, 0, activeBatch);
+    assert(activeBatch == nullptr);
+    if (CTxDB::need_resize(required_size)) {
+        printf("LMDB memory map needs to be resized, doing that now.\n");
+        CTxDB::do_resize(required_size);
+    }
+    activeBatch = std::unique_ptr<mdb_txn_safe>(new mdb_txn_safe);
+    if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, 0, *activeBatch)) {
+        printf("Failed to begin transaction at read with error code %i; with error: %s\n", res,
+               mdb_strerror(res));
+        activeBatch.reset();
+    }
     return true;
 }
 
 bool CTxDB::TxnCommit()
 {
-    assert(activeBatch.rawPtr() != nullptr);
-    activeBatch.commit();
-    //    if (!status.ok()) {
-    //        printf("LevelDB batch commit failure: %s\n", status.ToString().c_str());
-    //        return false;
-    //    }
+    assert(activeBatch);
+    if (activeBatch) {
+        activeBatch->commit();
+        activeBatch.reset();
+    }
     return true;
+}
+
+bool CTxDB::TxnAbort()
+{
+    assert(activeBatch);
+    if (activeBatch) {
+        activeBatch->abort();
+        activeBatch.reset();
+    }
+    return true;
+}
+
+bool CTxDB::ReadVersion(int& nVersion)
+{
+    nVersion = 0;
+    return Read(std::string("version"), nVersion);
 }
 
 bool CTxDB::ReadTxIndex(uint256 hash, CTxIndex& txindex)
@@ -503,10 +532,14 @@ bool CTxDB::LoadBlockIndex()
 
     MDB_cursor*  cursorRawPtr = nullptr;
     mdb_txn_safe localTxn;
-    localTxn = mdb_txn_safe();
-    lmdb_txn_begin(dbEnv.get(), nullptr, MDB_RDONLY, localTxn);
+    if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
+        return error("Failed to begin transaction at read with error code %i; and error: %s\n", res,
+                     mdb_strerror(res));
+    }
     if (auto rc = mdb_cursor_open(localTxn, *pdb, &cursorRawPtr)) {
-        return error("CTxDB::LoadBlockIndex() : Failed to open lmdb cursor with error code %d", rc);
+        return error(
+            "CTxDB::LoadBlockIndex() : Failed to open lmdb cursor with error code %d; and error: %s\n",
+            rc, mdb_strerror(rc));
     }
     std::unique_ptr<MDB_cursor, std::function<void(MDB_cursor*)>> cursorPtr(cursorRawPtr,
                                                                             [](MDB_cursor* p) {
@@ -517,8 +550,9 @@ bool CTxDB::LoadBlockIndex()
     // Seek to start key.
     CDataStream ssStartKey(SER_DISK, CLIENT_VERSION);
     ssStartKey << make_pair(string("blockindex"), uint256(0));
-    MDB_val key = {(size_t)ssStartKey.size(), (void*)ssStartKey.str().data()};
-    MDB_val data;
+    std::string keyBin = ssStartKey.str();
+    MDB_val     key    = {(size_t)ssStartKey.size(), (void*)keyBin.data()};
+    MDB_val     data;
 
     int firstItemRes = mdb_cursor_get(cursorPtr.get(), &key, &data, MDB_SET_RANGE);
 
@@ -582,6 +616,7 @@ bool CTxDB::LoadBlockIndex()
 
     } while (mdb_cursor_get(cursorRawPtr, &key, &data, MDB_NEXT) == 0);
     cursorPtr.reset();
+    localTxn.commit();
 
     if (fRequestShutdown)
         return true;
@@ -760,8 +795,9 @@ bool CTxDB::LoadBlockIndex()
 mdb_txn_safe::mdb_txn_safe(const bool check) : m_txn(nullptr), m_check(check)
 {
     if (check) {
-        while (creation_gate.test_and_set())
-            ;
+        while (creation_gate.test_and_set()) {
+            boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
+        }
         num_active_txns++;
         creation_gate.clear();
     }
@@ -790,6 +826,25 @@ mdb_txn_safe::~mdb_txn_safe()
     mdb_txn_abort(m_txn);
 
     num_active_txns--;
+}
+
+mdb_txn_safe& mdb_txn_safe::operator=(mdb_txn_safe&& other)
+{
+    m_txn             = other.m_txn;
+    m_batch_txn       = other.m_batch_txn;
+    m_check           = other.m_check;
+    other.m_check     = false;
+    other.m_txn       = nullptr;
+    other.m_batch_txn = false;
+    return *this;
+}
+
+mdb_txn_safe::mdb_txn_safe(mdb_txn_safe&& other)
+    : m_txn(other.m_txn), m_batch_txn(other.m_batch_txn), m_check(other.m_check)
+{
+    other.m_check     = false;
+    other.m_txn       = nullptr;
+    other.m_batch_txn = false;
 }
 
 void mdb_txn_safe::uncheck()
@@ -841,14 +896,14 @@ uint64_t mdb_txn_safe::num_active_tx() const { return num_active_txns; }
 void mdb_txn_safe::prevent_new_txns()
 {
     while (creation_gate.test_and_set()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
     }
 }
 
 void mdb_txn_safe::wait_no_active_txns()
 {
     while (num_active_txns > 0) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
     }
 }
 
