@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import multiprocessing as mp
 import neblio_ci_libs as nci
 
 
@@ -17,6 +18,8 @@ packages_to_install = \
 nci.install_packages_debian(packages_to_install)
 
 working_dir = os.getcwd()
+deploy_dir = os.path.join(os.environ['TRAVIS_BUILD_DIR'],'deploy', '')
+nci.mkdir_p(deploy_dir)
 
 mxe_path = "/mxe/mxe/"
 # download the toolchain for windows
@@ -48,7 +51,14 @@ os.chdir(working_dir)
 nci.mkdir_p(build_dir)
 os.chdir(build_dir)
 nci.call_with_err_code('i686-w64-mingw32.static-qmake-qt5 "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-wallet.pro')
-nci.call_with_err_code("make -j6")
+nci.call_with_err_code("make -j" + str(mp.cpu_count()))
+
+file_name = '$(date +%Y-%m-%d)---' + os.environ['TRAVIS_BRANCH'] + '-' + os.environ['TRAVIS_COMMIT'][:7] + '---neblio-Qt---windows.zip'
+
+nci.call_with_err_code('zip -j ' + file_name + ' ./wallet/release/neblio-qt.exe')
+nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)
+nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
+
 ################
 
 #back to working dir
