@@ -10,6 +10,7 @@
 
 #include <map>
 #include <string>
+#include <memory>
 #include <vector>
 
 #include <leveldb/db.h>
@@ -36,7 +37,6 @@ public:
     ~CTxDB() {
         // Note that this is not the same as Close() because it deletes only
         // data scoped to this TxDB object.
-        delete activeBatch;
     }
 
     // Destroys the underlying shared global state accessed by this TxDB.
@@ -48,7 +48,7 @@ private:
 
     // A batch stores up writes and deletes for atomic application. When this
     // field is non-NULL, writes/deletes go there instead of directly to disk.
-    leveldb::WriteBatch *activeBatch;
+    std::unique_ptr<leveldb::WriteBatch> activeBatch;
     leveldb::Options options;
     bool fReadOnly;
     int nVersion;
@@ -185,8 +185,7 @@ public:
     bool TxnCommit();
     bool TxnAbort()
     {
-        delete activeBatch;
-        activeBatch = NULL;
+        activeBatch.reset();
         return true;
     }
 

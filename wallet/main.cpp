@@ -1631,12 +1631,18 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
          ++mi) {
         try {
             const uint256& txHash = (*mi).first;
-            WriteNTP1TxToDiskFromRawTx(mapQueuedChangesTxs.at(txHash));
+
+            auto it = mapQueuedChangesTxs.find(txHash);
+            // not all transactions in this map are relevant to this list, some are inputs
+            if (it != mapQueuedChangesTxs.end()) {
+                WriteNTP1TxToDiskFromRawTx(it->second);
+            }
         } catch (std::exception& ex) {
-            printf("Error while writing NTP1 transaction to database in ConnectBlocks(): %s", ex.what());
+            printf("Error while writing NTP1 transaction to database in ConnectBlocks(): %s\n",
+                   ex.what());
         } catch (...) {
             printf("Error while writing NTP1 transaction to database in ConnectBlocks(). Unknown "
-                   "exception thrown");
+                   "exception thrown\n");
         }
         if (!txdb.UpdateTxIndex((*mi).first, (*mi).second))
             return error("ConnectBlock() : UpdateTxIndex failed");

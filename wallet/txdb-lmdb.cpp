@@ -9,35 +9,163 @@
 #include <boost/filesystem/fstream.hpp>
 #include <boost/version.hpp>
 
-#include <leveldb/cache.h>
-#include <leveldb/env.h>
-#include <leveldb/filter_policy.h>
-#include <memenv/memenv.h>
-
 #include "checkpoints.h"
 #include "kernel.h"
 #include "main.h"
 #include "txdb.h"
 #include "util.h"
 
+std::unique_ptr<MDB_env, std::function<void(MDB_env*)>> dbEnv;
+std::unique_ptr<MDB_dbi, std::function<void(MDB_dbi*)>> txdb; // global pointer for lmdb object instance
+
 using namespace std;
 using namespace boost;
 
-std::unique_ptr<leveldb::DB> txdb; // global pointer for LevelDB object instance
+boost::filesystem::path CTxDB::DB_DIR = "txlmdb";
 
-static leveldb::Options GetOptions()
+std::atomic<uint64_t> mdb_txn_safe::num_active_txns{0};
+std::atomic_flag      mdb_txn_safe::creation_gate = ATOMIC_FLAG_INIT;
+
+// threshold_size is used for batch transactions
+bool CTxDB::need_resize(uint64_t threshold_size)
 {
-    leveldb::Options options;
-    int              nCacheSizeMB = GetArg("-dbcache", 25);
-    options.block_cache           = leveldb::NewLRUCache(nCacheSizeMB * 1048576);
-    options.filter_policy         = leveldb::NewBloomFilterPolicy(10);
-    return options;
+    printf("CTxDB::%s\n", __func__);
+#if defined(ENABLE_AUTO_RESIZE)
+    MDB_envinfo mei;
+
+    mdb_env_info(dbEnv.get(), &mei);
+
+    MDB_stat mst;
+
+    mdb_env_stat(dbEnv.get(), &mst);
+
+    // size_used doesn't include data yet to be committed, which can be
+    // significant size during batch transactions. For that, we estimate the size
+    // needed at the beginning of the batch transaction and pass in the
+    // additional size needed.
+    uint64_t size_used = mst.ms_psize * mei.me_last_pgno;
+
+    printf("DB map size:     %zu\n", mei.me_mapsize);
+    printf("Space used:      %zu\n", size_used);
+    printf("Space remaining: %zu\n", mei.me_mapsize - size_used);
+    printf("Size threshold:  %zu\n", threshold_size);
+    float resize_percent = DB_RESIZE_PERCENT;
+    printf("Percent used: %.04f  Percent threshold: %.04f\n", ((double)size_used / mei.me_mapsize),
+           resize_percent);
+
+    if (threshold_size > 0) {
+        if (mei.me_mapsize - size_used < threshold_size) {
+            printf("Threshold met (size-based)\n");
+            return true;
+        } else
+            return false;
+    }
+
+    if ((double)size_used / mei.me_mapsize > resize_percent) {
+        printf("Threshold met (percent-based)\n");
+        return true;
+    }
+    return false;
+#else
+    return false;
+#endif
 }
 
-void init_blockindex(leveldb::Options& options, bool fRemoveOld = false)
+void lmdb_resized(MDB_env* env)
+{
+    // TODO: use RAII to restore allowing txns
+    mdb_txn_safe::prevent_new_txns();
+
+    printf("LMDB map resize detected.\n");
+
+    MDB_envinfo mei;
+
+    mdb_env_info(env, &mei);
+    uint64_t old = mei.me_mapsize;
+
+    mdb_txn_safe::wait_no_active_txns();
+
+    int result = mdb_env_set_mapsize(env, 0);
+    if (result)
+        printf("Failed to set new mapsize: %d\n", result);
+
+    mdb_env_info(env, &mei);
+    uint64_t new_mapsize = mei.me_mapsize;
+
+    std::stringstream ss;
+    ss << "LMDB Mapsize increased."
+       << "  Old: " << old / (1024 * 1024) << "MiB"
+       << ", New: " << new_mapsize / (1024 * 1024) << "MiB";
+    printf("%s\n", ss.str().c_str());
+
+    mdb_txn_safe::allow_new_txns();
+}
+
+void CTxDB::do_resize(uint64_t increase_size)
+{
+    printf("CTxDB::%s\n", __func__);
+    const uint64_t add_size = 1LL << 30;
+
+    // check disk capacity
+    try {
+        boost::filesystem::path       path(GetDataDir() / DB_DIR);
+        boost::filesystem::space_info si = boost::filesystem::space(path);
+        if (si.available < add_size) {
+            stringstream ss;
+            ss << "!! WARNING: Insufficient free space to extend database !!: " << (si.available >> 20L)
+               << " MB available, " << (add_size >> 20L) << " MB needed";
+            throw std::runtime_error(ss.str());
+        }
+    } catch (...) {
+        // print something but proceed.
+        throw std::runtime_error("Unable to query free disk space.");
+    }
+
+    MDB_envinfo mei;
+
+    mdb_env_info(dbEnv.get(), &mei);
+
+    MDB_stat mst;
+
+    mdb_env_stat(dbEnv.get(), &mst);
+
+    // add 1Gb per resize, instead of doing a percentage increase
+    uint64_t new_mapsize = (double)mei.me_mapsize + add_size;
+
+    // If given, use increase_size instead of above way of resizing.
+    // This is currently used for increasing by an estimated size at start of new
+    // batch txn.
+    if (increase_size > 0)
+        new_mapsize = mei.me_mapsize + increase_size;
+
+    new_mapsize += (new_mapsize % mst.ms_psize);
+
+    mdb_txn_safe::prevent_new_txns();
+
+    if (activeBatch) {
+        throw std::runtime_error(
+            "attempting resize with write transaction in progress, this should not happen!");
+    }
+
+    mdb_txn_safe::wait_no_active_txns();
+
+    int result = mdb_env_set_mapsize(dbEnv.get(), new_mapsize);
+    if (result)
+        throw std::runtime_error("Failed to set new mapsize: " + std::to_string(result));
+
+    std::stringstream ss;
+    ss << "LMDB Mapsize increased."
+       << "  Old: " << mei.me_mapsize / (1024 * 1024) << "MiB"
+       << ", New: " << new_mapsize / (1024 * 1024) << "MiB";
+    printf("%s", ss.str().c_str());
+
+    mdb_txn_safe::allow_new_txns();
+}
+
+void CTxDB::init_blockindex(bool fRemoveOld)
 {
     // First time init.
-    filesystem::path directory = GetDataDir() / "txleveldb";
+    filesystem::path directory = GetDataDir() / DB_DIR;
 
     if (fRemoveOld) {
         filesystem::remove_all(directory); // remove directory
@@ -77,14 +205,65 @@ void init_blockindex(leveldb::Options& options, bool fRemoveOld = false)
         }
     }
 
-    filesystem::create_directory(directory);
-    printf("Opening LevelDB in %s\n", directory.string().c_str());
-    leveldb::DB*    txdbPtr = nullptr;
-    leveldb::Status status  = leveldb::DB::Open(options, directory.string(), &txdbPtr);
-    txdb.reset(txdbPtr);
-    if (!status.ok()) {
-        throw runtime_error(strprintf("init_blockindex(): error opening database environment %s",
-                                      status.ToString().c_str()));
+    filesystem::create_directories(directory);
+    printf("Opening lmdb in %s\n", directory.string().c_str());
+    MDB_env* envPtr = nullptr;
+    if (const int rc = mdb_env_create(&envPtr)) {
+        std::cerr << "Error env create" << std::endl;
+    }
+    dbEnv = std::unique_ptr<MDB_env, std::function<void(MDB_env*)>>(envPtr, [](MDB_env* p) {
+        if (p)
+            mdb_env_close(p);
+    });
+
+    mdb_env_set_maxdbs(dbEnv.get(), 20);
+
+    if (auto result = mdb_env_open(dbEnv.get(), directory.string().c_str(), /*MDB_NOTLS*/ 0, 0644)) {
+        throw std::runtime_error("Failed to open lmdb environment: " + std::to_string(result));
+    }
+
+    MDB_envinfo mei;
+    mdb_env_info(dbEnv.get(), &mei);
+    std::size_t currMapSize = mei.me_mapsize;
+
+    std::size_t mapSize = DB_DEFAULT_MAPSIZE;
+
+    if (currMapSize < mapSize) {
+        if (auto mapSizeErr = mdb_env_set_mapsize(dbEnv.get(), mapSize))
+            throw std::runtime_error("Error: set max memory map size failed: " +
+                                     std::to_string(mapSizeErr));
+
+        mdb_env_info(dbEnv.get(), &mei);
+        currMapSize = (double)mei.me_mapsize;
+        printf("LMDB memory map size: %zu\n", currMapSize);
+    }
+
+    if (CTxDB::need_resize()) {
+        printf("LMDB memory map needs to be resized, doing that now.\n");
+        CTxDB::do_resize();
+    }
+
+    mdb_txn_safe txn;
+    if (auto mdb_res = mdb_txn_begin(dbEnv.get(), NULL, 0, txn)) {
+        throw std::runtime_error("Failed to create a transaction for the db: " +
+                                 std::to_string(mdb_res));
+    }
+
+    txdb = std::unique_ptr<MDB_dbi, std::function<void(MDB_dbi*)>>(new MDB_dbi, [](MDB_dbi* p) {
+        if (p) {
+            mdb_close(dbEnv.get(), *p);
+            delete p;
+        }
+    });
+
+    CTxDB::lmdb_db_open(txn, LMDB_MAINDB.c_str(), MDB_CREATE, *txdb,
+                        "Failed to open db handle for m_blocks");
+
+    // commit the transaction
+    txn.commit();
+
+    if (!txdb) {
+        throw std::runtime_error("LMDB nullptr after opening the database.");
     }
 }
 
@@ -93,7 +272,6 @@ void init_blockindex(leveldb::Options& options, bool fRemoveOld = false)
 CTxDB::CTxDB(const char* pszMode)
 {
     assert(pszMode);
-    activeBatch.reset();
     fReadOnly = (!strchr(pszMode, '+') && !strchr(pszMode, 'w'));
 
     if (txdb) {
@@ -101,13 +279,14 @@ CTxDB::CTxDB(const char* pszMode)
         return;
     }
 
+    printf("Initializing lmdb with db size: %lu\n", DB_DEFAULT_MAPSIZE);
     bool fCreate = strchr(pszMode, 'c');
 
-    options                   = GetOptions();
-    options.create_if_missing = fCreate;
-    options.filter_policy     = leveldb::NewBloomFilterPolicy(10);
+    //    options                   = GetOptions();
+    //    options.create_if_missing = fCreate;
+    //    options.filter_policy     = leveldb::NewBloomFilterPolicy(10);
 
-    init_blockindex(options); // Init directory
+    init_blockindex(); // Init directory
     pdb = txdb.get();
 
     if (Exists(string("version"))) {
@@ -117,12 +296,15 @@ CTxDB::CTxDB(const char* pszMode)
         if (nVersion < DATABASE_VERSION) {
             printf("Required index version is %d, removing old database\n", DATABASE_VERSION);
 
-            // Leveldb instance destruction
+            // lmdb instance destruction
             pdb = nullptr;
             txdb.reset();
-            activeBatch.reset();
+            if (activeBatch) {
+                activeBatch->abort();
+                activeBatch.reset();
+            }
 
-            init_blockindex(options, true); // Remove directory and create new database
+            init_blockindex(true); // Remove directory and create new database
             pdb = txdb.get();
 
             bool fTmp = fReadOnly;
@@ -137,86 +319,67 @@ CTxDB::CTxDB(const char* pszMode)
         fReadOnly = fTmp;
     }
 
-    printf("Opened LevelDB successfully\n");
+    printf("Opened LMDB successfully\n");
 }
 
 void CTxDB::Close()
 {
+    if (activeBatch) {
+        activeBatch->abort();
+        activeBatch.reset();
+    }
     txdb.reset();
     pdb = nullptr;
-    delete options.filter_policy;
-    options.filter_policy = nullptr;
-    delete options.block_cache;
-    options.block_cache = nullptr;
-    activeBatch.reset();
 }
 
-bool CTxDB::TxnBegin()
+void CTxDB::__deleteDb()
 {
-    assert(!activeBatch);
-    activeBatch.reset(new leveldb::WriteBatch());
+    try {
+        boost::filesystem::remove_all(GetDataDir() / DB_DIR);
+    } catch (...) {
+    }
+}
+
+bool CTxDB::TxnBegin(size_t required_size)
+{
+    assert(activeBatch == nullptr);
+    if (CTxDB::need_resize(required_size)) {
+        printf("LMDB memory map needs to be resized, doing that now.\n");
+        CTxDB::do_resize(required_size);
+    }
+    activeBatch = std::unique_ptr<mdb_txn_safe>(new mdb_txn_safe);
+    if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, 0, *activeBatch)) {
+        printf("Failed to begin transaction at read with error code %i; with error: %s\n", res,
+               mdb_strerror(res));
+        activeBatch.reset();
+    }
     return true;
 }
 
 bool CTxDB::TxnCommit()
 {
     assert(activeBatch);
-    leveldb::Status status = pdb->Write(leveldb::WriteOptions(), activeBatch.get());
-    activeBatch.reset();
-    activeBatch = nullptr;
-    if (!status.ok()) {
-        printf("LevelDB batch commit failure: %s\n", status.ToString().c_str());
-        return false;
+    if (activeBatch) {
+        activeBatch->commit();
+        activeBatch.reset();
     }
     return true;
 }
 
-class CBatchScanner : public leveldb::WriteBatch::Handler
-{
-public:
-    std::string  needle;
-    bool*        deleted;
-    std::string* foundValue;
-    bool         foundEntry;
-
-    CBatchScanner() : foundEntry(false) {}
-
-    virtual void Put(const leveldb::Slice& key, const leveldb::Slice& value)
-    {
-        if (key.ToString() == needle) {
-            foundEntry  = true;
-            *deleted    = false;
-            *foundValue = value.ToString();
-        }
-    }
-
-    virtual void Delete(const leveldb::Slice& key)
-    {
-        if (key.ToString() == needle) {
-            foundEntry = true;
-            *deleted   = true;
-        }
-    }
-};
-
-// When performing a read, if we have an active batch we need to check it first
-// before reading from the database, as the rest of the code assumes that once
-// a database transaction begins reads are consistent with it. It would be good
-// to change that assumption in future and avoid the performance hit, though in
-// practice it does not appear to be large.
-bool CTxDB::ScanBatch(const CDataStream& key, string* value, bool* deleted) const
+bool CTxDB::TxnAbort()
 {
     assert(activeBatch);
-    *deleted = false;
-    CBatchScanner scanner;
-    scanner.needle         = key.str();
-    scanner.deleted        = deleted;
-    scanner.foundValue     = value;
-    leveldb::Status status = activeBatch->Iterate(&scanner);
-    if (!status.ok()) {
-        throw runtime_error(status.ToString());
+    if (activeBatch) {
+        activeBatch->abort();
+        activeBatch.reset();
     }
-    return scanner.foundEntry;
+    return true;
+}
+
+bool CTxDB::ReadVersion(int& nVersion)
+{
+    nVersion = 0;
+    return Read(std::string("version"), nVersion);
 }
 
 bool CTxDB::ReadTxIndex(uint256 hash, CTxIndex& txindex)
@@ -350,6 +513,11 @@ static CBlockIndex* InsertBlockIndex(uint256 hash)
     return pindexNew;
 }
 
+std::string LmdbValToString(const MDB_val& val)
+{
+    return std::string((const char*)val.mv_data, val.mv_size);
+}
+
 bool CTxDB::LoadBlockIndex()
 {
     if (mapBlockIndex.size() > 0) {
@@ -357,21 +525,51 @@ bool CTxDB::LoadBlockIndex()
         // from BDB.
         return true;
     }
+
     // The block index is an in-memory structure that maps hashes to on-disk
     // locations where the contents of the block can be found. Here, we scan it
     // out of the DB and into mapBlockIndex.
-    std::unique_ptr<leveldb::Iterator> iterator(pdb->NewIterator(leveldb::ReadOptions()));
+
+    MDB_cursor*  cursorRawPtr = nullptr;
+    mdb_txn_safe localTxn;
+    if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
+        return error("Failed to begin transaction at read with error code %i; and error: %s\n", res,
+                     mdb_strerror(res));
+    }
+    if (auto rc = mdb_cursor_open(localTxn, *pdb, &cursorRawPtr)) {
+        return error(
+            "CTxDB::LoadBlockIndex() : Failed to open lmdb cursor with error code %d; and error: %s\n",
+            rc, mdb_strerror(rc));
+    }
+    std::unique_ptr<MDB_cursor, std::function<void(MDB_cursor*)>> cursorPtr(cursorRawPtr,
+                                                                            [](MDB_cursor* p) {
+                                                                                if (p)
+                                                                                    mdb_cursor_close(p);
+                                                                            });
+
     // Seek to start key.
     CDataStream ssStartKey(SER_DISK, CLIENT_VERSION);
     ssStartKey << make_pair(string("blockindex"), uint256(0));
-    iterator->Seek(ssStartKey.str());
+    std::string keyBin = ssStartKey.str();
+    MDB_val     key    = {(size_t)ssStartKey.size(), (void*)keyBin.data()};
+    MDB_val     data;
+
+    int firstItemRes = mdb_cursor_get(cursorPtr.get(), &key, &data, MDB_SET_RANGE);
+
     // Now read each entry.
-    while (iterator->Valid()) {
+    do {
+        if (firstItemRes) {
+            break;
+        }
+
+        std::string keyStr = LmdbValToString(key);
+        std::string valStr = LmdbValToString(data);
+
         // Unpack keys and values.
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        ssKey.write(iterator->key().data(), iterator->key().size());
+        ssKey.write(keyStr.data(), keyStr.size());
         CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        ssValue.write(iterator->value().data(), iterator->value().size());
+        ssValue.write(valStr.data(), valStr.size());
         string strType;
         ssKey >> strType;
         // Did we reach the end of the data to read?
@@ -408,7 +606,7 @@ bool CTxDB::LoadBlockIndex()
             pindexGenesisBlock = pindexNew;
 
         if (!pindexNew->CheckIndex()) {
-            iterator.reset();
+            cursorPtr.reset();
             return error("LoadBlockIndex() : CheckIndex failed at %d", pindexNew->nHeight);
         }
 
@@ -416,9 +614,9 @@ bool CTxDB::LoadBlockIndex()
         if (pindexNew->IsProofOfStake())
             setStakeSeen.insert(make_pair(pindexNew->prevoutStake, pindexNew->nStakeTime));
 
-        iterator->Next();
-    }
-    iterator.reset();
+    } while (mdb_cursor_get(cursorRawPtr, &key, &data, MDB_NEXT) == 0);
+    cursorPtr.reset();
+    localTxn.commit();
 
     if (fRequestShutdown)
         return true;
@@ -593,3 +791,120 @@ bool CTxDB::LoadBlockIndex()
 
     return true;
 }
+
+mdb_txn_safe::mdb_txn_safe(const bool check) : m_txn(nullptr), m_check(check)
+{
+    if (check) {
+        while (creation_gate.test_and_set()) {
+            boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
+        }
+        num_active_txns++;
+        creation_gate.clear();
+    }
+}
+
+mdb_txn_safe::~mdb_txn_safe()
+{
+    if (!m_check)
+        return;
+    printf("mdb_txn_safe: destructor\n");
+    if (m_txn != nullptr) {
+        if (m_batch_txn) // this is a batch txn and should have been handled before this point for safety
+        {
+            printf("WARNING: mdb_txn_safe: m_txn is a batch txn and it's not NULL in destructor - "
+                   "calling mdb_txn_abort()\n");
+        } else {
+            // Example of when this occurs: a lookup fails, so a read-only txn is
+            // aborted through this destructor. However, successful read-only txns
+            // ideally should have been committed when done and not end up here.
+            //
+            // NOTE: not sure if this is ever reached for a non-batch write
+            // transaction, but it's probably not ideal if it did.
+            printf("mdb_txn_safe: m_txn not NULL in destructor - calling mdb_txn_abort()\n");
+        }
+    }
+    mdb_txn_abort(m_txn);
+
+    num_active_txns--;
+}
+
+mdb_txn_safe& mdb_txn_safe::operator=(mdb_txn_safe&& other)
+{
+    m_txn             = other.m_txn;
+    m_batch_txn       = other.m_batch_txn;
+    m_check           = other.m_check;
+    other.m_check     = false;
+    other.m_txn       = nullptr;
+    other.m_batch_txn = false;
+    return *this;
+}
+
+mdb_txn_safe::mdb_txn_safe(mdb_txn_safe&& other)
+    : m_txn(other.m_txn), m_batch_txn(other.m_batch_txn), m_check(other.m_check)
+{
+    other.m_check     = false;
+    other.m_txn       = nullptr;
+    other.m_batch_txn = false;
+}
+
+void mdb_txn_safe::uncheck()
+{
+    num_active_txns--;
+    m_check = false;
+}
+
+void mdb_txn_safe::commit(std::string message)
+{
+    if (message.size() == 0) {
+        message = "Failed to commit a transaction to the db";
+    }
+
+    if (auto result = mdb_txn_commit(m_txn)) {
+        m_txn = nullptr;
+        throw std::runtime_error(message + ": " + std::to_string(result));
+    }
+    m_txn = nullptr;
+}
+
+void mdb_txn_safe::commitIfValid(string message)
+{
+    if (m_txn) {
+        commit(message);
+    }
+}
+
+void mdb_txn_safe::abort()
+{
+    printf("mdb_txn_safe: abort()\n");
+    if (m_txn != nullptr) {
+        mdb_txn_abort(m_txn);
+        m_txn = nullptr;
+    } else {
+        printf("WARNING: mdb_txn_safe: abort() called, but m_txn is NULL\n");
+    }
+}
+
+void mdb_txn_safe::abortIfValid()
+{
+    if (m_txn) {
+        abort();
+    }
+}
+
+uint64_t mdb_txn_safe::num_active_tx() const { return num_active_txns; }
+
+void mdb_txn_safe::prevent_new_txns()
+{
+    while (creation_gate.test_and_set()) {
+        boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
+    }
+}
+
+void mdb_txn_safe::wait_no_active_txns()
+{
+    while (num_active_txns > 0) {
+        boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
+    }
+}
+
+void mdb_txn_safe::allow_new_txns() { creation_gate.clear(); }
