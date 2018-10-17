@@ -12,7 +12,7 @@ os.chdir(deploy_dir)
 
 # Download our ccache file, if it does not exist, skip building
 try:
-  url = 'https://neblio-build-staging.ams3.cdn.digitaloceanspaces.com/' + build_cache_name
+  url = 'https://neblio-build-staging.ams3.digitaloceanspaces.com/' + build_cache_name
   response = urllib2.urlopen(url)
   with open(build_cache_name, 'wb') as f: f.write(response.read())
 except urllib2.HTTPError as err:
