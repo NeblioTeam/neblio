@@ -144,6 +144,8 @@ unsigned int ComputeMinWork(unsigned int nBase, int64_t nTime);
 unsigned int ComputeMinStake(unsigned int nBase, int64_t nTime, unsigned int nBlockTime);
 int          GetNumBlocksOfPeers();
 bool         IsInitialBlockDownload();
+bool         IsInitialBlockDownload_tolerant();
+bool         __IsInitialBlockDownload_internal();
 std::string  GetWarnings(std::string strFor);
 bool         GetTransaction(const uint256& hash, CTransaction& tx, uint256& hashBlock);
 uint256      WantedByOrphan(const CBlock* pblockOrphan);

@@ -1177,9 +1177,10 @@ int GetNumBlocksOfPeers()
     return std::max(cPeerBlockCounts.median(), Checkpoints::GetTotalBlocksEstimate());
 }
 
-bool IsInitialBlockDownload()
+// DO NOT call this function it's NOT thread-safe. Use IsInitialBlockDownload or
+// IsInitialBlockDownload_tolerant
+bool __IsInitialBlockDownload_internal()
 {
-    LOCK(cs_main);
     if (pindexBest == NULL || nBestHeight < Checkpoints::GetTotalBlocksEstimate())
         return true;
     static int64_t      nLastUpdate;
@@ -1189,6 +1190,21 @@ bool IsInitialBlockDownload()
         nLastUpdate    = GetTime();
     }
     return (GetTime() - nLastUpdate < 15 && pindexBest->GetBlockTime() < GetTime() - 8 * 60 * 60);
+}
+bool IsInitialBlockDownload_tolerant()
+{
+    // will try to lock. If failed, will return false
+    TRY_LOCK(cs_main, lockMain);
+    if (!lockMain) {
+        return false;
+    }
+    return __IsInitialBlockDownload_internal();
+}
+
+bool IsInitialBlockDownload()
+{
+    LOCK(cs_main);
+    return __IsInitialBlockDownload_internal();
 }
 
 void static InvalidChainFound(CBlockIndex* pindexNew)
@@ -1629,21 +1645,22 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
     // Write queued txindex changes
     for (map<uint256, CTxIndex>::iterator mi = mapQueuedChanges.begin(); mi != mapQueuedChanges.end();
          ++mi) {
-        try {
-            const uint256& txHash = (*mi).first;
+        //        try {
+        //            const uint256& txHash = (*mi).first;
 
-            auto it = mapQueuedChangesTxs.find(txHash);
-            // not all transactions in this map are relevant to this list, some are inputs
-            if (it != mapQueuedChangesTxs.end()) {
-                WriteNTP1TxToDiskFromRawTx(it->second);
-            }
-        } catch (std::exception& ex) {
-            printf("Error while writing NTP1 transaction to database in ConnectBlocks(): %s\n",
-                   ex.what());
-        } catch (...) {
-            printf("Error while writing NTP1 transaction to database in ConnectBlocks(). Unknown "
-                   "exception thrown\n");
-        }
+        //            auto it = mapQueuedChangesTxs.find(txHash);
+        //            // not all transactions in this map are relevant to this list, some are inputs
+        //            if (it != mapQueuedChangesTxs.end()) {
+        //                WriteNTP1TxToDiskFromRawTx(it->second);
+        //            }
+        //        } catch (std::exception& ex) {
+        //            printf("Error while writing NTP1 transaction to database in ConnectBlocks(): %s\n",
+        //                   ex.what());
+        //        } catch (...) {
+        //            printf("Error while writing NTP1 transaction to database in ConnectBlocks().
+        //            Unknown "
+        //                   "exception thrown\n");
+        //        }
         if (!txdb.UpdateTxIndex((*mi).first, (*mi).second))
             return error("ConnectBlock() : UpdateTxIndex failed");
     }
