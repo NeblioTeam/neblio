@@ -227,6 +227,7 @@ public:
         // only one of them should be active
         assert(localTxn.rawPtr() == nullptr || activeBatch == nullptr);
 
+        // TODO: bind to const reference to avoid copying
         std::string keyBin = ssKey.str();
         MDB_val     kS     = {keyBin.size(), (void*)(keyBin.c_str())};
         std::string valBin = ssValue.str();
