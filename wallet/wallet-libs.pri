@@ -118,7 +118,7 @@ contains(BITCOIN_NEED_QT_PLUGINS, 1) {
     DEFINES += USE_LEVELDB
 
     INCLUDEPATH += $$PWD/leveldb/include $$PWD/leveldb/helpers
-    macx: INCLUDEPATH += /usr/local/opt/berkeley-db@4/include /usr/local/opt/boost/include /usr/local/opt/openssl/include
+    macx: INCLUDEPATH += /usr/local/opt/berkeley-db@4/include /usr/local/opt/boost@1.60/include /usr/local/opt/openssl/include
     LIBS += $$PWD/leveldb/libleveldb.a $$PWD/leveldb/libmemenv.a
     SOURCES += txdb-leveldb.cpp
 
@@ -153,7 +153,7 @@ contains(BITCOIN_NEED_QT_PLUGINS, 1) {
 #    LIBS += -llmdb
 
     INCLUDEPATH += $$PWD/liblmdb
-    macx: INCLUDEPATH += /usr/local/opt/berkeley-db@4/include /usr/local/opt/boost/include /usr/local/opt/openssl/include
+    macx: INCLUDEPATH += /usr/local/opt/berkeley-db@4/include /usr/local/opt/boost@1.60/include /usr/local/opt/openssl/include
     SOURCES += txdb-lmdb.cpp
 #    SOURCES += $$PWD/liblmdb/mdb.c $$PWD/liblmdb/midl.c
 
