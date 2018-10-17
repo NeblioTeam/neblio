@@ -118,7 +118,7 @@ contains(BITCOIN_NEED_QT_PLUGINS, 1) {
     DEFINES += USE_LEVELDB
 
     INCLUDEPATH += $$PWD/leveldb/include $$PWD/leveldb/helpers
-    macx: INCLUDEPATH += /usr/include /usr/local/opt/berkeley-db@4/include /usr/local/opt/boost/include /usr/local/opt/openssl/include
+    macx: INCLUDEPATH += /usr/local/opt/berkeley-db@4/include /usr/local/opt/boost@1.60/include /usr/local/opt/openssl/include
     LIBS += $$PWD/leveldb/libleveldb.a $$PWD/leveldb/libmemenv.a
     SOURCES += txdb-leveldb.cpp
 
@@ -153,7 +153,7 @@ contains(BITCOIN_NEED_QT_PLUGINS, 1) {
 #    LIBS += -llmdb
 
     INCLUDEPATH += $$PWD/liblmdb
-    macx: INCLUDEPATH += /usr/include /usr/local/opt/berkeley-db@4/include /usr/local/opt/boost/include /usr/local/opt/openssl/include
+    macx: INCLUDEPATH += /usr/local/opt/berkeley-db@4/include /usr/local/opt/boost@1.60/include /usr/local/opt/openssl/include
     SOURCES += txdb-lmdb.cpp
 #    SOURCES += $$PWD/liblmdb/mdb.c $$PWD/liblmdb/midl.c
 
@@ -162,7 +162,8 @@ contains(BITCOIN_NEED_QT_PLUGINS, 1) {
     !win32 {
         LIBS += $$PWD/liblmdb/liblmdb.a
         # we use QMAKE_CXXFLAGS_RELEASE even without RELEASE=1 because we use RELEASE to indicate linking preferences not -O preferences
-        genlmdb.commands = cd $$PWD/liblmdb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\" liblmdb.a
+        #genlmdb.commands = cd $$PWD/liblmdb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\" liblmdb.a
+        genlmdb.commands = cd $$PWD/liblmdb && CC=$$QMAKE_CC $(MAKE) liblmdb.a
 #        contains( NEBLIO_CONFIG, LMDB_TESTS ) {
 #            genlmdb.commands += ./arena_test && ./cache_test && ./env_test && ./table_test && ./write_batch_test && ./coding_test && ./db_bench && ./fault_injection_test && ./issue178_test && ./autocompact_test && ./dbformat_test && ./filename_test && ./issue200_test && ./log_test && ./bloom_test && ./corruption_test && ./db_test && ./filter_block_test && ./recovery_test && ./version_edit_test && ./crc32c_test && ./hash_test && ./memenv_test && ./skiplist_test && ./version_set_test && ./c_test && ./env_posix_test
 #        }

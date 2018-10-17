@@ -2138,7 +2138,7 @@ void DownloadPreMadeData(bool testnet)
         std::cout << "Downloading test data file " << files[i] << std::endl;
         EXPECT_NO_THROW(boost::filesystem::remove(Path(TEST_ROOT_PATH) / Path("/data/" + files[i])));
         std::string content = cURLTools::GetFileFromHTTPS(
-            "https://neblio-files.ams3.digitaloceanspaces.com/" + files[i], 10000, 0);
+            "https://neblio-files.ams3.cdn.digitaloceanspaces.com/" + files[i], 10000, 0);
         fs::path testFile = testRootPath / "data" / files[i];
         ofstream os(testFile.string().c_str());
         os << content;
