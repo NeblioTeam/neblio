@@ -167,7 +167,7 @@ public:
         // only one of them should be active
         assert(localTxn.rawPtr() == nullptr || activeBatch == nullptr);
 
-        std::string keyBin = ssKey.str();
+        std::string&& keyBin = ssKey.str();
         MDB_val     kS     = {keyBin.size(), (void*)(keyBin.c_str())};
         MDB_val     vS     = {0, nullptr};
         if (auto ret = mdb_get((!activeBatch ? localTxn : *activeBatch), *pdb, &kS, &vS)) {
@@ -228,9 +228,9 @@ public:
         assert(localTxn.rawPtr() == nullptr || activeBatch == nullptr);
 
         // TODO: bind to const reference to avoid copying
-        std::string keyBin = ssKey.str();
+        std::string&& keyBin = ssKey.str();
         MDB_val     kS     = {keyBin.size(), (void*)(keyBin.c_str())};
-        std::string valBin = ssValue.str();
+        std::string&& valBin = ssValue.str();
         MDB_val     vS     = {valBin.size(), (void*)(valBin.c_str())};
 
         if (auto ret = mdb_put((!activeBatch ? localTxn : *activeBatch), *pdb, &kS, &vS, 0)) {
@@ -276,7 +276,7 @@ public:
         // only one of them should be active
         assert(localTxn.rawPtr() == nullptr || activeBatch == nullptr);
 
-        std::string keyBin = ssKey.str();
+        std::string&& keyBin = ssKey.str();
         MDB_val     kS     = {keyBin.size(), (void*)(keyBin.c_str())};
         MDB_val     vS{0, nullptr};
 
@@ -311,7 +311,7 @@ public:
         // only one of them should be active
         assert(localTxn.rawPtr() == nullptr || activeBatch == nullptr);
 
-        std::string keyBin = ssKey.str();
+        std::string&& keyBin = ssKey.str();
         MDB_val     kS     = {keyBin.size(), (void*)(keyBin.c_str())};
         MDB_val     vS{0, nullptr};
 

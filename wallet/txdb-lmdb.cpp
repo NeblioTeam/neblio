@@ -219,7 +219,8 @@ void CTxDB::init_blockindex(bool fRemoveOld)
     mdb_env_set_maxdbs(dbEnv.get(), 20);
 
     if (auto result = mdb_env_open(dbEnv.get(), directory.string().c_str(), /*MDB_NOTLS*/ 0, 0644)) {
-        throw std::runtime_error("Failed to open lmdb environment: " + std::to_string(result));
+        throw std::runtime_error("Failed to open lmdb environment: " + std::to_string(result) +
+                                 "; message: " + std::string(mdb_strerror(result)));
     }
 
     MDB_envinfo mei;
@@ -230,8 +231,9 @@ void CTxDB::init_blockindex(bool fRemoveOld)
 
     if (currMapSize < mapSize) {
         if (auto mapSizeErr = mdb_env_set_mapsize(dbEnv.get(), mapSize))
-            throw std::runtime_error("Error: set max memory map size failed: " +
-                                     std::to_string(mapSizeErr));
+            throw std::runtime_error(
+                "Error: set max memory map size failed: " + std::to_string(mapSizeErr) +
+                "; message: " + std::string(mdb_strerror(mapSizeErr)));
 
         mdb_env_info(dbEnv.get(), &mei);
         currMapSize = (double)mei.me_mapsize;
@@ -245,8 +247,9 @@ void CTxDB::init_blockindex(bool fRemoveOld)
 
     mdb_txn_safe txn;
     if (auto mdb_res = mdb_txn_begin(dbEnv.get(), NULL, 0, txn)) {
-        throw std::runtime_error("Failed to create a transaction for the db: " +
-                                 std::to_string(mdb_res));
+        throw std::runtime_error(
+            "Failed to create a transaction for the db: " + std::to_string(mdb_res) +
+            "; message: " + std::string(mdb_strerror(mdb_res)));
     }
 
     txdb = std::unique_ptr<MDB_dbi, std::function<void(MDB_dbi*)>>(new MDB_dbi, [](MDB_dbi* p) {
@@ -550,11 +553,15 @@ bool CTxDB::LoadBlockIndex()
     // Seek to start key.
     CDataStream ssStartKey(SER_DISK, CLIENT_VERSION);
     ssStartKey << make_pair(string("blockindex"), uint256(0));
-    std::string keyBin = ssStartKey.str();
-    MDB_val     key    = {(size_t)ssStartKey.size(), (void*)keyBin.data()};
-    MDB_val     data;
+    std::string&& keyBin = ssStartKey.str();
+    MDB_val       key    = {(size_t)ssStartKey.size(), (void*)keyBin.data()};
+    MDB_val       data;
 
     int firstItemRes = mdb_cursor_get(cursorPtr.get(), &key, &data, MDB_SET_RANGE);
+    if (firstItemRes != 0 && firstItemRes != MDB_NOTFOUND) {
+        return error("Error while opening cursor to load index. Error code %i, and error: %s\n",
+                     firstItemRes, mdb_strerror(firstItemRes));
+    }
 
     // Now read each entry.
     do {
