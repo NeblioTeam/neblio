@@ -46,7 +46,7 @@ public:
 
     // NTP1Script interface
 public:
-    std::string            calculateScriptBin() const;
+    std::string            calculateScriptBin() const override;
     std::set<unsigned int> getNTP1OutputIndices() const override;
 };
 
