@@ -133,12 +133,12 @@ void NTP1TokenListModel::endWalletUpdate()
     }
 }
 
-int NTP1TokenListModel::rowCount(const QModelIndex& parent) const
+int NTP1TokenListModel::rowCount(const QModelIndex& /*parent*/) const
 {
     return ntp1wallet->getNumberOfTokens();
 }
 
-int NTP1TokenListModel::columnCount(const QModelIndex& parent) const { return 3; }
+int NTP1TokenListModel::columnCount(const QModelIndex& /*parent*/) const { return 3; }
 
 QVariant NTP1TokenListModel::data(const QModelIndex& index, int role) const
 {

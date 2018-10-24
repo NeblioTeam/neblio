@@ -61,7 +61,10 @@ QMAKE_LFLAGS *= -fstack-protector-all
 # This can be enabled for Windows, when we switch to MinGW >= 4.4.x.
 }
 # for extra security (see: https://wiki.debian.org/Hardening)
-QMAKE_CXXFLAGS *= -D_FORTIFY_SOURCE=2 -Wl,-z,relro -Wl,-z,now
+QMAKE_CXXFLAGS *= -D_FORTIFY_SOURCE=2
+!clang* {
+    QMAKE_CXXFLAGS *= -Wl,-z,relro -Wl,-z,now
+}
 # for extra security on Windows: enable ASLR and DEP via GCC linker flags
 win32:QMAKE_LFLAGS *= -Wl,--dynamicbase -Wl,--nxcompat
 win32:QMAKE_LFLAGS *= -Wl,--large-address-aware -static
@@ -131,7 +134,7 @@ linux-g++-64:QMAKE_TARGET.arch = x86_64
 
     !win32 {
         # we use QMAKE_CXXFLAGS_RELEASE even without RELEASE=1 because we use RELEASE to indicate linking preferences not -O preferences
-        genleveldb.commands = cd $$PWD/leveldb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\" libleveldb.a libmemenv.a
+        genleveldb.commands = cd $$PWD/leveldb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) clean && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\" libleveldb.a libmemenv.a
         contains( NEBLIO_CONFIG, LEVELDB_TESTS ) {
             genleveldb.commands += ./arena_test && ./cache_test && ./env_test && ./table_test && ./write_batch_test && ./coding_test && ./db_bench && ./fault_injection_test && ./issue178_test && ./autocompact_test && ./dbformat_test && ./filename_test && ./issue200_test && ./log_test && ./bloom_test && ./corruption_test && ./db_test && ./filter_block_test && ./recovery_test && ./version_edit_test && ./crc32c_test && ./hash_test && ./memenv_test && ./skiplist_test && ./version_set_test && ./c_test && ./env_posix_test
         }
