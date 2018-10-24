@@ -9,7 +9,7 @@ MKDIR_P = mkdir -p
 LINK:=$(CXX)
 ARCH:=$(system lscpu | head -n 1 | awk '{print $2}')
 
-DEFS=-DBOOST_SPIRIT_THREADSAFE -DUSE_LEVELDB
+DEFS=-DBOOST_SPIRIT_THREADSAFE -DUSE_LMDB
 
 DEFS += $(addprefix -I,$(CURDIR) $(CURDIR)/obj $(BOOST_INCLUDE_PATH) $(BDB_INCLUDE_PATH) $(OPENSSL_INCLUDE_PATH) $(shell pkg-config libcurl --cflags))
 LIBS = $(addprefix -L,$(BOOST_LIB_PATH) $(BDB_LIB_PATH) $(OPENSSL_LIB_PATH))
@@ -124,7 +124,7 @@ xCXXFLAGS=-O2 $(EXT_OPTIONS) -std=c++11 -pthread -Wall -Wextra -Wno-ignored-qual
 xLDFLAGS=$(LDHARDENING) $(LDFLAGS)
 
 OBJS= \
-    leveldb/libleveldb.a \
+    liblmdb/liblmdb.a \
     obj/alert.o \
     obj/version.o \
     obj/checkpoints.o \
@@ -199,13 +199,12 @@ endif
 
 all: nebliod
 
-LIBS += $(CURDIR)/leveldb/libleveldb.a $(CURDIR)/leveldb/libmemenv.a
-DEFS += $(addprefix -I,$(CURDIR)/leveldb/include)
-DEFS += $(addprefix -I,$(CURDIR)/leveldb/helpers)
-OBJS += obj/txdb-leveldb.o
-leveldb/libleveldb.a:
-	@echo "Building LevelDB ..." && cd leveldb && $(MAKE) CC=$(CC) CXX="$(CXX)" OPT="$(xCXXFLAGS)" libleveldb.a libmemenv.a && cd ..
-obj/txdb-leveldb.o: leveldb/libleveldb.a
+LIBS += $(CURDIR)/liblmdb/liblmdb.a
+DEFS += $(addprefix -I,$(CURDIR)/liblmdb)
+OBJS += obj/txdb-lmdb.o
+liblmdb/liblmdb.a:
+	@echo "Building LMDB ..." && cd liblmdb && $(MAKE) clean && $(MAKE) CC=$(CC) CXX="$(CXX)" OPT="$(xCXXFLAGS)" liblmdb.a && cd ..
+obj/txdb-lmdb.o: liblmdb/liblmdb.a
 
 # auto-generated dependencies:
 -include obj/*.P
