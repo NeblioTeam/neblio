@@ -1,5 +1,7 @@
 #include "ntp1sendtokensdata.h"
 
+#include <random>
+#include <algorithm>
 #include "init.h"
 #include "util.h"
 #include "wallet.h"
@@ -52,8 +54,12 @@ void NTP1SendTokensData::calculateSources(boost::shared_ptr<NTP1Wallet> wallet, 
         availableOutputs.push_back(el.first);
     }
 
-    // to improve privacy, shuffle inputs; pseudo-random is good enough here
-    std::random_shuffle(availableOutputs.begin(), availableOutputs.end());
+    {
+        std::random_device rd;
+        std::mt19937 g(rd());
+        // to improve privacy, shuffle inputs; pseudo-random is good enough here
+        std::shuffle(availableOutputs.begin(), availableOutputs.end(), g);
+    }
 
     // this container will be filled and must have tokens that are higher than the required amounts
     std::map<std::string, int64_t> fulfilledTokenAmounts;
@@ -146,16 +152,16 @@ json_spirit::Value NTP1SendTokensData::exportJsonData() const
     // from array
     json_spirit::Array fromArray;
 
-    for (long i = 0; i < static_cast<long>(tokenSourceAddresses.size()); i++) {
-        fromArray.push_back(json_spirit::Value(tokenSourceAddresses[i]));
+    for (const std::string& s: tokenSourceAddresses) {
+        fromArray.push_back(json_spirit::Value(s));
     }
     root.push_back(json_spirit::Pair("from", json_spirit::Value(fromArray)));
 
     // to array
     json_spirit::Array toArray;
 
-    for (long i = 0; i < static_cast<long>(recipients.size()); i++) {
-        toArray.push_back(recipients[i].exportJsonData());
+    for (const auto& r: recipients) {
+        toArray.push_back(r.exportJsonData());
     }
     root.push_back(json_spirit::Pair("to", json_spirit::Value(toArray)));
 
@@ -219,8 +225,12 @@ int64_t NTP1SendTokensData::__addAddressesThatCoverFees()
                                                 }),
                                  neblBalancesVector.end());
 
-        // shuffle addresses before picking from them
-        std::random_shuffle(neblBalancesVector.begin(), neblBalancesVector.end());
+        {
+            std::random_device rd;
+            std::mt19937 g(rd());
+            // shuffle addresses before picking from them
+            std::shuffle(neblBalancesVector.begin(), neblBalancesVector.end(), g);
+        }
 
         // add more addresses to satisfy the balance
         for (const auto& el : neblBalancesVector) {

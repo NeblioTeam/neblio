@@ -2,6 +2,8 @@
 
 #include "ntp1sendtxdata.h"
 
+#include <random>
+#include <algorithm>
 #include "init.h"
 #include "util.h"
 #include "wallet.h"
@@ -189,8 +191,12 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
         tokenSourceInputs = std::vector<NTP1OutPoint>(inputsSet.begin(), inputsSet.end());
     }
 
-    // to improve privacy, shuffle inputs; pseudo-random is good enough here
-    std::random_shuffle(availableOutputs.begin(), availableOutputs.end());
+    {
+        std::random_device rd;
+        std::mt19937 g(rd());
+        // to improve privacy, shuffle inputs; pseudo-random is good enough here
+        std::shuffle(availableOutputs.begin(), availableOutputs.end(), g);
+    }
 
     // this container will be filled and must have tokens that are higher than the required amounts
     // reset fulfilled amounts and change to zero
@@ -500,8 +506,12 @@ int64_t NTP1SendTxData::__addInputsThatCoversNeblAmount(uint64_t neblAmount)
         std::vector<COutput> availableOutputs;
         pwalletMain->AvailableCoins(availableOutputs);
 
-        // shuffle outputs to select randomly
-        std::random_shuffle(availableOutputs.begin(), availableOutputs.end());
+        {
+            std::random_device rd;
+            std::mt19937 g(rd());
+            // shuffle outputs to select randomly
+            std::shuffle(availableOutputs.begin(), availableOutputs.end(), g);
+        }
 
         // add more outputs
         for (const auto& output : availableOutputs) {
