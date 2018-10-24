@@ -90,7 +90,7 @@ public:
                 aggrPolicyStrBits = "10";
             } else {
                 throw std::runtime_error("Unknown aggregation policy:" +
-                                         static_cast<int>(this->aggregationPolicy));
+                                         std::to_string(static_cast<int>(this->aggregationPolicy)));
             }
             std::string issuanceFlagsBitsStr =
                 divisibility_bits.to_string() + lockStatusStrBits + aggrPolicyStrBits + "00";
