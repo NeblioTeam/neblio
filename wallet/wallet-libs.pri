@@ -112,6 +112,11 @@ contains(BITCOIN_NEED_QT_PLUGINS, 1) {
 
 #USE_LEVELDB += 1
 
+# these defines are necessary for LMDB 32-bit on linux
+linux-g++:QMAKE_TARGET.arch = $$QMAKE_HOST.arch
+linux-g++-32:QMAKE_TARGET.arch = x86
+linux-g++-64:QMAKE_TARGET.arch = x86_64
+
 !isEmpty(USE_LEVELDB) {
     message("Using leveldb...")
 
@@ -149,7 +154,15 @@ contains(BITCOIN_NEED_QT_PLUGINS, 1) {
 
     DEFINES += USE_LMDB
 
-    message("Using lmdb...")
+    message("Using lmdb as the blockchain database")
+    contains(QMAKE_TARGET.arch, x86_64) {
+        message("Compiling LMDB for a 64-bit system")
+        LMDB_32_BIT = false
+    } else {
+        DEFINES += MDB_VL32
+        message("Compiling LMDB for a 32-bit system")
+        LMDB_32_BIT = true
+    }
 #    LIBS += -llmdb
 
     INCLUDEPATH += $$PWD/liblmdb
@@ -164,6 +177,10 @@ contains(BITCOIN_NEED_QT_PLUGINS, 1) {
         # we use QMAKE_CXXFLAGS_RELEASE even without RELEASE=1 because we use RELEASE to indicate linking preferences not -O preferences
         #genlmdb.commands = cd $$PWD/liblmdb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\" liblmdb.a
         genlmdb.commands = cd $$PWD/liblmdb && CC=$$QMAKE_CC $(MAKE) liblmdb.a
+        isEqual(LMDB_32_BIT, true) {
+            genlmdb.commands += "CFLAGS=-DMDB_VL32 CXXFLAGS=-DMDB_VL32"
+        }
+
 #        contains( NEBLIO_CONFIG, LMDB_TESTS ) {
 #            genlmdb.commands += ./arena_test && ./cache_test && ./env_test && ./table_test && ./write_batch_test && ./coding_test && ./db_bench && ./fault_injection_test && ./issue178_test && ./autocompact_test && ./dbformat_test && ./filename_test && ./issue200_test && ./log_test && ./bloom_test && ./corruption_test && ./db_test && ./filter_block_test && ./recovery_test && ./version_edit_test && ./crc32c_test && ./hash_test && ./memenv_test && ./skiplist_test && ./version_set_test && ./c_test && ./env_posix_test
 #        }
