@@ -9,7 +9,7 @@ MKDIR_P = mkdir -p
 LINK:=$(CXX)
 ARCH:=$(system lscpu | head -n 1 | awk '{print $2}')
 
-DEFS=-DBOOST_SPIRIT_THREADSAFE
+DEFS=-DBOOST_SPIRIT_THREADSAFE -DUSE_LEVELDB
 
 DEFS += $(addprefix -I,$(CURDIR) $(CURDIR)/obj $(BOOST_INCLUDE_PATH) $(BDB_INCLUDE_PATH) $(OPENSSL_INCLUDE_PATH) $(shell pkg-config libcurl --cflags))
 LIBS = $(addprefix -L,$(BOOST_LIB_PATH) $(BDB_LIB_PATH) $(OPENSSL_LIB_PATH))
