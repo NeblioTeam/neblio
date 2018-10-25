@@ -16,7 +16,10 @@
 #include "util.h"
 
 std::unique_ptr<MDB_env, std::function<void(MDB_env*)>> dbEnv;
-std::unique_ptr<MDB_dbi, std::function<void(MDB_dbi*)>> txdb; // global pointer for lmdb object instance
+std::unique_ptr<MDB_dbi, std::function<void(MDB_dbi*)>>
+    glob_db_main; // global pointer for lmdb object instance
+std::unique_ptr<MDB_dbi, std::function<void(MDB_dbi*)>>
+    glob_db_blockIndex; // global pointer for lmdb object instance
 
 using namespace std;
 using namespace boost;
@@ -252,20 +255,20 @@ void CTxDB::init_blockindex(bool fRemoveOld)
             "; message: " + std::string(mdb_strerror(mdb_res)));
     }
 
-    txdb = std::unique_ptr<MDB_dbi, std::function<void(MDB_dbi*)>>(new MDB_dbi, [](MDB_dbi* p) {
+    glob_db_main = std::unique_ptr<MDB_dbi, std::function<void(MDB_dbi*)>>(new MDB_dbi, [](MDB_dbi* p) {
         if (p) {
             mdb_close(dbEnv.get(), *p);
             delete p;
         }
     });
 
-    CTxDB::lmdb_db_open(txn, LMDB_MAINDB.c_str(), MDB_CREATE, *txdb,
+    CTxDB::lmdb_db_open(txn, LMDB_MAINDB.c_str(), MDB_CREATE, *glob_db_main,
                         "Failed to open db handle for m_blocks");
 
     // commit the transaction
     txn.commit();
 
-    if (!txdb) {
+    if (!glob_db_main) {
         throw std::runtime_error("LMDB nullptr after opening the database.");
     }
 }
@@ -277,8 +280,8 @@ CTxDB::CTxDB(const char* pszMode)
     assert(pszMode);
     fReadOnly = (!strchr(pszMode, '+') && !strchr(pszMode, 'w'));
 
-    if (txdb) {
-        db_main = txdb.get();
+    if (glob_db_main) {
+        loadDbPointers();
         return;
     }
 
@@ -290,7 +293,7 @@ CTxDB::CTxDB(const char* pszMode)
     //    options.filter_policy     = leveldb::NewBloomFilterPolicy(10);
 
     init_blockindex(); // Init directory
-    db_main = txdb.get();
+    loadDbPointers();
 
     if (Exists(string("version"), db_main)) {
         ReadVersion(nVersion);
@@ -300,15 +303,15 @@ CTxDB::CTxDB(const char* pszMode)
             printf("Required index version is %d, removing old database\n", DATABASE_VERSION);
 
             // lmdb instance destruction
-            db_main = nullptr;
-            txdb.reset();
+            resetDbPointers();
+            resetGlobalDbPointers();
             if (activeBatch) {
                 activeBatch->abort();
                 activeBatch.reset();
             }
 
             init_blockindex(true); // Remove directory and create new database
-            db_main = txdb.get();
+            loadDbPointers();
 
             bool fTmp = fReadOnly;
             fReadOnly = false;
@@ -331,8 +334,8 @@ void CTxDB::Close()
         activeBatch->abort();
         activeBatch.reset();
     }
-    txdb.reset();
-    db_main = nullptr;
+    resetDbPointers();
+    resetGlobalDbPointers();
 }
 
 void CTxDB::__deleteDb()
@@ -922,3 +925,10 @@ void mdb_txn_safe::wait_no_active_txns()
 }
 
 void mdb_txn_safe::allow_new_txns() { creation_gate.clear(); }
+
+CTxDB::~CTxDB()
+{
+    // Note that this is not the same as Close() because it deletes only
+    // data scoped to this TxDB object.
+    resetDbPointers();
+}

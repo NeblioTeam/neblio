@@ -20,12 +20,16 @@
 
 #define ENABLE_AUTO_RESIZE
 
+// global environment pointer
 extern std::unique_ptr<MDB_env, std::function<void(MDB_env*)>> dbEnv;
-extern std::unique_ptr<MDB_dbi, std::function<void(MDB_dbi*)>>
-    txdb; // global pointer for lmdb database object instance
+// global database pointers
+extern std::unique_ptr<MDB_dbi, std::function<void(MDB_dbi*)>> glob_db_main;
+extern std::unique_ptr<MDB_dbi, std::function<void(MDB_dbi*)>> glob_db_blockIndex;
 
 constexpr static float DB_RESIZE_PERCENT = 0.9f;
 
+const std::string LMDB_MAINDB       = "mainDb";
+const std::string LMDB_BLOCKINDEXDB = "blockIndexDb";
 
 // this custom size is used in tests
 #ifndef CUSTOM_LMDB_DB_SIZE
@@ -42,8 +46,6 @@ constexpr static uint64_t DB_DEFAULT_MAPSIZE = UINT64_C(1) << 33;
 #else
 constexpr static uint64_t DB_DEFAULT_MAPSIZE = CUSTOM_LMDB_DB_SIZE;
 #endif
-
-const std::string LMDB_MAINDB = "maindb";
 
 class CTxDB;
 
@@ -119,12 +121,7 @@ public:
     static boost::filesystem::path DB_DIR;
 
     CTxDB(const char* pszMode = "r+");
-    ~CTxDB()
-    {
-        // Note that this is not the same as Close() because it deletes only
-        // data scoped to this TxDB object.
-        db_main = nullptr;
-    }
+    ~CTxDB();
 
     // Destroys the underlying shared global state accessed by this TxDB.
     void Close();
@@ -132,7 +129,8 @@ public:
     static const int WriteReps = 32;
 
 private:
-    MDB_dbi* db_main; // Points to the global instance.
+    MDB_dbi* db_main;       // Points to the global instance.
+    MDB_dbi* db_blockIndex; // Points to the global instance.
 
     // A batch stores up writes and deletes for atomic application. When this
     // field is non-NULL, writes/deletes go there instead of directly to disk.
@@ -160,21 +158,23 @@ public:
         mdb_txn_safe localTxn(false);
         if (!activeBatch) {
             localTxn = mdb_txn_safe();
-            if(auto res = lmdb_txn_begin(dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
-                printf("Failed to begin transaction at read with error code %i; and error code: %s\n", res, mdb_strerror(res));
+            if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
+                printf("Failed to begin transaction at read with error code %i; and error code: %s\n",
+                       res, mdb_strerror(res));
             }
         }
         // only one of them should be active
         assert(localTxn.rawPtr() == nullptr || activeBatch == nullptr);
 
         std::string&& keyBin = ssKey.str();
-        MDB_val     kS     = {keyBin.size(), (void*)(keyBin.c_str())};
-        MDB_val     vS     = {0, nullptr};
+        MDB_val       kS     = {keyBin.size(), (void*)(keyBin.c_str())};
+        MDB_val       vS     = {0, nullptr};
         if (auto ret = mdb_get((!activeBatch ? localTxn : *activeBatch), *dbPtr, &kS, &vS)) {
             if (ret == MDB_NOTFOUND) {
                 printf("Failed to read lmdb key %s as it doesn't exist\n", ssKey.str().c_str());
             } else {
-                printf("Failed to read lmdb key with an unknown error of code %i; and error: %s\n", ret, mdb_strerror(ret));
+                printf("Failed to read lmdb key with an unknown error of code %i; and error: %s\n", ret,
+                       mdb_strerror(ret));
             }
             if (localTxn.rawPtr()) {
                 localTxn.abort();
@@ -197,7 +197,7 @@ public:
     template <typename K, typename T>
     bool Write(const K& key, const T& value, MDB_dbi* dbPtr)
     {
-        if (fReadOnly){
+        if (fReadOnly) {
             printf("Accessing lmdb write function in read only mode");
             assert("Write called on database in read-only mode");
             return false;
@@ -219,8 +219,9 @@ public:
         mdb_txn_safe localTxn(false);
         if (!activeBatch) {
             localTxn = mdb_txn_safe();
-            if(auto res = lmdb_txn_begin(dbEnv.get(), nullptr, 0, localTxn)) {
-                printf("Failed to begin transaction at read with error code %i; and error: %s\n", res, mdb_strerror(res));
+            if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, 0, localTxn)) {
+                printf("Failed to begin transaction at read with error code %i; and error: %s\n", res,
+                       mdb_strerror(res));
             }
         }
 
@@ -229,9 +230,9 @@ public:
 
         // TODO: bind to const reference to avoid copying
         std::string&& keyBin = ssKey.str();
-        MDB_val     kS     = {keyBin.size(), (void*)(keyBin.c_str())};
+        MDB_val       kS     = {keyBin.size(), (void*)(keyBin.c_str())};
         std::string&& valBin = ssValue.str();
-        MDB_val     vS     = {valBin.size(), (void*)(valBin.c_str())};
+        MDB_val       vS     = {valBin.size(), (void*)(valBin.c_str())};
 
         if (auto ret = mdb_put((!activeBatch ? localTxn : *activeBatch), *dbPtr, &kS, &vS, 0)) {
             if (ret == MDB_MAP_FULL) {
@@ -268,8 +269,9 @@ public:
         mdb_txn_safe localTxn(false);
         if (!activeBatch) {
             localTxn = mdb_txn_safe();
-            if(auto res = lmdb_txn_begin(dbEnv.get(), nullptr, 0, localTxn)) {
-                printf("Failed to begin transaction at read with error code %i; and error: %s\n", res, mdb_strerror(res));
+            if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, 0, localTxn)) {
+                printf("Failed to begin transaction at read with error code %i; and error: %s\n", res,
+                       mdb_strerror(res));
             }
         }
 
@@ -277,8 +279,8 @@ public:
         assert(localTxn.rawPtr() == nullptr || activeBatch == nullptr);
 
         std::string&& keyBin = ssKey.str();
-        MDB_val     kS     = {keyBin.size(), (void*)(keyBin.c_str())};
-        MDB_val     vS{0, nullptr};
+        MDB_val       kS     = {keyBin.size(), (void*)(keyBin.c_str())};
+        MDB_val       vS{0, nullptr};
 
         if (auto ret = mdb_del((!activeBatch ? localTxn : *activeBatch), *dbPtr, &kS, &vS)) {
             printf("Failed to delete entry with key %s with lmdb\n", ssKey.str().c_str());
@@ -303,8 +305,9 @@ public:
         mdb_txn_safe localTxn(false);
         if (!activeBatch) {
             localTxn = mdb_txn_safe();
-            if(auto res = lmdb_txn_begin(dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
-                printf("Failed to begin transaction at read with error code %i; and error: %s\n", res, mdb_strerror(res));
+            if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
+                printf("Failed to begin transaction at read with error code %i; and error: %s\n", res,
+                       mdb_strerror(res));
             }
         }
 
@@ -312,8 +315,8 @@ public:
         assert(localTxn.rawPtr() == nullptr || activeBatch == nullptr);
 
         std::string&& keyBin = ssKey.str();
-        MDB_val     kS     = {keyBin.size(), (void*)(keyBin.c_str())};
-        MDB_val     vS{0, nullptr};
+        MDB_val       kS     = {keyBin.size(), (void*)(keyBin.c_str())};
+        MDB_val       vS{0, nullptr};
 
         if (auto ret = mdb_get((!activeBatch ? localTxn : *activeBatch), *dbPtr, &kS, &vS)) {
             if (localTxn.rawPtr()) {
@@ -322,7 +325,8 @@ public:
             if (ret == MDB_NOTFOUND) {
                 return false;
             } else {
-                printf("Failed to check whether key %s exists with an unknown error of code %i; and error: %s\n",
+                printf("Failed to check whether key %s exists with an unknown error of code %i; and "
+                       "error: %s\n",
                        ssKey.str().c_str(), ret, mdb_strerror(ret));
             }
             return false;
@@ -336,7 +340,8 @@ public:
                                     const std::string& error_string)
     {
         if (int res = mdb_dbi_open(txn, name, flags, &dbi)) {
-            printf("Error opening lmdb database. Error code: %d; and error: %s\n", res, mdb_strerror(res));
+            printf("Error opening lmdb database. Error code: %d; and error: %s\n", res,
+                   mdb_strerror(res));
             throw std::runtime_error(error_string + ": " + std::to_string(res));
         }
     }
@@ -382,6 +387,30 @@ public:
 
 private:
     bool LoadBlockIndexGuts();
+
+    inline void loadDbPointers();
+    inline void resetDbPointers();
+    static inline void resetGlobalDbPointers();
 };
+
+
+
+void CTxDB::loadDbPointers()
+{
+    db_main       = glob_db_main.get();
+    db_blockIndex = glob_db_blockIndex.get();
+}
+
+void CTxDB::resetDbPointers()
+{
+    db_main       = nullptr;
+    db_blockIndex = nullptr;
+}
+
+void CTxDB::resetGlobalDbPointers()
+{
+    glob_db_main.reset();
+    glob_db_blockIndex.reset();
+}
 
 #endif // BITCOIN_LMDB_H
