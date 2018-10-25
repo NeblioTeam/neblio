@@ -32,13 +32,26 @@ nci.call_with_err_code('docker run --rm --privileged multiarch/qemu-user-static:
 nci.call_with_err_code('tar -zxf ' + build_cache_name)
 
 # Start Docker Container to Build nebliod & neblio-Qt
-nci.call_with_err_code('sudo docker run -e BRANCH=' + os.environ['TRAVIS_BRANCH'] + ' -v ' + deploy_dir + ':/root/deploy -t neblioteam/nebliod-build-ccache-rpi')
+nci.call_with_err_code('timeout --signal=SIGKILL 10m sudo docker run -e BRANCH=' + os.environ['TRAVIS_BRANCH'] + ' -v ' + deploy_dir + ':/root/deploy -t neblioteam/nebliod-build-ccache-rpi')
+nci.call_with_err_code('sudo docker kill $(sudo docker ps -a -q)')
 
-# Package Binaries & Cache
+# Package Cache
 nci.call_with_err_code('tar -zcf ' + deploy_dir + build_cache_name + ' -C ' + deploy_dir + ' .ccache')
 nci.call_with_err_code('sudo rm -rf ' + deploy_dir + '.ccache')
 
 file_name = '$(date +%Y-%m-%d)---' + os.environ['TRAVIS_BRANCH'] + '-' + os.environ['TRAVIS_COMMIT'][:7] + '---RPi-neblio-Qt-nebliod---raspbian-stretch.tar.gz'
-nci.call_with_err_code('tar -zcvf "' + file_name + '" neblio-qt nebliod')
-nci.call_with_err_code('sudo rm -f neblio-qt && sudo rm -f nebliod')
-nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
+
+# Check if BOTH binaries exist before trying to package them. If both binaries do not exist, delete any that do exist, as we likely had a build timeout
+if(os.path.isfile('neblio-qt') && os.path.isfile('nebliod')) {
+  nci.call_with_err_code('tar -zcvf "' + file_name + '" neblio-qt nebliod')
+  nci.call_with_err_code('sudo rm -f neblio-qt && sudo rm -f nebliod')
+  nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
+} else {
+  if(os.path.isfile('neblio-qt') {
+    nci.call_with_err_code('sudo rm -f neblio-qt')
+  }
+  if(os.path.isfile('nebliod') {
+    nci.call_with_err_code('sudo rm -f nebliod')
+  }
+  nci.call_with_err_code('echo "Binaries neblio-qt and nebliod not found, likely due to a timeout, this job should be retried"')
+}
