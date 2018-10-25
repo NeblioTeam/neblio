@@ -42,7 +42,7 @@ nci.call_with_err_code('sudo rm -rf ' + deploy_dir + '.ccache')
 file_name = '$(date +%Y-%m-%d)---' + os.environ['TRAVIS_BRANCH'] + '-' + os.environ['TRAVIS_COMMIT'][:7] + '---RPi-neblio-Qt-nebliod---raspbian-stretch.tar.gz'
 
 # Check if BOTH binaries exist before trying to package them. If both binaries do not exist, delete any that do exist, as we likely had a build timeout
-if(os.path.isfile('neblio-qt') && os.path.isfile('nebliod')) {
+if(os.path.isfile('neblio-qt') and os.path.isfile('nebliod')) {
   nci.call_with_err_code('tar -zcvf "' + file_name + '" neblio-qt nebliod')
   nci.call_with_err_code('sudo rm -f neblio-qt && sudo rm -f nebliod')
   nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
