@@ -123,7 +123,7 @@ public:
     {
         // Note that this is not the same as Close() because it deletes only
         // data scoped to this TxDB object.
-        pdb = nullptr;
+        db_main = nullptr;
     }
 
     // Destroys the underlying shared global state accessed by this TxDB.
@@ -132,7 +132,7 @@ public:
     static const int WriteReps = 32;
 
 private:
-    MDB_dbi* pdb; // Points to the global instance.
+    MDB_dbi* db_main; // Points to the global instance.
 
     // A batch stores up writes and deletes for atomic application. When this
     // field is non-NULL, writes/deletes go there instead of directly to disk.
@@ -150,7 +150,7 @@ public:
     //    bool ScanBatch(const CDataStream& key, std::string* value, bool* deleted) const;
 
     template <typename K, typename T>
-    bool Read(const K& key, T& value)
+    bool Read(const K& key, T& value, MDB_dbi* dbPtr)
     {
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         ssKey.reserve(1000);
@@ -170,7 +170,7 @@ public:
         std::string&& keyBin = ssKey.str();
         MDB_val     kS     = {keyBin.size(), (void*)(keyBin.c_str())};
         MDB_val     vS     = {0, nullptr};
-        if (auto ret = mdb_get((!activeBatch ? localTxn : *activeBatch), *pdb, &kS, &vS)) {
+        if (auto ret = mdb_get((!activeBatch ? localTxn : *activeBatch), *dbPtr, &kS, &vS)) {
             if (ret == MDB_NOTFOUND) {
                 printf("Failed to read lmdb key %s as it doesn't exist\n", ssKey.str().c_str());
             } else {
@@ -195,7 +195,7 @@ public:
     }
 
     template <typename K, typename T>
-    bool Write(const K& key, const T& value)
+    bool Write(const K& key, const T& value, MDB_dbi* dbPtr)
     {
         if (fReadOnly){
             printf("Accessing lmdb write function in read only mode");
@@ -233,7 +233,7 @@ public:
         std::string&& valBin = ssValue.str();
         MDB_val     vS     = {valBin.size(), (void*)(valBin.c_str())};
 
-        if (auto ret = mdb_put((!activeBatch ? localTxn : *activeBatch), *pdb, &kS, &vS, 0)) {
+        if (auto ret = mdb_put((!activeBatch ? localTxn : *activeBatch), *dbPtr, &kS, &vS, 0)) {
             if (ret == MDB_MAP_FULL) {
                 printf("Failed to write key %s with lmdb, MDB_MAP_FULL\n", ssKey.str().c_str());
             } else {
@@ -251,9 +251,9 @@ public:
     }
 
     template <typename K>
-    bool Erase(const K& key)
+    bool Erase(const K& key, MDB_dbi* dbPtr)
     {
-        if (!pdb)
+        if (!dbPtr)
             return false;
         if (fReadOnly) {
             printf("Accessing lmdb erase function in read-only mode.");
@@ -280,7 +280,7 @@ public:
         MDB_val     kS     = {keyBin.size(), (void*)(keyBin.c_str())};
         MDB_val     vS{0, nullptr};
 
-        if (auto ret = mdb_del((!activeBatch ? localTxn : *activeBatch), *pdb, &kS, &vS)) {
+        if (auto ret = mdb_del((!activeBatch ? localTxn : *activeBatch), *dbPtr, &kS, &vS)) {
             printf("Failed to delete entry with key %s with lmdb\n", ssKey.str().c_str());
             if (localTxn.rawPtr()) {
                 localTxn.abort();
@@ -293,7 +293,7 @@ public:
     }
 
     template <typename K>
-    bool Exists(const K& key)
+    bool Exists(const K& key, MDB_dbi* dbPtr)
     {
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         ssKey.reserve(1000);
@@ -315,7 +315,7 @@ public:
         MDB_val     kS     = {keyBin.size(), (void*)(keyBin.c_str())};
         MDB_val     vS{0, nullptr};
 
-        if (auto ret = mdb_get((!activeBatch ? localTxn : *activeBatch), *pdb, &kS, &vS)) {
+        if (auto ret = mdb_get((!activeBatch ? localTxn : *activeBatch), *dbPtr, &kS, &vS)) {
             if (localTxn.rawPtr()) {
                 localTxn.abort();
             }
@@ -347,8 +347,14 @@ public:
     bool        TxnCommit();
     bool        TxnAbort();
 
+    // for tests
+    bool WriteStrKeyVal(const std::string& key, const std::string& val);
+    bool ReadStrKeyVal(const std::string& key, std::string& val);
+    bool ExistsStrKeyVal(const std::string& key);
+    bool EraseStrKeyVal(const std::string& key);
+
     bool ReadVersion(int& nVersion);
-    bool WriteVersion(int nVersion) { return Write(std::string("version"), nVersion); }
+    bool WriteVersion(int nVersion);
     bool ReadTxIndex(uint256 hash, CTxIndex& txindex);
     bool UpdateTxIndex(uint256 hash, const CTxIndex& txindex);
     bool ReadNTP1TxIndex(uint256 hash, DiskNTP1TxPos& txindex);

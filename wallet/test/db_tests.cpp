@@ -40,15 +40,15 @@ TEST(lmdb_tests, basic)
     std::string k1 = "key1";
     std::string v1 = "val1";
 
-    EXPECT_TRUE(db.Write(k1, v1));
+    EXPECT_TRUE(db.WriteStrKeyVal(k1, v1));
     std::string out;
-    EXPECT_TRUE(db.Read(k1, out));
+    EXPECT_TRUE(db.ReadStrKeyVal(k1, out));
     EXPECT_EQ(out, v1);
 
-    EXPECT_TRUE(db.Exists(k1));
+    EXPECT_TRUE(db.ExistsStrKeyVal(k1));
 
-    EXPECT_TRUE(db.Erase(k1));
-    EXPECT_FALSE(db.Exists(k1));
+    EXPECT_TRUE(db.EraseStrKeyVal(k1));
+    EXPECT_FALSE(db.ExistsStrKeyVal(k1));
 
     db.Close();
 }
@@ -66,17 +66,17 @@ TEST(lmdb_tests, basic_in_1_tx)
     std::string k1 = "key1";
     std::string v1 = "val1";
 
-    EXPECT_TRUE(db.Write(k1, v1));
+    EXPECT_TRUE(db.WriteStrKeyVal(k1, v1));
     std::string out;
-    EXPECT_TRUE(db.Read(k1, out));
+    EXPECT_TRUE(db.ReadStrKeyVal(k1, out));
     EXPECT_EQ(out, v1);
 
-    EXPECT_TRUE(db.Exists(k1));
+    EXPECT_TRUE(db.ExistsStrKeyVal(k1));
 
     db.TxnAbort();
 
     // uncommitted data shouldn't exist
-    EXPECT_FALSE(db.Exists(k1));
+    EXPECT_FALSE(db.ExistsStrKeyVal(k1));
 
     db.Close();
 }
@@ -104,21 +104,21 @@ TEST(lmdb_tests, many_inputs)
 
         entries[k] = v;
 
-        EXPECT_TRUE(db.Write(k, v));
+        EXPECT_TRUE(db.WriteStrKeyVal(k, v));
         std::string out;
 
-        EXPECT_TRUE(db.Read(k, out));
+        EXPECT_TRUE(db.ReadStrKeyVal(k, out));
         EXPECT_EQ(out, v);
 
-        EXPECT_TRUE(db.Exists(k));
+        EXPECT_TRUE(db.ExistsStrKeyVal(k));
     }
 
     for (const auto& pair : entries) {
         std::string out;
-        EXPECT_TRUE(db.Read(pair.first, out));
+        EXPECT_TRUE(db.ReadStrKeyVal(pair.first, out));
         EXPECT_EQ(out, pair.second);
 
-        EXPECT_TRUE(db.Exists(pair.first));
+        EXPECT_TRUE(db.ExistsStrKeyVal(pair.first));
     }
     db.Close();
 }
@@ -149,22 +149,22 @@ TEST(lmdb_tests, many_inputs_one_tx)
 
         entries[k] = v;
 
-        EXPECT_TRUE(db.Write(k, v));
+        EXPECT_TRUE(db.WriteStrKeyVal(k, v));
         std::string out;
 
-        EXPECT_TRUE(db.Read(k, out));
+        EXPECT_TRUE(db.ReadStrKeyVal(k, out));
         EXPECT_EQ(out, v);
 
-        EXPECT_TRUE(db.Exists(k));
+        EXPECT_TRUE(db.ExistsStrKeyVal(k));
     }
     db.TxnCommit();
 
     for (const auto& pair : entries) {
         std::string out;
-        EXPECT_TRUE(db.Read(pair.first, out));
+        EXPECT_TRUE(db.ReadStrKeyVal(pair.first, out));
         EXPECT_EQ(out, pair.second);
 
-        EXPECT_TRUE(db.Exists(pair.first));
+        EXPECT_TRUE(db.ExistsStrKeyVal(pair.first));
     }
     db.Close();
 }

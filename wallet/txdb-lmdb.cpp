@@ -278,7 +278,7 @@ CTxDB::CTxDB(const char* pszMode)
     fReadOnly = (!strchr(pszMode, '+') && !strchr(pszMode, 'w'));
 
     if (txdb) {
-        pdb = txdb.get();
+        db_main = txdb.get();
         return;
     }
 
@@ -290,9 +290,9 @@ CTxDB::CTxDB(const char* pszMode)
     //    options.filter_policy     = leveldb::NewBloomFilterPolicy(10);
 
     init_blockindex(); // Init directory
-    pdb = txdb.get();
+    db_main = txdb.get();
 
-    if (Exists(string("version"))) {
+    if (Exists(string("version"), db_main)) {
         ReadVersion(nVersion);
         printf("Transaction index version is %d\n", nVersion);
 
@@ -300,7 +300,7 @@ CTxDB::CTxDB(const char* pszMode)
             printf("Required index version is %d, removing old database\n", DATABASE_VERSION);
 
             // lmdb instance destruction
-            pdb = nullptr;
+            db_main = nullptr;
             txdb.reset();
             if (activeBatch) {
                 activeBatch->abort();
@@ -308,7 +308,7 @@ CTxDB::CTxDB(const char* pszMode)
             }
 
             init_blockindex(true); // Remove directory and create new database
-            pdb = txdb.get();
+            db_main = txdb.get();
 
             bool fTmp = fReadOnly;
             fReadOnly = false;
@@ -332,7 +332,7 @@ void CTxDB::Close()
         activeBatch.reset();
     }
     txdb.reset();
-    pdb = nullptr;
+    db_main = nullptr;
 }
 
 void CTxDB::__deleteDb()
@@ -379,32 +379,39 @@ bool CTxDB::TxnAbort()
     return true;
 }
 
+bool CTxDB::WriteStrKeyVal(const string& key, const string& val) { return Write(key, val, db_main); }
+bool CTxDB::ReadStrKeyVal(const string& key, string& val) { return Read(key, val, db_main); }
+bool CTxDB::ExistsStrKeyVal(const string& key) { return Exists(key, db_main); }
+bool CTxDB::EraseStrKeyVal(const string& key) { return Erase(key, db_main); }
+
 bool CTxDB::ReadVersion(int& nVersion)
 {
     nVersion = 0;
-    return Read(std::string("version"), nVersion);
+    return Read(std::string("version"), nVersion, db_main);
 }
+
+bool CTxDB::WriteVersion(int nVersion) { return Write(std::string("version"), nVersion, db_main); }
 
 bool CTxDB::ReadTxIndex(uint256 hash, CTxIndex& txindex)
 {
     txindex.SetNull();
-    return Read(make_pair(string("tx"), hash), txindex);
+    return Read(make_pair(string("tx"), hash), txindex, db_main);
 }
 
 bool CTxDB::UpdateTxIndex(uint256 hash, const CTxIndex& txindex)
 {
-    return Write(make_pair(string("tx"), hash), txindex);
+    return Write(make_pair(string("tx"), hash), txindex, db_main);
 }
 
 bool CTxDB::ReadNTP1TxIndex(uint256 hash, DiskNTP1TxPos& txindex)
 {
     txindex.SetNull();
-    return Read(make_pair(string("ntp1tx"), hash), txindex);
+    return Read(make_pair(string("ntp1tx"), hash), txindex, db_main);
 }
 
 bool CTxDB::WriteNTP1TxIndex(uint256 hash, const DiskNTP1TxPos& txindex)
 {
-    return Write(make_pair(string("ntp1tx"), hash), txindex);
+    return Write(make_pair(string("ntp1tx"), hash), txindex, db_main);
 }
 
 bool CTxDB::AddTxIndex(const CTransaction& tx, const CDiskTxPos& pos, int /*nHeight*/)
@@ -412,19 +419,19 @@ bool CTxDB::AddTxIndex(const CTransaction& tx, const CDiskTxPos& pos, int /*nHei
     // Add to tx index
     uint256  hash = tx.GetHash();
     CTxIndex txindex(pos, tx.vout.size());
-    return Write(make_pair(string("tx"), hash), txindex);
+    return Write(make_pair(string("tx"), hash), txindex, db_main);
 }
 
 bool CTxDB::EraseTxIndex(const CTransaction& tx)
 {
     uint256 hash = tx.GetHash();
 
-    return Erase(make_pair(string("tx"), hash));
+    return Erase(make_pair(string("tx"), hash), db_main);
 }
 
-bool CTxDB::ContainsTx(uint256 hash) { return Exists(make_pair(string("tx"), hash)); }
+bool CTxDB::ContainsTx(uint256 hash) { return Exists(make_pair(string("tx"), hash), db_main); }
 
-bool CTxDB::ContainsNTP1Tx(uint256 hash) { return Exists(make_pair(string("ntp1tx"), hash)); }
+bool CTxDB::ContainsNTP1Tx(uint256 hash) { return Exists(make_pair(string("ntp1tx"), hash), db_main); }
 
 bool CTxDB::ReadDiskTx(uint256 hash, CTransaction& tx, CTxIndex& txindex)
 {
@@ -453,47 +460,47 @@ bool CTxDB::ReadDiskTx(COutPoint outpoint, CTransaction& tx)
 
 bool CTxDB::WriteBlockIndex(const CDiskBlockIndex& blockindex)
 {
-    return Write(make_pair(string("blockindex"), blockindex.GetBlockHash()), blockindex);
+    return Write(make_pair(string("blockindex"), blockindex.GetBlockHash()), blockindex, db_main);
 }
 
 bool CTxDB::ReadHashBestChain(uint256& hashBestChain)
 {
-    return Read(string("hashBestChain"), hashBestChain);
+    return Read(string("hashBestChain"), hashBestChain, db_main);
 }
 
 bool CTxDB::WriteHashBestChain(uint256 hashBestChain)
 {
-    return Write(string("hashBestChain"), hashBestChain);
+    return Write(string("hashBestChain"), hashBestChain, db_main);
 }
 
 bool CTxDB::ReadBestInvalidTrust(CBigNum& bnBestInvalidTrust)
 {
-    return Read(string("bnBestInvalidTrust"), bnBestInvalidTrust);
+    return Read(string("bnBestInvalidTrust"), bnBestInvalidTrust, db_main);
 }
 
 bool CTxDB::WriteBestInvalidTrust(CBigNum bnBestInvalidTrust)
 {
-    return Write(string("bnBestInvalidTrust"), bnBestInvalidTrust);
+    return Write(string("bnBestInvalidTrust"), bnBestInvalidTrust, db_main);
 }
 
 bool CTxDB::ReadSyncCheckpoint(uint256& hashCheckpoint)
 {
-    return Read(string("hashSyncCheckpoint"), hashCheckpoint);
+    return Read(string("hashSyncCheckpoint"), hashCheckpoint, db_main);
 }
 
 bool CTxDB::WriteSyncCheckpoint(uint256 hashCheckpoint)
 {
-    return Write(string("hashSyncCheckpoint"), hashCheckpoint);
+    return Write(string("hashSyncCheckpoint"), hashCheckpoint, db_main);
 }
 
 bool CTxDB::ReadCheckpointPubKey(string& strPubKey)
 {
-    return Read(string("strCheckpointPubKey"), strPubKey);
+    return Read(string("strCheckpointPubKey"), strPubKey, db_main);
 }
 
 bool CTxDB::WriteCheckpointPubKey(const string& strPubKey)
 {
-    return Write(string("strCheckpointPubKey"), strPubKey);
+    return Write(string("strCheckpointPubKey"), strPubKey, db_main);
 }
 
 static CBlockIndex* InsertBlockIndex(uint256 hash)
@@ -539,7 +546,7 @@ bool CTxDB::LoadBlockIndex()
         return error("Failed to begin transaction at read with error code %i; and error: %s\n", res,
                      mdb_strerror(res));
     }
-    if (auto rc = mdb_cursor_open(localTxn, *pdb, &cursorRawPtr)) {
+    if (auto rc = mdb_cursor_open(localTxn, *db_main, &cursorRawPtr)) {
         return error(
             "CTxDB::LoadBlockIndex() : Failed to open lmdb cursor with error code %d; and error: %s\n",
             rc, mdb_strerror(rc));
