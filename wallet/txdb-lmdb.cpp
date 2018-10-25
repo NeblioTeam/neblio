@@ -475,7 +475,7 @@ bool CTxDB::ReadDiskTx(COutPoint outpoint, CTransaction& tx)
 
 bool CTxDB::WriteBlockIndex(const CDiskBlockIndex& blockindex)
 {
-    return Write(make_pair(string("blockindex"), blockindex.GetBlockHash()), blockindex, db_blockIndex);
+    return Write(blockindex.GetBlockHash(), blockindex, db_blockIndex);
 }
 
 bool CTxDB::ReadHashBestChain(uint256& hashBestChain)
@@ -574,7 +574,7 @@ bool CTxDB::LoadBlockIndex()
 
     // Seek to start key.
     CDataStream ssStartKey(SER_DISK, CLIENT_VERSION);
-    ssStartKey << make_pair(string("blockindex"), uint256(0));
+    ssStartKey << uint256(0);
     std::string&& keyBin = ssStartKey.str();
     MDB_val       key    = {(size_t)ssStartKey.size(), (void*)keyBin.data()};
     MDB_val       data;
@@ -643,8 +643,7 @@ bool CTxDB::LoadBlockIndex()
             setStakeSeen.insert(make_pair(pindexNew->prevoutStake, pindexNew->nStakeTime));
 
         itemRes = mdb_cursor_get(cursorRawPtr, &key, &data, MDB_NEXT);
-        //        std::cout << "Read status: " << firstItemRes << "\t" << mdb_strerror(firstItemRes) <<
-        //        std::endl;
+        //        std::cout << "Read status: " << itemRes << "\t" << mdb_strerror(itemRes) << std::endl;
     } while (itemRes == 0);
     cursorPtr.reset();
     localTxn.commit();
