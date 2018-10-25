@@ -23,13 +23,21 @@
 // global environment pointer
 extern std::unique_ptr<MDB_env, std::function<void(MDB_env*)>> dbEnv;
 // global database pointers
-extern std::unique_ptr<MDB_dbi, std::function<void(MDB_dbi*)>> glob_db_main;
-extern std::unique_ptr<MDB_dbi, std::function<void(MDB_dbi*)>> glob_db_blockIndex;
+using DbSmartPtrType = std::unique_ptr<MDB_dbi, std::function<void(MDB_dbi*)>>;
+extern DbSmartPtrType glob_db_main;
+extern DbSmartPtrType glob_db_blockIndex;
+extern DbSmartPtrType glob_db_version;
+extern DbSmartPtrType glob_db_txIndex;
+extern DbSmartPtrType glob_db_ntp1Tx;
+
+
+const std::string LMDB_MAINDB             = "MainDb";
+const std::string LMDB_BLOCKINDEXDB       = "BlockIndexDb";
+const std::string LMDB_VERSIONDB          = "VersionDb";
+const std::string LMDB_TXDB               = "TxDb";
+const std::string LMDB_NTP1TXDB           = "Ntp1txDb";
 
 constexpr static float DB_RESIZE_PERCENT = 0.9f;
-
-const std::string LMDB_MAINDB       = "mainDb";
-const std::string LMDB_BLOCKINDEXDB = "blockIndexDb";
 
 // this custom size is used in tests
 #ifndef CUSTOM_LMDB_DB_SIZE
@@ -129,8 +137,11 @@ public:
     static void __deleteDb();
 
 private:
-    MDB_dbi* db_main;       // Points to the global instance.
-    MDB_dbi* db_blockIndex; // Points to the global instance.
+    // Points to the global instance databases on construction.
+    MDB_dbi* db_main;
+    MDB_dbi* db_blockIndex;
+    MDB_dbi* db_txIndex;
+    MDB_dbi* db_ntp1Tx;
 
     // A batch stores up writes and deletes for atomic application. When this
     // field is non-NULL, writes/deletes go there instead of directly to disk.
@@ -138,8 +149,14 @@ private:
     bool                          fReadOnly;
     int                           nVersion;
 
-protected:
+    std::function<void(MDB_dbi*)> dbDeleter = [](MDB_dbi* p) {
+        if (p) {
+            mdb_close(dbEnv.get(), *p);
+            delete p;
+        }
+    };
 
+protected:
     // Returns true and sets (value,false) if activeBatch contains the given key
     // or leaves value alone and sets deleted = true if activeBatch contains a
     // delete for it.
@@ -393,20 +410,26 @@ private:
 
 void CTxDB::loadDbPointers()
 {
-    db_main       = glob_db_main.get();
-    db_blockIndex = glob_db_blockIndex.get();
+    db_main             = glob_db_main.get();
+    db_blockIndex       = glob_db_blockIndex.get();
+    db_txIndex          = glob_db_txIndex.get();
+    db_ntp1Tx           = glob_db_ntp1Tx.get();
 }
 
 void CTxDB::resetDbPointers()
 {
-    db_main       = nullptr;
-    db_blockIndex = nullptr;
+    db_main             = nullptr;
+    db_blockIndex       = nullptr;
+    db_txIndex          = nullptr;
+    db_ntp1Tx           = nullptr;
 }
 
 void CTxDB::resetGlobalDbPointers()
 {
     glob_db_main.reset();
     glob_db_blockIndex.reset();
+    glob_db_txIndex.reset();
+    glob_db_ntp1Tx.reset();
 }
 
 #endif // BITCOIN_LMDB_H
