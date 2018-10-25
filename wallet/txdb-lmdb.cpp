@@ -261,15 +261,27 @@ void CTxDB::init_blockindex(bool fRemoveOld)
             delete p;
         }
     });
+    glob_db_blockIndex =
+        std::unique_ptr<MDB_dbi, std::function<void(MDB_dbi*)>>(new MDB_dbi, [](MDB_dbi* p) {
+            if (p) {
+                mdb_close(dbEnv.get(), *p);
+                delete p;
+            }
+        });
 
     CTxDB::lmdb_db_open(txn, LMDB_MAINDB.c_str(), MDB_CREATE, *glob_db_main,
-                        "Failed to open db handle for m_blocks");
+                        "Failed to open db handle for db_main");
+    CTxDB::lmdb_db_open(txn, LMDB_BLOCKINDEXDB.c_str(), MDB_CREATE, *glob_db_blockIndex,
+                        "Failed to open db handle for db_blockIndex");
 
     // commit the transaction
     txn.commit();
 
     if (!glob_db_main) {
-        throw std::runtime_error("LMDB nullptr after opening the database.");
+        throw std::runtime_error("LMDB nullptr after opening the db_main database.");
+    }
+    if (!glob_db_blockIndex) {
+        throw std::runtime_error("LMDB nullptr after opening the db_blockIndex database.");
     }
 }
 
