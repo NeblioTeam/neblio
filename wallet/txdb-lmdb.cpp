@@ -475,7 +475,7 @@ bool CTxDB::ReadDiskTx(COutPoint outpoint, CTransaction& tx)
 
 bool CTxDB::WriteBlockIndex(const CDiskBlockIndex& blockindex)
 {
-    return Write(make_pair(string("blockindex"), blockindex.GetBlockHash()), blockindex, db_main);
+    return Write(make_pair(string("blockindex"), blockindex.GetBlockHash()), blockindex, db_blockIndex);
 }
 
 bool CTxDB::ReadHashBestChain(uint256& hashBestChain)
@@ -561,7 +561,7 @@ bool CTxDB::LoadBlockIndex()
         return error("Failed to begin transaction at read with error code %i; and error: %s\n", res,
                      mdb_strerror(res));
     }
-    if (auto rc = mdb_cursor_open(localTxn, *db_main, &cursorRawPtr)) {
+    if (auto rc = mdb_cursor_open(localTxn, *db_blockIndex, &cursorRawPtr)) {
         return error(
             "CTxDB::LoadBlockIndex() : Failed to open lmdb cursor with error code %d; and error: %s\n",
             rc, mdb_strerror(rc));
@@ -579,15 +579,16 @@ bool CTxDB::LoadBlockIndex()
     MDB_val       key    = {(size_t)ssStartKey.size(), (void*)keyBin.data()};
     MDB_val       data;
 
-    int firstItemRes = mdb_cursor_get(cursorPtr.get(), &key, &data, MDB_SET_RANGE);
-    if (firstItemRes != 0 && firstItemRes != MDB_NOTFOUND) {
-        return error("Error while opening cursor to load index. Error code %i, and error: %s\n",
-                     firstItemRes, mdb_strerror(firstItemRes));
+    int itemRes = mdb_cursor_get(cursorPtr.get(), &key, &data, MDB_FIRST);
+    if (itemRes != 0 && itemRes != MDB_NOTFOUND) {
+        return error("Error while opening cursor to load index. Error code %i, and error: %s\n", itemRes,
+                     mdb_strerror(itemRes));
     }
 
     // Now read each entry.
     do {
-        if (firstItemRes) {
+        // if the first item is empty, break immediately
+        if (itemRes) {
             break;
         }
 
@@ -599,10 +600,8 @@ bool CTxDB::LoadBlockIndex()
         ssKey.write(keyStr.data(), keyStr.size());
         CDataStream ssValue(SER_DISK, CLIENT_VERSION);
         ssValue.write(valStr.data(), valStr.size());
-        string strType;
-        ssKey >> strType;
-        // Did we reach the end of the data to read?
-        if (fRequestShutdown || strType != "blockindex")
+
+        if (fRequestShutdown)
             break;
         CDiskBlockIndex diskindex;
         ssValue >> diskindex;
@@ -643,7 +642,10 @@ bool CTxDB::LoadBlockIndex()
         if (pindexNew->IsProofOfStake())
             setStakeSeen.insert(make_pair(pindexNew->prevoutStake, pindexNew->nStakeTime));
 
-    } while (mdb_cursor_get(cursorRawPtr, &key, &data, MDB_NEXT) == 0);
+        itemRes = mdb_cursor_get(cursorRawPtr, &key, &data, MDB_NEXT);
+        //        std::cout << "Read status: " << firstItemRes << "\t" << mdb_strerror(firstItemRes) <<
+        //        std::endl;
+    } while (itemRes == 0);
     cursorPtr.reset();
     localTxn.commit();
 
