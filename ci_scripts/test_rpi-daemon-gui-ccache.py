@@ -47,10 +47,10 @@ if(os.path.isfile('neblio-qt') and os.path.isfile('nebliod')):
   nci.call_with_err_code('sudo rm -f neblio-qt && sudo rm -f nebliod')
   nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
 else:
-  if(os.path.isfile('neblio-qt'):
+  if(os.path.isfile('neblio-qt')):
     nci.call_with_err_code('sudo rm -f neblio-qt')
 
-  if(os.path.isfile('nebliod'):
+  if(os.path.isfile('nebliod')):
     nci.call_with_err_code('sudo rm -f nebliod')
 
   nci.call_with_err_code('echo "Binaries neblio-qt and nebliod not found, likely due to a timeout, this job should be retried"')
