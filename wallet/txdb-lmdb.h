@@ -126,7 +126,7 @@ public:
     // Destroys the underlying shared global state accessed by this TxDB.
     void Close();
 
-    static const int WriteReps = 32;
+    static void __deleteDb();
 
 private:
     MDB_dbi* db_main;       // Points to the global instance.
@@ -139,8 +139,6 @@ private:
     int                           nVersion;
 
 protected:
-public:
-    static void __deleteDb();
 
     // Returns true and sets (value,false) if activeBatch contains the given key
     // or leaves value alone and sets deleted = true if activeBatch contains a
@@ -238,7 +236,7 @@ public:
             if (ret == MDB_MAP_FULL) {
                 printf("Failed to write key %s with lmdb, MDB_MAP_FULL\n", ssKey.str().c_str());
             } else {
-                printf("Failed to write key with lmdb, unknown reason\n");
+                printf("Failed to write key with lmdb; Code %i; Error: %s\n", ret, mdb_strerror(ret));
             }
             if (localTxn.rawPtr()) {
                 localTxn.abort();
@@ -388,12 +386,10 @@ public:
 private:
     bool LoadBlockIndexGuts();
 
-    inline void loadDbPointers();
-    inline void resetDbPointers();
+    inline void        loadDbPointers();
+    inline void        resetDbPointers();
     static inline void resetGlobalDbPointers();
 };
-
-
 
 void CTxDB::loadDbPointers()
 {
