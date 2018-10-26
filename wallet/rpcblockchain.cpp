@@ -188,10 +188,10 @@ Value settxfee(const Array& params, bool fHelp)
     if (fHelp || params.size() < 1 || params.size() > 1 || AmountFromValue(params[0]) < MIN_TX_FEE)
         throw runtime_error(
             "settxfee <amount>\n"
-            "<amount> is a real and is rounded to the nearest 0.01");
+            "<amount> is a real and is rounded to the nearest 0.0001");
 
     nTransactionFee = AmountFromValue(params[0]);
-    nTransactionFee = (nTransactionFee / CENT) * CENT;  // round to cent
+    nTransactionFee = (nTransactionFee / MIN_TX_FEE) * MIN_TX_FEE;  // round to nearest 0.0001
 
     return true;
 }
