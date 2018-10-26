@@ -19,7 +19,7 @@ std::unique_ptr<MDB_env, std::function<void(MDB_env*)>> dbEnv;
 
 DbSmartPtrType glob_db_main;
 DbSmartPtrType glob_db_blockIndex;
-DbSmartPtrType glob_db_txIndex;
+DbSmartPtrType glob_db_tx;
 DbSmartPtrType glob_db_ntp1Tx;
 
 using namespace std;
@@ -258,15 +258,15 @@ void CTxDB::init_blockindex(bool fRemoveOld)
 
     glob_db_main       = DbSmartPtrType(new MDB_dbi, dbDeleter);
     glob_db_blockIndex = DbSmartPtrType(new MDB_dbi, dbDeleter);
-    glob_db_txIndex    = DbSmartPtrType(new MDB_dbi, dbDeleter);
+    glob_db_tx         = DbSmartPtrType(new MDB_dbi, dbDeleter);
     glob_db_ntp1Tx     = DbSmartPtrType(new MDB_dbi, dbDeleter);
 
     CTxDB::lmdb_db_open(txn, LMDB_MAINDB.c_str(), MDB_CREATE, *glob_db_main,
                         "Failed to open db handle for db_main");
     CTxDB::lmdb_db_open(txn, LMDB_BLOCKINDEXDB.c_str(), MDB_CREATE, *glob_db_blockIndex,
                         "Failed to open db handle for db_blockIndex");
-    CTxDB::lmdb_db_open(txn, LMDB_TXDB.c_str(), MDB_CREATE, *glob_db_txIndex,
-                        "Failed to open db handle for glob_db_txIndex");
+    CTxDB::lmdb_db_open(txn, LMDB_TXDB.c_str(), MDB_CREATE, *glob_db_tx,
+                        "Failed to open db handle for glob_db_tx");
     CTxDB::lmdb_db_open(txn, LMDB_NTP1TXDB.c_str(), MDB_CREATE, *glob_db_ntp1Tx,
                         "Failed to open db handle for glob_db_ntp1Tx");
 
@@ -279,8 +279,8 @@ void CTxDB::init_blockindex(bool fRemoveOld)
     if (!glob_db_blockIndex) {
         throw std::runtime_error("LMDB nullptr after opening the db_blockIndex database.");
     }
-    if (!glob_db_txIndex) {
-        throw std::runtime_error("LMDB nullptr after opening the db_txIndex database.");
+    if (!glob_db_tx) {
+        throw std::runtime_error("LMDB nullptr after opening the db_tx database.");
     }
     if (!glob_db_ntp1Tx) {
         throw std::runtime_error("LMDB nullptr after opening the db_ntp1Tx database.");
@@ -412,41 +412,30 @@ bool CTxDB::WriteVersion(int nVersion) { return Write(std::string("version"), nV
 bool CTxDB::ReadTxIndex(uint256 hash, CTxIndex& txindex)
 {
     txindex.SetNull();
-    return Read(hash, txindex, db_txIndex);
+    return Read(hash, txindex, db_tx);
 }
 
-bool CTxDB::UpdateTxIndex(uint256 hash, const CTxIndex& txindex)
+bool CTxDB::UpdateTxIndex(uint256 hash, const CTxIndex& txindex) { return Write(hash, txindex, db_tx); }
+
+bool CTxDB::ReadNTP1Tx(uint256 hash, NTP1Transaction& ntp1tx)
 {
-    return Write(hash, txindex, db_txIndex);
+    ntp1tx.setNull();
+    return Read(hash, ntp1tx, db_ntp1Tx);
 }
 
-bool CTxDB::ReadNTP1TxIndex(uint256 hash, DiskNTP1TxPos& txindex)
+bool CTxDB::WriteNTP1Tx(uint256 hash, const NTP1Transaction& ntp1tx)
 {
-    txindex.SetNull();
-    return Read(hash, txindex, db_ntp1Tx);
-}
-
-bool CTxDB::WriteNTP1TxIndex(uint256 hash, const DiskNTP1TxPos& txindex)
-{
-    return Write(hash, txindex, db_ntp1Tx);
-}
-
-bool CTxDB::AddTxIndex(const CTransaction& tx, const CDiskTxPos& pos, int /*nHeight*/)
-{
-    // Add to tx index
-    uint256  hash = tx.GetHash();
-    CTxIndex txindex(pos, tx.vout.size());
-    return Write(hash, txindex, db_txIndex);
+    return Write(hash, ntp1tx, db_ntp1Tx);
 }
 
 bool CTxDB::EraseTxIndex(const CTransaction& tx)
 {
     uint256 hash = tx.GetHash();
 
-    return Erase(hash, db_txIndex);
+    return Erase(hash, db_tx);
 }
 
-bool CTxDB::ContainsTx(uint256 hash) { return Exists(hash, db_txIndex); }
+bool CTxDB::ContainsTx(uint256 hash) { return Exists(hash, db_tx); }
 
 bool CTxDB::ContainsNTP1Tx(uint256 hash) { return Exists(hash, db_ntp1Tx); }
 

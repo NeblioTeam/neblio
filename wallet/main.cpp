@@ -2153,14 +2153,14 @@ CTransaction FetchTxFromDisk(const uint256& txid)
     CTransaction result;
     CTxIndex     txPos;
     if (!CTxDB().ReadTxIndex(txid, txPos)) {
-        printf("Unable to read standard transaction from leveldb: %s\n", txid.ToString().c_str());
-        throw std::runtime_error("Unable to read standard transaction from leveldb: " + txid.ToString());
+        printf("Unable to read standard transaction from db: %s\n", txid.ToString().c_str());
+        throw std::runtime_error("Unable to read standard transaction from db: " + txid.ToString());
     }
     if (!result.ReadFromDisk(txPos.pos)) {
         printf("Unable to read NTP1 transaction from disk with the "
-               "index given by leveldb: %s\n",
+               "index given by db: %s\n",
                txid.ToString().c_str());
-        throw std::runtime_error("Unable to read standard transaction from leveldb: " + txid.ToString());
+        throw std::runtime_error("Unable to read standard transaction from db: " + txid.ToString());
     }
     return result;
 }
@@ -2212,9 +2212,8 @@ void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, unsig
     if (!IsTxNTP1(&txPair.first)) {
         return;
     }
-    DiskNTP1TxPos ntp1txPos;
-    if (!CTxDB().ReadNTP1TxIndex(txPair.first.GetHash(), ntp1txPos)) {
-        printf("Unable to read NTP1 transaction from leveldb: %s\n",
+    if (!CTxDB().ReadNTP1Tx(txPair.first.GetHash(), txPair.second)) {
+        printf("Unable to read NTP1 transaction from db: %s\n",
                txPair.first.GetHash().ToString().c_str());
         if (recurseDepth < 32) {
             if (RecoverNTP1TxInDatabase(txPair.first, recurseDepth + 1)) {
@@ -2229,28 +2228,12 @@ void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, unsig
         }
         return;
     }
-    if (!txPair.second.readFromDisk(ntp1txPos)) {
-        printf("Unable to read NTP1 transaction from disk with the "
-               "index given by leveldb: %s\n",
-               txPair.first.GetHash().ToString().c_str());
-        return;
-    }
 }
 
 void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx)
 {
-    // write to disk
-    unsigned int nFile;
-    unsigned int nTxPosRet;
-    if (!ntp1tx.writeToDisk(nFile, nTxPosRet)) {
-        throw std::runtime_error("unable to write NTP1 transaction serialized data to disk: " +
-                                 ntp1tx.getTxHash().ToString());
-    }
-
-    // write index to leveldb
-    DiskNTP1TxPos ntp1txPos(nFile, nTxPosRet);
-    if (!CTxDB().WriteNTP1TxIndex(ntp1tx.getTxHash(), ntp1txPos)) {
-        throw std::runtime_error("unable to write NTP1 transaction index to leveldb database: " +
+    if (!CTxDB().WriteNTP1Tx(ntp1tx.getTxHash(), ntp1tx)) {
+        throw std::runtime_error("unable to write NTP1 transaction to database: " +
                                  ntp1tx.getTxHash().ToString());
     }
 }

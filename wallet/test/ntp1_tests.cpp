@@ -18,8 +18,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-const std::string TempNTP1File("ntp1txout.bin");
-
 TEST(ntp1_tests, parse_NTP1TxIn_from_json)
 {
     std::string tx_str =
@@ -785,41 +783,6 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_issuance)
     EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getHash().ToString(),
               "c55dd5271dd8a9aa35a7f6c393a0eb24bcc50116bf15b49f4e760d3e9a138120");
     EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), static_cast<unsigned>(1));
-
-    /// READ AND WRITE
-    ///
-    std::remove(TempNTP1File.c_str());
-    {
-        // will be freed automatically by writeFromDisk
-        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-        EXPECT_NE(fileWrite, nullptr);
-
-        unsigned int nFileRet = -1;
-        unsigned int nTxPos   = -1;
-        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-        EXPECT_NE(fileRead, nullptr);
-
-        NTP1Transaction ntp1tx2;
-        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-        EXPECT_EQ(ntp1tx, ntp1tx2);
-    }
-    {
-        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-        EXPECT_NE(fileWrite, nullptr);
-
-        unsigned int nFileRet = -1;
-        unsigned int nTxPos   = -1;
-        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-        EXPECT_NE(fileRead, nullptr);
-
-        NTP1Transaction ntp1tx2;
-        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-        EXPECT_EQ(ntp1tx, ntp1tx2);
-    }
 }
 
 TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
@@ -1020,40 +983,6 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
     EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getHash().ToString(),
               "111481401fbd842c5aa1b9420db8c5ef7e94d9ac3b3d3b7e2b2cb6c7b0650612");
     EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getIndex(), static_cast<unsigned>(3));
-
-    /// READ AND WRITE
-    ///
-    {
-        // will be freed automatically by writeFromDisk
-        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-        EXPECT_NE(fileWrite, nullptr);
-
-        unsigned int nFileRet = -1;
-        unsigned int nTxPos   = -1;
-        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-        EXPECT_NE(fileRead, nullptr);
-
-        NTP1Transaction ntp1tx2;
-        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-        EXPECT_EQ(ntp1tx, ntp1tx2);
-    }
-    {
-        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-        EXPECT_NE(fileWrite, nullptr);
-
-        unsigned int nFileRet = -1;
-        unsigned int nTxPos   = -1;
-        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-        EXPECT_NE(fileRead, nullptr);
-
-        NTP1Transaction ntp1tx2;
-        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-        EXPECT_EQ(ntp1tx, ntp1tx2);
-    }
 }
 
 TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
@@ -1255,40 +1184,6 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
     EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getHash().ToString(),
               "111481401fbd842c5aa1b9420db8c5ef7e94d9ac3b3d3b7e2b2cb6c7b0650612");
     EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getIndex(), static_cast<unsigned>(3));
-
-    /// READ AND WRITE
-    ///
-    {
-        // will be freed automatically by writeFromDisk
-        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-        EXPECT_NE(fileWrite, nullptr);
-
-        unsigned int nFileRet = -1;
-        unsigned int nTxPos   = -1;
-        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-        EXPECT_NE(fileRead, nullptr);
-
-        NTP1Transaction ntp1tx2;
-        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-        EXPECT_EQ(ntp1tx, ntp1tx2);
-    }
-    {
-        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-        EXPECT_NE(fileWrite, nullptr);
-
-        unsigned int nFileRet = -1;
-        unsigned int nTxPos   = -1;
-        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-        EXPECT_NE(fileRead, nullptr);
-
-        NTP1Transaction ntp1tx2;
-        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-        EXPECT_EQ(ntp1tx, ntp1tx2);
-    }
 }
 
 TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
@@ -1605,41 +1500,6 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
     EXPECT_EQ(ntp1tx.getTxIn(3).getPrevout().getHash().ToString(),
               "0317c3f20338cd8ea142c389e65670554c676905d2024a58775f695fe88f1298");
     EXPECT_EQ(ntp1tx.getTxIn(3).getPrevout().getIndex(), static_cast<unsigned>(3));
-
-    /// READ AND WRITE
-    ///
-    {
-        // will be freed automatically by writeFromDisk
-        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-        EXPECT_NE(fileWrite, nullptr);
-
-        unsigned int nFileRet = -1;
-        unsigned int nTxPos   = -1;
-        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-        EXPECT_NE(fileRead, nullptr);
-
-        NTP1Transaction ntp1tx2;
-
-        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-        EXPECT_EQ(ntp1tx, ntp1tx2);
-    }
-    {
-        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-        EXPECT_NE(fileWrite, nullptr);
-
-        unsigned int nFileRet = -1;
-        unsigned int nTxPos   = -1;
-        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-        EXPECT_NE(fileRead, nullptr);
-
-        NTP1Transaction ntp1tx2;
-        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-        EXPECT_EQ(ntp1tx, ntp1tx2);
-    }
 }
 
 std::string GetRawTxURL(const std::string& txid, bool testnet)

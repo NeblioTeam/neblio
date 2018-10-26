@@ -27,7 +27,7 @@ using DbSmartPtrType = std::unique_ptr<MDB_dbi, std::function<void(MDB_dbi*)>>;
 extern DbSmartPtrType glob_db_main;
 extern DbSmartPtrType glob_db_blockIndex;
 extern DbSmartPtrType glob_db_version;
-extern DbSmartPtrType glob_db_txIndex;
+extern DbSmartPtrType glob_db_tx;
 extern DbSmartPtrType glob_db_ntp1Tx;
 
 
@@ -140,7 +140,7 @@ private:
     // Points to the global instance databases on construction.
     MDB_dbi* db_main;
     MDB_dbi* db_blockIndex;
-    MDB_dbi* db_txIndex;
+    MDB_dbi* db_tx;
     MDB_dbi* db_ntp1Tx;
 
     // A batch stores up writes and deletes for atomic application. When this
@@ -377,9 +377,8 @@ public:
     bool WriteVersion(int nVersion);
     bool ReadTxIndex(uint256 hash, CTxIndex& txindex);
     bool UpdateTxIndex(uint256 hash, const CTxIndex& txindex);
-    bool ReadNTP1TxIndex(uint256 hash, DiskNTP1TxPos& txindex);
-    bool WriteNTP1TxIndex(uint256 hash, const DiskNTP1TxPos& txindex);
-    bool AddTxIndex(const CTransaction& tx, const CDiskTxPos& pos, int nHeight);
+    bool ReadNTP1Tx(uint256 hash, NTP1Transaction& ntp1tx);
+    bool WriteNTP1Tx(uint256 hash, const NTP1Transaction& ntp1tx);
     bool EraseTxIndex(const CTransaction& tx);
     bool ContainsTx(uint256 hash);
     bool ContainsNTP1Tx(uint256 hash);
@@ -412,7 +411,7 @@ void CTxDB::loadDbPointers()
 {
     db_main             = glob_db_main.get();
     db_blockIndex       = glob_db_blockIndex.get();
-    db_txIndex          = glob_db_txIndex.get();
+    db_tx          = glob_db_tx.get();
     db_ntp1Tx           = glob_db_ntp1Tx.get();
 }
 
@@ -420,7 +419,7 @@ void CTxDB::resetDbPointers()
 {
     db_main             = nullptr;
     db_blockIndex       = nullptr;
-    db_txIndex          = nullptr;
+    db_tx          = nullptr;
     db_ntp1Tx           = nullptr;
 }
 
@@ -428,7 +427,7 @@ void CTxDB::resetGlobalDbPointers()
 {
     glob_db_main.reset();
     glob_db_blockIndex.reset();
-    glob_db_txIndex.reset();
+    glob_db_tx.reset();
     glob_db_ntp1Tx.reset();
 }
 
