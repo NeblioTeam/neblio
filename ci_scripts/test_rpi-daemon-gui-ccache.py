@@ -35,7 +35,7 @@ if (has_ccache):
 
 # Start Docker Container to Build nebliod & neblio-Qt
 nci.call_with_err_code('timeout --signal=SIGKILL 45m sudo docker run -e BRANCH=' + os.environ['TRAVIS_BRANCH'] + ' -v ' + deploy_dir + ':/root/deploy -t neblioteam/nebliod-build-ccache-rpi')
-nci.call_with_err_code('sudo docker kill $(sudo docker ps -a -q)')
+nci.call_with_err_code('sleep 5 && sudo docker kill $(sudo docker ps -a -q)')
 
 # Package Cache
 nci.call_with_err_code('tar -zcf ' + deploy_dir + build_cache_name + ' -C ' + deploy_dir + ' .ccache')
