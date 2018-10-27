@@ -202,12 +202,12 @@ class CDiskTxPos
 {
 public:
     unsigned int nFile;
-    unsigned int nBlockPos;
+    uint256      nBlockPos;
     unsigned int nTxPos;
 
     CDiskTxPos() { SetNull(); }
 
-    CDiskTxPos(unsigned int nFileIn, unsigned int nBlockPosIn, unsigned int nTxPosIn)
+    CDiskTxPos(unsigned int nFileIn, const uint256& nBlockPosIn, unsigned int nTxPosIn)
     {
         nFile     = nFileIn;
         nBlockPos = nBlockPosIn;
@@ -235,7 +235,8 @@ public:
         if (IsNull())
             return "null";
         else
-            return strprintf("(nFile=%u, nBlockPos=%u, nTxPos=%u)", nFile, nBlockPos, nTxPos);
+            return strprintf("(nFile=%u, nBlockPos=%s, nTxPos=%u)", nFile, nBlockPos.ToString().c_str(),
+                             nTxPos);
     }
 
     void print() const { printf("%s", ToString().c_str()); }
@@ -579,31 +580,7 @@ public:
     int64_t GetMinFee(unsigned int nBlockSize = 1, enum GetMinFee_mode mode = GMF_BLOCK,
                       unsigned int nBytes = 0) const;
 
-    bool ReadFromDisk(CDiskTxPos pos, FILE** pfileRet = NULL)
-    {
-        CAutoFile filein =
-            CAutoFile(OpenBlockFile(pos.nFile, 0, pfileRet ? "rb+" : "rb"), SER_DISK, CLIENT_VERSION);
-        if (!filein)
-            return error("CTransaction::ReadFromDisk() : OpenBlockFile failed");
-
-        // Read transaction
-        if (fseek(filein, pos.nTxPos, SEEK_SET) != 0)
-            return error("CTransaction::ReadFromDisk() : fseek failed");
-
-        try {
-            filein >> *this;
-        } catch (std::exception& e) {
-            return error("%s() : deserialize or I/O error", __PRETTY_FUNCTION__);
-        }
-
-        // Return file pointer
-        if (pfileRet) {
-            if (fseek(filein, pos.nTxPos, SEEK_SET) != 0)
-                return error("CTransaction::ReadFromDisk() : second fseek failed");
-            *pfileRet = filein.release();
-        }
-        return true;
-    }
+    bool ReadFromDisk(CDiskTxPos pos, FILE** pfileRet = NULL);
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)
     {
@@ -1364,56 +1341,9 @@ public:
         return hash;
     }
 
-    bool WriteToDisk(unsigned int& nFileRet, unsigned int& nBlockPosRet)
-    {
-        // Open history file to append
-        CAutoFile fileout = CAutoFile(AppendBlockFile(nFileRet), SER_DISK, CLIENT_VERSION);
-        if (!fileout)
-            return error("CBlock::WriteToDisk() : AppendBlockFile failed");
+    bool WriteToDisk() const;
 
-        // Write index header
-        unsigned int nSize = fileout.GetSerializeSize(*this);
-        fileout << FLATDATA(pchMessageStart) << nSize;
-
-        // Write block
-        long fileOutPos = ftell(fileout);
-        if (fileOutPos < 0)
-            return error("CBlock::WriteToDisk() : ftell failed");
-        nBlockPosRet = fileOutPos;
-        fileout << *this;
-
-        // Flush stdio buffers and commit to disk before returning
-        fflush(fileout);
-        if (!IsInitialBlockDownload() || (nBestHeight + 1) % 500 == 0)
-            FileCommit(fileout);
-
-        return true;
-    }
-
-    bool ReadFromDisk(unsigned int nFile, unsigned int nBlockPos, bool fReadTransactions = true)
-    {
-        SetNull();
-
-        // Open history file to read
-        CAutoFile filein = CAutoFile(OpenBlockFile(nFile, nBlockPos, "rb"), SER_DISK, CLIENT_VERSION);
-        if (!filein)
-            return error("CBlock::ReadFromDisk() : OpenBlockFile failed");
-        if (!fReadTransactions)
-            filein.nType |= SER_BLOCKHEADERONLY;
-
-        // Read block
-        try {
-            filein >> *this;
-        } catch (std::exception& e) {
-            return error("%s() : deserialize or I/O error", __PRETTY_FUNCTION__);
-        }
-
-        // Check the header
-        if (fReadTransactions && IsProofOfWork() && !CheckProofOfWork(GetPoWHash(), nBits))
-            return error("CBlock::ReadFromDisk() : errors in block header");
-
-        return true;
-    }
+    bool ReadFromDisk(const uint256& hash, bool fReadTransactions = true);
 
     void print() const
     {
@@ -1436,7 +1366,7 @@ public:
     bool ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck = false);
     bool ReadFromDisk(const CBlockIndex* pindex, bool fReadTransactions = true);
     bool SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew);
-    bool AddToBlockIndex(unsigned int nFile, unsigned int nBlockPos, const uint256& hashProof);
+    bool AddToBlockIndex(unsigned int nFile, uint256 nBlockPos, const uint256& hashProof);
     bool CheckBlock(bool fCheckPOW = true, bool fCheckMerkleRoot = true, bool fCheckSig = true) const;
     bool AcceptBlock();
     bool GetCoinAge(uint64_t& nCoinAge) const; // ppcoin: calculate total coin age spent in block
@@ -1461,7 +1391,7 @@ public:
     CBlockIndex*   pprev;
     CBlockIndex*   pnext;
     unsigned int   nFile;
-    unsigned int   nBlockPos;
+    uint256        nBlockPos;
     uint256        nChainTrust; // ppcoin: trust score of block chain
     int            nHeight;
 
@@ -1517,7 +1447,7 @@ public:
         nNonce         = 0;
     }
 
-    CBlockIndex(unsigned int nFileIn, unsigned int nBlockPosIn, CBlock& block)
+    CBlockIndex(unsigned int nFileIn, uint256 nBlockPosIn, CBlock& block)
     {
         phashBlock             = NULL;
         pprev                  = NULL;
@@ -1626,16 +1556,16 @@ public:
 
     std::string ToString() const
     {
-        return strprintf("CBlockIndex(nprev=%p, pnext=%p, nFile=%u, nBlockPos=%-6d nHeight=%d, "
+        return strprintf("CBlockIndex(nprev=%p, pnext=%p, nFile=%u, nBlockPos=%s nHeight=%d, "
                          "nMint=%s, nMoneySupply=%s, nFlags=(%s)(%d)(%s), nStakeModifier=%016" PRIx64
                          ", nStakeModifierChecksum=%08x, hashProof=%s, prevoutStake=(%s), nStakeTime=%d "
                          "merkle=%s, hashBlock=%s)",
-                         pprev, pnext, nFile, nBlockPos, nHeight, FormatMoney(nMint).c_str(),
-                         FormatMoney(nMoneySupply).c_str(), GeneratedStakeModifier() ? "MOD" : "-",
-                         GetStakeEntropyBit(), IsProofOfStake() ? "PoS" : "PoW", nStakeModifier,
-                         nStakeModifierChecksum, hashProof.ToString().c_str(),
-                         prevoutStake.ToString().c_str(), nStakeTime, hashMerkleRoot.ToString().c_str(),
-                         GetBlockHash().ToString().c_str());
+                         pprev, pnext, nFile, nBlockPos.ToString().c_str(), nHeight,
+                         FormatMoney(nMint).c_str(), FormatMoney(nMoneySupply).c_str(),
+                         GeneratedStakeModifier() ? "MOD" : "-", GetStakeEntropyBit(),
+                         IsProofOfStake() ? "PoS" : "PoW", nStakeModifier, nStakeModifierChecksum,
+                         hashProof.ToString().c_str(), prevoutStake.ToString().c_str(), nStakeTime,
+                         hashMerkleRoot.ToString().c_str(), GetBlockHash().ToString().c_str());
     }
 
     void print() const { printf("%s\n", ToString().c_str()); }

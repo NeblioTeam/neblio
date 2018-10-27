@@ -1861,7 +1861,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
         CBlock block;
         {
             LOCK2(cs_main, cs_wallet);
-            if (!block.ReadFromDisk(txindex.pos.nFile, txindex.pos.nBlockPos, false))
+            if (!block.ReadFromDisk(txindex.pos.nBlockPos, false))
                 continue;
         }
 
@@ -1878,9 +1878,8 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
             // Search nSearchInterval seconds back up to nMaxStakeSearchInterval
             uint256   hashProofOfStake = 0, targetProofOfStake = 0;
             COutPoint prevoutStake = COutPoint(pcoin.first->GetHash(), pcoin.second);
-            if (CheckStakeKernelHash(nBits, block, txindex.pos.nTxPos - txindex.pos.nBlockPos,
-                                     *pcoin.first, prevoutStake, txNew.nTime - n, hashProofOfStake,
-                                     targetProofOfStake)) {
+            if (CheckStakeKernelHash(nBits, block, txindex.pos.nTxPos, *pcoin.first, prevoutStake,
+                                     txNew.nTime - n, hashProofOfStake, targetProofOfStake)) {
                 // Found a kernel
                 if (fDebug)
                     printf("CreateCoinStake : kernel found\n");

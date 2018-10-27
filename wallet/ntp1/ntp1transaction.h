@@ -16,6 +16,8 @@
 #include <unordered_map>
 #include <vector>
 
+//#define DEBUG__INCLUDE_STR_HASH
+
 /** Position on disk for a particular transaction. */
 class DiskNTP1TxPos
 {
@@ -56,12 +58,6 @@ public:
     }
 
     void print() const { printf("%s", ToString().c_str()); }
-
-    static boost::filesystem::path NTP1TxsFilePath(unsigned int nFile);
-
-    static FILE* AppendNTP1TxsFile(unsigned int& nFileRet);
-
-    static FILE* OpenNTP1TxsFile(unsigned int nFile, unsigned int nTxPos, const char* pszMode);
 };
 
 struct TokenMinimalData
@@ -79,9 +75,12 @@ struct TokenMinimalData
  */
 class NTP1Transaction
 {
-    static const int           CURRENT_VERSION = 1;
-    int                        nVersion;
-    uint256                    txHash;
+    static const int CURRENT_VERSION = 1;
+    int              nVersion;
+    uint256          txHash;
+#ifdef DEBUG__INCLUDE_STR_HASH
+    std::string strHash;
+#endif
     std::vector<unsigned char> txSerialized;
     std::vector<NTP1TxIn>      vin;
     std::vector<NTP1TxOut>     vout;
@@ -190,9 +189,6 @@ public:
 
     void readNTP1DataFromTx(const CTransaction&                                          tx,
                             const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs);
-
-    bool writeToDisk(unsigned int& nFileRet, unsigned int& nTxPosRet, FILE* customFile = nullptr) const;
-    bool readFromDisk(DiskNTP1TxPos pos, FILE** pfileRet = nullptr, FILE* customFile = nullptr);
 };
 
 bool operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs)

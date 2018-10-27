@@ -275,7 +275,7 @@ bool CTransaction::ReadFromDisk(CTxDB& txdb, COutPoint prevout, CTxIndex& txinde
     SetNull();
     if (!txdb.ReadTxIndex(prevout.hash, txindexRet))
         return false;
-    if (!ReadFromDisk(txindexRet.pos))
+    if (!txdb.ReadTx(txindexRet.pos, *this))
         return false;
     if (prevout.n >= vout.size()) {
         SetNull();
@@ -492,7 +492,7 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
         CTxIndex txindex;
         if (!CTxDB("r").ReadTxIndex(GetHash(), txindex))
             return 0;
-        if (!blockTmp.ReadFromDisk(txindex.pos.nFile, txindex.pos.nBlockPos))
+        if (!blockTmp.ReadFromDisk(txindex.pos.nBlockPos))
             return 0;
         pblock = &blockTmp;
     }
@@ -600,6 +600,12 @@ int64_t CTransaction::GetMinFee(unsigned int nBlockSize, enum GetMinFee_mode mod
     if (!MoneyRange(nMinFee))
         nMinFee = MAX_MONEY;
     return nMinFee;
+}
+
+bool CTransaction::ReadFromDisk(CDiskTxPos pos, FILE** pfileRet)
+{
+    CTxDB().ReadTx(pos, *this);
+    return true;
 }
 
 bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInputs)
@@ -908,7 +914,7 @@ int CTxIndex::GetDepthInMainChain() const
 {
     // Read block header
     CBlock block;
-    if (!block.ReadFromDisk(pos.nFile, pos.nBlockPos, false))
+    if (!block.ReadFromDisk(pos.nBlockPos, false))
         return 0;
     // Find the block in the index
     map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(block.GetHash());
@@ -934,7 +940,7 @@ bool GetTransaction(const uint256& hash, CTransaction& tx, uint256& hashBlock)
         CTxIndex txindex;
         if (tx.ReadFromDisk(txdb, COutPoint(hash, 0), txindex)) {
             CBlock block;
-            if (block.ReadFromDisk(txindex.pos.nFile, txindex.pos.nBlockPos, false))
+            if (block.ReadFromDisk(txindex.pos.nBlockPos, false))
                 hashBlock = block.GetHash();
             return true;
         }
@@ -972,7 +978,7 @@ bool CBlock::ReadFromDisk(const CBlockIndex* pindex, bool fReadTransactions)
         *this = pindex->GetBlockHeader();
         return true;
     }
-    if (!ReadFromDisk(pindex->nFile, pindex->nBlockPos, fReadTransactions))
+    if (!ReadFromDisk(pindex->nBlockPos, fReadTransactions))
         return false;
     if (GetHash() != pindex->GetBlockHash())
         return error("CBlock::ReadFromDisk() : GetHash() doesn't match index");
@@ -1410,11 +1416,17 @@ bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs, map<uint256, CTx
             int nCbM = CoinbaseMaturity(nBestHeight);
             if (txPrev.IsCoinBase() || txPrev.IsCoinStake())
                 for (const CBlockIndex* pindex                                       = pindexBlock;
-                     pindex && pindexBlock->nHeight - pindex->nHeight < nCbM; pindex = pindex->pprev)
-                    if (pindex->nBlockPos == txindex.pos.nBlockPos && pindex->nFile == txindex.pos.nFile)
+                     pindex && pindexBlock->nHeight - pindex->nHeight < nCbM; pindex = pindex->pprev) {
+                    static_assert(std::is_same<decltype(pindex->nBlockPos),
+                                               decltype(txindex.pos.nBlockPos)>::value,
+                                  "Expected same types");
+                    if (pindex->nBlockPos == txindex.pos.nBlockPos &&
+                        pindex->nFile == txindex.pos.nFile) {
                         return error("ConnectInputs() : tried to spend %s at depth %d",
                                      txPrev.IsCoinBase() ? "coinbase" : "coinstake",
                                      pindexBlock->nHeight - pindex->nHeight);
+                    }
+                }
 
             // ppcoin: check transaction timestamp
             if (txPrev.nTime > nTime)
@@ -1537,8 +1549,8 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
         // shouldn't) be on the disk to get the transaction from
         nTxPos = 1;
     else
-        nTxPos = pindex->nBlockPos + ::GetSerializeSize(CBlock(), SER_DISK, CLIENT_VERSION) -
-                 (2 * GetSizeOfCompactSize(0)) + GetSizeOfCompactSize(vtx.size());
+        nTxPos = ::GetSerializeSize(CBlock(), SER_DISK, CLIENT_VERSION) - (2 * GetSizeOfCompactSize(0)) +
+                 GetSizeOfCompactSize(vtx.size());
 
     map<uint256, CTxIndex>     mapQueuedChanges;
     map<uint256, CTransaction> mapQueuedChangesTxs;
@@ -1946,7 +1958,7 @@ bool CTransaction::GetCoinAge(CTxDB& txdb, uint64_t& nCoinAge) const
 
         // Read block header
         CBlock block;
-        if (!block.ReadFromDisk(txindex.pos.nFile, txindex.pos.nBlockPos, false))
+        if (!block.ReadFromDisk(txindex.pos.nBlockPos, false))
             return false; // unable to read block of previous transaction
         if (block.GetBlockTime() + nSMA > nTime)
             continue; // only count coins meeting min age requirement
@@ -1987,7 +1999,7 @@ bool CBlock::GetCoinAge(uint64_t& nCoinAge) const
     return true;
 }
 
-bool CBlock::AddToBlockIndex(unsigned int nFile, unsigned int nBlockPos, const uint256& hashProof)
+bool CBlock::AddToBlockIndex(unsigned int nFile, uint256 nBlockPos, const uint256& hashProof)
 {
     // Check for duplicate
     uint256 hash = GetHash();
@@ -2391,8 +2403,9 @@ bool CBlock::AcceptBlock()
     if (!CheckDiskSpace(::GetSerializeSize(*this, SER_DISK, CLIENT_VERSION)))
         return error("AcceptBlock() : out of disk space");
     unsigned int nFile     = -1;
-    unsigned int nBlockPos = 0;
-    if (!WriteToDisk(nFile, nBlockPos))
+    uint256      nBlockPos = hash;
+    // TODO: Sam: Remove WriteToDisk params and AddToBlockIndex params
+    if (!WriteToDisk())
         return error("AcceptBlock() : WriteToDisk failed");
     if (!AddToBlockIndex(nFile, nBlockPos, hashProof))
         return error("AcceptBlock() : AddToBlockIndex failed");
@@ -2963,11 +2976,10 @@ bool LoadBlockIndex(bool fAllowNew)
         assert(block.CheckBlock());
 
         // Start new block file
-        unsigned int nFile;
-        unsigned int nBlockPos;
-        if (!block.WriteToDisk(nFile, nBlockPos))
+        unsigned int nFile = 0;
+        if (!block.WriteToDisk())
             return error("LoadBlockIndex() : writing genesis block to disk failed");
-        if (!block.AddToBlockIndex(nFile, nBlockPos, hashGenesisBlock))
+        if (!block.AddToBlockIndex(nFile, hashGenesisBlock, hashGenesisBlock))
             return error("LoadBlockIndex() : genesis block not accepted");
 
         // ppcoin: initialize synchronized checkpoint
@@ -3034,8 +3046,8 @@ void PrintBlockTree()
         // print item
         CBlock block;
         block.ReadFromDisk(pindex);
-        printf("%d (%u,%u) %s  %08x  %s  mint %7s  tx %" PRIszu "", pindex->nHeight, pindex->nFile,
-               pindex->nBlockPos, block.GetHash().ToString().c_str(), block.nBits,
+        printf("%d (%u,%s) %s  %08x  %s  mint %7s  tx %" PRIszu "", pindex->nHeight, pindex->nFile,
+               pindex->nBlockPos.ToString().c_str(), block.GetHash().ToString().c_str(), block.nBits,
                DateTimeStrFormat("%x %H:%M:%S", block.GetBlockTime()).c_str(),
                FormatMoney(pindex->nMint).c_str(), block.vtx.size());
 
@@ -4382,4 +4394,12 @@ bool IsTxOutputOpRet(const CTxOut* output, string* opReturnArg)
         return true; // could not retrieve OP_RETURN argument
     }
     return false;
+}
+
+bool CBlock::WriteToDisk() const { return CTxDB().WriteBlock(this->GetHash(), *this); }
+
+bool CBlock::ReadFromDisk(const uint256& hash, bool fReadTransactions)
+{
+    SetNull();
+    return CTxDB().ReadBlock(hash, *this, fReadTransactions);
 }

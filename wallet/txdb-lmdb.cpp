@@ -19,6 +19,7 @@ std::unique_ptr<MDB_env, std::function<void(MDB_env*)>> dbEnv;
 
 DbSmartPtrType glob_db_main;
 DbSmartPtrType glob_db_blockIndex;
+DbSmartPtrType glob_db_blocks;
 DbSmartPtrType glob_db_tx;
 DbSmartPtrType glob_db_ntp1Tx;
 
@@ -258,6 +259,7 @@ void CTxDB::init_blockindex(bool fRemoveOld)
 
     glob_db_main       = DbSmartPtrType(new MDB_dbi, dbDeleter);
     glob_db_blockIndex = DbSmartPtrType(new MDB_dbi, dbDeleter);
+    glob_db_blocks     = DbSmartPtrType(new MDB_dbi, dbDeleter);
     glob_db_tx         = DbSmartPtrType(new MDB_dbi, dbDeleter);
     glob_db_ntp1Tx     = DbSmartPtrType(new MDB_dbi, dbDeleter);
 
@@ -265,6 +267,8 @@ void CTxDB::init_blockindex(bool fRemoveOld)
                         "Failed to open db handle for db_main");
     CTxDB::lmdb_db_open(txn, LMDB_BLOCKINDEXDB.c_str(), MDB_CREATE, *glob_db_blockIndex,
                         "Failed to open db handle for db_blockIndex");
+    CTxDB::lmdb_db_open(txn, LMDB_BLOCKSDB.c_str(), MDB_CREATE, *glob_db_blocks,
+                        "Failed to open db handle for db_blocks");
     CTxDB::lmdb_db_open(txn, LMDB_TXDB.c_str(), MDB_CREATE, *glob_db_tx,
                         "Failed to open db handle for glob_db_tx");
     CTxDB::lmdb_db_open(txn, LMDB_NTP1TXDB.c_str(), MDB_CREATE, *glob_db_ntp1Tx,
@@ -278,6 +282,9 @@ void CTxDB::init_blockindex(bool fRemoveOld)
     }
     if (!glob_db_blockIndex) {
         throw std::runtime_error("LMDB nullptr after opening the db_blockIndex database.");
+    }
+    if (!glob_db_blocks) {
+        throw std::runtime_error("LMDB nullptr after opening the db_blocks database.");
     }
     if (!glob_db_tx) {
         throw std::runtime_error("LMDB nullptr after opening the db_tx database.");
@@ -417,6 +424,12 @@ bool CTxDB::ReadTxIndex(uint256 hash, CTxIndex& txindex)
 
 bool CTxDB::UpdateTxIndex(uint256 hash, const CTxIndex& txindex) { return Write(hash, txindex, db_tx); }
 
+bool CTxDB::ReadTx(const CDiskTxPos& txPos, CTransaction& tx)
+{
+    tx.SetNull();
+    return Read(txPos.nBlockPos, tx, db_blocks, 0, txPos.nTxPos);
+}
+
 bool CTxDB::ReadNTP1Tx(uint256 hash, NTP1Transaction& ntp1tx)
 {
     ntp1tx.setNull();
@@ -426,6 +439,19 @@ bool CTxDB::ReadNTP1Tx(uint256 hash, NTP1Transaction& ntp1tx)
 bool CTxDB::WriteNTP1Tx(uint256 hash, const NTP1Transaction& ntp1tx)
 {
     return Write(hash, ntp1tx, db_ntp1Tx);
+}
+
+bool CTxDB::ReadBlock(uint256 hash, CBlock& blk, bool fReadTransactions)
+{
+    blk.SetNull();
+    int modifiers = (fReadTransactions ? 0 : SER_BLOCKHEADERONLY);
+    return Read(hash, blk, db_blocks, modifiers);
+}
+
+bool CTxDB::WriteBlock(uint256 hash, const CBlock& blk)
+{
+    assert(blk.GetHash() != 0);
+    return Write(hash, blk, db_blocks);
 }
 
 bool CTxDB::EraseTxIndex(const CTransaction& tx)
@@ -697,8 +723,8 @@ bool CTxDB::LoadBlockIndex()
     if (nCheckDepth > nBestHeight)
         nCheckDepth = nBestHeight;
     printf("Verifying last %i blocks at level %i\n", nCheckDepth, nCheckLevel);
-    CBlockIndex*                                        pindexFork = nullptr;
-    map<pair<unsigned int, unsigned int>, CBlockIndex*> mapBlockPos;
+    CBlockIndex*                                   pindexFork = nullptr;
+    map<pair<unsigned int, uint256>, CBlockIndex*> mapBlockPos;
     for (CBlockIndex* pindex = pindexBest; pindex && pindex->pprev; pindex = pindex->pprev) {
         if (fRequestShutdown || pindex->nHeight < nBestHeight - nCheckDepth)
             break;
@@ -714,15 +740,14 @@ bool CTxDB::LoadBlockIndex()
         }
         // check level 2: verify transaction index validity
         if (nCheckLevel > 1) {
-            pair<unsigned int, unsigned int> pos = make_pair(pindex->nFile, pindex->nBlockPos);
-            mapBlockPos[pos]                     = pindex;
+            pair<unsigned int, uint256> pos = make_pair(pindex->nFile, pindex->nBlockPos);
+            mapBlockPos[pos]                = pindex;
             BOOST_FOREACH (const CTransaction& tx, block.vtx) {
                 uint256  hashTx = tx.GetHash();
                 CTxIndex txindex;
                 if (ReadTxIndex(hashTx, txindex)) {
                     // check level 3: checker transaction hashes
-                    if (nCheckLevel > 2 || pindex->nFile != txindex.pos.nFile ||
-                        pindex->nBlockPos != txindex.pos.nBlockPos) {
+                    if (nCheckLevel > 2 || pindex->nBlockPos != txindex.pos.nBlockPos) {
                         // either an error or a duplicate transaction
                         CTransaction txFound;
                         if (!txFound.ReadFromDisk(txindex.pos)) {
@@ -741,7 +766,7 @@ bool CTxDB::LoadBlockIndex()
                     if (nCheckLevel > 3) {
                         BOOST_FOREACH (const CDiskTxPos& txpos, txindex.vSpent) {
                             if (!txpos.IsNull()) {
-                                pair<unsigned int, unsigned int> posFind =
+                                pair<unsigned int, uint256> posFind =
                                     make_pair(txpos.nFile, txpos.nBlockPos);
                                 if (!mapBlockPos.count(posFind)) {
                                     printf("LoadBlockIndex(): *** found bad spend at %d, hashBlock=%s, "
@@ -828,7 +853,7 @@ mdb_txn_safe::~mdb_txn_safe()
 {
     if (!m_check)
         return;
-    printf("mdb_txn_safe: destructor\n");
+    //    printf("mdb_txn_safe: destructor\n");
     if (m_txn != nullptr) {
         if (m_batch_txn) // this is a batch txn and should have been handled before this point for safety
         {
@@ -896,7 +921,6 @@ void mdb_txn_safe::commitIfValid(string message)
 
 void mdb_txn_safe::abort()
 {
-    printf("mdb_txn_safe: abort()\n");
     if (m_txn != nullptr) {
         mdb_txn_abort(m_txn);
         m_txn = nullptr;

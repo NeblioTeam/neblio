@@ -26,16 +26,17 @@ extern std::unique_ptr<MDB_env, std::function<void(MDB_env*)>> dbEnv;
 using DbSmartPtrType = std::unique_ptr<MDB_dbi, std::function<void(MDB_dbi*)>>;
 extern DbSmartPtrType glob_db_main;
 extern DbSmartPtrType glob_db_blockIndex;
+extern DbSmartPtrType glob_db_blocks;
 extern DbSmartPtrType glob_db_version;
 extern DbSmartPtrType glob_db_tx;
 extern DbSmartPtrType glob_db_ntp1Tx;
 
-
-const std::string LMDB_MAINDB             = "MainDb";
-const std::string LMDB_BLOCKINDEXDB       = "BlockIndexDb";
-const std::string LMDB_VERSIONDB          = "VersionDb";
-const std::string LMDB_TXDB               = "TxDb";
-const std::string LMDB_NTP1TXDB           = "Ntp1txDb";
+const std::string LMDB_MAINDB       = "MainDb";
+const std::string LMDB_BLOCKINDEXDB = "BlockIndexDb";
+const std::string LMDB_BLOCKSDB     = "BlocksDb";
+const std::string LMDB_VERSIONDB    = "VersionDb";
+const std::string LMDB_TXDB         = "TxDb";
+const std::string LMDB_NTP1TXDB     = "Ntp1txDb";
 
 constexpr static float DB_RESIZE_PERCENT = 0.9f;
 
@@ -140,6 +141,7 @@ private:
     // Points to the global instance databases on construction.
     MDB_dbi* db_main;
     MDB_dbi* db_blockIndex;
+    MDB_dbi* db_blocks;
     MDB_dbi* db_tx;
     MDB_dbi* db_ntp1Tx;
 
@@ -163,12 +165,11 @@ protected:
     //    bool ScanBatch(const CDataStream& key, std::string* value, bool* deleted) const;
 
     template <typename K, typename T>
-    bool Read(const K& key, T& value, MDB_dbi* dbPtr)
+    bool Read(const K& key, T& value, MDB_dbi* dbPtr, int serializationTypeModifiers = 0, size_t offset = 0)
     {
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         ssKey.reserve(1000);
         ssKey << key;
-        std::string strValue;
 
         mdb_txn_safe localTxn(false);
         if (!activeBatch) {
@@ -196,15 +197,20 @@ protected:
             }
             return false;
         }
-        strValue.assign(static_cast<const char*>(vS.mv_data), vS.mv_size);
         // Unserialize value
+        assert(offset <= vS.mv_size);
+        assert(vS.mv_data != nullptr);
         try {
-            CDataStream ssValue(strValue.data(), strValue.data() + strValue.size(), SER_DISK,
-                                CLIENT_VERSION);
+            CDataStream ssValue(static_cast<const char*>(vS.mv_data) + offset,
+                                static_cast<const char*>(vS.mv_data) + vS.mv_size,
+                                SER_DISK | serializationTypeModifiers, CLIENT_VERSION);
             ssValue >> value;
         } catch (std::exception& e) {
             printf("Failed to deserialized data when reading for key %s\n", ssKey.str().c_str());
             return false;
+        }
+        if (localTxn.rawPtr()) {
+            localTxn.abort();
         }
         return true;
     }
@@ -243,7 +249,6 @@ protected:
         // only one of them should be active
         assert(localTxn.rawPtr() == nullptr || activeBatch == nullptr);
 
-        // TODO: bind to const reference to avoid copying
         std::string&& keyBin = ssKey.str();
         MDB_val       kS     = {keyBin.size(), (void*)(keyBin.c_str())};
         std::string&& valBin = ssValue.str();
@@ -346,6 +351,9 @@ protected:
             }
             return false;
         } else {
+            if (localTxn.rawPtr()) {
+                localTxn.abort();
+            }
             return true;
         }
     }
@@ -377,6 +385,7 @@ public:
     bool WriteVersion(int nVersion);
     bool ReadTxIndex(uint256 hash, CTxIndex& txindex);
     bool UpdateTxIndex(uint256 hash, const CTxIndex& txindex);
+    bool ReadTx(const CDiskTxPos& txPos, CTransaction& tx);
     bool ReadNTP1Tx(uint256 hash, NTP1Transaction& ntp1tx);
     bool WriteNTP1Tx(uint256 hash, const NTP1Transaction& ntp1tx);
     bool EraseTxIndex(const CTransaction& tx);
@@ -386,6 +395,8 @@ public:
     bool ReadDiskTx(uint256 hash, CTransaction& tx);
     bool ReadDiskTx(COutPoint outpoint, CTransaction& tx, CTxIndex& txindex);
     bool ReadDiskTx(COutPoint outpoint, CTransaction& tx);
+    bool ReadBlock(uint256 hash, CBlock& blk, bool fReadTransactions = true);
+    bool WriteBlock(uint256 hash, const CBlock& blk);
     bool WriteBlockIndex(const CDiskBlockIndex& blockindex);
     bool ReadHashBestChain(uint256& hashBestChain);
     bool WriteHashBestChain(uint256 hashBestChain);
@@ -409,24 +420,27 @@ private:
 
 void CTxDB::loadDbPointers()
 {
-    db_main             = glob_db_main.get();
-    db_blockIndex       = glob_db_blockIndex.get();
-    db_tx          = glob_db_tx.get();
-    db_ntp1Tx           = glob_db_ntp1Tx.get();
+    db_main       = glob_db_main.get();
+    db_blockIndex = glob_db_blockIndex.get();
+    db_blocks     = glob_db_blocks.get();
+    db_tx         = glob_db_tx.get();
+    db_ntp1Tx     = glob_db_ntp1Tx.get();
 }
 
 void CTxDB::resetDbPointers()
 {
-    db_main             = nullptr;
-    db_blockIndex       = nullptr;
-    db_tx          = nullptr;
-    db_ntp1Tx           = nullptr;
+    db_main       = nullptr;
+    db_blockIndex = nullptr;
+    db_blocks     = nullptr;
+    db_tx         = nullptr;
+    db_ntp1Tx     = nullptr;
 }
 
 void CTxDB::resetGlobalDbPointers()
 {
     glob_db_main.reset();
     glob_db_blockIndex.reset();
+    glob_db_blocks.reset();
     glob_db_tx.reset();
     glob_db_ntp1Tx.reset();
 }
