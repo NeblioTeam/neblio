@@ -22,29 +22,19 @@
 class DiskNTP1TxPos
 {
 public:
-    static unsigned int nCurrentNTP1TxsFile;
-    unsigned int        nFile;
-    unsigned int        nTxPos;
+    unsigned int nTxPos;
 
     DiskNTP1TxPos() { SetNull(); }
 
-    DiskNTP1TxPos(unsigned int nFileIn, unsigned int nTxPosIn)
-    {
-        nFile  = nFileIn;
-        nTxPos = nTxPosIn;
-    }
+    DiskNTP1TxPos(unsigned int nTxPosIn) { nTxPos = nTxPosIn; }
 
     IMPLEMENT_SERIALIZE(READWRITE(FLATDATA(*this));)
-    void SetNull()
-    {
-        nFile  = (unsigned int)-1;
-        nTxPos = 0;
-    }
-    bool IsNull() const { return (nFile == (unsigned int)-1); }
+    void SetNull() { nTxPos = -1; }
+    bool IsNull() const { return (nTxPos == (unsigned int)-1); }
 
     friend bool operator==(const DiskNTP1TxPos& a, const DiskNTP1TxPos& b)
     {
-        return (a.nFile == b.nFile && a.nTxPos == b.nTxPos);
+        return (a.nTxPos == b.nTxPos);
     }
 
     friend bool operator!=(const DiskNTP1TxPos& a, const DiskNTP1TxPos& b) { return !(a == b); }
@@ -54,7 +44,7 @@ public:
         if (IsNull())
             return "null";
         else
-            return strprintf("(nFile=%u, nTxPos=%u)", nFile, nTxPos);
+            return strprintf("(nTxPos=%u)", nTxPos);
     }
 
     void print() const { printf("%s", ToString().c_str()); }

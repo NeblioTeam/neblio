@@ -127,9 +127,6 @@ void         SyncWithWallets(const CTransaction& tx, const CBlock* pblock = NULL
                              bool fConnect = true);
 bool         ProcessBlock(CNode* pfrom, CBlock* pblock);
 bool         CheckDiskSpace(uint64_t nAdditionalBytes = 0);
-FILE*        OpenBlockFile(unsigned int nFile, unsigned int nBlockPos, const char* pszMode = "rb");
-FILE*        AppendBlockFile(unsigned int& nFileRet);
-FILE*        AppendNTP1TxsFile(unsigned int& nFileRet);
 bool         LoadBlockIndex(bool fAllowNew = true);
 void         PrintBlockTree();
 CBlockIndex* FindBlockByHeight(int nHeight);
@@ -201,15 +198,13 @@ bool GetWalletFile(CWallet* pwallet, std::string& strWalletFileOut);
 class CDiskTxPos
 {
 public:
-    unsigned int nFile;
     uint256      nBlockPos;
     unsigned int nTxPos;
 
     CDiskTxPos() { SetNull(); }
 
-    CDiskTxPos(unsigned int nFileIn, const uint256& nBlockPosIn, unsigned int nTxPosIn)
+    CDiskTxPos(const uint256& nBlockPosIn, unsigned int nTxPosIn)
     {
-        nFile     = nFileIn;
         nBlockPos = nBlockPosIn;
         nTxPos    = nTxPosIn;
     }
@@ -217,15 +212,14 @@ public:
     IMPLEMENT_SERIALIZE(READWRITE(FLATDATA(*this));)
     void SetNull()
     {
-        nFile     = (unsigned int)-1;
         nBlockPos = 0;
-        nTxPos    = 0;
+        nTxPos    = -1;
     }
-    bool IsNull() const { return (nFile == (unsigned int)-1); }
+    bool IsNull() const { return (nTxPos == (unsigned int)-1); }
 
     friend bool operator==(const CDiskTxPos& a, const CDiskTxPos& b)
     {
-        return (a.nFile == b.nFile && a.nBlockPos == b.nBlockPos && a.nTxPos == b.nTxPos);
+        return (a.nBlockPos == b.nBlockPos && a.nTxPos == b.nTxPos);
     }
 
     friend bool operator!=(const CDiskTxPos& a, const CDiskTxPos& b) { return !(a == b); }
@@ -235,8 +229,7 @@ public:
         if (IsNull())
             return "null";
         else
-            return strprintf("(nFile=%u, nBlockPos=%s, nTxPos=%u)", nFile, nBlockPos.ToString().c_str(),
-                             nTxPos);
+            return strprintf("(nBlockPos=%s, nTxPos=%u)", nBlockPos.ToString().c_str(), nTxPos);
     }
 
     void print() const { printf("%s", ToString().c_str()); }
@@ -580,7 +573,7 @@ public:
     int64_t GetMinFee(unsigned int nBlockSize = 1, enum GetMinFee_mode mode = GMF_BLOCK,
                       unsigned int nBytes = 0) const;
 
-    bool ReadFromDisk(CDiskTxPos pos, FILE** pfileRet = NULL);
+    bool ReadFromDisk(CDiskTxPos pos);
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)
     {
@@ -1366,7 +1359,7 @@ public:
     bool ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck = false);
     bool ReadFromDisk(const CBlockIndex* pindex, bool fReadTransactions = true);
     bool SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew);
-    bool AddToBlockIndex(unsigned int nFile, uint256 nBlockPos, const uint256& hashProof);
+    bool AddToBlockIndex(uint256 nBlockPos, const uint256& hashProof);
     bool CheckBlock(bool fCheckPOW = true, bool fCheckMerkleRoot = true, bool fCheckSig = true) const;
     bool AcceptBlock();
     bool GetCoinAge(uint64_t& nCoinAge) const; // ppcoin: calculate total coin age spent in block
@@ -1390,7 +1383,6 @@ public:
     const uint256* phashBlock;
     CBlockIndex*   pprev;
     CBlockIndex*   pnext;
-    unsigned int   nFile;
     uint256        nBlockPos;
     uint256        nChainTrust; // ppcoin: trust score of block chain
     int            nHeight;
@@ -1427,7 +1419,6 @@ public:
         phashBlock             = NULL;
         pprev                  = NULL;
         pnext                  = NULL;
-        nFile                  = 0;
         nBlockPos              = 0;
         nHeight                = 0;
         nChainTrust            = 0;
@@ -1447,12 +1438,11 @@ public:
         nNonce         = 0;
     }
 
-    CBlockIndex(unsigned int nFileIn, uint256 nBlockPosIn, CBlock& block)
+    CBlockIndex(uint256 nBlockPosIn, CBlock& block)
     {
         phashBlock             = NULL;
         pprev                  = NULL;
         pnext                  = NULL;
-        nFile                  = nFileIn;
         nBlockPos              = nBlockPosIn;
         nHeight                = 0;
         nChainTrust            = 0;
@@ -1556,16 +1546,16 @@ public:
 
     std::string ToString() const
     {
-        return strprintf("CBlockIndex(nprev=%p, pnext=%p, nFile=%u, nBlockPos=%s nHeight=%d, "
+        return strprintf("CBlockIndex(nprev=%p, pnext=%p, nBlockPos=%s nHeight=%d, "
                          "nMint=%s, nMoneySupply=%s, nFlags=(%s)(%d)(%s), nStakeModifier=%016" PRIx64
                          ", nStakeModifierChecksum=%08x, hashProof=%s, prevoutStake=(%s), nStakeTime=%d "
                          "merkle=%s, hashBlock=%s)",
-                         pprev, pnext, nFile, nBlockPos.ToString().c_str(), nHeight,
-                         FormatMoney(nMint).c_str(), FormatMoney(nMoneySupply).c_str(),
-                         GeneratedStakeModifier() ? "MOD" : "-", GetStakeEntropyBit(),
-                         IsProofOfStake() ? "PoS" : "PoW", nStakeModifier, nStakeModifierChecksum,
-                         hashProof.ToString().c_str(), prevoutStake.ToString().c_str(), nStakeTime,
-                         hashMerkleRoot.ToString().c_str(), GetBlockHash().ToString().c_str());
+                         pprev, pnext, nBlockPos.ToString().c_str(), nHeight, FormatMoney(nMint).c_str(),
+                         FormatMoney(nMoneySupply).c_str(), GeneratedStakeModifier() ? "MOD" : "-",
+                         GetStakeEntropyBit(), IsProofOfStake() ? "PoS" : "PoW", nStakeModifier,
+                         nStakeModifierChecksum, hashProof.ToString().c_str(),
+                         prevoutStake.ToString().c_str(), nStakeTime, hashMerkleRoot.ToString().c_str(),
+                         GetBlockHash().ToString().c_str());
     }
 
     void print() const { printf("%s\n", ToString().c_str()); }
@@ -1596,9 +1586,9 @@ public:
 
     IMPLEMENT_SERIALIZE(if (!(nType & SER_GETHASH)) READWRITE(nVersion);
 
-                        READWRITE(hashNext); READWRITE(nFile); READWRITE(nBlockPos); READWRITE(nHeight);
-                        READWRITE(nMint); READWRITE(nMoneySupply); READWRITE(nFlags);
-                        READWRITE(nStakeModifier); if (IsProofOfStake()) {
+                        READWRITE(hashNext); READWRITE(nBlockPos); READWRITE(nHeight); READWRITE(nMint);
+                        READWRITE(nMoneySupply); READWRITE(nFlags); READWRITE(nStakeModifier);
+                        if (IsProofOfStake()) {
                             READWRITE(prevoutStake);
                             READWRITE(nStakeTime);
                         } else if (fRead) {

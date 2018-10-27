@@ -12,8 +12,6 @@
 
 #include <boost/algorithm/hex.hpp>
 
-unsigned int DiskNTP1TxPos::nCurrentNTP1TxsFile = 1;
-
 NTP1Transaction::NTP1Transaction() { setNull(); }
 
 void NTP1Transaction::setNull()
@@ -674,96 +672,3 @@ void NTP1Transaction::readNTP1DataFromTx(
         throw std::runtime_error("Unknown NTP1 transaction type");
     }
 }
-
-// bool NTP1Transaction::writeToDisk(unsigned int& nFileRet, unsigned int& nTxPosRet,
-//                                  FILE* customFile) const
-//{
-//    // Open history file to append
-//    CAutoFile fileout =
-//        CAutoFile((customFile == nullptr ? DiskNTP1TxPos::AppendNTP1TxsFile(nFileRet) : customFile),
-//                  SER_DISK, CLIENT_VERSION);
-//    if (!fileout)
-//        return error("NTP1Transaction::WriteToDisk() : AppendNTP1TxsFile failed");
-
-//    // Write tx
-//    long fileOutPos = ftell(fileout);
-//    if (fileOutPos < 0)
-//        return error("NTP1Transaction::WriteToDisk() : ftell failed");
-//    nTxPosRet = fileOutPos;
-//    fileout << *this;
-
-//    // Flush stdio buffers and commit to disk before returning
-//    fflush(fileout);
-//    FileCommit(fileout);
-
-//    return true;
-//}
-
-// bool NTP1Transaction::readFromDisk(DiskNTP1TxPos pos, FILE** pfileRet, FILE* customFile)
-//{
-//    CAutoFile filein = CAutoFile(
-//        (customFile == nullptr ? DiskNTP1TxPos::OpenNTP1TxsFile(pos.nFile, 0, pfileRet ? "rb+" : "rb")
-//                               : customFile),
-//        SER_DISK, CLIENT_VERSION);
-//    if (!filein)
-//        return error("NTP1Transaction::ReadFromDisk() : OpenNTP1TxsFile failed");
-
-//    // Read transaction
-//    if (fseek(filein, pos.nTxPos, SEEK_SET) != 0)
-//        return error("NTP1Transaction::ReadFromDisk() : fseek failed");
-
-//    try {
-//        filein >> *this;
-//    } catch (std::exception& e) {
-//        return error("%s() : deserialize or I/O error", __PRETTY_FUNCTION__);
-//    }
-
-//    // Return file pointer
-//    if (pfileRet) {
-//        if (fseek(filein, pos.nTxPos, SEEK_SET) != 0)
-//            return error("NTP1Transaction::ReadFromDisk() : second fseek failed");
-//        *pfileRet = filein.release();
-//    }
-//    return true;
-//}
-
-// FILE* DiskNTP1TxPos::OpenNTP1TxsFile(unsigned int nFile, unsigned int nTxPos, const char* pszMode)
-//{
-//    if ((nFile < 1) || (nFile == (unsigned int)-1))
-//        return NULL;
-//    FILE* file = fopen(DiskNTP1TxPos::NTP1TxsFilePath(nFile).string().c_str(), pszMode);
-//    if (!file)
-//        return NULL;
-//    if (nTxPos != 0 && !strchr(pszMode, 'a') && !strchr(pszMode, 'w')) {
-//        if (fseek(file, nTxPos, SEEK_SET) != 0) {
-//            fclose(file);
-//            return NULL;
-//        }
-//    }
-//    return file;
-//}
-
-// FILE* DiskNTP1TxPos::AppendNTP1TxsFile(unsigned int& nFileRet)
-//{
-//    nFileRet = 0;
-//    while (true) {
-//        FILE* file = DiskNTP1TxPos::OpenNTP1TxsFile(DiskNTP1TxPos::nCurrentNTP1TxsFile, 0, "ab");
-//        if (!file)
-//            return NULL;
-//        if (fseek(file, 0, SEEK_END) != 0)
-//            return NULL;
-//        // FAT32 file size max 4GB, fseek and ftell max 2GB, so we must stay under 2GB
-//        if (ftell(file) < (long)(0x7F000000 - MAX_SIZE)) {
-//            nFileRet = DiskNTP1TxPos::nCurrentNTP1TxsFile;
-//            return file;
-//        }
-//        fclose(file);
-//        DiskNTP1TxPos::nCurrentNTP1TxsFile++;
-//    }
-//}
-
-// boost::filesystem::path DiskNTP1TxPos::NTP1TxsFilePath(unsigned int nFile)
-//{
-//    string strNTP1TxsFn = strprintf("ntp1txs%04u.dat", nFile);
-//    return GetDataDir() / strNTP1TxsFn;
-//}

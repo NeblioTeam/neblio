@@ -602,7 +602,7 @@ int64_t CTransaction::GetMinFee(unsigned int nBlockSize, enum GetMinFee_mode mod
     return nMinFee;
 }
 
-bool CTransaction::ReadFromDisk(CDiskTxPos pos, FILE** pfileRet)
+bool CTransaction::ReadFromDisk(CDiskTxPos pos)
 {
     CTxDB().ReadTx(pos, *this);
     return true;
@@ -725,8 +725,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
 
         // Check against previous transactions
         // This is done last to help prevent CPU exhaustion denial-of-service attacks.
-        if (!tx.ConnectInputs(txdb, mapInputs, mapUnused, CDiskTxPos(1, 1, 1), pindexBest, false,
-                              false)) {
+        if (!tx.ConnectInputs(txdb, mapInputs, mapUnused, CDiskTxPos(1, 1), pindexBest, false, false)) {
             return error("AcceptToMemoryPool : ConnectInputs failed %s",
                          hash.ToString().substr(0, 10).c_str());
         }
@@ -1076,7 +1075,7 @@ unsigned int ComputeMinWork(unsigned int nBase, int64_t nTime)
 // minimum amount of stake that could possibly be required nTime after
 // minimum proof-of-stake required was nBase
 //
-unsigned int ComputeMinStake(unsigned int nBase, int64_t nTime, unsigned int nBlockTime)
+unsigned int ComputeMinStake(unsigned int nBase, int64_t nTime, unsigned int /*nBlockTime*/)
 {
     return ComputeMaxBits(bnProofOfStakeLimit, nBase, nTime);
 }
@@ -1236,7 +1235,7 @@ void static InvalidChainFound(CBlockIndex* pindexNew)
            DateTimeStrFormat("%x %H:%M:%S", pindexBest->GetBlockTime()).c_str());
 }
 
-void CBlock::UpdateTime(const CBlockIndex* pindexPrev)
+void CBlock::UpdateTime(const CBlockIndex* /*pindexPrev*/)
 {
     nTime = max(GetBlockTime(), GetAdjustedTime());
 }
@@ -1309,7 +1308,7 @@ bool CTransaction::FetchInputs(CTxDB& txdb, const map<uint256, CTxIndex>& mapTes
 
         // Read txPrev
         CTransaction& txPrev = inputsRet[prevout.hash].second;
-        if (!fFound || txindex.pos == CDiskTxPos(1, 1, 1)) {
+        if (!fFound || txindex.pos == CDiskTxPos(1, 1)) {
             // Get prev tx from single transactions in memory
             if (!mempool.lookup(prevout.hash, txPrev))
                 return error("FetchInputs() : %s mempool Tx prev not found %s",
@@ -1387,7 +1386,7 @@ unsigned int CTransaction::GetP2SHSigOpCount(const MapPrevTx& inputs) const
     return nSigOps;
 }
 
-bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs, map<uint256, CTxIndex>& mapTestPool,
+bool CTransaction::ConnectInputs(CTxDB& /*txdb*/, MapPrevTx inputs, map<uint256, CTxIndex>& mapTestPool,
                                  const CDiskTxPos& posThisTx, const CBlockIndex* pindexBlock,
                                  bool fBlock, bool fMiner)
 {
@@ -1420,8 +1419,7 @@ bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs, map<uint256, CTx
                     static_assert(std::is_same<decltype(pindex->nBlockPos),
                                                decltype(txindex.pos.nBlockPos)>::value,
                                   "Expected same types");
-                    if (pindex->nBlockPos == txindex.pos.nBlockPos &&
-                        pindex->nFile == txindex.pos.nFile) {
+                    if (pindex->nBlockPos == txindex.pos.nBlockPos) {
                         return error("ConnectInputs() : tried to spend %s at depth %d",
                                      txPrev.IsCoinBase() ? "coinbase" : "coinstake",
                                      pindexBlock->nHeight - pindex->nHeight);
@@ -1586,7 +1584,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
         if (nSigOps > MAX_BLOCK_SIGOPS)
             return DoS(100, error("ConnectBlock() : too many sigops"));
 
-        CDiskTxPos posThisTx(pindex->nFile, pindex->nBlockPos, nTxPos);
+        CDiskTxPos posThisTx(pindex->nBlockPos, nTxPos);
         if (!fJustCheck)
             nTxPos += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
 
@@ -1999,7 +1997,7 @@ bool CBlock::GetCoinAge(uint64_t& nCoinAge) const
     return true;
 }
 
-bool CBlock::AddToBlockIndex(unsigned int nFile, uint256 nBlockPos, const uint256& hashProof)
+bool CBlock::AddToBlockIndex(uint256 nBlockPos, const uint256& hashProof)
 {
     // Check for duplicate
     uint256 hash = GetHash();
@@ -2007,7 +2005,7 @@ bool CBlock::AddToBlockIndex(unsigned int nFile, uint256 nBlockPos, const uint25
         return error("AddToBlockIndex() : %s already exists", hash.ToString().substr(0, 20).c_str());
 
     // Construct new block index object
-    CBlockIndex* pindexNew = new CBlockIndex(nFile, nBlockPos, *this);
+    CBlockIndex* pindexNew = new CBlockIndex(nBlockPos, *this);
     if (!pindexNew)
         return error("AddToBlockIndex() : new CBlockIndex failed");
     pindexNew->phashBlock                       = &hash;
@@ -2402,12 +2400,10 @@ bool CBlock::AcceptBlock()
     // Write block to history file
     if (!CheckDiskSpace(::GetSerializeSize(*this, SER_DISK, CLIENT_VERSION)))
         return error("AcceptBlock() : out of disk space");
-    unsigned int nFile     = -1;
-    uint256      nBlockPos = hash;
-    // TODO: Sam: Remove WriteToDisk params and AddToBlockIndex params
+    uint256 nBlockPos = hash;
     if (!WriteToDisk())
         return error("AcceptBlock() : WriteToDisk failed");
-    if (!AddToBlockIndex(nFile, nBlockPos, hashProof))
+    if (!AddToBlockIndex(nBlockPos, hashProof))
         return error("AcceptBlock() : AddToBlockIndex failed");
 
     // Relay inventory, but don't relay old inventory during initial block download
@@ -2824,49 +2820,6 @@ bool CheckDiskSpace(uint64_t nAdditionalBytes)
     return true;
 }
 
-static filesystem::path BlockFilePath(unsigned int nFile)
-{
-    string strBlockFn = strprintf("blk%04u.dat", nFile);
-    return GetDataDir() / strBlockFn;
-}
-
-FILE* OpenBlockFile(unsigned int nFile, unsigned int nBlockPos, const char* pszMode)
-{
-    if ((nFile < 1) || (nFile == (unsigned int)-1))
-        return NULL;
-    FILE* file = fopen(BlockFilePath(nFile).string().c_str(), pszMode);
-    if (!file)
-        return NULL;
-    if (nBlockPos != 0 && !strchr(pszMode, 'a') && !strchr(pszMode, 'w')) {
-        if (fseek(file, nBlockPos, SEEK_SET) != 0) {
-            fclose(file);
-            return NULL;
-        }
-    }
-    return file;
-}
-
-static unsigned int nCurrentBlockFile = 1;
-
-FILE* AppendBlockFile(unsigned int& nFileRet)
-{
-    nFileRet = 0;
-    while (true) {
-        FILE* file = OpenBlockFile(nCurrentBlockFile, 0, "ab");
-        if (!file)
-            return NULL;
-        if (fseek(file, 0, SEEK_END) != 0)
-            return NULL;
-        // FAT32 file size max 4GB, fseek and ftell max 2GB, so we must stay under 2GB
-        if (ftell(file) < (long)(0x7F000000 - MAX_SIZE)) {
-            nFileRet = nCurrentBlockFile;
-            return file;
-        }
-        fclose(file);
-        nCurrentBlockFile++;
-    }
-}
-
 bool LoadBlockIndex(bool fAllowNew)
 
 {
@@ -2976,10 +2929,9 @@ bool LoadBlockIndex(bool fAllowNew)
         assert(block.CheckBlock());
 
         // Start new block file
-        unsigned int nFile = 0;
         if (!block.WriteToDisk())
             return error("LoadBlockIndex() : writing genesis block to disk failed");
-        if (!block.AddToBlockIndex(nFile, hashGenesisBlock, hashGenesisBlock))
+        if (!block.AddToBlockIndex(hashGenesisBlock, hashGenesisBlock))
             return error("LoadBlockIndex() : genesis block not accepted");
 
         // ppcoin: initialize synchronized checkpoint
@@ -3046,7 +2998,7 @@ void PrintBlockTree()
         // print item
         CBlock block;
         block.ReadFromDisk(pindex);
-        printf("%d (%u,%s) %s  %08x  %s  mint %7s  tx %" PRIszu "", pindex->nHeight, pindex->nFile,
+        printf("%d (%s) %s  %08x  %s  mint %7s  tx %" PRIszu "", pindex->nHeight,
                pindex->nBlockPos.ToString().c_str(), block.GetHash().ToString().c_str(), block.nBits,
                DateTimeStrFormat("%x %H:%M:%S", block.GetBlockTime()).c_str(),
                FormatMoney(pindex->nMint).c_str(), block.vtx.size());

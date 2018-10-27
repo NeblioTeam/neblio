@@ -629,7 +629,6 @@ bool CTxDB::LoadBlockIndex()
         CBlockIndex* pindexNew    = InsertBlockIndex(blockHash);
         pindexNew->pprev          = InsertBlockIndex(diskindex.hashPrev);
         pindexNew->pnext          = InsertBlockIndex(diskindex.hashNext);
-        pindexNew->nFile          = diskindex.nFile;
         pindexNew->nBlockPos      = diskindex.nBlockPos;
         pindexNew->nHeight        = diskindex.nHeight;
         pindexNew->nMint          = diskindex.nMint;
@@ -723,8 +722,8 @@ bool CTxDB::LoadBlockIndex()
     if (nCheckDepth > nBestHeight)
         nCheckDepth = nBestHeight;
     printf("Verifying last %i blocks at level %i\n", nCheckDepth, nCheckLevel);
-    CBlockIndex*                                   pindexFork = nullptr;
-    map<pair<unsigned int, uint256>, CBlockIndex*> mapBlockPos;
+    CBlockIndex*               pindexFork = nullptr;
+    map<uint256, CBlockIndex*> mapBlockPos;
     for (CBlockIndex* pindex = pindexBest; pindex && pindex->pprev; pindex = pindex->pprev) {
         if (fRequestShutdown || pindex->nHeight < nBestHeight - nCheckDepth)
             break;
@@ -740,8 +739,8 @@ bool CTxDB::LoadBlockIndex()
         }
         // check level 2: verify transaction index validity
         if (nCheckLevel > 1) {
-            pair<unsigned int, uint256> pos = make_pair(pindex->nFile, pindex->nBlockPos);
-            mapBlockPos[pos]                = pindex;
+            uint256 pos      = pindex->nBlockPos;
+            mapBlockPos[pos] = pindex;
             BOOST_FOREACH (const CTransaction& tx, block.vtx) {
                 uint256  hashTx = tx.GetHash();
                 CTxIndex txindex;
@@ -766,8 +765,7 @@ bool CTxDB::LoadBlockIndex()
                     if (nCheckLevel > 3) {
                         BOOST_FOREACH (const CDiskTxPos& txpos, txindex.vSpent) {
                             if (!txpos.IsNull()) {
-                                pair<unsigned int, uint256> posFind =
-                                    make_pair(txpos.nFile, txpos.nBlockPos);
+                                uint256 posFind = txpos.nBlockPos;
                                 if (!mapBlockPos.count(posFind)) {
                                     printf("LoadBlockIndex(): *** found bad spend at %d, hashBlock=%s, "
                                            "hashTx=%s\n",
