@@ -27,6 +27,16 @@
 			<integer>128</integer>
 			<integer>156</integer>
 		</array>
+		<key>background.png</key>
+		<array>
+			<integer>370</integer>
+			<integer>350</integer>
+		</array>
+		<key>.fseventsd</key>
+		<array>
+			<integer>128</integer>
+			<integer>350</integer>
+		</array>
 	</dict>
 </dict>
 </plist>
