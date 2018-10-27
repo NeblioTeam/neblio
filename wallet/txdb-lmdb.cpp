@@ -309,10 +309,6 @@ CTxDB::CTxDB(const char* pszMode)
     printf("Initializing lmdb with db size: %lu\n", DB_DEFAULT_MAPSIZE);
     bool fCreate = strchr(pszMode, 'c');
 
-    //    options                   = GetOptions();
-    //    options.create_if_missing = fCreate;
-    //    options.filter_policy     = leveldb::NewBloomFilterPolicy(10);
-
     init_blockindex(); // Init directory
     loadDbPointers();
 
@@ -629,7 +625,7 @@ bool CTxDB::LoadBlockIndex()
         CBlockIndex* pindexNew    = InsertBlockIndex(blockHash);
         pindexNew->pprev          = InsertBlockIndex(diskindex.hashPrev);
         pindexNew->pnext          = InsertBlockIndex(diskindex.hashNext);
-        pindexNew->nBlockPos      = diskindex.nBlockPos;
+        pindexNew->blockKeyInDB   = diskindex.blockKeyInDB;
         pindexNew->nHeight        = diskindex.nHeight;
         pindexNew->nMint          = diskindex.nMint;
         pindexNew->nMoneySupply   = diskindex.nMoneySupply;
@@ -739,14 +735,14 @@ bool CTxDB::LoadBlockIndex()
         }
         // check level 2: verify transaction index validity
         if (nCheckLevel > 1) {
-            uint256 pos      = pindex->nBlockPos;
+            uint256 pos      = pindex->blockKeyInDB;
             mapBlockPos[pos] = pindex;
             BOOST_FOREACH (const CTransaction& tx, block.vtx) {
                 uint256  hashTx = tx.GetHash();
                 CTxIndex txindex;
                 if (ReadTxIndex(hashTx, txindex)) {
                     // check level 3: checker transaction hashes
-                    if (nCheckLevel > 2 || pindex->nBlockPos != txindex.pos.nBlockPos) {
+                    if (nCheckLevel > 2 || pindex->blockKeyInDB != txindex.pos.nBlockPos) {
                         // either an error or a duplicate transaction
                         CTransaction txFound;
                         if (!txFound.ReadFromDisk(txindex.pos)) {

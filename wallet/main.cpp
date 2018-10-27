@@ -977,7 +977,7 @@ bool CBlock::ReadFromDisk(const CBlockIndex* pindex, bool fReadTransactions)
         *this = pindex->GetBlockHeader();
         return true;
     }
-    if (!ReadFromDisk(pindex->nBlockPos, fReadTransactions))
+    if (!ReadFromDisk(pindex->blockKeyInDB, fReadTransactions))
         return false;
     if (GetHash() != pindex->GetBlockHash())
         return error("CBlock::ReadFromDisk() : GetHash() doesn't match index");
@@ -1416,10 +1416,10 @@ bool CTransaction::ConnectInputs(CTxDB& /*txdb*/, MapPrevTx inputs, map<uint256,
             if (txPrev.IsCoinBase() || txPrev.IsCoinStake())
                 for (const CBlockIndex* pindex                                       = pindexBlock;
                      pindex && pindexBlock->nHeight - pindex->nHeight < nCbM; pindex = pindex->pprev) {
-                    static_assert(std::is_same<decltype(pindex->nBlockPos),
+                    static_assert(std::is_same<decltype(pindex->blockKeyInDB),
                                                decltype(txindex.pos.nBlockPos)>::value,
                                   "Expected same types");
-                    if (pindex->nBlockPos == txindex.pos.nBlockPos) {
+                    if (pindex->blockKeyInDB == txindex.pos.nBlockPos) {
                         return error("ConnectInputs() : tried to spend %s at depth %d",
                                      txPrev.IsCoinBase() ? "coinbase" : "coinstake",
                                      pindexBlock->nHeight - pindex->nHeight);
@@ -1584,7 +1584,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
         if (nSigOps > MAX_BLOCK_SIGOPS)
             return DoS(100, error("ConnectBlock() : too many sigops"));
 
-        CDiskTxPos posThisTx(pindex->nBlockPos, nTxPos);
+        CDiskTxPos posThisTx(pindex->blockKeyInDB, nTxPos);
         if (!fJustCheck)
             nTxPos += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
 
@@ -2999,7 +2999,7 @@ void PrintBlockTree()
         CBlock block;
         block.ReadFromDisk(pindex);
         printf("%d (%s) %s  %08x  %s  mint %7s  tx %" PRIszu "", pindex->nHeight,
-               pindex->nBlockPos.ToString().c_str(), block.GetHash().ToString().c_str(), block.nBits,
+               pindex->blockKeyInDB.ToString().c_str(), block.GetHash().ToString().c_str(), block.nBits,
                DateTimeStrFormat("%x %H:%M:%S", block.GetBlockTime()).c_str(),
                FormatMoney(pindex->nMint).c_str(), block.vtx.size());
 

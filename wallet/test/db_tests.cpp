@@ -22,8 +22,6 @@ std::string RandomString(const int len)
     return s;
 }
 
-#ifdef USE_LMDB
-
 #define CUSTOM_LMDB_DB_SIZE (1 << 14)
 #include "../txdb-lmdb.h"
 
@@ -168,5 +166,3 @@ TEST(lmdb_tests, many_inputs_one_tx)
     }
     db.Close();
 }
-
-#endif

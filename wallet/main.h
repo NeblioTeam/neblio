@@ -1383,7 +1383,7 @@ public:
     const uint256* phashBlock;
     CBlockIndex*   pprev;
     CBlockIndex*   pnext;
-    uint256        nBlockPos;
+    uint256        blockKeyInDB;
     uint256        nChainTrust; // ppcoin: trust score of block chain
     int            nHeight;
 
@@ -1419,7 +1419,7 @@ public:
         phashBlock             = NULL;
         pprev                  = NULL;
         pnext                  = NULL;
-        nBlockPos              = 0;
+        blockKeyInDB           = 0;
         nHeight                = 0;
         nChainTrust            = 0;
         nMint                  = 0;
@@ -1443,7 +1443,7 @@ public:
         phashBlock             = NULL;
         pprev                  = NULL;
         pnext                  = NULL;
-        nBlockPos              = nBlockPosIn;
+        blockKeyInDB           = nBlockPosIn;
         nHeight                = 0;
         nChainTrust            = 0;
         nMint                  = 0;
@@ -1550,12 +1550,12 @@ public:
                          "nMint=%s, nMoneySupply=%s, nFlags=(%s)(%d)(%s), nStakeModifier=%016" PRIx64
                          ", nStakeModifierChecksum=%08x, hashProof=%s, prevoutStake=(%s), nStakeTime=%d "
                          "merkle=%s, hashBlock=%s)",
-                         pprev, pnext, nBlockPos.ToString().c_str(), nHeight, FormatMoney(nMint).c_str(),
-                         FormatMoney(nMoneySupply).c_str(), GeneratedStakeModifier() ? "MOD" : "-",
-                         GetStakeEntropyBit(), IsProofOfStake() ? "PoS" : "PoW", nStakeModifier,
-                         nStakeModifierChecksum, hashProof.ToString().c_str(),
-                         prevoutStake.ToString().c_str(), nStakeTime, hashMerkleRoot.ToString().c_str(),
-                         GetBlockHash().ToString().c_str());
+                         pprev, pnext, blockKeyInDB.ToString().c_str(), nHeight,
+                         FormatMoney(nMint).c_str(), FormatMoney(nMoneySupply).c_str(),
+                         GeneratedStakeModifier() ? "MOD" : "-", GetStakeEntropyBit(),
+                         IsProofOfStake() ? "PoS" : "PoW", nStakeModifier, nStakeModifierChecksum,
+                         hashProof.ToString().c_str(), prevoutStake.ToString().c_str(), nStakeTime,
+                         hashMerkleRoot.ToString().c_str(), GetBlockHash().ToString().c_str());
     }
 
     void print() const { printf("%s\n", ToString().c_str()); }
@@ -1586,9 +1586,9 @@ public:
 
     IMPLEMENT_SERIALIZE(if (!(nType & SER_GETHASH)) READWRITE(nVersion);
 
-                        READWRITE(hashNext); READWRITE(nBlockPos); READWRITE(nHeight); READWRITE(nMint);
-                        READWRITE(nMoneySupply); READWRITE(nFlags); READWRITE(nStakeModifier);
-                        if (IsProofOfStake()) {
+                        READWRITE(hashNext); READWRITE(blockKeyInDB); READWRITE(nHeight);
+                        READWRITE(nMint); READWRITE(nMoneySupply); READWRITE(nFlags);
+                        READWRITE(nStakeModifier); if (IsProofOfStake()) {
                             READWRITE(prevoutStake);
                             READWRITE(nStakeTime);
                         } else if (fRead) {
