@@ -2190,7 +2190,7 @@ bool RecoverNTP1TxInDatabase(const CTransaction& tx, CTxDB& txdb, unsigned recur
             CTransaction inputTx;
             try {
                 inputTx = FetchTxFromDisk(in.prevout.hash);
-                if (!IsNTP1TxAtValidBlockHeight(GetTxBlockHeight(inputTx.GetHash()), fTestNet)) {
+                if (!PassedFirstValidNTP1Tx(GetTxBlockHeight(inputTx.GetHash()), fTestNet)) {
                     printf("Error: cannot recover transaction with hash %s; the NTP1 input of this "
                            "transaction %s happened before the allowed limit.\n",
                            tx.GetHash().ToString().c_str(), inputTx.GetHash().ToString().c_str());
@@ -2212,7 +2212,7 @@ bool RecoverNTP1TxInDatabase(const CTransaction& tx, CTxDB& txdb, unsigned recur
     try {
         bool anyInputBeforeWrongBlockHeights = std::any_of(
             ntp1inputs.begin(), ntp1inputs.end(), [](const std::pair<CTransaction, NTP1Transaction>& p) {
-                return !IsNTP1TxAtValidBlockHeight(GetTxBlockHeight(p.first.GetHash()), fTestNet);
+                return !PassedFirstValidNTP1Tx(GetTxBlockHeight(p.first.GetHash()), fTestNet);
             });
         if (anyInputBeforeWrongBlockHeights) {
             printf("One of the inputs of the NTP1 transaction %s is bofore the allowed block height. "
