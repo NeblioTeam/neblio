@@ -214,7 +214,8 @@ void CTxDB::init_blockindex(bool fRemoveOld)
     printf("Opening lmdb in %s\n", directory.string().c_str());
     MDB_env* envPtr = nullptr;
     if (const int rc = mdb_env_create(&envPtr)) {
-        std::cerr << "Error env create" << std::endl;
+        throw std::runtime_error("Error creating lmdb environment: " + std::to_string(rc) +
+                                 "; message: " + std::string(mdb_strerror(rc)));
     }
     dbEnv = std::unique_ptr<MDB_env, std::function<void(MDB_env*)>>(envPtr, [](MDB_env* p) {
         if (p)
