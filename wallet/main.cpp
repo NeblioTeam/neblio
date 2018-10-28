@@ -2189,8 +2189,12 @@ bool RecoverNTP1TxInDatabase(const CTransaction& tx, CTxDB& txdb, unsigned recur
         for (const auto& in : tx.vin) {
             CTransaction inputTx;
             try {
+                // TODO: Sam: Put these two into one function as they're used twice
                 inputTx = FetchTxFromDisk(in.prevout.hash);
-                if (!PassedFirstValidNTP1Tx(GetTxBlockHeight(inputTx.GetHash()), fTestNet)) {
+                bool anyInputBeforeWrongBlockHeights =
+                    !PassedFirstValidNTP1Tx(GetTxBlockHeight(inputTx.GetHash()), fTestNet);
+                bool isNTP1 = IsTxNTP1(&inputTx);
+                if (anyInputBeforeWrongBlockHeights && isNTP1) {
                     printf("Error: cannot recover transaction with hash %s; the NTP1 input of this "
                            "transaction %s happened before the allowed limit.\n",
                            tx.GetHash().ToString().c_str(), inputTx.GetHash().ToString().c_str());
@@ -2210,15 +2214,17 @@ bool RecoverNTP1TxInDatabase(const CTransaction& tx, CTxDB& txdb, unsigned recur
         }
     }
     try {
-        bool anyInputBeforeWrongBlockHeights = std::any_of(
-            ntp1inputs.begin(), ntp1inputs.end(), [](const std::pair<CTransaction, NTP1Transaction>& p) {
-                return !PassedFirstValidNTP1Tx(GetTxBlockHeight(p.first.GetHash()), fTestNet);
-            });
-        if (anyInputBeforeWrongBlockHeights) {
-            printf("One of the inputs of the NTP1 transaction %s is bofore the allowed block height. "
-                   "This cannot be recovered.\n",
-                   tx.GetHash().ToString().c_str());
-            return false;
+        for (const auto in : ntp1inputs) {
+            bool anyInputBeforeWrongBlockHeights =
+                !PassedFirstValidNTP1Tx(GetTxBlockHeight(in.first.GetHash()), fTestNet);
+            bool isNTP1 = IsTxNTP1(&in.first);
+            if (anyInputBeforeWrongBlockHeights && isNTP1) {
+                printf("One of the inputs of the NTP1 transaction %s, which is %s, is bofore the "
+                       "allowed block height. "
+                       "This cannot be recovered.\n",
+                       tx.GetHash().ToString().c_str(), in.first.GetHash().ToString().c_str());
+                return false;
+            }
         }
         NTP1Transaction ntp1tx;
         ntp1tx.readNTP1DataFromTx(tx, ntp1inputs);
