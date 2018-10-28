@@ -30,13 +30,15 @@ extern DbSmartPtrType glob_db_blocks;
 extern DbSmartPtrType glob_db_version;
 extern DbSmartPtrType glob_db_tx;
 extern DbSmartPtrType glob_db_ntp1Tx;
+extern DbSmartPtrType glob_db_ntp1tokenNames;
 
-const std::string LMDB_MAINDB       = "MainDb";
-const std::string LMDB_BLOCKINDEXDB = "BlockIndexDb";
-const std::string LMDB_BLOCKSDB     = "BlocksDb";
-const std::string LMDB_VERSIONDB    = "VersionDb";
-const std::string LMDB_TXDB         = "TxDb";
-const std::string LMDB_NTP1TXDB     = "Ntp1txDb";
+const std::string LMDB_MAINDB           = "MainDb";
+const std::string LMDB_BLOCKINDEXDB     = "BlockIndexDb";
+const std::string LMDB_BLOCKSDB         = "BlocksDb";
+const std::string LMDB_VERSIONDB        = "VersionDb";
+const std::string LMDB_TXDB             = "TxDb";
+const std::string LMDB_NTP1TXDB         = "Ntp1txDb";
+const std::string LMDB_NTP1TOKENNAMESDB = "Ntp1NamesDb";
 
 constexpr static float DB_RESIZE_PERCENT = 0.9f;
 
@@ -55,6 +57,68 @@ constexpr static uint64_t DB_DEFAULT_MAPSIZE = UINT64_C(1) << 33;
 #else
 constexpr static uint64_t DB_DEFAULT_MAPSIZE = CUSTOM_LMDB_DB_SIZE;
 #endif
+
+#define HAS_MEMBER_FUNC(func, name)                                                                        \
+    template <typename T, typename Sign>                                                                \
+    struct name                                                                                         \
+    {                                                                                                   \
+        typedef char yes[1];                                                                            \
+        typedef char no[2];                                                                             \
+        template <typename U, U>                                                                        \
+        struct type_check;                                                                              \
+        template <typename _1>                                                                          \
+        static yes& chk(type_check<Sign, &_1::func>*);                                                  \
+        template <typename>                                                                             \
+        static no&        chk(...);                                                                     \
+        static bool const value = sizeof(chk<T>(0)) == sizeof(yes);                                     \
+    }
+
+HAS_MEMBER_FUNC(toString, has_toString_class);
+HAS_MEMBER_FUNC(ToString, has_ToString_class);
+
+template <typename T>
+constexpr bool Has_ToString()
+{
+    return has_ToString_class<T, std::string (T::*)()>::value;
+}
+
+template <typename T>
+constexpr bool Has_toString()
+{
+    return has_toString_class<T, std::string (T::*)()>::value;
+}
+
+template <typename T>
+typename enable_if<Has_ToString<T>() && Has_toString<T>(), std::string>::type
+KeyAsString(const T& k, const std::string& /*keyStr*/)
+{
+    return k->ToString();
+}
+
+template <typename T>
+typename enable_if<Has_ToString<T>() && !Has_toString<T>(), std::string>::type
+KeyAsString(const T& k, const std::string& /*keyStr*/)
+{
+    return k->ToString();
+}
+
+template <typename T>
+typename enable_if<!Has_ToString<T>() && Has_toString<T>(), std::string>::type
+KeyAsString(const T& k, const std::string& /*keyStr*/)
+{
+    return k->toString();
+}
+
+template <typename T>
+typename enable_if<!Has_ToString<T>() && !Has_toString<T>(), std::string>::type
+KeyAsString(const T& /*t*/, const std::string& keyStr)
+{
+    if (std::all_of(keyStr.begin(), keyStr.end(), ::isprint)) {
+        return keyStr;
+    } else {
+        return "(in hex: 0x" + boost::algorithm::hex(keyStr) + ")";
+    }
+}
 
 class CTxDB;
 
@@ -130,6 +194,10 @@ public:
     static boost::filesystem::path DB_DIR;
 
     CTxDB(const char* pszMode = "r+");
+    CTxDB(const CTxDB&) = delete;
+    CTxDB(CTxDB&&)      = delete;
+    CTxDB& operator=(const CTxDB&) = delete;
+    CTxDB& operator=(CTxDB&&) = delete;
     ~CTxDB();
 
     // Destroys the underlying shared global state accessed by this TxDB.
@@ -144,6 +212,7 @@ private:
     MDB_dbi* db_blocks;
     MDB_dbi* db_tx;
     MDB_dbi* db_ntp1Tx;
+    MDB_dbi* db_ntp1tokenNames;
 
     // A batch stores up writes and deletes for atomic application. When this
     // field is non-NULL, writes/deletes go there instead of directly to disk.
@@ -165,7 +234,8 @@ protected:
     //    bool ScanBatch(const CDataStream& key, std::string* value, bool* deleted) const;
 
     template <typename K, typename T>
-    bool Read(const K& key, T& value, MDB_dbi* dbPtr, int serializationTypeModifiers = 0, size_t offset = 0)
+    bool Read(const K& key, T& value, MDB_dbi* dbPtr, int serializationTypeModifiers = 0,
+              size_t offset = 0)
     {
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         ssKey.reserve(1000);
@@ -186,11 +256,13 @@ protected:
         MDB_val       kS     = {keyBin.size(), (void*)(keyBin.c_str())};
         MDB_val       vS     = {0, nullptr};
         if (auto ret = mdb_get((!activeBatch ? localTxn : *activeBatch), *dbPtr, &kS, &vS)) {
+            std::string dbgKey = KeyAsString(key, ssKey.str());
+
             if (ret == MDB_NOTFOUND) {
-                printf("Failed to read lmdb key %s as it doesn't exist\n", ssKey.str().c_str());
+                printf("Failed to read lmdb key %s as it doesn't exist\n", dbgKey.c_str());
             } else {
-                printf("Failed to read lmdb key with an unknown error of code %i; and error: %s\n", ret,
-                       mdb_strerror(ret));
+                printf("Failed to read lmdb key %s with an unknown error of code %i; and error: %s\n",
+                       dbgKey.c_str(), ret, mdb_strerror(ret));
             }
             if (localTxn.rawPtr()) {
                 localTxn.abort();
@@ -255,10 +327,12 @@ protected:
         MDB_val       vS     = {valBin.size(), (void*)(valBin.c_str())};
 
         if (auto ret = mdb_put((!activeBatch ? localTxn : *activeBatch), *dbPtr, &kS, &vS, 0)) {
+            std::string dbgKey = KeyAsString(key, ssKey.str());
             if (ret == MDB_MAP_FULL) {
-                printf("Failed to write key %s with lmdb, MDB_MAP_FULL\n", ssKey.str().c_str());
+                printf("Failed to write key %s with lmdb, MDB_MAP_FULL\n", dbgKey.c_str());
             } else {
-                printf("Failed to write key with lmdb; Code %i; Error: %s\n", ret, mdb_strerror(ret));
+                printf("Failed to write key %s with lmdb; Code %i; Error: %s\n", dbgKey.c_str(), ret,
+                       mdb_strerror(ret));
             }
             if (localTxn.rawPtr()) {
                 localTxn.abort();
@@ -303,7 +377,9 @@ protected:
         MDB_val       vS{0, nullptr};
 
         if (auto ret = mdb_del((!activeBatch ? localTxn : *activeBatch), *dbPtr, &kS, &vS)) {
-            printf("Failed to delete entry with key %s with lmdb\n", ssKey.str().c_str());
+            std::string dbgKey = KeyAsString(key, ssKey.str());
+            printf("Failed to delete entry with key %s with lmdb; Code %i; Error message: %s\n",
+                   dbgKey.c_str(), ret, mdb_strerror(ret));
             if (localTxn.rawPtr()) {
                 localTxn.abort();
             }
@@ -342,12 +418,13 @@ protected:
             if (localTxn.rawPtr()) {
                 localTxn.abort();
             }
+            std::string dbgKey = KeyAsString(key, ssKey.str());
             if (ret == MDB_NOTFOUND) {
                 return false;
             } else {
                 printf("Failed to check whether key %s exists with an unknown error of code %i; and "
                        "error: %s\n",
-                       ssKey.str().c_str(), ret, mdb_strerror(ret));
+                       dbgKey.c_str(), ret, mdb_strerror(ret));
             }
             return false;
         } else {
@@ -420,20 +497,22 @@ private:
 
 void CTxDB::loadDbPointers()
 {
-    db_main       = glob_db_main.get();
-    db_blockIndex = glob_db_blockIndex.get();
-    db_blocks     = glob_db_blocks.get();
-    db_tx         = glob_db_tx.get();
-    db_ntp1Tx     = glob_db_ntp1Tx.get();
+    db_main           = glob_db_main.get();
+    db_blockIndex     = glob_db_blockIndex.get();
+    db_blocks         = glob_db_blocks.get();
+    db_tx             = glob_db_tx.get();
+    db_ntp1Tx         = glob_db_ntp1Tx.get();
+    db_ntp1tokenNames = glob_db_ntp1tokenNames.get();
 }
 
 void CTxDB::resetDbPointers()
 {
-    db_main       = nullptr;
-    db_blockIndex = nullptr;
-    db_blocks     = nullptr;
-    db_tx         = nullptr;
-    db_ntp1Tx     = nullptr;
+    db_main           = nullptr;
+    db_blockIndex     = nullptr;
+    db_blocks         = nullptr;
+    db_tx             = nullptr;
+    db_ntp1Tx         = nullptr;
+    db_ntp1tokenNames = nullptr;
 }
 
 void CTxDB::resetGlobalDbPointers()
@@ -443,6 +522,7 @@ void CTxDB::resetGlobalDbPointers()
     glob_db_blocks.reset();
     glob_db_tx.reset();
     glob_db_ntp1Tx.reset();
+    glob_db_ntp1tokenNames.reset();
 }
 
 #endif // BITCOIN_LMDB_H

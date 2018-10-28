@@ -22,6 +22,7 @@ DbSmartPtrType glob_db_blockIndex;
 DbSmartPtrType glob_db_blocks;
 DbSmartPtrType glob_db_tx;
 DbSmartPtrType glob_db_ntp1Tx;
+DbSmartPtrType glob_db_ntp1tokenNames;
 
 using namespace std;
 using namespace boost;
@@ -258,11 +259,12 @@ void CTxDB::init_blockindex(bool fRemoveOld)
             "; message: " + std::string(mdb_strerror(mdb_res)));
     }
 
-    glob_db_main       = DbSmartPtrType(new MDB_dbi, dbDeleter);
-    glob_db_blockIndex = DbSmartPtrType(new MDB_dbi, dbDeleter);
-    glob_db_blocks     = DbSmartPtrType(new MDB_dbi, dbDeleter);
-    glob_db_tx         = DbSmartPtrType(new MDB_dbi, dbDeleter);
-    glob_db_ntp1Tx     = DbSmartPtrType(new MDB_dbi, dbDeleter);
+    glob_db_main           = DbSmartPtrType(new MDB_dbi, dbDeleter);
+    glob_db_blockIndex     = DbSmartPtrType(new MDB_dbi, dbDeleter);
+    glob_db_blocks         = DbSmartPtrType(new MDB_dbi, dbDeleter);
+    glob_db_tx             = DbSmartPtrType(new MDB_dbi, dbDeleter);
+    glob_db_ntp1Tx         = DbSmartPtrType(new MDB_dbi, dbDeleter);
+    glob_db_ntp1tokenNames = DbSmartPtrType(new MDB_dbi, dbDeleter);
 
     CTxDB::lmdb_db_open(txn, LMDB_MAINDB.c_str(), MDB_CREATE, *glob_db_main,
                         "Failed to open db handle for db_main");
@@ -274,6 +276,8 @@ void CTxDB::init_blockindex(bool fRemoveOld)
                         "Failed to open db handle for glob_db_tx");
     CTxDB::lmdb_db_open(txn, LMDB_NTP1TXDB.c_str(), MDB_CREATE, *glob_db_ntp1Tx,
                         "Failed to open db handle for glob_db_ntp1Tx");
+    CTxDB::lmdb_db_open(txn, LMDB_NTP1TOKENNAMESDB.c_str(), MDB_CREATE | MDB_DUPSORT,
+                        *glob_db_ntp1tokenNames, "Failed to open db handle for glob_db_ntp1Tx");
 
     // commit the transaction
     txn.commit();
@@ -292,6 +296,9 @@ void CTxDB::init_blockindex(bool fRemoveOld)
     }
     if (!glob_db_ntp1Tx) {
         throw std::runtime_error("LMDB nullptr after opening the db_ntp1Tx database.");
+    }
+    if (!glob_db_ntp1tokenNames) {
+        throw std::runtime_error("LMDB nullptr after opening the db_ntp1tokenNames database.");
     }
 }
 
@@ -454,7 +461,6 @@ bool CTxDB::WriteBlock(uint256 hash, const CBlock& blk)
 bool CTxDB::EraseTxIndex(const CTransaction& tx)
 {
     uint256 hash = tx.GetHash();
-
     return Erase(hash, db_tx);
 }
 
