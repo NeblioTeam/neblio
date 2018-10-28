@@ -664,7 +664,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
     }
 
     {
-        CTxDB txdb("r");
+        CTxDB txdb;
 
         // do we already have it?
         if (txdb.ContainsTx(hash))
@@ -733,7 +733,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
         if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
             try {
                 std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
-                    StdInputsTxsToNTP1(tx, mapInputs);
+                    StdInputsTxsToNTP1(tx, mapInputs, txdb);
                 NTP1Transaction ntp1tx;
                 ntp1tx.readNTP1DataFromTx(tx, inputsTxs);
             } catch (std::exception& ex) {
@@ -1574,7 +1574,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
         // in their initial block download.
 
         CTxIndex txindexOld;
-        if (txdb.ReadTxIndex(hashTx, txindexOld)) {
+        if (txdb.ContainsTx(hashTx) && txdb.ReadTxIndex(hashTx, txindexOld)) {
             for (CDiskTxPos& pos : txindexOld.vSpent)
                 if (pos.IsNull())
                     return false;
@@ -2175,7 +2175,7 @@ CTransaction FetchTxFromDisk(const uint256& txid)
     return result;
 }
 
-bool RecoverNTP1TxInDatabase(const CTransaction& tx, unsigned recurseDepth)
+bool RecoverNTP1TxInDatabase(const CTransaction& tx, CTxDB& txdb, unsigned recurseDepth)
 {
     printf("Recovering NTP1 transaction in database: %s\n", tx.GetHash().ToString().c_str());
     std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs;
@@ -2199,14 +2199,14 @@ bool RecoverNTP1TxInDatabase(const CTransaction& tx, unsigned recurseDepth)
             }
             std::pair<CTransaction, NTP1Transaction> inputTxPair =
                 std::make_pair(inputTx, NTP1Transaction());
-            FetchNTP1TxFromDisk(inputTxPair, recurseDepth);
+            FetchNTP1TxFromDisk(inputTxPair, txdb, recurseDepth);
             ntp1inputs.push_back(inputTxPair);
         }
     }
     try {
         NTP1Transaction ntp1tx;
         ntp1tx.readNTP1DataFromTx(tx, ntp1inputs);
-        WriteNTP1TxToDbAndDisk(ntp1tx);
+        WriteNTP1TxToDbAndDisk(ntp1tx, txdb);
         printf("Recovering transation: %s is done successfully.\n", tx.GetHash().ToString().c_str());
     } catch (std::exception& ex) {
         printf("Error: Failed to retrieve read NTP1 transaction while attempting to recover NTP1 "
@@ -2217,7 +2217,8 @@ bool RecoverNTP1TxInDatabase(const CTransaction& tx, unsigned recurseDepth)
     return true;
 }
 
-void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, unsigned recurseDepth)
+void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, CTxDB& /*txdb*/,
+                         unsigned /*recurseDepth*/)
 {
     if (!IsTxNTP1(&txPair.first)) {
         return;
@@ -2225,31 +2226,32 @@ void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, unsig
     if (!CTxDB().ReadNTP1Tx(txPair.first.GetHash(), txPair.second)) {
         printf("Unable to read NTP1 transaction from db: %s\n",
                txPair.first.GetHash().ToString().c_str());
-        if (recurseDepth < 32) {
-            if (RecoverNTP1TxInDatabase(txPair.first, recurseDepth + 1)) {
-                FetchNTP1TxFromDisk(txPair, recurseDepth + 1);
-            } else {
-                printf("Error: Failed to retrieve (and recover) NTP1 transaction %s.\n",
-                       txPair.first.GetHash().ToString().c_str());
-            }
-        } else {
-            printf("Error: max recursion depth, %u, reached while fetching transaction %s. Stopping!\n",
-                   recurseDepth, txPair.first.GetHash().ToString().c_str());
-        }
+        //        if (recurseDepth < 3) {
+        //            if (RecoverNTP1TxInDatabase(txPair.first, txdb, recurseDepth + 1)) {
+        //                FetchNTP1TxFromDisk(txPair, txdb, recurseDepth + 1);
+        //            } else {
+        //                printf("Error: Failed to retrieve (and recover) NTP1 transaction %s.\n",
+        //                       txPair.first.GetHash().ToString().c_str());
+        //            }
+        //        } else {
+        //            printf("Error: max recursion depth, %u, reached while fetching transaction %s.
+        //            Stopping!\n",
+        //                   recurseDepth, txPair.first.GetHash().ToString().c_str());
+        //        }
         return;
     }
 }
 
-void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx)
+void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, CTxDB& txdb)
 {
-    if (!CTxDB().WriteNTP1Tx(ntp1tx.getTxHash(), ntp1tx)) {
-        throw std::runtime_error("unable to write NTP1 transaction to database: " +
+    if (!txdb.WriteNTP1Tx(ntp1tx.getTxHash(), ntp1tx)) {
+        throw std::runtime_error("Unable to write NTP1 transaction to database: " +
                                  ntp1tx.getTxHash().ToString());
     }
 }
 
-std::vector<std::pair<CTransaction, NTP1Transaction>> StdInputsTxsToNTP1(const CTransaction& tx,
-                                                                         const MapPrevTx&    mapInputs)
+std::vector<std::pair<CTransaction, NTP1Transaction>>
+StdInputsTxsToNTP1(const CTransaction& tx, const MapPrevTx& mapInputs, CTxDB& txdb)
 {
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputsWithNTP1;
     // put the input transactions in a vector with their corresponding NTP1 transactions
@@ -2272,7 +2274,7 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> StdInputsTxsToNTP1(const C
     for (auto&& inTx : inputsWithNTP1) {
         // read NTP1 transaction inputs. If they fail, that's OK, because they will
         // fail later if they're necessary
-        FetchNTP1TxFromDisk(inTx);
+        FetchNTP1TxFromDisk(inTx, txdb);
     }
     return inputsWithNTP1;
 }
@@ -2294,10 +2296,10 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTran
         }
     }
 
-    return StdInputsTxsToNTP1(tx, mapInputs);
+    return StdInputsTxsToNTP1(tx, mapInputs, txdb);
 }
 
-void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx)
+void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, CTxDB& txdb)
 {
     if (PassedFirstValidNTP1Tx(nBestHeight, fTestNet)) {
         // read previous transactions (inputs) which are necessary to validate an NTP1
@@ -2313,15 +2315,15 @@ void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx)
         NTP1Transaction ntp1tx;
         ntp1tx.readNTP1DataFromTx(tx, inputsWithNTP1);
 
-        WriteNTP1TxToDbAndDisk(ntp1tx);
+        WriteNTP1TxToDbAndDisk(ntp1tx, txdb);
     }
 }
 
-void WriteNTP1BlockTransactionsToDisk(std::vector<CTransaction> vtx)
+void WriteNTP1BlockTransactionsToDisk(std::vector<CTransaction> vtx, CTxDB& txdb)
 {
     if (PassedFirstValidNTP1Tx(nBestHeight, fTestNet)) {
         for (CTransaction& tx : vtx) {
-            WriteNTP1TxToDiskFromRawTx(tx);
+            WriteNTP1TxToDiskFromRawTx(tx, txdb);
         }
     }
 }
@@ -2418,18 +2420,6 @@ bool CBlock::AcceptBlock()
 
     // ppcoin: check pending sync-checkpoint
     Checkpoints::AcceptPendingSyncCheckpoint();
-
-    // This scope does NTP1 data writing
-    {
-        try {
-            WriteNTP1BlockTransactionsToDisk(vtx);
-        } catch (std::exception& ex) {
-            printf("Unable to get NTP1 transaction written to the blockchain. Error: %s\n", ex.what());
-        } catch (...) {
-            printf("Unable to get NTP1 transaction written to the blockchain. An unknown exception was "
-                   "thrown");
-        }
-    }
 
     return true;
 }
@@ -4348,7 +4338,51 @@ bool IsTxOutputOpRet(const CTxOut* output, string* opReturnArg)
     return false;
 }
 
-bool CBlock::WriteToDisk() const { return CTxDB().WriteBlock(this->GetHash(), *this); }
+bool CBlock::WriteToDisk() const
+{
+    /**
+     * @brief txdb
+     * This function writes a whole block in an ACID transaction
+     */
+
+    CTxDB       txdb;
+    std::size_t req_size = 500 * ::GetSerializeSize(*this, SER_DISK, CLIENT_VERSION);
+    if (!txdb.TxnBegin(req_size)) {
+        printf("Failed to start transaction for writing a new block.");
+        return false;
+    }
+
+    bool success = false;
+
+    // this is a hack to guarantee that the function will commit/abort the transaction on exit
+    std::unique_ptr<int, std::function<void(int*)>> txEnder(new int(0), [&txdb, &success](int* p) {
+        if (success) {
+            txdb.TxnCommit();
+        } else {
+            txdb.TxnAbort();
+        }
+        delete p;
+    });
+
+    if (!txdb.WriteBlock(this->GetHash(), *this)) {
+        return false;
+    }
+
+    // This scope does NTP1 data writing
+    {
+        try {
+            WriteNTP1BlockTransactionsToDisk(vtx, txdb);
+        } catch (std::exception& ex) {
+            printf("Unable to get NTP1 transaction written to the blockchain. Error: %s\n", ex.what());
+        } catch (...) {
+            printf("Unable to get NTP1 transaction written to the blockchain. An unknown exception was "
+                   "thrown");
+        }
+    }
+    success = true;
+    txEnder.reset();
+    return true;
+}
 
 bool CBlock::ReadFromDisk(const uint256& hash, bool fReadTransactions)
 {

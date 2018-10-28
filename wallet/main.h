@@ -150,10 +150,11 @@ const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfSta
 void               StakeMiner(CWallet* pwallet);
 void               ResendWalletTransactions(bool fForce = false);
 CTransaction       FetchTxFromDisk(const uint256& txid);
-void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, unsigned recurseDepth = 0);
-void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx);
+void               FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, CTxDB& txdb,
+                                       unsigned recurseDepth = 0);
+void               WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, CTxDB& txdb);
 
-void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx);
+void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, CTxDB& txdb);
 
 /** for a certain transaction, retrieve all NTP1 data from the database */
 std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTransaction tx);
@@ -189,8 +190,8 @@ unsigned int StakeMinAge(uint32_t nBestHeight);
 typedef std::map<uint256, std::pair<CTxIndex, CTransaction>> MapPrevTx;
 
 /** Take a list of standard neblio transactions and return pairs of neblio and NTP1 transactions */
-std::vector<std::pair<CTransaction, NTP1Transaction>> StdInputsTxsToNTP1(const CTransaction& tx,
-                                                                         const MapPrevTx&    mapInputs);
+std::vector<std::pair<CTransaction, NTP1Transaction>>
+StdInputsTxsToNTP1(const CTransaction& tx, const MapPrevTx& mapInputs, CTxDB& txdb);
 
 bool GetWalletFile(CWallet* pwallet, std::string& strWalletFileOut);
 
