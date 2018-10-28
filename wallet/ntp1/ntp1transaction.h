@@ -18,38 +18,6 @@
 
 //#define DEBUG__INCLUDE_STR_HASH
 
-/** Position on disk for a particular transaction. */
-class DiskNTP1TxPos
-{
-public:
-    unsigned int nTxPos;
-
-    DiskNTP1TxPos() { SetNull(); }
-
-    DiskNTP1TxPos(unsigned int nTxPosIn) { nTxPos = nTxPosIn; }
-
-    IMPLEMENT_SERIALIZE(READWRITE(FLATDATA(*this));)
-    void SetNull() { nTxPos = -1; }
-    bool IsNull() const { return (nTxPos == (unsigned int)-1); }
-
-    friend bool operator==(const DiskNTP1TxPos& a, const DiskNTP1TxPos& b)
-    {
-        return (a.nTxPos == b.nTxPos);
-    }
-
-    friend bool operator!=(const DiskNTP1TxPos& a, const DiskNTP1TxPos& b) { return !(a == b); }
-
-    std::string ToString() const
-    {
-        if (IsNull())
-            return "null";
-        else
-            return strprintf("(nTxPos=%u)", nTxPos);
-    }
-
-    void print() const { printf("%s", ToString().c_str()); }
-};
-
 struct TokenMinimalData
 {
     int64_t     amount;
