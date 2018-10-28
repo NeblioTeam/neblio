@@ -2180,7 +2180,7 @@ bool RecoverNTP1TxInDatabase(const CTransaction& tx, CTxDB& txdb, unsigned recur
     printf("Recovering NTP1 transaction in database: %s\n", tx.GetHash().ToString().c_str());
     std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs;
     try {
-        ntp1inputs = GetAllNTP1InputsOfTx(tx);
+        ntp1inputs = GetAllNTP1InputsOfTx(tx, txdb);
     } catch (std::exception& ex) {
         printf("Error: Attempting to recursively recover the inputs. Failed to recover NTP1 "
                "transaction: %s; with error: %s\n",
@@ -2190,6 +2190,12 @@ bool RecoverNTP1TxInDatabase(const CTransaction& tx, CTxDB& txdb, unsigned recur
             CTransaction inputTx;
             try {
                 inputTx = FetchTxFromDisk(in.prevout.hash);
+                if (!IsNTP1TxAtValidBlockHeight(GetTxBlockHeight(inputTx.GetHash()), fTestNet)) {
+                    printf("Error: cannot recover transaction with hash %s; the NTP1 input of this "
+                           "transaction %s happened before the allowed limit.\n",
+                           tx.GetHash().ToString().c_str(), inputTx.GetHash().ToString().c_str());
+                    return false;
+                }
             } catch (std::exception& exIn) {
                 printf("Error: Failed to retrieve standard neblio tranasction %s; this happened in the "
                        "context of recovering the NTP1 transaction: %s\n, making recovery not "
@@ -2204,6 +2210,16 @@ bool RecoverNTP1TxInDatabase(const CTransaction& tx, CTxDB& txdb, unsigned recur
         }
     }
     try {
+        bool anyInputBeforeWrongBlockHeights = std::any_of(
+            ntp1inputs.begin(), ntp1inputs.end(), [](const std::pair<CTransaction, NTP1Transaction>& p) {
+                return !IsNTP1TxAtValidBlockHeight(GetTxBlockHeight(p.first.GetHash()), fTestNet);
+            });
+        if (anyInputBeforeWrongBlockHeights) {
+            printf("One of the inputs of the NTP1 transaction %s is bofore the allowed block height. "
+                   "This cannot be recovered.\n",
+                   tx.GetHash().ToString().c_str());
+            return false;
+        }
         NTP1Transaction ntp1tx;
         ntp1tx.readNTP1DataFromTx(tx, ntp1inputs);
         WriteNTP1TxToDbAndDisk(ntp1tx, txdb);
@@ -2217,27 +2233,26 @@ bool RecoverNTP1TxInDatabase(const CTransaction& tx, CTxDB& txdb, unsigned recur
     return true;
 }
 
-void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, CTxDB& /*txdb*/,
-                         unsigned /*recurseDepth*/)
+void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, CTxDB& txdb,
+                         unsigned recurseDepth)
 {
     if (!IsTxNTP1(&txPair.first)) {
         return;
     }
-    if (!CTxDB().ReadNTP1Tx(txPair.first.GetHash(), txPair.second)) {
+    if (!txdb.ReadNTP1Tx(txPair.first.GetHash(), txPair.second)) {
         printf("Unable to read NTP1 transaction from db: %s\n",
                txPair.first.GetHash().ToString().c_str());
-        //        if (recurseDepth < 3) {
-        //            if (RecoverNTP1TxInDatabase(txPair.first, txdb, recurseDepth + 1)) {
-        //                FetchNTP1TxFromDisk(txPair, txdb, recurseDepth + 1);
-        //            } else {
-        //                printf("Error: Failed to retrieve (and recover) NTP1 transaction %s.\n",
-        //                       txPair.first.GetHash().ToString().c_str());
-        //            }
-        //        } else {
-        //            printf("Error: max recursion depth, %u, reached while fetching transaction %s.
-        //            Stopping!\n",
-        //                   recurseDepth, txPair.first.GetHash().ToString().c_str());
-        //        }
+        if (recurseDepth < 32) {
+            if (RecoverNTP1TxInDatabase(txPair.first, txdb, recurseDepth + 1)) {
+                FetchNTP1TxFromDisk(txPair, txdb, recurseDepth + 1);
+            } else {
+                printf("Error: Failed to retrieve (and recover) NTP1 transaction %s.\n",
+                       txPair.first.GetHash().ToString().c_str());
+            }
+        } else {
+            printf("Error: max recursion depth, %u, reached while fetching transaction %s. Stopping!\n",
+                   recurseDepth, txPair.first.GetHash().ToString().c_str());
+        }
         return;
     }
 }
@@ -2281,8 +2296,11 @@ StdInputsTxsToNTP1(const CTransaction& tx, const MapPrevTx& mapInputs, CTxDB& tx
 
 std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTransaction tx)
 {
-    CTxDB txdb("r");
-
+    CTxDB txdb;
+    return GetAllNTP1InputsOfTx(tx, txdb);
+}
+std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTransaction tx, CTxDB& txdb)
+{
     // rertrieve standard transaction inputs (NOT NTP1)
     MapPrevTx              mapInputs;
     map<uint256, CTxIndex> mapUnused;
@@ -2309,7 +2327,8 @@ void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, CTxDB& txdb)
             return;
         }
 
-        std::vector<std::pair<CTransaction, NTP1Transaction>> inputsWithNTP1 = GetAllNTP1InputsOfTx(tx);
+        std::vector<std::pair<CTransaction, NTP1Transaction>> inputsWithNTP1 =
+            GetAllNTP1InputsOfTx(tx, txdb);
 
         // write NTP1 transactions' data
         NTP1Transaction ntp1tx;
@@ -4388,4 +4407,48 @@ bool CBlock::ReadFromDisk(const uint256& hash, bool fReadTransactions)
 {
     SetNull();
     return CTxDB().ReadBlock(hash, *this, fReadTransactions);
+}
+
+bool IsTxInMainChain(const uint256& txHash)
+{
+    CTransaction tx;
+    uint256      hashBlock;
+    if (GetTransaction(txHash, tx, hashBlock)) {
+        map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
+        if (mi != mapBlockIndex.end() && (*mi).second) {
+            CBlockIndex* pindex = (*mi).second;
+            return pindex->IsInMainChain();
+        } else {
+            throw std::runtime_error("Unable to find the block that has the transaction " +
+                                     txHash.ToString());
+        }
+    }
+    throw std::runtime_error("Unable to retrieve the transaction " + txHash.ToString());
+}
+
+int64_t GetTxBlockHeight(const uint256& txHash)
+{
+    CTransaction tx;
+    uint256      hashBlock;
+    if (GetTransaction(txHash, tx, hashBlock)) {
+        map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
+        if (mi != mapBlockIndex.end() && (*mi).second) {
+            CBlockIndex* pindex = (*mi).second;
+            if (pindex->IsInMainChain()) {
+                return static_cast<int64_t>(pindex->IsInMainChain());
+            } else {
+                return static_cast<int64_t>(-1);
+            }
+        } else {
+            throw std::runtime_error("Unable to find the block that has the transaction " +
+                                     txHash.ToString());
+        }
+    }
+    throw std::runtime_error("Unable to retrieve the transaction " + txHash.ToString());
+}
+
+bool IsNTP1TxAtValidBlockHeight(const int bestHeight, const bool isTestnet)
+{
+    return PassedNetworkUpgradeBlock(bestHeight, isTestnet) &&
+           PassedFirstValidNTP1Tx(bestHeight, isTestnet);
 }

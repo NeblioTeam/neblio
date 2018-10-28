@@ -158,6 +158,13 @@ void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, CTxDB& txdb);
 
 /** for a certain transaction, retrieve all NTP1 data from the database */
 std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTransaction tx);
+std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTransaction tx, CTxDB& txdb);
+
+/** True if the transaction is in the main chain (can throw) */
+bool IsTxInMainChain(const uint256& txHash);
+
+/** The number of the block where the transaction is located */
+int64_t GetTxBlockHeight(const uint256& txHash);
 
 /** (try to) add transaction to memory pool **/
 bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInputs);
@@ -168,6 +175,8 @@ bool PassedNetworkUpgradeBlock(uint32_t nBestHeight, bool isTestnet);
 /** the condition for the first valid NTP1 transaction; transactions before this point are invalid in the
  * network*/
 bool PassedFirstValidNTP1Tx(const int bestHeight, const bool isTestnet);
+
+bool IsNTP1TxAtValidBlockHeight(const int bestHeight, const bool isTestnet);
 
 /** Maximum size of a block */
 unsigned int MaxBlockSize(uint32_t nBestHeight);
