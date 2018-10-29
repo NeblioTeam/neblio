@@ -4441,7 +4441,7 @@ int64_t GetTxBlockHeight(const uint256& txHash)
         if (mi != mapBlockIndex.end() && (*mi).second) {
             CBlockIndex* pindex = (*mi).second;
             if (pindex->IsInMainChain()) {
-                return static_cast<int64_t>(pindex->IsInMainChain());
+                return static_cast<int64_t>(pindex->nHeight);
             } else {
                 return static_cast<int64_t>(-1);
             }
