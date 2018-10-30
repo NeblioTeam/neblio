@@ -130,7 +130,7 @@ Options:
   -bind=<addr>           Bind to given address. Use [host]:port notation for IPv6
   -dnsseed               Find peers using DNS lookup (default: 1)
   -staking               Stake your coins to support network and gain reward (default: 1)
-  -synctime              Sync time with other nodes. Disable if time on your system is precise e.g. syncing with NTP (default: 1)
+  -synctime              Sync time with other nodes. Disable if time on your system is precise e.g. syncing with Network Time Protocol (default: 1)
   -cppolicy              Sync checkpoints policy (default: strict)
   -banscore=<n>          Threshold for disconnecting misbehaving peers (default: 100)
   -bantime=<n>           Number of seconds to keep misbehaving peers from reconnecting (default: 86400)
