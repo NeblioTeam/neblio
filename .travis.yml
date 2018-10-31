@@ -35,13 +35,13 @@ before_install:
 install:
 before_script:
 script:
-- if [[ "$target_v" == "osx"               ]]; then travis_wait 45 python ci_scripts/test_osx-gui_wallet.py        ; fi
-- if [[ "$target_v" == "osx_test"          ]]; then travis_wait 45 python ci_scripts/test_osx-gui_wallet.py -t     ; fi
-- if [[ "$target_v" == "rpi_daemon_wallet" ]]; then travis_wait 45 python ci_scripts/test_rpi-daemon-gui-ccache.py ; fi
-- if [[ "$target_v" == "linux_wallet"      ]]; then travis_wait 45 python ci_scripts/test_linux-gui_wallet.py      ; fi
-- if [[ "$target_v" == "linux_wallet_test" ]]; then travis_wait 45 python ci_scripts/test_linux-gui_wallet.py -t   ; fi
-- if [[ "$target_v" == "windows"           ]]; then travis_wait 45 python ci_scripts/test_win32-gui_wallet.py      ; fi
-- if [[ "$target_v" == "linux_daemon"      ]]; then travis_wait 45 python ci_scripts/test_linux-daemon.py          ; fi
+- if [[ "$target_v" == "osx"               ]]; then python ci_scripts/test_osx-gui_wallet.py        ; fi
+- if [[ "$target_v" == "osx_test"          ]]; then python ci_scripts/test_osx-gui_wallet.py -t     ; fi
+- if [[ "$target_v" == "rpi_daemon_wallet" ]]; then python ci_scripts/test_rpi-daemon-gui-ccache.py ; fi
+- if [[ "$target_v" == "linux_wallet"      ]]; then python ci_scripts/test_linux-gui_wallet.py      ; fi
+- if [[ "$target_v" == "linux_wallet_test" ]]; then python ci_scripts/test_linux-gui_wallet.py -t   ; fi
+- if [[ "$target_v" == "windows"           ]]; then python ci_scripts/test_win32-gui_wallet.py      ; fi
+- if [[ "$target_v" == "linux_daemon"      ]]; then python ci_scripts/test_linux-daemon.py          ; fi
 
 after_script:
 - echo "Done"
