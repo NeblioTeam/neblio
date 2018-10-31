@@ -7,6 +7,11 @@ working_dir = os.getcwd()
 deploy_dir = os.path.join(os.environ['TRAVIS_BUILD_DIR'],'deploy', '')
 build_cache_name = 'rpi-build-ccache-' + os.environ['TRAVIS_BRANCH'] + '.tar.gz'
 
+# If this is a PR, bail out because PRs cannot use ccache and just waste 45 mins running
+if (os.environ['TRAVIS_PULL_REQUEST'] != 'false'):
+  print('Pull Requests are not built for RPi since ccache cannot be used!')
+  exit(0)
+
 nci.mkdir_p(deploy_dir)
 os.chdir(deploy_dir)
 
