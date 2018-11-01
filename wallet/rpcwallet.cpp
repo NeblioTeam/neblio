@@ -902,8 +902,9 @@ Value sendmany(const Array& params, bool fHelp)
 
     // verify the NTP1 transaction before commiting
     try {
-        std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs = GetAllNTP1InputsOfTx(wtx);
-        NTP1Transaction                                       ntp1tx;
+        std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
+            GetAllNTP1InputsOfTx(wtx, false);
+        NTP1Transaction ntp1tx;
         ntp1tx.readNTP1DataFromTx(wtx, inputsTxs);
     } catch (std::exception& ex) {
         printf("An invalid NTP1 transaction was created; an exception was thrown: %s\n", ex.what());

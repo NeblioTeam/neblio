@@ -6,6 +6,8 @@
 #ifndef BITCOIN_LMDB_H
 #define BITCOIN_LMDB_H
 
+//#define DEEP_LMDB_LOGGING
+
 #include "main.h"
 
 #include <atomic>
@@ -286,6 +288,7 @@ protected:
         }
         return true;
     }
+
 
     template <typename K, typename T>
     bool Write(const K& key, const T& value, MDB_dbi* dbPtr)

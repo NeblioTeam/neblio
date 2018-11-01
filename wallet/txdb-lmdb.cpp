@@ -35,7 +35,9 @@ std::atomic_flag      mdb_txn_safe::creation_gate = ATOMIC_FLAG_INIT;
 // threshold_size is used for batch transactions
 bool CTxDB::need_resize(uint64_t threshold_size)
 {
+#ifdef DEEP_LMDB_LOGGING
     printf("CTxDB::%s\n", __func__);
+#endif
 #if defined(ENABLE_AUTO_RESIZE)
     MDB_envinfo mei;
 
@@ -51,13 +53,17 @@ bool CTxDB::need_resize(uint64_t threshold_size)
     // additional size needed.
     uint64_t size_used = mst.ms_psize * mei.me_last_pgno;
 
+#ifdef DEEP_LMDB_LOGGING
     printf("DB map size:     %zu\n", mei.me_mapsize);
     printf("Space used:      %zu\n", size_used);
     printf("Space remaining: %zu\n", mei.me_mapsize - size_used);
     printf("Size threshold:  %zu\n", threshold_size);
+#endif
     float resize_percent = DB_RESIZE_PERCENT;
+#ifdef DEEP_LMDB_LOGGING
     printf("Percent used: %.04f  Percent threshold: %.04f\n", ((double)size_used / mei.me_mapsize),
            resize_percent);
+#endif
 
     if (threshold_size > 0) {
         if (mei.me_mapsize - size_used < threshold_size) {
@@ -68,7 +74,7 @@ bool CTxDB::need_resize(uint64_t threshold_size)
     }
 
     if ((double)size_used / mei.me_mapsize > resize_percent) {
-        printf("Threshold met (percent-based)\n");
+        printf("Mapsize threshold met (percent-based)\n");
         return true;
     }
     return false;
@@ -473,7 +479,7 @@ bool CTxDB::ReadDiskTx(uint256 hash, CTransaction& tx, CTxIndex& txindex)
     tx.SetNull();
     if (!ReadTxIndex(hash, txindex))
         return false;
-    return (tx.ReadFromDisk(txindex.pos));
+    return (tx.ReadFromDisk(txindex.pos, *this));
 }
 
 bool CTxDB::ReadDiskTx(uint256 hash, CTransaction& tx)
@@ -717,6 +723,7 @@ bool CTxDB::LoadBlockIndex()
     ReadBestInvalidTrust(bnBestInvalidTrust);
     nBestInvalidTrust = bnBestInvalidTrust.getuint256();
 
+    CTxDB txdb;
     // Verify blocks in the best chain
     int nCheckLevel = GetArg("-checklevel", 1);
     int nCheckDepth = GetArg("-checkblocks", 2500);
@@ -752,7 +759,7 @@ bool CTxDB::LoadBlockIndex()
                     if (nCheckLevel > 2 || pindex->blockKeyInDB != txindex.pos.nBlockPos) {
                         // either an error or a duplicate transaction
                         CTransaction txFound;
-                        if (!txFound.ReadFromDisk(txindex.pos)) {
+                        if (!txFound.ReadFromDisk(txindex.pos, txdb)) {
                             printf("LoadBlockIndex() : *** cannot read mislocated transaction %s\n",
                                    hashTx.ToString().c_str());
                             pindexFork = pindex->pprev;
@@ -780,7 +787,7 @@ bool CTxDB::LoadBlockIndex()
                                 // transaction that consume them
                                 if (nCheckLevel > 5) {
                                     CTransaction txSpend;
-                                    if (!txSpend.ReadFromDisk(txpos)) {
+                                    if (!txSpend.ReadFromDisk(txpos, txdb)) {
                                         printf("LoadBlockIndex(): *** cannot read spending transaction "
                                                "of %s:%i from disk\n",
                                                hashTx.ToString().c_str(), nOutput);

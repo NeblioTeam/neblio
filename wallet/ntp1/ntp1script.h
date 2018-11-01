@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 
+// You should NEVER change these without changing the database version
+// These go to the database for verifying issuance transactions duplication
 typedef uint32_t          NTP1TransactionType;
 const NTP1TransactionType NTP1TxType_UNKNOWN  = 0;
 const NTP1TransactionType NTP1TxType_NOT_NTP1 = 1;

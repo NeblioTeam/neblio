@@ -8,6 +8,7 @@
 #include "ntp1tools.h"
 #include "ntp1txin.h"
 #include "ntp1txout.h"
+#include "txdb.h"
 #include "util.h"
 
 #include <boost/algorithm/hex.hpp>
@@ -23,7 +24,7 @@ void NTP1Transaction::setNull()
     nLockTime = 0;
 }
 
-bool NTP1Transaction::isNull() const { return (vin.empty() && vout.empty()); }
+bool NTP1Transaction::isNull() const noexcept { return (vin.empty() && vout.empty()); }
 
 void NTP1Transaction::importJsonData(const std::string& data)
 {
@@ -137,6 +138,28 @@ const NTP1TxIn& NTP1Transaction::getTxIn(unsigned long index) const { return vin
 unsigned long NTP1Transaction::getTxOutCount() const { return vout.size(); }
 
 const NTP1TxOut& NTP1Transaction::getTxOut(unsigned long index) const { return vout[index]; }
+
+NTP1TransactionType NTP1Transaction::getTxType() const { return ntp1TransactionType; }
+
+string NTP1Transaction::getTokenSymbolIfIssuance() const
+{
+    std::string                 script    = getNTP1OpReturnScriptHex();
+    std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScript(script);
+    if (scriptPtr->getTxType() != NTP1Script::TxType_Issuance) {
+        throw std::runtime_error(
+            "Attempted to get the token symbol of a non-issuance transaction. Txid: " +
+            this->getTxHash().ToString() + "; and current tx type: " + ToString(scriptPtr->getTxType()));
+    }
+    std::shared_ptr<NTP1Script_Issuance> scriptPtrD =
+        std::dynamic_pointer_cast<NTP1Script_Issuance>(scriptPtr);
+
+    if (!scriptPtrD) {
+        throw std::runtime_error("While getting token symbol for issuance tx, casting script pointer to "
+                                 "transfer type failed: " +
+                                 script);
+    }
+    return scriptPtrD->getTokenSymbol();
+}
 
 std::unordered_map<string, TokenMinimalData>
 NTP1Transaction::CalculateTotalInputTokens(const NTP1Transaction& ntp1tx)
@@ -285,7 +308,8 @@ NTP1Transaction::GetPrevInputIt(const CTransaction& tx, const uint256& inputTxHa
 
 void NTP1Transaction::AmendStdTxWithNTP1(CTransaction& tx, int changeIndex)
 {
-    std::vector<std::pair<CTransaction, NTP1Transaction>> inputs = GetAllNTP1InputsOfTx(tx);
+    CTxDB                                                 txdb;
+    std::vector<std::pair<CTransaction, NTP1Transaction>> inputs = GetAllNTP1InputsOfTx(tx, txdb, false);
 
     AmendStdTxWithNTP1(tx, inputs, changeIndex);
 }
@@ -564,6 +588,12 @@ void NTP1Transaction::readNTP1DataFromTx(
         std::shared_ptr<NTP1Script_Issuance> scriptPtrD =
             std::dynamic_pointer_cast<NTP1Script_Issuance>(scriptPtr);
 
+        if (!scriptPtrD) {
+            throw std::runtime_error(
+                "While parsing NTP1Transaction, casting script pointer to transfer type failed: " +
+                opReturnArg);
+        }
+
         if (static_cast<int64_t>(totalInput) - static_cast<int64_t>(totalOutput) <
             static_cast<int64_t>(IssuanceFee)) {
             throw std::runtime_error("Issuance fee is less than 10 nebls");
@@ -651,7 +681,9 @@ void NTP1Transaction::readNTP1DataFromTx(
             std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
 
         if (!scriptPtrD) {
-            throw std::runtime_error("Casting script point to transfer type failed: " + opReturnArg);
+            throw std::runtime_error(
+                "While parsing NTP1Transaction, casting script pointer to transfer type failed: " +
+                opReturnArg);
         }
 
         __TransferTokens<NTP1Script_Transfer>(scriptPtrD, tx, inputsTxs, false);
@@ -662,7 +694,9 @@ void NTP1Transaction::readNTP1DataFromTx(
             std::dynamic_pointer_cast<NTP1Script_Burn>(scriptPtr);
 
         if (!scriptPtrD) {
-            throw std::runtime_error("Casting script point to burn type failed: " + opReturnArg);
+            throw std::runtime_error(
+                "While parsing NTP1Transaction, casting script pointer to burn type failed: " +
+                opReturnArg);
         }
 
         __TransferTokens<NTP1Script_Burn>(scriptPtrD, tx, inputsTxs, true);

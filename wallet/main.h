@@ -28,6 +28,10 @@ class CNode;
 
 class CTxMemPool;
 
+// this prevents attempting to recover NTP1 transactions again and again recursively
+// once a tx is on this list, it won't be recovered
+extern std::set<uint256> UnrecoverableNTP1Txs;
+
 static const int LAST_POW_BLOCK = 1000; // 1000 PoW Blocks to kickstart
 
 /** The maximum allowed size for a serialized block, in bytes (network rule) */
@@ -150,15 +154,20 @@ const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfSta
 void               StakeMiner(CWallet* pwallet);
 void               ResendWalletTransactions(bool fForce = false);
 CTransaction       FetchTxFromDisk(const uint256& txid);
-void               FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, CTxDB& txdb,
-                                       unsigned recurseDepth = 0);
-void               WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, CTxDB& txdb);
+CTransaction       FetchTxFromDisk(const uint256& txid, CTxDB& txdb);
+
+/** given a neblio tx, get the corresponding NTP1 tx */
+void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, CTxDB& txdb,
+                         bool recoverProtection, unsigned recurseDepth = 0);
+void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, CTxDB& txdb);
 
 void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, CTxDB& txdb);
 
 /** for a certain transaction, retrieve all NTP1 data from the database */
-std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTransaction tx);
-std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTransaction tx, CTxDB& txdb);
+std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTransaction tx,
+                                                                           bool recoverProtection);
+std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTransaction tx, CTxDB& txdb,
+                                                                           bool recoverProtection);
 
 /** True if the transaction is in the main chain (can throw) */
 bool IsTxInMainChain(const uint256& txHash);
@@ -200,7 +209,8 @@ typedef std::map<uint256, std::pair<CTxIndex, CTransaction>> MapPrevTx;
 
 /** Take a list of standard neblio transactions and return pairs of neblio and NTP1 transactions */
 std::vector<std::pair<CTransaction, NTP1Transaction>>
-StdInputsTxsToNTP1(const CTransaction& tx, const MapPrevTx& mapInputs, CTxDB& txdb);
+StdFetchedInputTxsToNTP1(const CTransaction& tx, const MapPrevTx& mapInputs, CTxDB& txdb,
+                         bool recoverProtection);
 
 bool GetWalletFile(CWallet* pwallet, std::string& strWalletFileOut);
 
@@ -583,7 +593,7 @@ public:
     int64_t GetMinFee(unsigned int nBlockSize = 1, enum GetMinFee_mode mode = GMF_BLOCK,
                       unsigned int nBytes = 0) const;
 
-    bool ReadFromDisk(CDiskTxPos pos);
+    bool ReadFromDisk(CDiskTxPos pos, CTxDB& txdb);
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)
     {
@@ -620,7 +630,6 @@ public:
 
     bool ReadFromDisk(CTxDB& txdb, COutPoint prevout, CTxIndex& txindexRet);
     bool ReadFromDisk(CTxDB& txdb, COutPoint prevout);
-    bool ReadFromDisk(COutPoint prevout);
     bool DisconnectInputs(CTxDB& txdb);
 
     /** Fetch from memory and/or disk. inputsRet keys are transaction hashes.
@@ -1344,9 +1353,10 @@ public:
         return hash;
     }
 
-    bool WriteToDisk() const;
+    bool WriteToDisk(const uint256& nBlockPos, const uint256& hashProof);
 
     bool ReadFromDisk(const uint256& hash, bool fReadTransactions = true);
+    bool ReadFromDisk(const uint256& hash, CTxDB& txdb, bool fReadTransactions = true);
 
     void print() const
     {
@@ -1368,8 +1378,10 @@ public:
     bool DisconnectBlock(CTxDB& txdb, CBlockIndex* pindex);
     bool ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck = false);
     bool ReadFromDisk(const CBlockIndex* pindex, bool fReadTransactions = true);
-    bool SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew);
-    bool AddToBlockIndex(uint256 nBlockPos, const uint256& hashProof);
+    bool ReadFromDisk(const CBlockIndex* pindex, CTxDB& txdb, bool fReadTransactions = true);
+    bool SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew, const bool createDbTransaction = true);
+    bool AddToBlockIndex(uint256 nBlockPos, const uint256& hashProof, CTxDB& txdb,
+                         const bool createDbTransaction = true);
     bool CheckBlock(bool fCheckPOW = true, bool fCheckMerkleRoot = true, bool fCheckSig = true) const;
     bool AcceptBlock();
     bool GetCoinAge(uint64_t& nCoinAge) const; // ppcoin: calculate total coin age spent in block
@@ -1377,7 +1389,7 @@ public:
     bool CheckBlockSignature() const;
 
 private:
-    bool SetBestChainInner(CTxDB& txdb, CBlockIndex* pindexNew);
+    bool SetBestChainInner(CTxDB& txdb, CBlockIndex* pindexNew, const bool createDbTransaction = true);
 };
 
 /** The block chain is a tree shaped structure starting with the

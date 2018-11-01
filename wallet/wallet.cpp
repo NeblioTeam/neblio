@@ -564,7 +564,7 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn)
 // pblock is optional, but should be provided if the transaction is known to be in a block.
 // If fUpdate is true, existing transactions will be updated.
 bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlock* pblock, bool fUpdate,
-                                       bool fFindBlock)
+                                       bool /*fFindBlock*/)
 {
     uint256 hash = tx.GetHash();
     {
@@ -1098,7 +1098,7 @@ void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins, unsigned int nSp
                                     " to CTransaction");
                             }
                             std::vector<std::pair<CTransaction, NTP1Transaction>> inputs =
-                                GetAllNTP1InputsOfTx(*tx);
+                                GetAllNTP1InputsOfTx(*tx, false);
                             NTP1Transaction ntp1tx;
                             ntp1tx.readNTP1DataFromTx(*tx, inputs);
                             // if this output contains tokens, skip it to avoid burning them

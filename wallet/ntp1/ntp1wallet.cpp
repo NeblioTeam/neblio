@@ -112,7 +112,8 @@ void NTP1Wallet::__getOutputs()
 
         NTP1Transaction ntp1tx;
         try {
-            std::vector<std::pair<CTransaction, NTP1Transaction>> prevTxs = GetAllNTP1InputsOfTx(neblTx);
+            std::vector<std::pair<CTransaction, NTP1Transaction>> prevTxs =
+                GetAllNTP1InputsOfTx(neblTx, true);
             ntp1tx.readNTP1DataFromTx(neblTx, prevTxs);
         } catch (std::exception& ex) {
             printf("Unable to download transaction information. Error says: %s\n", ex.what());
@@ -125,8 +126,8 @@ void NTP1Wallet::__getOutputs()
             try {
                 // transaction with output index
                 walletOutputsWithTokens[output] = ntp1tx;
-                for (long j = 0;
-                     j < static_cast<long>(ntp1tx.getTxOut(output.getIndex()).tokenCount()); j++) {
+                for (long j = 0; j < static_cast<long>(ntp1tx.getTxOut(output.getIndex()).tokenCount());
+                     j++) {
 
                     NTP1TokenTxData tokenTx = ntp1tx.getTxOut(output.getIndex()).getToken(j);
 
@@ -134,7 +135,7 @@ void NTP1Wallet::__getOutputs()
                     uint256      issueTxid = tokenTx.getIssueTxId();
                     CTransaction issueTx   = FetchTxFromDisk(issueTxid);
                     std::vector<std::pair<CTransaction, NTP1Transaction>> issueTxInputs =
-                        GetAllNTP1InputsOfTx(issueTx);
+                        GetAllNTP1InputsOfTx(issueTx, true);
                     NTP1Transaction issueNTP1Tx;
                     issueNTP1Tx.readNTP1DataFromTx(issueTx, issueTxInputs);
 

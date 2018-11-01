@@ -107,7 +107,8 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
 
     NTP1Transaction ntp1tx;
     try {
-        std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs = GetAllNTP1InputsOfTx(wtx);
+        std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs =
+            GetAllNTP1InputsOfTx(wtx, false);
         ntp1tx.readNTP1DataFromTx(wtx, ntp1inputs);
     } catch (std::exception& ex) {
         printf("(This doesn't have to be an error if the tx is not NTP1). For transaction details, "

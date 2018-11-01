@@ -16,7 +16,7 @@
 #include <unordered_map>
 #include <vector>
 
-//#define DEBUG__INCLUDE_STR_HASH
+#define DEBUG__INCLUDE_STR_HASH
 
 struct TokenMinimalData
 {
@@ -68,21 +68,23 @@ public:
     // clang-format on
 
     NTP1Transaction();
-    void               setNull();
-    bool               isNull() const;
-    void               importJsonData(const std::string& data);
-    json_spirit::Value exportDatabaseJsonData() const;
-    void               importDatabaseJsonData(const json_spirit::Value& data);
-    void               setHex(const std::string& Hex);
-    std::string        getHex() const;
-    uint256            getTxHash() const;
-    uint64_t           getLockTime() const;
-    uint64_t           getTime() const;
-    unsigned long      getTxInCount() const;
-    const NTP1TxIn&    getTxIn(unsigned long index) const;
-    unsigned long      getTxOutCount() const;
-    const NTP1TxOut&   getTxOut(unsigned long index) const;
-    friend inline bool operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs);
+    void                setNull();
+    bool                isNull() const noexcept;
+    void                importJsonData(const std::string& data);
+    json_spirit::Value  exportDatabaseJsonData() const;
+    void                importDatabaseJsonData(const json_spirit::Value& data);
+    void                setHex(const std::string& Hex);
+    std::string         getHex() const;
+    uint256             getTxHash() const;
+    uint64_t            getLockTime() const;
+    uint64_t            getTime() const;
+    unsigned long       getTxInCount() const;
+    const NTP1TxIn&     getTxIn(unsigned long index) const;
+    unsigned long       getTxOutCount() const;
+    const NTP1TxOut&    getTxOut(unsigned long index) const;
+    NTP1TransactionType getTxType() const;
+    std::string         getTokenSymbolIfIssuance() const;
+    friend inline bool  operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs);
 
     static std::unordered_map<std::string, TokenMinimalData>
     CalculateTotalInputTokens(const NTP1Transaction& ntp1tx);

@@ -173,7 +173,7 @@ Value listunspent(const Array& params, bool fHelp)
             continue;
 
         std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs =
-            GetAllNTP1InputsOfTx(static_cast<CTransaction>(*out.tx));
+            GetAllNTP1InputsOfTx(static_cast<CTransaction>(*out.tx), false);
         NTP1Transaction ntp1tx;
         ntp1tx.readNTP1DataFromTx(static_cast<CTransaction>(*out.tx), ntp1inputs);
 
