@@ -1750,7 +1750,7 @@ bool static Reorganize(CTxDB& txdb, CBlockIndex* pindexNew, const bool createDbT
     for (unsigned int i = 0; i < vConnect.size(); i++) {
         CBlockIndex* pindex = vConnect[i];
         CBlock       block;
-        if (!block.ReadFromDisk(pindex))
+        if (!block.ReadFromDisk(pindex, txdb))
             return error("Reorganize() : ReadFromDisk for connect failed");
         if (!block.ConnectBlock(txdb, pindex)) {
             // Invalid block
