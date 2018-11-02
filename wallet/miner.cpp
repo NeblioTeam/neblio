@@ -173,6 +173,10 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
 
     pblock->nBits = GetNextTargetRequired(pindexPrev, fProofOfStake);
 
+    // map of issued token names in this block vs token hashes
+    // this is used to prevent duplicate token names
+    std::unordered_map<std::string, uint256> issuedTokensSymbolsInThisBlock;
+
     // Collect memory pool transactions into the block
     int64_t nFees = 0;
     {
@@ -318,6 +322,39 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
             if (!tx.ConnectInputs(txdb, mapInputs, mapTestPoolTmp, CDiskTxPos(1, 1), pindexPrev, false,
                                   true))
                 continue;
+
+            try {
+                if (IsTxNTP1(&tx)) {
+                    std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
+                        StdFetchedInputTxsToNTP1(tx, mapInputs, txdb, false);
+                    NTP1Transaction ntp1tx;
+                    ntp1tx.readNTP1DataFromTx(tx, inputsTxs);
+                    AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, txdb);
+                    if (ntp1tx.getTxType() == NTP1TxType_ISSUANCE) {
+                        std::string currSymbol = ntp1tx.getTokenSymbolIfIssuance();
+                        if (issuedTokensSymbolsInThisBlock.find(currSymbol) !=
+                            issuedTokensSymbolsInThisBlock.end()) {
+                            throw std::runtime_error("The token name " + currSymbol +
+                                                     " already exists in this block (while mining). "
+                                                     "Skipping this transaction.");
+                        }
+                        issuedTokensSymbolsInThisBlock.insert(
+                            std::make_pair(currSymbol, ntp1tx.getTxHash()));
+                    }
+                }
+            } catch (std::exception& ex) {
+                printf("Error while mining and verifying the uniqueness of issued token symbol in "
+                       "CreateNewBlock(): "
+                       "%s\n",
+                       ex.what());
+                continue;
+            } catch (...) {
+                printf("Error while mining and verifying the uniqueness of issued token symbol in "
+                       "CreateNewBlock(). "
+                       "Unknown exception thrown\n");
+                continue;
+            }
+
             mapTestPoolTmp[tx.GetHash()] = CTxIndex(CDiskTxPos(1, 1), tx.vout.size());
             swap(mapTestPool, mapTestPoolTmp);
 

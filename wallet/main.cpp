@@ -597,10 +597,35 @@ int64_t CTransaction::GetMinFee(unsigned int nBlockSize, enum GetMinFee_mode mod
     return nMinFee;
 }
 
-bool CTransaction::ReadFromDisk(CDiskTxPos pos, CTxDB& txdb)
+bool CTransaction::ReadFromDisk(CDiskTxPos pos, CTxDB& txdb) { return txdb.ReadTx(pos, *this); }
+
+void AssertNTP1TokenNameIsNotAlreadyInMainChain(const NTP1Transaction& ntp1tx, CTxDB& txdb)
 {
-    txdb.ReadTx(pos, *this);
-    return true;
+    if (ntp1tx.getTxType() == NTP1TxType_ISSUANCE) {
+        std::string          sym = ntp1tx.getTokenSymbolIfIssuance();
+        std::vector<uint256> storedSymbolsTxHashes;
+        if (txdb.ReadNTP1TxsWithTokenSymbol(sym, storedSymbolsTxHashes)) {
+            for (const uint256& h : storedSymbolsTxHashes) {
+                if (!IsTxInMainChain(h)) {
+                    continue;
+                }
+                auto pair = std::make_pair(FetchTxFromDisk(h), NTP1Transaction());
+                FetchNTP1TxFromDisk(pair, txdb, false);
+                std::string storedSymbol = pair.second.getTokenSymbolIfIssuance();
+                if (sym == storedSymbol && ntp1tx.getTxHash() != h) {
+                    throw std::runtime_error(
+                        "Failed to accept issuance of token " + sym +
+                        "; this token symbol already exists in transaction: " + h.ToString());
+                }
+            }
+        } else {
+            throw runtime_error("Unable to verify whether a token with the symbol " + sym +
+                                " already exists. Reading the database failed.");
+        }
+    } else if (ntp1tx.getTxType() == NTP1TxType_UNKNOWN) {
+        throw std::runtime_error("Attempted to " + std::string(__func__) +
+                                 " on an uninitialized NTP1 transaction");
+    }
 }
 
 bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInputs)
@@ -731,13 +756,16 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
                     StdFetchedInputTxsToNTP1(tx, mapInputs, txdb, false);
                 NTP1Transaction ntp1tx;
                 ntp1tx.readNTP1DataFromTx(tx, inputsTxs);
+                AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, txdb);
             } catch (std::exception& ex) {
-                printf("An invalid NTP1 transaction was submitted to the memory pool; an exception was "
+                printf("AcceptToMemoryPool: An invalid NTP1 transaction was submitted to the memory "
+                       "pool; an exception was "
                        "thrown: %s\n",
                        ex.what());
                 return false;
             } catch (...) {
-                printf("An invalid NTP1 transaction was submitted to the memory pool; an unknown "
+                printf("AcceptToMemoryPool: An invalid NTP1 transaction was submitted to the memory "
+                       "pool; an unknown "
                        "exception was "
                        "thrown.");
                 return false;
@@ -1559,6 +1587,11 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
     int64_t                    nValueOut    = 0;
     int64_t                    nStakeReward = 0;
     unsigned int               nSigOps      = 0;
+
+    // map of issued token names in this block vs token hashes
+    // this is used to prevent duplicate token names
+    std::unordered_map<std::string, uint256> issuedTokensSymbolsInThisBlock;
+
     for (CTransaction& tx : vtx) {
         uint256 hashTx = tx.GetHash();
 
@@ -1602,8 +1635,9 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
             // this is to prevent a "rogue miner" from creating
             // an incredibly-expensive-to-validate block.
             nSigOps += tx.GetP2SHSigOpCount(mapInputs);
-            if (nSigOps > MAX_BLOCK_SIGOPS)
+            if (nSigOps > MAX_BLOCK_SIGOPS) {
                 return DoS(100, error("ConnectBlock() : too many sigops"));
+            }
 
             int64_t nTxValueIn  = tx.GetValueIn(mapInputs);
             int64_t nTxValueOut = tx.GetValueOut();
@@ -1614,8 +1648,43 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
             if (tx.IsCoinStake())
                 nStakeReward = nTxValueOut - nTxValueIn;
 
-            if (!tx.ConnectInputs(txdb, mapInputs, mapQueuedChanges, posThisTx, pindex, true, false))
+            if (!tx.ConnectInputs(txdb, mapInputs, mapQueuedChanges, posThisTx, pindex, true, false)) {
                 return false;
+            }
+
+            if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+                try {
+                    if (IsTxNTP1(&tx)) {
+                        std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
+                            StdFetchedInputTxsToNTP1(tx, mapInputs, txdb, false);
+                        NTP1Transaction ntp1tx;
+                        ntp1tx.readNTP1DataFromTx(tx, inputsTxs);
+                        AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, txdb);
+                        if (ntp1tx.getTxType() == NTP1TxType_ISSUANCE) {
+                            std::string currSymbol = ntp1tx.getTokenSymbolIfIssuance();
+                            if (issuedTokensSymbolsInThisBlock.find(currSymbol) !=
+                                issuedTokensSymbolsInThisBlock.end()) {
+                                throw std::runtime_error(
+                                    "The token name " + currSymbol +
+                                    " already exists in the block: " + this->GetHash().ToString());
+                            }
+                            issuedTokensSymbolsInThisBlock.insert(
+                                std::make_pair(currSymbol, ntp1tx.getTxHash()));
+                        }
+                    }
+                } catch (std::exception& ex) {
+                    printf("Error while verifying the uniqueness of issued token symbol in "
+                           "ConnectBlocks(): "
+                           "%s\n",
+                           ex.what());
+                    return false;
+                } catch (...) {
+                    printf("Error while verifying the uniqueness of issued token symbol in "
+                           "ConnectBlocks(). "
+                           "Unknown exception thrown\n");
+                    return false;
+                }
+            }
         }
 
         mapQueuedChanges[hashTx]    = CTxIndex(posThisTx, tx.vout.size());
@@ -1657,22 +1726,6 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
     // Write queued txindex changes
     for (map<uint256, CTxIndex>::iterator mi = mapQueuedChanges.begin(); mi != mapQueuedChanges.end();
          ++mi) {
-        //        try {
-        //            const uint256& txHash = (*mi).first;
-
-        //            auto it = mapQueuedChangesTxs.find(txHash);
-        //            // not all transactions in this map are relevant to this list, some are inputs
-        //            if (it != mapQueuedChangesTxs.end()) {
-        //                WriteNTP1TxToDiskFromRawTx(it->second);
-        //            }
-        //        } catch (std::exception& ex) {
-        //            printf("Error while writing NTP1 transaction to database in ConnectBlocks(): %s\n",
-        //                   ex.what());
-        //        } catch (...) {
-        //            printf("Error while writing NTP1 transaction to database in ConnectBlocks().
-        //            Unknown "
-        //                   "exception thrown\n");
-        //        }
         if (!txdb.UpdateTxIndex((*mi).first, (*mi).second))
             return error("ConnectBlock() : UpdateTxIndex failed");
     }
@@ -2193,6 +2246,9 @@ bool RecoverNTP1TxInDatabase(const CTransaction& tx, CTxDB& txdb, bool recoveryP
     // prevent recursively attempting to recover the same transactions again and again
 
     if (recoveryProtection && UnrecoverableNTP1Txs.find(tx.GetHash()) != UnrecoverableNTP1Txs.end()) {
+        printf("Will not recover transaction %s; it was marked for non-recovery. Restart to attempt to "
+               "recover again.",
+               tx.GetHash().ToString().c_str());
         return false;
     }
 

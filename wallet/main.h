@@ -169,6 +169,8 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTran
 std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTransaction tx, CTxDB& txdb,
                                                                            bool recoverProtection);
 
+void AssertNTP1TokenNameIsNotAlreadyInMainChain(const NTP1Transaction& ntp1tx, CTxDB& txdb);
+
 /** True if the transaction is in the main chain (can throw) */
 bool IsTxInMainChain(const uint256& txHash);
 
