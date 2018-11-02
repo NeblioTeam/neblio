@@ -35,7 +35,7 @@ class NTP1Transaction
 {
     static const int CURRENT_VERSION = 1;
     int              nVersion;
-    uint256          txHash;
+    uint256          txHash = 0;
 #ifdef DEBUG__INCLUDE_STR_HASH
     std::string strHash;
 #endif

@@ -413,10 +413,27 @@ bool CTxDB::TxnAbort()
     return true;
 }
 
-bool CTxDB::WriteStrKeyVal(const string& key, const string& val) { return Write(key, val, db_main); }
-bool CTxDB::ReadStrKeyVal(const string& key, string& val) { return Read(key, val, db_main); }
-bool CTxDB::ExistsStrKeyVal(const string& key) { return Exists(key, db_main); }
-bool CTxDB::EraseStrKeyVal(const string& key) { return Erase(key, db_main); }
+bool CTxDB::test1_WriteStrKeyVal(const string& key, const string& val)
+{
+    return Write(key, val, db_main);
+}
+
+bool CTxDB::test1_ReadStrKeyVal(const string& key, string& val) { return Read(key, val, db_main); }
+bool CTxDB::test1_ExistsStrKeyVal(const string& key) { return Exists(key, db_main); }
+bool CTxDB::test1_EraseStrKeyVal(const string& key) { return Erase(key, db_main); }
+
+bool CTxDB::test2_ReadMultipleStr1KeyVal(const string& key, std::vector<string>& val)
+{
+    return ReadMultiple(key, val, db_ntp1tokenNames);
+}
+
+bool CTxDB::test2_WriteStrKeyVal(const string& key, const string& val)
+{
+    return Write(key, val, db_ntp1tokenNames);
+}
+
+bool CTxDB::test2_ExistsStrKeyVal(const string& key) { return Exists(key, db_ntp1tokenNames); }
+bool CTxDB::test2_EraseStrKeyVal(const string& key) { return EraseAll(key, db_ntp1tokenNames); }
 
 bool CTxDB::ReadVersion(int& nVersion)
 {
@@ -444,6 +461,40 @@ bool CTxDB::ReadNTP1Tx(uint256 hash, NTP1Transaction& ntp1tx)
 {
     ntp1tx.setNull();
     return Read(hash, ntp1tx, db_ntp1Tx);
+}
+
+bool CTxDB::ReadNTP1TxsWithTokenSymbol(const std::string& tokenName, std::vector<NTP1Transaction>& txs)
+{
+    return ReadMultiple(tokenName, txs, db_ntp1tokenNames);
+}
+
+bool CTxDB::WriteNTP1TxWithTokenSymbol(const std::string& tokenSymbol, const NTP1Transaction& ntp1tx)
+{
+    if (ntp1tx.isNull()) {
+        printf("Attempted to store token symbol information of token with given symbol %s",
+               tokenSymbol.c_str());
+        return false;
+    }
+    std::string symbol;
+    try {
+        symbol = ntp1tx.getTokenSymbolIfIssuance();
+    } catch (std::exception& ex) {
+        printf("Failed to get token symbol for transaction: %s; with claimed token symbol %s. Error: %s",
+               ntp1tx.getTxHash().ToString().c_str(), tokenSymbol.c_str(), ex.what());
+        return false;
+    } catch (...) {
+        printf("Failed to get token symbol for transaction: %s; with claimed token symbol %s. Unknown "
+               "error.",
+               ntp1tx.getTxHash().ToString().c_str(), tokenSymbol.c_str());
+        return false;
+    }
+    if (symbol != tokenSymbol) {
+        printf("While writing NTP1 tx for token names, the token name provided is not equal to the "
+               "token name calculated: %s != %s",
+               symbol.c_str(), tokenSymbol.c_str());
+        return false;
+    }
+    return Write(tokenSymbol, ntp1tx, db_ntp1tokenNames);
 }
 
 bool CTxDB::WriteNTP1Tx(uint256 hash, const NTP1Transaction& ntp1tx)
