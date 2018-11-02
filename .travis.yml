@@ -53,6 +53,9 @@ before_deploy:
 - cd $TRAVIS_BUILD_DIR
 deploy:
   - provider: s3
+    edge:
+      source: NeblioTeam/dpl
+      branch: master
     endpoint: https://ams3.digitaloceanspaces.com
     access_key_id: 2VUF47CKX6AGTOKSGPBC
     secret_access_key:
