@@ -2351,9 +2351,19 @@ void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, CTxDB
 
 void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, CTxDB& txdb)
 {
+    if (ntp1tx.getTxType() == NTP1TxType_UNKNOWN) {
+        throw std::runtime_error(
+            "Attempted to write an NTP1 transaction to database with unknown type (probably unparsed).");
+    }
     if (!txdb.WriteNTP1Tx(ntp1tx.getTxHash(), ntp1tx)) {
         throw std::runtime_error("Unable to write NTP1 transaction to database: " +
                                  ntp1tx.getTxHash().ToString());
+    }
+    if (ntp1tx.getTxType() == NTP1TxType_ISSUANCE) {
+        if (!txdb.WriteNTP1TxWithTokenSymbol(ntp1tx.getTokenSymbolIfIssuance(), ntp1tx)) {
+            throw std::runtime_error("Unable to write NTP1 transaction to database: " +
+                                     ntp1tx.getTxHash().ToString());
+        }
     }
 }
 
