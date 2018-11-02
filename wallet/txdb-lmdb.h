@@ -324,7 +324,7 @@ protected:
                     mdb_cursor_close(p);
             });
 
-        int itemRes = mdb_cursor_get(cursorPtr.get(), &kS, &vS, MDB_FIRST);
+        int itemRes = mdb_cursor_get(cursorPtr.get(), &kS, &vS, MDB_SET);
         if (itemRes) {
             std::string dbgKey = KeyAsString(key, ssKey.str());
             if (itemRes != 0 && itemRes != MDB_NOTFOUND) {
@@ -427,6 +427,75 @@ protected:
         return true;
     }
 
+    template <typename K, typename T>
+    bool WriteMultiple(const K& key, const T& value, MDB_dbi* dbPtr)
+    {
+        if (fReadOnly) {
+            printf("Accessing lmdb write function in read only mode");
+            assert("Write called on database in read-only mode");
+            return false;
+        }
+
+        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+        ssKey.reserve(1000);
+        ssKey << key;
+        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+        ssValue.reserve(10000);
+        ssValue << value;
+
+        // you can't resize the db when a tx is active
+        if (!activeBatch && CTxDB::need_resize()) {
+            printf("LMDB memory map needs to be resized, doing that now.\n");
+            CTxDB::do_resize();
+        }
+
+        mdb_txn_safe localTxn(false);
+        if (!activeBatch) {
+            localTxn = mdb_txn_safe();
+            if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, 0, localTxn)) {
+                printf("Failed to begin transaction at read with error code %i; and error: %s\n", res,
+                       mdb_strerror(res));
+            }
+        }
+
+        // only one of them should be active
+        assert(localTxn.rawPtr() == nullptr || activeBatch == nullptr);
+
+        std::string&& keyBin = ssKey.str();
+        MDB_val       kS     = {keyBin.size(), (void*)(keyBin.c_str())};
+        std::string&& valBin = ssValue.str();
+        MDB_val       vS     = {valBin.size(), (void*)(valBin.c_str())};
+        MDB_cursor*   cursorRawPtr = nullptr;
+        if (auto rc = mdb_cursor_open((!activeBatch ? localTxn : *activeBatch), *dbPtr, &cursorRawPtr)) {
+            return error("ReadMultiple: Failed to open lmdb cursor with error code %d; and error: %s\n",
+                         rc, mdb_strerror(rc));
+        }
+
+        std::unique_ptr<MDB_cursor, std::function<void(MDB_cursor*)>> cursorPtr(
+            cursorRawPtr, [](MDB_cursor* p) {
+                if (p)
+                    mdb_cursor_close(p);
+            });
+
+        if (auto ret = mdb_cursor_put(cursorPtr.get(), &kS, &vS, 0)) {
+            std::string dbgKey = KeyAsString(key, ssKey.str());
+            if (ret == MDB_MAP_FULL) {
+                printf("Failed to write key %s with lmdb, MDB_MAP_FULL\n", dbgKey.c_str());
+            } else {
+                printf("Failed to write key %s with lmdb; Code %i; Error: %s\n", dbgKey.c_str(), ret,
+                       mdb_strerror(ret));
+            }
+            if (localTxn.rawPtr()) {
+                localTxn.abort();
+            }
+            return false;
+        }
+
+        cursorPtr.reset();
+        localTxn.commitIfValid("Tx while writing");
+        return true;
+    }
+
     template <typename K>
     bool Erase(const K& key, MDB_dbi* dbPtr)
     {
@@ -515,7 +584,7 @@ protected:
                     mdb_cursor_close(p);
             });
 
-        int itemRes = mdb_cursor_get(cursorPtr.get(), &kS, &vS, MDB_FIRST);
+        int itemRes = mdb_cursor_get(cursorPtr.get(), &kS, &vS, MDB_SET);
         if (itemRes) {
             std::string dbgKey = KeyAsString(key, ssKey.str());
             if (itemRes != 0) {
@@ -623,7 +692,7 @@ public:
     bool ReadTx(const CDiskTxPos& txPos, CTransaction& tx);
     bool ReadNTP1Tx(uint256 hash, NTP1Transaction& ntp1tx);
     bool WriteNTP1Tx(uint256 hash, const NTP1Transaction& ntp1tx);
-    bool ReadNTP1TxsWithTokenSymbol(const std::string& tokenName, std::vector<NTP1Transaction>& txs);
+    bool ReadNTP1TxsWithTokenSymbol(const std::string& tokenName, std::vector<uint256>& txs);
     bool WriteNTP1TxWithTokenSymbol(const std::string& tokenName, const NTP1Transaction& tx);
     bool EraseTxIndex(const CTransaction& tx);
     bool ContainsTx(uint256 hash);

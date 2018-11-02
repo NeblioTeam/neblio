@@ -248,7 +248,7 @@ TEST(lmdb_tests, basic_multiple_many_inputs)
 
     const uint64_t entriesCount = 1;
     for (uint64_t i = 0; i < entriesCount; i++) {
-        std::string v = RandomString(508); // size bigger than this seems to create errors
+        std::string v = RandomString(508); // bigger size seems to create error: MDB_BAD_VALSIZE
 
         entries.push_back(v);
 

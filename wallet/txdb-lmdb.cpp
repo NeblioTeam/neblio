@@ -463,7 +463,7 @@ bool CTxDB::ReadNTP1Tx(uint256 hash, NTP1Transaction& ntp1tx)
     return Read(hash, ntp1tx, db_ntp1Tx);
 }
 
-bool CTxDB::ReadNTP1TxsWithTokenSymbol(const std::string& tokenName, std::vector<NTP1Transaction>& txs)
+bool CTxDB::ReadNTP1TxsWithTokenSymbol(const std::string& tokenName, std::vector<uint256>& txs)
 {
     return ReadMultiple(tokenName, txs, db_ntp1tokenNames);
 }
@@ -494,7 +494,7 @@ bool CTxDB::WriteNTP1TxWithTokenSymbol(const std::string& tokenSymbol, const NTP
                symbol.c_str(), tokenSymbol.c_str());
         return false;
     }
-    return Write(tokenSymbol, ntp1tx, db_ntp1tokenNames);
+    return Write(tokenSymbol, ntp1tx.getTxHash(), db_ntp1tokenNames);
 }
 
 bool CTxDB::WriteNTP1Tx(uint256 hash, const NTP1Transaction& ntp1tx)
