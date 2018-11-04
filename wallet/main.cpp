@@ -599,10 +599,19 @@ int64_t CTransaction::GetMinFee(unsigned int nBlockSize, enum GetMinFee_mode mod
 
 bool CTransaction::ReadFromDisk(CDiskTxPos pos, CTxDB& txdb) { return txdb.ReadTx(pos, *this); }
 
+bool IsIssuedTokenBlacklisted(std::pair<CTransaction, NTP1Transaction>& txPair)
+{
+    const auto& prevout0      = txPair.first.vin[0].prevout;
+    std::string storedTokenId = txPair.second.getTokenIdIfIssuance(prevout0.hash.ToString(), prevout0.n);
+    return IsNTP1TokenBlacklisted(storedTokenId);
+}
+
 void AssertNTP1TokenNameIsNotAlreadyInMainChain(const NTP1Transaction& ntp1tx, CTxDB& txdb)
 {
     if (ntp1tx.getTxType() == NTP1TxType_ISSUANCE) {
-        std::string          sym = ntp1tx.getTokenSymbolIfIssuance();
+        std::string sym = ntp1tx.getTokenSymbolIfIssuance();
+        // make sure that case doesn't matter by converting to upper case
+        std::transform(sym.begin(), sym.end(), sym.begin(), ::toupper);
         std::vector<uint256> storedSymbolsTxHashes;
         if (txdb.ReadNTP1TxsWithTokenSymbol(sym, storedSymbolsTxHashes)) {
             for (const uint256& h : storedSymbolsTxHashes) {
@@ -612,9 +621,17 @@ void AssertNTP1TokenNameIsNotAlreadyInMainChain(const NTP1Transaction& ntp1tx, C
                 auto pair = std::make_pair(FetchTxFromDisk(h), NTP1Transaction());
                 FetchNTP1TxFromDisk(pair, txdb, false);
                 std::string storedSymbol = pair.second.getTokenSymbolIfIssuance();
+                // blacklisted tokens can be duplicated, since they won't be used ever again
+                if (IsIssuedTokenBlacklisted(pair)) {
+                    continue;
+                }
+                // make sure that case doesn't matter by converting to upper case
+                std::transform(storedSymbol.begin(), storedSymbol.end(), storedSymbol.begin(),
+                               ::toupper);
                 if (sym == storedSymbol && ntp1tx.getTxHash() != h) {
                     throw std::runtime_error(
-                        "Failed to accept issuance of token " + sym +
+                        "Failed to accept issuance of token " + sym + " from transaction " +
+                        ntp1tx.getTxHash().ToString() +
                         "; this token symbol already exists in transaction: " + h.ToString());
                 }
             }
@@ -750,7 +767,8 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
                          hash.ToString().substr(0, 10).c_str());
         }
 
-        if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+        if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet) ||
+            EnableUniqueTokenSymbols(nBestHeight, fTestNet)) {
             try {
                 std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
                     StdFetchedInputTxsToNTP1(tx, mapInputs, txdb, false);
@@ -1588,10 +1606,6 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
     int64_t                    nStakeReward = 0;
     unsigned int               nSigOps      = 0;
 
-    // map of issued token names in this block vs token hashes
-    // this is used to prevent duplicate token names
-    std::unordered_map<std::string, uint256> issuedTokensSymbolsInThisBlock;
-
     for (CTransaction& tx : vtx) {
         uint256 hashTx = tx.GetHash();
 
@@ -1650,40 +1664,6 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
 
             if (!tx.ConnectInputs(txdb, mapInputs, mapQueuedChanges, posThisTx, pindex, true, false)) {
                 return false;
-            }
-
-            if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
-                try {
-                    if (IsTxNTP1(&tx)) {
-                        std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
-                            StdFetchedInputTxsToNTP1(tx, mapInputs, txdb, false);
-                        NTP1Transaction ntp1tx;
-                        ntp1tx.readNTP1DataFromTx(tx, inputsTxs);
-                        AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, txdb);
-                        if (ntp1tx.getTxType() == NTP1TxType_ISSUANCE) {
-                            std::string currSymbol = ntp1tx.getTokenSymbolIfIssuance();
-                            if (issuedTokensSymbolsInThisBlock.find(currSymbol) !=
-                                issuedTokensSymbolsInThisBlock.end()) {
-                                throw std::runtime_error(
-                                    "The token name " + currSymbol +
-                                    " already exists in the block: " + this->GetHash().ToString());
-                            }
-                            issuedTokensSymbolsInThisBlock.insert(
-                                std::make_pair(currSymbol, ntp1tx.getTxHash()));
-                        }
-                    }
-                } catch (std::exception& ex) {
-                    printf("Error while verifying the uniqueness of issued token symbol in "
-                           "ConnectBlocks(): "
-                           "%s\n",
-                           ex.what());
-                    return false;
-                } catch (...) {
-                    printf("Error while verifying the uniqueness of issued token symbol in "
-                           "ConnectBlocks(). "
-                           "Unknown exception thrown\n");
-                    return false;
-                }
             }
         }
 
@@ -2347,6 +2327,7 @@ void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, CTxDB
         }
         return;
     }
+    txPair.second.updateDebugStrHash();
 }
 
 void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, CTxDB& txdb)
@@ -2360,9 +2341,19 @@ void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, CTxDB& txdb)
                                  ntp1tx.getTxHash().ToString());
     }
     if (ntp1tx.getTxType() == NTP1TxType_ISSUANCE) {
-        if (!txdb.WriteNTP1TxWithTokenSymbol(ntp1tx.getTokenSymbolIfIssuance(), ntp1tx)) {
-            throw std::runtime_error("Unable to write NTP1 transaction to database: " +
-                                     ntp1tx.getTxHash().ToString());
+        if (ntp1tx.getTxInCount() <= 0) {
+            throw std::runtime_error(
+                "Unable to check for token id blacklisting because the size of the input is zero.");
+        }
+        NTP1OutPoint prevout = ntp1tx.getTxIn(0).getPrevout();
+        assert(!prevout.isNull());
+        std::string tokenId =
+            ntp1tx.getTokenIdIfIssuance(prevout.getHash().ToString(), prevout.getIndex());
+        if (!IsNTP1TokenBlacklisted(tokenId)) {
+            if (!txdb.WriteNTP1TxWithTokenSymbol(ntp1tx.getTokenSymbolIfIssuance(), ntp1tx)) {
+                throw std::runtime_error("Unable to write NTP1 transaction to database: " +
+                                         ntp1tx.getTxHash().ToString());
+            }
         }
     }
 }
@@ -2477,10 +2468,53 @@ void WriteNTP1BlockTransactionsToDisk(const std::vector<CTransaction>& vtx, CTxD
 {
     if (PassedFirstValidNTP1Tx(nBestHeight, fTestNet)) {
         std::vector<CTransaction> transactions(vtx.begin(), vtx.end());
+
+        // map of issued token names in this block vs token hashes
+        // this is used to prevent duplicate token names
+        std::unordered_map<std::string, uint256> issuedTokensSymbolsInThisBlock;
+
         // add current transactions to possible inputs to cover the case if a transaction spends an
         // output in the same block
         while (!transactions.empty()) {
             CTransaction&& tx = PopLeafTransaction(transactions);
+
+            if (EnableUniqueTokenSymbols(nBestHeight, fTestNet)) {
+                try {
+                    if (IsTxNTP1(&tx)) {
+                        std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
+                            GetAllNTP1InputsOfTx(tx, txdb, false);
+
+                        NTP1Transaction ntp1tx;
+                        ntp1tx.readNTP1DataFromTx(tx, inputsTxs);
+                        AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, txdb);
+                        if (ntp1tx.getTxType() == NTP1TxType_ISSUANCE) {
+                            std::string currSymbol = ntp1tx.getTokenSymbolIfIssuance();
+                            // make sure that case doesn't matter by converting to upper case
+                            std::transform(currSymbol.begin(), currSymbol.end(), currSymbol.begin(),
+                                           ::toupper);
+                            if (issuedTokensSymbolsInThisBlock.find(currSymbol) !=
+                                issuedTokensSymbolsInThisBlock.end()) {
+                                throw std::runtime_error(
+                                    "The token name " + currSymbol +
+                                    " already exists in the block: " /* + this->GetHash().ToString()*/);
+                            }
+                            issuedTokensSymbolsInThisBlock.insert(
+                                std::make_pair(currSymbol, ntp1tx.getTxHash()));
+                        }
+                    }
+                } catch (std::exception& ex) {
+                    throw std::runtime_error(
+                        strprintf("Error while verifying the uniqueness of issued token symbol in "
+                                  "ConnectBlocks(): "
+                                  "%s\n",
+                                  ex.what()));
+                } catch (...) {
+                    throw std::runtime_error(
+                        "Error while verifying the uniqueness of issued token symbol in "
+                        "ConnectBlocks(). "
+                        "Unknown exception thrown\n");
+                }
+            }
             WriteNTP1TxToDiskFromRawTx(tx, txdb);
         }
     }
@@ -4245,6 +4279,12 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
     return true;
 }
 
+bool EnableUniqueTokenSymbols(uint32_t /*nBestHeight*/, bool /*isTestnet*/)
+{
+    return true;
+    //    return PassedNetworkUpgradeBlock(nBestHeight, isTestnet);
+}
+
 /** the conditions for considering the upgraded network configuration */
 bool PassedNetworkUpgradeBlock(uint32_t nBestHeight, bool isTestnet)
 {
@@ -4405,6 +4445,10 @@ bool IsTxNTP1(const CTransaction* tx, std::string* opReturnArg)
         return false;
     }
 
+    if (IsNTP1TxExcluded(tx->GetHash())) {
+        return false;
+    }
+
     std::smatch opReturnArgMatch;
 
     for (unsigned long j = 0; j < tx->vout.size(); j++) {
@@ -4423,6 +4467,10 @@ bool IsTxNTP1(const CTransaction* tx, std::string* opReturnArg)
 bool IsTxOutputNTP1OpRet(const CTransaction* tx, unsigned int index, std::string* opReturnArg)
 {
     if (!tx) {
+        return false;
+    }
+
+    if (IsNTP1TxExcluded(tx->GetHash())) {
         return false;
     }
 
@@ -4527,10 +4575,12 @@ bool CBlock::WriteToDisk(const uint256& nBlockPos, const uint256& hashProof)
             WriteNTP1BlockTransactionsToDisk(vtx, txdb);
         } catch (std::exception& ex) {
             // TODO: the block should be probably rejected if it fails here
-            printf("Unable to get NTP1 transaction written to the blockchain. Error: %s\n", ex.what());
+            return error("Unable to get NTP1 transaction written to the blockchain. Error: %s\n",
+                         ex.what());
         } catch (...) {
-            printf("Unable to get NTP1 transaction written to the blockchain. An unknown exception was "
-                   "thrown");
+            return error(
+                "Unable to get NTP1 transaction written to the blockchain. An unknown exception was "
+                "thrown");
         }
     }
     success = true;

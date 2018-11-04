@@ -328,13 +328,13 @@ protected:
         if (itemRes) {
             std::string dbgKey = KeyAsString(key, ssKey.str());
             if (itemRes != 0 && itemRes != MDB_NOTFOUND) {
-                printf("Failed to read lmdb key %s with an error of code %i; and error: %s\n",
+                printf("txdb-lmdb: Cursor with key %s does not exist; with an error of code %i; and error: %s\n",
                        dbgKey.c_str(), itemRes, mdb_strerror(itemRes));
+                if (localTxn.rawPtr()) {
+                    localTxn.abort();
+                }
+                return false;
             }
-            if (localTxn.rawPtr()) {
-                localTxn.abort();
-            }
-            return false;
         }
         do {
             // if the first item is empty, break immediately

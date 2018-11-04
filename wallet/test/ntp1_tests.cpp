@@ -1871,16 +1871,6 @@ void TestSingleNTP1TxParsingLocally(const std::string&                          
     TestSingleNTP1TxParsingLocally(tx, nebltxs_map, ntp1txs_map);
 }
 
-// list of transactions to be excluded from tests
-std::unordered_set<std::string> excluded_txs_testnet = {
-    "826e7b74b24e458e39d779b1033567d325b8d93b507282f983e3c4b3f950fca1",
-    "c378447562be04c6803fdb9f829c9ba0dda462b269e15bcfc7fac3b3561d2eef",
-    "7e71508abef696d6c0427cc85073e0d56da9380f3d333354c7dd9370acd422bc",
-    "adb421a497e25375a88848b17b5c632a8d60db3d02dcc61dbecd397e6c1fb1ca",
-    "95c6f2b978160ab0d51545a13a7ee7b931713a52bd1c9f12807f4cd77ff7536b"};
-
-std::unordered_set<std::string> excluded_txs_mainnet = {};
-
 void TestNTP1TxParsingLocally(bool testnet)
 {
     std::unordered_map<std::string, std::string> ntp1txs_map;
@@ -1907,10 +1897,10 @@ void TestNTP1TxParsingLocally(bool testnet)
             std::cout << "Finished testing " << count << " transactions" << std::endl;
         count++;
         if (testnet) {
-            if (excluded_txs_testnet.find(txid) != excluded_txs_testnet.end())
+            if (excluded_txs_testnet.exists(uint256(txid)))
                 continue;
         } else {
-            if (excluded_txs_mainnet.find(txid) != excluded_txs_mainnet.end())
+            if (excluded_txs_mainnet.exists(uint256(txid)))
                 continue;
         }
         TestSingleNTP1TxParsingLocally(txid, nebltxs_map, ntp1txs_map);

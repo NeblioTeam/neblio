@@ -1,6 +1,7 @@
 #ifndef NTP1TRANSACTION_H
 #define NTP1TRANSACTION_H
 
+#include "ThreadSafeHashMap.h"
 #include "main.h"
 #include "ntp1/ntp1script.h"
 #include "ntp1/ntp1script_burn.h"
@@ -17,6 +18,19 @@
 #include <vector>
 
 #define DEBUG__INCLUDE_STR_HASH
+
+// TODO: Sam: optimize this; this is a temporary solution
+struct KeyHasher
+{
+    std::size_t operator()(const uint256& k) const { return std::hash<string>()(k.ToString()); }
+};
+
+extern ThreadSafeHashMap<std::string, uint64_t>   ntp1_blacklisted_token_ids;
+extern ThreadSafeHashMap<uint256, int, KeyHasher> excluded_txs_testnet;
+extern ThreadSafeHashMap<uint256, int, KeyHasher> excluded_txs_mainnet;
+
+bool IsNTP1TokenBlacklisted(const string& tokenId);
+bool IsNTP1TxExcluded(const uint256& txHash);
 
 struct TokenMinimalData
 {
@@ -84,6 +98,8 @@ public:
     const NTP1TxOut&    getTxOut(unsigned long index) const;
     NTP1TransactionType getTxType() const;
     std::string         getTokenSymbolIfIssuance() const;
+    std::string         getTokenIdIfIssuance(std::string input0txid, unsigned int input0index) const;
+    void                updateDebugStrHash();
     friend inline bool  operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs);
 
     static std::unordered_map<std::string, TokenMinimalData>

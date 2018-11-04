@@ -13,6 +13,7 @@
 #include "zerocoin/Zerocoin.h"
 
 #include <list>
+#include <unordered_set>
 
 class CWallet;
 class CBlock;
@@ -169,6 +170,9 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTran
 std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTransaction tx, CTxDB& txdb,
                                                                            bool recoverProtection);
 
+/** blacklisted tokens are tokens that are to be ignored and not used for historical reasons */
+bool IsIssuedTokenBlacklisted(std::pair<CTransaction, NTP1Transaction>& txPair);
+
 void AssertNTP1TokenNameIsNotAlreadyInMainChain(const NTP1Transaction& ntp1tx, CTxDB& txdb);
 
 /** True if the transaction is in the main chain (can throw) */
@@ -182,6 +186,8 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
 
 /** the conditions for considering the upgraded network configuration */
 bool PassedNetworkUpgradeBlock(uint32_t nBestHeight, bool isTestnet);
+
+bool EnableUniqueTokenSymbols(uint32_t nBestHeight, bool isTestnet);
 
 /** the condition for the first valid NTP1 transaction; transactions before this point are invalid in the
  * network*/

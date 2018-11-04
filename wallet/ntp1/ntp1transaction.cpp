@@ -13,6 +13,38 @@
 
 #include <boost/algorithm/hex.hpp>
 
+// token id vs max block to take transactions from these tokens
+ThreadSafeHashMap<std::string, uint64_t>
+    ntp1_blacklisted_token_ids(std::unordered_map<std::string, uint64_t>{
+        {"La77KcJTUj991FnvxNKhrCD1ER8S81T3LgECS6", 300000}, // old QRT mainnet
+        {"La4kVcoUAddLWkmQU9tBxrNdFjmSaHQruNJW2K", 300000}, // old TNIBB testnet
+        {"La36YNY2G6qgBPj7VSiQDjGCy8aC2GUUsGqtbQ", 300000}, // old TNIBB testnet
+        {"La9wLfpkfZTQvRqyiWjaEpgQStUbCSVMWZW2by", 300000}, // TEST3 on testnet
+        {"La347xkKhi5VUCNDCqxXU4F1RUu8wPvC3pnQk6", 300000}, // BOT on testnet
+        {"La531vUwiu9NnvtJcwPEjV84HrdKCupFCCb6D7", 300000}, // BAUTO on testnet
+        {"La5JGnJcSsLCvYWxqqVSyj3VUqsrAcLBjZjbw5", 300000}, // XYZ from Sam on testnet
+        {"La86PtvXGftbwdoZ9rVMKsLQU5nPHganJDsCRq", 300000}  // ON
+    });
+
+// list of transactions to be excluded because they're invalid
+// this should be a thread-safe hashset, but we don't have one. So we're using the map.
+ThreadSafeHashMap<uint256, int, KeyHasher>
+excluded_txs_testnet(std::unordered_map<uint256, int, KeyHasher>{
+    {uint256("826e7b74b24e458e39d779b1033567d325b8d93b507282f983e3c4b3f950fca1"), 0},
+    {uint256("c378447562be04c6803fdb9f829c9ba0dda462b269e15bcfc7fac3b3561d2eef"), 0},
+    {uint256("7e71508abef696d6c0427cc85073e0d56da9380f3d333354c7dd9370acd422bc"), 0},
+    {uint256("adb421a497e25375a88848b17b5c632a8d60db3d02dcc61dbecd397e6c1fb1ca"), 0},
+    {uint256("95c6f2b978160ab0d51545a13a7ee7b931713a52bd1c9f12807f4cd77ff7536b"), 0}});
+
+ThreadSafeHashMap<uint256, int, KeyHasher> excluded_txs_mainnet = {};
+
+bool IsNTP1TokenBlacklisted(const string& tokenId) { return ntp1_blacklisted_token_ids.exists(tokenId); }
+
+bool IsNTP1TxExcluded(const uint256& txHash)
+{
+    return excluded_txs_testnet.exists(txHash) || excluded_txs_mainnet.exists(txHash);
+}
+
 NTP1Transaction::NTP1Transaction() { setNull(); }
 
 void NTP1Transaction::setNull()
@@ -159,6 +191,33 @@ string NTP1Transaction::getTokenSymbolIfIssuance() const
                                  script);
     }
     return scriptPtrD->getTokenSymbol();
+}
+
+string NTP1Transaction::getTokenIdIfIssuance(string input0txid, unsigned int input0index) const
+{
+    std::string                 script    = getNTP1OpReturnScriptHex();
+    std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScript(script);
+    if (scriptPtr->getTxType() != NTP1Script::TxType_Issuance) {
+        throw std::runtime_error("Attempted to get the token id of a non-issuance transaction. Txid: " +
+                                 this->getTxHash().ToString() +
+                                 "; and current tx type: " + ToString(scriptPtr->getTxType()));
+    }
+    std::shared_ptr<NTP1Script_Issuance> scriptPtrD =
+        std::dynamic_pointer_cast<NTP1Script_Issuance>(scriptPtr);
+
+    if (!scriptPtrD) {
+        throw std::runtime_error("While getting token id for issuance tx, casting script pointer to "
+                                 "transfer type failed: " +
+                                 script);
+    }
+    return scriptPtrD->getTokenID(input0txid, input0index);
+}
+
+void NTP1Transaction::updateDebugStrHash()
+{
+#ifdef DEBUG__INCLUDE_STR_HASH
+    strHash = txHash.ToString();
+#endif
 }
 
 std::unordered_map<string, TokenMinimalData>
@@ -524,6 +583,10 @@ void NTP1Transaction::readNTP1DataFromTx_minimal(const CTransaction& tx)
 void NTP1Transaction::readNTP1DataFromTx(
     const CTransaction& tx, const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs)
 {
+    if (IsNTP1TxExcluded(tx.GetHash())) {
+        return;
+    }
+
     readNTP1DataFromTx_minimal(tx);
 
     std::string opReturnArg;

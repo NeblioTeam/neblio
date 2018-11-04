@@ -332,6 +332,9 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
                     AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, txdb);
                     if (ntp1tx.getTxType() == NTP1TxType_ISSUANCE) {
                         std::string currSymbol = ntp1tx.getTokenSymbolIfIssuance();
+                        // make sure that case doesn't matter by converting to upper case
+                        std::transform(currSymbol.begin(), currSymbol.end(), currSymbol.begin(),
+                                       ::toupper);
                         if (issuedTokensSymbolsInThisBlock.find(currSymbol) !=
                             issuedTokensSymbolsInThisBlock.end()) {
                             throw std::runtime_error("The token name " + currSymbol +
