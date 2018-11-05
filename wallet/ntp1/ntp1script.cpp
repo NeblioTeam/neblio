@@ -124,8 +124,8 @@ uint64_t NTP1Script::CalculateAmountSize(uint8_t firstChar)
     }
 }
 
-uint64_t NTP1Script::ParseAmountFromLongEnoughString(const std::string& BinAmountStartsAtByte0,
-                                                     int&               rawSize)
+NTP1Int NTP1Script::ParseAmountFromLongEnoughString(const std::string& BinAmountStartsAtByte0,
+                                                    int&               rawSize)
 {
     if (BinAmountStartsAtByte0.size() < 2) {
         throw std::runtime_error("Too short a string to be parsed " +
@@ -137,8 +137,7 @@ uint64_t NTP1Script::ParseAmountFromLongEnoughString(const std::string& BinAmoun
                                  "; the amount size is longer than what is available in the script");
     }
     rawSize = amountSize;
-    return NTP1AmountHexToNumber<uint64_t>(
-        boost::algorithm::hex(BinAmountStartsAtByte0.substr(0, amountSize)));
+    return NTP1AmountHexToNumber(boost::algorithm::hex(BinAmountStartsAtByte0.substr(0, amountSize)));
 }
 
 std::string NTP1Script::ParseOpCodeFromLongEnoughString(const std::string& BinOpCodeStartsAtByte0)
@@ -230,8 +229,7 @@ std::vector<NTP1Script::TransferInstruction> NTP1Script::ParseTransferInstructio
         transferInst.skipInput   = rawByte.test(7); // first big-endian bit (is the last one in bitset)
         transferInst.outputIndex = static_cast<int>(outputIndex.to_ulong());
 
-        transferInst.amount = NTP1AmountHexToNumber<decltype(transferInst.amount)>(
-            boost::algorithm::hex(transferInst.rawAmount));
+        transferInst.amount = NTP1AmountHexToNumber(boost::algorithm::hex(transferInst.rawAmount));
 
         // push to the vector
         result.push_back(transferInst);
@@ -304,4 +302,216 @@ NTP1Script::IssuanceFlags NTP1Script::IssuanceFlags::ParseIssuanceFlag(uint8_t f
         throw std::runtime_error("Unknown aggregation policy: " + std::to_string(aggrPolicy));
     }
     return result;
+}
+
+std::string NTP1Script::NumberToHexNTP1Amount(const NTP1Int& num, bool caps)
+{
+    std::string numStr     = ToString(num);
+    int         zerosCount = 0;
+    // numbers less than 32 can fit in a single byte with no exponent
+    if (num >= 32 && ToString(NTP1Script::GetSignificantDigits(num)).size() <= 12) {
+        for (unsigned i = 0; i < numStr.size(); i++) {
+            if (numStr[numStr.size() - i - 1] == '0') {
+                zerosCount++;
+            } else {
+                break;
+            }
+        }
+    }
+
+    NTP1Int mantissaDecimal = FromString<NTP1Int>(numStr.substr(0, numStr.size() - zerosCount));
+    // create binary values of mantissa and exponent (exponent's zero-count)
+    boost::dynamic_bitset<> mantissa(64, mantissaDecimal.convert_to<unsigned long>());
+    boost::dynamic_bitset<> exponent(64, zerosCount);
+    std::string             mantissaStr = ToString(mantissa);
+    std::string             exponentStr = ToString(exponent);
+    {
+        // trim mantissa leading zeros
+        int toTrim = 0;
+        for (unsigned i = 0; i < mantissaStr.size(); i++) {
+            if (mantissaStr[i] == '0') {
+                toTrim++;
+            } else {
+                break;
+            }
+        }
+        mantissaStr = mantissaStr.substr(toTrim, mantissaStr.size() - toTrim);
+    }
+    {
+        // trim exponent leading zeros
+        int toTrim = 0;
+        for (unsigned i = 0; i < exponentStr.size(); i++) {
+            if (exponentStr[i] == '0') {
+                toTrim++;
+            } else {
+                break;
+            }
+        }
+        exponentStr = exponentStr.substr(toTrim, exponentStr.size() - toTrim);
+    }
+
+    int         mantissaSize = 0;
+    int         exponentSize = 0;
+    std::string header;
+
+    if (mantissaStr.size() <= 5 && exponentStr.size() == 0) {
+        header       = "000";
+        mantissaSize = 5;
+        exponentSize = 0;
+    } else if (mantissaStr.size() <= 9 && exponentStr.size() <= 4) {
+        header       = "001";
+        mantissaSize = 9;
+        exponentSize = 4;
+    } else if (mantissaStr.size() <= 17 && exponentStr.size() <= 4) {
+        header       = "010";
+        mantissaSize = 17;
+        exponentSize = 4;
+    } else if (mantissaStr.size() <= 25 && exponentStr.size() <= 4) {
+        header       = "011";
+        mantissaSize = 25;
+        exponentSize = 4;
+    } else if (mantissaStr.size() <= 34 && exponentStr.size() <= 3) {
+        header       = "100";
+        mantissaSize = 34;
+        exponentSize = 3;
+    } else if (mantissaStr.size() <= 42 && exponentStr.size() <= 3) {
+        header       = "101";
+        mantissaSize = 42;
+        exponentSize = 3;
+    } else if (mantissaStr.size() <= 54 && exponentStr.size() == 0) {
+        header       = "11";
+        mantissaSize = 54;
+        exponentSize = 0;
+    } else {
+        throw std::runtime_error("Unable to encode the number " + ToString(num) +
+                                 " to NTP1 amount hex; its mantissa and exponent do not fit in the "
+                                 "expected binary representation.");
+    }
+
+    mantissaStr = std::string(mantissaSize - mantissaStr.size(), '0') + mantissaStr;
+    exponentStr = std::string(exponentSize - exponentStr.size(), '0') + exponentStr;
+
+    std::string finalBinString = header + mantissaStr + exponentStr;
+
+    if ((finalBinString.size() % 8) != 0) {
+        throw std::runtime_error("The constructed binary string does not have the expected size.");
+    }
+
+    std::string encodedData;
+    encodedData.resize(finalBinString.size() / 8);
+    for (unsigned i = 0; i < finalBinString.size(); i += 8) {
+        boost::dynamic_bitset<> singleByteBitset(finalBinString.substr(i, 8));
+        encodedData[i / 8] = static_cast<char>(singleByteBitset.to_ulong());
+    }
+    if (caps) {
+        std::string res = boost::algorithm::hex(encodedData);
+        std::transform(res.begin(), res.end(), res.begin(), ::toupper);
+        return res;
+    } else {
+        std::string res = boost::algorithm::hex(encodedData);
+        std::transform(res.begin(), res.end(), res.begin(), ::tolower);
+        return res;
+    }
+}
+
+NTP1Int NTP1Script::GetSignificantDigits(const NTP1Int& num)
+{
+    if (num == 0) {
+        return 0;
+    }
+    std::string numStr   = ToString(num);
+    int         toRemove = 0;
+    for (int i = numStr.size() - 1; i >= 0; i--) {
+        if (numStr[i] == '0') {
+            toRemove++;
+        }
+    }
+    return FromString<NTP1Int>(numStr.substr(0, numStr.size() - toRemove));
+}
+
+NTP1Int NTP1Script::NTP1AmountHexToNumber(std::string hexVal)
+{
+#ifdef __BYTE_ORDER__
+    static_assert(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__,
+                  "Non little-endian systems are not supported");
+#if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
+    throw std::runtime_error("Big and pdp endian systems are not supported");
+#endif
+#endif
+
+    // remove spaces
+    hexVal.erase(std::remove_if(hexVal.begin(), hexVal.end(), [](char c) { return c == ' '; }),
+                 hexVal.end());
+
+    if (!std::regex_match(hexVal, HexBytexRegex)) {
+        throw std::runtime_error("invalid hex binary string");
+    }
+    std::string bin = boost::algorithm::unhex(hexVal);
+    if (bin.size() > 7) {
+        throw std::out_of_range("Amount can't be bigger than 7 bytes.");
+    }
+
+    // convert the hex to a bitset
+    boost::dynamic_bitset<> bits(bin.size() * 8, 0);
+    for (unsigned i = 0; i < bin.size(); i++) {
+        set_in_range(bits, bin[bin.size() - i - 1], i * 8 + 0, (i + 1) * 8);
+    }
+
+    bool bit0 = bits[bits.size() - 1];
+    bool bit1 = bits[bits.size() - 2];
+    bool bit2 = bits[bits.size() - 3];
+
+    // sizes in bits
+    int headerSize   = 0;
+    int mantissaSize = 0;
+    int exponentSize = 0;
+    if (bit0 && bit1) {
+        headerSize   = 2;
+        mantissaSize = 54;
+        exponentSize = 0;
+    } else {
+        headerSize = 3;
+        if (bit0 == 0 && bit1 == 0 && bit2 == 0) {
+            mantissaSize = 5;
+            exponentSize = 0;
+        } else if (bit0 == 0 && bit1 == 0 && bit2 == 1) {
+            mantissaSize = 9;
+            exponentSize = 4;
+        } else if (bit0 == 0 && bit1 == 1 && bit2 == 0) {
+            mantissaSize = 17;
+            exponentSize = 4;
+        } else if (bit0 == 0 && bit1 == 1 && bit2 == 1) {
+            mantissaSize = 25;
+            exponentSize = 4;
+        } else if (bit0 == 1 && bit1 == 0 && bit2 == 0) {
+            mantissaSize = 34;
+            exponentSize = 3;
+        } else if (bit0 == 1 && bit1 == 0 && bit2 == 1) {
+            mantissaSize = 42;
+            exponentSize = 3;
+        } else {
+            throw std::logic_error("Unexpected binary structure. This should never happen.");
+        }
+    }
+
+    // ensure that the total size makes sense
+    {
+        unsigned totalBitSize = headerSize + mantissaSize + exponentSize;
+        if ((totalBitSize / 8) != bin.size() || (totalBitSize % 8) != 0) {
+            throw std::logic_error("The total bits don't make a byte. This should never happen.");
+        }
+    }
+
+    std::string bitString = boost::to_string(bits);
+    std::string mantissa  = bitString.substr(headerSize, mantissaSize);
+    std::string exponent  = bitString.substr(headerSize + mantissaSize, exponentSize);
+
+    constexpr unsigned int digits =
+        (std::numeric_limits<NTP1Int>::digits <= 512 ? std::numeric_limits<NTP1Int>::digits : 512);
+
+    static_assert(digits <= 512, "Very large type for NTP1Int");
+    static_assert(digits >= 64, "Very short type for NTP1Int");
+
+    return static_cast<NTP1Int>(std::bitset<digits>(mantissa).to_ullong() *
+                                std::pow(10, boost::dynamic_bitset<>(exponent).to_ulong()));
 }

@@ -672,7 +672,7 @@ void NTP1Transaction::readNTP1DataFromTx(
             throw std::runtime_error("Issuance fee is less than 10 nebls");
         }
 
-        uint64_t totalAmountLeft = scriptPtrD->getAmount();
+        NTP1Int totalAmountLeft = scriptPtrD->getAmount();
         if (tx.vin.size() < 1) {
             throw std::runtime_error("Number of inputs is zero for transaction: " +
                                      tx.GetHash().ToString());
@@ -687,7 +687,7 @@ void NTP1Transaction::readNTP1DataFromTx(
                                          ::ToString(tx.vout.size()) + " in transaction " +
                                          tx.GetHash().ToString());
             }
-            uint64_t currentAmount = instruction.amount;
+            NTP1Int currentAmount = instruction.amount;
 
             // ensure the output is larger than input
             if (totalAmountLeft < currentAmount) {

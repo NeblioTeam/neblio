@@ -417,54 +417,55 @@ TEST(ntp1_tests, send_tests)
     json_spirit::Array to = NTP1Tools::GetArrayField(testVal.get_obj(), "to");
     EXPECT_EQ(NTP1Tools::GetStrField(to[0].get_obj(), "address"), "dest1");
     EXPECT_EQ(NTP1Tools::GetStrField(to[0].get_obj(), "tokenId"), "tokenid1");
-    EXPECT_EQ(NTP1Tools::GetUint64Field(to[0].get_obj(), "amount"), 1u);
+    EXPECT_EQ(NTP1Tools::GetNTP1IntField(to[0].get_obj(), "amount"), 1u);
     EXPECT_EQ(NTP1Tools::GetStrField(to[1].get_obj(), "address"), "dest2");
     EXPECT_EQ(NTP1Tools::GetStrField(to[1].get_obj(), "tokenId"), "tokenid2");
-    EXPECT_EQ(NTP1Tools::GetUint64Field(to[1].get_obj(), "amount"), 2u);
+    EXPECT_EQ(NTP1Tools::GetNTP1IntField(to[1].get_obj(), "amount"), 2u);
 }
 
 TEST(ntp1_tests, amount_to_int)
 {
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("69892a92"), 999901700);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("c007b60b6f687a"), 8478457292922);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("40ef54"), 38290000);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("201f"), 1000000000000000);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("60b0b460"), 723782);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("5545e1"), 871340);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("c007b60b6f687a"), 8478457292922);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("11"), 17);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("2011"), 10);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("2012"), 100);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("4bb3c1"), 479320);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("68c7e5b3"), 9207387000);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("8029990f1a"), 8723709100);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("a09c47f7b1a1"), 839027891720);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("c0a60eea1aa8fd"), 182582987368701);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("69892a92"), 999901700);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("c007b60b6f687a"), 8478457292922);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("40ef54"), 38290000);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("201f"), 1000000000000000);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("60b0b460"), 723782);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("5545e1"), 871340);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("c007b60b6f687a"), 8478457292922);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("11"), 17);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("2011"), 10);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("2012"), 100);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("4bb3c1"), 479320);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("68c7e5b3"), 9207387000);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("8029990f1a"), 8723709100);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("a09c47f7b1a1"), 839027891720);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("c0a60eea1aa8fd"), 182582987368701);
 
-    EXPECT_ANY_THROW(NTP1AmountHexToNumber<int64_t>("x"));
-    EXPECT_ANY_THROW(NTP1AmountHexToNumber<int64_t>(" "));
-    EXPECT_ANY_THROW(NTP1AmountHexToNumber<int64_t>("ssdsdmwdmo"));
-    EXPECT_ANY_THROW(NTP1AmountHexToNumber<int64_t>("999999999999999999999999999999999999999999999999"));
+    EXPECT_ANY_THROW(NTP1Script::NTP1AmountHexToNumber("x"));
+    EXPECT_ANY_THROW(NTP1Script::NTP1AmountHexToNumber(" "));
+    EXPECT_ANY_THROW(NTP1Script::NTP1AmountHexToNumber("ssdsdmwdmo"));
+    EXPECT_ANY_THROW(
+        NTP1Script::NTP1AmountHexToNumber("999999999999999999999999999999999999999999999999"));
 
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(999901700), "69892a92");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(8478457292922), "c007b60b6f687a");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(38290000), "40ef54");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(1000000000000000), "201f");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(723782), "60b0b460");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(871340), "5545e1");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(8478457292922), "c007b60b6f687a");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(17), "11");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(100), "2012");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(479320), "4bb3c1");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(9207387000), "68c7e5b3");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(8723709100), "8029990f1a");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(839027891720), "a09c47f7b1a1");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(182582987368701), "c0a60eea1aa8fd");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(999901700), "69892a92");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(8478457292922), "c007b60b6f687a");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(38290000), "40ef54");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(1000000000000000), "201f");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(723782), "60b0b460");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(871340), "5545e1");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(8478457292922), "c007b60b6f687a");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(17), "11");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(100), "2012");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(479320), "4bb3c1");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(9207387000), "68c7e5b3");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(8723709100), "8029990f1a");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(839027891720), "a09c47f7b1a1");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(182582987368701), "c0a60eea1aa8fd");
 
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(999999999997990), "c38d7ea4c67826");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(276413656646664), "c0fb6591d0c408");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(9731165496688), "c008d9b6a9a570");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(943721684679640), "c35a4f53c83bd8");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(999999999997990), "c38d7ea4c67826");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(276413656646664), "c0fb6591d0c408");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(9731165496688), "c008d9b6a9a570");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(943721684679640), "c35a4f53c83bd8");
 }
 
 TEST(ntp1_tests, script_transfer)

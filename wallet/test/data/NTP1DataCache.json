@@ -180,7 +180,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 999995000,
+                            "amount" : "999995000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -208,7 +208,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 500,
+                            "amount" : "500",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -224,7 +224,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 999994500,
+                            "amount" : "999994500",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -267,7 +267,7 @@
                         {
                             "tokenId" : "La9rpjB2v9VHQbDa1gePZKUnwkdHZakXPgFn85",
                             "issueTxid" : "144017b9365d78ebd82dc26ac8035393554b06eb1a6b8f1455350eae025b1306",
-                            "amount" : 1000000000,
+                            "amount" : "1000000000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -295,7 +295,7 @@
                         {
                             "tokenId" : "La9rpjB2v9VHQbDa1gePZKUnwkdHZakXPgFn85",
                             "issueTxid" : "144017b9365d78ebd82dc26ac8035393554b06eb1a6b8f1455350eae025b1306",
-                            "amount" : 3000,
+                            "amount" : "3000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -311,7 +311,7 @@
                         {
                             "tokenId" : "La9rpjB2v9VHQbDa1gePZKUnwkdHZakXPgFn85",
                             "issueTxid" : "144017b9365d78ebd82dc26ac8035393554b06eb1a6b8f1455350eae025b1306",
-                            "amount" : 999997000,
+                            "amount" : "999997000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -354,7 +354,7 @@
                         {
                             "tokenId" : "La37utZFe8P1fPc789szDp2QL7TMC7hyWERxr5",
                             "issueTxid" : "32fe394e2f33b89f22284739a368f39a3c67e515de96b8ecb19f69e18f116210",
-                            "amount" : 1000000000,
+                            "amount" : "1000000000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -382,7 +382,7 @@
                         {
                             "tokenId" : "La37utZFe8P1fPc789szDp2QL7TMC7hyWERxr5",
                             "issueTxid" : "32fe394e2f33b89f22284739a368f39a3c67e515de96b8ecb19f69e18f116210",
-                            "amount" : 1000,
+                            "amount" : "1000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -398,7 +398,7 @@
                         {
                             "tokenId" : "La37utZFe8P1fPc789szDp2QL7TMC7hyWERxr5",
                             "issueTxid" : "32fe394e2f33b89f22284739a368f39a3c67e515de96b8ecb19f69e18f116210",
-                            "amount" : 999999000,
+                            "amount" : "999999000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -441,7 +441,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 999994000,
+                            "amount" : "999994000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -469,7 +469,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 500,
+                            "amount" : "500",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -485,7 +485,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 999993500,
+                            "amount" : "999993500",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -528,7 +528,7 @@
                         {
                             "tokenId" : "La3t57xN4xA2jtgnzLW6HbviPZDgdTU1mvP6Yk",
                             "issueTxid" : "9b9f1c60136d7b0134e06f8aadacc3a61c03dc83426944e5d566c8c84a463735",
-                            "amount" : 999986900,
+                            "amount" : "999986900",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -556,7 +556,7 @@
                         {
                             "tokenId" : "La3t57xN4xA2jtgnzLW6HbviPZDgdTU1mvP6Yk",
                             "issueTxid" : "9b9f1c60136d7b0134e06f8aadacc3a61c03dc83426944e5d566c8c84a463735",
-                            "amount" : 300,
+                            "amount" : "300",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -572,7 +572,7 @@
                         {
                             "tokenId" : "La3t57xN4xA2jtgnzLW6HbviPZDgdTU1mvP6Yk",
                             "issueTxid" : "9b9f1c60136d7b0134e06f8aadacc3a61c03dc83426944e5d566c8c84a463735",
-                            "amount" : 999986600,
+                            "amount" : "999986600",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -615,7 +615,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 999993400,
+                            "amount" : "999993400",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -643,7 +643,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 100,
+                            "amount" : "100",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -659,7 +659,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 999993300,
+                            "amount" : "999993300",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -702,7 +702,7 @@
                         {
                             "tokenId" : "La3NzpGLMZz7QQXx3ExHrrnGgPaXEAQc2wBEjz",
                             "issueTxid" : "11da913895412fdf34bc5b5678ea063b24d5a03b6bf7711996b46003c3773d54",
-                            "amount" : 99988350,
+                            "amount" : "99988350",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -730,7 +730,7 @@
                         {
                             "tokenId" : "La3NzpGLMZz7QQXx3ExHrrnGgPaXEAQc2wBEjz",
                             "issueTxid" : "11da913895412fdf34bc5b5678ea063b24d5a03b6bf7711996b46003c3773d54",
-                            "amount" : 2222,
+                            "amount" : "2222",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -746,7 +746,7 @@
                         {
                             "tokenId" : "La3NzpGLMZz7QQXx3ExHrrnGgPaXEAQc2wBEjz",
                             "issueTxid" : "11da913895412fdf34bc5b5678ea063b24d5a03b6bf7711996b46003c3773d54",
-                            "amount" : 99986128,
+                            "amount" : "99986128",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -789,7 +789,7 @@
                         {
                             "tokenId" : "La6gfSao2Qwmswzzf3rbn3hCzYtBntRUbSxfdF",
                             "issueTxid" : "c30abc4bd0fa3165419f820af357d0f853cd84bf95acfd76527a8cbaeef2bdc9",
-                            "amount" : 1995100,
+                            "amount" : "1995100",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -817,7 +817,7 @@
                         {
                             "tokenId" : "La6gfSao2Qwmswzzf3rbn3hCzYtBntRUbSxfdF",
                             "issueTxid" : "c30abc4bd0fa3165419f820af357d0f853cd84bf95acfd76527a8cbaeef2bdc9",
-                            "amount" : 3,
+                            "amount" : "3",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -833,7 +833,7 @@
                         {
                             "tokenId" : "La6gfSao2Qwmswzzf3rbn3hCzYtBntRUbSxfdF",
                             "issueTxid" : "c30abc4bd0fa3165419f820af357d0f853cd84bf95acfd76527a8cbaeef2bdc9",
-                            "amount" : 1995097,
+                            "amount" : "1995097",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -876,7 +876,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 1000000000,
+                            "amount" : "1000000000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -904,7 +904,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 5000,
+                            "amount" : "5000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -920,7 +920,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 999995000,
+                            "amount" : "999995000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -963,7 +963,7 @@
                         {
                             "tokenId" : "La44xkuQuLT7P2bsszt3a6yKqN7E6rw75A8WDT",
                             "issueTxid" : "88ea0f3a82bd6ca2e49e718cfd861fbabb0139e81c4a6f03a91462a37e13d0e6",
-                            "amount" : 999994000,
+                            "amount" : "999994000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -991,7 +991,7 @@
                         {
                             "tokenId" : "La44xkuQuLT7P2bsszt3a6yKqN7E6rw75A8WDT",
                             "issueTxid" : "88ea0f3a82bd6ca2e49e718cfd861fbabb0139e81c4a6f03a91462a37e13d0e6",
-                            "amount" : 10000,
+                            "amount" : "10000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1007,7 +1007,7 @@
                         {
                             "tokenId" : "La44xkuQuLT7P2bsszt3a6yKqN7E6rw75A8WDT",
                             "issueTxid" : "88ea0f3a82bd6ca2e49e718cfd861fbabb0139e81c4a6f03a91462a37e13d0e6",
-                            "amount" : 999984000,
+                            "amount" : "999984000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1050,7 +1050,7 @@
                         {
                             "tokenId" : "La3BKCuBoeqG3FWegVMnwSvivh7xhuxu4XZbSq",
                             "issueTxid" : "701bd2b4836e2f8c4e720c0c935a0166d930dd1b60405a445cb90024711458e4",
-                            "amount" : 99996000,
+                            "amount" : "99996000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1078,7 +1078,7 @@
                         {
                             "tokenId" : "La3BKCuBoeqG3FWegVMnwSvivh7xhuxu4XZbSq",
                             "issueTxid" : "701bd2b4836e2f8c4e720c0c935a0166d930dd1b60405a445cb90024711458e4",
-                            "amount" : 10000,
+                            "amount" : "10000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1094,7 +1094,7 @@
                         {
                             "tokenId" : "La3BKCuBoeqG3FWegVMnwSvivh7xhuxu4XZbSq",
                             "issueTxid" : "701bd2b4836e2f8c4e720c0c935a0166d930dd1b60405a445cb90024711458e4",
-                            "amount" : 99986000,
+                            "amount" : "99986000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1137,7 +1137,7 @@
                         {
                             "tokenId" : "La3NzpGLMZz7QQXx3ExHrrnGgPaXEAQc2wBEjz",
                             "issueTxid" : "11da913895412fdf34bc5b5678ea063b24d5a03b6bf7711996b46003c3773d54",
-                            "amount" : 99998500,
+                            "amount" : "99998500",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1165,7 +1165,7 @@
                         {
                             "tokenId" : "La3NzpGLMZz7QQXx3ExHrrnGgPaXEAQc2wBEjz",
                             "issueTxid" : "11da913895412fdf34bc5b5678ea063b24d5a03b6bf7711996b46003c3773d54",
-                            "amount" : 10000,
+                            "amount" : "10000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1181,7 +1181,7 @@
                         {
                             "tokenId" : "La3NzpGLMZz7QQXx3ExHrrnGgPaXEAQc2wBEjz",
                             "issueTxid" : "11da913895412fdf34bc5b5678ea063b24d5a03b6bf7711996b46003c3773d54",
-                            "amount" : 99988500,
+                            "amount" : "99988500",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1224,7 +1224,7 @@
                         {
                             "tokenId" : "La3t57xN4xA2jtgnzLW6HbviPZDgdTU1mvP6Yk",
                             "issueTxid" : "9b9f1c60136d7b0134e06f8aadacc3a61c03dc83426944e5d566c8c84a463735",
-                            "amount" : 999987000,
+                            "amount" : "999987000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1252,7 +1252,7 @@
                         {
                             "tokenId" : "La3t57xN4xA2jtgnzLW6HbviPZDgdTU1mvP6Yk",
                             "issueTxid" : "9b9f1c60136d7b0134e06f8aadacc3a61c03dc83426944e5d566c8c84a463735",
-                            "amount" : 100,
+                            "amount" : "100",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1268,7 +1268,7 @@
                         {
                             "tokenId" : "La3t57xN4xA2jtgnzLW6HbviPZDgdTU1mvP6Yk",
                             "issueTxid" : "9b9f1c60136d7b0134e06f8aadacc3a61c03dc83426944e5d566c8c84a463735",
-                            "amount" : 999986900,
+                            "amount" : "999986900",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1311,7 +1311,7 @@
                         {
                             "tokenId" : "La3t57xN4xA2jtgnzLW6HbviPZDgdTU1mvP6Yk",
                             "issueTxid" : "9b9f1c60136d7b0134e06f8aadacc3a61c03dc83426944e5d566c8c84a463735",
-                            "amount" : 999999000,
+                            "amount" : "999999000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1339,7 +1339,7 @@
                         {
                             "tokenId" : "La3t57xN4xA2jtgnzLW6HbviPZDgdTU1mvP6Yk",
                             "issueTxid" : "9b9f1c60136d7b0134e06f8aadacc3a61c03dc83426944e5d566c8c84a463735",
-                            "amount" : 2000,
+                            "amount" : "2000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1355,7 +1355,7 @@
                         {
                             "tokenId" : "La3t57xN4xA2jtgnzLW6HbviPZDgdTU1mvP6Yk",
                             "issueTxid" : "9b9f1c60136d7b0134e06f8aadacc3a61c03dc83426944e5d566c8c84a463735",
-                            "amount" : 999997000,
+                            "amount" : "999997000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1398,7 +1398,7 @@
                         {
                             "tokenId" : "La9rpjB2v9VHQbDa1gePZKUnwkdHZakXPgFn85",
                             "issueTxid" : "144017b9365d78ebd82dc26ac8035393554b06eb1a6b8f1455350eae025b1306",
-                            "amount" : 999997000,
+                            "amount" : "999997000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1426,7 +1426,7 @@
                         {
                             "tokenId" : "La9rpjB2v9VHQbDa1gePZKUnwkdHZakXPgFn85",
                             "issueTxid" : "144017b9365d78ebd82dc26ac8035393554b06eb1a6b8f1455350eae025b1306",
-                            "amount" : 500,
+                            "amount" : "500",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1442,7 +1442,7 @@
                         {
                             "tokenId" : "La9rpjB2v9VHQbDa1gePZKUnwkdHZakXPgFn85",
                             "issueTxid" : "144017b9365d78ebd82dc26ac8035393554b06eb1a6b8f1455350eae025b1306",
-                            "amount" : 999996500,
+                            "amount" : "999996500",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1485,7 +1485,7 @@
                         {
                             "tokenId" : "La6gfSao2Qwmswzzf3rbn3hCzYtBntRUbSxfdF",
                             "issueTxid" : "c30abc4bd0fa3165419f820af357d0f853cd84bf95acfd76527a8cbaeef2bdc9",
-                            "amount" : 1998100,
+                            "amount" : "1998100",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1513,7 +1513,7 @@
                         {
                             "tokenId" : "La6gfSao2Qwmswzzf3rbn3hCzYtBntRUbSxfdF",
                             "issueTxid" : "c30abc4bd0fa3165419f820af357d0f853cd84bf95acfd76527a8cbaeef2bdc9",
-                            "amount" : 3000,
+                            "amount" : "3000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1529,7 +1529,7 @@
                         {
                             "tokenId" : "La6gfSao2Qwmswzzf3rbn3hCzYtBntRUbSxfdF",
                             "issueTxid" : "c30abc4bd0fa3165419f820af357d0f853cd84bf95acfd76527a8cbaeef2bdc9",
-                            "amount" : 1995100,
+                            "amount" : "1995100",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1572,7 +1572,7 @@
                         {
                             "tokenId" : "La3BKCuBoeqG3FWegVMnwSvivh7xhuxu4XZbSq",
                             "issueTxid" : "701bd2b4836e2f8c4e720c0c935a0166d930dd1b60405a445cb90024711458e4",
-                            "amount" : 100000000,
+                            "amount" : "100000000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1600,7 +1600,7 @@
                         {
                             "tokenId" : "La3BKCuBoeqG3FWegVMnwSvivh7xhuxu4XZbSq",
                             "issueTxid" : "701bd2b4836e2f8c4e720c0c935a0166d930dd1b60405a445cb90024711458e4",
-                            "amount" : 4000,
+                            "amount" : "4000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1616,7 +1616,7 @@
                         {
                             "tokenId" : "La3BKCuBoeqG3FWegVMnwSvivh7xhuxu4XZbSq",
                             "issueTxid" : "701bd2b4836e2f8c4e720c0c935a0166d930dd1b60405a445cb90024711458e4",
-                            "amount" : 99996000,
+                            "amount" : "99996000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1659,7 +1659,7 @@
                         {
                             "tokenId" : "La3t57xN4xA2jtgnzLW6HbviPZDgdTU1mvP6Yk",
                             "issueTxid" : "9b9f1c60136d7b0134e06f8aadacc3a61c03dc83426944e5d566c8c84a463735",
-                            "amount" : 1000000000,
+                            "amount" : "1000000000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1687,7 +1687,7 @@
                         {
                             "tokenId" : "La3t57xN4xA2jtgnzLW6HbviPZDgdTU1mvP6Yk",
                             "issueTxid" : "9b9f1c60136d7b0134e06f8aadacc3a61c03dc83426944e5d566c8c84a463735",
-                            "amount" : 1000,
+                            "amount" : "1000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1703,7 +1703,7 @@
                         {
                             "tokenId" : "La3t57xN4xA2jtgnzLW6HbviPZDgdTU1mvP6Yk",
                             "issueTxid" : "9b9f1c60136d7b0134e06f8aadacc3a61c03dc83426944e5d566c8c84a463735",
-                            "amount" : 999999000,
+                            "amount" : "999999000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1746,7 +1746,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 999993500,
+                            "amount" : "999993500",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1774,7 +1774,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 50,
+                            "amount" : "50",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1790,7 +1790,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 999993450,
+                            "amount" : "999993450",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1833,7 +1833,7 @@
                         {
                             "tokenId" : "La6gfSao2Qwmswzzf3rbn3hCzYtBntRUbSxfdF",
                             "issueTxid" : "c30abc4bd0fa3165419f820af357d0f853cd84bf95acfd76527a8cbaeef2bdc9",
-                            "amount" : 1995097,
+                            "amount" : "1995097",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1861,7 +1861,7 @@
                         {
                             "tokenId" : "La6gfSao2Qwmswzzf3rbn3hCzYtBntRUbSxfdF",
                             "issueTxid" : "c30abc4bd0fa3165419f820af357d0f853cd84bf95acfd76527a8cbaeef2bdc9",
-                            "amount" : 222,
+                            "amount" : "222",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1877,7 +1877,7 @@
                         {
                             "tokenId" : "La6gfSao2Qwmswzzf3rbn3hCzYtBntRUbSxfdF",
                             "issueTxid" : "c30abc4bd0fa3165419f820af357d0f853cd84bf95acfd76527a8cbaeef2bdc9",
-                            "amount" : 1994875,
+                            "amount" : "1994875",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1920,7 +1920,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 999994500,
+                            "amount" : "999994500",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1948,7 +1948,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 500,
+                            "amount" : "500",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -1964,7 +1964,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 999994000,
+                            "amount" : "999994000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -2007,7 +2007,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 999993450,
+                            "amount" : "999993450",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -2035,7 +2035,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 50,
+                            "amount" : "50",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -2051,7 +2051,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 999993400,
+                            "amount" : "999993400",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -2094,7 +2094,7 @@
                         {
                             "tokenId" : "La37utZFe8P1fPc789szDp2QL7TMC7hyWERxr5",
                             "issueTxid" : "32fe394e2f33b89f22284739a368f39a3c67e515de96b8ecb19f69e18f116210",
-                            "amount" : 999999000,
+                            "amount" : "999999000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -2122,7 +2122,7 @@
                         {
                             "tokenId" : "La37utZFe8P1fPc789szDp2QL7TMC7hyWERxr5",
                             "issueTxid" : "32fe394e2f33b89f22284739a368f39a3c67e515de96b8ecb19f69e18f116210",
-                            "amount" : 10000,
+                            "amount" : "10000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -2138,7 +2138,7 @@
                         {
                             "tokenId" : "La37utZFe8P1fPc789szDp2QL7TMC7hyWERxr5",
                             "issueTxid" : "32fe394e2f33b89f22284739a368f39a3c67e515de96b8ecb19f69e18f116210",
-                            "amount" : 999989000,
+                            "amount" : "999989000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -2181,7 +2181,7 @@
                         {
                             "tokenId" : "La3NzpGLMZz7QQXx3ExHrrnGgPaXEAQc2wBEjz",
                             "issueTxid" : "11da913895412fdf34bc5b5678ea063b24d5a03b6bf7711996b46003c3773d54",
-                            "amount" : 100000000,
+                            "amount" : "100000000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -2209,7 +2209,7 @@
                         {
                             "tokenId" : "La3NzpGLMZz7QQXx3ExHrrnGgPaXEAQc2wBEjz",
                             "issueTxid" : "11da913895412fdf34bc5b5678ea063b24d5a03b6bf7711996b46003c3773d54",
-                            "amount" : 1500,
+                            "amount" : "1500",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -2225,7 +2225,7 @@
                         {
                             "tokenId" : "La3NzpGLMZz7QQXx3ExHrrnGgPaXEAQc2wBEjz",
                             "issueTxid" : "11da913895412fdf34bc5b5678ea063b24d5a03b6bf7711996b46003c3773d54",
-                            "amount" : 99998500,
+                            "amount" : "99998500",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -2268,7 +2268,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 999993300,
+                            "amount" : "999993300",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -2296,7 +2296,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 50,
+                            "amount" : "50",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -2312,7 +2312,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 999993250,
+                            "amount" : "999993250",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -2355,7 +2355,7 @@
                         {
                             "tokenId" : "La3NzpGLMZz7QQXx3ExHrrnGgPaXEAQc2wBEjz",
                             "issueTxid" : "11da913895412fdf34bc5b5678ea063b24d5a03b6bf7711996b46003c3773d54",
-                            "amount" : 99988500,
+                            "amount" : "99988500",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -2383,7 +2383,7 @@
                         {
                             "tokenId" : "La3NzpGLMZz7QQXx3ExHrrnGgPaXEAQc2wBEjz",
                             "issueTxid" : "11da913895412fdf34bc5b5678ea063b24d5a03b6bf7711996b46003c3773d54",
-                            "amount" : 150,
+                            "amount" : "150",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -2399,7 +2399,7 @@
                         {
                             "tokenId" : "La3NzpGLMZz7QQXx3ExHrrnGgPaXEAQc2wBEjz",
                             "issueTxid" : "11da913895412fdf34bc5b5678ea063b24d5a03b6bf7711996b46003c3773d54",
-                            "amount" : 99988350,
+                            "amount" : "99988350",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -2442,7 +2442,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 999993250,
+                            "amount" : "999993250",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -2470,7 +2470,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 50,
+                            "amount" : "50",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -2486,7 +2486,7 @@
                         {
                             "tokenId" : "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq",
                             "issueTxid" : "f44828540f6d51eddd246cda5d42447f2470ee65b04059ad949e3ff74cacbc42",
-                            "amount" : 999993200,
+                            "amount" : "999993200",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -2529,7 +2529,7 @@
                         {
                             "tokenId" : "La44xkuQuLT7P2bsszt3a6yKqN7E6rw75A8WDT",
                             "issueTxid" : "88ea0f3a82bd6ca2e49e718cfd861fbabb0139e81c4a6f03a91462a37e13d0e6",
-                            "amount" : 1000000000,
+                            "amount" : "1000000000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -2557,7 +2557,7 @@
                         {
                             "tokenId" : "La44xkuQuLT7P2bsszt3a6yKqN7E6rw75A8WDT",
                             "issueTxid" : "88ea0f3a82bd6ca2e49e718cfd861fbabb0139e81c4a6f03a91462a37e13d0e6",
-                            "amount" : 6000,
+                            "amount" : "6000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -2573,7 +2573,7 @@
                         {
                             "tokenId" : "La44xkuQuLT7P2bsszt3a6yKqN7E6rw75A8WDT",
                             "issueTxid" : "88ea0f3a82bd6ca2e49e718cfd861fbabb0139e81c4a6f03a91462a37e13d0e6",
-                            "amount" : 999994000,
+                            "amount" : "999994000",
                             "divisibility" : 7,
                             "lockStatus" : true,
                             "aggregationPolicy" : "aggregatable"
@@ -2602,13 +2602,13 @@
     "icons" : {
     },
     "balances" : {
-        "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq" : 6800,
-        "La37utZFe8P1fPc789szDp2QL7TMC7hyWERxr5" : 11000,
-        "La3BKCuBoeqG3FWegVMnwSvivh7xhuxu4XZbSq" : 14000,
-        "La3NzpGLMZz7QQXx3ExHrrnGgPaXEAQc2wBEjz" : 13872,
-        "La3t57xN4xA2jtgnzLW6HbviPZDgdTU1mvP6Yk" : 3400,
-        "La44xkuQuLT7P2bsszt3a6yKqN7E6rw75A8WDT" : 16000,
-        "La6gfSao2Qwmswzzf3rbn3hCzYtBntRUbSxfdF" : 3225,
-        "La9rpjB2v9VHQbDa1gePZKUnwkdHZakXPgFn85" : 3500
+        "La37NbvRXHhSpkywDEaGQseNhauYb5BqRKuWUq" : "6800",
+        "La37utZFe8P1fPc789szDp2QL7TMC7hyWERxr5" : "11000",
+        "La3BKCuBoeqG3FWegVMnwSvivh7xhuxu4XZbSq" : "14000",
+        "La3NzpGLMZz7QQXx3ExHrrnGgPaXEAQc2wBEjz" : "13872",
+        "La3t57xN4xA2jtgnzLW6HbviPZDgdTU1mvP6Yk" : "3400",
+        "La44xkuQuLT7P2bsszt3a6yKqN7E6rw75A8WDT" : "16000",
+        "La6gfSao2Qwmswzzf3rbn3hCzYtBntRUbSxfdF" : "3225",
+        "La9rpjB2v9VHQbDa1gePZKUnwkdHZakXPgFn85" : "3500"
     }
 }

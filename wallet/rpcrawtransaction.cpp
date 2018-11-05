@@ -327,10 +327,10 @@ Value createrawntp1transaction(const Array& params, bool fHelp)
     NTP1SendTxData tokenSelector;
     tokenSelector.selectNTP1Tokens(ntp1wallet, cinputs, ntp1recipients, false);
 
-    const std::map<std::string, int64_t>& changeMap    = tokenSelector.getChangeTokens();
-    int64_t                               changeTokens = std::accumulate(
-        changeMap.begin(), changeMap.end(), 0,
-        [](int64_t n, const std::pair<std::string, int64_t>& p1) { return n + p1.second; });
+    const std::map<std::string, NTP1Int>& changeMap    = tokenSelector.getChangeTokens();
+    NTP1Int                               changeTokens = std::accumulate(
+        changeMap.begin(), changeMap.end(), NTP1Int(0),
+        [](NTP1Int n, const std::pair<std::string, NTP1Int>& p1) { return n + p1.second; });
 
     if (changeTokens > 0) {
         std::string except_msg;
@@ -338,7 +338,7 @@ Value createrawntp1transaction(const Array& params, bool fHelp)
             // safety
             if (changeMap.size() > 0) {
                 std::string tokenId      = changeMap.begin()->first;
-                int64_t     changeAmount = changeMap.begin()->second;
+                NTP1Int     changeAmount = changeMap.begin()->second;
 
                 std::string tokenName = ntp1wallet->getTokenMetadataMap().at(tokenId).getTokenName();
 
@@ -368,7 +368,8 @@ Value createrawntp1transaction(const Array& params, bool fHelp)
         scriptPubKey.SetDestination(CBitcoinAddress(rcp.destination).Get());
         // here we add only nebls. NTP1 tokens will be added later
         if (rcp.tokenId == NTP1SendTxData::NEBL_TOKEN_ID) {
-            rawTx.vout.push_back(CTxOut(rcp.amount, scriptPubKey));
+            // TODO: when converting to int64_t for NEBL, check for overflow
+            rawTx.vout.push_back(CTxOut(rcp.amount.convert_to<int64_t>(), scriptPubKey));
         }
     }
 

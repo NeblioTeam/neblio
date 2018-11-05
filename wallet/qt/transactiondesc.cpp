@@ -165,9 +165,9 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
 
             // calculate total tokens of all kinds to see if there's any tokens involved in the
             // transaction
-            int64_t totalOutputsTokens =
-                std::accumulate(outputsTokens.begin(), outputsTokens.end(), 0,
-                                [](int64_t currRes, const std::pair<std::string, TokenMinimalData>& t) {
+            NTP1Int totalOutputsTokens =
+                std::accumulate(outputsTokens.begin(), outputsTokens.end(), NTP1Int(0),
+                                [](NTP1Int currRes, const std::pair<std::string, TokenMinimalData>& t) {
                                     return currRes + t.second.amount;
                                 });
             if (totalOutputsTokens != 0) {
@@ -243,9 +243,9 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
 
                     // calculate total tokens of all kinds to see if there's any tokens involved in the
                     // transaction
-                    int64_t totalOutputsTokens = std::accumulate(
-                        outputsTokens.begin(), outputsTokens.end(), 0,
-                        [](int64_t currRes, const std::pair<std::string, TokenMinimalData>& t) {
+                    NTP1Int totalOutputsTokens = std::accumulate(
+                        outputsTokens.begin(), outputsTokens.end(), NTP1Int(0),
+                        [](NTP1Int currRes, const std::pair<std::string, TokenMinimalData>& t) {
                             return currRes + t.second.amount;
                         });
                     if (totalOutputsTokens != 0) {

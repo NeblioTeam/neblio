@@ -769,7 +769,7 @@ void CoinControlDialog::updateView()
                             sTokenId += "+\n";
                         }
                         sTokenType += QString::fromStdString(ntp1txOut.getToken(i).getTokenSymbol());
-                        sNTP1TokenAmounts += QString::number(ntp1txOut.getToken(i).getAmount());
+                        sNTP1TokenAmounts += QString::fromStdString(ToString(ntp1txOut.getToken(i).getAmount()));
                         sTokenId += QString::fromStdString(ntp1txOut.getToken(i).getTokenId());
                     }
 
