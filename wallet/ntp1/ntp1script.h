@@ -5,7 +5,6 @@
 #include <boost/algorithm/hex.hpp>
 #include <boost/dynamic_bitset.hpp>
 #include <boost/multiprecision/cpp_int.hpp>
-#include <boost/multiprecision/gmp.hpp>
 #include <cmath>
 #include <limits>
 #include <memory>
