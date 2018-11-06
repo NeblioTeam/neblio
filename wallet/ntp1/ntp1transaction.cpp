@@ -14,21 +14,21 @@
 #include <boost/algorithm/hex.hpp>
 
 // token id vs max block to take transactions from these tokens
-ThreadSafeHashMap<std::string, uint64_t>
-    ntp1_blacklisted_token_ids(std::unordered_map<std::string, uint64_t>{
-        {"La77KcJTUj991FnvxNKhrCD1ER8S81T3LgECS6", 300000}, // old QRT mainnet
-        {"La4kVcoUAddLWkmQU9tBxrNdFjmSaHQruNJW2K", 300000}, // old TNIBB testnet
-        {"La36YNY2G6qgBPj7VSiQDjGCy8aC2GUUsGqtbQ", 300000}, // old TNIBB testnet
-        {"La9wLfpkfZTQvRqyiWjaEpgQStUbCSVMWZW2by", 300000}, // TEST3 on testnet
-        {"La347xkKhi5VUCNDCqxXU4F1RUu8wPvC3pnQk6", 300000}, // BOT on testnet
-        {"La531vUwiu9NnvtJcwPEjV84HrdKCupFCCb6D7", 300000}, // BAUTO on testnet
-        {"La5JGnJcSsLCvYWxqqVSyj3VUqsrAcLBjZjbw5", 300000}, // XYZ from Sam on testnet
-        {"La86PtvXGftbwdoZ9rVMKsLQU5nPHganJDsCRq", 300000}  // ON
-    });
+const ThreadSafeHashMap<std::string, int>
+ntp1_blacklisted_token_ids(std::unordered_map<std::string, int>{
+    {"La77KcJTUj991FnvxNKhrCD1ER8S81T3LgECS6", 300000}, // old QRT mainnet
+    {"La4kVcoUAddLWkmQU9tBxrNdFjmSaHQruNJW2K", 300000}, // old TNIBB testnet
+    {"La36YNY2G6qgBPj7VSiQDjGCy8aC2GUUsGqtbQ", 300000}, // old TNIBB testnet
+    {"La9wLfpkfZTQvRqyiWjaEpgQStUbCSVMWZW2by", 300000}, // TEST3 on testnet
+    {"La347xkKhi5VUCNDCqxXU4F1RUu8wPvC3pnQk6", 300000}, // BOT on testnet
+    {"La531vUwiu9NnvtJcwPEjV84HrdKCupFCCb6D7", 300000}, // BAUTO on testnet
+    {"La5JGnJcSsLCvYWxqqVSyj3VUqsrAcLBjZjbw5", 300000}, // XYZ from Sam on testnet
+    {"La86PtvXGftbwdoZ9rVMKsLQU5nPHganJDsCRq", 300000}  // ON
+});
 
 // list of transactions to be excluded because they're invalid
 // this should be a thread-safe hashset, but we don't have one. So we're using the map.
-ThreadSafeHashMap<uint256, int, KeyHasher>
+const ThreadSafeHashMap<uint256, int, KeyHasher>
 excluded_txs_testnet(std::unordered_map<uint256, int, KeyHasher>{
     {uint256("826e7b74b24e458e39d779b1033567d325b8d93b507282f983e3c4b3f950fca1"), 0},
     {uint256("c378447562be04c6803fdb9f829c9ba0dda462b269e15bcfc7fac3b3561d2eef"), 0},
@@ -46,7 +46,12 @@ excluded_txs_testnet(std::unordered_map<uint256, int, KeyHasher>{
     {uint256("ab336eecf51cdaecd3f7444d5da7eca2286462d44e7f3439458ecbe3d7514971"), 0},
     {uint256("95c6f2b978160ab0d51545a13a7ee7b931713a52bd1c9f12807f4cd77ff7536b"), 0}});
 
-ThreadSafeHashMap<uint256, int, KeyHasher> excluded_txs_mainnet = {};
+const ThreadSafeHashMap<uint256, int, KeyHasher> excluded_txs_mainnet = {};
+
+bool IsNTP1TokenBlacklisted(const string& tokenId, int& maxHeight)
+{
+    return ntp1_blacklisted_token_ids.get(tokenId, maxHeight);
+}
 
 bool IsNTP1TokenBlacklisted(const string& tokenId) { return ntp1_blacklisted_token_ids.exists(tokenId); }
 
