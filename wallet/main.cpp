@@ -606,39 +606,43 @@ bool IsIssuedTokenBlacklisted(std::pair<CTransaction, NTP1Transaction>& txPair)
     return IsNTP1TokenBlacklisted(storedTokenId);
 }
 
+void AssertNTP1TokenNameIsNotAlreadyInMainChain(std::string sym, const uint256& txHash, CTxDB& txdb)
+{
+    // make sure that case doesn't matter by converting to upper case
+    std::transform(sym.begin(), sym.end(), sym.begin(), ::toupper);
+    std::vector<uint256> storedSymbolsTxHashes;
+    if (txdb.ReadNTP1TxsWithTokenSymbol(sym, storedSymbolsTxHashes)) {
+        for (const uint256& h : storedSymbolsTxHashes) {
+            if (!IsTxInMainChain(h)) {
+                continue;
+            }
+            auto pair = std::make_pair(FetchTxFromDisk(h), NTP1Transaction());
+            FetchNTP1TxFromDisk(pair, txdb, false);
+            std::string storedSymbol = pair.second.getTokenSymbolIfIssuance();
+            // blacklisted tokens can be duplicated, since they won't be used ever again
+            if (IsIssuedTokenBlacklisted(pair)) {
+                continue;
+            }
+            // make sure that case doesn't matter by converting to upper case
+            std::transform(storedSymbol.begin(), storedSymbol.end(), storedSymbol.begin(), ::toupper);
+            if (sym == storedSymbol && txHash != h) {
+                throw std::runtime_error(
+                    "Failed to accept issuance of token " + sym + " from transaction " +
+                    txHash.ToString() +
+                    "; this token symbol already exists in transaction: " + h.ToString());
+            }
+        }
+    } else {
+        throw runtime_error("Unable to verify whether a token with the symbol " + sym +
+                            " already exists. Reading the database failed.");
+    }
+}
+
 void AssertNTP1TokenNameIsNotAlreadyInMainChain(const NTP1Transaction& ntp1tx, CTxDB& txdb)
 {
     if (ntp1tx.getTxType() == NTP1TxType_ISSUANCE) {
         std::string sym = ntp1tx.getTokenSymbolIfIssuance();
-        // make sure that case doesn't matter by converting to upper case
-        std::transform(sym.begin(), sym.end(), sym.begin(), ::toupper);
-        std::vector<uint256> storedSymbolsTxHashes;
-        if (txdb.ReadNTP1TxsWithTokenSymbol(sym, storedSymbolsTxHashes)) {
-            for (const uint256& h : storedSymbolsTxHashes) {
-                if (!IsTxInMainChain(h)) {
-                    continue;
-                }
-                auto pair = std::make_pair(FetchTxFromDisk(h), NTP1Transaction());
-                FetchNTP1TxFromDisk(pair, txdb, false);
-                std::string storedSymbol = pair.second.getTokenSymbolIfIssuance();
-                // blacklisted tokens can be duplicated, since they won't be used ever again
-                if (IsIssuedTokenBlacklisted(pair)) {
-                    continue;
-                }
-                // make sure that case doesn't matter by converting to upper case
-                std::transform(storedSymbol.begin(), storedSymbol.end(), storedSymbol.begin(),
-                               ::toupper);
-                if (sym == storedSymbol && ntp1tx.getTxHash() != h) {
-                    throw std::runtime_error(
-                        "Failed to accept issuance of token " + sym + " from transaction " +
-                        ntp1tx.getTxHash().ToString() +
-                        "; this token symbol already exists in transaction: " + h.ToString());
-                }
-            }
-        } else {
-            throw runtime_error("Unable to verify whether a token with the symbol " + sym +
-                                " already exists. Reading the database failed.");
-        }
+        AssertNTP1TokenNameIsNotAlreadyInMainChain(sym, ntp1tx.getTxHash(), txdb);
     } else if (ntp1tx.getTxType() == NTP1TxType_UNKNOWN) {
         throw std::runtime_error("Attempted to " + std::string(__func__) +
                                  " on an uninitialized NTP1 transaction");
@@ -2437,6 +2441,36 @@ void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, CTxDB& txdb)
     }
 }
 
+void AssertIssuanceUniquenessInBlock(
+    std::unordered_map<std::string, uint256>& issuedTokensSymbolsInThisBlock, CTxDB& txdb,
+    const CTransaction& tx)
+{
+    std::string opRet;
+    if (IsTxNTP1(&tx, &opRet)) {
+        auto script = NTP1Script::ParseScript(opRet);
+        if (script->getTxType() == NTP1Script::TxType_Issuance) {
+            std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
+                GetAllNTP1InputsOfTx(tx, txdb, false);
+
+            NTP1Transaction ntp1tx;
+            ntp1tx.readNTP1DataFromTx(tx, inputsTxs);
+            AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, txdb);
+            if (ntp1tx.getTxType() == NTP1TxType_ISSUANCE) {
+                std::string currSymbol = ntp1tx.getTokenSymbolIfIssuance();
+                // make sure that case doesn't matter by converting to upper case
+                std::transform(currSymbol.begin(), currSymbol.end(), currSymbol.begin(), ::toupper);
+                if (issuedTokensSymbolsInThisBlock.find(currSymbol) !=
+                    issuedTokensSymbolsInThisBlock.end()) {
+                    throw std::runtime_error(
+                        "The token name " + currSymbol +
+                        " already exists in the block: " /* + this->GetHash().ToString()*/);
+                }
+                issuedTokensSymbolsInThisBlock.insert(std::make_pair(currSymbol, ntp1tx.getTxHash()));
+            }
+        }
+    }
+}
+
 /** this function solves the problem of blocks having inputs from the same block. To process transactions
  * in such a situation (or always, to be safe), first we pop the transactions from the leaves (the
  * inputs), and then process their parents. This function pops one transaction from the leaf of a least
@@ -2480,38 +2514,17 @@ void WriteNTP1BlockTransactionsToDisk(const std::vector<CTransaction>& vtx, CTxD
 
             if (EnableUniqueTokenSymbols(nBestHeight, fTestNet)) {
                 try {
-                    if (IsTxNTP1(&tx)) {
-                        std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
-                            GetAllNTP1InputsOfTx(tx, txdb, false);
-
-                        NTP1Transaction ntp1tx;
-                        ntp1tx.readNTP1DataFromTx(tx, inputsTxs);
-                        AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, txdb);
-                        if (ntp1tx.getTxType() == NTP1TxType_ISSUANCE) {
-                            std::string currSymbol = ntp1tx.getTokenSymbolIfIssuance();
-                            // make sure that case doesn't matter by converting to upper case
-                            std::transform(currSymbol.begin(), currSymbol.end(), currSymbol.begin(),
-                                           ::toupper);
-                            if (issuedTokensSymbolsInThisBlock.find(currSymbol) !=
-                                issuedTokensSymbolsInThisBlock.end()) {
-                                throw std::runtime_error(
-                                    "The token name " + currSymbol +
-                                    " already exists in the block: " /* + this->GetHash().ToString()*/);
-                            }
-                            issuedTokensSymbolsInThisBlock.insert(
-                                std::make_pair(currSymbol, ntp1tx.getTxHash()));
-                        }
-                    }
+                    AssertIssuanceUniquenessInBlock(issuedTokensSymbolsInThisBlock, txdb, tx);
                 } catch (std::exception& ex) {
                     throw std::runtime_error(
                         strprintf("Error while verifying the uniqueness of issued token symbol in "
-                                  "ConnectBlocks(): "
+                                  "WriteNTP1BlockTransactionsToDisk(): "
                                   "%s\n",
                                   ex.what()));
                 } catch (...) {
                     throw std::runtime_error(
                         "Error while verifying the uniqueness of issued token symbol in "
-                        "ConnectBlocks(). "
+                        "WriteNTP1BlockTransactionsToDisk(). "
                         "Unknown exception thrown\n");
                 }
             }

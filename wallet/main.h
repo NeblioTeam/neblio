@@ -173,6 +173,7 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTran
 /** blacklisted tokens are tokens that are to be ignored and not used for historical reasons */
 bool IsIssuedTokenBlacklisted(std::pair<CTransaction, NTP1Transaction>& txPair);
 
+void AssertNTP1TokenNameIsNotAlreadyInMainChain(std::string sym, const uint256& txHash, CTxDB& txdb);
 void AssertNTP1TokenNameIsNotAlreadyInMainChain(const NTP1Transaction& ntp1tx, CTxDB& txdb);
 
 /** True if the transaction is in the main chain (can throw) */

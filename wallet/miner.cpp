@@ -80,7 +80,7 @@ public:
     {
         printf("COrphan(hash=%s, dPriority=%.1f, dFeePerKb=%.1f)\n",
                ptx->GetHash().ToString().substr(0, 10).c_str(), dPriority, dFeePerKb);
-        BOOST_FOREACH (uint256 hash, setDependsOn)
+        for (uint256 hash : setDependsOn)
             printf("   setDependsOn %s\n", hash.ToString().substr(0, 10).c_str());
     }
 };
@@ -200,7 +200,7 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
             double   dPriority      = 0;
             int64_t  nTotalIn       = 0;
             bool     fMissingInputs = false;
-            BOOST_FOREACH (const CTxIn& txin, tx.vin) {
+            for (const CTxIn& txin : tx.vin) {
                 // Read prev transaction
                 CTransaction txPrev;
                 CTxIndex     txindex;
@@ -324,25 +324,29 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
                 continue;
 
             try {
-                if (IsTxNTP1(&tx)) {
-                    std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
-                        StdFetchedInputTxsToNTP1(tx, mapInputs, txdb, false);
-                    NTP1Transaction ntp1tx;
-                    ntp1tx.readNTP1DataFromTx(tx, inputsTxs);
-                    AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, txdb);
-                    if (ntp1tx.getTxType() == NTP1TxType_ISSUANCE) {
-                        std::string currSymbol = ntp1tx.getTokenSymbolIfIssuance();
-                        // make sure that case doesn't matter by converting to upper case
-                        std::transform(currSymbol.begin(), currSymbol.end(), currSymbol.begin(),
-                                       ::toupper);
-                        if (issuedTokensSymbolsInThisBlock.find(currSymbol) !=
-                            issuedTokensSymbolsInThisBlock.end()) {
-                            throw std::runtime_error("The token name " + currSymbol +
-                                                     " already exists in this block (while mining). "
-                                                     "Skipping this transaction.");
+                std::string opRet;
+                if (IsTxNTP1(&tx, &opRet)) {
+                    auto script = NTP1Script::ParseScript(opRet);
+                    if (script->getTxType() == NTP1Script::TxType_Issuance) {
+                        std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
+                            StdFetchedInputTxsToNTP1(tx, mapInputs, txdb, false);
+                        NTP1Transaction ntp1tx;
+                        ntp1tx.readNTP1DataFromTx(tx, inputsTxs);
+                        AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, txdb);
+                        if (ntp1tx.getTxType() == NTP1TxType_ISSUANCE) {
+                            std::string currSymbol = ntp1tx.getTokenSymbolIfIssuance();
+                            // make sure that case doesn't matter by converting to upper case
+                            std::transform(currSymbol.begin(), currSymbol.end(), currSymbol.begin(),
+                                           ::toupper);
+                            if (issuedTokensSymbolsInThisBlock.find(currSymbol) !=
+                                issuedTokensSymbolsInThisBlock.end()) {
+                                throw std::runtime_error("The token name " + currSymbol +
+                                                         " already exists in this block (while mining). "
+                                                         "Skipping this transaction.");
+                            }
+                            issuedTokensSymbolsInThisBlock.insert(
+                                std::make_pair(currSymbol, ntp1tx.getTxHash()));
                         }
-                        issuedTokensSymbolsInThisBlock.insert(
-                            std::make_pair(currSymbol, ntp1tx.getTxHash()));
                     }
                 }
             } catch (std::exception& ex) {
@@ -376,7 +380,7 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
             // Add transactions that depend on this one to the priority queue
             uint256 hash = tx.GetHash();
             if (mapDependers.count(hash)) {
-                BOOST_FOREACH (COrphan* porphan, mapDependers[hash]) {
+                for (COrphan* porphan : mapDependers[hash]) {
                     if (!porphan->setDependsOn.empty()) {
                         porphan->setDependsOn.erase(hash);
                         if (porphan->setDependsOn.empty()) {
