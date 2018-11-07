@@ -4,7 +4,7 @@ osx_image: xcode9.4
 os:
 - osx
 - linux
-language: c
+language: cpp
 cache: ccache
 env:
   global:
