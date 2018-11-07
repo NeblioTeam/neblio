@@ -10,11 +10,6 @@ import shutil
 configure_flags = "no-shared"
 cflags = "-fPIC"
 
-if (os.environ["USE_CCACHE"] == 1):
-	ccache = 'ccache '
-else:
-	ccache = ''
-
 base_openssl_version = "1.0.2"
 
 def get_openssl_filename(ver):
@@ -92,8 +87,12 @@ os.chdir(working_dir)
 
 os.chdir(dirname)
 
+if (os.environ["USE_CCACHE"] == 1):
+	os.environ['CXX'] = 'ccache $CXX'
+	os.environ['CC']  = 'ccache $CC'
+
 call("CFLAGS=" + cflags + " ./config " + configure_flags + " --prefix=" + os.path.join(working_dir,dirname_bin) + " " + configure_flags,shell=True)
-call(ccache + r"make -j" + str(mp.cpu_count()), shell=True)
+call(r"make -j" + str(mp.cpu_count()), shell=True)
 call(r"make install", shell=True)
 print("Compilation complete.")
 

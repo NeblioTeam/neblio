@@ -32,11 +32,6 @@ packages_to_install = \
 "librtmp-dev"
 ]
 
-if (os.environ["USE_CCACHE"] == 1):
-	ccache = 'ccache '
-else:
-	ccache = ''
-
 nci.install_packages_debian(packages_to_install)
 
 nci.mkdir_p(deploy_dir)
@@ -51,7 +46,11 @@ os.environ['PKG_CONFIG_PATH'] = os.path.join(working_dir, build_dir, 'curl_build
 os.environ['OPENSSL_INCLUDE_PATH'] = os.path.join(working_dir, build_dir, 'openssl_build/include/')
 os.environ['OPENSSL_LIB_PATH'] = os.path.join(working_dir, build_dir, 'openssl_build/lib/')
 
-nci.call_with_err_code(ccache + 'make "STATIC=1" -B -w -f makefile.unix -j' + str(mp.cpu_count()))
+if (os.environ["USE_CCACHE"] == 1):
+	os.environ['CXX'] = 'ccache $CXX'
+	os.environ['CC']  = 'ccache $CC'
+
+nci.call_with_err_code('make "STATIC=1" -B -w -f makefile.unix -j' + str(mp.cpu_count()))
 nci.call_with_err_code('strip ./nebliod')
 
 file_name = '$(date +%Y-%m-%d)---' + os.environ['TRAVIS_BRANCH'] + '-' + os.environ['TRAVIS_COMMIT'][:7] + '---nebliod---ubuntu16.04.tar.gz'
