@@ -10,6 +10,11 @@ import shutil
 
 version = "7.61.1"
 
+if (os.environ["USE_CCACHE"] == 1):
+	ccache = 'ccache '
+else:
+	ccache = ''
+
 def get_curl_filename(ver):
     return "curl-" + ver + ".tar.gz"
 
@@ -82,7 +87,7 @@ os.chdir(working_dir)
 os.chdir(dirname)
 
 call("./configure --disable-shared --prefix=" + os.path.join(working_dir,dirname_bin) + " --with-ssl=" +os.path.join(working_dir,"openssl_build") + " --without-libidn2 --without-librtmp --disable-ldap",shell=True)
-call(r"make -j" + str(mp.cpu_count()), shell=True)
+call(ccache + r"make -j" + str(mp.cpu_count()), shell=True)
 call(r"make install", shell=True)
 print("Compilation complete.")
 

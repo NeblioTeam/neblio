@@ -10,6 +10,11 @@ import shutil
 
 version = "3.4.4"
 
+if (os.environ["USE_CCACHE"] == 1):
+	ccache = 'ccache '
+else:
+	ccache = ''
+
 def get_qrencode_filename(ver):
     return "qrencode-" + ver + ".tar.bz2"
 
@@ -82,7 +87,7 @@ os.chdir(working_dir)
 os.chdir(dirname)
 
 call("./configure --enable-static --disable-shared --without-tools --disable-dependency-tracking",shell=True)
-call(r"make -j" + str(mp.cpu_count()), shell=True)
+call(ccache + r"make -j" + str(mp.cpu_count()), shell=True)
 call(r"sudo make install", shell=True)
 print("Compilation complete.")
 
