@@ -1876,7 +1876,9 @@ void TestSingleNTP1TxParsingLocally(const std::string&                          
 {
     const std::string  rawTx = nebltxs_map.find(txid)->second;
     const CTransaction tx    = TxFromHex(rawTx);
-    TestSingleNTP1TxParsingLocally(tx, nebltxs_map, ntp1txs_map);
+    if (IsTxNTP1(&tx)) {
+    	TestSingleNTP1TxParsingLocally(tx, nebltxs_map, ntp1txs_map);
+    }
 }
 
 // list of transactions to be excluded from tests
