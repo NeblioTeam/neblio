@@ -20,6 +20,10 @@ os.chdir(build_dir)
 
 nci.call_with_err_code('brew update')
 
+# set up ccache
+nci.call_with_err_code('brew fetch --retry ccache        && brew install ccache --force')
+nci.call_with_err_code('export PATH="/usr/local/opt/ccache/libexec:$PATH"')
+
 nci.call_with_err_code('brew fetch --retry qt            && brew install qt --force')
 nci.call_with_err_code('brew fetch --retry berkeley-db@4 && brew install berkeley-db@4 --force')
 nci.call_with_err_code('brew fetch --retry boost@1.60    && brew install boost@1.60 --force')
@@ -37,6 +41,7 @@ nci.call_with_err_code('brew unlink python        && brew link --force --overwri
 nci.call_with_err_code('brew unlink openssl       && brew link --force --overwrite openssl')
 nci.call_with_err_code('brew unlink qrencode      && brew link --force --overwrite qrencode')
 
+nci.call_with_err_code('ccache -s')
 
 if (args.test):
 	nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
@@ -58,6 +63,8 @@ else:
 	nci.call_with_err_code('zip -j ' + file_name + ' ./neblio-QT.dmg')
 	nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)
 	nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
+
+nci.call_with_err_code('ccache -s')
 
 
 print("")

@@ -34,6 +34,7 @@ mxe_bin_path = os.path.join(mxe_path, "usr/bin/")
 os.environ["PATH"] += (":" + mxe_bin_path)
 
 #build leveldb
+nci.call_with_err_code('ccache -s')
 print("Building leveldb...")
 CC_path = os.path.join(mxe_bin_path, "i686-w64-mingw32.static-gcc")
 CXX_path = os.path.join(mxe_bin_path, "i686-w64-mingw32.static-g++")
@@ -58,6 +59,8 @@ file_name = '$(date +%Y-%m-%d)---' + os.environ['TRAVIS_BRANCH'] + '-' + os.envi
 nci.call_with_err_code('zip -j ' + file_name + ' ./wallet/release/neblio-qt.exe')
 nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)
 nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
+
+nci.call_with_err_code('ccache -s')
 
 ################
 

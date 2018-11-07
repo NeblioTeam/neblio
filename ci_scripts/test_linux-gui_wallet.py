@@ -43,6 +43,8 @@ nci.mkdir_p(deploy_dir)
 nci.mkdir_p(build_dir)
 os.chdir(build_dir)
 
+nci.call_with_err_code('ccache -s')
+
 nci.call_with_err_code('python $TRAVIS_BUILD_DIR/build_scripts/CompileOpenSSL-Linux.py')
 nci.call_with_err_code('python $TRAVIS_BUILD_DIR/build_scripts/CompileCurl-Linux.py')
 nci.call_with_err_code('python $TRAVIS_BUILD_DIR/build_scripts/CompileQREncode-Linux.py')
@@ -69,6 +71,8 @@ else:
 	nci.call_with_err_code('tar -zcvf "' + file_name + '" -C ./wallet neblio-qt')
 	nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)
 	nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
+
+nci.call_with_err_code('ccache -s')
 
 print("")
 print("")
