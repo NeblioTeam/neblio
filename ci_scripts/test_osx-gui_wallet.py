@@ -19,7 +19,7 @@ nci.mkdir_p(build_dir)
 os.chdir(build_dir)
 
 # do not auto update homebrew as it is very slow
-os.environ['HOMEBREW_NO_AUTO_UPDATE'] = 1
+os.environ['HOMEBREW_NO_AUTO_UPDATE'] = '1'
 
 # set up ccache
 nci.call_with_err_code('brew fetch --retry ccache        && brew install ccache --force')
