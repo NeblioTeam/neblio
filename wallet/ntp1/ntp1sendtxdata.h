@@ -26,8 +26,8 @@ class NTP1SendTxData
     // this is a vector because order must be preserved
     std::vector<NTP1OutPoint>                   tokenSourceInputs;
     std::vector<IntermediaryTI>                 intermediaryTIs;
-    std::map<std::string, NTP1Int>              totalChangeTokens;
-    std::map<std::string, NTP1Int>              totalTokenAmountsInSelectedInputs;
+    std::map<std::string, int64_t>              totalChangeTokens;
+    std::map<std::string, int64_t>              totalTokenAmountsInSelectedInputs;
     std::vector<NTP1SendTokensOneRecipientData> recipientsList;
     boost::shared_ptr<NTP1Wallet>               usedWallet;
 
@@ -58,8 +58,8 @@ public:
     static int64_t EstimateTxFee(int64_t num_of_inputs, int64_t num_of_outputs);
 
     std::vector<NTP1OutPoint>      getUsedInputs() const;
-    std::map<std::string, NTP1Int> getChangeTokens() const;
-    std::map<std::string, NTP1Int> getTotalTokensInInputs() const;
+    std::map<std::string, int64_t> getChangeTokens() const;
+    std::map<std::string, int64_t> getTotalTokensInInputs() const;
     bool                           isReady() const;
     // list of recipients after removing Nebl recipients
     std::vector<NTP1SendTokensOneRecipientData> getNTP1TokenRecipientsList() const;

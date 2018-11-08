@@ -497,7 +497,7 @@ void CoinControlDialog::updateLabels(WalletModel* model, QDialog* dialog)
             try {
                 NTP1Transaction                                       ntp1tx;
                 std::vector<std::pair<CTransaction, NTP1Transaction>> prevTxs =
-                    GetAllNTP1InputsOfTx(*out.tx, false);
+                    GetAllNTP1InputsOfTx(*out.tx);
                 ntp1tx.readNTP1DataFromTx(*out.tx, prevTxs);
                 outputIsNTP1 = (ntp1tx.getTxOut(out.i).tokenCount() != 0);
 
@@ -747,7 +747,7 @@ void CoinControlDialog::updateView()
                 try {
                     NTP1Transaction                                       ntp1tx;
                     std::vector<std::pair<CTransaction, NTP1Transaction>> prevTxs =
-                        GetAllNTP1InputsOfTx(*out.tx, false);
+                        GetAllNTP1InputsOfTx(*out.tx);
                     ntp1tx.readNTP1DataFromTx(*out.tx, prevTxs);
                     bool considerNeblsToo = (out.tx->vout[out.i].nValue > MIN_TX_FEE);
                     if (considerNeblsToo) {
@@ -769,7 +769,7 @@ void CoinControlDialog::updateView()
                             sTokenId += "+\n";
                         }
                         sTokenType += QString::fromStdString(ntp1txOut.getToken(i).getTokenSymbol());
-                        sNTP1TokenAmounts += QString::fromStdString(ToString(ntp1txOut.getToken(i).getAmount()));
+                        sNTP1TokenAmounts += QString::number(ntp1txOut.getToken(i).getAmount());
                         sTokenId += QString::fromStdString(ntp1txOut.getToken(i).getTokenId());
                     }
 

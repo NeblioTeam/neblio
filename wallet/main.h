@@ -13,7 +13,6 @@
 #include "zerocoin/Zerocoin.h"
 
 #include <list>
-#include <unordered_set>
 
 class CWallet;
 class CBlock;
@@ -28,10 +27,6 @@ class CRequestTracker;
 class CNode;
 
 class CTxMemPool;
-
-// this prevents attempting to recover NTP1 transactions again and again recursively
-// once a tx is on this list, it won't be recovered
-extern std::set<uint256> UnrecoverableNTP1Txs;
 
 static const int LAST_POW_BLOCK = 1000; // 1000 PoW Blocks to kickstart
 
@@ -132,6 +127,9 @@ void         SyncWithWallets(const CTransaction& tx, const CBlock* pblock = NULL
                              bool fConnect = true);
 bool         ProcessBlock(CNode* pfrom, CBlock* pblock);
 bool         CheckDiskSpace(uint64_t nAdditionalBytes = 0);
+FILE*        OpenBlockFile(unsigned int nFile, unsigned int nBlockPos, const char* pszMode = "rb");
+FILE*        AppendBlockFile(unsigned int& nFileRet);
+FILE*        AppendNTP1TxsFile(unsigned int& nFileRet);
 bool         LoadBlockIndex(bool fAllowNew = true);
 void         PrintBlockTree();
 CBlockIndex* FindBlockByHeight(int nHeight);
@@ -155,32 +153,13 @@ const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfSta
 void               StakeMiner(CWallet* pwallet);
 void               ResendWalletTransactions(bool fForce = false);
 CTransaction       FetchTxFromDisk(const uint256& txid);
-CTransaction       FetchTxFromDisk(const uint256& txid, CTxDB& txdb);
+void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, unsigned recurseDepth = 0);
+void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx);
 
-/** given a neblio tx, get the corresponding NTP1 tx */
-void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, CTxDB& txdb,
-                         bool recoverProtection, unsigned recurseDepth = 0);
-void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, CTxDB& txdb);
-
-void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, CTxDB& txdb);
+void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx);
 
 /** for a certain transaction, retrieve all NTP1 data from the database */
-std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTransaction tx,
-                                                                           bool recoverProtection);
-std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTransaction tx, CTxDB& txdb,
-                                                                           bool recoverProtection);
-
-/** blacklisted tokens are tokens that are to be ignored and not used for historical reasons */
-bool IsIssuedTokenBlacklisted(std::pair<CTransaction, NTP1Transaction>& txPair);
-
-void AssertNTP1TokenNameIsNotAlreadyInMainChain(std::string sym, const uint256& txHash, CTxDB& txdb);
-void AssertNTP1TokenNameIsNotAlreadyInMainChain(const NTP1Transaction& ntp1tx, CTxDB& txdb);
-
-/** True if the transaction is in the main chain (can throw) */
-bool IsTxInMainChain(const uint256& txHash);
-
-/** The number of the block where the transaction is located */
-int64_t GetTxBlockHeight(const uint256& txHash);
+std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTransaction tx);
 
 /** (try to) add transaction to memory pool **/
 bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInputs);
@@ -188,13 +167,9 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
 /** the conditions for considering the upgraded network configuration */
 bool PassedNetworkUpgradeBlock(uint32_t nBestHeight, bool isTestnet);
 
-bool EnableUniqueTokenSymbols(uint32_t nBestHeight, bool isTestnet);
-
 /** the condition for the first valid NTP1 transaction; transactions before this point are invalid in the
  * network*/
 bool PassedFirstValidNTP1Tx(const int bestHeight, const bool isTestnet);
-
-bool IsNTP1TxAtValidBlockHeight(const int bestHeight, const bool isTestnet);
 
 /** Maximum size of a block */
 unsigned int MaxBlockSize(uint32_t nBestHeight);
@@ -217,9 +192,8 @@ unsigned int StakeMinAge(uint32_t nBestHeight);
 typedef std::map<uint256, std::pair<CTxIndex, CTransaction>> MapPrevTx;
 
 /** Take a list of standard neblio transactions and return pairs of neblio and NTP1 transactions */
-std::vector<std::pair<CTransaction, NTP1Transaction>>
-StdFetchedInputTxsToNTP1(const CTransaction& tx, const MapPrevTx& mapInputs, CTxDB& txdb,
-                         bool recoverProtection);
+std::vector<std::pair<CTransaction, NTP1Transaction>> StdInputsTxsToNTP1(const CTransaction& tx,
+                                                                         const MapPrevTx&    mapInputs);
 
 bool GetWalletFile(CWallet* pwallet, std::string& strWalletFileOut);
 
@@ -227,13 +201,15 @@ bool GetWalletFile(CWallet* pwallet, std::string& strWalletFileOut);
 class CDiskTxPos
 {
 public:
-    uint256      nBlockPos;
+    unsigned int nFile;
+    unsigned int nBlockPos;
     unsigned int nTxPos;
 
     CDiskTxPos() { SetNull(); }
 
-    CDiskTxPos(const uint256& nBlockPosIn, unsigned int nTxPosIn)
+    CDiskTxPos(unsigned int nFileIn, unsigned int nBlockPosIn, unsigned int nTxPosIn)
     {
+        nFile     = nFileIn;
         nBlockPos = nBlockPosIn;
         nTxPos    = nTxPosIn;
     }
@@ -241,14 +217,15 @@ public:
     IMPLEMENT_SERIALIZE(READWRITE(FLATDATA(*this));)
     void SetNull()
     {
+        nFile     = (unsigned int)-1;
         nBlockPos = 0;
-        nTxPos    = -1;
+        nTxPos    = 0;
     }
-    bool IsNull() const { return (nTxPos == (unsigned int)-1); }
+    bool IsNull() const { return (nFile == (unsigned int)-1); }
 
     friend bool operator==(const CDiskTxPos& a, const CDiskTxPos& b)
     {
-        return (a.nBlockPos == b.nBlockPos && a.nTxPos == b.nTxPos);
+        return (a.nFile == b.nFile && a.nBlockPos == b.nBlockPos && a.nTxPos == b.nTxPos);
     }
 
     friend bool operator!=(const CDiskTxPos& a, const CDiskTxPos& b) { return !(a == b); }
@@ -258,7 +235,7 @@ public:
         if (IsNull())
             return "null";
         else
-            return strprintf("(nBlockPos=%s, nTxPos=%u)", nBlockPos.ToString().c_str(), nTxPos);
+            return strprintf("(nFile=%u, nBlockPos=%u, nTxPos=%u)", nFile, nBlockPos, nTxPos);
     }
 
     void print() const { printf("%s", ToString().c_str()); }
@@ -602,7 +579,31 @@ public:
     int64_t GetMinFee(unsigned int nBlockSize = 1, enum GetMinFee_mode mode = GMF_BLOCK,
                       unsigned int nBytes = 0) const;
 
-    bool ReadFromDisk(CDiskTxPos pos, CTxDB& txdb);
+    bool ReadFromDisk(CDiskTxPos pos, FILE** pfileRet = NULL)
+    {
+        CAutoFile filein =
+            CAutoFile(OpenBlockFile(pos.nFile, 0, pfileRet ? "rb+" : "rb"), SER_DISK, CLIENT_VERSION);
+        if (!filein)
+            return error("CTransaction::ReadFromDisk() : OpenBlockFile failed");
+
+        // Read transaction
+        if (fseek(filein, pos.nTxPos, SEEK_SET) != 0)
+            return error("CTransaction::ReadFromDisk() : fseek failed");
+
+        try {
+            filein >> *this;
+        } catch (std::exception& e) {
+            return error("%s() : deserialize or I/O error", __PRETTY_FUNCTION__);
+        }
+
+        // Return file pointer
+        if (pfileRet) {
+            if (fseek(filein, pos.nTxPos, SEEK_SET) != 0)
+                return error("CTransaction::ReadFromDisk() : second fseek failed");
+            *pfileRet = filein.release();
+        }
+        return true;
+    }
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)
     {
@@ -639,6 +640,7 @@ public:
 
     bool ReadFromDisk(CTxDB& txdb, COutPoint prevout, CTxIndex& txindexRet);
     bool ReadFromDisk(CTxDB& txdb, COutPoint prevout);
+    bool ReadFromDisk(COutPoint prevout);
     bool DisconnectInputs(CTxDB& txdb);
 
     /** Fetch from memory and/or disk. inputsRet keys are transaction hashes.
@@ -1362,10 +1364,56 @@ public:
         return hash;
     }
 
-    bool WriteToDisk(const uint256& nBlockPos, const uint256& hashProof);
+    bool WriteToDisk(unsigned int& nFileRet, unsigned int& nBlockPosRet)
+    {
+        // Open history file to append
+        CAutoFile fileout = CAutoFile(AppendBlockFile(nFileRet), SER_DISK, CLIENT_VERSION);
+        if (!fileout)
+            return error("CBlock::WriteToDisk() : AppendBlockFile failed");
 
-    bool ReadFromDisk(const uint256& hash, bool fReadTransactions = true);
-    bool ReadFromDisk(const uint256& hash, CTxDB& txdb, bool fReadTransactions = true);
+        // Write index header
+        unsigned int nSize = fileout.GetSerializeSize(*this);
+        fileout << FLATDATA(pchMessageStart) << nSize;
+
+        // Write block
+        long fileOutPos = ftell(fileout);
+        if (fileOutPos < 0)
+            return error("CBlock::WriteToDisk() : ftell failed");
+        nBlockPosRet = fileOutPos;
+        fileout << *this;
+
+        // Flush stdio buffers and commit to disk before returning
+        fflush(fileout);
+        if (!IsInitialBlockDownload() || (nBestHeight + 1) % 500 == 0)
+            FileCommit(fileout);
+
+        return true;
+    }
+
+    bool ReadFromDisk(unsigned int nFile, unsigned int nBlockPos, bool fReadTransactions = true)
+    {
+        SetNull();
+
+        // Open history file to read
+        CAutoFile filein = CAutoFile(OpenBlockFile(nFile, nBlockPos, "rb"), SER_DISK, CLIENT_VERSION);
+        if (!filein)
+            return error("CBlock::ReadFromDisk() : OpenBlockFile failed");
+        if (!fReadTransactions)
+            filein.nType |= SER_BLOCKHEADERONLY;
+
+        // Read block
+        try {
+            filein >> *this;
+        } catch (std::exception& e) {
+            return error("%s() : deserialize or I/O error", __PRETTY_FUNCTION__);
+        }
+
+        // Check the header
+        if (fReadTransactions && IsProofOfWork() && !CheckProofOfWork(GetPoWHash(), nBits))
+            return error("CBlock::ReadFromDisk() : errors in block header");
+
+        return true;
+    }
 
     void print() const
     {
@@ -1387,10 +1435,8 @@ public:
     bool DisconnectBlock(CTxDB& txdb, CBlockIndex* pindex);
     bool ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck = false);
     bool ReadFromDisk(const CBlockIndex* pindex, bool fReadTransactions = true);
-    bool ReadFromDisk(const CBlockIndex* pindex, CTxDB& txdb, bool fReadTransactions = true);
-    bool SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew, const bool createDbTransaction = true);
-    bool AddToBlockIndex(uint256 nBlockPos, const uint256& hashProof, CTxDB& txdb,
-                         const bool createDbTransaction = true);
+    bool SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew);
+    bool AddToBlockIndex(unsigned int nFile, unsigned int nBlockPos, const uint256& hashProof);
     bool CheckBlock(bool fCheckPOW = true, bool fCheckMerkleRoot = true, bool fCheckSig = true) const;
     bool AcceptBlock();
     bool GetCoinAge(uint64_t& nCoinAge) const; // ppcoin: calculate total coin age spent in block
@@ -1398,7 +1444,7 @@ public:
     bool CheckBlockSignature() const;
 
 private:
-    bool SetBestChainInner(CTxDB& txdb, CBlockIndex* pindexNew, const bool createDbTransaction = true);
+    bool SetBestChainInner(CTxDB& txdb, CBlockIndex* pindexNew);
 };
 
 /** The block chain is a tree shaped structure starting with the
@@ -1414,7 +1460,8 @@ public:
     const uint256* phashBlock;
     CBlockIndex*   pprev;
     CBlockIndex*   pnext;
-    uint256        blockKeyInDB;
+    unsigned int   nFile;
+    unsigned int   nBlockPos;
     uint256        nChainTrust; // ppcoin: trust score of block chain
     int            nHeight;
 
@@ -1450,7 +1497,8 @@ public:
         phashBlock             = NULL;
         pprev                  = NULL;
         pnext                  = NULL;
-        blockKeyInDB           = 0;
+        nFile                  = 0;
+        nBlockPos              = 0;
         nHeight                = 0;
         nChainTrust            = 0;
         nMint                  = 0;
@@ -1469,12 +1517,13 @@ public:
         nNonce         = 0;
     }
 
-    CBlockIndex(uint256 nBlockPosIn, CBlock& block)
+    CBlockIndex(unsigned int nFileIn, unsigned int nBlockPosIn, CBlock& block)
     {
         phashBlock             = NULL;
         pprev                  = NULL;
         pnext                  = NULL;
-        blockKeyInDB           = nBlockPosIn;
+        nFile                  = nFileIn;
+        nBlockPos              = nBlockPosIn;
         nHeight                = 0;
         nChainTrust            = 0;
         nMint                  = 0;
@@ -1577,16 +1626,16 @@ public:
 
     std::string ToString() const
     {
-        return strprintf("CBlockIndex(nprev=%p, pnext=%p, nBlockPos=%s nHeight=%d, "
+        return strprintf("CBlockIndex(nprev=%p, pnext=%p, nFile=%u, nBlockPos=%-6d nHeight=%d, "
                          "nMint=%s, nMoneySupply=%s, nFlags=(%s)(%d)(%s), nStakeModifier=%016" PRIx64
                          ", nStakeModifierChecksum=%08x, hashProof=%s, prevoutStake=(%s), nStakeTime=%d "
                          "merkle=%s, hashBlock=%s)",
-                         pprev, pnext, blockKeyInDB.ToString().c_str(), nHeight,
-                         FormatMoney(nMint).c_str(), FormatMoney(nMoneySupply).c_str(),
-                         GeneratedStakeModifier() ? "MOD" : "-", GetStakeEntropyBit(),
-                         IsProofOfStake() ? "PoS" : "PoW", nStakeModifier, nStakeModifierChecksum,
-                         hashProof.ToString().c_str(), prevoutStake.ToString().c_str(), nStakeTime,
-                         hashMerkleRoot.ToString().c_str(), GetBlockHash().ToString().c_str());
+                         pprev, pnext, nFile, nBlockPos, nHeight, FormatMoney(nMint).c_str(),
+                         FormatMoney(nMoneySupply).c_str(), GeneratedStakeModifier() ? "MOD" : "-",
+                         GetStakeEntropyBit(), IsProofOfStake() ? "PoS" : "PoW", nStakeModifier,
+                         nStakeModifierChecksum, hashProof.ToString().c_str(),
+                         prevoutStake.ToString().c_str(), nStakeTime, hashMerkleRoot.ToString().c_str(),
+                         GetBlockHash().ToString().c_str());
     }
 
     void print() const { printf("%s\n", ToString().c_str()); }
@@ -1617,7 +1666,7 @@ public:
 
     IMPLEMENT_SERIALIZE(if (!(nType & SER_GETHASH)) READWRITE(nVersion);
 
-                        READWRITE(hashNext); READWRITE(blockKeyInDB); READWRITE(nHeight);
+                        READWRITE(hashNext); READWRITE(nFile); READWRITE(nBlockPos); READWRITE(nHeight);
                         READWRITE(nMint); READWRITE(nMoneySupply); READWRITE(nFlags);
                         READWRITE(nStakeModifier); if (IsProofOfStake()) {
                             READWRITE(prevoutStake);

@@ -564,7 +564,7 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn)
 // pblock is optional, but should be provided if the transaction is known to be in a block.
 // If fUpdate is true, existing transactions will be updated.
 bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlock* pblock, bool fUpdate,
-                                       bool /*fFindBlock*/)
+                                       bool fFindBlock)
 {
     uint256 hash = tx.GetHash();
     {
@@ -1098,7 +1098,7 @@ void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins, unsigned int nSp
                                     " to CTransaction");
                             }
                             std::vector<std::pair<CTransaction, NTP1Transaction>> inputs =
-                                GetAllNTP1InputsOfTx(*tx, false);
+                                GetAllNTP1InputsOfTx(*tx);
                             NTP1Transaction ntp1tx;
                             ntp1tx.readNTP1DataFromTx(*tx, inputs);
                             // if this output contains tokens, skip it to avoid burning them
@@ -1861,7 +1861,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
         CBlock block;
         {
             LOCK2(cs_main, cs_wallet);
-            if (!block.ReadFromDisk(txindex.pos.nBlockPos, false))
+            if (!block.ReadFromDisk(txindex.pos.nFile, txindex.pos.nBlockPos, false))
                 continue;
         }
 
@@ -1878,8 +1878,9 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
             // Search nSearchInterval seconds back up to nMaxStakeSearchInterval
             uint256   hashProofOfStake = 0, targetProofOfStake = 0;
             COutPoint prevoutStake = COutPoint(pcoin.first->GetHash(), pcoin.second);
-            if (CheckStakeKernelHash(nBits, block, txindex.pos.nTxPos, *pcoin.first, prevoutStake,
-                                     txNew.nTime - n, hashProofOfStake, targetProofOfStake)) {
+            if (CheckStakeKernelHash(nBits, block, txindex.pos.nTxPos - txindex.pos.nBlockPos,
+                                     *pcoin.first, prevoutStake, txNew.nTime - n, hashProofOfStake,
+                                     targetProofOfStake)) {
                 // Found a kernel
                 if (fDebug)
                     printf("CreateCoinStake : kernel found\n");

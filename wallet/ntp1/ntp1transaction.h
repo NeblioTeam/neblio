@@ -1,7 +1,6 @@
 #ifndef NTP1TRANSACTION_H
 #define NTP1TRANSACTION_H
 
-#include "ThreadSafeHashMap.h"
 #include "main.h"
 #include "ntp1/ntp1script.h"
 #include "ntp1/ntp1script_burn.h"
@@ -17,24 +16,57 @@
 #include <unordered_map>
 #include <vector>
 
-#define DEBUG__INCLUDE_STR_HASH
-
-// TODO: Sam: optimize this; this is a temporary solution
-struct KeyHasher
+/** Position on disk for a particular transaction. */
+class DiskNTP1TxPos
 {
-    std::size_t operator()(const uint256& k) const { return std::hash<string>()(k.ToString()); }
+public:
+    static unsigned int nCurrentNTP1TxsFile;
+    unsigned int        nFile;
+    unsigned int        nTxPos;
+
+    DiskNTP1TxPos() { SetNull(); }
+
+    DiskNTP1TxPos(unsigned int nFileIn, unsigned int nTxPosIn)
+    {
+        nFile  = nFileIn;
+        nTxPos = nTxPosIn;
+    }
+
+    IMPLEMENT_SERIALIZE(READWRITE(FLATDATA(*this));)
+    void SetNull()
+    {
+        nFile  = (unsigned int)-1;
+        nTxPos = 0;
+    }
+    bool IsNull() const { return (nFile == (unsigned int)-1); }
+
+    friend bool operator==(const DiskNTP1TxPos& a, const DiskNTP1TxPos& b)
+    {
+        return (a.nFile == b.nFile && a.nTxPos == b.nTxPos);
+    }
+
+    friend bool operator!=(const DiskNTP1TxPos& a, const DiskNTP1TxPos& b) { return !(a == b); }
+
+    std::string ToString() const
+    {
+        if (IsNull())
+            return "null";
+        else
+            return strprintf("(nFile=%u, nTxPos=%u)", nFile, nTxPos);
+    }
+
+    void print() const { printf("%s", ToString().c_str()); }
+
+    static boost::filesystem::path NTP1TxsFilePath(unsigned int nFile);
+
+    static FILE* AppendNTP1TxsFile(unsigned int& nFileRet);
+
+    static FILE* OpenNTP1TxsFile(unsigned int nFile, unsigned int nTxPos, const char* pszMode);
 };
-
-extern ThreadSafeHashMap<std::string, uint64_t>   ntp1_blacklisted_token_ids;
-extern ThreadSafeHashMap<uint256, int, KeyHasher> excluded_txs_testnet;
-extern ThreadSafeHashMap<uint256, int, KeyHasher> excluded_txs_mainnet;
-
-bool IsNTP1TokenBlacklisted(const string& tokenId);
-bool IsNTP1TxExcluded(const uint256& txHash);
 
 struct TokenMinimalData
 {
-    NTP1Int     amount;
+    int64_t     amount;
     std::string tokenName;
     std::string tokenId;
 
@@ -47,12 +79,9 @@ struct TokenMinimalData
  */
 class NTP1Transaction
 {
-    static const int CURRENT_VERSION = 1;
-    int              nVersion;
-    uint256          txHash = 0;
-#ifdef DEBUG__INCLUDE_STR_HASH
-    std::string strHash;
-#endif
+    static const int           CURRENT_VERSION = 1;
+    int                        nVersion;
+    uint256                    txHash;
     std::vector<unsigned char> txSerialized;
     std::vector<NTP1TxIn>      vin;
     std::vector<NTP1TxOut>     vout;
@@ -82,25 +111,21 @@ public:
     // clang-format on
 
     NTP1Transaction();
-    void                setNull();
-    bool                isNull() const noexcept;
-    void                importJsonData(const std::string& data);
-    json_spirit::Value  exportDatabaseJsonData() const;
-    void                importDatabaseJsonData(const json_spirit::Value& data);
-    void                setHex(const std::string& Hex);
-    std::string         getHex() const;
-    uint256             getTxHash() const;
-    uint64_t            getLockTime() const;
-    uint64_t            getTime() const;
-    unsigned long       getTxInCount() const;
-    const NTP1TxIn&     getTxIn(unsigned long index) const;
-    unsigned long       getTxOutCount() const;
-    const NTP1TxOut&    getTxOut(unsigned long index) const;
-    NTP1TransactionType getTxType() const;
-    std::string         getTokenSymbolIfIssuance() const;
-    std::string         getTokenIdIfIssuance(std::string input0txid, unsigned int input0index) const;
-    void                updateDebugStrHash();
-    friend inline bool  operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs);
+    void               setNull();
+    bool               isNull() const;
+    void               importJsonData(const std::string& data);
+    json_spirit::Value exportDatabaseJsonData() const;
+    void               importDatabaseJsonData(const json_spirit::Value& data);
+    void               setHex(const std::string& Hex);
+    std::string        getHex() const;
+    uint256            getTxHash() const;
+    uint64_t           getLockTime() const;
+    uint64_t           getTime() const;
+    unsigned long      getTxInCount() const;
+    const NTP1TxIn&    getTxIn(unsigned long index) const;
+    unsigned long      getTxOutCount() const;
+    const NTP1TxOut&   getTxOut(unsigned long index) const;
+    friend inline bool operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs);
 
     static std::unordered_map<std::string, TokenMinimalData>
     CalculateTotalInputTokens(const NTP1Transaction& ntp1tx);
@@ -165,6 +190,9 @@ public:
 
     void readNTP1DataFromTx(const CTransaction&                                          tx,
                             const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs);
+
+    bool writeToDisk(unsigned int& nFileRet, unsigned int& nTxPosRet, FILE* customFile = nullptr) const;
+    bool readFromDisk(DiskNTP1TxPos pos, FILE** pfileRet = nullptr, FILE* customFile = nullptr);
 };
 
 bool operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs)
@@ -190,7 +218,7 @@ void NTP1Transaction::__TransferTokens(
     EnsureInputTokensRelateToTx(tx, inputsTxs);
 
     // calculate total tokens in inputs
-    std::vector<std::vector<NTP1Int>>         totalTokensLeftInInputs(tx.vin.size());
+    std::vector<std::vector<uint64_t>>        totalTokensLeftInInputs(tx.vin.size());
     std::vector<std::vector<NTP1TokenTxData>> tokensKindsInInputs(tx.vin.size());
     for (unsigned i = 0; i < tx.vin.size(); i++) {
         const auto& n    = tx.vin[i].prevout.n;
@@ -219,9 +247,8 @@ void NTP1Transaction::__TransferTokens(
     if (totalTokensLeftInInputs.size() == 0) {
         invalid = true;
     } else {
-        NTP1Int totalTokensInInput0 = std::accumulate(totalTokensLeftInInputs[0].begin(),
-                                                      totalTokensLeftInInputs[0].end(), NTP1Int(0));
-
+        uint64_t totalTokensInInput0 =
+            std::accumulate(totalTokensLeftInInputs[0].begin(), totalTokensLeftInInputs[0].end(), 0);
         invalid = !totalTokensInInput0;
     }
 
@@ -252,17 +279,17 @@ void NTP1Transaction::__TransferTokens(
 
         // loop over the kinds of tokens in the input and distribute them over outputs
         // note: there's no way to switch from one token to the next unless its content depletes
-        NTP1Int currentOutputAmount = TIs[i].amount;
+        uint64_t currentOutputAmount = TIs[i].amount;
 
         //  token index at which to start subtraction, helps in skipping empty tokens when
         // subtracting spent amount
         int startTokenIndex = 0;
 
         // if input is empty, just move to the next one since empty inputs don't break adjacency
-        bool    stopInstructions = false;
-        NTP1Int totalTokensInCurrentInput =
+        bool     stopInstructions = false;
+        uint64_t totalTokensInCurrentInput =
             std::accumulate(totalTokensLeftInInputs[currentInputIndex].begin(),
-                            totalTokensLeftInInputs[currentInputIndex].end(), NTP1Int(0));
+                            totalTokensLeftInInputs[currentInputIndex].end(), 0);
         while (totalTokensLeftInInputs[currentInputIndex].size() == 0 ||
                totalTokensInCurrentInput == 0) {
             currentInputIndex++;
@@ -272,7 +299,7 @@ void NTP1Transaction::__TransferTokens(
             }
             totalTokensInCurrentInput =
                 std::accumulate(totalTokensLeftInInputs[currentInputIndex].begin(),
-                                totalTokensLeftInInputs[currentInputIndex].end(), NTP1Int(0));
+                                totalTokensLeftInInputs[currentInputIndex].end(), 0);
         }
 
         if (stopInstructions) {
@@ -282,7 +309,7 @@ void NTP1Transaction::__TransferTokens(
         for (int j = 0; j < (int)totalTokensLeftInInputs[currentInputIndex].size(); j++) {
 
             // calculate the total number of available tokens for spending
-            NTP1Int     totalAdjacentTokensOfOneKind = 0;
+            uint64_t    totalAdjacentTokensOfOneKind = 0;
             std::string currentTokenId;
             bool        inputDone = false;
             for (int k = currentInputIndex; k < (int)totalTokensLeftInInputs.size(); k++) {
@@ -336,8 +363,8 @@ void NTP1Transaction::__TransferTokens(
                     "; and OP_RETURN script: " + scriptPtrD->getParsedScriptHex());
             }
 
-            const auto&   currentTokenObj = tokensKindsInInputs[currentInputIndex][startTokenIndex];
-            const NTP1Int amountToCredit  = std::min(totalAdjacentTokensOfOneKind, currentOutputAmount);
+            const auto&    currentTokenObj = tokensKindsInInputs[currentInputIndex][startTokenIndex];
+            const uint64_t amountToCredit  = std::min(totalAdjacentTokensOfOneKind, currentOutputAmount);
 
             if (!burnThisOutput) {
                 // create the token object that will be added to the output
@@ -362,7 +389,7 @@ void NTP1Transaction::__TransferTokens(
             }
 
             // reduce the available balance from the array that tracks all available inputs
-            NTP1Int amountLeftToSubtract = amountToCredit;
+            uint64_t amountLeftToSubtract = amountToCredit;
             for (int k = currentInputIndex; k < (int)totalTokensLeftInInputs.size(); k++) {
                 // an empty input in between means inputs are not adjacent
                 for (int l = (k == currentInputIndex ? startTokenIndex : 0);
@@ -400,9 +427,9 @@ void NTP1Transaction::__TransferTokens(
                 currentInputIndex++;
             }
 
-            NTP1Int totalTokensLeftInCurrentInput =
+            uint64_t totalTokensLeftInCurrentInput =
                 std::accumulate(totalTokensLeftInInputs[currentInputIndex].begin(),
-                                totalTokensLeftInInputs[currentInputIndex].end(), NTP1Int(0));
+                                totalTokensLeftInInputs[currentInputIndex].end(), 0);
             if (totalTokensLeftInCurrentInput == 0) {
                 // avoid incrementing twice
                 if (!TIs[i].skipInput) {
@@ -424,7 +451,7 @@ void NTP1Transaction::__TransferTokens(
             }
 
             const auto& currentTokenObj = tokensKindsInInputs[i][j];
-            NTP1Int     amountToCredit  = totalTokensLeftInInputs[i][j];
+            uint64_t    amountToCredit  = totalTokensLeftInInputs[i][j];
 
             // create the token object that will be added to the output
             NTP1TokenTxData ntp1tokenTxData;

@@ -22,6 +22,8 @@ std::string RandomString(const int len)
     return s;
 }
 
+#ifdef USE_LMDB
+
 #define CUSTOM_LMDB_DB_SIZE (1 << 14)
 #include "../txdb-lmdb.h"
 
@@ -38,15 +40,15 @@ TEST(lmdb_tests, basic)
     std::string k1 = "key1";
     std::string v1 = "val1";
 
-    EXPECT_TRUE(db.test1_WriteStrKeyVal(k1, v1));
+    EXPECT_TRUE(db.WriteStrKeyVal(k1, v1));
     std::string out;
-    EXPECT_TRUE(db.test1_ReadStrKeyVal(k1, out));
+    EXPECT_TRUE(db.ReadStrKeyVal(k1, out));
     EXPECT_EQ(out, v1);
 
-    EXPECT_TRUE(db.test1_ExistsStrKeyVal(k1));
+    EXPECT_TRUE(db.ExistsStrKeyVal(k1));
 
-    EXPECT_TRUE(db.test1_EraseStrKeyVal(k1));
-    EXPECT_FALSE(db.test1_ExistsStrKeyVal(k1));
+    EXPECT_TRUE(db.EraseStrKeyVal(k1));
+    EXPECT_FALSE(db.ExistsStrKeyVal(k1));
 
     db.Close();
 }
@@ -64,17 +66,17 @@ TEST(lmdb_tests, basic_in_1_tx)
     std::string k1 = "key1";
     std::string v1 = "val1";
 
-    EXPECT_TRUE(db.test1_WriteStrKeyVal(k1, v1));
+    EXPECT_TRUE(db.WriteStrKeyVal(k1, v1));
     std::string out;
-    EXPECT_TRUE(db.test1_ReadStrKeyVal(k1, out));
+    EXPECT_TRUE(db.ReadStrKeyVal(k1, out));
     EXPECT_EQ(out, v1);
 
-    EXPECT_TRUE(db.test1_ExistsStrKeyVal(k1));
+    EXPECT_TRUE(db.ExistsStrKeyVal(k1));
 
     db.TxnAbort();
 
     // uncommitted data shouldn't exist
-    EXPECT_FALSE(db.test1_ExistsStrKeyVal(k1));
+    EXPECT_FALSE(db.ExistsStrKeyVal(k1));
 
     db.Close();
 }
@@ -93,6 +95,8 @@ TEST(lmdb_tests, many_inputs)
     for (uint64_t i = 0; i < entriesCount; i++) {
         std::string k = RandomString(100);
         std::string v = RandomString(1000000);
+        //        std::string k = "abcdefghijklmnopqrstuv";
+        //        std::string v = "abcdefghijklmn";
 
         if (entries.find(k) != entries.end()) {
             continue;
@@ -100,21 +104,21 @@ TEST(lmdb_tests, many_inputs)
 
         entries[k] = v;
 
-        EXPECT_TRUE(db.test1_WriteStrKeyVal(k, v));
+        EXPECT_TRUE(db.WriteStrKeyVal(k, v));
         std::string out;
 
-        EXPECT_TRUE(db.test1_ReadStrKeyVal(k, out));
+        EXPECT_TRUE(db.ReadStrKeyVal(k, out));
         EXPECT_EQ(out, v);
 
-        EXPECT_TRUE(db.test1_ExistsStrKeyVal(k));
+        EXPECT_TRUE(db.ExistsStrKeyVal(k));
     }
 
     for (const auto& pair : entries) {
         std::string out;
-        EXPECT_TRUE(db.test1_ReadStrKeyVal(pair.first, out));
+        EXPECT_TRUE(db.ReadStrKeyVal(pair.first, out));
         EXPECT_EQ(out, pair.second);
 
-        EXPECT_TRUE(db.test1_ExistsStrKeyVal(pair.first));
+        EXPECT_TRUE(db.ExistsStrKeyVal(pair.first));
     }
     db.Close();
 }
@@ -145,128 +149,24 @@ TEST(lmdb_tests, many_inputs_one_tx)
 
         entries[k] = v;
 
-        EXPECT_TRUE(db.test1_WriteStrKeyVal(k, v));
+        EXPECT_TRUE(db.WriteStrKeyVal(k, v));
         std::string out;
 
-        EXPECT_TRUE(db.test1_ReadStrKeyVal(k, out));
+        EXPECT_TRUE(db.ReadStrKeyVal(k, out));
         EXPECT_EQ(out, v);
 
-        EXPECT_TRUE(db.test1_ExistsStrKeyVal(k));
+        EXPECT_TRUE(db.ExistsStrKeyVal(k));
     }
     db.TxnCommit();
 
     for (const auto& pair : entries) {
         std::string out;
-        EXPECT_TRUE(db.test1_ReadStrKeyVal(pair.first, out));
+        EXPECT_TRUE(db.ReadStrKeyVal(pair.first, out));
         EXPECT_EQ(out, pair.second);
 
-        EXPECT_TRUE(db.test1_ExistsStrKeyVal(pair.first));
+        EXPECT_TRUE(db.ExistsStrKeyVal(pair.first));
     }
     db.Close();
 }
 
-TEST(lmdb_tests, basic_multiple_read)
-{
-    CTxDB::DB_DIR = "test-txdb"; // avoid writing to the main database
-
-    CTxDB::__deleteDb(); // clean up
-
-    CTxDB db;
-
-    std::string k1 = "key1";
-    std::string v1 = "val1";
-    std::string v2 = "val2";
-    std::string v3 = "val3";
-
-    EXPECT_TRUE(db.test2_WriteStrKeyVal(k1, v1));
-    EXPECT_TRUE(db.test2_WriteStrKeyVal(k1, v2));
-    EXPECT_TRUE(db.test2_WriteStrKeyVal(k1, v3));
-    std::vector<std::string> outs;
-    EXPECT_TRUE(db.test2_ReadMultipleStr1KeyVal(k1, outs));
-    EXPECT_EQ(outs, std::vector<std::string>({v1, v2, v3}));
-
-    EXPECT_TRUE(db.test2_ExistsStrKeyVal(k1));
-
-    EXPECT_TRUE(db.test2_EraseStrKeyVal(k1));
-
-    EXPECT_FALSE(db.test2_ExistsStrKeyVal(k1));
-
-    // uncommitted data shouldn't exist
-    EXPECT_FALSE(db.test1_ExistsStrKeyVal(k1));
-
-    db.Close();
-}
-
-TEST(lmdb_tests, basic_multiple_read_in_tx)
-{
-    CTxDB::DB_DIR = "test-txdb"; // avoid writing to the main database
-
-    CTxDB::__deleteDb(); // clean up
-
-    CTxDB db;
-    db.TxnBegin(100);
-
-    std::string k1 = "key1";
-    std::string v1 = "val1";
-    std::string v2 = "val2";
-    std::string v3 = "val3";
-
-    EXPECT_TRUE(db.test2_WriteStrKeyVal(k1, v1));
-    EXPECT_TRUE(db.test2_WriteStrKeyVal(k1, v2));
-    EXPECT_TRUE(db.test2_WriteStrKeyVal(k1, v3));
-    std::vector<std::string> outs;
-    EXPECT_TRUE(db.test2_ReadMultipleStr1KeyVal(k1, outs));
-    EXPECT_EQ(outs, std::vector<std::string>({v1, v2, v3}));
-
-    EXPECT_TRUE(db.test2_ExistsStrKeyVal(k1));
-
-    EXPECT_TRUE(db.test2_EraseStrKeyVal(k1));
-
-    EXPECT_FALSE(db.test2_ExistsStrKeyVal(k1));
-
-    // uncommitted data shouldn't exist
-    EXPECT_FALSE(db.test1_ExistsStrKeyVal(k1));
-
-    db.TxnCommit();
-
-    db.Close();
-}
-
-TEST(lmdb_tests, basic_multiple_many_inputs)
-{
-    CTxDB::DB_DIR = "test-txdb"; // avoid writing to the main database
-
-    CTxDB::__deleteDb(); // clean up
-
-    CTxDB db;
-
-    std::vector<std::string> entries;
-
-    std::string k = "TheKey";
-
-    EXPECT_FALSE(db.test2_ExistsStrKeyVal(k));
-
-    const uint64_t entriesCount = 1;
-    for (uint64_t i = 0; i < entriesCount; i++) {
-        std::string v = RandomString(508); // bigger size seems to create error: MDB_BAD_VALSIZE
-
-        entries.push_back(v);
-
-        EXPECT_TRUE(db.test2_WriteStrKeyVal(k, v));
-        std::string out;
-
-        EXPECT_TRUE(db.test2_ExistsStrKeyVal(k));
-    }
-
-    std::vector<std::string> outs;
-    EXPECT_TRUE(db.test2_ReadMultipleStr1KeyVal(k, outs));
-    EXPECT_EQ(outs, entries);
-
-    EXPECT_TRUE(db.test2_ExistsStrKeyVal(k));
-
-    EXPECT_TRUE(db.test2_EraseStrKeyVal(k));
-
-    EXPECT_FALSE(db.test2_ExistsStrKeyVal(k));
-
-    db.Close();
-}
+#endif

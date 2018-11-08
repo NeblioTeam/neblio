@@ -27,7 +27,7 @@ QString NTP1TokenListModel::__getTokenDescription(int index, boost::shared_ptr<N
 
 QString NTP1TokenListModel::__getTokenBalance(int index, boost::shared_ptr<NTP1Wallet> theWallet)
 {
-    return QString::fromStdString(ToString(theWallet->getTokenBalance(index)));
+    return QString::number(theWallet->getTokenBalance(index));
 }
 
 QIcon NTP1TokenListModel::__getTokenIcon(int index, boost::shared_ptr<NTP1Wallet> theWallet)

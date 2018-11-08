@@ -1,7 +1,5 @@
 #include "ntp1tools.h"
 
-#include "util.h"
-
 const std::string NTP1Tools::NTPAPI_base_url_mainnet_local = "https://ntp1node.nebl.io/ntp1/";
 const std::string NTP1Tools::NTPAPI_base_url_testnet_local = "https://ntp1node.nebl.io/testnet/ntp1/";
 
@@ -42,13 +40,6 @@ uint64_t NTP1Tools::GetUint64Field(const json_spirit::Object& data, const std::s
     json_spirit::Value val;
     val = json_spirit::find_value(data, fieldName);
     return val.get_uint64();
-}
-
-NTP1Int NTP1Tools::GetNTP1IntField(const json_spirit::Object& data, const std::string& fieldName)
-{
-    json_spirit::Value val;
-    val = json_spirit::find_value(data, fieldName);
-    return FromString<NTP1Int>(val.get_str());
 }
 
 int64_t NTP1Tools::GetInt64Field(const json_spirit::Object& data, const std::string& fieldName)

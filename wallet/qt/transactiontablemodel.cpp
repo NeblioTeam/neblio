@@ -386,7 +386,7 @@ QVariant TransactionTableModel::addressColor(const TransactionRecord* wtx) const
 QString TransactionTableModel::formatTxAmount(const TransactionRecord* wtx, bool showUnconfirmed) const
 {
     // count total NTP1 tokens
-    NTP1Int totalTokens = 0;
+    int64_t totalTokens = 0;
     if (wtx->ntp1DataLoaded) {
         for (int i = 0; i < (int)wtx->ntp1tx.getTxOutCount(); i++) {
             for (int j = 0; j < (int)wtx->ntp1tx.getTxOut(i).tokenCount(); j++) {

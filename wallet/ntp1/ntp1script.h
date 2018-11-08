@@ -2,30 +2,17 @@
 #define NTP1SCRIPT_H
 
 #include <bitset>
-#include <boost/algorithm/hex.hpp>
-#include <boost/dynamic_bitset.hpp>
-#include <boost/multiprecision/cpp_int.hpp>
-#include <cmath>
-#include <limits>
 #include <memory>
-#include <regex>
 #include <set>
 #include <string>
 #include <vector>
 
-using NTP1Int = boost::multiprecision::cpp_int;
-
-// You should NEVER change these without changing the database version
-// These go to the database for verifying issuance transactions duplication
 typedef uint32_t          NTP1TransactionType;
 const NTP1TransactionType NTP1TxType_UNKNOWN  = 0;
 const NTP1TransactionType NTP1TxType_NOT_NTP1 = 1;
 const NTP1TransactionType NTP1TxType_ISSUANCE = 2;
 const NTP1TransactionType NTP1TxType_TRANSFER = 3;
 const NTP1TransactionType NTP1TxType_BURN     = 4;
-
-const std::string HexBytesRegexStr("^([0-9a-fA-F][0-9a-fA-F])+$");
-const std::regex  HexBytexRegex(HexBytesRegexStr);
 
 class NTP1Script
 {
@@ -67,7 +54,7 @@ public:
         unsigned int outputIndex;
 
         std::string rawAmount;
-        NTP1Int     amount;
+        uint64_t    amount;
     };
 
     struct IssuanceFlags
@@ -128,7 +115,7 @@ public:
     static uint64_t    CalculateMetadataSize(const std::string& op_code_bin);
     static TxType      CalculateTxType(const std::string& op_code_bin);
     static uint64_t    CalculateAmountSize(uint8_t firstChar);
-    static NTP1Int     ParseAmountFromLongEnoughString(const std::string& BinAmountStartsAtByte0,
+    static uint64_t    ParseAmountFromLongEnoughString(const std::string& BinAmountStartsAtByte0,
                                                        int&               rawSize);
     static std::string ParseOpCodeFromLongEnoughString(const std::string& BinOpCodeStartsAtByte0);
     static std::string ParseMetadataFromLongEnoughString(const std::string& BinMetadataStartsAtByte0,
@@ -146,18 +133,6 @@ public:
 
     static std::shared_ptr<NTP1Script> ParseScript(const std::string& scriptHex);
     std::string                        getParsedScriptHex() const;
-
-    static NTP1Int     NTP1AmountHexToNumber(std::string hexVal);
-    static NTP1Int     GetSignificantDigits(const NTP1Int& num);
-    static std::string NumberToHexNTP1Amount(const NTP1Int& num, bool caps = false);
 };
-
-template <typename Bitset>
-void set_in_range(Bitset& b, uint8_t value, int from, int to)
-{
-    for (int i = from; i < to; ++i, value >>= 1) {
-        b[i] = (value & 1);
-    }
-}
 
 #endif // NTP1SCRIPT_H

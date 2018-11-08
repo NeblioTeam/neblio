@@ -33,6 +33,19 @@ nci.call_with_err_code("sudo mv mxe /")
 mxe_bin_path = os.path.join(mxe_path, "usr/bin/")
 os.environ["PATH"] += (":" + mxe_bin_path)
 
+#build leveldb
+nci.call_with_err_code('ccache -s')
+print("Building leveldb...")
+CC_path = os.path.join(mxe_bin_path, "i686-w64-mingw32.static-gcc")
+CXX_path = os.path.join(mxe_bin_path, "i686-w64-mingw32.static-g++")
+os.chdir("wallet/leveldb")
+print("Cleaning leveldb...")
+nci.call_with_err_code("make clean")
+print("Done cleaning.")
+print("Starting build process...")
+nci.call_with_err_code("TARGET_OS=NATIVE_WINDOWS make libleveldb.a libmemenv.a CC=" + CC_path + " CXX=" + CXX_path)
+print("Done.")
+
 os.chdir(working_dir)
 
 # prepend ccache to the path, necessary since prior steps prepend things to the path

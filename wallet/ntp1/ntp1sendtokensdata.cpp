@@ -1,11 +1,11 @@
 #include "ntp1sendtokensdata.h"
 
+#include <random>
+#include <algorithm>
 #include "init.h"
 #include "util.h"
 #include "wallet.h"
 #include "json/json_spirit.h"
-#include <algorithm>
-#include <random>
 
 NTP1SendTokensData::NTP1SendTokensData() {}
 
@@ -22,7 +22,7 @@ void NTP1SendTokensData::addTokenSourceAddress(const std::string& tokenSourceAdd
 void NTP1SendTokensData::calculateSources(boost::shared_ptr<NTP1Wallet> wallet, bool recalculateFee)
 {
     // collect all required amounts in one map, with tokenId vs amount
-    std::map<std::string, NTP1Int> required_amounts;
+    std::map<std::string, int64_t> required_amounts;
     for (const auto& r : recipients) {
         if (required_amounts.find(r.tokenId) == required_amounts.end()) {
             required_amounts[r.tokenId] = 0;
@@ -56,13 +56,13 @@ void NTP1SendTokensData::calculateSources(boost::shared_ptr<NTP1Wallet> wallet, 
 
     {
         std::random_device rd;
-        std::mt19937       g(rd());
+        std::mt19937 g(rd());
         // to improve privacy, shuffle inputs; pseudo-random is good enough here
         std::shuffle(availableOutputs.begin(), availableOutputs.end(), g);
     }
 
     // this container will be filled and must have tokens that are higher than the required amounts
-    std::map<std::string, NTP1Int> fulfilledTokenAmounts;
+    std::map<std::string, int64_t> fulfilledTokenAmounts;
     // reset fulfilled amounts to zero
     for (const auto& el : required_amounts) {
         fulfilledTokenAmounts[el.first] = 0;
@@ -79,7 +79,7 @@ void NTP1SendTokensData::calculateSources(boost::shared_ptr<NTP1Wallet> wallet, 
             for (auto i = 0u; i < numOfTokensInOutput; i++) {
                 std::string outputTokenId = ntp1txOut.getToken(i).getTokenId();
                 // if token id matches in the transaction with the required one, take it into account
-                NTP1Int required_amount_still =
+                int64_t required_amount_still =
                     required_amount.second - fulfilledTokenAmounts[outputTokenId];
                 if (required_amount.first == outputTokenId && required_amount_still > 0) {
                     takeThisTransaction = true;
@@ -152,7 +152,7 @@ json_spirit::Value NTP1SendTokensData::exportJsonData() const
     // from array
     json_spirit::Array fromArray;
 
-    for (const std::string& s : tokenSourceAddresses) {
+    for (const std::string& s: tokenSourceAddresses) {
         fromArray.push_back(json_spirit::Value(s));
     }
     root.push_back(json_spirit::Pair("from", json_spirit::Value(fromArray)));
@@ -160,7 +160,7 @@ json_spirit::Value NTP1SendTokensData::exportJsonData() const
     // to array
     json_spirit::Array toArray;
 
-    for (const auto& r : recipients) {
+    for (const auto& r: recipients) {
         toArray.push_back(r.exportJsonData());
     }
     root.push_back(json_spirit::Pair("to", json_spirit::Value(toArray)));
@@ -227,7 +227,7 @@ int64_t NTP1SendTokensData::__addAddressesThatCoverFees()
 
         {
             std::random_device rd;
-            std::mt19937       g(rd());
+            std::mt19937 g(rd());
             // shuffle addresses before picking from them
             std::shuffle(neblBalancesVector.begin(), neblBalancesVector.end(), g);
         }

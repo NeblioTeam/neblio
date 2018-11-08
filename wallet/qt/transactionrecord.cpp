@@ -147,15 +147,14 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
 void TransactionRecord::readNTP1TxData()
 {
     try {
-        CTransaction                                          tx = FetchTxFromDisk(hash);
-        std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs =
-            GetAllNTP1InputsOfTx(tx, false);
+        CTransaction                                          tx         = FetchTxFromDisk(hash);
+        std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs = GetAllNTP1InputsOfTx(tx);
         ntp1tx.readNTP1DataFromTx(tx, ntp1inputs);
         ntp1DataLoaded    = true;
         ntp1DataLoadError = false;
     } catch (std::exception& ex) {
         printf("Failed to read NTP1 transaction data for transaction record. Transaction hash: %s. "
-               "Error: %s\n",
+               "Error: %s",
                hash.ToString().c_str(), ex.what());
         ntp1DataLoadError = true;
     }

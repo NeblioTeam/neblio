@@ -26,7 +26,7 @@ class NTP1Wallet : public boost::enable_shared_from_this<NTP1Wallet>
     // transaction with output index
     std::unordered_map<NTP1OutPoint, NTP1Transaction> walletOutputsWithTokens;
     // wallet balances
-    std::map<std::string, NTP1Int> balances;
+    std::map<std::string, int64_t> balances;
     // map from token id vs icon image data
     ThreadSafeHashMap<std::string, std::string> tokenIcons;
 
@@ -46,7 +46,7 @@ class NTP1Wallet : public boost::enable_shared_from_this<NTP1Wallet>
 
     static std::string __downloadIcon(const std::string& IconURL);
     static void        AddOutputToWalletBalance(const NTP1Transaction& tx, int outputIndex,
-                                                std::map<string, NTP1Int>& balancesTable);
+                                                std::map<std::string, int64_t>& balancesTable);
     // returns true if removed
     bool                removeOutputIfSpent(const NTP1OutPoint& output, const CWalletTx& neblTx);
     void                scanSpentTransactions();
@@ -62,14 +62,14 @@ public:
     NTP1Wallet();
     void                                  update();
     std::string                           getTokenName(const std::string& tokenID) const;
-    NTP1Int                               getTokenBalance(const std::string& tokenID) const;
+    int64_t                               getTokenBalance(const std::string& tokenID) const;
     std::string                           getTokenName(int index) const;
     std::string                           getTokenId(int index) const;
     std::string                           getTokenDescription(int index) const;
-    NTP1Int                               getTokenBalance(int index) const;
+    int64_t                               getTokenBalance(int index) const;
     std::string                           getTokenIcon(int index);
     int64_t                               getNumberOfTokens() const;
-    const std::map<std::string, NTP1Int>& getBalancesMap() const;
+    const std::map<std::string, int64_t>& getBalancesMap() const;
     const std::unordered_map<NTP1OutPoint, NTP1Transaction>& getWalletOutputsWithTokens();
     bool                                                     hasEverSucceeded() const;
     friend inline bool operator==(const NTP1Wallet& lhs, const NTP1Wallet& rhs);
@@ -97,7 +97,7 @@ public:
     bool getRetrieveMetadataFromAPI() const;
     void setRetrieveMetadataFromAPI(bool value);
 
-    std::map<string, NTP1Int> getBalances() const;
+    std::map<std::string, int64_t> getBalances() const;
 
     const std::unordered_map<std::string, NTP1TokenMetaData>& getTokenMetadataMap() const;
 
@@ -115,9 +115,7 @@ private:
     static json_spirit::Value __ValToJson(const std::string& input, bool serialize);
     static void __ValFromJson(const json_spirit::Value& input, bool deserialize, std::string& result);
     static json_spirit::Value __ValToJson(const int64_t& input, bool serialize);
-    static json_spirit::Value __ValToJson(const NTP1Int& input, bool serialize);
     static void __ValFromJson(const json_spirit::Value& input, bool deserialize, int64_t& result);
-    static void __ValFromJson(const json_spirit::Value& input, bool deserialize, NTP1Int& result);
 };
 
 bool operator==(const NTP1Wallet& lhs, const NTP1Wallet& rhs)

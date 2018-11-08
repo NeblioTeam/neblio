@@ -107,8 +107,7 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
 
     NTP1Transaction ntp1tx;
     try {
-        std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs =
-            GetAllNTP1InputsOfTx(wtx, false);
+        std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs = GetAllNTP1InputsOfTx(wtx);
         ntp1tx.readNTP1DataFromTx(wtx, ntp1inputs);
     } catch (std::exception& ex) {
         printf("(This doesn't have to be an error if the tx is not NTP1). For transaction details, "
@@ -165,9 +164,9 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
 
             // calculate total tokens of all kinds to see if there's any tokens involved in the
             // transaction
-            NTP1Int totalOutputsTokens =
-                std::accumulate(outputsTokens.begin(), outputsTokens.end(), NTP1Int(0),
-                                [](NTP1Int currRes, const std::pair<std::string, TokenMinimalData>& t) {
+            int64_t totalOutputsTokens =
+                std::accumulate(outputsTokens.begin(), outputsTokens.end(), 0,
+                                [](int64_t currRes, const std::pair<std::string, TokenMinimalData>& t) {
                                     return currRes + t.second.amount;
                                 });
             if (totalOutputsTokens != 0) {
@@ -243,9 +242,9 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
 
                     // calculate total tokens of all kinds to see if there's any tokens involved in the
                     // transaction
-                    NTP1Int totalOutputsTokens = std::accumulate(
-                        outputsTokens.begin(), outputsTokens.end(), NTP1Int(0),
-                        [](NTP1Int currRes, const std::pair<std::string, TokenMinimalData>& t) {
+                    int64_t totalOutputsTokens = std::accumulate(
+                        outputsTokens.begin(), outputsTokens.end(), 0,
+                        [](int64_t currRes, const std::pair<std::string, TokenMinimalData>& t) {
                             return currRes + t.second.amount;
                         });
                     if (totalOutputsTokens != 0) {
