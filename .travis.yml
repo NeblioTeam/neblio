@@ -5,7 +5,10 @@ os:
 - osx
 - linux
 language: cpp
-cache: ccache
+cache:
+- ccache
+- directories:
+  - $HOME/Library/Caches/Homebrew
 env:
   global:
   matrix:
