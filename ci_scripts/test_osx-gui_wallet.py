@@ -41,10 +41,6 @@ nci.call_with_err_code('brew unlink python        && brew link --force --overwri
 nci.call_with_err_code('brew unlink openssl       && brew link --force --overwrite openssl')
 nci.call_with_err_code('brew unlink qrencode      && brew link --force --overwrite qrencode')
 
-if (os.environ["USE_CCACHE"] == 1):
-	os.environ['CXX'] = 'ccache $CXX'
-	os.environ['CC']  = 'ccache $CC'
-
 nci.call_with_err_code('ccache -s')
 
 if (args.test):

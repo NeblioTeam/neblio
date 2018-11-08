@@ -81,10 +81,6 @@ os.chdir(working_dir)
 
 os.chdir(dirname)
 
-if (os.environ["USE_CCACHE"] == 1):
-	os.environ['CXX'] = 'ccache $CXX'
-	os.environ['CC']  = 'ccache $CC'
-
 call("./configure --disable-shared --prefix=" + os.path.join(working_dir,dirname_bin) + " --with-ssl=" +os.path.join(working_dir,"openssl_build") + " --without-libidn2 --without-librtmp --disable-ldap",shell=True)
 call(r"make -j" + str(mp.cpu_count()), shell=True)
 call(r"make install", shell=True)

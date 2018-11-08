@@ -81,10 +81,6 @@ os.chdir(working_dir)
 
 os.chdir(dirname)
 
-if (os.environ["USE_CCACHE"] == 1):
-	os.environ['CXX'] = 'ccache $CXX'
-	os.environ['CC']  = 'ccache $CC'
-
 call("./configure --enable-static --disable-shared --without-tools --disable-dependency-tracking",shell=True)
 call(r"make -j" + str(mp.cpu_count()), shell=True)
 call(r"sudo make install", shell=True)

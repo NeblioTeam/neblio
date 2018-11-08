@@ -46,10 +46,6 @@ print("Starting build process...")
 nci.call_with_err_code("TARGET_OS=NATIVE_WINDOWS make libleveldb.a libmemenv.a CC=" + CC_path + " CXX=" + CXX_path)
 print("Done.")
 
-if (os.environ["USE_CCACHE"] == 1):
-	os.environ['CXX'] = 'ccache $CXX'
-	os.environ['CC']  = 'ccache $CC'
-
 os.chdir(working_dir)
 
 #Go to build dir and build
