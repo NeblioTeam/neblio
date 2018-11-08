@@ -61,6 +61,8 @@ if (os.environ["USE_CCACHE"] == 1):
 	os.environ['CXX'] = 'ccache $CXX'
 	os.environ['CC']  = 'ccache $CC'
 
+nci.call_with_err_code("echo $PATH && which g++ && ls -al /usr/lib/ccache")
+
 if (args.test):
 	nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "OPENSSL_INCLUDE_PATH=' + openssl_include_path + '" "OPENSSL_LIB_PATH=' + openssl_lib_path + '" "PKG_CONFIG_PATH=' + pkg_config_path + '" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
 	nci.call_with_err_code("make -j" + str(mp.cpu_count()))
