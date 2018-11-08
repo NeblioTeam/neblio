@@ -43,6 +43,9 @@ nci.call_with_err_code('brew unlink qrencode      && brew link --force --overwri
 
 nci.call_with_err_code('ccache -s')
 
+# prepend ccache to the path, necessary since prior steps prepend things to the path
+os.environ['PATH'] = '/usr/lib/ccache:' + os.environ['PATH']
+
 if (args.test):
 	nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
 	nci.call_with_err_code("make -j" + str(mp.cpu_count()))

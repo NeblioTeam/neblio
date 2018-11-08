@@ -48,6 +48,9 @@ print("Done.")
 
 os.chdir(working_dir)
 
+# prepend ccache to the path, necessary since prior steps prepend things to the path
+os.environ['PATH'] = '/usr/lib/ccache:' + os.environ['PATH']
+
 #Go to build dir and build
 nci.mkdir_p(build_dir)
 os.chdir(build_dir)

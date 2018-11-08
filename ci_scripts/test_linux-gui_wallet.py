@@ -57,10 +57,8 @@ os.environ['PKG_CONFIG_PATH'] = pkg_config_path
 os.environ['OPENSSL_INCLUDE_PATH'] = openssl_include_path
 os.environ['OPENSSL_LIB_PATH'] = openssl_lib_path
 
-
+# prepend ccache to the path, necessary since prior steps prepend things to the path
 os.environ['PATH'] = '/usr/lib/ccache:' + os.environ['PATH']
-
-nci.call_with_err_code("echo $PATH && which g++ && ls -al /usr/lib/ccache")
 
 if (args.test):
 	nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "OPENSSL_INCLUDE_PATH=' + openssl_include_path + '" "OPENSSL_LIB_PATH=' + openssl_lib_path + '" "PKG_CONFIG_PATH=' + pkg_config_path + '" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
