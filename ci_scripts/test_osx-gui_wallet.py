@@ -18,8 +18,6 @@ nci.mkdir_p(deploy_dir)
 nci.mkdir_p(build_dir)
 os.chdir(build_dir)
 
-nci.call_with_err_code('brew update')
-
 # set up ccache
 nci.call_with_err_code('brew fetch --retry ccache        && brew install ccache --force')
 
