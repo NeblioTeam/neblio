@@ -7,8 +7,6 @@ os:
 language: cpp
 cache:
 - ccache
-- directories:
-  - $HOME/Library/Caches/Homebrew
 env:
   global:
   matrix:
