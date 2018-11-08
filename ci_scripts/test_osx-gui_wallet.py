@@ -48,12 +48,12 @@ os.environ['PATH'] = '/usr/local/opt/ccache/libexec:' + os.environ['PATH']
 nci.call_with_err_code("echo $PATH && which g++ && which clang++ && ls -al /usr/local/opt/ccache && ls -al /usr/local/opt/ccache/libexec")
 
 if (args.test):
-	nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
+	nci.call_with_err_code('qmake "QMAKE_CXX=ccache $${QMAKE_CXX}" "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
 	nci.call_with_err_code("make -j" + str(mp.cpu_count()))
 	# run tests
 	nci.call_with_err_code("./wallet/test/neblio-Qt.app/Contents/MacOS/neblio-Qt")
 else:
-	nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-wallet.pro')
+	nci.call_with_err_code('qmake "QMAKE_CXX=ccache $${QMAKE_CXX}" "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-wallet.pro')
 	nci.call_with_err_code("make -j" + str(mp.cpu_count()))
 	# build our .dmg
 	nci.call_with_err_code('sudo easy_install appscript')
