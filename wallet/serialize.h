@@ -20,6 +20,7 @@
 #include <boost/tuple/tuple.hpp>
 
 #include "allocators.h"
+#include "ntp1/ntp1script.h"
 #include "version.h"
 
 class CAutoFile;
@@ -379,6 +380,11 @@ template<typename C> unsigned int GetSerializeSize(const std::basic_string<C>& s
 template<typename Stream, typename C> void Serialize(Stream& os, const std::basic_string<C>& str, int, int=0);
 template<typename Stream, typename C> void Unserialize(Stream& is, std::basic_string<C>& str, int, int=0);
 
+// NTP1Int
+inline unsigned int GetSerializeSize(const NTP1Int& str, int, int=0);
+template<typename Stream> void Serialize(Stream& os, const NTP1Int& str, int, int=0);
+template<typename Stream> void Unserialize(Stream& is, NTP1Int& str, int, int=0);
+
 // vector
 template<typename T, typename A> unsigned int GetSerializeSize_impl(const std::vector<T, A>& v, int nType, int nVersion, const boost::true_type&);
 template<typename T, typename A> unsigned int GetSerializeSize_impl(const std::vector<T, A>& v, int nType, int nVersion, const boost::false_type&);
@@ -476,6 +482,36 @@ void Unserialize(Stream& is, std::basic_string<C>& str, int, int)
     str.resize(nSize);
     if (nSize != 0)
         is.read((char*)&str[0], nSize * sizeof(str[0]));
+}
+
+//
+// NTP1Int
+//
+unsigned int GetSerializeSize(const NTP1Int& num, int, int)
+{
+    std::string str = boost::to_string(num);
+    return GetSerializeSize(str, 0, 0);
+}
+
+template<typename Stream>
+void Serialize(Stream& os, const NTP1Int& num, int, int)
+{
+    std::string str = boost::to_string(num);
+    Serialize(os, str, 0, 0);
+}
+
+template<typename Stream>
+void Unserialize(Stream& is, NTP1Int& num, int, int)
+{
+    std::string str;
+    Unserialize(is, str, 0, 0);
+    if (!str.empty()) {
+        std::stringstream ss;
+        ss << str;
+        ss >> num;
+    } else {
+        num = 0;
+    }
 }
 
 

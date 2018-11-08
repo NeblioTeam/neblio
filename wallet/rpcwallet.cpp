@@ -378,7 +378,7 @@ Value sendntp1toaddress(const Array& params, bool fHelp)
     return wtx.GetHash().GetHex();
 }
 
-std::unordered_map<std::string, std::unordered_map<std::string, std::pair<std::string, uint64_t>>>
+std::unordered_map<std::string, std::unordered_map<std::string, std::pair<std::string, NTP1Int>>>
 GetNTP1AddressVsTokenBalances()
 {
     boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();
@@ -386,7 +386,7 @@ GetNTP1AddressVsTokenBalances()
     ntp1wallet->update();
 
     // map<address, map<tokenId, pair<name,balance>>>
-    std::unordered_map<std::string, std::unordered_map<std::string, std::pair<std::string, uint64_t>>>
+    std::unordered_map<std::string, std::unordered_map<std::string, std::pair<std::string, NTP1Int>>>
         addressBalances;
 
     const std::unordered_map<NTP1OutPoint, NTP1Transaction>& ntp1outputs =
@@ -400,7 +400,7 @@ GetNTP1AddressVsTokenBalances()
             continue;
         }
         if (addressBalances.find(addr) == addressBalances.end()) {
-            addressBalances[addr] = std::unordered_map<std::string, std::pair<std::string, uint64_t>>();
+            addressBalances[addr] = std::unordered_map<std::string, std::pair<std::string, NTP1Int>>();
         }
         for (int i = 0; i < (int)ntp1out.tokenCount(); i++) {
             std::string tokenId   = ntp1out.getToken(i).getTokenId();
@@ -429,7 +429,7 @@ Value listaddressgroupings(const Array& params, bool fHelp)
                             "made public by common use as inputs or as the resulting change\n"
                             "in past transactions");
 
-    std::unordered_map<std::string, std::unordered_map<std::string, std::pair<std::string, uint64_t>>>
+    std::unordered_map<std::string, std::unordered_map<std::string, std::pair<std::string, NTP1Int>>>
         ntp1AddressVsTokenBalances = GetNTP1AddressVsTokenBalances();
 
     Array                        jsonGroupings;
@@ -453,12 +453,12 @@ Value listaddressgroupings(const Array& params, bool fHelp)
             {
                 Array ntp1SingleTokenBalance;
                 if (ntp1AddressVsTokenBalances.find(addrStr) != ntp1AddressVsTokenBalances.end()) {
-                    for (const std::pair<std::string, std::pair<std::string, uint64_t>>& tokenBalance :
+                    for (const std::pair<std::string, std::pair<std::string, NTP1Int>>& tokenBalance :
                          ntp1AddressVsTokenBalances[addrStr]) {
                         Array inner;
-                        inner.push_back(tokenBalance.second.first);  // token name
-                        inner.push_back(tokenBalance.second.second); // balance
-                        inner.push_back(tokenBalance.first);         // token-id
+                        inner.push_back(tokenBalance.second.first);            // token name
+                        inner.push_back(ToString(tokenBalance.second.second)); // balance
+                        inner.push_back(tokenBalance.first);                   // token-id
                         ntp1SingleTokenBalance.push_back(inner);
                     }
                 }
@@ -731,12 +731,12 @@ Value getntp1balances(const Array& params, bool fHelp)
     for (int i = 0; i < tokenCount; i++) {
         std::string tokenId   = ntp1wallet->getTokenId(i);
         std::string tokenName = ntp1wallet->getTokenName(tokenId);
-        int64_t     balance   = ntp1wallet->getTokenBalance(tokenId);
+        NTP1Int     balance   = ntp1wallet->getTokenBalance(tokenId);
 
         json_spirit::Object tokenJsonData;
         tokenJsonData.push_back(json_spirit::Pair("Name", tokenName));
         tokenJsonData.push_back(json_spirit::Pair("TokenId", tokenId));
-        tokenJsonData.push_back(json_spirit::Pair("Balance", balance));
+        tokenJsonData.push_back(json_spirit::Pair("Balance", ToString(balance)));
 
         root.push_back(json_spirit::Pair(tokenId, tokenJsonData));
     }
@@ -902,8 +902,9 @@ Value sendmany(const Array& params, bool fHelp)
 
     // verify the NTP1 transaction before commiting
     try {
-        std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs = GetAllNTP1InputsOfTx(wtx);
-        NTP1Transaction                                       ntp1tx;
+        std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
+            GetAllNTP1InputsOfTx(wtx, false);
+        NTP1Transaction ntp1tx;
         ntp1tx.readNTP1DataFromTx(wtx, inputsTxs);
     } catch (std::exception& ex) {
         printf("An invalid NTP1 transaction was created; an exception was thrown: %s\n", ex.what());

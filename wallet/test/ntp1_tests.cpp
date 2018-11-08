@@ -18,8 +18,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-const std::string TempNTP1File("ntp1txout.bin");
-
 TEST(ntp1_tests, parse_NTP1TxIn_from_json)
 {
     std::string tx_str =
@@ -419,54 +417,55 @@ TEST(ntp1_tests, send_tests)
     json_spirit::Array to = NTP1Tools::GetArrayField(testVal.get_obj(), "to");
     EXPECT_EQ(NTP1Tools::GetStrField(to[0].get_obj(), "address"), "dest1");
     EXPECT_EQ(NTP1Tools::GetStrField(to[0].get_obj(), "tokenId"), "tokenid1");
-    EXPECT_EQ(NTP1Tools::GetUint64Field(to[0].get_obj(), "amount"), 1u);
+    EXPECT_EQ(NTP1Tools::GetNTP1IntField(to[0].get_obj(), "amount"), 1u);
     EXPECT_EQ(NTP1Tools::GetStrField(to[1].get_obj(), "address"), "dest2");
     EXPECT_EQ(NTP1Tools::GetStrField(to[1].get_obj(), "tokenId"), "tokenid2");
-    EXPECT_EQ(NTP1Tools::GetUint64Field(to[1].get_obj(), "amount"), 2u);
+    EXPECT_EQ(NTP1Tools::GetNTP1IntField(to[1].get_obj(), "amount"), 2u);
 }
 
 TEST(ntp1_tests, amount_to_int)
 {
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("69892a92"), 999901700);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("c007b60b6f687a"), 8478457292922);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("40ef54"), 38290000);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("201f"), 1000000000000000);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("60b0b460"), 723782);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("5545e1"), 871340);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("c007b60b6f687a"), 8478457292922);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("11"), 17);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("2011"), 10);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("2012"), 100);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("4bb3c1"), 479320);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("68c7e5b3"), 9207387000);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("8029990f1a"), 8723709100);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("a09c47f7b1a1"), 839027891720);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("c0a60eea1aa8fd"), 182582987368701);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("69892a92"), 999901700);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("c007b60b6f687a"), 8478457292922);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("40ef54"), 38290000);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("201f"), 1000000000000000);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("60b0b460"), 723782);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("5545e1"), 871340);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("c007b60b6f687a"), 8478457292922);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("11"), 17);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("2011"), 10);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("2012"), 100);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("4bb3c1"), 479320);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("68c7e5b3"), 9207387000);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("8029990f1a"), 8723709100);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("a09c47f7b1a1"), 839027891720);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("c0a60eea1aa8fd"), 182582987368701);
 
-    EXPECT_ANY_THROW(NTP1AmountHexToNumber<int64_t>("x"));
-    EXPECT_ANY_THROW(NTP1AmountHexToNumber<int64_t>(" "));
-    EXPECT_ANY_THROW(NTP1AmountHexToNumber<int64_t>("ssdsdmwdmo"));
-    EXPECT_ANY_THROW(NTP1AmountHexToNumber<int64_t>("999999999999999999999999999999999999999999999999"));
+    EXPECT_ANY_THROW(NTP1Script::NTP1AmountHexToNumber("x"));
+    EXPECT_ANY_THROW(NTP1Script::NTP1AmountHexToNumber(" "));
+    EXPECT_ANY_THROW(NTP1Script::NTP1AmountHexToNumber("ssdsdmwdmo"));
+    EXPECT_ANY_THROW(
+        NTP1Script::NTP1AmountHexToNumber("999999999999999999999999999999999999999999999999"));
 
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(999901700), "69892a92");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(8478457292922), "c007b60b6f687a");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(38290000), "40ef54");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(1000000000000000), "201f");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(723782), "60b0b460");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(871340), "5545e1");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(8478457292922), "c007b60b6f687a");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(17), "11");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(100), "2012");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(479320), "4bb3c1");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(9207387000), "68c7e5b3");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(8723709100), "8029990f1a");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(839027891720), "a09c47f7b1a1");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(182582987368701), "c0a60eea1aa8fd");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(999901700), "69892a92");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(8478457292922), "c007b60b6f687a");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(38290000), "40ef54");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(1000000000000000), "201f");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(723782), "60b0b460");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(871340), "5545e1");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(8478457292922), "c007b60b6f687a");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(17), "11");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(100), "2012");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(479320), "4bb3c1");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(9207387000), "68c7e5b3");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(8723709100), "8029990f1a");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(839027891720), "a09c47f7b1a1");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(182582987368701), "c0a60eea1aa8fd");
 
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(999999999997990), "c38d7ea4c67826");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(276413656646664), "c0fb6591d0c408");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(9731165496688), "c008d9b6a9a570");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(943721684679640), "c35a4f53c83bd8");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(999999999997990), "c38d7ea4c67826");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(276413656646664), "c0fb6591d0c408");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(9731165496688), "c008d9b6a9a570");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(943721684679640), "c35a4f53c83bd8");
 }
 
 TEST(ntp1_tests, script_transfer)
@@ -785,41 +784,6 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_issuance)
     EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getHash().ToString(),
               "c55dd5271dd8a9aa35a7f6c393a0eb24bcc50116bf15b49f4e760d3e9a138120");
     EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), static_cast<unsigned>(1));
-
-    /// READ AND WRITE
-    ///
-    std::remove(TempNTP1File.c_str());
-    {
-        // will be freed automatically by writeFromDisk
-        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-        EXPECT_NE(fileWrite, nullptr);
-
-        unsigned int nFileRet = -1;
-        unsigned int nTxPos   = -1;
-        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-        EXPECT_NE(fileRead, nullptr);
-
-        NTP1Transaction ntp1tx2;
-        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-        EXPECT_EQ(ntp1tx, ntp1tx2);
-    }
-    {
-        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-        EXPECT_NE(fileWrite, nullptr);
-
-        unsigned int nFileRet = -1;
-        unsigned int nTxPos   = -1;
-        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-        EXPECT_NE(fileRead, nullptr);
-
-        NTP1Transaction ntp1tx2;
-        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-        EXPECT_EQ(ntp1tx, ntp1tx2);
-    }
 }
 
 TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
@@ -1020,40 +984,6 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
     EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getHash().ToString(),
               "111481401fbd842c5aa1b9420db8c5ef7e94d9ac3b3d3b7e2b2cb6c7b0650612");
     EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getIndex(), static_cast<unsigned>(3));
-
-    /// READ AND WRITE
-    ///
-    {
-        // will be freed automatically by writeFromDisk
-        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-        EXPECT_NE(fileWrite, nullptr);
-
-        unsigned int nFileRet = -1;
-        unsigned int nTxPos   = -1;
-        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-        EXPECT_NE(fileRead, nullptr);
-
-        NTP1Transaction ntp1tx2;
-        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-        EXPECT_EQ(ntp1tx, ntp1tx2);
-    }
-    {
-        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-        EXPECT_NE(fileWrite, nullptr);
-
-        unsigned int nFileRet = -1;
-        unsigned int nTxPos   = -1;
-        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-        EXPECT_NE(fileRead, nullptr);
-
-        NTP1Transaction ntp1tx2;
-        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-        EXPECT_EQ(ntp1tx, ntp1tx2);
-    }
 }
 
 TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
@@ -1255,40 +1185,6 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
     EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getHash().ToString(),
               "111481401fbd842c5aa1b9420db8c5ef7e94d9ac3b3d3b7e2b2cb6c7b0650612");
     EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getIndex(), static_cast<unsigned>(3));
-
-    /// READ AND WRITE
-    ///
-    {
-        // will be freed automatically by writeFromDisk
-        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-        EXPECT_NE(fileWrite, nullptr);
-
-        unsigned int nFileRet = -1;
-        unsigned int nTxPos   = -1;
-        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-        EXPECT_NE(fileRead, nullptr);
-
-        NTP1Transaction ntp1tx2;
-        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-        EXPECT_EQ(ntp1tx, ntp1tx2);
-    }
-    {
-        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-        EXPECT_NE(fileWrite, nullptr);
-
-        unsigned int nFileRet = -1;
-        unsigned int nTxPos   = -1;
-        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-        EXPECT_NE(fileRead, nullptr);
-
-        NTP1Transaction ntp1tx2;
-        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-        EXPECT_EQ(ntp1tx, ntp1tx2);
-    }
 }
 
 TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
@@ -1605,41 +1501,6 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
     EXPECT_EQ(ntp1tx.getTxIn(3).getPrevout().getHash().ToString(),
               "0317c3f20338cd8ea142c389e65670554c676905d2024a58775f695fe88f1298");
     EXPECT_EQ(ntp1tx.getTxIn(3).getPrevout().getIndex(), static_cast<unsigned>(3));
-
-    /// READ AND WRITE
-    ///
-    {
-        // will be freed automatically by writeFromDisk
-        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-        EXPECT_NE(fileWrite, nullptr);
-
-        unsigned int nFileRet = -1;
-        unsigned int nTxPos   = -1;
-        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-        EXPECT_NE(fileRead, nullptr);
-
-        NTP1Transaction ntp1tx2;
-
-        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-        EXPECT_EQ(ntp1tx, ntp1tx2);
-    }
-    {
-        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-        EXPECT_NE(fileWrite, nullptr);
-
-        unsigned int nFileRet = -1;
-        unsigned int nTxPos   = -1;
-        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-        EXPECT_NE(fileRead, nullptr);
-
-        NTP1Transaction ntp1tx2;
-        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-        EXPECT_EQ(ntp1tx, ntp1tx2);
-    }
 }
 
 std::string GetRawTxURL(const std::string& txid, bool testnet)
@@ -2015,16 +1876,6 @@ void TestSingleNTP1TxParsingLocally(const std::string&                          
     }
 }
 
-// list of transactions to be excluded from tests
-std::unordered_set<std::string> excluded_txs_testnet = {
-    "826e7b74b24e458e39d779b1033567d325b8d93b507282f983e3c4b3f950fca1",
-    "c378447562be04c6803fdb9f829c9ba0dda462b269e15bcfc7fac3b3561d2eef",
-    "7e71508abef696d6c0427cc85073e0d56da9380f3d333354c7dd9370acd422bc",
-    "adb421a497e25375a88848b17b5c632a8d60db3d02dcc61dbecd397e6c1fb1ca",
-    "95c6f2b978160ab0d51545a13a7ee7b931713a52bd1c9f12807f4cd77ff7536b"};
-
-std::unordered_set<std::string> excluded_txs_mainnet = {};
-
 void TestNTP1TxParsingLocally(bool testnet)
 {
     std::unordered_map<std::string, std::string> ntp1txs_map;
@@ -2051,10 +1902,10 @@ void TestNTP1TxParsingLocally(bool testnet)
             std::cout << "Finished testing " << count << " transactions" << std::endl;
         count++;
         if (testnet) {
-            if (excluded_txs_testnet.find(txid) != excluded_txs_testnet.end())
+            if (excluded_txs_testnet.exists(uint256(txid)))
                 continue;
         } else {
-            if (excluded_txs_mainnet.find(txid) != excluded_txs_mainnet.end())
+            if (excluded_txs_mainnet.exists(uint256(txid)))
                 continue;
         }
         TestSingleNTP1TxParsingLocally(txid, nebltxs_map, ntp1txs_map);
