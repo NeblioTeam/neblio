@@ -46,6 +46,8 @@ nci.call_with_err_code('ccache -s')
 os.environ['PATH'] = '/usr/lib/ccache:' + os.environ['PATH']
 os.environ['PATH'] = '/usr/local/opt/ccache/libexec:' + os.environ['PATH']
 
+nci.call_with_err_code("echo $PATH && which g++ && which clang++ && ls -al /usr/lib/ccache && ls -al /usr/local/opt/ccache && ls -al /usr/local/opt/ccache/libexec")
+
 if (args.test):
 	nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
 	nci.call_with_err_code("make -j" + str(mp.cpu_count()))
