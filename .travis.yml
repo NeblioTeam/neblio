@@ -9,6 +9,7 @@ cache:
 - ccache
 env:
   global:
+  - CCACHE_MAXSIZE=1G
   matrix:
   - target_v=osx
   - target_v=osx_test

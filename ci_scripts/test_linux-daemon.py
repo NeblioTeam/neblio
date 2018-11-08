@@ -51,6 +51,8 @@ nci.call_with_err_code('ccache -s')
 # prepend ccache to the path, necessary since prior steps prepend things to the path
 os.environ['PATH'] = '/usr/lib/ccache:' + os.environ['PATH']
 
+nci.call_with_err_code("echo $CXX && echo $PATH && which g++ && ls -al /usr/lib/ccache")
+
 nci.call_with_err_code('make "STATIC=1" -B -w -f makefile.unix -j' + str(mp.cpu_count()))
 nci.call_with_err_code('strip ./nebliod')
 
