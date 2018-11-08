@@ -57,9 +57,8 @@ os.environ['PKG_CONFIG_PATH'] = pkg_config_path
 os.environ['OPENSSL_INCLUDE_PATH'] = openssl_include_path
 os.environ['OPENSSL_LIB_PATH'] = openssl_lib_path
 
-if (os.environ["USE_CCACHE"] == 1):
-	os.environ['CXX'] = 'ccache $CXX'
-	os.environ['CC']  = 'ccache $CC'
+
+os.environ['PATH'] = '/usr/lib/ccache:$PATH'
 
 nci.call_with_err_code("echo $PATH && which g++ && ls -al /usr/lib/ccache")
 

@@ -5,11 +5,9 @@ os:
 - osx
 - linux
 language: cpp
-cache:
-- ccache
+cache: ccache
 env:
   global:
-  - USE_CCACHE=1
   matrix:
   - target_v=osx
   - target_v=osx_test
