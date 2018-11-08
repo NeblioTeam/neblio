@@ -46,6 +46,8 @@ os.environ['PKG_CONFIG_PATH'] = os.path.join(working_dir, build_dir, 'curl_build
 os.environ['OPENSSL_INCLUDE_PATH'] = os.path.join(working_dir, build_dir, 'openssl_build/include/')
 os.environ['OPENSSL_LIB_PATH'] = os.path.join(working_dir, build_dir, 'openssl_build/lib/')
 
+nci.call_with_err_code('ccache -s')
+
 # prepend ccache to the path, necessary since prior steps prepend things to the path
 os.environ['PATH'] = '/usr/lib/ccache:' + os.environ['PATH']
 
