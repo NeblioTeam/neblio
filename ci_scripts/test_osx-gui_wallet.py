@@ -22,7 +22,6 @@ nci.call_with_err_code('brew update')
 
 # set up ccache
 nci.call_with_err_code('brew fetch --retry ccache        && brew install ccache --force')
-nci.call_with_err_code('export PATH="/usr/local/opt/ccache/libexec:$PATH"')
 
 nci.call_with_err_code('brew fetch --retry qt            && brew install qt --force')
 nci.call_with_err_code('brew fetch --retry berkeley-db@4 && brew install berkeley-db@4 --force')
@@ -45,6 +44,7 @@ nci.call_with_err_code('ccache -s')
 
 # prepend ccache to the path, necessary since prior steps prepend things to the path
 os.environ['PATH'] = '/usr/lib/ccache:' + os.environ['PATH']
+os.environ['PATH'] = '/usr/local/opt/ccache/libexec:' + os.environ['PATH']
 
 if (args.test):
 	nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
