@@ -87,6 +87,9 @@ os.chdir(working_dir)
 
 os.chdir(dirname)
 
+# prepend ccache to the path, necessary since prior steps prepend things to the path
+os.environ['PATH'] = '/usr/lib/ccache:' + os.environ['PATH']
+
 call("CFLAGS=" + cflags + " ./config " + configure_flags + " --prefix=" + os.path.join(working_dir,dirname_bin) + " " + configure_flags,shell=True)
 call(r"make -j" + str(mp.cpu_count()), shell=True)
 call(r"make install", shell=True)

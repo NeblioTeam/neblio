@@ -4,15 +4,20 @@ osx_image: xcode9.4
 os:
 - osx
 - linux
-language: minimal
+language: cpp
+cache:
+- ccache
+- directories:
+    - $HOME/Library/Caches/Homebrew
 env:
   global:
+  - CCACHE_MAXSIZE=1G
   matrix:
   - target_v=osx
   - target_v=osx_test
   - target_v=rpi_daemon_wallet
-  - target_v=linux_wallet
   - target_v=linux_wallet_test
+  - target_v=linux_wallet
   - target_v=windows
   - target_v=linux_daemon
 matrix:
@@ -37,9 +42,9 @@ before_script:
 script:
 - if [[ "$target_v" == "osx"               ]]; then python ci_scripts/test_osx-gui_wallet.py        ; fi
 - if [[ "$target_v" == "osx_test"          ]]; then python ci_scripts/test_osx-gui_wallet.py -t     ; fi
-- if [[ "$target_v" == "rpi_daemon_wallet" ]]; then python ci_scripts/test_rpi-daemon-gui-ccache.py ; fi
-- if [[ "$target_v" == "linux_wallet"      ]]; then python ci_scripts/test_linux-gui_wallet.py      ; fi
+- if [[ "$target_v" == "rpi_daemon_wallet" ]]; then python ci_scripts/test_rpi-daemon-gui.py        ; fi
 - if [[ "$target_v" == "linux_wallet_test" ]]; then python ci_scripts/test_linux-gui_wallet.py -t   ; fi
+- if [[ "$target_v" == "linux_wallet"      ]]; then python ci_scripts/test_linux-gui_wallet.py      ; fi
 - if [[ "$target_v" == "windows"           ]]; then python ci_scripts/test_win32-gui_wallet.py      ; fi
 - if [[ "$target_v" == "linux_daemon"      ]]; then python ci_scripts/test_linux-daemon.py          ; fi
 
@@ -53,9 +58,6 @@ before_deploy:
 - cd $TRAVIS_BUILD_DIR
 deploy:
   - provider: s3
-    edge:
-      source: NeblioTeam/dpl
-      branch: master
     endpoint: https://ams3.digitaloceanspaces.com
     access_key_id: 2VUF47CKX6AGTOKSGPBC
     secret_access_key:
