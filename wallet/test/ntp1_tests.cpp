@@ -1869,7 +1869,11 @@ void TestSingleNTP1TxParsingLocally(const std::string&                          
 {
     const std::string  rawTx = nebltxs_map.find(txid)->second;
     const CTransaction tx    = TxFromHex(rawTx);
-    TestSingleNTP1TxParsingLocally(tx, nebltxs_map, ntp1txs_map);
+
+    // Only run test for NTP1v1, exclude NTP1v2 until we support it
+    if (IsTxNTP1(&tx)) {
+    	TestSingleNTP1TxParsingLocally(tx, nebltxs_map, ntp1txs_map);
+    }
 }
 
 void TestNTP1TxParsingLocally(bool testnet)

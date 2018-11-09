@@ -18,7 +18,11 @@ nci.mkdir_p(deploy_dir)
 nci.mkdir_p(build_dir)
 os.chdir(build_dir)
 
-nci.call_with_err_code('brew update')
+# do not auto update homebrew as it is very slow
+os.environ['HOMEBREW_NO_AUTO_UPDATE'] = '1'
+
+# set up ccache
+nci.call_with_err_code('brew fetch --retry ccache        && brew install ccache --force')
 
 nci.call_with_err_code('brew fetch --retry qt            && brew install qt --force')
 nci.call_with_err_code('brew fetch --retry berkeley-db@4 && brew install berkeley-db@4 --force')
@@ -37,14 +41,18 @@ nci.call_with_err_code('brew unlink python        && brew link --force --overwri
 nci.call_with_err_code('brew unlink openssl       && brew link --force --overwrite openssl')
 nci.call_with_err_code('brew unlink qrencode      && brew link --force --overwrite qrencode')
 
+nci.call_with_err_code('ccache -s')
+
+# prepend ccache to the path, necessary since prior steps prepend things to the path
+os.environ['PATH'] = '/usr/local/opt/ccache/libexec:' + os.environ['PATH']
 
 if (args.test):
-	nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
+	nci.call_with_err_code('qmake "QMAKE_CXX=ccache clang++" "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
 	nci.call_with_err_code("make -j" + str(mp.cpu_count()))
 	# run tests
 	nci.call_with_err_code("./wallet/test/neblio-Qt.app/Contents/MacOS/neblio-Qt")
 else:
-	nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-wallet.pro')
+	nci.call_with_err_code('qmake "QMAKE_CXX=ccache clang++" "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-wallet.pro')
 	nci.call_with_err_code("make -j" + str(mp.cpu_count()))
 	# build our .dmg
 	nci.call_with_err_code('sudo easy_install appscript')
@@ -58,6 +66,8 @@ else:
 	nci.call_with_err_code('zip -j ' + file_name + ' ./neblio-QT.dmg')
 	nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)
 	nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
+
+nci.call_with_err_code('ccache -s')
 
 
 print("")

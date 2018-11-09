@@ -81,6 +81,9 @@ os.chdir(working_dir)
 
 os.chdir(dirname)
 
+# prepend ccache to the path, necessary since prior steps prepend things to the path
+os.environ['PATH'] = '/usr/lib/ccache:' + os.environ['PATH']
+
 call("./configure --enable-static --disable-shared --without-tools --disable-dependency-tracking",shell=True)
 call(r"make -j" + str(mp.cpu_count()), shell=True)
 call(r"sudo make install", shell=True)
