@@ -113,15 +113,17 @@ contains(BITCOIN_NEED_QT_PLUGINS, 1) {
 }
 
 
-# these defines are necessary for LMDB 32-bit on linux
-linux-g++:QMAKE_TARGET.arch = $$QMAKE_HOST.arch
-linux-g++-32:QMAKE_TARGET.arch = x86
-linux-g++-64:QMAKE_TARGET.arch = x86_64
-
 message("Using lmdb as the blockchain database")
-contains(QMAKE_TARGET.arch, x86_64) {
-    message("Compiling LMDB for a 64-bit system")
-    LMDB_32_BIT = false
+compiler_info = $$system("$${QMAKE_CXX} -dumpmachine")
+!contains(NEBLIO_CONFIG, VL32) {
+    contains(compiler_info, .*x86_64.*) | contains(NEBLIO_CONFIG, VL64) {
+        message("Compiling LMDB for a 64-bit system")
+        LMDB_32_BIT = false
+    } else {
+        DEFINES += MDB_VL32
+        message("Compiling LMDB for a 32-bit system")
+        LMDB_32_BIT = true
+    }
 } else {
     DEFINES += MDB_VL32
     message("Compiling LMDB for a 32-bit system")
