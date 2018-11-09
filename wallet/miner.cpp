@@ -261,6 +261,8 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
         int                    nBlockSigOps = 100;
         bool                   fSortedByFee = (nBlockPrioritySize <= 0);
 
+        map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>> mapQueuedNTP1Inputs;
+
         TxPriorityCompare comparer(fSortedByFee);
         std::make_heap(vecPriority.begin(), vecPriority.end(), comparer);
 
@@ -306,8 +308,13 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
             // Connecting shouldn't fail due to dependency on other memory pool transactions
             // because we're already processing them in order of dependency
             map<uint256, CTxIndex> mapTestPoolTmp(mapTestPool);
-            MapPrevTx              mapInputs;
-            bool                   fInvalid;
+
+            std::vector<std::pair<CTransaction, NTP1Transaction>>               inputsTxs;
+            map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>> mapQueuedNTP1InputsTmp(
+                mapQueuedNTP1Inputs);
+
+            MapPrevTx mapInputs;
+            bool      fInvalid;
             if (!tx.FetchInputs(txdb, mapTestPoolTmp, false, true, mapInputs, fInvalid))
                 continue;
 
@@ -319,17 +326,15 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
             if (nBlockSigOps + nTxSigOps >= MAX_BLOCK_SIGOPS)
                 continue;
 
-            if (!tx.ConnectInputs(txdb, mapInputs, mapTestPoolTmp, CDiskTxPos(1, 1), pindexPrev, false,
-                                  true))
-                continue;
-
             try {
                 std::string opRet;
                 if (IsTxNTP1(&tx, &opRet)) {
                     auto script = NTP1Script::ParseScript(opRet);
                     if (script->getTxType() == NTP1Script::TxType_Issuance) {
-                        std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
-                            StdFetchedInputTxsToNTP1(tx, mapInputs, txdb, false);
+
+                        inputsTxs = StdFetchedInputTxsToNTP1(tx, mapInputs, txdb, false,
+                                                             mapQueuedNTP1InputsTmp, mapTestPoolTmp);
+
                         NTP1Transaction ntp1tx;
                         ntp1tx.readNTP1DataFromTx(tx, inputsTxs);
                         AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, txdb);
@@ -362,8 +367,14 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
                 continue;
             }
 
+            if (!tx.ConnectInputs(txdb, mapInputs, mapTestPoolTmp, CDiskTxPos(1, 1), pindexPrev, false,
+                                  true))
+                continue;
+
             mapTestPoolTmp[tx.GetHash()] = CTxIndex(CDiskTxPos(1, 1), tx.vout.size());
             swap(mapTestPool, mapTestPoolTmp);
+            mapQueuedNTP1InputsTmp[tx.GetHash()] = inputsTxs;
+            swap(mapQueuedNTP1Inputs, mapQueuedNTP1InputsTmp);
 
             // Added
             pblock->vtx.push_back(tx);

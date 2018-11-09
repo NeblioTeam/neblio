@@ -19,18 +19,20 @@
 
 #define DEBUG__INCLUDE_STR_HASH
 
+class CTransaction;
+
 // TODO: Sam: optimize this; this is a temporary solution
 struct KeyHasher
 {
-    std::size_t operator()(const uint256& k) const { return std::hash<string>()(k.ToString()); }
+    std::size_t operator()(const uint256& k) const { return std::hash<std::string>()(k.ToString()); }
 };
 
 extern const ThreadSafeHashMap<std::string, int>        ntp1_blacklisted_token_ids;
 extern const ThreadSafeHashMap<uint256, int, KeyHasher> excluded_txs_testnet;
 extern const ThreadSafeHashMap<uint256, int, KeyHasher> excluded_txs_mainnet;
 
-bool IsNTP1TokenBlacklisted(const string& tokenId, int& maxHeight);
-bool IsNTP1TokenBlacklisted(const string& tokenId);
+bool IsNTP1TokenBlacklisted(const std::string& tokenId, int& maxHeight);
+bool IsNTP1TokenBlacklisted(const std::string& tokenId);
 bool IsNTP1TxExcluded(const uint256& txHash);
 
 struct TokenMinimalData
@@ -309,6 +311,15 @@ void NTP1Transaction::__TransferTokens(
                 }
                 if (inputDone) {
                     break;
+                }
+            }
+
+            // check if the token is blacklisted
+            int blacklistHeight = 0;
+            if (IsNTP1TokenBlacklisted(currentTokenId, blacklistHeight)) {
+                if (nBestHeight >= blacklistHeight) {
+                    throw std::runtime_error("The NTP1 token " + currentTokenId +
+                                             " is blacklisted and cannot be transferred or burned.");
                 }
             }
 

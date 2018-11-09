@@ -13,6 +13,7 @@
 #include "zerocoin/Zerocoin.h"
 
 #include <list>
+#include <unordered_map>
 #include <unordered_set>
 
 class CWallet;
@@ -163,18 +164,35 @@ void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, CTxDB
 void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, CTxDB& txdb);
 
 void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, CTxDB& txdb);
+void AssertIssuanceUniquenessInBlock(
+    std::unordered_map<std::string, uint256>& issuedTokensSymbolsInThisBlock, CTxDB& txdb,
+    const CTransaction&                                                        tx,
+    const map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>& mapQueuedNTP1Inputs,
+    const map<uint256, CTxIndex>&                                              queuedAcceptedTxs);
 
 /** for a certain transaction, retrieve all NTP1 data from the database */
-std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTransaction tx,
-                                                                           bool recoverProtection);
-std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTransaction tx, CTxDB& txdb,
-                                                                           bool recoverProtection);
+std::vector<std::pair<CTransaction, NTP1Transaction>>
+GetAllNTP1InputsOfTx(CTransaction tx, bool recoverProtection, int recursionCount = 0);
+
+std::vector<std::pair<CTransaction, NTP1Transaction>>
+GetAllNTP1InputsOfTx(CTransaction tx, CTxDB& txdb, bool recoverProtection, int recursionCount = 0);
+
+std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(
+    CTransaction tx, CTxDB& txdb, bool recoverProtection,
+    const map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>& mapQueuedNTP1Inputs,
+    const map<uint256, CTxIndex>& queuedAcceptedTxs = map<uint256, CTxIndex>(), int recursionCount = 0);
 
 /** blacklisted tokens are tokens that are to be ignored and not used for historical reasons */
 bool IsIssuedTokenBlacklisted(std::pair<CTransaction, NTP1Transaction>& txPair);
 
 void AssertNTP1TokenNameIsNotAlreadyInMainChain(std::string sym, const uint256& txHash, CTxDB& txdb);
 void AssertNTP1TokenNameIsNotAlreadyInMainChain(const NTP1Transaction& ntp1tx, CTxDB& txdb);
+
+/** this function solves the problem of blocks having inputs from the same block. To process transactions
+ * in such a situation (or always, to be safe), first we pop the transactions from the leaves (the
+ * inputs), and then process their parents. This function pops one transaction from the leaf of a least
+ * of transactions from a block */
+CTransaction PopLeafTransaction(std::vector<CTransaction>& vtx);
 
 /** True if the transaction is in the main chain (can throw) */
 bool IsTxInMainChain(const uint256& txHash);
@@ -188,7 +206,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
 /** the conditions for considering the upgraded network configuration */
 bool PassedNetworkUpgradeBlock(uint32_t nBestHeight, bool isTestnet);
 
-bool EnableUniqueTokenSymbols(uint32_t nBestHeight, bool isTestnet);
+bool EnableEnforceUniqueTokenSymbols(uint32_t nBestHeight, bool isTestnet);
 
 /** the condition for the first valid NTP1 transaction; transactions before this point are invalid in the
  * network*/
@@ -217,9 +235,14 @@ unsigned int StakeMinAge(uint32_t nBestHeight);
 typedef std::map<uint256, std::pair<CTxIndex, CTransaction>> MapPrevTx;
 
 /** Take a list of standard neblio transactions and return pairs of neblio and NTP1 transactions */
-std::vector<std::pair<CTransaction, NTP1Transaction>>
-StdFetchedInputTxsToNTP1(const CTransaction& tx, const MapPrevTx& mapInputs, CTxDB& txdb,
-                         bool recoverProtection);
+std::vector<std::pair<CTransaction, NTP1Transaction>> StdFetchedInputTxsToNTP1(
+    const CTransaction& tx, const MapPrevTx& mapInputs, CTxDB& txdb, bool recoverProtection,
+    const map<uint256, CTxIndex>& queuedAcceptedTxs = map<uint256, CTxIndex>(), int recursionCount = 0);
+
+std::vector<std::pair<CTransaction, NTP1Transaction>> StdFetchedInputTxsToNTP1(
+    const CTransaction& tx, const MapPrevTx& mapInputs, CTxDB& txdb, bool recoverProtection,
+    const map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>& mapQueuedNTP1Inputs,
+    const map<uint256, CTxIndex>& queuedAcceptedTxs = map<uint256, CTxIndex>(), int recursionCount = 0);
 
 bool GetWalletFile(CWallet* pwallet, std::string& strWalletFileOut);
 
@@ -1390,7 +1413,7 @@ public:
     bool ReadFromDisk(const CBlockIndex* pindex, CTxDB& txdb, bool fReadTransactions = true);
     bool SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew, const bool createDbTransaction = true);
     bool AddToBlockIndex(uint256 nBlockPos, const uint256& hashProof, CTxDB& txdb,
-                         const bool createDbTransaction = true);
+                         CBlockIndex** newBlockIdxPtr = nullptr, const bool createDbTransaction = true);
     bool CheckBlock(bool fCheckPOW = true, bool fCheckMerkleRoot = true, bool fCheckSig = true) const;
     bool AcceptBlock();
     bool GetCoinAge(uint64_t& nCoinAge) const; // ppcoin: calculate total coin age spent in block

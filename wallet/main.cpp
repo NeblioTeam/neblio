@@ -711,9 +711,10 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
         if (txdb.ContainsTx(hash))
             return false;
 
-        MapPrevTx              mapInputs;
-        map<uint256, CTxIndex> mapUnused;
-        bool                   fInvalid = false;
+        MapPrevTx                                                           mapInputs;
+        map<uint256, CTxIndex>                                              mapUnused;
+        map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>> mapUnused2;
+        bool                                                                fInvalid = false;
         if (!tx.FetchInputs(txdb, mapUnused, false, false, mapInputs, fInvalid)) {
             if (fInvalid)
                 return error("AcceptToMemoryPool : FetchInputs found invalid tx %s",
@@ -771,14 +772,16 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
                          hash.ToString().substr(0, 10).c_str());
         }
 
-        if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet) ||
-            EnableUniqueTokenSymbols(nBestHeight, fTestNet)) {
+        if (PassedFirstValidNTP1Tx(nBestHeight, fTestNet) &&
+            PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
             try {
                 std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
-                    StdFetchedInputTxsToNTP1(tx, mapInputs, txdb, false);
+                    StdFetchedInputTxsToNTP1(tx, mapInputs, txdb, false, mapUnused2, mapUnused);
                 NTP1Transaction ntp1tx;
                 ntp1tx.readNTP1DataFromTx(tx, inputsTxs);
-                AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, txdb);
+                if (EnableEnforceUniqueTokenSymbols(nBestHeight, fTestNet)) {
+                    AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, txdb);
+                }
             } catch (std::exception& ex) {
                 printf("AcceptToMemoryPool: An invalid NTP1 transaction was submitted to the memory "
                        "pool; an exception was "
@@ -1602,16 +1605,27 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
         nTxPos = ::GetSerializeSize(CBlock(), SER_DISK, CLIENT_VERSION) - (2 * GetSizeOfCompactSize(0)) +
                  GetSizeOfCompactSize(vtx.size());
 
-    map<uint256, CTxIndex>     mapQueuedChanges;
-    map<uint256, CTransaction> mapQueuedChangesTxs;
-    int64_t                    nFees        = 0;
-    int64_t                    nValueIn     = 0;
-    int64_t                    nValueOut    = 0;
-    int64_t                    nStakeReward = 0;
-    unsigned int               nSigOps      = 0;
+    // Comment by Sam: mapQueuedChanges is the list of transactions that already happened in the same
+    // block. This is necessary for verifying outputs that are being spent in the same blocks
+
+    map<uint256, CTxIndex> mapQueuedChanges;
+    int64_t                nFees        = 0;
+    int64_t                nValueIn     = 0;
+    int64_t                nValueOut    = 0;
+    int64_t                nStakeReward = 0;
+
+    map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>> mapQueuedNTP1Inputs;
+
+    unsigned int nSigOps = 0;
+
+    // map of issued token names in this block vs token hashes
+    // this is used to prevent duplicate token names
+    std::unordered_map<std::string, uint256> issuedTokensSymbolsInThisBlock;
 
     for (CTransaction& tx : vtx) {
         uint256 hashTx = tx.GetHash();
+
+        std::vector<std::pair<CTransaction, NTP1Transaction>> inputsWithNTP1;
 
         // Do not allow blocks that contain transactions which 'overwrite' older transactions,
         // unless those are already completely spent.
@@ -1666,13 +1680,50 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
             if (tx.IsCoinStake())
                 nStakeReward = nTxValueOut - nTxValueIn;
 
+            if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+                try {
+                    if (IsTxNTP1(&tx)) {
+                        // check if there are inputs already cached
+                        inputsWithNTP1 =
+                            GetAllNTP1InputsOfTx(tx, txdb, true, mapQueuedNTP1Inputs, mapQueuedChanges);
+
+                        // write NTP1 transactions' data
+                        NTP1Transaction ntp1tx;
+                        ntp1tx.readNTP1DataFromTx(tx, inputsWithNTP1);
+                    }
+                } catch (std::exception& ex) {
+                    return error("Error while verifying NTP1Transaction validity in ConnectBlock(): "
+                                 "%s\n",
+                                 ex.what());
+                } catch (...) {
+                    return error("Error while verifying NTP1Transaction validity in ConnectBlock(). "
+                                 "Unknown exception thrown\n");
+                }
+            }
+
+            if (EnableEnforceUniqueTokenSymbols(nBestHeight, fTestNet)) {
+                try {
+                    AssertIssuanceUniquenessInBlock(issuedTokensSymbolsInThisBlock, txdb, tx,
+                                                    mapQueuedNTP1Inputs, mapQueuedChanges);
+                } catch (std::exception& ex) {
+                    return error("Error while verifying the uniqueness of issued token symbol in "
+                                 "ConnectBlock(): "
+                                 "%s\n",
+                                 ex.what());
+                } catch (...) {
+                    return error("Error while verifying the uniqueness of issued token symbol in "
+                                 "ConnectBlock(). "
+                                 "Unknown exception thrown\n");
+                }
+            }
+
             if (!tx.ConnectInputs(txdb, mapInputs, mapQueuedChanges, posThisTx, pindex, true, false)) {
                 return false;
             }
         }
 
-        mapQueuedChanges[hashTx]    = CTxIndex(posThisTx, tx.vout.size());
-        mapQueuedChangesTxs[hashTx] = tx;
+        mapQueuedChanges[hashTx]          = CTxIndex(posThisTx, tx.vout.size());
+        mapQueuedNTP1Inputs[tx.GetHash()] = inputsWithNTP1;
     }
 
     if (IsProofOfWork()) {
@@ -2039,7 +2090,7 @@ bool CBlock::GetCoinAge(uint64_t& nCoinAge) const
 }
 
 bool CBlock::AddToBlockIndex(uint256 nBlockPos, const uint256& hashProof, CTxDB& txdb,
-                             const bool createDbTransaction)
+                             CBlockIndex** newBlockIdxPtr, const bool createDbTransaction)
 {
     // Check for duplicate
     uint256 hash = GetHash();
@@ -2110,6 +2161,11 @@ bool CBlock::AddToBlockIndex(uint256 nBlockPos, const uint256& hashProof, CTxDB&
     }
 
     uiInterface.NotifyBlocksChanged();
+
+    if (newBlockIdxPtr != nullptr) {
+        *newBlockIdxPtr = pindexNew;
+    }
+
     return true;
 }
 
@@ -2231,7 +2287,7 @@ bool RecoverNTP1TxInDatabase(const CTransaction& tx, CTxDB& txdb, bool recoveryP
 
     if (recoveryProtection && UnrecoverableNTP1Txs.find(tx.GetHash()) != UnrecoverableNTP1Txs.end()) {
         printf("Will not recover transaction %s; it was marked for non-recovery. Restart to attempt to "
-               "recover again.",
+               "recover again.\n",
                tx.GetHash().ToString().c_str());
         return false;
     }
@@ -2247,7 +2303,6 @@ bool RecoverNTP1TxInDatabase(const CTransaction& tx, CTxDB& txdb, bool recoveryP
         for (const auto& in : tx.vin) {
             CTransaction inputTx;
             try {
-                // TODO: Sam: Put these two into one function as they're used twice
                 inputTx = FetchTxFromDisk(in.prevout.hash, txdb);
                 bool anyInputBeforeWrongBlockHeights =
                     !PassedFirstValidNTP1Tx(GetTxBlockHeight(inputTx.GetHash()), fTestNet);
@@ -2338,7 +2393,7 @@ void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, CTxDB& txdb)
 {
     if (ntp1tx.getTxType() == NTP1TxType_UNKNOWN) {
         throw std::runtime_error(
-            "Attempted to write an NTP1 transaction to database with unknown type (probably unparsed).");
+            "Attempted to write an NTP1 transaction to database with unknown type.");
     }
     if (!txdb.WriteNTP1Tx(ntp1tx.getTxHash(), ntp1tx)) {
         throw std::runtime_error("Unable to write NTP1 transaction to database: " +
@@ -2364,8 +2419,26 @@ void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, CTxDB& txdb)
 
 std::vector<std::pair<CTransaction, NTP1Transaction>>
 StdFetchedInputTxsToNTP1(const CTransaction& tx, const MapPrevTx& mapInputs, CTxDB& txdb,
-                         bool recoverProtection)
+                         bool recoverProtection, const map<uint256, CTxIndex>& queuedAcceptedTxs,
+                         int recursionCount)
 {
+    // It's not possible to use default parameter here because NTP1Transaction is an incomplete type in
+    // main.h, and including NTP1Transaction header file is not possible due to circular dependency
+    return StdFetchedInputTxsToNTP1(
+        tx, mapInputs, txdb, recoverProtection,
+        map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>(), queuedAcceptedTxs,
+        recursionCount);
+}
+
+std::vector<std::pair<CTransaction, NTP1Transaction>> StdFetchedInputTxsToNTP1(
+    const CTransaction& tx, const MapPrevTx& mapInputs, CTxDB& txdb, bool recoverProtection,
+    const map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>& mapQueuedNTP1Inputs,
+    const map<uint256, CTxIndex>& queuedAcceptedTxs, int recursionCount)
+{
+    if (recursionCount >= 32) {
+        throw std::runtime_error("Reached maximum recursion in StdFetchedInputTxsToNTP1");
+    }
+
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputsWithNTP1;
     // put the input transactions in a vector with their corresponding NTP1 transactions
     {
@@ -2384,29 +2457,62 @@ StdFetchedInputTxsToNTP1(const CTransaction& tx, const MapPrevTx& mapInputs, CTx
                        });
     }
 
-    for (auto&& inTx : inputsWithNTP1) {
-        // read NTP1 transaction inputs. If they fail, that's OK, because they will
-        // fail later if they're necessary
-        FetchNTP1TxFromDisk(inTx, txdb, recoverProtection);
+    // NTP1 transaction data is either in the test pool OR in the database; no third option here
+    auto it = mapQueuedNTP1Inputs.find(tx.GetHash());
+    if (it == mapQueuedNTP1Inputs.end()) {
+        for (auto&& inTx : inputsWithNTP1) {
+            if (IsTxNTP1(&inTx.first)) {
+                if (txdb.ContainsNTP1Tx(inTx.first.GetHash())) {
+                    // if the transaction is in the database, get it
+                    FetchNTP1TxFromDisk(inTx, txdb, recoverProtection);
+                } else if (queuedAcceptedTxs.find(inTx.first.GetHash()) != queuedAcceptedTxs.end()) {
+                    // otherwise, if the transaction is already in the test pool, use it to read it
+
+                    std::vector<std::pair<CTransaction, NTP1Transaction>> inputsOfInput =
+                        GetAllNTP1InputsOfTx(inTx.first, txdb, recoverProtection, mapQueuedNTP1Inputs,
+                                             queuedAcceptedTxs, recursionCount + 1);
+
+                    NTP1Transaction ntp1tx;
+                    inTx.second.readNTP1DataFromTx(inTx.first, inputsOfInput);
+                } else {
+                    // read NTP1 transaction inputs. If they fail, that's OK, because they will
+                    // fail later if they're necessary
+                    FetchNTP1TxFromDisk(inTx, txdb, recoverProtection);
+                }
+            }
+        }
+    } else {
+        inputsWithNTP1 = it->second;
     }
     return inputsWithNTP1;
 }
 
-std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTransaction tx,
-                                                                           bool recoverProtection)
+std::vector<std::pair<CTransaction, NTP1Transaction>>
+GetAllNTP1InputsOfTx(CTransaction tx, bool recoverProtection, int recursionCount)
 {
     CTxDB txdb;
-    return GetAllNTP1InputsOfTx(tx, txdb, recoverProtection);
+    return GetAllNTP1InputsOfTx(tx, txdb, recoverProtection,
+                                map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>(),
+                                map<uint256, CTxIndex>(), recursionCount);
 }
 
-std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTransaction tx, CTxDB& txdb,
-                                                                           bool recoverProtection)
+std::vector<std::pair<CTransaction, NTP1Transaction>>
+GetAllNTP1InputsOfTx(CTransaction tx, CTxDB& txdb, bool recoverProtection, int recursionCount)
+{
+    return GetAllNTP1InputsOfTx(tx, txdb, recoverProtection,
+                                map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>(),
+                                map<uint256, CTxIndex>(), recursionCount);
+}
+
+std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(
+    CTransaction tx, CTxDB& txdb, bool recoverProtection,
+    const map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>& mapQueuedNTP1Inputs,
+    const map<uint256, CTxIndex>& queuedAcceptedTxs, int recursionCount)
 {
     // rertrieve standard transaction inputs (NOT NTP1)
-    MapPrevTx              mapInputs;
-    map<uint256, CTxIndex> mapUnused;
-    bool                   fInvalid = false;
-    if (!tx.FetchInputs(txdb, mapUnused, true, false, mapInputs, fInvalid)) {
+    MapPrevTx mapInputs;
+    bool      fInvalid = false;
+    if (!tx.FetchInputs(txdb, queuedAcceptedTxs, true, false, mapInputs, fInvalid)) {
         if (fInvalid) {
             printf("Error: For GetAllNTP1InputsOfTx, FetchInputs found invalid tx %s\n",
                    tx.GetHash().ToString().c_str());
@@ -2415,8 +2521,8 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTran
         }
     }
 
-    std::vector<std::pair<CTransaction, NTP1Transaction>> result =
-        StdFetchedInputTxsToNTP1(tx, mapInputs, txdb, recoverProtection);
+    std::vector<std::pair<CTransaction, NTP1Transaction>> result = StdFetchedInputTxsToNTP1(
+        tx, mapInputs, txdb, recoverProtection, mapQueuedNTP1Inputs, queuedAcceptedTxs, recursionCount);
     return result;
 }
 
@@ -2443,14 +2549,16 @@ void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, CTxDB& txdb)
 
 void AssertIssuanceUniquenessInBlock(
     std::unordered_map<std::string, uint256>& issuedTokensSymbolsInThisBlock, CTxDB& txdb,
-    const CTransaction& tx)
+    const CTransaction&                                                        tx,
+    const map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>& mapQueuedNTP1Inputs,
+    const map<uint256, CTxIndex>&                                              queuedAcceptedTxs)
 {
     std::string opRet;
     if (IsTxNTP1(&tx, &opRet)) {
         auto script = NTP1Script::ParseScript(opRet);
         if (script->getTxType() == NTP1Script::TxType_Issuance) {
             std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
-                GetAllNTP1InputsOfTx(tx, txdb, false);
+                GetAllNTP1InputsOfTx(tx, txdb, false, mapQueuedNTP1Inputs, queuedAcceptedTxs);
 
             NTP1Transaction ntp1tx;
             ntp1tx.readNTP1DataFromTx(tx, inputsTxs);
@@ -2471,10 +2579,6 @@ void AssertIssuanceUniquenessInBlock(
     }
 }
 
-/** this function solves the problem of blocks having inputs from the same block. To process transactions
- * in such a situation (or always, to be safe), first we pop the transactions from the leaves (the
- * inputs), and then process their parents. This function pops one transaction from the leaf of a least
- * of transactions from a block */
 CTransaction PopLeafTransaction(std::vector<CTransaction>& vtx)
 {
     if (vtx.empty()) {
@@ -2503,31 +2607,10 @@ void WriteNTP1BlockTransactionsToDisk(const std::vector<CTransaction>& vtx, CTxD
     if (PassedFirstValidNTP1Tx(nBestHeight, fTestNet)) {
         std::vector<CTransaction> transactions(vtx.begin(), vtx.end());
 
-        // map of issued token names in this block vs token hashes
-        // this is used to prevent duplicate token names
-        std::unordered_map<std::string, uint256> issuedTokensSymbolsInThisBlock;
-
         // add current transactions to possible inputs to cover the case if a transaction spends an
         // output in the same block
         while (!transactions.empty()) {
             CTransaction&& tx = PopLeafTransaction(transactions);
-
-            if (EnableUniqueTokenSymbols(nBestHeight, fTestNet)) {
-                try {
-                    AssertIssuanceUniquenessInBlock(issuedTokensSymbolsInThisBlock, txdb, tx);
-                } catch (std::exception& ex) {
-                    throw std::runtime_error(
-                        strprintf("Error while verifying the uniqueness of issued token symbol in "
-                                  "WriteNTP1BlockTransactionsToDisk(): "
-                                  "%s\n",
-                                  ex.what()));
-                } catch (...) {
-                    throw std::runtime_error(
-                        "Error while verifying the uniqueness of issued token symbol in "
-                        "WriteNTP1BlockTransactionsToDisk(). "
-                        "Unknown exception thrown\n");
-                }
-            }
             WriteNTP1TxToDiskFromRawTx(tx, txdb);
         }
     }
@@ -4292,10 +4375,14 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
     return true;
 }
 
-bool EnableUniqueTokenSymbols(uint32_t /*nBestHeight*/, bool /*isTestnet*/)
+bool EnableEnforceUniqueTokenSymbols(uint32_t nBestHeight, bool isTestnet)
 {
-    return true;
-    //    return PassedNetworkUpgradeBlock(nBestHeight, isTestnet);
+    //    if (PassedFirstValidNTP1Tx(nBestHeight, isTestnet)) {
+    if (PassedNetworkUpgradeBlock(nBestHeight, isTestnet)) {
+        return true;
+    } else {
+        return false;
+    }
 }
 
 /** the conditions for considering the upgraded network configuration */
@@ -4578,8 +4665,15 @@ bool CBlock::WriteToDisk(const uint256& nBlockPos, const uint256& hashProof)
         return false;
     }
 
-    if (!AddToBlockIndex(nBlockPos, hashProof, txdb, false)) {
+    CBlockIndex* pindexNew = nullptr;
+
+    if (!AddToBlockIndex(nBlockPos, hashProof, txdb, &pindexNew, false)) {
         return error("AcceptBlock() : AddToBlockIndex failed");
+    }
+
+    if (!pindexNew) {
+        return error("Major Error: A nullptr CBlockIndex() was found in CBlock::WriteToDisk(), although "
+                     "AddToBlockIndex() succeeded. This should never happen!");
     }
 
     // This scope does NTP1 data writing
@@ -4587,13 +4681,16 @@ bool CBlock::WriteToDisk(const uint256& nBlockPos, const uint256& hashProof)
         try {
             WriteNTP1BlockTransactionsToDisk(vtx, txdb);
         } catch (std::exception& ex) {
-            // TODO: the block should be probably rejected if it fails here
-            return error("Unable to get NTP1 transaction written to the blockchain. Error: %s\n",
-                         ex.what());
+            if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+                return error("Unable to get NTP1 transaction written to the blockchain. Error: %s\n",
+                             ex.what());
+            }
         } catch (...) {
-            return error(
-                "Unable to get NTP1 transaction written to the blockchain. An unknown exception was "
-                "thrown");
+            if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+                return error(
+                    "Unable to get NTP1 transaction written to the blockchain. An unknown exception was "
+                    "thrown");
+            }
         }
     }
     success = true;
