@@ -151,13 +151,18 @@ SOURCES += txdb-lmdb.cpp
 #            genlmdb.commands += ./arena_test && ./cache_test && ./env_test && ./table_test && ./write_batch_test && ./coding_test && ./db_bench && ./fault_injection_test && ./issue178_test && ./autocompact_test && ./dbformat_test && ./filename_test && ./issue200_test && ./log_test && ./bloom_test && ./corruption_test && ./db_test && ./filter_block_test && ./recovery_test && ./version_edit_test && ./crc32c_test && ./hash_test && ./memenv_test && ./skiplist_test && ./version_set_test && ./c_test && ./env_posix_test
 #        }
 } else {
-    SOURCES += $$PWD/liblmdb/mdb.c $$PWD/liblmdb/midl.c
+#    SOURCES += $$PWD/liblmdb/mdb.c $$PWD/liblmdb/midl.c
     # make an educated guess about what the ranlib command is called
     isEmpty(QMAKE_RANLIB) {
         QMAKE_RANLIB = $$replace(QMAKE_STRIP, strip, ranlib)
     }
     LIBS += -lshlwapi
-#        genlmdb.commands = cd $$PWD/liblmdb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) clean && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) liblmdb.a && $$QMAKE_RANLIB -t $$PWD/liblmdb/liblmdb.a
+    LIBS += $$PWD/liblmdb/liblmdb.a
+    genlmdb.commands = cd $$PWD/liblmdb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) clean && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) liblmdb.a
+    isEqual(LMDB_32_BIT, true) {
+        genlmdb.commands += "CFLAGS=-DMDB_VL32 CXXFLAGS=-DMDB_VL32"
+    }
+    genlmdb.commands += "&& $$QMAKE_RANLIB -t $$PWD/liblmdb/liblmdb.a"
 }
 genlmdb.target = $$PWD/liblmdb/liblmdb.a
 genlmdb.depends = FORCE
