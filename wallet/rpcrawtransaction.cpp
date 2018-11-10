@@ -8,10 +8,10 @@
 #include "base58.h"
 #include "bitcoinrpc.h"
 #include "boost/make_shared.hpp"
+#include "climits"
 #include "init.h"
 #include "main.h"
 #include "net.h"
-#include "climits"
 #include "ntp1/ntp1transaction.h"
 #include "txdb.h"
 #include "wallet.h"
@@ -84,7 +84,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
 
     if (hashBlock != 0) {
         entry.push_back(Pair("blockhash", hashBlock.GetHex()));
-        map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
+        unordered_map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
         if (mi != mapBlockIndex.end() && (*mi).second) {
             CBlockIndex* pindex = (*mi).second;
             if (pindex->IsInMainChain()) {
@@ -370,10 +370,10 @@ Value createrawntp1transaction(const Array& params, bool fHelp)
         // here we add only nebls. NTP1 tokens will be added later
         if (rcp.tokenId == NTP1SendTxData::NEBL_TOKEN_ID) {
             using NeblInt = int64_t;
-            NeblInt val = 0;
-            if(rcp.amount > NTP1Int(std::numeric_limits<NeblInt>::max())) {
+            NeblInt val   = 0;
+            if (rcp.amount > NTP1Int(std::numeric_limits<NeblInt>::max())) {
                 val = std::numeric_limits<NeblInt>::max();
-            } else if(rcp.amount < 0) {
+            } else if (rcp.amount < 0) {
                 val = 0;
             } else {
                 val = rcp.amount.convert_to<NeblInt>();

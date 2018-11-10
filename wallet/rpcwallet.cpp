@@ -1431,7 +1431,7 @@ Value gettransaction(const Array& params, bool fHelp)
                 entry.push_back(Pair("confirmations", 0));
             else {
                 entry.push_back(Pair("blockhash", hashBlock.GetHex()));
-                map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
+                unordered_map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
                 if (mi != mapBlockIndex.end() && (*mi).second) {
                     CBlockIndex* pindex = (*mi).second;
                     if (pindex->IsInMainChain())

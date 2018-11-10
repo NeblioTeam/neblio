@@ -601,7 +601,7 @@ static CBlockIndex* InsertBlockIndex(uint256 hash)
         return nullptr;
 
     // Return existing
-    map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hash);
+    unordered_map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hash);
     if (mi != mapBlockIndex.end())
         return (*mi).second;
 
