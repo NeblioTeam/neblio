@@ -238,6 +238,7 @@ extern json_spirit::Value getblockhash(const json_spirit::Array& params, bool fH
 extern json_spirit::Value getblock(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getblockbynumber(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getcheckpoint(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value exportblockchain(const json_spirit::Array& params, bool fHelp);
 
 std::vector<NTP1SendTokensOneRecipientData>
 GetNTP1RecipientsVector(const json_spirit::Object& sendTo, boost::shared_ptr<NTP1Wallet> ntp1wallet);

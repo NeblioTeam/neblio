@@ -4771,13 +4771,13 @@ void ExportBootstrapBlockchain(const string& filename, std::atomic<bool>& stoppe
         {
             CBlockIndex* pblockindex = mapBlockIndex[hashBestChain];
             chainBlocksIndices.push_back(pblockindex);
-            while (pblockindex->nHeight > 0 && !stopped.load()) {
+            while (pblockindex->nHeight > 0 && !stopped.load() && !fShutdown) {
                 pblockindex = pblockindex->pprev;
                 chainBlocksIndices.push_back(pblockindex);
             }
         }
 
-        if (stopped.load()) {
+        if (stopped.load() || fShutdown) {
             throw std::runtime_error("Operation was stopped.");
         }
 
@@ -4795,7 +4795,7 @@ void ExportBootstrapBlockchain(const string& filename, std::atomic<bool>& stoppe
         for (CBlockIndex* blockIndex : boost::adaptors::reverse(chainBlocksIndices)) {
             progress.store(static_cast<double>(written) / static_cast<double>(total),
                            std::memory_order_relaxed);
-            if (stopped.load()) {
+            if (stopped.load() || fShutdown) {
                 throw std::runtime_error("Operation was stopped.");
             }
             CBlock block;

@@ -323,3 +323,49 @@ Value getcheckpoint(const Array& params, bool fHelp)
 
     return result;
 }
+
+Value exportblockchain(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 1)
+        throw runtime_error("exportblockchain <path-dir>\n"
+                            "Exports the blockchain bootstrap.dat file to <path-dir>.\n"
+                            "<path-dir> must be a directory that exists.");
+
+    boost::filesystem::path bdir(params[0].get_str());
+    if (!boost::filesystem::exists(bdir))
+        throw runtime_error("Directory " + bdir.string() + " does not exist.");
+
+    boost::filesystem::path filename = bdir / "bootstrap.dat";
+
+    boost::promise<void>       finished;
+    boost::unique_future<void> finished_future = finished.get_future();
+    std::atomic<bool>          stopped{false};
+    std::atomic<double>        progress{false};
+    boost::thread              exporterThread(boost::bind(&ExportBootstrapBlockchain, filename.string(),
+                                             boost::ref(stopped), boost::ref(progress),
+                                             boost::ref(finished)));
+    exporterThread.detach();
+
+    printf("Export blockchain to path started in another thread. Writing to path: %s\n",
+           filename.string().c_str());
+
+    int progVal            = 0;
+    int lastPrintedProgVal = -1;
+    while (!finished_future.is_ready()) {
+        progVal = static_cast<int>(progress.load() * 100);
+        if (progVal > lastPrintedProgVal) {
+            printf("Export blockchain progress: %i%%\n", progVal);
+            lastPrintedProgVal = progVal;
+        }
+        boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
+        if (fShutdown) {
+            stopped.store(true);
+        }
+    }
+
+    finished_future.get(); // throws, but that's compatible with exception handle in this function
+
+    printf("Export blockchain to path %s is done.\n", filename.string().c_str());
+
+    return Value();
+}

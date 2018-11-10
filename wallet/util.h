@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #endif
 
+#include <boost/atomic.hpp>
 #include <map>
 #include <regex>
 #include <string>
@@ -143,7 +144,6 @@ extern bool                                            fDebugNet;
 extern bool                                            fPrintToConsole;
 extern bool                                            fPrintToDebugger;
 extern bool                                            fRequestShutdown;
-extern bool                                            fShutdown;
 extern bool                                            fDaemon;
 extern bool                                            fServer;
 extern bool                                            fCommandLine;
@@ -152,6 +152,7 @@ extern bool                                            fTestNet;
 extern bool                                            fNoListen;
 extern bool                                            fLogTimestamps;
 extern bool                                            fReopenDebugLog;
+extern boost::atomic<bool>                             fShutdown;
 
 void RandAddSeed();
 void RandAddSeedPerfmon();
