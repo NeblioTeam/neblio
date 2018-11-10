@@ -1160,7 +1160,7 @@ void BitcoinGUI::updateCheckAnimation_frameChanged(int frameNumber)
 
 void BitcoinGUI::checkForNeblioUpdates()
 {
-    if (!isUpdateRunning) {
+    if (!isUpdateRunning && appInitiated) {
         printf("Checking for updates...\n");
         updaterLabel->setToolTip("Checking for updates...");
         updaterLabel->setMovie(updaterSpinnerMovie);
