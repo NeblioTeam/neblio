@@ -158,7 +158,7 @@ SOURCES += txdb-lmdb.cpp
     }
     LIBS += -lshlwapi
     LIBS += $$PWD/liblmdb/liblmdb.a
-    genlmdb.commands = cd $$PWD/liblmdb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) clean && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) liblmdb.a
+    genlmdb.commands = cd $$PWD/liblmdb && CC=$$QMAKE_CC $(MAKE) clean && CC=$$QMAKE_CC $(MAKE) liblmdb.a
     isEqual(LMDB_32_BIT, true) {
         genlmdb.commands += "CFLAGS=-DMDB_VL32 CXXFLAGS=-DMDB_VL32"
     }
