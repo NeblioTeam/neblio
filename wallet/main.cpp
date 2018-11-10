@@ -20,6 +20,7 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
+#include <boost/range/adaptor/reversed.hpp>
 #include <regex>
 
 using namespace std;
@@ -4756,4 +4757,73 @@ bool IsNTP1TxAtValidBlockHeight(const int bestHeight, const bool isTestnet)
 {
     return PassedNetworkUpgradeBlock(bestHeight, isTestnet) &&
            PassedFirstValidNTP1Tx(bestHeight, isTestnet);
+}
+
+void ExportBootstrapBlockchain(const string& filename, std::atomic<bool>& stopped,
+                               std::atomic<double>& progress, boost::promise<void>& result)
+{
+    RenameThread("Export-blockchain");
+    try {
+        progress.store(0, std::memory_order_relaxed);
+
+        std::vector<CBlockIndex*> chainBlocksIndices;
+
+        {
+            CBlockIndex* pblockindex = mapBlockIndex[hashBestChain];
+            chainBlocksIndices.push_back(pblockindex);
+            while (pblockindex->nHeight > 0 && !stopped.load()) {
+                pblockindex = pblockindex->pprev;
+                chainBlocksIndices.push_back(pblockindex);
+            }
+        }
+
+        if (stopped.load()) {
+            throw std::runtime_error("Operation was stopped.");
+        }
+
+        std::ofstream outFile(filename.c_str(), ios::binary);
+        if (!outFile.good()) {
+            throw std::runtime_error("Failed to open file for writing. Make sure you have sufficient "
+                                     "permissions and diskspace.");
+        }
+
+        size_t threadsholdSize = 1 << 24; // 4 MB
+
+        CDataStream  serializedBlocks(SER_DISK, CLIENT_VERSION);
+        size_t       written = 0;
+        const size_t total   = chainBlocksIndices.size();
+        for (CBlockIndex* blockIndex : boost::adaptors::reverse(chainBlocksIndices)) {
+            progress.store(static_cast<double>(written) / static_cast<double>(total),
+                           std::memory_order_relaxed);
+            if (stopped.load()) {
+                throw std::runtime_error("Operation was stopped.");
+            }
+            CBlock block;
+            block.ReadFromDisk(blockIndex, true);
+
+            // every block starts with pchMessageStart
+            unsigned int nSize = block.GetSerializeSize(SER_DISK, CLIENT_VERSION);
+            serializedBlocks << FLATDATA(pchMessageStart) << nSize;
+            serializedBlocks << block;
+            if (serializedBlocks.size() > threadsholdSize) {
+                outFile.write(serializedBlocks.str().c_str(), serializedBlocks.size());
+                serializedBlocks.clear();
+            }
+            written++;
+        }
+        if (serializedBlocks.size() > 0) {
+            outFile.write(serializedBlocks.str().c_str(), serializedBlocks.size());
+            serializedBlocks.clear();
+            if (!outFile.good()) {
+                throw std::runtime_error("An error was raised while writing the file. Make sure you "
+                                         "have sufficient permissions and diskspace.");
+            }
+        }
+        progress.store(1, std::memory_order_seq_cst);
+        result.set_value();
+    } catch (std::exception& ex) {
+        result.set_exception(boost::current_exception());
+    } catch (...) {
+        result.set_exception(boost::current_exception());
+    }
 }

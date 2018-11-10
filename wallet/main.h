@@ -1970,4 +1970,7 @@ public:
     IMPLEMENT_SERIALIZE(READWRITE(header); READWRITE(txn);)
 };
 
+void ExportBootstrapBlockchain(const string& filename, std::atomic<bool>& stopped,
+                               std::atomic<double>& progress, boost::promise<void>& result);
+
 #endif
