@@ -11,10 +11,6 @@ const std::string NeblioUpdater::ClientVersionSrcFileLink  = "https://raw.github
 const std::string NeblioUpdater::ReleasesInfoURL = "https://api.github.com/repos/NeblioTeam/neblio/releases";
 const std::string NeblioUpdater::LatestReleaseURL = "https://github.com/NeblioTeam/neblio/releases/latest";
 
-NeblioUpdater::NeblioUpdater()
-{
-}
-
 void NeblioUpdater::checkIfUpdateIsAvailable(boost::promise<bool> &updateIsAvailablePromise, NeblioReleaseInfo& lastRelease)
 {
     NeblioReleaseInfo remoteRelease;
