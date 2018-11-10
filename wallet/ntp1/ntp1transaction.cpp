@@ -29,8 +29,8 @@ ntp1_blacklisted_token_ids(std::unordered_map<std::string, int>{
 
 // list of transactions to be excluded because they're invalid
 // this should be a thread-safe hashset, but we don't have one. So we're using the map.
-const ThreadSafeHashMap<uint256, int, KeyHasher>
-excluded_txs_testnet(std::unordered_map<uint256, int, KeyHasher>{
+const ThreadSafeHashMap<uint256, int>
+excluded_txs_testnet(std::unordered_map<uint256, int>{
     {uint256("826e7b74b24e458e39d779b1033567d325b8d93b507282f983e3c4b3f950fca1"), 0},
     {uint256("c378447562be04c6803fdb9f829c9ba0dda462b269e15bcfc7fac3b3561d2eef"), 0},
     {uint256("a57a3e4746a79dd0d0e32e6a831d4207648ff000c82a4c5e8d9f3b6b0959f8b8"), 0},
@@ -47,7 +47,7 @@ excluded_txs_testnet(std::unordered_map<uint256, int, KeyHasher>{
     {uint256("ab336eecf51cdaecd3f7444d5da7eca2286462d44e7f3439458ecbe3d7514971"), 0},
     {uint256("95c6f2b978160ab0d51545a13a7ee7b931713a52bd1c9f12807f4cd77ff7536b"), 0}});
 
-const ThreadSafeHashMap<uint256, int, KeyHasher> excluded_txs_mainnet = {};
+const ThreadSafeHashMap<uint256, int> excluded_txs_mainnet = {};
 
 bool IsNTP1TokenBlacklisted(const string& tokenId, int& maxHeight)
 {

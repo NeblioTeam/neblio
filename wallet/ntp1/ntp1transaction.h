@@ -21,15 +21,9 @@
 
 class CTransaction;
 
-// TODO: Sam: optimize this; this is a temporary solution
-struct KeyHasher
-{
-    std::size_t operator()(const uint256& k) const { return std::hash<std::string>()(k.ToString()); }
-};
-
-extern const ThreadSafeHashMap<std::string, int>        ntp1_blacklisted_token_ids;
-extern const ThreadSafeHashMap<uint256, int, KeyHasher> excluded_txs_testnet;
-extern const ThreadSafeHashMap<uint256, int, KeyHasher> excluded_txs_mainnet;
+extern const ThreadSafeHashMap<std::string, int>            ntp1_blacklisted_token_ids;
+extern const ThreadSafeHashMap<uint256, int> excluded_txs_testnet;
+extern const ThreadSafeHashMap<uint256, int> excluded_txs_mainnet;
 
 bool IsNTP1TokenBlacklisted(const std::string& tokenId, int& maxHeight);
 bool IsNTP1TokenBlacklisted(const std::string& tokenId);
