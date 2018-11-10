@@ -11,6 +11,7 @@
 #include "init.h"
 #include "main.h"
 #include "net.h"
+#include "climits"
 #include "ntp1/ntp1transaction.h"
 #include "txdb.h"
 #include "wallet.h"
@@ -368,8 +369,16 @@ Value createrawntp1transaction(const Array& params, bool fHelp)
         scriptPubKey.SetDestination(CBitcoinAddress(rcp.destination).Get());
         // here we add only nebls. NTP1 tokens will be added later
         if (rcp.tokenId == NTP1SendTxData::NEBL_TOKEN_ID) {
-            // TODO: when converting to int64_t for NEBL, check for overflow
-            rawTx.vout.push_back(CTxOut(rcp.amount.convert_to<int64_t>(), scriptPubKey));
+            using NeblInt = int64_t;
+            NeblInt val = 0;
+            if(rcp.amount > NTP1Int(std::numeric_limits<NeblInt>::max())) {
+                val = std::numeric_limits<NeblInt>::max();
+            } else if(rcp.amount < 0) {
+                val = 0;
+            } else {
+                val = rcp.amount.convert_to<NeblInt>();
+            }
+            rawTx.vout.push_back(CTxOut(val, scriptPubKey));
         }
     }
 
