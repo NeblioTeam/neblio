@@ -79,7 +79,7 @@ bool         fImporting        = false;
 
 CMedianFilter<int> cPeerBlockCounts(5, 0); // Amount of blocks that other nodes claim to have
 
-map<uint256, CBlock*>              mapOrphanBlocks;
+unordered_map<uint256, CBlock*>    mapOrphanBlocks;
 multimap<uint256, CBlock*>         mapOrphanBlocksByPrev;
 set<pair<COutPoint, unsigned int>> setStakeSeenOrphan;
 
@@ -2366,7 +2366,7 @@ bool RecoverNTP1TxInDatabase(const CTransaction& tx, CTxDB& txdb, bool recoveryP
 }
 
 void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, CTxDB& txdb,
-                         bool recoverProtection, unsigned recurseDepth)
+                         bool /*recoverProtection*/, unsigned /*recurseDepth*/)
 {
     if (!IsTxNTP1(&txPair.first)) {
         return;
