@@ -2371,19 +2371,22 @@ void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, CTxDB
         return;
     }
     if (!txdb.ReadNTP1Tx(txPair.first.GetHash(), txPair.second)) {
-        printf("Unable to read NTP1 transaction from db: %s\n",
-               txPair.first.GetHash().ToString().c_str());
-        if (recurseDepth < 32) {
-            if (RecoverNTP1TxInDatabase(txPair.first, txdb, recoverProtection, recurseDepth + 1)) {
-                FetchNTP1TxFromDisk(txPair, txdb, recurseDepth + 1);
-            } else {
-                printf("Error: Failed to retrieve (and recover) NTP1 transaction %s.\n",
-                       txPair.first.GetHash().ToString().c_str());
-            }
-        } else {
-            printf("Error: max recursion depth, %u, reached while fetching transaction %s. Stopping!\n",
-                   recurseDepth, txPair.first.GetHash().ToString().c_str());
-        }
+        //        printf("Unable to read NTP1 transaction from db: %s\n",
+        //               txPair.first.GetHash().ToString().c_str());
+        //        if (recurseDepth < 32) {
+        //            if (RecoverNTP1TxInDatabase(txPair.first, txdb, recoverProtection, recurseDepth +
+        //            1)) {
+        //                FetchNTP1TxFromDisk(txPair, txdb, recurseDepth + 1);
+        //            } else {
+        //                printf("Error: Failed to retrieve (and recover) NTP1 transaction %s.\n",
+        //                       txPair.first.GetHash().ToString().c_str());
+        //            }
+        //        } else {
+        //            printf("Error: max recursion depth, %u, reached while fetching transaction %s.
+        //            Stopping!\n",
+        //                   recurseDepth, txPair.first.GetHash().ToString().c_str());
+        //        }
+        printf("Failed to fetch NTP1 transaction %s", txPair.first.GetHash().ToString().c_str());
         return;
     }
     txPair.second.updateDebugStrHash();
