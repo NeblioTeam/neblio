@@ -145,7 +145,7 @@ void BitcoinAmountField::slot_updateTokensList()
             tokenKindsComboBox->addItem(tokenKindsList[i].icon,
                                         tokenKindsList[i].name + " (" +
                                             QString::number(tokenKindsList[i].amount) + ") (" +
-                                            tokenKindsList[i].tokenId.left(10) + ")");
+                                            tokenKindsList[i].tokenId.left(10) + "...)");
         }
     }
 }
@@ -154,6 +154,11 @@ void BitcoinAmountField::slot_tokenChanged()
 {
     if (enableNTP1Tokens && tokenKindsComboBox->count() > 0) {
         unit->setEnabled(tokenKindsComboBox->currentIndex() == 0);
+        if (isNTP1TokenSelected()) {
+            amount->setSingleStep(1);
+        } else {
+            amount->setSingleStep(0.001);
+        }
     }
 }
 

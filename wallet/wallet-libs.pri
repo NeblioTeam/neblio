@@ -13,19 +13,18 @@ BOOST_LIB_SUFFIX=
 windows:BOOST_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include/boost
 windows:BOOST_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/lib
 macx:BOOST_LIB_PATH=/usr/local/opt/boost@1.60/lib
+macx:BOOST_INCLUDE_PATH=/usr/local/opt/boost@1.60/include
 windows:BDB_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include
 windows:BDB_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/lib
-macx:BDB_LIB_PATH=/usr/local/Cellar/berkeley-db\@4/4.8.30/lib/
-windows:OPENSSL_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include/openssl
-windows:OPENSSL_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/lib
-macx:OPENSSL_LIB_PATH=/usr/local/opt/openssl/lib
+macx:BDB_LIB_PATH=/usr/local/opt/berkeley-db\@4/lib/
 MINIUPNPC_LIB_SUFFIX=-miniupnpc
 windows:MINIUPNPC_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include
 windows:MINIUPNPC_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/libc
-macx:MINIUPNPC_INCLUDE_PATH=/usr/local/Cellar/miniupnpc/2.0.20170509/include
-macx:MINIUPNPC_LIB_PATH=/usr/local/Cellar/miniupnpc/2.0.20170509/lib
-macx:QRENCODE_INCLUDE_PATH=/usr/local/Cellar/qrencode/3.4.4/include
-macx:QRENCODE_LIB_PATH=/usr/local/Cellar/qrencode/3.4.4/lib
+macx:OPENSSL_LIB_PATH=/usr/local/opt/openssl/lib
+macx:MINIUPNPC_INCLUDE_PATH=/usr/local/opt/miniupnpc/include
+macx:MINIUPNPC_LIB_PATH=/usr/local/opt/miniupnpc/lib
+macx:QRENCODE_INCLUDE_PATH=/usr/local/opt/qrencode/include
+macx:QRENCODE_LIB_PATH=/usr/local/opt/qrencode/lib
 macx:CURL_LIB_PATH=/usr/local/opt/curl/lib
 windows:QRENCODE_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include
 windows:QRENCODE_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/libc
@@ -39,13 +38,13 @@ MOC_DIR = build
 UI_DIR = build
 
 # fixes an issue with boost 1.66 and the number of template parameters of basic_socket_acceptor
-DEFINES += BOOST_ASIO_ENABLE_OLD_SERVICES
+#DEFINES += BOOST_ASIO_ENABLE_OLD_SERVICES
 # TODO: Move to the new standard of boost as current code is deprecated
 
 # use: qmake "RELEASE=1"
 contains(RELEASE, 1) {
-    # Mac: compile for maximum compatibility (10.5, 32-bit)
-    macx:QMAKE_CXXFLAGS += -mmacosx-version-min=10.5 -arch x86_64 -isysroot /Developer/SDKs/MacOSX10.5.sdk
+    # Mac: compile for maximum compatibility (10.12, 32-bit)
+    macx:QMAKE_CXXFLAGS += -mmacosx-version-min=10.12 -arch x86_64 -Wno-nullability-completeness -Wno-unused-command-line-argument
 
     !windows:!macx {
         # Linux: static link
@@ -62,7 +61,10 @@ QMAKE_LFLAGS *= -fstack-protector-all
 # This can be enabled for Windows, when we switch to MinGW >= 4.4.x.
 }
 # for extra security (see: https://wiki.debian.org/Hardening)
-QMAKE_CXXFLAGS *= -D_FORTIFY_SOURCE=2 -Wl,-z,relro -Wl,-z,now
+QMAKE_CXXFLAGS *= -D_FORTIFY_SOURCE=2
+!clang* {
+    QMAKE_CXXFLAGS *= -Wl,-z,relro -Wl,-z,now
+}
 # for extra security on Windows: enable ASLR and DEP via GCC linker flags
 win32:QMAKE_LFLAGS *= -Wl,--dynamicbase -Wl,--nxcompat
 win32:QMAKE_LFLAGS *= -Wl,--large-address-aware -static
@@ -110,28 +112,64 @@ contains(BITCOIN_NEED_QT_PLUGINS, 1) {
     QTPLUGIN += qcncodecs qjpcodecs qtwcodecs qkrcodecs qtaccessiblewidgets
 }
 
-INCLUDEPATH += $$PWD/leveldb/include $$PWD/leveldb/helpers
-macx: INCLUDEPATH += /usr/include /usr/local/opt/berkeley-db@4/include /usr/local/opt/boost/include /usr/local/opt/openssl/include
-LIBS += $$PWD/leveldb/libleveldb.a $$PWD/leveldb/libmemenv.a
-SOURCES += txdb-leveldb.cpp
+
+message("Using lmdb as the blockchain database")
+compiler_info = $$system("$${QMAKE_CXX} -dumpmachine")
+!contains(NEBLIO_CONFIG, VL32) {
+    contains(compiler_info, .*x86_64.*) | contains(NEBLIO_CONFIG, VL64) {
+        message("Compiling LMDB for a 64-bit system")
+        LMDB_32_BIT = false
+    } else {
+        DEFINES += MDB_VL32
+        message("Compiling LMDB for a 32-bit system")
+        LMDB_32_BIT = true
+    }
+} else {
+    DEFINES += MDB_VL32
+    message("Compiling LMDB for a 32-bit system")
+    LMDB_32_BIT = true
+}
+#    LIBS += -llmdb
+
+INCLUDEPATH += $$PWD/liblmdb
+macx: INCLUDEPATH += /usr/local/opt/berkeley-db@4/include /usr/local/opt/boost@1.60/include /usr/local/opt/openssl/include
+SOURCES += txdb-lmdb.cpp
+#    SOURCES += $$PWD/liblmdb/mdb.c $$PWD/liblmdb/midl.c
+
+#NEBLIO_CONFIG += LMDB_TESTS
 
 !win32 {
+    LIBS += $$PWD/liblmdb/liblmdb.a
     # we use QMAKE_CXXFLAGS_RELEASE even without RELEASE=1 because we use RELEASE to indicate linking preferences not -O preferences
-    genleveldb.commands = cd $$PWD/leveldb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\" libleveldb.a libmemenv.a
+    #genlmdb.commands = cd $$PWD/liblmdb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\" liblmdb.a
+    genlmdb.commands = cd $$PWD/liblmdb && CC=$$QMAKE_CC $(MAKE) liblmdb.a
+    isEqual(LMDB_32_BIT, true) {
+        genlmdb.commands += "CFLAGS=-DMDB_VL32 CXXFLAGS=-DMDB_VL32"
+    }
+
+#        contains( NEBLIO_CONFIG, LMDB_TESTS ) {
+#            genlmdb.commands += ./arena_test && ./cache_test && ./env_test && ./table_test && ./write_batch_test && ./coding_test && ./db_bench && ./fault_injection_test && ./issue178_test && ./autocompact_test && ./dbformat_test && ./filename_test && ./issue200_test && ./log_test && ./bloom_test && ./corruption_test && ./db_test && ./filter_block_test && ./recovery_test && ./version_edit_test && ./crc32c_test && ./hash_test && ./memenv_test && ./skiplist_test && ./version_set_test && ./c_test && ./env_posix_test
+#        }
 } else {
+#    SOURCES += $$PWD/liblmdb/mdb.c $$PWD/liblmdb/midl.c
     # make an educated guess about what the ranlib command is called
     isEmpty(QMAKE_RANLIB) {
         QMAKE_RANLIB = $$replace(QMAKE_STRIP, strip, ranlib)
     }
     LIBS += -lshlwapi
-   # genleveldb.commands = cd $$PWD/leveldb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX TARGET_OS=OS_WINDOWS_CROSSCOMPILE $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\" libleveldb.a libmemenv.a && $$QMAKE_RANLIB $$PWD/leveldb/libleveldb.a && $$QMAKE_RANLIB $$PWD/leveldb/libmemenv.a
+    LIBS += $$PWD/liblmdb/liblmdb.a
+    genlmdb.commands = cd $$PWD/liblmdb && CC=$$QMAKE_CC $(MAKE) clean && CC=$$QMAKE_CC $(MAKE) liblmdb.a
+    isEqual(LMDB_32_BIT, true) {
+        genlmdb.commands += "CFLAGS=-DMDB_VL32 CXXFLAGS=-DMDB_VL32"
+    }
+    genlmdb.commands += "&& $$QMAKE_RANLIB -t $$PWD/liblmdb/liblmdb.a"
 }
-genleveldb.target = $$PWD/leveldb/libleveldb.a
-genleveldb.depends = FORCE
-PRE_TARGETDEPS += $$PWD/leveldb/libleveldb.a
-QMAKE_EXTRA_TARGETS += genleveldb
+genlmdb.target = $$PWD/liblmdb/liblmdb.a
+genlmdb.depends = FORCE
+PRE_TARGETDEPS += $$PWD/liblmdb/liblmdb.a
+QMAKE_EXTRA_TARGETS += genlmdb
 # Gross ugly hack that depends on qmake internals, unfortunately there is no other way to do it.
-QMAKE_CLEAN += $$PWD/leveldb/libleveldb.a; cd $$PWD/leveldb ; $(MAKE) clean
+QMAKE_CLEAN += $$PWD/liblmdb/liblmdb.a; cd $$PWD/liblmdb ; $(MAKE) clean
 
 # regenerate build.h
 !windows|contains(USE_BUILD_INFO, 1) {
@@ -194,26 +232,6 @@ isEmpty(BOOST_THREAD_LIB_SUFFIX) {
     else:BOOST_THREAD_LIB_SUFFIX = $$BOOST_LIB_SUFFIX
 }
 
-isEmpty(BDB_LIB_PATH) {
-    macx:BDB_LIB_PATH = /opt/local/lib/db48
-}
-
-isEmpty(BDB_LIB_SUFFIX) {
-    macx:BDB_LIB_SUFFIX = -4.8
-}
-
-isEmpty(BDB_INCLUDE_PATH) {
-    macx:BDB_INCLUDE_PATH = /opt/local/include/db48
-}
-
-isEmpty(BOOST_LIB_PATH) {
-    macx:BOOST_LIB_PATH = /opt/local/lib
-}
-
-isEmpty(BOOST_INCLUDE_PATH) {
-    #macx:BOOST_INCLUDE_PATH = /opt/local/include
-    macx:BOOST_INCLUDE_PATH = /usr/local/include
-}
 
 windows:DEFINES += WIN32
 
@@ -239,8 +257,8 @@ macx:QMAKE_CXXFLAGS_THREAD += -pthread
 
 # do not include resources while testing
 !contains( NEBLIO_TEST, TRUE ) {
-	macx:ICON = qt/res/icons/bitcoin.icns
-	windows:RC_FILE = qt/res/bitcoin-qt.rc
+    macx:ICON = qt/res/icons/bitcoin.icns
+    windows:RC_FILE = qt/res/bitcoin-qt.rc
 }
 
 # Set libraries and includes at end, to use platform-defined defaults if not overridden
@@ -258,6 +276,41 @@ macx: LIBS += -lcurl
 unix:INCLUDEPATH += /usr/include/libdb4/
 unix:LIBS        += -L/usr/lib64/libdb4/
 
+!macx {
+    PKG_CONFIG_ENV_VAR = $$(PKG_CONFIG_PATH)
+    !isEmpty(PKG_CONFIG_ENV_VAR) {
+        PKG_CONFIG_PATH = $$(PKG_CONFIG_PATH)
+    }
+    isEmpty(PKG_CONFIG_PATH_ENV_VAR) {
+        message("PKGCONFIG enviroment variable is not set")
+        pkgConfPrefix = ""
+    } else {
+        message("PKGCONFIG enviroment variable is found to be set to: \"$${PKG_CONFIG_ENV_VAR}\"; it will be used for pkg-config")
+        pkgConfPrefix = "PKGCONFIG=$${PKG_CONFIG_PATH}"
+    }
+
+    !isEmpty(PKG_CONFIG_PATH) {
+        message("Setting PKG_CONFIG_PATH to $${PKG_CONFIG_PATH}")
+    }
+
+        pkgconf_exec = "$${pkgConfPrefix} $${CROSS_COMPILE}pkg-config"
+
+    QMAKE_CFLAGS += $$system("$${pkgconf_exec} libcurl --cflags")
+    QMAKE_CXXFLAGS += $$system("$${pkgconf_exec} libcurl --cflags")
+
+    # static when release
+    contains(RELEASE, 1) {
+        libcurlPkgconfCmd = "$${pkgconf_exec} libcurl --libs --static"
+    } else {
+        libcurlPkgconfCmd = "$${pkgconf_exec} libcurl --libs"
+    }
+    # the testing whether system() has a zero exit code with the third parameter of system() doesn't work on all Qt versions
+    libcURL_LIBS = $$system($$libcurlPkgconfCmd)
+    # OpenSSL linking is not necessary as it comes with curl
+    # openssl_LIBS = $$system($$opensslPkgconfCmd)
+    LIBS += $$libcURL_LIBS $$openssl_LIBS
+}
+
 contains(RELEASE, 1) {
     !windows:!macx {
         # Linux: turn dynamic linking back on for c/c++ runtime libraries
@@ -269,14 +322,3 @@ contains(RELEASE, 1) {
     DEFINES += LINUX
     LIBS += -lrt -ldl
 }
-
-!win32:!macx {
-    cURL_LIBS = $$system("pkg-config libcurl --libs")
-    LIBS += $$cURL_LIBS
-}
-win32 {
-    # for mxe
-    cURL_LIBS = $$system("i686-w64-mingw32.static-pkg-config libcurl --libs")
-    LIBS += $$cURL_LIBS
-}
-

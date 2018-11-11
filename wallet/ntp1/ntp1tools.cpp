@@ -1,5 +1,7 @@
 #include "ntp1tools.h"
 
+#include "util.h"
+
 const std::string NTP1Tools::NTPAPI_base_url_mainnet_local = "https://ntp1node.nebl.io/ntp1/";
 const std::string NTP1Tools::NTPAPI_base_url_testnet_local = "https://ntp1node.nebl.io/testnet/ntp1/";
 
@@ -12,6 +14,12 @@ const std::string NTP1Tools::NTPAPI_tokenId         = "tokenid/";
 const std::string NTP1Tools::NTPAPI_tokenMetaData   = "tokenmetadata/";
 const std::string NTP1Tools::NTPAPI_stakeHolders    = "stakeholders/";
 const std::string NTP1Tools::NTPAPI_sendTokens      = "sendtoken/";
+
+const std::string NTP1Tools::EXPLORER_base_url_testnet = "https://testnet.explorer.nebl.io/";
+const std::string NTP1Tools::EXPLORER_base_url_mainnet = "https://explorer.nebl.io/";
+
+const std::string NTP1Tools::EXPLORER_tokenInfo       = "token/";
+const std::string NTP1Tools::EXPLORER_transactionInfo = "tx/";
 
 NTP1Tools::NTP1Tools() {}
 
@@ -34,6 +42,13 @@ uint64_t NTP1Tools::GetUint64Field(const json_spirit::Object& data, const std::s
     json_spirit::Value val;
     val = json_spirit::find_value(data, fieldName);
     return val.get_uint64();
+}
+
+NTP1Int NTP1Tools::GetNTP1IntField(const json_spirit::Object& data, const std::string& fieldName)
+{
+    json_spirit::Value val;
+    val = json_spirit::find_value(data, fieldName);
+    return FromString<NTP1Int>(val.get_str());
 }
 
 int64_t NTP1Tools::GetInt64Field(const json_spirit::Object& data, const std::string& fieldName)
@@ -103,4 +118,19 @@ std::string NTP1Tools::GetURL_AddressInfo(const std::string& address, bool testn
 std::string NTP1Tools::GetURL_SendTokens(bool testnet)
 {
     return GetURL_APIBase(testnet) + NTPAPI_sendTokens;
+}
+
+std::string NTP1Tools::GetURL_ExplorerBase(bool testnet)
+{
+    return (testnet ? EXPLORER_base_url_testnet : EXPLORER_base_url_mainnet);
+}
+
+std::string NTP1Tools::GetURL_ExplorerTokenInfo(const std::string& tokenId, bool testnet)
+{
+    return GetURL_ExplorerBase(testnet) + EXPLORER_tokenInfo + tokenId;
+}
+
+std::string NTP1Tools::GetURL_ExplorerTransactionInfo(const std::string& txId, bool testnet)
+{
+    return GetURL_ExplorerBase(testnet) + EXPLORER_transactionInfo + txId;
 }

@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #endif
 
+#include <boost/atomic.hpp>
 #include <map>
 #include <regex>
 #include <string>
@@ -22,7 +23,6 @@
 #include <boost/algorithm/hex.hpp>
 #include <boost/date_time/gregorian/gregorian_types.hpp>
 #include <boost/date_time/posix_time/posix_time_types.hpp>
-#include <boost/dynamic_bitset.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/path.hpp>
 #include <boost/thread.hpp>
@@ -37,9 +37,6 @@
 
 static const int64_t COIN = 100000000;
 static const int64_t CENT = 1000000;
-
-const std::string HexBytesRegexStr("^([0-9a-fA-F][0-9a-fA-F])+$");
-const std::regex  HexBytexRegex(HexBytesRegexStr);
 
 #define BEGIN(a) ((char*)&(a))
 #define END(a) ((char*)&((&(a))[1]))
@@ -147,7 +144,6 @@ extern bool                                            fDebugNet;
 extern bool                                            fPrintToConsole;
 extern bool                                            fPrintToDebugger;
 extern bool                                            fRequestShutdown;
-extern bool                                            fShutdown;
 extern bool                                            fDaemon;
 extern bool                                            fServer;
 extern bool                                            fCommandLine;
@@ -156,6 +152,7 @@ extern bool                                            fTestNet;
 extern bool                                            fNoListen;
 extern bool                                            fLogTimestamps;
 extern bool                                            fReopenDebugLog;
+extern boost::atomic<bool>                             fShutdown;
 
 void RandAddSeed();
 void RandAddSeedPerfmon();
@@ -264,6 +261,18 @@ std::string ToString(T&& value)
 
 template <typename T, typename U>
 typename std::enable_if<std::is_convertible<U, std::string>::value, T>::type FromString(U&& str)
+{
+    std::stringstream ss;
+    ss << str;
+    T ret;
+    ss >> ret;
+    return ret;
+}
+
+template <typename T, typename U>
+typename std::enable_if<!std::is_convertible<U, std::string>::value && std::is_same<T, NTP1Int>::value,
+                        T>::type
+FromString(U&& str)
 {
     std::stringstream ss;
     ss << str;
@@ -554,223 +563,5 @@ inline uint32_t ByteReverse(uint32_t value)
 std::string GeneratePseudoRandomString(const int len);
 
 std::string GeneratePseudoRandomHex(const int len);
-
-template <typename Bitset>
-void set_in_range(Bitset& b, uint8_t value, int from, int to)
-{
-    for (int i = from; i < to; ++i, value >>= 1) {
-        b[i] = (value & 1);
-    }
-}
-
-template <typename T>
-T NTP1AmountHexToNumber(std::string hexVal)
-{
-#ifdef __BYTE_ORDER__
-    static_assert(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__,
-                  "Non little-endian systems are not supported");
-#if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
-    throw std::runtime_error("Big and pdp endian systems are not supported");
-#endif
-#endif
-
-    // remove spaces
-    hexVal.erase(std::remove_if(hexVal.begin(), hexVal.end(), [](char c) { return c == ' '; }),
-                 hexVal.end());
-
-    if (!std::regex_match(hexVal, HexBytexRegex)) {
-        throw std::runtime_error("invalid hex binary string");
-    }
-    std::string bin = boost::algorithm::unhex(hexVal);
-    if (bin.size() > 7) {
-        throw std::out_of_range("Amount can't be bigger than 7 bytes.");
-    }
-
-    // convert the hex to a bitset
-    boost::dynamic_bitset<> bits(bin.size() * 8, 0);
-    for (unsigned i = 0; i < bin.size(); i++) {
-        set_in_range(bits, bin[bin.size() - i - 1], i * 8 + 0, (i + 1) * 8);
-    }
-
-    bool bit0 = bits[bits.size() - 1];
-    bool bit1 = bits[bits.size() - 2];
-    bool bit2 = bits[bits.size() - 3];
-
-    // sizes in bits
-    int headerSize   = 0;
-    int mantissaSize = 0;
-    int exponentSize = 0;
-    if (bit0 && bit1) {
-        headerSize   = 2;
-        mantissaSize = 54;
-        exponentSize = 0;
-    } else {
-        headerSize = 3;
-        if (bit0 == 0 && bit1 == 0 && bit2 == 0) {
-            mantissaSize = 5;
-            exponentSize = 0;
-        } else if (bit0 == 0 && bit1 == 0 && bit2 == 1) {
-            mantissaSize = 9;
-            exponentSize = 4;
-        } else if (bit0 == 0 && bit1 == 1 && bit2 == 0) {
-            mantissaSize = 17;
-            exponentSize = 4;
-        } else if (bit0 == 0 && bit1 == 1 && bit2 == 1) {
-            mantissaSize = 25;
-            exponentSize = 4;
-        } else if (bit0 == 1 && bit1 == 0 && bit2 == 0) {
-            mantissaSize = 34;
-            exponentSize = 3;
-        } else if (bit0 == 1 && bit1 == 0 && bit2 == 1) {
-            mantissaSize = 42;
-            exponentSize = 3;
-        } else {
-            throw std::logic_error("Unexpected binary structure. This should never happen.");
-        }
-    }
-
-    // ensure that the total size makes sense
-    {
-        unsigned totalBitSize = headerSize + mantissaSize + exponentSize;
-        if ((totalBitSize / 8) != bin.size() || (totalBitSize % 8) != 0) {
-            throw std::logic_error("The total bits don't make a byte. This should never happen.");
-        }
-    }
-
-    std::string bitString = boost::to_string(bits);
-    std::string mantissa  = bitString.substr(headerSize, mantissaSize);
-    std::string exponent  = bitString.substr(headerSize + mantissaSize, exponentSize);
-
-    return static_cast<T>(std::bitset<std::numeric_limits<T>::digits>(mantissa).to_ullong() *
-                          std::pow(10, boost::dynamic_bitset<>(exponent).to_ulong()));
-}
-
-template <typename T>
-T GetSignificantDigits(const T& num)
-{
-    if (num == 0) {
-        return 0;
-    }
-    std::string numStr   = std::to_string(num);
-    int         toRemove = 0;
-    for (int i = numStr.size() - 1; i >= 0; i--) {
-        if (numStr[i] == '0') {
-            toRemove++;
-        }
-    }
-    return FromString<T>(numStr.substr(0, numStr.size() - toRemove));
-}
-
-template <typename T>
-typename std::enable_if<!std::numeric_limits<T>::is_signed, std::string>::type
-NumberToHexNTP1Amount(const T& num, bool caps = false)
-{
-    std::string numStr     = boost::to_string(num);
-    int         zerosCount = 0;
-    // numbers less than 32 can fit in a single byte with no exponent
-    if (num >= 32 && std::to_string(GetSignificantDigits(num)).size() <= 12) {
-        for (unsigned i = 0; i < numStr.size(); i++) {
-            if (numStr[numStr.size() - i - 1] == '0') {
-                zerosCount++;
-            } else {
-                break;
-            }
-        }
-    }
-
-    T mantissaDecimal = FromString<T>(numStr.substr(0, numStr.size() - zerosCount));
-    // create binary values of mantissa and exponent (exponent's zero-count)
-    boost::dynamic_bitset<> mantissa(64, mantissaDecimal);
-    boost::dynamic_bitset<> exponent(64, zerosCount);
-    std::string             mantissaStr = boost::to_string(mantissa);
-    std::string             exponentStr = boost::to_string(exponent);
-    {
-        // trim mantissa leading zeros
-        int toTrim = 0;
-        for (unsigned i = 0; i < mantissaStr.size(); i++) {
-            if (mantissaStr[i] == '0') {
-                toTrim++;
-            } else {
-                break;
-            }
-        }
-        mantissaStr = mantissaStr.substr(toTrim, mantissaStr.size() - toTrim);
-    }
-    {
-        // trim exponent leading zeros
-        int toTrim = 0;
-        for (unsigned i = 0; i < exponentStr.size(); i++) {
-            if (exponentStr[i] == '0') {
-                toTrim++;
-            } else {
-                break;
-            }
-        }
-        exponentStr = exponentStr.substr(toTrim, exponentStr.size() - toTrim);
-    }
-
-    int         mantissaSize = 0;
-    int         exponentSize = 0;
-    std::string header;
-
-    if (mantissaStr.size() <= 5 && exponentStr.size() == 0) {
-        header       = "000";
-        mantissaSize = 5;
-        exponentSize = 0;
-    } else if (mantissaStr.size() <= 9 && exponentStr.size() <= 4) {
-        header       = "001";
-        mantissaSize = 9;
-        exponentSize = 4;
-    } else if (mantissaStr.size() <= 17 && exponentStr.size() <= 4) {
-        header       = "010";
-        mantissaSize = 17;
-        exponentSize = 4;
-    } else if (mantissaStr.size() <= 25 && exponentStr.size() <= 4) {
-        header       = "011";
-        mantissaSize = 25;
-        exponentSize = 4;
-    } else if (mantissaStr.size() <= 34 && exponentStr.size() <= 3) {
-        header       = "100";
-        mantissaSize = 34;
-        exponentSize = 3;
-    } else if (mantissaStr.size() <= 42 && exponentStr.size() <= 3) {
-        header       = "101";
-        mantissaSize = 42;
-        exponentSize = 3;
-    } else if (mantissaStr.size() <= 54 && exponentStr.size() == 0) {
-        header       = "11";
-        mantissaSize = 54;
-        exponentSize = 0;
-    } else {
-        throw std::runtime_error("Unable to encode the number " + std::to_string(num) +
-                                 " to NTP1 amount hex; its mantissa and exponent do not fit in the "
-                                 "expected binary representation.");
-    }
-
-    mantissaStr = std::string(mantissaSize - mantissaStr.size(), '0') + mantissaStr;
-    exponentStr = std::string(exponentSize - exponentStr.size(), '0') + exponentStr;
-
-    std::string finalBinString = header + mantissaStr + exponentStr;
-
-    if ((finalBinString.size() % 8) != 0) {
-        throw std::runtime_error("The constructed binary string does not have the expected size.");
-    }
-
-    std::string encodedData;
-    encodedData.resize(finalBinString.size() / 8);
-    for (unsigned i = 0; i < finalBinString.size(); i += 8) {
-        boost::dynamic_bitset<> singleByteBitset(finalBinString.substr(i, 8));
-        encodedData[i / 8] = static_cast<char>(singleByteBitset.to_ulong());
-    }
-    if (caps) {
-        std::string res = boost::algorithm::hex(encodedData);
-        std::transform(res.begin(), res.end(), res.begin(), ::toupper);
-        return res;
-    } else {
-        std::string res = boost::algorithm::hex(encodedData);
-        std::transform(res.begin(), res.end(), res.begin(), ::tolower);
-        return res;
-    }
-}
 
 #endif

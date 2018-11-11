@@ -83,6 +83,7 @@ public:
     {
         TokenNameRole = Qt::UserRole,
         TokenDescriptionRole,
+        TokenIdRole,
         AmountRole
     };
 

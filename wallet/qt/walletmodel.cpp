@@ -162,8 +162,11 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
     std::vector<COutput> vCoins;
     wallet->AvailableCoins(vCoins, true, coinControl);
 
-    for (const COutput& out : vCoins)
+    for (const COutput& out : vCoins) {
         nBalance += out.tx->vout[out.i].nValue;
+    }
+
+    std::cout << nBalance << std::endl;
 
     if (total > nBalance) {
         return AmountExceedsBalance;
@@ -218,20 +221,24 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
         CWalletTx   wtx;
         CReserveKey keyChange(wallet);
         int64_t     nFeeRequired = 0;
+        std::string errorMsg;
         bool fCreated = wallet->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, tokenCalculator,
-                                                  coinControl);
+                                                  coinControl, &errorMsg);
 
         if (!fCreated) {
             if ((total + nFeeRequired) > nBalance) // FIXME: could cause collisions in the future
             {
                 return SendCoinsReturn(AmountWithFeeExceedsBalance, nFeeRequired);
             }
-            return TransactionCreationFailed;
+            SendCoinsReturn ret(TransactionCreationFailed);
+            ret.msg = QString::fromStdString("Error while creating the transaction: " + errorMsg);
+            return ret;
         }
         // verify the NTP1 transaction before commiting
         try {
-            std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs = GetAllNTP1InputsOfTx(wtx);
-            NTP1Transaction                                       ntp1tx;
+            std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
+                GetAllNTP1InputsOfTx(wtx, false);
+            NTP1Transaction ntp1tx;
             ntp1tx.readNTP1DataFromTx(wtx, inputsTxs);
         } catch (std::exception& ex) {
             printf("An invalid NTP1 transaction was created; an exception was thrown: %s\n", ex.what());
@@ -328,13 +335,13 @@ bool WalletModel::backupWallet(const QString& filename)
 }
 
 // Handlers for core signals
-static void NotifyKeyStoreStatusChanged(WalletModel* walletmodel, CCryptoKeyStore* wallet)
+static void NotifyKeyStoreStatusChanged(WalletModel* walletmodel, CCryptoKeyStore* /*wallet*/)
 {
     OutputDebugStringF("NotifyKeyStoreStatusChanged\n");
     QMetaObject::invokeMethod(walletmodel, "updateStatus", Qt::QueuedConnection);
 }
 
-static void NotifyAddressBookChanged(WalletModel* walletmodel, CWallet* wallet,
+static void NotifyAddressBookChanged(WalletModel*          walletmodel, CWallet* /*wallet*/,
                                      const CTxDestination& address, const std::string& label,
                                      bool isMine, ChangeType status)
 {
@@ -468,10 +475,10 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput>>& mapCoins) c
     }
 }
 
-bool WalletModel::isLockedCoin(uint256 hash, unsigned int n) const { return false; }
+bool WalletModel::isLockedCoin(uint256 /*hash*/, unsigned int /*n*/) const { return false; }
 
-void WalletModel::lockCoin(COutPoint& output) { return; }
+void WalletModel::lockCoin(COutPoint& /*output*/) { return; }
 
-void WalletModel::unlockCoin(COutPoint& output) { return; }
+void WalletModel::unlockCoin(COutPoint& /*output*/) { return; }
 
-void WalletModel::listLockedCoins(std::vector<COutPoint>& vOutpts) { return; }
+void WalletModel::listLockedCoins(std::vector<COutPoint>& /*vOutpts*/) { return; }

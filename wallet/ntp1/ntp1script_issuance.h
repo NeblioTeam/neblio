@@ -7,7 +7,7 @@ class NTP1Script_Issuance : public NTP1Script
 {
     std::string   tokenSymbol;
     std::string   metadata;
-    uint64_t      amount;
+    NTP1Int       amount;
     IssuanceFlags issuanceFlags;
 
     friend class NTP1Script;
@@ -28,7 +28,7 @@ public:
     IssuanceFlags::AggregationPolicy            getAggregationPolicy() const;
     std::string                                 getAggregationPolicyStr() const;
     std::string                                 getTokenSymbol() const;
-    uint64_t                                    getAmount() const;
+    NTP1Int                                     getAmount() const;
     unsigned                                    getTransferInstructionsCount() const;
     TransferInstruction                         getTransferInstruction(unsigned index) const;
     std::vector<TransferInstruction>            getTransferInstructions() const;
@@ -46,7 +46,7 @@ public:
 
     // NTP1Script interface
 public:
-    std::string            calculateScriptBin() const;
+    std::string            calculateScriptBin() const override;
     std::set<unsigned int> getNTP1OutputIndices() const override;
 };
 

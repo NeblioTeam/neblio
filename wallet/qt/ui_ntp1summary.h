@@ -23,6 +23,15 @@
 
 QT_BEGIN_NAMESPACE
 
+class TokensListView : public QListView
+{
+    Q_OBJECT
+public:
+    explicit TokensListView(QWidget* parent = Q_NULLPTR) : QListView(parent) {}
+    virtual ~TokensListView() {}
+    QModelIndexList selectedIndexesP() const { return selectedIndexes(); }
+};
+
 class Ui_NTP1Summary
 {
 public:
@@ -40,8 +49,9 @@ public:
     QLabel*      upper_table_loading_label;
     QLineEdit*   filter_lineEdit;
     //    QPushButton* showSendDialogButton;
-    QLabel*    labelBlockchainSyncStatus;
-    QListView* listTokens;
+    QLabel* labelBlockchainSyncStatus;
+
+    TokensListView* listTokens;
 
     QWidget*     bottom_bar_widget;
     QLabel*      bottom_bar_logo_label;
@@ -141,13 +151,13 @@ public:
         verticalLayoutContent->addWidget(filter_lineEdit);
         //        verticalLayoutContent->addWidget(showSendDialogButton);
 
-        listTokens = new QListView(wallet_contents_frame);
+        listTokens = new TokensListView(wallet_contents_frame);
         listTokens->setObjectName(QStringLiteral("listTokens"));
         listTokens->setStyleSheet(QStringLiteral("QListView { background: transparent; }"));
         listTokens->setFrameShape(QFrame::NoFrame);
         //        listTokens->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         //        listTokens->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-        listTokens->setSelectionMode(QAbstractItemView::NoSelection);
+        //        listTokens->setSelectionMode(QAbstractItemView::NoSelection);
 
         verticalLayout->addWidget(listTokens);
 

@@ -18,8 +18,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-const std::string TempNTP1File("ntp1txout.bin");
-
 TEST(ntp1_tests, parse_NTP1TxIn_from_json)
 {
     std::string tx_str =
@@ -47,11 +45,11 @@ TEST(ntp1_tests, parse_NTP1TxIn_from_json)
                                          "5c63a7cefc413b02202068896fca8e916a85c10202e7bad783d756db9d3357"
                                          "1cde646113f68aa99a7f012103f4db6a95b42b695ed59f3584c162e6fdd4e8"
                                          "e5223c2da74938a725ed7b0244a8");
-    EXPECT_EQ(tx_good.getSequence(), (uint64_t)4294967295);
+    EXPECT_EQ(tx_good.getSequence(), static_cast<uint64_t>(4294967295));
     EXPECT_EQ(tx_good.getNumOfTokens(), (unsigned long)1);
     EXPECT_EQ(tx_good.getToken(0).getTokenId(), "LaAGekc9oBLcxMUXWzzbMoHRsZXYwhw1Ciox3z");
-    EXPECT_EQ(tx_good.getToken(0).getDivisibility(), (unsigned)7);
-    EXPECT_EQ(tx_good.getToken(0).getAmount(), (unsigned)997000);
+    EXPECT_EQ(tx_good.getToken(0).getDivisibility(), static_cast<unsigned>(7));
+    EXPECT_EQ(tx_good.getToken(0).getAmount(), static_cast<unsigned>(997000));
     EXPECT_EQ(tx_good.getToken(0).getLockStatus(), true);
     EXPECT_EQ(tx_good.getToken(0).getAggregationPolicy(),
               NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str);
@@ -78,8 +76,8 @@ TEST(ntp1_tests, parse_NTP1TxOut_from_json)
     EXPECT_EQ(tx_good.getAddress(), "NZKTvgBXGBFDde73TizBmxVPzNauT1ivxV");
     EXPECT_EQ(tx_good.tokenCount(), (unsigned long)1);
     EXPECT_EQ(tx_good.getToken(0).getTokenId(), "LaAGekc9oBLcxMUXWzzbMoHRsZXYwhw1Ciox3z");
-    EXPECT_EQ(tx_good.getToken(0).getDivisibility(), (unsigned)7);
-    EXPECT_EQ(tx_good.getToken(0).getAmount(), (unsigned)1000);
+    EXPECT_EQ(tx_good.getToken(0).getDivisibility(), static_cast<unsigned>(7));
+    EXPECT_EQ(tx_good.getToken(0).getAmount(), static_cast<unsigned>(1000));
     EXPECT_EQ(tx_good.getToken(0).getLockStatus(), true);
     EXPECT_EQ(tx_good.getToken(0).getAggregationPolicy(),
               NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str);
@@ -97,8 +95,8 @@ TEST(ntp1_tests, parse_NTP1TokenData)
     EXPECT_NO_THROW(token_good.importJsonData(token_str));
     EXPECT_ANY_THROW(token_nogood.importJsonData(token_str.substr(0, token_str.size() - 1)));
     EXPECT_EQ(token_good.getTokenId(), "LaAGekc9oBLcxMUXWzzbMoHRsZXYwhw1Ciox3z");
-    EXPECT_EQ(token_good.getDivisibility(), (unsigned)7);
-    EXPECT_EQ(token_good.getAmount(), (unsigned)512345);
+    EXPECT_EQ(token_good.getDivisibility(), static_cast<unsigned>(7));
+    EXPECT_EQ(token_good.getAmount(), static_cast<unsigned>(512345));
     EXPECT_EQ(token_good.getLockStatus(), true);
     EXPECT_EQ(token_good.getAggregationPolicy(),
               NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str);
@@ -196,8 +194,8 @@ TEST(ntp1_tests, parse_NTP1Transaction)
                    "9588ac10270000000000001976a9149e719d5db5e01bb357188f7ab25e336a9c2de11288ac1027000000"
                    "0000000d6a0b4e54011500201301403e4390a1883b000000001976a9149e719d5db5e01bb357188f7ab2"
                    "5e336a9c2de11288ac00000000");
-    EXPECT_EQ(tx_good.getLockTime(), (uint64_t)0);
-    EXPECT_EQ(tx_good.getTime(), (uint64_t)1520323876000);
+    EXPECT_EQ(tx_good.getLockTime(), static_cast<uint64_t>(0));
+    EXPECT_EQ(tx_good.getTime(), static_cast<uint64_t>(1520323876000));
     EXPECT_EQ(tx_good.getTxHash().ToString(),
               "1ec95ea69b16385da91a87af7c60bc625d4b96416a45f5f95f47e4d07c19aebc");
 
@@ -207,26 +205,26 @@ TEST(ntp1_tests, parse_NTP1Transaction)
 
     EXPECT_EQ(tx_good.getTxIn(0).getOutPoint().getHash().ToString(),
               "4f33e3a306619f7a860ca4d652a36c4816dc75f4809cacfeb51f219895d8be90");
-    EXPECT_EQ(tx_good.getTxIn(0).getOutPoint().getIndex(), (unsigned)1);
+    EXPECT_EQ(tx_good.getTxIn(0).getOutPoint().getIndex(), static_cast<unsigned>(1));
     EXPECT_EQ(tx_good.getTxIn(0).getScriptSigHex(),
               "483045022100975208417dc562459a5d65d8996edf7be7e8ba4f6c30a04a345c63a7cefc413b02202068896fc"
               "a8e916a85c10202e7bad783d756db9d33571cde646113f68aa99a7f012103f4db6a95b42b695ed59f3584c162"
               "e6fdd4e8e5223c2da74938a725ed7b0244a8");
-    EXPECT_EQ(tx_good.getTxIn(0).getSequence(), (uint64_t)4294967295);
+    EXPECT_EQ(tx_good.getTxIn(0).getSequence(), static_cast<uint64_t>(4294967295));
 
     EXPECT_EQ(tx_good.getTxIn(1).getOutPoint().getHash().ToString(),
               "4f33e3a306619f7a860ca4d652a36c4816dc75f4809cacfeb51f219895d8be90");
-    EXPECT_EQ(tx_good.getTxIn(1).getOutPoint().getIndex(), (unsigned)3);
+    EXPECT_EQ(tx_good.getTxIn(1).getOutPoint().getIndex(), static_cast<unsigned>(3));
     EXPECT_EQ(tx_good.getTxIn(1).getScriptSigHex(),
               "47304402200f4123e57d950f434605a845efce86c06af1d0017691c98f13c3dfe51881ac0802205768dedbe3b"
               "aaefafd65fd9d67e583cad6c96fdeb542d50f40022fef07d87a55012103f4db6a95b42b695ed59f3584c162e6"
               "fdd4e8e5223c2da74938a725ed7b0244a8");
-    EXPECT_EQ(tx_good.getTxIn(1).getSequence(), (uint64_t)4294967295);
+    EXPECT_EQ(tx_good.getTxIn(1).getSequence(), static_cast<uint64_t>(4294967295));
 
     EXPECT_EQ(tx_good.getTxIn(0).getToken(0).getAggregationPolicy(),
               NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str);
-    EXPECT_EQ(tx_good.getTxIn(0).getToken(0).getAmount(), (uint64_t)997000);
-    EXPECT_EQ(tx_good.getTxIn(0).getToken(0).getDivisibility(), (uint64_t)7);
+    EXPECT_EQ(tx_good.getTxIn(0).getToken(0).getAmount(), static_cast<uint64_t>(997000));
+    EXPECT_EQ(tx_good.getTxIn(0).getToken(0).getDivisibility(), static_cast<uint64_t>(7));
     EXPECT_EQ(tx_good.getTxIn(0).getToken(0).getIssueTxId().ToString(),
               "8e5b8361d16f166afd4f091d50554b93395dc44bd18a0904ac1e4f5532925d6b");
     EXPECT_EQ(tx_good.getTxIn(0).getToken(0).getLockStatus(), true);
@@ -243,8 +241,8 @@ TEST(ntp1_tests, parse_NTP1Transaction)
     EXPECT_EQ(tx_good.getTxOut(0).getValue(), 10000);
     EXPECT_EQ(tx_good.getTxOut(0).getToken(0).getAggregationPolicy(),
               NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str);
-    EXPECT_EQ(tx_good.getTxOut(0).getToken(0).getAmount(), (uint64_t)1000);
-    EXPECT_EQ(tx_good.getTxOut(0).getToken(0).getDivisibility(), (uint64_t)7);
+    EXPECT_EQ(tx_good.getTxOut(0).getToken(0).getAmount(), static_cast<uint64_t>(1000));
+    EXPECT_EQ(tx_good.getTxOut(0).getToken(0).getDivisibility(), static_cast<uint64_t>(7));
     EXPECT_EQ(tx_good.getTxOut(0).getToken(0).getIssueTxId().ToString(),
               "8e5b8361d16f166afd4f091d50554b93395dc44bd18a0904ac1e4f5532925d6b");
     EXPECT_EQ(tx_good.getTxOut(0).getToken(0).getTokenId(), "LaAGekc9oBLcxMUXWzzbMoHRsZXYwhw1Ciox3z");
@@ -257,8 +255,8 @@ TEST(ntp1_tests, parse_NTP1Transaction)
     EXPECT_EQ(tx_good.getTxOut(1).getValue(), 10000);
     EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getAggregationPolicy(),
               NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str);
-    EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getAmount(), (uint64_t)996000);
-    EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getDivisibility(), (uint64_t)7);
+    EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getAmount(), static_cast<uint64_t>(996000));
+    EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getDivisibility(), static_cast<uint64_t>(7));
     EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getIssueTxId().ToString(),
               "8e5b8361d16f166afd4f091d50554b93395dc44bd18a0904ac1e4f5532925d6b");
     EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getTokenId(), "LaAGekc9oBLcxMUXWzzbMoHRsZXYwhw1Ciox3z");
@@ -299,12 +297,12 @@ TEST(ntp1_tests, token_meta_data)
     EXPECT_EQ(tokenMetaData.getAggregationPolicy(),
               NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str);
     EXPECT_EQ(tokenMetaData.getLockStatus(), true);
-    EXPECT_EQ(tokenMetaData.getDivisibility(), (unsigned)7);
-    EXPECT_EQ(tokenMetaData.getFirstBlock(), (unsigned)159746);
-    EXPECT_EQ(tokenMetaData.getNumOfBurns(), (unsigned)1);
-    EXPECT_EQ(tokenMetaData.getNumOfIssuance(), (unsigned)1);
-    EXPECT_EQ(tokenMetaData.getNumOfTransfers(), (unsigned)1679);
-    EXPECT_EQ(tokenMetaData.getNumOfHolders(), (unsigned)8281);
+    EXPECT_EQ(tokenMetaData.getDivisibility(), static_cast<unsigned>(7));
+    EXPECT_EQ(tokenMetaData.getFirstBlock(), static_cast<unsigned>(159746));
+    EXPECT_EQ(tokenMetaData.getNumOfBurns(), static_cast<unsigned>(1));
+    EXPECT_EQ(tokenMetaData.getNumOfIssuance(), static_cast<unsigned>(1));
+    EXPECT_EQ(tokenMetaData.getNumOfTransfers(), static_cast<unsigned>(1679));
+    EXPECT_EQ(tokenMetaData.getNumOfHolders(), static_cast<unsigned>(8281));
     EXPECT_EQ(tokenMetaData.getIconImageType(), "image/png");
     EXPECT_EQ(
         tokenMetaData.getIconURL(),
@@ -319,7 +317,7 @@ TEST(ntp1_tests, token_meta_data)
     EXPECT_EQ(tokenMetaData.getTokenDescription(), "Trifid");
     EXPECT_EQ(tokenMetaData.getTokenName(), "TRIF");
     EXPECT_EQ(tokenMetaData.getTokenIssuer(), "TrifidTeam");
-    EXPECT_EQ(tokenMetaData.getTotalSupply(), (unsigned)1607509562);
+    EXPECT_EQ(tokenMetaData.getTotalSupply(), static_cast<unsigned>(1607509562));
 }
 
 TEST(ntp1_tests, token_meta_data_without_url)
@@ -341,12 +339,12 @@ TEST(ntp1_tests, token_meta_data_without_url)
     EXPECT_EQ(tokenMetaData.getAggregationPolicy(),
               NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str);
     EXPECT_EQ(tokenMetaData.getLockStatus(), true);
-    EXPECT_EQ(tokenMetaData.getDivisibility(), (unsigned)7);
-    EXPECT_EQ(tokenMetaData.getFirstBlock(), (unsigned)159746);
-    EXPECT_EQ(tokenMetaData.getNumOfBurns(), (unsigned)1);
-    EXPECT_EQ(tokenMetaData.getNumOfIssuance(), (unsigned)1);
-    EXPECT_EQ(tokenMetaData.getNumOfTransfers(), (unsigned)1679);
-    EXPECT_EQ(tokenMetaData.getNumOfHolders(), (unsigned)8281);
+    EXPECT_EQ(tokenMetaData.getDivisibility(), static_cast<unsigned>(7));
+    EXPECT_EQ(tokenMetaData.getFirstBlock(), static_cast<unsigned>(159746));
+    EXPECT_EQ(tokenMetaData.getNumOfBurns(), static_cast<unsigned>(1));
+    EXPECT_EQ(tokenMetaData.getNumOfIssuance(), static_cast<unsigned>(1));
+    EXPECT_EQ(tokenMetaData.getNumOfTransfers(), static_cast<unsigned>(1679));
+    EXPECT_EQ(tokenMetaData.getNumOfHolders(), static_cast<unsigned>(8281));
     EXPECT_EQ(tokenMetaData.getIconImageType(), "");
     EXPECT_EQ(tokenMetaData.getIconURL(), "");
     EXPECT_EQ(tokenMetaData.getIssuanceTxId().ToString(),
@@ -359,7 +357,7 @@ TEST(ntp1_tests, token_meta_data_without_url)
     EXPECT_EQ(tokenMetaData.getTokenDescription(), "Trifid");
     EXPECT_EQ(tokenMetaData.getTokenName(), "TRIF");
     EXPECT_EQ(tokenMetaData.getTokenIssuer(), "TrifidTeam");
-    EXPECT_EQ(tokenMetaData.getTotalSupply(), (unsigned)1607509562);
+    EXPECT_EQ(tokenMetaData.getTotalSupply(), static_cast<unsigned>(1607509562));
 
     // test database saving
     json_spirit::Value v = tokenMetaData.exportDatabaseJsonData();
@@ -419,54 +417,55 @@ TEST(ntp1_tests, send_tests)
     json_spirit::Array to = NTP1Tools::GetArrayField(testVal.get_obj(), "to");
     EXPECT_EQ(NTP1Tools::GetStrField(to[0].get_obj(), "address"), "dest1");
     EXPECT_EQ(NTP1Tools::GetStrField(to[0].get_obj(), "tokenId"), "tokenid1");
-    EXPECT_EQ(NTP1Tools::GetUint64Field(to[0].get_obj(), "amount"), 1u);
+    EXPECT_EQ(NTP1Tools::GetNTP1IntField(to[0].get_obj(), "amount"), 1u);
     EXPECT_EQ(NTP1Tools::GetStrField(to[1].get_obj(), "address"), "dest2");
     EXPECT_EQ(NTP1Tools::GetStrField(to[1].get_obj(), "tokenId"), "tokenid2");
-    EXPECT_EQ(NTP1Tools::GetUint64Field(to[1].get_obj(), "amount"), 2u);
+    EXPECT_EQ(NTP1Tools::GetNTP1IntField(to[1].get_obj(), "amount"), 2u);
 }
 
 TEST(ntp1_tests, amount_to_int)
 {
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("69892a92"), 999901700);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("c007b60b6f687a"), 8478457292922);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("40ef54"), 38290000);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("201f"), 1000000000000000);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("60b0b460"), 723782);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("5545e1"), 871340);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("c007b60b6f687a"), 8478457292922);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("11"), 17);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("2011"), 10);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("2012"), 100);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("4bb3c1"), 479320);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("68c7e5b3"), 9207387000);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("8029990f1a"), 8723709100);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("a09c47f7b1a1"), 839027891720);
-    EXPECT_EQ(NTP1AmountHexToNumber<int64_t>("c0a60eea1aa8fd"), 182582987368701);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("69892a92"), 999901700);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("c007b60b6f687a"), 8478457292922);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("40ef54"), 38290000);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("201f"), 1000000000000000);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("60b0b460"), 723782);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("5545e1"), 871340);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("c007b60b6f687a"), 8478457292922);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("11"), 17);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("2011"), 10);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("2012"), 100);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("4bb3c1"), 479320);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("68c7e5b3"), 9207387000);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("8029990f1a"), 8723709100);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("a09c47f7b1a1"), 839027891720);
+    EXPECT_EQ(NTP1Script::NTP1AmountHexToNumber("c0a60eea1aa8fd"), 182582987368701);
 
-    EXPECT_ANY_THROW(NTP1AmountHexToNumber<int64_t>("x"));
-    EXPECT_ANY_THROW(NTP1AmountHexToNumber<int64_t>(" "));
-    EXPECT_ANY_THROW(NTP1AmountHexToNumber<int64_t>("ssdsdmwdmo"));
-    EXPECT_ANY_THROW(NTP1AmountHexToNumber<int64_t>("999999999999999999999999999999999999999999999999"));
+    EXPECT_ANY_THROW(NTP1Script::NTP1AmountHexToNumber("x"));
+    EXPECT_ANY_THROW(NTP1Script::NTP1AmountHexToNumber(" "));
+    EXPECT_ANY_THROW(NTP1Script::NTP1AmountHexToNumber("ssdsdmwdmo"));
+    EXPECT_ANY_THROW(
+        NTP1Script::NTP1AmountHexToNumber("999999999999999999999999999999999999999999999999"));
 
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(999901700), "69892a92");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(8478457292922), "c007b60b6f687a");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(38290000), "40ef54");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(1000000000000000), "201f");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(723782), "60b0b460");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(871340), "5545e1");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(8478457292922), "c007b60b6f687a");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(17), "11");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(100), "2012");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(479320), "4bb3c1");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(9207387000), "68c7e5b3");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(8723709100), "8029990f1a");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(839027891720), "a09c47f7b1a1");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(182582987368701), "c0a60eea1aa8fd");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(999901700), "69892a92");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(8478457292922), "c007b60b6f687a");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(38290000), "40ef54");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(1000000000000000), "201f");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(723782), "60b0b460");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(871340), "5545e1");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(8478457292922), "c007b60b6f687a");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(17), "11");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(100), "2012");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(479320), "4bb3c1");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(9207387000), "68c7e5b3");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(8723709100), "8029990f1a");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(839027891720), "a09c47f7b1a1");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(182582987368701), "c0a60eea1aa8fd");
 
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(999999999997990), "c38d7ea4c67826");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(276413656646664), "c0fb6591d0c408");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(9731165496688), "c008d9b6a9a570");
-    EXPECT_EQ(NumberToHexNTP1Amount<uint64_t>(943721684679640), "c35a4f53c83bd8");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(999999999997990), "c38d7ea4c67826");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(276413656646664), "c0fb6591d0c408");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(9731165496688), "c008d9b6a9a570");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(943721684679640), "c35a4f53c83bd8");
 }
 
 TEST(ntp1_tests, script_transfer)
@@ -477,16 +476,145 @@ TEST(ntp1_tests, script_transfer)
     std::shared_ptr<NTP1Script_Transfer> script_transfer =
         std::dynamic_pointer_cast<NTP1Script_Transfer>(script);
     EXPECT_EQ(script_transfer->getHeader(), boost::algorithm::unhex(toParse_transfer.substr(0, 6)));
-    EXPECT_EQ(script_transfer->getHexMetadata().size(), (unsigned)0);
+    EXPECT_EQ(script_transfer->getHexMetadata().size(), static_cast<unsigned>(0));
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getOpCodeBin()), "15");
     EXPECT_EQ(script_transfer->getTxType(), NTP1Script::TxType::TxType_Transfer);
 
-    EXPECT_EQ(script_transfer->getTransferInstructionsCount(), (unsigned)1);
-    EXPECT_EQ(script_transfer->getTransferInstruction(0).amount, (uint64_t)999901700);
+    EXPECT_EQ(script_transfer->getTransferInstructionsCount(), static_cast<unsigned>(1));
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).amount, static_cast<uint64_t>(999901700));
     EXPECT_EQ(script_transfer->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, (unsigned)0);
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, static_cast<unsigned>(0));
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(0).rawAmount), "69892A92");
     EXPECT_EQ(script_transfer->getTransferInstruction(0).firstRawByte, 0);
+}
+
+TEST(ntp1_tests, script_issuance_allowed_chars_in_token_symbol)
+{
+    std::string                 toParse_issuance;
+    std::shared_ptr<NTP1Script> script;
+    {
+        // NIBBL name 4e4942424c
+        toParse_issuance = "4e5401014e4942424cab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
+                           "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
+        EXPECT_NO_THROW(script = NTP1Script::ParseScript(toParse_issuance));
+    }
+    {
+        // -IBBL name
+        toParse_issuance = "4e5401012d4942424cab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
+                           "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
+        EXPECT_THROW(script = NTP1Script::ParseScript(toParse_issuance), runtime_error);
+    }
+    {
+        // NI~BL name 4e497e424c
+        toParse_issuance = "4e5401014e497e424cab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
+                           "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
+        EXPECT_THROW(script = NTP1Script::ParseScript(toParse_issuance), runtime_error);
+    }
+    {
+        // NIBB. name 4e4942422e
+        toParse_issuance = "4e5401014e4942422eab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
+                           "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
+        EXPECT_THROW(script = NTP1Script::ParseScript(toParse_issuance), runtime_error);
+    }
+
+    // a string of all invalid characters from the ascii table
+    std::string invalid_chars;
+    std::string valid_chars;
+    // append chars up to ascii 0
+    for (char i = 0; i <= 47; i++) {
+        if (i == 32) // space is allowed as padding
+            continue;
+        invalid_chars.push_back(i);
+    }
+    // from > 9 to < A
+    for (char i = 58; i <= 64; i++) {
+        invalid_chars.push_back(i);
+    }
+    // from > Z to < a
+    for (char i = 91; i <= 96; i++) {
+        invalid_chars.push_back(i);
+    }
+    // from > z to <= 0xff
+    for (int i = 123; i <= 0xff; i++) {
+        invalid_chars.push_back(static_cast<char>(i));
+    }
+
+    valid_chars.push_back(32); // space
+    // append digital chars
+    for (char i = 48; i <= 57; i++) {
+        valid_chars.push_back(i);
+    }
+
+    // append A-Z
+    for (char i = 65; i <= 90; i++) {
+        valid_chars.push_back(i);
+    }
+
+    // append a-z
+    for (char i = 97; i <= 122; i++) {
+        valid_chars.push_back(i);
+    }
+
+    {
+        // we'll test all invalid characters by replacing a random character from NIBBL with an invalid
+        // character
+        std::string to_parse_prefix = "4e540101";
+        std::string to_parse_suffix =
+            "ab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
+            "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
+        for (const auto& c : invalid_chars) {
+            std::string  tokenName                   = "4e4942424c"; // NIBBL
+            std::string  tokenNameRaw                = boost::algorithm::unhex(tokenName);
+            unsigned int random_char_num_to_replace  = rand() % 5;
+            tokenNameRaw[random_char_num_to_replace] = c; // replace one char with an invalid one
+
+            // No exception is thrown before replacing the char with an invalid char
+            toParse_issuance = to_parse_prefix + tokenName + to_parse_suffix;
+            EXPECT_NO_THROW(script = NTP1Script::ParseScript(toParse_issuance));
+
+            // Exception is thrown after replacing the char with an invalid char
+            tokenName = boost::algorithm::hex(tokenNameRaw); // new name with one invalid character
+            toParse_issuance = to_parse_prefix + tokenName + to_parse_suffix;
+            EXPECT_THROW(script = NTP1Script::ParseScript(toParse_issuance), runtime_error)
+                << "The char \"" << boost::algorithm::hex(std::string(1, c))
+                << "\" in a token name didn't throw an exception";
+        }
+    }
+
+    {
+        // we'll test now all valid characters by replacing a random character from NIBBL with a valid
+        // character
+        std::string to_parse_prefix = "4e540101";
+        std::string to_parse_suffix =
+            "ab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
+            "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
+        for (const auto& c : valid_chars) {
+            std::string  tokenName                   = "4e4942424c"; // NIBBL
+            std::string  tokenNameRaw                = boost::algorithm::unhex(tokenName);
+            unsigned int random_char_num_to_replace  = rand() % 5;
+            tokenNameRaw[random_char_num_to_replace] = c; // replace one char with an invalid one
+
+            // No exception is thrown before
+            toParse_issuance = to_parse_prefix + tokenName + to_parse_suffix;
+            EXPECT_NO_THROW(script = NTP1Script::ParseScript(toParse_issuance));
+
+            // No exception is thrown after putting in another valid char
+            tokenName = boost::algorithm::hex(tokenNameRaw); // new name with one invalid character
+            toParse_issuance = to_parse_prefix + tokenName + to_parse_suffix;
+            EXPECT_NO_THROW(script = NTP1Script::ParseScript(toParse_issuance))
+                << "The char \"" << boost::algorithm::hex(std::string(1, c))
+                << "\" in a token name didn't throw an exception";
+        }
+    }
+
+    {
+        // ensure that all characters were tested, from 0x0 to 0xff
+        std::unordered_set<char> allChars;
+        allChars.insert(invalid_chars.begin(), invalid_chars.end());
+        allChars.insert(valid_chars.begin(), valid_chars.end());
+        EXPECT_EQ(invalid_chars.size() + valid_chars.size(), static_cast<unsigned>(256));
+        EXPECT_EQ(allChars.size(), static_cast<unsigned>(256));
+    }
 }
 
 TEST(ntp1_tests, script_issuance)
@@ -494,6 +622,9 @@ TEST(ntp1_tests, script_issuance)
     {
         // issue NIBBL
         // txid: 66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80
+        // 4e5401 01
+        // 4e4942424c
+        // ab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef215620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0
         std::string toParse_issuance =
             "4e5401014e4942424cab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
             "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
@@ -503,7 +634,7 @@ TEST(ntp1_tests, script_issuance)
         EXPECT_NE(script_issuance.get(), nullptr);
         EXPECT_EQ(script_issuance->getAggregationPolicy(),
                   NTP1Script::IssuanceFlags::AggregationPolicy::AggregationPolicy_Aggregatable);
-        EXPECT_EQ(script_issuance->getAmount(), (uint64_t)1000000000);
+        EXPECT_EQ(script_issuance->getAmount(), static_cast<uint64_t>(1000000000));
         EXPECT_EQ(script_issuance->getDivisibility(), 7);
         EXPECT_EQ(boost::algorithm::hex(script_issuance->getHeader()), "4E5401");
         EXPECT_EQ(script_issuance->getHexMetadata(), "AB10C04E20E0AEC73D58C8FBF2A9C26A6DC3ED666C7B80FEF2"
@@ -513,10 +644,10 @@ TEST(ntp1_tests, script_issuance)
         EXPECT_EQ(script_issuance->getTokenSymbol(), "NIBBL");
         EXPECT_EQ(script_issuance->getTxType(), NTP1Script::TxType::TxType_Issuance);
 
-        EXPECT_EQ(script_issuance->getTransferInstructionsCount(), (unsigned)1);
-        EXPECT_EQ(script_issuance->getTransferInstruction(0).amount, (uint64_t)1000000000);
+        EXPECT_EQ(script_issuance->getTransferInstructionsCount(), static_cast<unsigned>(1));
+        EXPECT_EQ(script_issuance->getTransferInstruction(0).amount, static_cast<uint64_t>(1000000000));
         EXPECT_EQ(script_issuance->getTransferInstruction(0).skipInput, false);
-        EXPECT_EQ(script_issuance->getTransferInstruction(0).outputIndex, (unsigned)0);
+        EXPECT_EQ(script_issuance->getTransferInstruction(0).outputIndex, static_cast<unsigned>(0));
         EXPECT_EQ(boost::algorithm::hex(script_issuance->getTransferInstruction(0).rawAmount), "2019");
         EXPECT_EQ(script_issuance->getTransferInstruction(0).firstRawByte, 0);
         EXPECT_EQ(script_issuance->getTokenID(
@@ -532,14 +663,14 @@ TEST(ntp1_tests, script_burn)
     std::shared_ptr<NTP1Script>      script       = NTP1Script::ParseScript(toParse_burn);
     std::shared_ptr<NTP1Script_Burn> script_burn  = std::dynamic_pointer_cast<NTP1Script_Burn>(script);
     EXPECT_EQ(script_burn->getHeader(), boost::algorithm::unhex(toParse_burn.substr(0, 6)));
-    EXPECT_EQ(script_burn->getHexMetadata().size(), (unsigned)0);
+    EXPECT_EQ(script_burn->getHexMetadata().size(), static_cast<unsigned>(0));
     EXPECT_EQ(boost::algorithm::hex(script_burn->getOpCodeBin()), "25");
     EXPECT_EQ(script_burn->getTxType(), NTP1Script::TxType::TxType_Burn);
 
-    EXPECT_EQ(script_burn->getTransferInstructionsCount(), (unsigned)1);
-    EXPECT_EQ(script_burn->getTransferInstruction(0).amount, (uint64_t)1000);
+    EXPECT_EQ(script_burn->getTransferInstructionsCount(), static_cast<unsigned>(1));
+    EXPECT_EQ(script_burn->getTransferInstruction(0).amount, static_cast<uint64_t>(1000));
     EXPECT_EQ(script_burn->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(script_burn->getTransferInstruction(0).outputIndex, (unsigned)31);
+    EXPECT_EQ(script_burn->getTransferInstruction(0).outputIndex, static_cast<unsigned>(31));
     EXPECT_EQ(boost::algorithm::hex(script_burn->getTransferInstruction(0).rawAmount), "2013");
     EXPECT_EQ(script_burn->getTransferInstruction(0).firstRawByte, 31);
 }
@@ -547,19 +678,19 @@ TEST(ntp1_tests, script_burn)
 TEST(ntp1_tests, script_get_amount_size)
 {
     EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("11"))[0]),
-              (unsigned)1);
+              static_cast<unsigned>(1));
     EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("2012"))[0]),
-              (unsigned)2);
+              static_cast<unsigned>(2));
     EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("4bb3c1"))[0]),
-              (unsigned)3);
+              static_cast<unsigned>(3));
     EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("68c7e5b3"))[0]),
-              (unsigned)4);
+              static_cast<unsigned>(4));
     EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("8029990f1a"))[0]),
-              (unsigned)5);
+              static_cast<unsigned>(5));
     EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("a09c47f7b1a1"))[0]),
-              (unsigned)6);
+              static_cast<unsigned>(6));
     EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("c0a60eea1aa8fd"))[0]),
-              (unsigned)7);
+              static_cast<unsigned>(7));
 }
 
 CTransaction TxFromHex(const std::string& hex)
@@ -594,7 +725,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_issuance)
     EXPECT_NE(script_issuance.get(), nullptr);
     EXPECT_EQ(script_issuance->getAggregationPolicy(),
               NTP1Script::IssuanceFlags::AggregationPolicy::AggregationPolicy_Aggregatable);
-    EXPECT_EQ(script_issuance->getAmount(), (uint64_t)1000000000);
+    EXPECT_EQ(script_issuance->getAmount(), static_cast<uint64_t>(1000000000));
     EXPECT_EQ(script_issuance->getDivisibility(), 7);
     EXPECT_EQ(boost::algorithm::hex(script_issuance->getHeader()), "4E5401");
     EXPECT_EQ(script_issuance->getHexMetadata(), "AB10C04E20E0AEC73D58C8FBF2A9C26A6DC3ED666C7B80FEF2"
@@ -608,10 +739,10 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_issuance)
     EXPECT_EQ(script_issuance->getTokenSymbol(), "NIBBL");
     EXPECT_EQ(script_issuance->getTxType(), NTP1Script::TxType::TxType_Issuance);
 
-    EXPECT_EQ(script_issuance->getTransferInstructionsCount(), (unsigned)1);
-    EXPECT_EQ(script_issuance->getTransferInstruction(0).amount, (uint64_t)1000000000);
+    EXPECT_EQ(script_issuance->getTransferInstructionsCount(), static_cast<unsigned>(1));
+    EXPECT_EQ(script_issuance->getTransferInstruction(0).amount, static_cast<uint64_t>(1000000000));
     EXPECT_EQ(script_issuance->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(script_issuance->getTransferInstruction(0).outputIndex, (unsigned)0);
+    EXPECT_EQ(script_issuance->getTransferInstruction(0).outputIndex, static_cast<unsigned>(0));
     EXPECT_EQ(boost::algorithm::hex(script_issuance->getTransferInstruction(0).rawAmount), "2019");
     EXPECT_EQ(script_issuance->getTransferInstruction(0).firstRawByte, 0);
     EXPECT_EQ(tx.GetHash().ToString(),
@@ -634,14 +765,14 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_issuance)
 
     NTP1Transaction ntp1tx;
     EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs));
-    EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)1);
-    EXPECT_EQ(ntp1tx.getTxIn(0).getNumOfTokens(), (unsigned)0);
-    EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)3);
-    EXPECT_EQ(ntp1tx.getTxOut(0).tokenCount(), (unsigned)1);
-    EXPECT_EQ(ntp1tx.getTxOut(1).tokenCount(), (unsigned)0);
-    EXPECT_EQ(ntp1tx.getTxOut(2).tokenCount(), (unsigned)0);
-    EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), (unsigned)1000000000);
-    EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getDivisibility(), (unsigned)7);
+    EXPECT_EQ(ntp1tx.getTxInCount(), static_cast<unsigned>(1));
+    EXPECT_EQ(ntp1tx.getTxIn(0).getNumOfTokens(), static_cast<unsigned>(0));
+    EXPECT_EQ(ntp1tx.getTxOutCount(), static_cast<unsigned>(3));
+    EXPECT_EQ(ntp1tx.getTxOut(0).tokenCount(), static_cast<unsigned>(1));
+    EXPECT_EQ(ntp1tx.getTxOut(1).tokenCount(), static_cast<unsigned>(0));
+    EXPECT_EQ(ntp1tx.getTxOut(2).tokenCount(), static_cast<unsigned>(0));
+    EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), static_cast<unsigned>(1000000000));
+    EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getDivisibility(), static_cast<unsigned>(7));
     EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getIssueTxId().ToString(),
               "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
     EXPECT_TRUE(ntp1tx.getTxOut(0).getToken(0).getLockStatus());
@@ -652,42 +783,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_issuance)
 
     EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getHash().ToString(),
               "c55dd5271dd8a9aa35a7f6c393a0eb24bcc50116bf15b49f4e760d3e9a138120");
-    EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), (unsigned)1);
-
-    /// READ AND WRITE
-    ///
-    std::remove(TempNTP1File.c_str());
-    {
-        // will be freed automatically by writeFromDisk
-        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-        EXPECT_NE(fileWrite, nullptr);
-
-        unsigned int nFileRet = -1;
-        unsigned int nTxPos   = -1;
-        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-        EXPECT_NE(fileRead, nullptr);
-
-        NTP1Transaction ntp1tx2;
-        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-        EXPECT_EQ(ntp1tx, ntp1tx2);
-    }
-    {
-        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-        EXPECT_NE(fileWrite, nullptr);
-
-        unsigned int nFileRet = -1;
-        unsigned int nTxPos   = -1;
-        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-        EXPECT_NE(fileRead, nullptr);
-
-        NTP1Transaction ntp1tx2;
-        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-        EXPECT_EQ(ntp1tx, ntp1tx2);
-    }
+    EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), static_cast<unsigned>(1));
 }
 
 TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
@@ -713,21 +809,21 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
     std::shared_ptr<NTP1Script_Transfer> script_transfer =
         std::dynamic_pointer_cast<NTP1Script_Transfer>(script);
     EXPECT_EQ(script_transfer->getHeader(), boost::algorithm::unhex(opReturnArg.substr(0, 6)));
-    EXPECT_EQ(script_transfer->getHexMetadata().size(), (unsigned)0);
+    EXPECT_EQ(script_transfer->getHexMetadata().size(), static_cast<unsigned>(0));
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getOpCodeBin()), "15");
     EXPECT_EQ(script_transfer->getTxType(), NTP1Script::TxType::TxType_Transfer);
 
-    EXPECT_EQ(script_transfer->getTransferInstructionsCount(), (unsigned)2);
+    EXPECT_EQ(script_transfer->getTransferInstructionsCount(), static_cast<unsigned>(2));
 
-    EXPECT_EQ(script_transfer->getTransferInstruction(0).amount, (uint64_t)100);
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).amount, static_cast<uint64_t>(100));
     EXPECT_EQ(script_transfer->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, (unsigned)0);
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, static_cast<unsigned>(0));
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(0).rawAmount), "2012");
     EXPECT_EQ(script_transfer->getTransferInstruction(0).firstRawByte, 0);
 
-    EXPECT_EQ(script_transfer->getTransferInstruction(1).amount, (uint64_t)999965200);
+    EXPECT_EQ(script_transfer->getTransferInstruction(1).amount, static_cast<uint64_t>(999965200));
     EXPECT_EQ(script_transfer->getTransferInstruction(1).skipInput, false);
-    EXPECT_EQ(script_transfer->getTransferInstruction(1).outputIndex, (unsigned)1);
+    EXPECT_EQ(script_transfer->getTransferInstruction(1).outputIndex, static_cast<unsigned>(1));
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(1).rawAmount), "69895242");
     EXPECT_EQ(script_transfer->getTransferInstruction(1).firstRawByte, 1);
     EXPECT_EQ(tx.GetHash().ToString(),
@@ -870,58 +966,24 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
 
     NTP1Transaction ntp1tx;
     ASSERT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs));
-    EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)2);
+    EXPECT_EQ(ntp1tx.getTxInCount(), static_cast<unsigned>(2));
     // inputs are unknown, so no more tests
-    EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)4);
-    EXPECT_EQ(ntp1tx.getTxOut(0).tokenCount(), (unsigned)1);
-    EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), (uint64_t)100);
-    EXPECT_EQ(ntp1tx.getTxOut(1).tokenCount(), (unsigned)1);
-    EXPECT_EQ(ntp1tx.getTxOut(1).getToken(0).getAmount(), (uint64_t)999965200);
-    EXPECT_EQ(ntp1tx.getTxOut(2).tokenCount(), (unsigned)0);
-    EXPECT_EQ(ntp1tx.getTxOut(3).tokenCount(), (unsigned)0);
+    EXPECT_EQ(ntp1tx.getTxOutCount(), static_cast<unsigned>(4));
+    EXPECT_EQ(ntp1tx.getTxOut(0).tokenCount(), static_cast<unsigned>(1));
+    EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), static_cast<uint64_t>(100));
+    EXPECT_EQ(ntp1tx.getTxOut(1).tokenCount(), static_cast<unsigned>(1));
+    EXPECT_EQ(ntp1tx.getTxOut(1).getToken(0).getAmount(), static_cast<uint64_t>(999965200));
+    EXPECT_EQ(ntp1tx.getTxOut(2).tokenCount(), static_cast<unsigned>(0));
+    EXPECT_EQ(ntp1tx.getTxOut(3).tokenCount(), static_cast<unsigned>(0));
     EXPECT_EQ(ntp1tx.getTxHash().ToString(),
               "006bd375946e903aa20aced1b411d61d14175488650e1deab3cb5ff8f354467d");
 
     EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getHash().ToString(),
               "1766a9150953392de523f9420a2e32f993bb572e79f465de78ef96831494b347");
-    EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), (unsigned)1);
+    EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), static_cast<unsigned>(1));
     EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getHash().ToString(),
               "111481401fbd842c5aa1b9420db8c5ef7e94d9ac3b3d3b7e2b2cb6c7b0650612");
-    EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getIndex(), (unsigned)3);
-
-    /// READ AND WRITE
-    ///
-    {
-        // will be freed automatically by writeFromDisk
-        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-        EXPECT_NE(fileWrite, nullptr);
-
-        unsigned int nFileRet = -1;
-        unsigned int nTxPos   = -1;
-        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-        EXPECT_NE(fileRead, nullptr);
-
-        NTP1Transaction ntp1tx2;
-        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-        EXPECT_EQ(ntp1tx, ntp1tx2);
-    }
-    {
-        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-        EXPECT_NE(fileWrite, nullptr);
-
-        unsigned int nFileRet = -1;
-        unsigned int nTxPos   = -1;
-        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-        EXPECT_NE(fileRead, nullptr);
-
-        NTP1Transaction ntp1tx2;
-        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-        EXPECT_EQ(ntp1tx, ntp1tx2);
-    }
+    EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getIndex(), static_cast<unsigned>(3));
 }
 
 TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
@@ -947,21 +1009,21 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
     std::shared_ptr<NTP1Script_Transfer> script_transfer =
         std::dynamic_pointer_cast<NTP1Script_Transfer>(script);
     EXPECT_EQ(script_transfer->getHeader(), boost::algorithm::unhex(opReturnArg.substr(0, 6)));
-    EXPECT_EQ(script_transfer->getHexMetadata().size(), (unsigned)0);
+    EXPECT_EQ(script_transfer->getHexMetadata().size(), static_cast<unsigned>(0));
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getOpCodeBin()), "15");
     EXPECT_EQ(script_transfer->getTxType(), NTP1Script::TxType::TxType_Transfer);
 
-    EXPECT_EQ(script_transfer->getTransferInstructionsCount(), (unsigned)2);
+    EXPECT_EQ(script_transfer->getTransferInstructionsCount(), static_cast<unsigned>(2));
 
-    EXPECT_EQ(script_transfer->getTransferInstruction(0).amount, (uint64_t)100);
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).amount, static_cast<uint64_t>(100));
     EXPECT_EQ(script_transfer->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, (unsigned)0);
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, static_cast<unsigned>(0));
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(0).rawAmount), "2012");
     EXPECT_EQ(script_transfer->getTransferInstruction(0).firstRawByte, 0);
 
-    EXPECT_EQ(script_transfer->getTransferInstruction(1).amount, (uint64_t)999965200);
+    EXPECT_EQ(script_transfer->getTransferInstruction(1).amount, static_cast<uint64_t>(999965200));
     EXPECT_EQ(script_transfer->getTransferInstruction(1).skipInput, false);
-    EXPECT_EQ(script_transfer->getTransferInstruction(1).outputIndex, (unsigned)1);
+    EXPECT_EQ(script_transfer->getTransferInstruction(1).outputIndex, static_cast<unsigned>(1));
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(1).rawAmount), "69895242");
     EXPECT_EQ(script_transfer->getTransferInstruction(1).firstRawByte, 1);
     EXPECT_EQ(tx.GetHash().ToString(),
@@ -1104,59 +1166,25 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
 
     NTP1Transaction ntp1tx;
     ASSERT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs));
-    EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)2);
+    EXPECT_EQ(ntp1tx.getTxInCount(), static_cast<unsigned>(2));
     // inputs are unknown, so no more tests
-    EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)4);
-    EXPECT_EQ(ntp1tx.getTxOut(0).tokenCount(), (unsigned)1);
-    EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), (uint64_t)100);
-    EXPECT_EQ(ntp1tx.getTxOut(1).tokenCount(), (unsigned)1);
-    EXPECT_EQ(ntp1tx.getTxOut(1).getToken(0).getAmount(), (uint64_t)999965200);
-    EXPECT_EQ(ntp1tx.getTxOut(2).tokenCount(), (unsigned)0);
-    EXPECT_EQ(ntp1tx.getTxOut(3).tokenCount(), (unsigned)1);
-    EXPECT_EQ(ntp1tx.getTxOut(3).getToken(0).getAmount(), (uint64_t)200);
+    EXPECT_EQ(ntp1tx.getTxOutCount(), static_cast<unsigned>(4));
+    EXPECT_EQ(ntp1tx.getTxOut(0).tokenCount(), static_cast<unsigned>(1));
+    EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), static_cast<uint64_t>(100));
+    EXPECT_EQ(ntp1tx.getTxOut(1).tokenCount(), static_cast<unsigned>(1));
+    EXPECT_EQ(ntp1tx.getTxOut(1).getToken(0).getAmount(), static_cast<uint64_t>(999965200));
+    EXPECT_EQ(ntp1tx.getTxOut(2).tokenCount(), static_cast<unsigned>(0));
+    EXPECT_EQ(ntp1tx.getTxOut(3).tokenCount(), static_cast<unsigned>(1));
+    EXPECT_EQ(ntp1tx.getTxOut(3).getToken(0).getAmount(), static_cast<uint64_t>(200));
     EXPECT_EQ(ntp1tx.getTxHash().ToString(),
               "006bd375946e903aa20aced1b411d61d14175488650e1deab3cb5ff8f354467d");
 
     EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getHash().ToString(),
               "1766a9150953392de523f9420a2e32f993bb572e79f465de78ef96831494b347");
-    EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), (unsigned)1);
+    EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), static_cast<unsigned>(1));
     EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getHash().ToString(),
               "111481401fbd842c5aa1b9420db8c5ef7e94d9ac3b3d3b7e2b2cb6c7b0650612");
-    EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getIndex(), (unsigned)3);
-
-    /// READ AND WRITE
-    ///
-    {
-        // will be freed automatically by writeFromDisk
-        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-        EXPECT_NE(fileWrite, nullptr);
-
-        unsigned int nFileRet = -1;
-        unsigned int nTxPos   = -1;
-        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-        EXPECT_NE(fileRead, nullptr);
-
-        NTP1Transaction ntp1tx2;
-        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-        EXPECT_EQ(ntp1tx, ntp1tx2);
-    }
-    {
-        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-        EXPECT_NE(fileWrite, nullptr);
-
-        unsigned int nFileRet = -1;
-        unsigned int nTxPos   = -1;
-        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-        EXPECT_NE(fileRead, nullptr);
-
-        NTP1Transaction ntp1tx2;
-        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-        EXPECT_EQ(ntp1tx, ntp1tx2);
-    }
+    EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getIndex(), static_cast<unsigned>(3));
 }
 
 TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
@@ -1448,14 +1476,14 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
 
     NTP1Transaction ntp1tx;
     EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(tx, inputs));
-    EXPECT_EQ(ntp1tx.getTxInCount(), (unsigned)4);
+    EXPECT_EQ(ntp1tx.getTxInCount(), static_cast<unsigned>(4));
     // inputs are unknown, so no more tests
-    EXPECT_EQ(ntp1tx.getTxOutCount(), (unsigned)3);
-    EXPECT_EQ(ntp1tx.getTxOut(0).tokenCount(), (unsigned)1);
-    EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), (uint64_t)10);
-    EXPECT_EQ(ntp1tx.getTxOut(1).tokenCount(), (unsigned)0);
-    EXPECT_EQ(ntp1tx.getTxOut(2).tokenCount(), (unsigned)1);
-    EXPECT_EQ(ntp1tx.getTxOut(2).getToken(0).getAmount(), (unsigned)999897350);
+    EXPECT_EQ(ntp1tx.getTxOutCount(), static_cast<unsigned>(3));
+    EXPECT_EQ(ntp1tx.getTxOut(0).tokenCount(), static_cast<unsigned>(1));
+    EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), static_cast<uint64_t>(10));
+    EXPECT_EQ(ntp1tx.getTxOut(1).tokenCount(), static_cast<unsigned>(0));
+    EXPECT_EQ(ntp1tx.getTxOut(2).tokenCount(), static_cast<unsigned>(1));
+    EXPECT_EQ(ntp1tx.getTxOut(2).getToken(0).getAmount(), static_cast<unsigned>(999897350));
 
     EXPECT_EQ(ntp1tx.getTxHash().ToString(),
               "008d329611fcbdb82b4adb097c29f1d6a56707bfb232c8c124390756e80a9e44");
@@ -1463,51 +1491,16 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
     // inputs
     EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getHash().ToString(),
               "c0563ccccee98f68d519bcf9c595e459876c9f6fcfbd046f85e6fc56309735e9");
-    EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), (unsigned)1);
+    EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), static_cast<unsigned>(1));
     EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getHash().ToString(),
               "034849559c1ed8211644c7def3536688ec5766d3a7f7f977f190590d7bb7db05");
-    EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getIndex(), (unsigned)3);
+    EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getIndex(), static_cast<unsigned>(3));
     EXPECT_EQ(ntp1tx.getTxIn(2).getPrevout().getHash().ToString(),
               "0132cf38f3a298403427e8c3203f030141efff9c0d3a3fb7fef10ab4452771df");
-    EXPECT_EQ(ntp1tx.getTxIn(2).getPrevout().getIndex(), (unsigned)3);
+    EXPECT_EQ(ntp1tx.getTxIn(2).getPrevout().getIndex(), static_cast<unsigned>(3));
     EXPECT_EQ(ntp1tx.getTxIn(3).getPrevout().getHash().ToString(),
               "0317c3f20338cd8ea142c389e65670554c676905d2024a58775f695fe88f1298");
-    EXPECT_EQ(ntp1tx.getTxIn(3).getPrevout().getIndex(), (unsigned)3);
-
-    /// READ AND WRITE
-    ///
-    {
-        // will be freed automatically by writeFromDisk
-        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-        EXPECT_NE(fileWrite, nullptr);
-
-        unsigned int nFileRet = -1;
-        unsigned int nTxPos   = -1;
-        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-        EXPECT_NE(fileRead, nullptr);
-
-        NTP1Transaction ntp1tx2;
-
-        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-        EXPECT_EQ(ntp1tx, ntp1tx2);
-    }
-    {
-        FILE* fileWrite = fopen(TempNTP1File.c_str(), "ab");
-        EXPECT_NE(fileWrite, nullptr);
-
-        unsigned int nFileRet = -1;
-        unsigned int nTxPos   = -1;
-        EXPECT_TRUE(ntp1tx.writeToDisk(nFileRet, nTxPos, fileWrite));
-
-        FILE* fileRead = fopen(TempNTP1File.c_str(), "rb");
-        EXPECT_NE(fileRead, nullptr);
-
-        NTP1Transaction ntp1tx2;
-        ntp1tx2.readFromDisk(DiskNTP1TxPos(nFileRet, nTxPos), nullptr, fileRead);
-        EXPECT_EQ(ntp1tx, ntp1tx2);
-    }
+    EXPECT_EQ(ntp1tx.getTxIn(3).getPrevout().getIndex(), static_cast<unsigned>(3));
 }
 
 std::string GetRawTxURL(const std::string& txid, bool testnet)
@@ -1655,7 +1648,7 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> GetNTP1InputsOnline(const 
 
 void TestNTP1TxParsing_onlyRead(const CTransaction& tx, bool testnet)
 {
-    const std::string& txid = tx.GetHash().ToString();
+    //    const std::string& txid = tx.GetHash().ToString();
 
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputs;
 
@@ -1883,16 +1876,6 @@ void TestSingleNTP1TxParsingLocally(const std::string&                          
     }
 }
 
-// list of transactions to be excluded from tests
-std::unordered_set<std::string> excluded_txs_testnet = {
-    "826e7b74b24e458e39d779b1033567d325b8d93b507282f983e3c4b3f950fca1",
-    "c378447562be04c6803fdb9f829c9ba0dda462b269e15bcfc7fac3b3561d2eef",
-    "7e71508abef696d6c0427cc85073e0d56da9380f3d333354c7dd9370acd422bc",
-    "adb421a497e25375a88848b17b5c632a8d60db3d02dcc61dbecd397e6c1fb1ca",
-    "95c6f2b978160ab0d51545a13a7ee7b931713a52bd1c9f12807f4cd77ff7536b"};
-
-std::unordered_set<std::string> excluded_txs_mainnet = {};
-
 void TestNTP1TxParsingLocally(bool testnet)
 {
     std::unordered_map<std::string, std::string> ntp1txs_map;
@@ -1919,10 +1902,10 @@ void TestNTP1TxParsingLocally(bool testnet)
             std::cout << "Finished testing " << count << " transactions" << std::endl;
         count++;
         if (testnet) {
-            if (excluded_txs_testnet.find(txid) != excluded_txs_testnet.end())
+            if (excluded_txs_testnet.exists(uint256(txid)))
                 continue;
         } else {
-            if (excluded_txs_mainnet.find(txid) != excluded_txs_mainnet.end())
+            if (excluded_txs_mainnet.exists(uint256(txid)))
                 continue;
         }
         TestSingleNTP1TxParsingLocally(txid, nebltxs_map, ntp1txs_map);
@@ -2010,7 +1993,7 @@ void DownloadPreMadeData(bool testnet)
         std::cout << "Downloading test data file " << files[i] << std::endl;
         EXPECT_NO_THROW(boost::filesystem::remove(Path(TEST_ROOT_PATH) / Path("/data/" + files[i])));
         std::string content = cURLTools::GetFileFromHTTPS(
-            "https://neblio-files.ams3.digitaloceanspaces.com/" + files[i], 10000, 0);
+            "https://neblio-files.ams3.cdn.digitaloceanspaces.com/" + files[i], 10000, 0);
         fs::path testFile = testRootPath / "data" / files[i];
         ofstream os(testFile.string().c_str());
         os << content;
@@ -2136,7 +2119,7 @@ TEST(ntp1_tests, amend_tx_1)
     auto inputs = GetNTP1InputsOnline(tx, true);
     NTP1Transaction::AmendStdTxWithNTP1(tx, inputs, 1);
 
-    EXPECT_EQ(tx.vout.size(), (unsigned)4);
+    EXPECT_EQ(tx.vout.size(), static_cast<unsigned>(4));
     EXPECT_EQ(tx.vout[0], out0);
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue, out1.nValue);
     std::string opRetArg;
@@ -2147,10 +2130,10 @@ TEST(ntp1_tests, amend_tx_1)
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
     EXPECT_NE(scriptPtrD, nullptr);
 
-    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), (unsigned)1);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, (unsigned)50);
+    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), static_cast<unsigned>(1));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, static_cast<unsigned>(50));
     EXPECT_EQ(scriptPtrD->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, (unsigned)3);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, static_cast<unsigned>(3));
 }
 
 TEST(ntp1_tests, amend_tx_2)
@@ -2181,7 +2164,7 @@ TEST(ntp1_tests, amend_tx_2)
     auto inputs = GetNTP1InputsOnline(tx, true);
     NTP1Transaction::AmendStdTxWithNTP1(tx, inputs, 1);
 
-    EXPECT_EQ(tx.vout.size(), (unsigned)2);
+    EXPECT_EQ(tx.vout.size(), static_cast<unsigned>(2));
     EXPECT_EQ(tx.vout[0], out0);
     EXPECT_EQ(tx.vout[1], out1);
     EXPECT_FALSE(TxContainsOpReturn(&tx));
@@ -2218,7 +2201,7 @@ TEST(ntp1_tests, amend_tx_3)
     auto inputs = GetNTP1InputsOnline(tx, true);
     NTP1Transaction::AmendStdTxWithNTP1(tx, inputs, 1);
 
-    EXPECT_EQ(tx.vout.size(), (unsigned)4);
+    EXPECT_EQ(tx.vout.size(), static_cast<unsigned>(4));
     EXPECT_EQ(tx.vout[0], out0);
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue, out1.nValue);
     std::string opRetArg;
@@ -2229,10 +2212,10 @@ TEST(ntp1_tests, amend_tx_3)
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
     EXPECT_NE(scriptPtrD, nullptr);
 
-    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), (unsigned)1);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, (unsigned)50);
+    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), static_cast<unsigned>(1));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, static_cast<unsigned>(50));
     EXPECT_EQ(scriptPtrD->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, (unsigned)3);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, static_cast<unsigned>(3));
 }
 
 TEST(ntp1_tests, amend_tx_4)
@@ -2269,7 +2252,7 @@ TEST(ntp1_tests, amend_tx_4)
     auto inputs = GetNTP1InputsOnline(tx, true);
     NTP1Transaction::AmendStdTxWithNTP1(tx, inputs, 1);
 
-    ASSERT_EQ(tx.vout.size(), (unsigned)5);
+    ASSERT_EQ(tx.vout.size(), static_cast<unsigned>(5));
     EXPECT_EQ(tx.vout[0], out0);
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue + tx.vout[4].nValue,
               out1.nValue);
@@ -2281,15 +2264,15 @@ TEST(ntp1_tests, amend_tx_4)
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
     EXPECT_NE(scriptPtrD, nullptr);
 
-    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), (unsigned)2);
+    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), static_cast<unsigned>(2));
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, (unsigned)50);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, static_cast<unsigned>(50));
     EXPECT_EQ(scriptPtrD->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, (unsigned)3);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, static_cast<unsigned>(3));
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).amount, (unsigned)40);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).amount, static_cast<unsigned>(40));
     EXPECT_EQ(scriptPtrD->getTransferInstruction(1).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).outputIndex, (unsigned)4);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).outputIndex, static_cast<unsigned>(4));
 }
 
 TEST(ntp1_tests, amend_tx_5)
@@ -2329,7 +2312,7 @@ TEST(ntp1_tests, amend_tx_5)
     auto inputs = GetNTP1InputsOnline(tx, true);
     NTP1Transaction::AmendStdTxWithNTP1(tx, inputs, 1);
 
-    ASSERT_EQ(tx.vout.size(), (unsigned)8);
+    ASSERT_EQ(tx.vout.size(), static_cast<unsigned>(8));
     EXPECT_EQ(tx.vout[0], out0);
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue + tx.vout[4].nValue +
                   tx.vout[5].nValue + tx.vout[6].nValue + tx.vout[7].nValue,
@@ -2342,27 +2325,27 @@ TEST(ntp1_tests, amend_tx_5)
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
     EXPECT_NE(scriptPtrD, nullptr);
 
-    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), (unsigned)5);
+    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), static_cast<unsigned>(5));
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, (unsigned)50);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, static_cast<unsigned>(50));
     EXPECT_EQ(scriptPtrD->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, (unsigned)3);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, static_cast<unsigned>(3));
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).amount, (unsigned)40);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).amount, static_cast<unsigned>(40));
     EXPECT_EQ(scriptPtrD->getTransferInstruction(1).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).outputIndex, (unsigned)4);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).outputIndex, static_cast<unsigned>(4));
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).amount, (unsigned)1400);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).amount, static_cast<unsigned>(1400));
     EXPECT_EQ(scriptPtrD->getTransferInstruction(2).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).outputIndex, (unsigned)5);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).outputIndex, static_cast<unsigned>(5));
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).amount, (unsigned)3950);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).amount, static_cast<unsigned>(3950));
     EXPECT_EQ(scriptPtrD->getTransferInstruction(3).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).outputIndex, (unsigned)6);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).outputIndex, static_cast<unsigned>(6));
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).amount, (unsigned)25);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).amount, static_cast<unsigned>(25));
     EXPECT_EQ(scriptPtrD->getTransferInstruction(4).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).outputIndex, (unsigned)7);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).outputIndex, static_cast<unsigned>(7));
 }
 
 TEST(ntp1_tests, amend_tx_6)
@@ -2403,7 +2386,7 @@ TEST(ntp1_tests, amend_tx_6)
     auto inputs = GetNTP1InputsOnline(tx, true);
     NTP1Transaction::AmendStdTxWithNTP1(tx, inputs, 1);
 
-    ASSERT_EQ(tx.vout.size(), (unsigned)8);
+    ASSERT_EQ(tx.vout.size(), static_cast<unsigned>(8));
     EXPECT_EQ(tx.vout[0], out0);
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue + tx.vout[4].nValue +
                   tx.vout[5].nValue + tx.vout[6].nValue + tx.vout[7].nValue,
@@ -2416,27 +2399,27 @@ TEST(ntp1_tests, amend_tx_6)
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
     EXPECT_NE(scriptPtrD, nullptr);
 
-    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), (unsigned)5);
+    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), static_cast<unsigned>(5));
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, (unsigned)50);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, static_cast<unsigned>(50));
     EXPECT_EQ(scriptPtrD->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, (unsigned)3);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, static_cast<unsigned>(3));
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).amount, (unsigned)40);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).amount, static_cast<unsigned>(40));
     EXPECT_EQ(scriptPtrD->getTransferInstruction(1).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).outputIndex, (unsigned)4);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).outputIndex, static_cast<unsigned>(4));
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).amount, (unsigned)1400);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).amount, static_cast<unsigned>(1400));
     EXPECT_EQ(scriptPtrD->getTransferInstruction(2).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).outputIndex, (unsigned)5);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).outputIndex, static_cast<unsigned>(5));
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).amount, (unsigned)3950);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).amount, static_cast<unsigned>(3950));
     EXPECT_EQ(scriptPtrD->getTransferInstruction(3).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).outputIndex, (unsigned)6);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).outputIndex, static_cast<unsigned>(6));
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).amount, (unsigned)25);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).amount, static_cast<unsigned>(25));
     EXPECT_EQ(scriptPtrD->getTransferInstruction(4).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).outputIndex, (unsigned)7);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).outputIndex, static_cast<unsigned>(7));
 }
 
 TEST(ntp1_tests, amend_tx_with_op_return)

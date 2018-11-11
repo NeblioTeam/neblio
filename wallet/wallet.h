@@ -85,7 +85,7 @@ private:
                                int64_t&                                             nValueRet) const;
     bool SelectCoins(int64_t nTargetValue, unsigned int nSpendTime,
                      std::set<std::pair<const CWalletTx*, unsigned int>>& setCoinsRet,
-                     int64_t& nValueRet, const CCoinControl* coinControl = NULL) const;
+                     int64_t& nValueRet, const CCoinControl* coinControl = nullptr) const;
 
     CWalletDB* pwalletdbEncryption;
 
@@ -137,7 +137,7 @@ public:
         nWalletMaxVersion   = FEATURE_BASE;
         fFileBacked         = false;
         nMasterKeyMaxID     = 0;
-        pwalletdbEncryption = NULL;
+        pwalletdbEncryption = nullptr;
         nOrderPosNext       = 0;
         nTimeFirstKey       = 0;
     }
@@ -160,7 +160,7 @@ public:
 
     void AvailableCoinsForStaking(std::vector<COutput>& vCoins, unsigned int nSpendTime) const;
     void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed = true,
-                        const CCoinControl* coinControl = NULL) const;
+                        const CCoinControl* coinControl = nullptr) const;
     bool SelectCoinsMinConf(int64_t nTargetValue, unsigned int nSpendTime, int nConfMine,
                             int nConfTheirs, std::vector<COutput> vCoins,
                             std::set<std::pair<const CWalletTx*, unsigned int>>& setCoinsRet,
@@ -201,7 +201,7 @@ public:
     /** Increment the next transaction order id
         @return next transaction order id
      */
-    int64_t IncOrderPosNext(CWalletDB* pwalletdb = NULL);
+    int64_t IncOrderPosNext(CWalletDB* pwalletdb = nullptr);
 
     typedef std::pair<CWalletTx*, CAccountingEntry*> TxPair;
     typedef std::multimap<int64_t, TxPair>           TxItems;
@@ -228,10 +228,10 @@ public:
     int64_t GetNewMint() const;
     bool    CreateTransaction(const std::vector<std::pair<CScript, int64_t>>& vecSend, CWalletTx& wtxNew,
                               CReserveKey& reservekey, int64_t& nFeeRet, NTP1SendTxData ntp1TxData,
-                              const CCoinControl* coinControl = NULL);
+                              const CCoinControl* coinControl = nullptr, std::string* errorMsg = nullptr);
     bool    CreateTransaction(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew,
                               CReserveKey& reservekey, int64_t& nFeeRet, const NTP1SendTxData& ntp1TxData,
-                              const CCoinControl* coinControl = NULL);
+                              const CCoinControl* coinControl = nullptr);
     bool    CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
 
     bool GetStakeWeight(const CKeyStore& keystore, uint64_t& nMinWeight, uint64_t& nMaxWeight,
@@ -347,7 +347,7 @@ public:
 
     // signify that a particular wallet feature is now used. this may change nWalletVersion and
     // nWalletMaxVersion if those are lower
-    bool SetMinVersion(enum WalletFeature, CWalletDB* pwalletdbIn = NULL, bool fExplicit = false);
+    bool SetMinVersion(enum WalletFeature, CWalletDB* pwalletdbIn = nullptr, bool fExplicit = false);
 
     // change which version we're allowed to upgrade to (note that this does not immediately imply
     // upgrading to that format)
@@ -487,7 +487,7 @@ public:
     mutable int64_t nAvailableCreditCached;
     mutable int64_t nChangeCached;
 
-    CWalletTx() { Init(NULL); }
+    CWalletTx() { Init(nullptr); }
 
     CWalletTx(const CWallet* pwalletIn) { Init(pwalletIn); }
 
@@ -518,7 +518,7 @@ public:
         nOrderPos              = -1;
     }
 
-    IMPLEMENT_SERIALIZE(CWalletTx* pthis  = const_cast<CWalletTx*>(this); if (fRead) pthis->Init(NULL);
+    IMPLEMENT_SERIALIZE(CWalletTx* pthis = const_cast<CWalletTx*>(this); if (fRead) pthis->Init(nullptr);
                         char       fSpent = false;
 
                         if (!fRead) {

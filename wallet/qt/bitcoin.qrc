@@ -3,6 +3,7 @@
         <file alias="about_qt">res/icons/about_qt.png</file>
         <file alias="bitcoin">res/icons/novacoin-80.png</file>
         <file alias="address-book">res/icons/address-book.png</file>
+        <file alias="hdd">res/icons/hdd.png</file>
         <file alias="quit">res/icons/quit.png</file>
         <file alias="send">res/icons/send.png</file>
         <file alias="toolbar">res/icons/novacoin-16.png</file>

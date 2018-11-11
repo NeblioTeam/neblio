@@ -32,7 +32,6 @@ public:
     void showOutOfSyncWarning(bool fShow);
 
 public slots:
-    void setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBalance, qint64 immatureBalance);
 
 signals:
     void tokenClicked(const QModelIndex& index);
@@ -42,8 +41,10 @@ public:
     NTP1TokenListModel* getTokenListModel() const;
 
 private:
-    static const QString sendDialogHiddenStr;
-    static const QString sendDialogShownStr;
+    static const QString copyTokenIdText;
+    static const QString copyTokenSymbolText;
+    static const QString copyTokenNameText;
+    static const QString viewInBlockExplorerText;
 
     qint64                    currentBalance;
     qint64                    currentStake;
@@ -54,13 +55,19 @@ private:
 
     NTP1TokenListItemDelegate* tokenDelegate;
 
-    QMenu*   contextMenu      = Q_NULLPTR;
-    QAction* sendTokensAction = Q_NULLPTR;
+    QMenu*   contextMenu               = Q_NULLPTR;
+    QAction* copyTokenIdAction         = Q_NULLPTR;
+    QAction* copyTokenSymbolAction     = Q_NULLPTR;
+    QAction* copyTokenNameAction       = Q_NULLPTR;
+    QAction* viewInBlockExplorerAction = Q_NULLPTR;
 
 private slots:
     void handleTokenClicked(const QModelIndex& index);
     void slot_contextMenuRequested(QPoint pos);
-    void slot_actToShowSendTokensView();
+    void slot_copyTokenIdAction();
+    void slot_copyTokenSymbolAction();
+    void slot_copyTokenNameAction();
+    void slot_visitInBlockExplorerAction();
 
     // QWidget interface
 protected:

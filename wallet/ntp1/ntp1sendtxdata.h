@@ -26,14 +26,13 @@ class NTP1SendTxData
     // this is a vector because order must be preserved
     std::vector<NTP1OutPoint>                   tokenSourceInputs;
     std::vector<IntermediaryTI>                 intermediaryTIs;
-    std::map<std::string, int64_t>              totalChangeTokens;
-    std::map<std::string, int64_t>              totalTokenAmountsInSelectedInputs;
+    std::map<std::string, NTP1Int>              totalChangeTokens;
+    std::map<std::string, NTP1Int>              totalTokenAmountsInSelectedInputs;
     std::vector<NTP1SendTokensOneRecipientData> recipientsList;
     boost::shared_ptr<NTP1Wallet>               usedWallet;
 
     int64_t __addInputsThatCoversNeblAmount(uint64_t neblAmount);
-    bool    txHasNTP1Tokens = false;
-    bool    ready           = false;
+    bool    ready = false;
 
 public:
     NTP1SendTxData();
@@ -59,16 +58,20 @@ public:
     static int64_t EstimateTxFee(int64_t num_of_inputs, int64_t num_of_outputs);
 
     std::vector<NTP1OutPoint>      getUsedInputs() const;
-    std::map<std::string, int64_t> getChangeTokens() const;
-    std::map<std::string, int64_t> getTotalTokensInInputs() const;
+    std::map<std::string, NTP1Int> getChangeTokens() const;
+    std::map<std::string, NTP1Int> getTotalTokensInInputs() const;
     bool                           isReady() const;
     // list of recipients after removing Nebl recipients
     std::vector<NTP1SendTokensOneRecipientData> getNTP1TokenRecipientsList() const;
     boost::shared_ptr<NTP1Wallet>               getWallet() const;
 
     std::vector<IntermediaryTI> getIntermediaryTIs() const;
-    bool                        hasNTP1Tokens() const;
-    uint64_t                    getRequiredNeblsForOutputs() const;
+    /**
+     * @brief hasNTP1Tokens
+     * @return true if the resulting inputs have NTP1 tokens
+     */
+    bool     hasNTP1Tokens() const;
+    uint64_t getRequiredNeblsForOutputs() const;
 
     static void FixTIsChangeOutputIndex(std::vector<NTP1Script::TransferInstruction>& TIs,
                                         int                                           changeOutputIndex);

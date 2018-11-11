@@ -27,7 +27,7 @@ QString NTP1TokenListModel::__getTokenDescription(int index, boost::shared_ptr<N
 
 QString NTP1TokenListModel::__getTokenBalance(int index, boost::shared_ptr<NTP1Wallet> theWallet)
 {
-    return QString::number(theWallet->getTokenBalance(index));
+    return QString::fromStdString(ToString(theWallet->getTokenBalance(index)));
 }
 
 QIcon NTP1TokenListModel::__getTokenIcon(int index, boost::shared_ptr<NTP1Wallet> theWallet)
@@ -133,12 +133,12 @@ void NTP1TokenListModel::endWalletUpdate()
     }
 }
 
-int NTP1TokenListModel::rowCount(const QModelIndex& parent) const
+int NTP1TokenListModel::rowCount(const QModelIndex& /*parent*/) const
 {
     return ntp1wallet->getNumberOfTokens();
 }
 
-int NTP1TokenListModel::columnCount(const QModelIndex& parent) const { return 3; }
+int NTP1TokenListModel::columnCount(const QModelIndex& /*parent*/) const { return 3; }
 
 QVariant NTP1TokenListModel::data(const QModelIndex& index, int role) const
 {
@@ -153,6 +153,9 @@ QVariant NTP1TokenListModel::data(const QModelIndex& index, int role) const
     }
     if (role == NTP1TokenListModel::TokenDescriptionRole) {
         return __getTokenDescription(index.row(), ntp1wallet);
+    }
+    if (role == NTP1TokenListModel::TokenIdRole) {
+        return __getTokenId(index.row(), ntp1wallet);
     }
     if (role == NTP1TokenListModel::TokenNameRole) {
         return __getTokenName(index.row(), ntp1wallet);

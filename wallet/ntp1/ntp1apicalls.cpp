@@ -12,8 +12,8 @@ bool NTP1APICalls::RetrieveData_AddressContainsNTP1Tokens(const std::string& add
         json_spirit::Value parsedData;
         json_spirit::read_or_throw(ntpData, parsedData);
         json_spirit::Array utxosArray = NTP1Tools::GetArrayField(parsedData.get_obj(), "utxos");
-        for (long i = 0; i < static_cast<long>(utxosArray.size()); i++) {
-            json_spirit::Array tokensArray = NTP1Tools::GetArrayField(utxosArray[i].get_obj(), "tokens");
+        for (const auto &ob: utxosArray) {
+            json_spirit::Array tokensArray = NTP1Tools::GetArrayField(ob.get_obj(), "tokens");
             if (tokensArray.size() > 0) {
                 return true;
             }
@@ -35,10 +35,10 @@ uint64_t NTP1APICalls::RetrieveData_TotalNeblsExcludingNTP1(const std::string& a
         json_spirit::read_or_throw(ntpData, parsedData);
         json_spirit::Array utxosArray = NTP1Tools::GetArrayField(parsedData.get_obj(), "utxos");
         uint64_t           totalSats  = 0;
-        for (long i = 0; i < static_cast<long>(utxosArray.size()); i++) {
-            json_spirit::Array tokensArray = NTP1Tools::GetArrayField(utxosArray[i].get_obj(), "tokens");
+        for (const auto& ob: utxosArray) {
+            json_spirit::Array tokensArray = NTP1Tools::GetArrayField(ob.get_obj(), "tokens");
             if (tokensArray.size() == 0) {
-                totalSats += NTP1Tools::GetUint64Field(utxosArray[i].get_obj(), "value");
+                totalSats += NTP1Tools::GetUint64Field(ob.get_obj(), "value");
             }
         }
         return totalSats;
