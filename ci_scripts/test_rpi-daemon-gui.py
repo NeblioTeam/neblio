@@ -45,4 +45,5 @@ else:
   if(os.path.isfile('nebliod')):
     nci.call_with_err_code('sudo rm -f nebliod')
 
-  nci.call_with_err_code('echo "Binaries neblio-qt and nebliod not found, likely due to a timeout, this job should be retried"')
+  nci.call_with_err_code('echo "Binaries neblio-qt and nebliod not found, likely due to a timeout, restarting job..."')
+  nci.call_with_err_code('curl -X POST -H "Content-Type: application/json" -H "Travis-API-Version: 3" -H "Accept: application/json" -H "Authorization: token ' + os.environ["TRAVIS_API_TOKEN"] + '" -d \'{}\' \'https://api.travis-ci.org/job/' + os.environ["TRAVIS_JOB_ID"] + '/cancel\' && curl -X POST -H "Content-Type: application/json" -H "Travis-API-Version: 3" -H "Accept: application/json" -H "Authorization: token ' + os.environ["TRAVIS_API_TOKEN"] + '" -d \'{}\' \'https://api.travis-ci.org/job/' + os.environ["TRAVIS_JOB_ID"] + '/restart\'')
