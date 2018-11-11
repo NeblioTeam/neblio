@@ -9,9 +9,28 @@ MKDIR_P = mkdir -p
 LINK:=$(CXX)
 ARCH:=$(system lscpu | head -n 1 | awk '{print $2}')
 
+CXXARCH:=$(${CXX} -dumpmachine | grep -i 'x86_64')
+
 DEFS=-DBOOST_SPIRIT_THREADSAFE -DUSE_LMDB
 
-DEFS += $(addprefix -I,$(CURDIR) $(CURDIR)/obj $(BOOST_INCLUDE_PATH) $(BDB_INCLUDE_PATH) $(OPENSSL_INCLUDE_PATH) $(shell pkg-config libcurl --cflags))
+# detect arch for lmdb32
+ifneq ($(CXXARCH),)
+MDB32D:=-DMDB_VL32
+endif
+
+# force 32-bit lmdb at will
+ifdef lmdb32
+MDB32D:=-DMDB_VL32
+endif
+
+# force 64-bit lmdb at will
+ifdef lmdb64
+MDB32D:=
+endif
+
+
+
+DEFS += $(addprefix -I,$(CURDIR) $(CURDIR)/obj $(BOOST_INCLUDE_PATH) $(BDB_INCLUDE_PATH) $(OPENSSL_INCLUDE_PATH) $(shell pkg-config libcurl --cflags)) ${MDB32D}
 LIBS = $(addprefix -L,$(BOOST_LIB_PATH) $(BDB_LIB_PATH) $(OPENSSL_LIB_PATH))
 
 TESTDEFS = -DTEST_DATA_DIR=$(abspath test/data)

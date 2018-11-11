@@ -147,14 +147,15 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
 void TransactionRecord::readNTP1TxData()
 {
     try {
-        CTransaction                                          tx         = FetchTxFromDisk(hash);
-        std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs = GetAllNTP1InputsOfTx(tx);
+        CTransaction                                          tx = FetchTxFromDisk(hash);
+        std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs =
+            GetAllNTP1InputsOfTx(tx, false);
         ntp1tx.readNTP1DataFromTx(tx, ntp1inputs);
         ntp1DataLoaded    = true;
         ntp1DataLoadError = false;
     } catch (std::exception& ex) {
         printf("Failed to read NTP1 transaction data for transaction record. Transaction hash: %s. "
-               "Error: %s",
+               "Error: %s\n",
                hash.ToString().c_str(), ex.what());
         ntp1DataLoadError = true;
     }
@@ -166,8 +167,8 @@ void TransactionRecord::updateStatus(const CWalletTx& wtx)
     // Determine transaction status
 
     // Find the block the tx is in
-    CBlockIndex*                              pindex = NULL;
-    std::map<uint256, CBlockIndex*>::iterator mi     = mapBlockIndex.find(wtx.hashBlock);
+    CBlockIndex*                                        pindex = NULL;
+    std::unordered_map<uint256, CBlockIndex*>::iterator mi     = mapBlockIndex.find(wtx.hashBlock);
     if (mi != mapBlockIndex.end())
         pindex = (*mi).second;
 

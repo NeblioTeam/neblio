@@ -8,6 +8,7 @@
 #include "base58.h"
 #include "bitcoinrpc.h"
 #include "boost/make_shared.hpp"
+#include "climits"
 #include "init.h"
 #include "main.h"
 #include "net.h"
@@ -83,7 +84,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
 
     if (hashBlock != 0) {
         entry.push_back(Pair("blockhash", hashBlock.GetHex()));
-        map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
+        unordered_map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
         if (mi != mapBlockIndex.end() && (*mi).second) {
             CBlockIndex* pindex = (*mi).second;
             if (pindex->IsInMainChain()) {
@@ -173,7 +174,7 @@ Value listunspent(const Array& params, bool fHelp)
             continue;
 
         std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs =
-            GetAllNTP1InputsOfTx(static_cast<CTransaction>(*out.tx));
+            GetAllNTP1InputsOfTx(static_cast<CTransaction>(*out.tx), false);
         NTP1Transaction ntp1tx;
         ntp1tx.readNTP1DataFromTx(static_cast<CTransaction>(*out.tx), ntp1inputs);
 
@@ -327,10 +328,10 @@ Value createrawntp1transaction(const Array& params, bool fHelp)
     NTP1SendTxData tokenSelector;
     tokenSelector.selectNTP1Tokens(ntp1wallet, cinputs, ntp1recipients, false);
 
-    const std::map<std::string, int64_t>& changeMap    = tokenSelector.getChangeTokens();
-    int64_t                               changeTokens = std::accumulate(
-        changeMap.begin(), changeMap.end(), 0,
-        [](int64_t n, const std::pair<std::string, int64_t>& p1) { return n + p1.second; });
+    const std::map<std::string, NTP1Int>& changeMap    = tokenSelector.getChangeTokens();
+    NTP1Int                               changeTokens = std::accumulate(
+        changeMap.begin(), changeMap.end(), NTP1Int(0),
+        [](NTP1Int n, const std::pair<std::string, NTP1Int>& p1) { return n + p1.second; });
 
     if (changeTokens > 0) {
         std::string except_msg;
@@ -338,7 +339,7 @@ Value createrawntp1transaction(const Array& params, bool fHelp)
             // safety
             if (changeMap.size() > 0) {
                 std::string tokenId      = changeMap.begin()->first;
-                int64_t     changeAmount = changeMap.begin()->second;
+                NTP1Int     changeAmount = changeMap.begin()->second;
 
                 std::string tokenName = ntp1wallet->getTokenMetadataMap().at(tokenId).getTokenName();
 
@@ -368,7 +369,16 @@ Value createrawntp1transaction(const Array& params, bool fHelp)
         scriptPubKey.SetDestination(CBitcoinAddress(rcp.destination).Get());
         // here we add only nebls. NTP1 tokens will be added later
         if (rcp.tokenId == NTP1SendTxData::NEBL_TOKEN_ID) {
-            rawTx.vout.push_back(CTxOut(rcp.amount, scriptPubKey));
+            using NeblInt = int64_t;
+            NeblInt val   = 0;
+            if (rcp.amount > NTP1Int(std::numeric_limits<NeblInt>::max())) {
+                val = std::numeric_limits<NeblInt>::max();
+            } else if (rcp.amount < 0) {
+                val = 0;
+            } else {
+                val = rcp.amount.convert_to<NeblInt>();
+            }
+            rawTx.vout.push_back(CTxOut(val, scriptPubKey));
         }
     }
 

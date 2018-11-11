@@ -18,7 +18,7 @@ public:
     static const std::string ReleasesInfoURL;
     static const std::string LatestReleaseURL;
 
-    NeblioUpdater();
+    NeblioUpdater() = default;
     void checkIfUpdateIsAvailable(boost::promise<bool> &updateIsAvailablePromise, NeblioReleaseInfo &lastRelease);
 
     static NeblioVersion ParseVersion(const std::string& versionFile);

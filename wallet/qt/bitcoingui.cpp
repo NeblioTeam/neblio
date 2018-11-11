@@ -100,6 +100,10 @@ BitcoinGUI::BitcoinGUI(QWidget* parent)
     // Create system tray icon and notification
     createTrayIcon();
 
+    blockchainExporterProg = new QProgressDialog(this);
+    blockchainExporterProg->close();
+    blockchainExporterProg->setWindowTitle("Blockchain export progress");
+
     // Create tabs
     overviewPage    = new OverviewPage();
     ntp1SummaryPage = new NTP1Summary();
@@ -334,6 +338,8 @@ void BitcoinGUI::createActions()
     lockWalletAction->setToolTip(tr("Lock wallet"));
     signMessageAction   = new QAction(QIcon(":/icons/edit"), tr("Sign &message..."), this);
     verifyMessageAction = new QAction(QIcon(":/icons/transaction_0"), tr("&Verify message..."), this);
+    exportBlockchainBootstrapAction =
+        new QAction(QIcon(":/icons/hdd"), tr("&Export blockchain bootstrap..."), this);
 
     exportAction = new QAction(QIcon(":/icons/export"), tr("&Export..."), this);
     exportAction->setToolTip(tr("Export the data in the current tab to a file"));
@@ -353,6 +359,8 @@ void BitcoinGUI::createActions()
     connect(lockWalletAction, SIGNAL(triggered()), this, SLOT(lockWallet()));
     connect(signMessageAction, SIGNAL(triggered()), this, SLOT(gotoSignMessageTab()));
     connect(verifyMessageAction, SIGNAL(triggered()), this, SLOT(gotoVerifyMessageTab()));
+    connect(exportBlockchainBootstrapAction, &QAction::triggered, this,
+            &BitcoinGUI::exportBlockchainBootstrap);
 }
 
 void BitcoinGUI::createMenuBar()
@@ -369,7 +377,10 @@ void BitcoinGUI::createMenuBar()
     QMenu* file = appMenuBar->addMenu(tr("&File"));
     file->addAction(backupWalletAction);
     file->addAction(importWalletAction);
+    file->addSeparator();
     file->addAction(exportAction);
+    file->addAction(exportBlockchainBootstrapAction);
+    file->addSeparator();
     file->addAction(signMessageAction);
     file->addAction(verifyMessageAction);
     file->addSeparator();
@@ -828,6 +839,55 @@ void BitcoinGUI::gotoSignMessageTab(QString addr)
         signVerifyMessageDialog->setAddress_SM(addr);
 }
 
+void BitcoinGUI::exportBlockchainBootstrap()
+{
+    QString saveDir =
+        QDesktopServices::storageLocation(QDesktopServices::DocumentsLocation) + "/" + "bootstrap.dat";
+    QString filename = QFileDialog::getSaveFileName(this, tr("Export blockchain"), saveDir,
+                                                    tr("Blockchain Data (*.dat)"));
+
+    if (!filename.isEmpty()) {
+        blockchainExporterProg->setValue(0);
+        blockchainExporterProg->reset();
+        blockchainExporterProg->setLabelText("Exporting... please wait.");
+        blockchainExporterProg->open();
+
+        boost::promise<void>       finished;
+        boost::unique_future<void> finished_future = finished.get_future();
+        std::atomic<bool>          stopped{false};
+        std::atomic<double>        progress{false};
+        boost::thread exporterThread(boost::bind(&ExportBootstrapBlockchain, filename.toStdString(),
+                                                 boost::ref(stopped), boost::ref(progress),
+                                                 boost::ref(finished)));
+        exporterThread.detach();
+
+        while (!finished_future.is_ready()) {
+            QApplication::processEvents();
+            if (blockchainExporterProg->wasCanceled()) {
+                stopped.store(true);
+            } else {
+                blockchainExporterProg->setValue(static_cast<int>(progress * 100));
+                boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
+            }
+        }
+        blockchainExporterProg->setValue(100);
+        blockchainExporterProg->close();
+        try {
+            finished_future.get();
+            QMessageBox::information(this, "Exporting blockchain done",
+                                     "Exporting the blockchain is done successfully to: \n\n" +
+                                         filename +
+                                         "\n\n"
+                                         "To load this blockchain to another client, rename this "
+                                         "file to bootstrap.dat, and put it in the data directory of "
+                                         "the client in question.");
+        } catch (std::exception& ex) {
+            QMessageBox::warning(this, "Error exporting blockchain",
+                                 "Failed to export the blockchain. Error: " + QString(ex.what()));
+        }
+    }
+}
+
 void BitcoinGUI::gotoVerifyMessageTab(QString addr)
 {
     // call show() in showTab_VM()
@@ -1160,7 +1220,7 @@ void BitcoinGUI::updateCheckAnimation_frameChanged(int frameNumber)
 
 void BitcoinGUI::checkForNeblioUpdates()
 {
-    if (!isUpdateRunning) {
+    if (!isUpdateRunning && appInitiated) {
         printf("Checking for updates...\n");
         updaterLabel->setToolTip("Checking for updates...");
         updaterLabel->setMovie(updaterSpinnerMovie);

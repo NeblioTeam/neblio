@@ -205,7 +205,8 @@ void SendCoinsDialog::on_sendButton_clicked()
             QMessageBox::Ok, QMessageBox::Ok);
         break;
     case WalletModel::TransactionCreationFailed:
-        QMessageBox::warning(this, tr("Send Coins"), tr("Error: Transaction creation failed."),
+        QMessageBox::warning(this, tr("Send Coins"),
+                             tr("Error: Transaction creation failed. ") + sendstatus.msg,
                              QMessageBox::Ok, QMessageBox::Ok);
         break;
     case WalletModel::TransactionCommitFailed:

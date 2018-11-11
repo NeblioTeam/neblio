@@ -59,7 +59,7 @@ std::string NTP1Script_Issuance::getAggregationPolicyStr() const
 
 std::string NTP1Script_Issuance::getTokenSymbol() const { return tokenSymbol; }
 
-uint64_t NTP1Script_Issuance::getAmount() const { return amount; }
+NTP1Int NTP1Script_Issuance::getAmount() const { return amount; }
 
 unsigned NTP1Script_Issuance::getTransferInstructionsCount() const
 {
@@ -163,7 +163,7 @@ std::string NTP1Script_Issuance::calculateScriptBin() const
     result += opCodeBin;
     result += Create_ProcessTokenSymbol(tokenSymbol);
     result += metadata;
-    result += unhex(NumberToHexNTP1Amount<decltype(amount)>(amount));
+    result += unhex(NumberToHexNTP1Amount(amount));
 
     for (const auto& ti : transferInstructions) {
         result += TransferInstructionToBinScript(ti);

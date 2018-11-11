@@ -67,7 +67,6 @@ bool                        fDebugNet        = false;
 bool                        fPrintToConsole  = false;
 bool                        fPrintToDebugger = false;
 bool                        fRequestShutdown = false;
-bool                        fShutdown        = false;
 bool                        fDaemon          = false;
 bool                        fServer          = false;
 bool                        fCommandLine     = false;
@@ -77,10 +76,11 @@ bool                        fNoListen      = false;
 bool                        fLogTimestamps = true;
 CMedianFilter<int64_t>      vTimeOffsets(200, 0);
 bool                        fReopenDebugLog = false;
+boost::atomic<bool>         fShutdown{false};
 
 // Init OpenSSL library multithreading support
 static CCriticalSection** ppmutexOpenSSL;
-void                      locking_callback(int mode, int i, const char* file, int line)
+void                      locking_callback(int mode, int i, const char* /*file*/, int /*line*/)
 {
     if (mode & CRYPTO_LOCK) {
         ENTER_CRITICAL_SECTION(*ppmutexOpenSSL[i]);
