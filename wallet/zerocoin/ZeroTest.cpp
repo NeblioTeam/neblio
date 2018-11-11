@@ -10,14 +10,14 @@
 * @license    This project is released under the MIT license.
 **/
 
-using namespace std;
-
 #include <string>
 #include <iostream>
 #include <fstream>
 #include <exception>
 #include "Zerocoin.h"
 #include "../util.h"
+
+using namespace std;
 
 using namespace libzerocoin;
 extern Params* ZCParams;

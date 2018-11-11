@@ -58,7 +58,7 @@ public:
 	 **/
 	void accumulate(const PublicCoin &coin);
 
-	const CoinDenomination getDenomination() const;
+    CoinDenomination getDenomination() const;
 	/** Get the accumulator result
 	 *
 	 * @return a Bignum containing the result.
@@ -139,7 +139,7 @@ public:
 	 */
 	AccumulatorWitness& operator +=(const PublicCoin& rhs);
 private:
-	const Params* params;
+    const Params* params;
 	Accumulator witness;
 	const PublicCoin element;
 };

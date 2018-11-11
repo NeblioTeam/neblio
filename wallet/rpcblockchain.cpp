@@ -3,8 +3,9 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "main.h"
 #include "bitcoinrpc.h"
+#include "main.h"
+#include <atomic>
 
 using namespace json_spirit;
 using namespace std;
@@ -16,8 +17,7 @@ double GetDifficulty(const CBlockIndex* blockindex)
 {
     // Floating point number that is a multiple of the minimum difficulty,
     // minimum difficulty = 1.0.
-    if (blockindex == NULL)
-    {
+    if (blockindex == NULL) {
         if (pindexBest == NULL)
             return 1.0;
         else
@@ -26,16 +26,13 @@ double GetDifficulty(const CBlockIndex* blockindex)
 
     int nShift = (blockindex->nBits >> 24) & 0xff;
 
-    double dDiff =
-        (double)0x0000ffff / (double)(blockindex->nBits & 0x00ffffff);
+    double dDiff = (double)0x0000ffff / (double)(blockindex->nBits & 0x00ffffff);
 
-    while (nShift < 29)
-    {
+    while (nShift < 29) {
         dDiff *= 256.0;
         nShift++;
     }
-    while (nShift > 29)
-    {
+    while (nShift > 29) {
         dDiff /= 256.0;
         nShift--;
     }
@@ -48,20 +45,20 @@ double GetPoWMHashPS()
     if (pindexBest->nHeight >= LAST_POW_BLOCK)
         return 0;
 
-    int nPoWInterval = 72;
+    int     nPoWInterval          = 72;
     int64_t nTargetSpacingWorkMin = 30, nTargetSpacingWork = 30;
 
-    CBlockIndex* pindex = pindexGenesisBlock;
+    CBlockIndex* pindex         = pindexGenesisBlock;
     CBlockIndex* pindexPrevWork = pindexGenesisBlock;
 
-    while (pindex)
-    {
-        if (pindex->IsProofOfWork())
-        {
+    while (pindex) {
+        if (pindex->IsProofOfWork()) {
             int64_t nActualSpacingWork = pindex->GetBlockTime() - pindexPrevWork->GetBlockTime();
-            nTargetSpacingWork = ((nPoWInterval - 1) * nTargetSpacingWork + nActualSpacingWork + nActualSpacingWork) / (nPoWInterval + 1);
+            nTargetSpacingWork =
+                ((nPoWInterval - 1) * nTargetSpacingWork + nActualSpacingWork + nActualSpacingWork) /
+                (nPoWInterval + 1);
             nTargetSpacingWork = max(nTargetSpacingWork, nTargetSpacingWorkMin);
-            pindexPrevWork = pindex;
+            pindexPrevWork     = pindex;
         }
 
         pindex = pindex->pnext;
@@ -72,17 +69,16 @@ double GetPoWMHashPS()
 
 double GetPoSKernelPS()
 {
-    int nPoSInterval = 72;
+    int    nPoSInterval          = 72;
     double dStakeKernelsTriedAvg = 0;
-    int nStakesHandled = 0, nStakesTime = 0;
+    int    nStakesHandled = 0, nStakesTime = 0;
 
-    CBlockIndex* pindex = pindexBest;;
+    CBlockIndex* pindex = pindexBest;
+    ;
     CBlockIndex* pindexPrevStake = NULL;
 
-    while (pindex && nStakesHandled < nPoSInterval)
-    {
-        if (pindex->IsProofOfStake())
-        {
+    while (pindex && nStakesHandled < nPoSInterval) {
+        if (pindex->IsProofOfStake()) {
             dStakeKernelsTriedAvg += GetDifficulty(pindex) * 4294967296.0;
             nStakesTime += pindexPrevStake ? (pindexPrevStake->nTime - pindex->nTime) : 0;
             pindexPrevStake = pindex;
@@ -118,24 +114,23 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
     if (blockindex->pnext)
         result.push_back(Pair("nextblockhash", blockindex->pnext->GetBlockHash().GetHex()));
 
-    result.push_back(Pair("flags", strprintf("%s%s", blockindex->IsProofOfStake()? "proof-of-stake" : "proof-of-work", blockindex->GeneratedStakeModifier()? " stake-modifier": "")));
+    result.push_back(Pair(
+        "flags", strprintf("%s%s", blockindex->IsProofOfStake() ? "proof-of-stake" : "proof-of-work",
+                           blockindex->GeneratedStakeModifier() ? " stake-modifier" : "")));
     result.push_back(Pair("proofhash", blockindex->hashProof.GetHex()));
     result.push_back(Pair("entropybit", (int)blockindex->GetStakeEntropyBit()));
     result.push_back(Pair("modifier", strprintf("%016" PRIx64, blockindex->nStakeModifier)));
     result.push_back(Pair("modifierchecksum", strprintf("%08x", blockindex->nStakeModifierChecksum)));
     Array txinfo;
-    BOOST_FOREACH (const CTransaction& tx, block.vtx)
-    {
-        if (fPrintTransactionDetail)
-        {
+    BOOST_FOREACH (const CTransaction& tx, block.vtx) {
+        if (fPrintTransactionDetail) {
             Object entry;
 
             entry.push_back(Pair("txid", tx.GetHash().GetHex()));
             TxToJSON(tx, 0, entry);
 
             txinfo.push_back(entry);
-        }
-        else
+        } else
             txinfo.push_back(tx.GetHash().GetHex());
     }
 
@@ -150,9 +145,8 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
 Value getbestblockhash(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
-        throw runtime_error(
-            "getbestblockhash\n"
-            "Returns the hash of the best block in the longest block chain.");
+        throw runtime_error("getbestblockhash\n"
+                            "Returns the hash of the best block in the longest block chain.");
 
     return hashBestChain.GetHex();
 }
@@ -160,38 +154,33 @@ Value getbestblockhash(const Array& params, bool fHelp)
 Value getblockcount(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
-        throw runtime_error(
-            "getblockcount\n"
-            "Returns the number of blocks in the longest block chain.");
+        throw runtime_error("getblockcount\n"
+                            "Returns the number of blocks in the longest block chain.");
 
     return nBestHeight;
 }
 
-
 Value getdifficulty(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
-        throw runtime_error(
-            "getdifficulty\n"
-            "Returns the difficulty as a multiple of the minimum difficulty.");
+        throw runtime_error("getdifficulty\n"
+                            "Returns the difficulty as a multiple of the minimum difficulty.");
 
     Object obj;
-    obj.push_back(Pair("proof-of-work",        GetDifficulty()));
-    obj.push_back(Pair("proof-of-stake",       GetDifficulty(GetLastBlockIndex(pindexBest, true))));
-    obj.push_back(Pair("search-interval",      (int)nLastCoinStakeSearchInterval));
+    obj.push_back(Pair("proof-of-work", GetDifficulty()));
+    obj.push_back(Pair("proof-of-stake", GetDifficulty(GetLastBlockIndex(pindexBest, true))));
+    obj.push_back(Pair("search-interval", (int)nLastCoinStakeSearchInterval));
     return obj;
 }
-
 
 Value settxfee(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 1 || AmountFromValue(params[0]) < MIN_TX_FEE)
-        throw runtime_error(
-            "settxfee <amount>\n"
-            "<amount> is a real and is rounded to the nearest 0.01");
+        throw runtime_error("settxfee <amount>\n"
+                            "<amount> is a real and is rounded to the nearest 0.01");
 
     nTransactionFee = AmountFromValue(params[0]);
-    nTransactionFee = (nTransactionFee / CENT) * CENT;  // round to cent
+    nTransactionFee = (nTransactionFee / CENT) * CENT; // round to cent
 
     return true;
 }
@@ -199,15 +188,14 @@ Value settxfee(const Array& params, bool fHelp)
 Value getrawmempool(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
-        throw runtime_error(
-            "getrawmempool\n"
-            "Returns all transaction ids in memory pool.");
+        throw runtime_error("getrawmempool\n"
+                            "Returns all transaction ids in memory pool.");
 
     vector<uint256> vtxid;
     mempool.queryHashes(vtxid);
 
     Array a;
-    BOOST_FOREACH(const uint256& hash, vtxid)
+    BOOST_FOREACH (const uint256& hash, vtxid)
         a.push_back(hash.ToString());
 
     return a;
@@ -216,9 +204,8 @@ Value getrawmempool(const Array& params, bool fHelp)
 Value getblockhash(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
-        throw runtime_error(
-            "getblockhash <index>\n"
-            "Returns hash of block in best-block-chain at <index>.");
+        throw runtime_error("getblockhash <index>\n"
+                            "Returns hash of block in best-block-chain at <index>.");
 
     int nHeight = params[0].get_int();
     if (nHeight < 0 || nHeight > nBestHeight)
@@ -255,12 +242,12 @@ Value getblock(const Array& params, bool fHelp)
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
             "getblock <hash> [verbose=true]\n"
-            "If verbose is false, returns a string that is serialized, hex-encoded data for block <hash>.\n"
-            "If verbose is true, returns an Object with information about block <hash>."
-        );
+            "If verbose is false, returns a string that is serialized, hex-encoded data for block "
+            "<hash>.\n"
+            "If verbose is true, returns an Object with information about block <hash>.");
 
     std::string strHash = params[0].get_str();
-    uint256 hash(strHash);
+    uint256     hash(strHash);
 
     bool fVerbose = true;
     if (params.size() > 1)
@@ -269,12 +256,11 @@ Value getblock(const Array& params, bool fHelp)
     if (mapBlockIndex.count(hash) == 0)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
 
-    CBlock block;
+    CBlock       block;
     CBlockIndex* pblockindex = mapBlockIndex[hash];
     block.ReadFromDisk(pblockindex, true);
 
-    if (!fVerbose)
-    {
+    if (!fVerbose) {
         CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
         ssBlock << block;
         std::string strHex = HexStr(ssBlock.begin(), ssBlock.end());
@@ -287,16 +273,15 @@ Value getblock(const Array& params, bool fHelp)
 Value getblockbynumber(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2)
-        throw runtime_error(
-            "getblockbynumber <number> [txinfo]\n"
-            "txinfo optional to print more detailed tx info\n"
-            "Returns details of a block with given block-number.");
+        throw runtime_error("getblockbynumber <number> [txinfo]\n"
+                            "txinfo optional to print more detailed tx info\n"
+                            "Returns details of a block with given block-number.");
 
     int nHeight = params[0].get_int();
     if (nHeight < 0 || nHeight > nBestHeight)
         throw runtime_error("Block number out of range.");
 
-    CBlock block;
+    CBlock       block;
     CBlockIndex* pblockindex = mapBlockIndex[hashBestChain];
     while (pblockindex->nHeight > nHeight)
         pblockindex = pblockindex->pprev;
@@ -313,11 +298,10 @@ Value getblockbynumber(const Array& params, bool fHelp)
 Value getcheckpoint(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
-        throw runtime_error(
-            "getcheckpoint\n"
-            "Show info of synchronized checkpoint.\n");
+        throw runtime_error("getcheckpoint\n"
+                            "Show info of synchronized checkpoint.\n");
 
-    Object result;
+    Object       result;
     CBlockIndex* pindexCheckpoint;
 
     result.push_back(Pair("synccheckpoint", Checkpoints::hashSyncCheckpoint.ToString().c_str()));
@@ -339,4 +323,50 @@ Value getcheckpoint(const Array& params, bool fHelp)
         result.push_back(Pair("checkpointmaster", true));
 
     return result;
+}
+
+Value exportblockchain(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 1)
+        throw runtime_error("exportblockchain <path-dir>\n"
+                            "Exports the blockchain bootstrap.dat file to <path-dir>.\n"
+                            "<path-dir> must be a directory that exists.");
+
+    boost::filesystem::path bdir(params[0].get_str());
+    if (!boost::filesystem::exists(bdir))
+        throw runtime_error("Directory " + bdir.string() + " does not exist.");
+
+    boost::filesystem::path filename = bdir / "bootstrap.dat";
+
+    boost::promise<void>       finished;
+    boost::unique_future<void> finished_future = finished.get_future();
+    std::atomic<bool>          stopped{false};
+    std::atomic<double>        progress{false};
+    boost::thread              exporterThread(boost::bind(&ExportBootstrapBlockchain, filename.string(),
+                                             boost::ref(stopped), boost::ref(progress),
+                                             boost::ref(finished)));
+    exporterThread.detach();
+
+    printf("Export blockchain to path started in another thread. Writing to path: %s\n",
+           filename.string().c_str());
+
+    int progVal            = 0;
+    int lastPrintedProgVal = -1;
+    while (!finished_future.is_ready()) {
+        progVal = static_cast<int>(progress.load() * 100);
+        if (progVal > lastPrintedProgVal) {
+            printf("Export blockchain progress: %i%%\n", progVal);
+            lastPrintedProgVal = progVal;
+        }
+        boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
+        if (fShutdown) {
+            stopped.store(true);
+        }
+    }
+
+    finished_future.get(); // throws, but that's compatible with exception handle in this function
+
+    printf("Export blockchain to path %s is done.\n", filename.string().c_str());
+
+    return Value();
 }

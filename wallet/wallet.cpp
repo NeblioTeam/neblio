@@ -564,7 +564,7 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn)
 // pblock is optional, but should be provided if the transaction is known to be in a block.
 // If fUpdate is true, existing transactions will be updated.
 bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlock* pblock, bool fUpdate,
-                                       bool fFindBlock)
+                                       bool /*fFindBlock*/)
 {
     uint256 hash = tx.GetHash();
     {
@@ -1098,7 +1098,7 @@ void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins, unsigned int nSp
                                     " to CTransaction");
                             }
                             std::vector<std::pair<CTransaction, NTP1Transaction>> inputs =
-                                GetAllNTP1InputsOfTx(*tx);
+                                GetAllNTP1InputsOfTx(*tx, false);
                             NTP1Transaction ntp1tx;
                             ntp1tx.readNTP1DataFromTx(*tx, inputs);
                             // if this output contains tokens, skip it to avoid burning them
@@ -1397,7 +1397,7 @@ void CWallet::SetTxNTP1OpRet(CTransaction&                                      
         // the blockchain consensus rules prevents OP_RETURN sizes larger than DataSize(nBestHeight)
         throw std::runtime_error("The data associated with the transaction is larger than the maximum "
                                  "allowed size for metadata (" +
-                                 ToString(DataSize(nBestHeight) + " bytes)."));
+                                 ToString(DataSize(nBestHeight)) + " bytes).");
     }
 
     it->scriptPubKey = CScript() << OP_RETURN << ParseHex(opRetScriptHex);
@@ -1514,19 +1514,31 @@ uint64_t GetTotalNeblsInInputs(const std::vector<NTP1OutPoint>& inputs)
     return total;
 }
 
+void CreateErrorMsg(std::string* errorMsg, const std::string& msg)
+{
+    printf("Emitting error: %s\n", msg.c_str());
+    if (errorMsg) {
+        *errorMsg = msg;
+    }
+}
+
 bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, CWalletTx& wtxNew,
                                 CReserveKey& reservekey, int64_t& nFeeRet, NTP1SendTxData ntp1TxData,
-                                const CCoinControl* coinControl)
+                                const CCoinControl* coinControl, std::string* errorMsg)
 {
     int64_t nValue = 0;
     for (const PAIRTYPE(CScript, int64_t) & s : vecSend) {
-        if (nValue < 0)
+        if (nValue < 0) {
+            CreateErrorMsg(errorMsg, "Value required is less than zero.");
             return false;
+        }
         nValue += s.second;
     }
 
-    if ((vecSend.empty() || nValue < 0) && ntp1TxData.getTotalTokensInInputs().size() == 0)
+    if ((vecSend.empty() || nValue < 0) && ntp1TxData.getTotalTokensInInputs().size() == 0) {
+        CreateErrorMsg(errorMsg, "Invalid selected inputs/outputs/values for the transaction.");
         return false;
+    }
 
     wtxNew.BindWallet(this);
 
@@ -1553,8 +1565,14 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
                 // Choose coins to use
                 set<pair<const CWalletTx*, unsigned int>> setCoins;
                 int64_t                                   nValueIn = 0;
-                if (!SelectCoins(nTotalValue, wtxNew.nTime, setCoins, nValueIn, coinControl))
+                if (!SelectCoins(nTotalValue, wtxNew.nTime, setCoins, nValueIn, coinControl)) {
+                    CreateErrorMsg(errorMsg,
+                                   "Failed to collect nebls for the transaction. You are "
+                                   "probably trying to spend nebls from NTP1 outputs. NTP1 "
+                                   "outputs should have a non-zero amount of nebls. Use coin control to "
+                                   "have more control on what outputs to use for your transaction.");
                     return false;
+                }
 
                 for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
                     int64_t nCredit = pcoin.first->vout[pcoin.second].nValue;
@@ -1596,6 +1614,8 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
 
                     } catch (std::exception& ex) {
                         printf("Failed to select NTP1 tokens with error: %s\n", ex.what());
+                        CreateErrorMsg(errorMsg, "Failed to select NTP1 tokens with error: " +
+                                                     std::string(ex.what()));
                         return false;
                     }
                 }
@@ -1607,6 +1627,8 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
                     tokenOutputOffset = AddNTP1TokenOutputsToTx(wtxNew, ntp1TxData);
                 } catch (std::exception& ex) {
                     printf("Error in CreateTransaction() while adding NTP1 outputs: %s\n", ex.what());
+                    CreateErrorMsg(errorMsg, "Error in CreateTransaction() while adding NTP1 oututs: " +
+                                                 std::string(ex.what()));
                     return false;
                 }
 
@@ -1686,11 +1708,15 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
                     }
                 } catch (std::exception& ex) {
                     printf("Error in CreateTransaction() while adding NTP1 inputs: %s\n", ex.what());
+                    CreateErrorMsg(errorMsg, "Error in CreateTransaction() while adding NTP1 inputs: " +
+                                                 std::string(ex.what()));
                     return false;
                 }
 
                 if (ntp1TokenChangeExists && changeOutputIndex < 0) {
                     printf("Failed to deduce the OP_RETURN output index in CreateTransaction()\n");
+                    CreateErrorMsg(errorMsg,
+                                   "Failed to deduce the OP_RETURN output index in CreateTransaction()");
                     return false;
                 }
 
@@ -1702,7 +1728,9 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
                     NTP1SendTxData::FixTIsChangeOutputIndex(TIs, changeOutputIndex);
                     CWallet::SetTxNTP1OpRet(wtxNew, TIs);
                 } catch (std::exception& ex) {
-                    printf("Error in CreateTransaction() while setting up NTP1 data: %s\n", ex.what());
+                    printf("Error while setting up NTP1 data: %s\n", ex.what());
+                    CreateErrorMsg(errorMsg,
+                                   "Error while setting up NTP1 data: " + std::string(ex.what()));
                     return false;
                 }
 
@@ -1717,6 +1745,7 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
                     assert(it != wtxNew.vin.end());
                     int nIn = std::distance(wtxNew.vin.begin(), it);
                     if (!SignSignature(*this, *coin.first, wtxNew, nIn)) {
+                        CreateErrorMsg(errorMsg, "Error while signing transactions inputs.");
                         return false;
                     }
                 }
@@ -1724,8 +1753,11 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
                 // Limit size
                 unsigned int nBytes =
                     ::GetSerializeSize(*(CTransaction*)&wtxNew, SER_NETWORK, PROTOCOL_VERSION);
-                if (nBytes >= MAX_STANDARD_TX_SIZE)
+                if (nBytes >= MAX_STANDARD_TX_SIZE) {
+                    CreateErrorMsg(errorMsg, "Transaction size is bigger than the allowed limit. Try to "
+                                             "split the transaction to multiple smaller ones.");
                     return false;
+                }
                 dPriority /= nBytes;
 
                 // Check that enough fee is included
@@ -1861,7 +1893,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
         CBlock block;
         {
             LOCK2(cs_main, cs_wallet);
-            if (!block.ReadFromDisk(txindex.pos.nFile, txindex.pos.nBlockPos, false))
+            if (!block.ReadFromDisk(txindex.pos.nBlockPos, false))
                 continue;
         }
 
@@ -1878,9 +1910,8 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
             // Search nSearchInterval seconds back up to nMaxStakeSearchInterval
             uint256   hashProofOfStake = 0, targetProofOfStake = 0;
             COutPoint prevoutStake = COutPoint(pcoin.first->GetHash(), pcoin.second);
-            if (CheckStakeKernelHash(nBits, block, txindex.pos.nTxPos - txindex.pos.nBlockPos,
-                                     *pcoin.first, prevoutStake, txNew.nTime - n, hashProofOfStake,
-                                     targetProofOfStake)) {
+            if (CheckStakeKernelHash(nBits, block, txindex.pos.nTxPos, *pcoin.first, prevoutStake,
+                                     txNew.nTime - n, hashProofOfStake, targetProofOfStake)) {
                 // Found a kernel
                 if (fDebug)
                     printf("CreateCoinStake : kernel found\n");
@@ -2756,8 +2787,9 @@ void CWallet::GetKeyBirthTimes(std::map<CKeyID, int64_t>& mapKeyBirth) const
     for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end();
          it++) {
         // iterate over all wallet transactions...
-        const CWalletTx&                                wtx  = (*it).second;
-        std::map<uint256, CBlockIndex*>::const_iterator blit = mapBlockIndex.find(wtx.hashBlock);
+        const CWalletTx&                                          wtx = (*it).second;
+        std::unordered_map<uint256, CBlockIndex*>::const_iterator blit =
+            mapBlockIndex.find(wtx.hashBlock);
         if (blit != mapBlockIndex.end() && blit->second->IsInMainChain()) {
             // ... which are already in a block
             int nHeight = blit->second->nHeight;

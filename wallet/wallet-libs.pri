@@ -61,7 +61,10 @@ QMAKE_LFLAGS *= -fstack-protector-all
 # This can be enabled for Windows, when we switch to MinGW >= 4.4.x.
 }
 # for extra security (see: https://wiki.debian.org/Hardening)
-QMAKE_CXXFLAGS *= -D_FORTIFY_SOURCE=2 -Wl,-z,relro -Wl,-z,now
+QMAKE_CXXFLAGS *= -D_FORTIFY_SOURCE=2
+!clang* {
+    QMAKE_CXXFLAGS *= -Wl,-z,relro -Wl,-z,now
+}
 # for extra security on Windows: enable ASLR and DEP via GCC linker flags
 win32:QMAKE_LFLAGS *= -Wl,--dynamicbase -Wl,--nxcompat
 win32:QMAKE_LFLAGS *= -Wl,--large-address-aware -static
@@ -109,33 +112,64 @@ contains(BITCOIN_NEED_QT_PLUGINS, 1) {
     QTPLUGIN += qcncodecs qjpcodecs qtwcodecs qkrcodecs qtaccessiblewidgets
 }
 
-INCLUDEPATH += $$PWD/leveldb/include $$PWD/leveldb/helpers
-macx: INCLUDEPATH += /usr/local/opt/berkeley-db@4/include /usr/local/opt/boost@1.60/include /usr/local/opt/openssl/include
-LIBS += $$PWD/leveldb/libleveldb.a $$PWD/leveldb/libmemenv.a
-SOURCES += txdb-leveldb.cpp
 
-#NEBLIO_CONFIG += LEVELDB_TESTS
-
-!win32 {
-    # we use QMAKE_CXXFLAGS_RELEASE even without RELEASE=1 because we use RELEASE to indicate linking preferences not -O preferences
-    genleveldb.commands = cd $$PWD/leveldb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\" libleveldb.a libmemenv.a
-    contains( NEBLIO_CONFIG, LEVELDB_TESTS ) {
-        genleveldb.commands += ./arena_test && ./cache_test && ./env_test && ./table_test && ./write_batch_test && ./coding_test && ./db_bench && ./fault_injection_test && ./issue178_test && ./autocompact_test && ./dbformat_test && ./filename_test && ./issue200_test && ./log_test && ./bloom_test && ./corruption_test && ./db_test && ./filter_block_test && ./recovery_test && ./version_edit_test && ./crc32c_test && ./hash_test && ./memenv_test && ./skiplist_test && ./version_set_test && ./c_test && ./env_posix_test
+message("Using lmdb as the blockchain database")
+compiler_info = $$system("$${QMAKE_CXX} -dumpmachine")
+!contains(NEBLIO_CONFIG, VL32) {
+    contains(compiler_info, .*x86_64.*) | contains(NEBLIO_CONFIG, VL64) {
+        message("Compiling LMDB for a 64-bit system")
+        LMDB_32_BIT = false
+    } else {
+        DEFINES += MDB_VL32
+        message("Compiling LMDB for a 32-bit system")
+        LMDB_32_BIT = true
     }
 } else {
+    DEFINES += MDB_VL32
+    message("Compiling LMDB for a 32-bit system")
+    LMDB_32_BIT = true
+}
+#    LIBS += -llmdb
+
+INCLUDEPATH += $$PWD/liblmdb
+macx: INCLUDEPATH += /usr/local/opt/berkeley-db@4/include /usr/local/opt/boost@1.60/include /usr/local/opt/openssl/include
+SOURCES += txdb-lmdb.cpp
+#    SOURCES += $$PWD/liblmdb/mdb.c $$PWD/liblmdb/midl.c
+
+#NEBLIO_CONFIG += LMDB_TESTS
+
+!win32 {
+    LIBS += $$PWD/liblmdb/liblmdb.a
+    # we use QMAKE_CXXFLAGS_RELEASE even without RELEASE=1 because we use RELEASE to indicate linking preferences not -O preferences
+    #genlmdb.commands = cd $$PWD/liblmdb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\" liblmdb.a
+    genlmdb.commands = cd $$PWD/liblmdb && CC=$$QMAKE_CC $(MAKE) liblmdb.a
+    isEqual(LMDB_32_BIT, true) {
+        genlmdb.commands += "CFLAGS=-DMDB_VL32 CXXFLAGS=-DMDB_VL32"
+    }
+
+#        contains( NEBLIO_CONFIG, LMDB_TESTS ) {
+#            genlmdb.commands += ./arena_test && ./cache_test && ./env_test && ./table_test && ./write_batch_test && ./coding_test && ./db_bench && ./fault_injection_test && ./issue178_test && ./autocompact_test && ./dbformat_test && ./filename_test && ./issue200_test && ./log_test && ./bloom_test && ./corruption_test && ./db_test && ./filter_block_test && ./recovery_test && ./version_edit_test && ./crc32c_test && ./hash_test && ./memenv_test && ./skiplist_test && ./version_set_test && ./c_test && ./env_posix_test
+#        }
+} else {
+#    SOURCES += $$PWD/liblmdb/mdb.c $$PWD/liblmdb/midl.c
     # make an educated guess about what the ranlib command is called
     isEmpty(QMAKE_RANLIB) {
         QMAKE_RANLIB = $$replace(QMAKE_STRIP, strip, ranlib)
     }
     LIBS += -lshlwapi
-   # genleveldb.commands = cd $$PWD/leveldb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX TARGET_OS=OS_WINDOWS_CROSSCOMPILE $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\" libleveldb.a libmemenv.a && $$QMAKE_RANLIB $$PWD/leveldb/libleveldb.a && $$QMAKE_RANLIB $$PWD/leveldb/libmemenv.a
+    LIBS += $$PWD/liblmdb/liblmdb.a
+    genlmdb.commands = cd $$PWD/liblmdb && CC=$$QMAKE_CC $(MAKE) clean && CC=$$QMAKE_CC $(MAKE) liblmdb.a
+    isEqual(LMDB_32_BIT, true) {
+        genlmdb.commands += "CFLAGS=-DMDB_VL32 CXXFLAGS=-DMDB_VL32"
+    }
+    genlmdb.commands += "&& $$QMAKE_RANLIB -t $$PWD/liblmdb/liblmdb.a"
 }
-genleveldb.target = $$PWD/leveldb/libleveldb.a
-genleveldb.depends = FORCE
-PRE_TARGETDEPS += $$PWD/leveldb/libleveldb.a
-QMAKE_EXTRA_TARGETS += genleveldb
+genlmdb.target = $$PWD/liblmdb/liblmdb.a
+genlmdb.depends = FORCE
+PRE_TARGETDEPS += $$PWD/liblmdb/liblmdb.a
+QMAKE_EXTRA_TARGETS += genlmdb
 # Gross ugly hack that depends on qmake internals, unfortunately there is no other way to do it.
-QMAKE_CLEAN += $$PWD/leveldb/libleveldb.a; cd $$PWD/leveldb ; $(MAKE) clean
+QMAKE_CLEAN += $$PWD/liblmdb/liblmdb.a; cd $$PWD/liblmdb ; $(MAKE) clean
 
 # regenerate build.h
 !windows|contains(USE_BUILD_INFO, 1) {

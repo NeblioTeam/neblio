@@ -24,7 +24,9 @@ class base_uint
 {
 protected:
     enum { WIDTH=BITS/32 };
-    unsigned int pn[WIDTH];
+    static_assert(WIDTH * 32 == BITS, "You cannot have a width that is not a multiple of 32");
+    uint32_t pn[WIDTH];
+
 public:
 
     bool operator!() const
@@ -65,8 +67,8 @@ public:
 
     base_uint& operator=(uint64_t b)
     {
-        pn[0] = (unsigned int)b;
-        pn[1] = (unsigned int)(b >> 32);
+        pn[0] = (uint32_t)b;
+        pn[1] = (uint32_t)(b >> 32);
         for (int i = 2; i < WIDTH; i++)
             pn[i] = 0;
         return *this;
@@ -95,15 +97,15 @@ public:
 
     base_uint& operator^=(uint64_t b)
     {
-        pn[0] ^= (unsigned int)b;
-        pn[1] ^= (unsigned int)(b >> 32);
+        pn[0] ^= (uint32_t)b;
+        pn[1] ^= (uint32_t)(b >> 32);
         return *this;
     }
 
     base_uint& operator|=(uint64_t b)
     {
-        pn[0] |= (unsigned int)b;
-        pn[1] |= (unsigned int)(b >> 32);
+        pn[0] |= (uint32_t)b;
+        pn[1] |= (uint32_t)(b >> 32);
         return *this;
     }
 
@@ -269,9 +271,9 @@ public:
 
     friend inline bool operator==(const base_uint& a, uint64_t b)
     {
-        if (a.pn[0] != (unsigned int)b)
+        if (a.pn[0] != (uint32_t)b)
             return false;
-        if (a.pn[1] != (unsigned int)(b >> 32))
+        if (a.pn[1] != (uint32_t)(b >> 32))
             return false;
         for (int i = 2; i < base_uint::WIDTH; i++)
             if (a.pn[i] != 0)
@@ -371,19 +373,19 @@ public:
         return pn[2*n] | (uint64_t)pn[2*n+1] << 32;
     }
 
-    unsigned int GetSerializeSize(int nType, int nVersion) const
+    unsigned int GetSerializeSize(int /*nType*/, int /*nVersion*/) const
     {
         return sizeof(pn);
     }
 
     template<typename Stream>
-    void Serialize(Stream& s, int nType, int nVersion) const
+    void Serialize(Stream& s, int /*nType*/, int /*nVersion*/) const
     {
         s.write((char*)pn, sizeof(pn));
     }
 
     template<typename Stream>
-    void Unserialize(Stream& s, int nType, int nVersion)
+    void Unserialize(Stream& s, int /*nType*/, int /*nVersion*/)
     {
         s.read((char*)pn, sizeof(pn));
     }
@@ -435,16 +437,16 @@ public:
 
     uint160(uint64_t b)
     {
-        pn[0] = (unsigned int)b;
-        pn[1] = (unsigned int)(b >> 32);
+        pn[0] = (uint32_t)b;
+        pn[1] = (uint32_t)(b >> 32);
         for (int i = 2; i < WIDTH; i++)
             pn[i] = 0;
     }
 
     uint160& operator=(uint64_t b)
     {
-        pn[0] = (unsigned int)b;
-        pn[1] = (unsigned int)(b >> 32);
+        pn[0] = (uint32_t)b;
+        pn[1] = (uint32_t)(b >> 32);
         for (int i = 2; i < WIDTH; i++)
             pn[i] = 0;
         return *this;
@@ -550,16 +552,16 @@ public:
 
     uint256(uint64_t b)
     {
-        pn[0] = (unsigned int)b;
-        pn[1] = (unsigned int)(b >> 32);
+        pn[0] = (uint32_t)b;
+        pn[1] = (uint32_t)(b >> 32);
         for (int i = 2; i < WIDTH; i++)
             pn[i] = 0;
     }
 
     uint256& operator=(uint64_t b)
     {
-        pn[0] = (unsigned int)b;
-        pn[1] = (unsigned int)(b >> 32);
+        pn[0] = (uint32_t)b;
+        pn[1] = (uint32_t)(b >> 32);
         for (int i = 2; i < WIDTH; i++)
             pn[i] = 0;
         return *this;
@@ -578,6 +580,14 @@ public:
             *this = 0;
     }
 };
+
+namespace std {
+template <>
+struct hash<uint256>
+{
+    std::size_t operator()(const uint256& k) const { return std::hash<uint64_t>()(k.Get64(0)); }
+};
+} // namespace std
 
 inline bool operator==(const uint256& a, uint64_t b)                         { return (base_uint256)a == b; }
 inline bool operator!=(const uint256& a, uint64_t b)                         { return (base_uint256)a != b; }

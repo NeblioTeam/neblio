@@ -20,5 +20,5 @@ void NTP1InPoint::setNull()
 
 bool NTP1InPoint::isNull() const
 {
-    return (tx == NULL && index == (unsigned int) -1);
+    return (tx == nullptr && index == (unsigned int) -1);
 }

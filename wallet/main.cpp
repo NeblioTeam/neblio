@@ -20,6 +20,7 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
+#include <boost/range/adaptor/reversed.hpp>
 #include <regex>
 
 using namespace std;
@@ -28,6 +29,8 @@ using namespace boost;
 //
 // Global state
 //
+
+std::set<uint256> UnrecoverableNTP1Txs;
 
 CCriticalSection cs_setpwalletRegistered;
 set<CWallet*>    setpwalletRegistered;
@@ -42,9 +45,9 @@ const std::regex  NTP1OpReturnRegex(NTP1OpReturnRegexStr);
 const std::string OpReturnRegexStr = R"(^OP_RETURN\s+(.*)$)";
 const std::regex  OpReturnRegex(OpReturnRegexStr);
 
-map<uint256, CBlockIndex*>         mapBlockIndex;
-set<pair<COutPoint, unsigned int>> setStakeSeen;
-libzerocoin::Params*               ZCParams;
+unordered_map<uint256, CBlockIndex*> mapBlockIndex;
+set<pair<COutPoint, unsigned int>>   setStakeSeen;
+libzerocoin::Params*                 ZCParams;
 
 // Set PoW difficulty to easiest
 CBigNum bnProofOfWorkLimit(~uint256(0) >> 1);
@@ -77,7 +80,7 @@ bool         fImporting        = false;
 
 CMedianFilter<int> cPeerBlockCounts(5, 0); // Amount of blocks that other nodes claim to have
 
-map<uint256, CBlock*>              mapOrphanBlocks;
+unordered_map<uint256, CBlock*>    mapOrphanBlocks;
 multimap<uint256, CBlock*>         mapOrphanBlocksByPrev;
 set<pair<COutPoint, unsigned int>> setStakeSeenOrphan;
 
@@ -224,7 +227,7 @@ bool AddOrphanTx(const CTransaction& tx)
 
     if (nSize > 5000) {
         printf("ignoring large orphan tx (size: %" PRIszu ", hash: %s)\n", nSize,
-               hash.ToString().substr(0, 10).c_str());
+               hash.ToString().c_str());
         return false;
     }
 
@@ -275,7 +278,7 @@ bool CTransaction::ReadFromDisk(CTxDB& txdb, COutPoint prevout, CTxIndex& txinde
     SetNull();
     if (!txdb.ReadTxIndex(prevout.hash, txindexRet))
         return false;
-    if (!ReadFromDisk(txindexRet.pos))
+    if (!txdb.ReadTx(txindexRet.pos, *this))
         return false;
     if (prevout.n >= vout.size()) {
         SetNull();
@@ -286,13 +289,6 @@ bool CTransaction::ReadFromDisk(CTxDB& txdb, COutPoint prevout, CTxIndex& txinde
 
 bool CTransaction::ReadFromDisk(CTxDB& txdb, COutPoint prevout)
 {
-    CTxIndex txindex;
-    return ReadFromDisk(txdb, prevout, txindex);
-}
-
-bool CTransaction::ReadFromDisk(COutPoint prevout)
-{
-    CTxDB    txdb("r");
     CTxIndex txindex;
     return ReadFromDisk(txdb, prevout, txindex);
 }
@@ -492,7 +488,7 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
         CTxIndex txindex;
         if (!CTxDB("r").ReadTxIndex(GetHash(), txindex))
             return 0;
-        if (!blockTmp.ReadFromDisk(txindex.pos.nFile, txindex.pos.nBlockPos))
+        if (!blockTmp.ReadFromDisk(txindex.pos.nBlockPos))
             return 0;
         pblock = &blockTmp;
     }
@@ -515,7 +511,7 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
     vMerkleBranch = pblock->GetMerkleBranch(nIndex);
 
     // Is the tx in a block that's in the main chain
-    map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
+    unordered_map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
     if (mi == mapBlockIndex.end())
         return 0;
     CBlockIndex* pindex = (*mi).second;
@@ -602,6 +598,58 @@ int64_t CTransaction::GetMinFee(unsigned int nBlockSize, enum GetMinFee_mode mod
     return nMinFee;
 }
 
+bool CTransaction::ReadFromDisk(CDiskTxPos pos, CTxDB& txdb) { return txdb.ReadTx(pos, *this); }
+
+bool IsIssuedTokenBlacklisted(std::pair<CTransaction, NTP1Transaction>& txPair)
+{
+    const auto& prevout0      = txPair.first.vin[0].prevout;
+    std::string storedTokenId = txPair.second.getTokenIdIfIssuance(prevout0.hash.ToString(), prevout0.n);
+    return IsNTP1TokenBlacklisted(storedTokenId);
+}
+
+void AssertNTP1TokenNameIsNotAlreadyInMainChain(std::string sym, const uint256& txHash, CTxDB& txdb)
+{
+    // make sure that case doesn't matter by converting to upper case
+    std::transform(sym.begin(), sym.end(), sym.begin(), ::toupper);
+    std::vector<uint256> storedSymbolsTxHashes;
+    if (txdb.ReadNTP1TxsWithTokenSymbol(sym, storedSymbolsTxHashes)) {
+        for (const uint256& h : storedSymbolsTxHashes) {
+            if (!IsTxInMainChain(h)) {
+                continue;
+            }
+            auto pair = std::make_pair(FetchTxFromDisk(h), NTP1Transaction());
+            FetchNTP1TxFromDisk(pair, txdb, false);
+            std::string storedSymbol = pair.second.getTokenSymbolIfIssuance();
+            // blacklisted tokens can be duplicated, since they won't be used ever again
+            if (IsIssuedTokenBlacklisted(pair)) {
+                continue;
+            }
+            // make sure that case doesn't matter by converting to upper case
+            std::transform(storedSymbol.begin(), storedSymbol.end(), storedSymbol.begin(), ::toupper);
+            if (sym == storedSymbol && txHash != h) {
+                throw std::runtime_error(
+                    "Failed to accept issuance of token " + sym + " from transaction " +
+                    txHash.ToString() +
+                    "; this token symbol already exists in transaction: " + h.ToString());
+            }
+        }
+    } else {
+        throw runtime_error("Unable to verify whether a token with the symbol " + sym +
+                            " already exists. Reading the database failed.");
+    }
+}
+
+void AssertNTP1TokenNameIsNotAlreadyInMainChain(const NTP1Transaction& ntp1tx, CTxDB& txdb)
+{
+    if (ntp1tx.getTxType() == NTP1TxType_ISSUANCE) {
+        std::string sym = ntp1tx.getTokenSymbolIfIssuance();
+        AssertNTP1TokenNameIsNotAlreadyInMainChain(sym, ntp1tx.getTxHash(), txdb);
+    } else if (ntp1tx.getTxType() == NTP1TxType_UNKNOWN) {
+        throw std::runtime_error("Attempted to " + std::string(__func__) +
+                                 " on an uninitialized NTP1 transaction");
+    }
+}
+
 bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInputs)
 {
     AssertLockHeld(cs_main);
@@ -658,15 +706,16 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
     }
 
     {
-        CTxDB txdb("r");
+        CTxDB txdb;
 
         // do we already have it?
         if (txdb.ContainsTx(hash))
             return false;
 
-        MapPrevTx              mapInputs;
-        map<uint256, CTxIndex> mapUnused;
-        bool                   fInvalid = false;
+        MapPrevTx                                                           mapInputs;
+        map<uint256, CTxIndex>                                              mapUnused;
+        map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>> mapUnused2;
+        bool                                                                fInvalid = false;
         if (!tx.FetchInputs(txdb, mapUnused, false, false, mapInputs, fInvalid)) {
             if (fInvalid)
                 return error("AcceptToMemoryPool : FetchInputs found invalid tx %s",
@@ -719,25 +768,30 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
 
         // Check against previous transactions
         // This is done last to help prevent CPU exhaustion denial-of-service attacks.
-        if (!tx.ConnectInputs(txdb, mapInputs, mapUnused, CDiskTxPos(1, 1, 1), pindexBest, false,
-                              false)) {
+        if (!tx.ConnectInputs(txdb, mapInputs, mapUnused, CDiskTxPos(1, 1), pindexBest, false, false)) {
             return error("AcceptToMemoryPool : ConnectInputs failed %s",
                          hash.ToString().substr(0, 10).c_str());
         }
 
-        if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+        if (PassedFirstValidNTP1Tx(nBestHeight, fTestNet) &&
+            PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
             try {
                 std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
-                    StdInputsTxsToNTP1(tx, mapInputs);
+                    StdFetchedInputTxsToNTP1(tx, mapInputs, txdb, false, mapUnused2, mapUnused);
                 NTP1Transaction ntp1tx;
                 ntp1tx.readNTP1DataFromTx(tx, inputsTxs);
+                if (EnableEnforceUniqueTokenSymbols(nBestHeight, fTestNet)) {
+                    AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, txdb);
+                }
             } catch (std::exception& ex) {
-                printf("An invalid NTP1 transaction was submitted to the memory pool; an exception was "
+                printf("AcceptToMemoryPool: An invalid NTP1 transaction was submitted to the memory "
+                       "pool; an exception was "
                        "thrown: %s\n",
                        ex.what());
                 return false;
             } catch (...) {
-                printf("An invalid NTP1 transaction was submitted to the memory pool; an unknown "
+                printf("AcceptToMemoryPool: An invalid NTP1 transaction was submitted to the memory "
+                       "pool; an unknown "
                        "exception was "
                        "thrown.");
                 return false;
@@ -843,7 +897,7 @@ int CMerkleTx::GetDepthInMainChainINTERNAL(CBlockIndex*& pindexRet) const
     AssertLockHeld(cs_main);
 
     // Find the block it claims to be in
-    map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
+    unordered_map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
     if (mi == mapBlockIndex.end())
         return 0;
     CBlockIndex* pindex = (*mi).second;
@@ -908,10 +962,10 @@ int CTxIndex::GetDepthInMainChain() const
 {
     // Read block header
     CBlock block;
-    if (!block.ReadFromDisk(pos.nFile, pos.nBlockPos, false))
+    if (!block.ReadFromDisk(pos.nBlockPos, false))
         return 0;
     // Find the block in the index
-    map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(block.GetHash());
+    unordered_map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(block.GetHash());
     if (mi == mapBlockIndex.end())
         return 0;
     CBlockIndex* pindex = (*mi).second;
@@ -934,7 +988,7 @@ bool GetTransaction(const uint256& hash, CTransaction& tx, uint256& hashBlock)
         CTxIndex txindex;
         if (tx.ReadFromDisk(txdb, COutPoint(hash, 0), txindex)) {
             CBlock block;
-            if (block.ReadFromDisk(txindex.pos.nFile, txindex.pos.nBlockPos, false))
+            if (block.ReadFromDisk(txindex.pos.nBlockPos, false))
                 hashBlock = block.GetHash();
             return true;
         }
@@ -972,7 +1026,20 @@ bool CBlock::ReadFromDisk(const CBlockIndex* pindex, bool fReadTransactions)
         *this = pindex->GetBlockHeader();
         return true;
     }
-    if (!ReadFromDisk(pindex->nFile, pindex->nBlockPos, fReadTransactions))
+    if (!ReadFromDisk(pindex->blockKeyInDB, fReadTransactions))
+        return false;
+    if (GetHash() != pindex->GetBlockHash())
+        return error("CBlock::ReadFromDisk() : GetHash() doesn't match index");
+    return true;
+}
+
+bool CBlock::ReadFromDisk(const CBlockIndex* pindex, CTxDB& txdb, bool fReadTransactions)
+{
+    if (!fReadTransactions) {
+        *this = pindex->GetBlockHeader();
+        return true;
+    }
+    if (!ReadFromDisk(pindex->blockKeyInDB, txdb, fReadTransactions))
         return false;
     if (GetHash() != pindex->GetBlockHash())
         return error("CBlock::ReadFromDisk() : GetHash() doesn't match index");
@@ -1070,7 +1137,7 @@ unsigned int ComputeMinWork(unsigned int nBase, int64_t nTime)
 // minimum amount of stake that could possibly be required nTime after
 // minimum proof-of-stake required was nBase
 //
-unsigned int ComputeMinStake(unsigned int nBase, int64_t nTime, unsigned int nBlockTime)
+unsigned int ComputeMinStake(unsigned int nBase, int64_t nTime, unsigned int /*nBlockTime*/)
 {
     return ComputeMaxBits(bnProofOfStakeLimit, nBase, nTime);
 }
@@ -1177,9 +1244,10 @@ int GetNumBlocksOfPeers()
     return std::max(cPeerBlockCounts.median(), Checkpoints::GetTotalBlocksEstimate());
 }
 
-bool IsInitialBlockDownload()
+// DO NOT call this function it's NOT thread-safe. Use IsInitialBlockDownload or
+// IsInitialBlockDownload_tolerant
+bool __IsInitialBlockDownload_internal()
 {
-    LOCK(cs_main);
     if (pindexBest == NULL || nBestHeight < Checkpoints::GetTotalBlocksEstimate())
         return true;
     static int64_t      nLastUpdate;
@@ -1190,12 +1258,27 @@ bool IsInitialBlockDownload()
     }
     return (GetTime() - nLastUpdate < 15 && pindexBest->GetBlockTime() < GetTime() - 8 * 60 * 60);
 }
+bool IsInitialBlockDownload_tolerant()
+{
+    // will try to lock. If failed, will return false
+    TRY_LOCK(cs_main, lockMain);
+    if (!lockMain) {
+        return false;
+    }
+    return __IsInitialBlockDownload_internal();
+}
 
-void static InvalidChainFound(CBlockIndex* pindexNew)
+bool IsInitialBlockDownload()
+{
+    LOCK(cs_main);
+    return __IsInitialBlockDownload_internal();
+}
+
+void static InvalidChainFound(CBlockIndex* pindexNew, CTxDB& txdb)
 {
     if (pindexNew->nChainTrust > nBestInvalidTrust) {
         nBestInvalidTrust = pindexNew->nChainTrust;
-        CTxDB().WriteBestInvalidTrust(CBigNum(nBestInvalidTrust));
+        txdb.WriteBestInvalidTrust(CBigNum(nBestInvalidTrust));
         uiInterface.NotifyBlocksChanged();
     }
 
@@ -1205,16 +1288,16 @@ void static InvalidChainFound(CBlockIndex* pindexNew)
                                   : pindexBest->nChainTrust;
 
     printf("InvalidChainFound: invalid block=%s  height=%d  trust=%s  blocktrust=%" PRId64 "  date=%s\n",
-           pindexNew->GetBlockHash().ToString().substr(0, 20).c_str(), pindexNew->nHeight,
+           pindexNew->GetBlockHash().ToString().c_str(), pindexNew->nHeight,
            CBigNum(pindexNew->nChainTrust).ToString().c_str(), nBestInvalidBlockTrust.Get64(),
            DateTimeStrFormat("%x %H:%M:%S", pindexNew->GetBlockTime()).c_str());
     printf("InvalidChainFound:  current best=%s  height=%d  trust=%s  blocktrust=%" PRId64 "  date=%s\n",
-           hashBestChain.ToString().substr(0, 20).c_str(), nBestHeight,
+           hashBestChain.ToString().c_str(), nBestHeight,
            CBigNum(pindexBest->nChainTrust).ToString().c_str(), nBestBlockTrust.Get64(),
            DateTimeStrFormat("%x %H:%M:%S", pindexBest->GetBlockTime()).c_str());
 }
 
-void CBlock::UpdateTime(const CBlockIndex* pindexPrev)
+void CBlock::UpdateTime(const CBlockIndex* /*pindexPrev*/)
 {
     nTime = max(GetBlockTime(), GetAdjustedTime());
 }
@@ -1282,25 +1365,22 @@ bool CTransaction::FetchInputs(CTxDB& txdb, const map<uint256, CTxIndex>& mapTes
         if (!fFound && (fBlock || fMiner))
             return fMiner ? false
                           : error("FetchInputs() : %s prev tx %s index entry not found",
-                                  GetHash().ToString().substr(0, 10).c_str(),
-                                  prevout.hash.ToString().substr(0, 10).c_str());
+                                  GetHash().ToString().c_str(), prevout.hash.ToString().c_str());
 
         // Read txPrev
         CTransaction& txPrev = inputsRet[prevout.hash].second;
-        if (!fFound || txindex.pos == CDiskTxPos(1, 1, 1)) {
+        if (!fFound || txindex.pos == CDiskTxPos(1, 1)) {
             // Get prev tx from single transactions in memory
             if (!mempool.lookup(prevout.hash, txPrev))
                 return error("FetchInputs() : %s mempool Tx prev not found %s",
-                             GetHash().ToString().substr(0, 10).c_str(),
-                             prevout.hash.ToString().substr(0, 10).c_str());
+                             GetHash().ToString().c_str(), prevout.hash.ToString().c_str());
             if (!fFound)
                 txindex.vSpent.resize(txPrev.vout.size());
         } else {
             // Get prev tx from disk
-            if (!txPrev.ReadFromDisk(txindex.pos))
+            if (!txPrev.ReadFromDisk(txindex.pos, txdb))
                 return error("FetchInputs() : %s ReadFromDisk prev tx %s failed",
-                             GetHash().ToString().substr(0, 10).c_str(),
-                             prevout.hash.ToString().substr(0, 10).c_str());
+                             GetHash().ToString().c_str(), prevout.hash.ToString().c_str());
         }
     }
 
@@ -1314,12 +1394,11 @@ bool CTransaction::FetchInputs(CTxDB& txdb, const map<uint256, CTxIndex>& mapTes
             // Revisit this if/when transaction replacement is implemented and allows
             // adding inputs:
             fInvalid = true;
-            return DoS(100,
-                       error("FetchInputs() : %s prevout.n out of range %d %" PRIszu " %" PRIszu
-                             " prev tx %s\n%s",
-                             GetHash().ToString().substr(0, 10).c_str(), prevout.n, txPrev.vout.size(),
-                             txindex.vSpent.size(), prevout.hash.ToString().substr(0, 10).c_str(),
-                             txPrev.ToString().c_str()));
+            return DoS(100, error("FetchInputs() : %s prevout.n out of range %d %" PRIszu " %" PRIszu
+                                  " prev tx %s\n%s",
+                                  GetHash().ToString().c_str(), prevout.n, txPrev.vout.size(),
+                                  txindex.vSpent.size(), prevout.hash.ToString().c_str(),
+                                  txPrev.ToString().c_str()));
         }
     }
 
@@ -1365,7 +1444,7 @@ unsigned int CTransaction::GetP2SHSigOpCount(const MapPrevTx& inputs) const
     return nSigOps;
 }
 
-bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs, map<uint256, CTxIndex>& mapTestPool,
+bool CTransaction::ConnectInputs(CTxDB& /*txdb*/, MapPrevTx inputs, map<uint256, CTxIndex>& mapTestPool,
                                  const CDiskTxPos& posThisTx, const CBlockIndex* pindexBlock,
                                  bool fBlock, bool fMiner)
 {
@@ -1385,20 +1464,24 @@ bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs, map<uint256, CTx
             if (prevout.n >= txPrev.vout.size() || prevout.n >= txindex.vSpent.size())
                 return DoS(100, error("ConnectInputs() : %s prevout.n out of range %d %" PRIszu
                                       " %" PRIszu " prev tx %s\n%s",
-                                      GetHash().ToString().substr(0, 10).c_str(), prevout.n,
-                                      txPrev.vout.size(), txindex.vSpent.size(),
-                                      prevout.hash.ToString().substr(0, 10).c_str(),
+                                      GetHash().ToString().c_str(), prevout.n, txPrev.vout.size(),
+                                      txindex.vSpent.size(), prevout.hash.ToString().c_str(),
                                       txPrev.ToString().c_str()));
 
             // If prev is coinbase or coinstake, check that it's matured
             int nCbM = CoinbaseMaturity(nBestHeight);
             if (txPrev.IsCoinBase() || txPrev.IsCoinStake())
                 for (const CBlockIndex* pindex                                       = pindexBlock;
-                     pindex && pindexBlock->nHeight - pindex->nHeight < nCbM; pindex = pindex->pprev)
-                    if (pindex->nBlockPos == txindex.pos.nBlockPos && pindex->nFile == txindex.pos.nFile)
+                     pindex && pindexBlock->nHeight - pindex->nHeight < nCbM; pindex = pindex->pprev) {
+                    static_assert(std::is_same<decltype(pindex->blockKeyInDB),
+                                               decltype(txindex.pos.nBlockPos)>::value,
+                                  "Expected same types");
+                    if (pindex->blockKeyInDB == txindex.pos.nBlockPos) {
                         return error("ConnectInputs() : tried to spend %s at depth %d",
                                      txPrev.IsCoinBase() ? "coinbase" : "coinstake",
                                      pindexBlock->nHeight - pindex->nHeight);
+                    }
+                }
 
             // ppcoin: check transaction timestamp
             if (txPrev.nTime > nTime)
@@ -1426,7 +1509,7 @@ bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs, map<uint256, CTx
             if (!txindex.vSpent[prevout.n].IsNull())
                 return fMiner ? false
                               : error("ConnectInputs() : %s prev tx already used at %s",
-                                      GetHash().ToString().substr(0, 10).c_str(),
+                                      GetHash().ToString().c_str(),
                                       txindex.vSpent[prevout.n].ToString().c_str());
 
             // Skip ECDSA signature verification when connecting blocks (fBlock=true)
@@ -1440,10 +1523,10 @@ bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs, map<uint256, CTx
                     // potentially old clients relaying bad P2SH transactions
                     if (fStrictPayToScriptHash && VerifySignature(txPrev, *this, i, false, false, 0))
                         return error("ConnectInputs() : %s P2SH VerifySignature failed",
-                                     GetHash().ToString().substr(0, 10).c_str());
+                                     GetHash().ToString().c_str());
 
                     return DoS(100, error("ConnectInputs() : %s VerifySignature failed",
-                                          GetHash().ToString().substr(0, 10).c_str()));
+                                          GetHash().ToString().c_str()));
                 }
             }
 
@@ -1459,20 +1542,19 @@ bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs, map<uint256, CTx
         if (!IsCoinStake()) {
             if (nValueIn < GetValueOut())
                 return DoS(100, error("ConnectInputs() : %s value in < value out",
-                                      GetHash().ToString().substr(0, 10).c_str()));
+                                      GetHash().ToString().c_str()));
 
             // Tally transaction fees
             int64_t nTxFee = nValueIn - GetValueOut();
             if (nTxFee < 0)
-                return DoS(100, error("ConnectInputs() : %s nTxFee < 0",
-                                      GetHash().ToString().substr(0, 10).c_str()));
+                return DoS(100, error("ConnectInputs() : %s nTxFee < 0", GetHash().ToString().c_str()));
 
             // enforce transaction fees for every block
             if (nTxFee < GetMinFee())
                 return fBlock ? DoS(100,
                                     error("ConnectInputs() : %s not paying required fee=%s, paid=%s",
-                                          GetHash().ToString().substr(0, 10).c_str(),
-                                          FormatMoney(GetMinFee()).c_str(), FormatMoney(nTxFee).c_str()))
+                                          GetHash().ToString().c_str(), FormatMoney(GetMinFee()).c_str(),
+                                          FormatMoney(nTxFee).c_str()))
                               : false;
 
             nFees += nTxFee;
@@ -1521,18 +1603,30 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
         // shouldn't) be on the disk to get the transaction from
         nTxPos = 1;
     else
-        nTxPos = pindex->nBlockPos + ::GetSerializeSize(CBlock(), SER_DISK, CLIENT_VERSION) -
-                 (2 * GetSizeOfCompactSize(0)) + GetSizeOfCompactSize(vtx.size());
+        nTxPos = ::GetSerializeSize(CBlock(), SER_DISK, CLIENT_VERSION) - (2 * GetSizeOfCompactSize(0)) +
+                 GetSizeOfCompactSize(vtx.size());
 
-    map<uint256, CTxIndex>     mapQueuedChanges;
-    map<uint256, CTransaction> mapQueuedChangesTxs;
-    int64_t                    nFees        = 0;
-    int64_t                    nValueIn     = 0;
-    int64_t                    nValueOut    = 0;
-    int64_t                    nStakeReward = 0;
-    unsigned int               nSigOps      = 0;
+    // Comment by Sam: mapQueuedChanges is the list of transactions that already happened in the same
+    // block. This is necessary for verifying outputs that are being spent in the same blocks
+
+    map<uint256, CTxIndex> mapQueuedChanges;
+    int64_t                nFees        = 0;
+    int64_t                nValueIn     = 0;
+    int64_t                nValueOut    = 0;
+    int64_t                nStakeReward = 0;
+
+    map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>> mapQueuedNTP1Inputs;
+
+    unsigned int nSigOps = 0;
+
+    // map of issued token names in this block vs token hashes
+    // this is used to prevent duplicate token names
+    std::unordered_map<std::string, uint256> issuedTokensSymbolsInThisBlock;
+
     for (CTransaction& tx : vtx) {
         uint256 hashTx = tx.GetHash();
+
+        std::vector<std::pair<CTransaction, NTP1Transaction>> inputsWithNTP1;
 
         // Do not allow blocks that contain transactions which 'overwrite' older transactions,
         // unless those are already completely spent.
@@ -1548,7 +1642,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
         // in their initial block download.
 
         CTxIndex txindexOld;
-        if (txdb.ReadTxIndex(hashTx, txindexOld)) {
+        if (txdb.ContainsTx(hashTx) && txdb.ReadTxIndex(hashTx, txindexOld)) {
             for (CDiskTxPos& pos : txindexOld.vSpent)
                 if (pos.IsNull())
                     return false;
@@ -1558,7 +1652,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
         if (nSigOps > MAX_BLOCK_SIGOPS)
             return DoS(100, error("ConnectBlock() : too many sigops"));
 
-        CDiskTxPos posThisTx(pindex->nFile, pindex->nBlockPos, nTxPos);
+        CDiskTxPos posThisTx(pindex->blockKeyInDB, nTxPos);
         if (!fJustCheck)
             nTxPos += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
 
@@ -1574,8 +1668,9 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
             // this is to prevent a "rogue miner" from creating
             // an incredibly-expensive-to-validate block.
             nSigOps += tx.GetP2SHSigOpCount(mapInputs);
-            if (nSigOps > MAX_BLOCK_SIGOPS)
+            if (nSigOps > MAX_BLOCK_SIGOPS) {
                 return DoS(100, error("ConnectBlock() : too many sigops"));
+            }
 
             int64_t nTxValueIn  = tx.GetValueIn(mapInputs);
             int64_t nTxValueOut = tx.GetValueOut();
@@ -1586,12 +1681,50 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
             if (tx.IsCoinStake())
                 nStakeReward = nTxValueOut - nTxValueIn;
 
-            if (!tx.ConnectInputs(txdb, mapInputs, mapQueuedChanges, posThisTx, pindex, true, false))
+            if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+                try {
+                    if (IsTxNTP1(&tx)) {
+                        // check if there are inputs already cached
+                        inputsWithNTP1 =
+                            GetAllNTP1InputsOfTx(tx, txdb, true, mapQueuedNTP1Inputs, mapQueuedChanges);
+
+                        // write NTP1 transactions' data
+                        NTP1Transaction ntp1tx;
+                        ntp1tx.readNTP1DataFromTx(tx, inputsWithNTP1);
+                    }
+                } catch (std::exception& ex) {
+                    return error("Error while verifying NTP1Transaction validity in ConnectBlock(): "
+                                 "%s\n",
+                                 ex.what());
+                } catch (...) {
+                    return error("Error while verifying NTP1Transaction validity in ConnectBlock(). "
+                                 "Unknown exception thrown\n");
+                }
+            }
+
+            if (EnableEnforceUniqueTokenSymbols(nBestHeight, fTestNet)) {
+                try {
+                    AssertIssuanceUniquenessInBlock(issuedTokensSymbolsInThisBlock, txdb, tx,
+                                                    mapQueuedNTP1Inputs, mapQueuedChanges);
+                } catch (std::exception& ex) {
+                    return error("Error while verifying the uniqueness of issued token symbol in "
+                                 "ConnectBlock(): "
+                                 "%s\n",
+                                 ex.what());
+                } catch (...) {
+                    return error("Error while verifying the uniqueness of issued token symbol in "
+                                 "ConnectBlock(). "
+                                 "Unknown exception thrown\n");
+                }
+            }
+
+            if (!tx.ConnectInputs(txdb, mapInputs, mapQueuedChanges, posThisTx, pindex, true, false)) {
                 return false;
+            }
         }
 
-        mapQueuedChanges[hashTx]    = CTxIndex(posThisTx, tx.vout.size());
-        mapQueuedChangesTxs[hashTx] = tx;
+        mapQueuedChanges[hashTx]          = CTxIndex(posThisTx, tx.vout.size());
+        mapQueuedNTP1Inputs[tx.GetHash()] = inputsWithNTP1;
     }
 
     if (IsProofOfWork()) {
@@ -1607,7 +1740,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
         uint64_t nCoinAge;
         if (!vtx[1].GetCoinAge(txdb, nCoinAge))
             return error("ConnectBlock() : %s unable to get coin age for coinstake",
-                         vtx[1].GetHash().ToString().substr(0, 10).c_str());
+                         vtx[1].GetHash().ToString().c_str());
 
         int64_t nCalculatedStakeReward = GetProofOfStakeReward(nCoinAge, nFees);
 
@@ -1629,15 +1762,6 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
     // Write queued txindex changes
     for (map<uint256, CTxIndex>::iterator mi = mapQueuedChanges.begin(); mi != mapQueuedChanges.end();
          ++mi) {
-        try {
-            const uint256& txHash = (*mi).first;
-            WriteNTP1TxToDiskFromRawTx(mapQueuedChangesTxs.at(txHash));
-        } catch (std::exception& ex) {
-            printf("Error while writing NTP1 transaction to database in ConnectBlocks(): %s", ex.what());
-        } catch (...) {
-            printf("Error while writing NTP1 transaction to database in ConnectBlocks(). Unknown "
-                   "exception thrown");
-        }
         if (!txdb.UpdateTxIndex((*mi).first, (*mi).second))
             return error("ConnectBlock() : UpdateTxIndex failed");
     }
@@ -1658,7 +1782,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
     return true;
 }
 
-bool static Reorganize(CTxDB& txdb, CBlockIndex* pindexNew)
+bool static Reorganize(CTxDB& txdb, CBlockIndex* pindexNew, const bool createDbTransaction = true)
 {
     printf("REORGANIZE\n");
 
@@ -1687,11 +1811,9 @@ bool static Reorganize(CTxDB& txdb, CBlockIndex* pindexNew)
     reverse(vConnect.begin(), vConnect.end());
 
     printf("REORGANIZE: Disconnect %" PRIszu " blocks; %s..%s\n", vDisconnect.size(),
-           pfork->GetBlockHash().ToString().substr(0, 20).c_str(),
-           pindexBest->GetBlockHash().ToString().substr(0, 20).c_str());
+           pfork->GetBlockHash().ToString().c_str(), pindexBest->GetBlockHash().ToString().c_str());
     printf("REORGANIZE: Connect %" PRIszu " blocks; %s..%s\n", vConnect.size(),
-           pfork->GetBlockHash().ToString().substr(0, 20).c_str(),
-           pindexNew->GetBlockHash().ToString().substr(0, 20).c_str());
+           pfork->GetBlockHash().ToString().c_str(), pindexNew->GetBlockHash().ToString().c_str());
 
     // Disconnect shorter branch
     list<CTransaction> vResurrect;
@@ -1701,7 +1823,7 @@ bool static Reorganize(CTxDB& txdb, CBlockIndex* pindexNew)
             return error("Reorganize() : ReadFromDisk for disconnect failed");
         if (!block.DisconnectBlock(txdb, pindex))
             return error("Reorganize() : DisconnectBlock %s failed",
-                         pindex->GetBlockHash().ToString().substr(0, 20).c_str());
+                         pindex->GetBlockHash().ToString().c_str());
 
         // Queue memory transactions to resurrect.
         // We only do this for blocks after the last checkpoint (reorganisation before that
@@ -1717,12 +1839,12 @@ bool static Reorganize(CTxDB& txdb, CBlockIndex* pindexNew)
     for (unsigned int i = 0; i < vConnect.size(); i++) {
         CBlockIndex* pindex = vConnect[i];
         CBlock       block;
-        if (!block.ReadFromDisk(pindex))
+        if (!block.ReadFromDisk(pindex, txdb))
             return error("Reorganize() : ReadFromDisk for connect failed");
         if (!block.ConnectBlock(txdb, pindex)) {
             // Invalid block
             return error("Reorganize() : ConnectBlock %s failed",
-                         pindex->GetBlockHash().ToString().substr(0, 20).c_str());
+                         pindex->GetBlockHash().ToString().c_str());
         }
 
         // Queue memory transactions to delete
@@ -1733,7 +1855,7 @@ bool static Reorganize(CTxDB& txdb, CBlockIndex* pindexNew)
         return error("Reorganize() : WriteHashBestChain failed");
 
     // Make sure it's successfully written to disk before changing memory structure
-    if (!txdb.TxnCommit())
+    if (createDbTransaction && !txdb.TxnCommit())
         return error("Reorganize() : TxnCommit failed");
 
     // Disconnect shorter branch
@@ -1762,17 +1884,19 @@ bool static Reorganize(CTxDB& txdb, CBlockIndex* pindexNew)
 }
 
 // Called from inside SetBestChain: attaches a block to the new best chain being built
-bool CBlock::SetBestChainInner(CTxDB& txdb, CBlockIndex* pindexNew)
+bool CBlock::SetBestChainInner(CTxDB& txdb, CBlockIndex* pindexNew, const bool createDbTransaction)
 {
     uint256 hash = GetHash();
 
     // Adding to current best branch
     if (!ConnectBlock(txdb, pindexNew) || !txdb.WriteHashBestChain(hash)) {
-        txdb.TxnAbort();
-        InvalidChainFound(pindexNew);
+        if (createDbTransaction) {
+            txdb.TxnAbort();
+        }
+        InvalidChainFound(pindexNew, txdb);
         return false;
     }
-    if (!txdb.TxnCommit())
+    if (createDbTransaction && !txdb.TxnCommit())
         return error("SetBestChain() : TxnCommit failed");
 
     // Add to current best branch
@@ -1785,20 +1909,20 @@ bool CBlock::SetBestChainInner(CTxDB& txdb, CBlockIndex* pindexNew)
     return true;
 }
 
-bool CBlock::SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew)
+bool CBlock::SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew, const bool createDbTransaction)
 {
     uint256 hash = GetHash();
 
-    if (!txdb.TxnBegin())
+    if (createDbTransaction && !txdb.TxnBegin())
         return error("SetBestChain() : TxnBegin failed");
 
     if (pindexGenesisBlock == NULL && hash == (!fTestNet ? hashGenesisBlock : hashGenesisBlockTestNet)) {
         txdb.WriteHashBestChain(hash);
-        if (!txdb.TxnCommit())
+        if (createDbTransaction && !txdb.TxnCommit())
             return error("SetBestChain() : TxnCommit failed");
         pindexGenesisBlock = pindexNew;
     } else if (hashPrevBlock == hashBestChain) {
-        if (!SetBestChainInner(txdb, pindexNew))
+        if (!SetBestChainInner(txdb, pindexNew, createDbTransaction))
             return error("SetBestChain() : SetBestChainInner failed");
     } else {
         // the first block in the new chain that will cause it to become the new best chain
@@ -1819,9 +1943,11 @@ bool CBlock::SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew)
             printf("Postponing %" PRIszu " reconnects\n", vpindexSecondary.size());
 
         // Switch to new best branch
-        if (!Reorganize(txdb, pindexIntermediate)) {
-            txdb.TxnAbort();
-            InvalidChainFound(pindexNew);
+        if (!Reorganize(txdb, pindexIntermediate, createDbTransaction)) {
+            if (createDbTransaction) {
+                txdb.TxnAbort();
+            }
+            InvalidChainFound(pindexNew, txdb);
             return error("SetBestChain() : Reorganize failed");
         }
 
@@ -1829,16 +1955,16 @@ bool CBlock::SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew)
         BOOST_REVERSE_FOREACH(CBlockIndex * pindex, vpindexSecondary)
         {
             CBlock block;
-            if (!block.ReadFromDisk(pindex)) {
+            if (!block.ReadFromDisk(pindex, txdb)) {
                 printf("SetBestChain() : ReadFromDisk failed\n");
                 break;
             }
-            if (!txdb.TxnBegin()) {
+            if (createDbTransaction && !txdb.TxnBegin()) {
                 printf("SetBestChain() : TxnBegin 2 failed\n");
                 break;
             }
             // errors now are not fatal, we still did a reorganisation to a new chain in a valid way
-            if (!block.SetBestChainInner(txdb, pindex))
+            if (!block.SetBestChainInner(txdb, pindex, createDbTransaction))
                 break;
         }
     }
@@ -1864,8 +1990,8 @@ bool CBlock::SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew)
                                   : pindexBest->nChainTrust;
 
     printf("SetBestChain: new best=%s  height=%d  trust=%s  blocktrust=%" PRId64 "  date=%s\n",
-           hashBestChain.ToString().substr(0, 20).c_str(), nBestHeight,
-           CBigNum(nBestChainTrust).ToString().c_str(), nBestBlockTrust.Get64(),
+           hashBestChain.ToString().c_str(), nBestHeight, CBigNum(nBestChainTrust).ToString().c_str(),
+           nBestBlockTrust.Get64(),
            DateTimeStrFormat("%x %H:%M:%S", pindexBest->GetBlockTime()).c_str());
 
     // Check the version of the last 100 blocks to see if we need to upgrade:
@@ -1923,7 +2049,7 @@ bool CTransaction::GetCoinAge(CTxDB& txdb, uint64_t& nCoinAge) const
 
         // Read block header
         CBlock block;
-        if (!block.ReadFromDisk(txindex.pos.nFile, txindex.pos.nBlockPos, false))
+        if (!block.ReadFromDisk(txindex.pos.nBlockPos, false))
             return false; // unable to read block of previous transaction
         if (block.GetBlockTime() + nSMA > nTime)
             continue; // only count coins meeting min age requirement
@@ -1964,19 +2090,20 @@ bool CBlock::GetCoinAge(uint64_t& nCoinAge) const
     return true;
 }
 
-bool CBlock::AddToBlockIndex(unsigned int nFile, unsigned int nBlockPos, const uint256& hashProof)
+bool CBlock::AddToBlockIndex(uint256 nBlockPos, const uint256& hashProof, CTxDB& txdb,
+                             CBlockIndex** newBlockIdxPtr, const bool createDbTransaction)
 {
     // Check for duplicate
     uint256 hash = GetHash();
     if (mapBlockIndex.count(hash))
-        return error("AddToBlockIndex() : %s already exists", hash.ToString().substr(0, 20).c_str());
+        return error("AddToBlockIndex() : %s already exists", hash.ToString().c_str());
 
     // Construct new block index object
-    CBlockIndex* pindexNew = new CBlockIndex(nFile, nBlockPos, *this);
+    CBlockIndex* pindexNew = new CBlockIndex(nBlockPos, *this);
     if (!pindexNew)
         return error("AddToBlockIndex() : new CBlockIndex failed");
-    pindexNew->phashBlock                       = &hash;
-    map<uint256, CBlockIndex*>::iterator miPrev = mapBlockIndex.find(hashPrevBlock);
+    pindexNew->phashBlock                                 = &hash;
+    unordered_map<uint256, CBlockIndex*>::iterator miPrev = mapBlockIndex.find(hashPrevBlock);
     if (miPrev != mapBlockIndex.end()) {
         pindexNew->pprev   = (*miPrev).second;
         pindexNew->nHeight = pindexNew->pprev->nHeight + 1;
@@ -2008,24 +2135,24 @@ bool CBlock::AddToBlockIndex(unsigned int nFile, unsigned int nBlockPos, const u
     // checksum=0x%016" PRIx64, pindexNew->nHeight, pindexNew->nStakeModifierChecksum);
 
     // Add to mapBlockIndex
-    map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.insert(make_pair(hash, pindexNew)).first;
+    unordered_map<uint256, CBlockIndex*>::iterator mi =
+        mapBlockIndex.insert(make_pair(hash, pindexNew)).first;
     if (pindexNew->IsProofOfStake())
         setStakeSeen.insert(make_pair(pindexNew->prevoutStake, pindexNew->nStakeTime));
     pindexNew->phashBlock = &((*mi).first);
 
     // Write to disk block index
-    CTxDB txdb;
-    if (!txdb.TxnBegin())
+    if (createDbTransaction && !txdb.TxnBegin())
         return false;
     txdb.WriteBlockIndex(CDiskBlockIndex(pindexNew));
-    if (!txdb.TxnCommit())
+    if (createDbTransaction && !txdb.TxnCommit())
         return false;
 
     LOCK(cs_main);
 
     // New best
     if (pindexNew->nChainTrust > nBestChainTrust)
-        if (!SetBestChain(txdb, pindexNew))
+        if (!SetBestChain(txdb, pindexNew, createDbTransaction))
             return false;
 
     if (pindexNew == pindexBest) {
@@ -2036,6 +2163,11 @@ bool CBlock::AddToBlockIndex(unsigned int nFile, unsigned int nBlockPos, const u
     }
 
     uiInterface.NotifyBlocksChanged();
+
+    if (newBlockIdxPtr != nullptr) {
+        *newBlockIdxPtr = pindexNew;
+    }
+
     return true;
 }
 
@@ -2127,27 +2259,44 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
 
 CTransaction FetchTxFromDisk(const uint256& txid)
 {
+    CTxDB txdb;
+    return FetchTxFromDisk(txid, txdb);
+}
+
+CTransaction FetchTxFromDisk(const uint256& txid, CTxDB& txdb)
+{
     CTransaction result;
     CTxIndex     txPos;
-    if (!CTxDB().ReadTxIndex(txid, txPos)) {
-        printf("Unable to read standard transaction from leveldb: %s\n", txid.ToString().c_str());
-        throw std::runtime_error("Unable to read standard transaction from leveldb: " + txid.ToString());
+    if (!txdb.ReadTxIndex(txid, txPos)) {
+        printf("Unable to read standard transaction from db: %s\n", txid.ToString().c_str());
+        throw std::runtime_error("Unable to read standard transaction from db: " + txid.ToString());
     }
-    if (!result.ReadFromDisk(txPos.pos)) {
+    if (!result.ReadFromDisk(txPos.pos, txdb)) {
         printf("Unable to read NTP1 transaction from disk with the "
-               "index given by leveldb: %s\n",
+               "index given by db: %s\n",
                txid.ToString().c_str());
-        throw std::runtime_error("Unable to read standard transaction from leveldb: " + txid.ToString());
+        throw std::runtime_error("Unable to read standard transaction from db: " + txid.ToString());
     }
     return result;
 }
 
-bool RecoverNTP1TxInDatabase(const CTransaction& tx, unsigned recurseDepth)
+bool RecoverNTP1TxInDatabase(const CTransaction& tx, CTxDB& txdb, bool recoveryProtection,
+                             unsigned recurseDepth)
 {
     printf("Recovering NTP1 transaction in database: %s\n", tx.GetHash().ToString().c_str());
+
+    // prevent recursively attempting to recover the same transactions again and again
+
+    if (recoveryProtection && UnrecoverableNTP1Txs.find(tx.GetHash()) != UnrecoverableNTP1Txs.end()) {
+        printf("Will not recover transaction %s; it was marked for non-recovery. Restart to attempt to "
+               "recover again.\n",
+               tx.GetHash().ToString().c_str());
+        return false;
+    }
+
     std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs;
     try {
-        ntp1inputs = GetAllNTP1InputsOfTx(tx);
+        ntp1inputs = GetAllNTP1InputsOfTx(tx, txdb, recoveryProtection);
     } catch (std::exception& ex) {
         printf("Error: Attempting to recursively recover the inputs. Failed to recover NTP1 "
                "transaction: %s; with error: %s\n",
@@ -2156,85 +2305,145 @@ bool RecoverNTP1TxInDatabase(const CTransaction& tx, unsigned recurseDepth)
         for (const auto& in : tx.vin) {
             CTransaction inputTx;
             try {
-                inputTx = FetchTxFromDisk(in.prevout.hash);
+                inputTx = FetchTxFromDisk(in.prevout.hash, txdb);
+                bool anyInputBeforeWrongBlockHeights =
+                    !PassedFirstValidNTP1Tx(GetTxBlockHeight(inputTx.GetHash()), fTestNet);
+                bool isNTP1 = IsTxNTP1(&inputTx);
+                if (anyInputBeforeWrongBlockHeights && isNTP1) {
+                    printf("Error: cannot recover transaction with hash %s; the NTP1 input of this "
+                           "transaction %s happened before the allowed limit.\n",
+                           tx.GetHash().ToString().c_str(), inputTx.GetHash().ToString().c_str());
+                    if (recoveryProtection) {
+                        UnrecoverableNTP1Txs.insert(tx.GetHash());
+                    }
+                    return false;
+                }
             } catch (std::exception& exIn) {
                 printf("Error: Failed to retrieve standard neblio tranasction %s; this happened in the "
                        "context of recovering the NTP1 transaction: %s\n, making recovery not "
                        "possible. Error given: %s\n",
                        tx.GetHash().ToString().c_str(), in.prevout.hash.ToString().c_str(), exIn.what());
+                if (recoveryProtection) {
+                    UnrecoverableNTP1Txs.insert(tx.GetHash());
+                }
                 return false;
             }
             std::pair<CTransaction, NTP1Transaction> inputTxPair =
                 std::make_pair(inputTx, NTP1Transaction());
-            FetchNTP1TxFromDisk(inputTxPair, recurseDepth);
+            FetchNTP1TxFromDisk(inputTxPair, txdb, recurseDepth);
             ntp1inputs.push_back(inputTxPair);
         }
     }
     try {
+        for (const auto in : ntp1inputs) {
+            bool anyInputBeforeWrongBlockHeights =
+                !PassedFirstValidNTP1Tx(GetTxBlockHeight(in.first.GetHash()), fTestNet);
+            bool isNTP1 = IsTxNTP1(&in.first);
+            if (anyInputBeforeWrongBlockHeights && isNTP1) {
+                printf("One of the inputs of the NTP1 transaction %s, which is %s, is bofore the "
+                       "allowed block height. "
+                       "This cannot be recovered.\n",
+                       tx.GetHash().ToString().c_str(), in.first.GetHash().ToString().c_str());
+                if (recoveryProtection) {
+                    UnrecoverableNTP1Txs.insert(tx.GetHash());
+                }
+                return false;
+            }
+        }
         NTP1Transaction ntp1tx;
         ntp1tx.readNTP1DataFromTx(tx, ntp1inputs);
-        WriteNTP1TxToDbAndDisk(ntp1tx);
+        WriteNTP1TxToDbAndDisk(ntp1tx, txdb);
         printf("Recovering transation: %s is done successfully.\n", tx.GetHash().ToString().c_str());
     } catch (std::exception& ex) {
         printf("Error: Failed to retrieve read NTP1 transaction while attempting to recover NTP1 "
                "transaction %s; Error: %s\n",
                tx.GetHash().ToString().c_str(), ex.what());
+        if (recoveryProtection) {
+            UnrecoverableNTP1Txs.insert(tx.GetHash());
+        }
         return false;
     }
     return true;
 }
 
-void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, unsigned recurseDepth)
+void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, CTxDB& txdb,
+                         bool /*recoverProtection*/, unsigned /*recurseDepth*/)
 {
     if (!IsTxNTP1(&txPair.first)) {
         return;
     }
-    DiskNTP1TxPos ntp1txPos;
-    if (!CTxDB().ReadNTP1TxIndex(txPair.first.GetHash(), ntp1txPos)) {
-        printf("Unable to read NTP1 transaction from leveldb: %s\n",
-               txPair.first.GetHash().ToString().c_str());
-        if (recurseDepth < 32) {
-            if (RecoverNTP1TxInDatabase(txPair.first, recurseDepth + 1)) {
-                FetchNTP1TxFromDisk(txPair, recurseDepth + 1);
-            } else {
-                printf("Error: Failed to retrieve (and recover) NTP1 transaction %s.\n",
-                       txPair.first.GetHash().ToString().c_str());
-            }
-        } else {
-            printf("Error: max recursion depth, %u, reached while fetching transaction %s. Stopping!\n",
-                   recurseDepth, txPair.first.GetHash().ToString().c_str());
+    if (!txdb.ReadNTP1Tx(txPair.first.GetHash(), txPair.second)) {
+        //        printf("Unable to read NTP1 transaction from db: %s\n",
+        //               txPair.first.GetHash().ToString().c_str());
+        //        if (recurseDepth < 32) {
+        //            if (RecoverNTP1TxInDatabase(txPair.first, txdb, recoverProtection, recurseDepth +
+        //            1)) {
+        //                FetchNTP1TxFromDisk(txPair, txdb, recurseDepth + 1);
+        //            } else {
+        //                printf("Error: Failed to retrieve (and recover) NTP1 transaction %s.\n",
+        //                       txPair.first.GetHash().ToString().c_str());
+        //            }
+        //        } else {
+        //            printf("Error: max recursion depth, %u, reached while fetching transaction %s.
+        //            Stopping!\n",
+        //                   recurseDepth, txPair.first.GetHash().ToString().c_str());
+        //        }
+        printf("Failed to fetch NTP1 transaction %s", txPair.first.GetHash().ToString().c_str());
+        return;
+    }
+    txPair.second.updateDebugStrHash();
+}
+
+void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, CTxDB& txdb)
+{
+    if (ntp1tx.getTxType() == NTP1TxType_UNKNOWN) {
+        throw std::runtime_error(
+            "Attempted to write an NTP1 transaction to database with unknown type.");
+    }
+    if (!txdb.WriteNTP1Tx(ntp1tx.getTxHash(), ntp1tx)) {
+        throw std::runtime_error("Unable to write NTP1 transaction to database: " +
+                                 ntp1tx.getTxHash().ToString());
+    }
+    if (ntp1tx.getTxType() == NTP1TxType_ISSUANCE) {
+        if (ntp1tx.getTxInCount() <= 0) {
+            throw std::runtime_error(
+                "Unable to check for token id blacklisting because the size of the input is zero.");
         }
-        return;
-    }
-    if (!txPair.second.readFromDisk(ntp1txPos)) {
-        printf("Unable to read NTP1 transaction from disk with the "
-               "index given by leveldb: %s\n",
-               txPair.first.GetHash().ToString().c_str());
-        return;
-    }
-}
-
-void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx)
-{
-    // write to disk
-    unsigned int nFile;
-    unsigned int nTxPosRet;
-    if (!ntp1tx.writeToDisk(nFile, nTxPosRet)) {
-        throw std::runtime_error("unable to write NTP1 transaction serialized data to disk: " +
-                                 ntp1tx.getTxHash().ToString());
-    }
-
-    // write index to leveldb
-    DiskNTP1TxPos ntp1txPos(nFile, nTxPosRet);
-    if (!CTxDB().WriteNTP1TxIndex(ntp1tx.getTxHash(), ntp1txPos)) {
-        throw std::runtime_error("unable to write NTP1 transaction index to leveldb database: " +
-                                 ntp1tx.getTxHash().ToString());
+        NTP1OutPoint prevout = ntp1tx.getTxIn(0).getPrevout();
+        assert(!prevout.isNull());
+        std::string tokenId =
+            ntp1tx.getTokenIdIfIssuance(prevout.getHash().ToString(), prevout.getIndex());
+        if (!IsNTP1TokenBlacklisted(tokenId)) {
+            if (!txdb.WriteNTP1TxWithTokenSymbol(ntp1tx.getTokenSymbolIfIssuance(), ntp1tx)) {
+                throw std::runtime_error("Unable to write NTP1 transaction to database: " +
+                                         ntp1tx.getTxHash().ToString());
+            }
+        }
     }
 }
 
-std::vector<std::pair<CTransaction, NTP1Transaction>> StdInputsTxsToNTP1(const CTransaction& tx,
-                                                                         const MapPrevTx&    mapInputs)
+std::vector<std::pair<CTransaction, NTP1Transaction>>
+StdFetchedInputTxsToNTP1(const CTransaction& tx, const MapPrevTx& mapInputs, CTxDB& txdb,
+                         bool recoverProtection, const map<uint256, CTxIndex>& queuedAcceptedTxs,
+                         int recursionCount)
 {
+    // It's not possible to use default parameter here because NTP1Transaction is an incomplete type in
+    // main.h, and including NTP1Transaction header file is not possible due to circular dependency
+    return StdFetchedInputTxsToNTP1(
+        tx, mapInputs, txdb, recoverProtection,
+        map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>(), queuedAcceptedTxs,
+        recursionCount);
+}
+
+std::vector<std::pair<CTransaction, NTP1Transaction>> StdFetchedInputTxsToNTP1(
+    const CTransaction& tx, const MapPrevTx& mapInputs, CTxDB& txdb, bool recoverProtection,
+    const map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>& mapQueuedNTP1Inputs,
+    const map<uint256, CTxIndex>& queuedAcceptedTxs, int recursionCount)
+{
+    if (recursionCount >= 32) {
+        throw std::runtime_error("Reached maximum recursion in StdFetchedInputTxsToNTP1");
+    }
+
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputsWithNTP1;
     // put the input transactions in a vector with their corresponding NTP1 transactions
     {
@@ -2253,35 +2462,76 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> StdInputsTxsToNTP1(const C
                        });
     }
 
-    for (auto&& inTx : inputsWithNTP1) {
-        // read NTP1 transaction inputs. If they fail, that's OK, because they will
-        // fail later if they're necessary
-        FetchNTP1TxFromDisk(inTx);
+    // NTP1 transaction data is either in the test pool OR in the database; no third option here
+    auto it = mapQueuedNTP1Inputs.find(tx.GetHash());
+    if (it == mapQueuedNTP1Inputs.end()) {
+        for (auto&& inTx : inputsWithNTP1) {
+            if (IsTxNTP1(&inTx.first)) {
+                if (txdb.ContainsNTP1Tx(inTx.first.GetHash())) {
+                    // if the transaction is in the database, get it
+                    FetchNTP1TxFromDisk(inTx, txdb, recoverProtection);
+                } else if (queuedAcceptedTxs.find(inTx.first.GetHash()) != queuedAcceptedTxs.end()) {
+                    // otherwise, if the transaction is already in the test pool, use it to read it
+
+                    std::vector<std::pair<CTransaction, NTP1Transaction>> inputsOfInput =
+                        GetAllNTP1InputsOfTx(inTx.first, txdb, recoverProtection, mapQueuedNTP1Inputs,
+                                             queuedAcceptedTxs, recursionCount + 1);
+
+                    NTP1Transaction ntp1tx;
+                    inTx.second.readNTP1DataFromTx(inTx.first, inputsOfInput);
+                } else {
+                    // read NTP1 transaction inputs. If they fail, that's OK, because they will
+                    // fail later if they're necessary
+                    FetchNTP1TxFromDisk(inTx, txdb, recoverProtection);
+                }
+            }
+        }
+    } else {
+        inputsWithNTP1 = it->second;
     }
     return inputsWithNTP1;
 }
 
-std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(CTransaction tx)
+std::vector<std::pair<CTransaction, NTP1Transaction>>
+GetAllNTP1InputsOfTx(CTransaction tx, bool recoverProtection, int recursionCount)
 {
-    CTxDB txdb("r");
+    CTxDB txdb;
+    return GetAllNTP1InputsOfTx(tx, txdb, recoverProtection,
+                                map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>(),
+                                map<uint256, CTxIndex>(), recursionCount);
+}
 
+std::vector<std::pair<CTransaction, NTP1Transaction>>
+GetAllNTP1InputsOfTx(CTransaction tx, CTxDB& txdb, bool recoverProtection, int recursionCount)
+{
+    return GetAllNTP1InputsOfTx(tx, txdb, recoverProtection,
+                                map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>(),
+                                map<uint256, CTxIndex>(), recursionCount);
+}
+
+std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(
+    CTransaction tx, CTxDB& txdb, bool recoverProtection,
+    const map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>& mapQueuedNTP1Inputs,
+    const map<uint256, CTxIndex>& queuedAcceptedTxs, int recursionCount)
+{
     // rertrieve standard transaction inputs (NOT NTP1)
-    MapPrevTx              mapInputs;
-    map<uint256, CTxIndex> mapUnused;
-    bool                   fInvalid = false;
-    if (!tx.FetchInputs(txdb, mapUnused, false, false, mapInputs, fInvalid)) {
+    MapPrevTx mapInputs;
+    bool      fInvalid = false;
+    if (!tx.FetchInputs(txdb, queuedAcceptedTxs, true, false, mapInputs, fInvalid)) {
         if (fInvalid) {
-            printf("Error: For NTP1, FetchInputs found invalid tx %s\n",
+            printf("Error: For GetAllNTP1InputsOfTx, FetchInputs found invalid tx %s\n",
                    tx.GetHash().ToString().c_str());
             throw std::runtime_error("Error: For NTP1, FetchInputs found invalid tx " +
                                      tx.GetHash().ToString());
         }
     }
 
-    return StdInputsTxsToNTP1(tx, mapInputs);
+    std::vector<std::pair<CTransaction, NTP1Transaction>> result = StdFetchedInputTxsToNTP1(
+        tx, mapInputs, txdb, recoverProtection, mapQueuedNTP1Inputs, queuedAcceptedTxs, recursionCount);
+    return result;
 }
 
-void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx)
+void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, CTxDB& txdb)
 {
     if (PassedFirstValidNTP1Tx(nBestHeight, fTestNet)) {
         // read previous transactions (inputs) which are necessary to validate an NTP1
@@ -2291,21 +2541,82 @@ void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx)
             return;
         }
 
-        std::vector<std::pair<CTransaction, NTP1Transaction>> inputsWithNTP1 = GetAllNTP1InputsOfTx(tx);
+        std::vector<std::pair<CTransaction, NTP1Transaction>> inputsWithNTP1 =
+            GetAllNTP1InputsOfTx(tx, txdb, true);
 
         // write NTP1 transactions' data
         NTP1Transaction ntp1tx;
         ntp1tx.readNTP1DataFromTx(tx, inputsWithNTP1);
 
-        WriteNTP1TxToDbAndDisk(ntp1tx);
+        WriteNTP1TxToDbAndDisk(ntp1tx, txdb);
     }
 }
 
-void WriteNTP1BlockTransactionsToDisk(std::vector<CTransaction> vtx)
+void AssertIssuanceUniquenessInBlock(
+    std::unordered_map<std::string, uint256>& issuedTokensSymbolsInThisBlock, CTxDB& txdb,
+    const CTransaction&                                                        tx,
+    const map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>& mapQueuedNTP1Inputs,
+    const map<uint256, CTxIndex>&                                              queuedAcceptedTxs)
+{
+    std::string opRet;
+    if (IsTxNTP1(&tx, &opRet)) {
+        auto script = NTP1Script::ParseScript(opRet);
+        if (script->getTxType() == NTP1Script::TxType_Issuance) {
+            std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
+                GetAllNTP1InputsOfTx(tx, txdb, false, mapQueuedNTP1Inputs, queuedAcceptedTxs);
+
+            NTP1Transaction ntp1tx;
+            ntp1tx.readNTP1DataFromTx(tx, inputsTxs);
+            AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, txdb);
+            if (ntp1tx.getTxType() == NTP1TxType_ISSUANCE) {
+                std::string currSymbol = ntp1tx.getTokenSymbolIfIssuance();
+                // make sure that case doesn't matter by converting to upper case
+                std::transform(currSymbol.begin(), currSymbol.end(), currSymbol.begin(), ::toupper);
+                if (issuedTokensSymbolsInThisBlock.find(currSymbol) !=
+                    issuedTokensSymbolsInThisBlock.end()) {
+                    throw std::runtime_error(
+                        "The token name " + currSymbol +
+                        " already exists in the block: " /* + this->GetHash().ToString()*/);
+                }
+                issuedTokensSymbolsInThisBlock.insert(std::make_pair(currSymbol, ntp1tx.getTxHash()));
+            }
+        }
+    }
+}
+
+CTransaction PopLeafTransaction(std::vector<CTransaction>& vtx)
+{
+    if (vtx.empty()) {
+        return CTransaction();
+    }
+    // pop one element
+    CTransaction result = vtx.back();
+    vtx.pop_back();
+
+    // if any element in the array is an input to this transaction, swap them, and restart the loop
+    for (int i = 0; i < static_cast<int>(vtx.size()); i++) {
+        for (const CTxIn& input : result.vin) {
+            assert(i >= 0);
+            if (input.prevout.hash == vtx[i].GetHash()) {
+                std::swap(result, vtx[i]);
+                i = -1; // reset the loop
+                break;
+            }
+        }
+    }
+    return result;
+}
+
+void WriteNTP1BlockTransactionsToDisk(const std::vector<CTransaction>& vtx, CTxDB& txdb)
 {
     if (PassedFirstValidNTP1Tx(nBestHeight, fTestNet)) {
-        for (CTransaction& tx : vtx) {
-            WriteNTP1TxToDiskFromRawTx(tx);
+        std::vector<CTransaction> transactions(vtx.begin(), vtx.end());
+
+        // add current transactions to possible inputs to cover the case if a transaction spends an
+        // output in the same block
+        while (!transactions.empty()) {
+            CTransaction&& tx = PopLeafTransaction(transactions);
+            WriteNTP1TxToDiskFromRawTx(tx, txdb);
         }
     }
 }
@@ -2323,7 +2634,7 @@ bool CBlock::AcceptBlock()
         return error("AcceptBlock() : block already in mapBlockIndex");
 
     // Get prev block index
-    map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashPrevBlock);
+    unordered_map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashPrevBlock);
     if (mi == mapBlockIndex.end())
         return DoS(10, error("AcceptBlock() : prev block not found"));
     CBlockIndex* pindexPrev = (*mi).second;
@@ -2384,12 +2695,9 @@ bool CBlock::AcceptBlock()
     // Write block to history file
     if (!CheckDiskSpace(::GetSerializeSize(*this, SER_DISK, CLIENT_VERSION)))
         return error("AcceptBlock() : out of disk space");
-    unsigned int nFile     = -1;
-    unsigned int nBlockPos = 0;
-    if (!WriteToDisk(nFile, nBlockPos))
+    uint256 nBlockPos = hash;
+    if (!WriteToDisk(nBlockPos, hashProof))
         return error("AcceptBlock() : WriteToDisk failed");
-    if (!AddToBlockIndex(nFile, nBlockPos, hashProof))
-        return error("AcceptBlock() : AddToBlockIndex failed");
 
     // Relay inventory, but don't relay old inventory during initial block download
     int nBlockEstimate = Checkpoints::GetTotalBlocksEstimate();
@@ -2403,18 +2711,6 @@ bool CBlock::AcceptBlock()
 
     // ppcoin: check pending sync-checkpoint
     Checkpoints::AcceptPendingSyncCheckpoint();
-
-    // This scope does NTP1 data writing
-    {
-        try {
-            WriteNTP1BlockTransactionsToDisk(vtx);
-        } catch (std::exception& ex) {
-            printf("Unable to get NTP1 transaction written to the blockchain. Error: %s\n", ex.what());
-        } catch (...) {
-            printf("Unable to get NTP1 transaction written to the blockchain. An unknown exception was "
-                   "thrown");
-        }
-    }
 
     return true;
 }
@@ -2450,10 +2746,9 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     uint256 hash = pblock->GetHash();
     if (mapBlockIndex.count(hash))
         return error("ProcessBlock() : already have block %d %s", mapBlockIndex[hash]->nHeight,
-                     hash.ToString().substr(0, 20).c_str());
+                     hash.ToString().c_str());
     if (mapOrphanBlocks.count(hash))
-        return error("ProcessBlock() : already have block (orphan) %s",
-                     hash.ToString().substr(0, 20).c_str());
+        return error("ProcessBlock() : already have block (orphan) %s", hash.ToString().c_str());
 
     // ppcoin: check proof-of-stake
     // Limited duplicity on stake: prevents block flood attack
@@ -2498,8 +2793,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
 
     // If don't already have its previous block, shunt it off to holding area until we get it
     if (!mapBlockIndex.count(pblock->hashPrevBlock)) {
-        printf("ProcessBlock: ORPHAN BLOCK, prev=%s\n",
-               pblock->hashPrevBlock.ToString().substr(0, 20).c_str());
+        printf("ProcessBlock: ORPHAN BLOCK, prev=%s\n", pblock->hashPrevBlock.ToString().c_str());
         // ppcoin: check proof-of-stake
         if (pblock->IsProofOfStake()) {
             // Limited duplicity on stake: prevents block flood attack
@@ -2805,49 +3099,6 @@ bool CheckDiskSpace(uint64_t nAdditionalBytes)
     return true;
 }
 
-static filesystem::path BlockFilePath(unsigned int nFile)
-{
-    string strBlockFn = strprintf("blk%04u.dat", nFile);
-    return GetDataDir() / strBlockFn;
-}
-
-FILE* OpenBlockFile(unsigned int nFile, unsigned int nBlockPos, const char* pszMode)
-{
-    if ((nFile < 1) || (nFile == (unsigned int)-1))
-        return NULL;
-    FILE* file = fopen(BlockFilePath(nFile).string().c_str(), pszMode);
-    if (!file)
-        return NULL;
-    if (nBlockPos != 0 && !strchr(pszMode, 'a') && !strchr(pszMode, 'w')) {
-        if (fseek(file, nBlockPos, SEEK_SET) != 0) {
-            fclose(file);
-            return NULL;
-        }
-    }
-    return file;
-}
-
-static unsigned int nCurrentBlockFile = 1;
-
-FILE* AppendBlockFile(unsigned int& nFileRet)
-{
-    nFileRet = 0;
-    while (true) {
-        FILE* file = OpenBlockFile(nCurrentBlockFile, 0, "ab");
-        if (!file)
-            return NULL;
-        if (fseek(file, 0, SEEK_END) != 0)
-            return NULL;
-        // FAT32 file size max 4GB, fseek and ftell max 2GB, so we must stay under 2GB
-        if (ftell(file) < (long)(0x7F000000 - MAX_SIZE)) {
-            nFileRet = nCurrentBlockFile;
-            return file;
-        }
-        fclose(file);
-        nCurrentBlockFile++;
-    }
-}
-
 bool LoadBlockIndex(bool fAllowNew)
 
 {
@@ -2957,12 +3208,8 @@ bool LoadBlockIndex(bool fAllowNew)
         assert(block.CheckBlock());
 
         // Start new block file
-        unsigned int nFile;
-        unsigned int nBlockPos;
-        if (!block.WriteToDisk(nFile, nBlockPos))
+        if (!block.WriteToDisk(hashGenesisBlock, hashGenesisBlock))
             return error("LoadBlockIndex() : writing genesis block to disk failed");
-        if (!block.AddToBlockIndex(nFile, nBlockPos, hashGenesisBlock))
-            return error("LoadBlockIndex() : genesis block not accepted");
 
         // ppcoin: initialize synchronized checkpoint
         if (!Checkpoints::WriteSyncCheckpoint((!fTestNet ? hashGenesisBlock : hashGenesisBlockTestNet)))
@@ -2991,8 +3238,8 @@ void PrintBlockTree()
     AssertLockHeld(cs_main);
     // pre-compute tree structure
     map<CBlockIndex*, vector<CBlockIndex*>> mapNext;
-    for (map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.begin(); mi != mapBlockIndex.end();
-         ++mi) {
+    for (unordered_map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.begin();
+         mi != mapBlockIndex.end(); ++mi) {
         CBlockIndex* pindex = (*mi).second;
         mapNext[pindex->pprev].push_back(pindex);
         // test
@@ -3028,8 +3275,8 @@ void PrintBlockTree()
         // print item
         CBlock block;
         block.ReadFromDisk(pindex);
-        printf("%d (%u,%u) %s  %08x  %s  mint %7s  tx %" PRIszu "", pindex->nHeight, pindex->nFile,
-               pindex->nBlockPos, block.GetHash().ToString().c_str(), block.nBits,
+        printf("%d (%s) %s  %08x  %s  mint %7s  tx %" PRIszu "", pindex->nHeight,
+               pindex->blockKeyInDB.ToString().c_str(), block.GetHash().ToString().c_str(), block.nBits,
                DateTimeStrFormat("%x %H:%M:%S", block.GetBlockTime()).c_str(),
                FormatMoney(pindex->nMint).c_str(), block.vtx.size());
 
@@ -3505,7 +3752,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 
             if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK) {
                 // Send block from disk
-                map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(inv.hash);
+                unordered_map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(inv.hash);
                 if (mi != mapBlockIndex.end()) {
                     CBlock block;
                     block.ReadFromDisk((*mi).second);
@@ -3585,11 +3832,11 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
             pindex = pindex->pnext;
         int nLimit = 500;
         printf("getblocks %d to %s limit %d\n", (pindex ? pindex->nHeight : -1),
-               hashStop.ToString().substr(0, 20).c_str(), nLimit);
+               hashStop.ToString().c_str(), nLimit);
         for (; pindex; pindex = pindex->pnext) {
             if (pindex->GetBlockHash() == hashStop) {
                 printf("  getblocks stopping at %d %s\n", pindex->nHeight,
-                       pindex->GetBlockHash().ToString().substr(0, 20).c_str());
+                       pindex->GetBlockHash().ToString().c_str());
                 unsigned int nSMA = StakeMinAge(nBestHeight);
                 // ppcoin: tell downloading node about the latest block if it's
                 // without risk being rejected due to stake connection check
@@ -3603,7 +3850,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                 // When this block is requested, we'll send an inv that'll make them
                 // getblocks the next batch of inventory.
                 printf("  getblocks stopping at limit %d %s\n", pindex->nHeight,
-                       pindex->GetBlockHash().ToString().substr(0, 20).c_str());
+                       pindex->GetBlockHash().ToString().c_str());
                 pfrom->hashContinue = pindex->GetBlockHash();
                 break;
             }
@@ -3629,7 +3876,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         CBlockIndex* pindex = NULL;
         if (locator.IsNull()) {
             // If locator is null, return the hashStop block
-            map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashStop);
+            unordered_map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashStop);
             if (mi == mapBlockIndex.end())
                 return true;
             pindex = (*mi).second;
@@ -3642,8 +3889,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 
         vector<CBlock> vHeaders;
         int            nLimit = 2000;
-        printf("getheaders %d to %s\n", (pindex ? pindex->nHeight : -1),
-               hashStop.ToString().substr(0, 20).c_str());
+        printf("getheaders %d to %s\n", (pindex ? pindex->nHeight : -1), hashStop.ToString().c_str());
         for (; pindex; pindex = pindex->pnext) {
             vHeaders.push_back(pindex->GetBlockHeader());
             if (--nLimit <= 0 || pindex->GetBlockHash() == hashStop)
@@ -3679,8 +3925,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                     bool           fMissingInputs2 = false;
 
                     if (AcceptToMemoryPool(mempool, orphanTx, &fMissingInputs2)) {
-                        printf("   accepted orphan tx %s\n",
-                               orphanTxHash.ToString().substr(0, 10).c_str());
+                        printf("   accepted orphan tx %s\n", orphanTxHash.ToString().c_str());
                         SyncWithWallets(tx, NULL, true);
                         RelayTransaction(orphanTx, orphanTxHash);
                         mapAlreadyAskedFor.erase(CInv(MSG_TX, orphanTxHash));
@@ -3689,8 +3934,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                     } else if (!fMissingInputs2) {
                         // invalid orphan
                         vEraseQueue.push_back(orphanTxHash);
-                        printf("   removed invalid orphan tx %s\n",
-                               orphanTxHash.ToString().substr(0, 10).c_str());
+                        printf("   removed invalid orphan tx %s\n", orphanTxHash.ToString().c_str());
                     }
                 }
             }
@@ -3714,7 +3958,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         vRecv >> block;
         uint256 hashBlock = block.GetHash();
 
-        printf("received block %s\n", hashBlock.ToString().substr(0, 20).c_str());
+        printf("received block %s\n", hashBlock.ToString().c_str());
 
         CInv inv(MSG_BLOCK, hashBlock);
         pfrom->AddInventoryKnown(inv);
@@ -4136,6 +4380,16 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
     return true;
 }
 
+bool EnableEnforceUniqueTokenSymbols(uint32_t nBestHeight, bool isTestnet)
+{
+    //    if (PassedFirstValidNTP1Tx(nBestHeight, isTestnet)) {
+    if (PassedNetworkUpgradeBlock(nBestHeight, isTestnet)) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
 /** the conditions for considering the upgraded network configuration */
 bool PassedNetworkUpgradeBlock(uint32_t nBestHeight, bool isTestnet)
 {
@@ -4296,6 +4550,10 @@ bool IsTxNTP1(const CTransaction* tx, std::string* opReturnArg)
         return false;
     }
 
+    if (IsNTP1TxExcluded(tx->GetHash())) {
+        return false;
+    }
+
     std::smatch opReturnArgMatch;
 
     for (unsigned long j = 0; j < tx->vout.size(); j++) {
@@ -4314,6 +4572,10 @@ bool IsTxNTP1(const CTransaction* tx, std::string* opReturnArg)
 bool IsTxOutputNTP1OpRet(const CTransaction* tx, unsigned int index, std::string* opReturnArg)
 {
     if (!tx) {
+        return false;
+    }
+
+    if (IsNTP1TxExcluded(tx->GetHash())) {
         return false;
     }
 
@@ -4376,4 +4638,192 @@ bool IsTxOutputOpRet(const CTxOut* output, string* opReturnArg)
         return true; // could not retrieve OP_RETURN argument
     }
     return false;
+}
+
+bool CBlock::WriteToDisk(const uint256& nBlockPos, const uint256& hashProof)
+{
+    /**
+     * @brief txdb
+     * This function writes a whole block in an ACID transaction
+     */
+
+    CTxDB       txdb;
+    std::size_t req_size = 500 * ::GetSerializeSize(*this, SER_DISK, CLIENT_VERSION);
+    if (!txdb.TxnBegin(req_size)) {
+        printf("Failed to start transaction for writing a new block.");
+        return false;
+    }
+
+    bool success = false;
+
+    // this is a hack to guarantee that the function will commit/abort the transaction on exit
+    std::unique_ptr<int, std::function<void(int*)>> txEnder(new int(0), [&txdb, &success](int* p) {
+        if (success) {
+            txdb.TxnCommit();
+        } else {
+            txdb.TxnAbort();
+        }
+        delete p;
+    });
+
+    if (!txdb.WriteBlock(this->GetHash(), *this)) {
+        return false;
+    }
+
+    CBlockIndex* pindexNew = nullptr;
+
+    if (!AddToBlockIndex(nBlockPos, hashProof, txdb, &pindexNew, false)) {
+        return error("AcceptBlock() : AddToBlockIndex failed");
+    }
+
+    if (!pindexNew) {
+        return error("Major Error: A nullptr CBlockIndex() was found in CBlock::WriteToDisk(), although "
+                     "AddToBlockIndex() succeeded. This should never happen!");
+    }
+
+    // This scope does NTP1 data writing
+    {
+        try {
+            WriteNTP1BlockTransactionsToDisk(vtx, txdb);
+        } catch (std::exception& ex) {
+            if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+                return error("Unable to get NTP1 transaction written to the blockchain. Error: %s\n",
+                             ex.what());
+            }
+        } catch (...) {
+            if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+                return error(
+                    "Unable to get NTP1 transaction written to the blockchain. An unknown exception was "
+                    "thrown");
+            }
+        }
+    }
+    success = true;
+    txEnder.reset();
+    return true;
+}
+
+bool CBlock::ReadFromDisk(const uint256& hash, bool fReadTransactions)
+{
+    SetNull();
+    return CTxDB().ReadBlock(hash, *this, fReadTransactions);
+}
+
+bool CBlock::ReadFromDisk(const uint256& hash, CTxDB& txdb, bool fReadTransactions)
+{
+    SetNull();
+    return txdb.ReadBlock(hash, *this, fReadTransactions);
+}
+
+bool IsTxInMainChain(const uint256& txHash)
+{
+    CTransaction tx;
+    uint256      hashBlock;
+    if (GetTransaction(txHash, tx, hashBlock)) {
+        unordered_map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
+        if (mi != mapBlockIndex.end() && (*mi).second) {
+            CBlockIndex* pindex = (*mi).second;
+            return pindex->IsInMainChain();
+        } else {
+            throw std::runtime_error("Unable to find the block that has the transaction " +
+                                     txHash.ToString());
+        }
+    }
+    throw std::runtime_error("Unable to retrieve the transaction " + txHash.ToString());
+}
+
+int64_t GetTxBlockHeight(const uint256& txHash)
+{
+    CTransaction tx;
+    uint256      hashBlock;
+    if (GetTransaction(txHash, tx, hashBlock)) {
+        unordered_map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
+        if (mi != mapBlockIndex.end() && (*mi).second) {
+            CBlockIndex* pindex = (*mi).second;
+            if (pindex->IsInMainChain()) {
+                return static_cast<int64_t>(pindex->nHeight);
+            } else {
+                return static_cast<int64_t>(-1);
+            }
+        } else {
+            throw std::runtime_error("Unable to find the block that has the transaction " +
+                                     txHash.ToString());
+        }
+    }
+    throw std::runtime_error("Unable to retrieve the transaction " + txHash.ToString());
+}
+
+bool IsNTP1TxAtValidBlockHeight(const int bestHeight, const bool isTestnet)
+{
+    return PassedNetworkUpgradeBlock(bestHeight, isTestnet) &&
+           PassedFirstValidNTP1Tx(bestHeight, isTestnet);
+}
+
+void ExportBootstrapBlockchain(const string& filename, std::atomic<bool>& stopped,
+                               std::atomic<double>& progress, boost::promise<void>& result)
+{
+    RenameThread("Export-blockchain");
+    try {
+        progress.store(0, std::memory_order_relaxed);
+
+        std::vector<CBlockIndex*> chainBlocksIndices;
+
+        {
+            CBlockIndex* pblockindex = mapBlockIndex[hashBestChain];
+            chainBlocksIndices.push_back(pblockindex);
+            while (pblockindex->nHeight > 0 && !stopped.load() && !fShutdown) {
+                pblockindex = pblockindex->pprev;
+                chainBlocksIndices.push_back(pblockindex);
+            }
+        }
+
+        if (stopped.load() || fShutdown) {
+            throw std::runtime_error("Operation was stopped.");
+        }
+
+        std::ofstream outFile(filename.c_str(), ios::binary);
+        if (!outFile.good()) {
+            throw std::runtime_error("Failed to open file for writing. Make sure you have sufficient "
+                                     "permissions and diskspace.");
+        }
+
+        size_t threadsholdSize = 1 << 24; // 4 MB
+
+        CDataStream  serializedBlocks(SER_DISK, CLIENT_VERSION);
+        size_t       written = 0;
+        const size_t total   = chainBlocksIndices.size();
+        for (CBlockIndex* blockIndex : boost::adaptors::reverse(chainBlocksIndices)) {
+            progress.store(static_cast<double>(written) / static_cast<double>(total),
+                           std::memory_order_relaxed);
+            if (stopped.load() || fShutdown) {
+                throw std::runtime_error("Operation was stopped.");
+            }
+            CBlock block;
+            block.ReadFromDisk(blockIndex, true);
+
+            // every block starts with pchMessageStart
+            unsigned int nSize = block.GetSerializeSize(SER_DISK, CLIENT_VERSION);
+            serializedBlocks << FLATDATA(pchMessageStart) << nSize;
+            serializedBlocks << block;
+            if (serializedBlocks.size() > threadsholdSize) {
+                outFile.write(serializedBlocks.str().c_str(), serializedBlocks.size());
+                serializedBlocks.clear();
+            }
+            written++;
+        }
+        if (serializedBlocks.size() > 0) {
+            outFile.write(serializedBlocks.str().c_str(), serializedBlocks.size());
+            serializedBlocks.clear();
+            if (!outFile.good()) {
+                throw std::runtime_error("An error was raised while writing the file. Make sure you "
+                                         "have sufficient permissions and diskspace.");
+            }
+        }
+        progress.store(1, std::memory_order_seq_cst);
+        result.set_value();
+    } catch (std::exception& ex) {
+        result.set_exception(boost::current_exception());
+    } catch (...) {
+        result.set_exception(boost::current_exception());
+    }
 }
