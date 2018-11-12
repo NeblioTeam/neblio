@@ -192,6 +192,7 @@ decodescript <hex string>
 dumpprivkey <neblioaddress>
 dumpwallet <filename>
 encryptwallet <passphrase>
+exportblockchain <path-dir>
 getaccount <neblioaddress>
 getaccountaddress <account>
 getaddressesbyaccount <account>
