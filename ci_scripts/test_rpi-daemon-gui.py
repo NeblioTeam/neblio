@@ -35,11 +35,11 @@ file_name = '$(date +%Y-%m-%d)---' + os.environ['TRAVIS_BRANCH'] + '-' + os.envi
 # since RPi jobs are run several times we need to be creative in our deployment as only the original job can post to GitHub Releases.
 # So, start the original job via the GitHub tag and pass its job ID to every subsequent job. Once the build is complete, the final build job
 # will restart the original job, which will handle the deployment to GitHub releases.
-deploy_job_id = os.eviron.get('TRAVIS_DEPLOY_JOB_ID', '0')
-travis_tag    = os.eviron.get('TRAVIS_TAG', '')
+deploy_job_id = os.environ.get('TRAVIS_DEPLOY_JOB_ID', '0')
+travis_tag    = os.environ.get('TRAVIS_TAG', '')
 # if travis tag is populated, this is the job ID we want
 if (travis_tag != ''):
-  deploy_job_id = os.eviron['TRAVIS_JOB_ID']
+  deploy_job_id = os.environ['TRAVIS_JOB_ID']
 
 print('Debug: Job ID: ' + deploy_job_id)
 
