@@ -12,7 +12,7 @@ cache:
 env:
   global:
     CCACHE_MAXSIZE: 1G
-    secure: fOZ+Ztw+OeaXZsxzr/wqGw6ZGsgz9Giy6AAWvV25GuCvTk5X+EzECF/Th+bzl2mdmMuwPARBT6UW7CD9LOvb6XKsuHz03Z6Tk8feGMfJg66sqRx5DMdXKzrBxPfIaKETmglwOWMN8kN2gX5YJyW8V+TZvn0srzWB8Pg9RUJZznEpTBxd2aB34mFyYoAlOGbyR2WazL7ukWzvjaBYF5wfcAr65fW7XtiU8DOJlVnHMGyeG66FadLddR6HtTt18vu0XrymK7t6cV68+9fQuEEyf+QvPiRl/pmFCptk9sJ4ljQRBKH0NLjdV9jI05hxwSefeHVCvUEABQYIanhqt5a9Ir2a3//OtxEZ6b/a/ZlFlNVlxY9DEPreOn9685maUstwkCT9kdcGGylYSqMpTRmW4yNRT3aZKv3nWbuZo1wzApf4sxCHfS2T4vm18FmJzAE4BAGXYJg9JV+HCHcM2SDY+h5e+FKXV76iTNgpoXGZupWEILoeVkrCdFo3jkUFMuEP92mh2gleoaCShtkzudi97sBY8x7Ui9wOV/Es3ECRczbaxZ77d63jDn/EU/aB7i0MVV2LyoNboG32AI73bkrA5mBavrQ2DCe+BH25FTX/h7/cu0kOe4B+lru2JGkGdIGRSJpAJLAoBt1euS1muLkRdbAO+NCyphRuXvNr/QuIswk=
+    CACHE_MAXSIZE: 1G
   matrix:
   - target_v=osx
   - target_v=osx_test
