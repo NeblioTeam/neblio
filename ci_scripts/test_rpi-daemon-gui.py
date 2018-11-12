@@ -24,7 +24,7 @@ nci.call_with_err_code('docker run --rm --privileged multiarch/qemu-user-static:
 nci.call_with_err_code('mv ' + os.path.join(os.environ['HOME'],'.ccache', '') + ' ' + os.path.join(deploy_dir,'.ccache', ''))
 
 # Start Docker Container to Build nebliod & neblio-Qt
-nci.call_with_err_code('timeout --signal=SIGKILL 2m sudo docker run -e BRANCH=' + os.environ['TRAVIS_BRANCH'] + ' -v ' + deploy_dir + ':/root/deploy -t neblioteam/nebliod-build-ccache-rpi')
+nci.call_with_err_code('timeout --signal=SIGKILL 42m sudo docker run -e BRANCH=' + os.environ['TRAVIS_BRANCH'] + ' -v ' + deploy_dir + ':/root/deploy -t neblioteam/nebliod-build-ccache-rpi')
 nci.call_with_err_code('sleep 15 && sudo docker kill $(sudo docker ps -q);exit 0')
 
 # move .ccache folder back to travis ccache dir
@@ -49,6 +49,11 @@ if(os.path.isfile('neblio-qt') and os.path.isfile('nebliod')):
   nci.call_with_err_code('tar -zcvf "' + file_name + '" neblio-qt nebliod')
   nci.call_with_err_code('sudo rm -f neblio-qt && sudo rm -f nebliod')
   nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
+
+  nci.call_with_err_code('echo "Restarting our deploy job. Job ID: ' + deploy_job_id + '"')
+  if (travis_tag != '' and deploy_job_id != '0'):
+  	nci.call_with_err_code('curl -X POST -H "Content-Type: application/json" -H "Travis-API-Version: 3" -H "Accept: application/json" -H "Authorization: token ' + os.environ["TRAVIS_API_TOKEN"] + '" -d \'{}\' \'https://api.travis-ci.org/job/' + deploy_job_id + '/restart\'')
+
 else:
   if(os.path.isfile('neblio-qt')):
     nci.call_with_err_code('sudo rm -f neblio-qt')
@@ -56,5 +61,5 @@ else:
   if(os.path.isfile('nebliod')):
     nci.call_with_err_code('sudo rm -f nebliod')
 
-  nci.call_with_err_code('echo "Binaries neblio-qt and nebliod not found, likely due to a timeout, restarting job..."')
+  nci.call_with_err_code('echo "Binaries neblio-qt and nebliod not found, likely due to a timeout, starting new job..."')
   nci.call_with_err_code('curl -X POST -H "Content-Type: application/json" -H "Travis-API-Version: 3" -H "Accept: application/json" -H "Authorization: token ' + os.environ["TRAVIS_API_TOKEN"] + '" -d \'{"request":{"message":"RPi Build Restart","branch":"' + os.environ["TRAVIS_BRANCH"] + '","config":{"merge_mode":"deep_merge","env":{"global":{"TRAVIS_DEPLOY_JOB_ID":"' + deploy_job_id + '"},"matrix":["target_v=rpi_daemon_wallet"]}}}}\' \'https://api.travis-ci.org/repo/NeblioTeam%2Fneblio/requests\'')
