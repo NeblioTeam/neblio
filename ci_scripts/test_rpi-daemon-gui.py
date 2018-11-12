@@ -38,9 +38,9 @@ file_name = '$(date +%Y-%m-%d)---' + os.environ['TRAVIS_BRANCH'] + '-' + os.envi
 deploy_job_id = os.eviron.get('TRAVIS_DEPLOY_JOB_ID', '0')
 travis_tag    = os.eviron.get('TRAVIS_TAG', '')
 # if travis tag is populated, this is the job ID we want
-if (travis_tag != '') {
-	deploy_job_id = os.eviron['TRAVIS_JOB_ID']
-}
+if (travis_tag != ''):
+  deploy_job_id = os.eviron['TRAVIS_JOB_ID']
+
 print('Debug: Job ID: ' + deploy_job_id)
 
 # Check if BOTH binaries exist before trying to package them.
