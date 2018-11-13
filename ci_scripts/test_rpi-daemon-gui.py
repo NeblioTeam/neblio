@@ -53,7 +53,7 @@ if (travis_tag != ''):
 # Check if binary exists before trying to package it.
 # If it does not exist we had a build timeout
 if(os.path.isfile(build_target)):
-  nci.call_with_err_code('tar -zcvf "' + file_name + '" ' + build_target')
+  nci.call_with_err_code('tar -zcvf "' + file_name + '" ' + build_target)
   nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
 
   if (travis_tag == '' and deploy_job_id != '0'):
