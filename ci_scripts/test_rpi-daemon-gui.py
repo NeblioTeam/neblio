@@ -41,8 +41,6 @@ travis_tag    = os.environ.get('TRAVIS_TAG', '')
 if (travis_tag != ''):
   deploy_job_id = os.environ['TRAVIS_JOB_ID']
 
-print('Debug: Job ID: ' + deploy_job_id)
-
 # Check if BOTH binaries exist before trying to package them.
 # If both binaries do not exist, delete any that do exist, as we had a build timeout
 if(os.path.isfile('neblio-qt') and os.path.isfile('nebliod')):
@@ -50,8 +48,8 @@ if(os.path.isfile('neblio-qt') and os.path.isfile('nebliod')):
   nci.call_with_err_code('sudo rm -f neblio-qt && sudo rm -f nebliod')
   nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
 
-  nci.call_with_err_code('echo "Restarting our deploy job. Job ID: ' + deploy_job_id + '"')
-  if (travis_tag != '' and deploy_job_id != '0'):
+  if (travis_tag == '' and deploy_job_id != '0'):
+  	nci.call_with_err_code('echo "Restarting our deploy job. Job ID: ' + deploy_job_id + '"')
   	nci.call_with_err_code('curl -X POST -H "Content-Type: application/json" -H "Travis-API-Version: 3" -H "Accept: application/json" -H "Authorization: token ' + os.environ["TRAVIS_API_TOKEN"] + '" -d \'{}\' \'https://api.travis-ci.org/job/' + deploy_job_id + '/restart\'')
 
 else:
