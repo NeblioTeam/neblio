@@ -30,7 +30,7 @@ nci.call_with_err_code('sleep 15 && sudo docker kill $(sudo docker ps -q);exit 0
 # move .ccache folder back to travis ccache dir
 nci.call_with_err_code('mv ' + os.path.join(deploy_dir,'.ccache', '') + ' ' + os.path.join(os.environ['HOME'],'.ccache', ''))
 
-file_name = '$(date +%Y-%m-%d)---' + os.environ['TRAVIS_BRANCH'] + '-' + os.environ['TRAVIS_COMMIT'][:7] + '---RPi-neblio-Qt-nebliod---raspbian-stretch.tar.gz'
+file_name = '$(date +%Y-%m-%d)---' + os.environ['TRAVIS_BRANCH'] + '-' + os.environ['TRAVIS_COMMIT'][:7] + '---neblio-Qt-nebliod---RPi-raspbian-stretch.tar.gz'
 
 # since RPi jobs are run several times we need to be creative in our deployment as only the original job can post to GitHub Releases.
 # So, start the original job via the GitHub tag and pass its job ID to every subsequent job. Once the build is complete, the final build job
