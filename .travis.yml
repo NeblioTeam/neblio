@@ -11,12 +11,12 @@ cache:
     - $HOME/Library/Caches/Homebrew
 env:
   global:
-  - CCACHE_MAXSIZE=1G
-  - secure: hi4pDxnjHCeb75FeQUjMQCdE+UwCOO6CqOnkFTGLM8uroBcs9YChW2UJUKqMwEeK+s0kCBDe5GvlFc3joDclX/aEMTBvOECUd8L8Y8+tEknZaNvk7Xl+EI+Rror33gnr4XYpJ4qQbubkM/aMnH5fYJFA6lCDbD/mztizw9Gc1kWZc6+px7liifUOmPrL5CuF9S5tgB7C2erZoZG0pxPSWx16yKyTzDzoMVIUjwubeDf7luMrTT8mkaMFl0ZLq5/+joEMBDjtRMCfS0ap9YnAbbcoY5xpelAZYY5c+6LjUIKng+r8hUtHabCBoFdcboRpeBymG5TUufBjr3lChxfnnVsch02Zu+r0CLkpd9P0oGpohUXn5iZRfSSo/Rb2t2swIZp4Cd8uabie0l0BVL8yTf/bvv6LWZ7BZQsrj22z+dxwIJGCDlsKS4zqmvlSsXzSOIZMLvrfTRUtYlQzC2tLs9UrPzgCS6PzQixmUk4vK3u6m9+i5eI7B6rDzkkEnDgfyr04aI2EE5zakzUYl/mOKYQHCDbq0xE+s29rzTGytA0qq06Fw4HNF1HOxv+27bPAQxBnlo5XCVb+v7XEVHP+dmjkzcx5DusbqkCctCOnyLYMMobPLnRI64XCpfF7zHUkonwYkag8vObf2D3jCxijAvVW3IpvcXbdkH7NXzQxW1A=
+    CCACHE_MAXSIZE: 1G
   matrix:
   - target_v=osx
   - target_v=osx_test
-  - target_v=rpi_daemon_wallet
+  - target_v=rpi_wallet
+  - target_v=rpi_daemon
   - target_v=linux_wallet_test
   - target_v=linux_wallet
   - target_v=windows
@@ -32,7 +32,9 @@ matrix:
   - os: osx
     env: target_v=linux_wallet_test
   - os: osx
-    env: target_v=rpi_daemon_wallet
+    env: target_v=rpi_daemon
+  - os: osx
+    env: target_v=rpi_wallet
   - os: linux
     env: target_v=osx
   - os: linux
@@ -43,7 +45,8 @@ before_script:
 script:
 - if [[ "$target_v" == "osx"               ]]; then python ci_scripts/test_osx-gui_wallet.py        ; fi
 - if [[ "$target_v" == "osx_test"          ]]; then python ci_scripts/test_osx-gui_wallet.py -t     ; fi
-- if [[ "$target_v" == "rpi_daemon_wallet" ]]; then python ci_scripts/test_rpi-daemon-gui.py        ; fi
+- if [[ "$target_v" == "rpi_wallet"        ]]; then python ci_scripts/test_rpi-daemon-gui.py        ; fi
+- if [[ "$target_v" == "rpi_daemon"        ]]; then python ci_scripts/test_rpi-daemon-gui.py        ; fi
 - if [[ "$target_v" == "linux_wallet_test" ]]; then python ci_scripts/test_linux-gui_wallet.py -t   ; fi
 - if [[ "$target_v" == "linux_wallet"      ]]; then python ci_scripts/test_linux-gui_wallet.py      ; fi
 - if [[ "$target_v" == "windows"           ]]; then python ci_scripts/test_win32-gui_wallet.py      ; fi
@@ -78,7 +81,6 @@ deploy:
     file_glob: true
     file: deploy/*---neblio*
     skip_cleanup: true
-    prerelease: true
     on:
       repo: NeblioTeam/neblio
       all_branches: true
