@@ -564,4 +564,12 @@ std::string GeneratePseudoRandomString(const int len);
 
 std::string GeneratePseudoRandomHex(const int len);
 
+template <typename T>
+void SwapEndianness(T& var)
+{
+    char* varArray = reinterpret_cast<char*>(&var);
+    for (long i = 0; i < static_cast<long>(sizeof(var) / 2); i++)
+        std::swap(varArray[sizeof(var) - 1 - i], varArray[i]);
+}
+
 #endif

@@ -29,8 +29,7 @@ ntp1_blacklisted_token_ids(std::unordered_map<std::string, int>{
 
 // list of transactions to be excluded because they're invalid
 // this should be a thread-safe hashset, but we don't have one. So we're using the map.
-const ThreadSafeHashMap<uint256, int>
-excluded_txs_testnet(std::unordered_map<uint256, int>{
+const ThreadSafeHashMap<uint256, int> excluded_txs_testnet(std::unordered_map<uint256, int>{
     {uint256("826e7b74b24e458e39d779b1033567d325b8d93b507282f983e3c4b3f950fca1"), 0},
     {uint256("c378447562be04c6803fdb9f829c9ba0dda462b269e15bcfc7fac3b3561d2eef"), 0},
     {uint256("a57a3e4746a79dd0d0e32e6a831d4207648ff000c82a4c5e8d9f3b6b0959f8b8"), 0},
@@ -547,7 +546,8 @@ void NTP1Transaction::__manualSet(int NVersion, uint256 TxHash, std::vector<unsi
 
 string NTP1Transaction::getNTP1OpReturnScriptHex() const
 {
-    const static std::string NTP1OpReturnRegexStr = R"(^OP_RETURN\s+(4e5401[a-fA-F0-9]*)$)";
+    // TODO: Sam: This has to be taken from a common source with the one from main
+    const static std::string NTP1OpReturnRegexStr = R"(^OP_RETURN\s+(4e54(?:01|03)[a-fA-F0-9]*)$)";
     const static std::regex  NTP1OpReturnRegex(NTP1OpReturnRegexStr);
 
     std::smatch opReturnArgMatch;
@@ -577,6 +577,10 @@ void NTP1Transaction::readNTP1DataFromTx_minimal(const CTransaction& tx)
     for (int i = 0; i < (int)tx.vin.size(); i++) {
         vin[i].setNull();
         vin[i].setPrevout(NTP1OutPoint(tx.vin[i].prevout.hash, tx.vin[i].prevout.n));
+        std::string scriptSig;
+        boost::algorithm::hex(tx.vin[i].scriptSig.begin(), tx.vin[i].scriptSig.end(),
+                              std::back_inserter(scriptSig));
+        vin[i].setScriptSigHex(scriptSig);
     }
     vout.clear();
     vout.resize(tx.vout.size());

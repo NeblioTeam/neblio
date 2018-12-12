@@ -2,6 +2,8 @@
 
 #include <boost/algorithm/hex.hpp>
 
+#include "util.h"
+
 NTP1Script_Burn::NTP1Script_Burn() {}
 
 std::string NTP1Script_Burn::getHexMetadata() const { return boost::algorithm::hex(metadata); }
@@ -49,20 +51,96 @@ std::shared_ptr<NTP1Script_Burn> NTP1Script_Burn::ParseBurnPostHeaderData(std::s
     return result;
 }
 
-std::string NTP1Script_Burn::calculateScriptBin() const
+std::shared_ptr<NTP1Script_Burn> NTP1Script_Burn::ParseNTP1v3BurnPostHeaderData(std::string ScriptBin)
 {
-    using namespace boost::algorithm;
+    std::shared_ptr<NTP1Script_Burn> result = std::make_shared<NTP1Script_Burn>();
 
-    std::string result;
-    result += headerBin;
-    result += opCodeBin;
-    result += metadata;
+    // parse transfer instructions
+    int totalTransferInstructionsSize = 0;
+    result->transferInstructions =
+        ParseNTP1v3TransferInstructionsFromLongEnoughString(ScriptBin, totalTransferInstructionsSize);
+    ScriptBin.erase(ScriptBin.begin(), ScriptBin.begin() + totalTransferInstructionsSize);
 
-    for (const auto& ti : transferInstructions) {
-        result += TransferInstructionToBinScript(ti);
+    result->metadata = ParseNTP1v3MetadataFromLongEnoughString(ScriptBin);
+    ScriptBin.erase(ScriptBin.begin(), ScriptBin.begin() + result->metadata.size());
+
+    if (ScriptBin.size() != 0) {
+        throw std::runtime_error("Garbage data after the metadata (unaccounted for in size).");
+    }
+
+    // burn should have at least one transfer instruction output with index 31 as the burn address
+    // other addresses are transfer, not burn
+    auto it = std::find_if(result->transferInstructions.begin(), result->transferInstructions.end(),
+                           [](const TransferInstruction& t) { return t.outputIndex == 31; });
+
+    if (it == result->transferInstructions.end()) {
+        throw std::runtime_error("A burn transaction was created, but transfer instructions had invalid "
+                                 "outputs. At least one of the outputs should have the index 31, "
+                                 "indicating the amount to burn.");
     }
 
     return result;
+}
+
+std::string NTP1Script_Burn::calculateScriptBin() const
+{
+    if (protocolVersion == 1) {
+        std::string result;
+        result += headerBin;
+        result += opCodeBin;
+        result += metadata;
+
+        for (const auto& ti : transferInstructions) {
+            result += TransferInstructionToBinScript(ti);
+        }
+
+        return result;
+    } else if (protocolVersion == 3) {
+        std::string result;
+        result += headerBin;
+        result += opCodeBin;
+
+        unsigned char TIsSize = static_cast<unsigned char>(transferInstructions.size());
+
+        result.push_back(static_cast<char>(TIsSize));
+        for (const auto& ti : transferInstructions) {
+            result += TransferInstructionToBinScript(ti);
+        }
+
+        // check that there's at least one burn instruction, identified by sening to output 31
+        const auto& TIs = transferInstructions;
+        auto        it  = std::find_if(TIs.cbegin(), TIs.cend(),
+                               [](const TransferInstruction& ti) { return ti.outputIndex == 31; });
+        if (it == TIs.cend()) {
+            throw std::runtime_error(
+                "Attempted to create a burn instruction that does not burn anything");
+        }
+
+        if (metadata.size() > 0) {
+            uint32_t metadataSize = metadata.size();
+#ifdef __BYTE_ORDER__
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+            SwapEndianness(metadataSize); // size is big-endian
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#else
+            static_assert(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__, "Unsupported endianness");
+#endif
+#endif
+            std::string metadataSizeStr;
+            metadataSizeStr.resize(4);
+            static_assert(sizeof(metadataSize) == 4,
+                          "Metadata size must be 4 bytes accoring to NTP1v3 standard");
+            memcpy(&metadataSizeStr.front(), &metadataSize, 4);
+
+            result += metadataSizeStr;
+            result += metadata;
+        }
+
+        return result;
+    } else {
+        throw std::runtime_error(
+            "While calculating/constructing NTP1Script, an unknown protocol version was found");
+    }
 }
 
 std::set<unsigned int> NTP1Script_Burn::getNTP1OutputIndices() const
@@ -83,10 +161,10 @@ NTP1Script_Burn::CreateScript(const std::vector<NTP1Script::TransferInstruction>
 {
     std::shared_ptr<NTP1Script_Burn> script = std::make_shared<NTP1Script_Burn>();
 
-    script->protocolVersion      = 1;
-    script->headerBin            = boost::algorithm::unhex(std::string("4e5401"));
+    script->protocolVersion      = 3;
+    script->headerBin            = boost::algorithm::unhex(std::string("4e5403"));
     script->metadata             = Metadata;
-    script->opCodeBin            = Create_OpCodeFromMetadata(Metadata);
+    script->opCodeBin            = boost::algorithm::hex(std::string("0x20"));
     script->transferInstructions = transferInstructions;
     script->txType               = TxType::TxType_Burn;
 

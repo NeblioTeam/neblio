@@ -21,12 +21,14 @@ NTP1Script::TxType NTP1Script::getTxType() const { return txType; }
 
 std::string NTP1Script::getParsedScriptHex() const { return parsedScriptHex; }
 
-void NTP1Script::setCommonParams(std::string Header, int ProtocolVersion, std::string OpCodeBin)
+void NTP1Script::setCommonParams(std::string Header, int ProtocolVersion, std::string OpCodeBin,
+                                 std::string scriptHex)
 {
     headerBin       = Header;
     protocolVersion = ProtocolVersion;
     opCodeBin       = OpCodeBin;
     txType          = CalculateTxType(opCodeBin);
+    parsedScriptHex = scriptHex;
 }
 
 std::string NTP1Script::TransferInstructionToBinScript(const NTP1Script::TransferInstruction& inst)
@@ -112,6 +114,22 @@ NTP1Script::TxType NTP1Script::CalculateTxType(const std::string& op_code_bin)
     }
 }
 
+NTP1Script::TxType NTP1Script::CalculateTxTypeNTP1v3(const std::string& op_code_bin)
+{
+    uint8_t char1 = *reinterpret_cast<const uint8_t*>(&op_code_bin[0]);
+    if (char1 == 0x01) {
+        return TxType::TxType_Issuance;
+    } else if (char1 == 0x10) {
+        return TxType::TxType_Transfer;
+    } else if (char1 == 0x20) {
+        return TxType::TxType_Burn;
+    } else {
+        throw std::runtime_error(
+            "Unable to parse transaction type (NTP1v3) with unknown opcode (in hex): " +
+            boost::algorithm::hex(op_code_bin));
+    }
+}
+
 uint64_t NTP1Script::CalculateAmountSize(uint8_t firstChar)
 {
     std::bitset<8> bits(firstChar);
@@ -171,6 +189,37 @@ std::string NTP1Script::ParseMetadataFromLongEnoughString(const std::string& Bin
                                  "; the metadata size is longer than what is available in the script");
     }
     return BinMetadataStartsAtByte0.substr(0, metadataSize);
+}
+
+std::string
+NTP1Script::ParseNTP1v3MetadataFromLongEnoughString(const std::string& BinMetadataSizeStartsAtByte0,
+                                                    const std::string& wholeScriptHex)
+{
+    std::string ScriptBin = BinMetadataSizeStartsAtByte0;
+
+    if (ScriptBin.size() == 0) {
+        return "";
+    }
+    if (ScriptBin.size() < 4) {
+        throw std::runtime_error(
+            "The data remaining cannot fit metadata start flag, which is 4 bytes: " +
+            boost::algorithm::hex(ScriptBin) + ", starting from " + boost::algorithm::hex(ScriptBin));
+    }
+
+    std::string metadataSizeStr = ScriptBin.substr(0, 4);
+    ScriptBin.erase(ScriptBin.begin(), ScriptBin.begin() + metadataSizeStr.size());
+
+    const std::string& s  = metadataSizeStr;
+    uint32_t metadataSize = static_cast<uint32_t>(s[3] << 24) + static_cast<uint32_t>(s[2] << 16) +
+                            static_cast<uint32_t>(s[1] << 8) + static_cast<uint32_t>(s[0]);
+
+    if (ScriptBin.size() != metadataSize) {
+        throw std::runtime_error(
+            "The size of the metadata found is not equal to the available size of the data left: " +
+            wholeScriptHex);
+    }
+
+    return ScriptBin;
 }
 
 std::string
@@ -237,6 +286,54 @@ std::vector<NTP1Script::TransferInstruction> NTP1Script::ParseTransferInstructio
     return result;
 }
 
+std::vector<NTP1Script::TransferInstruction>
+NTP1Script::ParseNTP1v3TransferInstructionsFromLongEnoughString(
+    const std::string& BinInstructionsStartFromByte0, int& totalRawSize)
+{
+    std::string                      toParse = BinInstructionsStartFromByte0;
+    std::vector<TransferInstruction> result;
+    totalRawSize = 0;
+
+    if (toParse.size() < 1) {
+        throw std::runtime_error("Transfer instructions do not contain the number of transfer "
+                                 "instructions in their first byte");
+    }
+
+    int numOfTIs = static_cast<unsigned char>(toParse[0]);
+    toParse.erase(toParse.begin(), toParse.begin() + 1);
+    totalRawSize += 1;
+
+    if (numOfTIs <= 0) {
+        throw std::runtime_error("The number of transfer instructions cannot be zero.");
+    }
+
+    for (int i = 0; i < numOfTIs; i++) {
+        if (toParse.size() <= 1) {
+            throw std::runtime_error("Transfer instruction number " + ToString(i) + " has a size <= 1");
+        }
+
+        // one byte of flags, and then N bytes for the amount
+        TransferInstruction transferInst;
+        transferInst.firstRawByte = static_cast<unsigned char>(toParse[0]);
+        transferInst.rawAmount    = toParse.substr(1, CalculateAmountSize(toParse[1]));
+        int currentSize           = 1 + transferInst.rawAmount.size();
+        totalRawSize += currentSize;
+        toParse.erase(toParse.begin(), toParse.begin() + currentSize);
+
+        // parse data from raw
+        std::bitset<8> rawByte(transferInst.firstRawByte);
+        std::bitset<5> outputIndex(rawByte.to_string().substr(3, 5));
+        transferInst.skipInput   = rawByte.test(7); // first big-endian bit (is the last one in bitset)
+        transferInst.outputIndex = static_cast<int>(outputIndex.to_ulong());
+
+        transferInst.amount = NTP1AmountHexToNumber(boost::algorithm::hex(transferInst.rawAmount));
+
+        // push to the vector
+        result.push_back(transferInst);
+    }
+    return result;
+}
+
 std::shared_ptr<NTP1Script> NTP1Script::ParseScript(const std::string& scriptHex)
 {
     try {
@@ -253,25 +350,51 @@ std::shared_ptr<NTP1Script> NTP1Script::ParseScript(const std::string& scriptHex
         scriptBin.erase(scriptBin.begin(), scriptBin.begin() + 3);
 
         std::string opCodeBin = ParseOpCodeFromLongEnoughString(scriptBin);
-        TxType      txType    = CalculateTxType(opCodeBin);
-
+        TxType      txType;
+        if (protocolVersion == 1) {
+            txType = CalculateTxType(opCodeBin);
+        } else if (protocolVersion == 3) {
+            txType = CalculateTxTypeNTP1v3(opCodeBin);
+        } else {
+            throw std::runtime_error("Unknown protocol version " + ToString(protocolVersion) +
+                                     " in script: " + scriptHex);
+        }
         // drop the OP_CODE parsed part
         scriptBin.erase(scriptBin.begin(), scriptBin.begin() + opCodeBin.size());
 
         std::shared_ptr<NTP1Script> result_;
 
         if (txType == TxType::TxType_Issuance) {
-            result_ = NTP1Script_Issuance::ParseIssuancePostHeaderData(scriptBin, opCodeBin);
+            if (protocolVersion == 1) {
+                result_ = NTP1Script_Issuance::ParseIssuancePostHeaderData(scriptBin, opCodeBin);
+            } else if (protocolVersion == 3) {
+                result_ = NTP1Script_Issuance::ParseNTP1v3IssuancePostHeaderData(scriptBin);
+            } else {
+                throw std::runtime_error("Unknown protocol version " + ToString(protocolVersion) +
+                                         " in script: " + scriptHex);
+            }
         } else if (txType == TxType::TxType_Transfer) {
-            result_ = NTP1Script_Transfer::ParseTransferPostHeaderData(scriptBin, opCodeBin);
+            if (protocolVersion == 1) {
+                result_ = NTP1Script_Transfer::ParseTransferPostHeaderData(scriptBin, opCodeBin);
+            } else if (protocolVersion == 3) {
+                result_ = NTP1Script_Transfer::ParseNTP1v3TransferPostHeaderData(scriptBin);
+            } else {
+                throw std::runtime_error("Unknown protocol version " + ToString(protocolVersion) +
+                                         " in script: " + scriptHex);
+            }
         } else if (txType == TxType::TxType_Burn) {
-            result_ = NTP1Script_Burn::ParseBurnPostHeaderData(scriptBin, opCodeBin);
+            if (protocolVersion == 1) {
+                result_ = NTP1Script_Burn::ParseBurnPostHeaderData(scriptBin, opCodeBin);
+            } else if (protocolVersion == 3) {
+                result_ = NTP1Script_Burn::ParseNTP1v3BurnPostHeaderData(scriptBin);
+            } else {
+                throw std::runtime_error("Unknown protocol version " + ToString(protocolVersion) +
+                                         " in script: " + scriptHex);
+            }
         } else {
-            throw std::runtime_error("Unknown transaction type to parse");
+            throw std::runtime_error("Unknown transaction type to parse in script: " + scriptHex);
         }
-        result_->setCommonParams(header, protocolVersion, opCodeBin);
-
-        result_->parsedScriptHex = scriptHex;
+        result_->setCommonParams(header, protocolVersion, opCodeBin, scriptHex);
 
         return result_;
 

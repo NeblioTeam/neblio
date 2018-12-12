@@ -21,6 +21,7 @@ public:
 
     static std::shared_ptr<NTP1Script_Transfer> ParseTransferPostHeaderData(std::string ScriptBin,
                                                                             std::string OpCodeBin);
+    static std::shared_ptr<NTP1Script_Transfer> ParseNTP1v3TransferPostHeaderData(std::string ScriptBin);
     static std::string                          Create_OpCodeFromMetadata(const std::string& metadata);
     static std::shared_ptr<NTP1Script_Transfer>
     CreateScript(const std::vector<NTP1Script::TransferInstruction>& transferInstructions,

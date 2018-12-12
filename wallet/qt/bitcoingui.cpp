@@ -841,6 +841,30 @@ void BitcoinGUI::gotoSignMessageTab(QString addr)
 
 void BitcoinGUI::exportBlockchainBootstrap()
 {
+    int serializationMethod = SER_NETWORK;
+    {
+        QMessageBox serMsgBox;
+        serMsgBox.setText(
+            tr("What kind of serialization would you like to use to export the blockchain?\n\n"
+               "Network: To import into any other neblio client (the common choice)\n"
+               "Disk: Architecture dependent version that is available for block scanners and backward "
+               "compatibility.\n"));
+        QAbstractButton* pButtonNetwork =
+            serMsgBox.addButton(tr("Network serialization"), QMessageBox::YesRole);
+        QAbstractButton* pButtonDisk =
+            serMsgBox.addButton(tr("Disk serialization"), QMessageBox::YesRole);
+        serMsgBox.addButton(tr("Cancel"), QMessageBox::YesRole);
+
+        serMsgBox.exec();
+        if (serMsgBox.clickedButton() == pButtonNetwork) {
+            serializationMethod = SER_NETWORK;
+        } else if (serMsgBox.clickedButton() == pButtonDisk) {
+            serializationMethod = SER_DISK;
+        } else {
+            return;
+        }
+    }
+
     QString saveDir =
         QDesktopServices::storageLocation(QDesktopServices::DocumentsLocation) + "/" + "bootstrap.dat";
     QString filename = QFileDialog::getSaveFileName(this, tr("Export blockchain"), saveDir,
@@ -858,7 +882,7 @@ void BitcoinGUI::exportBlockchainBootstrap()
         std::atomic<double>        progress{false};
         boost::thread exporterThread(boost::bind(&ExportBootstrapBlockchain, filename.toStdString(),
                                                  boost::ref(stopped), boost::ref(progress),
-                                                 boost::ref(finished)));
+                                                 boost::ref(finished), serializationMethod));
         exporterThread.detach();
 
         while (!finished_future.is_ready()) {

@@ -40,7 +40,9 @@ CCriticalSection cs_main;
 CTxMemPool   mempool;
 unsigned int nTransactionsUpdated = 0;
 
-const std::string NTP1OpReturnRegexStr = R"(^OP_RETURN\s+(4e5401[a-fA-F0-9]*)$)";
+// THERE IS ANOTHER ONE OF THOSE IN NTP1Transaction, change that if you wanna change this until this is
+// fixed and there's only one variable
+const std::string NTP1OpReturnRegexStr = R"(^OP_RETURN\s+(4e54(?:01|03)[a-fA-F0-9]*)$)";
 const std::regex  NTP1OpReturnRegex(NTP1OpReturnRegexStr);
 const std::string OpReturnRegexStr = R"(^OP_RETURN\s+(.*)$)";
 const std::regex  OpReturnRegex(OpReturnRegexStr);
@@ -3305,7 +3307,7 @@ bool LoadExternalBlockFile(FILE* fileIn)
     int nLoaded = 0;
     {
         try {
-            CAutoFile    blkdat(fileIn, SER_DISK, CLIENT_VERSION);
+            CAutoFile    blkdat(fileIn, SER_NETWORK, CLIENT_VERSION);
             unsigned int nPos = 0;
             while (nPos != (unsigned int)-1 && blkdat.good() && !fRequestShutdown) {
                 unsigned char pchData[65536];
@@ -4656,15 +4658,15 @@ bool CBlock::WriteToDisk(const uint256& nBlockPos, const uint256& hashProof)
 
     bool success = false;
 
-    // this is a hack to guarantee that the function will commit/abort the transaction on exit
-    std::unique_ptr<int, std::function<void(int*)>> txEnder(new int(0), [&txdb, &success](int* p) {
+    // this is an RAII hack to guarantee that the function will commit/abort the transaction on exit
+    auto txReverseFunctor = [&txdb, &success](bool*) {
         if (success) {
             txdb.TxnCommit();
         } else {
             txdb.TxnAbort();
         }
-        delete p;
-    });
+    };
+    std::unique_ptr<bool, decltype(txReverseFunctor)> txEnder(&success, txReverseFunctor);
 
     if (!txdb.WriteBlock(this->GetHash(), *this)) {
         return false;
@@ -4760,7 +4762,8 @@ bool IsNTP1TxAtValidBlockHeight(const int bestHeight, const bool isTestnet)
 }
 
 void ExportBootstrapBlockchain(const string& filename, std::atomic<bool>& stopped,
-                               std::atomic<double>& progress, boost::promise<void>& result)
+                               std::atomic<double>& progress, boost::promise<void>& result,
+                               int serializationMethod)
 {
     RenameThread("Export-blockchain");
     try {
@@ -4789,7 +4792,7 @@ void ExportBootstrapBlockchain(const string& filename, std::atomic<bool>& stoppe
 
         size_t threadsholdSize = 1 << 24; // 4 MB
 
-        CDataStream  serializedBlocks(SER_DISK, CLIENT_VERSION);
+        CDataStream  serializedBlocks(serializationMethod, CLIENT_VERSION);
         size_t       written = 0;
         const size_t total   = chainBlocksIndices.size();
         for (CBlockIndex* blockIndex : boost::adaptors::reverse(chainBlocksIndices)) {
@@ -4802,7 +4805,7 @@ void ExportBootstrapBlockchain(const string& filename, std::atomic<bool>& stoppe
             block.ReadFromDisk(blockIndex, true);
 
             // every block starts with pchMessageStart
-            unsigned int nSize = block.GetSerializeSize(SER_DISK, CLIENT_VERSION);
+            unsigned int nSize = block.GetSerializeSize(serializationMethod, CLIENT_VERSION);
             serializedBlocks << FLATDATA(pchMessageStart) << nSize;
             serializedBlocks << block;
             if (serializedBlocks.size() > threadsholdSize) {

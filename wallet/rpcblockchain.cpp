@@ -7,6 +7,8 @@
 #include "main.h"
 #include <atomic>
 
+#include <algorithm>
+
 using namespace json_spirit;
 using namespace std;
 
@@ -180,7 +182,7 @@ Value settxfee(const Array& params, bool fHelp)
                             "<amount> is a real and is rounded to the nearest 0.01");
 
     nTransactionFee = AmountFromValue(params[0]);
-    nTransactionFee = (nTransactionFee / MIN_TX_FEE) * MIN_TX_FEE;  // round to nearest 0.0001
+    nTransactionFee = (nTransactionFee / MIN_TX_FEE) * MIN_TX_FEE; // round to nearest 0.0001
 
     return true;
 }
@@ -328,13 +330,27 @@ Value getcheckpoint(const Array& params, bool fHelp)
 Value exportblockchain(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 1)
-        throw runtime_error("exportblockchain <path-dir>\n"
+        throw runtime_error("exportblockchain <path-dir> <serialization-method>\n"
                             "Exports the blockchain bootstrap.dat file to <path-dir>.\n"
-                            "<path-dir> must be a directory that exists.");
+                            "<path-dir> must be a directory that exists. Method can be either Network "
+                            "or Disk. Network: To import in any other neblio client (the common "
+                            "choice); Disk: Architecture dependent version that is available for block "
+                            "scanners and backward compatibility.");
 
     boost::filesystem::path bdir(params[0].get_str());
+    std::string             serMethodStr(params[0].get_str());
+    std::transform(serMethodStr.begin(), serMethodStr.end(), serMethodStr.begin(), ::tolower);
     if (!boost::filesystem::exists(bdir))
         throw runtime_error("Directory " + bdir.string() + " does not exist.");
+
+    int serMethod = SER_NETWORK;
+    if (serMethodStr == "network") {
+        serMethod = SER_NETWORK;
+    } else if (serMethodStr == "disk") {
+        serMethod = SER_DISK;
+    } else {
+        throw runtime_error("Serialization method can be either 'network' or 'disk', without quotes.");
+    }
 
     boost::filesystem::path filename = bdir / "bootstrap.dat";
 
@@ -344,7 +360,7 @@ Value exportblockchain(const Array& params, bool fHelp)
     std::atomic<double>        progress{false};
     boost::thread              exporterThread(boost::bind(&ExportBootstrapBlockchain, filename.string(),
                                              boost::ref(stopped), boost::ref(progress),
-                                             boost::ref(finished)));
+                                             boost::ref(finished), serMethod));
     exporterThread.detach();
 
     printf("Export blockchain to path started in another thread. Writing to path: %s\n",
