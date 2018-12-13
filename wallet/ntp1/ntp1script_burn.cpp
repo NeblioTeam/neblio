@@ -2,6 +2,7 @@
 
 #include <boost/algorithm/hex.hpp>
 
+#include "init.h"
 #include "util.h"
 
 NTP1Script_Burn::NTP1Script_Burn() {}
@@ -103,6 +104,11 @@ std::string NTP1Script_Burn::calculateScriptBin() const
         result += headerBin;
         result += opCodeBin;
 
+        if (transferInstructions.size() > 0xff) {
+            throw std::runtime_error(
+                "The number of transfer instructions exceeded the allowed maximum, 255");
+        }
+
         unsigned char TIsSize = static_cast<unsigned char>(transferInstructions.size());
 
         result.push_back(static_cast<char>(TIsSize));
@@ -139,6 +145,12 @@ std::string NTP1Script_Burn::calculateScriptBin() const
             result += metadata;
         }
 
+        if (result.size() > DataSize(nBestHeight)) {
+            throw std::runtime_error("Calculated script size (" + std::to_string(result.size()) +
+                                     " bytes) is larger than the maximum allowed (" +
+                                     std::to_string(DataSize(nBestHeight)) + " bytes)");
+        }
+
         return result;
     } else {
         throw std::runtime_error(
@@ -167,7 +179,7 @@ NTP1Script_Burn::CreateScript(const std::vector<NTP1Script::TransferInstruction>
     script->protocolVersion      = 3;
     script->headerBin            = boost::algorithm::unhex(std::string("4e5403"));
     script->metadata             = Metadata;
-    script->opCodeBin            = boost::algorithm::hex(std::string("0x20"));
+    script->opCodeBin            = boost::algorithm::hex(std::string("20"));
     script->transferInstructions = transferInstructions;
     script->txType               = TxType::TxType_Burn;
 

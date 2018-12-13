@@ -2,6 +2,7 @@
 
 #include "base58.h"
 #include "hash.h"
+#include "init.h"
 #include "util.h"
 #include <boost/algorithm/hex.hpp>
 
@@ -231,10 +232,14 @@ std::string NTP1Script_Issuance::calculateScriptBin() const
 
         result += unhex(NumberToHexNTP1Amount(amount));
 
+        if (transferInstructions.size() > 0xff) {
+            throw std::runtime_error(
+                "The number of transfer instructions exceeded the allowed maximum, 255");
+        }
+
         unsigned char TIsSize = static_cast<unsigned char>(transferInstructions.size());
 
         result.push_back(static_cast<char>(TIsSize));
-
         for (const auto& ti : transferInstructions) {
             result += TransferInstructionToBinScript(ti);
         }
@@ -260,6 +265,12 @@ std::string NTP1Script_Issuance::calculateScriptBin() const
 
             result += metadataSizeStr;
             result += metadata;
+        }
+
+        if (result.size() > DataSize(nBestHeight)) {
+            throw std::runtime_error("Calculated script size (" + std::to_string(result.size()) +
+                                     " bytes) is larger than the maximum allowed (" +
+                                     std::to_string(DataSize(nBestHeight)) + " bytes)");
         }
 
         return result;
