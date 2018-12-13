@@ -212,14 +212,7 @@ NTP1Script::ParseNTP1v3MetadataFromLongEnoughString(const std::string& BinMetada
     uint32_t metadataSize;
     memcpy(&metadataSize, &metadataSizeStr.front(), 4);
 
-#ifdef __BYTE_ORDER__
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-    SwapEndianness(metadataSize); // size is big-endian
-#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-#else
-    static_assert(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__, "Unsupported endianness");
-#endif
-#endif
+    FromBigEndianToThisEndianness(metadataSize);
 
     if (ScriptBin.size() != metadataSize) {
         throw std::runtime_error(

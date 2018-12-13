@@ -249,14 +249,9 @@ std::string NTP1Script_Issuance::calculateScriptBin() const
 
         if (metadata.size() > 0) {
             uint32_t metadataSize = metadata.size();
-#ifdef __BYTE_ORDER__
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-            SwapEndianness(metadataSize); // size is big-endian
-#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-#else
-            static_assert(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__, "Unsupported endianness");
-#endif
-#endif
+
+            MakeBigEndian(metadataSize);
+
             std::string metadataSizeStr;
             metadataSizeStr.resize(4);
             static_assert(sizeof(metadataSize) == 4,

@@ -572,4 +572,80 @@ void SwapEndianness(T& var)
         std::swap(varArray[sizeof(var) - 1 - i], varArray[i]);
 }
 
+inline bool IsBigEndian()
+{
+#ifdef __BYTE_ORDER__
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+    return false;
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+    return true;
+#else
+    static_assert(0, "Unsupported endianness");
+#endif
+#else
+    static_assert(0, "Could not detect endianness");
+#endif
+}
+
+inline bool IsLittleEndian()
+{
+#ifdef __BYTE_ORDER__
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+    return true;
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+    return false;
+#else
+    static_assert(0, "Unsupported endianness");
+#endif
+#else
+    static_assert(0, "Could not detect endianness");
+#endif
+}
+
+template <typename T>
+inline void MakeBigEndian(T& v)
+{
+    if (IsLittleEndian()) {
+        SwapEndianness(v);
+    } else if (IsBigEndian()) {
+    } else {
+        throw std::runtime_error("Unknown endianness");
+    }
+}
+
+template <typename T>
+inline void MakeLittleEndian(T& v)
+{
+    if (IsLittleEndian()) {
+    } else if (IsBigEndian()) {
+        SwapEndianness(v);
+    } else {
+        throw std::runtime_error("Unknown endianness");
+    }
+}
+
+// Convert the endianness of v from Big Endian to this computer's endianness
+template <typename T>
+inline void FromBigEndianToThisEndianness(T& v)
+{
+    if (IsLittleEndian()) {
+        SwapEndianness(v);
+    } else if (IsBigEndian()) {
+    } else {
+        throw std::runtime_error("Unknown endianness");
+    }
+}
+
+// Convert the endianness of v from Little Endian to this computer's endianness
+template <typename T>
+inline void FromLittleEndianToThisEndianness(T& v)
+{
+    if (IsLittleEndian()) {
+    } else if (IsBigEndian()) {
+        SwapEndianness(v);
+    } else {
+        throw std::runtime_error("Unknown endianness");
+    }
+}
+
 #endif
