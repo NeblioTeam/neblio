@@ -3307,7 +3307,7 @@ bool LoadExternalBlockFile(FILE* fileIn)
     int nLoaded = 0;
     {
         try {
-            CAutoFile    blkdat(fileIn, SER_NETWORK, CLIENT_VERSION);
+            CAutoFile    blkdat(fileIn, SER_DISK, CLIENT_VERSION);
             unsigned int nPos = 0;
             while (nPos != (unsigned int)-1 && blkdat.good() && !fRequestShutdown && !fShutdown) {
                 unsigned char pchData[65536];
@@ -4762,8 +4762,7 @@ bool IsNTP1TxAtValidBlockHeight(const int bestHeight, const bool isTestnet)
 }
 
 void ExportBootstrapBlockchain(const string& filename, std::atomic<bool>& stopped,
-                               std::atomic<double>& progress, boost::promise<void>& result,
-                               int serializationMethod)
+                               std::atomic<double>& progress, boost::promise<void>& result)
 {
     RenameThread("Export-blockchain");
     try {
@@ -4792,7 +4791,7 @@ void ExportBootstrapBlockchain(const string& filename, std::atomic<bool>& stoppe
 
         size_t threadsholdSize = 1 << 24; // 4 MB
 
-        CDataStream  serializedBlocks(serializationMethod, CLIENT_VERSION);
+        CDataStream  serializedBlocks(SER_DISK, CLIENT_VERSION);
         size_t       written = 0;
         const size_t total   = chainBlocksIndices.size();
         for (CBlockIndex* blockIndex : boost::adaptors::reverse(chainBlocksIndices)) {
@@ -4805,7 +4804,7 @@ void ExportBootstrapBlockchain(const string& filename, std::atomic<bool>& stoppe
             block.ReadFromDisk(blockIndex, true);
 
             // every block starts with pchMessageStart
-            unsigned int nSize = block.GetSerializeSize(serializationMethod, CLIENT_VERSION);
+            unsigned int nSize = block.GetSerializeSize(SER_DISK, CLIENT_VERSION);
             serializedBlocks << FLATDATA(pchMessageStart) << nSize;
             serializedBlocks << block;
             if (serializedBlocks.size() > threadsholdSize) {

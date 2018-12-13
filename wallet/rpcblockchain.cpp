@@ -330,27 +330,13 @@ Value getcheckpoint(const Array& params, bool fHelp)
 Value exportblockchain(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 1)
-        throw runtime_error("exportblockchain <path-dir> <serialization-method>\n"
+        throw runtime_error("exportblockchain <path-dir>\n"
                             "Exports the blockchain bootstrap.dat file to <path-dir>.\n"
-                            "<path-dir> must be a directory that exists. Method can be either Network "
-                            "or Disk. Network: To import in any other neblio client (the common "
-                            "choice); Disk: Architecture dependent version that is available for block "
-                            "scanners and backward compatibility.");
+                            "<path-dir> must be a directory that exists.");
 
     boost::filesystem::path bdir(params[0].get_str());
-    std::string             serMethodStr(params[0].get_str());
-    std::transform(serMethodStr.begin(), serMethodStr.end(), serMethodStr.begin(), ::tolower);
     if (!boost::filesystem::exists(bdir))
         throw runtime_error("Directory " + bdir.string() + " does not exist.");
-
-    int serMethod = SER_NETWORK;
-    if (serMethodStr == "network") {
-        serMethod = SER_NETWORK;
-    } else if (serMethodStr == "disk") {
-        serMethod = SER_DISK;
-    } else {
-        throw runtime_error("Serialization method can be either 'network' or 'disk', without quotes.");
-    }
 
     boost::filesystem::path filename = bdir / "bootstrap.dat";
 
@@ -360,7 +346,7 @@ Value exportblockchain(const Array& params, bool fHelp)
     std::atomic<double>        progress{false};
     boost::thread              exporterThread(boost::bind(&ExportBootstrapBlockchain, filename.string(),
                                              boost::ref(stopped), boost::ref(progress),
-                                             boost::ref(finished), serMethod));
+                                             boost::ref(finished)));
     exporterThread.detach();
 
     printf("Export blockchain to path started in another thread. Writing to path: %s\n",

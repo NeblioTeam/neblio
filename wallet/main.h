@@ -1971,7 +1971,6 @@ public:
 };
 
 void ExportBootstrapBlockchain(const string& filename, std::atomic<bool>& stopped,
-                               std::atomic<double>& progress, boost::promise<void>& result,
-                               int serializationMethod);
+                               std::atomic<double>& progress, boost::promise<void>& result);
 
 #endif
