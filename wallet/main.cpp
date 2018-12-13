@@ -3309,7 +3309,7 @@ bool LoadExternalBlockFile(FILE* fileIn)
         try {
             CAutoFile    blkdat(fileIn, SER_NETWORK, CLIENT_VERSION);
             unsigned int nPos = 0;
-            while (nPos != (unsigned int)-1 && blkdat.good() && !fRequestShutdown) {
+            while (nPos != (unsigned int)-1 && blkdat.good() && !fRequestShutdown && !fShutdown) {
                 unsigned char pchData[65536];
                 do {
                     fseek(blkdat, nPos, SEEK_SET);
@@ -3328,7 +3328,7 @@ bool LoadExternalBlockFile(FILE* fileIn)
                         nPos += ((unsigned char*)nFind - pchData) + 1;
                     } else
                         nPos += sizeof(pchData) - sizeof(pchMessageStart) + 1;
-                } while (!fRequestShutdown);
+                } while (!fRequestShutdown && !fShutdown);
                 if (nPos == (unsigned int)-1)
                     break;
                 fseek(blkdat, nPos, SEEK_SET);
