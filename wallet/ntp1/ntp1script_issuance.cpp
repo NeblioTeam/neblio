@@ -149,9 +149,7 @@ NTP1Script_Issuance::ParseNTP1v3IssuancePostHeaderData(std::string ScriptBin)
 
     // remaining is 1 byte for issuance flag and 4 for metadata start flag + the metadata itself
     if (ScriptBin.size() < 1) {
-        throw std::runtime_error("The data remaining cannot fit the issuance flags, which is 1 byte: " +
-                                 boost::algorithm::hex(ScriptBin) + ", starting from " +
-                                 boost::algorithm::hex(ScriptBin));
+        throw std::runtime_error("The data remaining cannot fit the issuance flags. It is empty.");
     }
 
     result->issuanceFlags = IssuanceFlags::ParseIssuanceFlag(ScriptBin.at(0));
