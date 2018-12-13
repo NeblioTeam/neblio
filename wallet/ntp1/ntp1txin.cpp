@@ -88,6 +88,8 @@ NTP1OutPoint NTP1TxIn::getOutPoint() const { return prevout; }
 
 std::string NTP1TxIn::getScriptSigHex() const { return scriptSigHex; }
 
+void NTP1TxIn::setScriptSigHex(const std::string& s) { scriptSigHex = s; }
+
 uint64_t NTP1TxIn::getSequence() const { return nSequence; }
 
 const NTP1TokenTxData& NTP1TxIn::getToken(unsigned long index) const { return tokens[index]; }

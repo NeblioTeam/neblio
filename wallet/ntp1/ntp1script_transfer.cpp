@@ -2,6 +2,9 @@
 
 #include <boost/algorithm/hex.hpp>
 
+#include "init.h"
+#include "util.h"
+
 NTP1Script_Transfer::NTP1Script_Transfer() {}
 
 std::string NTP1Script_Transfer::getHexMetadata() const { return boost::algorithm::hex(metadata); }
@@ -42,18 +45,85 @@ NTP1Script_Transfer::ParseTransferPostHeaderData(std::string ScriptBin, std::str
     return result;
 }
 
-std::string NTP1Script_Transfer::calculateScriptBin() const
+std::shared_ptr<NTP1Script_Transfer>
+NTP1Script_Transfer::ParseNTP1v3TransferPostHeaderData(std::string ScriptBin)
 {
-    std::string result;
-    result += headerBin;
-    result += opCodeBin;
-    result += metadata;
+    std::shared_ptr<NTP1Script_Transfer> result = std::make_shared<NTP1Script_Transfer>();
 
-    for (const auto& ti : transferInstructions) {
-        result += TransferInstructionToBinScript(ti);
+    // parse transfer instructions
+    int totalTransferInstructionsSize = 0;
+    result->transferInstructions =
+        ParseNTP1v3TransferInstructionsFromLongEnoughString(ScriptBin, totalTransferInstructionsSize);
+    ScriptBin.erase(ScriptBin.begin(), ScriptBin.begin() + totalTransferInstructionsSize);
+
+    result->metadata = ParseNTP1v3MetadataFromLongEnoughString(ScriptBin);
+    if (result->metadata.size() > 0) {
+        ScriptBin.erase(ScriptBin.begin(),
+                        ScriptBin.begin() + result->metadata.size() + 4); // + 4 for size
+    }
+
+    if (ScriptBin.size() != 0) {
+        throw std::runtime_error("Garbage data after the metadata (unaccounted for in size).");
     }
 
     return result;
+}
+
+std::string NTP1Script_Transfer::calculateScriptBin() const
+{
+    if (protocolVersion == 1) {
+        std::string result;
+        result += headerBin;
+        result += opCodeBin;
+        result += metadata;
+
+        for (const auto& ti : transferInstructions) {
+            result += TransferInstructionToBinScript(ti);
+        }
+
+        return result;
+    } else if (protocolVersion == 3) {
+        std::string result;
+        result += headerBin;
+        result += opCodeBin;
+
+        if (transferInstructions.size() > 0xff) {
+            throw std::runtime_error(
+                "The number of transfer instructions exceeded the allowed maximum, 255");
+        }
+
+        unsigned char TIsSize = static_cast<unsigned char>(transferInstructions.size());
+        result.push_back(static_cast<char>(TIsSize));
+        for (const auto& ti : transferInstructions) {
+            result += TransferInstructionToBinScript(ti);
+        }
+
+        if (metadata.size() > 0) {
+            uint32_t metadataSize = metadata.size();
+
+            MakeBigEndian(metadataSize);
+
+            std::string metadataSizeStr;
+            metadataSizeStr.resize(4);
+            static_assert(sizeof(metadataSize) == 4,
+                          "Metadata size must be 4 bytes accoring to NTP1v3 standard");
+            memcpy(&metadataSizeStr.front(), &metadataSize, 4);
+
+            result += metadataSizeStr;
+            result += metadata;
+        }
+
+        if (result.size() > DataSize(nBestHeight)) {
+            throw std::runtime_error("Calculated script size (" + std::to_string(result.size()) +
+                                     " bytes) is larger than the maximum allowed (" +
+                                     std::to_string(DataSize(nBestHeight)) + " bytes)");
+        }
+
+        return result;
+    } else {
+        throw std::runtime_error(
+            "While calculating/constructing NTP1Script, an unknown protocol version was found");
+    }
 }
 
 std::set<unsigned int> NTP1Script_Transfer::getNTP1OutputIndices() const
@@ -71,10 +141,10 @@ std::shared_ptr<NTP1Script_Transfer> NTP1Script_Transfer::CreateScript(
 {
     std::shared_ptr<NTP1Script_Transfer> script = std::make_shared<NTP1Script_Transfer>();
 
-    script->protocolVersion      = 1;
-    script->headerBin            = boost::algorithm::unhex(std::string("4e5401"));
+    script->protocolVersion      = 3;
+    script->headerBin            = boost::algorithm::unhex(std::string("4e5403"));
     script->metadata             = Metadata;
-    script->opCodeBin            = Create_OpCodeFromMetadata(Metadata);
+    script->opCodeBin            = boost::algorithm::unhex(std::string("10"));
     script->transferInstructions = transferInstructions;
     script->txType               = TxType::TxType_Transfer;
 

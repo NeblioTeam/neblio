@@ -23,9 +23,9 @@
 #define ENABLE_AUTO_RESIZE
 
 // global environment pointer
-extern std::unique_ptr<MDB_env, std::function<void(MDB_env*)>> dbEnv;
+extern std::unique_ptr<MDB_env, void (*)(MDB_env*)> dbEnv;
 // global database pointers
-using DbSmartPtrType = std::unique_ptr<MDB_dbi, std::function<void(MDB_dbi*)>>;
+using DbSmartPtrType = std::unique_ptr<MDB_dbi, void (*)(MDB_dbi*)>;
 extern DbSmartPtrType glob_db_main;
 extern DbSmartPtrType glob_db_blockIndex;
 extern DbSmartPtrType glob_db_blocks;
@@ -222,7 +222,7 @@ private:
     bool                          fReadOnly;
     int                           nVersion;
 
-    std::function<void(MDB_dbi*)> dbDeleter = [](MDB_dbi* p) {
+    void (*dbDeleter)(MDB_dbi*) = [](MDB_dbi* p) {
         if (p) {
             mdb_close(dbEnv.get(), *p);
             delete p;
@@ -318,7 +318,7 @@ protected:
                          rc, mdb_strerror(rc));
         }
 
-        std::unique_ptr<MDB_cursor, std::function<void(MDB_cursor*)>> cursorPtr(
+        std::unique_ptr<MDB_cursor, void (*)(MDB_cursor*)> cursorPtr(
             cursorRawPtr, [](MDB_cursor* p) {
                 if (p)
                     mdb_cursor_close(p);
@@ -471,7 +471,7 @@ protected:
                          rc, mdb_strerror(rc));
         }
 
-        std::unique_ptr<MDB_cursor, std::function<void(MDB_cursor*)>> cursorPtr(
+        std::unique_ptr<MDB_cursor, void (*)(MDB_cursor*)> cursorPtr(
             cursorRawPtr, [](MDB_cursor* p) {
                 if (p)
                     mdb_cursor_close(p);
@@ -578,7 +578,7 @@ protected:
                          rc, mdb_strerror(rc));
         }
 
-        std::unique_ptr<MDB_cursor, std::function<void(MDB_cursor*)>> cursorPtr(
+        std::unique_ptr<MDB_cursor, void (*)(MDB_cursor*)> cursorPtr(
             cursorRawPtr, [](MDB_cursor* p) {
                 if (p)
                     mdb_cursor_close(p);

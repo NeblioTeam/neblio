@@ -40,7 +40,9 @@ CCriticalSection cs_main;
 CTxMemPool   mempool;
 unsigned int nTransactionsUpdated = 0;
 
-const std::string NTP1OpReturnRegexStr = R"(^OP_RETURN\s+(4e5401[a-fA-F0-9]*)$)";
+// THERE IS ANOTHER ONE OF THOSE IN NTP1Transaction, change that if you wanna change this until this is
+// fixed and there's only one variable
+const std::string NTP1OpReturnRegexStr = R"(^OP_RETURN\s+(4e54(?:01|03)[a-fA-F0-9]*)$)";
 const std::regex  NTP1OpReturnRegex(NTP1OpReturnRegexStr);
 const std::string OpReturnRegexStr = R"(^OP_RETURN\s+(.*)$)";
 const std::regex  OpReturnRegex(OpReturnRegexStr);
@@ -3307,7 +3309,7 @@ bool LoadExternalBlockFile(FILE* fileIn)
         try {
             CAutoFile    blkdat(fileIn, SER_DISK, CLIENT_VERSION);
             unsigned int nPos = 0;
-            while (nPos != (unsigned int)-1 && blkdat.good() && !fRequestShutdown) {
+            while (nPos != (unsigned int)-1 && blkdat.good() && !fRequestShutdown && !fShutdown) {
                 unsigned char pchData[65536];
                 do {
                     fseek(blkdat, nPos, SEEK_SET);
@@ -3326,7 +3328,7 @@ bool LoadExternalBlockFile(FILE* fileIn)
                         nPos += ((unsigned char*)nFind - pchData) + 1;
                     } else
                         nPos += sizeof(pchData) - sizeof(pchMessageStart) + 1;
-                } while (!fRequestShutdown);
+                } while (!fRequestShutdown && !fShutdown);
                 if (nPos == (unsigned int)-1)
                     break;
                 fseek(blkdat, nPos, SEEK_SET);
@@ -4656,15 +4658,15 @@ bool CBlock::WriteToDisk(const uint256& nBlockPos, const uint256& hashProof)
 
     bool success = false;
 
-    // this is a hack to guarantee that the function will commit/abort the transaction on exit
-    std::unique_ptr<int, std::function<void(int*)>> txEnder(new int(0), [&txdb, &success](int* p) {
+    // this is an RAII hack to guarantee that the function will commit/abort the transaction on exit
+    auto txReverseFunctor = [&txdb, &success](bool*) {
         if (success) {
             txdb.TxnCommit();
         } else {
             txdb.TxnAbort();
         }
-        delete p;
-    });
+    };
+    std::unique_ptr<bool, decltype(txReverseFunctor)> txEnder(&success, txReverseFunctor);
 
     if (!txdb.WriteBlock(this->GetHash(), *this)) {
         return false;

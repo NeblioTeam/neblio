@@ -15,14 +15,14 @@
 #include "txdb.h"
 #include "util.h"
 
-std::unique_ptr<MDB_env, std::function<void(MDB_env*)>> dbEnv;
+std::unique_ptr<MDB_env, void (*)(MDB_env*)> dbEnv(nullptr, [](MDB_env*) {});
 
-DbSmartPtrType glob_db_main;
-DbSmartPtrType glob_db_blockIndex;
-DbSmartPtrType glob_db_blocks;
-DbSmartPtrType glob_db_tx;
-DbSmartPtrType glob_db_ntp1Tx;
-DbSmartPtrType glob_db_ntp1tokenNames;
+DbSmartPtrType glob_db_main(nullptr, [](MDB_dbi*) {});
+DbSmartPtrType glob_db_blockIndex(nullptr, [](MDB_dbi*) {});
+DbSmartPtrType glob_db_blocks(nullptr, [](MDB_dbi*) {});
+DbSmartPtrType glob_db_tx(nullptr, [](MDB_dbi*) {});
+DbSmartPtrType glob_db_ntp1Tx(nullptr, [](MDB_dbi*) {});
+DbSmartPtrType glob_db_ntp1tokenNames(nullptr, [](MDB_dbi*) {});
 
 using namespace std;
 using namespace boost;
@@ -224,7 +224,7 @@ void CTxDB::init_blockindex(bool fRemoveOld)
         throw std::runtime_error("Error creating lmdb environment: " + std::to_string(rc) +
                                  "; message: " + std::string(mdb_strerror(rc)));
     }
-    dbEnv = std::unique_ptr<MDB_env, std::function<void(MDB_env*)>>(envPtr, [](MDB_env* p) {
+    dbEnv = std::unique_ptr<MDB_env, void (*)(MDB_env*)>(envPtr, [](MDB_env* p) {
         if (p)
             mdb_env_close(p);
     });
@@ -643,11 +643,10 @@ bool CTxDB::LoadBlockIndex()
             "CTxDB::LoadBlockIndex() : Failed to open lmdb cursor with error code %d; and error: %s\n",
             rc, mdb_strerror(rc));
     }
-    std::unique_ptr<MDB_cursor, std::function<void(MDB_cursor*)>> cursorPtr(cursorRawPtr,
-                                                                            [](MDB_cursor* p) {
-                                                                                if (p)
-                                                                                    mdb_cursor_close(p);
-                                                                            });
+    std::unique_ptr<MDB_cursor, void (*)(MDB_cursor*)> cursorPtr(cursorRawPtr, [](MDB_cursor* p) {
+        if (p)
+            mdb_cursor_close(p);
+    });
 
     // Seek to start key.
     CDataStream ssStartKey(SER_DISK, CLIENT_VERSION);

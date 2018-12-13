@@ -7,6 +7,8 @@
 #include "main.h"
 #include <atomic>
 
+#include <algorithm>
+
 using namespace json_spirit;
 using namespace std;
 
@@ -180,7 +182,7 @@ Value settxfee(const Array& params, bool fHelp)
                             "<amount> is a real and is rounded to the nearest 0.01");
 
     nTransactionFee = AmountFromValue(params[0]);
-    nTransactionFee = (nTransactionFee / MIN_TX_FEE) * MIN_TX_FEE;  // round to nearest 0.0001
+    nTransactionFee = (nTransactionFee / MIN_TX_FEE) * MIN_TX_FEE; // round to nearest 0.0001
 
     return true;
 }

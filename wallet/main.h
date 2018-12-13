@@ -69,7 +69,7 @@ static const unsigned int MAX_DATA_SIZE     = 4096;
 static const unsigned int OLD_MAX_DATA_SIZE = 80;
 
 /** The maximum allowed Peer Protocol Version */
-static const unsigned int MIN_PEER_PROTO_VERSION = 60016;
+static const unsigned int MIN_PEER_PROTO_VERSION     = 60016;
 static const unsigned int OLD_MIN_PEER_PROTO_VERSION = 209;
 
 static const uint256
