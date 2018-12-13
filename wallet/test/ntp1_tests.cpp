@@ -1761,24 +1761,23 @@ void TestNTP1TxParsing(const std::string& txid, bool testnet)
 {
     bool prevTestnetState = fTestNet;
     fTestNet              = testnet;
-    std::unique_ptr<int, std::function<void(int*)>> txEnder(new int(0), [&prevTestnetState](int* p) {
-        fTestNet = prevTestnetState;
-        delete p;
-    });
+    std::unique_ptr<bool, std::function<void(bool*)>> txEnder(
+        &fTestNet, [&prevTestnetState](bool*) { fTestNet = prevTestnetState; });
 
     std::string  rawTx = GetRawTxOnline(txid, testnet);
     CTransaction tx    = TxFromHex(rawTx);
     TestNTP1TxParsing(tx, testnet);
 }
 
-void TestScriptParsing(std::string OpReturnArg)
+void TestScriptParsing(std::string OpReturnArg, const CTransaction& tx)
 {
     std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScript(OpReturnArg);
     std::string calculatedScript          = boost::algorithm::hex(scriptPtr->calculateScriptBin());
     std::transform(OpReturnArg.begin(), OpReturnArg.end(), OpReturnArg.begin(), ::tolower);
     std::transform(calculatedScript.begin(), calculatedScript.end(), calculatedScript.begin(),
                    ::tolower);
-    EXPECT_EQ(calculatedScript, OpReturnArg) << "Calculated script doesn't match input script";
+    EXPECT_EQ(calculatedScript, OpReturnArg)
+        << "Calculated script doesn't match input script; at txid: " << tx.GetHash().ToString();
 }
 
 void TestSingleNTP1TxParsingLocally(const CTransaction&                                 tx,
@@ -1794,7 +1793,7 @@ void TestSingleNTP1TxParsingLocally(const CTransaction&                         
     std::string OpReturnArg;
     EXPECT_TRUE(IsTxNTP1(&tx, &OpReturnArg));
 
-    TestScriptParsing(OpReturnArg);
+    TestScriptParsing(OpReturnArg, tx);
 
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputs;
 
@@ -1887,7 +1886,12 @@ void TestSingleNTP1TxParsingLocally(const std::string&                          
     const CTransaction tx    = TxFromHex(rawTx);
 
     if (IsTxNTP1(&tx)) {
-        TestSingleNTP1TxParsingLocally(tx, nebltxs_map, ntp1txs_map);
+        try {
+            TestSingleNTP1TxParsingLocally(tx, nebltxs_map, ntp1txs_map);
+        } catch (...) {
+            std::cerr << "Error with transaction: " << tx.GetHash().ToString() << std::endl;
+            throw;
+        }
     }
 }
 
@@ -2539,4 +2543,9 @@ TEST(ntp1_tests, op_return_NTP1v3_test1)
 //    for (const auto& out : tx.vout) {
 //        std::cout << out.nValue << "\t" << out.scriptPubKey.ToString() << std::endl;
 //    }
+//}
+
+// TEST(ntp1_tests, tmp)
+//{
+//    TestNTP1TxParsing("219dea4b0909f65cd99a69bd8a47f153dc1755dc7b90578019f0a1c417e1cacf", true);
 //}

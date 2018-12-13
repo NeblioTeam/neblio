@@ -157,13 +157,15 @@ NTP1Script_Issuance::ParseNTP1v3IssuancePostHeaderData(std::string ScriptBin)
     result->issuanceFlags = IssuanceFlags::ParseIssuanceFlag(ScriptBin.at(0));
     ScriptBin.erase(ScriptBin.begin(), ScriptBin.begin() + 1);
 
-    if (ScriptBin.size() < 4) {
-        throw std::runtime_error(
-            "The data remaining cannot fit metadata start flag, which is 4 bytes: " +
-            boost::algorithm::hex(ScriptBin) + ", starting from " + boost::algorithm::hex(ScriptBin));
+    result->metadata = ParseNTP1v3MetadataFromLongEnoughString(ScriptBin);
+    if (result->metadata.size() > 0) {
+        ScriptBin.erase(ScriptBin.begin(),
+                        ScriptBin.begin() + result->metadata.size() + 4); // + 4 for size
     }
-    std::string metadataStartFlag = ScriptBin.substr(0, 4);
-    ScriptBin.erase(ScriptBin.begin(), ScriptBin.begin() + metadataStartFlag.size());
+
+    if (ScriptBin.size() != 0) {
+        throw std::runtime_error("Garbage data after the metadata (unaccounted for in size).");
+    }
 
     return result;
 }

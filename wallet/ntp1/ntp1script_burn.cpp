@@ -62,7 +62,10 @@ std::shared_ptr<NTP1Script_Burn> NTP1Script_Burn::ParseNTP1v3BurnPostHeaderData(
     ScriptBin.erase(ScriptBin.begin(), ScriptBin.begin() + totalTransferInstructionsSize);
 
     result->metadata = ParseNTP1v3MetadataFromLongEnoughString(ScriptBin);
-    ScriptBin.erase(ScriptBin.begin(), ScriptBin.begin() + result->metadata.size());
+    if (result->metadata.size() > 0) {
+        ScriptBin.erase(ScriptBin.begin(),
+                        ScriptBin.begin() + result->metadata.size() + 4); // + 4 for size
+    }
 
     if (ScriptBin.size() != 0) {
         throw std::runtime_error("Garbage data after the metadata (unaccounted for in size).");
