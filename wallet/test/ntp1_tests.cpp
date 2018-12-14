@@ -1759,19 +1759,25 @@ void TestNTP1TxParsing(const CTransaction& tx, bool testnet)
 
 void TestNTP1TxParsing(const std::string& txid, bool testnet)
 {
+    bool prevTestnetState = fTestNet;
+    fTestNet              = testnet;
+    std::unique_ptr<bool, std::function<void(bool*)>> txEnder(
+        &fTestNet, [&prevTestnetState](bool*) { fTestNet = prevTestnetState; });
+
     std::string  rawTx = GetRawTxOnline(txid, testnet);
     CTransaction tx    = TxFromHex(rawTx);
     TestNTP1TxParsing(tx, testnet);
 }
 
-void TestScriptParsing(std::string OpReturnArg)
+void TestScriptParsing(std::string OpReturnArg, const CTransaction& tx)
 {
     std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScript(OpReturnArg);
     std::string calculatedScript          = boost::algorithm::hex(scriptPtr->calculateScriptBin());
     std::transform(OpReturnArg.begin(), OpReturnArg.end(), OpReturnArg.begin(), ::tolower);
     std::transform(calculatedScript.begin(), calculatedScript.end(), calculatedScript.begin(),
                    ::tolower);
-    EXPECT_EQ(calculatedScript, OpReturnArg) << "Calculated script doesn't match input script";
+    EXPECT_EQ(calculatedScript, OpReturnArg)
+        << "Calculated script doesn't match input script; at txid: " << tx.GetHash().ToString();
 }
 
 void TestSingleNTP1TxParsingLocally(const CTransaction&                                 tx,
@@ -1787,7 +1793,7 @@ void TestSingleNTP1TxParsingLocally(const CTransaction&                         
     std::string OpReturnArg;
     EXPECT_TRUE(IsTxNTP1(&tx, &OpReturnArg));
 
-    TestScriptParsing(OpReturnArg);
+    TestScriptParsing(OpReturnArg, tx);
 
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputs;
 
@@ -1809,7 +1815,16 @@ void TestSingleNTP1TxParsingLocally(const CTransaction&                         
     EXPECT_EQ(ntp1tx.getTxOutCount(), ntp1tx_ref.getTxOutCount()) << "Failed tx: " << txid;
     for (int i = 0; i < (int)ntp1tx.getTxOutCount(); i++) {
         ASSERT_EQ(ntp1tx.getTxOut(i).tokenCount(), ntp1tx_ref.getTxOut(i).tokenCount())
-            << "Failed tx: " << txid;
+            << "Failed tx: " << txid << "; Failed at TxOut: " << i;
+        EXPECT_EQ(ntp1tx_ref.getTxOut(i).getValue(), ntp1tx.getTxOut(i).getValue());
+        EXPECT_EQ(ntp1tx_ref.getTxOut(i).getAddress(), ntp1tx.getTxOut(i).getAddress());
+        std::string script1 = ntp1tx_ref.getTxOut(i).getScriptPubKeyHex();
+        std::string script2 = ntp1tx.getTxOut(i).getScriptPubKeyHex();
+        std::transform(script1.begin(), script1.end(), script1.begin(), ::toupper);
+        std::transform(script2.begin(), script2.end(), script2.begin(), ::toupper);
+        EXPECT_EQ(script1, script2);
+        EXPECT_EQ(ntp1tx_ref.getTxOut(i).getScriptPubKeyAsm(), ntp1tx.getTxOut(i).getScriptPubKeyAsm());
+
         for (int j = 0; j < (int)ntp1tx.getTxOut(i).tokenCount(); j++) {
             EXPECT_EQ(ntp1tx.getTxOut(i).getToken(j).getAmount(),
                       ntp1tx_ref.getTxOut(i).getToken(j).getAmount())
@@ -1870,14 +1885,21 @@ void TestSingleNTP1TxParsingLocally(const std::string&                          
     const std::string  rawTx = nebltxs_map.find(txid)->second;
     const CTransaction tx    = TxFromHex(rawTx);
 
-    // Only run test for NTP1v1, exclude NTP1v2 until we support it
     if (IsTxNTP1(&tx)) {
-    	TestSingleNTP1TxParsingLocally(tx, nebltxs_map, ntp1txs_map);
+        try {
+            TestSingleNTP1TxParsingLocally(tx, nebltxs_map, ntp1txs_map);
+        } catch (...) {
+            std::cerr << "Error with transaction: " << tx.GetHash().ToString() << std::endl;
+            throw;
+        }
     }
 }
 
 void TestNTP1TxParsingLocally(bool testnet)
 {
+    fTestNet = testnet; // ensure testnet state will be reset on exit
+    std::unique_ptr<bool, void (*)(bool*)> temp(&fTestNet, [](bool*) { fTestNet = false; });
+
     std::unordered_map<std::string, std::string> ntp1txs_map;
     std::unordered_map<std::string, std::string> nebltxs_map;
 
@@ -1993,7 +2015,7 @@ void DownloadPreMadeData(bool testnet)
         std::cout << "Downloading test data file " << files[i] << std::endl;
         EXPECT_NO_THROW(boost::filesystem::remove(Path(TEST_ROOT_PATH) / Path("/data/" + files[i])));
         std::string content = cURLTools::GetFileFromHTTPS(
-            "https://neblio-files.ams3.cdn.digitaloceanspaces.com/" + files[i], 10000, 0);
+            "https://neblio-files.ams3.digitaloceanspaces.com/" + files[i], 10000, 0);
         fs::path testFile = testRootPath / "data" / files[i];
         ofstream os(testFile.string().c_str());
         os << content;
@@ -2124,7 +2146,7 @@ TEST(ntp1_tests, amend_tx_1)
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue, out1.nValue);
     std::string opRetArg;
     EXPECT_TRUE(TxContainsOpReturn(&tx, &opRetArg));
-    EXPECT_EQ(opRetArg, "4e540115032051");
+    EXPECT_EQ(opRetArg, "4e54031001032051");
 
     auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
@@ -2206,7 +2228,7 @@ TEST(ntp1_tests, amend_tx_3)
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue, out1.nValue);
     std::string opRetArg;
     EXPECT_TRUE(TxContainsOpReturn(&tx, &opRetArg));
-    EXPECT_EQ(opRetArg, "4e540115032051");
+    EXPECT_EQ(opRetArg, "4e54031001032051");
 
     auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
@@ -2258,7 +2280,7 @@ TEST(ntp1_tests, amend_tx_4)
               out1.nValue);
     std::string opRetArg;
     EXPECT_TRUE(TxContainsOpReturn(&tx, &opRetArg));
-    EXPECT_EQ(opRetArg, "4e540115032051042041");
+    EXPECT_EQ(opRetArg, "4e54031002032051042041");
 
     auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
@@ -2319,7 +2341,7 @@ TEST(ntp1_tests, amend_tx_5)
               out1.nValue);
     std::string opRetArg;
     EXPECT_TRUE(TxContainsOpReturn(&tx, &opRetArg));
-    EXPECT_EQ(opRetArg, "4e5401150320510420410520e20638b10719");
+    EXPECT_EQ(opRetArg, "4e540310050320510420410520e20638b10719");
 
     auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
@@ -2393,7 +2415,7 @@ TEST(ntp1_tests, amend_tx_6)
               out1.nValue);
     std::string opRetArg;
     EXPECT_TRUE(TxContainsOpReturn(&tx, &opRetArg));
-    EXPECT_EQ(opRetArg, "4e5401150320510420410520e20638b10719");
+    EXPECT_EQ(opRetArg, "4e540310050320510420410520e20638b10719");
 
     auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
@@ -2468,6 +2490,32 @@ std::vector<std::pair<CTransaction, int>> GetInputsOnline(const CTransaction& tx
     return inputs;
 }
 
+TEST(ntp1_tests, op_return_NTP1v3_test1)
+{
+    std::string                          opReturnArg = "4e540310020022a00160f42160";
+    std::shared_ptr<NTP1Script>          script      = NTP1Script::ParseScript(opReturnArg);
+    std::shared_ptr<NTP1Script_Transfer> script_transfer =
+        std::dynamic_pointer_cast<NTP1Script_Transfer>(script);
+    EXPECT_EQ(script_transfer->getHeader(), boost::algorithm::unhex(opReturnArg.substr(0, 6)));
+    EXPECT_EQ(script_transfer->getHexMetadata().size(), static_cast<unsigned>(0));
+    EXPECT_EQ(boost::algorithm::hex(script_transfer->getOpCodeBin()), "10");
+    EXPECT_EQ(script_transfer->getTxType(), NTP1Script::TxType::TxType_Transfer);
+
+    EXPECT_EQ(script_transfer->getTransferInstructionsCount(), static_cast<unsigned>(2));
+
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).amount, static_cast<uint64_t>(42));
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).skipInput, false);
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, static_cast<unsigned>(0));
+    EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(0).rawAmount), "22A0");
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).firstRawByte, 0);
+
+    EXPECT_EQ(script_transfer->getTransferInstruction(1).amount, static_cast<uint64_t>(999958));
+    EXPECT_EQ(script_transfer->getTransferInstruction(1).skipInput, false);
+    EXPECT_EQ(script_transfer->getTransferInstruction(1).outputIndex, static_cast<unsigned>(1));
+    EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(1).rawAmount), "60F42160");
+    EXPECT_EQ(script_transfer->getTransferInstruction(1).firstRawByte, 1);
+}
+
 // TEST(ntp1_tests, total_fee_calculator)
 //{
 //    std::string txStr =
@@ -2495,4 +2543,9 @@ std::vector<std::pair<CTransaction, int>> GetInputsOnline(const CTransaction& tx
 //    for (const auto& out : tx.vout) {
 //        std::cout << out.nValue << "\t" << out.scriptPubKey.ToString() << std::endl;
 //    }
+//}
+
+// TEST(ntp1_tests, tmp)
+//{
+//    TestNTP1TxParsing("219dea4b0909f65cd99a69bd8a47f153dc1755dc7b90578019f0a1c417e1cacf", true);
 //}

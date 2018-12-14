@@ -45,9 +45,10 @@ protected:
     int         protocolVersion;
     std::string opCodeBin;
 
-    TxType txType;
+    TxType txType = TxType_None;
 
-    void setCommonParams(std::string Header, int ProtocolVersion, std::string OpCodeBin);
+    void setCommonParams(std::string Header, int ProtocolVersion, std::string OpCodeBin,
+                         std::string scriptHex);
 
 public:
     struct TransferInstruction
@@ -127,6 +128,7 @@ public:
     virtual ~NTP1Script() = default;
     static uint64_t    CalculateMetadataSize(const std::string& op_code_bin);
     static TxType      CalculateTxType(const std::string& op_code_bin);
+    static TxType      CalculateTxTypeNTP1v3(const std::string& op_code_bin);
     static uint64_t    CalculateAmountSize(uint8_t firstChar);
     static NTP1Int     ParseAmountFromLongEnoughString(const std::string& BinAmountStartsAtByte0,
                                                        int&               rawSize);
@@ -135,10 +137,16 @@ public:
                                                          const std::string& op_code_bin,
                                                          const std::string& wholeScriptHex = "");
     static std::string
+    ParseNTP1v3MetadataFromLongEnoughString(const std::string& BinMetadataSizeStartsAtByte0,
+                                            const std::string& wholeScriptHex = "");
+    static std::string
     ParseTokenSymbolFromLongEnoughString(const std::string& BinTokenSymbolStartsAtByte0);
     static std::vector<TransferInstruction>
     ParseTransferInstructionsFromLongEnoughString(const std::string& BinInstructionsStartFromByte0,
                                                   int&               totalRawSize);
+    static std::vector<TransferInstruction>
+    ParseNTP1v3TransferInstructionsFromLongEnoughString(const std::string& BinInstructionsStartFromByte0,
+                                                        int&               totalRawSize);
 
     std::string getHeader() const;
     std::string getOpCodeBin() const;

@@ -2,6 +2,7 @@
 
 #include "base58.h"
 #include "hash.h"
+#include "init.h"
 #include "util.h"
 #include <boost/algorithm/hex.hpp>
 
@@ -119,6 +120,55 @@ NTP1Script_Issuance::ParseIssuancePostHeaderData(std::string ScriptBin, std::str
     return result;
 }
 
+std::shared_ptr<NTP1Script_Issuance>
+NTP1Script_Issuance::ParseNTP1v3IssuancePostHeaderData(std::string ScriptBin)
+{
+    std::shared_ptr<NTP1Script_Issuance> result = std::make_shared<NTP1Script_Issuance>();
+
+    // get token symbol (size always = 5 bytes)
+    result->tokenSymbol = ParseTokenSymbolFromLongEnoughString(ScriptBin);
+    ScriptBin.erase(ScriptBin.begin(), ScriptBin.begin() + 5);
+
+    // parse amount
+    int amountRawSize = 0;
+    result->amount    = ParseAmountFromLongEnoughString(ScriptBin, amountRawSize);
+    ScriptBin.erase(ScriptBin.begin(), ScriptBin.begin() + amountRawSize);
+
+    // parse transfer instructions
+    int totalTransferInstructionsSize = 0;
+    result->transferInstructions =
+        ParseNTP1v3TransferInstructionsFromLongEnoughString(ScriptBin, totalTransferInstructionsSize);
+    ScriptBin.erase(ScriptBin.begin(), ScriptBin.begin() + totalTransferInstructionsSize);
+
+    // check that no skip transfer instructions exist; as it's forbidden in issuance
+    for (const auto& inst : result->transferInstructions) {
+        if (inst.skipInput) {
+            throw std::runtime_error("An issuance script contained a skip transfer instruction: " +
+                                     boost::algorithm::hex(ScriptBin));
+        }
+    }
+
+    // remaining is 1 byte for issuance flag and 4 for metadata start flag + the metadata itself
+    if (ScriptBin.size() < 1) {
+        throw std::runtime_error("The data remaining cannot fit the issuance flags. It is empty.");
+    }
+
+    result->issuanceFlags = IssuanceFlags::ParseIssuanceFlag(ScriptBin.at(0));
+    ScriptBin.erase(ScriptBin.begin(), ScriptBin.begin() + 1);
+
+    result->metadata = ParseNTP1v3MetadataFromLongEnoughString(ScriptBin);
+    if (result->metadata.size() > 0) {
+        ScriptBin.erase(ScriptBin.begin(),
+                        ScriptBin.begin() + result->metadata.size() + 4); // + 4 for size
+    }
+
+    if (ScriptBin.size() != 0) {
+        throw std::runtime_error("Garbage data after the metadata (unaccounted for in size).");
+    }
+
+    return result;
+}
+
 std::string NTP1Script_Issuance::getTokenID(std::string input0txid, unsigned int input0index) const
 {
     // txid should be lower case
@@ -158,21 +208,72 @@ std::string NTP1Script_Issuance::calculateScriptBin() const
 {
     using namespace boost::algorithm;
 
-    std::string result;
-    result += headerBin;
-    result += opCodeBin;
-    result += Create_ProcessTokenSymbol(tokenSymbol);
-    result += metadata;
-    result += unhex(NumberToHexNTP1Amount(amount));
+    if (protocolVersion == 1) {
+        std::string result;
+        result += headerBin;
+        result += opCodeBin;
+        result += Create_ProcessTokenSymbol(tokenSymbol);
+        result += metadata;
+        result += unhex(NumberToHexNTP1Amount(amount));
 
-    for (const auto& ti : transferInstructions) {
-        result += TransferInstructionToBinScript(ti);
+        for (const auto& ti : transferInstructions) {
+            result += TransferInstructionToBinScript(ti);
+        }
+
+        uint8_t issuanceFlagsByte = issuanceFlags.convertToByte();
+        result.push_back(*reinterpret_cast<char*>(&issuanceFlagsByte));
+
+        return result;
+    } else if (protocolVersion == 3) {
+        std::string result;
+        result += headerBin;
+        result += opCodeBin;
+        result += Create_ProcessTokenSymbol(tokenSymbol);
+
+        result += unhex(NumberToHexNTP1Amount(amount));
+
+        if (transferInstructions.size() > 0xff) {
+            throw std::runtime_error(
+                "The number of transfer instructions exceeded the allowed maximum, 255");
+        }
+
+        unsigned char TIsSize = static_cast<unsigned char>(transferInstructions.size());
+
+        result.push_back(static_cast<char>(TIsSize));
+        for (const auto& ti : transferInstructions) {
+            result += TransferInstructionToBinScript(ti);
+        }
+
+        uint8_t issuanceFlagsByte = issuanceFlags.convertToByte();
+        result.push_back(*reinterpret_cast<char*>(&issuanceFlagsByte));
+
+        if (metadata.size() > 0) {
+            uint32_t metadataSize = metadata.size();
+
+            MakeBigEndian(metadataSize);
+
+            std::string metadataSizeStr;
+            metadataSizeStr.resize(4);
+            static_assert(sizeof(metadataSize) == 4,
+                          "Metadata size must be 4 bytes accoring to NTP1v3 standard");
+            memcpy(&metadataSizeStr.front(), &metadataSize, 4);
+
+            result += metadataSizeStr;
+            result += metadata;
+        }
+
+        if (result.size() > DataSize(nBestHeight)) {
+            throw std::runtime_error("Calculated script size (" + std::to_string(result.size()) +
+                                     " bytes) is larger than the maximum allowed (" +
+                                     std::to_string(DataSize(nBestHeight)) + " bytes)");
+        }
+
+        return result;
+
+    } else {
+        throw std::runtime_error("While creating issuance transcation, unknown protocol version + " +
+                                 std::to_string(protocolVersion));
     }
-
-    uint8_t issuanceFlagsByte = issuanceFlags.convertToByte();
-    result.push_back(*reinterpret_cast<char*>(&issuanceFlagsByte));
-
-    return result;
 }
 
 std::shared_ptr<NTP1Script_Issuance> NTP1Script_Issuance::CreateScript(
@@ -184,7 +285,7 @@ std::shared_ptr<NTP1Script_Issuance> NTP1Script_Issuance::CreateScript(
     std::shared_ptr<NTP1Script_Issuance> script = std::make_shared<NTP1Script_Issuance>();
 
     script->metadata    = Metadata;
-    script->opCodeBin   = Create_OpCodeFromMetadata(Metadata);
+    script->opCodeBin   = boost::algorithm::unhex(std::string("01"));
     script->tokenSymbol = Symbol;
     script->amount      = amount;
     IssuanceFlags issuanceFlags;
@@ -193,8 +294,8 @@ std::shared_ptr<NTP1Script_Issuance> NTP1Script_Issuance::CreateScript(
     issuanceFlags.locked            = Locked;
     script->transferInstructions    = transferInstructions;
     script->issuanceFlags           = issuanceFlags;
-    script->headerBin               = boost::algorithm::unhex(std::string("4e5401"));
-    script->protocolVersion         = 1;
+    script->headerBin               = boost::algorithm::unhex(std::string("4e5403"));
+    script->protocolVersion         = 3;
     script->txType                  = TxType::TxType_Issuance;
 
     return script;

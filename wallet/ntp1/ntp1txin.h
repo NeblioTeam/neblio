@@ -31,6 +31,7 @@ public:
     NTP1OutPoint           getPrevout() const;
     void                   setPrevout(const NTP1OutPoint& value);
     std::string            getScriptSigHex() const;
+    void                   setScriptSigHex(const std::string& s);
     uint64_t               getSequence() const;
     const NTP1TokenTxData& getToken(unsigned long index) const;
     unsigned long          getNumOfTokens() const;
