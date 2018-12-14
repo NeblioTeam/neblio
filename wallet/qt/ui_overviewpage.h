@@ -32,6 +32,7 @@ class Ui_OverviewPage
 {
 public:
     QPixmap left_logo_pix;
+    QPixmap left_logo_tachyon_pix;
     QGridLayout *main_layout;
     QVBoxLayout *left_logo_layout;
     QLabel *left_logo_label;
@@ -82,6 +83,8 @@ public:
 
         left_logo_pix = QPixmap(":images/neblio_vertical");
         left_logo_pix = left_logo_pix.scaledToHeight(OverviewPage->height()*3./4., Qt::SmoothTransformation);
+        left_logo_tachyon_pix = QPixmap(":images/logo_left_tachyon");
+        left_logo_tachyon_pix = left_logo_tachyon_pix.scaledToHeight(OverviewPage->height()*3./4., Qt::SmoothTransformation);
         left_logo_label->setPixmap(left_logo_pix);
         left_logo_label->setAlignment(Qt::AlignCenter);
 

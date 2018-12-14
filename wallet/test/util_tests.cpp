@@ -322,11 +322,11 @@ TEST(util_tests, util_seed_insecure_rand)
 
 TEST(util_tests, network_fork)
 {
-    int          currentBlock = 0;
-    NetworkForks netfork(std::map<NetworkFork, int>{{NetworkFork::NETFORK__1_FIRST_ONE, 0},
+    boost::atomic<int> currentBlock{0};
+    NetworkForks       netfork(std::map<NetworkFork, int>{{NetworkFork::NETFORK__1_FIRST_ONE, 0},
                                                     {NetworkFork::NETFORK__2_CONFS_CHANGE, 100},
                                                     {NetworkFork::NETFORK__3_TACHYON, 200}},
-                         currentBlock);
+                               currentBlock);
 
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE), true);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE), false);

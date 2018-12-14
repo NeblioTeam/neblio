@@ -72,7 +72,7 @@ static const int64_t nTargetTimespan = 2 * 60 * 60; // 2 hours
 int          nCoinbaseMaturity    = 120; // Coin Base Maturity
 int          nOldCoinbaseMaturity = 30;  // Old Coin Base Maturity
 CBlockIndex* pindexGenesisBlock   = NULL;
-int          nBestHeight          = -1;
+boost::atomic<int> nBestHeight{-1};
 
 uint256 nBestChainTrust   = 0;
 uint256 nBestInvalidTrust = 0;
@@ -1097,7 +1097,7 @@ int64_t GetProofOfStakeReward(int64_t nCoinAge, int64_t nFees)
 
     int64_t nRewardCoinYear = COIN_YEAR_REWARD; // 10% reward up to end
 
-    printf("Block Number %d \n", nBestHeight);
+    printf("Block Number %d \n", nBestHeight.load());
 
     int64_t nSubsidy = nCoinAge * nRewardCoinYear * 33 / (365 * 33 + 8);
     printf("coin-Subsidy %" PRId64 "\n", nSubsidy);
@@ -1296,7 +1296,7 @@ void static InvalidChainFound(CBlockIndex* pindexNew, CTxDB& txdb)
            CBigNum(pindexNew->nChainTrust).ToString().c_str(), nBestInvalidBlockTrust.Get64(),
            DateTimeStrFormat("%x %H:%M:%S", pindexNew->GetBlockTime()).c_str());
     printf("InvalidChainFound:  current best=%s  height=%d  trust=%s  blocktrust=%" PRId64 "  date=%s\n",
-           hashBestChain.ToString().c_str(), nBestHeight,
+           hashBestChain.ToString().c_str(), nBestHeight.load(),
            CBigNum(pindexBest->nChainTrust).ToString().c_str(), nBestBlockTrust.Get64(),
            DateTimeStrFormat("%x %H:%M:%S", pindexBest->GetBlockTime()).c_str());
 }
@@ -1994,7 +1994,7 @@ bool CBlock::SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew, const bool create
                                   : pindexBest->nChainTrust;
 
     printf("SetBestChain: new best=%s  height=%d  trust=%s  blocktrust=%" PRId64 "  date=%s\n",
-           hashBestChain.ToString().c_str(), nBestHeight, CBigNum(nBestChainTrust).ToString().c_str(),
+           hashBestChain.ToString().c_str(), nBestHeight.load(), CBigNum(nBestChainTrust).ToString().c_str(),
            nBestBlockTrust.Get64(),
            DateTimeStrFormat("%x %H:%M:%S", pindexBest->GetBlockTime()).c_str());
 

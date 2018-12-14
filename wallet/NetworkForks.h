@@ -15,10 +15,11 @@ class NetworkForks
 {
     std::map<NetworkFork, int> forksToBlockMap;
     std::map<int, NetworkFork> blockToForksMap;
-    const int&                 bestHeight_internal;
+    const boost::atomic<int>&  bestHeight_internal;
 
 public:
-    NetworkForks(const std::map<NetworkFork, int>& ForksToBlocks, const int& BestHeightVar);
+    NetworkForks(const std::map<NetworkFork, int>& ForksToBlocks,
+                 const boost::atomic<int>&         BestHeightVar);
 
     bool isForkActivated(NetworkFork fork) const;
 
@@ -38,7 +39,7 @@ MainnetForks(std::map<NetworkFork, int>{{NetworkFork::NETFORK__1_FIRST_ONE, 0},
 const NetworkForks
 TestnetForks(std::map<NetworkFork, int>{{NetworkFork::NETFORK__1_FIRST_ONE, 0},
                                         {NetworkFork::NETFORK__2_CONFS_CHANGE,
-                                         std::numeric_limits<decltype(nBestHeight)>::max()},
+                                         std::numeric_limits<decltype(nBestHeight)::value_type>::max()},
                                         // Roughly Aug 1 2018 Noon EDT
                                         {NetworkFork::NETFORK__3_TACHYON, 110100}},
              nBestHeight);

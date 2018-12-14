@@ -1,6 +1,7 @@
 #include "NetworkForks.h"
 
-NetworkForks::NetworkForks(const std::map<NetworkFork, int>& ForksToBlocks, const int& BestHeightVar)
+NetworkForks::NetworkForks(const std::map<NetworkFork, int>& ForksToBlocks,
+                           const boost::atomic<int>&         BestHeightVar)
     : bestHeight_internal(BestHeightVar)
 {
     if (ForksToBlocks.empty()) {
