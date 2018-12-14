@@ -36,13 +36,12 @@ MainnetForks(std::map<NetworkFork, int>{{NetworkFork::NETFORK__1_FIRST_ONE, 0},
                                         {NetworkFork::NETFORK__3_TACHYON, 1000000}},
              nBestHeight);
 
-const NetworkForks
-TestnetForks(std::map<NetworkFork, int>{{NetworkFork::NETFORK__1_FIRST_ONE, 0},
-                                        {NetworkFork::NETFORK__2_CONFS_CHANGE,
-                                         std::numeric_limits<decltype(nBestHeight)::value_type>::max()},
-                                        // Roughly Aug 1 2018 Noon EDT
-                                        {NetworkFork::NETFORK__3_TACHYON, 110100}},
-             nBestHeight);
+const NetworkForks TestnetForks(std::map<NetworkFork, int>{{NetworkFork::NETFORK__1_FIRST_ONE, 0},
+                                                           {NetworkFork::NETFORK__2_CONFS_CHANGE,
+                                                            std::numeric_limits<int>::max()},
+                                                           // Roughly Aug 1 2018 Noon EDT
+                                                           {NetworkFork::NETFORK__3_TACHYON, 110100}},
+                                nBestHeight);
 
 const NetworkForks& GetNetForks();
 
