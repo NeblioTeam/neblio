@@ -63,14 +63,15 @@ static const int64_t COIN_YEAR_REWARD = 10 * CENT; // 10%
 
 /** blockheight to fork and upgrade testnet */
 static const unsigned int HF_HEIGHT_TESTNET = 110100; // Roughly Aug 1 2018 Noon EDT
+static const unsigned int HF_HEIGHT_MAINNET = 1000000; // Not set yet
 
 /** The maximum allowed OP_RETURN size in bytes (network rule) */
 static const unsigned int MAX_DATA_SIZE     = 4096;
 static const unsigned int OLD_MAX_DATA_SIZE = 80;
 
 /** The maximum allowed Peer Protocol Version */
-static const unsigned int MIN_PEER_PROTO_VERSION = 60016;
-static const unsigned int OLD_MIN_PEER_PROTO_VERSION = 209;
+static const unsigned int MIN_PEER_PROTO_VERSION = 60200;
+static const unsigned int OLD_MIN_PEER_PROTO_VERSION = 60016; // v 1.5.1+
 
 static const uint256
     hashGenesisBlock("0x7286972be4dbc1463d256049b7471c252e6557e222cab9be73181d359cd28bcc");
