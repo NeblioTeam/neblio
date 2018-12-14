@@ -173,6 +173,7 @@ OBJS= \
     obj/hash.o \
     obj/bloom.o \
     obj/noui.o \
+    obj/NetworkForks.o \
     obj/kernel.o \
     obj/pbkdf2.o \
     obj/scrypt.o \
