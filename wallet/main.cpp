@@ -4395,12 +4395,24 @@ bool EnableEnforceUniqueTokenSymbols(uint32_t nBestHeight, bool isTestnet)
 /** the conditions for considering the upgraded network configuration */
 bool PassedNetworkUpgradeBlock(uint32_t nBestHeight, bool isTestnet)
 {
-    return (nBestHeight >= HF_HEIGHT_TESTNET && isTestnet);
+    if (isTestnet) {
+    	// testnet past network upgrade block
+    	return (nBestHeight >= HF_HEIGHT_TESTNET);
+    } else {
+        // mainnet past network upgrade block
+        return (nBestHeight >= HF_HEIGHT_MAINNET);
+    }
 }
 
 bool PassedFirstValidNTP1Tx(const int bestHeight, const bool isTestnet)
 {
-    return (bestHeight >= 157528 || (isTestnet && bestHeight >= 10313));
+    if (isTestnet) {
+    	// testnet past network upgrade block
+    	return (bestHeight >= 10313);
+    } else {
+        // mainnet past first valid NTP1 txn
+        return (bestHeight >= 157528);
+    }
 }
 
 /** Maximum size of a block */
