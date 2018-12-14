@@ -144,7 +144,7 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
     // Add our coinbase tx as first transaction
     pblock->vtx.push_back(txNew);
 
-    unsigned int nSizeLimit = MaxBlockSize(nBestHeight);
+    unsigned int nSizeLimit = MaxBlockSize();
 
     // Largest block you're willing to create:
     unsigned int nBlockMaxSize = GetArg("-blockmaxsize", nSizeLimit);

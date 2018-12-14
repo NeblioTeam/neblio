@@ -28,7 +28,7 @@ int64_t GetWeight(int64_t nIntervalBeginning, int64_t nIntervalEnd)
     // Kernel hash weight starts from 0 at the min age
     // this change increases active coins participating the hash and helps
     // to secure the network when proof-of-stake difficulty is low
-    unsigned int nSMA = StakeMinAge(nBestHeight);
+    unsigned int nSMA = StakeMinAge();
     return min(nIntervalEnd - nIntervalBeginning - nSMA, (int64_t)nStakeMaxAge);
 }
 
@@ -144,7 +144,7 @@ bool ComputeNextStakeModifier(const CBlockIndex* pindexPrev, uint64_t& nStakeMod
 
     // Sort candidate blocks by timestamp
     vector<pair<int64_t, uint256>> vSortedByTimestamp;
-    unsigned int                   nTS = TargetSpacing(nBestHeight);
+    unsigned int                   nTS = TargetSpacing();
     vSortedByTimestamp.reserve(64 * nModifierInterval / nTS);
     int64_t nSelectionInterval = GetStakeModifierSelectionInterval();
     int64_t nSelectionIntervalStart =
@@ -223,7 +223,7 @@ static bool GetKernelStakeModifier(uint256 hashBlockFrom, uint64_t& nStakeModifi
     nStakeModifierHeight                               = pindexFrom->nHeight;
     nStakeModifierTime                                 = pindexFrom->GetBlockTime();
     int64_t            nStakeModifierSelectionInterval = GetStakeModifierSelectionInterval();
-    unsigned int       nSMA                            = StakeMinAge(nBestHeight);
+    unsigned int       nSMA                            = StakeMinAge();
     const CBlockIndex* pindex                          = pindexFrom;
     // loop to find the stake modifier later by a selection interval
     while (nStakeModifierTime < pindexFrom->GetBlockTime() + nStakeModifierSelectionInterval) {
@@ -278,7 +278,7 @@ bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned 
         return error("CheckStakeKernelHash() : nTime violation");
 
     unsigned int nTimeBlockFrom = blockFrom.GetBlockTime();
-    unsigned int nSMA           = StakeMinAge(nBestHeight);
+    unsigned int nSMA           = StakeMinAge();
     if (nTimeBlockFrom + nSMA > nTimeTx) // Min age requirement
         return error("CheckStakeKernelHash() : min age violation");
 

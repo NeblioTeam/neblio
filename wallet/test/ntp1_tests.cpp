@@ -1772,7 +1772,8 @@ void TestNTP1TxParsing(const std::string& txid, bool testnet)
 void TestScriptParsing(std::string OpReturnArg, const CTransaction& tx)
 {
     std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScript(OpReturnArg);
-    std::string calculatedScript          = boost::algorithm::hex(scriptPtr->calculateScriptBin());
+    scriptPtr->setEnableOpReturnSizeCheck(false);
+    std::string calculatedScript = boost::algorithm::hex(scriptPtr->calculateScriptBin());
     std::transform(OpReturnArg.begin(), OpReturnArg.end(), OpReturnArg.begin(), ::tolower);
     std::transform(calculatedScript.begin(), calculatedScript.end(), calculatedScript.begin(),
                    ::tolower);

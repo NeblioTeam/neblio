@@ -23,6 +23,8 @@
 #include <boost/range/adaptor/reversed.hpp>
 #include <regex>
 
+#include "NetworkForks.h"
+
 using namespace std;
 using namespace boost;
 
@@ -531,7 +533,7 @@ bool CTransaction::CheckTransaction() const
     if (vout.empty())
         return DoS(10, error("CTransaction::CheckTransaction() : vout empty"));
     // Size limits
-    unsigned int nSizeLimit = MaxBlockSize(nBestHeight);
+    unsigned int nSizeLimit = MaxBlockSize();
     if (::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > nSizeLimit)
         return DoS(100, error("CTransaction::CheckTransaction() : size limits failed"));
 
@@ -588,7 +590,7 @@ int64_t CTransaction::GetMinFee(unsigned int nBlockSize, enum GetMinFee_mode mod
     }
 
     // Raise the price as the block approaches full
-    unsigned int nSizeLimit = MaxBlockSize(nBestHeight);
+    unsigned int nSizeLimit = MaxBlockSize();
     if (nBlockSize != 1 && nNewBlockSize >= nSizeLimit / 2) {
         if (nNewBlockSize >= nSizeLimit)
             return MAX_MONEY;
@@ -776,13 +778,13 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
         }
 
         if (PassedFirstValidNTP1Tx(nBestHeight, fTestNet) &&
-            PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+            GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
             try {
                 std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
                     StdFetchedInputTxsToNTP1(tx, mapInputs, txdb, false, mapUnused2, mapUnused);
                 NTP1Transaction ntp1tx;
                 ntp1tx.readNTP1DataFromTx(tx, inputsTxs);
-                if (EnableEnforceUniqueTokenSymbols(nBestHeight, fTestNet)) {
+                if (EnableEnforceUniqueTokenSymbols()) {
                     AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, txdb);
                 }
             } catch (std::exception& ex) {
@@ -931,7 +933,7 @@ int CMerkleTx::GetBlocksToMaturity() const
 {
     if (!(IsCoinBase() || IsCoinStake()))
         return 0;
-    int nCbM = CoinbaseMaturity(nBestHeight);
+    int nCbM = CoinbaseMaturity();
     return max(0, (nCbM + 0) - GetDepthInMainChain());
 }
 
@@ -1172,7 +1174,7 @@ static unsigned int GetNextTargetRequiredV1(const CBlockIndex* pindexLast, bool 
     // ppcoin: retarget with exponential moving toward target spacing
     CBigNum bnNew;
     bnNew.SetCompact(pindexPrev->nBits);
-    unsigned int nTS       = TargetSpacing(nBestHeight);
+    unsigned int nTS       = TargetSpacing();
     int64_t      nInterval = nTargetTimespan / nTS;
     bnNew *= ((nInterval - 1) * nTS + nActualSpacing + nActualSpacing);
     bnNew /= ((nInterval + 1) * nTS);
@@ -1198,7 +1200,7 @@ static unsigned int GetNextTargetRequiredV2(const CBlockIndex* pindexLast, bool 
         return bnTargetLimit.GetCompact(); // second block
 
     int64_t      nActualSpacing = pindexPrev->GetBlockTime() - pindexPrevPrev->GetBlockTime();
-    unsigned int nTS            = TargetSpacing(nBestHeight);
+    unsigned int nTS            = TargetSpacing();
     if (nActualSpacing < 0)
         nActualSpacing = nTS;
 
@@ -1471,7 +1473,7 @@ bool CTransaction::ConnectInputs(CTxDB& /*txdb*/, MapPrevTx inputs, map<uint256,
                                       txPrev.ToString().c_str()));
 
             // If prev is coinbase or coinstake, check that it's matured
-            int nCbM = CoinbaseMaturity(nBestHeight);
+            int nCbM = CoinbaseMaturity();
             if (txPrev.IsCoinBase() || txPrev.IsCoinStake())
                 for (const CBlockIndex* pindex                                       = pindexBlock;
                      pindex && pindexBlock->nHeight - pindex->nHeight < nCbM; pindex = pindex->pprev) {
@@ -1683,7 +1685,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
             if (tx.IsCoinStake())
                 nStakeReward = nTxValueOut - nTxValueIn;
 
-            if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+            if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
                 try {
                     if (IsTxNTP1(&tx)) {
                         // check if there are inputs already cached
@@ -1704,7 +1706,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
                 }
             }
 
-            if (EnableEnforceUniqueTokenSymbols(nBestHeight, fTestNet)) {
+            if (EnableEnforceUniqueTokenSymbols()) {
                 try {
                     AssertIssuanceUniquenessInBlock(issuedTokensSymbolsInThisBlock, txdb, tx,
                                                     mapQueuedNTP1Inputs, mapQueuedChanges);
@@ -2034,7 +2036,7 @@ bool CBlock::SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew, const bool create
 bool CTransaction::GetCoinAge(CTxDB& txdb, uint64_t& nCoinAge) const
 {
     CBigNum      bnCentSecond = 0; // coin age in the unit of cent-seconds
-    unsigned int nSMA         = StakeMinAge(nBestHeight);
+    unsigned int nSMA         = StakeMinAge();
     nCoinAge                  = 0;
 
     if (IsCoinBase())
@@ -2179,7 +2181,7 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
     // that can be verified before saving an orphan block.
 
     // Size limits
-    unsigned int nSizeLimit = MaxBlockSize(nBestHeight);
+    unsigned int nSizeLimit = MaxBlockSize();
     if (vtx.empty() || vtx.size() > nSizeLimit ||
         ::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > nSizeLimit)
         return DoS(100, error("CheckBlock() : size limits failed"));
@@ -3052,7 +3054,7 @@ uint256 CPartialMerkleTree::ExtractMatches(std::vector<uint256>& vMatch)
     if (nTransactions == 0)
         return 0;
     // check for excessively high numbers of transactions
-    unsigned int nSizeLimit = MaxBlockSize(nBestHeight);
+    unsigned int nSizeLimit = MaxBlockSize();
     if (nTransactions >
         nSizeLimit / 60) // 60 is the lower bound for the size of a serialized CTransaction
         return 0;
@@ -3302,7 +3304,7 @@ void PrintBlockTree()
 bool LoadExternalBlockFile(FILE* fileIn)
 {
     int64_t      nStart     = GetTimeMillis();
-    unsigned int nSizeLimit = MaxBlockSize(nBestHeight);
+    unsigned int nSizeLimit = MaxBlockSize();
 
     int nLoaded = 0;
     {
@@ -3504,7 +3506,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         CAddress addrFrom;
         uint64_t nNonce = 1;
         vRecv >> pfrom->nVersion >> pfrom->nServices >> nTime >> addrMe;
-        int minPeerVer = MinPeerVersion(nBestHeight);
+        int minPeerVer = MinPeerVersion();
         if (pfrom->nVersion < minPeerVer) {
             // disconnect from peers older than this proto version
             printf("partner %s using obsolete version %i; disconnecting\n",
@@ -3839,7 +3841,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
             if (pindex->GetBlockHash() == hashStop) {
                 printf("  getblocks stopping at %d %s\n", pindex->nHeight,
                        pindex->GetBlockHash().ToString().c_str());
-                unsigned int nSMA = StakeMinAge(nBestHeight);
+                unsigned int nSMA = StakeMinAge();
                 // ppcoin: tell downloading node about the latest block if it's
                 // without risk being rejected due to stake connection check
                 if (hashStop != hashBestChain &&
@@ -4382,33 +4384,21 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
     return true;
 }
 
-bool EnableEnforceUniqueTokenSymbols(uint32_t nBestHeight, bool isTestnet)
+bool EnableEnforceUniqueTokenSymbols()
 {
     //    if (PassedFirstValidNTP1Tx(nBestHeight, isTestnet)) {
-    if (PassedNetworkUpgradeBlock(nBestHeight, isTestnet)) {
+    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
         return true;
     } else {
         return false;
     }
 }
 
-/** the conditions for considering the upgraded network configuration */
-bool PassedNetworkUpgradeBlock(uint32_t nBestHeight, bool isTestnet)
-{
-    if (isTestnet) {
-    	// testnet past network upgrade block
-    	return (nBestHeight >= HF_HEIGHT_TESTNET);
-    } else {
-        // mainnet past network upgrade block
-        return (nBestHeight >= HF_HEIGHT_MAINNET);
-    }
-}
-
 bool PassedFirstValidNTP1Tx(const int bestHeight, const bool isTestnet)
 {
     if (isTestnet) {
-    	// testnet past network upgrade block
-    	return (bestHeight >= 10313);
+        // testnet past network upgrade block
+        return (bestHeight >= 10313);
     } else {
         // mainnet past first valid NTP1 txn
         return (bestHeight >= 157528);
@@ -4416,9 +4406,9 @@ bool PassedFirstValidNTP1Tx(const int bestHeight, const bool isTestnet)
 }
 
 /** Maximum size of a block */
-unsigned int MaxBlockSize(uint32_t nBestHeight)
+unsigned int MaxBlockSize()
 {
-    if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
         return MAX_BLOCK_SIZE;
     } else {
         return OLD_MAX_BLOCK_SIZE;
@@ -4426,9 +4416,9 @@ unsigned int MaxBlockSize(uint32_t nBestHeight)
 }
 
 /** Spacing between blocks */
-unsigned int TargetSpacing(uint32_t nBestHeight)
+unsigned int TargetSpacing()
 {
-    if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
         return nTargetSpacing;
     } else {
         return nOldTargetSpacing;
@@ -4436,20 +4426,30 @@ unsigned int TargetSpacing(uint32_t nBestHeight)
 }
 
 /** Coinbase Maturity */
-int CoinbaseMaturity(uint32_t nBestHeight)
+int CoinbaseMaturity()
 {
-    if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
-        return nCoinbaseMaturity;
+    if (fTestNet) {
+        if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
+            return nCoinbaseMaturity;
+        } else {
+            return 10;
+        }
     } else {
-        // return nOldCoinbaseMaturity;
-        return 10; // testnet maturity is 10, mainnet will be 30
+        if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
+            return nCoinbaseMaturity;
+        } else if (GetNetForks().isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE)) {
+            // return nOldCoinbaseMaturity;
+            return 10; // testnet maturity is 10, mainnet will be 30
+        } else {
+            return nOldCoinbaseMaturity;
+        }
     }
 }
 
 /** Max OP_RETURN Size */
-unsigned int DataSize(uint32_t nBestHeight)
+unsigned int DataSize()
 {
-    if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
         return MAX_DATA_SIZE;
     } else {
         return OLD_MAX_DATA_SIZE;
@@ -4457,9 +4457,9 @@ unsigned int DataSize(uint32_t nBestHeight)
 }
 
 /** Minimum Peer Version */
-int MinPeerVersion(uint32_t nBestHeight)
+int MinPeerVersion()
 {
-    if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
         return MIN_PEER_PROTO_VERSION;
     } else {
         return OLD_MIN_PEER_PROTO_VERSION;
@@ -4467,10 +4467,10 @@ int MinPeerVersion(uint32_t nBestHeight)
 }
 
 /** Minimum Staking Age */
-unsigned int StakeMinAge(uint32_t nBestHeight)
+unsigned int StakeMinAge()
 {
     if (fTestNet) {
-        if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+        if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
             return nStakeMinAge;
         } else {
             return nOldTestnetStakeMinAge;
@@ -4700,12 +4700,12 @@ bool CBlock::WriteToDisk(const uint256& nBlockPos, const uint256& hashProof)
         try {
             WriteNTP1BlockTransactionsToDisk(vtx, txdb);
         } catch (std::exception& ex) {
-            if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+            if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
                 return error("Unable to get NTP1 transaction written to the blockchain. Error: %s\n",
                              ex.what());
             }
         } catch (...) {
-            if (PassedNetworkUpgradeBlock(nBestHeight, fTestNet)) {
+            if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
                 return error(
                     "Unable to get NTP1 transaction written to the blockchain. An unknown exception was "
                     "thrown");
@@ -4765,12 +4765,6 @@ int64_t GetTxBlockHeight(const uint256& txHash)
         }
     }
     throw std::runtime_error("Unable to retrieve the transaction " + txHash.ToString());
-}
-
-bool IsNTP1TxAtValidBlockHeight(const int bestHeight, const bool isTestnet)
-{
-    return PassedNetworkUpgradeBlock(bestHeight, isTestnet) &&
-           PassedFirstValidNTP1Tx(bestHeight, isTestnet);
 }
 
 void ExportBootstrapBlockchain(const string& filename, std::atomic<bool>& stopped,

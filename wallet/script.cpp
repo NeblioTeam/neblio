@@ -1394,7 +1394,7 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
             else if (opcode2 == OP_SMALLDATA)
             {
                 // small pushdata, <= 4096 bytes after hard fork, 80 before
-                if (vch1.size() > DataSize(nBestHeight))
+                if (vch1.size() > DataSize())
                     break;
             }
             else if (opcode1 != opcode2 || vch1 != vch2)

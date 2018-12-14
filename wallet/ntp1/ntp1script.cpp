@@ -31,6 +31,10 @@ void NTP1Script::setCommonParams(std::string Header, int ProtocolVersion, std::s
     parsedScriptHex = scriptHex;
 }
 
+void NTP1Script::setEnableOpReturnSizeCheck(bool value) { enableOpReturnSizeCheck = value; }
+
+bool NTP1Script::isOpReturnSizeCheckEnabled() const { return enableOpReturnSizeCheck; }
+
 std::string NTP1Script::TransferInstructionToBinScript(const NTP1Script::TransferInstruction& inst)
 {
     std::string result;

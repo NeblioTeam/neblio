@@ -61,16 +61,12 @@ static const unsigned int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20
 
 static const int64_t COIN_YEAR_REWARD = 10 * CENT; // 10%
 
-/** blockheight to fork and upgrade testnet */
-static const unsigned int HF_HEIGHT_TESTNET = 110100; // Roughly Aug 1 2018 Noon EDT
-static const unsigned int HF_HEIGHT_MAINNET = 1000000; // Not set yet
-
 /** The maximum allowed OP_RETURN size in bytes (network rule) */
 static const unsigned int MAX_DATA_SIZE     = 4096;
 static const unsigned int OLD_MAX_DATA_SIZE = 80;
 
 /** The maximum allowed Peer Protocol Version */
-static const unsigned int MIN_PEER_PROTO_VERSION = 60200;
+static const unsigned int MIN_PEER_PROTO_VERSION     = 60200;
 static const unsigned int OLD_MIN_PEER_PROTO_VERSION = 60016; // v 1.5.1+
 
 static const uint256
@@ -204,34 +200,29 @@ int64_t GetTxBlockHeight(const uint256& txHash);
 /** (try to) add transaction to memory pool **/
 bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInputs);
 
-/** the conditions for considering the upgraded network configuration */
-bool PassedNetworkUpgradeBlock(uint32_t nBestHeight, bool isTestnet);
-
-bool EnableEnforceUniqueTokenSymbols(uint32_t nBestHeight, bool isTestnet);
+bool EnableEnforceUniqueTokenSymbols();
 
 /** the condition for the first valid NTP1 transaction; transactions before this point are invalid in the
  * network*/
 bool PassedFirstValidNTP1Tx(const int bestHeight, const bool isTestnet);
 
-bool IsNTP1TxAtValidBlockHeight(const int bestHeight, const bool isTestnet);
-
 /** Maximum size of a block */
-unsigned int MaxBlockSize(uint32_t nBestHeight);
+unsigned int MaxBlockSize();
 
 /** Target time between blocks */
-unsigned int TargetSpacing(uint32_t nBestHeight);
+unsigned int TargetSpacing();
 
 /** Coinbase Maturity */
-int CoinbaseMaturity(uint32_t nBestHeight);
+int CoinbaseMaturity();
 
 /** max OP_RETURN size */
-unsigned int DataSize(uint32_t nBestHeight);
+unsigned int DataSize();
 
 /** Minimum Peer Protocol Version */
-int MinPeerVersion(uint32_t nBestHeight);
+int MinPeerVersion();
 
 /** Minimum Staking Age */
-unsigned int StakeMinAge(uint32_t nBestHeight);
+unsigned int StakeMinAge();
 
 typedef std::map<uint256, std::pair<CTxIndex, CTransaction>> MapPrevTx;
 

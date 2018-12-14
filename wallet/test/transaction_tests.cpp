@@ -3,6 +3,7 @@
 #include <map>
 #include <string>
 
+#include "NetworkForks.h"
 #include "main.h"
 #include "wallet.h"
 
@@ -253,10 +254,9 @@ TEST(transaction_tests, test_GetThrow)
 void test_op_return_size(int currentHeight, int isTestnet, unsigned int expected_size)
 {
     nBestHeight = currentHeight;
-    fTestNet = isTestnet;
+    fTestNet    = isTestnet;
 
-
-    unsigned int allowedSize = DataSize(nBestHeight);
+    unsigned int allowedSize = DataSize();
 
     EXPECT_EQ(allowedSize, expected_size);
 
@@ -284,7 +284,7 @@ void test_op_return_size(int currentHeight, int isTestnet, unsigned int expected
 
         // exactly the allowed data size
         t.vout[0].scriptPubKey = CScript()
-                << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2 * allowedSize));
+                                 << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2 * allowedSize));
         EXPECT_TRUE(IsStandardTx(t, reason)) << reason;
 
         // 81 bytes (1-byte over the limit)
@@ -297,24 +297,24 @@ void test_op_return_size(int currentHeight, int isTestnet, unsigned int expected
         t.vout[0].scriptPubKey = GetScriptForDestination(key.GetPubKey().GetID());
 
         t.vout[1].scriptPubKey = CScript()
-                << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2 * allowedSize));
+                                 << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2 * allowedSize));
         EXPECT_TRUE(IsStandardTx(t, reason)) << reason;
 
         t.vout.resize(2);
         t.vout[0].scriptPubKey = CScript()
-                << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2 * allowedSize));
+                                 << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2 * allowedSize));
         t.vout[1].scriptPubKey = GetScriptForDestination(key.GetPubKey().GetID());
 
         EXPECT_TRUE(IsStandardTx(t, reason)) << reason;
 
         t.vout[0].scriptPubKey = CScript()
-                << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2 * allowedSize));
+                                 << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2 * allowedSize));
         t.vout[1].scriptPubKey = CScript()
-                << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2 * allowedSize));
+                                 << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2 * allowedSize));
         EXPECT_FALSE(IsStandardTx(t, reason)) << reason;
 
         t.vout[0].scriptPubKey = CScript()
-                << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2 * allowedSize));
+                                 << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2 * allowedSize));
         t.vout[1].scriptPubKey = CScript() << OP_RETURN;
         EXPECT_FALSE(IsStandardTx(t, reason)) << reason;
 
@@ -326,20 +326,24 @@ void test_op_return_size(int currentHeight, int isTestnet, unsigned int expected
 
 TEST(transaction_tests, op_return_size_mainnet_before_hf)
 {
-    test_op_return_size(HF_HEIGHT_TESTNET - 1, false, 80);
+    int blocknum = TestnetForks.getFirstBlockOfFork(NetworkFork::NETFORK__3_TACHYON);
+    test_op_return_size(blocknum - 1, false, 80);
 }
 
 TEST(transaction_tests, op_return_size_mainnet_after_hf)
 {
-    test_op_return_size(HF_HEIGHT_TESTNET, false, 80);
+    int blocknum = TestnetForks.getFirstBlockOfFork(NetworkFork::NETFORK__3_TACHYON);
+    test_op_return_size(blocknum, false, 80);
 }
 
 TEST(transaction_tests, op_return_size_testnet_before_hf)
 {
-    test_op_return_size(HF_HEIGHT_TESTNET - 1, true, 80);
+    int blocknum = TestnetForks.getFirstBlockOfFork(NetworkFork::NETFORK__3_TACHYON);
+    test_op_return_size(blocknum - 1, true, 80);
 }
 
 TEST(transaction_tests, op_return_size_testnet_after_hf)
 {
-    test_op_return_size(HF_HEIGHT_TESTNET, true, 4096);
+    int blocknum = TestnetForks.getFirstBlockOfFork(NetworkFork::NETFORK__3_TACHYON);
+    test_op_return_size(blocknum, true, 4096);
 }

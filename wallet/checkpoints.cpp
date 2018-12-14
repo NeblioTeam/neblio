@@ -214,7 +214,7 @@ namespace Checkpoints
     {
         const CBlockIndex *pindex = pindexBest;
         // Search backward for a block within max span and maturity window
-        unsigned int nTS = TargetSpacing(nBestHeight);
+        unsigned int nTS = TargetSpacing();
         while (pindex->pprev && (pindex->GetBlockTime() + nCheckpointSpan * nTS > pindexBest->GetBlockTime() || pindex->nHeight + nCheckpointSpan > pindexBest->nHeight))
             pindex = pindex->pprev;
         return pindex->GetBlockHash();
@@ -366,8 +366,8 @@ namespace Checkpoints
         LOCK(cs_hashSyncCheckpoint);
         // sync-checkpoint should always be accepted block
         assert(mapBlockIndex.count(hashSyncCheckpoint));
-        int nCbM = CoinbaseMaturity(nBestHeight);
-        unsigned int nSMA = StakeMinAge(nBestHeight);
+        int nCbM = CoinbaseMaturity();
+        unsigned int nSMA = StakeMinAge();
         const CBlockIndex* pindexSync = mapBlockIndex[hashSyncCheckpoint];
         return (nBestHeight >= pindexSync->nHeight + nCbM ||
                 pindexSync->GetBlockTime() + nSMA < GetAdjustedTime());
