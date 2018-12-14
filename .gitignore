@@ -1,10 +1,10 @@
-src/*.exe
-src/neblio
-src/nebliod
-src/test_neblio
-src/build.h
-src/qt/neblio-qt.*
-src/leveldb/build_config.mk
+wallet/*.exe
+wallet/neblio
+wallet/nebliod
+wallet/test_neblio
+wallet/build.h
+wallet/qt/neblio-qt.*
+wallet/leveldb/build_config.mk
 .*.swp
 *.*~*
 *.bak
@@ -36,7 +36,7 @@ build-notes.txt
 *.sublime*
 modifierIntervalCalc.rb
 
-!src/leveldb/Makefile
+!wallet/leveldb/Makefile
 hash.py
 
 neblio-qt
@@ -51,14 +51,22 @@ contrib/seeds/
 
 *.P
 
-src/obj/
+wallet/obj/
+wallet/obj-test/
 
 ._*
 
-src/restbed/build
+wallet/restbed/build
 
-src/nebliorest\.cpp
+wallet/nebliorest\.cpp
 
-src/nebliorest\.h
+wallet/nebliorest\.h
 
-src/restbed/
+wallet/restbed/
+wallet/test/data/wallet.dat
+wallet/test/data/txs_ntp1tests_ntp1_txs.json
+wallet/test/data/txs_ntp1tests_raw_neblio_txs.json
+wallet/test/data/txs_ntp1tests_ntp1_txs_testnet.json
+wallet/test/data/txs_ntp1tests_raw_neblio_txs_testnet.json
+wallet/test/data/ntp1txids_to_test.txt
+wallet/test/data/ntp1txids_to_test_testnet.txt

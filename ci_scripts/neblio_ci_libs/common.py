@@ -17,7 +17,8 @@ def mkdir_p(path):
 
 def call_with_err_code(cmd):
     err_code = call(cmd, shell=True)
-    if err_code != 0:
+    # Error code 137 is thrown by the timeout command when it timesout, used in RPi building
+    if (err_code != 0 and err_code != 137):
         print("")
         print("")
         sys.stderr.write('call \'' + cmd + '\' exited with error code ' + str(err_code) + ' \n')

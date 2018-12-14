@@ -43,7 +43,7 @@ sudo port install qrencode
 
 4.  Now you should be able to build nebliod:
 
-cd neblio/src
+cd neblio/wallet
 make -f makefile.osx
 
 Run:

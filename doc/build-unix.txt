@@ -13,7 +13,7 @@ UNIX BUILD NOTES
 To Build
 --------
 
-cd src/
+cd wallet/
 make -f makefile.unix            # Headless neblio
 
 See readme-qt.rst for instructions on building neblio QT,
@@ -76,7 +76,7 @@ Dependency Build Instructions: Gentoo
 emerge -av1 --noreplace boost openssl sys-libs/db
 
 Take the following steps to build (no UPnP support):
- cd ${neblio_DIR}/src
+ cd ${neblio_DIR}/wallet
  make -f makefile.unix USE_UPNP=
  strip nebliod
 
