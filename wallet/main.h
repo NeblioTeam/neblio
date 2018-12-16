@@ -161,11 +161,14 @@ void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, CTxDB
 void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, CTxDB& txdb);
 
 void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, CTxDB& txdb);
+
 void AssertIssuanceUniquenessInBlock(
     std::unordered_map<std::string, uint256>& issuedTokensSymbolsInThisBlock, CTxDB& txdb,
     const CTransaction&                                                        tx,
     const map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>& mapQueuedNTP1Inputs,
     const map<uint256, CTxIndex>&                                              queuedAcceptedTxs);
+
+void WriteNTP1BlockTransactionsToDisk(const std::vector<CTransaction>& vtx, CTxDB& txdb);
 
 /** for a certain transaction, retrieve all NTP1 data from the database */
 std::vector<std::pair<CTransaction, NTP1Transaction>>

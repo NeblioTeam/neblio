@@ -69,9 +69,9 @@ unsigned int nModifierInterval      = 10 * 60;          // time to elapse before
 // static const int64_t nTargetTimespan = 16 * 60;  // 16 mins
 static const int64_t nTargetTimespan = 2 * 60 * 60; // 2 hours
 
-int          nCoinbaseMaturity    = 120; // Coin Base Maturity
-int          nOldCoinbaseMaturity = 30;  // Old Coin Base Maturity
-CBlockIndex* pindexGenesisBlock   = NULL;
+int                nCoinbaseMaturity    = 120; // Coin Base Maturity
+int                nOldCoinbaseMaturity = 30;  // Old Coin Base Maturity
+CBlockIndex*       pindexGenesisBlock   = NULL;
 boost::atomic<int> nBestHeight{-1};
 
 uint256 nBestChainTrust   = 0;
@@ -1770,6 +1770,24 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
             return error("ConnectBlock() : UpdateTxIndex failed");
     }
 
+    // This scope does NTP1 data writing
+    {
+        try {
+            WriteNTP1BlockTransactionsToDisk(vtx, txdb);
+        } catch (std::exception& ex) {
+            if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
+                return error("Unable to get NTP1 transaction written in ConnectBlock(). Error: %s\n",
+                             ex.what());
+            }
+        } catch (...) {
+            if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
+                return error("Unable to get NTP1 transaction written in ConnectBlock(). An unknown "
+                             "exception was "
+                             "thrown");
+            }
+        }
+    }
+
     // Update block index on disk without changing it in memory.
     // The memory index structure will be changed after the db commits.
     if (pindex->pprev) {
@@ -1994,8 +2012,8 @@ bool CBlock::SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew, const bool create
                                   : pindexBest->nChainTrust;
 
     printf("SetBestChain: new best=%s  height=%d  trust=%s  blocktrust=%" PRId64 "  date=%s\n",
-           hashBestChain.ToString().c_str(), nBestHeight.load(), CBigNum(nBestChainTrust).ToString().c_str(),
-           nBestBlockTrust.Get64(),
+           hashBestChain.ToString().c_str(), nBestHeight.load(),
+           CBigNum(nBestChainTrust).ToString().c_str(), nBestBlockTrust.Get64(),
            DateTimeStrFormat("%x %H:%M:%S", pindexBest->GetBlockTime()).c_str());
 
     // Check the version of the last 100 blocks to see if we need to upgrade:
@@ -4695,23 +4713,6 @@ bool CBlock::WriteToDisk(const uint256& nBlockPos, const uint256& hashProof)
                      "AddToBlockIndex() succeeded. This should never happen!");
     }
 
-    // This scope does NTP1 data writing
-    {
-        try {
-            WriteNTP1BlockTransactionsToDisk(vtx, txdb);
-        } catch (std::exception& ex) {
-            if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
-                return error("Unable to get NTP1 transaction written to the blockchain. Error: %s\n",
-                             ex.what());
-            }
-        } catch (...) {
-            if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
-                return error(
-                    "Unable to get NTP1 transaction written to the blockchain. An unknown exception was "
-                    "thrown");
-            }
-        }
-    }
     success = true;
     txEnder.reset();
     return true;
