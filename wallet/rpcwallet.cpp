@@ -9,6 +9,7 @@
 #include "init.h"
 #include "wallet.h"
 #include "walletdb.h"
+#include "NetworkForks.h"
 
 using namespace json_spirit;
 using namespace std;
@@ -102,6 +103,7 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("difficulty", diff));
 
     obj.push_back(Pair("testnet", fTestNet));
+    obj.push_back(Pair("tachyon", GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)));
     obj.push_back(Pair("keypoololdest", (int64_t)pwalletMain->GetOldestKeyPoolTime()));
     obj.push_back(Pair("keypoolsize", (int)pwalletMain->GetKeyPoolSize()));
     obj.push_back(Pair("paytxfee", ValueFromAmount(nTransactionFee)));
