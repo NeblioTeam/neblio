@@ -135,8 +135,9 @@ endif
 
 # CXXFLAGS can be specified on the make command line, so we use xCXXFLAGS that only
 # adds some defaults in front. Unfortunately, CXXFLAGS=... $(CXXFLAGS) does not work.
-xCXXFLAGS=-O2 $(EXT_OPTIONS) -std=c++11 -pthread -Wall -Wextra -Wno-ignored-qualifiers -Wformat -Wformat-security -Wno-unused-parameter \
-    $(DEBUGFLAGS) $(DEFS) $(HARDENING) $(CXXFLAGS)
+xCXXFLAGS=-O2 $(EXT_OPTIONS) -std=c++11 -pthread -Wall -Wextra -Wno-ignored-qualifiers -Wformat -Wformat-security -Wno-unused-parameter $(DEBUGFLAGS) $(DEFS) $(HARDENING) $(CXXFLAGS)
+
+xCFLAGS=-O2 $(EXT_OPTIONS) -pthread -Wall -Wextra -Wno-ignored-qualifiers -Wformat -Wformat-security -Wno-unused-parameter $(DEBUGFLAGS) $(DEFS) $(HARDENING) $(CXXFLAGS)
 
 # LDFLAGS can be specified on the make command line, so we use xLDFLAGS that only
 # adds some defaults in front. Unfortunately, LDFLAGS=... $(LDFLAGS) does not work.
@@ -223,7 +224,7 @@ LIBS += $(CURDIR)/liblmdb/liblmdb.a
 DEFS += $(addprefix -I,$(CURDIR)/liblmdb)
 OBJS += obj/txdb-lmdb.o
 liblmdb/liblmdb.a:
-	@echo "Building LMDB ..." && cd liblmdb && $(MAKE) clean && $(MAKE) CC=$(CC) CXX="$(CXX)" OPT="$(xCXXFLAGS)" liblmdb.a && cd ..
+	@echo "Building LMDB ..." && cd liblmdb && $(MAKE) clean && $(MAKE) CC=$(CC) CXX="$(CXX)" OPT="$(xCFLAGS)" liblmdb.a && cd ..
 obj/txdb-lmdb.o: liblmdb/liblmdb.a
 
 # auto-generated dependencies:
