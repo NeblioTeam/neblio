@@ -312,8 +312,6 @@ TEST(ntp1_tests, token_meta_data)
     EXPECT_EQ(tokenMetaData.getIssuanceTxIdHex(),
               "578a788a8a86ccc7fa0c045ee63ff1dd9c05ae38b08ef10ac62d18ff9783ee56");
     EXPECT_EQ(tokenMetaData.getIssueAddress().ToString(), "NMi41ze2XnxJrMNGtSGheGqLR3h4dabREW");
-    EXPECT_EQ(tokenMetaData.getSha2Issue(),
-              "c5f374b0f087cd3ebba03c0046123459e5e8adb2071af6cbae840e1f778cc113");
     EXPECT_EQ(tokenMetaData.getTokenDescription(), "Trifid");
     EXPECT_EQ(tokenMetaData.getTokenName(), "TRIF");
     EXPECT_EQ(tokenMetaData.getTokenIssuer(), "TrifidTeam");
@@ -352,8 +350,6 @@ TEST(ntp1_tests, token_meta_data_without_url)
     EXPECT_EQ(tokenMetaData.getIssuanceTxIdHex(),
               "578a788a8a86ccc7fa0c045ee63ff1dd9c05ae38b08ef10ac62d18ff9783ee56");
     EXPECT_EQ(tokenMetaData.getIssueAddress().ToString(), "NMi41ze2XnxJrMNGtSGheGqLR3h4dabREW");
-    EXPECT_EQ(tokenMetaData.getSha2Issue(),
-              "c5f374b0f087cd3ebba03c0046123459e5e8adb2071af6cbae840e1f778cc113");
     EXPECT_EQ(tokenMetaData.getTokenDescription(), "Trifid");
     EXPECT_EQ(tokenMetaData.getTokenName(), "TRIF");
     EXPECT_EQ(tokenMetaData.getTokenIssuer(), "TrifidTeam");

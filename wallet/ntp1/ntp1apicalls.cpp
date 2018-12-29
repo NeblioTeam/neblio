@@ -12,7 +12,7 @@ bool NTP1APICalls::RetrieveData_AddressContainsNTP1Tokens(const std::string& add
         json_spirit::Value parsedData;
         json_spirit::read_or_throw(ntpData, parsedData);
         json_spirit::Array utxosArray = NTP1Tools::GetArrayField(parsedData.get_obj(), "utxos");
-        for (const auto &ob: utxosArray) {
+        for (const auto& ob : utxosArray) {
             json_spirit::Array tokensArray = NTP1Tools::GetArrayField(ob.get_obj(), "tokens");
             if (tokensArray.size() > 0) {
                 return true;
@@ -35,7 +35,7 @@ uint64_t NTP1APICalls::RetrieveData_TotalNeblsExcludingNTP1(const std::string& a
         json_spirit::read_or_throw(ntpData, parsedData);
         json_spirit::Array utxosArray = NTP1Tools::GetArrayField(parsedData.get_obj(), "utxos");
         uint64_t           totalSats  = 0;
-        for (const auto& ob: utxosArray) {
+        for (const auto& ob : utxosArray) {
             json_spirit::Array tokensArray = NTP1Tools::GetArrayField(ob.get_obj(), "tokens");
             if (tokensArray.size() == 0) {
                 totalSats += NTP1Tools::GetUint64Field(ob.get_obj(), "value");
@@ -61,7 +61,7 @@ NTP1TokenMetaData NTP1APICalls::RetrieveData_NTP1TokensMetaData(const std::strin
         metadata.importRestfulAPIJsonData(ntpData);
         return metadata;
     } catch (std::exception& ex) {
-        printf("%s", ex.what());
+        printf("%s\n", ex.what());
         throw;
     }
 }

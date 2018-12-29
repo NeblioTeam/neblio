@@ -58,6 +58,9 @@ class NTP1Wallet : public boost::enable_shared_from_this<NTP1Wallet>
 
     static const std::string ICON_ERROR_CONTENT;
 
+    /// this function returns minimal information of the token from the tx (e.g., no icon)
+    static NTP1TokenMetaData GetMinimalMetadataInfoFromTxData(const NTP1TokenTxData& tokenTx);
+
 public:
     NTP1Wallet();
     void                                  update();

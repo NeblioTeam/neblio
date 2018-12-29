@@ -4,10 +4,7 @@
 
 NTP1TokenMetaData::NTP1TokenMetaData() { setNull(); }
 
-void NTP1TokenMetaData::setTokenName(const std::string &value)
-{
-    tokenName = value;
-}
+void NTP1TokenMetaData::setTokenName(const std::string& value) { tokenName = value; }
 
 void NTP1TokenMetaData::setNull()
 {
@@ -23,7 +20,6 @@ void NTP1TokenMetaData::setNull()
     tokenIssuer.clear();
     iconURL.clear();
     iconImageType.clear();
-    sha2Issue.clear();
 }
 
 bool NTP1TokenMetaData::isNull() const { return getTokenId().size() == 0; }
@@ -35,7 +31,7 @@ void NTP1TokenMetaData::importRestfulAPIJsonData(const std::string& data)
         json_spirit::read_or_throw(data, parsedData);
         importRestfulAPIJsonData(parsedData);
     } catch (std::exception& ex) {
-        printf("%s", ex.what());
+        printf("%s\n", ex.what());
         throw;
     }
 }
@@ -77,10 +73,8 @@ void NTP1TokenMetaData::importRestfulAPIJsonData(const json_spirit::Value& data)
             }
         } catch (...) {
         }
-        sha2Issue = NTP1Tools::GetStrField(data.get_obj(), "sha2Issue");
-
     } catch (std::exception& ex) {
-        printf("%s", ex.what());
+        printf("%s\n", ex.what());
         throw;
     }
 }
@@ -106,7 +100,6 @@ json_spirit::Value NTP1TokenMetaData::exportDatabaseJsonData() const
     root.push_back(json_spirit::Pair("tokenIssuer", tokenIssuer));
     root.push_back(json_spirit::Pair("iconURL", iconURL));
     root.push_back(json_spirit::Pair("iconImageType", iconImageType));
-    root.push_back(json_spirit::Pair("sha2Issue", sha2Issue));
 
     return json_spirit::Value(root);
 }
@@ -132,7 +125,6 @@ void NTP1TokenMetaData::importDatabaseJsonData(const json_spirit::Value& data)
     tokenIssuer       = NTP1Tools::GetStrField(data.get_obj(), "tokenIssuer");
     iconURL           = NTP1Tools::GetStrField(data.get_obj(), "iconURL");
     iconImageType     = NTP1Tools::GetStrField(data.get_obj(), "iconImageType");
-    sha2Issue         = NTP1Tools::GetStrField(data.get_obj(), "sha2Issue");
 }
 
 uint64_t NTP1TokenMetaData::getNumOfHolders() const { return numOfHolders; }
@@ -158,5 +150,3 @@ const std::string& NTP1TokenMetaData::getTokenIssuer() const { return tokenIssue
 const std::string& NTP1TokenMetaData::getIconURL() const { return iconURL; }
 
 const std::string& NTP1TokenMetaData::getIconImageType() const { return iconImageType; }
-
-const std::string& NTP1TokenMetaData::getSha2Issue() const { return sha2Issue; }
