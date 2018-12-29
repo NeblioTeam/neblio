@@ -9,14 +9,15 @@ MKDIR_P = mkdir -p
 LINK:=$(CXX)
 ARCH:=$(system lscpu | head -n 1 | awk '{print $2}')
 
-CXXARCH:=$(${CXX} -dumpmachine | grep -i 'x86_64')
+CXXARCH:=$(shell $(CXX) -dumpmachine | grep -i 'x86_64')
 
 DEFS=-DBOOST_SPIRIT_THREADSAFE -DUSE_LMDB
 
 # detect arch for lmdb32
-ifneq ($(CXXARCH),)
+ifeq ($(CXXARCH),)
 MDB32D:=-DMDB_VL32
 endif
+
 
 # force 32-bit lmdb at will
 ifdef lmdb32
@@ -30,7 +31,7 @@ endif
 
 
 
-DEFS += $(addprefix -I,$(CURDIR) $(CURDIR)/obj $(BOOST_INCLUDE_PATH) $(BDB_INCLUDE_PATH) $(OPENSSL_INCLUDE_PATH) $(shell pkg-config libcurl --cflags)) ${MDB32D}
+DEFS += $(addprefix -I,$(CURDIR) $(CURDIR)/obj $(BOOST_INCLUDE_PATH) $(BDB_INCLUDE_PATH) $(OPENSSL_INCLUDE_PATH) $(shell pkg-config libcurl --cflags)) $(MDB32D)
 LIBS = $(addprefix -L,$(BOOST_LIB_PATH) $(BDB_LIB_PATH) $(OPENSSL_LIB_PATH))
 
 TESTDEFS = -DTEST_DATA_DIR=$(abspath test/data)
@@ -137,7 +138,7 @@ endif
 # adds some defaults in front. Unfortunately, CXXFLAGS=... $(CXXFLAGS) does not work.
 xCXXFLAGS=-O2 $(EXT_OPTIONS) -std=c++11 -pthread -Wall -Wextra -Wno-ignored-qualifiers -Wformat -Wformat-security -Wno-unused-parameter $(DEBUGFLAGS) $(DEFS) $(HARDENING) $(CXXFLAGS)
 
-xCFLAGS=-O2 $(EXT_OPTIONS) -pthread -Wall -Wextra -Wno-ignored-qualifiers -Wformat -Wformat-security -Wno-unused-parameter $(DEBUGFLAGS) $(DEFS) $(HARDENING) $(CXXFLAGS)
+xCFLAGS=-O2 $(EXT_OPTIONS) -pthread -Wall -Wextra -Wno-ignored-qualifiers -Wformat -Wformat-security -Wno-unused-parameter $(DEBUGFLAGS) $(DEFS) $(HARDENING) $(CXXFLAGS) $(MDB32D)
 
 # LDFLAGS can be specified on the make command line, so we use xLDFLAGS that only
 # adds some defaults in front. Unfortunately, LDFLAGS=... $(LDFLAGS) does not work.
@@ -224,7 +225,7 @@ LIBS += $(CURDIR)/liblmdb/liblmdb.a
 DEFS += $(addprefix -I,$(CURDIR)/liblmdb)
 OBJS += obj/txdb-lmdb.o
 liblmdb/liblmdb.a:
-	@echo "Building LMDB ..." && cd liblmdb && $(MAKE) clean && $(MAKE) CC=$(CC) CXX="$(CXX)" OPT="$(xCFLAGS)" liblmdb.a && cd ..
+	@echo "Building LMDB ..." && cd liblmdb && $(MAKE) clean && $(MAKE) CC=$(CC) CXX="$(CXX)" OPT="$(xCFLAGS) $(MDB32D)" liblmdb.a && cd ..
 obj/txdb-lmdb.o: liblmdb/liblmdb.a
 
 # auto-generated dependencies:
