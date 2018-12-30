@@ -1663,6 +1663,25 @@ void TestNTP1TxParsing_onlyRead(const CTransaction& tx, bool testnet)
     ntp1tx.readNTP1DataFromTx(tx, inputs);
 }
 
+void TestScriptParsing(std::string OpReturnArg, const CTransaction& tx)
+{
+    // these transactions has an encoded NTP1 amount that is correct but unequivalent to our encoding
+    // default
+    std::string h = tx.GetHash().ToString();
+    if (h == "087f6504c06dcdc04c6157d9cbcedb207bc2e179c7ab7655c9cb3ace9eccfec3" ||
+        h == "0a71b6db7994cc91d7e24302428e44dc0871eff23caddfd75099e76666374175")
+        return;
+
+    std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScript(OpReturnArg);
+    scriptPtr->setEnableOpReturnSizeCheck(false);
+    std::string calculatedScript = boost::algorithm::hex(scriptPtr->calculateScriptBin());
+    std::transform(OpReturnArg.begin(), OpReturnArg.end(), OpReturnArg.begin(), ::tolower);
+    std::transform(calculatedScript.begin(), calculatedScript.end(), calculatedScript.begin(),
+                   ::tolower);
+    EXPECT_EQ(calculatedScript, OpReturnArg)
+        << "Calculated script doesn't match input script; at txid: " << tx.GetHash().ToString();
+}
+
 void TestNTP1TxParsing(const CTransaction& tx, bool testnet)
 {
     const std::string&    txid       = tx.GetHash().ToString();
@@ -1670,6 +1689,10 @@ void TestNTP1TxParsing(const CTransaction& tx, bool testnet)
     EXPECT_TRUE(tx.CheckTransaction()) << "Failed tx: " << txid;
 
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputs;
+
+    std::string OpReturnArg;
+    EXPECT_TRUE(IsTxNTP1(&tx, &OpReturnArg));
+    TestScriptParsing(OpReturnArg, tx);
 
     for (int i = 0; i < (int)tx.vin.size(); i++) {
         std::string  inputTxid  = tx.vin[i].prevout.hash.ToString();
@@ -1764,18 +1787,6 @@ void TestNTP1TxParsing(const std::string& txid, bool testnet)
     std::string  rawTx = GetRawTxOnline(txid, testnet);
     CTransaction tx    = TxFromHex(rawTx);
     TestNTP1TxParsing(tx, testnet);
-}
-
-void TestScriptParsing(std::string OpReturnArg, const CTransaction& tx)
-{
-    std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScript(OpReturnArg);
-    scriptPtr->setEnableOpReturnSizeCheck(false);
-    std::string calculatedScript = boost::algorithm::hex(scriptPtr->calculateScriptBin());
-    std::transform(OpReturnArg.begin(), OpReturnArg.end(), OpReturnArg.begin(), ::tolower);
-    std::transform(calculatedScript.begin(), calculatedScript.end(), calculatedScript.begin(),
-                   ::tolower);
-    EXPECT_EQ(calculatedScript, OpReturnArg)
-        << "Calculated script doesn't match input script; at txid: " << tx.GetHash().ToString();
 }
 
 void TestSingleNTP1TxParsingLocally(const CTransaction&                                 tx,
@@ -2545,5 +2556,5 @@ TEST(ntp1_tests, op_return_NTP1v3_test1)
 
 // TEST(ntp1_tests, tmp)
 //{
-//    TestNTP1TxParsing("219dea4b0909f65cd99a69bd8a47f153dc1755dc7b90578019f0a1c417e1cacf", true);
+//    TestNTP1TxParsing("0a71b6db7994cc91d7e24302428e44dc0871eff23caddfd75099e76666374175", false);
 //}
