@@ -462,7 +462,7 @@ TEST(ntp1_tests, amount_to_int)
     EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(276413656646664), "c0fb6591d0c408");
     EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(9731165496688), "c008d9b6a9a570");
     EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(943721684679640), "c35a4f53c83bd8");
-    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(1412849080), "82a1b2edc0");
+    EXPECT_EQ(NTP1Script::NumberToHexNTP1Amount(1412849080), "80435eb161");
 }
 
 TEST(ntp1_tests, script_transfer)
