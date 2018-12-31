@@ -1065,7 +1065,7 @@ void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins, unsigned int nSp
 
     {
         LOCK2(cs_main, cs_wallet);
-        unsigned int nSMA = StakeMinAge(nBestHeight);
+        unsigned int nSMA = StakeMinAge();
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end();
              ++it) {
             const CWalletTx* pcoin = &(*it).second;
@@ -1393,11 +1393,11 @@ void CWallet::SetTxNTP1OpRet(CTransaction&                                      
         throw std::runtime_error("Could not find OP_RETURN output to fix change output index");
     }
 
-    if (opRetScriptBin.size() > DataSize(nBestHeight)) {
+    if (opRetScriptBin.size() > DataSize()) {
         // the blockchain consensus rules prevents OP_RETURN sizes larger than DataSize(nBestHeight)
         throw std::runtime_error("The data associated with the transaction is larger than the maximum "
                                  "allowed size for metadata (" +
-                                 ToString(DataSize(nBestHeight)) + " bytes).");
+                                 ToString(DataSize()) + " bytes).");
     }
 
     it->scriptPubKey = CScript() << OP_RETURN << ParseHex(opRetScriptHex);
@@ -1898,7 +1898,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
         }
 
         static int   nMaxStakeSearchInterval = 60;
-        unsigned int nSMA                    = StakeMinAge(nBestHeight);
+        unsigned int nSMA                    = StakeMinAge();
         if (block.GetBlockTime() + nSMA > txNew.nTime - nMaxStakeSearchInterval)
             continue; // only count coins meeting min age requirement
 
@@ -1985,7 +1985,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
     for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
         // Attempt to add more inputs
         // Only add coins of the same key/address as kernel
-        unsigned int nSMA = StakeMinAge(nBestHeight);
+        unsigned int nSMA = StakeMinAge();
         if (txNew.vout.size() == 2 &&
             ((pcoin.first->vout[pcoin.second].scriptPubKey == scriptPubKeyKernel ||
               pcoin.first->vout[pcoin.second].scriptPubKey == txNew.vout[1].scriptPubKey)) &&

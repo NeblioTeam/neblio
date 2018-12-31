@@ -373,8 +373,8 @@ NTP1Transaction::GetPrevInputIt(const CTransaction& tx, const uint256& inputTxHa
                            });
     if (it == inputsTxs.end()) {
         throw std::runtime_error(
-            "Could not find input related to transaction: " + tx.GetHash().ToString() +
-            " with a prevout hash: " + inputTxHash.ToString());
+            "While reading/parsing NTP1 transction: Could not find input related to transaction: " +
+            tx.GetHash().ToString() + " with a prevout hash: " + inputTxHash.ToString());
     }
 
     return it;

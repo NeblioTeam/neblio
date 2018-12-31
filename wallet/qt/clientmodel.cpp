@@ -39,7 +39,8 @@ int ClientModel::getNumConnections() const
 
 int ClientModel::getNumBlocks() const
 {
-    LOCK(cs_main);
+    // The lock was removed after changing nBestHeight to atomic
+//    LOCK(cs_main);
     return nBestHeight;
 }
 

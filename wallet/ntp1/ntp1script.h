@@ -45,12 +45,16 @@ protected:
     int         protocolVersion;
     std::string opCodeBin;
 
-    TxType txType = TxType_None;
+    TxType txType                  = TxType_None;
+    bool   enableOpReturnSizeCheck = true;
 
     void setCommonParams(std::string Header, int ProtocolVersion, std::string OpCodeBin,
                          std::string scriptHex);
 
 public:
+    void setEnableOpReturnSizeCheck(bool value = true);
+    bool isOpReturnSizeCheckEnabled() const;
+
     struct TransferInstruction
     {
         TransferInstruction()

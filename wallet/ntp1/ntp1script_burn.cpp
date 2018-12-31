@@ -140,10 +140,10 @@ std::string NTP1Script_Burn::calculateScriptBin() const
             result += metadata;
         }
 
-        if (result.size() > DataSize(nBestHeight)) {
+        if (isOpReturnSizeCheckEnabled() && result.size() > DataSize()) {
             throw std::runtime_error("Calculated script size (" + std::to_string(result.size()) +
                                      " bytes) is larger than the maximum allowed (" +
-                                     std::to_string(DataSize(nBestHeight)) + " bytes)");
+                                     std::to_string(DataSize()) + " bytes)");
         }
 
         return result;

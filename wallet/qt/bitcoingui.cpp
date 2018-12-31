@@ -5,6 +5,7 @@
  * The Bitcoin Developers 2011-2012
  */
 #include "bitcoingui.h"
+#include "NetworkForks.h"
 #include "aboutdialog.h"
 #include "addressbookpage.h"
 #include "addresstablemodel.h"
@@ -688,6 +689,13 @@ void BitcoinGUI::setNumBlocks(int count, int nTotalBlocks)
     labelBlocksIcon->setToolTip(tooltip);
     progressBarLabel->setToolTip(tooltip);
     progressBar->setToolTip(tooltip);
+
+    // switch Tachyon logo
+    if (!logoSwitched && clientModel->getNumBlocks() >=
+        GetNetForks().getFirstBlockOfFork(NetworkFork::NETFORK__3_TACHYON)) {
+        overviewPage->ui->left_logo_label->setPixmap(overviewPage->ui->left_logo_tachyon_pix);
+        logoSwitched = true;
+    }
 }
 
 void BitcoinGUI::error(const QString& title, const QString& message, bool modal)
@@ -1174,7 +1182,7 @@ void BitcoinGUI::updateStakingIcon()
 
     if (nLastCoinStakeSearchInterval && nWeight) {
         uint64_t     nNetworkWeight = GetPoSKernelPS();
-        unsigned int nTS            = TargetSpacing(nBestHeight);
+        unsigned int nTS            = TargetSpacing();
         unsigned     nEstimateTime  = nTS * nNetworkWeight / nWeight;
 
         QString text;

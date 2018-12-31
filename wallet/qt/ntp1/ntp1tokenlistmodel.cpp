@@ -66,7 +66,15 @@ void NTP1TokenListModel::UpdateWalletBalances(boost::shared_ptr<NTP1Wallet>     
         wallet->update();
         promise.set_value(wallet);
     } catch (...) {
-        promise.set_exception(boost::current_exception());
+        try {
+            promise.set_exception(boost::current_exception());
+        } catch (std::exception& ex) {
+            printf("Error: Setting promise exception failed for NTP1TokenListModel wallet: %s",
+                   ex.what());
+        } catch (...) {
+            printf(
+                "Error: Setting promise exception failed for NTP1TokenListModel wallet (Unknown error)");
+        }
     }
 }
 

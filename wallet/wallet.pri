@@ -128,7 +128,8 @@ HEADERS += qt/bitcoingui.h \
     ntp1/ntp1script_burn.h \
     ntp1/ntp1tokenminimalmetadata.h \
     qt/ntp1/ntp1listelementtokendata.h \
-    ntp1/ntp1sendtxdata.h
+    ntp1/ntp1sendtxdata.h \
+    NetworkForks.h
 
 
 HEADERS +=                 \
@@ -252,7 +253,8 @@ SOURCES += qt/bitcoin.cpp \
     qt/ntp1sendtokensfeewidget.cpp \
     ntp1/ntp1script_burn.cpp \
     ntp1/ntp1tokenminimalmetadata.cpp \
-    ntp1/ntp1sendtxdata.cpp
+    ntp1/ntp1sendtxdata.cpp \
+    NetworkForks.cpp
 
 SOURCES +=                   \
     ntp1/ntp1tools.cpp       \

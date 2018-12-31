@@ -21,7 +21,6 @@ class NTP1TokenMetaData : public NTP1TokenMinimalMetaData
     std::string     tokenIssuer;
     std::string     iconURL;
     std::string     iconImageType;
-    std::string     sha2Issue;
 
 public:
     void setNull();
@@ -45,7 +44,6 @@ public:
     const std::string&     getTokenIssuer() const;
     const std::string&     getIconURL() const;
     const std::string&     getIconImageType() const;
-    const std::string&     getSha2Issue() const;
     friend inline bool     operator==(const NTP1TokenMetaData& lhs, const NTP1TokenMetaData& rhs);
     void                   setTokenName(const std::string& value);
 };
@@ -61,8 +59,7 @@ bool operator==(const NTP1TokenMetaData& lhs, const NTP1TokenMetaData& rhs)
             lhs.numOfBurns == rhs.numOfBurns && lhs.firstBlock == rhs.firstBlock &&
             lhs.issueAddress == rhs.issueAddress && lhs.tokenName == rhs.tokenName &&
             lhs.tokenDescription == rhs.tokenDescription && lhs.tokenIssuer == rhs.tokenIssuer &&
-            lhs.iconURL == rhs.iconURL && lhs.iconImageType == rhs.iconImageType &&
-            lhs.sha2Issue == rhs.sha2Issue);
+            lhs.iconURL == rhs.iconURL && lhs.iconImageType == rhs.iconImageType);
 }
 
 #endif // NTP1TOKENMETADATA_H

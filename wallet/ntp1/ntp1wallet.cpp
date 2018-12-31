@@ -164,17 +164,26 @@ void NTP1Wallet::__getOutputs()
 
                     if (retrieveMetadataFromAPI) {
                         // additional metadata is retrieved from the API; like the icon
-                        tokenInformation[tokenTx.getTokenId()] =
-                            NTP1APICalls::RetrieveData_NTP1TokensMetaData(
-                                tokenTx.getTokenId(), issueTxid.ToString(), relevantIssueOutputIndex,
-                                fTestNet);
+                        try {
+                            tokenInformation[tokenTx.getTokenId()] =
+                                NTP1APICalls::RetrieveData_NTP1TokensMetaData(
+                                    tokenTx.getTokenId(), issueTxid.ToString(), relevantIssueOutputIndex,
+                                    fTestNet);
+                        } catch (std::exception& ex) {
+                            printf("Failed to retrieve NTP1 token metadata from API. Error: %s\n",
+                                   ex.what());
+                            tokenInformation[tokenTx.getTokenId()] =
+                                GetMinimalMetadataInfoFromTxData(tokenTx);
+                        } catch (...) {
+                            printf(
+                                "Failed to retrieve NTP1 token metadata from API. Unknown exception.\n");
+                            tokenInformation[tokenTx.getTokenId()] =
+                                GetMinimalMetadataInfoFromTxData(tokenTx);
+                        }
                     } else {
                         // no metadata available, set the name manually
-                        tokenInformation[tokenTx.getTokenId()] = NTP1TokenMetaData();
-                        tokenInformation[tokenTx.getTokenId()].setTokenName(tokenTx.getTokenSymbol());
-                        tokenInformation[tokenTx.getTokenId()].setTokenId(tokenTx.getTokenId());
-                        tokenInformation[tokenTx.getTokenId()].setIssuanceTxIdHex(
-                            tokenTx.getIssueTxId().ToString());
+                        tokenInformation[tokenTx.getTokenId()] =
+                            GetMinimalMetadataInfoFromTxData(tokenTx);
                     }
                 }
             } catch (std::exception& ex) {
@@ -267,6 +276,15 @@ void NTP1Wallet::scanSpentTransactions()
 NTP1OutPoint NTP1Wallet::ConvertNeblOutputToNTP1(const COutput& output)
 {
     return NTP1OutPoint(output.tx->GetHash(), output.i);
+}
+
+NTP1TokenMetaData NTP1Wallet::GetMinimalMetadataInfoFromTxData(const NTP1TokenTxData& tokenTx)
+{
+    NTP1TokenMetaData res;
+    res.setTokenName(tokenTx.getTokenSymbol());
+    res.setTokenId(tokenTx.getTokenId());
+    res.setIssuanceTxIdHex(tokenTx.getIssueTxId().ToString());
+    return res;
 }
 
 std::string NTP1Wallet::getTokenName(const std::string& tokenID) const

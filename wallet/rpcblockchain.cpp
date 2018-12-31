@@ -159,7 +159,7 @@ Value getblockcount(const Array& params, bool fHelp)
         throw runtime_error("getblockcount\n"
                             "Returns the number of blocks in the longest block chain.");
 
-    return nBestHeight;
+    return nBestHeight.load();
 }
 
 Value getdifficulty(const Array& params, bool fHelp)

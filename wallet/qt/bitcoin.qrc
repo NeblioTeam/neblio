@@ -56,6 +56,7 @@
         <file alias="gr">res/images/gr.png</file>
         <file alias="splash">res/images/splash3.png</file>
         <file alias="logo_left">res/images/logo_left.png</file>
+        <file alias="logo_left_tachyon">res/images/logo_left_tachyon.png</file>
         <file alias="neblio_vector">res/images/neblio.svg</file>
         <file alias="neblio">res/images/neblio.png</file>
         <file alias="no-backup-made">res/images/no-backup-made.png</file>

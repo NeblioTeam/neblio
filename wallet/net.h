@@ -8,6 +8,7 @@
 #include <deque>
 #include <boost/array.hpp>
 #include <boost/foreach.hpp>
+#include <boost/atomic.hpp>
 #include <openssl/rand.h>
 
 #ifndef WIN32
@@ -24,7 +25,7 @@
 class CRequestTracker;
 class CNode;
 class CBlockIndex;
-extern int nBestHeight;
+extern boost::atomic<int> nBestHeight;
 
 
 
