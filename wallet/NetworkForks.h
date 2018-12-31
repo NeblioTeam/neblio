@@ -32,8 +32,8 @@ const NetworkForks
 MainnetForks(std::map<NetworkFork, int>{{NetworkFork::NETFORK__1_FIRST_ONE, 0},
                                         // number of stake confirmations changed to 10
                                         {NetworkFork::NETFORK__2_CONFS_CHANGE, 248000},
-                                        // unset yet
-                                        {NetworkFork::NETFORK__3_TACHYON, 1000000}},
+                                        // Tachyon upgrade. Approx Jan 12th 2019
+                                        {NetworkFork::NETFORK__3_TACHYON, 387028}},
              nBestHeight);
 
 const NetworkForks TestnetForks(std::map<NetworkFork, int>{{NetworkFork::NETFORK__1_FIRST_ONE, 0},
