@@ -15,6 +15,7 @@
 #include <list>
 #include <unordered_map>
 #include <unordered_set>
+#include <atomic>
 
 class CWallet;
 class CBlock;
