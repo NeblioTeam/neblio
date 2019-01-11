@@ -301,7 +301,7 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
 
     if (wtx.IsCoinBase() || wtx.IsCoinStake())
         strHTML += "<br>" +
-                   tr("Generated coins must mature 30 blocks before they can be spent. When you "
+                   tr("Generated coins must mature 120 blocks before they can be spent. When you "
                       "generated this block, it was broadcast to the network to be added to the block "
                       "chain. If it fails to get into the chain, its state will change to \"not "
                       "accepted\" and it won't be spendable. This may occasionally happen if another "
