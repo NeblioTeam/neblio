@@ -246,7 +246,7 @@ Value getblock(const Array& params, bool fHelp)
             "getblock <hash> [verbose=true]\n"
             "If verbose is false, returns a string that is serialized, hex-encoded data for block "
             "<hash>.\n"
-            "If verbose is true, returns an Object with information about block <hash>.");
+            "If verbose is true, returns an Object with information about block <hash> and information about each transaction.");
 
     std::string strHash = params[0].get_str();
     uint256     hash(strHash);
@@ -269,7 +269,7 @@ Value getblock(const Array& params, bool fHelp)
         return strHex;
     }
 
-    return blockToJSON(block, pblockindex, false);
+    return blockToJSON(block, pblockindex, true);
 }
 
 Value getblockbynumber(const Array& params, bool fHelp)
