@@ -63,7 +63,7 @@ void NTP1TokenListModel::UpdateWalletBalances(boost::shared_ptr<NTP1Wallet>     
                                               boost::promise<boost::shared_ptr<NTP1Wallet>>& promise)
 {
     try {
-        wallet->update();
+        boost::atomic_load(&wallet)->update();
         promise.set_value(wallet);
     } catch (...) {
         try {

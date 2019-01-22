@@ -7,12 +7,13 @@
 
 #include "boost/atomic.hpp"
 #include "wallet.h"
+#include <memory>
 
-extern CWallet*            pwalletMain;
-extern boost::atomic<bool> appInitiated;
-void                       StartShutdown();
-void                       Shutdown(void* parg);
-bool                       AppInit2();
-std::string                HelpMessage();
+extern std::shared_ptr<CWallet> pwalletMain;
+extern boost::atomic<bool>      appInitiated;
+void                            StartShutdown();
+void                            Shutdown(void* parg);
+bool                            AppInit2();
+std::string                     HelpMessage();
 
 #endif

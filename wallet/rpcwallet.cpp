@@ -892,7 +892,7 @@ Value sendmany(const Array& params, bool fHelp)
     tokenSelector.selectNTP1Tokens(ntp1wallet, std::vector<COutPoint>(), ntp1recipients, false);
 
     // Send
-    CReserveKey keyChange(pwalletMain);
+    CReserveKey keyChange(pwalletMain.get());
     int64_t     nFeeRequired = 0;
 
     bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, tokenSelector);

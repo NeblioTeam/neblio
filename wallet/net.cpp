@@ -1955,7 +1955,7 @@ void StartNode(void* parg)
     if (!GetBoolArg("-staking", true))
         printf("Staking disabled\n");
     else
-        if (!NewThread(ThreadStakeMiner, pwalletMain))
+        if (!NewThread(ThreadStakeMiner, pwalletMain.get()))
             printf("Error: NewThread(ThreadStakeMiner) failed\n");
 }
 
