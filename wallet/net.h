@@ -21,6 +21,7 @@
 #include "addrman.h"
 #include "hash.h"
 #include "bloom.h"
+#include "ThreadSafeHashMap.h"
 
 class CRequestTracker;
 class CNode;
@@ -127,7 +128,7 @@ extern CCriticalSection cs_vNodes;
 extern std::map<CInv, CDataStream> mapRelay;
 extern std::deque<std::pair<int64_t, CInv> > vRelayExpiration;
 extern CCriticalSection cs_mapRelay;
-extern std::map<CInv, int64_t> mapAlreadyAskedFor;
+extern ThreadSafeHashMap<CInv, int64_t> mapAlreadyAskedFor;
 
 
 
@@ -389,7 +390,10 @@ public:
     {
         // We're using mapAskFor as a priority queue,
         // the key is the earliest time the request can be sent
-        int64_t& nRequestTime = mapAlreadyAskedFor[inv];
+        int64_t nRequestTime = 0;
+        if(!mapAlreadyAskedFor.get(inv, nRequestTime)) {
+            printf("Thread-safe hashmap mapAlreadyAskedFor got asked for a value from a key that doesn't exist: \"%s\"", inv.ToString().c_str());
+        }
         if (fDebugNet)
             printf("askfor %s   %" PRId64" (%s)\n", inv.ToString().c_str(), nRequestTime, DateTimeStrFormat("%H:%M:%S", nRequestTime/1000000).c_str());
 
@@ -402,6 +406,7 @@ public:
 
         // Each retry is 2 minutes after the last
         nRequestTime = std::max(nRequestTime + 2 * 60 * 1000000, nNow);
+        mapAlreadyAskedFor.set(inv, nRequestTime);
         mapAskFor.insert(std::make_pair(nRequestTime, inv));
     }
 

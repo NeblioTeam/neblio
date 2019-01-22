@@ -4392,7 +4392,7 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
                     pto->PushMessage("getdata", vGetData);
                     vGetData.clear();
                 }
-                mapAlreadyAskedFor[inv] = nNow;
+                mapAlreadyAskedFor.set(inv, nNow);
             }
             pto->mapAskFor.erase(pto->mapAskFor.begin());
         }
