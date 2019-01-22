@@ -757,7 +757,7 @@ bool AppInit2()
     bool fFirstRun               = true;
     std::shared_ptr<CWallet> wlt = std::make_shared<CWallet>(strWalletFileName);
     std::atomic_store(&pwalletMain, wlt);
-    DBErrors nLoadWalletRet = pwalletMain->LoadWallet(fFirstRun);
+    DBErrors nLoadWalletRet = std::atomic_load(&pwalletMain)->LoadWallet(fFirstRun);
     if (nLoadWalletRet != DB_LOAD_OK) {
         if (nLoadWalletRet == DB_CORRUPT)
             strErrors << _("Error loading wallet.dat: Wallet corrupted") << "\n";
