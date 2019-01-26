@@ -48,13 +48,21 @@ void ScriptPubKeyToJSON(const CScript& scriptPubKey, Object& out, bool fIncludeH
 
 void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
 {
+    auto pair = std::make_pair(FetchTxFromDisk(tx.GetHash()), NTP1Transaction());
+    bool isNTP1 = IsTxNTP1(&tx);
+    if (isNTP1) {
+        CTxDB                  txdb("r");
+        FetchNTP1TxFromDisk(pair, txdb, false);
+    }
     entry.push_back(Pair("txid", tx.GetHash().GetHex()));
     entry.push_back(Pair("version", tx.nVersion));
     entry.push_back(Pair("time", (int64_t)tx.nTime));
     entry.push_back(Pair("locktime", (int64_t)tx.nLockTime));
     Array vin;
-    for (const CTxIn& txin : tx.vin) {
+    for (unsigned int i = 0; i < tx.vin.size(); i++) {
+        const CTxIn& txin = tx.vin[i];
         Object in;
+        Array tokens;
         if (tx.IsCoinBase())
             in.push_back(Pair("coinbase", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
         else {
@@ -64,8 +72,14 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
             o.push_back(Pair("asm", txin.scriptSig.ToString()));
             o.push_back(Pair("hex", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
             in.push_back(Pair("scriptSig", o));
+            if (isNTP1) {
+                for (unsigned int t = 0; t < pair.second.getTxIn(i).getNumOfTokens(); t++) {
+                    tokens.push_back(pair.second.getTxIn(i).getToken(t).exportDatabaseJsonData());
+                }
+            }
         }
         in.push_back(Pair("sequence", (int64_t)txin.nSequence));
+        in.push_back(Pair("tokens",tokens));
         vin.push_back(in);
     }
     entry.push_back(Pair("vin", vin));
@@ -73,11 +87,18 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
     for (unsigned int i = 0; i < tx.vout.size(); i++) {
         const CTxOut& txout = tx.vout[i];
         Object        out;
+        Array tokens;
         out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
         out.push_back(Pair("n", (int64_t)i));
         Object o;
         ScriptPubKeyToJSON(txout.scriptPubKey, o, false);
         out.push_back(Pair("scriptPubKey", o));
+        if (isNTP1) {
+            for (unsigned int t = 0; t < pair.second.getTxOut(i).tokenCount(); t++) {
+                tokens.push_back(pair.second.getTxOut(i).getToken(t).exportDatabaseJsonData());
+            }
+        }
+        out.push_back(Pair("tokens",tokens));
         vout.push_back(out);
     }
     entry.push_back(Pair("vout", vout));
