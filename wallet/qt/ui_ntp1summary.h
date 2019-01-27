@@ -16,7 +16,7 @@
 #include <QtWidgets/QVBoxLayout>
 #include <QtWidgets/QWidget>
 
-#include <ClickableLabel.h>
+#include "ClickableLabel.h"
 #include <QMovie>
 
 #include "ntp1senddialog.h"

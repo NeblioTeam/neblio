@@ -24,7 +24,7 @@
 #include <QtWidgets/QWidget>
 
 #include <QMovie>
-#include <ClickableLabel.h>
+#include "ClickableLabel.h"
 
 QT_BEGIN_NAMESPACE
 

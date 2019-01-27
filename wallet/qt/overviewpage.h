@@ -3,7 +3,7 @@
 
 #include <QTimer>
 #include <QWidget>
-#include <ui_overviewpage.h>
+#include "ui_overviewpage.h"
 
 #include <boost/thread.hpp>
 #include <boost/thread/future.hpp>

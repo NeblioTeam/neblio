@@ -9,7 +9,7 @@
 #include <QStatusBar>
 #include <QSystemTrayIcon>
 #include <QToolBar>
-#include <overviewpage.h>
+#include "overviewpage.h"
 
 #include <stdint.h>
 
