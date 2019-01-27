@@ -53,7 +53,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
     if (isNTP1) {
         CTxDB                  txdb("r");
         FetchNTP1TxFromDisk(pair, txdb, false);
-        if (pair.second.type() == null_type ) {
+        if (pair.second.isNull()) {
         	isNTP1 = false;
         }
     }
