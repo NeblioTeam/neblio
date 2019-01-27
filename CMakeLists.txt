@@ -10,7 +10,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 
 option(COMPILE_GUI "Enable compiling neblio-qt" ON)
 option(COMPILE_DAEMON "Enable compiling nebliod" ON)
-option(COMPILE_CURL "Download and compile libcurl (and OpenSSL) automatically" OFF)
+option(COMPILE_CURL "Download and compile libcurl (and OpenSSL) automatically (Not for Windows)" OFF)
 option(USE_QRCODE "Enable QRCode" OFF)
 option(USE_UPNP   "Enable Miniupnpc" OFF)
 option(USE_DBUS   "Enable Dbus" ON)
@@ -38,7 +38,7 @@ else()
 endif()
 
 
-if(COMPILE_CURL)
+if(COMPILE_CURL AND NOT WIN32)
     include(FindPythonInterp)
     if( !PYTHONINTERP_FOUND )
         message( FATAL_ERROR "Could not find a Python interpreter. A python interpreter is requirered to compile curl." )
