@@ -53,6 +53,9 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
     if (isNTP1) {
         CTxDB                  txdb("r");
         FetchNTP1TxFromDisk(pair, txdb, false);
+        if (pair.second.type() == null_type ) {
+        	isNTP1 = false;
+        }
     }
     entry.push_back(Pair("txid", tx.GetHash().GetHex()));
     entry.push_back(Pair("version", tx.nVersion));
