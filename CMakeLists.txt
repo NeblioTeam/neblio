@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.2.0)
 project(Neblio)
 
+message(FATAL_ERROR "This cmake file is only for development. Please use qmake to build the project.")
+
 cmake_host_system_information(RESULT hostname QUERY HOSTNAME)
 message("Building on machine: " ${hostname})
 
@@ -11,7 +13,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 option(COMPILE_GUI "Enable compiling neblio-qt" ON)
 option(COMPILE_DAEMON "Enable compiling nebliod" ON)
 option(COMPILE_CURL "Download and compile libcurl (and OpenSSL) automatically (Not for Windows)" OFF)
-option(USE_QRCODE "Enable QRCode" OFF)
+option(USE_QRCODE "Enable QRCode" ON)
 option(USE_UPNP   "Enable Miniupnpc" OFF)
 option(USE_DBUS   "Enable Dbus" ON)
 option(USE_CUSTOM_WARNINGS   "Enable custom warnings" OFF)
@@ -23,6 +25,14 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 list(INSERT CMAKE_MODULE_PATH 0
      "${CMAKE_SOURCE_DIR}/cmake")
 
+add_definitions("-DQT_STATICPLUGIN")
+
+message("Printing...")
+foreach(plugin ${Qt5Widgets_PLUGINS})
+  get_target_property(_loc ${plugin} LOCATION)
+  message("Plugin ${plugin} is at location ${_loc}")
+endforeach()
+
 set(Boost_USE_STATIC_LIBS 1)
 set(Boost_USE_STATIC_RUNTIME 1)
 
@@ -30,12 +40,8 @@ find_package(Qt5Widgets REQUIRED)
 find_package(Qt5Core    REQUIRED)
 find_package(Qt5LinguistTools REQUIRED)
 find_package(BerkeleyDB REQUIRED)
+find_package(PkgConfig  REQUIRED)
 find_package(Boost 1.55 COMPONENTS system random filesystem thread regex program_options iostreams REQUIRED)
-
-if(${PKG_CONFIG_EXECUTABLE})
-else()
-    set(PKG_CONFIG_EXECUTABLE "pkg-config")
-endif()
 
 
 if(COMPILE_CURL AND NOT WIN32)
@@ -78,57 +84,54 @@ if(COMPILE_CURL AND NOT WIN32)
         message("Done compiling libcurl.")
     endif()
     SET(ENV{PKG_CONFIG_PATH} "${CMAKE_BINARY_DIR}/curl_build/lib/pkgconfig/:$ENV{PKG_CONFIG_PATH}")
-    execute_process(
-        COMMAND "${PKG_CONFIG_EXECUTABLE}" "libcurl" "--libs"
-        OUTPUT_VARIABLE CURL_LIBS
-        ERROR_VARIABLE CURL_LIBS
-        RESULT_VARIABLE CURL_LIBS_RETURN_VALUE
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
-    if (NOT CURL_LIBS_RETURN_VALUE EQUAL 0)
-        message(FATAL_ERROR "Failed to retrieve libs for libcurl with pkg-config: ${CURL_LIBS} ")
-    endif()
-    execute_process(
-        COMMAND "${PKG_CONFIG_EXECUTABLE}" "libcurl" "--cflags"
-        OUTPUT_VARIABLE CURL_INCLUDES
-        ERROR_VARIABLE CURL_INCLUDES
-        RESULT_VARIABLE CURL_INCLUDES_RETURN_VALUE
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
-
     SET(ENV{PKG_CONFIG_PATH} ":${CMAKE_BINARY_DIR}/openssl_build/lib/pkgconfig/:$ENV{PKG_CONFIG_PATH}")
-    if (NOT CURL_INCLUDES_RETURN_VALUE EQUAL 0)
-        message(FATAL_ERROR "Failed to retrieve libs for libcurl with pkg-config: ${CURL_INCLUDES}")
-    endif()
-    execute_process(
-        COMMAND ${PKG_CONFIG_EXECUTABLE} openssl --libs
-        OUTPUT_VARIABLE OPENSSL_LIBS
-        ERROR_VARIABLE OPENSSL_LIBS
-        RESULT_VARIABLE OPENSSL_LIBS_RETURN_VALUE
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
-    if (NOT OPENSSL_LIBS_RETURN_VALUE EQUAL 0)
-        message(FATAL_ERROR "Failed to retrieve libs for openssl with pkg-config: ${OPENSSL_LIBS}")
-    endif()
-    execute_process(
-        COMMAND ${PKG_CONFIG_EXECUTABLE} openssl --cflags
-        OUTPUT_VARIABLE OPENSSL_INCLUDES
-        ERROR_VARIABLE OPENSSL_INCLUDES
-        RESULT_VARIABLE OPENSSL_INCLUDES_RETURN_VALUE
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
-    if (NOT OPENSSL_INCLUDES_RETURN_VALUE EQUAL 0)
-        message(FATAL_ERROR "Failed to retrieve libs for openssl with pkg-config: ${OPENSSL_INCLUDES}")
-    endif()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${QRENCODE_INCLUDES} ${CURL_INCLUDES}")
-else()
-    find_package(OpenSSL    REQUIRED)
-    find_package(CURL       REQUIRED)
-    include_directories(${CURL_INCLUDE_DIRS})
-    include_directories(${OPENSSL_INCLUDE_DIR})
-    set(OPENSSL_LIBS "${OPENSSL_CRYPTO_LIBRARY}" "${OPENSSL_SSL_LIBRARY}")
-    set(CURL_LIBS ${CURL_LIBRARIES})
 endif()
+
+############################## CURL and OpenSSL PkgConfig
+execute_process(
+    COMMAND "${PKG_CONFIG_EXECUTABLE}" "libcurl" "--libs"
+    OUTPUT_VARIABLE CURL_LIBS
+    ERROR_VARIABLE CURL_LIBS
+    RESULT_VARIABLE CURL_LIBS_RETURN_VALUE
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+if (NOT CURL_LIBS_RETURN_VALUE EQUAL 0)
+    message(FATAL_ERROR "Failed to retrieve libs for libcurl with pkg-config: ${CURL_LIBS} ")
+endif()
+execute_process(
+    COMMAND "${PKG_CONFIG_EXECUTABLE}" "libcurl" "--cflags"
+    OUTPUT_VARIABLE CURL_INCLUDES
+    ERROR_VARIABLE CURL_INCLUDES
+    RESULT_VARIABLE CURL_INCLUDES_RETURN_VALUE
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+
+if (NOT CURL_INCLUDES_RETURN_VALUE EQUAL 0)
+    message(FATAL_ERROR "Failed to retrieve libs for libcurl with pkg-config: ${CURL_INCLUDES}")
+endif()
+execute_process(
+    COMMAND ${PKG_CONFIG_EXECUTABLE} openssl --libs
+    OUTPUT_VARIABLE OPENSSL_LIBS
+    ERROR_VARIABLE OPENSSL_LIBS
+    RESULT_VARIABLE OPENSSL_LIBS_RETURN_VALUE
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+if (NOT OPENSSL_LIBS_RETURN_VALUE EQUAL 0)
+    message(FATAL_ERROR "Failed to retrieve libs for openssl with pkg-config: ${OPENSSL_LIBS}")
+endif()
+execute_process(
+    COMMAND ${PKG_CONFIG_EXECUTABLE} openssl --cflags
+    OUTPUT_VARIABLE OPENSSL_INCLUDES
+    ERROR_VARIABLE OPENSSL_INCLUDES
+    RESULT_VARIABLE OPENSSL_INCLUDES_RETURN_VALUE
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+if (NOT OPENSSL_INCLUDES_RETURN_VALUE EQUAL 0)
+    message(FATAL_ERROR "Failed to retrieve libs for openssl with pkg-config: ${OPENSSL_INCLUDES}")
+endif()
+add_definitions(-DCURL_STATICLIB)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OPENSSL_INCLUDES} ${CURL_INCLUDES}")
+################################################
 
 if(USE_DBUS)
     execute_process(
@@ -202,7 +205,7 @@ endif()
 
 # for extra security (see: https://wiki.debian.org/Hardening)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_FORTIFY_SOURCE=2")
-if (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+if (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" AND NOT WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,-z,relro -Wl,-z,now")
 endif()
 
@@ -213,6 +216,8 @@ if(WIN32)
     add_definitions(-DWIN32)
     add_definitions(-D_MT -DBOOST_THREAD_PROVIDES_GENERIC_SHARED_MUTEX_ON_WIN)
     set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -lmingwthrd -mthreads")
+    set(CMAKE_CXX_FLAGS "-Wno-unused-variable")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,-Bstatic")
 endif()
 
 # TODO
@@ -325,27 +330,28 @@ qt5_add_translation(QM_FILES
     wallet/qt/locale/bitcoin_zh_TW.ts
     )
 
-if(USE_QRCODE) #TODO: Add COMPILE_GUI condition
-    # TODO
+if(USE_QRCODE AND COMPILE_GUI)
     include(FindPythonInterp)
     if( !PYTHONINTERP_FOUND )
         message( FATAL_ERROR "Could not find a Python interpreter. A python interpreter is requirered to compile qrencode." )
     endif()
 
-    if(IS_SYMLINK "${CMAKE_BINARY_DIR}/qrencode_build" OR EXISTS "${CMAKE_BINARY_DIR}/qrencode_build")
-    else()
-        message("Compiling qrencode...")
-        execute_process(
-            COMMAND "${PYTHON_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/build_scripts/CompileQREncode-Linux.py"
-            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-            OUTPUT_VARIABLE COMPILE_QRENCODE_OUTPUT
-            ERROR_VARIABLE COMPILE_QRENCODE_OUTPUT
-            RESULT_VARIABLE COMPILE_QRENCODE_RETURN_VALUE
-            )
-        if (NOT COMPILE_QRENCODE_RETURN_VALUE EQUAL 0)
-            message(FATAL_ERROR "Failed to compile OpenSSL: ${COMPILE_QRENCODE_OUTPUT}")
+    if(NOT WIN32)
+        if(IS_SYMLINK "${CMAKE_BINARY_DIR}/qrencode_build" OR EXISTS "${CMAKE_BINARY_DIR}/qrencode_build")
+        else()
+            message("Compiling qrencode...")
+            execute_process(
+                COMMAND "${PYTHON_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/build_scripts/CompileQREncode-Linux.py"
+                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+                OUTPUT_VARIABLE COMPILE_QRENCODE_OUTPUT
+                ERROR_VARIABLE COMPILE_QRENCODE_OUTPUT
+                RESULT_VARIABLE COMPILE_QRENCODE_RETURN_VALUE
+                )
+            if (NOT COMPILE_QRENCODE_RETURN_VALUE EQUAL 0)
+                message(FATAL_ERROR "Failed to compile OpenSSL: ${COMPILE_QRENCODE_OUTPUT}")
+            endif()
+            message("Done compiling qrencode.")
         endif()
-        message("Done compiling qrencode.")
     endif()
     SET(ENV{PKG_CONFIG_PATH} "${CMAKE_BINARY_DIR}/qrencode_build/lib/pkgconfig/:$ENV{PKG_CONFIG_PATH}")
     execute_process(
@@ -505,7 +511,7 @@ target_link_libraries(core_lib
     curltools_lib
     )
 
-add_library(curltools_lib
+add_library(curltools_lib STATIC
     wallet/curltools.cpp
     )
 
@@ -560,7 +566,7 @@ add_library(json_spirit_lib STATIC
     wallet/json/json_spirit_writer.cpp
     )
 
-add_library(txdb_lib
+add_library(txdb_lib STATIC
     wallet/txdb-lmdb.cpp
     )
 
@@ -582,10 +588,44 @@ target_include_directories(ntp1_gui_lib PRIVATE wallet/qt)
 target_compile_definitions(gui_lib PRIVATE "QT_DISABLE_DEPRECATED_BEFORE=0")
 
 if(WIN32)
-    add_executable(
-        neblio-qt
-        qt/res/bitcoin-qt.rc
-        )
+    if(COMPILE_GUI)
+        add_executable(
+            neblio-qt
+            ${RESOURCE_ADDED}
+            ${QM_FILES}
+            wallet/qt/bitcoin.cpp
+            wallet/wallet.cpp
+            wallet/init.cpp
+            )
+
+        target_link_libraries(neblio-qt
+            gui_lib
+            ui_lib
+            ntp1_gui_lib
+            curltools_lib
+            zerocoin_lib
+            ntp1_lib
+            core_lib
+            json_spirit_lib
+            txdb_lib
+            -lpthread
+            ### win32 libs
+            -lws2_32 -lshlwapi -lmswsock -lole32 -loleaut32 -luuid -lgdi32
+            ##############
+            Boost::system
+            Boost::filesystem
+            Boost::thread
+            Boost::regex
+            Boost::program_options
+            ${BERKELEY_DB_LIBRARIES}
+            ${CURL_LIBS}
+            ${OPENSSL_LIBS}
+            )
+        target_compile_definitions(neblio-qt PRIVATE
+            QT_GUI
+            )
+        target_link_libraries(neblio-qt Qt5::QWindowsIntegrationPlugin)
+    endif()
 elseif(APPLE)
     add_executable(
         neblio-qt
