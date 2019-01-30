@@ -242,10 +242,11 @@ Value getblock(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
-            "getblock <hash> [verbose=true]\n"
+            "getblock <hash> [verbose=true] [showtxns=false]\n"
             "If verbose is false, returns a string that is serialized, hex-encoded data for block "
             "<hash>.\n"
-            "If verbose is true, returns an Object with information about block <hash> and information about each transaction.");
+            "If verbose is true, returns an Object with information about block <hash> .\n"
+            "If verbose is true and showtxns is true, also returns Object about each transaction.");
 
     std::string strHash = params[0].get_str();
     uint256     hash(strHash);
@@ -253,6 +254,10 @@ Value getblock(const Array& params, bool fHelp)
     bool fVerbose = true;
     if (params.size() > 1)
         fVerbose = params[1].get_bool();
+
+    bool fShowTxns = false;
+    if (params.size() > 2)
+        fShowTxns = params[2].get_bool();
 
     if (mapBlockIndex.count(hash) == 0)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
@@ -268,7 +273,7 @@ Value getblock(const Array& params, bool fHelp)
         return strHex;
     }
 
-    return blockToJSON(block, pblockindex, true);
+    return blockToJSON(block, pblockindex, fShowTxns);
 }
 
 Value getblockbynumber(const Array& params, bool fHelp)
