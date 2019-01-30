@@ -240,7 +240,7 @@ Value getblockhash(const Array& params, bool fHelp)
 
 Value getblock(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 1 || params.size() > 2)
+    if (fHelp || params.size() < 1 || params.size() > 3)
         throw runtime_error(
             "getblock <hash> [verbose=true] [showtxns=false]\n"
             "If verbose is false, returns a string that is serialized, hex-encoded data for block "
