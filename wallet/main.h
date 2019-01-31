@@ -102,7 +102,7 @@ extern int64_t                                      nLastCoinStakeSearchInterval
 extern const std::string                            strMessageMagic;
 extern int64_t                                      nTimeBestReceived;
 extern CCriticalSection                             cs_setpwalletRegistered;
-extern std::set<CWallet*>                           setpwalletRegistered;
+extern std::set<std::shared_ptr<CWallet>>           setpwalletRegistered;
 extern unsigned char                                pchMessageStart[4];
 extern std::unordered_map<uint256, CBlock*>         mapOrphanBlocks;
 extern bool                                         fImporting;
@@ -125,8 +125,8 @@ class CReserveKey;
 class CTxDB;
 class CTxIndex;
 
-void         RegisterWallet(CWallet* pwalletIn);
-void         UnregisterWallet(CWallet* pwalletIn);
+void         RegisterWallet(std::shared_ptr<CWallet> pwalletIn);
+void         UnregisterWallet(std::shared_ptr<CWallet> pwalletIn);
 void         SyncWithWallets(const CTransaction& tx, const CBlock* pblock = NULL, bool fUpdate = false,
                              bool fConnect = true);
 bool         ProcessBlock(CNode* pfrom, CBlock* pblock);

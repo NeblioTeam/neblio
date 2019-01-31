@@ -123,6 +123,7 @@ class CInv
         )
 
         friend bool operator<(const CInv& a, const CInv& b);
+        friend bool operator==(const CInv& a, const CInv& b);
 
         bool IsKnownType() const;
         const char* GetCommand() const;
@@ -134,6 +135,14 @@ class CInv
         int type;
         uint256 hash;
 };
+
+namespace std {
+template <>
+struct hash<CInv>
+{
+    std::size_t operator()(const CInv& k) const { return std::hash<uint256>()(k.hash); }
+};
+} // namespace std
 
 enum
 {

@@ -52,10 +52,10 @@ class NTP1TokenListModel : public QAbstractTableModel
     boost::shared_ptr<NTP1WalletTxUpdater> ntp1WalletTxUpdater;
     void                                   SetupNTP1WalletTxUpdaterToWallet()
     {
-        while (!pwalletMain) {
+        while (!std::atomic_load(&pwalletMain).get()) {
             boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
         }
-        pwalletMain->setFunctorOnTxInsert(ntp1WalletTxUpdater);
+        std::atomic_load(&pwalletMain)->setFunctorOnTxInsert(ntp1WalletTxUpdater);
     }
 
 public:

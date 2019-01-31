@@ -63,7 +63,7 @@ CCriticalSection cs_vNodes;
 map<CInv, CDataStream> mapRelay;
 deque<pair<int64_t, CInv> > vRelayExpiration;
 CCriticalSection cs_mapRelay;
-map<CInv, int64_t> mapAlreadyAskedFor;
+ThreadSafeHashMap<CInv, int64_t> mapAlreadyAskedFor;
 
 static deque<string> vOneShots;
 CCriticalSection cs_vOneShots;
@@ -1955,7 +1955,7 @@ void StartNode(void* parg)
     if (!GetBoolArg("-staking", true))
         printf("Staking disabled\n");
     else
-        if (!NewThread(ThreadStakeMiner, pwalletMain))
+        if (!NewThread(ThreadStakeMiner, pwalletMain.get()))
             printf("Error: NewThread(ThreadStakeMiner) failed\n");
 }
 

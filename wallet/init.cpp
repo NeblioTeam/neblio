@@ -28,7 +28,7 @@
 using namespace std;
 using namespace boost;
 
-CWallet*                 pwalletMain;
+std::shared_ptr<CWallet> pwalletMain;
 CClientUIInterface       uiInterface;
 bool                     fConfChange;
 bool                     fEnforceCanonical;
@@ -89,7 +89,7 @@ void Shutdown(void* parg)
         bitdb.Flush(true);
         boost::filesystem::remove(GetPidFile());
         UnregisterWallet(pwalletMain);
-        delete pwalletMain;
+//        delete pwalletMain;
         NewThread(ExitTimeout, NULL);
         MilliSleep(50);
         printf("neblio exited\n\n");
@@ -753,10 +753,11 @@ bool AppInit2()
 
     uiInterface.InitMessage(_("Loading wallet..."));
     printf("Loading wallet...\n");
-    nStart                  = GetTimeMillis();
-    bool fFirstRun          = true;
-    pwalletMain             = new CWallet(strWalletFileName);
-    DBErrors nLoadWalletRet = pwalletMain->LoadWallet(fFirstRun);
+    nStart                       = GetTimeMillis();
+    bool fFirstRun               = true;
+    std::shared_ptr<CWallet> wlt = std::make_shared<CWallet>(strWalletFileName);
+    std::atomic_store(&pwalletMain, wlt);
+    DBErrors nLoadWalletRet = std::atomic_load(&pwalletMain)->LoadWallet(fFirstRun);
     if (nLoadWalletRet != DB_LOAD_OK) {
         if (nLoadWalletRet == DB_CORRUPT)
             strErrors << _("Error loading wallet.dat: Wallet corrupted") << "\n";

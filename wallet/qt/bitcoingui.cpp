@@ -60,8 +60,9 @@
 #include <QVBoxLayout>
 
 #include <iostream>
+#include <memory>
 
-extern CWallet* pwalletMain;
+extern std::shared_ptr<CWallet> pwalletMain;
 extern int64_t  nLastCoinStakeSearchInterval;
 double          GetPoSKernelPS();
 

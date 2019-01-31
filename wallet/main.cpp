@@ -34,8 +34,8 @@ using namespace boost;
 
 std::set<uint256> UnrecoverableNTP1Txs;
 
-CCriticalSection cs_setpwalletRegistered;
-set<CWallet*>    setpwalletRegistered;
+CCriticalSection              cs_setpwalletRegistered;
+set<std::shared_ptr<CWallet>> setpwalletRegistered;
 
 CCriticalSection cs_main;
 
@@ -110,7 +110,7 @@ extern enum Checkpoints::CPMode CheckpointsMode;
 
 // These functions dispatch to one or all registered wallets
 
-void RegisterWallet(CWallet* pwalletIn)
+void RegisterWallet(std::shared_ptr<CWallet> pwalletIn)
 {
     {
         LOCK(cs_setpwalletRegistered);
@@ -118,7 +118,7 @@ void RegisterWallet(CWallet* pwalletIn)
     }
 }
 
-void UnregisterWallet(CWallet* pwalletIn)
+void UnregisterWallet(std::shared_ptr<CWallet> pwalletIn)
 {
     {
         LOCK(cs_setpwalletRegistered);
@@ -129,7 +129,7 @@ void UnregisterWallet(CWallet* pwalletIn)
 // check whether the passed transaction is from us
 bool static IsFromMe(CTransaction& tx)
 {
-    for (CWallet* pwallet : setpwalletRegistered)
+    for (const std::shared_ptr<CWallet>& pwallet : setpwalletRegistered)
         if (pwallet->IsFromMe(tx))
             return true;
     return false;
@@ -138,7 +138,7 @@ bool static IsFromMe(CTransaction& tx)
 // get the wallet transaction with the given hash (if it exists)
 bool static GetTransaction(const uint256& hashTx, CWalletTx& wtx)
 {
-    for (CWallet* pwallet : setpwalletRegistered)
+    for (const std::shared_ptr<CWallet>& pwallet : setpwalletRegistered)
         if (pwallet->GetTransaction(hashTx, wtx))
             return true;
     return false;
@@ -147,7 +147,7 @@ bool static GetTransaction(const uint256& hashTx, CWalletTx& wtx)
 // erases transaction with the given hash from all wallets
 void static EraseFromWallets(uint256 hash)
 {
-    for (CWallet* pwallet : setpwalletRegistered)
+    for (const std::shared_ptr<CWallet>& pwallet : setpwalletRegistered)
         pwallet->EraseFromWallet(hash);
 }
 
@@ -162,49 +162,49 @@ void SyncWithWallets(const CTransaction& tx, const CBlock* pblock, bool fUpdate,
     if (!fConnect) {
         // ppcoin: wallets need to refund inputs when disconnecting coinstake
         if (tx.IsCoinStake()) {
-            for (CWallet* pwallet : setpwalletRegistered)
+            for (const std::shared_ptr<CWallet>& pwallet : setpwalletRegistered)
                 if (pwallet->IsFromMe(tx))
                     pwallet->DisableTransaction(tx);
         }
         return;
     }
 
-    for (CWallet* pwallet : setpwalletRegistered)
+    for (const std::shared_ptr<CWallet>& pwallet : setpwalletRegistered)
         pwallet->AddToWalletIfInvolvingMe(tx, pblock, fUpdate);
 }
 
 // notify wallets about a new best chain
 void static SetBestChain(const CBlockLocator& loc)
 {
-    for (CWallet* pwallet : setpwalletRegistered)
+    for (const std::shared_ptr<CWallet>& pwallet : setpwalletRegistered)
         pwallet->SetBestChain(loc);
 }
 
 // notify wallets about an updated transaction
 void static UpdatedTransaction(const uint256& hashTx)
 {
-    for (CWallet* pwallet : setpwalletRegistered)
+    for (const std::shared_ptr<CWallet>& pwallet : setpwalletRegistered)
         pwallet->UpdatedTransaction(hashTx);
 }
 
 // dump all wallets
 void static PrintWallets(const CBlock& block)
 {
-    for (CWallet* pwallet : setpwalletRegistered)
+    for (const std::shared_ptr<CWallet>& pwallet : setpwalletRegistered)
         pwallet->PrintWallet(block);
 }
 
 // notify wallets about an incoming inventory (for request counts)
 void static Inventory(const uint256& hash)
 {
-    for (CWallet* pwallet : setpwalletRegistered)
+    for (const std::shared_ptr<CWallet>& pwallet : setpwalletRegistered)
         pwallet->Inventory(hash);
 }
 
 // ask wallets to resend their transactions
 void ResendWalletTransactions(bool fForce)
 {
-    for (CWallet* pwallet : setpwalletRegistered)
+    for (const std::shared_ptr<CWallet>& pwallet : setpwalletRegistered)
         pwallet->ResendWalletTransactions(fForce);
 }
 
@@ -4392,7 +4392,7 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
                     pto->PushMessage("getdata", vGetData);
                     vGetData.clear();
                 }
-                mapAlreadyAskedFor[inv] = nNow;
+                mapAlreadyAskedFor.set(inv, nNow);
             }
             pto->mapAskFor.erase(pto->mapAskFor.begin());
         }
