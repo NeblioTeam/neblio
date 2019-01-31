@@ -74,10 +74,32 @@ Value getstakinginfo(const Array& params, bool fHelp)
     unsigned int nTS = TargetSpacing();
     int nExpectedTime = staking ? (nTS * nNetworkWeight / nWeight) : -1;
 
+    Object stakingCriteria;
+
+    bool matureCoins = nWeight;
+    bool activeConnection = true;
+    if (vNodes.empty()) {
+    	activeConnection = false;
+    }
+    bool unlocked = true;
+    if (pwalletMain && pwalletMain->IsLocked()) {
+    	unlocked = false;
+    }
+    bool synced = true;
+    if (IsInitialBlockDownload_tolerant()) {
+    	synced = false;
+    }
+
+    stakingCriteria.push_back(Pair("mature-coins", matureCoins));
+    stakingCriteria.push_back(Pair("wallet-unlocked", unlocked));
+    stakingCriteria.push_back(Pair("online", activeConnection));
+    stakingCriteria.push_back(Pair("synced", synced));
+
     Object obj;
 
     obj.push_back(Pair("enabled", GetBoolArg("-staking", true)));
     obj.push_back(Pair("staking", staking));
+    obj.push_back(Pair("staking-criteria", stakingCriteria));
     obj.push_back(Pair("errors", GetWarnings("statusbar")));
 
     obj.push_back(Pair("currentblocksize", (uint64_t)nLastBlockSize));
