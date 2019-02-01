@@ -1161,6 +1161,8 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
         ConvertTo<int64_t>(params[0]);
     if (strMethod == "getblock" && n > 1)
         ConvertTo<bool>(params[1]);
+    if (strMethod == "getblock" && n > 2)
+        ConvertTo<bool>(params[2]);
     if (strMethod == "getblockbynumber" && n > 0)
         ConvertTo<int64_t>(params[0]);
     if (strMethod == "getblockbynumber" && n > 1)

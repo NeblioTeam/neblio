@@ -128,7 +128,6 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
         if (fPrintTransactionDetail) {
             Object entry;
 
-            entry.push_back(Pair("txid", tx.GetHash().GetHex()));
             TxToJSON(tx, 0, entry);
 
             txinfo.push_back(entry);
@@ -241,12 +240,13 @@ Value getblockhash(const Array& params, bool fHelp)
 
 Value getblock(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 1 || params.size() > 2)
+    if (fHelp || params.size() < 1 || params.size() > 3)
         throw runtime_error(
-            "getblock <hash> [verbose=true]\n"
+            "getblock <hash> [verbose=true] [showtxns=false]\n"
             "If verbose is false, returns a string that is serialized, hex-encoded data for block "
             "<hash>.\n"
-            "If verbose is true, returns an Object with information about block <hash>.");
+            "If verbose is true, returns an Object with information about block <hash> .\n"
+            "If verbose is true and showtxns is true, also returns Object about each transaction.");
 
     std::string strHash = params[0].get_str();
     uint256     hash(strHash);
@@ -254,6 +254,10 @@ Value getblock(const Array& params, bool fHelp)
     bool fVerbose = true;
     if (params.size() > 1)
         fVerbose = params[1].get_bool();
+
+    bool fShowTxns = false;
+    if (params.size() > 2)
+        fShowTxns = params[2].get_bool();
 
     if (mapBlockIndex.count(hash) == 0)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
@@ -269,7 +273,7 @@ Value getblock(const Array& params, bool fHelp)
         return strHex;
     }
 
-    return blockToJSON(block, pblockindex, false);
+    return blockToJSON(block, pblockindex, fShowTxns);
 }
 
 Value getblockbynumber(const Array& params, bool fHelp)
