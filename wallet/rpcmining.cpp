@@ -86,7 +86,7 @@ Value getstakinginfo(const Array& params, bool fHelp)
     	unlocked = false;
     }
     bool synced = true;
-    if (IsInitialBlockDownload_tolerant()) {
+    if (IsInitialBlockDownload()) {
     	synced = false;
     }
 
