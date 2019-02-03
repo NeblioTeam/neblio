@@ -13,6 +13,7 @@
 #include "walletmodel.h"
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QClipboard>
 #include <QComboBox>
 #include <QDateTimeEdit>
@@ -39,6 +40,8 @@ TransactionView::TransactionView(QWidget* parent)
 
     QHBoxLayout* hlayout = new QHBoxLayout();
     hlayout->setContentsMargins(0, 0, 0, 0);
+    showInactiveWidget = new QCheckBox(this);
+    hlayout->addWidget(showInactiveWidget);
 #ifdef Q_OS_MAC
     hlayout->setSpacing(5);
     hlayout->addSpacing(26);
@@ -143,6 +146,7 @@ TransactionView::TransactionView(QWidget* parent)
     contextMenu->addAction(viewTxInExplorer);
 
     // Connect actions
+    connect(showInactiveWidget, SIGNAL(stateChanged(int)), this, SLOT(showInactive(int)));
     connect(dateWidget, SIGNAL(activated(int)), this, SLOT(chooseDate(int)));
     connect(typeWidget, SIGNAL(activated(int)), this, SLOT(chooseType(int)));
     connect(addressWidget, SIGNAL(textChanged(QString)), this, SLOT(changedPrefix(QString)));
@@ -187,6 +191,13 @@ void TransactionView::setModel(WalletModel* model)
                                                            QHeaderView::Stretch);
         transactionView->horizontalHeader()->resizeSection(TransactionTableModel::Amount, 120);
     }
+}
+
+void TransactionView::showInactive(int state)
+{
+    if (!transactionProxyModel)
+        return;
+    transactionProxyModel->setShowInactive((state == Qt::Checked));
 }
 
 void TransactionView::chooseDate(int idx)
