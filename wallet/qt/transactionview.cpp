@@ -42,15 +42,21 @@ TransactionView::TransactionView(QWidget* parent)
     hlayout->setContentsMargins(0, 0, 0, 0);
 #ifdef Q_OS_MAC
     hlayout->setSpacing(5);
-    hlayout->addSpacing(8);
+    hlayout->addSpacing(4);
 #else
     hlayout->setSpacing(0);
-    hlayout->addSpacing(5);
+    hlayout->addSpacing(2);
 #endif
 
     showInactiveWidget = new QCheckBox(this);
     showInactiveWidget->setToolTip("Show Conflicted & Invalid Transactions");
     hlayout->addWidget(showInactiveWidget);
+
+#ifdef Q_OS_MAC
+    hlayout->addSpacing(4);
+#else
+    hlayout->addSpacing(2);
+#endif
 
     dateWidget = new QComboBox(this);
 #ifdef Q_OS_MAC
