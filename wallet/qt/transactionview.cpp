@@ -42,6 +42,7 @@ TransactionView::TransactionView(QWidget* parent)
     hlayout->setContentsMargins(0, 0, 0, 0);
 #ifdef Q_OS_MAC
     hlayout->setSpacing(5);
+    hlayout->addSpacing(3);
 #else
     hlayout->setSpacing(0);
 #endif
