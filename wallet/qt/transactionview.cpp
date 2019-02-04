@@ -42,10 +42,10 @@ TransactionView::TransactionView(QWidget* parent)
     hlayout->setContentsMargins(0, 0, 0, 0);
 #ifdef Q_OS_MAC
     hlayout->setSpacing(5);
-    hlayout->addSpacing(4);
+    hlayout->addSpacing(5);
 #else
     hlayout->setSpacing(0);
-    hlayout->addSpacing(2);
+    hlayout->addSpacing(3);
 #endif
 
     showInactiveWidget = new QCheckBox(this);
@@ -53,9 +53,9 @@ TransactionView::TransactionView(QWidget* parent)
     hlayout->addWidget(showInactiveWidget);
 
 #ifdef Q_OS_MAC
-    hlayout->addSpacing(4);
+    hlayout->addSpacing(5);
 #else
-    hlayout->addSpacing(2);
+    hlayout->addSpacing(3);
 #endif
 
     dateWidget = new QComboBox(this);
