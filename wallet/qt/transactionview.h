@@ -8,6 +8,7 @@ class TransactionFilterProxy;
 
 QT_BEGIN_NAMESPACE
 class QTableView;
+class QCheckBox;
 class QComboBox;
 class QLineEdit;
 class QModelIndex;
@@ -44,6 +45,7 @@ private:
     TransactionFilterProxy* transactionProxyModel;
     QTableView*             transactionView;
 
+    QCheckBox* showInactiveWidget;
     QComboBox* dateWidget;
     QComboBox* typeWidget;
     QLineEdit* addressWidget;
@@ -72,6 +74,7 @@ signals:
     void doubleClicked(const QModelIndex&);
 
 public slots:
+    void showInactive(int state);
     void chooseDate(int idx);
     void chooseType(int idx);
     void changedPrefix(const QString& prefix);
