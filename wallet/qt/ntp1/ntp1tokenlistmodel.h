@@ -44,6 +44,8 @@ class NTP1TokenListModel : public QAbstractTableModel
             }
         }
 
+        virtual ~NTP1WalletTxUpdater() {}
+
         // WalletNewTxUpdateFunctor interface
     public:
         void setReferenceBlockHeight() Q_DECL_OVERRIDE { currentBlockHeight = nBestHeight; }
@@ -69,7 +71,7 @@ public:
     void refreshNTP1Wallet();
 
     NTP1TokenListModel();
-    ~NTP1TokenListModel();
+    virtual ~NTP1TokenListModel();
     void reloadBalances();
 
     int      rowCount(const QModelIndex& parent) const Q_DECL_OVERRIDE;
