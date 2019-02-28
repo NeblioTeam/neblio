@@ -12,10 +12,10 @@
 #include "sync.h"
 #include "zerocoin/Zerocoin.h"
 
+#include <atomic>
 #include <list>
 #include <unordered_map>
 #include <unordered_set>
-#include <atomic>
 
 class CWallet;
 class CBlock;
@@ -1403,8 +1403,12 @@ public:
         printf("\n");
     }
 
+    static bool CheckBIP30Attack(CTxDB& txdb, const uint256& hashTx);
+
     bool DisconnectBlock(CTxDB& txdb, CBlockIndex* pindex);
     bool ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck = false);
+    bool VerifyInputsUnspent(CTxDB& txdb) const;
+    bool VerifyBlock(CTxDB& txdb);
     bool ReadFromDisk(const CBlockIndex* pindex, bool fReadTransactions = true);
     bool ReadFromDisk(const CBlockIndex* pindex, CTxDB& txdb, bool fReadTransactions = true);
     bool SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew, const bool createDbTransaction = true);

@@ -1593,6 +1593,145 @@ bool CBlock::DisconnectBlock(CTxDB& txdb, CBlockIndex* pindex)
     return true;
 }
 
+CDiskTxPos CreateFakeSpentTxPos(const uint256& blockhash)
+{
+    /// this creates a fake tx position that helps in marking an output as spent
+    CDiskTxPos fakeTxPos;
+    fakeTxPos.nBlockPos = blockhash;
+    fakeTxPos.nTxPos    = 1; // invalid position just to mark the tx as spent temporarily
+    assert(!fakeTxPos.IsNull());
+    return fakeTxPos;
+}
+
+bool CBlock::VerifyInputsUnspent(CTxDB& txdb) const
+{
+    // this function solves the problem in
+    // https://medium.com/@dsl_uiuc/fake-stake-attacks-on-chain-based-proof-of-stake-cryptocurrencies-b8b05723f806
+    // this function doesn't modify the database or the block being analyzed
+
+    // queued transactions are the inputs that we already found (even from this block). The map stores
+    // whether transactions are spent already. This solves the problem of spending an output in the same
+    // block where it's created
+
+    std::unordered_map<uint256, CTxIndex> queuedTxs;
+    for (const CTransaction& tx : vtx) {
+        {
+            // since this function checks whether all transactions are spent, this should exclude BIP30
+            // cases, where a duplicate transaction is being rewritten
+            CTxIndex  txindexOld;
+            uint256&& txHash = tx.GetHash();
+            // if the transaction already exists in the blockchain
+            if (txdb.ContainsTx(txHash) && txdb.ReadTxIndex(txHash, txindexOld)) {
+                printf("Found a transaction %s that requires the BIP30 check (in a new block while "
+                       "already in the blockchain)\n",
+                       txHash.ToString().c_str());
+
+                // place in the map
+                // spent tx as all transactions are spent in case of BIP30
+                CTxIndex txindex(CreateFakeSpentTxPos(this->GetHash()), tx.vout.size());
+                queuedTxs[txHash] = txindex;
+
+                if (CheckBIP30Attack(txdb, txHash)) {
+
+                    // All transactions outputs are expected to be spent according to BIP30, so we add
+                    // them as spent (we should add it in case it's being spent again in this block so
+                    // that the error is correctly identified)
+                    auto it = queuedTxs.find(tx.GetHash());
+                    if (it == queuedTxs.cend()) {
+                        CTxIndex txindex(CreateFakeSpentTxPos(this->GetHash()), tx.vout.size());
+                        queuedTxs[tx.GetHash()] = txindex;
+                    }
+
+                    continue;
+                } else {
+                    return error("BIP30 attack check failed for transaction %s in block %s",
+                                 txHash.ToString().c_str(), this->GetHash().ToString().c_str());
+                }
+            }
+        }
+
+        {
+            // if the transaction is spent in the same block, it should also be found in the queued
+            // transactions list in order for the tests below to work because it's not in the blockchain
+            // yet
+            auto it = queuedTxs.find(tx.GetHash());
+            if (it == queuedTxs.cend()) {
+                CTxIndex txindex(CDiskTxPos(this->GetHash(), 2), tx.vout.size()); // unspent tx
+                queuedTxs[tx.GetHash()] = txindex;
+            }
+        }
+
+        // coinbase don't have any inputs
+        if (tx.IsCoinBase()) {
+            continue;
+        }
+
+        // loop over inputs of this transaction, and check whether the outputs are already spent
+        const std::vector<CTxIn>& vin = tx.vin;
+        for (unsigned int inIdx = 0; inIdx < vin.size(); inIdx++) {
+            uint256  outputTxHash  = vin[inIdx].prevout.hash;
+            unsigned outputNumInTx = vin[inIdx].prevout.n;
+            CTxIndex txindex;
+            auto     it                = queuedTxs.find(vin[inIdx].prevout.hash);
+            bool     inputFoundInQueue = (it != queuedTxs.cend());
+            if (inputFoundInQueue) {
+                if (it->second.vSpent[outputNumInTx].IsNull()) {
+                    // tx is not spent yet, so we mark it as spent
+                    it->second.vSpent[outputNumInTx] = CreateFakeSpentTxPos(this->GetHash());
+                } else {
+                    return error("Output number %u in tx %s which is an input to tx %s is attempting to "
+                                 "double-spend in the same block %s",
+                                 outputNumInTx, outputTxHash.ToString().c_str(),
+                                 tx.GetHash().ToString().c_str(), this->GetHash().ToString().c_str());
+                }
+            } else if (txdb.ContainsTx(outputTxHash) && txdb.ReadTxIndex(outputTxHash, txindex)) {
+                queuedTxs[outputTxHash] = txindex;
+                if (txindex.vSpent[outputNumInTx].IsNull()) {
+                    queuedTxs.find(outputTxHash)->second.vSpent[outputNumInTx] =
+                        CreateFakeSpentTxPos(this->GetHash());
+                } else {
+                    return error("Output number %u in tx %s which is an input to tx %s and is being "
+                                 "attempted to spend it in block %s, this is a "
+                                 "double-spend attempt",
+                                 outputNumInTx, outputTxHash.ToString().c_str(),
+                                 tx.GetHash().ToString().c_str(), this->GetHash().ToString().c_str());
+                }
+            } else {
+                return error("Output number %u in tx %s which is an input to tx %s and is being "
+                             "attempted to spend it in block %s. it's an invalid tx",
+                             outputNumInTx, outputTxHash.ToString().c_str(),
+                             tx.GetHash().ToString().c_str(),
+                             vin[inIdx].prevout.hash.ToString().c_str());
+            }
+        }
+    }
+    return true;
+}
+
+bool CBlock::CheckBIP30Attack(CTxDB& txdb, const uint256& hashTx)
+{
+    // Do not allow blocks that contain transactions which 'overwrite' older transactions,
+    // unless those are already completely spent.
+    // If such overwrites are allowed, coinbases and transactions depending upon those
+    // can be duplicated to remove the ability to spend the first instance -- even after
+    // being sent to another address.
+    // See BIP30 and http://r6.ca/blog/20120206T005236Z.html for more information.
+    // This logic is not necessary for memory pool transactions, as AcceptToMemoryPool
+    // already refuses previously-known transaction ids entirely.
+    // This rule was originally applied all blocks whose timestamp was after March 15, 2012, 0:00
+    // UTC. Now that the whole chain is irreversibly beyond that time it is applied to all blocks
+    // except the two in the chain that violate it. This prevents exploiting the issue against nodes
+    // in their initial block download.
+
+    CTxIndex txindexOld;
+    if (txdb.ContainsTx(hashTx) && txdb.ReadTxIndex(hashTx, txindexOld)) {
+        for (CDiskTxPos& pos : txindexOld.vSpent)
+            if (pos.IsNull())
+                return false;
+    }
+    return true;
+}
+
 bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
 {
     // Check it again in case a previous version let a bad block in, but skip BlockSig checking
@@ -1632,24 +1771,10 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
 
         std::vector<std::pair<CTransaction, NTP1Transaction>> inputsWithNTP1;
 
-        // Do not allow blocks that contain transactions which 'overwrite' older transactions,
-        // unless those are already completely spent.
-        // If such overwrites are allowed, coinbases and transactions depending upon those
-        // can be duplicated to remove the ability to spend the first instance -- even after
-        // being sent to another address.
-        // See BIP30 and http://r6.ca/blog/20120206T005236Z.html for more information.
-        // This logic is not necessary for memory pool transactions, as AcceptToMemoryPool
-        // already refuses previously-known transaction ids entirely.
-        // This rule was originally applied all blocks whose timestamp was after March 15, 2012, 0:00
-        // UTC. Now that the whole chain is irreversibly beyond that time it is applied to all blocks
-        // except the two in the chain that violate it. This prevents exploiting the issue against nodes
-        // in their initial block download.
-
-        CTxIndex txindexOld;
-        if (txdb.ContainsTx(hashTx) && txdb.ReadTxIndex(hashTx, txindexOld)) {
-            for (CDiskTxPos& pos : txindexOld.vSpent)
-                if (pos.IsNull())
-                    return false;
+        if (!CheckBIP30Attack(txdb, hashTx)) {
+            return error(
+                "Block %s was rejected as it seems that an attempt of BIP30 attack was attempted\n",
+                this->GetHash().ToString().c_str());
         }
 
         nSigOps += tx.GetLegacySigOpCount();
@@ -2654,6 +2779,14 @@ bool CBlock::AcceptBlock()
     uint256 hash = GetHash();
     if (mapBlockIndex.count(hash))
         return error("AcceptBlock() : block already in mapBlockIndex");
+
+    {
+        CTxDB txdb;
+        if (!VerifyInputsUnspent(txdb)) {
+            return error("VerifyInputsUnspent() failed for block %s",
+                         this->GetHash().ToString().c_str());
+        }
+    }
 
     // Get prev block index
     unordered_map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashPrevBlock);
