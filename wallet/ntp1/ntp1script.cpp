@@ -640,6 +640,7 @@ NTP1Int NTP1Script::NTP1AmountHexToNumber(std::string hexVal)
     static_assert(digits <= 512, "Very large type for NTP1Int");
     static_assert(digits >= 64, "Very short type for NTP1Int");
 
-    return static_cast<NTP1Int>(std::bitset<digits>(mantissa).to_ullong() *
-                                std::pow(10, boost::dynamic_bitset<>(exponent).to_ulong()));
+    return static_cast<NTP1Int>(std::bitset<digits>(mantissa).to_ullong()) *
+           static_cast<NTP1Int>(
+               boost::multiprecision::pow(NTP1Int(10), boost::dynamic_bitset<>(exponent).to_ulong()));
 }
