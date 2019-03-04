@@ -1603,60 +1603,258 @@ CDiskTxPos CreateFakeSpentTxPos(const uint256& blockhash)
     return fakeTxPos;
 }
 
+/// returns all the blocks from the tip of the main chain up to the common ancestor (without the common
+/// ancestor)
+CBlock::CommonAncestorsMembers CBlock::GetBlocksUpToCommonAncestorInMainChain() const
+{
+    CommonAncestorsMembers res;
+
+    // we expect both the main chain and the fork's previous block to be in the block index
+
+    // main chain part
+    CBlockIndex* I      = nullptr;
+    auto         itBest = mapBlockIndex.find(hashBestChain);
+
+    // fork part
+    CBlockIndex*  T                  = nullptr;
+    const uint256 commonAncestorHash = this->hashPrevBlock;
+    auto          itTarget           = mapBlockIndex.find(commonAncestorHash);
+
+    if (itBest != mapBlockIndex.end()) {
+        I = itBest->second;
+    } else {
+        throw std::runtime_error("Failed to find main chain tip with hash " + hashBestChain.ToString() +
+                                 " in " + std::string(__PRETTY_FUNCTION__));
+    }
+
+    if (itTarget != mapBlockIndex.end()) {
+        T = itTarget->second;
+        // keep stepping back from the orphan (new block) until we find the main chain
+        while (!T->IsInMainChain()) {
+            // this map will be empty if the fork from main chain has only this block
+            res.inFork.push_back(T->GetBlockHash());
+            //            std::cout << "Block in fork chain: " << T->GetBlockHash().ToString() << "\t" <<
+            //            T->nHeight
+            //                      << std::endl;
+            T = T->pprev;
+        }
+        //        std::cout << "Traversing " << itBest->second->nHeight - itTarget->second->nHeight << "
+        //        blocks" << std::endl;
+    } else {
+        throw std::runtime_error("Failed to find target block " + commonAncestorHash.ToString() +
+                                 "in block index in " + std::string(__PRETTY_FUNCTION__));
+    }
+
+    // the fork should be in temporal order because it's to be spent in order later
+    std::reverse(res.inFork.begin(), res.inFork.end());
+
+    assert(I != nullptr);
+    assert(T != nullptr);
+    // step back until we meet the main chain point in the fork
+    while (I->GetBlockHash() != T->GetBlockHash() && I->GetBlockHash() != hashGenesisBlock &&
+           I->GetBlockHash() != hashGenesisBlockTestNet) {
+        res.inMainChain.insert(I->GetBlockHash());
+        //        std::cout << "Block in main chain: " << I->GetBlockHash().ToString() << "\t" <<
+        //        I->nHeight << std::endl;
+        I = I->pprev;
+    }
+    //    std::cout << "End block hashes" << std::endl << std::endl;
+    return res;
+}
+
+/**
+ * @brief CBlock::GetAlternateChainTxsUpToCommonAncestor
+ * @return
+ * This function will get all the blocks from the main chain up to the common ancestor with this block;
+ * then, it'll unspend all the transactions in these blocks and return them in the map. This is necessary
+ * to solve the problem of stake attack described in VerifyInputsUnspent()
+ */
+CBlock::ChainReplaceTxs CBlock::GetAlternateChainTxsUpToCommonAncestor(CTxDB& txdb) const
+{
+    ChainReplaceTxs result;
+
+    CommonAncestorsMembers    commonAncestory = GetBlocksUpToCommonAncestorInMainChain();
+    std::vector<CTransaction> mainChainBlocksTxs; // to be disconnected
+    std::vector<CTransaction> forkChainBlocksTxs; // to be reconnected
+
+    // get all txs in blocks up to the common ancestor in the main chain
+    for (const uint256& bh : commonAncestory.inMainChain) {
+        CBlock blk;
+        if (!txdb.ReadBlock(bh, blk, true)) {
+            throw std::runtime_error("In main chain search, block " + bh.ToString() +
+                                     " was not found in the database");
+        }
+        auto getHashFunc = [](const CTransaction& tx) { return tx.GetHash(); };
+        std::transform(blk.vtx.cbegin(), blk.vtx.cend(),
+                       std::inserter(result.disconnectedRootTxs, result.disconnectedRootTxs.begin()),
+                       getHashFunc);
+        std::move(blk.vtx.begin(), blk.vtx.end(), std::back_inserter(mainChainBlocksTxs));
+    }
+
+    // get all txs in the fork leading to this transaction (in order to test spending them later)
+    for (const uint256& bh : commonAncestory.inFork) {
+        CBlock blk;
+        //        std::cout << "In fork block hash: " << bh.ToString() << std::endl;
+        if (!txdb.ReadBlock(bh, blk, true)) {
+            throw std::runtime_error("In fork chain search, block " + bh.ToString() +
+                                     " was not found in the database");
+        }
+        //        for (const CTransaction& t : blk.vtx) {
+        //            std::cout << "In fork tx hash: " << t.GetHash().ToString() << std::endl;
+        //        }
+        std::copy(blk.vtx.cbegin(), blk.vtx.cend(), std::back_inserter(forkChainBlocksTxs));
+    }
+
+    // unspend transactions that go from the main-chain up to the common ancessor (excluding the common
+    // ancestor)
+    //    std::cout << "Start disconnected txs" << std::endl;
+    for (const CTransaction& tx : mainChainBlocksTxs) {
+        //        std::cout << "Disconnecting inputs of: " << tx.GetHash().ToString() << std::endl;
+        const std::vector<CTxIn>& vin = tx.vin;
+        for (unsigned int inIdx = 0; inIdx < vin.size(); inIdx++) {
+            const CTxIn& txin = vin[inIdx];
+            if (tx.IsCoinBase()) {
+                continue;
+            }
+            uint256  outputTxHash  = txin.prevout.hash;
+            unsigned outputNumInTx = txin.prevout.n;
+
+            auto     idxIt = result.modifiedOutputsTxs.find(outputTxHash);
+            CTxIndex txindex;
+            if (idxIt == result.modifiedOutputsTxs.cend()) {
+                // Get prev txindex from disk
+                if (!txdb.ReadTxIndex(outputTxHash, txindex)) {
+                    throw std::runtime_error(std::string(__PRETTY_FUNCTION__) +
+                                             ": ReadTxIndex failed for transaction " +
+                                             outputTxHash.ToString());
+                }
+            } else {
+                // Get txindex from the map
+                txindex = idxIt->second;
+            }
+
+            // check range
+            if (outputNumInTx >= txindex.vSpent.size())
+                throw std::runtime_error(
+                    std::string(__PRETTY_FUNCTION__) + ": prevout.n out of range for transaction " +
+                    outputTxHash.ToString() + " and output " + std::to_string(outputNumInTx));
+
+            // unspend, which is equivalent to disconnecting the blockchain (without updating the
+            // database)
+            txindex.vSpent[outputNumInTx].SetNull();
+
+            // this way, all main-chain spent transactions are in this map, while marked unspent
+            result.modifiedOutputsTxs[outputTxHash] = txindex;
+        }
+    }
+
+    //    std::cout << "End disconnected txs" << std::endl;
+
+    //    std::cout << "Start reconnecting txs" << std::endl;
+    // respend the transactions on the fork (to test whether this block is valid at this chain)
+    for (const CTransaction& tx : forkChainBlocksTxs) {
+        //        std::cout << "Reconnecting inputs in: " << tx.GetHash().ToString() << std::endl;
+        const std::vector<CTxIn>& vin = tx.vin;
+        for (unsigned int inIdx = 0; inIdx < vin.size(); inIdx++) {
+            const CTxIn& txin = vin[inIdx];
+            if (tx.IsCoinBase()) {
+                continue;
+            }
+            uint256  outputTxHash  = txin.prevout.hash;
+            unsigned outputNumInTx = txin.prevout.n;
+
+            auto     idxIt = result.modifiedOutputsTxs.find(outputTxHash);
+            CTxIndex txindex;
+            if (idxIt == result.modifiedOutputsTxs.cend()) {
+                // Get prev txindex from disk
+                if (!txdb.ReadTxIndex(outputTxHash, txindex)) {
+                    throw std::runtime_error(std::string(__PRETTY_FUNCTION__) +
+                                             ": ReadTxIndex failed for transaction " +
+                                             outputTxHash.ToString());
+                }
+            } else {
+                txindex = idxIt->second;
+            }
+
+            // check range
+            if (outputNumInTx >= txindex.vSpent.size())
+                throw std::runtime_error(
+                    std::string(__PRETTY_FUNCTION__) + ": prevout.n out of range for transaction " +
+                    outputTxHash.ToString() + " and output " + std::to_string(outputNumInTx));
+
+            // spend the output (without updating the database)
+            txindex.vSpent[outputNumInTx] = CreateFakeSpentTxPos(txindex.pos.nBlockPos);
+
+            result.modifiedOutputsTxs[outputTxHash] = txindex;
+        }
+        // since we're respending the transactions, we should store them in modified list because they
+        // can be spent in subsequent blocks
+        auto idxIt = result.modifiedOutputsTxs.find(tx.GetHash());
+        if (idxIt == result.modifiedOutputsTxs.cend()) {
+            result.modifiedOutputsTxs[tx.GetHash()] =
+                CTxIndex(CDiskTxPos(this->GetHash(), 3), tx.vout.size());
+        }
+    }
+    //    std::cout << "End reconnecting txs" << std::endl;
+    return result;
+}
+
 bool CBlock::VerifyInputsUnspent(CTxDB& txdb) const
 {
     // this function solves the problem in
     // https://medium.com/@dsl_uiuc/fake-stake-attacks-on-chain-based-proof-of-stake-cryptocurrencies-b8b05723f806
     // this function doesn't modify the database or the block being analyzed
 
+    // in order to do this, we reverse/disconnect transactions up to the common ancestor (without
+    // modifying the database), then we replay the new chain up the this block, finally we check whether
+    // this block is valid in the chain constructed from common ancestor to this
+
     // queued transactions are the inputs that we already found (even from this block). The map stores
     // whether transactions are spent already. This solves the problem of spending an output in the same
     // block where it's created
-
     std::unordered_map<uint256, CTxIndex> queuedTxs;
+    ChainReplaceTxs                       alternateChainTxs;
+
+    try {
+        alternateChainTxs = GetAlternateChainTxsUpToCommonAncestor(txdb);
+    } catch (std::exception& ex) {
+        return error("Failed to verify unspent inputs for block %s; error: %s",
+                     this->GetHash().ToString().c_str(), ex.what());
+    }
+
+    queuedTxs = alternateChainTxs.modifiedOutputsTxs;
+    const std::unordered_set<uint256>& disconnectedTxsFromMainChain =
+        alternateChainTxs.disconnectedRootTxs;
+
     for (const CTransaction& tx : vtx) {
+        //        std::cout << "Working on tx: " << tx.GetHash().ToString() << std::endl;
         {
             // since this function checks whether all transactions are spent, this should exclude BIP30
             // cases, where a duplicate transaction is being rewritten
             CTxIndex  txindexOld;
             uint256&& txHash = tx.GetHash();
-            // if the transaction already exists in the blockchain
-            if (txdb.ContainsTx(txHash) && txdb.ReadTxIndex(txHash, txindexOld)) {
-                printf("Found a transaction %s that requires the BIP30 check (in a new block while "
-                       "already in the blockchain)\n",
-                       txHash.ToString().c_str());
+            // if the transaction already exists in the blockchain and is not part of the reversed
+            // transactions
+            bool foundInForkedBlocks =
+                disconnectedTxsFromMainChain.find(txHash) != disconnectedTxsFromMainChain.cend();
+            if (txdb.ContainsTx(txHash) && txdb.ReadTxIndex(txHash, txindexOld) &&
+                !foundInForkedBlocks) {
 
-                // place in the map
-                // spent tx as all transactions are spent in case of BIP30
-                CTxIndex txindex(CreateFakeSpentTxPos(this->GetHash()), tx.vout.size());
-                queuedTxs[txHash] = txindex;
-
-                if (CheckBIP30Attack(txdb, txHash)) {
-
-                    // All transactions outputs are expected to be spent according to BIP30, so we add
-                    // them as spent (we should add it in case it's being spent again in this block so
-                    // that the error is correctly identified)
-                    auto it = queuedTxs.find(tx.GetHash());
-                    if (it == queuedTxs.cend()) {
-                        CTxIndex txindex(CreateFakeSpentTxPos(this->GetHash()), tx.vout.size());
-                        queuedTxs[tx.GetHash()] = txindex;
-                    }
-
-                    continue;
-                } else {
-                    return error("BIP30 attack check failed for transaction %s in block %s",
-                                 txHash.ToString().c_str(), this->GetHash().ToString().c_str());
-                }
+                printf("Found a transaction %s in a new block while already in the blockchain in block "
+                       "%s; this is a BIP30 possible attack\n",
+                       txHash.ToString().c_str(), txindexOld.pos.nBlockPos.ToString().c_str());
+                continue;
             }
         }
 
         {
-            // if the transaction is spent in the same block, it should also be found in the queued
-            // transactions list in order for the tests below to work because it's not in the blockchain
-            // yet
+            // if an output in the transaction is spent in the same block, it should also be found in the
+            // queued transactions list in order for the tests below to work because it's not in the
+            // blockchain yet
             auto it = queuedTxs.find(tx.GetHash());
             if (it == queuedTxs.cend()) {
-                CTxIndex txindex(CDiskTxPos(this->GetHash(), 2), tx.vout.size()); // unspent tx
+                // unspent tx (all vSpent are null)
+                CTxIndex txindex(CDiskTxPos(this->GetHash(), 2), tx.vout.size());
                 queuedTxs[tx.GetHash()] = txindex;
             }
         }
@@ -2419,7 +2617,7 @@ CTransaction FetchTxFromDisk(const uint256& txid, CTxDB& txdb)
         throw std::runtime_error("Unable to read standard transaction from db: " + txid.ToString());
     }
     if (!result.ReadFromDisk(txPos.pos, txdb)) {
-        printf("Unable to read NTP1 transaction from disk with the "
+        printf("Unable to read standard transaction from disk with the "
                "index given by db: %s\n",
                txid.ToString().c_str());
         throw std::runtime_error("Unable to read standard transaction from db: " + txid.ToString());
@@ -4911,7 +5109,7 @@ void ExportBootstrapBlockchain(const string& filename, std::atomic<bool>& stoppe
         std::vector<CBlockIndex*> chainBlocksIndices;
 
         {
-            CBlockIndex* pblockindex = mapBlockIndex[hashBestChain];
+            CBlockIndex* pblockindex = mapBlockIndex[hashBestChain]; // TODO: change this to find()
             chainBlocksIndices.push_back(pblockindex);
             while (pblockindex->nHeight > 0 && !stopped.load() && !fShutdown) {
                 pblockindex = pblockindex->pprev;
