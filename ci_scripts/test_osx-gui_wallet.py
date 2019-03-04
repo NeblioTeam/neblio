@@ -55,7 +55,9 @@ else:
 	nci.call_with_err_code('qmake "QMAKE_CXX=ccache clang++" "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-wallet.pro')
 	nci.call_with_err_code("make -j" + str(mp.cpu_count()))
 	# build our .dmg
-	nci.call_with_err_code('sudo easy_install appscript')
+	#nci.call_with_err_code('sudo easy_install appscript')
+	# Install appscript from source due to issue with new compiled packages
+	nci.call_with_err_code('sudo easy_install https://files.pythonhosted.org/packages/35/0b/0ad06b376b2119c6c02a6d214070c8528081ed868bf82853d4758bf942eb/appscript-1.0.1.tar.gz')
 	os.chdir("wallet")
 	# start Xvfb as fancy DMG creation requires a screen
 	nci.call_with_err_code('sudo Xvfb :99 -ac -screen 0 1024x768x8 &')
