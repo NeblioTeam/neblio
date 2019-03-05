@@ -22,6 +22,7 @@ public:
 
     std::string getHexMetadata() const;
     std::string getRawMetadata() const;
+    std::string getInflatedMetadata() const;
 
     int                                         getDivisibility() const;
     bool                                        isLocked() const;

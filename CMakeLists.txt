@@ -8,12 +8,12 @@ message("Building on machine: " ${hostname})
 
 set(CMAKE_CXX_STANDARD 11)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-unused-variable -Wno-unused-function -Wno-unused-private-field")
 
 option(COMPILE_GUI "Enable compiling neblio-qt" ON)
 option(COMPILE_DAEMON "Enable compiling nebliod" ON)
 option(COMPILE_CURL "Download and compile libcurl (and OpenSSL) automatically (Not for Windows)" OFF)
-option(USE_QRCODE "Enable QRCode" ON)
+option(USE_QRCODE "Enable QRCode" OFF)
 option(USE_UPNP   "Enable Miniupnpc" OFF)
 option(USE_DBUS   "Enable Dbus" ON)
 option(USE_CUSTOM_WARNINGS   "Enable custom warnings" OFF)
@@ -42,6 +42,9 @@ find_package(Qt5LinguistTools REQUIRED)
 find_package(BerkeleyDB REQUIRED)
 find_package(PkgConfig  REQUIRED)
 find_package(Boost 1.55 COMPONENTS system random filesystem thread regex program_options iostreams REQUIRED)
+
+SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+find_package(ZLIB       REQUIRED)
 
 
 if(COMPILE_CURL AND NOT WIN32)
@@ -503,6 +506,7 @@ add_library(core_lib STATIC
     wallet/neblioupdater.cpp
     wallet/neblioversion.cpp
     wallet/neblioreleaseinfo.cpp
+    wallet/ThreadSafeMap.cpp
     wallet/ThreadSafeHashMap.cpp
     wallet/NetworkForks.cpp
     )
@@ -584,6 +588,8 @@ include_directories(wallet/json)
 target_include_directories(gui_lib PRIVATE wallet/qt)
 target_include_directories(ntp1_gui_lib PRIVATE wallet/qt)
 
+include_directories(${ZLIB_INCLUDE_DIRS})
+
 # the following from here https://github.com/owncloud/client/blob/master/src/gui/CMakeLists.txt
 target_compile_definitions(gui_lib PRIVATE "QT_DISABLE_DEPRECATED_BEFORE=0")
 
@@ -617,9 +623,11 @@ if(WIN32)
             Boost::thread
             Boost::regex
             Boost::program_options
+            Boost::iostreams
             ${BERKELEY_DB_LIBRARIES}
             ${CURL_LIBS}
             ${OPENSSL_LIBS}
+            ${ZLIB_LIBRARIES}
             )
         target_compile_definitions(neblio-qt PRIVATE
             QT_GUI
@@ -660,9 +668,11 @@ else()
             Boost::thread
             Boost::regex
             Boost::program_options
+            Boost::iostreams
             ${BERKELEY_DB_LIBRARIES}
             ${CURL_LIBS}
             ${OPENSSL_LIBS}
+            ${ZLIB_LIBRARIES}
             )
         target_compile_definitions(neblio-qt PRIVATE
             QT_GUI
@@ -691,9 +701,11 @@ else()
             Boost::thread
             Boost::regex
             Boost::program_options
+            Boost::iostreams
             ${BERKELEY_DB_LIBRARIES}
             ${CURL_LIBS}
             ${OPENSSL_LIBS}
+            ${ZLIB_LIBRARIES}
             )
     endif()
 endif()

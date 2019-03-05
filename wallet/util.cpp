@@ -10,6 +10,9 @@
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string/predicate.hpp> // for startswith() and endswith()
+#include <boost/iostreams/copy.hpp>
+#include <boost/iostreams/filter/zlib.hpp>
+#include <boost/iostreams/filtering_stream.hpp>
 
 // Work around clang compilation problem in Boost 1.46:
 // /usr/include/boost/program_options/detail/config_file.hpp:163:17: error: call to function
@@ -1273,4 +1276,24 @@ string GeneratePseudoRandomHex(const int len)
         s[i] = alphanum[rand() % (sizeof(alphanum) - 1)];
     }
     return s;
+}
+
+std::string ZlibCompress(const std::string& data)
+{
+    boost::iostreams::filtering_istream in;
+    in.push(boost::iostreams::zlib_compressor());
+    in.push(boost::iostreams::array_source(&*data.begin(), &*data.end()));
+    std::string res;
+    boost::iostreams::copy(in, std::back_inserter(res));
+    return res;
+}
+
+std::string ZlibDecompress(const std::string& compressedString)
+{
+    boost::iostreams::filtering_istream in;
+    in.push(boost::iostreams::zlib_decompressor());
+    in.push(boost::iostreams::array_source(&*compressedString.begin(), &*compressedString.end()));
+    std::string res;
+    boost::iostreams::copy(in, std::back_inserter(res));
+    return res;
 }

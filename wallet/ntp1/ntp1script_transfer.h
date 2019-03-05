@@ -15,6 +15,7 @@ public:
 
     std::string                      getHexMetadata() const;
     std::string                      getRawMetadata() const;
+    std::string                      getInflatedMetadata() const;
     unsigned                         getTransferInstructionsCount() const;
     TransferInstruction              getTransferInstruction(unsigned index) const;
     std::vector<TransferInstruction> getTransferInstructions() const;

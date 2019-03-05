@@ -37,6 +37,8 @@ std::string NTP1Script_Issuance::getHexMetadata() const { return boost::algorith
 
 std::string NTP1Script_Issuance::getRawMetadata() const { return metadata; }
 
+std::string NTP1Script_Issuance::getInflatedMetadata() const { return ZlibDecompress(getRawMetadata()); }
+
 int NTP1Script_Issuance::getDivisibility() const { return issuanceFlags.divisibility; }
 
 bool NTP1Script_Issuance::isLocked() const { return issuanceFlags.locked; }
