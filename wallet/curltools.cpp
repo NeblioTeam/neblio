@@ -111,8 +111,8 @@ std::string cURLTools::GetFileFromHTTPS(const std::string& URL, long ConnectionT
             long http_response_code;
             curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_response_code);
             if (http_response_code != 200) {
-                throw std::runtime_error("Error retrieving data with https protocol, error code: " +
-                                         ToString(http_response_code) +
+                throw std::runtime_error("Error retrieving data with https protocol from URL \"" + URL +
+                                         "\", error code: " + ToString(http_response_code) +
                                          ". Probably the URL is invalid.");
             }
         }
@@ -214,8 +214,8 @@ std::string cURLTools::PostJsonToHTTPS(const std::string& URL, long ConnectionTi
                     throw std::runtime_error("Failed to create transaction with error: " +
                                              errorMsg.get_str());
                 } else {
-                    throw std::runtime_error("Error posting data with https protocol, error code: " +
-                                             ToString(http_response_code) +
+                    throw std::runtime_error("Error posting data with https protocol from URL \"" + URL +
+                                             "\", error code: " + ToString(http_response_code) +
                                              ". Probably the URL is invalid. Could not retrieve more "
                                              "information on the error.");
                 }

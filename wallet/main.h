@@ -12,10 +12,10 @@
 #include "sync.h"
 #include "zerocoin/Zerocoin.h"
 
+#include <atomic>
 #include <list>
 #include <unordered_map>
 #include <unordered_set>
-#include <atomic>
 
 class CWallet;
 class CBlock;
@@ -1403,8 +1403,33 @@ public:
         printf("\n");
     }
 
+    static bool CheckBIP30Attack(CTxDB& txdb, const uint256& hashTx);
+
+    struct ChainReplaceTxs
+    {
+        // transactions found in the blocks up to common ancestor in main chain
+        std::unordered_set<uint256> disconnectedRootTxs;
+        // transactions that are being spent in the above ones
+        std::unordered_map<uint256, CTxIndex> modifiedOutputsTxs;
+    };
+
+    struct CommonAncestorsMembers
+    {
+        // while finding the common ancestor, this is the part in the main chain (not part of this block)
+        std::unordered_set<uint256> inMainChain;
+        // while finding the common ancestor, this is the part of this block's chain (excluding this
+        // block)
+        std::vector<uint256>
+            inFork; // order matters here because we want to simulate respending these in order
+    };
+
+    CommonAncestorsMembers GetBlocksUpToCommonAncestorInMainChain() const;
+    ChainReplaceTxs        GetAlternateChainTxsUpToCommonAncestor(CTxDB& txdb) const;
+
     bool DisconnectBlock(CTxDB& txdb, CBlockIndex* pindex);
     bool ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck = false);
+    bool VerifyInputsUnspent(CTxDB& txdb) const;
+    bool VerifyBlock(CTxDB& txdb);
     bool ReadFromDisk(const CBlockIndex* pindex, bool fReadTransactions = true);
     bool ReadFromDisk(const CBlockIndex* pindex, CTxDB& txdb, bool fReadTransactions = true);
     bool SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew, const bool createDbTransaction = true);
