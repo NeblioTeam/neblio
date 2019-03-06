@@ -11,7 +11,13 @@ std::string NTP1Script_Transfer::getHexMetadata() const { return boost::algorith
 
 std::string NTP1Script_Transfer::getRawMetadata() const { return metadata; }
 
-std::string NTP1Script_Transfer::getInflatedMetadata() const { return ZlibDecompress(getRawMetadata()); }
+std::string NTP1Script_Transfer::getInflatedMetadata() const
+{
+    if (!metadata.empty())
+        return ZlibDecompress(getRawMetadata());
+    else
+        return "";
+}
 
 unsigned NTP1Script_Transfer::getTransferInstructionsCount() const
 {

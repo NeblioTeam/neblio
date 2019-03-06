@@ -37,7 +37,13 @@ std::string NTP1Script_Issuance::getHexMetadata() const { return boost::algorith
 
 std::string NTP1Script_Issuance::getRawMetadata() const { return metadata; }
 
-std::string NTP1Script_Issuance::getInflatedMetadata() const { return ZlibDecompress(getRawMetadata()); }
+std::string NTP1Script_Issuance::getInflatedMetadata() const
+{
+    if (!metadata.empty())
+        return ZlibDecompress(getRawMetadata());
+    else
+        return "";
+}
 
 int NTP1Script_Issuance::getDivisibility() const { return issuanceFlags.divisibility; }
 
