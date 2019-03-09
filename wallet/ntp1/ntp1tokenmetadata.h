@@ -9,18 +9,20 @@
 
 class NTP1TokenMetaData : public NTP1TokenMinimalMetaData
 {
-    uint64_t        numOfHolders;
-    uint64_t        totalSupply;
-    uint64_t        numOfTransfers;
-    uint64_t        numOfIssuance;
-    uint64_t        numOfBurns;
-    uint64_t        firstBlock;
-    CBitcoinAddress issueAddress;
-    std::string     tokenName;
-    std::string     tokenDescription;
-    std::string     tokenIssuer;
-    std::string     iconURL;
-    std::string     iconImageType;
+    uint64_t           numOfHolders;
+    uint64_t           totalSupply;
+    uint64_t           numOfTransfers;
+    uint64_t           numOfIssuance;
+    uint64_t           numOfBurns;
+    uint64_t           firstBlock;
+    CBitcoinAddress    issueAddress;
+    std::string        tokenName;
+    std::string        tokenDescription;
+    std::string        tokenIssuer;
+    std::string        iconURL;
+    std::string        iconImageType;
+    json_spirit::Value userData;
+    json_spirit::Value urls;
 
 public:
     void setNull();
@@ -28,7 +30,7 @@ public:
 
     void               importRestfulAPIJsonData(const std::string& data);
     void               importRestfulAPIJsonData(const json_spirit::Value& data);
-    json_spirit::Value exportDatabaseJsonData() const;
+    json_spirit::Value exportDatabaseJsonData(bool for_rpc = false) const;
     void               importDatabaseJsonData(const json_spirit::Value& data);
 
     NTP1TokenMetaData();

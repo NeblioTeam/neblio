@@ -1,6 +1,7 @@
 #ifndef NTP1SCRIPT_H
 #define NTP1SCRIPT_H
 
+#include "json_spirit.h"
 #include <bitset>
 #include <boost/algorithm/hex.hpp>
 #include <boost/dynamic_bitset.hpp>
@@ -129,6 +130,10 @@ public:
      */
     virtual std::set<unsigned int> getNTP1OutputIndices() const = 0;
 
+    virtual std::string getHexMetadata() const      = 0;
+    virtual std::string getRawMetadata() const      = 0;
+    virtual std::string getInflatedMetadata() const = 0;
+
     virtual ~NTP1Script() = default;
     static uint64_t    CalculateMetadataSize(const std::string& op_code_bin);
     static TxType      CalculateTxType(const std::string& op_code_bin);
@@ -158,10 +163,13 @@ public:
 
     static std::shared_ptr<NTP1Script> ParseScript(const std::string& scriptHex);
     std::string                        getParsedScriptHex() const;
+    int                                getProtocolVersion() const;
 
     static NTP1Int     NTP1AmountHexToNumber(std::string hexVal);
     static NTP1Int     GetSignificantDigits(const NTP1Int& num);
     static std::string NumberToHexNTP1Amount(const NTP1Int& num, bool caps = false);
+
+    static json_spirit::Value GetMetadataAsJson(const NTP1Script* ntp1script) noexcept;
 };
 
 template <typename Bitset>

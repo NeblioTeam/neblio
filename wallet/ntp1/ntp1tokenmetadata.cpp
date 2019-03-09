@@ -63,14 +63,16 @@ void NTP1TokenMetaData::importRestfulAPIJsonData(const json_spirit::Value& data)
         tokenDescription              = NTP1Tools::GetStrField(innerdata, "description");
         tokenIssuer                   = NTP1Tools::GetStrField(innerdata, "issuer");
         try {
-            json_spirit::Array urls = NTP1Tools::GetArrayField(innerdata, "urls");
-            for (long i = 0; i < static_cast<long>(urls.size()); i++) {
-                std::string urlName = NTP1Tools::GetStrField(urls[i].get_obj(), "name");
+            json_spirit::Array urlsArray = NTP1Tools::GetArrayField(innerdata, "urls");
+            urls = json_spirit::Value(NTP1Tools::GetArrayField(innerdata, "urls"));
+            for (long i = 0; i < static_cast<long>(urlsArray.size()); i++) {
+                std::string urlName = NTP1Tools::GetStrField(urlsArray[i].get_obj(), "name");
                 if (urlName == "icon") {
-                    iconImageType = NTP1Tools::GetStrField(urls[i].get_obj(), "mimeType");
-                    iconURL       = NTP1Tools::GetStrField(urls[i].get_obj(), "url");
+                    iconImageType = NTP1Tools::GetStrField(urlsArray[i].get_obj(), "mimeType");
+                    iconURL       = NTP1Tools::GetStrField(urlsArray[i].get_obj(), "url");
                 }
             }
+            userData = NTP1Tools::GetObjectField(innerdata, "userData");
         } catch (...) {
         }
     } catch (std::exception& ex) {
@@ -79,29 +81,44 @@ void NTP1TokenMetaData::importRestfulAPIJsonData(const json_spirit::Value& data)
     }
 }
 
-json_spirit::Value NTP1TokenMetaData::exportDatabaseJsonData() const
+json_spirit::Value NTP1TokenMetaData::exportDatabaseJsonData(bool for_rpc) const
 {
     json_spirit::Object root;
 
-    root.push_back(json_spirit::Pair("tokenId", getTokenId()));
-    root.push_back(json_spirit::Pair("issuanceTxid", getIssuanceTxIdHex()));
-    root.push_back(json_spirit::Pair("divisibility", divisibility));
-    root.push_back(json_spirit::Pair("lockStatus", static_cast<bool>(lockStatus)));
-    root.push_back(json_spirit::Pair("aggregationPolicy", aggregationPolicy));
-    root.push_back(json_spirit::Pair("numOfHolders", numOfHolders));
-    root.push_back(json_spirit::Pair("totalSupply", totalSupply));
-    root.push_back(json_spirit::Pair("numOfTransfers", numOfTransfers));
-    root.push_back(json_spirit::Pair("numOfIssuance", numOfIssuance));
-    root.push_back(json_spirit::Pair("numOfBurns", numOfBurns));
-    root.push_back(json_spirit::Pair("firstBlock", firstBlock));
-    root.push_back(json_spirit::Pair("issueAddress", issueAddress.ToString()));
-    root.push_back(json_spirit::Pair("tokenName", tokenName));
-    root.push_back(json_spirit::Pair("tokenDescription", tokenDescription));
-    root.push_back(json_spirit::Pair("tokenIssuer", tokenIssuer));
-    root.push_back(json_spirit::Pair("iconURL", iconURL));
-    root.push_back(json_spirit::Pair("iconImageType", iconImageType));
+    if (!for_rpc) {
+        root.push_back(json_spirit::Pair("userData", userData));
+        root.push_back(json_spirit::Pair("urls", urls));
+        root.push_back(json_spirit::Pair("tokenId", getTokenId()));
+        root.push_back(json_spirit::Pair("issuanceTxid", getIssuanceTxIdHex()));
+        root.push_back(json_spirit::Pair("divisibility", divisibility));
+        root.push_back(json_spirit::Pair("lockStatus", static_cast<bool>(lockStatus)));
+        root.push_back(json_spirit::Pair("aggregationPolicy", aggregationPolicy));
+        root.push_back(json_spirit::Pair("numOfHolders", numOfHolders));
+        root.push_back(json_spirit::Pair("totalSupply", totalSupply));
+        root.push_back(json_spirit::Pair("numOfTransfers", numOfTransfers));
+        root.push_back(json_spirit::Pair("numOfIssuance", numOfIssuance));
+        root.push_back(json_spirit::Pair("numOfBurns", numOfBurns));
+        root.push_back(json_spirit::Pair("firstBlock", firstBlock));
+        root.push_back(json_spirit::Pair("issueAddress", issueAddress.ToString()));
+        root.push_back(json_spirit::Pair("tokenName", tokenName));
+        root.push_back(json_spirit::Pair("tokenDescription", tokenDescription));
+        root.push_back(json_spirit::Pair("tokenIssuer", tokenIssuer));
+        root.push_back(json_spirit::Pair("iconURL", iconURL));
+        root.push_back(json_spirit::Pair("iconImageType", iconImageType));
 
-    return json_spirit::Value(root);
+        return json_spirit::Value(root);
+    } else {
+        root.push_back(json_spirit::Pair("tokenName", tokenName));
+        root.push_back(json_spirit::Pair("description", tokenDescription));
+        root.push_back(json_spirit::Pair("urls", urls));
+        root.push_back(json_spirit::Pair("issuer", tokenIssuer));
+        root.push_back(json_spirit::Pair("userData", userData));
+        json_spirit::Value  rV(root);
+        json_spirit::Object data;
+        data.push_back(json_spirit::Pair("data", rV));
+
+        return data;
+    }
 }
 
 void NTP1TokenMetaData::importDatabaseJsonData(const json_spirit::Value& data)

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.2.0)
 project(Neblio)
 
-message(FATAL_ERROR "This cmake file is only for development. Please use qmake to build the project.")
+#message(FATAL_ERROR "This cmake file is only for development. Please use qmake to build the project.")
 
 cmake_host_system_information(RESULT hostname QUERY HOSTNAME)
 message("Building on machine: " ${hostname})
@@ -512,6 +512,7 @@ add_library(core_lib STATIC
     )
 
 target_link_libraries(core_lib
+    ntp1_lib
     curltools_lib
     )
 
@@ -558,6 +559,7 @@ add_library(ntp1_lib STATIC
     wallet/ntp1/ntp1script.cpp
     wallet/ntp1/ntp1script_issuance.cpp
     wallet/ntp1/ntp1script_transfer.cpp
+    wallet/ntp1/ntp1v1_issuance_static_data.cpp
     )
 
 target_link_libraries(ntp1_lib

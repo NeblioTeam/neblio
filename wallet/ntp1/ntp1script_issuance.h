@@ -20,9 +20,9 @@ protected:
 public:
     NTP1Script_Issuance();
 
-    std::string getHexMetadata() const;
-    std::string getRawMetadata() const;
-    std::string getInflatedMetadata() const;
+    std::string getHexMetadata() const override;
+    std::string getRawMetadata() const override;
+    std::string getInflatedMetadata() const override;
 
     int                                         getDivisibility() const;
     bool                                        isLocked() const;

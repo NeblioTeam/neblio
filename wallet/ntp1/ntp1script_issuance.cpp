@@ -229,7 +229,7 @@ std::string NTP1Script_Issuance::calculateScriptBin() const
         }
 
         uint8_t issuanceFlagsByte = issuanceFlags.convertToByte();
-        result.push_back(*reinterpret_cast<char*>(&issuanceFlagsByte));
+        result.push_back(static_cast<char>(issuanceFlagsByte));
 
         return result;
     } else if (protocolVersion == 3) {
@@ -253,7 +253,7 @@ std::string NTP1Script_Issuance::calculateScriptBin() const
         }
 
         uint8_t issuanceFlagsByte = issuanceFlags.convertToByte();
-        result.push_back(*reinterpret_cast<char*>(&issuanceFlagsByte));
+        result.push_back(static_cast<char>(issuanceFlagsByte));
 
         if (metadata.size() > 0) {
             uint32_t metadataSize = metadata.size();

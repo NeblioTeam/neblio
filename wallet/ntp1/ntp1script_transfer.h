@@ -13,9 +13,9 @@ protected:
 public:
     NTP1Script_Transfer();
 
-    std::string                      getHexMetadata() const;
-    std::string                      getRawMetadata() const;
-    std::string                      getInflatedMetadata() const;
+    std::string                      getHexMetadata() const override;
+    std::string                      getRawMetadata() const override;
+    std::string                      getInflatedMetadata() const override;
     unsigned                         getTransferInstructionsCount() const;
     TransferInstruction              getTransferInstruction(unsigned index) const;
     std::vector<TransferInstruction> getTransferInstructions() const;
