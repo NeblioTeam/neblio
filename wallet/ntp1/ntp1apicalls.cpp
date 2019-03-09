@@ -20,7 +20,7 @@ bool NTP1APICalls::RetrieveData_AddressContainsNTP1Tokens(const std::string& add
         }
         return false;
     } catch (std::exception& ex) {
-        printf("%s", ex.what());
+        printf("%s\n", ex.what());
         throw;
     }
 }
@@ -43,7 +43,7 @@ uint64_t NTP1APICalls::RetrieveData_TotalNeblsExcludingNTP1(const std::string& a
         }
         return totalSats;
     } catch (std::exception& ex) {
-        printf("%s", ex.what());
+        printf("%s\n", ex.what());
         throw;
     }
 }
