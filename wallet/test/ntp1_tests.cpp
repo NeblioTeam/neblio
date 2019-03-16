@@ -2705,7 +2705,7 @@ TEST(ntp1_tests, ntp1v1_metadata_map)
 {
     json_spirit::Value r;
     EXPECT_NO_THROW(r = GetNTP1v1IssuanceMetadataNode("La6h77fYdhWAAEgRqM1BJBwwnjc1XTSaPdhfxo"));
-    EXPECT_ANY_THROW(GetNTP1v1IssuanceMetadataNode("La6h77fYdhWAAEgRqM1BJBwwnjc1XTSaPdhfxo"));
+    EXPECT_ANY_THROW(GetNTP1v1IssuanceMetadataNode("La6h77fYdhWAAEgRqM1BJBwwnjc1XTSaPdhfxoxxxx"));
 }
 
 // TEST(ntp1_tests, total_fee_calculator)
