@@ -130,7 +130,14 @@ HEADERS += qt/bitcoingui.h \
     qt/ntp1/ntp1listelementtokendata.h \
     ntp1/ntp1sendtxdata.h \
     NetworkForks.h \
-    ntp1/ntp1v1_issuance_static_data.h
+    ntp1/ntp1v1_issuance_static_data.h \
+    qt/json/AbstractTreeNode.h  \
+    qt/json/JsonNewNodeDialog.h \
+    qt/json/JsonTreeModel.h     \
+    qt/json/JsonTreeNode.h      \
+    qt/json/JsonTreeView.h
+
+
 
 
 HEADERS +=                 \
@@ -256,7 +263,13 @@ SOURCES += qt/bitcoin.cpp \
     ntp1/ntp1tokenminimalmetadata.cpp \
     ntp1/ntp1sendtxdata.cpp \
     NetworkForks.cpp \
-    ntp1/ntp1v1_issuance_static_data.cpp
+    ntp1/ntp1v1_issuance_static_data.cpp \
+    qt/json/AbstractTreeNode.cpp  \
+    qt/json/JsonNewNodeDialog.cpp \
+    qt/json/JsonTreeModel.cpp     \
+    qt/json/JsonTreeNode.cpp      \
+    qt/json/JsonTreeView.cpp
+
 
 SOURCES +=                   \
     ntp1/ntp1tools.cpp       \

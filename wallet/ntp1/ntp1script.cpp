@@ -547,21 +547,28 @@ std::string NTP1Script::NumberToHexNTP1Amount(const NTP1Int& num, bool caps)
     }
 }
 
-json_spirit::Value NTP1Script::GetMetadataAsJson(const NTP1Script* ntp1script) noexcept
+std::string NTP1Script::GetMetadataAsString(const NTP1Script* ntp1script) noexcept
 {
     if (!ntp1script) {
-        return json_spirit::Value();
+        return "";
     }
+
     std::string textMetadata;
     // decompress, or return uncompress hex data in an error
     try {
         textMetadata = ntp1script->getInflatedMetadata();
     } catch (std::exception& ex) {
-        json_spirit::Object root;
-        root.push_back(json_spirit::Pair("error", "metadata_decompression_failed"));
-        root.push_back(json_spirit::Pair("raw_hex", ntp1script->getHexMetadata()));
-        return json_spirit::Value(root);
     }
+
+    return textMetadata;
+}
+
+json_spirit::Value NTP1Script::GetMetadataAsJson(const NTP1Script* ntp1script) noexcept
+{
+    if (!ntp1script) {
+        return json_spirit::Value();
+    }
+    std::string textMetadata = GetMetadataAsString(ntp1script);
 
     // if empty, return null
     if (textMetadata.empty()) {
@@ -591,6 +598,8 @@ NTP1Int NTP1Script::GetSignificantDigits(const NTP1Int& num)
     for (int i = numStr.size() - 1; i >= 0; i--) {
         if (numStr[i] == '0') {
             toRemove++;
+        } else {
+            break;
         }
     }
     return FromString<NTP1Int>(numStr.substr(0, numStr.size() - toRemove));

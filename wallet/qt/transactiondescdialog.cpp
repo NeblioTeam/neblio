@@ -5,16 +5,46 @@
 
 #include <QModelIndex>
 
-TransactionDescDialog::TransactionDescDialog(const QModelIndex &idx, QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::TransactionDescDialog)
+#include "ntp1/ntp1script.h"
+#include "qt/json/JsonTreeNode.h"
+
+void TransactionDescDialog::setMetadata(const QString& metadataStr)
 {
-    ui->setupUi(this);
-    QString desc = idx.data(TransactionTableModel::LongDescriptionRole).toString();
-    ui->detailText->setHtml(desc);
+    json_spirit::Value res;
+    std::string        str = metadataStr.toStdString();
+    ui->metadataTextView->setPlainText(metadataStr);
+    try {
+        json_spirit::read_or_throw(str, res);
+    } catch (...) {
+        ui->metadataTreeView->setVisible(false);
+        ui->metadataTextView->setVisible(false);
+        ui->switchJsonTreeTextButton->setVisible(false);
+        return;
+    }
+    ui->metadataTreeView->setVisible(true);
+    ui->metadataTextView->setVisible(false);
+    ui->switchJsonTreeTextButton->setVisible(true);
+    ui->metadataTreeView->setModel(&jsonTreeModel);
+    jsonTreeModel.setRoot(JsonTreeNode::ImportFromJson(res));
 }
 
-TransactionDescDialog::~TransactionDescDialog()
+TransactionDescDialog::TransactionDescDialog(const QModelIndex& idx, QWidget* parent)
+    : QDialog(parent), ui(new Ui::TransactionDescDialog)
 {
-    delete ui;
+    ui->setupUi(this);
+    QString desc     = idx.data(TransactionTableModel::LongDescriptionRole).toString();
+    QString metadata = idx.data(TransactionTableModel::NTP1MetadataRole).toString();
+    setMetadata(metadata);
+    ui->detailText->setHtml(desc);
+    connect(ui->switchJsonTreeTextButton, &QPushButton::clicked, this,
+            &TransactionDescDialog::slot_switchJsonTreeToText);
+}
+
+TransactionDescDialog::~TransactionDescDialog() { delete ui; }
+
+void TransactionDescDialog::slot_switchJsonTreeToText()
+{
+    bool treeVisible = ui->metadataTreeView->isVisible();
+    ui->metadataTreeView->setVisible(!treeVisible);
+    ui->metadataTextView->setVisible(treeVisible);
 }

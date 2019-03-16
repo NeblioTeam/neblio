@@ -169,6 +169,7 @@ public:
     static NTP1Int     GetSignificantDigits(const NTP1Int& num);
     static std::string NumberToHexNTP1Amount(const NTP1Int& num, bool caps = false);
 
+    static std::string        GetMetadataAsString(const NTP1Script* ntp1script) noexcept;
     static json_spirit::Value GetMetadataAsJson(const NTP1Script* ntp1script) noexcept;
 };
 
