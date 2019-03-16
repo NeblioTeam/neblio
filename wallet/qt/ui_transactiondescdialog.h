@@ -24,11 +24,11 @@ QT_BEGIN_NAMESPACE
 class Ui_TransactionDescDialog
 {
 public:
-    QVBoxLayout *verticalLayout;
-    QTextEdit *detailText;
-    QDialogButtonBox *buttonBox;
+    QVBoxLayout*      verticalLayout;
+    QTextEdit*        detailText;
+    QDialogButtonBox* buttonBox;
 
-    void setupUi(QDialog *TransactionDescDialog)
+    void setupUi(QDialog* TransactionDescDialog)
     {
         if (TransactionDescDialog->objectName().isEmpty())
             TransactionDescDialog->setObjectName(QStringLiteral("TransactionDescDialog"));
@@ -49,7 +49,6 @@ public:
 
         verticalLayout->addWidget(buttonBox);
 
-
         retranslateUi(TransactionDescDialog);
         QObject::connect(buttonBox, SIGNAL(accepted()), TransactionDescDialog, SLOT(accept()));
         QObject::connect(buttonBox, SIGNAL(rejected()), TransactionDescDialog, SLOT(reject()));
@@ -57,18 +56,22 @@ public:
         QMetaObject::connectSlotsByName(TransactionDescDialog);
     } // setupUi
 
-    void retranslateUi(QDialog *TransactionDescDialog)
+    void retranslateUi(QDialog* TransactionDescDialog)
     {
-        TransactionDescDialog->setWindowTitle(QApplication::translate("TransactionDescDialog", "Transaction details", Q_NULLPTR));
+        TransactionDescDialog->setWindowTitle(
+            QApplication::translate("TransactionDescDialog", "Transaction details", Q_NULLPTR));
 #ifndef QT_NO_TOOLTIP
-        detailText->setToolTip(QApplication::translate("TransactionDescDialog", "This pane shows a detailed description of the transaction", Q_NULLPTR));
+        detailText->setToolTip(QApplication::translate(
+            "TransactionDescDialog", "This pane shows a detailed description of the transaction",
+            Q_NULLPTR));
 #endif // QT_NO_TOOLTIP
-    } // retranslateUi
-
+    }  // retranslateUi
 };
 
 namespace Ui {
-    class TransactionDescDialog: public Ui_TransactionDescDialog {};
+class TransactionDescDialog : public Ui_TransactionDescDialog
+{
+};
 } // namespace Ui
 
 QT_END_NAMESPACE
