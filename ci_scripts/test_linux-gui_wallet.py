@@ -36,7 +36,8 @@ packages_to_install = \
 "libcurl4-openssl-dev",
 "libldap2-dev",
 "libidn11-dev",
-"librtmp-dev"
+"librtmp-dev",
+"zlib1g-dev"
 ]
 
 nci.install_packages_debian(packages_to_install)
