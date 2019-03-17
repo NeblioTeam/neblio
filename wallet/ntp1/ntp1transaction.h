@@ -21,9 +21,9 @@
 
 class CTransaction;
 
-extern const ThreadSafeHashMap<std::string, int>            ntp1_blacklisted_token_ids;
-extern const ThreadSafeHashMap<uint256, int> excluded_txs_testnet;
-extern const ThreadSafeHashMap<uint256, int> excluded_txs_mainnet;
+extern const ThreadSafeHashMap<std::string, int> ntp1_blacklisted_token_ids;
+extern const ThreadSafeHashMap<uint256, int>     excluded_txs_testnet;
+extern const ThreadSafeHashMap<uint256, int>     excluded_txs_mainnet;
 
 bool IsNTP1TokenBlacklisted(const std::string& tokenId, int& maxHeight);
 bool IsNTP1TokenBlacklisted(const std::string& tokenId);
@@ -103,6 +103,8 @@ public:
     CalculateTotalInputTokens(const NTP1Transaction& ntp1tx);
     static std::unordered_map<std::string, TokenMinimalData>
     CalculateTotalOutputTokens(const NTP1Transaction& ntp1tx);
+
+    static json_spirit::Value GetNTP1IssuanceMetadata(const uint256& issuanceTxid) noexcept;
 
     static void
     ReorderTokenInputsToGoFirst(CTransaction&                                                tx,

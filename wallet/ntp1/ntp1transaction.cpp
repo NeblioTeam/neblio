@@ -5,6 +5,7 @@
 #include "ntp1/ntp1script_burn.h"
 #include "ntp1/ntp1script_issuance.h"
 #include "ntp1/ntp1script_transfer.h"
+#include "ntp1/ntp1v1_issuance_static_data.h"
 #include "ntp1tools.h"
 #include "ntp1txin.h"
 #include "ntp1txout.h"
@@ -787,5 +788,39 @@ void NTP1Transaction::readNTP1DataFromTx(
     } else {
         ntp1TransactionType = NTP1TxType_UNKNOWN;
         throw std::runtime_error("Unknown NTP1 transaction type");
+    }
+}
+
+json_spirit::Value NTP1Transaction::GetNTP1IssuanceMetadata(const uint256& issuanceTxid) noexcept
+{
+    CTransaction    tx = FetchTxFromDisk(issuanceTxid);
+    NTP1Transaction ntp1tx;
+    ntp1tx.readNTP1DataFromTx_minimal(tx);
+    std::string opRet;
+    bool        isNTP1 = IsTxNTP1(&tx, &opRet);
+    if (!isNTP1) {
+        return json_spirit::Value();
+    }
+
+    std::shared_ptr<NTP1Script>          s  = NTP1Script::ParseScript(opRet);
+    std::shared_ptr<NTP1Script_Issuance> sd = std::dynamic_pointer_cast<NTP1Script_Issuance>(s);
+    if (!sd || s->getTxType() != NTP1Script::TxType_Issuance) {
+        return json_spirit::Value();
+    }
+    if (s->getProtocolVersion() == 1) {
+        if (tx.vin.empty()) {
+            return json_spirit::Value();
+        }
+        const auto& prevout0 = tx.vin[0].prevout;
+        try {
+            std::string tokenId = ntp1tx.getTokenIdIfIssuance(prevout0.hash.ToString(), prevout0.n);
+            return GetNTP1v1IssuanceMetadataNode(tokenId);
+        } catch (std::exception& ex) {
+            return json_spirit::Value();
+        }
+    } else if (s->getProtocolVersion() == 3) {
+        return NTP1Script::GetMetadataAsJson(sd.get());
+    } else {
+        return json_spirit::Value();
     }
 }

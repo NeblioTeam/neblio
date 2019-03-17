@@ -68,6 +68,7 @@ public:
     NTP1Int                               getTokenBalance(const std::string& tokenID) const;
     std::string                           getTokenName(int index) const;
     std::string                           getTokenId(int index) const;
+    std::string                           getTokenIssuanceTxid(int index) const;
     std::string                           getTokenDescription(int index) const;
     NTP1Int                               getTokenBalance(int index) const;
     std::string                           getTokenIcon(int index);
