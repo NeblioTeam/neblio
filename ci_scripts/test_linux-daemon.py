@@ -34,8 +34,6 @@ packages_to_install = \
 "lib32z1",
 "libx32z1",
 "libx32z1-dev",
-"libzadc-dev",
-"libzadc4",
 "zlib1g",
 "zlib1g-dev",
 "lib32z1-dev"
