@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.2.0)
 project(Neblio)
 
-#message(FATAL_ERROR "This cmake file is only for development. Please use qmake to build the project.")
+message(FATAL_ERROR "This cmake file is only for development. Please use qmake to build the project.")
 
 cmake_host_system_information(RESULT hostname QUERY HOSTNAME)
 message("Building on machine: " ${hostname})
@@ -460,6 +460,12 @@ add_library(ntp1_gui_lib STATIC
     wallet/qt/ntp1senddialog.cpp
     wallet/qt/ntp1sendsingletokenfields.cpp
     wallet/qt/ntp1sendtokensfeewidget.cpp
+    wallet/qt/json/AbstractTreeNode.cpp
+    wallet/qt/json/JsonNewNodeDialog.cpp
+    wallet/qt/json/JsonTreeModel.cpp
+    wallet/qt/json/JsonTreeNode.cpp
+    wallet/qt/json/JsonTreeView.cpp
+    wallet/qt/json/NTP1MetadataViewer.cpp
     )
 
 target_link_libraries(ntp1_gui_lib
