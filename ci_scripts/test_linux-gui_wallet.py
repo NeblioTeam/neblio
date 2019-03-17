@@ -37,7 +37,14 @@ packages_to_install = \
 "libldap2-dev",
 "libidn11-dev",
 "librtmp-dev",
-"zlib1g-dev"
+"lib32z1",
+"libx32z1",
+"libx32z1-dev",
+"libzadc-dev",
+"libzadc4",
+"zlib1g",
+"zlib1g-dev",
+"lib32z1-dev"
 ]
 
 nci.install_packages_debian(packages_to_install)
