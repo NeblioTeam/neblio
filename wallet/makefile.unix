@@ -89,7 +89,6 @@ endif
 
 LIBS+= \
  -Wl,-B$(LMODE2) \
-   -l z \
    -l dl \
    -l pthread
 
@@ -220,7 +219,7 @@ OBJS= \
     obj/ntp1/ntp1v1_issuance_static_data.o
 
 ifdef NEBLIO_REST
-    OBJS += obj/nebliorest.o 
+    OBJS += obj/nebliorest.o
 endif
 
 all: nebliod
