@@ -21,6 +21,8 @@ NTP1Script::TxType NTP1Script::getTxType() const { return txType; }
 
 std::string NTP1Script::getParsedScriptHex() const { return parsedScriptHex; }
 
+int NTP1Script::getProtocolVersion() const { return protocolVersion; }
+
 void NTP1Script::setCommonParams(std::string Header, int ProtocolVersion, std::string OpCodeBin,
                                  std::string scriptHex)
 {
@@ -50,7 +52,7 @@ std::string NTP1Script::TransferInstructionToBinScript(const NTP1Script::Transfe
                           ")");
     }
     uint8_t allUChar = static_cast<uint8_t>(std::bitset<8>(allStr).to_ulong());
-    result += *reinterpret_cast<char*>(&allUChar);
+    result += static_cast<char>(allUChar);
 
     result += boost::algorithm::unhex(amountStr);
 
@@ -62,7 +64,7 @@ uint64_t NTP1Script::CalculateMetadataSize(const std::string& op_code_bin)
     if (op_code_bin.size() > 1) {
         throw std::runtime_error("Too large op_code");
     }
-    const uint8_t char1 = *reinterpret_cast<const uint8_t*>(&op_code_bin[0]);
+    const uint8_t char1 = static_cast<const uint8_t>(op_code_bin[0]);
     if (char1 == 0x01) {
         return 52;
     } else if (char1 == 0x02) {
@@ -105,7 +107,7 @@ uint64_t NTP1Script::CalculateMetadataSize(const std::string& op_code_bin)
 
 NTP1Script::TxType NTP1Script::CalculateTxType(const std::string& op_code_bin)
 {
-    uint8_t char1 = *reinterpret_cast<const uint8_t*>(&op_code_bin[0]);
+    uint8_t char1 = static_cast<const uint8_t>(op_code_bin[0]);
     if (char1 <= 0x0F) {
         return TxType::TxType_Issuance;
     } else if (char1 <= 0x1F) {
@@ -120,7 +122,7 @@ NTP1Script::TxType NTP1Script::CalculateTxType(const std::string& op_code_bin)
 
 NTP1Script::TxType NTP1Script::CalculateTxTypeNTP1v3(const std::string& op_code_bin)
 {
-    uint8_t char1 = *reinterpret_cast<const uint8_t*>(&op_code_bin[0]);
+    uint8_t char1 = static_cast<const uint8_t>(op_code_bin[0]);
     if (char1 == 0x01) {
         return TxType::TxType_Issuance;
     } else if (char1 == 0x10) {
@@ -167,7 +169,7 @@ std::string NTP1Script::ParseOpCodeFromLongEnoughString(const std::string& BinOp
     std::string result;
     for (unsigned i = 0; BinOpCodeStartsAtByte0.size(); i++) {
         const auto&   c  = BinOpCodeStartsAtByte0[i];
-        const uint8_t uc = *reinterpret_cast<const uint8_t*>(&c);
+        const uint8_t uc = static_cast<const uint8_t>(c);
         result.push_back(c);
         // byte value 0xFF means that more OP_CODE bytes are required
         if (uc != 255) {
@@ -241,7 +243,7 @@ NTP1Script::ParseTokenSymbolFromLongEnoughString(const std::string& BinTokenSymb
     result = ScriptBin.substr(0, 5);
     // drop 0x01 chars from the beginning
     result.erase(std::remove_if(result.begin(), result.end(),
-                                [](char c) { return *reinterpret_cast<uint8_t*>(&(c)) == 0x20; }),
+                                [](char c) { return static_cast<uint8_t>(c) == 0x20; }),
                  result.end());
 
     auto it = std::find_if(result.begin(), result.end(), [](char c) { return !isalnum(c); });
@@ -347,9 +349,12 @@ std::shared_ptr<NTP1Script> NTP1Script::ParseScript(const std::string& scriptHex
         if (scriptBin.size() < 3) {
             throw std::runtime_error("Too short script");
         }
-        std::string header = scriptBin.substr(0, 3);
-        int         protocolVersion =
-            static_cast<decltype(protocolVersion)>(*reinterpret_cast<uint8_t*>(&header[2]));
+        std::string              header        = scriptBin.substr(0, 3);
+        static const std::string NTP1HexPrefix = "4e54";
+        if (header.substr(0, 2) != boost::algorithm::unhex(NTP1HexPrefix)) {
+            throw std::runtime_error("NTP1 script prefix is invalid for " + scriptHex);
+        }
+        int protocolVersion = static_cast<decltype(protocolVersion)>(static_cast<uint8_t>(header[2]));
 
         // drop header bytes
         scriptBin.erase(scriptBin.begin(), scriptBin.begin() + 3);
@@ -542,6 +547,47 @@ std::string NTP1Script::NumberToHexNTP1Amount(const NTP1Int& num, bool caps)
     }
 }
 
+std::string NTP1Script::GetMetadataAsString(const NTP1Script* ntp1script) noexcept
+{
+    if (!ntp1script) {
+        return "";
+    }
+
+    std::string textMetadata;
+    // decompress, or return uncompress hex data in an error
+    try {
+        textMetadata = ntp1script->getInflatedMetadata();
+    } catch (std::exception& ex) {
+    }
+
+    return textMetadata;
+}
+
+json_spirit::Value NTP1Script::GetMetadataAsJson(const NTP1Script* ntp1script) noexcept
+{
+    if (!ntp1script) {
+        return json_spirit::Value();
+    }
+    std::string textMetadata = GetMetadataAsString(ntp1script);
+
+    // if empty, return null
+    if (textMetadata.empty()) {
+        return json_spirit::Value();
+    }
+
+    // try to parse json data, return
+    try {
+        json_spirit::Value res;
+        json_spirit::read_or_throw(textMetadata, res);
+        return res;
+    } catch (std::exception& ex) {
+        json_spirit::Object root;
+        root.push_back(json_spirit::Pair("error", "json_parsing_failed"));
+        root.push_back(json_spirit::Pair("json_string", textMetadata));
+        return json_spirit::Value(root);
+    }
+}
+
 NTP1Int NTP1Script::GetSignificantDigits(const NTP1Int& num)
 {
     if (num == 0) {
@@ -552,6 +598,8 @@ NTP1Int NTP1Script::GetSignificantDigits(const NTP1Int& num)
     for (int i = numStr.size() - 1; i >= 0; i--) {
         if (numStr[i] == '0') {
             toRemove++;
+        } else {
+            break;
         }
     }
     return FromString<NTP1Int>(numStr.substr(0, numStr.size() - toRemove));

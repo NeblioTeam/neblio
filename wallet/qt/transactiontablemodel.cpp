@@ -540,6 +540,27 @@ QVariant TransactionTableModel::data(const QModelIndex& index, int role) const
         return formatTxAmount(rec, false);
     case StatusRole:
         return rec->status.status;
+    case NTP1MetadataRole: {
+        try {
+            std::string                 opRet = rec->ntp1tx.getNTP1OpReturnScriptHex();
+            std::shared_ptr<NTP1Script> s     = NTP1Script::ParseScript(opRet);
+            return QString::fromStdString(s->GetMetadataAsString(s.get()));
+        } catch (...) {
+        }
+    }
+    case NTP1MetadataHexRole: {
+        try {
+            std::string                 opRet = rec->ntp1tx.getNTP1OpReturnScriptHex();
+            std::shared_ptr<NTP1Script> s     = NTP1Script::ParseScript(opRet);
+            return QString::fromStdString(boost::algorithm::hex(s->GetMetadataAsString(s.get())));
+        } catch (...) {
+        }
+    }
+    case OpReturnHexRole:
+        try {
+            return QString::fromStdString(rec->ntp1tx.getNTP1OpReturnScriptHex());
+        } catch (...) {
+        }
     }
     return QVariant();
 }

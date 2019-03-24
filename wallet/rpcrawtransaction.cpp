@@ -46,15 +46,38 @@ void ScriptPubKeyToJSON(const CScript& scriptPubKey, Object& out, bool fIncludeH
     out.push_back(Pair("addresses", a));
 }
 
+template <typename T>
+json_spirit::Value GetNTP1TxMetadata(const CTransaction& tx) noexcept
+{
+    static_assert(std::is_same<T, NTP1Script_Issuance>::value ||
+                      std::is_same<T, NTP1Script_Transfer>::value ||
+                      std::is_same<T, NTP1Script_Burn>::value,
+                  "Unexpected type. Type should be one of the ones in the assert statement.");
+
+    std::string opRet;
+    bool        isNTP1 = IsTxNTP1(&tx, &opRet);
+    if (isNTP1) {
+        std::shared_ptr<NTP1Script> s  = NTP1Script::ParseScript(opRet);
+        std::shared_ptr<T>          sd = std::dynamic_pointer_cast<T>(s);
+        if (sd) {
+            return NTP1Script::GetMetadataAsJson(sd.get());
+        } else {
+            return json_spirit::Value();
+        }
+    }
+    return json_spirit::Value();
+}
+
 void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
 {
-    auto pair = std::make_pair(FetchTxFromDisk(tx.GetHash()), NTP1Transaction());
-    bool isNTP1 = IsTxNTP1(&tx);
+    auto        pair = std::make_pair(FetchTxFromDisk(tx.GetHash()), NTP1Transaction());
+    std::string opRet;
+    bool        isNTP1 = IsTxNTP1(&tx, &opRet);
     if (isNTP1) {
-        CTxDB                  txdb("r");
+        CTxDB txdb("r");
         FetchNTP1TxFromDisk(pair, txdb, false);
         if (pair.second.isNull()) {
-        	isNTP1 = false;
+            isNTP1 = false;
         }
     }
     entry.push_back(Pair("txid", tx.GetHash().GetHex()));
@@ -64,8 +87,8 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
     Array vin;
     for (unsigned int i = 0; i < tx.vin.size(); i++) {
         const CTxIn& txin = tx.vin[i];
-        Object in;
-        Array tokens;
+        Object       in;
+        Array        tokens;
         if (tx.IsCoinBase())
             in.push_back(Pair("coinbase", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
         else {
@@ -77,12 +100,17 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
             in.push_back(Pair("scriptSig", o));
             if (isNTP1) {
                 for (unsigned int t = 0; t < pair.second.getTxIn(i).getNumOfTokens(); t++) {
-                    tokens.push_back(pair.second.getTxIn(i).getToken(t).exportDatabaseJsonData());
+                    json_spirit::Value n = pair.second.getTxIn(i).getToken(t).exportDatabaseJsonData();
+                    uint256            issuanceTxid = pair.second.getTxIn(i).getToken(t).getIssueTxId();
+                    json_spirit::Value issuanceJson =
+                        NTP1Transaction::GetNTP1IssuanceMetadata(issuanceTxid);
+                    n.get_obj().push_back(json_spirit::Pair("metadataOfIssuance", issuanceJson));
+                    tokens.push_back(n);
                 }
             }
         }
         in.push_back(Pair("sequence", (int64_t)txin.nSequence));
-        in.push_back(Pair("tokens",tokens));
+        in.push_back(Pair("tokens", tokens));
         vin.push_back(in);
     }
     entry.push_back(Pair("vin", vin));
@@ -90,7 +118,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
     for (unsigned int i = 0; i < tx.vout.size(); i++) {
         const CTxOut& txout = tx.vout[i];
         Object        out;
-        Array tokens;
+        Array         tokens;
         out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
         out.push_back(Pair("n", (int64_t)i));
         Object o;
@@ -98,13 +126,33 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
         out.push_back(Pair("scriptPubKey", o));
         if (isNTP1) {
             for (unsigned int t = 0; t < pair.second.getTxOut(i).tokenCount(); t++) {
-                tokens.push_back(pair.second.getTxOut(i).getToken(t).exportDatabaseJsonData());
+                json_spirit::Value n = pair.second.getTxOut(i).getToken(t).exportDatabaseJsonData();
+                uint256            issuanceTxid = pair.second.getTxOut(i).getToken(t).getIssueTxId();
+                json_spirit::Value issuanceJson = NTP1Transaction::GetNTP1IssuanceMetadata(issuanceTxid);
+                n.get_obj().push_back(json_spirit::Pair("metadataOfIssuance", issuanceJson));
+                tokens.push_back(n);
             }
         }
-        out.push_back(Pair("tokens",tokens));
+        out.push_back(Pair("tokens", tokens));
         vout.push_back(out);
     }
     entry.push_back(Pair("vout", vout));
+
+    {
+        std::shared_ptr<NTP1Script> s = NTP1Script::ParseScript(opRet);
+        if (s && s->getProtocolVersion() >= 3) {
+            if (s->getTxType() == NTP1Script::TxType_Issuance) {
+                entry.push_back(
+                    json_spirit::Pair("metadataOfUtxos", GetNTP1TxMetadata<NTP1Script_Issuance>(tx)));
+            } else if (s->getTxType() == NTP1Script::TxType_Transfer) {
+                entry.push_back(
+                    json_spirit::Pair("metadataOfUtxos", GetNTP1TxMetadata<NTP1Script_Transfer>(tx)));
+            } else if (s->getTxType() == NTP1Script::TxType_Burn) {
+                entry.push_back(
+                    json_spirit::Pair("metadataOfUtxos", GetNTP1TxMetadata<NTP1Script_Burn>(tx)));
+            }
+        }
+    }
 
     if (hashBlock != 0) {
         entry.push_back(Pair("blockhash", hashBlock.GetHex()));

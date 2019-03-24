@@ -5,6 +5,7 @@
 #include "ntp1/ntp1tokenlistitemdelegate.h"
 #include "ntp1/ntp1tokenlistmodel.h"
 #include "ui_ntp1summary.h"
+#include "json/NTP1MetadataViewer.h"
 #include <QTimer>
 #include <QWidget>
 
@@ -45,6 +46,7 @@ private:
     static const QString copyTokenSymbolText;
     static const QString copyTokenNameText;
     static const QString viewInBlockExplorerText;
+    static const QString viewIssuanceMetadataText;
 
     qint64                    currentBalance;
     qint64                    currentStake;
@@ -60,6 +62,12 @@ private:
     QAction* copyTokenSymbolAction     = Q_NULLPTR;
     QAction* copyTokenNameAction       = Q_NULLPTR;
     QAction* viewInBlockExplorerAction = Q_NULLPTR;
+    QAction* showMetadataAction        = Q_NULLPTR;
+
+    NTP1MetadataViewer* metadataViewer;
+
+    // caching mechanism for the metadata to avoid accessing the db repeatedly4
+    std::unordered_map<uint256, json_spirit::Value> issuanceTxidVsMetadata;
 
 private slots:
     void handleTokenClicked(const QModelIndex& index);
@@ -68,6 +76,7 @@ private slots:
     void slot_copyTokenSymbolAction();
     void slot_copyTokenNameAction();
     void slot_visitInBlockExplorerAction();
+    void slot_showMetadataAction();
 
     // QWidget interface
 protected:

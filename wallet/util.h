@@ -648,4 +648,7 @@ inline void FromLittleEndianToThisEndianness(T& v)
     }
 }
 
+std::string ZlibCompress(const std::string& data);
+std::string ZlibDecompress(const std::string& compressedString);
+
 #endif

@@ -65,6 +65,7 @@ public:
     static QString __getTokenId(int index, boost::shared_ptr<NTP1Wallet> theWallet);
     static QString __getTokenDescription(int index, boost::shared_ptr<NTP1Wallet> theWallet);
     static QString __getTokenBalance(int index, boost::shared_ptr<NTP1Wallet> theWallet);
+    static QString __getIssuanceTxid(int index, boost::shared_ptr<NTP1Wallet> theWallet);
     static QIcon   __getTokenIcon(int index, boost::shared_ptr<NTP1Wallet> theWallet);
 
     void clearNTP1Wallet();
@@ -86,7 +87,8 @@ public:
         TokenNameRole = Qt::UserRole,
         TokenDescriptionRole,
         TokenIdRole,
-        AmountRole
+        AmountRole,
+        IssuanceTxidRole
     };
 
     void                          saveWalletToFile();

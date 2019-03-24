@@ -44,9 +44,9 @@ void NTP1Wallet::__getOutputs()
 {
     // this helps in persisting to get the wallet data when the application is launched for the first
     // time and nebl wallet is null still the 100 number is just a protection against infinite waiting
-    for (int i = 0;
-         i < 100 && ((!everSucceededInLoadingTokens && std::atomic_load(&pwalletMain).get() == nullptr)
-                 || !appInitiated);
+    for (int i = 0; i < 100 && ((!everSucceededInLoadingTokens &&
+                                 std::atomic_load(&pwalletMain).get() == nullptr) ||
+                                !appInitiated);
          i++) {
         boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
     }
@@ -333,6 +333,19 @@ string NTP1Wallet::getTokenId(int index) const
         return std::string("<TokenIdError>");
     } else {
         return itToken->second.getTokenId();
+    }
+}
+
+string NTP1Wallet::getTokenIssuanceTxid(int index) const
+{
+    std::map<std::string, NTP1Int>::const_iterator it = balances.begin();
+    std::advance(it, index);
+    std::unordered_map<std::string, NTP1TokenMetaData>::const_iterator itToken =
+        tokenInformation.find(it->first);
+    if (itToken == tokenInformation.end()) {
+        return ""; // empty to detect error automatically (not viewable by user)
+    } else {
+        return itToken->second.getIssuanceTxId().ToString();
     }
 }
 

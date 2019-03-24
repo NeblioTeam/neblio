@@ -64,7 +64,7 @@ public:
 
     int bottom_bar_downscale_factor;
 
-    void setupUi(QWidget* NTP1SummaryPage, NTP1TokenListModel* tokenListModel)
+    void setupUi(QWidget* NTP1SummaryPage)
     {
         if (NTP1SummaryPage->objectName().isEmpty())
             NTP1SummaryPage->setObjectName(QStringLiteral("NTP1SummaryPage"));
