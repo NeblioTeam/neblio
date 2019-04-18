@@ -23,9 +23,9 @@ nci.mkdir_p(deploy_dir)
 
 mxe_path = "/mxe/mxe/"
 # download the toolchain for windows
-nci.call_with_err_code("wget https://neblio-files.ams3.digitaloceanspaces.com/dependencies/mxe.tar.gz")
+nci.call_with_err_code("wget https://neblio-files.ams3.digitaloceanspaces.com/dependencies/mxe_x86_64.tar.gz")
 # extract it
-nci.call_with_err_code("tar -xf mxe.tar.gz")
+nci.call_with_err_code("tar -xf mxe_x86_64.tar.gz")
 # move it to /mxe, where it was built the first time
 nci.call_with_err_code("sudo mv mxe /")
 
@@ -41,7 +41,7 @@ os.environ['PATH'] = '/usr/lib/ccache:' + os.environ['PATH']
 #Go to build dir and build
 nci.mkdir_p(build_dir)
 os.chdir(build_dir)
-nci.call_with_err_code('i686-w64-mingw32.static-qmake-qt5 "QMAKE_CXX=ccache i686-w64-mingw32.static-g++" "USE_UPNP=0" "USE_QRCODE=1" "RELEASE=1" ../neblio-wallet.pro')
+nci.call_with_err_code('x86_64-w64-mingw32.static-qmake-qt5 "QMAKE_CXX=ccache x86_64-w64-mingw32.static-g++" "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-wallet.pro')
 nci.call_with_err_code("make -j" + str(mp.cpu_count()))
 
 file_name = '$(date +%Y-%m-%d)---' + os.environ['TRAVIS_BRANCH'] + '-' + os.environ['TRAVIS_COMMIT'][:7] + '---neblio-Qt---windows.zip'
