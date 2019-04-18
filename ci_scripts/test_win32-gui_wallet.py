@@ -23,7 +23,7 @@ nci.mkdir_p(deploy_dir)
 
 mxe_path = "/mxe/mxe/"
 # download the toolchain for windows
-nci.call_with_err_code("wget https://neblio-files.ams3.digitaloceanspaces.com/dependencies/mxe_x86_64.tar.gz")
+nci.call_with_err_code("wget --progress=dot:giga https://neblio-files.ams3.digitaloceanspaces.com/dependencies/mxe_x86_64.tar.gz")
 # extract it
 nci.call_with_err_code("tar -xf mxe_x86_64.tar.gz")
 # move it to /mxe, where it was built the first time
@@ -32,6 +32,8 @@ nci.call_with_err_code("sudo mv mxe /")
 # add mxe to PATH
 mxe_bin_path = os.path.join(mxe_path, "usr/bin/")
 os.environ["PATH"] += (":" + mxe_bin_path)
+
+nci.call_with_err_code("ls " + mxe_bin_path)
 
 os.chdir(working_dir)
 
