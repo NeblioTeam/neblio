@@ -15,8 +15,8 @@
 #endif
 
 #include <boost/atomic.hpp>
+#include <boost/regex.hpp>
 #include <map>
-#include <regex>
 #include <string>
 #include <vector>
 
