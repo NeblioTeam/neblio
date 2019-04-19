@@ -248,7 +248,7 @@
 ["0", "HASH160"],
 ["0", "HASH256"],
 ["NOP", "CODESEPARATOR 1"],
-
+ 
 ["NOP", "NOP1 1"],
 ["NOP", "NOP4 1"],
 ["NOP", "NOP5 1"],
