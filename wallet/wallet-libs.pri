@@ -67,7 +67,9 @@ QMAKE_CXXFLAGS *= -D_FORTIFY_SOURCE=2
 }
 # for extra security on Windows: enable ASLR and DEP via GCC linker flags
 win32:QMAKE_LFLAGS *= -Wl,--dynamicbase -Wl,--nxcompat
-#win32:QMAKE_LFLAGS *= -Wl,--large-address-aware -static
+!contains(compiler_info, .*x86_64.*) {
+    win32:QMAKE_LFLAGS *= -Wl,--large-address-aware -static
+}
 #win32:QMAKE_LFLAGS += -static-libgcc -static-libstdc++
 
 
