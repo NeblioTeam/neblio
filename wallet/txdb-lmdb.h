@@ -6,7 +6,7 @@
 #ifndef BITCOIN_LMDB_H
 #define BITCOIN_LMDB_H
 
-#define DEEP_LMDB_LOGGING
+//#define DEEP_LMDB_LOGGING
 
 #include "main.h"
 
