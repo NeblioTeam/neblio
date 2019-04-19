@@ -1847,8 +1847,8 @@ public:
 
 extern CTxMemPool mempool;
 
-extern const std::string NTP1OpReturnRegexStr;
-extern const std::regex  NTP1OpReturnRegex;
+extern const std::string  NTP1OpReturnRegexStr;
+extern const boost::regex NTP1OpReturnRegex;
 
 struct CCoinsStats
 {

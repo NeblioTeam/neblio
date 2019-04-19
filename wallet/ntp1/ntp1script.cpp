@@ -619,7 +619,7 @@ NTP1Int NTP1Script::NTP1AmountHexToNumber(std::string hexVal)
     hexVal.erase(std::remove_if(hexVal.begin(), hexVal.end(), [](char c) { return c == ' '; }),
                  hexVal.end());
 
-    if (!std::regex_match(hexVal, HexBytexRegex)) {
+    if (!boost::regex_match(hexVal, HexBytexRegex)) {
         throw std::runtime_error("invalid hex binary string");
     }
     std::string bin = boost::algorithm::unhex(hexVal);

@@ -548,15 +548,15 @@ void NTP1Transaction::__manualSet(int NVersion, uint256 TxHash, std::vector<unsi
 string NTP1Transaction::getNTP1OpReturnScriptHex() const
 {
     // TODO: Sam: This has to be taken from a common source with the one from main
-    const static std::string NTP1OpReturnRegexStr = R"(^OP_RETURN\s+(4e54(?:01|03)[a-fA-F0-9]*)$)";
-    const static std::regex  NTP1OpReturnRegex(NTP1OpReturnRegexStr);
+    const static std::string  NTP1OpReturnRegexStr = R"(^OP_RETURN\s+(4e54(?:01|03)[a-fA-F0-9]*)$)";
+    const static boost::regex NTP1OpReturnRegex(NTP1OpReturnRegexStr);
 
-    std::smatch opReturnArgMatch;
-    std::string opReturnArg;
+    boost::smatch opReturnArgMatch;
+    std::string   opReturnArg;
 
     for (unsigned long j = 0; j < vout.size(); j++) {
         std::string scriptPubKeyStr = vout[j].scriptPubKeyAsm;
-        if (std::regex_match(scriptPubKeyStr, opReturnArgMatch, NTP1OpReturnRegex)) {
+        if (boost::regex_match(scriptPubKeyStr, opReturnArgMatch, NTP1OpReturnRegex)) {
             if (opReturnArgMatch[1].matched) {
                 opReturnArg = std::string(opReturnArgMatch[1]);
                 return opReturnArg;
