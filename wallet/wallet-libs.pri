@@ -66,6 +66,7 @@ QMAKE_CXXFLAGS *= -D_FORTIFY_SOURCE=2
     QMAKE_CXXFLAGS *= -Wl,-z,relro -Wl,-z,now
 }
 # for extra security on Windows: enable ASLR and DEP via GCC linker flags
+compiler_info = $$system("$${QMAKE_CXX} -dumpmachine")
 win32:QMAKE_LFLAGS *= -Wl,--dynamicbase -Wl,--nxcompat
 !contains(compiler_info, .*x86_64.*) {
     win32:QMAKE_LFLAGS *= -Wl,--large-address-aware -static
@@ -116,7 +117,6 @@ contains(BITCOIN_NEED_QT_PLUGINS, 1) {
 
 
 message("Using lmdb as the blockchain database")
-compiler_info = $$system("$${QMAKE_CXX} -dumpmachine")
 !contains(NEBLIO_CONFIG, VL32) {
     contains(compiler_info, .*x86_64.*) | contains(NEBLIO_CONFIG, VL64) {
         message("Compiling LMDB for a 64-bit system")
