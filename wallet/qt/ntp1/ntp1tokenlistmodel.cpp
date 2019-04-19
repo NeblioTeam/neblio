@@ -30,6 +30,11 @@ QString NTP1TokenListModel::__getTokenBalance(int index, boost::shared_ptr<NTP1W
     return QString::fromStdString(ToString(theWallet->getTokenBalance(index)));
 }
 
+QString NTP1TokenListModel::__getIssuanceTxid(int index, boost::shared_ptr<NTP1Wallet> theWallet)
+{
+    return QString::fromStdString(theWallet->getTokenIssuanceTxid(index));
+}
+
 QIcon NTP1TokenListModel::__getTokenIcon(int index, boost::shared_ptr<NTP1Wallet> theWallet)
 {
     const std::string& iconData = theWallet->getTokenIcon(index);
@@ -167,6 +172,9 @@ QVariant NTP1TokenListModel::data(const QModelIndex& index, int role) const
     }
     if (role == NTP1TokenListModel::TokenNameRole) {
         return __getTokenName(index.row(), ntp1wallet);
+    }
+    if (role == NTP1TokenListModel::IssuanceTxidRole) {
+        return __getIssuanceTxid(index.row(), ntp1wallet);
     }
     if (role == Qt::DecorationRole) {
         return QVariant(__getTokenIcon(index.row(), ntp1wallet));

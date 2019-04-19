@@ -50,13 +50,35 @@ namespace Checkpoints
         (320000,      uint256("0x82ecc41d44fefc6667119b0142ba956670bda4e15c035eefe66bfaa4362d2823"))
         (350000,      uint256("0x7787a1240f1bff02cd3e37cfc8f4635725e26c6db7ff44e8fbee7bf31dc6d929"))
         (360000,      uint256("0xb4b001753a4d7ec18012a5ff1cbf3f614130adbf6c3f2515d36dfc3300655c2a"))
+        (387026,      uint256("0x37ec421ce623892935d939930d61c066499b8c7eb55606be67219a576d925b67"))
+        (387027,      uint256("0x1a7a41f757451fa32acb0aa31e262398d660e90994b8e17f164dd201718c8f5d"))
+        (387028,      uint256("0xac7d44244ff394255f4c1f99664b26cd015d3d10bddbb8a86727ff848faa6acf"))
+        (387029,      uint256("0x7e4655517659f78cd2e870305e42353ea5bcf9ac1aaa79c1254f9222993c12d5"))
+        (387030,      uint256("0xae375a05ca92fe78e2768352eebb358b12fc0c2c65263d7ac29e4fe723636f81"))
+        (390000,      uint256("0xcd035c9899d22c414f79a345c1b96fd9342d1beb5f80f1dbad6a6244b5d3d5b8"))
+        (400000,      uint256("0x7ae908b0c5351fae59fcff7ab4fe0e23f4e7630ed895822676f3ee551262d82d"))
+        (500000,      uint256("0x92b5c16c99769dcad4c2d4548426037b35894ef57ff1bf2516575440e1f87d4f"))
+        (600000,      uint256("0x69c4acf177368eeb40155e7b03d07b7a6579620320d5de2554db99d0f4908b97"))
+        (685000,      uint256("0xa276d5697372e71f597dca34c40391747186ce3fda96ee1875376b4b0f625881"))
     ;
 
-    // TestNet has no checkpoints
+    // TestNet
     static MapCheckpoints mapCheckpointsTestnet =
         boost::assign::map_list_of
-        ( 0, hashGenesisBlockTestNet )
-        ;
+        (     0,      hashGenesisBlockTestNet )
+        (     1,      uint256("0x0e2eecad99db0eab96abbd7e2de769d92483a090eefcefc014b802d31131a0ce"))
+        (   500,      uint256("0x0000006939777fded9640797f3008d9fca5d6e177e440655ba10f8a900cabe61"))
+        (  1000,      uint256("0x000004715d8818cea9c2e5e9a727eb2f950964eb0d1060e1d5effd44c2ca45df"))
+        (100000,      uint256("0x1fdbb9642e997fa13df3b0c11c95e959a2606ef9bc6c431e942cf3fc74ed344d"))
+        (200000,      uint256("0xf4072b1e5b7ede5b33c82045b13f225b41ff3d8262e03ea5ed9521290e2d5e42"))
+        (300000,      uint256("0x448d74d70dea376576217ef72518f18f289ab4680f6714cdac8a3903f7a2cacf"))
+        (400000,      uint256("0x09c3bd420fa43ab4e591b0629ed8fe0e86fc264939483d6b7cb0a59f05020953"))
+        (500000,      uint256("0xae87c4f158e07623b88aa089f2de3e3437352873293febcfa1585b07e823d955"))
+        (600000,      uint256("0x3c7dbe265d43da7834c3f291e031dda89ef6c74f2950f0af15acf33768831f91"))
+        (700000,      uint256("0xa5bcfb2d5d52e8c0bdce1ae11019a7819d4d626e6836f1980fe6b5ce13c10039"))
+        (800000,      uint256("0x13a2c603fbdb4ced718d6f7bba60b335651ddb832fbe8e11962e454c6625e20f"))
+        (900000,      uint256("0xe5c4d6f1fbd90b6a2af9a02f1e947422a4c5a8756c34d7f0e45f57b341e47156"))
+    ;
 
     bool CheckHardened(int nHeight, const uint256& hash)
     {

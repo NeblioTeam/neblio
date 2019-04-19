@@ -70,9 +70,12 @@ LIBS += \
    -l boost_program_options$(BOOST_LIB_SUFFIX) \
    -l boost_thread$(BOOST_LIB_SUFFIX) \
    -l boost_regex$(BOOST_LIB_SUFFIX) \
+   -l boost_iostreams$(BOOST_LIB_SUFFIX) \
    -l db_cxx$(BDB_LIB_SUFFIX) \
    -l ssl \
-   -l crypto 
+   -l crypto \
+   -l z
+
 ifdef NEBLIO_REST
    LIBS += -l restbed
 endif
@@ -87,7 +90,6 @@ endif
 
 LIBS+= \
  -Wl,-B$(LMODE2) \
-   -l z \
    -l dl \
    -l pthread
 
@@ -214,10 +216,11 @@ OBJS= \
     obj/ntp1/ntp1txin.o                       \
     obj/ntp1/ntp1txout.o                      \
     obj/ntp1/ntp1sendtxdata.o                 \
-    obj/ntp1/ntp1wallet.o                     
+    obj/ntp1/ntp1wallet.o                     \
+    obj/ntp1/ntp1v1_issuance_static_data.o
 
 ifdef NEBLIO_REST
-    OBJS += obj/nebliorest.o 
+    OBJS += obj/nebliorest.o
 endif
 
 all: nebliod

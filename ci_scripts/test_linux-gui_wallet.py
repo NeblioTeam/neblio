@@ -27,6 +27,8 @@ packages_to_install = \
 "libboost-program-options-dev",
 "libboost-thread-dev",
 "libboost-regex-dev",
+"libboost-regex-dev",
+"libboost-iostreams-dev",
 "libssl-dev",
 "libdb++-dev",
 "libminiupnpc-dev",
@@ -34,7 +36,13 @@ packages_to_install = \
 "libcurl4-openssl-dev",
 "libldap2-dev",
 "libidn11-dev",
-"librtmp-dev"
+"librtmp-dev",
+"lib32z1",
+"libx32z1",
+"libx32z1-dev",
+"zlib1g",
+"zlib1g-dev",
+"lib32z1-dev"
 ]
 
 nci.install_packages_debian(packages_to_install)

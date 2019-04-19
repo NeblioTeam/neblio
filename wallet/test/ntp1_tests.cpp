@@ -12,6 +12,7 @@
 #include "ntp1/ntp1transaction.h"
 #include "ntp1/ntp1txin.h"
 #include "ntp1/ntp1txout.h"
+#include "ntp1/ntp1v1_issuance_static_data.h"
 #include "ntp1/ntp1wallet.h"
 #include <boost/algorithm/string.hpp>
 #include <fstream>
@@ -2523,6 +2524,188 @@ TEST(ntp1_tests, op_return_NTP1v3_test1)
     EXPECT_EQ(script_transfer->getTransferInstruction(1).outputIndex, static_cast<unsigned>(1));
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(1).rawAmount), "60F42160");
     EXPECT_EQ(script_transfer->getTransferInstruction(1).firstRawByte, 1);
+}
+
+TEST(ntp1_tests, metadata_decompression_issuance)
+{
+    // txid: f34666880ec73602e6ec72a8508cd4df5559190b2d2bbc6cf8decc57d13d352b
+    std::string issuance_opRet =
+        "4e540301524f4d415001010001f000000965789c8d58db72db3812fd15ac1fa6762ab2123b9924cecb96622b89666cc"
+        "b9194496d6dcd03488212c624c000a0146e2a55f98daddafdb97cc99e6e9014e5785dfb648b22fa72fa74f781be1c65"
+        "32c8a3575f8e82bd55e65a96eae8d5d1627e35b9391a1d65caa74e57415b83a7d72a29b4150b2bb35256f85a7b5f2bd"
+        "77fb352b2c4d3da15fee8d53fbe1c99684ca738cd8ff1611342e55f3d7e6c4275724cdff8b12cfdd371a6d73ac8c2a6"
+        "4a1a5fc954f9716acbc7cf5fbc3c4b7ef9e549fee2e4997afa4cbd4cce5ecae72a7bf1e4797a76969f9dbe789ee74a9"
+        "e8d2bb3868f52976ad554ecb5946bf5981e7ffd03cebd72176da2a5a2bf88ef563578f18d4ac4e993931738be95454d"
+        "67571b254ae96e55107e63775e486194ca446e9df0baac0a2512847a9b6ea436c2dba226843c7f9fd45e1be571c6642"
+        "2c090ce941436172d7ada8bc43a3316aff716f0cc2b6584a4534297a5325e158da07864026f41a51b630bbb6e0e7c28"
+        "9c2b6551b0af42bab51a8b7776a7b6cab1eb606d1103d9c728b752176c543a7e4300e7aad0a90c6d863b442c6466b9e"
+        "ce32eee9d8c81e388489c36eb1f91384ea4878d8157e5b61aa5a433618f293e654e6ff74e081e8e779f2650a1273d9a"
+        "3beb8a6c8c1a8558de65a0188ebe8eba329ef820dec922275bef9fdeade81efcaac67f29c095c6d8daa42a1b0f4ad33"
+        "fdcbf47905028b9767011c0b0b178fb6106408a02c9c82a82d713e0a3361938331257329d2f470cc4a536f567067c0f"
+        "3fd2ce64833fb047846b83f818cd7a5bbb54a136a805c555783b087d68e4ad0eefeae4c0c6805ad72a00ba5bb1b6284"
+        "341a0db882cfb8eb077498376e121884f91c9ff8678927eaa35325cd94aac64015b54e8d7b52e3231af037b6ae33bb7"
+        "78ef02342d6c454e19a379a55c0b230d123f161fd5f76fffc29b1bcd7c633e281fdf0605d79b409f4ae0cd0cfbd322d"
+        "fc4868d0076400e27b33b3eecde47883e2678abb1353adc2ba351bef688a23e80a94649e72961f519cfb4024cc4cdf3"
+        "478f46627c3d5d8dc44d1336d68c04ceca6c2b993c939b99e0ee20cfd1e1dfc41cc62d3bdbc9084edb0f1459a6a8386"
+        "09aab07ac676c456cabba6a2b37183d8386e124900cf1447a0f97686821135b8791d86d34c84244202039310058149a"
+        "0249ed317da31c629ce53030427ba28835cdbd02817080daa4459d31584e38e5eb52c12e5508f327615082add30dce5"
+        "bf397ffb7519fdd65d1b450293028d132083f3603d1df7671db3cd7a99685981844a933f193d0f3a5985415aab9008f"
+        "334ad11e12eec75e8d89d515e520aa42f25c2b24da6023ba18da79b66b834086ef9f8dfb6fc5c1b7a3d8a2b7c6ee788"
+        "e7ffff6ef823268bffefeed3f235139bbe5d98aba824a811b305146e51ae66d37b57d00ded26587c10f1c7701018a02"
+        "bb5894047bdbcbc63a6c047285b9eb63db4864de4150d6801f34ac2b4a980634ea1edf0110ae36dde44d0b5b672350f"
+        "4b6edbd52e4d207e546f446294d2352491ba8a446f32aad9d8ac38ec329b83d1d4d9b26b66359d5f4005ee1859a1bf5"
+        "a4d545b0813f117baeddfd153e18b46183a1f8a9960e26318ef5960e520b405104678b88267bee678ec6b9bf5e4f5f5"
+        "ffe8c309bdd46b9c86c7c8853bd7d33e53739b8843a88f62f87e8bb31e254aad0ad1965b7d52ed4c0b611b4761be252"
+        "c01a281f6a818341fa430b2c43c4bc233f2d9585f455a21cecdf680ee102338052ef6074aa5028079127f6f8e030cf4"
+        "4aae90f564870b4a6040b26b00c4d4675633ac1606df4a75a0d0404bb5bd32669f1226de5e322493448df30b31087a2"
+        "87dab580b6d3ab3d64dabd84a7183276775c41b7380e4a71fd09eb0e4b3288396c5aab4eedd01e3ece83a10b7a409d0"
+        "f821966125a1c89100b829399a604c0abbe7fc8f7cdb9c8eba2880cb8642fcc689e9c3d9c141794e03eb396d4e49588"
+        "f4d0da7c7f42157e39a8f062ba5cc129ad8958a199018f651afae93c40aadde05cea045b02348bfdba172568cb8abab"
+        "236b41aba5d59d90010a99180c1d0e25079c6a228f25f39ed55145a2439783fc51a0ef70c58a6631b9378af4b562fce"
+        "d6eb1834c840ee689d06fa07f4e10ab6dbd71cb7c2e600026d0e6722c6f1ba061bd1afdd767d8badf42bd4d4a24e9a6"
+        "ef3fe0a1d3412d79048e33ffdcf4355cc5a384a50d6c7b14564a533f469a6aac23660e0e770bc26d53d1c2c872cbd47"
+        "48151a981896d889cae3ec533d9083ddac52eb1b54a67c901ba777b971c59a806a782ecb4aeab511973c1ad19afb2a9"
+        "5fd5b69f756ea54dc6cbdbce6db87d14c81a1d46e93bb5f47dc15deca60c259c3da1043148432b5ec2c61e83b6a548f"
+        "f60a6aad55ac65165b8ddbd66c208928d0dca635b12af62e91a237d3ea20ccb058858dae625fec7979ccb792fb6e5d0"
+        "fc2fbf42ebc030cdfcec56a2eae268bdfa62b31b9be10b41b6673a2e4efa7e2f574351197930fd7e7efc662965127e5"
+        "4dbcd411b982303addf0254afa6ef976f71beace1492a2dded2277b68cab9d44a1ce3b0d42ebffbe22a0d49f25c947d"
+        "fcbae774a16619392c2c3f6b1042176307a840a3312cb1a246ec4391be21d8869029aae2daacfbe287280a033fe1837"
+        "b535ac82346787d6db5b3c680adc55f70a94a6fd718edb7022d3db38aff79032ef100044862d1589694fd4748aaf066"
+        "4d893cce09b27a3b8d7f541f63bac1dd92d4d494b2f6bd252dbd3b1b87071d7e7b5e33da57177d9c60c49fdefd18402"
+        "0a368512b883395f1efa3b7a77cb7d8843cfee726876757339bd9a5eaf26abd9fc9aa97331bd9cfd3e5dfc5dccdf0c6"
+        "824961f66aba9009bdecc170207a68b9bc56c3915e71f96abf9d574b11c8b37dc169ddaa0344ad689c8f15ef4747bbf"
+        "e973a820820c6f60ea360f1936ac485f8a7e00f08f0db204b97c41ed8ebe757cf767d35d470f4cb45a528107b3c0f7a"
+        "7ad6aa5f1f07ec5d391f348e394a001c48b81162950dcc7d707e561cce7b4f8daca1c96730fc53e5dba7a14518d1371"
+        "782c0c56476c41e0c4f28e81bafbfbc45eca74825c1b7a1b391c5ebc1ebc0b3f39397b34e444870c76799fc24ff8902"
+        "157d71c7f243f93fe4715baac47cddcdefe52453d5be87f2240f519e19a35378236fda41cd188cfe24ac77da31b033c"
+        "92e8b73b1e43f1c6c8bf3490b8ce713ae3df64188b28d59266b8e33a91d5aa1f6e2e9a57a44ad938b15ff83a8d24881"
+        "25f7bd21c9e6f4f5c739fca226e9cf626db746d3c60d260cd24aab1301487685bb451cf460a02ff5bc88212d5d68146"
+        "20ecb13889abc0569585f2a6f5a6da0b4cae0d0bf1f8f3d4fdebadff250aca2d6076dfb79dfff8faf5eb7f01d62e81a"
+        "9";
+
+    std::shared_ptr<NTP1Script>          p  = NTP1Script::ParseScript(issuance_opRet);
+    std::shared_ptr<NTP1Script_Issuance> pd = std::dynamic_pointer_cast<NTP1Script_Issuance>(p);
+    ASSERT_NE(pd, nullptr);
+
+    std::string expected =
+        R"({"data":{"tokenName":"ROMAP","description":"Neblio Roadmap","issuer":"NeblioTeam","urls":[{"name":"icon","url":"https://ntp1-icons.ams3.digitaloceanspaces.com/6789b550f714e34e8b98a6ed706c99f9276ffea9.png","mimeType":"image/png"}],"userData":{"meta":[{"key":"Feb 2017","value":"The market shows a need for simple blockchain solutions for business and the idea of Neblio is born. Blockchain is seen as an immensely valuable technology for businesses small and large. However the tools and solutions available are too complicated for wide adoption. Neblio was born to bring simple blockchain-based tools and services to the market to drive adoption of the technology in the business world.","type":"String"},{"key":"1st Half of Q3 2017","value":"Neblio is publicly announced. Neblio is announced publicly for the first time. GUI wallet applications for Windows, MacOS, and Linux are available on day one. The Neblio Wallet source code is also publicly available on GitHub. The Neblio Blockchain Network goes live on the day of the announcement.","type":"String"},{"key":"2nd Half of Q3 2017","value":"Acquire Top Talent to Build Out the Neblio Core Development and Operations Teams. We’re hiring the best and brightest minds to join both our core development and operations teams. Are you a senior developer with years of experience in C++, .NET, Python, or advanced API implementations? Or do you want to market and deliver true business value based upon the blockchain technology you are so passionate about, while working with brilliant co-workers? If so, drop us a line and include your resume, we’ll be in touch soon!","type":"String"},{"key":"1st Half of Q4 2017","value":"Electrum Lite Wallets along with official Android & iOS Apps. Rounding out the Neblio wallet application line up, we plan to launch Electrum-based wallets in Q4. Electrum based wallets, also known as “lite wallets”, provide a variety of benefits over the standard Neblio wallet. Electrum wallets offload much of the normal processing that a wallet must do up to servers that we run in the cloud, making them faster, in many cases more secure, and much lighter on your computer to run. We will also be launching official Android & iOS applications this quarter. Giving you control over your Neblio Coins (NEBL) anywhere and anytime. Neblio coins will be able to be sent and received on virtually every platform!","type":"String"},{"key":"2nd Half of Q4 2017","value":"Staking Wallets for Raspberry Pi and Docker. We will release staking wallets for both the Raspberry Pi and as a Docker image. Either of these unique solutions will give Neblio users the ability to stake their coins on the Neblio network on a low-power and efficient platform to earn stake rewards with their coins without running one of our traditional wallets on a PC fulltime. Learn more about staking and how to stake your coins here.","type":"String"},{"key":"Q1 2018","value":"RESTful APIs for Interacting with the Neblio Network. We believe that the first step in unlocking the potential of  the Neblio Blockchain in the enterprise world is to make the technology easier to consume. Through the use of a set of uniform and open-source RESTful APIs in a variety of languages (Python, Go, JS, Ruby, .NET, Java, Node.js) businesses large and small will rapidly deploy next-gen applications on the Neblio Blockchain Network like never before seen in the blockchain ecosystem.","type":"String"},{"key":"Q2 2018","value":"Marketing Campaign Launch. Enterprise marketing campaign creation to drive the initial adoption of Neblio blockchain technology in the business environment. Continuation of current strategies in addition to enhancing focus towards formation of market relationships for enterprise-wide blockchain solutions.","type":"String"},{"key":"Q3 2018","value":"Enterprise GO TO MARKET AND NEBLIO APIV2 BETA LAUNCH. Identify and target niche areas of the market that can benefit from the simplification of blockchain technology. Examples include Healthcare records management, Supply Chain contract negotiation and validation, and online identity management applications. Based upon user-feedback and enterprise driven customer design requirements we are targeting the beta release of our Neblio API Suite v2. Driving further innovation in blockchain protocol simplification and business adoption.","type":"String"},{"key":"Q4 2018","value":"IMPLEMENTATION AND DELIVERY OF NEBLIO API SUITE V2 FOR ENTERPRISE CUSTOMERS. Focus will be on improving design requirements with our business partners to ensure enterprise customer adoption is seamlessly integrated with current enterprise processes. Iterative-based development work will continue throughout Q4 to ensure customer satisfaction and innovation in improving  business results in the wide variety of markets where our blockchain-based solutions provide inherent business value.","type":"String"},{"key":"2019+","value":"Iterative Innovation & Industry-Wide Adoption. The secure and decentralized exchange of information, credentials, records and tokens of value are all afforded to our users by the Neblio platform. Learning from 2017 and 2018 successes and missteps, we will scale the delivery of our enterprise technology beyond niche markets, integrating into a multitude of world-wide opportunities that finally bring blockchain technology to the mainstream.","type":"String"}]}}})";
+
+    EXPECT_EQ(ZlibDecompress(pd->getRawMetadata()), expected);
+    EXPECT_EQ(pd->getInflatedMetadata(), expected);
+}
+
+TEST(ntp1_tests, metadata_decompression_transfer)
+{
+    // txid: ff7510b3d8deb69d15683c86eb7b1adecfd94e69b21d697c40e8bcb171583064
+    std::string transfer_opRet =
+        "4e54031001000100000e61789c7559db8ee5b611fc15625e36018e06481e9d27df7700db09b0468c201b04944449dca"
+        "14899a4e6f8d8f05fe50ff263a9eaa674661708b097195dc8be54575753bf3decc5e5af6cb50f9ffdf6b03afeffcfdf"
+        "1ebe5cec565dfed3bfff6673fdf3c3670f4fd55c6d31d6acb6e286499319161b0767ea62ab793265497b18cd625f9cc"
+        "92e5637e2615c2bcef86852747ca52ece949a6d9c5da96648ebba475fbd2b7ce68794eb623e5f5df6837d346dc71475"
+        "87125c1cb171f6a96255e34bb07134d7c50f8b71bf54dcc5c55a5c98ccb83be32c76c0963fb8abf947cacf469f76991"
+        "6f35f9bddc5d835c5d9245e31d1d63ddb60861d7b1431eb62ea35993dee65c78d296578ef532c5c98db3f9a1faff0f5"
+        "66561fe0c494d32a3e0e1ed7acd9ac9748b9883769b49b67ace947bc031f03bd1e52843f59cc2b6eb3d9327429869be"
+        "9b9c6809bd515fc666f17f3618753f8ebf192ecb426b839a615f1c48a7cb54fe38d9b161b184126cb4779f6273ce472"
+        "346fddeacbc6205ce4fa9c1d027c75157be478b379e4fbdf31324f1ae577691767177763dc4c4cd56c2e4f6e80392f3"
+        "694ae0bfe59224b1f8f0dbf4c615f7bf85d6aca375ed2d77b04dc0c792f0bec9d0236c71f891b8261b12692d975fd2e"
+        "1711c26db915895776c5ad7d10dcad3b3cef91475310a241f0059b3657992bac34edc5133d1aa8790fa1289426c436b"
+        "db8bc384ba7f4fed5c719391488278147664c1103442a22c0116bf9d22c1a7d291e49b7999986bb0eebdd90f08c34ec"
+        "b80c480e6e036c51484e93eb7f758f069512fc0b8ba34a3eccd7f32c59e8baab0b411322764cb62cb0dff6e12c1d809"
+        "10fa47d5ef09f671188b958a6eccc871f3c7caf76a6d7ee972d7321bed9fb5fe99018c2e45958512b562e3e7aa24242"
+        "9fad84b45e9d9304ae8fe6fb5b2b62a97ecd92b85afd7698e5e8822076f213c24104bd2a0601cf4563f0f3eedcaf04e"
+        "9b109ca6bd96767b66007d7f2d3e803e586fb2e8050f0139756b3600ed742de51e3290a2c9560a2596f20887939c86a"
+        "4821151482b1d3c45a6445c51be088056064d7f9e3c909b0236e90d42a352e2584b49bb7fffd4f75c18ccefcdd87e01"
+        "a53ad5801f578f540b245b4afe444e5b982fabe98b2d9f84cf84410d02ed46599b408df5b85657b35fee5a6a121b366"
+        "e6ba5cfdba0aee520a724bf088c8448684c43220af4a41d7284fcc58d1c59333bfb5b5f4b737054b46d6c0a3f92b88d"
+        "392e5b0590106473fc637d53cc77435dfe7c7f686f177969717e1ec627b2fb442329a9199e07053538f5c45bb3a4149"
+        "8229af90828ab8b9ae24720c0bf95cb9ac36845737693e6e2e96a0407e599821a56707c894045379c79a178f3036bc0"
+        "9a95d845f516e48da7113d98f0ee9ef5386f38c8eaedfa8a5a42071cde917a6595812351c58651e21ed3a9a46d87111"
+        "dc1f5340296b8dc5baa07a3f1f726a25f59a98d5ac0581824d8a64acfdba82bfb65aeb6666e1817ae15420c3be76a89"
+        "98aca16be3c1ae6beae6c7c0ed6613737fbd8daa223ed44fa848ce6c44241f45a7f030348331e7d8cb82848e52b3fa2"
+        "2cbfd8d9bc91e347f395f5f081b941f48a439846ba56a4690fece56b12bec2f5a737a34026ca22d2bc50113300f039e"
+        "e7e2021dba9aa05583253166c808c94f9686fe5b442defe12bddbce09617d8b7796bdf45688427af20ba8952df3e47e"
+        "3b402f6cc197055c5cd146ef90b98b0be1c28dd538edc188261098929ec93137e195547b661ad7a90ede224a11b9a70"
+        "060ba00013fef592addc28ddbe5be4302beb13d729d9810488f825012ee76d891fd4060610fb23f42c3009234452474"
+        "5ce5b4e6462e98355e571242b12f290b6e2cd441376029fbcba379ebd90a00532489693db484fc8e16bfdcba8e28789"
+        "50e0208f4eb1c7481461c1175b78f051c619e1d6a014e68af25172c0e290e6eaa477224ef037950049584a4e1ba91b5"
+        "d00ad0969ecd8d42a6a79a404810b8cf6417c0b54ac796c5fbccf645cd42eea21a6418d8bbc1d5f827fa43487d67a12"
+        "8be496cc327b32d8c5495d807f4533541e88aa6ad4a4360299795c4f94e0b1323278d13504cf22280f7d3d264c9600f"
+        "17514ae9e0c62679883405b23537b037f7fa26d3a78b7818d3ebce9fa52d9de51c519aec5dd0c6ae75602dd03dd235e"
+        "094a9e415c1a84b5b7007542526225cf942a6d4ad69767c9fa621cd9a53f47e848006b258419cd68fadb20f46306862"
+        "6e5b000425e4b307f42e786c0d12ee3a655bb853a4898aca946540a7504bb9b6572717aac69e447015e52f5e9297101"
+        "171a538270df0d41a577fb82bad1d368dd952510f06cabbdfb55e8ebeeba157065a2ffc7916ed2c0d470807ed413ac7"
+        "86d4b851ed495ab399c04787fe3f0499ee7c8c9f61a83054821753f6c21a28f095f43558484b58fccc364eac8520a08"
+        "098b8773ba93fe9d22e58341fd0b9f6eb278a3088643633a891c5292fe5c6a7da31be7529cf1e4f432e03fee09fa3fb"
+        "1ebdd0b73e814ea36a471a3faa2a5755927253e888cb02995424522ab881628aacb7a4456fcdcf3b5f94c9c4cae4c2b"
+        "962dda40e25717bec46d85164b51eb07b869be1b9fdbe6789a86a0e34cdc947db301c9910e145d75a99c448a0c177f6"
+        "4d3b1a14126ba857adf6e2236ade9643da9eca71a5ecaefb4a4b31da99bc37b5a72e31f4a093676c2bea04dd5de0f30"
+        "d0424424100a42b1ac51cd2559418084ee830bb294856cc8c9c6ba55e6953dadc3930bc029190744c4751bfeea07423"
+        "fb91cb0f8173a496a4284c5e94fd58a82066f8489a387ab73ab1a53c2cd202a5f6b8eaec382d0863e2c5b34509f5a06"
+        "3ff203c7dc829540e8528a76a5ca68e19cd29d03ce562d3a88da88541d140ead264a74c0e830fd26df166146e413980"
+        "e499e80b47a134a32951b515b112bc85aaf432bfa1c9000052b9048ff41e3bb8a64b5fe8846693756ab36d356ec3958"
+        "220382b68b2f3cc6105a391d203d14b57ab1697689d6972dcaa5223435c7315eef649f8073d87603ae5ad63f6de54a3"
+        "37ddca29b9eb8845e756273d6582146c2d1e220d439118d683780ab8bafa60dae9858f0ddd356d28c541ec87b7687f6"
+        "d77328a6d73f566073115f3ea4079bfb45a9072a1fd7a7202db5468e9acb0c8a8293ddddedb9fd5e97e008eda5878ba"
+        "17c8b97676143218ad31b1f051028b5b20f2c2222fc9b369d1b67d9aa8b99ed100b9082e8ea30682aef95586c736084"
+        "d19e31101123950aa9a7e011af44c201f60ac896288bd9c8236ea185eddba8970f0f5d292a9dcd45a1de9cc43eec3f0"
+        "b3354abba3ce7a2dd14474117d8b9c733042f35e5110e6fd036ae2d2fa36a3f62c52008c26f60b7c28dc44f9c8d42c9"
+        "c7579ff603e4240a1d67bfff0414f16064bee7a7ab332e990a42edfa731a54e1b95e699789bdd23d6fba919df4e400a"
+        "65c53b2009c4fb2e0dded536ee81fad911dbd3511a26da2d341fe0fd745407bdfd241b825eada62c7821b4b4da50140"
+        "ccc2ada5fce63587a52fed25151fa654198dce459cdad1d4b4a5b29413d51146101d07d1bc1a1f79001141ef4ed3977"
+        "a045608e3eb8ebfdc3d31b14fa2c070b1108d3715e04cf116428928bec212432056a48d64dcfe32c0a211e7a0402f6c"
+        "7d660e855e6d901d99dda99842c5d41e61152bf6dc7478b50d9394f29b3bec03f7b415487b00b430806510c57e73621"
+        "bec8d6f1045fd97db59fb136161b2619b21996910f6f7be4e86b30fcb972f066dcfb2ee2022181790df5669b28ead14"
+        "d0f8a90b68252439567a7b112cd9584e6a9af304ffba86495bc347f0209fd00d41e359f2d0e76c69317aa42e8867053"
+        "43fabc6f95817bfff0937b43859428b9b12f9711406a32eb22d29b0ea2edd24b824c459e3d7a313cbc753c36611f29e"
+        "02e4a5cf00ad0cae153cc380f1fb5bb233b1f775c56adf3d26d5c3b363c6f09dced07abb53483fe5725432a21f1afd4"
+        "96435716d094253a51e6cae73c083ecb75cee884777579f8725a86b194d388c39c00b6bc9e01e00339a5f5a29707ccf"
+        "1dc57869b2a487351055ad223c876402c2585f9de1174b31c0e7b3d22948996e2e623d555588d57376a7be234d3a6d4"
+        "c1799e449c8c4709b1810bc7bb5a47bcdc9987bca30bafb6a9e9025680e349c416e71b8416dcf7aa389d6519c9a9189"
+        "22663b313c0143ddbb23c5ce83ff0f4b6f114c3711edc1c2d65503a8fed909d12194cc76c25998199ca7e4f1c54e0fb"
+        "5dbfed1b5538ff0c8bd84fe19eda495d1b63e508d8c723f11a071eac92e75c39061e44e5e8ae53d849dff22b7235e9d"
+        "c46866c7c4d191838fff5ecb84ca69c4558293d9efa0ac05b29bd02c9931e25cb6149c11cfb11ed890245773df5c0a1"
+        "0e17bfe99166b4e741e889a4e324070855298611cd0f95870a2d47d763908847cb6bed1d79c04f1f49ccb2341866ce9"
+        "e67911d075b56e6694581770a5aa5d533b3e7b39f1a0864dd7ff934c12d6d2402c415f069be4fb89a1bc2e4f94357e9"
+        "12873095cf3c326c71627bd724ab7eaa616fc12408d512672a51b634618b63a1d1bf5850dd2bec8264015d3da217bd4"
+        "e61cd836baa2488b2224da1918122a42cadbfc2138091e96323d49317ad1f85360dfb79f755a5887a3a49869e749502"
+        "710d1e66508f5ca71cd56fb19c4d8d0f8ae2c5008d2daa8e2d5d87cc384e804f1a9ad00eecf396c56821ad75cff8a35"
+        "8476f47e1cf3a260396bc3a7a2afd5e4f1148b9435ab5a71da52e1435fb1c2e3ab293314627cb55d5603c37c18e5d57"
+        "e41b83d5ccb22aee9afb9816785c0ab91245f51d9f1210ffae13be9215083c996cb1450f7ff023109bc5ae960779461"
+        "5cfd3f102cf8af45889e2e8d8f7a46e02b6698ad56c1dbf88851bbf1968c6a17b382e16696eefee661ccdf19e793904"
+        "b9e75bbe5a608d43812d0e427dbda976d08ad76abf9863e606ab69726e32d25c7874bcfaa28caf6377ab5c649c7da3b"
+        "1e935650e01b4819915808934d3c306d6bd3d043ddb169f5cf82dea9d9cfecaa372d2a6a83837236878e07e60f00e6b"
+        "e65d16fc026d06b5f90711648b7c6900ca2514b2ca719ad356d62fac0af8951daa8972a2e3e86670f22fcc310f64306"
+        "5503a0ed9573ff8b2eaa20234cf1344fd7475a0e0f18f0fbfffebf7dfff07606de34b";
+
+    std::shared_ptr<NTP1Script>          p  = NTP1Script::ParseScript(transfer_opRet);
+    std::shared_ptr<NTP1Script_Transfer> pd = std::dynamic_pointer_cast<NTP1Script_Transfer>(p);
+    ASSERT_NE(pd, nullptr);
+
+    std::string expected =
+        R"({"userData":{"meta":[{"Chapter1_Part2":"It was a matter of chance that I should have rented a house in one of the strangest communities in North America. It was on that slender riotous island which extends itself due east of New York and where there are, among other natural curiosities, two unusual formations of land. Twenty miles from the city a pair of enormous eggs, identical in contour and separated only by a courtesy bay, jut out into the most domesticated body of salt water in the Western Hemisphere, the great wet barnyard of Long Island Sound. They are not perfect ovals--like the egg in the Columbus story they are both crushed flat at the contact end--but their physical resemblance must be a source of perpetual confusion to the gulls that fly overhead. To the wingless a more arresting phenomenon is their dissimilarity in every particular except shape and size.  I lived at West Egg, the--well, the less fashionable of the two, though this is a most superficial tag to express the bizarre and not a little sinister contrast between them. My house was at the very tip of the egg, only fifty yards from the Sound, and squeezed between two huge places that rented for twelve or fifteen thousand a season. The one on my right was a colossal affair by any standard--it was a factual imitation of some Hôtel de Ville in Normandy, with a tower on one side, spanking new under a thin beard of raw ivy, and a marble swimming pool and more than forty acres of lawn and garden. It was Gatsby's mansion. Or rather, as I didn't know Mr. Gatsby it was a mansion inhabited by a gentleman of that name. My own house was an eye-sore, but it was a small eye-sore, and it had been overlooked, so I had a view of the water, a partial view of my neighbor's lawn, and the consoling proximity of millionaires--all for eighty dollars a month.  Across the courtesy bay the white palaces of fashionable East Egg glittered along the water, and the history of the summer really begins on the evening I drove over there to have dinner with the Tom Buchanans. Daisy was my second cousin once removed and I'd known Tom in college. And just after the war I spent two days with them in Chicago.  Her husband, among various physical accomplishments, had been one of the most powerful ends that ever played football at New Haven--a national figure in a way, one of those men who reach such an acute limited excellence at twenty-one that everything afterward savors of anti-climax. His family were enormously wealthy--even in college his freedom with money was a matter for reproach--but now he'd left Chicago and come east in a fashion that rather took your breath away: for instance he'd brought down a string of polo ponies from Lake Forest. It was hard to realize that a man in my own generation was wealthy enough to do that.  Why they came east I don't know. They had spent a year in France, for no particular reason, and then drifted here and there unrestfully wherever people played polo and were rich together. This was a permanent move, said Daisy over the telephone, but I didn't believe it--I had no sight into Daisy's heart but I felt that Tom would drift on forever seeking a little wistfully for the dramatic turbulence of some irrecoverable football game.  And so it happened that on a warm windy evening I drove over to East Egg to see two old friends whom I scarcely knew at all. Their house was even more elaborate than I expected, a cheerful red and white Georgian Colonial mansion overlooking the bay. The lawn started at the beach and ran toward the front door for a quarter of a mile, jumping over sun-dials and brick walks and burning gardens--finally when it reached the house drifting up the side in bright vines as though from the momentum of its run. The front was broken by a line of French windows, glowing now with reflected gold, and wide open to the warm windy afternoon, and Tom Buchanan in riding clothes was standing with his legs apart on the front porch.  He had changed since his New Haven years. Now he was a sturdy, straw haired man of thirty with a rather hard mouth and a supercilious manner. Two shining, arrogant eyes had established dominance over his face and gave him the appearance of always leaning aggressively forward. Not even the effeminate swank of his riding clothes could hide the enormous power of that body--he seemed to fill those glistening boots until he strained the top lacing and you could see a great pack of muscle shifting when his shoulder moved under his thin coat. It was a body capable of enormous leverage--a cruel body.  His speaking voice, a gruff husky tenor, added to the impression of fractiousness he conveyed. There was a touch of paternal contempt in it, even toward people he liked--and there were men at New Haven who had hated his guts.  \"Now, don't think my opinion on these matters is final,\" he seemed to say, \"just because I'm stronger and more of a man than you are.\" We were in the same Senior Society, and while we were never intimate I always had the impression that he approved of me and wanted me to like him with some harsh, defiant wistfulness of his own.  We talked for a few minutes on the sunny porch.  \"I've got a nice place here,\" he said, his eyes flashing about restlessly.  Turning me around by one arm he moved a broad flat hand along the front vista, including in its sweep a sunken Italian garden, a half acre of deep pungent roses and a snub-nosed motor boat that bumped the tide off shore.  \"It belonged to Demaine the oil man.\" He turned me around again, politely and abruptly. \"We'll go inside.\"  We walked through a high hallway into a bright rosy-colored space, fragilely bound into the house by French windows at either end. The windows were ajar and gleaming white against the fresh grass outside that seemed to grow a little way into the house. A breeze blew through the room, blew curtains in at one end and out the other like pale flags, twisting them up toward the frosted wedding cake of the ceiling--and then rippled over the wine-colored rug, making a shadow on it as wind does on the sea.  The only completely stationary object in the room was an enormous couch on which two young women were buoyed up as though upon an anchored balloon. They were both in white and their dresses were rippling and fluttering as if they had just been blown back in after a short flight around the house. I must have stood for a few moments listening to the whip and snap of the curtains and the groan of a picture on the wall. Then there was a boom as Tom Buchanan shut the rear windows and the caught wind died out about the room and the curtains and the rugs and the two young women ballooned slowly to the floor.  The younger of the two was a stranger to me. She was extended full length at her end of the divan, completely motionless and with her chin raised a little as if she were balancing something on it which was quite likely to fall. If she saw me out of the corner of her eyes she gave no hint of it--indeed, I was almost surprised into murmuring an apology for having disturbed her by coming in.  The other girl, Daisy, made an attempt to rise--she leaned slightly forward with a conscientious expression--then she laughed, an absurd, charming little laugh, and I laughed too and came forward into the room.  \"I'm p-paralyzed with happiness.\"  She laughed again, as if she said something very witty, and held my hand for a moment, looking up into my face, promising that there was no one in the world she so much wanted to see. That was a way she had. She hinted in a murmur that the surname of the balancing girl was Baker. (I've heard it said that Daisy's murmur was only to make people lean toward her; an irrelevant criticism that made it no less charming.)" +
+        std::string(")\"}]}}");
+
+    EXPECT_EQ(ZlibDecompress(pd->getRawMetadata()), expected);
+    EXPECT_EQ(pd->getInflatedMetadata(), expected);
+}
+
+TEST(ntp1_tests, random_compressions)
+{
+    for (int i = 0; i < 10; i++) {
+        // generate random data, compress, decompress and verify it's the same
+        std::string strHex        = GeneratePseudoRandomHex(2000000);
+        std::string str           = boost::algorithm::unhex(strHex);
+        std::string compressedStr = ZlibCompress(str);
+        std::string restoredStr   = ZlibDecompress(compressedStr);
+        EXPECT_EQ(restoredStr, str);
+    }
+}
+
+TEST(ntp1_tests, ntp1v1_metadata_map)
+{
+    json_spirit::Value r;
+    EXPECT_NO_THROW(r = GetNTP1v1IssuanceMetadataNode("La6h77fYdhWAAEgRqM1BJBwwnjc1XTSaPdhfxo"));
+    EXPECT_ANY_THROW(GetNTP1v1IssuanceMetadataNode("La6h77fYdhWAAEgRqM1BJBwwnjc1XTSaPdhfxoxxxx"));
 }
 
 // TEST(ntp1_tests, total_fee_calculator)
