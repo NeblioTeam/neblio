@@ -6,10 +6,10 @@
 #include <boost/algorithm/hex.hpp>
 #include <boost/dynamic_bitset.hpp>
 #include <boost/multiprecision/cpp_int.hpp>
+#include <boost/regex.hpp>
 #include <cmath>
 #include <limits>
 #include <memory>
-#include <regex>
 #include <set>
 #include <string>
 #include <vector>
@@ -25,8 +25,8 @@ const NTP1TransactionType NTP1TxType_ISSUANCE = 2;
 const NTP1TransactionType NTP1TxType_TRANSFER = 3;
 const NTP1TransactionType NTP1TxType_BURN     = 4;
 
-const std::string HexBytesRegexStr("^([0-9a-fA-F][0-9a-fA-F])+$");
-const std::regex  HexBytexRegex(HexBytesRegexStr);
+const std::string  HexBytesRegexStr("^([0-9a-fA-F][0-9a-fA-F])+$");
+const boost::regex HexBytexRegex(HexBytesRegexStr);
 
 class NTP1Script
 {

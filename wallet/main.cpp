@@ -21,7 +21,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/range/adaptor/reversed.hpp>
-#include <regex>
+#include <boost/regex.hpp>
 
 #include "NetworkForks.h"
 
@@ -44,10 +44,10 @@ unsigned int nTransactionsUpdated = 0;
 
 // THERE IS ANOTHER ONE OF THOSE IN NTP1Transaction, change that if you wanna change this until this is
 // fixed and there's only one variable
-const std::string NTP1OpReturnRegexStr = R"(^OP_RETURN\s+(4e54(?:01|03)[a-fA-F0-9]*)$)";
-const std::regex  NTP1OpReturnRegex(NTP1OpReturnRegexStr);
-const std::string OpReturnRegexStr = R"(^OP_RETURN\s+(.*)$)";
-const std::regex  OpReturnRegex(OpReturnRegexStr);
+const std::string  NTP1OpReturnRegexStr = R"(^OP_RETURN\s+(4e54(?:01|03)[a-fA-F0-9]*)$)";
+const boost::regex NTP1OpReturnRegex(NTP1OpReturnRegexStr);
+const std::string  OpReturnRegexStr = R"(^OP_RETURN\s+(.*)$)";
+const boost::regex OpReturnRegex(OpReturnRegexStr);
 
 unordered_map<uint256, CBlockIndex*> mapBlockIndex;
 set<pair<COutPoint, unsigned int>>   setStakeSeen;
@@ -4891,12 +4891,12 @@ bool TxContainsOpReturn(const CTransaction* tx, std::string* opReturnArg)
         return false;
     }
 
-    std::smatch opReturnArgMatch;
+    boost::smatch opReturnArgMatch;
 
     for (unsigned long j = 0; j < tx->vout.size(); j++) {
         // if the string OP_RET_STR is found in scriptPubKey
         std::string scriptPubKeyStr = tx->vout[j].scriptPubKey.ToString();
-        if (std::regex_match(scriptPubKeyStr, opReturnArgMatch, OpReturnRegex)) {
+        if (boost::regex_match(scriptPubKeyStr, opReturnArgMatch, OpReturnRegex)) {
             if (opReturnArg != nullptr && opReturnArgMatch[1].matched) {
                 *opReturnArg = std::string(opReturnArgMatch[1]);
                 return true;
@@ -4917,11 +4917,11 @@ bool IsTxNTP1(const CTransaction* tx, std::string* opReturnArg)
         return false;
     }
 
-    std::smatch opReturnArgMatch;
+    boost::smatch opReturnArgMatch;
 
     for (unsigned long j = 0; j < tx->vout.size(); j++) {
         std::string scriptPubKeyStr = tx->vout[j].scriptPubKey.ToString();
-        if (std::regex_match(scriptPubKeyStr, opReturnArgMatch, NTP1OpReturnRegex)) {
+        if (boost::regex_match(scriptPubKeyStr, opReturnArgMatch, NTP1OpReturnRegex)) {
             if (opReturnArg != nullptr && opReturnArgMatch[1].matched) {
                 *opReturnArg = std::string(opReturnArgMatch[1]);
                 return true;
@@ -4942,7 +4942,7 @@ bool IsTxOutputNTP1OpRet(const CTransaction* tx, unsigned int index, std::string
         return false;
     }
 
-    std::smatch opReturnArgMatch;
+    boost::smatch opReturnArgMatch;
 
     // out of range index
     if (index + 1 >= tx->vout.size()) {
@@ -4950,7 +4950,7 @@ bool IsTxOutputNTP1OpRet(const CTransaction* tx, unsigned int index, std::string
     }
 
     std::string scriptPubKeyStr = tx->vout[index].scriptPubKey.ToString();
-    if (std::regex_match(scriptPubKeyStr, opReturnArgMatch, NTP1OpReturnRegex)) {
+    if (boost::regex_match(scriptPubKeyStr, opReturnArgMatch, NTP1OpReturnRegex)) {
         if (opReturnArg != nullptr && opReturnArgMatch[1].matched) {
             *opReturnArg = std::string(opReturnArgMatch[1]);
             return true;
@@ -4966,7 +4966,7 @@ bool IsTxOutputOpRet(const CTransaction* tx, unsigned int index, std::string* op
         return false;
     }
 
-    std::smatch opReturnArgMatch;
+    boost::smatch opReturnArgMatch;
 
     // out of range index
     if (index + 1 >= tx->vout.size()) {
@@ -4974,7 +4974,7 @@ bool IsTxOutputOpRet(const CTransaction* tx, unsigned int index, std::string* op
     }
 
     std::string scriptPubKeyStr = tx->vout[index].scriptPubKey.ToString();
-    if (std::regex_match(scriptPubKeyStr, opReturnArgMatch, OpReturnRegex)) {
+    if (boost::regex_match(scriptPubKeyStr, opReturnArgMatch, OpReturnRegex)) {
         if (opReturnArg != nullptr && opReturnArgMatch[1].matched) {
             *opReturnArg = std::string(opReturnArgMatch[1]);
             return true;
@@ -4990,10 +4990,10 @@ bool IsTxOutputOpRet(const CTxOut* output, string* opReturnArg)
         return false;
     }
 
-    std::smatch opReturnArgMatch;
+    boost::smatch opReturnArgMatch;
 
     std::string scriptPubKeyStr = output->scriptPubKey.ToString();
-    if (std::regex_match(scriptPubKeyStr, opReturnArgMatch, OpReturnRegex)) {
+    if (boost::regex_match(scriptPubKeyStr, opReturnArgMatch, OpReturnRegex)) {
         if (opReturnArg != nullptr && opReturnArgMatch[1].matched) {
             *opReturnArg = std::string(opReturnArgMatch[1]);
             return true;
