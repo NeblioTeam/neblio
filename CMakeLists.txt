@@ -10,7 +10,11 @@ set(CMAKE_CXX_STANDARD 11)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 
-option(COMPILE_GUI "Enable compiling neblio-qt" ON)
+if(WIN32)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wa,-mbig-obj")
+endif()
+
+option(COMPILE_GUI "Enable compiling neblio-qt" OFF)
 option(COMPILE_DAEMON "Enable compiling nebliod" ON)
 option(COMPILE_CURL "Download and compile libcurl (and OpenSSL) automatically (Not for Windows)" OFF)
 option(USE_QRCODE "Enable QRCode" ON)
@@ -566,6 +570,11 @@ add_library(json_spirit_lib STATIC
     wallet/json/json_spirit_writer.cpp
     )
 
+if(WIN32)
+    # this solves a problem of big string tables on Windows when building in debug mode
+    set_property(TARGET json_spirit_lib PROPERTY COMPILE_FLAGS "-O2")
+endif()
+
 add_library(txdb_lib STATIC
     wallet/txdb-lmdb.cpp
     )
@@ -625,6 +634,34 @@ if(WIN32)
             QT_GUI
             )
         target_link_libraries(neblio-qt Qt5::QWindowsIntegrationPlugin)
+    endif()
+    if(COMPILE_DAEMON)
+        add_executable(
+            nebliod
+            wallet/wallet.cpp
+            wallet/init.cpp
+            )
+
+        target_link_libraries(nebliod
+            core_lib
+            zerocoin_lib
+            ntp1_lib
+            curltools_lib
+            json_spirit_lib
+            txdb_lib
+            -lpthread
+            ### win32 libs
+            -lws2_32 -lshlwapi -lmswsock -lole32 -loleaut32 -luuid -lgdi32
+            ##############
+            Boost::system
+            Boost::filesystem
+            Boost::thread
+            Boost::regex
+            Boost::program_options
+            ${BERKELEY_DB_LIBRARIES}
+            ${CURL_LIBS}
+            ${OPENSSL_LIBS}
+            )
     endif()
 elseif(APPLE)
     add_executable(
