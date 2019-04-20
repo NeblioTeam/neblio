@@ -32,7 +32,6 @@ nci.call_with_err_code("sudo mv mxe /")
 # add mxe to PATH
 mxe_bin_path = os.path.join(mxe_path, "usr/bin/")
 os.environ["PATH"] += (":" + mxe_bin_path)
-print(os.environ["PATH"])
 
 os.chdir(working_dir)
 
