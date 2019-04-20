@@ -44,7 +44,7 @@ os.chdir(build_dir)
 nci.call_with_err_code('i686-w64-mingw32.static-qmake-qt5 "QMAKE_CXX=ccache i686-w64-mingw32.static-g++" "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-wallet.pro')
 nci.call_with_err_code("make -j" + str(mp.cpu_count()))
 
-file_name = '$(date +%Y-%m-%d)---' + os.environ['TRAVIS_BRANCH'] + '-' + os.environ['TRAVIS_COMMIT'][:7] + '---neblio-Qt---windows.zip'
+file_name = '$(date +%Y-%m-%d)---' + os.environ['TRAVIS_BRANCH'] + '-' + os.environ['TRAVIS_COMMIT'][:7] + '---neblio-Qt---windows_x86.zip'
 
 nci.call_with_err_code('zip -j ' + file_name + ' ./wallet/release/neblio-qt.exe')
 nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)
