@@ -360,6 +360,8 @@ bool CheckLockTime(const int64_t& nLockTime, const CTransaction &txTo, unsigned 
 
 bool CheckSequence(const int64_t& nSequence, const CTransaction &txTo, unsigned int nIn)
 {
+    // Function currently not used (NOP) due to lack of BIP68 implementation
+    
     // Relative lock times are supported by comparing the passed
     // in operand to the sequence number of the input.
     const int64_t txToSequence = (int64_t)txTo.vin[nIn].nSequence;
