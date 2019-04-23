@@ -29,19 +29,19 @@ static const uint32_t SEQUENCE_FINAL = 0xffffffff;
 
 // If this flag set, CTxIn::nSequence is NOT interpreted as a
 // relative lock-time.
-static const uint32_t SEQUENCE_LOCKTIME_DISABLE_FLAG = 0x80000000;
+static const uint32_t SEQUENCE_LOCKTIME_DISABLE_FLAG = 0x80000000; //Constant not used currently due to lack of OP_CHECKSEQUENCEVERIFY check (NOP3) 
 
 // If CTxIn::nSequence encodes a relative lock-time and this flag
 // is set, the relative lock-time has units of 512 seconds,
 // otherwise it specifies blocks with a granularity of 1.
-static const uint32_t SEQUENCE_LOCKTIME_TYPE_FLAG = 0x00400000;
+static const uint32_t SEQUENCE_LOCKTIME_TYPE_FLAG = 0x00400000; //Constant not used currently due to lack of OP_CHECKSEQUENCEVERIFY check (NOP3)
 
 // If CTxIn::nSequence encodes a relative lock-time, this mask is
 // applied to extract that lock-time from the sequence field.
-static const uint32_t SEQUENCE_LOCKTIME_MASK = 0x0000ffff;
+static const uint32_t SEQUENCE_LOCKTIME_MASK = 0x0000ffff; //Constant not used currently due to lack of OP_CHECKSEQUENCEVERIFY check (NOP3)
 
 //A timestamp in the blockchain where LOCKTIME Verify Activates
-static const unsigned int CHECKLOCKTIME_VERIFY_SWITCH_TIME = 1556668800; // Wednesday, May 1, 2019 00:00:00 AM UTC
+static const unsigned int CHECKLOCKTIME_VERIFY_SWITCH_TIME = 1555977600; // Wednesday, April 23rd, 2019 00:00:00 AM UTC
 
 /** Signature hash types/flags */
 enum
@@ -121,7 +121,7 @@ enum opcodetype
     OP_VERIFY = 0x69,
     OP_RETURN = 0x6a,
     OP_CHECKLOCKTIMEVERIFY = 0xb1,
-    OP_CHECKSEQUENCEVERIFY = 0xb2,
+    OP_CHECKSEQUENCEVERIFY = 0xb2, //Currently still acts as NOP3 as OP_CHECKSEQUENCEVERIFY is not implemented
     
     // stack ops
     OP_TOALTSTACK = 0x6b,
