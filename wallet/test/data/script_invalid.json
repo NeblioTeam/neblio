@@ -119,8 +119,10 @@
 ["2 2 LSHIFT", "8 EQUAL", "disabled"],
 ["2 1 RSHIFT", "1 EQUAL", "disabled"],
 
-["1","NOP1 NOP2 NOP3 NOP4 NOP5 NOP6 NOP7 NOP8 NOP9 NOP10 2 EQUAL"],
-["'NOP_1_to_10' NOP1 NOP2 NOP3 NOP4 NOP5 NOP6 NOP7 NOP8 NOP9 NOP10","'NOP_1_to_11' EQUAL"],
+["1","NOP1 NOP4 NOP5 NOP6 NOP7 NOP8 NOP9 NOP10 2 EQUAL"],
+["'NOP_1_to_10' NOP1 NOP4 NOP5 NOP6 NOP7 NOP8 NOP9 NOP10","'NOP_1_to_11' EQUAL"],
+
+["1 1560893090","CHECKLOCKTIMEVERIFY DROP 1 EQUAL","This will fail successfully if the transaction nLockTime is less than this unix timestamp"],
 
 ["NOP", "RIPEMD160"],
 ["NOP", "SHA1"],

@@ -145,6 +145,11 @@ TEST(script_tests, script_valid)
         CScript scriptPubKey = ParseScript(scriptPubKeyString);
 
         CTransaction tx;
+        tx.nTime = CHECKLOCKTIME_VERIFY_SWITCH_TIME; //Force this transaction to use the LockTime verify by giving it a future date
+        tx.nLockTime = tx.nTime; //Match the LockTime to the nTime
+        tx.vin.resize(1); //CheckLockTimeVerify requires a nSequence to be present before it can check locktime
+        tx.vin[0].nSequence = 0; //Must also be not equal to SEQUENCE_FINAL to work       
+        fTestNet = true; //Set testnet to true as OP_CHECKLOCKTIMEVERIFY is only active on testnet for the time being
         EXPECT_TRUE(VerifyScript(scriptSig, scriptPubKey, tx, 0, true, true, SIGHASH_NONE)) << strTest;
     }
 }
@@ -169,6 +174,11 @@ TEST(script_tests, script_invalid)
         CScript scriptPubKey = ParseScript(scriptPubKeyString);
 
         CTransaction tx;
+        tx.nTime = CHECKLOCKTIME_VERIFY_SWITCH_TIME; //Force this transaction to use the LockTime verify
+        tx.nLockTime = tx.nTime; //Match the LockTime to the nTime
+        tx.vin.resize(1); //CheckLockTimeVerify requires a nSequence to be present before it can check locktime
+        tx.vin[0].nSequence = 0; //Must also be not equal to SEQUENCE_FINAL to work      
+        fTestNet = true; //Set testnet to true as OP_CHECKLOCKTIMEVERIFY is only active on testnet for the time being
         EXPECT_FALSE(VerifyScript(scriptSig, scriptPubKey, tx, 0, true, true, SIGHASH_NONE)) << strTest;
     }
 }
