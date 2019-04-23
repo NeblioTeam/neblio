@@ -150,7 +150,7 @@ const char* GetOpName(opcodetype opcode)
     case OP_VERIFY                 : return "OP_VERIFY";
     case OP_RETURN                 : return "OP_RETURN";
     case OP_CHECKLOCKTIMEVERIFY    : return "OP_CHECKLOCKTIMEVERIFY";
-    case OP_CHECKSEQUENCEVERIFY    : return "OP_CHECKSEQUENCEVERIFY";            
+    case OP_CHECKSEQUENCEVERIFY    : return "OP_CHECKSEQUENCEVERIFY"; //Currently still treated as NOP3 due to lack of BIP68 implementation            
 
     // stack ops
     case OP_TOALTSTACK             : return "OP_TOALTSTACK";
@@ -550,6 +550,11 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, co
                     // (nLockTime -- nLockTime)
                     if (txTo.nTime < CHECKLOCKTIME_VERIFY_SWITCH_TIME){
                         // treat as a NOP2 if not enabled yet by timestamp
+                        break;
+                    }
+                    
+                    //Currently, OP_CHECKLOCKTIMEVERIFY only works on testnet, otherwise still act as NOP2
+                    if(!fTestNet){
                         break;
                     }
 
