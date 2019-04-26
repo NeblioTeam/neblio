@@ -176,6 +176,8 @@ std::string JsonTreeNode::TypeToString(json_spirit::Value_type t)
         return "Real";
     case json_spirit::Value_type::str_type:
         return "String";
+    default:
+        return "Unknown";
     }
 }
 
@@ -221,5 +223,7 @@ bool JsonTreeNode::TestValueStorage(const std::string& valStr, json_spirit::Valu
         }
     case json_spirit::Value_type::str_type:
         return true;
+    default:
+        return false;
     }
 }
