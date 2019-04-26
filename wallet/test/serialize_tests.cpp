@@ -107,6 +107,8 @@ TEST(serialize_tests, varints)
 #include "ntp1/ntp1txout.h"
 #include "protocol.h"
 #include "wallet.h"
+#include "zerocoin/Accumulator.h"
+#include "zerocoin/AccumulatorProofOfKnowledge.h"
 
 TEST(serialize_tests, cross_platform_consistency)
 {
@@ -345,14 +347,10 @@ TEST(serialize_tests, cross_platform_consistency)
     cTxIndex.vSpent = {cDiskTxPos};
     {
         CDataStream ss(SER_DISK, 0);
-        ss << cMerkleTx;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()),
-                  "7856341278563412012457137856341268245713785634128877665544332211682457137856341200785"
-                  "6341206616263646566785634120168245713785634120661626364656678563412245713785634126824"
-                  "5713785634128877665544332211682457137856341200042457137856341268245713785634128877665"
-                  "5443322116824571378563412002457133535341268245713785634128877665544422211682457137856"
-                  "3412002457137856341268245713785634128877665544334222325476137856341200245713785634126"
-                  "824574323111132547698907856547668245713785634120078563412");
+        ss << cTxIndex;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()), "0000000024571378563412682457137856341288776655443322"
+                                                   "1168245713785634120078563412012457137856341268245713"
+                                                   "78563412887766554433221168245713785634120078563412");
     }
 
     CPartialMerkleTree cPartialMerkleTree(
@@ -591,5 +589,142 @@ TEST(serialize_tests, cross_platform_consistency)
                   "9015A036162630258590B66726F6D6163636F756E740E5858414153515745525948474644016E13313331"
                   "31373638343635313932313939323731057370656E74063131313131310974696D65736D6172740933303"
                   "53431393839360203615863037658590358615902735A78563412785634122601");
+    }
+
+    CWalletKey  cWalletKey;
+    std::string key = "abcdefghijklmnopqrstuvwxyz";
+    std::copy(key.cbegin(), key.cend(), std::back_inserter(cWalletKey.vchPrivKey));
+    cWalletKey.nTimeCreated = 0x1234562813572467;
+    cWalletKey.nTimeExpires = 0x1233452813572467;
+    cWalletKey.strComment   = "CommentyCommentttttttt";
+    {
+        CDataStream ss(SER_DISK, 0);
+        ss << cWalletKey;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()), "000000001A6162636465666768696A6B6C6D6E6F707172737475"
+                                                   "767778797A6724571328563412672457132845331216436F6D6D"
+                                                   "656E7479436F6D6D656E7474747474747474");
+    }
+
+    CAccount cAccount;
+    cAccount.vchPubKey = cPubKey;
+    {
+        CDataStream ss(SER_DISK, 0);
+        ss << cAccount;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()), "0000000006616263646566");
+    }
+
+    CAccountingEntry cAccountingEntry;
+    cAccountingEntry.strAccount      = "ABcdEFg";              // std::string
+    cAccountingEntry.nCreditDebit    = 0x1234562813572467;     // int64_t
+    cAccountingEntry.nTime           = 0x1234562813572467;     // int64_t
+    cAccountingEntry.strOtherAccount = "xyzXYZabc";            // std::string
+    cAccountingEntry.strComment      = "CommentyCommentttttt"; // std::string
+    cAccountingEntry.mapValue.insert({"abc", "XY"});
+    cAccountingEntry.mapValue.insert({"XXY", "Z"});  // mapValue_t
+    cAccountingEntry.nOrderPos = 0x1234562813572467; // int64_t
+    cAccountingEntry.nEntryNo  = 0x1234562813572467; // uint64_t
+    {
+        CDataStream ss(SER_DISK, 0);
+        ss << cAccountingEntry;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()), "00000000672457132856341267245713285634120978797A5859"
+                                                   "5A61626339436F6D6D656E7479436F6D6D656E74747474747400"
+                                                   "0303585859015A03616263025859016E13313331313736383132"
+                                                   "31353934383135353931");
+    }
+
+    CKeyMetadata cKeyMetadata;
+    cKeyMetadata.nVersion    = 0x12345678;
+    cKeyMetadata.nCreateTime = 0x1234567813572468;
+    {
+        CDataStream ss(SER_DISK, 0);
+        ss << cKeyMetadata;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()), "785634126824571378563412");
+    }
+
+    libzerocoin::IntegerGroupParams integerGroupParams;
+    integerGroupParams.initialized = 1;
+    integerGroupParams.g           = 0x1222367813579;
+    integerGroupParams.h           = 0x123557813579;
+    integerGroupParams.modulus     = 0x12345678122579;
+    integerGroupParams.groupOrder  = 0x12345678122589;
+    {
+        CDataStream ss(SER_DISK, 0);
+        ss << integerGroupParams;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()),
+                  "0107793581672322010679358157351207792512785634120789251278563412");
+    }
+
+    libzerocoin::AccumulatorAndProofParams accumulatorAndProofParams;
+    accumulatorAndProofParams.initialized                   = 1;
+    accumulatorAndProofParams.accumulatorModulus            = 0x1234567813579;
+    accumulatorAndProofParams.accumulatorBase               = 0x1234569813579;
+    accumulatorAndProofParams.accumulatorPoKCommitmentGroup = integerGroupParams;
+    accumulatorAndProofParams.accumulatorQRNCommitmentGroup = integerGroupParams;
+    accumulatorAndProofParams.minCoinValue                  = 0x123456777813579;
+    accumulatorAndProofParams.maxCoinValue                  = 0x12333367813579;
+    accumulatorAndProofParams.k_prime                       = 0x12345678;
+    accumulatorAndProofParams.k_dprime                      = 0x13574372;
+    {
+        CDataStream ss(SER_DISK, 0);
+        ss << accumulatorAndProofParams;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()),
+                  "0107793581674523010779358169452301010779358167232201067935815735120779251278563412078"
+                  "9251278563412010779358167232201067935815735120779251278563412078925127856341208793581"
+                  "776745230107793581673333127856341272435713");
+    }
+
+    CBigNum bg(0x1234567892468);
+    // number must be > 1023 bits
+    bg = bg * bg * bg * bg * bg * bg * bg * bg * bg * bg * bg * bg * bg * bg * bg * bg * bg * bg * bg *
+         bg * bg * bg * bg * bg;
+    libzerocoin::Params params(bg);
+    params.initialized                    = 1;
+    params.accumulatorParams              = accumulatorAndProofParams;
+    params.coinCommitmentGroup            = integerGroupParams;
+    params.serialNumberSoKCommitmentGroup = integerGroupParams;
+    params.zkp_iterations                 = 0x12345678;
+    params.zkp_hash_len                   = 0x13595258;
+    {
+        CDataStream ss(SER_DISK, 0);
+        ss << params;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()),
+                  "0101077935816745230107793581694523010107793581672322010679358157351207792512785634120"
+                  "7892512785634120107793581672322010679358157351207792512785634120789251278563412087935"
+                  "8177674523010779358167333312785634127243571301077935816723220106793581573512077925127"
+                  "8563412078925127856341201077935816723220106793581573512077925127856341207892512785634"
+                  "127856341258525913");
+    }
+
+    libzerocoin::PublicCoin publicCoin(&params);
+    {
+        CDataStream ss(SER_DISK, 0);
+        ss << publicCoin;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()), "0032000000");
+    }
+
+    libzerocoin::PublicCoin privateCoin(&params);
+    {
+        CDataStream ss(SER_DISK, 0);
+        ss << privateCoin;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()), "0032000000");
+    }
+
+    libzerocoin::SpendMetaData spendMetaData(uint256v, uint256v + 0x2425464757325336);
+    {
+        CDataStream ss(SER_DISK, 0);
+        ss << spendMetaData;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()), "2457133535341268245713785634128877665544422211682457"
+                                                   "1378563412005AAA458C7C7A378C245713785634128877665544"
+                                                   "422211682457137856341200");
+    }
+
+    {
+        CDataStream ss(SER_DISK, 0);
+        ss << bg;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()),
+                  "9100000000000000000061587366EAD04904DD36E83CBD2DC82F29C64C80CB1F5B7156C133DBF8FC0576E"
+                  "A05B7DC8B02357D614546334134FD9D42BE947DF3232180E38E69E4F6D133409A0F3D2D89EE747E7C60C0"
+                  "BE3969F0BE4DE12A14D45B935FD7E3A00DD751209BC7B16D12796E977D24D6E954C04C161E86A5977795C"
+                  "F1BA1BCC32465C32D1E14F47E38C41D772616");
     }
 }
