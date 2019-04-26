@@ -35,6 +35,8 @@ public:
     uint64_t               getSequence() const;
     const NTP1TokenTxData& getToken(unsigned long index) const;
     unsigned long          getNumOfTokens() const;
+    void                   __addToken(const NTP1TokenTxData& token);
+    void                   setSequence(const uint64_t& value);
     friend inline bool     operator==(const NTP1TxIn& lhs, const NTP1TxIn& rhs);
 
     // clang-format off

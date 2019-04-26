@@ -99,6 +99,14 @@ TEST(serialize_tests, varints)
 #include "checkpoints.h"
 #include "crypter.h"
 #include "main.h"
+#include "ntp1/ntp1outpoint.h"
+#include "ntp1/ntp1script.h"
+#include "ntp1/ntp1tokentxdata.h"
+#include "ntp1/ntp1transaction.h"
+#include "ntp1/ntp1txin.h"
+#include "ntp1/ntp1txout.h"
+#include "protocol.h"
+#include "wallet.h"
 
 TEST(serialize_tests, cross_platform_consistency)
 {
@@ -380,5 +388,208 @@ TEST(serialize_tests, cross_platform_consistency)
                   "2682457137856341288776655444222116824571378563412007856341278563412785634120178563412"
                   "7856341201245713785634126824571378563412887766554433221168245713785634120078563412066"
                   "1626364656678563412016824571378563412066162636465667856341206616263646566");
+    }
+
+    uint256 uint256v("12345678135724681122424455667788123456781357246812343535135724");
+
+    CDiskBlockIndex cDiskBlockIndex;
+    cDiskBlockIndex.phashBlock             = &uint256v;            // const uint256*
+    cDiskBlockIndex.pprev                  = &cDiskBlockIndex;     // CBlockIndex*
+    cDiskBlockIndex.pnext                  = &cDiskBlockIndex;     // CBlockIndex*
+    cDiskBlockIndex.blockKeyInDB           = uint256v + 12345678;  // uint256
+    cDiskBlockIndex.nChainTrust            = uint256v + 22233456;  // uint256
+    cDiskBlockIndex.nHeight                = 0x12345678;           // int
+    cDiskBlockIndex.nMint                  = 0x1234567813572468;   // int64_t
+    cDiskBlockIndex.nMoneySupply           = 0x1234567813572468;   // int64_t
+    cDiskBlockIndex.nFlags                 = 0x12345678;           // unsigned int
+    cDiskBlockIndex.nStakeModifier         = 0x1234567813572468;   // uint64_t
+    cDiskBlockIndex.nStakeModifierChecksum = 0x12345678;           // unsigned int
+    cDiskBlockIndex.prevoutStake           = cOutPoint;            // COutPoint
+    cDiskBlockIndex.nStakeTime             = 0x12345678;           // unsigned int
+    cDiskBlockIndex.hashProof              = uint256v + 13131313;  // uint256
+    cDiskBlockIndex.nVersion               = 0x12345679;           // int
+    cDiskBlockIndex.hashMerkleRoot         = uint256v - 242536447; // uint256
+    cDiskBlockIndex.nTime                  = 0x12345678;           // unsigned int
+    cDiskBlockIndex.nBits                  = 0x12345622;           // unsigned int
+    cDiskBlockIndex.nNonce                 = 0x12345655;           // unsigned int
+    {
+        CDataStream ss(SER_DISK, 0);
+        ss << cDiskBlockIndex;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()),
+                  "00000000000000000000000000000000000000000000000000000000000000000000000072B8CF3535341"
+                  "2682457137856341288776655444222116824571378563412007856341268245713785634126824571378"
+                  "56341278563412682457137856341255B5DB3535341268245713785634128877665544422211682457137"
+                  "8563412007956341200000000000000000000000000000000000000000000000000000000000000002587"
+                  "9E26353412682457137856341288776655444222116824571378563412007856341222563412555634120"
+                  "000000000000000000000000000000000000000000000000000000000000000");
+    }
+
+    struct CBlockLocatorDer : public CBlockLocator
+    {
+        void add(uint256 v) { vHave.push_back(v); }
+    } cBlockLocator;
+    cBlockLocator.add(uint256v);
+    cBlockLocator.add(uint256v + 1582728274);
+
+    {
+        CDataStream ss(SER_DISK, 0);
+        ss << cBlockLocator;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()), "0000000002245713353534126824571378563412887766554442"
+                                                   "221168245713785634120076DB69933534126824571378563412"
+                                                   "8877665544422211682457137856341200");
+    }
+
+    CMerkleBlock cMerkleBlock(cBlock, cBloomFilter);
+    {
+        CDataStream ss(SER_DISK, 0);
+        ss << cMerkleBlock;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()),
+                  "7856341224571378563412682457137856341288776655443322116824571378563412002457133535341"
+                  "2682457137856341288776655444222116824571378563412007856341278563412785634120000010000"
+                  "000107A1544C6FEB385BFF14176CD20041BD864AFEBEB579A9BCEB815943B73D183C0101");
+    }
+
+    NTP1OutPoint ntp1OutPoint(uint256v, 0x12345678);
+    {
+        CDataStream ss(SER_DISK, 0);
+        ss << ntp1OutPoint;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()),
+                  "245713353534126824571378563412887766554442221168245713785634120078563412");
+    }
+
+    NTP1TokenTxData ntp1TokenTxData;
+    ntp1TokenTxData.setTokenId("abcdefg");                // std::string
+    ntp1TokenTxData.setAmount(0x12345678);                // NTP1Int
+    ntp1TokenTxData.setIssueTxIdHex(uint256v.ToString()); // uint256
+    ntp1TokenTxData.setDivisibility(0x1234567813572468);  // uint64_t
+    ntp1TokenTxData.setLockStatus(false);                 // int
+    ntp1TokenTxData.setAggregationPolicy("abbcddeefg");   // std::string
+    ntp1TokenTxData.setTokenSymbol("ABCDE");              // std::string
+    {
+        CDataStream ss(SER_DISK, 0);
+        ss << ntp1TokenTxData;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()),
+                  "0761626364656667093330353431393839362457133535341268245713785634128877665544422211682"
+                  "4571378563412006824571378563412000000000A61626263646465656667054142434445");
+    }
+    NTP1TxIn ntp1TxIn;
+    ntp1TxIn.setPrevout(ntp1OutPoint);                    // NTP1OutPoint
+    ntp1TxIn.setScriptSigHex(cTxIn.scriptSig.ToString()); // std::string
+    ntp1TxIn.setSequence(0x1234567813572468);             // uint64_t
+    ntp1TxIn.__addToken(ntp1TokenTxData);                 // std::vector<NTP1TokenTxData>
+    {
+        CDataStream ss(SER_DISK, 0);
+        ss << ntp1TxIn;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()),
+                  "245713353534126824571378563412887766554442221168245713785634120078563412314F505F4E4F5"
+                  "0204F505F564552204F505F4946204F505F4E4F544946204F505F5645524946204F505F5645524E4F5449"
+                  "4668245713785634120107616263646566670933303534313938393624571335353412682457137856341"
+                  "288776655444222116824571378563412006824571378563412000000000A616262636464656566670541"
+                  "42434445");
+    }
+
+    NTP1TxOut ntp1TxOut;
+    ntp1TxOut.setNValue(0x12345678);          // int64_t
+    ntp1TxOut.setScriptPubKeyAsm("abcdefg");  // std::string
+    ntp1TxOut.setScriptPubKeyHex("deadbeef"); // std::string
+    ntp1TxOut.__addToken(ntp1TokenTxData);    // std::vector<NTP1TokenTxData>
+    ntp1TxOut.setAddress("ABCDEF");           // std::string
+
+    {
+        CDataStream ss(SER_DISK, 0);
+        ss << ntp1TxOut;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()),
+                  "7856341200000000086465616462656566076162636465666701076162636465666709333035343139383"
+                  "9362457133535341268245713785634128877665544422211682457137856341200682457137856341200"
+                  "0000000A6162626364646565666705414243444506414243444546");
+    }
+
+    NTP1Transaction ntp1Transaction;
+    ntp1Transaction.__manualSet(0x12345678, uint256v, {'a', 'b', 'c', 'd', 'e', 'f'}, {ntp1TxIn},
+                                {ntp1TxOut}, 0x1234567813572468, 0x1234567813572468,
+                                NTP1TxType_TRANSFER);
+    {
+        CDataStream ss(SER_DISK, 0);
+        ss << ntp1Transaction;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()),
+                  "7856341268245713785634122457133535341268245713785634128877665544422211682457137856341"
+                  "20001245713353534126824571378563412887766554442221168245713785634120078563412314F505F"
+                  "4E4F50204F505F564552204F505F4946204F505F4E4F544946204F505F5645524946204F505F5645524E4"
+                  "F544946682457137856341201076162636465666709333035343139383936245713353534126824571378"
+                  "56341288776655444222116824571378563412006824571378563412000000000A6162626364646565666"
+                  "7054142434445017856341200000000086465616462656566076162636465666701076162636465666709"
+                  "3330353431393839362457133535341268245713785634128877665544422211682457137856341200682"
+                  "4571378563412000000000A61626263646465656667054142434445064142434445466824571378563412"
+                  "03000000");
+    }
+
+    CMessageHeader cMessageHeader;
+    std::string    pchMessageStart = "ABCD";
+    std::string    pchCommand      = "AABBCDEFGHIJ";
+    ASSERT_EQ(pchMessageStart.size(), 4u);
+    ASSERT_EQ(pchCommand.size(), 12u);
+    std::copy(pchMessageStart.cbegin(), pchMessageStart.cend(), cMessageHeader.pchMessageStart);
+    std::copy(pchCommand.cbegin(), pchCommand.cend(), cMessageHeader.pchCommand);
+    cMessageHeader.nMessageSize = 0x12345678;
+    cMessageHeader.nChecksum    = 0x12345678;
+    {
+        CDataStream ss(SER_DISK, 0);
+        ss << cMessageHeader;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()), "4142434441414242434445464748494A7856341278563412");
+    }
+
+    CInv cInv(0x12345678, uint256v);
+    {
+        CDataStream ss(SER_DISK, 0);
+        ss << cInv;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()),
+                  "785634122457133535341268245713785634128877665544422211682457137856341200");
+    }
+
+    CKeyPool cKeyPool;
+    cKeyPool.nTime     = 0x1234567813572244;
+    cKeyPool.vchPubKey = cPubKey;
+    {
+        CDataStream ss(SER_DISK, 0);
+        ss << cKeyPool;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()), "00000000442257137856341206616263646566");
+    }
+
+    CWalletTx cWalletTx(nullptr);
+    cWalletTx.nTime = 0x12345678;
+    cWalletTx.vtxPrev.push_back(cMerkleTx); // std::vector<CMerkleTx>
+    cWalletTx.mapValue.insert({"abc", "XY"});
+    cWalletTx.mapValue.insert({"XXY", "Z"}); // mapValue_t
+    cWalletTx.vOrderForm             = {{"aXc", "vXY"},
+                            {"XaY", "sZ"}}; // std::vector<std::pair<std::string, std::string>>
+    cWalletTx.fTimeReceivedIsTxTime  = 0x12345678;      // unsigned int
+    cWalletTx.nTimeReceived          = 0x12345678;      // unsigned int
+    cWalletTx.nTimeSmart             = 0x12345678;      // unsigned int
+    cWalletTx.fFromMe                = 0x26;            // char
+    cWalletTx.strFromAccount         = "XXAASQWERYHGFD";               // std::string
+    cWalletTx.vfSpent                = {'A', 'B', 'C', 'D', 'E', 'G'}; // std::vector<char>
+    cWalletTx.nOrderPos              = 0x1234567813572467;             // int64_t
+    cWalletTx.fDebitCached           = 1;                              // mutable bool
+    cWalletTx.fCreditCached          = 0;                              // mutable bool
+    cWalletTx.fAvailableCreditCached = 0;                              // mutable bool
+    cWalletTx.fChangeCached          = 0;                              // mutable bool
+    cWalletTx.nDebitCached           = 0x1234567813572467;             // mutable int64_t
+    cWalletTx.nCreditCached          = 0x1234567813572267;             // mutable int64_t
+    cWalletTx.nAvailableCreditCached = 0x1234562813572467;             // mutable int64_t
+    cWalletTx.nChangeCached          = 0x1234567813512467;             // mutable int64_t
+    {
+        CDataStream ss(SER_DISK, 0);
+        ss << cWalletTx;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()),
+                  "0100000078563412000000000000000000000000000000000000000000000000000000000000000000000"
+                  "000000000FFFFFFFF01785634127856341201245713785634126824571378563412887766554433221168"
+                  "2457137856341200785634120661626364656678563412016824571378563412066162636465667856341"
+                  "2245713785634126824571378563412887766554433221168245713785634120004245713785634126824"
+                  "5713785634128877665544332211682457137856341200245713353534126824571378563412887766554"
+                  "4422211682457137856341200245713785634126824571378563412887766554433422232547613785634"
+                  "1200245713785634126824574323111132547698907856547668245713785634120078563412060358585"
+                  "9015A036162630258590B66726F6D6163636F756E740E5858414153515745525948474644016E13313331"
+                  "31373638343635313932313939323731057370656E74063131313131310974696D65736D6172740933303"
+                  "53431393839360203615863037658590358615902735A78563412785634122601");
     }
 }

@@ -31,6 +31,14 @@ void NTP1TxOut::__manualSet(int64_t NValue, std::string ScriptPubKeyHex, std::st
     address         = Address;
 }
 
+void NTP1TxOut::setNValue(const int64_t& value) { nValue = value; }
+
+void NTP1TxOut::setScriptPubKeyHex(const std::string& value) { scriptPubKeyHex = value; }
+
+void NTP1TxOut::setScriptPubKeyAsm(const std::string& value) { scriptPubKeyAsm = value; }
+
+void NTP1TxOut::__addToken(const NTP1TokenTxData& token) { tokens.push_back(token); }
+
 NTP1TxOut::NTP1TxOut() { setNull(); }
 
 NTP1TxOut::NTP1TxOut(int64_t nValueIn, const std::string& scriptPubKeyIn)
