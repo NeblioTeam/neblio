@@ -148,14 +148,15 @@ TEST(serialize_tests, cross_platform_consistency)
                   "0000000000E1F505010000000000000000000000000000000000FFFF785634121234");
     }
 
-    CAddrMan cAddrMan;
-    cAddrMan.Add(cAddress, cNetAddr);
+    CAddrInfo cAddrInfo(cAddress, cNetAddr);
     {
         CDataStream ss(SER_DISK, 0);
-        ss << cAddress;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()),
-                  "0000000000E1F505010000000000000000000000000000000000FFFF785634121234");
+        ss << cAddrInfo;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()), "0000000000E1F505010000000000000000000000000000000000"
+                                                   "FFFF78563412123400000000000000000000FFFF785634120000"
+                                                   "00000000000000000000");
     }
+
     CUnsignedAlert cUnsignedAlert;
     cUnsignedAlert.nVersion     = 0x12345678;
     cUnsignedAlert.nRelayUntil  = 0x1234567824681357;
