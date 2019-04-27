@@ -110,117 +110,149 @@ TEST(serialize_tests, varints)
 #include "zerocoin/Accumulator.h"
 #include "zerocoin/AccumulatorProofOfKnowledge.h"
 
+#include <boost/utility/string_view.hpp>
+#include <type_traits>
+
+void TEST_EQUALITY(boost::string_view a, boost::string_view b, unsigned line)
+{
+#ifdef EXPECT_EQ
+    EXPECT_EQ(a, b) << " failure at line number: " << line;
+#else
+    if (a != b) {
+        std::stringstream ss;
+        ss << "Equality check failed for pair \"" << a << "\" and \"" << b << "\" from line " << line;
+        throw std::runtime_error(ss.str());
+    }
+#endif
+}
+
+template <typename T>
+typename std::enable_if<!std::is_same<T, std::string>::value && !std::is_same<T, const char*>::value,
+                        void>::type
+TEST_EQUALITY(T a, T b, unsigned line)
+{
+#ifdef EXPECT_EQ
+    EXPECT_EQ(a, b) << " failure at line number: " << line;
+#else
+    if (a != b) {
+        std::stringstream ss;
+        ss << "Equality check failed for pair \"" << a << "\" and \"" << b << "\" from line " << line;
+        throw std::runtime_error(ss.str());
+    }
+#endif
+}
+
 TEST(serialize_tests, cross_platform_consistency)
 {
     {
         char a = 0x12;
-        EXPECT_EQ(GetSerializeSize(a, 0, 0), (unsigned)1);
+        TEST_EQUALITY(GetSerializeSize(a, 0, 0), (unsigned)1, __LINE__);
     }
     {
         short a = 0x1234;
-        EXPECT_EQ(GetSerializeSize(a, 0, 0), (unsigned)2);
+        TEST_EQUALITY(GetSerializeSize(a, 0, 0), (unsigned)2, __LINE__);
     }
     {
         int a = 0x12345678;
-        EXPECT_EQ(GetSerializeSize(a, 0, 0), (unsigned)4);
+        TEST_EQUALITY(GetSerializeSize(a, 0, 0), (unsigned)4, __LINE__);
     }
     {
         long a = 0x12345678;
-        EXPECT_EQ(GetSerializeSize(a, 0, 0), (unsigned)8);
+        TEST_EQUALITY(GetSerializeSize(a, 0, 0), (unsigned)8, __LINE__);
     }
     {
         long long a = 0x1234567824681357;
-        EXPECT_EQ(GetSerializeSize(a, 0, 0), (unsigned)8);
+        TEST_EQUALITY(GetSerializeSize(a, 0, 0), (unsigned)8, __LINE__);
     }
     {
         unsigned char a = 0x12;
-        EXPECT_EQ(GetSerializeSize(a, 0, 0), (unsigned)1);
+        TEST_EQUALITY(GetSerializeSize(a, 0, 0), (unsigned)1, __LINE__);
     }
     {
         unsigned short a = 0x1234;
-        EXPECT_EQ(GetSerializeSize(a, 0, 0), (unsigned)2);
+        TEST_EQUALITY(GetSerializeSize(a, 0, 0), (unsigned)2, __LINE__);
     }
     {
         unsigned int a = 0x12345678;
-        EXPECT_EQ(GetSerializeSize(a, 0, 0), (unsigned)4);
+        TEST_EQUALITY(GetSerializeSize(a, 0, 0), (unsigned)4, __LINE__);
     }
     {
         unsigned long a = 0x12345678;
-        EXPECT_EQ(GetSerializeSize(a, 0, 0), (unsigned)8);
+        TEST_EQUALITY(GetSerializeSize(a, 0, 0), (unsigned)8, __LINE__);
     }
     {
         unsigned long long a = 0x1234567824681357;
-        EXPECT_EQ(GetSerializeSize(a, 0, 0), (unsigned)8);
+        TEST_EQUALITY(GetSerializeSize(a, 0, 0), (unsigned)8, __LINE__);
     }
 
     {
         char        a = 0x12;
         CDataStream ss(SER_DISK, 0);
         ss << a;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "12");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "12", __LINE__);
     }
 
     {
         short       a = 0x1234;
         CDataStream ss(SER_DISK, 0);
         ss << a;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "3412");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "3412", __LINE__);
     }
 
     {
         int         a = 0x12345678;
         CDataStream ss(SER_DISK, 0);
         ss << a;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "78563412");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "78563412", __LINE__);
     }
 
     {
         long        a = 0x12345678;
         CDataStream ss(SER_DISK, 0);
         ss << a;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "7856341200000000");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "7856341200000000", __LINE__);
     }
 
     {
         long long   a = 0x1234567813572468;
         CDataStream ss(SER_DISK, 0);
         ss << a;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "6824571378563412");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "6824571378563412", __LINE__);
     }
 
     {
         unsigned char a = 0x12;
         CDataStream   ss(SER_DISK, 0);
         ss << a;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "12");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "12", __LINE__);
     }
 
     {
         unsigned short a = 0x1234;
         CDataStream    ss(SER_DISK, 0);
         ss << a;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "3412");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "3412", __LINE__);
     }
 
     {
         unsigned int a = 0x12345678;
         CDataStream  ss(SER_DISK, 0);
         ss << a;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "78563412");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "78563412", __LINE__);
     }
 
     {
         unsigned long a = 0x12345678;
         CDataStream   ss(SER_DISK, 0);
         ss << a;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "7856341200000000");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "7856341200000000", __LINE__);
     }
 
     {
         unsigned long long a = 0x1234567813572468;
         CDataStream        ss(SER_DISK, 0);
         ss << a;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "6824571378563412");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "6824571378563412", __LINE__);
     }
 
     in_addr addr;
@@ -230,31 +262,33 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cNetAddr;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "00000000000000000000FFFF78563412");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "00000000000000000000FFFF78563412", __LINE__);
     }
 
     CService cService(cNetAddr, 0x1234);
     {
         CDataStream ss(SER_DISK, 0);
         ss << cService;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "00000000000000000000FFFF785634121234");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "00000000000000000000FFFF785634121234", __LINE__);
     }
 
     CAddress cAddress(cService);
     {
         CDataStream ss(SER_DISK, 0);
         ss << cAddress;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()),
-                  "0000000000E1F505010000000000000000000000000000000000FFFF785634121234");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()),
+                      "0000000000E1F505010000000000000000000000000000000000FFFF785634121234", __LINE__);
     }
 
     CAddrInfo cAddrInfo(cAddress, cNetAddr);
     {
         CDataStream ss(SER_DISK, 0);
         ss << cAddrInfo;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "0000000000E1F505010000000000000000000000000000000000"
-                                                   "FFFF78563412123400000000000000000000FFFF785634120000"
-                                                   "00000000000000000000");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()),
+                      "0000000000E1F505010000000000000000000000000000000000"
+                      "FFFF78563412123400000000000000000000FFFF785634120000"
+                      "00000000000000000000",
+                      __LINE__);
     }
 
     CUnsignedAlert cUnsignedAlert;
@@ -274,10 +308,12 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cUnsignedAlert;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "7856341257136824785634125713682478563412785634127856"
-                                                   "3412027856341268245713785634127856341202074142434445"
-                                                   "464706585859595A5A7856341207414243444546470741424344"
-                                                   "4546470741424344454647");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()),
+                      "7856341257136824785634125713682478563412785634127856"
+                      "3412027856341268245713785634127856341202074142434445"
+                      "464706585859595A5A7856341207414243444546470741424344"
+                      "4546470741424344454647",
+                      __LINE__);
     }
 
     CAlert cAlert;
@@ -286,7 +322,7 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cAlert;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "0661626364656606616263646566");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "0661626364656606616263646566", __LINE__);
     }
 
     CBloomFilter cBloomFilter(0x7, 0.24133253664357, 0x3, 0x5);
@@ -294,7 +330,7 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cBloomFilter;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), R"(020010010000000300000005)");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()), R"(020010010000000300000005)", __LINE__);
     }
 
     CUnsignedSyncCheckpoint cUnsignedSyncCheckpoint;
@@ -304,8 +340,9 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cUnsignedSyncCheckpoint;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()),
-                  "785634122457137856341268245713785634128877665544332211682457137856341200");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()),
+                      "785634122457137856341268245713785634128877665544332211682457137856341200",
+                      __LINE__);
     }
 
     CSyncCheckpoint cSyncCheckpoint;
@@ -314,7 +351,7 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cSyncCheckpoint;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "0661626364656606616263646566");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "0661626364656606616263646566", __LINE__);
     }
 
     CMasterKey cMasterKey;
@@ -326,15 +363,15 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cMasterKey;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()),
-                  "0661626364656606616263646566785634127856341206616263646566");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()),
+                      "0661626364656606616263646566785634127856341206616263646566", __LINE__);
     }
 
     CPubKey cPubKey({'a', 'b', 'c', 'd', 'e', 'f'});
     {
         CDataStream ss(SER_DISK, 0);
         ss << cPubKey;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "06616263646566");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "06616263646566", __LINE__);
     }
 
     CDiskTxPos cDiskTxPos(uint256("12345678135724681122334455667788123456781357246812345678135724"),
@@ -342,8 +379,9 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cDiskTxPos;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()),
-                  "245713785634126824571378563412887766554433221168245713785634120078563412");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()),
+                      "245713785634126824571378563412887766554433221168245713785634120078563412",
+                      __LINE__);
     }
 
     COutPoint cOutPoint;
@@ -352,8 +390,9 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cOutPoint;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()),
-                  "245713785634126824571378563412887766554433221168245713785634120078563412");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()),
+                      "245713785634126824571378563412887766554433221168245713785634120078563412",
+                      __LINE__);
     }
 
     std::vector<char> cScriptPubKey({'a', 'b', 'c', 'd', 'e', 'f'});
@@ -365,8 +404,10 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cTxIn;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "2457137856341268245713785634128877665544332211682457"
-                                                   "137856341200785634120661626364656678563412");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()),
+                      "2457137856341268245713785634128877665544332211682457"
+                      "137856341200785634120661626364656678563412",
+                      __LINE__);
     }
 
     CTxOut cTxOut;
@@ -375,7 +416,7 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cTxOut;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "682457137856341206616263646566");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "682457137856341206616263646566", __LINE__);
     }
 
     CTransaction cTransaction;
@@ -387,16 +428,18 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cTransaction;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "7856341278563412012457137856341268245713785634128877"
-                                                   "6655443322116824571378563412007856341206616263646566"
-                                                   "785634120168245713785634120661626364656678563412");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()),
+                      "7856341278563412012457137856341268245713785634128877"
+                      "6655443322116824571378563412007856341206616263646566"
+                      "785634120168245713785634120661626364656678563412",
+                      __LINE__);
     }
 
     CTxOutCompressor cTxOutCompressor(cTxOut);
     {
         CDataStream ss(SER_DISK, 0);
         ss << cTxOutCompressor;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "80A2EAC1C689EFC08E210C616263646566");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "80A2EAC1C689EFC08E210C616263646566", __LINE__);
     }
 
     CTxInUndo cTxInUndo;
@@ -407,8 +450,8 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cTxInUndo;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()),
-                  "81A2A1D8708090D0AB7880A2EAC1C689EFC08E210C616263646566");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()),
+                      "81A2A1D8708090D0AB7880A2EAC1C689EFC08E210C616263646566", __LINE__);
     }
 
     CTxUndo cTxUndo;
@@ -416,8 +459,8 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cTxUndo;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()),
-                  "0181A2A1D8708090D0AB7880A2EAC1C689EFC08E210C616263646566");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()),
+                      "0181A2A1D8708090D0AB7880A2EAC1C689EFC08E210C616263646566", __LINE__);
     }
 
     CMerkleTx cMerkleTx     = cTransaction;
@@ -432,13 +475,15 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cMerkleTx;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()),
-                  "7856341278563412012457137856341268245713785634128877665544332211682457137856341200785"
-                  "6341206616263646566785634120168245713785634120661626364656678563412245713785634126824"
-                  "5713785634128877665544332211682457137856341200042457137856341268245713785634128877665"
-                  "5443322116824571378563412002457133535341268245713785634128877665544422211682457137856"
-                  "3412002457137856341268245713785634128877665544334222325476137856341200245713785634126"
-                  "824574323111132547698907856547668245713785634120078563412");
+        TEST_EQUALITY(
+            boost::algorithm::hex(ss.str()),
+            "7856341278563412012457137856341268245713785634128877665544332211682457137856341200785"
+            "6341206616263646566785634120168245713785634120661626364656678563412245713785634126824"
+            "5713785634128877665544332211682457137856341200042457137856341268245713785634128877665"
+            "5443322116824571378563412002457133535341268245713785634128877665544422211682457137856"
+            "3412002457137856341268245713785634128877665544334222325476137856341200245713785634126"
+            "824574323111132547698907856547668245713785634120078563412",
+            __LINE__);
     }
 
     CTxIndex cTxIndex;
@@ -447,9 +492,11 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cTxIndex;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "0000000024571378563412682457137856341288776655443322"
-                                                   "1168245713785634120078563412012457137856341268245713"
-                                                   "78563412887766554433221168245713785634120078563412");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()),
+                      "0000000024571378563412682457137856341288776655443322"
+                      "1168245713785634120078563412012457137856341268245713"
+                      "78563412887766554433221168245713785634120078563412",
+                      __LINE__);
     }
 
     CPartialMerkleTree cPartialMerkleTree(
@@ -461,11 +508,13 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cPartialMerkleTree;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()),
-                  "0400000004245713785634126824571378563412887766554433221168245713785634120024571335353"
-                  "4126824571378563412887766554442221168245713785634120024571378563412682457137856341288"
-                  "7766554433422232547613785634120024571378563412682457432311113254769890785654766824571"
-                  "37856341200013F");
+        TEST_EQUALITY(
+            boost::algorithm::hex(ss.str()),
+            "0400000004245713785634126824571378563412887766554433221168245713785634120024571335353"
+            "4126824571378563412887766554442221168245713785634120024571378563412682457137856341288"
+            "7766554433422232547613785634120024571378563412682457432311113254769890785654766824571"
+            "37856341200013F",
+            __LINE__);
     }
 
     CBlock cBlock;
@@ -480,11 +529,13 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cBlock;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()),
-                  "7856341224571378563412682457137856341288776655443322116824571378563412002457133535341"
-                  "2682457137856341288776655444222116824571378563412007856341278563412785634120178563412"
-                  "7856341201245713785634126824571378563412887766554433221168245713785634120078563412066"
-                  "1626364656678563412016824571378563412066162636465667856341206616263646566");
+        TEST_EQUALITY(
+            boost::algorithm::hex(ss.str()),
+            "7856341224571378563412682457137856341288776655443322116824571378563412002457133535341"
+            "2682457137856341288776655444222116824571378563412007856341278563412785634120178563412"
+            "7856341201245713785634126824571378563412887766554433221168245713785634120078563412066"
+            "1626364656678563412016824571378563412066162636465667856341206616263646566",
+            __LINE__);
     }
 
     uint256 uint256v("12345678135724681122424455667788123456781357246812343535135724");
@@ -512,13 +563,15 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cDiskBlockIndex;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()),
-                  "00000000000000000000000000000000000000000000000000000000000000000000000072B8CF3535341"
-                  "2682457137856341288776655444222116824571378563412007856341268245713785634126824571378"
-                  "56341278563412682457137856341255B5DB3535341268245713785634128877665544422211682457137"
-                  "8563412007956341200000000000000000000000000000000000000000000000000000000000000002587"
-                  "9E26353412682457137856341288776655444222116824571378563412007856341222563412555634120"
-                  "000000000000000000000000000000000000000000000000000000000000000");
+        TEST_EQUALITY(
+            boost::algorithm::hex(ss.str()),
+            "00000000000000000000000000000000000000000000000000000000000000000000000072B8CF3535341"
+            "2682457137856341288776655444222116824571378563412007856341268245713785634126824571378"
+            "56341278563412682457137856341255B5DB3535341268245713785634128877665544422211682457137"
+            "8563412007956341200000000000000000000000000000000000000000000000000000000000000002587"
+            "9E26353412682457137856341288776655444222116824571378563412007856341222563412555634120"
+            "000000000000000000000000000000000000000000000000000000000000000",
+            __LINE__);
     }
 
     struct CBlockLocatorDer : public CBlockLocator
@@ -531,27 +584,32 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cBlockLocator;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "0000000002245713353534126824571378563412887766554442"
-                                                   "221168245713785634120076DB69933534126824571378563412"
-                                                   "8877665544422211682457137856341200");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()),
+                      "0000000002245713353534126824571378563412887766554442"
+                      "221168245713785634120076DB69933534126824571378563412"
+                      "8877665544422211682457137856341200",
+                      __LINE__);
     }
 
     CMerkleBlock cMerkleBlock(cBlock, cBloomFilter);
     {
         CDataStream ss(SER_DISK, 0);
         ss << cMerkleBlock;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()),
-                  "7856341224571378563412682457137856341288776655443322116824571378563412002457133535341"
-                  "2682457137856341288776655444222116824571378563412007856341278563412785634120000010000"
-                  "000107A1544C6FEB385BFF14176CD20041BD864AFEBEB579A9BCEB815943B73D183C0100");
+        TEST_EQUALITY(
+            boost::algorithm::hex(ss.str()),
+            "7856341224571378563412682457137856341288776655443322116824571378563412002457133535341"
+            "2682457137856341288776655444222116824571378563412007856341278563412785634120000010000"
+            "000107A1544C6FEB385BFF14176CD20041BD864AFEBEB579A9BCEB815943B73D183C0100",
+            __LINE__);
     }
 
     NTP1OutPoint ntp1OutPoint(uint256v, 0x12345678);
     {
         CDataStream ss(SER_DISK, 0);
         ss << ntp1OutPoint;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()),
-                  "245713353534126824571378563412887766554442221168245713785634120078563412");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()),
+                      "245713353534126824571378563412887766554442221168245713785634120078563412",
+                      __LINE__);
     }
 
     NTP1TokenTxData ntp1TokenTxData;
@@ -565,9 +623,11 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << ntp1TokenTxData;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()),
-                  "0761626364656667093330353431393839362457133535341268245713785634128877665544422211682"
-                  "4571378563412006824571378563412000000000A61626263646465656667054142434445");
+        TEST_EQUALITY(
+            boost::algorithm::hex(ss.str()),
+            "0761626364656667093330353431393839362457133535341268245713785634128877665544422211682"
+            "4571378563412006824571378563412000000000A61626263646465656667054142434445",
+            __LINE__);
     }
     NTP1TxIn ntp1TxIn;
     ntp1TxIn.setPrevout(ntp1OutPoint);                    // NTP1OutPoint
@@ -577,12 +637,14 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << ntp1TxIn;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()),
-                  "245713353534126824571378563412887766554442221168245713785634120078563412314F505F4E4F5"
-                  "0204F505F564552204F505F4946204F505F4E4F544946204F505F5645524946204F505F5645524E4F5449"
-                  "4668245713785634120107616263646566670933303534313938393624571335353412682457137856341"
-                  "288776655444222116824571378563412006824571378563412000000000A616262636464656566670541"
-                  "42434445");
+        TEST_EQUALITY(
+            boost::algorithm::hex(ss.str()),
+            "245713353534126824571378563412887766554442221168245713785634120078563412314F505F4E4F5"
+            "0204F505F564552204F505F4946204F505F4E4F544946204F505F5645524946204F505F5645524E4F5449"
+            "4668245713785634120107616263646566670933303534313938393624571335353412682457137856341"
+            "288776655444222116824571378563412006824571378563412000000000A616262636464656566670541"
+            "42434445",
+            __LINE__);
     }
 
     NTP1TxOut ntp1TxOut;
@@ -595,10 +657,12 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << ntp1TxOut;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()),
-                  "7856341200000000086465616462656566076162636465666701076162636465666709333035343139383"
-                  "9362457133535341268245713785634128877665544422211682457137856341200682457137856341200"
-                  "0000000A6162626364646565666705414243444506414243444546");
+        TEST_EQUALITY(
+            boost::algorithm::hex(ss.str()),
+            "7856341200000000086465616462656566076162636465666701076162636465666709333035343139383"
+            "9362457133535341268245713785634128877665544422211682457137856341200682457137856341200"
+            "0000000A6162626364646565666705414243444506414243444546",
+            __LINE__);
     }
 
     NTP1Transaction ntp1Transaction;
@@ -608,16 +672,18 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << ntp1Transaction;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()),
-                  "7856341268245713785634122457133535341268245713785634128877665544422211682457137856341"
-                  "20001245713353534126824571378563412887766554442221168245713785634120078563412314F505F"
-                  "4E4F50204F505F564552204F505F4946204F505F4E4F544946204F505F5645524946204F505F5645524E4"
-                  "F544946682457137856341201076162636465666709333035343139383936245713353534126824571378"
-                  "56341288776655444222116824571378563412006824571378563412000000000A6162626364646565666"
-                  "7054142434445017856341200000000086465616462656566076162636465666701076162636465666709"
-                  "3330353431393839362457133535341268245713785634128877665544422211682457137856341200682"
-                  "4571378563412000000000A61626263646465656667054142434445064142434445466824571378563412"
-                  "03000000");
+        TEST_EQUALITY(
+            boost::algorithm::hex(ss.str()),
+            "7856341268245713785634122457133535341268245713785634128877665544422211682457137856341"
+            "20001245713353534126824571378563412887766554442221168245713785634120078563412314F505F"
+            "4E4F50204F505F564552204F505F4946204F505F4E4F544946204F505F5645524946204F505F5645524E4"
+            "F544946682457137856341201076162636465666709333035343139383936245713353534126824571378"
+            "56341288776655444222116824571378563412006824571378563412000000000A6162626364646565666"
+            "7054142434445017856341200000000086465616462656566076162636465666701076162636465666709"
+            "3330353431393839362457133535341268245713785634128877665544422211682457137856341200682"
+            "4571378563412000000000A61626263646465656667054142434445064142434445466824571378563412"
+            "03000000",
+            __LINE__);
     }
 
     CMessageHeader cMessageHeader;
@@ -632,15 +698,17 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cMessageHeader;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "4142434441414242434445464748494A7856341278563412");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()),
+                      "4142434441414242434445464748494A7856341278563412", __LINE__);
     }
 
     CInv cInv(0x12345678, uint256v);
     {
         CDataStream ss(SER_DISK, 0);
         ss << cInv;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()),
-                  "785634122457133535341268245713785634128877665544422211682457137856341200");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()),
+                      "785634122457133535341268245713785634128877665544422211682457137856341200",
+                      __LINE__);
     }
 
     CKeyPool cKeyPool;
@@ -649,7 +717,8 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cKeyPool;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "00000000442257137856341206616263646566");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "00000000442257137856341206616263646566",
+                      __LINE__);
     }
 
     CWalletTx cWalletTx(nullptr);
@@ -677,17 +746,19 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cWalletTx;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()),
-                  "0100000078563412000000000000000000000000000000000000000000000000000000000000000000000"
-                  "000000000FFFFFFFF01785634127856341201245713785634126824571378563412887766554433221168"
-                  "2457137856341200785634120661626364656678563412016824571378563412066162636465667856341"
-                  "2245713785634126824571378563412887766554433221168245713785634120004245713785634126824"
-                  "5713785634128877665544332211682457137856341200245713353534126824571378563412887766554"
-                  "4422211682457137856341200245713785634126824571378563412887766554433422232547613785634"
-                  "1200245713785634126824574323111132547698907856547668245713785634120078563412060358585"
-                  "9015A036162630258590B66726F6D6163636F756E740E5858414153515745525948474644016E13313331"
-                  "31373638343635313932313939323731057370656E74063131313131310974696D65736D6172740933303"
-                  "53431393839360203615863037658590358615902735A78563412785634122601");
+        TEST_EQUALITY(
+            boost::algorithm::hex(ss.str()),
+            "0100000078563412000000000000000000000000000000000000000000000000000000000000000000000"
+            "000000000FFFFFFFF01785634127856341201245713785634126824571378563412887766554433221168"
+            "2457137856341200785634120661626364656678563412016824571378563412066162636465667856341"
+            "2245713785634126824571378563412887766554433221168245713785634120004245713785634126824"
+            "5713785634128877665544332211682457137856341200245713353534126824571378563412887766554"
+            "4422211682457137856341200245713785634126824571378563412887766554433422232547613785634"
+            "1200245713785634126824574323111132547698907856547668245713785634120078563412060358585"
+            "9015A036162630258590B66726F6D6163636F756E740E5858414153515745525948474644016E13313331"
+            "31373638343635313932313939323731057370656E74063131313131310974696D65736D6172740933303"
+            "53431393839360203615863037658590358615902735A78563412785634122601",
+            __LINE__);
     }
 
     CWalletKey  cWalletKey;
@@ -699,9 +770,11 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cWalletKey;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "000000001A6162636465666768696A6B6C6D6E6F707172737475"
-                                                   "767778797A6724571328563412672457132845331216436F6D6D"
-                                                   "656E7479436F6D6D656E7474747474747474");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()),
+                      "000000001A6162636465666768696A6B6C6D6E6F707172737475"
+                      "767778797A6724571328563412672457132845331216436F6D6D"
+                      "656E7479436F6D6D656E7474747474747474",
+                      __LINE__);
     }
 
     CAccount cAccount;
@@ -709,7 +782,7 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cAccount;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "0000000006616263646566");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "0000000006616263646566", __LINE__);
     }
 
     CAccountingEntry cAccountingEntry;
@@ -725,10 +798,12 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cAccountingEntry;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "00000000672457132856341267245713285634120978797A5859"
-                                                   "5A61626339436F6D6D656E7479436F6D6D656E74747474747400"
-                                                   "0303585859015A03616263025859016E13313331313736383132"
-                                                   "31353934383135353931");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()),
+                      "00000000672457132856341267245713285634120978797A5859"
+                      "5A61626339436F6D6D656E7479436F6D6D656E74747474747400"
+                      "0303585859015A03616263025859016E13313331313736383132"
+                      "31353934383135353931",
+                      __LINE__);
     }
 
     CKeyMetadata cKeyMetadata;
@@ -737,7 +812,7 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << cKeyMetadata;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "785634126824571378563412");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "785634126824571378563412", __LINE__);
     }
 
     libzerocoin::IntegerGroupParams integerGroupParams;
@@ -749,8 +824,8 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << integerGroupParams;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()),
-                  "0107793581672322010679358157351207792512785634120789251278563412");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()),
+                      "0107793581672322010679358157351207792512785634120789251278563412", __LINE__);
     }
 
     libzerocoin::AccumulatorAndProofParams accumulatorAndProofParams;
@@ -766,10 +841,12 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << accumulatorAndProofParams;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()),
-                  "0107793581674523010779358169452301010779358167232201067935815735120779251278563412078"
-                  "9251278563412010779358167232201067935815735120779251278563412078925127856341208793581"
-                  "776745230107793581673333127856341272435713");
+        TEST_EQUALITY(
+            boost::algorithm::hex(ss.str()),
+            "0107793581674523010779358169452301010779358167232201067935815735120779251278563412078"
+            "9251278563412010779358167232201067935815735120779251278563412078925127856341208793581"
+            "776745230107793581673333127856341272435713",
+            __LINE__);
     }
 
     CBigNum bg(0x1234567892468);
@@ -786,44 +863,50 @@ TEST(serialize_tests, cross_platform_consistency)
     {
         CDataStream ss(SER_DISK, 0);
         ss << params;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()),
-                  "0101077935816745230107793581694523010107793581672322010679358157351207792512785634120"
-                  "7892512785634120107793581672322010679358157351207792512785634120789251278563412087935"
-                  "8177674523010779358167333312785634127243571301077935816723220106793581573512077925127"
-                  "8563412078925127856341201077935816723220106793581573512077925127856341207892512785634"
-                  "127856341258525913");
+        TEST_EQUALITY(
+            boost::algorithm::hex(ss.str()),
+            "0101077935816745230107793581694523010107793581672322010679358157351207792512785634120"
+            "7892512785634120107793581672322010679358157351207792512785634120789251278563412087935"
+            "8177674523010779358167333312785634127243571301077935816723220106793581573512077925127"
+            "8563412078925127856341201077935816723220106793581573512077925127856341207892512785634"
+            "127856341258525913",
+            __LINE__);
     }
 
     libzerocoin::PublicCoin publicCoin(&params);
     {
         CDataStream ss(SER_DISK, 0);
         ss << publicCoin;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "0032000000");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "0032000000", __LINE__);
     }
 
     libzerocoin::PublicCoin privateCoin(&params);
     {
         CDataStream ss(SER_DISK, 0);
         ss << privateCoin;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "0032000000");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "0032000000", __LINE__);
     }
 
     libzerocoin::SpendMetaData spendMetaData(uint256v, uint256v + 0x2425464757325336);
     {
         CDataStream ss(SER_DISK, 0);
         ss << spendMetaData;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()), "2457133535341268245713785634128877665544422211682457"
-                                                   "1378563412005AAA458C7C7A378C245713785634128877665544"
-                                                   "422211682457137856341200");
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()),
+                      "2457133535341268245713785634128877665544422211682457"
+                      "1378563412005AAA458C7C7A378C245713785634128877665544"
+                      "422211682457137856341200",
+                      __LINE__);
     }
 
     {
         CDataStream ss(SER_DISK, 0);
         ss << bg;
-        EXPECT_EQ(boost::algorithm::hex(ss.str()),
-                  "9100000000000000000061587366EAD04904DD36E83CBD2DC82F29C64C80CB1F5B7156C133DBF8FC0576E"
-                  "A05B7DC8B02357D614546334134FD9D42BE947DF3232180E38E69E4F6D133409A0F3D2D89EE747E7C60C0"
-                  "BE3969F0BE4DE12A14D45B935FD7E3A00DD751209BC7B16D12796E977D24D6E954C04C161E86A5977795C"
-                  "F1BA1BCC32465C32D1E14F47E38C41D772616");
+        TEST_EQUALITY(
+            boost::algorithm::hex(ss.str()),
+            "9100000000000000000061587366EAD04904DD36E83CBD2DC82F29C64C80CB1F5B7156C133DBF8FC0576E"
+            "A05B7DC8B02357D614546334134FD9D42BE947DF3232180E38E69E4F6D133409A0F3D2D89EE747E7C60C0"
+            "BE3969F0BE4DE12A14D45B935FD7E3A00DD751209BC7B16D12796E977D24D6E954C04C161E86A5977795C"
+            "F1BA1BCC32465C32D1E14F47E38C41D772616",
+            __LINE__);
     }
 }
