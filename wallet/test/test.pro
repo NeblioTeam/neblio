@@ -20,6 +20,7 @@ TEST_ROOT = $${NEBLIO_ROOT}/wallet/test/
 DEFINES += "TEST_ROOT_PATH=\"\\\"$${TEST_ROOT}\\\"\""
 VPATH       += $${NEBLIO_ROOT}/wallet $${NEBLIO_ROOT}/wallet/json $${NEBLIO_ROOT}/wallet/qt
 INCLUDEPATH += $${NEBLIO_ROOT}/wallet $${NEBLIO_ROOT}/wallet/json $${NEBLIO_ROOT}/wallet/qt
+LIBS += -lboost_random
 
 INCLUDEPATH += googletest/googletest googletest/googletest/include
 
