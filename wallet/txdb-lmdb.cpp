@@ -320,7 +320,7 @@ CTxDB::CTxDB(const char* pszMode)
         return;
     }
 
-    printf("Initializing lmdb with db size: %lu\n", DB_DEFAULT_MAPSIZE);
+    printf("Initializing lmdb with db size: %" PRIu64 "\n", DB_DEFAULT_MAPSIZE);
     bool fCreate = strchr(pszMode, 'c');
 
     init_blockindex(); // Init directory
