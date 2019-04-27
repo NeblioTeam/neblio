@@ -688,7 +688,7 @@ void NTP1Transaction::readNTP1DataFromTx(
             throw std::runtime_error("Number of inputs is zero for transaction: " +
                                      tx.GetHash().ToString());
         }
-        for (long i = 0; i < scriptPtrD->getTransferInstructionsCount(); i++) {
+        for (unsigned i = 0; i < scriptPtrD->getTransferInstructionsCount(); i++) {
             NTP1TokenTxData ntp1tokenTxData;
             const auto&     instruction = scriptPtrD->getTransferInstruction(i);
             if (instruction.outputIndex >= tx.vout.size()) {
