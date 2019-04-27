@@ -29,6 +29,7 @@ packages_to_install = \
 "libboost-regex-dev",
 "libboost-regex-dev",
 "libboost-iostreams-dev",
+"libboost-random-dev",
 "libssl-dev",
 "libdb++-dev",
 "libminiupnpc-dev",
