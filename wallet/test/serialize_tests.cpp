@@ -112,16 +112,116 @@ TEST(serialize_tests, varints)
 
 TEST(serialize_tests, cross_platform_consistency)
 {
-    EXPECT_EQ(sizeof(char), (unsigned)1);
-    EXPECT_EQ(sizeof(short), (unsigned)2);
-    EXPECT_EQ(sizeof(int), (unsigned)4);
-    EXPECT_EQ(sizeof(long), (unsigned)8);
-    EXPECT_EQ(sizeof(long long), (unsigned)8);
-    EXPECT_EQ(sizeof(unsigned char), (unsigned)1);
-    EXPECT_EQ(sizeof(unsigned short), (unsigned)2);
-    EXPECT_EQ(sizeof(unsigned int), (unsigned)4);
-    EXPECT_EQ(sizeof(unsigned long), (unsigned)8);
-    EXPECT_EQ(sizeof(unsigned long long), (unsigned)8);
+    {
+        char a = 0x12;
+        EXPECT_EQ(GetSerializeSize(a, 0, 0), (unsigned)1);
+    }
+    {
+        short a = 0x1234;
+        EXPECT_EQ(GetSerializeSize(a, 0, 0), (unsigned)2);
+    }
+    {
+        int a = 0x12345678;
+        EXPECT_EQ(GetSerializeSize(a, 0, 0), (unsigned)4);
+    }
+    {
+        long a = 0x12345678;
+        EXPECT_EQ(GetSerializeSize(a, 0, 0), (unsigned)8);
+    }
+    {
+        long long a = 0x1234567824681357;
+        EXPECT_EQ(GetSerializeSize(a, 0, 0), (unsigned)8);
+    }
+    {
+        unsigned char a = 0x12;
+        EXPECT_EQ(GetSerializeSize(a, 0, 0), (unsigned)1);
+    }
+    {
+        unsigned short a = 0x1234;
+        EXPECT_EQ(GetSerializeSize(a, 0, 0), (unsigned)2);
+    }
+    {
+        unsigned int a = 0x12345678;
+        EXPECT_EQ(GetSerializeSize(a, 0, 0), (unsigned)4);
+    }
+    {
+        unsigned long a = 0x12345678;
+        EXPECT_EQ(GetSerializeSize(a, 0, 0), (unsigned)8);
+    }
+    {
+        unsigned long long a = 0x1234567824681357;
+        EXPECT_EQ(GetSerializeSize(a, 0, 0), (unsigned)8);
+    }
+
+    {
+        char        a = 0x12;
+        CDataStream ss(SER_DISK, 0);
+        ss << a;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()), "12");
+    }
+
+    {
+        short       a = 0x1234;
+        CDataStream ss(SER_DISK, 0);
+        ss << a;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()), "3412");
+    }
+
+    {
+        int         a = 0x12345678;
+        CDataStream ss(SER_DISK, 0);
+        ss << a;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()), "78563412");
+    }
+
+    {
+        long        a = 0x12345678;
+        CDataStream ss(SER_DISK, 0);
+        ss << a;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()), "7856341200000000");
+    }
+
+    {
+        long long   a = 0x1234567813572468;
+        CDataStream ss(SER_DISK, 0);
+        ss << a;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()), "6824571378563412");
+    }
+
+    {
+        unsigned char a = 0x12;
+        CDataStream   ss(SER_DISK, 0);
+        ss << a;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()), "12");
+    }
+
+    {
+        unsigned short a = 0x1234;
+        CDataStream    ss(SER_DISK, 0);
+        ss << a;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()), "3412");
+    }
+
+    {
+        unsigned int a = 0x12345678;
+        CDataStream  ss(SER_DISK, 0);
+        ss << a;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()), "78563412");
+    }
+
+    {
+        unsigned long a = 0x12345678;
+        CDataStream   ss(SER_DISK, 0);
+        ss << a;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()), "7856341200000000");
+    }
+
+    {
+        unsigned long long a = 0x1234567813572468;
+        CDataStream        ss(SER_DISK, 0);
+        ss << a;
+        EXPECT_EQ(boost::algorithm::hex(ss.str()), "6824571378563412");
+    }
 
     in_addr addr;
     addr.s_addr = 0x12345678;
