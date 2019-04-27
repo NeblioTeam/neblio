@@ -106,45 +106,57 @@ enum
 #define WRITEDATA(s, obj)   s.write((char*)&(obj), sizeof(obj))
 #define READDATA(s, obj)    s.read((char*)&(obj), sizeof(obj))
 
-inline unsigned int GetSerializeSize(char a,               int, int=0) { return sizeof(a); }
-inline unsigned int GetSerializeSize(signed char a,        int, int=0) { return sizeof(a); }
-inline unsigned int GetSerializeSize(unsigned char a,      int, int=0) { return sizeof(a); }
-inline unsigned int GetSerializeSize(signed short a,       int, int=0) { return sizeof(a); }
-inline unsigned int GetSerializeSize(unsigned short a,     int, int=0) { return sizeof(a); }
-inline unsigned int GetSerializeSize(signed int a,         int, int=0) { return sizeof(a); }
-inline unsigned int GetSerializeSize(unsigned int a,       int, int=0) { return sizeof(a); }
-inline unsigned int GetSerializeSize(signed long /*a*/,        int, int=0) { return sizeof(int64_t); }
-inline unsigned int GetSerializeSize(unsigned long /*a*/,      int, int=0) { return sizeof(uint64_t); }
-inline unsigned int GetSerializeSize(signed long long a,   int, int=0) { return sizeof(a); }
-inline unsigned int GetSerializeSize(unsigned long long a, int, int=0) { return sizeof(a); }
-inline unsigned int GetSerializeSize(float a,              int, int=0) { return sizeof(a); }
-inline unsigned int GetSerializeSize(double a,             int, int=0) { return sizeof(a); }
+using SCharT     = int8_t;
+using CharT      = char;
+using UCharT     = uint8_t;
+using ShortT     = int16_t;
+using UShortT    = uint16_t;
+using IntT       = int32_t;
+using UIntT      = uint32_t;
+using LongT      = int64_t;
+using ULongT     = uint64_t;
+using LongLongT  = int64_t;
+using ULongLongT = uint64_t;
 
-template<typename Stream> inline void Serialize(Stream& s, char a,               int, int=0) { WRITEDATA(s, a); }
-template<typename Stream> inline void Serialize(Stream& s, signed char a,        int, int=0) { WRITEDATA(s, a); }
-template<typename Stream> inline void Serialize(Stream& s, unsigned char a,      int, int=0) { WRITEDATA(s, a); }
-template<typename Stream> inline void Serialize(Stream& s, signed short a,       int, int=0) { WRITEDATA(s, a); }
-template<typename Stream> inline void Serialize(Stream& s, unsigned short a,     int, int=0) { WRITEDATA(s, a); }
-template<typename Stream> inline void Serialize(Stream& s, signed int a,         int, int=0) { WRITEDATA(s, a); }
-template<typename Stream> inline void Serialize(Stream& s, unsigned int a,       int, int=0) { WRITEDATA(s, a); }
-template<typename Stream> inline void Serialize(Stream& s, signed long a,        int, int=0) { int64_t al =  static_cast<int64_t>(a);  WRITEDATA(s, al); }
-template<typename Stream> inline void Serialize(Stream& s, unsigned long a,      int, int=0) { uint64_t al = static_cast<uint64_t>(a); WRITEDATA(s, al); }
-template<typename Stream> inline void Serialize(Stream& s, signed long long a,   int, int=0) { WRITEDATA(s, a); }
-template<typename Stream> inline void Serialize(Stream& s, unsigned long long a, int, int=0) { WRITEDATA(s, a); }
+inline unsigned int GetSerializeSize(char /*a*/,               int, int=0) { return sizeof(CharT);      }
+inline unsigned int GetSerializeSize(signed char /*a*/,        int, int=0) { return sizeof(SCharT);     }
+inline unsigned int GetSerializeSize(unsigned char /*a*/,      int, int=0) { return sizeof(UCharT);     }
+inline unsigned int GetSerializeSize(signed short /*a*/,       int, int=0) { return sizeof(ShortT);     }
+inline unsigned int GetSerializeSize(unsigned short /*a*/,     int, int=0) { return sizeof(UShortT);    }
+inline unsigned int GetSerializeSize(signed int /*a*/,         int, int=0) { return sizeof(IntT);       }
+inline unsigned int GetSerializeSize(unsigned int /*a*/,       int, int=0) { return sizeof(UIntT);      }
+inline unsigned int GetSerializeSize(signed long /*a*/,        int, int=0) { return sizeof(LongT);      }
+inline unsigned int GetSerializeSize(unsigned long /*a*/,      int, int=0) { return sizeof(ULongT);     }
+inline unsigned int GetSerializeSize(signed long long /*a*/,   int, int=0) { return sizeof(LongLongT);  }
+inline unsigned int GetSerializeSize(unsigned long long /*a*/, int, int=0) { return sizeof(ULongLongT); }
+inline unsigned int GetSerializeSize(float a,                  int, int=0) { return sizeof(a);          }
+inline unsigned int GetSerializeSize(double a,                 int, int=0) { return sizeof(a);          }
+
+template<typename Stream> inline void Serialize(Stream& s, char a,               int, int=0) { CharT al      = static_cast<CharT>(a);      WRITEDATA(s, al); }
+template<typename Stream> inline void Serialize(Stream& s, signed char a,        int, int=0) { SCharT al     = static_cast<SCharT>(a);     WRITEDATA(s, al); }
+template<typename Stream> inline void Serialize(Stream& s, unsigned char a,      int, int=0) { UCharT al     = static_cast<UCharT>(a);     WRITEDATA(s, al); }
+template<typename Stream> inline void Serialize(Stream& s, signed short a,       int, int=0) { ShortT al     = static_cast<ShortT>(a);     WRITEDATA(s, al); }
+template<typename Stream> inline void Serialize(Stream& s, unsigned short a,     int, int=0) { UShortT al    = static_cast<UShortT>(a);    WRITEDATA(s, al); }
+template<typename Stream> inline void Serialize(Stream& s, signed int a,         int, int=0) { IntT al       = static_cast<IntT>(a);       WRITEDATA(s, al); }
+template<typename Stream> inline void Serialize(Stream& s, unsigned int a,       int, int=0) { UIntT al      = static_cast<UIntT>(a);      WRITEDATA(s, al); }
+template<typename Stream> inline void Serialize(Stream& s, signed long a,        int, int=0) { LongT al      = static_cast<LongT>(a);      WRITEDATA(s, al); }
+template<typename Stream> inline void Serialize(Stream& s, unsigned long a,      int, int=0) { ULongT al     = static_cast<ULongT>(a);     WRITEDATA(s, al); }
+template<typename Stream> inline void Serialize(Stream& s, signed long long a,   int, int=0) { LongLongT al  = static_cast<LongLongT>(a);  WRITEDATA(s, al); }
+template<typename Stream> inline void Serialize(Stream& s, unsigned long long a, int, int=0) { ULongLongT al = static_cast<ULongLongT>(a); WRITEDATA(s, al); }
 template<typename Stream> inline void Serialize(Stream& s, float a,              int, int=0) { WRITEDATA(s, a); }
 template<typename Stream> inline void Serialize(Stream& s, double a,             int, int=0) { WRITEDATA(s, a); }
 
-template<typename Stream> inline void Unserialize(Stream& s, char& a,               int, int=0) { READDATA(s, a); }
-template<typename Stream> inline void Unserialize(Stream& s, signed char& a,        int, int=0) { READDATA(s, a); }
-template<typename Stream> inline void Unserialize(Stream& s, unsigned char& a,      int, int=0) { READDATA(s, a); }
-template<typename Stream> inline void Unserialize(Stream& s, signed short& a,       int, int=0) { READDATA(s, a); }
-template<typename Stream> inline void Unserialize(Stream& s, unsigned short& a,     int, int=0) { READDATA(s, a); }
-template<typename Stream> inline void Unserialize(Stream& s, signed int& a,         int, int=0) { READDATA(s, a); }
-template<typename Stream> inline void Unserialize(Stream& s, unsigned int& a,       int, int=0) { READDATA(s, a); }
-template<typename Stream> inline void Unserialize(Stream& s, signed long& a,        int, int=0) { int64_t al =  0;  READDATA(s, al); a = static_cast<int64_t>(al); }
-template<typename Stream> inline void Unserialize(Stream& s, unsigned long& a,      int, int=0) { uint64_t al =  0; READDATA(s, al); a = static_cast<uint64_t>(al); }
-template<typename Stream> inline void Unserialize(Stream& s, signed long long& a,   int, int=0) { READDATA(s, a); }
-template<typename Stream> inline void Unserialize(Stream& s, unsigned long long& a, int, int=0) { READDATA(s, a); }
+template<typename Stream> inline void Unserialize(Stream& s, char& a,               int, int=0) { CharT al = 0;      READDATA(s, al); a = static_cast<CharT>(al);      }
+template<typename Stream> inline void Unserialize(Stream& s, signed char& a,        int, int=0) { SCharT al = 0;     READDATA(s, al); a = static_cast<SCharT>(al);     }
+template<typename Stream> inline void Unserialize(Stream& s, unsigned char& a,      int, int=0) { UCharT al = 0;     READDATA(s, al); a = static_cast<UCharT>(al);     }
+template<typename Stream> inline void Unserialize(Stream& s, signed short& a,       int, int=0) { ShortT al = 0;     READDATA(s, al); a = static_cast<ShortT>(al);     }
+template<typename Stream> inline void Unserialize(Stream& s, unsigned short& a,     int, int=0) { UShortT al = 0;    READDATA(s, al); a = static_cast<UShortT>(al);    }
+template<typename Stream> inline void Unserialize(Stream& s, signed int& a,         int, int=0) { IntT al = 0;       READDATA(s, al); a = static_cast<IntT>(al);       }
+template<typename Stream> inline void Unserialize(Stream& s, unsigned int& a,       int, int=0) { UIntT al = 0;      READDATA(s, al); a = static_cast<UIntT>(al);      }
+template<typename Stream> inline void Unserialize(Stream& s, signed long& a,        int, int=0) { LongT al = 0;      READDATA(s, al); a = static_cast<LongT>(al);      }
+template<typename Stream> inline void Unserialize(Stream& s, unsigned long& a,      int, int=0) { ULongT al = 0;     READDATA(s, al); a = static_cast<ULongT>(al);     }
+template<typename Stream> inline void Unserialize(Stream& s, signed long long& a,   int, int=0) { LongLongT al = 0;  READDATA(s, al); a = static_cast<LongLongT>(al);  }
+template<typename Stream> inline void Unserialize(Stream& s, unsigned long long& a, int, int=0) { ULongLongT al = 0; READDATA(s, al); a = static_cast<ULongLongT>(al); }
 template<typename Stream> inline void Unserialize(Stream& s, float& a,              int, int=0) { READDATA(s, a); }
 template<typename Stream> inline void Unserialize(Stream& s, double& a,             int, int=0) { READDATA(s, a); }
 
