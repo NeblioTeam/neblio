@@ -431,7 +431,7 @@ TEST(ntp1_tests, amount_to_int_random)
     boost::random::mt19937 gen{seed};
     NTP1Int                rangeMax = 1;
     rangeMax <<= 40;
-    boost::random::uniform_int_distribution<NTP1Int> amount_dist{0, rangeMax};
+    boost::random::uniform_int_distribution<NTP1Int> amount_dist{NTP1Int(0), rangeMax};
 
     {
         // test the maximum
