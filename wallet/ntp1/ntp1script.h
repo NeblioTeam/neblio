@@ -166,7 +166,7 @@ public:
     int                                getProtocolVersion() const;
 
     static NTP1Int     NTP1AmountHexToNumber(std::string hexVal);
-    static NTP1Int     GetSignificantDigits(const NTP1Int& num);
+    static NTP1Int     GetTrailingZeros(const NTP1Int& num);
     static std::string NumberToHexNTP1Amount(const NTP1Int& num, bool caps = false);
 
     static std::string        GetMetadataAsString(const NTP1Script* ntp1script) noexcept;

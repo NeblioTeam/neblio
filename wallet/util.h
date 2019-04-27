@@ -651,4 +651,21 @@ inline void FromLittleEndianToThisEndianness(T& v)
 std::string ZlibCompress(const std::string& data);
 std::string ZlibDecompress(const std::string& compressedString);
 
+template <typename T>
+std::string ConvertToBitString(T num)
+{
+    static_assert(std::numeric_limits<T>::is_integer, "This function is only for integers");
+    std::string res;
+    bool        negative = num < 0;
+    while (num != 0) {
+        res.push_back((num & 1) == 1 ? '1' : '0');
+        num = num >> 1;
+    }
+    if (negative) {
+        res.push_back('-');
+    }
+    std::reverse(res.begin(), res.end());
+    return res;
+}
+
 #endif
