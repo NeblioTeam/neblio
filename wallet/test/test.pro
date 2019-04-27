@@ -20,7 +20,13 @@ TEST_ROOT = $${NEBLIO_ROOT}/wallet/test/
 DEFINES += "TEST_ROOT_PATH=\"\\\"$${TEST_ROOT}\\\"\""
 VPATH       += $${NEBLIO_ROOT}/wallet $${NEBLIO_ROOT}/wallet/json $${NEBLIO_ROOT}/wallet/qt
 INCLUDEPATH += $${NEBLIO_ROOT}/wallet $${NEBLIO_ROOT}/wallet/json $${NEBLIO_ROOT}/wallet/qt
-LIBS += -lboost_random
+
+# platform specific defaults, if not overridden on command line
+isEmpty(BOOST_LIB_SUFFIX) {
+    macx:BOOST_LIB_SUFFIX = -mt
+    windows:BOOST_LIB_SUFFIX = -mt
+}
+LIBS += -lboost_random$$BOOST_LIB_SUFFIX
 
 INCLUDEPATH += googletest/googletest googletest/googletest/include
 
