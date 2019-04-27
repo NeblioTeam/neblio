@@ -437,6 +437,7 @@ TEST(ntp1_tests, amount_to_int_random)
         // test the maximum
         std::string numHex          = NTP1Script::NumberToHexNTP1Amount(rangeMax);
         NTP1Int     amountToCompare = NTP1Script::NTP1AmountHexToNumber(numHex);
+        EXPECT_EQ(amountToCompare, rangeMax);
     }
 
     const int tries_count = 100000;
