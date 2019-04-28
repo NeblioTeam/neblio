@@ -40,4 +40,4 @@ TEST(serialize_tests, varints)
 
 #include "SerializationTester.h"
 
-TEST(serialize_tests, cross_platform_consistency) { RunCrossPlatformTests(); }
+TEST(serialize_tests, cross_platform_consistency) { RunCrossPlatformSerializationTests(); }

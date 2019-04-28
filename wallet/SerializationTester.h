@@ -14,6 +14,7 @@
 #include "ntp1/ntp1txin.h"
 #include "ntp1/ntp1txout.h"
 #include "protocol.h"
+#include "util.h"
 #include "wallet.h"
 #include "zerocoin/Accumulator.h"
 #include "zerocoin/AccumulatorProofOfKnowledge.h"
@@ -40,6 +41,8 @@ TEST_EQUALITY(T a, T b, unsigned line)
         std::stringstream ss;
         ss << "Binary format check failed for pair \"" << a << "\" and \"" << b << "\" from line "
            << line;
+        std::cerr << ss.str();
+        printf("%s\n", ss.str().c_str());
         throw std::runtime_error(ss.str());
     }
 #endif
@@ -57,11 +60,13 @@ TEST_EQUALITY(const T& a, StringViewT b, unsigned line)
         std::stringstream ss;
         ss << "Binary format check failed for pair \"" << a << "\" and \"" << b << "\" from line "
            << line;
+        std::cerr << ss.str();
+        printf("%s\n", ss.str().c_str());
         throw std::runtime_error(ss.str());
     }
 #endif
 }
 
-void RunCrossPlatformTests();
+void RunCrossPlatformSerializationTests();
 
 #endif // SERIALIZATIONTESTER_H

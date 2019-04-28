@@ -15,6 +15,8 @@
 #include "txdb.h"
 #include "util.h"
 
+#include "SerializationTester.h"
+
 std::unique_ptr<MDB_env, void (*)(MDB_env*)> dbEnv(nullptr, [](MDB_env*) {});
 
 DbSmartPtrType glob_db_main(nullptr, [](MDB_dbi*) {});
@@ -319,6 +321,9 @@ CTxDB::CTxDB(const char* pszMode)
         loadDbPointers();
         return;
     }
+
+    RunCrossPlatformSerializationTests();
+    printf("Binary format tests have passed.\n");
 
     printf("Initializing lmdb with db size: %" PRIu64 "\n", DB_DEFAULT_MAPSIZE);
     bool fCreate = strchr(pszMode, 'c');

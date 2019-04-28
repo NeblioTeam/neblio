@@ -1,6 +1,6 @@
 #include "SerializationTester.h"
 
-void RunCrossPlatformTests()
+void RunCrossPlatformSerializationTests()
 {
     {
         char a = 0x12;
