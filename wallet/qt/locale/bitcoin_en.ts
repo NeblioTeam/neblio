@@ -3250,7 +3250,7 @@ for example: alertnotify=echo %%s | mail -s &quot;neblio Alert&quot; admin@foo.c
     <message>
         <location line="-34"/>
         <source>Loading block index...</source>
-        <translation>Loading block index...be patient...</translation>
+        <translation>Loading block index... this could take a while...</translation>
     </message>
     <message>
         <location line="-103"/>
