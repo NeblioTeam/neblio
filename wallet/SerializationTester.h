@@ -38,7 +38,8 @@ TEST_EQUALITY(T a, T b, unsigned line)
 #else
     if (a != b) {
         std::stringstream ss;
-        ss << "Equality check failed for pair \"" << a << "\" and \"" << b << "\" from line " << line;
+        ss << "Binary format check failed for pair \"" << a << "\" and \"" << b << "\" from line "
+           << line;
         throw std::runtime_error(ss.str());
     }
 #endif
@@ -54,7 +55,8 @@ TEST_EQUALITY(const T& a, StringViewT b, unsigned line)
 #else
     if (a != b) {
         std::stringstream ss;
-        ss << "Equality check failed for pair \"" << a << "\" and \"" << b << "\" from line " << line;
+        ss << "Binary format check failed for pair \"" << a << "\" and \"" << b << "\" from line "
+           << line;
         throw std::runtime_error(ss.str());
     }
 #endif
