@@ -110,10 +110,17 @@ TEST(serialize_tests, varints)
 #include "zerocoin/Accumulator.h"
 #include "zerocoin/AccumulatorProofOfKnowledge.h"
 
-#include <boost/utility/string_view.hpp>
 #include <type_traits>
 
-void TEST_EQUALITY(boost::string_view a, boost::string_view b, unsigned line)
+#if BOOST_VERSION >= 106100
+#include <boost/utility/string_view.hpp>
+using StringViewT = boost::string_view;
+#else
+#include <boost/utility/string_ref.hpp>
+using StringViewT = boost::string_ref;
+#endif
+
+void TEST_EQUALITY(StringViewT a, StringViewT b, unsigned line)
 {
 #ifdef EXPECT_EQ
     EXPECT_EQ(a, b) << " failure at line number: " << line;
