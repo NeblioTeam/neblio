@@ -19,6 +19,9 @@ build_target_alt = ''
 if(os.environ['target_v'] == "rpi_daemon"):
   build_target = 'nebliod'
   build_target_alt = 'nebliod'
+elif(os.environ['target_v'] == "rpi_wallet_test"):
+  build_target = 'tests-neblio-qt'
+  build_target_alt = 'tests-neblio-Qt'
 else:
   build_target = 'neblio-qt'
   build_target_alt = 'neblio-Qt'
