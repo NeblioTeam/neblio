@@ -429,15 +429,16 @@ TEST(ntp1_tests, amount_to_int_random)
 
     std::cout << "Using seed for random amount generator: " << seed << std::endl;
     boost::random::mt19937 gen{seed};
-    NTP1Int                rangeMax = 1;
+    uint64_t               rangeMax = 1;
     rangeMax <<= 40;
-    boost::random::uniform_int_distribution<NTP1Int> amount_dist{NTP1Int(0), rangeMax};
+
+    boost::random::uniform_int_distribution<NTP1Int> amount_dist{static_cast<uint64_t>(0), rangeMax};
 
     {
         // test the maximum
         std::string numHex          = NTP1Script::NumberToHexNTP1Amount(rangeMax);
         NTP1Int     amountToCompare = NTP1Script::NTP1AmountHexToNumber(numHex);
-        EXPECT_EQ(amountToCompare, rangeMax);
+        ASSERT_EQ(amountToCompare, rangeMax);
     }
 
     const int tries_count = 100000;
