@@ -277,7 +277,7 @@ TEST(quicksync_tests, download_index_file)
     json_spirit::Value parsedData;
     json_spirit::read_or_throw(s, parsedData);
     json_spirit::Array rootArray = parsedData.get_array();
-    ASSERT_GE(rootArray.size(), 1);
+    ASSERT_GE(rootArray.size(), 1u);
     for (const json_spirit::Value& val : rootArray) {
         json_spirit::Array files         = NTP1Tools::GetArrayField(val.get_obj(), "files");
         bool               lockFileFound = false;
@@ -334,14 +334,27 @@ TEST(quicksync_tests, download_index_file)
                         std::cout << "File download progress: " << progress.load() << "%" << std::endl;
                         boost::this_thread::sleep_for(boost::chrono::seconds(2));
                     }
+                    std::cout << "File download progress: "
+                              << "100"
+                              << "%" << std::endl;
                     downloadThread.join();
-                    std::ifstream fileToRead(testFilePath.string());
-                    std::string   lockFile((std::istreambuf_iterator<char>(fileToRead)),
-                                           std::istreambuf_iterator<char>());
-                    std::string   sha256_result;
+                    std::cout << "calculate hash" << std::endl;
+                    std::ifstream     fileToRead(testFilePath.string(), std::ios::binary);
+                    const std::size_t chunkSize = (1 << 20);
+                    SHA256_CTX        ctx;
+                    SHA256_Init(&ctx);
+                    std::string sha256_result;
                     sha256_result.resize(32);
-                    SHA256(reinterpret_cast<unsigned char*>(&lockFile.front()), lockFile.size(),
-                           reinterpret_cast<unsigned char*>(&sha256_result.front()));
+                    std::string chunk;
+                    chunk.resize(chunkSize);
+                    ASSERT_TRUE(fileToRead.good());
+                    while (!fileToRead.eof()) {
+                        fileToRead.read(&chunk.front(), chunkSize);
+                        std::size_t sz = fileToRead.gcount();
+                        chunk.resize(sz);
+                        SHA256_Update(&ctx, &chunk.front(), chunk.size());
+                    }
+                    SHA256_Final(reinterpret_cast<unsigned char*>(&sha256_result.front()), &ctx);
                     EXPECT_EQ(sumBin, sha256_result);
                     boost::filesystem::remove(testFilePath);
                 }
