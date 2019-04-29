@@ -733,7 +733,7 @@ bool CTxDB::LoadBlockIndex()
         }
         //        std::cout << "Read status: " << itemRes << "\t" << mdb_strerror(itemRes) << std::endl;
     } while (itemRes == 0);
-    uiInterface.InitMessage(_("Loading block index...") + " (done reading blocks...)");
+    uiInterface.InitMessage(_("Loading block index...") + " (done reading block index.)");
 
     cursorPtr.reset();
     localTxn.commit();
@@ -803,8 +803,8 @@ bool CTxDB::LoadBlockIndex()
     for (CBlockIndex* pindex = pindexBest; pindex && pindex->pprev; pindex = pindex->pprev) {
 
         if (loadedCount % 10 == 0) {
-            uiInterface.InitMessage("Verifying latest blocks (block: " + std::to_string(loadedCount) +
-                                    ")");
+            uiInterface.InitMessage("Verifying latest blocks (" + std::to_string(loadedCount) + "/" +
+                                    std::to_string(nCheckDepth) + ")");
         }
         loadedCount++;
 
