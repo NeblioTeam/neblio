@@ -270,3 +270,48 @@ TEST(lmdb_tests, basic_multiple_many_inputs)
 
     db.Close();
 }
+
+TEST(quicksync_tests, download_index_file)
+{
+    std::string        s = cURLTools::GetFileFromHTTPS(QuickSyncDataLink, 30, false);
+    json_spirit::Value parsedData;
+    json_spirit::read_or_throw(s, parsedData);
+    json_spirit::Array rootArray = parsedData.get_array();
+    ASSERT_GE(rootArray.size(), 1);
+    for (const json_spirit::Value& val : rootArray) {
+        json_spirit::Array files         = NTP1Tools::GetArrayField(val.get_obj(), "files");
+        bool               lockFileFound = false;
+        for (const json_spirit::Value& fileVal : files) {
+            std::string url    = NTP1Tools::GetStrField(fileVal.get_obj(), "url");
+            std::string sum    = NTP1Tools::GetStrField(fileVal.get_obj(), "sha256sum");
+            std::string sumBin = boost::algorithm::unhex(sum);
+            if (boost::algorithm::ends_with(url, "lock.mdb")) {
+                lockFileFound = true;
+                {
+                    std::string lockFile = cURLTools::GetFileFromHTTPS(url, 30, false);
+                    std::string sha256_result;
+                    sha256_result.resize(32);
+                    SHA256(reinterpret_cast<unsigned char*>(&lockFile.front()), lockFile.size(),
+                           reinterpret_cast<unsigned char*>(&sha256_result.front()));
+                    EXPECT_EQ(sumBin, sha256_result);
+                }
+                {
+                    std::atomic<float>      progress;
+                    boost::filesystem::path testFilePath = "test_lock.mdb";
+                    cURLTools::GetLargeFileFromHTTPS(url, 30, testFilePath, progress);
+                    std::ifstream fileToRead(testFilePath.string());
+                    std::string   lockFile((std::istreambuf_iterator<char>(fileToRead)),
+                                           std::istreambuf_iterator<char>());
+                    std::string   sha256_result;
+                    sha256_result.resize(32);
+                    SHA256(reinterpret_cast<unsigned char*>(&lockFile.front()), lockFile.size(),
+                           reinterpret_cast<unsigned char*>(&sha256_result.front()));
+                    EXPECT_EQ(sumBin, sha256_result);
+                    boost::filesystem::remove(testFilePath);
+                }
+            }
+        }
+        EXPECT_TRUE(lockFileFound) << "For one entry, lock file not found: " << QuickSyncDataLink;
+        std::string os = NTP1Tools::GetStrField(val.get_obj(), "os");
+    }
+}
