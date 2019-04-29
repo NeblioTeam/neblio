@@ -666,6 +666,8 @@ bool CTxDB::LoadBlockIndex()
                      mdb_strerror(itemRes));
     }
 
+    uint64_t loadedCount = 0;
+
     // Now read each entry.
     do {
         // if the first item is empty, break immediately
@@ -723,8 +725,16 @@ bool CTxDB::LoadBlockIndex()
             setStakeSeen.insert(make_pair(pindexNew->prevoutStake, pindexNew->nStakeTime));
 
         itemRes = mdb_cursor_get(cursorRawPtr, &key, &data, MDB_NEXT);
+
+        loadedCount++;
+        if (loadedCount % 1000 == 0) {
+            uiInterface.InitMessage(_("Loading block index...") +
+                                    " (block: " + std::to_string(loadedCount) + ")");
+        }
         //        std::cout << "Read status: " << itemRes << "\t" << mdb_strerror(itemRes) << std::endl;
     } while (itemRes == 0);
+    uiInterface.InitMessage(_("Loading block index...") + " (done reading blocks...)");
+
     cursorPtr.reset();
     localTxn.commit();
 
@@ -789,7 +799,15 @@ bool CTxDB::LoadBlockIndex()
     printf("Verifying last %i blocks at level %i\n", nCheckDepth, nCheckLevel);
     CBlockIndex*               pindexFork = nullptr;
     map<uint256, CBlockIndex*> mapBlockPos;
+    loadedCount = 0;
     for (CBlockIndex* pindex = pindexBest; pindex && pindex->pprev; pindex = pindex->pprev) {
+
+        if (loadedCount % 10 == 0) {
+            uiInterface.InitMessage("Verifying latest blocks (block: " + std::to_string(loadedCount) +
+                                    ")");
+        }
+        loadedCount++;
+
         if (fRequestShutdown || pindex->nHeight < nBestHeight - nCheckDepth)
             break;
         CBlock block;
@@ -887,6 +905,9 @@ bool CTxDB::LoadBlockIndex()
             }
         }
     }
+
+    uiInterface.InitMessage("Verifying latest blocks done...");
+
     if (pindexFork && !fRequestShutdown) {
         // Reorg back to the fork
         printf("LoadBlockIndex() : *** moving best chain pointer back to block %d\n",
