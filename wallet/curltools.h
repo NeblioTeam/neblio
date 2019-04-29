@@ -3,6 +3,7 @@
 
 #include "util.h"
 
+#include <boost/filesystem/fstream.hpp>
 #include <curl/curl.h>
 
 class cURLTools
