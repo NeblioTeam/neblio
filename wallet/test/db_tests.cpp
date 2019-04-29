@@ -285,9 +285,12 @@ TEST(quicksync_tests, download_index_file)
             std::string url    = NTP1Tools::GetStrField(fileVal.get_obj(), "url");
             std::string sum    = NTP1Tools::GetStrField(fileVal.get_obj(), "sha256sum");
             std::string sumBin = boost::algorithm::unhex(sum);
+
+            // test the lock file, if this iteration is for the lock file
             if (boost::algorithm::ends_with(url, "lock.mdb")) {
                 lockFileFound = true;
                 {
+                    // test by loading to memory and calculating the hash
                     std::string lockFile = cURLTools::GetFileFromHTTPS(url, 30, false);
                     std::string sha256_result;
                     sha256_result.resize(32);
@@ -296,9 +299,42 @@ TEST(quicksync_tests, download_index_file)
                     EXPECT_EQ(sumBin, sha256_result);
                 }
                 {
+                    // test by downloading to a file and calculating the hash
                     std::atomic<float>      progress;
                     boost::filesystem::path testFilePath = "test_lock.mdb";
                     cURLTools::GetLargeFileFromHTTPS(url, 30, testFilePath, progress);
+                    std::ifstream fileToRead(testFilePath.string());
+                    std::string   lockFile((std::istreambuf_iterator<char>(fileToRead)),
+                                           std::istreambuf_iterator<char>());
+                    std::string   sha256_result;
+                    sha256_result.resize(32);
+                    SHA256(reinterpret_cast<unsigned char*>(&lockFile.front()), lockFile.size(),
+                           reinterpret_cast<unsigned char*>(&sha256_result.front()));
+                    EXPECT_EQ(sumBin, sha256_result);
+                    boost::filesystem::remove(testFilePath);
+                }
+            }
+            // test the data file, if this iteration is for the data file
+            if (boost::algorithm::ends_with(url, "data.mdb")) {
+                std::string url    = NTP1Tools::GetStrField(fileVal.get_obj(), "url");
+                std::string sum    = NTP1Tools::GetStrField(fileVal.get_obj(), "sha256sum");
+                std::string sumBin = boost::algorithm::unhex(sum);
+                {
+                    // test by downloading to a file and calculating the hash
+                    std::atomic<float>      progress;
+                    boost::filesystem::path testFilePath = "test_data.mdb";
+                    std::atomic_bool        finishedDownload;
+                    finishedDownload.store(false);
+                    boost::thread downloadThread([&]() {
+                        cURLTools::GetLargeFileFromHTTPS(url, 30, testFilePath, progress);
+                        finishedDownload.store(true);
+                    });
+                    std::cout << "Downloading file: " << url << std::endl;
+                    while (!finishedDownload) {
+                        std::cout << "File download progress: " << progress.load() << "%" << std::endl;
+                        boost::this_thread::sleep_for(boost::chrono::seconds(2));
+                    }
+                    downloadThread.join();
                     std::ifstream fileToRead(testFilePath.string());
                     std::string   lockFile((std::istreambuf_iterator<char>(fileToRead)),
                                            std::istreambuf_iterator<char>());

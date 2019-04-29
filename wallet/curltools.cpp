@@ -70,7 +70,11 @@ int cURLTools::CurlAtomicProgress_CallbackFunc(void* number, double TotalToDownl
                                                double /*NowUploaded*/)
 {
     std::atomic<float>* progress = reinterpret_cast<std::atomic<float>*>(number);
-    progress->store(NowDownloaded / TotalToDownload);
+    float               val      = static_cast<float>(100. * NowDownloaded / TotalToDownload);
+    if (val < 0.0001) {
+        val = 0;
+    }
+    progress->store(val, std::memory_order_relaxed);
     return CURLE_OK;
 }
 
@@ -114,7 +118,6 @@ void cURLTools::GetLargeFileFromHTTPS(const std::string& URL, long ConnectionTim
         curl_easy_setopt(curl, CURLOPT_NOPROGRESS, false);
         curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, CurlAtomicProgress_CallbackFunc);
         curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, &progress);
-        curl_easy_setopt(curl, CURLOPT_NOPROGRESS, true);
         //        curl_easy_setopt (curl, CURLOPT_VERBOSE, 1L); //verbose output
         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, ConnectionTimeout);
 
