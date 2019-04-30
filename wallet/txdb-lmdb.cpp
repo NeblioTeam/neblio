@@ -244,9 +244,9 @@ void DoQuickSync(const filesystem::path& dbdir)
             printf("%s\n", msg.c_str());
         }
         try {
-            if (!filesystem::exists(dbdir)) {
-                filesystem::create_directories(dbdir);
-            }
+            filesystem::remove_all(dbdir);
+            filesystem::create_directories(dbdir);
+
             std::string        jsonStrData = cURLTools::GetFileFromHTTPS(QuickSyncDataLink, 30, false);
             json_spirit::Value parsedJsonData;
             json_spirit::read_or_throw(jsonStrData, parsedJsonData);
@@ -277,6 +277,13 @@ void DoQuickSync(const filesystem::path& dbdir)
     }
     uiInterface.InitMessage("QuickSync done");
     printf("QuickSync done\n");
+}
+
+bool ShouldQuickSyncBeDone(const filesystem::path& dbdir)
+{
+    return (!filesystem::exists(dbdir) || !filesystem::exists(dbdir / "data.mdb") ||
+            !filesystem::exists(dbdir / "lock.mdb")) &&
+           !fTestNet;
 }
 
 void CTxDB::init_blockindex(bool fRemoveOld)
@@ -323,7 +330,7 @@ void CTxDB::init_blockindex(bool fRemoveOld)
     }
 
     // if the directory doesn't exist, use quicksync
-    if (!filesystem::exists(directory) && !fTestNet) {
+    if (ShouldQuickSyncBeDone(directory)) {
         try {
             DoQuickSync(directory);
         } catch (std::exception& ex) {
