@@ -176,6 +176,104 @@ void CTxDB::do_resize(uint64_t increase_size)
     mdb_txn_safe::allow_new_txns();
 }
 
+bool IsQuickSyncOSCompatible(const std::string& osValue)
+{
+    if (osValue == "any") {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::path& dbdir)
+{
+    // get json fields of this file
+    std::string url      = NTP1Tools::GetStrField(fileVal.get_obj(), "url");
+    std::string sum      = NTP1Tools::GetStrField(fileVal.get_obj(), "sha256sum");
+    uint64_t    fileSize = static_cast<uint64_t>(NTP1Tools::GetInt64Field(fileVal.get_obj(), "size"));
+    // calculate binary values of the checksum
+    std::string sumBin = boost::algorithm::unhex(sum);
+
+    // check available diskspace
+    std::size_t availableSpace = GetAvailableDiskSpace(dbdir);
+    std::size_t requiredSpace  = static_cast<std::size_t>(static_cast<double>(fileSize) * 1.2);
+    if (requiredSpace > availableSpace) {
+        throw std::runtime_error("Diskspace insufficient to download the blockchain; Available: " +
+                                 std::to_string(availableSpace / ONE_MB) +
+                                 "MB; required: " + std::to_string(requiredSpace / ONE_MB));
+    }
+
+    std::string        leaf           = filesystem::path(url).filename().string();
+    filesystem::path   downloadTarget = dbdir / leaf;
+    std::atomic<float> progress;
+    progress.store(0);
+    // download the file asynchronously
+    std::atomic_bool finishedDownload;
+    finishedDownload.store(false);
+    boost::thread downloadThread([&]() {
+        cURLTools::GetLargeFileFromHTTPS(url, 30, downloadTarget, progress);
+        finishedDownload.store(true);
+    });
+    while (!finishedDownload.load(std::memory_order_relaxed)) {
+        std::stringstream ss;
+        ss.setf(std::ios::fixed);
+        ss << "Downloading QuickSync file " << leaf << ": " << std::setprecision(2)
+           << progress.load(std::memory_order_relaxed) << "%...";
+        uiInterface.InitMessage(ss.str());
+        boost::this_thread::sleep_for(boost::chrono::milliseconds(250));
+    }
+    uiInterface.InitMessage("Done downloading");
+    std::string calculatedHash = CalculateHashOfFile<Sha256Calculator>(downloadTarget);
+    if (calculatedHash != sumBin) {
+        throw std::runtime_error("The calculated checksum for the downloaded file: " +
+                                 downloadTarget.string() + "; does not match the expected one.");
+    }
+}
+
+void DoQuickSync(const filesystem::path& dbdir)
+{
+    unsigned         failedAttempts      = 0;
+    static const int MAX_FAILED_ATTEMPTS = 3;
+
+    while (failedAttempts < MAX_FAILED_ATTEMPTS) {
+        uiInterface.InitMessage("Attempting quicksync... (attempt " +
+                                std::to_string(failedAttempts + 1) + " out of " +
+                                std::to_string(MAX_FAILED_ATTEMPTS) + ")");
+        try {
+            if (!filesystem::exists(dbdir)) {
+                filesystem::create_directories(dbdir);
+            }
+            std::string        jsonStrData = cURLTools::GetFileFromHTTPS(QuickSyncDataLink, 30, false);
+            json_spirit::Value parsedJsonData;
+            json_spirit::read_or_throw(jsonStrData, parsedJsonData);
+            json_spirit::Array rootArray = parsedJsonData.get_array();
+            for (const json_spirit::Value& val : rootArray) {
+                std::string        os    = NTP1Tools::GetStrField(val.get_obj(), "os");
+                json_spirit::Array files = NTP1Tools::GetArrayField(val.get_obj(), "files");
+                if (!IsQuickSyncOSCompatible(os)) {
+                    continue;
+                }
+                for (const json_spirit::Value& fileVal : files) {
+                    DownloadQuickSyncFile(fileVal, dbdir);
+                }
+            }
+            break; // download is done, exit the "failedAttempts" counter
+        } catch (std::exception& ex) {
+            static const int WAIT_TIME_SECONDS = 5;
+            std::string      msg               = "Quick sync failed... ";
+            failedAttempts++;
+            if (failedAttempts < MAX_FAILED_ATTEMPTS) {
+                msg += "retrying " + std::to_string(WAIT_TIME_SECONDS) + " seconds...";
+            }
+            uiInterface.InitMessage(msg);
+            printf("Quick sync failed (attempt %i of %i). Error: %s\n", failedAttempts,
+                   MAX_FAILED_ATTEMPTS, ex.what());
+            boost::this_thread::sleep_for(boost::chrono::seconds(WAIT_TIME_SECONDS));
+        }
+    }
+    uiInterface.InitMessage("Quicksync done");
+}
+
 void CTxDB::init_blockindex(bool fRemoveOld)
 {
     // First time init.
@@ -219,6 +317,20 @@ void CTxDB::init_blockindex(bool fRemoveOld)
         }
     }
 
+    // if the directory doesn't exist, use quicksync
+    if (!filesystem::exists(directory) && !fTestNet) {
+        try {
+            DoQuickSync(directory);
+        } catch (std::exception& ex) {
+            printf("Quicksync exited with an exception (this is not expected to happen: %s\n",
+                   ex.what());
+            filesystem::remove_all(directory);
+        }
+    }
+
+    uiInterface.InitMessage("Opening the blockchain database...");
+
+    // open the database in the traditional way (whether quicksync succeeded or not)
     filesystem::create_directories(directory);
     printf("Opening lmdb in %s\n", directory.string().c_str());
     MDB_env* envPtr = nullptr;
@@ -274,6 +386,7 @@ void CTxDB::init_blockindex(bool fRemoveOld)
     glob_db_ntp1Tx         = DbSmartPtrType(new MDB_dbi, dbDeleter);
     glob_db_ntp1tokenNames = DbSmartPtrType(new MDB_dbi, dbDeleter);
 
+    // MDB_CREATE: Create the named database if it doesn't exist.
     CTxDB::lmdb_db_open(txn, LMDB_MAINDB.c_str(), MDB_CREATE, *glob_db_main,
                         "Failed to open db handle for db_main");
     CTxDB::lmdb_db_open(txn, LMDB_BLOCKINDEXDB.c_str(), MDB_CREATE, *glob_db_blockIndex,
@@ -308,6 +421,8 @@ void CTxDB::init_blockindex(bool fRemoveOld)
     if (!glob_db_ntp1tokenNames) {
         throw std::runtime_error("LMDB nullptr after opening the db_ntp1tokenNames database.");
     }
+
+    uiInterface.InitMessage("Done opening the database");
 }
 
 // CDB subclasses are created and destroyed VERY OFTEN. That's why

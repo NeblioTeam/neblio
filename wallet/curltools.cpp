@@ -69,9 +69,12 @@ int cURLTools::CurlAtomicProgress_CallbackFunc(void* number, double TotalToDownl
                                                double /*NowUploaded*/)
 {
     std::atomic<float>* progress = reinterpret_cast<std::atomic<float>*>(number);
-    float               val      = static_cast<float>(100. * NowDownloaded / TotalToDownload);
-    if (val < 0.0001) {
-        val = 0;
+    float               val      = 0;
+    if (TotalToDownload > 0.) {
+        val = static_cast<float>(100. * NowDownloaded / TotalToDownload);
+        if (val < 0.0001) {
+            val = 0;
+        }
     }
     progress->store(val, std::memory_order_relaxed);
     return CURLE_OK;
