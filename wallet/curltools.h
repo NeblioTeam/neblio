@@ -3,6 +3,7 @@
 
 #include "util.h"
 
+#include <atomic>
 #include <boost/filesystem/fstream.hpp>
 #include <curl/curl.h>
 
