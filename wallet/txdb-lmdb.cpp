@@ -281,6 +281,9 @@ void DoQuickSync(const filesystem::path& dbdir)
 
 bool ShouldQuickSyncBeDone(const filesystem::path& dbdir)
 {
+    if (GetBoolArg("-noquicksync") == true) {
+        return false;
+    }
     return (!filesystem::exists(dbdir) || !filesystem::exists(dbdir / "data.mdb") ||
             !filesystem::exists(dbdir / "lock.mdb")) &&
            !fTestNet;
