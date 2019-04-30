@@ -223,6 +223,7 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
         boost::this_thread::sleep_for(boost::chrono::milliseconds(250));
     }
     uiInterface.InitMessage("Done downloading");
+    printf("Done downloading %s\n", leaf.c_str());
     std::string calculatedHash = CalculateHashOfFile<Sha256Calculator>(downloadTarget);
     if (calculatedHash != sumBin) {
         throw std::runtime_error("The calculated checksum for the downloaded file: " +
@@ -236,9 +237,12 @@ void DoQuickSync(const filesystem::path& dbdir)
     static const int MAX_FAILED_ATTEMPTS = 3;
 
     while (failedAttempts < MAX_FAILED_ATTEMPTS) {
-        uiInterface.InitMessage("Attempting quicksync... (attempt " +
-                                std::to_string(failedAttempts + 1) + " out of " +
-                                std::to_string(MAX_FAILED_ATTEMPTS) + ")");
+        {
+            std::string msg = "Attempting quicksync... (attempt " + std::to_string(failedAttempts + 1) +
+                              " out of " + std::to_string(MAX_FAILED_ATTEMPTS) + ")";
+            uiInterface.InitMessage(msg);
+            printf("%s\n", msg.c_str());
+        }
         try {
             if (!filesystem::exists(dbdir)) {
                 filesystem::create_directories(dbdir);
@@ -271,7 +275,8 @@ void DoQuickSync(const filesystem::path& dbdir)
             boost::this_thread::sleep_for(boost::chrono::seconds(WAIT_TIME_SECONDS));
         }
     }
-    uiInterface.InitMessage("Quicksync done");
+    uiInterface.InitMessage("QuickSync done");
+    printf("QuickSync done\n");
 }
 
 void CTxDB::init_blockindex(bool fRemoveOld)
@@ -328,6 +333,7 @@ void CTxDB::init_blockindex(bool fRemoveOld)
         }
     }
 
+    printf("Opening the blockchain database...\n");
     uiInterface.InitMessage("Opening the blockchain database...");
 
     // open the database in the traditional way (whether quicksync succeeded or not)
@@ -422,6 +428,7 @@ void CTxDB::init_blockindex(bool fRemoveOld)
         throw std::runtime_error("LMDB nullptr after opening the db_ntp1tokenNames database.");
     }
 
+    printf("Done opening the database\n");
     uiInterface.InitMessage("Done opening the database");
 }
 
@@ -848,6 +855,7 @@ bool CTxDB::LoadBlockIndex()
         }
         //        std::cout << "Read status: " << itemRes << "\t" << mdb_strerror(itemRes) << std::endl;
     } while (itemRes == 0);
+    printf("Done reading block index\n");
     uiInterface.InitMessage(_("Loading block index...") + " (done reading block index.)");
 
     cursorPtr.reset();
@@ -1021,7 +1029,8 @@ bool CTxDB::LoadBlockIndex()
         }
     }
 
-    uiInterface.InitMessage("Verifying latest blocks done...");
+    printf("Verifying latest blocks done.\n");
+    uiInterface.InitMessage("Verifying latest blocks done");
 
     if (pindexFork && !fRequestShutdown) {
         // Reorg back to the fork
