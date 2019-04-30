@@ -41,6 +41,11 @@
 static const int64_t COIN = 100000000;
 static const int64_t CENT = 1000000;
 
+static const std::size_t ONE_KB = (static_cast<uint64_t>(1) << 10);
+static const std::size_t ONE_MB = (static_cast<uint64_t>(1) << 20);
+static const std::size_t ONE_GB = (static_cast<uint64_t>(1) << 30);
+static const std::size_t ONE_TB = (static_cast<uint64_t>(1) << 40);
+
 #define BEGIN(a) ((char*)&(a))
 #define END(a) ((char*)&((&(a))[1]))
 #define UBEGIN(a) ((unsigned char*)&(a))
@@ -718,5 +723,32 @@ using Sha512Calculator =
 using Md5Calculator = HashCalculator<MD5_CTX, MD5_Init, MD5_Update, MD5_Final, MD5_DIGEST_LENGTH>;
 using Ripemd160HashCalculator = HashCalculator<RIPEMD160_CTX, RIPEMD160_Init, RIPEMD160_Update,
                                                RIPEMD160_Final, RIPEMD160_DIGEST_LENGTH>;
+
+template <typename HashCalculatorClass>
+std::string CalculateHashOfFile(const boost::filesystem::path& PathToFile,
+                                const std::size_t              ChunkSize = ONE_MB)
+{
+    if (!boost::filesystem::exists(PathToFile)) {
+        throw std::runtime_error("While attempting to calculate hash of file, it does not exist: " +
+                                 PathToFile.string());
+    }
+    boost::filesystem::ifstream fileToRead(PathToFile, std::ios::binary);
+    std::string                 chunk;
+    chunk.resize(ChunkSize);
+    if (!fileToRead.good()) {
+        throw std::runtime_error("Unable to open file: " + PathToFile.string() +
+                                 "; in order to calculate hash");
+    }
+    HashCalculatorClass calculator;
+    while (!fileToRead.eof()) {
+        fileToRead.read(&chunk.front(), ChunkSize);
+        std::size_t sz = fileToRead.gcount();
+        chunk.resize(sz);
+        calculator.push_data(chunk);
+    }
+    return calculator.getHashAndReset();
+}
+
+std::size_t GetAvailableDiskSpace(const boost::filesystem::path& path);
 
 #endif

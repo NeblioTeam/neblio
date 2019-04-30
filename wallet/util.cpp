@@ -1297,3 +1297,8 @@ std::string ZlibDecompress(const std::string& compressedString)
     boost::iostreams::copy(in, std::back_inserter(res));
     return res;
 }
+
+size_t GetAvailableDiskSpace(const boost::filesystem::path& path)
+{
+    return boost::filesystem::space(path).available;
+}
