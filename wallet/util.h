@@ -45,7 +45,6 @@ static const int64_t CENT = 1000000;
 static const std::size_t ONE_KB = (static_cast<uint64_t>(1) << 10);
 static const std::size_t ONE_MB = (static_cast<uint64_t>(1) << 20);
 static const std::size_t ONE_GB = (static_cast<uint64_t>(1) << 30);
-static const std::size_t ONE_TB = (static_cast<uint64_t>(1) << 40);
 
 #define BEGIN(a) ((char*)&(a))
 #define END(a) ((char*)&((&(a))[1]))
