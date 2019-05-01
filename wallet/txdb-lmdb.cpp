@@ -267,7 +267,7 @@ void DoQuickSync(const filesystem::path& dbdir)
             std::string      msg               = "Quick sync failed... ";
             failedAttempts++;
             if (failedAttempts < MAX_FAILED_ATTEMPTS) {
-                msg += "retrying " + std::to_string(WAIT_TIME_SECONDS) + " seconds...";
+                msg += "retrying in " + std::to_string(WAIT_TIME_SECONDS) + " seconds...";
             }
             uiInterface.InitMessage(msg);
             printf("Quick sync failed (attempt %i of %i). Error: %s\n", failedAttempts,
