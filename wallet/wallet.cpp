@@ -828,7 +828,7 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
 
     CBlockIndex* pindex = pindexStart;
 
-    uint64_t blockCount = 0;
+    uint64_t blockCount = pindexStart->nHeight;
 
     {
         LOCK2(cs_main, cs_wallet);
