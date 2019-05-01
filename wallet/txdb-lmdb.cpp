@@ -874,7 +874,7 @@ bool CTxDB::LoadBlockIndex()
         //        std::cout << "Read status: " << itemRes << "\t" << mdb_strerror(itemRes) << std::endl;
     } while (itemRes == 0);
     printf("Done reading block index\n");
-    uiInterface.InitMessage(_("Loading block index...") + " (done reading block index.)");
+    uiInterface.InitMessage(_("Loading block index...") + " (done reading block index)");
 
     cursorPtr.reset();
     localTxn.commit();
