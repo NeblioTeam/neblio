@@ -38,12 +38,14 @@ unsigned int             nMinerSleep;
 bool                     fUseFastIndex;
 enum Checkpoints::CPMode CheckpointsMode;
 
+std::string SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN = "rescan";
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // Shutdown
 //
 
-void ExitTimeout(void* parg)
+void ExitTimeout(void* /*parg*/)
 {
 #ifdef WIN32
     MilliSleep(5000);
@@ -63,7 +65,7 @@ void StartShutdown()
 #endif
 }
 
-void Shutdown(void* parg)
+void Shutdown(void* /*parg*/)
 {
     static CCriticalSection cs_Shutdown;
     static bool             fTaken;
@@ -812,7 +814,8 @@ bool AppInit2()
     RegisterWallet(pwalletMain);
 
     CBlockIndex* pindexRescan = pindexBest;
-    if (GetBoolArg("-rescan"))
+    if (GetBoolArg("-rescan") ||
+        SC_CheckOperationOnRestartScheduleThenDeleteIt(SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN))
         pindexRescan = pindexGenesisBlock;
     else {
         CWalletDB     walletdb(strWalletFileName);

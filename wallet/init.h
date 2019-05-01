@@ -16,4 +16,6 @@ void                            Shutdown(void* parg);
 bool                            AppInit2();
 std::string                     HelpMessage();
 
+extern std::string SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN;
+
 #endif
