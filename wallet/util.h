@@ -18,6 +18,7 @@
 #include <boost/regex.hpp>
 #include <map>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include <boost/algorithm/hex.hpp>
@@ -750,5 +751,11 @@ std::string CalculateHashOfFile(const boost::filesystem::path& PathToFile,
 }
 
 std::size_t GetFreeDiskSpace(const boost::filesystem::path& path);
+
+bool                            DeleteOperationScheduledOnRestart(const std::string& OpName);
+boost::filesystem::path         GetScheduledOperationFileName(const std::string& OpName);
+bool                            IsOperationOnRestartScheduled(const std::string& OpName);
+std::unordered_set<std::string> GetScheduledOperationsOnRestart();
+bool                            CreateScheduledOperationOnRestart(const std::string& OpName);
 
 #endif
