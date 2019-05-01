@@ -140,17 +140,19 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
     entry.push_back(Pair("vout", vout));
 
     {
-        std::shared_ptr<NTP1Script> s = NTP1Script::ParseScript(opRet);
-        if (s && s->getProtocolVersion() >= 3) {
-            if (s->getTxType() == NTP1Script::TxType_Issuance) {
-                entry.push_back(
-                    json_spirit::Pair("metadataOfUtxos", GetNTP1TxMetadata<NTP1Script_Issuance>(tx)));
-            } else if (s->getTxType() == NTP1Script::TxType_Transfer) {
-                entry.push_back(
-                    json_spirit::Pair("metadataOfUtxos", GetNTP1TxMetadata<NTP1Script_Transfer>(tx)));
-            } else if (s->getTxType() == NTP1Script::TxType_Burn) {
-                entry.push_back(
-                    json_spirit::Pair("metadataOfUtxos", GetNTP1TxMetadata<NTP1Script_Burn>(tx)));
+        if (isNTP1) {
+            std::shared_ptr<NTP1Script> s = NTP1Script::ParseScript(opRet);
+            if (s && s->getProtocolVersion() >= 3) {
+                if (s->getTxType() == NTP1Script::TxType_Issuance) {
+                    entry.push_back(json_spirit::Pair("metadataOfUtxos",
+                                                      GetNTP1TxMetadata<NTP1Script_Issuance>(tx)));
+                } else if (s->getTxType() == NTP1Script::TxType_Transfer) {
+                    entry.push_back(json_spirit::Pair("metadataOfUtxos",
+                                                      GetNTP1TxMetadata<NTP1Script_Transfer>(tx)));
+                } else if (s->getTxType() == NTP1Script::TxType_Burn) {
+                    entry.push_back(
+                        json_spirit::Pair("metadataOfUtxos", GetNTP1TxMetadata<NTP1Script_Burn>(tx)));
+                }
             }
         }
     }
