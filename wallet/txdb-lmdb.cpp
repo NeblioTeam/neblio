@@ -195,12 +195,12 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
     std::string sumBin = boost::algorithm::unhex(sum);
 
     // check available diskspace
-    std::size_t availableSpace = GetAvailableDiskSpace(dbdir);
+    std::size_t availableSpace = GetFreeDiskSpace(dbdir);
     std::size_t requiredSpace  = static_cast<std::size_t>(static_cast<double>(fileSize) * 1.2);
     if (requiredSpace > availableSpace) {
         throw std::runtime_error("Diskspace insufficient to download the blockchain; Available: " +
                                  std::to_string(availableSpace / ONE_MB) +
-                                 "MB; required: " + std::to_string(requiredSpace / ONE_MB));
+                                 " MB; required: " + std::to_string(requiredSpace / ONE_MB) + " MB");
     }
 
     std::string        leaf           = filesystem::path(url).filename().string();

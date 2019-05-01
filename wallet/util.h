@@ -749,6 +749,6 @@ std::string CalculateHashOfFile(const boost::filesystem::path& PathToFile,
     return calculator.getHashAndReset();
 }
 
-std::size_t GetAvailableDiskSpace(const boost::filesystem::path& path);
+std::size_t GetFreeDiskSpace(const boost::filesystem::path& path);
 
 #endif

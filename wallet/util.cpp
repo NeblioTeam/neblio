@@ -1298,7 +1298,7 @@ std::string ZlibDecompress(const std::string& compressedString)
     return res;
 }
 
-size_t GetAvailableDiskSpace(const boost::filesystem::path& path)
+size_t GetFreeDiskSpace(const boost::filesystem::path& path)
 {
-    return boost::filesystem::space(path).available;
+    return boost::filesystem::space(path).free;
 }
