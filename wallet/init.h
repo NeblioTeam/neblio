@@ -16,6 +16,7 @@ void                            Shutdown(void* parg);
 bool                            AppInit2();
 std::string                     HelpMessage();
 
+// option to rescan the wallet
 extern std::string SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN;
 
 #endif

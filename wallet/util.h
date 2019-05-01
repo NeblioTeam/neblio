@@ -47,6 +47,9 @@ static const std::size_t ONE_KB = (static_cast<uint64_t>(1) << 10);
 static const std::size_t ONE_MB = (static_cast<uint64_t>(1) << 20);
 static const std::size_t ONE_GB = (static_cast<uint64_t>(1) << 30);
 
+// option to erase the blockchain and resync
+const std::string SC_SCHEDULE_ON_RESTART_OPNAME__RESYNC = "resync";
+
 #define BEGIN(a) ((char*)&(a))
 #define END(a) ((char*)&((&(a))[1]))
 #define UBEGIN(a) ((unsigned char*)&(a))
