@@ -752,9 +752,10 @@ std::string CalculateHashOfFile(const boost::filesystem::path& PathToFile,
 
 std::size_t GetFreeDiskSpace(const boost::filesystem::path& path);
 
-bool                            SC_DeleteOperationScheduledOnRestart(const std::string& OpName);
-boost::filesystem::path         SC_GetScheduledOperationFileName(const std::string& OpName);
-bool                            SC_IsOperationOnRestartScheduled(const std::string& OpName);
+bool                    SC_DeleteOperationScheduledOnRestart(const std::string& OpName);
+boost::filesystem::path SC_GetScheduledOperationFileName(const std::string& OpName);
+bool                    SC_IsOperationOnRestartScheduled(const std::string& OpName);
+bool                    SC_CheckOperationOnRestartScheduleThenDeleteIt(const std::string& OpName);
 std::unordered_set<std::string> SC_GetScheduledOperationsOnRestart();
 bool                            SC_CreateScheduledOperationOnRestart(const std::string& OpName);
 

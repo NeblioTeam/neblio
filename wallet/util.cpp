@@ -1366,15 +1366,16 @@ bool SC_IsOperationOnRestartScheduled(const std::string& OpName)
 
 bool SC_DeleteOperationScheduledOnRestart(const std::string& OpName)
 {
-    using PathType      = boost::filesystem::path;
-    PathType opFilePath = SC_GetScheduledOperationFileName(OpName);
-    if (boost::filesystem::exists(opFilePath)) {
-        boost::system::error_code ec;
-        if (boost::filesystem::remove(opFilePath, ec)) {
+    using PathType                       = boost::filesystem::path;
+    PathType                  opFilePath = SC_GetScheduledOperationFileName(OpName);
+    boost::system::error_code ec1;
+    if (boost::filesystem::exists(opFilePath, ec1)) {
+        boost::system::error_code ec2;
+        if (boost::filesystem::remove(opFilePath, ec2)) {
             return true;
         } else {
             printf("Error while removing scheduled operation on restart. OpFile: %s; Error: %s\n",
-                   opFilePath.string().c_str(), ec.message().c_str());
+                   opFilePath.string().c_str(), ec2.message().c_str());
             return false;
         }
     } else {
@@ -1387,4 +1388,18 @@ bool SC_DeleteOperationScheduledOnRestart(const std::string& OpName)
 boost::filesystem::path SC_GetScheduledOperationFileName(const string& OpName)
 {
     return GetDataDir() / (RESTART_SCHEDULED_PREFIX + OpName);
+}
+
+bool SC_CheckOperationOnRestartScheduleThenDeleteIt(const string& OpName)
+{
+    bool opExists = SC_IsOperationOnRestartScheduled(OpName);
+    if (opExists) {
+        bool deleteSuccess = SC_DeleteOperationScheduledOnRestart(OpName);
+        if (!deleteSuccess) {
+            printf("Failed to delete operation \"%s\"", OpName.c_str());
+        }
+        return true;
+    } else {
+        return false;
+    }
 }
