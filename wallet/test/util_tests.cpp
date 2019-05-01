@@ -391,7 +391,7 @@ TEST(util_tests, network_fork)
 
 TEST(util_tests, op_on_restart)
 {
-    std::string suffix = GeneratePseudoRandomString(5);
+    std::string suffix = "_" + GeneratePseudoRandomString(5);
 
     // ops don't exist before creating them
     EXPECT_FALSE(IsOperationOnRestartScheduled("test1" + suffix));
