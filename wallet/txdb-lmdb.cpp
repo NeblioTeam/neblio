@@ -189,20 +189,22 @@ bool IsQuickSyncOSCompatible(const std::string& osValue)
 void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::path& dbdir)
 {
     // get json fields of this file
-    std::string url      = NTP1Tools::GetStrField(fileVal.get_obj(), "url");
-    std::string sum      = NTP1Tools::GetStrField(fileVal.get_obj(), "sha256sum");
-    uint64_t    fileSize = static_cast<uint64_t>(NTP1Tools::GetInt64Field(fileVal.get_obj(), "size"));
-    // calculate binary values of the checksum
+    std::string url    = NTP1Tools::GetStrField(fileVal.get_obj(), "url");
+    std::string sum    = NTP1Tools::GetStrField(fileVal.get_obj(), "sha256sum");
     std::string sumBin = boost::algorithm::unhex(sum);
+    //    uint64_t    fileSize = static_cast<uint64_t>(NTP1Tools::GetInt64Field(fileVal.get_obj(),
+    //    "size"));
+    // calculate binary values of the checksum
 
-    // check available diskspace
-    std::size_t availableSpace = GetFreeDiskSpace(dbdir);
-    std::size_t requiredSpace  = static_cast<std::size_t>(static_cast<double>(fileSize) * 1.2);
-    if (requiredSpace > availableSpace) {
-        throw std::runtime_error("Diskspace insufficient to download the blockchain; Available: " +
-                                 std::to_string(availableSpace / ONE_MB) +
-                                 " MB; required: " + std::to_string(requiredSpace / ONE_MB) + " MB");
-    }
+    // check available diskspace (disabled because it doesn't work properly on Windows
+    //    std::size_t availableSpace = GetFreeDiskSpace(dbdir);
+    //    std::size_t requiredSpace  = static_cast<std::size_t>(static_cast<double>(fileSize) * 1.2);
+    //    if (requiredSpace > availableSpace) {
+    //        throw std::runtime_error("Diskspace insufficient to download the blockchain; Available: " +
+    //                                 std::to_string(availableSpace / ONE_MB) +
+    //                                 " MB; required: " + std::to_string(requiredSpace / ONE_MB) + "
+    //                                 MB");
+    //    }
 
     std::string        leaf           = filesystem::path(url).filename().string();
     filesystem::path   downloadTarget = dbdir / leaf;
