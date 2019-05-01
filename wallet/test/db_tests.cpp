@@ -341,7 +341,6 @@ TEST(quicksync_tests, download_index_file)
             //                }
             //            }
         }
-        std::cout << GetAvailableDiskSpace(".") << std::endl;
         EXPECT_TRUE(lockFileFound) << "For one entry, lock file not found: " << QuickSyncDataLink;
         std::string os = NTP1Tools::GetStrField(val.get_obj(), "os");
     }
