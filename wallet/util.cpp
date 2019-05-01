@@ -1311,10 +1311,10 @@ static const std::string RESTART_SCHEDULED_PREFIX = ".scheduled.";
  * starts. The benefit of this is to simplify the work for beginners and not have them bother with
  * command line arguments
  */
-bool CreateScheduledOperationOnRestart(const std::string& OpName)
+bool SC_CreateScheduledOperationOnRestart(const std::string& OpName)
 {
     using PathType      = boost::filesystem::path;
-    PathType opFilePath = GetScheduledOperationFileName(OpName);
+    PathType opFilePath = SC_GetScheduledOperationFileName(OpName);
     // check if the operation file already exist
     if (boost::filesystem::exists(opFilePath)) {
         printf("Operation %s is already scheduled\n", OpName.c_str());
@@ -1332,7 +1332,7 @@ bool CreateScheduledOperationOnRestart(const std::string& OpName)
     }
 }
 
-std::unordered_set<string> GetScheduledOperationsOnRestart()
+std::unordered_set<string> SC_GetScheduledOperationsOnRestart()
 {
     using PathType = boost::filesystem::path;
     std::unordered_set<std::string> result;
@@ -1358,16 +1358,16 @@ std::unordered_set<string> GetScheduledOperationsOnRestart()
     return result;
 }
 
-bool IsOperationOnRestartScheduled(const std::string& OpName)
+bool SC_IsOperationOnRestartScheduled(const std::string& OpName)
 {
-    std::unordered_set<std::string> ops = GetScheduledOperationsOnRestart();
+    std::unordered_set<std::string> ops = SC_GetScheduledOperationsOnRestart();
     return ops.find(OpName) != ops.cend();
 }
 
-bool DeleteOperationScheduledOnRestart(const std::string& OpName)
+bool SC_DeleteOperationScheduledOnRestart(const std::string& OpName)
 {
     using PathType      = boost::filesystem::path;
-    PathType opFilePath = GetScheduledOperationFileName(OpName);
+    PathType opFilePath = SC_GetScheduledOperationFileName(OpName);
     if (boost::filesystem::exists(opFilePath)) {
         boost::system::error_code ec;
         if (boost::filesystem::remove(opFilePath, ec)) {
@@ -1384,7 +1384,7 @@ bool DeleteOperationScheduledOnRestart(const std::string& OpName)
     }
 }
 
-boost::filesystem::path GetScheduledOperationFileName(const string& OpName)
+boost::filesystem::path SC_GetScheduledOperationFileName(const string& OpName)
 {
     return GetDataDir() / (RESTART_SCHEDULED_PREFIX + OpName);
 }

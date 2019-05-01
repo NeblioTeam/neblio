@@ -394,26 +394,26 @@ TEST(util_tests, op_on_restart)
     std::string suffix = "_" + GeneratePseudoRandomString(5);
 
     // ops don't exist before creating them
-    EXPECT_FALSE(IsOperationOnRestartScheduled("test1" + suffix));
-    EXPECT_FALSE(IsOperationOnRestartScheduled("test2" + suffix));
-    EXPECT_FALSE(IsOperationOnRestartScheduled("test3" + suffix));
+    EXPECT_FALSE(SC_IsOperationOnRestartScheduled("test1" + suffix));
+    EXPECT_FALSE(SC_IsOperationOnRestartScheduled("test2" + suffix));
+    EXPECT_FALSE(SC_IsOperationOnRestartScheduled("test3" + suffix));
 
     // create ops
-    EXPECT_TRUE(CreateScheduledOperationOnRestart("test2" + suffix));
-    EXPECT_TRUE(CreateScheduledOperationOnRestart("test3" + suffix));
+    EXPECT_TRUE(SC_CreateScheduledOperationOnRestart("test2" + suffix));
+    EXPECT_TRUE(SC_CreateScheduledOperationOnRestart("test3" + suffix));
 
     // after creating ops, they should be found
-    EXPECT_TRUE(IsOperationOnRestartScheduled("test2" + suffix));
-    EXPECT_TRUE(IsOperationOnRestartScheduled("test3" + suffix));
+    EXPECT_TRUE(SC_IsOperationOnRestartScheduled("test2" + suffix));
+    EXPECT_TRUE(SC_IsOperationOnRestartScheduled("test3" + suffix));
 
-    auto ops = GetScheduledOperationsOnRestart();
+    auto ops = SC_GetScheduledOperationsOnRestart();
     EXPECT_EQ(ops.size(), 2u);
 
     // delete the created ops
-    EXPECT_TRUE(DeleteOperationScheduledOnRestart("test2" + suffix));
-    EXPECT_TRUE(DeleteOperationScheduledOnRestart("test3" + suffix));
+    EXPECT_TRUE(SC_DeleteOperationScheduledOnRestart("test2" + suffix));
+    EXPECT_TRUE(SC_DeleteOperationScheduledOnRestart("test3" + suffix));
 
     // after deleting, they don't exist
-    EXPECT_FALSE(IsOperationOnRestartScheduled("test2" + suffix));
-    EXPECT_FALSE(IsOperationOnRestartScheduled("test3" + suffix));
+    EXPECT_FALSE(SC_IsOperationOnRestartScheduled("test2" + suffix));
+    EXPECT_FALSE(SC_IsOperationOnRestartScheduled("test3" + suffix));
 }
