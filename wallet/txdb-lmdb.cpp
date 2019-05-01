@@ -29,7 +29,8 @@ DbSmartPtrType glob_db_ntp1tokenNames(nullptr, [](MDB_dbi*) {});
 using namespace std;
 using namespace boost;
 
-boost::filesystem::path CTxDB::DB_DIR = "txlmdb";
+boost::filesystem::path CTxDB::DB_DIR                         = "txlmdb";
+bool                    CTxDB::QuickSyncHigherControl_Enabled = true;
 
 std::atomic<uint64_t> mdb_txn_safe::num_active_txns{0};
 std::atomic_flag      mdb_txn_safe::creation_gate = ATOMIC_FLAG_INIT;
@@ -281,9 +282,14 @@ void DoQuickSync(const filesystem::path& dbdir)
 
 bool ShouldQuickSyncBeDone(const filesystem::path& dbdir)
 {
+    if (CTxDB::QuickSyncHigherControl_Enabled == false) {
+        return false;
+    }
+
     if (GetBoolArg("-noquicksync") == true) {
         return false;
     }
+
     return (!filesystem::exists(dbdir) || !filesystem::exists(dbdir / "data.mdb") ||
             !filesystem::exists(dbdir / "lock.mdb")) &&
            !fTestNet;

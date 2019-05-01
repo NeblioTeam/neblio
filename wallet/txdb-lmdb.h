@@ -198,6 +198,9 @@ class CTxDB
 public:
     static boost::filesystem::path DB_DIR;
 
+    // this flag is useful for disabling quicksync manually, for example, for tests
+    static bool QuickSyncHigherControl_Enabled;
+
     CTxDB(const char* pszMode = "r+");
     CTxDB(const CTxDB&) = delete;
     CTxDB(CTxDB&&)      = delete;

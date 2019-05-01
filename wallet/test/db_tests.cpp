@@ -33,6 +33,7 @@ TEST(lmdb_tests, basic)
 
     CTxDB::__deleteDb(); // clean up
 
+    CTxDB::QuickSyncHigherControl_Enabled = false;
     CTxDB db;
 
     std::string k1 = "key1";
@@ -57,6 +58,7 @@ TEST(lmdb_tests, basic_in_1_tx)
 
     CTxDB::__deleteDb(); // clean up
 
+    CTxDB::QuickSyncHigherControl_Enabled = false;
     CTxDB db;
 
     db.TxnBegin();
@@ -85,6 +87,7 @@ TEST(lmdb_tests, many_inputs)
 
     CTxDB::__deleteDb(); // clean up
 
+    CTxDB::QuickSyncHigherControl_Enabled = false;
     CTxDB db;
 
     std::unordered_map<std::string, std::string> entries;
@@ -125,6 +128,7 @@ TEST(lmdb_tests, many_inputs_one_tx)
 
     CTxDB::__deleteDb(); // clean up
 
+    CTxDB::QuickSyncHigherControl_Enabled = false;
     CTxDB db;
 
     std::unordered_map<std::string, std::string> entries;
@@ -171,6 +175,7 @@ TEST(lmdb_tests, basic_multiple_read)
 
     CTxDB::__deleteDb(); // clean up
 
+    CTxDB::QuickSyncHigherControl_Enabled = false;
     CTxDB db;
 
     std::string k1 = "key1";
@@ -203,6 +208,7 @@ TEST(lmdb_tests, basic_multiple_read_in_tx)
 
     CTxDB::__deleteDb(); // clean up
 
+    CTxDB::QuickSyncHigherControl_Enabled = false;
     CTxDB db;
     db.TxnBegin(100);
 
@@ -238,6 +244,7 @@ TEST(lmdb_tests, basic_multiple_many_inputs)
 
     CTxDB::__deleteDb(); // clean up
 
+    CTxDB::QuickSyncHigherControl_Enabled = false;
     CTxDB db;
 
     std::vector<std::string> entries;
