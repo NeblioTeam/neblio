@@ -82,8 +82,7 @@ deploy:
     bucket: neblio-build-staging
     skip_cleanup: true
     detect_encoding: true
-    file_glob: true
-    file: deploy/*---neblio*
+    local_dir: deploy
     acl: public_read
     overwrite: true
     on:
