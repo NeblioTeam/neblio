@@ -263,6 +263,7 @@ void DoQuickSync(const filesystem::path& dbdir)
                 for (const json_spirit::Value& fileVal : files) {
                     DownloadQuickSyncFile(fileVal, dbdir);
                 }
+                break; // after downloading one set of files, stop
             }
             break; // download is done, exit the "failedAttempts" counter
         } catch (std::exception& ex) {
