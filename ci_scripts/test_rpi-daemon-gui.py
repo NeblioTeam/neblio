@@ -59,6 +59,10 @@ if(os.path.isfile(build_target)):
   nci.call_with_err_code('tar -zcvf "' + file_name + '" ' + build_target)
   nci.call_with_err_code('rm -f ' + build_target)
   nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
+  
+  # if we are just running tests, delete the deploy package
+  if(os.environ['target_v'] == "rpi_wallet_test"):
+    nci.call_with_err_code('rm -f ' + deploy_dir + file_name)
 
   if (travis_tag == '' and deploy_job_id != '0'):
   	nci.call_with_err_code('echo "Restarting our deploy job. Job ID: ' + deploy_job_id + '"')
