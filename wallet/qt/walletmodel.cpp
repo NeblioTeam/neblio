@@ -166,8 +166,6 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
         nBalance += out.tx->vout[out.i].nValue;
     }
 
-    std::cout << nBalance << std::endl;
-
     if (total > nBalance) {
         return AmountExceedsBalance;
     }
