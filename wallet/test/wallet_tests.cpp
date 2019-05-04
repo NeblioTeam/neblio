@@ -40,7 +40,7 @@ static void add_coin(int64_t nValue, int nAge = 6 * 24, bool fIsFromMe = false, 
 
 static void empty_wallet(void)
 {
-    BOOST_FOREACH (COutput output, vCoins)
+    for (COutput output : vCoins)
         delete output.tx;
     vCoins.clear();
 }
