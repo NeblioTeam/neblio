@@ -20,13 +20,12 @@ static vector<COutput> vCoins;
 
 static void add_coin(int64_t nValue, int nAge = 6 * 24, bool fIsFromMe = false, int nInput = 0)
 {
-    static int    i;
-    CTransaction* tx = new CTransaction;
-    tx->nLockTime    = i++; // so all transactions get different hashes
-    tx->vout.resize(nInput + 1);
-    tx->vout[nInput].nValue = nValue;
-    CWalletTx* wtx          = new CWalletTx(&wallet, *tx);
-    delete tx;
+    static int   i;
+    CTransaction tx;
+    tx.nLockTime = i++; // so all transactions get different hashes
+    tx.vout.resize(nInput + 1);
+    tx.vout[nInput].nValue = nValue;
+    CWalletTx* wtx         = new CWalletTx(&wallet, tx);
     if (fIsFromMe) {
         // IsFromMe() returns (GetDebit() > 0), and GetDebit() is 0 if vin.empty(),
         // so stop vin being empty, and cache a non-zero Debit to fake out IsFromMe()
