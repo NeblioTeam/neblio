@@ -14,6 +14,8 @@
 class COutput;
 class CWalletTx;
 
+extern std::weak_ptr<CWallet> MainWalletPtr;
+
 class NTP1Wallet : public boost::enable_shared_from_this<NTP1Wallet>
 {
     bool retrieveMetadataFromAPI = true;
