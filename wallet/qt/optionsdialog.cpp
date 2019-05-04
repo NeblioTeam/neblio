@@ -92,6 +92,12 @@ OptionsDialog::OptionsDialog(QWidget* parent)
     connect(ui->clearNTP1DataCacheButton, &QPushButton::clicked, this,
             &OptionsDialog::slot_clearNTP1DataCache);
 
+    connect(ui->scheduleWalletRescanButton, &QPushButton::clicked, this,
+            &OptionsDialog::slot_enableRescanOnNextRestart);
+
+    connect(ui->scheduleWalletResyncButton, &QPushButton::clicked, this,
+            &OptionsDialog::slot_enableResyncOnNextRestart);
+
     /* enable apply button when data modified */
     connect(mapper, SIGNAL(viewModified()), this, SLOT(enableApplyButton()));
     /* disable apply button when new data loaded */
@@ -249,6 +255,46 @@ void OptionsDialog::slot_clearNTP1DataCache()
             }
         }
     } catch (...) {
+    }
+}
+
+void OptionsDialog::slot_enableRescanOnNextRestart()
+{
+    if (!SC_IsOperationOnRestartScheduled(SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN)) {
+        SC_CreateScheduledOperationOnRestart(SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN);
+        QMessageBox::StandardButton reply;
+        reply = QMessageBox::question(
+            this, "Restart the wallet now?",
+            "A rescan of the wallet has been scheduled for next restart. "
+            "Would you like to close the wallet now? (you have to start it manually)",
+            QMessageBox::Yes | QMessageBox::No);
+        if (reply == QMessageBox::Yes) {
+            QApplication::quit();
+        }
+    } else {
+        QMessageBox::warning(this, "Already enabled",
+                             "Rescan is already scheduled for next restart. Please restart your wallet "
+                             "for it to be done.");
+    }
+}
+
+void OptionsDialog::slot_enableResyncOnNextRestart()
+{
+    if (!SC_IsOperationOnRestartScheduled(SC_SCHEDULE_ON_RESTART_OPNAME__RESYNC)) {
+        QMessageBox::StandardButton reply;
+        reply = QMessageBox::question(
+            this, "Restart to resync?",
+            "To resync the blockchain of your wallet, you have to restart the "
+            "wallet now. Would you like to continue? (you have to start the wallet manually)",
+            QMessageBox::Yes | QMessageBox::No);
+        if (reply == QMessageBox::Yes) {
+            SC_CreateScheduledOperationOnRestart(SC_SCHEDULE_ON_RESTART_OPNAME__RESYNC);
+            QApplication::quit();
+        }
+    } else {
+        QMessageBox::warning(this, "Already enabled",
+                             "Resync of the blockchain is already scheduled for next restart. Please "
+                             "restart your wallet now.");
     }
 }
 

@@ -48,6 +48,14 @@ size_t cURLTools::CurlRead_CallbackFunc_StdString(void* dest, size_t /*size*/, s
     return 0; /* no more data left to deliver */
 }
 
+size_t cURLTools::CurlWrite_CallbackFunc_File(void* contents, size_t size, size_t nmemb,
+                                              boost::filesystem::fstream* fs)
+{
+    size_t newLength = size * nmemb;
+    fs->write(reinterpret_cast<char*>(contents), newLength);
+    return size * nmemb;
+}
+
 int cURLTools::CurlProgress_CallbackFunc(void*, double TotalToDownload, double NowDownloaded,
                                          double /*TotalToUpload*/, double /*NowUploaded*/)
 {
@@ -56,10 +64,85 @@ int cURLTools::CurlProgress_CallbackFunc(void*, double TotalToDownload, double N
     return CURLE_OK;
 }
 
+int cURLTools::CurlAtomicProgress_CallbackFunc(void* number, double TotalToDownload,
+                                               double NowDownloaded, double /*TotalToUpload*/,
+                                               double /*NowUploaded*/)
+{
+    std::atomic<float>* progress = reinterpret_cast<std::atomic<float>*>(number);
+    float               val      = 0;
+    if (TotalToDownload > 0.) {
+        val = static_cast<float>(100. * NowDownloaded / TotalToDownload);
+        if (val < 0.0001) {
+            val = 0;
+        }
+    }
+    progress->store(val, std::memory_order_relaxed);
+    return CURLE_OK;
+}
+
 void cURLTools::CurlGlobalInit_ThreadSafe()
 {
     boost::lock_guard<boost::mutex> lg(curl_global_init_lock);
     curl_global_init(CURL_GLOBAL_DEFAULT);
+}
+
+void cURLTools::GetLargeFileFromHTTPS(const std::string& URL, long ConnectionTimeout,
+                                      const boost::filesystem::path& targetPath,
+                                      std::atomic<float>&            progress)
+{
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    boost::call_once(init_openssl_once_flag, SSL_library_init);
+#else
+    boost::call_once(init_openssl_once_flag, OPENSSL_init_ssl, 0,
+                     static_cast<const ossl_init_settings_st*>(NULL));
+#endif
+
+    CURL*    curl;
+    CURLcode res;
+
+    boost::call_once(init_curl_global_once_flag, CurlGlobalInit_ThreadSafe);
+
+    curl = curl_easy_init();
+    boost::filesystem::fstream outputStream(targetPath, std::ios::out | std::ios::binary);
+    if (curl) {
+
+        CurlCleaner cleaner(curl);
+
+        curl_easy_setopt(curl, CURLOPT_URL, URL.c_str());
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); // verify ssl peer
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L); // verify ssl hostname
+        curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlWrite_CallbackFunc_File);
+        curl_easy_setopt(curl, CURLOPT_USERAGENT, "Dark Secret Ninja/1.0");
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &outputStream);
+
+        curl_easy_setopt(curl, CURLOPT_NOPROGRESS, false);
+        curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, CurlAtomicProgress_CallbackFunc);
+        curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, &progress);
+        //        curl_easy_setopt (curl, CURLOPT_VERBOSE, 1L); //verbose output
+        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, ConnectionTimeout);
+
+        /* Perform the request, res will get the return code */
+        res = curl_easy_perform(curl);
+        /* Check for errors */
+        if (res != CURLE_OK) {
+            std::string errorMsg(curl_easy_strerror(res));
+            throw std::runtime_error(std::string(errorMsg).c_str());
+        } else {
+            long http_response_code;
+            curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_response_code);
+            if (http_response_code != 200) {
+                throw std::runtime_error("Error retrieving data with https protocol from URL \"" + URL +
+                                         "\", error code: " + ToString(http_response_code) +
+                                         ". Probably the URL is invalid.");
+            }
+        }
+
+        /* always cleanup */
+        // This is replaced by a smart cleaning object with the destructor (CurlCleaner)
+        // curl_easy_cleanup(curl);
+    }
 }
 
 std::string cURLTools::GetFileFromHTTPS(const std::string& URL, long ConnectionTimeout,

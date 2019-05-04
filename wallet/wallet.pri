@@ -136,7 +136,8 @@ HEADERS += qt/bitcoingui.h \
     qt/json/JsonTreeModel.h     \
     qt/json/JsonTreeNode.h      \
     qt/json/JsonTreeView.h      \
-    qt/json/NTP1MetadataViewer.h
+    qt/json/NTP1MetadataViewer.h \
+    SerializationTester.h
 
 
 
@@ -270,7 +271,8 @@ SOURCES += qt/bitcoin.cpp \
     qt/json/JsonTreeModel.cpp     \
     qt/json/JsonTreeNode.cpp      \
     qt/json/JsonTreeView.cpp      \
-    qt/json/NTP1MetadataViewer.cpp
+    qt/json/NTP1MetadataViewer.cpp \
+    SerializationTester.cpp
 
 
 SOURCES +=                   \

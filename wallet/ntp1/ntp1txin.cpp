@@ -4,6 +4,8 @@ void NTP1TxIn::setPrevout(const NTP1OutPoint& value) { prevout = value; }
 
 NTP1OutPoint NTP1TxIn::getPrevout() const { return prevout; }
 
+void NTP1TxIn::setSequence(const uint64_t& value) { nSequence = value; }
+
 NTP1TxIn::NTP1TxIn() { nSequence = std::numeric_limits<unsigned int>::max(); }
 
 void NTP1TxIn::setNull()
@@ -95,3 +97,5 @@ uint64_t NTP1TxIn::getSequence() const { return nSequence; }
 const NTP1TokenTxData& NTP1TxIn::getToken(unsigned long index) const { return tokens[index]; }
 
 unsigned long NTP1TxIn::getNumOfTokens() const { return tokens.size(); }
+
+void NTP1TxIn::__addToken(const NTP1TokenTxData& token) { tokens.push_back(token); }

@@ -143,6 +143,7 @@ Options:
   -testnet               Use the test network
   -debug                 Output extra debugging information. Implies all other -debug* options
   -debugnet              Output extra network debugging information
+  -noquicksync           If enabled, do not use quicksync, instead use regular sync
   -logtimestamps         Prepend debug output with timestamp
   -shrinkdebugfile       Shrink debug.log file on client startup (default: 1 when no -debug)
   -printtoconsole        Send trace/debug info to console instead of debug.log file
@@ -185,7 +186,7 @@ addmultisigaddress <nrequired> <'["key","key"]'> [account]
 addredeemscript <redeemScript> [account]
 backupwallet <destination>
 checkwallet
-createrawntp1transaction [{"txid":txid,"vout":n},...] {address:{tokenid/tokenName:tokenAmount}},{address:neblAmount,...}
+createrawntp1transaction [{"txid":txid,"vout":n},...] {address:{tokenid/tokenName:tokenAmount},address:neblAmount,...}
 createrawtransaction [{"txid":txid,"vout":n},...] {address:amount,...}
 decoderawtransaction <hex string>
 decodescript <hex string>

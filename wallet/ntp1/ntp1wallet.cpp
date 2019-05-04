@@ -12,6 +12,8 @@ const std::string NTP1Wallet::ICON_ERROR_CONTENT = "<DownloadError>";
 
 boost::atomic<bool> appInitiated(false);
 
+std::weak_ptr<CWallet> MainWalletPtr = pwalletMain;
+
 NTP1Wallet::NTP1Wallet()
 {
     lastTxCount                  = 0;
@@ -44,19 +46,20 @@ void NTP1Wallet::__getOutputs()
 {
     // this helps in persisting to get the wallet data when the application is launched for the first
     // time and nebl wallet is null still the 100 number is just a protection against infinite waiting
+    std::shared_ptr<CWallet> localWallet = MainWalletPtr.lock();
     for (int i = 0; i < 100 && ((!everSucceededInLoadingTokens &&
-                                 std::atomic_load(&pwalletMain).get() == nullptr) ||
+                                 std::atomic_load(&localWallet).get() == nullptr) ||
                                 !appInitiated);
          i++) {
         boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
     }
 
-    if (std::atomic_load(&pwalletMain).get() == nullptr) {
+    if (std::atomic_load(&localWallet).get() == nullptr) {
         return;
     }
 
     std::vector<COutput> vecOutputs;
-    std::atomic_load(&pwalletMain).get()->AvailableCoins(vecOutputs);
+    std::atomic_load(&localWallet).get()->AvailableCoins(vecOutputs);
 
     // remove outputs that are outside confirmation bounds
     auto outputToRemoveIt =
@@ -74,9 +77,9 @@ void NTP1Wallet::__getOutputs()
     int64_t currTxCount      = 0;
     int64_t currOutputsCount = 0;
     {
-        LOCK2(cs_main, std::atomic_load(&pwalletMain).get()->cs_wallet);
+        LOCK2(cs_main, std::atomic_load(&localWallet).get()->cs_wallet);
 
-        currTxCount      = static_cast<int64_t>(std::atomic_load(&pwalletMain).get()->mapWallet.size());
+        currTxCount      = static_cast<int64_t>(std::atomic_load(&localWallet).get()->mapWallet.size());
         currOutputsCount = static_cast<int64_t>(vecOutputs.size());
 
         // if no new outputs are available
@@ -95,7 +98,7 @@ void NTP1Wallet::__getOutputs()
 
         // get the transaction from the wallet
         CWalletTx neblTx;
-        if (!std::atomic_load(&pwalletMain).get()->GetTransaction(txHash, neblTx)) {
+        if (!std::atomic_load(&localWallet).get()->GetTransaction(txHash, neblTx)) {
             printf("Error: Although the output number %i of transaction %s belongs to you, it couldn't "
                    "be found in your wallet.\n",
                    vecOutputs[i].i, txHash.ToString().c_str());
@@ -243,7 +246,8 @@ bool NTP1Wallet::removeOutputIfSpent(const NTP1OutPoint& output, const CWalletTx
 
 void NTP1Wallet::scanSpentTransactions()
 {
-    if (pwalletMain == nullptr)
+    std::shared_ptr<CWallet> localWallet = MainWalletPtr.lock();
+    if (localWallet == nullptr)
         return;
     std::deque<NTP1OutPoint> toRemove;
     for (std::unordered_map<NTP1OutPoint, NTP1Transaction>::iterator it =
@@ -252,7 +256,7 @@ void NTP1Wallet::scanSpentTransactions()
         CWalletTx      neblTx;
         int            outputIndex = it->first.getIndex();
         const uint256& txHash      = it->first.getHash();
-        if (!pwalletMain->GetTransaction(txHash, neblTx))
+        if (!localWallet->GetTransaction(txHash, neblTx))
             continue;
         if (neblTx.IsSpent(outputIndex)) {
             // this, although the right way to do things, causes a crash. A safer plan is chosen

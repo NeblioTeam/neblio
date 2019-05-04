@@ -62,6 +62,8 @@ private:
 
 private slots:
     void slot_clearNTP1DataCache();
+    void slot_enableRescanOnNextRestart();
+    void slot_enableResyncOnNextRestart();
 };
 
 #endif // OPTIONSDIALOG_H

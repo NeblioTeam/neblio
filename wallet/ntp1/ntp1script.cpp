@@ -442,7 +442,7 @@ std::string NTP1Script::NumberToHexNTP1Amount(const NTP1Int& num, bool caps)
     std::string numStr     = ToString(num);
     int         zerosCount = 0;
     // numbers less than 32 can fit in a single byte with no exponent
-    if (num >= 32 && ToString(NTP1Script::GetSignificantDigits(num)).size() <= 12) {
+    if (num >= 32 && ToString(NTP1Script::GetTrailingZeros(num)).size() <= 12) {
         for (unsigned i = 0; i < numStr.size(); i++) {
             if (numStr[numStr.size() - i - 1] == '0') {
                 zerosCount++;
@@ -454,10 +454,8 @@ std::string NTP1Script::NumberToHexNTP1Amount(const NTP1Int& num, bool caps)
 
     NTP1Int mantissaDecimal = FromString<NTP1Int>(numStr.substr(0, numStr.size() - zerosCount));
     // create binary values of mantissa and exponent (exponent's zero-count)
-    boost::dynamic_bitset<> mantissa(64, mantissaDecimal.convert_to<unsigned long>());
-    boost::dynamic_bitset<> exponent(64, zerosCount);
-    std::string             mantissaStr = ToString(mantissa);
-    std::string             exponentStr = ToString(exponent);
+    std::string mantissaStr = ConvertToBitString(mantissaDecimal);
+    std::string exponentStr = ConvertToBitString(zerosCount);
     {
         // trim mantissa leading zeros
         int toTrim = 0;
@@ -588,7 +586,7 @@ json_spirit::Value NTP1Script::GetMetadataAsJson(const NTP1Script* ntp1script) n
     }
 }
 
-NTP1Int NTP1Script::GetSignificantDigits(const NTP1Int& num)
+NTP1Int NTP1Script::GetTrailingZeros(const NTP1Int& num)
 {
     if (num == 0) {
         return 0;

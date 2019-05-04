@@ -1,11 +1,10 @@
 #include "googletest/googletest/include/gtest/gtest.h"
 
+#include <boost/algorithm/hex.hpp>
 #include <string>
 #include <vector>
 
 #include "serialize.h"
-
-using namespace std;
 
 TEST(serialize_tests, varints)
 {
@@ -38,3 +37,7 @@ TEST(serialize_tests, varints)
         EXPECT_TRUE(i == j) << "decoded:" << j << " expected:" << i;
     }
 }
+
+#include "SerializationTester.h"
+
+TEST(serialize_tests, cross_platform_consistency) { RunCrossPlatformSerializationTests(); }

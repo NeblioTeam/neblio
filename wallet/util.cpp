@@ -1297,3 +1297,109 @@ std::string ZlibDecompress(const std::string& compressedString)
     boost::iostreams::copy(in, std::back_inserter(res));
     return res;
 }
+
+size_t GetFreeDiskSpace(const boost::filesystem::path& path)
+{
+    return boost::filesystem::space(path).free;
+}
+
+static const std::string RESTART_SCHEDULED_PREFIX = ".scheduled.";
+
+/**
+ * A scheduled operation on restart is an operation that should be done when the program is restarted.
+ * The scheduling is done by putting a file in the data directory, and looking for it when the program
+ * starts. The benefit of this is to simplify the work for beginners and not have them bother with
+ * command line arguments
+ */
+bool SC_CreateScheduledOperationOnRestart(const std::string& OpName)
+{
+    using PathType      = boost::filesystem::path;
+    PathType opFilePath = SC_GetScheduledOperationFileName(OpName);
+    // check if the operation file already exist
+    if (boost::filesystem::exists(opFilePath)) {
+        printf("Operation %s is already scheduled\n", OpName.c_str());
+        return true;
+    }
+    boost::filesystem::ofstream of(opFilePath, std::ios::binary);
+    of.write("1", 1); // avoid empty file, so write "1" to the file
+    of.close();
+    if (boost::filesystem::exists(opFilePath)) {
+        printf("Operation %s has been successfully scheduled", OpName.c_str());
+        return true;
+    } else {
+        throw std::runtime_error("Failed to schedule operation: " + OpName +
+                                 "; it looks like the data directory is not writable");
+    }
+}
+
+std::unordered_set<string> SC_GetScheduledOperationsOnRestart()
+{
+    using PathType = boost::filesystem::path;
+    std::unordered_set<std::string> result;
+    PathType                        dir = GetDataDir();
+    if (boost::filesystem::is_directory(dir.c_str())) {
+        result.clear();
+        boost::filesystem::path               someDir(dir);
+        boost::filesystem::directory_iterator end_iter;
+
+        for (boost::filesystem::directory_iterator dir_iter(someDir); dir_iter != end_iter; ++dir_iter) {
+            if (boost::filesystem::is_regular_file(dir_iter->status())) {
+                std::string filename = dir_iter->path().filename().string();
+                if (boost::algorithm::starts_with(filename, RESTART_SCHEDULED_PREFIX)) {
+                    std::string opName(filename.cbegin() + RESTART_SCHEDULED_PREFIX.size(),
+                                       filename.cend());
+                    if (opName.size() > 0) {
+                        result.insert(opName);
+                    }
+                }
+            }
+        }
+    }
+    return result;
+}
+
+bool SC_IsOperationOnRestartScheduled(const std::string& OpName)
+{
+    std::unordered_set<std::string> ops = SC_GetScheduledOperationsOnRestart();
+    return ops.find(OpName) != ops.cend();
+}
+
+bool SC_DeleteOperationScheduledOnRestart(const std::string& OpName)
+{
+    using PathType                       = boost::filesystem::path;
+    PathType                  opFilePath = SC_GetScheduledOperationFileName(OpName);
+    boost::system::error_code ec1;
+    if (boost::filesystem::exists(opFilePath, ec1)) {
+        boost::system::error_code ec2;
+        if (boost::filesystem::remove(opFilePath, ec2)) {
+            return true;
+        } else {
+            printf("Error while removing scheduled operation on restart. OpFile: %s; Error: %s\n",
+                   opFilePath.string().c_str(), ec2.message().c_str());
+            return false;
+        }
+    } else {
+        printf("Requested to remove operation \"%s\", which is not scheduled\n",
+               opFilePath.string().c_str());
+        return false;
+    }
+}
+
+boost::filesystem::path SC_GetScheduledOperationFileName(const string& OpName)
+{
+    return GetDataDir() / (RESTART_SCHEDULED_PREFIX + OpName);
+}
+
+bool SC_CheckOperationOnRestartScheduleThenDeleteIt(const string& OpName)
+{
+    bool opExists = SC_IsOperationOnRestartScheduled(OpName);
+    if (opExists) {
+        bool deleteSuccess = SC_DeleteOperationScheduledOnRestart(OpName);
+        if (!deleteSuccess) {
+            printf("Failed to delete operation \"%s\"", OpName.c_str());
+        }
+        return true;
+    } else {
+        return false;
+    }
+}

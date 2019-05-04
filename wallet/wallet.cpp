@@ -827,9 +827,19 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
     int ret = 0;
 
     CBlockIndex* pindex = pindexStart;
+
+    uint64_t blockCount = pindexStart->nHeight;
+
     {
         LOCK2(cs_main, cs_wallet);
         while (pindex) {
+            blockCount++;
+
+            if (blockCount % 1000 == 0) {
+                uiInterface.InitMessage(_("Rescanning... ") + "(block: " + std::to_string(blockCount) +
+                                        "/" + std::to_string(nBestHeight) + ")");
+            }
+
             // no need to read and scan block, if block was created before
             // our wallet birthday (as adjusted for block time variability)
             if (nTimeFirstKey && (pindex->nTime < (nTimeFirstKey - 7200))) {
@@ -845,6 +855,7 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
             }
             pindex = pindex->pnext;
         }
+        uiInterface.InitMessage(_("Rescanning... ") + "(done)");
     }
     return ret;
 }

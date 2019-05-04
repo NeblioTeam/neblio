@@ -33,6 +33,7 @@ TEST(lmdb_tests, basic)
 
     CTxDB::__deleteDb(); // clean up
 
+    CTxDB::QuickSyncHigherControl_Enabled = false;
     CTxDB db;
 
     std::string k1 = "key1";
@@ -57,6 +58,7 @@ TEST(lmdb_tests, basic_in_1_tx)
 
     CTxDB::__deleteDb(); // clean up
 
+    CTxDB::QuickSyncHigherControl_Enabled = false;
     CTxDB db;
 
     db.TxnBegin();
@@ -85,6 +87,7 @@ TEST(lmdb_tests, many_inputs)
 
     CTxDB::__deleteDb(); // clean up
 
+    CTxDB::QuickSyncHigherControl_Enabled = false;
     CTxDB db;
 
     std::unordered_map<std::string, std::string> entries;
@@ -125,6 +128,7 @@ TEST(lmdb_tests, many_inputs_one_tx)
 
     CTxDB::__deleteDb(); // clean up
 
+    CTxDB::QuickSyncHigherControl_Enabled = false;
     CTxDB db;
 
     std::unordered_map<std::string, std::string> entries;
@@ -171,6 +175,7 @@ TEST(lmdb_tests, basic_multiple_read)
 
     CTxDB::__deleteDb(); // clean up
 
+    CTxDB::QuickSyncHigherControl_Enabled = false;
     CTxDB db;
 
     std::string k1 = "key1";
@@ -203,6 +208,7 @@ TEST(lmdb_tests, basic_multiple_read_in_tx)
 
     CTxDB::__deleteDb(); // clean up
 
+    CTxDB::QuickSyncHigherControl_Enabled = false;
     CTxDB db;
     db.TxnBegin(100);
 
@@ -238,6 +244,7 @@ TEST(lmdb_tests, basic_multiple_many_inputs)
 
     CTxDB::__deleteDb(); // clean up
 
+    CTxDB::QuickSyncHigherControl_Enabled = false;
     CTxDB db;
 
     std::vector<std::string> entries;
@@ -269,4 +276,79 @@ TEST(lmdb_tests, basic_multiple_many_inputs)
     EXPECT_FALSE(db.test2_ExistsStrKeyVal(k));
 
     db.Close();
+}
+
+TEST(quicksync_tests, download_index_file)
+{
+    std::string        s = cURLTools::GetFileFromHTTPS(QuickSyncDataLink, 30, false);
+    json_spirit::Value parsedData;
+    json_spirit::read_or_throw(s, parsedData);
+    json_spirit::Array rootArray = parsedData.get_array();
+    ASSERT_GE(rootArray.size(), 1u);
+    for (const json_spirit::Value& val : rootArray) {
+        json_spirit::Array files         = NTP1Tools::GetArrayField(val.get_obj(), "files");
+        bool               lockFileFound = false;
+        for (const json_spirit::Value& fileVal : files) {
+            std::string url      = NTP1Tools::GetStrField(fileVal.get_obj(), "url");
+            std::string sum      = NTP1Tools::GetStrField(fileVal.get_obj(), "sha256sum");
+            int64_t     fileSize = NTP1Tools::GetInt64Field(fileVal.get_obj(), "size");
+            std::string sumBin   = boost::algorithm::unhex(sum);
+            EXPECT_GT(fileSize, 0);
+
+            // test the lock file, if this iteration is for the lock file
+            if (boost::algorithm::ends_with(url, "lock.mdb")) {
+                lockFileFound = true;
+                {
+                    // test by loading to memory and calculating the hash
+                    std::string lockFile = cURLTools::GetFileFromHTTPS(url, 30, false);
+                    std::string sha256_result;
+                    sha256_result.resize(32);
+                    SHA256(reinterpret_cast<unsigned char*>(&lockFile.front()), lockFile.size(),
+                           reinterpret_cast<unsigned char*>(&sha256_result.front()));
+                    EXPECT_EQ(sumBin, sha256_result);
+                }
+                {
+                    // test by downloading to a file and calculating the hash
+                    std::atomic<float>      progress;
+                    boost::filesystem::path testFilePath = "test_lock.mdb";
+                    cURLTools::GetLargeFileFromHTTPS(url, 30, testFilePath, progress);
+                    std::string sha256_result = CalculateHashOfFile<Sha256Calculator>(testFilePath);
+                    EXPECT_EQ(sumBin, sha256_result);
+                    boost::filesystem::remove(testFilePath);
+                }
+            }
+            // test the data file, if this iteration is for the data file
+            //            if (boost::algorithm::ends_with(url, "data.mdb")) {
+            //                std::string url    = NTP1Tools::GetStrField(fileVal.get_obj(), "url");
+            //                std::string sum    = NTP1Tools::GetStrField(fileVal.get_obj(),
+            //                "sha256sum"); std::string sumBin = boost::algorithm::unhex(sum);
+            //                {
+            //                    // test by downloading to a file and calculating the hash
+            //                    std::atomic<float>      progress;
+            //                    boost::filesystem::path testFilePath = "test_data.mdb";
+            //                    std::atomic_bool        finishedDownload;
+            //                    finishedDownload.store(false);
+            //                    boost::thread downloadThread([&]() {
+            //                        cURLTools::GetLargeFileFromHTTPS(url, 30, testFilePath, progress);
+            //                        finishedDownload.store(true);
+            //                    });
+            //                    std::cout << "Downloading file: " << url << std::endl;
+            //                    while (!finishedDownload) {
+            //                        std::cout << "File download progress: " << progress.load() << "%"
+            //                        << std::endl;
+            //                        boost::this_thread::sleep_for(boost::chrono::seconds(2));
+            //                    }
+            //                    std::cout << "File download progress: "
+            //                              << "100"
+            //                              << "%" << std::endl;
+            //                    downloadThread.join();
+            //                    std::string sha256_result =
+            //                    CalculateHashOfFile<Sha256Calculator>(testFilePath); EXPECT_EQ(sumBin,
+            //                    sha256_result); boost::filesystem::remove(testFilePath);
+            //                }
+            //            }
+        }
+        EXPECT_TRUE(lockFileFound) << "For one entry, lock file not found: " << QuickSyncDataLink;
+        std::string os = NTP1Tools::GetStrField(val.get_obj(), "os");
+    }
 }

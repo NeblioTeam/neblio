@@ -3,13 +3,13 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "NetworkForks.h"
 #include "base58.h"
 #include "bitcoinrpc.h"
 #include "boost/make_shared.hpp"
 #include "init.h"
 #include "wallet.h"
 #include "walletdb.h"
-#include "NetworkForks.h"
 
 using namespace json_spirit;
 using namespace std;
@@ -420,7 +420,7 @@ GetNTP1AddressVsTokenBalances()
     return addressBalances;
 }
 
-Value listaddressgroupings(const Array& params, bool fHelp)
+Value listaddressgroupings(const Array& /*params*/, bool fHelp)
 {
     if (fHelp)
         throw runtime_error("listaddressgroupings\n"
@@ -738,6 +738,48 @@ Value getntp1balances(const Array& params, bool fHelp)
         tokenJsonData.push_back(json_spirit::Pair("Balance", ToString(balance)));
 
         root.push_back(json_spirit::Pair(tokenId, tokenJsonData));
+    }
+
+    return json_spirit::Value(root);
+}
+
+Value getntp1balance(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 2)
+        throw runtime_error("getntp1balances <tokenId/name> [minconf=1]\n");
+
+    boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();
+
+    int    nMinDepth = 0;
+    string requestedToken;
+    string requestedTokenLowerCase;
+    if (params.size() > 0)
+        requestedToken = params[0].get_str();
+    if (params.size() > 1)
+        nMinDepth = params[1].get_int();
+
+    std::transform(requestedToken.cbegin(), requestedToken.cend(),
+                   std::back_inserter(requestedTokenLowerCase), ::tolower);
+
+    ntp1wallet->setRetrieveMetadataFromAPI(false);
+    ntp1wallet->setMinMaxConfirmations(nMinDepth);
+    ntp1wallet->update();
+
+    int tokenCount = ntp1wallet->getNumberOfTokens();
+
+    json_spirit::Object root;
+
+    for (int i = 0; i < tokenCount; i++) {
+        std::string tokenId   = ntp1wallet->getTokenId(i);
+        std::string tokenName = ntp1wallet->getTokenName(tokenId);
+        std::transform(tokenName.begin(), tokenName.end(), tokenName.begin(), ::tolower);
+        if (tokenId != requestedToken && tokenName != requestedTokenLowerCase) {
+            continue;
+        }
+
+        NTP1Int balance = ntp1wallet->getTokenBalance(tokenId);
+
+        return json_spirit::Value(ToString(balance));
     }
 
     return json_spirit::Value(root);

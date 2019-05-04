@@ -1,5 +1,6 @@
 #include "ntp1tokenlistmodel.h"
 #include "boost/thread/future.hpp"
+#include <boost/atomic/atomic.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/shared_ptr.hpp>
 
@@ -86,6 +87,8 @@ void NTP1TokenListModel::UpdateWalletBalances(boost::shared_ptr<NTP1Wallet>     
 NTP1TokenListModel::NTP1TokenListModel()
     : ntp1WalletTxUpdater(boost::make_shared<NTP1WalletTxUpdater>(this))
 {
+    updateWalletAgain.store(false);
+    walletUpdateLockFlag.clear();
     ntp1wallet             = boost::make_shared<NTP1Wallet>();
     walletLocked           = false;
     walletUpdateRunning    = false;
@@ -107,8 +110,24 @@ NTP1TokenListModel::~NTP1TokenListModel()
 
 void NTP1TokenListModel::reloadBalances()
 {
-    boost::lock_guard<boost::recursive_mutex> lg(walletUpdateBeginLock);
-    beginWalletUpdate();
+    // the following mechanism is to ensure that if this function is called too often, it won't
+    // indefinitely block, but will simply queue requests through the boolean `updateWalletAgain`
+
+    bool dummy       = false;
+    auto restoreFunc = [this](bool*) { walletUpdateLockFlag.clear(); };
+    std::unique_ptr<bool, decltype(restoreFunc)> lg(&dummy, restoreFunc); // RAII, acts like a lock_guard
+    do {
+        // only one thread can do this, if another thread tries, it'll just schedule another update
+        if (!walletUpdateLockFlag.test_and_set(boost::memory_order_seq_cst)) {
+            beginWalletUpdate();
+        } else {
+            // if locking failed, that means something else triggered the scan, so we just schedule an
+            // update and exit when this scan is done
+            updateWalletAgain.store(true, boost::memory_order_seq_cst);
+            break;
+        }
+        // continue if a rescan is scheduled
+    } while (updateWalletAgain.exchange(false, boost::memory_order_seq_cst));
 }
 
 void NTP1TokenListModel::beginWalletUpdate()

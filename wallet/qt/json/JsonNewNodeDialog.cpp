@@ -70,6 +70,8 @@ int JsonNewNodeDialog::JsonTypeToInt(json_spirit::Value_type t)
         return 5;
     case json_spirit::null_type:
         return 6;
+    default:
+        return 6;
     }
 }
 

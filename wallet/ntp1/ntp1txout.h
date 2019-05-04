@@ -48,6 +48,10 @@ public:
     void                   setAddress(const std::string& Address);
     OutputType             getType() const;
     std::string            getScriptPubKeyAsm() const;
+    void                   setNValue(const int64_t& value);
+    void                   setScriptPubKeyHex(const std::string& value);
+    void                   setScriptPubKeyAsm(const std::string& value);
+    void                   __addToken(const NTP1TokenTxData& token);
 
     void __manualSet(int64_t NValue, std::string ScriptPubKeyHex, std::string ScriptPubKeyAsm,
                      std::vector<NTP1TokenTxData> Tokens, std::string Address);

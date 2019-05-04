@@ -38,12 +38,14 @@ unsigned int             nMinerSleep;
 bool                     fUseFastIndex;
 enum Checkpoints::CPMode CheckpointsMode;
 
+std::string SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN = "rescan";
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // Shutdown
 //
 
-void ExitTimeout(void* parg)
+void ExitTimeout(void* /*parg*/)
 {
 #ifdef WIN32
     MilliSleep(5000);
@@ -63,7 +65,7 @@ void StartShutdown()
 #endif
 }
 
-void Shutdown(void* parg)
+void Shutdown(void* /*parg*/)
 {
     static CCriticalSection cs_Shutdown;
     static bool             fTaken;
@@ -246,6 +248,7 @@ std::string HelpMessage()
         "  -bantime=<n>           " + _("Number of seconds to keep misbehaving peers from reconnecting (default: 86400)") + "\n" +
         "  -maxreceivebuffer=<n>  " + _("Maximum per-connection receive buffer, <n>*1000 bytes (default: 5000)") + "\n" +
         "  -maxsendbuffer=<n>     " + _("Maximum per-connection send buffer, <n>*1000 bytes (default: 1000)") + "\n" +
+        "  -noquicksync           " + _("Whether QuickSync should be used to quickly sync with the network") + "\n" +
 #ifdef USE_UPNP
 #if USE_UPNP
         "  -upnp                  " + _("Use UPnP to map the listening port (default: 1 when listening)") + "\n" +
@@ -811,7 +814,8 @@ bool AppInit2()
     RegisterWallet(pwalletMain);
 
     CBlockIndex* pindexRescan = pindexBest;
-    if (GetBoolArg("-rescan"))
+    if (GetBoolArg("-rescan") ||
+        SC_CheckOperationOnRestartScheduleThenDeleteIt(SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN))
         pindexRescan = pindexGenesisBlock;
     else {
         CWalletDB     walletdb(strWalletFileName);

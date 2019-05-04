@@ -16,6 +16,7 @@
 #include "ntp1/ntp1wallet.h"
 #include <boost/algorithm/string.hpp>
 #include <fstream>
+#include <random>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -418,6 +419,35 @@ TEST(ntp1_tests, send_tests)
     EXPECT_EQ(NTP1Tools::GetStrField(to[1].get_obj(), "address"), "dest2");
     EXPECT_EQ(NTP1Tools::GetStrField(to[1].get_obj(), "tokenId"), "tokenid2");
     EXPECT_EQ(NTP1Tools::GetNTP1IntField(to[1].get_obj(), "amount"), 2u);
+}
+
+TEST(ntp1_tests, amount_to_int_random)
+{
+    auto seed = std::random_device{}();
+    //    unsigned seed = 123456789;
+
+    std::cout << "Using seed for random amount generator: " << seed << std::endl;
+    std::mt19937 gen{seed};
+    uint64_t     rangeMax = 1;
+    rangeMax <<= 40;
+
+    std::uniform_int_distribution<uint64_t> amount_dist{static_cast<uint64_t>(0), rangeMax};
+
+    {
+        // test the maximum
+        std::string numHex          = NTP1Script::NumberToHexNTP1Amount(rangeMax);
+        NTP1Int     amountToCompare = NTP1Script::NTP1AmountHexToNumber(numHex);
+        ASSERT_EQ(amountToCompare, rangeMax);
+    }
+
+    const int tries_count = 100000;
+    for (int i = 0; i < tries_count; i++) {
+        uint64_t    amount64        = amount_dist(gen);
+        NTP1Int     amount          = amount64;
+        std::string numHex          = NTP1Script::NumberToHexNTP1Amount(amount);
+        NTP1Int     amountToCompare = NTP1Script::NTP1AmountHexToNumber(numHex);
+        EXPECT_EQ(amountToCompare, amount);
+    }
 }
 
 TEST(ntp1_tests, amount_to_int)

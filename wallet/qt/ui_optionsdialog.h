@@ -89,6 +89,8 @@ public:
     QWidget*            tabNTPOptions;
     QGridLayout*        tabNTPOptionsLayout;
     QPushButton*        clearNTP1DataCacheButton;
+    QPushButton*        scheduleWalletRescanButton;
+    QPushButton*        scheduleWalletResyncButton;
 
     void setupUi(QDialog* OptionsDialog)
     {
@@ -165,9 +167,18 @@ public:
 
         verticalSpacer_Main = new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding);
 
+        scheduleWalletRescanButton = new QPushButton("Schedule wallet rescan", tabMain);
+        verticalLayout_Main->addWidget(scheduleWalletRescanButton);
+        scheduleWalletRescanButton->clearFocus();
+
+        scheduleWalletResyncButton = new QPushButton("Schedule blockchain resync", tabMain);
+        verticalLayout_Main->addWidget(scheduleWalletResyncButton);
+        scheduleWalletResyncButton->clearFocus();
+
         verticalLayout_Main->addItem(verticalSpacer_Main);
 
         tabWidget->addTab(tabMain, QString());
+        /// End of tab main
         tabNetwork = new QWidget();
         tabNetwork->setObjectName(QStringLiteral("tabNetwork"));
         verticalLayout_Network = new QVBoxLayout(tabNetwork);

@@ -147,7 +147,10 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
 void TransactionRecord::readNTP1TxData()
 {
     try {
-        CTransaction                                          tx = FetchTxFromDisk(hash);
+        CTransaction tx;
+        if (!mempool.lookup(hash, tx)) {
+            tx = FetchTxFromDisk(hash);
+        }
         std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs =
             GetAllNTP1InputsOfTx(tx, false);
         ntp1tx.readNTP1DataFromTx(tx, ntp1inputs);

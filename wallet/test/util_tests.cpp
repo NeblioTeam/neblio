@@ -388,3 +388,40 @@ TEST(util_tests, network_fork)
     EXPECT_EQ(netfork.getForkAtBlockNumber(250), NetworkFork::NETFORK__3_TACHYON);
     EXPECT_EQ(netfork.getForkAtBlockNumber(300), NetworkFork::NETFORK__3_TACHYON);
 }
+
+TEST(util_tests, op_on_restart)
+{
+    std::string suffix = "_" + GeneratePseudoRandomString(5);
+
+    // ops don't exist before creating them
+    EXPECT_FALSE(SC_IsOperationOnRestartScheduled("test1" + suffix));
+    EXPECT_FALSE(SC_IsOperationOnRestartScheduled("test2" + suffix));
+    EXPECT_FALSE(SC_IsOperationOnRestartScheduled("test3" + suffix));
+
+    // create ops
+    EXPECT_TRUE(SC_CreateScheduledOperationOnRestart("test2" + suffix));
+    EXPECT_TRUE(SC_CreateScheduledOperationOnRestart("test3" + suffix));
+    EXPECT_TRUE(SC_CreateScheduledOperationOnRestart("test4" + suffix));
+
+    // after creating ops, they should be found
+    EXPECT_TRUE(SC_IsOperationOnRestartScheduled("test2" + suffix));
+    EXPECT_TRUE(SC_IsOperationOnRestartScheduled("test3" + suffix));
+    EXPECT_TRUE(SC_IsOperationOnRestartScheduled("test4" + suffix));
+
+    auto ops = SC_GetScheduledOperationsOnRestart();
+    EXPECT_EQ(ops.size(), 3u);
+
+    // delete the created ops
+    EXPECT_TRUE(SC_DeleteOperationScheduledOnRestart("test2" + suffix));
+    EXPECT_TRUE(SC_DeleteOperationScheduledOnRestart("test3" + suffix));
+
+    // after deleting, they don't exist
+    EXPECT_FALSE(SC_IsOperationOnRestartScheduled("test2" + suffix));
+    EXPECT_FALSE(SC_IsOperationOnRestartScheduled("test3" + suffix));
+
+    // check and delete in one call
+    EXPECT_TRUE(SC_CheckOperationOnRestartScheduleThenDeleteIt("test4" + suffix));
+
+    // after check and delete, it should not be there
+    EXPECT_FALSE(SC_IsOperationOnRestartScheduled("test4" + suffix));
+}

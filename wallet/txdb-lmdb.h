@@ -44,6 +44,9 @@ const std::string LMDB_NTP1TOKENNAMESDB = "Ntp1NamesDb";
 
 constexpr static float DB_RESIZE_PERCENT = 0.9f;
 
+const std::string QuickSyncDataLink =
+    "https://raw.githubusercontent.com/NeblioTeam/neblio-quicksync/master/download.json";
+
 // this custom size is used in tests
 #ifndef CUSTOM_LMDB_DB_SIZE
 #if defined(__arm__)
@@ -194,6 +197,9 @@ class CTxDB
 {
 public:
     static boost::filesystem::path DB_DIR;
+
+    // this flag is useful for disabling quicksync manually, for example, for tests
+    static bool QuickSyncHigherControl_Enabled;
 
     CTxDB(const char* pszMode = "r+");
     CTxDB(const CTxDB&) = delete;
