@@ -239,6 +239,8 @@ void DoQuickSync(const filesystem::path& dbdir)
     unsigned         failedAttempts      = 0;
     static const int MAX_FAILED_ATTEMPTS = 3;
 
+    bool success = false;
+
     while (failedAttempts < MAX_FAILED_ATTEMPTS) {
         {
             std::string msg = "Attempting quicksync... (attempt " + std::to_string(failedAttempts + 1) +
@@ -265,11 +267,13 @@ void DoQuickSync(const filesystem::path& dbdir)
                 }
 
                 if (!IsQuickSyncOSCompatible(os)) {
+                    printf("Skipping database with OS %" PRIu64 "", dbversion);
                     continue;
                 }
                 for (const json_spirit::Value& fileVal : files) {
                     DownloadQuickSyncFile(fileVal, dbdir);
                 }
+                success = true;
                 break; // after downloading one set of files, stop
             }
             break; // download is done, exit the "failedAttempts" counter
@@ -287,6 +291,9 @@ void DoQuickSync(const filesystem::path& dbdir)
         }
     }
     uiInterface.InitMessage("QuickSync done");
+    if (!success) {
+        throw std::runtime_error("QuickSync error: None of the files matched the correct settings.");
+    }
     printf("QuickSync done\n");
 }
 
