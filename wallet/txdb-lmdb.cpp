@@ -255,8 +255,15 @@ void DoQuickSync(const filesystem::path& dbdir)
             json_spirit::read_or_throw(jsonStrData, parsedJsonData);
             json_spirit::Array rootArray = parsedJsonData.get_array();
             for (const json_spirit::Value& val : rootArray) {
-                std::string        os    = NTP1Tools::GetStrField(val.get_obj(), "os");
-                json_spirit::Array files = NTP1Tools::GetArrayField(val.get_obj(), "files");
+                std::string        os        = NTP1Tools::GetStrField(val.get_obj(), "os");
+                uint64_t           dbversion = NTP1Tools::GetUint64Field(val.get_obj(), "dbversion");
+                json_spirit::Array files     = NTP1Tools::GetArrayField(val.get_obj(), "files");
+
+                if (dbversion < DATABASE_VERSION) {
+                    printf("Skipping database with version %" PRIu64 "", dbversion);
+                    continue;
+                }
+
                 if (!IsQuickSyncOSCompatible(os)) {
                     continue;
                 }
@@ -307,6 +314,9 @@ void CTxDB::init_blockindex(bool fRemoveOld)
         SC_CheckOperationOnRestartScheduleThenDeleteIt(SC_SCHEDULE_ON_RESTART_OPNAME__RESYNC)) {
         filesystem::remove_all(directory); // remove directory
 
+        // close the database before deleting
+        this->Close();
+
         // delete block data files
         {
             unsigned int nFile = 1;
@@ -344,6 +354,9 @@ void CTxDB::init_blockindex(bool fRemoveOld)
 
     // if the directory doesn't exist, use quicksync
     if (ShouldQuickSyncBeDone(directory)) {
+        // close the database before running quicksync
+        this->Close();
+
         try {
             DoQuickSync(directory);
         } catch (std::exception& ex) {
