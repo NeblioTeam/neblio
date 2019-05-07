@@ -456,7 +456,7 @@ bool CTransaction::AreInputsStandard(const MapPrevTx& mapInputs) const
             int nArgsExpected = ScriptSigArgsExpected(whichType, vSolutions);
             if (nArgsExpected < 0)
                 return false;
-            //If stack is smaller different than expected, not standard
+            //If stack is different than expected, not standard
             if (stack.size() != (unsigned int)nArgsExpected)
                 return false;       
         }
