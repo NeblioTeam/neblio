@@ -12,8 +12,6 @@ const std::string NTP1Wallet::ICON_ERROR_CONTENT = "<DownloadError>";
 
 boost::atomic<bool> appInitiated(false);
 
-std::weak_ptr<CWallet> MainWalletPtr = pwalletMain;
-
 NTP1Wallet::NTP1Wallet()
 {
     lastTxCount                  = 0;
@@ -46,15 +44,13 @@ void NTP1Wallet::__getOutputs()
 {
     // this helps in persisting to get the wallet data when the application is launched for the first
     // time and nebl wallet is null still the 100 number is just a protection against infinite waiting
-    std::shared_ptr<CWallet> localWallet = MainWalletPtr.lock();
+
+    std::shared_ptr<CWallet> localWallet = std::atomic_load(&pwalletMain);
     for (int i = 0; i < 100 && ((!everSucceededInLoadingTokens &&
                                  std::atomic_load(&localWallet).get() == nullptr) ||
                                 !appInitiated);
          i++) {
         boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
-        if (std::atomic_load(&localWallet).get() == nullptr) {
-            localWallet = MainWalletPtr.lock();
-        }
     }
 
     if (std::atomic_load(&localWallet).get() == nullptr) {
@@ -249,7 +245,7 @@ bool NTP1Wallet::removeOutputIfSpent(const NTP1OutPoint& output, const CWalletTx
 
 void NTP1Wallet::scanSpentTransactions()
 {
-    std::shared_ptr<CWallet> localWallet = MainWalletPtr.lock();
+    std::shared_ptr<CWallet> localWallet = std::atomic_load(&pwalletMain);
     if (localWallet == nullptr)
         return;
     std::deque<NTP1OutPoint> toRemove;
