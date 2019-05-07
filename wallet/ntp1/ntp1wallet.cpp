@@ -52,6 +52,9 @@ void NTP1Wallet::__getOutputs()
                                 !appInitiated);
          i++) {
         boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
+        if (std::atomic_load(&localWallet).get() == nullptr) {
+            localWallet = MainWalletPtr.lock();
+        }
     }
 
     if (std::atomic_load(&localWallet).get() == nullptr) {
