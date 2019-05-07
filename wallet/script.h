@@ -23,6 +23,9 @@ class CTransaction;
 
 static const unsigned int MAX_SCRIPT_ELEMENT_SIZE = 520; // bytes
 
+/** Maximum number of signature check operations in an IsStandard() P2SH script */
+static const unsigned int MAX_P2SH_SIGOPS = 15;
+
 // Setting nSequence to this value for every input in a transaction
 // disables nLockTime.
 static const uint32_t SEQUENCE_FINAL = 0xffffffff;
