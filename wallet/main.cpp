@@ -445,7 +445,7 @@ bool CTransaction::AreInputsStandard(const MapPrevTx& mapInputs) const
         if (whichType == TX_SCRIPTHASH) {
             if (stack.empty())
                 return false;
-            CScript                       subscript(stack.back().begin(), stack.back().end()); //Get the redeemScript
+            CScript subscript(stack.back().begin(), stack.back().end()); //Get the redeemScript
             //Removed the check to make sure the redeemScript subscript fits one of the four standard transaction types
             //Instead, make sure that the redeemScript doesn't have too many signature check Ops
             if (subscript.GetSigOpCount(true) > MAX_P2SH_SIGOPS) {
