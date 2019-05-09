@@ -1857,6 +1857,9 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, const C
     {
         if (!scriptSig.IsPushOnly()) // scriptSig must be literals-only
             return false;            // or validation fails
+        
+        if (stackCopy.empty()) // Check to make sure that the stackCopy has elements too
+            return false;         
 
         const valtype& pubKeySerialized = stackCopy.back();
         CScript pubKey2(pubKeySerialized.begin(), pubKeySerialized.end());
