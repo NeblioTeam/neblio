@@ -445,18 +445,18 @@ bool CTransaction::AreInputsStandard(const MapPrevTx& mapInputs) const
         if (whichType == TX_SCRIPTHASH) {
             if (stack.empty())
                 return false;
-            CScript subscript(stack.back().begin(), stack.back().end()); //Get the redeemScript
-            //Removed the check to make sure the redeemScript subscript fits one of the four standard transaction types
-            //Instead, make sure that the redeemScript doesn't have too many signature check Ops
+            CScript subscript(stack.back().begin(), stack.back().end()); // Get the redeemScript
+            // Removed the check to make sure the redeemScript subscript fits one of the four standard transaction types
+            // Instead, make sure that the redeemScript doesn't have too many signature check Ops
             if (subscript.GetSigOpCount(true) > MAX_P2SH_SIGOPS) {
                 return false;
             }            
         }else{
-            //Not a TX_SCRIPTHASH scriptPubKey
+            // Not a TX_SCRIPTHASH scriptPubKey
             int nArgsExpected = ScriptSigArgsExpected(whichType, vSolutions);
             if (nArgsExpected < 0)
                 return false;
-            //If stack is different than expected, not standard
+            // If stack is different than expected, not standard
             if (stack.size() != (unsigned int)nArgsExpected)
                 return false;       
         }
