@@ -172,7 +172,7 @@ std::vector<unsigned char> ToByteVector(const T& in)
 static std::vector<CTransaction> SetupDummyInputs(CBasicKeyStore& keystoreRet, MapPrevTx& inputsRet)
 {
     std::vector<CTransaction> dummyTransactions;
-    dummyTransactions.resize(2);
+    dummyTransactions.resize(5);
 
     // Add some keys to the keystore:
     CKey key[4];
