@@ -2978,18 +2978,44 @@ bool CBlock::AcceptBlock()
     if (mapBlockIndex.count(hash))
         return error("AcceptBlock() : block already in mapBlockIndex");
 
-    {
+    // protect against a possible attack where an attacker sends predecessors of very early blocks in the
+    // blockchain, forcing a non-necessary scan of the whole blockchain
+    int64_t maxCheckpointBlockHeight = Checkpoints::GetLastCheckpointBlockHeight();
+    if (nBestHeight > maxCheckpointBlockHeight + 1) {
+        const uint256 prevBlockHash = this->hashPrevBlock;
+        auto          it            = mapBlockIndex.find(prevBlockHash);
+        if (it != mapBlockIndex.cend()) {
+            int64_t newBlockPrevBlockHeight = it->second->nHeight;
+            if (newBlockPrevBlockHeight + 1 < maxCheckpointBlockHeight) {
+                return DoS(
+                    25,
+                    error("Prevblock of block %s, which is %s, is behind the latest checkpoint block "
+                          "height: %" PRId64 "\n",
+                          this->GetHash().ToString().c_str(), prevBlockHash.ToString().c_str(),
+                          maxCheckpointBlockHeight));
+            }
+        } else {
+            return error("The prevblock of %s, which is %s, is not in the blockindex. This should never "
+                         "happen in AcceptBlock(), where this error occurred\n",
+                         this->GetHash().ToString().c_str(), prevBlockHash.ToString().c_str());
+        }
+    }
+
+    try {
         CTxDB txdb;
         if (!VerifyInputsUnspent(txdb)) {
-            return error("VerifyInputsUnspent() failed for block %s",
+            return error("VerifyInputsUnspent() failed for block %s\n",
                          this->GetHash().ToString().c_str());
         }
+    } catch (std::exception& ex) {
+        return error("VerifyInputsUnspent() threw an exception for block %s; with error: %s\n",
+                     this->GetHash().ToString().c_str(), ex.what());
     }
 
     // Get prev block index
     unordered_map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashPrevBlock);
     if (mi == mapBlockIndex.end())
-        return DoS(10, error("AcceptBlock() : prev block not found"));
+        return DoS(10, error("AcceptBlock() : prev block not found\n"));
     CBlockIndex* pindexPrev = (*mi).second;
     int          nHeight    = pindexPrev->nHeight + 1;
 
