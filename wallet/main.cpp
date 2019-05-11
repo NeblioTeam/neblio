@@ -432,9 +432,6 @@ bool CTransaction::AreInputsStandard(const MapPrevTx& mapInputs) const
         const CScript& prevScript = prev.scriptPubKey;
         if (!Solver(prevScript, whichType, vSolutions))
             return false;
-        int nArgsExpected = ScriptSigArgsExpected(whichType, vSolutions);
-        if (nArgsExpected < 0)
-            return false;
 
         // Transactions with extra stuff in their scriptSigs are
         // non-standard. Note that this EvalScript() call will
@@ -448,23 +445,22 @@ bool CTransaction::AreInputsStandard(const MapPrevTx& mapInputs) const
         if (whichType == TX_SCRIPTHASH) {
             if (stack.empty())
                 return false;
-            CScript                       subscript(stack.back().begin(), stack.back().end());
-            vector<vector<unsigned char>> vSolutions2;
-            txnouttype                    whichType2;
-            if (!Solver(subscript, whichType2, vSolutions2))
+            CScript subscript(stack.back().begin(), stack.back().end()); // Get the redeemScript
+            // Removed the check to make sure the redeemScript subscript fits one of the four standard
+            // transaction types Instead, make sure that the redeemScript doesn't have too many signature
+            // check Ops
+            if (subscript.GetSigOpCount(true) > MAX_P2SH_SIGOPS) {
                 return false;
-            if (whichType2 == TX_SCRIPTHASH)
+            }
+        } else {
+            // Not a TX_SCRIPTHASH scriptPubKey
+            int nArgsExpected = ScriptSigArgsExpected(whichType, vSolutions);
+            if (nArgsExpected < 0)
                 return false;
-
-            int tmpExpected;
-            tmpExpected = ScriptSigArgsExpected(whichType2, vSolutions2);
-            if (tmpExpected < 0)
+            // If stack is different than expected, not standard
+            if (stack.size() != (unsigned int)nArgsExpected)
                 return false;
-            nArgsExpected += tmpExpected;
         }
-
-        if (stack.size() != (unsigned int)nArgsExpected)
-            return false;
     }
 
     return true;
