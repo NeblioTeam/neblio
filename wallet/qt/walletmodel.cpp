@@ -81,8 +81,8 @@ void WalletModel::pollBalanceChanged()
         cachedNumBlocks = nBestHeight;
 
         checkBalanceChanged();
-        // if (transactionTableModel)
-            //transactionTableModel->updateConfirmations();
+        if (transactionTableModel)
+            transactionTableModel->updateConfirmations();
     }
 }
 
