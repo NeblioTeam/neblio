@@ -359,12 +359,22 @@ void CTxDB::init_blockindex(bool fRemoveOld)
         }
     }
 
+    try {
+        RunCrossPlatformSerializationTests();
+        printf("Binary format tests have passed.\n");
+    } catch (std::exception& ex) {
+        printf("Binary format tests have failed: %s\n", ex.what());
+    }
+
     // if the directory doesn't exist, use quicksync
     if (ShouldQuickSyncBeDone(directory)) {
         // close the database before running quicksync
         this->Close();
 
         try {
+            // binary layout compatibility is necessary for quicksync to work
+            RunCrossPlatformSerializationTests();
+            printf("Binary format tests have passed.\n");
             DoQuickSync(directory);
         } catch (std::exception& ex) {
             printf("Quicksync exited with an exception (this is not expected to happen: %s\n",
@@ -483,9 +493,6 @@ CTxDB::CTxDB(const char* pszMode)
         loadDbPointers();
         return;
     }
-
-    RunCrossPlatformSerializationTests();
-    printf("Binary format tests have passed.\n");
 
     printf("Initializing lmdb with db size: %" PRIu64 "\n", DB_DEFAULT_MAPSIZE);
     bool fCreate = strchr(pszMode, 'c');
