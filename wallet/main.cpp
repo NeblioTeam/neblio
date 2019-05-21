@@ -1181,6 +1181,54 @@ static unsigned int GetNextTargetRequiredV1(const CBlockIndex* pindexLast, bool 
     return bnNew.GetCompact();
 }
 
+/**
+ * Calculates the average spacing between blocks correctly, by sorting the times of the last X blocks,
+ * and calculating the average from adjacent differences
+ *
+ * @brief CalculateActualBlockSpacingForV3
+ * @param pindexLast
+ * @return the average time spacing between blocks
+ */
+int64_t CalculateActualBlockSpacingForV3(const CBlockIndex* pindexLast)
+{
+    // get the latest blocks from the blocks. The amount of blocks is: TARGET_AVERAGE_BLOCK_COUNT
+    int64_t forkBlock = GetNetForks().getFirstBlockOfFork(NetworkFork::NETFORK__4_RETARGET_CORRECTION);
+    // we start counting block times from the fork
+    int64_t numOfBlocksToAverage = pindexLast->nHeight - (forkBlock + 1);
+    // minimum number of blocks to calculate a difference is 2, and max is TARGET_AVERAGE_BLOCK_COUNT
+    if (numOfBlocksToAverage <= 1) {
+        numOfBlocksToAverage = 2;
+    }
+    if (numOfBlocksToAverage > TARGET_AVERAGE_BLOCK_COUNT) {
+        numOfBlocksToAverage = TARGET_AVERAGE_BLOCK_COUNT;
+    }
+
+    // push block times to a vector
+    std::vector<int64_t> blockTimes;
+    std::vector<int64_t> blockTimeDifferences;
+    blockTimes.reserve(numOfBlocksToAverage);
+    blockTimeDifferences.reserve(numOfBlocksToAverage);
+    const CBlockIndex* currIndex = pindexLast;
+    blockTimes.resize(numOfBlocksToAverage);
+    for (int64_t i = 0; i < numOfBlocksToAverage; i++) {
+        // fill the blocks in reverse order
+        blockTimes.at(numOfBlocksToAverage - i - 1) = currIndex->GetBlockTime();
+        // move to the previous block
+        currIndex = currIndex->pprev;
+    }
+
+    // sort block times to avoid negative values
+    std::sort(blockTimes.begin(), blockTimes.end());
+    // calculate adjacent differences
+    std::adjacent_difference(blockTimes.cbegin(), blockTimes.cend(),
+                             std::back_inserter(blockTimeDifferences));
+    assert(blockTimeDifferences.size() >= 2);
+    // calculate the average (n-1 because adjacent differences have size n-1)
+    // begin()+1 because the first value is just a copy of the first value
+    return std::accumulate(blockTimeDifferences.cbegin() + 1, blockTimeDifferences.cend(), 0) /
+           (numOfBlocksToAverage - 1);
+}
+
 static unsigned int GetNextTargetRequiredV2(const CBlockIndex* pindexLast, bool fProofOfStake)
 {
     CBigNum bnTargetLimit = fProofOfStake ? bnProofOfStakeLimit : bnProofOfWorkLimit;
@@ -1214,10 +1262,63 @@ static unsigned int GetNextTargetRequiredV2(const CBlockIndex* pindexLast, bool 
     return bnNew.GetCompact();
 }
 
+static unsigned int GetNextTargetRequiredV3(const CBlockIndex* pindexLast, bool fProofOfStake)
+{
+    CBigNum bnTargetLimit = fProofOfStake ? bnProofOfStakeLimit : bnProofOfWorkLimit;
+
+    if (pindexLast == NULL)
+        return bnTargetLimit.GetCompact(); // genesis block
+
+    const CBlockIndex* pindexPrev = GetLastBlockIndex(pindexLast, fProofOfStake);
+    if (pindexPrev->pprev == NULL)
+        return bnTargetLimit.GetCompact(); // first block
+    const CBlockIndex* pindexPrevPrev = GetLastBlockIndex(pindexPrev->pprev, fProofOfStake);
+    if (pindexPrevPrev->pprev == NULL)
+        return bnTargetLimit.GetCompact(); // second block
+
+    int64_t nActualSpacing = CalculateActualBlockSpacingForV3(pindexLast);
+
+    const unsigned int nTS = TargetSpacing();
+    if (nActualSpacing < 0)
+        nActualSpacing = nTS;
+
+    /** if any of these assert fires, it means that you changed these parameteres.
+     *  Be aware that the parameters k and l are fine tuned to produce a max shift in the difficulty in
+     * the range [-3%,+5%]
+     * This can be calculated with:
+     * ((nInterval - l + k)*nTS + (m + l)*nActualSpacing)/((nInterval + k)*nTS + m*nActualSpacing),
+     * with nActualSpacing being in the range [0,FutureDrift] = [0,600] If you change any of these
+     * values, make sure you tune these variables again. A very high percentage on either side makes it
+     * easier to change/manipulate the difficulty when mining
+     */
+    assert(FutureDrift(0) == 10 * 60);
+    assert(nTS == 30);
+    assert(nTargetTimespan == 2 * 60 * 60);
+
+    // ppcoin: target change every block
+    // ppcoin: retarget with exponential moving toward target spacing
+    CBigNum newTarget;
+    newTarget.SetCompact(pindexPrev->nBits); // target from previous block
+    int64_t nInterval = nTargetTimespan / nTS;
+
+    static constexpr const int k = 15;
+    static constexpr const int l = 7;
+    static constexpr const int m = 90;
+    newTarget *= (nInterval - l + k) * nTS + (m + l) * nActualSpacing;
+    newTarget /= (nInterval + k) * nTS + m * nActualSpacing;
+
+    if (newTarget <= 0 || newTarget > bnTargetLimit)
+        newTarget = bnTargetLimit;
+
+    return newTarget.GetCompact();
+}
+
 unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake)
 {
     if (pindexLast->nHeight < 2000)
         return GetNextTargetRequiredV1(pindexLast, fProofOfStake);
+    else if (GetNetForks().isForkActivated(NetworkFork::NETFORK__4_RETARGET_CORRECTION))
+        return GetNextTargetRequiredV3(pindexLast, fProofOfStake);
     else
         return GetNextTargetRequiredV2(pindexLast, fProofOfStake);
 }

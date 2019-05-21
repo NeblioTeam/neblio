@@ -84,6 +84,7 @@ extern CCriticalSection                             cs_main;
 extern std::unordered_map<uint256, CBlockIndex*>    mapBlockIndex;
 extern std::set<std::pair<COutPoint, unsigned int>> setStakeSeen;
 extern CBlockIndex*                                 pindexGenesisBlock;
+static constexpr const int64_t                      TARGET_AVERAGE_BLOCK_COUNT = 100;
 extern unsigned int                                 nTargetSpacing;
 extern unsigned int                                 nStakeMinAge;
 extern unsigned int                                 nOldTestnetStakeMinAge;
