@@ -8,6 +8,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/version.hpp>
+#include <future>
 
 #include "checkpoints.h"
 #include "kernel.h"
@@ -210,21 +211,28 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
     filesystem::path   downloadTarget = dbdir / leaf;
     std::atomic<float> progress;
     progress.store(0);
+
     // download the file asynchronously
-    std::atomic_bool finishedDownload;
-    finishedDownload.store(false);
-    boost::thread downloadThread([&]() {
-        cURLTools::GetLargeFileFromHTTPS(url, 30, downloadTarget, progress);
-        finishedDownload.store(true);
+    std::promise<void> downloadThreadPromise;
+    std::future<void>  downloadThreadFuture = downloadThreadPromise.get_future();
+    boost::thread      downloadThread([&downloadThreadPromise, &url, &downloadTarget, &progress]() {
+        try {
+            cURLTools::GetLargeFileFromHTTPS(url, 30, downloadTarget, progress);
+            downloadThreadPromise.set_value();
+        } catch (...) {
+            downloadThreadPromise.set_exception(std::current_exception());
+        }
     });
-    while (!finishedDownload.load(std::memory_order_relaxed)) {
+    do {
         std::stringstream ss;
         ss.setf(std::ios::fixed);
         ss << "Downloading QuickSync file " << leaf << ": " << std::setprecision(2)
            << progress.load(std::memory_order_relaxed) << "%...";
         uiInterface.InitMessage(ss.str());
-        boost::this_thread::sleep_for(boost::chrono::milliseconds(250));
-    }
+    } while (downloadThreadFuture.wait_for(std::chrono::milliseconds(250)) != std::future_status::ready);
+    downloadThread.join();
+    downloadThreadFuture.get();
+
     uiInterface.InitMessage("Done downloading");
     printf("Done downloading %s\n", leaf.c_str());
     std::string calculatedHash = CalculateHashOfFile<Sha256Calculator>(downloadTarget);
@@ -292,7 +300,8 @@ void DoQuickSync(const filesystem::path& dbdir)
     }
     uiInterface.InitMessage("QuickSync done");
     if (!success) {
-        throw std::runtime_error("QuickSync error: None of the files matched the correct settings.");
+        throw std::runtime_error("QuickSync error: None of the files matched the correct settings or "
+                                 "another error occurred.");
     }
     printf("QuickSync done\n");
 }
@@ -377,7 +386,7 @@ void CTxDB::init_blockindex(bool fRemoveOld)
             printf("Binary format tests have passed.\n");
             DoQuickSync(directory);
         } catch (std::exception& ex) {
-            printf("Quicksync exited with an exception (this is not expected to happen: %s\n",
+            printf("Quicksync exited with an exception (this is not expected to happen): %s\n",
                    ex.what());
             filesystem::remove_all(directory);
         }
