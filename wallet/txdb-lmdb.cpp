@@ -270,13 +270,14 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
     downloadThread.join();
     downloadThreadFuture.get();
 
-    uiInterface.InitMessage("Done downloading");
+    uiInterface.InitMessage("Calculating hash to verify integrity...");
     printf("Done downloading %s\n", leaf.c_str());
     std::string calculatedHash = CalculateHashOfFile<Sha256Calculator>(downloadTarget);
     if (calculatedHash != sumBin) {
         throw std::runtime_error("The calculated checksum for the downloaded file: " +
                                  downloadTarget.string() + "; does not match the expected one.");
     }
+    uiInterface.InitMessage("Download and verification of " + leaf + " is done.");
 }
 
 void DoQuickSync(const filesystem::path& dbdir)
