@@ -7,8 +7,8 @@
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
+#include <boost/thread/future.hpp>
 #include <boost/version.hpp>
-#include <future>
 #include <random>
 
 #include "checkpoints.h"
@@ -238,9 +238,9 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
     }
 
     // download the file asynchronously in a new thread
-    std::promise<void> downloadThreadPromise;
-    std::future<void>  downloadThreadFuture = downloadThreadPromise.get_future();
-    boost::thread      downloadThread([&downloadThreadPromise, &urls, &downloadTarget, &progress]() {
+    boost::promise<void>       downloadThreadPromise;
+    boost::unique_future<void> downloadThreadFuture = downloadThreadPromise.get_future();
+    boost::thread downloadThread([&downloadThreadPromise, &urls, &downloadTarget, &progress]() {
         for (unsigned i = 0; i < urls.size(); i++) {
             try {
                 printf("Downloading file for QuickSync: %s...\n", urls[i].c_str());
@@ -265,7 +265,8 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
         ss << "Downloading QuickSync file " << leaf << ": " << std::setprecision(2)
            << progress.load(std::memory_order_relaxed) << "%...";
         uiInterface.InitMessage(ss.str());
-    } while (downloadThreadFuture.wait_for(std::chrono::milliseconds(250)) != std::future_status::ready);
+    } while (downloadThreadFuture.wait_for(boost::chrono::milliseconds(250)) !=
+             boost::future_status::ready);
     downloadThread.join();
     downloadThreadFuture.get();
 
