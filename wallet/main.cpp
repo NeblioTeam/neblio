@@ -4931,7 +4931,7 @@ unsigned int DataSize()
 /** Minimum Peer Version */
 int MinPeerVersion()
 {
-    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
+    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__4_RETARGET_CORRECTION)) {
         return MIN_PEER_PROTO_VERSION;
     } else {
         return OLD_MIN_PEER_PROTO_VERSION;

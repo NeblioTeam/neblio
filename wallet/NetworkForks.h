@@ -44,7 +44,7 @@ const NetworkForks TestnetForks(
                                {NetworkFork::NETFORK__2_CONFS_CHANGE, std::numeric_limits<int>::max()},
                                // Roughly Aug 1 2018 Noon EDT
                                {NetworkFork::NETFORK__3_TACHYON, 110100},
-                               {NetworkFork::NETFORK__4_RETARGET_CORRECTION, 10000000}},
+                               {NetworkFork::NETFORK__4_RETARGET_CORRECTION, 1163000}},
     nBestHeight);
 
 const NetworkForks& GetNetForks();
