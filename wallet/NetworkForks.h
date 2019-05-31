@@ -35,8 +35,8 @@ MainnetForks(std::map<NetworkFork, int>{{NetworkFork::NETFORK__1_FIRST_ONE, 0},
                                         {NetworkFork::NETFORK__2_CONFS_CHANGE, 248000},
                                         // Tachyon upgrade. Approx Jan 12th 2019
                                         {NetworkFork::NETFORK__3_TACHYON, 387028},
-                                        // Tachyon upgrade.
-                                        {NetworkFork::NETFORK__4_RETARGET_CORRECTION, 10000000}},
+                                        // RetargetV3 upgrade. Approx June 15 2019
+                                        {NetworkFork::NETFORK__4_RETARGET_CORRECTION, 1003125}},
              nBestHeight);
 
 const NetworkForks TestnetForks(
