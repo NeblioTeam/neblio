@@ -15,7 +15,7 @@ class NTP1TokenListModel : public QAbstractTableModel
 
     boost::shared_ptr<NTP1Wallet> ntp1wallet;
     bool                          walletLocked;
-    bool                          walletUpdateRunning;
+    boost::atomic_bool            walletUpdateRunning;
     boost::atomic_flag            walletUpdateLockFlag = BOOST_ATOMIC_FLAG_INIT;
     boost::atomic_bool            updateWalletAgain;
 

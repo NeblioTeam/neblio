@@ -328,6 +328,17 @@ bool InitSanityCheck(void)
     return true;
 }
 
+/**
+ * @brief VerifyDBWallet_transient; this is just an aux function that helps in blacklisting a
+ *        false positive on an lock-inversion issue
+ * @param strWalletFileName
+ * @return Verification result
+ */
+CDBEnv::VerifyResult VerifyDBWalletTransient(const std::string& strWalletFileName) {
+    return bitdb.Verify(strWalletFileName, CWalletDB::Recover);
+}
+
+
 /** Initialize bitcoin.
  *  @pre Parameters should be parsed and config file should be read.
  */
@@ -565,7 +576,7 @@ bool AppInit2()
     }
 
     if (filesystem::exists(GetDataDir() / strWalletFileName)) {
-        CDBEnv::VerifyResult r = bitdb.Verify(strWalletFileName, CWalletDB::Recover);
+        CDBEnv::VerifyResult r = VerifyDBWalletTransient(strWalletFileName);
         if (r == CDBEnv::RECOVER_OK) {
             string msg = strprintf(_("Warning: wallet.dat corrupt, data salvaged!"
                                      " Original wallet.dat saved as wallet.{timestamp}.bak in %s; if"

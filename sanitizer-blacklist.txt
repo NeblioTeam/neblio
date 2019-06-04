@@ -1,0 +1,10 @@
+fun:*QThread*start*
+fun:*BitcoinGUI*BitcoinGUI*
+# this is not working anyway, hopefully it will be fixed in the future
+fun:*VerifyDBWalletTransient*
+fun:*QCoreApplication*qt_metacall*
+fun:*QArrayData*allocate*
+fun:*QWaitCondition*wakeAll*
+fun:*QWaitCondition*QWaitCondition*
+fun:*QWaitCondition*wait*
+fun:*QCoreApplication*postEvent*

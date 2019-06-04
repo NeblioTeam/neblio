@@ -120,7 +120,7 @@ extern bool fUseUPnP;
 extern uint64_t nLocalServices;
 extern uint64_t nLocalHostNonce;
 extern CAddress addrSeenByPeer;
-extern boost::array<int, THREAD_MAX> vnThreadsRunning;
+extern boost::array<boost::atomic_int, THREAD_MAX> vnThreadsRunning;
 extern CAddrMan addrman;
 
 extern std::vector<CNode*> vNodes;
@@ -210,7 +210,7 @@ public:
     int64_t nLastSend;
     int64_t nLastRecv;
     int64_t nLastSendEmpty;
-    int64_t nTimeConnected;
+    boost::atomic<int64_t> nTimeConnected;
     CAddress addr;
     std::string addrName;
     CService addrLocal;
@@ -219,7 +219,7 @@ public:
     bool fOneShot;
     bool fClient;
     bool fInbound;
-    bool fNetworkNode;
+    boost::atomic<bool> fNetworkNode;
     bool fSuccessfullyConnected;
     bool fDisconnect;
     // We use fRelayTxes for two purposes -

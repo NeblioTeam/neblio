@@ -96,8 +96,11 @@ CAddrInfo* CAddrMan::Create(const CAddress &addr, const CNetAddr &addrSource, in
     int nId = nIdCount++;
     mapInfo[nId] = CAddrInfo(addr, addrSource);
     mapAddr[addr] = nId;
-    mapInfo[nId].nRandomPos = vRandom.size();
-    vRandom.push_back(nId);
+    {
+        LOCK(cs);
+        mapInfo[nId].nRandomPos = vRandom.size();
+        vRandom.push_back(nId);
+    }
     if (pnId)
         *pnId = nId;
     return &mapInfo[nId];

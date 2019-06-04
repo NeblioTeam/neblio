@@ -106,7 +106,7 @@ extern CCriticalSection                             cs_setpwalletRegistered;
 extern std::set<std::shared_ptr<CWallet>>           setpwalletRegistered;
 extern unsigned char                                pchMessageStart[4];
 extern std::unordered_map<uint256, CBlock*>         mapOrphanBlocks;
-extern bool                                         fImporting;
+extern boost::atomic<bool>                          fImporting;
 
 // Settings
 extern int64_t      nTransactionFee;

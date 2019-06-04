@@ -567,6 +567,11 @@ bool CheckStake(CBlock* pblock, CWallet& wallet)
     return true;
 }
 
+bool is_vNodesEmpty_safe() {
+    LOCK(cs_vNodes);
+    return vNodes.empty();
+}
+
 void StakeMiner(CWallet* pwallet)
 {
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
@@ -587,17 +592,24 @@ void StakeMiner(CWallet* pwallet)
                 return;
         }
 
-        while (vNodes.empty() || IsInitialBlockDownload()) {
-            nLastCoinStakeSearchInterval = 0;
-            fTryToSync                   = true;
-            MilliSleep(1000);
-            if (fShutdown)
-                return;
+        {
+            while (is_vNodesEmpty_safe() || IsInitialBlockDownload()) {
+                nLastCoinStakeSearchInterval = 0;
+                fTryToSync                   = true;
+                MilliSleep(1000);
+                if (fShutdown)
+                    return;
+            }
         }
 
         if (fTryToSync) {
             fTryToSync = false;
-            if (vNodes.size() < 3 || nBestHeight < GetNumBlocksOfPeers()) {
+            std::size_t vNodesSize = 0;
+            {
+                LOCK(cs_vNodes);
+                vNodesSize = vNodes.size();
+            }
+            if (vNodesSize < 3 || nBestHeight < GetNumBlocksOfPeers()) {
                 MilliSleep(60000);
                 continue;
             }

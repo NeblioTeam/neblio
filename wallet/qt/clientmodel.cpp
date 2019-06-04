@@ -34,6 +34,7 @@ ClientModel::~ClientModel()
 
 int ClientModel::getNumConnections() const
 {
+    LOCK(cs_vNodes);
     return vNodes.size();
 }
 
@@ -117,7 +118,7 @@ bool ClientModel::inInitialBlockDownload() const
 
 bool ClientModel::isImporting() const
 {
-    return fImporting;
+    return fImporting.load();
 }
 
 int ClientModel::getNumBlocksOfPeers() const

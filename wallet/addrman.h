@@ -392,6 +392,7 @@ public:
     // Return the number of (unique) addresses in all tables.
     int size()
     {
+        LOCK(cs);
         return vRandom.size();
     }
 
