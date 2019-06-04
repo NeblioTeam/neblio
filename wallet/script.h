@@ -23,13 +23,16 @@ class CTransaction;
 
 static const unsigned int MAX_SCRIPT_ELEMENT_SIZE = 520; // bytes
 
+/** Maximum number of signature check operations in an IsStandard() P2SH script */
+static const unsigned int MAX_P2SH_SIGOPS = 15;
+
 // Setting nSequence to this value for every input in a transaction
 // disables nLockTime.
 static const uint32_t SEQUENCE_FINAL = 0xffffffff;
 
 // If this flag set, CTxIn::nSequence is NOT interpreted as a
 // relative lock-time.
-static const uint32_t SEQUENCE_LOCKTIME_DISABLE_FLAG = 0x80000000; //Constant not used currently due to lack of OP_CHECKSEQUENCEVERIFY check (NOP3) 
+static const uint32_t SEQUENCE_LOCKTIME_DISABLE_FLAG = 0x80000000; //Constant not used currently due to lack of OP_CHECKSEQUENCEVERIFY check (NOP3)
 
 // If CTxIn::nSequence encodes a relative lock-time and this flag
 // is set, the relative lock-time has units of 512 seconds,
@@ -41,7 +44,7 @@ static const uint32_t SEQUENCE_LOCKTIME_TYPE_FLAG = 0x00400000; //Constant not u
 static const uint32_t SEQUENCE_LOCKTIME_MASK = 0x0000ffff; //Constant not used currently due to lack of OP_CHECKSEQUENCEVERIFY check (NOP3)
 
 //A timestamp in the blockchain where LOCKTIME Verify Activates
-static const unsigned int CHECKLOCKTIME_VERIFY_SWITCH_TIME = 1555977600; // Tuesday, April 23rd, 2019 00:00:00 AM UTC
+static const unsigned int CHECKLOCKTIME_VERIFY_SWITCH_TIME = 1560614400; // Saturday, June 15, 2019 16:00:00 UTC
 
 /** Signature hash types/flags */
 enum
@@ -122,7 +125,7 @@ enum opcodetype
     OP_RETURN = 0x6a,
     OP_CHECKLOCKTIMEVERIFY = 0xb1,
     OP_CHECKSEQUENCEVERIFY = 0xb2, //Currently still acts as NOP3 as OP_CHECKSEQUENCEVERIFY is not implemented
-    
+
     // stack ops
     OP_TOALTSTACK = 0x6b,
     OP_FROMALTSTACK = 0x6c,

@@ -7,7 +7,9 @@
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
+#include <boost/thread/future.hpp>
 #include <boost/version.hpp>
+#include <random>
 
 #include "checkpoints.h"
 #include "kernel.h"
@@ -189,13 +191,27 @@ bool IsQuickSyncOSCompatible(const std::string& osValue)
 void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::path& dbdir)
 {
     // get json fields of this file
-    std::string url    = NTP1Tools::GetStrField(fileVal.get_obj(), "url");
-    std::string sum    = NTP1Tools::GetStrField(fileVal.get_obj(), "sha256sum");
-    std::string sumBin = boost::algorithm::unhex(sum);
+    const json_spirit::Array urlsObj = NTP1Tools::GetArrayField(fileVal.get_obj(), "url");
+    const std::string        sum     = NTP1Tools::GetStrField(fileVal.get_obj(), "sha256sum");
+    const std::string        sumBin  = boost::algorithm::unhex(sum);
+
+    if (urlsObj.empty()) {
+        std::string jsonData = json_spirit::write(fileVal);
+        throw std::runtime_error("Empty list of urls retrieved: " + jsonData);
+    }
+
+    std::vector<std::string> urls;
+    for (auto urlObj : urlsObj) {
+        urls.push_back(urlObj.get_str());
+    }
+
+    // shuffle the urls to pick a random one of them first
+    auto rng = std::default_random_engine{};
+    std::shuffle(urls.begin(), urls.end(), rng);
+
+    // Diskspace check disabled as it doesn't deliver reliable results for large files
     //    uint64_t    fileSize = static_cast<uint64_t>(NTP1Tools::GetInt64Field(fileVal.get_obj(),
     //    "size"));
-    // calculate binary values of the checksum
-
     // check available diskspace (disabled because it doesn't work properly on Windows
     //    std::size_t availableSpace = GetFreeDiskSpace(dbdir);
     //    std::size_t requiredSpace  = static_cast<std::size_t>(static_cast<double>(fileSize) * 1.2);
@@ -206,38 +222,70 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
     //                                 MB");
     //    }
 
-    std::string        leaf           = filesystem::path(url).filename().string();
+    std::string        leaf           = filesystem::path(urls.at(0)).filename().string();
     filesystem::path   downloadTarget = dbdir / leaf;
     std::atomic<float> progress;
     progress.store(0);
-    // download the file asynchronously
-    std::atomic_bool finishedDownload;
-    finishedDownload.store(false);
-    boost::thread downloadThread([&]() {
-        cURLTools::GetLargeFileFromHTTPS(url, 30, downloadTarget, progress);
-        finishedDownload.store(true);
+
+    // ensure that all leaf file names are the same in the retrieved json data, this shows if the
+    // json data has a problem
+    for (const std::string& url : urls) {
+        if (leaf != filesystem::path(url).filename().string()) {
+            throw std::runtime_error(
+                "The URLs in the following json snippet do not all have the same file names: " +
+                json_spirit::write(fileVal));
+        }
+    }
+
+    // download the file asynchronously in a new thread
+    boost::promise<void>       downloadThreadPromise;
+    boost::unique_future<void> downloadThreadFuture = downloadThreadPromise.get_future();
+    boost::thread downloadThread([&downloadThreadPromise, &urls, &downloadTarget, &progress]() {
+        for (unsigned i = 0; i < urls.size(); i++) {
+            try {
+                printf("Downloading file for QuickSync: %s...\n", urls[i].c_str());
+                static const long connectionTimeout = 30;
+                cURLTools::GetLargeFileFromHTTPS(urls[i], connectionTimeout, downloadTarget, progress);
+                downloadThreadPromise.set_value();
+                break; // break if a file is downloaded successfully
+            } catch (std::exception& ex) {
+                // if this is the last file, set the exception and fail
+                if (i + 1 >= urls.size()) {
+                    downloadThreadPromise.set_exception(std::make_exception_ptr(std::runtime_error(
+                        "Failed to download any of the available files. The last error is: " +
+                        std::string(ex.what()))));
+                }
+            }
+        }
     });
-    while (!finishedDownload.load(std::memory_order_relaxed)) {
+
+    do {
         std::stringstream ss;
         ss.setf(std::ios::fixed);
         ss << "Downloading QuickSync file " << leaf << ": " << std::setprecision(2)
            << progress.load(std::memory_order_relaxed) << "%...";
         uiInterface.InitMessage(ss.str());
-        boost::this_thread::sleep_for(boost::chrono::milliseconds(250));
-    }
-    uiInterface.InitMessage("Done downloading");
+    } while (downloadThreadFuture.wait_for(boost::chrono::milliseconds(250)) !=
+             boost::future_status::ready);
+    downloadThread.join();
+    downloadThreadFuture.get();
+
+    uiInterface.InitMessage("Calculating hash to verify integrity...");
     printf("Done downloading %s\n", leaf.c_str());
     std::string calculatedHash = CalculateHashOfFile<Sha256Calculator>(downloadTarget);
     if (calculatedHash != sumBin) {
         throw std::runtime_error("The calculated checksum for the downloaded file: " +
                                  downloadTarget.string() + "; does not match the expected one.");
     }
+    uiInterface.InitMessage("Download and verification of " + leaf + " is done.");
 }
 
 void DoQuickSync(const filesystem::path& dbdir)
 {
     unsigned         failedAttempts      = 0;
     static const int MAX_FAILED_ATTEMPTS = 3;
+
+    bool success = false;
 
     while (failedAttempts < MAX_FAILED_ATTEMPTS) {
         {
@@ -255,14 +303,23 @@ void DoQuickSync(const filesystem::path& dbdir)
             json_spirit::read_or_throw(jsonStrData, parsedJsonData);
             json_spirit::Array rootArray = parsedJsonData.get_array();
             for (const json_spirit::Value& val : rootArray) {
-                std::string        os    = NTP1Tools::GetStrField(val.get_obj(), "os");
-                json_spirit::Array files = NTP1Tools::GetArrayField(val.get_obj(), "files");
+                std::string        os        = NTP1Tools::GetStrField(val.get_obj(), "os");
+                uint64_t           dbversion = NTP1Tools::GetUint64Field(val.get_obj(), "dbversion");
+                json_spirit::Array files     = NTP1Tools::GetArrayField(val.get_obj(), "files");
+
+                if (dbversion < DATABASE_VERSION) {
+                    printf("Skipping database with version %" PRIu64 "", dbversion);
+                    continue;
+                }
+
                 if (!IsQuickSyncOSCompatible(os)) {
+                    printf("Skipping database with OS %" PRIu64 "", dbversion);
                     continue;
                 }
                 for (const json_spirit::Value& fileVal : files) {
                     DownloadQuickSyncFile(fileVal, dbdir);
                 }
+                success = true;
                 break; // after downloading one set of files, stop
             }
             break; // download is done, exit the "failedAttempts" counter
@@ -280,6 +337,10 @@ void DoQuickSync(const filesystem::path& dbdir)
         }
     }
     uiInterface.InitMessage("QuickSync done");
+    if (!success) {
+        throw std::runtime_error("QuickSync error: None of the files matched the correct settings or "
+                                 "another error occurred.");
+    }
     printf("QuickSync done\n");
 }
 
@@ -306,6 +367,9 @@ void CTxDB::init_blockindex(bool fRemoveOld)
     if (fRemoveOld ||
         SC_CheckOperationOnRestartScheduleThenDeleteIt(SC_SCHEDULE_ON_RESTART_OPNAME__RESYNC)) {
         filesystem::remove_all(directory); // remove directory
+
+        // close the database before deleting
+        this->Close();
 
         // delete block data files
         {
@@ -342,12 +406,25 @@ void CTxDB::init_blockindex(bool fRemoveOld)
         }
     }
 
+    try {
+        RunCrossPlatformSerializationTests();
+        printf("Binary format tests have passed.\n");
+    } catch (std::exception& ex) {
+        printf("Binary format tests have failed: %s\n", ex.what());
+    }
+
     // if the directory doesn't exist, use quicksync
     if (ShouldQuickSyncBeDone(directory)) {
+        // close the database before running quicksync
+        this->Close();
+
         try {
+            // binary layout compatibility is necessary for quicksync to work
+            RunCrossPlatformSerializationTests();
+            printf("Binary format tests have passed.\n");
             DoQuickSync(directory);
         } catch (std::exception& ex) {
-            printf("Quicksync exited with an exception (this is not expected to happen: %s\n",
+            printf("Quicksync exited with an exception (this is not expected to happen): %s\n",
                    ex.what());
             filesystem::remove_all(directory);
         }
@@ -463,9 +540,6 @@ CTxDB::CTxDB(const char* pszMode)
         loadDbPointers();
         return;
     }
-
-    RunCrossPlatformSerializationTests();
-    printf("Binary format tests have passed.\n");
 
     printf("Initializing lmdb with db size: %" PRIu64 "\n", DB_DEFAULT_MAPSIZE);
     bool fCreate = strchr(pszMode, 'c');

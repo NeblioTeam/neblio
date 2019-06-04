@@ -589,6 +589,7 @@ endif()
 
 add_library(txdb_lib STATIC
     wallet/txdb-lmdb.cpp
+    wallet/SerializationTester.cpp
     )
 
 target_link_libraries(txdb_lib

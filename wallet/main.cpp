@@ -432,9 +432,6 @@ bool CTransaction::AreInputsStandard(const MapPrevTx& mapInputs) const
         const CScript& prevScript = prev.scriptPubKey;
         if (!Solver(prevScript, whichType, vSolutions))
             return false;
-        int nArgsExpected = ScriptSigArgsExpected(whichType, vSolutions);
-        if (nArgsExpected < 0)
-            return false;
 
         // Transactions with extra stuff in their scriptSigs are
         // non-standard. Note that this EvalScript() call will
@@ -448,23 +445,22 @@ bool CTransaction::AreInputsStandard(const MapPrevTx& mapInputs) const
         if (whichType == TX_SCRIPTHASH) {
             if (stack.empty())
                 return false;
-            CScript                       subscript(stack.back().begin(), stack.back().end());
-            vector<vector<unsigned char>> vSolutions2;
-            txnouttype                    whichType2;
-            if (!Solver(subscript, whichType2, vSolutions2))
+            CScript subscript(stack.back().begin(), stack.back().end()); // Get the redeemScript
+            // Removed the check to make sure the redeemScript subscript fits one of the four standard
+            // transaction types Instead, make sure that the redeemScript doesn't have too many signature
+            // check Ops
+            if (subscript.GetSigOpCount(true) > MAX_P2SH_SIGOPS) {
                 return false;
-            if (whichType2 == TX_SCRIPTHASH)
+            }
+        } else {
+            // Not a TX_SCRIPTHASH scriptPubKey
+            int nArgsExpected = ScriptSigArgsExpected(whichType, vSolutions);
+            if (nArgsExpected < 0)
                 return false;
-
-            int tmpExpected;
-            tmpExpected = ScriptSigArgsExpected(whichType2, vSolutions2);
-            if (tmpExpected < 0)
+            // If stack is different than expected, not standard
+            if (stack.size() != (unsigned int)nArgsExpected)
                 return false;
-            nArgsExpected += tmpExpected;
         }
-
-        if (stack.size() != (unsigned int)nArgsExpected)
-            return false;
     }
 
     return true;
@@ -1185,6 +1181,54 @@ static unsigned int GetNextTargetRequiredV1(const CBlockIndex* pindexLast, bool 
     return bnNew.GetCompact();
 }
 
+/**
+ * Calculates the average spacing between blocks correctly, by sorting the times of the last X blocks,
+ * and calculating the average from adjacent differences
+ *
+ * @brief CalculateActualBlockSpacingForV3
+ * @param pindexLast
+ * @return the average time spacing between blocks
+ */
+int64_t CalculateActualBlockSpacingForV3(const CBlockIndex* pindexLast)
+{
+    // get the latest blocks from the blocks. The amount of blocks is: TARGET_AVERAGE_BLOCK_COUNT
+    int64_t forkBlock = GetNetForks().getFirstBlockOfFork(NetworkFork::NETFORK__4_RETARGET_CORRECTION);
+    // we start counting block times from the fork
+    int64_t numOfBlocksToAverage = pindexLast->nHeight - (forkBlock + 1);
+    // minimum number of blocks to calculate a difference is 2, and max is TARGET_AVERAGE_BLOCK_COUNT
+    if (numOfBlocksToAverage <= 1) {
+        numOfBlocksToAverage = 2;
+    }
+    if (numOfBlocksToAverage > TARGET_AVERAGE_BLOCK_COUNT) {
+        numOfBlocksToAverage = TARGET_AVERAGE_BLOCK_COUNT;
+    }
+
+    // push block times to a vector
+    std::vector<int64_t> blockTimes;
+    std::vector<int64_t> blockTimeDifferences;
+    blockTimes.reserve(numOfBlocksToAverage);
+    blockTimeDifferences.reserve(numOfBlocksToAverage);
+    const CBlockIndex* currIndex = pindexLast;
+    blockTimes.resize(numOfBlocksToAverage);
+    for (int64_t i = 0; i < numOfBlocksToAverage; i++) {
+        // fill the blocks in reverse order
+        blockTimes.at(numOfBlocksToAverage - i - 1) = currIndex->GetBlockTime();
+        // move to the previous block
+        currIndex = currIndex->pprev;
+    }
+
+    // sort block times to avoid negative values
+    std::sort(blockTimes.begin(), blockTimes.end());
+    // calculate adjacent differences
+    std::adjacent_difference(blockTimes.cbegin(), blockTimes.cend(),
+                             std::back_inserter(blockTimeDifferences));
+    assert(blockTimeDifferences.size() >= 2);
+    // calculate the average (n-1 because adjacent differences have size n-1)
+    // begin()+1 because the first value is just a copy of the first value
+    return std::accumulate(blockTimeDifferences.cbegin() + 1, blockTimeDifferences.cend(), 0) /
+           (numOfBlocksToAverage - 1);
+}
+
 static unsigned int GetNextTargetRequiredV2(const CBlockIndex* pindexLast, bool fProofOfStake)
 {
     CBigNum bnTargetLimit = fProofOfStake ? bnProofOfStakeLimit : bnProofOfWorkLimit;
@@ -1218,10 +1262,63 @@ static unsigned int GetNextTargetRequiredV2(const CBlockIndex* pindexLast, bool 
     return bnNew.GetCompact();
 }
 
+static unsigned int GetNextTargetRequiredV3(const CBlockIndex* pindexLast, bool fProofOfStake)
+{
+    CBigNum bnTargetLimit = fProofOfStake ? bnProofOfStakeLimit : bnProofOfWorkLimit;
+
+    if (pindexLast == NULL)
+        return bnTargetLimit.GetCompact(); // genesis block
+
+    const CBlockIndex* pindexPrev = GetLastBlockIndex(pindexLast, fProofOfStake);
+    if (pindexPrev->pprev == NULL)
+        return bnTargetLimit.GetCompact(); // first block
+    const CBlockIndex* pindexPrevPrev = GetLastBlockIndex(pindexPrev->pprev, fProofOfStake);
+    if (pindexPrevPrev->pprev == NULL)
+        return bnTargetLimit.GetCompact(); // second block
+
+    int64_t nActualSpacing = CalculateActualBlockSpacingForV3(pindexLast);
+
+    const unsigned int nTS = TargetSpacing();
+    if (nActualSpacing < 0)
+        nActualSpacing = nTS;
+
+    /** if any of these assert fires, it means that you changed these parameteres.
+     *  Be aware that the parameters k and l are fine tuned to produce a max shift in the difficulty in
+     * the range [-3%,+5%]
+     * This can be calculated with:
+     * ((nInterval - l + k)*nTS + (m + l)*nActualSpacing)/((nInterval + k)*nTS + m*nActualSpacing),
+     * with nActualSpacing being in the range [0,FutureDrift] = [0,600] If you change any of these
+     * values, make sure you tune these variables again. A very high percentage on either side makes it
+     * easier to change/manipulate the difficulty when mining
+     */
+    assert(FutureDrift(0) == 10 * 60);
+    assert(nTS == 30);
+    assert(nTargetTimespan == 2 * 60 * 60);
+
+    // ppcoin: target change every block
+    // ppcoin: retarget with exponential moving toward target spacing
+    CBigNum newTarget;
+    newTarget.SetCompact(pindexPrev->nBits); // target from previous block
+    int64_t nInterval = nTargetTimespan / nTS;
+
+    static constexpr const int k = 15;
+    static constexpr const int l = 7;
+    static constexpr const int m = 90;
+    newTarget *= (nInterval - l + k) * nTS + (m + l) * nActualSpacing;
+    newTarget /= (nInterval + k) * nTS + m * nActualSpacing;
+
+    if (newTarget <= 0 || newTarget > bnTargetLimit)
+        newTarget = bnTargetLimit;
+
+    return newTarget.GetCompact();
+}
+
 unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake)
 {
     if (pindexLast->nHeight < 2000)
         return GetNextTargetRequiredV1(pindexLast, fProofOfStake);
+    else if (GetNetForks().isForkActivated(NetworkFork::NETFORK__4_RETARGET_CORRECTION))
+        return GetNextTargetRequiredV3(pindexLast, fProofOfStake);
     else
         return GetNextTargetRequiredV2(pindexLast, fProofOfStake);
 }
@@ -2978,18 +3075,44 @@ bool CBlock::AcceptBlock()
     if (mapBlockIndex.count(hash))
         return error("AcceptBlock() : block already in mapBlockIndex");
 
-    {
+    // protect against a possible attack where an attacker sends predecessors of very early blocks in the
+    // blockchain, forcing a non-necessary scan of the whole blockchain
+    int64_t maxCheckpointBlockHeight = Checkpoints::GetLastCheckpointBlockHeight();
+    if (nBestHeight > maxCheckpointBlockHeight + 1) {
+        const uint256 prevBlockHash = this->hashPrevBlock;
+        auto          it            = mapBlockIndex.find(prevBlockHash);
+        if (it != mapBlockIndex.cend()) {
+            int64_t newBlockPrevBlockHeight = it->second->nHeight;
+            if (newBlockPrevBlockHeight + 1 < maxCheckpointBlockHeight) {
+                return DoS(
+                    25,
+                    error("Prevblock of block %s, which is %s, is behind the latest checkpoint block "
+                          "height: %" PRId64 "\n",
+                          this->GetHash().ToString().c_str(), prevBlockHash.ToString().c_str(),
+                          maxCheckpointBlockHeight));
+            }
+        } else {
+            return error("The prevblock of %s, which is %s, is not in the blockindex. This should never "
+                         "happen in AcceptBlock(), where this error occurred\n",
+                         this->GetHash().ToString().c_str(), prevBlockHash.ToString().c_str());
+        }
+    }
+
+    try {
         CTxDB txdb;
         if (!VerifyInputsUnspent(txdb)) {
-            return error("VerifyInputsUnspent() failed for block %s",
+            return error("VerifyInputsUnspent() failed for block %s\n",
                          this->GetHash().ToString().c_str());
         }
+    } catch (std::exception& ex) {
+        return error("VerifyInputsUnspent() threw an exception for block %s; with error: %s\n",
+                     this->GetHash().ToString().c_str(), ex.what());
     }
 
     // Get prev block index
     unordered_map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashPrevBlock);
     if (mi == mapBlockIndex.end())
-        return DoS(10, error("AcceptBlock() : prev block not found"));
+        return DoS(10, error("AcceptBlock() : prev block not found\n"));
     CBlockIndex* pindexPrev = (*mi).second;
     int          nHeight    = pindexPrev->nHeight + 1;
 
@@ -4808,7 +4931,7 @@ unsigned int DataSize()
 /** Minimum Peer Version */
 int MinPeerVersion()
 {
-    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
+    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__4_RETARGET_CORRECTION)) {
         return MIN_PEER_PROTO_VERSION;
     } else {
         return OLD_MIN_PEER_PROTO_VERSION;

@@ -67,8 +67,8 @@ static const unsigned int MAX_DATA_SIZE     = 4096;
 static const unsigned int OLD_MAX_DATA_SIZE = 80;
 
 /** The maximum allowed Peer Protocol Version */
-static const unsigned int MIN_PEER_PROTO_VERSION     = 60200;
-static const unsigned int OLD_MIN_PEER_PROTO_VERSION = 60016; // v 1.5.1+
+static const unsigned int MIN_PEER_PROTO_VERSION     = 60210; // v2.1+
+static const unsigned int OLD_MIN_PEER_PROTO_VERSION = 60200; // v2.0+
 
 static const uint256
     hashGenesisBlock("0x7286972be4dbc1463d256049b7471c252e6557e222cab9be73181d359cd28bcc");
@@ -84,6 +84,7 @@ extern CCriticalSection                             cs_main;
 extern std::unordered_map<uint256, CBlockIndex*>    mapBlockIndex;
 extern std::set<std::pair<COutPoint, unsigned int>> setStakeSeen;
 extern CBlockIndex*                                 pindexGenesisBlock;
+static constexpr const int64_t                      TARGET_AVERAGE_BLOCK_COUNT = 100;
 extern unsigned int                                 nTargetSpacing;
 extern unsigned int                                 nStakeMinAge;
 extern unsigned int                                 nOldTestnetStakeMinAge;

@@ -150,7 +150,7 @@ const char* GetOpName(opcodetype opcode)
     case OP_VERIFY                 : return "OP_VERIFY";
     case OP_RETURN                 : return "OP_RETURN";
     case OP_CHECKLOCKTIMEVERIFY    : return "OP_CHECKLOCKTIMEVERIFY";
-    case OP_CHECKSEQUENCEVERIFY    : return "OP_CHECKSEQUENCEVERIFY"; //Currently still treated as NOP3 due to lack of BIP68 implementation            
+    case OP_CHECKSEQUENCEVERIFY    : return "OP_CHECKSEQUENCEVERIFY"; //Currently still treated as NOP3 due to lack of BIP68 implementation
 
     // stack ops
     case OP_TOALTSTACK             : return "OP_TOALTSTACK";
@@ -361,7 +361,7 @@ bool CheckLockTime(const int64_t& nLockTime, const CTransaction &txTo, unsigned 
 bool CheckSequence(const int64_t& nSequence, const CTransaction &txTo, unsigned int nIn)
 {
     // Function currently not used (NOP) due to lack of BIP68 implementation
-    
+
     // Relative lock times are supported by comparing the passed
     // in operand to the sequence number of the input.
     const int64_t txToSequence = (int64_t)txTo.vin[nIn].nSequence;
@@ -554,11 +554,6 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, co
                         // treat as a NOP2 if not enabled yet by timestamp
                         break;
                     }
-                    
-                    //Currently, OP_CHECKLOCKTIMEVERIFY only works on testnet, otherwise still act as NOP2
-                    if(!fTestNet){
-                        break;
-                    }
 
                     if (stack.size() < 1)
                         return false;
@@ -609,7 +604,7 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, co
                         return false;
 
                     break;
-                }                    
+                }
 
                 //
                 // Stack ops
@@ -1857,6 +1852,9 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, const C
     {
         if (!scriptSig.IsPushOnly()) // scriptSig must be literals-only
             return false;            // or validation fails
+
+        if (stackCopy.empty()) // Check to make sure that the stackCopy has elements too
+            return false;
 
         const valtype& pubKeySerialized = stackCopy.back();
         CScript pubKey2(pubKeySerialized.begin(), pubKeySerialized.end());

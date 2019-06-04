@@ -91,6 +91,12 @@ void Shutdown(void* /*parg*/)
         bitdb.Flush(true);
         boost::filesystem::remove(GetPidFile());
         UnregisterWallet(pwalletMain);
+        if (pwalletMain.use_count() > 1) {
+            printf("Waiting for pwalletMain instance users to finish\n");
+            while (pwalletMain.use_count() > 1) {
+                boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
+            }
+        }
         pwalletMain.reset();
         NewThread(ExitTimeout, NULL);
         MilliSleep(50);

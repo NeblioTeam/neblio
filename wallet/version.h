@@ -26,13 +26,13 @@ extern const std::string CLIENT_DATE;
 //
 // database format versioning
 //
-static const int DATABASE_VERSION = 70513;
+static const int DATABASE_VERSION = 70514;
 
 //
 // network protocol versioning
 //
 
-static const int PROTOCOL_VERSION = 60200;
+static const int PROTOCOL_VERSION = 60210;
 
 // intial proto version, to be increased after version/verack negotiation
 static const int INIT_PROTO_VERSION = 209;

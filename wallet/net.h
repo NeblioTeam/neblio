@@ -392,7 +392,7 @@ public:
         // the key is the earliest time the request can be sent
         int64_t nRequestTime = 0;
         if(!mapAlreadyAskedFor.get(inv, nRequestTime)) {
-            printf("Thread-safe hashmap mapAlreadyAskedFor got asked for a value from a key that doesn't exist: \"%s\"", inv.ToString().c_str());
+            printf("Thread-safe hashmap \"mapAlreadyAskedFor\" got asked for a value from a key that doesn't exist: \"%s\"\n", inv.ToString().c_str());
         }
         if (fDebugNet)
             printf("askfor %s   %" PRId64" (%s)\n", inv.ToString().c_str(), nRequestTime, DateTimeStrFormat("%H:%M:%S", nRequestTime/1000000).c_str());
