@@ -61,9 +61,10 @@
 
 #include <iostream>
 #include <memory>
+#include <boost/atomic.hpp>
 
 extern std::shared_ptr<CWallet> pwalletMain;
-extern int64_t  nLastCoinStakeSearchInterval;
+extern boost::atomic<int64_t>  nLastCoinStakeSearchInterval;
 double          GetPoSKernelPS();
 
 BitcoinGUI::BitcoinGUI(QWidget* parent)
@@ -1205,11 +1206,16 @@ void BitcoinGUI::updateStakingIcon()
                                          .arg(nNetworkWeight)
                                          .arg(text));
     } else {
+        bool isvNodesEmpty = false;
+        {
+            LOCK(cs_vNodes);
+            isvNodesEmpty = vNodes.empty();
+        }
         labelStakingIcon->setPixmap(
             QIcon(":/icons/staking_off").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
         if (pwalletMain && pwalletMain->IsLocked())
             labelStakingIcon->setToolTip(tr("Not staking because wallet is locked"));
-        else if (vNodes.empty())
+        else if (isvNodesEmpty)
             labelStakingIcon->setToolTip(tr("Not staking because wallet is offline"));
         else if (IsInitialBlockDownload_tolerant()) {
             labelStakingIcon->setToolTip(tr("Not staking because wallet is syncing"));

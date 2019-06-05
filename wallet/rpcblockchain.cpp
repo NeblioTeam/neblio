@@ -325,7 +325,7 @@ Value getcheckpoint(const Array& params, bool fHelp)
     if (CheckpointsMode == Checkpoints::PERMISSIVE)
         result.push_back(Pair("policy", "permissive"));
 
-    if (mapArgs.count("-checkpointkey"))
+    if (mapArgs.exists("-checkpointkey"))
         result.push_back(Pair("checkpointmaster", true));
 
     return result;

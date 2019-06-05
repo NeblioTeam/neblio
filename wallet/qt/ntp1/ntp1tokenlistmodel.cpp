@@ -137,7 +137,10 @@ void NTP1TokenListModel::beginWalletUpdate()
         emit                          signal_walletUpdateRunning(true);
         boost::shared_ptr<NTP1Wallet> wallet = boost::make_shared<NTP1Wallet>(*ntp1wallet);
         updateWalletPromise                  = boost::promise<boost::shared_ptr<NTP1Wallet>>();
-        updateWalletFuture                   = updateWalletPromise.get_future();
+        {
+            boost::lock_guard<boost::mutex> lg(walletFutureCheckMutex);
+            updateWalletFuture = updateWalletPromise.get_future();
+        }
         boost::thread t(boost::bind(&NTP1TokenListModel::UpdateWalletBalances, wallet,
                                     boost::ref(updateWalletPromise)));
         t.detach();
@@ -146,7 +149,12 @@ void NTP1TokenListModel::beginWalletUpdate()
 
 void NTP1TokenListModel::endWalletUpdate()
 {
-    if (walletUpdateRunning && updateWalletFuture.is_ready()) {
+    bool is_ready = false;
+    {
+        boost::lock_guard<boost::mutex> lg(walletFutureCheckMutex);
+        is_ready = updateWalletFuture.is_ready();
+    }
+    if (walletUpdateRunning && is_ready) {
         try {
             boost::shared_ptr<NTP1Wallet> wallet = updateWalletFuture.get();
             // the nullptr check is done after having a nullptr once happen.

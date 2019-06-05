@@ -87,7 +87,7 @@ public:
 
 uint64_t nLastBlockTx                 = 0;
 uint64_t nLastBlockSize               = 0;
-int64_t  nLastCoinStakeSearchInterval = 0;
+boost::atomic<int64_t> nLastCoinStakeSearchInterval{0};
 
 // We want to sort transactions by priority and fee, so:
 typedef boost::tuple<double, double, CTransaction*> TxPriority;
@@ -168,8 +168,12 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
     // 1-satoshi-fee transactions. It should be set above the real
     // cost to you of processing a transaction.
     int64_t nMinTxFee = MIN_TX_FEE;
-    if (mapArgs.count("-mintxfee"))
-        ParseMoney(mapArgs["-mintxfee"], nMinTxFee);
+    std::string minTxFeeVal;
+    bool minTxFeeExists = mapArgs.get("-mintxfee", minTxFeeVal);
+    if (minTxFeeExists)
+    {
+        ParseMoney(minTxFeeVal, nMinTxFee);
+    }
 
     pblock->nBits = GetNextTargetRequired(pindexPrev, fProofOfStake);
 

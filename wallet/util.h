@@ -32,6 +32,7 @@
 #include <openssl/ripemd.h>
 #include <openssl/sha.h>
 
+#include "ThreadSafeHashMap.h"
 #include "netbase.h" // for AddTimeData
 
 // to obtain PRId64 on some old systems
@@ -149,22 +150,22 @@ inline void MilliSleep(int64_t n)
 #define ATTR_WARN_PRINTF(X, Y)
 #endif
 
-extern std::map<std::string, std::string>              mapArgs;
-extern std::map<std::string, std::vector<std::string>> mapMultiArgs;
-extern bool                                            fDebug;
-extern bool                                            fDebugNet;
-extern bool                                            fPrintToConsole;
-extern bool                                            fPrintToDebugger;
-extern boost::atomic<bool>                             fRequestShutdown;
-extern bool                                            fDaemon;
-extern bool                                            fServer;
-extern bool                                            fCommandLine;
-extern std::string                                     strMiscWarning;
-extern bool                                            fTestNet;
-extern bool                                            fNoListen;
-extern bool                                            fLogTimestamps;
-extern bool                                            fReopenDebugLog;
-extern boost::atomic<bool>                             fShutdown;
+extern ThreadSafeHashMap<std::string, std::string>              mapArgs;
+extern ThreadSafeHashMap<std::string, std::vector<std::string>> mapMultiArgs;
+extern bool                                                     fDebug;
+extern bool                                                     fDebugNet;
+extern bool                                                     fPrintToConsole;
+extern bool                                                     fPrintToDebugger;
+extern boost::atomic<bool>                                      fRequestShutdown;
+extern bool                                                     fDaemon;
+extern bool                                                     fServer;
+extern bool                                                     fCommandLine;
+extern std::string                                              strMiscWarning;
+extern bool                                                     fTestNet;
+extern bool                                                     fNoListen;
+extern bool                                                     fLogTimestamps;
+extern bool                                                     fReopenDebugLog;
+extern boost::atomic<bool>                                      fShutdown;
 
 void RandAddSeed();
 void RandAddSeedPerfmon();
@@ -225,8 +226,8 @@ boost::filesystem::path        GetPidFile();
 #ifndef WIN32
 void CreatePidFile(const boost::filesystem::path& path, pid_t pid);
 #endif
-void ReadConfigFile(std::map<std::string, std::string>&              mapSettingsRet,
-                    std::map<std::string, std::vector<std::string>>& mapMultiSettingsRet);
+void ReadConfigFile(ThreadSafeHashMap<std::string, std::string>&              mapSettingsRet,
+                    ThreadSafeHashMap<std::string, std::vector<std::string>>& mapMultiSettingsRet);
 #ifdef WIN32
 boost::filesystem::path GetSpecialFolderPath(int nFolder, bool fCreate = true);
 #endif

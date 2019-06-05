@@ -40,7 +40,7 @@ set<std::shared_ptr<CWallet>> setpwalletRegistered;
 CCriticalSection cs_main;
 
 CTxMemPool   mempool;
-unsigned int nTransactionsUpdated = 0;
+boost::atomic<uint32_t> nTransactionsUpdated{0};
 
 // THERE IS ANOTHER ONE OF THOSE IN NTP1Transaction, change that if you wanna change this until this is
 // fixed and there's only one variable
@@ -3961,7 +3961,9 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
     RandAddSeedPerfmon();
     if (fDebug)
         printf("received: %s (%" PRIszu " bytes)\n", strCommand.c_str(), vRecv.size());
-    if (mapArgs.count("-dropmessagestest") && GetRand(atoi(mapArgs["-dropmessagestest"])) == 0) {
+    std::string dropMessageTestVal;
+    bool dropMessageTestExists = mapArgs.get("-dropmessagestest", dropMessageTestVal);
+    if (dropMessageTestExists && GetRand(atoi(dropMessageTestVal)) == 0) {
         printf("dropmessagestest DROPPING RECV MESSAGE\n");
         return true;
     }

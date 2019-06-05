@@ -53,6 +53,26 @@ void ExitTimeout(void* /*parg*/)
 #endif
 }
 
+//////////////////////////////////////////////////////////
+/**
+ * @brief VerifyDBWallet_transient; this is just an aux function that helps in blacklisting a
+ *        false positive on an lock-inversion issue
+ * @param strWalletFileName
+ * @return Verification result
+ */
+CDBEnv::VerifyResult VerifyDBWalletTransient(const std::string& strWalletFileName) {
+    return bitdb.Verify(strWalletFileName, CWalletDB::Recover);
+}
+
+bool OpenDBWalletTransient() {
+    return bitdb.Open(GetDataDir());
+}
+
+void FlushDBWalletTransient(bool shutdown) {
+    bitdb.Flush(shutdown);
+}
+//////////////////////////////////////////////////////////
+
 void StartShutdown()
 {
 #ifdef QT_GUI
@@ -86,9 +106,9 @@ void Shutdown(void* /*parg*/)
         fShutdown = true;
         nTransactionsUpdated++;
         //        CTxDB().Close();
-        bitdb.Flush(false);
+        FlushDBWalletTransient(false);
         StopNode();
-        bitdb.Flush(true);
+        FlushDBWalletTransient(true);
         boost::filesystem::remove(GetPidFile());
         UnregisterWallet(pwalletMain);
         if (pwalletMain.use_count() > 1) {
@@ -138,7 +158,7 @@ bool AppInit(int argc, char* argv[])
         }
         ReadConfigFile(mapArgs, mapMultiArgs);
 
-        if (mapArgs.count("-?") || mapArgs.count("--help")) {
+        if (mapArgs.exists("-?") || mapArgs.exists("--help")) {
             // First part of help message is specific to bitcoind / RPC client
             std::string strUsage =
                 _("neblio version") + " " + FormatFullVersion() + "\n\n" + _("Usage:") + "\n" +
@@ -328,17 +348,6 @@ bool InitSanityCheck(void)
     return true;
 }
 
-/**
- * @brief VerifyDBWallet_transient; this is just an aux function that helps in blacklisting a
- *        false positive on an lock-inversion issue
- * @param strWalletFileName
- * @return Verification result
- */
-CDBEnv::VerifyResult VerifyDBWalletTransient(const std::string& strWalletFileName) {
-    return bitdb.Verify(strWalletFileName, CWalletDB::Recover);
-}
-
-
 /** Initialize bitcoin.
  *  @pre Parameters should be parsed and config file should be read.
  */
@@ -410,19 +419,21 @@ bool AppInit2()
 
     fTestNet = GetBoolArg("-testnet");
 
-    if (mapArgs.count("-bind")) {
+    if (mapArgs.exists("-bind")) {
         // when specifying an explicit binding address, you want to listen on it
         // even when -connect or -proxy is specified
         SoftSetBoolArg("-listen", true);
     }
 
-    if (mapArgs.count("-connect") && mapMultiArgs["-connect"].size() > 0) {
+    std::vector<std::string> connectVals;
+    bool connectExists = mapMultiArgs.get("-connect", connectVals);
+    if (connectExists && connectVals.size() > 0) {
         // when only connecting to trusted nodes, do not seed via DNS, or listen by default
         SoftSetBoolArg("-dnsseed", false);
         SoftSetBoolArg("-listen", false);
     }
 
-    if (mapArgs.count("-proxy")) {
+    if (mapArgs.exists("-proxy")) {
         // to protect privacy, do not listen by default if a proxy server is specified
         SoftSetBoolArg("-listen", false);
     }
@@ -433,7 +444,7 @@ bool AppInit2()
         SoftSetBoolArg("-discover", false);
     }
 
-    if (mapArgs.count("-externalip")) {
+    if (mapArgs.exists("-externalip")) {
         // if an explicit public IP is specified, do not try to find others
         SoftSetBoolArg("-discover", false);
     }
@@ -472,16 +483,18 @@ bool AppInit2()
     fPrintToDebugger = GetBoolArg("-printtodebugger");
     fLogTimestamps   = GetBoolArg("-logtimestamps");
 
-    if (mapArgs.count("-timeout")) {
+    if (mapArgs.exists("-timeout")) {
         int nNewTimeout = GetArg("-timeout", 5000);
         if (nNewTimeout > 0 && nNewTimeout < 600000)
             nConnectTimeout = nNewTimeout;
     }
 
-    if (mapArgs.count("-paytxfee")) {
-        if (!ParseMoney(mapArgs["-paytxfee"], nTransactionFee))
+    std::string payTxFeeVal;
+    bool payTxFeeExists = mapArgs.get("-paytxfee", payTxFeeVal);
+    if (payTxFeeExists) {
+        if (!ParseMoney(payTxFeeVal, nTransactionFee))
             return InitError(strprintf(_("Invalid amount for -paytxfee=<amount>: '%s'"),
-                                       mapArgs["-paytxfee"].c_str()));
+                                       payTxFeeVal.c_str()));
         if (nTransactionFee > 0.25 * COIN)
             InitWarning(_("Warning: -paytxfee is set very high! This is the transaction fee you will "
                           "pay if you send a transaction."));
@@ -490,10 +503,12 @@ bool AppInit2()
     fConfChange       = GetBoolArg("-confchange", false);
     fEnforceCanonical = GetBoolArg("-enforcecanonical", true);
 
-    if (mapArgs.count("-mininput")) {
-        if (!ParseMoney(mapArgs["-mininput"], nMinimumInputValue))
+    std::string mininpVal;
+    bool mininpExists = mapArgs.get("-mininput", mininpVal);
+    if (mininpExists) {
+        if (!ParseMoney(mininpVal, nMinimumInputValue))
             return InitError(strprintf(_("Invalid amount for -mininput=<amount>: '%s'"),
-                                       mapArgs["-mininput"].c_str()));
+                                       mininpVal.c_str()));
     }
 
     // ********************************************************* Step 4: application initialization: dir
@@ -561,7 +576,7 @@ bool AppInit2()
 
     uiInterface.InitMessage(_("Verifying database integrity..."));
 
-    if (!bitdb.Open(GetDataDir())) {
+    if (!OpenDBWalletTransient()) {
         string msg = strprintf(_("Error initializing database environment %s!"
                                  " To recover, BACKUP THAT DIRECTORY, then remove"
                                  " everything from it except for wallet.dat."),
@@ -599,9 +614,11 @@ bool AppInit2()
     if (nSocksVersion != 4 && nSocksVersion != 5)
         return InitError(strprintf(_("Unknown -socks proxy version requested: %i"), nSocksVersion));
 
-    if (mapArgs.count("-onlynet")) {
+    if (mapArgs.exists("-onlynet")) {
         std::set<enum Network> nets;
-        BOOST_FOREACH (std::string snet, mapMultiArgs["-onlynet"]) {
+        std::vector<std::string> onlyNetVals;
+        mapMultiArgs.get("-onlynet", onlyNetVals);
+        BOOST_FOREACH (std::string snet, onlyNetVals) {
             enum Network net = ParseNetwork(snet);
             if (net == NET_UNROUTABLE)
                 return InitError(
@@ -617,10 +634,12 @@ bool AppInit2()
 
     CService addrProxy;
     bool     fProxy = false;
-    if (mapArgs.count("-proxy")) {
-        addrProxy = CService(mapArgs["-proxy"], 9050);
+    std::string proxyVal;
+    bool proxyExists = mapArgs.get("-proxy", proxyVal);
+    if (proxyExists) {
+        addrProxy = CService(proxyVal, 9050);
         if (!addrProxy.IsValid())
-            return InitError(strprintf(_("Invalid -proxy address: '%s'"), mapArgs["-proxy"].c_str()));
+            return InitError(strprintf(_("Invalid -proxy address: '%s'"), proxyVal.c_str()));
 
         if (!IsLimited(NET_IPV4))
             SetProxy(NET_IPV4, addrProxy, nSocksVersion);
@@ -633,14 +652,16 @@ bool AppInit2()
     }
 
     // -tor can override normal proxy, -notor disables tor entirely
-    if (!(mapArgs.count("-tor") && mapArgs["-tor"] == "0") && (fProxy || mapArgs.count("-tor"))) {
+    std::string torVal;
+    bool torExists = mapArgs.get("-tor", torVal);
+    if (!(torExists && torVal == "0") && (fProxy || torExists)) {
         CService addrOnion;
-        if (!mapArgs.count("-tor"))
+        if (!torExists)
             addrOnion = addrProxy;
         else
-            addrOnion = CService(mapArgs["-tor"], 9050);
+            addrOnion = CService(torVal, 9050);
         if (!addrOnion.IsValid())
-            return InitError(strprintf(_("Invalid -tor address: '%s'"), mapArgs["-tor"].c_str()));
+            return InitError(strprintf(_("Invalid -tor address: '%s'"), torVal.c_str()));
         SetProxy(NET_TOR, addrOnion, 5);
         SetReachable(NET_TOR);
     }
@@ -656,8 +677,10 @@ bool AppInit2()
     bool fBound = false;
     if (!fNoListen) {
         std::string strError;
-        if (mapArgs.count("-bind")) {
-            BOOST_FOREACH (std::string strBind, mapMultiArgs["-bind"]) {
+        std::vector<std::string> bindVals;
+        bool bindExists = mapMultiArgs.get("-bind", bindVals);
+        if (bindExists) {
+            BOOST_FOREACH (std::string strBind, bindVals) {
                 CService addrBind;
                 if (!Lookup(strBind.c_str(), addrBind, GetListenPort(), false))
                     return InitError(
@@ -676,8 +699,10 @@ bool AppInit2()
             return InitError(_("Failed to listen on any port. Use -listen=0 if you want this."));
     }
 
-    if (mapArgs.count("-externalip")) {
-        BOOST_FOREACH (string strAddr, mapMultiArgs["-externalip"]) {
+    std::vector<std::string> externalIPVals;
+    bool externalIPExists = mapMultiArgs.get("-externalip", externalIPVals);
+    if (externalIPExists) {
+        BOOST_FOREACH (string strAddr, externalIPVals) {
             CService addrLocal(strAddr, GetListenPort(), fNameLookup);
             if (!addrLocal.IsValid())
                 return InitError(
@@ -686,22 +711,28 @@ bool AppInit2()
         }
     }
 
-    if (mapArgs.count("-reservebalance")) // ppcoin: reserve balance amount
+    std::string reserveBalanceVal;
+    bool reserveBalanceExists = mapArgs.get("-reservebalance", reserveBalanceVal);
+    if (reserveBalanceExists) // ppcoin: reserve balance amount
     {
-        if (!ParseMoney(mapArgs["-reservebalance"], nReserveBalance)) {
+        if (!ParseMoney(reserveBalanceVal, nReserveBalance)) {
             InitError(_("Invalid amount for -reservebalance=<amount>"));
             return false;
         }
     }
 
-    if (mapArgs.count("-checkpointkey")) // ppcoin: checkpoint master priv key
+    if (mapArgs.exists("-checkpointkey")) // ppcoin: checkpoint master priv key
     {
         if (!Checkpoints::SetCheckpointPrivKey(GetArg("-checkpointkey", "")))
             InitError(_("Unable to sign checkpoint, wrong checkpointkey?\n"));
     }
 
-    BOOST_FOREACH (string strDest, mapMultiArgs["-seednode"])
-        AddOneShot(strDest);
+    {
+        std::vector<std::string> seednodesVals;
+        mapMultiArgs.get("-seednode", seednodesVals);
+        BOOST_FOREACH (string strDest, seednodesVals)
+            AddOneShot(strDest);
+    }
 
     // ********************************************************* Step 7: load blockchain
 
@@ -740,8 +771,10 @@ bool AppInit2()
         return false;
     }
 
-    if (mapArgs.count("-printblock")) {
-        string strMatch = mapArgs["-printblock"];
+    std::string printBlockVal;
+    bool printBlockExists = mapArgs.get("-printblock", printBlockVal);
+    if (printBlockExists) {
+        string strMatch = printBlockVal;
         int    nFound   = 0;
         for (unordered_map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.begin();
              mi != mapBlockIndex.end(); ++mi) {
@@ -853,8 +886,10 @@ bool AppInit2()
     // ********************************************************* Step 9: import blocks
 
     std::vector<boost::filesystem::path>* vPath = new std::vector<boost::filesystem::path>();
-    if (mapArgs.count("-loadblock")) {
-        BOOST_FOREACH (string strFile, mapMultiArgs["-loadblock"])
+    std::vector<std::string> loadBlockVals;
+    bool loadBlockExists = mapMultiArgs.get("-loadblock", loadBlockVals);
+    if (loadBlockExists) {
+        BOOST_FOREACH (string strFile, loadBlockVals)
             vPath->push_back(strFile);
     }
     uiInterface.InitMessage(_("Importing blockchain data file."));

@@ -523,7 +523,9 @@ bool ClientAllowed(const boost::asio::ip::address& address)
         return true;
 
     const string          strAddress = address.to_string();
-    const vector<string>& vAllow     = mapMultiArgs["-rpcallowip"];
+    std::vector<std::string> rpcallowipVec;
+    mapMultiArgs.get("-rpcallowip", rpcallowipVec);
+    const vector<string>& vAllow     = rpcallowipVec;
     BOOST_FOREACH (string strAllow, vAllow)
         if (WildcardMatch(strAddress, strAllow))
             return true;
@@ -704,18 +706,23 @@ RPCAcceptHandler(boost::shared_ptr<basic_socket_acceptor<Protocol, SocketAccepto
     vnThreadsRunning[THREAD_RPCLISTENER]--;
 }
 
-void ThreadRPCServer2(void* parg)
+void ThreadRPCServer2(void* /*parg*/)
 {
     printf("ThreadRPCServer started\n");
 
-    strRPCUserColonPass = mapArgs["-rpcuser"] + ":" + mapArgs["-rpcpassword"];
-    if ((mapArgs["-rpcpassword"] == "") || (mapArgs["-rpcuser"] == mapArgs["-rpcpassword"])) {
+    std::string rpcUser;
+    mapArgs.get("-rpcuser", rpcUser);
+    std::string rpcPassword;
+    mapArgs.get("-rpcpassword", rpcPassword);
+
+    strRPCUserColonPass = rpcUser + ":" + rpcPassword;
+    if ((rpcPassword == "") || (rpcUser == rpcPassword)) {
         unsigned char rand_pwd[32];
         RAND_bytes(rand_pwd, 32);
         string strWhatAmI = "To use nebliod";
-        if (mapArgs.count("-server"))
+        if (mapArgs.exists("-server"))
             strWhatAmI = strprintf(_("To use the %s option"), "\"-server\"");
-        else if (mapArgs.count("-daemon"))
+        else if (mapArgs.exists("-daemon"))
             strWhatAmI = strprintf(_("To use the %s option"), "\"-daemon\"");
         uiInterface.ThreadSafeMessageBox(
             strprintf(
@@ -775,7 +782,7 @@ void ThreadRPCServer2(void* parg)
     }
 
     // Try a dual IPv6/IPv4 socket, falling back to separate IPv4 and IPv6 sockets
-    const bool        loopback = !mapArgs.count("-rpcallowip");
+    const bool        loopback = !mapArgs.exists("-rpcallowip");
     asio::ip::address bindAddress =
         loopback ? asio::ip::address_v6::loopback() : asio::ip::address_v6::any();
     ip::tcp::endpoint                    endpoint(bindAddress, GetArg("-rpcport", GetDefaultRPCPort()));
@@ -960,7 +967,9 @@ void ThreadRPCServer3(void* parg)
             /* Deter brute-forcing short passwords.
                If this results in a DOS the user really
                shouldn't have their RPC port exposed.*/
-            if (mapArgs["-rpcpassword"].size() < 20)
+            std::string rpcPassword;
+            mapArgs.get("-rpcpassword", rpcPassword);
+            if (rpcPassword.size() < 20)
                 MilliSleep(250);
 
             conn->stream() << HTTPReply(HTTP_UNAUTHORIZED, "", false) << std::flush;
@@ -1052,7 +1061,11 @@ std::vector<string> CRPCTable::listCommands() const
 
 Object CallRPC(const string& strMethod, const Array& params)
 {
-    if (mapArgs["-rpcuser"] == "" && mapArgs["-rpcpassword"] == "")
+    std::string rpcUser;
+    mapArgs.get("-rpcuser", rpcUser);
+    std::string rpcPassword;
+    mapArgs.get("-rpcpassword", rpcPassword);
+    if (rpcUser == "" && rpcPassword == "")
         throw runtime_error(strprintf(
             _("You must set rpcpassword=<password> in the configuration file:\n%s\n"
               "If the file does not exist, create it with owner-readable-only file permissions."),
@@ -1074,7 +1087,7 @@ Object CallRPC(const string& strMethod, const Array& params)
         throw runtime_error("couldn't connect to server");
 
     // HTTP basic authentication
-    string strUserPass64 = EncodeBase64(mapArgs["-rpcuser"] + ":" + mapArgs["-rpcpassword"]);
+    string strUserPass64 = EncodeBase64(rpcUser + ":" + rpcPassword);
     map<string, string> mapRequestHeaders;
     mapRequestHeaders["Authorization"] = string("Basic ") + strUserPass64;
 

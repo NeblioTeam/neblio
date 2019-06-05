@@ -63,23 +63,23 @@ std::string to_internal(const std::string&);
 
 using namespace std;
 
-map<string, string>         mapArgs;
-map<string, vector<string>> mapMultiArgs;
-bool                        fDebug           = false;
-bool                        fDebugNet        = false;
-bool                        fPrintToConsole  = false;
-bool                        fPrintToDebugger = false;
-boost::atomic<bool>         fRequestShutdown{false};
-bool                        fDaemon      = false;
-bool                        fServer      = false;
-bool                        fCommandLine = false;
-string                      strMiscWarning;
-bool                        fTestNet       = false;
-bool                        fNoListen      = false;
-bool                        fLogTimestamps = true;
-CMedianFilter<int64_t>      vTimeOffsets(200, 0);
-bool                        fReopenDebugLog = false;
-boost::atomic<bool>         fShutdown{false};
+ThreadSafeHashMap<string, string>         mapArgs;
+ThreadSafeHashMap<string, vector<string>> mapMultiArgs;
+bool                                      fDebug           = false;
+bool                                      fDebugNet        = false;
+bool                                      fPrintToConsole  = false;
+bool                                      fPrintToDebugger = false;
+boost::atomic<bool>                       fRequestShutdown{false};
+bool                                      fDaemon      = false;
+bool                                      fServer      = false;
+bool                                      fCommandLine = false;
+string                                    strMiscWarning;
+bool                                      fTestNet       = false;
+bool                                      fNoListen      = false;
+bool                                      fLogTimestamps = true;
+CMedianFilter<int64_t>                    vTimeOffsets(200, 0);
+bool                                      fReopenDebugLog = false;
+boost::atomic<bool>                       fShutdown{false};
 
 // Init OpenSSL library multithreading support
 static CCriticalSection** ppmutexOpenSSL;
@@ -446,15 +446,15 @@ vector<unsigned char> ParseHex(const char* psz)
 
 vector<unsigned char> ParseHex(const string& str) { return ParseHex(str.c_str()); }
 
-static void InterpretNegativeSetting(string name, map<string, string>& mapSettingsRet)
+static void InterpretNegativeSetting(string name, ThreadSafeHashMap<string, string>& mapSettingsRet)
 {
     // interpret -nofoo as -foo=0 (and -nofoo=0 as -foo=1) as long as -foo not set
     if (name.find("-no") == 0) {
         std::string positive("-");
         positive.append(name.begin() + 3, name.end());
-        if (mapSettingsRet.count(positive) == 0) {
-            bool value               = !GetBoolArg(name);
-            mapSettingsRet[positive] = (value ? "1" : "0");
+        if (mapSettingsRet.exists(positive) == 0) {
+            bool value = !GetBoolArg(name);
+            mapSettingsRet.set(positive, (value ? "1" : "0"));
         }
     }
 }
@@ -479,23 +479,33 @@ void ParseParameters(int argc, const char* const argv[])
         if (str[0] != '-')
             break;
 
-        mapArgs[str] = strValue;
-        mapMultiArgs[str].push_back(strValue);
+        mapArgs.set(str, strValue);
+        std::vector<std::string> vals;
+        mapMultiArgs.get(str, vals);
+        vals.push_back(strValue);
+        mapMultiArgs.set(str, vals);
     }
 
-    mapArgs["-addnode"] = "nebliodseed2.nebl.io";
-    mapMultiArgs["-addnode"].push_back("nebliodseed1.nebl.io");
-    mapMultiArgs["-addnode"].push_back("nebliodseed2.nebl.io");
+    {
+        // add default neblio nodes
+        mapArgs.set("-addnode", "nebliodseed2.nebl.io");
+        std::vector<std::string> nodes;
+        mapMultiArgs.get("-addnode", nodes);
+        nodes.push_back("nebliodseed1.nebl.io");
+        nodes.push_back("nebliodseed2.nebl.io");
+        mapMultiArgs.set("-addnode", nodes);
+    }
 
+    std::unordered_map<std::string, std::string> mapArgsD = mapArgs.getInternalMap();
     // New 0.6 features:
-    BOOST_FOREACH (const PAIRTYPE(string, string) & entry, mapArgs) {
+    BOOST_FOREACH (const PAIRTYPE(string, string) & entry, mapArgsD) {
         string name = entry.first;
 
         //  interpret --foo as -foo (as long as both are not set)
         if (name.find("--") == 0) {
             std::string singleDash(name.begin() + 1, name.end());
-            if (mapArgs.count(singleDash) == 0)
-                mapArgs[singleDash] = entry.second;
+            if (mapArgsD.count(singleDash) == 0)
+                mapArgs.set(singleDash, entry.second);
             name = singleDash;
         }
 
@@ -506,33 +516,43 @@ void ParseParameters(int argc, const char* const argv[])
 
 std::string GetArg(const std::string& strArg, const std::string& strDefault)
 {
-    if (mapArgs.count(strArg))
-        return mapArgs[strArg];
+    std::string strVal;
+    bool        valExists = mapArgs.get(strArg, strVal);
+    if (valExists) {
+        return strVal;
+    }
     return strDefault;
 }
 
 int64_t GetArg(const std::string& strArg, int64_t nDefault)
 {
-    if (mapArgs.count(strArg))
-        return atoi64(mapArgs[strArg]);
+    std::string strVal;
+    bool        valExists = mapArgs.get(strArg, strVal);
+    if (valExists) {
+        return atoi64(strVal);
+    }
     return nDefault;
 }
 
 bool GetBoolArg(const std::string& strArg, bool fDefault)
 {
-    if (mapArgs.count(strArg)) {
-        if (mapArgs[strArg].empty())
+    std::string strVal;
+    bool        valExists = mapArgs.get(strArg, strVal);
+    if (valExists) {
+        if (strVal.empty()) {
             return true;
-        return (atoi(mapArgs[strArg]) != 0);
+        }
+        return (atoi(strVal) != 0);
     }
     return fDefault;
 }
 
 bool SoftSetArg(const std::string& strArg, const std::string& strValue)
 {
-    if (mapArgs.count(strArg))
+    if (mapArgs.exists(strArg)) {
         return false;
-    mapArgs[strArg] = strValue;
+    }
+    mapArgs.set(strArg, strValue);
     return true;
 }
 
@@ -961,8 +981,10 @@ const boost::filesystem::path& GetDataDir(bool fNetSpecific)
 
     LOCK(csPathCached);
 
-    if (mapArgs.count("-datadir")) {
-        path = fs::system_complete(mapArgs["-datadir"]);
+    std::string datadirVal;
+    bool datadirExists = mapArgs.get("-datadir", datadirVal);
+    if (datadirExists) {
+        path = fs::system_complete(datadirVal);
         if (!fs::is_directory(path)) {
             path = "";
             return path;
@@ -987,8 +1009,8 @@ boost::filesystem::path GetConfigFile()
     return pathConfigFile;
 }
 
-void ReadConfigFile(map<string, string>&         mapSettingsRet,
-                    map<string, vector<string>>& mapMultiSettingsRet)
+void ReadConfigFile(ThreadSafeHashMap<string, string>&         mapSettingsRet,
+                    ThreadSafeHashMap<string, vector<string>>& mapMultiSettingsRet)
 {
     boost::filesystem::ifstream streamConfig(GetConfigFile());
     if (!streamConfig.good())
@@ -1001,12 +1023,17 @@ void ReadConfigFile(map<string, string>&         mapSettingsRet,
          it != end; ++it) {
         // Don't overwrite existing settings so command line settings override bitcoin.conf
         string strKey = string("-") + it->string_key;
-        if (mapSettingsRet.count(strKey) == 0) {
-            mapSettingsRet[strKey] = it->value[0];
+        if (mapSettingsRet.exists(strKey) == 0) {
+            mapSettingsRet.set(strKey, it->value[0]);
             // interpret nofoo=1 as foo=0 (and nofoo=0 as foo=1) as long as foo not set)
             InterpretNegativeSetting(strKey, mapSettingsRet);
         }
-        mapMultiSettingsRet[strKey].push_back(it->value[0]);
+        // set the new values for the key strKey by loading the current value, modify it, and write it
+        // back
+        std::vector<std::string> multimapValVec;
+        mapMultiSettingsRet.get(strKey, multimapValVec);
+        multimapValVec.push_back(it->value[0]);
+        mapMultiSettingsRet.set(strKey, multimapValVec);
     }
 }
 

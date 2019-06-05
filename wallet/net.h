@@ -207,9 +207,9 @@ public:
     CCriticalSection cs_vRecvMsg;
     int nRecvVersion;
 
-    int64_t nLastSend;
-    int64_t nLastRecv;
-    int64_t nLastSendEmpty;
+    boost::atomic<int64_t> nLastSend;
+    boost::atomic<int64_t> nLastRecv;
+    boost::atomic<int64_t> nLastSendEmpty;
     boost::atomic<int64_t> nTimeConnected;
     CAddress addr;
     std::string addrName;
@@ -433,7 +433,9 @@ public:
 
     void EndMessage()
     {
-        if (mapArgs.count("-dropmessagestest") && GetRand(atoi(mapArgs["-dropmessagestest"])) == 0)
+        std::string dropMessageTestVal;
+        bool dropMessageTestExists = mapArgs.get("-dropmessagestest", dropMessageTestVal);
+        if (dropMessageTestExists && GetRand(atoi(dropMessageTestVal)) == 0)
         {
             printf("dropmessages DROPPING SEND MESSAGE\n");
             AbortMessage();
