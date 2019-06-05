@@ -12,6 +12,9 @@ class ThreadSafeMap
 
 public:
     using MapType = std::map<K, V>;
+    using key_type = K;
+    using mapped_type = V;
+    using value_type = std::pair<K, V>;
 
     ThreadSafeMap();
     ThreadSafeMap(const std::map<K, V>& rhs);
@@ -25,6 +28,8 @@ public:
     template <typename K_, typename V_>
     friend bool operator==(const ThreadSafeMap<K_, V_>& lhs, const ThreadSafeMap<K_, V_>& rhs);
     bool        get(const K& key, V& value) const;
+    bool        front(value_type& key_value) const;
+    bool        back(value_type &key_value) const;
     void        clear();
     std::map<K, V> getInternalMap() const;
     void                             setInternalMap(const std::map<K, V>& TheMap);
@@ -77,6 +82,28 @@ bool ThreadSafeMap<K, V>::get(const K& key, V& value) const
         value = it->second;
         return true;
     }
+}
+
+template<typename K, typename V>
+bool ThreadSafeMap<K, V>::front(value_type &key_value) const
+{
+    boost::shared_lock<boost::shared_mutex> lock(mtx);
+    if (theMap.size() == 0) {
+        return false;
+    }
+    key_value = *theMap.cbegin();
+    return true;
+}
+
+template<typename K, typename V>
+bool ThreadSafeMap<K, V>::back(value_type &key_value) const
+{
+    boost::shared_lock<boost::shared_mutex> lock(mtx);
+    if (theMap.size() == 0) {
+        return false;
+    }
+    key_value = *theMap.crbegin();
+    return true;
 }
 
 template <typename K, typename V>
