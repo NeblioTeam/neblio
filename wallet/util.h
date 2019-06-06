@@ -501,10 +501,13 @@ private:
     std::vector<T> vValues;
     std::vector<T> vSorted;
     unsigned int   nSize;
+    mutable boost::mutex   mtx;
 
 public:
-    CMedianFilter(unsigned int size, T initial_value) : nSize(size)
+    CMedianFilter(unsigned int size, T initial_value)
     {
+        boost::lock_guard<boost::mutex> lg(mtx);
+        nSize = size;
         vValues.reserve(size);
         vValues.push_back(initial_value);
         vSorted = vValues;
@@ -512,6 +515,7 @@ public:
 
     void input(T value)
     {
+        boost::lock_guard<boost::mutex> lg(mtx);
         if (vValues.size() == nSize) {
             vValues.erase(vValues.begin());
         }
@@ -524,7 +528,8 @@ public:
 
     T median() const
     {
-        int size = vSorted.size();
+        boost::lock_guard<boost::mutex> lg(mtx);
+        int                             size = vSorted.size();
         assert(size > 0);
         if (size & 1) // Odd number of elements
         {
@@ -535,9 +540,17 @@ public:
         }
     }
 
-    int size() const { return vValues.size(); }
+    int size() const
+    {
+        boost::lock_guard<boost::mutex> lg(mtx);
+        return vValues.size();
+    }
 
-    std::vector<T> sorted() const { return vSorted; }
+    std::vector<T> sorted() const
+    {
+        boost::lock_guard<boost::mutex> lg(mtx);
+        return vSorted;
+    }
 };
 
 bool NewThread(void (*pfn)(void*), void* parg);
