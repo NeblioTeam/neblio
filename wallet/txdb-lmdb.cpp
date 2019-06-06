@@ -252,7 +252,7 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
                 break; // break if a file is downloaded successfully
             } catch (std::exception& ex) {
                 // if this is the last file, set the exception and fail
-                printf("Failed to download a file %s. The last error is: %s", urls[i].c_str(),
+                printf("Failed to download a file %s. The last error is: %s\n", urls[i].c_str(),
                        ex.what());
                 if (i + 1 >= urls.size()) {
                     downloadThreadPromise.set_exception(boost::enable_current_exception(std::runtime_error(
