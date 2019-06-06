@@ -87,8 +87,9 @@ void cURLTools::CurlGlobalInit_ThreadSafe()
 }
 
 void cURLTools::GetLargeFileFromHTTPS(const std::string& URL, long ConnectionTimeout,
-                                      const boost::filesystem::path& targetPath,
-                                      std::atomic<float>&            progress)
+                                      const boost::filesystem::path&      targetPath,
+                                      std::atomic<float>&                 progress,
+                                      const std::unordered_set<CURLcode>& errorsToIgnore)
 {
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
@@ -125,11 +126,10 @@ void cURLTools::GetLargeFileFromHTTPS(const std::string& URL, long ConnectionTim
 
         curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
 
-
         /* Perform the request, res will get the return code */
         res = curl_easy_perform(curl);
         /* Check for errors */
-        if (res != CURLE_OK) {
+        if (res != CURLE_OK && errorsToIgnore.find(res) == errorsToIgnore.cend()) {
             std::string errorMsg(curl_easy_strerror(res));
             printf("Curl error: %s\n", errorMsg.c_str());
             throw std::runtime_error(std::string(errorMsg).c_str());

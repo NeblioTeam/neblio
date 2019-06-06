@@ -245,7 +245,8 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
             try {
                 printf("Downloading file for QuickSync: %s...\n", urls[i].c_str());
                 static const long connectionTimeout = 300;
-                cURLTools::GetLargeFileFromHTTPS(urls[i], connectionTimeout, downloadTarget, progress);
+                cURLTools::GetLargeFileFromHTTPS(urls[i], connectionTimeout, downloadTarget, progress,
+                                                 std::unordered_set<CURLcode>({CURLE_PARTIAL_FILE}));
                 printf("Setting promise value for downloaded file: %s...\n", urls[i].c_str());
                 downloadThreadPromise.set_value();
                 printf("Done setting promise value for downloaded file: %s...\n", urls[i].c_str());
@@ -255,9 +256,10 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
                 printf("Failed to download a file %s. The last error is: %s\n", urls[i].c_str(),
                        ex.what());
                 if (i + 1 >= urls.size()) {
-                    downloadThreadPromise.set_exception(boost::enable_current_exception(std::runtime_error(
-                        "Failed to download any of the available files. The last error is: " +
-                        std::string(ex.what()))));
+                    downloadThreadPromise.set_exception(
+                        boost::enable_current_exception(std::runtime_error(
+                            "Failed to download any of the available files. The last error is: " +
+                            std::string(ex.what()))));
                 }
             }
         }
