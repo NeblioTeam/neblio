@@ -29,7 +29,6 @@ using DbSmartPtrType = std::unique_ptr<MDB_dbi, void (*)(MDB_dbi*)>;
 extern DbSmartPtrType glob_db_main;
 extern DbSmartPtrType glob_db_blockIndex;
 extern DbSmartPtrType glob_db_blocks;
-extern DbSmartPtrType glob_db_version;
 extern DbSmartPtrType glob_db_tx;
 extern DbSmartPtrType glob_db_ntp1Tx;
 extern DbSmartPtrType glob_db_ntp1tokenNames;
@@ -37,7 +36,6 @@ extern DbSmartPtrType glob_db_ntp1tokenNames;
 const std::string LMDB_MAINDB           = "MainDb";
 const std::string LMDB_BLOCKINDEXDB     = "BlockIndexDb";
 const std::string LMDB_BLOCKSDB         = "BlocksDb";
-const std::string LMDB_VERSIONDB        = "VersionDb";
 const std::string LMDB_TXDB             = "TxDb";
 const std::string LMDB_NTP1TXDB         = "Ntp1txDb";
 const std::string LMDB_NTP1TOKENNAMESDB = "Ntp1NamesDb";
@@ -758,6 +756,8 @@ void CTxDB::resetGlobalDbPointers()
     glob_db_tx.reset();
     glob_db_ntp1Tx.reset();
     glob_db_ntp1tokenNames.reset();
+
+    dbEnv.reset();
 }
 
 #endif // BITCOIN_LMDB_H
