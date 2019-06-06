@@ -255,16 +255,9 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
                 printf("Failed to download a file %s. The last error is: %s", urls[i].c_str(),
                        ex.what());
                 if (i + 1 >= urls.size()) {
-                    downloadThreadPromise.set_exception(std::make_exception_ptr(std::runtime_error(
+                    downloadThreadPromise.set_exception(boost::enable_current_exception(std::runtime_error(
                         "Failed to download any of the available files. The last error is: " +
                         std::string(ex.what()))));
-                }
-            } catch (...) {
-                // if this is the last file, set the exception and fail
-                printf("Failed to download any of the available files. Unknown exception");
-                if (i + 1 >= urls.size()) {
-                    downloadThreadPromise.set_exception(std::make_exception_ptr(std::runtime_error(
-                        "Failed to download any of the available files. Unknown exception")));
                 }
             }
         }
