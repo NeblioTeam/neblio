@@ -370,10 +370,10 @@ void CTxDB::init_blockindex(bool fRemoveOld)
 
     if (fRemoveOld ||
         SC_CheckOperationOnRestartScheduleThenDeleteIt(SC_SCHEDULE_ON_RESTART_OPNAME__RESYNC)) {
-        filesystem::remove_all(directory); // remove directory
-
         // close the database before deleting
         this->Close();
+
+        filesystem::remove_all(directory); // remove directory
 
         // delete block data files
         {
