@@ -244,16 +244,27 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
         for (unsigned i = 0; i < urls.size(); i++) {
             try {
                 printf("Downloading file for QuickSync: %s...\n", urls[i].c_str());
-                static const long connectionTimeout = 30;
+                static const long connectionTimeout = 300;
                 cURLTools::GetLargeFileFromHTTPS(urls[i], connectionTimeout, downloadTarget, progress);
+                printf("Setting promise value for downloaded file: %s...\n", urls[i].c_str());
                 downloadThreadPromise.set_value();
+                printf("Done setting promise value for downloaded file: %s...\n", urls[i].c_str());
                 break; // break if a file is downloaded successfully
             } catch (std::exception& ex) {
                 // if this is the last file, set the exception and fail
+                printf("Failed to download a file %s. The last error is: %s", urls[i].c_str(),
+                       ex.what());
                 if (i + 1 >= urls.size()) {
                     downloadThreadPromise.set_exception(std::make_exception_ptr(std::runtime_error(
                         "Failed to download any of the available files. The last error is: " +
                         std::string(ex.what()))));
+                }
+            } catch (...) {
+                // if this is the last file, set the exception and fail
+                printf("Failed to download any of the available files. Unknown exception");
+                if (i + 1 >= urls.size()) {
+                    downloadThreadPromise.set_exception(std::make_exception_ptr(std::runtime_error(
+                        "Failed to download any of the available files. Unknown exception")));
                 }
             }
         }
