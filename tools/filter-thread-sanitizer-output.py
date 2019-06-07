@@ -58,7 +58,7 @@ def process_data_queue(data_queue):
         data_queue = copy.deepcopy(orig_data_queue)
         data_queue = fnmatch.filter(data_queue, blacklist_line)
         if len(data_queue) > 0:  # filtering will keep anything that matches the pattern provided
-            print("Skipping after match of '" + blacklist_line + "' in: " + str(data_queue) + "\n")
+            print("Skipping on match of '" + blacklist_line + "' in: " + str(orig_data_queue) + "\n")
             matched = True
             break
     if not matched:  # if the filter doesn't match anything, then this is not filtered, print it
