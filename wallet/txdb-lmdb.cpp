@@ -244,16 +244,22 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
         for (unsigned i = 0; i < urls.size(); i++) {
             try {
                 printf("Downloading file for QuickSync: %s...\n", urls[i].c_str());
-                static const long connectionTimeout = 30;
-                cURLTools::GetLargeFileFromHTTPS(urls[i], connectionTimeout, downloadTarget, progress);
+                static const long connectionTimeout = 300;
+                cURLTools::GetLargeFileFromHTTPS(urls[i], connectionTimeout, downloadTarget, progress,
+                                                 std::set<CURLcode>({CURLE_PARTIAL_FILE}));
+                printf("Setting promise value for downloaded file: %s...\n", urls[i].c_str());
                 downloadThreadPromise.set_value();
+                printf("Done setting promise value for downloaded file: %s...\n", urls[i].c_str());
                 break; // break if a file is downloaded successfully
             } catch (std::exception& ex) {
                 // if this is the last file, set the exception and fail
+                printf("Failed to download a file %s. The last error is: %s\n", urls[i].c_str(),
+                       ex.what());
                 if (i + 1 >= urls.size()) {
-                    downloadThreadPromise.set_exception(std::make_exception_ptr(std::runtime_error(
-                        "Failed to download any of the available files. The last error is: " +
-                        std::string(ex.what()))));
+                    downloadThreadPromise.set_exception(
+                        boost::enable_current_exception(std::runtime_error(
+                            "Failed to download any of the available files. The last error is: " +
+                            std::string(ex.what()))));
                 }
             }
         }
@@ -366,10 +372,10 @@ void CTxDB::init_blockindex(bool fRemoveOld)
 
     if (fRemoveOld ||
         SC_CheckOperationOnRestartScheduleThenDeleteIt(SC_SCHEDULE_ON_RESTART_OPNAME__RESYNC)) {
-        filesystem::remove_all(directory); // remove directory
-
         // close the database before deleting
         this->Close();
+
+        filesystem::remove_all(directory); // remove directory
 
         // delete block data files
         {

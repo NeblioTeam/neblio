@@ -88,7 +88,8 @@ void cURLTools::CurlGlobalInit_ThreadSafe()
 
 void cURLTools::GetLargeFileFromHTTPS(const std::string& URL, long ConnectionTimeout,
                                       const boost::filesystem::path& targetPath,
-                                      std::atomic<float>&            progress)
+                                      std::atomic<float>&            progress,
+                                      const std::set<CURLcode>&      errorsToIgnore)
 {
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
@@ -123,19 +124,24 @@ void cURLTools::GetLargeFileFromHTTPS(const std::string& URL, long ConnectionTim
         //        curl_easy_setopt (curl, CURLOPT_VERBOSE, 1L); //verbose output
         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, ConnectionTimeout);
 
+        curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
+
         /* Perform the request, res will get the return code */
         res = curl_easy_perform(curl);
         /* Check for errors */
-        if (res != CURLE_OK) {
+        if (res != CURLE_OK && errorsToIgnore.find(res) == errorsToIgnore.cend()) {
             std::string errorMsg(curl_easy_strerror(res));
+            printf("Curl error: %s\n", errorMsg.c_str());
             throw std::runtime_error(std::string(errorMsg).c_str());
         } else {
             long http_response_code;
             curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_response_code);
             if (http_response_code != 200) {
-                throw std::runtime_error("Error retrieving data with https protocol from URL \"" + URL +
-                                         "\", error code: " + ToString(http_response_code) +
-                                         ". Probably the URL is invalid.");
+                std::string errorMsg("Error retrieving data with https protocol from URL \"" + URL +
+                                     "\", error code: " + ToString(http_response_code) +
+                                     ". Probably the URL is invalid.");
+                printf("Curl http code error: %s\n", errorMsg.c_str());
+                throw std::runtime_error(errorMsg);
             }
         }
 

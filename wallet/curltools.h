@@ -6,6 +6,7 @@
 #include <atomic>
 #include <boost/filesystem/fstream.hpp>
 #include <curl/curl.h>
+#include <set>
 
 class cURLTools
 {
@@ -22,7 +23,8 @@ public:
                                        const std::string& data, bool chunked);
     static void        GetLargeFileFromHTTPS(const std::string& URL, long ConnectionTimeout,
                                              const boost::filesystem::path& targetPath,
-                                             std::atomic<float>&            progress);
+                                             std::atomic<float>&            progress,
+                                             const std::set<CURLcode>& errorsToIgnore = std::set<CURLcode>());
     static int         CurlAtomicProgress_CallbackFunc(void* number, double TotalToDownload,
                                                        double NowDownloaded, double, double);
     static size_t      CurlWrite_CallbackFunc_File(void* contents, size_t size, size_t nmemb,
