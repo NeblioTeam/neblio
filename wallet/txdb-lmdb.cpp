@@ -246,7 +246,7 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
                 printf("Downloading file for QuickSync: %s...\n", urls[i].c_str());
                 static const long connectionTimeout = 300;
                 cURLTools::GetLargeFileFromHTTPS(urls[i], connectionTimeout, downloadTarget, progress,
-                                                 std::unordered_set<CURLcode>({CURLE_PARTIAL_FILE}));
+                                                 std::set<CURLcode>({CURLE_PARTIAL_FILE}));
                 printf("Setting promise value for downloaded file: %s...\n", urls[i].c_str());
                 downloadThreadPromise.set_value();
                 printf("Done setting promise value for downloaded file: %s...\n", urls[i].c_str());

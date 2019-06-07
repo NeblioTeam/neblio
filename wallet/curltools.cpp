@@ -87,9 +87,9 @@ void cURLTools::CurlGlobalInit_ThreadSafe()
 }
 
 void cURLTools::GetLargeFileFromHTTPS(const std::string& URL, long ConnectionTimeout,
-                                      const boost::filesystem::path&      targetPath,
-                                      std::atomic<float>&                 progress,
-                                      const std::unordered_set<CURLcode>& errorsToIgnore)
+                                      const boost::filesystem::path& targetPath,
+                                      std::atomic<float>&            progress,
+                                      const std::set<CURLcode>&      errorsToIgnore)
 {
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
