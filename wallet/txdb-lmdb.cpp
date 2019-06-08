@@ -967,12 +967,23 @@ bool CTxDB::LoadBlockIndex()
     // Calculate nChainTrust
     vector<pair<int, CBlockIndex*>> vSortedByHeight;
     vSortedByHeight.reserve(mapBlockIndex.size());
-    BOOST_FOREACH (const PAIRTYPE(uint256, CBlockIndex*) & item, mapBlockIndex) {
+    uiInterface.InitMessage("Building chain trust... (allocating memory...)");
+    for (const PAIRTYPE(uint256, CBlockIndex*) & item : mapBlockIndex) {
         CBlockIndex* pindex = item.second;
         vSortedByHeight.push_back(make_pair(pindex->nHeight, pindex));
     }
-    sort(vSortedByHeight.begin(), vSortedByHeight.end());
-    BOOST_FOREACH (const PAIRTYPE(int, CBlockIndex*) & item, vSortedByHeight) {
+    // use heap-sort to guarantee O(n*log(n)) performance, since std::sort() can have O(n^2) complexity
+    uiInterface.InitMessage("Building chain trust... (sorting...)");
+    std::make_heap(vSortedByHeight.begin(), vSortedByHeight.end());
+    std::sort_heap(vSortedByHeight.begin(), vSortedByHeight.end());
+    loadedCount = 0;
+    for (const PAIRTYPE(int, CBlockIndex*) & item : vSortedByHeight) {
+        loadedCount++;
+        if (loadedCount % 10000 == 0) {
+            uiInterface.InitMessage(
+                "Building chain trust... (chaining block: " + std::to_string(loadedCount) + "/" +
+                std::to_string(vSortedByHeight.size()) + ")");
+        }
         CBlockIndex* pindex = item.second;
         pindex->nChainTrust = (pindex->pprev ? pindex->pprev->nChainTrust : 0) + pindex->GetBlockTrust();
         // NovaCoin: calculate stake modifier checksum
@@ -1047,7 +1058,7 @@ bool CTxDB::LoadBlockIndex()
         if (nCheckLevel > 1) {
             uint256 pos      = pindex->blockKeyInDB;
             mapBlockPos[pos] = pindex;
-            BOOST_FOREACH (const CTransaction& tx, block.vtx) {
+            for (const CTransaction& tx : block.vtx) {
                 uint256  hashTx = tx.GetHash();
                 CTxIndex txindex;
                 if (ReadTxIndex(hashTx, txindex)) {
@@ -1069,7 +1080,7 @@ bool CTxDB::LoadBlockIndex()
                     // check level 4: check whether spent txouts were spent within the main chain
                     unsigned int nOutput = 0;
                     if (nCheckLevel > 3) {
-                        BOOST_FOREACH (const CDiskTxPos& txpos, txindex.vSpent) {
+                        for (const CDiskTxPos& txpos : txindex.vSpent) {
                             if (!txpos.IsNull()) {
                                 uint256 posFind = txpos.nBlockPos;
                                 if (!mapBlockPos.count(posFind)) {
@@ -1095,7 +1106,7 @@ bool CTxDB::LoadBlockIndex()
                                         pindexFork = pindex->pprev;
                                     } else {
                                         bool fFound = false;
-                                        BOOST_FOREACH (const CTxIn& txin, txSpend.vin)
+                                        for (const CTxIn& txin : txSpend.vin)
                                             if (txin.prevout.hash == hashTx && txin.prevout.n == nOutput)
                                                 fFound = true;
                                         if (!fFound) {
@@ -1113,7 +1124,7 @@ bool CTxDB::LoadBlockIndex()
                 }
                 // check level 5: check whether all prevouts are marked spent
                 if (nCheckLevel > 4) {
-                    BOOST_FOREACH (const CTxIn& txin, tx.vin) {
+                    for (const CTxIn& txin : tx.vin) {
                         CTxIndex txindex;
                         if (ReadTxIndex(txin.prevout.hash, txindex))
                             if (txindex.vSpent.size() - 1 < txin.prevout.n ||
