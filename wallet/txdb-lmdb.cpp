@@ -985,7 +985,7 @@ bool CTxDB::LoadBlockIndex()
     loadedCount = 0;
     for (const PAIRTYPE(int, CBlockIndex*) & item : vSortedByHeight) {
         loadedCount++;
-        if (loadedCount % 10000 == 0) {
+        if (loadedCount % 50000 == 0) {
             uiInterface.InitMessage(
                 "Building chain trust... (chaining block: " + std::to_string(loadedCount) + "/" +
                 std::to_string(vSortedByHeight.size()) + ")");
