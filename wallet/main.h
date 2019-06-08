@@ -1676,6 +1676,10 @@ public:
                         READWRITE(this->nVersion); READWRITE(hashPrev); READWRITE(hashMerkleRoot);
                         READWRITE(nTime); READWRITE(nBits); READWRITE(nNonce); READWRITE(blockHash);)
 
+    void SetBlockHash(const uint256& hash) {
+        blockHash = hash;
+    }
+
     uint256 GetBlockHash() const
     {
         if (fUseFastIndex && (nTime < GetAdjustedTime() - 24 * 60 * 60) && blockHash != 0)

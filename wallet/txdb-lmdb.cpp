@@ -908,10 +908,16 @@ bool CTxDB::LoadBlockIndex()
 
         if (fRequestShutdown)
             break;
+
+        uint256 blockHash;
+        ssKey >> blockHash;
+
         CDiskBlockIndex diskindex;
         ssValue >> diskindex;
 
-        uint256 blockHash = diskindex.GetBlockHash();
+        // (Changed by Sam) previously, using diskindex.GetBlockHash retrieved the block hash AND set it
+        // inside the diskindex object with a const_cast. Now this is fixed to be correct
+        diskindex.SetBlockHash(blockHash);
 
         // Construct block index object
         CBlockIndex* pindexNew    = InsertBlockIndex(blockHash);
@@ -949,7 +955,7 @@ bool CTxDB::LoadBlockIndex()
         itemRes = mdb_cursor_get(cursorRawPtr, &key, &data, MDB_NEXT);
 
         loadedCount++;
-        if (loadedCount % 1000 == 0) {
+        if (loadedCount % 10000 == 0) {
             uiInterface.InitMessage(_("Loading block index...") +
                                     " (block: " + std::to_string(loadedCount) + ")");
         }
@@ -1036,7 +1042,7 @@ bool CTxDB::LoadBlockIndex()
     loadedCount = 0;
     for (CBlockIndex* pindex = pindexBest; pindex && pindex->pprev; pindex = pindex->pprev) {
 
-        if (loadedCount % 10 == 0) {
+        if (loadedCount % 100 == 0) {
             uiInterface.InitMessage("Verifying latest blocks (" + std::to_string(loadedCount) + "/" +
                                     std::to_string(nCheckDepth) + ")");
         }
