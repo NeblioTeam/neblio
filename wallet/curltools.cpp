@@ -106,6 +106,8 @@ void cURLTools::GetLargeFileFromHTTPS(const std::string& URL, long ConnectionTim
 
     curl = curl_easy_init();
     boost::filesystem::fstream outputStream(targetPath, std::ios::out | std::ios::binary);
+
+    std::string agent = GetUserAgent();
     if (curl) {
 
         CurlCleaner cleaner(curl);
@@ -117,6 +119,7 @@ void cURLTools::GetLargeFileFromHTTPS(const std::string& URL, long ConnectionTim
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlWrite_CallbackFunc_File);
         curl_easy_setopt(curl, CURLOPT_USERAGENT, "Dark Secret Ninja/1.0");
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &outputStream);
+        curl_easy_setopt(curl, CURLOPT_USERAGENT, agent.c_str());
 
         curl_easy_setopt(curl, CURLOPT_NOPROGRESS, false);
         curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, CurlAtomicProgress_CallbackFunc);
@@ -151,6 +154,22 @@ void cURLTools::GetLargeFileFromHTTPS(const std::string& URL, long ConnectionTim
     }
 }
 
+std::string cURLTools::GetUserAgent()
+{
+    std::string agent;
+#ifdef QT_GUI
+    agent += "Neblio-Qt";
+#else
+    agent += "Neblio";
+#endif
+    std::string version =
+        std::to_string(CLIENT_VERSION_MAJOR) + "." + std::to_string(CLIENT_VERSION_MINOR) + "." +
+        std::to_string(CLIENT_VERSION_REVISION) + "." + std::to_string(CLIENT_VERSION_BUILD);
+    agent += "/";
+    agent += version;
+    return agent;
+}
+
 std::string cURLTools::GetFileFromHTTPS(const std::string& URL, long ConnectionTimeout,
                                         bool IncludeProgressBar)
 {
@@ -169,6 +188,8 @@ std::string cURLTools::GetFileFromHTTPS(const std::string& URL, long ConnectionT
 
     curl = curl_easy_init();
     std::deque<char> s;
+
+    std::string agent = GetUserAgent();
     if (curl) {
 
         CurlCleaner cleaner(curl);
@@ -180,7 +201,7 @@ std::string cURLTools::GetFileFromHTTPS(const std::string& URL, long ConnectionT
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlWrite_CallbackFunc_StdString);
         curl_easy_setopt(curl, CURLOPT_USERAGENT, "Dark Secret Ninja/1.0");
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &s);
-
+        curl_easy_setopt(curl, CURLOPT_USERAGENT, agent.c_str());
         if (IncludeProgressBar) {
             curl_easy_setopt(curl, CURLOPT_NOPROGRESS, false);
             curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, CurlProgress_CallbackFunc);
@@ -232,6 +253,7 @@ std::string cURLTools::PostJsonToHTTPS(const std::string& URL, long ConnectionTi
     /* get a curl handle */
     curl = curl_easy_init();
     std::deque<char> writedata;
+    std::string      agent = GetUserAgent();
     if (curl) {
 
         CurlCleaner cleaner(curl);
@@ -252,6 +274,7 @@ std::string cURLTools::PostJsonToHTTPS(const std::string& URL, long ConnectionTi
         /* Now specify the POST data */
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, readdata.c_str());
         curl_easy_setopt(curl, CURLOPT_POST, 1);
+        curl_easy_setopt(curl, CURLOPT_USERAGENT, agent.c_str());
 
         headers = curl_slist_append(headers, "Content-Type: application/json");
         headers = curl_slist_append(headers, "charsets: utf-8");
