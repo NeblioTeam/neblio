@@ -27,7 +27,7 @@ if(SANITIZE_THREAD)
     set(CMAKE_CXX_FLAGS           "${CMAKE_CXX_FLAGS}        -g -fsanitize=thread")
     set(CMAKE_EXE_LINKER_FLAGS    "${CMAKE_EXE_LINKER_FLAGS}    -fsanitize=thread")
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=thread")
-    set(CMAKE_CXX_FLAGS           "${CMAKE_CXX_FLAGS}           -fsanitize-blacklist=${CMAKE_SOURCE_DIR}/sanitizer-blacklist.txt")
+#    set(CMAKE_CXX_FLAGS           "${CMAKE_CXX_FLAGS}           -fsanitize-blacklist=${CMAKE_SOURCE_DIR}/sanitizer-blacklist.txt")
 endif()
 
 option(SANITIZE_UNDEFINED "Enable clang undefined-behavior-sanitizer (only for clang-compiler)" OFF)
@@ -82,7 +82,7 @@ find_package(Qt5Core    REQUIRED)
 find_package(Qt5LinguistTools REQUIRED)
 find_package(BerkeleyDB REQUIRED)
 find_package(PkgConfig  REQUIRED)
-find_package(Boost 1.55 COMPONENTS system random filesystem thread regex program_options iostreams REQUIRED)
+find_package(Boost 1.55 COMPONENTS system random filesystem thread regex program_options iostreams atomic REQUIRED)
 
 SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 find_package(ZLIB       REQUIRED)
@@ -679,6 +679,7 @@ if(WIN32)
             Boost::regex
             Boost::program_options
             Boost::iostreams
+            Boost::atomic
             ${BERKELEY_DB_LIBRARIES}
             ${CURL_LIBS}
             ${OPENSSL_LIBS}
@@ -785,6 +786,7 @@ else()
             Boost::regex
             Boost::program_options
             Boost::iostreams
+            Boost::atomic
             ${BERKELEY_DB_LIBRARIES}
             ${CURL_LIBS}
             ${OPENSSL_LIBS}
