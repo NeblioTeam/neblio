@@ -90,7 +90,7 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("stake", ValueFromAmount(pwalletMain->GetStake())));
     obj.push_back(Pair("blocks", (int)nBestHeight));
     obj.push_back(Pair("timeoffset", (int64_t)GetTimeOffset()));
-    obj.push_back(Pair("moneysupply", ValueFromAmount(pindexBest->nMoneySupply)));
+    obj.push_back(Pair("moneysupply", ValueFromAmount(pindexBest.load()->nMoneySupply)));
     obj.push_back(Pair("connections", (int)vNodes.size()));
     obj.push_back(Pair("proxy", (proxy.first.IsValid() ? proxy.first.ToStringIPPort() : string())));
     obj.push_back(Pair("ip", addrSeenByPeer.ToStringIP()));
@@ -1417,7 +1417,7 @@ Value listsinceblock(const Array& params, bool fHelp)
     if (target_confirms == 1) {
         lastblock = hashBestChain;
     } else {
-        int target_height = pindexBest->nHeight + 1 - target_confirms;
+        int target_height = pindexBest.load()->nHeight + 1 - target_confirms;
 
         CBlockIndex* block;
         for (block = pindexBest; block && block->nHeight > target_height; block = block->pprev) {
@@ -1526,7 +1526,7 @@ Value keypoolrefill(const Array& params, bool fHelp)
     return Value::null;
 }
 
-void ThreadTopUpKeyPool(void* parg)
+void ThreadTopUpKeyPool(void* /*parg*/)
 {
     // Make this thread recognisable as the key-topping-up thread
     RenameThread("neblio-key-top");
@@ -1720,7 +1720,7 @@ Value encryptwallet(const Array& params, bool fHelp)
 class DescribeAddressVisitor : public boost::static_visitor<Object>
 {
 public:
-    Object operator()(const CNoDestination& dest) const { return Object(); }
+    Object operator()(const CNoDestination& /*dest*/) const { return Object(); }
 
     Object operator()(const CKeyID& keyID) const
     {

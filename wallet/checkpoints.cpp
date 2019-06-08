@@ -252,8 +252,8 @@ uint256 AutoSelectSyncCheckpoint()
     // Search backward for a block within max span and maturity window
     unsigned int nTS = TargetSpacing();
     while (pindex->pprev &&
-           (pindex->GetBlockTime() + nCheckpointSpan * nTS > pindexBest->GetBlockTime() ||
-            pindex->nHeight + nCheckpointSpan > pindexBest->nHeight))
+           (pindex->GetBlockTime() + nCheckpointSpan * nTS > pindexBest.load()->GetBlockTime() ||
+            pindex->nHeight + nCheckpointSpan > pindexBest.load()->nHeight))
         pindex = pindex->pprev;
     return pindex->GetBlockHash();
 }

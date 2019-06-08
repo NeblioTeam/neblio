@@ -71,6 +71,11 @@ bool OpenDBWalletTransient() {
 void FlushDBWalletTransient(bool shutdown) {
     bitdb.Flush(shutdown);
 }
+
+DBErrors LoadDBWalletTransient(bool &fFirstRun) {
+    return std::atomic_load(&pwalletMain)->LoadWallet(fFirstRun);
+}
+
 //////////////////////////////////////////////////////////
 
 void StartShutdown()
@@ -810,7 +815,7 @@ bool AppInit2()
     bool                     fFirstRun = true;
     std::shared_ptr<CWallet> wlt       = std::make_shared<CWallet>(strWalletFileName);
     std::atomic_store(&pwalletMain, wlt);
-    DBErrors nLoadWalletRet = std::atomic_load(&pwalletMain)->LoadWallet(fFirstRun);
+    DBErrors nLoadWalletRet = LoadDBWalletTransient(fFirstRun);
     if (nLoadWalletRet != DB_LOAD_OK) {
         if (nLoadWalletRet == DB_CORRUPT)
             strErrors << _("Error loading wallet.dat: Wallet corrupted") << "\n";
@@ -874,10 +879,10 @@ bool AppInit2()
             pindexRescan = locator.GetBlockIndex();
     }
     if (pindexBest != pindexRescan && pindexBest && pindexRescan &&
-        pindexBest->nHeight > pindexRescan->nHeight) {
+        pindexBest.load()->nHeight > pindexRescan->nHeight) {
         uiInterface.InitMessage(_("Rescanning..."));
         printf("Rescanning last %i blocks (from block %i)...\n",
-               pindexBest->nHeight - pindexRescan->nHeight, pindexRescan->nHeight);
+               pindexBest.load()->nHeight - pindexRescan->nHeight, pindexRescan->nHeight);
         nStart = GetTimeMillis();
         pwalletMain->ScanForWalletTransactions(pindexRescan, true);
         printf(" rescan      %15" PRId64 "ms\n", GetTimeMillis() - nStart);

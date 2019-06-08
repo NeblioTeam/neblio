@@ -39,7 +39,7 @@ set<std::shared_ptr<CWallet>> setpwalletRegistered;
 
 CCriticalSection cs_main;
 
-CTxMemPool   mempool;
+CTxMemPool              mempool;
 boost::atomic<uint32_t> nTransactionsUpdated{0};
 
 // THERE IS ANOTHER ONE OF THOSE IN NTP1Transaction, change that if you wanna change this until this is
@@ -77,10 +77,10 @@ boost::atomic<int> nBestHeight{-1};
 uint256 nBestChainTrust   = 0;
 uint256 nBestInvalidTrust = 0;
 
-uint256      hashBestChain     = 0;
-CBlockIndex* pindexBest        = NULL;
-int64_t      nTimeBestReceived = 0;
-boost::atomic<bool> fImporting{false};
+uint256                     hashBestChain = 0;
+boost::atomic<CBlockIndex*> pindexBest{nullptr};
+int64_t                     nTimeBestReceived = 0;
+boost::atomic<bool>         fImporting{false};
 
 CMedianFilter<int> cPeerBlockCounts(5, 0); // Amount of blocks that other nodes claim to have
 
@@ -518,7 +518,7 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
     if (!pindex || !pindex->IsInMainChain())
         return 0;
 
-    return pindexBest->nHeight - pindex->nHeight + 1;
+    return pindexBest.load()->nHeight - pindex->nHeight + 1;
 }
 
 bool CTransaction::CheckTransaction() const
@@ -912,7 +912,7 @@ int CMerkleTx::GetDepthInMainChainINTERNAL(CBlockIndex*& pindexRet) const
     }
 
     pindexRet = pindex;
-    return pindexBest->nHeight - pindex->nHeight + 1;
+    return pindexBest.load()->nHeight - pindex->nHeight + 1;
 }
 
 int CMerkleTx::GetDepthInMainChain(CBlockIndex*& pindexRet) const
@@ -1357,7 +1357,7 @@ bool __IsInitialBlockDownload_internal()
         pindexLastBest = pindexBest;
         nLastUpdate    = GetTime();
     }
-    return (GetTime() - nLastUpdate < 15 && pindexBest->GetBlockTime() < GetTime() - 8 * 60 * 60);
+    return (GetTime() - nLastUpdate < 15 && pindexBest.load()->GetBlockTime() < GetTime() - 8 * 60 * 60);
 }
 bool IsInitialBlockDownload_tolerant()
 {
@@ -1384,9 +1384,10 @@ void static InvalidChainFound(CBlockIndex* pindexNew, CTxDB& txdb)
     }
 
     uint256 nBestInvalidBlockTrust = pindexNew->nChainTrust - pindexNew->pprev->nChainTrust;
-    uint256 nBestBlockTrust        = pindexBest->nHeight != 0
-                                  ? (pindexBest->nChainTrust - pindexBest->pprev->nChainTrust)
-                                  : pindexBest->nChainTrust;
+    uint256 nBestBlockTrust =
+        pindexBest.load()->nHeight != 0
+            ? (pindexBest.load()->nChainTrust - pindexBest.load()->pprev->nChainTrust)
+            : pindexBest.load()->nChainTrust;
 
     printf("InvalidChainFound: invalid block=%s  height=%d  trust=%s  blocktrust=%" PRId64 "  date=%s\n",
            pindexNew->GetBlockHash().ToString().c_str(), pindexNew->nHeight,
@@ -1394,8 +1395,8 @@ void static InvalidChainFound(CBlockIndex* pindexNew, CTxDB& txdb)
            DateTimeStrFormat("%x %H:%M:%S", pindexNew->GetBlockTime()).c_str());
     printf("InvalidChainFound:  current best=%s  height=%d  trust=%s  blocktrust=%" PRId64 "  date=%s\n",
            hashBestChain.ToString().c_str(), nBestHeight.load(),
-           CBigNum(pindexBest->nChainTrust).ToString().c_str(), nBestBlockTrust.Get64(),
-           DateTimeStrFormat("%x %H:%M:%S", pindexBest->GetBlockTime()).c_str());
+           CBigNum(pindexBest.load()->nChainTrust).ToString().c_str(), nBestBlockTrust.Get64(),
+           DateTimeStrFormat("%x %H:%M:%S", pindexBest.load()->GetBlockTime()).c_str());
 }
 
 void CBlock::UpdateTime(const CBlockIndex* /*pindexPrev*/)
@@ -2253,7 +2254,8 @@ bool static Reorganize(CTxDB& txdb, CBlockIndex* pindexNew, const bool createDbT
     reverse(vConnect.begin(), vConnect.end());
 
     printf("REORGANIZE: Disconnect %" PRIszu " blocks; %s..%s\n", vDisconnect.size(),
-           pfork->GetBlockHash().ToString().c_str(), pindexBest->GetBlockHash().ToString().c_str());
+           pfork->GetBlockHash().ToString().c_str(),
+           pindexBest.load()->GetBlockHash().ToString().c_str());
     printf("REORGANIZE: Connect %" PRIszu " blocks; %s..%s\n", vConnect.size(),
            pfork->GetBlockHash().ToString().c_str(), pindexNew->GetBlockHash().ToString().c_str());
 
@@ -2376,7 +2378,7 @@ bool CBlock::SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew, const bool create
         // Reorganize is costly in terms of db load, as it works in a single db transaction.
         // Try to limit how much needs to be done inside
         while (pindexIntermediate->pprev &&
-               pindexIntermediate->pprev->nChainTrust > pindexBest->nChainTrust) {
+               pindexIntermediate->pprev->nChainTrust > pindexBest.load()->nChainTrust) {
             vpindexSecondary.push_back(pindexIntermediate);
             pindexIntermediate = pindexIntermediate->pprev;
         }
@@ -2422,19 +2424,20 @@ bool CBlock::SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew, const bool create
     hashBestChain       = hash;
     pindexBest          = pindexNew;
     pblockindexFBBHLast = NULL;
-    nBestHeight         = pindexBest->nHeight;
+    nBestHeight         = pindexBest.load()->nHeight;
     nBestChainTrust     = pindexNew->nChainTrust;
     nTimeBestReceived   = GetTime();
     nTransactionsUpdated++;
 
-    uint256 nBestBlockTrust = pindexBest->nHeight != 0
-                                  ? (pindexBest->nChainTrust - pindexBest->pprev->nChainTrust)
-                                  : pindexBest->nChainTrust;
+    uint256 nBestBlockTrust =
+        pindexBest.load()->nHeight != 0
+            ? (pindexBest.load()->nChainTrust - pindexBest.load()->pprev->nChainTrust)
+            : pindexBest.load()->nChainTrust;
 
     printf("SetBestChain: new best=%s  height=%d  trust=%s  blocktrust=%" PRId64 "  date=%s\n",
            hashBestChain.ToString().c_str(), nBestHeight.load(),
            CBigNum(nBestChainTrust).ToString().c_str(), nBestBlockTrust.Get64(),
-           DateTimeStrFormat("%x %H:%M:%S", pindexBest->GetBlockTime()).c_str());
+           DateTimeStrFormat("%x %H:%M:%S", pindexBest.load()->GetBlockTime()).c_str());
 
     // Check the version of the last 100 blocks to see if we need to upgrade:
     if (!fIsInitialDownload) {
@@ -3349,13 +3352,13 @@ bool CBlock::SignBlock(CWallet& wallet, int64_t nFees)
     if (nSearchTime > nLastCoinStakeSearchTime) {
         if (wallet.CreateCoinStake(wallet, nBits, nSearchTime - nLastCoinStakeSearchTime, nFees,
                                    txCoinStake, key)) {
-            if (txCoinStake.nTime >=
-                max(pindexBest->GetPastTimeLimit() + 1, PastDrift(pindexBest->GetBlockTime()))) {
+            if (txCoinStake.nTime >= max(pindexBest.load()->GetPastTimeLimit() + 1,
+                                         PastDrift(pindexBest.load()->GetBlockTime()))) {
                 // make sure coinstake would meet timestamp protocol
                 //    as it would be the same as the block timestamp
                 vtx[0].nTime = nTime = txCoinStake.nTime;
-                nTime                = max(pindexBest->GetPastTimeLimit() + 1, GetMaxTransactionTime());
-                nTime                = max(GetBlockTime(), PastDrift(pindexBest->GetBlockTime()));
+                nTime = max(pindexBest.load()->GetPastTimeLimit() + 1, GetMaxTransactionTime());
+                nTime = max(GetBlockTime(), PastDrift(pindexBest.load()->GetBlockTime()));
 
                 // we have to make sure that we have no future timestamps in
                 //    our transactions set
@@ -3962,7 +3965,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
     if (fDebug)
         printf("received: %s (%" PRIszu " bytes)\n", strCommand.c_str(), vRecv.size());
     std::string dropMessageTestVal;
-    bool dropMessageTestExists = mapArgs.get("-dropmessagestest", dropMessageTestVal);
+    bool        dropMessageTestExists = mapArgs.get("-dropmessagestest", dropMessageTestVal);
     if (dropMessageTestExists && GetRand(atoi(dropMessageTestVal)) == 0) {
         printf("dropmessagestest DROPPING RECV MESSAGE\n");
         return true;
@@ -4319,7 +4322,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                 // ppcoin: tell downloading node about the latest block if it's
                 // without risk being rejected due to stake connection check
                 if (hashStop != hashBestChain &&
-                    pindex->GetBlockTime() + nSMA > pindexBest->GetBlockTime())
+                    pindex->GetBlockTime() + nSMA > pindexBest.load()->GetBlockTime())
                     pfrom->PushInventory(CInv(MSG_BLOCK, hashBestChain));
                 break;
             }

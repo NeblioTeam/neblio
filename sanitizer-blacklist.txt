@@ -1,8 +1,6 @@
 fun:*QThread*start*
 fun:*BitcoinGUI*BitcoinGUI*
-fun:*VerifyDBWalletTransient*
-fun:*OpenDBWalletTransient*
-fun:*FlushDBWalletTransient*
+fun:*DBWalletTransient*
 fun:*QCoreApplication*qt_metacall*
 fun:*QArrayData*allocate*
 fun:*QWaitCondition*wakeAll*

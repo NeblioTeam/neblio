@@ -170,7 +170,7 @@ Value importwallet(const Array& params, bool fHelp)
     if (!file.is_open())
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot open wallet dump file");
 
-    int64_t nTimeBegin = pindexBest->nTime;
+    int64_t nTimeBegin = pindexBest.load()->nTime;
 
     bool fGood = true;
 
@@ -232,7 +232,7 @@ Value importwallet(const Array& params, bool fHelp)
     if (!pwalletMain->nTimeFirstKey || nTimeBegin < pwalletMain->nTimeFirstKey)
         pwalletMain->nTimeFirstKey = nTimeBegin;
 
-    printf("Rescanning last %i blocks\n", pindexBest->nHeight - pindex->nHeight + 1);
+    printf("Rescanning last %i blocks\n", pindexBest.load()->nHeight - pindex->nHeight + 1);
     pwalletMain->ScanForWalletTransactions(pindex);
     pwalletMain->ReacceptWalletTransactions();
     pwalletMain->MarkDirty();
@@ -303,7 +303,7 @@ Value dumpwallet(const Array& params, bool fHelp)
     file << strprintf("# Wallet dump created by neblio %s (%s)\n", CLIENT_BUILD.c_str(), CLIENT_DATE.c_str());
     file << strprintf("# * Created on %s\n", EncodeDumpTime(GetTime()).c_str());
     file << strprintf("# * Best block at time of backup was %i (%s),\n", nBestHeight.load(), hashBestChain.ToString().c_str());
-    file << strprintf("#   mined on %s\n", EncodeDumpTime(pindexBest->nTime).c_str());
+    file << strprintf("#   mined on %s\n", EncodeDumpTime(pindexBest.load()->nTime).c_str());
     file << "\n";
     for (std::vector<std::pair<int64_t, CKeyID> >::const_iterator it = vKeyBirth.begin(); it != vKeyBirth.end(); it++) {
         const CKeyID &keyid = it->second;
@@ -339,7 +339,7 @@ void _RescanBlockchain(int64_t earliestTime) {
     if (!pwalletMain->nTimeFirstKey || earliestTime < pwalletMain->nTimeFirstKey)
         pwalletMain->nTimeFirstKey = earliestTime;
 
-    printf("Rescanning last %i blocks\n", pindexBest->nHeight - pindex->nHeight + 1);
+    printf("Rescanning last %i blocks\n", pindexBest.load()->nHeight - pindex->nHeight + 1);
     pwalletMain->ScanForWalletTransactions(pindex);
     pwalletMain->ReacceptWalletTransactions();
     pwalletMain->MarkDirty();
@@ -424,7 +424,7 @@ std::pair<long,long> ImportBackupWallet(const std::string& Src, std::string& Pas
     }
 
     // earliest time to rescan the blockchain
-    int64_t earliestTime = pindexBest->nTime;
+    int64_t earliestTime = pindexBest.load()->nTime;
 
     std::set<CKeyID> allKeyIDsSet;
     backupWallet.GetKeys(allKeyIDsSet);

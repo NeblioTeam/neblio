@@ -1119,7 +1119,7 @@ int64_t GetTime()
 
 void SetMockTime(int64_t nMockTimeIn) { nMockTime = nMockTimeIn; }
 
-static int64_t nTimeOffset = 0;
+static boost::atomic<int64_t> nTimeOffset{0};
 
 int64_t GetTimeOffset() { return nTimeOffset; }
 
@@ -1173,7 +1173,7 @@ void AddTimeData(const CNetAddr& ip, int64_t nTime)
                 printf("%+" PRId64 "  ", n);
             printf("|  ");
         }
-        printf("nTimeOffset = %+" PRId64 "  (%+" PRId64 " minutes)\n", nTimeOffset, nTimeOffset / 60);
+        printf("nTimeOffset = %+" PRId64 "  (%+" PRId64 " minutes)\n", nTimeOffset.load(), nTimeOffset.load() / 60);
     }
 }
 

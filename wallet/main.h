@@ -95,7 +95,7 @@ extern boost::atomic<int>                           nBestHeight;
 extern uint256                                      nBestChainTrust;
 extern uint256                                      nBestInvalidTrust;
 extern uint256                                      hashBestChain;
-extern CBlockIndex*                                 pindexBest;
+extern boost::atomic<CBlockIndex*>                  pindexBest;
 extern boost::atomic<uint32_t>                      nTransactionsUpdated;
 extern uint64_t                                     nLastBlockTx;
 extern uint64_t                                     nLastBlockSize;

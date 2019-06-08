@@ -44,7 +44,7 @@ double GetDifficulty(const CBlockIndex* blockindex)
 
 double GetPoWMHashPS()
 {
-    if (pindexBest->nHeight >= LAST_POW_BLOCK)
+    if (pindexBest.load()->nHeight >= LAST_POW_BLOCK)
         return 0;
 
     int     nPoWInterval          = 72;
@@ -76,7 +76,7 @@ double GetPoSKernelPS()
     int    nStakesHandled = 0, nStakesTime = 0;
 
     CBlockIndex* pindex = pindexBest;
-    ;
+
     CBlockIndex* pindexPrevStake = NULL;
 
     while (pindex && nStakesHandled < nPoSInterval) {
