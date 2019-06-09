@@ -1875,10 +1875,11 @@ CBlock::ChainReplaceTxs CBlock::GetAlternateChainTxsUpToCommonAncestor(CTxDB& tx
             }
 
             // check range
-            if (outputNumInTx >= txindex.vSpent.size())
+            if (outputNumInTx >= txindex.vSpent.size()) {
                 throw std::runtime_error(
                     std::string(__PRETTY_FUNCTION__) + ": prevout.n out of range for transaction " +
                     outputTxHash.ToString() + " and output " + std::to_string(outputNumInTx));
+            }
 
             // spend the output (without updating the database)
             txindex.vSpent[outputNumInTx] = CreateFakeSpentTxPos(txindex.pos.nBlockPos);
@@ -1910,8 +1911,7 @@ bool CBlock::VerifyInputsUnspent(CTxDB& txdb) const
     // queued transactions are the inputs that we already found (even from this block). The map stores
     // whether transactions are spent already. This solves the problem of spending an output in the same
     // block where it's created
-    std::unordered_map<uint256, CTxIndex> queuedTxs;
-    ChainReplaceTxs                       alternateChainTxs;
+    ChainReplaceTxs alternateChainTxs;
 
     try {
         alternateChainTxs = GetAlternateChainTxsUpToCommonAncestor(txdb);
@@ -1920,8 +1920,8 @@ bool CBlock::VerifyInputsUnspent(CTxDB& txdb) const
                      this->GetHash().ToString().c_str(), ex.what());
     }
 
-    queuedTxs = alternateChainTxs.modifiedOutputsTxs;
-    const std::unordered_set<uint256>& disconnectedTxsFromMainChain =
+    std::unordered_map<uint256, CTxIndex>& queuedTxs = alternateChainTxs.modifiedOutputsTxs;
+    const std::unordered_set<uint256>&     disconnectedTxsFromMainChain =
         alternateChainTxs.disconnectedRootTxs;
 
     for (const CTransaction& tx : vtx) {
