@@ -60,19 +60,17 @@ void ExitTimeout(void* /*parg*/)
  * @param strWalletFileName
  * @return Verification result
  */
-CDBEnv::VerifyResult VerifyDBWalletTransient(const std::string& strWalletFileName) {
+CDBEnv::VerifyResult VerifyDBWalletTransient(const std::string& strWalletFileName)
+{
     return bitdb.Verify(strWalletFileName, CWalletDB::Recover);
 }
 
-bool OpenDBWalletTransient() {
-    return bitdb.Open(GetDataDir());
-}
+bool OpenDBWalletTransient() { return bitdb.Open(GetDataDir()); }
 
-void FlushDBWalletTransient(bool shutdown) {
-    bitdb.Flush(shutdown);
-}
+void FlushDBWalletTransient(bool shutdown) { bitdb.Flush(shutdown); }
 
-DBErrors LoadDBWalletTransient(bool &fFirstRun) {
+DBErrors LoadDBWalletTransient(bool& fFirstRun)
+{
     return std::atomic_load(&pwalletMain)->LoadWallet(fFirstRun);
 }
 
@@ -147,7 +145,7 @@ void HandleSIGHUP(int) { fReopenDebugLog = true; }
 //
 // Start
 //
-#if !defined(QT_GUI)
+#if !defined(QT_GUI) && !defined(NEBLIO_UNITTESTS)
 bool AppInit(int argc, char* argv[])
 {
     bool fRet = false;
@@ -431,7 +429,7 @@ bool AppInit2()
     }
 
     std::vector<std::string> connectVals;
-    bool connectExists = mapMultiArgs.get("-connect", connectVals);
+    bool                     connectExists = mapMultiArgs.get("-connect", connectVals);
     if (connectExists && connectVals.size() > 0) {
         // when only connecting to trusted nodes, do not seed via DNS, or listen by default
         SoftSetBoolArg("-dnsseed", false);
@@ -495,11 +493,11 @@ bool AppInit2()
     }
 
     std::string payTxFeeVal;
-    bool payTxFeeExists = mapArgs.get("-paytxfee", payTxFeeVal);
+    bool        payTxFeeExists = mapArgs.get("-paytxfee", payTxFeeVal);
     if (payTxFeeExists) {
         if (!ParseMoney(payTxFeeVal, nTransactionFee))
-            return InitError(strprintf(_("Invalid amount for -paytxfee=<amount>: '%s'"),
-                                       payTxFeeVal.c_str()));
+            return InitError(
+                strprintf(_("Invalid amount for -paytxfee=<amount>: '%s'"), payTxFeeVal.c_str()));
         if (nTransactionFee > 0.25 * COIN)
             InitWarning(_("Warning: -paytxfee is set very high! This is the transaction fee you will "
                           "pay if you send a transaction."));
@@ -509,11 +507,11 @@ bool AppInit2()
     fEnforceCanonical = GetBoolArg("-enforcecanonical", true);
 
     std::string mininpVal;
-    bool mininpExists = mapArgs.get("-mininput", mininpVal);
+    bool        mininpExists = mapArgs.get("-mininput", mininpVal);
     if (mininpExists) {
         if (!ParseMoney(mininpVal, nMinimumInputValue))
-            return InitError(strprintf(_("Invalid amount for -mininput=<amount>: '%s'"),
-                                       mininpVal.c_str()));
+            return InitError(
+                strprintf(_("Invalid amount for -mininput=<amount>: '%s'"), mininpVal.c_str()));
     }
 
     // ********************************************************* Step 4: application initialization: dir
@@ -620,7 +618,7 @@ bool AppInit2()
         return InitError(strprintf(_("Unknown -socks proxy version requested: %i"), nSocksVersion));
 
     if (mapArgs.exists("-onlynet")) {
-        std::set<enum Network> nets;
+        std::set<enum Network>   nets;
         std::vector<std::string> onlyNetVals;
         mapMultiArgs.get("-onlynet", onlyNetVals);
         BOOST_FOREACH (std::string snet, onlyNetVals) {
@@ -637,10 +635,10 @@ bool AppInit2()
         }
     }
 
-    CService addrProxy;
-    bool     fProxy = false;
+    CService    addrProxy;
+    bool        fProxy = false;
     std::string proxyVal;
-    bool proxyExists = mapArgs.get("-proxy", proxyVal);
+    bool        proxyExists = mapArgs.get("-proxy", proxyVal);
     if (proxyExists) {
         addrProxy = CService(proxyVal, 9050);
         if (!addrProxy.IsValid())
@@ -658,7 +656,7 @@ bool AppInit2()
 
     // -tor can override normal proxy, -notor disables tor entirely
     std::string torVal;
-    bool torExists = mapArgs.get("-tor", torVal);
+    bool        torExists = mapArgs.get("-tor", torVal);
     if (!(torExists && torVal == "0") && (fProxy || torExists)) {
         CService addrOnion;
         if (!torExists)
@@ -681,9 +679,9 @@ bool AppInit2()
 
     bool fBound = false;
     if (!fNoListen) {
-        std::string strError;
+        std::string              strError;
         std::vector<std::string> bindVals;
-        bool bindExists = mapMultiArgs.get("-bind", bindVals);
+        bool                     bindExists = mapMultiArgs.get("-bind", bindVals);
         if (bindExists) {
             BOOST_FOREACH (std::string strBind, bindVals) {
                 CService addrBind;
@@ -705,7 +703,7 @@ bool AppInit2()
     }
 
     std::vector<std::string> externalIPVals;
-    bool externalIPExists = mapMultiArgs.get("-externalip", externalIPVals);
+    bool                     externalIPExists = mapMultiArgs.get("-externalip", externalIPVals);
     if (externalIPExists) {
         BOOST_FOREACH (string strAddr, externalIPVals) {
             CService addrLocal(strAddr, GetListenPort(), fNameLookup);
@@ -717,7 +715,7 @@ bool AppInit2()
     }
 
     std::string reserveBalanceVal;
-    bool reserveBalanceExists = mapArgs.get("-reservebalance", reserveBalanceVal);
+    bool        reserveBalanceExists = mapArgs.get("-reservebalance", reserveBalanceVal);
     if (reserveBalanceExists) // ppcoin: reserve balance amount
     {
         if (!ParseMoney(reserveBalanceVal, nReserveBalance)) {
@@ -777,7 +775,7 @@ bool AppInit2()
     }
 
     std::string printBlockVal;
-    bool printBlockExists = mapArgs.get("-printblock", printBlockVal);
+    bool        printBlockExists = mapArgs.get("-printblock", printBlockVal);
     if (printBlockExists) {
         string strMatch = printBlockVal;
         int    nFound   = 0;
@@ -891,7 +889,7 @@ bool AppInit2()
     // ********************************************************* Step 9: import blocks
 
     std::vector<boost::filesystem::path>* vPath = new std::vector<boost::filesystem::path>();
-    std::vector<std::string> loadBlockVals;
+    std::vector<std::string>              loadBlockVals;
     bool loadBlockExists = mapMultiArgs.get("-loadblock", loadBlockVals);
     if (loadBlockExists) {
         BOOST_FOREACH (string strFile, loadBlockVals)

@@ -1,7 +1,10 @@
 cmake_minimum_required(VERSION 3.2.0)
 project(Neblio)
 
-message(FATAL_ERROR "This cmake file is only for development. Please use qmake to build the project.")
+option(NEBLIO_CMAKE "Enable buildig with cmake (to ensure this is for development)" OFF)
+if(NOT NEBLIO_CMAKE)
+    message(FATAL_ERROR "This cmake file is only for development. Please use qmake to build the project.")
+endif()
 
 cmake_host_system_information(RESULT hostname QUERY HOSTNAME)
 message("Building on machine: " ${hostname})
@@ -17,6 +20,7 @@ endif()
 option(COMPILE_GUI "Enable compiling neblio-qt" ON)
 option(COMPILE_DAEMON "Enable compiling nebliod" ON)
 option(COMPILE_CURL "Download and compile libcurl (and OpenSSL) automatically (Not for Windows)" OFF)
+option(COMPILE_TESTS "Build tests" ON)
 option(USE_QRCODE "Enable QRCode" ON)
 option(USE_UPNP   "Enable Miniupnpc" OFF)
 option(USE_DBUS   "Enable Dbus" ON)
@@ -82,6 +86,7 @@ find_package(Qt5LinguistTools REQUIRED)
 find_package(BerkeleyDB REQUIRED)
 find_package(PkgConfig  REQUIRED)
 find_package(Boost 1.55 COMPONENTS system random filesystem thread regex program_options iostreams atomic REQUIRED)
+find_package(Threads REQUIRED)
 
 SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 find_package(ZLIB       REQUIRED)
@@ -647,12 +652,26 @@ include_directories(${ZLIB_INCLUDE_DIRS})
 # the following from here https://github.com/owncloud/client/blob/master/src/gui/CMakeLists.txt
 target_compile_definitions(gui_lib PRIVATE "QT_DISABLE_DEPRECATED_BEFORE=0")
 
+if(COMPILE_TESTS)
+    # GTEST ##############
+    set(GTEST_PATH ${CMAKE_SOURCE_DIR}/wallet/test/googletest/googletest)
+    include_directories(${GTEST_PATH}/include)
+    include_directories(${GTEST_PATH}/)
+    add_library(gtest ${GTEST_PATH}/src/gtest-all.cc)
+    target_link_libraries(gtest Threads::Threads)
+    ######################
+
+    enable_testing()
+    add_subdirectory(wallet/test)
+endif()
+
 if(WIN32)
     if(COMPILE_GUI)
         add_executable(
             neblio-qt
             ${RESOURCE_ADDED}
             ${QM_FILES}
+            # sources that depend on target as they have defs inside them
             wallet/qt/bitcoin.cpp
             wallet/wallet.cpp
             wallet/init.cpp
@@ -668,7 +687,7 @@ if(WIN32)
             core_lib
             json_spirit_lib
             txdb_lib
-            -lpthread
+            Threads::Threads
             ### win32 libs
             -lws2_32 -lshlwapi -lmswsock -lole32 -loleaut32 -luuid -lgdi32
             ##############
@@ -691,6 +710,7 @@ if(WIN32)
     endif()
     if(COMPILE_DAEMON)
         add_executable(
+            # sources that depend on target as they have defs inside them
             nebliod
             wallet/wallet.cpp
             wallet/init.cpp
@@ -703,7 +723,7 @@ if(WIN32)
             curltools_lib
             json_spirit_lib
             txdb_lib
-            -lpthread
+            Threads::Threads
             ### win32 libs
             -lws2_32 -lshlwapi -lmswsock -lole32 -loleaut32 -luuid -lgdi32
             ##############
@@ -728,6 +748,7 @@ else()
             neblio-qt
             ${RESOURCE_ADDED}
             ${QM_FILES}
+            # sources that depend on target as they have defs inside them
             wallet/qt/bitcoin.cpp
             wallet/wallet.cpp
             wallet/init.cpp
@@ -743,7 +764,7 @@ else()
             core_lib
             json_spirit_lib
             txdb_lib
-            -lpthread
+            Threads::Threads
             -lrt
             -ldl
             Boost::system
@@ -765,6 +786,7 @@ else()
     if(COMPILE_DAEMON)
         add_executable(
             nebliod
+            # sources that depend on target as they have defs inside them
             wallet/wallet.cpp
             wallet/init.cpp
             )
@@ -776,7 +798,7 @@ else()
             curltools_lib
             json_spirit_lib
             txdb_lib
-            -lpthread
+            Threads::Threads
             -lrt
             -ldl
             Boost::system
