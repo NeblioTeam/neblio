@@ -1190,20 +1190,20 @@ protected:
 
 public:
     // serialization implementation
-    IMPLEMENT_SERIALIZE(READWRITE(nTransactions); READWRITE(vHash); std::vector<unsigned char> vBytes;
-                        if (fRead) {
-                            READWRITE(vBytes);
-                            CPartialMerkleTree& us = *(const_cast<CPartialMerkleTree*>(this));
-                            us.vBits.resize(vBytes.size() * 8);
-                            for (unsigned int p = 0; p < us.vBits.size(); p++)
-                                us.vBits[p] = (vBytes[p / 8] & (1 << (p % 8))) != 0;
-                            us.fBad = false;
-                        } else {
-                            vBytes.resize((vBits.size() + 7) / 8);
-                            for (unsigned int p = 0; p < vBits.size(); p++)
-                                vBytes[p / 8] |= vBits[p] << (p % 8);
-                            READWRITE(vBytes);
-                        })
+    IMPLEMENT_SERIALIZE(
+        READWRITE(nTransactions); READWRITE(vHash); std::vector<unsigned char> vBytes; if (fRead) {
+            READWRITE(vBytes);
+            CPartialMerkleTree& us = *(const_cast<CPartialMerkleTree*>(this));
+            us.vBits.resize(vBytes.size() * 8);
+            for (unsigned int p = 0; p < us.vBits.size(); p++)
+                us.vBits[p] = (vBytes[p / 8] & (1 << (p % 8))) != 0;
+            us.fBad = false;
+        } else {
+            vBytes.resize((vBits.size() + 7) / 8);
+            for (unsigned int p = 0; p < vBits.size(); p++)
+                vBytes[p / 8] |= vBits[p] << (p % 8);
+            READWRITE(vBytes);
+        })
 
     // Construct a partial merkle tree from a list of transaction id's, and a mask that selects a subset
     // of them
@@ -1257,17 +1257,18 @@ public:
 
     CBlock() { SetNull(); }
 
-    IMPLEMENT_SERIALIZE(READWRITE(this->nVersion); nVersion = this->nVersion; READWRITE(hashPrevBlock);
-                        READWRITE(hashMerkleRoot); READWRITE(nTime); READWRITE(nBits); READWRITE(nNonce);
+    IMPLEMENT_SERIALIZE(
+        READWRITE(this->nVersion); nVersion = this->nVersion; READWRITE(hashPrevBlock);
+        READWRITE(hashMerkleRoot); READWRITE(nTime); READWRITE(nBits); READWRITE(nNonce);
 
-                        // ConnectBlock depends on vtx following header to generate CDiskTxPos
-                        if (!(nType & (SER_GETHASH | SER_BLOCKHEADERONLY))) {
-                            READWRITE(vtx);
-                            READWRITE(vchBlockSig);
-                        } else if (fRead) {
-                            const_cast<CBlock*>(this)->vtx.clear();
-                            const_cast<CBlock*>(this)->vchBlockSig.clear();
-                        })
+        // ConnectBlock depends on vtx following header to generate CDiskTxPos
+        if (!(nType & (SER_GETHASH | SER_BLOCKHEADERONLY))) {
+            READWRITE(vtx);
+            READWRITE(vchBlockSig);
+        } else if (fRead) {
+            const_cast<CBlock*>(this)->vtx.clear();
+            const_cast<CBlock*>(this)->vchBlockSig.clear();
+        })
 
     void SetNull()
     {
@@ -1414,7 +1415,7 @@ public:
         std::unordered_map<uint256, CTxIndex> modifiedOutputsTxs;
     };
 
-    struct CommonAncestorsMembers
+    struct CommonAncestorSuccessorBlocks
     {
         // while finding the common ancestor, this is the part in the main chain (not part of this block)
         std::unordered_set<uint256> inMainChain;
@@ -1424,8 +1425,8 @@ public:
             inFork; // order matters here because we want to simulate respending these in order
     };
 
-    CommonAncestorsMembers GetBlocksUpToCommonAncestorInMainChain() const;
-    ChainReplaceTxs        GetAlternateChainTxsUpToCommonAncestor(CTxDB& txdb) const;
+    CommonAncestorSuccessorBlocks GetBlocksUpToCommonAncestorInMainChain() const;
+    ChainReplaceTxs               GetAlternateChainTxsUpToCommonAncestor(CTxDB& txdb) const;
 
     bool DisconnectBlock(CTxDB& txdb, CBlockIndex* pindex);
     bool ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck = false);
@@ -1660,25 +1661,23 @@ public:
         hashNext = (pnext ? pnext->GetBlockHash() : 0);
     }
 
-    IMPLEMENT_SERIALIZE(if (!(nType & SER_GETHASH)) READWRITE(nVersion);
+    IMPLEMENT_SERIALIZE(
+        if (!(nType & SER_GETHASH)) READWRITE(nVersion);
 
-                        READWRITE(hashNext); READWRITE(blockKeyInDB); READWRITE(nHeight);
-                        READWRITE(nMint); READWRITE(nMoneySupply); READWRITE(nFlags);
-                        READWRITE(nStakeModifier); if (IsProofOfStake()) {
-                            READWRITE(prevoutStake);
-                            READWRITE(nStakeTime);
-                        } else if (fRead) {
-                            const_cast<CDiskBlockIndex*>(this)->prevoutStake.SetNull();
-                            const_cast<CDiskBlockIndex*>(this)->nStakeTime = 0;
-                        } READWRITE(hashProof);
+        READWRITE(hashNext); READWRITE(blockKeyInDB); READWRITE(nHeight); READWRITE(nMint);
+        READWRITE(nMoneySupply); READWRITE(nFlags); READWRITE(nStakeModifier); if (IsProofOfStake()) {
+            READWRITE(prevoutStake);
+            READWRITE(nStakeTime);
+        } else if (fRead) {
+            const_cast<CDiskBlockIndex*>(this)->prevoutStake.SetNull();
+            const_cast<CDiskBlockIndex*>(this)->nStakeTime = 0;
+        } READWRITE(hashProof);
 
-                        // block header
-                        READWRITE(this->nVersion); READWRITE(hashPrev); READWRITE(hashMerkleRoot);
-                        READWRITE(nTime); READWRITE(nBits); READWRITE(nNonce); READWRITE(blockHash);)
+        // block header
+        READWRITE(this->nVersion); READWRITE(hashPrev); READWRITE(hashMerkleRoot); READWRITE(nTime);
+        READWRITE(nBits); READWRITE(nNonce); READWRITE(blockHash);)
 
-    void SetBlockHash(const uint256& hash) {
-        blockHash = hash;
-    }
+    void SetBlockHash(const uint256& hash) { blockHash = hash; }
 
     uint256 GetBlockHash() const
     {

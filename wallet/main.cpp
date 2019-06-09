@@ -1703,9 +1703,9 @@ CDiskTxPos CreateFakeSpentTxPos(const uint256& blockhash)
 
 /// returns all the blocks from the tip of the main chain up to the common ancestor (without the common
 /// ancestor)
-CBlock::CommonAncestorsMembers CBlock::GetBlocksUpToCommonAncestorInMainChain() const
+CBlock::CommonAncestorSuccessorBlocks CBlock::GetBlocksUpToCommonAncestorInMainChain() const
 {
-    CommonAncestorsMembers res;
+    CommonAncestorSuccessorBlocks res;
 
     // we expect both the main chain and the fork's previous block to be in the block index
 
@@ -1771,9 +1771,9 @@ CBlock::ChainReplaceTxs CBlock::GetAlternateChainTxsUpToCommonAncestor(CTxDB& tx
 {
     ChainReplaceTxs result;
 
-    CommonAncestorsMembers    commonAncestory = GetBlocksUpToCommonAncestorInMainChain();
-    std::vector<CTransaction> mainChainBlocksTxs; // to be disconnected
-    std::vector<CTransaction> forkChainBlocksTxs; // to be reconnected
+    CommonAncestorSuccessorBlocks commonAncestory = GetBlocksUpToCommonAncestorInMainChain();
+    std::vector<CTransaction>     mainChainBlocksTxs; // to be disconnected
+    std::vector<CTransaction>     forkChainBlocksTxs; // to be reconnected
 
     // get all txs in blocks up to the common ancestor in the main chain
     for (const uint256& bh : commonAncestory.inMainChain) {
