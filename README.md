@@ -254,3 +254,45 @@ validateaddress <neblioaddress>
 validatepubkey <nebliopubkey>
 verifymessage <neblioaddress> <signature> <message>
 ```
+
+
+# Responsible Vulnerability Disclosure
+If you believe you've found a security issue in our product or service, we encourage you to notify us. We welcome working with skilled security researchers across the globe to resolve any issues promptly.
+
+This Bug Bounty program is an open offer to external individuals to receive compensation for reporting Neblio bugs, specifically related to security of the core functionality of the network.
+
+## Sumbimissions
+Submissions should be made through the following [contact page](https://nebl.io/contact)
+
+Include following in your report:
+1. Severity - Your opinion on the severity of the issue (e.g. high, moderate, low)
+2. Summary - Add summary of the vulnerability
+3. Description - Any additional details about this vulnerability
+4. Steps - Steps to reproduce
+5. Supporting Material/References - Source code to replicate, list any additional material (e.g. screenshots, logs, etc.)
+6. Impact - What security impact could an attacker achieve?
+7. Your name and country.
+
+Please be available to cooperate with the Neblio Team to provide further information on the bug if needed.
+
+## Rewards
+Rewards are at the discretion of Neblio, and we will not be awarding significant bounties for low severity bugs.
+
+## Examples of eligible bugs
+### Critical
+- bugs which can take full control of Neblio nodes.
+- bugs which can lead to private key leakage.
+- bugs which can lead to unauthorised transfer or generation of coins/NTP1 tokens.
+### High
+- bugs which can incur Denial of Service (DoS) in the Neblio network through P2P network.
+### Medium
+- bugs which can incur Denial of Service (DoS) in the Neblio network through the RPC-API.
+- bugs allowing unauthorized operations on user accounts.
+
+## Program Rules
+- Vulnerabilities relating to this repository, the core software running the Neblio Network, are eligible for this program. Out-of-scope vulnerabilities impacting other software we release may be considered under this program at Neblio's discretion. 
+- As this is a private program, please do not discuss this program or any vulnerabilities (even resolved ones) outside of the program without express consent from the organization.
+- Please provide detailed reports with reproducible steps. If the report is not detailed enough to reproduce the issue, the issue will not be eligible for a reward.
+- Submit vulnerabilities only for the latest release, vulnerabilities submitted for older versions are not eligible for a reward.
+
+Not following these rules will disqualify you from receiving any rewards.
