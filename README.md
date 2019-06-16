@@ -261,7 +261,7 @@ If you believe you've found a security issue in our product or service, we encou
 
 This Bug Bounty program is an open offer to external individuals to receive compensation for reporting Neblio bugs, specifically related to security of the core functionality of the network.
 
-## Sumbimissions
+## Submissions
 Submissions should be made through the following [contact page](https://nebl.io/contact)
 
 Include following in your report:
