@@ -498,10 +498,10 @@ template <typename T>
 class CMedianFilter
 {
 private:
-    std::vector<T> vValues;
-    std::vector<T> vSorted;
-    unsigned int   nSize;
-    mutable boost::mutex   mtx;
+    std::vector<T>       vValues;
+    std::vector<T>       vSorted;
+    unsigned int         nSize;
+    mutable boost::mutex mtx;
 
 public:
     CMedianFilter(unsigned int size, T initial_value)
@@ -767,7 +767,7 @@ std::string CalculateHashOfFile(const boost::filesystem::path& PathToFile,
     return calculator.getHashAndReset();
 }
 
-std::size_t GetFreeDiskSpace(const boost::filesystem::path& path);
+uintmax_t GetFreeDiskSpace(const boost::filesystem::path& path);
 
 bool                    SC_DeleteOperationScheduledOnRestart(const std::string& OpName);
 boost::filesystem::path SC_GetScheduledOperationFileName(const std::string& OpName);

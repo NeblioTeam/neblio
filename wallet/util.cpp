@@ -982,7 +982,7 @@ const boost::filesystem::path& GetDataDir(bool fNetSpecific)
     LOCK(csPathCached);
 
     std::string datadirVal;
-    bool datadirExists = mapArgs.get("-datadir", datadirVal);
+    bool        datadirExists = mapArgs.get("-datadir", datadirVal);
     if (datadirExists) {
         path = fs::system_complete(datadirVal);
         if (!fs::is_directory(path)) {
@@ -1173,7 +1173,8 @@ void AddTimeData(const CNetAddr& ip, int64_t nTime)
                 printf("%+" PRId64 "  ", n);
             printf("|  ");
         }
-        printf("nTimeOffset = %+" PRId64 "  (%+" PRId64 " minutes)\n", nTimeOffset.load(), nTimeOffset.load() / 60);
+        printf("nTimeOffset = %+" PRId64 "  (%+" PRId64 " minutes)\n", nTimeOffset.load(),
+               nTimeOffset.load() / 60);
     }
 }
 
@@ -1325,8 +1326,10 @@ std::string ZlibDecompress(const std::string& compressedString)
     return res;
 }
 
-size_t GetFreeDiskSpace(const boost::filesystem::path& path)
+std::uintmax_t GetFreeDiskSpace(const boost::filesystem::path& path)
 {
+    static_assert(sizeof(std::uintmax_t) >= 8,
+                  "Max integers size must be at least 8 bytes to store diskspace size correctly");
     return boost::filesystem::space(path).free;
 }
 

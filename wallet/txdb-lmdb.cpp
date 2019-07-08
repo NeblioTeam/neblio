@@ -210,17 +210,15 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
     std::shuffle(urls.begin(), urls.end(), rng);
 
     // Diskspace check disabled as it doesn't deliver reliable results for large files
-    //    uint64_t    fileSize = static_cast<uint64_t>(NTP1Tools::GetInt64Field(fileVal.get_obj(),
-    //    "size"));
-    // check available diskspace (disabled because it doesn't work properly on Windows
-    //    std::size_t availableSpace = GetFreeDiskSpace(dbdir);
-    //    std::size_t requiredSpace  = static_cast<std::size_t>(static_cast<double>(fileSize) * 1.2);
-    //    if (requiredSpace > availableSpace) {
-    //        throw std::runtime_error("Diskspace insufficient to download the blockchain; Available: " +
-    //                                 std::to_string(availableSpace / ONE_MB) +
-    //                                 " MB; required: " + std::to_string(requiredSpace / ONE_MB) + "
-    //                                 MB");
-    //    }
+    std::uintmax_t fileSize = static_cast<uint64_t>(NTP1Tools::GetInt64Field(fileVal.get_obj(), "size"));
+    // check available diskspace
+    std::uintmax_t availableSpace = GetFreeDiskSpace(dbdir);
+    std::uintmax_t requiredSpace  = static_cast<std::size_t>(static_cast<double>(fileSize) * 1.2);
+    if (requiredSpace > availableSpace) {
+        throw std::runtime_error("Diskspace insufficient to download the blockchain; Available: " +
+                                 std::to_string(availableSpace / ONE_MB) +
+                                 " MB; required: " + std::to_string(requiredSpace / ONE_MB) + "MB");
+    }
 
     std::string        leaf           = filesystem::path(urls.at(0)).filename().string();
     filesystem::path   downloadTarget = dbdir / leaf;
