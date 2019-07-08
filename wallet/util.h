@@ -50,6 +50,8 @@ static const std::uintmax_t ONE_GB = (static_cast<uint64_t>(1) << 30);
 
 // option to erase the blockchain and resync
 const std::string SC_SCHEDULE_ON_RESTART_OPNAME__RESYNC = "resync";
+// option to rescan the wallet
+const std::string SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN = "rescan";
 
 #define BEGIN(a) ((char*)&(a))
 #define END(a) ((char*)&((&(a))[1]))

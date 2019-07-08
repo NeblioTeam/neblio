@@ -408,6 +408,9 @@ void CTxDB::init_blockindex(bool fRemoveOld)
                 nFile++;
             }
         }
+
+        // after a resync, always rescan the wallet
+        SC_CreateScheduledOperationOnRestart(SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN);
     }
 
     try {

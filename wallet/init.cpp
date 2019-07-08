@@ -20,6 +20,7 @@
 #include <boost/filesystem/fstream.hpp>
 #include <boost/interprocess/sync/file_lock.hpp>
 #include <openssl/crypto.h>
+#include <thread>
 
 #ifndef WIN32
 #include <signal.h>
@@ -37,8 +38,6 @@ unsigned int             nDerivationMethodIndex;
 unsigned int             nMinerSleep;
 bool                     fUseFastIndex;
 enum Checkpoints::CPMode CheckpointsMode;
-
-std::string SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN = "rescan";
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -757,8 +756,30 @@ bool AppInit2()
     uiInterface.InitMessage(_("Loading block index..."));
     printf("Loading block index...\n");
     nStart = GetTimeMillis();
-    if (!LoadBlockIndex())
-        return InitError(_("Error loading blockindex; check the log"));
+    if (!LoadBlockIndex()) {
+        static const int MAX_ATTEMPTS = 3;
+        bool             success      = false;
+        for (int i = 0; i < MAX_ATTEMPTS; i++) {
+            std::string msg = "Loading block index failed. Assuming it is corrupt and attempting "
+                              "to resync (attempt: " +
+                              std::to_string(i + 1) + "/" + std::to_string(MAX_ATTEMPTS) + ")...";
+            uiInterface.InitMessage(msg);
+            printf("%s", msg.c_str());
+            std::this_thread::sleep_for(std::chrono::seconds(3));
+            {
+                CTxDB txdb("r");
+                txdb.init_blockindex(true);
+            }
+            if (LoadBlockIndex()) {
+                // if loaded successfully, break, otherwise continue to try again
+                success = true;
+                break;
+            }
+        }
+        if (!success) {
+            return InitError(_("Error loading blockindex after many attempts; check the log"));
+        }
+    }
 
     // as LoadBlockIndex can take several minutes, it's possible the user
     // requested to kill bitcoin-qt during the last operation. If so, exit.
