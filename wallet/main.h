@@ -81,7 +81,7 @@ inline int64_t FutureDrift(int64_t nTime) { return nTime + 10 * 60; } // up to 1
 extern libzerocoin::Params*                         ZCParams;
 extern CScript                                      COINBASE_FLAGS;
 extern CCriticalSection                             cs_main;
-extern std::unordered_map<uint256, CBlockIndex*>    mapBlockIndex;
+extern std::map<uint256, CBlockIndex*>              mapBlockIndex;
 extern std::set<std::pair<COutPoint, unsigned int>> setStakeSeen;
 extern CBlockIndex*                                 pindexGenesisBlock;
 static constexpr const int64_t                      TARGET_AVERAGE_BLOCK_COUNT = 100;
@@ -1726,7 +1726,7 @@ public:
 
     explicit CBlockLocator(uint256 hashBlock)
     {
-        std::unordered_map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
+        std::map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
         if (mi != mapBlockIndex.end())
             Set((*mi).second);
     }
@@ -1761,7 +1761,7 @@ public:
         int nDistance = 0;
         int nStep     = 1;
         BOOST_FOREACH (const uint256& hash, vHave) {
-            std::unordered_map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hash);
+            std::map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hash);
             if (mi != mapBlockIndex.end()) {
                 CBlockIndex* pindex = (*mi).second;
                 if (pindex->IsInMainChain())
@@ -1778,7 +1778,7 @@ public:
     {
         // Find the first block the caller has in the main chain
         BOOST_FOREACH (const uint256& hash, vHave) {
-            std::unordered_map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hash);
+            std::map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hash);
             if (mi != mapBlockIndex.end()) {
                 CBlockIndex* pindex = (*mi).second;
                 if (pindex->IsInMainChain())
@@ -1792,7 +1792,7 @@ public:
     {
         // Find the first block the caller has in the main chain
         BOOST_FOREACH (const uint256& hash, vHave) {
-            std::unordered_map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hash);
+            std::map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hash);
             if (mi != mapBlockIndex.end()) {
                 CBlockIndex* pindex = (*mi).second;
                 if (pindex->IsInMainChain())

@@ -779,8 +779,8 @@ bool AppInit2()
     if (printBlockExists) {
         string strMatch = printBlockVal;
         int    nFound   = 0;
-        for (unordered_map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.begin();
-             mi != mapBlockIndex.end(); ++mi) {
+        for (map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.begin(); mi != mapBlockIndex.end();
+             ++mi) {
             uint256 hash = (*mi).first;
             if (strncmp(hash.ToString().c_str(), strMatch.c_str(), strMatch.size()) == 0) {
                 CBlockIndex* pindex = (*mi).second;
