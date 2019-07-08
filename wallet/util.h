@@ -44,9 +44,9 @@
 static const int64_t COIN = 100000000;
 static const int64_t CENT = 1000000;
 
-static const std::size_t ONE_KB = (static_cast<uint64_t>(1) << 10);
-static const std::size_t ONE_MB = (static_cast<uint64_t>(1) << 20);
-static const std::size_t ONE_GB = (static_cast<uint64_t>(1) << 30);
+static const std::uintmax_t ONE_KB = (static_cast<uint64_t>(1) << 10);
+static const std::uintmax_t ONE_MB = (static_cast<uint64_t>(1) << 20);
+static const std::uintmax_t ONE_GB = (static_cast<uint64_t>(1) << 30);
 
 // option to erase the blockchain and resync
 const std::string SC_SCHEDULE_ON_RESTART_OPNAME__RESYNC = "resync";
@@ -744,7 +744,7 @@ using Ripemd160HashCalculator = HashCalculator<RIPEMD160_CTX, RIPEMD160_Init, RI
 
 template <typename HashCalculatorClass>
 std::string CalculateHashOfFile(const boost::filesystem::path& PathToFile,
-                                const std::size_t              ChunkSize = ONE_MB)
+                                const std::uintmax_t           ChunkSize = ONE_MB)
 {
     if (!boost::filesystem::exists(PathToFile)) {
         throw std::runtime_error("While attempting to calculate hash of file, it does not exist: " +
