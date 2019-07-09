@@ -7,6 +7,7 @@
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
+#include <boost/scope_exit.hpp>
 #include <boost/thread/future.hpp>
 #include <boost/version.hpp>
 #include <random>
@@ -90,8 +91,9 @@ bool CTxDB::need_resize(uint64_t threshold_size)
 
 void lmdb_resized(MDB_env* env)
 {
-    // TODO: use RAII to restore allowing txns
     mdb_txn_safe::prevent_new_txns();
+    BOOST_SCOPE_EXIT(void) { mdb_txn_safe::allow_new_txns(); }
+    BOOST_SCOPE_EXIT_END
 
     printf("LMDB map resize detected.\n");
 
@@ -114,8 +116,6 @@ void lmdb_resized(MDB_env* env)
        << "  Old: " << old / (1024 * 1024) << "MiB"
        << ", New: " << new_mapsize / (1024 * 1024) << "MiB";
     printf("%s\n", ss.str().c_str());
-
-    mdb_txn_safe::allow_new_txns();
 }
 
 void CTxDB::do_resize(uint64_t increase_size)
@@ -158,6 +158,8 @@ void CTxDB::do_resize(uint64_t increase_size)
     new_mapsize += (new_mapsize % mst.ms_psize);
 
     mdb_txn_safe::prevent_new_txns();
+    BOOST_SCOPE_EXIT(void) { mdb_txn_safe::allow_new_txns(); }
+    BOOST_SCOPE_EXIT_END
 
     if (activeBatch) {
         throw std::runtime_error(
@@ -175,8 +177,6 @@ void CTxDB::do_resize(uint64_t increase_size)
        << "  Old: " << mei.me_mapsize / (1024 * 1024) << "MiB"
        << ", New: " << new_mapsize / (1024 * 1024) << "MiB";
     printf("%s", ss.str().c_str());
-
-    mdb_txn_safe::allow_new_txns();
 }
 
 bool IsQuickSyncOSCompatible(const std::string& osValue)
