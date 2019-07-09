@@ -756,24 +756,47 @@ bool AppInit2()
     uiInterface.InitMessage(_("Loading block index..."));
     printf("Loading block index...\n");
     nStart = GetTimeMillis();
-    if (!LoadBlockIndex()) {
+
+    // load the block index and make a few attempts before deeming it impossible
+    bool loadBlockIndexSuccess = false;
+    try {
+        loadBlockIndexSuccess = LoadBlockIndex();
+    } catch (std::exception& ex) {
+        printf("Failed to load the block index in the first attempt with error: %s", ex.what());
+    }
+
+    if (!loadBlockIndexSuccess) {
         static const int MAX_ATTEMPTS = 3;
         bool             success      = false;
         for (int i = 0; i < MAX_ATTEMPTS; i++) {
-            std::string msg = "Loading block index failed. Assuming it is corrupt and attempting "
-                              "to resync (attempt: " +
-                              std::to_string(i + 1) + "/" + std::to_string(MAX_ATTEMPTS) + ")...";
+            // print the error message
+            const std::string msg = "Loading block index failed. Assuming it is corrupt and attempting "
+                                    "to resync (attempt: " +
+                                    std::to_string(i + 1) + "/" + std::to_string(MAX_ATTEMPTS) + ")...";
             uiInterface.InitMessage(msg);
             printf("%s", msg.c_str());
+
+            // after failure, wait 3 seconds to try again
             std::this_thread::sleep_for(std::chrono::seconds(3));
+
+            // clear stuff that are loaded before, and reset the blockchain database
             {
+                // TODO: mapBlockIndex values need to be cleaned, so used unique/shared_ptr
+                mapBlockIndex.clear();
+                setStakeSeen.clear();
                 CTxDB txdb("r");
                 txdb.init_blockindex(true);
             }
-            if (LoadBlockIndex()) {
-                // if loaded successfully, break, otherwise continue to try again
-                success = true;
-                break;
+
+            // attempt to recreate the blockindex again
+            try {
+                if (LoadBlockIndex()) {
+                    // if loaded successfully, break, otherwise continue to try again
+                    success = true;
+                    break;
+                }
+            } catch (std::exception& ex) {
+                printf("Failed to load the block index with error: %s", ex.what());
             }
         }
         if (!success) {
