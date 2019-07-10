@@ -2577,10 +2577,9 @@ bool CBlock::AddToBlockIndex(uint256 nBlockPos, const uint256& hashProof, CTxDB&
     pindexNew->hashProof = hashProof;
 
     // ppcoin: compute stake modifier
-    uint64_t                 nStakeModifier          = 0;
-    bool                     fGeneratedStakeModifier = false;
-    ConstCBlockIndexSmartPtr prev                    = boost::atomic_load(&pindexNew->pprev);
-    if (!ComputeNextStakeModifier(prev, nStakeModifier, fGeneratedStakeModifier))
+    uint64_t nStakeModifier          = 0;
+    bool     fGeneratedStakeModifier = false;
+    if (!ComputeNextStakeModifier(pindexNew->pprev.get(), nStakeModifier, fGeneratedStakeModifier))
         return error("AddToBlockIndex() : ComputeNextStakeModifier() failed");
     pindexNew->SetStakeModifier(nStakeModifier, fGeneratedStakeModifier);
     pindexNew->nStakeModifierChecksum = GetStakeModifierChecksum(pindexNew.get());
