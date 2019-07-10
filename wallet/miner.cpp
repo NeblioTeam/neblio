@@ -85,8 +85,8 @@ public:
     }
 };
 
-uint64_t nLastBlockTx                 = 0;
-uint64_t nLastBlockSize               = 0;
+uint64_t               nLastBlockTx   = 0;
+uint64_t               nLastBlockSize = 0;
 boost::atomic<int64_t> nLastCoinStakeSearchInterval{0};
 
 // We want to sort transactions by priority and fee, so:
@@ -119,7 +119,7 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
     if (!pblock.get())
         return NULL;
 
-    CBlockIndex* pindexPrev = pindexBest;
+    CBlockIndexSmartPtr pindexPrev = boost::atomic_load(&pindexBest);
 
     // Create coinbase tx
     CTransaction txNew;
@@ -167,15 +167,14 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
     // a transaction spammer can cheaply fill blocks using
     // 1-satoshi-fee transactions. It should be set above the real
     // cost to you of processing a transaction.
-    int64_t nMinTxFee = MIN_TX_FEE;
+    int64_t     nMinTxFee = MIN_TX_FEE;
     std::string minTxFeeVal;
-    bool minTxFeeExists = mapArgs.get("-mintxfee", minTxFeeVal);
-    if (minTxFeeExists)
-    {
+    bool        minTxFeeExists = mapArgs.get("-mintxfee", minTxFeeVal);
+    if (minTxFeeExists) {
         ParseMoney(minTxFeeVal, nMinTxFee);
     }
 
-    pblock->nBits = GetNextTargetRequired(pindexPrev, fProofOfStake);
+    pblock->nBits = GetNextTargetRequired(pindexPrev.get(), fProofOfStake);
 
     // map of issued token names in this block vs token hashes
     // this is used to prevent duplicate token names
@@ -425,7 +424,7 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
         pblock->nTime         = max(pindexPrev->GetPastTimeLimit() + 1, pblock->GetMaxTransactionTime());
         pblock->nTime         = max(pblock->GetBlockTime(), PastDrift(pindexPrev->GetBlockTime()));
         if (!fProofOfStake)
-            pblock->UpdateTime(pindexPrev);
+            pblock->UpdateTime(pindexPrev.get());
         pblock->nNonce = 0;
     }
 
@@ -571,7 +570,8 @@ bool CheckStake(CBlock* pblock, CWallet& wallet)
     return true;
 }
 
-bool is_vNodesEmpty_safe() {
+bool is_vNodesEmpty_safe()
+{
     LOCK(cs_vNodes);
     return vNodes.empty();
 }
@@ -607,7 +607,7 @@ void StakeMiner(CWallet* pwallet)
         }
 
         if (fTryToSync) {
-            fTryToSync = false;
+            fTryToSync             = false;
             std::size_t vNodesSize = 0;
             {
                 LOCK(cs_vNodes);

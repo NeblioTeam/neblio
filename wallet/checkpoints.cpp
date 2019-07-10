@@ -136,7 +136,7 @@ CBlockIndex* GetLastSyncCheckpoint()
         error("GetSyncCheckpoint: block index missing for current sync-checkpoint %s",
               hashSyncCheckpoint.ToString().c_str());
     else
-        return mapBlockIndex[hashSyncCheckpoint];
+        return boost::atomic_load(&mapBlockIndex[hashSyncCheckpoint]).get();
     return NULL;
 }
 
@@ -150,14 +150,14 @@ bool ValidateSyncCheckpoint(uint256 hashCheckpoint)
         return error("ValidateSyncCheckpoint: block index missing for received sync-checkpoint %s",
                      hashCheckpoint.ToString().c_str());
 
-    CBlockIndex* pindexSyncCheckpoint = mapBlockIndex[hashSyncCheckpoint];
-    CBlockIndex* pindexCheckpointRecv = mapBlockIndex[hashCheckpoint];
+    CBlockIndexSmartPtr pindexSyncCheckpoint = boost::atomic_load(&mapBlockIndex[hashSyncCheckpoint]);
+    CBlockIndexSmartPtr pindexCheckpointRecv = boost::atomic_load(&mapBlockIndex[hashCheckpoint]);
 
     if (pindexCheckpointRecv->nHeight <= pindexSyncCheckpoint->nHeight) {
         // Received an older checkpoint, trace back from current checkpoint
         // to the same height of the received checkpoint to verify
         // that current checkpoint should be a descendant block
-        CBlockIndex* pindex = pindexSyncCheckpoint;
+        CBlockIndexSmartPtr pindex = pindexSyncCheckpoint;
         while (pindex->nHeight > pindexCheckpointRecv->nHeight)
             if (!(pindex = pindex->pprev))
                 return error("ValidateSyncCheckpoint: pprev null - block index structure failure");
@@ -173,7 +173,7 @@ bool ValidateSyncCheckpoint(uint256 hashCheckpoint)
     // Received checkpoint should be a descendant block of the current
     // checkpoint. Trace back to the same height of current checkpoint
     // to verify.
-    CBlockIndex* pindex = pindexCheckpointRecv;
+    CBlockIndexSmartPtr pindex = pindexCheckpointRecv;
     while (pindex->nHeight > pindexSyncCheckpoint->nHeight)
         if (!(pindex = pindex->pprev))
             return error("ValidateSyncCheckpoint: pprev2 null - block index structure failure");
@@ -213,11 +213,11 @@ bool AcceptPendingSyncCheckpoint()
             return false;
         }
 
-        CTxDB        txdb;
-        CBlockIndex* pindexCheckpoint = mapBlockIndex[hashPendingCheckpoint];
+        CTxDB               txdb;
+        CBlockIndexSmartPtr pindexCheckpoint = boost::atomic_load(&mapBlockIndex[hashPendingCheckpoint]);
         if (!pindexCheckpoint->IsInMainChain()) {
             CBlock block;
-            if (!block.ReadFromDisk(pindexCheckpoint))
+            if (!block.ReadFromDisk(pindexCheckpoint.get()))
                 return error("AcceptPendingSyncCheckpoint: ReadFromDisk failed for sync checkpoint %s",
                              hashPendingCheckpoint.ToString().c_str());
             if (!block.SetBestChain(txdb, pindexCheckpoint)) {
@@ -248,13 +248,15 @@ bool AcceptPendingSyncCheckpoint()
 // Automatically select a suitable sync-checkpoint
 uint256 AutoSelectSyncCheckpoint()
 {
-    const CBlockIndex* pindex = pindexBest;
+    ConstCBlockIndexSmartPtr pindex = boost::atomic_load(&pindexBest);
     // Search backward for a block within max span and maturity window
     unsigned int nTS = TargetSpacing();
     while (pindex->pprev &&
-           (pindex->GetBlockTime() + nCheckpointSpan * nTS > pindexBest.load()->GetBlockTime() ||
-            pindex->nHeight + nCheckpointSpan > pindexBest.load()->nHeight))
+           (pindex->GetBlockTime() + nCheckpointSpan * nTS >
+                boost::atomic_load(&pindexBest)->GetBlockTime() ||
+            pindex->nHeight + nCheckpointSpan > boost::atomic_load(&pindexBest)->nHeight)) {
         pindex = pindex->pprev;
+    }
     return pindex->GetBlockHash();
 }
 
@@ -268,13 +270,13 @@ bool CheckSync(const uint256& hashBlock, const CBlockIndex* pindexPrev)
     LOCK(cs_hashSyncCheckpoint);
     // sync-checkpoint should always be accepted block
     assert(mapBlockIndex.count(hashSyncCheckpoint));
-    const CBlockIndex* pindexSync = mapBlockIndex[hashSyncCheckpoint];
+    const CBlockIndex* pindexSync = boost::atomic_load(&mapBlockIndex[hashSyncCheckpoint]).get();
 
     if (nHeight > pindexSync->nHeight) {
         // trace back to same height as sync-checkpoint
         const CBlockIndex* pindex = pindexPrev;
         while (pindex->nHeight > pindexSync->nHeight)
-            if (!(pindex = pindex->pprev))
+            if (!(pindex = pindex->pprev.get()))
                 return error("CheckSync: pprev null - block index structure failure");
         if (pindex->nHeight < pindexSync->nHeight || pindex->GetBlockHash() != hashSyncCheckpoint)
             return false; // only descendant of sync-checkpoint can pass check
@@ -304,16 +306,16 @@ bool ResetSyncCheckpoint()
 {
     LOCK(cs_hashSyncCheckpoint);
     MapCheckpoints::MapType mapCheckpointsCopy = mapCheckpoints.getInternalMap();
-    const uint256& hash = mapCheckpointsCopy.rbegin()->second;
+    const uint256&          hash               = mapCheckpointsCopy.rbegin()->second;
     if (mapBlockIndex.count(hash) && !mapBlockIndex[hash]->IsInMainChain()) {
         // checkpoint block accepted but not yet in main chain
         printf("ResetSyncCheckpoint: SetBestChain to hardened checkpoint %s\n", hash.ToString().c_str());
         CTxDB  txdb;
         CBlock block;
-        if (!block.ReadFromDisk(mapBlockIndex[hash]))
+        if (!block.ReadFromDisk(boost::atomic_load(&mapBlockIndex[hash]).get()))
             return error("ResetSyncCheckpoint: ReadFromDisk failed for hardened checkpoint %s",
                          hash.ToString().c_str());
-        if (!block.SetBestChain(txdb, mapBlockIndex[hash])) {
+        if (!block.SetBestChain(txdb, boost::atomic_load(&mapBlockIndex[hash]))) {
             return error("ResetSyncCheckpoint: SetBestChain failed for hardened checkpoint %s",
                          hash.ToString().c_str());
         }
@@ -409,7 +411,7 @@ bool IsMatureSyncCheckpoint()
     assert(mapBlockIndex.count(hashSyncCheckpoint));
     int                nCbM       = CoinbaseMaturity();
     unsigned int       nSMA       = StakeMinAge();
-    const CBlockIndex* pindexSync = mapBlockIndex[hashSyncCheckpoint];
+    const CBlockIndex* pindexSync = boost::atomic_load(&mapBlockIndex[hashSyncCheckpoint]).get();
     return (nBestHeight >= pindexSync->nHeight + nCbM ||
             pindexSync->GetBlockTime() + nSMA < GetAdjustedTime());
 }
@@ -418,7 +420,7 @@ int64_t GetLastCheckpointBlockHeight()
 {
     MapCheckpoints::value_type lastValue;
     if (fTestNet) {
-        if(mapCheckpointsTestnet.back(lastValue)) {
+        if (mapCheckpointsTestnet.back(lastValue)) {
             return lastValue.first;
         } else {
             return 0;
@@ -471,7 +473,7 @@ bool CSyncCheckpoint::ProcessSyncCheckpoint(CNode* pfrom)
                hashCheckpoint.ToString().c_str());
         // Ask this guy to fill in what we're missing
         if (pfrom) {
-            pfrom->PushGetBlocks(pindexBest, hashCheckpoint);
+            pfrom->PushGetBlocks(pindexBest.get(), hashCheckpoint);
             // ask directly as well in case rejected earlier by duplicate
             // proof-of-stake because getblocks may not get it this time
             pfrom->AskFor(CInv(MSG_BLOCK, mapOrphanBlocks.count(hashCheckpoint)
@@ -484,12 +486,12 @@ bool CSyncCheckpoint::ProcessSyncCheckpoint(CNode* pfrom)
     if (!Checkpoints::ValidateSyncCheckpoint(hashCheckpoint))
         return false;
 
-    CTxDB        txdb;
-    CBlockIndex* pindexCheckpoint = mapBlockIndex[hashCheckpoint];
+    CTxDB               txdb;
+    CBlockIndexSmartPtr pindexCheckpoint = boost::atomic_load(&mapBlockIndex[hashCheckpoint]);
     if (!pindexCheckpoint->IsInMainChain()) {
         // checkpoint chain received but not yet main chain
         CBlock block;
-        if (!block.ReadFromDisk(pindexCheckpoint))
+        if (!block.ReadFromDisk(pindexCheckpoint.get()))
             return error("ProcessSyncCheckpoint: ReadFromDisk failed for sync checkpoint %s",
                          hashCheckpoint.ToString().c_str());
         if (!block.SetBestChain(txdb, pindexCheckpoint)) {

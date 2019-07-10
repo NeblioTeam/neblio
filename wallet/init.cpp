@@ -20,7 +20,6 @@
 #include <boost/filesystem/fstream.hpp>
 #include <boost/interprocess/sync/file_lock.hpp>
 #include <openssl/crypto.h>
-#include <thread>
 
 #ifndef WIN32
 #include <signal.h>
@@ -777,11 +776,10 @@ bool AppInit2()
             printf("%s", msg.c_str());
 
             // after failure, wait 3 seconds to try again
-            std::this_thread::sleep_for(std::chrono::seconds(3));
+            boost::this_thread::sleep_for(boost::chrono::seconds(3));
 
             // clear stuff that are loaded before, and reset the blockchain database
             {
-                // TODO: mapBlockIndex values need to be cleaned, so used unique/shared_ptr
                 mapBlockIndex.clear();
                 setStakeSeen.clear();
                 CTxDB txdb("r");
@@ -823,13 +821,12 @@ bool AppInit2()
     if (printBlockExists) {
         string strMatch = printBlockVal;
         int    nFound   = 0;
-        for (map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.begin(); mi != mapBlockIndex.end();
-             ++mi) {
+        for (BlockIndexMapType::iterator mi = mapBlockIndex.begin(); mi != mapBlockIndex.end(); ++mi) {
             uint256 hash = (*mi).first;
             if (strncmp(hash.ToString().c_str(), strMatch.c_str(), strMatch.size()) == 0) {
-                CBlockIndex* pindex = (*mi).second;
-                CBlock       block;
-                block.ReadFromDisk(pindex);
+                CBlockIndexSmartPtr pindex = mi->second;
+                CBlock              block;
+                block.ReadFromDisk(pindex.get());
                 block.BuildMerkleTree();
                 block.print();
                 printf("\n");
@@ -910,10 +907,10 @@ bool AppInit2()
 
     RegisterWallet(pwalletMain);
 
-    CBlockIndex* pindexRescan = pindexBest;
+    CBlockIndexSmartPtr pindexRescan = pindexBest;
     if (GetBoolArg("-rescan") ||
         SC_CheckOperationOnRestartScheduleThenDeleteIt(SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN))
-        pindexRescan = pindexGenesisBlock;
+        pindexRescan = boost::atomic_load(&pindexGenesisBlock);
     else {
         CWalletDB     walletdb(strWalletFileName);
         CBlockLocator locator;
@@ -921,12 +918,12 @@ bool AppInit2()
             pindexRescan = locator.GetBlockIndex();
     }
     if (pindexBest != pindexRescan && pindexBest && pindexRescan &&
-        pindexBest.load()->nHeight > pindexRescan->nHeight) {
+        pindexBest->nHeight > pindexRescan->nHeight) {
         uiInterface.InitMessage(_("Rescanning..."));
         printf("Rescanning last %i blocks (from block %i)...\n",
-               pindexBest.load()->nHeight - pindexRescan->nHeight, pindexRescan->nHeight);
+               pindexBest->nHeight - pindexRescan->nHeight, pindexRescan->nHeight);
         nStart = GetTimeMillis();
-        pwalletMain->ScanForWalletTransactions(pindexRescan, true);
+        pwalletMain->ScanForWalletTransactions(pindexRescan.get(), true);
         printf(" rescan      %15" PRId64 "ms\n", GetTimeMillis() - nStart);
     }
 
@@ -986,8 +983,6 @@ bool AppInit2()
 #endif
 
     // ********************************************************* Step 13: finished
-    // TODO should wait for REST server to finish loading here but this only affects the
-    // drawing of the QT GUI and the log statement
     uiInterface.InitMessage(_("Done loading"));
     printf("Done loading\n");
 

@@ -843,7 +843,7 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
             // no need to read and scan block, if block was created before
             // our wallet birthday (as adjusted for block time variability)
             if (nTimeFirstKey && (pindex->nTime < (nTimeFirstKey - 7200))) {
-                pindex = pindex->pnext;
+                pindex = boost::atomic_load(&pindex->pnext).get();
                 continue;
             }
 
@@ -853,7 +853,7 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
                 if (AddToWalletIfInvolvingMe(tx, &block, fUpdate))
                     ret++;
             }
-            pindex = pindex->pnext;
+            pindex = boost::atomic_load(&pindex->pnext).get();
         }
         uiInterface.InitMessage(_("Rescanning... ") + "(done)");
     }
@@ -906,7 +906,7 @@ void CWallet::ReacceptWalletTransactions()
         }
         if (!vMissingTx.empty()) {
             // TODO: optimize this to scan just part of the block chain?
-            if (ScanForWalletTransactions(pindexGenesisBlock))
+            if (ScanForWalletTransactions(boost::atomic_load(&pindexGenesisBlock).get()))
                 fRepeat = true; // Found missing transactions: re-do re-accept.
         }
     }
@@ -1802,7 +1802,7 @@ bool CWallet::CreateTransaction(CScript scriptPubKey, int64_t nValue, CWalletTx&
 }
 
 // NovaCoin: get current stake weight
-bool CWallet::GetStakeWeight(const CKeyStore& keystore, uint64_t& nMinWeight, uint64_t& nMaxWeight,
+bool CWallet::GetStakeWeight(const CKeyStore& /*keystore*/, uint64_t& nMinWeight, uint64_t& nMaxWeight,
                              uint64_t& nWeight)
 {
     // Choose coins to use
@@ -1859,8 +1859,8 @@ bool CWallet::GetStakeWeight(const CKeyStore& keystore, uint64_t& nMinWeight, ui
 bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int64_t nSearchInterval,
                               int64_t nFees, CTransaction& txNew, CKey& key)
 {
-    CBlockIndex* pindexPrev = pindexBest;
-    CBigNum      bnTargetPerCoinDay;
+    CBlockIndexSmartPtr pindexPrev = boost::atomic_load(&pindexBest);
+    CBigNum             bnTargetPerCoinDay;
     bnTargetPerCoinDay.SetCompact(nBits);
 
     txNew.vin.clear();
@@ -2778,10 +2778,10 @@ void CWallet::GetKeyBirthTimes(std::map<CKeyID, int64_t>& mapKeyBirth) const
             mapKeyBirth[it->first] = it->second.nCreateTime;
 
     // map in which we'll infer heights of other keys
-    CBlockIndex* pindexMax = FindBlockByHeight(
+    CBlockIndexSmartPtr pindexMax = FindBlockByHeight(
         std::max(0, nBestHeight - 144)); // the tip can be reorganised; use a 144-block safety margin
-    std::map<CKeyID, CBlockIndex*> mapKeyFirstBlock;
-    std::set<CKeyID>               setKeys;
+    std::map<CKeyID, CBlockIndexSmartPtr> mapKeyFirstBlock;
+    std::set<CKeyID>                      setKeys;
     GetKeys(setKeys);
     for (const CKeyID& keyid : setKeys) {
         if (mapKeyBirth.count(keyid) == 0)
@@ -2798,8 +2798,8 @@ void CWallet::GetKeyBirthTimes(std::map<CKeyID, int64_t>& mapKeyBirth) const
     for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end();
          it++) {
         // iterate over all wallet transactions...
-        const CWalletTx&                                wtx  = (*it).second;
-        std::map<uint256, CBlockIndex*>::const_iterator blit = mapBlockIndex.find(wtx.hashBlock);
+        const CWalletTx&                  wtx  = it->second;
+        BlockIndexMapType::const_iterator blit = mapBlockIndex.find(wtx.hashBlock);
         if (blit != mapBlockIndex.end() && blit->second->IsInMainChain()) {
             // ... which are already in a block
             int nHeight = blit->second->nHeight;
@@ -2808,9 +2808,9 @@ void CWallet::GetKeyBirthTimes(std::map<CKeyID, int64_t>& mapKeyBirth) const
                 ::ExtractAffectedKeys(*this, txout.scriptPubKey, vAffected);
                 for (const CKeyID& keyid : vAffected) {
                     // ... and all their affected keys
-                    std::map<CKeyID, CBlockIndex*>::iterator rit = mapKeyFirstBlock.find(keyid);
+                    std::map<CKeyID, CBlockIndexSmartPtr>::iterator rit = mapKeyFirstBlock.find(keyid);
                     if (rit != mapKeyFirstBlock.end() && nHeight < rit->second->nHeight)
-                        rit->second = blit->second;
+                        rit->second = boost::atomic_load(&blit->second);
                 }
                 vAffected.clear();
             }
@@ -2818,7 +2818,8 @@ void CWallet::GetKeyBirthTimes(std::map<CKeyID, int64_t>& mapKeyBirth) const
     }
 
     // Extract block timestamps for those keys
-    for (std::map<CKeyID, CBlockIndex*>::const_iterator it = mapKeyFirstBlock.begin();
-         it != mapKeyFirstBlock.end(); it++)
+    for (std::map<CKeyID, CBlockIndexSmartPtr>::const_iterator it = mapKeyFirstBlock.begin();
+         it != mapKeyFirstBlock.end(); it++) {
         mapKeyBirth[it->first] = it->second->nTime - 7200; // block times can be 2h off
+    }
 }

@@ -33,13 +33,13 @@ int64_t GetWeight(int64_t nIntervalBeginning, int64_t nIntervalEnd)
 }
 
 // Get the last stake modifier and its generation time from a given block
-static bool GetLastStakeModifier(const CBlockIndex* pindex, uint64_t& nStakeModifier,
+static bool GetLastStakeModifier(ConstCBlockIndexSmartPtr& pindex, uint64_t& nStakeModifier,
                                  int64_t& nModifierTime)
 {
     if (!pindex)
         return error("GetLastStakeModifier: null pindex");
     while (pindex && pindex->pprev && !pindex->GeneratedStakeModifier())
-        pindex = pindex->pprev;
+        pindex = boost::atomic_load(&pindex->pprev);
     if (!pindex->GeneratedStakeModifier())
         return error("GetLastStakeModifier: no generation at genesis block");
     nStakeModifier = pindex->nStakeModifier;
@@ -67,19 +67,19 @@ static int64_t GetStakeModifierSelectionInterval()
 // select a block from the candidate blocks in vSortedByTimestamp, excluding
 // already selected blocks in vSelectedBlocks, and with timestamp up to
 // nSelectionIntervalStop.
-static bool SelectBlockFromCandidates(vector<pair<int64_t, uint256>>&   vSortedByTimestamp,
-                                      map<uint256, const CBlockIndex*>& mapSelectedBlocks,
+static bool SelectBlockFromCandidates(vector<pair<int64_t, uint256>>&         vSortedByTimestamp,
+                                      map<uint256, ConstCBlockIndexSmartPtr>& mapSelectedBlocks,
                                       int64_t nSelectionIntervalStop, uint64_t nStakeModifierPrev,
-                                      const CBlockIndex** pindexSelected)
+                                      ConstCBlockIndexSmartPtr* pindexSelected)
 {
     bool    fSelected = false;
     uint256 hashBest  = 0;
-    *pindexSelected   = (const CBlockIndex*)0;
+    *pindexSelected   = nullptr;
     BOOST_FOREACH (const PAIRTYPE(int64_t, uint256) & item, vSortedByTimestamp) {
         if (!mapBlockIndex.count(item.second))
             return error("SelectBlockFromCandidates: failed to find block index for candidate block %s",
                          item.second.ToString().c_str());
-        const CBlockIndex* pindex = mapBlockIndex[item.second];
+        ConstCBlockIndexSmartPtr pindex = boost::atomic_load(&mapBlockIndex[item.second]);
         if (fSelected && pindex->GetBlockTime() > nSelectionIntervalStop)
             break;
         if (mapSelectedBlocks.count(pindex->GetBlockHash()) > 0)
@@ -96,11 +96,11 @@ static bool SelectBlockFromCandidates(vector<pair<int64_t, uint256>>&   vSortedB
             hashSelection >>= 32;
         if (fSelected && hashSelection < hashBest) {
             hashBest        = hashSelection;
-            *pindexSelected = (const CBlockIndex*)pindex;
+            *pindexSelected = pindex;
         } else if (!fSelected) {
             fSelected       = true;
             hashBest        = hashSelection;
-            *pindexSelected = (const CBlockIndex*)pindex;
+            *pindexSelected = pindex;
         }
     }
     if (fDebug && GetBoolArg("-printstakemodifier"))
@@ -121,7 +121,7 @@ static bool SelectBlockFromCandidates(vector<pair<int64_t, uint256>>&   vSortedB
 // block. This is to make it difficult for an attacker to gain control of
 // additional bits in the stake modifier, even after generating a chain of
 // blocks.
-bool ComputeNextStakeModifier(const CBlockIndex* pindexPrev, uint64_t& nStakeModifier,
+bool ComputeNextStakeModifier(ConstCBlockIndexSmartPtr& pindexPrev, uint64_t& nStakeModifier,
                               bool& fGeneratedStakeModifier)
 {
     nStakeModifier          = 0;
@@ -149,19 +149,19 @@ bool ComputeNextStakeModifier(const CBlockIndex* pindexPrev, uint64_t& nStakeMod
     int64_t nSelectionInterval = GetStakeModifierSelectionInterval();
     int64_t nSelectionIntervalStart =
         (pindexPrev->GetBlockTime() / nModifierInterval) * nModifierInterval - nSelectionInterval;
-    const CBlockIndex* pindex = pindexPrev;
+    ConstCBlockIndexSmartPtr pindex = pindexPrev;
     while (pindex && pindex->GetBlockTime() >= nSelectionIntervalStart) {
         vSortedByTimestamp.push_back(make_pair(pindex->GetBlockTime(), pindex->GetBlockHash()));
-        pindex = pindex->pprev;
+        pindex = boost::atomic_load(&pindex->pprev);
     }
     int nHeightFirstCandidate = pindex ? (pindex->nHeight + 1) : 0;
     reverse(vSortedByTimestamp.begin(), vSortedByTimestamp.end());
     sort(vSortedByTimestamp.begin(), vSortedByTimestamp.end());
 
     // Select 64 blocks from candidate blocks to generate stake modifier
-    uint64_t                         nStakeModifierNew      = 0;
-    int64_t                          nSelectionIntervalStop = nSelectionIntervalStart;
-    map<uint256, const CBlockIndex*> mapSelectedBlocks;
+    uint64_t                               nStakeModifierNew      = 0;
+    int64_t                                nSelectionIntervalStop = nSelectionIntervalStart;
+    map<uint256, ConstCBlockIndexSmartPtr> mapSelectedBlocks;
     for (int nRound = 0; nRound < min(64, (int)vSortedByTimestamp.size()); nRound++) {
         // add an interval section to the current selection round
         nSelectionIntervalStop += GetStakeModifierSelectionIntervalSection(nRound);
@@ -189,9 +189,9 @@ bool ComputeNextStakeModifier(const CBlockIndex* pindexPrev, uint64_t& nStakeMod
             // '=' indicates proof-of-stake blocks not selected
             if (pindex->IsProofOfStake())
                 strSelectionMap.replace(pindex->nHeight - nHeightFirstCandidate, 1, "=");
-            pindex = pindex->pprev;
+            pindex = boost::atomic_load(&pindex->pprev);
         }
-        BOOST_FOREACH (const PAIRTYPE(uint256, const CBlockIndex*) & item, mapSelectedBlocks) {
+        BOOST_FOREACH (const PAIRTYPE(uint256, ConstCBlockIndexSmartPtr) & item, mapSelectedBlocks) {
             // 'S' indicates selected proof-of-stake blocks
             // 'W' indicates selected proof-of-work blocks
             strSelectionMap.replace(item.second->nHeight - nHeightFirstCandidate, 1,
@@ -219,12 +219,12 @@ static bool GetKernelStakeModifier(uint256 hashBlockFrom, uint64_t& nStakeModifi
     nStakeModifier = 0;
     if (!mapBlockIndex.count(hashBlockFrom))
         return error("GetKernelStakeModifier() : block not indexed");
-    const CBlockIndex* pindexFrom                      = mapBlockIndex[hashBlockFrom];
-    nStakeModifierHeight                               = pindexFrom->nHeight;
-    nStakeModifierTime                                 = pindexFrom->GetBlockTime();
-    int64_t            nStakeModifierSelectionInterval = GetStakeModifierSelectionInterval();
-    unsigned int       nSMA                            = StakeMinAge();
-    const CBlockIndex* pindex                          = pindexFrom;
+    ConstCBlockIndexSmartPtr pindexFrom = boost::atomic_load(&mapBlockIndex[hashBlockFrom]);
+    nStakeModifierHeight                = pindexFrom->nHeight;
+    nStakeModifierTime                  = pindexFrom->GetBlockTime();
+    int64_t                  nStakeModifierSelectionInterval = GetStakeModifierSelectionInterval();
+    unsigned int             nSMA                            = StakeMinAge();
+    ConstCBlockIndexSmartPtr pindex                          = pindexFrom;
     // loop to find the stake modifier later by a selection interval
     while (nStakeModifierTime < pindexFrom->GetBlockTime() + nStakeModifierSelectionInterval) {
         if (!pindex->pnext) { // reached best block; may happen if node is behind on block chain
@@ -237,7 +237,7 @@ static bool GetKernelStakeModifier(uint256 hashBlockFrom, uint64_t& nStakeModifi
             else
                 return false;
         }
-        pindex = pindex->pnext;
+        pindex = boost::atomic_load(&pindex->pnext);
         if (pindex->GeneratedStakeModifier()) {
             nStakeModifierHeight = pindex->nHeight;
             nStakeModifierTime   = pindex->GetBlockTime();

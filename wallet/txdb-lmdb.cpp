@@ -823,18 +823,18 @@ bool CTxDB::WriteCheckpointPubKey(const string& strPubKey)
     return Write(string("strCheckpointPubKey"), strPubKey, db_main);
 }
 
-static CBlockIndex* InsertBlockIndex(uint256 hash)
+static CBlockIndexSmartPtr InsertBlockIndex(uint256 hash)
 {
     if (hash == 0)
         return nullptr;
 
     // Return existing
-    map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hash);
+    BlockIndexMapType::iterator mi = mapBlockIndex.find(hash);
     if (mi != mapBlockIndex.end())
-        return (*mi).second;
+        return mi->second;
 
     // Create new
-    CBlockIndex* pindexNew = new CBlockIndex();
+    CBlockIndexSmartPtr pindexNew = boost::make_shared<CBlockIndex>();
     if (!pindexNew)
         throw runtime_error("LoadBlockIndex() : new CBlockIndex failed");
     mi                    = mapBlockIndex.insert(make_pair(hash, pindexNew)).first;
@@ -921,23 +921,23 @@ bool CTxDB::LoadBlockIndex()
         diskindex.SetBlockHash(blockHash);
 
         // Construct block index object
-        CBlockIndex* pindexNew    = InsertBlockIndex(blockHash);
-        pindexNew->pprev          = InsertBlockIndex(diskindex.hashPrev);
-        pindexNew->pnext          = InsertBlockIndex(diskindex.hashNext);
-        pindexNew->blockKeyInDB   = diskindex.blockKeyInDB;
-        pindexNew->nHeight        = diskindex.nHeight;
-        pindexNew->nMint          = diskindex.nMint;
-        pindexNew->nMoneySupply   = diskindex.nMoneySupply;
-        pindexNew->nFlags         = diskindex.nFlags;
-        pindexNew->nStakeModifier = diskindex.nStakeModifier;
-        pindexNew->prevoutStake   = diskindex.prevoutStake;
-        pindexNew->nStakeTime     = diskindex.nStakeTime;
-        pindexNew->hashProof      = diskindex.hashProof;
-        pindexNew->nVersion       = diskindex.nVersion;
-        pindexNew->hashMerkleRoot = diskindex.hashMerkleRoot;
-        pindexNew->nTime          = diskindex.nTime;
-        pindexNew->nBits          = diskindex.nBits;
-        pindexNew->nNonce         = diskindex.nNonce;
+        CBlockIndexSmartPtr pindexNew = InsertBlockIndex(blockHash);
+        pindexNew->pprev              = InsertBlockIndex(diskindex.hashPrev);
+        pindexNew->pnext              = InsertBlockIndex(diskindex.hashNext);
+        pindexNew->blockKeyInDB       = diskindex.blockKeyInDB;
+        pindexNew->nHeight            = diskindex.nHeight;
+        pindexNew->nMint              = diskindex.nMint;
+        pindexNew->nMoneySupply       = diskindex.nMoneySupply;
+        pindexNew->nFlags             = diskindex.nFlags;
+        pindexNew->nStakeModifier     = diskindex.nStakeModifier;
+        pindexNew->prevoutStake       = diskindex.prevoutStake;
+        pindexNew->nStakeTime         = diskindex.nStakeTime;
+        pindexNew->hashProof          = diskindex.hashProof;
+        pindexNew->nVersion           = diskindex.nVersion;
+        pindexNew->hashMerkleRoot     = diskindex.hashMerkleRoot;
+        pindexNew->nTime              = diskindex.nTime;
+        pindexNew->nBits              = diskindex.nBits;
+        pindexNew->nNonce             = diskindex.nNonce;
 
         // Watch for genesis block
         if (pindexGenesisBlock == nullptr &&
@@ -975,8 +975,8 @@ bool CTxDB::LoadBlockIndex()
     vector<pair<int, CBlockIndex*>> vSortedByHeight;
     vSortedByHeight.reserve(mapBlockIndex.size());
     uiInterface.InitMessage("Building chain trust... (allocating memory...)");
-    for (const PAIRTYPE(uint256, CBlockIndex*) & item : mapBlockIndex) {
-        CBlockIndex* pindex = item.second;
+    for (const PAIRTYPE(uint256, CBlockIndexSmartPtr) & item : mapBlockIndex) {
+        CBlockIndex* pindex = item.second.get();
         vSortedByHeight.push_back(make_pair(pindex->nHeight, pindex));
     }
     // use heap-sort to guarantee O(n*log(n)) performance, since std::sort() can have O(n^2) complexity
@@ -1010,13 +1010,13 @@ bool CTxDB::LoadBlockIndex()
     if (!mapBlockIndex.count(hashBestChain))
         return error("CTxDB::LoadBlockIndex() : hashBestChain not found in the block index");
     pindexBest      = mapBlockIndex[hashBestChain];
-    nBestHeight     = pindexBest.load()->nHeight;
-    nBestChainTrust = pindexBest.load()->nChainTrust;
+    nBestHeight     = pindexBest->nHeight;
+    nBestChainTrust = pindexBest->nChainTrust;
 
     printf("LoadBlockIndex(): hashBestChain=%s  height=%d  trust=%s  date=%s\n",
            hashBestChain.ToString().substr(0, 20).c_str(), nBestHeight.load(),
            CBigNum(nBestChainTrust).ToString().c_str(),
-           DateTimeStrFormat("%x %H:%M:%S", pindexBest.load()->GetBlockTime()).c_str());
+           DateTimeStrFormat("%x %H:%M:%S", pindexBest->GetBlockTime()).c_str());
 
     // NovaCoin: load hashSyncCheckpoint
     if (!ReadSyncCheckpoint(Checkpoints::hashSyncCheckpoint))
@@ -1038,10 +1038,10 @@ bool CTxDB::LoadBlockIndex()
     if (nCheckDepth > nBestHeight)
         nCheckDepth = nBestHeight;
     printf("Verifying last %i blocks at level %i\n", nCheckDepth, nCheckLevel);
-    CBlockIndex*               pindexFork = nullptr;
+    CBlockIndexSmartPtr        pindexFork = nullptr;
     map<uint256, CBlockIndex*> mapBlockPos;
     loadedCount = 0;
-    for (CBlockIndex* pindex = pindexBest; pindex && pindex->pprev; pindex = pindex->pprev) {
+    for (CBlockIndexSmartPtr pindex = pindexBest; pindex && pindex->pprev; pindex = pindex->pprev) {
 
         if (loadedCount % 100 == 0) {
             uiInterface.InitMessage("Verifying latest blocks (" + std::to_string(loadedCount) + "/" +
@@ -1052,7 +1052,7 @@ bool CTxDB::LoadBlockIndex()
         if (fRequestShutdown || pindex->nHeight < nBestHeight - nCheckDepth)
             break;
         CBlock block;
-        if (!block.ReadFromDisk(pindex))
+        if (!block.ReadFromDisk(pindex.get()))
             return error("LoadBlockIndex() : block.ReadFromDisk failed");
         // check level 1: verify block validity
         // check level 7: verify block signature too
@@ -1064,7 +1064,7 @@ bool CTxDB::LoadBlockIndex()
         // check level 2: verify transaction index validity
         if (nCheckLevel > 1) {
             uint256 pos      = pindex->blockKeyInDB;
-            mapBlockPos[pos] = pindex;
+            mapBlockPos[pos] = pindex.get();
             for (const CTransaction& tx : block.vtx) {
                 uint256  hashTx = tx.GetHash();
                 CTxIndex txindex;
@@ -1155,7 +1155,7 @@ bool CTxDB::LoadBlockIndex()
         printf("LoadBlockIndex() : *** moving best chain pointer back to block %d\n",
                pindexFork->nHeight);
         CBlock block;
-        if (!block.ReadFromDisk(pindexFork))
+        if (!block.ReadFromDisk(pindexFork.get()))
             return error("LoadBlockIndex() : block.ReadFromDisk failed");
         CTxDB txdb;
         block.SetBestChain(txdb, pindexFork);

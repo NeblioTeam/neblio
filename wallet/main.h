@@ -13,6 +13,9 @@
 #include "zerocoin/Zerocoin.h"
 
 #include <atomic>
+#include <boost/enable_shared_from_this.hpp>
+#include <boost/make_shared.hpp>
+#include <boost/shared_ptr.hpp>
 #include <list>
 #include <unordered_map>
 #include <unordered_set>
@@ -78,12 +81,16 @@ static const uint256
 inline int64_t PastDrift(int64_t nTime) { return nTime - 10 * 60; }   // up to 10 minutes from the past
 inline int64_t FutureDrift(int64_t nTime) { return nTime + 10 * 60; } // up to 10 minutes in the future
 
+using CBlockIndexSmartPtr      = boost::shared_ptr<CBlockIndex>;
+using ConstCBlockIndexSmartPtr = boost::shared_ptr<const CBlockIndex>;
+using BlockIndexMapType        = std::map<uint256, CBlockIndexSmartPtr>;
+
 extern libzerocoin::Params*                         ZCParams;
 extern CScript                                      COINBASE_FLAGS;
 extern CCriticalSection                             cs_main;
-extern std::map<uint256, CBlockIndex*>              mapBlockIndex;
+extern BlockIndexMapType                            mapBlockIndex;
 extern std::set<std::pair<COutPoint, unsigned int>> setStakeSeen;
-extern CBlockIndex*                                 pindexGenesisBlock;
+extern CBlockIndexSmartPtr                          pindexGenesisBlock;
 static constexpr const int64_t                      TARGET_AVERAGE_BLOCK_COUNT = 100;
 extern unsigned int                                 nTargetSpacing;
 extern unsigned int                                 nStakeMinAge;
@@ -95,7 +102,7 @@ extern boost::atomic<int>                           nBestHeight;
 extern uint256                                      nBestChainTrust;
 extern uint256                                      nBestInvalidTrust;
 extern uint256                                      hashBestChain;
-extern boost::atomic<CBlockIndex*>                  pindexBest;
+extern CBlockIndexSmartPtr                          pindexBest;
 extern boost::atomic<uint32_t>                      nTransactionsUpdated;
 extern uint64_t                                     nLastBlockTx;
 extern uint64_t                                     nLastBlockSize;
@@ -126,36 +133,36 @@ class CReserveKey;
 class CTxDB;
 class CTxIndex;
 
-void         RegisterWallet(std::shared_ptr<CWallet> pwalletIn);
-void         UnregisterWallet(std::shared_ptr<CWallet> pwalletIn);
-void         SyncWithWallets(const CTransaction& tx, const CBlock* pblock = NULL, bool fUpdate = false,
-                             bool fConnect = true);
-bool         ProcessBlock(CNode* pfrom, CBlock* pblock);
-bool         CheckDiskSpace(uint64_t nAdditionalBytes = 0);
-bool         LoadBlockIndex(bool fAllowNew = true);
-void         PrintBlockTree();
-CBlockIndex* FindBlockByHeight(int nHeight);
-bool         ProcessMessages(CNode* pfrom);
-bool         SendMessages(CNode* pto, bool fSendTrickle);
-void         ThreadImport(void* parg);
-bool         CheckProofOfWork(uint256 hash, unsigned int nBits);
-unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake);
-int64_t      GetProofOfWorkReward(int64_t nFees);
-int64_t      GetProofOfStakeReward(int64_t nCoinAge, int64_t nFees);
-unsigned int ComputeMinWork(unsigned int nBase, int64_t nTime);
-unsigned int ComputeMinStake(unsigned int nBase, int64_t nTime, unsigned int nBlockTime);
-int          GetNumBlocksOfPeers();
-bool         IsInitialBlockDownload();
-bool         IsInitialBlockDownload_tolerant();
-bool         __IsInitialBlockDownload_internal();
-std::string  GetWarnings(std::string strFor);
-bool         GetTransaction(const uint256& hash, CTransaction& tx, uint256& hashBlock);
-uint256      WantedByOrphan(const CBlock* pblockOrphan);
-const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake);
-void               StakeMiner(CWallet* pwallet);
-void               ResendWalletTransactions(bool fForce = false);
-CTransaction       FetchTxFromDisk(const uint256& txid);
-CTransaction       FetchTxFromDisk(const uint256& txid, CTxDB& txdb);
+void RegisterWallet(std::shared_ptr<CWallet> pwalletIn);
+void UnregisterWallet(std::shared_ptr<CWallet> pwalletIn);
+void SyncWithWallets(const CTransaction& tx, const CBlock* pblock = NULL, bool fUpdate = false,
+                     bool fConnect = true);
+bool ProcessBlock(CNode* pfrom, CBlock* pblock);
+bool CheckDiskSpace(uint64_t nAdditionalBytes = 0);
+bool LoadBlockIndex(bool fAllowNew = true);
+void PrintBlockTree();
+CBlockIndexSmartPtr FindBlockByHeight(int nHeight);
+bool                ProcessMessages(CNode* pfrom);
+bool                SendMessages(CNode* pto, bool fSendTrickle);
+void                ThreadImport(void* parg);
+bool                CheckProofOfWork(uint256 hash, unsigned int nBits);
+unsigned int        GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake);
+int64_t             GetProofOfWorkReward(int64_t nFees);
+int64_t             GetProofOfStakeReward(int64_t nCoinAge, int64_t nFees);
+unsigned int        ComputeMinWork(unsigned int nBase, int64_t nTime);
+unsigned int        ComputeMinStake(unsigned int nBase, int64_t nTime, unsigned int nBlockTime);
+int                 GetNumBlocksOfPeers();
+bool                IsInitialBlockDownload();
+bool                IsInitialBlockDownload_tolerant();
+bool                __IsInitialBlockDownload_internal();
+std::string         GetWarnings(std::string strFor);
+bool                GetTransaction(const uint256& hash, CTransaction& tx, uint256& hashBlock);
+uint256             WantedByOrphan(const CBlock* pblockOrphan);
+const CBlockIndex*  GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake);
+void                StakeMiner(CWallet* pwallet);
+void                ResendWalletTransactions(bool fForce = false);
+CTransaction        FetchTxFromDisk(const uint256& txid);
+CTransaction        FetchTxFromDisk(const uint256& txid, CTxDB& txdb);
 
 /** given a neblio tx, get the corresponding NTP1 tx */
 void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, CTxDB& txdb,
@@ -686,8 +693,8 @@ public:
         @return Returns true if all checks succeed
      */
     bool ConnectInputs(CTxDB& txdb, MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTestPool,
-                       const CDiskTxPos& posThisTx, const CBlockIndex* pindexBlock, bool fBlock,
-                       bool fMiner);
+                       const CDiskTxPos& posThisTx, const ConstCBlockIndexSmartPtr& pindexBlock,
+                       bool fBlock, bool fMiner);
     bool CheckTransaction() const;
     bool GetCoinAge(CTxDB& txdb, uint64_t& nCoinAge) const; // ppcoin: get transaction coin age
 
@@ -1428,15 +1435,17 @@ public:
     CommonAncestorSuccessorBlocks GetBlocksUpToCommonAncestorInMainChain() const;
     ChainReplaceTxs               GetAlternateChainTxsUpToCommonAncestor(CTxDB& txdb) const;
 
-    bool DisconnectBlock(CTxDB& txdb, CBlockIndex* pindex);
-    bool ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck = false);
+    bool DisconnectBlock(CTxDB& txdb, CBlockIndexSmartPtr& pindex);
+    bool ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool fJustCheck = false);
     bool VerifyInputsUnspent(CTxDB& txdb) const;
     bool VerifyBlock(CTxDB& txdb);
     bool ReadFromDisk(const CBlockIndex* pindex, bool fReadTransactions = true);
     bool ReadFromDisk(const CBlockIndex* pindex, CTxDB& txdb, bool fReadTransactions = true);
-    bool SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew, const bool createDbTransaction = true);
+    bool SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
+                      const bool createDbTransaction = true);
     bool AddToBlockIndex(uint256 nBlockPos, const uint256& hashProof, CTxDB& txdb,
-                         CBlockIndex** newBlockIdxPtr = nullptr, const bool createDbTransaction = true);
+                         CBlockIndexSmartPtr* newBlockIdxPtr      = nullptr,
+                         const bool           createDbTransaction = true);
     bool CheckBlock(bool fCheckPOW = true, bool fCheckMerkleRoot = true, bool fCheckSig = true) const;
     bool AcceptBlock();
     bool GetCoinAge(uint64_t& nCoinAge) const; // ppcoin: calculate total coin age spent in block
@@ -1444,7 +1453,8 @@ public:
     bool CheckBlockSignature() const;
 
 private:
-    bool SetBestChainInner(CTxDB& txdb, CBlockIndex* pindexNew, const bool createDbTransaction = true);
+    bool SetBestChainInner(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
+                           const bool createDbTransaction = true);
 };
 
 /** The block chain is a tree shaped structure starting with the
@@ -1457,12 +1467,12 @@ private:
 class CBlockIndex
 {
 public:
-    const uint256* phashBlock;
-    CBlockIndex*   pprev;
-    CBlockIndex*   pnext;
-    uint256        blockKeyInDB;
-    uint256        nChainTrust; // ppcoin: trust score of block chain
-    int            nHeight;
+    const uint256*      phashBlock;
+    CBlockIndexSmartPtr pprev;
+    CBlockIndexSmartPtr pnext;
+    uint256             blockKeyInDB;
+    uint256             nChainTrust; // ppcoin: trust score of block chain
+    int                 nHeight;
 
     int64_t nMint;
     int64_t nMoneySupply;
@@ -1564,7 +1574,7 @@ public:
 
     uint256 GetBlockTrust() const;
 
-    bool IsInMainChain() const { return (pnext || this == pindexBest); }
+    bool IsInMainChain() const { return (pnext || this == boost::atomic_load(&pindexBest).get()); }
 
     bool CheckIndex() const { return true; }
 
@@ -1582,7 +1592,8 @@ public:
         int64_t* pend   = &pmedian[nMedianTimeSpan];
 
         const CBlockIndex* pindex = this;
-        for (int i = 0; i < nMedianTimeSpan && pindex; i++, pindex = pindex->pprev)
+        for (int i = 0; i < nMedianTimeSpan && pindex;
+             i++, pindex = boost::atomic_load(&pindex->pprev).get())
             *(--pbegin) = pindex->GetBlockTime();
 
         std::sort(pbegin, pend);
@@ -1627,7 +1638,7 @@ public:
                          "nMint=%s, nMoneySupply=%s, nFlags=(%s)(%d)(%s), nStakeModifier=%016" PRIx64
                          ", nStakeModifierChecksum=%08x, hashProof=%s, prevoutStake=(%s), nStakeTime=%d "
                          "merkle=%s, hashBlock=%s)",
-                         pprev, pnext, blockKeyInDB.ToString().c_str(), nHeight,
+                         pprev.get(), pnext.get(), blockKeyInDB.ToString().c_str(), nHeight,
                          FormatMoney(nMint).c_str(), FormatMoney(nMoneySupply).c_str(),
                          GeneratedStakeModifier() ? "MOD" : "-", GetStakeEntropyBit(),
                          IsProofOfStake() ? "PoS" : "PoW", nStakeModifier, nStakeModifierChecksum,
@@ -1726,9 +1737,9 @@ public:
 
     explicit CBlockLocator(uint256 hashBlock)
     {
-        std::map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
+        BlockIndexMapType::iterator mi = mapBlockIndex.find(hashBlock);
         if (mi != mapBlockIndex.end())
-            Set((*mi).second);
+            Set(boost::atomic_load(&mi->second).get());
     }
 
     CBlockLocator(const std::vector<uint256>& vHaveIn) { vHave = vHaveIn; }
@@ -1748,7 +1759,7 @@ public:
 
             // Exponentially larger steps back
             for (int i = 0; pindex && i < nStep; i++)
-                pindex = pindex->pprev;
+                pindex = boost::atomic_load(&pindex->pprev).get();
             if (vHave.size() > 10)
                 nStep *= 2;
         }
@@ -1761,9 +1772,9 @@ public:
         int nDistance = 0;
         int nStep     = 1;
         BOOST_FOREACH (const uint256& hash, vHave) {
-            std::map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hash);
+            BlockIndexMapType::iterator mi = mapBlockIndex.find(hash);
             if (mi != mapBlockIndex.end()) {
-                CBlockIndex* pindex = (*mi).second;
+                CBlockIndexSmartPtr pindex = boost::atomic_load(&mi->second);
                 if (pindex->IsInMainChain())
                     return nDistance;
             }
@@ -1774,13 +1785,13 @@ public:
         return nDistance;
     }
 
-    CBlockIndex* GetBlockIndex()
+    CBlockIndexSmartPtr GetBlockIndex()
     {
         // Find the first block the caller has in the main chain
         BOOST_FOREACH (const uint256& hash, vHave) {
-            std::map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hash);
+            BlockIndexMapType::iterator mi = mapBlockIndex.find(hash);
             if (mi != mapBlockIndex.end()) {
-                CBlockIndex* pindex = (*mi).second;
+                CBlockIndexSmartPtr pindex = boost::atomic_load(&mi->second);
                 if (pindex->IsInMainChain())
                     return pindex;
             }
@@ -1792,9 +1803,9 @@ public:
     {
         // Find the first block the caller has in the main chain
         BOOST_FOREACH (const uint256& hash, vHave) {
-            std::map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hash);
+            BlockIndexMapType::iterator mi = mapBlockIndex.find(hash);
             if (mi != mapBlockIndex.end()) {
-                CBlockIndex* pindex = (*mi).second;
+                CBlockIndexSmartPtr pindex = boost::atomic_load(&mi->second);
                 if (pindex->IsInMainChain())
                     return hash;
             }
@@ -1804,7 +1815,7 @@ public:
 
     int GetHeight()
     {
-        CBlockIndex* pindex = GetBlockIndex();
+        CBlockIndex* pindex = GetBlockIndex().get();
         if (!pindex)
             return 0;
         return pindex->nHeight;
