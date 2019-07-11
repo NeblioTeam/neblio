@@ -426,10 +426,15 @@ void CTxDB::init_blockindex(bool fRemoveOld)
         this->Close();
 
         try {
+
             // binary layout compatibility is necessary for quicksync to work
             RunCrossPlatformSerializationTests();
             printf("Binary format tests have passed.\n");
             DoQuickSync(directory);
+
+            // after quicksync, a rescan has to be done
+            SC_CreateScheduledOperationOnRestart(SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN);
+
         } catch (std::exception& ex) {
             printf("Quicksync exited with an exception (this is not expected to happen): %s\n",
                    ex.what());
