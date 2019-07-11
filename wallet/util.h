@@ -53,6 +53,9 @@ const std::string SC_SCHEDULE_ON_RESTART_OPNAME__RESYNC = "resync";
 // option to rescan the wallet
 const std::string SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN = "rescan";
 
+/* Milliseconds between model updates */
+extern boost::atomic_int MODEL_UPDATE_DELAY;
+
 #define BEGIN(a) ((char*)&(a))
 #define END(a) ((char*)&((&(a))[1]))
 #define UBEGIN(a) ((unsigned char*)&(a))
