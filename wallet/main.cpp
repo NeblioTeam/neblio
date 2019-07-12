@@ -2432,10 +2432,10 @@ bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
     }
 
     // New best block
+    hashBestChain = hash;
+    boost::atomic_store(&pindexBest, pindexNew);
     CBlockIndexSmartPtr pindexBestPtr = boost::atomic_load(&pindexBest);
-    hashBestChain                     = hash;
-    pindexBest                        = pindexNew;
-    pblockindexFBBHLast               = NULL;
+    pblockindexFBBHLast               = nullptr;
     nBestHeight                       = pindexBestPtr->nHeight;
     nBestChainTrust                   = pindexNew->nChainTrust;
     nTimeBestReceived                 = GetTime();
