@@ -20,6 +20,22 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/breadth_first_search.hpp>
+#include <boost/graph/depth_first_search.hpp>
+
+using BlockIndexVertexType = uint256;
+using BlockIndexGraphType =
+    boost::adjacency_list<boost::vecS, boost::vecS, boost::directedS, BlockIndexVertexType>;
+using DescriptorType             = boost::graph_traits<BlockIndexGraphType>::vertex_descriptor;
+using VerticesDescriptorsMapType = std::map<uint256, DescriptorType>;
+
+enum GraphTraverseType
+{
+    BreadthFirst,
+    DepthFirst
+};
+
 class CWallet;
 class CBlock;
 class CBlockIndex;
@@ -2008,5 +2024,8 @@ public:
 
 void ExportBootstrapBlockchain(const string& filename, std::atomic<bool>& stopped,
                                std::atomic<double>& progress, boost::promise<void>& result);
+void ExportBootstrapBlockchainWithOrphans(const string& filename, std::atomic<bool>& stopped,
+                                          std::atomic<double>& progress, boost::promise<void>& result,
+                                          GraphTraverseType traverseType);
 
 #endif

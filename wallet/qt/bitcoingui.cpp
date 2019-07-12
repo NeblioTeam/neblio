@@ -59,13 +59,13 @@
 #include <QUrl>
 #include <QVBoxLayout>
 
+#include <boost/atomic.hpp>
 #include <iostream>
 #include <memory>
-#include <boost/atomic.hpp>
 
 extern std::shared_ptr<CWallet> pwalletMain;
-extern boost::atomic<int64_t>  nLastCoinStakeSearchInterval;
-double          GetPoSKernelPS();
+extern boost::atomic<int64_t>   nLastCoinStakeSearchInterval;
+double                          GetPoSKernelPS();
 
 BitcoinGUI::BitcoinGUI(QWidget* parent)
     : QMainWindow(parent), clientModel(0), walletModel(0), encryptWalletAction(0),
@@ -694,7 +694,7 @@ void BitcoinGUI::setNumBlocks(int count, int nTotalBlocks)
 
     // switch Tachyon logo
     if (!logoSwitched && clientModel->getNumBlocks() >=
-        GetNetForks().getFirstBlockOfFork(NetworkFork::NETFORK__3_TACHYON)) {
+                             GetNetForks().getFirstBlockOfFork(NetworkFork::NETFORK__3_TACHYON)) {
         overviewPage->ui->left_logo_label->setPixmap(overviewPage->ui->left_logo_tachyon_pix);
         logoSwitched = true;
     }
@@ -857,6 +857,38 @@ void BitcoinGUI::exportBlockchainBootstrap()
                                                     tr("Blockchain Data (*.dat)"));
 
     if (!filename.isEmpty()) {
+        QMessageBox::StandardButton includeOrphanResult = QMessageBox::question(
+            this, "Include ophans?",
+            "Would you like to include orphan blocks?\n\nIf you don't know what this means, select no.",
+            QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel, QMessageBox::No);
+        if (includeOrphanResult != QMessageBox::Yes && includeOrphanResult != QMessageBox::No) {
+            // this means cancel/escape was chosen
+            return;
+        }
+
+        GraphTraverseType graphTraverseType = GraphTraverseType::DepthFirst;
+
+        if (includeOrphanResult == QMessageBox::Yes) {
+            QMessageBox msgBox;
+            msgBox.setWindowTitle("Blockchain graph order?");
+            msgBox.setText("How would you like to order the blockchain graph in the "
+                           "bootstrap file? Breadth-first or Depth-first?");
+            QAbstractButton* pButtonDepth = msgBox.addButton(tr("Depth-First"), QMessageBox::NoRole);
+            QAbstractButton* pButtonBreadth =
+                msgBox.addButton(tr("Breadth-first"), QMessageBox::YesRole);
+            msgBox.addButton(tr("Cancel"), QMessageBox::RejectRole);
+
+            msgBox.exec();
+
+            if (msgBox.clickedButton() == pButtonBreadth) {
+                graphTraverseType = GraphTraverseType::BreadthFirst;
+            } else if (msgBox.clickedButton() == pButtonDepth) {
+                graphTraverseType = GraphTraverseType::DepthFirst;
+            } else {
+                return;
+            }
+        }
+
         blockchainExporterProg->setValue(0);
         blockchainExporterProg->reset();
         blockchainExporterProg->setLabelText("Exporting... please wait.");
@@ -866,10 +898,20 @@ void BitcoinGUI::exportBlockchainBootstrap()
         boost::unique_future<void> finished_future = finished.get_future();
         std::atomic<bool>          stopped{false};
         std::atomic<double>        progress{false};
-        boost::thread exporterThread(boost::bind(&ExportBootstrapBlockchain, filename.toStdString(),
-                                                 boost::ref(stopped), boost::ref(progress),
-                                                 boost::ref(finished)));
-        exporterThread.detach();
+
+        if (includeOrphanResult == QMessageBox::Yes) {
+            // with orphans
+            boost::thread exporterThread(boost::bind(
+                &ExportBootstrapBlockchainWithOrphans, filename.toStdString(), boost::ref(stopped),
+                boost::ref(progress), boost::ref(finished), graphTraverseType));
+            exporterThread.detach();
+        } else {
+            // without orphans
+            boost::thread exporterThread(boost::bind(&ExportBootstrapBlockchain, filename.toStdString(),
+                                                     boost::ref(stopped), boost::ref(progress),
+                                                     boost::ref(finished)));
+            exporterThread.detach();
+        }
 
         while (!finished_future.is_ready()) {
             QApplication::processEvents();

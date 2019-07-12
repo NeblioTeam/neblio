@@ -84,9 +84,9 @@ boost::atomic<bool> fImporting{false};
 
 CMedianFilter<int> cPeerBlockCounts(5, 0); // Amount of blocks that other nodes claim to have
 
-unordered_map<uint256, CBlock*>    mapOrphanBlocks;
-multimap<uint256, CBlock*>         mapOrphanBlocksByPrev;
-set<pair<COutPoint, unsigned int>> setStakeSeenOrphan;
+std::unordered_map<uint256, CBlock*> mapOrphanBlocks;
+multimap<uint256, CBlock*>           mapOrphanBlocksByPrev;
+set<pair<COutPoint, unsigned int>>   setStakeSeenOrphan;
 
 map<uint256, CTransaction> mapOrphanTransactions;
 map<uint256, set<uint256>> mapOrphanTransactionsByPrev;
@@ -5279,6 +5279,163 @@ void ExportBootstrapBlockchain(const string& filename, std::atomic<bool>& stoppe
             }
             CBlock block;
             block.ReadFromDisk(blockIndex, true);
+
+            // every block starts with pchMessageStart
+            unsigned int nSize = block.GetSerializeSize(SER_DISK, CLIENT_VERSION);
+            serializedBlocks << FLATDATA(pchMessageStart) << nSize;
+            serializedBlocks << block;
+            if (serializedBlocks.size() > threadsholdSize) {
+                outFile.write(serializedBlocks.str().c_str(), serializedBlocks.size());
+                serializedBlocks.clear();
+            }
+            written++;
+        }
+        if (serializedBlocks.size() > 0) {
+            outFile.write(serializedBlocks.str().c_str(), serializedBlocks.size());
+            serializedBlocks.clear();
+            if (!outFile.good()) {
+                throw std::runtime_error("An error was raised while writing the file. Make sure you "
+                                         "have sufficient permissions and diskspace.");
+            }
+        }
+        progress.store(1, std::memory_order_seq_cst);
+        result.set_value();
+    } catch (std::exception& ex) {
+        result.set_exception(boost::current_exception());
+    } catch (...) {
+        result.set_exception(boost::current_exception());
+    }
+}
+
+class BlockIndexTraversorBase
+{
+    // shared_ptr is necessary because the visitor is passed by value during traversal
+    std::shared_ptr<std::deque<uint256>> hashes;
+
+public:
+    BlockIndexTraversorBase() { hashes = std::make_shared<std::deque<uint256>>(); }
+    template <typename Vertex, typename Graph>
+    void discover_vertex(Vertex u, const Graph& g)
+    {
+        uint256 hash = boost::get(boost::vertex_bundle, g)[u];
+        hashes->push_back(hash);
+    }
+
+    std::deque<uint256> getTraversedList() const { return *hashes; }
+};
+
+class DFSBlockIndexVisitor : public boost::default_dfs_visitor
+{
+    BlockIndexTraversorBase base;
+
+public:
+    template <typename Vertex, typename Graph>
+    void discover_vertex(Vertex u, const Graph& g)
+    {
+        base.discover_vertex(u, g);
+    }
+
+    std::deque<uint256> getTraversedList() const { return base.getTraversedList(); }
+};
+
+class BFSBlockIndexVisitor : public boost::default_bfs_visitor
+{
+    BlockIndexTraversorBase base;
+
+public:
+    template <typename Vertex, typename Graph>
+    void discover_vertex(Vertex u, const Graph& g)
+    {
+        base.discover_vertex(u, g);
+    }
+
+    std::deque<uint256> getTraversedList() { return base.getTraversedList(); }
+};
+
+std::pair<BlockIndexGraphType, VerticesDescriptorsMapType>
+GetBlockIndexAsGraph(const BlockIndexMapType& BlockIndex = mapBlockIndex)
+{
+    BlockIndexGraphType graph;
+
+    // copy block index to avoid conflicts
+    const BlockIndexMapType tempBlockIndex = BlockIndex;
+
+    VerticesDescriptorsMapType verticesDescriptors;
+
+    // add all vertices, which are block hashes
+    for (const auto& bi : tempBlockIndex) {
+        verticesDescriptors[bi.first] = boost::add_vertex(bi.first, graph);
+    }
+
+    // add edges, which are previous blocks connected to subsequent blocks
+    for (const auto& bi : tempBlockIndex) {
+        if (bi.first != hashGenesisBlock && bi.first != hashGenesisBlockTestNet) {
+            boost::add_edge(verticesDescriptors.at(*bi.second->pprev->phashBlock),
+                            verticesDescriptors.at(bi.first), graph);
+        }
+    }
+    return std::make_pair(graph, verticesDescriptors);
+}
+
+std::deque<uint256> TraverseBlockIndexGraph(const BlockIndexGraphType&        graph,
+                                            const VerticesDescriptorsMapType& descriptors,
+                                            GraphTraverseType                 traverseType)
+{
+    uint256 startBlockHash = (fTestNet ? hashGenesisBlockTestNet : hashGenesisBlock);
+
+    if (traverseType == GraphTraverseType::DepthFirst) {
+        DFSBlockIndexVisitor vis;
+        boost::depth_first_search(graph,
+                                  boost::visitor(vis).root_vertex(descriptors.at(startBlockHash)));
+        return vis.getTraversedList();
+    } else if (traverseType == GraphTraverseType::BreadthFirst) {
+        BFSBlockIndexVisitor vis;
+        boost::breadth_first_search(graph, descriptors.at(startBlockHash), boost::visitor(vis));
+        return vis.getTraversedList();
+    } else {
+        throw std::runtime_error("Unknown graph traversal type");
+    }
+}
+
+void ExportBootstrapBlockchainWithOrphans(const string& filename, std::atomic<bool>& stopped,
+                                          std::atomic<double>& progress, boost::promise<void>& result,
+                                          GraphTraverseType traverseType)
+{
+    RenameThread("Export-blockchain");
+    try {
+        progress.store(0, std::memory_order_relaxed);
+
+        BlockIndexGraphType        graph;
+        VerticesDescriptorsMapType verticesDescriptors;
+        std::tie(graph, verticesDescriptors) = GetBlockIndexAsGraph(mapBlockIndex);
+
+        std::deque<uint256> blocksHashes =
+            TraverseBlockIndexGraph(graph, verticesDescriptors, traverseType);
+
+        if (stopped.load() || fShutdown) {
+            throw std::runtime_error("Operation was stopped.");
+        }
+
+        std::ofstream outFile(filename.c_str(), ios::binary);
+        if (!outFile.good()) {
+            throw std::runtime_error("Failed to open file for writing. Make sure you have sufficient "
+                                     "permissions and diskspace.");
+        }
+
+        size_t threadsholdSize = 1 << 24; // 4 MB
+
+        CDataStream          serializedBlocks(SER_DISK, CLIENT_VERSION);
+        size_t               written = 0;
+        const std::uintmax_t total   = boost::num_vertices(graph);
+
+        for (const uint256& h : blocksHashes) {
+            progress.store(static_cast<double>(written) / static_cast<double>(total),
+                           std::memory_order_relaxed);
+            if (stopped.load() || fShutdown) {
+                throw std::runtime_error("Operation was stopped.");
+            }
+            CBlock block;
+            block.ReadFromDisk(h, true);
 
             // every block starts with pchMessageStart
             unsigned int nSize = block.GetSerializeSize(SER_DISK, CLIENT_VERSION);
