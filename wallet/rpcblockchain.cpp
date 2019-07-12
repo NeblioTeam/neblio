@@ -333,10 +333,28 @@ Value getcheckpoint(const Array& params, bool fHelp)
 
 Value exportblockchain(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 1 || params.size() > 1)
-        throw runtime_error("exportblockchain <path-dir>\n"
-                            "Exports the blockchain bootstrap.dat file to <path-dir>.\n"
-                            "<path-dir> must be a directory that exists.");
+    if (fHelp || params.size() < 1 || params.size() > 2) {
+        throw runtime_error(
+            "exportblockchain <path-dir> [breadth or depth]\n"
+            "Exports the blockchain bootstrap.dat file to <path-dir>.\n"
+            "<path-dir> must be a directory that exists. Ignoring the last parameter "
+            "will export a linear version of the blockchain. If you need orphan chains, "
+            "you can choose whether traversal is going to be breadth-firsth or depth-first.");
+    }
+    if (params.size() == 2 && params[1].get_str() != "breadth" && params[1].get_str() != "depth") {
+        throw runtime_error("The second parameter can only be depth or breadth");
+    }
+
+    boost::optional<GraphTraverseType> graphTraverseType;
+    if (params.size() == 2) {
+        if (params[1].get_str() == "breadth") {
+            graphTraverseType = GraphTraverseType::BreadthFirst;
+        } else if (params[1].get_str() == "depth") {
+            graphTraverseType = GraphTraverseType::DepthFirst;
+        } else {
+            graphTraverseType.reset();
+        }
+    }
 
     boost::filesystem::path bdir(params[0].get_str());
     if (!boost::filesystem::exists(bdir))
@@ -348,10 +366,20 @@ Value exportblockchain(const Array& params, bool fHelp)
     boost::unique_future<void> finished_future = finished.get_future();
     std::atomic<bool>          stopped{false};
     std::atomic<double>        progress{false};
-    boost::thread              exporterThread(boost::bind(&ExportBootstrapBlockchain, filename.string(),
-                                             boost::ref(stopped), boost::ref(progress),
-                                             boost::ref(finished)));
-    exporterThread.detach();
+
+    if (graphTraverseType != boost::none) {
+        // with orphans
+        boost::thread exporterThread(
+            boost::bind(&ExportBootstrapBlockchainWithOrphans, filename.string(), boost::ref(stopped),
+                        boost::ref(progress), boost::ref(finished), graphTraverseType.value()));
+        exporterThread.detach();
+    } else {
+        // without orphans
+        boost::thread exporterThread(boost::bind(&ExportBootstrapBlockchain, filename.string(),
+                                                 boost::ref(stopped), boost::ref(progress),
+                                                 boost::ref(finished)));
+        exporterThread.detach();
+    }
 
     printf("Export blockchain to path started in another thread. Writing to path: %s\n",
            filename.string().c_str());
