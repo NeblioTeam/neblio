@@ -14,7 +14,6 @@ src/qt/res/icons/connect/staking_*.png: Coins by Rockicon from the Noun Project
 src/qt/res/icons/notsynced.png : Sync by il Capitano from the Noun Project
 src/qt/res/icons/synced.png : Check Mark by Adrien Coquet from the Noun Project
 src/qt/res/icons/history.png: Wallet by Satisfactory from the Noun Project
-src/qt/res/images/logo_left_tachyon.png: Lightning Bolt by Dima Sho from the Noun Project
 
 
 Icons:

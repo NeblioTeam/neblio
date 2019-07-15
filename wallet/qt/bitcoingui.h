@@ -99,8 +99,6 @@ private:
     ClientModel* clientModel;
     WalletModel* walletModel;
 
-    bool logoSwitched{false};
-
     QStackedWidget* centralWidget;
 
     OverviewPage*            overviewPage;
