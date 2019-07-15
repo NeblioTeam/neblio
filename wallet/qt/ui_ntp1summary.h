@@ -140,7 +140,7 @@ public:
 
         labelBlockchainSyncStatus = new QLabel(wallet_contents_frame);
         labelBlockchainSyncStatus->setObjectName(QStringLiteral("labelBlockchainSyncStatus"));
-        labelBlockchainSyncStatus->setStyleSheet(QStringLiteral("QLabel { color: red; }"));
+        labelBlockchainSyncStatus->setStyleSheet(QStringLiteral("QLabel { color: #7F4BC8; }"));
         labelBlockchainSyncStatus->setText(QStringLiteral("(blockchain out of sync)"));
         labelBlockchainSyncStatus->setAlignment(Qt::AlignRight | Qt::AlignTrailing | Qt::AlignVCenter);
 
