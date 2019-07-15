@@ -244,6 +244,7 @@ BitcoinGUI::BitcoinGUI(QWidget* parent)
     updaterUpdateExistsMovie->setScaledSize(updaterIconSize);
     updaterErrorMovie->setScaledSize(updaterIconSize);
     updaterSpinnerMovie->setScaledSize(updaterIconSize);
+    syncIconMovie->setScaledSize(updaterIconSize);
 
     checkWhetherBackupIsMade();
 }
