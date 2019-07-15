@@ -68,9 +68,6 @@
         <file alias="neblio_vertical">res/images/neblio_vertical.png</file>
         <file alias="orion">res/images/orion.png</file>
     </qresource>
-    <qresource prefix="/movies">
-        <file alias="update_spinner">res/movies/update_spinner.mng</file>
-    </qresource>
     <qresource prefix="/translations">
         <file alias="ar">locale/bitcoin_ar.qm</file>
         <file alias="ca_ES">locale/bitcoin_ca_ES.qm</file>

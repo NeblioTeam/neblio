@@ -220,7 +220,7 @@ BitcoinGUI::BitcoinGUI(QWidget* parent)
 
     statusBar()->setStyleSheet("QStatusBar { background-color: white; border: none; }");
 
-    syncIconMovie = new QMovie(":/movies/update_spinner", "mng", this);
+    syncIconMovie = new QMovie(":images/update-spinner", QByteArray(), this);
 
     // Clicking on a transaction on the overview page simply sends you to transaction history page
     connect(overviewPage, SIGNAL(transactionClicked(QModelIndex)), this, SLOT(gotoHistoryPage()));
