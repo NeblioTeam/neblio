@@ -122,7 +122,7 @@ public:
 
         labelTransactionsStatus = new QLabel(wallet_contents_frame);
         labelTransactionsStatus->setObjectName(QStringLiteral("labelTransactionsStatus"));
-        labelTransactionsStatus->setStyleSheet(QStringLiteral("QLabel { color: red; }"));
+        labelTransactionsStatus->setStyleSheet(QStringLiteral("QLabel { color: #7F4BC8; }"));
         labelTransactionsStatus->setText(QStringLiteral("(out of sync)"));
         labelTransactionsStatus->setAlignment(Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter);
 
@@ -142,7 +142,7 @@ public:
 
         labelWalletStatus = new QLabel(wallet_contents_frame);
         labelWalletStatus->setObjectName(QStringLiteral("labelWalletStatus"));
-        labelWalletStatus->setStyleSheet(QStringLiteral("QLabel { color: red; }"));
+        labelWalletStatus->setStyleSheet(QStringLiteral("QLabel { color: #7F4BC8; }"));
         labelWalletStatus->setText(QStringLiteral("(out of sync)"));
         labelWalletStatus->setAlignment(Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter);
 
