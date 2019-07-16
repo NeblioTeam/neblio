@@ -173,14 +173,14 @@ private:
         if (toolbar != NULL) {
             painter.setRenderHint(QPainter::Antialiasing);
             painter.setBrush(QBrush(QColor(220, 220, 220)));
-            painter.drawRect(0, toolbar->pos().y(), this->size().width(), toolbar->height());
-            // QRect           rect(0, toolbar->pos().y(), this->size().width(), toolbar->height());
-            // QLinearGradient gradient(rect.topLeft(),
-            //                          rect.topRight()); // diagonal gradient from top-left to bottom-right
-            // gradient.setColorAt(0, QColor(29, 197, 210));
-            // gradient.setColorAt(1, QColor(127, 75, 200));
+            // painter.drawRect(0, toolbar->pos().y(), this->size().width(), toolbar->height());
+            QRect           rect(0, toolbar->pos().y(), this->size().width(), toolbar->height());
+            QLinearGradient gradient(rect.topLeft(),
+                                     rect.topRight()); // diagonal gradient from top-left to bottom-right
+            gradient.setColorAt(0, QColor(29, 197, 210, 128));
+            gradient.setColorAt(1, QColor(127, 75, 200, 128));
 
-            // painter.fillRect(rect, gradient);
+            painter.fillRect(rect, gradient);
         }
 
         painter.setRenderHint(QPainter::Antialiasing);
