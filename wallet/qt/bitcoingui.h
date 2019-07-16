@@ -172,7 +172,7 @@ private:
         // paint the upper bar
         if (toolbar != NULL) {
             painter.setRenderHint(QPainter::Antialiasing);
-            painter.setBrush(QBrush(QColor(211, 211, 211)));
+            painter.setBrush(QBrush(QColor(220, 220, 220)));
             painter.drawRect(0, toolbar->pos().y(), this->size().width(), toolbar->height());
             // QRect           rect(0, toolbar->pos().y(), this->size().width(), toolbar->height());
             // QLinearGradient gradient(rect.topLeft(),
