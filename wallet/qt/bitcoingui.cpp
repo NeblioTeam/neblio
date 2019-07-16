@@ -212,8 +212,8 @@ BitcoinGUI::BitcoinGUI(QWidget* parent)
     //                                "margin: 0px; }");
     // }
     progressBar->setStyleSheet("QProgressBar { background-color: #e8e8e8; border: 1px solid grey; "
-                                   "border-radius: 7px; padding: 1px; text-align: center; } "
-                                   "QProgressBar::chunk { background-color: #7f4bc8; border-radius: 7px; "
+                                   "border-radius: 2px; padding: 1px; text-align: center; } "
+                                   "QProgressBar::chunk { background-color: #7f4bc8; border-radius: 2px; "
                                    "margin: 0px; }");
 
     statusBar()->addWidget(updaterLabel);
