@@ -502,6 +502,10 @@ add_library(ntp1_gui_lib STATIC
     wallet/qt/ntp1/ntp1tokenlistmodel.cpp
     wallet/qt/ntp1/ntp1tokenlistfilterproxy.cpp
     wallet/qt/ntp1/ntp1tokenlistitemdelegate.cpp
+    wallet/qt/ntp1/ntp1createmetadatadialog.cpp
+    wallet/qt/ntp1/ntp1metadatapairwidget.cpp
+    wallet/qt/ntp1/ntp1custommetadatawidget.cpp
+    wallet/qt/ntp1/ntp1metadatapairswidget.cpp
     wallet/qt/ntp1senddialog.cpp
     wallet/qt/ntp1sendsingletokenfields.cpp
     wallet/qt/ntp1sendtokensfeewidget.cpp

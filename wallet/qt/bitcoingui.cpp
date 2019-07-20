@@ -74,7 +74,11 @@ BitcoinGUI::BitcoinGUI(QWidget* parent)
 {
     setWindowTitle(tr("neblio") + " - " + tr("Wallet"));
     qApp->setStyleSheet("QMainWindow { background-color: white;border:none;font-family:'Open "
-                        "Sans,sans-serif'; } QStatusBar::item { border: 0px;}");
+                        "Sans,sans-serif'; } QStatusBar::item { border: 0px;} QDialog { "
+                        "background-color: white;border:none;font-family:'Open "
+                        "Sans,sans-serif'; } QScrollArea { "
+                        "background-color: white;border:none;font-family:'Open "
+                        "Sans,sans-serif'; }");
 #ifndef Q_OS_MAC
     qApp->setWindowIcon(QIcon(":icons/bitcoin"));
     setWindowIcon(QIcon(":icons/bitcoin"));
@@ -205,16 +209,17 @@ BitcoinGUI::BitcoinGUI(QWidget* parent)
     // See https://qt-project.org/doc/qt-4.8/gallery.html
     QString curStyle = qApp->style()->metaObject()->className();
     // if (curStyle == "QWindowsStyle" || curStyle == "QWindowsXPStyle") {
-    //     progressBar->setStyleSheet("QProgressBar { background-color: #e8e8e8; border: 1px solid grey; "
+    //     progressBar->setStyleSheet("QProgressBar { background-color: #e8e8e8; border: 1px solid grey;
+    //     "
     //                                "border-radius: 7px; padding: 1px; text-align: center; } "
-    //                                "QProgressBar::chunk { background: QLinearGradient(x1: 0, y1: 0, x2: "
-    //                                "1, y2: 0, stop: 0 #FF8000, stop: 1 orange); border-radius: 7px; "
-    //                                "margin: 0px; }");
+    //                                "QProgressBar::chunk { background: QLinearGradient(x1: 0, y1: 0,
+    //                                x2: " "1, y2: 0, stop: 0 #FF8000, stop: 1 orange); border-radius:
+    //                                7px; " "margin: 0px; }");
     // }
     progressBar->setStyleSheet("QProgressBar { background-color: #e8e8e8; border: 1px solid grey; "
-                                   "border-radius: 2px; padding: 1px; text-align: center; } "
-                                   "QProgressBar::chunk { background-color: #7f4bc8; border-radius: 2px; "
-                                   "margin: 0px; }");
+                               "border-radius: 2px; padding: 1px; text-align: center; } "
+                               "QProgressBar::chunk { background-color: #7f4bc8; border-radius: 2px; "
+                               "margin: 0px; }");
 
     statusBar()->addWidget(updaterLabel);
     updaterLabel->setAlignment(Qt::AlignCenter);

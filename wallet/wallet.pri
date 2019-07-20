@@ -136,6 +136,10 @@ HEADERS += qt/bitcoingui.h \
     qt/json/JsonTreeModel.h     \
     qt/json/JsonTreeNode.h      \
     qt/json/JsonTreeView.h      \
+    qt/ntp1/ntp1createmetadatadialog.h \
+    qt/ntp1/ntp1metadatapairwidget.h \
+    qt/ntp1/ntp1custommetadatawidget.h \
+    qt/ntp1/ntp1metadatapairswidget.h \
     qt/json/NTP1MetadataViewer.h \
     SerializationTester.h
 
@@ -272,6 +276,10 @@ SOURCES += qt/bitcoin.cpp \
     qt/json/JsonTreeNode.cpp      \
     qt/json/JsonTreeView.cpp      \
     qt/json/NTP1MetadataViewer.cpp \
+    qt/ntp1/ntp1createmetadatadialog.cpp \
+    qt/ntp1/ntp1metadatapairwidget.cpp \
+    qt/ntp1/ntp1custommetadatawidget.cpp \
+    qt/ntp1/ntp1metadatapairswidget.cpp \
     SerializationTester.cpp
 
 

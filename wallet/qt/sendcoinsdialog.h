@@ -41,6 +41,7 @@ public slots:
     SendCoinsEntry* addEntry();
     void            updateRemoveEnabled();
     void setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBalance, qint64 immatureBalance);
+    void showEditMetadataDialog();
 
 private:
     Ui::SendCoinsDialog* ui;
