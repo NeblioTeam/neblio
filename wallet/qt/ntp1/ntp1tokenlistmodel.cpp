@@ -9,8 +9,6 @@
 
 std::atomic<NTP1TokenListModel*> ntp1TokenListModelInstance{nullptr};
 
-const std::string NTP1TokenListModel::WalletFileName = "NTP1DataCache.json";
-
 QString NTP1TokenListModel::__getTokenName(int index, boost::shared_ptr<NTP1Wallet> theWallet)
 {
     return QString::fromStdString(theWallet->getTokenName(index));
@@ -219,9 +217,9 @@ void NTP1TokenListModel::saveWalletToFile()
         // The temp file here ensures that the target file is not tampered with before a successful
         // writing happens This is helpful to avoid corrupt files in cases such as diskspace issues
         srand(time(NULL));
-        boost::filesystem::path tempFile = GetDataDir() / WalletFileName;
+        boost::filesystem::path tempFile = GetDataDir() / NTP1WalletCacheFileName;
         tempFile.replace_extension(".json." + ToString(rand()));
-        boost::filesystem::path permFile = GetDataDir() / WalletFileName;
+        boost::filesystem::path permFile = GetDataDir() / NTP1WalletCacheFileName;
         ntp1wallet->exportToFile(tempFile);
         if (boost::filesystem::exists(permFile))
             boost::filesystem::remove(permFile);
@@ -237,7 +235,7 @@ void NTP1TokenListModel::loadWalletFromFile()
         if (!ntp1wallet) {
             throw std::runtime_error("Error: NTP1 wallet is a null pointer!");
         }
-        boost::filesystem::path file = GetDataDir() / WalletFileName;
+        boost::filesystem::path file = GetDataDir() / NTP1WalletCacheFileName;
         if (boost::filesystem::exists(file)) {
             ntp1wallet->importFromFile(file);
         } else {

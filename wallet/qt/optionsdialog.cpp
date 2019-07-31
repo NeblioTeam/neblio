@@ -241,7 +241,7 @@ void OptionsDialog::handleProxyIpValid(QValidatedLineEdit* object, bool fState)
 void OptionsDialog::slot_clearNTP1DataCache()
 {
     try {
-        boost::filesystem::remove(GetDataDir() / NTP1TokenListModel::WalletFileName);
+        boost::filesystem::remove(GetDataDir() / NTP1WalletCacheFileName);
         NTP1TokenListModel* ptr;
         if ((ptr = ntp1TokenListModelInstance.load()) != nullptr) {
             QMessageBox::StandardButton reply;
