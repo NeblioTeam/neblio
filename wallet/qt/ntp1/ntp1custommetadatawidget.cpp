@@ -39,8 +39,8 @@ void NTP1CustomMetadataWidget::slot_clearPressed() { clearData(); }
 void NTP1CustomMetadataWidget::slot_viewAsTreePressed()
 {
     try {
-        json_spirit::Pair obj = getJsonObject();
-        jsonTreeModel->setRoot(JsonTreeNode::ImportFromJson(obj.value_));
+        json_spirit::Object obj = getJsonObject();
+        jsonTreeModel->setRoot(JsonTreeNode::ImportFromJson(obj));
     } catch (...) {
         QMessageBox::warning(this, "Parsing error",
                              "Failed to parse json data. Make sure you included valid json.");
@@ -64,7 +64,7 @@ void NTP1CustomMetadataWidget::slot_setViewTextOrTree()
     jsonTreeView->setVisible(isTreeViewActive);
 }
 
-json_spirit::Pair NTP1CustomMetadataWidget::getJsonObject() const
+json_spirit::Object NTP1CustomMetadataWidget::getJsonObject() const
 {
     json_spirit::Object resultObj;
     json_spirit::Array  metaArray;
@@ -72,7 +72,9 @@ json_spirit::Pair NTP1CustomMetadataWidget::getJsonObject() const
     json_spirit::read_or_throw(jsonDataLineEdit->toPlainText().toUtf8().toStdString(), readData);
 
     resultObj.push_back(json_spirit::Pair("meta", readData));
-    return json_spirit::Pair("userData", resultObj);
+    json_spirit::Pair p("userData", resultObj);
+
+    return json_spirit::Object({p});
 }
 
 bool NTP1CustomMetadataWidget::isJsonEmpty() const

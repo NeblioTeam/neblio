@@ -21,10 +21,10 @@ class NTP1CreateMetadataDialog : public QDialog
 public:
     NTP1CreateMetadataDialog(QWidget* parent = Q_NULLPTR);
 
-    json_spirit::Pair getJsonData() const;
-    bool              jsonDataExists() const;
-    bool              jsonDataValid() const;
-    void              clearData();
+    json_spirit::Object getJsonData() const;
+    bool                jsonDataExists() const;
+    bool                jsonDataValid() const;
+    void                clearData();
 
 public slots:
     void slot_customJsonDataSwitched();

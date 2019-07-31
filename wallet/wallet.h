@@ -228,10 +228,11 @@ public:
     int64_t GetNewMint() const;
     bool    CreateTransaction(const std::vector<std::pair<CScript, int64_t>>& vecSend, CWalletTx& wtxNew,
                               CReserveKey& reservekey, int64_t& nFeeRet, NTP1SendTxData ntp1TxData,
-                              const CCoinControl* coinControl = nullptr, std::string* errorMsg = nullptr);
+                              const string& ntp1metadata = "", const CCoinControl* coinControl = nullptr,
+                              std::string* errorMsg = nullptr);
     bool    CreateTransaction(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew,
                               CReserveKey& reservekey, int64_t& nFeeRet, const NTP1SendTxData& ntp1TxData,
-                              const CCoinControl* coinControl = nullptr);
+                              const string& ntp1metadata = "", const CCoinControl* coinControl = nullptr);
     bool    CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
 
     bool GetStakeWeight(const CKeyStore& keystore, uint64_t& nMinWeight, uint64_t& nMaxWeight,
@@ -410,7 +411,8 @@ public:
      * @param TIs
      */
     static void SetTxNTP1OpRet(CTransaction&                                       wtxNew,
-                               const std::vector<NTP1Script::TransferInstruction>& TIs);
+                               const std::vector<NTP1Script::TransferInstruction>& TIs,
+                               const string                                        ntp1metadata);
 };
 
 /** A key allocated from the key pool. */

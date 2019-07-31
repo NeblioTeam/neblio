@@ -31,6 +31,7 @@ public slots:
     void slot_closeThis();
     void slot_hideClose();
     void slot_showClose();
+    bool isEmpty() const;
 
     json_spirit::Object getAsJsonObject() const;
 };

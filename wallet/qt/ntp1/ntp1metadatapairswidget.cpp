@@ -105,7 +105,7 @@ void NTP1MetadataPairsWidget::slot_okPressed() { emit sig_okPressed(); }
 
 void NTP1MetadataPairsWidget::slot_clearPressed() { clearData(); }
 
-json_spirit::Pair NTP1MetadataPairsWidget::getJsonObject() const
+json_spirit::Object NTP1MetadataPairsWidget::getJsonObject() const
 {
     // {"userData":{"meta":[{"Hi":"there"},{"I am":"here!"}]}}
     json_spirit::Object resultObj;
@@ -117,12 +117,15 @@ json_spirit::Pair NTP1MetadataPairsWidget::getJsonObject() const
         }
     }
     resultObj.push_back(json_spirit::Pair("meta", metaArray));
-    return json_spirit::Pair("userData", resultObj);
+    json_spirit::Pair p("userData", resultObj);
+    return json_spirit::Object({p});
 }
 
 bool NTP1MetadataPairsWidget::isJsonEmpty() const
 {
-    json_spirit::Pair p = getJsonObject();
-    Q_ASSERT(p.value_.get_obj().size() == 1); // we expect to have {"meta": [...]} object, so only 1
-    return p.value_.get_obj().at(0).value_.get_array().empty();
+    bool allEmpty = true;
+    for (const auto& w : metadataPairsWidgets) {
+        allEmpty = allEmpty && w->isEmpty();
+    }
+    return allEmpty;
 }

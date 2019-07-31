@@ -6,22 +6,22 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QVBoxLayout>
-#include <QWidget>
 #include <QVector>
+#include <QWidget>
 #include <json_spirit.h>
 
 class NTP1MetadataPairsWidget : public QWidget
 {
     Q_OBJECT
 
-    QGridLayout* mainLayout;
-    QPushButton* addFieldPairButton;
-    QVBoxLayout* metadataPairsLayout;
-    QScrollArea* metadataPairsScrollArea;
+    QGridLayout*                     mainLayout;
+    QPushButton*                     addFieldPairButton;
+    QVBoxLayout*                     metadataPairsLayout;
+    QScrollArea*                     metadataPairsScrollArea;
     QVector<NTP1MetadataPairWidget*> metadataPairsWidgets;
-    QWidget* pairsWidgetsWidget;
-    QPushButton* okButton;
-    QPushButton* clearButton;
+    QWidget*                         pairsWidgetsWidget;
+    QPushButton*                     okButton;
+    QPushButton*                     clearButton;
 
     void showAllCloseButtons();
     void hideAllCloseButtons();
@@ -40,8 +40,8 @@ public slots:
     void slot_okPressed();
     void slot_clearPressed();
 
-    json_spirit::Pair getJsonObject() const;
-    bool isJsonEmpty() const;
+    json_spirit::Object getJsonObject() const;
+    bool                isJsonEmpty() const;
 };
 
 #endif // NTP1METADATAPAIRSWIDGET_H

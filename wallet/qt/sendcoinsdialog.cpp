@@ -160,9 +160,13 @@ void SendCoinsDialog::on_sendButton_clicked()
     fNewRecipientAllowed = false;
 
     // allow metadata only with NTP1 transactions
+    std::string ntp1metadata;
     {
         if (ui->editMetadataDialog->jsonDataExists()) {
-            if (!ui->editMetadataDialog->jsonDataValid()) {
+            if (ui->editMetadataDialog->jsonDataValid()) {
+                json_spirit::Object obj = ui->editMetadataDialog->getJsonData();
+                ntp1metadata            = json_spirit::write(obj);
+            } else {
                 QMessageBox::warning(this, "Invalid json data",
                                      "Invalid NTP1 metadata found. Either clear it or fix it");
                 ui->editMetadataButton->setStyleSheet(STYLE_INVALID);
@@ -172,8 +176,8 @@ void SendCoinsDialog::on_sendButton_clicked()
 
         bool allTokensNebl = true;
         for (const auto& r : recipients) {
-            bool isNebl = (r.tokenId.toStdString() == NTP1SendTxData::NEBL_TOKEN_ID);
-            allTokensNebl &= isNebl;
+            bool isNebl   = (r.tokenId.toStdString() == NTP1SendTxData::NEBL_TOKEN_ID);
+            allTokensNebl = allTokensNebl && isNebl;
         }
 
         if (allTokensNebl && ui->editMetadataDialog->jsonDataExists()) {
@@ -205,9 +209,10 @@ void SendCoinsDialog::on_sendButton_clicked()
     WalletModel::SendCoinsReturn sendstatus;
 
     if (!model->getOptionsModel() || !model->getOptionsModel()->getCoinControlFeatures())
-        sendstatus = model->sendCoins(recipients, ntp1wallet);
+        sendstatus = model->sendCoins(recipients, ntp1wallet, ntp1metadata);
     else
-        sendstatus = model->sendCoins(recipients, ntp1wallet, CoinControlDialog::coinControl);
+        sendstatus =
+            model->sendCoins(recipients, ntp1wallet, ntp1metadata, CoinControlDialog::coinControl);
 
     switch (sendstatus.status) {
     case WalletModel::InvalidAddress:
@@ -352,6 +357,9 @@ void SendCoinsDialog::accept() { clear(); }
 
 SendCoinsEntry* SendCoinsDialog::addEntry()
 {
+    // metadata can be fixed if more recipients are added, so remove red color from the button
+    ui->editMetadataButton->setStyleSheet("");
+
     SendCoinsEntry* entry = new SendCoinsEntry(this);
     entry->setModel(model);
     ui->entries->addWidget(entry);

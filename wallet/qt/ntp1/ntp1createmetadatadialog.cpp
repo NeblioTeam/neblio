@@ -26,7 +26,7 @@ NTP1CreateMetadataDialog::NTP1CreateMetadataDialog(QWidget* parent) : QDialog(pa
             &NTP1CreateMetadataDialog::slot_customJsonDataSwitched);
 }
 
-json_spirit::Pair NTP1CreateMetadataDialog::getJsonData() const
+json_spirit::Object NTP1CreateMetadataDialog::getJsonData() const
 {
     try {
         if (editModeCheckbox->isChecked()) {
@@ -38,7 +38,7 @@ json_spirit::Pair NTP1CreateMetadataDialog::getJsonData() const
         QMessageBox::warning(
             this->customDataWidget, "Error retrieving json data",
             "An error happened while attempting to retrieve json data. This should not happen.");
-        return json_spirit::Pair("Error", "");
+        return json_spirit::Object({json_spirit::Pair("Error", "")});
     }
 }
 

@@ -26,10 +26,10 @@ class NTP1CustomMetadataWidget : public QWidget
 
 public:
     NTP1CustomMetadataWidget(QWidget* parent = Q_NULLPTR);
-    json_spirit::Pair getJsonObject() const;
-    bool              isJsonEmpty() const;
-    bool              isJsonValid() const;
-    void              clearData();
+    json_spirit::Object getJsonObject() const;
+    bool                isJsonEmpty() const;
+    bool                isJsonValid() const;
+    void                clearData();
 
 signals:
     void sig_okPressed();

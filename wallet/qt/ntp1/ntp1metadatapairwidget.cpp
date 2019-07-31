@@ -53,6 +53,11 @@ void NTP1MetadataPairWidget::slot_hideClose() { closeButton->hide(); }
 
 void NTP1MetadataPairWidget::slot_showClose() { closeButton->show(); }
 
+bool NTP1MetadataPairWidget::isEmpty() const
+{
+    return keyLineEdit->text().trimmed().isEmpty() && valLineEdit->text().trimmed().isEmpty();
+}
+
 json_spirit::Object NTP1MetadataPairWidget::getAsJsonObject() const
 {
     json_spirit::Object result;

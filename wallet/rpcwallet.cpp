@@ -96,7 +96,8 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("ip", addrSeenByPeer.ToStringIP()));
 
     diff.push_back(Pair("proof-of-work", GetDifficulty()));
-    diff.push_back(Pair("proof-of-stake", GetDifficulty(GetLastBlockIndex(boost::atomic_load(&pindexBest).get(), true))));
+    diff.push_back(Pair("proof-of-stake",
+                        GetDifficulty(GetLastBlockIndex(boost::atomic_load(&pindexBest).get(), true))));
     obj.push_back(Pair("difficulty", diff));
 
     obj.push_back(Pair("testnet", fTestNet));
@@ -1420,7 +1421,8 @@ Value listsinceblock(const Array& params, bool fHelp)
         int target_height = boost::atomic_load(&pindexBest)->nHeight + 1 - target_confirms;
 
         CBlockIndex* block;
-        for (block = pindexBest.get(); block && block->nHeight > target_height; block = boost::atomic_load(&block->pprev).get()) {
+        for (block = pindexBest.get(); block && block->nHeight > target_height;
+             block = boost::atomic_load(&block->pprev).get()) {
         }
 
         lastblock = block ? block->GetBlockHash() : 0;

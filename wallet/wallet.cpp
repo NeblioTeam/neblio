@@ -1380,7 +1380,8 @@ void AddCoinsToInputsSet(set<pair<const CWalletTx*, unsigned int>>& setInputs, c
 }
 
 void CWallet::SetTxNTP1OpRet(CTransaction&                                       wtxNew,
-                             const std::vector<NTP1Script::TransferInstruction>& TIs)
+                             const std::vector<NTP1Script::TransferInstruction>& TIs,
+                             const std::string                                   ntp1metadata)
 {
     if (TIs.empty()) {
         // no OP_RETURN, no NTP1 outputs
@@ -1388,7 +1389,8 @@ void CWallet::SetTxNTP1OpRet(CTransaction&                                      
     }
 
     // set the OP_RETURN script
-    std::shared_ptr<NTP1Script_Transfer> transferScript = NTP1Script_Transfer::CreateScript(TIs, "");
+    std::shared_ptr<NTP1Script_Transfer> transferScript =
+        NTP1Script_Transfer::CreateScript(TIs, ntp1metadata);
 
     std::string opRetScriptBin = transferScript->calculateScriptBin();
     std::string opRetScriptHex = boost::algorithm::hex(opRetScriptBin);
@@ -1535,7 +1537,8 @@ void CreateErrorMsg(std::string* errorMsg, const std::string& msg)
 
 bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, CWalletTx& wtxNew,
                                 CReserveKey& reservekey, int64_t& nFeeRet, NTP1SendTxData ntp1TxData,
-                                const CCoinControl* coinControl, std::string* errorMsg)
+                                const std::string& ntp1metadata, const CCoinControl* coinControl,
+                                std::string* errorMsg)
 {
     int64_t nValue = 0;
     for (const PAIRTYPE(CScript, int64_t) & s : vecSend) {
@@ -1737,7 +1740,7 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
 
                 try {
                     NTP1SendTxData::FixTIsChangeOutputIndex(TIs, changeOutputIndex);
-                    CWallet::SetTxNTP1OpRet(wtxNew, TIs);
+                    CWallet::SetTxNTP1OpRet(wtxNew, TIs, ntp1metadata);
                 } catch (std::exception& ex) {
                     printf("Error while setting up NTP1 data: %s\n", ex.what());
                     CreateErrorMsg(errorMsg,
@@ -1794,11 +1797,13 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
 
 bool CWallet::CreateTransaction(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew,
                                 CReserveKey& reservekey, int64_t& nFeeRet,
-                                const NTP1SendTxData& ntp1TxData, const CCoinControl* coinControl)
+                                const NTP1SendTxData& ntp1TxData, const string& ntp1metadata,
+                                const CCoinControl* coinControl)
 {
     vector<pair<CScript, int64_t>> vecSend;
     vecSend.push_back(make_pair(scriptPubKey, nValue));
-    return CreateTransaction(vecSend, wtxNew, reservekey, nFeeRet, ntp1TxData, coinControl);
+    return CreateTransaction(vecSend, wtxNew, reservekey, nFeeRet, ntp1TxData, ntp1metadata,
+                             coinControl);
 }
 
 // NovaCoin: get current stake weight
