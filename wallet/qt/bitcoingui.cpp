@@ -206,7 +206,7 @@ BitcoinGUI::BitcoinGUI(QWidget* parent)
     QString curStyle = qApp->style()->metaObject()->className();
     progressBar->setStyleSheet("QProgressBar { background-color: #e8e8e8; border: 1px solid grey; "
                                    "border-radius: 2px; padding: 1px; text-align: center; } "
-                                   "QProgressBar::chunk { background-color: #26bdd2; border-radius: 2px; "
+                                   "QProgressBar::chunk { background-color: #0bdbd0; border-radius: 2px; "
                                    "margin: 0px; }");
 
     statusBar()->addWidget(updaterLabel);
