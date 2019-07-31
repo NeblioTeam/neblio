@@ -46,6 +46,7 @@ public:
     QHBoxLayout* verticalLayoutContent;
     QHBoxLayout* horizontalLayout_2;
     QLabel*      upper_table_label;
+    QPushButton* issueNewNTP1TokenButton;
     QLabel*      upper_table_loading_label;
     QLineEdit*   filter_lineEdit;
     //    QPushButton* showSendDialogButton;
@@ -129,6 +130,9 @@ public:
         horizontalLayout_2->setObjectName(QStringLiteral("horizontalLayout_2"));
         upper_table_label = new QLabel(wallet_contents_frame);
         upper_table_label->setObjectName(QStringLiteral("label_4"));
+        issueNewNTP1TokenButton = new QPushButton();
+        issueNewNTP1TokenButton->setIcon(QIcon(":/icons/add_new_ntp1"));
+        issueNewNTP1TokenButton->setToolTip("Issue a new NTP1 token");
         upper_table_loading_label = new QLabel(wallet_contents_frame);
         upper_table_loading_label->setObjectName(QStringLiteral("upper_table_loading_label"));
         upper_table_loading_label->setText("(Updating...)");
@@ -145,6 +149,8 @@ public:
         labelBlockchainSyncStatus->setAlignment(Qt::AlignRight | Qt::AlignTrailing | Qt::AlignVCenter);
 
         horizontalLayout_2->addWidget(labelBlockchainSyncStatus);
+
+        horizontalLayout_2->addWidget(issueNewNTP1TokenButton, 0, Qt::AlignmentFlag::AlignRight);
 
         verticalLayout->addLayout(horizontalLayout_2);
         verticalLayout->addLayout(verticalLayoutContent);
