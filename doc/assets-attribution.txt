@@ -13,7 +13,7 @@ wallet/qt/res/icons/connect*.png: Signal by Diana from the Noun Project
 wallet/qt/res/icons/connect/staking_*.png: Coins by Rockicon from the Noun Project
 wallet/qt/res/icons/synced.png: Check by Besticons from the Noun Project
 wallet/qt/res/icons/history.png: Wallet by Satisfactory from the Noun Project
-coin by JS from the Noun Project
+wallet/qt/res/icons/AddNewNTP1Token.png: coin by JS from the Noun Project
 
 
 Icons:
