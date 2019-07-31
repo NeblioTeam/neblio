@@ -556,6 +556,9 @@ std::string NTP1Script::GetMetadataAsString(const NTP1Script* ntp1script) noexce
     try {
         textMetadata = ntp1script->getInflatedMetadata();
     } catch (std::exception& ex) {
+        printf("Failed at decompressing \"%s\". Reason: %s", textMetadata.c_str(), ex.what());
+    } catch (...) {
+        printf("Failed at decompressing \"%s\". Unknown exception.", textMetadata.c_str());
     }
 
     return textMetadata;
@@ -578,7 +581,8 @@ json_spirit::Value NTP1Script::GetMetadataAsJson(const NTP1Script* ntp1script) n
         json_spirit::Value res;
         json_spirit::read_or_throw(textMetadata, res);
         return res;
-    } catch (std::exception& ex) {
+    } catch (...) // json_spirit throws Error_position too
+    {
         json_spirit::Object root;
         root.push_back(json_spirit::Pair("error", "json_parsing_failed"));
         root.push_back(json_spirit::Pair("json_string", textMetadata));
