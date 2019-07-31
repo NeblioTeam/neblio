@@ -9,10 +9,9 @@ src/qt/res/icons/send.png & src/qt/res/icons/export.png : Arrow by Adrien Coquet
 src/qt/res/icons/overview.png : Home by il Capitano from the Noun Project
 src/qt/res/icons/filesave.png & src/qt/res/icons/receive.png: Download by JohnnyZi from the Noun Project
 src/qt/res/icons/address-book.png : contact book by Pumpkin Juice from the Noun Project
-src/qt/res/icons/connect0*.png: Ethernet Error by Arthur Shlain from the Noun Project
+src/qt/res/icons/connect*.png: Signal by Diana from the Noun Project
 src/qt/res/icons/connect/staking_*.png: Coins by Rockicon from the Noun Project
-src/qt/res/icons/notsynced.png : Sync by il Capitano from the Noun Project
-src/qt/res/icons/synced.png : Check Mark by Adrien Coquet from the Noun Project
+src/qt/res/icons/synced.png : Check by Besticons from the Noun Project
 src/qt/res/icons/history.png: Wallet by Satisfactory from the Noun Project
 
 
