@@ -2200,7 +2200,8 @@ string CWallet::SendMoneyToDestination(const CTxDestination& address, int64_t nV
 
 string CWallet::SendNTP1ToDestination(const CTxDestination& address, int64_t nValue,
                                       const std::string& TokenId, CWalletTx& wtxNew,
-                                      boost::shared_ptr<NTP1Wallet> ntp1wallet, bool fAskFee)
+                                      boost::shared_ptr<NTP1Wallet> ntp1wallet,
+                                      const std::string& ntp1metadata, bool fAskFee)
 {
     // Check amount
     if (nValue <= 0)
@@ -2231,7 +2232,7 @@ string CWallet::SendNTP1ToDestination(const CTxDestination& address, int64_t nVa
     tokenSelector.selectNTP1Tokens(ntp1wallet, vector<COutPoint>(), ntp1recipients, true);
 
     if (!CreateTransaction(vector<pair<CScript, int64_t>>(), wtxNew, reservekey, nFeeRequired,
-                           tokenSelector)) {
+                           tokenSelector, ntp1metadata)) {
         string strError;
         if (nValue + nFeeRequired > GetBalance())
             strError =

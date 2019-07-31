@@ -245,7 +245,8 @@ public:
                                        bool fAskFee = false);
     std::string SendNTP1ToDestination(const CTxDestination& address, int64_t nValue,
                                       const std::string& tokenId, CWalletTx& wtxNew,
-                                      boost::shared_ptr<NTP1Wallet> ntp1wallet, bool fAskFee = false);
+                                      boost::shared_ptr<NTP1Wallet> ntp1wallet,
+                                      const string& ntp1metadata = "", bool fAskFee = false);
 
     bool    NewKeyPool();
     bool    TopUpKeyPool(unsigned int nSize = 0);
