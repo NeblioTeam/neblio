@@ -1749,7 +1749,7 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
                         CPubKey vchPubKey;
 
                         bool r = reservekey.GetReservedKey(vchPubKey);
-                        boost::ignore_unused(r);
+                        ignore_unused(r);
                         assert(r); // should never fail, as we just unlocked
 
                         scriptChange.SetDestination(vchPubKey.GetID());

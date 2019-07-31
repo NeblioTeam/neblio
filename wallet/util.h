@@ -786,4 +786,14 @@ bool                    SC_CheckOperationOnRestartScheduleThenDeleteIt(const std
 std::unordered_set<std::string> SC_GetScheduledOperationsOnRestart();
 bool                            SC_CreateScheduledOperationOnRestart(const std::string& OpName);
 
+template <typename... Ts>
+void ignore_unused(Ts const&...)
+{
+}
+
+template <typename... Ts>
+void ignore_unused()
+{
+}
+
 #endif
