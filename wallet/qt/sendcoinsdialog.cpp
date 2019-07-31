@@ -333,6 +333,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         accept();
         CoinControlDialog::coinControl->UnSelectAll();
         coinControlUpdateLabels();
+        ui->editMetadataDialog->clearData();
         break;
     }
     fNewRecipientAllowed = true;
