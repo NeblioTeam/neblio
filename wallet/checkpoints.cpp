@@ -71,7 +71,8 @@ typedef ThreadSafeMap<int, uint256> MapCheckpoints;
         {1003126,     uint256{"0x8f21fc3e383c5ec61dec1f171a0b49eea25dccbb28755214a0d45e73dccb7c56"}},
         {1003127,     uint256{"0x5aaf45ff165d066f84d55399fda3c4458234f94cf32b0cfdcc7f9bbcc814585d"}},
         {1100000,     uint256{"0xb726814d624b9a1b77e4edfb43ec4c8c47d5cfe4a2c7644812074fb5ac01f252"}},
-        {1120000,     uint256{"0x8c33837e3657a73aa3a89fa9f31cc565b6d075ddcb246de1cf5d9db90574e344"}}
+        {1120000,     uint256{"0x8c33837e3657a73aa3a89fa9f31cc565b6d075ddcb246de1cf5d9db90574e344"}},
+        {1130000,     uint256{"0xd953fc97fedf8e580211f1156b82b50f6da37c59e26c7d57dcfed9fbfd489ef8"}}
     });
 
     // TestNet
