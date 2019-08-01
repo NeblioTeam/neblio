@@ -77,6 +77,7 @@ private slots:
     void slot_copyTokenNameAction();
     void slot_visitInBlockExplorerAction();
     void slot_showMetadataAction();
+    void slot_showIssueNewTokenDialog();
 
     // QWidget interface
 protected:

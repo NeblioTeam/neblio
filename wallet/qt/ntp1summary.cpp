@@ -16,6 +16,8 @@
 #include <QMenu>
 #include <QUrl>
 
+#include "txdb.h"
+
 const QString NTP1Summary::copyTokenIdText          = "Copy Token ID";
 const QString NTP1Summary::copyTokenSymbolText      = "Copy Token Symbol";
 const QString NTP1Summary::copyTokenNameText        = "Copy Token Name";
@@ -60,6 +62,8 @@ NTP1Summary::NTP1Summary(QWidget* parent)
             &QLabel::setVisible);
     connect(ui->filter_lineEdit, &QLineEdit::textChanged, filter,
             &NTP1TokenListFilterProxy::setFilterWildcard);
+    connect(ui->issueNewNTP1TokenButton, &QPushButton::clicked, this,
+            &NTP1Summary::slot_showIssueNewTokenDialog);
 }
 
 void NTP1Summary::handleTokenClicked(const QModelIndex& index)
@@ -251,6 +255,60 @@ void NTP1Summary::slot_showMetadataAction()
         QMessageBox::warning(
             this, "Failed to get issuance txid",
             "Failed to retrieve issuance txid, which is required to retrieve the metadata");
+    }
+}
+
+void NTP1Summary::slot_showIssueNewTokenDialog()
+{
+    LOCK(cs_main);
+    std::fstream out("outfile.txt", std::ios::out);
+    for (const auto& p : mapBlockIndex) {
+        out << p.first.ToString() << "\n";
+    }
+
+    std::unordered_set<std::string> alreadyIssuedSymbols;
+    try {
+        CTxDB                txdb;
+        std::vector<uint256> txs;
+        // retrieve all issuance transactions hashes from db
+        if (txdb.ReadAllIssuanceTxs(txs)) {
+            for (const uint256& hash : txs) {
+                // get every tx from db
+                NTP1Transaction ntp1tx;
+                if (txdb.ReadNTP1Tx(hash, ntp1tx)) {
+                    // make sure that the transaction is in the main chain
+                    CTransaction tx;
+                    uint256      blockHash;
+                    if (!GetTransaction(hash, tx, blockHash)) {
+                        throw std::runtime_error(
+                            "Failed to find the block that belongs to transaction: " + hash.ToString());
+                    }
+                    auto it = mapBlockIndex.find(blockHash);
+                    if (it != mapBlockIndex.cend() && it->second->IsInMainChain()) {
+                        std::string tokenSymbol = ntp1tx.getTokenSymbolIfIssuance();
+                        // symbols should be in upper case for the comparison to work
+                        std::transform(tokenSymbol.begin(), tokenSymbol.end(), tokenSymbol.begin(),
+                                       ::toupper);
+                        alreadyIssuedSymbols.insert(tokenSymbol);
+                    }
+                } else {
+                    throw std::runtime_error("Failed to read transaction " + hash.ToString() +
+                                             " from blockchain database");
+                }
+            }
+
+            ui->issueNewNTP1TokenDialog->setAlreadyIssuedTokensSymbols(alreadyIssuedSymbols);
+            ui->issueNewNTP1TokenDialog->show();
+        } else {
+            QMessageBox::warning(this, "Failed to retrieve token names",
+                                 "Failed to retrieve the list of already issued token symbols. This is "
+                                 "necessary to avoid having duplicate token names");
+        }
+    } catch (std::exception& ex) {
+        QMessageBox::warning(this, "Failed to retrieve token names",
+                             "Failed to retrieve the list of already issued token symbols. This is "
+                             "necessary to avoid having duplicate token names. Error: " +
+                                 QString(ex.what()));
     }
 }
 

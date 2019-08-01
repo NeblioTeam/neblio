@@ -141,8 +141,8 @@ HEADERS += qt/bitcoingui.h \
     qt/ntp1/ntp1custommetadatawidget.h \
     qt/ntp1/ntp1metadatapairswidget.h \
     qt/json/NTP1MetadataViewer.h \
-    SerializationTester.h
-
+    SerializationTester.h \
+    qt/ntp1/issuenewntp1tokendialog.h
 
 
 
@@ -280,7 +280,8 @@ SOURCES += qt/bitcoin.cpp \
     qt/ntp1/ntp1metadatapairwidget.cpp \
     qt/ntp1/ntp1custommetadatawidget.cpp \
     qt/ntp1/ntp1metadatapairswidget.cpp \
-    SerializationTester.cpp
+    SerializationTester.cpp \
+    qt/ntp1/issuenewntp1tokendialog.cpp
 
 
 SOURCES +=                   \

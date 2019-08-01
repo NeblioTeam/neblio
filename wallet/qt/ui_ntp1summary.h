@@ -19,6 +19,7 @@
 #include "ClickableLabel.h"
 #include <QMovie>
 
+#include "ntp1/issuenewntp1tokendialog.h"
 #include "ntp1senddialog.h"
 
 QT_BEGIN_NAMESPACE
@@ -49,8 +50,7 @@ public:
     QPushButton* issueNewNTP1TokenButton;
     QLabel*      upper_table_loading_label;
     QLineEdit*   filter_lineEdit;
-    //    QPushButton* showSendDialogButton;
-    QLabel* labelBlockchainSyncStatus;
+    QLabel*      labelBlockchainSyncStatus;
 
     TokensListView* listTokens;
 
@@ -59,9 +59,7 @@ public:
     QGridLayout* bottom_layout;
     QPixmap      bottom_logo_pix;
 
-    //    QGroupBox*      sendTokensWidgetGroupBox;
-    //    QGridLayout*    sendTokensWidgetGroupBoxLayout;
-    //    NTP1SendDialog* sendTokensWidget;
+    IssueNewNTP1TokenDialog* issueNewNTP1TokenDialog;
 
     int bottom_bar_downscale_factor;
 
@@ -171,6 +169,8 @@ public:
         //        right_balance_layout->addWidget(sendTokensWidgetGroupBox);
 
         main_layout->addLayout(right_balance_layout, 0, 1, 1, 1);
+
+        issueNewNTP1TokenDialog = new IssueNewNTP1TokenDialog(NTP1SummaryPage);
 
         retranslateUi(NTP1SummaryPage);
 

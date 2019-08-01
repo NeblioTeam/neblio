@@ -293,8 +293,12 @@ protected:
         return true;
     }
 
-    template <typename K, typename T, template <typename, typename = std::allocator<T> > class Container>
-    bool ReadMultiple(const K& key, Container<T>& values, MDB_dbi* dbPtr)
+    /**
+     * ReadMultiple key/value pairs, either starting at "key" or just all the keys in the db. If readAll
+     * is true, everything in the db will be read
+     */
+    template <typename K, typename T, template <typename, typename = std::allocator<T>> class Container>
+    bool ReadMultiple(const K& key, Container<T>& values, bool readAll, MDB_dbi* dbPtr)
     {
         values.clear();
 
@@ -322,17 +326,25 @@ protected:
                          rc, mdb_strerror(rc));
         }
 
-        std::unique_ptr<MDB_cursor, void (*)(MDB_cursor*)> cursorPtr(
-            cursorRawPtr, [](MDB_cursor* p) {
-                if (p)
-                    mdb_cursor_close(p);
-            });
+        std::unique_ptr<MDB_cursor, void (*)(MDB_cursor*)> cursorPtr(cursorRawPtr, [](MDB_cursor* p) {
+            if (p)
+                mdb_cursor_close(p);
+        });
 
-        int itemRes = mdb_cursor_get(cursorPtr.get(), &kS, &vS, MDB_SET);
+        int itemRes = 1;
+
+        if (readAll) {
+            // read all items in that database
+            itemRes = mdb_cursor_get(cursorPtr.get(), &kS, &vS, MDB_FIRST);
+        } else {
+            // read only starting at some valud
+            itemRes = mdb_cursor_get(cursorPtr.get(), &kS, &vS, MDB_SET);
+        }
         if (itemRes) {
             std::string dbgKey = KeyAsString(key, ssKey.str());
             if (itemRes != 0 && itemRes != MDB_NOTFOUND) {
-                printf("txdb-lmdb: Cursor with key %s does not exist; with an error of code %i; and error: %s\n",
+                printf("txdb-lmdb: Cursor with key %s does not exist; with an error of code %i; and "
+                       "error: %s\n",
                        dbgKey.c_str(), itemRes, mdb_strerror(itemRes));
                 if (localTxn.rawPtr()) {
                     localTxn.abort();
@@ -465,21 +477,20 @@ protected:
         // only one of them should be active
         assert(localTxn.rawPtr() == nullptr || activeBatch == nullptr);
 
-        std::string&& keyBin = ssKey.str();
-        MDB_val       kS     = {keyBin.size(), (void*)(keyBin.c_str())};
-        std::string&& valBin = ssValue.str();
-        MDB_val       vS     = {valBin.size(), (void*)(valBin.c_str())};
+        std::string&& keyBin       = ssKey.str();
+        MDB_val       kS           = {keyBin.size(), (void*)(keyBin.c_str())};
+        std::string&& valBin       = ssValue.str();
+        MDB_val       vS           = {valBin.size(), (void*)(valBin.c_str())};
         MDB_cursor*   cursorRawPtr = nullptr;
         if (auto rc = mdb_cursor_open((!activeBatch ? localTxn : *activeBatch), *dbPtr, &cursorRawPtr)) {
             return error("ReadMultiple: Failed to open lmdb cursor with error code %d; and error: %s\n",
                          rc, mdb_strerror(rc));
         }
 
-        std::unique_ptr<MDB_cursor, void (*)(MDB_cursor*)> cursorPtr(
-            cursorRawPtr, [](MDB_cursor* p) {
-                if (p)
-                    mdb_cursor_close(p);
-            });
+        std::unique_ptr<MDB_cursor, void (*)(MDB_cursor*)> cursorPtr(cursorRawPtr, [](MDB_cursor* p) {
+            if (p)
+                mdb_cursor_close(p);
+        });
 
         if (auto ret = mdb_cursor_put(cursorPtr.get(), &kS, &vS, 0)) {
             std::string dbgKey = KeyAsString(key, ssKey.str());
@@ -578,15 +589,14 @@ protected:
 
         MDB_cursor* cursorRawPtr = nullptr;
         if (auto rc = mdb_cursor_open((!activeBatch ? localTxn : *activeBatch), *dbPtr, &cursorRawPtr)) {
-            return error("EraseDup: Failed to open lmdb cursor with error code %d; and error: %s\n",
-                         rc, mdb_strerror(rc));
+            return error("EraseDup: Failed to open lmdb cursor with error code %d; and error: %s\n", rc,
+                         mdb_strerror(rc));
         }
 
-        std::unique_ptr<MDB_cursor, void (*)(MDB_cursor*)> cursorPtr(
-            cursorRawPtr, [](MDB_cursor* p) {
-                if (p)
-                    mdb_cursor_close(p);
-            });
+        std::unique_ptr<MDB_cursor, void (*)(MDB_cursor*)> cursorPtr(cursorRawPtr, [](MDB_cursor* p) {
+            if (p)
+                mdb_cursor_close(p);
+        });
 
         int itemRes = mdb_cursor_get(cursorPtr.get(), &kS, &vS, MDB_SET);
         if (itemRes) {
@@ -684,7 +694,7 @@ public:
     bool test1_ExistsStrKeyVal(const std::string& key);
     bool test1_EraseStrKeyVal(const std::string& key);
 
-    bool test2_ReadMultipleStr1KeyVal(const std::string& key, std::vector<string> &val);
+    bool test2_ReadMultipleStr1KeyVal(const std::string& key, std::vector<string>& val);
     bool test2_WriteStrKeyVal(const std::string& key, const std::string& val);
     bool test2_ExistsStrKeyVal(const std::string& key);
     bool test2_EraseStrKeyVal(const std::string& key);
@@ -696,6 +706,7 @@ public:
     bool ReadTx(const CDiskTxPos& txPos, CTransaction& tx);
     bool ReadNTP1Tx(uint256 hash, NTP1Transaction& ntp1tx);
     bool WriteNTP1Tx(uint256 hash, const NTP1Transaction& ntp1tx);
+    bool ReadAllIssuanceTxs(std::vector<uint256>& txs);
     bool ReadNTP1TxsWithTokenSymbol(const std::string& tokenName, std::vector<uint256>& txs);
     bool WriteNTP1TxWithTokenSymbol(const std::string& tokenName, const NTP1Transaction& tx);
     bool EraseTxIndex(const CTransaction& tx);

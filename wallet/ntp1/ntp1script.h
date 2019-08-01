@@ -171,6 +171,9 @@ public:
 
     static std::string        GetMetadataAsString(const NTP1Script* ntp1script) noexcept;
     static json_spirit::Value GetMetadataAsJson(const NTP1Script* ntp1script) noexcept;
+
+    static bool IsNTP1TokenSymbolValid(const std::string& symbol);
+    static bool IsTokenSymbolCharValid(const char c);
 };
 
 template <typename Bitset>

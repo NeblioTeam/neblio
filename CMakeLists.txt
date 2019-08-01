@@ -515,6 +515,7 @@ add_library(ntp1_gui_lib STATIC
     wallet/qt/json/JsonTreeNode.cpp
     wallet/qt/json/JsonTreeView.cpp
     wallet/qt/json/NTP1MetadataViewer.cpp
+    wallet/qt/ntp1/issuenewntp1tokendialog.cpp
     )
 
 target_link_libraries(ntp1_gui_lib
