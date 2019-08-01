@@ -1,57 +1,56 @@
-Icon: src/qt/res/icons/clock*.png, src/qt/res/icons/tx*.png,
-      src/qt/res/src/*.svg
+Icon: wallet/qt/res/icons/clock*.png, wallet/qt/res/icons/tx*.png,
+      wallet/qt/res/src/*.svg
 Designer: Wladimir van der Laan
 License: MIT
 
 Icons:
 License: Creative Commons
-src/qt/res/icons/send.png & src/qt/res/icons/export.png : Arrow by Adrien Coquet from the Noun Project
-src/qt/res/icons/overview.png : Home by il Capitano from the Noun Project
-src/qt/res/icons/filesave.png & src/qt/res/icons/receive.png: Download by JohnnyZi from the Noun Project
-src/qt/res/icons/address-book.png : contact book by Pumpkin Juice from the Noun Project
-src/qt/res/icons/connect0*.png: Ethernet Error by Arthur Shlain from the Noun Project
-src/qt/res/icons/connect/staking_*.png: Coins by Rockicon from the Noun Project
-src/qt/res/icons/notsynced.png : Sync by il Capitano from the Noun Project
-src/qt/res/icons/synced.png : Check Mark by Adrien Coquet from the Noun Project
-src/qt/res/icons/history.png: Wallet by Satisfactory from the Noun Project
-src/qt/res/images/logo_left_tachyon.png: Lightning Bolt by Dima Sho from the Noun Project
+wallet/qt/res/icons/send.png & wallet/qt/res/icons/export.png : Arrow by Adrien Coquet from the Noun Project
+wallet/qt/res/icons/overview.png : Home by il Capitano from the Noun Project
+wallet/qt/res/icons/filesave.png & wallet/qt/res/icons/receive.png: Download by JohnnyZi from the Noun Project
+wallet/qt/res/icons/address-book.png : contact book by Pumpkin Juice from the Noun Project
+wallet/qt/res/icons/connect*.png: Signal by Diana from the Noun Project
+wallet/qt/res/icons/connect/staking_*.png: Coins by Rockicon from the Noun Project
+wallet/qt/res/icons/synced.png: Check by Besticons from the Noun Project
+wallet/qt/res/icons/history.png: Wallet by Satisfactory from the Noun Project
+wallet/qt/res/icons/AddNewNTP1Token.png: coin by JS from the Noun Project
 
 
 Icons:
-src/qt/res/icons/key.png,
-src/qt/res/icons/lock_*.png,
+wallet/qt/res/icons/key.png,
+wallet/qt/res/icons/lock_*.png,
 Icon Pack: NUVOLA ICON THEME for KDE 3.x
 Designer: David Vignoni (david@icon-king.com)
           ICON KING - www.icon-king.com
 License: LGPL
 Site: http://www.icon-king.com/projects/nuvola/
 
-Icon: src/qt/res/icons/transaction*.png
+Icon: wallet/qt/res/icons/transaction*.png
 Designer: md2k7
 Site: https://forum.bitcoin.org/index.php?topic=15276.0
 License: You are free to do with these icons as you wish, including selling,
  copying, modifying etc.
 
-Icon: src/qt/res/icons/configure.png, src/qt/res/icons/quit.png,
-      src/qt/res/icons/editcopy.png, src/qt/res/icons/editpaste.png,
-      src/qt/res/icons/add.png, src/qt/res/icons/edit.png,
-      src/qt/res/icons/remove.png (edited)
+Icon: wallet/qt/res/icons/configure.png, wallet/qt/res/icons/quit.png,
+      wallet/qt/res/icons/editcopy.png, wallet/qt/res/icons/editpaste.png,
+      wallet/qt/res/icons/add.png, wallet/qt/res/icons/edit.png,
+      wallet/qt/res/icons/remove.png (edited)
 Designer: http://www.everaldo.com
 Icon Pack: Crystal SVG
 License: LGPL
 
-Icon: src/qt/res/icons/bitcoin.png, src/qt/res/icons/toolbar.png
+Icon: wallet/qt/res/icons/bitcoin.png, wallet/qt/res/icons/toolbar.png
 Designer: Bitboy (optimized for 16x16 by Wladimir van der Laan)
 License: Public Domain
 Site: http://forum.bitcoin.org/?topic=1756.0
 
-Icon:  scripts/img/reload.xcf (modified),src/qt/res/movies/update_spinner.mng
+Icon:  scripts/img/reload.xcf (modified),wallet/qt/res/movies/update_spinner.mng
 Icon Pack: Kids
 Designer: Everaldo (Everaldo Coelho)
 License: GNU/GPL
 Site: http://findicons.com/icon/17102/reload?id=17102
 
-Image: src/qt/res/images/splash2.jpg (Wallet image)
+Image: wallet/qt/res/images/splash2.jpg (Wallet image)
 Designer: Crobbo (forum)
 Site: https://bitcointalk.org/index.php?topic=32273.0
 License: Public domain

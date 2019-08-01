@@ -23,7 +23,7 @@ double GetDifficulty(const CBlockIndex* blockindex)
         if (pindexBest == NULL)
             return 1.0;
         else
-            blockindex = GetLastBlockIndex(pindexBest, false);
+            blockindex = GetLastBlockIndex(pindexBest.get(), false);
     }
 
     int nShift = (blockindex->nBits >> 24) & 0xff;
@@ -44,14 +44,14 @@ double GetDifficulty(const CBlockIndex* blockindex)
 
 double GetPoWMHashPS()
 {
-    if (pindexBest->nHeight >= LAST_POW_BLOCK)
+    if (boost::atomic_load(&pindexBest)->nHeight >= LAST_POW_BLOCK)
         return 0;
 
     int     nPoWInterval          = 72;
     int64_t nTargetSpacingWorkMin = 30, nTargetSpacingWork = 30;
 
-    CBlockIndex* pindex         = pindexGenesisBlock;
-    CBlockIndex* pindexPrevWork = pindexGenesisBlock;
+    CBlockIndexSmartPtr pindex         = boost::atomic_load(&pindexGenesisBlock);
+    CBlockIndexSmartPtr pindexPrevWork = boost::atomic_load(&pindexGenesisBlock);
 
     while (pindex) {
         if (pindex->IsProofOfWork()) {
@@ -63,7 +63,7 @@ double GetPoWMHashPS()
             pindexPrevWork     = pindex;
         }
 
-        pindex = pindex->pnext;
+        pindex = atomic_load(&pindex->pnext);
     }
 
     return GetDifficulty() * 4294.967296 / nTargetSpacingWork;
@@ -75,13 +75,13 @@ double GetPoSKernelPS()
     double dStakeKernelsTriedAvg = 0;
     int    nStakesHandled = 0, nStakesTime = 0;
 
-    CBlockIndex* pindex = pindexBest;
-    ;
-    CBlockIndex* pindexPrevStake = NULL;
+    CBlockIndexSmartPtr pindex = pindexBest;
+
+    CBlockIndexSmartPtr pindexPrevStake = nullptr;
 
     while (pindex && nStakesHandled < nPoSInterval) {
         if (pindex->IsProofOfStake()) {
-            dStakeKernelsTriedAvg += GetDifficulty(pindex) * 4294967296.0;
+            dStakeKernelsTriedAvg += GetDifficulty(pindex.get()) * 4294967296.0;
             nStakesTime += pindexPrevStake ? (pindexPrevStake->nTime - pindex->nTime) : 0;
             pindexPrevStake = pindex;
             nStakesHandled++;
@@ -169,7 +169,7 @@ Value getdifficulty(const Array& params, bool fHelp)
 
     Object obj;
     obj.push_back(Pair("proof-of-work", GetDifficulty()));
-    obj.push_back(Pair("proof-of-stake", GetDifficulty(GetLastBlockIndex(pindexBest, true))));
+    obj.push_back(Pair("proof-of-stake", GetDifficulty(GetLastBlockIndex(pindexBest.get(), true))));
     obj.push_back(Pair("search-interval", (int)nLastCoinStakeSearchInterval));
     return obj;
 }
@@ -212,7 +212,7 @@ Value getblockhash(const Array& params, bool fHelp)
     if (nHeight < 0 || nHeight > nBestHeight)
         throw runtime_error("Block number out of range.");
 
-    CBlockIndex* pblockindex = FindBlockByHeight(nHeight);
+    CBlockIndexSmartPtr pblockindex = FindBlockByHeight(nHeight);
     return pblockindex->phashBlock->GetHex();
 }
 
@@ -263,7 +263,7 @@ Value getblock(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
 
     CBlock       block;
-    CBlockIndex* pblockindex = mapBlockIndex[hash];
+    CBlockIndex* pblockindex = boost::atomic_load(&mapBlockIndex[hash]).get();
     block.ReadFromDisk(pblockindex, true);
 
     if (!fVerbose) {
@@ -287,17 +287,17 @@ Value getblockbynumber(const Array& params, bool fHelp)
     if (nHeight < 0 || nHeight > nBestHeight)
         throw runtime_error("Block number out of range.");
 
-    CBlock       block;
-    CBlockIndex* pblockindex = mapBlockIndex[hashBestChain];
+    CBlock              block;
+    CBlockIndexSmartPtr pblockindex = boost::atomic_load(&mapBlockIndex[hashBestChain]);
     while (pblockindex->nHeight > nHeight)
         pblockindex = pblockindex->pprev;
 
     uint256 hash = *pblockindex->phashBlock;
 
-    pblockindex = mapBlockIndex[hash];
-    block.ReadFromDisk(pblockindex, true);
+    pblockindex = boost::atomic_load(&mapBlockIndex[hash]);
+    block.ReadFromDisk(pblockindex.get(), true);
 
-    return blockToJSON(block, pblockindex, params.size() > 1 ? params[1].get_bool() : false);
+    return blockToJSON(block, pblockindex.get(), params.size() > 1 ? params[1].get_bool() : false);
 }
 
 // ppcoin: get information of sync-checkpoint
@@ -311,7 +311,7 @@ Value getcheckpoint(const Array& params, bool fHelp)
     CBlockIndex* pindexCheckpoint;
 
     result.push_back(Pair("synccheckpoint", Checkpoints::hashSyncCheckpoint.ToString().c_str()));
-    pindexCheckpoint = mapBlockIndex[Checkpoints::hashSyncCheckpoint];
+    pindexCheckpoint = boost::atomic_load(&mapBlockIndex[Checkpoints::hashSyncCheckpoint]).get();
     result.push_back(Pair("height", pindexCheckpoint->nHeight));
     result.push_back(Pair("timestamp", DateTimeStrFormat(pindexCheckpoint->GetBlockTime()).c_str()));
 
@@ -325,7 +325,7 @@ Value getcheckpoint(const Array& params, bool fHelp)
     if (CheckpointsMode == Checkpoints::PERMISSIVE)
         result.push_back(Pair("policy", "permissive"));
 
-    if (mapArgs.count("-checkpointkey"))
+    if (mapArgs.exists("-checkpointkey"))
         result.push_back(Pair("checkpointmaster", true));
 
     return result;
@@ -333,10 +333,28 @@ Value getcheckpoint(const Array& params, bool fHelp)
 
 Value exportblockchain(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 1 || params.size() > 1)
-        throw runtime_error("exportblockchain <path-dir>\n"
-                            "Exports the blockchain bootstrap.dat file to <path-dir>.\n"
-                            "<path-dir> must be a directory that exists.");
+    if (fHelp || params.size() < 1 || params.size() > 2) {
+        throw runtime_error(
+            "exportblockchain <path-dir> [breadth or depth]\n"
+            "Exports the blockchain bootstrap.dat file to <path-dir>.\n"
+            "<path-dir> must be a directory that exists. Ignoring the last parameter "
+            "will export a linear version of the blockchain. If you need orphan chains, "
+            "you can choose whether traversal is going to be breadth-firsth or depth-first.");
+    }
+    if (params.size() == 2 && params[1].get_str() != "breadth" && params[1].get_str() != "depth") {
+        throw runtime_error("The second parameter can only be depth or breadth");
+    }
+
+    boost::optional<GraphTraverseType> graphTraverseType;
+    if (params.size() == 2) {
+        if (params[1].get_str() == "breadth") {
+            graphTraverseType = GraphTraverseType::BreadthFirst;
+        } else if (params[1].get_str() == "depth") {
+            graphTraverseType = GraphTraverseType::DepthFirst;
+        } else {
+            graphTraverseType.reset();
+        }
+    }
 
     boost::filesystem::path bdir(params[0].get_str());
     if (!boost::filesystem::exists(bdir))
@@ -348,10 +366,20 @@ Value exportblockchain(const Array& params, bool fHelp)
     boost::unique_future<void> finished_future = finished.get_future();
     std::atomic<bool>          stopped{false};
     std::atomic<double>        progress{false};
-    boost::thread              exporterThread(boost::bind(&ExportBootstrapBlockchain, filename.string(),
-                                             boost::ref(stopped), boost::ref(progress),
-                                             boost::ref(finished)));
-    exporterThread.detach();
+
+    if (graphTraverseType != boost::none) {
+        // with orphans
+        boost::thread exporterThread(
+            boost::bind(&ExportBootstrapBlockchainWithOrphans, filename.string(), boost::ref(stopped),
+                        boost::ref(progress), boost::ref(finished), graphTraverseType.value()));
+        exporterThread.detach();
+    } else {
+        // without orphans
+        boost::thread exporterThread(boost::bind(&ExportBootstrapBlockchain, filename.string(),
+                                                 boost::ref(stopped), boost::ref(progress),
+                                                 boost::ref(finished)));
+        exporterThread.detach();
+    }
 
     printf("Export blockchain to path started in another thread. Writing to path: %s\n",
            filename.string().c_str());

@@ -11,6 +11,7 @@
 #include <boost/thread/condition_variable.hpp>
 #include <boost/thread/locks.hpp>
 #include <boost/thread/mutex.hpp>
+#include <boost/atomic.hpp>
 #include <boost/thread/recursive_mutex.hpp>
 
 
@@ -208,34 +209,36 @@ public:
 class CSemaphoreGrant
 {
 private:
-    CSemaphore *sem;
-    bool fHaveGrant;
+    boost::atomic<CSemaphore*> sem;
+    boost::atomic_bool fHaveGrant;
 
 public:
     void Acquire() {
         if (fHaveGrant)
             return;
-        sem->wait();
+        sem.load()->wait();
         fHaveGrant = true;
     }
 
     void Release() {
         if (!fHaveGrant)
             return;
-        sem->post();
+        sem.load()->post();
         fHaveGrant = false;
     }
 
     bool TryAcquire() {
-        if (!fHaveGrant && sem->try_wait())
+        if (!fHaveGrant && sem.load()->try_wait())
             fHaveGrant = true;
         return fHaveGrant;
     }
 
     void MoveTo(CSemaphoreGrant &grant) {
         grant.Release();
-        grant.sem = sem;
-        grant.fHaveGrant = fHaveGrant;
+        {
+            grant.sem = sem.load();
+        }
+        grant.fHaveGrant = fHaveGrant.load();
         sem = NULL;
         fHaveGrant = false;
     }

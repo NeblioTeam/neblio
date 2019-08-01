@@ -10,6 +10,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <boost/atomic.hpp>
 
 #include <db_cxx.h>
 
@@ -24,7 +25,7 @@ class CTxIndex;
 class CWallet;
 class CWalletTx;
 
-extern unsigned int nWalletDBUpdated;
+extern boost::atomic<uint32_t> nWalletDBUpdated;
 
 void ThreadFlushWalletDB(void* parg);
 bool BackupWallet(const CWallet& wallet, const std::string& strDest);

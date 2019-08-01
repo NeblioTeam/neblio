@@ -7,6 +7,7 @@
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
+#include <boost/scope_exit.hpp>
 #include <boost/thread/future.hpp>
 #include <boost/version.hpp>
 #include <random>
@@ -90,8 +91,9 @@ bool CTxDB::need_resize(uint64_t threshold_size)
 
 void lmdb_resized(MDB_env* env)
 {
-    // TODO: use RAII to restore allowing txns
     mdb_txn_safe::prevent_new_txns();
+    BOOST_SCOPE_EXIT(void) { mdb_txn_safe::allow_new_txns(); }
+    BOOST_SCOPE_EXIT_END
 
     printf("LMDB map resize detected.\n");
 
@@ -114,8 +116,6 @@ void lmdb_resized(MDB_env* env)
        << "  Old: " << old / (1024 * 1024) << "MiB"
        << ", New: " << new_mapsize / (1024 * 1024) << "MiB";
     printf("%s\n", ss.str().c_str());
-
-    mdb_txn_safe::allow_new_txns();
 }
 
 void CTxDB::do_resize(uint64_t increase_size)
@@ -158,6 +158,8 @@ void CTxDB::do_resize(uint64_t increase_size)
     new_mapsize += (new_mapsize % mst.ms_psize);
 
     mdb_txn_safe::prevent_new_txns();
+    BOOST_SCOPE_EXIT(void) { mdb_txn_safe::allow_new_txns(); }
+    BOOST_SCOPE_EXIT_END
 
     if (activeBatch) {
         throw std::runtime_error(
@@ -175,8 +177,6 @@ void CTxDB::do_resize(uint64_t increase_size)
        << "  Old: " << mei.me_mapsize / (1024 * 1024) << "MiB"
        << ", New: " << new_mapsize / (1024 * 1024) << "MiB";
     printf("%s", ss.str().c_str());
-
-    mdb_txn_safe::allow_new_txns();
 }
 
 bool IsQuickSyncOSCompatible(const std::string& osValue)
@@ -210,17 +210,15 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
     std::shuffle(urls.begin(), urls.end(), rng);
 
     // Diskspace check disabled as it doesn't deliver reliable results for large files
-    //    uint64_t    fileSize = static_cast<uint64_t>(NTP1Tools::GetInt64Field(fileVal.get_obj(),
-    //    "size"));
-    // check available diskspace (disabled because it doesn't work properly on Windows
-    //    std::size_t availableSpace = GetFreeDiskSpace(dbdir);
-    //    std::size_t requiredSpace  = static_cast<std::size_t>(static_cast<double>(fileSize) * 1.2);
-    //    if (requiredSpace > availableSpace) {
-    //        throw std::runtime_error("Diskspace insufficient to download the blockchain; Available: " +
-    //                                 std::to_string(availableSpace / ONE_MB) +
-    //                                 " MB; required: " + std::to_string(requiredSpace / ONE_MB) + "
-    //                                 MB");
-    //    }
+    std::uintmax_t fileSize = static_cast<uint64_t>(NTP1Tools::GetInt64Field(fileVal.get_obj(), "size"));
+    // check available diskspace
+    std::uintmax_t availableSpace = GetFreeDiskSpace(dbdir);
+    std::uintmax_t requiredSpace  = static_cast<std::size_t>(static_cast<double>(fileSize) * 1.2);
+    if (requiredSpace > availableSpace) {
+        throw std::runtime_error("Diskspace insufficient to download the blockchain; Available: " +
+                                 std::to_string(availableSpace / ONE_MB) +
+                                 " MB; required: " + std::to_string(requiredSpace / ONE_MB) + "MB");
+    }
 
     std::string        leaf           = filesystem::path(urls.at(0)).filename().string();
     filesystem::path   downloadTarget = dbdir / leaf;
@@ -410,6 +408,9 @@ void CTxDB::init_blockindex(bool fRemoveOld)
                 nFile++;
             }
         }
+
+        // after a resync, always rescan the wallet
+        SC_CreateScheduledOperationOnRestart(SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN);
     }
 
     try {
@@ -425,10 +426,15 @@ void CTxDB::init_blockindex(bool fRemoveOld)
         this->Close();
 
         try {
+
             // binary layout compatibility is necessary for quicksync to work
             RunCrossPlatformSerializationTests();
             printf("Binary format tests have passed.\n");
             DoQuickSync(directory);
+
+            // after quicksync, a rescan has to be done
+            SC_CreateScheduledOperationOnRestart(SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN);
+
         } catch (std::exception& ex) {
             printf("Quicksync exited with an exception (this is not expected to happen): %s\n",
                    ex.what());
@@ -822,18 +828,18 @@ bool CTxDB::WriteCheckpointPubKey(const string& strPubKey)
     return Write(string("strCheckpointPubKey"), strPubKey, db_main);
 }
 
-static CBlockIndex* InsertBlockIndex(uint256 hash)
+static CBlockIndexSmartPtr InsertBlockIndex(uint256 hash)
 {
     if (hash == 0)
         return nullptr;
 
     // Return existing
-    unordered_map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hash);
+    BlockIndexMapType::iterator mi = mapBlockIndex.find(hash);
     if (mi != mapBlockIndex.end())
-        return (*mi).second;
+        return mi->second;
 
     // Create new
-    CBlockIndex* pindexNew = new CBlockIndex();
+    CBlockIndexSmartPtr pindexNew = boost::make_shared<CBlockIndex>();
     if (!pindexNew)
         throw runtime_error("LoadBlockIndex() : new CBlockIndex failed");
     mi                    = mapBlockIndex.insert(make_pair(hash, pindexNew)).first;
@@ -908,29 +914,35 @@ bool CTxDB::LoadBlockIndex()
 
         if (fRequestShutdown)
             break;
+
+        uint256 blockHash;
+        ssKey >> blockHash;
+
         CDiskBlockIndex diskindex;
         ssValue >> diskindex;
 
-        uint256 blockHash = diskindex.GetBlockHash();
+        // (Changed by Sam) previously, using diskindex.GetBlockHash retrieved the block hash AND set it
+        // inside the diskindex object with a const_cast. Now this is fixed to be correct
+        diskindex.SetBlockHash(blockHash);
 
         // Construct block index object
-        CBlockIndex* pindexNew    = InsertBlockIndex(blockHash);
-        pindexNew->pprev          = InsertBlockIndex(diskindex.hashPrev);
-        pindexNew->pnext          = InsertBlockIndex(diskindex.hashNext);
-        pindexNew->blockKeyInDB   = diskindex.blockKeyInDB;
-        pindexNew->nHeight        = diskindex.nHeight;
-        pindexNew->nMint          = diskindex.nMint;
-        pindexNew->nMoneySupply   = diskindex.nMoneySupply;
-        pindexNew->nFlags         = diskindex.nFlags;
-        pindexNew->nStakeModifier = diskindex.nStakeModifier;
-        pindexNew->prevoutStake   = diskindex.prevoutStake;
-        pindexNew->nStakeTime     = diskindex.nStakeTime;
-        pindexNew->hashProof      = diskindex.hashProof;
-        pindexNew->nVersion       = diskindex.nVersion;
-        pindexNew->hashMerkleRoot = diskindex.hashMerkleRoot;
-        pindexNew->nTime          = diskindex.nTime;
-        pindexNew->nBits          = diskindex.nBits;
-        pindexNew->nNonce         = diskindex.nNonce;
+        CBlockIndexSmartPtr pindexNew = InsertBlockIndex(blockHash);
+        pindexNew->pprev              = InsertBlockIndex(diskindex.hashPrev);
+        pindexNew->pnext              = InsertBlockIndex(diskindex.hashNext);
+        pindexNew->blockKeyInDB       = diskindex.blockKeyInDB;
+        pindexNew->nHeight            = diskindex.nHeight;
+        pindexNew->nMint              = diskindex.nMint;
+        pindexNew->nMoneySupply       = diskindex.nMoneySupply;
+        pindexNew->nFlags             = diskindex.nFlags;
+        pindexNew->nStakeModifier     = diskindex.nStakeModifier;
+        pindexNew->prevoutStake       = diskindex.prevoutStake;
+        pindexNew->nStakeTime         = diskindex.nStakeTime;
+        pindexNew->hashProof          = diskindex.hashProof;
+        pindexNew->nVersion           = diskindex.nVersion;
+        pindexNew->hashMerkleRoot     = diskindex.hashMerkleRoot;
+        pindexNew->nTime              = diskindex.nTime;
+        pindexNew->nBits              = diskindex.nBits;
+        pindexNew->nNonce             = diskindex.nNonce;
 
         // Watch for genesis block
         if (pindexGenesisBlock == nullptr &&
@@ -949,7 +961,7 @@ bool CTxDB::LoadBlockIndex()
         itemRes = mdb_cursor_get(cursorRawPtr, &key, &data, MDB_NEXT);
 
         loadedCount++;
-        if (loadedCount % 1000 == 0) {
+        if (loadedCount % 10000 == 0) {
             uiInterface.InitMessage(_("Loading block index...") +
                                     " (block: " + std::to_string(loadedCount) + ")");
         }
@@ -967,12 +979,23 @@ bool CTxDB::LoadBlockIndex()
     // Calculate nChainTrust
     vector<pair<int, CBlockIndex*>> vSortedByHeight;
     vSortedByHeight.reserve(mapBlockIndex.size());
-    BOOST_FOREACH (const PAIRTYPE(uint256, CBlockIndex*) & item, mapBlockIndex) {
-        CBlockIndex* pindex = item.second;
+    uiInterface.InitMessage("Building chain trust... (allocating memory...)");
+    for (const PAIRTYPE(uint256, CBlockIndexSmartPtr) & item : mapBlockIndex) {
+        CBlockIndex* pindex = item.second.get();
         vSortedByHeight.push_back(make_pair(pindex->nHeight, pindex));
     }
-    sort(vSortedByHeight.begin(), vSortedByHeight.end());
-    BOOST_FOREACH (const PAIRTYPE(int, CBlockIndex*) & item, vSortedByHeight) {
+    // use heap-sort to guarantee O(n*log(n)) performance, since std::sort() can have O(n^2) complexity
+    uiInterface.InitMessage("Building chain trust... (sorting...)");
+    std::make_heap(vSortedByHeight.begin(), vSortedByHeight.end());
+    std::sort_heap(vSortedByHeight.begin(), vSortedByHeight.end());
+    loadedCount = 0;
+    for (const PAIRTYPE(int, CBlockIndex*) & item : vSortedByHeight) {
+        loadedCount++;
+        if (loadedCount % 50000 == 0) {
+            uiInterface.InitMessage(
+                "Building chain trust... (chaining block: " + std::to_string(loadedCount) + "/" +
+                std::to_string(vSortedByHeight.size()) + ")");
+        }
         CBlockIndex* pindex = item.second;
         pindex->nChainTrust = (pindex->pprev ? pindex->pprev->nChainTrust : 0) + pindex->GetBlockTrust();
         // NovaCoin: calculate stake modifier checksum
@@ -1020,12 +1043,12 @@ bool CTxDB::LoadBlockIndex()
     if (nCheckDepth > nBestHeight)
         nCheckDepth = nBestHeight;
     printf("Verifying last %i blocks at level %i\n", nCheckDepth, nCheckLevel);
-    CBlockIndex*               pindexFork = nullptr;
+    CBlockIndexSmartPtr        pindexFork = nullptr;
     map<uint256, CBlockIndex*> mapBlockPos;
     loadedCount = 0;
-    for (CBlockIndex* pindex = pindexBest; pindex && pindex->pprev; pindex = pindex->pprev) {
+    for (CBlockIndexSmartPtr pindex = pindexBest; pindex && pindex->pprev; pindex = pindex->pprev) {
 
-        if (loadedCount % 10 == 0) {
+        if (loadedCount % 100 == 0) {
             uiInterface.InitMessage("Verifying latest blocks (" + std::to_string(loadedCount) + "/" +
                                     std::to_string(nCheckDepth) + ")");
         }
@@ -1034,7 +1057,7 @@ bool CTxDB::LoadBlockIndex()
         if (fRequestShutdown || pindex->nHeight < nBestHeight - nCheckDepth)
             break;
         CBlock block;
-        if (!block.ReadFromDisk(pindex))
+        if (!block.ReadFromDisk(pindex.get()))
             return error("LoadBlockIndex() : block.ReadFromDisk failed");
         // check level 1: verify block validity
         // check level 7: verify block signature too
@@ -1046,8 +1069,8 @@ bool CTxDB::LoadBlockIndex()
         // check level 2: verify transaction index validity
         if (nCheckLevel > 1) {
             uint256 pos      = pindex->blockKeyInDB;
-            mapBlockPos[pos] = pindex;
-            BOOST_FOREACH (const CTransaction& tx, block.vtx) {
+            mapBlockPos[pos] = pindex.get();
+            for (const CTransaction& tx : block.vtx) {
                 uint256  hashTx = tx.GetHash();
                 CTxIndex txindex;
                 if (ReadTxIndex(hashTx, txindex)) {
@@ -1069,7 +1092,7 @@ bool CTxDB::LoadBlockIndex()
                     // check level 4: check whether spent txouts were spent within the main chain
                     unsigned int nOutput = 0;
                     if (nCheckLevel > 3) {
-                        BOOST_FOREACH (const CDiskTxPos& txpos, txindex.vSpent) {
+                        for (const CDiskTxPos& txpos : txindex.vSpent) {
                             if (!txpos.IsNull()) {
                                 uint256 posFind = txpos.nBlockPos;
                                 if (!mapBlockPos.count(posFind)) {
@@ -1095,7 +1118,7 @@ bool CTxDB::LoadBlockIndex()
                                         pindexFork = pindex->pprev;
                                     } else {
                                         bool fFound = false;
-                                        BOOST_FOREACH (const CTxIn& txin, txSpend.vin)
+                                        for (const CTxIn& txin : txSpend.vin)
                                             if (txin.prevout.hash == hashTx && txin.prevout.n == nOutput)
                                                 fFound = true;
                                         if (!fFound) {
@@ -1113,7 +1136,7 @@ bool CTxDB::LoadBlockIndex()
                 }
                 // check level 5: check whether all prevouts are marked spent
                 if (nCheckLevel > 4) {
-                    BOOST_FOREACH (const CTxIn& txin, tx.vin) {
+                    for (const CTxIn& txin : tx.vin) {
                         CTxIndex txindex;
                         if (ReadTxIndex(txin.prevout.hash, txindex))
                             if (txindex.vSpent.size() - 1 < txin.prevout.n ||
@@ -1137,7 +1160,7 @@ bool CTxDB::LoadBlockIndex()
         printf("LoadBlockIndex() : *** moving best chain pointer back to block %d\n",
                pindexFork->nHeight);
         CBlock block;
-        if (!block.ReadFromDisk(pindexFork))
+        if (!block.ReadFromDisk(pindexFork.get()))
             return error("LoadBlockIndex() : block.ReadFromDisk failed");
         CTxDB txdb;
         block.SetBestChain(txdb, pindexFork);

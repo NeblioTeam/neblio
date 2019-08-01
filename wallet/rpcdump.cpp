@@ -2,18 +2,18 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
 
-#include "init.h" // for pwalletMain
-#include "bitcoinrpc.h"
-#include "ui_interface.h"
 #include "base58.h"
+#include "bitcoinrpc.h"
+#include "init.h" // for pwalletMain
+#include "ui_interface.h"
 
-#include <boost/date_time/posix_time/posix_time.hpp>
-#include <boost/variant/get.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/filesystem/fstream.hpp>
+#include <boost/variant/get.hpp>
 
 #include <openssl/md5.h>
 
@@ -29,44 +29,45 @@ namespace bt = boost::posix_time;
 // Extended DecodeDumpTime implementation, see this page for details:
 // http://stackoverflow.com/questions/3786201/parsing-of-date-time-from-string-boost
 const std::locale formats[] = {
-    std::locale(std::locale::classic(),new bt::time_input_facet("%Y-%m-%dT%H:%M:%SZ")),
-    std::locale(std::locale::classic(),new bt::time_input_facet("%Y-%m-%d %H:%M:%S")),
-    std::locale(std::locale::classic(),new bt::time_input_facet("%Y/%m/%d %H:%M:%S")),
-    std::locale(std::locale::classic(),new bt::time_input_facet("%d.%m.%Y %H:%M:%S")),
-    std::locale(std::locale::classic(),new bt::time_input_facet("%Y-%m-%d"))
-};
+    std::locale(std::locale::classic(), new bt::time_input_facet("%Y-%m-%dT%H:%M:%SZ")),
+    std::locale(std::locale::classic(), new bt::time_input_facet("%Y-%m-%d %H:%M:%S")),
+    std::locale(std::locale::classic(), new bt::time_input_facet("%Y/%m/%d %H:%M:%S")),
+    std::locale(std::locale::classic(), new bt::time_input_facet("%d.%m.%Y %H:%M:%S")),
+    std::locale(std::locale::classic(), new bt::time_input_facet("%Y-%m-%d"))};
 
-const size_t formats_n = sizeof(formats)/sizeof(formats[0]);
+const size_t formats_n = sizeof(formats) / sizeof(formats[0]);
 
 std::time_t pt_to_time_t(const bt::ptime& pt)
 {
-    bt::ptime timet_start(boost::gregorian::date(1970,1,1));
+    bt::ptime         timet_start(boost::gregorian::date(1970, 1, 1));
     bt::time_duration diff = pt - timet_start;
-    return diff.ticks()/bt::time_duration::rep_type::ticks_per_second;
+    return diff.ticks() / bt::time_duration::rep_type::ticks_per_second;
 }
 
 int64_t DecodeDumpTime(const std::string& s)
 {
     bt::ptime pt;
 
-    for(size_t i=0; i<formats_n; ++i)
-    {
+    for (size_t i = 0; i < formats_n; ++i) {
         std::istringstream is(s);
         is.imbue(formats[i]);
         is >> pt;
-        if(pt != bt::ptime()) break;
+        if (pt != bt::ptime())
+            break;
     }
 
     return pt_to_time_t(pt);
 }
 
-std::string static EncodeDumpTime(int64_t nTime) {
+std::string static EncodeDumpTime(int64_t nTime)
+{
     return DateTimeStrFormat("%Y-%m-%dT%H:%M:%SZ", nTime);
 }
 
-std::string static EncodeDumpString(const std::string &str) {
+std::string static EncodeDumpString(const std::string& str)
+{
     std::stringstream ret;
-    BOOST_FOREACH(unsigned char c, str) {
+    BOOST_FOREACH (unsigned char c, str) {
         if (c <= 32 || c >= 128 || c == '%') {
             ret << '%' << HexStr(&c, &c + 1);
         } else {
@@ -76,13 +77,14 @@ std::string static EncodeDumpString(const std::string &str) {
     return ret.str();
 }
 
-std::string DecodeDumpString(const std::string &str) {
+std::string DecodeDumpString(const std::string& str)
+{
     std::stringstream ret;
     for (unsigned int pos = 0; pos < str.length(); pos++) {
         unsigned char c = str[pos];
-        if (c == '%' && pos+2 < str.length()) {
-            c = (((str[pos+1]>>6)*9+((str[pos+1]-'0')&15)) << 4) |
-                ((str[pos+2]>>6)*9+((str[pos+2]-'0')&15));
+        if (c == '%' && pos + 2 < str.length()) {
+            c = (((str[pos + 1] >> 6) * 9 + ((str[pos + 1] - '0') & 15)) << 4) |
+                ((str[pos + 2] >> 6) * 9 + ((str[pos + 2] - '0') & 15));
             pos += 2;
         }
         ret << c;
@@ -93,17 +95,17 @@ std::string DecodeDumpString(const std::string &str) {
 class CTxDump
 {
 public:
-    CBlockIndex *pindex;
-    int64_t nValue;
-    bool fSpent;
-    CWalletTx* ptx;
-    int nOut;
+    CBlockIndex* pindex;
+    int64_t      nValue;
+    bool         fSpent;
+    CWalletTx*   ptx;
+    int          nOut;
     CTxDump(CWalletTx* ptx = NULL, int nOut = -1)
     {
-        pindex = NULL;
-        nValue = 0;
-        fSpent = false;
-        this->ptx = ptx;
+        pindex     = NULL;
+        nValue     = 0;
+        fSpent     = false;
+        this->ptx  = ptx;
         this->nOut = nOut;
     }
 };
@@ -111,23 +113,23 @@ public:
 Value importprivkey(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2)
-        throw runtime_error(
-            "importprivkey <neblioprivkey> [label]\n"
-            "Adds a private key (as returned by dumpprivkey) to your wallet.");
+        throw runtime_error("importprivkey <neblioprivkey> [label]\n"
+                            "Adds a private key (as returned by dumpprivkey) to your wallet.");
 
     string strSecret = params[0].get_str();
-    string strLabel = "";
+    string strLabel  = "";
     if (params.size() > 1)
         strLabel = params[1].get_str();
     CBitcoinSecret vchSecret;
-    bool fGood = vchSecret.SetString(strSecret);
+    bool           fGood = vchSecret.SetString(strSecret);
 
-    if (!fGood) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid private key");
+    if (!fGood)
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid private key");
     if (fWalletUnlockStakingOnly)
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Wallet is unlocked for staking only.");
 
-    CKey key;
-    bool fCompressed;
+    CKey    key;
+    bool    fCompressed;
     CSecret secret = vchSecret.GetSecret(fCompressed);
     key.SetSecret(secret, fCompressed);
     CKeyID vchAddress = key.GetPubKey().GetID();
@@ -149,7 +151,7 @@ Value importprivkey(const Array& params, bool fHelp)
         // whenever a key is imported, we need to scan the whole chain
         pwalletMain->nTimeFirstKey = 1; // 0 would be considered 'no value'
 
-        pwalletMain->ScanForWalletTransactions(pindexGenesisBlock, true);
+        pwalletMain->ScanForWalletTransactions(boost::atomic_load(&pindexGenesisBlock).get(), true);
         pwalletMain->ReacceptWalletTransactions();
     }
 
@@ -159,9 +161,8 @@ Value importprivkey(const Array& params, bool fHelp)
 Value importwallet(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
-        throw runtime_error(
-            "importwallet <filename>\n"
-            "Imports keys from a wallet dump file (see dumpwallet).");
+        throw runtime_error("importwallet <filename>\n"
+                            "Imports keys from a wallet dump file (see dumpwallet).");
 
     EnsureWalletIsUnlocked();
 
@@ -170,7 +171,7 @@ Value importwallet(const Array& params, bool fHelp)
     if (!file.is_open())
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot open wallet dump file");
 
-    int64_t nTimeBegin = pindexBest->nTime;
+    int64_t nTimeBegin = boost::atomic_load(&pindexBest)->nTime;
 
     bool fGood = true;
 
@@ -188,19 +189,20 @@ Value importwallet(const Array& params, bool fHelp)
         if (!vchSecret.SetString(vstr[0]))
             continue;
 
-        bool fCompressed;
-        CKey key;
+        bool    fCompressed;
+        CKey    key;
         CSecret secret = vchSecret.GetSecret(fCompressed);
         key.SetSecret(secret, fCompressed);
         CKeyID keyid = key.GetPubKey().GetID();
 
         if (pwalletMain->HaveKey(keyid)) {
-            printf("Skipping import of %s (key already present)\n", CBitcoinAddress(keyid).ToString().c_str());
+            printf("Skipping import of %s (key already present)\n",
+                   CBitcoinAddress(keyid).ToString().c_str());
             continue;
         }
-        int64_t nTime = DecodeDumpTime(vstr[1]);
+        int64_t     nTime = DecodeDumpTime(vstr[1]);
         std::string strLabel;
-        bool fLabel = true;
+        bool        fLabel = true;
         for (unsigned int nStr = 2; nStr < vstr.size(); nStr++) {
             if (boost::algorithm::starts_with(vstr[nStr], "#"))
                 break;
@@ -210,7 +212,7 @@ Value importwallet(const Array& params, bool fHelp)
                 fLabel = false;
             if (boost::algorithm::starts_with(vstr[nStr], "label=")) {
                 strLabel = DecodeDumpString(vstr[nStr].substr(6));
-                fLabel = true;
+                fLabel   = true;
             }
         }
         printf("Importing %s...\n", CBitcoinAddress(keyid).ToString().c_str());
@@ -225,15 +227,16 @@ Value importwallet(const Array& params, bool fHelp)
     }
     file.close();
 
-    CBlockIndex *pindex = pindexBest;
+    CBlockIndexSmartPtr pindex = pindexBest;
     while (pindex && pindex->pprev && pindex->nTime > nTimeBegin - 7200)
         pindex = pindex->pprev;
 
     if (!pwalletMain->nTimeFirstKey || nTimeBegin < pwalletMain->nTimeFirstKey)
         pwalletMain->nTimeFirstKey = nTimeBegin;
 
-    printf("Rescanning last %i blocks\n", pindexBest->nHeight - pindex->nHeight + 1);
-    pwalletMain->ScanForWalletTransactions(pindex);
+    printf("Rescanning last %i blocks\n",
+           boost::atomic_load(&pindexBest)->nHeight - pindex->nHeight + 1);
+    pwalletMain->ScanForWalletTransactions(pindex.get());
     pwalletMain->ReacceptWalletTransactions();
     pwalletMain->MarkDirty();
 
@@ -243,17 +246,15 @@ Value importwallet(const Array& params, bool fHelp)
     return Value::null;
 }
 
-
 Value dumpprivkey(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
-        throw runtime_error(
-            "dumpprivkey <neblioaddress>\n"
-            "Reveals the private key corresponding to <neblioaddress>.");
+        throw runtime_error("dumpprivkey <neblioaddress>\n"
+                            "Reveals the private key corresponding to <neblioaddress>.");
 
     EnsureWalletIsUnlocked();
 
-    string strAddress = params[0].get_str();
+    string          strAddress = params[0].get_str();
     CBitcoinAddress address;
     if (!address.SetString(strAddress))
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio address");
@@ -263,7 +264,7 @@ Value dumpprivkey(const Array& params, bool fHelp)
     if (!address.GetKeyID(keyID))
         throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to a key");
     CSecret vchSecret;
-    bool fCompressed;
+    bool    fCompressed;
     if (!pwalletMain->GetSecret(keyID, vchSecret, fCompressed))
         throw JSONRPCError(RPC_WALLET_ERROR, "Private key for address " + strAddress + " is not known");
     return CBitcoinSecret(vchSecret, fCompressed).ToString();
@@ -272,9 +273,8 @@ Value dumpprivkey(const Array& params, bool fHelp)
 Value dumpwallet(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
-        throw runtime_error(
-            "dumpwallet <filename>\n"
-            "Dumps all wallet keys in a human-readable format.");
+        throw runtime_error("dumpwallet <filename>\n"
+                            "Dumps all wallet keys in a human-readable format.");
 
     EnsureWalletIsUnlocked();
 
@@ -292,36 +292,48 @@ Value dumpwallet(const Array& params, bool fHelp)
     pwalletMain->GetAllReserveKeys(setKeyPool);
 
     // sort time/key pairs
-    std::vector<std::pair<int64_t, CKeyID> > vKeyBirth;
-    for (std::map<CKeyID, int64_t>::const_iterator it = mapKeyBirth.begin(); it != mapKeyBirth.end(); it++) {
+    std::vector<std::pair<int64_t, CKeyID>> vKeyBirth;
+    for (std::map<CKeyID, int64_t>::const_iterator it = mapKeyBirth.begin(); it != mapKeyBirth.end();
+         it++) {
         vKeyBirth.push_back(std::make_pair(it->second, it->first));
     }
     mapKeyBirth.clear();
     std::sort(vKeyBirth.begin(), vKeyBirth.end());
 
     // produce output
-    file << strprintf("# Wallet dump created by neblio %s (%s)\n", CLIENT_BUILD.c_str(), CLIENT_DATE.c_str());
+    file << strprintf("# Wallet dump created by neblio %s (%s)\n", CLIENT_BUILD.c_str(),
+                      CLIENT_DATE.c_str());
     file << strprintf("# * Created on %s\n", EncodeDumpTime(GetTime()).c_str());
-    file << strprintf("# * Best block at time of backup was %i (%s),\n", nBestHeight.load(), hashBestChain.ToString().c_str());
-    file << strprintf("#   mined on %s\n", EncodeDumpTime(pindexBest->nTime).c_str());
+    file << strprintf("# * Best block at time of backup was %i (%s),\n", nBestHeight.load(),
+                      hashBestChain.ToString().c_str());
+    file << strprintf("#   mined on %s\n",
+                      EncodeDumpTime(boost::atomic_load(&pindexBest)->nTime).c_str());
     file << "\n";
-    for (std::vector<std::pair<int64_t, CKeyID> >::const_iterator it = vKeyBirth.begin(); it != vKeyBirth.end(); it++) {
-        const CKeyID &keyid = it->second;
-        std::string strTime = EncodeDumpTime(it->first);
-        std::string strAddr = CBitcoinAddress(keyid).ToString();
-        bool IsCompressed;
+    for (std::vector<std::pair<int64_t, CKeyID>>::const_iterator it = vKeyBirth.begin();
+         it != vKeyBirth.end(); it++) {
+        const CKeyID& keyid   = it->second;
+        std::string   strTime = EncodeDumpTime(it->first);
+        std::string   strAddr = CBitcoinAddress(keyid).ToString();
+        bool          IsCompressed;
 
         CKey key;
         if (pwalletMain->GetKey(keyid, key)) {
             if (pwalletMain->mapAddressBook.count(keyid)) {
                 CSecret secret = key.GetSecret(IsCompressed);
-                file << strprintf("%s %s label=%s # addr=%s\n", CBitcoinSecret(secret, IsCompressed).ToString().c_str(), strTime.c_str(), EncodeDumpString(pwalletMain->mapAddressBook[keyid]).c_str(), strAddr.c_str());
+                file << strprintf(
+                    "%s %s label=%s # addr=%s\n",
+                    CBitcoinSecret(secret, IsCompressed).ToString().c_str(), strTime.c_str(),
+                    EncodeDumpString(pwalletMain->mapAddressBook[keyid]).c_str(), strAddr.c_str());
             } else if (setKeyPool.count(keyid)) {
                 CSecret secret = key.GetSecret(IsCompressed);
-                file << strprintf("%s %s reserve=1 # addr=%s\n", CBitcoinSecret(secret, IsCompressed).ToString().c_str(), strTime.c_str(), strAddr.c_str());
+                file << strprintf("%s %s reserve=1 # addr=%s\n",
+                                  CBitcoinSecret(secret, IsCompressed).ToString().c_str(),
+                                  strTime.c_str(), strAddr.c_str());
             } else {
                 CSecret secret = key.GetSecret(IsCompressed);
-                file << strprintf("%s %s change=1 # addr=%s\n", CBitcoinSecret(secret, IsCompressed).ToString().c_str(), strTime.c_str(), strAddr.c_str());
+                file << strprintf("%s %s change=1 # addr=%s\n",
+                                  CBitcoinSecret(secret, IsCompressed).ToString().c_str(),
+                                  strTime.c_str(), strAddr.c_str());
             }
         }
     }
@@ -331,26 +343,30 @@ Value dumpwallet(const Array& params, bool fHelp)
     return Value::null;
 }
 
-void _RescanBlockchain(int64_t earliestTime) {
-    CBlockIndex *pindex = pindexBest;
+void _RescanBlockchain(int64_t earliestTime)
+{
+    CBlockIndexSmartPtr pindex = boost::atomic_load(&pindexBest);
     while (pindex && pindex->pprev && pindex->nTime > earliestTime - 7200)
         pindex = pindex->pprev;
 
     if (!pwalletMain->nTimeFirstKey || earliestTime < pwalletMain->nTimeFirstKey)
         pwalletMain->nTimeFirstKey = earliestTime;
 
-    printf("Rescanning last %i blocks\n", pindexBest->nHeight - pindex->nHeight + 1);
-    pwalletMain->ScanForWalletTransactions(pindex);
+    printf("Rescanning last %i blocks\n",
+           boost::atomic_load(&pindexBest)->nHeight - pindex->nHeight + 1);
+    pwalletMain->ScanForWalletTransactions(pindex.get());
     pwalletMain->ReacceptWalletTransactions();
     pwalletMain->MarkDirty();
 }
 
-bool _AddKeyToLocalWallet(const CKey& Key, const std::string& strLabel, int64_t KeyCreationTime, int64_t& earliestTime, bool addInAddressBook) {
+bool _AddKeyToLocalWallet(const CKey& Key, const std::string& strLabel, int64_t KeyCreationTime,
+                          int64_t& earliestTime, bool addInAddressBook)
+{
     CKeyID keyid = Key.GetPubKey().GetID();
     printf("Importing %s...\n", CBitcoinAddress(keyid).ToString().c_str());
 
     // if key exists already in the local wallet, don't add it
-    if(pwalletMain->HaveKey(keyid)) {
+    if (pwalletMain->HaveKey(keyid)) {
         return false;
     }
 
@@ -368,7 +384,8 @@ bool _AddKeyToLocalWallet(const CKey& Key, const std::string& strLabel, int64_t 
     return true;
 }
 
-CBitcoinAddress GetAddressFromKey(const CKey& key) {
+CBitcoinAddress GetAddressFromKey(const CKey& key)
+{
     CBitcoinAddress a;
     a.Set(key.GetPubKey().GetID());
     return a;
@@ -380,13 +397,13 @@ CBitcoinAddress GetAddressFromKey(const CKey& key) {
  * @param Src
  * @return true if encrypted, falls otherwise
  */
-bool IsWalletEncrypted(const std::string& Src) {
+bool IsWalletEncrypted(const std::string& Src)
+{
     CWallet walletObj(Src);
-    bool firstRun = true;
+    bool    firstRun = true;
     walletObj.LoadWallet(firstRun);
     return walletObj.IsCrypted();
 }
-
 
 /**
  * This function imports a wallet located in the path Src so the default wallet in the program
@@ -394,99 +411,104 @@ bool IsWalletEncrypted(const std::string& Src) {
  * @brief ImportBackupWallet
  * @param Src path to the wallet
  * @param PassPhrase
- * @param importReserveToAddressBook, if enabled, all reserve keys from the backup wallet will be imported into the address book
- * @return A pair of two numbers, the second number is the total number of keys in the backup wallet, and the first is the number of successfully added keys
+ * @param importReserveToAddressBook, if enabled, all reserve keys from the backup wallet will be
+ * imported into the address book
+ * @return A pair of two numbers, the second number is the total number of keys in the backup wallet, and
+ * the first is the number of successfully added keys
  */
-std::pair<long,long> ImportBackupWallet(const std::string& Src, std::string& PassPhrase, bool importReserveToAddressBook)
+std::pair<long, long> ImportBackupWallet(const std::string& Src, std::string& PassPhrase,
+                                         bool importReserveToAddressBook)
 {
     if (pwalletMain->IsLocked()) {
         throw std::logic_error("Please unlock the wallet before importing.");
     }
     if (fWalletUnlockStakingOnly) {
-        throw std::logic_error("Please unlock the wallet before importing; unlocking should NOT be for staking only.");
+        throw std::logic_error(
+            "Please unlock the wallet before importing; unlocking should NOT be for staking only.");
     }
 
-    std::pair<long,long> succeessfullyAddedOutOfTotal = std::make_pair<long,long>(0,0);
-    CWallet backupWallet(Src);
-    bool firstRun = true;
+    std::pair<long, long> succeessfullyAddedOutOfTotal = std::make_pair<long, long>(0, 0);
+    CWallet               backupWallet(Src);
+    bool                  firstRun = true;
     backupWallet.LoadWallet(firstRun);
-    bool isEncrypted = backupWallet.IsCrypted();
+    bool         isEncrypted = backupWallet.IsCrypted();
     SecureString pass;
     // TODO: Move this 1024 to MAX_PASSPHRASE_SIZE
     pass.reserve(1024);
-    if(isEncrypted) {
+    if (isEncrypted) {
         pass.assign(PassPhrase.c_str());
         PassPhrase.clear();
         bool unlockSuccess = backupWallet.Unlock(pass);
-        if(!unlockSuccess) {
+        if (!unlockSuccess) {
             throw std::runtime_error("Unable to unlock backup wallet. Invalid passphrase.");
         }
     }
 
     // earliest time to rescan the blockchain
-    int64_t earliestTime = pindexBest->nTime;
+    int64_t earliestTime = boost::atomic_load(&pindexBest)->nTime;
 
     std::set<CKeyID> allKeyIDsSet;
     backupWallet.GetKeys(allKeyIDsSet);
     // deque to simply elements access
     const std::deque<CKeyID> allKeyIDs(allKeyIDsSet.begin(), allKeyIDsSet.end());
     typedef std::map<CTxDestination, std::string>::const_iterator AddressBookIt;
-    std::map<CTxDestination, std::string>& addrBook = backupWallet.mapAddressBook;
+    std::map<CTxDestination, std::string>&                        addrBook = backupWallet.mapAddressBook;
 
     // set total number of keys
     succeessfullyAddedOutOfTotal.second = allKeyIDs.size();
 
     // import address book keys
-    for(long i = 0; i < static_cast<long>(allKeyIDs.size()); i++) {
-        AddressBookIt it = addrBook.find(allKeyIDs[i]);
-        bool foundKeyInAddressBook = (it != addrBook.end());
+    for (long i = 0; i < static_cast<long>(allKeyIDs.size()); i++) {
+        AddressBookIt it                    = addrBook.find(allKeyIDs[i]);
+        bool          foundKeyInAddressBook = (it != addrBook.end());
 
         // retrieve key using key ID
         CKey key;
-        bool getKeySucceeded = backupWallet.GetKey(allKeyIDs[i],key);
-        if(!getKeySucceeded) continue;
+        bool getKeySucceeded = backupWallet.GetKey(allKeyIDs[i], key);
+        if (!getKeySucceeded)
+            continue;
 
         // add the key, whether to the address book or simply to reserve
-        if(foundKeyInAddressBook) {
+        if (foundKeyInAddressBook) {
             // import from address book
-            bool addSucceeded = _AddKeyToLocalWallet(key,
-                                                    it->second,
-                                                    backupWallet.mapKeyMetadata[boost::get<CKeyID>(it->first)].nCreateTime,
-                                                    earliestTime,
-                                                    true);
-            if(addSucceeded) succeessfullyAddedOutOfTotal.first++;
+            bool addSucceeded = _AddKeyToLocalWallet(
+                key, it->second, backupWallet.mapKeyMetadata[boost::get<CKeyID>(it->first)].nCreateTime,
+                earliestTime, true);
+            if (addSucceeded)
+                succeessfullyAddedOutOfTotal.first++;
         } else {
             // import reserve keys
-            bool addSucceeded = _AddKeyToLocalWallet(key,
-                                                     "",
-                                                     backupWallet.mapKeyMetadata[allKeyIDs[i]].nCreateTime,
-                                                     earliestTime,
-                                                     importReserveToAddressBook);
-            if(addSucceeded) succeessfullyAddedOutOfTotal.first++;
+            bool addSucceeded =
+                _AddKeyToLocalWallet(key, "", backupWallet.mapKeyMetadata[allKeyIDs[i]].nCreateTime,
+                                     earliestTime, importReserveToAddressBook);
+            if (addSucceeded)
+                succeessfullyAddedOutOfTotal.first++;
         }
     }
     _RescanBlockchain(earliestTime);
     return succeessfullyAddedOutOfTotal;
 }
 
-std::string MD5FromString(const std::string &str) {
-  unsigned char result[MD5_DIGEST_LENGTH];
-  MD5((unsigned char *)str.c_str(), str.size(), result);
+std::string MD5FromString(const std::string& str)
+{
+    unsigned char result[MD5_DIGEST_LENGTH];
+    MD5((unsigned char*)str.c_str(), str.size(), result);
 
-  std::ostringstream sout;
-  sout << std::hex << std::setfill('0');
-  for (long long i = 0; i < MD5_DIGEST_LENGTH; i++) {
-    sout << std::setw(2) << (long long)result[i];
-  }
-  return sout.str();
+    std::ostringstream sout;
+    sout << std::hex << std::setfill('0');
+    for (long long i = 0; i < MD5_DIGEST_LENGTH; i++) {
+        sout << std::setw(2) << (long long)result[i];
+    }
+    return sout.str();
 }
 
-bool WriteStringToFile(const boost::filesystem::path& filepath, const std::string& strToWrite) {
-    if(boost::filesystem::exists(filepath)) {
+bool WriteStringToFile(const boost::filesystem::path& filepath, const std::string& strToWrite)
+{
+    if (boost::filesystem::exists(filepath)) {
         boost::filesystem::remove(filepath);
     }
     boost::filesystem::fstream file(filepath, std::ios::out);
-    if(!file.good()) {
+    if (!file.good()) {
         return false;
     }
     file << strToWrite;
@@ -494,37 +516,38 @@ bool WriteStringToFile(const boost::filesystem::path& filepath, const std::strin
     return true;
 }
 
-std::string ReadStringFromFile(const boost::filesystem::path& filepath) {
-    if(!boost::filesystem::exists(filepath)) {
+std::string ReadStringFromFile(const boost::filesystem::path& filepath)
+{
+    if (!boost::filesystem::exists(filepath)) {
         return std::string();
     }
     boost::filesystem::fstream file(filepath, std::ios::in);
-    std::string result;
+    std::string                result;
     file >> result;
     file.close();
     return result;
 }
 
-std::string GetCurrentWalletHash() {
+std::string GetCurrentWalletHash()
+{
     std::set<CKeyID> allKeyIDsSet;
     pwalletMain->GetKeys(allKeyIDsSet);
     // deque to simply elements access
     const std::deque<CKeyID> allKeyIDs(allKeyIDsSet.begin(), allKeyIDsSet.end());
 
-
     // concatenate all public keys into one string
     std::string finalStringToHash;
-    for(long i = 0; i < static_cast<long>(allKeyIDs.size()); i++) {
+    for (long i = 0; i < static_cast<long>(allKeyIDs.size()); i++) {
         // retrieve key using key ID
         CKey key;
-        bool getKeySucceeded = pwalletMain->GetKey(allKeyIDs[i],key);
-        if(!getKeySucceeded) {
+        bool getKeySucceeded = pwalletMain->GetKey(allKeyIDs[i], key);
+        if (!getKeySucceeded) {
             printf("Failed to get key number %ld", i);
             continue;
         }
         finalStringToHash += key.GetPubKey().GetHash().ToString();
     }
-    if(finalStringToHash.empty()) {
+    if (finalStringToHash.empty()) {
         throw std::runtime_error("Error: Backup public keys hash is empty. This should not happen.");
     }
     // calculate the MD5 hash of all public keys and return it
@@ -532,15 +555,16 @@ std::string GetCurrentWalletHash() {
     return theHash;
 }
 
-void WriteWalletBackupHash() {
+void WriteWalletBackupHash()
+{
     // if the hash file doesn't exist, then the wallet was never backed-up
     boost::filesystem::path BackupHashFilePath = GetDataDir() / CWallet::BackupHashFilename;
-    if(!boost::filesystem::exists(BackupHashFilePath)) {
+    if (!boost::filesystem::exists(BackupHashFilePath)) {
         boost::filesystem::remove(BackupHashFilePath);
     }
 
     // if the wallet is not accessible
-    if(pwalletMain == NULL) {
+    if (pwalletMain == NULL) {
         throw std::runtime_error("Wallet pointer is NULL. Can't write backup hash.");
     }
 
@@ -550,7 +574,7 @@ void WriteWalletBackupHash() {
     }
 
     std::string finalHash = GetCurrentWalletHash();
-    if(!WriteStringToFile(BackupHashFilePath, finalHash)) {
+    if (!WriteStringToFile(BackupHashFilePath, finalHash)) {
         throw std::runtime_error("Writing wallet backup data failed.");
     }
 }
@@ -560,12 +584,12 @@ bool ShouldWalletBeBackedUp()
     boost::filesystem::path BackupHashFilePath = GetDataDir() / CWallet::BackupHashFilename;
 
     // if the hash file doesn't exist, then the wallet was never backed-up
-    if(!boost::filesystem::exists(BackupHashFilePath)) {
+    if (!boost::filesystem::exists(BackupHashFilePath)) {
         return true;
     }
 
     // if the wallet is not accessible, just ignore checking
-    if(pwalletMain == NULL) {
+    if (pwalletMain == NULL) {
         return false;
     }
 
@@ -574,9 +598,9 @@ bool ShouldWalletBeBackedUp()
         return false;
     }
 
-    std::string finalHash = GetCurrentWalletHash();
+    std::string finalHash  = GetCurrentWalletHash();
     std::string storedHash = ReadStringFromFile(BackupHashFilePath);
-    if(storedHash == finalHash) {
+    if (storedHash == finalHash) {
         return false;
     } else {
         return true;

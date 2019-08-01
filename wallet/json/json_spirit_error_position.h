@@ -11,6 +11,7 @@
 #endif
 
 #include <string>
+#include <stdexcept>
 
 namespace json_spirit
 {
@@ -18,7 +19,8 @@ namespace json_spirit
     // Note the "read_or_throw" functions are around 3 times slower than the standard functions "read" 
     // functions that return a bool.
     //
-    struct Error_position
+    // std::invalid_argument added by Sam to solve the issue of having to catch by Error_position type
+    struct Error_position : public std::invalid_argument
     {
         Error_position();
         Error_position( unsigned int line, unsigned int column, const std::string& reason );
@@ -26,16 +28,25 @@ namespace json_spirit
         unsigned int line_;
         unsigned int column_;
         std::string reason_;
+        mutable std::string stdExceptMessage;
+
+    public:
+        inline const char *what() const noexcept override;
     };
 
     inline Error_position::Error_position()
-    :   line_( 0 )
+    :   std::invalid_argument ("Unspedified json Error_position")
+    ,   line_( 0 )
     ,   column_( 0 )
     {
     }
 
     inline Error_position::Error_position( unsigned int line, unsigned int column, const std::string& reason )
-    :   line_( line )
+    :   std::invalid_argument(
+              std::string("Json parsing failed at line: " + std::to_string(line) +
+              std::string(", and columnd ") + std::to_string(column)) +
+              std::string(", and reason: ") + reason)
+    ,   line_( line )
     ,   column_( column )
     ,   reason_( reason )
     {
@@ -47,8 +58,16 @@ namespace json_spirit
 
         return ( reason_ == lhs.reason_ ) &&
                ( line_   == lhs.line_ ) &&
-               ( column_ == lhs.column_ ); 
-}
+                ( column_ == lhs.column_ );
+    }
+
+    const char *Error_position::what() const noexcept
+    {
+        stdExceptMessage = std::string("Json parsing failed at line: " + std::to_string(line_) +
+                           std::string(", and columnd ") + std::to_string(column_)) +
+                           std::string(", and reason: ") + reason_;
+        return stdExceptMessage.c_str();
+    }
 }
 
 #endif

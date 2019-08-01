@@ -1,0 +1,10 @@
+fun:*QThread*start*
+fun:*BitcoinGUI*BitcoinGUI*
+fun:*DBWalletTransient*
+fun:*QCoreApplication*qt_metacall*
+fun:*QArrayData*allocate*
+fun:*QWaitCondition*wakeAll*
+fun:*QWaitCondition*QWaitCondition*
+fun:*QWaitCondition*wait*
+fun:*QCoreApplication*postEvent*
+fun:*boost*recursive_mutex*lock*

@@ -54,7 +54,7 @@ static bool vfLimited[NET_MAX] = {};
 static CNode* pnodeLocalHost = NULL;
 CAddress addrSeenByPeer(CService("0.0.0.0", 0), nLocalServices);
 uint64_t nLocalHostNonce = 0;
-boost::array<int, THREAD_MAX> vnThreadsRunning;
+boost::array<boost::atomic_int, THREAD_MAX> vnThreadsRunning;
 static std::vector<SOCKET> vhListenSocket;
 CAddrMan addrman;
 
@@ -403,7 +403,7 @@ bool GetMyExternalIP(CNetAddr& ipRet)
     return false;
 }
 
-void ThreadGetMyExternalIP(void* parg)
+void ThreadGetMyExternalIP(void* /*parg*/)
 {
     // Make this thread recognisable as the external IP detection thread
     RenameThread("neblio-ext-ip");
@@ -765,7 +765,7 @@ void ThreadSocketHandler(void* parg)
     printf("ThreadSocketHandler exited\n");
 }
 
-void ThreadSocketHandler2(void* parg)
+void ThreadSocketHandler2(void* /*parg*/)
 {
     printf("ThreadSocketHandler started\n");
     list<CNode*> vNodesDisconnected;
@@ -834,10 +834,15 @@ void ThreadSocketHandler2(void* parg)
                 }
             }
         }
-        if (vNodes.size() != nPrevNodeCount)
+        std::size_t vNodesSize = 0;
         {
-            nPrevNodeCount = vNodes.size();
-            uiInterface.NotifyNumConnectionsChanged(vNodes.size());
+            LOCK(cs_vNodes);
+            vNodesSize = vNodes.size();
+        }
+        if (vNodesSize != nPrevNodeCount)
+        {
+            nPrevNodeCount = vNodesSize;
+            uiInterface.NotifyNumConnectionsChanged(vNodesSize);
         }
 
 
@@ -1033,8 +1038,11 @@ void ThreadSocketHandler2(void* parg)
             //
             // Inactivity checking
             //
-            if (pnode->vSendMsg.empty())
-                pnode->nLastSendEmpty = GetTime();
+            {
+                LOCK(pnode->cs_vSend);
+                if (pnode->vSendMsg.empty())
+                    pnode->nLastSendEmpty = GetTime();
+            }
             if (GetTime() - pnode->nTimeConnected > 60)
             {
                 if (pnode->nLastRecv == 0 || pnode->nLastSend == 0)
@@ -1255,7 +1263,7 @@ void ThreadDNSAddressSeed(void* parg)
     printf("ThreadDNSAddressSeed exited\n");
 }
 
-void ThreadDNSAddressSeed2(void* parg)
+void ThreadDNSAddressSeed2(void* /*parg*/)
 {
     printf("ThreadDNSAddressSeed started\n");
     int found = 0;
@@ -1315,7 +1323,7 @@ void DumpAddresses()
            addrman.size(), GetTimeMillis() - nStart);
 }
 
-void ThreadDumpAddress2(void* parg)
+void ThreadDumpAddress2(void* /*parg*/)
 {
     vnThreadsRunning[THREAD_DUMPADDRESS]++;
     while (!fShutdown)
@@ -1399,20 +1407,34 @@ void static ThreadStakeMiner(void* parg)
         vnThreadsRunning[THREAD_STAKE_MINER]--;
         PrintException(NULL, "ThreadStakeMiner()");
     }
-    printf("ThreadStakeMiner exiting, %d threads remaining\n", vnThreadsRunning[THREAD_STAKE_MINER]);
+    std::string threadsRemainingStr = "{";
+    {
+        for(unsigned i = 0; i < vnThreadsRunning.size(); i++) {
+            threadsRemainingStr += std::to_string(vnThreadsRunning[i].load());
+            if(i + 1 < vnThreadsRunning.size()) {
+                threadsRemainingStr += ", ";
+            }
+        }
+        threadsRemainingStr += "}";
+    }
+    printf("ThreadStakeMiner exiting, %s threads remaining\n", threadsRemainingStr.c_str());
 }
 
-void ThreadOpenConnections2(void* parg)
+void ThreadOpenConnections2(void* /*parg*/)
 {
     printf("ThreadOpenConnections started\n");
 
     // Connect to specific addresses
-    if (mapArgs.count("-connect") && mapMultiArgs["-connect"].size() > 0)
+    std::vector<std::string> connectVals;
+    mapMultiArgs.get("-connect", connectVals);
+    if (connectVals.size() > 0)
     {
         for (int64_t nLoop = 0;; nLoop++)
         {
             ProcessOneShot();
-            BOOST_FOREACH(string strAddr, mapMultiArgs["-connect"])
+            std::vector<std::string> connectVals;
+            mapMultiArgs.get("-connect", connectVals);
+            BOOST_FOREACH(string strAddr, connectVals)
             {
                 CAddress addr;
                 OpenNetworkConnection(addr, NULL, strAddr.c_str());
@@ -1544,16 +1566,18 @@ void ThreadOpenAddedConnections(void* parg)
     printf("ThreadOpenAddedConnections exited\n");
 }
 
-void ThreadOpenAddedConnections2(void* parg)
+void ThreadOpenAddedConnections2(void* /*parg*/)
 {
     printf("ThreadOpenAddedConnections started\n");
 
-    if (mapArgs.count("-addnode") == 0)
+    if (mapArgs.exists("-addnode") == 0)
         return;
 
     if (HaveNameProxy()) {
         while(!fShutdown) {
-            BOOST_FOREACH(string& strAddNode, mapMultiArgs["-addnode"]) {
+            std::vector<std::string> addnodeVals;
+            mapMultiArgs.get("-addnode", addnodeVals);
+            BOOST_FOREACH(string& strAddNode, addnodeVals) {
                 CAddress addr;
                 CSemaphoreGrant grant(*semOutbound);
                 OpenNetworkConnection(addr, &grant, strAddNode.c_str());
@@ -1567,7 +1591,9 @@ void ThreadOpenAddedConnections2(void* parg)
     }
 
     vector<vector<CService> > vservAddressesToAdd(0);
-    BOOST_FOREACH(string& strAddNode, mapMultiArgs["-addnode"])
+    std::vector<std::string> addnodeVals;
+    mapMultiArgs.get("-addnode", addnodeVals);
+    BOOST_FOREACH(string& strAddNode, addnodeVals)
     {
         vector<CService> vservNode(0);
         if(Lookup(strAddNode.c_str(), vservNode, GetDefaultPort(), fNameLookup, 0))
@@ -1675,7 +1701,7 @@ void ThreadMessageHandler(void* parg)
     printf("ThreadMessageHandler exited\n");
 }
 
-void ThreadMessageHandler2(void* parg)
+void ThreadMessageHandler2(void* /*parg*/)
 {
     printf("ThreadMessageHandler started\n");
     SetThreadPriority(THREAD_PRIORITY_BELOW_NORMAL);
@@ -1901,7 +1927,7 @@ void static Discover()
         NewThread(ThreadGetMyExternalIP, NULL);
 }
 
-void StartNode(void* parg)
+void StartNode(void* /*parg*/)
 {
     // Make this thread recognisable as the startup thread
     RenameThread("neblio-start");

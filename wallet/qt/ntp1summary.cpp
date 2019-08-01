@@ -227,7 +227,15 @@ void NTP1Summary::slot_showMetadataAction()
         try {
             auto it = issuanceTxidVsMetadata.find(issuanceTxid);
             if (it == issuanceTxidVsMetadata.cend()) {
-                json_spirit::Value v = NTP1Transaction::GetNTP1IssuanceMetadata(issuanceTxid);
+                json_spirit::Value v;
+                try {
+                    v = NTP1Transaction::GetNTP1IssuanceMetadata(issuanceTxid);
+                } catch(std::exception& ex) {
+                    QMessageBox::warning(this, "Failed to get issuance transaction",
+                                         "Failed to retrieve issuance transaction with error: " +
+                                             QString(ex.what()));
+                    return;
+                }
                 issuanceTxidVsMetadata[issuanceTxid] = v;
                 std::stringstream ss;
                 json_spirit::write_formatted(v, ss);

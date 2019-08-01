@@ -59,12 +59,13 @@
 #include <QUrl>
 #include <QVBoxLayout>
 
+#include <boost/atomic.hpp>
 #include <iostream>
 #include <memory>
 
 extern std::shared_ptr<CWallet> pwalletMain;
-extern int64_t  nLastCoinStakeSearchInterval;
-double          GetPoSKernelPS();
+extern boost::atomic<int64_t>   nLastCoinStakeSearchInterval;
+double                          GetPoSKernelPS();
 
 BitcoinGUI::BitcoinGUI(QWidget* parent)
     : QMainWindow(parent), clientModel(0), walletModel(0), encryptWalletAction(0),
@@ -203,13 +204,10 @@ BitcoinGUI::BitcoinGUI(QWidget* parent)
     // as they make the text unreadable (workaround for issue #1071)
     // See https://qt-project.org/doc/qt-4.8/gallery.html
     QString curStyle = qApp->style()->metaObject()->className();
-    if (curStyle == "QWindowsStyle" || curStyle == "QWindowsXPStyle") {
-        progressBar->setStyleSheet("QProgressBar { background-color: #e8e8e8; border: 1px solid grey; "
-                                   "border-radius: 7px; padding: 1px; text-align: center; } "
-                                   "QProgressBar::chunk { background: QLinearGradient(x1: 0, y1: 0, x2: "
-                                   "1, y2: 0, stop: 0 #FF8000, stop: 1 orange); border-radius: 7px; "
+    progressBar->setStyleSheet("QProgressBar { background-color: #e8e8e8; border: 1px solid grey; "
+                                   "border-radius: 2px; padding: 1px; text-align: center; } "
+                                   "QProgressBar::chunk { background-color: #0bdbd0; border-radius: 2px; "
                                    "margin: 0px; }");
-    }
 
     statusBar()->addWidget(updaterLabel);
     updaterLabel->setAlignment(Qt::AlignCenter);
@@ -219,7 +217,7 @@ BitcoinGUI::BitcoinGUI(QWidget* parent)
 
     statusBar()->setStyleSheet("QStatusBar { background-color: white; border: none; }");
 
-    syncIconMovie = new QMovie(":/movies/update_spinner", "mng", this);
+    syncIconMovie = new QMovie(":images/update-spinner", QByteArray(), this);
 
     // Clicking on a transaction on the overview page simply sends you to transaction history page
     connect(overviewPage, SIGNAL(transactionClicked(QModelIndex)), this, SLOT(gotoHistoryPage()));
@@ -243,6 +241,7 @@ BitcoinGUI::BitcoinGUI(QWidget* parent)
     updaterUpdateExistsMovie->setScaledSize(updaterIconSize);
     updaterErrorMovie->setScaledSize(updaterIconSize);
     updaterSpinnerMovie->setScaledSize(updaterIconSize);
+    syncIconMovie->setScaledSize(updaterIconSize);
 
     checkWhetherBackupIsMade();
 }
@@ -690,13 +689,6 @@ void BitcoinGUI::setNumBlocks(int count, int nTotalBlocks)
     labelBlocksIcon->setToolTip(tooltip);
     progressBarLabel->setToolTip(tooltip);
     progressBar->setToolTip(tooltip);
-
-    // switch Tachyon logo
-    if (!logoSwitched && clientModel->getNumBlocks() >=
-        GetNetForks().getFirstBlockOfFork(NetworkFork::NETFORK__3_TACHYON)) {
-        overviewPage->ui->left_logo_label->setPixmap(overviewPage->ui->left_logo_tachyon_pix);
-        logoSwitched = true;
-    }
 }
 
 void BitcoinGUI::error(const QString& title, const QString& message, bool modal)
@@ -856,6 +848,38 @@ void BitcoinGUI::exportBlockchainBootstrap()
                                                     tr("Blockchain Data (*.dat)"));
 
     if (!filename.isEmpty()) {
+        QMessageBox::StandardButton includeOrphanResult = QMessageBox::question(
+            this, "Include ophans?",
+            "Would you like to include orphan blocks?\n\nIf you don't know what this means, select no.",
+            QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel, QMessageBox::No);
+        if (includeOrphanResult != QMessageBox::Yes && includeOrphanResult != QMessageBox::No) {
+            // this means cancel/escape was chosen
+            return;
+        }
+
+        GraphTraverseType graphTraverseType = GraphTraverseType::DepthFirst;
+
+        if (includeOrphanResult == QMessageBox::Yes) {
+            QMessageBox msgBox;
+            msgBox.setWindowTitle("Blockchain graph order?");
+            msgBox.setText("How would you like to order the blockchain graph in the "
+                           "bootstrap file? Breadth-first or Depth-first?");
+            QAbstractButton* pButtonDepth = msgBox.addButton(tr("Depth-First"), QMessageBox::NoRole);
+            QAbstractButton* pButtonBreadth =
+                msgBox.addButton(tr("Breadth-first"), QMessageBox::YesRole);
+            msgBox.addButton(tr("Cancel"), QMessageBox::RejectRole);
+
+            msgBox.exec();
+
+            if (msgBox.clickedButton() == pButtonBreadth) {
+                graphTraverseType = GraphTraverseType::BreadthFirst;
+            } else if (msgBox.clickedButton() == pButtonDepth) {
+                graphTraverseType = GraphTraverseType::DepthFirst;
+            } else {
+                return;
+            }
+        }
+
         blockchainExporterProg->setValue(0);
         blockchainExporterProg->reset();
         blockchainExporterProg->setLabelText("Exporting... please wait.");
@@ -865,10 +889,20 @@ void BitcoinGUI::exportBlockchainBootstrap()
         boost::unique_future<void> finished_future = finished.get_future();
         std::atomic<bool>          stopped{false};
         std::atomic<double>        progress{false};
-        boost::thread exporterThread(boost::bind(&ExportBootstrapBlockchain, filename.toStdString(),
-                                                 boost::ref(stopped), boost::ref(progress),
-                                                 boost::ref(finished)));
-        exporterThread.detach();
+
+        if (includeOrphanResult == QMessageBox::Yes) {
+            // with orphans
+            boost::thread exporterThread(boost::bind(
+                &ExportBootstrapBlockchainWithOrphans, filename.toStdString(), boost::ref(stopped),
+                boost::ref(progress), boost::ref(finished), graphTraverseType));
+            exporterThread.detach();
+        } else {
+            // without orphans
+            boost::thread exporterThread(boost::bind(&ExportBootstrapBlockchain, filename.toStdString(),
+                                                     boost::ref(stopped), boost::ref(progress),
+                                                     boost::ref(finished)));
+            exporterThread.detach();
+        }
 
         while (!finished_future.is_ready()) {
             QApplication::processEvents();
@@ -1205,11 +1239,16 @@ void BitcoinGUI::updateStakingIcon()
                                          .arg(nNetworkWeight)
                                          .arg(text));
     } else {
+        bool isvNodesEmpty = false;
+        {
+            LOCK(cs_vNodes);
+            isvNodesEmpty = vNodes.empty();
+        }
         labelStakingIcon->setPixmap(
             QIcon(":/icons/staking_off").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
         if (pwalletMain && pwalletMain->IsLocked())
             labelStakingIcon->setToolTip(tr("Not staking because wallet is locked"));
-        else if (vNodes.empty())
+        else if (isvNodesEmpty)
             labelStakingIcon->setToolTip(tr("Not staking because wallet is offline"));
         else if (IsInitialBlockDownload_tolerant()) {
             labelStakingIcon->setToolTip(tr("Not staking because wallet is syncing"));

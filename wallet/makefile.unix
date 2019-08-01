@@ -72,6 +72,7 @@ LIBS += \
    -l boost_chrono$(BOOST_LIB_SUFFIX) \
    -l boost_regex$(BOOST_LIB_SUFFIX) \
    -l boost_iostreams$(BOOST_LIB_SUFFIX) \
+   -l boost_atomic$(BOOST_LIB_SUFFIX) \
    -l db_cxx$(BDB_LIB_SUFFIX) \
    -l ssl \
    -l crypto \

@@ -22,7 +22,7 @@ SendCoinsEntry::SendCoinsEntry(QWidget* parent) : QFrame(parent), ui(new Ui::Sen
     ui->addAsLabel->setPlaceholderText(
         tr("Enter a label for this address to add it to your address book"));
     ui->payTo->setPlaceholderText(
-        tr("Enter a neblio address (e.g. 8dpZqgY4r2RoEdqYk3QsAqFckyf9pRHN6i)"));
+        tr("Enter a neblio address (e.g. NdpZqgY4r2RoEdqYk3QsAqFckyf9pRHN6i)"));
 #endif
     setFocusPolicy(Qt::TabFocus);
     setFocusProxy(ui->payTo);

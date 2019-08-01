@@ -85,9 +85,9 @@ public:
     }
 };
 
-uint64_t nLastBlockTx                 = 0;
-uint64_t nLastBlockSize               = 0;
-int64_t  nLastCoinStakeSearchInterval = 0;
+uint64_t               nLastBlockTx   = 0;
+uint64_t               nLastBlockSize = 0;
+boost::atomic<int64_t> nLastCoinStakeSearchInterval{0};
 
 // We want to sort transactions by priority and fee, so:
 typedef boost::tuple<double, double, CTransaction*> TxPriority;
@@ -119,7 +119,7 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
     if (!pblock.get())
         return NULL;
 
-    CBlockIndex* pindexPrev = pindexBest;
+    CBlockIndexSmartPtr pindexPrev = boost::atomic_load(&pindexBest);
 
     // Create coinbase tx
     CTransaction txNew;
@@ -167,11 +167,14 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
     // a transaction spammer can cheaply fill blocks using
     // 1-satoshi-fee transactions. It should be set above the real
     // cost to you of processing a transaction.
-    int64_t nMinTxFee = MIN_TX_FEE;
-    if (mapArgs.count("-mintxfee"))
-        ParseMoney(mapArgs["-mintxfee"], nMinTxFee);
+    int64_t     nMinTxFee = MIN_TX_FEE;
+    std::string minTxFeeVal;
+    bool        minTxFeeExists = mapArgs.get("-mintxfee", minTxFeeVal);
+    if (minTxFeeExists) {
+        ParseMoney(minTxFeeVal, nMinTxFee);
+    }
 
-    pblock->nBits = GetNextTargetRequired(pindexPrev, fProofOfStake);
+    pblock->nBits = GetNextTargetRequired(pindexPrev.get(), fProofOfStake);
 
     // map of issued token names in this block vs token hashes
     // this is used to prevent duplicate token names
@@ -421,7 +424,7 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
         pblock->nTime         = max(pindexPrev->GetPastTimeLimit() + 1, pblock->GetMaxTransactionTime());
         pblock->nTime         = max(pblock->GetBlockTime(), PastDrift(pindexPrev->GetBlockTime()));
         if (!fProofOfStake)
-            pblock->UpdateTime(pindexPrev);
+            pblock->UpdateTime(pindexPrev.get());
         pblock->nNonce = 0;
     }
 
@@ -567,6 +570,12 @@ bool CheckStake(CBlock* pblock, CWallet& wallet)
     return true;
 }
 
+bool is_vNodesEmpty_safe()
+{
+    LOCK(cs_vNodes);
+    return vNodes.empty();
+}
+
 void StakeMiner(CWallet* pwallet)
 {
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
@@ -587,17 +596,24 @@ void StakeMiner(CWallet* pwallet)
                 return;
         }
 
-        while (vNodes.empty() || IsInitialBlockDownload()) {
-            nLastCoinStakeSearchInterval = 0;
-            fTryToSync                   = true;
-            MilliSleep(1000);
-            if (fShutdown)
-                return;
+        {
+            while (is_vNodesEmpty_safe() || IsInitialBlockDownload()) {
+                nLastCoinStakeSearchInterval = 0;
+                fTryToSync                   = true;
+                MilliSleep(1000);
+                if (fShutdown)
+                    return;
+            }
         }
 
         if (fTryToSync) {
-            fTryToSync = false;
-            if (vNodes.size() < 3 || nBestHeight < GetNumBlocksOfPeers()) {
+            fTryToSync             = false;
+            std::size_t vNodesSize = 0;
+            {
+                LOCK(cs_vNodes);
+                vNodesSize = vNodes.size();
+            }
+            if (vNodesSize < 3 || nBestHeight < GetNumBlocksOfPeers()) {
                 MilliSleep(60000);
                 continue;
             }

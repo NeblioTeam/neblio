@@ -29,6 +29,7 @@ public:
                                                        double NowDownloaded, double, double);
     static size_t      CurlWrite_CallbackFunc_File(void* contents, size_t size, size_t nmemb,
                                                    boost::filesystem::fstream* fs);
+    static std::string GetUserAgent();
 };
 
 #endif // CURLTOOLS_H

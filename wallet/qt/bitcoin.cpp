@@ -83,7 +83,7 @@ static void InitMessage(const std::string &message)
 {
     if(splashref)
     {
-        splashref->showMessage(QString::fromStdString(message) + " [Click to hide]" , Qt::AlignBottom|Qt::AlignHCenter, QColor(0,173,220));
+        splashref->showMessage(QString::fromStdString(message) + " [Click to hide]" , Qt::AlignBottom|Qt::AlignHCenter, QColor(11,223,212));
         QApplication::instance()->processEvents();
     }
 }
@@ -143,8 +143,10 @@ int main(int argc, char *argv[])
     {
         // This message can not be translated, as translation is not initialized yet
         // (which not yet possible because lang=XX can be overridden in bitcoin.conf in the data directory)
+        std::string datadirVal;
+        mapArgs.get("-datadir", datadirVal);
         QMessageBox::critical(0, "neblio",
-                              QString("Error: Specified data directory \"%1\" does not exist.").arg(QString::fromStdString(mapArgs["-datadir"])));
+                              QString("Error: Specified data directory \"%1\" does not exist.").arg(QString::fromStdString(datadirVal)));
         return 1;
     }
     ReadConfigFile(mapArgs, mapMultiArgs);
@@ -198,7 +200,7 @@ int main(int argc, char *argv[])
 
     // Show help message immediately after parsing command-line options (for "-lang") and setting locale,
     // but before showing splash screen.
-    if (mapArgs.count("-?") || mapArgs.count("--help"))
+    if (mapArgs.exists("-?") || mapArgs.exists("--help"))
     {
         GUIUtil::HelpMessageBox help;
         help.showOrPrint();

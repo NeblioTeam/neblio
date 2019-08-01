@@ -38,9 +38,9 @@ Value getmininginfo(const Array& params, bool fHelp)
     obj.push_back(Pair("currentblocksize",(uint64_t)nLastBlockSize));
     obj.push_back(Pair("currentblocktx",(uint64_t)nLastBlockTx));
 
-    diff.push_back(Pair("proof-of-work",        GetDifficulty()));
-    diff.push_back(Pair("proof-of-stake",       GetDifficulty(GetLastBlockIndex(pindexBest, true))));
-    diff.push_back(Pair("search-interval",      (int)nLastCoinStakeSearchInterval));
+    diff.push_back(Pair("proof-of-work",   GetDifficulty()));
+    diff.push_back(Pair("proof-of-stake",  GetDifficulty(GetLastBlockIndex(boost::atomic_load(&pindexBest).get(), true))));
+    diff.push_back(Pair("search-interval", (int)nLastCoinStakeSearchInterval));
     obj.push_back(Pair("difficulty",    diff));
 
     obj.push_back(Pair("blockvalue",    (uint64_t)GetProofOfWorkReward(0)));
@@ -79,15 +79,15 @@ Value getstakinginfo(const Array& params, bool fHelp)
     bool matureCoins = nWeight;
     bool activeConnection = true;
     if (vNodes.empty()) {
-    	activeConnection = false;
+        activeConnection = false;
     }
     bool unlocked = true;
     if (pwalletMain && pwalletMain->IsLocked()) {
-    	unlocked = false;
+        unlocked = false;
     }
     bool synced = true;
     if (IsInitialBlockDownload()) {
-    	synced = false;
+        synced = false;
     }
 
     stakingCriteria.push_back(Pair("mature-coins", matureCoins));
@@ -106,7 +106,7 @@ Value getstakinginfo(const Array& params, bool fHelp)
     obj.push_back(Pair("currentblocktx", (uint64_t)nLastBlockTx));
     obj.push_back(Pair("pooledtx", (uint64_t)mempool.size()));
 
-    obj.push_back(Pair("difficulty", GetDifficulty(GetLastBlockIndex(pindexBest, true))));
+    obj.push_back(Pair("difficulty", GetDifficulty(GetLastBlockIndex(boost::atomic_load(&pindexBest).get(), true))));
     obj.push_back(Pair("search-interval", (int)nLastCoinStakeSearchInterval));
 
     obj.push_back(Pair("weight", (uint64_t)nWeight));
@@ -131,7 +131,7 @@ Value getworkex(const Array& params, bool fHelp)
     if (IsInitialBlockDownload())
         throw JSONRPCError(-10, "neblio is downloading blocks...");
 
-    if (pindexBest->nHeight >= LAST_POW_BLOCK)
+    if (boost::atomic_load(&pindexBest)->nHeight >= LAST_POW_BLOCK)
         throw JSONRPCError(RPC_MISC_ERROR, "No more PoW blocks");
 
     typedef map<uint256, pair<CBlock*, CScript> > mapNewBlock_t;
@@ -143,7 +143,7 @@ Value getworkex(const Array& params, bool fHelp)
     {
         // Update block
         static unsigned int nTransactionsUpdatedLast;
-        static CBlockIndex* pindexPrev;
+        static CBlockIndexSmartPtr pindexPrev;
         static int64_t nStart;
         static CBlock* pblock;
         if (pindexPrev != pindexBest ||
@@ -174,7 +174,7 @@ Value getworkex(const Array& params, bool fHelp)
 
         // Update nExtraNonce
         static unsigned int nExtraNonce = 0;
-        IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
+        IncrementExtraNonce(pblock, pindexPrev.get(), nExtraNonce);
 
         // Save
         mapNewBlock[pblock->hashMerkleRoot] = make_pair(pblock, pblock->vtx[0].vin[0].scriptSig);
@@ -265,7 +265,7 @@ Value getwork(const Array& params, bool fHelp)
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "neblio is downloading blocks...");
 
-    if (pindexBest->nHeight >= LAST_POW_BLOCK)
+    if (boost::atomic_load(&pindexBest)->nHeight >= LAST_POW_BLOCK)
         throw JSONRPCError(RPC_MISC_ERROR, "No more PoW blocks");
 
     typedef map<uint256, pair<CBlock*, CScript> > mapNewBlock_t;
@@ -277,10 +277,10 @@ Value getwork(const Array& params, bool fHelp)
     {
         // Update block
         static unsigned int nTransactionsUpdatedLast;
-        static CBlockIndex* pindexPrev;
+        static CBlockIndexSmartPtr pindexPrev;
         static int64_t nStart;
         static CBlock* pblock;
-        if (pindexPrev != pindexBest ||
+        if (pindexPrev != boost::atomic_load(&pindexBest) ||
             (nTransactionsUpdated != nTransactionsUpdatedLast && GetTime() - nStart > 60))
         {
             if (pindexPrev != pindexBest)
@@ -297,7 +297,7 @@ Value getwork(const Array& params, bool fHelp)
 
             // Store the pindexBest used before CreateNewBlock, to avoid races
             nTransactionsUpdatedLast = nTransactionsUpdated;
-            CBlockIndex* pindexPrevNew = pindexBest;
+            CBlockIndexSmartPtr pindexPrevNew = pindexBest;
             nStart = GetTime();
 
             // Create new block
@@ -311,12 +311,12 @@ Value getwork(const Array& params, bool fHelp)
         }
 
         // Update nTime
-        pblock->UpdateTime(pindexPrev);
+        pblock->UpdateTime(pindexPrev.get());
         pblock->nNonce = 0;
 
         // Update nExtraNonce
         static unsigned int nExtraNonce = 0;
-        IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
+        IncrementExtraNonce(pblock, pindexPrev.get(), nExtraNonce);
 
         // Save
         mapNewBlock[pblock->hashMerkleRoot] = make_pair(pblock, pblock->vtx[0].vin[0].scriptSig);
@@ -409,14 +409,14 @@ Value getblocktemplate(const Array& params, bool fHelp)
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "neblio is downloading blocks...");
 
-    if (pindexBest->nHeight >= LAST_POW_BLOCK)
+    if (boost::atomic_load(&pindexBest)->nHeight >= LAST_POW_BLOCK)
         throw JSONRPCError(RPC_MISC_ERROR, "No more PoW blocks");
 
     static CReserveKey reservekey(pwalletMain.get());
 
     // Update block
     static unsigned int nTransactionsUpdatedLast;
-    static CBlockIndex* pindexPrev;
+    static CBlockIndexSmartPtr pindexPrev;
     static int64_t nStart;
     static CBlock* pblock;
     if (pindexPrev != pindexBest ||
@@ -427,7 +427,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
 
         // Store the pindexBest used before CreateNewBlock, to avoid races
         nTransactionsUpdatedLast = nTransactionsUpdated;
-        CBlockIndex* pindexPrevNew = pindexBest;
+        CBlockIndexSmartPtr pindexPrevNew = boost::atomic_load(&pindexBest);
         nStart = GetTime();
 
         // Create new block
@@ -445,7 +445,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
     }
 
     // Update nTime
-    pblock->UpdateTime(pindexPrev);
+    pblock->UpdateTime(pindexPrev.get());
     pblock->nNonce = 0;
 
     Array transactions;

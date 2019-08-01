@@ -122,27 +122,27 @@ TEST(util_tests, util_ParseParameters)
     // a non-option argument (non-GNU option parsing)
     // arg size changes from 3 to 4 due to the addition of hardcoding 'addnode'
     EXPECT_TRUE(mapArgs.size() == 4 && mapMultiArgs.size() == 4);
-    EXPECT_TRUE(mapArgs.count("-a") && mapArgs.count("-b") && mapArgs.count("-ccc") &&
-                !mapArgs.count("f") && !mapArgs.count("-d"));
-    EXPECT_TRUE(mapMultiArgs.count("-a") && mapMultiArgs.count("-b") && mapMultiArgs.count("-ccc") &&
-                !mapMultiArgs.count("f") && !mapMultiArgs.count("-d"));
+    EXPECT_TRUE(mapArgs.exists("-a") && mapArgs.exists("-b") && mapArgs.exists("-ccc") &&
+                !mapArgs.exists("f") && !mapArgs.exists("-d"));
+    EXPECT_TRUE(mapMultiArgs.exists("-a") && mapMultiArgs.exists("-b") && mapMultiArgs.exists("-ccc") &&
+                !mapMultiArgs.exists("f") && !mapMultiArgs.exists("-d"));
 
-    EXPECT_TRUE(mapArgs["-a"] == "" && mapArgs["-ccc"] == "multiple");
-    EXPECT_TRUE(mapMultiArgs["-ccc"].size() == 2);
+    EXPECT_TRUE(mapArgs.getInternalMap()["-a"] == "" && mapArgs.getInternalMap()["-ccc"] == "multiple");
+    EXPECT_TRUE(mapMultiArgs.getInternalMap()["-ccc"].size() == 2);
 }
 
 TEST(util_tests, util_GetArg)
 {
     mapArgs.clear();
-    mapArgs["strtest1"] = "string...";
+    mapArgs.set("strtest1", "string...");
     // strtest2 undefined on purpose
-    mapArgs["inttest1"] = "12345";
-    mapArgs["inttest2"] = "81985529216486895";
+    mapArgs.set("inttest1", "12345");
+    mapArgs.set("inttest2", "81985529216486895");
     // inttest3 undefined on purpose
-    mapArgs["booltest1"] = "";
+    mapArgs.set("booltest1", "");
     // booltest2 undefined on purpose
-    mapArgs["booltest3"] = "0";
-    mapArgs["booltest4"] = "1";
+    mapArgs.set("booltest3", "0");
+    mapArgs.set("booltest4", "1");
 
     EXPECT_EQ(GetArg("strtest1", "default"), "string...");
     EXPECT_EQ(GetArg("strtest2", "default"), "default");

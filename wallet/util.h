@@ -32,6 +32,7 @@
 #include <openssl/ripemd.h>
 #include <openssl/sha.h>
 
+#include "ThreadSafeHashMap.h"
 #include "netbase.h" // for AddTimeData
 
 // to obtain PRId64 on some old systems
@@ -43,12 +44,17 @@
 static const int64_t COIN = 100000000;
 static const int64_t CENT = 1000000;
 
-static const std::size_t ONE_KB = (static_cast<uint64_t>(1) << 10);
-static const std::size_t ONE_MB = (static_cast<uint64_t>(1) << 20);
-static const std::size_t ONE_GB = (static_cast<uint64_t>(1) << 30);
+static const std::uintmax_t ONE_KB = (static_cast<uint64_t>(1) << 10);
+static const std::uintmax_t ONE_MB = (static_cast<uint64_t>(1) << 20);
+static const std::uintmax_t ONE_GB = (static_cast<uint64_t>(1) << 30);
 
 // option to erase the blockchain and resync
 const std::string SC_SCHEDULE_ON_RESTART_OPNAME__RESYNC = "resync";
+// option to rescan the wallet
+const std::string SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN = "rescan";
+
+/* Milliseconds between model updates */
+extern boost::atomic_int MODEL_UPDATE_DELAY;
 
 #define BEGIN(a) ((char*)&(a))
 #define END(a) ((char*)&((&(a))[1]))
@@ -149,22 +155,22 @@ inline void MilliSleep(int64_t n)
 #define ATTR_WARN_PRINTF(X, Y)
 #endif
 
-extern std::map<std::string, std::string>              mapArgs;
-extern std::map<std::string, std::vector<std::string>> mapMultiArgs;
-extern bool                                            fDebug;
-extern bool                                            fDebugNet;
-extern bool                                            fPrintToConsole;
-extern bool                                            fPrintToDebugger;
-extern boost::atomic<bool>                             fRequestShutdown;
-extern bool                                            fDaemon;
-extern bool                                            fServer;
-extern bool                                            fCommandLine;
-extern std::string                                     strMiscWarning;
-extern bool                                            fTestNet;
-extern bool                                            fNoListen;
-extern bool                                            fLogTimestamps;
-extern bool                                            fReopenDebugLog;
-extern boost::atomic<bool>                             fShutdown;
+extern ThreadSafeHashMap<std::string, std::string>              mapArgs;
+extern ThreadSafeHashMap<std::string, std::vector<std::string>> mapMultiArgs;
+extern bool                                                     fDebug;
+extern bool                                                     fDebugNet;
+extern bool                                                     fPrintToConsole;
+extern bool                                                     fPrintToDebugger;
+extern boost::atomic<bool>                                      fRequestShutdown;
+extern bool                                                     fDaemon;
+extern bool                                                     fServer;
+extern bool                                                     fCommandLine;
+extern std::string                                              strMiscWarning;
+extern bool                                                     fTestNet;
+extern bool                                                     fNoListen;
+extern bool                                                     fLogTimestamps;
+extern bool                                                     fReopenDebugLog;
+extern boost::atomic<bool>                                      fShutdown;
 
 void RandAddSeed();
 void RandAddSeedPerfmon();
@@ -225,8 +231,8 @@ boost::filesystem::path        GetPidFile();
 #ifndef WIN32
 void CreatePidFile(const boost::filesystem::path& path, pid_t pid);
 #endif
-void ReadConfigFile(std::map<std::string, std::string>&              mapSettingsRet,
-                    std::map<std::string, std::vector<std::string>>& mapMultiSettingsRet);
+void ReadConfigFile(ThreadSafeHashMap<std::string, std::string>&              mapSettingsRet,
+                    ThreadSafeHashMap<std::string, std::vector<std::string>>& mapMultiSettingsRet);
 #ifdef WIN32
 boost::filesystem::path GetSpecialFolderPath(int nFolder, bool fCreate = true);
 #endif
@@ -497,13 +503,16 @@ template <typename T>
 class CMedianFilter
 {
 private:
-    std::vector<T> vValues;
-    std::vector<T> vSorted;
-    unsigned int   nSize;
+    std::vector<T>       vValues;
+    std::vector<T>       vSorted;
+    unsigned int         nSize;
+    mutable boost::mutex mtx;
 
 public:
-    CMedianFilter(unsigned int size, T initial_value) : nSize(size)
+    CMedianFilter(unsigned int size, T initial_value)
     {
+        boost::lock_guard<boost::mutex> lg(mtx);
+        nSize = size;
         vValues.reserve(size);
         vValues.push_back(initial_value);
         vSorted = vValues;
@@ -511,6 +520,7 @@ public:
 
     void input(T value)
     {
+        boost::lock_guard<boost::mutex> lg(mtx);
         if (vValues.size() == nSize) {
             vValues.erase(vValues.begin());
         }
@@ -523,7 +533,8 @@ public:
 
     T median() const
     {
-        int size = vSorted.size();
+        boost::lock_guard<boost::mutex> lg(mtx);
+        int                             size = vSorted.size();
         assert(size > 0);
         if (size & 1) // Odd number of elements
         {
@@ -534,9 +545,17 @@ public:
         }
     }
 
-    int size() const { return vValues.size(); }
+    int size() const
+    {
+        boost::lock_guard<boost::mutex> lg(mtx);
+        return vValues.size();
+    }
 
-    std::vector<T> sorted() const { return vSorted; }
+    std::vector<T> sorted() const
+    {
+        boost::lock_guard<boost::mutex> lg(mtx);
+        return vSorted;
+    }
 };
 
 bool NewThread(void (*pfn)(void*), void* parg);
@@ -730,7 +749,7 @@ using Ripemd160HashCalculator = HashCalculator<RIPEMD160_CTX, RIPEMD160_Init, RI
 
 template <typename HashCalculatorClass>
 std::string CalculateHashOfFile(const boost::filesystem::path& PathToFile,
-                                const std::size_t              ChunkSize = ONE_MB)
+                                const std::uintmax_t           ChunkSize = ONE_MB)
 {
     if (!boost::filesystem::exists(PathToFile)) {
         throw std::runtime_error("While attempting to calculate hash of file, it does not exist: " +
@@ -753,7 +772,7 @@ std::string CalculateHashOfFile(const boost::filesystem::path& PathToFile,
     return calculator.getHashAndReset();
 }
 
-std::size_t GetFreeDiskSpace(const boost::filesystem::path& path);
+uintmax_t GetFreeDiskSpace(const boost::filesystem::path& path);
 
 bool                    SC_DeleteOperationScheduledOnRestart(const std::string& OpName);
 boost::filesystem::path SC_GetScheduledOperationFileName(const std::string& OpName);
@@ -761,5 +780,15 @@ bool                    SC_IsOperationOnRestartScheduled(const std::string& OpNa
 bool                    SC_CheckOperationOnRestartScheduleThenDeleteIt(const std::string& OpName);
 std::unordered_set<std::string> SC_GetScheduledOperationsOnRestart();
 bool                            SC_CreateScheduledOperationOnRestart(const std::string& OpName);
+
+template <typename... Ts>
+void ignore_unused(Ts const&...)
+{
+}
+
+template <typename... Ts>
+void ignore_unused()
+{
+}
 
 #endif

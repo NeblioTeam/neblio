@@ -30,7 +30,7 @@ WalletModel::WalletModel(CWallet* wallet, OptionsModel* optionsModel, QObject* p
 
     // This timer will be fired repeatedly to update the balance
     pollTimer = new QTimer(this);
-    connect(pollTimer, SIGNAL(timeout()), this, SLOT(pollBalanceChanged()));
+    connect(pollTimer, &QTimer::timeout, this, &WalletModel::pollBalanceChanged);
     pollTimer->start(MODEL_UPDATE_DELAY);
 
     subscribeToCoreSignals();
@@ -81,8 +81,26 @@ void WalletModel::pollBalanceChanged()
         cachedNumBlocks = nBestHeight;
 
         checkBalanceChanged();
-        if (transactionTableModel)
+
+        // dynamically measure how long updating confirmations takes, and adjust the refresh rate of that
+        using namespace boost::chrono;
+        high_resolution_clock::time_point t1 = high_resolution_clock::now();
+
+        if (transactionTableModel) {
             transactionTableModel->updateConfirmations();
+        }
+
+        // the other part of dynamic setting of refresh rate
+        high_resolution_clock::time_point t2 = high_resolution_clock::now();
+        int duration = static_cast<int>(duration_cast<milliseconds>(t2 - t1).count());
+        if (duration < 250) {
+            MODEL_UPDATE_DELAY.store(500);
+        } else if (duration > 10000) {
+            MODEL_UPDATE_DELAY.store(30000);
+        } else {
+            MODEL_UPDATE_DELAY.store(duration * 3);
+        }
+        pollTimer->setInterval(MODEL_UPDATE_DELAY.load());
     }
 }
 

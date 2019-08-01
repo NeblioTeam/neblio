@@ -19,7 +19,7 @@ using namespace std;
 using namespace boost;
 
 
-unsigned int nWalletDBUpdated;
+boost::atomic<uint32_t> nWalletDBUpdated;
 
 
 

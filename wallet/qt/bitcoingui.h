@@ -99,8 +99,6 @@ private:
     ClientModel* clientModel;
     WalletModel* walletModel;
 
-    bool logoSwitched{false};
-
     QStackedWidget* centralWidget;
 
     OverviewPage*            overviewPage;
@@ -171,21 +169,22 @@ private:
     {
         QPainter painter(this);
 
-        // paint the upper bar with blue gradient
+        // paint the upper bar
         if (toolbar != NULL) {
             painter.setRenderHint(QPainter::Antialiasing);
-            painter.setBrush(QBrush(QColor(0, 0, 255)));
+            painter.setBrush(QBrush(QColor(220, 220, 220)));
+            // painter.drawRect(0, toolbar->pos().y(), this->size().width(), toolbar->height());
             QRect           rect(0, toolbar->pos().y(), this->size().width(), toolbar->height());
             QLinearGradient gradient(rect.topLeft(),
                                      rect.topRight()); // diagonal gradient from top-left to bottom-right
-            gradient.setColorAt(0, QColor(86, 167, 225));
-            gradient.setColorAt(1, QColor(96, 98, 173));
+            gradient.setColorAt(0, QColor(11, 223, 212, 128));
+            gradient.setColorAt(1, QColor(127, 75, 200, 128));
 
             painter.fillRect(rect, gradient);
         }
 
         painter.setRenderHint(QPainter::Antialiasing);
-        painter.setBrush(QBrush(QColor(65, 65, 65)));
+        painter.setBrush(QBrush(QColor(41, 31, 58)));
 
         if (overviewPage == NULL)
             return;
