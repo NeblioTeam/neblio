@@ -28,6 +28,8 @@ const NTP1TransactionType NTP1TxType_BURN     = 4;
 const std::string  HexBytesRegexStr("^([0-9a-fA-F][0-9a-fA-F])+$");
 const boost::regex HexBytexRegex(HexBytesRegexStr);
 
+const NTP1Int NTP1MaxAmount = std::numeric_limits<int64_t>::max();
+
 class NTP1Script
 {
     std::string parsedScriptHex;

@@ -31,6 +31,13 @@ public:
     NTP1TokenSymbolValidator(IssueNewNTP1TokenDialog& isseNewNTP1Dialog, QObject* parent = Q_NULLPTR);
 };
 
+class NTP1TokenAmountValidator : public QValidator
+{
+public:
+    NTP1TokenAmountValidator(QObject* parent = 0);
+    State validate(QString& input, int& /*pos*/) const override;
+};
+
 class IssueNewNTP1TokenDialog : public QDialog
 {
     Q_OBJECT
@@ -44,6 +51,8 @@ class IssueNewNTP1TokenDialog : public QDialog
     QLineEdit*                issuerLineEdit;
     QLabel*                   tokenNameLabel;
     QLineEdit*                tokenNameLineEdit;
+    QLabel*                   amountLabel;
+    QLineEdit*                amountLineEdit;
     QLabel*                   iconUrlLabel;
     QLabel*                   iconUrlMimeTypeLabel;
     QLineEdit*                iconUrlLineEdit;
@@ -52,6 +61,8 @@ class IssueNewNTP1TokenDialog : public QDialog
     QPushButton*              issueButton;
     QPushButton*              cancelButton;
     QPushButton*              clearButton;
+    QLabel*                   targetAddressLabel;
+    QLineEdit*                targetAddressLineEdit;
     QCheckBox*                changeAddressCheckbox;
     QLineEdit*                changeAddressLineEdit;
     QLabel*                   costLabel;
@@ -74,6 +85,7 @@ public:
 private slots:
     void slot_clearData();
     void slot_modifyChangeAddressColor();
+    void slot_modifyTargetAddressColor();
     void slot_changeAddressCheckboxToggled(bool checked);
     void slot_doIssueToken();
     void slot_iconUrlChanged(const QString& url);

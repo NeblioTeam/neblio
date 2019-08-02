@@ -21,6 +21,8 @@ void IssueNewNTP1TokenDialog::createWidgets()
     tokenSymbolErrorLabel = new QLabel("", this);
     tokenNameLabel        = new QLabel("Token name", this);
     tokenNameLineEdit     = new QLineEdit(this);
+    amountLabel           = new QLabel("Amount to issue", this);
+    amountLineEdit        = new QLineEdit(this);
     issuerLabel           = new QLabel("Issuer", this);
     issuerLineEdit        = new QLineEdit(this);
     iconUrlLabel          = new QLabel("Icon URL", this);
@@ -31,6 +33,8 @@ void IssueNewNTP1TokenDialog::createWidgets()
     issueButton           = new QPushButton("Create", this);
     cancelButton          = new QPushButton("Cancel", this);
     clearButton           = new QPushButton("Clear", this);
+    targetAddressLabel    = new QLabel("Target address - where the tokens will go after issuance", this);
+    targetAddressLineEdit = new QLineEdit(this);
     changeAddressLineEdit = new QLineEdit(this);
     changeAddressCheckbox = new QCheckBox("Send the change from this transaction to a specific address");
     changeAddressLineEdit->setPlaceholderText("Change address");
@@ -44,8 +48,6 @@ void IssueNewNTP1TokenDialog::createWidgets()
 
     iconUrlLabel->setText(
         R"****(Icon URL <span style="color:red;">(Warning: This can never be changed in the future)</span>)****");
-
-    changeAddressLineEdit->setValidator(new BitcoinAddressValidator);
 
     editMetadataButton->setAutoDefault(false);
     issueButton->setAutoDefault(false);
@@ -61,6 +63,8 @@ void IssueNewNTP1TokenDialog::createWidgets()
     mainLayout->addWidget(tokenSymbolErrorLabel, row++, 0, 1, 3);
     mainLayout->addWidget(tokenNameLabel, row++, 0, 1, 3);
     mainLayout->addWidget(tokenNameLineEdit, row++, 0, 1, 3);
+    mainLayout->addWidget(amountLabel, row++, 0, 1, 3);
+    mainLayout->addWidget(amountLineEdit, row++, 0, 1, 3);
     mainLayout->addWidget(issuerLabel, row++, 0, 1, 3);
     mainLayout->addWidget(issuerLineEdit, row++, 0, 1, 3);
     mainLayout->addWidget(iconUrlLabel, row++, 0, 1, 3);
@@ -68,6 +72,8 @@ void IssueNewNTP1TokenDialog::createWidgets()
     mainLayout->addWidget(iconUrlLineEdit, row++, 0, 1, 3);
     mainLayout->addWidget(editMetadataButton, row++, 0, 1, 3);
     mainLayout->addWidget(paymentSeparator, row++, 0, 1, 3);
+    mainLayout->addWidget(targetAddressLabel, row++, 0, 1, 3);
+    mainLayout->addWidget(targetAddressLineEdit, row++, 0, 1, 3);
     mainLayout->addWidget(changeAddressCheckbox, row++, 0, 1, 3);
     mainLayout->addWidget(changeAddressLineEdit, row++, 0, 1, 3);
     mainLayout->addWidget(issueButton, row, 0, 1, 1);
@@ -75,12 +81,17 @@ void IssueNewNTP1TokenDialog::createWidgets()
     mainLayout->addWidget(cancelButton, row, 2, 1, 1);
 
     tokenSymbolValidator = new NTP1TokenSymbolValidator(*this, this);
-
     tokenSymbolLineEdit->setValidator(tokenSymbolValidator);
+
+    changeAddressLineEdit->setValidator(new BitcoinAddressValidator(this));
+    targetAddressLineEdit->setValidator(new BitcoinAddressValidator(this));
+    amountLineEdit->setValidator(new NTP1TokenAmountValidator(this));
 
     connect(this->clearButton, &QPushButton::clicked, this, &IssueNewNTP1TokenDialog::slot_clearData);
     connect(this->changeAddressLineEdit, &QLineEdit::textChanged, this,
             &IssueNewNTP1TokenDialog::slot_modifyChangeAddressColor);
+    connect(this->targetAddressLineEdit, &QLineEdit::textChanged, this,
+            &IssueNewNTP1TokenDialog::slot_modifyTargetAddressColor);
     connect(this->changeAddressCheckbox, &QCheckBox::toggled, this,
             &IssueNewNTP1TokenDialog::slot_changeAddressCheckboxToggled);
     connect(this->cancelButton, &QPushButton::clicked, this, &IssueNewNTP1TokenDialog::hide);
@@ -115,6 +126,7 @@ void IssueNewNTP1TokenDialog::validateInput() const
     std::string tokenSymbolGiven = tokenSymbolLineEdit->text().trimmed().toStdString();
     std::string tokenNameGiven   = tokenNameLabel->text().trimmed().toStdString();
     std::string tokenIssuerGiven = issuerLineEdit->text().trimmed().toStdString();
+    std::string tokenAmountGiven = amountLineEdit->text().trimmed().toStdString();
     if (tokenSymbolGiven.empty()) {
         throw std::runtime_error("Token symbol cannot be empty");
     }
@@ -126,6 +138,16 @@ void IssueNewNTP1TokenDialog::validateInput() const
     }
     if (tokenIssuerGiven.empty()) {
         throw std::runtime_error("Token issuer cannot be empty");
+    }
+    if (tokenAmountGiven.empty()) {
+        throw std::runtime_error("Token amount cannot be empty");
+    }
+    NTP1Int amount(tokenAmountGiven);
+    if (amount <= 0) {
+        throw std::runtime_error("Token amount cannot be zero/negative");
+    }
+    if (amount > NTP1MaxAmount) {
+        throw std::runtime_error("Token amount to issue is larger than the maximum possible");
     }
 }
 
@@ -209,6 +231,15 @@ void IssueNewNTP1TokenDialog::slot_modifyChangeAddressColor()
     }
 }
 
+void IssueNewNTP1TokenDialog::slot_modifyTargetAddressColor()
+{
+    if (CBitcoinAddress(targetAddressLineEdit->text().toStdString()).IsValid()) {
+        targetAddressLineEdit->setStyleSheet("");
+    } else {
+        targetAddressLineEdit->setStyleSheet(STYLE_INVALID);
+    }
+}
+
 void IssueNewNTP1TokenDialog::slot_changeAddressCheckboxToggled(bool checked)
 {
     changeAddressLineEdit->setEnabled(checked);
@@ -221,6 +252,7 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
 {
     try {
         getIssuanceMetadata();
+
     } catch (std::exception& ex) {
         QMessageBox::warning(this, "Error while attempting issuance",
                              "While attempting issuance, the following error happened: " +
@@ -279,4 +311,24 @@ NTP1TokenSymbolValidator::NTP1TokenSymbolValidator(IssueNewNTP1TokenDialog& isse
                                                    QObject*                 parent)
     : QValidator(parent), dialog(isseNewNTP1Dialog)
 {
+}
+
+NTP1TokenAmountValidator::NTP1TokenAmountValidator(QObject* parent) : QValidator(parent) {}
+
+QValidator::State NTP1TokenAmountValidator::validate(QString& input, int&) const
+{
+    if (input.isEmpty()) {
+        return State::Intermediate;
+    }
+    if (std::any_of(input.cbegin(), input.cend(), [](QChar c) { return !c.isNumber(); })) {
+        return State::Invalid;
+    }
+    NTP1Int amount(input.toStdString());
+    if (amount <= 0) {
+        return State::Invalid;
+    }
+    if (amount > NTP1MaxAmount) {
+        return State::Invalid;
+    }
+    return State::Acceptable;
 }
