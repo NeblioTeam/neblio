@@ -14,6 +14,8 @@
 #include "ntp1/ntp1script.h"
 #include <QValidator>
 
+#include "json/json_spirit.h"
+
 class IssueNewNTP1TokenDialog;
 
 class NTP1TokenSymbolValidator : public QValidator
@@ -25,6 +27,7 @@ class NTP1TokenSymbolValidator : public QValidator
 public:
     State validate(QString& input, int& /*pos*/) const override;
     void  setAlreadyIssuedTokenSymbols(const std::unordered_set<std::string>& tokenSymbols);
+    bool  tokenWithSymbolAlreadyIssued(const std::string& tokenSymbol);
     NTP1TokenSymbolValidator(IssueNewNTP1TokenDialog& isseNewNTP1Dialog, QObject* parent = Q_NULLPTR);
 };
 
@@ -42,6 +45,7 @@ class IssueNewNTP1TokenDialog : public QDialog
     QLabel*                   tokenNameLabel;
     QLineEdit*                tokenNameLineEdit;
     QLabel*                   iconUrlLabel;
+    QLabel*                   iconUrlMimeTypeLabel;
     QLineEdit*                iconUrlLineEdit;
     NTP1CreateMetadataDialog* metadataDialog;
     QPushButton*              editMetadataButton;
@@ -65,10 +69,14 @@ public:
 
     void setTokenSymbolValidatorErrorString(const QString& str);
 
+    json_spirit::Value getIssuanceMetadata() const;
+
 private slots:
     void slot_clearData();
     void slot_modifyChangeAddressColor();
     void slot_changeAddressCheckboxToggled(bool checked);
+    void slot_doIssueToken();
+    void slot_iconUrlChanged(const QString& url);
 };
 
 #endif // ISSUENEWNTP1TOKENDIALOG_H
