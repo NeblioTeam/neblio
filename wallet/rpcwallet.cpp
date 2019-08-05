@@ -1445,7 +1445,7 @@ Value gettransaction(const Array& params, bool fHelp)
         throw runtime_error(
             "gettransaction <txid> [ignoreNTP1=false]\n"
             "Get detailed information about <txid>. Not ignoring NTP1 will try to retireve "
-            "NTP1 data from the database. This won't work if the transaction is not in the blockchain");
+            "NTP1 data from the database. This won't work if the transaction is not in the blockchain.");
 
     uint256 hash;
     hash.SetHex(params[0].get_str());

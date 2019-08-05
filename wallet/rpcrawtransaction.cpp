@@ -177,12 +177,14 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry, bo
 
 Value getrawtransaction(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 1 || params.size() > 2)
-        throw runtime_error("getrawtransaction <txid> [verbose=0]\n"
+    if (fHelp || params.size() < 1 || params.size() > 3)
+        throw runtime_error("getrawtransaction <txid> [verbose=0] [ignoreNTP1=false]\n"
                             "If verbose=0, returns a string that is\n"
                             "serialized, hex-encoded data for <txid>.\n"
                             "If verbose is non-zero, returns an Object\n"
-                            "with information about <txid>.");
+                            "with information about <txid>. Not ignoring NTP1 will try to retireve NTP1 "
+                            "data from the database. This won't work if the transaction is not in the "
+                            "blockchain.");
 
     uint256 hash;
     hash.SetHex(params[0].get_str());
@@ -203,9 +205,13 @@ Value getrawtransaction(const Array& params, bool fHelp)
     if (!fVerbose)
         return strHex;
 
+    bool fIgnoreNTP1 = false;
+    if (params.size() > 2)
+        fIgnoreNTP1 = params[2].get_bool();
+
     Object result;
     result.push_back(Pair("hex", strHex));
-    TxToJSON(tx, hashBlock, result);
+    TxToJSON(tx, hashBlock, result, fIgnoreNTP1);
     return result;
 }
 
@@ -481,10 +487,11 @@ Value createrawntp1transaction(const Array& params, bool fHelp)
 
 Value decoderawtransaction(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 1)
-        throw runtime_error(
-            "decoderawtransaction <hex string>\n"
-            "Return a JSON object representing the serialized, hex-encoded transaction.");
+    if (fHelp || params.size() < 1 || params.size() > 2)
+        throw runtime_error("decoderawtransaction <hex string> [ignoreNTP1=false]\n"
+                            "Return a JSON object representing the serialized, hex-encoded transaction. "
+                            "Not ignoring NTP1 will try to retireve NTP1 data from the database. This "
+                            "won't work if the transaction is not in the blockchain.");
 
     RPCTypeCheck(params, list_of(str_type));
 
@@ -497,8 +504,12 @@ Value decoderawtransaction(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
     }
 
+    bool fIgnoreNTP1 = false;
+    if (params.size() > 1)
+        fIgnoreNTP1 = params[1].get_bool();
+
     Object result;
-    TxToJSON(tx, 0, result, false);
+    TxToJSON(tx, 0, result, fIgnoreNTP1);
 
     return result;
 }
