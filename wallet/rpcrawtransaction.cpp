@@ -68,12 +68,13 @@ json_spirit::Value GetNTP1TxMetadata(const CTransaction& tx) noexcept
     return json_spirit::Value();
 }
 
-void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
+void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry, bool ignoreNTP1 = false)
 {
-    auto        pair = std::make_pair(FetchTxFromDisk(tx.GetHash()), NTP1Transaction());
-    std::string opRet;
-    bool        isNTP1 = IsTxNTP1(&tx, &opRet);
-    if (isNTP1) {
+    std::pair<CTransaction, NTP1Transaction> pair;
+    std::string                              opRet;
+    bool                                     isNTP1 = IsTxNTP1(&tx, &opRet);
+    if (isNTP1 && !ignoreNTP1) {
+        pair = std::make_pair(FetchTxFromDisk(tx.GetHash()), NTP1Transaction());
         CTxDB txdb("r");
         FetchNTP1TxFromDisk(pair, txdb, false);
         if (pair.second.isNull()) {
@@ -99,7 +100,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
             o.push_back(Pair("asm", txin.scriptSig.ToString()));
             o.push_back(Pair("hex", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
             in.push_back(Pair("scriptSig", o));
-            if (isNTP1) {
+            if (isNTP1 && !ignoreNTP1) {
                 for (unsigned int t = 0; t < pair.second.getTxIn(i).getNumOfTokens(); t++) {
                     json_spirit::Value n = pair.second.getTxIn(i).getToken(t).exportDatabaseJsonData();
                     uint256            issuanceTxid = pair.second.getTxIn(i).getToken(t).getIssueTxId();
@@ -125,7 +126,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
         Object o;
         ScriptPubKeyToJSON(txout.scriptPubKey, o, false);
         out.push_back(Pair("scriptPubKey", o));
-        if (isNTP1) {
+        if (isNTP1 && !ignoreNTP1) {
             for (unsigned int t = 0; t < pair.second.getTxOut(i).tokenCount(); t++) {
                 json_spirit::Value n = pair.second.getTxOut(i).getToken(t).exportDatabaseJsonData();
                 uint256            issuanceTxid = pair.second.getTxOut(i).getToken(t).getIssueTxId();
@@ -140,7 +141,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
     entry.push_back(Pair("vout", vout));
 
     {
-        if (isNTP1) {
+        if (isNTP1 && !ignoreNTP1) {
             std::shared_ptr<NTP1Script> s = NTP1Script::ParseScript(opRet);
             if (s && s->getProtocolVersion() >= 3) {
                 if (s->getTxType() == NTP1Script::TxType_Issuance) {
@@ -495,7 +496,7 @@ Value decoderawtransaction(const Array& params, bool fHelp)
     }
 
     Object result;
-    TxToJSON(tx, 0, result);
+    TxToJSON(tx, 0, result, false);
 
     return result;
 }

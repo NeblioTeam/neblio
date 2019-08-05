@@ -13,6 +13,19 @@ struct IntermediaryTI
 
     std::vector<NTP1Script::TransferInstruction> TIs;
     NTP1OutPoint                                 input;
+
+    bool isNTP1TokenIssuance = false;
+};
+
+struct IssueTokenData
+{
+    IssueTokenData(NTP1Int Amount, std::string Symbol, std::string Metadata)
+        : amount(std::move(Amount)), symbol(std::move(Symbol)), metadata(std::move(Metadata))
+    {
+    }
+    NTP1Int     amount;
+    std::string symbol;
+    std::string metadata;
 };
 
 /**
@@ -34,6 +47,8 @@ class NTP1SendTxData
     int64_t __addInputsThatCoversNeblAmount(uint64_t neblAmount);
     bool    ready = false;
 
+    boost::optional<IssueTokenData> tokenToIssueData;
+
 public:
     NTP1SendTxData();
     /**
@@ -51,11 +66,19 @@ public:
                           const std::vector<NTP1SendTokensOneRecipientData>& recipients,
                           bool                                               addMoreInputsIfRequired);
 
+    void                            issueNTP1Token(const IssueTokenData& data);
+    boost::optional<IssueTokenData> getNTP1TokenIssuanceData() const;
+    bool                            getWhetherIssuanceExists() const;
+
     static const std::string NEBL_TOKEN_ID;
+    static const std::string TO_ISSUE_TOKEN_ID;
 
     // returns the total balance in the selected addresses (tokenSourceAddresses)
     static int64_t EstimateTxSizeInBytes(int64_t num_of_inputs, int64_t num_of_outputs);
     static int64_t EstimateTxFee(int64_t num_of_inputs, int64_t num_of_outputs);
+
+    void
+    verifyNTP1IssuanceRecipientsValidity(const std::vector<NTP1SendTokensOneRecipientData>& recipients);
 
     std::vector<NTP1OutPoint>      getUsedInputs() const;
     std::map<std::string, NTP1Int> getChangeTokens() const;

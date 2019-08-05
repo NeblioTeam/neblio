@@ -17,6 +17,9 @@
 #include "json/json_spirit.h"
 
 class IssueNewNTP1TokenDialog;
+class CCoinControl;
+class CoinControlDialog;
+class WalletModel;
 
 class NTP1TokenSymbolValidator : public QValidator
 {
@@ -70,6 +73,11 @@ class IssueNewNTP1TokenDialog : public QDialog
 
     NTP1TokenSymbolValidator* tokenSymbolValidator;
 
+    CoinControlDialog* coinControlDialog;
+    QPushButton*       coinControlButton;
+
+    WalletModel* walletModel = nullptr;
+
     void createWidgets();
 
 public:
@@ -80,6 +88,8 @@ public:
 
     void setTokenSymbolValidatorErrorString(const QString& str);
 
+    void setWalletModel(WalletModel* WalletModelPtr);
+
     json_spirit::Value getIssuanceMetadata() const;
 
 private slots:
@@ -89,6 +99,7 @@ private slots:
     void slot_changeAddressCheckboxToggled(bool checked);
     void slot_doIssueToken();
     void slot_iconUrlChanged(const QString& url);
+    void slot_coinControlButtonClicked();
 };
 
 #endif // ISSUENEWNTP1TOKENDIALOG_H

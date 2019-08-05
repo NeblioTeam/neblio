@@ -12,7 +12,8 @@
 using namespace json_spirit;
 using namespace std;
 
-extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, json_spirit::Object& entry);
+extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, json_spirit::Object& entry,
+                     bool ignoreNTP1 = false);
 extern enum Checkpoints::CPMode CheckpointsMode;
 
 double GetDifficulty(const CBlockIndex* blockindex)
@@ -128,7 +129,7 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
         if (fPrintTransactionDetail) {
             Object entry;
 
-            TxToJSON(tx, 0, entry);
+            TxToJSON(tx, 0, entry, false);
 
             txinfo.push_back(entry);
         } else

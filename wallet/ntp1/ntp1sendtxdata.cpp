@@ -10,6 +10,8 @@
 #include <random>
 
 const std::string NTP1SendTxData::NEBL_TOKEN_ID = "NEBL";
+// token id of new non-existent token (placeholder)
+const std::string NTP1SendTxData::TO_ISSUE_TOKEN_ID = "NEW";
 
 std::vector<NTP1OutPoint> NTP1SendTxData::getUsedInputs() const
 {
@@ -32,12 +34,38 @@ CalculateRequiredTokenAmounts(const std::vector<NTP1SendTokensOneRecipientData>&
 {
     std::map<std::string, NTP1Int> required_amounts;
     for (const auto& r : recipients) {
+        if (r.tokenId == NTP1SendTxData::TO_ISSUE_TOKEN_ID) {
+            // there's no required NTP1 token amount for issuance, unlike transfer, because we're minting
+            continue;
+        }
         if (required_amounts.find(r.tokenId) == required_amounts.end()) {
             required_amounts[r.tokenId] = 0;
         }
         required_amounts[r.tokenId] += r.amount;
     }
     return required_amounts;
+}
+
+void NTP1SendTxData::verifyNTP1IssuanceRecipientsValidity(
+    const std::vector<NTP1SendTokensOneRecipientData>& recipients)
+{
+    int issuanceCount = 0;
+    for (const NTP1SendTokensOneRecipientData& r : recipients) {
+        if (r.tokenId == NTP1SendTxData::TO_ISSUE_TOKEN_ID) {
+            issuanceCount++;
+        }
+    }
+    if (issuanceCount > 1) {
+        throw std::runtime_error("Only one recipient of an issuance transaction can be present.");
+    }
+    if (issuanceCount > 0 && !tokenToIssueData) {
+        throw std::runtime_error("While a recipient was spicified to receive newly minted tokens, no "
+                                 "issuance data was speicified.");
+    }
+    if (issuanceCount == 0 && tokenToIssueData) {
+        throw std::runtime_error("While issuance data was provided, no recipient for issued/minted "
+                                 "tokens was specified in the list of recipients.");
+    }
 }
 
 // get available balances, either from inputs (if provided) or from the wallet
@@ -115,6 +143,22 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
     selectNTP1Tokens(wallet, ntp1OutPoints, recipients, addMoreInputsIfRequired);
 }
 
+void NTP1SendTxData::issueNTP1Token(const IssueTokenData& data)
+{
+    if (ready) {
+        throw std::runtime_error("You should register issuing a token before processing NTP1 tokens, in "
+                                 "order for the new tokens to be taken into account");
+    }
+    tokenToIssueData = data;
+}
+
+boost::optional<IssueTokenData> NTP1SendTxData::getNTP1TokenIssuanceData() const
+{
+    return tokenToIssueData;
+}
+
+bool NTP1SendTxData::getWhetherIssuanceExists() const { return tokenToIssueData.is_initialized(); }
+
 void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>               wallet,
                                       std::vector<NTP1OutPoint>                   inputs,
                                       std::vector<NTP1SendTokensOneRecipientData> recipients,
@@ -134,6 +178,8 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
                                     }),
                      recipients.end());
 
+    verifyNTP1IssuanceRecipientsValidity(recipients);
+
     // remove inputs duplicates
     {
         std::unordered_set<NTP1OutPoint> inputsSet(inputs.begin(), inputs.end());
@@ -151,6 +197,10 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
     for (const auto& required_amount : targetAmounts) {
         if (required_amount.first == NTP1SendTxData::NEBL_TOKEN_ID) {
             // ignore nebls, deal only with tokens
+            continue;
+        }
+        if (required_amount.first == NTP1SendTxData::TO_ISSUE_TOKEN_ID) {
+            // ignore newly issued tokens, as no inputs will ever satisfy them
             continue;
         }
         auto available_balance = balancesMap.find(required_amount.first);
@@ -326,8 +376,31 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
         decreditMap[in] = ntp1tx.getTxOut(in.getIndex());
     }
 
+    // if this is an issuance transaction, add the issuance TI
+    if (tokenToIssueData.is_initialized()) {
+        IntermediaryTI iti;
+
+        NTP1Script::TransferInstruction ti;
+
+        // issuance output is always the first one (will be transformed in CreateTransaction)
+        ti.outputIndex = 0;
+        ti.skipInput   = false;
+        ti.amount      = tokenToIssueData.get().amount;
+
+        iti.isNTP1TokenIssuance = true;
+        iti.TIs.push_back(ti);
+
+        intermediaryTIs.push_back(iti);
+    }
+
     // copy of the recipients to deduce the amounts they recieved
     std::vector<NTP1SendTokensOneRecipientData> recps = recipients;
+
+    // for every input, for every NTP1 token kind, move them to the recipients
+    // loop u: looping over inputs
+    // loop i: looping over token kinds inside input "u"
+    // loop j: looping over recipients, and give them the tokens they require,
+    //         from input "u", and token kind "i"
     for (int u = 0; u < (int)tokenSourceInputs.size(); u++) {
         const auto& in = tokenSourceInputs[u];
 
@@ -339,8 +412,17 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
         for (int i = 0; i < (int)ntp1txOut.tokenCount(); i++) {
             NTP1TokenTxData& token = ntp1txOut.getToken(i);
             for (int j = 0; j < (int)recps.size(); j++) {
-                // if the token id matches and the recipient needs more, give them that amount
+
+                // if the token id matches and the recipient needs more, give them that amount (by
+                // substracting the amount from the recipient)
                 if (ntp1txOut.getToken(i).getTokenId() == recps[j].tokenId && recps[j].amount > 0) {
+
+                    if (recps[j].tokenId == TO_ISSUE_TOKEN_ID) {
+                        throw std::runtime_error("An issuance transaction cannot have transfer elements "
+                                                 "in it except for the issued transaction. Everything "
+                                                 "else should go into change.");
+                    }
+
                     NTP1Script::TransferInstruction ti;
 
                     // there's still more for the recipient. Aggregate from possible adjacent tokens!
@@ -397,6 +479,8 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
                 }
             }
 
+            // after having gone through all recipients and given them all their amounts of the token
+            // "in", now we see if there's more to be added to change
             if (token.getAmount() > 0) {
                 NTP1Script::TransferInstruction ti;
 
@@ -447,6 +531,10 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
     for (const auto r : recps) {
         // we don't select nebls
         if (r.tokenId == NTP1SendTxData::NEBL_TOKEN_ID) {
+            continue;
+        }
+        // we ignore tokens to issue, those are to be minted
+        if (r.tokenId == NTP1SendTxData::TO_ISSUE_TOKEN_ID) {
             continue;
         }
         if (r.amount != 0) {
@@ -546,8 +634,11 @@ uint64_t NTP1SendTxData::getRequiredNeblsForOutputs() const
     if (!ready)
         throw std::runtime_error("NTP1SendTxData not ready; cannot get required fees");
     if (intermediaryTIs.size() > 0) {
-        return MIN_TX_FEE * (recipientsList.size() + 1 + // + 1 is for OP_RETURN output
-                             (this->getChangeTokens().size() > 0 ? 1 : 0));
+        int64_t issuanceFee = (tokenToIssueData.is_initialized() ? NTP1Transaction::IssuanceFee : 0);
+        int64_t changeCount = (this->getChangeTokens().size() > 0 ? 1 : 0);
+
+        // + 1 is for OP_RETURN output
+        return MIN_TX_FEE * (recipientsList.size() + 1 + changeCount) + issuanceFee;
     } else {
         return 0;
     }
