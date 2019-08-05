@@ -55,6 +55,7 @@ private:
     static const QString copyTokenIdText;
     static const QString copyTokenSymbolText;
     static const QString copyTokenNameText;
+    static const QString copyIssuanceTxid;
     static const QString viewInBlockExplorerText;
     static const QString viewIssuanceMetadataText;
 
@@ -71,6 +72,7 @@ private:
     QAction* copyTokenIdAction         = Q_NULLPTR;
     QAction* copyTokenSymbolAction     = Q_NULLPTR;
     QAction* copyTokenNameAction       = Q_NULLPTR;
+    QAction* copyIssuanceTxidAction    = Q_NULLPTR;
     QAction* viewInBlockExplorerAction = Q_NULLPTR;
     QAction* showMetadataAction        = Q_NULLPTR;
 
@@ -85,6 +87,7 @@ private slots:
     void slot_copyTokenIdAction();
     void slot_copyTokenSymbolAction();
     void slot_copyTokenNameAction();
+    void slot_copyIssuanceTxidAction();
     void slot_visitInBlockExplorerAction();
     void slot_showMetadataAction();
     void slot_showIssueNewTokenDialog();

@@ -21,6 +21,7 @@
 const QString NTP1Summary::copyTokenIdText          = "Copy Token ID";
 const QString NTP1Summary::copyTokenSymbolText      = "Copy Token Symbol";
 const QString NTP1Summary::copyTokenNameText        = "Copy Token Name";
+const QString NTP1Summary::copyIssuanceTxid         = "Copy issuance transaction ID";
 const QString NTP1Summary::viewInBlockExplorerText  = "Show in block explorer";
 const QString NTP1Summary::viewIssuanceMetadataText = "Show issuance metadata";
 
@@ -132,12 +133,14 @@ void NTP1Summary::setupContextMenu()
     copyTokenIdAction         = new QAction(copyTokenIdText, this);
     copyTokenSymbolAction     = new QAction(copyTokenSymbolText, this);
     copyTokenNameAction       = new QAction(copyTokenNameText, this);
+    copyIssuanceTxidAction    = new QAction(copyIssuanceTxid, this);
     viewInBlockExplorerAction = new QAction(viewInBlockExplorerText, this);
     showMetadataAction        = new QAction(viewIssuanceMetadataText, this);
     contextMenu->addAction(copyTokenIdAction);
     contextMenu->addAction(copyTokenSymbolAction);
     contextMenu->addAction(copyTokenNameAction);
     contextMenu->addSeparator();
+    contextMenu->addAction(copyIssuanceTxidAction);
     contextMenu->addAction(viewInBlockExplorerAction);
     contextMenu->addSeparator();
     contextMenu->addAction(showMetadataAction);
@@ -147,6 +150,8 @@ void NTP1Summary::setupContextMenu()
     connect(copyTokenIdAction, &QAction::triggered, this, &NTP1Summary::slot_copyTokenIdAction);
     connect(copyTokenSymbolAction, &QAction::triggered, this, &NTP1Summary::slot_copyTokenSymbolAction);
     connect(copyTokenNameAction, &QAction::triggered, this, &NTP1Summary::slot_copyTokenNameAction);
+    connect(copyIssuanceTxidAction, &QAction::triggered, this,
+            &NTP1Summary::slot_copyIssuanceTxidAction);
     connect(viewInBlockExplorerAction, &QAction::triggered, this,
             &NTP1Summary::slot_visitInBlockExplorerAction);
     connect(showMetadataAction, &QAction::triggered, this, &NTP1Summary::slot_showMetadataAction);
@@ -219,6 +224,31 @@ void NTP1Summary::slot_copyTokenNameAction()
                             ->data(ui->listTokens->model()->index(*rows.begin(), 0),
                                    NTP1TokenListModel::TokenDescriptionRole)
                             .toString();
+    if (!resultStr.isEmpty()) {
+        QClipboard* clipboard = QGuiApplication::clipboard();
+        clipboard->setText(resultStr);
+    } else {
+        QMessageBox::warning(this, "Failed to copy", "No information to include in the clipboard");
+    }
+}
+
+void NTP1Summary::slot_copyIssuanceTxidAction()
+{
+    QModelIndexList selected = ui->listTokens->selectedIndexesP();
+    std::set<int>   rows;
+    for (long i = 0; i < selected.size(); i++) {
+        QModelIndex index = selected.at(i);
+        int         row   = index.row();
+        rows.insert(row);
+    }
+    if (rows.size() != 1) {
+        QMessageBox::warning(this, "Failed get URL",
+                             "Failed to get Token ID; selected items size is not equal to one");
+        return;
+    }
+    QModelIndex idx = ui->listTokens->model()->index(*rows.begin(), 0);
+    QString     resultStr =
+        ui->listTokens->model()->data(idx, NTP1TokenListModel::IssuanceTxidRole).toString();
     if (!resultStr.isEmpty()) {
         QClipboard* clipboard = QGuiApplication::clipboard();
         clipboard->setText(resultStr);
