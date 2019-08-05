@@ -678,9 +678,10 @@ void NTP1Transaction::readNTP1DataFromTx(
                 opReturnArg);
         }
 
-        if (static_cast<int64_t>(totalInput) - static_cast<int64_t>(totalOutput) <
-            static_cast<int64_t>(IssuanceFee)) {
-            throw std::runtime_error("Issuance fee is less than 10 nebls");
+        int64_t feeProvided = static_cast<int64_t>(totalInput) - static_cast<int64_t>(totalOutput);
+        if (feeProvided < static_cast<int64_t>(IssuanceFee)) {
+            throw std::runtime_error("Issuance fee is less than 10 nebls. You provided only: " +
+                                     FormatMoney(feeProvided));
         }
 
         NTP1Int totalAmountLeft = scriptPtrD->getAmount();
