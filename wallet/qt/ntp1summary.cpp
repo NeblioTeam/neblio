@@ -261,10 +261,6 @@ void NTP1Summary::slot_showMetadataAction()
 void NTP1Summary::slot_showIssueNewTokenDialog()
 {
     LOCK(cs_main);
-    std::fstream out("outfile.txt", std::ios::out);
-    for (const auto& p : mapBlockIndex) {
-        out << p.first.ToString() << "\n";
-    }
 
     std::unordered_set<std::string> alreadyIssuedSymbols;
     try {
