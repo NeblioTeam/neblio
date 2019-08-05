@@ -112,7 +112,9 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry, bo
             }
         }
         in.push_back(Pair("sequence", (int64_t)txin.nSequence));
-        in.push_back(Pair("tokens", tokens));
+        if (isNTP1 && !ignoreNTP1) {
+            in.push_back(Pair("tokens", tokens));
+        }
         vin.push_back(in);
     }
     entry.push_back(Pair("vin", vin));
@@ -134,8 +136,8 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry, bo
                 n.get_obj().push_back(json_spirit::Pair("metadataOfIssuance", issuanceJson));
                 tokens.push_back(n);
             }
+            out.push_back(Pair("tokens", tokens));
         }
-        out.push_back(Pair("tokens", tokens));
         vout.push_back(out);
     }
     entry.push_back(Pair("vout", vout));
