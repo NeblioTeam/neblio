@@ -60,6 +60,8 @@ public:
     QPixmap      bottom_logo_pix;
 
     IssueNewNTP1TokenDialog* issueNewNTP1TokenDialog;
+    QMovie*                  loadIssuedNTP1SpinnerMovie;
+    QLabel*                  loadIssuedNTP1SpinnerLabel;
 
     int bottom_bar_downscale_factor;
 
@@ -131,6 +133,9 @@ public:
         issueNewNTP1TokenButton = new QPushButton();
         issueNewNTP1TokenButton->setIcon(QIcon(":/icons/add_new_ntp1"));
         issueNewNTP1TokenButton->setToolTip("Issue a new NTP1 token");
+        loadIssuedNTP1SpinnerLabel = new QLabel(NTP1SummaryPage);
+        loadIssuedNTP1SpinnerMovie = new QMovie(":images/update-spinner", QByteArray(), NTP1SummaryPage);
+
         upper_table_loading_label = new QLabel(wallet_contents_frame);
         upper_table_loading_label->setObjectName(QStringLiteral("upper_table_loading_label"));
         upper_table_loading_label->setText("(Updating...)");
@@ -149,6 +154,8 @@ public:
         horizontalLayout_2->addWidget(labelBlockchainSyncStatus);
 
         horizontalLayout_2->addWidget(issueNewNTP1TokenButton, 0, Qt::AlignmentFlag::AlignRight);
+        horizontalLayout_2->addWidget(loadIssuedNTP1SpinnerLabel, 0, Qt::AlignmentFlag::AlignRight);
+        loadIssuedNTP1SpinnerLabel->setVisible(false);
 
         verticalLayout->addLayout(horizontalLayout_2);
         verticalLayout->addLayout(verticalLayoutContent);

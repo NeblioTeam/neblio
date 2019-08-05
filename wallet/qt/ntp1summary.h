@@ -25,6 +25,16 @@ class NTP1Summary : public QWidget
 {
     Q_OBJECT
 
+    // since loading the list of NTP1 tokens is async, this is will change accordingly
+    bool    isNTP1TokensLoadRunning = false;
+    QTimer* ntp1LoaderConcluderTimer;
+    int     ntp1LoaderConcluderTimerTimeout = 100;
+
+    boost::promise<std::unordered_set<std::string>>       alreadyIssuedNTP1SymbolsPromise;
+    boost::unique_future<std::unordered_set<std::string>> alreadyIssuedNTP1SymbolsFuture;
+
+    static void GetAlreadyIssuedNTP1Tokens(boost::promise<std::unordered_set<std::string>>& promise);
+
 public:
     explicit NTP1Summary(QWidget* parent = 0);
     ~NTP1Summary();
@@ -78,6 +88,7 @@ private slots:
     void slot_visitInBlockExplorerAction();
     void slot_showMetadataAction();
     void slot_showIssueNewTokenDialog();
+    void slot_concludeLoadNTP1Tokens();
 
     // QWidget interface
 protected:
