@@ -285,14 +285,14 @@ std::string NTP1Script_Issuance::calculateScriptBin() const
 }
 
 std::shared_ptr<NTP1Script_Issuance> NTP1Script_Issuance::CreateScript(
-    const std::string& Symbol, uint64_t amount,
+    const std::string& Symbol, NTP1Int amount,
     const std::vector<NTP1Script::TransferInstruction>& transferInstructions,
     const std::string& Metadata, bool Locked, unsigned int Divisibility,
     IssuanceFlags::AggregationPolicy AggrPolicy)
 {
     std::shared_ptr<NTP1Script_Issuance> script = std::make_shared<NTP1Script_Issuance>();
 
-    script->metadata    = Metadata;
+    script->metadata    = (Metadata.empty() ? "" : ZlibCompress(Metadata));
     script->opCodeBin   = boost::algorithm::unhex(std::string("01"));
     script->tokenSymbol = Symbol;
     script->amount      = amount;
