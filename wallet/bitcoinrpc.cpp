@@ -642,17 +642,17 @@ void ThreadRPCServer(void* parg)
 }
 
 // Forward declaration required for RPCListen
-template <typename Protocol, typename SocketAcceptorService>
+template <typename Protocol>
 static void
-RPCAcceptHandler(boost::shared_ptr<basic_socket_acceptor<Protocol, SocketAcceptorService>> acceptor,
+RPCAcceptHandler(boost::shared_ptr<basic_socket_acceptor<Protocol>> acceptor,
                  ssl::context& context, bool fUseSSL, AcceptedConnection* conn,
                  const boost::system::error_code& error);
 
 /**
  * Sets up I/O resources to accept and handle a new connection.
  */
-template <typename Protocol, typename SocketAcceptorService>
-static void RPCListen(boost::shared_ptr<basic_socket_acceptor<Protocol, SocketAcceptorService>> acceptor,
+template <typename Protocol>
+static void RPCListen(boost::shared_ptr<basic_socket_acceptor<Protocol>> acceptor,
                       ssl::context& context, const bool fUseSSL)
 {
     // Accept connection
@@ -660,7 +660,7 @@ static void RPCListen(boost::shared_ptr<basic_socket_acceptor<Protocol, SocketAc
         new AcceptedConnectionImpl<Protocol>(acceptor->get_io_service(), context, fUseSSL);
 
     acceptor->async_accept(conn->sslStream.lowest_layer(), conn->peer,
-                           boost::bind(&RPCAcceptHandler<Protocol, SocketAcceptorService>, acceptor,
+                           boost::bind(&RPCAcceptHandler<Protocol>, acceptor,
                                        boost::ref(context), fUseSSL, conn,
                                        boost::asio::placeholders::error));
 }
@@ -668,9 +668,9 @@ static void RPCListen(boost::shared_ptr<basic_socket_acceptor<Protocol, SocketAc
 /**
  * Accept and handle incoming connection.
  */
-template <typename Protocol, typename SocketAcceptorService>
+template <typename Protocol>
 static void
-RPCAcceptHandler(boost::shared_ptr<basic_socket_acceptor<Protocol, SocketAcceptorService>> acceptor,
+RPCAcceptHandler(boost::shared_ptr<basic_socket_acceptor<Protocol>> acceptor,
                  ssl::context& context, const bool fUseSSL, AcceptedConnection* conn,
                  const boost::system::error_code& error)
 {
