@@ -569,7 +569,13 @@ public:
     }
     bool connect(const std::string& server, const std::string& port)
     {
-        ip::tcp::resolver           resolver(stream.get_io_service());
+#if BOOST_VERSION >= 107000
+        auto executionContextOrExecutor = stream.get_executor();
+#else
+        auto& executionContextOrExecutor = stream.get_io_service();
+#endif
+
+        ip::tcp::resolver           resolver(executionContextOrExecutor);
         ip::tcp::resolver::query    query(server.c_str(), port.c_str());
         ip::tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
         ip::tcp::resolver::iterator end;
@@ -599,11 +605,12 @@ public:
     virtual void           close()                        = 0;
 };
 
-template <typename Protocol>
+// Although this "Executor" can be an ExecutionContext, we use this just for backward compatibility with older boost versions
+template <typename Protocol, typename Executor>
 class AcceptedConnectionImpl : public AcceptedConnection
 {
 public:
-    AcceptedConnectionImpl(asio::io_service& io_service, ssl::context& context, bool fUseSSL)
+    AcceptedConnectionImpl(Executor& io_service, ssl::context& context, bool fUseSSL)
         : sslStream(io_service, context), _d(sslStream, fUseSSL), _stream(_d)
     {
     }
@@ -655,9 +662,17 @@ template <typename Protocol>
 static void RPCListen(boost::shared_ptr<basic_socket_acceptor<Protocol>> acceptor,
                       ssl::context& context, const bool fUseSSL)
 {
+#if BOOST_VERSION >= 107000
+    auto executionContextOrExecutor = acceptor->get_executor();
+#else
+    auto& executionContextOrExecutor = acceptor->get_io_service();
+#endif
+
+    using ExecutorType = typename std::remove_reference<decltype(executionContextOrExecutor)>::type;
+
     // Accept connection
-    AcceptedConnectionImpl<Protocol>* conn =
-        new AcceptedConnectionImpl<Protocol>(acceptor->get_io_service(), context, fUseSSL);
+    AcceptedConnectionImpl<Protocol, ExecutorType>* conn =
+        new AcceptedConnectionImpl<Protocol, ExecutorType>(executionContextOrExecutor, context, fUseSSL);
 
     acceptor->async_accept(conn->sslStream.lowest_layer(), conn->peer,
                            boost::bind(&RPCAcceptHandler<Protocol>, acceptor,
@@ -680,7 +695,15 @@ RPCAcceptHandler(boost::shared_ptr<basic_socket_acceptor<Protocol>> acceptor,
     if (error != asio::error::operation_aborted && acceptor->is_open())
         RPCListen(acceptor, context, fUseSSL);
 
-    AcceptedConnectionImpl<ip::tcp>* tcp_conn = dynamic_cast<AcceptedConnectionImpl<ip::tcp>*>(conn);
+#if BOOST_VERSION >= 107000
+    auto executionContextOrExecutor = acceptor->get_executor();
+#else
+    auto& executionContextOrExecutor = acceptor->get_io_service();
+#endif
+
+    using ExecutorType = typename std::remove_reference<decltype(executionContextOrExecutor)>::type;
+
+    AcceptedConnectionImpl<ip::tcp, ExecutorType>* tcp_conn = dynamic_cast<AcceptedConnectionImpl<ip::tcp, ExecutorType>*>(conn);
 
     // TODO: Actually handle errors
     if (error) {
