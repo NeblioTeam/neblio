@@ -71,7 +71,6 @@ list(INSERT CMAKE_MODULE_PATH 0
 
 add_definitions("-DQT_STATICPLUGIN")
 
-message("Printing...")
 foreach(plugin ${Qt5Widgets_PLUGINS})
   get_target_property(_loc ${plugin} LOCATION)
   message("Plugin ${plugin} is at location ${_loc}")
