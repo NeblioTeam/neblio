@@ -70,11 +70,12 @@ json_spirit::Value GetNTP1TxMetadata(const CTransaction& tx) noexcept
 
 void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
 {
-    auto        pair = std::make_pair(FetchTxFromDisk(tx.GetHash()), NTP1Transaction());
-    std::string opRet;
-    bool        isNTP1 = IsTxNTP1(&tx, &opRet);
+    std::pair<CTransaction, NTP1Transaction> pair;
+    std::string                              opRet;
+    bool                                     isNTP1 = IsTxNTP1(&tx, &opRet);
     if (isNTP1) {
         CTxDB txdb("r");
+        pair = std::make_pair(FetchTxFromDisk(tx.GetHash()), NTP1Transaction());
         FetchNTP1TxFromDisk(pair, txdb, false);
         if (pair.second.isNull()) {
             isNTP1 = false;
