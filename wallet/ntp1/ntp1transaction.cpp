@@ -792,7 +792,7 @@ void NTP1Transaction::readNTP1DataFromTx(
     }
 }
 
-json_spirit::Value NTP1Transaction::GetNTP1IssuanceMetadata(const uint256& issuanceTxid) noexcept
+json_spirit::Value NTP1Transaction::GetNTP1IssuanceMetadata(const uint256& issuanceTxid)
 {
     CTransaction    tx = FetchTxFromDisk(issuanceTxid);
     NTP1Transaction ntp1tx;

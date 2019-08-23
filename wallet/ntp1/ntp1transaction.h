@@ -104,7 +104,7 @@ public:
     static std::unordered_map<std::string, TokenMinimalData>
     CalculateTotalOutputTokens(const NTP1Transaction& ntp1tx);
 
-    static json_spirit::Value GetNTP1IssuanceMetadata(const uint256& issuanceTxid) noexcept;
+    static json_spirit::Value GetNTP1IssuanceMetadata(const uint256& issuanceTxid);
 
     static void
     ReorderTokenInputsToGoFirst(CTransaction&                                                tx,

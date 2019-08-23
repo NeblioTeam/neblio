@@ -73,9 +73,10 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry, bo
     std::pair<CTransaction, NTP1Transaction> pair;
     std::string                              opRet;
     bool                                     isNTP1 = IsTxNTP1(&tx, &opRet);
+
     if (isNTP1 && !ignoreNTP1) {
-        pair = std::make_pair(FetchTxFromDisk(tx.GetHash()), NTP1Transaction());
         CTxDB txdb("r");
+        pair = std::make_pair(FetchTxFromDisk(tx.GetHash()), NTP1Transaction());
         FetchNTP1TxFromDisk(pair, txdb, false);
         if (pair.second.isNull()) {
             isNTP1 = false;
