@@ -22,6 +22,7 @@
 #include <vector>
 
 #include <boost/algorithm/hex.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 #include <boost/date_time/gregorian/gregorian_types.hpp>
 #include <boost/date_time/posix_time/posix_time_types.hpp>
 #include <boost/filesystem.hpp>
@@ -251,6 +252,8 @@ std::string FormatSubVersion(const std::string& name, int nClientVersion,
                              const std::vector<std::string>& comments);
 void        AddTimeData(const CNetAddr& ip, int64_t nTime);
 void        runCommand(std::string strCommand);
+
+std::string GetMimeTypeFromPath(const std::string& path);
 
 template <typename T>
 std::string ToHexString(T&& value, bool prepend_0x = true)

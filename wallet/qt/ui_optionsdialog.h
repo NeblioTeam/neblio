@@ -170,10 +170,12 @@ public:
         scheduleWalletRescanButton = new QPushButton("Schedule wallet rescan", tabMain);
         verticalLayout_Main->addWidget(scheduleWalletRescanButton);
         scheduleWalletRescanButton->clearFocus();
+        scheduleWalletRescanButton->setAutoDefault(false);
 
         scheduleWalletResyncButton = new QPushButton("Schedule blockchain resync", tabMain);
         verticalLayout_Main->addWidget(scheduleWalletResyncButton);
         scheduleWalletResyncButton->clearFocus();
+        scheduleWalletResyncButton->setAutoDefault(false);
 
         verticalLayout_Main->addItem(verticalSpacer_Main);
 

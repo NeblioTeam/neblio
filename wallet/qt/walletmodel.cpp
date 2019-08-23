@@ -240,7 +240,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
         int64_t     nFeeRequired = 0;
         std::string errorMsg;
         bool fCreated = wallet->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, tokenCalculator,
-                                                  ntp1metadata, coinControl, &errorMsg);
+                                                  ntp1metadata, false, coinControl, &errorMsg);
 
         if (!fCreated) {
             if ((total + nFeeRequired) > nBalance) // FIXME: could cause collisions in the future

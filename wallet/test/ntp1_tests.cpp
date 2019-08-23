@@ -2771,3 +2771,21 @@ TEST(ntp1_tests, ntp1v1_metadata_map)
 //{
 //    TestNTP1TxParsing("0a71b6db7994cc91d7e24302428e44dc0871eff23caddfd75099e76666374175", false);
 //}
+
+// TEST(ntp1_tests, tmp2)
+//{
+//    std::shared_ptr<NTP1Script> script = NTP1Script::ParseScript(
+//        "4e5403015465737433201402012014034064911000000045789cab564a492c4954b2aa562ac9cf4ecdf34bcc4d55b25"
+//        "20a492d2e3156d2514a492d4e2eca2c28c9cccf83892a80d501e5328b8b4b538b80c2c189b94ab5b5008deb1890");
+//    std::shared_ptr<NTP1Script_Issuance> script_issuance =
+//        std::dynamic_pointer_cast<NTP1Script_Issuance>(script);
+//    ASSERT_NE(script_issuance, nullptr);
+//    std::cout << script_issuance->getAmount() << std::endl;
+//    for (unsigned i = 0; i < script_issuance->getTransferInstructionsCount(); i++) {
+//        std::cout << "Transfer instruction: " << i << std::endl;
+//        std::cout << "\t Output index: " << script_issuance->getTransferInstruction(i).outputIndex
+//                  << std::endl;
+//        std::cout << "\t Amount: " << script_issuance->getTransferInstruction(i).amount << std::endl;
+//        std::cout << "\t Skip: " << script_issuance->getTransferInstruction(i).skipInput << std::endl;
+//    }
+//}

@@ -522,10 +522,10 @@ bool ClientAllowed(const boost::asio::ip::address& address)
          && (address.to_v4().to_ulong() & 0xff000000) == 0x7f000000))
         return true;
 
-    const string          strAddress = address.to_string();
+    const string             strAddress = address.to_string();
     std::vector<std::string> rpcallowipVec;
     mapMultiArgs.get("-rpcallowip", rpcallowipVec);
-    const vector<string>& vAllow     = rpcallowipVec;
+    const vector<string>& vAllow = rpcallowipVec;
     BOOST_FOREACH (string strAllow, vAllow)
         if (WildcardMatch(strAddress, strAllow))
             return true;
@@ -1087,7 +1087,7 @@ Object CallRPC(const string& strMethod, const Array& params)
         throw runtime_error("couldn't connect to server");
 
     // HTTP basic authentication
-    string strUserPass64 = EncodeBase64(rpcUser + ":" + rpcPassword);
+    string              strUserPass64 = EncodeBase64(rpcUser + ":" + rpcPassword);
     map<string, string> mapRequestHeaders;
     mapRequestHeaders["Authorization"] = string("Basic ") + strUserPass64;
 
@@ -1177,10 +1177,16 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
         ConvertTo<bool>(params[1]);
     if (strMethod == "getblock" && n > 2)
         ConvertTo<bool>(params[2]);
+    if (strMethod == "getblock" && n > 3)
+        ConvertTo<bool>(params[3]);
+    if (strMethod == "gettransaction" && n > 1)
+        ConvertTo<bool>(params[1]);
     if (strMethod == "getblockbynumber" && n > 0)
         ConvertTo<int64_t>(params[0]);
     if (strMethod == "getblockbynumber" && n > 1)
         ConvertTo<bool>(params[1]);
+    if (strMethod == "getblockbynumber" && n > 2)
+        ConvertTo<bool>(params[2]);
     if (strMethod == "getblockhash" && n > 0)
         ConvertTo<int64_t>(params[0]);
     if (strMethod == "move" && n > 2)
@@ -1235,8 +1241,12 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
         ConvertTo<int64_t>(params[1]);
     if (strMethod == "listunspent" && n > 2)
         ConvertTo<Array>(params[2]);
+    if (strMethod == "decoderawtransaction" && n > 1)
+        ConvertTo<bool>(params[1]);
     if (strMethod == "getrawtransaction" && n > 1)
         ConvertTo<int64_t>(params[1]);
+    if (strMethod == "getrawtransaction" && n > 2)
+        ConvertTo<bool>(params[2]);
     if (strMethod == "createrawtransaction" && n > 0)
         ConvertTo<Array>(params[0]);
     if (strMethod == "createrawtransaction" && n > 1)

@@ -661,7 +661,7 @@ bool CTxDB::test1_EraseStrKeyVal(const string& key) { return Erase(key, db_main)
 
 bool CTxDB::test2_ReadMultipleStr1KeyVal(const string& key, std::vector<string>& val)
 {
-    return ReadMultiple(key, val, db_ntp1tokenNames);
+    return ReadMultiple(key, val, false, db_ntp1tokenNames);
 }
 
 bool CTxDB::test2_WriteStrKeyVal(const string& key, const string& val)
@@ -702,7 +702,7 @@ bool CTxDB::ReadNTP1Tx(uint256 hash, NTP1Transaction& ntp1tx)
 
 bool CTxDB::ReadNTP1TxsWithTokenSymbol(const std::string& tokenName, std::vector<uint256>& txs)
 {
-    return ReadMultiple(tokenName, txs, db_ntp1tokenNames);
+    return ReadMultiple(tokenName, txs, false, db_ntp1tokenNames);
 }
 
 bool CTxDB::WriteNTP1TxWithTokenSymbol(const std::string& tokenSymbol, const NTP1Transaction& ntp1tx)
@@ -737,6 +737,12 @@ bool CTxDB::WriteNTP1TxWithTokenSymbol(const std::string& tokenSymbol, const NTP
 bool CTxDB::WriteNTP1Tx(uint256 hash, const NTP1Transaction& ntp1tx)
 {
     return Write(hash, ntp1tx, db_ntp1Tx);
+}
+
+bool CTxDB::ReadAllIssuanceTxs(std::vector<uint256>& txs)
+{
+    // the key is empty because we want to get all keys in the database
+    return ReadMultiple(std::string(), txs, true, db_ntp1tokenNames);
 }
 
 bool CTxDB::ReadBlock(uint256 hash, CBlock& blk, bool fReadTransactions)

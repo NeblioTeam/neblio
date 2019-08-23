@@ -1,4 +1,4 @@
-// Copyright (c) 2009-2010 Satoshi Nakamoto
+﻿// Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -85,7 +85,8 @@ private:
                                int64_t&                                             nValueRet) const;
     bool SelectCoins(int64_t nTargetValue, unsigned int nSpendTime,
                      std::set<std::pair<const CWalletTx*, unsigned int>>& setCoinsRet,
-                     int64_t& nValueRet, const CCoinControl* coinControl = nullptr) const;
+                     int64_t& nValueRet, const CCoinControl* coinControl = nullptr,
+                     bool avoidNTP1Outputs = false) const;
 
     CWalletDB* pwalletdbEncryption;
 
@@ -164,7 +165,7 @@ public:
     bool SelectCoinsMinConf(int64_t nTargetValue, unsigned int nSpendTime, int nConfMine,
                             int nConfTheirs, std::vector<COutput> vCoins,
                             std::set<std::pair<const CWalletTx*, unsigned int>>& setCoinsRet,
-                            int64_t&                                             nValueRet) const;
+                            int64_t& nValueRet, bool avoidNTP1Outputs = false) const;
 
     // keystore implementation
     // Generate a new key
@@ -228,11 +229,12 @@ public:
     int64_t GetNewMint() const;
     bool    CreateTransaction(const std::vector<std::pair<CScript, int64_t>>& vecSend, CWalletTx& wtxNew,
                               CReserveKey& reservekey, int64_t& nFeeRet, NTP1SendTxData ntp1TxData,
-                              const string& ntp1metadata = "", const CCoinControl* coinControl = nullptr,
-                              std::string* errorMsg = nullptr);
+                              const string& ntp1metadata = "", bool isNTP1Issuance = false,
+                              const CCoinControl* coinControl = nullptr, std::string* errorMsg = nullptr);
     bool    CreateTransaction(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew,
                               CReserveKey& reservekey, int64_t& nFeeRet, const NTP1SendTxData& ntp1TxData,
-                              const string& ntp1metadata = "", const CCoinControl* coinControl = nullptr);
+                              const string& ntp1metadata = "", bool isNTP1Issuance = false,
+                              const CCoinControl* coinControl = nullptr);
     bool    CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
 
     bool GetStakeWeight(const CKeyStore& keystore, uint64_t& nMinWeight, uint64_t& nMaxWeight,
@@ -411,9 +413,11 @@ public:
      * @param wtxNew
      * @param TIs
      */
-    static void SetTxNTP1OpRet(CTransaction&                                       wtxNew,
-                               const std::vector<NTP1Script::TransferInstruction>& TIs,
-                               const string                                        ntp1metadata);
+    static void SetTxNTP1OpRet(CTransaction& wtxNew, const std::shared_ptr<NTP1Script>& script);
+    static void
+    SetTxNTP1OpRet(CTransaction& wtxNew, const std::vector<NTP1Script::TransferInstruction>& TIs,
+                   const std::string               ntp1metadata,
+                   boost::optional<IssueTokenData> issuanceData = boost::optional<IssueTokenData>());
 };
 
 /** A key allocated from the key pool. */

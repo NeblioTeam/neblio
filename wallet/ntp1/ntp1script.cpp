@@ -246,7 +246,8 @@ NTP1Script::ParseTokenSymbolFromLongEnoughString(const std::string& BinTokenSymb
                                 [](char c) { return static_cast<uint8_t>(c) == 0x20; }),
                  result.end());
 
-    auto it = std::find_if(result.begin(), result.end(), [](char c) { return !isalnum(c); });
+    auto it =
+        std::find_if(result.begin(), result.end(), [](char c) { return !IsTokenSymbolCharValid(c); });
     if (it != result.end()) {
         throw std::runtime_error("Invalid token symbol. Token symbols can only contain English letters "
                                  "and numbers. The current name \"" +
@@ -589,6 +590,18 @@ json_spirit::Value NTP1Script::GetMetadataAsJson(const NTP1Script* ntp1script) n
         return json_spirit::Value(root);
     }
 }
+
+bool NTP1Script::IsNTP1TokenSymbolValid(const std::string& symbol)
+{
+    if (symbol.size() > 5) {
+        return false;
+    }
+    auto it =
+        std::find_if(symbol.begin(), symbol.end(), [](char c) { return !IsTokenSymbolCharValid(c); });
+    return it == symbol.end();
+}
+
+bool NTP1Script::IsTokenSymbolCharValid(const char c) { return isalnum(c); }
 
 NTP1Int NTP1Script::GetTrailingZeros(const NTP1Int& num)
 {

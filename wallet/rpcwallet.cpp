@@ -17,7 +17,8 @@ using namespace std;
 int64_t                 nWalletUnlockTime;
 static CCriticalSection cs_nWalletUnlockTime;
 
-extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, json_spirit::Object& entry);
+extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, json_spirit::Object& entry,
+                     bool ignoreNTP1);
 
 static void accountingDeprecationCheck()
 {
@@ -1440,19 +1441,25 @@ Value listsinceblock(const Array& params, bool fHelp)
 
 Value gettransaction(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 1)
-        throw runtime_error("gettransaction <txid>\n"
-                            "Get detailed information about <txid>");
+    if (fHelp || params.size() < 1 || params.size() > 2)
+        throw runtime_error(
+            "gettransaction <txid> [ignoreNTP1=false]\n"
+            "Get detailed information about <txid>. Not ignoring NTP1 will try to retireve "
+            "NTP1 data from the database. This won't work if the transaction is not in the blockchain.");
 
     uint256 hash;
     hash.SetHex(params[0].get_str());
 
     Object entry;
 
+    bool fIgnoreNTP1 = false;
+    if (params.size() > 1)
+        fIgnoreNTP1 = params[1].get_bool();
+
     if (pwalletMain->mapWallet.count(hash)) {
         const CWalletTx& wtx = pwalletMain->mapWallet[hash];
 
-        TxToJSON(wtx, 0, entry);
+        TxToJSON(wtx, 0, entry, fIgnoreNTP1);
 
         int64_t nCredit = wtx.GetCredit();
         int64_t nDebit  = wtx.GetDebit();
@@ -1472,7 +1479,7 @@ Value gettransaction(const Array& params, bool fHelp)
         CTransaction tx;
         uint256      hashBlock = 0;
         if (GetTransaction(hash, tx, hashBlock)) {
-            TxToJSON(tx, 0, entry);
+            TxToJSON(tx, 0, entry, fIgnoreNTP1);
             if (hashBlock == 0)
                 entry.push_back(Pair("confirmations", 0));
             else {

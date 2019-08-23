@@ -25,6 +25,16 @@ class NTP1Summary : public QWidget
 {
     Q_OBJECT
 
+    // since loading the list of NTP1 tokens is async, this is will change accordingly
+    bool    isNTP1TokensLoadRunning = false;
+    QTimer* ntp1LoaderConcluderTimer;
+    int     ntp1LoaderConcluderTimerTimeout = 100;
+
+    boost::promise<std::unordered_set<std::string>>       alreadyIssuedNTP1SymbolsPromise;
+    boost::unique_future<std::unordered_set<std::string>> alreadyIssuedNTP1SymbolsFuture;
+
+    static void GetAlreadyIssuedNTP1Tokens(boost::promise<std::unordered_set<std::string>>& promise);
+
 public:
     explicit NTP1Summary(QWidget* parent = 0);
     ~NTP1Summary();
@@ -45,6 +55,7 @@ private:
     static const QString copyTokenIdText;
     static const QString copyTokenSymbolText;
     static const QString copyTokenNameText;
+    static const QString copyIssuanceTxid;
     static const QString viewInBlockExplorerText;
     static const QString viewIssuanceMetadataText;
 
@@ -61,6 +72,7 @@ private:
     QAction* copyTokenIdAction         = Q_NULLPTR;
     QAction* copyTokenSymbolAction     = Q_NULLPTR;
     QAction* copyTokenNameAction       = Q_NULLPTR;
+    QAction* copyIssuanceTxidAction    = Q_NULLPTR;
     QAction* viewInBlockExplorerAction = Q_NULLPTR;
     QAction* showMetadataAction        = Q_NULLPTR;
 
@@ -75,8 +87,11 @@ private slots:
     void slot_copyTokenIdAction();
     void slot_copyTokenSymbolAction();
     void slot_copyTokenNameAction();
+    void slot_copyIssuanceTxidAction();
     void slot_visitInBlockExplorerAction();
     void slot_showMetadataAction();
+    void slot_showIssueNewTokenDialog();
+    void slot_concludeLoadNTP1Tokens();
 
     // QWidget interface
 protected:

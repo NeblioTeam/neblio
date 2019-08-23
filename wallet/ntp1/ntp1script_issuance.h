@@ -39,7 +39,7 @@ public:
     std::string getTokenID(std::string input0txid, unsigned int input0index) const;
 
     static std::shared_ptr<NTP1Script_Issuance>
-                       CreateScript(const std::string& Symbol, uint64_t amount,
+                       CreateScript(const std::string& Symbol, NTP1Int amount,
                                     const std::vector<TransferInstruction>& transferInstructions,
                                     const std::string& Metadata, bool locked, unsigned int divisibility,
                                     IssuanceFlags::AggregationPolicy aggrPolicy);

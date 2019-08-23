@@ -19,6 +19,7 @@
 #include "ClickableLabel.h"
 #include <QMovie>
 
+#include "ntp1/issuenewntp1tokendialog.h"
 #include "ntp1senddialog.h"
 
 QT_BEGIN_NAMESPACE
@@ -46,10 +47,10 @@ public:
     QHBoxLayout* verticalLayoutContent;
     QHBoxLayout* horizontalLayout_2;
     QLabel*      upper_table_label;
+    QPushButton* issueNewNTP1TokenButton;
     QLabel*      upper_table_loading_label;
     QLineEdit*   filter_lineEdit;
-    //    QPushButton* showSendDialogButton;
-    QLabel* labelBlockchainSyncStatus;
+    QLabel*      labelBlockchainSyncStatus;
 
     TokensListView* listTokens;
 
@@ -58,9 +59,9 @@ public:
     QGridLayout* bottom_layout;
     QPixmap      bottom_logo_pix;
 
-    //    QGroupBox*      sendTokensWidgetGroupBox;
-    //    QGridLayout*    sendTokensWidgetGroupBoxLayout;
-    //    NTP1SendDialog* sendTokensWidget;
+    IssueNewNTP1TokenDialog* issueNewNTP1TokenDialog;
+    QMovie*                  loadIssuedNTP1SpinnerMovie;
+    QLabel*                  loadIssuedNTP1SpinnerLabel;
 
     int bottom_bar_downscale_factor;
 
@@ -129,6 +130,12 @@ public:
         horizontalLayout_2->setObjectName(QStringLiteral("horizontalLayout_2"));
         upper_table_label = new QLabel(wallet_contents_frame);
         upper_table_label->setObjectName(QStringLiteral("label_4"));
+        issueNewNTP1TokenButton = new QPushButton();
+        issueNewNTP1TokenButton->setIcon(QIcon(":/icons/add_new_ntp1"));
+        issueNewNTP1TokenButton->setToolTip("Issue a new NTP1 token");
+        loadIssuedNTP1SpinnerLabel = new QLabel(NTP1SummaryPage);
+        loadIssuedNTP1SpinnerMovie = new QMovie(":images/update-spinner", QByteArray(), NTP1SummaryPage);
+
         upper_table_loading_label = new QLabel(wallet_contents_frame);
         upper_table_loading_label->setObjectName(QStringLiteral("upper_table_loading_label"));
         upper_table_loading_label->setText("(Updating...)");
@@ -145,6 +152,10 @@ public:
         labelBlockchainSyncStatus->setAlignment(Qt::AlignRight | Qt::AlignTrailing | Qt::AlignVCenter);
 
         horizontalLayout_2->addWidget(labelBlockchainSyncStatus);
+
+        horizontalLayout_2->addWidget(issueNewNTP1TokenButton, 0, Qt::AlignmentFlag::AlignRight);
+        horizontalLayout_2->addWidget(loadIssuedNTP1SpinnerLabel, 0, Qt::AlignmentFlag::AlignRight);
+        loadIssuedNTP1SpinnerLabel->setVisible(false);
 
         verticalLayout->addLayout(horizontalLayout_2);
         verticalLayout->addLayout(verticalLayoutContent);
@@ -165,6 +176,8 @@ public:
         //        right_balance_layout->addWidget(sendTokensWidgetGroupBox);
 
         main_layout->addLayout(right_balance_layout, 0, 1, 1, 1);
+
+        issueNewNTP1TokenDialog = new IssueNewNTP1TokenDialog(NTP1SummaryPage);
 
         retranslateUi(NTP1SummaryPage);
 
