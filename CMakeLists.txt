@@ -71,7 +71,6 @@ list(INSERT CMAKE_MODULE_PATH 0
 
 add_definitions("-DQT_STATICPLUGIN")
 
-message("Printing...")
 foreach(plugin ${Qt5Widgets_PLUGINS})
   get_target_property(_loc ${plugin} LOCATION)
   message("Plugin ${plugin} is at location ${_loc}")
@@ -202,7 +201,8 @@ if(USE_DBUS)
     if (NOT DBUS_INCLUDES_RETURN_VALUE EQUAL 0)
         message(FATAL_ERROR "Failed to retrieve libs for dbus with pkg-config: ${DBUS_INCLUDE_DIRS}")
     endif()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${DBUS_LIBRARY_DIRS}") #TODO: this is causing a warning on clang 7
+    set(CMAKE_CXX_FLAGS "-Wno-unused-command-line-argument")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${DBUS_LIBRARY_DIRS}")
 endif()
 
 # copy "res", the resources dir to build dir
