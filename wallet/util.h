@@ -172,6 +172,8 @@ extern bool                                                     fLogTimestamps;
 extern bool                                                     fReopenDebugLog;
 extern boost::atomic<bool>                                      fShutdown;
 
+const std::string NTP1WalletCacheFileName = "NTP1DataCache.json";
+
 void RandAddSeed();
 void RandAddSeedPerfmon();
 int  ATTR_WARN_PRINTF(1, 2) OutputDebugStringF(const char* pszFormat, ...);

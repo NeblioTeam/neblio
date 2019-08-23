@@ -374,6 +374,10 @@ void CTxDB::init_blockindex(bool fRemoveOld)
         this->Close();
 
         filesystem::remove_all(directory); // remove directory
+        {
+            boost::system::error_code ec;
+            filesystem::remove(GetDataDir() / NTP1WalletCacheFileName, ec);
+        }
 
         // delete block data files
         {

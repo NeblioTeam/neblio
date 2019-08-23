@@ -18,8 +18,9 @@ class NTP1TokenListModel : public QAbstractTableModel
     boost::atomic_bool            walletUpdateRunning;
     boost::atomic_flag            walletUpdateLockFlag = BOOST_ATOMIC_FLAG_INIT;
     boost::atomic_bool            updateWalletAgain;
-    // this mutex should not be necessary, but future<shared_ptr> is indicating an issue with thread-sanitizer
-    boost::mutex                  walletFutureCheckMutex;
+    // this mutex should not be necessary, but future<shared_ptr> is indicating an issue with
+    // thread-sanitizer
+    boost::mutex walletFutureCheckMutex;
 
     QTimer* walletUpdateEnderTimer;
 
@@ -97,7 +98,6 @@ public:
     void                          saveWalletToFile();
     void                          loadWalletFromFile();
     boost::shared_ptr<NTP1Wallet> getCurrentWallet() const;
-    static const std::string      WalletFileName;
 signals:
     void signal_walletUpdateRunning(bool running);
 

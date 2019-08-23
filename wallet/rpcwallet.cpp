@@ -96,7 +96,8 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("ip", addrSeenByPeer.ToStringIP()));
 
     diff.push_back(Pair("proof-of-work", GetDifficulty()));
-    diff.push_back(Pair("proof-of-stake", GetDifficulty(GetLastBlockIndex(boost::atomic_load(&pindexBest).get(), true))));
+    diff.push_back(Pair("proof-of-stake",
+                        GetDifficulty(GetLastBlockIndex(boost::atomic_load(&pindexBest).get(), true))));
     obj.push_back(Pair("difficulty", diff));
 
     obj.push_back(Pair("testnet", fTestNet));
@@ -315,10 +316,10 @@ Value sendtoaddress(const Array& params, bool fHelp)
 
 Value sendntp1toaddress(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 3 || params.size() > 5)
-        throw runtime_error(
-            "sendntp1toaddress <neblioaddress> <amount> <tokenId/tokenName> [comment] [comment-to]\n" +
-            HelpRequiringPassphrase());
+    if (fHelp || params.size() < 3 || params.size() > 6)
+        throw runtime_error("sendntp1toaddress <neblioaddress> <amount> <tokenId/tokenName> [NTP1 "
+                            "metadata=\"\"] [comment] [comment-to]\n" +
+                            HelpRequiringPassphrase());
 
     CBitcoinAddress address(params[0].get_str());
     if (!address.IsValid())
@@ -359,18 +360,21 @@ Value sendntp1toaddress(const Array& params, bool fHelp)
     }
 
     // Wallet comments
-    CWalletTx wtx;
+    CWalletTx   wtx;
+    std::string ntp1metadata;
     if (params.size() > 3 && params[3].type() != null_type && !params[3].get_str().empty())
-        wtx.mapValue["comment"] = params[3].get_str();
+        ntp1metadata = params[3].get_str();
     if (params.size() > 4 && params[4].type() != null_type && !params[4].get_str().empty())
-        wtx.mapValue["to"] = params[4].get_str();
+        wtx.mapValue["comment"] = params[4].get_str();
+    if (params.size() > 5 && params[5].type() != null_type && !params[5].get_str().empty())
+        wtx.mapValue["to"] = params[5].get_str();
 
     if (pwalletMain->IsLocked())
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
                            "Error: Please enter the wallet passphrase with walletpassphrase first.");
 
-    string strError =
-        pwalletMain->SendNTP1ToDestination(address.Get(), nAmount, tokenId, wtx, ntp1wallet);
+    string strError = pwalletMain->SendNTP1ToDestination(address.Get(), nAmount, tokenId, wtx,
+                                                         ntp1wallet, ntp1metadata);
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
 
@@ -1420,7 +1424,8 @@ Value listsinceblock(const Array& params, bool fHelp)
         int target_height = boost::atomic_load(&pindexBest)->nHeight + 1 - target_confirms;
 
         CBlockIndex* block;
-        for (block = pindexBest.get(); block && block->nHeight > target_height; block = boost::atomic_load(&block->pprev).get()) {
+        for (block = pindexBest.get(); block && block->nHeight > target_height;
+             block = boost::atomic_load(&block->pprev).get()) {
         }
 
         lastblock = block ? block->GetBlockHash() : 0;

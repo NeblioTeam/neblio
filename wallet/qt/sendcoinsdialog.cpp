@@ -15,6 +15,7 @@
 
 #include "coincontrol.h"
 #include "coincontroldialog.h"
+#include "guiconstants.h"
 
 #include <QClipboard>
 #include <QLocale>
@@ -43,8 +44,12 @@ SendCoinsDialog::SendCoinsDialog(QWidget* parent)
 
     addEntry();
 
-    connect(ui->addButton, SIGNAL(clicked()), this, SLOT(addEntry()));
-    connect(ui->clearButton, SIGNAL(clicked()), this, SLOT(clear()));
+    ui->editMetadataDialog->setWindowModality(Qt::WindowModal);
+
+    connect(ui->addButton, &QPushButton::clicked, this, &SendCoinsDialog::addEntry);
+    connect(ui->editMetadataButton, &QPushButton::clicked, this,
+            &SendCoinsDialog::showEditMetadataDialog);
+    connect(ui->clearButton, &QPushButton::clicked, this, &SendCoinsDialog::clear);
 
     // Coin Control
     ui->lineEditCoinControlChange->setFont(GUIUtil::bitcoinAddressFont());
@@ -154,6 +159,37 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     fNewRecipientAllowed = false;
 
+    // allow metadata only with NTP1 transactions
+    std::string ntp1metadata;
+    {
+        if (ui->editMetadataDialog->jsonDataExists()) {
+            if (ui->editMetadataDialog->jsonDataValid()) {
+                json_spirit::Object obj = ui->editMetadataDialog->getJsonData();
+                ntp1metadata            = json_spirit::write(obj);
+            } else {
+                QMessageBox::warning(this, "Invalid json data",
+                                     "Invalid NTP1 metadata found. Either clear it or fix it");
+                ui->editMetadataButton->setStyleSheet(STYLE_INVALID);
+                return;
+            }
+        }
+
+        bool allTokensNebl = true;
+        for (const auto& r : recipients) {
+            bool isNebl   = (r.tokenId.toStdString() == NTP1SendTxData::NEBL_TOKEN_ID);
+            allTokensNebl = allTokensNebl && isNebl;
+        }
+
+        if (allTokensNebl && ui->editMetadataDialog->jsonDataExists()) {
+            QMessageBox::warning(
+                this, "Metadata in non-NTP1 transaction",
+                "We found metadata set. NTP1 metadata requires an NTP1 transaction. Please "
+                "include one or more NTP1 tokens in your transaction.");
+            ui->editMetadataButton->setStyleSheet(STYLE_INVALID);
+            return;
+        }
+    }
+
     QMessageBox::StandardButton retval = QMessageBox::question(
         this, tr("Confirm send coins"), tr("Are you sure you want to send these tokens?"),
         QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel);
@@ -173,9 +209,10 @@ void SendCoinsDialog::on_sendButton_clicked()
     WalletModel::SendCoinsReturn sendstatus;
 
     if (!model->getOptionsModel() || !model->getOptionsModel()->getCoinControlFeatures())
-        sendstatus = model->sendCoins(recipients, ntp1wallet);
+        sendstatus = model->sendCoins(recipients, ntp1wallet, ntp1metadata);
     else
-        sendstatus = model->sendCoins(recipients, ntp1wallet, CoinControlDialog::coinControl);
+        sendstatus =
+            model->sendCoins(recipients, ntp1wallet, ntp1metadata, CoinControlDialog::coinControl);
 
     switch (sendstatus.status) {
     case WalletModel::InvalidAddress:
@@ -296,6 +333,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         accept();
         CoinControlDialog::coinControl->UnSelectAll();
         coinControlUpdateLabels();
+        ui->editMetadataDialog->clearData();
         break;
     }
     fNewRecipientAllowed = true;
@@ -320,6 +358,9 @@ void SendCoinsDialog::accept() { clear(); }
 
 SendCoinsEntry* SendCoinsDialog::addEntry()
 {
+    // metadata can be fixed if more recipients are added, so remove red color from the button
+    ui->editMetadataButton->setStyleSheet("");
+
     SendCoinsEntry* entry = new SendCoinsEntry(this);
     entry->setModel(model);
     ui->entries->addWidget(entry);
@@ -368,7 +409,8 @@ QWidget* SendCoinsDialog::setupTabChain(QWidget* prev)
         }
     }
     QWidget::setTabOrder(prev, ui->addButton);
-    QWidget::setTabOrder(ui->addButton, ui->sendButton);
+    QWidget::setTabOrder(ui->addButton, ui->editMetadataButton);
+    QWidget::setTabOrder(ui->editMetadataButton, ui->sendButton);
     return ui->sendButton;
 }
 
@@ -418,6 +460,12 @@ void SendCoinsDialog::setBalance(qint64 balance, qint64 stake, qint64 unconfirme
 
     int unit = model->getOptionsModel()->getDisplayUnit();
     ui->labelBalance->setText(BitcoinUnits::formatWithUnit(unit, balance));
+}
+
+void SendCoinsDialog::showEditMetadataDialog()
+{
+    ui->editMetadataButton->setStyleSheet("");
+    ui->editMetadataDialog->show();
 }
 
 void SendCoinsDialog::updateDisplayUnit()

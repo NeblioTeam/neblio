@@ -354,10 +354,10 @@ Value createrawtransaction(const Array& params, bool fHelp)
 
 Value createrawntp1transaction(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 2)
+    if (fHelp || (params.size() != 2 && params.size() != 3))
         throw runtime_error(
-            "createrawntp1transaction [{\"txid\":txid,\"vout\":n},...] "
-            "{address:{tokenid/tokenName:tokenAmount}},{address:neblAmount,...}\n"
+            "createrawntp1transaction [{\"txid\":txid,\"vout\":n},...]"
+            "{address:{tokenid/tokenName:tokenAmount}},{address:neblAmount,...} [NTP1 Metadata=\"\"]\n"
             "Create a transaction spending given inputs\n"
             "(array of objects containing transaction id and output number),\n"
             "sending to given address(es).\n"
@@ -366,8 +366,12 @@ Value createrawntp1transaction(const Array& params, bool fHelp)
 
     RPCTypeCheck(params, list_of(array_type)(obj_type));
 
-    Array  inputs = params[0].get_array();
-    Object sendTo = params[1].get_obj();
+    Array       inputs = params[0].get_array();
+    Object      sendTo = params[1].get_obj();
+    std::string ntp1metadata;
+    if (params.size() >= 3) {
+        ntp1metadata = params[2].get_str();
+    }
 
     CTransaction rawTx;
 
@@ -466,7 +470,7 @@ Value createrawntp1transaction(const Array& params, bool fHelp)
     std::vector<NTP1Script::TransferInstruction> TIs;
     TIs = CWallet::AddNTP1TokenInputsToTx(rawTx, tokenSelector, tokenOutputOffset);
 
-    CWallet::SetTxNTP1OpRet(rawTx, TIs);
+    CWallet::SetTxNTP1OpRet(rawTx, TIs, ntp1metadata);
 
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
     ss << rawTx;

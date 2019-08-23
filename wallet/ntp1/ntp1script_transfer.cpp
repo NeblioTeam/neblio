@@ -151,7 +151,7 @@ std::shared_ptr<NTP1Script_Transfer> NTP1Script_Transfer::CreateScript(
 
     script->protocolVersion      = 3;
     script->headerBin            = boost::algorithm::unhex(std::string("4e5403"));
-    script->metadata             = Metadata;
+    script->metadata             = (Metadata.empty() ? "" : ZlibCompress(Metadata));
     script->opCodeBin            = boost::algorithm::unhex(std::string("10"));
     script->transferInstructions = transferInstructions;
     script->txType               = TxType::TxType_Transfer;

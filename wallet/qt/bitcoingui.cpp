@@ -74,7 +74,11 @@ BitcoinGUI::BitcoinGUI(QWidget* parent)
 {
     setWindowTitle(tr("neblio") + " - " + tr("Wallet"));
     qApp->setStyleSheet("QMainWindow { background-color: white;border:none;font-family:'Open "
-                        "Sans,sans-serif'; } QStatusBar::item { border: 0px;}");
+                        "Sans,sans-serif'; } QStatusBar::item { border: 0px;} QDialog { "
+                        "background-color: white;border:none;font-family:'Open "
+                        "Sans,sans-serif'; } QScrollArea { "
+                        "background-color: white;border:none;font-family:'Open "
+                        "Sans,sans-serif'; }");
 #ifndef Q_OS_MAC
     qApp->setWindowIcon(QIcon(":icons/bitcoin"));
     setWindowIcon(QIcon(":icons/bitcoin"));
@@ -204,6 +208,7 @@ BitcoinGUI::BitcoinGUI(QWidget* parent)
     // as they make the text unreadable (workaround for issue #1071)
     // See https://qt-project.org/doc/qt-4.8/gallery.html
     QString curStyle = qApp->style()->metaObject()->className();
+
     progressBar->setStyleSheet("QProgressBar { background-color: #e8e8e8; border: 1px solid grey; "
                                    "border-radius: 2px; padding: 1px; text-align: center; } "
                                    "QProgressBar::chunk { background-color: #0bdbd0; border-radius: 2px; "

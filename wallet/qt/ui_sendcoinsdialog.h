@@ -9,6 +9,7 @@
 #ifndef UI_SENDCOINSDIALOG_H
 #define UI_SENDCOINSDIALOG_H
 
+#include "ntp1/ntp1createmetadatadialog.h"
 #include <QtCore/QVariant>
 #include <QtWidgets/QAction>
 #include <QtWidgets/QApplication>
@@ -32,58 +33,60 @@ QT_BEGIN_NAMESPACE
 class Ui_SendCoinsDialog
 {
 public:
-    QVBoxLayout* verticalLayout;
-    QFrame*      frameCoinControl;
-    QVBoxLayout* verticalLayoutCoinControl2;
-    QVBoxLayout* verticalLayoutCoinControl;
-    QHBoxLayout* horizontalLayoutCoinControl1;
-    QLabel*      labelCoinControlFeatures;
-    QHBoxLayout* horizontalLayoutCoinControl2;
-    QPushButton* pushButtonCoinControl;
-    QLabel*      labelCoinControlAutomaticallySelected;
-    QLabel*      labelCoinControlInsuffFunds;
-    QSpacerItem* horizontalSpacerCoinControl;
-    QWidget*     widgetCoinControl;
-    QHBoxLayout* horizontalLayoutCoinControl5;
-    QHBoxLayout* horizontalLayoutCoinControl3;
-    QFormLayout* formLayoutCoinControl1;
-    QLabel*      labelCoinControlQuantityText;
-    QLabel*      labelCoinControlQuantity;
-    QLabel*      labelCoinControlBytesText;
-    QLabel*      labelCoinControlBytes;
-    QFormLayout* formLayoutCoinControl2;
-    QLabel*      labelCoinControlAmountText;
-    QLabel*      labelCoinControlAmount;
-    QLabel*      labelCoinControlPriorityText;
-    QLabel*      labelCoinControlPriority;
-    QFormLayout* formLayoutCoinControl3;
-    QLabel*      labelCoinControlFeeText;
-    QLabel*      labelCoinControlFee;
-    QLabel*      labelCoinControlLowOutputText;
-    QLabel*      labelCoinControlLowOutput;
-    QFormLayout* formLayoutCoinControl4;
-    QLabel*      labelCoinControlAfterFeeText;
-    QLabel*      labelCoinControlAfterFee;
-    QLabel*      labelCoinControlChangeText;
-    QLabel*      labelCoinControlChange;
-    QHBoxLayout* horizontalLayoutCoinControl4;
-    QCheckBox*   checkBoxCoinControlChange;
-    QLineEdit*   lineEditCoinControlChange;
-    QLabel*      labelCoinControlChangeLabel;
-    QSpacerItem* verticalSpacerCoinControl;
-    QScrollArea* scrollArea;
-    QWidget*     scrollAreaWidgetContents;
-    QVBoxLayout* verticalLayout_2;
-    QVBoxLayout* entries;
-    QSpacerItem* verticalSpacer;
-    QHBoxLayout* horizontalLayout;
-    QPushButton* addButton;
-    QPushButton* clearButton;
-    QHBoxLayout* horizontalLayout_2;
-    QLabel*      label;
-    QLabel*      labelBalance;
-    QSpacerItem* horizontalSpacer;
-    QPushButton* sendButton;
+    QVBoxLayout*              verticalLayout;
+    QFrame*                   frameCoinControl;
+    QVBoxLayout*              verticalLayoutCoinControl2;
+    QVBoxLayout*              verticalLayoutCoinControl;
+    QHBoxLayout*              horizontalLayoutCoinControl1;
+    QLabel*                   labelCoinControlFeatures;
+    QHBoxLayout*              horizontalLayoutCoinControl2;
+    QPushButton*              pushButtonCoinControl;
+    QLabel*                   labelCoinControlAutomaticallySelected;
+    QLabel*                   labelCoinControlInsuffFunds;
+    QSpacerItem*              horizontalSpacerCoinControl;
+    QWidget*                  widgetCoinControl;
+    QHBoxLayout*              horizontalLayoutCoinControl5;
+    QHBoxLayout*              horizontalLayoutCoinControl3;
+    QFormLayout*              formLayoutCoinControl1;
+    QLabel*                   labelCoinControlQuantityText;
+    QLabel*                   labelCoinControlQuantity;
+    QLabel*                   labelCoinControlBytesText;
+    QLabel*                   labelCoinControlBytes;
+    QFormLayout*              formLayoutCoinControl2;
+    QLabel*                   labelCoinControlAmountText;
+    QLabel*                   labelCoinControlAmount;
+    QLabel*                   labelCoinControlPriorityText;
+    QLabel*                   labelCoinControlPriority;
+    QFormLayout*              formLayoutCoinControl3;
+    QLabel*                   labelCoinControlFeeText;
+    QLabel*                   labelCoinControlFee;
+    QLabel*                   labelCoinControlLowOutputText;
+    QLabel*                   labelCoinControlLowOutput;
+    QFormLayout*              formLayoutCoinControl4;
+    QLabel*                   labelCoinControlAfterFeeText;
+    QLabel*                   labelCoinControlAfterFee;
+    QLabel*                   labelCoinControlChangeText;
+    QLabel*                   labelCoinControlChange;
+    QHBoxLayout*              horizontalLayoutCoinControl4;
+    QCheckBox*                checkBoxCoinControlChange;
+    QLineEdit*                lineEditCoinControlChange;
+    QLabel*                   labelCoinControlChangeLabel;
+    QSpacerItem*              verticalSpacerCoinControl;
+    QScrollArea*              scrollArea;
+    QWidget*                  scrollAreaWidgetContents;
+    QVBoxLayout*              verticalLayout_2;
+    QVBoxLayout*              entries;
+    QSpacerItem*              verticalSpacer;
+    QHBoxLayout*              horizontalLayout;
+    QPushButton*              addButton;
+    QPushButton*              editMetadataButton;
+    QPushButton*              clearButton;
+    QHBoxLayout*              horizontalLayout_2;
+    QLabel*                   label;
+    QLabel*                   labelBalance;
+    QSpacerItem*              horizontalSpacer;
+    QPushButton*              sendButton;
+    NTP1CreateMetadataDialog* editMetadataDialog;
 
     void setupUi(QDialog* SendCoinsDialog)
     {
@@ -423,12 +426,18 @@ public:
         horizontalLayout->setObjectName(QStringLiteral("horizontalLayout"));
         addButton = new QPushButton(SendCoinsDialog);
         addButton->setObjectName(QStringLiteral("addButton"));
+
         QIcon icon;
         icon.addFile(QStringLiteral(":/icons/add"), QSize(), QIcon::Normal, QIcon::Off);
         addButton->setIcon(icon);
         addButton->setAutoDefault(false);
 
         horizontalLayout->addWidget(addButton);
+
+        editMetadataButton = new QPushButton(SendCoinsDialog);
+        editMetadataButton->setObjectName(QStringLiteral("addMetadataButton"));
+        editMetadataButton->setAutoDefault(false);
+        horizontalLayout->addWidget(editMetadataButton);
 
         clearButton = new QPushButton(SendCoinsDialog);
         clearButton->setObjectName(QStringLiteral("clearButton"));
@@ -492,6 +501,8 @@ public:
         sendButton->setDefault(true);
 
         QMetaObject::connectSlotsByName(SendCoinsDialog);
+
+        editMetadataDialog = new NTP1CreateMetadataDialog(SendCoinsDialog);
     } // setupUi
 
     void retranslateUi(QDialog* SendCoinsDialog)
@@ -539,8 +550,12 @@ public:
 #ifndef QT_NO_TOOLTIP
         addButton->setToolTip(QApplication::translate("SendCoinsDialog",
                                                       "Send to multiple recipients at once", Q_NULLPTR));
+        editMetadataButton->setToolTip(
+            QApplication::translate("SendCoinsDialog", "Add metadata to the transaction", Q_NULLPTR));
 #endif // QT_NO_TOOLTIP
         addButton->setText(QApplication::translate("SendCoinsDialog", "Add &Recipient", Q_NULLPTR));
+        editMetadataButton->setText(
+            QApplication::translate("SendCoinsDialog", "Edit NTP1 &Metadata", Q_NULLPTR));
 #ifndef QT_NO_TOOLTIP
         clearButton->setToolTip(
             QApplication::translate("SendCoinsDialog", "Remove all transaction fields", Q_NULLPTR));
