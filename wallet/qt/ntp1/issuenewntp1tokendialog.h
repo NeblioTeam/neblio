@@ -37,7 +37,11 @@ public:
 
 class NTP1TokenAmountValidator : public QValidator
 {
+    int tokenDivisibility = 0;
+
 public:
+    void setTokenDivisibility(int Divisibility);
+    int  getTokenDivisibility() const;
     NTP1TokenAmountValidator(QObject* parent = 0);
     State validate(QString& input, int& /*pos*/) const override;
 };
@@ -75,6 +79,7 @@ class IssueNewNTP1TokenDialog : public QDialog
     QFrame*                   paymentSeparator;
 
     NTP1TokenSymbolValidator* tokenSymbolValidator;
+    NTP1TokenAmountValidator* tokenAmountValidator;
 
     CoinControlDialog* coinControlDialog;
     QPushButton*       coinControlButton;
@@ -103,6 +108,7 @@ private slots:
     void slot_doIssueToken();
     void slot_iconUrlChanged(const QString& url);
     void slot_coinControlButtonClicked();
+    void slot_divisibilitySpinBoxValueChanged(int value);
 };
 
 #endif // ISSUENEWNTP1TOKENDIALOG_H
