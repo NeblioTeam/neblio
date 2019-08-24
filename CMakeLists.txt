@@ -17,14 +17,15 @@ if(WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wa,-mbig-obj")
 endif()
 
-option(COMPILE_GUI "Enable compiling neblio-qt" ON)
+option(COMPILE_GUI    "Enable compiling neblio-qt" ON)
 option(COMPILE_DAEMON "Enable compiling nebliod" ON)
-option(COMPILE_CURL "Download and compile libcurl (and OpenSSL) automatically (Not for Windows)" OFF)
-option(COMPILE_TESTS "Build tests" ON)
+option(COMPILE_CURL   "Download and compile libcurl (and OpenSSL) automatically (Not for Windows)" OFF)
+option(COMPILE_TESTS  "Build tests" ON)
 option(USE_QRCODE "Enable QRCode" ON)
 option(USE_UPNP   "Enable Miniupnpc" OFF)
 option(USE_DBUS   "Enable Dbus" ON)
-option(USE_CUSTOM_WARNINGS   "Enable custom warnings" OFF)
+option(USE_CUSTOM_WARNINGS "Enable custom warnings" OFF)
+option(GEN_BUILD_INFO      "Use genbuild.sh to generate build info from commit" ON)
 
 option(SANITIZE_THREAD "Enable clang thread-sanitizer (only for clang-compiler)" OFF)
 if(SANITIZE_THREAD)
@@ -291,12 +292,17 @@ include_directories(${LMDB_INCLUDE})
 
 ###################
 # generate build.h
-file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/build")
-add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/build/build.h
-    COMMAND /bin/sh ${CMAKE_SOURCE_DIR}/share/genbuild.sh ${CMAKE_BINARY_DIR}/build/build.h
-)
-set_property(SOURCE ${CMAKE_BINARY_DIR}/build/build.h PROPERTY SKIP_AUTOMOC ON)
+if(GEN_BUILD_INFO)
+    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/build")
+    add_custom_command(
+        OUTPUT ${CMAKE_BINARY_DIR}/build/build.h
+        COMMAND /bin/sh ${CMAKE_SOURCE_DIR}/share/genbuild.sh ${CMAKE_BINARY_DIR}/build/build.h
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+    set_property(SOURCE ${CMAKE_BINARY_DIR}/build/build.h PROPERTY SKIP_AUTOMOC ON)
+    add_definitions(-DHAVE_BUILD_INFO)
+    include_directories(${CMAKE_BINARY_DIR}/build)
+endif(GEN_BUILD_INFO)
 ###################
 
 if(CMAKE_SIZEOF_VOID_P EQUAL "4") # 32-bit compiler
