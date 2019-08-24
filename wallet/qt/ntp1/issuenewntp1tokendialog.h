@@ -109,6 +109,8 @@ private slots:
     void slot_iconUrlChanged(const QString& url);
     void slot_coinControlButtonClicked();
     void slot_divisibilitySpinBoxValueChanged(int value);
+    void slot_amountSetBackgroundTextColor();
+    void slot_amountChanged(const QString&);
 };
 
 #endif // ISSUENEWNTP1TOKENDIALOG_H

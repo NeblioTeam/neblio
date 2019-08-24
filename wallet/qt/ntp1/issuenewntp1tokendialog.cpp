@@ -123,10 +123,12 @@ void IssueNewNTP1TokenDialog::createWidgets()
             &IssueNewNTP1TokenDialog::slot_coinControlButtonClicked);
     connect(this->divisibilitySpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this,
             &IssueNewNTP1TokenDialog::slot_divisibilitySpinBoxValueChanged);
+    connect(this->amountLineEdit, &QLineEdit::textChanged, this, &IssueNewNTP1TokenDialog::slot_amountChanged);
 
     slot_changeAddressCheckboxToggled(changeAddressCheckbox->isChecked());
     slot_iconUrlChanged(iconUrlLineEdit->text());
     slot_divisibilitySpinBoxValueChanged(divisibilitySpinBox->value());
+    amountLineEdit->setStyleSheet(""); // since an empty amount is invalid, we make the initial state valid
     tokenSymbolErrorLabel->setVisible(false);
 }
 
@@ -496,8 +498,21 @@ void IssueNewNTP1TokenDialog::slot_coinControlButtonClicked()
 void IssueNewNTP1TokenDialog::slot_divisibilitySpinBoxValueChanged(int value)
 {
     tokenAmountValidator->setTokenDivisibility(value);
-    amountLineEdit->setText(amountLineEdit->text());
+    slot_amountSetBackgroundTextColor();
 }
+
+void IssueNewNTP1TokenDialog::slot_amountSetBackgroundTextColor()
+{
+    QString amountQStr = amountLineEdit->text();
+    int     p          = 0;
+    if (tokenAmountValidator->validate(amountQStr, p) != QValidator::Acceptable) {
+        amountLineEdit->setStyleSheet(STYLE_INVALID);
+    } else {
+        amountLineEdit->setStyleSheet("");
+    }
+}
+
+void IssueNewNTP1TokenDialog::slot_amountChanged(const QString&) { slot_amountSetBackgroundTextColor(); }
 
 QValidator::State NTP1TokenSymbolValidator::validate(QString& input, int&) const
 {
