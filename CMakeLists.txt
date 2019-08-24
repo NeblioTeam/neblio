@@ -302,6 +302,7 @@ if(GEN_BUILD_INFO)
     set_property(SOURCE ${CMAKE_BINARY_DIR}/build/build.h PROPERTY SKIP_AUTOMOC ON)
     add_definitions(-DHAVE_BUILD_INFO)
     include_directories(${CMAKE_BINARY_DIR}/build)
+    set(GENERATED_BUILD_HEADER_FILE ${CMAKE_BINARY_DIR}/build/build.h)
 endif(GEN_BUILD_INFO)
 ###################
 
@@ -529,8 +530,10 @@ target_link_libraries(ntp1_gui_lib
     ui_lib
     )
 
+
+
 add_library(core_lib STATIC
-    ${CMAKE_BINARY_DIR}/build/build.h
+    ${GENERATED_BUILD_HEADER_FILE}
     wallet/alert.cpp
     wallet/version.cpp
     wallet/sync.cpp
