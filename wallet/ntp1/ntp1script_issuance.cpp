@@ -48,6 +48,15 @@ std::string NTP1Script_Issuance::getInflatedMetadata() const
 
 int NTP1Script_Issuance::getDivisibility() const { return issuanceFlags.divisibility; }
 
+int NTP1Script_Issuance::getEffectiveDivisibility() const
+{
+    if (protocolVersion == 1 || protocolVersion == 3) {
+        return 0;
+    } else {
+        return getDivisibility();
+    }
+}
+
 bool NTP1Script_Issuance::isLocked() const { return issuanceFlags.locked; }
 
 NTP1Script::IssuanceFlags::AggregationPolicy NTP1Script_Issuance::getAggregationPolicy() const
@@ -126,11 +135,11 @@ NTP1Script_Issuance::ParseIssuancePostHeaderData(std::string ScriptBin, std::str
     }
 
     result->issuanceFlags = IssuanceFlags::ParseIssuanceFlag(ScriptBin.at(0));
+
     return result;
 }
 
-std::shared_ptr<NTP1Script_Issuance>
-NTP1Script_Issuance::ParseNTP1v3IssuancePostHeaderData(std::string ScriptBin)
+std::shared_ptr<NTP1Script_Issuance> NTP1Script_Issuance::ParseNTP1v3IssuancePostHeaderData(std::string ScriptBin)
 {
     std::shared_ptr<NTP1Script_Issuance> result = std::make_shared<NTP1Script_Issuance>();
 
@@ -217,6 +226,10 @@ std::string NTP1Script_Issuance::calculateScriptBin() const
 {
     using namespace boost::algorithm;
 
+    if (issuanceFlags.divisibility < 0 || issuanceFlags.divisibility > 7) {
+        throw std::runtime_error("Invalid divisibility. Divisibility should have the range [0,7]");
+    }
+
     if (protocolVersion == 1) {
         std::string result;
         result += headerBin;
@@ -233,7 +246,7 @@ std::string NTP1Script_Issuance::calculateScriptBin() const
         result.push_back(static_cast<char>(issuanceFlagsByte));
 
         return result;
-    } else if (protocolVersion == 3) {
+    } else if (protocolVersion == 3 || protocolVersion == 4) {
         std::string result;
         result += headerBin;
         result += opCodeBin;
@@ -285,11 +298,11 @@ std::string NTP1Script_Issuance::calculateScriptBin() const
     }
 }
 
-std::shared_ptr<NTP1Script_Issuance> NTP1Script_Issuance::CreateScript(
-    const std::string& Symbol, NTP1Int amount,
-    const std::vector<NTP1Script::TransferInstruction>& transferInstructions,
-    const std::string& Metadata, bool Locked, unsigned int Divisibility,
-    IssuanceFlags::AggregationPolicy AggrPolicy)
+std::shared_ptr<NTP1Script_Issuance>
+NTP1Script_Issuance::CreateScript(const std::string& Symbol, const NTP1Int& amount,
+                                  const std::vector<NTP1Script::TransferInstruction>& transferInstructions,
+                                  const std::string& Metadata, bool Locked, unsigned int Divisibility,
+                                  IssuanceFlags::AggregationPolicy AggrPolicy)
 {
     std::shared_ptr<NTP1Script_Issuance> script = std::make_shared<NTP1Script_Issuance>();
 
@@ -303,9 +316,10 @@ std::shared_ptr<NTP1Script_Issuance> NTP1Script_Issuance::CreateScript(
     issuanceFlags.locked            = Locked;
     script->transferInstructions    = transferInstructions;
     script->issuanceFlags           = issuanceFlags;
-    script->headerBin               = boost::algorithm::unhex(std::string("4e5403"));
-    script->protocolVersion         = 3;
-    script->txType                  = TxType::TxType_Issuance;
+    script->protocolVersion         = 4;
+    char protocolVersionChar        = static_cast<char>(script->protocolVersion);
+    script->headerBin = boost::algorithm::unhex(std::string("4e54")) + std::string(1, protocolVersionChar);
+    script->txType    = TxType::TxType_Issuance;
 
     return script;
 }

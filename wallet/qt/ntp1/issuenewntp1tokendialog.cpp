@@ -29,6 +29,8 @@ void IssueNewNTP1TokenDialog::createWidgets()
     tokenNameLineEdit     = new QLineEdit(this);
     amountLabel           = new QLabel("Amount to issue", this);
     amountLineEdit        = new QLineEdit(this);
+    divisibilityLabel     = new QLabel("Divisibility", this);
+    divisibilitySpinBox   = new QSpinBox(this);
     issuerLabel           = new QLabel("Issuer", this);
     issuerLineEdit        = new QLineEdit(this);
     iconUrlLabel          = new QLabel("Icon URL", this);
@@ -53,6 +55,8 @@ void IssueNewNTP1TokenDialog::createWidgets()
     paymentSeparator->setFrameShape(QFrame::HLine);
     paymentSeparator->setFrameShadow(QFrame::Sunken);
 
+    divisibilitySpinBox->setRange(0, 7);
+
     coinControlDialog = new CoinControlDialog(this);
     coinControlButton = new QPushButton("Coin control (Advanced)", this);
 
@@ -73,6 +77,8 @@ void IssueNewNTP1TokenDialog::createWidgets()
     mainLayout->addWidget(tokenSymbolErrorLabel, row++, 0, 1, 3);
     mainLayout->addWidget(tokenNameLabel, row++, 0, 1, 3);
     mainLayout->addWidget(tokenNameLineEdit, row++, 0, 1, 3);
+    mainLayout->addWidget(divisibilityLabel, row++, 0, 1, 3);
+    mainLayout->addWidget(divisibilitySpinBox, row++, 0, 1, 3);
     mainLayout->addWidget(amountLabel, row++, 0, 1, 3);
     mainLayout->addWidget(amountLineEdit, row++, 0, 1, 3);
     mainLayout->addWidget(issuerLabel, row++, 0, 1, 3);
@@ -167,6 +173,9 @@ void IssueNewNTP1TokenDialog::validateInput() const
     }
     if (amount > NTP1MaxAmount) {
         throw std::runtime_error("Token amount to issue is larger than the maximum possible");
+    }
+    if (divisibilitySpinBox->value() < 0 || divisibilitySpinBox->value() > 7) {
+        throw std::runtime_error("Invalid divisibility. Value should be in the range [0,7]");
     }
 }
 
@@ -310,6 +319,8 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
         NTP1Int     amount(amountLineEdit->text().toStdString());
         std::string tokenSymbol = tokenSymbolLineEdit->text().toStdString();
 
+        uint16_t divisibility = static_cast<uint16_t>(divisibilitySpinBox->value());
+
         NTP1SendTokensOneRecipientData ntp1recipient;
         ntp1recipient.amount = amount;
         ntp1recipient.destination =
@@ -378,7 +389,8 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
 
         // initial selection of NTP1 tokens
         NTP1SendTxData tokenSelector;
-        tokenSelector.issueNTP1Token(IssueTokenData(amount, tokenSymbol, metadata.metadata));
+        tokenSelector.issueNTP1Token(
+            IssueTokenData(amount, tokenSymbol, divisibility, metadata.metadata));
         tokenSelector.selectNTP1Tokens(ntp1wallet, inputs, ntp1recipients, !takeInputsFromCoinControl);
 
         // Send

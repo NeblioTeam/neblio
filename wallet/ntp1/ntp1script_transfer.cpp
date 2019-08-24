@@ -91,7 +91,7 @@ std::string NTP1Script_Transfer::calculateScriptBin() const
         }
 
         return result;
-    } else if (protocolVersion == 3) {
+    } else if (protocolVersion == 3 || protocolVersion == 4) {
         std::string result;
         result += headerBin;
         result += opCodeBin;
@@ -150,8 +150,9 @@ std::shared_ptr<NTP1Script_Transfer> NTP1Script_Transfer::CreateScript(
 {
     std::shared_ptr<NTP1Script_Transfer> script = std::make_shared<NTP1Script_Transfer>();
 
-    script->protocolVersion      = 3;
-    script->headerBin            = boost::algorithm::unhex(std::string("4e5403"));
+    script->protocolVersion      = 4;
+    char protocolVersionChar     = static_cast<char>(script->protocolVersion);
+    script->headerBin            = boost::algorithm::unhex(std::string("4e54")) + std::string(1, protocolVersionChar);
     script->metadata             = (Metadata.empty() ? "" : ZlibCompress(Metadata));
     script->opCodeBin            = boost::algorithm::unhex(std::string("10"));
     script->transferInstructions = transferInstructions;

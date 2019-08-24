@@ -1511,7 +1511,7 @@ void CWallet::SetTxNTP1OpRet(CTransaction&                                      
         auto agg = NTP1Script::IssuanceFlags::AggregationPolicy::AggregationPolicy_Aggregatable;
 
         std::shared_ptr<NTP1Script_Issuance> script =
-            NTP1Script_Issuance::CreateScript(d.symbol, d.amount, TIs, ntp1metadata, true, 0, agg);
+            NTP1Script_Issuance::CreateScript(d.symbol, d.amount, TIs, ntp1metadata, true, d.divisibility, agg);
 
         SetTxNTP1OpRet(wtxNew, script);
     } else {

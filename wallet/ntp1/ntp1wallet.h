@@ -22,6 +22,9 @@ class NTP1Wallet : public boost::enable_shared_from_this<NTP1Wallet>
 
     // base58 token id vs NTP1 token meta data object
     std::unordered_map<std::string, NTP1TokenMetaData> tokenInformation;
+    // base58 token id vs Effective (real) Divisibility
+    // divisibility is special because NTP1v1 and v3 have forced zero divisibility for historical reasons
+    std::unordered_map<std::string, unsigned> tokenDivisibilities;
     // transaction with output index
     std::unordered_map<NTP1OutPoint, NTP1Transaction> walletOutputsWithTokens;
     // wallet balances
@@ -60,6 +63,10 @@ class NTP1Wallet : public boost::enable_shared_from_this<NTP1Wallet>
     /// this function returns minimal information of the token from the tx (e.g., no icon)
     static NTP1TokenMetaData GetMinimalMetadataInfoFromTxData(const NTP1TokenTxData& tokenTx);
 
+    /// effective divisibility is the real divisibility that depends on NTP1 version (v1/v3 have always
+    /// zero divisibility)
+    void setTokenEffectiveDivisibility(const CTransaction& issueTx);
+
 public:
     NTP1Wallet();
     void                                  update();
@@ -69,10 +76,12 @@ public:
     std::string                           getTokenId(int index) const;
     std::string                           getTokenIssuanceTxid(int index) const;
     std::string                           getTokenDescription(int index) const;
+    std::string                           getTokenDivisibility(int index) const;
     NTP1Int                               getTokenBalance(int index) const;
     std::string                           getTokenIcon(int index);
     int64_t                               getNumberOfTokens() const;
     const std::map<std::string, NTP1Int>& getBalancesMap() const;
+
     const std::unordered_map<NTP1OutPoint, NTP1Transaction>& getWalletOutputsWithTokens();
     bool                                                     hasEverSucceeded() const;
     friend inline bool operator==(const NTP1Wallet& lhs, const NTP1Wallet& rhs);

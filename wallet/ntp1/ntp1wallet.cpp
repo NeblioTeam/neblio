@@ -143,6 +143,7 @@ void NTP1Wallet::__getOutputs()
                         NTP1Transaction::GetAllNTP1InputsOfTx(issueTx, true);
                     NTP1Transaction issueNTP1Tx;
                     issueNTP1Tx.readNTP1DataFromTx(issueTx, issueTxInputs);
+                    setTokenEffectiveDivisibility(issueTx);
 
                     // find the correct output in the issuance transaction that has the token in question
                     // issued
@@ -288,6 +289,47 @@ NTP1TokenMetaData NTP1Wallet::GetMinimalMetadataInfoFromTxData(const NTP1TokenTx
     return res;
 }
 
+void NTP1Wallet::setTokenEffectiveDivisibility(const CTransaction& issueTx)
+{
+    std::string opRetStr;
+
+    bool isNTP1 = IsTxNTP1(&issueTx, &opRetStr);
+
+    if (!isNTP1) {
+        throw std::runtime_error("While setting token effective divisiblity in NTP1Wallet, it was attempted to do this "
+                                 "with a non-NTP1 transaction. The hash of this transaction is: " +
+                                 issueTx.GetHash().ToString());
+    }
+
+    std::shared_ptr<NTP1Script>          scriptPtr  = NTP1Script::ParseScript(opRetStr);
+    std::shared_ptr<NTP1Script_Issuance> scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Issuance>(scriptPtr);
+
+    if (!scriptPtrD) {
+        throw std::runtime_error("While setting token effective divisibility, failed to read the script as an issuance "
+                                 "script. A dynamic_cast has resulted in a nullptr. This happened with transaction: " +
+                                 issueTx.GetHash().ToString());
+    }
+
+    if (issueTx.vin.empty()) {
+        throw std::runtime_error("While setting token effective divisibility, the number of inputs was "
+                                 "found to be zero. This happened with transaction: " +
+                                 issueTx.GetHash().ToString());
+    }
+
+    const auto& prevout0 = issueTx.vin[0].prevout;
+    std::string tokenId  = scriptPtrD->getTokenID(prevout0.hash.ToString(), prevout0.n);
+
+    if (tokenDivisibilities.find(tokenId) == tokenDivisibilities.cend()) {
+        int divisibility = scriptPtrD->getEffectiveDivisibility();
+        if (divisibility < 0) {
+            throw std::runtime_error("While setting token effective divisibility for token id: " + tokenId +
+                                     " , and issuance txid: " + issueTx.GetHash().ToString() +
+                                     "an invalid divisibility was found.");
+        }
+        tokenDivisibilities[tokenId] = divisibility;
+    }
+}
+
 std::string NTP1Wallet::getTokenName(const std::string& tokenID) const
 {
     std::unordered_map<std::string, NTP1TokenMetaData>::const_iterator it =
@@ -312,6 +354,9 @@ NTP1Int NTP1Wallet::getTokenBalance(const std::string& tokenID) const
 std::string NTP1Wallet::getTokenName(int index) const
 {
     std::map<std::string, NTP1Int>::const_iterator it = balances.begin();
+    if (index >= static_cast<int>(balances.size())) {
+        return std::string("<NameError_IndexError>");
+    }
     std::advance(it, index);
     std::unordered_map<std::string, NTP1TokenMetaData>::const_iterator itToken =
         tokenInformation.find(it->first);
@@ -325,6 +370,9 @@ std::string NTP1Wallet::getTokenName(int index) const
 std::string NTP1Wallet::getTokenId(int index) const
 {
     std::map<std::string, NTP1Int>::const_iterator it = balances.begin();
+    if (index >= static_cast<int>(balances.size())) {
+        return std::string("<TokenIdError_IndexError>");
+    }
     std::advance(it, index);
     std::unordered_map<std::string, NTP1TokenMetaData>::const_iterator itToken =
         tokenInformation.find(it->first);
@@ -338,6 +386,9 @@ std::string NTP1Wallet::getTokenId(int index) const
 std::string NTP1Wallet::getTokenIssuanceTxid(int index) const
 {
     std::map<std::string, NTP1Int>::const_iterator it = balances.begin();
+    if (index >= static_cast<int>(balances.size())) {
+        return std::string(""); // empty to detect error automatically (not viewable by user)
+    }
     std::advance(it, index);
     std::unordered_map<std::string, NTP1TokenMetaData>::const_iterator itToken =
         tokenInformation.find(it->first);
@@ -351,6 +402,9 @@ std::string NTP1Wallet::getTokenIssuanceTxid(int index) const
 std::string NTP1Wallet::getTokenDescription(int index) const
 {
     std::map<std::string, NTP1Int>::const_iterator it = balances.begin();
+    if (index >= static_cast<int>(balances.size())) {
+        return std::string("<DescError_IndexError>");
+    }
     std::advance(it, index);
     std::unordered_map<std::string, NTP1TokenMetaData>::const_iterator itToken =
         tokenInformation.find(it->first);
@@ -361,9 +415,24 @@ std::string NTP1Wallet::getTokenDescription(int index) const
     }
 }
 
+string NTP1Wallet::getTokenDivisibility(int index) const
+{
+    std::map<std::string, NTP1Int>::const_iterator it = balances.begin();
+    if (index >= static_cast<int>(balances.size())) {
+        return std::string("<DivisibilityError_IndexError>");
+    }
+    std::advance(it, index);
+    std::unordered_map<std::string, unsigned>::const_iterator itToken = tokenDivisibilities.find(it->first);
+    if (itToken == tokenDivisibilities.end()) {
+        return std::string("<DivisibilityError>");
+    } else {
+        return std::to_string(itToken->second);
+    }
+}
+
 NTP1Int NTP1Wallet::getTokenBalance(int index) const
 {
-    if (index > getNumberOfTokens())
+    if (index >= getNumberOfTokens())
         return 0;
     std::map<std::string, NTP1Int>::const_iterator it = balances.begin();
     std::advance(it, index);
@@ -394,6 +463,9 @@ void NTP1Wallet::__asyncDownloadAndSetIcon(std::string IconURL, std::string toke
 std::string NTP1Wallet::getTokenIcon(int index)
 {
     std::map<std::string, NTP1Int>::const_iterator it = balances.begin();
+    if (index >= static_cast<int>(balances.size())) {
+        return std::string("");
+    }
     std::advance(it, index);
     std::string                                                        tokenId = it->first;
     std::unordered_map<std::string, NTP1TokenMetaData>::const_iterator itToken =

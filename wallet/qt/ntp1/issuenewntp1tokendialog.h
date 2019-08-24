@@ -9,6 +9,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QSpinBox>
 #include <unordered_set>
 
 #include "ntp1/ntp1script.h"
@@ -56,6 +57,8 @@ class IssueNewNTP1TokenDialog : public QDialog
     QLineEdit*                tokenNameLineEdit;
     QLabel*                   amountLabel;
     QLineEdit*                amountLineEdit;
+    QLabel*                   divisibilityLabel;
+    QSpinBox*                 divisibilitySpinBox;
     QLabel*                   iconUrlLabel;
     QLabel*                   iconUrlMimeTypeLabel;
     QLineEdit*                iconUrlLineEdit;

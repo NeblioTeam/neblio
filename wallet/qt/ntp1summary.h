@@ -55,6 +55,7 @@ private:
     static const QString copyTokenIdText;
     static const QString copyTokenSymbolText;
     static const QString copyTokenNameText;
+    static const QString copyTokenDivisibility;
     static const QString copyIssuanceTxid;
     static const QString viewInBlockExplorerText;
     static const QString viewIssuanceMetadataText;
@@ -68,13 +69,14 @@ private:
 
     NTP1TokenListItemDelegate* tokenDelegate;
 
-    QMenu*   contextMenu               = Q_NULLPTR;
-    QAction* copyTokenIdAction         = Q_NULLPTR;
-    QAction* copyTokenSymbolAction     = Q_NULLPTR;
-    QAction* copyTokenNameAction       = Q_NULLPTR;
-    QAction* copyIssuanceTxidAction    = Q_NULLPTR;
-    QAction* viewInBlockExplorerAction = Q_NULLPTR;
-    QAction* showMetadataAction        = Q_NULLPTR;
+    QMenu*   contextMenu                 = Q_NULLPTR;
+    QAction* copyTokenIdAction           = Q_NULLPTR;
+    QAction* copyTokenSymbolAction       = Q_NULLPTR;
+    QAction* copyTokenNameAction         = Q_NULLPTR;
+    QAction* copyTokenDivisibilityAction = Q_NULLPTR;
+    QAction* copyIssuanceTxidAction      = Q_NULLPTR;
+    QAction* viewInBlockExplorerAction   = Q_NULLPTR;
+    QAction* showMetadataAction          = Q_NULLPTR;
 
     NTP1MetadataViewer* metadataViewer;
 
@@ -88,6 +90,7 @@ private slots:
     void slot_copyTokenSymbolAction();
     void slot_copyTokenNameAction();
     void slot_copyIssuanceTxidAction();
+    void slot_copyTokenDivisibilityAction();
     void slot_visitInBlockExplorerAction();
     void slot_showMetadataAction();
     void slot_showIssueNewTokenDialog();

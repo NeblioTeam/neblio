@@ -22,7 +22,8 @@
 const QString NTP1Summary::copyTokenIdText          = "Copy Token ID";
 const QString NTP1Summary::copyTokenSymbolText      = "Copy Token Symbol";
 const QString NTP1Summary::copyTokenNameText        = "Copy Token Name";
-const QString NTP1Summary::copyIssuanceTxid         = "Copy issuance transaction ID";
+const QString NTP1Summary::copyTokenDivisibility    = "Copy Divisibility";
+const QString NTP1Summary::copyIssuanceTxid         = "Copy Issuance Transaction ID";
 const QString NTP1Summary::viewInBlockExplorerText  = "Show in block explorer";
 const QString NTP1Summary::viewIssuanceMetadataText = "Show issuance metadata";
 
@@ -130,16 +131,18 @@ void NTP1Summary::keyPressEvent(QKeyEvent* event)
 void NTP1Summary::setupContextMenu()
 {
     ui->listTokens->setContextMenuPolicy(Qt::CustomContextMenu);
-    contextMenu               = new QMenu(this);
-    copyTokenIdAction         = new QAction(copyTokenIdText, this);
-    copyTokenSymbolAction     = new QAction(copyTokenSymbolText, this);
-    copyTokenNameAction       = new QAction(copyTokenNameText, this);
-    copyIssuanceTxidAction    = new QAction(copyIssuanceTxid, this);
-    viewInBlockExplorerAction = new QAction(viewInBlockExplorerText, this);
-    showMetadataAction        = new QAction(viewIssuanceMetadataText, this);
+    contextMenu                 = new QMenu(this);
+    copyTokenIdAction           = new QAction(copyTokenIdText, this);
+    copyTokenSymbolAction       = new QAction(copyTokenSymbolText, this);
+    copyTokenNameAction         = new QAction(copyTokenNameText, this);
+    copyTokenDivisibilityAction = new QAction(copyTokenDivisibility, this);
+    copyIssuanceTxidAction      = new QAction(copyIssuanceTxid, this);
+    viewInBlockExplorerAction   = new QAction(viewInBlockExplorerText, this);
+    showMetadataAction          = new QAction(viewIssuanceMetadataText, this);
     contextMenu->addAction(copyTokenIdAction);
     contextMenu->addAction(copyTokenSymbolAction);
     contextMenu->addAction(copyTokenNameAction);
+    contextMenu->addAction(copyTokenDivisibilityAction);
     contextMenu->addSeparator();
     contextMenu->addAction(copyIssuanceTxidAction);
     contextMenu->addAction(viewInBlockExplorerAction);
@@ -151,6 +154,7 @@ void NTP1Summary::setupContextMenu()
     connect(copyTokenIdAction, &QAction::triggered, this, &NTP1Summary::slot_copyTokenIdAction);
     connect(copyTokenSymbolAction, &QAction::triggered, this, &NTP1Summary::slot_copyTokenSymbolAction);
     connect(copyTokenNameAction, &QAction::triggered, this, &NTP1Summary::slot_copyTokenNameAction);
+    connect(copyTokenDivisibilityAction, &QAction::triggered, this, &NTP1Summary::slot_copyTokenDivisibilityAction);
     connect(copyIssuanceTxidAction, &QAction::triggered, this,
             &NTP1Summary::slot_copyIssuanceTxidAction);
     connect(viewInBlockExplorerAction, &QAction::triggered, this,
@@ -258,6 +262,29 @@ void NTP1Summary::slot_copyIssuanceTxidAction()
     }
 }
 
+void NTP1Summary::slot_copyTokenDivisibilityAction()
+{
+    QModelIndexList selected = ui->listTokens->selectedIndexesP();
+    std::set<int>   rows;
+    for (long i = 0; i < selected.size(); i++) {
+        QModelIndex index = selected.at(i);
+        int         row   = index.row();
+        rows.insert(row);
+    }
+    if (rows.size() != 1) {
+        QMessageBox::warning(this, "Failed get URL", "Failed to get Token ID; selected items size is not equal to one");
+        return;
+    }
+    QModelIndex idx       = ui->listTokens->model()->index(*rows.begin(), 0);
+    QString     resultStr = ui->listTokens->model()->data(idx, NTP1TokenListModel::DivisibilityRole).toString();
+    if (!resultStr.isEmpty()) {
+        QClipboard* clipboard = QGuiApplication::clipboard();
+        clipboard->setText(resultStr);
+    } else {
+        QMessageBox::warning(this, "Failed to copy", "No information to include in the clipboard");
+    }
+}
+
 void NTP1Summary::slot_visitInBlockExplorerAction()
 {
     QModelIndexList selected = ui->listTokens->selectedIndexesP();
@@ -312,7 +339,7 @@ void NTP1Summary::slot_showMetadataAction()
                 json_spirit::Value v;
                 try {
                     v = NTP1Transaction::GetNTP1IssuanceMetadata(issuanceTxid);
-                } catch(std::exception& ex) {
+                } catch (std::exception& ex) {
                     QMessageBox::warning(this, "Failed to get issuance transaction",
                                          "Failed to retrieve issuance transaction with error: " +
                                              QString(ex.what()));
