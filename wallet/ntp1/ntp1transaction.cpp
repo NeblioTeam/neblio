@@ -15,7 +15,7 @@
 
 #include <boost/algorithm/hex.hpp>
 
-const std::string  NTP1OpReturnRegexStr = R"(^OP_RETURN\s+(4e54(?:01|03)[a-fA-F0-9]*)$)";
+const std::string  NTP1OpReturnRegexStr = R"(^OP_RETURN\s+(4e54(?:01|03|04)[a-fA-F0-9]*)$)";
 const boost::regex NTP1OpReturnRegex(NTP1OpReturnRegexStr);
 const std::string  OpReturnRegexStr = R"(^OP_RETURN\s+(.*)$)";
 const boost::regex OpReturnRegex(OpReturnRegexStr);
@@ -556,10 +556,6 @@ void NTP1Transaction::__manualSet(int NVersion, uint256 TxHash, std::vector<unsi
 
 std::string NTP1Transaction::getNTP1OpReturnScriptHex() const
 {
-    // TODO: Sam: This has to be taken from a common source with the one from main
-    const static std::string  NTP1OpReturnRegexStr = R"(^OP_RETURN\s+(4e54(?:01|03)[a-fA-F0-9]*)$)";
-    const static boost::regex NTP1OpReturnRegex(NTP1OpReturnRegexStr);
-
     boost::smatch opReturnArgMatch;
     std::string   opReturnArg;
 

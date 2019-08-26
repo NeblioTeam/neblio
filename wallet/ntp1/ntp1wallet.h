@@ -76,6 +76,7 @@ public:
     std::string                           getTokenId(int index) const;
     std::string                           getTokenIssuanceTxid(int index) const;
     std::string                           getTokenDescription(int index) const;
+    boost::optional<unsigned>             getTokenDivisibilityInt(int index) const;
     std::string                           getTokenDivisibility(int index) const;
     NTP1Int                               getTokenBalance(int index) const;
     std::string                           getTokenIcon(int index);

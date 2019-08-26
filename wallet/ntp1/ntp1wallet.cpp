@@ -430,6 +430,21 @@ string NTP1Wallet::getTokenDivisibility(int index) const
     }
 }
 
+boost::optional<unsigned> NTP1Wallet::getTokenDivisibilityInt(int index) const
+{
+    std::map<std::string, NTP1Int>::const_iterator it = balances.begin();
+    if (index >= static_cast<int>(balances.size())) {
+        return boost::optional<unsigned>();
+    }
+    std::advance(it, index);
+    std::unordered_map<std::string, unsigned>::const_iterator itToken = tokenDivisibilities.find(it->first);
+    if (itToken == tokenDivisibilities.end()) {
+        return boost::optional<unsigned>();
+    } else {
+        return itToken->second;
+    }
+}
+
 NTP1Int NTP1Wallet::getTokenBalance(int index) const
 {
     if (index >= getNumberOfTokens())

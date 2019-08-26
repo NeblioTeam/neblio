@@ -26,7 +26,12 @@ QString NTP1TokenListModel::__getTokenDescription(int index, boost::shared_ptr<N
 
 QString NTP1TokenListModel::__getTokenBalance(int index, boost::shared_ptr<NTP1Wallet> theWallet)
 {
-    return QString::fromStdString(ToString(theWallet->getTokenBalance(index)));
+    boost::optional<unsigned> divisibility = theWallet->getTokenDivisibilityInt(index);
+    if (divisibility) {
+        return QString::fromStdString(FP_IntToDecimal<NTP1Int>(theWallet->getTokenBalance(index), divisibility.get()));
+    } else {
+        return "<Error_DivisibilityNotFound>";
+    }
 }
 
 QString NTP1TokenListModel::__getTokenDivisibility(int index, boost::shared_ptr<NTP1Wallet> theWallet)

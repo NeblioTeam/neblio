@@ -128,8 +128,7 @@ void IssueNewNTP1TokenDialog::createWidgets()
     slot_changeAddressCheckboxToggled(changeAddressCheckbox->isChecked());
     slot_iconUrlChanged(iconUrlLineEdit->text());
     slot_divisibilitySpinBoxValueChanged(divisibilitySpinBox->value());
-    amountLineEdit->setStyleSheet(""); // since an empty amount is invalid, we make the initial state valid
-    tokenSymbolErrorLabel->setVisible(false);
+    clearData();
 }
 
 IssueNewNTP1TokenDialog::IssueNewNTP1TokenDialog(QWidget* parent) : QDialog(parent) { createWidgets(); }
@@ -144,6 +143,8 @@ void IssueNewNTP1TokenDialog::clearData()
     amountLineEdit->clear();
     changeAddressLineEdit->clear();
     targetAddressLineEdit->clear();
+    tokenSymbolErrorLabel->setVisible(false);
+    amountLineEdit->setStyleSheet(""); // since an empty amount is invalid, we make the initial state valid
 }
 
 void IssueNewNTP1TokenDialog::validateInput() const
@@ -330,10 +331,10 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
                 FormatMoney(minAmount) +
                 ". It may even be slightly more depending on the size of the metadata.");
 
-        NTP1Int     amount(amountLineEdit->text().toStdString());
-        std::string tokenSymbol = tokenSymbolLineEdit->text().toStdString();
+        int divisibility = static_cast<uint16_t>(divisibilitySpinBox->value());
 
-        uint16_t divisibility = static_cast<uint16_t>(divisibilitySpinBox->value());
+        NTP1Int     amount      = FP_DecimalToInt<NTP1Int>(amountLineEdit->text().toStdString(), divisibility);
+        std::string tokenSymbol = tokenSymbolLineEdit->text().toStdString();
 
         NTP1SendTokensOneRecipientData ntp1recipient;
         ntp1recipient.amount = amount;
@@ -432,12 +433,12 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
             throw std::runtime_error("Transaction creation failed. " + errorMessage);
         }
 
-        QMessageBox::StandardButton answer = QMessageBox::question(
-            this, "Do you want to proceed?",
-            "Creating this token will cost " + QString::fromStdString(FormatMoney(nFeeRequired)) +
-                " NEBL. Are you sure you want to proceed? \n\n This is irreversible, "
-                "and none of the data chosen for the token can be changed in the "
-                "future.");
+        QMessageBox::StandardButton answer =
+            QMessageBox::question(this, "Do you want to proceed?",
+                                  "Creating this token will cost " + QString::fromStdString(FormatMoney(nFeeRequired)) +
+                                      " NEBL. Are you sure you want to proceed? \n\nThis is irreversible, "
+                                      "and none of the data chosen for the token can be changed in the "
+                                      "future.");
 
         if (answer != QMessageBox::Yes) {
             return;
@@ -457,6 +458,11 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
                 "error is: " +
                 std::string(ex.what()));
         }
+
+        // print the raw transaction before committing it
+        //        CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+        //        stream << wtx;
+        //        std::cout << boost::algorithm::hex(stream.str()) << std::endl;
 
         if (!pwalletMain->CommitTransaction(wtx, keyChange))
             throw std::runtime_error("Transaction commit for broadcast failed");

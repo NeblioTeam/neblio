@@ -239,7 +239,13 @@ void BitcoinAmountField::unitChanged(int idx)
     currentUnit = newUnit;
 
     // Set max length after retrieving the value, to prevent truncation
-    amount->setDecimals(BitcoinUnits::decimals(currentUnit));
+    // index 0 is for nebl
+    if (currentUnit == BitcoinUnit::NTP1 && tokenKindsComboBox->currentIndex() > 0) {
+        const NTP1ListElementTokenData& t = tokenKindsList.at(tokenKindsComboBox->currentIndex() - 1);
+        amount->setDecimals(t.divisibility);
+    } else {
+        amount->setDecimals(BitcoinUnits::decimals(currentUnit));
+    }
     amount->setMaximum(qPow(10, BitcoinUnits::amountDigits(currentUnit)) -
                        qPow(10, -amount->decimals()));
 

@@ -31,6 +31,11 @@ bool IsNTP1TokenBlacklisted(const std::string& tokenId, int& maxHeight);
 bool IsNTP1TokenBlacklisted(const std::string& tokenId);
 bool IsNTP1TxExcluded(const uint256& txHash);
 
+extern const std::string  NTP1OpReturnRegexStr;
+extern const boost::regex NTP1OpReturnRegex;
+extern const std::string  OpReturnRegexStr;
+extern const boost::regex OpReturnRegex;
+
 struct TokenMinimalData
 {
     NTP1Int     amount;
