@@ -555,6 +555,7 @@ std::string NTP1Wallet::Serialize(const NTP1Wallet& wallet)
     root.push_back(
         json_spirit::Pair("icons", SerializeMap(wallet.tokenIcons.getInternalMap(), false, true)));
     root.push_back(json_spirit::Pair("balances", SerializeMap(wallet.balances, false, false)));
+    root.push_back(json_spirit::Pair("token_divisibilities", SerializeMap(wallet.tokenDivisibilities, false, false)));
 
     return json_spirit::write_formatted(root);
 }
@@ -577,6 +578,9 @@ NTP1Wallet NTP1Wallet::Deserialize(const std::string& data)
         DeserializeMap<std::unordered_map<std::string, std::string>>(iconsData, false, true));
     json_spirit::Value balancesData(NTP1Tools::GetObjectField(parsedData.get_obj(), "balances"));
     result.balances = DeserializeMap<std::map<std::string, NTP1Int>>(balancesData, false, false);
+    json_spirit::Value tokenDivisibilitiesData(NTP1Tools::GetObjectField(parsedData.get_obj(), "token_divisibilities"));
+    result.tokenDivisibilities =
+        DeserializeMap<std::unordered_map<std::string, unsigned>>(tokenDivisibilitiesData, false, false);
 
     return result;
 }
@@ -650,13 +654,17 @@ void NTP1Wallet::__ValFromJson(const json_spirit::Value& input, bool /*deseriali
     result.importDatabaseJsonData(input);
 }
 
+void NTP1Wallet::__ValFromJson(const json_spirit::Value& input, bool /*deserialize*/, unsigned& result)
+{
+    result = static_cast<unsigned>(input.get_uint64());
+}
+
 json_spirit::Value NTP1Wallet::__ValToJson(const NTP1Transaction& input, bool)
 {
     return input.exportDatabaseJsonData();
 }
 
-void NTP1Wallet::__ValFromJson(const json_spirit::Value& input, bool /*deserialize*/,
-                               NTP1Transaction&          result)
+void NTP1Wallet::__ValFromJson(const json_spirit::Value& input, bool /*deserialize*/, NTP1Transaction& result)
 {
     result.setNull();
     result.importDatabaseJsonData(input);
@@ -687,6 +695,11 @@ void NTP1Wallet::__ValFromJson(const json_spirit::Value& input, bool deserialize
 json_spirit::Value NTP1Wallet::__ValToJson(const int64_t& input, bool)
 {
     return json_spirit::Value(input);
+}
+
+json_spirit::Value NTP1Wallet::__ValToJson(const unsigned& input, bool)
+{
+    return json_spirit::Value(static_cast<uint64_t>(input));
 }
 
 json_spirit::Value NTP1Wallet::__ValToJson(const NTP1Int& input, bool)
@@ -730,7 +743,7 @@ Container NTP1Wallet::DeserializeMap(const json_spirit::Value& json_val, bool de
         __KeyFromString(it->name_, deserializeKey, first);
         typename Container::mapped_type second;
         __ValFromJson(it->value_, deserializeValue, second);
-        result[first] = second;
+        result.emplace(first, second);
     }
     return result;
 }

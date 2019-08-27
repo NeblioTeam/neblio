@@ -125,9 +125,11 @@ private:
     static json_spirit::Value __ValToJson(const NTP1Transaction& input, bool serialize);
     static void               __ValFromJson(const json_spirit::Value& input, bool deserialize,
                                             NTP1Transaction& result);
+    static void               __ValFromJson(const json_spirit::Value& input, bool deserialize, unsigned& result);
     static json_spirit::Value __ValToJson(const std::string& input, bool serialize);
     static void __ValFromJson(const json_spirit::Value& input, bool deserialize, std::string& result);
     static json_spirit::Value __ValToJson(const int64_t& input, bool serialize);
+    static json_spirit::Value __ValToJson(const unsigned& input, bool serialize);
     static json_spirit::Value __ValToJson(const NTP1Int& input, bool serialize);
     static void __ValFromJson(const json_spirit::Value& input, bool deserialize, int64_t& result);
     static void __ValFromJson(const json_spirit::Value& input, bool deserialize, NTP1Int& result);
