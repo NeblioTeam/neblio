@@ -30,6 +30,8 @@ std::string NTP1Script::getParsedScriptHex() const { return parsedScriptHex; }
 
 int NTP1Script::getProtocolVersion() const { return protocolVersion; }
 
+bool NTP1Script::isDivisibilitySupported() const { return getProtocolVersion() > 3; }
+
 void NTP1Script::setCommonParams(std::string Header, int ProtocolVersion, std::string OpCodeBin,
                                  std::string scriptHex)
 {

@@ -4,12 +4,12 @@
 #include "addresstablemodel.h"
 #include "bitcoinunits.h"
 #include "coincontrol.h"
+#include "globals.h"
 #include "init.h"
-#include "ntp1/ntp1transaction.h"
 #include "main.h"
+#include "ntp1/ntp1transaction.h"
 #include "optionsmodel.h"
 #include "walletmodel.h"
-#include "globals.h"
 
 #include <QApplication>
 #include <QCheckBox>
@@ -741,17 +741,22 @@ void CoinControlDialog::updateView()
 
             // TODO: check if big amounts of nebls are stored with the tokens
             // figure out token type
-            QString sTokenType        = "";
-            QString sTokenId          = "";
-            QString sNTP1TokenAmounts = "";
-            bool    txIsNTP1          = NTP1Transaction::IsTxNTP1(out.tx);
+            QString     sTokenType        = "";
+            QString     sTokenId          = "";
+            QString     sNTP1TokenAmounts = "";
+            std::string opRetStr;
+            bool        txIsNTP1 = NTP1Transaction::IsTxNTP1(out.tx, &opRetStr);
             if (txIsNTP1) {
                 try {
+                    std::shared_ptr<NTP1Script> ntp1script = NTP1Script::ParseScript(opRetStr);
+
+                    bool isDivisibilitySupported = ntp1script->isDivisibilitySupported();
+
                     NTP1Transaction                                       ntp1tx;
-                    std::vector<std::pair<CTransaction, NTP1Transaction>> prevTxs =
+                    std::vector<std::pair<CTransaction, NTP1Transaction>> txInputs =
                         NTP1Transaction::GetAllNTP1InputsOfTx(*out.tx, false);
-                    ntp1tx.readNTP1DataFromTx(*out.tx, prevTxs);
-                    bool considerNeblsToo = (out.tx->vout[out.i].nValue > MIN_TX_FEE);
+                    ntp1tx.readNTP1DataFromTx(*out.tx, txInputs);
+                    bool considerNeblsToo = (out.tx->vout[out.i].nValue >= MIN_TX_FEE);
                     if (considerNeblsToo) {
                         sTokenType += "NEBL";
                         sNTP1TokenAmounts +=
@@ -771,7 +776,14 @@ void CoinControlDialog::updateView()
                             sTokenId += "+\n";
                         }
                         sTokenType += QString::fromStdString(ntp1txOut.getToken(i).getTokenSymbol());
-                        sNTP1TokenAmounts += QString::fromStdString(ToString(ntp1txOut.getToken(i).getAmount()));
+                        if (!isDivisibilitySupported) {
+                            sNTP1TokenAmounts +=
+                                QString::fromStdString(ToString(ntp1txOut.getToken(i).getAmount()));
+                        } else {
+                            sNTP1TokenAmounts += QString::fromStdString(
+                                FP_IntToDecimal<NTP1Int>(ntp1txOut.getToken(i).getAmount(),
+                                                         ntp1txOut.getToken(i).getDivisibility()));
+                        }
                         sTokenId += QString::fromStdString(ntp1txOut.getToken(i).getTokenId());
                     }
 

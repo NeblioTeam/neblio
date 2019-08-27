@@ -273,10 +273,13 @@ NTP1Transaction::CalculateTotalInputTokens(const NTP1Transaction& ntp1tx)
 
 bool NTP1Transaction::IsNTP1DivisibilitySupported(const NTP1Transaction& ntp1tx)
 {
-    boost::optional<int> r = GetNTP1TransactionProtocolVersion(ntp1tx);
-    if (r && r.get() > 3) {
-        return true;
-    } else {
+    std::string scriptStr;
+    try {
+        scriptStr                          = ntp1tx.getNTP1OpReturnScriptHex();
+        std::shared_ptr<NTP1Script> script = NTP1Script::ParseScript(scriptStr);
+        return script->isDivisibilitySupported();
+    } catch (std::exception& ex) {
+        printf("Failed to parse NTP1 transaction's script: %s; error: %s", scriptStr.c_str(), ex.what());
         return false;
     }
 }

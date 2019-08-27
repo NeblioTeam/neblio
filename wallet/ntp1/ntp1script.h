@@ -200,6 +200,8 @@ public:
     std::string                        getParsedScriptHex() const;
     int                                getProtocolVersion() const;
 
+    bool isDivisibilitySupported() const;
+
     static NTP1Int     NTP1AmountHexToNumber(std::string hexVal);
     static NTP1Int     GetTrailingZeros(const NTP1Int& num);
     static std::string NumberToHexNTP1Amount(const NTP1Int& num, bool caps = false);
