@@ -93,8 +93,25 @@ bool BitcoinAmountField::validate()
     bool valid = true;
     if (amount->value() == 0.0)
         valid = false;
-    if (valid && !BitcoinUnits::parse(currentUnit, text(), 0))
-        valid = false;
+    if (!isNTP1TokenSelected()) {
+        if (valid && !BitcoinUnits::parse(currentUnit, text(), 0))
+            valid = false;
+    } else {
+        const NTP1ListElementTokenData& t = tokenKindsList.at(tokenKindsComboBox->currentIndex() - 1);
+        try {
+            NTP1Int res = FP_DecimalToInt<NTP1Int>(text().toStdString(), t.divisibility);
+            if (res > NTP1MaxAmount) {
+                throw std::runtime_error("Amount " + text().toStdString() + " exceeded the maximum amount " +
+                                         ToString(NTP1MaxAmount));
+            }
+            valid = true;
+        } catch (std::exception& ex) {
+            std::string err = "Failed to parse " + text().toStdString() + " amount for token with token ID " +
+                              t.tokenId.toStdString() + " with the following error: " + std::string(ex.what());
+            printf("%s", err.c_str());
+            valid = false;
+        }
+    }
 
     setValid(valid);
 
@@ -192,7 +209,27 @@ QWidget* BitcoinAmountField::setupTabChain(QWidget* prev)
 qint64 BitcoinAmountField::value(bool* valid_out) const
 {
     qint64 val_out = 0;
-    bool   valid   = BitcoinUnits::parse(currentUnit, text(), &val_out);
+    bool   valid   = false;
+    if (isNTP1TokenSelected()) {
+        const NTP1ListElementTokenData& t = tokenKindsList.at(tokenKindsComboBox->currentIndex() - 1);
+        try {
+            NTP1Int res = FP_DecimalToInt<NTP1Int>(text().toStdString(), t.divisibility);
+            if (res <= NTP1MaxAmount) {
+                val_out = res.convert_to<qint64>();
+            } else {
+                throw std::runtime_error("Amount " + text().toStdString() + " exceeded the maximum amount " +
+                                         ToString(NTP1MaxAmount));
+            }
+            valid = true;
+        } catch (std::exception& ex) {
+            std::string err = "Failed to parse " + text().toStdString() + " amount for token with token ID " +
+                              t.tokenId.toStdString() + " with the following error: " + std::string(ex.what());
+            printf("%s", err.c_str());
+            valid = false;
+        }
+    } else {
+        valid = BitcoinUnits::parse(currentUnit, text(), &val_out);
+    }
     if (valid_out) {
         *valid_out = valid;
     }
@@ -216,7 +253,7 @@ QString BitcoinAmountField::getSelectedTokenId() const
 
 bool BitcoinAmountField::isNTP1TokenSelected() const
 {
-    return (enableNTP1Tokens && tokenKindsComboBox->currentIndex() != 0);
+    return (enableNTP1Tokens && tokenKindsComboBox->currentIndex() > 0);
 }
 
 void BitcoinAmountField::unitChanged(int idx)

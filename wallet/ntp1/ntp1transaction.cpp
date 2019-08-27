@@ -257,13 +257,41 @@ NTP1Transaction::CalculateTotalInputTokens(const NTP1Transaction& ntp1tx)
                 tokenData.amount    = token.getAmount();
                 tokenData.tokenId   = token.getTokenId();
                 tokenData.tokenName = token.getTokenSymbol();
-                result[tokenId]     = tokenData;
+                if (IsNTP1DivisibilitySupported(ntp1tx)) {
+                    tokenData.divisibility = token.getDivisibility();
+                } else {
+                    tokenData.divisibility = 0;
+                }
+                result[tokenId] = tokenData;
             } else {
                 result[tokenId].amount += token.getAmount();
             }
         }
     }
     return result;
+}
+
+bool NTP1Transaction::IsNTP1DivisibilitySupported(const NTP1Transaction& ntp1tx)
+{
+    boost::optional<int> r = GetNTP1TransactionProtocolVersion(ntp1tx);
+    if (r && r.get() > 3) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+boost::optional<int> NTP1Transaction::GetNTP1TransactionProtocolVersion(const NTP1Transaction& ntp1tx)
+{
+    std::string scriptStr;
+    try {
+        scriptStr                          = ntp1tx.getNTP1OpReturnScriptHex();
+        std::shared_ptr<NTP1Script> script = NTP1Script::ParseScript(scriptStr);
+        return script->getProtocolVersion();
+    } catch (std::exception& ex) {
+        printf("Failed to parse NTP1 transaction's script: %s; error: %s", scriptStr.c_str(), ex.what());
+        return boost::optional<int>();
+    }
 }
 
 std::unordered_map<std::string, TokenMinimalData>
@@ -278,7 +306,12 @@ NTP1Transaction::CalculateTotalOutputTokens(const NTP1Transaction& ntp1tx)
                 tokenData.amount    = token.getAmount();
                 tokenData.tokenId   = token.getTokenId();
                 tokenData.tokenName = token.getTokenSymbol();
-                result[tokenId]     = tokenData;
+                if (IsNTP1DivisibilitySupported(ntp1tx)) {
+                    tokenData.divisibility = token.getDivisibility();
+                } else {
+                    tokenData.divisibility = 0;
+                }
+                result[tokenId] = tokenData;
             } else {
                 result[tokenId].amount += token.getAmount();
             }
