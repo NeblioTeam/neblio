@@ -113,6 +113,7 @@ public:
     std::map<std::string, NTP1Int> getBalances() const;
 
     const std::unordered_map<std::string, NTP1TokenMetaData>& getTokenMetadataMap() const;
+    const std::unordered_map<std::string, unsigned>&          getTokenDivisibilities() const;
 
 private:
     static std::string __KeyToString(const std::string& str, bool serialize);

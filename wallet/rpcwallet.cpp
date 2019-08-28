@@ -329,7 +329,7 @@ Value sendntp1toaddress(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio address");
 
     // Amount
-    int64_t nAmount = params[1].get_int64();
+    std::string strAmount = params[1].get_str();
 
     // Get NTP1 wallet
     boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();
@@ -340,8 +340,7 @@ Value sendntp1toaddress(const Array& params, bool fHelp)
     std::string tokenId;
     std::string providedId = params[2].get_str();
 
-    const std::unordered_map<std::string, NTP1TokenMetaData> tokenMetadataMap =
-        ntp1wallet->getTokenMetadataMap();
+    const std::unordered_map<std::string, NTP1TokenMetaData> tokenMetadataMap = ntp1wallet->getTokenMetadataMap();
     // token id was not found
     if (tokenMetadataMap.find(providedId) == tokenMetadataMap.end()) {
         int nameCount = 0; // number of tokens that have that name
@@ -362,6 +361,18 @@ Value sendntp1toaddress(const Array& params, bool fHelp)
         tokenId = params[2].get_str();
     }
 
+    const std::unordered_map<std::string, unsigned> tokenDivisibilitiesMap = ntp1wallet->getTokenDivisibilities();
+
+    unsigned divisibility = 0;
+    {
+        auto it = tokenDivisibilitiesMap.find(tokenId);
+        if (it != tokenDivisibilitiesMap.cend()) {
+            divisibility = it->second;
+        } else {
+            throw std::runtime_error("Token divisibility for token with id " + tokenId + " not found");
+        }
+    }
+
     // Wallet comments
     CWalletTx                 wtx;
     RawNTP1MetadataBeforeSend ntp1metadata("", false);
@@ -377,6 +388,8 @@ Value sendntp1toaddress(const Array& params, bool fHelp)
     if (pwalletMain->IsLocked())
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
                            "Error: Please enter the wallet passphrase with walletpassphrase first.");
+
+    NTP1Int nAmount = FP_DecimalToInt<NTP1Int>(strAmount, divisibility);
 
     string strError = pwalletMain->SendNTP1ToDestination(address.Get(), nAmount, tokenId, wtx,
                                                          ntp1wallet, ntp1metadata);
@@ -737,14 +750,19 @@ Value getntp1balances(const Array& params, bool fHelp)
     json_spirit::Object root;
 
     for (int i = 0; i < tokenCount; i++) {
-        std::string tokenId   = ntp1wallet->getTokenId(i);
-        std::string tokenName = ntp1wallet->getTokenName(tokenId);
-        NTP1Int     balance   = ntp1wallet->getTokenBalance(tokenId);
+        std::string tokenId        = ntp1wallet->getTokenId(i);
+        std::string tokenName      = ntp1wallet->getTokenName(tokenId);
+        auto        divisibilities = ntp1wallet->getTokenDivisibilities();
+        auto        divisibilityIt = divisibilities.find(tokenId);
+        if (divisibilityIt == divisibilities.cend()) {
+            throw std::runtime_error("Divisibility not found for token " + tokenName + " with id " + tokenId);
+        }
+        std::string balance = FP_IntToDecimal<NTP1Int>(ntp1wallet->getTokenBalance(tokenId), divisibilityIt->second);
 
         json_spirit::Object tokenJsonData;
         tokenJsonData.push_back(json_spirit::Pair("Name", tokenName));
         tokenJsonData.push_back(json_spirit::Pair("TokenId", tokenId));
-        tokenJsonData.push_back(json_spirit::Pair("Balance", ToString(balance)));
+        tokenJsonData.push_back(json_spirit::Pair("Balance", balance));
 
         root.push_back(json_spirit::Pair(tokenId, tokenJsonData));
     }
@@ -754,7 +772,7 @@ Value getntp1balances(const Array& params, bool fHelp)
 
 Value getntp1balance(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 2)
+    if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error("getntp1balances <tokenId/name> [minconf=1]\n");
 
     boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();
@@ -786,9 +804,14 @@ Value getntp1balance(const Array& params, bool fHelp)
             continue;
         }
 
-        NTP1Int balance = ntp1wallet->getTokenBalance(tokenId);
+        auto divisibilities = ntp1wallet->getTokenDivisibilities();
+        auto divisibilityIt = divisibilities.find(tokenId);
+        if (divisibilityIt == divisibilities.cend()) {
+            throw std::runtime_error("Divisibility not found for token " + tokenName + " with id " + tokenId);
+        }
+        std::string balance = FP_IntToDecimal<NTP1Int>(ntp1wallet->getTokenBalance(tokenId), divisibilityIt->second);
 
-        return json_spirit::Value(ToString(balance));
+        return json_spirit::Value(balance);
     }
 
     return json_spirit::Value(root);

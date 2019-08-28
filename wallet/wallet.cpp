@@ -1510,8 +1510,8 @@ void CWallet::SetTxNTP1OpRet(CTransaction&                                      
         const IssueTokenData& d = issuanceData.get();
         auto agg = NTP1Script::IssuanceFlags::AggregationPolicy::AggregationPolicy_Aggregatable;
 
-        std::shared_ptr<NTP1Script_Issuance> script =
-            NTP1Script_Issuance::CreateScript(d.symbol, d.amount, TIs, ntp1metadata, true, d.divisibility, agg);
+        std::shared_ptr<NTP1Script_Issuance> script = NTP1Script_Issuance::CreateScript(
+            d.symbol, d.amount, TIs, ntp1metadata, true, d.divisibility, agg);
 
         SetTxNTP1OpRet(wtxNew, script);
     } else {
@@ -2372,13 +2372,14 @@ string CWallet::SendNTP1ToDestination(const CTxDestination& address, int64_t nVa
     if (!CreateTransaction(vector<pair<CScript, int64_t>>(), wtxNew, reservekey, nFeeRequired,
                            tokenSelector, ntp1metadata)) {
         string strError;
-        if (nValue + nFeeRequired > GetBalance())
+        if (nFeeRequired > GetBalance()) {
             strError =
                 strprintf(_("Error: This transaction requires a transaction fee of at least %s because "
                             "of its amount, complexity, or use of recently received funds  "),
                           FormatMoney(nFeeRequired).c_str());
-        else
+        } else {
             strError = _("Error: Transaction creation failed  ");
+        }
         printf("SendMoney() : %s\n", strError.c_str());
         return strError;
     }

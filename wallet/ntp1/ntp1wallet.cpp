@@ -41,6 +41,8 @@ const std::unordered_map<std::string, NTP1TokenMetaData>& NTP1Wallet::getTokenMe
     return tokenInformation;
 }
 
+const std::unordered_map<string, unsigned>& NTP1Wallet::getTokenDivisibilities() const { return tokenDivisibilities; }
+
 void NTP1Wallet::__getOutputs()
 {
     // this helps in persisting to get the wallet data when the application is launched for the first

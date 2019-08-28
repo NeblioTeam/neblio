@@ -427,25 +427,44 @@ Value createrawntp1transaction(const Array& params, bool fHelp)
         changeMap.begin(), changeMap.end(), NTP1Int(0),
         [](NTP1Int n, const std::pair<std::string, NTP1Int>& p1) { return n + p1.second; });
 
+    // if there's NTP1 change that's not spent, it's an error
     if (changeTokens > 0) {
         std::string except_msg;
         try {
-            // safety
             if (changeMap.size() > 0) {
                 std::string tokenId      = changeMap.begin()->first;
                 NTP1Int     changeAmount = changeMap.begin()->second;
+                unsigned    divisibility = 0;
+
+                {
+                    // retrieve divisibilities to write the change amount correctly
+                    const std::unordered_map<std::string, unsigned> tokenDivisibilitiesMap =
+                        ntp1wallet->getTokenDivisibilities();
+
+                    {
+                        auto it = tokenDivisibilitiesMap.find(tokenId);
+                        if (it != tokenDivisibilitiesMap.cend()) {
+                            divisibility = it->second;
+                        } else {
+                            throw std::runtime_error("Token divisibility for token with id " + tokenId +
+                                                     " not found");
+                        }
+                    }
+                }
 
                 std::string tokenName = ntp1wallet->getTokenMetadataMap().at(tokenId).getTokenName();
 
                 except_msg =
                     "The transaction has NTP1 tokens change. Please spend all NTP1 tokens in the "
                     "transaction. Token with name " +
-                    tokenName + " and ID " + tokenId +
-                    " has the following amount unspent: " + ::ToString(changeAmount);
+                    tokenName + " and ID " + tokenId + " has the following amount unspent: " +
+                    FP_IntToDecimal<NTP1Int>(changeAmount, divisibility) + " " + tokenName;
             }
-        } catch (std::exception&) {
-            throw std::runtime_error("The transaction has NTP1 tokens change. Please spend all NTP1 "
-                                     "tokens in the transaction");
+        } catch (std::exception& ex) {
+            throw std::runtime_error(
+                "The transaction has NTP1 tokens change. Please spend all NTP1 "
+                "tokens in the transaction. Details was not retrieved due to an error: " +
+                std::string(ex.what()));
         }
 
         throw std::runtime_error(except_msg);
