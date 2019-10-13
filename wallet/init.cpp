@@ -947,11 +947,11 @@ bool AppInit2()
 
     {
         CAddrDB adb;
-        if (!adb.Read(addrman))
+        if (!adb.Read(addrman.get()))
             printf("Invalid or missing peers.dat; recreating\n");
     }
 
-    printf("Loaded %i addresses from peers.dat  %" PRId64 "ms\n", addrman.size(),
+    printf("Loaded %i addresses from peers.dat  %" PRId64 "ms\n", addrman.get().size(),
            GetTimeMillis() - nStart);
 
     // ********************************************************* Step 11: start node

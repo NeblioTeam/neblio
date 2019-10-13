@@ -117,11 +117,11 @@ enum threadId
 
 extern bool fDiscover;
 extern bool fUseUPnP;
-extern uint64_t nLocalServices;
-extern uint64_t nLocalHostNonce;
-extern CAddress addrSeenByPeer;
+extern boost::atomic<uint64_t> nLocalServices;
+extern boost::atomic<uint64_t> nLocalHostNonce;
+extern LockedVar<CAddress> addrSeenByPeer;
 extern boost::array<boost::atomic_int, THREAD_MAX> vnThreadsRunning;
-extern CAddrMan addrman;
+extern LockedVar<CAddrMan> addrman;
 
 extern std::vector<CNode*> vNodes;
 extern CCriticalSection cs_vNodes;

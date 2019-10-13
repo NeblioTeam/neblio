@@ -94,7 +94,7 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("moneysupply", ValueFromAmount(boost::atomic_load(&pindexBest)->nMoneySupply)));
     obj.push_back(Pair("connections", (int)vNodes.size()));
     obj.push_back(Pair("proxy", (proxy.first.IsValid() ? proxy.first.ToStringIPPort() : string())));
-    obj.push_back(Pair("ip", addrSeenByPeer.ToStringIP()));
+    obj.push_back(Pair("ip", addrSeenByPeer.get().ToStringIP()));
 
     diff.push_back(Pair("proof-of-work", GetDifficulty()));
     diff.push_back(Pair("proof-of-stake",

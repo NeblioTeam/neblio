@@ -46,17 +46,17 @@ struct LocalServiceInfo {
 //
 bool fDiscover = true;
 bool fUseUPnP = false;
-uint64_t nLocalServices = NODE_NETWORK;
+boost::atomic<uint64_t> nLocalServices(NODE_NETWORK);
 static CCriticalSection cs_mapLocalHost;
 static map<CNetAddr, LocalServiceInfo> mapLocalHost;
 static bool vfReachable[NET_MAX] = {};
 static bool vfLimited[NET_MAX] = {};
 static CNode* pnodeLocalHost = NULL;
-CAddress addrSeenByPeer(CService("0.0.0.0", 0), nLocalServices);
-uint64_t nLocalHostNonce = 0;
+LockedVar<CAddress> addrSeenByPeer(CAddress(CService("0.0.0.0", 0), nLocalServices));
+boost::atomic<uint64_t> nLocalHostNonce(0);
 boost::array<boost::atomic_int, THREAD_MAX> vnThreadsRunning;
 static std::vector<SOCKET> vhListenSocket;
-CAddrMan addrman;
+LockedVar<CAddrMan> addrman;
 
 vector<CNode*> vNodes;
 CCriticalSection cs_vNodes;
@@ -422,7 +422,7 @@ void ThreadGetMyExternalIP(void* /*parg*/)
 
 void AddressCurrentlyConnected(const CService& addr)
 {
-    addrman.Connected(addr);
+    addrman.get().Connected(addr);
 }
 
 
@@ -487,7 +487,7 @@ CNode* ConnectNode(CAddress addrConnect, const char *pszDest)
     SOCKET hSocket;
     if (pszDest ? ConnectSocketByName(addrConnect, hSocket, pszDest, GetDefaultPort()) : ConnectSocket(addrConnect, hSocket))
     {
-        addrman.Attempt(addrConnect);
+        addrman.get().Attempt(addrConnect);
 
         /// debug print
         printf("connected %s\n", pszDest ? pszDest : addrConnect.ToString().c_str());
@@ -544,8 +544,8 @@ void CNode::PushVersion()
     CAddress addrMe = GetLocalAddress(&addr);
     RAND_bytes((unsigned char*)&nLocalHostNonce, sizeof(nLocalHostNonce));
     printf("send version message: version %d, blocks=%d, us=%s, them=%s, peer=%s\n", PROTOCOL_VERSION, nBestHeight.load(), addrMe.ToString().c_str(), addrYou.ToString().c_str(), addr.ToString().c_str());
-    PushMessage("version", PROTOCOL_VERSION, nLocalServices, nTime, addrYou, addrMe,
-                nLocalHostNonce, FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, std::vector<string>()), nBestHeight.load());
+    PushMessage("version", PROTOCOL_VERSION, nLocalServices.load(), nTime, addrYou, addrMe,
+                nLocalHostNonce.load(), FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, std::vector<string>()), nBestHeight.load());
 }
 
 
@@ -1289,7 +1289,7 @@ void ThreadDNSAddressSeed2(void* /*parg*/)
                         found++;
                     }
                 }
-                addrman.Add(vAdd, CNetAddr(strDNSSeed[seed_idx][0], true));
+                addrman.get().Add(vAdd, CNetAddr(strDNSSeed[seed_idx][0], true));
             }
         }
     }
@@ -1317,10 +1317,10 @@ void DumpAddresses()
     int64_t nStart = GetTimeMillis();
 
     CAddrDB adb;
-    adb.Write(addrman);
+    adb.Write(addrman.get());
 
     printf("Flushed %d addresses to peers.dat  %" PRId64"ms\n",
-           addrman.size(), GetTimeMillis() - nStart);
+           addrman.get().size(), GetTimeMillis() - nStart);
 }
 
 void ThreadDumpAddress2(void* /*parg*/)
@@ -1468,23 +1468,27 @@ void ThreadOpenConnections2(void* /*parg*/)
         if (fShutdown)
             return;
 
-        if (addrman.size()==0 && (GetTime() - nStart > 60) && !fTestNet)
         {
-            std::vector<CAddress> vAdd;
-            for (unsigned int i = 0; i < ARRAYLEN(pnSeed); i++)
+            auto addrman_lock = addrman.get_lock();
+
+            if (addrman.get_unsafe().size()==0 && (GetTime() - nStart > 60) && !fTestNet)
             {
-                // It'll only connect to one or two seed nodes because once it connects,
-                // it'll get a pile of addresses with newer timestamps.
-                // Seed nodes are given a random 'last seen time' of between one and two
-                // weeks ago.
-                const int64_t nOneWeek = 7*24*60*60;
-                struct in_addr ip;
-                memcpy(&ip, &pnSeed[i], sizeof(ip));
-                CAddress addr(CService(ip, GetDefaultPort()));
-                addr.nTime = GetTime()-GetRand(nOneWeek)-nOneWeek;
-                vAdd.push_back(addr);
+                std::vector<CAddress> vAdd;
+                for (unsigned int i = 0; i < ARRAYLEN(pnSeed); i++)
+                {
+                    // It'll only connect to one or two seed nodes because once it connects,
+                    // it'll get a pile of addresses with newer timestamps.
+                    // Seed nodes are given a random 'last seen time' of between one and two
+                    // weeks ago.
+                    const int64_t nOneWeek = 7*24*60*60;
+                    struct in_addr ip;
+                    memcpy(&ip, &pnSeed[i], sizeof(ip));
+                    CAddress addr(CService(ip, GetDefaultPort()));
+                    addr.nTime = GetTime()-GetRand(nOneWeek)-nOneWeek;
+                    vAdd.push_back(addr);
+                }
+                addrman.get_unsafe().Add(vAdd, CNetAddr("127.0.0.1"));
             }
-            addrman.Add(vAdd, CNetAddr("127.0.0.1"));
         }
 
         //
@@ -1512,7 +1516,7 @@ void ThreadOpenConnections2(void* /*parg*/)
         while (true)
         {
             // use an nUnkBias between 10 (no outgoing connections) and 90 (8 outgoing connections)
-            CAddress addr = addrman.Select(10 + min(nOutbound,8)*10);
+            CAddress addr = addrman.get().Select(10 + min(nOutbound,8)*10);
 
             // if we selected an invalid address, restart
             if (!addr.IsValid() || setConnected.count(addr.GetGroup()) || IsLocal(addr))
