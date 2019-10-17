@@ -5,6 +5,8 @@
 
 #include "bitcoinrpc.h"
 #include "main.h"
+#include "merkletx.h"
+#include "txmempool.h"
 #include <atomic>
 
 #include <algorithm>
@@ -215,7 +217,7 @@ Value getblockhash(const Array& params, bool fHelp)
     if (nHeight < 0 || nHeight > nBestHeight)
         throw runtime_error("Block number out of range.");
 
-    CBlockIndexSmartPtr pblockindex = FindBlockByHeight(nHeight);
+    CBlockIndexSmartPtr pblockindex = CBlock::FindBlockByHeight(nHeight);
     return pblockindex->phashBlock->GetHex();
 }
 

@@ -42,9 +42,6 @@
 #include <inttypes.h>
 #include <stdint.h>
 
-static const int64_t COIN = 100000000;
-static const int64_t CENT = 1000000;
-
 static const std::uintmax_t ONE_KB = (static_cast<uint64_t>(1) << 10);
 static const std::uintmax_t ONE_MB = (static_cast<uint64_t>(1) << 20);
 static const std::uintmax_t ONE_GB = (static_cast<uint64_t>(1) << 30);

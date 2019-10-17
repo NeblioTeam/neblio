@@ -2,6 +2,7 @@
 #define NEBLIOUPDATER_H
 
 #include <string>
+#include <boost/thread/future.hpp>
 
 #include "version.h"
 #include "clientversion.h"

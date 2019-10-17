@@ -1,5 +1,7 @@
 #include "SerializationTester.h"
 
+#include "blocklocator.h"
+
 void RunCrossPlatformSerializationTests()
 {
     {

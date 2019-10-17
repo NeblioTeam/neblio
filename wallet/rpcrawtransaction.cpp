@@ -55,7 +55,7 @@ json_spirit::Value GetNTP1TxMetadata(const CTransaction& tx) noexcept
                   "Unexpected type. Type should be one of the ones in the assert statement.");
 
     std::string opRet;
-    bool        isNTP1 = IsTxNTP1(&tx, &opRet);
+    bool        isNTP1 = NTP1Transaction::IsTxNTP1(&tx, &opRet);
     if (isNTP1) {
         std::shared_ptr<NTP1Script> s  = NTP1Script::ParseScript(opRet);
         std::shared_ptr<T>          sd = std::dynamic_pointer_cast<T>(s);
@@ -72,7 +72,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry, bo
 {
     std::pair<CTransaction, NTP1Transaction> pair;
     std::string                              opRet;
-    bool                                     isNTP1 = IsTxNTP1(&tx, &opRet);
+    bool                                     isNTP1 = NTP1Transaction::IsTxNTP1(&tx, &opRet);
 
     if (isNTP1 && !ignoreNTP1) {
         CTxDB txdb("r");
@@ -259,7 +259,7 @@ Value listunspent(const Array& params, bool fHelp)
             continue;
 
         std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs =
-            GetAllNTP1InputsOfTx(static_cast<CTransaction>(*out.tx), false);
+            NTP1Transaction::GetAllNTP1InputsOfTx(static_cast<CTransaction>(*out.tx), false);
         NTP1Transaction ntp1tx;
         ntp1tx.readNTP1DataFromTx(static_cast<CTransaction>(*out.tx), ntp1inputs);
 

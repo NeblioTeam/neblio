@@ -34,7 +34,7 @@ TEST(accounting_tests, acc_orderupgrade)
         if (nLoadWalletRet == DB_CORRUPT)
             FAIL() << _("Error loading wallet.dat: Wallet corrupted") << "\n";
         else if (nLoadWalletRet == DB_NONCRITICAL_ERROR) {
-            string msg(
+            std::string msg(
                 _("Warning: error reading wallet.dat! All keys read correctly, but transaction data"
                   " or address book entries might be missing or incorrect."));
             std::cerr << msg;

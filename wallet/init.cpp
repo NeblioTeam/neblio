@@ -9,7 +9,9 @@
 #include "nebliorest.h"
 #endif
 #include "checkpoints.h"
+#include "globals.h"
 #include "init.h"
+#include "main.h"
 #include "net.h"
 #include "ui_interface.h"
 #include "util.h"
@@ -35,7 +37,6 @@ bool                     fEnforceCanonical;
 unsigned int             nNodeLifespan;
 unsigned int             nDerivationMethodIndex;
 unsigned int             nMinerSleep;
-bool                     fUseFastIndex;
 enum Checkpoints::CPMode CheckpointsMode;
 
 //////////////////////////////////////////////////////////////////////////////

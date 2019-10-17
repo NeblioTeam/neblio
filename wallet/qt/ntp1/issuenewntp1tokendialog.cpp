@@ -8,6 +8,7 @@
 #include "init.h"
 #include "ntp1/ntp1transaction.h"
 #include "txdb.h"
+#include "main.h"
 #include "wallet.h"
 #include <QMessageBox>
 #include <QVariant>
@@ -170,7 +171,7 @@ void IssueNewNTP1TokenDialog::validateInput() const
 }
 
 void IssueNewNTP1TokenDialog::setAlreadyIssuedTokensSymbols(
-    const std::unordered_set<string>& tokenSymbols)
+    const std::unordered_set<std::string>& tokenSymbols)
 {
     tokenSymbolValidator->setAlreadyIssuedTokenSymbols(tokenSymbols);
 }
@@ -320,9 +321,9 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
         // calculate inputs from coin control, if necessary
         assert(CoinControlDialog::coinControl != nullptr);
         bool              takeInputsFromCoinControl = CoinControlDialog::coinControl->HasSelected();
-        vector<COutPoint> inputs =
+        std::vector<COutPoint> inputs =
             (takeInputsFromCoinControl ? CoinControlDialog::coinControl->GetSelected()
-                                       : vector<COutPoint>());
+                                       : std::vector<COutPoint>());
 
         // make sure the amount is correct AND make sure that all inputs are non-NTP1
         if (takeInputsFromCoinControl) {
@@ -336,13 +337,13 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
                 totalInInputs += tx.vout[o.n].nValue;
 
                 // get NTP1 information of this transaction
-                bool txIsNTP1 = IsTxNTP1(&tx);
+                bool txIsNTP1 = NTP1Transaction::IsTxNTP1(&tx);
 
                 if (txIsNTP1) {
                     // if this output is an NTP1 output, skip it
                     try {
                         std::vector<std::pair<CTransaction, NTP1Transaction>> inputs =
-                            GetAllNTP1InputsOfTx(tx, false);
+                            NTP1Transaction::GetAllNTP1InputsOfTx(tx, false);
                         NTP1Transaction ntp1tx;
                         ntp1tx.readNTP1DataFromTx(tx, inputs);
                         // if this output contains tokens, skip it to avoid burning them
@@ -393,7 +394,7 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
 
         std::string errorMessage;
 
-        bool fCreated = pwalletMain->CreateTransaction(vector<pair<CScript, int64_t>>(), wtx, keyChange,
+        bool fCreated = pwalletMain->CreateTransaction(std::vector<std::pair<CScript, int64_t>>(), wtx, keyChange,
                                                        nFeeRequired, tokenSelector, metadataStr, true,
                                                        CoinControlDialog::coinControl, &errorMessage);
         if (!fCreated) {
@@ -419,7 +420,7 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
         // verify the NTP1 transaction before commiting
         try {
             std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
-                GetAllNTP1InputsOfTx(wtx, false);
+                NTP1Transaction::GetAllNTP1InputsOfTx(wtx, false);
             NTP1Transaction ntp1tx;
             ntp1tx.readNTP1DataFromTx(wtx, inputsTxs);
         } catch (std::exception& ex) {
@@ -493,12 +494,12 @@ QValidator::State NTP1TokenSymbolValidator::validate(QString& input, int&) const
 }
 
 void NTP1TokenSymbolValidator::setAlreadyIssuedTokenSymbols(
-    const std::unordered_set<string>& tokenSymbols)
+    const std::unordered_set<std::string>& tokenSymbols)
 {
     alreadyIssuedTokenSymbols = tokenSymbols;
 }
 
-bool NTP1TokenSymbolValidator::tokenWithSymbolAlreadyIssued(const string& tokenSymbol)
+bool NTP1TokenSymbolValidator::tokenWithSymbolAlreadyIssued(const std::string& tokenSymbol)
 {
     return alreadyIssuedTokenSymbols.find(tokenSymbol) != alreadyIssuedTokenSymbols.cend();
 }

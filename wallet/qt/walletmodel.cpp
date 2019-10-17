@@ -2,6 +2,7 @@
 #include "addresstablemodel.h"
 #include "coincontrol.h"
 #include "guiconstants.h"
+#include "main.h"
 #include "optionsmodel.h"
 #include "transactiontablemodel.h"
 
@@ -151,7 +152,7 @@ bool WalletModel::validateAddress(const QString& address)
 
 WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipient>& recipients,
                                                     boost::shared_ptr<NTP1Wallet>    ntp1wallet,
-                                                    const string&                    ntp1metadata,
+                                                    const std::string&               ntp1metadata,
                                                     const CCoinControl*              coinControl)
 {
     qint64  total = 0;
@@ -213,7 +214,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
             try {
                 tokenCalculator.selectNTP1Tokens(
                     ntp1wallet,
-                    (takeInputsFromCoinControl ? coinControl->GetSelected() : vector<COutPoint>()),
+                    (takeInputsFromCoinControl ? coinControl->GetSelected() : std::vector<COutPoint>()),
                     ntp1recipients, !takeInputsFromCoinControl);
             } catch (std::exception& ex) {
                 SendCoinsReturn ret(StatusCode::NTP1TokenCalculationsFailed);
@@ -253,7 +254,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
         // verify the NTP1 transaction before commiting
         try {
             std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
-                GetAllNTP1InputsOfTx(wtx, false);
+                NTP1Transaction::GetAllNTP1InputsOfTx(wtx, false);
             NTP1Transaction ntp1tx;
             ntp1tx.readNTP1DataFromTx(wtx, inputsTxs);
         } catch (std::exception& ex) {

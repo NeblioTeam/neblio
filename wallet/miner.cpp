@@ -6,9 +6,12 @@
 
 #include <boost/interprocess/smart_ptr/unique_ptr.hpp>
 
+#include "block.h"
 #include "kernel.h"
+#include "main.h"
 #include "miner.h"
 #include "txdb.h"
+#include "txmempool.h"
 
 using namespace std;
 
@@ -331,12 +334,12 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
 
             try {
                 std::string opRet;
-                if (IsTxNTP1(&tx, &opRet)) {
+                if (NTP1Transaction::IsTxNTP1(&tx, &opRet)) {
                     auto script = NTP1Script::ParseScript(opRet);
                     if (script->getTxType() == NTP1Script::TxType_Issuance) {
 
-                        inputsTxs = StdFetchedInputTxsToNTP1(tx, mapInputs, txdb, false,
-                                                             mapQueuedNTP1InputsTmp, mapTestPoolTmp);
+                        inputsTxs = NTP1Transaction::StdFetchedInputTxsToNTP1(
+                            tx, mapInputs, txdb, false, mapQueuedNTP1InputsTmp, mapTestPoolTmp);
 
                         NTP1Transaction ntp1tx;
                         ntp1tx.readNTP1DataFromTx(tx, inputsTxs);

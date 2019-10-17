@@ -1,6 +1,7 @@
 #include "ntp1transaction.h"
 
 #include "base58.h"
+#include "main.h"
 #include "ntp1/ntp1script.h"
 #include "ntp1/ntp1script_burn.h"
 #include "ntp1/ntp1script_issuance.h"
@@ -13,6 +14,11 @@
 #include "util.h"
 
 #include <boost/algorithm/hex.hpp>
+
+const std::string  NTP1OpReturnRegexStr = R"(^OP_RETURN\s+(4e54(?:01|03)[a-fA-F0-9]*)$)";
+const boost::regex NTP1OpReturnRegex(NTP1OpReturnRegexStr);
+const std::string  OpReturnRegexStr = R"(^OP_RETURN\s+(.*)$)";
+const boost::regex OpReturnRegex(OpReturnRegexStr);
 
 // token id vs max block to take transactions from these tokens
 const ThreadSafeHashMap<std::string, int>
@@ -49,12 +55,15 @@ const ThreadSafeHashMap<uint256, int> excluded_txs_testnet(std::unordered_map<ui
 
 const ThreadSafeHashMap<uint256, int> excluded_txs_mainnet = {};
 
-bool IsNTP1TokenBlacklisted(const string& tokenId, int& maxHeight)
+bool IsNTP1TokenBlacklisted(const std::string& tokenId, int& maxHeight)
 {
     return ntp1_blacklisted_token_ids.get(tokenId, maxHeight);
 }
 
-bool IsNTP1TokenBlacklisted(const string& tokenId) { return ntp1_blacklisted_token_ids.exists(tokenId); }
+bool IsNTP1TokenBlacklisted(const std::string& tokenId)
+{
+    return ntp1_blacklisted_token_ids.exists(tokenId);
+}
 
 bool IsNTP1TxExcluded(const uint256& txHash)
 {
@@ -189,7 +198,7 @@ const NTP1TxOut& NTP1Transaction::getTxOut(unsigned long index) const { return v
 
 NTP1TransactionType NTP1Transaction::getTxType() const { return ntp1TransactionType; }
 
-string NTP1Transaction::getTokenSymbolIfIssuance() const
+std::string NTP1Transaction::getTokenSymbolIfIssuance() const
 {
     std::string                 script    = getNTP1OpReturnScriptHex();
     std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScript(script);
@@ -209,7 +218,7 @@ string NTP1Transaction::getTokenSymbolIfIssuance() const
     return scriptPtrD->getTokenSymbol();
 }
 
-string NTP1Transaction::getTokenIdIfIssuance(string input0txid, unsigned int input0index) const
+std::string NTP1Transaction::getTokenIdIfIssuance(std::string input0txid, unsigned int input0index) const
 {
     std::string                 script    = getNTP1OpReturnScriptHex();
     std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScript(script);
@@ -236,10 +245,10 @@ void NTP1Transaction::updateDebugStrHash()
 #endif
 }
 
-std::unordered_map<string, TokenMinimalData>
+std::unordered_map<std::string, TokenMinimalData>
 NTP1Transaction::CalculateTotalInputTokens(const NTP1Transaction& ntp1tx)
 {
-    std::unordered_map<string, TokenMinimalData> result;
+    std::unordered_map<std::string, TokenMinimalData> result;
     for (const NTP1TxIn& in : ntp1tx.vin) {
         for (const NTP1TokenTxData& token : in.tokens) {
             const std::string& tokenId = token.getTokenId();
@@ -257,10 +266,10 @@ NTP1Transaction::CalculateTotalInputTokens(const NTP1Transaction& ntp1tx)
     return result;
 }
 
-std::unordered_map<string, TokenMinimalData>
+std::unordered_map<std::string, TokenMinimalData>
 NTP1Transaction::CalculateTotalOutputTokens(const NTP1Transaction& ntp1tx)
 {
-    std::unordered_map<string, TokenMinimalData> result;
+    std::unordered_map<std::string, TokenMinimalData> result;
     for (const NTP1TxOut& in : ntp1tx.vout) {
         for (const NTP1TokenTxData& token : in.tokens) {
             const std::string& tokenId = token.getTokenId();
@@ -545,7 +554,7 @@ void NTP1Transaction::__manualSet(int NVersion, uint256 TxHash, std::vector<unsi
     ntp1TransactionType = Ntp1TransactionType;
 }
 
-string NTP1Transaction::getNTP1OpReturnScriptHex() const
+std::string NTP1Transaction::getNTP1OpReturnScriptHex() const
 {
     // TODO: Sam: This has to be taken from a common source with the one from main
     const static std::string  NTP1OpReturnRegexStr = R"(^OP_RETURN\s+(4e54(?:01|03)[a-fA-F0-9]*)$)";
@@ -887,4 +896,235 @@ NTP1TokenMetaData NTP1Transaction::GetFullNTP1IssuanceMetadata(const uint256& is
     CDataStream ds1(SER_NETWORK, PROTOCOL_VERSION);
     CDataStream ds2(SER_NETWORK, PROTOCOL_VERSION);
     return GetFullNTP1IssuanceMetadata(tx, ntp1tx);
+}
+
+bool NTP1Transaction::TxContainsOpReturn(const CTransaction* tx, std::string* opReturnArg)
+{
+    if (!tx) {
+        return false;
+    }
+
+    boost::smatch opReturnArgMatch;
+
+    for (unsigned long j = 0; j < tx->vout.size(); j++) {
+        // if the string OP_RET_STR is found in scriptPubKey
+        std::string scriptPubKeyStr = tx->vout[j].scriptPubKey.ToString();
+        if (boost::regex_match(scriptPubKeyStr, opReturnArgMatch, OpReturnRegex)) {
+            if (opReturnArg != nullptr && opReturnArgMatch[1].matched) {
+                *opReturnArg = std::string(opReturnArgMatch[1]);
+                return true;
+            }
+            return true; // could not retrieve OP_RETURN argument
+        }
+    }
+    return false;
+}
+
+std::vector<std::pair<CTransaction, NTP1Transaction>>
+NTP1Transaction::GetAllNTP1InputsOfTx(CTransaction tx, bool recoverProtection, int recursionCount)
+{
+    CTxDB txdb;
+    return GetAllNTP1InputsOfTx(
+        tx, txdb, recoverProtection,
+        std::map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>(),
+        std::map<uint256, CTxIndex>(), recursionCount);
+}
+
+std::vector<std::pair<CTransaction, NTP1Transaction>>
+NTP1Transaction::GetAllNTP1InputsOfTx(CTransaction tx, CTxDB& txdb, bool recoverProtection,
+                                      int recursionCount)
+{
+    return GetAllNTP1InputsOfTx(
+        tx, txdb, recoverProtection,
+        std::map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>(),
+        std::map<uint256, CTxIndex>(), recursionCount);
+}
+
+std::vector<std::pair<CTransaction, NTP1Transaction>> NTP1Transaction::GetAllNTP1InputsOfTx(
+    CTransaction tx, CTxDB& txdb, bool recoverProtection,
+    const std::map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>& mapQueuedNTP1Inputs,
+    const std::map<uint256, CTxIndex>& queuedAcceptedTxs, int recursionCount)
+{
+    // rertrieve standard transaction inputs (NOT NTP1)
+    MapPrevTx mapInputs;
+    bool      fInvalid = false;
+    if (!tx.FetchInputs(txdb, queuedAcceptedTxs, true, false, mapInputs, fInvalid)) {
+        if (fInvalid) {
+            printf("Error: For GetAllNTP1InputsOfTx, FetchInputs found invalid tx %s\n",
+                   tx.GetHash().ToString().c_str());
+            throw std::runtime_error("Error: For NTP1, FetchInputs found invalid tx " +
+                                     tx.GetHash().ToString());
+        }
+    }
+
+    std::vector<std::pair<CTransaction, NTP1Transaction>> result = StdFetchedInputTxsToNTP1(
+        tx, mapInputs, txdb, recoverProtection, mapQueuedNTP1Inputs, queuedAcceptedTxs, recursionCount);
+    return result;
+}
+
+std::vector<std::pair<CTransaction, NTP1Transaction>> NTP1Transaction::StdFetchedInputTxsToNTP1(
+    const CTransaction& tx, const MapPrevTx& mapInputs, CTxDB& txdb, bool recoverProtection,
+    const std::map<uint256, CTxIndex>& queuedAcceptedTxs, int recursionCount)
+{
+    // It's not possible to use default parameter here because NTP1Transaction is an incomplete type in
+    // main.h, and including NTP1Transaction header file is not possible due to circular dependency
+    return StdFetchedInputTxsToNTP1(
+        tx, mapInputs, txdb, recoverProtection,
+        std::map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>(), queuedAcceptedTxs,
+        recursionCount);
+}
+
+std::vector<std::pair<CTransaction, NTP1Transaction>> NTP1Transaction::StdFetchedInputTxsToNTP1(
+    const CTransaction& tx, const MapPrevTx& mapInputs, CTxDB& txdb, bool recoverProtection,
+    const std::map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>& mapQueuedNTP1Inputs,
+    const std::map<uint256, CTxIndex>& queuedAcceptedTxs, int recursionCount)
+{
+    if (recursionCount >= 32) {
+        throw std::runtime_error("Reached maximum recursion in StdFetchedInputTxsToNTP1");
+    }
+
+    std::vector<std::pair<CTransaction, NTP1Transaction>> inputsWithNTP1;
+    // put the input transactions in a vector with their corresponding NTP1 transactions
+    {
+        inputsWithNTP1.clear();
+        std::transform(tx.vin.begin(), tx.vin.end(), std::back_inserter(inputsWithNTP1),
+                       [&mapInputs, &tx](const CTxIn& in) {
+                           if (mapInputs.count(in.prevout.hash) == 0) {
+                               throw std::runtime_error("Could not find input after having fetched it "
+                                                        "(for NTP1 database storage); for tx: " +
+                                                        tx.GetHash().ToString());
+                           }
+                           auto result = std::make_pair(mapInputs.find(in.prevout.hash)->second.second,
+                                                        NTP1Transaction());
+                           result.second.readNTP1DataFromTx_minimal(result.first);
+                           return result;
+                       });
+    }
+
+    // NTP1 transaction data is either in the test pool OR in the database; no third option here
+    auto it = mapQueuedNTP1Inputs.find(tx.GetHash());
+    if (it == mapQueuedNTP1Inputs.end()) {
+        for (auto&& inTx : inputsWithNTP1) {
+            if (IsTxNTP1(&inTx.first)) {
+                if (txdb.ContainsNTP1Tx(inTx.first.GetHash())) {
+                    // if the transaction is in the database, get it
+                    FetchNTP1TxFromDisk(inTx, txdb, recoverProtection);
+                } else if (queuedAcceptedTxs.find(inTx.first.GetHash()) != queuedAcceptedTxs.end()) {
+                    // otherwise, if the transaction is already in the test pool, use it to read it
+
+                    std::vector<std::pair<CTransaction, NTP1Transaction>> inputsOfInput =
+                        GetAllNTP1InputsOfTx(inTx.first, txdb, recoverProtection, mapQueuedNTP1Inputs,
+                                             queuedAcceptedTxs, recursionCount + 1);
+
+                    NTP1Transaction ntp1tx;
+                    inTx.second.readNTP1DataFromTx(inTx.first, inputsOfInput);
+                } else {
+                    // read NTP1 transaction inputs. If they fail, that's OK, because they will
+                    // fail later if they're necessary
+                    FetchNTP1TxFromDisk(inTx, txdb, recoverProtection);
+                }
+            }
+        }
+    } else {
+        inputsWithNTP1 = it->second;
+    }
+    return inputsWithNTP1;
+}
+
+bool NTP1Transaction::IsTxNTP1(const CTransaction* tx, std::string* opReturnArg)
+{
+    if (!tx) {
+        return false;
+    }
+
+    if (IsNTP1TxExcluded(tx->GetHash())) {
+        return false;
+    }
+
+    boost::smatch opReturnArgMatch;
+
+    for (unsigned long j = 0; j < tx->vout.size(); j++) {
+        std::string scriptPubKeyStr = tx->vout[j].scriptPubKey.ToString();
+        if (boost::regex_match(scriptPubKeyStr, opReturnArgMatch, NTP1OpReturnRegex)) {
+            if (opReturnArg != nullptr && opReturnArgMatch[1].matched) {
+                *opReturnArg = std::string(opReturnArgMatch[1]);
+                return true;
+            }
+            return true; // could not retrieve OP_RETURN argument
+        }
+    }
+    return false;
+}
+
+bool NTP1Transaction::IsTxOutputNTP1OpRet(const CTransaction* tx, unsigned int index,
+                                          std::string* opReturnArg)
+{
+    if (!tx) {
+        return false;
+    }
+
+    if (IsNTP1TxExcluded(tx->GetHash())) {
+        return false;
+    }
+
+    boost::smatch opReturnArgMatch;
+
+    // out of range index
+    if (index + 1 >= tx->vout.size()) {
+        return false;
+    }
+
+    std::string scriptPubKeyStr = tx->vout[index].scriptPubKey.ToString();
+    if (boost::regex_match(scriptPubKeyStr, opReturnArgMatch, NTP1OpReturnRegex)) {
+        if (opReturnArg != nullptr && opReturnArgMatch[1].matched) {
+            *opReturnArg = std::string(opReturnArgMatch[1]);
+            return true;
+        }
+        return true; // could not retrieve OP_RETURN argument
+    }
+    return false;
+}
+
+bool NTP1Transaction::IsTxOutputOpRet(const CTransaction* tx, unsigned int index,
+                                      std::string* opReturnArg)
+{
+    if (!tx) {
+        return false;
+    }
+
+    boost::smatch opReturnArgMatch;
+
+    // out of range index
+    if (index + 1 >= tx->vout.size()) {
+        return false;
+    }
+
+    std::string scriptPubKeyStr = tx->vout[index].scriptPubKey.ToString();
+    if (boost::regex_match(scriptPubKeyStr, opReturnArgMatch, OpReturnRegex)) {
+        if (opReturnArg != nullptr && opReturnArgMatch[1].matched) {
+            *opReturnArg = std::string(opReturnArgMatch[1]);
+            return true;
+        }
+        return true; // could not retrieve OP_RETURN argument
+    }
+    return false;
+}
+
+bool NTP1Transaction::IsTxOutputOpRet(const CTxOut* output, std::string* opReturnArg)
+{
+    if (!output) {
+        return false;
+    }
+
+    boost::smatch opReturnArgMatch;
+
+    std::string scriptPubKeyStr = output->scriptPubKey.ToString();
+    if (boost::regex_match(scriptPubKeyStr, opReturnArgMatch, OpReturnRegex)) {
+        if (opReturnArg != nullptr && opReturnArgMatch[1].matched) {
+            *opReturnArg = std::string(opReturnArgMatch[1]);
+            return true;
+        }
+        return true; // could not retrieve OP_RETURN argument
+    }
+    return false;
 }

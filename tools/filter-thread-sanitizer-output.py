@@ -60,11 +60,23 @@ def process_data_queue(data_queue):
         if len(data_queue) > 0:  # filtering will keep anything that matches the pattern provided
             print("Skipping on match of '" + blacklist_line + "' in: " + str(orig_data_queue) + "\n")
             matched = True
-            break
+            break            
+    # check the number of stack trace lines
+    if not matched:
+        found_stack_trace_line_with_high_id = False
+        for queue_line in orig_data_queue:
+            if queue_line.strip().startswith("#2"):
+                found_stack_trace_line_with_high_id = True
+                break
+        if not found_stack_trace_line_with_high_id:
+            print("Skipping on low number of stack trace lines for: " + str(orig_data_queue) + "\n")
+            matched = True
+
     if not matched:  # if the filter doesn't match anything, then this is not filtered, print it
         sys.stdout.write(separator + "\n")
         sys.stdout.write("\n".join(orig_data_queue))
         sys.stdout.write(separator + "\n")
+
     sys.stdout.flush()
     data_queue = []
 

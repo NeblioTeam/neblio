@@ -79,7 +79,7 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
         if (nNet > 0) {
             // Credit
             for (const CTxOut& txout : wtx.vout) {
-                if (IsTxOutputOpRet(&txout)) {
+                if (NTP1Transaction::IsTxOutputOpRet(&txout)) {
                     continue;
                 }
                 if (wallet->IsMine(txout)) {
@@ -108,7 +108,7 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
     NTP1Transaction ntp1tx;
     try {
         std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs =
-            GetAllNTP1InputsOfTx(wtx, false);
+            NTP1Transaction::GetAllNTP1InputsOfTx(wtx, false);
         ntp1tx.readNTP1DataFromTx(wtx, ntp1inputs);
     } catch (std::exception& ex) {
         printf("(This doesn't have to be an error if the tx is not NTP1). For transaction details, "
@@ -139,7 +139,7 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
         //
         int64_t nUnmatured = 0;
         for (const CTxOut& txout : wtx.vout) {
-            if (IsTxOutputOpRet(&txout)) {
+            if (NTP1Transaction::IsTxOutputOpRet(&txout)) {
                 continue;
             }
             nUnmatured += wallet->GetCredit(txout);
@@ -160,7 +160,7 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
                    BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, nNet) + "<br>";
         if (successInRetrievingNTP1Tx) {
             // get token amounts in outputs of the transaction
-            std::unordered_map<string, TokenMinimalData> outputsTokens =
+            std::unordered_map<std::string, TokenMinimalData> outputsTokens =
                 NTP1Transaction::CalculateTotalOutputTokens(ntp1tx);
 
             // calculate total tokens of all kinds to see if there's any tokens involved in the
@@ -185,7 +185,7 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
 
         bool fAllToMe = true;
         for (const CTxOut& txout : wtx.vout) {
-            if (IsTxOutputOpRet(&txout)) {
+            if (NTP1Transaction::IsTxOutputOpRet(&txout)) {
                 continue;
             }
             fAllToMe = fAllToMe && wallet->IsMine(txout);
@@ -197,7 +197,7 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
             //
             for (int i = 0; i < (int)wtx.vout.size(); i++) {
                 const CTxOut& txout = wtx.vout[i];
-                if (IsTxOutputOpRet(&txout)) {
+                if (NTP1Transaction::IsTxOutputOpRet(&txout)) {
                     continue;
                 }
                 if (wallet->IsMine(txout))
@@ -238,7 +238,7 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
                            BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, nValue) + "<br>";
                 if (successInRetrievingNTP1Tx) {
                     // get token amounts in outputs of the transaction
-                    std::unordered_map<string, TokenMinimalData> outputsTokens =
+                    std::unordered_map<std::string, TokenMinimalData> outputsTokens =
                         NTP1Transaction::CalculateTotalOutputTokens(ntp1tx);
 
                     // calculate total tokens of all kinds to see if there's any tokens involved in the
@@ -272,7 +272,7 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
                                "<br>";
             }
             for (const CTxOut& txout : wtx.vout) {
-                if (IsTxOutputOpRet(&txout)) {
+                if (NTP1Transaction::IsTxOutputOpRet(&txout)) {
                     continue;
                 }
                 if (wallet->IsMine(txout))
@@ -320,7 +320,7 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
                            "<br>";
         for (int i = 0; i < (int)wtx.vout.size(); i++) {
             const CTxOut& txout = wtx.vout[i];
-            if (IsTxOutputOpRet(&txout)) {
+            if (NTP1Transaction::IsTxOutputOpRet(&txout)) {
                 continue;
             }
             if (wallet->IsMine(txout)) {

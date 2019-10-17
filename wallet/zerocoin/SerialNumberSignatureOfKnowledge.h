@@ -24,7 +24,6 @@
 #include "Accumulator.h"
 #include "../util.h"
 
-using namespace std;
 namespace libzerocoin {
 
 /**A Signature of knowledge on the hash of metadata attesting that the signer knows the values
@@ -33,42 +32,42 @@ namespace libzerocoin {
  */
 class SerialNumberSignatureOfKnowledge {
 public:
-	SerialNumberSignatureOfKnowledge(const Params* p);
-	/** Creates a Signature of knowledge object that a commitment to a coin contains a coin with serial number x
-	 *
-	 * @param p params
-	 * @param coin the coin we are going to prove the serial number of.
-	 * @param commitmentToCoin the commitment to the coin
-	 * @param msghash hash of meta data to create a signature of knowledge on.
-	 */
-	SerialNumberSignatureOfKnowledge(const Params* p, const PrivateCoin& coin, const Commitment& commitmentToCoin, uint256 msghash);
+        SerialNumberSignatureOfKnowledge(const Params* p);
+        /** Creates a Signature of knowledge object that a commitment to a coin contains a coin with serial number x
+         *
+         * @param p params
+         * @param coin the coin we are going to prove the serial number of.
+         * @param commitmentToCoin the commitment to the coin
+         * @param msghash hash of meta data to create a signature of knowledge on.
+         */
+        SerialNumberSignatureOfKnowledge(const Params* p, const PrivateCoin& coin, const Commitment& commitmentToCoin, uint256 msghash);
 
-	/** Verifies the Signature of knowledge.
-	 *
-	 * @param msghash hash of meta data to create a signature of knowledge on.
-	 * @return
-	 */
-	bool Verify(const Bignum& coinSerialNumber, const Bignum& valueOfCommitmentToCoin,const uint256 msghash) const;
+        /** Verifies the Signature of knowledge.
+         *
+         * @param msghash hash of meta data to create a signature of knowledge on.
+         * @return
+         */
+        bool Verify(const Bignum& coinSerialNumber, const Bignum& valueOfCommitmentToCoin,const uint256 msghash) const;
 
-	IMPLEMENT_SERIALIZE
-	(
-	    READWRITE(s_notprime);
-	    READWRITE(sprime);
-	    READWRITE(hash);
-	)
+        IMPLEMENT_SERIALIZE
+        (
+            READWRITE(s_notprime);
+            READWRITE(sprime);
+            READWRITE(hash);
+        )
 private:
-	const Params* params;
-	// challenge hash
-	uint256 hash; //TODO For efficiency, should this be a bitset where Templates define params?
+        const Params* params;
+        // challenge hash
+        uint256 hash; //TODO For efficiency, should this be a bitset where Templates define params?
 
-	// challenge response values
-	// this is s_notprime instead of s
-	// because the serialization macros
-	// define something named s and it conflicts
-	vector<Bignum> s_notprime;
-	vector<Bignum> sprime;
-	inline Bignum challengeCalculation(const Bignum& a_exp, const Bignum& b_exp,
-	                                   const Bignum& h_exp) const;
+        // challenge response values
+        // this is s_notprime instead of s
+        // because the serialization macros
+        // define something named s and it conflicts
+        std::vector<Bignum> s_notprime;
+        std::vector<Bignum> sprime;
+        inline Bignum challengeCalculation(const Bignum& a_exp, const Bignum& b_exp,
+                                           const Bignum& h_exp) const;
 };
 
 } /* namespace libzerocoin */

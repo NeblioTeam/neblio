@@ -198,6 +198,21 @@ OBJS= \
     obj/zerocoin/SerialNumberSignatureOfKnowledge.o \
     obj/zerocoin/SpendMetaData.o \
     obj/zerocoin/ZeroTest.o \
+    obj/blockindexcatalog.o                   \
+    obj/blockindex.o                          \
+    obj/outpoint.o                            \
+    obj/inpoint.o                             \
+    obj/block.o                               \
+    obj/transaction.o                         \
+    obj/globals.o                             \
+    obj/diskblockindex.o                      \
+    obj/disktxpos.o                           \
+    obj/txindex.o                             \
+    obj/txin.o                                \
+    obj/txout.o                               \
+    obj/txmempool.o                           \
+    obj/merkletx.o                            \
+    obj/blocklocator.o                        \
     obj/curltools.o                           \
     obj/json/json_spirit_reader.o             \
     obj/json/json_spirit_value.o              \

@@ -5,18 +5,18 @@
 #ifndef BITCOIN_DB_H
 #define BITCOIN_DB_H
 
-#include "main.h"
-
 #include <map>
 #include <string>
 #include <vector>
 #include <boost/atomic.hpp>
+#include <boost/filesystem.hpp>
 
 #include <db_cxx.h>
 
+#include "blocklocator.h"
+
 class CAddress;
 class CAddrMan;
-class CBlockLocator;
 class CDiskBlockIndex;
 class CDiskTxPos;
 class CMasterKey;

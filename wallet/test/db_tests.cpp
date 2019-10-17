@@ -1,5 +1,7 @@
 #include "googletest/googletest/include/gtest/gtest.h"
 
+#include "curltools.h"
+#include "ntp1/ntp1tools.h"
 #include <boost/algorithm/string.hpp>
 #include <fstream>
 #include <unordered_map>

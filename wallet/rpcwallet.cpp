@@ -7,7 +7,9 @@
 #include "base58.h"
 #include "bitcoinrpc.h"
 #include "boost/make_shared.hpp"
+#include "globals.h"
 #include "init.h"
+#include "main.h"
 #include "wallet.h"
 #include "walletdb.h"
 
@@ -949,7 +951,7 @@ Value sendmany(const Array& params, bool fHelp)
     // verify the NTP1 transaction before commiting
     try {
         std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
-            GetAllNTP1InputsOfTx(wtx, false);
+            NTP1Transaction::GetAllNTP1InputsOfTx(wtx, false);
         NTP1Transaction ntp1tx;
         ntp1tx.readNTP1DataFromTx(wtx, inputsTxs);
     } catch (std::exception& ex) {

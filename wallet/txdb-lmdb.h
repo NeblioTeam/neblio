@@ -8,17 +8,26 @@
 
 //#define DEEP_LMDB_LOGGING
 
-#include "main.h"
-
 #include <atomic>
+#include <boost/filesystem.hpp>
 #include <map>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "liblmdb/lmdb.h"
 
-#include "ntp1/ntp1transaction.h"
+#include "diskblockindex.h"
+#include "disktxpos.h"
+#include "outpoint.h"
+#include "txindex.h"
+#include "util.h"
+
+class NTP1Transaction;
+class CBigNum;
+class CBlock;
+class CTransaction;
 
 #define ENABLE_AUTO_RESIZE
 
@@ -92,28 +101,28 @@ constexpr bool Has_toString()
 }
 
 template <typename T>
-typename enable_if<Has_ToString<T>() && Has_toString<T>(), std::string>::type
+typename std::enable_if<Has_ToString<T>() && Has_toString<T>(), std::string>::type
 KeyAsString(const T& k, const std::string& /*keyStr*/)
 {
     return k->ToString();
 }
 
 template <typename T>
-typename enable_if<Has_ToString<T>() && !Has_toString<T>(), std::string>::type
+typename std::enable_if<Has_ToString<T>() && !Has_toString<T>(), std::string>::type
 KeyAsString(const T& k, const std::string& /*keyStr*/)
 {
     return k->ToString();
 }
 
 template <typename T>
-typename enable_if<!Has_ToString<T>() && Has_toString<T>(), std::string>::type
+typename std::enable_if<!Has_ToString<T>() && Has_toString<T>(), std::string>::type
 KeyAsString(const T& k, const std::string& /*keyStr*/)
 {
     return k->toString();
 }
 
 template <typename T>
-typename enable_if<!Has_ToString<T>() && !Has_toString<T>(), std::string>::type
+typename std::enable_if<!Has_ToString<T>() && !Has_toString<T>(), std::string>::type
 KeyAsString(const T& /*t*/, const std::string& keyStr)
 {
     if (std::all_of(keyStr.begin(), keyStr.end(), ::isprint)) {
@@ -694,7 +703,7 @@ public:
     bool test1_ExistsStrKeyVal(const std::string& key);
     bool test1_EraseStrKeyVal(const std::string& key);
 
-    bool test2_ReadMultipleStr1KeyVal(const std::string& key, std::vector<string>& val);
+    bool test2_ReadMultipleStr1KeyVal(const std::string& key, std::vector<std::string>& val);
     bool test2_WriteStrKeyVal(const std::string& key, const std::string& val);
     bool test2_ExistsStrKeyVal(const std::string& key);
     bool test2_EraseStrKeyVal(const std::string& key);

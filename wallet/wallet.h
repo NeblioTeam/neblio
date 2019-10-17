@@ -12,7 +12,7 @@
 
 #include "key.h"
 #include "keystore.h"
-#include "main.h"
+#include "merkletx.h"
 #include "ntp1/ntp1sendtxdata.h"
 #include "script.h"
 #include "ui_interface.h"
@@ -229,11 +229,11 @@ public:
     int64_t GetNewMint() const;
     bool    CreateTransaction(const std::vector<std::pair<CScript, int64_t>>& vecSend, CWalletTx& wtxNew,
                               CReserveKey& reservekey, int64_t& nFeeRet, NTP1SendTxData ntp1TxData,
-                              const string& ntp1metadata = "", bool isNTP1Issuance = false,
+                              const std::string& ntp1metadata = "", bool isNTP1Issuance = false,
                               const CCoinControl* coinControl = nullptr, std::string* errorMsg = nullptr);
     bool    CreateTransaction(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew,
                               CReserveKey& reservekey, int64_t& nFeeRet, const NTP1SendTxData& ntp1TxData,
-                              const string& ntp1metadata = "", bool isNTP1Issuance = false,
+                              const std::string& ntp1metadata = "", bool isNTP1Issuance = false,
                               const CCoinControl* coinControl = nullptr);
     bool    CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
 
@@ -248,7 +248,7 @@ public:
     std::string SendNTP1ToDestination(const CTxDestination& address, int64_t nValue,
                                       const std::string& tokenId, CWalletTx& wtxNew,
                                       boost::shared_ptr<NTP1Wallet> ntp1wallet,
-                                      const string& ntp1metadata = "", bool fAskFee = false);
+                                      const std::string& ntp1metadata = "", bool fAskFee = false);
 
     bool    NewKeyPool();
     bool    TopUpKeyPool(unsigned int nSize = 0);
@@ -266,58 +266,15 @@ public:
     bool    IsMine(const CTxIn& txin) const;
     int64_t GetDebit(const CTxIn& txin) const;
     bool    IsMine(const CTxOut& txout) const { return ::IsMine(*this, txout.scriptPubKey); }
-    int64_t GetCredit(const CTxOut& txout) const
-    {
-        if (!MoneyRange(txout.nValue))
-            throw std::runtime_error("CWallet::GetCredit() : value out of range");
-        return (IsMine(txout) ? txout.nValue : 0);
-    }
+    int64_t GetCredit(const CTxOut& txout) const;
     bool    IsChange(const CTxOut& txout) const;
-    int64_t GetChange(const CTxOut& txout) const
-    {
-        if (!MoneyRange(txout.nValue))
-            throw std::runtime_error("CWallet::GetChange() : value out of range");
-        return (IsChange(txout) ? txout.nValue : 0);
-    }
-    bool IsMine(const CTransaction& tx) const
-    {
-        for (const CTxOut& txout : tx.vout)
-            if (IsMine(txout) && txout.nValue >= nMinimumInputValue)
-                return true;
-        return false;
-    }
+    int64_t GetChange(const CTxOut& txout) const;
+    bool    IsMine(const CTransaction& tx) const;
     bool    IsFromMe(const CTransaction& tx) const { return (GetDebit(tx) > 0); }
-    int64_t GetDebit(const CTransaction& tx) const
-    {
-        int64_t nDebit = 0;
-        for (const CTxIn& txin : tx.vin) {
-            nDebit += GetDebit(txin);
-            if (!MoneyRange(nDebit))
-                throw std::runtime_error("CWallet::GetDebit() : value out of range");
-        }
-        return nDebit;
-    }
-    int64_t GetCredit(const CTransaction& tx) const
-    {
-        int64_t nCredit = 0;
-        for (const CTxOut& txout : tx.vout) {
-            nCredit += GetCredit(txout);
-            if (!MoneyRange(nCredit))
-                throw std::runtime_error("CWallet::GetCredit() : value out of range");
-        }
-        return nCredit;
-    }
-    int64_t GetChange(const CTransaction& tx) const
-    {
-        int64_t nChange = 0;
-        for (const CTxOut& txout : tx.vout) {
-            nChange += GetChange(txout);
-            if (!MoneyRange(nChange))
-                throw std::runtime_error("CWallet::GetChange() : value out of range");
-        }
-        return nChange;
-    }
-    void SetBestChain(const CBlockLocator& loc);
+    int64_t GetDebit(const CTransaction& tx) const;
+    int64_t GetCredit(const CTransaction& tx) const;
+    int64_t GetChange(const CTransaction& tx) const;
+    void    SetBestChain(const CBlockLocator& loc);
 
     DBErrors LoadWallet(bool& fFirstRunRet);
 
@@ -329,21 +286,9 @@ public:
 
     void PrintWallet(const CBlock& block);
 
-    void Inventory(const uint256& hash)
-    {
-        {
-            LOCK(cs_wallet);
-            std::map<uint256, int>::iterator mi = mapRequestCount.find(hash);
-            if (mi != mapRequestCount.end())
-                (*mi).second++;
-        }
-    }
+    void Inventory(const uint256& hash);
 
-    unsigned int GetKeyPoolSize()
-    {
-        AssertLockHeld(cs_wallet); // setKeyPool
-        return setKeyPool.size();
-    }
+    unsigned int GetKeyPoolSize();
 
     bool GetTransaction(const uint256& hashTx, CWalletTx& wtx);
 
@@ -525,50 +470,49 @@ public:
         nOrderPos              = -1;
     }
 
-    IMPLEMENT_SERIALIZE(CWalletTx* pthis = const_cast<CWalletTx*>(this); if (fRead) pthis->Init(nullptr);
-                        char       fSpent = false;
+    IMPLEMENT_SERIALIZE(
+        CWalletTx* pthis  = const_cast<CWalletTx*>(this); if (fRead) pthis->Init(nullptr);
+        char       fSpent = false;
 
-                        if (!fRead) {
-                            pthis->mapValue["fromaccount"] = pthis->strFromAccount;
+        if (!fRead) {
+            pthis->mapValue["fromaccount"] = pthis->strFromAccount;
 
-                            std::string str;
-                            for (char f : vfSpent) {
-                                str += (f ? '1' : '0');
-                                if (f)
-                                    fSpent = true;
-                            }
-                            pthis->mapValue["spent"] = str;
+            std::string str;
+            for (char f : vfSpent) {
+                str += (f ? '1' : '0');
+                if (f)
+                    fSpent = true;
+            }
+            pthis->mapValue["spent"] = str;
 
-                            WriteOrderPos(pthis->nOrderPos, pthis->mapValue);
+            WriteOrderPos(pthis->nOrderPos, pthis->mapValue);
 
-                            if (nTimeSmart)
-                                pthis->mapValue["timesmart"] = strprintf("%u", nTimeSmart);
-                        }
+            if (nTimeSmart)
+                pthis->mapValue["timesmart"] = strprintf("%u", nTimeSmart);
+        }
 
-                        nSerSize += SerReadWrite(s, *(CMerkleTx*)this, nType, nVersion, ser_action);
-                        READWRITE(vtxPrev); READWRITE(mapValue); READWRITE(vOrderForm);
-                        READWRITE(fTimeReceivedIsTxTime); READWRITE(nTimeReceived); READWRITE(fFromMe);
-                        READWRITE(fSpent);
+        nSerSize += SerReadWrite(s, *(CMerkleTx*)this, nType, nVersion, ser_action);
+        READWRITE(vtxPrev); READWRITE(mapValue); READWRITE(vOrderForm); READWRITE(fTimeReceivedIsTxTime);
+        READWRITE(nTimeReceived); READWRITE(fFromMe); READWRITE(fSpent);
 
-                        if (fRead) {
-                            pthis->strFromAccount = pthis->mapValue["fromaccount"];
+        if (fRead) {
+            pthis->strFromAccount = pthis->mapValue["fromaccount"];
 
-                            if (mapValue.count("spent"))
-                                for (char c : pthis->mapValue["spent"])
-                                    pthis->vfSpent.push_back(c != '0');
-                            else
-                                pthis->vfSpent.assign(vout.size(), fSpent);
+            if (mapValue.count("spent"))
+                for (char c : pthis->mapValue["spent"])
+                    pthis->vfSpent.push_back(c != '0');
+            else
+                pthis->vfSpent.assign(vout.size(), fSpent);
 
-                            ReadOrderPos(pthis->nOrderPos, pthis->mapValue);
+            ReadOrderPos(pthis->nOrderPos, pthis->mapValue);
 
-                            pthis->nTimeSmart = mapValue.count("timesmart")
-                                                    ? (unsigned int)atoi64(pthis->mapValue["timesmart"])
-                                                    : 0;
-                        }
+            pthis->nTimeSmart =
+                mapValue.count("timesmart") ? (unsigned int)atoi64(pthis->mapValue["timesmart"]) : 0;
+        }
 
-                        pthis->mapValue.erase("fromaccount");
-                        pthis->mapValue.erase("version"); pthis->mapValue.erase("spent");
-                        pthis->mapValue.erase("n"); pthis->mapValue.erase("timesmart");)
+        pthis->mapValue.erase("fromaccount");
+        pthis->mapValue.erase("version"); pthis->mapValue.erase("spent"); pthis->mapValue.erase("n");
+        pthis->mapValue.erase("timesmart");)
 
     // marks certain txout's as spent
     // returns true if any update took place
@@ -709,52 +653,7 @@ public:
 
     bool IsFromMe() const { return (GetDebit() > 0); }
 
-    bool IsTrusted() const
-    {
-        // Quick answer in most cases
-        if (!IsFinalTx(*this))
-            return false;
-        int nDepth = GetDepthInMainChain();
-        if (nDepth >= 1)
-            return true;
-        if (nDepth < 0)
-            return false;
-        if (fConfChange || !IsFromMe()) // using wtx's cached debit
-            return false;
-
-        // If no confirmations but it's from us, we can still
-        // consider it confirmed if all dependencies are confirmed
-        std::map<uint256, const CMerkleTx*> mapPrev;
-        std::vector<const CMerkleTx*>       vWorkQueue;
-        vWorkQueue.reserve(vtxPrev.size() + 1);
-        vWorkQueue.push_back(this);
-        for (unsigned int i = 0; i < vWorkQueue.size(); i++) {
-            const CMerkleTx* ptx = vWorkQueue[i];
-
-            if (!IsFinalTx(*ptx))
-                return false;
-            int nPDepth = ptx->GetDepthInMainChain();
-            if (nPDepth >= 1)
-                continue;
-            if (nPDepth < 0)
-                return false;
-            if (!pwallet->IsFromMe(*ptx))
-                return false;
-
-            if (mapPrev.empty()) {
-                for (const CMerkleTx& tx : vtxPrev)
-                    mapPrev[tx.GetHash()] = &tx;
-            }
-
-            for (const CTxIn& txin : ptx->vin) {
-                if (!mapPrev.count(txin.prevout.hash))
-                    return false;
-                vWorkQueue.push_back(mapPrev[txin.prevout.hash]);
-            }
-        }
-
-        return true;
-    }
+    bool IsTrusted() const;
 
     bool WriteToDisk();
 
@@ -856,38 +755,38 @@ public:
         nOrderPos = -1;
     }
 
-    IMPLEMENT_SERIALIZE(CAccountingEntry& me = *const_cast<CAccountingEntry*>(this);
-                        if (!(nType & SER_GETHASH)) READWRITE(nVersion);
-                        // Note: strAccount is serialized as part of the key, not here.
-                        READWRITE(nCreditDebit); READWRITE(nTime); READWRITE(strOtherAccount);
+    IMPLEMENT_SERIALIZE(
+        CAccountingEntry& me = *const_cast<CAccountingEntry*>(this);
+        if (!(nType & SER_GETHASH)) READWRITE(nVersion);
+        // Note: strAccount is serialized as part of the key, not here.
+        READWRITE(nCreditDebit); READWRITE(nTime); READWRITE(strOtherAccount);
 
-                        if (!fRead) {
-                            WriteOrderPos(nOrderPos, me.mapValue);
+        if (!fRead) {
+            WriteOrderPos(nOrderPos, me.mapValue);
 
-                            if (!(mapValue.empty() && _ssExtra.empty())) {
-                                CDataStream ss(nType, nVersion);
-                                ss.insert(ss.begin(), '\0');
-                                ss << mapValue;
-                                ss.insert(ss.end(), _ssExtra.begin(), _ssExtra.end());
-                                me.strComment.append(ss.str());
-                            }
-                        }
+            if (!(mapValue.empty() && _ssExtra.empty())) {
+                CDataStream ss(nType, nVersion);
+                ss.insert(ss.begin(), '\0');
+                ss << mapValue;
+                ss.insert(ss.end(), _ssExtra.begin(), _ssExtra.end());
+                me.strComment.append(ss.str());
+            }
+        }
 
-                        READWRITE(strComment);
+        READWRITE(strComment);
 
-                        size_t nSepPos = strComment.find("\0", 0, 1); if (fRead) {
-                            me.mapValue.clear();
-                            if (std::string::npos != nSepPos) {
-                                CDataStream ss(std::vector<char>(strComment.begin() + nSepPos + 1,
-                                                                 strComment.end()),
-                                               nType, nVersion);
-                                ss >> me.mapValue;
-                                me._ssExtra = std::vector<char>(ss.begin(), ss.end());
-                            }
-                            ReadOrderPos(me.nOrderPos, me.mapValue);
-                        } if (std::string::npos != nSepPos) me.strComment.erase(nSepPos);
+        size_t nSepPos = strComment.find("\0", 0, 1); if (fRead) {
+            me.mapValue.clear();
+            if (std::string::npos != nSepPos) {
+                CDataStream ss(std::vector<char>(strComment.begin() + nSepPos + 1, strComment.end()),
+                               nType, nVersion);
+                ss >> me.mapValue;
+                me._ssExtra = std::vector<char>(ss.begin(), ss.end());
+            }
+            ReadOrderPos(me.nOrderPos, me.mapValue);
+        } if (std::string::npos != nSepPos) me.strComment.erase(nSepPos);
 
-                        me.mapValue.erase("n");)
+        me.mapValue.erase("n");)
 
 private:
     std::vector<char> _ssExtra;
