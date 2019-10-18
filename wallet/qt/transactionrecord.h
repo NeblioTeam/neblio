@@ -1,6 +1,8 @@
 #ifndef TRANSACTIONRECORD_H
 #define TRANSACTIONRECORD_H
 
+#include <QObject>
+
 #include "ntp1/ntp1transaction.h"
 #include "uint256.h"
 

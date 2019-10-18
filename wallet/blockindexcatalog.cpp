@@ -1,5 +1,6 @@
 #include "blockindexcatalog.h"
 
+#include <boost/make_shared.hpp>
 #include <utility>
 
 CBlockIndexSmartPtr BlockIndexCatalog::InsertBlockIndex(uint256 hash)
