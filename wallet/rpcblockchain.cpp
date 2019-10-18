@@ -334,13 +334,13 @@ Value getcheckpoint(const Array& params, bool fHelp)
     result.push_back(Pair("timestamp", DateTimeStrFormat(pindexCheckpoint->GetBlockTime()).c_str()));
 
     // Check that the block satisfies synchronized checkpoint
-    if (CheckpointsMode == Checkpoints::STRICT)
+    if (CheckpointsMode == Checkpoints::CPMode_STRICT)
         result.push_back(Pair("policy", "strict"));
 
-    if (CheckpointsMode == Checkpoints::ADVISORY)
+    if (CheckpointsMode == Checkpoints::CPMode_ADVISORY)
         result.push_back(Pair("policy", "advisory"));
 
-    if (CheckpointsMode == Checkpoints::PERMISSIVE)
+    if (CheckpointsMode == Checkpoints::CPMode_PERMISSIVE)
         result.push_back(Pair("policy", "permissive"));
 
     if (mapArgs.exists("-checkpointkey"))

@@ -77,11 +77,11 @@ namespace Checkpoints {
 enum CPMode
 {
     // Scrict checkpoints policy, perform conflicts verification and resolve conflicts
-    STRICT = 0,
+    CPMode_STRICT = 0,
     // Advisory checkpoints policy, perform conflicts verification but don't try to resolve them
-    ADVISORY = 1,
+    CPMode_ADVISORY = 1,
     // Permissive checkpoints policy, don't perform any checking
-    PERMISSIVE = 2
+    CPMode_PERMISSIVE = 2
 };
 } // namespace Checkpoints
 

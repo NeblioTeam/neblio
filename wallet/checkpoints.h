@@ -8,12 +8,6 @@
 #include "util.h"
 #include <map>
 
-#ifdef WIN32
-#undef STRICT
-#undef PERMISSIVE
-#undef ADVISORY
-#endif
-
 class uint256;
 class CBlockIndex;
 class CSyncCheckpoint;
