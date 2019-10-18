@@ -28,6 +28,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/filesystem/path.hpp>
+#include <boost/make_shared.hpp>
 #include <boost/thread.hpp>
 #include <openssl/md5.h>
 #include <openssl/ripemd.h>
