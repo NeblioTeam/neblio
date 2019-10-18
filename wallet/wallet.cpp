@@ -12,6 +12,7 @@
 #include "main.h"
 #include "ntp1/ntp1transaction.h"
 #include "txdb.h"
+#include "txmempool.h"
 #include "ui_interface.h"
 #include "walletdb.h"
 #include <boost/algorithm/string/replace.hpp>
@@ -3025,4 +3026,27 @@ bool CWalletTx::IsTrusted() const
     }
 
     return true;
+}
+
+bool CWalletTx::AcceptWalletTransaction(CTxDB& txdb)
+{
+
+    {
+        // Add previous supporting transactions first
+        for (CMerkleTx& tx : vtxPrev) {
+            if (!(tx.IsCoinBase() || tx.IsCoinStake())) {
+                uint256 hash = tx.GetHash();
+                if (!mempool.exists(hash) && !txdb.ContainsTx(hash))
+                    tx.AcceptToMemoryPool();
+            }
+        }
+        return AcceptToMemoryPool();
+    }
+    return false;
+}
+
+bool CWalletTx::AcceptWalletTransaction()
+{
+    CTxDB txdb("r");
+    return AcceptWalletTransaction(txdb);
 }

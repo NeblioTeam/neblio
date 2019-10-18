@@ -72,4 +72,19 @@ inline bool MoneyRange(int64_t nValue) { return (nValue >= 0 && nValue <= MAX_MO
 
 extern CBlockIndexSmartPtr pblockindexFBBHLast;
 
+namespace Checkpoints {
+/** Checkpointing mode */
+enum CPMode
+{
+    // Scrict checkpoints policy, perform conflicts verification and resolve conflicts
+    STRICT = 0,
+    // Advisory checkpoints policy, perform conflicts verification but don't try to resolve them
+    ADVISORY = 1,
+    // Permissive checkpoints policy, don't perform any checking
+    PERMISSIVE = 2
+};
+} // namespace Checkpoints
+
+extern Checkpoints::CPMode CheckpointsMode;
+
 #endif // GLOBALS_H

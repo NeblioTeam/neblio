@@ -136,6 +136,7 @@ CTransaction       FetchTxFromDisk(const uint256& txid);
 CTransaction       FetchTxFromDisk(const uint256& txid, CTxDB& txdb);
 
 void SetBestChain(const CBlockLocator& loc);
+void UpdatedTransaction(const uint256& hashTx);
 
 /** given a neblio tx, get the corresponding NTP1 tx */
 void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, CTxDB& txdb,
