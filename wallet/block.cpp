@@ -421,6 +421,13 @@ bool CBlock::VerifyInputsUnspent(CTxDB& txdb) const
             auto     it                = queuedTxs.find(vin[inIdx].prevout.hash);
             bool     inputFoundInQueue = (it != queuedTxs.cend());
             if (inputFoundInQueue) {
+                if (outputNumInTx >= it->second.vSpent.size()) {
+                    return error("Output number %u in tx %s which is an input to tx %s "
+                                 "has an invalid input index in block %s (1)",
+                                 outputNumInTx, outputTxHash.ToString().c_str(),
+                                 tx.GetHash().ToString().c_str(), this->GetHash().ToString().c_str());
+                }
+
                 if (it->second.vSpent[outputNumInTx].IsNull()) {
                     // tx is not spent yet, so we mark it as spent
                     it->second.vSpent[outputNumInTx] = CreateFakeSpentTxPos(this->GetHash());
@@ -431,6 +438,13 @@ bool CBlock::VerifyInputsUnspent(CTxDB& txdb) const
                                  tx.GetHash().ToString().c_str(), this->GetHash().ToString().c_str());
                 }
             } else if (txdb.ContainsTx(outputTxHash) && txdb.ReadTxIndex(outputTxHash, txindex)) {
+                if (outputNumInTx >= txindex.vSpent.size()) {
+                    return error("Output number %u in tx %s which is an input to tx %s "
+                                 "has an invalid input index in block %s (2)",
+                                 outputNumInTx, outputTxHash.ToString().c_str(),
+                                 tx.GetHash().ToString().c_str(), this->GetHash().ToString().c_str());
+                }
+
                 queuedTxs[outputTxHash] = txindex;
                 if (txindex.vSpent[outputNumInTx].IsNull()) {
                     queuedTxs.find(outputTxHash)->second.vSpent[outputNumInTx] =
