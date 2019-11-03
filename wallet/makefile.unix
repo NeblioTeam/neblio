@@ -209,7 +209,6 @@ OBJS= \
     obj/ntp1/ntp1script.o                     \
     obj/ntp1/ntp1script_issuance.o            \
     obj/ntp1/ntp1script_transfer.o            \
-    obj/ntp1/ntp1sendtokensdata.o             \
     obj/ntp1/ntp1sendtokensonerecipientdata.o \
     obj/ntp1/ntp1tokenmetadata.o              \
     obj/ntp1/ntp1tokenminimalmetadata.o       \

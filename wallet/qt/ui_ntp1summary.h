@@ -20,7 +20,6 @@
 #include <QMovie>
 
 #include "ntp1/issuenewntp1tokendialog.h"
-#include "ntp1senddialog.h"
 
 QT_BEGIN_NAMESPACE
 

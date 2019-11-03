@@ -1,11 +1,11 @@
 #include "googletest/googletest/include/gtest/gtest.h"
 
 #include "curltools.h"
+#include "ntp1/ntp1apicalls.h"
 #include "ntp1/ntp1script.h"
 #include "ntp1/ntp1script_burn.h"
 #include "ntp1/ntp1script_issuance.h"
 #include "ntp1/ntp1script_transfer.h"
-#include "ntp1/ntp1sendtokensdata.h"
 #include "ntp1/ntp1sendtokensonerecipientdata.h"
 #include "ntp1/ntp1tokenmetadata.h"
 #include "ntp1/ntp1tokentxdata.h"
@@ -364,51 +364,6 @@ TEST(ntp1_tests, wallet_tests)
     NTP1Wallet wallet2;
     EXPECT_NO_THROW(wallet2.importFromFile(tempWalletPath));
     EXPECT_NO_THROW(boost::filesystem::remove(Path(TEST_ROOT_PATH) / Path("/data/tmp.json")));
-}
-
-TEST(ntp1_tests, send_tests)
-{
-    // set values in object and create json output
-    NTP1SendTokensOneRecipientData r1, r2;
-    NTP1SendTokensData             s;
-    s.setFee(10);
-    r1.amount      = 1;
-    r1.destination = "dest1";
-    r1.tokenId     = "tokenid1";
-    r2.amount      = 2;
-    r2.destination = "dest2";
-    r2.tokenId     = "tokenid2";
-    s.addRecipient(r1);
-    s.addRecipient(r2);
-    s.addTokenSourceAddress("a");
-    s.addTokenSourceAddress("b");
-    s.addTokenSourceAddress("c");
-    std::string json_out = s.exportToAPIFormat();
-
-    // reparse the json output and test it
-    json_spirit::Value testVal;
-    json_spirit::read_or_throw(json_out, testVal);
-    // test flags
-    json_spirit::Object flags = NTP1Tools::GetObjectField(testVal.get_obj(), "flags");
-    EXPECT_EQ(flags.size(), 1u);
-    EXPECT_EQ(NTP1Tools::GetBoolField(flags, "splitChange"), true);
-    // test fee
-    uint64_t fee = NTP1Tools::GetUint64Field(testVal.get_obj(), "fee");
-    // test "from" field
-    EXPECT_EQ(fee, 10u);
-    json_spirit::Array from = NTP1Tools::GetArrayField(testVal.get_obj(), "from");
-    EXPECT_EQ(from.size(), 3u);
-    EXPECT_EQ(from[0].get_str(), "a");
-    EXPECT_EQ(from[1].get_str(), "b");
-    EXPECT_EQ(from[2].get_str(), "c");
-    // test "to" field
-    json_spirit::Array to = NTP1Tools::GetArrayField(testVal.get_obj(), "to");
-    EXPECT_EQ(NTP1Tools::GetStrField(to[0].get_obj(), "address"), "dest1");
-    EXPECT_EQ(NTP1Tools::GetStrField(to[0].get_obj(), "tokenId"), "tokenid1");
-    EXPECT_EQ(NTP1Tools::GetNTP1IntField(to[0].get_obj(), "amount"), 1u);
-    EXPECT_EQ(NTP1Tools::GetStrField(to[1].get_obj(), "address"), "dest2");
-    EXPECT_EQ(NTP1Tools::GetStrField(to[1].get_obj(), "tokenId"), "tokenid2");
-    EXPECT_EQ(NTP1Tools::GetNTP1IntField(to[1].get_obj(), "amount"), 2u);
 }
 
 TEST(ntp1_tests, amount_to_int_random)

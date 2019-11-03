@@ -2229,7 +2229,7 @@ string CWallet::SendMoney(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNe
     std::vector<NTP1SendTokensOneRecipientData> ntp1recipients(1, ntp1recipient);
 
     boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();
-    ntp1wallet->setRetrieveMetadataFromAPI(false);
+    ntp1wallet->setRetrieveFullMetadata(false);
     ntp1wallet->update();
 
     NTP1SendTxData tokenSelector;

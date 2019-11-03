@@ -331,7 +331,7 @@ Value sendntp1toaddress(const Array& params, bool fHelp)
 
     // Get NTP1 wallet
     boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();
-    ntp1wallet->setRetrieveMetadataFromAPI(false);
+    ntp1wallet->setRetrieveFullMetadata(false);
     ntp1wallet->update();
 
     // figure out token id from either the id or the name
@@ -386,7 +386,7 @@ std::unordered_map<std::string, std::unordered_map<std::string, std::pair<std::s
 GetNTP1AddressVsTokenBalances()
 {
     boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();
-    ntp1wallet->setRetrieveMetadataFromAPI(false);
+    ntp1wallet->setRetrieveFullMetadata(false);
     ntp1wallet->update();
 
     // map<address, map<tokenId, pair<name,balance>>>
@@ -724,7 +724,7 @@ Value getntp1balances(const Array& params, bool fHelp)
     if (params.size() > 0)
         nMinDepth = params[0].get_int();
 
-    ntp1wallet->setRetrieveMetadataFromAPI(false);
+    ntp1wallet->setRetrieveFullMetadata(false);
     ntp1wallet->setMinMaxConfirmations(nMinDepth);
     ntp1wallet->update();
 
@@ -766,7 +766,7 @@ Value getntp1balance(const Array& params, bool fHelp)
     std::transform(requestedToken.cbegin(), requestedToken.cend(),
                    std::back_inserter(requestedTokenLowerCase), ::tolower);
 
-    ntp1wallet->setRetrieveMetadataFromAPI(false);
+    ntp1wallet->setRetrieveFullMetadata(false);
     ntp1wallet->setMinMaxConfirmations(nMinDepth);
     ntp1wallet->update();
 
@@ -897,7 +897,7 @@ Value sendmany(const Array& params, bool fHelp)
 
     // Get NTP1 wallet
     boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();
-    ntp1wallet->setRetrieveMetadataFromAPI(false);
+    ntp1wallet->setRetrieveFullMetadata(false);
     ntp1wallet->update();
 
     CWalletTx wtx;

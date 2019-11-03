@@ -385,7 +385,7 @@ Value createrawntp1transaction(const Array& params, bool fHelp)
     CTransaction rawTx;
 
     boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();
-    ntp1wallet->setRetrieveMetadataFromAPI(false);
+    ntp1wallet->setRetrieveFullMetadata(false);
     ntp1wallet->update();
 
     // create the list of recipients that's compatible with NTP1 token selector
