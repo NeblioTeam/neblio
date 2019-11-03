@@ -170,9 +170,7 @@ void NTP1Wallet::__getOutputs()
                         // additional metadata is retrieved from the API; like the icon
                         try {
                             tokenInformation[tokenTx.getTokenId()] =
-                                NTP1APICalls::RetrieveData_NTP1TokensMetaData(
-                                    tokenTx.getTokenId(), issueTxid.ToString(), relevantIssueOutputIndex,
-                                    fTestNet);
+                                NTP1Transaction::GetFullNTP1IssuanceMetadata(issueTxid);
                         } catch (std::exception& ex) {
                             printf("Failed to retrieve NTP1 token metadata from API. Error: %s\n",
                                    ex.what());

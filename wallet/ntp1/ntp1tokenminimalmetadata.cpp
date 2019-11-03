@@ -1,5 +1,7 @@
 #include "ntp1tokenminimalmetadata.h"
 
+void NTP1TokenMinimalMetaData::setIssuanceTxId(const uint256& value) { issuanceTxId = value; }
+
 NTP1TokenMinimalMetaData::NTP1TokenMinimalMetaData() { setNull(); }
 
 void NTP1TokenMinimalMetaData::setNull()

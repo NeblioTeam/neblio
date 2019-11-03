@@ -2,19 +2,15 @@
 
 #include "ntp1tools.h"
 
+#include "ntp1script_issuance.h"
+
 NTP1TokenMetaData::NTP1TokenMetaData() { setNull(); }
 
 void NTP1TokenMetaData::setTokenName(const std::string& value) { tokenName = value; }
 
 void NTP1TokenMetaData::setNull()
 {
-    numOfHolders   = 0;
-    totalSupply    = 0;
-    numOfTransfers = 0;
-    numOfIssuance  = 0;
-    numOfBurns     = 0;
-    firstBlock     = 0;
-    issueAddress   = CBitcoinAddress();
+    totalSupply = 0;
     tokenName.clear();
     tokenDescription.clear();
     tokenIssuer.clear();
@@ -44,17 +40,7 @@ void NTP1TokenMetaData::importRestfulAPIJsonData(const json_spirit::Value& data)
         divisibility      = NTP1Tools::GetUint64Field(data.get_obj(), "divisibility");
         lockStatus        = NTP1Tools::GetBoolField(data.get_obj(), "lockStatus");
         aggregationPolicy = NTP1Tools::GetStrField(data.get_obj(), "aggregationPolicy");
-        numOfHolders      = NTP1Tools::GetUint64Field(data.get_obj(), "numOfHolders");
         totalSupply       = NTP1Tools::GetUint64Field(data.get_obj(), "totalSupply");
-        numOfTransfers    = NTP1Tools::GetUint64Field(data.get_obj(), "numOfTransfers");
-        numOfIssuance     = NTP1Tools::GetUint64Field(data.get_obj(), "numOfIssuance");
-        numOfBurns        = NTP1Tools::GetUint64Field(data.get_obj(), "numOfBurns");
-        firstBlock        = NTP1Tools::GetUint64Field(data.get_obj(), "firstBlock");
-        issueAddress      = CBitcoinAddress(NTP1Tools::GetStrField(data.get_obj(), "issueAddress"));
-        if (!issueAddress.IsValid()) {
-            throw std::runtime_error("Address of token " + getTokenId() +
-                                     " was issued to an invalid address.");
-        }
         // fields inside metadata
         json_spirit::Object metadata = NTP1Tools::GetObjectField(data.get_obj(), "metadataOfIssuence");
         // data inside metadata
@@ -93,13 +79,7 @@ json_spirit::Value NTP1TokenMetaData::exportDatabaseJsonData(bool for_rpc) const
         root.push_back(json_spirit::Pair("divisibility", divisibility));
         root.push_back(json_spirit::Pair("lockStatus", static_cast<bool>(lockStatus)));
         root.push_back(json_spirit::Pair("aggregationPolicy", aggregationPolicy));
-        root.push_back(json_spirit::Pair("numOfHolders", numOfHolders));
-        root.push_back(json_spirit::Pair("totalSupply", totalSupply));
-        root.push_back(json_spirit::Pair("numOfTransfers", numOfTransfers));
-        root.push_back(json_spirit::Pair("numOfIssuance", numOfIssuance));
-        root.push_back(json_spirit::Pair("numOfBurns", numOfBurns));
-        root.push_back(json_spirit::Pair("firstBlock", firstBlock));
-        root.push_back(json_spirit::Pair("issueAddress", issueAddress.ToString()));
+        root.push_back(json_spirit::Pair("totalSupply", totalSupply.str()));
         root.push_back(json_spirit::Pair("tokenName", tokenName));
         root.push_back(json_spirit::Pair("tokenDescription", tokenDescription));
         root.push_back(json_spirit::Pair("tokenIssuer", tokenIssuer));
@@ -130,13 +110,7 @@ void NTP1TokenMetaData::importDatabaseJsonData(const json_spirit::Value& data)
     divisibility      = NTP1Tools::GetUint64Field(data.get_obj(), "divisibility");
     lockStatus        = (int)NTP1Tools::GetBoolField(data.get_obj(), "lockStatus");
     aggregationPolicy = NTP1Tools::GetStrField(data.get_obj(), "aggregationPolicy");
-    numOfHolders      = NTP1Tools::GetUint64Field(data.get_obj(), "numOfHolders");
-    totalSupply       = NTP1Tools::GetUint64Field(data.get_obj(), "totalSupply");
-    numOfTransfers    = NTP1Tools::GetUint64Field(data.get_obj(), "numOfTransfers");
-    numOfIssuance     = NTP1Tools::GetUint64Field(data.get_obj(), "numOfIssuance");
-    numOfBurns        = NTP1Tools::GetUint64Field(data.get_obj(), "numOfBurns");
-    firstBlock        = NTP1Tools::GetUint64Field(data.get_obj(), "firstBlock");
-    issueAddress      = CBitcoinAddress(NTP1Tools::GetStrField(data.get_obj(), "issueAddress"));
+    totalSupply       = FromString<NTP1Int>(NTP1Tools::GetStrField(data.get_obj(), "totalSupply"));
     tokenName         = NTP1Tools::GetStrField(data.get_obj(), "tokenName");
     tokenDescription  = NTP1Tools::GetStrField(data.get_obj(), "tokenDescription");
     tokenIssuer       = NTP1Tools::GetStrField(data.get_obj(), "tokenIssuer");
@@ -144,19 +118,39 @@ void NTP1TokenMetaData::importDatabaseJsonData(const json_spirit::Value& data)
     iconImageType     = NTP1Tools::GetStrField(data.get_obj(), "iconImageType");
 }
 
-uint64_t NTP1TokenMetaData::getNumOfHolders() const { return numOfHolders; }
+void NTP1TokenMetaData::readSomeDataFromStandardJsonFormat(const json_spirit::Value& data)
+{
+    json_spirit::Object dataObj = NTP1Tools::GetObjectField(data.get_obj(), "data");
 
-uint64_t NTP1TokenMetaData::getTotalSupply() const { return totalSupply; }
+    this->tokenName        = NTP1Tools::GetStrField(dataObj, "tokenName");
+    this->tokenDescription = NTP1Tools::GetStrField(dataObj, "description");
+    this->tokenIssuer      = NTP1Tools::GetStrField(dataObj, "issuer");
+    try {
+        json_spirit::Array urlsArray = NTP1Tools::GetArrayField(dataObj, "urls");
+        this->urls                   = json_spirit::Value(NTP1Tools::GetArrayField(dataObj, "urls"));
+        for (long i = 0; i < static_cast<long>(urlsArray.size()); i++) {
+            std::string urlName = NTP1Tools::GetStrField(urlsArray[i].get_obj(), "name");
+            if (urlName == "icon") {
+                this->iconImageType = NTP1Tools::GetStrField(urlsArray[i].get_obj(), "mimeType");
+                this->iconURL       = NTP1Tools::GetStrField(urlsArray[i].get_obj(), "url");
+                break;
+            }
+        }
+        this->userData = NTP1Tools::GetObjectField(dataObj, "userData");
+    } catch (...) {
+    }
+}
 
-uint64_t NTP1TokenMetaData::getNumOfTransfers() const { return numOfTransfers; }
+void NTP1TokenMetaData::readSomeDataFromNTP1IssuanceScript(NTP1Script_Issuance* sd)
+{
+    this->totalSupply       = sd->getAmount();
+    this->tokenName         = sd->getTokenSymbol();
+    this->divisibility      = sd->getDivisibility();
+    this->aggregationPolicy = sd->getAggregationPolicyStr();
+    this->lockStatus        = sd->isLocked();
+}
 
-uint64_t NTP1TokenMetaData::getNumOfIssuance() const { return numOfIssuance; }
-
-uint64_t NTP1TokenMetaData::getNumOfBurns() const { return numOfBurns; }
-
-uint64_t NTP1TokenMetaData::getFirstBlock() const { return firstBlock; }
-
-const CBitcoinAddress& NTP1TokenMetaData::getIssueAddress() const { return issueAddress; }
+NTP1Int NTP1TokenMetaData::getTotalSupply() const { return totalSupply; }
 
 const std::string& NTP1TokenMetaData::getTokenName() const { return tokenName; }
 

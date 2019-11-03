@@ -16,17 +16,17 @@
 
 // token id vs max block to take transactions from these tokens
 const ThreadSafeHashMap<std::string, int>
-ntp1_blacklisted_token_ids(std::unordered_map<std::string, int>{
-    {"La77KcJTUj991FnvxNKhrCD1ER8S81T3LgECS6", 300000}, // old QRT mainnet
-    {"La4kVcoUAddLWkmQU9tBxrNdFjmSaHQruNJW2K", 300000}, // old TNIBB testnet
-    {"La36YNY2G6qgBPj7VSiQDjGCy8aC2GUUsGqtbQ", 300000}, // old TNIBB testnet
-    {"La9wLfpkfZTQvRqyiWjaEpgQStUbCSVMWZW2by", 300000}, // TEST3 on testnet
-    {"La347xkKhi5VUCNDCqxXU4F1RUu8wPvC3pnQk6", 300000}, // BOT on testnet
-    {"La531vUwiu9NnvtJcwPEjV84HrdKCupFCCb6D7", 300000}, // BAUTO on testnet
-    {"La5JGnJcSsLCvYWxqqVSyj3VUqsrAcLBjZjbw5", 300000}, // XYZ from Sam on testnet
-    {"La86PtvXGftbwdoZ9rVMKsLQU5nPHganJDsCRq", 300000}  // ON
-    //    ,{"LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp", 300000}  // NIBBL
-});
+    ntp1_blacklisted_token_ids(std::unordered_map<std::string, int>{
+        {"La77KcJTUj991FnvxNKhrCD1ER8S81T3LgECS6", 300000}, // old QRT mainnet
+        {"La4kVcoUAddLWkmQU9tBxrNdFjmSaHQruNJW2K", 300000}, // old TNIBB testnet
+        {"La36YNY2G6qgBPj7VSiQDjGCy8aC2GUUsGqtbQ", 300000}, // old TNIBB testnet
+        {"La9wLfpkfZTQvRqyiWjaEpgQStUbCSVMWZW2by", 300000}, // TEST3 on testnet
+        {"La347xkKhi5VUCNDCqxXU4F1RUu8wPvC3pnQk6", 300000}, // BOT on testnet
+        {"La531vUwiu9NnvtJcwPEjV84HrdKCupFCCb6D7", 300000}, // BAUTO on testnet
+        {"La5JGnJcSsLCvYWxqqVSyj3VUqsrAcLBjZjbw5", 300000}, // XYZ from Sam on testnet
+        {"La86PtvXGftbwdoZ9rVMKsLQU5nPHganJDsCRq", 300000}  // ON
+        //    ,{"LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp", 300000}  // NIBBL
+    });
 
 // list of transactions to be excluded because they're invalid
 // this should be a thread-safe hashset, but we don't have one. So we're using the map.
@@ -824,4 +824,67 @@ json_spirit::Value NTP1Transaction::GetNTP1IssuanceMetadata(const uint256& issua
     } else {
         return json_spirit::Value();
     }
+}
+
+NTP1TokenMetaData NTP1Transaction::GetFullNTP1IssuanceMetadata(const CTransaction&    issuanceTx,
+                                                               const NTP1Transaction& ntp1IssuanceTx)
+{
+    if (issuanceTx.GetHash() != ntp1IssuanceTx.getTxHash()) {
+        throw std::runtime_error("For GetFullNTP1IssuanceMetadata(), the NTP1 transaction doesn't match "
+                                 "the standard transaction");
+    }
+    uint256     issuanceTxid = issuanceTx.GetHash();
+    std::string opRet;
+    bool        isNTP1 = IsTxNTP1(&issuanceTx, &opRet);
+    if (!isNTP1) {
+        throw std::runtime_error("A non-NTP1 transaction was proided (txid: " + issuanceTxid.ToString() +
+                                 ") to get NTP1 issuance metadata");
+    }
+
+    std::shared_ptr<NTP1Script>          s  = NTP1Script::ParseScript(opRet);
+    std::shared_ptr<NTP1Script_Issuance> sd = std::dynamic_pointer_cast<NTP1Script_Issuance>(s);
+    if (!sd || s->getTxType() != NTP1Script::TxType_Issuance) {
+        throw std::runtime_error("A non-issuance NTP1 transaction was provided (txid: " +
+                                 issuanceTxid.ToString() + ") to retrieve issuance metadata");
+    }
+    const auto& prevout0 = issuanceTx.vin[0].prevout;
+    std::string tokenId  = ntp1IssuanceTx.getTokenIdIfIssuance(prevout0.hash.ToString(), prevout0.n);
+    if (s->getProtocolVersion() == 1) {
+        if (issuanceTx.vin.empty()) {
+            throw std::runtime_error(
+                "An invalid NTP1 transaction was provided (txid: " + issuanceTxid.ToString() +
+                ") to retrieve issuance metadata. The transaction has zero inputs.");
+        }
+        try {
+            NTP1TokenMetaData result;
+            result.readSomeDataFromStandardJsonFormat(GetNTP1v1IssuanceMetadataNode(tokenId));
+            result.readSomeDataFromNTP1IssuanceScript(sd.get());
+            result.setTokenId(tokenId);
+            result.setIssuanceTxId(issuanceTxid);
+            return result;
+        } catch (std::exception& ex) {
+            throw std::runtime_error("Failed to get NTP1 transaction metadata for txid: " +
+                                     issuanceTxid.ToString() + " . Error: " + std::string(ex.what()));
+        }
+    } else if (s->getProtocolVersion() == 3) {
+        NTP1TokenMetaData result;
+        result.readSomeDataFromStandardJsonFormat(NTP1Script::GetMetadataAsJson(sd.get()));
+        result.readSomeDataFromNTP1IssuanceScript(sd.get());
+        result.setTokenId(tokenId);
+        result.setIssuanceTxId(issuanceTxid);
+        return result;
+    } else {
+        throw std::runtime_error("Failed to get NTP1 transaction metadata for txid: " +
+                                 issuanceTxid.ToString() + " . Unknown NTP1 protocol version");
+    }
+}
+
+NTP1TokenMetaData NTP1Transaction::GetFullNTP1IssuanceMetadata(const uint256& issuanceTxid)
+{
+    CTransaction    tx = FetchTxFromDisk(issuanceTxid);
+    NTP1Transaction ntp1tx;
+    ntp1tx.readNTP1DataFromTx_minimal(tx);
+    CDataStream ds1(SER_NETWORK, PROTOCOL_VERSION);
+    CDataStream ds2(SER_NETWORK, PROTOCOL_VERSION);
+    return GetFullNTP1IssuanceMetadata(tx, ntp1tx);
 }
