@@ -186,9 +186,9 @@ addmultisigaddress <nrequired> <'["key","key"]'> [account]
 addredeemscript <redeemScript> [account]
 backupwallet <destination>
 checkwallet
-createrawntp1transaction [{"txid":txid,"vout":n},...] {address:{tokenid/tokenName:tokenAmount},address:neblAmount,...}
+createrawntp1transaction [{"txid":txid,"vout":n},...] {address:{tokenid/tokenName:tokenAmount},address:neblAmount,...} '{"userData":{"meta":[{"K1":"V1"},{},...]}}'
 createrawtransaction [{"txid":txid,"vout":n},...] {address:amount,...}
-decoderawtransaction <hex string>
+decoderawtransaction <hex string> [ignoreNTP1=false]
 decodescript <hex string>
 dumpprivkey <neblioaddress>
 dumpwallet <filename>
@@ -199,8 +199,8 @@ getaccountaddress <account>
 getaddressesbyaccount <account>
 getbalance [account] [minconf=1]
 getbestblockhash
-getblock <hash> [verbose=true] [showtxns=false]
-getblockbynumber <number> [txinfo]
+getblock <hash> [verbose=true] [showtxns=false] [ignoreNTP1=false]
+getblockbynumber <number> [txinfo] [ignoreNTP1=false]
 getblockcount
 getblockhash <index>
 getblocktemplate [params]
@@ -214,12 +214,12 @@ getnewpubkey [account]
 getntp1balances [minconf=1]
 getpeerinfo
 getrawmempool
-getrawtransaction <txid> [verbose=0]
+getrawtransaction <txid> [verbose=0] [ignoreNTP1=false]
 getreceivedbyaccount <account> [minconf=1]
 getreceivedbyaddress <neblioaddress> [minconf=1]
 getstakinginfo
 getsubsidy [nTarget]
-gettransaction <txid>
+gettransaction <txid> [ignoreNTP1=false]
 getwork [data]
 getworkex [data, coinbase]
 help [command]
@@ -241,7 +241,7 @@ reservebalance [<reserve> [amount]]
 sendalert <message> <privatekey> <minver> <maxver> <priority> <id> [cancelupto]
 sendfrom <fromaccount> <toneblioaddress> <amount> [minconf=1] [comment] [comment-to]
 sendmany <fromaccount (must be empty, unsupported)> {address:amount,...} [comment]
-sendntp1toaddress <neblioaddress> <amount> <tokenId/tokenName> [comment] [comment-to]
+sendntp1toaddress <neblioaddress> <amount> <tokenId/tokenName> '{"userData":{"meta":[{"K1":"V1"},{},...]}}'[comment] [comment-to]
 sendrawtransaction <hex string>
 sendtoaddress <neblioaddress> <amount> [comment] [comment-to]
 setaccount <neblioaddress> <account>
