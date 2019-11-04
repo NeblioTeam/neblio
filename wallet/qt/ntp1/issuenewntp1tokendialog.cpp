@@ -295,7 +295,7 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
 
         // Get NTP1 wallet
         boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();
-        ntp1wallet->setRetrieveMetadataFromAPI(false);
+        ntp1wallet->setRetrieveFullMetadata(false);
         ntp1wallet->update();
 
         // Check funds

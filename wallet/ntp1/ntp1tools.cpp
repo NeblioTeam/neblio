@@ -51,6 +51,13 @@ NTP1Int NTP1Tools::GetNTP1IntField(const json_spirit::Object& data, const std::s
     return FromString<NTP1Int>(val.get_str());
 }
 
+bool NTP1Tools::GetFieldExists(const json_spirit::Object& data, const std::string& fieldName)
+{
+    json_spirit::Value val;
+    val = json_spirit::find_value(data, fieldName);
+    return !(val == json_spirit::Value::null);
+}
+
 int64_t NTP1Tools::GetInt64Field(const json_spirit::Object& data, const std::string& fieldName)
 {
     json_spirit::Value val;

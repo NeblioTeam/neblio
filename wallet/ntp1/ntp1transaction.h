@@ -7,6 +7,7 @@
 #include "ntp1/ntp1script_burn.h"
 #include "ntp1/ntp1script_issuance.h"
 #include "ntp1/ntp1script_transfer.h"
+#include "ntp1tokenmetadata.h"
 #include "ntp1txin.h"
 #include "ntp1txout.h"
 #include "uint256.h"
@@ -105,6 +106,9 @@ public:
     CalculateTotalOutputTokens(const NTP1Transaction& ntp1tx);
 
     static json_spirit::Value GetNTP1IssuanceMetadata(const uint256& issuanceTxid);
+    static NTP1TokenMetaData  GetFullNTP1IssuanceMetadata(const CTransaction&    issuanceTx,
+                                                          const NTP1Transaction& ntp1IssuanceTx);
+    static NTP1TokenMetaData  GetFullNTP1IssuanceMetadata(const uint256& issuanceTxid);
 
     static void
     ReorderTokenInputsToGoFirst(CTransaction&                                                tx,

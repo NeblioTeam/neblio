@@ -29,9 +29,9 @@ void NTP1Wallet::update()
     }
 }
 
-bool NTP1Wallet::getRetrieveMetadataFromAPI() const { return retrieveMetadataFromAPI; }
+bool NTP1Wallet::getRetrieveFullMetadata() const { return retrieveFullMetadata; }
 
-void NTP1Wallet::setRetrieveMetadataFromAPI(bool value) { retrieveMetadataFromAPI = value; }
+void NTP1Wallet::setRetrieveFullMetadata(bool value) { retrieveFullMetadata = value; }
 
 std::map<std::string, NTP1Int> NTP1Wallet::getBalances() const { return balances; }
 
@@ -166,21 +166,16 @@ void NTP1Wallet::__getOutputs()
                                                  tokenTx.getTokenId());
                     }
 
-                    if (retrieveMetadataFromAPI) {
-                        // additional metadata is retrieved from the API; like the icon
+                    if (retrieveFullMetadata) {
                         try {
                             tokenInformation[tokenTx.getTokenId()] =
-                                NTP1APICalls::RetrieveData_NTP1TokensMetaData(
-                                    tokenTx.getTokenId(), issueTxid.ToString(), relevantIssueOutputIndex,
-                                    fTestNet);
+                                NTP1Transaction::GetFullNTP1IssuanceMetadata(issueTxid);
                         } catch (std::exception& ex) {
-                            printf("Failed to retrieve NTP1 token metadata from API. Error: %s\n",
-                                   ex.what());
+                            printf("Failed to retrieve NTP1 token metadata. Error: %s\n", ex.what());
                             tokenInformation[tokenTx.getTokenId()] =
                                 GetMinimalMetadataInfoFromTxData(tokenTx);
                         } catch (...) {
-                            printf(
-                                "Failed to retrieve NTP1 token metadata from API. Unknown exception.\n");
+                            printf("Failed to retrieve NTP1 token metadata. Unknown exception.\n");
                             tokenInformation[tokenTx.getTokenId()] =
                                 GetMinimalMetadataInfoFromTxData(tokenTx);
                         }

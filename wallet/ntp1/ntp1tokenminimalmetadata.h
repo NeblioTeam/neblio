@@ -25,6 +25,7 @@ public:
     bool               getLockStatus() const;
     const std::string& getAggregationPolicy() const;
     uint256            getIssuanceTxId() const;
+    void               setIssuanceTxId(const uint256& value);
 
     friend inline bool operator==(const NTP1TokenMinimalMetaData& lhs,
                                   const NTP1TokenMinimalMetaData& rhs);

@@ -15,7 +15,6 @@
 #include <QTimer>
 
 #include "init.h"
-#include "ntp1/ntp1apicalls.h"
 #include "ntp1/ntp1sendtxdata.h"
 #include "ntp1/ntp1tools.h"
 

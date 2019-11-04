@@ -3,7 +3,6 @@
 
 #include "ThreadSafeHashMap.h"
 #include "curltools.h"
-#include "ntp1/ntp1apicalls.h"
 #include "ntp1/ntp1outpoint.h"
 #include "ntp1/ntp1tokenmetadata.h"
 #include "ntp1/ntp1transaction.h"
@@ -16,7 +15,7 @@ class CWalletTx;
 
 class NTP1Wallet : public boost::enable_shared_from_this<NTP1Wallet>
 {
-    bool retrieveMetadataFromAPI = true;
+    bool retrieveFullMetadata = true;
 
     int minConfirmations = -1; // default value -1 will not make any constraints
     int maxConfirmations = -1; // default value -1 will not make any constraints
@@ -98,8 +97,8 @@ public:
 
     //    static void CreateNTP1SendTransaction(uint64_t fee);
 
-    bool getRetrieveMetadataFromAPI() const;
-    void setRetrieveMetadataFromAPI(bool value);
+    bool getRetrieveFullMetadata() const;
+    void setRetrieveFullMetadata(bool value);
 
     std::map<string, NTP1Int> getBalances() const;
 
