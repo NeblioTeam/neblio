@@ -1,6 +1,6 @@
 name: Release Post Process
 on:
-  release:
+  issues:
     types: [edited]
 
 jobs:
