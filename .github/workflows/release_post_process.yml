@@ -1,7 +1,7 @@
 name: Release Post Process
 on:
-  issue_comment:
-    types: [edited]
+  release:
+    types: [created]
 
 jobs:
   build:
@@ -10,9 +10,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
-    - name: Run a one-line script
-      run: echo Hello, world!
-    - name: Run a multi-line script
+    - name: Post Process New Release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        echo Add other actions to build,
-        echo test, and deploy your project.
+        sudo apt-get install python3-setuptools
+        pip3 install github3.py
+        python3 ./ci_scripts/release_post_processing.py
