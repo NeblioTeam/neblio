@@ -57,7 +57,7 @@ def check_assets():
         if ("neblio-Qt---RPi-raspbian" in x.name and len(rpi_q_str) == 0):
             x.sha256 = download_and_checksum(x.browser_download_url)
             if len(x.sha256) == 64:
-                rpi_q_str = '| ' + rpi_icon + ' | [Download ' + rel.tag_name + '<br/>For Raspberry Pi](' + x.browser_download_url + ') | `' + x.sha256 + '` |'
+                rpi_q_str = '| ' + rpi_icon + ' | [Download ' + rel.tag_name + '<br/>For Raspberry-Pi](' + x.browser_download_url + ') | `' + x.sha256 + '` |'
                 # print(rpi_q_str)
 
         global lin_d_str
@@ -71,7 +71,7 @@ def check_assets():
         if ("nebliod---RPi-raspbian" in x.name and len(rpi_d_str) == 0):
             x.sha256 = download_and_checksum(x.browser_download_url)
             if len(x.sha256) == 64:
-                rpi_d_str = '| ' + rpi_icon + ' | [Download ' + rel.tag_name + '<br/>For Raspberry Pi](' + x.browser_download_url + ') | `' + x.sha256 + '` |'
+                rpi_d_str = '| ' + rpi_icon + ' | [Download ' + rel.tag_name + '<br/>For Raspberry-Pi](' + x.browser_download_url + ') | `' + x.sha256 + '` |'
                 # print(rpi_d_str)
 
     # build our release body table
