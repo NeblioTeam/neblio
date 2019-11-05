@@ -21,7 +21,7 @@ def check_assets():
     print("Checking Release for Assets")
     body = []
 
-    rel = repo.latest_release()
+    rel = repo.release_from_tag(os.environ['GITHUB_REF'].rsplit('/', 1)[1])
 
     assets = []
     for a in rel.assets():
