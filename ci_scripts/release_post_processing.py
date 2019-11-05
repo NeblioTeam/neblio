@@ -8,8 +8,6 @@ gh = github3.login(token=os.environ['GITHUB_TOKEN'])
 
 repo = gh.repository('NeblioTeam', 'neblio')
 
-print(os.environ['GITHUB_REF'])
-
 win_q_str = ''
 mac_q_str = ''
 lin_q_str = ''
@@ -23,7 +21,7 @@ def check_assets():
     print("Checking Release for Assets")
     body = []
 
-    rel = repo.latest_release()
+    rel = repo.release_from_tag(os.environ['GITHUB_REF'].rsplit('/', 1)[1])
 
     assets = []
     for a in rel.assets():
