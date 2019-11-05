@@ -81,19 +81,19 @@ def check_assets():
     if len(win_q_str) > 0:
         body.append(win_q_str)
     else:
-    	body.append('| ' + win_icon + ' | Build In Progress | - |'
+    	body.append('| ' + win_icon + ' | Build In Progress.<br/>Refresh This Page In A Moment. | - |')
     if len(mac_q_str) > 0:
         body.append(mac_q_str)
     else:
-    	body.append('| ' + mac_icon + ' | Build In Progress | - |'
+    	body.append('| ' + mac_icon + ' | Build In Progress.<br/>Refresh This Page In A Moment. | - |')
     if len(lin_q_str) > 0:
         body.append(lin_q_str)
     else:
-    	body.append('| ' + lin_icon + ' | Build In Progress | - |'
+    	body.append('| ' + lin_icon + ' | Build In Progress.<br/>Refresh This Page In A Moment. | - |')
     if len(rpi_q_str) > 0:
         body.append(rpi_q_str)
     else:
-    	body.append('| ' + rpi_icon + ' | Build In Progress | - |'
+    	body.append('| ' + rpi_icon + ' | Build In Progress.<br/>Refresh This Page In A Moment. | - |')
     body.append('')
     body.append('')
     body.append('## nebliod (Server Node. Command Line Only)')
@@ -102,11 +102,11 @@ def check_assets():
     if len(lin_d_str) > 0:
         body.append(lin_d_str)
     else:
-    	body.append('| ' + lin_icon + ' | Build In Progress | - |'
+    	body.append('| ' + lin_icon + ' | Build In Progress.<br/>Refresh This Page In A Moment. | - |')
     if len(rpi_d_str) > 0:
         body.append(rpi_d_str)
     else:
-    	body.append('| ' + rpi_icon + ' | Build In Progress | - |'
+    	body.append('| ' + rpi_icon + ' | Build In Progress.<br/>Refresh This Page In A Moment. | - |')
 
     body_str = "\r\n".join(body)
     # print(body_str)
