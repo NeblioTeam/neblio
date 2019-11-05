@@ -20,6 +20,10 @@ rpi_d_str = ''
 def check_assets():
     print("Checking Release for Assets")
     body = []
+    win_icon = '<img src="https://raw.githubusercontent.com/NeblioTeam/neblio/master/doc/img/windows-10-100.png" alt="Windows Icon by icons8 from https://icons8.com/" height="48px"/>'
+    mac_icon = '<img src="https://raw.githubusercontent.com/NeblioTeam/neblio/master/doc/img/apple-100.png" alt="Apple Icon by icons8 from https://icons8.com/" height="48px"/>'
+    lin_icon = '<img src="https://raw.githubusercontent.com/NeblioTeam/neblio/master/doc/img/linux-100.png" alt="Linux Icon by icons8 from https://icons8.com/" height="48px"/>'
+    rpi_icon = '<img src="https://raw.githubusercontent.com/NeblioTeam/neblio/master/doc/img/raspberry-pi-100.png" alt="Raspberry Pi Icon by icons8 from https://icons8.com/" height="48px"/>'
 
     rel = repo.release_from_tag(os.environ['GITHUB_REF'].rsplit('/', 1)[1])
 
@@ -32,42 +36,42 @@ def check_assets():
         if ("neblio-Qt---windows_x86" in x.name and len(win_q_str) == 0):
             x.sha256 = download_and_checksum(x.browser_download_url)
             if len(x.sha256) == 64:
-                win_q_str = '| <img src="https://raw.githubusercontent.com/NeblioTeam/neblio/master/doc/img/windows-10-100.png" alt="Windows Icon by icons8 from https://icons8.com/" height="48px"/> | [Download ' + rel.tag_name + '<br/>For Windows](' + x.browser_download_url + ') | `' + x.sha256 + '` |'
+                win_q_str = '| ' + win_icon + ' | [Download ' + rel.tag_name + '<br/>For Windows](' + x.browser_download_url + ') | `' + x.sha256 + '` |'
                 # print(win_q_str)
 
         global mac_q_str
         if ("neblio-Qt---macOS" in x.name and len(mac_q_str) == 0):
             x.sha256 = download_and_checksum(x.browser_download_url)
             if len(x.sha256) == 64:
-                mac_q_str = '| <img src="https://raw.githubusercontent.com/NeblioTeam/neblio/master/doc/img/apple-100.png" alt="Apple Icon by icons8 from https://icons8.com/" height="48px"/> | [Download ' + rel.tag_name + '<br/>For macOS](' + x.browser_download_url + ') | `' + x.sha256 + '` |'
+                mac_q_str = '| ' + mac_icon + ' | [Download ' + rel.tag_name + '<br/>For macOS](' + x.browser_download_url + ') | `' + x.sha256 + '` |'
                 # print(mac_q_str)
 
         global lin_q_str
         if ("neblio-Qt---ubuntu16.04" in x.name and len(lin_q_str) == 0):
             x.sha256 = download_and_checksum(x.browser_download_url)
             if len(x.sha256) == 64:
-                lin_q_str = '| <img src="https://raw.githubusercontent.com/NeblioTeam/neblio/master/doc/img/linux-100.png" alt="Linux Icon by icons8 from https://icons8.com/" height="48px"/> | [Download ' + rel.tag_name + '<br/>For Linux](' + x.browser_download_url + ') | `' + x.sha256 + '` |'
+                lin_q_str = '| ' + lin_icon + ' | [Download ' + rel.tag_name + '<br/>For Linux](' + x.browser_download_url + ') | `' + x.sha256 + '` |'
                 # print(lin_q_str)
 
         global rpi_q_str
         if ("neblio-Qt---RPi-raspbian" in x.name and len(rpi_q_str) == 0):
             x.sha256 = download_and_checksum(x.browser_download_url)
             if len(x.sha256) == 64:
-                rpi_q_str = '| <img src="https://raw.githubusercontent.com/NeblioTeam/neblio/master/doc/img/raspberry-pi-100.png" alt="Raspberry Pi Icon by icons8 from https://icons8.com/" height="48px"/> | [Download ' + rel.tag_name + '<br/>For Raspberry Pi](' + x.browser_download_url + ') | `' + x.sha256 + '` |'
+                rpi_q_str = '| ' + rpi_icon + ' | [Download ' + rel.tag_name + '<br/>For Raspberry Pi](' + x.browser_download_url + ') | `' + x.sha256 + '` |'
                 # print(rpi_q_str)
 
         global lin_d_str
         if ("nebliod---ubuntu16.04" in x.name and len(lin_d_str) == 0):
             x.sha256 = download_and_checksum(x.browser_download_url)
             if len(x.sha256) == 64:
-                lin_d_str = '| <img src="https://raw.githubusercontent.com/NeblioTeam/neblio/master/doc/img/linux-100.png" alt="Linux Icon by icons8 from https://icons8.com/" height="48px"/> | [Download ' + rel.tag_name + '<br/>For Linux](' + x.browser_download_url + ') | `' + x.sha256 + '` |'
+                lin_d_str = '| ' + lin_icon + ' | [Download ' + rel.tag_name + '<br/>For Linux](' + x.browser_download_url + ') | `' + x.sha256 + '` |'
                 # print(lin_d_str)
 
         global rpi_d_str
         if ("nebliod---RPi-raspbian" in x.name and len(rpi_d_str) == 0):
             x.sha256 = download_and_checksum(x.browser_download_url)
             if len(x.sha256) == 64:
-                rpi_d_str = '| <img src="https://raw.githubusercontent.com/NeblioTeam/neblio/master/doc/img/raspberry-pi-100.png" alt="Raspberry Pi Icon by icons8 from https://icons8.com/" height="48px"/> | [Download ' + rel.tag_name + '<br/>For Raspberry Pi](' + x.browser_download_url + ') | `' + x.sha256 + '` |'
+                rpi_d_str = '| ' + rpi_icon + ' | [Download ' + rel.tag_name + '<br/>For Raspberry Pi](' + x.browser_download_url + ') | `' + x.sha256 + '` |'
                 # print(rpi_d_str)
 
     # build our release body table
@@ -76,12 +80,20 @@ def check_assets():
     body.append('|:---:|:---:|:---|')
     if len(win_q_str) > 0:
         body.append(win_q_str)
+    else:
+    	body.append('| ' + win_icon + ' | Build In Progress | - |'
     if len(mac_q_str) > 0:
         body.append(mac_q_str)
+    else:
+    	body.append('| ' + mac_icon + ' | Build In Progress | - |'
     if len(lin_q_str) > 0:
         body.append(lin_q_str)
+    else:
+    	body.append('| ' + lin_icon + ' | Build In Progress | - |'
     if len(rpi_q_str) > 0:
         body.append(rpi_q_str)
+    else:
+    	body.append('| ' + rpi_icon + ' | Build In Progress | - |'
     body.append('')
     body.append('')
     body.append('## nebliod (Server Node. Command Line Only)')
@@ -89,8 +101,12 @@ def check_assets():
     body.append('|:---:|:---:|:---|')
     if len(lin_d_str) > 0:
         body.append(lin_d_str)
+    else:
+    	body.append('| ' + lin_icon + ' | Build In Progress | - |'
     if len(rpi_d_str) > 0:
         body.append(rpi_d_str)
+    else:
+    	body.append('| ' + rpi_icon + ' | Build In Progress | - |'
 
     body_str = "\r\n".join(body)
     # print(body_str)
