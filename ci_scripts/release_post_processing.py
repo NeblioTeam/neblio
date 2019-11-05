@@ -8,6 +8,8 @@ gh = github3.login(token=os.environ['GITHUB_TOKEN'])
 
 repo = gh.repository('NeblioTeam', 'neblio')
 
+print(os.environ['GITHUB_REF'])
+
 win_q_str = ''
 mac_q_str = ''
 lin_q_str = ''
