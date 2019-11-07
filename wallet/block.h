@@ -112,20 +112,19 @@ public:
 
     struct ChainReplaceTxs
     {
-        // transactions found in the blocks up to common ancestor in main chain
-        std::unordered_set<uint256> disconnectedRootTxs;
         // transactions that are being spent in the above ones
         std::unordered_map<uint256, CTxIndex> modifiedOutputsTxs;
+        // the common ancestor block between the new fork of the new block and the main chain
+        CBlockIndexSmartPtr commonAncestorBlockIndex;
     };
 
     struct CommonAncestorSuccessorBlocks
     {
-        // while finding the common ancestor, this is the part in the main chain (not part of this block)
-        std::unordered_set<uint256> inMainChain;
         // while finding the common ancestor, this is the part of this block's chain (excluding this
         // block)
         std::vector<uint256>
             inFork; // order matters here because we want to simulate respending these in order
+        CBlockIndexSmartPtr commonAncestor;
     };
 
     CommonAncestorSuccessorBlocks GetBlocksUpToCommonAncestorInMainChain() const;
