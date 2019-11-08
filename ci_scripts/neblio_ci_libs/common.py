@@ -46,9 +46,14 @@ def setup_travis_or_gh_actions_env_vars():
 	elif os.environ.get('GITHUB_ACTIONS') is not None:
 		# GitHub Actions Detected
 		print("GitHub Actions Detected. Setting Up Environment Variables.")
-		os.environ['BUILD_DIR'] = os.path.join(os.environ['GITHUB_WORKSPACE'],'deploy', '')
+		os.environ['BUILD_DIR'] = os.environ['GITHUB_WORKSPACE']
 		os.environ['BRANCH'] = os.environ['GITHUB_REF'].rsplit('/', 1)[1]
 		os.environ['COMMIT'] = os.environ.get('GITHUB_SHA')
+		os.environ['CCACHE_BASEDIR'] = os.environ['GITHUB_WORKSPACE']
+		os.environ['CCACHE_COMPRESS'] = 1
+		os.environ['CCACHE_MAXSIZE'] = "250M"
+
+
 	else:
 		print("Neither Travis CI nor GitHub Actions Detected. Aborting...")
 		exit(1)

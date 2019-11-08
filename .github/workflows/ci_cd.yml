@@ -9,6 +9,11 @@ jobs:
     runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v1
+    - name: ccache
+      uses: actions/cache@v1
+      with:
+        path: .ccache
+        key: ${{ runner.OS }}-linux_daemon
     - name: Build nebliod for Linux
       run: |
         python ci_scripts/test_linux-daemon.py
