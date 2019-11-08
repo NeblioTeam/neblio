@@ -13,7 +13,9 @@ jobs:
       uses: actions/cache@v1
       with:
         path: .ccache
-        key: ${{ runner.OS }}-linux_daemon
+        key: ${{ runner.OS }}-linux_daemon-${{ job.container.id }}
+        restore-keys: |
+          ${{ runner.OS }}--linux_daemon-
     - name: Build nebliod for Linux
       run: |
         python -u ci_scripts/test_linux-daemon.py
