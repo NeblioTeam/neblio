@@ -20,7 +20,8 @@ nci.mkdir_p(deploy_dir)
 nci.mkdir_p(build_dir)
 os.chdir(build_dir)
 
-nci.call_with_err_code('ls -al /Applications/')
+nci.call_with_err_code('xcversion')
+nci.call_with_err_code('xcversion list')
 
 # do not auto update homebrew as it is very slow
 os.environ['HOMEBREW_NO_AUTO_UPDATE'] = '1'
