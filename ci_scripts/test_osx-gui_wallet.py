@@ -21,11 +21,12 @@ nci.mkdir_p(build_dir)
 os.chdir(build_dir)
 
 if os.environ.get('GITHUB_ACTIONS') is not None:
-    nci.call_with_err_code('sudo gem update --system')
-    nci.call_with_err_code('xcversion')
-    nci.call_with_err_code('xcversion list')
-    nci.call_with_err_code('xcversion install 9.4.1')
-    nci.call_with_err_code('xcversion select 9.4.1 --symlink')
+	nci.call_with_err_code('open /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_10.14.pkg')
+    # nci.call_with_err_code('sudo gem update --system')
+    # nci.call_with_err_code('xcversion')
+    # nci.call_with_err_code('xcversion list')
+    # nci.call_with_err_code('xcversion install 9.4.1')
+    # nci.call_with_err_code('xcversion select 9.4.1 --symlink')
 
 
 # do not auto update homebrew as it is very slow
