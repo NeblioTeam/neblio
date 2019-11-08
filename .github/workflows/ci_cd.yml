@@ -1,0 +1,14 @@
+name: CI CD
+on: [push, pull_request]
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  linux_daemon:
+    runs-on: ubuntu-16.04
+    steps:
+    - uses: actions/checkout@v1
+    - name: Build nebliod for Linux
+      run: |
+        python ci_scripts/test_linux-daemon.py

@@ -5,6 +5,8 @@ import os
 import multiprocessing as mp
 import neblio_ci_libs as nci
 
+nci.setup_travis_or_gh_actions_env_vars()
+
 working_dir = os.getcwd()
 build_dir = "wallet"
 deploy_dir = os.path.join(os.environ['TRAVIS_BUILD_DIR'],'deploy', '')
