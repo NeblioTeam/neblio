@@ -16,4 +16,4 @@ jobs:
         key: ${{ runner.OS }}-linux_daemon
     - name: Build nebliod for Linux
       run: |
-        python ci_scripts/test_linux-daemon.py
+        python -u ci_scripts/test_linux-daemon.py
