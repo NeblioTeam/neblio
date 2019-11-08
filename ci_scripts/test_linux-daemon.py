@@ -13,6 +13,7 @@ deploy_dir = os.path.join(os.environ['BUILD_DIR'],'deploy', '')
 
 packages_to_install = \
 [
+"ccache",
 "qt5-default",
 "qt5-qmake",
 "qtbase5-dev-tools",
