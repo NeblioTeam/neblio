@@ -6,9 +6,11 @@ import argparse
 import multiprocessing as mp
 import neblio_ci_libs as nci
 
+nci.setup_travis_or_gh_actions_env_vars()
+
 working_dir = os.getcwd()
 build_dir = "build"
-deploy_dir = os.path.join(os.environ['TRAVIS_BUILD_DIR'],'deploy', '')
+deploy_dir = os.path.join(os.environ['BUILD_DIR'],'deploy', '')
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--test', '-t', help='Only build and run tests', action='store_true')
@@ -63,7 +65,7 @@ else:
 	nci.call_with_err_code('sudo Xvfb :99 -ac -screen 0 1024x768x8 &')
 	nci.call_with_err_code('../../contrib/macdeploy/macdeployqtplus ./neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -dmg -fancy ../../contrib/macdeploy/fancy.plist -verbose 1 -rpath /usr/local/opt/qt/lib')
 
-	file_name = '$(date +%Y-%m-%d)---' + os.environ['TRAVIS_BRANCH'] + '-' + os.environ['TRAVIS_COMMIT'][:7] + '---neblio-Qt---macOS.zip'
+	file_name = '$(date +%Y-%m-%d)---' + os.environ['BRANCH'] + '-' + os.environ['COMMIT'][:7] + '---neblio-Qt---macOS.zip'
 
 	nci.call_with_err_code('zip -j ' + file_name + ' ./neblio-QT.dmg')
 	nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)

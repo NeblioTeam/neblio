@@ -1905,7 +1905,7 @@ void TestNTP1TxParsingLocally(bool testnet)
 
     uint64_t count = 0;
     for (const auto& txid : txids) {
-        if (count % 100 == 0)
+        if (count % 250 == 0)
             std::cout << "Finished testing " << count << " transactions" << std::endl;
         count++;
         if (testnet) {
