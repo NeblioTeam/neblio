@@ -52,7 +52,7 @@ def setup_travis_or_gh_actions_env_vars():
 		os.environ['CCACHE_DIR'] = os.path.join(os.environ['GITHUB_WORKSPACE'],'.ccache')
 		os.environ['CCACHE_COMPRESS'] = "1"
 		os.environ['CCACHE_COMPRESSLEVEL'] = "9"
-		os.environ['CCACHE_MAXSIZE'] = "100M"
+		os.environ['CCACHE_MAXSIZE'] = "150M"
 
 
 	else:
