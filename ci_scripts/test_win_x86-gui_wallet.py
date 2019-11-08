@@ -12,6 +12,7 @@ build_dir = "build"
 
 packages_to_install = \
 [
+"ccache",
 "wget",
 "make",
 "binutils"
