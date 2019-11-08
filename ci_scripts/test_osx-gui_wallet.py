@@ -21,7 +21,7 @@ nci.mkdir_p(build_dir)
 os.chdir(build_dir)
 
 if os.environ.get('GITHUB_ACTIONS') is not None:
-	nci.call_with_err_code('sudo gem update --system')
+    nci.call_with_err_code('sudo gem update --system')
     nci.call_with_err_code('xcversion')
     nci.call_with_err_code('xcversion list')
     nci.call_with_err_code('xcversion install 9.4.1')
