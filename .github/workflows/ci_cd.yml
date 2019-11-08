@@ -37,7 +37,7 @@ jobs:
         python -u ci_scripts/test_linux-gui_wallet.py
 
 
-  linux_wallet_test
+  linux_wallet_test:
     runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v1
