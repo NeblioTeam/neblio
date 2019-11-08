@@ -13,7 +13,7 @@ jobs:
       uses: actions/cache@v1
       with:
         path: .ccache
-        key: ${{ runner.OS }}-linux_daemon-${{ github.sha }}
+        key: ${{ runner.OS }}--linux_daemon-${{ github.sha }}
         restore-keys: |
           ${{ runner.OS }}--linux_daemon-
     - name: Build nebliod for Linux
