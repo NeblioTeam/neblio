@@ -5,6 +5,7 @@ import os
 import multiprocessing as mp
 import neblio_ci_libs as nci
 
+nci.setup_travis_or_gh_actions_env_vars()
 
 build_dir = "build"
 
