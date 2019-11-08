@@ -53,6 +53,7 @@ def setup_travis_or_gh_actions_env_vars():
 		os.environ['CCACHE_COMPRESS'] = "1"
 		os.environ['CCACHE_COMPRESSLEVEL'] = "9"
 		os.environ['CCACHE_MAXSIZE'] = "150M"
+		os.environ['FASTLANE_DONT_STORE_PASSWORD'] = "1"
 
 
 	else:

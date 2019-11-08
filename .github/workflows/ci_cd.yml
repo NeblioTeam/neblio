@@ -88,6 +88,9 @@ jobs:
 
   osx:
     runs-on: macos-latest
+    env:
+      FASTLANE_USER: ${{ secrets.FASTLANE_USER }}
+      FASTLANE_PASSWORD: ${{ secrets.FASTLANE_PASSWORD }}
     steps:
     - uses: actions/checkout@v1
     - name: ccache
