@@ -20,8 +20,12 @@ nci.mkdir_p(deploy_dir)
 nci.mkdir_p(build_dir)
 os.chdir(build_dir)
 
-nci.call_with_err_code('xcversion')
-nci.call_with_err_code('xcversion list')
+if os.environ.get('GITHUB_ACTIONS') is not None:
+    nci.call_with_err_code('xcversion')
+    nci.call_with_err_code('xcversion list')
+    nci.call_with_err_code('xcversion install 9.4.1')
+    nci.call_with_err_code('xcversion select 9.4.1 --symlink')
+
 
 # do not auto update homebrew as it is very slow
 os.environ['HOMEBREW_NO_AUTO_UPDATE'] = '1'
