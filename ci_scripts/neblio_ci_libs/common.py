@@ -43,7 +43,7 @@ def setup_travis_or_gh_actions_env_vars():
 		os.environ['BUILD_DIR'] = os.environ.get('TRAVIS_BUILD_DIR')
 		os.environ['BRANCH'] = os.environ.get('TRAVIS_BRANCH')
 		os.environ['COMMIT'] = os.environ.get('TRAVIS_COMMIT')
-	else if os.environ.get('GITHUB_ACTIONS') is not None:
+	elif os.environ.get('GITHUB_ACTIONS') is not None:
 		# GitHub Actions Detected
 		print("GitHub Actions Detected. Setting Up Environment Variables.")
 		os.environ['BUILD_DIR'] = os.path.join(os.environ['GITHUB_WORKSPACE'],os.environ['GITHUB_REPOSITORY'],'deploy', '')
