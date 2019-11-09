@@ -42,16 +42,16 @@ nci.call_with_err_code('brew unlink curl          && brew link --force --overwri
 nci.call_with_err_code('brew unlink python        && brew link --force --overwrite python')
 nci.call_with_err_code('brew unlink openssl       && brew link --force --overwrite openssl')
 nci.call_with_err_code('brew unlink qrencode      && brew link --force --overwrite qrencode')
-nci.call_with_err_code('brew cask reinstall xquartz')
+# nci.call_with_err_code('brew cask reinstall xquartz')
 
 nci.call_with_err_code('ccache -s')
 
 # set appropriate Xvfb path. GitHub actions needs the full path, while Travis has Xvfb in PATH
-xvfb_path = ''
-if os.environ.get('GITHUB_ACTIONS') is not None:
-    xvfb_path = '/opt/X11/bin/Xvfb'
-else:
-    xvfb_path = 'Xvfb'
+# xvfb_path = ''
+# if os.environ.get('GITHUB_ACTIONS') is not None:
+#     xvfb_path = '/opt/X11/bin/Xvfb'
+# else:
+#     xvfb_path = 'Xvfb'
 
 # prepend ccache to the path, necessary since prior steps prepend things to the path
 os.environ['PATH'] = '/usr/local/opt/ccache/libexec:' + os.environ['PATH']
@@ -67,17 +67,18 @@ else:
     # build our .dmg
     #nci.call_with_err_code('sudo easy_install appscript')
     # Install appscript from source due to issue with new compiled packages
-    nci.call_with_err_code('sudo easy_install https://files.pythonhosted.org/packages/35/0b/0ad06b376b2119c6c02a6d214070c8528081ed868bf82853d4758bf942eb/appscript-1.0.1.tar.gz')
+    # nci.call_with_err_code('sudo easy_install https://files.pythonhosted.org/packages/35/0b/0ad06b376b2119c6c02a6d214070c8528081ed868bf82853d4758bf942eb/appscript-1.0.1.tar.gz')
     os.chdir("wallet")
     # start Xvfb as fancy DMG creation requires a screen
-    nci.call_with_err_code('sudo ' + xvfb_path + ' :99 -ac -screen 0 1024x768x8 &')
-    nci.call_with_err_code('sudo ../../contrib/macdeploy/macdeployqtplus ./neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -dmg -fancy ../../contrib/macdeploy/fancy.plist -verbose 1 -rpath /usr/local/opt/qt/lib')
+    # nci.call_with_err_code('sudo ' + xvfb_path + ' :99 -ac -screen 0 1024x768x8 &')
+    # nci.call_with_err_code('sudo ../../contrib/macdeploy/macdeployqtplus ./neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -dmg -fancy ../../contrib/macdeploy/fancy.plist -verbose 1 -rpath /usr/local/opt/qt/lib')
+    nci.call_with_err_code('sudo ../../contrib/macdeploy/macdeployqtplus ./neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -verbose 1 -rpath /usr/local/opt/qt/lib')
 
-    file_name = '$(date +%Y-%m-%d)---' + os.environ['BRANCH'] + '-' + os.environ['COMMIT'][:7] + '---neblio-Qt---macOS.zip'
+    # file_name = '$(date +%Y-%m-%d)---' + os.environ['BRANCH'] + '-' + os.environ['COMMIT'][:7] + '---neblio-Qt---macOS.zip'
 
-    nci.call_with_err_code('zip -j ' + file_name + ' ./neblio-QT.dmg')
-    nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)
-    nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
+    # nci.call_with_err_code('zip -j ' + file_name + ' ./neblio-QT.dmg')
+    # nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)
+    # nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
 
 nci.call_with_err_code('ccache -s')
 
