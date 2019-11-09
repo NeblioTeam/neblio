@@ -21,7 +21,7 @@ nci.mkdir_p(build_dir)
 os.chdir(build_dir)
 
 if os.environ.get('GITHUB_ACTIONS') is not None:
-    nci.call_with_err_code('ls -al /Library/Developer/')
+    nci.call_with_err_code('ls -al /Library/Developer/CommandLineTools')
     # nci.call_with_err_code('open /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_10.15.pkg')
     # nci.call_with_err_code('sudo gem update --system')
     # nci.call_with_err_code('xcversion')
