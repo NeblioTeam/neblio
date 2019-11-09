@@ -33,7 +33,6 @@ void setupDockClickHandler() {
         class_replaceMethod(delClass, shouldHandle, (IMP)dockClickHandler, "B@:");
     else
         class_addMethod(delClass, shouldHandle, (IMP)dockClickHandler,"B@:");
-    }
 }
 
 
