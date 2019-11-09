@@ -43,7 +43,6 @@ nci.call_with_err_code('brew fetch --retry miniupnpc     && brew install miniupn
 nci.call_with_err_code('brew fetch --retry curl          && brew install curl --force')
 nci.call_with_err_code('brew fetch --retry openssl       && brew install openssl --force')
 nci.call_with_err_code('brew fetch --retry qrencode      && brew install qrencode --force')
-nci.call_with_err_code('brew fetch --retry xquartz       && brew install xquartz --force')
 
 nci.call_with_err_code('brew unlink qt            && brew link --force --overwrite qt')
 nci.call_with_err_code('brew unlink berkeley-db@4 && brew link --force --overwrite berkeley-db@4')
@@ -53,7 +52,7 @@ nci.call_with_err_code('brew unlink curl          && brew link --force --overwri
 nci.call_with_err_code('brew unlink python        && brew link --force --overwrite python')
 nci.call_with_err_code('brew unlink openssl       && brew link --force --overwrite openssl')
 nci.call_with_err_code('brew unlink qrencode      && brew link --force --overwrite qrencode')
-nci.call_with_err_code('brew unlink xquartz       && brew link --force --overwrite xquartz')
+nci.call_with_err_code('brew cask install xquartz')
 
 nci.call_with_err_code('ccache -s')
 
