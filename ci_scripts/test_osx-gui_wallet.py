@@ -20,17 +20,6 @@ nci.mkdir_p(deploy_dir)
 nci.mkdir_p(build_dir)
 os.chdir(build_dir)
 
-if os.environ.get('GITHUB_ACTIONS') is not None:
-    # nci.call_with_err_code('ls -al /Library/Developer/CommandLineTools')
-    # nci.call_with_err_code('open /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_10.15.pkg')
-    # nci.call_with_err_code('sudo gem update --system')
-    # nci.call_with_err_code('xcversion')
-    # nci.call_with_err_code('xcversion list')
-    # nci.call_with_err_code('xcversion install 9.4.1')
-    # nci.call_with_err_code('xcversion select 11.1 --symlink')
-    # nci.call_with_err_code('sudo Xvfb :99 -ac -screen 0 1024x768x8 &')
-
-
 # do not auto update homebrew as it is very slow
 os.environ['HOMEBREW_NO_AUTO_UPDATE'] = '1'
 
@@ -54,9 +43,15 @@ nci.call_with_err_code('brew unlink python        && brew link --force --overwri
 nci.call_with_err_code('brew unlink openssl       && brew link --force --overwrite openssl')
 nci.call_with_err_code('brew unlink qrencode      && brew link --force --overwrite qrencode')
 nci.call_with_err_code('brew cask reinstall xquartz')
-nci.call_with_err_code('sudo Xvfb :99 -ac -screen 0 1024x768x8 &')
 
 nci.call_with_err_code('ccache -s')
+
+# set appropriate Xvfb path. GitHub actions needs the full path, while Travis has Xvfb in PATH
+xvfb_path = ''
+if os.environ.get('GITHUB_ACTIONS') is not None:
+    xvfb_path = '/opt/X11/bin/Xvfb'
+else:
+    xvfb_path = 'Xvfb'
 
 # prepend ccache to the path, necessary since prior steps prepend things to the path
 os.environ['PATH'] = '/usr/local/opt/ccache/libexec:' + os.environ['PATH']
@@ -75,7 +70,7 @@ else:
     nci.call_with_err_code('sudo easy_install https://files.pythonhosted.org/packages/35/0b/0ad06b376b2119c6c02a6d214070c8528081ed868bf82853d4758bf942eb/appscript-1.0.1.tar.gz')
     os.chdir("wallet")
     # start Xvfb as fancy DMG creation requires a screen
-    nci.call_with_err_code('sudo Xvfb :99 -ac -screen 0 1024x768x8 &')
+    nci.call_with_err_code('sudo ' + xvfb_path + ' :99 -ac -screen 0 1024x768x8 &')
     nci.call_with_err_code('../../contrib/macdeploy/macdeployqtplus ./neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -dmg -fancy ../../contrib/macdeploy/fancy.plist -verbose 1 -rpath /usr/local/opt/qt/lib')
 
     file_name = '$(date +%Y-%m-%d)---' + os.environ['BRANCH'] + '-' + os.environ['COMMIT'][:7] + '---neblio-Qt---macOS.zip'
