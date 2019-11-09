@@ -21,8 +21,8 @@ nci.mkdir_p(build_dir)
 os.chdir(build_dir)
 
 if os.environ.get('GITHUB_ACTIONS') is not None:
-	nci.call_with_err_code('ls -al /Library/Developer/')
-	# nci.call_with_err_code('open /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_10.15.pkg')
+    nci.call_with_err_code('ls -al /Library/Developer/')
+    # nci.call_with_err_code('open /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_10.15.pkg')
     # nci.call_with_err_code('sudo gem update --system')
     # nci.call_with_err_code('xcversion')
     # nci.call_with_err_code('xcversion list')
@@ -59,27 +59,27 @@ nci.call_with_err_code('ccache -s')
 os.environ['PATH'] = '/usr/local/opt/ccache/libexec:' + os.environ['PATH']
 
 if (args.test):
-	nci.call_with_err_code('qmake "QMAKE_CXX=ccache clang++" "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
-	nci.call_with_err_code("make -j" + str(mp.cpu_count()))
-	# run tests
-	nci.call_with_err_code("./wallet/test/neblio-Qt.app/Contents/MacOS/neblio-Qt")
+    nci.call_with_err_code('qmake "QMAKE_CXX=ccache clang++" "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
+    nci.call_with_err_code("make -j" + str(mp.cpu_count()))
+    # run tests
+    nci.call_with_err_code("./wallet/test/neblio-Qt.app/Contents/MacOS/neblio-Qt")
 else:
-	nci.call_with_err_code('qmake "QMAKE_CXX=ccache clang++" "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-wallet.pro')
-	nci.call_with_err_code("make -j" + str(mp.cpu_count()))
-	# build our .dmg
-	#nci.call_with_err_code('sudo easy_install appscript')
-	# Install appscript from source due to issue with new compiled packages
-	nci.call_with_err_code('sudo easy_install https://files.pythonhosted.org/packages/35/0b/0ad06b376b2119c6c02a6d214070c8528081ed868bf82853d4758bf942eb/appscript-1.0.1.tar.gz')
-	os.chdir("wallet")
-	# start Xvfb as fancy DMG creation requires a screen
-	nci.call_with_err_code('sudo Xvfb :99 -ac -screen 0 1024x768x8 &')
-	nci.call_with_err_code('../../contrib/macdeploy/macdeployqtplus ./neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -dmg -fancy ../../contrib/macdeploy/fancy.plist -verbose 1 -rpath /usr/local/opt/qt/lib')
+    nci.call_with_err_code('qmake "QMAKE_CXX=ccache clang++" "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-wallet.pro')
+    nci.call_with_err_code("make -j" + str(mp.cpu_count()))
+    # build our .dmg
+    #nci.call_with_err_code('sudo easy_install appscript')
+    # Install appscript from source due to issue with new compiled packages
+    nci.call_with_err_code('sudo easy_install https://files.pythonhosted.org/packages/35/0b/0ad06b376b2119c6c02a6d214070c8528081ed868bf82853d4758bf942eb/appscript-1.0.1.tar.gz')
+    os.chdir("wallet")
+    # start Xvfb as fancy DMG creation requires a screen
+    nci.call_with_err_code('sudo Xvfb :99 -ac -screen 0 1024x768x8 &')
+    nci.call_with_err_code('../../contrib/macdeploy/macdeployqtplus ./neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -dmg -fancy ../../contrib/macdeploy/fancy.plist -verbose 1 -rpath /usr/local/opt/qt/lib')
 
-	file_name = '$(date +%Y-%m-%d)---' + os.environ['BRANCH'] + '-' + os.environ['COMMIT'][:7] + '---neblio-Qt---macOS.zip'
+    file_name = '$(date +%Y-%m-%d)---' + os.environ['BRANCH'] + '-' + os.environ['COMMIT'][:7] + '---neblio-Qt---macOS.zip'
 
-	nci.call_with_err_code('zip -j ' + file_name + ' ./neblio-QT.dmg')
-	nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)
-	nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
+    nci.call_with_err_code('zip -j ' + file_name + ' ./neblio-QT.dmg')
+    nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)
+    nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
 
 nci.call_with_err_code('ccache -s')
 
