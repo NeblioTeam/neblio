@@ -33,7 +33,7 @@ void setupDockClickHandler() {
     if (class_getInstanceMethod(delClass, shouldHandle))
         class_replaceMethod(delClass, shouldHandle, (IMP)dockClickHandler, "B@:");
     else
-         lass_addMethod(delClass, shouldHandle, (IMP)dockClickHandler,"B@:");
+        class_addMethod(delClass, shouldHandle, (IMP)dockClickHandler,"B@:");
     }
 }
 
