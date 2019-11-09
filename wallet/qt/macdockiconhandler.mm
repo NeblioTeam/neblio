@@ -14,6 +14,8 @@
 extern void qt_mac_set_dock_menu(QMenu *);
 #endif
 
+#define OBJC_OLD_DISPATCH_PROTOTYPES 1  // TODO remove objc_msgSend is fixed
+
 static MacDockIconHandler *s_instance = NULL;
 
 bool dockClickHandler(id self,SEL _cmd,...) {
