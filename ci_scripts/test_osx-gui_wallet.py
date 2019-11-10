@@ -60,7 +60,7 @@ else:
     # build our .dmg
     if (os.environ.get('TRAVIS_BUILD_DIR') is not None):
         nci.call_with_err_code('curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.1/install.sh | bash')
-        nci.call_with_err_code('export NVM_DIR="$HOME/.nvm"')
+        os.environ['NVM_DIR'] = '$HOME/.nvm'
         nci.call_with_err_code('[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"')
         nci.call_with_err_code('[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"')
         nci.call_with_err_code('nvm install 12')
