@@ -22,6 +22,7 @@ release/
 *.qm
 Makefile
 neblio-Qt.app
+neblio-Qt.dmg
 #resources cpp
 qrc_*.cpp
 

@@ -1,0 +1,11 @@
+{
+  "title": "Neblio Wallet",
+  "icon": "../../wallet/qt/res/icons/bitcoin.icns",
+  "background": "background.png",
+  "contents": [
+    { "x": 370, "y": 156, "type": "link", "path": "/Applications" },
+    { "x": 128, "y": 156, "type": "file", "path": "../../wallet/neblio-Qt.app" },
+    { "x": 370, "y": 400, "type": "link", "path": "background.png" },
+    { "x": 128, "y": 400, "type": "link", "path": ".fseventsd" }
+  ]
+}
