@@ -35,6 +35,7 @@ nci.call_with_err_code('curl -fsSL https://get.docker.com -o get-docker.sh && su
 nci.call_with_err_code('docker run --rm --privileged multiarch/qemu-user-static:register --reset')
 
 # move .ccache folder to our deploy directory
+nci.mkdir_p(os.path.join(os.environ['HOME'],'.ccache', ''))
 nci.call_with_err_code('mv ' + os.path.join(os.environ['HOME'],'.ccache', '') + ' ' + os.path.join(deploy_dir,'.ccache', ''))
 
 # Start Docker Container to Build nebliod or neblio-Qt
