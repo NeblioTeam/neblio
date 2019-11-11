@@ -89,9 +89,8 @@ make -B -w -j4
 
 ### Prepare the .dmg file for release (optional)
 ```
-sudo easy_install appscript
-./contrib/macdeploy/macdeployqtplus ./neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW \
--dmg -fancy ./contrib/macdeploy/fancy.plist -verbose 1 -rpath /usr/local/opt/qt/lib
+./contrib/macdeploy/macdeployqtplus ./neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -verbose 1 -rpath /usr/local/opt/qt/lib
+appdmg ./contrib/macdeploy/appdmg.json ./neblio-Qt.dmg
 ```
 
 
