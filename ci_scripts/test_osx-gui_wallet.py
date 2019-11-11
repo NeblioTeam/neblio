@@ -59,10 +59,10 @@ else:
     nci.call_with_err_code("make -j" + str(mp.cpu_count()))
     # build our .dmg
     if (os.environ.get('TRAVIS_BUILD_DIR') is not None):
-        nci.call_with_err_code('curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.1/install.sh | bash')
-        os.environ['NVM_DIR'] = '$HOME/.nvm'
-        nci.call_with_err_code('$NVM_DIR/nvm.sh')
-        nci.call_with_err_code('$NVM_DIR/bash_completion')
+        # nci.call_with_err_code('curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.1/install.sh | bash')
+        # os.environ['NVM_DIR'] = '$HOME/.nvm'
+        # nci.call_with_err_code('$NVM_DIR/nvm.sh')
+        # nci.call_with_err_code('$NVM_DIR/bash_completion')
         nci.call_with_err_code('nvm install 12')
         nci.call_with_err_code('nvm exec 12 npm install -g appdmg')
     else:
