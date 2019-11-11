@@ -23,7 +23,7 @@ env:
   - target_v=rpi_daemon
   - target_v=rpi_wallet_test
   - target_v=rpi_wallet
-  
+
 matrix:
   exclude:
   - os: osx
@@ -47,6 +47,7 @@ matrix:
   - os: linux
     env: target_v=osx_test
 before_install:
+- if [[ "$target_v" == "osx"               ]]; then brew install nvm                                ; fi
 install:
 before_script:
 script:
