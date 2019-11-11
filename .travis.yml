@@ -47,7 +47,7 @@ matrix:
   - os: linux
     env: target_v=osx_test
 before_install:
-- if [[ "$target_v" == "osx"               ]]; then brew install nvm                                ; fi
+- if [[ "$target_v" == "osx" ]]; then export HOMEBREW_NO_AUTO_UPDATE=1 && brew install nvm ; fi
 install:
 before_script:
 script:
