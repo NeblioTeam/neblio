@@ -59,13 +59,13 @@ else:
     nci.call_with_err_code("make -j" + str(mp.cpu_count()))
     # build our .dmg
     if (os.environ.get('TRAVIS_BUILD_DIR') is not None):
-        nci.call_with_err_code('nvm install 12')
-        nci.call_with_err_code('nvm exec 12 npm install -g appdmg')
+        nci.call_with_err_code('/bin/bash nvm install 12')
+        nci.call_with_err_code('/bin/bash nvm exec 12 npm install -g appdmg')
     else:
         nci.call_with_err_code('npm install -g appdmg')
     os.chdir("wallet")
     nci.call_with_err_code('../../contrib/macdeploy/macdeployqtplus ./neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -verbose 1 -rpath /usr/local/opt/qt/lib')
-    nci.call_with_err_code('appdmg ../../contrib/macdeploy/appdmg.json ./neblio-Qt.dmg')
+    nci.call_with_err_code('/bin/bash  appdmg ../../contrib/macdeploy/appdmg.json ./neblio-Qt.dmg')
 
     file_name = '$(date +%Y-%m-%d)---' + os.environ['BRANCH'] + '-' + os.environ['COMMIT'][:7] + '---neblio-Qt---macOS.zip'
 
