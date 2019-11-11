@@ -46,7 +46,12 @@ else:
 nci.call_with_err_code('sleep 15 && sudo docker kill $(sudo docker ps -q);exit 0')
 
 # move .ccache folder back to travis ccache dir
-nci.call_with_err_code('mv ' + os.path.join(deploy_dir,'.ccache', '') + ' ' + os.path.join(os.environ['HOME'],'.ccache', ''))
+if (os.environ.get('TRAVIS_BUILD_DIR') is not None):
+  # move ccache dir for travis
+  nci.call_with_err_code('mv ' + os.path.join(deploy_dir,'.ccache', '') + ' ' + os.path.join(os.environ['HOME'],'.ccache', ''))
+else:
+  # move ccache for github actions
+  nci.call_with_err_code('mv ' + os.path.join(deploy_dir,'.ccache', '') + ' ' + os.path.join(working_dir,'.ccache', ''))
 
 file_name = '$(date +%Y-%m-%d)---' + os.environ['BRANCH'] + '-' + os.environ['COMMIT'][:7] + '---' + build_target_alt + '---RPi-raspbian-stretch.tar.gz'
 
@@ -72,8 +77,8 @@ if(os.path.isfile(build_target)):
     nci.call_with_err_code('rm -f ' + deploy_dir + file_name)
 
   if (os.environ.get('TRAVIS_BUILD_DIR') is not None and travis_tag == '' and deploy_job_id != '0'):
-  	nci.call_with_err_code('echo "Restarting our deploy job. Job ID: ' + deploy_job_id + '"')
-  	nci.call_with_err_code('curl -X POST -H "Content-Type: application/json" -H "Travis-API-Version: 3" -H "Accept: application/json" -H "Authorization: token ' + os.environ["TRAVIS_API_TOKEN"] + '" -d \'{}\' \'https://api.travis-ci.org/job/' + deploy_job_id + '/restart\'')
+    nci.call_with_err_code('echo "Restarting our deploy job. Job ID: ' + deploy_job_id + '"')
+    nci.call_with_err_code('curl -X POST -H "Content-Type: application/json" -H "Travis-API-Version: 3" -H "Accept: application/json" -H "Authorization: token ' + os.environ["TRAVIS_API_TOKEN"] + '" -d \'{}\' \'https://api.travis-ci.org/job/' + deploy_job_id + '/restart\'')
 
 elif(os.environ.get('TRAVIS_BUILD_DIR') is not None):
   nci.call_with_err_code('echo "Binary not found, likely due to a timeout, starting new job..."')
