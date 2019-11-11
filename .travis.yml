@@ -47,10 +47,10 @@ matrix:
   - os: linux
     env: target_v=osx_test
 before_install:
-- if [[ "$target_v" == "osx" ]]; then export HOMEBREW_NO_AUTO_UPDATE=1 && brew install nvm && mkdir -p ~/.nvm ; fi
-- if [[ "$target_v" == "osx" ]]; then echo 'export NVM_DIR=~/.nvm' >> ~/.bash_profile ; fi
-- if [[ "$target_v" == "osx" ]]; then echo 'source $(brew --prefix nvm)/nvm.sh' >> ~/.bash_profile ; fi
-- if [[ "$target_v" == "osx" ]]; then source ~/.bash_profile ; fi
+- if [[ "$target_v" == "osx" ]]; then rm -rf ~/.nvm/ && git clone --depth 1 https://github.com/creationix/nvm.git ~/.nvm ; fi
+- if [[ "$target_v" == "osx" ]]; then source ~/.nvm/nvm.sh ; fi
+- if [[ "$target_v" == "osx" ]]; then nvm install 12 ; fi
+- if [[ "$target_v" == "osx" ]]; then nvm use 12 ; fi
 install:
 before_script:
 script:
