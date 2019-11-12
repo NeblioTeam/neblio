@@ -72,6 +72,7 @@ file_name = '$(date +%Y-%m-%d)---' + os.environ['BRANCH'] + '-' + os.environ['CO
 nci.call_with_err_code('tar -zcvf "' + file_name + '" ./nebliod')
 nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)
 nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
+nci.call_with_err_code('ls -al ' + deploy_dir)
 
 nci.call_with_err_code('ccache -s')
 
