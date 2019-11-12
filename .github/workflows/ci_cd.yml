@@ -43,6 +43,10 @@ jobs:
     - name: Build neblio-Qt for Linux
       run: |
         python -u ci_scripts/test_linux-gui_wallet.py
+    - name: Build Upload
+      uses: jakejarvis/s3-sync-action@v0.5.0
+      with:
+        args: --acl public-read
 
 
   linux_wallet_test:
@@ -75,6 +79,10 @@ jobs:
     - name: Build neblio-Qt for Windows x86
       run: |
         python -u ci_scripts/test_win_x86-gui_wallet.py
+    - name: Build Upload
+      uses: jakejarvis/s3-sync-action@v0.5.0
+      with:
+        args: --acl public-read
 
 
   windows_x86_64:
@@ -91,6 +99,10 @@ jobs:
     - name: Build neblio-Qt for Windows x86_64
       run: |
         python -u ci_scripts/test_win_x86_64-gui_wallet.py
+    - name: Build Upload
+      uses: jakejarvis/s3-sync-action@v0.5.0
+      with:
+        args: --acl public-read
 
 
   osx:
@@ -107,6 +119,10 @@ jobs:
     - name: Build neblio-Qt for macOS
       run: |
         python -u ci_scripts/test_osx-gui_wallet.py
+    - name: Build Upload
+      uses: jakejarvis/s3-sync-action@v0.5.0
+      with:
+        args: --acl public-read
 
 
   osx_test:

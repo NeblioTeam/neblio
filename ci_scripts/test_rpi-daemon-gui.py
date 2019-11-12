@@ -77,6 +77,7 @@ if(os.path.isfile(build_target)):
   nci.call_with_err_code('tar -zcvf "' + file_name + '" ' + build_target)
   nci.call_with_err_code('rm -f ' + build_target)
   nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
+  nci.call_with_err_code('ls -al ' + deploy_dir)
 
   # if we are just running tests, delete the deploy package
   if(os.environ['target_v'] == "rpi_wallet_test"):
