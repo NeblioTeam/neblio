@@ -73,7 +73,7 @@ nci.call_with_err_code('tar -zcvf "' + file_name + '" ./nebliod')
 nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)
 nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
 # set the SOURCE_DIR env var, this points to the binary that will be uploaded
-nci.call_with_err_code('echo "::set-env name=SOURCE_DIR::' + deploy_dir + file_name + '"')
+nci.call_with_err_code('echo "::set-env name=SOURCE_DIR::' + deploy_dir + '"')
 
 nci.call_with_err_code('ccache -s')
 
