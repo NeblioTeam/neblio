@@ -79,7 +79,7 @@ os.environ['QRENCODE_LIB_PATH'] = openssl_lib_path
 os.environ['PATH'] = '/usr/lib/ccache:' + os.environ['PATH']
 
 if (args.test):
-        nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "OPENSSL_INCLUDE_PATH=' + openssl_include_path + '" "OPENSSL_LIB_PATH=' + openssl_lib_path + '" "QRENCODE_LIB_PATH=' + qrencode_lib_path + '" "QRENCODE_INCLUDE_PATH=' + qrencode_include_path + '" "PKG_CONFIG_PATH=' + pkg_config_path + '" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
+    nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "OPENSSL_INCLUDE_PATH=' + openssl_include_path + '" "OPENSSL_LIB_PATH=' + openssl_lib_path + '" "QRENCODE_LIB_PATH=' + qrencode_lib_path + '" "QRENCODE_INCLUDE_PATH=' + qrencode_include_path + '" "PKG_CONFIG_PATH=' + pkg_config_path + '" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
     nci.call_with_err_code("make -j" + str(mp.cpu_count()))
     # run tests
     nci.call_with_err_code("./wallet/test/neblio-tests")
