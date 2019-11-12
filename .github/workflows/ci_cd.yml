@@ -3,6 +3,10 @@ on: [push, pull_request]
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_S3_BUCKET: neblio-build-staging
+  AWS_S3_ENDPOINT: ams3.digitaloceanspaces.com
 
 jobs:
   linux_daemon:
@@ -19,6 +23,10 @@ jobs:
     - name: Build nebliod for Linux
       run: |
         python -u ci_scripts/test_linux-daemon.py
+    - name: Build Upload
+      uses: jakejarvis/s3-sync-action@v0.5.0
+      with:
+        args: --acl public-read
 
 
   linux_wallet:
