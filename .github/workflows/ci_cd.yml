@@ -6,7 +6,7 @@ env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_S3_BUCKET: neblio-build-staging
-  AWS_S3_ENDPOINT: ams3.digitaloceanspaces.com
+  AWS_S3_ENDPOINT: https://ams3.digitaloceanspaces.com
 
 jobs:
   linux_daemon:
