@@ -22,7 +22,6 @@ jobs:
           ${{ runner.OS }}--linux_daemon-
     - name: Build nebliod for Linux
       run: |
-        echo ${{ github.ref }}
         python -u ci_scripts/test_linux-daemon.py
     - name: Build Upload to S3
       uses: jakejarvis/s3-sync-action@v0.5.0
@@ -32,7 +31,8 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/v')
       uses: AButler/upload-release-assets@v1.0
       with:
-        files: '$SOURCE_DIR/*'
+        # files: '$SOURCE_DIR/*'
+        files: 'README*'
         repo-token: ${{ secrets.GITHUB_TOKEN }}
         release-tag: $(echo ${GITHUB_REF:10})
 
