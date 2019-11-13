@@ -161,6 +161,10 @@ jobs:
     - name: Build neblio-Qt for Raspberry Pi
       run: |
         python -u ci_scripts/test_rpi-daemon-gui.py
+    - name: Build Upload
+      uses: jakejarvis/s3-sync-action@v0.5.0
+      with:
+        args: --acl public-read
 
 
   rpi_wallet_test:
@@ -199,5 +203,9 @@ jobs:
     - name: Build neblio-Qt for Raspberry Pi
       run: |
         python -u ci_scripts/test_rpi-daemon-gui.py
+    - name: Build Upload
+      uses: jakejarvis/s3-sync-action@v0.5.0
+      with:
+        args: --acl public-read
 
 
