@@ -1,4 +1,4 @@
-name: CI CD
+name: CI/CD
 on: [push, pull_request]
 
 env:
@@ -34,7 +34,7 @@ jobs:
       with:
         files: '$SOURCE_DIR/*'
         repo-token: ${{ secrets.GITHUB_TOKEN }}
-        release-tag: ${GITHUB_REF:10}
+        # release-tag: ${GITHUB_REF:10}
 
 
   linux_wallet:
