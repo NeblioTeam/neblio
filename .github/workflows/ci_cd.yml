@@ -23,6 +23,7 @@ jobs:
     - name: Build nebliod for Linux
       run: |
         python -u ci_scripts/test_linux-daemon.py
+        echo ::set-env name=RELEASE_TAG::$(echo ${GITHUB_REF:10})
     - name: Build Upload to S3
       uses: jakejarvis/s3-sync-action@v0.5.0
       with:
@@ -33,7 +34,7 @@ jobs:
       with:
         files: ${{ env.SOURCE_PATH }}
         repo-token: ${{ secrets.GITHUB_TOKEN }}
-        release-tag: ${{ env.BRANCH }}
+        release-tag: ${{ env.RELEASE_TAG }}
 
 
   linux_wallet:
