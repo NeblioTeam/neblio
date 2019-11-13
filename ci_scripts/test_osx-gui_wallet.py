@@ -64,6 +64,7 @@ else:
     nci.call_with_err_code('appdmg ../../contrib/macdeploy/appdmg.json ./neblio-Qt.dmg')
     nci.call_with_err_code("ls -al")
     nci.call_with_err_code("ls -al dist")
+    nci.call_with_err_code("pwd")
 
     file_name = '$(date +%Y-%m-%d)---' + os.environ['BRANCH'] + '-' + os.environ['COMMIT'][:7] + '---neblio-Qt---macOS.zip'
 
