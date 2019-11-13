@@ -24,10 +24,17 @@ jobs:
       run: |
         echo ${{ github.ref }}
         python -u ci_scripts/test_linux-daemon.py
-    - name: Build Upload
+    - name: Build Upload to S3
       uses: jakejarvis/s3-sync-action@v0.5.0
       with:
         args: --acl public-read
+    - name: If Release, Upload Release
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: AButler/upload-release-assets@v1.0
+        with:
+          files: '$SOURCE_DIR/*'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          release-tag: ${GITHUB_REF:10}
 
 
   linux_wallet:
@@ -44,7 +51,7 @@ jobs:
     - name: Build neblio-Qt for Linux
       run: |
         python -u ci_scripts/test_linux-gui_wallet.py
-    - name: Build Upload
+    - name: Build Upload to S3
       uses: jakejarvis/s3-sync-action@v0.5.0
       with:
         args: --acl public-read
@@ -80,7 +87,7 @@ jobs:
     - name: Build neblio-Qt for Windows x86
       run: |
         python -u ci_scripts/test_win_x86-gui_wallet.py
-    - name: Build Upload
+    - name: Build Upload to S3
       uses: jakejarvis/s3-sync-action@v0.5.0
       with:
         args: --acl public-read
@@ -120,7 +127,7 @@ jobs:
     - name: Build neblio-Qt for macOS
       run: |
         python -u ci_scripts/test_osx-gui_wallet.py
-    - name: Build Upload
+    - name: Build Upload to S3
       run: |
         brew fetch --retry s3cmd
         brew install s3cmd --force
@@ -162,7 +169,7 @@ jobs:
     - name: Build neblio-Qt for Raspberry Pi
       run: |
         python -u ci_scripts/test_rpi-daemon-gui.py
-    - name: Build Upload
+    - name: Build Upload to S3
       uses: jakejarvis/s3-sync-action@v0.5.0
       with:
         args: --acl public-read
@@ -204,7 +211,7 @@ jobs:
     - name: Build neblio-Qt for Raspberry Pi
       run: |
         python -u ci_scripts/test_rpi-daemon-gui.py
-    - name: Build Upload
+    - name: Build Upload to S3
       uses: jakejarvis/s3-sync-action@v0.5.0
       with:
         args: --acl public-read
