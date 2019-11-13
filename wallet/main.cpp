@@ -1355,8 +1355,9 @@ CMerkleBlock::CMerkleBlock(const CBlock& block, CBloomFilter& filter)
         if (filter.IsRelevantAndUpdate(block.vtx[i], hash)) {
             vMatch.push_back(true);
             vMatchedTxn.push_back(make_pair(i, hash));
-        } else
+        } else {
             vMatch.push_back(false);
+        }
         vHashes.push_back(hash);
     }
 
@@ -1490,9 +1491,9 @@ uint256 CPartialMerkleTree::ExtractMatches(std::vector<uint256>& vMatch)
     return hashMerkleRoot;
 }
 
-bool CheckDiskSpace(uint64_t nAdditionalBytes)
+bool CheckDiskSpace(std::uintmax_t nAdditionalBytes)
 {
-    uint64_t nFreeBytesAvailable = filesystem::space(GetDataDir()).available;
+    std::uintmax_t nFreeBytesAvailable = filesystem::space(GetDataDir()).available;
 
     // Check for nMinDiskSpace bytes (currently 50MB)
     if (nFreeBytesAvailable < nMinDiskSpace + nAdditionalBytes) {
@@ -1708,8 +1709,7 @@ void PrintBlockTree()
 
 bool LoadExternalBlockFile(FILE* fileIn)
 {
-    int64_t      nStart     = GetTimeMillis();
-    unsigned int nSizeLimit = MaxBlockSize();
+    int64_t nStart = GetTimeMillis();
 
     int nLoaded = 0;
     {
@@ -1738,13 +1738,27 @@ bool LoadExternalBlockFile(FILE* fileIn)
                 } while (!fRequestShutdown && !fShutdown);
                 if (nPos == (unsigned int)-1)
                     break;
+                unsigned int nSizeLimit = MaxBlockSize();
+
                 fseek(blkdat, nPos, SEEK_SET);
+
                 unsigned int nSize;
                 blkdat >> nSize;
+
+                static const int fileStartFrom = 0;
+                if (nPos < fileStartFrom) {
+                    nPos += 4 + nSize;
+                    printf("Skipping block at file pos: %u\n", nPos);
+                    continue;
+                }
+
                 if (nSize > 0 && nSize <= nSizeLimit) {
                     CBlock block;
                     blkdat >> block;
+                    printf("\nReading block at file pos: %u\n", nPos);
+
                     LOCK(cs_main);
+
                     if (ProcessBlock(NULL, &block)) {
                         nLoaded++;
                         nPos += 4 + nSize;

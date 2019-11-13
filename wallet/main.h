@@ -99,7 +99,7 @@ extern bool fEnforceCanonical;
 class NTP1Transaction;
 
 // Minimum disk space required - used in CheckDiskSpace()
-static const uint64_t nMinDiskSpace = 52428800;
+static const std::uintmax_t nMinDiskSpace = 52428800;
 
 class CReserveKey;
 class CTxDB;
@@ -110,7 +110,7 @@ void         UnregisterWallet(std::shared_ptr<CWallet> pwalletIn);
 void         SyncWithWallets(const CTransaction& tx, const CBlock* pblock = NULL, bool fUpdate = false,
                              bool fConnect = true);
 bool         ProcessBlock(CNode* pfrom, CBlock* pblock);
-bool         CheckDiskSpace(uint64_t nAdditionalBytes = 0);
+bool         CheckDiskSpace(uintmax_t nAdditionalBytes = 0);
 bool         LoadBlockIndex(bool fAllowNew = true);
 void         PrintBlockTree();
 bool         ProcessMessages(CNode* pfrom);
