@@ -120,9 +120,12 @@ jobs:
       run: |
         python -u ci_scripts/test_osx-gui_wallet.py
     - name: Build Upload
-      uses: jakejarvis/s3-sync-action@v0.5.0
-      with:
-        args: --acl public-read
+      run: |
+        brew fetch --retry s3cmd
+        brew install s3cmd --force
+        brew unlink s3cmd
+        brew link --force --overwrite s3cmd
+        s3cmd --access_key=$AWS_ACCESS_KEY_ID --secret_key=$AWS_SECRET_ACCESS_KEY --acl-public --host=ams3.digitaloceanspaces.com --host-bucket='%(bucket)s.ams3.digitaloceanspaces.com' --no-preserve put $SOURCE_PATH s3://neblio-build-staging
 
 
   osx_test:
