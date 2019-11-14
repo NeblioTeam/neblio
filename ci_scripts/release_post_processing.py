@@ -167,5 +167,5 @@ while(len(win_q_str) == 0 or
       len(lin_d_str) == 0 or
       len(rpi_d_str) == 0):
     check_assets()
-    print("Sleeping 30 seconds.")
-    time.sleep(30)
+    print("Sleeping 120 seconds.")
+    time.sleep(120)
