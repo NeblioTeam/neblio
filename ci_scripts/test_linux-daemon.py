@@ -5,12 +5,15 @@ import os
 import multiprocessing as mp
 import neblio_ci_libs as nci
 
+nci.setup_travis_or_gh_actions_env_vars()
+
 working_dir = os.getcwd()
 build_dir = "wallet"
-deploy_dir = os.path.join(os.environ['TRAVIS_BUILD_DIR'],'deploy', '')
+deploy_dir = os.path.join(os.environ['BUILD_DIR'],'deploy', '')
 
 packages_to_install = \
 [
+"ccache",
 "qt5-default",
 "qt5-qmake",
 "qtbase5-dev-tools",
@@ -64,11 +67,14 @@ os.environ['PATH'] = '/usr/lib/ccache:' + os.environ['PATH']
 nci.call_with_err_code('make "CXX=ccache g++" "STATIC=1" -B -w -f makefile.unix -j' + str(mp.cpu_count()))
 nci.call_with_err_code('strip ./nebliod')
 
-file_name = '$(date +%Y-%m-%d)---' + os.environ['TRAVIS_BRANCH'] + '-' + os.environ['TRAVIS_COMMIT'][:7] + '---nebliod---ubuntu16.04.tar.gz'
+file_name = '$(date +%Y-%m-%d)---' + os.environ['BRANCH'] + '-' + os.environ['COMMIT'][:7] + '---nebliod---ubuntu16.04.tar.gz'
 
 nci.call_with_err_code('tar -zcvf "' + file_name + '" ./nebliod')
 nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)
 nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
+# set the SOURCE_DIR & SOURCE_PATH env vars, these point to the binary that will be uploaded
+nci.call_with_err_code('echo "::set-env name=SOURCE_DIR::'  + deploy_dir + '"')
+nci.call_with_err_code('echo "::set-env name=SOURCE_PATH::' + deploy_dir + file_name + '"')
 
 nci.call_with_err_code('ccache -s')
 

@@ -6,9 +6,11 @@ import argparse
 import multiprocessing as mp
 import neblio_ci_libs as nci
 
+nci.setup_travis_or_gh_actions_env_vars()
+
 working_dir = os.getcwd()
 build_dir = "build"
-deploy_dir = os.path.join(os.environ['TRAVIS_BUILD_DIR'],'deploy', '')
+deploy_dir = os.path.join(os.environ['BUILD_DIR'],'deploy', '')
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--test', '-t', help='Only build and run tests', action='store_true')
@@ -16,6 +18,7 @@ args = parser.parse_args()
 
 packages_to_install = \
 [
+"ccache",
 "qt5-default",
 "qt5-qmake",
 "qtbase5-dev-tools",
@@ -76,19 +79,22 @@ os.environ['QRENCODE_LIB_PATH'] = openssl_lib_path
 os.environ['PATH'] = '/usr/lib/ccache:' + os.environ['PATH']
 
 if (args.test):
-        nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "OPENSSL_INCLUDE_PATH=' + openssl_include_path + '" "OPENSSL_LIB_PATH=' + openssl_lib_path + '" "QRENCODE_LIB_PATH=' + qrencode_lib_path + '" "QRENCODE_INCLUDE_PATH=' + qrencode_include_path + '" "PKG_CONFIG_PATH=' + pkg_config_path + '" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
-	nci.call_with_err_code("make -j" + str(mp.cpu_count()))
-	# run tests
-	nci.call_with_err_code("./wallet/test/neblio-tests")
+    nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "OPENSSL_INCLUDE_PATH=' + openssl_include_path + '" "OPENSSL_LIB_PATH=' + openssl_lib_path + '" "QRENCODE_LIB_PATH=' + qrencode_lib_path + '" "QRENCODE_INCLUDE_PATH=' + qrencode_include_path + '" "PKG_CONFIG_PATH=' + pkg_config_path + '" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
+    nci.call_with_err_code("make -j" + str(mp.cpu_count()))
+    # run tests
+    nci.call_with_err_code("./wallet/test/neblio-tests")
 else:
-        nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "OPENSSL_INCLUDE_PATH=' + openssl_include_path + '" "OPENSSL_LIB_PATH=' + openssl_lib_path + '" "QRENCODE_LIB_PATH=' + qrencode_lib_path + '" "QRENCODE_INCLUDE_PATH=' + qrencode_include_path + '" "PKG_CONFIG_PATH=' + pkg_config_path + '" ../neblio-wallet.pro')
-	nci.call_with_err_code("make -j" + str(mp.cpu_count()))
+    nci.call_with_err_code('qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "OPENSSL_INCLUDE_PATH=' + openssl_include_path + '" "OPENSSL_LIB_PATH=' + openssl_lib_path + '" "QRENCODE_LIB_PATH=' + qrencode_lib_path + '" "QRENCODE_INCLUDE_PATH=' + qrencode_include_path + '" "PKG_CONFIG_PATH=' + pkg_config_path + '" ../neblio-wallet.pro')
+    nci.call_with_err_code("make -j" + str(mp.cpu_count()))
 
-	file_name = '$(date +%Y-%m-%d)---' + os.environ['TRAVIS_BRANCH'] + '-' + os.environ['TRAVIS_COMMIT'][:7] + '---neblio-Qt---ubuntu16.04.tar.gz'
+    file_name = '$(date +%Y-%m-%d)---' + os.environ['BRANCH'] + '-' + os.environ['COMMIT'][:7] + '---neblio-Qt---ubuntu16.04.tar.gz'
 
-	nci.call_with_err_code('tar -zcvf "' + file_name + '" -C ./wallet neblio-qt')
-	nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)
-	nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
+    nci.call_with_err_code('tar -zcvf "' + file_name + '" -C ./wallet neblio-qt')
+    nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)
+    nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
+    # set the SOURCE_DIR & SOURCE_PATH env vars, these point to the binary that will be uploaded
+    nci.call_with_err_code('echo "::set-env name=SOURCE_DIR::'  + deploy_dir + '"')
+    nci.call_with_err_code('echo "::set-env name=SOURCE_PATH::' + deploy_dir + file_name + '"')
 
 nci.call_with_err_code('ccache -s')
 

@@ -6,9 +6,11 @@ import argparse
 import multiprocessing as mp
 import neblio_ci_libs as nci
 
+nci.setup_travis_or_gh_actions_env_vars()
+
 working_dir = os.getcwd()
 build_dir = "build"
-deploy_dir = os.path.join(os.environ['TRAVIS_BUILD_DIR'],'deploy', '')
+deploy_dir = os.path.join(os.environ['BUILD_DIR'],'deploy', '')
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--test', '-t', help='Only build and run tests', action='store_true')
@@ -41,33 +43,34 @@ nci.call_with_err_code('brew unlink python        && brew link --force --overwri
 nci.call_with_err_code('brew unlink openssl       && brew link --force --overwrite openssl')
 nci.call_with_err_code('brew unlink qrencode      && brew link --force --overwrite qrencode')
 
+
 nci.call_with_err_code('ccache -s')
 
 # prepend ccache to the path, necessary since prior steps prepend things to the path
 os.environ['PATH'] = '/usr/local/opt/ccache/libexec:' + os.environ['PATH']
 
 if (args.test):
-	nci.call_with_err_code('qmake "QMAKE_CXX=ccache clang++" "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
-	nci.call_with_err_code("make -j" + str(mp.cpu_count()))
-	# run tests
-	nci.call_with_err_code("./wallet/test/neblio-Qt.app/Contents/MacOS/neblio-Qt")
+    nci.call_with_err_code('qmake "QMAKE_CXX=ccache clang++" "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
+    nci.call_with_err_code("make -j" + str(mp.cpu_count()))
+    # run tests
+    nci.call_with_err_code("./wallet/test/neblio-Qt.app/Contents/MacOS/neblio-Qt")
 else:
-	nci.call_with_err_code('qmake "QMAKE_CXX=ccache clang++" "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-wallet.pro')
-	nci.call_with_err_code("make -j" + str(mp.cpu_count()))
-	# build our .dmg
-	#nci.call_with_err_code('sudo easy_install appscript')
-	# Install appscript from source due to issue with new compiled packages
-	nci.call_with_err_code('sudo easy_install https://files.pythonhosted.org/packages/35/0b/0ad06b376b2119c6c02a6d214070c8528081ed868bf82853d4758bf942eb/appscript-1.0.1.tar.gz')
-	os.chdir("wallet")
-	# start Xvfb as fancy DMG creation requires a screen
-	nci.call_with_err_code('sudo Xvfb :99 -ac -screen 0 1024x768x8 &')
-	nci.call_with_err_code('../../contrib/macdeploy/macdeployqtplus ./neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -dmg -fancy ../../contrib/macdeploy/fancy.plist -verbose 1 -rpath /usr/local/opt/qt/lib')
+    nci.call_with_err_code('qmake "QMAKE_CXX=ccache clang++" "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-wallet.pro')
+    nci.call_with_err_code("make -j" + str(mp.cpu_count()))
+    # build our .dmg
+    nci.call_with_err_code('npm install -g appdmg')
+    os.chdir("wallet")
+    nci.call_with_err_code('../../contrib/macdeploy/macdeployqtplus ./neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -verbose 1 -rpath /usr/local/opt/qt/lib')
+    nci.call_with_err_code('appdmg ../../contrib/macdeploy/appdmg.json ./neblio-Qt.dmg')
 
-	file_name = '$(date +%Y-%m-%d)---' + os.environ['TRAVIS_BRANCH'] + '-' + os.environ['TRAVIS_COMMIT'][:7] + '---neblio-Qt---macOS.zip'
+    file_name = '$(date +%Y-%m-%d)---' + os.environ['BRANCH'] + '-' + os.environ['COMMIT'][:7] + '---neblio-Qt---macOS.zip'
 
-	nci.call_with_err_code('zip -j ' + file_name + ' ./neblio-QT.dmg')
-	nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)
-	nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
+    nci.call_with_err_code('zip -j ' + file_name + ' ./neblio-Qt.dmg')
+    nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)
+    nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
+    # set the SOURCE_DIR & SOURCE_PATH env vars, these point to the binary that will be uploaded
+    nci.call_with_err_code('echo "::set-env name=SOURCE_DIR::'  + deploy_dir + '"')
+    nci.call_with_err_code('echo "::set-env name=SOURCE_PATH::' + deploy_dir + file_name + '"')
 
 nci.call_with_err_code('ccache -s')
 

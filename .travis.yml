@@ -23,7 +23,7 @@ env:
   - target_v=rpi_daemon
   - target_v=rpi_wallet_test
   - target_v=rpi_wallet
-  
+
 matrix:
   exclude:
   - os: osx
@@ -47,6 +47,10 @@ matrix:
   - os: linux
     env: target_v=osx_test
 before_install:
+- if [[ "$target_v" == "osx" ]]; then rm -rf ~/.nvm/ && git clone --depth 1 https://github.com/creationix/nvm.git ~/.nvm ; fi
+- if [[ "$target_v" == "osx" ]]; then source ~/.nvm/nvm.sh ; fi
+- if [[ "$target_v" == "osx" ]]; then nvm install 12 ; fi
+- if [[ "$target_v" == "osx" ]]; then nvm use 12 ; fi
 install:
 before_script:
 script:
@@ -67,30 +71,3 @@ notifications:
   email:
     recipients:
     - info@nebl.io
-before_deploy:
-- cd $TRAVIS_BUILD_DIR
-deploy:
-  - provider: s3
-    endpoint: https://ams3.digitaloceanspaces.com
-    access_key_id: 2VUF47CKX6AGTOKSGPBC
-    secret_access_key:
-      secure: DgrrcxBrf2mgfWN30ACSIgEhQJaIaWuJKO3/gAQR/1la434O5U+hnJ0nFzF431eogeBXwV5gdcsuIQaxcg2pB40orrQ1QEnwL8CQZfB0A9dyAr0YRFS9aWg4vF2UjvYkLF1iFaRjjpdxjLtdamlXG5Ea7jsxn4vLNRQm09SYoBLVXn7JYiLvyVsrtpaVR0E/hCl+U7rQVtkVSI5d0jUKUQimV7cgYhYGUsDnOQZcGdXHhQp7Hv0IQ8KSLdmH6At0DQiAmr6p0z6ToEn0uq2iZip6pPcz/VrnbUIPV8zJjlyyZ9I9MQ8h+V33iSeHCgOGXqIRH6E5IR3yfWUfvk6qUt3vVxU+wI0avceOC1wrV8qTqr6CJ8rvTnCMzHTuDtBK4lyNYregz+3Omj7zIKEiHt3lsyM1ClJixD0xJVuxNr2CRxgK4A53eHvRhZ+wjAPseVT06tfs3JaR0wxuO1QB5Xp4BUUwQF9jGnUu2GazIbJVkhFQMFmuwTDk8kwpVaQmVlkOMuYkThpxOf3vSMztKvtZ8lImFh7Ci8leQ8TQOxloZLPJwIvYadILjatX2k7btAKTkCawQSdmOZJh22c8M1aYxR/TxcnEyah43FhMyRQ/LNdWkvsWHFwpHHryLD8sEuZy2liotFFIgqfiaAFTF94Sm6F29DhHglh1SdGEznM=
-    bucket: neblio-build-staging
-    skip_cleanup: true
-    detect_encoding: true
-    local_dir: deploy
-    acl: public_read
-    overwrite: true
-    on:
-      repo: NeblioTeam/neblio
-      all_branches: true
-  - provider: releases
-    api_key:
-      secure: h0Cgy4kPdBLSnIrBSeAqAqFVBmblD21+UPLn/NeyL3CRODjWmwggE9il6b3Y8aPhkKwfQmCuzjO4ZAHK8tRc+F/jncdu8xEc4L6r7OEoPESujqOqWcFikj2RoU9IThNyzvwfXqDJ9IHHn0bvsl//Npro0llBjltpe2bODhqhKEwTEt79XgQ+v9S/QRM6lkO1CAPXPS/2iVBqSQfMytP70ZK9WnZ5M1yjS4msysbGOAS00hfwewyqU6KxzSRDnUGpTet6fStMCNxjO2xJaSqyFMKG/ROSk6InGDOKomcIEF4KWG4i5iyl/m63/1F4/mlyupvGhitf5hYcQHZW/23Fddec3cBYb4oSLB+uVHyuxm1c5BqyJsUD/MuWOFgIfRb2UIfko2EOS8rMDUZUGlJYPTjsoqWbqnAJEb3cBdT2WP8bYjxn+65T7KK4ysP+1U63KSG7Dn/+NJZxQXZRl74JjRDhueFrDsgbQMo1M1cC14WpUZIC2FZQ8y+b9BggMb+VLOOWwxzG+y24vcntTVWyFvfHBhSY2yfJnvMGvO6E1isFnIG60MOTJd63PX5jkKN/AhIDneh1lCGx+3i0LzyHuddh8mP6d5ZJsEbvHBFk54Rv76I0MUKiJXKc1Mmxzm48heptK9pL5/xvxrmo+LoKjONG+w9A2NcgzoSqOqFxuHE=
-    file_glob: true
-    file: deploy/*---neblio*
-    skip_cleanup: true
-    on:
-      repo: NeblioTeam/neblio
-      all_branches: true
-      tags: true

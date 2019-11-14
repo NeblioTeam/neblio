@@ -7,8 +7,8 @@
 
 #undef slots
 #include <Cocoa/Cocoa.h>
-#include <objc/objc.h>
-#include <objc/message.h>
+#include <AppKit/AppKit.h>
+#include <objc/runtime.h>
 
 #if QT_VERSION < 0x050000
 extern void qt_mac_set_dock_menu(QMenu *);
@@ -27,18 +27,12 @@ bool dockClickHandler(id self,SEL _cmd,...) {
 }
 
 void setupDockClickHandler() {
-    Class cls = objc_getClass("NSApplication");
-    id appInst = objc_msgSend((id)cls, sel_registerName("sharedApplication"));
-
-    if (appInst != NULL) {
-        id delegate = objc_msgSend(appInst, sel_registerName("delegate"));
-        Class delClass = (Class)objc_msgSend(delegate,  sel_registerName("class"));
-        SEL shouldHandle = sel_registerName("applicationShouldHandleReopen:hasVisibleWindows:");
-        if (class_getInstanceMethod(delClass, shouldHandle))
-            class_replaceMethod(delClass, shouldHandle, (IMP)dockClickHandler, "B@:");
-        else
-            class_addMethod(delClass, shouldHandle, (IMP)dockClickHandler,"B@:");
-    }
+    Class delClass = (Class)[[[NSApplication sharedApplication] delegate] class];
+    SEL shouldHandle = sel_registerName("applicationShouldHandleReopen:hasVisibleWindows:");
+    if (class_getInstanceMethod(delClass, shouldHandle))
+        class_replaceMethod(delClass, shouldHandle, (IMP)dockClickHandler, "B@:");
+    else
+        class_addMethod(delClass, shouldHandle, (IMP)dockClickHandler,"B@:");
 }
 
 

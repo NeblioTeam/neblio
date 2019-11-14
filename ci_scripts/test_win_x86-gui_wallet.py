@@ -5,11 +5,14 @@ import os
 import multiprocessing as mp
 import neblio_ci_libs as nci
 
+nci.setup_travis_or_gh_actions_env_vars()
+
 
 build_dir = "build"
 
 packages_to_install = \
 [
+"ccache",
 "wget",
 "make",
 "binutils"
@@ -18,7 +21,7 @@ packages_to_install = \
 nci.install_packages_debian(packages_to_install)
 
 working_dir = os.getcwd()
-deploy_dir = os.path.join(os.environ['TRAVIS_BUILD_DIR'],'deploy', '')
+deploy_dir = os.path.join(os.environ['BUILD_DIR'],'deploy', '')
 nci.mkdir_p(deploy_dir)
 
 mxe_path = "/mxe/mxe/"
@@ -44,11 +47,15 @@ os.chdir(build_dir)
 nci.call_with_err_code('i686-w64-mingw32.static-qmake-qt5 "QMAKE_CXX=ccache i686-w64-mingw32.static-g++" "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" ../neblio-wallet.pro')
 nci.call_with_err_code("make -j" + str(mp.cpu_count()))
 
-file_name = '$(date +%Y-%m-%d)---' + os.environ['TRAVIS_BRANCH'] + '-' + os.environ['TRAVIS_COMMIT'][:7] + '---neblio-Qt---windows_x86.zip'
+file_name = '$(date +%Y-%m-%d)---' + os.environ['BRANCH'] + '-' + os.environ['COMMIT'][:7] + '---neblio-Qt---windows_x86.zip'
 
 nci.call_with_err_code('zip -j ' + file_name + ' ./wallet/release/neblio-qt.exe')
 nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)
 nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
+# set the SOURCE_DIR & SOURCE_PATH env vars, these point to the binary that will be uploaded
+nci.call_with_err_code('echo "::set-env name=SOURCE_DIR::'  + deploy_dir + '"')
+nci.call_with_err_code('echo "::set-env name=SOURCE_PATH::' + deploy_dir + file_name + '"')
+
 
 nci.call_with_err_code('ccache -s')
 
