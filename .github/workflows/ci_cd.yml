@@ -22,7 +22,7 @@ jobs:
           ${{ runner.OS }}--linux_daemon-
     - name: Build nebliod for Linux
       run: |
-        echo ${{ env.GITHUB_REF }}
+        echo ::set-env name=GITHUB_REF::$(echo ${GITHUB_REF})
         python -u ci_scripts/test_linux-daemon.py
         echo ::set-env name=RELEASE_TAG::$(echo ${GITHUB_REF:10})
     - name: Build Upload to S3
