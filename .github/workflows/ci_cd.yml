@@ -178,6 +178,7 @@ jobs:
 
 
   rpi_wallet:
+    if: !startsWith(github.ref, 'refs/pull')
     runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v1
@@ -209,6 +210,7 @@ jobs:
 
 
   rpi_wallet_test:
+    if: !startsWith(github.ref, 'refs/pull')
     runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v1
@@ -228,6 +230,7 @@ jobs:
 
 
   rpi_daemon:
+    if: !startsWith(github.ref, 'refs/pull')
     runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v1
