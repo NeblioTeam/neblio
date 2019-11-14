@@ -1,4 +1,4 @@
-![Build Status](https://travis-ci.org/NeblioTeam/neblio.svg?branch=master)
+![Build Status](https://travis-ci.org/NeblioTeam/neblio.svg?branch=master) ![Build Status](https://github.com/NeblioTeam/neblio/workflows/CI/CD/badge.svg)
 
 # Open Source Repository for Neblio Nodes & Wallets
 More information here: https://nebl.io
@@ -289,7 +289,7 @@ Rewards are at the discretion of Neblio, and we will not be awarding significant
 - bugs allowing unauthorized operations on user accounts.
 
 ## Program Rules
-- Vulnerabilities relating to this repository, the core software running the Neblio Network, are eligible for this program. Out-of-scope vulnerabilities impacting other software we release may be considered under this program at Neblio's discretion. 
+- Vulnerabilities relating to this repository, the core software running the Neblio Network, are eligible for this program. Out-of-scope vulnerabilities impacting other software we release may be considered under this program at Neblio's discretion.
 - As this is a private program, please do not discuss this program or any vulnerabilities (even resolved ones) outside of the program without express consent from the organization.
 - Please provide detailed reports with reproducible steps. If the report is not detailed enough to reproduce the issue, the issue will not be eligible for a reward.
 - Submit vulnerabilities only for the latest release, vulnerabilities submitted for older versions are not eligible for a reward.

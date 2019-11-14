@@ -182,6 +182,7 @@ jobs:
 
 
   rpi_wallet:
+    # Do not build PRs on RPi due to inability to use ccache
     if: "!startsWith(github.ref, 'refs/pull')"
     runs-on: ubuntu-16.04
     steps:
@@ -214,6 +215,7 @@ jobs:
 
 
   rpi_wallet_test:
+    # Do not build PRs on RPi due to inability to use ccache
     if: "!startsWith(github.ref, 'refs/pull')"
     runs-on: ubuntu-16.04
     steps:
@@ -234,6 +236,7 @@ jobs:
 
 
   rpi_daemon:
+    # Do not build PRs on RPi due to inability to use ccache
     if: "!startsWith(github.ref, 'refs/pull')"
     runs-on: ubuntu-16.04
     steps:
