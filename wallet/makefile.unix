@@ -76,7 +76,8 @@ LIBS += \
    -l db_cxx$(BDB_LIB_SUFFIX) \
    -l ssl \
    -l crypto \
-   -l z
+   -l z \
+   -l sodium
 
 ifdef NEBLIO_REST
    LIBS += -l restbed
