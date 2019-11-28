@@ -394,7 +394,7 @@ CHL::Bytes CHL::CalculateKeyRatchet(CHL::AuthKeyRatchetAlgorithm keyRatchetAlgo,
 
     if (authenticationAlgoKeyLen.is_initialized()) {
         // reduce the key size to the appropriate key size
-        assert(authKey.size() >= authenticationAlgoKeyLen);
+        assert(authKey.size() >= authenticationAlgoKeyLen.get());
         authKey.resize(authenticationAlgoKeyLen.get());
     }
 
@@ -440,7 +440,7 @@ CHL::EncryptMessageOutput CHL::EncryptMessage(const CHL::Bytes& message, const B
         throw std::runtime_error("Invalid key ratchet algorithm output length with index: " +
                                  std::to_string(keyRatchetAlgo));
     }
-    if (key.size() != GetEncryptionAlgoKeyLength(encAlgo)) {
+    if (key.size() != encryptionKeyLen.get()) {
         throw std::runtime_error("Invalid encryption key length for algorithm " +
                                  encryptionAlgoName.get() + "; Given length is " +
                                  std::to_string(key.size()) +

@@ -137,8 +137,8 @@ public:
         return res;
     }
 
-    template <typename T, std::size_t N>
-    static void IncrementNonce(std::array<T, N>& nonce);
+    template <std::size_t N>
+    static void IncrementNonce(std::array<uint8_t, N>& nonce);
 
     template <typename T>
     [[nodiscard]] static std::array<uint8_t, sizeof(T)> SerializeSimple(T val);
@@ -148,8 +148,7 @@ public:
 
     [[nodiscard]] static boost::optional<std::string> GetEncryptionAlgoName(EncryptionAlgorithm algo);
     [[nodiscard]] static EncryptionAlgorithm          GetEncryptionAlgoFromName(const StringViewT name);
-    [[nodiscard]] static boost::optional<uint64_t>
-                                                      GetEncryptionAlgoKeyLength(EncryptionAlgorithm algo);
+    [[nodiscard]] static boost::optional<uint64_t> GetEncryptionAlgoKeyLength(EncryptionAlgorithm algo);
     [[nodiscard]] static boost::optional<std::string> GetRatchetAlgoName(AuthKeyRatchetAlgorithm algo);
     [[nodiscard]] static AuthKeyRatchetAlgorithm      GetRatchetAlgoFromName(const StringViewT name);
     [[nodiscard]] static boost::optional<uint64_t>
@@ -179,26 +178,21 @@ Crypto_HighLevel::Bytes Crypto_HighLevel::ToBytes(const Container& input)
     return Bytes(input.begin(), input.end());
 }
 
-template <typename T, std::size_t N>
-void Crypto_HighLevel::IncrementNonce(std::array<T, N>& nonce)
+template <std::size_t N>
+void Crypto_HighLevel::IncrementNonce(std::array<uint8_t, N>& nonce)
 {
-    static_assert(sizeof(T) == 1, "Size of nonce type should be 1");
     static_assert(N % sizeof(uint64_t) == 0, "The nonce is expected to be integer multiples of 8");
-    if (std::all_of(nonce.cbegin(), nonce.cend(),
-                    [](T c) { return c == std::numeric_limits<T>::max(); })) {
-        std::memset(&nonce.front(), 0, nonce.size());
-        return;
+    boost::multiprecision::cpp_int mpint = 0;
+    for (unsigned i = 0; i < nonce.size(); i++) {
+        mpint = mpint << 8;
+        mpint |= static_cast<uint8_t>(nonce[i]);
     }
-    boost::multiprecision::cpp_int mpint;
-    boost::multiprecision::import_bits(mpint, nonce.data(), nonce.data() + nonce.size(),
-                                       sizeof(uint64_t));
     ++mpint;
-    std::vector<char> v; // TODO: This doesn't have to be a vector, can be an std::array
-    v.reserve(nonce.size());
-    boost::multiprecision::export_bits(mpint, std::back_inserter(v), sizeof(uint64_t));
-    std::memset(&nonce.front(), 0, nonce.size());
-    // copy to the last bits of the nonce
-    std::memcpy(&nonce.front() + nonce.size() - v.size(), &v.front(), v.size());
+    for(unsigned i = 0; i < nonce.size(); i++) {
+        static const boost::multiprecision::cpp_int mask = 0xFF;
+        nonce[nonce.size() - i - 1] = (mpint & mask).convert_to<uint8_t>();
+        mpint = mpint >> 8;
+    }
 }
 
 template <typename T>
