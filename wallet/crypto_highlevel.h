@@ -190,7 +190,7 @@ void Crypto_HighLevel::IncrementNonce(std::array<uint8_t, N>& nonce)
     ++mpint;
     for(unsigned i = 0; i < nonce.size(); i++) {
         static const boost::multiprecision::cpp_int mask = 0xFF;
-        nonce[nonce.size() - i - 1] = (mpint & mask).convert_to<uint8_t>();
+        nonce[nonce.size() - i - 1] = static_cast<uint8_t>(mpint & mask);
         mpint = mpint >> 8;
     }
 }
