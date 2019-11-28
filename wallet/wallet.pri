@@ -154,7 +154,8 @@ HEADERS += qt/bitcoingui.h \
     txmempool.h           \
     merkletx.h            \
     blocklocator.h        \
-    qt/ntp1/issuenewntp1tokendialog.h
+    qt/ntp1/issuenewntp1tokendialog.h \
+    crypto_highlevel.h
 
 
 
@@ -305,7 +306,8 @@ SOURCES += qt/bitcoin.cpp \
     txmempool.cpp         \
     merkletx.cpp          \
     blocklocator.cpp      \
-    qt/ntp1/issuenewntp1tokendialog.cpp
+    qt/ntp1/issuenewntp1tokendialog.cpp \
+    crypto_highlevel.cpp
 
 
 SOURCES +=                   \

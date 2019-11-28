@@ -8,6 +8,7 @@
 #include <openssl/obj_mac.h>
 
 #include "key.h"
+#include "crypto_highlevel.h"
 
 // Generate a private key from just the secret parameter
 int EC_KEY_regenerate_key(EC_KEY *eckey, BIGNUM *priv_key)
@@ -247,6 +248,57 @@ const unsigned char vchZero[0] = {};
 bool CKey::CheckSignatureElement(const unsigned char *vch, int len, bool half) {
     return CompareBigEndian(vch, len, vchZero, 0) > 0 &&
            CompareBigEndian(vch, len, half ? vchMaxModHalfOrder : vchMaxModOrder, 32) <= 0;
+}
+
+CKey::EcKeyPtr CKey::GetLowLevelPublicKey() const
+{
+    std::vector<unsigned char> pubkey_raw  = this->GetPubKey().Raw();
+    EC_KEY*                    pkey_rawPtr = EC_KEY_new_by_curve_name(NID_secp256k1);
+    const unsigned char*       pbegin      = &pubkey_raw[0];
+    pkey_rawPtr                            = o2i_ECPublicKey(&pkey_rawPtr, &pbegin, pubkey_raw.size());
+    if (!pkey_rawPtr) {
+        throw std::runtime_error("Public key deserialization resulted in a nullptr");
+    }
+    return EcKeyPtr(pkey_rawPtr, EcKeyDeleter);
+}
+
+CKey::EcKeyPtr CKey::GetLowLevelPrivateKey() const
+{
+    CPrivKey             privekey_raw = this->GetPrivKey();
+    EC_KEY*              pkey_rawPtr  = EC_KEY_new_by_curve_name(NID_secp256k1);
+    const unsigned char* pbegin       = &privekey_raw[0];
+    if (d2i_ECPrivateKey(&pkey_rawPtr, &pbegin, privekey_raw.size())) {
+        if (!EC_KEY_check_key(pkey_rawPtr)) {
+            throw std::runtime_error("private key check error");
+        }
+    }
+    return EcKeyPtr(pkey_rawPtr, EcKeyDeleter);
+}
+
+std::pair<CKey, std::array<uint8_t, 32> > CKey::GenerateEphemeralSharedSecretFromThisPublicKey()
+{
+    std::array<uint8_t, 32> sharedSecret;
+
+    auto            lowLevelPubKey = this->GetLowLevelPublicKey();
+    const EC_POINT* ecpoint        = EC_KEY_get0_public_key(lowLevelPubKey.get());
+
+    CKey ephemeralKey;
+    ephemeralKey.MakeNewKey(true);
+    auto ephemeralEcKey = ephemeralKey.GetLowLevelPrivateKey();
+
+    const EC_GROUP* group1 = EC_KEY_get0_group(ephemeralEcKey.get());
+    const EC_GROUP* group2 = EC_KEY_get0_group(lowLevelPubKey.get());
+    if (EC_GROUP_cmp(group1, group2, nullptr) != 0) {
+        throw std::logic_error("Failed to compute shared secret. Curves don't share EC group");
+    }
+
+    int len = ECDH_compute_key(sharedSecret.data(), sharedSecret.size(), ecpoint, ephemeralEcKey.get(),
+                               KDF_SHA256);
+
+    if (len != SHA256_DIGEST_LENGTH) {
+        throw std::runtime_error("Failed to compute ephemeral key: " + CHL::GetOpenSSLErrorMsg());
+    }
+    return std::make_pair(ephemeralKey, sharedSecret);
 }
 
 void CKey::MakeNewKey(bool fCompressed)

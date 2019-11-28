@@ -21,14 +21,6 @@
 
 #include <type_traits>
 
-#if BOOST_VERSION >= 106100
-#include <boost/utility/string_view.hpp>
-using StringViewT = boost::string_view;
-#else
-#include <boost/utility/string_ref.hpp>
-using StringViewT = boost::string_ref;
-#endif
-
 template <typename T>
 typename std::enable_if<!std::is_same<T, std::string>::value && !std::is_same<T, const char*>::value,
                         void>::type

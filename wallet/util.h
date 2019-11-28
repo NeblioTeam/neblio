@@ -43,6 +43,14 @@
 #include <inttypes.h>
 #include <stdint.h>
 
+#if BOOST_VERSION >= 106100
+#include <boost/utility/string_view.hpp>
+using StringViewT = boost::string_view;
+#else
+#include <boost/utility/string_ref.hpp>
+using StringViewT = boost::string_ref;
+#endif
+
 static const std::uintmax_t ONE_KB = (static_cast<uint64_t>(1) << 10);
 static const std::uintmax_t ONE_MB = (static_cast<uint64_t>(1) << 20);
 static const std::uintmax_t ONE_GB = (static_cast<uint64_t>(1) << 30);
@@ -775,6 +783,9 @@ std::string CalculateHashOfFile(const boost::filesystem::path& PathToFile,
     return calculator.getHashAndReset();
 }
 
+void* KDF_SHA256(const void* in, size_t inlen, void* out, size_t* outlen);
+void* KDF_SHA512(const void* in, size_t inlen, void* out, size_t* outlen);
+
 uintmax_t GetFreeDiskSpace(const boost::filesystem::path& path);
 
 bool                    SC_DeleteOperationScheduledOnRestart(const std::string& OpName);
@@ -794,16 +805,16 @@ void ignore_unused()
 {
 }
 
-template <typename T>
+template <typename T, typename MutexType = boost::recursive_mutex>
 class LockedVar
 {
-    T                              var;
-    mutable boost::recursive_mutex mtx;
+    T                 var;
+    mutable MutexType mtx;
 
 public:
     LockedVar(T&& Var)
     {
-        boost::lock_guard<boost::recursive_mutex> lg(mtx);
+        boost::lock_guard<MutexType> lg(mtx);
         var = std::move(Var);
     }
 
@@ -811,15 +822,25 @@ public:
 
     T& get()
     {
-        boost::lock_guard<boost::recursive_mutex> lg(mtx);
+        boost::lock_guard<MutexType> lg(mtx);
         return var;
     }
 
     T& get_unsafe() { return var; }
 
-    boost::shared_ptr<boost::lock_guard<boost::recursive_mutex>> get_lock()
+    [[nodiscard]] boost::shared_ptr<boost::lock_guard<MutexType>> get_lock() const
     {
-        return boost::make_shared<boost::lock_guard<boost::recursive_mutex>>(mtx);
+        return boost::make_shared<boost::lock_guard<MutexType>>(mtx);
+    }
+
+    [[nodiscard]] boost::shared_ptr<boost::unique_lock<MutexType>> get_try_lock() const
+    {
+        auto lock = boost::make_shared<boost::unique_lock<MutexType>>(mtx, boost::defer_lock);
+        if (mtx.try_lock()) {
+            return lock;
+        } else {
+            return nullptr;
+        }
     }
 };
 

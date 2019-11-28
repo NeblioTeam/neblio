@@ -157,6 +157,23 @@ public:
 
     // Check whether an element of a signature (r or s) is valid.
     static bool CheckSignatureElement(const unsigned char *vch, int len, bool half);
+
+    const EC_KEY* getRawKey() const {
+        return pkey;
+    }
+
+    std::function<void(EC_KEY*)> EcKeyDeleter = [](EC_KEY* eckey) {
+        if (!eckey)
+            return;
+        EC_KEY_free(eckey);
+    };
+
+    using EcKeyPtr = std::unique_ptr<EC_KEY, decltype(EcKeyDeleter)>;
+
+    EcKeyPtr GetLowLevelPublicKey() const;
+    EcKeyPtr GetLowLevelPrivateKey() const;
+
+    std::pair<CKey, std::array<uint8_t, 32>> GenerateEphemeralSharedSecretFromThisPublicKey();
 };
 
 /** Check that required EC support is available at runtime */
