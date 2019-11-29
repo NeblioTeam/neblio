@@ -6,6 +6,7 @@
 #include "util.h"
 #include <boost/optional.hpp>
 #include <sodium.h>
+#include <sodium/crypto_secretbox_xsalsa20poly1305.h>
 #include <vector>
 
 class Crypto_HighLevel
