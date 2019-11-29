@@ -915,21 +915,25 @@ TEST(cryptography_tests, names_and_variations)
 
 void TestGenericEncryption(const CHL::Bytes& message, CHL::EncryptionAlgorithm encAlgo,
                            CHL::AuthenticationAlgorithm authAlgo,
-                           CHL::AuthKeyRatchetAlgorithm ratchetAlgo)
+                           CHL::AuthKeyRatchetAlgorithm ratchetAlgo, bool changeSomethingInCipher)
 {
     CHL::Bytes                key = CHL::RandomBytes(CHL::GetEncryptionAlgoKeyLength(encAlgo).get());
     CHL::EncryptMessageOutput cipherData =
         CHL::EncryptMessage(message, key, encAlgo, ratchetAlgo, authAlgo);
+    if (changeSomethingInCipher) {
+        uint64_t randomByteCount = CHL::RandomBytesAs<uint64_t>() % cipherData.cipher.size();
+        cipherData.cipher.at(randomByteCount) += 1;
+    }
     CHL::Bytes recoveredMessage = CHL::DecryptMessage(cipherData, key);
     EXPECT_EQ(message, recoveredMessage);
 }
 
 void TestGenericEncryptionRandom(uint64_t messageLength, CHL::EncryptionAlgorithm encAlgo,
                                  CHL::AuthenticationAlgorithm authAlgo,
-                                 CHL::AuthKeyRatchetAlgorithm ratchetAlgo)
+                                 CHL::AuthKeyRatchetAlgorithm ratchetAlgo, bool changeSomethingInCipher)
 {
     CHL::Bytes message = CHL::RandomBytes(messageLength);
-    TestGenericEncryption(message, encAlgo, authAlgo, ratchetAlgo);
+    TestGenericEncryption(message, encAlgo, authAlgo, ratchetAlgo, changeSomethingInCipher);
 }
 
 TEST(cryptography_tests, generic_encryption)
@@ -942,10 +946,27 @@ TEST(cryptography_tests, generic_encryption)
                 CHL::EncryptionAlgorithm     encAlgo     = static_cast<CHL::EncryptionAlgorithm>(i);
                 CHL::AuthenticationAlgorithm authAlgo    = static_cast<CHL::AuthenticationAlgorithm>(j);
                 CHL::AuthKeyRatchetAlgorithm ratchetAlgo = static_cast<CHL::AuthKeyRatchetAlgorithm>(k);
-                EXPECT_ANY_THROW(TestGenericEncryption(CHL::Bytes(), encAlgo, authAlgo, ratchetAlgo));
+                EXPECT_ANY_THROW(
+                    TestGenericEncryption(CHL::Bytes(), encAlgo, authAlgo, ratchetAlgo, false));
                 for (int count = 0; count < NumberOfTestsPerCombination; count++) {
                     uint64_t messageLength = 1 + (CHL::RandomBytesAs<uint64_t>() % 100000);
-                    TestGenericEncryptionRandom(messageLength, encAlgo, authAlgo, ratchetAlgo);
+                    EXPECT_NO_THROW(TestGenericEncryptionRandom(messageLength, encAlgo, authAlgo,
+                                                                ratchetAlgo, false));
+                }
+            }
+        }
+    }
+
+    for (int i = 0; i < static_cast<int>(CHL::EncryptionAlgorithm::Enc_Size); i++) {
+        for (int j = 0; j < static_cast<int>(CHL::AuthenticationAlgorithm::Auth_Size); j++) {
+            for (int k = 0; k < static_cast<int>(CHL::AuthKeyRatchetAlgorithm::Ratchet_Size); k++) {
+                CHL::EncryptionAlgorithm     encAlgo     = static_cast<CHL::EncryptionAlgorithm>(i);
+                CHL::AuthenticationAlgorithm authAlgo    = static_cast<CHL::AuthenticationAlgorithm>(j);
+                CHL::AuthKeyRatchetAlgorithm ratchetAlgo = static_cast<CHL::AuthKeyRatchetAlgorithm>(k);
+                for (int count = 0; count < NumberOfTestsPerCombination; count++) {
+                    uint64_t messageLength = 1 + (CHL::RandomBytesAs<uint64_t>() % 100000);
+                    EXPECT_ANY_THROW(TestGenericEncryptionRandom(messageLength, encAlgo, authAlgo,
+                                                                 ratchetAlgo, true));
                 }
             }
         }
