@@ -9,8 +9,9 @@
 #include <openssl/ec.h>
 #include <openssl/ecdh.h>
 
-#include "key.h"
 #include "crypto_highlevel.h"
+#include "key.h"
+
 
 // Generate a private key from just the secret parameter
 int EC_KEY_regenerate_key(EC_KEY *eckey, BIGNUM *priv_key)
