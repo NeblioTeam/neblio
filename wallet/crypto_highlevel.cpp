@@ -447,7 +447,7 @@ CHL::EncryptMessageOutput CHL::EncryptMessage(const CHL::Bytes& message, const B
                                  "; must be: " + std::to_string(encryptionKeyLen.get()));
     }
 
-    if (authKeyRatchetOutputLen.get() < authenticationAlgoKeyLen) {
+    if (authKeyRatchetOutputLen.get() < authenticationAlgoKeyLen.get()) {
         throw std::runtime_error(
             "The key ratchet algorithm given has an output length smaller than the "
             "required authentication key length. Please choose another ratcheting algorithm.");
@@ -503,7 +503,18 @@ CHL::Bytes Crypto_HighLevel::DecryptMessage(const CHL::EncryptMessageOutput& enc
     const boost::optional<uint64_t> authenticationAlgoKeyLen = GetAuthAlgoKeyLength(authAlgo);
     const boost::optional<uint64_t> authKeyRatchetOutputLen  = GetRatchetAlgoOutputLength(ratchetAlgo);
 
-    Bytes authKey = CalculateKeyRatchet(ratchetAlgo, key);
+    if (!authenticationAlgoKeyLen.is_initialized()) {
+        throw std::runtime_error("Invalid authentication algorithm key length found with index: " +
+                                 std::to_string(authAlgo));
+    }
+
+    if (authKeyRatchetOutputLen.get() < authenticationAlgoKeyLen.get()) {
+        throw std::runtime_error(
+            "The key ratchet algorithm given has an output length smaller than the "
+            "required authentication key length. Please choose another ratcheting algorithm.");
+    }
+
+    Bytes authKey = CalculateKeyRatchet(ratchetAlgo, key, authenticationAlgoKeyLen);
 
     Bytes authData;
 

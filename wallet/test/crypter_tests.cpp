@@ -591,14 +591,14 @@ TEST(cryptography_tests, nonce_incrementor)
     {
         // 0xFFFFFF... + 1 (unsigned char)
         std::array<unsigned char, crypto_secretbox_NONCEBYTES> n1;
-        std::memset(&n1.front(), 0xFF, n1.size());
+        std::memset(n1.data(), 0xFF, n1.size());
         CHL::IncrementNonce(n1);
         EXPECT_TRUE(std::all_of(n1.cbegin(), n1.cend(), [](unsigned char c) { return c == 0; }));
     }
     {
         // 0x00000... + 1 (unsigned char)
         std::array<unsigned char, crypto_secretbox_NONCEBYTES> n1;
-        std::memset(&n1.front(), 0, n1.size());
+        std::memset(n1.data(), 0, n1.size());
         CHL::IncrementNonce(n1);
         EXPECT_TRUE(std::all_of(n1.cbegin(), n1.cend() - 1, [](unsigned char c) { return c == 0; }));
         EXPECT_EQ(n1[crypto_secretbox_NONCEBYTES - 1], 1);
@@ -606,7 +606,7 @@ TEST(cryptography_tests, nonce_incrementor)
     {
         // 0xFFFFF...FFE + 1 (unsigned char)
         std::array<unsigned char, crypto_secretbox_NONCEBYTES> n1;
-        std::memset(&n1.front(), 0xFF, n1.size());
+        std::memset(n1.data(), 0xFF, n1.size());
         n1[crypto_secretbox_NONCEBYTES - 1] = 0xFE;
         CHL::IncrementNonce(n1);
         EXPECT_TRUE(std::all_of(n1.cbegin(), n1.cend(), [](unsigned char c) { return c == 0xFF; }));
@@ -617,8 +617,8 @@ TEST(cryptography_tests, nonce_incrementor)
         for (unsigned i = 1; i < crypto_secretbox_NONCEBYTES - 1; i++) {
             std::array<unsigned char, crypto_secretbox_NONCEBYTES> n;
             static_assert(crypto_secretbox_NONCEBYTES % 2 == 0, "");
-            std::memset(&n.front(), 0, n.size());
-            std::memset(&n.front() + n.size() - i, 0xFF, i);
+            std::memset(n.data(), 0, n.size());
+            std::memset(n.data() + n.size() - i, 0xFF, i);
             CHL::IncrementNonce(n);
             EXPECT_TRUE(std::all_of(n.cbegin(), n.cbegin() + n.size() - i - 1,
                                     [](unsigned char c) { return c == 0; }));
@@ -633,8 +633,8 @@ TEST(cryptography_tests, nonce_incrementor)
         for (unsigned i = 1; i < crypto_secretbox_NONCEBYTES - 1; i++) {
             std::array<uint8_t, crypto_secretbox_NONCEBYTES> n;
             static_assert(crypto_secretbox_NONCEBYTES % 2 == 0, "");
-            std::memset(&n.front(), 0, n.size());
-            std::memset(&n.front() + n.size() - i, 0xFF, i);
+            std::memset(n.data(), 0, n.size());
+            std::memset(n.data() + n.size() - i, 0xFF, i);
             CHL::IncrementNonce(n);
             EXPECT_TRUE(
                 std::all_of(n.cbegin(), n.cbegin() + n.size() - i - 1, [](char c) { return c == 0; }));

@@ -4,7 +4,6 @@
 #include "allocators.h"
 #include "json_spirit.h"
 #include "util.h"
-#include <boost/multiprecision/cpp_int.hpp>
 #include <boost/optional.hpp>
 #include <sodium.h>
 #include <vector>
@@ -182,16 +181,23 @@ template <std::size_t N>
 void Crypto_HighLevel::IncrementNonce(std::array<uint8_t, N>& nonce)
 {
     static_assert(N % sizeof(uint64_t) == 0, "The nonce is expected to be integer multiples of 8");
-    boost::multiprecision::cpp_int mpint = 0;
-    for (unsigned i = 0; i < nonce.size(); i++) {
-        mpint = mpint << 8;
-        mpint |= static_cast<uint8_t>(nonce[i]);
+    // we have two cases, either all bytes are 0xFF, which means the next nonce is 0, or other wise, we
+    // loop over all bytes, add one, and move the carry to the next byte
+
+    // cover the case of 0xFFFFFFFFF...
+    if (std::all_of(nonce.cbegin(), nonce.cend(), [](uint8_t c) { return c == UINT8_C(0xFF); })) {
+        std::memset(nonce.data(), 0, nonce.size());
+        return;
     }
-    ++mpint;
-    for(unsigned i = 0; i < nonce.size(); i++) {
-        static const boost::multiprecision::cpp_int mask = 0xFF;
-        nonce[nonce.size() - i - 1] = static_cast<uint8_t>(mpint & mask);
-        mpint = mpint >> 8;
+
+    for (unsigned i = 0; i < nonce.size(); i++) {
+        unsigned idx = nonce.size() - i - 1;
+        if (nonce[idx] != 0xFF) {
+            nonce[idx] += 1;
+            break;
+        } else {
+            nonce[idx] = UINT8_C(0);
+        }
     }
 }
 
@@ -201,7 +207,7 @@ std::array<uint8_t, sizeof(T)> Crypto_HighLevel::SerializeSimple(T val)
     static_assert(std::is_trivial<T>::value, "You can only serialize trivial types");
     static_assert(std::is_integral<T>::value, "This serialization is only for ints");
     std::array<uint8_t, sizeof(T)> res;
-    for (int i = 0; i < res.size(); i++) {
+    for (unsigned i = 0; i < res.size(); i++) {
         res[i] = 0xFF & (val >> 8 * i);
     }
     return res;
@@ -213,7 +219,7 @@ T Crypto_HighLevel::DeserializeSimple(std::array<uint8_t, sizeof(T)> data)
     static_assert(std::is_trivial<T>::value, "You can only serialize trivial types");
     static_assert(std::is_integral<T>::value, "This serialization is only for ints");
     T res = 0;
-    for (int i = 0; i < data.size(); i++) {
+    for (unsigned i = 0; i < data.size(); i++) {
         res = res << 8;
         res |= data[data.size() - i - 1];
     }
