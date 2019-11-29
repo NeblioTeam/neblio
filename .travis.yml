@@ -6,7 +6,7 @@ os:
 - linux
 language: cpp
 cache:
-# - ccache
+- ccache
 - directories:
     - $HOME/Library/Caches/Homebrew
 env:
@@ -23,7 +23,7 @@ env:
   - target_v=rpi_daemon
   - target_v=rpi_wallet_test
   - target_v=rpi_wallet
-
+  
 matrix:
   exclude:
   - os: osx
