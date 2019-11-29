@@ -297,9 +297,9 @@ std::pair<CKey, std::array<uint8_t, 32> > CKey::GenerateEphemeralSharedSecretFro
     int len = ECDH_compute_key(sharedSecret.data(), sharedSecret.size(), ecpoint, ephemeralEcKey.get(),
                                KDF_SHA256);
 
-    // if (len != SHA256_DIGEST_LENGTH) {
-    //     throw std::runtime_error("Failed to compute ephemeral key: " + CHL::GetOpenSSLErrorMsg());
-    // }
+    if (len != SHA256_DIGEST_LENGTH) {
+        throw std::runtime_error("Failed to compute ephemeral key: " + CHL::GetOpenSSLErrorMsg());
+    }
     return std::make_pair(ephemeralKey, sharedSecret);
 }
 
