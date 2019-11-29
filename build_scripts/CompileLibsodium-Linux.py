@@ -36,6 +36,7 @@ def download_libsodium():
     filename_ = ""
     for ver_suffix in list(reversed(string.ascii_lowercase))+[""]:
         version_str = version + ver_suffix
+        print(version_str)
         if(download_file(get_libsodium_link(version_str), get_libsodium_filename(version_str))):
             libsodium_version_found = True
             filename_ = get_libsodium_filename(version_str)
