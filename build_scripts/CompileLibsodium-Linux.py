@@ -14,7 +14,7 @@ def get_libsodium_filename(ver):
     return "libsodium-" + ver + ".tar.gz"
 
 def get_libsodium_link(ver):
-    link = "https://download.libsodium.org/libsodium/releases/libsodium-1.0.18-stable.tar.gz" + get_libsodium_filename(ver)
+    link = "https://download.libsodium.org/libsodium/releases/" + get_libsodium_filename(ver)
 #    print(link)
     return link
 
