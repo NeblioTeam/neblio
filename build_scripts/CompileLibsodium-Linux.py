@@ -34,14 +34,10 @@ def download_file(filelink, target):
 def download_libsodium():
     libsodium_version_found = False
     filename_ = ""
-    for ver_suffix in list(reversed(string.ascii_lowercase))+[""]:
-        version_str = version + ver_suffix
-        print(version_str)
-        if(download_file(get_libsodium_link(version_str), get_libsodium_filename(version_str))):
-            libsodium_version_found = True
-            filename_ = get_libsodium_filename(version_str)
-            print("Found libsodium version to be " + version_str)
-            break
+    if(download_file(get_libsodium_link(version), get_libsodium_filename(version))):
+        libsodium_version_found = True
+        filename_ = get_libsodium_filename(version)
+        print("Found libsodium version to be " + version)
     if libsodium_version_found == False:
         print("Could not find the latest libsodium version. Probably you're not connected to the internet.")
         print("If you have already downloaded libsodium, put the file name in the first argument of the script.")
