@@ -5,10 +5,10 @@ os:
 - osx
 - linux
 language: cpp
-cache:
+# cache:
 # - ccache
-- directories:
-    - $HOME/Library/Caches/Homebrew
+# - directories:
+    # - $HOME/Library/Caches/Homebrew
 env:
   global:
     CCACHE_MAXSIZE: 1G
