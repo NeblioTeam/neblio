@@ -31,8 +31,8 @@ endif
 
 
 
-DEFS += $(addprefix -I,$(CURDIR) $(CURDIR)/obj $(BOOST_INCLUDE_PATH) $(BDB_INCLUDE_PATH) $(OPENSSL_INCLUDE_PATH) $(shell pkg-config libcurl --cflags) $(shell pkg-config libsodium --cflags)) $(MDB32D)
-LIBS = $(addprefix -L,$(BOOST_LIB_PATH) $(BDB_LIB_PATH) $(OPENSSL_LIB_PATH))
+DEFS += $(addprefix -I,$(CURDIR) $(CURDIR)/obj $(BOOST_INCLUDE_PATH) $(BDB_INCLUDE_PATH) $(OPENSSL_INCLUDE_PATH) $(shell pkg-config libcurl --cflags) $(LIBSODIUM_INCLUDE_PATH)) $(MDB32D)
+LIBS = $(addprefix -L,$(BOOST_LIB_PATH) $(BDB_LIB_PATH) $(OPENSSL_LIB_PATH) $(LIBSODIUM_LIB_PATH))
 
 TESTDEFS = -DTEST_DATA_DIR=$(abspath test/data)
 
@@ -44,11 +44,9 @@ ifdef STATIC
 		LMODE2 = static
 	endif
 	LIBS += $(shell pkg-config libcurl --libs --static)
-	LIBS += $(shell pkg-config libsodium --libs --static)
 else
     TESTDEFS += -DBOOST_TEST_DYN_LINK
 	LIBS += $(shell pkg-config libcurl --libs)
-	LIBS += $(shell pkg-config libsodium --libs)
 endif
 
 ifdef NEBLIO_REST
