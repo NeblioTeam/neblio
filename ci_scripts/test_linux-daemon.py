@@ -39,7 +39,8 @@ packages_to_install = \
 "libx32z1-dev",
 "zlib1g",
 "zlib1g-dev",
-"lib32z1-dev"
+"lib32z1-dev",
+"libsodium-dev"
 ]
 
 nci.install_packages_debian(packages_to_install)
@@ -51,13 +52,10 @@ nci.call_with_err_code('ccache -s')
 
 nci.call_with_err_code('python ../build_scripts/CompileOpenSSL-Linux.py')
 nci.call_with_err_code('python ../build_scripts/CompileCurl-Linux.py')
-nci.call_with_err_code('python ../build_scripts/CompileLibsodium-Linux.py')
 
 os.environ['PKG_CONFIG_PATH'] = os.path.join(working_dir, build_dir, 'curl_build/lib/pkgconfig/')
 os.environ['OPENSSL_INCLUDE_PATH'] = os.path.join(working_dir, build_dir, 'openssl_build/include/')
 os.environ['OPENSSL_LIB_PATH'] = os.path.join(working_dir, build_dir, 'openssl_build/lib/')
-os.environ['LIBSODIUM_INCLUDE_PATH'] = os.path.join(working_dir, build_dir, 'libsodium_build/include/')
-os.environ['LIBSODIUM_LIB_PATH'] = os.path.join(working_dir, build_dir, 'libsodium_build/lib/')
 
 nci.call_with_err_code('ccache -s')
 
