@@ -51,7 +51,7 @@ if len(sys.argv) < 2:
 else:
     filename = sys.argv[1]
 
-dirname  = filename.replace(".tar.gz","")
+dirname  = "libsodium-stable"
 try:
     shutil.rmtree(dirname)
 except:
