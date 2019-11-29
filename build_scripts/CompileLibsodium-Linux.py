@@ -82,7 +82,7 @@ os.chdir(dirname)
 os.environ['PATH'] = '/usr/lib/ccache:' + os.environ['PATH']
 
 call("./configure",shell=True)
-call(r"make -j" + str(mp.cpu_count() + " && make check"), shell=True)
+call(r"make -j" + str(mp.cpu_count()) + " && make check"), shell=True)
 call(r"make install", shell=True)
 print("Compilation complete.")
 
