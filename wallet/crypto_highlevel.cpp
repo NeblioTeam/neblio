@@ -217,9 +217,7 @@ Crypto_HighLevel::Bytes Crypto_HighLevel::XSalsa20poly1305_DecryptLongMsg_CTR(
 std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>
 Crypto_HighLevel::GenXSalsa20poly1305RandomKey()
 {
-    std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES> res;
-    crypto_secretbox_xsalsa20poly1305_keygen(&res.front());
-    return res;
+    return CHL::RandomBytesAs<std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>>();
 }
 
 Crypto_HighLevel::String Crypto_HighLevel::GetOpenSSLErrorMsg()
