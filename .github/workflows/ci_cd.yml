@@ -165,7 +165,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Docker Files
-        uses: actions/checkout@master
+        uses: actions/checkout@v1
         with:
           repository: NeblioTeam/docker-nebliod
           ref: refs/heads/master
@@ -175,7 +175,7 @@ jobs:
           name: nebliotam/nebliod-build
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-          workdir: docker-nebliod-build
+          workdir: docker-nebliod/docker-nebliod-build
           buildargs: GITHUB_SHA
 
 
