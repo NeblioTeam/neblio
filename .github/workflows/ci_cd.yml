@@ -168,6 +168,7 @@ jobs:
         uses: actions/checkout@master
         with:
           repository: NeblioTeam/docker-nebliod
+          ref: refs/heads/master
       - name: Publish to Docker Repository
         uses: elgohr/Publish-Docker-Github-Action@master
         with:
