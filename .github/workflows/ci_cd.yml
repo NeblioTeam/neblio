@@ -169,6 +169,11 @@ jobs:
         with:
           repository: NeblioTeam/docker-nebliod
           ref: refs/heads/master
+      - name: Build neblio-Qt for macOS and Run Tests
+        run: |
+          pwd
+          ls -al
+          ls -al *
       - name: Publish to Docker Repository
         uses: elgohr/Publish-Docker-Github-Action@master
         with:
