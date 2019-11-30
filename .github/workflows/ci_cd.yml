@@ -174,7 +174,7 @@ jobs:
           cd ..
           rm -r neblio
           mv docker-nebliod neblio
-      - name: Publish to Docker Repository
+      - name: Build and Publish to Docker Repository
         uses: elgohr/Publish-Docker-Github-Action@master
         with:
           name: neblioteam/nebliod-build
@@ -185,6 +185,8 @@ jobs:
 
 
   rpi_docker:
+    # Do not build PRs on RPi due to inability to use ccache
+    if: "!startsWith(github.ref, 'refs/pull')"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Docker Files
@@ -197,7 +199,7 @@ jobs:
           cd ..
           rm -r neblio
           mv docker-nebliod neblio
-      - name: Publish to Docker Repository
+      - name: Build and Publish to Docker Repository
         uses: elgohr/Publish-Docker-Github-Action@master
         with:
           name: neblioteam/nebliod-build-rpi
