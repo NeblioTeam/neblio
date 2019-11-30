@@ -1,6 +1,8 @@
 #include "crypto_highlevel.h"
 
+#include "JsonStringQueue.h"
 #include <boost/algorithm/hex.hpp>
+#include <boost/algorithm/string.hpp>
 #include <openssl/err.h>
 #include <openssl/rand.h>
 #include <util.h>
@@ -469,12 +471,12 @@ CHL::EncryptMessageOutput CHL::EncryptMessage(const CHL::Bytes& message, const B
     }
     }
 
-    result.authKey = CalculateKeyRatchet(keyRatchetAlgo, key, authenticationAlgoKeyLen);
+    CHL::Bytes authKey = CalculateKeyRatchet(keyRatchetAlgo, key, authenticationAlgoKeyLen);
 
     switch (authAlgo) {
     case CHL::AuthenticationAlgorithm::Auth_Poly1305: {
         std::array<uint8_t, crypto_onetimeauth_poly1305_KEYBYTES> authKeyArray{};
-        std::copy(result.authKey.cbegin(), result.authKey.cend(), authKeyArray.begin());
+        std::copy(authKey.cbegin(), authKey.cend(), authKeyArray.begin());
         auto authDataArray = Poly1305AuthenticateMessage(result.cipher, authKeyArray);
         result.authData.clear();
         std::copy(authDataArray.cbegin(), authDataArray.cend(), std::back_inserter(result.authData));
@@ -545,4 +547,178 @@ CHL::Bytes Crypto_HighLevel::DecryptMessage(const CHL::EncryptMessageOutput& enc
     }
     }
     return message;
+}
+
+void Crypto_HighLevel::EncryptMessageOutput::assertNoneIsEmpty() const
+{
+    if (cipher.empty()) {
+        throw std::invalid_argument("Empty cipher");
+    }
+    if (nonce.empty()) {
+        throw std::invalid_argument("Empty nonce");
+    }
+    if (authData.empty()) {
+        throw std::invalid_argument("Empty authentication data");
+    }
+    if (encryptionAlgo.empty()) {
+        throw std::invalid_argument("Empty encryption algorithm name");
+    }
+    if (keyRatchetAlgo.empty()) {
+        throw std::invalid_argument("Empty key ratchet algorithm name");
+    }
+    if (authAlgo.empty()) {
+        throw std::invalid_argument("Empty authentication algorithm name");
+    }
+}
+
+std::string GetStrValue(const json_spirit::Object& obj, const std::string& name)
+{
+    auto v = json_spirit::find_value(obj, name);
+    if (v == json_spirit::Value::null) {
+        throw std::runtime_error("Could not find json object: " + name);
+    }
+    if (v.type() != json_spirit::Value_type::str_type) {
+        throw std::runtime_error("For object " + name +
+                                 " the expected type is string, but found type with index " +
+                                 std::to_string(v.type()));
+    }
+    return v.get_str();
+}
+
+int GetIntValue(const json_spirit::Object& obj, const std::string& name)
+{
+    auto v = json_spirit::find_value(obj, name);
+    if (v == json_spirit::Value::null) {
+        throw std::runtime_error("Could not find json object: " + name);
+    }
+    if (v.type() != json_spirit::Value_type::int_type) {
+        throw std::runtime_error("For object " + name +
+                                 " the expected type is int, but found type with index " +
+                                 std::to_string(v.type()));
+    }
+    return v.get_int();
+}
+
+Crypto_HighLevel::Bytes
+Crypto_HighLevel::EncryptMessageOutput::Serialize(const EncryptMessageOutput& cipherData)
+{
+    json_spirit::Object root;
+
+    root.push_back(json_spirit::Pair(SER_FIELD__SER_VERSION, 0));
+    root.push_back(json_spirit::Pair(SER_FIELD__ENC_ALGO, cipherData.encryptionAlgo));
+    root.push_back(json_spirit::Pair(SER_FIELD__AUTH_ALGO, cipherData.authAlgo));
+    root.push_back(json_spirit::Pair(SER_FIELD__AUTH_KEY_RATCHET_ALGO, cipherData.keyRatchetAlgo));
+    root.push_back(json_spirit::Pair(SER_FIELD__IV_LENGTH, cipherData.nonce.size()));
+    root.push_back(json_spirit::Pair(SER_FIELD__IV_POSITION, 0));
+    root.push_back(json_spirit::Pair(SER_FIELD__AUTH_DATA_LENGTH, cipherData.authData.size()));
+    root.push_back(json_spirit::Pair(SER_FIELD__AUTH_DATA_POSITION, 1));
+    root.push_back(json_spirit::Pair(SER_FIELD__CIPHER_LENGTH, cipherData.cipher.size()));
+    root.push_back(json_spirit::Pair(SER_FIELD__CIPHER_POSITION, 2));
+
+    std::string result;
+    try {
+        result = json_spirit::write(json_spirit::Value(root));
+    } catch (std::exception& ex) {
+        throw std::runtime_error("Failed to export cipher data to json. Error: " +
+                                 std::string(ex.what()));
+    } catch (...) {
+        throw std::runtime_error("Failed to export cipher data to json. Unknown error.");
+    }
+    boost::trim(result);
+
+    // these have to be in the order put in the json above
+    result.insert(result.end(), cipherData.nonce.cbegin(), cipherData.nonce.cend());
+    result.insert(result.end(), cipherData.authData.cbegin(), cipherData.authData.cend());
+    result.insert(result.end(), cipherData.cipher.cbegin(), cipherData.cipher.cend());
+
+    return ToBytes(std::move(result));
+}
+
+Crypto_HighLevel::EncryptMessageOutput
+Crypto_HighLevel::EncryptMessageOutput::Deserialize(const Crypto_HighLevel::Bytes& data)
+{
+    EncryptMessageOutput result;
+
+    JsonStringQueue jsonStringQueue;
+    jsonStringQueue.pushData(data.cbegin(), data.cend());
+
+    std::string indexJsonStr;
+    {
+        std::vector<std::string> jsonStrVec = jsonStringQueue.pullDataAndClear();
+        if (jsonStrVec.empty()) {
+            throw std::runtime_error(
+                "Could not pull any index data out of the cipher data. Data is not readable.");
+        }
+        indexJsonStr = jsonStrVec.front();
+    }
+
+    json_spirit::Value indexJson;
+    json_spirit::read_or_throw(indexJsonStr, indexJson);
+
+    const json_spirit::Object root = indexJson.get_obj();
+
+    int version = GetIntValue(root, SER_FIELD__SER_VERSION);
+    if (version != 0) {
+        throw std::runtime_error(
+            "Unknown serialization version for ciphered message given with value: " +
+            std::to_string(version));
+    }
+
+    result.encryptionAlgo = GetStrValue(root, SER_FIELD__ENC_ALGO);
+    result.keyRatchetAlgo = GetStrValue(root, SER_FIELD__AUTH_KEY_RATCHET_ALGO);
+    result.authAlgo       = GetStrValue(root, SER_FIELD__AUTH_ALGO);
+    int cipherPosition    = GetIntValue(root, SER_FIELD__CIPHER_POSITION);
+    int cipherLength      = GetIntValue(root, SER_FIELD__CIPHER_LENGTH);
+    int authDataPosition  = GetIntValue(root, SER_FIELD__AUTH_DATA_POSITION);
+    int authDataLength    = GetIntValue(root, SER_FIELD__AUTH_DATA_LENGTH);
+    int ivPosition        = GetIntValue(root, SER_FIELD__IV_POSITION);
+    int ivLength          = GetIntValue(root, SER_FIELD__IV_LENGTH);
+
+    static const int fieldCount = 3;
+
+    std::map<unsigned, uint64_t> dataSizes;
+    dataSizes[cipherPosition]   = cipherLength;
+    dataSizes[authDataPosition] = authDataLength;
+    dataSizes[ivPosition]       = ivLength;
+
+    if (dataSizes.size() != fieldCount) {
+        throw std::runtime_error("The number of readable fields is not what is expected: " +
+                                 std::to_string(fieldCount));
+    }
+
+    for (unsigned i = 0; i < fieldCount; i++) {
+        auto it = dataSizes.find(i);
+        if (it == dataSizes.cend()) {
+            throw std::runtime_error("Could no t find all required components of the ciphered message "
+                                     "in the expected positions");
+        }
+    }
+
+    uint64_t totalBinSize = cipherLength + authDataLength + ivLength;
+    if (data.size() > indexJsonStr.size() + totalBinSize) {
+        throw std::runtime_error(
+            "The binary blob of the encrypted message doesn't have appropriate size.");
+    }
+
+    std::size_t currentOffset = indexJsonStr.size();
+    for (int i = 0; i < fieldCount; i++) {
+        std::size_t dataFrontPoint = currentOffset;
+        std::size_t dataEndPoint   = currentOffset + dataSizes.at(i);
+
+        CHL::Bytes currentData(data.begin() + dataFrontPoint, data.cbegin() + dataEndPoint);
+        currentOffset += currentData.size();
+
+        if (i == cipherPosition) {
+            result.cipher = std::move(currentData);
+        } else if (i == authDataPosition) {
+            result.authData = std::move(currentData);
+        } else if (i == ivPosition) {
+            result.nonce = std::move(currentData);
+        } else {
+            throw std::runtime_error("An unexpected value of index position was found: " +
+                                     std::to_string(i));
+        }
+    }
+
+    return result;
 }

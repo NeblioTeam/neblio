@@ -30,37 +30,26 @@ public:
 
     struct EncryptMessageOutput
     {
-        Bytes       cipher;
-        Bytes       nonce;
-        Bytes       authKey;
-        Bytes       authData;
-        std::string encryptionAlgo;
-        std::string keyRatchetAlgo;
-        std::string authAlgo;
-        void        assertNoneIsEmpty() const
-        {
-            if (cipher.empty()) {
-                throw std::invalid_argument("Empty cipher");
-            }
-            if (nonce.empty()) {
-                throw std::invalid_argument("Empty nonce");
-            }
-            if (authKey.empty()) {
-                throw std::invalid_argument("Empty authentication key");
-            }
-            if (authData.empty()) {
-                throw std::invalid_argument("Empty authentication data");
-            }
-            if (encryptionAlgo.empty()) {
-                throw std::invalid_argument("Empty encryption algorithm name");
-            }
-            if (keyRatchetAlgo.empty()) {
-                throw std::invalid_argument("Empty key ratchet algorithm name");
-            }
-            if (authAlgo.empty()) {
-                throw std::invalid_argument("Empty authentication algorithm name");
-            }
-        }
+        static constexpr const char* SER_FIELD__SER_VERSION           = "SerializationVersion";
+        static constexpr const char* SER_FIELD__ENC_ALGO              = "EncAlgo";
+        static constexpr const char* SER_FIELD__AUTH_ALGO             = "AuthAlgo";
+        static constexpr const char* SER_FIELD__AUTH_KEY_RATCHET_ALGO = "AuthKeyRatchetAlgo";
+        static constexpr const char* SER_FIELD__IV_POSITION           = "IVPos";
+        static constexpr const char* SER_FIELD__IV_LENGTH             = "IVLen";
+        static constexpr const char* SER_FIELD__CIPHER_LENGTH         = "CipherLen";
+        static constexpr const char* SER_FIELD__CIPHER_POSITION       = "CipherPos";
+        static constexpr const char* SER_FIELD__AUTH_DATA_LENGTH      = "AuthDataLen";
+        static constexpr const char* SER_FIELD__AUTH_DATA_POSITION    = "AuthDataPos";
+
+        Bytes                                     cipher;
+        Bytes                                     nonce;
+        Bytes                                     authData;
+        std::string                               encryptionAlgo;
+        std::string                               keyRatchetAlgo;
+        std::string                               authAlgo;
+        void                                      assertNoneIsEmpty() const;
+        [[nodiscard]] static Bytes                Serialize(const EncryptMessageOutput& cipherData);
+        [[nodiscard]] static EncryptMessageOutput Deserialize(const Bytes& data);
     };
 
     enum EncryptionAlgorithm : uint16_t
@@ -169,11 +158,11 @@ public:
                         boost::optional<uint64_t> maxAuthenticationAlgoKeyLen = boost::none);
 
     template <typename Container>
-    [[nodiscard]] static Bytes ToBytes(const Container& input);
+    [[nodiscard]] static Bytes ToBytes(Container&& input);
 };
 
 template <typename Container>
-Crypto_HighLevel::Bytes Crypto_HighLevel::ToBytes(const Container& input)
+Crypto_HighLevel::Bytes Crypto_HighLevel::ToBytes(Container&& input)
 {
     return Bytes(input.begin(), input.end());
 }

@@ -972,3 +972,35 @@ TEST(cryptography_tests, generic_encryption)
         }
     }
 }
+
+TEST(cryptography_tests, encryption_serialization)
+{
+    static constexpr const int NumberOfTestsPerCombination = 25;
+
+    for (int i = 0; i < static_cast<int>(CHL::EncryptionAlgorithm::Enc_Size); i++) {
+        for (int j = 0; j < static_cast<int>(CHL::AuthenticationAlgorithm::Auth_Size); j++) {
+            for (int k = 0; k < static_cast<int>(CHL::AuthKeyRatchetAlgorithm::Ratchet_Size); k++) {
+                CHL::EncryptionAlgorithm     encAlgo     = static_cast<CHL::EncryptionAlgorithm>(i);
+                CHL::AuthenticationAlgorithm authAlgo    = static_cast<CHL::AuthenticationAlgorithm>(j);
+                CHL::AuthKeyRatchetAlgorithm ratchetAlgo = static_cast<CHL::AuthKeyRatchetAlgorithm>(k);
+
+                for (int count = 0; count < NumberOfTestsPerCombination; count++) {
+                    uint64_t   messageLength = 1 + (CHL::RandomBytesAs<uint64_t>() % 100000);
+                    CHL::Bytes message       = CHL::RandomBytes(messageLength);
+                    CHL::Bytes key = CHL::RandomBytes(CHL::GetEncryptionAlgoKeyLength(encAlgo).get());
+
+                    CHL::EncryptMessageOutput cipherData =
+                        CHL::EncryptMessage(message, key, encAlgo, ratchetAlgo, authAlgo);
+                    CHL::Bytes serialized = CHL::EncryptMessageOutput::Serialize(cipherData);
+                    CHL::EncryptMessageOutput cipherDataDeserialized =
+                        CHL::EncryptMessageOutput::Deserialize(serialized);
+
+                    CHL::Bytes recoveredMessage1 = CHL::DecryptMessage(cipherData, key);
+                    CHL::Bytes recoveredMessage2 = CHL::DecryptMessage(cipherDataDeserialized, key);
+                    EXPECT_EQ(message, recoveredMessage1);
+                    EXPECT_EQ(message, recoveredMessage2);
+                }
+            }
+        }
+    }
+}
