@@ -114,26 +114,6 @@ jobs:
         release-tag: ${{ env.RELEASE_TAG }}
 
 
-  windows_x86_64:
-    runs-on: ubuntu-16.04
-    steps:
-    - uses: actions/checkout@v1
-    - name: ccache
-      uses: actions/cache@v1
-      with:
-        path: .ccache
-        key: ${{ runner.OS }}--windows_x86_64-${{ github.sha }}
-        restore-keys: |
-          ${{ runner.OS }}--windows_x86_64-
-    - name: Build neblio-Qt for Windows x86_64
-      run: |
-        python -u ci_scripts/test_win_x86_64-gui_wallet.py
-    - name: Build Upload
-      uses: jakejarvis/s3-sync-action@v0.5.0
-      with:
-        args: --acl public-read
-
-
   osx:
     runs-on: macos-latest
     steps:
@@ -179,6 +159,23 @@ jobs:
     - name: Build neblio-Qt for macOS and Run Tests
       run: |
         python -u ci_scripts/test_osx-gui_wallet.py -t
+
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Docker Files
+        uses: actions/checkout@master
+        with:
+          repository: NeblioTeam/docker-nebliod
+      - name: Publish to Docker Repository
+        uses: elgohr/Publish-Docker-Github-Action@master
+        with:
+          name: nebliotam/nebliod-build
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          workdir: docker-nebliod-build
+          buildargs: GITHUB_SHA
 
 
   rpi_wallet:
