@@ -9,6 +9,7 @@
 #include "uint256.h"
 
 #include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
 #include <openssl/md5.h>
 #include <openssl/ripemd.h>
 #include <openssl/sha.h>
