@@ -274,6 +274,10 @@ public:
 class CBitcoinAddress : public CBase58Data
 {
 public:
+    IMPLEMENT_SERIALIZE(
+        READWRITE(vchData);
+        READWRITE(nVersion);
+        )
     enum
     {
         PUBKEY_ADDRESS = 53, // N Prefix

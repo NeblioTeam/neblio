@@ -103,6 +103,8 @@ public:
 
     bool WriteToDisk(const uint256& nBlockPos, const uint256& hashProof);
 
+    bool WriteBlockPubKeys(CTxDB& txdb);
+
     bool ReadFromDisk(const uint256& hash, bool fReadTransactions = true);
     bool ReadFromDisk(const uint256& hash, CTxDB& txdb, bool fReadTransactions = true);
 
@@ -123,7 +125,7 @@ public:
         // while finding the common ancestor, this is the part of this block's chain (excluding this
         // block)
         std::vector<uint256>
-            inFork; // order matters here because we want to simulate respending these in order
+                            inFork; // order matters here because we want to simulate respending these in order
         CBlockIndexSmartPtr commonAncestor;
     };
 
