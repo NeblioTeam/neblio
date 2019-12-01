@@ -15,7 +15,7 @@ const std::string NTP1Tools::NTPAPI_tokenMetaData   = "tokenmetadata/";
 const std::string NTP1Tools::NTPAPI_stakeHolders    = "stakeholders/";
 const std::string NTP1Tools::NTPAPI_sendTokens      = "sendtoken/";
 
-const std::string NTP1Tools::EXPLORER_base_url_testnet = "https://testnet.explorer.nebl.io/";
+const std::string NTP1Tools::EXPLORER_base_url_testnet = "https://testnet-explorer.nebl.io/";
 const std::string NTP1Tools::EXPLORER_base_url_mainnet = "https://explorer.nebl.io/";
 
 const std::string NTP1Tools::EXPLORER_tokenInfo       = "token/";

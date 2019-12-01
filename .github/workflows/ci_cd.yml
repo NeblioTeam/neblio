@@ -185,8 +185,8 @@ jobs:
 
 
   rpi_docker:
-    # Do not build PRs on RPi due to inability to use ccache
-    if: "!startsWith(github.ref, 'refs/pull')"
+    # Only Build RPi Docker on Daily Scheduled Runs as it takes 5 Hours
+    if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Docker Files
