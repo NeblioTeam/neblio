@@ -497,9 +497,9 @@ CHL::Bytes Crypto_HighLevel::DecryptMessage(const CHL::EncryptMessageOutput& enc
 {
     encryptedData.assertNoneIsEmpty();
 
-    EncryptionAlgorithm             encAlgo  = GetEncryptionAlgoFromName(encryptedData.encryptionAlgo);
-    AuthenticationAlgorithm         authAlgo = GetAuthAlgoFromName(encryptedData.authAlgo);
-    AuthKeyRatchetAlgorithm         ratchetAlgo = GetRatchetAlgoFromName(encryptedData.keyRatchetAlgo);
+    const EncryptionAlgorithm       encAlgo  = GetEncryptionAlgoFromName(encryptedData.encryptionAlgo);
+    const AuthenticationAlgorithm   authAlgo = GetAuthAlgoFromName(encryptedData.authAlgo);
+    const AuthKeyRatchetAlgorithm   ratchetAlgo = GetRatchetAlgoFromName(encryptedData.keyRatchetAlgo);
     const boost::optional<uint64_t> authenticationAlgoKeyLen = GetAuthAlgoKeyLength(authAlgo);
     const boost::optional<uint64_t> authKeyRatchetOutputLen  = GetRatchetAlgoOutputLength(ratchetAlgo);
 
@@ -514,7 +514,7 @@ CHL::Bytes Crypto_HighLevel::DecryptMessage(const CHL::EncryptMessageOutput& enc
             "required authentication key length. Please choose another ratcheting algorithm.");
     }
 
-    Bytes authKey = CalculateKeyRatchet(ratchetAlgo, key, authenticationAlgoKeyLen);
+    const Bytes authKey = CalculateKeyRatchet(ratchetAlgo, key, authenticationAlgoKeyLen);
 
     Bytes authData;
 
@@ -522,8 +522,9 @@ CHL::Bytes Crypto_HighLevel::DecryptMessage(const CHL::EncryptMessageOutput& enc
     case CHL::AuthenticationAlgorithm::Auth_Poly1305: {
         std::array<uint8_t, crypto_onetimeauth_poly1305_BYTES>    authDataArray{};
         std::array<uint8_t, crypto_onetimeauth_poly1305_KEYBYTES> authKeyArray{};
-        std::copy(authKey.cbegin(), authKey.cend(), authKeyArray.begin());
-        std::copy(encryptedData.authData.cbegin(), encryptedData.authData.cend(), authDataArray.begin());
+        std::copy(authKey.cbegin(), authKey.cbegin() + authKeyArray.size(), authKeyArray.begin());
+        std::copy(encryptedData.authData.cbegin(),
+                  encryptedData.authData.cbegin() + authDataArray.size(), authDataArray.begin());
         if (!Poly1305VerifyMessage(encryptedData.cipher, authDataArray, authKeyArray)) {
             throw std::runtime_error("Message authentication failed");
         }
@@ -604,16 +605,27 @@ Crypto_HighLevel::EncryptMessageOutput::Serialize(const EncryptMessageOutput& ci
 {
     json_spirit::Object root;
 
-    root.push_back(json_spirit::Pair(SER_FIELD__SER_VERSION, 0));
-    root.push_back(json_spirit::Pair(SER_FIELD__ENC_ALGO, cipherData.encryptionAlgo));
-    root.push_back(json_spirit::Pair(SER_FIELD__AUTH_ALGO, cipherData.authAlgo));
-    root.push_back(json_spirit::Pair(SER_FIELD__AUTH_KEY_RATCHET_ALGO, cipherData.keyRatchetAlgo));
-    root.push_back(json_spirit::Pair(SER_FIELD__IV_LENGTH, cipherData.nonce.size()));
-    root.push_back(json_spirit::Pair(SER_FIELD__IV_POSITION, 0));
-    root.push_back(json_spirit::Pair(SER_FIELD__AUTH_DATA_LENGTH, cipherData.authData.size()));
-    root.push_back(json_spirit::Pair(SER_FIELD__AUTH_DATA_POSITION, 1));
-    root.push_back(json_spirit::Pair(SER_FIELD__CIPHER_LENGTH, cipherData.cipher.size()));
-    root.push_back(json_spirit::Pair(SER_FIELD__CIPHER_POSITION, 2));
+    if (static_cast<int64_t>(cipherData.nonce.size()) >= static_cast<int64_t>(INT_MAX)) {
+        throw std::runtime_error("Huge nonce.");
+    }
+    if (static_cast<int64_t>(cipherData.authData.size()) >= static_cast<int64_t>(INT_MAX)) {
+        throw std::runtime_error("Huge authentication data.");
+    }
+    if (static_cast<int64_t>(cipherData.cipher.size()) >= static_cast<int64_t>(INT_MAX)) {
+        throw std::runtime_error("Huge cipher.");
+    }
+
+    using JPair = json_spirit::Pair;
+    root.push_back(JPair(SER_FIELD__SER_VERSION, 0));
+    root.push_back(JPair(SER_FIELD__ENC_ALGO, cipherData.encryptionAlgo));
+    root.push_back(JPair(SER_FIELD__AUTH_ALGO, cipherData.authAlgo));
+    root.push_back(JPair(SER_FIELD__AUTH_KEY_RATCHET_ALGO, cipherData.keyRatchetAlgo));
+    root.push_back(JPair(SER_FIELD__IV_LENGTH, static_cast<int>(cipherData.nonce.size())));
+    root.push_back(JPair(SER_FIELD__IV_POSITION, 0));
+    root.push_back(JPair(SER_FIELD__AUTH_DATA_LENGTH, static_cast<int>(cipherData.authData.size())));
+    root.push_back(JPair(SER_FIELD__AUTH_DATA_POSITION, 1));
+    root.push_back(JPair(SER_FIELD__CIPHER_LENGTH, static_cast<int>(cipherData.cipher.size())));
+    root.push_back(JPair(SER_FIELD__CIPHER_POSITION, 2));
 
     std::string result;
     try {
@@ -642,20 +654,20 @@ Crypto_HighLevel::EncryptMessageOutput::Deserialize(const Crypto_HighLevel::Byte
     JsonStringQueue jsonStringQueue;
     jsonStringQueue.pushData(data.cbegin(), data.cend());
 
-    std::string indexJsonStr;
+    std::string headerJsonStr;
     {
         std::vector<std::string> jsonStrVec = jsonStringQueue.pullDataAndClear();
         if (jsonStrVec.empty()) {
             throw std::runtime_error(
                 "Could not pull any index data out of the cipher data. Data is not readable.");
         }
-        indexJsonStr = jsonStrVec.front();
+        headerJsonStr = jsonStrVec.front();
     }
 
-    json_spirit::Value indexJson;
-    json_spirit::read_or_throw(indexJsonStr, indexJson);
+    json_spirit::Value headerJson;
+    json_spirit::read_or_throw(headerJsonStr, headerJson);
 
-    const json_spirit::Object root = indexJson.get_obj();
+    const json_spirit::Object root = headerJson.get_obj();
 
     int version = GetIntValue(root, SER_FIELD__SER_VERSION);
     if (version != 0) {
@@ -674,7 +686,29 @@ Crypto_HighLevel::EncryptMessageOutput::Deserialize(const Crypto_HighLevel::Byte
     int ivPosition        = GetIntValue(root, SER_FIELD__IV_POSITION);
     int ivLength          = GetIntValue(root, SER_FIELD__IV_LENGTH);
 
-    static const int fieldCount = 3;
+    // position can't be negative
+    if (cipherPosition < 0) {
+        throw std::runtime_error("Negative cipher position in cipher header");
+    }
+    if (authDataPosition < 0) {
+        throw std::runtime_error("Negative authentication data position in cipher header");
+    }
+    if (ivPosition < 0) {
+        throw std::runtime_error("Negative IV position in cipher header");
+    }
+
+    // size can't be zero or negative
+    if (cipherLength <= 0) {
+        throw std::runtime_error("Zero/Negative cipher length in cipher header");
+    }
+    if (authDataLength <= 0) {
+        throw std::runtime_error("Zero/Negative authentication data length in cipher header");
+    }
+    if (ivLength <= 0) {
+        throw std::runtime_error("Zero/Negative IV length in cipher header");
+    }
+
+    static constexpr const int fieldCount = 3;
 
     std::map<unsigned, uint64_t> dataSizes;
     dataSizes[cipherPosition]   = cipherLength;
@@ -695,12 +729,12 @@ Crypto_HighLevel::EncryptMessageOutput::Deserialize(const Crypto_HighLevel::Byte
     }
 
     uint64_t totalBinSize = cipherLength + authDataLength + ivLength;
-    if (data.size() > indexJsonStr.size() + totalBinSize) {
+    if (data.size() > headerJsonStr.size() + totalBinSize) {
         throw std::runtime_error(
             "The binary blob of the encrypted message doesn't have appropriate size.");
     }
 
-    std::size_t currentOffset = indexJsonStr.size();
+    std::size_t currentOffset = headerJsonStr.size();
     for (int i = 0; i < fieldCount; i++) {
         std::size_t dataFrontPoint = currentOffset;
         std::size_t dataEndPoint   = currentOffset + dataSizes.at(i);
@@ -715,7 +749,7 @@ Crypto_HighLevel::EncryptMessageOutput::Deserialize(const Crypto_HighLevel::Byte
         } else if (i == ivPosition) {
             result.nonce = std::move(currentData);
         } else {
-            throw std::runtime_error("An unexpected value of index position was found: " +
+            throw std::runtime_error("An unexpected value position was found in header: " +
                                      std::to_string(i));
         }
     }
