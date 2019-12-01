@@ -1,11 +1,12 @@
 #include "crypto_highlevel.h"
 
 #include "JsonStringQueue.h"
+#include "hash.h"
 #include <boost/algorithm/hex.hpp>
 #include <boost/algorithm/string.hpp>
 #include <openssl/err.h>
 #include <openssl/rand.h>
-#include <util.h>
+#include <openssl/sha.h>
 
 CHL::Bytes Crypto_HighLevel::XSalsa20poly1305_EncryptBlock(
     const CHL::Bytes&                                                              msg,
@@ -572,7 +573,7 @@ void Crypto_HighLevel::EncryptMessageOutput::assertNoneIsEmpty() const
     }
 }
 
-std::string GetStrValue(const json_spirit::Object& obj, const std::string& name)
+std::string GetStrValue_CHL(const json_spirit::Object& obj, const std::string& name)
 {
     auto v = json_spirit::find_value(obj, name);
     if (v == json_spirit::Value::null) {
@@ -586,7 +587,7 @@ std::string GetStrValue(const json_spirit::Object& obj, const std::string& name)
     return v.get_str();
 }
 
-int GetIntValue(const json_spirit::Object& obj, const std::string& name)
+int GetIntValue_CHL(const json_spirit::Object& obj, const std::string& name)
 {
     auto v = json_spirit::find_value(obj, name);
     if (v == json_spirit::Value::null) {
@@ -649,6 +650,13 @@ Crypto_HighLevel::EncryptMessageOutput::Serialize(const EncryptMessageOutput& ci
 Crypto_HighLevel::EncryptMessageOutput
 Crypto_HighLevel::EncryptMessageOutput::Deserialize(const Crypto_HighLevel::Bytes& data)
 {
+    if (data.empty()) {
+        throw std::runtime_error("Requested decryption of empty data");
+    }
+    if (data[0] != '{') {
+        throw std::runtime_error("Unexpected header while attempting to decrypt data");
+    }
+
     EncryptMessageOutput result;
 
     JsonStringQueue jsonStringQueue;
@@ -665,26 +673,38 @@ Crypto_HighLevel::EncryptMessageOutput::Deserialize(const Crypto_HighLevel::Byte
     }
 
     json_spirit::Value headerJson;
-    json_spirit::read_or_throw(headerJsonStr, headerJson);
+
+    try {
+        json_spirit::read_or_throw(headerJsonStr, headerJson);
+    } catch (std::exception& ex) {
+        throw std::runtime_error("Unable to read json header of encrypted data. Error: " +
+                                 std::string(ex.what()));
+    } catch (...) {
+        throw std::runtime_error("Unable to read json header of encrypted data. Unknown error.");
+    }
+
+    if (headerJson.type() != json_spirit::Value_type::obj_type) {
+        throw std::runtime_error("Invalid encrypted data header json type");
+    }
 
     const json_spirit::Object root = headerJson.get_obj();
 
-    int version = GetIntValue(root, SER_FIELD__SER_VERSION);
+    int version = GetIntValue_CHL(root, SER_FIELD__SER_VERSION);
     if (version != 0) {
         throw std::runtime_error(
             "Unknown serialization version for ciphered message given with value: " +
             std::to_string(version));
     }
 
-    result.encryptionAlgo = GetStrValue(root, SER_FIELD__ENC_ALGO);
-    result.keyRatchetAlgo = GetStrValue(root, SER_FIELD__AUTH_KEY_RATCHET_ALGO);
-    result.authAlgo       = GetStrValue(root, SER_FIELD__AUTH_ALGO);
-    int cipherPosition    = GetIntValue(root, SER_FIELD__CIPHER_POSITION);
-    int cipherLength      = GetIntValue(root, SER_FIELD__CIPHER_LENGTH);
-    int authDataPosition  = GetIntValue(root, SER_FIELD__AUTH_DATA_POSITION);
-    int authDataLength    = GetIntValue(root, SER_FIELD__AUTH_DATA_LENGTH);
-    int ivPosition        = GetIntValue(root, SER_FIELD__IV_POSITION);
-    int ivLength          = GetIntValue(root, SER_FIELD__IV_LENGTH);
+    result.encryptionAlgo = GetStrValue_CHL(root, SER_FIELD__ENC_ALGO);
+    result.keyRatchetAlgo = GetStrValue_CHL(root, SER_FIELD__AUTH_KEY_RATCHET_ALGO);
+    result.authAlgo       = GetStrValue_CHL(root, SER_FIELD__AUTH_ALGO);
+    int cipherPosition    = GetIntValue_CHL(root, SER_FIELD__CIPHER_POSITION);
+    int cipherLength      = GetIntValue_CHL(root, SER_FIELD__CIPHER_LENGTH);
+    int authDataPosition  = GetIntValue_CHL(root, SER_FIELD__AUTH_DATA_POSITION);
+    int authDataLength    = GetIntValue_CHL(root, SER_FIELD__AUTH_DATA_LENGTH);
+    int ivPosition        = GetIntValue_CHL(root, SER_FIELD__IV_POSITION);
+    int ivLength          = GetIntValue_CHL(root, SER_FIELD__IV_LENGTH);
 
     // position can't be negative
     if (cipherPosition < 0) {

@@ -1,6 +1,8 @@
 #ifndef NTP1SCRIPT_H
 #define NTP1SCRIPT_H
 
+#include "boost/algorithm/string.hpp"
+#include "crypto_highlevel.h"
 #include "json_spirit.h"
 #include <bitset>
 #include <boost/algorithm/hex.hpp>
@@ -29,6 +31,8 @@ const std::string  HexBytesRegexStr("^([0-9a-fA-F][0-9a-fA-F])+$");
 const boost::regex HexBytexRegex(HexBytesRegexStr);
 
 const NTP1Int NTP1MaxAmount = std::numeric_limits<int64_t>::max();
+
+class CKey;
 
 class NTP1Script
 {
@@ -176,6 +180,16 @@ public:
 
     static bool IsNTP1TokenSymbolValid(const std::string& symbol);
     static bool IsTokenSymbolCharValid(const char c);
+
+    static constexpr const char* SER_FIELD__VERSION        = "SerializationVersion";
+    static constexpr const char* SER_FIELD__PUBLIC_KEY_HEX = "PubKeyHex";
+    static constexpr const char* SER_FIELD__DATA_LENGTH    = "DataLen";
+
+    [[nodiscard]] static std::string EncryptMetadata(const StringViewT data, const CKey& publicKey,
+                                                     CHL::EncryptionAlgorithm     encAlgo,
+                                                     CHL::AuthKeyRatchetAlgorithm ratchetAlgo,
+                                                     CHL::AuthenticationAlgorithm authAlgo);
+    [[nodiscard]] static std::string DecryptMetadata(const StringViewT data, const CKey& privateKey);
 };
 
 template <typename Bitset>

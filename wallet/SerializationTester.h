@@ -1,6 +1,7 @@
 #ifndef SERIALIZATIONTESTER_H
 #define SERIALIZATIONTESTER_H
 
+#include "CustomTypes.h"
 #include "addrman.h"
 #include "alert.h"
 #include "bloom.h"

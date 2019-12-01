@@ -580,6 +580,7 @@ add_library(core_lib STATIC
     wallet/merkletx.cpp
     wallet/blocklocator.cpp
     wallet/crypto_highlevel.cpp
+    wallet/CustomTypes.cpp
     )
 
 target_link_libraries(core_lib

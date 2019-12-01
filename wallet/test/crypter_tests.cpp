@@ -250,6 +250,25 @@ TEST(cryptography_tests, ecdh_fromCKey)
     }
 }
 
+TEST(cryptography_tests, ecdh_fromCKey_HighLevel)
+{
+    CKey k1;
+    k1.MakeNewKey(true);
+
+    CKey k2;
+    k2.MakeNewKey(true);
+
+    std::array<uint8_t, 32> sharedKey1 = CHL::RandomBytesAs<std::array<uint8_t, 32>>();
+
+    sharedKey1 = k1.GenerateSharedSecretFromThisPrivateKey(k2);
+
+    std::array<uint8_t, 32> sharedKey2 = CHL::RandomBytesAs<std::array<uint8_t, 32>>();
+
+    sharedKey2 = k2.GenerateSharedSecretFromThisPrivateKey(k1);
+
+    EXPECT_EQ(sharedKey1, sharedKey2);
+}
+
 TEST(cryptography_tests, ecdh_fromCKeyShortened)
 {
     std::function<void(EC_KEY*)> EcKeyDeleter = [](EC_KEY* eckey) {
@@ -999,6 +1018,35 @@ TEST(cryptography_tests, encryption_serialization)
                     CHL::Bytes recoveredMessage2 = CHL::DecryptMessage(cipherDataDeserialized, key);
                     EXPECT_EQ(message, recoveredMessage1);
                     EXPECT_EQ(message, recoveredMessage2);
+                }
+            }
+        }
+    }
+}
+
+TEST(cryptography_tests, encrypt_metadata)
+{
+    static constexpr const int NumberOfTestsPerCombination = 25;
+
+    for (int i = 0; i < static_cast<int>(CHL::EncryptionAlgorithm::Enc_Size); i++) {
+        for (int j = 0; j < static_cast<int>(CHL::AuthenticationAlgorithm::Auth_Size); j++) {
+            for (int k = 0; k < static_cast<int>(CHL::AuthKeyRatchetAlgorithm::Ratchet_Size); k++) {
+                CHL::EncryptionAlgorithm     encAlgo     = static_cast<CHL::EncryptionAlgorithm>(i);
+                CHL::AuthenticationAlgorithm authAlgo    = static_cast<CHL::AuthenticationAlgorithm>(j);
+                CHL::AuthKeyRatchetAlgorithm ratchetAlgo = static_cast<CHL::AuthKeyRatchetAlgorithm>(k);
+
+                for (int count = 0; count < NumberOfTestsPerCombination; count++) {
+                    CKey k1;
+                    k1.MakeNewKey(true);
+
+                    uint64_t   messageLength = 1 + (CHL::RandomBytesAs<uint64_t>() % 100000);
+                    CHL::Bytes message       = CHL::RandomBytes(messageLength);
+
+                    std::string encrypted =
+                        NTP1Script::EncryptMetadata(std::string(message.cbegin(), message.cend()), k1,
+                                                    encAlgo, ratchetAlgo, authAlgo);
+                    std::string decryptedData = NTP1Script::DecryptMetadata(encrypted, k1);
+                    EXPECT_EQ(decryptedData, std::string(message.cbegin(), message.cend()));
                 }
             }
         }

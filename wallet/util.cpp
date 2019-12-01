@@ -1492,29 +1492,3 @@ string GetMimeTypeFromPath(const string& path)
         return "image/svg+xml";
     return "application/text";
 }
-
-void* KDF_SHA256(const void* in, size_t inlen, void* out, size_t* outlen)
-{
-#ifndef OPENSSL_NO_SHA
-    if (*outlen < SHA256_DIGEST_LENGTH)
-        return nullptr;
-    else
-        *outlen = SHA256_DIGEST_LENGTH;
-    return SHA256((const unsigned char*)in, inlen, (unsigned char*)out);
-#else
-    return nullptr;
-#endif
-}
-
-void* KDF_SHA512(const void* in, size_t inlen, void* out, size_t* outlen)
-{
-#ifndef OPENSSL_NO_SHA
-    if (*outlen < SHA512_DIGEST_LENGTH)
-        return nullptr;
-    else
-        *outlen = SHA512_DIGEST_LENGTH;
-    return SHA512((const unsigned char*)in, inlen, (unsigned char*)out);
-#else
-    return nullptr;
-#endif
-}

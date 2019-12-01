@@ -43,14 +43,6 @@
 #include <inttypes.h>
 #include <stdint.h>
 
-#if BOOST_VERSION >= 106100
-#include <boost/utility/string_view.hpp>
-using StringViewT = boost::string_view;
-#else
-#include <boost/utility/string_ref.hpp>
-using StringViewT = boost::string_ref;
-#endif
-
 static const std::uintmax_t ONE_KB = (static_cast<uint64_t>(1) << 10);
 static const std::uintmax_t ONE_MB = (static_cast<uint64_t>(1) << 20);
 static const std::uintmax_t ONE_GB = (static_cast<uint64_t>(1) << 30);
@@ -709,82 +701,6 @@ std::string ConvertToBitString(T num)
     std::reverse(res.begin(), res.end());
     return res;
 }
-
-template <typename CTXType, int (*InitFunc)(CTXType*), int (*UpdateFunc)(CTXType*, const void*, size_t),
-          int (*FinalFunc)(unsigned char*, CTXType*), unsigned DigestSize>
-class HashCalculator
-{
-    CTXType ctx;
-
-public:
-    HashCalculator() { reset(); }
-    void push_data(const std::string& data)
-    {
-        UpdateFunc(&ctx, reinterpret_cast<const void*>(&data.front()), data.size());
-    }
-    void push_data(const std::vector<char>& data)
-    {
-        UpdateFunc(&ctx, reinterpret_cast<const void*>(&data.front()), data.size());
-    }
-    void push_data(const std::vector<unsigned char>& data)
-    {
-        UpdateFunc(&ctx, reinterpret_cast<const void*>(&data.front()), data.size());
-    }
-    void reset()
-    {
-        ctx = CTXType();
-        InitFunc(&ctx);
-    }
-    std::string getHashAndReset()
-    {
-        std::string res;
-        res.resize(DigestSize);
-        FinalFunc(reinterpret_cast<unsigned char*>(&res.front()), &ctx);
-        reset();
-        return res;
-    }
-};
-
-using Sha1Calculator = HashCalculator<SHA_CTX, SHA1_Init, SHA1_Update, SHA1_Final, SHA_DIGEST_LENGTH>;
-using Sha224Calculator =
-    HashCalculator<SHA256_CTX, SHA224_Init, SHA224_Update, SHA224_Final, SHA224_DIGEST_LENGTH>;
-using Sha256Calculator =
-    HashCalculator<SHA256_CTX, SHA256_Init, SHA256_Update, SHA256_Final, SHA256_DIGEST_LENGTH>;
-using Sha384Calculator =
-    HashCalculator<SHA512_CTX, SHA384_Init, SHA384_Update, SHA384_Final, SHA384_DIGEST_LENGTH>;
-using Sha512Calculator =
-    HashCalculator<SHA512_CTX, SHA512_Init, SHA512_Update, SHA512_Final, SHA512_DIGEST_LENGTH>;
-using Md5Calculator = HashCalculator<MD5_CTX, MD5_Init, MD5_Update, MD5_Final, MD5_DIGEST_LENGTH>;
-using Ripemd160HashCalculator = HashCalculator<RIPEMD160_CTX, RIPEMD160_Init, RIPEMD160_Update,
-                                               RIPEMD160_Final, RIPEMD160_DIGEST_LENGTH>;
-
-template <typename HashCalculatorClass>
-std::string CalculateHashOfFile(const boost::filesystem::path& PathToFile,
-                                const std::uintmax_t           ChunkSize = ONE_MB)
-{
-    if (!boost::filesystem::exists(PathToFile)) {
-        throw std::runtime_error("While attempting to calculate hash of file, it does not exist: " +
-                                 PathToFile.string());
-    }
-    boost::filesystem::ifstream fileToRead(PathToFile, std::ios::binary);
-    std::string                 chunk;
-    chunk.resize(ChunkSize);
-    if (!fileToRead.good()) {
-        throw std::runtime_error("Unable to open file: " + PathToFile.string() +
-                                 "; in order to calculate hash");
-    }
-    HashCalculatorClass calculator;
-    while (!fileToRead.eof()) {
-        fileToRead.read(&chunk.front(), ChunkSize);
-        std::size_t sz = fileToRead.gcount();
-        chunk.resize(sz);
-        calculator.push_data(chunk);
-    }
-    return calculator.getHashAndReset();
-}
-
-void* KDF_SHA256(const void* in, size_t inlen, void* out, size_t* outlen);
-void* KDF_SHA512(const void* in, size_t inlen, void* out, size_t* outlen);
 
 uintmax_t GetFreeDiskSpace(const boost::filesystem::path& path);
 

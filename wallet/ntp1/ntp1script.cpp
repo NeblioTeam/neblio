@@ -6,9 +6,13 @@
 #include <stdexcept>
 #include <util.h>
 
+#include "JsonStringQueue.h"
+#include "key.h"
 #include "ntp1script_burn.h"
 #include "ntp1script_issuance.h"
 #include "ntp1script_transfer.h"
+
+#include "script.h"
 
 const std::string NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str    = "aggregatable";
 const std::string NTP1Script::IssuanceFlags::AggregationPolicy_NonAggregatable_Str = "nonaggregatable";
@@ -706,4 +710,143 @@ NTP1Int NTP1Script::NTP1AmountHexToNumber(std::string hexVal)
     return static_cast<NTP1Int>(std::bitset<digits>(mantissa).to_ullong()) *
            static_cast<NTP1Int>(
                boost::multiprecision::pow(NTP1Int(10), boost::dynamic_bitset<>(exponent).to_ulong()));
+}
+
+std::string NTP1Script::EncryptMetadata(const StringViewT data, const CKey& publicKey,
+                                        CHL::EncryptionAlgorithm     encAlgo,
+                                        CHL::AuthKeyRatchetAlgorithm ratchetAlgo,
+                                        CHL::AuthenticationAlgorithm authAlgo)
+{
+
+    CKey                    ephemeralKey;
+    std::array<uint8_t, 32> sharedKey;
+    std::tie(ephemeralKey, sharedKey) = publicKey.GenerateEphemeralSharedSecretFromThisPublicKey();
+
+    auto       cipherData           = CHL::EncryptMessage(CHL::Bytes(data.cbegin(), data.cend()),
+                                          CHL::Bytes(sharedKey.cbegin(), sharedKey.cend()), encAlgo,
+                                          ratchetAlgo, authAlgo);
+    CHL::Bytes serializedCipherData = CHL::EncryptMessageOutput::Serialize(cipherData);
+
+    if (static_cast<int64_t>(serializedCipherData.size()) >= static_cast<int64_t>(INT_MAX)) {
+        throw std::runtime_error("Data is too big to be serialized");
+    }
+
+    json_spirit::Object root;
+    using JPair           = json_spirit::Pair;
+    namespace BA          = boost::algorithm;
+    auto        pubKey    = ephemeralKey.GetPubKey().Raw();
+    std::string pubKeyHex = BA::hex(std::string(pubKey.cbegin(), pubKey.cend()));
+    root.push_back(JPair(SER_FIELD__VERSION, 0));
+    root.push_back(JPair(SER_FIELD__PUBLIC_KEY_HEX, pubKeyHex));
+    root.push_back(JPair(SER_FIELD__DATA_LENGTH, static_cast<int>(serializedCipherData.size())));
+
+    // write the header then the data to the result
+    std::string result = json_spirit::write(json_spirit::Value(root));
+    boost::trim(result);
+    result.insert(result.end(), serializedCipherData.begin(), serializedCipherData.end());
+    return result;
+}
+
+std::string GetStrValue(const json_spirit::Object& obj, const std::string& name)
+{
+    auto v = json_spirit::find_value(obj, name);
+    if (v == json_spirit::Value::null) {
+        throw std::runtime_error("Could not find json object: " + name);
+    }
+    if (v.type() != json_spirit::Value_type::str_type) {
+        throw std::runtime_error("For object " + name +
+                                 " the expected type is string, but found type with index " +
+                                 std::to_string(v.type()));
+    }
+    return v.get_str();
+}
+
+int GetIntValue(const json_spirit::Object& obj, const std::string& name)
+{
+    auto v = json_spirit::find_value(obj, name);
+    if (v == json_spirit::Value::null) {
+        throw std::runtime_error("Could not find json object: " + name);
+    }
+    if (v.type() != json_spirit::Value_type::int_type) {
+        throw std::runtime_error("For object " + name +
+                                 " the expected type is int, but found type with index " +
+                                 std::to_string(v.type()));
+    }
+    return v.get_int();
+}
+
+std::string NTP1Script::DecryptMetadata(const StringViewT data, const CKey& privateKey)
+{
+    if (data.empty()) {
+        throw std::runtime_error("Requested decryption of empty metadata data");
+    }
+    if (data[0] != '{') {
+        throw std::runtime_error("Unexpected header while attempting to decrypt metadata");
+    }
+
+    JsonStringQueue jsonStringQueue;
+    jsonStringQueue.pushData(data.cbegin(), data.cend());
+
+    std::string jsonHeaderStr;
+    {
+        std::vector<std::string> jsonHeaderStrVec = jsonStringQueue.pullDataAndClear();
+        if (jsonHeaderStrVec.empty()) {
+            throw std::runtime_error("No header was found. Cannot decrypt metadata.");
+        }
+        jsonHeaderStr = jsonHeaderStrVec.front();
+    }
+
+    json_spirit::Value jsonHeader;
+    try {
+        json_spirit::read_or_throw(jsonHeaderStr, jsonHeader);
+    } catch (std::exception& ex) {
+        throw std::runtime_error("Unable to parse json header of encrypted metadata: Error: " +
+                                 std::string(ex.what()));
+    } catch (...) {
+        throw std::runtime_error("Unable to parse json header of encrypted metadata: Unknown error");
+    }
+
+    if (jsonHeader.type() != json_spirit::Value_type::obj_type) {
+        throw std::runtime_error("Invalid encrypted metadata header type");
+    }
+
+    json_spirit::Object jsonHeaderObj = jsonHeader.get_obj();
+    int                 version       = GetIntValue(jsonHeaderObj, SER_FIELD__VERSION);
+    std::string         pubKeyHex     = GetStrValue(jsonHeaderObj, SER_FIELD__PUBLIC_KEY_HEX);
+    int                 dataLength    = GetIntValue(jsonHeaderObj, SER_FIELD__DATA_LENGTH);
+
+    if (version != 0) {
+        throw std::runtime_error("Unknown serialization version of encrypted metadata");
+    }
+
+    std::vector<uint8_t> pubKeyRaw;
+    boost::algorithm::unhex(pubKeyHex.cbegin(), pubKeyHex.cend(), std::back_inserter(pubKeyRaw));
+
+    if (dataLength <= 0) {
+        throw std::runtime_error("Invalid data length for encrypted metadata in the header");
+    }
+
+    if (dataLength + jsonHeaderStr.size() != data.size()) {
+        throw std::runtime_error("Invalid length of data provided in encrypted metadata header");
+    }
+
+    if (!IsCanonicalPubKey(pubKeyRaw)) {
+        std::runtime_error("Public key provided is not a canonical public key");
+    }
+
+    CKey pubKey;
+    if (!pubKey.SetPubKey(pubKeyRaw)) {
+        throw std::runtime_error(
+            "Failed to set public key in a ckey object. Possibly an invalid public key.");
+    }
+
+    std::array<uint8_t, 32> sharedSecret = privateKey.GenerateSharedSecretFromThisPrivateKey(pubKey);
+
+    CHL::EncryptMessageOutput encryptedMessage = CHL::EncryptMessageOutput::Deserialize(
+        CHL::Bytes(data.cbegin() + jsonHeaderStr.size(), data.cend()));
+
+    CHL::Bytes result =
+        CHL::DecryptMessage(encryptedMessage, CHL::Bytes(sharedSecret.cbegin(), sharedSecret.cend()));
+
+    return std::string(std::make_move_iterator(result.begin()), std::make_move_iterator(result.end()));
 }

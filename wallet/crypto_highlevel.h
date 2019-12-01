@@ -1,9 +1,9 @@
 #ifndef CRYPTO_HIGHLEVEL_H
 #define CRYPTO_HIGHLEVEL_H
 
+#include "CustomTypes.h"
 #include "allocators.h"
 #include "json_spirit.h"
-#include "util.h"
 #include <boost/optional.hpp>
 #include <sodium.h>
 #include <sodium/crypto_secretbox_xsalsa20poly1305.h>
