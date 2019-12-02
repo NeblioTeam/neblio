@@ -25,7 +25,7 @@ nci.mkdir_p(deploy_dir)
 
 mxe_path = "/mxe/mxe/"
 # download the toolchain for windows
-nci.call_with_err_code("wget --progress=dot:giga https://neblio-files.ams3.digitaloceanspaces.com/dependencies/mxe_x86_64.tar.gz")
+nci.call_with_err_code("wget --progress=dot:giga https://files.nebl.io/dependencies/mxe_x86_64.tar.gz")
 # extract it
 nci.call_with_err_code("tar -xf mxe_x86_64.tar.gz")
 # move it to /mxe, where it was built the first time
