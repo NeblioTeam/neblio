@@ -250,6 +250,38 @@ TEST(cryptography_tests, ecdh_fromCKey)
     }
 }
 
+TEST(cryptography_tests, ecdh_fromCKey_HighLevel_ChosenKeys)
+{
+    std::string k1hex =
+        "305402010104205F994E001DB6679A3E51B07DB00BA8DE2A085FFF9D4D8A0E6AACDD8F6C64391DA00706052B8104000"
+        "AA12403220002C6E0B2B9211F3D8B677DBE435F7C365EBF53639F1761A5D7AA01BF02968E881F";
+    std::string k2hex =
+        "30540201010420F21B283C70F56F28CE71738E2D2E0B78BF7372E957270EE8D338737F2CFF3BBCA00706052B8104000"
+        "AA12403220003C33BE206F9329B0F2302AB0DCD6A8AD58845132E1A0989C42AC2AB979D9B1589";
+
+    std::string k1raw = boost::algorithm::unhex(k1hex);
+    std::string k2raw = boost::algorithm::unhex(k2hex);
+
+    CKey k1;
+    k1.SetPrivKey(CPrivKey(k1raw.cbegin(), k1raw.cend()));
+    CKey k2;
+    k2.SetPrivKey(CPrivKey(k2raw.cbegin(), k2raw.cend()));
+
+    std::array<uint8_t, 32> sharedKey1 = CHL::RandomBytesAs<std::array<uint8_t, 32>>();
+
+    sharedKey1 = k1.GenerateSharedSecretFromThisPrivateKey(k2);
+
+    std::array<uint8_t, 32> sharedKey2 = CHL::RandomBytesAs<std::array<uint8_t, 32>>();
+
+    std::string sharedSecretHex = "5540734F33556194791AF1DE7C117014D0334D04FAE38DDD0057315C27937C27";
+
+    sharedKey2 = k2.GenerateSharedSecretFromThisPrivateKey(k1);
+
+    EXPECT_EQ(sharedKey1, sharedKey2);
+    EXPECT_EQ(std::string(sharedKey1.cbegin(), sharedKey1.cend()),
+              boost::algorithm::unhex(sharedSecretHex));
+}
+
 TEST(cryptography_tests, ecdh_fromCKey_HighLevel)
 {
     CKey k1;
