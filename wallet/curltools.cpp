@@ -113,8 +113,6 @@ void cURLTools::GetLargeFileFromHTTPS(const std::string& URL, long ConnectionTim
         CurlCleaner cleaner(curl);
 
         curl_easy_setopt(curl, CURLOPT_URL, URL.c_str());
-        // curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); // verify ssl peer
-        // curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L); // verify ssl hostname
         curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlWrite_CallbackFunc_File);
         curl_easy_setopt(curl, CURLOPT_USERAGENT, "Dark Secret Ninja/1.0");
@@ -124,7 +122,7 @@ void cURLTools::GetLargeFileFromHTTPS(const std::string& URL, long ConnectionTim
         curl_easy_setopt(curl, CURLOPT_NOPROGRESS, false);
         curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, CurlAtomicProgress_CallbackFunc);
         curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, &progress);
-        curl_easy_setopt (curl, CURLOPT_VERBOSE, 1L); //verbose output
+        // curl_easy_setopt (curl, CURLOPT_VERBOSE, 1L); //verbose output
         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, ConnectionTimeout);
 
         curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
@@ -195,8 +193,6 @@ std::string cURLTools::GetFileFromHTTPS(const std::string& URL, long ConnectionT
         CurlCleaner cleaner(curl);
 
         curl_easy_setopt(curl, CURLOPT_URL, URL.c_str());
-        // curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); // verify ssl peer
-        // curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L); // verify ssl hostname
         curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlWrite_CallbackFunc_StdString);
         curl_easy_setopt(curl, CURLOPT_USERAGENT, "Dark Secret Ninja/1.0");
@@ -208,7 +204,7 @@ std::string cURLTools::GetFileFromHTTPS(const std::string& URL, long ConnectionT
         } else {
             curl_easy_setopt(curl, CURLOPT_NOPROGRESS, true);
         }
-        curl_easy_setopt (curl, CURLOPT_VERBOSE, 1L); //verbose output
+        // curl_easy_setopt (curl, CURLOPT_VERBOSE, 1L); //verbose output
         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, ConnectionTimeout);
 
         /* Perform the request, res will get the return code */
@@ -266,8 +262,6 @@ std::string cURLTools::PostJsonToHTTPS(const std::string& URL, long ConnectionTi
         curl_easy_setopt(curl, CURLOPT_URL, URL.c_str());
         //        curl_easy_setopt(curl, CURLOPT_READDATA, &readdata);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &writedata);
-        // curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); // verify ssl peer
-        // curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L); // verify ssl hostname
         curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
         curl_easy_setopt(curl, CURLOPT_READFUNCTION, CurlRead_CallbackFunc_StdString);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlWrite_CallbackFunc_StdString);
@@ -279,7 +273,7 @@ std::string cURLTools::PostJsonToHTTPS(const std::string& URL, long ConnectionTi
         headers = curl_slist_append(headers, "Content-Type: application/json");
         headers = curl_slist_append(headers, "charsets: utf-8");
 
-        curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L); // verbose output
+        // curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L); // verbose output
         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, ConnectionTimeout);
         if (chunked) {
 
