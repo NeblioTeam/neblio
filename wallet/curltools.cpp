@@ -208,7 +208,7 @@ std::string cURLTools::GetFileFromHTTPS(const std::string& URL, long ConnectionT
         } else {
             curl_easy_setopt(curl, CURLOPT_NOPROGRESS, true);
         }
-        //        curl_easy_setopt (curl, CURLOPT_VERBOSE, 1L); //verbose output
+        curl_easy_setopt (curl, CURLOPT_VERBOSE, 1L); //verbose output
         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, ConnectionTimeout);
 
         /* Perform the request, res will get the return code */
@@ -279,7 +279,7 @@ std::string cURLTools::PostJsonToHTTPS(const std::string& URL, long ConnectionTi
         headers = curl_slist_append(headers, "Content-Type: application/json");
         headers = curl_slist_append(headers, "charsets: utf-8");
 
-        //        curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L); // verbose output
+        curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L); // verbose output
         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, ConnectionTimeout);
         if (chunked) {
 
