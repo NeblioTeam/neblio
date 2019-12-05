@@ -27,12 +27,28 @@ const NTP1TransactionType NTP1TxType_ISSUANCE = 2;
 const NTP1TransactionType NTP1TxType_TRANSFER = 3;
 const NTP1TransactionType NTP1TxType_BURN     = 4;
 
+constexpr const char* METADATA_SER_FIELD__VERSION               = "SerializationVersion";
+constexpr const char* METADATA_SER_FIELD__TARGET_PUBLIC_KEY_HEX = "TargetPubKeyHex";
+constexpr const char* METADATA_SER_FIELD__SOURCE_PUBLIC_KEY_HEX = "SourcePubKeyHex";
+constexpr const char* METADATA_SER_FIELD__CIPHER_BASE64         = "Cipher64";
+
 const std::string  HexBytesRegexStr("^([0-9a-fA-F][0-9a-fA-F])+$");
 const boost::regex HexBytexRegex(HexBytesRegexStr);
 
 const NTP1Int NTP1MaxAmount = std::numeric_limits<int64_t>::max();
 
 class CKey;
+
+struct RawNTP1MetadataBeforeSend
+{
+    RawNTP1MetadataBeforeSend(std::string Metadata = "", bool DoEncrypt = false)
+    {
+        metadata = std::move(Metadata);
+        encrypt  = DoEncrypt;
+    }
+    bool        encrypt = false;
+    std::string metadata;
+};
 
 class NTP1Script
 {
@@ -181,11 +197,12 @@ public:
     static bool IsNTP1TokenSymbolValid(const std::string& symbol);
     static bool IsTokenSymbolCharValid(const char c);
 
-    static constexpr const char* SER_FIELD__VERSION        = "SerializationVersion";
-    static constexpr const char* SER_FIELD__PUBLIC_KEY_HEX = "PubKeyHex";
-    static constexpr const char* SER_FIELD__DATA_LENGTH    = "DataLen";
+    [[nodiscard]] static std::string EncryptMetadataWithEphemeralKey(
+        const StringViewT data, const CKey& publicKey, CHL::EncryptionAlgorithm encAlgo,
+        CHL::AuthKeyRatchetAlgorithm ratchetAlgo, CHL::AuthenticationAlgorithm authAlgo);
 
-    [[nodiscard]] static std::string EncryptMetadata(const StringViewT data, const CKey& publicKey,
+    [[nodiscard]] static std::string EncryptMetadata(const StringViewT data, const CKey& privateKey,
+                                                     const CKey&                  publicKey,
                                                      CHL::EncryptionAlgorithm     encAlgo,
                                                      CHL::AuthKeyRatchetAlgorithm ratchetAlgo,
                                                      CHL::AuthenticationAlgorithm authAlgo);

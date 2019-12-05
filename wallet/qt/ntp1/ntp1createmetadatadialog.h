@@ -14,6 +14,7 @@ class NTP1CreateMetadataDialog : public QDialog
 
     QGridLayout* mainLayout;
     QCheckBox*   editModeCheckbox;
+    QCheckBox*   encryptDataCheckbox;
 
     NTP1MetadataPairsWidget*  metadataPairsWidget;
     NTP1CustomMetadataWidget* customDataWidget;
@@ -22,6 +23,7 @@ public:
     NTP1CreateMetadataDialog(QWidget* parent = Q_NULLPTR);
 
     json_spirit::Object getJsonData() const;
+    bool                encryptData() const;
     bool                jsonDataExists() const;
     bool                jsonDataValid() const;
     void                clearData();

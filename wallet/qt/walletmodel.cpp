@@ -152,7 +152,7 @@ bool WalletModel::validateAddress(const QString& address)
 
 WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipient>& recipients,
                                                     boost::shared_ptr<NTP1Wallet>    ntp1wallet,
-                                                    const std::string&               ntp1metadata,
+                                                    const RawNTP1MetadataBeforeSend& ntp1metadata,
                                                     const CCoinControl*              coinControl)
 {
     qint64  total = 0;

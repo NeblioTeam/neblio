@@ -343,30 +343,39 @@ CKey::EcKeyPtr CKey::GetLowLevelPrivateKey() const
     return EcKeyPtr(pkey_rawPtr, EcKeyDeleter);
 }
 
-std::pair<CKey, std::array<uint8_t, 32>> CKey::GenerateEphemeralSharedSecretFromThisPublicKey() const
+std::array<uint8_t, 32> CKey::GenerateSharedSecretFromPrivateAndPublicKey(const CKey& privateKey,
+                                                                          const CKey& publicKey)
 {
     std::array<uint8_t, 32> sharedSecret;
 
-    auto            lowLevelPubKey = this->GetLowLevelPublicKey();
+    auto            lowLevelPubKey = publicKey.GetLowLevelPublicKey();
     const EC_POINT* ecpoint        = EC_KEY_get0_public_key(lowLevelPubKey.get());
 
-    CKey ephemeralKey;
-    ephemeralKey.MakeNewKey(true);
-    auto ephemeralEcKey = ephemeralKey.GetLowLevelPrivateKey();
+    auto privateEcKey = privateKey.GetLowLevelPrivateKey();
 
-    const EC_GROUP* group1 = EC_KEY_get0_group(ephemeralEcKey.get());
+    const EC_GROUP* group1 = EC_KEY_get0_group(privateEcKey.get());
     const EC_GROUP* group2 = EC_KEY_get0_group(lowLevelPubKey.get());
     if (EC_GROUP_cmp(group1, group2, nullptr) != 0) {
         throw std::logic_error("Failed to compute shared secret. Curves don't share EC group");
     }
 
-    int len = ECDH_compute_key(sharedSecret.data(), sharedSecret.size(), ecpoint, ephemeralEcKey.get(),
+    int len = ECDH_compute_key(sharedSecret.data(), sharedSecret.size(), ecpoint, privateEcKey.get(),
                                KDF_SHA256);
 
     if (len != SHA256_DIGEST_LENGTH) {
         throw std::runtime_error("Failed to compute ephemeral key: " + CHL::GetOpenSSLErrorMsg());
     }
-    return std::make_pair(ephemeralKey, sharedSecret);
+    return sharedSecret;
+}
+
+std::pair<CKey, std::array<uint8_t, 32>> CKey::GenerateEphemeralSharedSecretFromThisPublicKey() const
+{
+    CKey ephemeralKey;
+    ephemeralKey.MakeNewKey(true);
+    auto ephemeralEcKey = ephemeralKey.GetLowLevelPrivateKey();
+
+    return std::make_pair(ephemeralKey,
+                          GenerateSharedSecretFromPrivateAndPublicKey(ephemeralKey, *this));
 }
 
 std::array<uint8_t, 32> CKey::GenerateSharedSecretFromThisPrivateKey(const CKey& publicKey) const

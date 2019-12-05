@@ -16,7 +16,7 @@ class TransactionDescDialog : public QDialog
 {
     Q_OBJECT
 
-    void setMetadata(const QString& metadataStr);
+    void setMetadata(const QString& metadataStr, const QString& txid);
 
 public:
     explicit TransactionDescDialog(const QModelIndex& idx, QWidget* parent = 0);

@@ -159,6 +159,8 @@ public:
     EcKeyPtr GetLowLevelPublicKey() const;
     EcKeyPtr GetLowLevelPrivateKey() const;
 
+    [[nodiscard]] static std::array<uint8_t, 32>
+    GenerateSharedSecretFromPrivateAndPublicKey(const CKey& privateKey, const CKey& publicKey);
     [[nodiscard]] std::pair<CKey, std::array<uint8_t, 32>>
     GenerateEphemeralSharedSecretFromThisPublicKey() const;
     [[nodiscard]] std::array<uint8_t, 32>

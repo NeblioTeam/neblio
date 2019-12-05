@@ -1,8 +1,10 @@
 #include "transaction.h"
 
+#include "base58.h"
 #include "bignum.h"
 #include "block.h"
 #include "checkpoints.h"
+#include "init.h"
 #include "main.h"
 #include "txindex.h"
 #include "txmempool.h"
@@ -567,4 +569,131 @@ bool CTransaction::GetCoinAge(CTxDB& txdb, uint64_t& nCoinAge) const
         printf("coin age bnCoinDay=%s\n", bnCoinDay.ToString().c_str());
     nCoinAge = bnCoinDay.getuint64();
     return true;
+}
+
+CTransaction CTransaction::FetchTxFromDisk(const uint256& txid)
+{
+    CTxDB txdb;
+    return FetchTxFromDisk(txid, txdb);
+}
+
+CTransaction CTransaction::FetchTxFromDisk(const uint256& txid, CTxDB& txdb)
+{
+    CTransaction result;
+    CTxIndex     txPos;
+    if (!txdb.ReadTxIndex(txid, txPos)) {
+        printf("Unable to read standard transaction from db: %s\n", txid.ToString().c_str());
+        throw std::runtime_error("Unable to read standard transaction from db: " + txid.ToString());
+    }
+    if (!result.ReadFromDisk(txPos.pos, txdb)) {
+        printf("Unable to read standard transaction from disk with the "
+               "index given by db: %s\n",
+               txid.ToString().c_str());
+        throw std::runtime_error("Unable to read standard transaction from db: " + txid.ToString());
+    }
+    return result;
+}
+
+std::vector<CKey> CTransaction::GetOutputKeysOfTx(const std::string&        txid,
+                                                  boost::optional<unsigned> outputNumber)
+{
+    CTransaction tx;
+    // first we try to find it in the mempool, if not found, we look on disk
+    bool foundInMempool = mempool.lookup(uint256(txid), tx);
+    if (!foundInMempool) {
+        tx = CTransaction::FetchTxFromDisk(uint256(txid));
+    }
+    std::vector<CKey> keys;
+    for (unsigned i = 0; i < tx.vout.size(); i++) {
+        if (outputNumber.is_initialized() && *outputNumber != i) {
+            continue;
+        }
+        const CTxOut&                     out = tx.vout[i];
+        txnouttype                        outtype;
+        std::vector<std::vector<uint8_t>> vSolutions;
+        // this solution can be improved later for multiple kinds of transactions, here we only support
+        // P2PKH transactions, more in CScript class's source file
+        Solver(out.scriptPubKey, outtype, vSolutions);
+        if (outtype == TX_PUBKEYHASH) {
+            CKeyID keyId = CKeyID(uint160(vSolutions[0]));
+            if (!CBitcoinAddress(keyId).IsValid()) {
+                continue;
+            }
+            CKey key;
+            if (!pwalletMain->GetKey(keyId, key)) {
+                continue;
+            }
+            // this is O(N^2), but this is OK, because the numebr of outputs is low
+            // we're comparing public keys because CKey objects are not comparable
+            if (std::find_if(keys.cbegin(), keys.cend(), [&key](const CKey& k) {
+                    return k.GetPubKey() == key.GetPubKey();
+                }) == keys.cend()) {
+                keys.push_back(key);
+            }
+        }
+    }
+
+    return keys;
+}
+
+std::string CTransaction::DecryptMetadataOfTx(const StringViewT metadataStr, const std::string& txid,
+                                              boost::optional<std::string>& error)
+{
+    std::vector<CKey> keysVec = GetOutputKeysOfTx(txid);
+    if (keysVec.empty()) {
+        error = "No valid keys were found in the transaction: " + txid;
+        return "";
+    }
+
+    std::string decryptedMessage;
+    for (const CKey& key : keysVec) {
+        try {
+            decryptedMessage = NTP1Script::DecryptMetadata(metadataStr, key);
+            break;
+        } catch (...) {
+        }
+    }
+    if (decryptedMessage.empty()) {
+        error = "None of the available keys in the following txid: " + txid +
+                " were able to decrypted the message: " + metadataStr.to_string();
+        return "";
+    }
+    return decryptedMessage;
+}
+
+boost::optional<CKey> CTransaction::GetPublicKeyFromScriptSig(const CScript& scriptSig)
+{
+    opcodetype                 opt;
+    auto                       beg = scriptSig.cbegin();
+    std::vector<unsigned char> vchSig, vchPub;
+
+    if (!scriptSig.GetOp(beg, opt, vchSig)) {
+        return boost::none;
+    }
+    if (!scriptSig.GetOp(beg, opt, vchPub)) {
+        return boost::none;
+    }
+    if (!IsCanonicalSignature(vchSig)) {
+        return boost::none;
+    }
+    if (!IsCanonicalPubKey(vchPub)) {
+        return boost::none;
+    }
+
+    CKey resultKey;
+    if (!resultKey.SetPubKey(vchPub)) {
+        return boost::none;
+    }
+    return resultKey;
+}
+
+boost::optional<CKey> CTransaction::GetOnePublicKeyFromInputs(const CTransaction& tx)
+{
+    for (const CTxIn& in : tx.vin) {
+        boost::optional<CKey> res = GetPublicKeyFromScriptSig(in.scriptSig);
+        if (res.is_initialized()) {
+            return res;
+        }
+    }
+    return boost::none;
 }

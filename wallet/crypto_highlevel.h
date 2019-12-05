@@ -159,12 +159,21 @@ public:
 
     template <typename Container>
     [[nodiscard]] static Bytes ToBytes(Container&& input);
+
+    template <typename Container>
+    [[nodiscard]] static std::string ToString(Container&& input);
 };
 
 template <typename Container>
 Crypto_HighLevel::Bytes Crypto_HighLevel::ToBytes(Container&& input)
 {
     return Bytes(input.begin(), input.end());
+}
+
+template <typename Container>
+std::string Crypto_HighLevel::ToString(Container&& input)
+{
+    return std::string(input.begin(), input.end());
 }
 
 template <std::size_t N>

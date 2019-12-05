@@ -363,10 +363,10 @@ Value sendntp1toaddress(const Array& params, bool fHelp)
     }
 
     // Wallet comments
-    CWalletTx   wtx;
-    std::string ntp1metadata;
+    CWalletTx                 wtx;
+    RawNTP1MetadataBeforeSend ntp1metadata;
     if (params.size() > 3 && params[3].type() != null_type && !params[3].get_str().empty())
-        ntp1metadata = params[3].get_str();
+        ntp1metadata.metadata = params[3].get_str();
     if (params.size() > 4 && params[4].type() != null_type && !params[4].get_str().empty())
         wtx.mapValue["comment"] = params[4].get_str();
     if (params.size() > 5 && params[5].type() != null_type && !params[5].get_str().empty())

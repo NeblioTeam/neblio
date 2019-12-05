@@ -138,7 +138,7 @@ void NTP1Wallet::__getOutputs()
 
                     // find issue transaction to get meta data from
                     uint256      issueTxid = tokenTx.getIssueTxId();
-                    CTransaction issueTx   = FetchTxFromDisk(issueTxid);
+                    CTransaction issueTx   = CTransaction::FetchTxFromDisk(issueTxid);
                     std::vector<std::pair<CTransaction, NTP1Transaction>> issueTxInputs =
                         NTP1Transaction::GetAllNTP1InputsOfTx(issueTx, true);
                     NTP1Transaction issueNTP1Tx;

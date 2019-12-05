@@ -348,17 +348,11 @@ TEST(cryptography_tests, ecdh_get_scriptSig)
     std::vector<std::vector<unsigned char>> stack;
     EXPECT_TRUE(EvalScript(stack, tx.vin[0].scriptSig, tx, 1, false, 0));
 
-    opcodetype                 opt;
-    auto                       beg = tx.vin[0].scriptSig.cbegin();
-    std::vector<unsigned char> vchSig, vchPub;
-    EXPECT_TRUE(tx.vin[0].scriptSig.GetOp(beg, opt, vchSig));
-    EXPECT_TRUE(tx.vin[0].scriptSig.GetOp(beg, opt, vchPub));
-    EXPECT_TRUE(IsCanonicalSignature(vchSig));
-    EXPECT_TRUE(IsCanonicalPubKey(vchPub));
+    boost::optional<CKey> pubKey = CTransaction::GetPublicKeyFromScriptSig(tx.vin[0].scriptSig);
 
-    CKey k1;
-    EXPECT_TRUE(k1.SetPubKey(vchPub));
-    CBitcoinAddress addr(k1.GetPubKey().GetID());
+    ASSERT_TRUE(pubKey.is_initialized());
+
+    CBitcoinAddress addr(pubKey->GetPubKey().GetID());
     EXPECT_EQ(addr.ToString(), "NT3GauUgR5NyCY5z4hQ37A9ULXPSmYGzPL");
 }
 
@@ -1071,12 +1065,12 @@ TEST(cryptography_tests, encrypt_metadata)
                     CKey k1;
                     k1.MakeNewKey(true);
 
-                    uint64_t   messageLength = 1 + (CHL::RandomBytesAs<uint64_t>() % 100000);
+                    uint64_t   messageLength = 1 + (CHL::RandomBytesAs<uint64_t>() % 100);
                     CHL::Bytes message       = CHL::RandomBytes(messageLength);
 
-                    std::string encrypted =
-                        NTP1Script::EncryptMetadata(std::string(message.cbegin(), message.cend()), k1,
-                                                    encAlgo, ratchetAlgo, authAlgo);
+                    std::string encrypted = NTP1Script::EncryptMetadataWithEphemeralKey(
+                        std::string(message.cbegin(), message.cend()), k1, encAlgo, ratchetAlgo,
+                        authAlgo);
                     std::string decryptedData = NTP1Script::DecryptMetadata(encrypted, k1);
                     EXPECT_EQ(decryptedData, std::string(message.cbegin(), message.cend()));
                 }

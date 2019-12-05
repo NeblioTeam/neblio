@@ -158,6 +158,18 @@ public:
     bool CheckTransaction() const;
     bool GetCoinAge(CTxDB& txdb, uint64_t& nCoinAge) const; // ppcoin: get transaction coin age
 
+    [[nodiscard]] static CTransaction FetchTxFromDisk(const uint256& txid);
+    [[nodiscard]] static CTransaction FetchTxFromDisk(const uint256& txid, CTxDB& txdb);
+
+    [[nodiscard]] static std::vector<CKey>
+                                     GetOutputKeysOfTx(const std::string& txid, boost::optional<unsigned> outputNumber = boost::none);
+    [[nodiscard]] static std::string DecryptMetadataOfTx(const StringViewT             metadataStr,
+                                                         const std::string&            txid,
+                                                         boost::optional<std::string>& error);
+
+    [[nodiscard]] static boost::optional<CKey> GetPublicKeyFromScriptSig(const CScript& scriptSig);
+    [[nodiscard]] static boost::optional<CKey> GetOnePublicKeyFromInputs(const CTransaction& tx);
+
 protected:
     const CTxOut& GetOutputFor(const CTxIn& input, const MapPrevTx& inputs) const;
 };

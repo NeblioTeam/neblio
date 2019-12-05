@@ -1651,9 +1651,46 @@ void CreateErrorMsg(std::string* errorMsg, const std::string& msg)
     }
 }
 
+std::string EncryptMetadataBeforeSend(const StringViewT ntp1metadata, const CKey& inputPrivateKey,
+                                      const StringViewT recipientAddress)
+{
+    std::string          result;
+    CTxDB                txdb;
+    std::vector<uint8_t> pubKeyRaw;
+    std::string          addr(recipientAddress.cbegin(), recipientAddress.cend());
+    bool                 pubkeyFound = txdb.ReadAddressPubKey(CBitcoinAddress(addr), pubKeyRaw);
+    if (!pubkeyFound) {
+        throw std::runtime_error("The public key for the address " + addr +
+                                 " was not found. This means that the owner of this "
+                                 "address never made a transaction with it. Please "
+                                 "choose an address, which was used before.");
+    }
+    CKey pubKeyCKey;
+    if (!pubKeyCKey.SetPubKey(pubKeyRaw)) {
+        throw std::runtime_error("The public key for the address " + addr +
+                                 " was found, but it seems to be invalid. Please try another address. "
+                                 "Also please consider reporting this to the Neblio Team.");
+    }
+    CBitcoinAddress addrRecalc(pubKeyCKey.GetPubKey().GetID());
+    if (addr != addrRecalc.ToString()) {
+        throw std::runtime_error("The public key for the address " + addr +
+                                 " was found, but failed to reproduce the same address. This indicates "
+                                 "that the public key is invalid. Please try another address, and "
+                                 "consider reporting this to the Neblio Team.");
+    }
+    try {
+        result = NTP1Script::EncryptMetadata(
+            ntp1metadata, inputPrivateKey, pubKeyCKey, CHL::EncryptionAlgorithm::Enc_XSalsa20Poly1305,
+            CHL::AuthKeyRatchetAlgorithm::Ratchet_Sha256, CHL::AuthenticationAlgorithm::Auth_Poly1305);
+    } catch (std::exception& ex) {
+        throw std::runtime_error("Failed to encrypt metadata. Error: " + std::string(ex.what()));
+    }
+    return result;
+}
+
 bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, CWalletTx& wtxNew,
                                 CReserveKey& reservekey, int64_t& nFeeRet, NTP1SendTxData ntp1TxData,
-                                const std::string& ntp1metadata, bool isNTP1Issuance,
+                                const RawNTP1MetadataBeforeSend& ntp1metadata, bool isNTP1Issuance,
                                 const CCoinControl* coinControl, std::string* errorMsg)
 {
     int64_t nValue = 0;
@@ -1868,7 +1905,47 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
 
                 try {
                     NTP1SendTxData::FixTIsChangeOutputIndex(TIs, changeOutputIndex);
-                    CWallet::SetTxNTP1OpRet(wtxNew, TIs, ntp1metadata,
+                    std::string processedMetadata;
+                    if (ntp1metadata.encrypt) {
+                        // get public key
+                        std::vector<CKey> keys;
+                        for (const CTxIn& in : wtxNew.vin) {
+                            std::vector<CKey> tempKeys = CTransaction::GetOutputKeysOfTx(
+                                in.prevout.hash.ToString(), in.prevout.n);
+                            keys.insert(keys.end(), std::make_move_iterator(tempKeys.begin()),
+                                        std::make_move_iterator(tempKeys.end()));
+                        }
+                        if (keys.empty()) {
+                            throw std::runtime_error("An unexpected error happened. A key that was used "
+                                                     "in the input was not found in the wallet. Please "
+                                                     "report this to neblio develoers.");
+                        }
+                        CKey inputPrivateKey = keys.front();
+
+                        // check recipients
+                        std::vector<NTP1SendTokensOneRecipientData> recipients =
+                            ntp1TxData.getNTP1TokenRecipientsList();
+                        if (recipients.empty()) {
+                            throw std::runtime_error("Empty NTP1 recipient list");
+                        }
+
+                        // put recipient addresses in a set to ensure there is only one
+                        std::set<std::string> recipientsSet;
+                        std::transform(
+                            recipients.cbegin(), recipients.cend(),
+                            std::inserter(recipientsSet, recipientsSet.begin()),
+                            [](const NTP1SendTokensOneRecipientData& r) { return r.destination; });
+                        if (recipientsSet.size() != 1) {
+                            throw std::runtime_error(
+                                "Cannot send encrypted NTP1 metadata to multiple recipients.");
+                        }
+                        std::string recipient = *recipientsSet.begin();
+                        processedMetadata =
+                            EncryptMetadataBeforeSend(ntp1metadata.metadata, inputPrivateKey, recipient);
+                    } else {
+                        processedMetadata = ntp1metadata.metadata;
+                    }
+                    CWallet::SetTxNTP1OpRet(wtxNew, TIs, processedMetadata,
                                             ntp1TxData.getNTP1TokenIssuanceData());
                 } catch (std::exception& ex) {
                     printf("Error while setting up NTP1 data: %s\n", ex.what());
@@ -1932,8 +2009,9 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
 
 bool CWallet::CreateTransaction(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew,
                                 CReserveKey& reservekey, int64_t& nFeeRet,
-                                const NTP1SendTxData& ntp1TxData, const string& ntp1metadata,
-                                bool isNTP1Issuance, const CCoinControl* coinControl)
+                                const NTP1SendTxData&            ntp1TxData,
+                                const RawNTP1MetadataBeforeSend& ntp1metadata, bool isNTP1Issuance,
+                                const CCoinControl* coinControl)
 {
     vector<pair<CScript, int64_t>> vecSend;
     vecSend.push_back(make_pair(scriptPubKey, nValue));
@@ -2335,8 +2413,8 @@ string CWallet::SendMoneyToDestination(const CTxDestination& address, int64_t nV
 
 string CWallet::SendNTP1ToDestination(const CTxDestination& address, int64_t nValue,
                                       const std::string& TokenId, CWalletTx& wtxNew,
-                                      boost::shared_ptr<NTP1Wallet> ntp1wallet,
-                                      const std::string& ntp1metadata, bool fAskFee)
+                                      boost::shared_ptr<NTP1Wallet>    ntp1wallet,
+                                      const RawNTP1MetadataBeforeSend& ntp1metadata, bool fAskFee)
 {
     // Check amount
     if (nValue <= 0)

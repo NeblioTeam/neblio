@@ -160,20 +160,8 @@ void SendCoinsDialog::on_sendButton_clicked()
     fNewRecipientAllowed = false;
 
     // allow metadata only with NTP1 transactions
-    std::string ntp1metadata;
+    RawNTP1MetadataBeforeSend ntp1metadata;
     {
-        if (ui->editMetadataDialog->jsonDataExists()) {
-            if (ui->editMetadataDialog->jsonDataValid()) {
-                json_spirit::Object obj = ui->editMetadataDialog->getJsonData();
-                ntp1metadata            = json_spirit::write(obj);
-            } else {
-                QMessageBox::warning(this, "Invalid json data",
-                                     "Invalid NTP1 metadata found. Either clear it or fix it");
-                ui->editMetadataButton->setStyleSheet(STYLE_INVALID);
-                return;
-            }
-        }
-
         bool allTokensNebl = true;
         for (const auto& r : recipients) {
             bool isNebl   = (r.tokenId.toStdString() == NTP1SendTxData::NEBL_TOKEN_ID);
@@ -187,6 +175,36 @@ void SendCoinsDialog::on_sendButton_clicked()
                 "include one or more NTP1 tokens in your transaction.");
             ui->editMetadataButton->setStyleSheet(STYLE_INVALID);
             return;
+        }
+
+        if (ui->editMetadataDialog->jsonDataExists()) {
+            if (ui->editMetadataDialog->jsonDataValid()) {
+                json_spirit::Object obj = ui->editMetadataDialog->getJsonData();
+                ntp1metadata.metadata   = json_spirit::write(obj);
+                if (ui->editMetadataDialog->encryptData()) {
+                    assert(!recipients.empty());
+                    std::string recipientAddress = recipients.at(0).address.toStdString();
+                    for (int i = 1; i < recipients.size(); i++) {
+                        if (recipients[i].address.toStdString() != recipientAddress) {
+                            QMessageBox::warning(this, "Data encryption on multiple recipient",
+                                                 "There is metadata to be sent encrypted in this "
+                                                 "transaction. This can only "
+                                                 "be done for one recipient, because components of the "
+                                                 "encryption should be "
+                                                 "stored in the message. If you wish to send to "
+                                                 "multiple recipients, please "
+                                                 "send them in separate transactions.");
+                            return;
+                        }
+                    }
+                    ntp1metadata.encrypt = true;
+                }
+            } else {
+                QMessageBox::warning(this, "Invalid json data",
+                                     "Invalid NTP1 metadata found. Either clear it or fix it");
+                ui->editMetadataButton->setStyleSheet(STYLE_INVALID);
+                return;
+            }
         }
     }
 

@@ -1,9 +1,9 @@
 #include "transactionrecord.h"
 
 #include "base58.h"
-#include "wallet.h"
-#include "txmempool.h"
 #include "main.h"
+#include "txmempool.h"
+#include "wallet.h"
 
 /* Return positive answer if transaction should be shown in list.
  */
@@ -151,7 +151,7 @@ void TransactionRecord::readNTP1TxData()
     try {
         CTransaction tx;
         if (!mempool.lookup(hash, tx)) {
-            tx = FetchTxFromDisk(hash);
+            tx = CTransaction::FetchTxFromDisk(hash);
         }
         std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs =
             NTP1Transaction::GetAllNTP1InputsOfTx(tx, false);
