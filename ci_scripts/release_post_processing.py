@@ -86,9 +86,9 @@ def check_assets():
                 docker_d_str = '| ' + docker_icon + ' | [Download ' + rel.tag_name + '<br/>For Docker](' + 'https://hub.docker.com/r/neblioteam/nebliod' + ') | `' + 'N/A' + '` |'
                 # print(docker_d_str)
 
-        # post docker RPi build once regular RPi build is done building, since we cannot easily tell when the docker builds are done
+        # post docker RPi build once regular RPi Qt build is done building, since we cannot easily tell when the docker builds are done
         global docker_rpi_d_str
-        if ("nebliod---RPi-raspbian" in x.name and len(docker_rpi_d_str) == 0):
+        if ("neblio-Qt---RPi-raspbian" in x.name and len(docker_rpi_d_str) == 0):
             x.sha256 = download_and_checksum(x.browser_download_url)
             if len(x.sha256) == 64:
                 docker_rpi_d_str = '| ' + docker_rpi_icon + ' | [Download ' + rel.tag_name + '<br/>For Docker on RPi (ARMv6hf)](' + 'https://hub.docker.com/r/neblioteam/nebliod-rpi/dockerfile' + ') | `' + 'N/A' + '` |'
