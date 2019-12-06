@@ -12,7 +12,7 @@ jobs:
     - uses: actions/checkout@v1
     - name: Post Process New Release
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GHAT2 }}
       run: |
         sudo apt-get install python3-setuptools
         pip3 install github3.py

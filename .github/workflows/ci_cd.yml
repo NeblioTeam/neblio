@@ -11,6 +11,7 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_S3_BUCKET: 'neblio-build-staging'
   AWS_S3_ENDPOINT: 'https://ams3.digitaloceanspaces.com'
+  GHAT2: ${{ secrets.GHAT2 }}
 
 jobs:
   linux_daemon:
@@ -38,7 +39,7 @@ jobs:
       uses: AButler/upload-release-assets@v1.0
       with:
         files: ${{ env.SOURCE_PATH }}
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        repo-token: ${{ secrets.GHAT2 }}
         release-tag: ${{ env.RELEASE_TAG }}
 
 
@@ -66,7 +67,7 @@ jobs:
       uses: AButler/upload-release-assets@v1.0
       with:
         files: ${{ env.SOURCE_PATH }}
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        repo-token: ${{ secrets.GHAT2 }}
         release-tag: ${{ env.RELEASE_TAG }}
 
 
@@ -110,7 +111,7 @@ jobs:
       uses: AButler/upload-release-assets@v1.0
       with:
         files: ${{ env.SOURCE_PATH }}
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        repo-token: ${{ secrets.GHAT2 }}
         release-tag: ${{ env.RELEASE_TAG }}
 
 
@@ -141,7 +142,7 @@ jobs:
       uses: AButler/upload-release-assets@v1.0
       with:
         files: ${{ env.SOURCE_PATH }}
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        repo-token: ${{ secrets.GHAT2 }}
         release-tag: ${{ env.RELEASE_TAG }}
 
 
@@ -238,7 +239,7 @@ jobs:
       uses: AButler/upload-release-assets@v1.0
       with:
         files: ${{ env.SOURCE_PATH }}
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        repo-token: ${{ secrets.GHAT2 }}
         release-tag: ${{ env.RELEASE_TAG }}
 
 
@@ -292,7 +293,7 @@ jobs:
       uses: AButler/upload-release-assets@v1.0
       with:
         files: ${{ env.SOURCE_PATH }}
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        repo-token: ${{ secrets.GHAT2 }}
         release-tag: ${{ env.RELEASE_TAG }}
 
 
