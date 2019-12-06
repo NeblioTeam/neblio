@@ -20,10 +20,12 @@ rpi_d_str = ''
 def check_assets():
     print("Checking Release for Assets")
     body = []
-    win_icon = '<img src="https://raw.githubusercontent.com/NeblioTeam/neblio/master/doc/img/windows-10-100.png" alt="Windows Icon by icons8 from https://icons8.com/" height="48px"/>'
-    mac_icon = '<img src="https://raw.githubusercontent.com/NeblioTeam/neblio/master/doc/img/apple-100.png" alt="Apple Icon by icons8 from https://icons8.com/" height="48px"/>'
-    lin_icon = '<img src="https://raw.githubusercontent.com/NeblioTeam/neblio/master/doc/img/linux-100.png" alt="Linux Icon by icons8 from https://icons8.com/" height="48px"/>'
-    rpi_icon = '<img src="https://raw.githubusercontent.com/NeblioTeam/neblio/master/doc/img/raspberry-pi-100.png" alt="Raspberry Pi Icon by icons8 from https://icons8.com/" height="48px"/>'
+    win_icon        = '<img src="https://raw.githubusercontent.com/NeblioTeam/neblio/master/doc/img/windows-10-100.png" alt="Windows Icon by icons8 from https://icons8.com/" height="48px"/>'
+    mac_icon        = '<img src="https://raw.githubusercontent.com/NeblioTeam/neblio/master/doc/img/apple-100.png" alt="Apple Icon by icons8 from https://icons8.com/" height="48px"/>'
+    lin_icon        = '<img src="https://raw.githubusercontent.com/NeblioTeam/neblio/master/doc/img/linux-100.png" alt="Linux Icon by icons8 from https://icons8.com/" height="48px"/>'
+    rpi_icon        = '<img src="https://raw.githubusercontent.com/NeblioTeam/neblio/master/doc/img/raspberry-pi-100.png" alt="Raspberry Pi Icon by icons8 from https://icons8.com/" height="48px"/>'
+    docker_icon     = '<img src="https://raw.githubusercontent.com/NeblioTeam/neblio/master/doc/img/docker-100.png" alt="Docker Icon by icons8 from https://icons8.com/" height="48px"/>'
+    docker_rpi_icon = '<img src="https://raw.githubusercontent.com/NeblioTeam/neblio/master/doc/img/docker-rpi-100.png" alt="Docker & Raspberry Pi Icon by icons8 from https://icons8.com/" height="48px"/>'
 
     rel = repo.release_from_tag(os.environ['GITHUB_REF'].rsplit('/', 1)[1])
 
@@ -74,6 +76,22 @@ def check_assets():
                 rpi_d_str = '| ' + rpi_icon + ' | [Download ' + rel.tag_name + '<br/>For Raspberry Pi](' + x.browser_download_url + ') | `' + x.sha256 + '` |'
                 # print(rpi_d_str)
 
+        # post docker nebliod build once regular nebliod build is done building, since we cannot easily tell when the docker builds are done
+        global docker_d_str
+        if ("nebliod---ubuntu16.04" in x.name and len(docker_d_str) == 0):
+            x.sha256 = download_and_checksum(x.browser_download_url)
+            if len(x.sha256) == 64:
+                docker_d_str = '| ' + docker_icon + ' | [Download ' + rel.tag_name + '<br/>For Docker](' + 'https://hub.docker.com/r/neblioteam/nebliod' + ') | `' + 'N/A' + '` |'
+                # print(docker_d_str)
+
+        # post docker RPi build once regular RPi build is done building, since we cannot easily tell when the docker builds are done
+        global docker_rpi_d_str
+        if ("nebliod---RPi-raspbian" in x.name and len(docker_rpi_d_str) == 0):
+            x.sha256 = download_and_checksum(x.browser_download_url)
+            if len(x.sha256) == 64:
+                docker_rpi_d_str = '| ' + docker_rpi_icon + ' | [Download ' + rel.tag_name + '<br/>For Docker on RPi (ARMv6hf)](' + 'https://hub.docker.com/r/neblioteam/nebliod-rpi/dockerfile' + ') | `' + 'N/A' + '` |'
+                # print(rpi_d_str)
+
     # build our release body table
     body.append('## neblio-Qt (Wallet with User Interface)')
     body.append('| System | Download | Sha256 Checksum |')
@@ -107,6 +125,14 @@ def check_assets():
         body.append(rpi_d_str)
     else:
     	body.append('| ' + rpi_icon + ' | Build In Progress.<br/>Refresh This Page In A Moment. | - |')
+    if len(docker_d_str) > 0:
+        body.append(docker_d_str)
+    else:
+    	body.append('| ' + docker_icon + ' | Build In Progress.<br/>Refresh This Page In A Moment. | - |')
+    if len(docker_rpi_d_str) > 0:
+        body.append(docker_rpi_d_str)
+    else:
+    	body.append('| ' + docker_rpi_icon + ' | Build In Progress.<br/>Refresh This Page In A Moment. | - |')
 
     body_str = "\r\n".join(body)
     # print(body_str)
@@ -122,6 +148,8 @@ def check_assets():
         rpi_q_str = ''
         lin_d_str = ''
         rpi_d_str = ''
+        docker_d_str = ''
+        docker_rpi_d_str = ''
 
 
 def update_release_text(existing_body, new_body):
@@ -165,7 +193,9 @@ while(len(win_q_str) == 0 or
       len(lin_q_str) == 0 or
       len(rpi_q_str) == 0 or
       len(lin_d_str) == 0 or
-      len(rpi_d_str) == 0):
+      len(rpi_d_str) == 0 or
+      len(docker_d_str) == 0 or
+      len(docker_rpi_d_str) == 0):
     check_assets()
     print("Sleeping 120 seconds.")
     time.sleep(120)
