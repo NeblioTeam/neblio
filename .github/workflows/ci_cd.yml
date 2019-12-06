@@ -185,8 +185,8 @@ jobs:
 
 
   rpi_docker:
-    # Only Build RPi Docker on Daily Scheduled Runs as it takes 5 Hours
-    if: github.event_name == 'schedule'
+    # Only Build RPi Docker on Daily Scheduled Runs and releases as it takes 5 Hours
+    if: github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Docker Files
