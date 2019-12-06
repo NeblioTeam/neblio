@@ -14,6 +14,8 @@ lin_q_str = ''
 rpi_q_str = ''
 lin_d_str = ''
 rpi_d_str = ''
+docker_d_str = ''
+docker_rpi_d_str = ''
 
 
 
