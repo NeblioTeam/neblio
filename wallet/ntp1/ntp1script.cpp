@@ -570,9 +570,10 @@ std::string NTP1Script::GetMetadataAsString(const NTP1Script*   ntp1script,
         if (!(ser == json_spirit::Value::null)) {
             boost::optional<std::string> decError;
             std::string dec = CTransaction::DecryptMetadataOfTx(textMetadata, tx.GetHash(), decError);
-            textMetadata    = std::move(dec);
             if (decError) {
                 printf("Message decryption failed: %s", decError->c_str());
+            } else {
+                textMetadata = std::move(dec);
             }
         }
     } catch (std::exception& ex) {
