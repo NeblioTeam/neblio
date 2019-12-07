@@ -319,9 +319,9 @@ Value sendtoaddress(const Array& params, bool fHelp)
 
 Value sendntp1toaddress(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 3 || params.size() > 6)
+    if (fHelp || params.size() < 3 || params.size() > 7)
         throw runtime_error("sendntp1toaddress <neblioaddress> <amount> <tokenId/tokenName> [NTP1 "
-                            "metadata=\"\"] [comment] [comment-to]\n" +
+                            "metadata=\"\"] [encrypt-meta-data=false] [comment] [comment-to]\n" +
                             HelpRequiringPassphrase());
 
     CBitcoinAddress address(params[0].get_str());
@@ -345,7 +345,7 @@ Value sendntp1toaddress(const Array& params, bool fHelp)
     // token id was not found
     if (tokenMetadataMap.find(providedId) == tokenMetadataMap.end()) {
         int nameCount = 0; // number of tokens that have that name
-        // try to find whether the name of the token matches with what's provided
+        // try to find whether the name of the token meatches with what's provided
         for (const auto& tokenMetadata : tokenMetadataMap) {
             if (tokenMetadata.second.getTokenName() == providedId) {
                 tokenId = tokenMetadata.second.getTokenId();
@@ -364,13 +364,15 @@ Value sendntp1toaddress(const Array& params, bool fHelp)
 
     // Wallet comments
     CWalletTx                 wtx;
-    RawNTP1MetadataBeforeSend ntp1metadata;
+    RawNTP1MetadataBeforeSend ntp1metadata("", false);
     if (params.size() > 3 && params[3].type() != null_type && !params[3].get_str().empty())
         ntp1metadata.metadata = params[3].get_str();
-    if (params.size() > 4 && params[4].type() != null_type && !params[4].get_str().empty())
-        wtx.mapValue["comment"] = params[4].get_str();
+    if (params.size() > 4 && params[4].type() != null_type)
+        ntp1metadata.encrypt = params[4].get_bool();
     if (params.size() > 5 && params[5].type() != null_type && !params[5].get_str().empty())
-        wtx.mapValue["to"] = params[5].get_str();
+        wtx.mapValue["comment"] = params[5].get_str();
+    if (params.size() > 6 && params[6].type() != null_type && !params[6].get_str().empty())
+        wtx.mapValue["to"] = params[6].get_str();
 
     if (pwalletMain->IsLocked())
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
@@ -885,7 +887,7 @@ Value sendfrom(const Array& params, bool fHelp)
 
 Value sendmany(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 2 || params.size() > 4)
+    if (fHelp || params.size() < 2 || params.size() > 5)
         throw runtime_error("sendmany <fromaccount (must be empty, unsupported)> {address:amount,...} "
                             "[comment]\n"
                             "amounts are double-precision floating point numbers" +

@@ -594,14 +594,14 @@ CTransaction CTransaction::FetchTxFromDisk(const uint256& txid, CTxDB& txdb)
     return result;
 }
 
-std::vector<CKey> CTransaction::GetOutputKeysOfTx(const std::string&        txid,
+std::vector<CKey> CTransaction::GetOutputKeysOfTx(const uint256&            txid,
                                                   boost::optional<unsigned> outputNumber)
 {
     CTransaction tx;
     // first we try to find it in the mempool, if not found, we look on disk
-    bool foundInMempool = mempool.lookup(uint256(txid), tx);
+    bool foundInMempool = mempool.lookup(txid, tx);
     if (!foundInMempool) {
-        tx = CTransaction::FetchTxFromDisk(uint256(txid));
+        tx = CTransaction::FetchTxFromDisk(txid);
     }
     std::vector<CKey> keys;
     for (unsigned i = 0; i < tx.vout.size(); i++) {
@@ -636,12 +636,12 @@ std::vector<CKey> CTransaction::GetOutputKeysOfTx(const std::string&        txid
     return keys;
 }
 
-std::string CTransaction::DecryptMetadataOfTx(const StringViewT metadataStr, const std::string& txid,
+std::string CTransaction::DecryptMetadataOfTx(const StringViewT metadataStr, const uint256& txid,
                                               boost::optional<std::string>& error)
 {
     std::vector<CKey> keysVec = GetOutputKeysOfTx(txid);
     if (keysVec.empty()) {
-        error = "No valid keys were found in the transaction: " + txid;
+        error = "No valid keys were found in the transaction: " + txid.ToString();
         return "";
     }
 
@@ -654,7 +654,7 @@ std::string CTransaction::DecryptMetadataOfTx(const StringViewT metadataStr, con
         }
     }
     if (decryptedMessage.empty()) {
-        error = "None of the available keys in the following txid: " + txid +
+        error = "None of the available keys in the following txid: " + txid.ToString() +
                 " were able to decrypted the message: " + metadataStr.to_string();
         return "";
     }

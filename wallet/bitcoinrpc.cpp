@@ -1178,6 +1178,8 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
         ConvertTo<double>(params[1]);
     if (strMethod == "sendntp1toaddress" && n > 1)
         ConvertTo<int64_t>(params[1]);
+    if (strMethod == "sendntp1toaddress" && n > 4)
+        ConvertTo<bool>(params[4]);
     if (strMethod == "settxfee" && n > 0)
         ConvertTo<double>(params[0]);
     if (strMethod == "getreceivedbyaddress" && n > 1)
@@ -1278,6 +1280,8 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
         ConvertTo<Array>(params[0]);
     if (strMethod == "createrawntp1transaction" && n > 1)
         ConvertTo<Object>(params[1]);
+    if (strMethod == "createrawntp1transaction" && n > 3)
+        ConvertTo<bool>(params[3]);
     if (strMethod == "signrawtransaction" && n > 1)
         ConvertTo<Array>(params[1], true);
     if (strMethod == "signrawtransaction" && n > 2)

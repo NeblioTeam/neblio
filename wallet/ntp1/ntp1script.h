@@ -38,6 +38,8 @@ const boost::regex HexBytexRegex(HexBytesRegexStr);
 const NTP1Int NTP1MaxAmount = std::numeric_limits<int64_t>::max();
 
 class CKey;
+class CTransaction;
+class NTP1SendTokensOneRecipientData;
 
 struct RawNTP1MetadataBeforeSend
 {
@@ -48,6 +50,17 @@ struct RawNTP1MetadataBeforeSend
     }
     bool        encrypt = false;
     std::string metadata;
+
+    /**
+     * @param ntp1metadata
+     * @param wtxNew
+     * @param ntp1TxData
+     * @return If RawNTP1MetadataBeforeSend has encrypt set to true, the message will be encrypted and
+     * returned. Otherwise, it'll be returned as is
+     */
+    std::string
+    applyMetadataEncryption(const CTransaction&                                wtxNew,
+                            const std::vector<NTP1SendTokensOneRecipientData>& recipients) const;
 };
 
 class NTP1Script
@@ -191,8 +204,10 @@ public:
     static NTP1Int     GetTrailingZeros(const NTP1Int& num);
     static std::string NumberToHexNTP1Amount(const NTP1Int& num, bool caps = false);
 
-    static std::string        GetMetadataAsString(const NTP1Script* ntp1script) noexcept;
-    static json_spirit::Value GetMetadataAsJson(const NTP1Script* ntp1script) noexcept;
+    static std::string        GetMetadataAsString(const NTP1Script*   ntp1script,
+                                                  const CTransaction& tx) noexcept;
+    static json_spirit::Value GetMetadataAsJson(const NTP1Script*   ntp1script,
+                                                const CTransaction& tx) noexcept;
 
     static bool IsNTP1TokenSymbolValid(const std::string& symbol);
     static bool IsTokenSymbolCharValid(const char c);
@@ -207,6 +222,10 @@ public:
                                                      CHL::AuthKeyRatchetAlgorithm ratchetAlgo,
                                                      CHL::AuthenticationAlgorithm authAlgo);
     [[nodiscard]] static std::string DecryptMetadata(const StringViewT data, const CKey& privateKey);
+
+    [[nodiscard]] static std::string EncryptMetadataBeforeSend(const StringViewT ntp1metadata,
+                                                               const CKey&       inputPrivateKey,
+                                                               const StringViewT recipientAddress);
 };
 
 template <typename Bitset>

@@ -116,6 +116,7 @@ public:
     std::string     address;
     qint64          debit;
     qint64          credit;
+    CTransaction    tx;
     NTP1Transaction ntp1tx;
     /**@}*/
 

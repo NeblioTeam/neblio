@@ -60,7 +60,7 @@ json_spirit::Value GetNTP1TxMetadata(const CTransaction& tx) noexcept
         std::shared_ptr<NTP1Script> s  = NTP1Script::ParseScript(opRet);
         std::shared_ptr<T>          sd = std::dynamic_pointer_cast<T>(s);
         if (sd) {
-            return NTP1Script::GetMetadataAsJson(sd.get());
+            return NTP1Script::GetMetadataAsJson(sd.get(), tx);
         } else {
             return json_spirit::Value();
         }
@@ -363,10 +363,11 @@ Value createrawtransaction(const Array& params, bool fHelp)
 
 Value createrawntp1transaction(const Array& params, bool fHelp)
 {
-    if (fHelp || (params.size() != 2 && params.size() != 3))
+    if (fHelp || (params.size() != 2 && params.size() != 3 && params.size() != 4))
         throw runtime_error(
-            "createrawntp1transaction [{\"txid\":txid,\"vout\":n},...]"
-            "{address:{tokenid/tokenName:tokenAmount}},{address:neblAmount,...} [NTP1 Metadata=\"\"]\n"
+            "createrawntp1transaction [{\"txid\":txid,\"vout\":n},...] "
+            "{address:{tokenid/tokenName:tokenAmount},{address:neblAmount,...}} [NTP1 Metadata=\"\"] "
+            "[Encrypt-metadata=false]\n"
             "Create a transaction spending given inputs\n"
             "(array of objects containing transaction id and output number),\n"
             "sending to given address(es).\n"
@@ -375,11 +376,15 @@ Value createrawntp1transaction(const Array& params, bool fHelp)
 
     RPCTypeCheck(params, list_of(array_type)(obj_type));
 
-    Array       inputs = params[0].get_array();
-    Object      sendTo = params[1].get_obj();
-    std::string ntp1metadata;
-    if (params.size() >= 3) {
-        ntp1metadata = params[2].get_str();
+    Array                     inputs = params[0].get_array();
+    Object                    sendTo = params[1].get_obj();
+    std::string               processedMetadata;
+    RawNTP1MetadataBeforeSend rawNTP1Data("", false);
+    if (params.size() > 2) {
+        rawNTP1Data.metadata = params[2].get_str();
+    }
+    if (params.size() > 3) {
+        rawNTP1Data.encrypt = params[3].get_bool();
     }
 
     CTransaction rawTx;
@@ -479,7 +484,9 @@ Value createrawntp1transaction(const Array& params, bool fHelp)
     std::vector<NTP1Script::TransferInstruction> TIs;
     TIs = CWallet::AddNTP1TokenInputsToTx(rawTx, tokenSelector, tokenOutputOffset);
 
-    CWallet::SetTxNTP1OpRet(rawTx, TIs, ntp1metadata);
+    processedMetadata =
+        rawNTP1Data.applyMetadataEncryption(rawTx, tokenSelector.getNTP1TokenRecipientsList());
+    CWallet::SetTxNTP1OpRet(rawTx, TIs, processedMetadata);
 
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
     ss << rawTx;

@@ -149,7 +149,6 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
 void TransactionRecord::readNTP1TxData()
 {
     try {
-        CTransaction tx;
         if (!mempool.lookup(hash, tx)) {
             tx = CTransaction::FetchTxFromDisk(hash);
         }

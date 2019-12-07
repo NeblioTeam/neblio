@@ -7,10 +7,13 @@
 #include <util.h>
 
 #include "JsonStringQueue.h"
+#include "base58.h"
 #include "key.h"
 #include "ntp1script_burn.h"
 #include "ntp1script_issuance.h"
 #include "ntp1script_transfer.h"
+#include "ntp1sendtokensonerecipientdata.h"
+#include "transaction.h"
 
 #include "script.h"
 
@@ -550,7 +553,8 @@ std::string NTP1Script::NumberToHexNTP1Amount(const NTP1Int& num, bool caps)
     }
 }
 
-std::string NTP1Script::GetMetadataAsString(const NTP1Script* ntp1script) noexcept
+std::string NTP1Script::GetMetadataAsString(const NTP1Script*   ntp1script,
+                                            const CTransaction& tx) noexcept
 {
     if (!ntp1script) {
         return "";
@@ -560,6 +564,17 @@ std::string NTP1Script::GetMetadataAsString(const NTP1Script* ntp1script) noexce
     // decompress, or return uncompress hex data in an error
     try {
         textMetadata = ntp1script->getInflatedMetadata();
+        json_spirit::Value encNode;
+        json_spirit::read_or_throw(textMetadata, encNode);
+        json_spirit::Value ser = json_spirit::find_value(encNode.get_obj(), METADATA_SER_FIELD__VERSION);
+        if (!(ser == json_spirit::Value::null)) {
+            boost::optional<std::string> decError;
+            std::string dec = CTransaction::DecryptMetadataOfTx(textMetadata, tx.GetHash(), decError);
+            textMetadata    = std::move(dec);
+            if (decError) {
+                printf("Message decryption failed: %s", decError->c_str());
+            }
+        }
     } catch (std::exception& ex) {
         printf("Failed at decompressing \"%s\". Reason: %s", textMetadata.c_str(), ex.what());
     } catch (...) {
@@ -569,12 +584,13 @@ std::string NTP1Script::GetMetadataAsString(const NTP1Script* ntp1script) noexce
     return textMetadata;
 }
 
-json_spirit::Value NTP1Script::GetMetadataAsJson(const NTP1Script* ntp1script) noexcept
+json_spirit::Value NTP1Script::GetMetadataAsJson(const NTP1Script*   ntp1script,
+                                                 const CTransaction& tx) noexcept
 {
     if (!ntp1script) {
         return json_spirit::Value();
     }
-    std::string textMetadata = GetMetadataAsString(ntp1script);
+    std::string textMetadata = GetMetadataAsString(ntp1script, tx);
 
     // if empty, return null
     if (textMetadata.empty()) {
@@ -864,4 +880,79 @@ std::string NTP1Script::DecryptMetadata(const StringViewT data, const CKey& priv
         CHL::DecryptMessage(encryptedMessage, CHL::Bytes(sharedSecret.cbegin(), sharedSecret.cend()));
 
     return std::string(std::make_move_iterator(result.begin()), std::make_move_iterator(result.end()));
+}
+
+std::string NTP1Script::EncryptMetadataBeforeSend(const StringViewT ntp1metadata,
+                                                  const CKey&       inputPrivateKey,
+                                                  const StringViewT recipientAddress)
+{
+    std::string          result;
+    CTxDB                txdb;
+    std::vector<uint8_t> pubKeyRaw;
+    std::string          addr(recipientAddress.cbegin(), recipientAddress.cend());
+    bool                 pubkeyFound = txdb.ReadAddressPubKey(CBitcoinAddress(addr), pubKeyRaw);
+    if (!pubkeyFound) {
+        throw std::runtime_error("The public key for the address " + addr +
+                                 " was not found. This means that the owner of this "
+                                 "address never made a transaction with it. Please "
+                                 "choose an address, which was used before.");
+    }
+    CKey pubKeyCKey;
+    if (!pubKeyCKey.SetPubKey(pubKeyRaw)) {
+        throw std::runtime_error("The public key for the address " + addr +
+                                 " was found, but it seems to be invalid. Please try another address. "
+                                 "Also please consider reporting this to the Neblio Team.");
+    }
+    CBitcoinAddress addrRecalc(pubKeyCKey.GetPubKey().GetID());
+    if (addr != addrRecalc.ToString()) {
+        throw std::runtime_error("The public key for the address " + addr +
+                                 " was found, but failed to reproduce the same address. This indicates "
+                                 "that the public key is invalid. Please try another address, and "
+                                 "consider reporting this to the Neblio Team.");
+    }
+    try {
+        result = NTP1Script::EncryptMetadata(
+            ntp1metadata, inputPrivateKey, pubKeyCKey, CHL::EncryptionAlgorithm::Enc_XSalsa20Poly1305,
+            CHL::AuthKeyRatchetAlgorithm::Ratchet_Sha256, CHL::AuthenticationAlgorithm::Auth_Poly1305);
+    } catch (std::exception& ex) {
+        throw std::runtime_error("Failed to encrypt metadata. Error: " + std::string(ex.what()));
+    }
+    return result;
+}
+
+std::string RawNTP1MetadataBeforeSend::applyMetadataEncryption(
+    const CTransaction& wtxNew, const std::vector<NTP1SendTokensOneRecipientData>& recipients) const
+{
+    if (this->encrypt && !this->metadata.empty()) {
+        // get public key
+        std::vector<CKey> keys;
+        for (const CTxIn& in : wtxNew.vin) {
+            std::vector<CKey> tempKeys = CTransaction::GetOutputKeysOfTx(in.prevout.hash, in.prevout.n);
+            keys.insert(keys.end(), std::make_move_iterator(tempKeys.begin()),
+                        std::make_move_iterator(tempKeys.end()));
+        }
+        if (keys.empty()) {
+            throw std::runtime_error("An unexpected error happened. A key that was used "
+                                     "in the input was not found in the wallet. Please "
+                                     "report this to neblio develoers.");
+        }
+        CKey inputPrivateKey = keys.front();
+
+        if (recipients.empty()) {
+            throw std::runtime_error("Empty NTP1 recipient list");
+        }
+
+        // put recipient addresses in a set to ensure there is only one
+        std::set<std::string> recipientsSet;
+        std::transform(recipients.cbegin(), recipients.cend(),
+                       std::inserter(recipientsSet, recipientsSet.begin()),
+                       [](const NTP1SendTokensOneRecipientData& r) { return r.destination; });
+        if (recipientsSet.size() != 1) {
+            throw std::runtime_error("Cannot send encrypted NTP1 metadata to multiple recipients.");
+        }
+        std::string recipient = *recipientsSet.begin();
+        return NTP1Script::EncryptMetadataBeforeSend(this->metadata, inputPrivateKey, recipient);
+    } else {
+        return this->metadata;
+    }
 }
