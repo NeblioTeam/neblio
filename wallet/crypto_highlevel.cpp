@@ -11,7 +11,7 @@
 CHL::Bytes Crypto_HighLevel::XSalsa20poly1305_EncryptBlock(
     const CHL::Bytes&                                                              msg,
     const std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_NONCEBYTES>& nonce,
-    const std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>&   key)
+    const SecureArray<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>&  key)
 {
     if (msg.size() == 0) {
         throw std::runtime_error("Cannot encrypt an empty message");
@@ -48,7 +48,7 @@ CHL::Bytes Crypto_HighLevel::XSalsa20poly1305_EncryptBlock(
 CHL::Bytes Crypto_HighLevel::XSalsa20poly1305_DecryptBlock(
     const CHL::Bytes&                                                              cipher,
     const std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_NONCEBYTES>& nonce,
-    const std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>&   key)
+    const SecureArray<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>&  key)
 {
     // the cipher is expected to be:
     // 16 bytes (MAC) + X bytes (cipher)
@@ -94,22 +94,21 @@ Crypto_HighLevel::GenSalsa20poly1305RandomNonce()
     return res;
 }
 
-std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>
-Crypto_HighLevel::GetCanonicalSalsa20poly1305Key(const Crypto_HighLevel::Bytes& key,
-                                                 const std::string&             algoName)
+CHL::SecureArray<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>
+Crypto_HighLevel::GetCanonicalSalsa20poly1305Key(const SecureBytes& key, const std::string& algoName)
 {
     if (key.size() != crypto_secretbox_xsalsa20poly1305_KEYBYTES) {
         throw std::runtime_error("Invalid key size for algorithm: " + algoName);
     }
-    std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES> keyIn;
+    SecureArray<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES> keyIn;
     std::copy(key.cbegin(), key.cend(), keyIn.begin());
     return keyIn;
 }
 
 CHL::Bytes Crypto_HighLevel::XSalsa20poly1305_EncryptLongMsg_CTR(
-    const Crypto_HighLevel::Bytes&                                               msg,
-    std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_NONCEBYTES>      nonce,
-    const std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>& key)
+    const Crypto_HighLevel::Bytes&                                                msg,
+    std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_NONCEBYTES>       nonce,
+    const SecureArray<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>& key)
 {
     static_assert(std::tuple_size<decltype(nonce)>::value ==
                       crypto_secretbox_xsalsa20poly1305_NONCEBYTES,
@@ -150,8 +149,8 @@ CHL::Bytes Crypto_HighLevel::XSalsa20poly1305_EncryptLongMsg_CTR(
 }
 
 std::array<uint8_t, crypto_onetimeauth_poly1305_BYTES> Crypto_HighLevel::Poly1305AuthenticateMessage(
-    const Crypto_HighLevel::Bytes&                                         msg,
-    const std::array<unsigned char, crypto_onetimeauth_poly1305_KEYBYTES>& key)
+    const Crypto_HighLevel::Bytes&                                          msg,
+    const SecureArray<unsigned char, crypto_onetimeauth_poly1305_KEYBYTES>& key)
 {
     std::array<uint8_t, crypto_onetimeauth_poly1305_BYTES> result;
     if (crypto_onetimeauth_poly1305(result.data(), msg.data(), msg.size(), key.data()) != 0) {
@@ -161,9 +160,9 @@ std::array<uint8_t, crypto_onetimeauth_poly1305_BYTES> Crypto_HighLevel::Poly130
 }
 
 bool Crypto_HighLevel::Poly1305VerifyMessage(
-    const Crypto_HighLevel::Bytes&                                         msg,
-    const std::array<uint8_t, crypto_onetimeauth_poly1305_BYTES>&          tag,
-    const std::array<unsigned char, crypto_onetimeauth_poly1305_KEYBYTES>& key)
+    const Crypto_HighLevel::Bytes&                                          msg,
+    const std::array<uint8_t, crypto_onetimeauth_poly1305_BYTES>&           tag,
+    const SecureArray<unsigned char, crypto_onetimeauth_poly1305_KEYBYTES>& key)
 {
     if (crypto_onetimeauth_verify(tag.data(), msg.data(), msg.size(), key.data()) == 0) {
         return true;
@@ -173,8 +172,8 @@ bool Crypto_HighLevel::Poly1305VerifyMessage(
 }
 
 Crypto_HighLevel::Bytes Crypto_HighLevel::XSalsa20poly1305_DecryptLongMsg_CTR(
-    const Crypto_HighLevel::Bytes&                                               cipher,
-    const std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>& key)
+    const Crypto_HighLevel::Bytes&                                                cipher,
+    const SecureArray<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>& key)
 {
     std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_NONCEBYTES> nonce;
     static_assert(std::tuple_size<decltype(nonce)>::value ==
@@ -217,10 +216,13 @@ Crypto_HighLevel::Bytes Crypto_HighLevel::XSalsa20poly1305_DecryptLongMsg_CTR(
     return res;
 }
 
-std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>
+CHL::SecureArray<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>
 Crypto_HighLevel::GenXSalsa20poly1305RandomKey()
 {
-    return CHL::RandomBytesAs<std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>>();
+    SecureBytes d = RandomBytes_Secure(crypto_secretbox_xsalsa20poly1305_KEYBYTES);
+    SecureArray<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES> res;
+    std::memcpy(res.data(), d.data(), res.size());
+    return res;
 }
 
 Crypto_HighLevel::String Crypto_HighLevel::GetOpenSSLErrorMsg()
@@ -246,6 +248,19 @@ Crypto_HighLevel::Bytes Crypto_HighLevel::RandomBytes(uint64_t length)
         throw std::invalid_argument("Length should be positive");
     }
     Bytes result(length);
+    if (RAND_bytes(result.data(), result.size()) != 1) {
+        std::string msg = GetOpenSSLErrorMsg();
+        throw std::runtime_error("Error generating a good random number: " + msg);
+    }
+    return result;
+}
+
+Crypto_HighLevel::SecureBytes Crypto_HighLevel::RandomBytes_Secure(uint64_t length)
+{
+    if (length <= 0) {
+        throw std::invalid_argument("Length should be positive");
+    }
+    SecureBytes result(length);
     if (RAND_bytes(result.data(), result.size()) != 1) {
         std::string msg = GetOpenSSLErrorMsg();
         throw std::runtime_error("Error generating a good random number: " + msg);
@@ -364,28 +379,29 @@ Crypto_HighLevel::AuthenticationAlgorithm Crypto_HighLevel::GetAuthAlgoFromName(
     }
 }
 
-CHL::Bytes CHL::CalculateKeyRatchet(CHL::AuthKeyRatchetAlgorithm keyRatchetAlgo, const CHL::Bytes& key,
-                                    boost::optional<uint64_t> authenticationAlgoKeyLen)
+CHL::SecureBytes CHL::CalculateKeyRatchet(CHL::AuthKeyRatchetAlgorithm keyRatchetAlgo,
+                                          const SecureBytes&           key,
+                                          boost::optional<uint64_t>    authenticationAlgoKeyLen)
 {
-    CHL::Bytes authKey;
+    CHL::SecureBytes authKey;
 
     switch (keyRatchetAlgo) {
     case CHL::AuthKeyRatchetAlgorithm::Ratchet_Sha256: {
         Sha256Calculator calc;
         calc.push_data(std::vector<unsigned char>(key.cbegin(), key.cend()));
-        authKey = ToBytes(calc.getHashAndReset());
+        authKey = ToSecureBytes(calc.getHashAndReset());
         break;
     }
     case CHL::AuthKeyRatchetAlgorithm::Ratchet_Sha384: {
         Sha384Calculator calc;
         calc.push_data(std::vector<unsigned char>(key.cbegin(), key.cend()));
-        authKey = ToBytes(calc.getHashAndReset());
+        authKey = ToSecureBytes(calc.getHashAndReset());
         break;
     }
     case CHL::AuthKeyRatchetAlgorithm::Ratchet_Sha512: {
         Sha512Calculator calc;
         calc.push_data(std::vector<unsigned char>(key.cbegin(), key.cend()));
-        authKey = ToBytes(calc.getHashAndReset());
+        authKey = ToSecureBytes(calc.getHashAndReset());
         break;
     }
     case CHL::AuthKeyRatchetAlgorithm::Ratchet_Size: {
@@ -402,7 +418,7 @@ CHL::Bytes CHL::CalculateKeyRatchet(CHL::AuthKeyRatchetAlgorithm keyRatchetAlgo,
     return authKey;
 }
 
-CHL::EncryptMessageOutput CHL::EncryptMessage(const CHL::Bytes& message, const Bytes& key,
+CHL::EncryptMessageOutput CHL::EncryptMessage(const CHL::Bytes& message, const SecureBytes& key,
                                               EncryptionAlgorithm     encAlgo,
                                               AuthKeyRatchetAlgorithm keyRatchetAlgo,
                                               AuthenticationAlgorithm authAlgo)
@@ -472,11 +488,11 @@ CHL::EncryptMessageOutput CHL::EncryptMessage(const CHL::Bytes& message, const B
     }
     }
 
-    CHL::Bytes authKey = CalculateKeyRatchet(keyRatchetAlgo, key, authenticationAlgoKeyLen);
+    CHL::SecureBytes authKey = CalculateKeyRatchet(keyRatchetAlgo, key, authenticationAlgoKeyLen);
 
     switch (authAlgo) {
     case CHL::AuthenticationAlgorithm::Auth_Poly1305: {
-        std::array<uint8_t, crypto_onetimeauth_poly1305_KEYBYTES> authKeyArray{};
+        SecureArray<uint8_t, crypto_onetimeauth_poly1305_KEYBYTES> authKeyArray{};
         std::copy(authKey.cbegin(), authKey.cend(), authKeyArray.begin());
         auto authDataArray = Poly1305AuthenticateMessage(result.cipher, authKeyArray);
         result.authData.clear();
@@ -494,7 +510,7 @@ CHL::EncryptMessageOutput CHL::EncryptMessage(const CHL::Bytes& message, const B
 }
 
 CHL::Bytes Crypto_HighLevel::DecryptMessage(const CHL::EncryptMessageOutput& encryptedData,
-                                            const Crypto_HighLevel::Bytes&   key)
+                                            const SecureBytes&               key)
 {
     encryptedData.assertNoneIsEmpty();
 
@@ -515,14 +531,14 @@ CHL::Bytes Crypto_HighLevel::DecryptMessage(const CHL::EncryptMessageOutput& enc
             "required authentication key length. Please choose another ratcheting algorithm.");
     }
 
-    const Bytes authKey = CalculateKeyRatchet(ratchetAlgo, key, authenticationAlgoKeyLen);
+    const SecureBytes authKey = CalculateKeyRatchet(ratchetAlgo, key, authenticationAlgoKeyLen);
 
     Bytes authData;
 
     switch (authAlgo) {
     case CHL::AuthenticationAlgorithm::Auth_Poly1305: {
-        std::array<uint8_t, crypto_onetimeauth_poly1305_BYTES>    authDataArray{};
-        std::array<uint8_t, crypto_onetimeauth_poly1305_KEYBYTES> authKeyArray{};
+        std::array<uint8_t, crypto_onetimeauth_poly1305_BYTES>     authDataArray{};
+        SecureArray<uint8_t, crypto_onetimeauth_poly1305_KEYBYTES> authKeyArray{};
         std::copy(authKey.cbegin(), authKey.cbegin() + authKeyArray.size(), authKeyArray.begin());
         std::copy(encryptedData.authData.cbegin(),
                   encryptedData.authData.cbegin() + authDataArray.size(), authDataArray.begin());

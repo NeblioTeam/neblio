@@ -362,7 +362,8 @@ TEST(cryptography_tests, crypto_secretbox_salsa20poly1305_all_invalid_sizes)
         // size 0 is invalid
         CHL::Bytes message;
 
-        std::array<unsigned char, crypto_secretbox_KEYBYTES>   k = CHL::GenXSalsa20poly1305RandomKey();
+        CHL::SecureArray<unsigned char, crypto_secretbox_KEYBYTES> k =
+            CHL::GenXSalsa20poly1305RandomKey();
         std::array<unsigned char, crypto_secretbox_NONCEBYTES> n = CHL::GenSalsa20poly1305RandomNonce();
 
         EXPECT_ANY_THROW(auto res = CHL::XSalsa20poly1305_EncryptBlock(message, n, k));
@@ -374,7 +375,8 @@ TEST(cryptography_tests, crypto_secretbox_salsa20poly1305_all_invalid_sizes)
         CHL::Bytes message(std::make_move_iterator(random_message.begin()),
                            std::make_move_iterator(random_message.end()));
 
-        std::array<unsigned char, crypto_secretbox_KEYBYTES>   k = CHL::GenXSalsa20poly1305RandomKey();
+        CHL::SecureArray<unsigned char, crypto_secretbox_KEYBYTES> k =
+            CHL::GenXSalsa20poly1305RandomKey();
         std::array<unsigned char, crypto_secretbox_NONCEBYTES> n = CHL::GenSalsa20poly1305RandomNonce();
 
         EXPECT_ANY_THROW(auto res = CHL::XSalsa20poly1305_EncryptBlock(message, n, k));
@@ -388,7 +390,8 @@ TEST(cryptography_tests, crypto_secretbox_salsa20poly1305_all_possible_sizes)
         CHL::Bytes message(std::make_move_iterator(random_message.begin()),
                            std::make_move_iterator(random_message.end()));
 
-        std::array<unsigned char, crypto_secretbox_KEYBYTES>   k = CHL::GenXSalsa20poly1305RandomKey();
+        CHL::SecureArray<unsigned char, crypto_secretbox_KEYBYTES> k =
+            CHL::GenXSalsa20poly1305RandomKey();
         std::array<unsigned char, crypto_secretbox_NONCEBYTES> n = CHL::GenSalsa20poly1305RandomNonce();
 
         EXPECT_EQ(message.size(), i);
@@ -415,8 +418,8 @@ TEST(cryptography_tests, crypto_secretbox_salsa20poly1305_select_messages_1)
     ASSERT_EQ(kStr.size(), crypto_secretbox_KEYBYTES);
     ASSERT_EQ(nStr.size(), crypto_secretbox_NONCEBYTES);
 
-    std::array<unsigned char, crypto_secretbox_KEYBYTES>   k;
-    std::array<unsigned char, crypto_secretbox_NONCEBYTES> n;
+    CHL::SecureArray<unsigned char, crypto_secretbox_KEYBYTES> k;
+    std::array<unsigned char, crypto_secretbox_NONCEBYTES>     n;
 
     std::copy(kStr.begin(), kStr.end(), k.begin());
     std::copy(nStr.begin(), nStr.end(), n.begin());
@@ -440,8 +443,8 @@ TEST(cryptography_tests, crypto_secretbox_salsa20poly1305_select_messages_2)
     ASSERT_EQ(kStr.size(), crypto_secretbox_KEYBYTES);
     ASSERT_EQ(nStr.size(), crypto_secretbox_NONCEBYTES);
 
-    std::array<unsigned char, crypto_secretbox_KEYBYTES>   k;
-    std::array<unsigned char, crypto_secretbox_NONCEBYTES> n;
+    CHL::SecureArray<unsigned char, crypto_secretbox_KEYBYTES> k;
+    std::array<unsigned char, crypto_secretbox_NONCEBYTES>     n;
 
     std::copy(kStr.begin(), kStr.end(), k.begin());
     std::copy(nStr.begin(), nStr.end(), n.begin());
@@ -465,8 +468,8 @@ TEST(cryptography_tests, crypto_secretbox_salsa20poly1305_select_messages_3)
     ASSERT_EQ(kStr.size(), crypto_secretbox_KEYBYTES);
     ASSERT_EQ(nStr.size(), crypto_secretbox_NONCEBYTES);
 
-    std::array<unsigned char, crypto_secretbox_KEYBYTES>   k;
-    std::array<unsigned char, crypto_secretbox_NONCEBYTES> n;
+    CHL::SecureArray<unsigned char, crypto_secretbox_KEYBYTES> k;
+    std::array<unsigned char, crypto_secretbox_NONCEBYTES>     n;
 
     std::copy(kStr.begin(), kStr.end(), k.begin());
     std::copy(nStr.begin(), nStr.end(), n.begin());
@@ -533,8 +536,8 @@ TEST(cryptography_tests, crypto_secretbox_salsa20poly1305_select_messages_bounda
     ASSERT_EQ(kStr.size(), crypto_secretbox_KEYBYTES);
     ASSERT_EQ(nStr.size(), crypto_secretbox_NONCEBYTES);
 
-    std::array<unsigned char, crypto_secretbox_KEYBYTES>   k;
-    std::array<unsigned char, crypto_secretbox_NONCEBYTES> n;
+    CHL::SecureArray<unsigned char, crypto_secretbox_KEYBYTES> k;
+    std::array<unsigned char, crypto_secretbox_NONCEBYTES>     n;
 
     std::copy(kStr.begin(), kStr.end(), k.begin());
     std::copy(nStr.begin(), nStr.end(), n.begin());
@@ -696,8 +699,8 @@ TEST(cryptography_tests, crypto_secretbox_salsa20poly1305_long_message_basic)
     CHL::Bytes  message(std::make_move_iterator(messageStr.begin()),
                        std::make_move_iterator(messageStr.end()));
 
-    std::array<unsigned char, crypto_secretbox_KEYBYTES>   k = CHL::GenXSalsa20poly1305RandomKey();
-    std::array<unsigned char, crypto_secretbox_NONCEBYTES> n = CHL::GenSalsa20poly1305RandomNonce();
+    CHL::SecureArray<unsigned char, crypto_secretbox_KEYBYTES> k = CHL::GenXSalsa20poly1305RandomKey();
+    std::array<unsigned char, crypto_secretbox_NONCEBYTES>     n = CHL::GenSalsa20poly1305RandomNonce();
 
     CHL::Bytes cipher             = CHL::XSalsa20poly1305_EncryptLongMsg_CTR(message, n, k);
     CHL::Bytes message_to_compare = CHL::XSalsa20poly1305_DecryptLongMsg_CTR(cipher, k);
@@ -711,8 +714,8 @@ TEST(cryptography_tests, crypto_secretbox_salsa20poly1305_long_message_empty)
     CHL::Bytes  message(std::make_move_iterator(messageStr.begin()),
                        std::make_move_iterator(messageStr.end()));
 
-    std::array<unsigned char, crypto_secretbox_KEYBYTES>   k = CHL::GenXSalsa20poly1305RandomKey();
-    std::array<unsigned char, crypto_secretbox_NONCEBYTES> n = CHL::GenSalsa20poly1305RandomNonce();
+    CHL::SecureArray<unsigned char, crypto_secretbox_KEYBYTES> k = CHL::GenXSalsa20poly1305RandomKey();
+    std::array<unsigned char, crypto_secretbox_NONCEBYTES>     n = CHL::GenSalsa20poly1305RandomNonce();
 
     EXPECT_ANY_THROW(auto res = CHL::XSalsa20poly1305_EncryptLongMsg_CTR(message, n, k));
 }
@@ -723,8 +726,8 @@ TEST(cryptography_tests, crypto_secretbox_salsa20poly1305_long_message_two_packe
     CHL::Bytes message(std::make_move_iterator(random_message.begin()),
                        std::make_move_iterator(random_message.end()));
 
-    std::array<unsigned char, crypto_secretbox_KEYBYTES>   k = CHL::GenXSalsa20poly1305RandomKey();
-    std::array<unsigned char, crypto_secretbox_NONCEBYTES> n = CHL::GenSalsa20poly1305RandomNonce();
+    CHL::SecureArray<unsigned char, crypto_secretbox_KEYBYTES> k = CHL::GenXSalsa20poly1305RandomKey();
+    std::array<unsigned char, crypto_secretbox_NONCEBYTES>     n = CHL::GenSalsa20poly1305RandomNonce();
 
     CHL::Bytes cipher             = CHL::XSalsa20poly1305_EncryptLongMsg_CTR(message, n, k);
     CHL::Bytes message_to_compare = CHL::XSalsa20poly1305_DecryptLongMsg_CTR(cipher, k);
@@ -738,8 +741,8 @@ TEST(cryptography_tests, crypto_secretbox_salsa20poly1305_long_message_three_pac
     CHL::Bytes message(std::make_move_iterator(random_message.begin()),
                        std::make_move_iterator(random_message.end()));
 
-    std::array<unsigned char, crypto_secretbox_KEYBYTES>   k = CHL::GenXSalsa20poly1305RandomKey();
-    std::array<unsigned char, crypto_secretbox_NONCEBYTES> n = CHL::GenSalsa20poly1305RandomNonce();
+    CHL::SecureArray<unsigned char, crypto_secretbox_KEYBYTES> k = CHL::GenXSalsa20poly1305RandomKey();
+    std::array<unsigned char, crypto_secretbox_NONCEBYTES>     n = CHL::GenSalsa20poly1305RandomNonce();
 
     CHL::Bytes cipher             = CHL::XSalsa20poly1305_EncryptLongMsg_CTR(message, n, k);
     CHL::Bytes message_to_compare = CHL::XSalsa20poly1305_DecryptLongMsg_CTR(cipher, k);
@@ -754,7 +757,8 @@ TEST(cryptography_tests, crypto_secretbox_salsa20poly1305_long_message_all_sizes
         CHL::Bytes message(std::make_move_iterator(random_message.begin()),
                            std::make_move_iterator(random_message.end()));
 
-        std::array<unsigned char, crypto_secretbox_KEYBYTES>   k = CHL::GenXSalsa20poly1305RandomKey();
+        CHL::SecureArray<unsigned char, crypto_secretbox_KEYBYTES> k =
+            CHL::GenXSalsa20poly1305RandomKey();
         std::array<unsigned char, crypto_secretbox_NONCEBYTES> n = CHL::GenSalsa20poly1305RandomNonce();
 
         EXPECT_EQ(message.size(), i);
@@ -774,8 +778,8 @@ TEST(cryptography_tests, crypto_secretbox_salsa20poly1305_long_message_cropped_s
     CHL::Bytes message(std::make_move_iterator(random_message.begin()),
                        std::make_move_iterator(random_message.end()));
 
-    std::array<unsigned char, crypto_secretbox_KEYBYTES>   k = CHL::GenXSalsa20poly1305RandomKey();
-    std::array<unsigned char, crypto_secretbox_NONCEBYTES> n = CHL::GenSalsa20poly1305RandomNonce();
+    CHL::SecureArray<unsigned char, crypto_secretbox_KEYBYTES> k = CHL::GenXSalsa20poly1305RandomKey();
+    std::array<unsigned char, crypto_secretbox_NONCEBYTES>     n = CHL::GenSalsa20poly1305RandomNonce();
 
     CHL::Bytes cipher = CHL::XSalsa20poly1305_EncryptLongMsg_CTR(message, n, k);
     EXPECT_NO_THROW(auto r = CHL::XSalsa20poly1305_DecryptLongMsg_CTR(cipher, k));
@@ -901,7 +905,7 @@ TEST(cryptography_tests, serialize)
 
 TEST(cryptography_tests, poly1305_1)
 {
-    auto        key = CHL::RandomBytesAs<std::array<uint8_t, crypto_onetimeauth_poly1305_KEYBYTES>>();
+    auto        key            = CHL::RandomBytesAsSecureArray<crypto_onetimeauth_poly1305_KEYBYTES>();
     std::string random_message = "xxxyyyzzz";
     CHL::Bytes  message(std::make_move_iterator(random_message.begin()),
                        std::make_move_iterator(random_message.end()));
@@ -913,8 +917,8 @@ TEST(cryptography_tests, poly1305_1)
 
 TEST(cryptography_tests, poly1305_2)
 {
-    auto       key     = CHL::RandomBytesAs<std::array<uint8_t, crypto_onetimeauth_poly1305_KEYBYTES>>();
-    CHL::Bytes message = CHL::RandomBytes(123000);
+    auto       key           = CHL::RandomBytesAsSecureArray<crypto_onetimeauth_poly1305_KEYBYTES>();
+    CHL::Bytes message       = CHL::RandomBytes(123000);
     auto       authenticator = CHL::Poly1305AuthenticateMessage(message, key);
     EXPECT_TRUE(CHL::Poly1305VerifyMessage(message, authenticator, key));
     authenticator[0]++;
@@ -923,8 +927,8 @@ TEST(cryptography_tests, poly1305_2)
 
 TEST(cryptography_tests, poly1305_3)
 {
-    auto       key     = CHL::RandomBytesAs<std::array<uint8_t, crypto_onetimeauth_poly1305_KEYBYTES>>();
-    CHL::Bytes message = CHL::RandomBytes(1123000);
+    auto       key           = CHL::RandomBytesAsSecureArray<crypto_onetimeauth_poly1305_KEYBYTES>();
+    CHL::Bytes message       = CHL::RandomBytes(1123000);
     auto       authenticator = CHL::Poly1305AuthenticateMessage(message, key);
     EXPECT_TRUE(CHL::Poly1305VerifyMessage(message, authenticator, key));
     authenticator[0]++;
@@ -962,7 +966,7 @@ void TestGenericEncryption(const CHL::Bytes& message, CHL::EncryptionAlgorithm e
                            CHL::AuthenticationAlgorithm authAlgo,
                            CHL::AuthKeyRatchetAlgorithm ratchetAlgo, bool changeSomethingInCipher)
 {
-    CHL::Bytes                key = CHL::RandomBytes(CHL::GetEncryptionAlgoKeyLength(encAlgo).get());
+    CHL::SecureBytes key = CHL::RandomBytes_Secure(CHL::GetEncryptionAlgoKeyLength(encAlgo).get());
     CHL::EncryptMessageOutput cipherData =
         CHL::EncryptMessage(message, key, encAlgo, ratchetAlgo, authAlgo);
     if (changeSomethingInCipher) {
@@ -1030,9 +1034,10 @@ TEST(cryptography_tests, encryption_serialization)
                 CHL::AuthKeyRatchetAlgorithm ratchetAlgo = static_cast<CHL::AuthKeyRatchetAlgorithm>(k);
 
                 for (int count = 0; count < NumberOfTestsPerCombination; count++) {
-                    uint64_t   messageLength = 1 + (CHL::RandomBytesAs<uint64_t>() % 100000);
-                    CHL::Bytes message       = CHL::RandomBytes(messageLength);
-                    CHL::Bytes key = CHL::RandomBytes(CHL::GetEncryptionAlgoKeyLength(encAlgo).get());
+                    uint64_t         messageLength = 1 + (CHL::RandomBytesAs<uint64_t>() % 100000);
+                    CHL::Bytes       message       = CHL::RandomBytes(messageLength);
+                    CHL::SecureBytes key =
+                        CHL::RandomBytes_Secure(CHL::GetEncryptionAlgoKeyLength(encAlgo).get());
 
                     CHL::EncryptMessageOutput cipherData =
                         CHL::EncryptMessage(message, key, encAlgo, ratchetAlgo, authAlgo);

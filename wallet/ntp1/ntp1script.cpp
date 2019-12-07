@@ -750,8 +750,8 @@ std::string NTP1Script::EncryptMetadata(const StringViewT data, const CKey& priv
         CKey::GenerateSharedSecretFromPrivateAndPublicKey(privateKey, publicKey);
 
     auto       cipherData           = CHL::EncryptMessage(CHL::Bytes(data.cbegin(), data.cend()),
-                                          CHL::Bytes(sharedKey.cbegin(), sharedKey.cend()), encAlgo,
-                                          ratchetAlgo, authAlgo);
+                                          CHL::SecureBytes(sharedKey.cbegin(), sharedKey.cend()),
+                                          encAlgo, ratchetAlgo, authAlgo);
     CHL::Bytes serializedCipherData = CHL::EncryptMessageOutput::Serialize(cipherData);
 
     if (static_cast<int64_t>(serializedCipherData.size()) >= static_cast<int64_t>(INT_MAX)) {
@@ -876,8 +876,8 @@ std::string NTP1Script::DecryptMetadata(const StringViewT data, const CKey& priv
     CHL::EncryptMessageOutput encryptedMessage =
         CHL::EncryptMessageOutput::Deserialize(CHL::ToBytes(cipher));
 
-    CHL::Bytes result =
-        CHL::DecryptMessage(encryptedMessage, CHL::Bytes(sharedSecret.cbegin(), sharedSecret.cend()));
+    CHL::Bytes result = CHL::DecryptMessage(
+        encryptedMessage, CHL::SecureBytes(sharedSecret.cbegin(), sharedSecret.cend()));
 
     return std::string(std::make_move_iterator(result.begin()), std::make_move_iterator(result.end()));
 }

@@ -52,6 +52,17 @@ public:
         [[nodiscard]] static EncryptMessageOutput Deserialize(const Bytes& data);
     };
 
+    template <typename T, std::size_t Size>
+    struct SecureArray : public std::array<T, Size>
+    {
+        static_assert(std::is_pod<T>::value, "Only pod types are allowed");
+        virtual ~SecureArray()
+        {
+            Bytes d = RandomBytes(Size);
+            std::memcpy(this->data(), d.data(), Size);
+        }
+    };
+
     enum EncryptionAlgorithm : uint16_t
     {
         Enc_XSalsa20Poly1305 = 0,
@@ -80,49 +91,59 @@ public:
     [[nodiscard]] static Bytes XSalsa20poly1305_EncryptBlock(
         const Bytes&                                                                   msg,
         const std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_NONCEBYTES>& nonce,
-        const std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>&   key);
+        const SecureArray<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>&  key);
 
     [[nodiscard]] static Bytes XSalsa20poly1305_DecryptBlock(
         const Bytes&                                                                   cipher,
         const std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_NONCEBYTES>& nonce,
-        const std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>&   key);
+        const SecureArray<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>&  key);
 
     static std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_NONCEBYTES>
     GenSalsa20poly1305RandomNonce();
 
-    static std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>
-    GetCanonicalSalsa20poly1305Key(const Bytes& key, const std::string& algoName);
+    static SecureArray<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>
+    GetCanonicalSalsa20poly1305Key(const SecureBytes& key, const std::string& algoName);
 
     [[nodiscard]] static Bytes XSalsa20poly1305_EncryptLongMsg_CTR(
-        const Crypto_HighLevel::Bytes&                                               msg,
-        std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_NONCEBYTES>      nonce,
-        const std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>& key);
+        const Crypto_HighLevel::Bytes&                                                msg,
+        std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_NONCEBYTES>       nonce,
+        const SecureArray<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>& key);
 
     [[nodiscard]] static std::array<uint8_t, crypto_onetimeauth_poly1305_BYTES>
     Poly1305AuthenticateMessage(
-        const Crypto_HighLevel::Bytes&                                         msg,
-        const std::array<unsigned char, crypto_onetimeauth_poly1305_KEYBYTES>& key);
+        const Crypto_HighLevel::Bytes&                                          msg,
+        const SecureArray<unsigned char, crypto_onetimeauth_poly1305_KEYBYTES>& key);
 
     [[nodiscard]] static bool
-    Poly1305VerifyMessage(const Crypto_HighLevel::Bytes&                                         msg,
-                          const std::array<uint8_t, crypto_onetimeauth_poly1305_BYTES>&          tag,
-                          const std::array<unsigned char, crypto_onetimeauth_poly1305_KEYBYTES>& key);
+    Poly1305VerifyMessage(const Crypto_HighLevel::Bytes&                                          msg,
+                          const std::array<uint8_t, crypto_onetimeauth_poly1305_BYTES>&           tag,
+                          const SecureArray<unsigned char, crypto_onetimeauth_poly1305_KEYBYTES>& key);
 
     [[nodiscard]] static Bytes XSalsa20poly1305_DecryptLongMsg_CTR(
-        const Bytes&                                                                 cipher,
-        const std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>& key);
+        const Bytes&                                                                  cipher,
+        const SecureArray<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>& key);
 
-    [[nodiscard]] static std::array<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>
+    [[nodiscard]] static SecureArray<unsigned char, crypto_secretbox_xsalsa20poly1305_KEYBYTES>
     GenXSalsa20poly1305RandomKey();
 
-    [[nodiscard]] static Bytes RandomBytes(uint64_t length);
+    [[nodiscard]] static Bytes       RandomBytes(uint64_t length);
+    [[nodiscard]] static SecureBytes RandomBytes_Secure(uint64_t length);
     template <typename T>
-    static typename std::enable_if<std::is_trivial<T>::value, T>::type RandomBytesAs()
+    static T RandomBytesAs()
     {
-        static_assert(std::is_trivial<T>::value, "T must be a trivial type");
+        static_assert(std::is_pod<T>::value, "T must be a trivial type");
         Bytes b = RandomBytes(sizeof(T));
         T     res{};
         memcpy(&res, b.data(), sizeof(T));
+        return res;
+    }
+
+    template <std::size_t Size>
+    static SecureArray<uint8_t, Size> RandomBytesAsSecureArray()
+    {
+        SecureBytes                b = RandomBytes_Secure(Size);
+        SecureArray<uint8_t, Size> res{};
+        memcpy(res.data(), b.data(), Size);
         return res;
     }
 
@@ -146,19 +167,21 @@ public:
     [[nodiscard]] static boost::optional<std::string> GetAuthAlgoName(AuthenticationAlgorithm algo);
     [[nodiscard]] static AuthenticationAlgorithm      GetAuthAlgoFromName(StringViewT name);
 
-    [[nodiscard]] static EncryptMessageOutput EncryptMessage(const Bytes& message, const Bytes& key,
-                                                             EncryptionAlgorithm     encAlgo,
-                                                             AuthKeyRatchetAlgorithm keyRatchetAlgo,
-                                                             AuthenticationAlgorithm authAlgo);
-    [[nodiscard]] static Bytes                DecryptMessage(const EncryptMessageOutput& encryptedData,
-                                                             const Bytes&                key);
+    [[nodiscard]] static EncryptMessageOutput
+                               EncryptMessage(const Bytes& message, const SecureBytes& key, EncryptionAlgorithm encAlgo,
+                                              AuthKeyRatchetAlgorithm keyRatchetAlgo, AuthenticationAlgorithm authAlgo);
+    [[nodiscard]] static Bytes DecryptMessage(const EncryptMessageOutput& encryptedData,
+                                              const SecureBytes&          key);
 
-    [[nodiscard]] static Bytes
-    CalculateKeyRatchet(AuthKeyRatchetAlgorithm keyRatchetAlgo, const Bytes& key,
+    [[nodiscard]] static SecureBytes
+    CalculateKeyRatchet(AuthKeyRatchetAlgorithm keyRatchetAlgo, const SecureBytes& key,
                         boost::optional<uint64_t> maxAuthenticationAlgoKeyLen = boost::none);
 
     template <typename Container>
     [[nodiscard]] static Bytes ToBytes(Container&& input);
+
+    template <typename Container>
+    [[nodiscard]] static SecureBytes ToSecureBytes(Container&& input);
 
     template <typename Container>
     [[nodiscard]] static std::string ToString(Container&& input);
@@ -168,6 +191,12 @@ template <typename Container>
 Crypto_HighLevel::Bytes Crypto_HighLevel::ToBytes(Container&& input)
 {
     return Bytes(input.begin(), input.end());
+}
+
+template <typename Container>
+Crypto_HighLevel::SecureBytes Crypto_HighLevel::ToSecureBytes(Container&& input)
+{
+    return SecureBytes(input.begin(), input.end());
 }
 
 template <typename Container>
