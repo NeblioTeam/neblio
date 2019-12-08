@@ -633,6 +633,28 @@ std::vector<CKey> CTransaction::GetOutputKeysOfTx(const uint256&            txid
         }
     }
 
+    for (unsigned i = 0; i < tx.vin.size(); i++) {
+        const CTxIn&          in     = tx.vin[i];
+        boost::optional<CKey> pubKey = CTransaction::GetPublicKeyFromScriptSig(in.scriptSig);
+        if (!pubKey.is_initialized()) {
+            continue;
+        }
+
+        CKey   key;
+        CKeyID keyId = pubKey->GetPubKey().GetID();
+        if (!pwalletMain->GetKey(keyId, key)) {
+            continue;
+        }
+
+        // this is O(N^2), but this is OK, because the numebr of inputs is low
+        // we're comparing public keys because CKey objects are not comparable
+        if (std::find_if(keys.cbegin(), keys.cend(), [&key](const CKey& k) {
+                return k.GetPubKey() == key.GetPubKey();
+            }) == keys.cend()) {
+            keys.push_back(key);
+        }
+    }
+
     return keys;
 }
 
