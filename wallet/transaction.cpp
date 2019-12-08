@@ -603,7 +603,9 @@ std::vector<CKey> CTransaction::GetThisWalletKeysOfTx(const uint256&            
     if (!foundInMempool) {
         tx = CTransaction::FetchTxFromDisk(txid);
     }
+
     std::vector<CKey> keys;
+
     for (unsigned i = 0; i < tx.vout.size(); i++) {
         if (outputNumber.is_initialized() && *outputNumber != i) {
             continue;
