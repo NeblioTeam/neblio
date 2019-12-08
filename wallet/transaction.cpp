@@ -594,8 +594,8 @@ CTransaction CTransaction::FetchTxFromDisk(const uint256& txid, CTxDB& txdb)
     return result;
 }
 
-std::vector<CKey> CTransaction::GetOutputKeysOfTx(const uint256&            txid,
-                                                  boost::optional<unsigned> outputNumber)
+std::vector<CKey> CTransaction::GetThisWalletKeysOfTx(const uint256&            txid,
+                                                      boost::optional<unsigned> outputNumber)
 {
     CTransaction tx;
     // first we try to find it in the mempool, if not found, we look on disk
@@ -661,7 +661,7 @@ std::vector<CKey> CTransaction::GetOutputKeysOfTx(const uint256&            txid
 std::string CTransaction::DecryptMetadataOfTx(const StringViewT metadataStr, const uint256& txid,
                                               boost::optional<std::string>& error)
 {
-    std::vector<CKey> keysVec = GetOutputKeysOfTx(txid);
+    std::vector<CKey> keysVec = GetThisWalletKeysOfTx(txid);
     if (keysVec.empty()) {
         error = "No valid keys were found in the transaction: " + txid.ToString();
         return "";

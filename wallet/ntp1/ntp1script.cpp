@@ -928,7 +928,8 @@ std::string RawNTP1MetadataBeforeSend::applyMetadataEncryption(
         // get public key
         std::vector<CKey> keys;
         for (const CTxIn& in : wtxNew.vin) {
-            std::vector<CKey> tempKeys = CTransaction::GetOutputKeysOfTx(in.prevout.hash, in.prevout.n);
+            std::vector<CKey> tempKeys =
+                CTransaction::GetThisWalletKeysOfTx(in.prevout.hash, in.prevout.n);
             keys.insert(keys.end(), std::make_move_iterator(tempKeys.begin()),
                         std::make_move_iterator(tempKeys.end()));
         }

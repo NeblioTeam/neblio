@@ -162,7 +162,7 @@ public:
     [[nodiscard]] static CTransaction FetchTxFromDisk(const uint256& txid, CTxDB& txdb);
 
     [[nodiscard]] static std::vector<CKey>
-                                     GetOutputKeysOfTx(const uint256& txid, boost::optional<unsigned> outputNumber = boost::none);
+                                     GetThisWalletKeysOfTx(const uint256& txid, boost::optional<unsigned> outputNumber = boost::none);
     [[nodiscard]] static std::string DecryptMetadataOfTx(const StringViewT             metadataStr,
                                                          const uint256&                txid,
                                                          boost::optional<std::string>& error);
