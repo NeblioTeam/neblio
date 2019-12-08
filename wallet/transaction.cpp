@@ -594,6 +594,15 @@ CTransaction CTransaction::FetchTxFromDisk(const uint256& txid, CTxDB& txdb)
     return result;
 }
 
+/**
+ * Get all relevant keys of a transaction that are in our wallet. If an output number is defined, only
+ * the key of that output is returned.
+ * @brief CTransaction::GetThisWalletKeysOfTx
+ * @param txid
+ * @param outputNumber
+ * @return the keys of the transaction given by txid that are in our wallet. If outputNumber is defined,
+ * only that key will be returned, if it exists in our wallet
+ */
 std::vector<CKey> CTransaction::GetThisWalletKeysOfTx(const uint256&            txid,
                                                       boost::optional<unsigned> outputNumber)
 {
@@ -635,25 +644,28 @@ std::vector<CKey> CTransaction::GetThisWalletKeysOfTx(const uint256&            
         }
     }
 
-    for (unsigned i = 0; i < tx.vin.size(); i++) {
-        const CTxIn&          in     = tx.vin[i];
-        boost::optional<CKey> pubKey = CTransaction::GetPublicKeyFromScriptSig(in.scriptSig);
-        if (!pubKey.is_initialized()) {
-            continue;
-        }
+    // we don't retrieve input keys if the key of a specific output number is requested
+    if (!outputNumber.is_initialized()) {
+        for (unsigned i = 0; i < tx.vin.size(); i++) {
+            const CTxIn&          in     = tx.vin[i];
+            boost::optional<CKey> pubKey = CTransaction::GetPublicKeyFromScriptSig(in.scriptSig);
+            if (!pubKey.is_initialized()) {
+                continue;
+            }
 
-        CKey   key;
-        CKeyID keyId = pubKey->GetPubKey().GetID();
-        if (!pwalletMain->GetKey(keyId, key)) {
-            continue;
-        }
+            CKey   key;
+            CKeyID keyId = pubKey->GetPubKey().GetID();
+            if (!pwalletMain->GetKey(keyId, key)) {
+                continue;
+            }
 
-        // this is O(N^2), but this is OK, because the numebr of inputs is low
-        // we're comparing public keys because CKey objects are not comparable
-        if (std::find_if(keys.cbegin(), keys.cend(), [&key](const CKey& k) {
-                return k.GetPubKey() == key.GetPubKey();
-            }) == keys.cend()) {
-            keys.push_back(key);
+            // this is O(N^2), but this is OK, because the numebr of inputs is low
+            // we're comparing public keys because CKey objects are not comparable
+            if (std::find_if(keys.cbegin(), keys.cend(), [&key](const CKey& k) {
+                    return k.GetPubKey() == key.GetPubKey();
+                }) == keys.cend()) {
+                keys.push_back(key);
+            }
         }
     }
 
