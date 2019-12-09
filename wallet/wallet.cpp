@@ -1653,7 +1653,7 @@ void CreateErrorMsg(std::string* errorMsg, const std::string& msg)
 
 bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, CWalletTx& wtxNew,
                                 CReserveKey& reservekey, int64_t& nFeeRet, NTP1SendTxData ntp1TxData,
-                                const std::string& ntp1metadata, bool isNTP1Issuance,
+                                const RawNTP1MetadataBeforeSend& ntp1metadata, bool isNTP1Issuance,
                                 const CCoinControl* coinControl, std::string* errorMsg)
 {
     int64_t nValue = 0;
@@ -1868,7 +1868,9 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
 
                 try {
                     NTP1SendTxData::FixTIsChangeOutputIndex(TIs, changeOutputIndex);
-                    CWallet::SetTxNTP1OpRet(wtxNew, TIs, ntp1metadata,
+                    std::string processedMetadata = ntp1metadata.applyMetadataEncryption(
+                        wtxNew, ntp1TxData.getNTP1TokenRecipientsList());
+                    CWallet::SetTxNTP1OpRet(wtxNew, TIs, processedMetadata,
                                             ntp1TxData.getNTP1TokenIssuanceData());
                 } catch (std::exception& ex) {
                     printf("Error while setting up NTP1 data: %s\n", ex.what());
@@ -1932,8 +1934,9 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
 
 bool CWallet::CreateTransaction(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew,
                                 CReserveKey& reservekey, int64_t& nFeeRet,
-                                const NTP1SendTxData& ntp1TxData, const string& ntp1metadata,
-                                bool isNTP1Issuance, const CCoinControl* coinControl)
+                                const NTP1SendTxData&            ntp1TxData,
+                                const RawNTP1MetadataBeforeSend& ntp1metadata, bool isNTP1Issuance,
+                                const CCoinControl* coinControl)
 {
     vector<pair<CScript, int64_t>> vecSend;
     vecSend.push_back(make_pair(scriptPubKey, nValue));
@@ -2335,8 +2338,8 @@ string CWallet::SendMoneyToDestination(const CTxDestination& address, int64_t nV
 
 string CWallet::SendNTP1ToDestination(const CTxDestination& address, int64_t nValue,
                                       const std::string& TokenId, CWalletTx& wtxNew,
-                                      boost::shared_ptr<NTP1Wallet> ntp1wallet,
-                                      const std::string& ntp1metadata, bool fAskFee)
+                                      boost::shared_ptr<NTP1Wallet>    ntp1wallet,
+                                      const RawNTP1MetadataBeforeSend& ntp1metadata, bool fAskFee)
 {
     // Check amount
     if (nValue <= 0)

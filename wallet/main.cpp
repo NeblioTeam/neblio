@@ -395,7 +395,7 @@ void AssertNTP1TokenNameIsNotAlreadyInMainChain(std::string sym, const uint256& 
             if (!IsTxInMainChain(h)) {
                 continue;
             }
-            auto pair = std::make_pair(FetchTxFromDisk(h), NTP1Transaction());
+            auto pair = std::make_pair(CTransaction::FetchTxFromDisk(h), NTP1Transaction());
             FetchNTP1TxFromDisk(pair, txdb, false);
             std::string storedSymbol = pair.second.getTokenSymbolIfIssuance();
             // blacklisted tokens can be duplicated, since they won't be used ever again
@@ -971,29 +971,6 @@ CDiskTxPos CreateFakeSpentTxPos(const uint256& blockhash)
     return fakeTxPos;
 }
 
-CTransaction FetchTxFromDisk(const uint256& txid)
-{
-    CTxDB txdb;
-    return FetchTxFromDisk(txid, txdb);
-}
-
-CTransaction FetchTxFromDisk(const uint256& txid, CTxDB& txdb)
-{
-    CTransaction result;
-    CTxIndex     txPos;
-    if (!txdb.ReadTxIndex(txid, txPos)) {
-        printf("Unable to read standard transaction from db: %s\n", txid.ToString().c_str());
-        throw std::runtime_error("Unable to read standard transaction from db: " + txid.ToString());
-    }
-    if (!result.ReadFromDisk(txPos.pos, txdb)) {
-        printf("Unable to read standard transaction from disk with the "
-               "index given by db: %s\n",
-               txid.ToString().c_str());
-        throw std::runtime_error("Unable to read standard transaction from db: " + txid.ToString());
-    }
-    return result;
-}
-
 bool RecoverNTP1TxInDatabase(const CTransaction& tx, CTxDB& txdb, bool recoveryProtection,
                              unsigned recurseDepth)
 {
@@ -1019,7 +996,7 @@ bool RecoverNTP1TxInDatabase(const CTransaction& tx, CTxDB& txdb, bool recoveryP
         for (const auto& in : tx.vin) {
             CTransaction inputTx;
             try {
-                inputTx = FetchTxFromDisk(in.prevout.hash, txdb);
+                inputTx = CTransaction::FetchTxFromDisk(in.prevout.hash, txdb);
                 bool anyInputBeforeWrongBlockHeights =
                     !PassedFirstValidNTP1Tx(GetTxBlockHeight(inputTx.GetHash()), fTestNet);
                 bool isNTP1 = NTP1Transaction::IsTxNTP1(&inputTx);

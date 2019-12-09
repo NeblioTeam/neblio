@@ -6,9 +6,16 @@
 #include <stdexcept>
 #include <util.h>
 
+#include "JsonStringQueue.h"
+#include "base58.h"
+#include "key.h"
 #include "ntp1script_burn.h"
 #include "ntp1script_issuance.h"
 #include "ntp1script_transfer.h"
+#include "ntp1sendtokensonerecipientdata.h"
+#include "transaction.h"
+
+#include "script.h"
 
 const std::string NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str    = "aggregatable";
 const std::string NTP1Script::IssuanceFlags::AggregationPolicy_NonAggregatable_Str = "nonaggregatable";
@@ -546,7 +553,8 @@ std::string NTP1Script::NumberToHexNTP1Amount(const NTP1Int& num, bool caps)
     }
 }
 
-std::string NTP1Script::GetMetadataAsString(const NTP1Script* ntp1script) noexcept
+std::string NTP1Script::GetMetadataAsString(const NTP1Script*   ntp1script,
+                                            const CTransaction& tx) noexcept
 {
     if (!ntp1script) {
         return "";
@@ -556,21 +564,34 @@ std::string NTP1Script::GetMetadataAsString(const NTP1Script* ntp1script) noexce
     // decompress, or return uncompress hex data in an error
     try {
         textMetadata = ntp1script->getInflatedMetadata();
+        json_spirit::Value encNode;
+        json_spirit::read_or_throw(textMetadata, encNode);
+        json_spirit::Value ser = json_spirit::find_value(encNode.get_obj(), METADATA_SER_FIELD__VERSION);
+        if (!(ser == json_spirit::Value::null)) {
+            boost::optional<std::string> decError;
+            std::string dec = CTransaction::DecryptMetadataOfTx(textMetadata, tx.GetHash(), decError);
+            if (decError) {
+                printf("Message decryption failed: %s\n", decError->c_str());
+            } else {
+                textMetadata = std::move(dec);
+            }
+        }
     } catch (std::exception& ex) {
-        printf("Failed at decompressing \"%s\". Reason: %s", textMetadata.c_str(), ex.what());
+        printf("Failed at decompressing \"%s\". Reason: %s\n", textMetadata.c_str(), ex.what());
     } catch (...) {
-        printf("Failed at decompressing \"%s\". Unknown exception.", textMetadata.c_str());
+        printf("Failed at decompressing \"%s\". Unknown exception.\n", textMetadata.c_str());
     }
 
     return textMetadata;
 }
 
-json_spirit::Value NTP1Script::GetMetadataAsJson(const NTP1Script* ntp1script) noexcept
+json_spirit::Value NTP1Script::GetMetadataAsJson(const NTP1Script*   ntp1script,
+                                                 const CTransaction& tx) noexcept
 {
     if (!ntp1script) {
         return json_spirit::Value();
     }
-    std::string textMetadata = GetMetadataAsString(ntp1script);
+    std::string textMetadata = GetMetadataAsString(ntp1script, tx);
 
     // if empty, return null
     if (textMetadata.empty()) {
@@ -706,4 +727,234 @@ NTP1Int NTP1Script::NTP1AmountHexToNumber(std::string hexVal)
     return static_cast<NTP1Int>(std::bitset<digits>(mantissa).to_ullong()) *
            static_cast<NTP1Int>(
                boost::multiprecision::pow(NTP1Int(10), boost::dynamic_bitset<>(exponent).to_ulong()));
+}
+
+std::string
+NTP1Script::EncryptMetadataWithEphemeralKey(const StringViewT data, const CKey& publicKey,
+                                            Crypto_HighLevel::EncryptionAlgorithm     encAlgo,
+                                            Crypto_HighLevel::AuthKeyRatchetAlgorithm ratchetAlgo,
+                                            Crypto_HighLevel::AuthenticationAlgorithm authAlgo)
+{
+    CKey ephemeralKey;
+    ephemeralKey.MakeNewKey(true);
+
+    return EncryptMetadata(data, ephemeralKey, publicKey, encAlgo, ratchetAlgo, authAlgo);
+}
+
+std::string NTP1Script::EncryptMetadata(const StringViewT data, const CKey& privateKey,
+                                        const CKey& publicKey, CHL::EncryptionAlgorithm encAlgo,
+                                        CHL::AuthKeyRatchetAlgorithm ratchetAlgo,
+                                        CHL::AuthenticationAlgorithm authAlgo)
+{
+
+    std::array<uint8_t, 32> sharedKey =
+        CKey::GenerateSharedSecretFromPrivateAndPublicKey(privateKey, publicKey);
+
+    auto       cipherData           = CHL::EncryptMessage(CHL::Bytes(data.cbegin(), data.cend()),
+                                          CHL::SecureBytes(sharedKey.cbegin(), sharedKey.cend()),
+                                          encAlgo, ratchetAlgo, authAlgo);
+    CHL::Bytes serializedCipherData = CHL::EncryptMessageOutput::Serialize(cipherData);
+
+    if (static_cast<int64_t>(serializedCipherData.size()) >= static_cast<int64_t>(INT_MAX)) {
+        throw std::runtime_error("Data is too big to be serialized");
+    }
+
+    json_spirit::Object root;
+    using JPair                 = json_spirit::Pair;
+    namespace BA                = boost::algorithm;
+    auto        sourcePubKey    = privateKey.GetPubKey().Raw();
+    std::string sourcePubKeyHex = BA::hex(std::string(sourcePubKey.cbegin(), sourcePubKey.cend()));
+    auto        targetPubKey    = publicKey.GetPubKey().Raw();
+    std::string targetPubKeyHex = BA::hex(std::string(targetPubKey.cbegin(), targetPubKey.cend()));
+    root.push_back(JPair(METADATA_SER_FIELD__VERSION, 2));
+    root.push_back(JPair(METADATA_SER_FIELD__SOURCE_PUBLIC_KEY_HEX, sourcePubKeyHex));
+    root.push_back(JPair(METADATA_SER_FIELD__TARGET_PUBLIC_KEY_HEX, targetPubKeyHex));
+    root.push_back(
+        JPair(METADATA_SER_FIELD__CIPHER_BASE64, EncodeBase64(CHL::ToString(serializedCipherData))));
+
+    // write the header then the data to the result
+    std::string result = json_spirit::write(json_spirit::Value(root));
+    boost::trim(result);
+    return result;
+}
+
+std::string GetStrValue(const json_spirit::Object& obj, const std::string& name)
+{
+    auto v = json_spirit::find_value(obj, name);
+    if (v == json_spirit::Value::null) {
+        throw std::runtime_error("Could not find json object: " + name);
+    }
+    if (v.type() != json_spirit::Value_type::str_type) {
+        throw std::runtime_error("For object " + name +
+                                 " the expected type is string, but found type with index " +
+                                 std::to_string(v.type()));
+    }
+    return v.get_str();
+}
+
+int GetIntValue(const json_spirit::Object& obj, const std::string& name)
+{
+    auto v = json_spirit::find_value(obj, name);
+    if (v == json_spirit::Value::null) {
+        throw std::runtime_error("Could not find json object: " + name);
+    }
+    if (v.type() != json_spirit::Value_type::int_type) {
+        throw std::runtime_error("For object " + name +
+                                 " the expected type is int, but found type with index " +
+                                 std::to_string(v.type()));
+    }
+    return v.get_int();
+}
+
+std::string NTP1Script::DecryptMetadata(const StringViewT data, const CKey& privateKey)
+{
+    if (data.empty()) {
+        throw std::runtime_error("Requested decryption of empty metadata data");
+    }
+    if (data[0] != '{') {
+        throw std::runtime_error("Unexpected header while attempting to decrypt metadata");
+    }
+
+    json_spirit::Value jsonHeader;
+    try {
+        json_spirit::read_or_throw(data.to_string(), jsonHeader);
+    } catch (std::exception& ex) {
+        throw std::runtime_error("Unable to parse json header of encrypted metadata: Error: " +
+                                 std::string(ex.what()));
+    } catch (...) {
+        throw std::runtime_error("Unable to parse json header of encrypted metadata: Unknown error");
+    }
+
+    if (jsonHeader.type() != json_spirit::Value_type::obj_type) {
+        throw std::runtime_error("Invalid encrypted metadata header type");
+    }
+
+    json_spirit::Object jsonHeaderObj = jsonHeader.get_obj();
+    int                 version       = GetIntValue(jsonHeaderObj, METADATA_SER_FIELD__VERSION);
+    std::string sourcePubKeyHex = GetStrValue(jsonHeaderObj, METADATA_SER_FIELD__SOURCE_PUBLIC_KEY_HEX);
+    std::string targetPubKeyHex = GetStrValue(jsonHeaderObj, METADATA_SER_FIELD__TARGET_PUBLIC_KEY_HEX);
+    std::string cipherBase64    = GetStrValue(jsonHeaderObj, METADATA_SER_FIELD__CIPHER_BASE64);
+
+    if (version != 2) {
+        throw std::runtime_error("Unknown serialization version of encrypted metadata");
+    }
+
+    std::vector<uint8_t> pubKeyToUse;
+    {
+        std::vector<uint8_t> sourcePubKeyRaw;
+        boost::algorithm::unhex(sourcePubKeyHex.cbegin(), sourcePubKeyHex.cend(),
+                                std::back_inserter(sourcePubKeyRaw));
+        std::vector<uint8_t> targetPubKeyRaw;
+        boost::algorithm::unhex(targetPubKeyHex.cbegin(), targetPubKeyHex.cend(),
+                                std::back_inserter(targetPubKeyRaw));
+
+        if (privateKey.GetPubKey().Raw() == sourcePubKeyRaw) {
+            pubKeyToUse = targetPubKeyRaw;
+        }
+        if (privateKey.GetPubKey().Raw() == targetPubKeyRaw) {
+            pubKeyToUse = sourcePubKeyRaw;
+        }
+        if (pubKeyToUse.empty()) {
+            throw std::runtime_error(
+                "Invalid private key. The private key failed to produce any of the public key.");
+        }
+    }
+
+    if (!IsCanonicalPubKey(pubKeyToUse)) {
+        std::runtime_error("Public key provided is not a canonical public key");
+    }
+
+    CKey pubKey;
+    if (!pubKey.SetPubKey(pubKeyToUse)) {
+        throw std::runtime_error(
+            "Failed to set public key in a ckey object. Possibly an invalid public key.");
+    }
+
+    std::array<uint8_t, 32> sharedSecret = privateKey.GenerateSharedSecretFromThisPrivateKey(pubKey);
+
+    std::string cipher = DecodeBase64(cipherBase64);
+
+    CHL::EncryptMessageOutput encryptedMessage =
+        CHL::EncryptMessageOutput::Deserialize(CHL::ToBytes(cipher));
+
+    CHL::Bytes result = CHL::DecryptMessage(
+        encryptedMessage, CHL::SecureBytes(sharedSecret.cbegin(), sharedSecret.cend()));
+
+    return std::string(std::make_move_iterator(result.begin()), std::make_move_iterator(result.end()));
+}
+
+std::string NTP1Script::EncryptMetadataBeforeSend(const StringViewT ntp1metadata,
+                                                  const CKey&       inputPrivateKey,
+                                                  const StringViewT recipientAddress)
+{
+    std::string          result;
+    CTxDB                txdb;
+    std::vector<uint8_t> pubKeyRaw;
+    std::string          addr(recipientAddress.cbegin(), recipientAddress.cend());
+    bool                 pubkeyFound = txdb.ReadAddressPubKey(CBitcoinAddress(addr), pubKeyRaw);
+    if (!pubkeyFound) {
+        throw std::runtime_error("The public key for the address " + addr +
+                                 " was not found. This means that the owner of this "
+                                 "address never made a transaction with it. Please "
+                                 "choose an address, which was used before.");
+    }
+    CKey pubKeyCKey;
+    if (!pubKeyCKey.SetPubKey(pubKeyRaw)) {
+        throw std::runtime_error("The public key for the address " + addr +
+                                 " was found, but it seems to be invalid. Please try another address. "
+                                 "Also please consider reporting this to the Neblio Team.");
+    }
+    CBitcoinAddress addrRecalc(pubKeyCKey.GetPubKey().GetID());
+    if (addr != addrRecalc.ToString()) {
+        throw std::runtime_error("The public key for the address " + addr +
+                                 " was found, but failed to reproduce the same address. This indicates "
+                                 "that the public key is invalid. Please try another address, and "
+                                 "consider reporting this to the Neblio Team.");
+    }
+    try {
+        result = NTP1Script::EncryptMetadata(
+            ntp1metadata, inputPrivateKey, pubKeyCKey, CHL::EncryptionAlgorithm::Enc_XSalsa20Poly1305,
+            CHL::AuthKeyRatchetAlgorithm::Ratchet_Sha256, CHL::AuthenticationAlgorithm::Auth_Poly1305);
+    } catch (std::exception& ex) {
+        throw std::runtime_error("Failed to encrypt metadata. Error: " + std::string(ex.what()));
+    }
+    return result;
+}
+
+std::string RawNTP1MetadataBeforeSend::applyMetadataEncryption(
+    const CTransaction& wtxNew, const std::vector<NTP1SendTokensOneRecipientData>& recipients) const
+{
+    if (this->encrypt && !this->metadata.empty()) {
+        // get public key
+        std::vector<CKey> keys;
+        for (const CTxIn& in : wtxNew.vin) {
+            std::vector<CKey> tempKeys =
+                CTransaction::GetThisWalletKeysOfTx(in.prevout.hash, in.prevout.n);
+            keys.insert(keys.end(), std::make_move_iterator(tempKeys.begin()),
+                        std::make_move_iterator(tempKeys.end()));
+        }
+        if (keys.empty()) {
+            throw std::runtime_error("An unexpected error happened. A key that was used "
+                                     "in the input was not found in the wallet. Please "
+                                     "report this to neblio develoers.");
+        }
+        CKey inputPrivateKey = keys.front();
+
+        if (recipients.empty()) {
+            throw std::runtime_error("Empty NTP1 recipient list");
+        }
+
+        // put recipient addresses in a set to ensure there is only one
+        std::set<std::string> recipientsSet;
+        std::transform(recipients.cbegin(), recipients.cend(),
+                       std::inserter(recipientsSet, recipientsSet.begin()),
+                       [](const NTP1SendTokensOneRecipientData& r) { return r.destination; });
+        if (recipientsSet.size() != 1) {
+            throw std::runtime_error("Cannot send encrypted NTP1 metadata to multiple recipients.");
+        }
+        std::string recipient = *recipientsSet.begin();
+        return NTP1Script::EncryptMetadataBeforeSend(this->metadata, inputPrivateKey, recipient);
+    } else {
+        return this->metadata;
+    }
 }

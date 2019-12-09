@@ -39,7 +39,8 @@ packages_to_install = \
 "libx32z1-dev",
 "zlib1g",
 "zlib1g-dev",
-"lib32z1-dev"
+"lib32z1-dev",
+"libsodium-dev"
 ]
 
 nci.install_packages_debian(packages_to_install)

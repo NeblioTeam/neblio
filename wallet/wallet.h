@@ -229,12 +229,13 @@ public:
     int64_t GetNewMint() const;
     bool    CreateTransaction(const std::vector<std::pair<CScript, int64_t>>& vecSend, CWalletTx& wtxNew,
                               CReserveKey& reservekey, int64_t& nFeeRet, NTP1SendTxData ntp1TxData,
-                              const std::string& ntp1metadata = "", bool isNTP1Issuance = false,
-                              const CCoinControl* coinControl = nullptr, std::string* errorMsg = nullptr);
+                              const RawNTP1MetadataBeforeSend& ntp1metadata = RawNTP1MetadataBeforeSend(),
+                              bool isNTP1Issuance = false, const CCoinControl* coinControl = nullptr,
+                              std::string* errorMsg = nullptr);
     bool    CreateTransaction(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew,
                               CReserveKey& reservekey, int64_t& nFeeRet, const NTP1SendTxData& ntp1TxData,
-                              const std::string& ntp1metadata = "", bool isNTP1Issuance = false,
-                              const CCoinControl* coinControl = nullptr);
+                              const RawNTP1MetadataBeforeSend& ntp1metadata = RawNTP1MetadataBeforeSend(),
+                              bool isNTP1Issuance = false, const CCoinControl* coinControl = nullptr);
     bool    CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
 
     bool GetStakeWeight(const CKeyStore& keystore, uint64_t& nMinWeight, uint64_t& nMaxWeight,
@@ -245,10 +246,11 @@ public:
     std::string SendMoney(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, bool fAskFee = false);
     std::string SendMoneyToDestination(const CTxDestination& address, int64_t nValue, CWalletTx& wtxNew,
                                        bool fAskFee = false);
-    std::string SendNTP1ToDestination(const CTxDestination& address, int64_t nValue,
-                                      const std::string& tokenId, CWalletTx& wtxNew,
-                                      boost::shared_ptr<NTP1Wallet> ntp1wallet,
-                                      const std::string& ntp1metadata = "", bool fAskFee = false);
+    std::string
+    SendNTP1ToDestination(const CTxDestination& address, int64_t nValue, const std::string& tokenId,
+                          CWalletTx& wtxNew, boost::shared_ptr<NTP1Wallet> ntp1wallet,
+                          const RawNTP1MetadataBeforeSend& ntp1metadata = RawNTP1MetadataBeforeSend(),
+                          bool                             fAskFee      = false);
 
     bool    NewKeyPool();
     bool    TopUpKeyPool(unsigned int nSize = 0);

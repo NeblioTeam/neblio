@@ -76,7 +76,8 @@ LIBS += \
    -l db_cxx$(BDB_LIB_SUFFIX) \
    -l ssl \
    -l crypto \
-   -l z
+   -l z \
+   -l sodium
 
 ifdef NEBLIO_REST
    LIBS += -l restbed
@@ -234,7 +235,8 @@ OBJS= \
     obj/ntp1/ntp1txout.o                      \
     obj/ntp1/ntp1sendtxdata.o                 \
     obj/ntp1/ntp1wallet.o                     \
-    obj/ntp1/ntp1v1_issuance_static_data.o
+    obj/ntp1/ntp1v1_issuance_static_data.o    \
+    obj/crypto_highlevel.o
 
 ifdef NEBLIO_REST
     OBJS += obj/nebliorest.o

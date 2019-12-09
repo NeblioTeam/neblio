@@ -803,7 +803,7 @@ void NTP1Transaction::readNTP1DataFromTx(
 
 json_spirit::Value NTP1Transaction::GetNTP1IssuanceMetadata(const uint256& issuanceTxid)
 {
-    CTransaction    tx = FetchTxFromDisk(issuanceTxid);
+    CTransaction    tx = CTransaction::FetchTxFromDisk(issuanceTxid);
     NTP1Transaction ntp1tx;
     ntp1tx.readNTP1DataFromTx_minimal(tx);
     std::string opRet;
@@ -829,7 +829,7 @@ json_spirit::Value NTP1Transaction::GetNTP1IssuanceMetadata(const uint256& issua
             return json_spirit::Value();
         }
     } else if (s->getProtocolVersion() == 3) {
-        return NTP1Script::GetMetadataAsJson(sd.get());
+        return NTP1Script::GetMetadataAsJson(sd.get(), tx);
     } else {
         return json_spirit::Value();
     }
@@ -877,7 +877,7 @@ NTP1TokenMetaData NTP1Transaction::GetFullNTP1IssuanceMetadata(const CTransactio
         }
     } else if (s->getProtocolVersion() == 3) {
         NTP1TokenMetaData result;
-        result.readSomeDataFromStandardJsonFormat(NTP1Script::GetMetadataAsJson(sd.get()));
+        result.readSomeDataFromStandardJsonFormat(NTP1Script::GetMetadataAsJson(sd.get(), issuanceTx));
         result.readSomeDataFromNTP1IssuanceScript(sd.get());
         result.setTokenId(tokenId);
         result.setIssuanceTxId(issuanceTxid);
@@ -890,7 +890,7 @@ NTP1TokenMetaData NTP1Transaction::GetFullNTP1IssuanceMetadata(const CTransactio
 
 NTP1TokenMetaData NTP1Transaction::GetFullNTP1IssuanceMetadata(const uint256& issuanceTxid)
 {
-    CTransaction    tx = FetchTxFromDisk(issuanceTxid);
+    CTransaction    tx = CTransaction::FetchTxFromDisk(issuanceTxid);
     NTP1Transaction ntp1tx;
     ntp1tx.readNTP1DataFromTx_minimal(tx);
     CDataStream ds1(SER_NETWORK, PROTOCOL_VERSION);

@@ -132,8 +132,6 @@ uint256      WantedByOrphan(const CBlock* pblockOrphan);
 const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake);
 void               StakeMiner(CWallet* pwallet);
 void               ResendWalletTransactions(bool fForce = false);
-CTransaction       FetchTxFromDisk(const uint256& txid);
-CTransaction       FetchTxFromDisk(const uint256& txid, CTxDB& txdb);
 
 void SetBestChain(const CBlockLocator& loc);
 void UpdatedTransaction(const uint256& hashTx);

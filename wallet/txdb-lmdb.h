@@ -28,6 +28,7 @@ class NTP1Transaction;
 class CBigNum;
 class CBlock;
 class CTransaction;
+class CBitcoinAddress;
 
 #define ENABLE_AUTO_RESIZE
 
@@ -41,6 +42,7 @@ extern DbSmartPtrType glob_db_blocks;
 extern DbSmartPtrType glob_db_tx;
 extern DbSmartPtrType glob_db_ntp1Tx;
 extern DbSmartPtrType glob_db_ntp1tokenNames;
+extern DbSmartPtrType glob_db_addrsVsPubKeys;
 
 const std::string LMDB_MAINDB           = "MainDb";
 const std::string LMDB_BLOCKINDEXDB     = "BlockIndexDb";
@@ -48,6 +50,7 @@ const std::string LMDB_BLOCKSDB         = "BlocksDb";
 const std::string LMDB_TXDB             = "TxDb";
 const std::string LMDB_NTP1TXDB         = "Ntp1txDb";
 const std::string LMDB_NTP1TOKENNAMESDB = "Ntp1NamesDb";
+const std::string LMDB_ADDRSVSPUBKEYSDB = "AddrsVsPubKeysDb";
 
 constexpr static float DB_RESIZE_PERCENT = 0.9f;
 
@@ -228,6 +231,7 @@ private:
     MDB_dbi* db_tx;
     MDB_dbi* db_ntp1Tx;
     MDB_dbi* db_ntp1tokenNames;
+    MDB_dbi* db_addrsVsPubKeys;
 
     // A batch stores up writes and deletes for atomic application. When this
     // field is non-NULL, writes/deletes go there instead of directly to disk.
@@ -718,6 +722,8 @@ public:
     bool ReadAllIssuanceTxs(std::vector<uint256>& txs);
     bool ReadNTP1TxsWithTokenSymbol(const std::string& tokenName, std::vector<uint256>& txs);
     bool WriteNTP1TxWithTokenSymbol(const std::string& tokenName, const NTP1Transaction& tx);
+    bool ReadAddressPubKey(const CBitcoinAddress& address, std::vector<uint8_t>& pubkey);
+    bool WriteAddressPubKey(const CBitcoinAddress& address, const std::vector<uint8_t>& pubkey);
     bool EraseTxIndex(const CTransaction& tx);
     bool ContainsTx(uint256 hash);
     bool ContainsNTP1Tx(uint256 hash);
@@ -756,6 +762,7 @@ void CTxDB::loadDbPointers()
     db_tx             = glob_db_tx.get();
     db_ntp1Tx         = glob_db_ntp1Tx.get();
     db_ntp1tokenNames = glob_db_ntp1tokenNames.get();
+    db_addrsVsPubKeys = glob_db_addrsVsPubKeys.get();
 }
 
 void CTxDB::resetDbPointers()
@@ -766,6 +773,7 @@ void CTxDB::resetDbPointers()
     db_tx             = nullptr;
     db_ntp1Tx         = nullptr;
     db_ntp1tokenNames = nullptr;
+    db_addrsVsPubKeys = nullptr;
 }
 
 void CTxDB::resetGlobalDbPointers()
@@ -776,6 +784,7 @@ void CTxDB::resetGlobalDbPointers()
     glob_db_tx.reset();
     glob_db_ntp1Tx.reset();
     glob_db_ntp1tokenNames.reset();
+    glob_db_addrsVsPubKeys.reset();
 
     dbEnv.reset();
 }

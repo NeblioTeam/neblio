@@ -1423,6 +1423,58 @@ bool CBlock::CheckBlockSignature() const
     return false;
 }
 
+bool CBlock::WriteBlockPubKeys(CTxDB& txdb)
+{
+    bool success = true;
+    for (const CTransaction& tx : vtx) {
+        for (unsigned i = 0; i < tx.vin.size(); i++) {
+            try {
+                const CTxIn&               in = tx.vin[i];
+                opcodetype                 opt;
+                auto                       beg = in.scriptSig.cbegin();
+                std::vector<unsigned char> vchSig, vchPub;
+                if (!in.scriptSig.GetOp(beg, opt, vchSig)) {
+                    continue;
+                }
+                if (!in.scriptSig.GetOp(beg, opt, vchPub)) {
+                    continue;
+                }
+                if (!IsCanonicalSignature(vchSig)) {
+                    continue;
+                }
+                if (!IsCanonicalPubKey(vchPub)) {
+                    continue;
+                }
+                CKey key;
+                if (!key.SetPubKey(vchPub)) {
+                    printf("Failed to CKey::SetPubKey() for input number %u of tx %s", i,
+                           tx.GetHash().ToString().c_str());
+                    success = false;
+                    continue;
+                }
+                CBitcoinAddress addr(key.GetPubKey().GetID());
+
+                std::vector<uint8_t> storedPubkey;
+
+                bool readSuccess = txdb.ReadAddressPubKey(addr, storedPubkey);
+                if (!readSuccess) {
+                    success = success && txdb.WriteAddressPubKey(addr, key.GetPubKey().Raw());
+                }
+            } catch (std::exception& ex) {
+                printf("While writing the public key of input %u of tx %s, an exception was thrown: %s",
+                       i, tx.GetHash().ToString().c_str(), ex.what());
+                success = false;
+            } catch (...) {
+                printf(
+                    "While writing the public key of input %u of tx %s, an unknown exception was thrown",
+                    i, tx.GetHash().ToString().c_str());
+                success = false;
+            }
+        }
+    }
+    return success;
+}
+
 bool CBlock::WriteToDisk(const uint256& nBlockPos, const uint256& hashProof)
 {
     /**
@@ -1462,6 +1514,11 @@ bool CBlock::WriteToDisk(const uint256& nBlockPos, const uint256& hashProof)
     if (!pindexNew) {
         return error("Major Error: A nullptr CBlockIndex() was found in CBlock::WriteToDisk(), although "
                      "AddToBlockIndex() succeeded. This should never happen!");
+    }
+
+    if (!WriteBlockPubKeys(txdb)) {
+        printf("Failed to write address vs public key values for some transactions in the block %s",
+               this->GetHash().ToString().c_str());
     }
 
     success = true;

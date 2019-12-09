@@ -702,79 +702,6 @@ std::string ConvertToBitString(T num)
     return res;
 }
 
-template <typename CTXType, int (*InitFunc)(CTXType*), int (*UpdateFunc)(CTXType*, const void*, size_t),
-          int (*FinalFunc)(unsigned char*, CTXType*), unsigned DigestSize>
-class HashCalculator
-{
-    CTXType ctx;
-
-public:
-    HashCalculator() { reset(); }
-    void push_data(const std::string& data)
-    {
-        UpdateFunc(&ctx, reinterpret_cast<const void*>(&data.front()), data.size());
-    }
-    void push_data(const std::vector<char>& data)
-    {
-        UpdateFunc(&ctx, reinterpret_cast<const void*>(&data.front()), data.size());
-    }
-    void push_data(const std::vector<unsigned char>& data)
-    {
-        UpdateFunc(&ctx, reinterpret_cast<const void*>(&data.front()), data.size());
-    }
-    void reset()
-    {
-        ctx = CTXType();
-        InitFunc(&ctx);
-    }
-    std::string getHashAndReset()
-    {
-        std::string res;
-        res.resize(DigestSize);
-        FinalFunc(reinterpret_cast<unsigned char*>(&res.front()), &ctx);
-        reset();
-        return res;
-    }
-};
-
-using Sha1Calculator = HashCalculator<SHA_CTX, SHA1_Init, SHA1_Update, SHA1_Final, SHA_DIGEST_LENGTH>;
-using Sha224Calculator =
-    HashCalculator<SHA256_CTX, SHA224_Init, SHA224_Update, SHA224_Final, SHA224_DIGEST_LENGTH>;
-using Sha256Calculator =
-    HashCalculator<SHA256_CTX, SHA256_Init, SHA256_Update, SHA256_Final, SHA256_DIGEST_LENGTH>;
-using Sha384Calculator =
-    HashCalculator<SHA512_CTX, SHA384_Init, SHA384_Update, SHA384_Final, SHA384_DIGEST_LENGTH>;
-using Sha512Calculator =
-    HashCalculator<SHA512_CTX, SHA512_Init, SHA512_Update, SHA512_Final, SHA512_DIGEST_LENGTH>;
-using Md5Calculator = HashCalculator<MD5_CTX, MD5_Init, MD5_Update, MD5_Final, MD5_DIGEST_LENGTH>;
-using Ripemd160HashCalculator = HashCalculator<RIPEMD160_CTX, RIPEMD160_Init, RIPEMD160_Update,
-                                               RIPEMD160_Final, RIPEMD160_DIGEST_LENGTH>;
-
-template <typename HashCalculatorClass>
-std::string CalculateHashOfFile(const boost::filesystem::path& PathToFile,
-                                const std::uintmax_t           ChunkSize = ONE_MB)
-{
-    if (!boost::filesystem::exists(PathToFile)) {
-        throw std::runtime_error("While attempting to calculate hash of file, it does not exist: " +
-                                 PathToFile.string());
-    }
-    boost::filesystem::ifstream fileToRead(PathToFile, std::ios::binary);
-    std::string                 chunk;
-    chunk.resize(ChunkSize);
-    if (!fileToRead.good()) {
-        throw std::runtime_error("Unable to open file: " + PathToFile.string() +
-                                 "; in order to calculate hash");
-    }
-    HashCalculatorClass calculator;
-    while (!fileToRead.eof()) {
-        fileToRead.read(&chunk.front(), ChunkSize);
-        std::size_t sz = fileToRead.gcount();
-        chunk.resize(sz);
-        calculator.push_data(chunk);
-    }
-    return calculator.getHashAndReset();
-}
-
 uintmax_t GetFreeDiskSpace(const boost::filesystem::path& path);
 
 bool                    SC_DeleteOperationScheduledOnRestart(const std::string& OpName);
@@ -794,16 +721,16 @@ void ignore_unused()
 {
 }
 
-template <typename T>
+template <typename T, typename MutexType = boost::recursive_mutex>
 class LockedVar
 {
-    T                              var;
-    mutable boost::recursive_mutex mtx;
+    T                 var;
+    mutable MutexType mtx;
 
 public:
     LockedVar(T&& Var)
     {
-        boost::lock_guard<boost::recursive_mutex> lg(mtx);
+        boost::lock_guard<MutexType> lg(mtx);
         var = std::move(Var);
     }
 
@@ -811,15 +738,25 @@ public:
 
     T& get()
     {
-        boost::lock_guard<boost::recursive_mutex> lg(mtx);
+        boost::lock_guard<MutexType> lg(mtx);
         return var;
     }
 
     T& get_unsafe() { return var; }
 
-    boost::shared_ptr<boost::lock_guard<boost::recursive_mutex>> get_lock()
+    [[nodiscard]] boost::shared_ptr<boost::lock_guard<MutexType>> get_lock() const
     {
-        return boost::make_shared<boost::lock_guard<boost::recursive_mutex>>(mtx);
+        return boost::make_shared<boost::lock_guard<MutexType>>(mtx);
+    }
+
+    [[nodiscard]] boost::shared_ptr<boost::unique_lock<MutexType>> get_try_lock() const
+    {
+        auto lock = boost::make_shared<boost::unique_lock<MutexType>>(mtx, boost::defer_lock);
+        if (mtx.try_lock()) {
+            return lock;
+        } else {
+            return nullptr;
+        }
     }
 };
 
