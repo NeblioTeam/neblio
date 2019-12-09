@@ -2002,7 +2002,7 @@ void DownloadPreMadeData(bool testnet)
         std::string content = cURLTools::GetFileFromHTTPS(
             "https://files.nebl.io/" + files[i], 10000, 0);
         fs::path testFile = testRootPath / "data" / files[i];
-        ofstream os(testFile.string().c_str());
+        std::ofstream os(testFile.string().c_str());
         os << content;
         os.close();
     }
