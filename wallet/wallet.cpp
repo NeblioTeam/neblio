@@ -5,11 +5,14 @@
 
 #include "wallet.h"
 #include "base58.h"
+#include "block.h"
 #include "coincontrol.h"
 #include "crypter.h"
 #include "kernel.h"
+#include "main.h"
 #include "ntp1/ntp1transaction.h"
 #include "txdb.h"
+#include "txmempool.h"
 #include "ui_interface.h"
 #include "walletdb.h"
 #include <boost/algorithm/string/replace.hpp>
@@ -626,6 +629,13 @@ int64_t CWallet::GetDebit(const CTxIn& txin) const
     return 0;
 }
 
+int64_t CWallet::GetCredit(const CTxOut& txout) const
+{
+    if (!MoneyRange(txout.nValue))
+        throw std::runtime_error("CWallet::GetCredit() : value out of range");
+    return (IsMine(txout) ? txout.nValue : 0);
+}
+
 bool CWallet::IsChange(const CTxOut& txout) const
 {
     CTxDestination address;
@@ -643,6 +653,54 @@ bool CWallet::IsChange(const CTxOut& txout) const
             return true;
     }
     return false;
+}
+
+int64_t CWallet::GetChange(const CTxOut& txout) const
+{
+    if (!MoneyRange(txout.nValue))
+        throw std::runtime_error("CWallet::GetChange() : value out of range");
+    return (IsChange(txout) ? txout.nValue : 0);
+}
+
+bool CWallet::IsMine(const CTransaction& tx) const
+{
+    for (const CTxOut& txout : tx.vout)
+        if (IsMine(txout) && txout.nValue >= nMinimumInputValue)
+            return true;
+    return false;
+}
+
+int64_t CWallet::GetDebit(const CTransaction& tx) const
+{
+    int64_t nDebit = 0;
+    for (const CTxIn& txin : tx.vin) {
+        nDebit += GetDebit(txin);
+        if (!MoneyRange(nDebit))
+            throw std::runtime_error("CWallet::GetDebit() : value out of range");
+    }
+    return nDebit;
+}
+
+int64_t CWallet::GetCredit(const CTransaction& tx) const
+{
+    int64_t nCredit = 0;
+    for (const CTxOut& txout : tx.vout) {
+        nCredit += GetCredit(txout);
+        if (!MoneyRange(nCredit))
+            throw std::runtime_error("CWallet::GetCredit() : value out of range");
+    }
+    return nCredit;
+}
+
+int64_t CWallet::GetChange(const CTransaction& tx) const
+{
+    int64_t nChange = 0;
+    for (const CTxOut& txout : tx.vout) {
+        nChange += GetChange(txout);
+        if (!MoneyRange(nChange))
+            throw std::runtime_error("CWallet::GetChange() : value out of range");
+    }
+    return nChange;
 }
 
 int64_t CWalletTx::GetTxTime() const
@@ -1094,7 +1152,7 @@ void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins, unsigned int nSp
                 continue;
 
             // get NTP1 information of this transaction
-            bool txIsNTP1 = IsTxNTP1(pcoin);
+            bool txIsNTP1 = NTP1Transaction::IsTxNTP1(pcoin);
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
                 if (!(pcoin->IsSpent(i)) && IsMine(pcoin->vout[i]) &&
@@ -1109,7 +1167,7 @@ void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins, unsigned int nSp
                                     " to CTransaction");
                             }
                             std::vector<std::pair<CTransaction, NTP1Transaction>> inputs =
-                                GetAllNTP1InputsOfTx(*tx, false);
+                                NTP1Transaction::GetAllNTP1InputsOfTx(*tx, false);
                             NTP1Transaction ntp1tx;
                             ntp1tx.readNTP1DataFromTx(*tx, inputs);
                             // if this output contains tokens, skip it to avoid burning them
@@ -1223,7 +1281,7 @@ bool CWallet::SelectCoinsMinConf(int64_t nTargetValue, unsigned int nSpendTime, 
 
         if (avoidNTP1Outputs) {
             // get NTP1 information of this transaction
-            bool txIsNTP1 = IsTxNTP1(pcoin);
+            bool txIsNTP1 = NTP1Transaction::IsTxNTP1(pcoin);
 
             if (txIsNTP1) {
                 // if this output is an NTP1 output, skip it
@@ -1234,7 +1292,7 @@ bool CWallet::SelectCoinsMinConf(int64_t nTargetValue, unsigned int nSpendTime, 
                                                  pcoin->GetHash().ToString() + " to CTransaction");
                     }
                     std::vector<std::pair<CTransaction, NTP1Transaction>> inputs =
-                        GetAllNTP1InputsOfTx(*tx, false);
+                        NTP1Transaction::GetAllNTP1InputsOfTx(*tx, false);
                     NTP1Transaction ntp1tx;
                     ntp1tx.readNTP1DataFromTx(*tx, inputs);
                     // if this output contains tokens, skip it to avoid burning them
@@ -1595,7 +1653,7 @@ void CreateErrorMsg(std::string* errorMsg, const std::string& msg)
 
 bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, CWalletTx& wtxNew,
                                 CReserveKey& reservekey, int64_t& nFeeRet, NTP1SendTxData ntp1TxData,
-                                const std::string& ntp1metadata, bool isNTP1Issuance,
+                                const RawNTP1MetadataBeforeSend& ntp1metadata, bool isNTP1Issuance,
                                 const CCoinControl* coinControl, std::string* errorMsg)
 {
     int64_t nValue = 0;
@@ -1810,7 +1868,9 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
 
                 try {
                     NTP1SendTxData::FixTIsChangeOutputIndex(TIs, changeOutputIndex);
-                    CWallet::SetTxNTP1OpRet(wtxNew, TIs, ntp1metadata,
+                    std::string processedMetadata = ntp1metadata.applyMetadataEncryption(
+                        wtxNew, ntp1TxData.getNTP1TokenRecipientsList());
+                    CWallet::SetTxNTP1OpRet(wtxNew, TIs, processedMetadata,
                                             ntp1TxData.getNTP1TokenIssuanceData());
                 } catch (std::exception& ex) {
                     printf("Error while setting up NTP1 data: %s\n", ex.what());
@@ -1874,8 +1934,9 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t>>& vecSend, C
 
 bool CWallet::CreateTransaction(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew,
                                 CReserveKey& reservekey, int64_t& nFeeRet,
-                                const NTP1SendTxData& ntp1TxData, const string& ntp1metadata,
-                                bool isNTP1Issuance, const CCoinControl* coinControl)
+                                const NTP1SendTxData&            ntp1TxData,
+                                const RawNTP1MetadataBeforeSend& ntp1metadata, bool isNTP1Issuance,
+                                const CCoinControl* coinControl)
 {
     vector<pair<CScript, int64_t>> vecSend;
     vecSend.push_back(make_pair(scriptPubKey, nValue));
@@ -2277,8 +2338,8 @@ string CWallet::SendMoneyToDestination(const CTxDestination& address, int64_t nV
 
 string CWallet::SendNTP1ToDestination(const CTxDestination& address, int64_t nValue,
                                       const std::string& TokenId, CWalletTx& wtxNew,
-                                      boost::shared_ptr<NTP1Wallet> ntp1wallet,
-                                      const std::string& ntp1metadata, bool fAskFee)
+                                      boost::shared_ptr<NTP1Wallet>    ntp1wallet,
+                                      const RawNTP1MetadataBeforeSend& ntp1metadata, bool fAskFee)
 {
     // Check amount
     if (nValue <= 0)
@@ -2404,6 +2465,22 @@ void CWallet::PrintWallet(const CBlock& block)
         }
     }
     printf("\n");
+}
+
+void CWallet::Inventory(const uint256& hash)
+{
+    {
+        LOCK(cs_wallet);
+        std::map<uint256, int>::iterator mi = mapRequestCount.find(hash);
+        if (mi != mapRequestCount.end())
+            (*mi).second++;
+    }
+}
+
+unsigned int CWallet::GetKeyPoolSize()
+{
+    AssertLockHeld(cs_wallet); // setKeyPool
+    return setKeyPool.size();
 }
 
 bool CWallet::GetTransaction(const uint256& hashTx, CWalletTx& wtx)
@@ -2861,7 +2938,7 @@ void CWallet::GetKeyBirthTimes(std::map<CKeyID, int64_t>& mapKeyBirth) const
             mapKeyBirth[it->first] = it->second.nCreateTime;
 
     // map in which we'll infer heights of other keys
-    CBlockIndexSmartPtr pindexMax = FindBlockByHeight(
+    CBlockIndexSmartPtr pindexMax = CBlock::FindBlockByHeight(
         std::max(0, nBestHeight - 144)); // the tip can be reorganised; use a 144-block safety margin
     std::map<CKeyID, CBlockIndexSmartPtr> mapKeyFirstBlock;
     std::set<CKeyID>                      setKeys;
@@ -2905,4 +2982,74 @@ void CWallet::GetKeyBirthTimes(std::map<CKeyID, int64_t>& mapKeyBirth) const
          it != mapKeyFirstBlock.end(); it++) {
         mapKeyBirth[it->first] = it->second->nTime - 7200; // block times can be 2h off
     }
+}
+
+bool CWalletTx::IsTrusted() const
+{
+    // Quick answer in most cases
+    if (!IsFinalTx(*this))
+        return false;
+    int nDepth = GetDepthInMainChain();
+    if (nDepth >= 1)
+        return true;
+    if (nDepth < 0)
+        return false;
+    if (fConfChange || !IsFromMe()) // using wtx's cached debit
+        return false;
+
+    // If no confirmations but it's from us, we can still
+    // consider it confirmed if all dependencies are confirmed
+    std::map<uint256, const CMerkleTx*> mapPrev;
+    std::vector<const CMerkleTx*>       vWorkQueue;
+    vWorkQueue.reserve(vtxPrev.size() + 1);
+    vWorkQueue.push_back(this);
+    for (unsigned int i = 0; i < vWorkQueue.size(); i++) {
+        const CMerkleTx* ptx = vWorkQueue[i];
+
+        if (!IsFinalTx(*ptx))
+            return false;
+        int nPDepth = ptx->GetDepthInMainChain();
+        if (nPDepth >= 1)
+            continue;
+        if (nPDepth < 0)
+            return false;
+        if (!pwallet->IsFromMe(*ptx))
+            return false;
+
+        if (mapPrev.empty()) {
+            for (const CMerkleTx& tx : vtxPrev)
+                mapPrev[tx.GetHash()] = &tx;
+        }
+
+        for (const CTxIn& txin : ptx->vin) {
+            if (!mapPrev.count(txin.prevout.hash))
+                return false;
+            vWorkQueue.push_back(mapPrev[txin.prevout.hash]);
+        }
+    }
+
+    return true;
+}
+
+bool CWalletTx::AcceptWalletTransaction(CTxDB& txdb)
+{
+
+    {
+        // Add previous supporting transactions first
+        for (CMerkleTx& tx : vtxPrev) {
+            if (!(tx.IsCoinBase() || tx.IsCoinStake())) {
+                uint256 hash = tx.GetHash();
+                if (!mempool.exists(hash) && !txdb.ContainsTx(hash))
+                    tx.AcceptToMemoryPool();
+            }
+        }
+        return AcceptToMemoryPool();
+    }
+    return false;
+}
+
+bool CWalletTx::AcceptWalletTransaction()
+{
+    CTxDB txdb("r");
+    return AcceptWalletTransaction(txdb);
 }

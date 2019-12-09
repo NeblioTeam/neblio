@@ -6,6 +6,7 @@
 #include "coincontroldialog.h"
 #include "guiconstants.h"
 #include "init.h"
+#include "main.h"
 #include "ntp1/ntp1transaction.h"
 #include "txdb.h"
 #include "wallet.h"
@@ -170,7 +171,7 @@ void IssueNewNTP1TokenDialog::validateInput() const
 }
 
 void IssueNewNTP1TokenDialog::setAlreadyIssuedTokensSymbols(
-    const std::unordered_set<string>& tokenSymbols)
+    const std::unordered_set<std::string>& tokenSymbols)
 {
     tokenSymbolValidator->setAlreadyIssuedTokenSymbols(tokenSymbols);
 }
@@ -282,8 +283,8 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
         if (fWalletUnlockStakingOnly)
             throw std::runtime_error("Error: Wallet is unlocked for staking only.");
 
-        json_spirit::Value metadataObj = getIssuanceMetadata();
-        std::string        metadataStr = json_spirit::write(metadataObj);
+        json_spirit::Value        metadataObj = getIssuanceMetadata();
+        RawNTP1MetadataBeforeSend metadata(json_spirit::write(metadataObj));
 
         if (pwalletMain == nullptr) {
             throw std::runtime_error("The wallet pointer is null. Failed to create transaction.");
@@ -319,10 +320,10 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
 
         // calculate inputs from coin control, if necessary
         assert(CoinControlDialog::coinControl != nullptr);
-        bool              takeInputsFromCoinControl = CoinControlDialog::coinControl->HasSelected();
-        vector<COutPoint> inputs =
+        bool                   takeInputsFromCoinControl = CoinControlDialog::coinControl->HasSelected();
+        std::vector<COutPoint> inputs =
             (takeInputsFromCoinControl ? CoinControlDialog::coinControl->GetSelected()
-                                       : vector<COutPoint>());
+                                       : std::vector<COutPoint>());
 
         // make sure the amount is correct AND make sure that all inputs are non-NTP1
         if (takeInputsFromCoinControl) {
@@ -330,19 +331,19 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
             uint64_t totalInInputs = 0;
             for (const COutPoint o : inputs) {
 
-                CTransaction tx = FetchTxFromDisk(o.hash, txdb);
+                CTransaction tx = CTransaction::FetchTxFromDisk(o.hash, txdb);
 
                 assert(o.n < tx.vout.size());
                 totalInInputs += tx.vout[o.n].nValue;
 
                 // get NTP1 information of this transaction
-                bool txIsNTP1 = IsTxNTP1(&tx);
+                bool txIsNTP1 = NTP1Transaction::IsTxNTP1(&tx);
 
                 if (txIsNTP1) {
                     // if this output is an NTP1 output, skip it
                     try {
                         std::vector<std::pair<CTransaction, NTP1Transaction>> inputs =
-                            GetAllNTP1InputsOfTx(tx, false);
+                            NTP1Transaction::GetAllNTP1InputsOfTx(tx, false);
                         NTP1Transaction ntp1tx;
                         ntp1tx.readNTP1DataFromTx(tx, inputs);
                         // if this output contains tokens, skip it to avoid burning them
@@ -377,7 +378,7 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
 
         // initial selection of NTP1 tokens
         NTP1SendTxData tokenSelector;
-        tokenSelector.issueNTP1Token(IssueTokenData(amount, tokenSymbol, metadataStr));
+        tokenSelector.issueNTP1Token(IssueTokenData(amount, tokenSymbol, metadata.metadata));
         tokenSelector.selectNTP1Tokens(ntp1wallet, inputs, ntp1recipients, !takeInputsFromCoinControl);
 
         // Send
@@ -393,9 +394,9 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
 
         std::string errorMessage;
 
-        bool fCreated = pwalletMain->CreateTransaction(vector<pair<CScript, int64_t>>(), wtx, keyChange,
-                                                       nFeeRequired, tokenSelector, metadataStr, true,
-                                                       CoinControlDialog::coinControl, &errorMessage);
+        bool fCreated = pwalletMain->CreateTransaction(
+            std::vector<std::pair<CScript, int64_t>>(), wtx, keyChange, nFeeRequired, tokenSelector,
+            metadata, true, CoinControlDialog::coinControl, &errorMessage);
         if (!fCreated) {
             if (minAmount + nFeeRequired > pwalletMain->GetBalance()) {
                 throw std::runtime_error(
@@ -419,7 +420,7 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
         // verify the NTP1 transaction before commiting
         try {
             std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
-                GetAllNTP1InputsOfTx(wtx, false);
+                NTP1Transaction::GetAllNTP1InputsOfTx(wtx, false);
             NTP1Transaction ntp1tx;
             ntp1tx.readNTP1DataFromTx(wtx, inputsTxs);
         } catch (std::exception& ex) {
@@ -493,12 +494,12 @@ QValidator::State NTP1TokenSymbolValidator::validate(QString& input, int&) const
 }
 
 void NTP1TokenSymbolValidator::setAlreadyIssuedTokenSymbols(
-    const std::unordered_set<string>& tokenSymbols)
+    const std::unordered_set<std::string>& tokenSymbols)
 {
     alreadyIssuedTokenSymbols = tokenSymbols;
 }
 
-bool NTP1TokenSymbolValidator::tokenWithSymbolAlreadyIssued(const string& tokenSymbol)
+bool NTP1TokenSymbolValidator::tokenWithSymbolAlreadyIssued(const std::string& tokenSymbol)
 {
     return alreadyIssuedTokenSymbols.find(tokenSymbol) != alreadyIssuedTokenSymbols.cend();
 }

@@ -45,7 +45,7 @@ class NTP1Wallet : public boost::enable_shared_from_this<NTP1Wallet>
 
     static std::string __downloadIcon(const std::string& IconURL);
     static void        AddOutputToWalletBalance(const NTP1Transaction& tx, int outputIndex,
-                                                std::map<string, NTP1Int>& balancesTable);
+                                                std::map<std::string, NTP1Int>& balancesTable);
     // returns true if removed
     bool                removeOutputIfSpent(const NTP1OutPoint& output, const CWalletTx& neblTx);
     void                scanSpentTransactions();
@@ -100,7 +100,7 @@ public:
     bool getRetrieveFullMetadata() const;
     void setRetrieveFullMetadata(bool value);
 
-    std::map<string, NTP1Int> getBalances() const;
+    std::map<std::string, NTP1Int> getBalances() const;
 
     const std::unordered_map<std::string, NTP1TokenMetaData>& getTokenMetadataMap() const;
 

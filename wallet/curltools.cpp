@@ -1,6 +1,7 @@
 #include "curltools.h"
 
 #include "json_spirit.h"
+#include "util.h"
 #include <boost/thread.hpp>
 #include <iostream>
 #include <openssl/ssl.h>

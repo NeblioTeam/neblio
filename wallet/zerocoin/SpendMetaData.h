@@ -16,7 +16,6 @@
 #include "../uint256.h"
 #include "../serialize.h"
 
-using namespace std;
 namespace libzerocoin {
 
 /** Any meta data needed for actual bitcoin integration.

@@ -9,7 +9,9 @@
 #include "nebliorest.h"
 #endif
 #include "checkpoints.h"
+#include "globals.h"
 #include "init.h"
+#include "main.h"
 #include "net.h"
 #include "ui_interface.h"
 #include "util.h"
@@ -35,7 +37,6 @@ bool                     fEnforceCanonical;
 unsigned int             nNodeLifespan;
 unsigned int             nDerivationMethodIndex;
 unsigned int             nMinerSleep;
-bool                     fUseFastIndex;
 enum Checkpoints::CPMode CheckpointsMode;
 
 //////////////////////////////////////////////////////////////////////////////
@@ -404,17 +405,17 @@ bool AppInit2()
     fUseFastIndex = GetBoolArg("-fastindex", true);
     nMinerSleep   = GetArg("-minersleep", 500);
 
-    CheckpointsMode       = Checkpoints::STRICT;
+    CheckpointsMode       = Checkpoints::CPMode_STRICT;
     std::string strCpMode = GetArg("-cppolicy", "strict");
 
     if (strCpMode == "strict")
-        CheckpointsMode = Checkpoints::STRICT;
+        CheckpointsMode = Checkpoints::CPMode_STRICT;
 
     if (strCpMode == "advisory")
-        CheckpointsMode = Checkpoints::ADVISORY;
+        CheckpointsMode = Checkpoints::CPMode_ADVISORY;
 
     if (strCpMode == "permissive")
-        CheckpointsMode = Checkpoints::PERMISSIVE;
+        CheckpointsMode = Checkpoints::CPMode_PERMISSIVE;
 
     nDerivationMethodIndex = 0;
 
@@ -947,11 +948,11 @@ bool AppInit2()
 
     {
         CAddrDB adb;
-        if (!adb.Read(addrman))
+        if (!adb.Read(addrman.get()))
             printf("Invalid or missing peers.dat; recreating\n");
     }
 
-    printf("Loaded %i addresses from peers.dat  %" PRId64 "ms\n", addrman.size(),
+    printf("Loaded %i addresses from peers.dat  %" PRId64 "ms\n", addrman.get().size(),
            GetTimeMillis() - nStart);
 
     // ********************************************************* Step 11: start node

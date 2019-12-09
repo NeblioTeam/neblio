@@ -335,3 +335,130 @@ TEST(wallet_tests, coin_selection_tests)
         empty_wallet();
     }
 }
+
+#include "main.h"
+#include "txdb.h"
+
+CBlock BlockFromHex(const std::string& hex)
+{
+    CDataStream stream(ParseHex(hex), SER_NETWORK, PROTOCOL_VERSION);
+    CBlock      block;
+    stream >> block;
+    return block;
+}
+
+static CBlockIndexSmartPtr InsertBlockIndex(uint256 hash)
+{
+    if (hash == 0)
+        return nullptr;
+
+    // Return existing
+    map<uint256, CBlockIndexSmartPtr>::iterator mi = mapBlockIndex.find(hash);
+    if (mi != mapBlockIndex.end())
+        return mi->second;
+
+    // Create new
+    CBlockIndexSmartPtr pindexNew = boost::make_shared<CBlockIndex>();
+    if (!pindexNew)
+        throw runtime_error("LoadBlockIndex() : new CBlockIndex failed");
+    mi                    = mapBlockIndex.insert(make_pair(hash, pindexNew)).first;
+    pindexNew->phashBlock = &((*mi).first);
+
+    return pindexNew;
+}
+
+CBlockIndexSmartPtr BlockIndexFromHex(const std::string& hex, bool lastBlock = false)
+{
+    CDataStream     stream(ParseHex(hex), SER_NETWORK, PROTOCOL_VERSION);
+    CDiskBlockIndex diskindex;
+    stream >> diskindex;
+
+    uint256 blockHash = diskindex.GetBlockHash();
+
+    // Construct block index object
+    CBlockIndexSmartPtr pindexNew = InsertBlockIndex(blockHash);
+    pindexNew->pprev              = InsertBlockIndex(diskindex.hashPrev);
+    if (!lastBlock) {
+        pindexNew->pnext = InsertBlockIndex(diskindex.hashNext);
+    } else {
+        pindexNew->pnext = nullptr;
+    }
+    pindexNew->blockKeyInDB   = diskindex.blockKeyInDB;
+    pindexNew->nHeight        = diskindex.nHeight;
+    pindexNew->nMint          = diskindex.nMint;
+    pindexNew->nMoneySupply   = diskindex.nMoneySupply;
+    pindexNew->nFlags         = diskindex.nFlags;
+    pindexNew->nStakeModifier = diskindex.nStakeModifier;
+    pindexNew->prevoutStake   = diskindex.prevoutStake;
+    pindexNew->nStakeTime     = diskindex.nStakeTime;
+    pindexNew->hashProof      = diskindex.hashProof;
+    pindexNew->nVersion       = diskindex.nVersion;
+    pindexNew->hashMerkleRoot = diskindex.hashMerkleRoot;
+    pindexNew->nTime          = diskindex.nTime;
+    pindexNew->nBits          = diskindex.nBits;
+    pindexNew->nNonce         = diskindex.nNonce;
+
+    hashBestChain = blockHash;
+
+    return pindexNew;
+}
+
+TEST(blockindex_tests, create)
+{
+    fTestNet = true;
+
+    // testnet genesis
+    std::string genesisBlockHex =
+        "010000000000000000000000000000000000000000000000000000000000000000000000e7ae9132c789d33c38b735a"
+        "e562ef57c9780c7328b0d1cb0121a321432d13f20137a7259ffff7f20252100000101000000137a7259010000000000"
+        "000000000000000000000000000000000000000000000000000000ffffffff2900012a2532316a756c32303137202d2"
+        "04e65626c696f204669727374204e6574204c61756e63686573ffffffff010000000000000000000000000000";
+
+    std::string genesisBlockIndexHex =
+        "80841E00CEA03111D302B814C0EFFCEE90A08324D969E72D7EBDAB96AB0EDB99ADEC2E0ECC8BD29C351D1873BEB9CA2"
+        "2E257652E251C47B74960253D46C1DBE42B978672000000000000000000000000000000000000000004000000000000"
+        "0000000000CC8BD29C351D1873BEB9CA22E257652E251C47B74960253D46C1DBE42B978672010000000000000000000"
+        "000000000000000000000000000000000000000000000000000E7AE9132C789D33C38B735AE562EF57C9780C7328B0D"
+        "1CB0121A321432D13F20137A7259FFFF7F2025210000CC8BD29C351D1873BEB9CA22E257652E251C47B74960253D46C"
+        "1DBE42B978672";
+
+    CBlock genesisBlock = BlockFromHex(genesisBlockHex);
+
+    /*CBlockIndex* genesisBlockIndex = */ BlockIndexFromHex(genesisBlockIndexHex, true);
+
+    EXPECT_EQ(mapBlockIndex.size(), 1u);
+
+    //    EXPECT_TRUE(ProcessBlock(nullptr, &genesisBlock));
+
+    //    // can't import twice
+    //    EXPECT_FALSE(ProcessBlock(nullptr, &genesisBlock));
+
+    CBlock block;
+    block.nVersion       = CBlock::CURRENT_VERSION;
+    block.nTime          = GetAdjustedTime();
+    block.hashMerkleRoot = block.BuildMerkleTree();
+    block.nBits          = CBigNum(~uint256(0) >> 1).GetCompact();
+    block.nNonce         = 0;
+    block.vtx            = {};
+    block.vchBlockSig    = {}; // for proof of work
+    block.hashPrevBlock  = hashBestChain;
+    EXPECT_TRUE(block.IsProofOfWork());
+
+    /*uint256 bhash = */ block.GetHash();
+    auto it = mapBlockIndex.find(hashBestChain);
+    EXPECT_NE(it, mapBlockIndex.cend());
+
+    //    IMPLEMENT_SERIALIZE(READWRITE(this->nVersion); nVersion = this->nVersion;
+    //    READWRITE(hashPrevBlock);
+    //                        READWRITE(hashMerkleRoot); READWRITE(nTime); READWRITE(nBits);
+    //                        READWRITE(nNonce);
+
+    //                        // ConnectBlock depends on vtx following header to generate CDiskTxPos
+    //                        if (!(nType & (SER_GETHASH | SER_BLOCKHEADERONLY))) {
+    //                            READWRITE(vtx);
+    //                            READWRITE(vchBlockSig);
+    //                        } else if (fRead) {
+    //                            const_cast<CBlock*>(this)->vtx.clear();
+    //                            const_cast<CBlock*>(this)->vchBlockSig.clear();
+    //                        })
+}

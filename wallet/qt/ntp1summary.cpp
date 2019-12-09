@@ -7,6 +7,7 @@
 #include "ntp1/ntp1tokenlistitemdelegate.h"
 #include "optionsmodel.h"
 #include "qt/ntp1/ntp1tokenlistmodel.h"
+#include "main.h"
 #include "walletmodel.h"
 
 #include <QAction>
@@ -25,7 +26,7 @@ const QString NTP1Summary::copyIssuanceTxid         = "Copy issuance transaction
 const QString NTP1Summary::viewInBlockExplorerText  = "Show in block explorer";
 const QString NTP1Summary::viewIssuanceMetadataText = "Show issuance metadata";
 
-void NTP1Summary::GetAlreadyIssuedNTP1Tokens(boost::promise<std::unordered_set<string>>& promise)
+void NTP1Summary::GetAlreadyIssuedNTP1Tokens(boost::promise<std::unordered_set<std::string>>& promise)
 {
     try {
         LOCK(cs_main);

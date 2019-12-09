@@ -3,6 +3,7 @@
 #include <boost/algorithm/hex.hpp>
 
 #include "init.h"
+#include "main.h"
 #include "util.h"
 
 NTP1Script_Transfer::NTP1Script_Transfer() {}

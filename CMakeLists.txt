@@ -79,13 +79,14 @@ endforeach()
 set(Boost_USE_STATIC_LIBS 1)
 set(Boost_USE_STATIC_RUNTIME 1)
 
-find_package(Qt5Widgets REQUIRED)
-find_package(Qt5Core    REQUIRED)
+find_package(Qt5Widgets       REQUIRED)
+find_package(Qt5Core          REQUIRED)
 find_package(Qt5LinguistTools REQUIRED)
-find_package(BerkeleyDB REQUIRED)
-find_package(PkgConfig  REQUIRED)
-find_package(Boost 1.55 COMPONENTS system random filesystem thread regex program_options iostreams atomic REQUIRED)
-find_package(Threads REQUIRED)
+find_package(BerkeleyDB       REQUIRED)
+find_package(PkgConfig        REQUIRED)
+find_package(Boost 1.55       COMPONENTS system random filesystem thread regex program_options iostreams atomic REQUIRED)
+find_package(Threads          REQUIRED)
+find_package(sodium           REQUIRED)
 
 SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 find_package(ZLIB       REQUIRED)
@@ -563,11 +564,29 @@ add_library(core_lib STATIC
     wallet/ThreadSafeMap.cpp
     wallet/ThreadSafeHashMap.cpp
     wallet/NetworkForks.cpp
+    wallet/blockindexcatalog.cpp
+    wallet/blockindex.cpp
+    wallet/outpoint.cpp
+    wallet/inpoint.cpp
+    wallet/block.cpp
+    wallet/transaction.cpp
+    wallet/globals.cpp
+    wallet/diskblockindex.cpp
+    wallet/disktxpos.cpp
+    wallet/txindex.cpp
+    wallet/txin.cpp
+    wallet/txout.cpp
+    wallet/txmempool.cpp
+    wallet/merkletx.cpp
+    wallet/blocklocator.cpp
+    wallet/crypto_highlevel.cpp
+    wallet/CustomTypes.cpp
     )
 
 target_link_libraries(core_lib
     ntp1_lib
     curltools_lib
+    sodium
     )
 
 add_library(curltools_lib STATIC
@@ -633,6 +652,7 @@ endif()
 add_library(txdb_lib STATIC
     wallet/txdb-lmdb.cpp
     wallet/SerializationTester.cpp
+    wallet/diskblockindex.cpp
     )
 
 target_link_libraries(txdb_lib
@@ -650,6 +670,8 @@ target_include_directories(gui_lib PRIVATE wallet/qt)
 target_include_directories(ntp1_gui_lib PRIVATE wallet/qt)
 
 include_directories(${ZLIB_INCLUDE_DIRS})
+
+include_directories(${sodium_INCLUDE_DIR})
 
 # the following from here https://github.com/owncloud/client/blob/master/src/gui/CMakeLists.txt
 target_compile_definitions(gui_lib PRIVATE "QT_DISABLE_DEPRECATED_BEFORE=0")

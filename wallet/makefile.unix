@@ -76,7 +76,8 @@ LIBS += \
    -l db_cxx$(BDB_LIB_SUFFIX) \
    -l ssl \
    -l crypto \
-   -l z
+   -l z \
+   -l sodium
 
 ifdef NEBLIO_REST
    LIBS += -l restbed
@@ -198,6 +199,21 @@ OBJS= \
     obj/zerocoin/SerialNumberSignatureOfKnowledge.o \
     obj/zerocoin/SpendMetaData.o \
     obj/zerocoin/ZeroTest.o \
+    obj/blockindexcatalog.o                   \
+    obj/blockindex.o                          \
+    obj/outpoint.o                            \
+    obj/inpoint.o                             \
+    obj/block.o                               \
+    obj/transaction.o                         \
+    obj/globals.o                             \
+    obj/diskblockindex.o                      \
+    obj/disktxpos.o                           \
+    obj/txindex.o                             \
+    obj/txin.o                                \
+    obj/txout.o                               \
+    obj/txmempool.o                           \
+    obj/merkletx.o                            \
+    obj/blocklocator.o                        \
     obj/curltools.o                           \
     obj/json/json_spirit_reader.o             \
     obj/json/json_spirit_value.o              \
@@ -219,7 +235,8 @@ OBJS= \
     obj/ntp1/ntp1txout.o                      \
     obj/ntp1/ntp1sendtxdata.o                 \
     obj/ntp1/ntp1wallet.o                     \
-    obj/ntp1/ntp1v1_issuance_static_data.o
+    obj/ntp1/ntp1v1_issuance_static_data.o    \
+    obj/crypto_highlevel.o
 
 ifdef NEBLIO_REST
     OBJS += obj/nebliorest.o

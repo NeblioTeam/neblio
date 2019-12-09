@@ -2,6 +2,7 @@
 #define NTP1TOOLS_H
 
 #include "curltools.h"
+#include "ntp1script.h"
 #include "json/json_spirit.h"
 
 class NTP1Tools

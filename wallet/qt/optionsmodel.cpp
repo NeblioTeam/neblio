@@ -4,6 +4,7 @@
 
 #include "guiutil.h"
 #include "init.h"
+#include "main.h"
 #include "walletdb.h"
 
 OptionsModel::OptionsModel(QObject* parent) : QAbstractListModel(parent) { Init(); }
@@ -56,7 +57,7 @@ void OptionsModel::Init()
         SoftSetArg("-lang", language.toStdString());
 }
 
-int OptionsModel::rowCount(const QModelIndex& parent) const { return OptionIDRowCount; }
+int OptionsModel::rowCount(const QModelIndex& /*parent*/) const { return OptionIDRowCount; }
 
 QVariant OptionsModel::data(const QModelIndex& index, int role) const
 {

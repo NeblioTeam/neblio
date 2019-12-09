@@ -3,6 +3,7 @@
 #include "base58.h"
 #include "hash.h"
 #include "init.h"
+#include "main.h"
 #include "util.h"
 #include <boost/algorithm/hex.hpp>
 

@@ -1,6 +1,8 @@
 #ifndef TRANSACTIONRECORD_H
 #define TRANSACTIONRECORD_H
 
+#include <QObject>
+
 #include "ntp1/ntp1transaction.h"
 #include "uint256.h"
 
@@ -114,6 +116,7 @@ public:
     std::string     address;
     qint64          debit;
     qint64          credit;
+    CTransaction    tx;
     NTP1Transaction ntp1tx;
     /**@}*/
 

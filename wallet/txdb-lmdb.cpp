@@ -28,6 +28,7 @@ DbSmartPtrType glob_db_blocks(nullptr, [](MDB_dbi*) {});
 DbSmartPtrType glob_db_tx(nullptr, [](MDB_dbi*) {});
 DbSmartPtrType glob_db_ntp1Tx(nullptr, [](MDB_dbi*) {});
 DbSmartPtrType glob_db_ntp1tokenNames(nullptr, [](MDB_dbi*) {});
+DbSmartPtrType glob_db_addrsVsPubKeys(nullptr, [](MDB_dbi*) {});
 
 using namespace std;
 using namespace boost;
@@ -504,6 +505,7 @@ void CTxDB::init_blockindex(bool fRemoveOld)
     glob_db_tx             = DbSmartPtrType(new MDB_dbi, dbDeleter);
     glob_db_ntp1Tx         = DbSmartPtrType(new MDB_dbi, dbDeleter);
     glob_db_ntp1tokenNames = DbSmartPtrType(new MDB_dbi, dbDeleter);
+    glob_db_addrsVsPubKeys = DbSmartPtrType(new MDB_dbi, dbDeleter);
 
     // MDB_CREATE: Create the named database if it doesn't exist.
     CTxDB::lmdb_db_open(txn, LMDB_MAINDB.c_str(), MDB_CREATE, *glob_db_main,
@@ -518,6 +520,8 @@ void CTxDB::init_blockindex(bool fRemoveOld)
                         "Failed to open db handle for glob_db_ntp1Tx");
     CTxDB::lmdb_db_open(txn, LMDB_NTP1TOKENNAMESDB.c_str(), MDB_CREATE | MDB_DUPSORT,
                         *glob_db_ntp1tokenNames, "Failed to open db handle for glob_db_ntp1Tx");
+    CTxDB::lmdb_db_open(txn, LMDB_ADDRSVSPUBKEYSDB.c_str(), MDB_CREATE, *glob_db_addrsVsPubKeys,
+                        "Failed to open db handle for glob_db_ntp1Tx");
 
     // commit the transaction
     txn.commit();
@@ -539,6 +543,9 @@ void CTxDB::init_blockindex(bool fRemoveOld)
     }
     if (!glob_db_ntp1tokenNames) {
         throw std::runtime_error("LMDB nullptr after opening the db_ntp1tokenNames database.");
+    }
+    if (!glob_db_addrsVsPubKeys) {
+        throw std::runtime_error("LMDB nullptr after opening the db_addrsVsPubKeys database.");
     }
 
     printf("Done opening the database\n");
@@ -732,6 +739,16 @@ bool CTxDB::WriteNTP1TxWithTokenSymbol(const std::string& tokenSymbol, const NTP
         return false;
     }
     return Write(tokenSymbol, ntp1tx.getTxHash(), db_ntp1tokenNames);
+}
+
+bool CTxDB::ReadAddressPubKey(const CBitcoinAddress& address, std::vector<uint8_t>& pubkey)
+{
+    return Read(address, pubkey, db_addrsVsPubKeys);
+}
+
+bool CTxDB::WriteAddressPubKey(const CBitcoinAddress& address, const std::vector<uint8_t>& pubkey)
+{
+    return Write(address, pubkey, db_addrsVsPubKeys);
 }
 
 bool CTxDB::WriteNTP1Tx(uint256 hash, const NTP1Transaction& ntp1tx)

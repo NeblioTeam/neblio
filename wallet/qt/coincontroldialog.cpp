@@ -6,8 +6,10 @@
 #include "coincontrol.h"
 #include "init.h"
 #include "ntp1/ntp1transaction.h"
+#include "main.h"
 #include "optionsmodel.h"
 #include "walletmodel.h"
+#include "globals.h"
 
 #include <QApplication>
 #include <QCheckBox>
@@ -491,13 +493,13 @@ void CoinControlDialog::updateLabels(WalletModel* model, QDialog* dialog)
         nQuantity++;
 
         // check for NTP1 inputs, to avoid adding NTP1 inputs to the amount
-        bool txIsNTP1     = IsTxNTP1(out.tx);
+        bool txIsNTP1     = NTP1Transaction::IsTxNTP1(out.tx);
         bool outputIsNTP1 = false;
         if (txIsNTP1) {
             try {
                 NTP1Transaction                                       ntp1tx;
                 std::vector<std::pair<CTransaction, NTP1Transaction>> prevTxs =
-                    GetAllNTP1InputsOfTx(*out.tx, false);
+                    NTP1Transaction::GetAllNTP1InputsOfTx(*out.tx, false);
                 ntp1tx.readNTP1DataFromTx(*out.tx, prevTxs);
                 outputIsNTP1 = (ntp1tx.getTxOut(out.i).tokenCount() != 0);
 
@@ -742,12 +744,12 @@ void CoinControlDialog::updateView()
             QString sTokenType        = "";
             QString sTokenId          = "";
             QString sNTP1TokenAmounts = "";
-            bool    txIsNTP1          = IsTxNTP1(out.tx);
+            bool    txIsNTP1          = NTP1Transaction::IsTxNTP1(out.tx);
             if (txIsNTP1) {
                 try {
                     NTP1Transaction                                       ntp1tx;
                     std::vector<std::pair<CTransaction, NTP1Transaction>> prevTxs =
-                        GetAllNTP1InputsOfTx(*out.tx, false);
+                        NTP1Transaction::GetAllNTP1InputsOfTx(*out.tx, false);
                     ntp1tx.readNTP1DataFromTx(*out.tx, prevTxs);
                     bool considerNeblsToo = (out.tx->vout[out.i].nValue > MIN_TX_FEE);
                     if (considerNeblsToo) {

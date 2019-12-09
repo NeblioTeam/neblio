@@ -4,6 +4,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "util.h"
+#include "globals.h"
 #include "sync.h"
 #include "ui_interface.h"
 #include "version.h"
