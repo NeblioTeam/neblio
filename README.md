@@ -185,7 +185,7 @@ addmultisigaddress <nrequired> <'["key","key"]'> [account]
 addredeemscript <redeemScript> [account]
 backupwallet <destination>
 checkwallet
-createrawntp1transaction [{"txid":txid,"vout":n},...] {address:{tokenid/tokenName:tokenAmount},address:neblAmount,...} '{"userData":{"meta":[{"K1":"V1"},{},...]}}'
+createrawntp1transaction [{"txid":txid,"vout":n},...] {address:{tokenid/tokenName:tokenAmount},address:neblAmount,...} '{"userData":{"meta":[{"K1":"V1"},{},...]}}' [encrypt-metadata=false]
 createrawtransaction [{"txid":txid,"vout":n},...] {address:amount,...}
 decoderawtransaction <hex string> [ignoreNTP1=false]
 decodescript <hex string>
@@ -240,7 +240,7 @@ reservebalance [<reserve> [amount]]
 sendalert <message> <privatekey> <minver> <maxver> <priority> <id> [cancelupto]
 sendfrom <fromaccount> <toneblioaddress> <amount> [minconf=1] [comment] [comment-to]
 sendmany <fromaccount (must be empty, unsupported)> {address:amount,...} [comment]
-sendntp1toaddress <neblioaddress> <amount> <tokenId/tokenName> '{"userData":{"meta":[{"K1":"V1"},{},...]}}'[comment] [comment-to]
+sendntp1toaddress <neblioaddress> <amount> <tokenId/tokenName> '{"userData":{"meta":[{"K1":"V1"},{},...]}}' [encrypt-metadata=false] [comment] [comment-to]
 sendrawtransaction <hex string>
 sendtoaddress <neblioaddress> <amount> [comment] [comment-to]
 setaccount <neblioaddress> <account>
