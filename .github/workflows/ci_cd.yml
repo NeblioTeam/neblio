@@ -163,6 +163,8 @@ jobs:
 
 
   docker:
+    # Do not build PRs on Docker due to incompatibility
+    if: "!startsWith(github.ref, 'refs/pull')"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Docker Files
