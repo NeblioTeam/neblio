@@ -7,6 +7,7 @@
 #include "base58.h"
 #include "db.h"
 #include "init.h"
+#include "main.h"
 #include "sync.h"
 #include "ui_interface.h"
 #include "util.h"
@@ -605,7 +606,8 @@ public:
     virtual void           close()                        = 0;
 };
 
-// Although this "Executor" can be an ExecutionContext, we use this just for backward compatibility with older boost versions
+// Although this "Executor" can be an ExecutionContext, we use this just for backward compatibility with
+// older boost versions
 template <typename Protocol, typename Executor>
 class AcceptedConnectionImpl : public AcceptedConnection
 {
@@ -650,17 +652,16 @@ void ThreadRPCServer(void* parg)
 
 // Forward declaration required for RPCListen
 template <typename Protocol>
-static void
-RPCAcceptHandler(boost::shared_ptr<basic_socket_acceptor<Protocol>> acceptor,
-                 ssl::context& context, bool fUseSSL, AcceptedConnection* conn,
-                 const boost::system::error_code& error);
+static void RPCAcceptHandler(boost::shared_ptr<basic_socket_acceptor<Protocol>> acceptor,
+                             ssl::context& context, bool fUseSSL, AcceptedConnection* conn,
+                             const boost::system::error_code& error);
 
 /**
  * Sets up I/O resources to accept and handle a new connection.
  */
 template <typename Protocol>
-static void RPCListen(boost::shared_ptr<basic_socket_acceptor<Protocol>> acceptor,
-                      ssl::context& context, const bool fUseSSL)
+static void RPCListen(boost::shared_ptr<basic_socket_acceptor<Protocol>> acceptor, ssl::context& context,
+                      const bool fUseSSL)
 {
 #if BOOST_VERSION >= 107000
     auto executionContextOrExecutor = acceptor->get_executor();
@@ -675,19 +676,17 @@ static void RPCListen(boost::shared_ptr<basic_socket_acceptor<Protocol>> accepto
         new AcceptedConnectionImpl<Protocol, ExecutorType>(executionContextOrExecutor, context, fUseSSL);
 
     acceptor->async_accept(conn->sslStream.lowest_layer(), conn->peer,
-                           boost::bind(&RPCAcceptHandler<Protocol>, acceptor,
-                                       boost::ref(context), fUseSSL, conn,
-                                       boost::asio::placeholders::error));
+                           boost::bind(&RPCAcceptHandler<Protocol>, acceptor, boost::ref(context),
+                                       fUseSSL, conn, boost::asio::placeholders::error));
 }
 
 /**
  * Accept and handle incoming connection.
  */
 template <typename Protocol>
-static void
-RPCAcceptHandler(boost::shared_ptr<basic_socket_acceptor<Protocol>> acceptor,
-                 ssl::context& context, const bool fUseSSL, AcceptedConnection* conn,
-                 const boost::system::error_code& error)
+static void RPCAcceptHandler(boost::shared_ptr<basic_socket_acceptor<Protocol>> acceptor,
+                             ssl::context& context, const bool fUseSSL, AcceptedConnection* conn,
+                             const boost::system::error_code& error)
 {
     vnThreadsRunning[THREAD_RPCLISTENER]++;
 
@@ -703,7 +702,8 @@ RPCAcceptHandler(boost::shared_ptr<basic_socket_acceptor<Protocol>> acceptor,
 
     using ExecutorType = typename std::remove_reference<decltype(executionContextOrExecutor)>::type;
 
-    AcceptedConnectionImpl<ip::tcp, ExecutorType>* tcp_conn = dynamic_cast<AcceptedConnectionImpl<ip::tcp, ExecutorType>*>(conn);
+    AcceptedConnectionImpl<ip::tcp, ExecutorType>* tcp_conn =
+        dynamic_cast<AcceptedConnectionImpl<ip::tcp, ExecutorType>*>(conn);
 
     // TODO: Actually handle errors
     if (error) {
@@ -1178,6 +1178,8 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
         ConvertTo<double>(params[1]);
     if (strMethod == "sendntp1toaddress" && n > 1)
         ConvertTo<int64_t>(params[1]);
+    if (strMethod == "sendntp1toaddress" && n > 4)
+        ConvertTo<bool>(params[4]);
     if (strMethod == "settxfee" && n > 0)
         ConvertTo<double>(params[0]);
     if (strMethod == "getreceivedbyaddress" && n > 1)
@@ -1278,6 +1280,8 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
         ConvertTo<Array>(params[0]);
     if (strMethod == "createrawntp1transaction" && n > 1)
         ConvertTo<Object>(params[1]);
+    if (strMethod == "createrawntp1transaction" && n > 3)
+        ConvertTo<bool>(params[3]);
     if (strMethod == "signrawtransaction" && n > 1)
         ConvertTo<Array>(params[1], true);
     if (strMethod == "signrawtransaction" && n > 2)

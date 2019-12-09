@@ -475,19 +475,19 @@ TEST(ntp1_tests, script_issuance_allowed_chars_in_token_symbol)
         // -IBBL name
         toParse_issuance = "4e5401012d4942424cab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
                            "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
-        EXPECT_THROW(script = NTP1Script::ParseScript(toParse_issuance), runtime_error);
+        EXPECT_THROW(script = NTP1Script::ParseScript(toParse_issuance), std::runtime_error);
     }
     {
         // NI~BL name 4e497e424c
         toParse_issuance = "4e5401014e497e424cab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
                            "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
-        EXPECT_THROW(script = NTP1Script::ParseScript(toParse_issuance), runtime_error);
+        EXPECT_THROW(script = NTP1Script::ParseScript(toParse_issuance), std::runtime_error);
     }
     {
         // NIBB. name 4e4942422e
         toParse_issuance = "4e5401014e4942422eab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
                            "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
-        EXPECT_THROW(script = NTP1Script::ParseScript(toParse_issuance), runtime_error);
+        EXPECT_THROW(script = NTP1Script::ParseScript(toParse_issuance), std::runtime_error);
     }
 
     // a string of all invalid characters from the ascii table
@@ -548,7 +548,7 @@ TEST(ntp1_tests, script_issuance_allowed_chars_in_token_symbol)
             // Exception is thrown after replacing the char with an invalid char
             tokenName = boost::algorithm::hex(tokenNameRaw); // new name with one invalid character
             toParse_issuance = to_parse_prefix + tokenName + to_parse_suffix;
-            EXPECT_THROW(script = NTP1Script::ParseScript(toParse_issuance), runtime_error)
+            EXPECT_THROW(script = NTP1Script::ParseScript(toParse_issuance), std::runtime_error)
                 << "The char \"" << boost::algorithm::hex(std::string(1, c))
                 << "\" in a token name didn't throw an exception";
         }
@@ -677,7 +677,7 @@ CTransaction TxFromHex(const std::string& hex)
 TEST(ntp1_tests, parsig_ntp1_from_ctransaction_issuance)
 {
     // issuance
-    string transaction =
+    std::string transaction =
         "010000001af29a5a012081139a3e0d764e9fb415bf1601c5bc24eba093c3f6a735aaa9d81d27d55dc5010000006"
         "b483045022100ea2baf384bb518ed939a1dfc02df634be2186c5e35d79a09fc7c1f1379987bc102200e286cc382"
         "9fbe574bda0cacfe8e918755574685bcb8af8a67b2d24f0087122d012103bd4c76349aae4b81011eddce127f36c"
@@ -691,7 +691,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_issuance)
     EXPECT_TRUE(tx.CheckTransaction());
 
     std::string opReturnArg;
-    EXPECT_TRUE(IsTxNTP1(&tx, &opReturnArg));
+    EXPECT_TRUE(NTP1Transaction::IsTxNTP1(&tx, &opReturnArg));
     std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScript(opReturnArg);
     std::shared_ptr<NTP1Script_Issuance> script_issuance =
         std::dynamic_pointer_cast<NTP1Script_Issuance>(script);
@@ -762,7 +762,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_issuance)
 TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
 {
     // transfer
-    string transaction =
+    std::string transaction =
         "01000000f554a35a0247b394148396ef78de65f4792e57bb93f9322e0a42f923e52d39530915a96617010000006"
         "a47304402200cfdd8969cb137ee5a1dde2bed954ab8ae88fb4703125e4ec103b2f21787fa27022079ffc6a52a62"
         "d1eb8aa78f831faa038fde8549ec446cb0f7427db77c7d3ddb59012103331393f9487ef4b318ae79972f3ccc84b"
@@ -777,7 +777,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
     EXPECT_TRUE(tx.CheckTransaction());
 
     std::string opReturnArg;
-    EXPECT_TRUE(IsTxNTP1(&tx, &opReturnArg));
+    EXPECT_TRUE(NTP1Transaction::IsTxNTP1(&tx, &opReturnArg));
     std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScript(opReturnArg);
     std::shared_ptr<NTP1Script_Transfer> script_transfer =
         std::dynamic_pointer_cast<NTP1Script_Transfer>(script);
@@ -962,7 +962,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
 TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
 {
     // transfer
-    string transaction =
+    std::string transaction =
         "01000000f554a35a0247b394148396ef78de65f4792e57bb93f9322e0a42f923e52d39530915a96617010000006"
         "a47304402200cfdd8969cb137ee5a1dde2bed954ab8ae88fb4703125e4ec103b2f21787fa27022079ffc6a52a62"
         "d1eb8aa78f831faa038fde8549ec446cb0f7427db77c7d3ddb59012103331393f9487ef4b318ae79972f3ccc84b"
@@ -977,7 +977,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
     EXPECT_TRUE(tx.CheckTransaction());
 
     std::string opReturnArg;
-    EXPECT_TRUE(IsTxNTP1(&tx, &opReturnArg));
+    EXPECT_TRUE(NTP1Transaction::IsTxNTP1(&tx, &opReturnArg));
     std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScript(opReturnArg);
     std::shared_ptr<NTP1Script_Transfer> script_transfer =
         std::dynamic_pointer_cast<NTP1Script_Transfer>(script);
@@ -1163,7 +1163,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
 TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
 {
     // burn with transfer
-    string transaction =
+    std::string transaction =
         "0100000048b1535b04e935973056fce6856f04bdcf6f9f6c8759e495c5f9bc19d5688fe9cecc3c56c0010000006"
         "b483045022100b004a3201d922e25579d2feba02dad95df573e5dee5efb6cc4c761348e08c580022003a860417f"
         "0de670b3a08df43d244aa16661f5218830bf5eb73b938050c8112a012103331393f9487ef4b318ae79972f3ccc8"
@@ -1440,7 +1440,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
         std::make_pair(txVinC, ntp1txVinC), std::make_pair(txVinD, ntp1txVinD)};
 
     std::string opReturnArg;
-    EXPECT_TRUE(IsTxNTP1(&tx, &opReturnArg));
+    EXPECT_TRUE(NTP1Transaction::IsTxNTP1(&tx, &opReturnArg));
     std::shared_ptr<NTP1Script>      scriptPtr  = NTP1Script::ParseScript(opReturnArg);
     std::shared_ptr<NTP1Script_Burn> scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Burn>(scriptPtr);
     EXPECT_NE(scriptPtr.get(), nullptr);
@@ -1553,7 +1553,7 @@ std::vector<std::string> read_line_by_line(const std::string& filename)
         throw std::runtime_error("File doesn't exist");
     }
 
-    ifstream                 ifs(testFile.string().c_str(), ifstream::in);
+    std::ifstream            ifs(testFile.string().c_str(), std::ifstream::in);
     std::vector<std::string> result;
     std::string              line;
     while (std::getline(ifs, line)) {
@@ -1667,7 +1667,7 @@ void TestNTP1TxParsing(const CTransaction& tx, bool testnet)
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputs;
 
     std::string OpReturnArg;
-    EXPECT_TRUE(IsTxNTP1(&tx, &OpReturnArg));
+    EXPECT_TRUE(NTP1Transaction::IsTxNTP1(&tx, &OpReturnArg));
     TestScriptParsing(OpReturnArg, tx);
 
     for (int i = 0; i < (int)tx.vin.size(); i++) {
@@ -1776,7 +1776,7 @@ void TestSingleNTP1TxParsingLocally(const CTransaction&                         
     EXPECT_TRUE(tx.CheckTransaction()) << "Failed tx: " << txid;
 
     std::string OpReturnArg;
-    EXPECT_TRUE(IsTxNTP1(&tx, &OpReturnArg));
+    EXPECT_TRUE(NTP1Transaction::IsTxNTP1(&tx, &OpReturnArg));
 
     TestScriptParsing(OpReturnArg, tx);
 
@@ -1870,7 +1870,7 @@ void TestSingleNTP1TxParsingLocally(const std::string&                          
     const std::string  rawTx = nebltxs_map.find(txid)->second;
     const CTransaction tx    = TxFromHex(rawTx);
 
-    if (IsTxNTP1(&tx)) {
+    if (NTP1Transaction::IsTxNTP1(&tx)) {
         try {
             TestSingleNTP1TxParsingLocally(tx, nebltxs_map, ntp1txs_map);
         } catch (...) {
@@ -1925,7 +1925,7 @@ void write_json_file(const json_spirit::Object& obj, const std::string& filename
     fs::path testRootPath = TEST_ROOT_PATH;
     fs::path testFile     = testRootPath / "data" / filename;
 
-    ofstream os(testFile.string().c_str());
+    std::ofstream os(testFile.string().c_str());
 
     json_spirit::write_formatted(obj, os);
 }
@@ -2001,8 +2001,8 @@ void DownloadPreMadeData(bool testnet)
         EXPECT_NO_THROW(boost::filesystem::remove(Path(TEST_ROOT_PATH) / Path("/data/" + files[i])));
         std::string content = cURLTools::GetFileFromHTTPS(
             "https://neblio-files.ams3.digitaloceanspaces.com/" + files[i], 10000, 0);
-        fs::path testFile = testRootPath / "data" / files[i];
-        ofstream os(testFile.string().c_str());
+        fs::path      testFile = testRootPath / "data" / files[i];
+        std::ofstream os(testFile.string().c_str());
         os << content;
         os.close();
     }
@@ -2130,7 +2130,7 @@ TEST(ntp1_tests, amend_tx_1)
     EXPECT_EQ(tx.vout[0], out0);
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue, out1.nValue);
     std::string opRetArg;
-    EXPECT_TRUE(TxContainsOpReturn(&tx, &opRetArg));
+    EXPECT_TRUE(NTP1Transaction::TxContainsOpReturn(&tx, &opRetArg));
     EXPECT_EQ(opRetArg, "4e54031001032051");
 
     auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
@@ -2174,7 +2174,7 @@ TEST(ntp1_tests, amend_tx_2)
     EXPECT_EQ(tx.vout.size(), static_cast<unsigned>(2));
     EXPECT_EQ(tx.vout[0], out0);
     EXPECT_EQ(tx.vout[1], out1);
-    EXPECT_FALSE(TxContainsOpReturn(&tx));
+    EXPECT_FALSE(NTP1Transaction::TxContainsOpReturn(&tx));
 }
 
 TEST(ntp1_tests, amend_tx_3)
@@ -2212,7 +2212,7 @@ TEST(ntp1_tests, amend_tx_3)
     EXPECT_EQ(tx.vout[0], out0);
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue, out1.nValue);
     std::string opRetArg;
-    EXPECT_TRUE(TxContainsOpReturn(&tx, &opRetArg));
+    EXPECT_TRUE(NTP1Transaction::TxContainsOpReturn(&tx, &opRetArg));
     EXPECT_EQ(opRetArg, "4e54031001032051");
 
     auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
@@ -2264,7 +2264,7 @@ TEST(ntp1_tests, amend_tx_4)
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue + tx.vout[4].nValue,
               out1.nValue);
     std::string opRetArg;
-    EXPECT_TRUE(TxContainsOpReturn(&tx, &opRetArg));
+    EXPECT_TRUE(NTP1Transaction::TxContainsOpReturn(&tx, &opRetArg));
     EXPECT_EQ(opRetArg, "4e54031002032051042041");
 
     auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
@@ -2325,7 +2325,7 @@ TEST(ntp1_tests, amend_tx_5)
                   tx.vout[5].nValue + tx.vout[6].nValue + tx.vout[7].nValue,
               out1.nValue);
     std::string opRetArg;
-    EXPECT_TRUE(TxContainsOpReturn(&tx, &opRetArg));
+    EXPECT_TRUE(NTP1Transaction::TxContainsOpReturn(&tx, &opRetArg));
     EXPECT_EQ(opRetArg, "4e540310050320510420410520e20638b10719");
 
     auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
@@ -2399,7 +2399,7 @@ TEST(ntp1_tests, amend_tx_6)
                   tx.vout[5].nValue + tx.vout[6].nValue + tx.vout[7].nValue,
               out1.nValue);
     std::string opRetArg;
-    EXPECT_TRUE(TxContainsOpReturn(&tx, &opRetArg));
+    EXPECT_TRUE(NTP1Transaction::TxContainsOpReturn(&tx, &opRetArg));
     EXPECT_EQ(opRetArg, "4e540310050320510420410520e20638b10719");
 
     auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
@@ -3600,9 +3600,10 @@ TEST(ntp1_tests, ntp1_metadata_parsing_8)
 
 // TEST(ntp1_tests, tmp2)
 //{
-//    std::shared_ptr<NTP1Script> script = NTP1Script::ParseScript(
-//        "4e5403015465737433201402012014034064911000000045789cab564a492c4954b2aa562ac9cf4ecdf34bcc4d55b25"
-//        "20a492d2e3156d2514a492d4e2eca2c28c9cccf83892a80d501e5328b8b4b538b80c2c189b94ab5b5008deb1890");
+//    std::shared_ptr<NTP1Script> script =
+//        NTP1Script::ParseScript("4e54040164697634302018010120189000000053789cab564a492c4954b2aa562ac9cf4"
+//                                "ecdf34bcc4d55b2524ac92c333150d2514a492d4e2eca2c28c9cccf038aba6496651667"
+//                                "2665e66496542a98288035001565161797a61601e5831373956a6b017fb01bda");
 //    std::shared_ptr<NTP1Script_Issuance> script_issuance =
 //        std::dynamic_pointer_cast<NTP1Script_Issuance>(script);
 //    ASSERT_NE(script_issuance, nullptr);

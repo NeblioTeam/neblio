@@ -3,8 +3,10 @@
 
 #include "transactiontablemodel.h"
 
+#include <QMessageBox>
 #include <QModelIndex>
 
+#include "init.h"
 #include "ntp1/ntp1script.h"
 #include "qt/json/JsonTreeNode.h"
 
@@ -17,7 +19,9 @@ void TransactionDescDialog::setMetadata(const QString& metadataStr)
         json_spirit::read_or_throw(str, res);
     } catch (...) {
         ui->metadataTreeView->setVisible(false);
-        ui->metadataTextView->setVisible(false);
+        if (!metadataStr.isEmpty()) {
+            ui->metadataTextView->setVisible(true);
+        }
         ui->switchJsonTreeTextButton->setVisible(false);
         return;
     }

@@ -18,7 +18,7 @@ SerialNumberSignatureOfKnowledge::SerialNumberSignatureOfKnowledge(const Params*
 
 SerialNumberSignatureOfKnowledge::SerialNumberSignatureOfKnowledge(const
         Params* p, const PrivateCoin& coin, const Commitment& commitmentToCoin,
-        uint256 msghash):params(p),
+        uint256 /*msghash*/):params(p),
 	s_notprime(p->zkp_iterations),
 	sprime(p->zkp_iterations) {
 
@@ -37,9 +37,9 @@ SerialNumberSignatureOfKnowledge::SerialNumberSignatureOfKnowledge(const
 	CHashWriter hasher(0,0);
 	hasher << *params << commitmentToCoin.getCommitmentValue() << coin.getSerialNumber();
 
-	vector<Bignum> r(params->zkp_iterations);
-	vector<Bignum> v(params->zkp_iterations);
-	vector<Bignum> c(params->zkp_iterations);
+        std::vector<Bignum> r(params->zkp_iterations);
+        std::vector<Bignum> v(params->zkp_iterations);
+        std::vector<Bignum> c(params->zkp_iterations);
 
 
 	for(uint32_t i=0; i < params->zkp_iterations; i++) {
@@ -112,7 +112,7 @@ bool SerialNumberSignatureOfKnowledge::Verify(const Bignum& coinSerialNumber, co
 	CHashWriter hasher(0,0);
 	hasher << *params << valueOfCommitmentToCoin <<coinSerialNumber;
 
-	vector<CBigNum> tprime(params->zkp_iterations);
+        std::vector<CBigNum> tprime(params->zkp_iterations);
 	unsigned char *hashbytes = (unsigned char*) &this->hash;
 #ifdef ZEROCOIN_THREADING
 	#pragma omp parallel for

@@ -1,6 +1,7 @@
 #ifndef NTP1SENDTXDATA_H
 #define NTP1SENDTXDATA_H
 
+#include "globals.h"
 #include "ntp1/ntp1wallet.h"
 #include "ntp1sendtokensonerecipientdata.h"
 #include <deque>

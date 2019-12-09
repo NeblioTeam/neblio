@@ -26,6 +26,8 @@ macx:MINIUPNPC_LIB_PATH=/usr/local/opt/miniupnpc/lib
 macx:QRENCODE_INCLUDE_PATH=/usr/local/opt/qrencode/include
 macx:QRENCODE_LIB_PATH=/usr/local/opt/qrencode/lib
 macx:CURL_LIB_PATH=/usr/local/opt/curl/lib
+macx:SODIUM_INCLUDE_PATH=/usr/local/opt/libsodium/include
+macx:SODIUM_LIB_PATH=/usr/local/opt/libsodium/lib
 windows:QRENCODE_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include
 windows:QRENCODE_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/libc
 
@@ -264,13 +266,14 @@ macx:QMAKE_CXXFLAGS_THREAD += -pthread
 }
 
 # Set libraries and includes at end, to use platform-defined defaults if not overridden
-INCLUDEPATH += $$BOOST_INCLUDE_PATH $$BDB_INCLUDE_PATH $$OPENSSL_INCLUDE_PATH $$QRENCODE_INCLUDE_PATH
-LIBS += $$join(BOOST_LIB_PATH,,-L,) $$join(BDB_LIB_PATH,,-L,) $$join(OPENSSL_LIB_PATH,,-L,) $$join(QRENCODE_LIB_PATH,,-L,)
+INCLUDEPATH += $$BOOST_INCLUDE_PATH $$BDB_INCLUDE_PATH $$OPENSSL_INCLUDE_PATH $$QRENCODE_INCLUDE_PATH $$SODIUM_INCLUDE_PATH
+LIBS += $$join(BOOST_LIB_PATH,,-L,) $$join(BDB_LIB_PATH,,-L,) $$join(OPENSSL_LIB_PATH,,-L,) $$join(QRENCODE_LIB_PATH,,-L,) $$join(SODIUM_LIB_PATH,,-L,)
 macx: LIBS += $$join(CURL_LIB_PATH,,-L,)
 LIBS += -lssl -lcrypto -ldb_cxx$$BDB_LIB_SUFFIX
 # -lgdi32 has to happen after -lcrypto (see  #681)
 windows:LIBS += -lws2_32 -lshlwapi -lmswsock -lole32 -loleaut32 -luuid -lgdi32
 LIBS += -lboost_system$$BOOST_LIB_SUFFIX -lboost_regex$$BOOST_LIB_SUFFIX -lboost_iostreams$$BOOST_LIB_SUFFIX -lboost_filesystem$$BOOST_LIB_SUFFIX -lboost_program_options$$BOOST_LIB_SUFFIX -lboost_thread$$BOOST_THREAD_LIB_SUFFIX -lboost_chrono$$BOOST_LIB_SUFFIX -lboost_atomic$$BOOST_LIB_SUFFIX -lz
+LIBS += -lsodium
 windows:LIBS += -lboost_chrono$$BOOST_LIB_SUFFIX
 macx: LIBS += -lcurl
 

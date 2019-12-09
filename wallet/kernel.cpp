@@ -4,7 +4,9 @@
 
 #include <boost/assign/list_of.hpp>
 
+#include "block.h"
 #include "kernel.h"
+#include "main.h"
 #include "txdb.h"
 
 using namespace std;

@@ -2,7 +2,6 @@
 #define NTP1TRANSACTION_H
 
 #include "ThreadSafeHashMap.h"
-#include "main.h"
 #include "ntp1/ntp1script.h"
 #include "ntp1/ntp1script_burn.h"
 #include "ntp1/ntp1script_issuance.h"
@@ -10,6 +9,7 @@
 #include "ntp1tokenmetadata.h"
 #include "ntp1txin.h"
 #include "ntp1txout.h"
+#include "transaction.h"
 #include "uint256.h"
 
 #include <boost/filesystem/path.hpp>
@@ -20,7 +20,8 @@
 
 #define DEBUG__INCLUDE_STR_HASH
 
-class CTransaction;
+extern const std::string  NTP1OpReturnRegexStr;
+extern const boost::regex NTP1OpReturnRegex;
 
 extern const ThreadSafeHashMap<std::string, int> ntp1_blacklisted_token_ids;
 extern const ThreadSafeHashMap<uint256, int>     excluded_txs_testnet;
@@ -168,6 +169,41 @@ public:
 
     void readNTP1DataFromTx(const CTransaction&                                          tx,
                             const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs);
+
+    static bool TxContainsOpReturn(const CTransaction* tx, std::string* opReturnArg = nullptr);
+    static bool IsTxNTP1(const CTransaction* tx, std::string* opReturnArg = nullptr);
+    static bool IsTxOutputNTP1OpRet(const CTransaction* tx, unsigned int index,
+                                    std::string* opReturnArg = nullptr);
+    static bool IsTxOutputOpRet(const CTransaction* tx, unsigned int index,
+                                std::string* opReturnArg = nullptr);
+    static bool IsTxOutputOpRet(const CTxOut* output, std::string* opReturnArg = nullptr);
+
+    /** for a certain transaction, retrieve all NTP1 data from the database */
+    static std::vector<std::pair<CTransaction, NTP1Transaction>>
+    GetAllNTP1InputsOfTx(CTransaction tx, bool recoverProtection, int recursionCount = 0);
+
+    static std::vector<std::pair<CTransaction, NTP1Transaction>>
+    GetAllNTP1InputsOfTx(CTransaction tx, CTxDB& txdb, bool recoverProtection, int recursionCount = 0);
+
+    static std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(
+        CTransaction tx, CTxDB& txdb, bool recoverProtection,
+        const std::map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>&
+                                           mapQueuedNTP1Inputs,
+        const std::map<uint256, CTxIndex>& queuedAcceptedTxs = std::map<uint256, CTxIndex>(),
+        int                                recursionCount    = 0);
+
+    /** Take a list of standard neblio transactions and return pairs of neblio and NTP1 transactions */
+    static std::vector<std::pair<CTransaction, NTP1Transaction>> StdFetchedInputTxsToNTP1(
+        const CTransaction& tx, const MapPrevTx& mapInputs, CTxDB& txdb, bool recoverProtection,
+        const std::map<uint256, CTxIndex>& queuedAcceptedTxs = std::map<uint256, CTxIndex>(),
+        int                                recursionCount    = 0);
+
+    static std::vector<std::pair<CTransaction, NTP1Transaction>> StdFetchedInputTxsToNTP1(
+        const CTransaction& tx, const MapPrevTx& mapInputs, CTxDB& txdb, bool recoverProtection,
+        const std::map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>&
+                                           mapQueuedNTP1Inputs,
+        const std::map<uint256, CTxIndex>& queuedAcceptedTxs = std::map<uint256, CTxIndex>(),
+        int                                recursionCount    = 0);
 };
 
 bool operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs)

@@ -100,8 +100,9 @@ public:
 
     // Send coins to a list of recipients
     SendCoinsReturn sendCoins(const QList<SendCoinsRecipient>& recipients,
-                              boost::shared_ptr<NTP1Wallet> ntp1wallet, const std::string& ntp1metadata,
-                              const CCoinControl* coinControl = nullptr);
+                              boost::shared_ptr<NTP1Wallet>    ntp1wallet,
+                              const RawNTP1MetadataBeforeSend& ntp1metadata,
+                              const CCoinControl*              coinControl = nullptr);
 
     // Wallet encryption
     bool setWalletEncrypted(bool encrypted, const SecureString& passphrase);

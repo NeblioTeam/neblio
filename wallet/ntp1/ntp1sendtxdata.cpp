@@ -27,7 +27,9 @@ std::map<std::string, NTP1Int> NTP1SendTxData::getChangeTokens() const
     return totalChangeTokens;
 }
 
-NTP1SendTxData::NTP1SendTxData() { /*fee = 0;*/}
+NTP1SendTxData::NTP1SendTxData()
+{ /*fee = 0;*/
+}
 
 std::map<std::string, NTP1Int>
 CalculateRequiredTokenAmounts(const std::vector<NTP1SendTokensOneRecipientData>& recipients)
@@ -69,11 +71,11 @@ void NTP1SendTxData::verifyNTP1IssuanceRecipientsValidity(
 }
 
 // get available balances, either from inputs (if provided) or from the wallet
-std::map<string, NTP1Int> GetAvailableTokenBalances(boost::shared_ptr<NTP1Wallet>    wallet,
-                                                    const std::vector<NTP1OutPoint>& inputs,
-                                                    bool useBalancesFromWallet)
+std::map<std::string, NTP1Int> GetAvailableTokenBalances(boost::shared_ptr<NTP1Wallet>    wallet,
+                                                         const std::vector<NTP1OutPoint>& inputs,
+                                                         bool useBalancesFromWallet)
 {
-    std::map<string, NTP1Int> balancesMap;
+    std::map<std::string, NTP1Int> balancesMap;
     if (useBalancesFromWallet) {
         // get token balances from the wallet
         balancesMap = wallet->getBalancesMap();
@@ -190,7 +192,7 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
     std::map<std::string, NTP1Int> targetAmounts = CalculateRequiredTokenAmounts(recipients);
 
     // get available balances, either from inputs (if provided) or from the wallet
-    std::map<string, NTP1Int> balancesMap =
+    std::map<std::string, NTP1Int> balancesMap =
         GetAvailableTokenBalances(wallet, inputs, addMoreInputsIfRequired);
 
     // check whether the required amounts can be covered by the available balances

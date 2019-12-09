@@ -1,10 +1,9 @@
 #ifndef CURLTOOLS_H
 #define CURLTOOLS_H
 
-#include "util.h"
-
 #include <atomic>
 #include <boost/filesystem/fstream.hpp>
+#include <deque>
 #include <curl/curl.h>
 #include <set>
 

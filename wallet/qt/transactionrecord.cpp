@@ -1,6 +1,8 @@
 #include "transactionrecord.h"
 
 #include "base58.h"
+#include "main.h"
+#include "txmempool.h"
 #include "wallet.h"
 
 /* Return positive answer if transaction should be shown in list.
@@ -35,7 +37,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
         // Credit
         //
         for (const CTxOut& txout : wtx.vout) {
-            if (IsTxOutputOpRet(&txout, nullptr)) {
+            if (NTP1Transaction::IsTxOutputOpRet(&txout, nullptr)) {
                 continue;
             }
             if (wallet->IsMine(txout)) {
@@ -80,7 +82,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
         bool fAllToMe = true;
         for (const CTxOut& txout : wtx.vout) {
             // OP_RETURN is not to decide whether an output is mine
-            if (IsTxOutputOpRet(&txout, nullptr)) {
+            if (NTP1Transaction::IsTxOutputOpRet(&txout, nullptr)) {
                 continue;
             }
             fAllToMe = fAllToMe && wallet->IsMine(txout);
@@ -100,7 +102,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
 
             for (unsigned int nOut = 0; nOut < wtx.vout.size(); nOut++) {
                 const CTxOut& txout = wtx.vout[nOut];
-                if (IsTxOutputOpRet(&txout, nullptr)) {
+                if (NTP1Transaction::IsTxOutputOpRet(&txout, nullptr)) {
                     continue;
                 }
                 TransactionRecord sub(hash, nTime);
@@ -147,12 +149,11 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
 void TransactionRecord::readNTP1TxData()
 {
     try {
-        CTransaction tx;
         if (!mempool.lookup(hash, tx)) {
-            tx = FetchTxFromDisk(hash);
+            tx = CTransaction::FetchTxFromDisk(hash);
         }
         std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs =
-            GetAllNTP1InputsOfTx(tx, false);
+            NTP1Transaction::GetAllNTP1InputsOfTx(tx, false);
         ntp1tx.readNTP1DataFromTx(tx, ntp1inputs);
         ntp1DataLoaded    = true;
         ntp1DataLoadError = false;

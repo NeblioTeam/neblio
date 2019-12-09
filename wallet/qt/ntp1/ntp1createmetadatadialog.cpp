@@ -12,13 +12,15 @@ NTP1CreateMetadataDialog::NTP1CreateMetadataDialog(QWidget* parent) : QDialog(pa
     resize(QDesktopWidget().availableGeometry(this).size() * 0.5);
 
     editModeCheckbox    = new QCheckBox("Input custom json data", this);
+    encryptDataCheckbox = new QCheckBox("Encrypt data (possible for only one recipient)", this);
     metadataPairsWidget = new NTP1MetadataPairsWidget(this);
     customDataWidget    = new NTP1CustomMetadataWidget(this);
     customDataWidget->setVisible(false);
 
     mainLayout->addWidget(editModeCheckbox, 0, 0, 1, 1);
-    mainLayout->addWidget(metadataPairsWidget, 1, 0, 1, 1);
-    mainLayout->addWidget(customDataWidget, 1, 0, 1, 1);
+    mainLayout->addWidget(encryptDataCheckbox, 1, 0, 1, 1);
+    mainLayout->addWidget(metadataPairsWidget, 2, 0, 1, 1);
+    mainLayout->addWidget(customDataWidget, 2, 0, 1, 1);
 
     connect(metadataPairsWidget, &NTP1MetadataPairsWidget::sig_okPressed, this, &QWidget::hide);
     connect(customDataWidget, &NTP1CustomMetadataWidget::sig_okPressed, this, &QWidget::hide);
@@ -41,6 +43,8 @@ json_spirit::Object NTP1CreateMetadataDialog::getJsonData() const
         return json_spirit::Object({json_spirit::Pair("Error", "")});
     }
 }
+
+bool NTP1CreateMetadataDialog::encryptData() const { return encryptDataCheckbox->isChecked(); }
 
 bool NTP1CreateMetadataDialog::jsonDataExists() const
 {

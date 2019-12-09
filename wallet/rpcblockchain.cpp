@@ -5,6 +5,8 @@
 
 #include "bitcoinrpc.h"
 #include "main.h"
+#include "merkletx.h"
+#include "txmempool.h"
 #include <atomic>
 
 #include <algorithm>
@@ -215,7 +217,7 @@ Value getblockhash(const Array& params, bool fHelp)
     if (nHeight < 0 || nHeight > nBestHeight)
         throw runtime_error("Block number out of range.");
 
-    CBlockIndexSmartPtr pblockindex = FindBlockByHeight(nHeight);
+    CBlockIndexSmartPtr pblockindex = CBlock::FindBlockByHeight(nHeight);
     return pblockindex->phashBlock->GetHex();
 }
 
@@ -332,13 +334,13 @@ Value getcheckpoint(const Array& params, bool fHelp)
     result.push_back(Pair("timestamp", DateTimeStrFormat(pindexCheckpoint->GetBlockTime()).c_str()));
 
     // Check that the block satisfies synchronized checkpoint
-    if (CheckpointsMode == Checkpoints::STRICT)
+    if (CheckpointsMode == Checkpoints::CPMode_STRICT)
         result.push_back(Pair("policy", "strict"));
 
-    if (CheckpointsMode == Checkpoints::ADVISORY)
+    if (CheckpointsMode == Checkpoints::CPMode_ADVISORY)
         result.push_back(Pair("policy", "advisory"));
 
-    if (CheckpointsMode == Checkpoints::PERMISSIVE)
+    if (CheckpointsMode == Checkpoints::CPMode_PERMISSIVE)
         result.push_back(Pair("policy", "permissive"));
 
     if (mapArgs.exists("-checkpointkey"))

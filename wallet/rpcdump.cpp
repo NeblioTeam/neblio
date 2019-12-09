@@ -8,6 +8,7 @@
 #include "base58.h"
 #include "bitcoinrpc.h"
 #include "init.h" // for pwalletMain
+#include "main.h"
 #include "ui_interface.h"
 
 #include <boost/algorithm/string.hpp>

@@ -139,7 +139,23 @@ HEADERS += qt/bitcoingui.h \
     qt/ntp1/ntp1metadatapairswidget.h \
     qt/json/NTP1MetadataViewer.h \
     SerializationTester.h \
-    qt/ntp1/issuenewntp1tokendialog.h
+    blockindexcatalog.h   \
+    blockindex.h          \
+    outpoint.h            \
+    inpoint.h             \
+    block.h               \
+    transaction.h         \
+    globals.h             \
+    diskblockindex.h      \
+    disktxpos.h           \
+    txindex.h             \
+    txin.h                \
+    txout.h               \
+    txmempool.h           \
+    merkletx.h            \
+    blocklocator.h        \
+    qt/ntp1/issuenewntp1tokendialog.h \
+    crypto_highlevel.h
 
 
 
@@ -275,7 +291,23 @@ SOURCES += qt/bitcoin.cpp \
     qt/ntp1/ntp1custommetadatawidget.cpp \
     qt/ntp1/ntp1metadatapairswidget.cpp \
     SerializationTester.cpp \
-    qt/ntp1/issuenewntp1tokendialog.cpp
+    blockindexcatalog.cpp \
+    blockindex.cpp        \
+    outpoint.cpp          \
+    inpoint.cpp           \
+    block.cpp             \
+    transaction.cpp       \
+    globals.cpp           \
+    diskblockindex.cpp    \
+    disktxpos.cpp         \
+    txindex.cpp           \
+    txin.cpp              \
+    txout.cpp             \
+    txmempool.cpp         \
+    merkletx.cpp          \
+    blocklocator.cpp      \
+    qt/ntp1/issuenewntp1tokendialog.cpp \
+    crypto_highlevel.cpp
 
 
 SOURCES +=                   \

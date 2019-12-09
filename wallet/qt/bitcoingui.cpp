@@ -17,6 +17,7 @@
 #include "guiutil.h"
 #include "notificator.h"
 #include "optionsdialog.h"
+#include "main.h"
 #include "optionsmodel.h"
 #include "overviewpage.h"
 #include "rpcconsole.h"
