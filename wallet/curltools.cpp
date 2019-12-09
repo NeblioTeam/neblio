@@ -114,8 +114,6 @@ void cURLTools::GetLargeFileFromHTTPS(const std::string& URL, long ConnectionTim
         CurlCleaner cleaner(curl);
 
         curl_easy_setopt(curl, CURLOPT_URL, URL.c_str());
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); // verify ssl peer
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L); // verify ssl hostname
         curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlWrite_CallbackFunc_File);
         curl_easy_setopt(curl, CURLOPT_USERAGENT, "Dark Secret Ninja/1.0");
@@ -196,8 +194,6 @@ std::string cURLTools::GetFileFromHTTPS(const std::string& URL, long ConnectionT
         CurlCleaner cleaner(curl);
 
         curl_easy_setopt(curl, CURLOPT_URL, URL.c_str());
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); // verify ssl peer
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L); // verify ssl hostname
         curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlWrite_CallbackFunc_StdString);
         curl_easy_setopt(curl, CURLOPT_USERAGENT, "Dark Secret Ninja/1.0");
@@ -267,8 +263,6 @@ std::string cURLTools::PostJsonToHTTPS(const std::string& URL, long ConnectionTi
         curl_easy_setopt(curl, CURLOPT_URL, URL.c_str());
         //        curl_easy_setopt(curl, CURLOPT_READDATA, &readdata);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &writedata);
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); // verify ssl peer
-        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L); // verify ssl hostname
         curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
         curl_easy_setopt(curl, CURLOPT_READFUNCTION, CurlRead_CallbackFunc_StdString);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, CurlWrite_CallbackFunc_StdString);
