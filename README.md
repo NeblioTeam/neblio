@@ -1,4 +1,4 @@
-![Build Status](https://travis-ci.org/NeblioTeam/neblio.svg?branch=master) ![Build Status](https://github.com/NeblioTeam/neblio/workflows/CI/CD/badge.svg)
+![Build Status](https://travis-ci.org/NeblioTeam/neblio.svg?branch=master) ![Build Status](https://github.com/NeblioTeam/neblio/workflows/CICD/badge.svg)
 
 # Open Source Repository for Neblio Nodes & Wallets
 More information here: https://nebl.io

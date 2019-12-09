@@ -1,4 +1,4 @@
-name: Release Post Process
+name: ReleasePostProcess
 on:
   release:
     types: [created]
