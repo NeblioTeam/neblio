@@ -21,7 +21,8 @@ Pull Requests Welcome
 sudo apt-get update && sudo apt-get install qt5-default qt5-qmake qtbase5-dev-tools \
 qttools5-dev-tools build-essential libboost-dev libboost-system-dev libboost-filesystem-dev \
 libboost-program-options-dev libboost-thread-dev libboost-regex-dev libssl-dev libdb++-dev \
-libminiupnpc-dev libqrencode-dev libcurl4-openssl-dev libldap2-dev libidn11-dev librtmp-dev -y
+libminiupnpc-dev libqrencode-dev libcurl4-openssl-dev libldap2-dev libidn11-dev librtmp-dev \
+libsodium-dev -y
 ```
 
 ### Build OpenSSL, cURL, and QREncode
@@ -75,6 +76,7 @@ brew fetch --retry miniupnpc     && brew install miniupnpc --force
 brew fetch --retry curl          && brew install curl --force
 brew fetch --retry openssl       && brew install openssl --force
 brew fetch --retry qrencode      && brew install qrencode --force
+brew fetch --retry libsodium     && brew install libsodium --force
 
 brew unlink qt            && brew link --force --overwrite qt
 brew unlink berkeley-db@4 && brew link --force --overwrite berkeley-db@4
@@ -84,6 +86,7 @@ brew unlink curl          && brew link --force --overwrite curl
 brew unlink python        && brew link --force --overwrite python
 brew unlink openssl       && brew link --force --overwrite openssl
 brew unlink qrencode      && brew link --force --overwrite qrencode
+brew unlink libsodium     && brew link --force --overwrite libsodium
 ```
 
 ### Build neblio-Qt
