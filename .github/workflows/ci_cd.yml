@@ -1,4 +1,4 @@
-name: CI/CD
+name: CICD
 on:
   push:
   pull_request:
@@ -11,6 +11,7 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_S3_BUCKET: 'neblio-build-staging'
   AWS_S3_ENDPOINT: 'https://ams3.digitaloceanspaces.com'
+  GHAT2: ${{ secrets.GHAT2 }}
 
 jobs:
   linux_daemon:
@@ -38,7 +39,7 @@ jobs:
       uses: AButler/upload-release-assets@v1.0
       with:
         files: ${{ env.SOURCE_PATH }}
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        repo-token: ${{ secrets.GHAT2 }}
         release-tag: ${{ env.RELEASE_TAG }}
 
 
@@ -66,7 +67,7 @@ jobs:
       uses: AButler/upload-release-assets@v1.0
       with:
         files: ${{ env.SOURCE_PATH }}
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        repo-token: ${{ secrets.GHAT2 }}
         release-tag: ${{ env.RELEASE_TAG }}
 
 
@@ -110,7 +111,7 @@ jobs:
       uses: AButler/upload-release-assets@v1.0
       with:
         files: ${{ env.SOURCE_PATH }}
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        repo-token: ${{ secrets.GHAT2 }}
         release-tag: ${{ env.RELEASE_TAG }}
 
 
@@ -141,7 +142,7 @@ jobs:
       uses: AButler/upload-release-assets@v1.0
       with:
         files: ${{ env.SOURCE_PATH }}
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        repo-token: ${{ secrets.GHAT2 }}
         release-tag: ${{ env.RELEASE_TAG }}
 
 
@@ -162,6 +163,8 @@ jobs:
 
 
   docker:
+    # Do not build PRs on Docker due to incompatibility
+    if: "!startsWith(github.ref, 'refs/pull')"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Docker Files
@@ -185,8 +188,8 @@ jobs:
 
 
   rpi_docker:
-    # Only Build RPi Docker on Daily Scheduled Runs as it takes 5 Hours
-    if: github.event_name == 'schedule'
+    # Only Build RPi Docker on Daily Scheduled Runs and releases as it takes 5 Hours
+    if: github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Docker Files
@@ -238,7 +241,7 @@ jobs:
       uses: AButler/upload-release-assets@v1.0
       with:
         files: ${{ env.SOURCE_PATH }}
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        repo-token: ${{ secrets.GHAT2 }}
         release-tag: ${{ env.RELEASE_TAG }}
 
 
@@ -292,7 +295,7 @@ jobs:
       uses: AButler/upload-release-assets@v1.0
       with:
         files: ${{ env.SOURCE_PATH }}
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        repo-token: ${{ secrets.GHAT2 }}
         release-tag: ${{ env.RELEASE_TAG }}
 
 

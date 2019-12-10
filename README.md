@@ -1,10 +1,15 @@
-![Build Status](https://travis-ci.org/NeblioTeam/neblio.svg?branch=master) ![Build Status](https://github.com/NeblioTeam/neblio/workflows/CI/CD/badge.svg)
+[![Travis](https://img.shields.io/travis/NeblioTeam/neblio?label=Travis&logo=Travis%20CI&logoColor=fff&style=for-the-badge)](https://travis-ci.org/NeblioTeam/neblio/builds)
+[![GitHub Actions](https://img.shields.io/github/workflow/status/NeblioTeam/neblio/CICD?label=GitHub%20Actions&logo=Github&style=for-the-badge)](https://github.com/NeblioTeam/neblio/actions)
+[![Latest Release](https://img.shields.io/github/v/release/NeblioTeam/neblio?label=Latest%20Release&style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllciAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMC44IDE0LjY1Ij48ZGVmcz48c3R5bGU+LmNscy0xe2ZvbnQtc2l6ZToxMnB4O2ZpbGw6I2ZmZjtmb250LWZhbWlseTpPcGVuU2Fucy1FeHRyYUJvbGQsIE9wZW4gU2Fucztmb250LXdlaWdodDo4MDA7fTwvc3R5bGU+PC9kZWZzPjx0aXRsZT52PC90aXRsZT48dGV4dCB4PSItMjk2LjUiIHk9Ii0zNjUuNDYiLz48dGV4dCB4PSItMjk2LjUiIHk9Ii0zNjUuNDYiLz48dGV4dCBjbGFzcz0iY2xzLTEiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDAgMTEuMTQpIj52LjwvdGV4dD48L3N2Zz4=)](https://github.com/NeblioTeam/neblio/releases/latest)
+
+![Downloads](https://img.shields.io/github/downloads/NeblioTeam/neblio/total?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMjguNDkgMjU2LjgiPjxkZWZzPjxzdHlsZT4uY2xzLTF7ZmlsbDojNGY4OGNlO30uY2xzLTJ7ZmlsbDojM2JhM2QwO30uY2xzLTN7ZmlsbDojNDg5MWNmO30uY2xzLTR7ZmlsbDojMTljZWQ0O30uY2xzLTV7ZmlsbDojNmI2NWNiO30uY2xzLTZ7ZmlsbDojMWZjNmQzO30uY2xzLTd7ZmlsbDojNzE1ZGNhO30uY2xzLTh7ZmlsbDojNDI5YWNmO30uY2xzLTl7ZmlsbDojNzg1NGNhO30uY2xzLTEwe2ZpbGw6IzdmNGJjOTt9LmNscy0xMXtmaWxsOiM2NDZlY2M7fS5jbHMtMTJ7ZmlsbDojNTY4MGNkO30uY2xzLTEze2ZpbGw6IzJkYjRkMTt9LmNscy0xNHtmaWxsOiMxMmQ3ZDQ7fS5jbHMtMTV7ZmlsbDojMGJlMGQ1O30uY2xzLTE2e2ZpbGw6IzI2YmRkMjt9LmNscy0xN3tmaWxsOiMzNGFiZDE7fS5jbHMtMTh7ZmlsbDojNWQ3N2NkO308L3N0eWxlPjwvZGVmcz48dGl0bGU+TWFya19Db2xvcjwvdGl0bGU+PGcgaWQ9IkxheWVyXzIiIGRhdGEtbmFtZT0iTGF5ZXIgMiI+PGcgaWQ9IkxheWVyXzEtMiIgZGF0YS1uYW1lPSJMYXllciAxIj48cG9seWdvbiBjbGFzcz0iY2xzLTEiIHBvaW50cz0iMTE0LjI1IDE4NC45NCAxNjMuMjEgMTU2LjY3IDE2My4yMSAxMDAuMTMgMTE0LjI1IDEyOC40IDExNC4yNSAxODQuOTQiLz48cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik0yMjUuNDQsNjQuMmEyMi43MSwyMi43MSwwLDAsMC04LjMzLTguMzNMMTcxLjM3LDI5LjQ2LDEyNS42MiwzLjA1YTIyLjc0LDIyLjc0LDAsMCwwLTIyLjc1LDBMNTcuMTIsMjkuNDZoMGwtMzQuNTcsMjBMMTEuMzgsNTUuODdBMjIuNzYsMjIuNzYsMCwwLDAsMCw3NS41N1YxMjguNEgwdjUyLjgzYTIyLjc2LDIyLjc2LDAsMCwwLDExLjM4LDE5LjdsNDUuNzQsMjYuNDFoMGw0NS43NSwyNi40MWEyMi43NCwyMi43NCwwLDAsMCwyMi43NSwwbDQ1Ljc1LTI2LjQxLDQ1Ljc0LTI2LjQxYTIyLjc2LDIyLjc2LDAsMCwwLDExLjM4LTE5LjcxVjEyOC40aDBWNzUuNThBMjIuNjcsMjIuNjcsMCwwLDAsMjI1LjQ0LDY0LjJabS01NC4wNyw3MC4xdjI3LjA4bC01Ny4xMiwzMy01Ny4xMy0zM2gwdi02Nmw0Ny4zLTI3LjMxLDkuODMtNS42Nyw1Ny4xMiwzM1oiLz48cG9seWdvbiBjbGFzcz0iY2xzLTIiIHBvaW50cz0iMTYzLjIxIDEwMC4xMyAxNjMuMjEgMTU2LjY3IDExNC4yNSAxMjguNCAxNjMuMjEgMTAwLjEzIi8+PHBvbHlnb24gY2xhc3M9ImNscy0zIiBwb2ludHM9IjE2My4yMSAxNTYuNjcgMTE0LjI1IDE4NC45NCAxMTQuMjUgMTI4LjQgMTYzLjIxIDE1Ni42NyIvPjxwb2x5Z29uIGNsYXNzPSJjbHMtNCIgcG9pbnRzPSIxNzEuMzcgOTUuNDIgMTcxLjM3IDE2MS4zOCAyMjguNDkgMTI4LjQgMTcxLjM3IDk1LjQyIi8+PHBvbHlnb24gY2xhc3M9ImNscy0zIiBwb2ludHM9IjU3LjEyIDE2MS4zOCA1Ny4xMiAyMjcuMzQgMTE0LjI1IDE5NC4zNiA1Ny4xMiAxNjEuMzgiLz48cG9seWdvbiBjbGFzcz0iY2xzLTUiIHBvaW50cz0iNTcuMTIgMjkuNDYgNTcuMTIgOTUuNDIgMTE0LjI1IDYyLjQ0IDU3LjEyIDI5LjQ2Ii8+PHBvbHlnb24gY2xhc3M9ImNscy02IiBwb2ludHM9IjE3MS4zNyAxNjEuMzggMTE0LjI1IDE5NC4zNiAxNzEuMzcgMjI3LjM0IDE3MS4zNyAxNjEuMzgiLz48cG9seWdvbiBjbGFzcz0iY2xzLTciIHBvaW50cz0iNTcuMTIgOTUuNDIgMCAxMjguNCA1Ny4xMiAxNjEuMzggNTcuMTIgOTUuNDIiLz48cG9seWdvbiBjbGFzcz0iY2xzLTgiIHBvaW50cz0iMTcxLjM3IDI5LjQ2IDExNC4yNSA2Mi40NCAxNzEuMzcgOTUuNDIgMTcxLjM3IDI5LjQ2Ii8+PHBhdGggY2xhc3M9ImNscy05IiBkPSJNNTcuMTIsMjkuNDZsLTM0LjU3LDIwTDExLjM4LDU1Ljg3QTIyLjcxLDIyLjcxLDAsMCwwLDMuMDUsNjQuMkw1Ny4xMiw5NS40MloiLz48cGF0aCBjbGFzcz0iY2xzLTEwIiBkPSJNNTcuMTIsOTUuNDIsMy4wNSw2NC4yQTIyLjY2LDIyLjY2LDAsMCwwLDAsNzUuNTdWMTI4LjRaIi8+PHBhdGggY2xhc3M9ImNscy0xMSIgZD0iTTAsMTI4LjR2NTIuODNBMjIuNjYsMjIuNjYsMCwwLDAsMy4wNSwxOTIuNmw1NC4wNy0zMS4yMloiLz48cGF0aCBjbGFzcz0iY2xzLTEyIiBkPSJNNTcuMTIsMTYxLjM4LDMuMDUsMTkyLjZhMjIuNzksMjIuNzksMCwwLDAsOC4zMyw4LjMzbDQ1Ljc0LDI2LjQxWiIvPjxwYXRoIGNsYXNzPSJjbHMtMiIgZD0iTTU3LjEyLDIyNy4zNGw0NS43NSwyNi40MWEyMi43NywyMi43NywwLDAsMCwxMS4zOCwzLjA1VjE5NC4zNloiLz48cGF0aCBjbGFzcz0iY2xzLTEzIiBkPSJNMTE0LjI1LDI1Ni44YTIyLjc2LDIyLjc2LDAsMCwwLDExLjM3LTMuMDVsNDUuNzUtMjYuNDEtNTcuMTItMzNaIi8+PHBhdGggY2xhc3M9ImNscy0xNCIgZD0iTTE3MS4zNywxNjEuMzh2NjZsNDUuNzQtMjYuNDFhMjIuNzksMjIuNzksMCwwLDAsOC4zMy04LjMzWiIvPjxwYXRoIGNsYXNzPSJjbHMtMTUiIGQ9Ik0yMjUuNDQsMTkyLjZhMjIuNjcsMjIuNjcsMCwwLDAsMy4wNS0xMS4zOFYxMjguNGwtNTcuMTIsMzNaIi8+PHBhdGggY2xhc3M9ImNscy0xNiIgZD0iTTIyOC40OSwxMjguNFY3NS41OGEyMi42NywyMi42NywwLDAsMC0zLjA1LTExLjM4TDE3MS4zNyw5NS40MloiLz48cGF0aCBjbGFzcz0iY2xzLTE3IiBkPSJNMjI1LjQ0LDY0LjJhMjIuNzEsMjIuNzEsMCwwLDAtOC4zMy04LjMzTDE3MS4zNywyOS40NnY2NloiLz48cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik0xNzEuMzcsMjkuNDYsMTI1LjYyLDMuMDVhMjIuNzYsMjIuNzYsMCwwLDAtMTEuMzctM1Y2Mi40NFoiLz48cGF0aCBjbGFzcz0iY2xzLTE4IiBkPSJNMTE0LjI1LDYyLjQ0VjBhMjIuNzcsMjIuNzcsMCwwLDAtMTEuMzgsMy4wNUw1Ny4xMiwyOS40NloiLz48L2c+PC9nPjwvc3ZnPg==)
+[![Discord](https://img.shields.io/discord/403302085749112834?label=Discord&logo=Discord&style=for-the-badge)](https://discord.gg/mrrj45a)
 
 # Open Source Repository for Neblio Nodes & Wallets
 More information here: https://nebl.io
 
 Alpha Builds for commits that pass testing can be found here:
-https://neblio-build-staging.ams3.digitaloceanspaces.com/index.html
+https://builds.nebl.io
 
 Pull Requests Welcome
 
@@ -16,7 +21,8 @@ Pull Requests Welcome
 sudo apt-get update && sudo apt-get install qt5-default qt5-qmake qtbase5-dev-tools \
 qttools5-dev-tools build-essential libboost-dev libboost-system-dev libboost-filesystem-dev \
 libboost-program-options-dev libboost-thread-dev libboost-regex-dev libssl-dev libdb++-dev \
-libminiupnpc-dev libqrencode-dev libcurl4-openssl-dev libldap2-dev libidn11-dev librtmp-dev -y
+libminiupnpc-dev libqrencode-dev libcurl4-openssl-dev libldap2-dev libidn11-dev librtmp-dev \
+libsodium-dev -y
 ```
 
 ### Build OpenSSL, cURL, and QREncode
@@ -47,7 +53,7 @@ We cross compile the windows binary on Linux using MXE (Ubuntu recommended)
 
 ### Download our pre-compiled MXE toolchain
 ```
-https://neblio-files.ams3.digitaloceanspaces.com/dependencies/mxe.tar.gz
+https://files.nebl.io/dependencies/mxe.tar.gz
 tar -xf mxe.tar.gz
 sudo mv mxe /
 export PATH=/mxe/mxe/usr/bin:$PATH
@@ -70,6 +76,7 @@ brew fetch --retry miniupnpc     && brew install miniupnpc --force
 brew fetch --retry curl          && brew install curl --force
 brew fetch --retry openssl       && brew install openssl --force
 brew fetch --retry qrencode      && brew install qrencode --force
+brew fetch --retry libsodium     && brew install libsodium --force
 
 brew unlink qt            && brew link --force --overwrite qt
 brew unlink berkeley-db@4 && brew link --force --overwrite berkeley-db@4
@@ -79,6 +86,7 @@ brew unlink curl          && brew link --force --overwrite curl
 brew unlink python        && brew link --force --overwrite python
 brew unlink openssl       && brew link --force --overwrite openssl
 brew unlink qrencode      && brew link --force --overwrite qrencode
+brew unlink libsodium     && brew link --force --overwrite libsodium
 ```
 
 ### Build neblio-Qt
@@ -185,7 +193,7 @@ addmultisigaddress <nrequired> <'["key","key"]'> [account]
 addredeemscript <redeemScript> [account]
 backupwallet <destination>
 checkwallet
-createrawntp1transaction [{"txid":txid,"vout":n},...] {address:{tokenid/tokenName:tokenAmount},address:neblAmount,...} '{"userData":{"meta":[{"K1":"V1"},{},...]}}'
+createrawntp1transaction [{"txid":txid,"vout":n},...] {address:{tokenid/tokenName:tokenAmount},address:neblAmount,...} '{"userData":{"meta":[{"K1":"V1"},{},...]}}' [encrypt-metadata=false]
 createrawtransaction [{"txid":txid,"vout":n},...] {address:amount,...}
 decoderawtransaction <hex string> [ignoreNTP1=false]
 decodescript <hex string>
@@ -240,7 +248,7 @@ reservebalance [<reserve> [amount]]
 sendalert <message> <privatekey> <minver> <maxver> <priority> <id> [cancelupto]
 sendfrom <fromaccount> <toneblioaddress> <amount> [minconf=1] [comment] [comment-to]
 sendmany <fromaccount (must be empty, unsupported)> {address:amount,...} [comment]
-sendntp1toaddress <neblioaddress> <amount> <tokenId/tokenName> '{"userData":{"meta":[{"K1":"V1"},{},...]}}'[comment] [comment-to]
+sendntp1toaddress <neblioaddress> <amount> <tokenId/tokenName> '{"userData":{"meta":[{"K1":"V1"},{},...]}}' [encrypt-metadata=false] [comment] [comment-to]
 sendrawtransaction <hex string>
 sendtoaddress <neblioaddress> <amount> [comment] [comment-to]
 setaccount <neblioaddress> <account>
