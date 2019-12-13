@@ -247,8 +247,9 @@ public:
     std::string SendMoneyToDestination(const CTxDestination& address, int64_t nValue, CWalletTx& wtxNew,
                                        bool fAskFee = false);
     std::string
-    SendNTP1ToDestination(const CTxDestination& address, int64_t nValue, const std::string& tokenId,
-                          CWalletTx& wtxNew, boost::shared_ptr<NTP1Wallet> ntp1wallet,
+    SendNTP1ToDestination(const CTxDestination& address, const NTP1Int& nValue,
+                          const std::string& tokenId, CWalletTx& wtxNew,
+                          boost::shared_ptr<NTP1Wallet>    ntp1wallet,
                           const RawNTP1MetadataBeforeSend& ntp1metadata = RawNTP1MetadataBeforeSend(),
                           bool                             fAskFee      = false);
 

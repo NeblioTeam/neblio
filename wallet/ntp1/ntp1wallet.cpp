@@ -41,7 +41,10 @@ const std::unordered_map<std::string, NTP1TokenMetaData>& NTP1Wallet::getTokenMe
     return tokenInformation;
 }
 
-const std::unordered_map<string, unsigned>& NTP1Wallet::getTokenDivisibilities() const { return tokenDivisibilities; }
+const std::unordered_map<std::string, unsigned>& NTP1Wallet::getTokenDivisibilities() const
+{
+    return tokenDivisibilities;
+}
 
 void NTP1Wallet::__getOutputs()
 {
@@ -295,21 +298,24 @@ void NTP1Wallet::setTokenEffectiveDivisibility(const CTransaction& issueTx)
 {
     std::string opRetStr;
 
-    bool isNTP1 = IsTxNTP1(&issueTx, &opRetStr);
+    bool isNTP1 = NTP1Transaction::IsTxNTP1(&issueTx, &opRetStr);
 
     if (!isNTP1) {
-        throw std::runtime_error("While setting token effective divisiblity in NTP1Wallet, it was attempted to do this "
-                                 "with a non-NTP1 transaction. The hash of this transaction is: " +
-                                 issueTx.GetHash().ToString());
+        throw std::runtime_error(
+            "While setting token effective divisiblity in NTP1Wallet, it was attempted to do this "
+            "with a non-NTP1 transaction. The hash of this transaction is: " +
+            issueTx.GetHash().ToString());
     }
 
-    std::shared_ptr<NTP1Script>          scriptPtr  = NTP1Script::ParseScript(opRetStr);
-    std::shared_ptr<NTP1Script_Issuance> scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Issuance>(scriptPtr);
+    std::shared_ptr<NTP1Script>          scriptPtr = NTP1Script::ParseScript(opRetStr);
+    std::shared_ptr<NTP1Script_Issuance> scriptPtrD =
+        std::dynamic_pointer_cast<NTP1Script_Issuance>(scriptPtr);
 
     if (!scriptPtrD) {
-        throw std::runtime_error("While setting token effective divisibility, failed to read the script as an issuance "
-                                 "script. A dynamic_cast has resulted in a nullptr. This happened with transaction: " +
-                                 issueTx.GetHash().ToString());
+        throw std::runtime_error(
+            "While setting token effective divisibility, failed to read the script as an issuance "
+            "script. A dynamic_cast has resulted in a nullptr. This happened with transaction: " +
+            issueTx.GetHash().ToString());
     }
 
     if (issueTx.vin.empty()) {
@@ -324,8 +330,8 @@ void NTP1Wallet::setTokenEffectiveDivisibility(const CTransaction& issueTx)
     if (tokenDivisibilities.find(tokenId) == tokenDivisibilities.cend()) {
         int divisibility = scriptPtrD->getEffectiveDivisibility();
         if (divisibility < 0) {
-            throw std::runtime_error("While setting token effective divisibility for token id: " + tokenId +
-                                     " , and issuance txid: " + issueTx.GetHash().ToString() +
+            throw std::runtime_error("While setting token effective divisibility for token id: " +
+                                     tokenId + " , and issuance txid: " + issueTx.GetHash().ToString() +
                                      "an invalid divisibility was found.");
         }
         tokenDivisibilities[tokenId] = divisibility;
@@ -417,14 +423,15 @@ std::string NTP1Wallet::getTokenDescription(int index) const
     }
 }
 
-string NTP1Wallet::getTokenDivisibility(int index) const
+std::string NTP1Wallet::getTokenDivisibility(int index) const
 {
     std::map<std::string, NTP1Int>::const_iterator it = balances.begin();
     if (index >= static_cast<int>(balances.size())) {
         return std::string("<DivisibilityError_IndexError>");
     }
     std::advance(it, index);
-    std::unordered_map<std::string, unsigned>::const_iterator itToken = tokenDivisibilities.find(it->first);
+    std::unordered_map<std::string, unsigned>::const_iterator itToken =
+        tokenDivisibilities.find(it->first);
     if (itToken == tokenDivisibilities.end()) {
         return std::string("<DivisibilityError>");
     } else {
@@ -439,7 +446,8 @@ boost::optional<unsigned> NTP1Wallet::getTokenDivisibilityInt(int index) const
         return boost::optional<unsigned>();
     }
     std::advance(it, index);
-    std::unordered_map<std::string, unsigned>::const_iterator itToken = tokenDivisibilities.find(it->first);
+    std::unordered_map<std::string, unsigned>::const_iterator itToken =
+        tokenDivisibilities.find(it->first);
     if (itToken == tokenDivisibilities.end()) {
         return boost::optional<unsigned>();
     } else {
@@ -557,7 +565,8 @@ std::string NTP1Wallet::Serialize(const NTP1Wallet& wallet)
     root.push_back(
         json_spirit::Pair("icons", SerializeMap(wallet.tokenIcons.getInternalMap(), false, true)));
     root.push_back(json_spirit::Pair("balances", SerializeMap(wallet.balances, false, false)));
-    root.push_back(json_spirit::Pair("token_divisibilities", SerializeMap(wallet.tokenDivisibilities, false, false)));
+    root.push_back(json_spirit::Pair("token_divisibilities",
+                                     SerializeMap(wallet.tokenDivisibilities, false, false)));
 
     return json_spirit::write_formatted(root);
 }
@@ -580,7 +589,8 @@ NTP1Wallet NTP1Wallet::Deserialize(const std::string& data)
         DeserializeMap<std::unordered_map<std::string, std::string>>(iconsData, false, true));
     json_spirit::Value balancesData(NTP1Tools::GetObjectField(parsedData.get_obj(), "balances"));
     result.balances = DeserializeMap<std::map<std::string, NTP1Int>>(balancesData, false, false);
-    json_spirit::Value tokenDivisibilitiesData(NTP1Tools::GetObjectField(parsedData.get_obj(), "token_divisibilities"));
+    json_spirit::Value tokenDivisibilitiesData(
+        NTP1Tools::GetObjectField(parsedData.get_obj(), "token_divisibilities"));
     result.tokenDivisibilities =
         DeserializeMap<std::unordered_map<std::string, unsigned>>(tokenDivisibilitiesData, false, false);
 
@@ -666,7 +676,8 @@ json_spirit::Value NTP1Wallet::__ValToJson(const NTP1Transaction& input, bool)
     return input.exportDatabaseJsonData();
 }
 
-void NTP1Wallet::__ValFromJson(const json_spirit::Value& input, bool /*deserialize*/, NTP1Transaction& result)
+void NTP1Wallet::__ValFromJson(const json_spirit::Value& input, bool /*deserialize*/,
+                               NTP1Transaction&          result)
 {
     result.setNull();
     result.importDatabaseJsonData(input);
