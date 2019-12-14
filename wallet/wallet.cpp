@@ -1510,7 +1510,7 @@ void CWallet::SetTxNTP1OpRet(CTransaction&                                      
             throw std::runtime_error("Invalid output index was reached (" +
                                      std::to_string(ti.outputIndex) +
                                      "). Output indices in NTP1 cannot exceed 31 or there would be a "
-                                     "risk of burning tokens.");
+                                     "risk of burning tokens. Try to use less outputs/recipients.");
         }
     }
     // set the OP_RETURN script
