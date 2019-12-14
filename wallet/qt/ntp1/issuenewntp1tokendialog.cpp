@@ -121,9 +121,10 @@ void IssueNewNTP1TokenDialog::createWidgets()
             &IssueNewNTP1TokenDialog::slot_iconUrlChanged);
     connect(this->coinControlButton, &QPushButton::clicked, this,
             &IssueNewNTP1TokenDialog::slot_coinControlButtonClicked);
-    connect(this->divisibilitySpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this,
-            &IssueNewNTP1TokenDialog::slot_divisibilitySpinBoxValueChanged);
-    connect(this->amountLineEdit, &QLineEdit::textChanged, this, &IssueNewNTP1TokenDialog::slot_amountChanged);
+    connect(this->divisibilitySpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this, &IssueNewNTP1TokenDialog::slot_divisibilitySpinBoxValueChanged);
+    connect(this->amountLineEdit, &QLineEdit::textChanged, this,
+            &IssueNewNTP1TokenDialog::slot_amountChanged);
 
     slot_changeAddressCheckboxToggled(changeAddressCheckbox->isChecked());
     slot_iconUrlChanged(iconUrlLineEdit->text());
@@ -144,7 +145,8 @@ void IssueNewNTP1TokenDialog::clearData()
     changeAddressLineEdit->clear();
     targetAddressLineEdit->clear();
     tokenSymbolErrorLabel->setVisible(false);
-    amountLineEdit->setStyleSheet(""); // since an empty amount is invalid, we make the initial state valid
+    amountLineEdit->setStyleSheet(
+        ""); // since an empty amount is invalid, we make the initial state valid
 }
 
 void IssueNewNTP1TokenDialog::validateInput() const
@@ -164,7 +166,8 @@ void IssueNewNTP1TokenDialog::validateInput() const
         QString amountQStr = amountLineEdit->text();
         int     p          = 0;
         if (tokenAmountValidator->validate(amountQStr, p) != QValidator::Acceptable) {
-            throw std::runtime_error("Invalid amount. Make sure the number of decimals corresponds to divisibility");
+            throw std::runtime_error(
+                "Invalid amount. Make sure the number of decimals corresponds to divisibility");
         }
     }
     if (tokenSymbolGiven.empty()) {
@@ -333,7 +336,7 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
 
         int divisibility = static_cast<uint16_t>(divisibilitySpinBox->value());
 
-        NTP1Int     amount      = FP_DecimalToInt<NTP1Int>(amountLineEdit->text().toStdString(), divisibility);
+        NTP1Int amount = FP_DecimalToInt<NTP1Int>(amountLineEdit->text().toStdString(), divisibility);
         std::string tokenSymbol = tokenSymbolLineEdit->text().toStdString();
 
         NTP1SendTokensOneRecipientData ntp1recipient;
@@ -433,12 +436,12 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
             throw std::runtime_error("Transaction creation failed. " + errorMessage);
         }
 
-        QMessageBox::StandardButton answer =
-            QMessageBox::question(this, "Do you want to proceed?",
-                                  "Creating this token will cost " + QString::fromStdString(FormatMoney(nFeeRequired)) +
-                                      " NEBL. Are you sure you want to proceed? \n\nThis is irreversible, "
-                                      "and none of the data chosen for the token can be changed in the "
-                                      "future.");
+        QMessageBox::StandardButton answer = QMessageBox::question(
+            this, "Do you want to proceed?",
+            "Creating this token will cost " + QString::fromStdString(FormatMoney(nFeeRequired)) +
+                " NEBL. Are you sure you want to proceed? \n\nThis is irreversible, "
+                "and none of the data chosen for the token can be changed in the "
+                "future.");
 
         if (answer != QMessageBox::Yes) {
             return;
@@ -555,7 +558,10 @@ bool NTP1TokenSymbolValidator::tokenWithSymbolAlreadyIssued(const std::string& t
     return alreadyIssuedTokenSymbols.find(tokenSymbol) != alreadyIssuedTokenSymbols.cend();
 }
 
-void NTP1TokenAmountValidator::setTokenDivisibility(int Divisibility) { tokenDivisibility = Divisibility; }
+void NTP1TokenAmountValidator::setTokenDivisibility(int Divisibility)
+{
+    tokenDivisibility = Divisibility;
+}
 
 NTP1TokenSymbolValidator::NTP1TokenSymbolValidator(IssueNewNTP1TokenDialog& isseNewNTP1Dialog,
                                                    QObject*                 parent)

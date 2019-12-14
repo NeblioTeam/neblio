@@ -126,7 +126,7 @@ void NTP1Wallet::__getOutputs()
                 NTP1Transaction::GetAllNTP1InputsOfTx(neblTx, true);
             ntp1tx.readNTP1DataFromTx(neblTx, prevTxs);
         } catch (std::exception& ex) {
-            printf("Unable to download transaction information. Error says: %s\n", ex.what());
+            printf("Unable to read transaction information. Error says: %s\n", ex.what());
             failedRetrievals++;
             continue;
         }
@@ -135,7 +135,6 @@ void NTP1Wallet::__getOutputs()
         if (ntp1tx.getTxOut(output.getIndex()).tokenCount() > 0) {
             try {
                 // transaction with output index
-                walletOutputsWithTokens[output] = ntp1tx;
                 for (long j = 0; j < static_cast<long>(ntp1tx.getTxOut(output.getIndex()).tokenCount());
                      j++) {
 
@@ -192,8 +191,13 @@ void NTP1Wallet::__getOutputs()
                             GetMinimalMetadataInfoFromTxData(tokenTx);
                     }
                 }
+                walletOutputsWithTokens[output] = ntp1tx;
             } catch (std::exception& ex) {
-                printf("Unable to download token metadata. Error says: %s\n", ex.what());
+                if (currTxCount > 0) {
+                    // to force the rescan, we consider this failure
+                    currTxCount--;
+                }
+                printf("Unable to read token metadata. Error says: %s\n", ex.what());
                 continue;
             }
         }
