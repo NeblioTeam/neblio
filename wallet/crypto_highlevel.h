@@ -56,6 +56,7 @@ public:
     struct SecureArray : public std::array<T, Size>
     {
         static_assert(std::is_pod<T>::value, "Only pod types are allowed");
+        static_assert(sizeof(T) == 1, "The size of secure array elements mut be one");
         virtual ~SecureArray()
         {
             Bytes d = RandomBytes(Size);
