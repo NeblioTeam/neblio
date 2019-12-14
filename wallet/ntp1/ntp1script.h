@@ -200,6 +200,9 @@ public:
     std::string                        getParsedScriptHex() const;
     int                                getProtocolVersion() const;
 
+    bool isMetadataV1() const;
+    bool isMetadataV3() const;
+
     bool isDivisibilitySupported() const;
 
     static NTP1Int     NTP1AmountHexToNumber(std::string hexVal);

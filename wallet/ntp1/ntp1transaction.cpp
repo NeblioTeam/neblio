@@ -849,7 +849,7 @@ json_spirit::Value NTP1Transaction::GetNTP1IssuanceMetadata(const uint256& issua
     if (!sd || s->getTxType() != NTP1Script::TxType_Issuance) {
         return json_spirit::Value();
     }
-    if (s->getProtocolVersion() == 1) {
+    if (s->isMetadataV1()) {
         if (tx.vin.empty()) {
             return json_spirit::Value();
         }
@@ -860,7 +860,7 @@ json_spirit::Value NTP1Transaction::GetNTP1IssuanceMetadata(const uint256& issua
         } catch (std::exception& ex) {
             return json_spirit::Value();
         }
-    } else if (s->getProtocolVersion() == 3 || s->getProtocolVersion() == 4) {
+    } else if (s->isMetadataV3()) {
         return NTP1Script::GetMetadataAsJson(sd.get(), tx);
     } else {
         return json_spirit::Value();
@@ -890,7 +890,7 @@ NTP1TokenMetaData NTP1Transaction::GetFullNTP1IssuanceMetadata(const CTransactio
     }
     const auto& prevout0 = issuanceTx.vin[0].prevout;
     std::string tokenId  = ntp1IssuanceTx.getTokenIdIfIssuance(prevout0.hash.ToString(), prevout0.n);
-    if (s->getProtocolVersion() == 1) {
+    if (s->isMetadataV1()) {
         if (issuanceTx.vin.empty()) {
             throw std::runtime_error(
                 "An invalid NTP1 transaction was provided (txid: " + issuanceTxid.ToString() +
@@ -907,7 +907,7 @@ NTP1TokenMetaData NTP1Transaction::GetFullNTP1IssuanceMetadata(const CTransactio
             throw std::runtime_error("Failed to get NTP1 transaction metadata for txid: " +
                                      issuanceTxid.ToString() + " . Error: " + std::string(ex.what()));
         }
-    } else if (s->getProtocolVersion() == 3 || s->getProtocolVersion() == 4) {
+    } else if (s->isMetadataV3()) {
         NTP1TokenMetaData result;
         result.readSomeDataFromStandardJsonFormat(NTP1Script::GetMetadataAsJson(sd.get(), issuanceTx));
         result.readSomeDataFromNTP1IssuanceScript(sd.get());

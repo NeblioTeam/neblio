@@ -146,7 +146,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry, bo
     {
         if (isNTP1 && !ignoreNTP1) {
             std::shared_ptr<NTP1Script> s = NTP1Script::ParseScript(opRet);
-            if (s && s->getProtocolVersion() >= 3) {
+            if (s && s->isMetadataV3()) {
                 if (s->getTxType() == NTP1Script::TxType_Issuance) {
                     entry.push_back(json_spirit::Pair("metadataOfUtxos",
                                                       GetNTP1TxMetadata<NTP1Script_Issuance>(tx)));
