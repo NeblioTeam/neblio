@@ -272,7 +272,7 @@ void BitcoinGUI::createActions()
     overviewAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_1));
     tabGroup->addAction(overviewAction);
 
-    ntp1tokensAction = new QAction(QIcon(":/icons/ntp1summary"), tr("&NTP1 summary"), this);
+    ntp1tokensAction = new QAction(QIcon(":/icons/ntp1summary"), tr("&NTP1 Tokens"), this);
     ntp1tokensAction->setToolTip(tr("Show general overview of NTP1 tokens"));
     ntp1tokensAction->setCheckable(true);
     ntp1tokensAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_2));
