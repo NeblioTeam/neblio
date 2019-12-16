@@ -87,6 +87,10 @@ os.chdir(working_dir)
 
 os.chdir(dirname)
 
+# add macOS configure flag
+if (sys.platform == 'darwin'):
+    configure_flags = 'darwin64-x86_64-cc ' + configure_flags
+
 # prepend ccache to the path, necessary since prior steps prepend things to the path
 os.environ['PATH'] = '/usr/lib/ccache:' + os.environ['PATH']
 
