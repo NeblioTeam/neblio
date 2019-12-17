@@ -28,6 +28,7 @@ jobs:
     - name: Build nebliod for Linux
       run: |
         echo ::set-env name=GITHUB_REF::$(echo ${GITHUB_REF})
+        pip install requests
         python -u ci_scripts/test_linux-daemon.py
         echo ::set-env name=RELEASE_TAG::$(echo ${GITHUB_REF:10})
     - name: Build Upload to S3
