@@ -4,8 +4,8 @@ import sys
 import re
 import multiprocessing as mp
 import string
-import urllib
 import shutil
+import requests
 
 
 version = "1_65_1"
@@ -21,13 +21,13 @@ def get_boost_link(ver):
 
 def download_file(filelink, target):
     try:
-        testfile = urllib.URLopener()
+        testfile = requests.get(filelink, allow_redirects=True)
         try:
             os.remove(target)
             print("Found file " + target + ", which is now deleted.")
         except:
             pass
-        testfile.retrieve(filelink, target)
+        open(target, 'wb').write(testfile.content)
         return True
     except:
         return False
