@@ -15,7 +15,7 @@ env:
 
 jobs:
   linux_daemon:
-    runs-on: ubuntu-16.04
+    runs-on: ubuntu-18.04
     steps:
     - uses: actions/checkout@v1
     - name: ccache
@@ -44,7 +44,7 @@ jobs:
 
 
   linux_wallet:
-    runs-on: ubuntu-16.04
+    runs-on: ubuntu-18.04
     steps:
     - uses: actions/checkout@v1
     - name: ccache
@@ -72,7 +72,7 @@ jobs:
 
 
   linux_wallet_test:
-    runs-on: ubuntu-16.04
+    runs-on: ubuntu-18.04
     steps:
     - uses: actions/checkout@v1
     - name: ccache
@@ -88,7 +88,7 @@ jobs:
 
 
   windows_x86:
-    runs-on: ubuntu-16.04
+    runs-on: ubuntu-18.04
     steps:
     - uses: actions/checkout@v1
     - name: ccache
@@ -190,7 +190,7 @@ jobs:
   rpi_docker:
     # Only Build RPi Docker on Daily Scheduled Runs and releases as it takes 5 Hours
     if: github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       - name: Checkout Docker Files
         uses: actions/checkout@v1
@@ -215,7 +215,7 @@ jobs:
   rpi_wallet:
     # Do not build PRs on RPi due to inability to use ccache
     if: "!startsWith(github.ref, 'refs/pull')"
-    runs-on: ubuntu-16.04
+    runs-on: ubuntu-18.04
     steps:
     - uses: actions/checkout@v1
     - name: ccache
@@ -248,7 +248,7 @@ jobs:
   rpi_wallet_test:
     # Do not build PRs on RPi due to inability to use ccache
     if: "!startsWith(github.ref, 'refs/pull')"
-    runs-on: ubuntu-16.04
+    runs-on: ubuntu-18.04
     steps:
     - uses: actions/checkout@v1
     - name: ccache
@@ -269,7 +269,7 @@ jobs:
   rpi_daemon:
     # Do not build PRs on RPi due to inability to use ccache
     if: "!startsWith(github.ref, 'refs/pull')"
-    runs-on: ubuntu-16.04
+    runs-on: ubuntu-18.04
     steps:
     - uses: actions/checkout@v1
     - name: ccache
