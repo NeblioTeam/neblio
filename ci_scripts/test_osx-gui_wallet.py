@@ -30,39 +30,23 @@ nci.call_with_err_code('brew fetch --retry qt            && brew install qt --fo
 nci.call_with_err_code('brew fetch --retry berkeley-db@4 && brew install berkeley-db@4 --force')
 nci.call_with_err_code('brew fetch --retry boost@1.60    && brew install boost@1.60 --force')
 nci.call_with_err_code('brew fetch --retry miniupnpc     && brew install miniupnpc --force')
-# nci.call_with_err_code('brew fetch --retry curl          && brew install curl --force')
-# nci.call_with_err_code('brew fetch --retry openssl       && brew install openssl --force')
-# nci.call_with_err_code('brew fetch --retry qrencode      && brew install qrencode --force')
+nci.call_with_err_code('brew fetch --retry curl          && brew install curl --force')
+nci.call_with_err_code('brew fetch --retry openssl       && brew install openssl --force')
+nci.call_with_err_code('brew fetch --retry qrencode      && brew install qrencode --force')
 nci.call_with_err_code('brew fetch --retry libsodium     && brew install libsodium --force')
 
 nci.call_with_err_code('brew unlink qt            && brew link --force --overwrite qt')
 nci.call_with_err_code('brew unlink berkeley-db@4 && brew link --force --overwrite berkeley-db@4')
 nci.call_with_err_code('brew unlink boost@1.60    && brew link --force --overwrite boost@1.60')
 nci.call_with_err_code('brew unlink miniupnpc     && brew link --force --overwrite miniupnpc')
-# nci.call_with_err_code('brew unlink curl          && brew link --force --overwrite curl')
+nci.call_with_err_code('brew unlink curl          && brew link --force --overwrite curl')
 nci.call_with_err_code('brew unlink python        && brew link --force --overwrite python')
-# nci.call_with_err_code('brew unlink openssl       && brew link --force --overwrite openssl')
-# nci.call_with_err_code('brew unlink qrencode      && brew link --force --overwrite qrencode')
+nci.call_with_err_code('brew unlink openssl       && brew link --force --overwrite openssl')
+nci.call_with_err_code('brew unlink qrencode      && brew link --force --overwrite qrencode')
 nci.call_with_err_code('brew unlink libsodium     && brew link --force --overwrite libsodium')
 
 
 nci.call_with_err_code('ccache -s')
-
-nci.call_with_err_code('python ../build_scripts/CompileOpenSSL-Linux.py')
-nci.call_with_err_code('python ../build_scripts/CompileCurl-Linux.py')
-nci.call_with_err_code('python ../build_scripts/CompileQREncode-Linux.py')
-
-pkg_config_path = os.path.join(working_dir, build_dir, 'curl_build/lib/pkgconfig/')
-openssl_include_path = os.path.join(working_dir, build_dir, 'openssl_build/include/')
-openssl_lib_path = os.path.join(working_dir, build_dir, 'openssl_build/lib/')
-qrencode_lib_path = os.path.join(working_dir, build_dir, 'qrencode_build/lib/')
-qrencode_include_path = os.path.join(working_dir, build_dir, 'qrencode_build/include/')
-
-os.environ['PKG_CONFIG_PATH'] = pkg_config_path
-os.environ['OPENSSL_INCLUDE_PATH'] = openssl_include_path
-os.environ['OPENSSL_LIB_PATH'] = openssl_lib_path
-os.environ['QRENCODE_INCLUDE_PATH'] = qrencode_include_path
-os.environ['QRENCODE_LIB_PATH'] = openssl_lib_path
 
 # prepend ccache to the path, necessary since prior steps prepend things to the path
 os.environ['PATH'] = '/usr/local/opt/ccache/libexec:' + os.environ['PATH']
