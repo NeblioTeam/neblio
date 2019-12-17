@@ -122,13 +122,13 @@ jobs:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v1
-    - name: ccache
-      uses: actions/cache@v1
-      with:
-        path: .ccache
-        key: ${{ runner.OS }}--osx-${{ github.sha }}
-        restore-keys: |
-          ${{ runner.OS }}--osx-
+    # - name: ccache
+    #   uses: actions/cache@v1
+    #   with:
+    #     path: .ccache
+    #     key: ${{ runner.OS }}--osx-${{ github.sha }}
+    #     restore-keys: |
+    #       ${{ runner.OS }}--osx-
     - name: Build neblio-Qt for macOS
       run: |
         python -u ci_scripts/test_osx-gui_wallet.py
