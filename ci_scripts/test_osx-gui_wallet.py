@@ -27,6 +27,7 @@ os.environ['HOMEBREW_NO_AUTO_UPDATE'] = '1'
 nci.call_with_err_code('brew fetch --retry ccache        && brew install ccache --force')
 
 nci.call_with_err_code('brew fetch --retry qt            && brew install qt --force')
+nci.call_with_err_code('brew fetch --retry icu4c         && brew install icu4c --force')
 nci.call_with_err_code('brew fetch --retry berkeley-db@4 && brew install berkeley-db@4 --force')
 nci.call_with_err_code('brew fetch --retry boost         && brew install boost --force')
 nci.call_with_err_code('brew fetch --retry miniupnpc     && brew install miniupnpc --force')
@@ -36,6 +37,7 @@ nci.call_with_err_code('brew fetch --retry qrencode      && brew install qrencod
 nci.call_with_err_code('brew fetch --retry libsodium     && brew install libsodium --force')
 
 nci.call_with_err_code('brew unlink qt            && brew link --force --overwrite qt')
+nci.call_with_err_code('brew unlink icu4c         && brew link --force --overwrite icu4c')
 nci.call_with_err_code('brew unlink berkeley-db@4 && brew link --force --overwrite berkeley-db@4')
 nci.call_with_err_code('brew unlink boost         && brew link --force --overwrite boost')
 nci.call_with_err_code('brew unlink miniupnpc     && brew link --force --overwrite miniupnpc')
