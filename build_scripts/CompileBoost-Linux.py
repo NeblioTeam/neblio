@@ -11,7 +11,7 @@ import shutil
 version = "1_65_1"
 
 def get_boost_filename(ver):
-    return "libboost_" + ver + ".tar.gz"
+    return "boost_" + ver + ".tar.gz"
 
 def get_boost_link(ver):
     dot_ver = ver.replace('_', '.')
