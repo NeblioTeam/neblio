@@ -27,6 +27,7 @@ macx:MINIUPNPC_LIB_PATH=/usr/local/opt/miniupnpc/lib
 macx:QRENCODE_INCLUDE_PATH=/usr/local/opt/qrencode/include
 macx:QRENCODE_LIB_PATH=/usr/local/opt/qrencode/lib
 macx:CURL_LIB_PATH=/usr/local/opt/curl/lib
+macx:CURL_INCLUDE_PATH=/usr/local/opt/curl/lib
 macx:SODIUM_INCLUDE_PATH=/usr/local/opt/libsodium/include
 macx:SODIUM_LIB_PATH=/usr/local/opt/libsodium/lib
 windows:QRENCODE_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include
@@ -137,7 +138,7 @@ message("Using lmdb as the blockchain database")
 #    LIBS += -llmdb
 
 INCLUDEPATH += $$PWD/liblmdb
-macx: INCLUDEPATH += /usr/local/opt/berkeley-db@4/include /usr/local/opt/boost/include /usr/local/opt/openssl/include
+macx: INCLUDEPATH += /usr/local/opt/berkeley-db@4/include /usr/local/opt/boost/include /usr/local/opt/openssl@1.1/include
 SOURCES += txdb-lmdb.cpp
 #    SOURCES += $$PWD/liblmdb/mdb.c $$PWD/liblmdb/midl.c
 
