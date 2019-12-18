@@ -132,7 +132,7 @@ public:
     template <typename T>
     static T RandomBytesAs()
     {
-        static_assert(std::is_pod<T>::value, "T must be a trivial type");
+        static_assert(std::is_pod<T>::value, "T must be a pod type");
         Bytes b = RandomBytes(sizeof(T));
         T     res{};
         memcpy(&res, b.data(), sizeof(T));
@@ -209,31 +209,19 @@ std::string Crypto_HighLevel::ToString(Container&& input)
 template <std::size_t N>
 void Crypto_HighLevel::IncrementNonce(std::array<uint8_t, N>& nonce)
 {
-    static_assert(N % sizeof(uint64_t) == 0, "The nonce is expected to be integer multiples of 8");
-    // we have two cases, either all bytes are 0xFF, which means the next nonce is 0, or other wise, we
-    // loop over all bytes, add one, and move the carry to the next byte
-
-    // cover the case of 0xFFFFFFFFF...
-    if (std::all_of(nonce.cbegin(), nonce.cend(), [](uint8_t c) { return c == UINT8_C(0xFF); })) {
-        std::memset(nonce.data(), 0, nonce.size());
-        return;
-    }
-
-    for (unsigned i = 0; i < nonce.size(); i++) {
-        unsigned idx = nonce.size() - i - 1;
-        if (nonce[idx] != 0xFF) {
-            nonce[idx] += 1;
-            break;
-        } else {
-            nonce[idx] = UINT8_C(0);
-        }
+    uint_fast16_t current = 1;
+    for (int i = 0; i < nonce.size(); i++) {
+        const unsigned idx = nonce.size() - i - 1;
+        current += static_cast<uint_fast16_t>(nonce[idx]);
+        nonce[idx] = static_cast<unsigned char>(current);
+        current >>= 8;
     }
 }
 
 template <typename T>
 std::array<uint8_t, sizeof(T)> Crypto_HighLevel::SerializeSimple(T val)
 {
-    static_assert(std::is_trivial<T>::value, "You can only serialize trivial types");
+    static_assert(std::is_pod<T>::value, "You can only serialize pod types");
     static_assert(std::is_integral<T>::value, "This serialization is only for ints");
     std::array<uint8_t, sizeof(T)> res;
     for (unsigned i = 0; i < res.size(); i++) {
@@ -245,7 +233,7 @@ std::array<uint8_t, sizeof(T)> Crypto_HighLevel::SerializeSimple(T val)
 template <typename T>
 T Crypto_HighLevel::DeserializeSimple(std::array<uint8_t, sizeof(T)> data)
 {
-    static_assert(std::is_trivial<T>::value, "You can only serialize trivial types");
+    static_assert(std::is_pod<T>::value, "You can only serialize pod types");
     static_assert(std::is_integral<T>::value, "This serialization is only for ints");
     T res = 0;
     for (unsigned i = 0; i < data.size(); i++) {
