@@ -29,7 +29,7 @@ else:
   build_target_alt = 'neblio-Qt'
 
 # Install docker
-nci.call_with_err_code('curl -fsSL https://get.docker.com -o get-docker.sh && sudo sh get-docker.sh && rm get-docker.sh')
+# nci.call_with_err_code('curl -fsSL https://get.docker.com -o get-docker.sh && sudo sh get-docker.sh && rm get-docker.sh')
 
 # Prepare qemu
 nci.call_with_err_code('docker run --rm --privileged multiarch/qemu-user-static:register --reset')
