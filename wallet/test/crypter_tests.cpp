@@ -634,6 +634,104 @@ TEST(cryptography_tests, crypto_secretbox_salsa20poly1305_select_messages_bounda
     EXPECT_EQ(cipher.size(), crypto_secretbox_MACBYTES + message.size());
 }
 
+TEST(cryptography_tests, nonce_incrementor_compare_to_sodium_increment)
+{
+    {
+        // 0xFFFFFF... + 1 (unsigned char)
+        std::array<unsigned char, crypto_secretbox_NONCEBYTES> n1;
+        std::memset(n1.data(), 0xFF, n1.size());
+        std::array<unsigned char, crypto_secretbox_NONCEBYTES> n_expect = n1;
+        EXPECT_EQ(n1, n_expect);
+        SwapEndianness(n_expect);
+        CHL::IncrementNonce(n1);
+        EXPECT_NE(n1, n_expect);
+        sodium_increment(n_expect.data(), n_expect.size());
+        SwapEndianness(n_expect);
+        EXPECT_EQ(n1, n_expect);
+    }
+    {
+        // 0x00000... + 1 (unsigned char)
+        std::array<unsigned char, crypto_secretbox_NONCEBYTES> n1;
+        std::memset(n1.data(), 0, n1.size());
+        std::array<unsigned char, crypto_secretbox_NONCEBYTES> n_expect = n1;
+        EXPECT_EQ(n1, n_expect);
+        SwapEndianness(n_expect);
+        CHL::IncrementNonce(n1);
+        EXPECT_NE(n1, n_expect);
+        sodium_increment(n_expect.data(), n_expect.size());
+        SwapEndianness(n_expect);
+        EXPECT_EQ(n1, n_expect);
+    }
+    {
+        // 0xFFFFF...FFE + 1 (unsigned char)
+        std::array<unsigned char, crypto_secretbox_NONCEBYTES> n1;
+        std::memset(n1.data(), 0xFF, n1.size());
+        n1[crypto_secretbox_NONCEBYTES - 1]                             = 0xFE;
+        std::array<unsigned char, crypto_secretbox_NONCEBYTES> n_expect = n1;
+        EXPECT_EQ(n1, n_expect);
+        SwapEndianness(n_expect);
+        CHL::IncrementNonce(n1);
+        EXPECT_NE(n1, n_expect);
+        sodium_increment(n_expect.data(), n_expect.size());
+        SwapEndianness(n_expect);
+        EXPECT_EQ(n1, n_expect);
+    }
+    {
+        // 0x000000..FFFFFFF + 1 = 0x000000...1...00000000 (unsigned char)
+        // i is the number of bytes that are set
+        for (unsigned i = 1; i < crypto_secretbox_NONCEBYTES - 1; i++) {
+            std::array<unsigned char, crypto_secretbox_NONCEBYTES> n;
+            static_assert(crypto_secretbox_NONCEBYTES % 2 == 0, "");
+            std::memset(n.data(), 0, n.size());
+            std::memset(n.data() + n.size() - i, 0xFF, i);
+            std::array<unsigned char, crypto_secretbox_NONCEBYTES> n_expect = n;
+            EXPECT_EQ(n, n_expect);
+            SwapEndianness(n_expect);
+            CHL::IncrementNonce(n);
+            EXPECT_NE(n, n_expect);
+            sodium_increment(n_expect.data(), n_expect.size());
+            SwapEndianness(n_expect);
+            EXPECT_EQ(n, n_expect);
+        }
+    }
+    {
+        // 0x000000..FFFFFFF + 1 = 0x000000...1...00000000
+        // i is the number of bytes that are set (char)
+        for (unsigned i = 1; i < crypto_secretbox_NONCEBYTES - 1; i++) {
+            std::array<uint8_t, crypto_secretbox_NONCEBYTES> n;
+            static_assert(crypto_secretbox_NONCEBYTES % 2 == 0, "");
+            std::memset(n.data(), 0, n.size());
+            std::memset(n.data() + n.size() - i, 0xFF, i);
+            std::array<unsigned char, crypto_secretbox_NONCEBYTES> n_expect = n;
+            EXPECT_EQ(n, n_expect);
+            SwapEndianness(n_expect);
+            CHL::IncrementNonce(n);
+            EXPECT_NE(n, n_expect);
+            sodium_increment(n_expect.data(), n_expect.size());
+            SwapEndianness(n_expect);
+            EXPECT_EQ(n, n_expect);
+        }
+    }
+}
+
+TEST(cryptography_tests, nonce_incrementor_random)
+{
+    static constexpr const int TESTS_COUNT = 1e5;
+    for (int i = 0; i < TESTS_COUNT; i++) {
+        std::array<uint8_t, crypto_secretbox_NONCEBYTES> n =
+            CHL::RandomBytesAs<std::array<uint8_t, crypto_secretbox_NONCEBYTES>>();
+        std::array<unsigned char, crypto_secretbox_NONCEBYTES> n_expect = n;
+        EXPECT_EQ(n, n_expect);
+        // sodium_increment incremenets in little_endian mode
+        SwapEndianness(n_expect);
+        CHL::IncrementNonce(n);
+        EXPECT_NE(n, n_expect);
+        sodium_increment(n_expect.data(), n_expect.size());
+        SwapEndianness(n_expect);
+        EXPECT_EQ(n, n_expect);
+    }
+}
+
 TEST(cryptography_tests, nonce_incrementor)
 {
     {
