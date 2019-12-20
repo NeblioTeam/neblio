@@ -309,19 +309,19 @@ void DoQuickSync(const filesystem::path& dbdir)
             json_spirit::Array rootArray = parsedJsonData.get_array();
             for (const json_spirit::Value& val : rootArray) {
                 std::string        os        = NTP1Tools::GetStrField(val.get_obj(), "os");
-                int64_t            dbversion = NTP1Tools::GetInt64Field(val.get_obj(), "dbversion");
+                uint64_t           dbversion = NTP1Tools::GetUint64Field(val.get_obj(), "dbversion");
                 json_spirit::Array files     = NTP1Tools::GetArrayField(val.get_obj(), "files");
 
                 printf("QuickSync DB Version Wanted %d", DATABASE_VERSION);
-                printf("QuickSync DB Version Found %" PRId64 "", dbversion);
+                printf("QuickSync DB Version Found %" PRIu64 "", dbversion);
 
                 if (dbversion != DATABASE_VERSION) {
-                    printf("Skipping database with version %" PRId64 "", dbversion);
+                    printf("Skipping database with version %" PRIu64 "", dbversion);
                     continue;
                 }
 
                 if (!IsQuickSyncOSCompatible(os)) {
-                    printf("Skipping database with OS %" PRId64 "", dbversion);
+                    printf("Skipping database with OS %" PRIu64 "", dbversion);
                     continue;
                 }
                 for (const json_spirit::Value& fileVal : files) {
