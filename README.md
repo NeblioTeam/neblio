@@ -22,7 +22,7 @@ qttools5-dev-tools build-essential libssl-dev libdb++-dev libminiupnpc-dev \
 libqrencode-dev libcurl4-openssl-dev libldap2-dev libidn11-dev librtmp-dev libsodium-dev -y
 ```
 
-### Build OpenSSL, cURL, and QREncode
+### Build OpenSSL, cURL, QREncode, and Boost
 ```
 python ./build_scripts/CompileOpenSSL-Linux.py
 python ./build_scripts/CompileCurl-Linux.py
