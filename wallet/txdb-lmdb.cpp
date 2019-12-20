@@ -312,9 +312,6 @@ void DoQuickSync(const filesystem::path& dbdir)
                 uint64_t           dbversion = NTP1Tools::GetUint64Field(val.get_obj(), "dbversion");
                 json_spirit::Array files     = NTP1Tools::GetArrayField(val.get_obj(), "files");
 
-                printf("QuickSync DB Version Wanted %" PRIu64 "", dbversion);
-                printf("QuickSync DB Version Found %" PRIu64 "", DATABASE_VERSION);
-
                 if (dbversion < DATABASE_VERSION) {
                     printf("Skipping database with version %" PRIu64 "", dbversion);
                     continue;
