@@ -25,10 +25,13 @@ jobs:
         key: ${{ runner.OS }}--linux_daemon-${{ github.sha }}
         restore-keys: |
           ${{ runner.OS }}--linux_daemon-
+    - name: Set target_v env var
+      run: |
+        echo "::set-env name=target_v::linux_daemon"
     - name: Build nebliod for Linux
       run: |
         echo ::set-env name=GITHUB_REF::$(echo ${GITHUB_REF})
-        python -u ci_scripts/test_linux-daemon.py
+        python -u ci_scripts/test_linux-daemon-gui.py
         echo ::set-env name=RELEASE_TAG::$(echo ${GITHUB_REF:10})
     - name: Build Upload to S3
       uses: jakejarvis/s3-sync-action@v0.5.0
@@ -54,9 +57,12 @@ jobs:
         key: ${{ runner.OS }}--linux_wallet-${{ github.sha }}
         restore-keys: |
           ${{ runner.OS }}--linux_wallet-
+    - name: Set target_v env var
+      run: |
+        echo "::set-env name=target_v::linux_wallet"
     - name: Build neblio-Qt for Linux
       run: |
-        python -u ci_scripts/test_linux-gui_wallet.py
+        python -u ci_scripts/test_linux-daemon-gui.py
         echo ::set-env name=RELEASE_TAG::$(echo ${GITHUB_REF:10})
     - name: Build Upload to S3
       uses: jakejarvis/s3-sync-action@v0.5.0
@@ -82,9 +88,12 @@ jobs:
         key: ${{ runner.OS }}--linux_wallet_test-${{ github.sha }}
         restore-keys: |
           ${{ runner.OS }}--linux_wallet_test-
+    - name: Set target_v env var
+      run: |
+        echo "::set-env name=target_v::linux_wallet_test"
     - name: Build neblio-Qt for Linux and Run Tests
       run: |
-        python -u ci_scripts/test_linux-gui_wallet.py -t
+        python -u ci_scripts/test_linux-daemon-gui.py -t
 
 
   windows_x86:

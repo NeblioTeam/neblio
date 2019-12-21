@@ -19,16 +19,6 @@ packages_to_install = \
 "qtbase5-dev-tools",
 "qttools5-dev-tools",
 "build-essential",
-"libboost-dev",
-"libboost-system-dev",
-"libboost-filesystem-dev",
-"libboost-program-options-dev",
-"libboost-thread-dev",
-"libboost-regex-dev",
-"libboost-iostreams-dev",
-"libboost-random-dev",
-"libboost-chrono-dev",
-"libboost-atomic-dev",
 "libssl-dev",
 "libdb++-dev",
 "libminiupnpc-dev",
@@ -55,6 +45,7 @@ nci.call_with_err_code('ccache -s')
 
 nci.call_with_err_code('python ../build_scripts/CompileOpenSSL-Linux.py')
 nci.call_with_err_code('python ../build_scripts/CompileCurl-Linux.py')
+nci.call_with_err_code('python ../build_scripts/CompileBoost-Linux.py')
 
 os.environ['PKG_CONFIG_PATH'] = os.path.join(working_dir, build_dir, 'curl_build/lib/pkgconfig/')
 os.environ['OPENSSL_INCLUDE_PATH'] = os.path.join(working_dir, build_dir, 'openssl_build/include/')

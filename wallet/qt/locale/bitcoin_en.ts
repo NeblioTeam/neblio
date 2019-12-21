@@ -353,7 +353,7 @@ This product includes software developed by the OpenSSL Project for use in the O
     <message>
         <location line="-13"/>
         <source>&amp;Receive tokens</source>
-        <translation>&amp;Receive tokens</translation>
+        <translation>&amp;Receive</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -363,7 +363,7 @@ This product includes software developed by the OpenSSL Project for use in the O
     <message>
         <location line="-7"/>
         <source>&amp;Send tokens</source>
-        <translation>&amp;Send tokens</translation>
+        <translation>&amp;Send</translation>
     </message>
     <message>
         <location line="+35"/>

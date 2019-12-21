@@ -28,7 +28,7 @@ nci.call_with_err_code('brew fetch --retry ccache        && brew install ccache 
 
 nci.call_with_err_code('brew fetch --retry qt            && brew install qt --force')
 nci.call_with_err_code('brew fetch --retry berkeley-db@4 && brew install berkeley-db@4 --force')
-nci.call_with_err_code('brew fetch --retry boost@1.60    && brew install boost@1.60 --force')
+nci.call_with_err_code('brew fetch --retry boost         && brew install boost --force')
 nci.call_with_err_code('brew fetch --retry miniupnpc     && brew install miniupnpc --force')
 nci.call_with_err_code('brew fetch --retry curl          && brew install curl --force')
 nci.call_with_err_code('brew fetch --retry openssl       && brew install openssl --force')
@@ -37,7 +37,7 @@ nci.call_with_err_code('brew fetch --retry libsodium     && brew install libsodi
 
 nci.call_with_err_code('brew unlink qt            && brew link --force --overwrite qt')
 nci.call_with_err_code('brew unlink berkeley-db@4 && brew link --force --overwrite berkeley-db@4')
-nci.call_with_err_code('brew unlink boost@1.60    && brew link --force --overwrite boost@1.60')
+nci.call_with_err_code('brew unlink boost         && brew link --force --overwrite boost')
 nci.call_with_err_code('brew unlink miniupnpc     && brew link --force --overwrite miniupnpc')
 nci.call_with_err_code('brew unlink curl          && brew link --force --overwrite curl')
 nci.call_with_err_code('brew unlink python        && brew link --force --overwrite python')

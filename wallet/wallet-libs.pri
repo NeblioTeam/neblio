@@ -12,20 +12,22 @@ greaterThan(QT_MAJOR_VERSION, 4) {
 BOOST_LIB_SUFFIX=
 windows:BOOST_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include/boost
 windows:BOOST_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/lib
-macx:BOOST_LIB_PATH=/usr/local/opt/boost@1.60/lib
-macx:BOOST_INCLUDE_PATH=/usr/local/opt/boost@1.60/include
+macx:BOOST_LIB_PATH=/usr/local/opt/boost/lib
+macx:BOOST_INCLUDE_PATH=/usr/local/opt/boost/include
 windows:BDB_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include
 windows:BDB_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/lib
 macx:BDB_LIB_PATH=/usr/local/opt/berkeley-db\@4/lib/
 MINIUPNPC_LIB_SUFFIX=-miniupnpc
 windows:MINIUPNPC_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include
 windows:MINIUPNPC_LIB_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/libc
-macx:OPENSSL_LIB_PATH=/usr/local/opt/openssl/lib
+macx:OPENSSL_LIB_PATH=/usr/local/opt/openssl@1.1/lib
+macx:OPENSSL_INCLUDE_PATH=/usr/local/opt/openssl@1.1/include
 macx:MINIUPNPC_INCLUDE_PATH=/usr/local/opt/miniupnpc/include
 macx:MINIUPNPC_LIB_PATH=/usr/local/opt/miniupnpc/lib
 macx:QRENCODE_INCLUDE_PATH=/usr/local/opt/qrencode/include
 macx:QRENCODE_LIB_PATH=/usr/local/opt/qrencode/lib
 macx:CURL_LIB_PATH=/usr/local/opt/curl/lib
+macx:CURL_INCLUDE_PATH=/usr/local/opt/curl/lib
 macx:SODIUM_INCLUDE_PATH=/usr/local/opt/libsodium/include
 macx:SODIUM_LIB_PATH=/usr/local/opt/libsodium/lib
 windows:QRENCODE_INCLUDE_PATH=/home/build/Documents/mxe/usr/i686-w64-mingw32.static/include
@@ -136,7 +138,7 @@ message("Using lmdb as the blockchain database")
 #    LIBS += -llmdb
 
 INCLUDEPATH += $$PWD/liblmdb
-macx: INCLUDEPATH += /usr/local/opt/berkeley-db@4/include /usr/local/opt/boost@1.60/include /usr/local/opt/openssl/include
+macx: INCLUDEPATH += /usr/local/opt/berkeley-db@4/include /usr/local/opt/boost/include /usr/local/opt/openssl@1.1/include
 SOURCES += txdb-lmdb.cpp
 #    SOURCES += $$PWD/liblmdb/mdb.c $$PWD/liblmdb/midl.c
 

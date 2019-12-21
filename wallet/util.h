@@ -601,9 +601,12 @@ std::string GeneratePseudoRandomHex(const int len);
 template <typename T>
 void SwapEndianness(T& var)
 {
-    char* varArray = reinterpret_cast<char*>(&var);
-    for (long i = 0; i < static_cast<long>(sizeof(var) / 2); i++)
+    static_assert(std::is_pod<T>::value, "Type must be POD type for safety");
+    std::array<char, sizeof(T)> varArray;
+    std::memcpy(varArray.data(), &var, sizeof(T));
+    for (int i = 0; i < static_cast<int>(sizeof(var) / 2); i++)
         std::swap(varArray[sizeof(var) - 1 - i], varArray[i]);
+    std::memcpy(&var, varArray.data(), sizeof(T));
 }
 
 inline bool IsBigEndian()

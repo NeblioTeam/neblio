@@ -1,4 +1,3 @@
-[![Travis](https://img.shields.io/travis/NeblioTeam/neblio?label=Travis&logo=Travis%20CI&logoColor=fff&style=for-the-badge)](https://travis-ci.org/NeblioTeam/neblio/builds)
 [![GitHub Actions](https://img.shields.io/github/workflow/status/NeblioTeam/neblio/CICD?label=GitHub%20Actions&logo=Github&style=for-the-badge)](https://github.com/NeblioTeam/neblio/actions)
 [![Latest Release](https://img.shields.io/github/v/release/NeblioTeam/neblio?label=Latest%20Release&style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllciAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMC44IDE0LjY1Ij48ZGVmcz48c3R5bGU+LmNscy0xe2ZvbnQtc2l6ZToxMnB4O2ZpbGw6I2ZmZjtmb250LWZhbWlseTpPcGVuU2Fucy1FeHRyYUJvbGQsIE9wZW4gU2Fucztmb250LXdlaWdodDo4MDA7fTwvc3R5bGU+PC9kZWZzPjx0aXRsZT52PC90aXRsZT48dGV4dCB4PSItMjk2LjUiIHk9Ii0zNjUuNDYiLz48dGV4dCB4PSItMjk2LjUiIHk9Ii0zNjUuNDYiLz48dGV4dCBjbGFzcz0iY2xzLTEiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDAgMTEuMTQpIj52LjwvdGV4dD48L3N2Zz4=)](https://github.com/NeblioTeam/neblio/releases/latest)
 
@@ -19,20 +18,21 @@ Pull Requests Welcome
 ### Install the following dependencies
 ```
 sudo apt-get update && sudo apt-get install qt5-default qt5-qmake qtbase5-dev-tools \
-qttools5-dev-tools build-essential libboost-dev libboost-system-dev libboost-filesystem-dev \
-libboost-program-options-dev libboost-thread-dev libboost-regex-dev libssl-dev libdb++-dev \
-libminiupnpc-dev libqrencode-dev libcurl4-openssl-dev libldap2-dev libidn11-dev librtmp-dev \
-libsodium-dev -y
+qttools5-dev-tools build-essential libssl-dev libdb++-dev libminiupnpc-dev \
+libqrencode-dev libcurl4-openssl-dev libldap2-dev libidn11-dev librtmp-dev libsodium-dev -y
 ```
 
-### Build OpenSSL, cURL, and QREncode
+### Build OpenSSL, cURL, QREncode, and Boost
 ```
 python ./build_scripts/CompileOpenSSL-Linux.py
 python ./build_scripts/CompileCurl-Linux.py
 python ./build_scripts/CompileQREncode-Linux.py
+python ./build_scripts/CompileBoost-Linux.py
 export PKG_CONFIG_PATH=$PWD/curl_build/lib/pkgconfig/
 export OPENSSL_INCLUDE_PATH=$PWD/openssl_build/include/
 export OPENSSL_LIB_PATH=$PWD/openssl_build/lib/
+export BOOST_INCLUDE_PATH=$PWD/boost_build/include/
+export BOOST_LIB_PATH=$PWD/boost_build/lib/
 ```
 
 ### Build nebliod
@@ -71,7 +71,7 @@ make -B -w -j4
 brew update
 brew fetch --retry qt            && brew install qt --force
 brew fetch --retry berkeley-db@4 && brew install berkeley-db@4 --force
-brew fetch --retry boost@1.60    && brew install boost@1.60 --force
+brew fetch --retry boost         && brew install boost --force
 brew fetch --retry miniupnpc     && brew install miniupnpc --force
 brew fetch --retry curl          && brew install curl --force
 brew fetch --retry openssl       && brew install openssl --force
@@ -80,7 +80,7 @@ brew fetch --retry libsodium     && brew install libsodium --force
 
 brew unlink qt            && brew link --force --overwrite qt
 brew unlink berkeley-db@4 && brew link --force --overwrite berkeley-db@4
-brew unlink boost@1.60    && brew link --force --overwrite boost@1.60
+brew unlink boost         && brew link --force --overwrite boost
 brew unlink miniupnpc     && brew link --force --overwrite miniupnpc
 brew unlink curl          && brew link --force --overwrite curl
 brew unlink python        && brew link --force --overwrite python
