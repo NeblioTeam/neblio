@@ -76,7 +76,8 @@ typedef ThreadSafeMap<int, uint256> MapCheckpoints;
         {1200000,     uint256{"0x901c6205092ac4fff321de8241badaf54da4c1f3f7c421b06a442f2a887d88ce"}},
         {1300000,     uint256{"0xc0d0115689b9687cb03d7520ed45e5500e792a83cd3842034b5f9e26fda6d3ce"}},
         {1400000,     uint256{"0x4697721a360aa7909e7badf528b3223add193943f1444524284b9a31501cd88a"}},
-        {1500000,     uint256{"0xdc3445dfd8e1f57f42011e6b1d63352a69347c830dc1fab36c699dc6a211b48f"}}
+        {1500000,     uint256{"0xdc3445dfd8e1f57f42011e6b1d63352a69347c830dc1fab36c699dc6a211b48f"}},
+        {1534000,     uint256{"0x61b848c31b69c2105ec4194e4dbc45a3cf7acc6da3c614531921addae8b03f60"}}
     });
 
     // TestNet
@@ -101,7 +102,8 @@ typedef ThreadSafeMap<int, uint256> MapCheckpoints;
         {1400000,     uint256{"0x064c16b9c408e40f020ca455255e58da98b019eb424554259407d7461c5258e2"}},
         {1500000,     uint256{"0x1fc65c5e904c0dda39a26826df0feaa1d35f5d49657acee2d1674271f38b2100"}},
         {1600000,     uint256{"0x8510acea950aa7e2da8d287bacc66cca6056bf89f5f0d70109fd92adaf1023d9"}},
-        {1700000,     uint256{"0x65738a87a454cfe97b8200149cd4be7199d1ceff30b18778bd79d222203962ce"}}
+        {1700000,     uint256{"0x65738a87a454cfe97b8200149cd4be7199d1ceff30b18778bd79d222203962ce"}},
+        {1747400,     uint256{"0xca97c4e496947d06e0c9a94d2b042a9b75fb4be7a6df07778b6bfbe396f18519"}}
     });
 
 // clang-format on
