@@ -268,7 +268,7 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
         std::stringstream ss;
         ss.setf(std::ios::fixed);
         ss << "Downloading QuickSync file " << leaf << ": " << std::setprecision(2)
-           << progress.load(std::memory_order_relaxed) << "%...";
+           << progress.load(std::memory_order_relaxed) << " MB...";
         uiInterface.InitMessage(ss.str());
     } while (downloadThreadFuture.wait_for(boost::chrono::milliseconds(250)) !=
              boost::future_status::ready);
