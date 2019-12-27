@@ -137,7 +137,7 @@ jobs:
           ${{ runner.OS }}--osx-
     - name: Build neblio-Qt for macOS
       run: |
-        sudo xcode-select -s /Applications/Xcode_11.2.1.app/Contents/Developer
+        sudo xcode-select -s /Applications/Xcode_11.2.app/Contents/Developer
         python -u ci_scripts/test_osx-gui_wallet.py
         echo ::set-env name=RELEASE_TAG::$(echo ${GITHUB_REF:10})
     - name: Build Upload to S3
@@ -169,7 +169,7 @@ jobs:
           ${{ runner.OS }}--osx_test-
     - name: Build neblio-Qt for macOS and Run Tests
       run: |
-        sudo xcode-select -s /Applications/Xcode_11.2.1.app/Contents/Developer
+        sudo xcode-select -s /Applications/Xcode_11.2.app/Contents/Developer
         python -u ci_scripts/test_osx-gui_wallet.py -t
 
 
