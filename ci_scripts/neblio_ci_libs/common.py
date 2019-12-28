@@ -53,7 +53,7 @@ def setup_travis_or_gh_actions_env_vars():
 		os.environ['CCACHE_COMPRESS'] = "1"
 		os.environ['CCACHE_COMPRESSLEVEL'] = "9"
 		os.environ['CCACHE_MAXSIZE'] = "150M"
-		os.environ['CPATH'] = '/Applications/Xcode_11.2.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include'
+		os.environ['CPATH'] = '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include'
 
 
 	else:
