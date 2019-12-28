@@ -23,6 +23,9 @@ os.chdir(build_dir)
 # do not auto update homebrew as it is very slow
 os.environ['HOMEBREW_NO_AUTO_UPDATE'] = '1'
 
+#debug
+nci.call_with_err_code('ls -al /usr/local/opt')
+
 
 # Install High Seirra Versions of Depeendencies, due to that being the minimum version we support
 #ccache
