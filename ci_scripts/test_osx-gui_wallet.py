@@ -47,8 +47,8 @@ nci.call_with_err_code('brew install --force https://bintray.com/homebrew/bottle
 nci.call_with_err_code('brew fetch   --retry https://bintray.com/homebrew/bottles/download_file?file_path=openssl%401.1-1.1.1d.high_sierra.bottle.tar.gz')
 nci.call_with_err_code('brew install --force https://bintray.com/homebrew/bottles/download_file?file_path=openssl%401.1-1.1.1d.high_sierra.bottle.tar.gz')
 #qrencode
-nci.call_with_err_code('brew fetch   --retry https://bintray.com/homebrew/bottles/download_file?file_path=qrencode-4.0.2.high_sierra.bottle.tar.gz)
-nci.call_with_err_code('brew install --force https://bintray.com/homebrew/bottles/download_file?file_path=qrencode-4.0.2.high_sierra.bottle.tar.gz)
+nci.call_with_err_code('brew fetch   --retry https://bintray.com/homebrew/bottles/download_file?file_path=qrencode-4.0.2.high_sierra.bottle.tar.gz')
+nci.call_with_err_code('brew install --force https://bintray.com/homebrew/bottles/download_file?file_path=qrencode-4.0.2.high_sierra.bottle.tar.gz')
 #libsodium
 nci.call_with_err_code('brew fetch   --retry https://bintray.com/homebrew/bottles/download_file?file_path=libsodium-1.0.18_1.high_sierra.bottle.tar.gz')
 nci.call_with_err_code('brew install --force https://bintray.com/homebrew/bottles/download_file?file_path=libsodium-1.0.18_1.high_sierra.bottle.tar.gz')
@@ -80,7 +80,7 @@ else:
     # build our .dmg
     nci.call_with_err_code('npm install -g appdmg')
     os.chdir("wallet")
-    nci.call_with_err_code('../../contrib/macdeploy/macdeployqtplus ./neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -verbose 1 -rpath /usr/local/opt/qt/lib')
+    nci.call_with_err_code('../../contrib/macdeploy/macdeployqtplus ./neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -verbose 3 -rpath /usr/local/opt/qt/lib')
     nci.call_with_err_code('appdmg ../../contrib/macdeploy/appdmg.json ./neblio-Qt.dmg')
 
     file_name = '$(date +%Y-%m-%d)---' + os.environ['BRANCH'] + '-' + os.environ['COMMIT'][:7] + '---neblio-Qt---macOS.zip'
