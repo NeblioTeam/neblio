@@ -28,16 +28,16 @@ nci.call_with_err_code('ls -al /usr/local/opt')
 
 
 #remove existing deps that come pre installed
-nci.call_with_err_code('brew uninstall ccache || true')
-nci.call_with_err_code('brew uninstall qt || true')
-nci.call_with_err_code('brew uninstall berkeley-db@4 || true')
-nci.call_with_err_code('brew uninstall boost || true')
-nci.call_with_err_code('brew uninstall miniupnpc || true')
-nci.call_with_err_code('brew uninstall curl || true')
-nci.call_with_err_code('brew uninstall openssl || true')
-nci.call_with_err_code('brew uninstall openssl@1.1 || true')
-nci.call_with_err_code('brew uninstall qrencode || true')
-nci.call_with_err_code('brew uninstall libsodium || true')
+nci.call_with_err_code('brew uninstall --ignore-dependencies ccache || true')
+nci.call_with_err_code('brew uninstall --ignore-dependencies qt || true')
+nci.call_with_err_code('brew uninstall --ignore-dependencies berkeley-db@4 || true')
+nci.call_with_err_code('brew uninstall --ignore-dependencies boost || true')
+nci.call_with_err_code('brew uninstall --ignore-dependencies miniupnpc || true')
+nci.call_with_err_code('brew uninstall --ignore-dependencies curl || true')
+nci.call_with_err_code('brew uninstall --ignore-dependencies openssl || true')
+nci.call_with_err_code('brew uninstall --ignore-dependencies openssl@1.1 || true')
+nci.call_with_err_code('brew uninstall --ignore-dependencies qrencode || true')
+nci.call_with_err_code('brew uninstall --ignore-dependencies libsodium || true')
 
 # Install High Seirra Versions of Depeendencies, due to that being the minimum version we support
 #ccache
