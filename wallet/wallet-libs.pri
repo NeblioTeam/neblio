@@ -48,6 +48,7 @@ UI_DIR = build
 # use: qmake "RELEASE=1"
 contains(RELEASE, 1) {
     # Mac: compile for maximum compatibility (10.12, 32-bit)
+    QMAKE_MACOSX_DEPLOYMENT_TARGET = 10.13
     macx:QMAKE_CXXFLAGS += -mmacosx-version-min=10.13 -arch x86_64 -Wno-nullability-completeness -Wno-unused-command-line-argument
 
     !windows:!macx {
