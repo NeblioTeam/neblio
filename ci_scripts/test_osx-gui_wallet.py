@@ -27,6 +27,18 @@ os.environ['HOMEBREW_NO_AUTO_UPDATE'] = '1'
 nci.call_with_err_code('ls -al /usr/local/opt')
 
 
+#remove existing deps that come pre installed
+nci.call_with_err_code('brew uninstall ccache || true')
+nci.call_with_err_code('brew uninstall qt || true')
+nci.call_with_err_code('brew uninstall berkeley-db@4 || true')
+nci.call_with_err_code('brew uninstall boost || true')
+nci.call_with_err_code('brew uninstall miniupnpc || true')
+nci.call_with_err_code('brew uninstall curl || true')
+nci.call_with_err_code('brew uninstall openssl || true')
+nci.call_with_err_code('brew uninstall openssl@1.1 || true')
+nci.call_with_err_code('brew uninstall qrencode || true')
+nci.call_with_err_code('brew uninstall libsodium || true')
+
 # Install High Seirra Versions of Depeendencies, due to that being the minimum version we support
 #ccache
 nci.call_with_err_code('brew fetch   --retry https://bintray.com/homebrew/bottles/download_file?file_path=ccache-3.7.6.high_sierra.bottle.tar.gz')
