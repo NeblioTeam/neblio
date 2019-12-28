@@ -59,7 +59,7 @@ nci.call_with_err_code('brew unlink boost         && brew link --force --overwri
 nci.call_with_err_code('brew unlink miniupnpc     && brew link --force --overwrite miniupnpc')
 nci.call_with_err_code('brew unlink curl          && brew link --force --overwrite curl')
 nci.call_with_err_code('brew unlink python        && brew link --force --overwrite python')
-nci.call_with_err_code('brew unlink openssl       && brew link --force --overwrite openssl')
+nci.call_with_err_code('brew unlink openssl@1.1   && brew link --force --overwrite openssl@1.1')
 nci.call_with_err_code('brew unlink qrencode      && brew link --force --overwrite qrencode')
 nci.call_with_err_code('brew unlink libsodium     && brew link --force --overwrite libsodium')
 
