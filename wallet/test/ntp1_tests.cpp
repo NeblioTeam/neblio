@@ -2019,9 +2019,9 @@ TEST(ntp1_tests, download_data_to_files)
 #ifdef UNITTEST_DOWNLOAD_PREMADE_TX_DATA_AND_RUN_PARSE_TESTS
 TEST(ntp1_tests, download_premade_data_to_files_and_run_parse_test)
 {
-    DownloadPreMadeData(true);
+    // DownloadPreMadeData(true);
     TestNTP1TxParsingLocally(true);
-    DownloadPreMadeData(false);
+    // DownloadPreMadeData(false);
     TestNTP1TxParsingLocally(false);
 }
 #endif
