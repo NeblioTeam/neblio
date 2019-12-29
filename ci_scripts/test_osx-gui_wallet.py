@@ -23,11 +23,7 @@ os.chdir(build_dir)
 # do not auto update homebrew as it is very slow
 os.environ['HOMEBREW_NO_AUTO_UPDATE'] = '1'
 
-#debug
-nci.call_with_err_code('ls -al /usr/local/opt')
-
-
-#remove existing deps that come pre installed
+# remove existing deps that come pre installed
 nci.call_with_err_code('brew uninstall --ignore-dependencies ccache || true')
 nci.call_with_err_code('brew uninstall --ignore-dependencies qt || true')
 nci.call_with_err_code('brew uninstall --ignore-dependencies berkeley-db@4 || true')
@@ -68,6 +64,7 @@ nci.call_with_err_code('brew install --force https://bintray.com/homebrew/bottle
 nci.call_with_err_code('brew fetch   --retry https://bintray.com/homebrew/bottles/download_file?file_path=libsodium-1.0.18_1.high_sierra.bottle.tar.gz')
 nci.call_with_err_code('brew install --force https://bintray.com/homebrew/bottles/download_file?file_path=libsodium-1.0.18_1.high_sierra.bottle.tar.gz')
 
+# force relinking
 nci.call_with_err_code('brew unlink qt            && brew link --force --overwrite qt')
 nci.call_with_err_code('brew unlink berkeley-db@4 && brew link --force --overwrite berkeley-db@4')
 nci.call_with_err_code('brew unlink boost         && brew link --force --overwrite boost')
