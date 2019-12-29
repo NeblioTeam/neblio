@@ -53,7 +53,7 @@ We cross compile the windows binary on Linux using MXE (Ubuntu recommended)
 
 ### Download our pre-compiled MXE toolchain
 ```
-https://files.nebl.io/dependencies/mxe.tar.gz
+https://files.nebl.io/dependencies/parts=12/mxe.tar.gz
 tar -xf mxe.tar.gz
 sudo mv mxe /
 export PATH=/mxe/mxe/usr/bin:$PATH
