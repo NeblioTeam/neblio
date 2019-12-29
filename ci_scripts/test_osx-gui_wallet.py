@@ -23,25 +23,55 @@ os.chdir(build_dir)
 # do not auto update homebrew as it is very slow
 os.environ['HOMEBREW_NO_AUTO_UPDATE'] = '1'
 
-# set up ccache
-nci.call_with_err_code('brew fetch --retry ccache        && brew install ccache --force')
+# remove existing deps that come pre installed
+nci.call_with_err_code('brew uninstall --ignore-dependencies ccache || true')
+nci.call_with_err_code('brew uninstall --ignore-dependencies qt || true')
+nci.call_with_err_code('brew uninstall --ignore-dependencies berkeley-db@4 || true')
+nci.call_with_err_code('brew uninstall --ignore-dependencies boost || true')
+nci.call_with_err_code('brew uninstall --ignore-dependencies miniupnpc || true')
+nci.call_with_err_code('brew uninstall --ignore-dependencies curl || true')
+nci.call_with_err_code('brew uninstall --ignore-dependencies openssl || true')
+nci.call_with_err_code('brew uninstall --ignore-dependencies openssl@1.1 || true')
+nci.call_with_err_code('brew uninstall --ignore-dependencies qrencode || true')
+nci.call_with_err_code('brew uninstall --ignore-dependencies libsodium || true')
 
-nci.call_with_err_code('brew fetch --retry qt            && brew install qt --force')
-nci.call_with_err_code('brew fetch --retry berkeley-db@4 && brew install berkeley-db@4 --force')
-nci.call_with_err_code('brew fetch --retry boost         && brew install boost --force')
-nci.call_with_err_code('brew fetch --retry miniupnpc     && brew install miniupnpc --force')
-nci.call_with_err_code('brew fetch --retry curl          && brew install curl --force')
-nci.call_with_err_code('brew fetch --retry openssl       && brew install openssl --force')
-nci.call_with_err_code('brew fetch --retry qrencode      && brew install qrencode --force')
-nci.call_with_err_code('brew fetch --retry libsodium     && brew install libsodium --force')
+# Install High Seirra Versions of Depeendencies, due to that being the minimum version we support
+#ccache
+nci.call_with_err_code('brew fetch   --retry https://bintray.com/homebrew/bottles/download_file?file_path=ccache-3.7.6.high_sierra.bottle.tar.gz')
+nci.call_with_err_code('brew install --force https://bintray.com/homebrew/bottles/download_file?file_path=ccache-3.7.6.high_sierra.bottle.tar.gz')
+#qt
+nci.call_with_err_code('brew fetch   --retry https://bintray.com/homebrew/bottles/download_file?file_path=qt-5.13.2.high_sierra.bottle.tar.gz')
+nci.call_with_err_code('brew install --force https://bintray.com/homebrew/bottles/download_file?file_path=qt-5.13.2.high_sierra.bottle.tar.gz')
+#berkeley-db@4
+nci.call_with_err_code('brew fetch   --retry https://bintray.com/homebrew/bottles/download_file?file_path=berkeley-db%404-4.8.30.high_sierra.bottle.1.tar.gz')
+nci.call_with_err_code('brew install --force https://bintray.com/homebrew/bottles/download_file?file_path=berkeley-db%404-4.8.30.high_sierra.bottle.1.tar.gz')
+#boost
+nci.call_with_err_code('brew fetch   --retry https://bintray.com/homebrew/bottles/download_file?file_path=boost-1.71.0.high_sierra.bottle.1.tar.gz')
+nci.call_with_err_code('brew install --force https://bintray.com/homebrew/bottles/download_file?file_path=boost-1.71.0.high_sierra.bottle.1.tar.gz')
+#miniupnpc
+nci.call_with_err_code('brew fetch   --retry https://bintray.com/homebrew/bottles/download_file?file_path=miniupnpc-2.1.high_sierra.bottle.tar.gz')
+nci.call_with_err_code('brew install --force https://bintray.com/homebrew/bottles/download_file?file_path=miniupnpc-2.1.high_sierra.bottle.tar.gz')
+#curl
+nci.call_with_err_code('brew fetch   --retry https://bintray.com/homebrew/bottles/download_file?file_path=curl-7.67.0.high_sierra.bottle.tar.gz')
+nci.call_with_err_code('brew install --force https://bintray.com/homebrew/bottles/download_file?file_path=curl-7.67.0.high_sierra.bottle.tar.gz')
+#openssl
+nci.call_with_err_code('brew fetch   --retry https://bintray.com/homebrew/bottles/download_file?file_path=openssl%401.1-1.1.1d.high_sierra.bottle.tar.gz')
+nci.call_with_err_code('brew install --force https://bintray.com/homebrew/bottles/download_file?file_path=openssl%401.1-1.1.1d.high_sierra.bottle.tar.gz')
+#qrencode
+nci.call_with_err_code('brew fetch   --retry https://bintray.com/homebrew/bottles/download_file?file_path=qrencode-4.0.2.high_sierra.bottle.tar.gz')
+nci.call_with_err_code('brew install --force https://bintray.com/homebrew/bottles/download_file?file_path=qrencode-4.0.2.high_sierra.bottle.tar.gz')
+#libsodium
+nci.call_with_err_code('brew fetch   --retry https://bintray.com/homebrew/bottles/download_file?file_path=libsodium-1.0.18_1.high_sierra.bottle.tar.gz')
+nci.call_with_err_code('brew install --force https://bintray.com/homebrew/bottles/download_file?file_path=libsodium-1.0.18_1.high_sierra.bottle.tar.gz')
 
+# force relinking
 nci.call_with_err_code('brew unlink qt            && brew link --force --overwrite qt')
 nci.call_with_err_code('brew unlink berkeley-db@4 && brew link --force --overwrite berkeley-db@4')
 nci.call_with_err_code('brew unlink boost         && brew link --force --overwrite boost')
 nci.call_with_err_code('brew unlink miniupnpc     && brew link --force --overwrite miniupnpc')
 nci.call_with_err_code('brew unlink curl          && brew link --force --overwrite curl')
 nci.call_with_err_code('brew unlink python        && brew link --force --overwrite python')
-nci.call_with_err_code('brew unlink openssl       && brew link --force --overwrite openssl')
+nci.call_with_err_code('brew unlink openssl@1.1   && brew link --force --overwrite openssl@1.1')
 nci.call_with_err_code('brew unlink qrencode      && brew link --force --overwrite qrencode')
 nci.call_with_err_code('brew unlink libsodium     && brew link --force --overwrite libsodium')
 

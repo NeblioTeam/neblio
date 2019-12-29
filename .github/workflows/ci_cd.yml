@@ -135,6 +135,9 @@ jobs:
         key: ${{ runner.OS }}--osx-${{ github.sha }}
         restore-keys: |
           ${{ runner.OS }}--osx-
+    - name: Switch Xcode Version
+      run: |
+        sudo xcode-select -s /Applications/Xcode_11.2.1.app/Contents/Developer
     - name: Build neblio-Qt for macOS
       run: |
         python -u ci_scripts/test_osx-gui_wallet.py
@@ -166,6 +169,9 @@ jobs:
         key: ${{ runner.OS }}--osx_test-${{ github.sha }}
         restore-keys: |
           ${{ runner.OS }}--osx_test-
+    - name: Switch Xcode Version
+      run: |
+        sudo xcode-select -s /Applications/Xcode_11.2.1.app/Contents/Developer
     - name: Build neblio-Qt for macOS and Run Tests
       run: |
         python -u ci_scripts/test_osx-gui_wallet.py -t
