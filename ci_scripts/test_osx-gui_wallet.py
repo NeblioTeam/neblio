@@ -86,7 +86,8 @@ if (args.test):
     nci.call_with_err_code("make -j" + str(mp.cpu_count()))
     # download test data
     nci.call_with_err_code('pwd')
-    nci.call_with_err_code('ls -al *')
+    nci.call_with_err_code('ls -al wallet')
+    nci.call_with_err_code('ls -al wallet/test')
     nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/ntp1txids_to_test_testnet.txt.tar.gz -O ../wallet/test/data/ntp1txids_to_test_testnet.txt.tar.gz')
     nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/ntp1txids_to_test.txt.tar.gz -O ../wallet/test/data/ntp1txids_to_test.txt.tar.gz')
     nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/txs_ntp1tests_ntp1_txs_testnet.json.tar.gz -O ../wallet/test/data/txs_ntp1tests_ntp1_txs_testnet.json.tar.gz')
