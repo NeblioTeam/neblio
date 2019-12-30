@@ -53,7 +53,7 @@ We cross compile the windows binary on Linux using MXE (Ubuntu recommended)
 
 ### Download our pre-compiled MXE toolchain
 ```
-https://files.nebl.io/dependencies/mxe.tar.gz
+https://files.nebl.io/dependencies/parts=12/mxe.tar.gz
 tar -xf mxe.tar.gz
 sudo mv mxe /
 export PATH=/mxe/mxe/usr/bin:$PATH
@@ -74,7 +74,7 @@ brew fetch --retry berkeley-db@4 && brew install berkeley-db@4 --force
 brew fetch --retry boost         && brew install boost --force
 brew fetch --retry miniupnpc     && brew install miniupnpc --force
 brew fetch --retry curl          && brew install curl --force
-brew fetch --retry openssl       && brew install openssl --force
+brew fetch --retry openssl@1.1   && brew install openssl@1.1 --force
 brew fetch --retry qrencode      && brew install qrencode --force
 brew fetch --retry libsodium     && brew install libsodium --force
 
@@ -84,7 +84,7 @@ brew unlink boost         && brew link --force --overwrite boost
 brew unlink miniupnpc     && brew link --force --overwrite miniupnpc
 brew unlink curl          && brew link --force --overwrite curl
 brew unlink python        && brew link --force --overwrite python
-brew unlink openssl       && brew link --force --overwrite openssl
+brew unlink openssl@1.1   && brew link --force --overwrite openssl@1.1
 brew unlink qrencode      && brew link --force --overwrite qrencode
 brew unlink libsodium     && brew link --force --overwrite libsodium
 ```

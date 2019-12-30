@@ -82,8 +82,25 @@ nci.call_with_err_code('ccache -s')
 os.environ['PATH'] = '/usr/local/opt/ccache/libexec:' + os.environ['PATH']
 
 if (args.test):
-    nci.call_with_err_code('qmake "QMAKE_CXX=ccache clang++" "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
+    nci.call_with_err_code('qmake "QMAKE_CXX=ccache clang++" "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "DEFINES += UNITTEST_RUN_NTP_PARSE_TESTS" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
     nci.call_with_err_code("make -j" + str(mp.cpu_count()))
+    # download test data
+    nci.call_with_err_code('pwd')
+    nci.call_with_err_code('ls -al wallet')
+    nci.call_with_err_code('ls -al wallet/test/build')
+    nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/ntp1txids_to_test_testnet.txt.tar.gz -O ../wallet/test/data/ntp1txids_to_test_testnet.txt.tar.gz')
+    nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/ntp1txids_to_test.txt.tar.gz -O ../wallet/test/data/ntp1txids_to_test.txt.tar.gz')
+    nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/txs_ntp1tests_ntp1_txs_testnet.json.tar.gz -O ../wallet/test/data/txs_ntp1tests_ntp1_txs_testnet.json.tar.gz')
+    nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/txs_ntp1tests_ntp1_txs.json.tar.gz -O ../wallet/test/data/txs_ntp1tests_ntp1_txs.json.tar.gz')
+    nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/txs_ntp1tests_raw_neblio_txs_testnet.json.tar.gz -O ../wallet/test/data/txs_ntp1tests_raw_neblio_txs_testnet.json.tar.gz')
+    nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/txs_ntp1tests_raw_neblio_txs.json.tar.gz -O ../wallet/test/data/txs_ntp1tests_raw_neblio_txs.json.tar.gz')
+    nci.call_with_err_code('tar -xzvf ../wallet/test/data/ntp1txids_to_test_testnet.txt.tar.gz -C ../wallet/test/data')
+    nci.call_with_err_code('tar -xzvf ../wallet/test/data/ntp1txids_to_test.txt.tar.gz -C ../wallet/test/data')
+    nci.call_with_err_code('tar -xzvf ../wallet/test/data/txs_ntp1tests_ntp1_txs_testnet.json.tar.gz -C ../wallet/test/data')
+    nci.call_with_err_code('tar -xzvf ../wallet/test/data/txs_ntp1tests_ntp1_txs.json.tar.gz -C ../wallet/test/data')
+    nci.call_with_err_code('tar -xzvf ../wallet/test/data/txs_ntp1tests_raw_neblio_txs_testnet.json.tar.gz -C ../wallet/test/data')
+    nci.call_with_err_code('tar -xzvf ../wallet/test/data/txs_ntp1tests_raw_neblio_txs.json.tar.gz -C ../wallet/test/data')
+    nci.call_with_err_code('rm ../wallet/test/data/*.tar.gz')
     # run tests
     nci.call_with_err_code("./wallet/test/neblio-Qt.app/Contents/MacOS/neblio-Qt")
 else:

@@ -2016,7 +2016,14 @@ TEST(ntp1_tests, download_data_to_files)
 }
 #endif
 
-#ifdef UNITTEST_DOWNLOAD_PREMADE_TX_DATA_AND_RUN_PARSE_TESTS
+#ifdef UNITTEST_RUN_NTP_PARSE_TESTS
+TEST(ntp1_tests, parsig_ntp1_from_ctransaction_automated)
+{
+    EXPECT_NO_THROW(TestNTP1TxParsingLocally(false));
+    EXPECT_NO_THROW(TestNTP1TxParsingLocally(true));
+}
+
+#elif defined UNITTEST_DOWNLOAD_PREMADE_TX_DATA_AND_RUN_PARSE_TESTS
 TEST(ntp1_tests, download_premade_data_to_files_and_run_parse_test)
 {
     DownloadPreMadeData(true);
@@ -2026,13 +2033,7 @@ TEST(ntp1_tests, download_premade_data_to_files_and_run_parse_test)
 }
 #endif
 
-#ifdef UNITTEST_RUN_NTP_PARSE_TESTS
-TEST(ntp1_tests, parsig_ntp1_from_ctransaction_automated)
-{
-    EXPECT_NO_THROW(TestNTP1TxParsingLocally(false));
-    EXPECT_NO_THROW(TestNTP1TxParsingLocally(true));
-}
-#endif
+
 
 TEST(ntp1_tests, construct_scripts)
 {

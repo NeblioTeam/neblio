@@ -19,6 +19,22 @@ if(os.environ['target_v'] == "linux_daemon"):
 elif(os.environ['target_v'] == "linux_wallet_test"):
   build_target = 'tests-neblio-qt'
   build_target_alt = 'tests-neblio-Qt'
+  os.chdir(os.environ['BUILD_DIR'])
+  # download test data
+  nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/ntp1txids_to_test_testnet.txt.tar.gz -O ./wallet/test/data/ntp1txids_to_test_testnet.txt.tar.gz')
+  nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/ntp1txids_to_test.txt.tar.gz -O ./wallet/test/data/ntp1txids_to_test.txt.tar.gz')
+  nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/txs_ntp1tests_ntp1_txs_testnet.json.tar.gz -O ./wallet/test/data/txs_ntp1tests_ntp1_txs_testnet.json.tar.gz')
+  nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/txs_ntp1tests_ntp1_txs.json.tar.gz -O ./wallet/test/data/txs_ntp1tests_ntp1_txs.json.tar.gz')
+  nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/txs_ntp1tests_raw_neblio_txs_testnet.json.tar.gz -O ./wallet/test/data/txs_ntp1tests_raw_neblio_txs_testnet.json.tar.gz')
+  nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/txs_ntp1tests_raw_neblio_txs.json.tar.gz -O ./wallet/test/data/txs_ntp1tests_raw_neblio_txs.json.tar.gz')
+  nci.call_with_err_code('tar -xzvf ./wallet/test/data/ntp1txids_to_test_testnet.txt.tar.gz -C ./wallet/test/data')
+  nci.call_with_err_code('tar -xzvf ./wallet/test/data/ntp1txids_to_test.txt.tar.gz -C ./wallet/test/data')
+  nci.call_with_err_code('tar -xzvf ./wallet/test/data/txs_ntp1tests_ntp1_txs_testnet.json.tar.gz -C ./wallet/test/data')
+  nci.call_with_err_code('tar -xzvf ./wallet/test/data/txs_ntp1tests_ntp1_txs.json.tar.gz -C ./wallet/test/data')
+  nci.call_with_err_code('tar -xzvf ./wallet/test/data/txs_ntp1tests_raw_neblio_txs_testnet.json.tar.gz -C ./wallet/test/data')
+  nci.call_with_err_code('tar -xzvf ./wallet/test/data/txs_ntp1tests_raw_neblio_txs.json.tar.gz -C ./wallet/test/data')
+  nci.call_with_err_code('rm ./wallet/test/data/*.tar.gz')
+  os.chdir(deploy_dir)
 else:
   build_target = 'neblio-qt'
   build_target_alt = 'neblio-Qt'
