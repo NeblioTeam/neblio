@@ -97,6 +97,8 @@ if (args.test):
     nci.call_with_err_code('tar -xzvf ./wallet/test/data/txs_ntp1tests_ntp1_txs.json.tar.gz -C ./wallet/test/data')
     nci.call_with_err_code('tar -xzvf ./wallet/test/data/txs_ntp1tests_raw_neblio_txs_testnet.json.tar.gz -C ./wallet/test/data')
     nci.call_with_err_code('tar -xzvf ./wallet/test/data/txs_ntp1tests_raw_neblio_txs.json.tar.gz -C ./wallet/test/data')
+    nci.call_with_err_code('pwd')
+    nci.call_with_err_code('ls -al')
     nci.call_with_err_code('rm ./wallet/test/data/*.tar.gz')
     # run tests
     nci.call_with_err_code("./wallet/test/neblio-Qt.app/Contents/MacOS/neblio-Qt")
