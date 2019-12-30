@@ -82,7 +82,7 @@ nci.call_with_err_code('ccache -s')
 os.environ['PATH'] = '/usr/local/opt/ccache/libexec:' + os.environ['PATH']
 
 if (args.test):
-    nci.call_with_err_code('qmake "QMAKE_CXX=ccache clang++" "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "DEFINES -= UNITTEST_DOWNLOAD_PREMADE_TX_DATA_AND_RUN_PARSE_TESTS" "DEFINES += UNITTEST_RUN_NTP_PARSE_TESTS" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
+    nci.call_with_err_code('qmake "QMAKE_CXX=ccache clang++" "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "DEFINES += UNITTEST_RUN_NTP_PARSE_TESTS" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
     nci.call_with_err_code("make -j" + str(mp.cpu_count()))
     # download test data
     nci.call_with_err_code('pwd')
