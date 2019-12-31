@@ -125,6 +125,9 @@ void cURLTools::GetLargeFileFromHTTPS(const std::string& URL, long ConnectionTim
         curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, &progress);
         curl_easy_setopt (curl, CURLOPT_VERBOSE, 1L); //verbose output
         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, ConnectionTimeout);
+        /* abort if slower than 1k bytes/sec during 60 seconds */
+        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 60L);
+        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1000L);
 
         curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
 
