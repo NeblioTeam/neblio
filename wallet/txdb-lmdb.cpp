@@ -221,8 +221,25 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
                                  " MB; required: " + std::to_string(requiredSpace / ONE_MB) + "MB");
     }
 
-    std::string        leaf           = filesystem::path(urls.at(0)).filename().string();
-    filesystem::path   downloadTarget = dbdir / leaf;
+    std::string      leaf               = filesystem::path(urls.at(0)).filename().string();
+    std::string      tempLeaf           = leaf + ".temp";
+    filesystem::path downloadTarget     = dbdir / leaf;
+    filesystem::path downloadTempTarget = dbdir / tempLeaf;
+
+    // delete files that already exist before downloading them
+    {
+        boost::system::error_code remove_error;
+        if (filesystem::exists(downloadTarget) && !filesystem::remove(downloadTarget, remove_error)) {
+            throw std::runtime_error(
+                "File " + leaf + " already exists and could not be deleted: " + remove_error.message());
+        }
+        if (filesystem::exists(downloadTempTarget) &&
+            !filesystem::remove(downloadTempTarget, remove_error)) {
+            throw std::runtime_error("File " + tempLeaf + " already exists and could not be deleted: " +
+                                     remove_error.message());
+        }
+    }
+
     std::atomic<float> progress;
     progress.store(0);
 
@@ -239,13 +256,13 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
     // download the file asynchronously in a new thread
     boost::promise<void>       downloadThreadPromise;
     boost::unique_future<void> downloadThreadFuture = downloadThreadPromise.get_future();
-    boost::thread downloadThread([&downloadThreadPromise, &urls, &downloadTarget, &progress]() {
+    boost::thread downloadThread([&downloadThreadPromise, &urls, &downloadTempTarget, &progress]() {
         for (unsigned i = 0; i < urls.size(); i++) {
             try {
                 printf("Downloading file for QuickSync: %s...\n", urls[i].c_str());
                 static const long connectionTimeout = 300;
-                cURLTools::GetLargeFileFromHTTPS(urls[i], connectionTimeout, downloadTarget, progress,
-                                                 std::set<CURLcode>({CURLE_PARTIAL_FILE}));
+                cURLTools::GetLargeFileFromHTTPS(urls[i], connectionTimeout, downloadTempTarget,
+                                                 progress, std::set<CURLcode>({CURLE_PARTIAL_FILE}));
                 printf("Setting promise value for downloaded file: %s...\n", urls[i].c_str());
                 downloadThreadPromise.set_value();
                 printf("Done setting promise value for downloaded file: %s...\n", urls[i].c_str());
@@ -277,11 +294,21 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
 
     uiInterface.InitMessage("Calculating hash to verify integrity...");
     printf("Done downloading %s\n", leaf.c_str());
-    std::string calculatedHash = CalculateHashOfFile<Sha256Calculator>(downloadTarget);
+    std::string calculatedHash = CalculateHashOfFile<Sha256Calculator>(downloadTempTarget);
     if (calculatedHash != sumBin) {
         throw std::runtime_error("The calculated checksum for the downloaded file: " +
-                                 downloadTarget.string() + "; does not match the expected one.");
+                                 downloadTempTarget.string() + "; does not match the expected one.");
     }
+
+    {
+        boost::system::error_code rename_ec;
+        filesystem::rename(downloadTempTarget, downloadTarget, rename_ec);
+        if (rename_ec) {
+            throw std::runtime_error("Error when trying to rename the temporary file " + tempLeaf +
+                                     " to " + leaf + ". Error: " + rename_ec.message());
+        }
+    }
+
     uiInterface.InitMessage("Download and verification of " + leaf + " is done.");
 }
 
