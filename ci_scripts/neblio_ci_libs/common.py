@@ -26,6 +26,17 @@ def call_with_err_code(cmd):
         exit(err_code)
 
 
+def call_retry_on_fail(cmd):
+    err_code = call(cmd, shell=True)
+    # Error code 137 is thrown by the timeout command when it timesout, used in RPi building
+    if (err_code != 0 and err_code != 137):
+        print("")
+        print("")
+        sys.stderr.write('call \'' + cmd + '\' failed with error code ' + str(err_code) + '. RETRYING...\n')
+        print("")
+        call_retry_on_fail(cmd)
+
+
 def install_packages_debian(packages_to_install):
     call_with_err_code('sudo apt-get update')
     if len(packages_to_install) > 0:

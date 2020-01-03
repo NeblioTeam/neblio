@@ -315,7 +315,7 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
 void DoQuickSync(const filesystem::path& dbdir)
 {
     unsigned         failedAttempts      = 0;
-    static const int MAX_FAILED_ATTEMPTS = 3;
+    static const int MAX_FAILED_ATTEMPTS = 10;
 
     bool success = false;
 
