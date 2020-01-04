@@ -12,6 +12,7 @@ add_executable(neblio-tests
     compress_tests.cpp
     crypter_tests.cpp
     db_tests.cpp
+    fixedpoint_tests.cpp
     getarg_tests.cpp
     hash_tests.cpp
     key_tests.cpp

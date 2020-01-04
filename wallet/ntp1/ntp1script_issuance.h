@@ -25,6 +25,7 @@ public:
     std::string getInflatedMetadata() const override;
 
     int                                         getDivisibility() const;
+    int                                         getEffectiveDivisibility() const;
     bool                                        isLocked() const;
     IssuanceFlags::AggregationPolicy            getAggregationPolicy() const;
     std::string                                 getAggregationPolicyStr() const;
@@ -39,10 +40,9 @@ public:
     std::string getTokenID(std::string input0txid, unsigned int input0index) const;
 
     static std::shared_ptr<NTP1Script_Issuance>
-                       CreateScript(const std::string& Symbol, NTP1Int amount,
-                                    const std::vector<TransferInstruction>& transferInstructions,
-                                    const std::string& Metadata, bool locked, unsigned int divisibility,
-                                    IssuanceFlags::AggregationPolicy aggrPolicy);
+                       CreateScript(const std::string& Symbol, const NTP1Int& amount,
+                                    const std::vector<TransferInstruction>& transferInstructions, const std::string& Metadata, bool locked,
+                                    unsigned int divisibility, IssuanceFlags::AggregationPolicy aggrPolicy);
     static std::string Create_OpCodeFromMetadata(const std::string& metadata);
     static std::string Create_ProcessTokenSymbol(const std::string& symbol);
 

@@ -31,11 +31,17 @@ bool IsNTP1TokenBlacklisted(const std::string& tokenId, int& maxHeight);
 bool IsNTP1TokenBlacklisted(const std::string& tokenId);
 bool IsNTP1TxExcluded(const uint256& txHash);
 
+extern const std::string  NTP1OpReturnRegexStr;
+extern const boost::regex NTP1OpReturnRegex;
+extern const std::string  OpReturnRegexStr;
+extern const boost::regex OpReturnRegex;
+
 struct TokenMinimalData
 {
     NTP1Int     amount;
     std::string tokenName;
     std::string tokenId;
+    unsigned    divisibility;
 
     TokenMinimalData() : amount(0) {}
 };
@@ -204,6 +210,8 @@ public:
                                            mapQueuedNTP1Inputs,
         const std::map<uint256, CTxIndex>& queuedAcceptedTxs = std::map<uint256, CTxIndex>(),
         int                                recursionCount    = 0);
+    static boost::optional<int> GetNTP1TransactionProtocolVersion(const NTP1Transaction& ntp1tx);
+    static bool                 IsNTP1DivisibilitySupported(const NTP1Transaction& ntp1tx);
 };
 
 bool operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs)

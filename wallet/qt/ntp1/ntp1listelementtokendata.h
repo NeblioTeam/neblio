@@ -1,9 +1,9 @@
 #ifndef NTP1LISTELEMENTTOKENDATA_H
 #define NTP1LISTELEMENTTOKENDATA_H
 
-#include <QString>
+#include "qt/ntp1/ntp1tokenlistmodel.h"
 #include <QIcon>
-#include "ntp1/ntp1tokenlistmodel.h"
+#include <QString>
 
 struct NTP1ListElementTokenData
 {
@@ -11,6 +11,7 @@ struct NTP1ListElementTokenData
     QString tokenId;
     qint64  amount;
     QIcon   icon;
+    quint32 divisibility;
     void    fill(int index, boost::shared_ptr<NTP1Wallet> wallet)
     {
         name = NTP1TokenListModel::__getTokenName(index, wallet);
@@ -20,6 +21,7 @@ struct NTP1ListElementTokenData
         }
         tokenId = NTP1TokenListModel::__getTokenId(index, wallet);
         amount  = FromString<qint64>(NTP1TokenListModel::__getTokenBalance(index, wallet).toStdString());
+        divisibility = FromString<unsigned>(NTP1TokenListModel::__getTokenDivisibility(index, wallet).toStdString());
     }
 };
 

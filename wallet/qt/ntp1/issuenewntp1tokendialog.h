@@ -9,6 +9,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QSpinBox>
 #include <unordered_set>
 
 #include "ntp1/ntp1script.h"
@@ -36,7 +37,11 @@ public:
 
 class NTP1TokenAmountValidator : public QValidator
 {
+    int tokenDivisibility = 0;
+
 public:
+    void setTokenDivisibility(int Divisibility);
+    int  getTokenDivisibility() const;
     NTP1TokenAmountValidator(QObject* parent = 0);
     State validate(QString& input, int& /*pos*/) const override;
 };
@@ -56,6 +61,8 @@ class IssueNewNTP1TokenDialog : public QDialog
     QLineEdit*                tokenNameLineEdit;
     QLabel*                   amountLabel;
     QLineEdit*                amountLineEdit;
+    QLabel*                   divisibilityLabel;
+    QSpinBox*                 divisibilitySpinBox;
     QLabel*                   iconUrlLabel;
     QLabel*                   iconUrlMimeTypeLabel;
     QLineEdit*                iconUrlLineEdit;
@@ -72,6 +79,7 @@ class IssueNewNTP1TokenDialog : public QDialog
     QFrame*                   paymentSeparator;
 
     NTP1TokenSymbolValidator* tokenSymbolValidator;
+    NTP1TokenAmountValidator* tokenAmountValidator;
 
     CoinControlDialog* coinControlDialog;
     QPushButton*       coinControlButton;
@@ -100,6 +108,9 @@ private slots:
     void slot_doIssueToken();
     void slot_iconUrlChanged(const QString& url);
     void slot_coinControlButtonClicked();
+    void slot_divisibilitySpinBoxValueChanged(int value);
+    void slot_amountSetBackgroundTextColor();
+    void slot_amountChanged(const QString&);
 };
 
 #endif // ISSUENEWNTP1TOKENDIALOG_H

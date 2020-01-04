@@ -32,13 +32,24 @@ QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
 
 std::string FormatNTP1TokenAmount(const NTP1TokenTxData& token)
 {
-    return ::ToString(token.getAmount()) + " " + token.getTokenSymbol() +
-           " (Token ID: " + token.getTokenId() + ")";
+    try {
+        return FP_IntToDecimal<NTP1Int>(token.getAmount(), token.getDivisibility()) + " " + token.getTokenSymbol() +
+               " (Token ID: " + token.getTokenId() + ")";
+    } catch (std::exception& ex) {
+        printf("Error reading token amount: %s", ex.what());
+        return "Failed to read token amount of " + token.getTokenSymbol() + " (Token ID: " + token.getTokenId() + ")";
+    }
 }
 
 std::string FormatNTP1TokenAmount(const TokenMinimalData& token)
 {
-    return ::ToString(token.amount) + " " + token.tokenName + " (Token ID: " + token.tokenId + ")";
+    try {
+        return FP_IntToDecimal<NTP1Int>(token.amount, token.divisibility) + " " + token.tokenName +
+               " (Token ID: " + token.tokenId + ")";
+    } catch (std::exception& ex) {
+        printf("Error reading token amount: %s", ex.what());
+        return "Failed to read token amount of " + token.tokenName + " (Token ID: " + token.tokenId + ")";
+    }
 }
 
 QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)

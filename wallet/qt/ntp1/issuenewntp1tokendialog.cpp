@@ -27,6 +27,8 @@ void IssueNewNTP1TokenDialog::createWidgets()
     tokenSymbolErrorLabel = new QLabel("", this);
     tokenNameLabel        = new QLabel("Token name", this);
     tokenNameLineEdit     = new QLineEdit(this);
+    divisibilityLabel     = new QLabel("Divisibility", this);
+    divisibilitySpinBox   = new QSpinBox(this);
     amountLabel           = new QLabel("Amount to issue", this);
     amountLineEdit        = new QLineEdit(this);
     issuerLabel           = new QLabel("Issuer", this);
@@ -53,6 +55,8 @@ void IssueNewNTP1TokenDialog::createWidgets()
     paymentSeparator->setFrameShape(QFrame::HLine);
     paymentSeparator->setFrameShadow(QFrame::Sunken);
 
+    divisibilitySpinBox->setRange(0, 7);
+
     coinControlDialog = new CoinControlDialog(this);
     coinControlButton = new QPushButton("Coin control (Advanced)", this);
 
@@ -73,6 +77,8 @@ void IssueNewNTP1TokenDialog::createWidgets()
     mainLayout->addWidget(tokenSymbolErrorLabel, row++, 0, 1, 3);
     mainLayout->addWidget(tokenNameLabel, row++, 0, 1, 3);
     mainLayout->addWidget(tokenNameLineEdit, row++, 0, 1, 3);
+    mainLayout->addWidget(divisibilityLabel, row++, 0, 1, 3);
+    mainLayout->addWidget(divisibilitySpinBox, row++, 0, 1, 3);
     mainLayout->addWidget(amountLabel, row++, 0, 1, 3);
     mainLayout->addWidget(amountLineEdit, row++, 0, 1, 3);
     mainLayout->addWidget(issuerLabel, row++, 0, 1, 3);
@@ -96,7 +102,9 @@ void IssueNewNTP1TokenDialog::createWidgets()
 
     changeAddressLineEdit->setValidator(new BitcoinAddressValidator(this));
     targetAddressLineEdit->setValidator(new BitcoinAddressValidator(this));
-    amountLineEdit->setValidator(new NTP1TokenAmountValidator(this));
+
+    tokenAmountValidator = new NTP1TokenAmountValidator(this);
+    amountLineEdit->setValidator(tokenAmountValidator);
 
     connect(this->clearButton, &QPushButton::clicked, this, &IssueNewNTP1TokenDialog::slot_clearData);
     connect(this->changeAddressLineEdit, &QLineEdit::textChanged, this,
@@ -113,10 +121,15 @@ void IssueNewNTP1TokenDialog::createWidgets()
             &IssueNewNTP1TokenDialog::slot_iconUrlChanged);
     connect(this->coinControlButton, &QPushButton::clicked, this,
             &IssueNewNTP1TokenDialog::slot_coinControlButtonClicked);
+    connect(this->divisibilitySpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this, &IssueNewNTP1TokenDialog::slot_divisibilitySpinBoxValueChanged);
+    connect(this->amountLineEdit, &QLineEdit::textChanged, this,
+            &IssueNewNTP1TokenDialog::slot_amountChanged);
 
     slot_changeAddressCheckboxToggled(changeAddressCheckbox->isChecked());
     slot_iconUrlChanged(iconUrlLineEdit->text());
-    tokenSymbolErrorLabel->setVisible(false);
+    slot_divisibilitySpinBoxValueChanged(divisibilitySpinBox->value());
+    clearData();
 }
 
 IssueNewNTP1TokenDialog::IssueNewNTP1TokenDialog(QWidget* parent) : QDialog(parent) { createWidgets(); }
@@ -131,6 +144,9 @@ void IssueNewNTP1TokenDialog::clearData()
     amountLineEdit->clear();
     changeAddressLineEdit->clear();
     targetAddressLineEdit->clear();
+    tokenSymbolErrorLabel->setVisible(false);
+    amountLineEdit->setStyleSheet(
+        ""); // since an empty amount is invalid, we make the initial state valid
 }
 
 void IssueNewNTP1TokenDialog::validateInput() const
@@ -146,6 +162,14 @@ void IssueNewNTP1TokenDialog::validateInput() const
     std::string tokenNameGiven   = tokenNameLabel->text().trimmed().toStdString();
     std::string tokenIssuerGiven = issuerLineEdit->text().trimmed().toStdString();
     std::string tokenAmountGiven = amountLineEdit->text().trimmed().toStdString();
+    {
+        QString amountQStr = amountLineEdit->text();
+        int     p          = 0;
+        if (tokenAmountValidator->validate(amountQStr, p) != QValidator::Acceptable) {
+            throw std::runtime_error(
+                "Invalid amount. Make sure the number of decimals corresponds to divisibility");
+        }
+    }
     if (tokenSymbolGiven.empty()) {
         throw std::runtime_error("Token symbol cannot be empty");
     }
@@ -161,7 +185,10 @@ void IssueNewNTP1TokenDialog::validateInput() const
     if (tokenAmountGiven.empty()) {
         throw std::runtime_error("Token amount cannot be empty");
     }
-    NTP1Int amount(tokenAmountGiven);
+    if (divisibilitySpinBox->value() < 0 || divisibilitySpinBox->value() > 7) {
+        throw std::runtime_error("Invalid divisibility. Value should be in the range [0,7]");
+    }
+    NTP1Int amount = FP_DecimalToInt<NTP1Int>(tokenAmountGiven, divisibilitySpinBox->value());
     if (amount <= 0) {
         throw std::runtime_error("Token amount cannot be zero/negative");
     }
@@ -307,7 +334,9 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
                 FormatMoney(minAmount) +
                 ". It may even be slightly more depending on the size of the metadata.");
 
-        NTP1Int     amount(amountLineEdit->text().toStdString());
+        int divisibility = static_cast<uint16_t>(divisibilitySpinBox->value());
+
+        NTP1Int amount = FP_DecimalToInt<NTP1Int>(amountLineEdit->text().toStdString(), divisibility);
         std::string tokenSymbol = tokenSymbolLineEdit->text().toStdString();
 
         NTP1SendTokensOneRecipientData ntp1recipient;
@@ -378,7 +407,8 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
 
         // initial selection of NTP1 tokens
         NTP1SendTxData tokenSelector;
-        tokenSelector.issueNTP1Token(IssueTokenData(amount, tokenSymbol, metadata.metadata));
+        tokenSelector.issueNTP1Token(
+            IssueTokenData(amount, tokenSymbol, divisibility, metadata.metadata));
         tokenSelector.selectNTP1Tokens(ntp1wallet, inputs, ntp1recipients, !takeInputsFromCoinControl);
 
         // Send
@@ -409,7 +439,7 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
         QMessageBox::StandardButton answer = QMessageBox::question(
             this, "Do you want to proceed?",
             "Creating this token will cost " + QString::fromStdString(FormatMoney(nFeeRequired)) +
-                " NEBL. Are you sure you want to proceed? \n\n This is irreversible, "
+                " NEBL. Are you sure you want to proceed? \n\nThis is irreversible, "
                 "and none of the data chosen for the token can be changed in the "
                 "future.");
 
@@ -431,6 +461,11 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
                 "error is: " +
                 std::string(ex.what()));
         }
+
+        // print the raw transaction before committing it
+        //        CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+        //        stream << wtx;
+        //        std::cout << boost::algorithm::hex(stream.str()) << std::endl;
 
         if (!pwalletMain->CommitTransaction(wtx, keyChange))
             throw std::runtime_error("Transaction commit for broadcast failed");
@@ -469,6 +504,25 @@ void IssueNewNTP1TokenDialog::slot_coinControlButtonClicked()
     dlg.exec(); // this is synchornous, so it wont' return until finished
 }
 
+void IssueNewNTP1TokenDialog::slot_divisibilitySpinBoxValueChanged(int value)
+{
+    tokenAmountValidator->setTokenDivisibility(value);
+    slot_amountSetBackgroundTextColor();
+}
+
+void IssueNewNTP1TokenDialog::slot_amountSetBackgroundTextColor()
+{
+    QString amountQStr = amountLineEdit->text();
+    int     p          = 0;
+    if (tokenAmountValidator->validate(amountQStr, p) != QValidator::Acceptable) {
+        amountLineEdit->setStyleSheet(STYLE_INVALID);
+    } else {
+        amountLineEdit->setStyleSheet("");
+    }
+}
+
+void IssueNewNTP1TokenDialog::slot_amountChanged(const QString&) { slot_amountSetBackgroundTextColor(); }
+
 QValidator::State NTP1TokenSymbolValidator::validate(QString& input, int&) const
 {
     if (input.isEmpty()) {
@@ -504,11 +558,18 @@ bool NTP1TokenSymbolValidator::tokenWithSymbolAlreadyIssued(const std::string& t
     return alreadyIssuedTokenSymbols.find(tokenSymbol) != alreadyIssuedTokenSymbols.cend();
 }
 
+void NTP1TokenAmountValidator::setTokenDivisibility(int Divisibility)
+{
+    tokenDivisibility = Divisibility;
+}
+
 NTP1TokenSymbolValidator::NTP1TokenSymbolValidator(IssueNewNTP1TokenDialog& isseNewNTP1Dialog,
                                                    QObject*                 parent)
     : QValidator(parent), dialog(isseNewNTP1Dialog)
 {
 }
+
+int NTP1TokenAmountValidator::getTokenDivisibility() const { return tokenDivisibility; }
 
 NTP1TokenAmountValidator::NTP1TokenAmountValidator(QObject* parent) : QValidator(parent) {}
 
@@ -517,10 +578,12 @@ QValidator::State NTP1TokenAmountValidator::validate(QString& input, int&) const
     if (input.isEmpty()) {
         return State::Intermediate;
     }
-    if (std::any_of(input.cbegin(), input.cend(), [](QChar c) { return !c.isNumber(); })) {
+    NTP1Int amount = 0;
+    try {
+        amount = FP_DecimalToInt<NTP1Int>(input.toStdString(), tokenDivisibility);
+    } catch (std::exception& ex) {
         return State::Invalid;
     }
-    NTP1Int amount(input.toStdString());
     if (amount <= 0) {
         return State::Invalid;
     }

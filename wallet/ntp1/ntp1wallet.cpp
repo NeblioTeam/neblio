@@ -41,6 +41,11 @@ const std::unordered_map<std::string, NTP1TokenMetaData>& NTP1Wallet::getTokenMe
     return tokenInformation;
 }
 
+const std::unordered_map<std::string, unsigned>& NTP1Wallet::getTokenDivisibilities() const
+{
+    return tokenDivisibilities;
+}
+
 void NTP1Wallet::__getOutputs()
 {
     // this helps in persisting to get the wallet data when the application is launched for the first
@@ -121,7 +126,7 @@ void NTP1Wallet::__getOutputs()
                 NTP1Transaction::GetAllNTP1InputsOfTx(neblTx, true);
             ntp1tx.readNTP1DataFromTx(neblTx, prevTxs);
         } catch (std::exception& ex) {
-            printf("Unable to download transaction information. Error says: %s\n", ex.what());
+            printf("Unable to read transaction information. Error says: %s\n", ex.what());
             failedRetrievals++;
             continue;
         }
@@ -130,7 +135,6 @@ void NTP1Wallet::__getOutputs()
         if (ntp1tx.getTxOut(output.getIndex()).tokenCount() > 0) {
             try {
                 // transaction with output index
-                walletOutputsWithTokens[output] = ntp1tx;
                 for (long j = 0; j < static_cast<long>(ntp1tx.getTxOut(output.getIndex()).tokenCount());
                      j++) {
 
@@ -143,6 +147,7 @@ void NTP1Wallet::__getOutputs()
                         NTP1Transaction::GetAllNTP1InputsOfTx(issueTx, true);
                     NTP1Transaction issueNTP1Tx;
                     issueNTP1Tx.readNTP1DataFromTx(issueTx, issueTxInputs);
+                    setTokenEffectiveDivisibility(issueTx);
 
                     // find the correct output in the issuance transaction that has the token in question
                     // issued
@@ -186,8 +191,13 @@ void NTP1Wallet::__getOutputs()
                             GetMinimalMetadataInfoFromTxData(tokenTx);
                     }
                 }
+                walletOutputsWithTokens[output] = ntp1tx;
             } catch (std::exception& ex) {
-                printf("Unable to download token metadata. Error says: %s\n", ex.what());
+                if (currTxCount > 0) {
+                    // to force the rescan, we consider this failure
+                    currTxCount--;
+                }
+                printf("Unable to read token metadata. Error says: %s\n", ex.what());
                 continue;
             }
         }
@@ -288,6 +298,50 @@ NTP1TokenMetaData NTP1Wallet::GetMinimalMetadataInfoFromTxData(const NTP1TokenTx
     return res;
 }
 
+void NTP1Wallet::setTokenEffectiveDivisibility(const CTransaction& issueTx)
+{
+    std::string opRetStr;
+
+    bool isNTP1 = NTP1Transaction::IsTxNTP1(&issueTx, &opRetStr);
+
+    if (!isNTP1) {
+        throw std::runtime_error(
+            "While setting token effective divisiblity in NTP1Wallet, it was attempted to do this "
+            "with a non-NTP1 transaction. The hash of this transaction is: " +
+            issueTx.GetHash().ToString());
+    }
+
+    std::shared_ptr<NTP1Script>          scriptPtr = NTP1Script::ParseScript(opRetStr);
+    std::shared_ptr<NTP1Script_Issuance> scriptPtrD =
+        std::dynamic_pointer_cast<NTP1Script_Issuance>(scriptPtr);
+
+    if (!scriptPtrD) {
+        throw std::runtime_error(
+            "While setting token effective divisibility, failed to read the script as an issuance "
+            "script. A dynamic_cast has resulted in a nullptr. This happened with transaction: " +
+            issueTx.GetHash().ToString());
+    }
+
+    if (issueTx.vin.empty()) {
+        throw std::runtime_error("While setting token effective divisibility, the number of inputs was "
+                                 "found to be zero. This happened with transaction: " +
+                                 issueTx.GetHash().ToString());
+    }
+
+    const auto& prevout0 = issueTx.vin[0].prevout;
+    std::string tokenId  = scriptPtrD->getTokenID(prevout0.hash.ToString(), prevout0.n);
+
+    if (tokenDivisibilities.find(tokenId) == tokenDivisibilities.cend()) {
+        int divisibility = scriptPtrD->getEffectiveDivisibility();
+        if (divisibility < 0) {
+            throw std::runtime_error("While setting token effective divisibility for token id: " +
+                                     tokenId + " , and issuance txid: " + issueTx.GetHash().ToString() +
+                                     "an invalid divisibility was found.");
+        }
+        tokenDivisibilities[tokenId] = divisibility;
+    }
+}
+
 std::string NTP1Wallet::getTokenName(const std::string& tokenID) const
 {
     std::unordered_map<std::string, NTP1TokenMetaData>::const_iterator it =
@@ -312,6 +366,9 @@ NTP1Int NTP1Wallet::getTokenBalance(const std::string& tokenID) const
 std::string NTP1Wallet::getTokenName(int index) const
 {
     std::map<std::string, NTP1Int>::const_iterator it = balances.begin();
+    if (index >= static_cast<int>(balances.size())) {
+        return std::string("<NameError_IndexError>");
+    }
     std::advance(it, index);
     std::unordered_map<std::string, NTP1TokenMetaData>::const_iterator itToken =
         tokenInformation.find(it->first);
@@ -325,6 +382,9 @@ std::string NTP1Wallet::getTokenName(int index) const
 std::string NTP1Wallet::getTokenId(int index) const
 {
     std::map<std::string, NTP1Int>::const_iterator it = balances.begin();
+    if (index >= static_cast<int>(balances.size())) {
+        return std::string("<TokenIdError_IndexError>");
+    }
     std::advance(it, index);
     std::unordered_map<std::string, NTP1TokenMetaData>::const_iterator itToken =
         tokenInformation.find(it->first);
@@ -338,6 +398,9 @@ std::string NTP1Wallet::getTokenId(int index) const
 std::string NTP1Wallet::getTokenIssuanceTxid(int index) const
 {
     std::map<std::string, NTP1Int>::const_iterator it = balances.begin();
+    if (index >= static_cast<int>(balances.size())) {
+        return std::string(""); // empty to detect error automatically (not viewable by user)
+    }
     std::advance(it, index);
     std::unordered_map<std::string, NTP1TokenMetaData>::const_iterator itToken =
         tokenInformation.find(it->first);
@@ -351,6 +414,9 @@ std::string NTP1Wallet::getTokenIssuanceTxid(int index) const
 std::string NTP1Wallet::getTokenDescription(int index) const
 {
     std::map<std::string, NTP1Int>::const_iterator it = balances.begin();
+    if (index >= static_cast<int>(balances.size())) {
+        return std::string("<DescError_IndexError>");
+    }
     std::advance(it, index);
     std::unordered_map<std::string, NTP1TokenMetaData>::const_iterator itToken =
         tokenInformation.find(it->first);
@@ -361,9 +427,41 @@ std::string NTP1Wallet::getTokenDescription(int index) const
     }
 }
 
+std::string NTP1Wallet::getTokenDivisibility(int index) const
+{
+    std::map<std::string, NTP1Int>::const_iterator it = balances.begin();
+    if (index >= static_cast<int>(balances.size())) {
+        return std::string("<DivisibilityError_IndexError>");
+    }
+    std::advance(it, index);
+    std::unordered_map<std::string, unsigned>::const_iterator itToken =
+        tokenDivisibilities.find(it->first);
+    if (itToken == tokenDivisibilities.end()) {
+        return std::string("<DivisibilityError>");
+    } else {
+        return std::to_string(itToken->second);
+    }
+}
+
+boost::optional<unsigned> NTP1Wallet::getTokenDivisibilityInt(int index) const
+{
+    std::map<std::string, NTP1Int>::const_iterator it = balances.begin();
+    if (index >= static_cast<int>(balances.size())) {
+        return boost::optional<unsigned>();
+    }
+    std::advance(it, index);
+    std::unordered_map<std::string, unsigned>::const_iterator itToken =
+        tokenDivisibilities.find(it->first);
+    if (itToken == tokenDivisibilities.end()) {
+        return boost::optional<unsigned>();
+    } else {
+        return itToken->second;
+    }
+}
+
 NTP1Int NTP1Wallet::getTokenBalance(int index) const
 {
-    if (index > getNumberOfTokens())
+    if (index >= getNumberOfTokens())
         return 0;
     std::map<std::string, NTP1Int>::const_iterator it = balances.begin();
     std::advance(it, index);
@@ -394,6 +492,9 @@ void NTP1Wallet::__asyncDownloadAndSetIcon(std::string IconURL, std::string toke
 std::string NTP1Wallet::getTokenIcon(int index)
 {
     std::map<std::string, NTP1Int>::const_iterator it = balances.begin();
+    if (index >= static_cast<int>(balances.size())) {
+        return std::string("");
+    }
     std::advance(it, index);
     std::string                                                        tokenId = it->first;
     std::unordered_map<std::string, NTP1TokenMetaData>::const_iterator itToken =
@@ -468,6 +569,8 @@ std::string NTP1Wallet::Serialize(const NTP1Wallet& wallet)
     root.push_back(
         json_spirit::Pair("icons", SerializeMap(wallet.tokenIcons.getInternalMap(), false, true)));
     root.push_back(json_spirit::Pair("balances", SerializeMap(wallet.balances, false, false)));
+    root.push_back(json_spirit::Pair("token_divisibilities",
+                                     SerializeMap(wallet.tokenDivisibilities, false, false)));
 
     return json_spirit::write_formatted(root);
 }
@@ -490,6 +593,10 @@ NTP1Wallet NTP1Wallet::Deserialize(const std::string& data)
         DeserializeMap<std::unordered_map<std::string, std::string>>(iconsData, false, true));
     json_spirit::Value balancesData(NTP1Tools::GetObjectField(parsedData.get_obj(), "balances"));
     result.balances = DeserializeMap<std::map<std::string, NTP1Int>>(balancesData, false, false);
+    json_spirit::Value tokenDivisibilitiesData(
+        NTP1Tools::GetObjectField(parsedData.get_obj(), "token_divisibilities"));
+    result.tokenDivisibilities =
+        DeserializeMap<std::unordered_map<std::string, unsigned>>(tokenDivisibilitiesData, false, false);
 
     return result;
 }
@@ -563,6 +670,11 @@ void NTP1Wallet::__ValFromJson(const json_spirit::Value& input, bool /*deseriali
     result.importDatabaseJsonData(input);
 }
 
+void NTP1Wallet::__ValFromJson(const json_spirit::Value& input, bool /*deserialize*/, unsigned& result)
+{
+    result = static_cast<unsigned>(input.get_uint64());
+}
+
 json_spirit::Value NTP1Wallet::__ValToJson(const NTP1Transaction& input, bool)
 {
     return input.exportDatabaseJsonData();
@@ -600,6 +712,11 @@ void NTP1Wallet::__ValFromJson(const json_spirit::Value& input, bool deserialize
 json_spirit::Value NTP1Wallet::__ValToJson(const int64_t& input, bool)
 {
     return json_spirit::Value(input);
+}
+
+json_spirit::Value NTP1Wallet::__ValToJson(const unsigned& input, bool)
+{
+    return json_spirit::Value(static_cast<uint64_t>(input));
 }
 
 json_spirit::Value NTP1Wallet::__ValToJson(const NTP1Int& input, bool)
@@ -643,7 +760,7 @@ Container NTP1Wallet::DeserializeMap(const json_spirit::Value& json_val, bool de
         __KeyFromString(it->name_, deserializeKey, first);
         typename Container::mapped_type second;
         __ValFromJson(it->value_, deserializeValue, second);
-        result[first] = second;
+        result.emplace(first, second);
     }
     return result;
 }

@@ -20,12 +20,14 @@ struct IntermediaryTI
 
 struct IssueTokenData
 {
-    IssueTokenData(NTP1Int Amount, std::string Symbol, std::string Metadata)
-        : amount(std::move(Amount)), symbol(std::move(Symbol)), metadata(std::move(Metadata))
+    IssueTokenData(NTP1Int Amount, std::string Symbol, int Divisibility, std::string Metadata)
+        : amount(std::move(Amount)), symbol(std::move(Symbol)), divisibility(Divisibility),
+          metadata(std::move(Metadata))
     {
     }
     NTP1Int     amount;
     std::string symbol;
+    int         divisibility;
     std::string metadata;
 };
 

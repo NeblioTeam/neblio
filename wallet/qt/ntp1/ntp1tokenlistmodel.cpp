@@ -26,7 +26,18 @@ QString NTP1TokenListModel::__getTokenDescription(int index, boost::shared_ptr<N
 
 QString NTP1TokenListModel::__getTokenBalance(int index, boost::shared_ptr<NTP1Wallet> theWallet)
 {
-    return QString::fromStdString(ToString(theWallet->getTokenBalance(index)));
+    boost::optional<unsigned> divisibility = theWallet->getTokenDivisibilityInt(index);
+    if (divisibility) {
+        return QString::fromStdString(
+            FP_IntToDecimal<NTP1Int>(theWallet->getTokenBalance(index), divisibility.get()));
+    } else {
+        return "<Error_DivisibilityNotFound>";
+    }
+}
+
+QString NTP1TokenListModel::__getTokenDivisibility(int index, boost::shared_ptr<NTP1Wallet> theWallet)
+{
+    return QString::fromStdString(theWallet->getTokenDivisibility(index));
 }
 
 QString NTP1TokenListModel::__getIssuanceTxid(int index, boost::shared_ptr<NTP1Wallet> theWallet)
@@ -188,6 +199,9 @@ QVariant NTP1TokenListModel::data(const QModelIndex& index, int role) const
 
     if (role == NTP1TokenListModel::AmountRole) {
         return __getTokenBalance(index.row(), ntp1wallet);
+    }
+    if (role == NTP1TokenListModel::DivisibilityRole) {
+        return __getTokenDivisibility(index.row(), ntp1wallet);
     }
     if (role == NTP1TokenListModel::TokenDescriptionRole) {
         return __getTokenDescription(index.row(), ntp1wallet);

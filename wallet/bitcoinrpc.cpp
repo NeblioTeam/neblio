@@ -1198,6 +1198,8 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
         ConvertTo<int64_t>(params[1]);
     if (strMethod == "getntp1balances" && n > 0)
         ConvertTo<int64_t>(params[0]);
+    if (strMethod == "getntp1balance" && n > 1)
+        ConvertTo<int64_t>(params[1]);
     if (strMethod == "getblock" && n > 1)
         ConvertTo<bool>(params[1]);
     if (strMethod == "getblock" && n > 2)
@@ -1401,11 +1403,7 @@ GetNTP1RecipientsVector(const Object& sendTo, boost::shared_ptr<NTP1Wallet> ntp1
             if (obj.size() != 1) {
                 throw std::runtime_error("Invalid tokenId and amount pair.");
             }
-            int64_t nAmount = obj[0].value_.get_int64();
-            if (nAmount <= 0) {
-                throw std::runtime_error("Invalid amount: " + ::ToString(res.amount));
-            }
-            res.amount             = static_cast<uint64_t>(nAmount);
+            std::string strAmount  = obj[0].value_.get_str();
             std::string providedId = obj[0].name_;
 
             const std::unordered_map<std::string, NTP1TokenMetaData> tokenMetadataMap =
@@ -1430,6 +1428,28 @@ GetNTP1RecipientsVector(const Object& sendTo, boost::shared_ptr<NTP1Wallet> ntp1
             } else {
                 res.tokenId = providedId;
             }
+
+            const std::unordered_map<std::string, unsigned> tokenDivisibilitiesMap =
+                ntp1wallet->getTokenDivisibilities();
+
+            unsigned divisibility = 0;
+            {
+                auto it = tokenDivisibilitiesMap.find(res.tokenId);
+                if (it != tokenDivisibilitiesMap.cend()) {
+                    divisibility = it->second;
+                } else {
+                    throw std::runtime_error("Token divisibility for token with id " + res.tokenId +
+                                             " not found");
+                }
+            }
+
+            NTP1Int nAmount = FP_DecimalToInt<NTP1Int>(strAmount, divisibility);
+
+            if (nAmount <= 0) {
+                throw std::runtime_error("Invalid amount: " + ::ToString(res.amount));
+            }
+            res.amount = static_cast<uint64_t>(nAmount);
+
         } else {
             // nebls
             int64_t nAmount = AmountFromValue(s.value_);

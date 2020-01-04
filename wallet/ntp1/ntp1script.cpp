@@ -30,6 +30,12 @@ std::string NTP1Script::getParsedScriptHex() const { return parsedScriptHex; }
 
 int NTP1Script::getProtocolVersion() const { return protocolVersion; }
 
+bool NTP1Script::isMetadataV1() const { return getProtocolVersion() == 1; }
+
+bool NTP1Script::isMetadataV3() const { return getProtocolVersion() == 3 || getProtocolVersion() == 4; }
+
+bool NTP1Script::isDivisibilitySupported() const { return getProtocolVersion() >= 4; }
+
 void NTP1Script::setCommonParams(std::string Header, int ProtocolVersion, std::string OpCodeBin,
                                  std::string scriptHex)
 {
@@ -371,7 +377,7 @@ std::shared_ptr<NTP1Script> NTP1Script::ParseScript(const std::string& scriptHex
         TxType      txType;
         if (protocolVersion == 1) {
             txType = CalculateTxType(opCodeBin);
-        } else if (protocolVersion == 3) {
+        } else if (protocolVersion == 3 || protocolVersion == 4) {
             txType = CalculateTxTypeNTP1v3(opCodeBin);
         } else {
             throw std::runtime_error("Unknown protocol version " + ToString(protocolVersion) +
@@ -385,7 +391,7 @@ std::shared_ptr<NTP1Script> NTP1Script::ParseScript(const std::string& scriptHex
         if (txType == TxType::TxType_Issuance) {
             if (protocolVersion == 1) {
                 result_ = NTP1Script_Issuance::ParseIssuancePostHeaderData(scriptBin, opCodeBin);
-            } else if (protocolVersion == 3) {
+            } else if (protocolVersion == 3 || protocolVersion == 4) {
                 result_ = NTP1Script_Issuance::ParseNTP1v3IssuancePostHeaderData(scriptBin);
             } else {
                 throw std::runtime_error("Unknown protocol version " + ToString(protocolVersion) +
@@ -394,7 +400,7 @@ std::shared_ptr<NTP1Script> NTP1Script::ParseScript(const std::string& scriptHex
         } else if (txType == TxType::TxType_Transfer) {
             if (protocolVersion == 1) {
                 result_ = NTP1Script_Transfer::ParseTransferPostHeaderData(scriptBin, opCodeBin);
-            } else if (protocolVersion == 3) {
+            } else if (protocolVersion == 3 || protocolVersion == 4) {
                 result_ = NTP1Script_Transfer::ParseNTP1v3TransferPostHeaderData(scriptBin);
             } else {
                 throw std::runtime_error("Unknown protocol version " + ToString(protocolVersion) +
@@ -403,7 +409,7 @@ std::shared_ptr<NTP1Script> NTP1Script::ParseScript(const std::string& scriptHex
         } else if (txType == TxType::TxType_Burn) {
             if (protocolVersion == 1) {
                 result_ = NTP1Script_Burn::ParseBurnPostHeaderData(scriptBin, opCodeBin);
-            } else if (protocolVersion == 3) {
+            } else if (protocolVersion == 3 || protocolVersion == 4) {
                 result_ = NTP1Script_Burn::ParseNTP1v3BurnPostHeaderData(scriptBin);
             } else {
                 throw std::runtime_error("Unknown protocol version " + ToString(protocolVersion) +
