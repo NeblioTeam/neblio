@@ -140,7 +140,7 @@ void IssueNewNTP1TokenDialog::validateInput() const
         throw std::runtime_error("Invalid change address provided");
     }
     if (!CBitcoinAddress(targetAddressLineEdit->text().toStdString()).IsValid()) {
-        throw std::runtime_error("Invalid change address provided");
+        throw std::runtime_error("Invalid target address provided");
     }
     std::string tokenSymbolGiven = tokenSymbolLineEdit->text().trimmed().toStdString();
     std::string tokenNameGiven   = tokenNameLabel->text().trimmed().toStdString();
@@ -155,8 +155,14 @@ void IssueNewNTP1TokenDialog::validateInput() const
     if (tokenNameGiven.empty()) {
         throw std::runtime_error("Token name cannot be empty");
     }
+    if (tokenNameGiven.length() > 16) {
+        throw std::runtime_error("Token name cannot be longer than 16 characters");
+    }
     if (tokenIssuerGiven.empty()) {
         throw std::runtime_error("Token issuer cannot be empty");
+    }
+    if (tokenIssuerGiven.length() > 16) {
+        throw std::runtime_error("Token issuer cannot be longer than 16 characters");
     }
     if (tokenAmountGiven.empty()) {
         throw std::runtime_error("Token amount cannot be empty");
