@@ -143,7 +143,7 @@ void IssueNewNTP1TokenDialog::validateInput() const
         throw std::runtime_error("Invalid target address provided");
     }
     std::string tokenSymbolGiven = tokenSymbolLineEdit->text().trimmed().toStdString();
-    std::string tokenNameGiven   = tokenNameLabel->text().trimmed().toStdString();
+    std::string tokenNameGiven   = tokenNameLineEdit->text().trimmed().toStdString();
     std::string tokenIssuerGiven = issuerLineEdit->text().trimmed().toStdString();
     std::string tokenAmountGiven = amountLineEdit->text().trimmed().toStdString();
     if (tokenSymbolGiven.empty()) {
