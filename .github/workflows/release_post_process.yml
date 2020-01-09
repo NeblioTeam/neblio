@@ -1,8 +1,7 @@
 name: ReleasePostProcess
 on:
   release:
-    types:
-      - created
+    types: [published, created, prereleased]
 
 jobs:
   build:
