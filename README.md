@@ -218,6 +218,7 @@ getinfo
 getmininginfo
 getnewaddress [account]
 getnewpubkey [account]
+getntp1balance <tokenId/name> [minconf=1]
 getntp1balances [minconf=1]
 getpeerinfo
 getrawmempool
