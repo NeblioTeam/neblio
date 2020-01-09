@@ -85,9 +85,6 @@ if (args.test):
     nci.call_with_err_code('qmake "QMAKE_CXX=ccache clang++" "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "DEFINES += UNITTEST_RUN_NTP_PARSE_TESTS" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
     nci.call_with_err_code("make -j" + str(mp.cpu_count()))
     # download test data
-    nci.call_with_err_code('pwd')
-    nci.call_with_err_code('ls -al wallet')
-    nci.call_with_err_code('ls -al wallet/test/build')
     nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/test_data_mainnet.tar.xz -O ../wallet/test/data/test_data_mainnet.tar.xz')
     nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/test_data_testnet.tar.xz -O ../wallet/test/data/test_data_testnet.tar.xz')
     nci.call_with_err_code('tar -xJvf ../wallet/test/data/test_data_mainnet.tar.xz -C ../wallet/test/data')
