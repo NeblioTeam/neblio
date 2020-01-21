@@ -358,10 +358,10 @@ TEST(transaction_tests, test_GetThrow)
     EXPECT_THROW(t1.GetValueIn(missingInputs), runtime_error);
 }
 
-void test_op_return_size(int currentHeight, int isTestnet, unsigned int expected_size)
+void test_op_return_size(int currentHeight, NetworkType netType, unsigned int expected_size)
 {
     nBestHeight = currentHeight;
-    fTestNet    = isTestnet;
+    networkType = netType;
 
     unsigned int allowedSize = DataSize();
 
@@ -434,23 +434,23 @@ void test_op_return_size(int currentHeight, int isTestnet, unsigned int expected
 TEST(transaction_tests, op_return_size_mainnet_before_hf)
 {
     int blocknum = TestnetForks.getFirstBlockOfFork(NetworkFork::NETFORK__3_TACHYON);
-    test_op_return_size(blocknum - 1, false, 80);
+    test_op_return_size(blocknum - 1, NetworkType::Mainnet, 80);
 }
 
 TEST(transaction_tests, op_return_size_mainnet_after_hf)
 {
     int blocknum = TestnetForks.getFirstBlockOfFork(NetworkFork::NETFORK__3_TACHYON);
-    test_op_return_size(blocknum, false, 80);
+    test_op_return_size(blocknum, NetworkType::Mainnet, 80);
 }
 
 TEST(transaction_tests, op_return_size_testnet_before_hf)
 {
     int blocknum = TestnetForks.getFirstBlockOfFork(NetworkFork::NETFORK__3_TACHYON);
-    test_op_return_size(blocknum - 1, true, 80);
+    test_op_return_size(blocknum - 1, NetworkType::Testnet, 80);
 }
 
 TEST(transaction_tests, op_return_size_testnet_after_hf)
 {
     int blocknum = TestnetForks.getFirstBlockOfFork(NetworkFork::NETFORK__3_TACHYON);
-    test_op_return_size(blocknum, true, 4096);
+    test_op_return_size(blocknum, NetworkType::Testnet, 4096);
 }

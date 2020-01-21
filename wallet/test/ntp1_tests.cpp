@@ -1753,16 +1753,16 @@ void TestNTP1TxParsing(const CTransaction& tx, bool testnet)
     EXPECT_EQ(ntp1tx.getTxHash(), ntp1tx_ref.getTxHash()) << "Failed tx: " << txid;
 }
 
-void TestNTP1TxParsing(const std::string& txid, bool testnet)
+void TestNTP1TxParsing(const std::string& txid, NetworkType netType)
 {
-    bool prevTestnetState = fTestNet;
-    fTestNet              = testnet;
-    std::unique_ptr<bool, std::function<void(bool*)>> txEnder(
-        &fTestNet, [&prevTestnetState](bool*) { fTestNet = prevTestnetState; });
+    NetworkType prevNetTypeState = networkType;
+    networkType                  = netType;
+    std::unique_ptr<NetworkType, std::function<void(NetworkType*)>> txEnder(
+        &networkType, [&prevNetTypeState](NetworkType*) { networkType = prevNetTypeState; });
 
-    std::string  rawTx = GetRawTxOnline(txid, testnet);
+    std::string  rawTx = GetRawTxOnline(txid, netType);
     CTransaction tx    = TxFromHex(rawTx);
-    TestNTP1TxParsing(tx, testnet);
+    TestNTP1TxParsing(tx, netType);
 }
 
 void TestSingleNTP1TxParsingLocally(const CTransaction&                                 tx,
@@ -1880,20 +1880,21 @@ void TestSingleNTP1TxParsingLocally(const std::string&                          
     }
 }
 
-void TestNTP1TxParsingLocally(bool testnet)
+void TestNTP1TxParsingLocally(NetworkType netType)
 {
-    fTestNet = testnet; // ensure testnet state will be reset on exit
-    std::unique_ptr<bool, void (*)(bool*)> temp(&fTestNet, [](bool*) { fTestNet = false; });
+    networkType = netType; // ensure testnet state will be reset on exit
+    std::unique_ptr<NetworkType, void (*)(NetworkType*)> temp(
+        &networkType, [](NetworkType*) { networkType = NetworkType::Mainnet; });
 
     std::unordered_map<std::string, std::string> ntp1txs_map;
     std::unordered_map<std::string, std::string> nebltxs_map;
 
-    std::vector<std::string> txids = read_line_by_line(NTP1Tests_GetTxidListFileName(testnet));
+    std::vector<std::string> txids = read_line_by_line(NTP1Tests_GetTxidListFileName(netType));
 
     // save memory by ensuring the destruction of json objects
     {
-        json_spirit::Object nebltxs = read_json_obj(NTP1Tests_GetRawNeblioTxsFileName(testnet));
-        json_spirit::Object ntp1txs = read_json_obj(NTP1Tests_GetNTP1RawTxsFileName(testnet));
+        json_spirit::Object nebltxs = read_json_obj(NTP1Tests_GetRawNeblioTxsFileName(netType));
+        json_spirit::Object ntp1txs = read_json_obj(NTP1Tests_GetNTP1RawTxsFileName(netType));
 
         for (const auto& el : nebltxs) {
             nebltxs_map[el.name_] = el.value_.get_str();
@@ -1908,7 +1909,7 @@ void TestNTP1TxParsingLocally(bool testnet)
         if (count % 250 == 0)
             std::cout << "Finished testing " << count << " transactions" << std::endl;
         count++;
-        if (testnet) {
+        if (IsTestnet()) {
             if (excluded_txs_testnet.exists(uint256(txid)))
                 continue;
         } else {
@@ -1999,9 +2000,8 @@ void DownloadPreMadeData(bool testnet)
     for (uint64_t i = 0; i < (uint64_t)files.size(); i++) {
         std::cout << "Downloading test data file " << files[i] << std::endl;
         EXPECT_NO_THROW(boost::filesystem::remove(Path(TEST_ROOT_PATH) / Path("/data/" + files[i])));
-        std::string content = cURLTools::GetFileFromHTTPS(
-            "https://files.nebl.io/" + files[i], 10000, 0);
-        fs::path testFile = testRootPath / "data" / files[i];
+        std::string content = cURLTools::GetFileFromHTTPS("https://files.nebl.io/" + files[i], 10000, 0);
+        fs::path    testFile = testRootPath / "data" / files[i];
         std::ofstream os(testFile.string().c_str());
         os << content;
         os.close();
@@ -2019,21 +2019,19 @@ TEST(ntp1_tests, download_data_to_files)
 #ifdef UNITTEST_RUN_NTP_PARSE_TESTS
 TEST(ntp1_tests, parsig_ntp1_from_ctransaction_automated)
 {
-    EXPECT_NO_THROW(TestNTP1TxParsingLocally(false));
-    EXPECT_NO_THROW(TestNTP1TxParsingLocally(true));
+    EXPECT_NO_THROW(TestNTP1TxParsingLocally(NetworkType::Testnet));
+    EXPECT_NO_THROW(TestNTP1TxParsingLocally(NetworkType::Mainnet));
 }
 
 #elif defined UNITTEST_DOWNLOAD_PREMADE_TX_DATA_AND_RUN_PARSE_TESTS
 TEST(ntp1_tests, download_premade_data_to_files_and_run_parse_test)
 {
     DownloadPreMadeData(true);
-    TestNTP1TxParsingLocally(true);
+    TestNTP1TxParsingLocally(NetworkType::Testnet);
     DownloadPreMadeData(false);
-    TestNTP1TxParsingLocally(false);
+    TestNTP1TxParsingLocally(NetworkType::Mainnet);
 }
 #endif
-
-
 
 TEST(ntp1_tests, construct_scripts)
 {
@@ -2098,9 +2096,9 @@ CTransaction GetTxOnline(const std::string& txid, bool testnet)
 
 TEST(ntp1_tests, amend_tx_1)
 {
-    fTestNet = true; // ensure testnet state will be reset on exit
+    networkType = NetworkType::Testnet; // ensure testnet state will be reset on exit
     std::unique_ptr<int, void (*)(int*)> temp(new int, [](int* i) {
-        fTestNet = false;
+        networkType = NetworkType::Mainnet;
         delete i;
     });
 
@@ -2146,9 +2144,9 @@ TEST(ntp1_tests, amend_tx_1)
 
 TEST(ntp1_tests, amend_tx_2)
 {
-    fTestNet = true; // ensure testnet state will be reset on exit
+    networkType = NetworkType::Testnet; // ensure testnet state will be reset on exit
     std::unique_ptr<int, void (*)(int*)> temp(new int, [](int* i) {
-        fTestNet = false;
+        networkType = NetworkType::Mainnet;
         delete i;
     });
 
@@ -2180,9 +2178,9 @@ TEST(ntp1_tests, amend_tx_2)
 
 TEST(ntp1_tests, amend_tx_3)
 {
-    fTestNet = true; // ensure testnet state will be reset on exit
+    networkType = NetworkType::Testnet; // ensure testnet state will be reset on exit
     std::unique_ptr<int, void (*)(int*)> temp(new int, [](int* i) {
-        fTestNet = false;
+        networkType = NetworkType::Mainnet;
         delete i;
     });
 
@@ -2228,9 +2226,9 @@ TEST(ntp1_tests, amend_tx_3)
 
 TEST(ntp1_tests, amend_tx_4)
 {
-    fTestNet = true; // ensure testnet state will be reset on exit
+    networkType = NetworkType::Testnet; // ensure testnet state will be reset on exit
     std::unique_ptr<int, void (*)(int*)> temp(new int, [](int* i) {
-        fTestNet = false;
+        networkType = NetworkType::Mainnet;
         delete i;
     });
 
@@ -2285,9 +2283,9 @@ TEST(ntp1_tests, amend_tx_4)
 
 TEST(ntp1_tests, amend_tx_5)
 {
-    fTestNet = true; // ensure testnet state will be reset on exit
+    networkType = NetworkType::Testnet; // ensure testnet state will be reset on exit
     std::unique_ptr<int, void (*)(int*)> temp(new int, [](int* i) {
-        fTestNet = false;
+        networkType = NetworkType::Mainnet;
         delete i;
     });
 
@@ -2358,9 +2356,9 @@ TEST(ntp1_tests, amend_tx_5)
 
 TEST(ntp1_tests, amend_tx_6)
 {
-    fTestNet = true; // ensure testnet state will be reset on exit
+    networkType = NetworkType::Testnet; // ensure testnet state will be reset on exit
     std::unique_ptr<int, void (*)(int*)> temp(new int, [](int* i) {
-        fTestNet = false;
+        networkType = NetworkType::Mainnet;
         delete i;
     });
 
@@ -2432,9 +2430,9 @@ TEST(ntp1_tests, amend_tx_6)
 
 TEST(ntp1_tests, amend_tx_with_op_return)
 {
-    fTestNet = true; // ensure testnet state will be reset on exit
+    networkType = NetworkType::Testnet; // ensure testnet state will be reset on exit
     std::unique_ptr<int, void (*)(int*)> temp(new int, [](int* i) {
-        fTestNet = false;
+        networkType = NetworkType::Mainnet;
         delete i;
     });
 

@@ -10,15 +10,15 @@
 #ifndef __INCLUDED_PROTOCOL_H__
 #define __INCLUDED_PROTOCOL_H__
 
+#include "globals.h"
 #include "netbase.h"
 #include "serialize.h"
 #include "uint256.h"
 #include <string>
 
-extern bool                  fTestNet;
-static inline unsigned short GetDefaultPort(const bool testnet = fTestNet)
+inline unsigned short GetDefaultPort(const NetworkType netType = networkType)
 {
-    return testnet ? 16325 : 6325;
+    return netType == NetworkType::Testnet ? 16325 : 6325;
 }
 
 extern unsigned char pchMessageStart[4];

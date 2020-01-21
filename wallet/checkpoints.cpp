@@ -110,7 +110,7 @@ typedef ThreadSafeMap<int, uint256> MapCheckpoints;
 
 bool CheckHardened(int nHeight, const uint256& hash)
 {
-    MapCheckpoints& checkpoints = (fTestNet ? mapCheckpointsTestnet : mapCheckpoints);
+    MapCheckpoints& checkpoints = (IsTestnet() ? mapCheckpointsTestnet : mapCheckpoints);
 
     uint256 foundHash(0);
     bool    found = checkpoints.get(nHeight, foundHash);
@@ -121,7 +121,7 @@ bool CheckHardened(int nHeight, const uint256& hash)
 
 int GetTotalBlocksEstimate()
 {
-    MapCheckpoints& checkpoints = (fTestNet ? mapCheckpointsTestnet : mapCheckpoints);
+    MapCheckpoints& checkpoints = (IsTestnet() ? mapCheckpointsTestnet : mapCheckpoints);
 
     MapCheckpoints::value_type r;
     if (checkpoints.back(r)) {
@@ -134,7 +134,7 @@ int GetTotalBlocksEstimate()
 CBlockIndex* GetLastCheckpoint(const std::map<uint256, CBlockIndex*>& mapBlockIndex)
 {
     MapCheckpoints::MapType checkpoints =
-        (fTestNet ? mapCheckpointsTestnet.getInternalMap() : mapCheckpoints.getInternalMap());
+        (IsTestnet() ? mapCheckpointsTestnet.getInternalMap() : mapCheckpoints.getInternalMap());
 
     BOOST_REVERSE_FOREACH(const MapCheckpoints::MapType::value_type& i, checkpoints)
     {
@@ -289,7 +289,7 @@ uint256 AutoSelectSyncCheckpoint()
 // Check against synchronized checkpoint
 bool CheckSync(const uint256& hashBlock, const CBlockIndex* pindexPrev)
 {
-    if (fTestNet)
+    if (IsTestnet())
         return true; // Testnet has no checkpoints
     int nHeight = pindexPrev->nHeight + 1;
 
@@ -381,7 +381,7 @@ bool SetCheckpointPrivKey(std::string strPrivKey)
 {
     // Test signing a sync-checkpoint with genesis block
     CSyncCheckpoint checkpoint;
-    checkpoint.hashCheckpoint = !fTestNet ? hashGenesisBlock : hashGenesisBlockTestNet;
+    checkpoint.hashCheckpoint = IsMainnet() ? hashGenesisBlock : hashGenesisBlockTestNet;
     CDataStream sMsg(SER_NETWORK, PROTOCOL_VERSION);
     sMsg << (CUnsignedSyncCheckpoint)checkpoint;
     checkpoint.vchMsg = std::vector<unsigned char>(sMsg.begin(), sMsg.end());
@@ -445,7 +445,7 @@ bool IsMatureSyncCheckpoint()
 int64_t GetLastCheckpointBlockHeight()
 {
     MapCheckpoints::value_type lastValue;
-    if (fTestNet) {
+    if (IsTestnet()) {
         if (mapCheckpointsTestnet.back(lastValue)) {
             return lastValue.first;
         } else {

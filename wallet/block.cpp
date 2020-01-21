@@ -738,7 +738,8 @@ bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
     if (createDbTransaction && !txdb.TxnBegin())
         return error("SetBestChain() : TxnBegin failed");
 
-    if (pindexGenesisBlock == NULL && hash == (!fTestNet ? hashGenesisBlock : hashGenesisBlockTestNet)) {
+    if (pindexGenesisBlock == nullptr &&
+        hash == (IsMainnet() ? hashGenesisBlock : hashGenesisBlockTestNet)) {
         txdb.WriteHashBestChain(hash);
         if (createDbTransaction && !txdb.TxnCommit())
             return error("SetBestChain() : TxnCommit failed");

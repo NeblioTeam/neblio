@@ -36,7 +36,7 @@ int NetworkForks::getFirstBlockOfFork(NetworkFork fork) const { return forksToBl
 
 const NetworkForks& GetNetForks()
 {
-    if (fTestNet)
+    if (IsTestnet())
         return TestnetForks;
     else
         return MainnetForks;

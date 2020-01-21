@@ -179,7 +179,7 @@ bool EnableEnforceUniqueTokenSymbols();
 
 /** the condition for the first valid NTP1 transaction; transactions before this point are invalid in the
  * network*/
-bool PassedFirstValidNTP1Tx(const int bestHeight, const bool isTestnet);
+bool PassedFirstValidNTP1Tx(const int bestHeight, const NetworkType isTestnet);
 
 /** Maximum size of a block */
 unsigned int MaxBlockSize();

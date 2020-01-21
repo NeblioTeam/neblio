@@ -397,7 +397,7 @@ bool CheckCoinStakeTimestamp(int64_t nTimeBlock, int64_t nTimeTx)
 unsigned int GetStakeModifierChecksum(const CBlockIndex* pindex)
 {
     assert(pindex->pprev ||
-           pindex->GetBlockHash() == (!fTestNet ? hashGenesisBlock : hashGenesisBlockTestNet));
+           pindex->GetBlockHash() == (IsMainnet() ? hashGenesisBlock : hashGenesisBlockTestNet));
     // Hash previous checksum with flags, hashProofOfStake and nStakeModifier
     CDataStream ss(SER_GETHASH, 0);
     if (pindex->pprev)
@@ -412,7 +412,7 @@ unsigned int GetStakeModifierChecksum(const CBlockIndex* pindex)
 bool CheckStakeModifierCheckpoints(int nHeight, unsigned int nStakeModifierChecksum)
 {
     MapModifierCheckpoints& checkpoints =
-        (fTestNet ? mapStakeModifierCheckpointsTestNet : mapStakeModifierCheckpoints);
+        (IsTestnet() ? mapStakeModifierCheckpointsTestNet : mapStakeModifierCheckpoints);
 
     if (checkpoints.count(nHeight))
         return nStakeModifierChecksum == checkpoints[nHeight];

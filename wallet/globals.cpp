@@ -9,6 +9,8 @@ BlockIndexMapType   mapBlockIndex;
 CBlockIndexSmartPtr pindexBest{nullptr};
 CBlockIndexSmartPtr pindexGenesisBlock = nullptr;
 
+NetworkType networkType = NetworkType::Mainnet;
+
 bool               fUseFastIndex;
 boost::atomic<int> nBestHeight{-1};
 

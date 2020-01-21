@@ -55,7 +55,7 @@ Value getmininginfo(const Array& params, bool fHelp)
     obj.push_back(Pair("stakeweight", weight));
 
     obj.push_back(Pair("stakeinterest", (uint64_t)COIN_YEAR_REWARD));
-    obj.push_back(Pair("testnet", fTestNet));
+    obj.push_back(Pair("testnet", IsTestnet()));
     return obj;
 }
 

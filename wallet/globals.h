@@ -25,6 +25,19 @@ extern CBlockIndexSmartPtr pindexGenesisBlock;
 extern bool               fUseFastIndex;
 extern boost::atomic<int> nBestHeight;
 
+enum NetworkType
+{
+    Mainnet,
+    Testnet,
+    Regtest
+};
+
+extern NetworkType networkType;
+
+inline bool IsMainnet() { return networkType == NetworkType::Mainnet; }
+inline bool IsTestnet() { return networkType == NetworkType::Testnet; }
+inline bool IsRegtest() { return networkType == NetworkType::Regtest; }
+
 static const int LAST_POW_BLOCK = 1000; // 1000 PoW Blocks to kickstart
 
 static const int64_t COIN = 100000000;

@@ -447,7 +447,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
 
     // Rather not work on nonstandard transactions (unless -testnet)
     string reason;
-    if (!fTestNet && !IsStandardTx(tx, reason))
+    if (IsMainnet() && !IsStandardTx(tx, reason))
         return error("AcceptToMemoryPool : nonstandard transaction: %s", reason.c_str());
 
     // is it already in the memory pool?
@@ -504,7 +504,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
         }
 
         // Check for non-standard pay-to-script-hash in inputs
-        if (!tx.AreInputsStandard(mapInputs) && !fTestNet)
+        if (!tx.AreInputsStandard(mapInputs) && IsMainnet())
             return error("AcceptToMemoryPool : nonstandard transaction input");
 
         // Note: if you modify this code to accept non-standard transactions, then
@@ -552,7 +552,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
                          hash.ToString().substr(0, 10).c_str());
         }
 
-        if (PassedFirstValidNTP1Tx(nBestHeight, fTestNet) &&
+        if (PassedFirstValidNTP1Tx(nBestHeight, networkType) &&
             GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
             try {
                 std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
@@ -998,7 +998,7 @@ bool RecoverNTP1TxInDatabase(const CTransaction& tx, CTxDB& txdb, bool recoveryP
             try {
                 inputTx = CTransaction::FetchTxFromDisk(in.prevout.hash, txdb);
                 bool anyInputBeforeWrongBlockHeights =
-                    !PassedFirstValidNTP1Tx(GetTxBlockHeight(inputTx.GetHash()), fTestNet);
+                    !PassedFirstValidNTP1Tx(GetTxBlockHeight(inputTx.GetHash()), networkType);
                 bool isNTP1 = NTP1Transaction::IsTxNTP1(&inputTx);
                 if (anyInputBeforeWrongBlockHeights && isNTP1) {
                     printf("Error: cannot recover transaction with hash %s; the NTP1 input of this "
@@ -1028,7 +1028,7 @@ bool RecoverNTP1TxInDatabase(const CTransaction& tx, CTxDB& txdb, bool recoveryP
     try {
         for (const auto in : ntp1inputs) {
             bool anyInputBeforeWrongBlockHeights =
-                !PassedFirstValidNTP1Tx(GetTxBlockHeight(in.first.GetHash()), fTestNet);
+                !PassedFirstValidNTP1Tx(GetTxBlockHeight(in.first.GetHash()), networkType);
             bool isNTP1 = NTP1Transaction::IsTxNTP1(&in.first);
             if (anyInputBeforeWrongBlockHeights && isNTP1) {
                 printf("One of the inputs of the NTP1 transaction %s, which is %s, is bofore the "
@@ -1115,7 +1115,7 @@ void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, CTxDB& txdb)
 
 void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, CTxDB& txdb)
 {
-    if (PassedFirstValidNTP1Tx(nBestHeight, fTestNet)) {
+    if (PassedFirstValidNTP1Tx(nBestHeight, networkType)) {
         // read previous transactions (inputs) which are necessary to validate an NTP1
         // transaction
         std::string opReturnArg;
@@ -1192,7 +1192,7 @@ CTransaction PopLeafTransaction(std::vector<CTransaction>& vtx)
 
 void WriteNTP1BlockTransactionsToDisk(const std::vector<CTransaction>& vtx, CTxDB& txdb)
 {
-    if (PassedFirstValidNTP1Tx(nBestHeight, fTestNet)) {
+    if (PassedFirstValidNTP1Tx(nBestHeight, networkType)) {
         std::vector<CTransaction> transactions(vtx.begin(), vtx.end());
 
         // add current transactions to possible inputs to cover the case if a transaction spends an
@@ -1494,7 +1494,7 @@ bool LoadBlockIndex(bool fAllowNew)
 
     CBigNum bnTrustedModulus;
 
-    if (fTestNet) {
+    if (IsTestnet()) {
         pchMessageStart[0] = 0x1b;
         pchMessageStart[1] = 0xba;
         pchMessageStart[2] = 0x63;
@@ -1566,7 +1566,7 @@ bool LoadBlockIndex(bool fAllowNew)
         block.nVersion       = 1;
         block.nTime          = 1500674579;
         block.nBits          = bnProofOfWorkLimit.GetCompact();
-        block.nNonce         = !fTestNet ? 8485 : 8485;
+        block.nNonce         = IsMainnet() ? 8485 : 8485;
 
         if (true && (block.GetHash() != hashGenesisBlock)) {
 
@@ -1592,7 +1592,7 @@ bool LoadBlockIndex(bool fAllowNew)
 
         assert(block.hashMerkleRoot ==
                uint256("0x203fd13214321a12b01c0d8b32c780977cf52e56ae35b7383cd389c73291aee7"));
-        assert(block.GetHash() == (!fTestNet ? hashGenesisBlock : hashGenesisBlockTestNet));
+        assert(block.GetHash() == (IsMainnet() ? hashGenesisBlock : hashGenesisBlockTestNet));
         assert(block.CheckBlock());
 
         // Start new block file
@@ -1600,7 +1600,8 @@ bool LoadBlockIndex(bool fAllowNew)
             return error("LoadBlockIndex() : writing genesis block to disk failed");
 
         // ppcoin: initialize synchronized checkpoint
-        if (!Checkpoints::WriteSyncCheckpoint((!fTestNet ? hashGenesisBlock : hashGenesisBlockTestNet)))
+        if (!Checkpoints::WriteSyncCheckpoint(
+                (IsMainnet() ? hashGenesisBlock : hashGenesisBlockTestNet)))
             return error("LoadBlockIndex() : failed to init sync checkpoint");
     }
 
@@ -1614,7 +1615,7 @@ bool LoadBlockIndex(bool fAllowNew)
             return error("LoadBlockIndex() : failed to write new checkpoint master key to db");
         if (!txdb.TxnCommit())
             return error("LoadBlockIndex() : failed to commit new checkpoint master key to db");
-        if ((!fTestNet) && !Checkpoints::ResetSyncCheckpoint())
+        if (IsMainnet() && !Checkpoints::ResetSyncCheckpoint())
             return error("LoadBlockIndex() : failed to reset sync-checkpoint");
     }
 
@@ -2794,14 +2795,16 @@ bool EnableEnforceUniqueTokenSymbols()
     }
 }
 
-bool PassedFirstValidNTP1Tx(const int bestHeight, const bool isTestnet)
+bool PassedFirstValidNTP1Tx(const int bestHeight, const NetworkType netType)
 {
-    if (isTestnet) {
+    if (netType == NetworkType::Testnet) {
         // testnet past network upgrade block
         return (bestHeight >= 10313);
-    } else {
+    } else if (netType == NetworkType::Mainnet) {
         // mainnet past first valid NTP1 txn
         return (bestHeight >= 157528);
+    } else {
+        return true;
     }
 }
 
@@ -2828,7 +2831,7 @@ unsigned int TargetSpacing()
 /** Coinbase Maturity */
 int CoinbaseMaturity()
 {
-    if (fTestNet) {
+    if (IsTestnet()) {
         if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
             return nCoinbaseMaturity;
         } else {
@@ -2869,7 +2872,7 @@ int MinPeerVersion()
 /** Minimum Staking Age */
 unsigned int StakeMinAge()
 {
-    if (fTestNet) {
+    if (IsTestnet()) {
         if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
             return nStakeMinAge;
         } else {
@@ -3117,7 +3120,7 @@ std::deque<uint256> TraverseBlockIndexGraph(const BlockIndexGraphType&        gr
                                             const VerticesDescriptorsMapType& descriptors,
                                             GraphTraverseType                 traverseType)
 {
-    uint256 startBlockHash = (fTestNet ? hashGenesisBlockTestNet : hashGenesisBlock);
+    uint256 startBlockHash = (IsTestnet() ? hashGenesisBlockTestNet : hashGenesisBlock);
 
     if (traverseType == GraphTraverseType::DepthFirst) {
         DFSBlockIndexVisitor vis;

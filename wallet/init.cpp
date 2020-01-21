@@ -419,7 +419,20 @@ bool AppInit2()
 
     nDerivationMethodIndex = 0;
 
-    fTestNet = GetBoolArg("-testnet");
+    bool isTestnet = GetBoolArg("-testnet");
+    bool isRegtest = GetBoolArg("-regtest");
+
+    if (isTestnet && isRegtest) {
+        throw std::runtime_error("Cannot have both testnet and regtest simultaneously");
+    }
+
+    if (isTestnet) {
+        networkType = NetworkType::Testnet;
+    } else if (isRegtest) {
+        networkType = NetworkType::Regtest;
+    } else {
+        networkType = NetworkType::Mainnet;
+    }
 
     if (mapArgs.exists("-bind")) {
         // when specifying an explicit binding address, you want to listen on it

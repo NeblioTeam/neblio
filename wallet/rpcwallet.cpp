@@ -103,7 +103,7 @@ Value getinfo(const Array& params, bool fHelp)
                         GetDifficulty(GetLastBlockIndex(boost::atomic_load(&pindexBest).get(), true))));
     obj.push_back(Pair("difficulty", diff));
 
-    obj.push_back(Pair("testnet", fTestNet));
+    obj.push_back(Pair("testnet", IsTestnet()));
     obj.push_back(Pair("tachyon", GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)));
     obj.push_back(Pair("keypoololdest", (int64_t)pwalletMain->GetOldestKeyPoolTime()));
     obj.push_back(Pair("keypoolsize", (int)pwalletMain->GetKeyPoolSize()));

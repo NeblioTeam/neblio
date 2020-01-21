@@ -341,7 +341,7 @@ void TransactionView::showInBlockExplorer()
     }
     if (!txId.isEmpty()) {
         QString link = QString::fromStdString(
-            NTP1Tools::GetURL_ExplorerTransactionInfo(txId.toStdString(), fTestNet));
+            NTP1Tools::GetURL_ExplorerTransactionInfo(txId.toStdString(), IsTestnet()));
         if (!QDesktopServices::openUrl(QUrl(link))) {
             QMessageBox::warning(
                 this, "Failed to open browser",
