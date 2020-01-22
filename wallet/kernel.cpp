@@ -69,8 +69,8 @@ static int64_t GetStakeModifierSelectionInterval()
 // select a block from the candidate blocks in vSortedByTimestamp, excluding
 // already selected blocks in vSelectedBlocks, and with timestamp up to
 // nSelectionIntervalStop.
-static bool SelectBlockFromCandidates(vector<pair<int64_t, uint256>>&   vSortedByTimestamp,
-                                      map<uint256, const CBlockIndex*>& mapSelectedBlocks,
+static bool SelectBlockFromCandidates(const vector<pair<int64_t, uint256>>&   vSortedByTimestamp,
+                                      const map<uint256, const CBlockIndex*>& mapSelectedBlocks,
                                       int64_t nSelectionIntervalStop, uint64_t nStakeModifierPrev,
                                       const CBlockIndex** pindexSelected)
 {

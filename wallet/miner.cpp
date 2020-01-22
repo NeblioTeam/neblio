@@ -15,12 +15,6 @@
 
 using namespace std;
 
-template <typename T>
-struct GenericDeleter
-{
-    void operator()(T* ptr) { delete ptr; }
-};
-
 //////////////////////////////////////////////////////////////////////////////
 //
 // BitcoinMiner
@@ -118,11 +112,11 @@ public:
 CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
 {
     // Create new block
-    boost::interprocess::unique_ptr<CBlock, GenericDeleter<CBlock>> pblock(new CBlock());
+    std::unique_ptr<CBlock> pblock(new CBlock());
     if (!pblock.get())
-        return NULL;
+        return nullptr;
 
-    CBlockIndexSmartPtr pindexPrev = boost::atomic_load(&pindexBest);
+    ConstCBlockIndexSmartPtr pindexPrev = boost::atomic_load(&pindexBest);
 
     // Create coinbase tx
     CTransaction txNew;
@@ -134,7 +128,7 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
         CReserveKey reservekey(pwallet);
         CPubKey     pubkey;
         if (!reservekey.GetReservedKey(pubkey))
-            return NULL;
+            return nullptr;
         txNew.vout[0].scriptPubKey.SetDestination(pubkey.GetID());
     } else {
         // Height first in coinbase required for block.version=2
@@ -202,7 +196,7 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
             if (tx.IsCoinBase() || tx.IsCoinStake() || !IsFinalTx(tx, pindexPrev->nHeight + 1))
                 continue;
 
-            COrphan* porphan        = NULL;
+            COrphan* porphan        = nullptr;
             double   dPriority      = 0;
             int64_t  nTotalIn       = 0;
             bool     fMissingInputs = false;
@@ -528,7 +522,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
         }
 
         // Process this block the same as if we had received it from another node
-        if (!ProcessBlock(NULL, pblock))
+        if (!ProcessBlock(nullptr, pblock))
             return error("CheckWork() : ProcessBlock, block not accepted");
     }
 
@@ -566,7 +560,7 @@ bool CheckStake(CBlock* pblock, CWallet& wallet)
         }
 
         // Process this block the same as if we had received it from another node
-        if (!ProcessBlock(NULL, pblock))
+        if (!ProcessBlock(nullptr, pblock))
             return error("CheckStake() : ProcessBlock, block not accepted");
     }
 
@@ -588,9 +582,9 @@ void StakeMiner(CWallet* pwallet)
 
     bool fTryToSync = true;
 
-    while (true) {
-        if (fShutdown)
-            return;
+    // synchronize memory once
+    fShutdown.load(boost::memory_order_seq_cst);
+    while (!fShutdown.load(boost::memory_order_relaxed)) {
 
         while (pwallet->IsLocked()) {
             nLastCoinStakeSearchInterval = 0;
@@ -625,10 +619,9 @@ void StakeMiner(CWallet* pwallet)
         //
         // Create new block
         //
-        int64_t                                                         nFees;
-        boost::interprocess::unique_ptr<CBlock, GenericDeleter<CBlock>> pblock(
-            CreateNewBlock(pwallet, true, &nFees));
-        if (!pblock.get())
+        int64_t                 nFees;
+        std::unique_ptr<CBlock> pblock(CreateNewBlock(pwallet, true, &nFees));
+        if (!pblock)
             return;
 
         // Trying to sign a block
