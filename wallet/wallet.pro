@@ -11,6 +11,10 @@ NEBLIO_ROOT = $${PWD}/../
 
 VPATH += $${NEBLIO_ROOT}/wallet/ $${NEBLIO_ROOT}/wallet/json $${NEBLIO_ROOT}/wallet/qt
 
+mac {
+	QMAKE_INFO_PLIST = $${NEBLIO_ROOT}/wallet/qt/res/Info.plist
+}
+
 
 # use: qmake "NEBLIO_REST=1"
 contains(NEBLIO_REST, 1) {
