@@ -10,18 +10,10 @@
 #ifndef __INCLUDED_PROTOCOL_H__
 #define __INCLUDED_PROTOCOL_H__
 
-#include "globals.h"
 #include "netbase.h"
 #include "serialize.h"
 #include "uint256.h"
 #include <string>
-
-inline unsigned short GetDefaultPort(const NetworkType netType = networkType)
-{
-    return netType == NetworkType::Testnet ? 16325 : 6325;
-}
-
-extern unsigned char pchMessageStart[4];
 
 /** Message header.
  * (4) message start.
@@ -32,11 +24,15 @@ extern unsigned char pchMessageStart[4];
 class CMessageHeader
 {
 public:
-    CMessageHeader();
-    CMessageHeader(const char* pszCommand, unsigned int nMessageSizeIn);
+    static constexpr const size_t MESSAGE_START_SIZE = 4;
+    typedef unsigned char         MessageStartChars[MESSAGE_START_SIZE];
+
+    CMessageHeader(const MessageStartChars& pchMessageStartIn);
+    CMessageHeader(const MessageStartChars& pchMessageStartIn, const char* pszCommand,
+                   unsigned int nMessageSizeIn);
 
     std::string GetCommand() const;
-    bool        IsValid() const;
+    bool        IsValid(const MessageStartChars& pchMessageStartIn) const;
 
     IMPLEMENT_SERIALIZE(READWRITE(FLATDATA(pchMessageStart)); READWRITE(FLATDATA(pchCommand));
                         READWRITE(nMessageSize); READWRITE(nChecksum);)
@@ -45,16 +41,20 @@ public:
 public:
     enum
     {
-        MESSAGE_START_SIZE = sizeof(::pchMessageStart),
-        COMMAND_SIZE       = 12,
-        MESSAGE_SIZE_SIZE  = sizeof(int),
-        CHECKSUM_SIZE      = sizeof(int),
+        COMMAND_SIZE      = 12,
+        MESSAGE_SIZE_SIZE = sizeof(int),
+        CHECKSUM_SIZE     = sizeof(int),
 
         MESSAGE_SIZE_OFFSET = MESSAGE_START_SIZE + COMMAND_SIZE,
         CHECKSUM_OFFSET     = MESSAGE_SIZE_OFFSET + MESSAGE_SIZE_SIZE,
         HEADER_SIZE         = MESSAGE_START_SIZE + COMMAND_SIZE + MESSAGE_SIZE_SIZE + CHECKSUM_SIZE
     };
-    char         pchMessageStart[MESSAGE_START_SIZE];
+
+    // The message start string is designed to be unlikely to occur in normal data.
+    // The characters are rarely used upper ASCII, not valid as UTF-8, and produce
+    // a large 4-byte int at any alignment.
+    MessageStartChars pchMessageStart;
+
     char         pchCommand[COMMAND_SIZE];
     unsigned int nMessageSize;
     unsigned int nChecksum;

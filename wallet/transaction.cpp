@@ -426,7 +426,7 @@ bool CTransaction::ConnectInputs(CTxDB& /*txdb*/, MapPrevTx inputs,
                                       txPrev.ToString().c_str()));
 
             // If prev is coinbase or coinstake, check that it's matured
-            int nCbM = CoinbaseMaturity();
+            int nCbM = Params().CoinbaseMaturity();
             if (txPrev.IsCoinBase() || txPrev.IsCoinStake())
                 for (ConstCBlockIndexSmartPtr pindex = boost::atomic_load(&pindexBlock);
                      pindex && pindexBlock->nHeight - pindex->nHeight < nCbM;
@@ -534,7 +534,7 @@ bool CTransaction::ConnectInputs(CTxDB& /*txdb*/, MapPrevTx inputs,
 bool CTransaction::GetCoinAge(CTxDB& txdb, uint64_t& nCoinAge) const
 {
     CBigNum      bnCentSecond = 0; // coin age in the unit of cent-seconds
-    unsigned int nSMA         = StakeMinAge();
+    unsigned int nSMA         = Params().StakeMinAge();
     nCoinAge                  = 0;
 
     if (IsCoinBase())

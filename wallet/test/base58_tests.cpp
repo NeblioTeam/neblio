@@ -1,5 +1,7 @@
 #include "googletest/googletest/include/gtest/gtest.h"
 
+#include "environment.h"
+
 #include "json/json_spirit_reader_template.h"
 #include "json/json_spirit_utils.h"
 #include "json/json_spirit_writer_template.h"
@@ -15,7 +17,7 @@ TEST(base58_tests, base58_EncodeBase58)
 {
     Array tests = read_json("base58_encode_decode.json");
 
-    BOOST_FOREACH (Value& tv, tests) {
+    for (Value& tv : tests) {
         Array       test    = tv.get_array();
         std::string strTest = write_string(tv, false);
         if (test.size() < 2) // Allow for extra stuff (useful for comments)
@@ -25,8 +27,7 @@ TEST(base58_tests, base58_EncodeBase58)
         }
         std::vector<unsigned char> sourcedata   = ParseHex(test[0].get_str());
         std::string                base58string = test[1].get_str();
-        EXPECT_TRUE(EncodeBase58(&sourcedata[0], &sourcedata[sourcedata.size()]) == base58string)
-            << strTest;
+        EXPECT_EQ(EncodeBase58(&sourcedata[0], &sourcedata[sourcedata.size()]), base58string) << strTest;
     }
 }
 
@@ -96,8 +97,6 @@ TEST(base58_tests, base58_keys_valid_parse)
     std::vector<unsigned char> result;
     CBitcoinSecret             secret;
     CBitcoinAddress            addr;
-    // Save global state
-    NetworkType netType_stored = networkType;
 
     BOOST_FOREACH (Value& tv, tests) {
         Array       test    = tv.get_array();
@@ -107,12 +106,13 @@ TEST(base58_tests, base58_keys_valid_parse)
             ADD_FAILURE() << "Bad test: " << strTest;
             continue;
         }
-        std::string                exp_base58string     = test[0].get_str();
-        std::vector<unsigned char> privkey_bin_from_hex = ParseHex(test[1].get_str());
-        const Object&              metadata             = test[2].get_obj();
-        bool                       isPrivkey            = find_value(metadata, "isPrivkey").get_bool();
-        bool                       isTestnet            = find_value(metadata, "isTestnet").get_bool();
-        networkType = isTestnet ? NetworkType::Testnet : NetworkType::Mainnet; // Override testnet flag
+        std::string                  exp_base58string     = test[0].get_str();
+        std::vector<unsigned char>   privkey_bin_from_hex = ParseHex(test[1].get_str());
+        const Object&                metadata             = test[2].get_obj();
+        bool                         isPrivkey            = find_value(metadata, "isPrivkey").get_bool();
+        bool                         isTestnet            = find_value(metadata, "isTestnet").get_bool();
+        SwitchNetworkTypeTemporarily state_holder(isTestnet ? NetworkType::Testnet
+                                                            : NetworkType::Mainnet);
         if (isPrivkey) {
             bool isCompressed = find_value(metadata, "isCompressed").get_bool();
             // Must be valid private key
@@ -144,8 +144,6 @@ TEST(base58_tests, base58_keys_valid_parse)
             EXPECT_TRUE(!secret.IsValid()) << "IsValid pubkey as privkey:" + strTest;
         }
     }
-    // Restore global state
-    networkType = netType_stored;
 }
 
 // Goal: check that base58 parsing code is robust against a variety of corrupted data
@@ -237,42 +235,42 @@ void test_random_key_generation()
 
 TEST(base58_tests, base58_keys_generation)
 {
-    // Save global test-net state
-    NetworkType netType_stored = networkType;
+    {
+        SwitchNetworkTypeTemporarily state_holder(NetworkType::Mainnet);
+        // real-net
+        test_priv_key_vs_address("TtnutkcnaPcu3zmjWcrJazf42fp1YAKRpm8grKRRuYjtiykmGuM7",
+                                 "037f41ae8b46979087562e65494eb3a3b9d8addde9b9568ef5cbb8197fd26c0ff2",
+                                 "NVFdK9ik6mBCG6syVw2gD1gBwJzKF5me5i");
+        test_priv_key_vs_address("TnNwg92Wpw8iuBRwaeJydzw2c6MMqTe2c6cA5hn3NBBdqFWvpViF",
+                                 "03c7f8863df49735b1a1906a5f5939beb8622074b3ddf8fccc5462362271145f09",
+                                 "NSTdV7BgFeYXR61ywiMyAoof2ihwUPDPpj");
+        test_priv_key_vs_address("TpWmAWxNCGN7tj218djRJjegAVy34K2eEx8Zbt7xbf2H9GNUBgci",
+                                 "029cbf0da830b83a457877fcf009160e9de9f0383fe0c97769ce9a4c2d52949f4b",
+                                 "NdLGazEn51ofFuztenM7bNfquNBV1FWMGG");
 
-    // real-net
-    test_priv_key_vs_address("TtnutkcnaPcu3zmjWcrJazf42fp1YAKRpm8grKRRuYjtiykmGuM7",
-                             "037f41ae8b46979087562e65494eb3a3b9d8addde9b9568ef5cbb8197fd26c0ff2",
-                             "NVFdK9ik6mBCG6syVw2gD1gBwJzKF5me5i");
-    test_priv_key_vs_address("TnNwg92Wpw8iuBRwaeJydzw2c6MMqTe2c6cA5hn3NBBdqFWvpViF",
-                             "03c7f8863df49735b1a1906a5f5939beb8622074b3ddf8fccc5462362271145f09",
-                             "NSTdV7BgFeYXR61ywiMyAoof2ihwUPDPpj");
-    test_priv_key_vs_address("TpWmAWxNCGN7tj218djRJjegAVy34K2eEx8Zbt7xbf2H9GNUBgci",
-                             "029cbf0da830b83a457877fcf009160e9de9f0383fe0c97769ce9a4c2d52949f4b",
-                             "NdLGazEn51ofFuztenM7bNfquNBV1FWMGG");
-
-    for (int i = 0; i < 10; i++) {
-        test_random_key_generation();
+        for (int i = 0; i < 10; i++) {
+            test_random_key_generation();
+        }
     }
 
-    // test-net
-    networkType = NetworkType::Testnet;
-    test_priv_key_vs_address("Vgg5VL2TW1NMNKt4wkazRkUygpnPiQXnztA2h3ALQxGUhk1tQUag",
-                             "0243bab8b87abbd42493ca577dee9befc15cc5565f2792e18c52eb90cdfa13dc2a",
-                             "TVPDsVw4vSbNkRPkfnwCJmbCygEuJEVpwW");
+    {
+        // test-net
+        SwitchNetworkTypeTemporarily state_holder(NetworkType::Testnet);
 
-    test_priv_key_vs_address("VfCCG4Ew6XAtxpEEnuWTTfUgX92fvyq2kPh7cghHtPDQs7PTmwSn",
-                             "02f20e5d83d939edc1169296250503b71cc37438ab608fbffb0ea11539d9341c7f",
-                             "TPiGYtUnB3qCjYBuXAj6QX7CiW5sJQ7Sdk");
+        test_priv_key_vs_address("Vgg5VL2TW1NMNKt4wkazRkUygpnPiQXnztA2h3ALQxGUhk1tQUag",
+                                 "0243bab8b87abbd42493ca577dee9befc15cc5565f2792e18c52eb90cdfa13dc2a",
+                                 "TVPDsVw4vSbNkRPkfnwCJmbCygEuJEVpwW");
 
-    test_priv_key_vs_address("VfAy2E8BhcFat6dLGaZotaZJReEU2jWHzZi6a5XQqD9q5qFAWzuK",
-                             "023ecc7eee129e8b009461b67b9f55120675c61957a7bb7f02726f73215051cb76",
-                             "THs3Lec52yQPfErz7Z32Yi3KJnBTzicEiz");
+        test_priv_key_vs_address("VfCCG4Ew6XAtxpEEnuWTTfUgX92fvyq2kPh7cghHtPDQs7PTmwSn",
+                                 "02f20e5d83d939edc1169296250503b71cc37438ab608fbffb0ea11539d9341c7f",
+                                 "TPiGYtUnB3qCjYBuXAj6QX7CiW5sJQ7Sdk");
 
-    for (int i = 0; i < 10; i++) {
-        test_random_key_generation();
+        test_priv_key_vs_address("VfAy2E8BhcFat6dLGaZotaZJReEU2jWHzZi6a5XQqD9q5qFAWzuK",
+                                 "023ecc7eee129e8b009461b67b9f55120675c61957a7bb7f02726f73215051cb76",
+                                 "THs3Lec52yQPfErz7Z32Yi3KJnBTzicEiz");
+
+        for (int i = 0; i < 10; i++) {
+            test_random_key_generation();
+        }
     }
-
-    // Restore global state
-    networkType = netType_stored;
 }

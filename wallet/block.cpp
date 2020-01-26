@@ -2,11 +2,15 @@
 
 #include "NetworkForks.h"
 #include "blockindex.h"
+#include "blocklocator.h"
 #include "checkpoints.h"
 #include "kernel.h"
 #include "main.h"
+#include "ntp1/ntp1transaction.h"
 #include "txmempool.h"
+#include "ui_interface.h"
 #include "util.h"
+#include "wallet.h"
 #include <boost/algorithm/string.hpp>
 #include <boost/foreach.hpp>
 
@@ -584,7 +588,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
             if (tx.IsCoinStake())
                 nStakeReward = nTxValueOut - nTxValueIn;
 
-            if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
+            if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
                 try {
                     if (NTP1Transaction::IsTxNTP1(&tx)) {
                         // check if there are inputs already cached
@@ -674,12 +678,12 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
         try {
             WriteNTP1BlockTransactionsToDisk(vtx, txdb);
         } catch (std::exception& ex) {
-            if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
+            if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
                 return error("Unable to get NTP1 transaction written in ConnectBlock(). Error: %s\n",
                              ex.what());
             }
         } catch (...) {
-            if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
+            if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
                 return error("Unable to get NTP1 transaction written in ConnectBlock(). An unknown "
                              "exception was "
                              "thrown");
@@ -738,8 +742,7 @@ bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
     if (createDbTransaction && !txdb.TxnBegin())
         return error("SetBestChain() : TxnBegin failed");
 
-    if (pindexGenesisBlock == nullptr &&
-        hash == (IsMainnet() ? hashGenesisBlock : hashGenesisBlockTestNet)) {
+    if (pindexGenesisBlock == nullptr && hash == Params().GenesisBlockHash()) {
         txdb.WriteHashBestChain(hash);
         if (createDbTransaction && !txdb.TxnCommit())
             return error("SetBestChain() : TxnCommit failed");

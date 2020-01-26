@@ -215,6 +215,9 @@ OBJS= \
     obj/merkletx.o                            \
     obj/blocklocator.o                        \
     obj/curltools.o                           \
+    obj/chainparams.o                         \
+    obj/chainparamsbase.o                     \
+    obj/consensus_params.o                    \
     obj/json/json_spirit_reader.o             \
     obj/json/json_spirit_value.o              \
     obj/json/json_spirit_writer.o             \

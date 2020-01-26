@@ -20,56 +20,6 @@ const boost::regex NTP1OpReturnRegex(NTP1OpReturnRegexStr);
 const std::string  OpReturnRegexStr = R"(^OP_RETURN\s+(.*)$)";
 const boost::regex OpReturnRegex(OpReturnRegexStr);
 
-// token id vs max block to take transactions from these tokens
-const ThreadSafeHashMap<std::string, int>
-    ntp1_blacklisted_token_ids(std::unordered_map<std::string, int>{
-        {"La77KcJTUj991FnvxNKhrCD1ER8S81T3LgECS6", 300000}, // old QRT mainnet
-        {"La4kVcoUAddLWkmQU9tBxrNdFjmSaHQruNJW2K", 300000}, // old TNIBB testnet
-        {"La36YNY2G6qgBPj7VSiQDjGCy8aC2GUUsGqtbQ", 300000}, // old TNIBB testnet
-        {"La9wLfpkfZTQvRqyiWjaEpgQStUbCSVMWZW2by", 300000}, // TEST3 on testnet
-        {"La347xkKhi5VUCNDCqxXU4F1RUu8wPvC3pnQk6", 300000}, // BOT on testnet
-        {"La531vUwiu9NnvtJcwPEjV84HrdKCupFCCb6D7", 300000}, // BAUTO on testnet
-        {"La5JGnJcSsLCvYWxqqVSyj3VUqsrAcLBjZjbw5", 300000}, // XYZ from Sam on testnet
-        {"La86PtvXGftbwdoZ9rVMKsLQU5nPHganJDsCRq", 300000}  // ON
-        //    ,{"LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp", 300000}  // NIBBL
-    });
-
-// list of transactions to be excluded because they're invalid
-// this should be a thread-safe hashset, but we don't have one. So we're using the map.
-const ThreadSafeHashMap<uint256, int> excluded_txs_testnet(std::unordered_map<uint256, int>{
-    {uint256("826e7b74b24e458e39d779b1033567d325b8d93b507282f983e3c4b3f950fca1"), 0},
-    {uint256("c378447562be04c6803fdb9f829c9ba0dda462b269e15bcfc7fac3b3561d2eef"), 0},
-    {uint256("a57a3e4746a79dd0d0e32e6a831d4207648ff000c82a4c5e8d9f3b6b0959f8b8"), 0},
-    {uint256("7e71508abef696d6c0427cc85073e0d56da9380f3d333354c7dd9370acd422bc"), 0},
-    {uint256("adb421a497e25375a88848b17b5c632a8d60db3d02dcc61dbecd397e6c1fb1ca"), 0},
-    {uint256("adedc16e0318668e55f08f2a1ea57be8c5a86cfce3c1900346b0337a8f75a390"), 0},
-    {uint256("bb8f1a29237e64285b9bd1f2bf1500c0de6205e8eb5e004c3b1ab6671e9c4cb2"), 0},
-    {uint256("cc8f8a763677b8015bf79a19c9bcf87837b734d1cb203b30726af27b75f41a48"), 0},
-    {uint256("666d81ad74e470ef1c9e74022a8be886e4951a0bec0d27f9b078519a30af71b2"), 0},
-    {uint256("27bea35b4e2ac8987441aa7c5ff3d305047664ef7244b822cad54e549b84f50b"), 0},
-    {uint256("59cb6e2cc9649d9a9b806f820a91927dcb0e43d1e1e92b0b9d976e921bba1334"), 0},
-    {uint256("054cead1a3b498ec845462a1920508698e4f0ab2a71e1f4f8d827d007a43a2f4"), 0},
-    {uint256("7d211b98e4796e9375233d935eb8d1262d6fb9d79645b576f15ad1b85427facf"), 0},
-    {uint256("ab336eecf51cdaecd3f7444d5da7eca2286462d44e7f3439458ecbe3d7514971"), 0},
-    {uint256("95c6f2b978160ab0d51545a13a7ee7b931713a52bd1c9f12807f4cd77ff7536b"), 0}});
-
-const ThreadSafeHashMap<uint256, int> excluded_txs_mainnet = {};
-
-bool IsNTP1TokenBlacklisted(const std::string& tokenId, int& maxHeight)
-{
-    return ntp1_blacklisted_token_ids.get(tokenId, maxHeight);
-}
-
-bool IsNTP1TokenBlacklisted(const std::string& tokenId)
-{
-    return ntp1_blacklisted_token_ids.exists(tokenId);
-}
-
-bool IsNTP1TxExcluded(const uint256& txHash)
-{
-    return excluded_txs_testnet.exists(txHash) || excluded_txs_mainnet.exists(txHash);
-}
-
 NTP1Transaction::NTP1Transaction() { setNull(); }
 
 void NTP1Transaction::setNull()
@@ -556,10 +506,6 @@ void NTP1Transaction::__manualSet(int NVersion, uint256 TxHash, std::vector<unsi
 
 std::string NTP1Transaction::getNTP1OpReturnScriptHex() const
 {
-    // TODO: Sam: This has to be taken from a common source with the one from main
-    const static std::string  NTP1OpReturnRegexStr = R"(^OP_RETURN\s+(4e54(?:01|03)[a-fA-F0-9]*)$)";
-    const static boost::regex NTP1OpReturnRegex(NTP1OpReturnRegexStr);
-
     boost::smatch opReturnArgMatch;
     std::string   opReturnArg;
 
@@ -613,7 +559,7 @@ void NTP1Transaction::readNTP1DataFromTx_minimal(const CTransaction& tx)
 void NTP1Transaction::readNTP1DataFromTx(
     const CTransaction& tx, const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs)
 {
-    if (IsNTP1TxExcluded(tx.GetHash())) {
+    if (Params().IsNTP1TxExcluded(tx.GetHash())) {
         return;
     }
 
@@ -1037,7 +983,7 @@ bool NTP1Transaction::IsTxNTP1(const CTransaction* tx, std::string* opReturnArg)
         return false;
     }
 
-    if (IsNTP1TxExcluded(tx->GetHash())) {
+    if (Params().IsNTP1TxExcluded(tx->GetHash())) {
         return false;
     }
 
@@ -1063,7 +1009,7 @@ bool NTP1Transaction::IsTxOutputNTP1OpRet(const CTransaction* tx, unsigned int i
         return false;
     }
 
-    if (IsNTP1TxExcluded(tx->GetHash())) {
+    if (Params().IsNTP1TxExcluded(tx->GetHash())) {
         return false;
     }
 

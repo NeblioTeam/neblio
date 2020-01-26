@@ -8,6 +8,7 @@
 #include <boost/array.hpp>
 #include <boost/atomic.hpp>
 #include <boost/foreach.hpp>
+#include <chainparams.h>
 #include <deque>
 #include <openssl/rand.h>
 
@@ -150,7 +151,8 @@ public:
     CDataStream  vRecv; // received message data
     unsigned int nDataPos;
 
-    CNetMessage(int nTypeIn, int nVersionIn) : hdrbuf(nTypeIn, nVersionIn), vRecv(nTypeIn, nVersionIn)
+    CNetMessage(const CMessageHeader::MessageStartChars& pchMessageStartIn, int nTypeIn, int nVersionIn)
+        : hdrbuf(nTypeIn, nVersionIn), hdr(pchMessageStartIn), vRecv(nTypeIn, nVersionIn)
     {
         hdrbuf.resize(24);
         in_data  = false;
@@ -388,7 +390,7 @@ public:
     {
         ENTER_CRITICAL_SECTION(cs_vSend);
         assert(ssSend.size() == 0);
-        ssSend << CMessageHeader(pszCommand, 0);
+        ssSend << CMessageHeader(Params().MessageStart(), pszCommand, 0);
         if (fDebug)
             printf("sending: %s ", pszCommand);
     }

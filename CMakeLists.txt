@@ -17,14 +17,24 @@ if(WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wa,-mbig-obj")
 endif()
 
-option(COMPILE_GUI "Enable compiling neblio-qt" ON)
-option(COMPILE_DAEMON "Enable compiling nebliod" ON)
-option(COMPILE_CURL "Download and compile libcurl (and OpenSSL) automatically (Not for Windows)" OFF)
-option(COMPILE_TESTS "Build tests" ON)
-option(USE_QRCODE "Enable QRCode" ON)
-option(USE_UPNP   "Enable Miniupnpc" OFF)
-option(USE_DBUS   "Enable Dbus" ON)
-option(USE_CUSTOM_WARNINGS   "Enable custom warnings" OFF)
+option(COMPILE_GUI         "Enable compiling neblio-qt" ON)
+option(COMPILE_DAEMON      "Enable compiling nebliod" ON)
+option(COMPILE_CURL        "Download and compile libcurl (and OpenSSL) automatically (Not for Windows)" OFF)
+option(COMPILE_TESTS       "Build tests" ON)
+option(USE_QRCODE          "Enable QRCode" ON)
+option(USE_UPNP            "Enable Miniupnpc" OFF)
+option(USE_DBUS            "Enable Dbus" ON)
+option(USE_CUSTOM_WARNINGS "Enable custom warnings" OFF)
+option(DISABLE_ASSERTS     "Disables asserts" OFF)
+
+if(NOT DISABLE_ASSERTS)
+    # this removes the definition NDEBUG from release mode and release mode with debug info
+    # for both gcc/clang and Visual Studio
+    string( REPLACE "/DNDEBUG" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+    string( REPLACE "/DNDEBUG" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+    string( REPLACE "-DNDEBUG" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+    string( REPLACE "-DNDEBUG" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+endif()
 
 option(SANITIZE_THREAD "Enable clang thread-sanitizer (only for clang-compiler)" OFF)
 if(SANITIZE_THREAD)
@@ -580,6 +590,10 @@ add_library(core_lib STATIC
     wallet/merkletx.cpp
     wallet/blocklocator.cpp
     wallet/crypto_highlevel.cpp
+    wallet/chainparamsbase.cpp
+    wallet/chainparams.cpp
+    wallet/consensus_params.cpp
+    wallet/amount.h
     wallet/CustomTypes.cpp
     )
 

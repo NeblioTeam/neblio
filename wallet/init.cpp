@@ -147,6 +147,14 @@ void HandleSIGHUP(int) { fReopenDebugLog = true; }
 #if !defined(QT_GUI) && !defined(NEBLIO_UNITTESTS)
 bool AppInit(int argc, char* argv[])
 {
+    try {
+        // Check for -testnet or -regtest parameter (Params() calls are only valid after this clause)
+        SelectParams(ChainTypeFromCommandLine());
+    } catch (std::exception& e) {
+        fprintf(stderr, "Error: %s\n", e.what());
+        return EXIT_FAILURE;
+    }
+
     bool fRet = false;
     try {
         //
@@ -303,7 +311,7 @@ std::string HelpMessage()
 #endif
         "  -rpcuser=<user>        " + _("Username for JSON-RPC connections") + "\n" +
         "  -rpcpassword=<pw>      " + _("Password for JSON-RPC connections") + "\n" +
-        "  -rpcport=<port>        " + _("Listen for JSON-RPC connections on <port> (default: 6326 or testnet: 16326)") + "\n" +
+        "  -rpcport=<port>        " + _("Listen for JSON-RPC connections on <port> (default: 6326 or testnet: 16326 or regtest: 26326)") + "\n" +
         "  -rpcallowip=<ip>       " + _("Allow JSON-RPC connections from specified IP address") + "\n" +
         "  -rpcconnect=<ip>       " + _("Send commands to node running on <ip> (default: 127.0.0.1)") + "\n" +
         "  -blocknotify=<cmd>     " + _("Execute command when the best block changes (%s in cmd is replaced by block hash)") + "\n" +
@@ -418,21 +426,6 @@ bool AppInit2()
         CheckpointsMode = Checkpoints::CPMode_PERMISSIVE;
 
     nDerivationMethodIndex = 0;
-
-    bool isTestnet = GetBoolArg("-testnet");
-    bool isRegtest = GetBoolArg("-regtest");
-
-    if (isTestnet && isRegtest) {
-        throw std::runtime_error("Cannot have both testnet and regtest simultaneously");
-    }
-
-    if (isTestnet) {
-        networkType = NetworkType::Testnet;
-    } else if (isRegtest) {
-        networkType = NetworkType::Regtest;
-    } else {
-        networkType = NetworkType::Mainnet;
-    }
 
     if (mapArgs.exists("-bind")) {
         // when specifying an explicit binding address, you want to listen on it

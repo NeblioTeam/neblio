@@ -388,7 +388,7 @@ bool ShouldQuickSyncBeDone(const filesystem::path& dbdir)
 
     return (!filesystem::exists(dbdir) || !filesystem::exists(dbdir / "data.mdb") ||
             !filesystem::exists(dbdir / "lock.mdb")) &&
-           IsMainnet();
+           Params().NetType() == NetworkType::Mainnet;
 }
 
 void CTxDB::init_blockindex(bool fRemoveOld)
@@ -999,8 +999,7 @@ bool CTxDB::LoadBlockIndex()
         pindexNew->nNonce             = diskindex.nNonce;
 
         // Watch for genesis block
-        if (pindexGenesisBlock == nullptr &&
-            blockHash == (IsMainnet() ? hashGenesisBlock : hashGenesisBlockTestNet))
+        if (pindexGenesisBlock == nullptr && blockHash == Params().GenesisBlockHash())
             pindexGenesisBlock = pindexNew;
 
         if (!pindexNew->CheckIndex()) {

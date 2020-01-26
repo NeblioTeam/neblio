@@ -55,7 +55,7 @@ Value getmininginfo(const Array& params, bool fHelp)
     obj.push_back(Pair("stakeweight", weight));
 
     obj.push_back(Pair("stakeinterest", (uint64_t)COIN_YEAR_REWARD));
-    obj.push_back(Pair("testnet", IsTestnet()));
+    obj.push_back(Pair("testnet", Params().NetType() != Mainnet));
     return obj;
 }
 
@@ -70,7 +70,7 @@ Value getstakinginfo(const Array& params, bool fHelp)
 
     uint64_t     nNetworkWeight = GetPoSKernelPS();
     bool         staking        = nLastCoinStakeSearchInterval && nWeight;
-    unsigned int nTS            = TargetSpacing();
+    unsigned int nTS            = Params().TargetSpacing();
     int          nExpectedTime  = staking ? (nTS * nNetworkWeight / nWeight) : -1;
 
     Object stakingCriteria;
@@ -276,7 +276,7 @@ Value getwork(const Array& params, bool fHelp)
             if (pindexPrev != pindexBest) {
                 // Deallocate old blocks since they're obsolete now
                 mapNewBlock.clear();
-                BOOST_FOREACH (CBlock* pblock, vNewBlock)
+                for (CBlock* pblock : vNewBlock)
                     delete pblock;
                 vNewBlock.clear();
             }

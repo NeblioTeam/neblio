@@ -488,16 +488,6 @@ void ParseParameters(int argc, const char* const argv[])
         mapMultiArgs.set(str, vals);
     }
 
-    {
-        // add default neblio nodes
-        mapArgs.set("-addnode", "nebliodseed2.nebl.io");
-        std::vector<std::string> nodes;
-        mapMultiArgs.get("-addnode", nodes);
-        nodes.push_back("nebliodseed1.nebl.io");
-        nodes.push_back("nebliodseed2.nebl.io");
-        mapMultiArgs.set("-addnode", nodes);
-    }
-
     std::unordered_map<std::string, std::string> mapArgsD = mapArgs.getInternalMap();
     // New 0.6 features:
     BOOST_FOREACH (const PAIRTYPE(string, string) & entry, mapArgsD) {
@@ -984,8 +974,8 @@ const boost::filesystem::path& GetDataDir(bool fNetSpecific)
     LOCK(csPathCached);
 
     std::string datadirVal;
-    bool        datadirExists = mapArgs.get("-datadir", datadirVal);
-    if (datadirExists) {
+    bool        datadirExistsAsArg = mapArgs.get("-datadir", datadirVal);
+    if (datadirExistsAsArg) {
         path = fs::system_complete(datadirVal);
         if (!fs::is_directory(path)) {
             path = "";
@@ -995,7 +985,7 @@ const boost::filesystem::path& GetDataDir(bool fNetSpecific)
         path = GetDefaultDataDir();
     }
     if (fNetSpecific && GetBoolArg("-testnet", false))
-        path /= "testnet";
+        path /= BaseParams().DataDir();
 
     fs::create_directories(path);
 

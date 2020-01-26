@@ -63,7 +63,7 @@ void NTP1TxOut::importJsonData(const std::string& data)
         json_spirit::read_or_throw(data, parsedData);
         importJsonData(parsedData);
     } catch (std::exception& ex) {
-        printf("%s", ex.what());
+        printf("%s\n", ex.what());
         throw;
     }
 }
@@ -94,7 +94,7 @@ void NTP1TxOut::importJsonData(const json_spirit::Value& parsedData)
             tokens[i].importJsonData(tokens_list[i]);
         }
     } catch (std::exception& ex) {
-        printf("%s", ex.what());
+        printf("%s\n", ex.what());
         throw;
     }
 }

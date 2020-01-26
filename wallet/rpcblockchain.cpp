@@ -385,7 +385,7 @@ Value exportblockchain(const Array& params, bool fHelp)
     std::atomic<bool>          stopped{false};
     std::atomic<double>        progress{false};
 
-    if (graphTraverseType != boost::none) {
+    if (graphTraverseType) {
         // with orphans
         boost::thread exporterThread(
             boost::bind(&ExportBootstrapBlockchainWithOrphans, filename.string(), boost::ref(stopped),

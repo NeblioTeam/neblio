@@ -1134,7 +1134,7 @@ void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins, unsigned int nSp
 
     {
         LOCK2(cs_main, cs_wallet);
-        unsigned int nSMA = StakeMinAge();
+        unsigned int nSMA = Params().StakeMinAge();
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end();
              ++it) {
             const CWalletTx* pcoin = &(*it).second;
@@ -1486,11 +1486,11 @@ void CWallet::SetTxNTP1OpRet(CTransaction& wtxNew, const std::shared_ptr<NTP1Scr
         throw std::runtime_error("Could not find OP_RETURN output to fix change output index");
     }
 
-    if (opRetScriptBin.size() > DataSize()) {
+    if (opRetScriptBin.size() > Params().OpReturnMaxSize()) {
         // the blockchain consensus rules prevents OP_RETURN sizes larger than DataSize(nBestHeight)
         throw std::runtime_error("The data associated with the transaction is larger than the maximum "
                                  "allowed size for metadata (" +
-                                 ToString(DataSize()) + " bytes).");
+                                 ToString(Params().OpReturnMaxSize()) + " bytes).");
     }
 
     it->scriptPubKey = CScript() << OP_RETURN << ParseHex(opRetScriptHex);
@@ -1994,12 +1994,12 @@ bool CWallet::GetStakeWeight(const CKeyStore& /*keystore*/, uint64_t& nMinWeight
         }
 
         // Weight is greater than zero, but the maximum value isn't reached yet
-        if (nTimeWeight > 0 && nTimeWeight < nStakeMaxAge) {
+        if (nTimeWeight > 0 && nTimeWeight < Params().StakeMaxAge()) {
             nMinWeight += bnCoinDayWeight.getuint64();
         }
 
         // Maximum weight was reached
-        if (nTimeWeight == nStakeMaxAge) {
+        if (nTimeWeight == Params().StakeMaxAge()) {
             nMaxWeight += bnCoinDayWeight.getuint64();
         }
     }
@@ -2060,7 +2060,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
         }
 
         static int   nMaxStakeSearchInterval = 60;
-        unsigned int nSMA                    = StakeMinAge();
+        unsigned int nSMA                    = Params().StakeMinAge();
         if (block.GetBlockTime() + nSMA > txNew.nTime - nMaxStakeSearchInterval)
             continue; // only count coins meeting min age requirement
 
@@ -2147,7 +2147,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
     for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
         // Attempt to add more inputs
         // Only add coins of the same key/address as kernel
-        unsigned int nSMA = StakeMinAge();
+        unsigned int nSMA = Params().StakeMinAge();
         if (txNew.vout.size() == 2 &&
             ((pcoin.first->vout[pcoin.second].scriptPubKey == scriptPubKeyKernel ||
               pcoin.first->vout[pcoin.second].scriptPubKey == txNew.vout[1].scriptPubKey)) &&

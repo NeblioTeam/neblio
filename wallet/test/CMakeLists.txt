@@ -28,6 +28,7 @@ add_executable(neblio-tests
     uint256_tests.cpp
     util_tests.cpp
     wallet_tests.cpp
+    environment.cpp
     ${GTEST_PATH}/src/gtest_main.cc
     # sources that depend on target as they have defs inside them, these are not tests
     ${CMAKE_SOURCE_DIR}/wallet/wallet.cpp

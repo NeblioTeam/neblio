@@ -68,12 +68,7 @@ extern libzerocoin::Params*                         ZCParams;
 extern CScript                                      COINBASE_FLAGS;
 extern std::set<std::pair<COutPoint, unsigned int>> setStakeSeen;
 static constexpr const int64_t                      TARGET_AVERAGE_BLOCK_COUNT = 100;
-extern unsigned int                                 nTargetSpacing;
-extern unsigned int                                 nStakeMinAge;
-extern unsigned int                                 nOldTestnetStakeMinAge;
-extern unsigned int                                 nStakeMaxAge;
 extern unsigned int                                 nNodeLifespan;
-extern int                                          nCoinbaseMaturity;
 extern uint256                                      nBestChainTrust;
 extern uint256                                      nBestInvalidTrust;
 extern uint256                                      hashBestChain;
@@ -84,7 +79,6 @@ extern const std::string                            strMessageMagic;
 extern int64_t                                      nTimeBestReceived;
 extern CCriticalSection                             cs_setpwalletRegistered;
 extern std::set<std::shared_ptr<CWallet>>           setpwalletRegistered;
-extern unsigned char                                pchMessageStart[4];
 extern std::unordered_map<uint256, CBlock*>         mapOrphanBlocks;
 extern boost::atomic<bool>                          fImporting;
 
@@ -184,20 +178,8 @@ bool PassedFirstValidNTP1Tx(const int bestHeight, const NetworkType isTestnet);
 /** Maximum size of a block */
 unsigned int MaxBlockSize();
 
-/** Target time between blocks */
-unsigned int TargetSpacing();
-
-/** Coinbase Maturity */
-int CoinbaseMaturity();
-
-/** max OP_RETURN size */
-unsigned int DataSize();
-
 /** Minimum Peer Protocol Version */
 int MinPeerVersion();
-
-/** Minimum Staking Age */
-unsigned int StakeMinAge();
 
 bool GetWalletFile(CWallet* pwallet, std::string& strWalletFileOut);
 

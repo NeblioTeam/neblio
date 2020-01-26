@@ -81,7 +81,7 @@ void AddOneShot(string strDest)
     vOneShots.push_back(strDest);
 }
 
-unsigned short GetListenPort() { return (unsigned short)(GetArg("-port", GetDefaultPort())); }
+unsigned short GetListenPort() { return (unsigned short)(GetArg("-port", Params().GetDefaultPort())); }
 
 void CNode::PushGetBlocks(CBlockIndex* pindexBegin, uint256 hashEnd)
 {
@@ -441,7 +441,7 @@ CNode* ConnectNode(CAddress addrConnect, const char* pszDest)
 
     // Connect
     SOCKET hSocket;
-    if (pszDest ? ConnectSocketByName(addrConnect, hSocket, pszDest, GetDefaultPort())
+    if (pszDest ? ConnectSocketByName(addrConnect, hSocket, pszDest, Params().GetDefaultPort())
                 : ConnectSocket(addrConnect, hSocket)) {
         addrman.get().Attempt(addrConnect);
 
@@ -575,7 +575,7 @@ bool CNode::ReceiveMsgBytes(const char* pch, unsigned int nBytes)
 
         // get current incomplete message, or create a new one
         if (vRecvMsg.empty() || vRecvMsg.back().complete())
-            vRecvMsg.push_back(CNetMessage(SER_NETWORK, nRecvVersion));
+            vRecvMsg.push_back(CNetMessage(Params().MessageStart(), SER_NETWORK, nRecvVersion));
 
         CNetMessage& msg = vRecvMsg.back();
 
@@ -1114,12 +1114,6 @@ void MapPort()
 }
 #endif
 
-// DNS seeds
-// Each pair gives a source name and a seed name.
-// The first name is used as information source for addrman.
-// The second name should resolve to a list of seed addresses.
-static const char* strDNSSeed[][2] = {{"seed", "seed.nebl.io"}};
-
 void ThreadDNSAddressSeed(void* parg)
 {
     // Make this thread recognisable as the DNS seeding thread
@@ -1144,26 +1138,28 @@ void ThreadDNSAddressSeed2(void* /*parg*/)
     printf("ThreadDNSAddressSeed started\n");
     int found = 0;
 
-    if (IsMainnet()) {
+    //    if (IsMainnet()) {
+    if (true) {
         printf("Loading addresses from DNS seeds (could take a while)\n");
 
-        for (unsigned int seed_idx = 0; seed_idx < ARRAYLEN(strDNSSeed); seed_idx++) {
+        const std::vector<std::string> dnsSeeds = Params().DNSSeeds();
+        for (unsigned int seed_idx = 0; seed_idx < dnsSeeds.size(); seed_idx++) {
             if (HaveNameProxy()) {
-                AddOneShot(strDNSSeed[seed_idx][1]);
+                AddOneShot(dnsSeeds[seed_idx]);
             } else {
                 vector<CNetAddr> vaddr;
                 vector<CAddress> vAdd;
-                if (LookupHost(strDNSSeed[seed_idx][1], vaddr)) {
-                    BOOST_FOREACH (CNetAddr& ip, vaddr) {
+                if (LookupHost(dnsSeeds[seed_idx].c_str(), vaddr)) {
+                    for (CNetAddr& ip : vaddr) {
                         int      nOneDay = 24 * 3600;
-                        CAddress addr    = CAddress(CService(ip, GetDefaultPort()));
-                        addr.nTime       = GetTime() - 3 * nOneDay -
-                                     GetRand(4 * nOneDay); // use a random age between 3 and 7 days old
+                        CAddress addr    = CAddress(CService(ip, Params().GetDefaultPort()));
+                        // use a random age between 3 and 7 days old
+                        addr.nTime = GetTime() - 3 * nOneDay - GetRand(4 * nOneDay);
                         vAdd.push_back(addr);
                         found++;
                     }
                 }
-                addrman.get().Add(vAdd, CNetAddr(strDNSSeed[seed_idx][0], true));
+                addrman.get().Add(vAdd, CNetAddr(dnsSeeds[seed_idx], true));
             }
         }
     }
@@ -1319,7 +1315,7 @@ void ThreadOpenConnections2(void* /*parg*/)
         {
             auto addrman_lock = addrman.get_lock();
 
-            if (addrman.get_unsafe().size() == 0 && (GetTime() - nStart > 60) && IsMainnet()) {
+            if (addrman.get_unsafe().size() == 0 && (GetTime() - nStart > 60) /*&& IsMainnet()*/) {
                 std::vector<CAddress> vAdd;
                 for (unsigned int i = 0; i < ARRAYLEN(pnSeed); i++) {
                     // It'll only connect to one or two seed nodes because once it connects,
@@ -1329,7 +1325,7 @@ void ThreadOpenConnections2(void* /*parg*/)
                     const int64_t  nOneWeek = 7 * 24 * 60 * 60;
                     struct in_addr ip;
                     memcpy(&ip, &pnSeed[i], sizeof(ip));
-                    CAddress addr(CService(ip, GetDefaultPort()));
+                    CAddress addr(CService(ip, Params().GetDefaultPort()));
                     addr.nTime = GetTime() - GetRand(nOneWeek) - nOneWeek;
                     vAdd.push_back(addr);
                 }
@@ -1382,7 +1378,7 @@ void ThreadOpenConnections2(void* /*parg*/)
                 continue;
 
             // do not allow non-default ports, unless after 50 invalid addresses selected already
-            if (addr.GetPort() != GetDefaultPort() && nTries < 50)
+            if (addr.GetPort() != Params().GetDefaultPort() && nTries < 50)
                 continue;
 
             addrConnect = addr;
@@ -1417,14 +1413,15 @@ void ThreadOpenAddedConnections2(void* /*parg*/)
 {
     printf("ThreadOpenAddedConnections started\n");
 
-    if (mapArgs.exists("-addnode") == 0)
-        return;
+    std::vector<std::string> addnodeVals;
+    mapMultiArgs.get("-addnode", addnodeVals);
+
+    const std::vector<std::string>& moreNodes = Params().AdditionalNodes();
+    addnodeVals.insert(addnodeVals.begin(), moreNodes.cbegin(), moreNodes.cend());
 
     if (HaveNameProxy()) {
         while (!fShutdown) {
-            std::vector<std::string> addnodeVals;
-            mapMultiArgs.get("-addnode", addnodeVals);
-            BOOST_FOREACH (string& strAddNode, addnodeVals) {
+            for (const string& strAddNode : addnodeVals) {
                 CAddress        addr;
                 CSemaphoreGrant grant(*semOutbound);
                 OpenNetworkConnection(addr, &grant, strAddNode.c_str());
@@ -1438,15 +1435,13 @@ void ThreadOpenAddedConnections2(void* /*parg*/)
     }
 
     vector<vector<CService>> vservAddressesToAdd(0);
-    std::vector<std::string> addnodeVals;
-    mapMultiArgs.get("-addnode", addnodeVals);
-    BOOST_FOREACH (string& strAddNode, addnodeVals) {
+    for (string& strAddNode : addnodeVals) {
         vector<CService> vservNode(0);
-        if (Lookup(strAddNode.c_str(), vservNode, GetDefaultPort(), fNameLookup, 0)) {
+        if (Lookup(strAddNode.c_str(), vservNode, Params().GetDefaultPort(), fNameLookup, 0)) {
             vservAddressesToAdd.push_back(vservNode);
             {
                 LOCK(cs_setservAddNodeAddresses);
-                BOOST_FOREACH (CService& serv, vservNode)
+                for (CService& serv : vservNode)
                     setservAddNodeAddresses.insert(serv);
             }
         }

@@ -276,7 +276,7 @@ void NTP1Summary::slot_visitInBlockExplorerAction()
     QString resultStr = ui->listTokens->model()->data(idx, NTP1TokenListModel::TokenIdRole).toString();
     if (!resultStr.isEmpty()) {
         QString link = QString::fromStdString(
-            NTP1Tools::GetURL_ExplorerTokenInfo(resultStr.toStdString(), IsTestnet()));
+            NTP1Tools::GetURL_ExplorerTokenInfo(resultStr.toStdString(), Params().NetType()));
         if (!QDesktopServices::openUrl(QUrl(link))) {
             QMessageBox::warning(
                 this, "Failed to open browser",

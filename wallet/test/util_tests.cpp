@@ -109,19 +109,20 @@ TEST(util_tests, util_ParseParameters)
 {
     const char* argv_test[] = {"-ignored", "-a", "-b", "-ccc=argument", "-ccc=multiple", "f", "-d=e"};
 
-    // arg size changes from empty to 1 due to the addition of hardcoding 'addnode'
     ParseParameters(0, (char**)argv_test);
-    EXPECT_TRUE(mapArgs.size() == 1 && mapMultiArgs.size() == 1);
+    EXPECT_EQ(mapArgs.size(), 0);
+    EXPECT_EQ(mapMultiArgs.size(), 0);
 
     ParseParameters(1, (char**)argv_test);
-    EXPECT_TRUE(mapArgs.size() == 1 && mapMultiArgs.size() == 1);
+    EXPECT_EQ(mapArgs.size(), 0);
+    EXPECT_EQ(mapMultiArgs.size(), 0);
 
     ParseParameters(5, (char**)argv_test);
     // expectation: -ignored is ignored (program name argument),
     // -a, -b and -ccc end up in map, -d ignored because it is after
     // a non-option argument (non-GNU option parsing)
-    // arg size changes from 3 to 4 due to the addition of hardcoding 'addnode'
-    EXPECT_TRUE(mapArgs.size() == 4 && mapMultiArgs.size() == 4);
+    EXPECT_EQ(mapArgs.size(), 3);
+    EXPECT_EQ(mapMultiArgs.size(), 3);
     EXPECT_TRUE(mapArgs.exists("-a") && mapArgs.exists("-b") && mapArgs.exists("-ccc") &&
                 !mapArgs.exists("f") && !mapArgs.exists("-d"));
     EXPECT_TRUE(mapMultiArgs.exists("-a") && mapMultiArgs.exists("-b") && mapMultiArgs.exists("-ccc") &&
@@ -326,7 +327,7 @@ TEST(util_tests, network_fork)
     NetworkForks       netfork(std::map<NetworkFork, int>{{NetworkFork::NETFORK__1_FIRST_ONE, 0},
                                                     {NetworkFork::NETFORK__2_CONFS_CHANGE, 100},
                                                     {NetworkFork::NETFORK__3_TACHYON, 200}},
-                               currentBlock);
+                         currentBlock);
 
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE), true);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE), false);

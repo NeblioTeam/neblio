@@ -31,7 +31,7 @@ void CBlockLocator::Set(const CBlockIndex* pindex)
         if (vHave.size() > 10)
             nStep *= 2;
     }
-    vHave.push_back((IsMainnet() ? hashGenesisBlock : hashGenesisBlockTestNet));
+    vHave.push_back(Params().GenesisBlockHash());
 }
 
 int CBlockLocator::GetDistanceBack()
@@ -78,7 +78,7 @@ uint256 CBlockLocator::GetBlockHash()
                 return hash;
         }
     }
-    return (IsMainnet() ? hashGenesisBlock : hashGenesisBlockTestNet);
+    return Params().GenesisBlockHash();
 }
 
 int CBlockLocator::GetHeight()

@@ -4,12 +4,12 @@
 #include "addresstablemodel.h"
 #include "bitcoinunits.h"
 #include "coincontrol.h"
+#include "globals.h"
 #include "init.h"
-#include "ntp1/ntp1transaction.h"
 #include "main.h"
+#include "ntp1/ntp1transaction.h"
 #include "optionsmodel.h"
 #include "walletmodel.h"
-#include "globals.h"
 
 #include <QApplication>
 #include <QCheckBox>
@@ -739,8 +739,6 @@ void CoinControlDialog::updateView()
                 itemOutput->setText(COLUMN_LABEL, sLabel);
             }
 
-            // TODO: check if big amounts of nebls are stored with the tokens
-            // figure out token type
             QString sTokenType        = "";
             QString sTokenId          = "";
             QString sNTP1TokenAmounts = "";
@@ -771,7 +769,8 @@ void CoinControlDialog::updateView()
                             sTokenId += "+\n";
                         }
                         sTokenType += QString::fromStdString(ntp1txOut.getToken(i).getTokenSymbol());
-                        sNTP1TokenAmounts += QString::fromStdString(ToString(ntp1txOut.getToken(i).getAmount()));
+                        sNTP1TokenAmounts +=
+                            QString::fromStdString(ToString(ntp1txOut.getToken(i).getAmount()));
                         sTokenId += QString::fromStdString(ntp1txOut.getToken(i).getTokenId());
                     }
 

@@ -210,7 +210,7 @@ template <std::size_t N>
 void Crypto_HighLevel::IncrementNonce(std::array<uint8_t, N>& nonce)
 {
     uint_fast16_t current = 1;
-    for (int i = 0; i < nonce.size(); i++) {
+    for (unsigned i = 0; i < nonce.size(); i++) {
         const unsigned idx = nonce.size() - i - 1;
         current += static_cast<uint_fast16_t>(nonce[idx]);
         nonce[idx] = static_cast<unsigned char>(current);

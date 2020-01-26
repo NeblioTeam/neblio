@@ -33,11 +33,3 @@ NetworkFork NetworkForks::getForkAtBlockNumber(int blockNumber) const
 }
 
 int NetworkForks::getFirstBlockOfFork(NetworkFork fork) const { return forksToBlockMap.at(fork); }
-
-const NetworkForks& GetNetForks()
-{
-    if (IsTestnet())
-        return TestnetForks;
-    else
-        return MainnetForks;
-}
