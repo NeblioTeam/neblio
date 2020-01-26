@@ -110,19 +110,19 @@ TEST(util_tests, util_ParseParameters)
     const char* argv_test[] = {"-ignored", "-a", "-b", "-ccc=argument", "-ccc=multiple", "f", "-d=e"};
 
     ParseParameters(0, (char**)argv_test);
-    EXPECT_EQ(mapArgs.size(), 0);
-    EXPECT_EQ(mapMultiArgs.size(), 0);
+    EXPECT_EQ(mapArgs.size(), 0u);
+    EXPECT_EQ(mapMultiArgs.size(), 0u);
 
     ParseParameters(1, (char**)argv_test);
-    EXPECT_EQ(mapArgs.size(), 0);
-    EXPECT_EQ(mapMultiArgs.size(), 0);
+    EXPECT_EQ(mapArgs.size(), 0u);
+    EXPECT_EQ(mapMultiArgs.size(), 0u);
 
     ParseParameters(5, (char**)argv_test);
     // expectation: -ignored is ignored (program name argument),
     // -a, -b and -ccc end up in map, -d ignored because it is after
     // a non-option argument (non-GNU option parsing)
-    EXPECT_EQ(mapArgs.size(), 3);
-    EXPECT_EQ(mapMultiArgs.size(), 3);
+    EXPECT_EQ(mapArgs.size(), 3u);
+    EXPECT_EQ(mapMultiArgs.size(), 3u);
     EXPECT_TRUE(mapArgs.exists("-a") && mapArgs.exists("-b") && mapArgs.exists("-ccc") &&
                 !mapArgs.exists("f") && !mapArgs.exists("-d"));
     EXPECT_TRUE(mapMultiArgs.exists("-a") && mapMultiArgs.exists("-b") && mapMultiArgs.exists("-ccc") &&
