@@ -1487,7 +1487,7 @@ bool CBlock::WriteToDisk(const uint256& nBlockPos, const uint256& hashProof)
      */
 
     CTxDB       txdb;
-    std::size_t req_size = 500 * ::GetSerializeSize(*this, SER_DISK, CLIENT_VERSION);
+    std::size_t req_size = 1000 * ::GetSerializeSize(*this, SER_DISK, CLIENT_VERSION);
     if (!txdb.TxnBegin(req_size)) {
         printf("Failed to start transaction for writing a new block.");
         return false;

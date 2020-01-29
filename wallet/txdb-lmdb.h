@@ -52,7 +52,8 @@ const std::string LMDB_NTP1TXDB         = "Ntp1txDb";
 const std::string LMDB_NTP1TOKENNAMESDB = "Ntp1NamesDb";
 const std::string LMDB_ADDRSVSPUBKEYSDB = "AddrsVsPubKeysDb";
 
-constexpr static float DB_RESIZE_PERCENT = 0.9f;
+constexpr static float    DB_RESIZE_PERCENT     = 0.9f;
+constexpr static uint64_t MIN_MAP_SIZE_INCREASE = UINT64_C(1) << 28; // ~256 MiB
 
 const std::string QuickSyncDataLink =
     "https://raw.githubusercontent.com/NeblioTeam/neblio-quicksync/master/download.json";
@@ -260,6 +261,7 @@ protected:
         ssKey.reserve(1000);
         ssKey << key;
 
+        // if there's no active transaction, we start one for this read
         mdb_txn_safe localTxn(false);
         if (!activeBatch) {
             localTxn = mdb_txn_safe();
@@ -440,6 +442,11 @@ protected:
         if (auto ret = mdb_put((!activeBatch ? localTxn : *activeBatch), *dbPtr, &kS, &vS, 0)) {
             std::string dbgKey = KeyAsString(key, ssKey.str());
             if (ret == MDB_MAP_FULL) {
+                if (need_resize()) {
+                    printf("Failed to write and LMDB memory map was found to need to be resized, doing "
+                           "that now.\n");
+                    CTxDB::do_resize();
+                }
                 printf("Failed to write key %s with lmdb, MDB_MAP_FULL\n", dbgKey.c_str());
             } else {
                 printf("Failed to write key %s with lmdb; Code %i; Error: %s\n", dbgKey.c_str(), ret,

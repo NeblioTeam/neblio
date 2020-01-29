@@ -61,6 +61,7 @@ bool CTxDB::need_resize(uint64_t threshold_size)
     uint64_t size_used = mst.ms_psize * mei.me_last_pgno;
 
 #ifdef DEEP_LMDB_LOGGING
+    printf("Checking if resize is needed.\n");
     printf("DB map size:     %zu\n", mei.me_mapsize);
     printf("Space used:      %zu\n", size_used);
     printf("Space remaining: %zu\n", mei.me_mapsize - size_used);
@@ -92,6 +93,7 @@ bool CTxDB::need_resize(uint64_t threshold_size)
 
 void lmdb_resized(MDB_env* env)
 {
+    printf("%s\n", __func__);
     mdb_txn_safe::prevent_new_txns();
     BOOST_SCOPE_EXIT(void) { mdb_txn_safe::allow_new_txns(); }
     BOOST_SCOPE_EXIT_END
@@ -114,15 +116,21 @@ void lmdb_resized(MDB_env* env)
 
     std::stringstream ss;
     ss << "LMDB Mapsize increased."
-       << "  Old: " << old / (1024 * 1024) << "MiB"
-       << ", New: " << new_mapsize / (1024 * 1024) << "MiB";
+       << "  Old: " << old / (1024 * 1024) << " MiB"
+       << ", New: " << new_mapsize / (1024 * 1024) << " MiB";
     printf("%s\n", ss.str().c_str());
 }
 
 void CTxDB::do_resize(uint64_t increase_size)
 {
     printf("CTxDB::%s\n", __func__);
-    const uint64_t add_size = 1LL << 30;
+
+    if (increase_size != 0 && increase_size < MIN_MAP_SIZE_INCREASE) {
+        // protect from having very small incremental changes in the DB size, which is not efficient
+        increase_size = MIN_MAP_SIZE_INCREASE;
+    }
+
+    const uintmax_t add_size = UINTMAX_C(1) << 30;
 
     // check disk capacity
     try {
@@ -130,8 +138,9 @@ void CTxDB::do_resize(uint64_t increase_size)
         boost::filesystem::space_info si = boost::filesystem::space(path);
         if (si.available < add_size) {
             stringstream ss;
-            ss << "!! WARNING: Insufficient free space to extend database !!: " << (si.available >> 20L)
-               << " MB available, " << (add_size >> 20L) << " MB needed";
+            ss << "!! WARNING: Insufficient free space to extend database !!: "
+               << (si.available >> UINTMAX_C(20)) << " MB available, " << (add_size >> UINTMAX_C(20))
+               << " MB needed";
             throw std::runtime_error(ss.str());
         }
     } catch (...) {
@@ -157,6 +166,12 @@ void CTxDB::do_resize(uint64_t increase_size)
         new_mapsize = mei.me_mapsize + increase_size;
 
     new_mapsize += (new_mapsize % mst.ms_psize);
+#ifdef DEEP_LMDB_LOGGING
+    printf("Requesting to increase map size by: %zu\n", increase_size);
+    printf("Current map size                  : %zu\n", mei.me_mapsize);
+    printf("New size                          : %zu\n", new_mapsize);
+    printf("System page size                  : %u\n", mst.ms_psize);
+#endif
 
     mdb_txn_safe::prevent_new_txns();
     BOOST_SCOPE_EXIT(void) { mdb_txn_safe::allow_new_txns(); }
@@ -175,9 +190,9 @@ void CTxDB::do_resize(uint64_t increase_size)
 
     std::stringstream ss;
     ss << "LMDB Mapsize increased."
-       << "  Old: " << mei.me_mapsize / (1024 * 1024) << "MiB"
-       << ", New: " << new_mapsize / (1024 * 1024) << "MiB";
-    printf("%s", ss.str().c_str());
+       << "  Old: " << mei.me_mapsize / (1024 * 1024) << " MiB"
+       << ", New: " << new_mapsize / (1024 * 1024) << " MiB";
+    printf("%s\n", ss.str().c_str());
 }
 
 bool IsQuickSyncOSCompatible(const std::string& osValue)
