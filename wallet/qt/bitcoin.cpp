@@ -150,14 +150,6 @@ int main(int argc, char* argv[])
     // Command-line options take precedence:
     ParseParameters(argc, argv);
 
-    try {
-        // Check for -testnet or -regtest parameter (Params() calls are only valid after this clause)
-        SelectParams(ChainTypeFromCommandLine());
-    } catch (std::exception& e) {
-        QMessageBox::critical(0, "neblio", QObject::tr("Error: %1").arg(e.what()));
-        return EXIT_FAILURE;
-    }
-
     // ... then neblio.conf:
     if (!boost::filesystem::is_directory(GetDataDir(false))) {
         // This message can not be translated, as translation is not initialized yet
@@ -171,6 +163,14 @@ int main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
     ReadConfigFile(mapArgs, mapMultiArgs);
+
+    try {
+        // Check for -testnet or -regtest parameter (Params() calls are only valid after this clause)
+        SelectParams(ChainTypeFromCommandLine());
+    } catch (std::exception& e) {
+        QMessageBox::critical(0, "neblio", QObject::tr("Error: %1").arg(e.what()));
+        return EXIT_FAILURE;
+    }
 
     // Application identification (must be set before OptionsModel is initialized,
     // as it is used to locate QSettings)

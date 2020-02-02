@@ -14,6 +14,7 @@
 #include <boost/iostreams/copy.hpp>
 #include <boost/iostreams/filter/zlib.hpp>
 #include <boost/iostreams/filtering_stream.hpp>
+#include <openssl/rand.h>
 
 // Work around clang compilation problem in Boost 1.46:
 // /usr/include/boost/program_options/detail/config_file.hpp:163:17: error: call to function
@@ -984,7 +985,7 @@ const boost::filesystem::path& GetDataDir(bool fNetSpecific)
     } else {
         path = GetDefaultDataDir();
     }
-    if (fNetSpecific && GetBoolArg("-testnet", false))
+    if (fNetSpecific)
         path /= BaseParams().DataDir();
 
     fs::create_directories(path);
@@ -1480,4 +1481,13 @@ string GetMimeTypeFromPath(const string& path)
     if (iequals(ext, ".svgz"))
         return "image/svg+xml";
     return "application/text";
+}
+
+bool RandomBytesToBuffer(unsigned char* buffer, size_t size)
+{
+    if (RAND_bytes(buffer, size) != 1) {
+        printf("Failed to generate random buffer with size %zu", size);
+        return false;
+    }
+    return true;
 }

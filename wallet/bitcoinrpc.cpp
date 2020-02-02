@@ -629,6 +629,24 @@ private:
     iostreams::stream<SSLIOStreamDevice<Protocol>> _stream;
 };
 
+static bool InitRPCAuthentication()
+{
+    if (GetArg("-rpcpassword", "") == "") {
+        printf("No rpcpassword set - using random cookie authentication\n");
+        if (!GenerateAuthCookie(&strRPCUserColonPass)) {
+            uiInterface.ThreadSafeMessageBox(
+                _("Error: A fatal internal error occurred while generating the authentication cookie, "
+                  "see debug.log for details"), // Same message
+                                                // as AbortNode
+                "", CClientUIInterface::OK | CClientUIInterface::MODAL);
+            return false;
+        }
+    } else {
+        strRPCUserColonPass = GetArg("-rpcuser", "") + ":" + GetArg("-rpcpassword", "");
+    }
+    return true;
+}
+
 void ThreadRPCServer(void* parg)
 {
     // Make this thread recognisable as the RPC listener
@@ -731,39 +749,12 @@ void ThreadRPCServer2(void* /*parg*/)
 {
     printf("ThreadRPCServer started\n");
 
-    std::string rpcUser;
-    mapArgs.get("-rpcuser", rpcUser);
-    std::string rpcPassword;
-    mapArgs.get("-rpcpassword", rpcPassword);
-
-    strRPCUserColonPass = rpcUser + ":" + rpcPassword;
-    if ((rpcPassword == "") || (rpcUser == rpcPassword)) {
-        unsigned char rand_pwd[32];
-        RAND_bytes(rand_pwd, 32);
-        string strWhatAmI = "To use nebliod";
-        if (mapArgs.exists("-server"))
-            strWhatAmI = strprintf(_("To use the %s option"), "\"-server\"");
-        else if (mapArgs.exists("-daemon"))
-            strWhatAmI = strprintf(_("To use the %s option"), "\"-daemon\"");
-        uiInterface.ThreadSafeMessageBox(
-            strprintf(
-                _("%s, you must set a rpcpassword in the configuration file:\n %s\n"
-                  "It is recommended you use the following random password:\n"
-                  "rpcuser=nebliorpc\n"
-                  "rpcpassword=%s\n"
-                  "(you do not need to remember this password)\n"
-                  "The username and password MUST NOT be the same.\n"
-                  "If the file does not exist, create it with owner-readable-only file permissions.\n"
-                  "It is also recommended to set alertnotify so you are notified of problems;\n"
-                  "for example: alertnotify=echo %%s | mail -s \"neblio Alert\" admin@foo.com\n"),
-                strWhatAmI.c_str(), GetConfigFile().string().c_str(),
-                EncodeBase58(&rand_pwd[0], &rand_pwd[0] + 32).c_str()),
-            _("Error"), CClientUIInterface::OK | CClientUIInterface::MODAL);
+    if (!InitRPCAuthentication()) {
         StartShutdown();
         return;
     }
 
-    const bool fUseSSL = GetBoolArg("-rpcssl");
+    const bool fUseSSL = false; // SSL disabled
 
     asio::io_service io_service;
 #if ((BOOST_VERSION / 100000) > 1) && ((BOOST_VERSION / 100 % 1000) >= 47)
@@ -771,36 +762,6 @@ void ThreadRPCServer2(void* /*parg*/)
 #else
     ssl::context context(ssl::context::sslv23);
 #endif
-
-    if (fUseSSL) {
-        context.set_options(ssl::context::no_sslv2);
-
-        filesystem::path pathCertFile(GetArg("-rpcsslcertificatechainfile", "server.cert"));
-        if (!pathCertFile.is_complete())
-            pathCertFile = filesystem::path(GetDataDir()) / pathCertFile;
-        if (filesystem::exists(pathCertFile))
-            context.use_certificate_chain_file(pathCertFile.string());
-        else
-            printf("ThreadRPCServer ERROR: missing server certificate file %s\n",
-                   pathCertFile.string().c_str());
-
-        filesystem::path pathPKFile(GetArg("-rpcsslprivatekeyfile", "server.pem"));
-        if (!pathPKFile.is_complete())
-            pathPKFile = filesystem::path(GetDataDir()) / pathPKFile;
-        if (filesystem::exists(pathPKFile))
-            context.use_private_key_file(pathPKFile.string(), ssl::context::pem);
-        else
-            printf("ThreadRPCServer ERROR: missing server private key file %s\n",
-                   pathPKFile.string().c_str());
-
-        string strCiphers =
-            GetArg("-rpcsslciphers", "TLSv1+HIGH:!SSLv2:!aNULL:!eNULL:!AH:!3DES:@STRENGTH");
-#if ((BOOST_VERSION / 100000) > 1) && ((BOOST_VERSION / 100 % 1000) >= 47)
-        SSL_CTX_set_cipher_list(context.impl(), strCiphers.c_str());
-#else
-        SSL_CTX_set_cipher_list(context.native_handle(), strCiphers.c_str());
-#endif
-    }
 
     // Try a dual IPv6/IPv4 socket, falling back to separate IPv4 and IPv6 sockets
     const bool        loopback = !mapArgs.exists("-rpcallowip");

@@ -135,4 +135,11 @@ enum
     MSG_FILTERED_BLOCK,
 };
 
+/** Generate a new RPC authentication cookie and write it to disk */
+bool GenerateAuthCookie(std::string* cookie_out);
+/** Read the RPC authentication cookie from disk */
+boost::optional<std::string> GetAuthCookie();
+/** Delete RPC authentication cookie from disk */
+void DeleteAuthCookie();
+
 #endif // __INCLUDED_PROTOCOL_H__

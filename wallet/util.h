@@ -562,6 +562,8 @@ public:
 
 bool NewThread(void (*pfn)(void*), void* parg);
 
+bool RandomBytesToBuffer(unsigned char* buffer, std::size_t size);
+
 #ifdef WIN32
 inline void SetThreadPriority(int nPriority) { SetThreadPriority(GetCurrentThread(), nPriority); }
 #else
@@ -761,5 +763,12 @@ public:
         }
     }
 };
+
+//! Substitute for C++14 std::make_unique.
+template <typename T, typename... Args>
+std::unique_ptr<T> MakeUnique(Args&&... args)
+{
+    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
 
 #endif

@@ -467,6 +467,7 @@ TEST(genesis, genesis_block_tests_mainnet)
     SwitchNetworkTypeTemporarily state_holder(NetworkType::Mainnet);
     EXPECT_EQ(Params().GenesisBlock().GetHash(),
               uint256("0x7286972be4dbc1463d256049b7471c252e6557e222cab9be73181d359cd28bcc"));
+    EXPECT_EQ(Params().GenesisBlockHash(), Params().GenesisBlock().GetHash());
     EXPECT_EQ(Params().GenesisBlock().hashMerkleRoot,
               uint256("0x203fd13214321a12b01c0d8b32c780977cf52e56ae35b7383cd389c73291aee7"));
 }
@@ -476,6 +477,7 @@ TEST(genesis, genesis_block_tests_testnet)
     SwitchNetworkTypeTemporarily state_holder(NetworkType::Testnet);
     EXPECT_EQ(Params().GenesisBlock().GetHash(),
               uint256("0x7286972be4dbc1463d256049b7471c252e6557e222cab9be73181d359cd28bcc"));
+    EXPECT_EQ(Params().GenesisBlockHash(), Params().GenesisBlock().GetHash());
     EXPECT_EQ(Params().GenesisBlock().hashMerkleRoot,
               uint256("0x203fd13214321a12b01c0d8b32c780977cf52e56ae35b7383cd389c73291aee7"));
 }
@@ -484,7 +486,8 @@ TEST(genesis, genesis_block_tests_regtest)
 {
     SwitchNetworkTypeTemporarily state_holder(NetworkType::Regtest);
     EXPECT_EQ(Params().GenesisBlock().GetHash(),
-              uint256("0x23b26d3479f2504c854228194de0b567aebe62e485de6e6cc102cdab6ee5a0d6"));
+              uint256("0x30a1a5c355bbdee5ad873ea6b1b74dc77052688cf0421f0ce36fdf968c94e9fa"));
+    EXPECT_EQ(Params().GenesisBlockHash(), Params().GenesisBlock().GetHash());
     EXPECT_EQ(Params().GenesisBlock().hashMerkleRoot,
               uint256("0x7f1bebe1b7fd896ebacb63834ee0b4e55880975aba163047fe061c86911b5749"));
 }

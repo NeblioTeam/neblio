@@ -399,20 +399,20 @@ public:
                                        {NetworkFork::NETFORK__4_RETARGET_CORRECTION, 4000}},
             nBestHeight));
 
-        pchMessageStart[0] = 0xcb;
-        pchMessageStart[1] = 0xf2;
-        pchMessageStart[2] = 0xc0;
-        pchMessageStart[3] = 0xef;
+        pchMessageStart[0] = 0xcd;
+        pchMessageStart[1] = 0xf3;
+        pchMessageStart[2] = 0xe0;
+        pchMessageStart[3] = 0xee;
         vAlertPubKey = ParseHex("04da59da7f2e1c9d0f575187065930361ad09751f7a8ccae25f0ab9ebbd479c0cda65a8"
                                 "ae0415a4a64bac46f79a4cd67bdb0925871855db3227969005361beaf21");
         nDefaultPort = 26325;
 
         genesis = std::unique_ptr<CBlock>(
-            new CBlock(CreateGenesisBlock(1500674580, 1500674579, 8485, PoWLimit().GetCompact(), 1, 0)));
+            new CBlock(CreateGenesisBlock(1500674580, 1500674580, 102, PoWLimit().GetCompact(), 1, 0)));
         consensus.hashGenesisBlock = genesis->GetHash();
 
         assert(consensus.hashGenesisBlock ==
-               uint256("0x23b26d3479f2504c854228194de0b567aebe62e485de6e6cc102cdab6ee5a0d6"));
+               uint256("0x30a1a5c355bbdee5ad873ea6b1b74dc77052688cf0421f0ce36fdf968c94e9fa"));
         assert(genesis->hashMerkleRoot ==
                uint256("0x7f1bebe1b7fd896ebacb63834ee0b4e55880975aba163047fe061c86911b5749"));
 
@@ -465,6 +465,7 @@ void SelectParams(NetworkType networkType)
 {
     SelectBaseParams(networkType);
     globalChainParams = CreateChainParams(networkType);
+    printf("Selected network/chain type: %s\n", GetChainName(networkType).c_str());
 }
 
 const CBlock& CChainParams::GenesisBlock() const

@@ -147,14 +147,6 @@ void HandleSIGHUP(int) { fReopenDebugLog = true; }
 #if !defined(QT_GUI) && !defined(NEBLIO_UNITTESTS)
 bool AppInit(int argc, char* argv[])
 {
-    try {
-        // Check for -testnet or -regtest parameter (Params() calls are only valid after this clause)
-        SelectParams(ChainTypeFromCommandLine());
-    } catch (std::exception& e) {
-        fprintf(stderr, "Error: %s\n", e.what());
-        return EXIT_FAILURE;
-    }
-
     bool fRet = false;
     try {
         //
@@ -181,6 +173,14 @@ bool AppInit(int argc, char* argv[])
 
             fprintf(stdout, "%s", strUsage.c_str());
             return false;
+        }
+
+        try {
+            // Check for -testnet or -regtest parameter (Params() calls are only valid after this clause)
+            SelectParams(ChainTypeFromCommandLine());
+        } catch (std::exception& e) {
+            fprintf(stderr, "Error: %s\n", e.what());
+            return EXIT_FAILURE;
         }
 
         // Command-line RPC
@@ -300,6 +300,7 @@ std::string HelpMessage()
 #if !defined(WIN32) && !defined(QT_GUI)
         "  -daemon                " + _("Run in the background as a daemon and accept commands") + "\n" +
 #endif
+        "  -rpccookiefile=<file>  " + _("Location of the auth cookie (default: data dir)") + "\n" +
         "  -testnet               " + _("Use the test network") + "\n" +
         "  -debug                 " + _("Output extra debugging information. Implies all other -debug* options") + "\n" +
         "  -debugnet              " + _("Output extra network debugging information") + "\n" +
@@ -330,13 +331,7 @@ std::string HelpMessage()
         "\n" + _("Block creation options:") + "\n" +
         "  -blockminsize=<n>      "   + _("Set minimum block size in bytes (default: 0)") + "\n" +
         "  -blockmaxsize=<n>      "   + _("Set maximum block size in bytes (default: 250000)") + "\n" +
-        "  -blockprioritysize=<n> "   + _("Set maximum size of high-priority/low-fee transactions in bytes (default: 27000)") + "\n" +
-
-        "\n" + _("SSL options: (see the Bitcoin Wiki for SSL setup instructions)") + "\n" +
-        "  -rpcssl                                  " + _("Use OpenSSL (https) for JSON-RPC connections") + "\n" +
-        "  -rpcsslcertificatechainfile=<file.cert>  " + _("Server certificate file (default: server.cert)") + "\n" +
-        "  -rpcsslprivatekeyfile=<file.pem>         " + _("Server private key (default: server.pem)") + "\n" +
-        "  -rpcsslciphers=<ciphers>                 " + _("Acceptable ciphers (default: TLSv1+HIGH:!SSLv2:!aNULL:!eNULL:!AH:!3DES:@STRENGTH)") + "\n";
+        "  -blockprioritysize=<n> "   + _("Set maximum size of high-priority/low-fee transactions in bytes (default: 27000)") + "\n";
     // clang-format on
     return strUsage;
 }
@@ -978,10 +973,12 @@ bool AppInit2()
     if (!NewThread(StartNode, NULL))
         InitError(_("Error: could not start node"));
 
-    if (fServer)
+    if (fServer) {
         NewThread(ThreadRPCServer, NULL);
+    }
+    DeleteAuthCookie(); // clear the cookie from the previous session, if it exists
 
-        // ********************************************************* Step 12: start rest listenser
+    // ********************************************************* Step 12: start rest listenser
 
 #ifdef NEBLIO_REST
     uiInterface.InitMessage(_("Starting RESTful API Listener"));
