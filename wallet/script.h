@@ -698,4 +698,13 @@ bool VerifySignature(const CTransaction& txFrom, const CTransaction& txTo, unsig
 // combine them intelligently and return the result.
 CScript CombineSignatures(CScript scriptPubKey, const CTransaction& txTo, unsigned int nIn, const CScript& scriptSig1, const CScript& scriptSig2);
 
+class CReserveScript
+{
+public:
+    CScript reserveScript;
+    virtual void KeepScript() {}
+    CReserveScript() {}
+    virtual ~CReserveScript() {}
+};
+
 #endif

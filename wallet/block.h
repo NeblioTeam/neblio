@@ -153,7 +153,7 @@ public:
 
     static void InvalidChainFound(const CBlockIndexSmartPtr& pindexNew, CTxDB& txdb);
 
-    static bool Reorganize(CTxDB& txdb, CBlockIndexSmartPtr& pindexNew,
+    static bool Reorganize(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
                            const bool createDbTransaction = true);
 
 private:

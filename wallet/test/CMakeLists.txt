@@ -16,12 +16,14 @@ add_executable(neblio-tests
     hash_tests.cpp
     key_tests.cpp
     mruset_tests.cpp
+    miner_tests.cpp
     netbase_tests.cpp
     ntp1_tests.cpp
     pmt_tests.cpp
     rpc_tests.cpp
     script_tests.cpp
     serialize_tests.cpp
+    scheduler_tests.cpp
     sigopcount_tests.cpp
     transaction_tests.cpp
     uint160_tests.cpp

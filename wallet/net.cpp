@@ -10,6 +10,9 @@
 #include "main.h"
 #include "ui_interface.h"
 
+#include <chrono>
+#include <thread>
+
 #ifdef WIN32
 #include <string.h>
 #endif
@@ -34,8 +37,6 @@ void ThreadOpenAddedConnections2(void* parg);
 void ThreadMapPort2(void* parg);
 #endif
 void ThreadDNSAddressSeed2(void* parg);
-bool OpenNetworkConnection(const CAddress& addrConnect, CSemaphoreGrant* grantOutbound = nullptr,
-                           const char* strDest = nullptr, bool fOneShot = false);
 
 struct LocalServiceInfo
 {
@@ -60,18 +61,16 @@ boost::array<boost::atomic_int, THREAD_MAX> vnThreadsRunning;
 static std::vector<SOCKET>                  vhListenSocket;
 LockedVar<CAddrMan>                         addrman;
 
-vector<CNode*>                   vNodes;
-CCriticalSection                 cs_vNodes;
-map<CInv, CDataStream>           mapRelay;
-deque<pair<int64_t, CInv>>       vRelayExpiration;
-CCriticalSection                 cs_mapRelay;
-ThreadSafeHashMap<CInv, int64_t> mapAlreadyAskedFor;
+vector<CNode*>                      vNodes;
+CCriticalSection                    cs_vNodes;
+LockedVar<std::vector<std::string>> vAddedNodes;
+map<CInv, CDataStream>              mapRelay;
+deque<pair<int64_t, CInv>>          vRelayExpiration;
+CCriticalSection                    cs_mapRelay;
+ThreadSafeHashMap<CInv, int64_t>    mapAlreadyAskedFor;
 
 static deque<string> vOneShots;
 CCriticalSection     cs_vOneShots;
-
-set<CNetAddr>    setservAddNodeAddresses;
-CCriticalSection cs_setservAddNodeAddresses;
 
 static CSemaphore* semOutbound = nullptr;
 
@@ -405,7 +404,7 @@ CNode* FindNode(std::string addrName)
 {
     LOCK(cs_vNodes);
     for (CNode* pnode : vNodes)
-        if (pnode->addrName == addrName)
+        if (pnode->addrName.get() == addrName)
             return (pnode);
     return nullptr;
 }
@@ -479,7 +478,7 @@ void CNode::CloseSocketDisconnect()
 {
     fDisconnect = true;
     if (hSocket != INVALID_SOCKET) {
-        printf("disconnecting node %s\n", addrName.c_str());
+        printf("disconnecting node %s\n", addrName.get().c_str());
         closesocket(hSocket);
         hSocket = INVALID_SOCKET;
 
@@ -529,7 +528,7 @@ bool CNode::IsBanned(CNetAddr ip)
 bool CNode::Misbehaving(int howmuch)
 {
     if (addr.IsLocal()) {
-        printf("Warning: Local node %s misbehaving (delta: %d)!\n", addrName.c_str(), howmuch);
+        printf("Warning: Local node %s misbehaving (delta: %d)!\n", addrName.get().c_str(), howmuch);
         return false;
     }
 
@@ -559,7 +558,7 @@ void CNode::copyStats(CNodeStats& stats)
     X(nLastSend);
     X(nLastRecv);
     X(nTimeConnected);
-    X(addrName);
+    stats.addrName = GetAddrName();
     X(nVersion);
     X(strSubVer);
     X(fInbound);
@@ -1409,18 +1408,55 @@ void ThreadOpenAddedConnections(void* parg)
     printf("ThreadOpenAddedConnections exited\n");
 }
 
+void SleepOrWaitForAddedNodesToChange(std::size_t prevNodesCount)
+{
+    // we sleep for two minutes
+    static constexpr const std::size_t totalSleepSeconds = 120;
+    static constexpr const std::size_t timeStep          = 2;
+    for (std::size_t i = 0; i < totalSleepSeconds / timeStep && !fShutdown; i++) {
+        std::this_thread::sleep_for(std::chrono::seconds(timeStep)); // Retry every 2 minutes
+        if (vAddedNodes.get().size() != prevNodesCount) {
+            break;
+        }
+    }
+}
+
 void ThreadOpenAddedConnections2(void* /*parg*/)
 {
     printf("ThreadOpenAddedConnections started\n");
 
-    std::vector<std::string> addnodeVals;
-    mapMultiArgs.get("-addnode", addnodeVals);
+    // we make this a set because we don't want additional nodes to keep filling the memory (using the
+    // function AddNode())
+    std::set<std::string> addnodeVals;
 
+    // we add the nodes from the command line arguments
+    {
+        std::vector<std::string> addnodeTempVec;
+        mapMultiArgs.get("-addnode", addnodeTempVec);
+    }
+
+    // we add the nodes that are preset in the chain params
     const std::vector<std::string>& moreNodes = Params().AdditionalNodes();
-    addnodeVals.insert(addnodeVals.begin(), moreNodes.cbegin(), moreNodes.cend());
+    addnodeVals.insert(moreNodes.cbegin(), moreNodes.cend());
+
+    const std::set<std::string> OriginalAddedNodes = addnodeVals;
 
     if (HaveNameProxy()) {
         while (!fShutdown) {
+            std::size_t prevNodesCount;
+            {
+                // since nodes can be removed from vAddedNodes, we have to restore the original state of
+                // addnodeVals every time
+                addnodeVals = OriginalAddedNodes;
+
+                // we add the nodes that are added with AddNode()
+                auto lock = vAddedNodes.get_lock();
+
+                const std::vector<std::string>& nodes = vAddedNodes.get_unsafe();
+                addnodeVals.insert(nodes.cbegin(), nodes.cend());
+
+                prevNodesCount = nodes.size();
+            }
             for (const string& strAddNode : addnodeVals) {
                 CAddress        addr;
                 CSemaphoreGrant grant(*semOutbound);
@@ -1428,41 +1464,53 @@ void ThreadOpenAddedConnections2(void* /*parg*/)
                 MilliSleep(500);
             }
             vnThreadsRunning[THREAD_ADDEDCONNECTIONS]--;
-            MilliSleep(120000); // Retry every 2 minutes
+            SleepOrWaitForAddedNodesToChange(prevNodesCount);
             vnThreadsRunning[THREAD_ADDEDCONNECTIONS]++;
         }
         return;
     }
 
     vector<vector<CService>> vservAddressesToAdd(0);
-    for (string& strAddNode : addnodeVals) {
+    for (const string& strAddNode : addnodeVals) {
         vector<CService> vservNode(0);
         if (Lookup(strAddNode.c_str(), vservNode, Params().GetDefaultPort(), fNameLookup, 0)) {
             vservAddressesToAdd.push_back(vservNode);
-            {
-                LOCK(cs_setservAddNodeAddresses);
-                for (CService& serv : vservNode)
-                    setservAddNodeAddresses.insert(serv);
-            }
         }
     }
     while (true) {
         vector<vector<CService>> vservConnectAddresses = vservAddressesToAdd;
+
+        std::size_t prevNodesCount;
+
         // Attempt to connect to each IP for each addnode entry until at least one is successful per
         // addnode entry (keeping in mind that addnode entries can have many IPs if fNameLookup)
         {
+            {
+                // since nodes can be removed from vAddedNodes, we have to restore the original state of
+                // addnodeVals every time
+                addnodeVals = OriginalAddedNodes;
+
+                // we add the nodes that are added with AddNode()
+                auto lock = vAddedNodes.get_lock();
+
+                const std::vector<std::string>& nodes = vAddedNodes.get_unsafe();
+                addnodeVals.insert(nodes.cbegin(), nodes.cend());
+
+                prevNodesCount = nodes.size();
+            }
+
             LOCK(cs_vNodes);
-            BOOST_FOREACH (CNode* pnode, vNodes)
+            for (CNode* pnode : vNodes)
                 for (vector<vector<CService>>::iterator it = vservConnectAddresses.begin();
                      it != vservConnectAddresses.end(); it++)
-                    BOOST_FOREACH (CService& addrNode, *(it))
+                    for (CService& addrNode : *(it))
                         if (pnode->addr == addrNode) {
                             it = vservConnectAddresses.erase(it);
                             it--;
                             break;
                         }
         }
-        BOOST_FOREACH (vector<CService>& vserv, vservConnectAddresses) {
+        for (vector<CService>& vserv : vservConnectAddresses) {
             CSemaphoreGrant grant(*semOutbound);
             OpenNetworkConnection(CAddress(*(vserv.begin())), &grant);
             MilliSleep(500);
@@ -1472,7 +1520,7 @@ void ThreadOpenAddedConnections2(void* /*parg*/)
         if (fShutdown)
             return;
         vnThreadsRunning[THREAD_ADDEDCONNECTIONS]--;
-        MilliSleep(120000); // Retry every 2 minutes
+        SleepOrWaitForAddedNodesToChange(prevNodesCount);
         vnThreadsRunning[THREAD_ADDEDCONNECTIONS]++;
         if (fShutdown)
             return;
@@ -1849,6 +1897,7 @@ bool StopNode()
         printf("ThreadStakeMiner still running\n");
     while (vnThreadsRunning[THREAD_MESSAGEHANDLER] > 0 || vnThreadsRunning[THREAD_RPCHANDLER] > 0)
         MilliSleep(20);
+
     MilliSleep(50);
     DumpAddresses();
     return true;
@@ -1910,4 +1959,29 @@ void RelayTransaction(const CTransaction& tx, const uint256& hash, const CDataSt
         } else
             pnode->PushInventory(inv);
     }
+}
+
+bool AddNode(const std::string& strNode)
+{
+    auto lock = vAddedNodes.get_lock();
+    for (const std::string& it : vAddedNodes.get_unsafe()) {
+        if (strNode == it)
+            return false;
+    }
+
+    vAddedNodes.get_unsafe().push_back(strNode);
+    return true;
+}
+
+bool RemoveAddedNode(const std::string& strNode)
+{
+    auto lock = vAddedNodes.get_lock();
+    for (std::vector<std::string>::iterator it = vAddedNodes.get_unsafe().begin();
+         it != vAddedNodes.get_unsafe().end(); ++it) {
+        if (strNode == *it) {
+            vAddedNodes.get_unsafe().erase(it);
+            return true;
+        }
+    }
+    return false;
 }

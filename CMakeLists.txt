@@ -17,15 +17,16 @@ if(WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wa,-mbig-obj")
 endif()
 
-option(COMPILE_GUI         "Enable compiling neblio-qt" ON)
-option(COMPILE_DAEMON      "Enable compiling nebliod" ON)
-option(COMPILE_CURL        "Download and compile libcurl (and OpenSSL) automatically (Not for Windows)" OFF)
-option(COMPILE_TESTS       "Build tests" ON)
-option(USE_QRCODE          "Enable QRCode" ON)
-option(USE_UPNP            "Enable Miniupnpc" OFF)
-option(USE_DBUS            "Enable Dbus" ON)
-option(USE_CUSTOM_WARNINGS "Enable custom warnings" OFF)
-option(DISABLE_ASSERTS     "Disables asserts" OFF)
+option(COMPILE_GUI            "Enable compiling neblio-qt" ON)
+option(COMPILE_DAEMON         "Enable compiling nebliod" ON)
+option(COMPILE_CURL           "Download and compile libcurl (and OpenSSL) automatically (Not for Windows)" OFF)
+option(COMPILE_TESTS          "Build tests" ON)
+option(USE_QRCODE             "Enable QRCode" ON)
+option(USE_UPNP               "Enable Miniupnpc" OFF)
+option(USE_DBUS               "Enable Dbus" ON)
+option(USE_CUSTOM_WARNINGS    "Enable custom warnings" OFF)
+option(DISABLE_ASSERTS        "Disables asserts" OFF)
+option(CONFIGURE_SYSTEM_TESTS "Configure system tests" ON)
 
 if(NOT DISABLE_ASSERTS)
     # this removes the definition NDEBUG from release mode and release mode with debug info
@@ -224,6 +225,8 @@ STRING(REGEX REPLACE "locale\/(bitcoin[a-zA-Z_]+\.qm)" "\\1" resources_file_data
 FILE(WRITE ${CMAKE_BINARY_DIR}/bitcoin.qrc "${resources_file_data_mod}")
 set(RESOURCE ${CMAKE_BINARY_DIR}/bitcoin.qrc)
 qt5_add_resources(RESOURCE_ADDED ${RESOURCE})
+
+add_subdirectory(test)
 
 add_definitions(-DBOOST_SPIRIT_THREADSAFE)
 
@@ -595,6 +598,7 @@ add_library(core_lib STATIC
     wallet/consensus_params.cpp
     wallet/amount.h
     wallet/CustomTypes.cpp
+    wallet/scheduler.cpp
     )
 
 target_link_libraries(core_lib

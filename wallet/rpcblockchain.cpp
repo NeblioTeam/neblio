@@ -7,9 +7,10 @@
 #include "main.h"
 #include "merkletx.h"
 #include "txmempool.h"
-#include <atomic>
-
 #include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <thread>
 
 using namespace json_spirit;
 using namespace std;
@@ -420,5 +421,58 @@ Value exportblockchain(const Array& params, bool fHelp)
 
     printf("Export blockchain to path %s is done.\n", filename.string().c_str());
 
+    return Value();
+}
+
+Value waitforblockheight(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 2)
+        throw std::runtime_error("waitforblockheight <height> (timeout)\n"
+                                 "\nWaits for (at least) block height and returns the height and hash\n"
+                                 "of the current tip.\n"
+                                 "\nReturns the current block on timeout or exit.\n"
+                                 "\nArguments:\n"
+                                 "1. height  (required, int) Block height to wait for (int)\n"
+                                 "2. timeout (int, optional, default=0) Time in milliseconds to wait "
+                                 "for a response. 0 indicates no timeout.\n"
+                                 "\nResult:\n"
+                                 "{                           (json object)\n"
+                                 "  \"hash\" : {       (string) The blockhash\n"
+                                 "  \"height\" : {     (int) Block height\n"
+                                 "}\n"
+                                 "\nExamples:\n"
+                                 "waitforblockheight \"100\" 1000");
+    int timeout = 0;
+
+    int height = params[0].get_int();
+
+    if (params[1].type() != null_type) {
+        timeout = params[1].get_int();
+        printf("Timeout set to: %i\n", timeout);
+    }
+
+    int totalMilliSeconds = 0;
+    while (totalMilliSeconds <= timeout && nBestHeight < height && IsRPCRunning()) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        totalMilliSeconds += 1000;
+    }
+
+    Object ret;
+    ret.push_back(json_spirit::Pair("hash", pindexBest->GetBlockHash().GetHex()));
+    ret.push_back(json_spirit::Pair("height", nBestHeight.load()));
+
+    return ret;
+}
+
+Value syncwithvalidationinterfacequeue(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 0) {
+        throw std::runtime_error("syncwithvalidationinterfacequeue (unimplemented)\n"
+                                 "\nWaits for the validation interface queue to catch up on everything "
+                                 "that was there when we entered this function.\n"
+                                 "\nExamples:\n"
+                                 "syncwithvalidationinterfacequeue");
+    }
+    //    SyncWithValidationInterfaceQueue();
     return Value();
 }

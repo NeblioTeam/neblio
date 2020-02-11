@@ -133,7 +133,8 @@ public:
         base58Prefixes[PUBKEY_ADDRESS] = 53;  // Neblio: addresses begin with 'N'
         base58Prefixes[SCRIPT_ADDRESS] = 112; // Neblio: addresses begin with 'n'
 
-        fMineBlocksOnDemand = false;
+        fMiningRequiresPeers = true;
+        fMineBlocksOnDemand  = false;
 
         /**
         // What makes a good checkpoint block?
@@ -285,7 +286,8 @@ public:
         base58Prefixes[PUBKEY_ADDRESS] = 65;  // Neblio: addresses begin with 'T'
         base58Prefixes[SCRIPT_ADDRESS] = 127; // Neblio: addresses begin with 't'
 
-        fMineBlocksOnDemand = false;
+        fMiningRequiresPeers = true;
+        fMineBlocksOnDemand  = false;
 
         /**
         // What makes a good checkpoint block?
@@ -382,9 +384,9 @@ public:
         consensus.nStakeMinAgeV2      = consensus.nStakeMinAgeV1; // minimum age for coin age
         consensus.nStakeMaxAge        = 7 * 24 * 60 * 60;         // Maximum stake age 7 days
         consensus.nModifierInterval   = 10 * 60; // time to elapse before new modifier is computed
-        consensus.nCoinbaseMaturityV1 = 120;
-        consensus.nCoinbaseMaturityV2 = 120;
-        consensus.nCoinbaseMaturityV3 = 120;
+        consensus.nCoinbaseMaturityV1 = 10;
+        consensus.nCoinbaseMaturityV2 = 10;
+        consensus.nCoinbaseMaturityV3 = 10;
         consensus.nTargetTimespan     = 2 * 60 * 60; // two hours
 
         consensus.firstValidNTP1Height = 0;
@@ -427,7 +429,8 @@ public:
         base58Prefixes[PUBKEY_ADDRESS] = 65;  // Neblio: addresses begin with 'T'
         base58Prefixes[SCRIPT_ADDRESS] = 127; // Neblio: addresses begin with 't'
 
-        fMineBlocksOnDemand = true;
+        fMiningRequiresPeers = false;
+        fMineBlocksOnDemand  = true;
 
         // Hard checkpoints of stake modifiers to ensure they are deterministic (regtest)
         mapStakeModifierCheckpoints = MapStakeModifierCheckpoints{};

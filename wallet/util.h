@@ -746,7 +746,15 @@ public:
         return var;
     }
 
+    const T& get() const
+    {
+        boost::lock_guard<MutexType> lg(mtx);
+        return var;
+    }
+
     T& get_unsafe() { return var; }
+
+    const T& get_unsafe() const { return var; }
 
     [[nodiscard]] boost::shared_ptr<boost::lock_guard<MutexType>> get_lock() const
     {
@@ -770,5 +778,7 @@ std::unique_ptr<T> MakeUnique(Args&&... args)
 {
     return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 }
+
+bool ParseFixedPoint(const std::string& val, int decimals, int64_t* amount_out);
 
 #endif

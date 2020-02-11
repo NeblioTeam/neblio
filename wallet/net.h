@@ -76,6 +76,14 @@ CAddress GetLocalAddress(const CNetAddr* paddrPeer = NULL);
 //     MSG_BLOCK,
 // };
 
+struct AddedNodeInfo
+{
+    std::string strAddedNode;
+    CService    resolvedAddress;
+    bool        fConnected;
+    bool        fInbound;
+};
+
 class CRequestTracker
 {
 public:
@@ -119,6 +127,7 @@ extern LockedVar<CAddrMan>                         addrman;
 
 extern std::vector<CNode*>                  vNodes;
 extern CCriticalSection                     cs_vNodes;
+extern LockedVar<std::vector<std::string>>  vAddedNodes;
 extern std::map<CInv, CDataStream>          mapRelay;
 extern std::deque<std::pair<int64_t, CInv>> vRelayExpiration;
 extern CCriticalSection                     cs_mapRelay;
@@ -199,7 +208,7 @@ public:
     boost::atomic<int64_t> nLastSendEmpty;
     boost::atomic<int64_t> nTimeConnected;
     CAddress               addr;
-    std::string            addrName;
+    LockedVar<std::string> addrName;
     CService               addrLocal;
     int                    nVersion;
     std::string            strSubVer;
@@ -258,7 +267,7 @@ public:
         nLastSendEmpty           = GetTime();
         nTimeConnected           = GetTime();
         addr                     = addrIn;
-        addrName                 = addrNameIn == "" ? addr.ToStringIPPort() : addrNameIn;
+        addrName.get()           = addrNameIn == "" ? addr.ToStringIPPort() : addrNameIn;
         nVersion                 = 0;
         strSubVer                = "";
         fOneShot                 = false;
@@ -301,6 +310,8 @@ private:
     void operator=(const CNode&);
 
 public:
+    std::string GetAddrName() const { return addrName.get(); }
+
     int GetRefCount()
     {
         assert(nRefCount >= 0);
@@ -662,5 +673,13 @@ inline void RelayInventory(const CInv& inv)
 class CTransaction;
 void RelayTransaction(const CTransaction& tx, const uint256& hash);
 void RelayTransaction(const CTransaction& tx, const uint256& hash, const CDataStream& ss);
+
+bool OpenNetworkConnection(const CAddress& addrConnect, CSemaphoreGrant* grantOutbound = nullptr,
+                           const char* strDest = nullptr, bool fOneShot = false);
+
+/// functions idea from peercoin; perhaps they should be put in a class, together wish vAddedNodes
+bool                       AddNode(const std::string& strNode);
+bool                       RemoveAddedNode(const std::string& strNode);
+std::vector<AddedNodeInfo> GetAddedNodeInfo();
 
 #endif

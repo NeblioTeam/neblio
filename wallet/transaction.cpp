@@ -709,10 +709,10 @@ boost::optional<CKey> CTransaction::GetPublicKeyFromScriptSig(const CScript& scr
     if (!scriptSig.GetOp(beg, opt, vchPub)) {
         return boost::none;
     }
-    if (!IsCanonicalSignature(vchSig)) {
+    if (vchSig.empty() || !IsCanonicalSignature(vchSig)) {
         return boost::none;
     }
-    if (!IsCanonicalPubKey(vchPub)) {
+    if (vchPub.empty() || !IsCanonicalPubKey(vchPub)) {
         return boost::none;
     }
 

@@ -15,6 +15,7 @@
 #undef printf
 #include <boost/algorithm/string.hpp>
 #include <boost/asio.hpp>
+#include <boost/asio/buffer.hpp>
 #include <boost/asio/ip/v6_only.hpp>
 #include <boost/asio/ssl.hpp>
 #include <boost/bind.hpp>
@@ -24,7 +25,9 @@
 #include <boost/iostreams/concepts.hpp>
 #include <boost/iostreams/stream.hpp>
 #include <boost/shared_ptr.hpp>
+#include <chrono>
 #include <list>
+#include <thread>
 
 #define printf OutputDebugStringF
 
@@ -38,6 +41,8 @@ void ThreadRPCServer2(void* parg);
 static std::string strRPCUserColonPass;
 
 const Object emptyobj;
+
+boost::atomic_bool fRpcListening{false};
 
 void ThreadRPCServer3(void* parg);
 
@@ -81,14 +86,20 @@ void RPCTypeCheck(const Object& o, const map<string, Value_type>& typesExpected,
     }
 }
 
-int64_t AmountFromValue(const Value& value)
+CAmount AmountFromValue(const Value& value)
 {
-    double dAmount = value.get_real();
-    if (dAmount <= 0.0 || dAmount > MAX_MONEY)
-        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount");
-    int64_t nAmount = roundint64(dAmount * COIN);
+    CAmount nAmount = 0;
+    if (value.type() != real_type && value.type() != int_type && value.type() != str_type)
+        throw JSONRPCError(RPC_TYPE_ERROR, "Amount is not a number or string");
+    if (value.type() == str_type) {
+        if (!ParseFixedPoint(value.get_str(), 6, &nAmount))
+            throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount");
+    } else {
+        double dAmount = value.get_real();
+        nAmount        = roundint64(dAmount * COIN);
+    }
     if (!MoneyRange(nAmount))
-        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount");
+        throw JSONRPCError(RPC_TYPE_ERROR, "Amount out of range");
     return nAmount;
 }
 
@@ -98,14 +109,17 @@ Value ValueFromAmount(int64_t amount) { return (double)amount / (double)COIN; }
 // Utilities: convert hex-encoded Values
 // (throws error if not hex).
 //
-uint256 ParseHashV(const Value& v, string strName)
+uint256 ParseHashV(const Value& v, const string& strName)
 {
-    string strHex;
-    if (v.type() == str_type)
+    std::string strHex;
+    if (v.type() == json_spirit::str_type)
         strHex = v.get_str();
     if (!IsHex(strHex)) // Note: IsHex("") is false
         throw JSONRPCError(RPC_INVALID_PARAMETER,
                            strName + " must be hexadecimal string (not '" + strHex + "')");
+    if (64 != strHex.length())
+        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must be of length %d (not %zu)",
+                                                            strName.c_str(), 64, strHex.length()));
     uint256 result;
     result.SetHex(strHex);
     return result;
@@ -185,6 +199,12 @@ Value stop(const Array& params, bool fHelp)
     if (fHelp || params.size() > 1)
         throw runtime_error("stop\n"
                             "Stop neblio server.");
+
+    // this shutdown flag is necessary because the rpc stops reading only when this flag is enabled. If
+    // this isn't done, and since reading the socket stream is synchronous, it'll infinitely block,
+    // preventing the program from shutting down indefinitely
+    fShutdown.store(true, boost::memory_order_seq_cst);
+
     // Shutdown will take long enough that the response should get back
     StartShutdown();
     return "neblio server stopping";
@@ -202,7 +222,9 @@ static const CRPCCommand vRPCCommands[] =
     { "stop",                      &stop,                      true,   true },
     { "getbestblockhash",          &getbestblockhash,          true,   false },
     { "getblockcount",             &getblockcount,             true,   false },
+    { "waitforblockheight",        &waitforblockheight,        true,   false },
     { "getconnectioncount",        &getconnectioncount,        true,   false },
+    { "addnode",                   &addnode,                   true,   false },
     { "getpeerinfo",               &getpeerinfo,               true,   false },
     { "getdifficulty",             &getdifficulty,             true,   false },
     { "getinfo",                   &getinfo,                   true,   false },
@@ -252,6 +274,7 @@ static const CRPCCommand vRPCCommands[] =
     { "settxfee",                  &settxfee,                  false,  false },
     { "getblocktemplate",          &getblocktemplate,          true,   false },
     { "submitblock",               &submitblock,               false,  false },
+    { "generate",                  &generate,                  false,  false },
     { "listsinceblock",            &listsinceblock,            false,  false },
     { "dumpprivkey",               &dumpprivkey,               false,  false },
     { "dumpwallet",                &dumpwallet,                true,   false },
@@ -273,6 +296,7 @@ static const CRPCCommand vRPCCommands[] =
     { "makekeypair",               &makekeypair,               false,  true},
     { "sendalert",                 &sendalert,                 false,  false},
     { "exportblockchain",          &exportblockchain,          false,  false },
+    { "syncwithvalidationinterfacequeue", &syncwithvalidationinterfacequeue, true, false },
 };
 // clang-format on
 
@@ -387,7 +411,7 @@ int ReadHTTPStatus(std::basic_istream<char>& stream, int& proto)
         return HTTP_INTERNAL_SERVER_ERROR;
     proto           = 0;
     const char* ver = strstr(str.c_str(), "HTTP/1.");
-    if (ver != NULL)
+    if (ver != nullptr)
         proto = atoi(ver + 7);
     return atoi(vWords[1].c_str());
 }
@@ -771,9 +795,8 @@ void ThreadRPCServer2(void* /*parg*/)
     boost::system::error_code v6_only_error;
     boost::shared_ptr<ip::tcp::acceptor> acceptor(new ip::tcp::acceptor(io_service));
 
-    boost::signals2::signal<void()> StopRequests;
+    fRpcListening.store(false);
 
-    bool        fListening = false;
     std::string strerr;
     try {
         acceptor->open(endpoint.protocol());
@@ -787,12 +810,15 @@ void ThreadRPCServer2(void* /*parg*/)
 
         RPCListen(acceptor, context, fUseSSL);
         // Cancel outstanding listen-requests for this acceptor when shutting down
-        StopRequests.connect(
-            signals2::slot<void()>(static_cast<void (ip::tcp::acceptor::*)()>(&ip::tcp::acceptor::close),
-                                   acceptor.get())
-                .track(acceptor));
+        StopRPCRequests.get().connect(signals2::slot<void()>([acceptor]() {
+                                          boost::system::error_code ec;
+                                          acceptor->cancel(ec);
+                                          acceptor->close(ec);
+                                          auto dead = boost::signals2::signal<void()>();
+                                          StopRPCRequests.get().swap(dead);
+                                      }).track(acceptor));
 
-        fListening = true;
+        fRpcListening.store(true);
     } catch (boost::system::system_error& e) {
         strerr = strprintf(_("An error occurred while setting up the RPC port %u for listening on IPv6, "
                              "falling back to IPv4: %s"),
@@ -801,7 +827,7 @@ void ThreadRPCServer2(void* /*parg*/)
 
     try {
         // If dual IPv6/IPv4 failed (or we're opening loopback interfaces only), open IPv4 separately
-        if (!fListening || loopback || v6_only_error) {
+        if (!fRpcListening.load() || loopback || v6_only_error) {
             bindAddress = loopback ? asio::ip::address_v4::loopback() : asio::ip::address_v4::any();
             endpoint.address(bindAddress);
 
@@ -813,12 +839,15 @@ void ThreadRPCServer2(void* /*parg*/)
 
             RPCListen(acceptor, context, fUseSSL);
             // Cancel outstanding listen-requests for this acceptor when shutting down
-            StopRequests.connect(signals2::slot<void()>(static_cast<void (ip::tcp::acceptor::*)()>(
-                                                            &ip::tcp::acceptor::close),
-                                                        acceptor.get())
-                                     .track(acceptor));
+            StopRPCRequests.get().connect(signals2::slot<void()>([acceptor]() {
+                                              boost::system::error_code ec;
+                                              acceptor->cancel(ec);
+                                              acceptor->close(ec);
+                                              auto dead = boost::signals2::signal<void()>();
+                                              StopRPCRequests.get().swap(dead);
+                                          }).track(acceptor));
 
-            fListening = true;
+            fRpcListening.store(true);
         }
     } catch (boost::system::system_error& e) {
         strerr =
@@ -826,7 +855,7 @@ void ThreadRPCServer2(void* /*parg*/)
                       endpoint.port(), e.what());
     }
 
-    if (!fListening) {
+    if (!fRpcListening.load()) {
         uiInterface.ThreadSafeMessageBox(strerr, _("Error"),
                                          CClientUIInterface::OK | CClientUIInterface::MODAL);
         StartShutdown();
@@ -834,10 +863,11 @@ void ThreadRPCServer2(void* /*parg*/)
     }
 
     vnThreadsRunning[THREAD_RPCLISTENER]--;
-    while (!fShutdown)
+    while (!fShutdown) {
         io_service.run_one();
+    }
     vnThreadsRunning[THREAD_RPCLISTENER]++;
-    StopRequests();
+    StopRPCRequests.get()();
 }
 
 class JSONRequest
@@ -1006,8 +1036,10 @@ json_spirit::Value CRPCTable::execute(const std::string&        strMethod,
 {
     // Find method
     const CRPCCommand* pcmd = tableRPC[strMethod];
-    if (!pcmd)
-        throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Method not found");
+    if (!pcmd) {
+        printf("Method not found: %s\n", strMethod.c_str());
+        throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Method not found (" + std::string(strMethod) + ")");
+    }
 
     // Observe safe mode
     string strWarning = GetWarnings("rpc");
@@ -1132,6 +1164,10 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
     //
     // Special case non-string parameter types
     //
+    if (strMethod == "generate" && n > 0)
+        ConvertTo<int64_t>(params[0]);
+    if (strMethod == "generate" && n > 1)
+        ConvertTo<int64_t>(params[1]);
     if (strMethod == "stop" && n > 0)
         ConvertTo<bool>(params[0]);
     if (strMethod == "sendtoaddress" && n > 1)
@@ -1403,3 +1439,5 @@ GetNTP1RecipientsVector(const Object& sendTo, boost::shared_ptr<NTP1Wallet> ntp1
     }
     return result;
 }
+
+bool IsRPCRunning() { return fRpcListening.load(); }

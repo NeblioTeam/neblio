@@ -8,8 +8,10 @@
 #include "init.h"
 #include "main.h"
 #include "miner.h"
+#include "script.h"
 #include "txdb.h"
 #include "txmempool.h"
+#include <random>
 
 using namespace json_spirit;
 using namespace std;
@@ -157,7 +159,7 @@ Value getworkex(const Array& params, bool fHelp)
             nStart                   = GetTime();
 
             // Create new block
-            pblock = CreateNewBlock(pwalletMain.get());
+            pblock = CreateNewBlock(pwalletMain.get()).release();
             if (!pblock)
                 throw JSONRPCError(-7, "Out of memory");
             vNewBlock.push_back(pblock);
@@ -290,7 +292,7 @@ Value getwork(const Array& params, bool fHelp)
             nStart                            = GetTime();
 
             // Create new block
-            pblock = CreateNewBlock(pwalletMain.get());
+            pblock = CreateNewBlock(pwalletMain.get()).release();
             if (!pblock)
                 throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
             vNewBlock.push_back(pblock);
@@ -418,7 +420,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
             delete pblock;
             pblock = NULL;
         }
-        pblock = CreateNewBlock(pwalletMain.get());
+        pblock = CreateNewBlock(pwalletMain.get()).release();
         if (!pblock)
             throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
 
@@ -523,4 +525,119 @@ Value submitblock(const Array& params, bool fHelp)
         return "rejected";
 
     return Value::null;
+}
+
+boost::optional<unsigned> MineBlock(CBlock block, uint64_t nMaxTries)
+{
+    using NonceType = unsigned;
+    static_assert(std::is_same<NonceType, decltype(block.nNonce)>::value,
+                  "Nonce type is expected to be unsigned");
+
+    auto seed = std::random_device{}();
+
+    std::mt19937                             gen(seed);
+    std::uniform_int_distribution<NonceType> dis;
+    while (nMaxTries > 0) {
+        --nMaxTries;
+        block.nNonce = dis(gen);
+        if (!CheckProofOfWork(block.GetHash(), block.nBits, true)) {
+            continue;
+        } else {
+            return block.nNonce;
+        }
+    }
+    return boost::none;
+}
+
+Value generateBlocks(int nGenerate, uint64_t nMaxTries, CWallet* const pwallet)
+{
+    static const int nInnerLoopCount = 0x10000;
+    int              nHeightEnd      = 0;
+    int              nHeight         = nBestHeight.load();
+
+    nHeightEnd = nBestHeight.load() + nGenerate;
+
+    unsigned int       nExtraNonce = 0;
+    json_spirit::Array blockHashes;
+    while (nHeight < nHeightEnd) {
+        std::unique_ptr<CBlock> pblock = CreateNewBlock(pwallet, false);
+        if (!pblock)
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
+        {
+            LOCK(cs_main);
+            IncrementExtraNonce(pblock.get(), pindexBest.get(), nExtraNonce);
+        }
+
+        boost::optional<unsigned int> nonce = MineBlock(*pblock, nMaxTries);
+        if (nonce) {
+            pblock->nNonce = *nonce;
+        } else {
+            // failed to mine
+            break;
+        }
+
+        if (pblock->nNonce == nInnerLoopCount) {
+            continue;
+        }
+
+        // peercoin: sign block
+        // rfc6: we sign proof of work blocks only before 0.8 fork
+        //     if (!IsBTC16BIPsEnabled(pblock->GetBlockTime()) && !SignBlock(*pblock, *pwallet))
+        //         throw JSONRPCError(-100, "Unable to sign block, wallet locked?");
+
+        if (!ProcessBlock(nullptr, pblock.get()))
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBlock, block not accepted");
+        ++nHeight;
+        blockHashes.push_back(pblock->GetHash().GetHex());
+
+        // mark script as important because it was used at least for one coinbase output if the script
+        // came from the wallet
+        //        if (keepScript) {
+        //            coinbaseScript->KeepScript();
+        //        }
+    }
+    return Value(blockHashes);
+}
+
+Value generate(const Array& params, bool fHelp)
+{
+    EnsureWalletIsUnlocked();
+
+    CWallet* const pwallet = pwalletMain.get();
+
+    if (fHelp || params.size() < 1 || params.size() > 2) {
+        throw std::runtime_error(
+            "generate nblocks ( maxtries )\n"
+            "\nMine up to nblocks blocks immediately (before the RPC call returns) to an address in the "
+            "wallet.\n"
+            "\nArguments:\n"
+            "1. nblocks      (numeric, required) How many blocks are generated immediately.\n"
+            "2. maxtries     (numeric, optional) How many iterations to try (default = 1000000).\n"
+            "\nResult:\n"
+            "[ blockhashes ]     (array) hashes of blocks generated\n"
+            "\nExamples:\n"
+            "\nGenerate 11 blocks\n"
+            "generate 11");
+    }
+
+    int      num_generate = params[0].get_int();
+    uint64_t max_tries    = 1000000;
+    if (params.size() > 1 && params[1].type() != null_type) {
+        max_tries = params[1].get_int();
+    }
+    //    std::shared_ptr<CReserveScript> coinbase_script;
+    //    pwallet->GetScriptForMining(coinbase_script);
+
+    //    // If the keypool is exhausted, no script is returned at all.  Catch this.
+    //    if (!coinbase_script) {
+    //        throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT,
+    //                           "Error: Keypool ran out, please call keypoolrefill first");
+    //    }
+
+    //    // throw an error if no script was provided
+    //    if (coinbase_script->reserveScript.empty()) {
+    //        throw JSONRPCError(RPC_INTERNAL_ERROR, "No coinbase script available");
+    //    }
+
+    return generateBlocks(num_generate, max_tries, pwallet);
 }

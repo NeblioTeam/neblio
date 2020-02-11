@@ -63,7 +63,7 @@ std::vector<uint256> CBlock::GetMerkleBranch(int nIndex) const
 uint256 CBlock::BuildMerkleTree() const
 {
     vMerkleTree.clear();
-    BOOST_FOREACH (const CTransaction& tx, vtx)
+    for (const CTransaction& tx : vtx)
         vMerkleTree.push_back(tx.GetHash());
     int j = 0;
     for (int nSize = vtx.size(); nSize > 1; nSize = (nSize + 1) / 2) {
@@ -925,7 +925,8 @@ void CBlock::InvalidChainFound(const CBlockIndexSmartPtr& pindexNew, CTxDB& txdb
            DateTimeStrFormat("%x %H:%M:%S", pindexBestPtr->GetBlockTime()).c_str());
 }
 
-bool CBlock::Reorganize(CTxDB& txdb, CBlockIndexSmartPtr& pindexNew, const bool createDbTransaction)
+bool CBlock::Reorganize(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
+                        const bool createDbTransaction)
 {
     printf("REORGANIZE\n");
 
@@ -1128,7 +1129,6 @@ bool CBlock::AddToBlockIndex(uint256 nBlockPos, const uint256& hashProof, CTxDB&
     if (newBlockIdxPtr != nullptr) {
         *newBlockIdxPtr = pindexNew;
     }
-    // TODO: Sam: this seems to need an "else" case. It doesn't make sense to ignore it
 
     return true;
 }
@@ -1433,6 +1433,10 @@ bool CBlock::WriteBlockPubKeys(CTxDB& txdb)
     for (const CTransaction& tx : vtx) {
         for (unsigned i = 0; i < tx.vin.size(); i++) {
             try {
+                if (tx.IsCoinBase()) {
+                    // coinbase transactions don't require signatures
+                    continue;
+                }
                 const CTxIn&               in = tx.vin[i];
                 opcodetype                 opt;
                 auto                       beg = in.scriptSig.cbegin();

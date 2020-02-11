@@ -110,7 +110,7 @@ void         PrintBlockTree();
 bool         ProcessMessages(CNode* pfrom);
 bool         SendMessages(CNode* pto, bool fSendTrickle);
 void         ThreadImport(void* parg);
-bool         CheckProofOfWork(uint256 hash, unsigned int nBits);
+bool         CheckProofOfWork(const uint256& hash, unsigned int nBits, bool silent = false);
 unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake);
 int64_t      GetProofOfWorkReward(int64_t nFees);
 int64_t      GetProofOfStakeReward(int64_t nCoinAge, int64_t nFees);
@@ -727,13 +727,6 @@ extern CCoinsViewCache* pcoinsTip;
 
 /** Global variable that points to the active block tree (protected by cs_main) */
 extern CTxDB* pblocktree;
-
-struct CBlockTemplate
-{
-    CBlock               block;
-    std::vector<int64_t> vTxFees;
-    std::vector<int64_t> vTxSigOps;
-};
 
 /** Used to relay blocks as header + vector<merkle branch>
  * to filtered nodes.

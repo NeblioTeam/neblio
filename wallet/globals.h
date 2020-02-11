@@ -3,6 +3,7 @@
 
 #include "amount.h"
 #include "chainparams.h"
+#include "scheduler.h"
 #include "sync.h"
 #include "uint256.h"
 #include <boost/atomic.hpp>
@@ -26,6 +27,8 @@ extern CBlockIndexSmartPtr pindexGenesisBlock;
 
 extern bool               fUseFastIndex;
 extern boost::atomic<int> nBestHeight;
+
+extern CScheduler scheduler;
 
 static const int LAST_POW_BLOCK = 1000; // 1000 PoW Blocks to kickstart
 

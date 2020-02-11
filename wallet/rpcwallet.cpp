@@ -1480,6 +1480,11 @@ Value gettransaction(const Array& params, bool fHelp)
         Array details;
         ListTransactions(pwalletMain->mapWallet[hash], "*", 0, false, details);
         entry.push_back(Pair("details", details));
+
+        CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+        ssTx << wtx;
+        std::string txHex = HexStr(ssTx.begin(), ssTx.end());
+        entry.push_back(Pair("hex", txHex));
     } else {
         CTransaction tx;
         uint256      hashBlock = 0;
@@ -1775,7 +1780,7 @@ public:
 Value validateaddress(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
-        throw runtime_error("validateaddress <neblioaddress>\n"
+        throw runtime_error("validateaddress <neblio-address>\n"
                             "Return information about <neblioaddress>.");
 
     CBitcoinAddress address(params[0].get_str());
@@ -1784,9 +1789,14 @@ Value validateaddress(const Array& params, bool fHelp)
     Object ret;
     ret.push_back(Pair("isvalid", isValid));
     if (isValid) {
-        CTxDestination dest           = address.Get();
-        string         currentAddress = address.ToString();
+        CTxDestination dest = address.Get();
+
+        string currentAddress = address.ToString();
         ret.push_back(Pair("address", currentAddress));
+
+        CScript scriptPubKey = GetScriptForDestination(dest);
+        ret.push_back(Pair("scriptPubKey", HexStr(scriptPubKey.begin(), scriptPubKey.end())));
+
         bool fMine = IsMine(*pwalletMain, dest);
         ret.push_back(Pair("ismine", fMine));
         if (fMine) {

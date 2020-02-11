@@ -39,6 +39,8 @@ unsigned int             nDerivationMethodIndex;
 unsigned int             nMinerSleep;
 enum Checkpoints::CPMode CheckpointsMode;
 
+LockedVar<boost::signals2::signal<void()>> StopRPCRequests;
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // Shutdown
@@ -83,7 +85,7 @@ void StartShutdown()
     uiInterface.QueueShutdown();
 #else
     // Without UI, Shutdown() can simply be started in a new thread
-    NewThread(Shutdown, NULL);
+    NewThread(Shutdown, nullptr);
 #endif
 }
 
@@ -113,13 +115,11 @@ void Shutdown(void* /*parg*/)
         FlushDBWalletTransient(true);
         boost::filesystem::remove(GetPidFile());
         UnregisterWallet(pwalletMain);
-        if (pwalletMain.use_count() > 1) {
-            printf("Waiting for pwalletMain instance users to finish\n");
-            while (pwalletMain.use_count() > 1) {
-                boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
-            }
-        }
+        std::weak_ptr<CWallet> weakWallet = pwalletMain;
         pwalletMain.reset();
+        while (weakWallet.lock()) {
+            boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
+        }
         NewThread(ExitTimeout, NULL);
         MilliSleep(50);
         printf("neblio exited\n\n");
@@ -310,6 +310,7 @@ std::string HelpMessage()
 #ifdef WIN32
         "  -printtodebugger       " + _("Send trace/debug info to debugger") + "\n" +
 #endif
+        "  -blockversion=<n>"       + _("Override block version to test forking scenarios (regtest only)") +
         "  -rpcuser=<user>        " + _("Username for JSON-RPC connections") + "\n" +
         "  -rpcpassword=<pw>      " + _("Password for JSON-RPC connections") + "\n" +
         "  -rpcport=<port>        " + _("Listen for JSON-RPC connections on <port> (default: 6326 or testnet: 16326 or regtest: 26326)") + "\n" +
@@ -852,10 +853,12 @@ bool AppInit2()
 
     uiInterface.InitMessage(_("Loading wallet..."));
     printf("Loading wallet...\n");
-    nStart                             = GetTimeMillis();
-    bool                     fFirstRun = true;
-    std::shared_ptr<CWallet> wlt       = std::make_shared<CWallet>(strWalletFileName);
-    std::atomic_store(&pwalletMain, wlt);
+    nStart         = GetTimeMillis();
+    bool fFirstRun = true;
+    {
+        std::shared_ptr<CWallet> wlt = std::make_shared<CWallet>(strWalletFileName);
+        std::atomic_store(&pwalletMain, wlt);
+    }
     DBErrors nLoadWalletRet = LoadDBWalletTransient(fFirstRun);
     if (nLoadWalletRet != DB_LOAD_OK) {
         if (nLoadWalletRet == DB_CORRUPT)

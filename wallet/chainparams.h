@@ -60,6 +60,8 @@ public:
 
     const CBlock&  GenesisBlock() const;
     const uint256& GenesisBlockHash() const;
+    /** Make miner wait to have peers to avoid wasting work */
+    bool MiningRequiresPeers() const { return fMiningRequiresPeers; }
     /** Make miner stop after a block is found. In RPC, don't return until nGenProcLimit blocks are
      * generated */
     bool MineBlocksOnDemand() const { return fMineBlocksOnDemand; }
@@ -124,6 +126,7 @@ protected:
     std::array<uint8_t, MAX_BASE58_TYPES> base58Prefixes;
     std::string                           strNetworkID;
     std::unique_ptr<CBlock>               genesis;
+    bool                                  fMiningRequiresPeers;
     bool                                  fMineBlocksOnDemand;
     MapCheckpoints                        checkpointData;
     NetworkType                           networkType;

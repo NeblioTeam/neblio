@@ -127,7 +127,7 @@ void static EraseFromWallets(uint256 hash)
 void SyncWithWallets(const CTransaction& tx, const CBlock* pblock, bool fUpdate, bool fConnect)
 {
     // update NTP1 transactions
-    if (pwalletMain->walletNewTxUpdateFunctor) {
+    if (pwalletMain && pwalletMain->walletNewTxUpdateFunctor) {
         pwalletMain->walletNewTxUpdateFunctor->run(tx.GetHash(), nBestHeight);
     }
 
@@ -890,18 +890,28 @@ unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfS
         return GetNextTargetRequiredV2(pindexLast, fProofOfStake);
 }
 
-bool CheckProofOfWork(uint256 hash, unsigned int nBits)
+bool CheckProofOfWork(const uint256& hash, unsigned int nBits, bool silent)
 {
     CBigNum bnTarget;
     bnTarget.SetCompact(nBits);
 
     // Check range
-    if (bnTarget <= 0 || bnTarget > Params().PoWLimit())
-        return error("CheckProofOfWork() : nBits below minimum work");
+    if (bnTarget <= 0 || bnTarget > Params().PoWLimit()) {
+        if (silent) {
+            return false;
+        } else {
+            return error("CheckProofOfWork() : nBits below minimum work");
+        }
+    }
 
     // Check proof of work matches claimed amount
-    if (hash > bnTarget.getuint256())
-        return error("CheckProofOfWork() : hash doesn't match nBits");
+    if (hash > bnTarget.getuint256()) {
+        if (silent) {
+            return false;
+        } else {
+            return error("CheckProofOfWork() : hash doesn't match nBits");
+        }
+    }
 
     return true;
 }
@@ -1401,22 +1411,22 @@ bool LoadBlockIndex(bool fAllowNew)
         if (!fAllowNew)
             return false;
 
-        CBlock block = Params().GenesisBlock();
+        CBlock genesisBlock = Params().GenesisBlock();
 
         //// debug print
-        block.print();
+        genesisBlock.print();
 
-        printf("block.GetHash() == %s\n", block.GetHash().ToString().c_str());
-        printf("block.hashMerkleRoot == %s\n", block.hashMerkleRoot.ToString().c_str());
-        printf("block.nTime = %u \n", block.nTime);
-        printf("block.nNonce = %u \n", block.nNonce);
+        printf("block.GetHash() == %s\n", genesisBlock.GetHash().ToString().c_str());
+        printf("block.hashMerkleRoot == %s\n", genesisBlock.hashMerkleRoot.ToString().c_str());
+        printf("block.nTime = %u \n", genesisBlock.nTime);
+        printf("block.nNonce = %u \n", genesisBlock.nNonce);
 
-        assert(block.hashMerkleRoot == Params().GenesisBlock().hashMerkleRoot);
-        assert(block.GetHash() == Params().GenesisBlockHash());
-        assert(block.CheckBlock());
+        assert(genesisBlock.hashMerkleRoot == Params().GenesisBlock().hashMerkleRoot);
+        assert(genesisBlock.GetHash() == Params().GenesisBlockHash());
+        assert(genesisBlock.CheckBlock());
 
         // Start new block file
-        if (!block.WriteToDisk(Params().GenesisBlockHash(), Params().GenesisBlockHash()))
+        if (!genesisBlock.WriteToDisk(genesisBlock.GetHash(), genesisBlock.GetHash()))
             return error("LoadBlockIndex() : writing genesis block to disk failed");
 
         // ppcoin: initialize synchronized checkpoint
