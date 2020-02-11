@@ -159,7 +159,8 @@ HEADERS += qt/bitcoingui.h \
     chainparams.h              \
     consensus_params.h         \
     amount.h                   \
-    crypto_highlevel.h
+    crypto_highlevel.h         \
+    scheduler.h
 
 
 
@@ -314,7 +315,8 @@ SOURCES += qt/bitcoin.cpp \
     chainparamsbase.cpp                 \
     chainparams.cpp                     \
     consensus_params.cpp                \
-    crypto_highlevel.cpp
+    crypto_highlevel.cpp                \
+    scheduler.cpp
 
 
 SOURCES +=                   \
