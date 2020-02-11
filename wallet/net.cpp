@@ -1415,7 +1415,7 @@ void SleepOrWaitForAddedNodesToChange(std::size_t prevNodesCount)
     static constexpr const std::size_t timeStep          = 2;
     for (std::size_t i = 0; i < totalSleepSeconds / timeStep && !fShutdown; i++) {
         std::this_thread::sleep_for(std::chrono::seconds(timeStep)); // Retry every 2 minutes
-        if (vAddedNodes.get().size() != prevNodesCount) {
+        if (!fShutdown && vAddedNodes.get().size() != prevNodesCount) {
             break;
         }
     }
