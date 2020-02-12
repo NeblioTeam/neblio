@@ -53,9 +53,17 @@ class RawTransactionsTest(BitcoinTestFramework):
         for i in range(6):  # mine 60 blocks, we reduce the amount per call to avoid timing out
             self.nodes[0].generate(10)
         self.sync_all()
+        #  TODO: there's an issue if we call sendtoaddress often.
+        #  That's why we inserted the generations between them.
+        #  this is a regression issue that happens because the
+        #  same coins can be spent twice. The wallet doesn't
+        #  recognize the coins are already spent
         self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(),1.5)
+        self.nodes[0].generate(5)
         self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(),1.0)
+        self.nodes[0].generate(5)
         self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(),5.0)
+        self.nodes[0].generate(5)
         self.sync_all()
         self.nodes[0].generate(5)
         self.sync_all()
@@ -252,7 +260,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         self.sync_all()
         self.nodes[0].generate(1)
         self.sync_all()
-        assert_equal(self.nodes[0].getbalance(), bal+Decimal('2000.0006')+Decimal('2.190000')) #block reward + tx
+        assert_equal(self.nodes[0].getbalance(), bal+Decimal('2000.0000')+Decimal('2.190000')) #block reward + tx
 
         # getrawtransaction tests
         # 1. valid parameters - only supply txid
