@@ -107,7 +107,8 @@ public:
 };
 
 // CreateNewBlock: create new block (without proof-of-work/proof-of-stake)
-std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
+std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees,
+                                       const boost::optional<CBitcoinAddress>& PoWDestination)
 {
     // Create new block
     std::unique_ptr<CBlock> pblock(new CBlock());
@@ -123,11 +124,15 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
     coinbaseTx.vout.resize(1);
 
     if (!fProofOfStake) {
-        CReserveKey reservekey(pwallet);
-        CPubKey     pubkey;
-        if (!reservekey.GetReservedKey(pubkey))
-            return nullptr;
-        coinbaseTx.vout[0].scriptPubKey.SetDestination(pubkey.GetID());
+        if (PoWDestination) {
+            coinbaseTx.vout[0].scriptPubKey.SetDestination(PoWDestination->Get());
+        } else {
+            CReserveKey reservekey(pwallet);
+            CPubKey     pubkey;
+            if (!reservekey.GetReservedKey(pubkey))
+                return nullptr;
+            coinbaseTx.vout[0].scriptPubKey.SetDestination(pubkey.GetID());
+        }
     } else {
         // Height first in coinbase required for block.version=2
         coinbaseTx.vin[0].scriptSig = (CScript() << pindexPrev->nHeight + 1) + COINBASE_FLAGS;

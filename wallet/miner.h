@@ -19,7 +19,9 @@ struct CBlockTemplate
 };
 
 /* Generate a new block, without valid proof-of-work */
-std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake = false, int64_t* pFees = 0);
+std::unique_ptr<CBlock>
+CreateNewBlock(CWallet* pwallet, bool fProofOfStake = false, int64_t* pFees = 0,
+               const boost::optional<CBitcoinAddress>& PoWDestination = boost::none);
 
 /** Modify the extranonce in a block */
 void IncrementExtraNonce(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& nExtraNonce);

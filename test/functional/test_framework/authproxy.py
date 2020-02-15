@@ -124,6 +124,8 @@ class AuthServiceProxy():
 
         log.debug("-%s-> %s %s" % (AuthServiceProxy.__id_count, self._service_name,
                                    json.dumps(args, default=EncodeDecimal, ensure_ascii=self.ensure_ascii)))
+        if argsn:
+            raise ValueError("Dict parameters are not supported")
 #        if args and argsn:
 #            raise ValueError('Cannot handle both named and positional arguments')
         return {'version': '1.1',

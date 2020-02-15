@@ -103,7 +103,7 @@ CAmount AmountFromValue(const Value& value)
     return nAmount;
 }
 
-Value ValueFromAmount(int64_t amount) { return (double)amount / (double)COIN; }
+Value ValueFromAmount(CAmount amount) { return (double)amount / (double)COIN; }
 
 //
 // Utilities: convert hex-encoded Values
@@ -1428,7 +1428,7 @@ GetNTP1RecipientsVector(const Object& sendTo, boost::shared_ptr<NTP1Wallet> ntp1
             }
         } else {
             // nebls
-            int64_t nAmount = AmountFromValue(s.value_);
+            CAmount nAmount = AmountFromValue(s.value_);
             res.amount      = static_cast<uint64_t>(nAmount);
             if (nAmount <= 0) {
                 throw std::runtime_error("Invalid amount: " + ::ToString(res.amount));

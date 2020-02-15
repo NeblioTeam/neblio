@@ -559,8 +559,22 @@ Value generateBlocks(int nGenerate, uint64_t nMaxTries, CWallet* const pwallet)
 
     unsigned int       nExtraNonce = 0;
     json_spirit::Array blockHashes;
+
+    // generate a new address
+    const CBitcoinAddress destination = []() {
+        CPubKey newKey;
+        if (!pwalletMain->GetKeyFromPool(newKey, false))
+            throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT,
+                               "Error: Keypool ran out, please call keypoolrefill first");
+        CKeyID keyID = newKey.GetID();
+
+        pwalletMain->SetAddressBookName(keyID, "");
+
+        return CBitcoinAddress(keyID);
+    }();
+
     while (nHeight < nHeightEnd) {
-        std::unique_ptr<CBlock> pblock = CreateNewBlock(pwallet, false);
+        std::unique_ptr<CBlock> pblock = CreateNewBlock(pwallet, false, 0, destination);
         if (!pblock)
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
         {
