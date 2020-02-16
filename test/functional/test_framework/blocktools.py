@@ -32,7 +32,7 @@ def create_block(hashprev, coinbase, nTime=None):
     else:
         block.nTime = nTime
     block.hashPrevBlock = hashprev
-    block.nBits = 0x207fffff # Will break after a difficulty adjustment...
+    block.nBits = 0x207fffff  # Will break after a difficulty adjustment...
     block.vtx.append(coinbase)
     block.hashMerkleRoot = block.calc_merkle_root()
     block.calc_sha256()
@@ -65,6 +65,24 @@ def add_witness_commitment(block, nonce=0):
     block.hashMerkleRoot = block.calc_merkle_root()
     block.rehash()
 
+def serialize_script_block_height(value):
+    r = bytearray(0)
+    if value == 0:
+        return r
+    if value == -1 or value >= 1 and value <= 16:
+        r.append(value + OP_1 - 1)
+        return r
+    neg = value < 0
+    absvalue = -value if neg else value
+    while (absvalue):
+        r.append(int(absvalue & 0xff))
+        absvalue >>= 8
+    if r[-1] & 0x80:
+        r.append(0x80 if neg else 0)
+    elif neg:
+        r[-1] |= 0x80
+    return ser_string(r)
+
 
 def serialize_script_num(value):
     r = bytearray(0)
@@ -81,22 +99,31 @@ def serialize_script_num(value):
         r[-1] |= 0x80
     return r
 
+def get_pow_reward(height):
+    if height == 0:
+        return 124000000 * COIN
+    elif 0 < height <= 500:
+        return 2000 * COIN
+    else:
+        return 0
+
 # Create a coinbase transaction, assuming no miner fees.
 # If pubkey is passed in, the coinbase output will be a P2PK output;
 # otherwise an anyone-can-spend output.
 def create_coinbase(height, pubkey = None, timestamp = None):
     coinbase = CTransaction()
+    extra_nonce = b'0'
+    scriptsig = serialize_script_block_height(height)
+    scriptsig += extra_nonce
     coinbase.vin.append(CTxIn(COutPoint(0, 0xffffffff), 
-                ser_string(serialize_script_num(height)), 0xffffffff))
+                scriptsig, 0xffffffff))
     coinbaseoutput = CTxOut()
-    coinbaseoutput.nValue = 50 * COIN
-    halvings = int(height/150) # regtest
-    coinbaseoutput.nValue >>= halvings
-    if (pubkey != None):
+    coinbaseoutput.nValue = get_pow_reward(height)
+    if pubkey is not None:
         coinbaseoutput.scriptPubKey = CScript([pubkey, OP_CHECKSIG])
     else:
         coinbaseoutput.scriptPubKey = CScript([OP_TRUE])
-    if (timestamp != None):
+    if timestamp is not None:
         coinbase.nTime = timestamp
     coinbase.vout = [ coinbaseoutput ]
     coinbase.calc_sha256()

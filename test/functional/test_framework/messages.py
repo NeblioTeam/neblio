@@ -22,6 +22,7 @@ import random
 import socket
 import struct
 import time
+import litecoin_scrypt
 
 from test_framework.siphash import siphash256
 from test_framework.util import hex_str_to_bytes, bytes_to_hex_str
@@ -34,7 +35,7 @@ MY_RELAY = 1 # from version 70001 onwards, fRelay should be appended to version 
 MAX_INV_SZ = 50000
 MAX_BLOCK_BASE_SIZE = 1000000
 
-COIN = 1000000 # 1 btc in satoshis
+COIN = 100000000 # 1 btc in satoshis
 
 NODE_NETWORK = (1 << 0)
 # NODE_GETUTXO = (1 << 1)
@@ -547,8 +548,8 @@ class CBlockHeader():
             r += struct.pack("<I", self.nTime)
             r += struct.pack("<I", self.nBits)
             r += struct.pack("<I", self.nNonce)
-            self.sha256 = uint256_from_str(hash256(r))
-            self.hash = encode(hash256(r)[::-1], 'hex_codec').decode('ascii')
+            self.sha256 = uint256_from_str(litecoin_scrypt.getPoWHash(r))
+            self.hash = encode(litecoin_scrypt.getPoWHash(r)[::-1], 'hex_codec').decode('ascii')
 
     def rehash(self):
         self.sha256 = None
@@ -637,7 +638,7 @@ class CBlock(CBlockHeader):
 
 
 class PrefilledTransaction():
-    def __init__(self, index=0, tx = None):
+    def __init__(self, index=0, tx=None):
         self.index = index
         self.tx = tx
 

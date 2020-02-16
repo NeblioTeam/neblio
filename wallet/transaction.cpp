@@ -403,7 +403,8 @@ unsigned int CTransaction::GetP2SHSigOpCount(const MapPrevTx& inputs) const
 
 bool CTransaction::ConnectInputs(CTxDB& /*txdb*/, MapPrevTx inputs,
                                  std::map<uint256, CTxIndex>& mapTestPool, const CDiskTxPos& posThisTx,
-                                 const ConstCBlockIndexSmartPtr& pindexBlock, bool fBlock, bool fMiner)
+                                 const ConstCBlockIndexSmartPtr& pindexBlock, bool fBlock, bool fMiner,
+                                 CBlock* sourceBlockPtr)
 {
     // Take over previous transactions' spent pointers
     // fBlock is true when this is called from AcceptBlock when a new best-block is added to the
@@ -435,6 +436,11 @@ bool CTransaction::ConnectInputs(CTxDB& /*txdb*/, MapPrevTx inputs,
                                                decltype(txindex.pos.nBlockPos)>::value,
                                   "Expected same types");
                     if (pindex->blockKeyInDB == txindex.pos.nBlockPos) {
+                        if (sourceBlockPtr) {
+                            sourceBlockPtr->reject = CBlock::CBlockReject(
+                                REJECT_INVALID, "bad-txns-premature-spend-of-coinbase/coinstake",
+                                sourceBlockPtr->GetHash());
+                        }
                         return error("ConnectInputs() : tried to spend %s at depth %d",
                                      txPrev.IsCoinBase() ? "coinbase" : "coinstake",
                                      pindexBlock->nHeight - pindex->nHeight);

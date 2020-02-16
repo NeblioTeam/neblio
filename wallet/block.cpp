@@ -556,8 +556,10 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
         }
 
         nSigOps += tx.GetLegacySigOpCount();
-        if (nSigOps > MAX_BLOCK_SIGOPS)
+        if (nSigOps > MAX_BLOCK_SIGOPS) {
+            reject = CBlockReject(REJECT_INVALID, "bad-blk-sigops", this->GetHash());
             return DoS(100, error("ConnectBlock() : too many sigops"));
+        }
 
         CDiskTxPos posThisTx(pindex->blockKeyInDB, nTxPos);
         if (!fJustCheck)
@@ -576,6 +578,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
             // an incredibly-expensive-to-validate block.
             nSigOps += tx.GetP2SHSigOpCount(mapInputs);
             if (nSigOps > MAX_BLOCK_SIGOPS) {
+                reject = CBlockReject(REJECT_INVALID, "bad-blk-sigops", this->GetHash());
                 return DoS(100, error("ConnectBlock() : too many sigops"));
             }
 
@@ -625,7 +628,8 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
                 }
             }
 
-            if (!tx.ConnectInputs(txdb, mapInputs, mapQueuedChanges, posThisTx, pindex, true, false)) {
+            if (!tx.ConnectInputs(txdb, mapInputs, mapQueuedChanges, posThisTx, pindex, true, false,
+                                  this)) {
                 return false;
             }
         }
@@ -635,12 +639,15 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
     }
 
     if (IsProofOfWork()) {
-        int64_t nReward = GetProofOfWorkReward(nFees);
+        const CAmount nExpectedReward = GetProofOfWorkReward(nFees);
+        const CAmount nRewardInBlock  = vtx[0].GetValueOut();
         // Check coinbase reward
-        if (vtx[0].GetValueOut() > nReward)
+        if (nRewardInBlock > nExpectedReward) {
+            reject = CBlockReject(REJECT_INVALID, "bad-cb-amount", this->GetHash());
             return DoS(50, error("ConnectBlock() : coinbase reward exceeded (actual=%" PRId64
                                  " vs calculated=%" PRId64 ")",
-                                 vtx[0].GetValueOut(), nReward));
+                                 vtx[0].GetValueOut(), nExpectedReward));
+        }
     }
     if (IsProofOfStake()) {
         // ppcoin: coin stake tx earns reward instead of paying fee
@@ -990,7 +997,14 @@ bool CBlock::Reorganize(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
         CBlock              block;
         if (!block.ReadFromDisk(pindex.get(), txdb))
             return error("Reorganize() : ReadFromDisk for connect failed");
-        if (!block.ConnectBlock(txdb, pindex)) {
+        // this is necessary to register in CBlockReject why a block was rejected
+        CBlock* blockPtr = nullptr;
+        if (block.GetHash() == this->GetHash()) {
+            blockPtr = this;
+        } else {
+            blockPtr = &block;
+        }
+        if (!blockPtr->ConnectBlock(txdb, pindex)) {
             // Invalid block
             return error("Reorganize() : ConnectBlock %s failed",
                          pindex->GetBlockHash().ToString().c_str());
@@ -1133,7 +1147,7 @@ bool CBlock::AddToBlockIndex(uint256 nBlockPos, const uint256& hashProof, CTxDB&
     return true;
 }
 
-bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) const
+bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig)
 {
     // These are checks that are independent of context
     // that can be verified before saving an orphan block.
@@ -1141,8 +1155,10 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
     // Size limits
     unsigned int nSizeLimit = MaxBlockSize();
     if (vtx.empty() || vtx.size() > nSizeLimit ||
-        ::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > nSizeLimit)
+        ::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > nSizeLimit) {
+        reject = CBlockReject(REJECT_INVALID, "bad-blk-length", this->GetHash());
         return DoS(100, error("CheckBlock() : size limits failed"));
+    }
 
     // Check proof of work matches claimed amount
     if (fCheckPOW && IsProofOfWork() && !CheckProofOfWork(GetPoWHash(), nBits))
@@ -1209,8 +1225,10 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
     for (const CTransaction& tx : vtx) {
         nSigOps += tx.GetLegacySigOpCount();
     }
-    if (nSigOps > MAX_BLOCK_SIGOPS)
+    if (nSigOps > MAX_BLOCK_SIGOPS) {
+        reject = CBlockReject(REJECT_INVALID, "bad-blk-sigops", this->GetHash());
         return DoS(100, error("CheckBlock() : out-of-bounds SigOpCount"));
+    }
 
     // Check merkle root
     if (fCheckMerkleRoot && hashMerkleRoot != BuildMerkleTree())
@@ -1257,6 +1275,7 @@ bool CBlock::AcceptBlock()
     try {
         CTxDB txdb;
         if (!VerifyInputsUnspent(txdb)) {
+            reject = CBlockReject(REJECT_INVALID, "bad-txns-inputs-missingorspent", this->GetHash());
             return DoS(100, error("VerifyInputsUnspent() failed for block %s\n",
                                   this->GetHash().ToString().c_str()));
         }

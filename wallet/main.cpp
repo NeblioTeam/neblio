@@ -428,7 +428,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
 
     // Rather not work on nonstandard transactions (unless -testnet)
     string reason;
-    if (/*IsMainnet() && */ !IsStandardTx(tx, reason))
+    if (Params().NetType() == NetworkType::Mainnet && !IsStandardTx(tx, reason))
         return error("AcceptToMemoryPool : nonstandard transaction: %s", reason.c_str());
 
     // is it already in the memory pool?
@@ -485,7 +485,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
         }
 
         // Check for non-standard pay-to-script-hash in inputs
-        if (!tx.AreInputsStandard(mapInputs) /*&& IsMainnet()*/)
+        if (!tx.AreInputsStandard(mapInputs) && Params().NetType() == NetworkType::Mainnet)
             return error("AcceptToMemoryPool : nonstandard transaction input");
 
         // Note: if you modify this code to accept non-standard transactions, then
@@ -882,6 +882,9 @@ static unsigned int GetNextTargetRequiredV3(const CBlockIndex* pindexLast, bool 
 
 unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake)
 {
+    if (!fProofOfStake && Params().MineBlocksOnDemand())
+        return pindexLast->nBits;
+
     if (pindexLast->nHeight < 2000)
         return GetNextTargetRequiredV1(pindexLast, fProofOfStake);
     else if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__4_RETARGET_CORRECTION))
@@ -2197,8 +2200,13 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 
         if (ProcessBlock(pfrom, &block))
             mapAlreadyAskedFor.erase(inv);
-        if (block.nDoS)
+        if (block.reject) {
+            pfrom->PushMessage("reject", std::string("block"), block.reject->chRejectCode,
+                               block.reject->strRejectReason, block.reject->hashBlock);
+        }
+        if (block.nDoS) {
             pfrom->Misbehaving(block.nDoS);
+        }
     }
 
     else if (strCommand == "getaddr") {
