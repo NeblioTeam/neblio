@@ -317,7 +317,7 @@ SOURCES += qt/bitcoin.cpp \
     chainparams.cpp                     \
     consensus_params.cpp                \
     crypto_highlevel.cpp                \
-    crypto_highlevel.cpp                \
+    merkle.cpp                          \
     scheduler.cpp
 
 
