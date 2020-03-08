@@ -155,7 +155,7 @@ public:
     bool ConnectInputs(CTxDB& txdb, MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTestPool,
                        const CDiskTxPos& posThisTx, const ConstCBlockIndexSmartPtr& pindexBlock,
                        bool fBlock, bool fMiner, CBlock* sourceBlockPtr = nullptr);
-    bool CheckTransaction() const;
+    bool CheckTransaction(CBlock* sourceBlock = nullptr) const;
     bool GetCoinAge(CTxDB& txdb, uint64_t& nCoinAge) const; // ppcoin: get transaction coin age
 
     [[nodiscard]] static CTransaction FetchTxFromDisk(const uint256& txid);

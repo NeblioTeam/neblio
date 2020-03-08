@@ -15,8 +15,9 @@ add_executable(neblio-tests
     getarg_tests.cpp
     hash_tests.cpp
     key_tests.cpp
-    mruset_tests.cpp
+    merkle_tests.cpp
     miner_tests.cpp
+    mruset_tests.cpp
     netbase_tests.cpp
     ntp1_tests.cpp
     pmt_tests.cpp

@@ -35,7 +35,7 @@ MY_RELAY = 1 # from version 70001 onwards, fRelay should be appended to version 
 MAX_INV_SZ = 50000
 MAX_BLOCK_BASE_SIZE = 1000000
 
-COIN = 100000000 # 1 btc in satoshis
+COIN = 100000000 # 1 nebl in satoshis
 
 NODE_NETWORK = (1 << 0)
 # NODE_GETUTXO = (1 << 1)
@@ -388,7 +388,7 @@ class CTransaction():
     def __init__(self, tx=None):
         if tx is None:
             self.nVersion = 1
-            self.nTime = int(time.time())
+            self.nTime = int(time.time()) - 120  # to avoid having blocks younger than transactions
             self.vin = []
             self.vout = []
             self.wit = CTxWitness()

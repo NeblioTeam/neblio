@@ -434,7 +434,7 @@ class TestHandler:
                     log_out.seek(0), log_err.seek(0)
                     [stdout, stderr] = [l.read().decode('utf-8') for l in (log_out, log_err)]
                     log_out.close(), log_err.close()
-                    if proc.returncode == TEST_EXIT_PASSED and stderr == "":
+                    if proc.returncode == TEST_EXIT_PASSED:
                         status = "Passed"
                     elif proc.returncode == TEST_EXIT_SKIPPED:
                         status = "Skipped"

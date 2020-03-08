@@ -211,6 +211,13 @@ class TestManager():
         self.wait_for_pings(self.ping_counter)
         self.ping_counter += 1
 
+    def sync_headers(self):
+        # send get headers, then ping to ensure the request response is received
+        [ c.send_getheaders() for c in self.p2p_connections ]
+        [ c.send_ping(self.ping_counter) for c in self.p2p_connections ]
+        self.wait_for_pings(self.ping_counter)
+        self.ping_counter += 1
+
     # Analogous to sync_block (see above)
     def sync_transaction(self, txhash, num_events):
         # Wait for nodes to request transaction (50ms sleep * 20 tries * num_events)
@@ -344,6 +351,8 @@ class TestManager():
                             [ c.send_ping(self.ping_counter) for c in self.p2p_connections ]
                             self.wait_for_pings(self.ping_counter)
                             self.ping_counter += 1
+                        # we sync headers after sending them to test the current state in check_results
+                        self.sync_headers()
                         if (not self.check_results(tip, outcome)):
                             raise AssertionError("Test failed at test %d" % test_number)
                     else:

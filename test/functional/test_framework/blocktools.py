@@ -141,15 +141,21 @@ def create_transaction(prevtx, n, sig, value, scriptPubKey=CScript()):
 
 def get_legacy_sigopcount_block(block, fAccurate=True):
     count = 0
+    # the first transaction is coinbase
+    is_coinbase = True
     for tx in block.vtx:
-        count += get_legacy_sigopcount_tx(tx, fAccurate)
+        count += get_legacy_sigopcount_tx(tx, fAccurate, is_coinbase)
+        is_coinbase = False
     return count
 
-def get_legacy_sigopcount_tx(tx, fAccurate=True):
+def get_legacy_sigopcount_tx(tx, fAccurate=True, is_coinbase=False):
     count = 0
     for i in tx.vout:
         count += i.scriptPubKey.GetSigOpCount(fAccurate)
     for j in tx.vin:
+        # We don't count sigops in coinbase because it doesn't need a signature
+        if is_coinbase:
+            continue
         # scriptSig might be of type bytes, so convert to CScript for the moment
         count += CScript(j.scriptSig).GetSigOpCount(fAccurate)
     return count

@@ -6,6 +6,7 @@
 #include "checkpoints.h"
 #include "kernel.h"
 #include "main.h"
+#include "merkle.h"
 #include "ntp1/ntp1transaction.h"
 #include "txmempool.h"
 #include "ui_interface.h"
@@ -60,22 +61,7 @@ std::vector<uint256> CBlock::GetMerkleBranch(int nIndex) const
     return vMerkleBranch;
 }
 
-uint256 CBlock::BuildMerkleTree() const
-{
-    vMerkleTree.clear();
-    for (const CTransaction& tx : vtx)
-        vMerkleTree.push_back(tx.GetHash());
-    int j = 0;
-    for (int nSize = vtx.size(); nSize > 1; nSize = (nSize + 1) / 2) {
-        for (int i = 0; i < nSize; i += 2) {
-            int i2 = std::min(i + 1, nSize - 1);
-            vMerkleTree.push_back(Hash(BEGIN(vMerkleTree[j + i]), END(vMerkleTree[j + i]),
-                                       BEGIN(vMerkleTree[j + i2]), END(vMerkleTree[j + i2])));
-        }
-        j += nSize;
-    }
-    return (vMerkleTree.empty() ? 0 : vMerkleTree.back());
-}
+uint256 CBlock::BuildMerkleTree(bool* mutated) const { return BlockMerkleRoot(*this, mutated); }
 
 int64_t CBlock::GetMaxTransactionTime() const
 {
@@ -466,13 +452,12 @@ bool CBlock::VerifyInputsUnspent(CTxDB& txdb) const
                     queuedTxs.find(outputTxHash)->second.vSpent[outputNumInTx] =
                         CreateFakeSpentTxPos(this->GetHash());
                 } else {
-                    return error(
-                        "Output number %u in tx %s which is an input to tx %s is being "
-                        "spent it in block %s +++++ it was already spent in block %s, this is a "
-                        "double-spend attempt",
-                        outputNumInTx, outputTxHash.ToString().c_str(), tx.GetHash().ToString().c_str(),
-                        this->GetHash().ToString().c_str(),
-                        txindex.vSpent[outputNumInTx].nBlockPos.ToString().c_str());
+                    return error("Output number %u in tx %s which is an input to tx %s is being "
+                                 "spent in block %s +++++ it was already spent in block %s, this is a "
+                                 "double-spend attempt",
+                                 outputNumInTx, outputTxHash.ToString().c_str(),
+                                 tx.GetHash().ToString().c_str(), this->GetHash().ToString().c_str(),
+                                 txindex.vSpent[outputNumInTx].nBlockPos.ToString().c_str());
                 }
             } else {
                 return error("Output number %u in tx %s which is an input to tx %s and is being "
@@ -1161,19 +1146,34 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig)
     }
 
     // Check proof of work matches claimed amount
-    if (fCheckPOW && IsProofOfWork() && !CheckProofOfWork(GetPoWHash(), nBits))
+    if (fCheckPOW && IsProofOfWork() && !CheckProofOfWork(GetPoWHash(), nBits)) {
+        reject = CBlockReject(REJECT_INVALID, "high-hash", this->GetHash());
         return DoS(50, error("CheckBlock() : proof of work failed"));
+    }
 
     // Check timestamp
-    if (GetBlockTime() > FutureDrift(GetAdjustedTime()))
+    if (GetBlockTime() > FutureDrift(GetAdjustedTime())) {
+        reject = CBlockReject(REJECT_INVALID, "time-too-new", this->GetHash());
         return error("CheckBlock() : block timestamp too far in the future");
+    }
+
+    // if no transactions exist, it's an invalid block
+    if (vtx.empty()) {
+        reject = CBlockReject(REJECT_INVALID, "bad-blk-length", this->GetHash());
+        return DoS(100, error("CheckBlock() : block with no transactions"));
+    }
 
     // First transaction must be coinbase, the rest must not be
-    if (vtx.empty() || !vtx[0].IsCoinBase())
+    if (vtx.empty() || !vtx[0].IsCoinBase()) {
+        reject = CBlockReject(REJECT_INVALID, "bad-cb-missing", this->GetHash());
         return DoS(100, error("CheckBlock() : first tx is not coinbase"));
-    for (unsigned int i = 1; i < vtx.size(); i++)
-        if (vtx[i].IsCoinBase())
+    }
+    for (unsigned int i = 1; i < vtx.size(); i++) {
+        if (vtx[i].IsCoinBase()) {
+            reject = CBlockReject(REJECT_INVALID, "bad-cb-multiple", this->GetHash());
             return DoS(100, error("CheckBlock() : more than one coinbase"));
+        }
+    }
 
     // Check coinbase timestamp
     if (GetBlockTime() > FutureDrift((int64_t)vtx[0].nTime))
@@ -1204,7 +1204,7 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig)
 
     // Check transactions
     for (const CTransaction& tx : vtx) {
-        if (!tx.CheckTransaction())
+        if (!tx.CheckTransaction(this))
             return DoS(tx.nDoS, error("CheckBlock() : CheckTransaction failed"));
 
         // ppcoin: check transaction timestamp
@@ -1218,8 +1218,10 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig)
     for (const CTransaction& tx : vtx) {
         uniqueTx.insert(tx.GetHash());
     }
-    if (uniqueTx.size() != vtx.size())
+    if (uniqueTx.size() != vtx.size()) {
+        reject = CBlockReject(REJECT_INVALID, "bad-txns-duplicate", this->GetHash());
         return DoS(100, error("CheckBlock() : duplicate transaction"));
+    }
 
     unsigned int nSigOps = 0;
     for (const CTransaction& tx : vtx) {
@@ -1231,8 +1233,19 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig)
     }
 
     // Check merkle root
-    if (fCheckMerkleRoot && hashMerkleRoot != BuildMerkleTree())
+    bool merkleRootMutated;
+    if (fCheckMerkleRoot && hashMerkleRoot != BuildMerkleTree(&merkleRootMutated)) {
+        reject = CBlockReject(REJECT_INVALID, "bad-txnmrklroot", this->GetHash());
         return DoS(100, error("CheckBlock() : hashMerkleRoot mismatch"));
+    }
+
+    // Check for merkle tree malleability (CVE-2012-2459): repeating sequences
+    // of transactions in a block without affecting the merkle root of a block,
+    // while still invalidating it.
+    if (merkleRootMutated) {
+        reject = CBlockReject(REJECT_INVALID, "bad-txns-duplicate", this->GetHash());
+        return DoS(100, error("CheckBlock() : hashMerkleRoot duplicate: duplicate transaction"));
+    }
 
     return true;
 }
@@ -1295,19 +1308,25 @@ bool CBlock::AcceptBlock()
         return DoS(100, error("AcceptBlock() : reject proof-of-work at height %d", nHeight));
 
     // Check proof-of-work or proof-of-stake
-    if (nBits != GetNextTargetRequired(pindexPrev.get(), IsProofOfStake()))
+    if (nBits != GetNextTargetRequired(pindexPrev.get(), IsProofOfStake())) {
+        reject = CBlockReject(REJECT_INVALID, "bad-diffbits", this->GetHash());
         return DoS(100, error("AcceptBlock() : incorrect %s",
                               IsProofOfWork() ? "proof-of-work" : "proof-of-stake"));
+    }
 
     // Check timestamp against prev
     if (GetBlockTime() <= pindexPrev->GetPastTimeLimit() ||
-        FutureDrift(GetBlockTime()) < pindexPrev->GetBlockTime())
+        FutureDrift(GetBlockTime()) < pindexPrev->GetBlockTime()) {
+        reject = CBlockReject(REJECT_INVALID, "time-too-old", this->GetHash());
         return error("AcceptBlock() : block's timestamp is too early");
+    }
 
     // Check that all transactions are finalized
     for (const CTransaction& tx : vtx)
-        if (!IsFinalTx(tx, nHeight, GetBlockTime()))
+        if (!IsFinalTx(tx, nHeight, GetBlockTime())) {
+            reject = CBlockReject(REJECT_INVALID, "bad-txns-nonfinal", this->GetHash());
             return DoS(10, error("AcceptBlock() : contains a non-final transaction"));
+        }
 
     // Check that the block chain matches the known block chain up to a checkpoint
     if (!Checkpoints::CheckHardened(nHeight, hash))

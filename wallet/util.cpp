@@ -906,10 +906,10 @@ static std::string FormatException(std::exception* pex, const char* pszThread)
     const char* pszModule = "neblio";
 #endif
     if (pex)
-        return strprintf("EXCEPTION: %s       \n%s       \n%s in %s       \n", typeid(*pex).name(),
-                         pex->what(), pszModule, pszThread);
+        return strprintf("HANDLED EXCEPTION: %s       \n%s       \n%s in %s       \n",
+                         typeid(*pex).name(), pex->what(), pszModule, pszThread);
     else
-        return strprintf("UNKNOWN EXCEPTION       \n%s in %s       \n", pszModule, pszThread);
+        return strprintf("HANDLED UNKNOWN EXCEPTION       \n%s in %s       \n", pszModule, pszThread);
 }
 
 void PrintException(std::exception* pex, const char* pszThread)

@@ -180,7 +180,7 @@ unsigned int CTransaction::GetLegacySigOpCount() const
     return nSigOps;
 }
 
-bool CTransaction::CheckTransaction() const
+bool CTransaction::CheckTransaction(CBlock* sourceBlockPtr) const
 {
     // Basic checks that don't depend on any context
     if (vin.empty())
@@ -217,8 +217,13 @@ bool CTransaction::CheckTransaction() const
     }
 
     if (IsCoinBase()) {
-        if (vin[0].scriptSig.size() < 2 || vin[0].scriptSig.size() > 100)
+        if (vin[0].scriptSig.size() < 2 || vin[0].scriptSig.size() > 100) {
+            if (sourceBlockPtr) {
+                sourceBlockPtr->reject =
+                    CBlock::CBlockReject(REJECT_INVALID, "bad-cb-length", sourceBlockPtr->GetHash());
+            }
             return DoS(100, error("CTransaction::CheckTransaction() : coinbase script size is invalid"));
+        }
     } else {
         for (const CTxIn& txin : vin)
             if (txin.prevout.IsNull())
@@ -504,9 +509,14 @@ bool CTransaction::ConnectInputs(CTxDB& /*txdb*/, MapPrevTx inputs,
         }
 
         if (!IsCoinStake()) {
-            if (nValueIn < GetValueOut())
-                return DoS(100, error("ConnectInputs() : %s value in < value out",
-                                      GetHash().ToString().c_str()));
+            if (nValueIn < GetValueOut()) {
+                if (sourceBlockPtr) {
+                    sourceBlockPtr->reject = CBlock::CBlockReject(REJECT_INVALID, "bad-txns-in-belowout",
+                                                                  sourceBlockPtr->GetHash());
+                }
+                return DoS(100, error("ConnectInputs() : %s value in (%zi) < value out (%zi)",
+                                      GetHash().ToString().c_str(), nValueIn, GetValueOut()));
+            }
 
             // Tally transaction fees
             int64_t nTxFee = nValueIn - GetValueOut();

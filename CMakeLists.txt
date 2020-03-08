@@ -599,6 +599,7 @@ add_library(core_lib STATIC
     wallet/amount.h
     wallet/CustomTypes.cpp
     wallet/scheduler.cpp
+    wallet/merkle.cpp
     )
 
 target_link_libraries(core_lib
