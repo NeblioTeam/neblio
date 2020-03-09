@@ -388,7 +388,7 @@ class CTransaction():
     def __init__(self, tx=None):
         if tx is None:
             self.nVersion = 1
-            self.nTime = int(time.time()) - 120  # to avoid having blocks younger than transactions
+            self.nTime = int(time.time())
             self.vin = []
             self.vout = []
             self.wit = CTxWitness()
@@ -623,6 +623,13 @@ class CBlock(CBlockHeader):
         if self.calc_merkle_root() != self.hashMerkleRoot:
             return False
         return True
+
+    def fix_time_then_resolve(self, resolve=True):
+        for tx in self.vtx:
+            if tx.nTime > self.nTime:
+                self.nTime = tx.nTime
+        if resolve:
+            self.solve()
 
     def solve(self):
         self.rehash()

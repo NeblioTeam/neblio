@@ -130,11 +130,14 @@ class FullBlockTest(ComparisonTestFramework):
             self.sign_tx(tx, spend.tx, spend.n)
             self.add_transactions_to_block(block, [tx])
             block.hashMerkleRoot = block.calc_merkle_root()
+
+        # fix block time to never be younger than transactions
+        block.fix_time_then_resolve(False)
+
         if solve:
             # add neblio signature
             block.solve()
             block.vchBlockSig = self.coinbase_key.sign(bytes.fromhex(block.hash)[::-1])
-
         self.tip = block
         self.block_heights[block.sha256] = height
         assert number not in self.blocks
@@ -211,11 +214,13 @@ class FullBlockTest(ComparisonTestFramework):
             self.tip = self.blocks[number]
 
         # adds transactions to the block and updates state
-        def update_block(block_number, new_transactions):
+        def update_block(block_number, new_transactions, update_time=True):
             block = self.blocks[block_number]
             self.add_transactions_to_block(block, new_transactions)
             old_sha256 = block.sha256
             block.hashMerkleRoot = block.calc_merkle_root()
+            if update_time:
+                block.fix_time_then_resolve(False)
             block.solve()
             block.vchBlockSig = self.coinbase_key.sign(bytes.fromhex(block.hash)[::-1])
             # Update the internal state just like in next_block
@@ -509,7 +514,7 @@ class FullBlockTest(ComparisonTestFramework):
         # CHECKMULTISIGVERIFY
         tip(31)
         lots_of_multisigs = CScript([OP_CHECKMULTISIGVERIFY] * ((MAX_BLOCK_SIGOPS-1) // 20) + [OP_CHECKSIG] * 19)
-        block(33, spend=out[9], script=lots_of_multisigs)
+        b33 = block(33, spend=out[9], script=lots_of_multisigs)
         yield accepted()
         save_spendable_output()
 
@@ -687,7 +692,7 @@ class FullBlockTest(ComparisonTestFramework):
         b44.nBits = 0x207fffff
         b44.vtx.append(coinbase)
         b44.hashMerkleRoot = b44.calc_merkle_root()
-        b44.solve()
+        b44.fix_time_then_resolve()
         self.tip = b44
         self.block_heights[b44.sha256] = height
         self.blocks[44] = b44
@@ -716,7 +721,7 @@ class FullBlockTest(ComparisonTestFramework):
         b46.nBits = 0x207fffff
         b46.vtx = []
         b46.hashMerkleRoot = 0
-        b46.solve()
+        b46.fix_time_then_resolve()
         self.block_heights[b46.sha256] = self.block_heights[b44.sha256] + 1
         self.tip = b46
         assert 46 not in self.blocks
@@ -728,9 +733,11 @@ class FullBlockTest(ComparisonTestFramework):
         tip(44)
         b47 = block(47, solve=False)
         target = uint256_from_compact(b47.nBits)
-        while b47.sha256 < target: #changed > to <
+        print("Trgt:", hex(target))
+        while b47.sha256 <= target:
             b47.nNonce += 1
             b47.rehash()
+        print("Hash:", b47.hash)
         yield rejected(RejectResult(16, b'high-hash'))
 
         # A block with timestamp > 10 minutes in the future
@@ -780,7 +787,11 @@ class FullBlockTest(ComparisonTestFramework):
 
         # invalid timestamp (b35 is 5 blocks back, so its time is MedianTimePast)
         b54 = block(54, spend=out[15])
-        b54.nTime = b35.nTime - 1
+        b54.nTime = b33.nTime - 1
+        for i in range(len(b54.vtx)):
+            b54.vtx[i].nTime = b54.nTime
+            b54.vtx[i].rehash()
+        b54.hashMerkleRoot = b54.calc_merkle_root()
         b54.solve()
         yield rejected(RejectResult(16, b'time-too-old'))
 
@@ -903,7 +914,7 @@ class FullBlockTest(ComparisonTestFramework):
         # not-fully-spent transaction in the same chain. To test, make identical coinbases;
         # the second one should be rejected.
         #
-        # TODO: study BIP30 and whether it's still relevant after while BIP34 is implemented
+        # TODO: study BIP30 and whether it's still relevant after having BIP34 implemented
         # tip(60)
         # b61 = block(61, spend=out[18])
         # b61 = update_block(61, [b60_tx1])

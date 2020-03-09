@@ -1203,13 +1203,17 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig)
     }
 
     // Check transactions
-    for (const CTransaction& tx : vtx) {
+    for (unsigned i = 0; i < vtx.size(); i++) {
+        const CTransaction& tx = vtx[i];
+
         if (!tx.CheckTransaction(this))
             return DoS(tx.nDoS, error("CheckBlock() : CheckTransaction failed"));
 
         // ppcoin: check transaction timestamp
         if (GetBlockTime() < (int64_t)tx.nTime)
-            return DoS(50, error("CheckBlock() : block timestamp earlier than transaction timestamp"));
+            return DoS(50, error("CheckBlock() : block timestamp (%zi) is earlier than transaction "
+                                 "(tx number %u in block) timestamp (%zi)",
+                                 GetBlockTime(), i, (int64_t)tx.nTime));
     }
 
     // Check for duplicate txids. This is caught by ConnectInputs(),
