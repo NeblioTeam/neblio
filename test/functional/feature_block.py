@@ -48,6 +48,7 @@ class CBrokenBlock(CBlock):
                 r += tx.serialize_with_witness()
             else:
                 r += tx.serialize_without_witness()
+        r += ser_string(self.vchBlockSig)
         return r
 
     def normal_serialize(self):
@@ -981,26 +982,32 @@ class FullBlockTest(ComparisonTestFramework):
         tx = CTransaction()
 
         # use canonical serialization to calculate size
-        script_length = MAX_BLOCK_BASE_SIZE - len(b64a.normal_serialize()) - 78
+        script_length = MAX_BLOCK_BASE_SIZE - len(b64a.normal_serialize()) - 147
         script_output = CScript([b'\x00' * script_length])
         tx.vout.append(CTxOut(0, script_output))
         tx.vin.append(CTxIn(COutPoint(b64a.vtx[1].sha256, 0)))
         b64a = update_block("64a", [tx])
-        assert len(b64a.serialize()) > MAX_BLOCK_BASE_SIZE
+        if not(len(b64a.serialize()) > MAX_BLOCK_BASE_SIZE):
+            print("Unexpected block size:", len(b64a.serialize()))
+            assert False
         yield TestInstance([[self.tip, None]])
 
-        # # comptool workaround: to make sure b64 is delivered, manually erase b64a from blockstore
-        # self.test.block_store.erase(b64a.sha256)
-        #
-        # tip(60)
-        # b64 = CBlock(b64a)
-        # b64.vtx = copy.deepcopy(b64a.vtx)
-        # assert_equal(b64.hash, b64a.hash)
-        # assert_equal(len(b64.serialize()), MAX_BLOCK_BASE_SIZE)
-        # self.blocks[64] = b64
-        # update_block(64, [])
-        # yield accepted()
-        # save_spendable_output()
+        # comptool workaround: to make sure b64 is delivered, manually erase b64a from blockstore
+        self.test.block_store.erase(b64a.sha256)
+
+        tip(60)
+        b64 = CBlock(b64a)
+        b64.vtx = copy.deepcopy(b64a.vtx)
+        assert_equal(b64.hash, b64a.hash)
+        if not(len(b64.serialize()) <= MAX_BLOCK_BASE_SIZE):
+            print("Unexpected block size:", len(b64.serialize()))
+            assert False
+        self.blocks[64] = b64
+        update_block(64, [])
+        yield accepted()
+        save_spendable_output()
+
+
         #
         # # Spend an output created in the block itself
         # #
