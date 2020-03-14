@@ -61,7 +61,14 @@ std::vector<uint256> CBlock::GetMerkleBranch(int nIndex) const
     return vMerkleBranch;
 }
 
-uint256 CBlock::BuildMerkleTree(bool* mutated) const { return BlockMerkleRoot(*this, mutated); }
+uint256 CBlock::BuildMerkleTree(bool* fMutated) const
+{
+    std::vector<uint256> leaves;
+    for (const CTransaction& tx : vtx)
+        leaves.push_back(tx.GetHash());
+    vMerkleTree = GetMerkleTree(leaves, fMutated);
+    return (vMerkleTree.empty() ? uint256() : vMerkleTree.back());
+}
 
 int64_t CBlock::GetMaxTransactionTime() const
 {

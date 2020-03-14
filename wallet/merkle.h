@@ -19,4 +19,6 @@ uint256 ComputeMerkleRoot(std::vector<uint256> hashes, bool* mutated = nullptr);
  */
 uint256 BlockMerkleRoot(const CBlock& block, bool* mutated = nullptr);
 
+std::vector<uint256> GetMerkleTree(const std::vector<uint256>& leaves, bool* fMutated = nullptr);
+
 #endif // BITCOIN_CONSENSUS_MERKLE_H

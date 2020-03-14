@@ -78,3 +78,28 @@ uint256 BlockMerkleRoot(const CBlock& block, bool* mutated)
     }
     return ComputeMerkleRoot(std::move(leaves), mutated);
 }
+
+std::vector<uint256> GetMerkleTree(const std::vector<uint256>& leaves, bool* fMutated)
+{
+    // first part of the merkle tree is the leaves
+    std::vector<uint256> vMerkleTree = leaves;
+
+    int  j       = 0;
+    bool mutated = false;
+    for (int nSize = leaves.size(); nSize > 1; nSize = (nSize + 1) / 2) {
+        for (int i = 0; i < nSize; i += 2) {
+            int i2 = std::min(i + 1, nSize - 1);
+            if (i2 == i + 1 && i2 + 1 == nSize && vMerkleTree[j + i] == vMerkleTree[j + i2]) {
+                // Two identical hashes at the end of the list at a particular level.
+                mutated = true;
+            }
+            vMerkleTree.push_back(Hash(vMerkleTree[j + i].begin(), vMerkleTree[j + i].end(),
+                                       vMerkleTree[j + i2].begin(), vMerkleTree[j + i2].end()));
+        }
+        j += nSize;
+    }
+    if (fMutated) {
+        *fMutated = mutated;
+    }
+    return vMerkleTree;
+}
