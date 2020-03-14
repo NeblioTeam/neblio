@@ -51,9 +51,6 @@ public:
     // ppcoin: block signature - signed by one of the coin base txout[N]'s owner
     std::vector<unsigned char> vchBlockSig;
 
-    // memory only
-    mutable std::vector<uint256> vMerkleTree;
-
     struct CBlockReject
     {
         unsigned char chRejectCode;

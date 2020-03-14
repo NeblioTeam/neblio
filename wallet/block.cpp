@@ -27,6 +27,7 @@ void CBlock::print() const
         vtx[i].print();
     }
     printf("  vMerkleTree: ");
+    std::vector<uint256> vMerkleTree = BlockMerkleTree(*this);
     for (unsigned int i = 0; i < vMerkleTree.size(); i++)
         printf("%s ", vMerkleTree[i].ToString().substr(0, 10).c_str());
     printf("\n");
@@ -36,7 +37,7 @@ uint256 CBlock::CheckMerkleBranch(uint256 hash, const std::vector<uint256>& vMer
 {
     if (nIndex == -1)
         return 0;
-    BOOST_FOREACH (const uint256& otherside, vMerkleBranch) {
+    for (const uint256& otherside : vMerkleBranch) {
         if (nIndex & 1)
             hash = Hash(BEGIN(otherside), END(otherside), BEGIN(hash), END(hash));
         else
@@ -48,8 +49,7 @@ uint256 CBlock::CheckMerkleBranch(uint256 hash, const std::vector<uint256>& vMer
 
 std::vector<uint256> CBlock::GetMerkleBranch(int nIndex) const
 {
-    if (vMerkleTree.empty())
-        BuildMerkleTree();
+    std::vector<uint256> vMerkleTree = BlockMerkleTree(*this);
     std::vector<uint256> vMerkleBranch;
     int                  j = 0;
     for (int nSize = vtx.size(); nSize > 1; nSize = (nSize + 1) / 2) {
@@ -61,19 +61,12 @@ std::vector<uint256> CBlock::GetMerkleBranch(int nIndex) const
     return vMerkleBranch;
 }
 
-uint256 CBlock::BuildMerkleTree(bool* fMutated) const
-{
-    std::vector<uint256> leaves;
-    for (const CTransaction& tx : vtx)
-        leaves.push_back(tx.GetHash());
-    vMerkleTree = GetMerkleTree(leaves, fMutated);
-    return (vMerkleTree.empty() ? uint256() : vMerkleTree.back());
-}
+uint256 CBlock::BuildMerkleTree(bool* fMutated) const { return BlockMerkleRoot(*this, fMutated); }
 
 int64_t CBlock::GetMaxTransactionTime() const
 {
     int64_t maxTransactionTime = 0;
-    BOOST_FOREACH (const CTransaction& tx, vtx)
+    for (const CTransaction& tx : vtx)
         maxTransactionTime = std::max(maxTransactionTime, (int64_t)tx.nTime);
     return maxTransactionTime;
 }
@@ -116,7 +109,6 @@ void CBlock::SetNull()
     nNonce         = 0;
     vtx.clear();
     vchBlockSig.clear();
-    vMerkleTree.clear();
     nDoS = 0;
 }
 

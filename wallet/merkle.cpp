@@ -79,7 +79,17 @@ uint256 BlockMerkleRoot(const CBlock& block, bool* mutated)
     return ComputeMerkleRoot(std::move(leaves), mutated);
 }
 
-std::vector<uint256> GetMerkleTree(const std::vector<uint256>& leaves, bool* fMutated)
+std::vector<uint256> BlockMerkleTree(const CBlock& block, bool* mutated)
+{
+    std::vector<uint256> leaves;
+    leaves.reserve(block.vtx.size() * 2 + 16); // reserve max expected size for the tree
+    for (const CTransaction& tx : block.vtx) {
+        leaves.push_back(tx.GetHash());
+    }
+    return ConstructMerkleTree(leaves, mutated);
+}
+
+std::vector<uint256> ConstructMerkleTree(std::vector<uint256> leaves, bool* fMutated)
 {
     // first part of the merkle tree is the leaves
     std::vector<uint256> vMerkleTree = leaves;
