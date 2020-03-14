@@ -241,6 +241,13 @@ TEST(merkle_tests, merkle_test)
             bool                 oldMutated = false;
             std::vector<uint256> merkleTree;
             uint256              oldRoot = BlockBuildMerkleTree(block, &oldMutated, merkleTree);
+            // build the neblio merkle tree and test it
+            // we need to have a way to build the tree in neblio source; it's required for CMerkleTx, so
+            // we set a reference implementation here
+            bool neblioMutated    = false;
+            auto neblioMerkleTree = BlockMerkleTree(block, &neblioMutated);
+            EXPECT_EQ(neblioMerkleTree, merkleTree);
+            EXPECT_EQ(neblioMutated, oldMutated);
             // Compute the merkle root using the new mechanism.
             bool    newMutated = false;
             uint256 newRoot    = BlockMerkleRoot(block, &newMutated);

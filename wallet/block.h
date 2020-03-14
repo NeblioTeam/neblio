@@ -123,9 +123,9 @@ public:
     // ppcoin: get max transaction timestamp
     int64_t GetMaxTransactionTime() const;
 
-    uint256 BuildMerkleTree(bool* fMutated = nullptr) const;
+    [[nodiscard]] uint256 GetMerkleRoot(bool* fMutated = nullptr) const;
 
-    std::vector<uint256> GetMerkleBranch(int nIndex) const;
+    [[nodiscard]] std::vector<uint256> GetMerkleBranch(int nIndex) const;
 
     static uint256 CheckMerkleBranch(uint256 hash, const std::vector<uint256>& vMerkleBranch,
                                      int nIndex);

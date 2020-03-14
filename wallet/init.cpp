@@ -830,7 +830,6 @@ bool AppInit2()
                 CBlockIndexSmartPtr pindex = mi->second;
                 CBlock              block;
                 block.ReadFromDisk(pindex.get());
-                block.BuildMerkleTree();
                 block.print();
                 printf("\n");
                 nFound++;

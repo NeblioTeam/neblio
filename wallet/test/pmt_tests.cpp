@@ -35,7 +35,7 @@ TEST(pmt_tests, pmt_test1)
         }
 
         // calculate actual merkle root and height
-        uint256              merkleRoot1 = block.BuildMerkleTree();
+        uint256              merkleRoot1 = block.GetMerkleRoot();
         std::vector<uint256> vTxid(nTx, 0);
         for (unsigned int j = 0; j < nTx; j++)
             vTxid[j] = block.vtx[j].GetHash();

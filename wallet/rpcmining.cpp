@@ -234,7 +234,7 @@ Value getworkex(const Array& params, bool fHelp)
         else
             CDataStream(coinbase, SER_NETWORK, PROTOCOL_VERSION) >> pblock->vtx[0]; // FIXME - HACK!
 
-        pblock->hashMerkleRoot = pblock->BuildMerkleTree();
+        pblock->hashMerkleRoot = pblock->GetMerkleRoot();
 
         return CheckWork(pblock, *pwalletMain, reservekey);
     }
@@ -345,7 +345,7 @@ Value getwork(const Array& params, bool fHelp)
         pblock->nTime                   = pdata->nTime;
         pblock->nNonce                  = pdata->nNonce;
         pblock->vtx[0].vin[0].scriptSig = mapNewBlock[pdata->hashMerkleRoot].second;
-        pblock->hashMerkleRoot          = pblock->BuildMerkleTree();
+        pblock->hashMerkleRoot          = pblock->GetMerkleRoot();
 
         return CheckWork(pblock, *pwalletMain, reservekey);
     }

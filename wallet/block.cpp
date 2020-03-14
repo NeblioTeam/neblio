@@ -61,7 +61,7 @@ std::vector<uint256> CBlock::GetMerkleBranch(int nIndex) const
     return vMerkleBranch;
 }
 
-uint256 CBlock::BuildMerkleTree(bool* fMutated) const { return BlockMerkleRoot(*this, fMutated); }
+uint256 CBlock::GetMerkleRoot(bool* fMutated) const { return BlockMerkleRoot(*this, fMutated); }
 
 int64_t CBlock::GetMaxTransactionTime() const
 {
@@ -1237,7 +1237,7 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig)
 
     // Check merkle root
     bool merkleRootMutated;
-    if (fCheckMerkleRoot && hashMerkleRoot != BuildMerkleTree(&merkleRootMutated)) {
+    if (fCheckMerkleRoot && hashMerkleRoot != GetMerkleRoot(&merkleRootMutated)) {
         reject = CBlockReject(REJECT_INVALID, "bad-txnmrklroot", this->GetHash());
         return DoS(100, error("CheckBlock() : hashMerkleRoot mismatch"));
     }
@@ -1429,7 +1429,7 @@ bool CBlock::SignBlock(CWallet& wallet, int64_t nFees)
                     }
 
                 vtx.insert(vtx.begin() + 1, txCoinStake);
-                hashMerkleRoot = BuildMerkleTree();
+                hashMerkleRoot = GetMerkleRoot();
 
                 // append a signature to our block
                 return key.Sign(GetHash(), vchBlockSig);

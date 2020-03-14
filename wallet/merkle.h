@@ -11,16 +11,17 @@
 
 class CBlock;
 
-uint256 ComputeMerkleRoot(std::vector<uint256> hashes, bool* mutated = nullptr);
+[[nodiscard]] uint256 ComputeMerkleRoot(std::vector<uint256> hashes, bool* mutated = nullptr);
 
 /*
  * Compute the Merkle root of the transactions in a block.
  * *mutated is set to true if a duplicated subtree was found.
  */
-uint256 BlockMerkleRoot(const CBlock& block, bool* mutated = nullptr);
+[[nodiscard]] uint256 BlockMerkleRoot(const CBlock& block, bool* mutated = nullptr);
 
-std::vector<uint256> ConstructMerkleTree(std::vector<uint256> leaves, bool* fMutated = nullptr);
+[[nodiscard]] std::vector<uint256> ConstructMerkleTree(std::vector<uint256> leaves,
+                                                       bool*                fMutated = nullptr);
 
-std::vector<uint256> BlockMerkleTree(const CBlock& block, bool* mutated = nullptr);
+[[nodiscard]] std::vector<uint256> BlockMerkleTree(const CBlock& block, bool* mutated = nullptr);
 
 #endif // BITCOIN_CONSENSUS_MERKLE_H
