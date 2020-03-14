@@ -196,7 +196,6 @@ class FullBlockTest(ComparisonTestFramework):
         Returns: nothing
         """
         genesis_block_hex = self.nodes[0].getblock(self.nodes[0].getbestblockhash(), False)
-        print(genesis_block_hex)
         genesis_block = CBlock()
         genesis_block_raw_io = BytesIO(bytes.fromhex(genesis_block_hex))
         genesis_block.deserialize(genesis_block_raw_io)
@@ -756,12 +755,9 @@ class FullBlockTest(ComparisonTestFramework):
         tip(44)
         b47 = block(47, solve=False)
         target = uint256_from_compact(b47.nBits)
-        print("Trgt:", hex(target))
         while b47.sha256 <= target:
-            print("Try: ", b47.hash)
             b47.nNonce += 1
             b47.rehash()
-        print("Hash:", b47.hash)
         yield rejected(RejectResult(16, b'high-hash'))
 
         # A block with timestamp > 10 minutes in the future
