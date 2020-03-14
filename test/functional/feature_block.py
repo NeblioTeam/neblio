@@ -58,6 +58,7 @@ class CBrokenBlock(CBlock):
 
 
 fee = 20000
+min_fee = 10000
 
 class FullBlockTest(ComparisonTestFramework):
     # Can either run this test as 1 node with expected answers, or two and compare them.
@@ -108,6 +109,7 @@ class FullBlockTest(ComparisonTestFramework):
         return tx
 
     def next_block(self, number, spend=None, additional_coinbase_value=0, script=CScript([OP_TRUE]), solve=True):
+        print("Creating block:", number)  # useful marker for debugging, marks the last block that was created
         if self.tip is None:
             base_block_hash = self.genesis_hash
             block_time = int(time.time()) + 1
@@ -139,6 +141,9 @@ class FullBlockTest(ComparisonTestFramework):
             # add neblio signature
             block.solve()
             block.vchBlockSig = self.coinbase_key.sign(bytes.fromhex(block.hash)[::-1])
+        else:
+            block.rehash()
+
         self.tip = block
         self.block_heights[block.sha256] = height
         assert number not in self.blocks
@@ -185,8 +190,25 @@ class FullBlockTest(ComparisonTestFramework):
         with open(filename, "w") as f:
             f.write(dotstr)
 
+    def run_genesis_block_hash_test(self):
+        """
+        Test that hashing of a block works fine
+        Returns: nothing
+        """
+        genesis_block_hex = self.nodes[0].getblock(self.nodes[0].getbestblockhash(), False)
+        print(genesis_block_hex)
+        genesis_block = CBlock()
+        genesis_block_raw_io = BytesIO(bytes.fromhex(genesis_block_hex))
+        genesis_block.deserialize(genesis_block_raw_io)
+        genesis_block.rehash()
+        assert genesis_block.hash is not None
+        assert_equal(genesis_block.hash, self.nodes[0].getblockhash(0))
+        assert_equal(genesis_block.hash, self.nodes[0].calculateblockhash(genesis_block.serialize().hex()))
+        assert_equal(genesis_block_hex, genesis_block.serialize().hex())
+
     def get_tests(self):
         self.genesis_hash = int(self.nodes[0].getbestblockhash(), 16)
+        self.run_genesis_block_hash_test()
         self.block_heights[self.genesis_hash] = 0
         spendable_outputs = []
 
@@ -736,6 +758,7 @@ class FullBlockTest(ComparisonTestFramework):
         target = uint256_from_compact(b47.nBits)
         print("Trgt:", hex(target))
         while b47.sha256 <= target:
+            print("Try: ", b47.hash)
             b47.nNonce += 1
             b47.rehash()
         print("Hash:", b47.hash)
@@ -1013,39 +1036,39 @@ class FullBlockTest(ComparisonTestFramework):
         # #
         # # -> b42 (12) -> b43 (13) -> b53 (14) -> b55 (15) -> b57 (16) -> b60 (17) -> b64 (18) -> b65 (19)
         # #
-        # tip(64)
-        # block(65)
-        # tx1 = create_and_sign_tx(out[19].tx, out[19].n, out[19].tx.vout[0].nValue)
-        # tx2 = create_and_sign_tx(tx1, 0, 0)
-        # update_block(65, [tx1, tx2])
-        # yield accepted()
-        # save_spendable_output()
+        tip(64)
+        block(65)
+        tx1 = create_and_sign_tx(out[19].tx, out[19].n, out[19].tx.vout[0].nValue - 2*fee)
+        tx2 = create_and_sign_tx(tx1, 0, fee)
+        update_block(65, [tx1, tx2])
+        yield accepted()
+        save_spendable_output()
+
+        # Attempt to spend an output created later in the same block
         #
-        # # Attempt to spend an output created later in the same block
-        # #
-        # # -> b43 (13) -> b53 (14) -> b55 (15) -> b57 (16) -> b60 (17) -> b64 (18) -> b65 (19)
-        # #                                                                                    \-> b66 (20)
-        # tip(65)
-        # block(66)
-        # tx1 = create_and_sign_tx(out[20].tx, out[20].n, out[20].tx.vout[0].nValue)
-        # tx2 = create_and_sign_tx(tx1, 0, 1)
-        # update_block(66, [tx2, tx1])
-        # yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent'))
+        # -> b43 (13) -> b53 (14) -> b55 (15) -> b57 (16) -> b60 (17) -> b64 (18) -> b65 (19)
+        #                                                                                    \-> b66 (20)
+        tip(65)
+        block(66)
+        tx1 = create_and_sign_tx(out[20].tx, out[20].n, out[20].tx.vout[0].nValue - fee - 1)
+        tx2 = create_and_sign_tx(tx1, 0, 1 + fee)
+        update_block(66, [tx2, tx1])
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent'))
+
+        # Attempt to double-spend a transaction created in a block
         #
-        # # Attempt to double-spend a transaction created in a block
-        # #
-        # # -> b43 (13) -> b53 (14) -> b55 (15) -> b57 (16) -> b60 (17) -> b64 (18) -> b65 (19)
-        # #                                                                                    \-> b67 (20)
-        # #
-        # #
-        # tip(65)
-        # block(67)
-        # tx1 = create_and_sign_tx(out[20].tx, out[20].n, out[20].tx.vout[0].nValue)
-        # tx2 = create_and_sign_tx(tx1, 0, 1)
-        # tx3 = create_and_sign_tx(tx1, 0, 2)
-        # update_block(67, [tx1, tx2, tx3])
-        # yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent'))
+        # -> b43 (13) -> b53 (14) -> b55 (15) -> b57 (16) -> b60 (17) -> b64 (18) -> b65 (19)
+        #                                                                                    \-> b67 (20)
         #
+        #
+        tip(65)
+        block(67)
+        tx1 = create_and_sign_tx(out[20].tx, out[20].n, out[20].tx.vout[0].nValue - 3*fee)
+        tx2 = create_and_sign_tx(tx1, 0, 1+fee)
+        tx3 = create_and_sign_tx(tx1, 0, 2+fee)
+        update_block(67, [tx1, tx2, tx3])
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent'))
+
         # # More tests of block subsidy
         # #
         # # -> b43 (13) -> b53 (14) -> b55 (15) -> b57 (16) -> b60 (17) -> b64 (18) -> b65 (19) -> b69 (20)
@@ -1058,19 +1081,19 @@ class FullBlockTest(ComparisonTestFramework):
         # # b69 - coinbase with extra 10 satoshis, and a tx that gives a 10 satoshi fee
         # #       this succeeds
         # #
-        # tip(65)
-        # block(68, additional_coinbase_value=10)
-        # tx = create_and_sign_tx(out[20].tx, out[20].n, out[20].tx.vout[0].nValue-9)
-        # update_block(68, [tx])
-        # yield rejected(RejectResult(16, b'bad-cb-amount'))
-        #
-        # tip(65)
-        # b69 = block(69, additional_coinbase_value=10)
-        # tx = create_and_sign_tx(out[20].tx, out[20].n, out[20].tx.vout[0].nValue-10)
-        # update_block(69, [tx])
-        # yield accepted()
-        # save_spendable_output()
-        #
+        tip(65)
+        block(68, additional_coinbase_value=10 + min_fee)
+        tx = create_and_sign_tx(out[20].tx, out[20].n, out[20].tx.vout[0].nValue - 9 - min_fee)
+        update_block(68, [tx])
+        yield rejected(RejectResult(16, b'bad-cb-amount'))
+
+        tip(65)
+        b69 = block(69, additional_coinbase_value=10 + min_fee)
+        tx = create_and_sign_tx(out[20].tx, out[20].n, out[20].tx.vout[0].nValue - 10 - min_fee)
+        update_block(69, [tx])
+        yield accepted()
+        save_spendable_output()
+
         # # Test spending the outpoint of a non-existent transaction
         # #
         # # -> b53 (14) -> b55 (15) -> b57 (16) -> b60 (17) -> b64 (18) -> b65 (19) -> b69 (20)

@@ -30,6 +30,11 @@ void CBlock::print() const
     std::vector<uint256> vMerkleTree = BlockMerkleTree(*this);
     for (unsigned int i = 0; i < vMerkleTree.size(); i++)
         printf("%s ", vMerkleTree[i].ToString().substr(0, 10).c_str());
+    printf("transaction count: %zu\n", vtx.size());
+    printf("transactions:\n");
+    for (const CTransaction& tx : vtx) {
+        tx.print();
+    }
     printf("\n");
 }
 
@@ -566,8 +571,8 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
                 return DoS(100, error("ConnectBlock() : too many sigops"));
             }
 
-            int64_t nTxValueIn  = tx.GetValueIn(mapInputs);
-            int64_t nTxValueOut = tx.GetValueOut();
+            CAmount nTxValueIn  = tx.GetValueIn(mapInputs);
+            CAmount nTxValueOut = tx.GetValueOut();
             nValueIn += nTxValueIn;
             nValueOut += nTxValueOut;
             if (!tx.IsCoinStake())
@@ -640,7 +645,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
             return error("ConnectBlock() : %s unable to get coin age for coinstake",
                          vtx[1].GetHash().ToString().c_str());
 
-        int64_t nCalculatedStakeReward = GetProofOfStakeReward(nCoinAge, nFees);
+        CAmount nCalculatedStakeReward = GetProofOfStakeReward(nCoinAge, nFees);
 
         if (nStakeReward > nCalculatedStakeReward)
             return DoS(100, error("ConnectBlock() : coinstake pays too much(actual=%" PRId64

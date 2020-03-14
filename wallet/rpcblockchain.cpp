@@ -222,6 +222,22 @@ Value getblockhash(const Array& params, bool fHelp)
     return pblockindex->phashBlock->GetHex();
 }
 
+Value calculateblockhash(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error("getblockhash <block_serialized_hex>\n"
+                            "Returns hash of block that is sent here (used for test purposes).");
+
+    std::string blockHexData = params[0].get_str();
+
+    CDataStream ssBlock(ParseHex(blockHexData), SER_NETWORK, PROTOCOL_VERSION);
+    CBlock      block;
+    ssBlock >> block;
+    block.print();
+
+    return block.GetHash().GetHex();
+}
+
 // Experimentally deprecated in an effort to support the getblock() call electrum requires
 // Value getblock(const Array& params, bool fHelp)
 // {
@@ -271,7 +287,7 @@ Value getblock(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
 
     CBlock       block;
-    CBlockIndex* pblockindex = boost::atomic_load(&mapBlockIndex[hash]).get();
+    CBlockIndex* pblockindex = boost::atomic_load(&mapBlockIndex.at(hash)).get();
     block.ReadFromDisk(pblockindex, true);
 
     if (!fVerbose) {
@@ -302,7 +318,7 @@ Value getblockbynumber(const Array& params, bool fHelp)
         throw runtime_error("Block number out of range.");
 
     CBlock              block;
-    CBlockIndexSmartPtr pblockindex = boost::atomic_load(&mapBlockIndex[hashBestChain]);
+    CBlockIndexSmartPtr pblockindex = boost::atomic_load(&mapBlockIndex.at(hashBestChain));
     while (pblockindex->nHeight > nHeight)
         pblockindex = pblockindex->pprev;
 
