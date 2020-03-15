@@ -109,7 +109,7 @@ class FullBlockTest(ComparisonTestFramework):
         return tx
 
     def next_block(self, number, spend=None, additional_coinbase_value=0, script=CScript([OP_TRUE]), solve=True):
-        print("Creating block:", number)  # useful marker for debugging, marks the last block that was created
+        logger.info("Creating block:".format(number))  # useful marker for debugging, marks the last block that was created
         if self.tip is None:
             base_block_hash = self.genesis_hash
             block_time = int(time.time()) + 1
@@ -143,7 +143,7 @@ class FullBlockTest(ComparisonTestFramework):
             block.vchBlockSig = self.coinbase_key.sign(bytes.fromhex(block.hash)[::-1])
         else:
             block.rehash()
-        print("Created block number", number, "with hash", block.hash)
+        logger.info("Created block number {} with hash {}".format(number, block.hash))
         self.tip = block
         self.block_heights[block.sha256] = height
         assert number not in self.blocks
@@ -237,7 +237,7 @@ class FullBlockTest(ComparisonTestFramework):
 
         # adds transactions to the block and updates state
         def update_block(block_number, new_transactions, update_time=True):
-            print("Updating block:", block_number)  # useful marker for debugging, marks the last block that was created
+            logger.info("Updating block: {}".format(block_number))  # useful marker for debugging, marks the last block that was created
             block = self.blocks[block_number]
             self.add_transactions_to_block(block, new_transactions)
             old_sha256 = block.sha256
@@ -252,7 +252,7 @@ class FullBlockTest(ComparisonTestFramework):
                 self.block_heights[block.sha256] = self.block_heights[old_sha256]
                 del self.block_heights[old_sha256]
             self.blocks[block_number] = block
-            print("Updated block", block_number, "with hash", block.hash)  # useful marker for debugging, marks the last block that was created
+            logger.info("Updated block {} with hash {}".format(block_number, block.hash))  # useful marker for debugging, marks the last block that was created
             return block
 
         # shorthand for functions
@@ -454,8 +454,8 @@ class FullBlockTest(ComparisonTestFramework):
         # Make sure the math above worked out to produce a max-sized block
         # there's a variation in the block size due to the block signature
         if not(MAX_BLOCK_BASE_SIZE >= len(b23.serialize()) > MAX_BLOCK_BASE_SIZE - 10):
-            print("Unexpected block size:", len(b23.serialize()),
-                  "( the size should be >", MAX_BLOCK_BASE_SIZE - 10, "and","<=", MAX_BLOCK_BASE_SIZE,")")
+            logger.error("Unexpected block size: {} (the size should be > {} and <= {})"
+                         .format(len(b23.serialize()), MAX_BLOCK_BASE_SIZE - 10, MAX_BLOCK_BASE_SIZE))
             assert False
         yield accepted()
         save_spendable_output()
@@ -1006,7 +1006,7 @@ class FullBlockTest(ComparisonTestFramework):
         tx.vin.append(CTxIn(COutPoint(b64a.vtx[1].sha256, 0)))
         b64a = update_block("64a", [tx])
         if not(len(b64a.serialize()) > MAX_BLOCK_BASE_SIZE):
-            print("Unexpected block size:", len(b64a.serialize()))
+            logger.error("Unexpected block size:".format(len(b64a.serialize())))
             assert False
         yield TestInstance([[self.tip, None]])
 
@@ -1018,7 +1018,7 @@ class FullBlockTest(ComparisonTestFramework):
         b64.vtx = copy.deepcopy(b64a.vtx)
         assert_equal(b64.hash, b64a.hash)
         if not(len(b64.serialize()) <= MAX_BLOCK_BASE_SIZE):
-            print("Unexpected block size:", len(b64.serialize()))
+            logger.error("Unexpected block size:".format(len(b64.serialize())))
             assert False
         self.blocks[64] = b64
         update_block(64, [])
@@ -1245,13 +1245,11 @@ class FullBlockTest(ComparisonTestFramework):
 
         block(78)
         tx78 = create_tx(tx77, 0, 9*COIN)
-        print("tx78 hash:", tx78.hash)
         update_block(78, [tx78])
         yield accepted()
 
         block(79)
         tx79 = create_tx(tx78, 0, 8*COIN)
-        print("tx79 hash:", tx79.hash)
         update_block(79, [tx79])
         yield accepted()
 
@@ -1351,22 +1349,12 @@ class FullBlockTest(ComparisonTestFramework):
         #
         if self.options.runbarelyexpensive:
             tip(88)
-            LARGE_REORG_SIZE = 5
+            LARGE_REORG_SIZE = 300
             test1 = TestInstance(sync_every_block=False)
             spend=out[32]
 
             for i in range(89, LARGE_REORG_SIZE + 89):
-                b = block(i, spend)
-                tx = CTransaction()
-                script_length = MAX_BLOCK_BASE_SIZE - len(b.serialize()) - 78
-                script_output = CScript([b'\x00' * script_length])
-                tx.vout.append(CTxOut(spend.tx.vout[0].nValue - i * min_fee, script_output))
-                tx.vin.append(CTxIn(COutPoint(b.vtx[1].sha256, 0)))
-                b = update_block(i, [tx])
-                if not (MAX_BLOCK_BASE_SIZE >= len(b.serialize()) > MAX_BLOCK_BASE_SIZE - 10):
-                    print("Unexpected block size:", len(b.serialize()),
-                          "( the size should be >", MAX_BLOCK_BASE_SIZE - 10, "and", "<=", MAX_BLOCK_BASE_SIZE, ")")
-                    assert False
+                b = block(i)
                 test1.blocks_and_transactions.append([self.tip, True])
                 save_spendable_output()
                 spend = get_spendable_output()
