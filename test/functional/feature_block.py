@@ -143,7 +143,7 @@ class FullBlockTest(ComparisonTestFramework):
             block.vchBlockSig = self.coinbase_key.sign(bytes.fromhex(block.hash)[::-1])
         else:
             block.rehash()
-
+        print("Created block number", number, "with hash", block.hash)
         self.tip = block
         self.block_heights[block.sha256] = height
         assert number not in self.blocks
@@ -237,6 +237,7 @@ class FullBlockTest(ComparisonTestFramework):
 
         # adds transactions to the block and updates state
         def update_block(block_number, new_transactions, update_time=True):
+            print("Updating block:", block_number)  # useful marker for debugging, marks the last block that was created
             block = self.blocks[block_number]
             self.add_transactions_to_block(block, new_transactions)
             old_sha256 = block.sha256
@@ -251,6 +252,7 @@ class FullBlockTest(ComparisonTestFramework):
                 self.block_heights[block.sha256] = self.block_heights[old_sha256]
                 del self.block_heights[old_sha256]
             self.blocks[block_number] = block
+            print("Updated block", block_number, "with hash", block.hash)  # useful marker for debugging, marks the last block that was created
             return block
 
         # shorthand for functions
@@ -451,7 +453,7 @@ class FullBlockTest(ComparisonTestFramework):
 
         # Make sure the math above worked out to produce a max-sized block
         # there's a variation in the block size due to the block signature
-        if not(len(b23.serialize()) <= MAX_BLOCK_BASE_SIZE and len(b23.serialize()) > MAX_BLOCK_BASE_SIZE - 10):
+        if not(MAX_BLOCK_BASE_SIZE >= len(b23.serialize()) > MAX_BLOCK_BASE_SIZE - 10):
             print("Unexpected block size:", len(b23.serialize()),
                   "( the size should be >", MAX_BLOCK_BASE_SIZE - 10, "and","<=", MAX_BLOCK_BASE_SIZE,")")
             assert False
@@ -610,7 +612,6 @@ class FullBlockTest(ComparisonTestFramework):
         b39 = update_block(39, [tx])
         b39_outputs += 1
 
-        # TODO: due to PopLeafTransaction, this is very, very slow. We should find a way to solve this
         # Until block is full, add tx's with 20000 satoshi to p2sh_script, the rest to OP_TRUE
         tx_new = None
         tx_last = tx
@@ -888,10 +889,10 @@ class FullBlockTest(ComparisonTestFramework):
 
         tip("57p2")
         yield accepted()
+        save_spendable_output()
 
         tip(57)
         yield rejected()  #rejected because 57p2 seen first
-        save_spendable_output()
 
         # Test a few invalid tx types
         #
@@ -920,8 +921,6 @@ class FullBlockTest(ComparisonTestFramework):
         # reset to good chain
         tip(57)
         b60 = block(60, spend=out[17])
-        b60_tx1 = create_and_sign_tx(out[-1].tx, out[-1].n, fee + 2)
-        b60 = update_block(60, [b60_tx1])
         yield accepted()
         save_spendable_output()
 
@@ -940,7 +939,7 @@ class FullBlockTest(ComparisonTestFramework):
         # b61 = update_block(61, [b60_tx1])
         # b61.vtx[0].rehash()
         # b61 = update_block(61, [])
-        # assert_equal(b60.vtx[-1].serialize(), b61.vtx[-1].serialize())
+        # assert_equal(b60.vtx[18].serialize(), b61.vtx[18].serialize())
         # yield rejected(RejectResult(16, b'bad-txns-BIP30'))
 
 
@@ -1090,305 +1089,311 @@ class FullBlockTest(ComparisonTestFramework):
         yield accepted()
         save_spendable_output()
 
-        # # Test spending the outpoint of a non-existent transaction
-        # #
-        # # -> b53 (14) -> b55 (15) -> b57 (16) -> b60 (17) -> b64 (18) -> b65 (19) -> b69 (20)
-        # #                                                                                    \-> b70 (21)
-        # #
-        # tip(69)
-        # block(70, spend=out[21])
-        # bogus_tx = CTransaction()
-        # bogus_tx.sha256 = uint256_from_str(b"23c70ed7c0506e9178fc1a987f40a33946d4ad4c962b5ae3a52546da53af0c5c")
-        # tx = CTransaction()
-        # tx.vin.append(CTxIn(COutPoint(bogus_tx.sha256, 0), b"", 0xffffffff))
-        # tx.vout.append(CTxOut(1, b""))
-        # update_block(70, [tx])
-        # yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent'))
+        # Test spending the outpoint of a non-existent transaction
+        #
+        # -> b53 (14) -> b55 (15) -> b57 (16) -> b60 (17) -> b64 (18) -> b65 (19) -> b69 (20)
+        #                                                                                    \-> b70 (21)
+        #
+        tip(69)
+        block(70, spend=out[21])
+        bogus_tx = CTransaction()
+        bogus_tx.sha256 = uint256_from_str(b"23c70ed7c0506e9178fc1a987f40a33946d4ad4c962b5ae3a52546da53af0c5c")
+        tx = CTransaction()
+        tx.vin.append(CTxIn(COutPoint(bogus_tx.sha256, 0), b"", 0xffffffff))
+        tx.vout.append(CTxOut(1, b""))
+        update_block(70, [tx])
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent'))
+
+
+        # Test accepting an invalid block which has the same hash as a valid one (via merkle tree tricks)
+        #
+        #  -> b53 (14) -> b55 (15) -> b57 (16) -> b60 (17) -> b64 (18) -> b65 (19) -> b69 (20) -> b72 (21)
+        #                                                                                      \-> b71 (21)
+        #
+        # b72 is a good block.
+        # b71 is a copy of 72, but re-adds one of its transactions.  However, it has the same hash as b71.
+        #
+        tip(69)
+        b72 = block(72)
+        tx1 = create_and_sign_tx(out[21].tx, out[21].n, 2 + 2*min_fee)
+        tx2 = create_and_sign_tx(tx1, 0, 1 + min_fee)
+        b72 = update_block(72, [tx1, tx2])  # now tip is 72
+        b71 = copy.deepcopy(b72)
+        b71.vtx.append(tx2)   # add duplicate tx2
+        self.block_heights[b71.sha256] = self.block_heights[b69.sha256] + 1  # b71 builds off b69
+        self.blocks[71] = b71
+
+        assert_equal(len(b71.vtx), 4)
+        assert_equal(len(b72.vtx), 3)
+        assert_equal(b72.sha256, b71.sha256)
+
+        tip(71)
+        yield rejected(RejectResult(16, b'bad-txns-duplicate'))
+        tip(72)
+        yield accepted()
+        save_spendable_output()
+
+
+        # Test some invalid scripts and MAX_BLOCK_SIGOPS
+        #
+        # -> b55 (15) -> b57 (16) -> b60 (17) -> b64 (18) -> b65 (19) -> b69 (20) -> b72 (21)
+        #                                                                                    \-> b** (22)
+        #
+
+        # b73 - tx with excessive sigops that are placed after an excessively large script element.
+        #       The purpose of the test is to make sure those sigops are counted.
+        #
+        #       script is a bytearray of size 20,526
+        #
+        #       bytearray[0-19,998]     : OP_CHECKSIG
+        #       bytearray[19,999]       : OP_PUSHDATA4
+        #       bytearray[20,000-20,003]: 521  (max_script_element_size+1, in little-endian format)
+        #       bytearray[20,004-20,525]: unread data (script_element)
+        #       bytearray[20,526]       : OP_CHECKSIG (this puts us over the limit)
+        #
+        tip(72)
+        b73 = block(73)
+        size = MAX_BLOCK_SIGOPS - 1 + MAX_SCRIPT_ELEMENT_SIZE + 1 + 5 + 1
+        a = bytearray([OP_CHECKSIG] * size)
+        a[MAX_BLOCK_SIGOPS - 1] = int("4e",16) # OP_PUSHDATA4
+
+        element_size = MAX_SCRIPT_ELEMENT_SIZE + 1
+        a[MAX_BLOCK_SIGOPS] = element_size % 256
+        a[MAX_BLOCK_SIGOPS+1] = element_size // 256
+        a[MAX_BLOCK_SIGOPS+2] = 0
+        a[MAX_BLOCK_SIGOPS+3] = 0
+
+        tx = create_and_sign_tx(out[22].tx, 0, 1, CScript(a))
+        b73 = update_block(73, [tx])
+        assert_equal(get_legacy_sigopcount_block(b73), MAX_BLOCK_SIGOPS+1)
+        yield rejected(RejectResult(16, b'bad-blk-sigops'))
+
+        # b74/75 - if we push an invalid script element, all prevous sigops are counted,
+        #          but sigops after the element are not counted.
+        #
+        #       The invalid script element is that the push_data indicates that
+        #       there will be a large amount of data (0xffffff bytes), but we only
+        #       provide a much smaller number.  These bytes are CHECKSIGS so they would
+        #       cause b75 to fail for excessive sigops, if those bytes were counted.
+        #
+        #       b74 fails because we put MAX_BLOCK_SIGOPS+1 before the element
+        #       b75 succeeds because we put MAX_BLOCK_SIGOPS before the element
         #
         #
-        # # Test accepting an invalid block which has the same hash as a valid one (via merkle tree tricks)
-        # #
-        # #  -> b53 (14) -> b55 (15) -> b57 (16) -> b60 (17) -> b64 (18) -> b65 (19) -> b69 (20) -> b72 (21)
-        # #                                                                                      \-> b71 (21)
-        # #
-        # # b72 is a good block.
-        # # b71 is a copy of 72, but re-adds one of its transactions.  However, it has the same hash as b71.
-        # #
-        # tip(69)
-        # b72 = block(72)
-        # tx1 = create_and_sign_tx(out[21].tx, out[21].n, 2)
-        # tx2 = create_and_sign_tx(tx1, 0, 1)
-        # b72 = update_block(72, [tx1, tx2])  # now tip is 72
-        # b71 = copy.deepcopy(b72)
-        # b71.vtx.append(tx2)   # add duplicate tx2
-        # self.block_heights[b71.sha256] = self.block_heights[b69.sha256] + 1  # b71 builds off b69
-        # self.blocks[71] = b71
+        tip(72)
+        b74 = block(74)
+        size = MAX_BLOCK_SIGOPS - 1 + MAX_SCRIPT_ELEMENT_SIZE + 42 # total = 20,561
+        a = bytearray([OP_CHECKSIG] * size)
+        a[MAX_BLOCK_SIGOPS] = 0x4e
+        a[MAX_BLOCK_SIGOPS+1] = 0xfe
+        a[MAX_BLOCK_SIGOPS+2] = 0xff
+        a[MAX_BLOCK_SIGOPS+3] = 0xff
+        a[MAX_BLOCK_SIGOPS+4] = 0xff
+        tx = create_and_sign_tx(out[22].tx, 0, 1, CScript(a))
+        b74 = update_block(74, [tx])
+        yield rejected(RejectResult(16, b'bad-blk-sigops'))
+
+        tip(72)
+        b75 = block(75)
+        size = MAX_BLOCK_SIGOPS - 1 + MAX_SCRIPT_ELEMENT_SIZE + 42
+        a = bytearray([OP_CHECKSIG] * size)
+        a[MAX_BLOCK_SIGOPS-1] = 0x4e
+        a[MAX_BLOCK_SIGOPS] = 0xff
+        a[MAX_BLOCK_SIGOPS+1] = 0xff
+        a[MAX_BLOCK_SIGOPS+2] = 0xff
+        a[MAX_BLOCK_SIGOPS+3] = 0xff
+        tx = create_and_sign_tx(out[22].tx, 0, 1, CScript(a))
+        b75 = update_block(75, [tx])
+        yield accepted()
+        save_spendable_output()
+
+        # Check that if we push an element filled with CHECKSIGs, they are not counted
+        tip(75)
+        b76 = block(76)
+        size = MAX_BLOCK_SIGOPS - 1 + MAX_SCRIPT_ELEMENT_SIZE + 1 + 5
+        a = bytearray([OP_CHECKSIG] * size)
+        a[MAX_BLOCK_SIGOPS-1] = 0x4e # PUSHDATA4, but leave the following bytes as just checksigs
+        tx = create_and_sign_tx(out[23].tx, 0, 1, CScript(a))
+        b76 = update_block(76, [tx])
+        yield accepted()
+        save_spendable_output()
+
+        # Test transaction resurrection
         #
-        # assert_equal(len(b71.vtx), 4)
-        # assert_equal(len(b72.vtx), 3)
-        # assert_equal(b72.sha256, b71.sha256)
+        # -> b77 (24) -> b78 (25) -> b79 (26)
+        #            \-> b80 (25) -> b81 (26) -> b82 (27)
         #
-        # tip(71)
-        # yield rejected(RejectResult(16, b'bad-txns-duplicate'))
-        # tip(72)
-        # yield accepted()
-        # save_spendable_output()
+        #    b78 creates a tx, which is spent in b79. After b82, both should be in mempool
         #
+        #    The tx'es must be unsigned and pass the node's mempool policy.  It is unsigned for the
+        #    rather obscure reason that the Python signature code does not distinguish between
+        #    Low-S and High-S values (whereas the bitcoin code has custom code which does so);
+        #    as a result of which, the odds are 50% that the python code will use the right
+        #    value and the transaction will be accepted into the mempool. Until we modify the
+        #    test framework to support low-S signing, we are out of luck.
         #
-        # # Test some invalid scripts and MAX_BLOCK_SIGOPS
-        # #
-        # # -> b55 (15) -> b57 (16) -> b60 (17) -> b64 (18) -> b65 (19) -> b69 (20) -> b72 (21)
-        # #                                                                                    \-> b** (22)
-        # #
+        #    To get around this issue, we construct transactions which are not signed and which
+        #    spend to OP_TRUE.  If the standard-ness rules change, this test would need to be
+        #    updated.  (Perhaps to spend to a P2SH OP_TRUE script)
         #
-        # # b73 - tx with excessive sigops that are placed after an excessively large script element.
-        # #       The purpose of the test is to make sure those sigops are counted.
-        # #
-        # #       script is a bytearray of size 20,526
-        # #
-        # #       bytearray[0-19,998]     : OP_CHECKSIG
-        # #       bytearray[19,999]       : OP_PUSHDATA4
-        # #       bytearray[20,000-20,003]: 521  (max_script_element_size+1, in little-endian format)
-        # #       bytearray[20,004-20,525]: unread data (script_element)
-        # #       bytearray[20,526]       : OP_CHECKSIG (this puts us over the limit)
-        # #
-        # tip(72)
-        # b73 = block(73)
-        # size = MAX_BLOCK_SIGOPS - 1 + MAX_SCRIPT_ELEMENT_SIZE + 1 + 5 + 1
-        # a = bytearray([OP_CHECKSIG] * size)
-        # a[MAX_BLOCK_SIGOPS - 1] = int("4e",16) # OP_PUSHDATA4
+        tip(76)
+        block(77)
+        tx77 = create_and_sign_tx(out[24].tx, out[24].n, 10*COIN)
+        update_block(77, [tx77])
+        yield accepted()
+        save_spendable_output()
+
+        block(78)
+        tx78 = create_tx(tx77, 0, 9*COIN)
+        print("tx78 hash:", tx78.hash)
+        update_block(78, [tx78])
+        yield accepted()
+
+        block(79)
+        tx79 = create_tx(tx78, 0, 8*COIN)
+        print("tx79 hash:", tx79.hash)
+        update_block(79, [tx79])
+        yield accepted()
+
+        # mempool should be empty
+        assert_equal(len(self.nodes[0].getrawmempool()), 0)
+
+        tip(77)
+        block(80, spend=out[25])
+        yield rejected()
+        save_spendable_output()
+
+        block(81, spend=out[26])
+        yield rejected() # other chain is same length
+        save_spendable_output()
+
+        block(82, spend=out[27])
+        yield accepted()  # now this chain is longer, triggers re-org
+        save_spendable_output()
+
+        # now check that tx78 and tx79 have been put back into the peer's mempool
+        mempool = self.nodes[0].getrawmempool()
+        assert_equal(len(mempool), 2)
+        assert(tx78.hash in mempool)
+        assert(tx79.hash in mempool)
+
+
+        # Test invalid opcodes in dead execution paths.
         #
-        # element_size = MAX_SCRIPT_ELEMENT_SIZE + 1
-        # a[MAX_BLOCK_SIGOPS] = element_size % 256
-        # a[MAX_BLOCK_SIGOPS+1] = element_size // 256
-        # a[MAX_BLOCK_SIGOPS+2] = 0
-        # a[MAX_BLOCK_SIGOPS+3] = 0
+        #  -> b81 (26) -> b82 (27) -> b83 (28)
         #
-        # tx = create_and_sign_tx(out[22].tx, 0, 1, CScript(a))
-        # b73 = update_block(73, [tx])
-        # assert_equal(get_legacy_sigopcount_block(b73), MAX_BLOCK_SIGOPS+1)
-        # yield rejected(RejectResult(16, b'bad-blk-sigops'))
+        b83 = block(83)
+        op_codes = [OP_IF, OP_INVALIDOPCODE, OP_ELSE, OP_TRUE, OP_ENDIF]
+        script = CScript(op_codes)
+        tx1 = create_and_sign_tx(out[28].tx, out[28].n, out[28].tx.vout[0].nValue - 2*min_fee, script=script)
+
+        tx2 = create_and_sign_tx(tx1, 0, min_fee, CScript([OP_TRUE]))
+        tx2.vin[0].scriptSig = CScript([OP_FALSE])
+        tx2.rehash()
+
+        update_block(83, [tx1, tx2])
+        yield accepted()
+        save_spendable_output()
+
+
+        # Reorg on/off blocks that have OP_RETURN in them (and try to spend them)
         #
-        # # b74/75 - if we push an invalid script element, all prevous sigops are counted,
-        # #          but sigops after the element are not counted.
-        # #
-        # #       The invalid script element is that the push_data indicates that
-        # #       there will be a large amount of data (0xffffff bytes), but we only
-        # #       provide a much smaller number.  These bytes are CHECKSIGS so they would
-        # #       cause b75 to fail for excessive sigops, if those bytes were counted.
-        # #
-        # #       b74 fails because we put MAX_BLOCK_SIGOPS+1 before the element
-        # #       b75 succeeds because we put MAX_BLOCK_SIGOPS before the element
-        # #
-        # #
-        # tip(72)
-        # b74 = block(74)
-        # size = MAX_BLOCK_SIGOPS - 1 + MAX_SCRIPT_ELEMENT_SIZE + 42 # total = 20,561
-        # a = bytearray([OP_CHECKSIG] * size)
-        # a[MAX_BLOCK_SIGOPS] = 0x4e
-        # a[MAX_BLOCK_SIGOPS+1] = 0xfe
-        # a[MAX_BLOCK_SIGOPS+2] = 0xff
-        # a[MAX_BLOCK_SIGOPS+3] = 0xff
-        # a[MAX_BLOCK_SIGOPS+4] = 0xff
-        # tx = create_and_sign_tx(out[22].tx, 0, 1, CScript(a))
-        # b74 = update_block(74, [tx])
-        # yield rejected(RejectResult(16, b'bad-blk-sigops'))
-        #
-        # tip(72)
-        # b75 = block(75)
-        # size = MAX_BLOCK_SIGOPS - 1 + MAX_SCRIPT_ELEMENT_SIZE + 42
-        # a = bytearray([OP_CHECKSIG] * size)
-        # a[MAX_BLOCK_SIGOPS-1] = 0x4e
-        # a[MAX_BLOCK_SIGOPS] = 0xff
-        # a[MAX_BLOCK_SIGOPS+1] = 0xff
-        # a[MAX_BLOCK_SIGOPS+2] = 0xff
-        # a[MAX_BLOCK_SIGOPS+3] = 0xff
-        # tx = create_and_sign_tx(out[22].tx, 0, 1, CScript(a))
-        # b75 = update_block(75, [tx])
-        # yield accepted()
-        # save_spendable_output()
-        #
-        # # Check that if we push an element filled with CHECKSIGs, they are not counted
-        # tip(75)
-        # b76 = block(76)
-        # size = MAX_BLOCK_SIGOPS - 1 + MAX_SCRIPT_ELEMENT_SIZE + 1 + 5
-        # a = bytearray([OP_CHECKSIG] * size)
-        # a[MAX_BLOCK_SIGOPS-1] = 0x4e # PUSHDATA4, but leave the following bytes as just checksigs
-        # tx = create_and_sign_tx(out[23].tx, 0, 1, CScript(a))
-        # b76 = update_block(76, [tx])
-        # yield accepted()
-        # save_spendable_output()
-        #
-        # # Test transaction resurrection
-        # #
-        # # -> b77 (24) -> b78 (25) -> b79 (26)
-        # #            \-> b80 (25) -> b81 (26) -> b82 (27)
-        # #
-        # #    b78 creates a tx, which is spent in b79. After b82, both should be in mempool
-        # #
-        # #    The tx'es must be unsigned and pass the node's mempool policy.  It is unsigned for the
-        # #    rather obscure reason that the Python signature code does not distinguish between
-        # #    Low-S and High-S values (whereas the bitcoin code has custom code which does so);
-        # #    as a result of which, the odds are 50% that the python code will use the right
-        # #    value and the transaction will be accepted into the mempool. Until we modify the
-        # #    test framework to support low-S signing, we are out of luck.
-        # #
-        # #    To get around this issue, we construct transactions which are not signed and which
-        # #    spend to OP_TRUE.  If the standard-ness rules change, this test would need to be
-        # #    updated.  (Perhaps to spend to a P2SH OP_TRUE script)
-        # #
-        # tip(76)
-        # block(77)
-        # tx77 = create_and_sign_tx(out[24].tx, out[24].n, 10*COIN)
-        # update_block(77, [tx77])
-        # yield accepted()
-        # save_spendable_output()
-        #
-        # block(78)
-        # tx78 = create_tx(tx77, 0, 9*COIN)
-        # update_block(78, [tx78])
-        # yield accepted()
-        #
-        # block(79)
-        # tx79 = create_tx(tx78, 0, 8*COIN)
-        # update_block(79, [tx79])
-        # yield accepted()
-        #
-        # # mempool should be empty
-        # assert_equal(len(self.nodes[0].getrawmempool()), 0)
-        #
-        # tip(77)
-        # block(80, spend=out[25])
-        # yield rejected()
-        # save_spendable_output()
-        #
-        # block(81, spend=out[26])
-        # yield rejected() # other chain is same length
-        # save_spendable_output()
-        #
-        # block(82, spend=out[27])
-        # yield accepted()  # now this chain is longer, triggers re-org
-        # save_spendable_output()
-        #
-        # # now check that tx78 and tx79 have been put back into the peer's mempool
-        # mempool = self.nodes[0].getrawmempool()
-        # assert_equal(len(mempool), 2)
-        # assert(tx78.hash in mempool)
-        # assert(tx79.hash in mempool)
+        #  -> b81 (26) -> b82 (27) -> b83 (28) -> b84 (29) -> b87 (30) -> b88 (31)
+        #                                    \-> b85 (29) -> b86 (30)            \-> b89a (32)
         #
         #
-        # # Test invalid opcodes in dead execution paths.
-        # #
-        # #  -> b81 (26) -> b82 (27) -> b83 (28)
-        # #
-        # block(83)
-        # op_codes = [OP_IF, OP_INVALIDOPCODE, OP_ELSE, OP_TRUE, OP_ENDIF]
-        # script = CScript(op_codes)
-        # tx1 = create_and_sign_tx(out[28].tx, out[28].n, out[28].tx.vout[0].nValue, script)
+        block(84)
+        tx1 = create_tx(out[29].tx, out[29].n, 3*min_fee, CScript([OP_RETURN]))
+        tx1.vout.append(CTxOut(3*min_fee, CScript([OP_TRUE])))
+        tx1.vout.append(CTxOut(3*min_fee, CScript([OP_TRUE])))
+        tx1.vout.append(CTxOut(3*min_fee, CScript([OP_TRUE])))
+        tx1.vout.append(CTxOut(3*min_fee, CScript([OP_TRUE])))
+        tx1.calc_sha256()
+        self.sign_tx(tx1, out[29].tx, out[29].n)
+        tx1.rehash()
+        tx2 = create_tx(tx1, 1, min_fee, CScript([OP_RETURN]))
+        tx2.vout.append(CTxOut(min_fee, CScript([OP_RETURN])))
+        tx3 = create_tx(tx1, 2, min_fee, CScript([OP_RETURN]))
+        tx3.vout.append(CTxOut(min_fee, CScript([OP_TRUE])))
+        tx4 = create_tx(tx1, 3, min_fee, CScript([OP_TRUE]))
+        tx4.vout.append(CTxOut(min_fee, CScript([OP_RETURN])))
+        tx5 = create_tx(tx1, 4, min_fee, CScript([OP_RETURN]))
+
+        update_block(84, [tx1,tx2,tx3,tx4,tx5])
+        yield accepted()
+        save_spendable_output()
+
+        tip(83)
+        block(85, spend=out[29])
+        yield rejected()
+
+        block(86, spend=out[30])
+        yield accepted()
+
+        tip(84)
+        block(87, spend=out[30])
+        yield rejected()
+        save_spendable_output()
+
+        block(88, spend=out[31])
+        yield accepted()
+        save_spendable_output()
+
+        # trying to spend the OP_RETURN output is rejected
+        block("89a", spend=out[32])
+        tx = create_tx(tx1, 0, 0, CScript([OP_TRUE]))
+        update_block("89a", [tx])
+        yield rejected()
+
+
+        #  Test re-org of a week's worth of blocks (1088 blocks)
+        #  This test takes a minute or two and can be accomplished in memory
         #
-        # tx2 = create_and_sign_tx(tx1, 0, 0, CScript([OP_TRUE]))
-        # tx2.vin[0].scriptSig = CScript([OP_FALSE])
-        # tx2.rehash()
-        #
-        # update_block(83, [tx1, tx2])
-        # yield accepted()
-        # save_spendable_output()
-        #
-        #
-        # # Reorg on/off blocks that have OP_RETURN in them (and try to spend them)
-        # #
-        # #  -> b81 (26) -> b82 (27) -> b83 (28) -> b84 (29) -> b87 (30) -> b88 (31)
-        # #                                    \-> b85 (29) -> b86 (30)            \-> b89a (32)
-        # #
-        # #
-        # block(84)
-        # tx1 = create_tx(out[29].tx, out[29].n, 0, CScript([OP_RETURN]))
-        # tx1.vout.append(CTxOut(0, CScript([OP_TRUE])))
-        # tx1.vout.append(CTxOut(0, CScript([OP_TRUE])))
-        # tx1.vout.append(CTxOut(0, CScript([OP_TRUE])))
-        # tx1.vout.append(CTxOut(0, CScript([OP_TRUE])))
-        # tx1.calc_sha256()
-        # self.sign_tx(tx1, out[29].tx, out[29].n)
-        # tx1.rehash()
-        # tx2 = create_tx(tx1, 1, 0, CScript([OP_RETURN]))
-        # tx2.vout.append(CTxOut(0, CScript([OP_RETURN])))
-        # tx3 = create_tx(tx1, 2, 0, CScript([OP_RETURN]))
-        # tx3.vout.append(CTxOut(0, CScript([OP_TRUE])))
-        # tx4 = create_tx(tx1, 3, 0, CScript([OP_TRUE]))
-        # tx4.vout.append(CTxOut(0, CScript([OP_RETURN])))
-        # tx5 = create_tx(tx1, 4, 0, CScript([OP_RETURN]))
-        #
-        # update_block(84, [tx1,tx2,tx3,tx4,tx5])
-        # yield accepted()
-        # save_spendable_output()
-        #
-        # tip(83)
-        # block(85, spend=out[29])
-        # yield rejected()
-        #
-        # block(86, spend=out[30])
-        # yield accepted()
-        #
-        # tip(84)
-        # block(87, spend=out[30])
-        # yield rejected()
-        # save_spendable_output()
-        #
-        # block(88, spend=out[31])
-        # yield accepted()
-        # save_spendable_output()
-        #
-        # # trying to spend the OP_RETURN output is rejected
-        # block("89a", spend=out[32])
-        # tx = create_tx(tx1, 0, 0, CScript([OP_TRUE]))
-        # update_block("89a", [tx])
-        # yield rejected()
-        #
-        #
-        # #  Test re-org of a week's worth of blocks (1088 blocks)
-        # #  This test takes a minute or two and can be accomplished in memory
-        # #
-        # if self.options.runbarelyexpensive:
-        #     tip(88)
-        #     LARGE_REORG_SIZE = 1088
-        #     test1 = TestInstance(sync_every_block=False)
-        #     spend=out[32]
-        #     for i in range(89, LARGE_REORG_SIZE + 89):
-        #         b = block(i, spend)
-        #         tx = CTransaction()
-        #         script_length = MAX_BLOCK_BASE_SIZE - len(b.serialize()) - 69
-        #         script_output = CScript([b'\x00' * script_length])
-        #         tx.vout.append(CTxOut(0, script_output))
-        #         tx.vin.append(CTxIn(COutPoint(b.vtx[1].sha256, 0)))
-        #         b = update_block(i, [tx])
-        #         assert_equal(len(b.serialize()), MAX_BLOCK_BASE_SIZE)
-        #         test1.blocks_and_transactions.append([self.tip, True])
-        #         save_spendable_output()
-        #         spend = get_spendable_output()
-        #
-        #     yield test1
-        #     chain1_tip = i
-        #
-        #     # now create alt chain of same length
-        #     tip(88)
-        #     test2 = TestInstance(sync_every_block=False)
-        #     for i in range(89, LARGE_REORG_SIZE + 89):
-        #         block("alt"+str(i))
-        #         test2.blocks_and_transactions.append([self.tip, False])
-        #     yield test2
-        #
-        #     # extend alt chain to trigger re-org
-        #     block("alt" + str(chain1_tip + 1))
-        #     yield accepted()
-        #
-        #     # ... and re-org back to the first chain
-        #     tip(chain1_tip)
-        #     block(chain1_tip + 1)
-        #     yield rejected()
-        #     block(chain1_tip + 2)
-        #     yield accepted()
-        #
-        #     chain1_tip += 2
+        if self.options.runbarelyexpensive:
+            tip(88)
+            LARGE_REORG_SIZE = 5
+            test1 = TestInstance(sync_every_block=False)
+            spend=out[32]
+
+            for i in range(89, LARGE_REORG_SIZE + 89):
+                b = block(i, spend)
+                tx = CTransaction()
+                script_length = MAX_BLOCK_BASE_SIZE - len(b.serialize()) - 78
+                script_output = CScript([b'\x00' * script_length])
+                tx.vout.append(CTxOut(spend.tx.vout[0].nValue - i * min_fee, script_output))
+                tx.vin.append(CTxIn(COutPoint(b.vtx[1].sha256, 0)))
+                b = update_block(i, [tx])
+                if not (MAX_BLOCK_BASE_SIZE >= len(b.serialize()) > MAX_BLOCK_BASE_SIZE - 10):
+                    print("Unexpected block size:", len(b.serialize()),
+                          "( the size should be >", MAX_BLOCK_BASE_SIZE - 10, "and", "<=", MAX_BLOCK_BASE_SIZE, ")")
+                    assert False
+                test1.blocks_and_transactions.append([self.tip, True])
+                save_spendable_output()
+                spend = get_spendable_output()
+
+            yield test1
+            chain1_tip = i
+
+            # now create alt chain of same length
+            tip(88)
+            test2 = TestInstance(sync_every_block=False)
+            for i in range(89, LARGE_REORG_SIZE + 89):
+                block("alt"+str(i))
+                test2.blocks_and_transactions.append([self.tip, False])
+            yield test2
+
+            # extend alt chain to trigger re-org
+            block("alt" + str(chain1_tip + 1))
+            yield accepted()
+
+            # ... and re-org back to the first chain
+            tip(chain1_tip)
+            block(chain1_tip + 1)
+            yield rejected()
+            block(chain1_tip + 2)
+            yield accepted()
+
+            chain1_tip += 2
 
 
 if __name__ == '__main__':

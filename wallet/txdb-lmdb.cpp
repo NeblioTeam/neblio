@@ -817,11 +817,7 @@ bool CTxDB::WriteBlock(uint256 hash, const CBlock& blk)
     return Write(hash, blk, db_blocks);
 }
 
-bool CTxDB::EraseTxIndex(const CTransaction& tx)
-{
-    uint256 hash = tx.GetHash();
-    return Erase(hash, db_tx);
-}
+bool CTxDB::EraseTxIndex(const uint256& hash) { return Erase(hash, db_tx); }
 
 bool CTxDB::ContainsTx(uint256 hash) { return Exists(hash, db_tx); }
 

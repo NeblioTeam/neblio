@@ -731,7 +731,7 @@ public:
     bool WriteNTP1TxWithTokenSymbol(const std::string& tokenName, const NTP1Transaction& tx);
     bool ReadAddressPubKey(const CBitcoinAddress& address, std::vector<uint8_t>& pubkey);
     bool WriteAddressPubKey(const CBitcoinAddress& address, const std::vector<uint8_t>& pubkey);
-    bool EraseTxIndex(const CTransaction& tx);
+    bool EraseTxIndex(const uint256& hash);
     bool ContainsTx(uint256 hash);
     bool ContainsNTP1Tx(uint256 hash);
     bool ReadDiskTx(uint256 hash, CTransaction& tx, CTxIndex& txindex);

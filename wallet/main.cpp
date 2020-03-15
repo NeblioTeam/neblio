@@ -409,7 +409,7 @@ void AssertNTP1TokenNameIsNotAlreadyInMainChain(const NTP1Transaction& ntp1tx, C
     }
 }
 
-bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInputs)
+bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInputs, CTxDB* txdbPtr)
 {
     AssertLockHeld(cs_main);
     if (pfMissingInputs)
@@ -465,17 +465,28 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
     }
 
     {
-        CTxDB txdb;
+        /**
+         * Using a pointer from the outside is important because a new instance of the database does not
+         * discover the changes in the database until it's flushed. We want to have the option to use a
+         * previous CTxDB instance
+         */
+        CTxDB*                 txdb = txdbPtr;
+        std::unique_ptr<CTxDB> txdbUniquePtr;
+        if (!txdb) {
+            txdbUniquePtr = MakeUnique<CTxDB>();
+            txdb          = txdbUniquePtr.get();
+        }
+        assert(txdb);
 
         // do we already have it?
-        if (txdb.ContainsTx(hash))
+        if (txdb->ContainsTx(hash))
             return false;
 
         MapPrevTx                                                           mapInputs;
         map<uint256, CTxIndex>                                              mapUnused;
         map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>> mapUnused2;
         bool                                                                fInvalid = false;
-        if (!tx.FetchInputs(txdb, mapUnused, false, false, mapInputs, fInvalid)) {
+        if (!tx.FetchInputs(*txdb, mapUnused, false, false, mapInputs, fInvalid)) {
             if (fInvalid)
                 return error("AcceptToMemoryPool : FetchInputs found invalid tx %s",
                              hash.ToString().substr(0, 10).c_str());
@@ -527,7 +538,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
 
         // Check against previous transactions
         // This is done last to help prevent CPU exhaustion denial-of-service attacks.
-        if (!tx.ConnectInputs(txdb, mapInputs, mapUnused, CDiskTxPos(1, 1),
+        if (!tx.ConnectInputs(*txdb, mapInputs, mapUnused, CDiskTxPos(1, 1),
                               boost::atomic_load(&pindexBest), false, false)) {
             return error("AcceptToMemoryPool : ConnectInputs failed %s",
                          hash.ToString().substr(0, 10).c_str());
@@ -537,12 +548,12 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
             Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
             try {
                 std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
-                    NTP1Transaction::StdFetchedInputTxsToNTP1(tx, mapInputs, txdb, false, mapUnused2,
+                    NTP1Transaction::StdFetchedInputTxsToNTP1(tx, mapInputs, *txdb, false, mapUnused2,
                                                               mapUnused);
                 NTP1Transaction ntp1tx;
                 ntp1tx.readNTP1DataFromTx(tx, inputsTxs);
                 if (EnableEnforceUniqueTokenSymbols()) {
-                    AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, txdb);
+                    AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, *txdb);
                 }
             } catch (std::exception& ex) {
                 printf("AcceptToMemoryPool: An invalid NTP1 transaction was submitted to the memory "
@@ -2198,12 +2209,13 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         CInv inv(MSG_BLOCK, hashBlock);
         pfrom->AddInventoryKnown(inv);
 
-        if (ProcessBlock(pfrom, &block))
+        if (ProcessBlock(pfrom, &block)) {
             mapAlreadyAskedFor.erase(inv);
-        if (block.reject) {
+        } else if (block.reject) {
             pfrom->PushMessage("reject", std::string("block"), block.reject->chRejectCode,
                                block.reject->strRejectReason, block.reject->hashBlock);
         }
+
         if (block.nDoS) {
             pfrom->Misbehaving(block.nDoS);
         }
@@ -2451,6 +2463,8 @@ bool ProcessMessages(CNode* pfrom)
             if (fShutdown)
                 break;
         } catch (std::ios_base::failure& e) {
+            pfrom->PushMessage("reject", strCommand, REJECT_MALFORMED,
+                               std::string("error parsing message"));
             if (strstr(e.what(), "end of data")) {
                 // Allow exceptions from under-length message on vRecv
                 printf("ProcessMessages(%s, %u bytes) : Exception '%s' caught, normally caused by a "
