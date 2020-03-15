@@ -2195,8 +2195,15 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
             if (nEvicted > 0)
                 printf("mapOrphan overflow, removed %u tx\n", nEvicted);
         }
-        if (tx.nDoS)
+
+        if (tx.reject) {
+            pfrom->PushMessage("reject", std::string("tx"), tx.reject->chRejectCode,
+                               tx.reject->strRejectReason.substr(0, MAX_REJECT_MESSAGE_LENGTH),
+                               tx.reject->hashTx);
+        }
+        if (tx.nDoS) {
             pfrom->Misbehaving(tx.nDoS);
+        }
     }
 
     else if (strCommand == "block") {

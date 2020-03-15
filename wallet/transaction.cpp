@@ -498,10 +498,18 @@ bool CTransaction::ConnectInputs(CTxDB& /*txdb*/, MapPrevTx inputs,
                 if (!VerifySignature(txPrev, *this, i, fStrictPayToScriptHash, false, 0)) {
                     // only during transition phase for P2SH: do not invoke anti-DoS code for
                     // potentially old clients relaying bad P2SH transactions
-                    if (fStrictPayToScriptHash && VerifySignature(txPrev, *this, i, false, false, 0))
+                    if (fStrictPayToScriptHash && VerifySignature(txPrev, *this, i, false, false, 0)) {
                         return error("ConnectInputs() : %s P2SH VerifySignature failed",
                                      GetHash().ToString().c_str());
+                    }
 
+                    if (sourceBlockPtr) {
+                        sourceBlockPtr->reject =
+                            CBlock::CBlockReject(REJECT_INVALID, "mandatory-script-verify-flag-failed",
+                                                 sourceBlockPtr->GetHash());
+                    }
+                    this->reject = CTransaction::CTxReject(
+                        REJECT_INVALID, "mandatory-script-verify-flag-failed", GetHash());
                     return DoS(100, error("ConnectInputs() : %s VerifySignature failed",
                                           GetHash().ToString().c_str()));
                 }

@@ -36,6 +36,20 @@ public:
     std::vector<CTxOut> vout;
     unsigned int        nLockTime;
 
+    struct CTxReject
+    {
+        unsigned char chRejectCode;
+        std::string   strRejectReason;
+        uint256       hashTx;
+        CTxReject(int rejectCode = 0, const std::string& rejectReason = "", const uint256& txHash = 0)
+            : chRejectCode(static_cast<unsigned char>(rejectCode)), strRejectReason(rejectReason),
+              hashTx(txHash)
+        {
+        }
+    };
+
+    boost::optional<CTxReject> reject;
+
     // Denial-of-service detection:
     mutable int nDoS;
     bool        DoS(int nDoSIn, bool fIn) const

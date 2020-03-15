@@ -48,6 +48,8 @@ static const int64_t MIN_RELAY_TX_FEE = MIN_TX_FEE;
 /** Threshold for nLockTime: below this value it is interpreted as block number, otherwise as UNIX
  * timestamp. */
 static const unsigned int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20 1985 UTC
+/** Maximum length of reject messages. */
+static const unsigned int MAX_REJECT_MESSAGE_LENGTH = 111;
 
 static const int64_t COIN_YEAR_REWARD = 10 * CENT; // 10%
 
