@@ -57,8 +57,7 @@ class CBrokenBlock(CBlock):
         return r
 
 
-fee = 20000
-min_fee = 10000
+fee = min_fee
 
 class FullBlockTest(ComparisonTestFramework):
     # Can either run this test as 1 node with expected answers, or two and compare them.

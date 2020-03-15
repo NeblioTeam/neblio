@@ -214,8 +214,13 @@ bool CTransaction::CheckTransaction(CBlock* sourceBlockPtr) const
     // Check for duplicate inputs
     std::set<COutPoint> vInOutPoints;
     for (const CTxIn& txin : vin) {
-        if (vInOutPoints.count(txin.prevout))
+        if (vInOutPoints.find(txin.prevout) != vInOutPoints.cend()) {
+            if (sourceBlockPtr) {
+                sourceBlockPtr->reject = CBlock::CBlockReject(
+                    REJECT_INVALID, "bad-txns-inputs-duplicate", sourceBlockPtr->GetHash());
+            }
             return false;
+        }
         vInOutPoints.insert(txin.prevout);
     }
 

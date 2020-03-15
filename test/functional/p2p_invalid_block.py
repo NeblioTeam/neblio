@@ -79,7 +79,7 @@ class InvalidBlockRequestTest(ComparisonTestFramework):
 
         # b'0x51' is OP_TRUE
         tx1 = create_transaction(self.block1.vtx[0], 0, b'\x51', 50 * COIN)
-        tx2 = create_transaction(tx1, 0, b'\x51', 50 * COIN)
+        tx2 = create_transaction(tx1, 0, b'\x51', 50 * COIN - min_fee)
 
         block2.vtx.extend([tx1, tx2])
         block2.hashMerkleRoot = block2.calc_merkle_root()
@@ -106,7 +106,8 @@ class InvalidBlockRequestTest(ComparisonTestFramework):
         block2_dup.hashMerkleRoot = block2_dup.calc_merkle_root()
         block2_dup.rehash()
         block2_dup.solve()
-        yield TestInstance([[block2_dup, RejectResult(16, b'bad-txns-inputs-duplicate')], [block2_orig, True]])
+        yield TestInstance([[block2_dup, RejectResult(16, b'bad-txns-inputs-duplicate')]])
+        yield TestInstance([[block2_orig, True]])
         height += 1
 
         '''
@@ -114,7 +115,7 @@ class InvalidBlockRequestTest(ComparisonTestFramework):
         '''
         block3 = create_block(self.tip, create_coinbase(height), self.block_time)
         self.block_time += 1
-        block3.vtx[0].vout[0].nValue = 100 * COIN # Too high!
+        block3.vtx[0].vout[0].nValue = 3000 * COIN # Too high!
         block3.vtx[0].sha256=None
         block3.vtx[0].calc_sha256()
         block3.hashMerkleRoot = block3.calc_merkle_root()
