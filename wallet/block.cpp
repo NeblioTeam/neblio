@@ -238,10 +238,11 @@ CBlock::ChainReplaceTxs CBlock::GetAlternateChainTxsUpToCommonAncestor(CTxDB& tx
                 uint256      outputTxHash  = txin.prevout.hash;
                 unsigned     outputNumInTx = txin.prevout.n;
 
+                // we see if we already have prev txindex in the list of modified outputs
                 auto     idxIt = result.modifiedOutputsTxs.find(outputTxHash);
                 CTxIndex txindex;
                 if (idxIt == result.modifiedOutputsTxs.cend()) {
-                    // Get prev txindex from disk
+                    // It's not in the list of modified outputs, so we get prev txindex from disk
                     if (!txdb.ReadTxIndex(outputTxHash, txindex)) {
                         // the only place left is on the fork itself: the block is spending a tx on the
                         // fork
