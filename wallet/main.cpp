@@ -1087,38 +1087,10 @@ void AssertIssuanceUniquenessInBlock(
     }
 }
 
-CTransaction PopLeafTransaction(std::vector<CTransaction>& vtx)
-{
-    if (vtx.empty()) {
-        return CTransaction();
-    }
-    // pop one element
-    CTransaction result = vtx.back();
-    vtx.pop_back();
-
-    // if any element in the array is an input to this transaction, swap them, and restart the loop
-    for (int i = 0; i < static_cast<int>(vtx.size()); i++) {
-        for (const CTxIn& input : result.vin) {
-            assert(i >= 0);
-            if (input.prevout.hash == vtx[i].GetHash()) {
-                std::swap(result, vtx[i]);
-                i = -1; // reset the loop
-                break;
-            }
-        }
-    }
-    return result;
-}
-
 void WriteNTP1BlockTransactionsToDisk(const std::vector<CTransaction>& vtx, CTxDB& txdb)
 {
     if (Params().PassedFirstValidNTP1Tx()) {
-        std::vector<CTransaction> transactions(vtx.begin(), vtx.end());
-
-        // add current transactions to possible inputs to cover the case if a transaction spends an
-        // output in the same block
-        while (!transactions.empty()) {
-            CTransaction&& tx = PopLeafTransaction(transactions);
+        for (const CTransaction& tx : vtx) {
             WriteNTP1TxToDiskFromRawTx(tx, txdb);
         }
     }
