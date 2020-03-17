@@ -1101,14 +1101,17 @@ void ShrinkDebugFile()
 //  - Median of other nodes clocks
 //  - The user (asking the user to fix the system clock if the first two disagree)
 //
-static int64_t nMockTime = 0; // For unit testing
+static boost::atomic<int64_t> nMockTime{0}; // For unit testing
 
 int64_t GetTime()
 {
-    if (nMockTime)
-        return nMockTime;
+    const int64_t mocktime = nMockTime.load(boost::memory_order_relaxed);
+    if (mocktime)
+        return mocktime;
 
-    return time(NULL);
+    time_t now = time(nullptr);
+    assert(now > 0);
+    return now;
 }
 
 void SetMockTime(int64_t nMockTimeIn) { nMockTime = nMockTimeIn; }

@@ -172,6 +172,8 @@ extern json_spirit::Value getconnectioncount(const json_spirit::Array& params,
                                              bool                      fHelp); // in rpcnet.cpp
 extern json_spirit::Value addnode(const json_spirit::Array& params,
                                   bool                      fHelp); // in rpcnet.cpp
+extern json_spirit::Value setmocktime(const json_spirit::Array& params,
+                                      bool                      fHelp); // in rpcnet.cpp
 extern json_spirit::Value getpeerinfo(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value dumpwallet(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value importwallet(const json_spirit::Array& params, bool fHelp);

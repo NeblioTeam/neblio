@@ -1,9 +1,9 @@
 #include "blockindex.h"
 
 #include "bignum.h"
+#include "block.h"
 #include "boost/shared_ptr.hpp"
 #include "util.h"
-#include "block.h"
 
 CBlockIndex::CBlockIndex()
 {

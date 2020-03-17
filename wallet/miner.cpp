@@ -590,6 +590,10 @@ void StakeMiner(CWallet* pwallet)
 
     bool fTryToSync = Params().MiningRequiresPeers();
 
+    // we don't stake in regtest mode
+    if (Params().MineBlocksOnDemand())
+        return;
+
     while (true) {
         if (fShutdown)
             return;
