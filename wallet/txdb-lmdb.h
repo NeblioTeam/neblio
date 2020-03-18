@@ -751,6 +751,8 @@ public:
     bool WriteCheckpointPubKey(const std::string& strPubKey);
     bool LoadBlockIndex();
 
+    static uintmax_t GetCurrentDiskUsage();
+
     void init_blockindex(bool fRemoveOld = false);
 
 private:

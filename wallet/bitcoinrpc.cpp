@@ -298,6 +298,8 @@ static const CRPCCommand vRPCCommands[] =
     { "makekeypair",               &makekeypair,               false,  true},
     { "sendalert",                 &sendalert,                 false,  false},
     { "exportblockchain",          &exportblockchain,          false,  false },
+    { "getblockchaininfo",         &getblockchaininfo,         false,  false },
+    { "getblockheader",            &getblockheader,            false,  false },
     { "syncwithvalidationinterfacequeue", &syncwithvalidationinterfacequeue, true, false },
 };
 // clang-format on

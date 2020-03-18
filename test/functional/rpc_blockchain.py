@@ -36,24 +36,23 @@ from test_framework.util import (
 class BlockchainTest(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 1
-        self.extra_args = [['-stopatheight=207', '-prune=1']]
+        self.extra_args = [[]]
 
     def run_test(self):
         self._test_getblockchaininfo()
-        self._test_getchaintxstats()
-        self._test_gettxoutsetinfo()
+        # self._test_getchaintxstats()
+        # self._test_gettxoutsetinfo()
         self._test_getblockheader()
         self._test_getdifficulty()
-        self._test_getnetworkhashps()
-        self._test_stopatheight()
-        assert self.nodes[0].verifychain(4, 0)
+        # self._test_getnetworkhashps()
+        # self._test_stopatheight()
+        # assert self.nodes[0].verifychain(4, 0)
 
     def _test_getblockchaininfo(self):
         self.log.info("Test getblockchaininfo")
 
         keys = [
             'bestblockhash',
-            'bip9_softforks',
             'blocks',
             'chain',
             'chainwork',
@@ -61,51 +60,21 @@ class BlockchainTest(BitcoinTestFramework):
             'headers',
             'initialblockdownload',
             'mediantime',
-            'pruned',
             'size_on_disk',
-            'softforks',
-            'verificationprogress',
+            # 'verificationprogress',
             'warnings',
         ]
         res = self.nodes[0].getblockchaininfo()
 
-        # result should have these additional pruning keys if manual pruning is enabled
-        assert_equal(sorted(res.keys()), sorted(['pruneheight', 'automatic_pruning'] + keys))
+        assert_equal(sorted(res.keys()), sorted(keys))
 
         # size_on_disk should be > 0
-        assert_greater_than(res['size_on_disk'], 0)
-
-        # pruneheight should be greater or equal to 0
-        assert_greater_than_or_equal(res['pruneheight'], 0)
-
-        # check other pruning fields given that prune=1
-        assert res['pruned']
-        assert not res['automatic_pruning']
-
-        self.restart_node(0, ['-stopatheight=207'])
-        res = self.nodes[0].getblockchaininfo()
-        # should have exact keys
-        assert_equal(sorted(res.keys()), keys)
-
-        self.restart_node(0, ['-stopatheight=207', '-prune=550'])
-        res = self.nodes[0].getblockchaininfo()
-        # result should have these additional pruning keys if prune=550
-        assert_equal(sorted(res.keys()), sorted(['pruneheight', 'automatic_pruning', 'prune_target_size'] + keys))
-
-        # check related fields
-        assert res['pruned']
-        assert_equal(res['pruneheight'], 0)
-        assert res['automatic_pruning']
-        assert_equal(res['prune_target_size'], 576716800)
         assert_greater_than(res['size_on_disk'], 0)
 
     def _test_getchaintxstats(self):
         chaintxstats = self.nodes[0].getchaintxstats(1)
         # 200 txs plus genesis tx
         assert_equal(chaintxstats['txcount'], 201)
-        # tx rate should be 1 per 10 minutes, or 1/600
-        # we have to round because of binary math
-        assert_equal(round(chaintxstats['txrate'] * 600, 10), Decimal(1))
 
         b1 = self.nodes[0].getblock(self.nodes[0].getblockhash(1))
         b200 = self.nodes[0].getblock(self.nodes[0].getblockhash(200))
@@ -185,7 +154,7 @@ class BlockchainTest(BitcoinTestFramework):
         assert_equal(header['confirmations'], 1)
         assert_equal(header['previousblockhash'], secondbesthash)
         assert_is_hex_string(header['chainwork'])
-        assert_equal(header['nTx'], 1)
+        # assert_equal(header['nTx'], 1)
         assert_is_hash_string(header['hash'])
         assert_is_hash_string(header['previousblockhash'])
         assert_is_hash_string(header['merkleroot'])
@@ -201,7 +170,9 @@ class BlockchainTest(BitcoinTestFramework):
         difficulty = self.nodes[0].getdifficulty()
         # 1 hash in 2 should be valid, so difficulty should be 1/2**31
         # binary => decimal => binary math is why we do this check
-        assert abs(difficulty * 2**31 - 1) < 0.0001
+        assert isinstance(difficulty['proof-of-work'], Decimal)
+        assert isinstance(difficulty['proof-of-stake'], Decimal)
+        assert isinstance(difficulty["search-interval"], int)
 
     def _test_getnetworkhashps(self):
         hashes_per_second = self.nodes[0].getnetworkhashps()

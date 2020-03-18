@@ -1233,6 +1233,16 @@ bool CTxDB::LoadBlockIndex()
     return true;
 }
 
+uintmax_t CTxDB::GetCurrentDiskUsage()
+{
+    try {
+        boost::filesystem::path path(GetDataDir() / DB_DIR / "data.mdb");
+        return boost::filesystem::file_size(path);
+    } catch (...) {
+        return 0;
+    }
+}
+
 mdb_txn_safe::mdb_txn_safe(const bool check) : m_txn(nullptr), m_check(check)
 {
     if (check) {
