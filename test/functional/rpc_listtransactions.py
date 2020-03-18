@@ -82,15 +82,14 @@ class ListTransactionsTest(BitcoinTestFramework):
                            {"txid":txid, "account" : "toself"} )
 
         pubkey = self.nodes[1].validateaddress(self.nodes[1].getnewaddress())['pubkey']
-        multisig = self.nodes[1].createmultisig(1, [pubkey])
-        self.nodes[0].importaddress(multisig["redeemScript"], "watchonly", False, True)
-        txid = self.nodes[1].sendtoaddress(multisig["address"], 0.1)
-        self.nodes[1].generate(1)
+        multisigaddress = self.nodes[1].addmultisigaddress(1, [pubkey], "someAccountName")
+        txid = self.nodes[1].sendtoaddress(multisigaddress, 0.1)
+        self.nodes[1].generate(30)
         self.sync_all()
-        assert(len(self.nodes[0].listtransactions("watchonly", 100, 0, False)) == 0)
-        assert_array_result(self.nodes[0].listtransactions("watchonly", 100, 0, True),
-                           {"category":"receive","amount":Decimal("0.1")},
-                           {"txid":txid, "account" : "watchonly"} )
+        # assert(len(self.nodes[0].listtransactions("", 100, 0)) == 0)
+        assert_array_result(self.nodes[1].listtransactions("someAccountName", 100, 0),
+                           {"category": "receive","amount": Decimal("0.1")},
+                           {"txid": txid, "account": "someAccountName"})
 
         self.run_rbf_opt_in_test()
 
@@ -116,16 +115,16 @@ class ListTransactionsTest(BitcoinTestFramework):
         # 1. Chain a few transactions that don't opt-in.
         txid_1 = self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 1)
         assert(not is_opt_in(self.nodes[0], txid_1))
-        assert_array_result(self.nodes[0].listtransactions(), {"txid": txid_1}, {"bip125-replaceable":"no"})
+        # assert_array_result(self.nodes[0].listtransactions(), {"txid": txid_1}, {"bip125-replaceable":"no"})
         sync_mempools(self.nodes)
-        assert_array_result(self.nodes[1].listtransactions(), {"txid": txid_1}, {"bip125-replaceable":"no"})
+        # assert_array_result(self.nodes[1].listtransactions(), {"txid": txid_1}, {"bip125-replaceable":"no"})
 
         # Tx2 will build off txid_1, still not opting in to RBF.
         utxo_to_use = get_unconfirmed_utxo_entry(self.nodes[0], txid_1)
-        assert_equal(utxo_to_use["safe"], True)
+        # assert_equal(utxo_to_use["safe"], True)
         utxo_to_use = get_unconfirmed_utxo_entry(self.nodes[1], txid_1)
         utxo_to_use = get_unconfirmed_utxo_entry(self.nodes[1], txid_1)
-        assert_equal(utxo_to_use["safe"], False)
+        # assert_equal(utxo_to_use["safe"], False)
 
         # Create tx2 using createrawtransaction
         inputs = [{"txid":utxo_to_use["txid"], "vout":utxo_to_use["vout"]}]
@@ -136,9 +135,9 @@ class ListTransactionsTest(BitcoinTestFramework):
 
         # ...and check the result
         assert(not is_opt_in(self.nodes[1], txid_2))
-        assert_array_result(self.nodes[1].listtransactions(), {"txid": txid_2}, {"bip125-replaceable":"no"})
+        # assert_array_result(self.nodes[1].listtransactions(), {"txid": txid_2}, {"bip125-replaceable":"no"})
         sync_mempools(self.nodes)
-        assert_array_result(self.nodes[0].listtransactions(), {"txid": txid_2}, {"bip125-replaceable":"no"})
+        # assert_array_result(self.nodes[0].listtransactions(), {"txid": txid_2}, {"bip125-replaceable":"no"})
 
         # Tx3 will opt-in to RBF
         utxo_to_use = get_unconfirmed_utxo_entry(self.nodes[0], txid_2)
@@ -152,9 +151,9 @@ class ListTransactionsTest(BitcoinTestFramework):
         txid_3 = self.nodes[0].sendrawtransaction(tx3_signed)
 
         assert(is_opt_in(self.nodes[0], txid_3))
-        assert_array_result(self.nodes[0].listtransactions(), {"txid": txid_3}, {"bip125-replaceable":"yes"})
+        # assert_array_result(self.nodes[0].listtransactions(), {"txid": txid_3}, {"bip125-replaceable":"yes"})
         sync_mempools(self.nodes)
-        assert_array_result(self.nodes[1].listtransactions(), {"txid": txid_3}, {"bip125-replaceable":"yes"})
+        # assert_array_result(self.nodes[1].listtransactions(), {"txid": txid_3}, {"bip125-replaceable":"yes"})
 
         # Tx4 will chain off tx3.  Doesn't signal itself, but depends on one
         # that does.
@@ -166,35 +165,36 @@ class ListTransactionsTest(BitcoinTestFramework):
         txid_4 = self.nodes[1].sendrawtransaction(tx4_signed)
 
         assert(not is_opt_in(self.nodes[1], txid_4))
-        assert_array_result(self.nodes[1].listtransactions(), {"txid": txid_4}, {"bip125-replaceable":"yes"})
+        # assert_array_result(self.nodes[1].listtransactions(), {"txid": txid_4}, {"bip125-replaceable":"yes"})
         sync_mempools(self.nodes)
-        assert_array_result(self.nodes[0].listtransactions(), {"txid": txid_4}, {"bip125-replaceable":"yes"})
+        # assert_array_result(self.nodes[0].listtransactions(), {"txid": txid_4}, {"bip125-replaceable":"yes"})
 
         # Replace tx3, and check that tx4 becomes unknown
-        tx3_b = tx3_modified
-        tx3_b.vout[0].nValue -= int(Decimal("0.004") * COIN) # bump the fee
-        tx3_b = bytes_to_hex_str(tx3_b.serialize())
-        tx3_b_signed = self.nodes[0].signrawtransaction(tx3_b)['hex']
-        txid_3b = self.nodes[0].sendrawtransaction(tx3_b_signed, True)
-        assert(is_opt_in(self.nodes[0], txid_3b))
+        # DISABLED: No replacement in neblio
+        # tx3_b = tx3_modified
+        # tx3_b.vout[0].nValue -= int(Decimal("0.004") * COIN)  # bump the fee
+        # tx3_b = bytes_to_hex_str(tx3_b.serialize())
+        # tx3_b_signed = self.nodes[0].signrawtransaction(tx3_b)['hex']
+        # txid_3b = self.nodes[0].sendrawtransaction(tx3_b_signed)
+        # assert(is_opt_in(self.nodes[0], txid_3b))
 
-        assert_array_result(self.nodes[0].listtransactions(), {"txid": txid_4}, {"bip125-replaceable":"unknown"})
+        # assert_array_result(self.nodes[0].listtransactions(), {"txid": txid_4}, {"bip125-replaceable":"unknown"})
         sync_mempools(self.nodes)
-        assert_array_result(self.nodes[1].listtransactions(), {"txid": txid_4}, {"bip125-replaceable":"unknown"})
+        # assert_array_result(self.nodes[1].listtransactions(), {"txid": txid_4}, {"bip125-replaceable":"unknown"})
 
         # Check gettransaction as well:
-        for n in self.nodes[0:2]:
-            assert_equal(n.gettransaction(txid_1)["bip125-replaceable"], "no")
-            assert_equal(n.gettransaction(txid_2)["bip125-replaceable"], "no")
-            assert_equal(n.gettransaction(txid_3)["bip125-replaceable"], "yes")
-            assert_equal(n.gettransaction(txid_3b)["bip125-replaceable"], "yes")
-            assert_equal(n.gettransaction(txid_4)["bip125-replaceable"], "unknown")
+        # for n in self.nodes[0:2]:
+        #     assert_equal(n.gettransaction(txid_1)["bip125-replaceable"], "no")
+        #     assert_equal(n.gettransaction(txid_2)["bip125-replaceable"], "no")
+        #     assert_equal(n.gettransaction(txid_3)["bip125-replaceable"], "yes")
+        #     assert_equal(n.gettransaction(txid_3b)["bip125-replaceable"], "yes")
+        #     assert_equal(n.gettransaction(txid_4)["bip125-replaceable"], "unknown")
 
         # After mining a transaction, it's no longer BIP125-replaceable
-        self.nodes[0].generate(1)
-        assert(txid_3b not in self.nodes[0].getrawmempool())
-        assert_equal(self.nodes[0].gettransaction(txid_3b)["bip125-replaceable"], "no")
-        assert_equal(self.nodes[0].gettransaction(txid_4)["bip125-replaceable"], "unknown")
+        # self.nodes[0].generate(1)
+        # assert(txid_3b not in self.nodes[0].getrawmempool())
+        # assert_equal(self.nodes[0].gettransaction(txid_3b)["bip125-replaceable"], "no")
+        # assert_equal(self.nodes[0].gettransaction(txid_4)["bip125-replaceable"], "unknown")
 
 
 if __name__ == '__main__':
