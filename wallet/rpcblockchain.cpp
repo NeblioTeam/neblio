@@ -544,7 +544,7 @@ Value getblockchaininfo(const Array& params, bool fHelp)
     //        chainActive.Tip())));
     obj.push_back(Pair("initialblockdownload", IsInitialBlockDownload()));
     obj.push_back(Pair("chainwork", pindexBest->nChainTrust.GetHex()));
-    obj.push_back(Pair("size_on_disk", CTxDB::GetCurrentDiskUsage()));
+    obj.push_back(Pair("size_on_disk", (int64_t)CTxDB::GetCurrentDiskUsage()));
     obj.push_back(Pair("warnings", GetWarnings("statusbar")));
     return obj;
 }
