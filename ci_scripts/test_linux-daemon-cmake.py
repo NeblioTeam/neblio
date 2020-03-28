@@ -49,41 +49,25 @@ os.chdir(build_dir)
 
 nci.call_with_err_code('ccache -s')
 
-# nci.call_with_err_code('python ../build_scripts/CompileOpenSSL-Linux.py')
-# nci.call_with_err_code('python ../build_scripts/CompileCurl-Linux.py')
-# nci.call_with_err_code('python ../build_scripts/CompileBoost-Linux.py')
-
-# os.environ['PKG_CONFIG_PATH'] = os.path.join(working_dir, build_dir, 'curl_build/lib/pkgconfig/')
-# os.environ['OPENSSL_INCLUDE_PATH'] = os.path.join(working_dir, build_dir, 'openssl_build/include/')
-# os.environ['OPENSSL_LIB_PATH'] = os.path.join(working_dir, build_dir, 'openssl_build/lib/')
-
-nci.call_with_err_code('ccache -s')
-
 # prepend ccache to the path, necessary since prior steps prepend things to the path
 os.environ['PATH'] = '/usr/lib/ccache:' + os.environ['PATH']
 
 
-nci.call_with_err_code('cmake -DNEBLIO_CMAKE=1 -DCMAKE_BUILD_TYPE=Debug ..')
+nci.call_with_err_code('cmake -DNEBLIO_CMAKE=1 -DCMAKE_BUILD_TYPE=Debug -DNEBLIO_DOWNLOAD_AND_TEST_ALL_TXS=OFF -DNEBLIO_RUN_NTP_PARSE_TESTS=ON ..')
 nci.call_with_err_code("make -j" + str(mp.cpu_count()))
 
 nci.call_with_err_code('ccache -s')
 
+# download test data
+nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/test_data_mainnet.tar.xz -O ../wallet/test/data/test_data_mainnet.tar.xz')
+nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/test_data_testnet.tar.xz -O ../wallet/test/data/test_data_testnet.tar.xz')
+nci.call_with_err_code('tar -xJvf ../wallet/test/data/test_data_mainnet.tar.xz -C ../wallet/test/data')
+nci.call_with_err_code('tar -xJvf ../wallet/test/data/test_data_testnet.tar.xz -C ../wallet/test/data')
+nci.call_with_err_code('rm ../wallet/test/data/*.tar.xz')
+
 # run tests
 os.chdir('./wallet/test')
-nci.call_with_err_code('pwd')
-nci.call_with_err_code('ls -al')
 nci.call_with_err_code('./neblio-tests')
-
-file_name = '$(date +%Y-%m-%d)---' + os.environ['BRANCH'] + '-' + os.environ['COMMIT'][:7] + '---nebliod---ubuntu16.04.tar.gz'
-
-nci.call_with_err_code('tar -zcvf "' + file_name + '" ./nebliod')
-nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)
-nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
-# set the SOURCE_DIR & SOURCE_PATH env vars, these point to the binary that will be uploaded
-nci.call_with_err_code('echo "::set-env name=SOURCE_DIR::'  + deploy_dir + '"')
-nci.call_with_err_code('echo "::set-env name=SOURCE_PATH::' + deploy_dir + file_name + '"')
-
-nci.call_with_err_code('ccache -s')
 
 print("")
 print("")
