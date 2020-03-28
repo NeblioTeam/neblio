@@ -37,7 +37,9 @@ packages_to_install = \
 "libsodium-dev",
 "libboost-all-dev",
 "libdbus-glib-1-dev",
-"gdb"
+"gdb",
+"python3",
+"python3-pip"
 ]
 
 nci.install_packages_debian(packages_to_install)
@@ -68,7 +70,9 @@ nci.call_with_err_code('ccache -s')
 
 # run tests
 os.chdir('./wallet/test')
-nci.call_with_err_code('gdb ./neblio-tests')
+os.chdir('pwd')
+os.chdir('ls -al')
+nci.call_with_err_code('./neblio-tests')
 
 file_name = '$(date +%Y-%m-%d)---' + os.environ['BRANCH'] + '-' + os.environ['COMMIT'][:7] + '---nebliod---ubuntu16.04.tar.gz'
 
