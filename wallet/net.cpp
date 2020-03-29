@@ -1296,7 +1296,7 @@ void ThreadOpenConnections2(void* /*parg*/)
 
     // Initiate network connections
     int64_t nStart = GetTime();
-    while (true) {
+    while (!fShutdown) {
         ProcessOneShot();
 
         vnThreadsRunning[THREAD_OPENCONNECTIONS]--;
