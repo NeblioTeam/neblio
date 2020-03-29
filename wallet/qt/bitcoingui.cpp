@@ -900,8 +900,8 @@ void BitcoinGUI::exportBlockchainBootstrap()
         if (includeOrphanResult == QMessageBox::Yes) {
             // with orphans
             boost::thread exporterThread(boost::bind(
-                &ExportBootstrapBlockchainWithOrphans, filename.toStdString(), boost::ref(stopped),
-                boost::ref(progress), boost::ref(finished), graphTraverseType));
+                &ExportBootstrapBlockchainWithOrphans, filename.toUtf8().toStdString(),
+                boost::ref(stopped), boost::ref(progress), boost::ref(finished), graphTraverseType));
             exporterThread.detach();
         } else {
             // without orphans

@@ -752,10 +752,10 @@ public:
     IMPLEMENT_SERIALIZE(READWRITE(header); READWRITE(txn);)
 };
 
-void ExportBootstrapBlockchain(const std::string& filename, std::atomic<bool>& stopped,
+void ExportBootstrapBlockchain(const boost::filesystem::path& filename, std::atomic<bool>& stopped,
                                std::atomic<double>& progress, boost::promise<void>& result);
-void ExportBootstrapBlockchainWithOrphans(const std::string& filename, std::atomic<bool>& stopped,
-                                          std::atomic<double>& progress, boost::promise<void>& result,
-                                          GraphTraverseType traverseType);
+void ExportBootstrapBlockchainWithOrphans(const boost::filesystem::path& filename,
+                                          std::atomic<bool>& stopped, std::atomic<double>& progress,
+                                          boost::promise<void>& result, GraphTraverseType traverseType);
 
 #endif

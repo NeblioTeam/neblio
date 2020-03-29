@@ -2738,7 +2738,7 @@ int64_t GetTxBlockHeight(const uint256& txHash)
     throw std::runtime_error("Unable to retrieve the transaction " + txHash.ToString());
 }
 
-void ExportBootstrapBlockchain(const string& filename, std::atomic<bool>& stopped,
+void ExportBootstrapBlockchain(const filesystem::path& filename, std::atomic<bool>& stopped,
                                std::atomic<double>& progress, boost::promise<void>& result)
 {
     RenameThread("Export-blockchain");
@@ -2760,7 +2760,7 @@ void ExportBootstrapBlockchain(const string& filename, std::atomic<bool>& stoppe
             throw std::runtime_error("Operation was stopped.");
         }
 
-        std::ofstream outFile(filename.c_str(), ios::binary);
+        boost::filesystem::ofstream outFile(filename, ios::binary);
         if (!outFile.good()) {
             throw std::runtime_error("Failed to open file for writing. Make sure you have sufficient "
                                      "permissions and diskspace.");
@@ -2897,7 +2897,7 @@ std::deque<uint256> TraverseBlockIndexGraph(const BlockIndexGraphType&        gr
     }
 }
 
-void ExportBootstrapBlockchainWithOrphans(const string& filename, std::atomic<bool>& stopped,
+void ExportBootstrapBlockchainWithOrphans(const filesystem::path& filename, std::atomic<bool>& stopped,
                                           std::atomic<double>& progress, boost::promise<void>& result,
                                           GraphTraverseType traverseType)
 {
@@ -2916,7 +2916,7 @@ void ExportBootstrapBlockchainWithOrphans(const string& filename, std::atomic<bo
             throw std::runtime_error("Operation was stopped.");
         }
 
-        std::ofstream outFile(filename.c_str(), ios::binary);
+        boost::filesystem::ofstream outFile(filename, ios::binary);
         if (!outFile.good()) {
             throw std::runtime_error("Failed to open file for writing. Make sure you have sufficient "
                                      "permissions and diskspace.");
