@@ -236,6 +236,7 @@ OBJS= \
     obj/ntp1/ntp1sendtxdata.o                 \
     obj/ntp1/ntp1wallet.o                     \
     obj/ntp1/ntp1v1_issuance_static_data.o    \
+    obj/udaddress.o                           \
     obj/crypto_highlevel.o
 
 ifdef NEBLIO_REST

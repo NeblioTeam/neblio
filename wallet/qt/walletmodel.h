@@ -99,7 +99,7 @@ public:
     };
 
     // Send coins to a list of recipients
-    SendCoinsReturn sendCoins(const QList<SendCoinsRecipient>& recipients,
+    SendCoinsReturn sendCoins(QList<SendCoinsRecipient>        recipients,
                               boost::shared_ptr<NTP1Wallet>    ntp1wallet,
                               const RawNTP1MetadataBeforeSend& ntp1metadata,
                               const CCoinControl*              coinControl = nullptr);
