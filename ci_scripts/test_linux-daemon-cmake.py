@@ -39,7 +39,8 @@ packages_to_install = \
 "libdbus-glib-1-dev",
 "gdb",
 "python3",
-"python3-pip"
+"python3-pip",
+"python3-setuptools"
 ]
 
 nci.install_packages_debian(packages_to_install)
