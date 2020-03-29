@@ -65,11 +65,10 @@ nci.call_with_err_code('tar -xJvf ../wallet/test/data/test_data_mainnet.tar.xz -
 nci.call_with_err_code('tar -xJvf ../wallet/test/data/test_data_testnet.tar.xz -C ../wallet/test/data')
 nci.call_with_err_code('rm ../wallet/test/data/*.tar.xz')
 
-# run tests
-os.chdir('./wallet/test')
-nci.call_with_err_code('./neblio-tests')
+# run unit tests
+nci.call_with_err_code('./wallet/test/neblio-tests')
 
-os.chdir(build_dir)
+# run system tests
 nci.call_with_err_code('pip3 install litecoin_scrypt')
 nci.call_with_err_code('python3 ../test/functional/test_runner.py feature_block.py')
 nci.call_with_err_code('python3 ../test/functional/test_runner.py wallet_accounts.py')
