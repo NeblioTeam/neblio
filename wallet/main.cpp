@@ -1541,12 +1541,12 @@ bool LoadExternalBlockFile(FILE* fileIn)
                 blkdat >> nSize;
 
                 // this is just for debugging
-                static const unsigned int fileStartFrom = 0;
-                if (nPos < fileStartFrom) {
-                    nPos += 4 + nSize;
-                    printf("Skipping block at file pos: %u\n", nPos);
-                    continue;
-                }
+                // static const unsigned int fileStartFrom = 0;
+                // if (nPos < fileStartFrom) {
+                //     nPos += 4 + nSize;
+                //     printf("Skipping block at file pos: %u\n", nPos);
+                //     continue;
+                // }
 
                 if (nSize > 0 && nSize <= nSizeLimit) {
                     CBlock block;
