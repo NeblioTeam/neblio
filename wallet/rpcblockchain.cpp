@@ -404,15 +404,15 @@ Value exportblockchain(const Array& params, bool fHelp)
 
     if (graphTraverseType) {
         // with orphans
-        boost::thread exporterThread(
-            boost::bind(&ExportBootstrapBlockchainWithOrphans, filename.string(), boost::ref(stopped),
-                        boost::ref(progress), boost::ref(finished), graphTraverseType.value()));
+        boost::thread exporterThread([&]() {
+            ExportBootstrapBlockchainWithOrphans(filename.string(), stopped, progress, finished,
+                                                 graphTraverseType.value());
+        });
         exporterThread.detach();
     } else {
         // without orphans
-        boost::thread exporterThread(boost::bind(&ExportBootstrapBlockchain, filename.string(),
-                                                 boost::ref(stopped), boost::ref(progress),
-                                                 boost::ref(finished)));
+        boost::thread exporterThread(
+            [&]() { ExportBootstrapBlockchain(filename.string(), stopped, progress, finished); });
         exporterThread.detach();
     }
 
