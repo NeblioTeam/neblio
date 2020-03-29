@@ -72,7 +72,7 @@ int cURLTools::CurlAtomicProgress_CallbackFunc(void* number, double TotalToDownl
     std::atomic<float>* progress = reinterpret_cast<std::atomic<float>*>(number);
     float               val      = 0;
     if (NowDownloaded > 0.) {
-        val = static_cast<float>( NowDownloaded / 1000 / 1000); // bytes to MB
+        val = static_cast<float>(NowDownloaded / 1000 / 1000); // bytes to MB
         if (val < 0.0001) {
             val = 0;
         }
@@ -173,7 +173,7 @@ std::string cURLTools::GetUserAgent()
 }
 
 std::string cURLTools::GetFileFromHTTPS(const std::string& URL, long ConnectionTimeout,
-                                        bool IncludeProgressBar)
+                                        bool IncludeProgressBar, bool VerifySSLHostAndPeer)
 {
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
@@ -207,6 +207,13 @@ std::string cURLTools::GetFileFromHTTPS(const std::string& URL, long ConnectionT
             curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, CurlProgress_CallbackFunc);
         } else {
             curl_easy_setopt(curl, CURLOPT_NOPROGRESS, true);
+        }
+        if (VerifySSLHostAndPeer) {
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
+        } else {
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
         }
         // curl_easy_setopt (curl, CURLOPT_VERBOSE, 1L); //verbose output
         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, ConnectionTimeout);
