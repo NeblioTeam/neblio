@@ -2110,6 +2110,27 @@ void DownloadAndCreateTxData(NetworkType netType)
     write_map_to_table_file(ntp1TxsMap, f2);
 }
 
+void DownloadTxidList(NetworkType netType)
+{
+    typedef boost::filesystem::path Path;
+
+    namespace fs          = boost::filesystem;
+    fs::path testRootPath = TEST_ROOT_PATH;
+
+    std::vector<std::string> files;
+    files.push_back(NTP1Tests_GetTxidListFileName(netType));
+
+    for (uint64_t i = 0; i < (uint64_t)files.size(); i++) {
+        std::cout << "Downloading test data file " << files[i] << std::endl;
+        EXPECT_NO_THROW(boost::filesystem::remove(Path(TEST_ROOT_PATH) / Path("/data/" + files[i])));
+        std::string content = cURLTools::GetFileFromHTTPS("https://files.nebl.io/" + files[i], 10000, 0);
+        fs::path    testFile = testRootPath / "data" / files[i];
+        std::ofstream os(testFile.string().c_str());
+        os << content;
+        os.close();
+    }
+}
+
 void DownloadPreMadeData(NetworkType netType)
 {
     typedef boost::filesystem::path Path;
@@ -2133,28 +2154,29 @@ void DownloadPreMadeData(NetworkType netType)
     }
 }
 
-#ifdef UNITTEST_RUN_NTP_PARSE_TESTS
-TEST(ntp1_tests, parsig_ntp1_from_ctransaction_automated)
-{
-    EXPECT_NO_THROW(TestNTP1TxParsingLocally(NetworkType::Testnet));
-    EXPECT_NO_THROW(TestNTP1TxParsingLocally(NetworkType::Mainnet));
-}
-
-#elif defined UNITTEST_DOWNLOAD_PREMADE_TX_DATA_AND_RUN_PARSE_TESTS
-TEST(ntp1_tests, download_premade_data_to_files_and_run_parse_test)
+TEST(ntp1_tests, run_parse_test)
 {
 // we either create the data or download the premade one
-#ifndef UNITTEST_DOWNLOAD_TX_DATA
+#ifndef UNITTEST_DOWNLOAD_AND_CREATE_TX_DATA
+#ifdef UNITTEST_RUN_NTP1_PARSE_TESTS
     DownloadPreMadeData(NetworkType::Testnet);
     DownloadPreMadeData(NetworkType::Mainnet);
+#endif
+    // if tests won't run, then no need to download the premade tx data
 #else
+    // we can optionally download the new list of TXids
+#ifdef UNITTEST_REDOWNLOAD_TXID_LIST
+    DownloadTxidList(NetworkType::Testnet);
+    DownloadTxidList(NetworkType::Mainnet);
+#endif
     DownloadAndCreateTxData(NetworkType::Testnet);
     DownloadAndCreateTxData(NetworkType::Mainnet);
 #endif
-    TestNTP1TxParsingLocally(NetworkType::Testnet);
-    TestNTP1TxParsingLocally(NetworkType::Mainnet);
-}
+#ifdef UNITTEST_RUN_NTP1_PARSE_TESTS
+    EXPECT_NO_THROW(TestNTP1TxParsingLocally(NetworkType::Testnet));
+    EXPECT_NO_THROW(TestNTP1TxParsingLocally(NetworkType::Mainnet));
 #endif
+}
 
 TEST(ntp1_tests, construct_scripts)
 {
