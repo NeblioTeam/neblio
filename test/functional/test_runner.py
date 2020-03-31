@@ -112,7 +112,7 @@ BASE_SCRIPTS= [
    'p2p_invalid_tx.py',
 #    'rpc_preciousblock.py',
 #    'wallet_importprunedfunds.py',
-#    'rpc_signmessage.py',
+   'rpc_signmessage.py',
 #    'feature_nulldummy.py',
 #    'wallet_import_rescan.py',
 #    'mining_basic.py',
