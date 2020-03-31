@@ -71,13 +71,7 @@ nci.call_with_err_code('./wallet/test/neblio-tests')
 
 # run system tests
 nci.call_with_err_code('pip3 install litecoin_scrypt')
-nci.call_with_err_code('python3 -u ../test/functional/test_runner.py feature_block.py')
-nci.call_with_err_code('python3 -u ../test/functional/test_runner.py wallet_accounts.py')
-nci.call_with_err_code('python3 -u ../test/functional/test_runner.py rpc_listtransactions.py')
-nci.call_with_err_code('python3 -u ../test/functional/test_runner.py rpc_rawtransaction.py')
-nci.call_with_err_code('python3 -u ../test/functional/test_runner.py rpc_blockchain.py')
-nci.call_with_err_code('python3 -u ../test/functional/test_runner.py p2p_invalid_block.py')
-nci.call_with_err_code('python3 -u ../test/functional/test_runner.py p2p_invalid_tx.py')
+nci.call_with_err_code('python3 -u ../test/functional/test_runner.py')
 
 print("")
 print("")
