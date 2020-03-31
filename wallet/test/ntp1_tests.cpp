@@ -18,10 +18,13 @@
 #include "ntp1/ntp1v1_issuance_static_data.h"
 #include "ntp1/ntp1wallet.h"
 #include <boost/algorithm/string.hpp>
+#include <boost/container/flat_map.hpp>
 #include <fstream>
 #include <random>
 #include <unordered_map>
 #include <unordered_set>
+
+using boost::container::flat_map;
 
 TEST(ntp1_tests, parse_NTP1TxIn_from_json)
 {
@@ -1569,6 +1572,25 @@ std::vector<std::string> read_line_by_line(const std::string& filename)
     return result;
 }
 
+std::vector<std::pair<std::string, std::string>> read_map(const std::string& filename)
+{
+    std::vector<std::pair<std::string, std::string>> result;
+
+    std::vector<std::string> dataLines = read_line_by_line(filename);
+    result.reserve(dataLines.size());
+    for (const std::string& dl : dataLines) {
+        std::vector<std::string> line;
+        boost::split(line, dl, boost::is_any_of("\t"));
+        if (line.size() != 2) {
+            throw std::runtime_error("While reading file " + filename +
+                                     "; it was expected a table of two columns, but found " +
+                                     std::to_string(dl.size()) + " in line " + dl);
+        }
+        result.push_back(std::make_pair(line[0], line[1]));
+    }
+    return result;
+}
+
 std::string NTP1Tests_GetTxidListFileName(NetworkType netType)
 {
     if (netType == NetworkType::Mainnet) {
@@ -1582,9 +1604,9 @@ std::string NTP1Tests_GetTxidListFileName(NetworkType netType)
 std::string NTP1Tests_GetRawNeblioTxsFileName(NetworkType netType)
 {
     if (netType == NetworkType::Mainnet) {
-        return "txs_ntp1tests_raw_neblio_txs.json";
+        return "txs_ntp1tests_raw_neblio_txs.txt";
     } else if (netType == NetworkType::Testnet) {
-        return "txs_ntp1tests_raw_neblio_txs_testnet.json";
+        return "txs_ntp1tests_raw_neblio_txs_testnet.txt";
     }
     assert(false);
 }
@@ -1592,16 +1614,17 @@ std::string NTP1Tests_GetRawNeblioTxsFileName(NetworkType netType)
 std::string NTP1Tests_GetNTP1RawTxsFileName(NetworkType netType)
 {
     if (netType == NetworkType::Mainnet) {
-        return "txs_ntp1tests_ntp1_txs.json";
+        return "txs_ntp1tests_ntp1_txs.txt";
     } else if (netType == NetworkType::Testnet) {
-        return "txs_ntp1tests_ntp1_txs_testnet.json";
+        return "txs_ntp1tests_ntp1_txs_testnet.txt";
     }
     assert(false);
 }
 
 std::string GetRawTxOnline(const std::string& txid, NetworkType netType)
 {
-    std::string        rawTxJson = cURLTools::GetFileFromHTTPS(GetRawTxURL(txid, netType), 10000, 0);
+    std::string rawTxJson =
+        cURLTools::GetFileFromHTTPS_withRetries(64, 1000, GetRawTxURL(txid, netType), 0, 0);
     json_spirit::Value v;
     json_spirit::read_or_throw(rawTxJson, v);
     json_spirit::Object rawTxObj = v.get_obj();
@@ -1770,13 +1793,14 @@ void TestNTP1TxParsing(const std::string& txid, NetworkType netType)
     TestNTP1TxParsing(tx, netType);
 }
 
-void TestSingleNTP1TxParsingLocally(const CTransaction&                                 tx,
-                                    const std::unordered_map<std::string, std::string>& nebltxs_map,
-                                    const std::unordered_map<std::string, std::string>& ntp1txs_map)
+void TestSingleNTP1TxParsingLocally(const CTransaction&                       tx,
+                                    const flat_map<std::string, std::string>& nebltxs_map,
+                                    const flat_map<std::string, std::string>& ntp1txs_map)
 {
     const std::string& txid           = tx.GetHash().ToString();
     const std::string  ntp1tx_ref_str = ntp1txs_map.find(txid)->second;
-    NTP1Transaction    ntp1tx_ref;
+
+    NTP1Transaction ntp1tx_ref;
     ntp1tx_ref.importJsonData(ntp1tx_ref_str);
     EXPECT_TRUE(tx.CheckTransaction()) << "Failed tx: " << txid;
 
@@ -1868,10 +1892,18 @@ void TestSingleNTP1TxParsingLocally(const CTransaction&                         
     EXPECT_EQ(ntp1tx.getTxHash(), ntp1tx_ref.getTxHash()) << "Failed tx: " << txid;
 }
 
-void TestSingleNTP1TxParsingLocally(const std::string&                                  txid,
-                                    const std::unordered_map<std::string, std::string>& nebltxs_map,
-                                    const std::unordered_map<std::string, std::string>& ntp1txs_map)
+void TestSingleNTP1TxParsingLocally(const std::string&                        txid,
+                                    const flat_map<std::string, std::string>& nebltxs_map,
+                                    const flat_map<std::string, std::string>& ntp1txs_map)
 {
+    // This is temporary just to cut down the transactions required. Since all transactions come from a
+    // list, if we try to reduce them for debugging, all of them will still be expected. This will ignore
+    // those that don't exist since we truncated the full list of txids. if
+    //    (nebltxs_map.find(txid) == nebltxs_map.cend()) {
+    //        return;
+    //    }
+
+    ASSERT_NE(nebltxs_map.find(txid), nebltxs_map.cend());
     const std::string  rawTx = nebltxs_map.find(txid)->second;
     const CTransaction tx    = TxFromHex(rawTx);
 
@@ -1889,21 +1921,34 @@ void TestNTP1TxParsingLocally(NetworkType netType)
 {
     SwitchNetworkTypeTemporarily state_holder(netType);
 
-    std::unordered_map<std::string, std::string> ntp1txs_map;
-    std::unordered_map<std::string, std::string> nebltxs_map;
+    flat_map<std::string, std::string> ntp1txs_map;
+    flat_map<std::string, std::string> nebltxs_map;
 
     std::vector<std::string> txids = read_line_by_line(NTP1Tests_GetTxidListFileName(netType));
 
     // save memory by ensuring the destruction of json objects
     {
-        json_spirit::Object nebltxs = read_json_obj(NTP1Tests_GetRawNeblioTxsFileName(netType));
-        json_spirit::Object ntp1txs = read_json_obj(NTP1Tests_GetNTP1RawTxsFileName(netType));
+        using StrPairT = std::pair<std::string, std::string>;
+
+        std::vector<StrPairT> nebltxs = read_map(NTP1Tests_GetRawNeblioTxsFileName(netType));
+        std::vector<StrPairT> ntp1txs = read_map(NTP1Tests_GetNTP1RawTxsFileName(netType));
+
+        auto pair_str_sort_functor = [](const std::pair<const std::string, const std::string>& p1,
+                                        const std::pair<const std::string, const std::string>& p2) {
+            return p1.first < p2.first;
+        };
+
+        std::sort(nebltxs.begin(), nebltxs.end(), pair_str_sort_functor);
+        std::sort(ntp1txs.begin(), ntp1txs.end(), pair_str_sort_functor);
+
+        nebltxs_map.reserve(nebltxs.size());
+        ntp1txs_map.reserve(ntp1txs.size());
 
         for (const auto& el : nebltxs) {
-            nebltxs_map[el.name_] = el.value_.get_str();
+            nebltxs_map[el.first] = el.second;
         }
         for (const auto& el : ntp1txs) {
-            ntp1txs_map[el.name_] = boost::algorithm::unhex(el.value_.get_str());
+            ntp1txs_map[el.first] = boost::algorithm::unhex(el.second);
         }
     }
 
@@ -1930,28 +1975,116 @@ void write_json_file(const json_spirit::Object& obj, const std::string& filename
     json_spirit::write_formatted(obj, os);
 }
 
-void DownloadData(NetworkType netType)
+void write_map_to_table_file(const std::map<std::string, std::string>& data, const std::string& filename)
+{
+    namespace fs          = boost::filesystem;
+    fs::path testRootPath = TEST_ROOT_PATH;
+    fs::path testFile     = testRootPath / "data" / filename;
+
+    std::ofstream os(testFile.string().c_str());
+
+    static const std::string TAB     = std::string(1, '\t');
+    static const std::string NEWLINE = std::string(1, '\n');
+
+    for (const std::pair<const std::string, const std::string>& p : data) {
+        os.write(p.first.data(), p.first.size());
+        os.write(TAB.data(), TAB.size());
+        os.write(p.second.data(), p.second.size());
+        os.write(NEWLINE.data(), NEWLINE.size());
+    }
+}
+
+void DownloadAndCreateTxData(NetworkType netType)
 {
     std::vector<std::string> txids = read_line_by_line(NTP1Tests_GetTxidListFileName(netType));
 
-    std::unordered_map<std::string, std::string> rawNeblioTxsMap;
-    std::unordered_map<std::string, std::string> ntp1TxsMap;
+    std::map<std::string, std::string> rawNeblioTxsMap;
+    std::map<std::string, std::string> ntp1TxsMap;
 
-    json_spirit::Object rawNeblioTxs;
-    json_spirit::Object ntp1Txs;
+    std::vector<std::pair<std::string, std::string>> rawNeblioTxsVec(txids.size());
+    std::vector<std::pair<std::string, std::string>> ntp1TxsVec(txids.size());
 
-    for (uint64_t i = 0; i < (uint64_t)txids.size(); i++) {
-        std::cout << "Downloading tx: " << i << std::endl;
+    std::atomic_int count{0};
 
-        std::string       rawTx      = GetRawTxOnline(txids[i], netType);
-        CTransaction      tx         = TxFromHex(rawTx);
-        const std::string ntp1tx_ref = NTP1APICalls::RetrieveData_TransactionInfo_Str(txids[i], netType);
+    static const unsigned thread_count = std::thread::hardware_concurrency();
+
+    // distribute the works over threads
+    std::vector<unsigned> txs_per_thread(thread_count, 0);
+    unsigned              total_txs_count = txids.size();
+    for (unsigned i = 0; i < thread_count; i++) {
+        if (i + 1 == thread_count) {
+            txs_per_thread[i] = total_txs_count;
+        } else {
+            txs_per_thread[i] = txids.size() / thread_count;
+        }
+        total_txs_count -= txs_per_thread[i];
+        ASSERT_TRUE(txs_per_thread[i] > 0);
+    }
+    ASSERT_EQ(std::accumulate(txs_per_thread.cbegin(), txs_per_thread.cend(), 0), txids.size());
+
+    std::vector<boost::promise<void>>       promises(thread_count);
+    std::vector<boost::unique_future<void>> futures;
+    for (auto&& p : promises) {
+        futures.push_back(p.get_future());
+    }
+
+    std::vector<std::unique_ptr<std::thread>> threads;
+    for (unsigned i = 0; i < thread_count; i++) {
+        threads.push_back(MakeUnique<std::thread>(
+            [&txids, netType, i, txs_per_thread, &rawNeblioTxsVec, &ntp1TxsVec, &promises, &count]() {
+                // we get the start and end points by accumulating the txs_per_thread up to current
+                // thread number
+                unsigned start = 0;
+                unsigned end   = 0;
+                for (unsigned j = 0; j < i; j++) {
+                    start += txs_per_thread[j];
+                    end += txs_per_thread[j];
+                }
+                end += txs_per_thread[i];
+
+                for (uint64_t j = start; j < (uint64_t)end; j++) {
+                    const std::string rawTx = GetRawTxOnline(txids[j], netType);
+                    const std::string ntp1tx_ref =
+                        NTP1APICalls::RetrieveData_TransactionInfo_Str(txids[j], netType, 64);
+
+                    rawNeblioTxsVec[j] = std::make_pair(txids[j], rawTx);
+                    ntp1TxsVec[j]      = std::make_pair(txids[j], boost::algorithm::hex(ntp1tx_ref));
+
+                    count.fetch_add(1, std::memory_order_relaxed);
+                    if (count.load(std::memory_order_relaxed) % 100 == 0) {
+                        std::cout << "Downloading tx: " << count.load(std::memory_order_relaxed)
+                                  << std::endl;
+                    }
+                }
+                promises[i].set_value();
+            }));
+        threads.back()->detach();
+    }
+    // wait for all threads to finish
+    for (auto&& f : futures) {
+        f.get();
+    }
+
+    ASSERT_EQ(rawNeblioTxsVec.size(), ntp1TxsVec.size());
+    for (uint64_t i = 0; i < (uint64_t)rawNeblioTxsVec.size(); i++) {
+        if (i % 100 == 0) {
+            std::cout << "Parsing tx: " << i << std::endl;
+        }
+
+        const std::string&  rawTx      = rawNeblioTxsVec[i].second;
+        const CTransaction& tx         = TxFromHex(rawTx);
+        const std::string&  ntp1tx_ref = ntp1TxsVec[i].second;
 
         rawNeblioTxsMap[txids[i]] = rawTx;
-        ntp1TxsMap[txids[i]]      = boost::algorithm::hex(ntp1tx_ref);
+        ntp1TxsMap[txids[i]]      = ntp1tx_ref;
 
         for (int i = 0; i < (int)tx.vin.size(); i++) {
             std::string inputTxid = tx.vin[i].prevout.hash.ToString();
+
+            // if the tx is already in there, skip it
+            if (rawNeblioTxsMap.find(inputTxid) != rawNeblioTxsMap.cend()) {
+                continue;
+            }
 
             std::string inputRawTxJson =
                 cURLTools::GetFileFromHTTPS(GetRawTxURL(inputTxid, netType), 10000, 0);
@@ -1967,21 +2100,14 @@ void DownloadData(NetworkType netType)
         }
     }
 
-    for (const auto& el : rawNeblioTxsMap) {
-        rawNeblioTxs.push_back(json_spirit::Pair(el.first, el.second));
-    }
-    for (const auto& el : ntp1TxsMap) {
-        ntp1Txs.push_back(json_spirit::Pair(el.first, el.second));
-    }
-
-    std::string f1 = NTP1Tests_GetRawNeblioTxsFileName(netType);
-    std::string f2 = NTP1Tests_GetNTP1RawTxsFileName(netType);
+    const std::string f1 = NTP1Tests_GetRawNeblioTxsFileName(netType);
+    const std::string f2 = NTP1Tests_GetNTP1RawTxsFileName(netType);
 
     std::remove(f1.c_str());
     std::remove(f2.c_str());
 
-    write_json_file(rawNeblioTxs, f1);
-    write_json_file(ntp1Txs, f2);
+    write_map_to_table_file(rawNeblioTxsMap, f1);
+    write_map_to_table_file(ntp1TxsMap, f2);
 }
 
 void DownloadPreMadeData(NetworkType netType)
@@ -2007,14 +2133,6 @@ void DownloadPreMadeData(NetworkType netType)
     }
 }
 
-#ifdef UNITTEST_DOWNLOAD_TX_DATA
-TEST(ntp1_tests, download_data_to_files)
-{
-    DownloadData(false);
-    DownloadData(true);
-}
-#endif
-
 #ifdef UNITTEST_RUN_NTP_PARSE_TESTS
 TEST(ntp1_tests, parsig_ntp1_from_ctransaction_automated)
 {
@@ -2025,9 +2143,15 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_automated)
 #elif defined UNITTEST_DOWNLOAD_PREMADE_TX_DATA_AND_RUN_PARSE_TESTS
 TEST(ntp1_tests, download_premade_data_to_files_and_run_parse_test)
 {
+// we either create the data or download the premade one
+#ifndef UNITTEST_DOWNLOAD_TX_DATA
     DownloadPreMadeData(NetworkType::Testnet);
-    TestNTP1TxParsingLocally(NetworkType::Testnet);
     DownloadPreMadeData(NetworkType::Mainnet);
+#else
+    DownloadAndCreateTxData(NetworkType::Testnet);
+    DownloadAndCreateTxData(NetworkType::Mainnet);
+#endif
+    TestNTP1TxParsingLocally(NetworkType::Testnet);
     TestNTP1TxParsingLocally(NetworkType::Mainnet);
 }
 #endif

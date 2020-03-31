@@ -72,7 +72,7 @@ int cURLTools::CurlAtomicProgress_CallbackFunc(void* number, double TotalToDownl
     std::atomic<float>* progress = reinterpret_cast<std::atomic<float>*>(number);
     float               val      = 0;
     if (NowDownloaded > 0.) {
-        val = static_cast<float>( NowDownloaded / 1000 / 1000); // bytes to MB
+        val = static_cast<float>(NowDownloaded / 1000 / 1000); // bytes to MB
         if (val < 0.0001) {
             val = 0;
         }
@@ -85,6 +85,32 @@ void cURLTools::CurlGlobalInit_ThreadSafe()
 {
     boost::lock_guard<boost::mutex> lg(curl_global_init_lock);
     curl_global_init(CURL_GLOBAL_DEFAULT);
+}
+
+std::string cURLTools::GetFileFromHTTPS_withRetries(const boost::optional<uint64_t>& MaxRetries,
+                                                    uint64_t           waitBetweenRetries_ms,
+                                                    const std::string& URL, long ConnectionTimeout,
+                                                    bool IncludeProgressBar)
+{
+    uint64_t max_retries = std::numeric_limits<uint64_t>::max();
+    if (MaxRetries) {
+        max_retries = *MaxRetries;
+    }
+    std::string result;
+    for (uint64_t i = 0; i < max_retries; i++) {
+        try {
+            result = GetFileFromHTTPS(URL, ConnectionTimeout, IncludeProgressBar);
+            break;
+        } catch (...) {
+            if (i + 1 == max_retries) {
+                std::cerr << "Failed to download " << URL << " after " << i + 1 << " retries"
+                          << std::endl;
+                throw;
+            }
+            boost::this_thread::sleep_for(boost::chrono::milliseconds(waitBetweenRetries_ms));
+        }
+    }
+    return result;
 }
 
 void cURLTools::GetLargeFileFromHTTPS(const std::string& URL, long ConnectionTimeout,

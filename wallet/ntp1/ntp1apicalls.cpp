@@ -52,13 +52,13 @@ uint64_t NTP1APICalls::RetrieveData_TotalNeblsExcludingNTP1(const std::string& a
 
 NTP1TokenMetaData NTP1APICalls::RetrieveData_NTP1TokensMetaData(const std::string& tokenId,
                                                                 const std::string& tx, int outputIndex,
-                                                                NetworkType netType)
+                                                                NetworkType netType, uint64_t MaxRetries)
 {
     try {
         std::string ntp1MetaDataURL =
             NTP1Tools::GetURL_TokenUTXOMetaData(tokenId, tx, outputIndex, netType);
-        std::string ntpData =
-            cURLTools::GetFileFromHTTPS(ntp1MetaDataURL, NTP1_CONNECTION_TIMEOUT, false);
+        std::string ntpData = cURLTools::GetFileFromHTTPS_withRetries(MaxRetries, 1000, ntp1MetaDataURL,
+                                                                      NTP1_CONNECTION_TIMEOUT, false);
         NTP1TokenMetaData metadata;
         metadata.importRestfulAPIJsonData(ntpData);
         return metadata;
@@ -79,9 +79,10 @@ NTP1Transaction NTP1APICalls::RetrieveData_TransactionInfo(const std::string& tx
 }
 
 std::string NTP1APICalls::RetrieveData_TransactionInfo_Str(const std::string& txHash,
-                                                           NetworkType        netType)
+                                                           NetworkType netType, uint64_t MaxRetries)
 {
-    std::string url     = NTP1Tools::GetURL_TransactionInfo(txHash, netType);
-    std::string ntpData = cURLTools::GetFileFromHTTPS(url, NTP1_CONNECTION_TIMEOUT, false);
+    std::string url = NTP1Tools::GetURL_TransactionInfo(txHash, netType);
+    std::string ntpData =
+        cURLTools::GetFileFromHTTPS_withRetries(MaxRetries, 1000, url, NTP1_CONNECTION_TIMEOUT, false);
     return ntpData;
 }

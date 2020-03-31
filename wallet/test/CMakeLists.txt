@@ -70,7 +70,7 @@ target_compile_definitions(neblio-tests PRIVATE
     )
 
 option(NEBLIO_DOWNLOAD_AND_TEST_ALL_TXS "[Unit-tests]: Enable downloading and testing all transactions" ON)
-option(NEBLIO_DOWNLOAD_TX_DATA "[Unit-tests]: Enable downloading transaction data" OFF)
+option(NEBLIO_DOWNLOAD_TX_DATA "[Unit-tests]: Enable downloading and recreating transaction data" OFF)
 option(NEBLIO_RUN_NTP_PARSE_TESTS "[Unit-tests]: Enable NTP1 parsing tests" OFF)
 
 if(NEBLIO_DOWNLOAD_AND_TEST_ALL_TXS)
