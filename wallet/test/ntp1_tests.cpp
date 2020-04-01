@@ -2018,7 +2018,6 @@ void DownloadAndCreateTxData(NetworkType netType)
             txs_per_thread[i] = txids.size() / thread_count;
         }
         total_txs_count -= txs_per_thread[i];
-        ASSERT_TRUE(txs_per_thread[i] > 0);
     }
     ASSERT_EQ(std::accumulate(txs_per_thread.cbegin(), txs_per_thread.cend(), 0), txids.size());
 
