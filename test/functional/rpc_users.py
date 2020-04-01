@@ -43,10 +43,6 @@ class HTTPBasicsTest (BitcoinTestFramework):
         #New authpair generated via share/rpcuser tool
         password = "cA773lm788buwYe4g4WT+05pKyNruVKjQ25x3n0DQcM="
 
-        #Second authpair with different username
-        password2 = "8/F3uMDw4KSEbw96U3CA1C4X05dkHDN2BPFjTgZW4KI="
-        authpairnew = "rt:"+password
-
         headers = {"Authorization": "Basic " + str_to_b64str(authpair)}
 
         conn = http.client.HTTPConnection(url.hostname, url.port)
