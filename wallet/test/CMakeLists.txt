@@ -73,6 +73,7 @@ option(NEBLIO_TEST_ALL_TXS "[Unit-tests]: Enable downloading and testing all tra
 option(NEBLIO_RECREATE_TX_DATA "[Unit-tests]: Enable downloading and recreating transaction data to be used in tests.
                                               If this is OFF and the option NEBLIO_TEST_ALL_TXS, the data will be downloaded directly from the neblio server." OFF)
 option(NEBLIO_REDOWNLOAD_TXID_LIST "[Unit-tests]: If NEBLIO_RECREATE_TX_DATA is enabled, enabling this will redownload the TXids list to recreate the database from them" ON)
+option(NEBLIO_FORCE_DISABLE_PREMADE_DATA_DOWNLOAD "[Unit-tests]: If NEBLIO_RECREATE_TX_DATA is disabled, this can be used to prevent data from being downloaded" OFF)
 
 if(NEBLIO_TEST_ALL_TXS)
     target_compile_definitions(neblio-tests PRIVATE UNITTEST_RUN_NTP1_PARSE_TESTS)
@@ -84,6 +85,10 @@ endif()
 
 if(NEBLIO_REDOWNLOAD_TXID_LIST)
     target_compile_definitions(neblio-tests PRIVATE UNITTEST_REDOWNLOAD_TXID_LIST)
+endif()
+
+if(NEBLIO_FORCE_DISABLE_PREMADE_DATA_DOWNLOAD)
+    target_compile_definitions(neblio-tests PRIVATE UNITTEST_FORCE_DISABLE_PREMADE_DATA_DOWNLOAD)
 endif()
 
 add_test(

@@ -2156,9 +2156,9 @@ void DownloadPreMadeData(NetworkType netType)
 
 TEST(ntp1_tests, run_parse_test)
 {
-// we either create the data or download the premade one
+// we either create the data or download the premade one, unless downloading premade data is disabled
 #ifndef UNITTEST_DOWNLOAD_AND_CREATE_TX_DATA
-#ifdef UNITTEST_RUN_NTP1_PARSE_TESTS
+#if defined(UNITTEST_RUN_NTP1_PARSE_TESTS) && !defined(UNITTEST_FORCE_DISABLE_PREMADE_DATA_DOWNLOAD)
     DownloadPreMadeData(NetworkType::Testnet);
     DownloadPreMadeData(NetworkType::Mainnet);
 #endif
