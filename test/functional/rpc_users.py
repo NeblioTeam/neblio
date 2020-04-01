@@ -18,16 +18,16 @@ class HTTPBasicsTest (BitcoinTestFramework):
     def setup_chain(self):
         super().setup_chain()
         #Append rpcauth to neblio.conf before initialization
-        rpcauth = "rpcauth=rt:93648e835a54c573682c2eb19f882535$7681e9c5b74bdd85e78166031d2058e1069b3ed7ed967c93fc63abba06f31144"
-        rpcauth2 = "rpcauth=rt2:f8607b1a88861fac29dfccf9b52ff9f$ff36a0c23c8c62b4846112e50fa888416e94c17bfd4c42f88fd8f55ec6a3137e"
-        rpcuser = "rpcuser=rpcuser💻"
-        rpcpassword = "rpcpassword=rpcpassword🔑"
+        rpcuser1 = "rpcuser=abcccc"
+        rpcpassword1 = "rpcpassword=xyzzzz"
+        rpcuser2 = "rpcuser=rpcuser"
+        rpcpassword2 = "rpcpassword=rpcpassword"
         with open(os.path.join(self.options.tmpdir+"/node0", "neblio.conf"), 'a', encoding='utf8') as f:
-            f.write(rpcauth+"\n")
-            f.write(rpcauth2+"\n")
+            f.write(rpcuser1+"\n")
+            f.write(rpcpassword1+"\n")
         with open(os.path.join(self.options.tmpdir+"/node1", "neblio.conf"), 'a', encoding='utf8') as f:
-            f.write(rpcuser+"\n")
-            f.write(rpcpassword+"\n")
+            f.write(rpcuser2+"\n")
+            f.write(rpcpassword2+"\n")
 
     def run_test(self):
 
@@ -38,6 +38,7 @@ class HTTPBasicsTest (BitcoinTestFramework):
 
         #Old authpair
         authpair = url.username + ':' + url.password
+        print(authpair)
 
         #New authpair generated via share/rpcuser tool
         password = "cA773lm788buwYe4g4WT+05pKyNruVKjQ25x3n0DQcM="
@@ -47,16 +48,6 @@ class HTTPBasicsTest (BitcoinTestFramework):
         authpairnew = "rt:"+password
 
         headers = {"Authorization": "Basic " + str_to_b64str(authpair)}
-
-        conn = http.client.HTTPConnection(url.hostname, url.port)
-        conn.connect()
-        conn.request('POST', '/', '{"method": "getbestblockhash"}', headers)
-        resp = conn.getresponse()
-        assert_equal(resp.status, 200)
-        conn.close()
-        
-        #Use new authpair to confirm both work
-        headers = {"Authorization": "Basic " + str_to_b64str(authpairnew)}
 
         conn = http.client.HTTPConnection(url.hostname, url.port)
         conn.connect()
@@ -87,35 +78,13 @@ class HTTPBasicsTest (BitcoinTestFramework):
         assert_equal(resp.status, 401)
         conn.close()
 
-        #Correct for rt2
-        authpairnew = "rt2:"+password2
-        headers = {"Authorization": "Basic " + str_to_b64str(authpairnew)}
-
-        conn = http.client.HTTPConnection(url.hostname, url.port)
-        conn.connect()
-        conn.request('POST', '/', '{"method": "getbestblockhash"}', headers)
-        resp = conn.getresponse()
-        assert_equal(resp.status, 200)
-        conn.close()
-
-        #Wrong password for rt2
-        authpairnew = "rt2:"+password2+"wrong"
-        headers = {"Authorization": "Basic " + str_to_b64str(authpairnew)}
-
-        conn = http.client.HTTPConnection(url.hostname, url.port)
-        conn.connect()
-        conn.request('POST', '/', '{"method": "getbestblockhash"}', headers)
-        resp = conn.getresponse()
-        assert_equal(resp.status, 401)
-        conn.close()
-
         ###############################################################
         # Check correctness of the rpcuser/rpcpassword config options #
         ###############################################################
         url = urllib.parse.urlparse(self.nodes[1].url)
 
         # rpcuser and rpcpassword authpair
-        rpcuserauthpair = "rpcuser💻:rpcpassword🔑"
+        rpcuserauthpair = "rpcuser:rpcpassword"
 
         headers = {"Authorization": "Basic " + str_to_b64str(rpcuserauthpair)}
 

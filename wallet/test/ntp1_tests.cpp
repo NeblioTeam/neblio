@@ -2010,8 +2010,8 @@ void DownloadPreMadeData(NetworkType netType)
 #ifdef UNITTEST_DOWNLOAD_TX_DATA
 TEST(ntp1_tests, download_data_to_files)
 {
-    DownloadData(false);
-    DownloadData(true);
+    DownloadData(NetworkType::Testnet);
+    DownloadData(NetworkType::Mainnet);
 }
 #endif
 
