@@ -751,7 +751,7 @@ void CoinControlDialog::updateView()
                     ntp1tx.readNTP1DataFromTx(*out.tx, prevTxs);
                     bool considerNeblsToo = (out.tx->vout[out.i].nValue > MIN_TX_FEE);
                     if (considerNeblsToo) {
-                        sTokenType += "NEBL";
+                        sTokenType += QString::fromStdString(CURRENCY_UNIT);
                         sNTP1TokenAmounts +=
                             BitcoinUnits::format(nDisplayUnit, out.tx->vout[out.i].nValue);
                         sTokenId += QString::fromStdString(NTP1SendTxData::NEBL_TOKEN_ID);
@@ -783,12 +783,12 @@ void CoinControlDialog::updateView()
                 }
             } else {
                 sTokenId   = QString::fromStdString(NTP1SendTxData::NEBL_TOKEN_ID);
-                sTokenType = "NEBL";
+                sTokenType = QString::fromStdString("NEBL");
             }
             // in case it's not a token, then it's nebls
             if (sTokenId.isEmpty() && sTokenType.isEmpty() && sNTP1TokenAmounts.isEmpty()) {
                 sTokenId   = QString::fromStdString(NTP1SendTxData::NEBL_TOKEN_ID);
-                sTokenType = "NEBL";
+                sTokenType = QString::fromStdString("NEBL");
             }
 
             itemOutput->setText(COLUMN_LABEL, sTokenType);

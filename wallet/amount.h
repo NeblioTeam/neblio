@@ -22,7 +22,7 @@ static const int64_t MIN_TX_FEE = 10000;
 // static const CAmount PERKB_TX_FEE = CENT;
 // static const CAmount MIN_TXOUT_AMOUNT = CENT;
 // static const CAmount MAX_MINT_PROOF_OF_WORK = 9999 * COIN;
-// static const std::string CURRENCY_UNIT = "NEBL";
+static const std::string CURRENCY_UNIT = "NEBL";
 
 // Total coin that will be released (~infinite);
 static const CAmount MAX_MONEY = std::numeric_limits<int64_t>::max();

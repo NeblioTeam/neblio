@@ -83,6 +83,9 @@ CMedianFilter<int64_t>                    vTimeOffsets(200, 0);
 bool                                      fReopenDebugLog = false;
 boost::atomic<bool>                       fShutdown{false};
 
+// Application startup time (used for uptime calculation)
+const int64_t nStartupTime = GetTime();
+
 boost::atomic_int MODEL_UPDATE_DELAY{500};
 
 // Init OpenSSL library multithreading support
@@ -1614,3 +1617,6 @@ bool ParseFixedPoint(const std::string& val, int decimals, int64_t* amount_out)
 
     return true;
 }
+
+// Obtain the application startup time (used for uptime calculation)
+int64_t GetStartupTime() { return nStartupTime; }

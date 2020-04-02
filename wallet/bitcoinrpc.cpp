@@ -54,6 +54,32 @@ Object JSONRPCError(int code, const string& message)
     return error;
 }
 
+void ScriptPubKeyToJSON(const CScript& scriptPubKey, Object& out, bool fIncludeHex)
+{
+    txnouttype             type;
+    vector<CTxDestination> addresses;
+    int                    nRequired;
+
+    out.push_back(Pair("asm", scriptPubKey.ToString()));
+
+    if (fIncludeHex)
+        out.push_back(Pair("hex", HexStr(scriptPubKey.begin(), scriptPubKey.end())));
+
+    if (!ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
+        out.push_back(Pair("type", GetTxnOutputType(type)));
+        return;
+    }
+
+    out.push_back(Pair("reqSigs", nRequired));
+    out.push_back(Pair("type", GetTxnOutputType(type)));
+    out.push_back(Pair("hex", HexStr(scriptPubKey.begin(), scriptPubKey.end())));
+
+    Array a;
+    for (const CTxDestination& addr : addresses)
+        a.push_back(CBitcoinAddress(addr).ToString());
+    out.push_back(Pair("addresses", a));
+}
+
 void RPCTypeCheck(const Array& params, const list<Value_type>& typesExpected, bool fAllowNull)
 {
     unsigned int i = 0;
@@ -210,6 +236,15 @@ Value stop(const Array& params, bool fHelp)
     return "neblio server stopping";
 }
 
+Value uptime(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 0)
+        throw runtime_error("uptime\n"
+                            "Returns the total uptime of the server.\n");
+
+    return GetTime() - GetStartupTime();
+}
+
 //
 // Call Table
 //
@@ -218,8 +253,9 @@ Value stop(const Array& params, bool fHelp)
 static const CRPCCommand vRPCCommands[] =
 { //  name                         function                    safemd  unlocked
   //  ------------------------     -----------------------     ------  --------
-    { "help",                      &help,                      true,   true },
-    { "stop",                      &stop,                      true,   true },
+    { "help",                      &help,                      true,   true  },
+    { "stop",                      &stop,                      true,   true  },
+    { "uptime",                    &uptime,                    false,  false },
     { "getbestblockhash",          &getbestblockhash,          true,   false },
     { "getblockcount",             &getblockcount,             true,   false },
     { "waitforblockheight",        &waitforblockheight,        true,   false },
@@ -262,6 +298,7 @@ static const CRPCCommand vRPCCommands[] =
     { "addredeemscript",           &addredeemscript,           false,  false },
     { "getrawmempool",             &getrawmempool,             true,   false },
     { "calculateblockhash",        &calculateblockhash,        false,  false },
+    { "gettxout",                  &gettxout,                  false,  false },
     { "getblock",                  &getblock,                  false,  false },
     { "getblockbynumber",          &getblockbynumber,          false,  false },
     { "getblockhash",              &getblockhash,              false,  false },

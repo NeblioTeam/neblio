@@ -168,20 +168,20 @@ extern uint256                    ParseHashO(const json_spirit::Object& o, std::
 extern std::vector<unsigned char> ParseHexV(const json_spirit::Value& v, std::string strName);
 extern std::vector<unsigned char> ParseHexO(const json_spirit::Object& o, std::string strKey);
 
-extern json_spirit::Value getconnectioncount(const json_spirit::Array& params,
-                                             bool                      fHelp); // in rpcnet.cpp
-extern json_spirit::Value addnode(const json_spirit::Array& params,
-                                  bool                      fHelp); // in rpcnet.cpp
-extern json_spirit::Value setmocktime(const json_spirit::Array& params,
-                                      bool                      fHelp); // in rpcnet.cpp
+// in rpcnet.cpp
+extern json_spirit::Value getconnectioncount(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value addnode(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value setmocktime(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value sendalert(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getpeerinfo(const json_spirit::Array& params, bool fHelp);
+
+// in rpcdump.cpp
 extern json_spirit::Value dumpwallet(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value importwallet(const json_spirit::Array& params, bool fHelp);
-extern json_spirit::Value dumpprivkey(const json_spirit::Array& params, bool fHelp); // in rpcdump.cpp
+extern json_spirit::Value dumpprivkey(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value importprivkey(const json_spirit::Array& params, bool fHelp);
 
-extern json_spirit::Value sendalert(const json_spirit::Array& params, bool fHelp);
-
+// in rpcmining.cpp
 extern json_spirit::Value getsubsidy(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getmininginfo(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getstakinginfo(const json_spirit::Array& params, bool fHelp);
@@ -190,11 +190,8 @@ extern json_spirit::Value getworkex(const json_spirit::Array& params, bool fHelp
 extern json_spirit::Value getblocktemplate(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value submitblock(const json_spirit::Array& params, bool fHelp);
 
-// in rpcblockchain.cpp
-extern json_spirit::Value waitforblockheight(const json_spirit::Array& params, bool fHelp);
-
-extern json_spirit::Value getnewaddress(const json_spirit::Array& params,
-                                        bool                      fHelp); // in rpcwallet.cpp
+// in rpcwallet.cpp
+extern json_spirit::Value getnewaddress(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getaccountaddress(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value setaccount(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getaccount(const json_spirit::Array& params, bool fHelp);
@@ -236,8 +233,8 @@ extern json_spirit::Value makekeypair(const json_spirit::Array& params, bool fHe
 extern json_spirit::Value validatepubkey(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getnewpubkey(const json_spirit::Array& params, bool fHelp);
 
-extern json_spirit::Value getrawtransaction(const json_spirit::Array& params,
-                                            bool                      fHelp); // in rcprawtransaction.cpp
+// in rcprawtransaction.cpp
+extern json_spirit::Value getrawtransaction(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value listunspent(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value createrawtransaction(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value createrawntp1transaction(const json_spirit::Array& params, bool fHelp);
@@ -248,17 +245,11 @@ extern json_spirit::Value sendrawtransaction(const json_spirit::Array& params, b
 
 // in rpcblockchain.cpp
 extern json_spirit::Value getbestblockhash(const json_spirit::Array& params, bool fHelp);
-// in rpcblockchain.cpp
 extern json_spirit::Value syncwithvalidationinterfacequeue(const json_spirit::Array& params, bool fHelp);
-// in rpcblockchain.cpp
 extern json_spirit::Value getblockchaininfo(const json_spirit::Array& params, bool fHelp);
-// in rpcblockchain.cpp
 extern json_spirit::Value getblockheader(const json_spirit::Array& params, bool fHelp);
-// in rpcblockchain.cpp
-json_spirit::Value generate(const json_spirit::Array& params, bool fHelp);
-
-extern json_spirit::Value getblockcount(const json_spirit::Array& params,
-                                        bool                      fHelp); // in rpcblockchain.cpp
+extern json_spirit::Value generate(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value getblockcount(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getdifficulty(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value settxfee(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getrawmempool(const json_spirit::Array& params, bool fHelp);
@@ -267,9 +258,12 @@ extern json_spirit::Value calculateblockhash(const json_spirit::Array& params, b
 extern json_spirit::Value getblock(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getblockbynumber(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getcheckpoint(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value gettxout(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value exportblockchain(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value waitforblockheight(const json_spirit::Array& params, bool fHelp);
 
 std::vector<NTP1SendTokensOneRecipientData>
-GetNTP1RecipientsVector(const json_spirit::Object& sendTo, boost::shared_ptr<NTP1Wallet> ntp1wallet);
+     GetNTP1RecipientsVector(const json_spirit::Object& sendTo, boost::shared_ptr<NTP1Wallet> ntp1wallet);
+void ScriptPubKeyToJSON(const CScript& scriptPubKey, json_spirit::Object& out, bool fIncludeHex);
 
 #endif

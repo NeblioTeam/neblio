@@ -5,6 +5,8 @@
 #include "util.h"
 #include <map>
 
+static const uint32_t MEMPOOL_HEIGHT = 0x7FFFFFFF;
+
 class CTxMemPool
 {
 public:
@@ -40,7 +42,21 @@ public:
         return true;
     }
 
-    CTransaction& lookup(uint256 hash) { return mapTx[hash]; }
+    bool isSpent(const COutPoint& outpoint)
+    {
+        LOCK(cs);
+        return mapNextTx.count(outpoint);
+    }
+
+    /// the returned pointer isn't guaranteed to remain valid, ensure to lock before using this method
+    const CTransaction* lookup_unsafe(const uint256& hash) const
+    {
+        auto it = mapTx.find(hash);
+        if (it != mapTx.cend())
+            return &it->second;
+        else
+            return nullptr;
+    }
 };
 
 #endif // TXMEMPOOL_H

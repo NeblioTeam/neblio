@@ -3,9 +3,11 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "amount.h"
 #include "bitcoinrpc.h"
 #include "main.h"
 #include "merkletx.h"
+#include "txdb.h"
 #include "txmempool.h"
 #include <algorithm>
 #include <atomic>
@@ -642,4 +644,126 @@ Value getblockheader(const Array& params, bool fHelp)
     }
 
     return blockheaderToJSON(pblockindex);
+}
+
+Value gettxout(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 2 || params.size() > 3)
+        throw std::runtime_error(
+            "gettxout \"txid\" n ( include_mempool )\n"
+            "\nReturns details about an unspent transaction output.\n"
+            "\nArguments:\n"
+            "1. \"txid\"             (string, required) The transaction id\n"
+            "2. \"n\"                (numeric, required) vout number\n"
+            "3. \"include_mempool\"  (boolean, optional) Whether to include the mempool. Default: true."
+            "     Note that an unspent output that is spent in the mempool won't appear.\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"bestblock\":  \"hash\",    (string) The hash of the block at the tip of the chain\n"
+            "  \"confirmations\" : n,       (numeric) The number of confirmations\n"
+            "  \"value\" : x.xxx,           (numeric) The transaction value in " +
+            CURRENCY_UNIT +
+            "\n"
+            "  \"scriptPubKey\" : {         (json object)\n"
+            "     \"asm\" : \"code\",       (string) \n"
+            "     \"hex\" : \"hex\",        (string) \n"
+            "     \"reqSigs\" : n,          (numeric) Number of required signatures\n"
+            "     \"type\" : \"pubkeyhash\", (string) The type, eg pubkeyhash\n"
+            "     \"addresses\" : [          (array of string) array of neblio addresses\n"
+            "        \"address\"     (string) neblio address\n"
+            "        ,...\n"
+            "     ]\n"
+            "  },\n"
+            "  \"coinbase\" : true|false   (boolean) Coinbase or not\n"
+            "}\n"
+            "\nExamples:\n"
+            "\nGet unspent transactions\n"
+            "listunspent\n"
+            "View the details\n"
+            "gettxout \"txid\" 1\n"
+            "\nAs a json rpc call\n"
+            "gettxout \"txid\" 1");
+
+    LOCK(cs_main);
+
+    json_spirit::Object ret;
+
+    std::string strHash = params[0].get_str();
+    uint256     hash(strHash);
+    unsigned    n = static_cast<unsigned>(params[1].get_int());
+    COutPoint   out(hash, n);
+    bool        fMempool = true;
+    if (params[2].type() != Value_type::null_type)
+        fMempool = params[2].get_bool();
+
+    boost::optional<CTransaction> tx;
+    uint32_t                      nHeight = 0;
+    CTxIndex                      txindex;
+    if (fMempool) {
+        LOCK(mempool.cs);
+        const CTransaction* txPtr = mempool.lookup_unsafe(out.hash);
+        if (txPtr) {
+            if (mempool.isSpent(out)) {
+                return Value();
+            } else {
+                nHeight = MEMPOOL_HEIGHT;
+                tx      = *txPtr;
+            }
+        }
+    }
+
+    // if tx was not found in the mempool
+    if (!tx) {
+        CTxDB txdb;
+        if (!txdb.ReadTxIndex(out.hash, txindex)) {
+            return Value();
+        }
+
+        if (n >= txindex.vSpent.size()) {
+            throw std::runtime_error("Transaction " + out.hash.ToString() + " has only " +
+                                     std::to_string(txindex.vSpent.size()) + " outputs. Output index " +
+                                     std::to_string(n) + " is invalid");
+        }
+
+        if (!txindex.vSpent.at(n).IsNull()) {
+            // it's already spent
+            return Value();
+        }
+        auto it = mapBlockIndex.find(txindex.pos.nBlockPos);
+        if (it != mapBlockIndex.cend()) {
+            nHeight = it->second->nHeight;
+            tx      = CTransaction();
+            if (!txdb.ReadTx(txindex.pos, *tx)) {
+                return Value();
+            }
+        } else {
+            return Value();
+        }
+    }
+
+    if (!tx) {
+        throw std::runtime_error("Failed to find tx " + out.hash.ToString());
+    }
+
+    if (n >= tx->vout.size()) {
+        throw std::runtime_error("Transaction " + out.hash.ToString() + " has only " +
+                                 std::to_string(tx->vout.size()) + " outputs. Output index " +
+                                 std::to_string(n) + " is invalid");
+    }
+
+    CBlockIndex* pindex = pindexBest.get();
+    ret.push_back(Pair("bestblock", pindex->GetBlockHash().GetHex()));
+    if (nHeight == MEMPOOL_HEIGHT) {
+        ret.push_back(Pair("confirmations", 0));
+    } else {
+        ret.push_back(Pair("confirmations", (int64_t)(pindex->nHeight - nHeight)));
+    }
+    ret.push_back(Pair("value", ValueFromAmount(tx->vout.at(n).nValue)));
+    Object o;
+    ScriptPubKeyToJSON(tx->vout.at(n).scriptPubKey, o, true);
+    ret.push_back(Pair("scriptPubKey", o));
+    ret.push_back(Pair("coinbase", tx->IsCoinBase()));
+    ret.push_back(Pair("coinstake", tx->IsCoinStake()));
+
+    return ret;
 }

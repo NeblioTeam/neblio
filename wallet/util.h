@@ -252,6 +252,9 @@ void        runCommand(std::string strCommand);
 
 std::string GetMimeTypeFromPath(const std::string& path);
 
+// Application startup time (used for uptime calculation)
+int64_t GetStartupTime();
+
 template <typename T>
 std::string ToHexString(T&& value, bool prepend_0x = true)
 {

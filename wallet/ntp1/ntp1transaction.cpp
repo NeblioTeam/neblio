@@ -929,6 +929,10 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> NTP1Transaction::StdFetche
         throw std::runtime_error("Reached maximum recursion in StdFetchedInputTxsToNTP1");
     }
 
+    if (tx.IsCoinBase()) {
+        return {};
+    }
+
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputsWithNTP1;
     // put the input transactions in a vector with their corresponding NTP1 transactions
     {

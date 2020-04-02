@@ -2216,8 +2216,11 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         mempool.queryHashes(vtxid);
         vector<CInv> vInv;
         for (uint256& hash : vtxid) {
-            CInv inv(MSG_TX, hash);
-            if ((pfrom->pfilter && pfrom->pfilter->IsRelevantAndUpdate(mempool.lookup(hash), hash)) ||
+            CInv                          inv(MSG_TX, hash);
+            const CTransaction* txFromMempool = mempool.lookup_unsafe(hash);
+            // this tx should exist because we locked then used mempool.queryHashes()
+            assert(txFromMempool);
+            if ((pfrom->pfilter && pfrom->pfilter->IsRelevantAndUpdate(*txFromMempool, hash)) ||
                 (!pfrom->pfilter))
                 vInv.push_back(inv);
             if (vInv.size() == MAX_INV_SZ)
