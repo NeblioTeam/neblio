@@ -69,20 +69,26 @@ target_compile_definitions(neblio-tests PRIVATE
     NEBLIO_UNITTESTS
     )
 
-option(NEBLIO_DOWNLOAD_AND_TEST_ALL_TXS "[Unit-tests]: Enable downloading and testing all transactions" ON)
-option(NEBLIO_DOWNLOAD_TX_DATA "[Unit-tests]: Enable downloading transaction data" OFF)
-option(NEBLIO_RUN_NTP_PARSE_TESTS "[Unit-tests]: Enable NTP1 parsing tests" OFF)
+option(NEBLIO_TEST_ALL_TXS "[Unit-tests]: Enable downloading and testing all transactions by comparing it with the API server" ON)
+option(NEBLIO_RECREATE_TX_DATA "[Unit-tests]: Enable downloading and recreating transaction data to be used in tests.
+                                              If this is OFF and the option NEBLIO_TEST_ALL_TXS, the data will be downloaded directly from the neblio server." OFF)
+option(NEBLIO_REDOWNLOAD_TXID_LIST "[Unit-tests]: If NEBLIO_RECREATE_TX_DATA is enabled, enabling this will redownload the TXids list to recreate the database from them" ON)
+option(NEBLIO_FORCE_DISABLE_PREMADE_DATA_DOWNLOAD "[Unit-tests]: If NEBLIO_RECREATE_TX_DATA is disabled, this can be used to prevent data from being downloaded" OFF)
 
-if(NEBLIO_DOWNLOAD_AND_TEST_ALL_TXS)
-    target_compile_definitions(neblio-tests PRIVATE UNITTEST_DOWNLOAD_PREMADE_TX_DATA_AND_RUN_PARSE_TESTS)
+if(NEBLIO_TEST_ALL_TXS)
+    target_compile_definitions(neblio-tests PRIVATE UNITTEST_RUN_NTP1_PARSE_TESTS)
 endif()
 
-if(NEBLIO_DOWNLOAD_TX_DATA)
-    target_compile_definitions(neblio-tests PRIVATE UNITTEST_DOWNLOAD_TX_DATA)
+if(NEBLIO_RECREATE_TX_DATA)
+    target_compile_definitions(neblio-tests PRIVATE UNITTEST_DOWNLOAD_AND_CREATE_TX_DATA)
 endif()
 
-if(NEBLIO_RUN_NTP_PARSE_TESTS)
-    target_compile_definitions(neblio-tests PRIVATE UNITTEST_RUN_NTP_PARSE_TESTS)
+if(NEBLIO_REDOWNLOAD_TXID_LIST)
+    target_compile_definitions(neblio-tests PRIVATE UNITTEST_REDOWNLOAD_TXID_LIST)
+endif()
+
+if(NEBLIO_FORCE_DISABLE_PREMADE_DATA_DOWNLOAD)
+    target_compile_definitions(neblio-tests PRIVATE UNITTEST_FORCE_DISABLE_PREMADE_DATA_DOWNLOAD)
 endif()
 
 add_test(

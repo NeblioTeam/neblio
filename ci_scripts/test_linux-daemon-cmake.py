@@ -54,16 +54,16 @@ nci.call_with_err_code('ccache -s')
 os.environ['PATH'] = '/usr/lib/ccache:' + os.environ['PATH']
 
 
-nci.call_with_err_code('cmake -DNEBLIO_CMAKE=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DNEBLIO_DOWNLOAD_AND_TEST_ALL_TXS=OFF -DNEBLIO_RUN_NTP_PARSE_TESTS=ON ..')
+nci.call_with_err_code('cmake -DNEBLIO_CMAKE=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DNEBLIO_FORCE_DISABLE_PREMADE_DATA_DOWNLOAD=ON ..')
 nci.call_with_err_code("make -j" + str(mp.cpu_count()))
 
 nci.call_with_err_code('ccache -s')
 
 # download test data
-nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/test_data_mainnet.tar.xz -O ../wallet/test/data/test_data_mainnet.tar.xz')
-nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/test_data_testnet.tar.xz -O ../wallet/test/data/test_data_testnet.tar.xz')
-nci.call_with_err_code('tar -xJvf ../wallet/test/data/test_data_mainnet.tar.xz -C ../wallet/test/data')
-nci.call_with_err_code('tar -xJvf ../wallet/test/data/test_data_testnet.tar.xz -C ../wallet/test/data')
+nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/test_data_mainnet_tab.tar.xz -O ../wallet/test/data/test_data_mainnet_tab.tar.xz')
+nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/test_data_testnet_tab.tar.xz -O ../wallet/test/data/test_data_testnet_tab.tar.xz')
+nci.call_with_err_code('tar -xJvf ../wallet/test/data/test_data_mainnet_tab.tar.xz -C ../wallet/test/data')
+nci.call_with_err_code('tar -xJvf ../wallet/test/data/test_data_testnet_tab.tar.xz -C ../wallet/test/data')
 nci.call_with_err_code('rm ../wallet/test/data/*.tar.xz')
 
 # run unit tests

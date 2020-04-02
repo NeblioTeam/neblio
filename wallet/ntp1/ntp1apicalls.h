@@ -14,10 +14,12 @@ public:
                                                                   NetworkType        netType);
     static NTP1TokenMetaData RetrieveData_NTP1TokensMetaData(const std::string& tokenId,
                                                              const std::string& tx, int outputIndex,
-                                                             NetworkType netType);
+                                                             NetworkType netType,
+                                                             uint64_t    MaxRetries = 1);
     static const long        NTP1_CONNECTION_TIMEOUT = 10;
     static NTP1Transaction RetrieveData_TransactionInfo(const std::string& txHash, NetworkType netType);
-    static std::string RetrieveData_TransactionInfo_Str(const std::string& txHash, NetworkType netType);
+    static std::string RetrieveData_TransactionInfo_Str(const std::string& txHash, NetworkType netType,
+                                                        uint64_t MaxRetries = 1);
 };
 
 #endif // NTP1APICALLS_H
