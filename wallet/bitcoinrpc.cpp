@@ -821,7 +821,12 @@ void ThreadRPCServer2(void* /*parg*/)
 
     const bool fUseSSL = false; // SSL disabled
 
-    asio::io_service io_service;
+    // this is made static due to issues of possible race conditions when shutting down
+    // the issue is probably caused by trying to clear/read the queue after having deleted the acceptor,
+    // where the RPC request is also deleted
+    static asio::io_service io_service;
+    io_service.reset();
+
 #if ((BOOST_VERSION / 100000) > 1) && ((BOOST_VERSION / 100 % 1000) >= 47)
     ssl::context context(io_service, ssl::context::sslv23);
 #else
