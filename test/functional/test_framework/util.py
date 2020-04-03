@@ -402,21 +402,25 @@ def sync_mempools(rpc_connections, *, wait=1, timeout=60, flush_scheduler=True):
     """
     Wait until everybody has the same transactions in their memory
     pools
+
+    NOTE: This is NO-OP in neblio because syncwithvalidationinterfacequeue() is a NO-OP
+     and the mempool is synchronous
     """
-    while timeout > 0:
-        pool = set(rpc_connections[0].getrawmempool())
-        num_match = 1
-        for i in range(1, len(rpc_connections)):
-            if set(rpc_connections[i].getrawmempool()) == pool:
-                num_match = num_match + 1
-        if num_match == len(rpc_connections):
-            if flush_scheduler:
-                for r in rpc_connections:
-                    r.syncwithvalidationinterfacequeue()
-            return
-        time.sleep(wait)
-        timeout -= wait
-    raise AssertionError("Mempool sync failed")
+    # while timeout > 0:
+    #     pool = set(rpc_connections[0].getrawmempool())
+    #     num_match = 1
+    #     for i in range(1, len(rpc_connections)):
+    #         if set(rpc_connections[i].getrawmempool()) == pool:
+    #             num_match = num_match + 1
+    #     if num_match == len(rpc_connections):
+    #         if flush_scheduler:
+    #             for r in rpc_connections:
+    #                 r.syncwithvalidationinterfacequeue()
+    #         return
+    #     time.sleep(wait)
+    #     timeout -= wait
+    # raise AssertionError("Mempool sync failed")
+    pass
 
 # Transaction/Block functions
 #############################

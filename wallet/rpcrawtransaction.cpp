@@ -57,6 +57,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry, bo
             isNTP1 = false;
         }
     }
+    entry.push_back(Pair("size", (int)::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION)));
     entry.push_back(Pair("txid", tx.GetHash().GetHex()));
     entry.push_back(Pair("version", tx.nVersion));
     entry.push_back(Pair("time", (int64_t)tx.nTime));

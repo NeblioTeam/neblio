@@ -118,7 +118,7 @@ CAmount AmountFromValue(const Value& value)
     if (value.type() != real_type && value.type() != int_type && value.type() != str_type)
         throw JSONRPCError(RPC_TYPE_ERROR, "Amount is not a number or string");
     if (value.type() == str_type) {
-        if (!ParseFixedPoint(value.get_str(), 6, &nAmount))
+        if (!ParseFixedPoint(value.get_str(), 8, &nAmount))
             throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount");
     } else {
         double dAmount = value.get_real();
@@ -314,6 +314,7 @@ static const CRPCCommand vRPCCommands[] =
     { "getblocktemplate",          &getblocktemplate,          true,   false },
     { "submitblock",               &submitblock,               false,  false },
     { "generate",                  &generate,                  false,  false },
+    { "generatetoaddress",         &generatetoaddress,         false,  false },
     { "listsinceblock",            &listsinceblock,            false,  false },
     { "dumpprivkey",               &dumpprivkey,               false,  false },
     { "dumpwallet",                &dumpwallet,                true,   false },

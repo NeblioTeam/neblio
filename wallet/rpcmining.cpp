@@ -549,7 +549,8 @@ boost::optional<unsigned> MineBlock(CBlock block, uint64_t nMaxTries)
     return boost::none;
 }
 
-Value generateBlocks(int nGenerate, uint64_t nMaxTries, CWallet* const pwallet)
+Value generateBlocks(int nGenerate, uint64_t nMaxTries, CWallet* const pwallet,
+                     const boost::optional<CBitcoinAddress>& destinationAddress = boost::none)
 {
     static const int nInnerLoopCount = 0x10000;
     int              nHeightEnd      = 0;
@@ -561,7 +562,11 @@ Value generateBlocks(int nGenerate, uint64_t nMaxTries, CWallet* const pwallet)
     json_spirit::Array blockHashes;
 
     // generate a new address
-    const CBitcoinAddress destination = []() {
+    const CBitcoinAddress destination = [&destinationAddress]() {
+        if (destinationAddress) {
+            return *destinationAddress;
+        }
+
         CPubKey newKey;
         if (!pwalletMain->GetKeyFromPool(newKey, false))
             throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT,
@@ -654,4 +659,37 @@ Value generate(const Array& params, bool fHelp)
     //    }
 
     return generateBlocks(num_generate, max_tries, pwallet);
+}
+
+Value generatetoaddress(const Array& params, bool fHelp)
+{
+    EnsureWalletIsUnlocked();
+
+    CWallet* const pwallet = pwalletMain.get();
+
+    if (fHelp || params.size() < 2 || params.size() > 3)
+        throw std::runtime_error(
+            "generatetoaddress nblocks address (maxtries)\n"
+            "\nMine blocks immediately to a specified address (before the RPC call returns)\n"
+            "\nArguments:\n"
+            "1. nblocks      (numeric, required) How many blocks are generated immediately.\n"
+            "2. address      (string, required) The address to send the newly generated nebls to.\n"
+            "3. maxtries     (numeric, optional) How many iterations to try (default = 1000000).\n"
+            "\nResult:\n"
+            "[ blockhashes ]     (array) hashes of blocks generated\n"
+            "\nExamples:\n"
+            "\nGenerate 11 blocks to myaddress\n");
+
+    int      num_generate = params[0].get_int();
+    uint64_t max_tries    = 1000000;
+    if (params.size() > 2 && params[2].type() != Value_type::null_type) {
+        max_tries = params[2].get_int();
+    }
+
+    CBitcoinAddress destination(params[1].get_str());
+    if (!destination.IsValid()) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Error: Invalid address");
+    }
+
+    return generateBlocks(num_generate, max_tries, pwallet, destination);
 }

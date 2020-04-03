@@ -464,7 +464,7 @@ Value waitforblockheight(const Array& params, bool fHelp)
 
     int height = params[0].get_int();
 
-    if (params[1].type() != null_type) {
+    if (params.size() > 1 && params[1].type() != null_type) {
         timeout = params[1].get_int();
         printf("Timeout set to: %i\n", timeout);
     }
@@ -693,7 +693,7 @@ Value gettxout(const Array& params, bool fHelp)
     unsigned    n = static_cast<unsigned>(params[1].get_int());
     COutPoint   out(hash, n);
     bool        fMempool = true;
-    if (params[2].type() != Value_type::null_type)
+    if (params.size() > 2 && params[2].type() != Value_type::null_type)
         fMempool = params[2].get_bool();
 
     boost::optional<CTransaction> tx;
@@ -701,14 +701,13 @@ Value gettxout(const Array& params, bool fHelp)
     CTxIndex                      txindex;
     if (fMempool) {
         LOCK(mempool.cs);
+        if (mempool.isSpent(out)) {
+            return Value();
+        }
         const CTransaction* txPtr = mempool.lookup_unsafe(out.hash);
         if (txPtr) {
-            if (mempool.isSpent(out)) {
-                return Value();
-            } else {
-                nHeight = MEMPOOL_HEIGHT;
-                tx      = *txPtr;
-            }
+            nHeight = MEMPOOL_HEIGHT;
+            tx      = *txPtr;
         }
     }
 

@@ -249,6 +249,7 @@ extern json_spirit::Value syncwithvalidationinterfacequeue(const json_spirit::Ar
 extern json_spirit::Value getblockchaininfo(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getblockheader(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value generate(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value generatetoaddress(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getblockcount(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getdifficulty(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value settxfee(const json_spirit::Array& params, bool fHelp);
