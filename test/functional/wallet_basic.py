@@ -234,8 +234,7 @@ class WalletTest(BitcoinTestFramework):
         zeroValueTxid= decRawTx['txid']
         self.nodes[1].sendrawtransaction(signedRawTx['hex'])
 
-        self.sync_all()
-        self.nodes[1].generate(1) # mine a block
+        self.nodes[1].generate(1)  # mine a block
         self.sync_all()
 
         unspentTxs = self.nodes[0].listunspent() #zero value tx must be in listunspents output
