@@ -210,12 +210,12 @@ static bool GetKernelStakeModifier(uint256 hashBlockFrom, uint64_t& nStakeModifi
     nStakeModifier = 0;
     if (!mapBlockIndex.count(hashBlockFrom))
         return error("GetKernelStakeModifier() : block not indexed");
-    const CBlockIndex* pindexFrom                      = mapBlockIndex[hashBlockFrom].get();
-    nStakeModifierHeight                               = pindexFrom->nHeight;
-    nStakeModifierTime                                 = pindexFrom->GetBlockTime();
-    int64_t            nStakeModifierSelectionInterval = GetStakeModifierSelectionInterval();
-    unsigned int       nSMA                            = Params().StakeMinAge();
-    const CBlockIndex* pindex                          = pindexFrom;
+    const CBlockIndex* pindexFrom                        = mapBlockIndex[hashBlockFrom].get();
+    nStakeModifierHeight                                 = pindexFrom->nHeight;
+    nStakeModifierTime                                   = pindexFrom->GetBlockTime();
+    static const int64_t nStakeModifierSelectionInterval = GetStakeModifierSelectionInterval();
+    unsigned int         nSMA                            = Params().StakeMinAge();
+    const CBlockIndex*   pindex                          = pindexFrom;
     // loop to find the stake modifier later by a selection interval
     while (nStakeModifierTime < pindexFrom->GetBlockTime() + nStakeModifierSelectionInterval) {
         if (!pindex->pnext) { // reached best block; may happen if node is behind on block chain

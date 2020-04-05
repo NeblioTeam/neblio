@@ -380,7 +380,7 @@ public:
         consensus.nStakeTargetSpacingV1 = 120; // 120 seconds block spacing
         consensus.nStakeTargetSpacingV2 = 30;  // 30 seconds block spacing
 
-        consensus.nStakeMinAgeV1      = 24 * 60 * 60;             // minimum age for coin age
+        consensus.nStakeMinAgeV1      = 10 * 60;                  // minimum age for coin age
         consensus.nStakeMinAgeV2      = consensus.nStakeMinAgeV1; // minimum age for coin age
         consensus.nStakeMaxAge        = 7 * 24 * 60 * 60;         // Maximum stake age 7 days
         consensus.nModifierInterval   = 10 * 60; // time to elapse before new modifier is computed

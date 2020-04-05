@@ -59,6 +59,7 @@ BASE_SCRIPTS= [
 #    'wallet_backup.py',
     # vv Tests less than 5m vv
     'feature_block.py',
+    'feature_pos.py',
 #    'p2p_compactblocks.py',
 #    'feature_segwit.py',
     # vv Tests less than 2m vv

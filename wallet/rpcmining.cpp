@@ -601,8 +601,8 @@ Value generateBlocks(int nGenerate, uint64_t nMaxTries, CWallet* const pwallet,
 
         // peercoin: sign block
         // rfc6: we sign proof of work blocks only before 0.8 fork
-        //     if (!IsBTC16BIPsEnabled(pblock->GetBlockTime()) && !SignBlock(*pblock, *pwallet))
-        //         throw JSONRPCError(-100, "Unable to sign block, wallet locked?");
+        //        if (!pblock->SignBlock(*pwallet, 0))
+        //            throw JSONRPCError(-100, "Unable to sign block, wallet locked?");
 
         if (!ProcessBlock(nullptr, pblock.get()))
             throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBlock, block not accepted");
@@ -618,8 +618,50 @@ Value generateBlocks(int nGenerate, uint64_t nMaxTries, CWallet* const pwallet,
     return Value(blockHashes);
 }
 
+Value generatePOSBlocks(int nGenerate, CWallet* const pwallet)
+{
+    if (!Params().MineBlocksOnDemand())
+        throw JSONRPCError(RPC_INVALID_REQUEST, "This method can only be used on regtest");
+
+    int nHeightEnd = 0;
+    int nHeight    = nBestHeight.load();
+
+    nHeightEnd = nBestHeight.load() + nGenerate;
+
+    json_spirit::Array blockHashes;
+
+    while (nHeight < nHeightEnd) {
+        std::unique_ptr<CBlock> pblock;
+        {
+            pblock = CreateNewBlock(pwallet, true, 0);
+            if (!pblock)
+                throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
+
+            if (pblock->SignBlock(*pwallet, 0)) {
+                if (!CheckStake(pblock.get(), *pwallet))
+                    throw JSONRPCError(RPC_INTERNAL_ERROR, "CheckStake, CheckStake failed");
+
+            } else {
+                pblock.reset();
+            }
+        }
+
+        if (!pblock) {
+            // staking failed
+            break;
+        }
+
+        ++nHeight;
+        blockHashes.push_back(pblock->GetHash().GetHex());
+    }
+    return Value(blockHashes);
+}
+
 Value generate(const Array& params, bool fHelp)
 {
+    if (!Params().MineBlocksOnDemand())
+        throw JSONRPCError(RPC_INVALID_REQUEST, "This method can only be used on regtest");
+
     EnsureWalletIsUnlocked();
 
     CWallet* const pwallet = pwalletMain.get();
@@ -661,8 +703,38 @@ Value generate(const Array& params, bool fHelp)
     return generateBlocks(num_generate, max_tries, pwallet);
 }
 
+Value generatepos(const Array& params, bool fHelp)
+{
+    EnsureWalletIsUnlocked();
+
+    CWallet* const pwallet = pwalletMain.get();
+
+    if (fHelp || params.size() < 1 || params.size() > 1) {
+        throw std::runtime_error(
+            "generate nblocks\n"
+            "\nMine one block with proof of stake immediately (before the RPC call returns)\n"
+            "\nBe aware that staking is a complex principle that requires accurate timing. It's "
+            "recommended that you manage timing manually and generate only 1 block at a time\n"
+            "\nArguments:\n"
+            "1. nblocks      (numeric, required) How many blocks are generated immediately.\n"
+            "2. count        (numeric, required) Number of blocks to generate.\n"
+            "\nResult:\n"
+            "[ blockhashes ]     (array) hashes of blocks generated\n"
+            "\nExamples:\n"
+            "\nGenerate 11 blocks\n"
+            "generate 11");
+    }
+
+    int num_generate = params[0].get_int();
+
+    return generatePOSBlocks(num_generate, pwallet);
+}
+
 Value generatetoaddress(const Array& params, bool fHelp)
 {
+    if (!Params().MineBlocksOnDemand())
+        throw JSONRPCError(RPC_INVALID_REQUEST, "This method can only be used on regtest");
+
     EnsureWalletIsUnlocked();
 
     CWallet* const pwallet = pwalletMain.get();

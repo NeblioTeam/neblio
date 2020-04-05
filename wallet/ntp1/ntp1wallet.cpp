@@ -47,12 +47,15 @@ void NTP1Wallet::__getOutputs()
     // time and nebl wallet is null still the 100 number is just a protection against infinite waiting
 
     std::shared_ptr<CWallet> localWallet = std::atomic_load(&pwalletMain);
+
+#ifdef QT_GUI
     for (int i = 0;
          i < 100 &&
          ((!everSucceededInLoadingTokens && std::atomic_load(&localWallet) == nullptr) || !appInitiated);
          i++) {
         boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
     }
+#endif
 
     if (std::atomic_load(&localWallet) == nullptr) {
         return;

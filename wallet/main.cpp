@@ -895,6 +895,8 @@ unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfS
 {
     if (!fProofOfStake && Params().MineBlocksOnDemand())
         return pindexLast->nBits;
+    if (fProofOfStake && Params().MineBlocksOnDemand())
+        return Params().PoWLimit().GetCompact();
 
     if (pindexLast->nHeight < 2000)
         return GetNextTargetRequiredV1(pindexLast, fProofOfStake);
@@ -2216,7 +2218,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         mempool.queryHashes(vtxid);
         vector<CInv> vInv;
         for (uint256& hash : vtxid) {
-            CInv                          inv(MSG_TX, hash);
+            CInv                inv(MSG_TX, hash);
             const CTransaction* txFromMempool = mempool.lookup_unsafe(hash);
             // this tx should exist because we locked then used mempool.queryHashes()
             assert(txFromMempool);
