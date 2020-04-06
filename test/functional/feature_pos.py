@@ -87,7 +87,6 @@ class RawTransactionsTest(BitcoinTestFramework):
         return hashes[0]
 
     def create_tx_with_output_amounts(self, available_outputs, addresses_vs_amounts, fee=Decimal('0.1')):
-        COINBASE_MATURITY = 10
         total_output_amount = fee
         for addr in addresses_vs_amounts:
             total_output_amount += addresses_vs_amounts[addr]
@@ -151,7 +150,10 @@ class RawTransactionsTest(BitcoinTestFramework):
         # these should be combined
         node2_addr = self.nodes[2].getnewaddress()
         utxos_to_combine_in_stake = 10
-        amount_per_address = Decimal('20')
+        amount_per_address = Decimal('110')
+        # the condition for combination; utxos will be added until we reach 1000 nebls
+        # note: The outcome can be > STAKE_COMBINE_THRESHOLD
+        assert (utxos_to_combine_in_stake - 1)*amount_per_address <= STAKE_COMBINE_THRESHOLD
         for i in range(utxos_to_combine_in_stake):
             addresses_vs_amounts_node2 = {node2_addr: amount_per_address}
             tx_for_n2 = self.create_tx_with_output_amounts(self.nodes[0].listunspent(), addresses_vs_amounts_node2)
