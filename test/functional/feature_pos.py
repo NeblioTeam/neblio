@@ -85,13 +85,15 @@ class RawTransactionsTest(BitcoinTestFramework):
         total_input = 0
         utxos_to_be_used = []
         for input in available_outputs:
-            if total_input < total_output_amount and input['confirmations'] > COINBASE_MATURITY:
-                utxos_to_be_used.append(input)
-                total_input += input['amount']
+            if total_input < total_output_amount:
+                if input['confirmations'] > COINBASE_MATURITY:
+                    utxos_to_be_used.append(input)
+                    total_input += input['amount']
             else:
                 break
         if total_input < total_output_amount:
-            print("Available outputs:", available_outputs)
+            logger.info("Attempting to reach value: {}".format(total_output_amount))
+            logger.info("Available outputs: {}".format(available_outputs))
             raise ValueError("Total input could not reach the required output. Find available outputs above.")
         tx_inputs = []
         for input in utxos_to_be_used:
