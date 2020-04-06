@@ -136,6 +136,11 @@ public:
         fMiningRequiresPeers = true;
         fMineBlocksOnDemand  = false;
 
+        nStakeSplitAge         = 1 * 24 * 60 * 60;
+        nStakeCombineThreshold = 1000 * COIN;
+
+        nLastPoWBlock = 1000;
+
         /**
         // What makes a good checkpoint block?
         // + Is surrounded by blocks with reasonable timestamps
@@ -289,6 +294,11 @@ public:
         fMiningRequiresPeers = true;
         fMineBlocksOnDemand  = false;
 
+        nStakeSplitAge         = 1 * 24 * 60 * 60;
+        nStakeCombineThreshold = 1000 * COIN;
+
+        nLastPoWBlock = 1000;
+
         /**
         // What makes a good checkpoint block?
         // + Is surrounded by blocks with reasonable timestamps
@@ -432,6 +442,11 @@ public:
         fMiningRequiresPeers = false;
         fMineBlocksOnDemand  = true;
 
+        nStakeSplitAge         = 60 * 60;
+        nStakeCombineThreshold = 1000 * COIN;
+
+        nLastPoWBlock = 1000;
+
         // Hard checkpoints of stake modifiers to ensure they are deterministic (regtest)
         mapStakeModifierCheckpoints = MapStakeModifierCheckpoints{};
 
@@ -538,3 +553,9 @@ const MapStakeModifierCheckpoints& CChainParams::StakeModifierCheckpoints() cons
 {
     return mapStakeModifierCheckpoints;
 }
+
+unsigned CChainParams::StakeSplitAge() const { return nStakeSplitAge; }
+
+int64_t CChainParams::StakeCombineThreshold() const { return nStakeCombineThreshold; }
+
+int CChainParams::LastPoWBlock() const { return nLastPoWBlock; }

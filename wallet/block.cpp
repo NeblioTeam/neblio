@@ -1313,7 +1313,7 @@ bool CBlock::AcceptBlock()
     CBlockIndexSmartPtr pindexPrev = boost::atomic_load(&mi->second);
     int                 nHeight    = pindexPrev->nHeight + 1;
 
-    if (IsProofOfWork() && nHeight > LAST_POW_BLOCK)
+    if (IsProofOfWork() && nHeight > Params().LastPoWBlock())
         return DoS(100, error("AcceptBlock() : reject proof-of-work at height %d", nHeight));
 
     // Check proof-of-work or proof-of-stake

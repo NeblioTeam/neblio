@@ -93,6 +93,18 @@ public:
 
     const MapStakeModifierCheckpoints& StakeModifierCheckpoints() const;
 
+    /** Coins that successfully stake at ages less than this will be split inout multiple outputs */
+    unsigned StakeSplitAge() const;
+
+    /** If the value of the staked output is less than this, more outputs of the same address will be
+     * combined to reduce the number of outputs in a stake.
+     * This works only if coins age > StakeSplitAge() */
+    int64_t StakeCombineThreshold() const;
+
+    /** to kick-start the blockchain, this specifies the amount of blocks that should be mined with proof
+     * of work */
+    int LastPoWBlock() const;
+
     bool IsNTP1TokenBlacklisted(const std::string& tokenId, int& maxHeight) const
     {
         auto it = ntp1BlacklistedTokenIds.find(tokenId);
@@ -133,6 +145,11 @@ protected:
 
     std::unordered_map<std::string, int> ntp1BlacklistedTokenIds;
     std::unordered_map<uint256, int>     excludedTxs;
+
+    unsigned int nStakeSplitAge;
+    int64_t      nStakeCombineThreshold;
+
+    int nLastPoWBlock;
 
     //! Hard checkpoints of stake modifiers to ensure they are deterministic
     MapStakeModifierCheckpoints mapStakeModifierCheckpoints;

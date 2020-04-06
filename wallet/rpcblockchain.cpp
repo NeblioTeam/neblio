@@ -50,7 +50,7 @@ double GetDifficulty(const CBlockIndex* blockindex)
 
 double GetPoWMHashPS()
 {
-    if (boost::atomic_load(&pindexBest)->nHeight >= LAST_POW_BLOCK)
+    if (boost::atomic_load(&pindexBest)->nHeight >= Params().LastPoWBlock())
         return 0;
 
     int     nPoWInterval          = 72;

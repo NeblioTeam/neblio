@@ -30,8 +30,6 @@ extern boost::atomic<int> nBestHeight;
 
 extern CScheduler scheduler;
 
-static const int LAST_POW_BLOCK = 1000; // 1000 PoW Blocks to kickstart
-
 /** The maximum allowed size for a serialized block, in bytes (network rule) */
 static const unsigned int MAX_BLOCK_SIZE     = 8000000;
 static const unsigned int OLD_MAX_BLOCK_SIZE = 1000000;

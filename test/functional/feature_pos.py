@@ -14,6 +14,7 @@ Test the following RPCs:
 
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
+from test_framework.messages import *
 
 
 class multidict(dict):
@@ -43,7 +44,7 @@ class RawTransactionsTest(BitcoinTestFramework):
 
     def setup_network(self, split=False):
         super().setup_network()
-        connect_nodes_bi(self.nodes,0,2)
+        # connect_nodes_bi(self.nodes,0,2)
 
     def progress_mock_time(self, by_how_many_seconds):
         assert self.curr_time is not None
@@ -85,7 +86,33 @@ class RawTransactionsTest(BitcoinTestFramework):
         self.last_random_time_offset = r
         return hashes[0]
 
+    def create_tx_with_output_amounts(self, available_outputs, addresses_vs_amounts, fee=Decimal('0.1')):
+        COINBASE_MATURITY = 10
+        total_output_amount = fee
+        for addr in addresses_vs_amounts:
+            total_output_amount += addresses_vs_amounts[addr]
+        total_input = 0
+        utxos_to_be_used = []
+        for input in available_outputs:
+            if total_input < total_output_amount and input['confirmations'] > COINBASE_MATURITY:
+                utxos_to_be_used.append(input)
+                total_input += input['amount']
+            else:
+                break
+        if total_input < total_output_amount:
+            raise ValueError("Total input could not reach the required output")
+        tx_inputs = []
+        for input in utxos_to_be_used:
+            tx_inputs.append({"txid": input['txid'], "vout": input['vout']})
+        tx_outputs = addresses_vs_amounts
+        return self.nodes[0].createrawtransaction(tx_inputs, tx_outputs)
+
+
+
+
     def run_test(self):
+
+        COMBINED_STAKE_THRESHOLD = Decimal('1000.')
 
         #prepare some coins for multiple *rawtransaction commands
 
@@ -98,6 +125,7 @@ class RawTransactionsTest(BitcoinTestFramework):
             hash = self.gen_pow_block(0, average_block_time, block_time_spread)
         # find the output that has the genesis block reward
         listunspent = self.nodes[0].listunspent()
+
         genesis_utxo = None
         for utxo_data in listunspent:
             if utxo_data['amount'] == Decimal('124000000.00000000'):
@@ -105,7 +133,7 @@ class RawTransactionsTest(BitcoinTestFramework):
                 break
         assert genesis_utxo is not None
 
-        # send the genesis reward in chunks to nodes[1] for staking later
+        # Create outputs in nodes[1] to stake them
         inputs = [{"txid": genesis_utxo['txid'], "vout": genesis_utxo['vout']}]
         outputs = {}
         outputs_count = 220
@@ -115,14 +143,29 @@ class RawTransactionsTest(BitcoinTestFramework):
         signedRawTx = self.nodes[0].signrawtransaction(rawTx)
         self.nodes[0].sendrawtransaction(signedRawTx['hex'])
 
-        for i in range(900):  # mine 900 blocks, we reduce the amount per call to avoid timing out
+        # Create outputs in nodes[2] to stake them
+        for i in range(100):  # mine 100 blocks
+            hash = self.gen_pow_block(0, average_block_time, block_time_spread)
+        self.sync_all()
+
+        # these should be combined
+        node2_addr = self.nodes[2].getnewaddress()
+        utxos_to_combine_in_stake = 10
+        amount_per_address = Decimal('20')
+        for i in range(utxos_to_combine_in_stake):
+            addresses_vs_amounts_node2 = {node2_addr: amount_per_address}
+            tx_for_n2 = self.create_tx_with_output_amounts(self.nodes[0].listunspent(), addresses_vs_amounts_node2)
+            signed_tx_for_n2 = self.nodes[0].signrawtransaction(tx_for_n2)
+            self.nodes[0].sendrawtransaction(signed_tx_for_n2['hex'])
+
+        for i in range(800):  # mine 900 blocks
             hash = self.gen_pow_block(0, average_block_time, block_time_spread)
         self.sync_all()
 
         # move to the future to make coins stakable (this is not needed because 10 minutes is too short)
         # self.progress_mock_time(60*10)
 
-        block_count_to_stake = 220
+        block_count_to_stake = 30
         # We can't stake more than the outputs we have
         assert block_count_to_stake <= outputs_count
         assert_equal(len(self.nodes[1].generatepos(1)), 0)
@@ -134,6 +177,22 @@ class RawTransactionsTest(BitcoinTestFramework):
         # check that the total number of blocks is the PoW mined + PoS mined
         for n in self.nodes:
             assert_equal(n.getblockcount(), 1000 + block_count_to_stake)
+
+        balance_before = self.nodes[2].getbalance()
+        assert_equal(balance_before, utxos_to_combine_in_stake*amount_per_address)
+        hash_n2 = self.gen_pos_block(2)
+
+        self.sync_all()
+
+        # we expect all inputs to be joined in one stake
+        balance_after = self.nodes[2].getbalance()
+        assert_equal(balance_after, Decimal('0'))
+
+
+        staked_block_in_n2 = self.nodes[2].getblock(hash_n2, True, True)
+        # in the staked block, transaction 1 has 10 inputs, which are all combined to create this stake
+        # Combined because the age is > than StakeSplitAge and the total amount is < StakeCombineThreshold
+        assert_equal(len(staked_block_in_n2['tx'][1]['vin']), utxos_to_combine_in_stake)
 
 
 if __name__ == '__main__':

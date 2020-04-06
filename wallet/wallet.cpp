@@ -20,9 +20,6 @@
 
 using namespace std;
 
-unsigned int nStakeSplitAge         = 1 * 24 * 60 * 60;
-int64_t      nStakeCombineThreshold = 1000 * COIN;
-
 const boost::filesystem::path CWallet::BackupHashFilename = "wallet-hash.txt";
 
 //////////////////////////////////////////////////////////////////////////////
@@ -2128,7 +2125,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
                 vwtxPrev.push_back(pcoin.first);
                 txNew.vout.push_back(CTxOut(0, scriptPubKeyOut));
 
-                if (GetWeight(block.GetBlockTime(), (int64_t)txNew.nTime) < nStakeSplitAge)
+                if (GetWeight(block.GetBlockTime(), (int64_t)txNew.nTime) < Params().StakeSplitAge())
                     txNew.vout.push_back(CTxOut(0, scriptPubKeyOut)); // split stake
                 if (fDebug)
                     printf("CreateCoinStake : added kernel type=%d\n", whichType);
@@ -2158,13 +2155,13 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
             if (txNew.vin.size() >= 100)
                 break;
             // Stop adding more inputs if value is already pretty significant
-            if (nCredit >= nStakeCombineThreshold)
+            if (nCredit >= Params().StakeCombineThreshold())
                 break;
             // Stop adding inputs if reached reserve limit
             if (nCredit + pcoin.first->vout[pcoin.second].nValue > nBalance - nReserveBalance)
                 break;
             // Do not add additional significant input
-            if (pcoin.first->vout[pcoin.second].nValue >= nStakeCombineThreshold)
+            if (pcoin.first->vout[pcoin.second].nValue >= Params().StakeCombineThreshold())
                 continue;
             // Do not add input that is still too young
             if (nTimeWeight < nSMA)
