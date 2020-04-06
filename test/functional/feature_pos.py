@@ -138,7 +138,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         n2_addr = self.nodes[2].getnewaddress()
         n2_utxos_to_combine_in_stake = 10
         n2_amount_per_address = Decimal('110')
-        # the condition for combination; utxos will be added until we reach 1000 nebls
+        # the condition for combination; utxos will be added until we reach 'STAKE_COMBINE_THRESHOLD' nebls
         # note: The outcome can be > STAKE_COMBINE_THRESHOLD
         assert (n2_utxos_to_combine_in_stake - 1)*n2_amount_per_address <= STAKE_COMBINE_THRESHOLD
         for i in range(n2_utxos_to_combine_in_stake):
@@ -151,7 +151,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         n3_addr = self.nodes[3].getnewaddress()
         n3_utxos_to_combine_in_stake = 10
         n3_amount_per_address = Decimal('120')
-        # the condition for combination; utxos will be added until we reach 1000 nebls
+        # the condition for combination; utxos will be added until we reach 'STAKE_COMBINE_THRESHOLD' nebls
         # note: The outcome can be > STAKE_COMBINE_THRESHOLD
         assert (n3_utxos_to_combine_in_stake - 1)*n3_amount_per_address > STAKE_COMBINE_THRESHOLD
         for i in range(n3_utxos_to_combine_in_stake):
