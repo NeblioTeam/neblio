@@ -26,6 +26,7 @@ import litecoin_scrypt
 
 from test_framework.siphash import siphash256
 from test_framework.util import hex_str_to_bytes, bytes_to_hex_str
+from decimal import Decimal
 
 MIN_VERSION_SUPPORTED = 60001
 MY_VERSION = 70014  # past bip-31 for ping/pong
@@ -38,6 +39,7 @@ MAX_BLOCK_BASE_SIZE = 1000000
 COIN = 100000000 # 1 nebl in satoshis
 STAKE_COMBINE_THRESHOLD = 1000
 COINBASE_MATURITY = 10
+COMBINED_STAKE_THRESHOLD = Decimal('1000.')
 
 NODE_NETWORK = (1 << 0)
 # NODE_GETUTXO = (1 << 1)

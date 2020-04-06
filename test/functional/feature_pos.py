@@ -101,15 +101,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         tx_outputs = addresses_vs_amounts
         return self.nodes[0].createrawtransaction(tx_inputs, tx_outputs)
 
-
-
-
     def run_test(self):
-
-        COMBINED_STAKE_THRESHOLD = Decimal('1000.')
-
-        #prepare some coins for multiple *rawtransaction commands
-
         self.sync_all()
         self.reset_mock_time()
         self.last_random_time_offset = 0
