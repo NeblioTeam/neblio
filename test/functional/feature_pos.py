@@ -39,12 +39,11 @@ class multidict(dict):
 class RawTransactionsTest(BitcoinTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = True
-        self.num_nodes = 3
-        self.extra_args = [["-addresstype=legacy"], ["-addresstype=legacy"], ["-addresstype=legacy"]]
+        self.num_nodes = 4
+        self.extra_args = [[], [], [], []]
 
     def setup_network(self, split=False):
         super().setup_network()
-        # connect_nodes_bi(self.nodes,0,2)
 
     def progress_mock_time(self, by_how_many_seconds):
         assert self.curr_time is not None
@@ -148,19 +147,32 @@ class RawTransactionsTest(BitcoinTestFramework):
         self.sync_all()
 
         # these should be combined
-        node2_addr = self.nodes[2].getnewaddress()
-        utxos_to_combine_in_stake = 10
-        amount_per_address = Decimal('110')
+        n2_addr = self.nodes[2].getnewaddress()
+        n2_utxos_to_combine_in_stake = 10
+        n2_amount_per_address = Decimal('110')
         # the condition for combination; utxos will be added until we reach 1000 nebls
         # note: The outcome can be > STAKE_COMBINE_THRESHOLD
-        assert (utxos_to_combine_in_stake - 1)*amount_per_address <= STAKE_COMBINE_THRESHOLD
-        for i in range(utxos_to_combine_in_stake):
-            addresses_vs_amounts_node2 = {node2_addr: amount_per_address}
+        assert (n2_utxos_to_combine_in_stake - 1)*n2_amount_per_address <= STAKE_COMBINE_THRESHOLD
+        for i in range(n2_utxos_to_combine_in_stake):
+            addresses_vs_amounts_node2 = {n2_addr: n2_amount_per_address}
             tx_for_n2 = self.create_tx_with_output_amounts(self.nodes[0].listunspent(), addresses_vs_amounts_node2)
             signed_tx_for_n2 = self.nodes[0].signrawtransaction(tx_for_n2)
             self.nodes[0].sendrawtransaction(signed_tx_for_n2['hex'])
 
-        for i in range(800):  # mine 900 blocks
+        # these should be combined
+        n3_addr = self.nodes[3].getnewaddress()
+        n3_utxos_to_combine_in_stake = 10
+        n3_amount_per_address = Decimal('120')
+        # the condition for combination; utxos will be added until we reach 1000 nebls
+        # note: The outcome can be > STAKE_COMBINE_THRESHOLD
+        assert (n3_utxos_to_combine_in_stake - 1)*n3_amount_per_address > STAKE_COMBINE_THRESHOLD
+        for i in range(n3_utxos_to_combine_in_stake):
+            addresses_vs_amounts_node3 = {n3_addr: n3_amount_per_address}
+            tx_for_n3 = self.create_tx_with_output_amounts(self.nodes[0].listunspent(), addresses_vs_amounts_node3)
+            signed_tx_for_n3 = self.nodes[0].signrawtransaction(tx_for_n3)
+            self.nodes[0].sendrawtransaction(signed_tx_for_n3['hex'])
+
+        for i in range(800):  # mine 800 blocks
             hash = self.gen_pow_block(0, average_block_time, block_time_spread)
         self.sync_all()
 
@@ -180,8 +192,9 @@ class RawTransactionsTest(BitcoinTestFramework):
         for n in self.nodes:
             assert_equal(n.getblockcount(), 1000 + block_count_to_stake)
 
+        # test that combining stakes below the threshold STAKE_COMBINE_THRESHOLD will combine them
         balance_before = self.nodes[2].getbalance()
-        assert_equal(balance_before, utxos_to_combine_in_stake*amount_per_address)
+        assert_equal(balance_before, n2_utxos_to_combine_in_stake*n2_amount_per_address)
         hash_n2 = self.gen_pos_block(2)
 
         self.sync_all()
@@ -190,11 +203,30 @@ class RawTransactionsTest(BitcoinTestFramework):
         balance_after = self.nodes[2].getbalance()
         assert_equal(balance_after, Decimal('0'))
 
-
         staked_block_in_n2 = self.nodes[2].getblock(hash_n2, True, True)
-        # in the staked block, transaction 1 has 10 inputs, which are all combined to create this stake
+        # in the staked block, transaction 1 has 'n3_amount_per_address' inputs,
+        # which are all combined to create this stake
         # Combined because the age is > than StakeSplitAge and the total amount is < StakeCombineThreshold
-        assert_equal(len(staked_block_in_n2['tx'][1]['vin']), utxos_to_combine_in_stake)
+        assert_equal(len(staked_block_in_n2['tx'][1]['vin']), n2_utxos_to_combine_in_stake)
+
+        #
+        # test that combining stakes above the threshold STAKE_COMBINE_THRESHOLD will combine them up to that threshold
+        balance_before = self.nodes[3].getbalance()
+        assert_equal(balance_before, n3_utxos_to_combine_in_stake * n3_amount_per_address)
+        hash_n3 = self.gen_pos_block(3)
+
+        self.sync_all()
+
+        # we expect all inputs to be joined in one stake
+        balance_after = self.nodes[3].getbalance()
+        # since we're a tick over the threshold, we expect one utxo to be left unspent in staking
+        assert_equal(balance_after, n3_amount_per_address)
+
+        staked_block_in_n3 = self.nodes[3].getblock(hash_n3, True, True)
+        # in the staked block, transaction 1 has 'n3_amount_per_address' inputs,
+        # which are all combined to create this stake
+        # Combined because the age is > than StakeSplitAge and the total amount is < StakeCombineThreshold
+        assert_equal(len(staked_block_in_n3['tx'][1]['vin']), n3_utxos_to_combine_in_stake - 1)
 
 
 if __name__ == '__main__':
