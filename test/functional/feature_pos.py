@@ -2,14 +2,7 @@
 # Copyright (c) 2014-2017 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""Test the rawtransaction RPCs.
-
-Test the following RPCs:
-   - createrawtransaction
-   - signrawtransaction
-   - sendrawtransaction
-   - decoderawtransaction
-   - getrawtransaction
+"""Test staking in neblio
 """
 
 from test_framework.test_framework import BitcoinTestFramework
@@ -98,7 +91,8 @@ class RawTransactionsTest(BitcoinTestFramework):
             else:
                 break
         if total_input < total_output_amount:
-            raise ValueError("Total input could not reach the required output")
+            print("Available outputs:", available_outputs)
+            raise ValueError("Total input could not reach the required output. Find available outputs above.")
         tx_inputs = []
         for input in utxos_to_be_used:
             tx_inputs.append({"txid": input['txid'], "vout": input['vout']})
@@ -227,6 +221,28 @@ class RawTransactionsTest(BitcoinTestFramework):
         # which are all combined to create this stake
         # Combined because the age is > than StakeSplitAge and the total amount is < StakeCombineThreshold
         assert_equal(len(staked_block_in_n3['tx'][1]['vin']), n3_utxos_to_combine_in_stake - 1)
+
+        # ensure that the desired output has value in it
+        assert staked_block_in_n3['tx'][1]['vout'][1]['value'] > 0
+
+        # attempt to send the staked nebls before they mature (to nodes[0])
+        inputs = [{"txid": staked_block_in_n3['tx'][1]['txid'], "vout": 1}]
+        outputs = {self.nodes[0].getnewaddress(): 20}
+        test_maturity_rawtx = self.nodes[3].createrawtransaction(inputs, outputs)
+        test_maturity_signed_rawtx = self.nodes[3].signrawtransaction(test_maturity_rawtx)
+        for node in self.nodes:  # spending stake before maturity should be rejected in all nodes
+            assert_raises_rpc_error(-22, "TX rejected", node.sendrawtransaction, test_maturity_signed_rawtx['hex'])
+
+        # we stake blocks that total to 'COINBASE_MATURITY' blocks, and the staked block to mature
+        for i in range(COINBASE_MATURITY):
+            # it should not be possible to submit the transaction until the maturity is reached
+            assert_raises_rpc_error(-22, "TX rejected", self.nodes[0].sendrawtransaction, test_maturity_signed_rawtx['hex'])
+            hash = self.gen_pos_block(0)
+        self.sync_all()
+
+        for node in self.nodes:  # spending that stake should be accepted in all nodes after maturity
+            node.sendrawtransaction(test_maturity_signed_rawtx['hex'])
+        self.sync_all()
 
 
 if __name__ == '__main__':
