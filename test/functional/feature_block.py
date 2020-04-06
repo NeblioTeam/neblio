@@ -12,8 +12,6 @@ each test.
 """
 from io import BytesIO
 
-import litecoin_scrypt as scrypt
-
 from test_framework.test_framework import ComparisonTestFramework
 from test_framework.util import *
 from test_framework.comptool import TestManager, TestInstance, RejectResult
