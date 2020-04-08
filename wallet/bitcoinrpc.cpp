@@ -212,6 +212,7 @@ static const CRPCCommand vRPCCommands[] =
     { "getmininginfo",             &getmininginfo,             true,   false },
     { "getstakinginfo",            &getstakinginfo,            true,   false },
     { "getnewaddress",             &getnewaddress,             true,   false },
+    { "udtoneblioaddress",         &udtoneblioaddress,         true,   false },
     { "getnewpubkey",              &getnewpubkey,              true,   false },
     { "getaccountaddress",         &getaccountaddress,         true,   false },
     { "setaccount",                &setaccount,                true,   false },

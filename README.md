@@ -258,6 +258,7 @@ signmessage <neblioaddress> <message>
 signrawtransaction <hex string> [{"txid":txid,"vout":n,"scriptPubKey":hex},...] [<privatekey1>,...] [sighashtype="ALL"]
 stop
 submitblock <hex data> [optional-params-obj]
+udtoneblioaddress <unstoppable domain address>
 validateaddress <neblioaddress>
 validatepubkey <nebliopubkey>
 verifymessage <neblioaddress> <signature> <message>

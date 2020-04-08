@@ -3,8 +3,8 @@
 
 #include <atomic>
 #include <boost/filesystem/fstream.hpp>
-#include <deque>
 #include <curl/curl.h>
+#include <deque>
 #include <set>
 
 class cURLTools
@@ -17,7 +17,7 @@ public:
                                             double /*TotalToUpload*/, double /*NowUploaded*/);
     static void   CurlGlobalInit_ThreadSafe();
     static std::string GetFileFromHTTPS(const std::string& URL, long ConnectionTimeout,
-                                        bool IncludeProgressBar);
+                                        bool IncludeProgressBar, bool VerifySSLHostAndPeer = true);
     static std::string PostJsonToHTTPS(const std::string& URL, long ConnectionTimeout,
                                        const std::string& data, bool chunked);
     static void        GetLargeFileFromHTTPS(const std::string& URL, long ConnectionTimeout,

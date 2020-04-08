@@ -581,6 +581,7 @@ add_library(core_lib STATIC
     wallet/blocklocator.cpp
     wallet/crypto_highlevel.cpp
     wallet/CustomTypes.cpp
+    wallet/udaddress.cpp
     )
 
 target_link_libraries(core_lib
