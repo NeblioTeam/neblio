@@ -14,7 +14,7 @@ env:
   GHAT2: ${{ secrets.GHAT2 }}
 
 jobs:
-  
+
   linux_daemon_cmake:
     runs-on: ubuntu-18.04
     steps:
@@ -316,7 +316,7 @@ jobs:
     - name: Set target_v env var
       run: |
         echo "::set-env name=target_v::rpi_daemon"
-    - name: Build neblio-Qt for Raspberry Pi
+    - name: Build nebliod for Raspberry Pi
       run: |
         python -u ci_scripts/test_rpi-daemon-gui.py
         echo ::set-env name=RELEASE_TAG::$(echo ${GITHUB_REF:10})
