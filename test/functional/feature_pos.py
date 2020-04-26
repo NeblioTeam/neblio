@@ -32,8 +32,8 @@ class multidict(dict):
 class RawTransactionsTest(BitcoinTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = True
-        self.num_nodes = 4
-        self.extra_args = [[], [], [], []]
+        self.num_nodes = 6
+        self.extra_args = [[], [], [], [], [], []]
 
     def setup_network(self, split=False):
         super().setup_network()
@@ -54,7 +54,7 @@ class RawTransactionsTest(BitcoinTestFramework):
                 self.curr_time = value
                 n.setmocktime(self.curr_time)
 
-    def gen_pos_block(self, node_number, max_retries=10, average_block_time=30, block_time_spread=10):
+    def gen_pos_block(self, node_number, max_retries=10, average_block_time=STAKE_TARGET_SPACING, block_time_spread=10):
         r = random.randrange(-block_time_spread, block_time_spread + 1)
         self.progress_mock_time(average_block_time - self.last_random_time_offset + r)
         self.last_random_time_offset = r
@@ -134,26 +134,26 @@ class RawTransactionsTest(BitcoinTestFramework):
             hash = self.gen_pow_block(0, average_block_time, block_time_spread)
         self.sync_all()
 
-        # these should be combined
+        # Here we create the outputs in nodes[2] that should be combined
         n2_addr = self.nodes[2].getnewaddress()
         n2_utxos_to_combine_in_stake = 10
         n2_amount_per_address = Decimal('110')
         # the condition for combination; utxos will be added until we reach 'STAKE_COMBINE_THRESHOLD' nebls
         # note: The outcome can be > STAKE_COMBINE_THRESHOLD
-        assert (n2_utxos_to_combine_in_stake - 1)*n2_amount_per_address <= STAKE_COMBINE_THRESHOLD
+        assert (n2_utxos_to_combine_in_stake - 1) * n2_amount_per_address <= STAKE_COMBINE_THRESHOLD
         for i in range(n2_utxos_to_combine_in_stake):
             addresses_vs_amounts_node2 = {n2_addr: n2_amount_per_address}
             tx_for_n2 = self.create_tx_with_output_amounts(self.nodes[0].listunspent(), addresses_vs_amounts_node2)
             signed_tx_for_n2 = self.nodes[0].signrawtransaction(tx_for_n2)
             self.nodes[0].sendrawtransaction(signed_tx_for_n2['hex'])
 
-        # these should be combined
+        # Here we create the outputs in nodes[2] that should be combined, except for one output
         n3_addr = self.nodes[3].getnewaddress()
-        n3_utxos_to_combine_in_stake = 10
+        n3_utxos_to_combine_in_stake = 10  # the amount we expect to be combined
         n3_amount_per_address = Decimal('120')
         # the condition for combination; utxos will be added until we reach 'STAKE_COMBINE_THRESHOLD' nebls
         # note: The outcome can be > STAKE_COMBINE_THRESHOLD
-        assert (n3_utxos_to_combine_in_stake - 1)*n3_amount_per_address > STAKE_COMBINE_THRESHOLD
+        assert (n3_utxos_to_combine_in_stake - 1) * n3_amount_per_address > STAKE_COMBINE_THRESHOLD
         for i in range(n3_utxos_to_combine_in_stake):
             addresses_vs_amounts_node3 = {n3_addr: n3_amount_per_address}
             tx_for_n3 = self.create_tx_with_output_amounts(self.nodes[0].listunspent(), addresses_vs_amounts_node3)
@@ -182,19 +182,19 @@ class RawTransactionsTest(BitcoinTestFramework):
 
         # test that combining stakes below the threshold STAKE_COMBINE_THRESHOLD will combine them
         balance_before = self.nodes[2].getbalance()
-        assert_equal(balance_before, n2_utxos_to_combine_in_stake*n2_amount_per_address)
+        assert_equal(balance_before, n2_utxos_to_combine_in_stake * n2_amount_per_address)
         hash_n2 = self.gen_pos_block(2)
 
         self.sync_all()
 
-        # we expect all inputs to be joined in one stake
+        # we expect all inputs to be joined in one stake, so the remaining confirmed amount is zero
         balance_after = self.nodes[2].getbalance()
         assert_equal(balance_after, Decimal('0'))
 
         staked_block_in_n2 = self.nodes[2].getblock(hash_n2, True, True)
         # in the staked block, transaction 1 has 'n3_amount_per_address' inputs,
         # which are all combined to create this stake
-        # Combined because the age is > than StakeSplitAge and the total amount is < StakeCombineThreshold
+        # Combined because the age > STAKE_SPLIT_AGE and the total amount is < STAKE_COMBINE_THRESHOLD
         assert_equal(len(staked_block_in_n2['tx'][1]['vin']), n2_utxos_to_combine_in_stake)
 
         #
@@ -205,7 +205,7 @@ class RawTransactionsTest(BitcoinTestFramework):
 
         self.sync_all()
 
-        # we expect all inputs to be joined in one stake
+        # we expect all inputs to be joined in one stake, except for one output
         balance_after = self.nodes[3].getbalance()
         # since we're a tick over the threshold, we expect one utxo to be left unspent in staking
         assert_equal(balance_after, n3_amount_per_address)
@@ -213,7 +213,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         staked_block_in_n3 = self.nodes[3].getblock(hash_n3, True, True)
         # in the staked block, transaction 1 has 'n3_amount_per_address' inputs,
         # which are all combined to create this stake
-        # Combined because the age is > than StakeSplitAge and the total amount is < StakeCombineThreshold
+        # Combined because the age > STAKE_SPLIT_AGE and the total amount is < STAKE_COMBINE_THRESHOLD
         assert_equal(len(staked_block_in_n3['tx'][1]['vin']), n3_utxos_to_combine_in_stake - 1)
 
         # ensure that the desired output has value in it
@@ -230,13 +230,43 @@ class RawTransactionsTest(BitcoinTestFramework):
         # we stake blocks that total to 'COINBASE_MATURITY' blocks, and the staked block to mature
         for i in range(COINBASE_MATURITY):
             # it should not be possible to submit the transaction until the maturity is reached
-            assert_raises_rpc_error(-22, "TX rejected", self.nodes[0].sendrawtransaction, test_maturity_signed_rawtx['hex'])
+            assert_raises_rpc_error(-22, "TX rejected", self.nodes[0].sendrawtransaction,
+                                    test_maturity_signed_rawtx['hex'])
             hash = self.gen_pos_block(0)
         self.sync_all()
 
         for node in self.nodes:  # spending that stake should be accepted in all nodes after maturity
             node.sendrawtransaction(test_maturity_signed_rawtx['hex'])
         self.sync_all()
+
+        n4_addr = self.nodes[4].getnewaddress()
+        n4_utxos_to_split_in_stake = 1  # the amount we expect to be combined
+        n4_amount_per_address = Decimal('2000')
+        # the condition for combination; utxos will be added until we reach 'STAKE_COMBINE_THRESHOLD' nebls
+        # note: The outcome can be > STAKE_COMBINE_THRESHOLD
+        for i in range(n4_utxos_to_split_in_stake):
+            addresses_vs_amounts_node3 = {n4_addr: n4_amount_per_address}
+            tx_for_n4 = self.create_tx_with_output_amounts(self.nodes[0].listunspent(), addresses_vs_amounts_node3)
+            signed_tx_for_n4 = self.nodes[0].signrawtransaction(tx_for_n4)
+            self.nodes[0].sendrawtransaction(signed_tx_for_n4['hex'])
+
+        # we stake a few blocks in nodes[0] to reach block maturity before
+        blocks_to_stake = 40 * 2
+        assert block_count_to_stake * STAKE_TARGET_SPACING < STAKE_SPLIT_AGE
+        for _ in range(blocks_to_stake):  # 80 blocks = 80 * 30 = 40 minutes
+            hash_n0 = self.gen_pos_block(0)
+        self.sync_all()
+        n4_balance_to_stake = Decimal('2000')
+        assert_equal(self.nodes[4].getbalance(), n4_balance_to_stake)
+
+        hash_n4 = self.gen_pos_block(4)
+        staked_block_in_n4 = self.nodes[4].getblock(hash_n4, True, True)
+        # 1 input should be split into two outputs because stake time is less than nStakeSplitAge
+        assert_equal(len(staked_block_in_n4['tx'][1]['vin']), 1)
+        assert_equal(len(staked_block_in_n4['tx'][1]['vout']), 3)  # 1 empty output + 2 split outputs
+        assert_equal(staked_block_in_n4['tx'][1]['vout'][0]['value'], Decimal('0'))
+        assert_equal(staked_block_in_n4['tx'][1]['vout'][1]['value'], n4_balance_to_stake/2)
+        assert Decimal('1000') < staked_block_in_n4['tx'][1]['vout'][2]['value'] < Decimal('1001')
 
 
 if __name__ == '__main__':

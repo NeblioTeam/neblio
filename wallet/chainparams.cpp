@@ -390,10 +390,15 @@ public:
         consensus.nStakeTargetSpacingV1 = 120; // 120 seconds block spacing
         consensus.nStakeTargetSpacingV2 = 30;  // 30 seconds block spacing
 
-        consensus.nStakeMinAgeV1      = 10 * 60;                  // minimum age for coin age
-        consensus.nStakeMinAgeV2      = consensus.nStakeMinAgeV1; // minimum age for coin age
-        consensus.nStakeMaxAge        = 7 * 24 * 60 * 60;         // Maximum stake age 7 days
-        consensus.nModifierInterval   = 10 * 60; // time to elapse before new modifier is computed
+        /** be aware that this should not be less than the "GetStakeModifierSelectionInterval()".
+         * Otherwise, GetKernelStakeModifier() may fail because the starting block isn't far enough in
+         * the past
+         */
+        consensus.nStakeMinAgeV1 = 10 * 60;                  // minimum age for coin age
+        consensus.nStakeMinAgeV2 = consensus.nStakeMinAgeV1; // minimum age for coin age
+        consensus.nStakeMaxAge   = 7 * 24 * 60 * 60;         // Maximum stake age 7 days
+        // time to elapse before new modifier is computed. This should be a little higher than block time
+        consensus.nModifierInterval   = 60;
         consensus.nCoinbaseMaturityV1 = 10;
         consensus.nCoinbaseMaturityV2 = 10;
         consensus.nCoinbaseMaturityV3 = 10;

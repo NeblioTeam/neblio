@@ -39,6 +39,8 @@ MAX_BLOCK_BASE_SIZE = 1000000
 COIN = 100000000 # 1 nebl in satoshis
 COINBASE_MATURITY = 10
 STAKE_COMBINE_THRESHOLD = Decimal('1000.')
+STAKE_SPLIT_AGE = 60 * 60  # in regtest
+STAKE_TARGET_SPACING = 30  # target seconds between blocks
 
 NODE_NETWORK = (1 << 0)
 # NODE_GETUTXO = (1 << 1)
@@ -49,6 +51,21 @@ NODE_UNSUPPORTED_SERVICE_BIT_7 = (1 << 7)
 NODE_NETWORK_LIMITED = (1 << 10)
 
 min_fee = 10000
+
+def GetStakeModifierSelectionIntervalSection(nSection):
+    MODIFIER_INTERVAL_RATIO = 3
+    StakeModifierInterval = 60
+    assert nSection >= 0 and nSection < 64
+    return (StakeModifierInterval * 63 /
+            (63 + ((63 - nSection) * (MODIFIER_INTERVAL_RATIO - 1))))
+
+
+def GetStakeModifierSelectionInterval():
+    nSelectionInterval = 0
+    for nSection in range(64):
+        nSelectionInterval += GetStakeModifierSelectionIntervalSection(nSection);
+    return nSelectionInterval
+
 
 # Serialization/deserialization tools
 def sha256(s):
