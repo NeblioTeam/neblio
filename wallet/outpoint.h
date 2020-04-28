@@ -1,21 +1,26 @@
 #ifndef OUTPOINT_H
 #define OUTPOINT_H
 
-#include "uint256.h"
 #include "serialize.h"
+#include "uint256.h"
 
 /** An outpoint - a combination of a transaction hash and an index n into its vout */
 class COutPoint
 {
 public:
-    uint256      hash;
-    unsigned int n;
+    uint256  hash;
+    uint32_t n;
 
     COutPoint() { SetNull(); }
-    COutPoint(uint256 hashIn, unsigned int nIn);
+    COutPoint(uint256 hashIn, uint32_t nIn);
     IMPLEMENT_SERIALIZE(READWRITE(FLATDATA(*this));)
-    void SetNull();
-    bool IsNull() const { return (hash == 0 && n == (unsigned int)-1); }
+    void SetNull()
+    {
+        hash = 0;
+        n    = UINT32_C(-1);
+    }
+
+    bool IsNull() const { return (hash == 0 && n == UINT32_C(-1)); }
 
     friend bool operator<(const COutPoint& a, const COutPoint& b)
     {
