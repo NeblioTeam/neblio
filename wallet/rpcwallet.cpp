@@ -563,7 +563,7 @@ Value getreceivedbyaddress(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio address");
     scriptPubKey.SetDestination(address.Get());
     if (!IsMine(*pwalletMain, scriptPubKey))
-        return (double)0.0;
+        throw JSONRPCError(RPC_WALLET_ERROR, "Address not found in wallet");
 
     // Minimum confirmations
     int nMinDepth = 1;
@@ -1061,6 +1061,7 @@ struct tallyitem
 {
     int64_t nAmount;
     int     nConf;
+    std::vector<uint256> txids;
     tallyitem()
     {
         nAmount = 0;
@@ -1101,6 +1102,7 @@ Value ListReceived(const Array& params, bool fByAccounts)
             tallyitem& item = mapTally[address];
             item.nAmount += txout.nValue;
             item.nConf = min(item.nConf, nDepth);
+            item.txids.push_back(wtx.GetHash());
         }
     }
 
@@ -1131,6 +1133,15 @@ Value ListReceived(const Array& params, bool fByAccounts)
             obj.push_back(Pair("account", strAccount));
             obj.push_back(Pair("amount", ValueFromAmount(nAmount)));
             obj.push_back(Pair("confirmations", (nConf == std::numeric_limits<int>::max() ? 0 : nConf)));
+            json_spirit::Array transactions;
+            if (it != mapTally.end())
+            {
+                for (const uint256& _item : (*it).second.txids)
+                {
+                    transactions.push_back(_item.GetHex());
+                }
+            }
+            obj.push_back(Pair("txids", transactions));
             ret.push_back(obj);
         }
     }

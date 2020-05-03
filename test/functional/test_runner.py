@@ -73,7 +73,7 @@ BASE_SCRIPTS= [
 #    'wallet_zapwallettxes.py',
 #    'wallet_importmulti.py',
 #    'mempool_limit.py',
-#    'wallet_listreceivedby.py',
+   'wallet_listreceivedby.py',
 #    'wallet_abandonconflict.py',
 #    'feature_csv_activation.py',
     'rpc_rawtransaction.py',

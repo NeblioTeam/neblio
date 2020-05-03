@@ -17,6 +17,7 @@ from test_framework.util import (
 class ReceivedByTest(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 2
+        self.extra_args = [["-enableaccounts"], ["-enableaccounts"]]
 
     def run_test(self):
         # Generate block to get out of IBD
@@ -77,6 +78,7 @@ class ReceivedByTest(BitcoinTestFramework):
 
         # Trying to getreceivedby for an address the wallet doesn't own should return an error
         assert_raises_rpc_error(-4, "Address not found in wallet", self.nodes[0].getreceivedbyaddress, addr)
+        assert_equal(balance, Decimal("0.1"))
 
         self.log.info("listreceivedbyaccount + getreceivedbyaccount Test")
 
