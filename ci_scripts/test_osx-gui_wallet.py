@@ -69,6 +69,7 @@ nci.call_with_err_code('brew unlink openssl@1.1   && brew link --force --overwri
 nci.call_with_err_code('brew unlink qrencode      && brew link --force --overwrite qrencode')
 nci.call_with_err_code('brew unlink libsodium     && brew link --force --overwrite libsodium')
 nci.call_with_err_code('brew unlink icu4c         && brew link --force --overwrite icu4c')
+nci.call_with_err_code('ls -al /usr/local/opt/icu4c/lib/')
 
 
 nci.call_with_err_code('ccache -s')
@@ -93,7 +94,7 @@ else:
     # build our .dmg
     nci.call_with_err_code('npm install -g appdmg')
     os.chdir("wallet")
-    nci.call_with_err_code('ls -al /usr/local/opt/icu4c/lib/libicudata.64.dylib')
+    nci.call_with_err_code('ls -al /usr/local/opt/icu4c/lib/')
     nci.call_with_err_code('../../contrib/macdeploy/macdeployqtplus ./neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -verbose 1 -rpath /usr/local/opt/qt/lib')
     nci.call_with_err_code('appdmg ../../contrib/macdeploy/appdmg.json ./neblio-Qt.dmg')
 
