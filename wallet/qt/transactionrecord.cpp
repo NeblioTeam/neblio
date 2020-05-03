@@ -24,12 +24,12 @@ bool TransactionRecord::showTransaction(const CWalletTx& wtx)
 QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet*   wallet,
                                                                  const CWalletTx& wtx)
 {
-    QList<TransactionRecord>           parts;
-    int64_t                            nTime   = wtx.GetTxTime();
-    int64_t                            nCredit = wtx.GetCredit(true);
-    int64_t                            nDebit  = wtx.GetDebit();
-    int64_t                            nNet    = nCredit - nDebit;
-    uint256                            hash = wtx.GetHash(), hashPrev = 0;
+    QList<TransactionRecord> parts;
+    int64_t                  nTime   = wtx.GetTxTime();
+    int64_t                  nCredit = wtx.GetCredit(static_cast<isminefilter>(isminetype::ISMINE_ALL));
+    int64_t                  nDebit  = wtx.GetDebit(static_cast<isminefilter>(isminetype::ISMINE_ALL));
+    int64_t                  nNet    = nCredit - nDebit;
+    uint256                  hash = wtx.GetHash(), hashPrev = 0;
     std::map<std::string, std::string> mapValue = wtx.mapValue;
 
     if (nNet > 0 || wtx.IsCoinBase() || wtx.IsCoinStake()) {
@@ -40,12 +40,13 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
             if (NTP1Transaction::IsTxOutputOpRet(&txout, nullptr)) {
                 continue;
             }
-            if (wallet->IsMine(txout)) {
+            if (wallet->IsMine(txout) != isminetype::ISMINE_NO) {
                 TransactionRecord sub(hash, nTime);
                 CTxDestination    address;
                 sub.idx    = parts.size(); // sequence number
                 sub.credit = txout.nValue;
-                if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address)) {
+                if (ExtractDestination(txout.scriptPubKey, address) &&
+                    IsMine(*wallet, address) != isminetype::ISMINE_NO) {
                     // Received by Bitcoin Address
                     sub.type    = TransactionRecord::RecvWithAddress;
                     sub.address = CBitcoinAddress(address).ToString();
@@ -76,7 +77,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
     } else {
         bool fAllFromMe = true;
         for (const CTxIn& txin : wtx.vin) {
-            fAllFromMe = fAllFromMe && wallet->IsMine(txin);
+            fAllFromMe = fAllFromMe && IsMineCheck(wallet->IsMine(txin), isminetype::ISMINE_SPENDABLE);
         }
 
         bool fAllToMe = true;
@@ -85,7 +86,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
             if (NTP1Transaction::IsTxOutputOpRet(&txout, nullptr)) {
                 continue;
             }
-            fAllToMe = fAllToMe && wallet->IsMine(txout);
+            fAllToMe = fAllToMe && IsMineCheck(wallet->IsMine(txout), isminetype::ISMINE_SPENDABLE);
         }
 
         if (fAllFromMe && fAllToMe) {
@@ -108,7 +109,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
                 TransactionRecord sub(hash, nTime);
                 sub.idx = parts.size();
 
-                if (wallet->IsMine(txout)) {
+                if (wallet->IsMine(txout) != isminetype::ISMINE_NO) {
                     // Ignore parts sent to self, as this is usually the change
                     // from a transaction sent back to our own address.
                     continue;

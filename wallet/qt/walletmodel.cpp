@@ -370,7 +370,7 @@ static void NotifyAddressBookChanged(WalletModel*          walletmodel, CWallet*
         Q_ARG(QString, QString::fromStdString(label)), Q_ARG(bool, isMine), Q_ARG(int, status));
 }
 
-static void NotifyTransactionChanged(WalletModel* walletmodel, CWallet* wallet, const uint256& hash,
+static void NotifyTransactionChanged(WalletModel* walletmodel, CWallet* /*wallet*/, const uint256& hash,
                                      ChangeType status)
 {
     OutputDebugStringF("NotifyTransactionChanged %s status=%i\n", hash.GetHex().c_str(), status);
@@ -478,7 +478,7 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput>>& mapCoins) c
         COutput cout = out;
 
         while (wallet->IsChange(cout.tx->vout[cout.i]) && cout.tx->vin.size() > 0 &&
-               wallet->IsMine(cout.tx->vin[0])) {
+               IsMineCheck(wallet->IsMine(cout.tx->vin[0]), isminetype::ISMINE_SPENDABLE_ALL)) {
             if (!wallet->mapWallet.count(cout.tx->vin[0].prevout.hash))
                 break;
             cout =

@@ -604,6 +604,7 @@ add_library(core_lib STATIC
     wallet/amount.h
     wallet/CustomTypes.cpp
     wallet/merkle.cpp
+    wallet/wallet_ismine.cpp
     )
 
 target_link_libraries(core_lib

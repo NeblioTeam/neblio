@@ -105,6 +105,7 @@ const char* GetTxnOutputType(txnouttype t)
     case TX_SCRIPTHASH: return "scripthash";
     case TX_MULTISIG: return "multisig";
     case TX_NULL_DATA: return "nulldata";
+    case TX_COLDSTAKE: return "coldstake";
     }
     return NULL;
 }
@@ -1446,6 +1447,10 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
 
         // Empty, provably prunable, data-carrying output
         mTemplates.insert(make_pair(TX_NULL_DATA, CScript() << OP_RETURN << OP_SMALLDATA));
+
+        // Cold Staking: sender provides P2CS scripts, receiver provides signature, staking-flag and pubkey
+        mTemplates.insert(std::make_pair(TX_COLDSTAKE, CScript() << OP_DUP << OP_HASH160 << OP_ROT << OP_IF << OP_CHECKCOLDSTAKEVERIFY <<
+                          OP_PUBKEYHASH << OP_ELSE << OP_PUBKEYHASH << OP_ENDIF << OP_EQUALVERIFY << OP_CHECKSIG));
     }
 
     // Shortcut for pay-to-script-hash, which are more constrained than the other types:
@@ -1460,7 +1465,7 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
 
     // Scan templates
     const CScript& script1 = scriptPubKey;
-    BOOST_FOREACH(const PAIRTYPE(txnouttype, CScript)& tplate, mTemplates)
+    for (const PAIRTYPE(txnouttype, CScript)& tplate: mTemplates)
     {
         const CScript& script2 = tplate.second;
         vSolutionsRet.clear();
@@ -1484,6 +1489,9 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
                     unsigned char n = vSolutionsRet.back()[0];
                     if (m < 1 || n < 1 || m > n || vSolutionsRet.size()-2 != n)
                         return false;
+                }
+                if (typeRet == TX_COLDSTAKE) {
+                    return false; // Disable coldstake for now
                 }
                 return true;
             }
@@ -1586,7 +1594,7 @@ bool SignN(const vector<valtype>& multisigdata, const CKeyStore& keystore, uint2
 // Returns false if scriptPubKey could not be completely satisfied.
 //
 bool Solver(const CKeyStore& keystore, const CScript& scriptPubKey, uint256 hash, int nHashType,
-                  CScript& scriptSigRet, txnouttype& whichTypeRet)
+                  CScript& scriptSigRet, txnouttype& whichTypeRet, bool fColdStake = false)
 {
     scriptSigRet.clear();
 
@@ -1620,6 +1628,25 @@ bool Solver(const CKeyStore& keystore, const CScript& scriptPubKey, uint256 hash
     case TX_MULTISIG:
         scriptSigRet << OP_0; // workaround CHECKMULTISIG bug
         return (SignN(vSolutions, keystore, hash, nHashType, scriptSigRet));
+
+    case TX_COLDSTAKE:
+        return false; // Disable coldstake for now
+//        if (fColdStake) {
+//            // sign with the cold staker key
+//            keyID = CKeyID(uint160(vSolutions[0]));
+//        } else {
+//            // sign with the owner key
+//            keyID = CKeyID(uint160(vSolutions[1]));
+//        }
+//        if (!Sign1(keyID, keystore, hash, nHashType, scriptSigRet))
+//            return error("*** %s: failed to sign with the %s key.",
+//                         __func__, fColdStake ? "cold staker" : "owner");
+//        CPubKey pubKey;
+//        if (!keystore.GetPubKey(keyID, pubKey))
+//            return error("%s : Unable to get public key from keyID", __func__);
+//        std::vector<unsigned char> vch = pubKey.Raw();
+//        scriptSigRet << (fColdStake ? (int)OP_TRUE : OP_FALSE) << vch;
+//        return true;
     }
     return false;
 }
@@ -1641,6 +1668,8 @@ int ScriptSigArgsExpected(txnouttype t, const std::vector<std::vector<unsigned c
         return vSolutions[0][0] + 1;
     case TX_SCRIPTHASH:
         return 1; // doesn't include args needed by the script
+    case TX_COLDSTAKE:
+        return 3;
     }
     return -1;
 }
@@ -1679,46 +1708,48 @@ unsigned int HaveKeys(const vector<valtype>& pubkeys, const CKeyStore& keystore)
 }
 
 
-class CKeyStoreIsMineVisitor : public boost::static_visitor<bool>
+class CKeyStoreIsMineVisitor : public boost::static_visitor<isminetype>
 {
 private:
     const CKeyStore *keystore;
 public:
     CKeyStoreIsMineVisitor(const CKeyStore *keystoreIn) : keystore(keystoreIn) { }
-    bool operator()(const CNoDestination &/*dest*/) const { return false; }
-    bool operator()(const CKeyID &keyID) const { return keystore->HaveKey(keyID); }
-    bool operator()(const CScriptID &scriptID) const { return keystore->HaveCScript(scriptID); }
+    isminetype operator()(const CNoDestination &/*dest*/) const { return isminetype::ISMINE_NO; }
+    isminetype operator()(const CKeyID &keyID) const { return keystore->HaveKey(keyID) ? isminetype::ISMINE_SPENDABLE : isminetype::ISMINE_NO; }
+    isminetype operator()(const CScriptID &scriptID) const { return keystore->HaveCScript(scriptID) ? isminetype::ISMINE_SPENDABLE : isminetype::ISMINE_NO; }
 };
 
-bool IsMine(const CKeyStore &keystore, const CTxDestination &dest)
+isminetype IsMine(const CKeyStore &keystore, const CTxDestination &dest)
 {
     return boost::apply_visitor(CKeyStoreIsMineVisitor(&keystore), dest);
 }
 
-bool IsMine(const CKeyStore &keystore, const CScript& scriptPubKey)
+isminetype IsMine(const CKeyStore &keystore, const CScript& scriptPubKey)
 {
-    vector<valtype> vSolutions;
+    std::vector<valtype> vSolutions;
     txnouttype whichType;
     if (!Solver(scriptPubKey, whichType, vSolutions))
-        return false;
+        return isminetype::ISMINE_NO;
 
     CKeyID keyID;
     switch (whichType)
     {
     case TX_NONSTANDARD:
     case TX_NULL_DATA:
-        return false;
+        return isminetype::ISMINE_NO;
     case TX_PUBKEY:
         keyID = CPubKey(vSolutions[0]).GetID();
-        return keystore.HaveKey(keyID);
+        if(keystore.HaveKey(keyID))
+            return isminetype::ISMINE_SPENDABLE;
     case TX_PUBKEYHASH:
         keyID = CKeyID(uint160(vSolutions[0]));
-        return keystore.HaveKey(keyID);
+        if(keystore.HaveKey(keyID))
+            return isminetype::ISMINE_SPENDABLE;
     case TX_SCRIPTHASH:
     {
         CScript subscript;
         if (!keystore.GetCScript(CScriptID(uint160(vSolutions[0])), subscript))
-            return false;
+            return isminetype::ISMINE_NO;
         return IsMine(keystore, subscript);
     }
     case TX_MULTISIG:
@@ -1728,11 +1759,27 @@ bool IsMine(const CKeyStore &keystore, const CScript& scriptPubKey)
         // partially owned (somebody else has a key that can spend
         // them) enable spend-out-from-under-you attacks, especially
         // in shared-wallet situations.
-        vector<valtype> keys(vSolutions.begin()+1, vSolutions.begin()+vSolutions.size()-1);
-        return HaveKeys(keys, keystore) == keys.size();
+        std::vector<valtype> keys(vSolutions.begin()+1, vSolutions.begin()+vSolutions.size()-1);
+        if(HaveKeys(keys, keystore) == keys.size())
+            return isminetype::ISMINE_SPENDABLE;
+        break;
+    }
+    case TX_COLDSTAKE: {
+        CKeyID stakeKeyID = CKeyID(uint160(vSolutions[0]));
+        bool stakeKeyIsMine = keystore.HaveKey(stakeKeyID);
+        CKeyID ownerKeyID = CKeyID(uint160(vSolutions[1]));
+        bool spendKeyIsMine = keystore.HaveKey(ownerKeyID);
+
+        if (spendKeyIsMine && stakeKeyIsMine)
+            return isminetype::ISMINE_SPENDABLE_STAKEABLE;
+        else if (stakeKeyIsMine)
+            return isminetype::ISMINE_COLD;
+        else if (spendKeyIsMine)
+            return isminetype::ISMINE_SPENDABLE_DELEGATED;
+        break;
     }
     }
-    return false;
+    return isminetype::ISMINE_NO;
 }
 
 bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
@@ -2008,6 +2055,7 @@ static CScript CombineSignatures(CScript scriptPubKey, const CTransaction& txTo,
         return PushAll(sigs2);
     case TX_PUBKEY:
     case TX_PUBKEYHASH:
+    case TX_COLDSTAKE:
         // Signatures are bigger than placeholders or empty scripts:
         if (sigs1.empty() || sigs1[0].empty())
             return PushAll(sigs2);
@@ -2109,6 +2157,18 @@ bool CScript::IsPayToScriptHash() const
             this->at(0) == OP_HASH160 &&
             this->at(1) == 0x14 &&
             this->at(22) == OP_EQUAL);
+}
+
+bool CScript::IsPayToColdStaking() const
+{
+    // Extra-fast test for pay-to-cold-staking CScripts:
+    return (this->size() == 51 &&
+            this->at(2) == OP_ROT &&
+            this->at(4) == OP_CHECKCOLDSTAKEVERIFY &&
+            this->at(5) == 0x14 &&
+            this->at(27) == 0x14 &&
+            this->at(49) == OP_EQUALVERIFY &&
+            this->at(50) == OP_CHECKSIG);
 }
 
 bool CScript::HasCanonicalPushes() const

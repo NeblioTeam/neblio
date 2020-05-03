@@ -148,7 +148,7 @@ bool CBlock::DisconnectBlock(CTxDB& txdb, CBlockIndexSmartPtr& pindex)
 
     // ppcoin: clean up wallet after disconnecting coinstake
     for (CTransaction& tx : vtx)
-        SyncWithWallets(tx, this, false, false);
+        SyncWithWallets(tx, this);
 
     return true;
 }
@@ -502,6 +502,8 @@ bool CBlock::CheckBIP30Attack(CTxDB& txdb, const uint256& hashTx)
 
 bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool fJustCheck)
 {
+    printf("Connecting block: %s\n", this->GetHash().ToString().c_str());
+
     // Check it again in case a previous version let a bad block in, but skip BlockSig checking
     if (!CheckBlock(!fJustCheck, !fJustCheck, false))
         return false;
@@ -699,7 +701,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
 
     // Watch for transactions paying to me
     for (CTransaction& tx : vtx)
-        SyncWithWallets(tx, this, true);
+        SyncWithWallets(tx, this);
 
     return true;
 }

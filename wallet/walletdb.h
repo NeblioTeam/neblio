@@ -5,8 +5,8 @@
 #ifndef BITCOIN_WALLETDB_H
 #define BITCOIN_WALLETDB_H
 
-#include "db.h"
 #include "base58.h"
+#include "db.h"
 
 class CKeyPool;
 class CAccount;
@@ -26,47 +26,42 @@ enum DBErrors
 class CKeyMetadata
 {
 public:
-    static const int CURRENT_VERSION=1;
-    int nVersion;
-    int64_t nCreateTime; // 0 means unknown
+    static const int CURRENT_VERSION = 1;
+    int              nVersion;
+    int64_t          nCreateTime; // 0 means unknown
 
-    CKeyMetadata()
-    {
-        SetNull();
-    }
+    CKeyMetadata() { SetNull(); }
     CKeyMetadata(int64_t nCreateTime_)
     {
-        nVersion = CKeyMetadata::CURRENT_VERSION;
+        nVersion    = CKeyMetadata::CURRENT_VERSION;
         nCreateTime = nCreateTime_;
     }
 
-    IMPLEMENT_SERIALIZE
-    (
-        READWRITE(this->nVersion);
-        nVersion = this->nVersion;
-        READWRITE(nCreateTime);
-    )
+    IMPLEMENT_SERIALIZE(READWRITE(this->nVersion); nVersion = this->nVersion; READWRITE(nCreateTime);)
 
     void SetNull()
     {
-        nVersion = CKeyMetadata::CURRENT_VERSION;
+        nVersion    = CKeyMetadata::CURRENT_VERSION;
         nCreateTime = 0;
     }
 };
-
 
 /** Access to the wallet database (wallet.dat) */
 class CWalletDB : public CDB
 {
 public:
-    // WARNING: TODO: The fact that the filename is std::string may be a problem with non-ascii filenames, check!
-    // Keep in mind that this may work with wallet.dat, but any other name (which may come from a backup) may not work.
-    CWalletDB(std::string strFilename, const char* pszMode="r+") : CDB(strFilename.c_str(), pszMode)
+    // WARNING: TODO: The fact that the filename is std::string may be a problem with non-ascii
+    // filenames, check! Keep in mind that this may work with wallet.dat, but any other name (which may
+    // come from a backup) may not work.
+    CWalletDB(std::string strFilename, const char* pszMode = "r+", bool fFlushOnClose = true)
+        : CDB(strFilename.c_str(), pszMode, fFlushOnClose)
     {
     }
+
 private:
     CWalletDB(const CWalletDB&);
     void operator=(const CWalletDB&);
+
 public:
     bool WriteName(const std::string& strAddress, const std::string& strName);
 
@@ -84,28 +79,28 @@ public:
         return Erase(std::make_pair(std::string("tx"), hash));
     }
 
-    bool WriteKey(const CPubKey& vchPubKey, const CPrivKey& vchPrivKey, const CKeyMetadata &keyMeta)
+    bool WriteKey(const CPubKey& vchPubKey, const CPrivKey& vchPrivKey, const CKeyMetadata& keyMeta)
     {
         nWalletDBUpdated++;
 
-        if(!Write(std::make_pair(std::string("keymeta"), vchPubKey), keyMeta))
+        if (!Write(std::make_pair(std::string("keymeta"), vchPubKey), keyMeta))
             return false;
 
         return Write(std::make_pair(std::string("key"), vchPubKey.Raw()), vchPrivKey, false);
     }
 
-    bool WriteCryptedKey(const CPubKey& vchPubKey, const std::vector<unsigned char>& vchCryptedSecret, const CKeyMetadata &keyMeta)
+    bool WriteCryptedKey(const CPubKey& vchPubKey, const std::vector<unsigned char>& vchCryptedSecret,
+                         const CKeyMetadata& keyMeta)
     {
         nWalletDBUpdated++;
         bool fEraseUnencryptedKey = true;
 
-        if(!Write(std::make_pair(std::string("keymeta"), vchPubKey), keyMeta))
+        if (!Write(std::make_pair(std::string("keymeta"), vchPubKey), keyMeta))
             return false;
 
         if (!Write(std::make_pair(std::string("ckey"), vchPubKey.Raw()), vchCryptedSecret, false))
             return false;
-        if (fEraseUnencryptedKey)
-        {
+        if (fEraseUnencryptedKey) {
             Erase(std::make_pair(std::string("key"), vchPubKey.Raw()));
             Erase(std::make_pair(std::string("wkey"), vchPubKey.Raw()));
         }
@@ -130,21 +125,12 @@ public:
         return Write(std::string("bestblock"), locator);
     }
 
-    bool ReadBestBlock(CBlockLocator& locator)
-    {
-        return Read(std::string("bestblock"), locator);
-    }
+    bool ReadBestBlock(CBlockLocator& locator) { return Read(std::string("bestblock"), locator); }
 
     bool WriteOrderPosNext(int64_t nOrderPosNext)
     {
         nWalletDBUpdated++;
         return Write(std::string("orderposnext"), nOrderPosNext);
-    }
-
-    bool WriteDefaultKey(const CPubKey& vchPubKey)
-    {
-        nWalletDBUpdated++;
-        return Write(std::string("defaultkey"), vchPubKey.Raw());
     }
 
     bool ReadPool(int64_t nPool, CKeyPool& keypool)
@@ -164,22 +150,21 @@ public:
         return Erase(std::make_pair(std::string("pool"), nPool));
     }
 
-    bool WriteMinVersion(int nVersion)
-    {
-        return Write(std::string("minversion"), nVersion);
-    }
+    bool WriteMinVersion(int nVersion) { return Write(std::string("minversion"), nVersion); }
 
     bool ReadAccount(const std::string& strAccount, CAccount& account);
     bool WriteAccount(const std::string& strAccount, const CAccount& account);
+
 private:
     bool WriteAccountingEntry(const uint64_t nAccEntryNum, const CAccountingEntry& acentry);
+
 public:
-    bool WriteAccountingEntry(const CAccountingEntry& acentry);
+    bool    WriteAccountingEntry(const CAccountingEntry& acentry);
     int64_t GetAccountCreditDebit(const std::string& strAccount);
     void ListAccountCreditDebit(const std::string& strAccount, std::list<CAccountingEntry>& acentries);
 
-    DBErrors ReorderTransactions(CWallet*);
-    DBErrors LoadWallet(CWallet* pwallet);
+    DBErrors    ReorderTransactions(CWallet*);
+    DBErrors    LoadWallet(CWallet* pwallet);
     static bool Recover(CDBEnv& dbenv, std::string filename, bool fOnlyKeys);
     static bool Recover(CDBEnv& dbenv, std::string filename);
 };

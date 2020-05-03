@@ -54,6 +54,38 @@ bool CTransaction::IsCoinStake() const
     return (vin.size() > 0 && (!vin[0].prevout.IsNull()) && vout.size() >= 2 && vout[0].IsEmpty());
 }
 
+bool CTransaction::CheckColdStake(const CScript& script) const
+{
+    // tx is a coinstake tx
+    if (!IsCoinStake())
+        return false;
+
+    // all inputs have the same scriptSig
+    CScript firstScript = vin[0].scriptSig;
+    if (vin.size() > 1) {
+        for (unsigned int i = 1; i < vin.size(); i++)
+            if (vin[i].scriptSig != firstScript)
+                return false;
+    }
+
+    // all outputs except first (coinstake marker)
+    // have the same pubKeyScript and it matches the script we are spending
+    for (unsigned int i = 1; i < vout.size(); i++)
+        if (vout[i].scriptPubKey != script)
+            return false;
+
+    return true;
+}
+
+bool CTransaction::HasP2CSOutputs() const
+{
+    for (const CTxOut& txout : vout) {
+        if (txout.scriptPubKey.IsPayToColdStaking())
+            return true;
+    }
+    return false;
+}
+
 CAmount CTransaction::GetValueOut() const
 {
     CAmount nValueOut = 0;

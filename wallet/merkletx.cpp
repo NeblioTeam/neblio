@@ -5,6 +5,9 @@
 #include "txdb.h"
 #include "txmempool.h"
 
+const uint256
+    CMerkleTx::ABANDON_HASH(uint256("0000000000000000000000000000000000000000000000000000000000000001"));
+
 CMerkleTx::CMerkleTx(const CTransaction& txIn) : CTransaction(txIn) { Init(); }
 
 int CMerkleTx::GetDepthInMainChainINTERNAL(CBlockIndex*& pindexRet) const
@@ -51,6 +54,12 @@ int CMerkleTx::GetBlocksToMaturity() const
 }
 
 bool CMerkleTx::AcceptToMemoryPool() { return ::AcceptToMemoryPool(mempool, *this, NULL); }
+
+bool CMerkleTx::hashUnset() const { return (hashBlock.IsNull() || hashBlock == ABANDON_HASH); }
+
+bool CMerkleTx::isAbandoned() const { return (hashBlock == ABANDON_HASH); }
+
+void CMerkleTx::setAbandoned() { hashBlock = ABANDON_HASH; }
 
 int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
 {

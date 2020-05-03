@@ -16,6 +16,7 @@
 
 #include "keystore.h"
 #include "bignum.h"
+#include "wallet_ismine.h"
 
 typedef std::vector<unsigned char> valtype;
 
@@ -65,6 +66,7 @@ enum txnouttype
     TX_SCRIPTHASH,
     TX_MULTISIG,
     TX_NULL_DATA,
+    TX_COLDSTAKE,
 };
 
 class CNoDestination {
@@ -219,6 +221,8 @@ enum opcodetype
     OP_NOP10 = 0xb9,
 
 
+    // cold staking
+    OP_CHECKCOLDSTAKEVERIFY = 0xd1,
 
     // template matching params
     OP_SMALLDATA = 0xf9,
@@ -552,6 +556,8 @@ public:
 
     bool IsPayToScriptHash() const;
 
+    bool IsPayToColdStaking() const;
+
     // Called by IsStandardTx and P2SH VerifyScript (which makes it consensus-critical).
     bool IsPushOnly() const
     {
@@ -660,7 +666,7 @@ public:
     }
 
     template<typename Stream>
-    void Unserialize(Stream &s, int nType, int nVersion) {
+    void Unserialize(Stream &s, int /*nType*/, int /*nVersion*/) {
         unsigned int nSize;
         s >> VARINT(nSize);
         if (nSize < nSpecialScripts) {
@@ -683,8 +689,8 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
 bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<std::vector<unsigned char> >& vSolutionsRet);
 int ScriptSigArgsExpected(txnouttype t, const std::vector<std::vector<unsigned char> >& vSolutions);
 bool IsStandard(const CScript& scriptPubKey, txnouttype& whichType);
-bool IsMine(const CKeyStore& keystore, const CScript& scriptPubKey);
-bool IsMine(const CKeyStore& keystore, const CTxDestination &dest);
+isminetype IsMine(const CKeyStore& keystore, const CScript& scriptPubKey);
+isminetype IsMine(const CKeyStore& keystore, const CTxDestination& dest);
 void ExtractAffectedKeys(const CKeyStore &keystore, const CScript& scriptPubKey, std::vector<CKeyID> &vKeys);
 bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet);
 bool ExtractDestinations(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<CTxDestination>& addressRet, int& nRequiredRet);

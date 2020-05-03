@@ -1,17 +1,19 @@
 #ifndef MERKLETX_H
 #define MERKLETX_H
 
-#include "serialize.h"
-#include "uint256.h"
 #include "globals.h"
+#include "serialize.h"
 #include "transaction.h"
+#include "uint256.h"
 #include <vector>
-
 
 /** A transaction with a merkle branch linking it to the block chain. */
 class CMerkleTx : public CTransaction
 {
 private:
+    /** Constant used in hashBlock to indicate tx has been abandoned (unused for now in neblio) */
+    static const uint256 ABANDON_HASH;
+
     int GetDepthInMainChainINTERNAL(CBlockIndex*& pindexRet) const;
 
 public:
@@ -56,6 +58,9 @@ public:
     }
     int  GetBlocksToMaturity() const;
     bool AcceptToMemoryPool();
+    bool hashUnset() const;
+    bool isAbandoned() const;
+    void setAbandoned();
 };
 
 #endif // MERKLETX_H

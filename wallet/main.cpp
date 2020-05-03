@@ -124,25 +124,15 @@ void static EraseFromWallets(uint256 hash)
 }
 
 // make sure all wallets know about the given transaction, in the given block
-void SyncWithWallets(const CTransaction& tx, const CBlock* pblock, bool fUpdate, bool fConnect)
+void SyncWithWallets(const CTransaction& tx, const CBlock* pblock)
 {
     // update NTP1 transactions
     if (pwalletMain && pwalletMain->walletNewTxUpdateFunctor) {
         pwalletMain->walletNewTxUpdateFunctor->run(tx.GetHash(), nBestHeight);
     }
 
-    if (!fConnect) {
-        // ppcoin: wallets need to refund inputs when disconnecting coinstake
-        if (tx.IsCoinStake()) {
-            for (const std::shared_ptr<CWallet>& pwallet : setpwalletRegistered)
-                if (pwallet->IsFromMe(tx))
-                    pwallet->DisableTransaction(tx);
-        }
-        return;
-    }
-
     for (const std::shared_ptr<CWallet>& pwallet : setpwalletRegistered)
-        pwallet->AddToWalletIfInvolvingMe(tx, pblock, fUpdate);
+        pwallet->SyncTransaction(tx, pblock);
 }
 
 // notify wallets about a new best chain
@@ -1223,7 +1213,7 @@ CMerkleBlock::CMerkleBlock(const CBlock& block, CBloomFilter& filter)
 
     for (unsigned int i = 0; i < block.vtx.size(); i++) {
         uint256 hash = block.vtx[i].GetHash();
-        if (filter.IsRelevantAndUpdate(block.vtx[i], hash)) {
+        if (filter.IsRelevantAndUpdate(block.vtx[i])) {
             vMatch.push_back(true);
             vMatchedTxn.push_back(make_pair(i, hash));
         } else {
@@ -2129,8 +2119,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 
         bool fMissingInputs = false;
         if (AcceptToMemoryPool(mempool, tx, &fMissingInputs)) {
-            SyncWithWallets(tx, NULL, true);
-            RelayTransaction(tx, inv.hash);
+            SyncWithWallets(tx, nullptr);
+            RelayTransaction(tx);
             mapAlreadyAskedFor.erase(inv);
             vWorkQueue.push_back(inv.hash);
             vEraseQueue.push_back(inv.hash);
@@ -2146,8 +2136,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 
                     if (AcceptToMemoryPool(mempool, orphanTx, &fMissingInputs2)) {
                         printf("   accepted orphan tx %s\n", orphanTxHash.ToString().c_str());
-                        SyncWithWallets(tx, NULL, true);
-                        RelayTransaction(orphanTx, orphanTxHash);
+                        SyncWithWallets(tx, nullptr);
+                        RelayTransaction(orphanTx);
                         mapAlreadyAskedFor.erase(CInv(MSG_TX, orphanTxHash));
                         vWorkQueue.push_back(orphanTxHash);
                         vEraseQueue.push_back(orphanTxHash);
@@ -2222,7 +2212,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
             const CTransaction* txFromMempool = mempool.lookup_unsafe(hash);
             // this tx should exist because we locked then used mempool.queryHashes()
             assert(txFromMempool);
-            if ((pfrom->pfilter && pfrom->pfilter->IsRelevantAndUpdate(*txFromMempool, hash)) ||
+            if ((pfrom->pfilter && pfrom->pfilter->IsRelevantAndUpdate(*txFromMempool)) ||
                 (!pfrom->pfilter))
                 vInv.push_back(inv);
             if (vInv.size() == MAX_INV_SZ)
@@ -2230,47 +2220,6 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         }
         if (vInv.size() > 0)
             pfrom->PushMessage("inv", vInv);
-    }
-
-    else if (strCommand == "checkorder") {
-        uint256 hashReply;
-        vRecv >> hashReply;
-
-        if (!GetBoolArg("-allowreceivebyip")) {
-            pfrom->PushMessage("reply", hashReply, (int)2, string(""));
-            return true;
-        }
-
-        CWalletTx order;
-        vRecv >> order;
-
-        /// we have a chance to check the order here
-
-        // Keep giving the same key to the same ip until they use it
-        if (!mapReuseKey.count(pfrom->addr))
-            pwalletMain->GetKeyFromPool(mapReuseKey[pfrom->addr], true);
-
-        // Send back approval of order and pubkey to use
-        CScript scriptPubKey;
-        scriptPubKey << mapReuseKey[pfrom->addr] << OP_CHECKSIG;
-        pfrom->PushMessage("reply", hashReply, (int)0, scriptPubKey);
-    }
-
-    else if (strCommand == "reply") {
-        uint256 hashReply;
-        vRecv >> hashReply;
-
-        CRequestTracker tracker;
-        {
-            LOCK(pfrom->cs_mapRequests);
-            map<uint256, CRequestTracker>::iterator mi = pfrom->mapRequests.find(hashReply);
-            if (mi != pfrom->mapRequests.end()) {
-                tracker = (*mi).second;
-                pfrom->mapRequests.erase(mi);
-            }
-        }
-        if (!tracker.IsNull())
-            tracker.fn(tracker.param1, vRecv);
     }
 
     else if (strCommand == "ping") {

@@ -568,7 +568,7 @@ Value generateBlocks(int nGenerate, uint64_t nMaxTries, CWallet* const pwallet,
         }
 
         CPubKey newKey;
-        if (!pwalletMain->GetKeyFromPool(newKey, false))
+        if (!pwalletMain->GetKeyFromPool(newKey))
             throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT,
                                "Error: Keypool ran out, please call keypoolrefill first");
         CKeyID keyID = newKey.GetID();

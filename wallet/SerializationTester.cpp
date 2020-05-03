@@ -593,23 +593,15 @@ void RunCrossPlatformSerializationTests()
     cWalletTx.vtxPrev.push_back(cMerkleTx); // std::vector<CMerkleTx>
     cWalletTx.mapValue.insert({"abc", "XY"});
     cWalletTx.mapValue.insert({"XXY", "Z"}); // mapValue_t
-    cWalletTx.vOrderForm             = {{"aXc", "vXY"},
+    cWalletTx.vOrderForm            = {{"aXc", "vXY"},
                             {"XaY", "sZ"}}; // std::vector<std::pair<std::string, std::string>>
-    cWalletTx.fTimeReceivedIsTxTime  = 0x12345678;      // unsigned int
-    cWalletTx.nTimeReceived          = 0x12345678;      // unsigned int
-    cWalletTx.nTimeSmart             = 0x12345678;      // unsigned int
-    cWalletTx.fFromMe                = 0x26;            // char
-    cWalletTx.strFromAccount         = "XXAASQWERYHGFD";               // std::string
-    cWalletTx.vfSpent                = {'A', 'B', 'C', 'D', 'E', 'G'}; // std::vector<char>
-    cWalletTx.nOrderPos              = 0x1234567813572467;             // int64_t
-    cWalletTx.fDebitCached           = 1;                              // mutable bool
-    cWalletTx.fCreditCached          = 0;                              // mutable bool
-    cWalletTx.fAvailableCreditCached = 0;                              // mutable bool
-    cWalletTx.fChangeCached          = 0;                              // mutable bool
-    cWalletTx.nDebitCached           = 0x1234567813572467;             // mutable int64_t
-    cWalletTx.nCreditCached          = 0x1234567813572267;             // mutable int64_t
-    cWalletTx.nAvailableCreditCached = 0x1234562813572467;             // mutable int64_t
-    cWalletTx.nChangeCached          = 0x1234567813512467;             // mutable int64_t
+    cWalletTx.fTimeReceivedIsTxTime = 0x12345678;      // unsigned int
+    cWalletTx.nTimeReceived         = 0x12345678;      // unsigned int
+    cWalletTx.nTimeSmart            = 0x12345678;      // unsigned int
+    cWalletTx.fFromMe               = 0x26;            // char
+    cWalletTx.strFromAccount        = "XXAASQWERYHGFD";               // std::string
+    cWalletTx.vfSpent               = {'A', 'B', 'C', 'D', 'E', 'G'}; // std::vector<char>
+    cWalletTx.nOrderPos             = 0x1234567813572467;             // int64_t
     {
         CDataStream ss(SER_DISK, 0);
         ss << cWalletTx;

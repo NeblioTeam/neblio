@@ -920,11 +920,16 @@ bool AppInit2()
         // Create new keyUser and set as default key
         RandAddSeedPerfmon();
 
-        CPubKey newDefaultKey;
-        if (pwalletMain->GetKeyFromPool(newDefaultKey, false)) {
-            pwalletMain->SetDefaultKey(newDefaultKey);
-            if (!pwalletMain->SetAddressBookName(pwalletMain->vchDefaultKey.GetID(), ""))
-                strErrors << _("Cannot write default address") << "\n";
+        CPubKey newKey;
+        // Top up the keypool
+        if (!pwalletMain->TopUpKeyPool()) {
+            // Error generating keys
+            InitError(_("Unable to generate initial key") += "\n");
+            return error("%s %s", __func__, "Unable to generate initial key");
+        }
+        if (pwalletMain->GetKeyFromPool(newKey)) {
+            if (!pwalletMain->SetAddressBookName(newKey.GetID(), ""))
+                strErrors << _("Cannot write first address") << "\n";
         }
     }
 
@@ -1018,7 +1023,7 @@ bool AppInit2()
         return InitError(strErrors.str());
 
     // Add wallet transactions that aren't already in a block to mapTransactions
-    pwalletMain->ReacceptWalletTransactions();
+    pwalletMain->ReacceptWalletTransactions(true);
 
 #if !defined(QT_GUI)
     // Loop until process is exit()ed from shutdown() function,

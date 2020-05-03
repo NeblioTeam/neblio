@@ -81,7 +81,11 @@ public:
 
     bool IsCoinBase() const { return (vin.size() == 1 && vin[0].prevout.IsNull() && vout.size() >= 1); }
 
+    bool CheckColdStake(const CScript& script) const;
+
     bool IsCoinStake() const;
+
+    bool HasP2CSOutputs() const;
 
     /** Check for standard transaction types
         @param[in] mapInputs	Map of previous transactions that have outputs we're spending

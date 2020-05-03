@@ -783,9 +783,9 @@ Value sendrawtransaction(const Array& params, bool fHelp)
             throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX rejected");
         }
 
-        SyncWithWallets(tx, NULL, true);
+        SyncWithWallets(tx, NULL);
     }
-    RelayTransaction(tx, hashTx);
+    RelayTransaction(tx);
 
     return hashTx.GetHex();
 }

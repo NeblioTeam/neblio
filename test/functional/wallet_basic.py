@@ -227,7 +227,7 @@ class WalletTest(BitcoinTestFramework):
         inputs = [{"txid":usp[0]['txid'], "vout":usp[0]['vout']}]
         outputs = {self.nodes[1].getnewaddress(): 49.998, self.nodes[0].getnewaddress(): 11.11}
 
-        rawTx = self.nodes[1].createrawtransaction(inputs, outputs).replace("c0833842", "00000000") #replace 11.11 with 0.0 (int32)
+        rawTx = self.nodes[1].createrawtransaction(inputs, outputs).replace("c0833842", "00000000")  # replace 11.11 with 0.0 (int32)
         decRawTx = self.nodes[1].decoderawtransaction(rawTx)
         signedRawTx = self.nodes[1].signrawtransaction(rawTx)
         decRawTx = self.nodes[1].decoderawtransaction(signedRawTx['hex'])
@@ -237,7 +237,7 @@ class WalletTest(BitcoinTestFramework):
         self.nodes[1].generate(1)  # mine a block
         self.sync_all()
 
-        unspentTxs = self.nodes[0].listunspent() #zero value tx must be in listunspents output
+        unspentTxs = self.nodes[0].listunspent()  # zero value tx must be in listunspents output
         found = False
         for uTx in unspentTxs:
             if uTx['txid'] == zeroValueTxid:

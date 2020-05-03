@@ -5,11 +5,11 @@
 #ifndef BITCOIN_DB_H
 #define BITCOIN_DB_H
 
+#include <boost/atomic.hpp>
+#include <boost/filesystem.hpp>
 #include <map>
 #include <string>
 #include <vector>
-#include <boost/atomic.hpp>
-#include <boost/filesystem.hpp>
 
 #include <db_cxx.h>
 
@@ -30,20 +30,19 @@ extern boost::atomic<uint32_t> nWalletDBUpdated;
 void ThreadFlushWalletDB(void* parg);
 bool BackupWallet(const CWallet& wallet, const std::string& strDest);
 
-
 class CDBEnv
 {
 private:
-    bool fDbEnvInit;
-    bool fMockDb;
+    bool                    fDbEnvInit;
+    bool                    fMockDb;
     boost::filesystem::path pathEnv;
-    std::string strPath;
+    std::string             strPath;
 
     void EnvShutdown();
 
 public:
-    mutable CCriticalSection cs_db;
-    DbEnv dbenv;
+    mutable CCriticalSection   cs_db;
+    DbEnv                      dbenv;
     std::map<std::string, int> mapFileUseCount;
     std::map<std::string, Db*> mapDb;
 
@@ -58,7 +57,12 @@ public:
      * This must be called BEFORE strFile is opened.
      * Returns true if strFile is OK.
      */
-    enum VerifyResult { VERIFY_OK, RECOVER_OK, RECOVER_FAIL };
+    enum VerifyResult
+    {
+        VERIFY_OK,
+        RECOVER_OK,
+        RECOVER_FAIL
+    };
     VerifyResult Verify(std::string strFile, bool (*recoverFunc)(CDBEnv& dbenv, std::string strFile));
     /*
      * Salvage data from a file that Verify says is bad.
@@ -67,7 +71,7 @@ public:
      * NOTE: reads the entire database into memory, so cannot be used
      * for huge databases.
      */
-    typedef std::pair<std::vector<unsigned char>, std::vector<unsigned char> > KeyValPair;
+    typedef std::pair<std::vector<unsigned char>, std::vector<unsigned char>> KeyValPair;
     bool Salvage(std::string strFile, bool fAggressive, std::vector<KeyValPair>& vResult);
 
     bool Open(boost::filesystem::path pathEnv_);
@@ -78,10 +82,10 @@ public:
     void CloseDb(const std::string& strFile);
     bool RemoveDb(const std::string& strFile);
 
-    DbTxn *TxnBegin(int flags=DB_TXN_WRITE_NOSYNC)
+    DbTxn* TxnBegin(int flags = DB_TXN_WRITE_NOSYNC)
     {
         DbTxn* ptxn = NULL;
-        int ret = dbenv.txn_begin(NULL, &ptxn, flags);
+        int    ret  = dbenv.txn_begin(NULL, &ptxn, flags);
         if (!ptxn || ret != 0)
             return NULL;
         return ptxn;
@@ -90,26 +94,29 @@ public:
 
 extern CDBEnv bitdb;
 
-
 /** RAII class that provides access to a Berkeley database */
 class CDB
 {
 protected:
-    Db* pdb;
+    Db*         pdb;
     std::string strFile;
-    DbTxn *activeTxn;
-    bool fReadOnly;
+    DbTxn*      activeTxn;
+    bool        fReadOnly;
+    bool        fFlushOnClose;
 
-    explicit CDB(const char* pszFile, const char* pszMode="r+");
+    explicit CDB(const char* pszFile, const char* pszMode = "r+", bool fFlushOnCloseIn = true);
     ~CDB() { Close(); }
+
 public:
+    void Flush();
     void Close();
+
 private:
     CDB(const CDB&);
     void operator=(const CDB&);
 
 protected:
-    template<typename K, typename T>
+    template <typename K, typename T>
     bool Read(const K& key, T& value)
     {
         if (!pdb)
@@ -131,10 +138,11 @@ protected:
 
         // Unserialize value
         try {
-            CDataStream ssValue((char*)datValue.get_data(), (char*)datValue.get_data() + datValue.get_size(), SER_DISK, CLIENT_VERSION);
+            CDataStream ssValue((char*)datValue.get_data(),
+                                (char*)datValue.get_data() + datValue.get_size(), SER_DISK,
+                                CLIENT_VERSION);
             ssValue >> value;
-        }
-        catch (std::exception &e) {
+        } catch (std::exception& e) {
             return false;
         }
 
@@ -144,8 +152,8 @@ protected:
         return (ret == 0);
     }
 
-    template<typename K, typename T>
-    bool Write(const K& key, const T& value, bool fOverwrite=true)
+    template <typename K, typename T>
+    bool Write(const K& key, const T& value, bool fOverwrite = true)
     {
         if (!pdb)
             return false;
@@ -173,7 +181,7 @@ protected:
         return (ret == 0);
     }
 
-    template<typename K>
+    template <typename K>
     bool Erase(const K& key)
     {
         if (!pdb)
@@ -195,7 +203,7 @@ protected:
         return (ret == 0 || ret == DB_NOTFOUND);
     }
 
-    template<typename K>
+    template <typename K>
     bool Exists(const K& key)
     {
         if (!pdb)
@@ -220,24 +228,24 @@ protected:
         if (!pdb)
             return NULL;
         Dbc* pcursor = NULL;
-        int ret = pdb->cursor(NULL, &pcursor, 0);
+        int  ret     = pdb->cursor(NULL, &pcursor, 0);
         if (ret != 0)
             return NULL;
         return pcursor;
     }
 
-    int ReadAtCursor(Dbc* pcursor, CDataStream& ssKey, CDataStream& ssValue, unsigned int fFlags=DB_NEXT)
+    int ReadAtCursor(Dbc* pcursor, CDataStream& ssKey, CDataStream& ssValue,
+                     unsigned int fFlags = DB_NEXT)
     {
         // Read at cursor
         Dbt datKey;
-        if (fFlags == DB_SET || fFlags == DB_SET_RANGE || fFlags == DB_GET_BOTH || fFlags == DB_GET_BOTH_RANGE)
-        {
+        if (fFlags == DB_SET || fFlags == DB_SET_RANGE || fFlags == DB_GET_BOTH ||
+            fFlags == DB_GET_BOTH_RANGE) {
             datKey.set_data(&ssKey[0]);
             datKey.set_size(ssKey.size());
         }
         Dbt datValue;
-        if (fFlags == DB_GET_BOTH || fFlags == DB_GET_BOTH_RANGE)
-        {
+        if (fFlags == DB_GET_BOTH || fFlags == DB_GET_BOTH_RANGE) {
             datValue.set_data(&ssValue[0]);
             datValue.set_size(ssValue.size());
         }
@@ -281,7 +289,7 @@ public:
     {
         if (!pdb || !activeTxn)
             return false;
-        int ret = activeTxn->commit(0);
+        int ret   = activeTxn->commit(0);
         activeTxn = NULL;
         return (ret == 0);
     }
@@ -290,7 +298,7 @@ public:
     {
         if (!pdb || !activeTxn)
             return false;
-        int ret = activeTxn->abort();
+        int ret   = activeTxn->abort();
         activeTxn = NULL;
         return (ret == 0);
     }
@@ -301,20 +309,17 @@ public:
         return Read(std::string("version"), nVersion);
     }
 
-    bool WriteVersion(int nVersion)
-    {
-        return Write(std::string("version"), nVersion);
-    }
+    bool WriteVersion(int nVersion) { return Write(std::string("version"), nVersion); }
 
     bool static Rewrite(const std::string& strFile, const char* pszSkip = NULL);
 };
-
 
 /** Access to the (IP) address database (peers.dat) */
 class CAddrDB
 {
 private:
     boost::filesystem::path pathAddr;
+
 public:
     CAddrDB();
     bool Write(const CAddrMan& addr);
