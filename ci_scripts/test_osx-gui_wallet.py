@@ -34,7 +34,7 @@ nci.call_with_err_code('brew uninstall --ignore-dependencies openssl || true')
 nci.call_with_err_code('brew uninstall --ignore-dependencies openssl@1.1 || true')
 nci.call_with_err_code('brew uninstall --ignore-dependencies qrencode || true')
 nci.call_with_err_code('brew uninstall --ignore-dependencies libsodium || true')
-nci.call_with_err_code('brew uninstall --ignore-dependencies icu4c || true')
+# nci.call_with_err_code('brew uninstall --ignore-dependencies icu4c || true')
 
 # Install High Seirra Versions of Depeendencies, due to that being the minimum version we support
 #ccache https://bintray.com/homebrew/bottles/download_file?file_path=ccache-3.7.6.high_sierra.bottle.tar.gz
@@ -56,7 +56,7 @@ nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies
 #libsodium https://bintray.com/homebrew/bottles/download_file?file_path=libsodium-1.0.18_1.high_sierra.bottle.tar.gz
 nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/libsodium-1.0.18_1.high_sierra.bottle.tar.gz')
 #icu4c https://homebrew.bintray.com/bottles/icu4c-66.1.high_sierra.bottle.tar.gz
-nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/icu4c-64.2.high_sierra.bottle.tar.gz')
+# nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/icu4c-64.2.high_sierra.bottle.tar.gz')
 
 # force relinking
 nci.call_with_err_code('brew unlink qt            && brew link --force --overwrite qt')
@@ -68,7 +68,7 @@ nci.call_with_err_code('brew unlink python        && brew link --force --overwri
 nci.call_with_err_code('brew unlink openssl@1.1   && brew link --force --overwrite openssl@1.1')
 nci.call_with_err_code('brew unlink qrencode      && brew link --force --overwrite qrencode')
 nci.call_with_err_code('brew unlink libsodium     && brew link --force --overwrite libsodium')
-nci.call_with_err_code('brew unlink icu4c         && brew link --force --overwrite icu4c')
+# nci.call_with_err_code('brew unlink icu4c         && brew link --force --overwrite icu4c')
 nci.call_with_err_code('ls -al /usr/local/opt/icu4c/lib/')
 
 
@@ -95,7 +95,7 @@ else:
     nci.call_with_err_code('npm install -g appdmg')
     os.chdir("wallet")
     nci.call_with_err_code('ls -al /usr/local/opt/icu4c/lib/')
-    nci.call_with_err_code('../../contrib/macdeploy/macdeployqtplus ./neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -verbose 1 -rpath /usr/local/opt/qt/lib')
+    nci.call_with_err_code('../../contrib/macdeploy/macdeployqtplus ./neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -verbose 5 -rpath /usr/local/opt/qt/lib')
     nci.call_with_err_code('appdmg ../../contrib/macdeploy/appdmg.json ./neblio-Qt.dmg')
 
     file_name = '$(date +%Y-%m-%d)---' + os.environ['BRANCH'] + '-' + os.environ['COMMIT'][:7] + '---neblio-Qt---macOS.zip'
