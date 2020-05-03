@@ -56,7 +56,7 @@ nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies
 #libsodium https://bintray.com/homebrew/bottles/download_file?file_path=libsodium-1.0.18_1.high_sierra.bottle.tar.gz
 nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/libsodium-1.0.18_1.high_sierra.bottle.tar.gz')
 #icu4c https://homebrew.bintray.com/bottles/icu4c-66.1.high_sierra.bottle.tar.gz
-nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/icu4c-66.1.high_sierra.bottle.tar.gz')
+nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/icu4c-64.2.high_sierra.bottle.tar.gz')
 
 # force relinking
 nci.call_with_err_code('brew unlink qt            && brew link --force --overwrite qt')
