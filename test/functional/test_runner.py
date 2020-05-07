@@ -100,7 +100,7 @@ BASE_SCRIPTS= [
    'rpc_decodescript.py',
    'rpc_blockchain.py',
 #    'wallet_disable.py',
-#    'wallet_keypool.py',
+   'wallet_keypool.py',
 #    'p2p_mempool.py',
 #    'mining_prioritisetransaction.py',
    'p2p_invalid_block.py',

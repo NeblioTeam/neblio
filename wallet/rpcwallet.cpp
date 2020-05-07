@@ -171,6 +171,37 @@ Value getnewaddress(const Array& params, bool fHelp)
     return CBitcoinAddress(keyID).ToString();
 }
 
+Value getrawchangeaddress(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 1)
+        throw std::runtime_error("getrawchangeaddress\n"
+                                 "\nReturns a new neblio address, for receiving change.\n"
+                                 "This is for use with raw transactions, NOT normal use.\n"
+
+                                 "\nResult:\n"
+                                 "\"address\"    (string) The address\n"
+
+                                 "\nExamples:\n"
+                                 "getrawchangeaddress");
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    if (!pwalletMain->IsLocked())
+        pwalletMain->TopUpKeyPool();
+
+    CReserveKey reservekey(pwalletMain.get());
+    CPubKey     vchPubKey;
+    if (!reservekey.GetReservedKey(vchPubKey))
+        throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT,
+                           "Error: Keypool ran out, please call keypoolrefill first");
+
+    reservekey.KeepKey();
+
+    CKeyID keyID = vchPubKey.GetID();
+
+    return CBitcoinAddress(keyID).ToString();
+}
+
 CBitcoinAddress GetAccountAddress(string strAccount, bool bForceNew = false)
 {
     CWalletDB walletdb(pwalletMain->strWalletFile);
@@ -1601,6 +1632,69 @@ Value keypoolrefill(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_WALLET_ERROR, "Error refreshing keypool.");
 
     return Value::null;
+}
+
+Value getwalletinfo(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw std::runtime_error(
+            "getwalletinfo\n"
+            "Returns an object containing various wallet state info.\n"
+
+            "\nResult:\n"
+            "{\n"
+            "  \"walletversion\": xxxxx,                  (numeric) the wallet version\n"
+            "  \"balance\": xxxxxxx,                      (numeric) the total nebl balance of the "
+            "wallet "
+            "(cold balance excluded)\n"
+            //            "  \"delegated_balance\": xxxxx,              (numeric) the neblio balance held
+            //            in P2CS (cold " "staking) contracts\n" "  \"cold_staking_balance\": xx,
+            //            (numeric) the neblio balance held in cold " "staking addresses\n"
+            "  \"unconfirmed_balance\": xxx,              (numeric) the total unconfirmed balance of "
+            "the wallet in nebls\n"
+            "  \"immature_delegated_balance\": xxxxxx,    (numeric) the delegated immature balance of "
+            "the wallet in nebls\n"
+            "  \"immature_cold_staking_balance\": xxxxxx, (numeric) the cold-staking immature balance "
+            "of the wallet in nebls\n"
+            //            "  \"immature_balance\": xxxxxx,              (numeric) the total immature
+            //            balance of the " "wallet in nebls\n"
+            "  \"txcount\": xxxxxxx,                      (numeric) the total number of transactions in "
+            "the wallet\n"
+            "  \"keypoololdest\": xxxxxx,                 (numeric) the timestamp (seconds since GMT "
+            "epoch) of the oldest pre-generated key in the key pool\n"
+            "  \"keypoolsize\": xxxx,                     (numeric) how many new keys are "
+            "pre-generated\n"
+            "  \"unlocked_until\": ttt,                   (numeric) the timestamp in seconds since "
+            "epoch (midnight Jan 1 1970 GMT) that the wallet is unlocked for transfers, or 0 if the "
+            "wallet is locked\n"
+            //            "  \"paytxfee\": x.xxxx,                      (numeric) the transaction fee
+            //            configuration, " "set in nebl/kB\n"
+            "}\n"
+            "\nExamples:\n"
+            "getwalletinfo");
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    json_spirit::Object obj;
+    obj.push_back(Pair("walletversion", pwalletMain->GetVersion()));
+    obj.push_back(Pair("balance", ValueFromAmount(pwalletMain->GetBalance())));
+    //    obj.push_back(Pair("delegated_balance", ValueFromAmount(pwalletMain->GetDelegatedBalance())));
+    //    obj.push_back(Pair("cold_staking_balance",
+    //    ValueFromAmount(pwalletMain->GetColdStakingBalance())));
+    obj.push_back(Pair("unconfirmed_balance", ValueFromAmount(pwalletMain->GetUnconfirmedBalance())));
+    obj.push_back(Pair("immature_balance", ValueFromAmount(pwalletMain->GetImmatureBalance())));
+    //    obj.push_back(
+    //        Pair("immature_delegated_balance",
+    //        ValueFromAmount(pwalletMain->GetImmatureDelegatedBalance())));
+    //    obj.push_back(Pair("immature_cold_staking_balance",
+    //                       ValueFromAmount(pwalletMain->GetImmatureColdStakingBalance())));
+    obj.push_back(Pair("txcount", (int)pwalletMain->mapWallet.size()));
+    obj.push_back(Pair("keypoololdest", pwalletMain->GetOldestKeyPoolTime()));
+    obj.push_back(Pair("keypoolsize", (int)pwalletMain->GetKeyPoolSize()));
+    if (pwalletMain->IsCrypted())
+        obj.push_back(Pair("unlocked_until", nWalletUnlockTime));
+    //    obj.push_back(Pair("paytxfee", ValueFromAmount(payTxFee.GetFeePerK())));
+    return obj;
 }
 
 void ThreadTopUpKeyPool(void* /*parg*/)
