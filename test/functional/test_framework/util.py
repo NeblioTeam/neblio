@@ -339,7 +339,7 @@ def set_node_times(nodes, t):
 def disconnect_nodes(from_connection, node_num):
     for peer_id in [peer['id'] for peer in from_connection.getpeerinfo() if "testnode%d" % node_num in peer['subver']]:
         try:
-            from_connection.disconnectnode(nodeid=peer_id)
+            from_connection.disconnectnode(peer_id)
         except JSONRPCException as e:
             # If this node is disconnected between calculating the peer id
             # and issuing the disconnect, don't worry about it.

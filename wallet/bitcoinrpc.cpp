@@ -261,6 +261,7 @@ static const CRPCCommand vRPCCommands[] =
     { "waitforblockheight",        &waitforblockheight,        true,   false },
     { "getconnectioncount",        &getconnectioncount,        true,   false },
     { "addnode",                   &addnode,                   true,   false },
+    { "disconnectnode",            &disconnectnode,            true,   false },
     { "setmocktime",               &setmocktime,               false,  false },
     { "getpeerinfo",               &getpeerinfo,               true,   false },
     { "getdifficulty",             &getdifficulty,             true,   false },

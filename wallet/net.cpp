@@ -6,6 +6,7 @@
 #include "net.h"
 #include "addrman.h"
 #include "db.h"
+#include "globals.h"
 #include "init.h"
 #include "main.h"
 #include "ui_interface.h"
@@ -400,7 +401,7 @@ CNode* FindNode(const CNetAddr& ip)
     return nullptr;
 }
 
-CNode* FindNode(std::string addrName)
+CNode* FindNode(const std::string& addrName)
 {
     LOCK(cs_vNodes);
     for (CNode* pnode : vNodes)
@@ -415,6 +416,17 @@ CNode* FindNode(const CService& addr)
         LOCK(cs_vNodes);
         for (CNode* pnode : vNodes)
             if ((CService)pnode->addr == addr)
+                return (pnode);
+    }
+    return nullptr;
+}
+
+CNode* FindNode(const int64_t& nodeID)
+{
+    {
+        LOCK(cs_vNodes);
+        for (CNode* pnode : vNodes)
+            if (pnode->nodeid == nodeID)
                 return (pnode);
     }
     return nullptr;
@@ -459,7 +471,7 @@ CNode* ConnectNode(CAddress addrConnect, const char* pszDest)
 #endif
 
         // Add node
-        CNode* pnode = new CNode(hSocket, addrConnect, pszDest ? pszDest : "", false);
+        CNode* pnode = new CNode(NodeIDCounter++, hSocket, addrConnect, pszDest ? pszDest : "", false);
         pnode->AddRef();
 
         {
@@ -499,10 +511,9 @@ void CNode::PushVersion()
     printf("send version message: version %d, blocks=%d, us=%s, them=%s, peer=%s\n", PROTOCOL_VERSION,
            nBestHeight.load(), addrMe.ToString().c_str(), addrYou.ToString().c_str(),
            addr.ToString().c_str());
+
     PushMessage("version", PROTOCOL_VERSION, nLocalServices.load(), nTime, addrYou, addrMe,
-                nLocalHostNonce.load(),
-                FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, std::vector<string>()),
-                nBestHeight.load());
+                nLocalHostNonce.load(), strSubVersion, nBestHeight.load());
 }
 
 std::map<CNetAddr, int64_t> CNode::setBanned;
@@ -554,6 +565,7 @@ bool CNode::Misbehaving(int howmuch)
 #define X(name) stats.name = name
 void CNode::copyStats(CNodeStats& stats)
 {
+    X(nodeid);
     X(nServices);
     X(nLastSend);
     X(nLastRecv);
@@ -836,7 +848,7 @@ void ThreadSocketHandler2(void* /*parg*/)
         //
         // Accept new connections
         //
-        BOOST_FOREACH (SOCKET hListenSocket, vhListenSocket)
+        for (SOCKET hListenSocket : vhListenSocket)
             if (hListenSocket != INVALID_SOCKET && FD_ISSET(hListenSocket, &fdsetRecv)) {
                 struct sockaddr_storage sockaddr;
                 socklen_t               len = sizeof(sockaddr);
@@ -866,7 +878,7 @@ void ThreadSocketHandler2(void* /*parg*/)
                     closesocket(hSocket);
                 } else {
                     printf("accepted connection %s\n", addr.ToString().c_str());
-                    CNode* pnode = new CNode(hSocket, addr, "", true);
+                    CNode* pnode = new CNode(NodeIDCounter++, hSocket, addr, "", true);
                     pnode->AddRef();
                     {
                         LOCK(cs_vNodes);
@@ -1587,7 +1599,7 @@ void ThreadMessageHandler2(void* /*parg*/)
         {
             LOCK(cs_vNodes);
             vNodesCopy = vNodes;
-            BOOST_FOREACH (CNode* pnode, vNodesCopy)
+            for (CNode* pnode : vNodesCopy)
                 pnode->AddRef();
         }
 
@@ -1595,7 +1607,7 @@ void ThreadMessageHandler2(void* /*parg*/)
         CNode* pnodeTrickle = nullptr;
         if (!vNodesCopy.empty())
             pnodeTrickle = vNodesCopy[GetRand(vNodesCopy.size())];
-        BOOST_FOREACH (CNode* pnode, vNodesCopy) {
+        for (CNode* pnode : vNodesCopy) {
             if (pnode->fDisconnect)
                 continue;
 
@@ -1621,7 +1633,7 @@ void ThreadMessageHandler2(void* /*parg*/)
 
         {
             LOCK(cs_vNodes);
-            BOOST_FOREACH (CNode* pnode, vNodesCopy)
+            for (CNode* pnode : vNodesCopy)
                 pnode->Release();
         }
 
@@ -1810,7 +1822,8 @@ void StartNode(void* /*parg*/)
     }
 
     if (pnodeLocalHost == nullptr)
-        pnodeLocalHost = new CNode(INVALID_SOCKET, CAddress(CService("127.0.0.1", 0), nLocalServices));
+        pnodeLocalHost = new CNode(NodeIDCounter++, INVALID_SOCKET,
+                                   CAddress(CService("127.0.0.1", 0), nLocalServices));
 
     Discover();
 

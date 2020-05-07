@@ -62,13 +62,48 @@ Value addnode(const Array& params, bool fHelp)
     return json_spirit::Value();
 }
 
+Value disconnectnode(const Array& params, bool fHelp)
+{
+    bool validType =
+        params[0].type() != Value_type::str_type && params[0].type() != Value_type::int_type;
+
+    if ((fHelp || params.size() != 1) || validType) {
+        throw std::runtime_error("disconnectnode \"node\" \n"
+                                 "\nImmediately disconnects from the specified node.\n"
+
+                                 "\nArguments:\n"
+                                 "1. \"node\"     (string or int, required) The node identified by "
+                                 "address or node id (see getpeerinfo for nodes)\n"
+
+                                 "\nExamples:\n"
+                                 "disconnectnode \"192.168.0.6:8333\""
+                                 "disconnectnode 521");
+    }
+
+    CNode* pNode = nullptr;
+    if (params[0].type() == Value_type::str_type) {
+        pNode = FindNode(params[0].get_str());
+    }
+    if (params[0].type() == Value_type::int_type) {
+        pNode = FindNode(params[0].get_int64());
+    }
+    if (pNode == nullptr)
+        throw JSONRPCError(RPC_CLIENT_NODE_NOT_CONNECTED,
+                           "Node not found in connected nodes. Use getpeerinfo function to get the list "
+                           "of available nodes.");
+
+    pNode->CloseSocketDisconnect();
+
+    return json_spirit::Value();
+}
+
 static void CopyNodeStats(std::vector<CNodeStats>& vstats)
 {
     vstats.clear();
 
     LOCK(cs_vNodes);
     vstats.reserve(vNodes.size());
-    BOOST_FOREACH (CNode* pnode, vNodes) {
+    for (CNode* pnode : vNodes) {
         CNodeStats stats;
         pnode->copyStats(stats);
         vstats.push_back(stats);
@@ -89,6 +124,7 @@ Value getpeerinfo(const Array& params, bool fHelp)
     BOOST_FOREACH (const CNodeStats& stats, vstats) {
         Object obj;
 
+        obj.push_back(Pair("id", stats.nodeid));
         obj.push_back(Pair("addr", stats.addrName));
         obj.push_back(Pair("services", strprintf("%08" PRIx64, stats.nServices)));
         obj.push_back(Pair("lastsend", (int64_t)stats.nLastSend));

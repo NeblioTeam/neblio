@@ -48,12 +48,19 @@ static const int64_t MIN_RELAY_TX_FEE = MIN_TX_FEE;
 static const unsigned int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20 1985 UTC
 /** Maximum length of reject messages. */
 static const unsigned int MAX_REJECT_MESSAGE_LENGTH = 111;
+/** Maximum length of the user agent string in `version` message */
+static const unsigned int MAX_SUBVERSION_LENGTH = 256;
 
 static const int64_t COIN_YEAR_REWARD = 10 * CENT; // 10%
 
 /** The maximum allowed Peer Protocol Version */
 static const unsigned int MIN_PEER_PROTO_VERSION     = 60210; // v2.1+
 static const unsigned int OLD_MIN_PEER_PROTO_VERSION = 60200; // v2.0+
+
+extern boost::atomic<int64_t> NodeIDCounter;
+
+/** Subversion as sent to the P2P network in `version` messages */
+extern std::string strSubVersion;
 
 extern CBlockIndexSmartPtr pblockindexFBBHLast;
 
@@ -71,5 +78,26 @@ enum CPMode
 } // namespace Checkpoints
 
 extern Checkpoints::CPMode CheckpointsMode;
+
+/** Used by SanitizeString() */
+enum SafeChars
+{
+    SAFE_CHARS_DEFAULT,    //!< The full set of allowed chars
+    SAFE_CHARS_UA_COMMENT, //!< BIP-0014 subset
+    SAFE_CHARS_FILENAME,   //!< Chars allowed in filenames
+    SAFE_CHARS_URI,        //!< Chars allowed in URIs (RFC 3986)
+};
+
+static const std::string CHARS_ALPHA_NUM =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+static const std::string SAFE_CHARS[] = {
+    CHARS_ALPHA_NUM + " .,;-_/:?@()",            // SAFE_CHARS_DEFAULT
+    CHARS_ALPHA_NUM + " .,;-_?@",                // SAFE_CHARS_UA_COMMENT
+    CHARS_ALPHA_NUM + ".-_",                     // SAFE_CHARS_FILENAME
+    CHARS_ALPHA_NUM + "!*'();:@&=+$,/?#[]-_.~%", // SAFE_CHARS_URI
+};
+
+std::string SanitizeString(const std::string& str, int rule);
 
 #endif // GLOBALS_H

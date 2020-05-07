@@ -303,14 +303,16 @@ class BitcoinTestFramework():
         """
         disconnect_nodes(self.nodes[1], 2)
         disconnect_nodes(self.nodes[2], 1)
-        self.sync_all([self.nodes[:2], self.nodes[2:]])
+        self.sync_all([self.nodes[:2]])
+        self.sync_all([self.nodes[2:]])
 
-    def join_network(self):
+    def join_network(self, sync=True):
         """
         Join the (previously split) network halves together.
         """
         connect_nodes_bi(self.nodes, 1, 2)
-        self.sync_all()
+        if sync:
+            self.sync_all()
 
     def sync_all(self, node_groups=None):
         if not node_groups:

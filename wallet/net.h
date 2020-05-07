@@ -37,7 +37,9 @@ bool           RecvLine(SOCKET hSocket, std::string& strLine);
 bool           GetMyExternalIP(CNetAddr& ipRet);
 void           AddressCurrentlyConnected(const CService& addr);
 CNode*         FindNode(const CNetAddr& ip);
+CNode*         FindNode(const std::string& ip);
 CNode*         FindNode(const CService& ip);
+CNode*         FindNode(const int64_t& nodeID);
 CNode*         ConnectNode(CAddress addrConnect, const char* strDest = NULL);
 void           MapPort();
 unsigned short GetListenPort();
@@ -136,6 +138,7 @@ extern ThreadSafeHashMap<CInv, int64_t>     mapAlreadyAskedFor;
 class CNodeStats
 {
 public:
+    int64_t     nodeid;
     uint64_t    nServices;
     int64_t     nLastSend;
     int64_t     nLastRecv;
@@ -191,6 +194,7 @@ class CNode
 {
 public:
     // socket
+    const int64_t              nodeid;
     uint64_t                   nServices;
     SOCKET                     hSocket;
     CDataStream                ssSend;
@@ -256,8 +260,9 @@ public:
     CCriticalSection             cs_inventory;
     std::multimap<int64_t, CInv> mapAskFor;
 
-    CNode(SOCKET hSocketIn, CAddress addrIn, std::string addrNameIn = "", bool fInboundIn = false)
-        : ssSend(SER_NETWORK, INIT_PROTO_VERSION), setAddrKnown(5000)
+    CNode(int64_t nodeId, SOCKET hSocketIn, CAddress addrIn, std::string addrNameIn = "",
+          bool fInboundIn = false)
+        : nodeid(nodeId), ssSend(SER_NETWORK, INIT_PROTO_VERSION), setAddrKnown(5000)
     {
         nServices                = 0;
         hSocket                  = hSocketIn;

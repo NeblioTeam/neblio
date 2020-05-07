@@ -111,7 +111,7 @@ BASE_SCRIPTS= [
 #    'wallet_import_rescan.py',
 #    'mining_basic.py',
 #    'wallet_bumpfee.py',
-#    'wallet_listsinceblock.py',
+   'wallet_listsinceblock.py',
 #    'p2p_leak.py',
 #    'wallet_encryption.py',
 #    'feature_dersig.py',

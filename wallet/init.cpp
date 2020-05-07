@@ -307,6 +307,7 @@ std::string HelpMessage()
         "  -logtimestamps         " + _("Prepend debug output with timestamp") + "\n" +
         "  -shrinkdebugfile       " + _("Shrink debug.log file on client startup (default: 1 when no -debug)") + "\n" +
         "  -printtoconsole        " + _("Send trace/debug info to console instead of debug.log file") + "\n" +
+        "  -uacomment=<cmt>       " + _("Append comment to the user agent string") + "\n" +
 #ifdef WIN32
         "  -printtodebugger       " + _("Send trace/debug info to debugger") + "\n" +
 #endif
@@ -513,6 +514,22 @@ bool AppInit2()
         if (!ParseMoney(mininpVal, nMinimumInputValue))
             return InitError(
                 strprintf(_("Invalid amount for -mininput=<amount>: '%s'"), mininpVal.c_str()));
+    }
+
+    // sanitize comments per BIP-0014, format user agent and check total size
+    std::vector<std::string> uacommentsOrig;
+    mapMultiArgs.get("-uacomment", uacommentsOrig);
+    std::vector<std::string> uacomments;
+    for (const std::string& cmt : uacommentsOrig) {
+        if (cmt != SanitizeString(cmt, SAFE_CHARS_UA_COMMENT))
+            return InitError("User Agent comment (" + cmt + ") contains unsafe characters.");
+        uacomments.push_back(cmt);
+    }
+    strSubVersion = FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, uacomments);
+    if (strSubVersion.size() > MAX_SUBVERSION_LENGTH) {
+        return InitError(strprintf(_("Total length of network version string (%i) exceeds maximum "
+                                     "length (%i). Reduce the number or size of uacomments."),
+                                   strSubVersion.size(), MAX_SUBVERSION_LENGTH));
     }
 
     // ********************************************************* Step 4: application initialization: dir

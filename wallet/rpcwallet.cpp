@@ -1059,8 +1059,8 @@ Value addredeemscript(const Array& params, bool fHelp)
 
 struct tallyitem
 {
-    int64_t nAmount;
-    int     nConf;
+    int64_t              nAmount;
+    int                  nConf;
     std::vector<uint256> txids;
     tallyitem()
     {
@@ -1134,10 +1134,8 @@ Value ListReceived(const Array& params, bool fByAccounts)
             obj.push_back(Pair("amount", ValueFromAmount(nAmount)));
             obj.push_back(Pair("confirmations", (nConf == std::numeric_limits<int>::max() ? 0 : nConf)));
             json_spirit::Array transactions;
-            if (it != mapTally.end())
-            {
-                for (const uint256& _item : (*it).second.txids)
-                {
+            if (it != mapTally.end()) {
+                for (const uint256& _item : (*it).second.txids) {
                     transactions.push_back(_item.GetHex());
                 }
             }
@@ -1224,6 +1222,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
             entry.push_back(Pair("category", "send"));
             entry.push_back(Pair("amount", ValueFromAmount(-s.second)));
             entry.push_back(Pair("fee", ValueFromAmount(-nFee)));
+            entry.push_back(Pair("blockheight", nBestHeight - wtx.GetDepthInMainChain()));
             if (fLong)
                 WalletTxToJSON(wtx, entry);
             ret.push_back(entry);
@@ -1231,7 +1230,8 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
     }
 
     // Received
-    if (listReceived.size() > 0 && wtx.GetDepthInMainChain() >= nMinDepth) {
+    int depthInMainChain = wtx.GetDepthInMainChain();
+    if (listReceived.size() > 0 && depthInMainChain >= nMinDepth) {
         bool stop = false;
         for (const PAIRTYPE(CTxDestination, int64_t) & r : listReceived) {
             string account;
@@ -1257,6 +1257,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                     entry.push_back(Pair("amount", ValueFromAmount(-nFee)));
                     stop = true; // only one coinstake output
                 }
+                entry.push_back(Pair("blockheight", 1 + nBestHeight - wtx.GetDepthInMainChain()));
                 if (fLong)
                     WalletTxToJSON(wtx, entry);
                 ret.push_back(entry);
@@ -1401,17 +1402,32 @@ Value listsinceblock(const Array& params, bool fHelp)
 {
     if (fHelp)
         throw runtime_error(
-            "listsinceblock [blockhash] [target-confirmations]\n"
-            "Get all transactions in blocks since block [blockhash], or all transactions if omitted");
+            "listsinceblock [blockhash] [target-confirmations] [include-removed=true]\n"
+            "Get all transactions in blocks since block [blockhash], or all transactions if omitted. If "
+            "include-removed is true, transactions in orphans will be included.");
+
+    LOCK(cs_main);
 
     CBlockIndex* pindex          = nullptr;
     int          target_confirms = 1;
 
-    if (params.size() > 0) {
+    std::vector<uint256> nonMainChain;
+
+    if (params.size() > 0 && !params[0].get_str().empty()) {
         uint256 blockId = 0;
 
         blockId.SetHex(params[0].get_str());
-        pindex = CBlockLocator(blockId).GetBlockIndex().get();
+        auto it = mapBlockIndex.find(blockId);
+        if (it == mapBlockIndex.cend()) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+        }
+        pindex = it->second.get();
+
+        // find the common ancestor if this block is not in mainchain
+        while (pindex && !pindex->IsInMainChain() && pindex->pprev) {
+            nonMainChain.push_back(*pindex->phashBlock);
+            pindex = pindex->pprev.get();
+        }
     }
 
     if (params.size() > 1) {
@@ -1424,13 +1440,38 @@ Value listsinceblock(const Array& params, bool fHelp)
     int depth = pindex ? (1 + nBestHeight - pindex->nHeight) : -1;
 
     Array transactions;
+    Array removed;
 
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
          it != pwalletMain->mapWallet.end(); it++) {
         CWalletTx tx = (*it).second;
 
-        if (depth == -1 || tx.GetDepthInMainChain() < depth)
+        int txDepthInMainChain = tx.GetDepthInMainChain();
+
+        if (depth == -1 || txDepthInMainChain < depth)
             ListTransactions(tx, "*", 0, true, transactions);
+    }
+
+    bool includeRemoved = true;
+    if (params.size() > 2) {
+        includeRemoved = params[2].get_bool();
+    }
+
+    if (includeRemoved) {
+        for (const uint256& h : nonMainChain) {
+            CTxDB  txdb;
+            CBlock block;
+            if (txdb.ReadBlock(h, block, true)) {
+                for (const CTransaction& tx : block.vtx) {
+                    auto it = pwalletMain->mapWallet.find(tx.GetHash());
+                    if (it != pwalletMain->mapWallet.cend()) {
+                        // We want all transactions regardless of confirmation count to appear here,
+                        // even negative confirmation ones, hence the big negative.
+                        ListTransactions(it->second, "*", -100000000, true, removed);
+                    }
+                }
+            }
+        }
     }
 
     uint256 lastblock;
@@ -1450,6 +1491,9 @@ Value listsinceblock(const Array& params, bool fHelp)
 
     Object ret;
     ret.push_back(Pair("transactions", transactions));
+    if (includeRemoved) {
+        ret.push_back(Pair("removed", removed));
+    }
     ret.push_back(Pair("lastblock", lastblock.GetHex()));
 
     return ret;

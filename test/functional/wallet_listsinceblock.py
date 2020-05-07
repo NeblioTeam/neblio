@@ -81,6 +81,7 @@ class ListSinceBlockTest (BitcoinTestFramework):
 
         This test only checks that [tx0] is present.
         '''
+        self.log.info("Test reorg")
 
         # Split network into two
         self.split_network()
@@ -89,22 +90,27 @@ class ListSinceBlockTest (BitcoinTestFramework):
         senttx = self.nodes[2].sendtoaddress(self.nodes[0].getnewaddress(), 1)
 
         # generate on both sides
-        lastblockhash = self.nodes[1].generate(6)[5]
-        self.nodes[2].generate(7)
-        self.log.info('lastblockhash=%s' % (lastblockhash))
+        nodes1_last_blockhash = self.nodes[1].generate(6)[-1]
+        nodes2_first_blockhash = self.nodes[2].generate(7)[0]
+        self.log.debug("nodes[1] last blockhash = {}".format(nodes1_last_blockhash))
+        self.log.debug("nodes[2] first blockhash = {}".format(nodes2_first_blockhash))
 
-        self.sync_all([self.nodes[:2], self.nodes[2:]])
+        self.sync_all([self.nodes[:2]])
+        self.sync_all([self.nodes[2:]])
 
-        self.join_network()
+        self.join_network(False)
 
-        # listsinceblock(lastblockhash) should now include tx, as seen from nodes[0]
-        lsbres = self.nodes[0].listsinceblock(lastblockhash)
-        found = False
-        for tx in lsbres['transactions']:
-            if tx['txid'] == senttx:
-                found = True
-                break
-        assert found
+        # when connecting nodes in neblio, they don't automatically establish connection.
+        # therefore, we generate a block to trigger sync between nodes
+        self.nodes[2].generate(1)
+        self.sync_all()
+
+        # listsinceblock(nodes1_last_blockhash) should now include tx as seen from nodes[0]
+        # and return the block height which listsinceblock now exposes since a5e7795.
+        transactions = self.nodes[0].listsinceblock(nodes1_last_blockhash)['transactions']
+        found = next(tx for tx in transactions if tx['txid'] == senttx)
+        assert_equal(found['blockheight'], self.nodes[0].getblockheader(nodes2_first_blockhash)['height'])
+
 
     def test_double_spend(self):
         '''
@@ -174,8 +180,9 @@ class ListSinceBlockTest (BitcoinTestFramework):
         lastblockhash = self.nodes[1].generate(3)[2]
         self.nodes[2].generate(4)
 
-        self.join_network()
+        self.join_network(sync=False)
 
+        self.nodes[2].generate(1)
         self.sync_all()
 
         # gettransaction should work for txid1
@@ -186,7 +193,7 @@ class ListSinceBlockTest (BitcoinTestFramework):
         assert any(tx['txid'] == txid1 for tx in lsbres['removed'])
 
         # but it should not include 'removed' if include_removed=false
-        lsbres2 = self.nodes[0].listsinceblock(blockhash=lastblockhash, include_removed=False)
+        lsbres2 = self.nodes[0].listsinceblock(lastblockhash, 1, False)
         assert 'removed' not in lsbres2
 
     def test_double_send(self):
@@ -253,8 +260,9 @@ class ListSinceBlockTest (BitcoinTestFramework):
         lastblockhash = self.nodes[1].generate(3)[2]
         self.nodes[2].generate(2)
 
-        self.join_network()
+        self.join_network(sync=False)
 
+        self.nodes[2].generate(1)
         self.sync_all()
 
         # gettransaction should work for txid1
@@ -269,12 +277,12 @@ class ListSinceBlockTest (BitcoinTestFramework):
         # find transaction and ensure confirmations is valid
         for tx in lsbres['transactions']:
             if tx['txid'] == txid1:
-                assert_equal(tx['confirmations'], 2)
+                assert_equal(tx['confirmations'], 3)
 
         # the same check for the removed array; confirmations should STILL be 2
         for tx in lsbres['removed']:
             if tx['txid'] == txid1:
-                assert_equal(tx['confirmations'], 2)
+                assert_equal(tx['confirmations'], 3)
 
 if __name__ == '__main__':
     ListSinceBlockTest().main()
