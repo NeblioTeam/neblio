@@ -53,7 +53,7 @@ void NTP1Wallet::__getOutputs()
          i < 100 &&
          ((!everSucceededInLoadingTokens && std::atomic_load(&localWallet) == nullptr) || !appInitiated);
          i++) {
-        boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 #endif
 

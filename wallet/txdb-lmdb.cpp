@@ -10,6 +10,7 @@
 #include <boost/scope_exit.hpp>
 #include <boost/thread/future.hpp>
 #include <boost/version.hpp>
+#include <future>
 #include <random>
 
 #include "checkpoints.h"
@@ -269,9 +270,9 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
     }
 
     // download the file asynchronously in a new thread
-    boost::promise<void>       downloadThreadPromise;
-    boost::unique_future<void> downloadThreadFuture = downloadThreadPromise.get_future();
-    boost::thread downloadThread([&downloadThreadPromise, &urls, &downloadTempTarget, &progress]() {
+    std::promise<void> downloadThreadPromise;
+    std::future<void>  downloadThreadFuture = downloadThreadPromise.get_future();
+    std::thread        downloadThread([&downloadThreadPromise, &urls, &downloadTempTarget, &progress]() {
         for (unsigned i = 0; i < urls.size(); i++) {
             try {
                 printf("Downloading file for QuickSync: %s...\n", urls[i].c_str());
@@ -287,10 +288,9 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
                 printf("Failed to download a file %s. The last error is: %s\n", urls[i].c_str(),
                        ex.what());
                 if (i + 1 >= urls.size()) {
-                    downloadThreadPromise.set_exception(
-                        boost::enable_current_exception(std::runtime_error(
-                            "Failed to download any of the available files. The last error is: " +
-                            std::string(ex.what()))));
+                    downloadThreadPromise.set_exception(std::make_exception_ptr(std::runtime_error(
+                        "Failed to download any of the available files. The last error is: " +
+                        std::string(ex.what()))));
                 }
             }
         }
@@ -302,8 +302,7 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
         ss << "Downloading QuickSync file " << leaf << ": " << std::setprecision(2)
            << progress.load(std::memory_order_relaxed) << " MB...";
         uiInterface.InitMessage(ss.str());
-    } while (downloadThreadFuture.wait_for(boost::chrono::milliseconds(250)) !=
-             boost::future_status::ready);
+    } while (downloadThreadFuture.wait_for(std::chrono::milliseconds(250)) != std::future_status::ready);
     downloadThread.join();
     downloadThreadFuture.get();
 
@@ -380,7 +379,7 @@ void DoQuickSync(const filesystem::path& dbdir)
             uiInterface.InitMessage(msg);
             printf("Quick sync failed (attempt %i of %i). Error: %s\n", failedAttempts,
                    MAX_FAILED_ATTEMPTS, ex.what());
-            boost::this_thread::sleep_for(boost::chrono::seconds(WAIT_TIME_SECONDS));
+            std::this_thread::sleep_for(std::chrono::seconds(WAIT_TIME_SECONDS));
         }
     }
     uiInterface.InitMessage("QuickSync done");
@@ -1247,7 +1246,7 @@ mdb_txn_safe::mdb_txn_safe(const bool check) : m_txn(nullptr), m_check(check)
 {
     if (check) {
         while (creation_gate.test_and_set()) {
-            boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
         num_active_txns++;
         creation_gate.clear();
@@ -1346,14 +1345,14 @@ uint64_t mdb_txn_safe::num_active_tx() const { return num_active_txns; }
 void mdb_txn_safe::prevent_new_txns()
 {
     while (creation_gate.test_and_set()) {
-        boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }
 
 void mdb_txn_safe::wait_no_active_txns()
 {
     while (num_active_txns > 0) {
-        boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }
 

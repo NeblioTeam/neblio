@@ -917,7 +917,7 @@ void BitcoinGUI::exportBlockchainBootstrap()
                 stopped.store(true);
             } else {
                 blockchainExporterProg->setValue(static_cast<int>(progress * 100));
-                boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
         }
         blockchainExporterProg->setValue(100);

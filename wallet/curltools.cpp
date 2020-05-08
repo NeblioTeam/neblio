@@ -107,7 +107,7 @@ std::string cURLTools::GetFileFromHTTPS_withRetries(const boost::optional<uint64
                           << std::endl;
                 throw;
             }
-            boost::this_thread::sleep_for(boost::chrono::milliseconds(waitBetweenRetries_ms));
+            std::this_thread::sleep_for(std::chrono::milliseconds(waitBetweenRetries_ms));
         }
     }
     return result;

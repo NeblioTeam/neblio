@@ -118,7 +118,7 @@ void Shutdown(void* /*parg*/)
         std::weak_ptr<CWallet> weakWallet = pwalletMain;
         pwalletMain.reset();
         while (weakWallet.lock()) {
-            boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
         NewThread(ExitTimeout, NULL);
         MilliSleep(50);
@@ -796,7 +796,7 @@ bool AppInit2()
             printf("%s", msg.c_str());
 
             // after failure, wait 3 seconds to try again
-            boost::this_thread::sleep_for(boost::chrono::seconds(3));
+            std::this_thread::sleep_for(std::chrono::seconds(3));
 
             // clear stuff that are loaded before, and reset the blockchain database
             {

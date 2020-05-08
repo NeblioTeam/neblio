@@ -18,6 +18,7 @@
 #include <boost/regex.hpp>
 #include <map>
 #include <string>
+#include <thread>
 #include <unordered_set>
 #include <vector>
 
@@ -135,14 +136,7 @@ T* alignup(T* p)
 #define MAX_PATH 1024
 #endif
 
-inline void MilliSleep(int64_t n)
-{
-#if BOOST_VERSION >= 105000
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(n));
-#else
-    boost::this_thread::sleep(boost::posix_time::milliseconds(n));
-#endif
-}
+inline void MilliSleep(int64_t n) { std::this_thread::sleep_for(std::chrono::milliseconds(n)); }
 
 /* This GNU C extension enables the compiler to check the format string against the parameters provided.
  * X is the number of the "format string" parameter, and Y is the number of the first variadic parameter.

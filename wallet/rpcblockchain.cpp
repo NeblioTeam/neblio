@@ -429,7 +429,7 @@ Value exportblockchain(const Array& params, bool fHelp)
             printf("Export blockchain progress: %i%%\n", progVal);
             lastPrintedProgVal = progVal;
         }
-        boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
         if (fShutdown) {
             stopped.store(true);
         }
