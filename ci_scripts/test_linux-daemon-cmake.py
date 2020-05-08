@@ -43,8 +43,7 @@ packages_to_install = \
 "python3-setuptools",
 "wget",
 "cmake",
-"nano",
-"sudo"
+"nano"
 ]
 
 nci.install_packages_debian(packages_to_install)
