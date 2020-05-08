@@ -1,4 +1,5 @@
 import os
+import subprocess
 from subprocess import call
 import sys
 import errno
@@ -68,8 +69,10 @@ def setup_travis_or_gh_actions_env_vars():
 
 
 	else:
-		print("Neither Travis CI nor GitHub Actions Detected. Aborting...")
-		exit(1)
+		print("Neither Travis CI nor GitHub Actions Detected. Assuming Local Run...")
+		os.environ['BUILD_DIR'] = subprocess.Popen(['git', 'rev-parse', '--show-toplevel'], stdout=subprocess.PIPE).communicate()[0].rstrip().decode('utf-8')
+		os.environ['BRANCH'] = subprocess.Popen(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], stdout=subprocess.PIPE).communicate()[0].rstrip().decode('utf-8')
+		os.environ['COMMIT'] = subprocess.Popen(['git', 'rev-parse', 'HEAD'], stdout=subprocess.PIPE).communicate()[0].rstrip().decode('utf-8')
 
 	print("BUILD_DIR: " + os.environ['BUILD_DIR'])
 	print("BRANCH: "    + os.environ['BRANCH'])
