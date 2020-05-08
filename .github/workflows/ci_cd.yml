@@ -32,6 +32,12 @@ jobs:
     - name: Build nebliod for Linux using cmake
       run: |
         python -u ci_scripts/test_linux-daemon-cmake.py
+    - name: Upload test artifacts on failure
+      uses: actions/upload-artifact@v2
+      if: failure()
+      with:
+        name: test-artifacts
+        path: /tmp/bitcoin*
 
   linux_daemon:
     runs-on: ubuntu-16.04
