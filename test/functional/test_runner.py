@@ -66,7 +66,7 @@ BASE_SCRIPTS= [
     'wallet_basic.py',
     'wallet_accounts.py',
 #    'p2p_segwit.py',
-#    'wallet_dump.py',
+   'wallet_dump.py',
    'rpc_listtransactions.py',
     # vv Tests less than 60s vv
 #    'p2p_sendheaders.py',
