@@ -40,7 +40,11 @@ packages_to_install = \
 "gdb",
 "python3",
 "python3-pip",
-"python3-setuptools"
+"python3-setuptools",
+"wget",
+"cmake",
+"nano",
+"sudo"
 ]
 
 nci.install_packages_debian(packages_to_install)
