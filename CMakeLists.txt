@@ -27,6 +27,11 @@ option(USE_DBUS               "Enable Dbus" ON)
 option(USE_CUSTOM_WARNINGS    "Enable custom warnings" OFF)
 option(DISABLE_ASSERTS        "Disables asserts" OFF)
 option(CONFIGURE_SYSTEM_TESTS "Configure system tests" ON)
+option(DISABLE_ATTRUBTES_WARNINGS "Set the flag -Wno-attributes to disable attributes warnings (for CI)" OFF)
+
+if(DISABLE_ATTRUBTES_WARNINGS)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-attributes")
+endif()
 
 if(NOT DISABLE_ASSERTS)
     # this removes the definition NDEBUG from release mode and release mode with debug info
