@@ -3,7 +3,6 @@
 
 #include "amount.h"
 #include "chainparams.h"
-#include "scheduler.h"
 #include "sync.h"
 #include "uint256.h"
 #include <boost/atomic.hpp>
@@ -27,8 +26,6 @@ extern CBlockIndexSmartPtr pindexGenesisBlock;
 
 extern bool               fUseFastIndex;
 extern boost::atomic<int> nBestHeight;
-
-extern CScheduler scheduler;
 
 /** The maximum allowed size for a serialized block, in bytes (network rule) */
 static const unsigned int MAX_BLOCK_SIZE     = 8000000;

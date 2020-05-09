@@ -12,8 +12,6 @@ CBlockIndexSmartPtr pindexGenesisBlock = nullptr;
 bool               fUseFastIndex;
 boost::atomic<int> nBestHeight{-1};
 
-CScheduler scheduler;
-
 CBlockIndexSmartPtr pblockindexFBBHLast;
 
 boost::atomic<int64_t> NodeIDCounter{0};

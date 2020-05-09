@@ -598,7 +598,6 @@ add_library(core_lib STATIC
     wallet/consensus_params.cpp
     wallet/amount.h
     wallet/CustomTypes.cpp
-    wallet/scheduler.cpp
     wallet/merkle.cpp
     )
 

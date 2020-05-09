@@ -24,7 +24,6 @@ add_executable(neblio-tests
     rpc_tests.cpp
     script_tests.cpp
     serialize_tests.cpp
-    scheduler_tests.cpp
     sigopcount_tests.cpp
     transaction_tests.cpp
     uint160_tests.cpp
