@@ -56,7 +56,6 @@ SOURCES += \
     pmt_tests.cpp         \
     rpc_tests.cpp         \
     script_tests.cpp      \
-    scheduler_tests.cpp   \
     serialize_tests.cpp   \
     sigopcount_tests.cpp  \
     transaction_tests.cpp \
