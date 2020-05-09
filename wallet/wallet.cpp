@@ -515,7 +515,9 @@ void CWallet::MarkConflicted(const uint256& hashBlock, const uint256& hashTx)
     if (pindex->IsInMainChain()) {
         conflictconfirms = -(nBestHeight - pindex->nHeight + 1);
     }
-    assert(conflictconfirms < 0);
+    //    assert(conflictconfirms < 0);
+    if (conflictconfirms >= 0)
+        return;
 
     // Do not flush the wallet here for performance reasons
     CWalletDB walletdb(strWalletFile, "r+", false);

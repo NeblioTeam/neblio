@@ -1478,16 +1478,12 @@ Value listsinceblock(const Array& params, bool fHelp)
 {
     if (fHelp)
         throw runtime_error(
-<<<<<<< HEAD
-            "listsinceblock [blockhash] [target-confirmations] [include-removed=true]\n"
+            "listsinceblock [blockhash] [target-confirmations] [include-removed=true] "
+            "[include-watchonly=false]\n"
             "Get all transactions in blocks since block [blockhash], or all transactions if omitted. If "
             "include-removed is true, transactions in orphans will be included.");
 
     LOCK(cs_main);
-=======
-            "listsinceblock [blockhash] [target-confirmations] [includeWatchonly=false]\n"
-            "Get all transactions in blocks since block [blockhash], or all transactions if omitted");
->>>>>>> Change the result if IsMine to return an enum and update the lots of
 
     CBlockIndex* pindex          = nullptr;
     int          target_confirms = 1;
@@ -1520,10 +1516,6 @@ Value listsinceblock(const Array& params, bool fHelp)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter");
     }
 
-    if (params.size() > 2)
-        if (params[2].get_bool())
-            filter = filter | static_cast<isminefilter>(isminetype::ISMINE_WATCH_ONLY);
-
     int depth = pindex ? (1 + nBestHeight - pindex->nHeight) : -1;
 
     Array transactions;
@@ -1531,17 +1523,10 @@ Value listsinceblock(const Array& params, bool fHelp)
 
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
          it != pwalletMain->mapWallet.end(); it++) {
-        CWalletTx tx                 = (*it).second;
+        CWalletTx tx = (*it).second;
 
-<<<<<<< HEAD
-        int       txDepthInMainChain = tx.GetDepthInMainChain();
-
-        if (depth == -1 || txDepthInMainChain < depth)
-            ListTransactions(tx, "*", 0, true, transactions);
-=======
         if (depth == -1 || tx.GetDepthInMainChain() < depth)
             ListTransactions(tx, "*", 0, true, filter, transactions);
->>>>>>> Change the result if IsMine to return an enum and update the lots of
     }
 
     bool includeRemoved = true;
@@ -1559,7 +1544,7 @@ Value listsinceblock(const Array& params, bool fHelp)
                     if (it != pwalletMain->mapWallet.cend()) {
                         // We want all transactions regardless of confirmation count to appear here,
                         // even negative confirmation ones, hence the big negative.
-                        ListTransactions(it->second, "*", -100000000, true, removed);
+                        ListTransactions(it->second, "*", -100000000, true, filter, removed);
                     }
                 }
             }
