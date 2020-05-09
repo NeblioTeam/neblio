@@ -6,6 +6,7 @@ DEFINES += QT_GUI BOOST_THREAD_USE_LIB BOOST_SPIRIT_THREADSAFE
 CONFIG += no_include_pwd
 CONFIG += thread
 QMAKE_CXXFLAGS += -std=c++11
+unix:QMAKE_CXXFLAGS += -Wno-attributes
 
 NEBLIO_ROOT = $${PWD}/../
 
