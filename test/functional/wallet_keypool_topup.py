@@ -60,7 +60,7 @@ class KeypoolRestoreTest(BitcoinTestFramework):
 
         self.log.info("Verify keypool is restored and balance is correct")
 
-        self.start_node(1, self.extra_args[1] + ['-rescan'])
+        self.start_node(1, self.extra_args[1])
         connect_nodes_bi(self.nodes, 0, 1)
         self.sync_all()
 
