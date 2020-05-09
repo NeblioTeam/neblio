@@ -236,7 +236,9 @@ bool CWallet::ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase,
 void CWallet::SetBestChain(const CBlockLocator& loc)
 {
     CWalletDB walletdb(strWalletFile);
-    walletdb.WriteBestBlock(loc);
+    if (!walletdb.WriteBestBlock(loc))
+        printf("Failed to write best chain to wallet at: %s\n",
+               boost::atomic_load(&pindexBest).get()->phashBlock->ToString().c_str());
 }
 
 bool CWallet::SetMinVersion(enum WalletFeature nVersion, CWalletDB* pwalletdbIn, bool fExplicit)

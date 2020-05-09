@@ -947,6 +947,8 @@ bool AppInit2()
         CBlockLocator locator;
         if (walletdb.ReadBestBlock(locator))
             pindexRescan = locator.GetBlockIndex();
+        else
+            pindexRescan = boost::atomic_load(&pindexGenesisBlock);
     }
     if (pindexBest != pindexRescan && pindexBest && pindexRescan &&
         pindexBest->nHeight > pindexRescan->nHeight) {
