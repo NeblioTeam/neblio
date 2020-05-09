@@ -226,11 +226,6 @@ Value stop(const Array& params, bool fHelp)
         throw runtime_error("stop\n"
                             "Stop neblio server.");
 
-    // this shutdown flag is necessary because the rpc stops reading only when this flag is enabled. If
-    // this isn't done, and since reading the socket stream is synchronous, it'll infinitely block,
-    // preventing the program from shutting down indefinitely
-    fShutdown.store(true, boost::memory_order_seq_cst);
-
     // Shutdown will take long enough that the response should get back
     StartShutdown();
     return "neblio server stopping";

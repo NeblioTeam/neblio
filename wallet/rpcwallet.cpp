@@ -1880,11 +1880,6 @@ Value encryptwallet(const Array& params, bool fHelp)
     if (!pwalletMain->EncryptWallet(strWalletPass))
         throw JSONRPCError(RPC_WALLET_ENCRYPTION_FAILED, "Error: Failed to encrypt the wallet.");
 
-    // this shutdown flag is necessary because the rpc stops reading only when this flag is enabled. If
-    // this isn't done, and since reading the socket stream is synchronous, it'll infinitely block,
-    // preventing the program from shutting down indefinitely
-    fShutdown.store(true, boost::memory_order_seq_cst);
-
     // BDB seems to have a bad habit of writing old data into
     // slack space in .dat files; that is bad if the old data is
     // unencrypted private keys. So:

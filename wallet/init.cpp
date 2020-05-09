@@ -79,6 +79,11 @@ DBErrors LoadDBWalletTransient(bool& fFirstRun)
 
 void StartShutdown()
 {
+    // this shutdown flag is necessary because the rpc stops reading only when this flag is enabled. If
+    // this isn't done, and since reading the socket stream is synchronous, it'll infinitely block,
+    // preventing the program from shutting down indefinitely.
+    fShutdown.store(true, boost::memory_order_seq_cst);
+
 #ifdef QT_GUI
     // ensure we leave the Qt main loop for a clean GUI exit (Shutdown() is called in bitcoin.cpp
     // afterwards)
@@ -107,7 +112,7 @@ void Shutdown(void* /*parg*/)
     }
     static bool fExit;
     if (fFirstThread) {
-        fShutdown = true;
+        fShutdown.store(true, boost::memory_order_seq_cst);
         nTransactionsUpdated++;
         //        CTxDB().Close();
         FlushDBWalletTransient(false);
