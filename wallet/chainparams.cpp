@@ -124,11 +124,10 @@ public:
                uint256("0x203fd13214321a12b01c0d8b32c780977cf52e56ae35b7383cd389c73291aee7"));
 
         vAdditionalNodes.clear();
-        vAdditionalNodes.emplace_back("nebliodseed1.nebl.io");
-        vAdditionalNodes.emplace_back("nebliodseed2.nebl.io");
 
         vDNSSeeds.clear();
         vDNSSeeds.emplace_back("seed.nebl.io");
+        vDNSSeeds.emplace_back("seed2.nebl.io");
 
         base58Prefixes[PUBKEY_ADDRESS] = 53;  // Neblio: addresses begin with 'N'
         base58Prefixes[SCRIPT_ADDRESS] = 112; // Neblio: addresses begin with 'n'
@@ -283,10 +282,9 @@ public:
                uint256("0x203fd13214321a12b01c0d8b32c780977cf52e56ae35b7383cd389c73291aee7"));
 
         vAdditionalNodes.clear();
-        vAdditionalNodes.emplace_back("nebliodseed1.nebl.io");
-        vAdditionalNodes.emplace_back("nebliodseed2.nebl.io");
 
         vDNSSeeds.clear();
+        vDNSSeeds.emplace_back("testnet-seed.nebl.io");
 
         base58Prefixes[PUBKEY_ADDRESS] = 65;  // Neblio: addresses begin with 'T'
         base58Prefixes[SCRIPT_ADDRESS] = 127; // Neblio: addresses begin with 't'
