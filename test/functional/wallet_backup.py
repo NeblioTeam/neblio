@@ -105,10 +105,10 @@ class WalletBackupTest(BitcoinTestFramework):
         self.nodes[3].generate(100)
         sync_blocks(self.nodes)
 
-        assert_equal(self.nodes[0].getbalance(), 124000000)
-        assert_equal(self.nodes[1].getbalance(), 2000)
-        assert_equal(self.nodes[2].getbalance(), 2000)
-        assert_equal(self.nodes[3].getbalance(), 182000)
+        assert_equal(Decimal(self.nodes[0].getbalance()), 124000000)
+        assert_equal(Decimal(self.nodes[1].getbalance()), 2000)
+        assert_equal(Decimal(self.nodes[2].getbalance()), 2000)
+        assert_equal(Decimal(self.nodes[3].getbalance()), 182000)
 
         self.log.info("Creating transactions")
         # Five rounds of sending each other transactions.
@@ -132,15 +132,15 @@ class WalletBackupTest(BitcoinTestFramework):
         self.nodes[3].generate(101)
         self.sync_all()
 
-        balance0 = self.nodes[0].getbalance()
-        balance1 = self.nodes[1].getbalance()
-        balance2 = self.nodes[2].getbalance()
-        balance3 = self.nodes[3].getbalance()
+        balance0 = Decimal(self.nodes[0].getbalance())
+        balance1 = Decimal(self.nodes[1].getbalance())
+        balance2 = Decimal(self.nodes[2].getbalance())
+        balance3 = Decimal(self.nodes[3].getbalance())
         total = balance0 + balance1 + balance2 + balance3
 
         # At this point, there are 214 blocks (103 for setup, then 10 rounds, then 101.)
         # 114 are mature, so the sum of all wallets should be 114 * 50 = 5700.
-        assert_equal(total, 124408000)
+        assert_equal(total, Decimal(124408000))
 
         ##
         # Test restoring spender wallets from backups
@@ -161,9 +161,9 @@ class WalletBackupTest(BitcoinTestFramework):
         self.start_three()
         sync_blocks(self.nodes)
 
-        assert_equal(self.nodes[0].getbalance(), balance0)
-        assert_equal(self.nodes[1].getbalance(), balance1)
-        assert_equal(self.nodes[2].getbalance(), balance2)
+        assert_equal(Decimal(self.nodes[0].getbalance()), balance0)
+        assert_equal(Decimal(self.nodes[1].getbalance()), balance1)
+        assert_equal(Decimal(self.nodes[2].getbalance()), balance2)
 
         self.log.info("Restoring using dumped wallet")
         self.stop_three()
@@ -174,9 +174,9 @@ class WalletBackupTest(BitcoinTestFramework):
 
         self.start_three()
 
-        assert_equal(self.nodes[0].getbalance(), 0)
-        assert_equal(self.nodes[1].getbalance(), 0)
-        assert_equal(self.nodes[2].getbalance(), 0)
+        assert_equal(Decimal(self.nodes[0].getbalance()), 0)
+        assert_equal(Decimal(self.nodes[1].getbalance()), 0)
+        assert_equal(Decimal(self.nodes[2].getbalance()), 0)
 
         self.nodes[0].importwallet(tmpdir + "/node0/wallet.dump")
         self.nodes[1].importwallet(tmpdir + "/node1/wallet.dump")
@@ -184,9 +184,9 @@ class WalletBackupTest(BitcoinTestFramework):
 
         sync_blocks(self.nodes)
 
-        assert_equal(self.nodes[0].getbalance(), balance0)
-        assert_equal(self.nodes[1].getbalance(), balance1)
-        assert_equal(self.nodes[2].getbalance(), balance2)
+        assert_equal(Decimal(self.nodes[0].getbalance()), balance0)
+        assert_equal(Decimal(self.nodes[1].getbalance()), balance1)
+        assert_equal(Decimal(self.nodes[2].getbalance()), balance2)
 
         # Backup to source wallet file must fail
         # sourcePaths = [
