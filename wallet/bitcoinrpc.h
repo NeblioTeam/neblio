@@ -155,7 +155,7 @@ extern const CRPCTable tableRPC;
 
 extern int64_t            nWalletUnlockTime;
 extern CAmount            AmountFromValue(const json_spirit::Value& value);
-extern json_spirit::Value ValueFromAmount(CAmount amount);
+extern json_spirit::Value ValueFromAmount(const CAmount &amount);
 extern double             GetDifficulty(const CBlockIndex* blockindex = NULL);
 
 extern double GetPoWMHashPS();

@@ -156,7 +156,7 @@ class WalletTest(BitcoinTestFramework):
         self.sync_all([self.nodes[0:3]])
 
         assert_equal(self.nodes[0].getbalance(), 0)
-        assert_equal(self.nodes[2].getbalance(), block0_reward+block_reward-6)
+        assert_equal(self.nodes[2].getbalance(), block0_reward+block_reward-6-Decimal(0.00000001))
 
         # Verify that a spent output cannot be locked anymore
         # spent_0 = {"txid": node0utxos[0]["txid"], "vout": node0utxos[0]["vout"]}
@@ -193,7 +193,7 @@ class WalletTest(BitcoinTestFramework):
         self.nodes[2].generate(1)
         self.sync_all([self.nodes[0:3]])
         # node_2_bal -= Decimal('10')
-        assert_equal(self.nodes[2].getbalance(), block0_reward+block_reward-46-Decimal('0.0044'))
+        assert_equal(self.nodes[2].getbalance(), block0_reward+block_reward-46-Decimal('0.0044')-Decimal(0.00000001))
         # node_0_bal = self.check_fee_amount(self.nodes[0].getbalance(), node_0_bal + Decimal('10'), fee_per_byte, self.get_vsize(self.nodes[2].getrawtransaction(txid)))
 
         # Test ResendWalletTransactions:
