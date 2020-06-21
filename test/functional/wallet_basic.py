@@ -55,13 +55,13 @@ class WalletTest(BitcoinTestFramework):
         self.sync_all([self.nodes[0:3]])
 
         assert_equal(self.nodes[0].getbalance(), block0_reward)
-        assert_equal(self.nodes[1].getbalance(), (102-10)*2000)
+        assert_equal(self.nodes[1].getbalance(), (101-10)*2000)
         assert_equal(self.nodes[2].getbalance(), 0)
 
         # Check that only first and second nodes have UTXOs
         utxos = self.nodes[0].listunspent()
         assert_equal(len(utxos), 1)
-        assert_equal(len(self.nodes[1].listunspent()), 102-10)
+        assert_equal(len(self.nodes[1].listunspent()), 101-10)
         assert_equal(len(self.nodes[2].listunspent()), 0)
 
         self.log.info("test gettxout")
