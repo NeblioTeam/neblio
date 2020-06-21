@@ -131,9 +131,9 @@ CAmount AmountFromValue(const Value& value)
 
 Value ValueFromAmount(const CAmount& amount)
 {
-    bool sign = amount < 0;
-    int64_t n_abs = (sign ? -amount : amount);
-    int64_t quotient = n_abs / COIN;
+    bool    sign      = amount < 0;
+    int64_t n_abs     = (sign ? -amount : amount);
+    int64_t quotient  = n_abs / COIN;
     int64_t remainder = n_abs % COIN;
     return Value(std::stod(strprintf("%s%zd.%08zd", sign ? "-" : "", quotient, remainder)));
 }
@@ -294,8 +294,10 @@ static const CRPCCommand vRPCCommands[] =
     { "validateaddress",           &validateaddress,           true,   false },
     { "validatepubkey",            &validatepubkey,            true,   false },
     { "getbalance",                &getbalance,                false,  false },
+    { "getunconfirmedbalance",     &getunconfirmedbalance,     false,  false },
     { "getntp1balances",           &getntp1balances,           false,  false },
     { "getntp1balance",            &getntp1balance,            false,  false },
+    { "abandontransaction",        &abandontransaction,        false,  false },
     { "move",                      &movecmd,                   false,  false },
     { "sendfrom",                  &sendfrom,                  false,  false },
     { "sendmany",                  &sendmany,                  false,  false },

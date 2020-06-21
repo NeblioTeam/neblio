@@ -86,7 +86,7 @@ private:
                                CAmount&                                             nValueRet) const;
     bool SelectCoins(CAmount nTargetValue, unsigned int nSpendTime,
                      std::set<std::pair<const CWalletTx*, unsigned int>>& setCoinsRet,
-                     CAmount &nValueRet, const CCoinControl* coinControl = nullptr,
+                     CAmount& nValueRet, const CCoinControl* coinControl = nullptr,
                      bool avoidNTP1Outputs = false) const;
 
     CWalletDB* pwalletdbEncryption;
@@ -108,7 +108,10 @@ private:
     void AddToSpends(const COutPoint& outpoint, const uint256& wtxid);
     void AddToSpends(const uint256& wtxid);
 
-    /* Mark a transaction (and its in-wallet descendants) as conflicting with a particular block. */
+    /** Mark a transaction (and its in-wallet descendants) as conflicting with a particular block.
+     * hashBlock: the block that contains the input that is being spent
+     * hashTx: The hash of the new transaction that is trying to spend that input
+     */
     void MarkConflicted(const uint256& hashBlock, const uint256& hashTx);
 
     void SyncMetaData(std::pair<TxSpends::iterator, TxSpends::iterator>);

@@ -1,4 +1,4 @@
-#ifndef MERKLETX_H
+﻿#ifndef MERKLETX_H
 #define MERKLETX_H
 
 #include "globals.h"
@@ -13,8 +13,6 @@ class CMerkleTx : public CTransaction
 private:
     /** Constant used in hashBlock to indicate tx has been abandoned (unused for now in neblio) */
     static const uint256 ABANDON_HASH;
-
-    int GetDepthInMainChainINTERNAL(CBlockIndex*& pindexRet) const;
 
 public:
     uint256              hashBlock;
@@ -42,19 +40,19 @@ public:
     int SetMerkleBranch(const CBlock* pblock = NULL);
 
     // Return depth of transaction in blockchain:
-    // -1  : not in blockchain, and not in memory pool (conflicted transaction)
+    // <0  : conflicts with a transaction, this deep in the blockchain
     //  0  : in memory pool, waiting to be included in a block
     // >=1 : this many blocks deep in the main chain
-    int GetDepthInMainChain(CBlockIndex*& pindexRet) const;
+    int GetDepthInMainChain(const CBlockIndex*& pindexRet) const;
     int GetDepthInMainChain() const
     {
-        CBlockIndex* pindexRet;
+        const CBlockIndex* pindexRet = nullptr;
         return GetDepthInMainChain(pindexRet);
     }
     bool IsInMainChain() const
     {
-        CBlockIndex* pindexRet;
-        return GetDepthInMainChainINTERNAL(pindexRet) > 0;
+        const CBlockIndex* pindexRet = nullptr;
+        return GetDepthInMainChain(pindexRet) > 0;
     }
     int  GetBlocksToMaturity() const;
     bool AcceptToMemoryPool();

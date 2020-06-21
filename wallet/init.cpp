@@ -297,6 +297,7 @@ std::string HelpMessage()
         "  -upnp                  " + _("Use UPnP to map the listening port (default: 0)") + "\n" +
 #endif
 #endif
+        "  -nomempoolwalletresync " + _("(only for regtest) prevent the wallet from re-accepting transactions on start") + "\n" +
         "  -paytxfee=<amt>        " + _("Fee per KB to add to transactions you send") + "\n" +
         "  -mininput=<amt>        " + _("When creating transactions, ignore inputs with value less than this (default: 0.01)") + "\n" +
 #ifdef QT_GUI
@@ -1025,7 +1026,9 @@ bool AppInit2()
         return InitError(strErrors.str());
 
     // Add wallet transactions that aren't already in a block to mapTransactions
-    pwalletMain->ReacceptWalletTransactions(true);
+    if (!(Params().NetType() == NetworkType::Regtest && GetBoolArg("-nomempoolwalletresync", false))) {
+        pwalletMain->ReacceptWalletTransactions(true);
+    }
 
 #if !defined(QT_GUI)
     // Loop until process is exit()ed from shutdown() function,

@@ -182,7 +182,8 @@ void TransactionRecord::updateStatus(const CWalletTx& wtx)
         strprintf("%010d-%01d-%010u-%03d", (pindex ? pindex->nHeight : std::numeric_limits<int>::max()),
                   (wtx.IsCoinBase() ? 1 : 0), wtx.nTimeReceived, idx);
     status.countsForBalance = wtx.IsTrusted() && !(wtx.GetBlocksToMaturity() > 0);
-    status.depth            = wtx.GetDepthInMainChain();
+    bool fConflicted        = false;
+    status.depth            = wtx.GetDepthAndMempool(fConflicted);
     status.cur_num_blocks   = nBestHeight;
 
     if (!IsFinalTx(wtx, nBestHeight + 1)) {
@@ -213,7 +214,7 @@ void TransactionRecord::updateStatus(const CWalletTx& wtx)
             status.status = TransactionStatus::Confirmed;
         }
     } else {
-        if (status.depth < 0) {
+        if (status.depth < 0 || fConflicted) {
             status.status = TransactionStatus::Conflicted;
         } else if (GetAdjustedTime() - wtx.nTimeReceived > 2 * 60 && wtx.GetRequestCount() == 0) {
             status.status = TransactionStatus::Offline;

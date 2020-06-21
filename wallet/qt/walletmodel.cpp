@@ -446,8 +446,9 @@ void WalletModel::getOutputs(const std::vector<COutPoint>& vOutpoints, std::vect
     for (const COutPoint& outpoint : vOutpoints) {
         if (!wallet->mapWallet.count(outpoint.hash))
             continue;
-        int nDepth = wallet->mapWallet[outpoint.hash].GetDepthInMainChain();
-        if (nDepth < 0)
+        bool fConflicted = false;
+        int  nDepth      = wallet->mapWallet[outpoint.hash].GetDepthAndMempool(fConflicted);
+        if (nDepth < 0 || fConflicted)
             continue;
         COutput out(&wallet->mapWallet[outpoint.hash], outpoint.n, nDepth);
         vOutputs.push_back(out);
@@ -467,8 +468,9 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput>>& mapCoins) c
     for (const COutPoint& outpoint : vLockedCoins) {
         if (!wallet->mapWallet.count(outpoint.hash))
             continue;
-        int nDepth = wallet->mapWallet[outpoint.hash].GetDepthInMainChain();
-        if (nDepth < 0)
+        bool fConflicted = false;
+        int  nDepth      = wallet->mapWallet[outpoint.hash].GetDepthAndMempool(fConflicted);
+        if (nDepth < 0 || fConflicted)
             continue;
         COutput out(&wallet->mapWallet[outpoint.hash], outpoint.n, nDepth);
         vCoins.push_back(out);

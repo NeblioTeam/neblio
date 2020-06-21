@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2009-2010 Satoshi Nakamoto
+// Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -510,6 +510,9 @@ void CWallet::MarkConflicted(const uint256& hashBlock, const uint256& hashTx)
 {
     LOCK2(cs_main, cs_wallet);
 
+    const std::string bestblock = pindexBest->phashBlock->ToString();
+    const std::string bh        = hashBlock.ToString();
+
     CBlockIndex* pindex;
     assert(mapBlockIndex.count(hashBlock));
     pindex               = mapBlockIndex.at(hashBlock).get();
@@ -577,7 +580,7 @@ void CWallet::AddToSpends(const COutPoint& outpoint, const uint256& wtxid)
 void CWallet::AddToSpends(const uint256& wtxid)
 {
     assert(mapWallet.count(wtxid));
-    CWalletTx& thisTx = mapWallet[wtxid];
+    CWalletTx& thisTx = mapWallet.at(wtxid);
     if (thisTx.IsCoinBase()) // Coinbases don't spend anything!
         return;
 
@@ -1096,7 +1099,7 @@ void CWalletTx::RelayWalletTransaction()
             uint256 hash = GetHash();
             printf("Relaying wtx %s\n", hash.ToString().c_str());
 
-            RelayTransaction((CTransaction) * this);
+            RelayTransaction(*this);
         }
     }
 }
@@ -1159,8 +1162,9 @@ CAmount CWallet::GetBalance() const
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end();
              ++it) {
             const CWalletTx* pcoin = &(*it).second;
-            if (pcoin->IsTrusted())
+            if (pcoin->IsTrusted()) {
                 nTotal += pcoin->GetAvailableCredit();
+            }
         }
     }
 
@@ -1174,7 +1178,7 @@ CAmount CWallet::GetUnconfirmedBalance() const
         LOCK2(cs_main, cs_wallet);
         for (const auto& p : mapWallet) {
             const CWalletTx& pcoin = p.second;
-            if (!IsFinalTx(pcoin) || (!pcoin.IsTrusted() && pcoin.GetDepthInMainChain() == 0))
+            if (!pcoin.IsTrusted() && pcoin.GetDepthInMainChain() == 0 && pcoin.InMempool())
                 nTotal += pcoin.GetAvailableCredit();
         }
     }
@@ -1220,7 +1224,7 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed,
                 continue;
 
             int nDepth = pcoin->GetDepthInMainChain();
-            if (nDepth < 0)
+            if (nDepth == 0 && !pcoin->InMempool())
                 continue;
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
@@ -1264,7 +1268,7 @@ void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins, unsigned int nSp
                 continue;
 
             int nDepth = pcoin->GetDepthInMainChain();
-            if (nDepth < 1)
+            if (nDepth == 0 && !pcoin->InMempool())
                 continue;
 
             // get NTP1 information of this transaction
@@ -1535,6 +1539,7 @@ bool CWallet::IsSpent(const uint256& hash, unsigned int n) const
 
     auto txSpends = mapTxSpends.get();
     range         = txSpends.equal_range(outpoint);
+
     for (TxSpends::const_iterator it = range.first; it != range.second; ++it) {
         const uint256&                               wtxid = it->second;
         std::map<uint256, CWalletTx>::const_iterator mit   = mapWallet.find(wtxid);
@@ -3130,7 +3135,7 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
         // If the orig tx was not in block, none of its spends can be
         assert(currentconfirm <= 0);
         // if (currentconfirm < 0) {Tx and spends are already conflicted, no need to abandon}
-        if (currentconfirm == 0 && !wtx.isAbandoned()) {
+        if (currentconfirm <= 0 && !wtx.isAbandoned()) {
             // If the orig tx was not in block/mempool, none of its spends can be in mempool
             assert(!wtx.InMempool());
             wtx.nIndex = -1;
@@ -3166,7 +3171,10 @@ bool CWalletTx::IsTrusted() const
     if (!IsFinalTx(*this))
         return false;
 
-    int nDepth = GetDepthInMainChain();
+    bool fConflicted = false;
+    int  nDepth      = GetDepthAndMempool(fConflicted);
+    if (fConflicted) // Don't trust unconfirmed transactions from us unless they are in the mempool.
+        return false;
 
     if (nDepth >= 1)
         return true;
@@ -3174,10 +3182,6 @@ bool CWalletTx::IsTrusted() const
         return false;
     if (fConfChange ||
         !IsFromMe(static_cast<isminefilter>(isminetype::ISMINE_ALL))) // using wtx's cached debit
-        return false;
-
-    // Don't trust unconfirmed transactions from us unless they are in the mempool.
-    if (!InMempool())
         return false;
 
     // Trusted if all inputs are from us and are in the mempool:
@@ -3204,10 +3208,7 @@ int CWalletTx::GetDepthAndMempool(bool& fConflicted) const
 bool CWalletTx::InMempool() const
 {
     LOCK(mempool.cs);
-    if (mempool.exists(GetHash())) {
-        return true;
-    }
-    return false;
+    return mempool.exists(GetHash());
 }
 
 CAmount CWalletTx::GetDebit(const isminefilter& filter) const
@@ -3300,19 +3301,20 @@ CAmount CWalletTx::GetUnspentCredit(const isminefilter& filter) const
 
     CAmount credit = 0;
     if (filter & static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE)) {
-        credit +=
-            pwallet->GetCredit(*this, static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE), true);
+        const auto f = static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE);
+        credit += pwallet->GetCredit(*this, f, true);
     }
     if (filter & static_cast<isminefilter>(isminetype::ISMINE_WATCH_ONLY)) {
-        credit +=
-            pwallet->GetCredit(*this, static_cast<isminefilter>(isminetype::ISMINE_WATCH_ONLY), true);
+        const auto f = static_cast<isminefilter>(isminetype::ISMINE_WATCH_ONLY);
+        credit += pwallet->GetCredit(*this, f, true);
     }
     if (filter & static_cast<isminefilter>(isminetype::ISMINE_COLD)) {
-        credit += pwallet->GetCredit(*this, static_cast<isminefilter>(isminetype::ISMINE_COLD), true);
+        const auto f = static_cast<isminefilter>(isminetype::ISMINE_COLD);
+        credit += pwallet->GetCredit(*this, f, true);
     }
     if (filter & static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_DELEGATED)) {
-        credit += pwallet->GetCredit(
-            *this, static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_DELEGATED), true);
+        const auto f = static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_DELEGATED);
+        credit += pwallet->GetCredit(*this, f, true);
     }
     return credit;
 }

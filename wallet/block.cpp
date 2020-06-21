@@ -699,10 +699,6 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
             return error("ConnectBlock() : WriteBlockIndex failed");
     }
 
-    // Watch for transactions paying to me
-    for (CTransaction& tx : vtx)
-        SyncWithWallets(tx, this);
-
     return true;
 }
 
@@ -844,6 +840,10 @@ bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
         boost::replace_all(strCmd, "%s", hashBestChain.GetHex());
         boost::thread t(runCommand, strCmd); // thread runs free
     }
+
+    // Watch for transactions paying to me
+    for (CTransaction& tx : vtx)
+        SyncWithWallets(tx, this);
 
     return true;
 }

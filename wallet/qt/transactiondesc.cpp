@@ -18,8 +18,9 @@ QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
         else
             return tr("Open until %1").arg(GUIUtil::dateTimeStr(wtx.nLockTime));
     } else {
-        int nDepth = wtx.GetDepthInMainChain();
-        if (nDepth < 0)
+        bool fConflicted = false;
+        int  nDepth      = wtx.GetDepthAndMempool(fConflicted);
+        if (nDepth < 0 || fConflicted)
             return tr("conflicted");
         else if (GetAdjustedTime() - wtx.nTimeReceived > 2 * 60 && wtx.GetRequestCount() == 0)
             return tr("%1/offline").arg(nDepth);

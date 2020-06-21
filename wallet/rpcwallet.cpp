@@ -681,7 +681,11 @@ int64_t GetAccountBalance(CWalletDB& walletdb, const string& strAccount, int nMi
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
          it != pwalletMain->mapWallet.end(); ++it) {
         const CWalletTx& wtx = (*it).second;
-        if (!IsFinalTx(wtx) || wtx.GetDepthInMainChain() < 0)
+
+        bool fConflicted = false;
+        int  depth       = wtx.GetDepthAndMempool(fConflicted);
+
+        if (!IsFinalTx(wtx) || wtx.GetBlocksToMaturity() > 0 || depth < 0 || fConflicted)
             continue;
 
         int64_t nReceived, nSent, nFee;
@@ -773,6 +777,17 @@ Value getbalance(const Array& params, bool fHelp)
     return ValueFromAmount(nBalance);
 }
 
+Value getunconfirmedbalance(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 0)
+        throw std::runtime_error("getunconfirmedbalance\n"
+                                 "Returns the server's total unconfirmed balance\n");
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    return ValueFromAmount(pwalletMain->GetUnconfirmedBalance());
+}
+
 Value getntp1balances(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() > 1)
@@ -848,6 +863,41 @@ Value getntp1balance(const Array& params, bool fHelp)
     }
 
     return json_spirit::Value(root);
+}
+
+Value abandontransaction(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw std::runtime_error(
+            "abandontransaction \"txid\"\n"
+            "\nMark in-wallet transaction <txid> as abandoned\n"
+            "This will mark this transaction and all its in-wallet descendants as abandoned which will "
+            "allow\n"
+            "for their inputs to be respent.  It can be used to replace \"stuck\" or evicted "
+            "transactions.\n"
+            "It only works on transactions which are not included in a block and are not currently in "
+            "the mempool.\n"
+            "It has no effect on transactions which are already conflicted or abandoned.\n"
+            "\nArguments:\n"
+            "1. \"txid\" (string, required) The transaction id\n"
+            "\nResult:\n"
+            "\nExamples:\n"
+            "abandontransaction "
+            "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\"");
+
+    EnsureWalletIsUnlocked();
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    uint256 hash;
+    hash.SetHex(params[0].get_str());
+
+    if (!pwalletMain->mapWallet.count(hash))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid or non-wallet transaction id");
+    if (!pwalletMain->AbandonTransaction(hash))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Transaction not eligible for abandonment");
+
+    return Value();
 }
 
 Value movecmd(const Array& params, bool fHelp)
@@ -1446,8 +1496,9 @@ Value listaccounts(const Array& params, bool fHelp)
         string                              strSentAccount;
         list<pair<CTxDestination, int64_t>> listReceived;
         list<pair<CTxDestination, int64_t>> listSent;
-        int                                 nDepth = wtx.GetDepthInMainChain();
-        if (nDepth < 0)
+        bool                                fConflicted = false;
+        int                                 nDepth      = wtx.GetDepthAndMempool(fConflicted);
+        if (wtx.GetBlocksToMaturity() > 0 || nDepth < 0 || fConflicted)
             continue;
         wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount, includeWatchonly);
         mapAccountBalances[strSentAccount] -= nFee;

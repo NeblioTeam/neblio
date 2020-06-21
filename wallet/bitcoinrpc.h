@@ -155,7 +155,7 @@ extern const CRPCTable tableRPC;
 
 extern int64_t            nWalletUnlockTime;
 extern CAmount            AmountFromValue(const json_spirit::Value& value);
-extern json_spirit::Value ValueFromAmount(const CAmount &amount);
+extern json_spirit::Value ValueFromAmount(const CAmount& amount);
 extern double             GetDifficulty(const CBlockIndex* blockindex = NULL);
 
 extern double GetPoWMHashPS();
@@ -209,8 +209,10 @@ extern json_spirit::Value verifymessage(const json_spirit::Array& params, bool f
 extern json_spirit::Value getreceivedbyaddress(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getreceivedbyaccount(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getbalance(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value getunconfirmedbalance(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getntp1balances(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getntp1balance(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value abandontransaction(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value movecmd(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value sendfrom(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value sendmany(const json_spirit::Array& params, bool fHelp);
