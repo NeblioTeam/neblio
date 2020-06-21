@@ -797,6 +797,8 @@ bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
         ::SetBestChain(locator);
     }
 
+    const uint256 prevBestChain = hashBestChain;
+
     // New best block
     hashBestChain = hash;
     boost::atomic_store(&pindexBest, pindexNew);
@@ -841,9 +843,54 @@ bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
         boost::thread t(runCommand, strCmd); // thread runs free
     }
 
-    // Watch for transactions paying to me
-    for (CTransaction& tx : vtx)
-        SyncWithWallets(tx, this);
+    {
+        /**
+         * Syncing wallets requires that the current state of best block be correct.
+         * Because of this, we have to call SyncWithWallets() only after updating the global variables
+         * of the blockchain state, such as pindexBest and hashBestChain.
+         * Given that a reorg can occur, the call to SyncWithWallets() should happen only after all kinds
+         * of reorgs happen (including ConnectBlock). Therefore, we do it at the very end. Here.
+         */
+        if (nBestHeight > 0) {
+            // get the highest block in the previous check that's main chain
+            CBlockIndexSmartPtr ancestorOfPrevInMainChain = mapBlockIndex.at(prevBestChain);
+            while (ancestorOfPrevInMainChain->pprev && !ancestorOfPrevInMainChain->IsInMainChain()) {
+                ancestorOfPrevInMainChain = ancestorOfPrevInMainChain->pprev;
+            }
+
+            // get the common ancestor between current chain and previous chain
+            CBlockIndexSmartPtr commonAncestor = pindexBest;
+            while (commonAncestor->pprev &&
+                   *commonAncestor->phashBlock != *ancestorOfPrevInMainChain->phashBlock) {
+                commonAncestor = commonAncestor->pprev;
+            }
+
+            // loop over all blocks from the common ancestor, to now, and sync these txs
+            do {
+                CBlock block;
+                if (!block.ReadFromDisk(commonAncestor.get(), txdb)) {
+                    printf("SetBestChain() : ReadFromDisk failed + couldn't sync with wallet\n");
+                    continue;
+                }
+
+                // Watch for transactions paying to me
+                for (CTransaction& tx : block.vtx)
+                    SyncWithWallets(tx, &block);
+
+                if (*commonAncestor->phashBlock == *pindexBest->phashBlock) {
+                    break;
+                }
+
+                // pnext is always in the main chain
+                commonAncestor = commonAncestor->pnext;
+            } while (commonAncestor);
+        } else {
+            // this is for genesis
+            // Watch for transactions paying to me
+            for (CTransaction& tx : vtx)
+                SyncWithWallets(tx, this);
+        }
+    }
 
     return true;
 }
