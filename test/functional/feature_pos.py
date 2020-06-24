@@ -10,24 +10,6 @@ from test_framework.util import *
 from test_framework.messages import *
 
 
-class multidict(dict):
-    """Dictionary that allows duplicate keys.
-
-    Constructed with a list of (key, value) tuples. When dumped by the json module,
-    will output invalid json with repeated keys, eg:
-    >>> json.dumps(multidict([(1,2),(1,2)])
-    '{"1": 2, "1": 2}'
-
-    Used to test calls to rpc methods with repeated keys in the json object."""
-
-    def __init__(self, x):
-        dict.__init__(self, x)
-        self.x = x
-
-    def items(self):
-        return self.x
-
-
 # Create one-input, one-output, no-fee transaction:
 class RawTransactionsTest(BitcoinTestFramework):
     def set_test_params(self):
