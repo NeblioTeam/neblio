@@ -273,9 +273,9 @@ public:
     bool GetStakeWeight(const CKeyStore& keystore, uint64_t& nMinWeight, uint64_t& nMaxWeight,
                         uint64_t& nWeight);
 
-    boost::optional<CScript> CalculateScriptPubKeyForStakeOutput(const CKeyStore& keystore,
-                                                                 const CScript&   scriptPubKeyKernel,
-                                                                 CKey&            key);
+    static boost::optional<CScript>
+    CalculateScriptPubKeyForStakeOutput(const CKeyStore& keystore, const CScript& scriptPubKeyKernel,
+                                        CKey& key);
 
     void                             FindStakeKernel(const CKeyStore& keystore, unsigned int nBits,
                                                      const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins,
