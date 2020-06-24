@@ -2280,11 +2280,11 @@ CWallet::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBits,
              n++) {
             // Search backward in time from the given tx timestamp
             // Search nSearchInterval seconds back up to nMaxStakeSearchInterval
-            uint256   hashProofOfStake = 0, targetProofOfStake = 0;
-            COutPoint prevoutStake = COutPoint(pcoin.first->GetHash(), pcoin.second);
+            uint256       hashProofOfStake = 0, targetProofOfStake = 0;
+            COutPoint     prevoutStake    = COutPoint(pcoin.first->GetHash(), pcoin.second);
+            const int64_t txCoinstakeTime = nCoinstakeInitialTxTime - n;
             if (!CheckStakeKernelHash(nBits, kernelBlock, txindex.pos.nTxPos, *pcoin.first, prevoutStake,
-                                      nCoinstakeInitialTxTime - n, hashProofOfStake,
-                                      targetProofOfStake)) {
+                                      txCoinstakeTime, hashProofOfStake, targetProofOfStake)) {
                 continue;
             }
 
@@ -2309,14 +2309,13 @@ CWallet::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBits,
             coinStake.credit             = pcoin.first->vout[pcoin.second].nValue;
             coinStake.kernelTx           = pcoin.first;
             coinStake.txCoinStake.vout.push_back(CTxOut(0, CScript()));
-            coinStake.txCoinStake.nTime = nCoinstakeInitialTxTime - n;
+            coinStake.txCoinStake.nTime = txCoinstakeTime;
             coinStake.txCoinStake.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
             coinStake.txCoinStake.vout.push_back(CTxOut(0, spkKernel->scriptPubKey));
 
-            const int64_t txTime = (int64_t)coinStake.txCoinStake.nTime;
-
-            if (GetWeight(kernelBlock.GetBlockTime(), txTime) < Params().StakeSplitAge())
+            if (GetWeight(kernelBlock.GetBlockTime(), txCoinstakeTime) < Params().StakeSplitAge()) {
                 coinStake.txCoinStake.vout.push_back(CTxOut(0, spkKernel->scriptPubKey)); // split stake
+            }
 
             return coinStake;
         }
