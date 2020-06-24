@@ -2177,12 +2177,13 @@ bool CWallet::GetStakeWeight(const CKeyStore& /*keystore*/, uint64_t& nMinWeight
     return true;
 }
 
-boost::optional<CScript> CWallet::CalculateScriptPubKeyForStakeOutput(const CKeyStore& keystore,
-                                                                      const CScript& scriptPubKeyKernel,
-                                                                      CKey&          key)
+boost::optional<KernelScriptPubKeyResult>
+CWallet::CalculateScriptPubKeyForStakeOutput(const CKeyStore& keystore,
+                                             const CScript&   scriptPubKeyKernel)
 {
     vector<valtype> vSolutions;
     txnouttype      whichType;
+    CKey            key;
     if (!Solver(scriptPubKeyKernel, whichType, vSolutions)) {
         if (fDebug)
             printf("CalculateScriptPubKeyForStakeOutput : failed to parse kernel\n");
@@ -2206,7 +2207,7 @@ boost::optional<CScript> CWallet::CalculateScriptPubKeyForStakeOutput(const CKey
                        whichType);
             return boost::none; // unable to find corresponding public key
         }
-        return CScript() << key.GetPubKey() << OP_CHECKSIG;
+        return KernelScriptPubKeyResult(CScript() << key.GetPubKey() << OP_CHECKSIG, key);
     }
 
     case TX_PUBKEY: // pay to public key
@@ -2225,7 +2226,7 @@ boost::optional<CScript> CWallet::CalculateScriptPubKeyForStakeOutput(const CKey
                        whichType);
             return boost::none; // keys mismatch
         }
-        return scriptPubKeyKernel;
+        return KernelScriptPubKeyResult(scriptPubKeyKernel, key);
     }
     case TX_COLDSTAKE:
     case TX_SCRIPTHASH:
@@ -2290,8 +2291,8 @@ CoinStakeResult CWallet::FindStakeKernel(const CKeyStore& keystore, const unsign
 
                 const CScript& kernelScriptPubKey = pcoin.first->vout[pcoin.second].scriptPubKey;
 
-                const boost::optional<CScript> spkKernel =
-                    CalculateScriptPubKeyForStakeOutput(keystore, kernelScriptPubKey, coinStake.key);
+                const boost::optional<KernelScriptPubKeyResult> spkKernel =
+                    CalculateScriptPubKeyForStakeOutput(keystore, kernelScriptPubKey);
 
                 if (!spkKernel) {
                     if (fDebug)
@@ -2303,17 +2304,19 @@ CoinStakeResult CWallet::FindStakeKernel(const CKeyStore& keystore, const unsign
                 CScript scriptEmpty;
                 scriptEmpty.clear();
                 coinStake.kernelScriptPubKey = kernelScriptPubKey;
+                coinStake.key                = spkKernel->key;
                 coinStake.txCoinStake.vout.push_back(CTxOut(0, scriptEmpty));
                 coinStake.txCoinStake.nTime = nCoinstakeInitialTxTime - n;
                 coinStake.txCoinStake.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
                 coinStake.credit   = pcoin.first->vout[pcoin.second].nValue;
                 coinStake.kernelTx = pcoin.first;
-                coinStake.txCoinStake.vout.push_back(CTxOut(0, *spkKernel));
+                coinStake.txCoinStake.vout.push_back(CTxOut(0, spkKernel->scriptPubKey));
 
-                int64_t txTime = (int64_t)coinStake.txCoinStake.nTime;
+                const int64_t txTime = (int64_t)coinStake.txCoinStake.nTime;
 
                 if (GetWeight(kernelBlock.GetBlockTime(), txTime) < Params().StakeSplitAge())
-                    coinStake.txCoinStake.vout.push_back(CTxOut(0, *spkKernel)); // split stake
+                    coinStake.txCoinStake.vout.push_back(
+                        CTxOut(0, spkKernel->scriptPubKey)); // split stake
                 fKernelFound = true;
                 break;
             }

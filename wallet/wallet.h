@@ -65,6 +65,20 @@ struct CoinStakeResult
     const CWalletTx* kernelTx;
 };
 
+struct KernelScriptPubKeyResult
+{
+    KernelScriptPubKeyResult(const CScript& ScriptPubKey, const CKey& Key)
+        : scriptPubKey(ScriptPubKey), key(Key)
+    {
+    }
+    KernelScriptPubKeyResult(CScript&& ScriptPubKey, CKey&& Key)
+        : scriptPubKey(std::move(ScriptPubKey)), key(std::move(Key))
+    {
+    }
+    CScript scriptPubKey;
+    CKey    key;
+};
+
 /** A key pool entry */
 class CKeyPool
 {
@@ -276,9 +290,8 @@ public:
     bool GetStakeWeight(const CKeyStore& keystore, uint64_t& nMinWeight, uint64_t& nMaxWeight,
                         uint64_t& nWeight);
 
-    static boost::optional<CScript>
-    CalculateScriptPubKeyForStakeOutput(const CKeyStore& keystore, const CScript& scriptPubKeyKernel,
-                                        CKey& key);
+    static boost::optional<KernelScriptPubKeyResult>
+    CalculateScriptPubKeyForStakeOutput(const CKeyStore& keystore, const CScript& scriptPubKeyKernel);
 
     CoinStakeResult                  FindStakeKernel(const CKeyStore& keystore, unsigned int nBits,
                                                      int64_t nCoinstakeInitialTxTime,
