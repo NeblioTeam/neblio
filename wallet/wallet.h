@@ -281,9 +281,8 @@ public:
                                         CKey& key);
 
     CoinStakeResult                  FindStakeKernel(const CKeyStore& keystore, unsigned int nBits,
-                                                     int64_t nCoinstakeTxTime,
-                                                     const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins,
-                                                     CTxDB&                                                     txdb);
+                                                     int64_t nCoinstakeInitialTxTime,
+                                                     const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins);
     boost::optional<CoinStakeResult> CreateCoinStake(const CKeyStore& keystore, unsigned int nBits,
                                                      CAmount nFees);
     static void                      UpdateStakeSearchTimes(int64_t nSearchTime);
