@@ -2303,16 +2303,14 @@ CWallet::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBits,
                 continue;
             }
 
-            // Mark coin stake transaction
-            CScript scriptEmpty;
-            scriptEmpty.clear();
+            // Fill coin stake transaction
             coinStake.kernelScriptPubKey = kernelScriptPubKey;
             coinStake.key                = spkKernel->key;
-            coinStake.txCoinStake.vout.push_back(CTxOut(0, scriptEmpty));
+            coinStake.credit             = pcoin.first->vout[pcoin.second].nValue;
+            coinStake.kernelTx           = pcoin.first;
+            coinStake.txCoinStake.vout.push_back(CTxOut(0, CScript()));
             coinStake.txCoinStake.nTime = nCoinstakeInitialTxTime - n;
             coinStake.txCoinStake.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
-            coinStake.credit   = pcoin.first->vout[pcoin.second].nValue;
-            coinStake.kernelTx = pcoin.first;
             coinStake.txCoinStake.vout.push_back(CTxOut(0, spkKernel->scriptPubKey));
 
             const int64_t txTime = (int64_t)coinStake.txCoinStake.nTime;
@@ -2373,8 +2371,8 @@ boost::optional<CoinStakeResult> CWallet::CreateCoinStake(const CKeyStore&   key
     if (nCredit == 0 || nCredit > nBalance - nReserveBalance)
         return boost::none;
 
+    // Attempt to add more inputs
     for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
-        // Attempt to add more inputs
         // Only add coins of the same key/address as kernel
         unsigned int nSMA = Params().StakeMinAge();
         if (result->txCoinStake.vout.size() == 2 &&
