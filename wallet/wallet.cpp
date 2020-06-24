@@ -2283,9 +2283,11 @@ void CWallet::FindStakeKernel(const CKeyStore& keystore, CKey& key, const unsign
     }
 }
 
-bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, CAmount nFees,
-                              CTransaction& txNew, CKey& key)
+boost::optional<CTransaction> CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits,
+                                                       CAmount nFees, CKey& key)
 {
+    CTransaction txNew;
+
     CBigNum bnTargetPerCoinDay;
     bnTargetPerCoinDay.SetCompact(nBits);
 
@@ -2301,7 +2303,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, CAm
     CAmount nBalance = GetBalance();
 
     if (nBalance <= nReserveBalance)
-        return false;
+        return boost::none;
 
     vector<const CWalletTx*> vwtxPrev;
 
@@ -2310,10 +2312,10 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, CAm
 
     // Select coins with suitable depth
     if (!SelectCoinsForStaking(nBalance - nReserveBalance, txNew.nTime, setCoins, nValueIn))
-        return false;
+        return boost::none;
 
     if (setCoins.empty())
-        return false;
+        return boost::none;
 
     CAmount nCredit = 0;
     CScript scriptPubKeyKernel;
@@ -2329,12 +2331,12 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, CAm
             CWallet::UpdateStakeSearchTimes(nSearchTime);
         } else {
             CWallet::UpdateStakeSearchTimes(nSearchTime);
-            return false;
+            return boost::none;
         }
     }
 
     if (nCredit == 0 || nCredit > nBalance - nReserveBalance)
-        return false;
+        return boost::none;
 
     for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
         // Attempt to add more inputs
@@ -2372,12 +2374,14 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, CAm
     {
         uint64_t nCoinAge;
         CTxDB    txdb("r");
-        if (!txNew.GetCoinAge(txdb, nCoinAge))
-            return error("CreateCoinStake : failed to calculate coin age");
+        if (!txNew.GetCoinAge(txdb, nCoinAge)) {
+            printf("CreateCoinStake : failed to calculate coin age");
+            return boost::none;
+        }
 
         CAmount nReward = GetProofOfStakeReward(nCoinAge, nFees);
         if (nReward <= 0)
-            return false;
+            return boost::none;
 
         nCredit += nReward;
     }
@@ -2392,17 +2396,21 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, CAm
     // Sign
     int nIn = 0;
     for (const CWalletTx* pcoin : vwtxPrev) {
-        if (!SignSignature(*this, *pcoin, txNew, nIn++))
-            return error("CreateCoinStake : failed to sign coinstake");
+        if (!SignSignature(*this, *pcoin, txNew, nIn++)) {
+            printf("CreateCoinStake : failed to sign coinstake");
+            return boost::none;
+        }
     }
 
     // Limit size
     unsigned int nBytes = ::GetSerializeSize(txNew, SER_NETWORK, PROTOCOL_VERSION);
-    if (nBytes >= OLD_MAX_BLOCK_SIZE / 5)
-        return error("CreateCoinStake : exceeded coinstake size limit");
+    if (nBytes >= OLD_MAX_BLOCK_SIZE / 5) {
+        printf("CreateCoinStake : exceeded coinstake size limit");
+        return boost::none;
+    }
 
     // Successfully generated coinstake
-    return true;
+    return txNew;
 }
 
 void CWallet::UpdateStakeSearchTimes(const int64_t nSearchTime)
