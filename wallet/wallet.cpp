@@ -2367,15 +2367,11 @@ boost::optional<CoinStakeData> CWallet::CreateCoinStake(const CKeyStore&   keyst
         return boost::none;
 
     CTransaction stakeTx;
-    stakeTx.vout.push_back(CTxOut(0, CScript()));
     stakeTx.nTime = kernelData->stakeTxTime;
     stakeTx.vin.push_back(kernelData->kernelInput);
-    stakeTx.vout.push_back(CTxOut(0, kernelData->stakeOutputScriptPubKey));
 
-    if (GetWeight(kernelData->kernelBlockTime, kernelData->stakeTxTime) < Params().StakeSplitAge()) {
-        // split stake
-        stakeTx.vout.push_back(CTxOut(0, kernelData->stakeOutputScriptPubKey));
-    }
+    const bool splitStake =
+        GetWeight(kernelData->kernelBlockTime, kernelData->stakeTxTime) < Params().StakeSplitAge();
 
     // Attempt to add more inputs
     for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
@@ -2383,13 +2379,13 @@ boost::optional<CoinStakeData> CWallet::CreateCoinStake(const CKeyStore&   keyst
         const unsigned int nSMA    = Params().StakeMinAge();
         const CTxOut&      prevout = pcoin.first->vout[pcoin.second];
 
-        const bool sameScriptPubKeyAsKernel = prevout.scriptPubKey == kernelData->kernelScriptPubKey ||
-                                              prevout.scriptPubKey == stakeTx.vout[1].scriptPubKey;
-        const bool noNeedToSplitStake = stakeTx.vout.size() == 2;
+        const bool sameScriptPubKeyAsKernel =
+            prevout.scriptPubKey == kernelData->kernelScriptPubKey ||
+            prevout.scriptPubKey == kernelData->stakeOutputScriptPubKey;
 
         const bool isTheKernelWeAlreadyHave = pcoin.first->GetHash() == stakeTx.vin[0].prevout.hash;
 
-        if (noNeedToSplitStake && sameScriptPubKeyAsKernel && !isTheKernelWeAlreadyHave) {
+        if (!splitStake && sameScriptPubKeyAsKernel && !isTheKernelWeAlreadyHave) {
 
             const int64_t nTimeWeight = GetWeight((int64_t)pcoin.first->nTime, (int64_t)stakeTx.nTime);
 
@@ -2429,6 +2425,14 @@ boost::optional<CoinStakeData> CWallet::CreateCoinStake(const CKeyStore&   keyst
             return boost::none;
 
         nCredit += nReward;
+    }
+
+    stakeTx.vout.push_back(CTxOut(0, CScript()));
+    stakeTx.vout.push_back(CTxOut(0, kernelData->stakeOutputScriptPubKey));
+
+    if (splitStake) {
+        // split stake
+        stakeTx.vout.push_back(CTxOut(0, kernelData->stakeOutputScriptPubKey));
     }
 
     // Set output amount
