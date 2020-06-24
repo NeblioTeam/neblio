@@ -2285,8 +2285,8 @@ void CWallet::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBit
     }
 }
 
-boost::optional<CoinStakeResult> CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits,
-                                                          CAmount nFees)
+boost::optional<CoinStakeResult> CWallet::CreateCoinStake(const CKeyStore&   keystore,
+                                                          const unsigned int nBits, const CAmount nFees)
 {
     CoinStakeResult result;
 
