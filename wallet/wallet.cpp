@@ -2242,11 +2242,16 @@ boost::optional<CScript> CWallet::CalculateScriptPubKeyForStakeOutput(const CKey
     return boost::none;
 }
 
-void CWallet::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBits,
-                              const set<pair<const CWalletTx*, unsigned int>>& setCoins, CTxDB& txdb,
-                              vector<const CWalletTx*>& vwtxPrev, CScript& scriptPubKeyKernel,
-                              CAmount& nCredit, CoinStakeResult& coinStake)
+CoinStakeResult CWallet::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBits,
+                                         const int64_t nCoinstakeTxTime,
+                                         const set<pair<const CWalletTx*, unsigned int>>& setCoins,
+                                         CTxDB& txdb, vector<const CWalletTx*>& vwtxPrev,
+                                         CScript& scriptPubKeyKernel, CAmount& nCredit)
 {
+    CoinStakeResult coinStake;
+
+    coinStake.txCoinStake.nTime = nCoinstakeTxTime;
+
     // Mark coin stake transaction
     CScript scriptEmpty;
     scriptEmpty.clear();
@@ -2317,18 +2322,17 @@ void CWallet::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBit
         if (fKernelFound || fShutdown)
             break; // if kernel is found stop searching
     }
+    return coinStake;
 }
 
 boost::optional<CoinStakeResult> CWallet::CreateCoinStake(const CKeyStore&   keystore,
                                                           const unsigned int nBits, const CAmount nFees)
 {
-    CoinStakeResult result;
-
     CBigNum bnTargetPerCoinDay;
     bnTargetPerCoinDay.SetCompact(nBits);
 
     // Choose coins to use
-    CAmount nBalance = GetBalance();
+    const CAmount nBalance = GetBalance();
 
     if (nBalance <= nReserveBalance)
         return boost::none;
@@ -2338,8 +2342,16 @@ boost::optional<CoinStakeResult> CWallet::CreateCoinStake(const CKeyStore&   key
     set<pair<const CWalletTx*, unsigned int>> setCoins;
     CAmount                                   nValueIn = 0;
 
+    int64_t nCoinstakeInitialTxTime = GetAdjustedTime();
+
+    // no point in searching times that we aleady visited (this is zero interval)
+    if (nCoinstakeInitialTxTime <= nLastCoinStakeSearchTime) {
+        CWallet::UpdateStakeSearchTimes(nCoinstakeInitialTxTime);
+        return boost::none;
+    }
+
     // Select coins with suitable depth
-    if (!SelectCoinsForStaking(nBalance - nReserveBalance, result.txCoinStake.nTime, setCoins, nValueIn))
+    if (!SelectCoinsForStaking(nBalance - nReserveBalance, nCoinstakeInitialTxTime, setCoins, nValueIn))
         return boost::none;
 
     if (setCoins.empty())
@@ -2349,19 +2361,11 @@ boost::optional<CoinStakeResult> CWallet::CreateCoinStake(const CKeyStore&   key
     CScript scriptPubKeyKernel;
     CTxDB   txdb("r");
 
-    // no point in searching times that we aleady visited (this is zero interval)
-    if (result.txCoinStake.nTime <= nLastCoinStakeSearchTime) {
-        CWallet::UpdateStakeSearchTimes(result.txCoinStake.nTime);
-        return boost::none;
-    }
-
-    {
-        // since time search goes backwards, and there's potential for tx time to go back, we store it to
-        // use it later in UpdateStakeSearchTimes()
-        int64_t nSearchTime = result.txCoinStake.nTime;
-        FindStakeKernel(keystore, nBits, setCoins, txdb, vwtxPrev, scriptPubKeyKernel, nCredit, result);
-        CWallet::UpdateStakeSearchTimes(nSearchTime);
-    }
+    // since time search goes backwards, and there's potential for tx time to go back, we store it to
+    // use it later in UpdateStakeSearchTimes()
+    CoinStakeResult result = FindStakeKernel(keystore, nBits, nCoinstakeInitialTxTime, setCoins, txdb,
+                                             vwtxPrev, scriptPubKeyKernel, nCredit);
+    CWallet::UpdateStakeSearchTimes(nCoinstakeInitialTxTime);
 
     if (nCredit == 0 || nCredit > nBalance - nReserveBalance)
         return boost::none;
