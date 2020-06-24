@@ -2427,20 +2427,17 @@ boost::optional<CoinStakeData> CWallet::CreateCoinStake(const CKeyStore&   keyst
         nCredit += nReward;
     }
 
+    // add coinstake marker
     stakeTx.vout.push_back(CTxOut(0, CScript()));
-    stakeTx.vout.push_back(CTxOut(0, kernelData->stakeOutputScriptPubKey));
 
+    // add outputs
     if (splitStake) {
-        // split stake
-        stakeTx.vout.push_back(CTxOut(0, kernelData->stakeOutputScriptPubKey));
+        stakeTx.vout.push_back(CTxOut((nCredit / 2 / CENT) * CENT, kernelData->stakeOutputScriptPubKey));
+        stakeTx.vout.push_back(
+            CTxOut(nCredit - stakeTx.vout[1].nValue, kernelData->stakeOutputScriptPubKey));
+    } else {
+        stakeTx.vout.push_back(CTxOut(nCredit, kernelData->stakeOutputScriptPubKey));
     }
-
-    // Set output amount
-    if (stakeTx.vout.size() == 3) {
-        stakeTx.vout[1].nValue = (nCredit / 2 / CENT) * CENT;
-        stakeTx.vout[2].nValue = nCredit - stakeTx.vout[1].nValue;
-    } else
-        stakeTx.vout[1].nValue = nCredit;
 
     // Sign
     int nIn = 0;
