@@ -59,6 +59,7 @@ public:
 struct CoinStakeResult
 {
     CTransaction txCoinStake;
+    CScript      kernelScriptPubKey;
     CKey         key;
 };
 
@@ -281,7 +282,7 @@ public:
                                                      int64_t nCoinstakeTxTime,
                                                      const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins,
                                                      CTxDB& txdb, std::vector<const CWalletTx*>& vwtxPrev,
-                                                     CScript& scriptPubKeyKernel, CAmount& nCredit);
+                                                     CAmount& nCredit);
     boost::optional<CoinStakeResult> CreateCoinStake(const CKeyStore& keystore, unsigned int nBits,
                                                      CAmount nFees);
     static void                      UpdateStakeSearchTimes(int64_t nSearchTime);
