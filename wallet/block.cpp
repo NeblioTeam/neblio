@@ -1506,8 +1506,7 @@ bool CBlock::SignBlock(CWallet& wallet, int64_t nFees)
                 return key.Sign(GetHash(), vchBlockSig);
             }
         }
-        nLastCoinStakeSearchInterval = nSearchTime - nLastCoinStakeSearchTime;
-        nLastCoinStakeSearchTime     = nSearchTime;
+        CWallet::UpdateStakeSearchTimes(txCoinStake.nTime);
     }
 
     return false;

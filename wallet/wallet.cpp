@@ -2393,6 +2393,12 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, CAm
     return true;
 }
 
+void CWallet::UpdateStakeSearchTimes(const int64_t nSearchTime)
+{
+    nLastCoinStakeSearchInterval = nSearchTime - nLastCoinStakeSearchTime;
+    nLastCoinStakeSearchTime     = nSearchTime;
+}
+
 // Call after CreateTransaction unless you want to abort
 bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey)
 {

@@ -270,14 +270,15 @@ public:
                               bool isNTP1Issuance = false, const CCoinControl* coinControl = nullptr);
     bool    CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
 
-    bool GetStakeWeight(const CKeyStore& keystore, uint64_t& nMinWeight, uint64_t& nMaxWeight,
-                        uint64_t& nWeight);
-    void FindStakeKernel(const CKeyStore& keystore, CKey& key, unsigned int nBits,
-                         const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins,
-                         CTxDB& txdb, CTransaction& txNew, std::vector<const CWalletTx*>& vwtxPrev,
-                         CScript& scriptPubKeyKernel, CAmount& nCredit);
-    bool CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, CAmount nFees,
-                         CTransaction& txNew, CKey& key);
+    bool        GetStakeWeight(const CKeyStore& keystore, uint64_t& nMinWeight, uint64_t& nMaxWeight,
+                               uint64_t& nWeight);
+    void        FindStakeKernel(const CKeyStore& keystore, CKey& key, unsigned int nBits,
+                                const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins,
+                                CTxDB& txdb, CTransaction& txNew, std::vector<const CWalletTx*>& vwtxPrev,
+                                CScript& scriptPubKeyKernel, CAmount& nCredit);
+    bool        CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, CAmount nFees,
+                                CTransaction& txNew, CKey& key);
+    static void UpdateStakeSearchTimes(int64_t nSearchTime);
 
     std::string SendMoney(CScript scriptPubKey, CAmount nValue, CWalletTx& wtxNew, bool fAskFee = false);
     std::string SendMoneyToDestination(const CTxDestination& address, CAmount nValue, CWalletTx& wtxNew,
