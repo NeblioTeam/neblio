@@ -2311,8 +2311,9 @@ CoinStakeResult CWallet::FindStakeKernel(const CKeyStore& keystore, const unsign
                 coinStake.kernelTx = pcoin.first;
                 coinStake.txCoinStake.vout.push_back(CTxOut(0, *spkKernel));
 
-                if (GetWeight(block.GetBlockTime(), (int64_t)coinStake.txCoinStake.nTime) <
-                    Params().StakeSplitAge())
+                int64_t txTime = (int64_t)coinStake.txCoinStake.nTime;
+
+                if (GetWeight(block.GetBlockTime(), txTime) < Params().StakeSplitAge())
                     coinStake.txCoinStake.vout.push_back(CTxOut(0, *spkKernel)); // split stake
                 fKernelFound = true;
                 break;
@@ -2337,9 +2338,6 @@ boost::optional<CoinStakeResult> CWallet::CreateCoinStake(const CKeyStore&   key
     if (nBalance <= nReserveBalance)
         return boost::none;
 
-    set<pair<const CWalletTx*, unsigned int>> setCoins;
-    CAmount                                   nValueIn = 0;
-
     int64_t nCoinstakeInitialTxTime = GetAdjustedTime();
 
     // no point in searching times that we aleady visited (this is zero interval)
@@ -2349,6 +2347,8 @@ boost::optional<CoinStakeResult> CWallet::CreateCoinStake(const CKeyStore&   key
     }
 
     // Select coins with suitable depth
+    set<pair<const CWalletTx*, unsigned int>> setCoins;
+    CAmount                                   nValueIn = 0;
     if (!SelectCoinsForStaking(nBalance - nReserveBalance, nCoinstakeInitialTxTime, setCoins, nValueIn))
         return boost::none;
 
