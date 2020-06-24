@@ -2243,9 +2243,10 @@ CWallet::CalculateScriptPubKeyForStakeOutput(const CKeyStore& keystore,
     return boost::none;
 }
 
-CoinStakeResult CWallet::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBits,
-                                         const int64_t nCoinstakeInitialTxTime,
-                                         const set<pair<const CWalletTx*, unsigned int>>& setCoins)
+boost::optional<CoinStakeResult>
+CWallet::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBits,
+                         const int64_t                                    nCoinstakeInitialTxTime,
+                         const set<pair<const CWalletTx*, unsigned int>>& setCoins)
 {
     CoinStakeResult coinStake;
 
@@ -2274,58 +2275,55 @@ CoinStakeResult CWallet::FindStakeKernel(const CKeyStore& keystore, const unsign
         if (kernelBlock.GetBlockTime() + nSMA > nCoinstakeInitialTxTime - nMaxStakeSearchInterval)
             continue; // only count coins meeting min age requirement
 
-        bool fKernelFound = false;
         for (unsigned int n = 0; n < min(nSearchInterval, (int64_t)nMaxStakeSearchInterval) &&
-                                 !fKernelFound && !fShutdown && pindexPrev == pindexBest;
+                                 !fShutdown && pindexPrev == pindexBest;
              n++) {
             // Search backward in time from the given tx timestamp
             // Search nSearchInterval seconds back up to nMaxStakeSearchInterval
             uint256   hashProofOfStake = 0, targetProofOfStake = 0;
             COutPoint prevoutStake = COutPoint(pcoin.first->GetHash(), pcoin.second);
-            if (CheckStakeKernelHash(nBits, kernelBlock, txindex.pos.nTxPos, *pcoin.first, prevoutStake,
-                                     nCoinstakeInitialTxTime - n, hashProofOfStake,
-                                     targetProofOfStake)) {
-                // Found a kernel
-                if (fDebug)
-                    printf("FindStakeKernel : kernel found\n");
-
-                const CScript& kernelScriptPubKey = pcoin.first->vout[pcoin.second].scriptPubKey;
-
-                const boost::optional<KernelScriptPubKeyResult> spkKernel =
-                    CalculateScriptPubKeyForStakeOutput(keystore, kernelScriptPubKey);
-
-                if (!spkKernel) {
-                    if (fDebug)
-                        printf("FindStakeKernel : failed to get scriptPubKey for kernel");
-                    continue;
-                }
-
-                // Mark coin stake transaction
-                CScript scriptEmpty;
-                scriptEmpty.clear();
-                coinStake.kernelScriptPubKey = kernelScriptPubKey;
-                coinStake.key                = spkKernel->key;
-                coinStake.txCoinStake.vout.push_back(CTxOut(0, scriptEmpty));
-                coinStake.txCoinStake.nTime = nCoinstakeInitialTxTime - n;
-                coinStake.txCoinStake.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
-                coinStake.credit   = pcoin.first->vout[pcoin.second].nValue;
-                coinStake.kernelTx = pcoin.first;
-                coinStake.txCoinStake.vout.push_back(CTxOut(0, spkKernel->scriptPubKey));
-
-                const int64_t txTime = (int64_t)coinStake.txCoinStake.nTime;
-
-                if (GetWeight(kernelBlock.GetBlockTime(), txTime) < Params().StakeSplitAge())
-                    coinStake.txCoinStake.vout.push_back(
-                        CTxOut(0, spkKernel->scriptPubKey)); // split stake
-                fKernelFound = true;
-                break;
+            if (!CheckStakeKernelHash(nBits, kernelBlock, txindex.pos.nTxPos, *pcoin.first, prevoutStake,
+                                      nCoinstakeInitialTxTime - n, hashProofOfStake,
+                                      targetProofOfStake)) {
+                continue;
             }
-        }
 
-        if (fKernelFound || fShutdown)
-            break; // if kernel is found stop searching
+            // Found a kernel
+            if (fDebug)
+                printf("FindStakeKernel : kernel found\n");
+
+            const CScript& kernelScriptPubKey = pcoin.first->vout[pcoin.second].scriptPubKey;
+
+            const boost::optional<KernelScriptPubKeyResult> spkKernel =
+                CalculateScriptPubKeyForStakeOutput(keystore, kernelScriptPubKey);
+
+            if (!spkKernel) {
+                if (fDebug)
+                    printf("FindStakeKernel : failed to get scriptPubKey for kernel");
+                continue;
+            }
+
+            // Mark coin stake transaction
+            CScript scriptEmpty;
+            scriptEmpty.clear();
+            coinStake.kernelScriptPubKey = kernelScriptPubKey;
+            coinStake.key                = spkKernel->key;
+            coinStake.txCoinStake.vout.push_back(CTxOut(0, scriptEmpty));
+            coinStake.txCoinStake.nTime = nCoinstakeInitialTxTime - n;
+            coinStake.txCoinStake.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
+            coinStake.credit   = pcoin.first->vout[pcoin.second].nValue;
+            coinStake.kernelTx = pcoin.first;
+            coinStake.txCoinStake.vout.push_back(CTxOut(0, spkKernel->scriptPubKey));
+
+            const int64_t txTime = (int64_t)coinStake.txCoinStake.nTime;
+
+            if (GetWeight(kernelBlock.GetBlockTime(), txTime) < Params().StakeSplitAge())
+                coinStake.txCoinStake.vout.push_back(CTxOut(0, spkKernel->scriptPubKey)); // split stake
+
+            return coinStake;
+        }
     }
-    return coinStake;
+    return boost::none;
 }
 
 boost::optional<CoinStakeResult> CWallet::CreateCoinStake(const CKeyStore&   keystore,
@@ -2359,11 +2357,16 @@ boost::optional<CoinStakeResult> CWallet::CreateCoinStake(const CKeyStore&   key
 
     // since time search goes backwards, and there's potential for tx time to go back, we store it to
     // use it later in UpdateStakeSearchTimes()
-    CoinStakeResult result = FindStakeKernel(keystore, nBits, nCoinstakeInitialTxTime, setCoins);
+    boost::optional<CoinStakeResult> result =
+        FindStakeKernel(keystore, nBits, nCoinstakeInitialTxTime, setCoins);
     CWallet::UpdateStakeSearchTimes(nCoinstakeInitialTxTime);
 
-    CAmount                  nCredit = result.credit;
-    vector<const CWalletTx*> vwtxPrev(1, result.kernelTx);
+    if (!result) {
+        return boost::none;
+    }
+
+    CAmount                  nCredit = result->credit;
+    vector<const CWalletTx*> vwtxPrev(1, result->kernelTx);
 
     if (nCredit == 0 || nCredit > nBalance - nReserveBalance)
         return boost::none;
@@ -2372,16 +2375,16 @@ boost::optional<CoinStakeResult> CWallet::CreateCoinStake(const CKeyStore&   key
         // Attempt to add more inputs
         // Only add coins of the same key/address as kernel
         unsigned int nSMA = Params().StakeMinAge();
-        if (result.txCoinStake.vout.size() == 2 &&
-            ((pcoin.first->vout[pcoin.second].scriptPubKey == result.kernelScriptPubKey ||
+        if (result->txCoinStake.vout.size() == 2 &&
+            ((pcoin.first->vout[pcoin.second].scriptPubKey == result->kernelScriptPubKey ||
               pcoin.first->vout[pcoin.second].scriptPubKey ==
-                  result.txCoinStake.vout[1].scriptPubKey)) &&
-            pcoin.first->GetHash() != result.txCoinStake.vin[0].prevout.hash) {
+                  result->txCoinStake.vout[1].scriptPubKey)) &&
+            pcoin.first->GetHash() != result->txCoinStake.vin[0].prevout.hash) {
             int64_t nTimeWeight =
-                GetWeight((int64_t)pcoin.first->nTime, (int64_t)result.txCoinStake.nTime);
+                GetWeight((int64_t)pcoin.first->nTime, (int64_t)result->txCoinStake.nTime);
 
             // Stop adding more inputs if already too many inputs
-            if (result.txCoinStake.vin.size() >= Params().MaxInputsInStake())
+            if (result->txCoinStake.vin.size() >= Params().MaxInputsInStake())
                 break;
             // Stop adding more inputs if value is already pretty significant
             if (nCredit >= Params().StakeCombineThreshold())
@@ -2396,7 +2399,7 @@ boost::optional<CoinStakeResult> CWallet::CreateCoinStake(const CKeyStore&   key
             if (nTimeWeight < nSMA)
                 continue;
 
-            result.txCoinStake.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
+            result->txCoinStake.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
             nCredit += pcoin.first->vout[pcoin.second].nValue;
             vwtxPrev.push_back(pcoin.first);
         }
@@ -2406,7 +2409,7 @@ boost::optional<CoinStakeResult> CWallet::CreateCoinStake(const CKeyStore&   key
     {
         uint64_t nCoinAge;
         CTxDB    txdb("r");
-        if (!result.txCoinStake.GetCoinAge(txdb, nCoinAge)) {
+        if (!result->txCoinStake.GetCoinAge(txdb, nCoinAge)) {
             printf("CreateCoinStake : failed to calculate coin age");
             return boost::none;
         }
@@ -2419,23 +2422,23 @@ boost::optional<CoinStakeResult> CWallet::CreateCoinStake(const CKeyStore&   key
     }
 
     // Set output amount
-    if (result.txCoinStake.vout.size() == 3) {
-        result.txCoinStake.vout[1].nValue = (nCredit / 2 / CENT) * CENT;
-        result.txCoinStake.vout[2].nValue = nCredit - result.txCoinStake.vout[1].nValue;
+    if (result->txCoinStake.vout.size() == 3) {
+        result->txCoinStake.vout[1].nValue = (nCredit / 2 / CENT) * CENT;
+        result->txCoinStake.vout[2].nValue = nCredit - result->txCoinStake.vout[1].nValue;
     } else
-        result.txCoinStake.vout[1].nValue = nCredit;
+        result->txCoinStake.vout[1].nValue = nCredit;
 
     // Sign
     int nIn = 0;
     for (const CWalletTx* pcoin : vwtxPrev) {
-        if (!SignSignature(*this, *pcoin, result.txCoinStake, nIn++)) {
+        if (!SignSignature(*this, *pcoin, result->txCoinStake, nIn++)) {
             printf("CreateCoinStake : failed to sign coinstake");
             return boost::none;
         }
     }
 
     // Limit size
-    unsigned int nBytes = ::GetSerializeSize(result.txCoinStake, SER_NETWORK, PROTOCOL_VERSION);
+    unsigned int nBytes = ::GetSerializeSize(result->txCoinStake, SER_NETWORK, PROTOCOL_VERSION);
     if (nBytes >= OLD_MAX_BLOCK_SIZE / 5) {
         printf("CreateCoinStake : exceeded coinstake size limit");
         return boost::none;

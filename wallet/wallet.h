@@ -293,8 +293,8 @@ public:
     static boost::optional<KernelScriptPubKeyResult>
     CalculateScriptPubKeyForStakeOutput(const CKeyStore& keystore, const CScript& scriptPubKeyKernel);
 
-    CoinStakeResult                  FindStakeKernel(const CKeyStore& keystore, unsigned int nBits,
-                                                     int64_t nCoinstakeInitialTxTime,
+    boost::optional<CoinStakeResult>
+                                     FindStakeKernel(const CKeyStore& keystore, unsigned int nBits, int64_t nCoinstakeInitialTxTime,
                                                      const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins);
     boost::optional<CoinStakeResult> CreateCoinStake(const CKeyStore& keystore, unsigned int nBits,
                                                      CAmount nFees);
