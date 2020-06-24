@@ -1477,36 +1477,32 @@ bool CBlock::SignBlock(CWallet& wallet, int64_t nFees)
 
     CKey         key;
     CTransaction txCoinStake;
-    int64_t      nSearchTime = txCoinStake.nTime; // search to current time
 
     CBlockIndexSmartPtr pindexBestPtr = boost::atomic_load(&pindexBest);
-    if (nSearchTime > nLastCoinStakeSearchTime) {
-        if (wallet.CreateCoinStake(wallet, nBits, nFees, txCoinStake, key)) {
-            if (txCoinStake.nTime >= std::max(pindexBestPtr->GetPastTimeLimit() + 1,
-                                              PastDrift(pindexBestPtr->GetBlockTime()))) {
-                // make sure coinstake would meet timestamp protocol
-                //    as it would be the same as the block timestamp
-                vtx[0].nTime = nTime = txCoinStake.nTime;
-                nTime = std::max(pindexBestPtr->GetPastTimeLimit() + 1, GetMaxTransactionTime());
-                nTime = std::max(GetBlockTime(), PastDrift(pindexBestPtr->GetBlockTime()));
+    if (wallet.CreateCoinStake(wallet, nBits, nFees, txCoinStake, key)) {
+        if (txCoinStake.nTime >=
+            std::max(pindexBestPtr->GetPastTimeLimit() + 1, PastDrift(pindexBestPtr->GetBlockTime()))) {
+            // make sure coinstake would meet timestamp protocol
+            //    as it would be the same as the block timestamp
+            vtx[0].nTime = nTime = txCoinStake.nTime;
+            nTime = std::max(pindexBestPtr->GetPastTimeLimit() + 1, GetMaxTransactionTime());
+            nTime = std::max(GetBlockTime(), PastDrift(pindexBestPtr->GetBlockTime()));
 
-                // we have to make sure that we have no future timestamps in
-                //    our transactions set
-                for (std::vector<CTransaction>::iterator it = vtx.begin(); it != vtx.end();)
-                    if (it->nTime > nTime) {
-                        it = vtx.erase(it);
-                    } else {
-                        ++it;
-                    }
+            // we have to make sure that we have no future timestamps in
+            //    our transactions set
+            for (std::vector<CTransaction>::iterator it = vtx.begin(); it != vtx.end();)
+                if (it->nTime > nTime) {
+                    it = vtx.erase(it);
+                } else {
+                    ++it;
+                }
 
-                vtx.insert(vtx.begin() + 1, txCoinStake);
-                hashMerkleRoot = GetMerkleRoot();
+            vtx.insert(vtx.begin() + 1, txCoinStake);
+            hashMerkleRoot = GetMerkleRoot();
 
-                // append a signature to our block
-                return key.Sign(GetHash(), vchBlockSig);
-            }
+            // append a signature to our block
+            return key.Sign(GetHash(), vchBlockSig);
         }
-        CWallet::UpdateStakeSearchTimes(txCoinStake.nTime);
     }
 
     return false;

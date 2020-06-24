@@ -2319,7 +2319,19 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, CAm
     CScript scriptPubKeyKernel;
     CTxDB   txdb("r");
 
-    FindStakeKernel(keystore, key, nBits, setCoins, txdb, txNew, vwtxPrev, scriptPubKeyKernel, nCredit);
+    {
+        // since time search goes backwards, and there's potential for tx time to go back, we store it to
+        // use it later in UpdateStakeSearchTimes()
+        int64_t nSearchTime = txNew.nTime;
+        if (txNew.nTime > nLastCoinStakeSearchTime) {
+            FindStakeKernel(keystore, key, nBits, setCoins, txdb, txNew, vwtxPrev, scriptPubKeyKernel,
+                            nCredit);
+            CWallet::UpdateStakeSearchTimes(nSearchTime);
+        } else {
+            CWallet::UpdateStakeSearchTimes(nSearchTime);
+            return false;
+        }
+    }
 
     if (nCredit == 0 || nCredit > nBalance - nReserveBalance)
         return false;
