@@ -2373,19 +2373,25 @@ boost::optional<CoinStakeData> CWallet::CreateCoinStake(const CKeyStore&   keyst
     stakeTx.vout.push_back(CTxOut(0, kernelData->stakeOutputScriptPubKey));
 
     if (GetWeight(kernelData->kernelBlockTime, kernelData->stakeTxTime) < Params().StakeSplitAge()) {
-        stakeTx.vout.push_back(CTxOut(0, kernelData->kernelScriptPubKey));
         // split stake
+        stakeTx.vout.push_back(CTxOut(0, kernelData->kernelScriptPubKey));
     }
 
     // Attempt to add more inputs
     for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
         // Only add coins of the same key/address as kernel
-        unsigned int nSMA = Params().StakeMinAge();
-        if (stakeTx.vout.size() == 2 &&
-            ((pcoin.first->vout[pcoin.second].scriptPubKey == kernelData->kernelScriptPubKey ||
-              pcoin.first->vout[pcoin.second].scriptPubKey == stakeTx.vout[1].scriptPubKey)) &&
-            pcoin.first->GetHash() != stakeTx.vin[0].prevout.hash) {
-            int64_t nTimeWeight = GetWeight((int64_t)pcoin.first->nTime, (int64_t)stakeTx.nTime);
+        const unsigned int nSMA    = Params().StakeMinAge();
+        const CTxOut&      prevout = pcoin.first->vout[pcoin.second];
+
+        const bool sameScriptPubKeyAsKernel = prevout.scriptPubKey == kernelData->kernelScriptPubKey ||
+                                              prevout.scriptPubKey == stakeTx.vout[1].scriptPubKey;
+        const bool noNeedToSplitStake = stakeTx.vout.size() == 2;
+
+        const bool isTheKernelWeAlreadyHave = pcoin.first->GetHash() == stakeTx.vin[0].prevout.hash;
+
+        if (noNeedToSplitStake && sameScriptPubKeyAsKernel && !isTheKernelWeAlreadyHave) {
+
+            const int64_t nTimeWeight = GetWeight((int64_t)pcoin.first->nTime, (int64_t)stakeTx.nTime);
 
             // Stop adding more inputs if already too many inputs
             if (stakeTx.vin.size() >= Params().MaxInputsInStake())
@@ -2394,17 +2400,17 @@ boost::optional<CoinStakeData> CWallet::CreateCoinStake(const CKeyStore&   keyst
             if (nCredit >= Params().StakeCombineThreshold())
                 break;
             // Stop adding inputs if reached reserve limit
-            if (nCredit + pcoin.first->vout[pcoin.second].nValue > nBalance - nReserveBalance)
+            if (nCredit + prevout.nValue > nBalance - nReserveBalance)
                 break;
             // Do not add additional significant input
-            if (pcoin.first->vout[pcoin.second].nValue >= Params().StakeCombineThreshold())
+            if (prevout.nValue >= Params().StakeCombineThreshold())
                 continue;
             // Do not add input that is still too young
             if (nTimeWeight < nSMA)
                 continue;
 
             stakeTx.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
-            nCredit += pcoin.first->vout[pcoin.second].nValue;
+            nCredit += prevout.nValue;
             vwtxPrev.push_back(pcoin.first);
         }
     }
