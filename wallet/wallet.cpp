@@ -2319,6 +2319,56 @@ CWallet::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBits,
     return boost::none;
 }
 
+std::vector<CTxIn> CollectInputsForStake(const StakeKernelData&                           kernelData,
+                                         const set<pair<const CWalletTx*, unsigned int>>& setCoins,
+                                         const int64_t txTime, const bool splitStake,
+                                         const CAmount nBalance, CAmount& nCredit,
+                                         vector<const CWalletTx*>& vwtxPrev)
+{
+    std::vector<CTxIn> result;
+
+    // add the kernel input
+    result.push_back(kernelData.kernelInput);
+
+    // Attempt to add more inputs
+    for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
+        // Only add coins of the same key/address as kernel
+        const unsigned int nSMA    = Params().StakeMinAge();
+        const CTxOut&      prevout = pcoin.first->vout[pcoin.second];
+
+        const bool sameScriptPubKeyAsKernel = prevout.scriptPubKey == kernelData.kernelScriptPubKey ||
+                                              prevout.scriptPubKey == kernelData.stakeOutputScriptPubKey;
+
+        const bool isTheKernelWeAlreadyHave = pcoin.first->GetHash() == result[0].prevout.hash;
+
+        if (!splitStake && sameScriptPubKeyAsKernel && !isTheKernelWeAlreadyHave) {
+
+            const int64_t nTimeWeight = GetWeight((int64_t)pcoin.first->nTime, txTime);
+
+            // Stop adding more inputs if already too many inputs
+            if (result.size() >= Params().MaxInputsInStake())
+                break;
+            // Stop adding more inputs if value is already pretty significant
+            if (nCredit >= Params().StakeCombineThreshold())
+                break;
+            // Stop adding inputs if reached reserve limit
+            if (nCredit + prevout.nValue > nBalance - nReserveBalance)
+                break;
+            // Do not add additional significant input
+            if (prevout.nValue >= Params().StakeCombineThreshold())
+                continue;
+            // Do not add input that is still too young
+            if (nTimeWeight < nSMA)
+                continue;
+
+            result.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
+            nCredit += prevout.nValue;
+            vwtxPrev.push_back(pcoin.first);
+        }
+    }
+    return result;
+}
+
 boost::optional<CoinStakeData> CWallet::CreateCoinStake(const CKeyStore&   keystore,
                                                         const unsigned int nBits, const CAmount nFees)
 {
@@ -2372,46 +2422,8 @@ boost::optional<CoinStakeData> CWallet::CreateCoinStake(const CKeyStore&   keyst
     const bool splitStake =
         GetWeight(kernelData->kernelBlockTime, kernelData->stakeTxTime) < Params().StakeSplitAge();
 
-    // add the kernel input
-    stakeTx.vin.push_back(kernelData->kernelInput);
-
-    // Attempt to add more inputs
-    for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
-        // Only add coins of the same key/address as kernel
-        const unsigned int nSMA    = Params().StakeMinAge();
-        const CTxOut&      prevout = pcoin.first->vout[pcoin.second];
-
-        const bool sameScriptPubKeyAsKernel =
-            prevout.scriptPubKey == kernelData->kernelScriptPubKey ||
-            prevout.scriptPubKey == kernelData->stakeOutputScriptPubKey;
-
-        const bool isTheKernelWeAlreadyHave = pcoin.first->GetHash() == stakeTx.vin[0].prevout.hash;
-
-        if (!splitStake && sameScriptPubKeyAsKernel && !isTheKernelWeAlreadyHave) {
-
-            const int64_t nTimeWeight = GetWeight((int64_t)pcoin.first->nTime, (int64_t)stakeTx.nTime);
-
-            // Stop adding more inputs if already too many inputs
-            if (stakeTx.vin.size() >= Params().MaxInputsInStake())
-                break;
-            // Stop adding more inputs if value is already pretty significant
-            if (nCredit >= Params().StakeCombineThreshold())
-                break;
-            // Stop adding inputs if reached reserve limit
-            if (nCredit + prevout.nValue > nBalance - nReserveBalance)
-                break;
-            // Do not add additional significant input
-            if (prevout.nValue >= Params().StakeCombineThreshold())
-                continue;
-            // Do not add input that is still too young
-            if (nTimeWeight < nSMA)
-                continue;
-
-            stakeTx.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
-            nCredit += prevout.nValue;
-            vwtxPrev.push_back(pcoin.first);
-        }
-    }
+    stakeTx.vin = CollectInputsForStake(*kernelData, setCoins, stakeTx.nTime, splitStake, nBalance,
+                                        nCredit, vwtxPrev);
 
     // Calculate coin age reward
     {
