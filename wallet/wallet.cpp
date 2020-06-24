@@ -2368,10 +2368,12 @@ boost::optional<CoinStakeData> CWallet::CreateCoinStake(const CKeyStore&   keyst
 
     CTransaction stakeTx;
     stakeTx.nTime = kernelData->stakeTxTime;
-    stakeTx.vin.push_back(kernelData->kernelInput);
 
     const bool splitStake =
         GetWeight(kernelData->kernelBlockTime, kernelData->stakeTxTime) < Params().StakeSplitAge();
+
+    // add the kernel input
+    stakeTx.vin.push_back(kernelData->kernelInput);
 
     // Attempt to add more inputs
     for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
