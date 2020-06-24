@@ -2185,14 +2185,14 @@ boost::optional<CScript> CWallet::CalculateScriptPubKeyForStakeOutput(const CKey
     txnouttype      whichType;
     if (!Solver(scriptPubKeyKernel, whichType, vSolutions)) {
         if (fDebug)
-            printf("FindStakeKernel : failed to parse kernel\n");
+            printf("CalculateScriptPubKeyForStakeOutput : failed to parse kernel\n");
         return boost::none;
     }
     if (fDebug)
-        printf("FindStakeKernel : parsed kernel type=%d\n", whichType);
+        printf("CalculateScriptPubKeyForStakeOutput : parsed kernel type=%d\n", whichType);
     if (whichType != TX_PUBKEY && whichType != TX_PUBKEYHASH && whichType != TX_COLDSTAKE) {
         if (fDebug)
-            printf("FindStakeKernel : no support for kernel type=%d\n", whichType);
+            printf("CalculateScriptPubKeyForStakeOutput : no support for kernel type=%d\n", whichType);
         return boost::none; // only support pay to public key and pay to address
     }
 
@@ -2202,7 +2202,8 @@ boost::optional<CScript> CWallet::CalculateScriptPubKeyForStakeOutput(const CKey
         // convert to pay to public key type
         if (!keystore.GetKey(uint160(vSolutions[0]), key)) {
             if (fDebug)
-                printf("FindStakeKernel : failed to get key for kernel type=%d\n", whichType);
+                printf("CalculateScriptPubKeyForStakeOutput : failed to get key for kernel type=%d\n",
+                       whichType);
             return boost::none; // unable to find corresponding public key
         }
         return CScript() << key.GetPubKey() << OP_CHECKSIG;
@@ -2213,13 +2214,15 @@ boost::optional<CScript> CWallet::CalculateScriptPubKeyForStakeOutput(const CKey
         valtype& vchPubKey = vSolutions[0];
         if (!keystore.GetKey(Hash160(vchPubKey), key)) {
             if (fDebug)
-                printf("FindStakeKernel : failed to get key for kernel type=%d\n", whichType);
+                printf("CalculateScriptPubKeyForStakeOutput : failed to get key for kernel type=%d\n",
+                       whichType);
             return boost::none; // unable to find corresponding public key
         }
 
         if (key.GetPubKey() != vchPubKey) {
             if (fDebug)
-                printf("FindStakeKernel : invalid key for kernel type=%d\n", whichType);
+                printf("CalculateScriptPubKeyForStakeOutput : invalid key for kernel type=%d\n",
+                       whichType);
             return boost::none; // keys mismatch
         }
         return scriptPubKeyKernel;
@@ -2233,7 +2236,9 @@ boost::optional<CScript> CWallet::CalculateScriptPubKeyForStakeOutput(const CKey
     }
 
     if (fDebug)
-        printf("FindStakeKernel : Unsupported scriptPubKey type for staking type=%d\n", whichType);
+        printf(
+            "CalculateScriptPubKeyForStakeOutput : Unsupported scriptPubKey type for staking type=%d\n",
+            whichType);
     return boost::none;
 }
 
@@ -2242,6 +2247,11 @@ void CWallet::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBit
                               vector<const CWalletTx*>& vwtxPrev, CScript& scriptPubKeyKernel,
                               CAmount& nCredit, CoinStakeResult& coinStake)
 {
+    // Mark coin stake transaction
+    CScript scriptEmpty;
+    scriptEmpty.clear();
+    coinStake.txCoinStake.vout.push_back(CTxOut(0, scriptEmpty));
+
     const int64_t nSearchInterval = coinStake.txCoinStake.nTime - nLastCoinStakeSearchTime;
 
     CBlockIndexSmartPtr pindexPrev = boost::atomic_load(&pindexBest);
@@ -2316,11 +2326,6 @@ boost::optional<CoinStakeResult> CWallet::CreateCoinStake(const CKeyStore&   key
 
     CBigNum bnTargetPerCoinDay;
     bnTargetPerCoinDay.SetCompact(nBits);
-
-    // Mark coin stake transaction
-    CScript scriptEmpty;
-    scriptEmpty.clear();
-    result.txCoinStake.vout.push_back(CTxOut(0, scriptEmpty));
 
     // Choose coins to use
     CAmount nBalance = GetBalance();
