@@ -1475,15 +1475,13 @@ bool CBlock::SignBlock(CWallet& wallet, int64_t nFees)
     // we set the startup time only once
     std::call_once(flag, [&]() { nLastCoinStakeSearchTime = GetAdjustedTime(); });
 
-    CKey key;
-
     CBlockIndexSmartPtr pindexBestPtr = boost::atomic_load(&pindexBest);
-    if (boost::optional<CTransaction> txCoinStake = wallet.CreateCoinStake(wallet, nBits, nFees, key)) {
-        if (txCoinStake->nTime >=
+    if (boost::optional<CoinStakeResult> coinStake = wallet.CreateCoinStake(wallet, nBits, nFees)) {
+        if (coinStake->txCoinStake.nTime >=
             std::max(pindexBestPtr->GetPastTimeLimit() + 1, PastDrift(pindexBestPtr->GetBlockTime()))) {
             // make sure coinstake would meet timestamp protocol
             //    as it would be the same as the block timestamp
-            vtx[0].nTime = nTime = txCoinStake->nTime;
+            vtx[0].nTime = nTime = coinStake->txCoinStake.nTime;
             nTime = std::max(pindexBestPtr->GetPastTimeLimit() + 1, GetMaxTransactionTime());
             nTime = std::max(GetBlockTime(), PastDrift(pindexBestPtr->GetBlockTime()));
 
@@ -1496,11 +1494,11 @@ bool CBlock::SignBlock(CWallet& wallet, int64_t nFees)
                     ++it;
                 }
 
-            vtx.insert(vtx.begin() + 1, *txCoinStake);
+            vtx.insert(vtx.begin() + 1, coinStake->txCoinStake);
             hashMerkleRoot = GetMerkleRoot();
 
             // append a signature to our block
-            return key.Sign(GetHash(), vchBlockSig);
+            return coinStake->key.Sign(GetHash(), vchBlockSig);
         }
     }
 

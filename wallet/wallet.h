@@ -276,9 +276,9 @@ public:
                          const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins,
                          CTxDB& txdb, CTransaction& txNew, std::vector<const CWalletTx*>& vwtxPrev,
                          CScript& scriptPubKeyKernel, CAmount& nCredit);
-    boost::optional<CTransaction> CreateCoinStake(const CKeyStore& keystore, unsigned int nBits,
-                                                  CAmount nFees, CKey& key);
-    static void                   UpdateStakeSearchTimes(int64_t nSearchTime);
+    boost::optional<CoinStakeResult> CreateCoinStake(const CKeyStore& keystore, unsigned int nBits,
+                                                     CAmount nFees);
+    static void                      UpdateStakeSearchTimes(int64_t nSearchTime);
 
     std::string SendMoney(CScript scriptPubKey, CAmount nValue, CWalletTx& wtxNew, bool fAskFee = false);
     std::string SendMoneyToDestination(const CTxDestination& address, CAmount nValue, CWalletTx& wtxNew,
