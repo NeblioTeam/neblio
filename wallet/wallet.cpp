@@ -2288,10 +2288,11 @@ CoinStakeResult CWallet::FindStakeKernel(const CKeyStore& keystore, const unsign
                 if (fDebug)
                     printf("FindStakeKernel : kernel found\n");
 
-                coinStake.kernelScriptPubKey = pcoin.first->vout[pcoin.second].scriptPubKey;
+                const CScript& kernelScriptPubKey = pcoin.first->vout[pcoin.second].scriptPubKey;
 
-                const boost::optional<CScript> spkKernel = CalculateScriptPubKeyForStakeOutput(
-                    keystore, coinStake.kernelScriptPubKey, coinStake.key);
+                const boost::optional<CScript> spkKernel =
+                    CalculateScriptPubKeyForStakeOutput(keystore, kernelScriptPubKey, coinStake.key);
+
                 if (!spkKernel) {
                     if (fDebug)
                         printf("FindStakeKernel : failed to get scriptPubKey for kernel");
@@ -2301,6 +2302,7 @@ CoinStakeResult CWallet::FindStakeKernel(const CKeyStore& keystore, const unsign
                 // Mark coin stake transaction
                 CScript scriptEmpty;
                 scriptEmpty.clear();
+                coinStake.kernelScriptPubKey = kernelScriptPubKey;
                 coinStake.txCoinStake.vout.push_back(CTxOut(0, scriptEmpty));
                 coinStake.txCoinStake.nTime = nCoinstakeInitialTxTime - n;
                 coinStake.txCoinStake.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
