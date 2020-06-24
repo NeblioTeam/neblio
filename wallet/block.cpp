@@ -859,36 +859,49 @@ bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
             }
 
             // get the common ancestor between current chain and previous chain
-            CBlockIndexSmartPtr commonAncestor = pindexBest;
-            while (commonAncestor->pprev &&
-                   *commonAncestor->phashBlock != *ancestorOfPrevInMainChain->phashBlock) {
-                commonAncestor = commonAncestor->pprev;
+            CBlockIndexSmartPtr blocksInNewBranch = pindexBest;
+            while (blocksInNewBranch->pprev &&
+                   blocksInNewBranch->GetBlockHash() != ancestorOfPrevInMainChain->GetBlockHash()) {
+                blocksInNewBranch = blocksInNewBranch->pprev;
             }
 
+            // one step forward from common ancestor, since it matches the last block
+            // (which is synced with wallet)
+            blocksInNewBranch = blocksInNewBranch->pnext;
+
             // loop over all blocks from the common ancestor, to now, and sync these txs
-            do {
-                CBlock block;
-                if (!block.ReadFromDisk(commonAncestor.get(), txdb)) {
-                    printf("SetBestChain() : ReadFromDisk failed + couldn't sync with wallet\n");
-                    continue;
+            while (blocksInNewBranch) {
+                CBlock*                 blockPtr = nullptr;
+                std::unique_ptr<CBlock> blockUniquePtr;
+                if (this->GetHash() == blocksInNewBranch->GetBlockHash()) {
+                    blockPtr = this;
+                } else {
+                    blockUniquePtr = MakeUnique<CBlock>();
+                    if (!blockUniquePtr->ReadFromDisk(blocksInNewBranch.get(), txdb)) {
+                        printf("SetBestChain() : ReadFromDisk failed + couldn't sync with wallet\n");
+                        continue;
+                    }
+                    blockPtr = blockUniquePtr.get();
                 }
 
                 // Watch for transactions paying to me
-                for (CTransaction& tx : block.vtx)
-                    SyncWithWallets(tx, &block);
+                for (CTransaction& tx : blockPtr->vtx) {
+                    SyncWithWallets(tx, blockPtr);
+                }
 
-                if (*commonAncestor->phashBlock == *pindexBest->phashBlock) {
+                if (blocksInNewBranch->GetBlockHash() == pindexBest->GetBlockHash()) {
                     break;
                 }
 
                 // pnext is always in the main chain
-                commonAncestor = commonAncestor->pnext;
-            } while (commonAncestor);
+                blocksInNewBranch = blocksInNewBranch->pnext;
+            }
         } else {
             // this is for genesis
             // Watch for transactions paying to me
-            for (CTransaction& tx : vtx)
+            for (CTransaction& tx : vtx) {
                 SyncWithWallets(tx, this);
+            }
         }
     }
 
