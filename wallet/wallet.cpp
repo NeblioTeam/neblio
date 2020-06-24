@@ -2245,7 +2245,7 @@ boost::optional<CScript> CWallet::CalculateScriptPubKeyForStakeOutput(const CKey
 CoinStakeResult CWallet::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBits,
                                          const int64_t nCoinstakeTxTime,
                                          const set<pair<const CWalletTx*, unsigned int>>& setCoins,
-                                         CTxDB& txdb, vector<const CWalletTx*>& vwtxPrev)
+                                         CTxDB&                                           txdb)
 {
     CoinStakeResult coinStake;
 
@@ -2306,8 +2306,8 @@ CoinStakeResult CWallet::FindStakeKernel(const CKeyStore& keystore, const unsign
 
                 coinStake.txCoinStake.nTime -= n;
                 coinStake.txCoinStake.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
-                coinStake.credit = pcoin.first->vout[pcoin.second].nValue;
-                vwtxPrev.push_back(pcoin.first);
+                coinStake.credit   = pcoin.first->vout[pcoin.second].nValue;
+                coinStake.kernelTx = pcoin.first;
                 coinStake.txCoinStake.vout.push_back(CTxOut(0, *spkKernel));
 
                 if (GetWeight(block.GetBlockTime(), (int64_t)coinStake.txCoinStake.nTime) <
@@ -2336,8 +2336,6 @@ boost::optional<CoinStakeResult> CWallet::CreateCoinStake(const CKeyStore&   key
     if (nBalance <= nReserveBalance)
         return boost::none;
 
-    vector<const CWalletTx*> vwtxPrev;
-
     set<pair<const CWalletTx*, unsigned int>> setCoins;
     CAmount                                   nValueIn = 0;
 
@@ -2360,11 +2358,11 @@ boost::optional<CoinStakeResult> CWallet::CreateCoinStake(const CKeyStore&   key
 
     // since time search goes backwards, and there's potential for tx time to go back, we store it to
     // use it later in UpdateStakeSearchTimes()
-    CoinStakeResult result =
-        FindStakeKernel(keystore, nBits, nCoinstakeInitialTxTime, setCoins, txdb, vwtxPrev);
+    CoinStakeResult result = FindStakeKernel(keystore, nBits, nCoinstakeInitialTxTime, setCoins, txdb);
     CWallet::UpdateStakeSearchTimes(nCoinstakeInitialTxTime);
 
-    CAmount nCredit = result.credit;
+    CAmount                  nCredit = result.credit;
+    vector<const CWalletTx*> vwtxPrev(1, result.kernelTx);
 
     if (nCredit == 0 || nCredit > nBalance - nReserveBalance)
         return boost::none;
