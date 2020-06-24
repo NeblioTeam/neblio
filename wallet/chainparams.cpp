@@ -138,6 +138,7 @@ public:
 
         nStakeSplitAge         = 1 * 24 * 60 * 60;
         nStakeCombineThreshold = 1000 * COIN;
+        nMaxInputsInStake      = 100;
 
         nLastPoWBlock = 1000;
 
@@ -296,6 +297,7 @@ public:
 
         nStakeSplitAge         = 1 * 24 * 60 * 60;
         nStakeCombineThreshold = 1000 * COIN;
+        nMaxInputsInStake      = 100;
 
         nLastPoWBlock = 1000;
 
@@ -449,6 +451,7 @@ public:
 
         nStakeSplitAge         = 60 * 60;
         nStakeCombineThreshold = 1000 * COIN;
+        nMaxInputsInStake      = 10;
 
         nLastPoWBlock = 1000;
 
@@ -562,5 +565,7 @@ const MapStakeModifierCheckpoints& CChainParams::StakeModifierCheckpoints() cons
 unsigned CChainParams::StakeSplitAge() const { return nStakeSplitAge; }
 
 int64_t CChainParams::StakeCombineThreshold() const { return nStakeCombineThreshold; }
+
+unsigned int CChainParams::MaxInputsInStake() const { return nMaxInputsInStake; }
 
 int CChainParams::LastPoWBlock() const { return nLastPoWBlock; }

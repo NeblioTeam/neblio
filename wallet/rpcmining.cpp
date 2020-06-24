@@ -640,7 +640,6 @@ Value generatePOSBlocks(int nGenerate, CWallet* const pwallet)
             if (pblock->SignBlock(*pwallet, 0)) {
                 if (!CheckStake(pblock.get(), *pwallet))
                     throw JSONRPCError(RPC_INTERNAL_ERROR, "CheckStake, CheckStake failed");
-
             } else {
                 pblock.reset();
             }

@@ -101,6 +101,11 @@ public:
      * This works only if coins age > StakeSplitAge() */
     int64_t StakeCombineThreshold() const;
 
+    /**
+     * The maximum inputs to add to a transaction when a stake kernel is successfully found
+     */
+    unsigned int MaxInputsInStake() const;
+
     /** to kick-start the blockchain, this specifies the amount of blocks that should be mined with proof
      * of work */
     int LastPoWBlock() const;
@@ -148,6 +153,7 @@ protected:
 
     unsigned int nStakeSplitAge;
     int64_t      nStakeCombineThreshold;
+    unsigned int nMaxInputsInStake;
 
     int nLastPoWBlock;
 

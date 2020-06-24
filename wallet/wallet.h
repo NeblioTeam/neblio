@@ -56,6 +56,12 @@ public:
     virtual void     setReferenceBlockHeight() {}
 };
 
+struct CoinStakeResult
+{
+    CTransaction tx;
+    CKey         key;
+};
+
 /** A key pool entry */
 class CKeyPool
 {
@@ -266,7 +272,12 @@ public:
 
     bool GetStakeWeight(const CKeyStore& keystore, uint64_t& nMinWeight, uint64_t& nMaxWeight,
                         uint64_t& nWeight);
-    bool CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int64_t nSearchInterval,
+    void FindStakeKernel(const CKeyStore& keystore, CKey& key, int64_t nSearchInterval,
+                         unsigned int                                               nBits,
+                         const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins,
+                         CTxDB& txdb, CTransaction& txNew, std::vector<const CWalletTx*>& vwtxPrev,
+                         CScript& scriptPubKeyKernel, CAmount& nCredit);
+    bool CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int64_t nSearchTime,
                          CAmount nFees, CTransaction& txNew, CKey& key);
 
     std::string SendMoney(CScript scriptPubKey, CAmount nValue, CWalletTx& wtxNew, bool fAskFee = false);

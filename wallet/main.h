@@ -75,6 +75,7 @@ extern uint256                                      hashBestChain;
 extern uint64_t                                     nLastBlockTx;
 extern uint64_t                                     nLastBlockSize;
 extern boost::atomic<int64_t>                       nLastCoinStakeSearchInterval;
+extern boost::atomic<int64_t>                       nLastCoinStakeSearchTime;
 extern const std::string                            strMessageMagic;
 extern int64_t                                      nTimeBestReceived;
 extern CCriticalSection                             cs_setpwalletRegistered;
