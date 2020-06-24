@@ -56,13 +56,22 @@ public:
     virtual void     setReferenceBlockHeight() {}
 };
 
-struct CoinStakeResult
+struct StakeKernelData
 {
-    CTransaction     txCoinStake;
     CScript          kernelScriptPubKey;
+    CScript          stakeOutputScriptPubKey;
     CKey             key;
     CAmount          credit = 0;
-    const CWalletTx* kernelTx;
+    CTxIn            kernelInput;
+    int64_t          kernelBlockTime = 0;
+    const CWalletTx* kernelTx        = nullptr;
+    int64_t          stakeTxTime     = 0;
+};
+
+struct CoinStakeData
+{
+    CTransaction coinStakeTx;
+    CKey         key;
 };
 
 struct KernelScriptPubKeyResult
@@ -293,12 +302,12 @@ public:
     static boost::optional<KernelScriptPubKeyResult>
     CalculateScriptPubKeyForStakeOutput(const CKeyStore& keystore, const CScript& scriptPubKeyKernel);
 
-    boost::optional<CoinStakeResult>
-                                     FindStakeKernel(const CKeyStore& keystore, unsigned int nBits, int64_t nCoinstakeInitialTxTime,
-                                                     const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins);
-    boost::optional<CoinStakeResult> CreateCoinStake(const CKeyStore& keystore, unsigned int nBits,
-                                                     CAmount nFees);
-    static void                      UpdateStakeSearchTimes(int64_t nSearchTime);
+    boost::optional<StakeKernelData>
+                                   FindStakeKernel(const CKeyStore& keystore, unsigned int nBits, int64_t nCoinstakeInitialTxTime,
+                                                   const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins);
+    boost::optional<CoinStakeData> CreateCoinStake(const CKeyStore& keystore, unsigned int nBits,
+                                                   CAmount nFees);
+    static void                    UpdateStakeSearchTimes(int64_t nSearchTime);
 
     std::string SendMoney(CScript scriptPubKey, CAmount nValue, CWalletTx& wtxNew, bool fAskFee = false);
     std::string SendMoneyToDestination(const CTxDestination& address, CAmount nValue, CWalletTx& wtxNew,
