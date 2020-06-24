@@ -136,9 +136,11 @@ public:
         fMiningRequiresPeers = true;
         fMineBlocksOnDemand  = false;
 
-        nStakeSplitAge         = 1 * 24 * 60 * 60;
-        nStakeCombineThreshold = 1000 * COIN;
-        nMaxInputsInStake      = 100;
+        // staking parameters
+        nStakeSplitAge          = 1 * 24 * 60 * 60;
+        nStakeCombineThreshold  = 1000 * COIN;
+        nMaxInputsInStake       = 100;
+        nMaxStakeSearchInterval = 60;
 
         nLastPoWBlock = 1000;
 
@@ -295,9 +297,11 @@ public:
         fMiningRequiresPeers = true;
         fMineBlocksOnDemand  = false;
 
-        nStakeSplitAge         = 1 * 24 * 60 * 60;
-        nStakeCombineThreshold = 1000 * COIN;
-        nMaxInputsInStake      = 100;
+        // staking parameters
+        nStakeSplitAge          = 1 * 24 * 60 * 60;
+        nStakeCombineThreshold  = 1000 * COIN;
+        nMaxInputsInStake       = 100;
+        nMaxStakeSearchInterval = 60;
 
         nLastPoWBlock = 1000;
 
@@ -449,9 +453,11 @@ public:
         fMiningRequiresPeers = false;
         fMineBlocksOnDemand  = true;
 
-        nStakeSplitAge         = 60 * 60;
-        nStakeCombineThreshold = 1000 * COIN;
-        nMaxInputsInStake      = 10;
+        // staking parameters
+        nStakeSplitAge          = 60 * 60;
+        nStakeCombineThreshold  = 1000 * COIN;
+        nMaxInputsInStake       = 10;
+        nMaxStakeSearchInterval = 60;
 
         nLastPoWBlock = 1000;
 
@@ -567,5 +573,7 @@ unsigned CChainParams::StakeSplitAge() const { return nStakeSplitAge; }
 int64_t CChainParams::StakeCombineThreshold() const { return nStakeCombineThreshold; }
 
 unsigned int CChainParams::MaxInputsInStake() const { return nMaxInputsInStake; }
+
+int CChainParams::MaxStakeSearchInterval() const { return nMaxStakeSearchInterval; }
 
 int CChainParams::LastPoWBlock() const { return nLastPoWBlock; }

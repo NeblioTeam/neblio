@@ -106,6 +106,11 @@ public:
      */
     unsigned int MaxInputsInStake() const;
 
+    /**
+     * The maximum time to go through in the past, in coinstake transaction time, to find a stake
+     */
+    int MaxStakeSearchInterval() const;
+
     /** to kick-start the blockchain, this specifies the amount of blocks that should be mined with proof
      * of work */
     int LastPoWBlock() const;
@@ -154,6 +159,7 @@ protected:
     unsigned int nStakeSplitAge;
     int64_t      nStakeCombineThreshold;
     unsigned int nMaxInputsInStake;
+    int          nMaxStakeSearchInterval;
 
     int nLastPoWBlock;
 

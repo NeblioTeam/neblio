@@ -2270,7 +2270,7 @@ CWallet::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBits,
                 continue;
         }
 
-        static const int   nMaxStakeSearchInterval = 60;
+        const int          nMaxStakeSearchInterval = Params().MaxStakeSearchInterval();
         const unsigned int nSMA                    = Params().StakeMinAge();
         if (kernelBlock.GetBlockTime() + nSMA > nCoinstakeInitialTxTime - nMaxStakeSearchInterval)
             continue; // only count coins meeting min age requirement
