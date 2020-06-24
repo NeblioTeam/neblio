@@ -2248,13 +2248,6 @@ CoinStakeResult CWallet::FindStakeKernel(const CKeyStore& keystore, const unsign
 {
     CoinStakeResult coinStake;
 
-    coinStake.txCoinStake.nTime = nCoinstakeInitialTxTime;
-
-    // Mark coin stake transaction
-    CScript scriptEmpty;
-    scriptEmpty.clear();
-    coinStake.txCoinStake.vout.push_back(CTxOut(0, scriptEmpty));
-
     const int64_t nSearchInterval = coinStake.txCoinStake.nTime - nLastCoinStakeSearchTime;
 
     CBlockIndexSmartPtr pindexPrev = boost::atomic_load(&pindexBest);
@@ -2277,7 +2270,7 @@ CoinStakeResult CWallet::FindStakeKernel(const CKeyStore& keystore, const unsign
 
         static const int   nMaxStakeSearchInterval = 60;
         const unsigned int nSMA                    = Params().StakeMinAge();
-        if (kernelBlock.GetBlockTime() + nSMA > coinStake.txCoinStake.nTime - nMaxStakeSearchInterval)
+        if (kernelBlock.GetBlockTime() + nSMA > nCoinstakeInitialTxTime - nMaxStakeSearchInterval)
             continue; // only count coins meeting min age requirement
 
         bool fKernelFound = false;
@@ -2289,7 +2282,7 @@ CoinStakeResult CWallet::FindStakeKernel(const CKeyStore& keystore, const unsign
             uint256   hashProofOfStake = 0, targetProofOfStake = 0;
             COutPoint prevoutStake = COutPoint(pcoin.first->GetHash(), pcoin.second);
             if (CheckStakeKernelHash(nBits, kernelBlock, txindex.pos.nTxPos, *pcoin.first, prevoutStake,
-                                     coinStake.txCoinStake.nTime - n, hashProofOfStake,
+                                     nCoinstakeInitialTxTime - n, hashProofOfStake,
                                      targetProofOfStake)) {
                 // Found a kernel
                 if (fDebug)
@@ -2305,7 +2298,11 @@ CoinStakeResult CWallet::FindStakeKernel(const CKeyStore& keystore, const unsign
                     continue;
                 }
 
-                coinStake.txCoinStake.nTime -= n;
+                // Mark coin stake transaction
+                CScript scriptEmpty;
+                scriptEmpty.clear();
+                coinStake.txCoinStake.vout.push_back(CTxOut(0, scriptEmpty));
+                coinStake.txCoinStake.nTime = nCoinstakeInitialTxTime - n;
                 coinStake.txCoinStake.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
                 coinStake.credit   = pcoin.first->vout[pcoin.second].nValue;
                 coinStake.kernelTx = pcoin.first;
