@@ -2361,10 +2361,12 @@ boost::optional<CoinStakeResult> CWallet::CreateCoinStake(const CKeyStore&   key
         FindStakeKernel(keystore, nBits, nCoinstakeInitialTxTime, setCoins);
     CWallet::UpdateStakeSearchTimes(nCoinstakeInitialTxTime);
 
+    // stake was not found
     if (!result) {
         return boost::none;
     }
 
+    // stake found! extract some parameters
     CAmount                  nCredit = result->credit;
     vector<const CWalletTx*> vwtxPrev(1, result->kernelTx);
 
