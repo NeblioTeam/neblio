@@ -272,10 +272,15 @@ public:
 
     bool GetStakeWeight(const CKeyStore& keystore, uint64_t& nMinWeight, uint64_t& nMaxWeight,
                         uint64_t& nWeight);
-    void FindStakeKernel(const CKeyStore& keystore, unsigned int nBits,
-                         const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins,
-                         CTxDB& txdb, std::vector<const CWalletTx*>& vwtxPrev,
-                         CScript& scriptPubKeyKernel, CAmount& nCredit, CoinStakeResult& coinStake);
+
+    boost::optional<CScript> CalculateScriptPubKeyForStakeOutput(const CKeyStore& keystore,
+                                                                 const CScript&   scriptPubKeyKernel,
+                                                                 CKey&            key);
+
+    void                             FindStakeKernel(const CKeyStore& keystore, unsigned int nBits,
+                                                     const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins,
+                                                     CTxDB& txdb, std::vector<const CWalletTx*>& vwtxPrev,
+                                                     CScript& scriptPubKeyKernel, CAmount& nCredit, CoinStakeResult& coinStake);
     boost::optional<CoinStakeResult> CreateCoinStake(const CKeyStore& keystore, unsigned int nBits,
                                                      CAmount nFees);
     static void                      UpdateStakeSearchTimes(int64_t nSearchTime);

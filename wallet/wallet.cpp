@@ -2177,6 +2177,66 @@ bool CWallet::GetStakeWeight(const CKeyStore& /*keystore*/, uint64_t& nMinWeight
     return true;
 }
 
+boost::optional<CScript> CWallet::CalculateScriptPubKeyForStakeOutput(const CKeyStore& keystore,
+                                                                      const CScript& scriptPubKeyKernel,
+                                                                      CKey&          key)
+{
+    vector<valtype> vSolutions;
+    txnouttype      whichType;
+    if (!Solver(scriptPubKeyKernel, whichType, vSolutions)) {
+        if (fDebug)
+            printf("FindStakeKernel : failed to parse kernel\n");
+        return boost::none;
+    }
+    if (fDebug)
+        printf("FindStakeKernel : parsed kernel type=%d\n", whichType);
+    if (whichType != TX_PUBKEY && whichType != TX_PUBKEYHASH && whichType != TX_COLDSTAKE) {
+        if (fDebug)
+            printf("FindStakeKernel : no support for kernel type=%d\n", whichType);
+        return boost::none; // only support pay to public key and pay to address
+    }
+
+    switch (whichType) {
+    case TX_PUBKEYHASH: // pay to address type
+    {
+        // convert to pay to public key type
+        if (!keystore.GetKey(uint160(vSolutions[0]), key)) {
+            if (fDebug)
+                printf("FindStakeKernel : failed to get key for kernel type=%d\n", whichType);
+            return boost::none; // unable to find corresponding public key
+        }
+        return CScript() << key.GetPubKey() << OP_CHECKSIG;
+    }
+
+    case TX_PUBKEY: // pay to public key
+    {
+        valtype& vchPubKey = vSolutions[0];
+        if (!keystore.GetKey(Hash160(vchPubKey), key)) {
+            if (fDebug)
+                printf("FindStakeKernel : failed to get key for kernel type=%d\n", whichType);
+            return boost::none; // unable to find corresponding public key
+        }
+
+        if (key.GetPubKey() != vchPubKey) {
+            if (fDebug)
+                printf("FindStakeKernel : invalid key for kernel type=%d\n", whichType);
+            return boost::none; // keys mismatch
+        }
+        return scriptPubKeyKernel;
+    }
+    case TX_COLDSTAKE:
+    case TX_SCRIPTHASH:
+    case TX_MULTISIG:
+    case TX_NULL_DATA:
+    case TX_NONSTANDARD:
+        break;
+    }
+
+    if (fDebug)
+        printf("FindStakeKernel : Unsupported scriptPubKey type for staking type=%d\n", whichType);
+    return boost::none;
+}
+
 void CWallet::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBits,
                               const set<pair<const CWalletTx*, unsigned int>>& setCoins, CTxDB& txdb,
                               vector<const CWalletTx*>& vwtxPrev, CScript& scriptPubKeyKernel,
@@ -2186,7 +2246,7 @@ void CWallet::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBit
 
     CBlockIndexSmartPtr pindexPrev = boost::atomic_load(&pindexBest);
 
-    for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
+    for (const auto& pcoin : setCoins) {
         CTxIndex txindex;
         CBlock   block;
         {
@@ -2219,62 +2279,26 @@ void CWallet::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBit
                 // Found a kernel
                 if (fDebug)
                     printf("FindStakeKernel : kernel found\n");
-                vector<valtype> vSolutions;
-                txnouttype      whichType;
-                CScript         scriptPubKeyOut;
+
                 scriptPubKeyKernel = pcoin.first->vout[pcoin.second].scriptPubKey;
-                if (!Solver(scriptPubKeyKernel, whichType, vSolutions)) {
-                    if (fDebug)
-                        printf("FindStakeKernel : failed to parse kernel\n");
-                    break;
-                }
-                if (fDebug)
-                    printf("FindStakeKernel : parsed kernel type=%d\n", whichType);
-                if (whichType != TX_PUBKEY && whichType != TX_PUBKEYHASH && whichType != TX_COLDSTAKE) {
-                    if (fDebug)
-                        printf("FindStakeKernel : no support for kernel type=%d\n", whichType);
-                    break; // only support pay to public key and pay to address
-                }
-                if (whichType == TX_PUBKEYHASH) // pay to address type
-                {
-                    // convert to pay to public key type
-                    if (!keystore.GetKey(uint160(vSolutions[0]), coinStake.key)) {
-                        if (fDebug)
-                            printf("FindStakeKernel : failed to get key for kernel type=%d\n",
-                                   whichType);
-                        break; // unable to find corresponding public key
-                    }
-                    scriptPubKeyOut << coinStake.key.GetPubKey() << OP_CHECKSIG;
-                }
-                if (whichType == TX_PUBKEY) {
-                    valtype& vchPubKey = vSolutions[0];
-                    if (!keystore.GetKey(Hash160(vchPubKey), coinStake.key)) {
-                        if (fDebug)
-                            printf("FindStakeKernel : failed to get key for kernel type=%d\n",
-                                   whichType);
-                        break; // unable to find corresponding public key
-                    }
 
-                    if (coinStake.key.GetPubKey() != vchPubKey) {
-                        if (fDebug)
-                            printf("FindStakeKernel : invalid key for kernel type=%d\n", whichType);
-                        break; // keys mismatch
-                    }
-
-                    scriptPubKeyOut = scriptPubKeyKernel;
+                const boost::optional<CScript> spkKernel =
+                    CalculateScriptPubKeyForStakeOutput(keystore, scriptPubKeyKernel, coinStake.key);
+                if (!spkKernel) {
+                    if (fDebug)
+                        printf("FindStakeKernel : failed to get scriptPubKey for kernel");
+                    continue;
                 }
 
                 coinStake.txCoinStake.nTime -= n;
                 coinStake.txCoinStake.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
                 nCredit += pcoin.first->vout[pcoin.second].nValue;
                 vwtxPrev.push_back(pcoin.first);
-                coinStake.txCoinStake.vout.push_back(CTxOut(0, scriptPubKeyOut));
+                coinStake.txCoinStake.vout.push_back(CTxOut(0, *spkKernel));
 
                 if (GetWeight(block.GetBlockTime(), (int64_t)coinStake.txCoinStake.nTime) <
                     Params().StakeSplitAge())
-                    coinStake.txCoinStake.vout.push_back(CTxOut(0, scriptPubKeyOut)); // split stake
-                if (fDebug)
-                    printf("FindStakeKernel : added kernel type=%d\n", whichType);
+                    coinStake.txCoinStake.vout.push_back(CTxOut(0, *spkKernel)); // split stake
                 fKernelFound = true;
                 break;
             }
