@@ -2177,12 +2177,12 @@ bool CWallet::GetStakeWeight(const CKeyStore& /*keystore*/, uint64_t& nMinWeight
     return true;
 }
 
-void CWallet::FindStakeKernel(const CKeyStore& keystore, CKey& key, const unsigned int nBits,
+void CWallet::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBits,
                               const set<pair<const CWalletTx*, unsigned int>>& setCoins, CTxDB& txdb,
-                              CTransaction& txNew, vector<const CWalletTx*>& vwtxPrev,
-                              CScript& scriptPubKeyKernel, CAmount& nCredit)
+                              vector<const CWalletTx*>& vwtxPrev, CScript& scriptPubKeyKernel,
+                              CAmount& nCredit, CoinStakeResult& coinStake)
 {
-    const int64_t nSearchInterval = txNew.nTime - nLastCoinStakeSearchTime;
+    const int64_t nSearchInterval = coinStake.txCoinStake.nTime - nLastCoinStakeSearchTime;
 
     CBlockIndexSmartPtr pindexPrev = boost::atomic_load(&pindexBest);
 
@@ -2202,19 +2202,20 @@ void CWallet::FindStakeKernel(const CKeyStore& keystore, CKey& key, const unsign
 
         static const int   nMaxStakeSearchInterval = 60;
         const unsigned int nSMA                    = Params().StakeMinAge();
-        if (block.GetBlockTime() + nSMA > txNew.nTime - nMaxStakeSearchInterval)
+        if (block.GetBlockTime() + nSMA > coinStake.txCoinStake.nTime - nMaxStakeSearchInterval)
             continue; // only count coins meeting min age requirement
 
         bool fKernelFound = false;
         for (unsigned int n = 0; n < min(nSearchInterval, (int64_t)nMaxStakeSearchInterval) &&
                                  !fKernelFound && !fShutdown && pindexPrev == pindexBest;
              n++) {
-            // Search backward in time from the given txNew timestamp
+            // Search backward in time from the given tx timestamp
             // Search nSearchInterval seconds back up to nMaxStakeSearchInterval
             uint256   hashProofOfStake = 0, targetProofOfStake = 0;
             COutPoint prevoutStake = COutPoint(pcoin.first->GetHash(), pcoin.second);
             if (CheckStakeKernelHash(nBits, block, txindex.pos.nTxPos, *pcoin.first, prevoutStake,
-                                     txNew.nTime - n, hashProofOfStake, targetProofOfStake)) {
+                                     coinStake.txCoinStake.nTime - n, hashProofOfStake,
+                                     targetProofOfStake)) {
                 // Found a kernel
                 if (fDebug)
                     printf("FindStakeKernel : kernel found\n");
@@ -2237,24 +2238,24 @@ void CWallet::FindStakeKernel(const CKeyStore& keystore, CKey& key, const unsign
                 if (whichType == TX_PUBKEYHASH) // pay to address type
                 {
                     // convert to pay to public key type
-                    if (!keystore.GetKey(uint160(vSolutions[0]), key)) {
+                    if (!keystore.GetKey(uint160(vSolutions[0]), coinStake.key)) {
                         if (fDebug)
                             printf("FindStakeKernel : failed to get key for kernel type=%d\n",
                                    whichType);
                         break; // unable to find corresponding public key
                     }
-                    scriptPubKeyOut << key.GetPubKey() << OP_CHECKSIG;
+                    scriptPubKeyOut << coinStake.key.GetPubKey() << OP_CHECKSIG;
                 }
                 if (whichType == TX_PUBKEY) {
                     valtype& vchPubKey = vSolutions[0];
-                    if (!keystore.GetKey(Hash160(vchPubKey), key)) {
+                    if (!keystore.GetKey(Hash160(vchPubKey), coinStake.key)) {
                         if (fDebug)
                             printf("FindStakeKernel : failed to get key for kernel type=%d\n",
                                    whichType);
                         break; // unable to find corresponding public key
                     }
 
-                    if (key.GetPubKey() != vchPubKey) {
+                    if (coinStake.key.GetPubKey() != vchPubKey) {
                         if (fDebug)
                             printf("FindStakeKernel : invalid key for kernel type=%d\n", whichType);
                         break; // keys mismatch
@@ -2263,14 +2264,15 @@ void CWallet::FindStakeKernel(const CKeyStore& keystore, CKey& key, const unsign
                     scriptPubKeyOut = scriptPubKeyKernel;
                 }
 
-                txNew.nTime -= n;
-                txNew.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
+                coinStake.txCoinStake.nTime -= n;
+                coinStake.txCoinStake.vin.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
                 nCredit += pcoin.first->vout[pcoin.second].nValue;
                 vwtxPrev.push_back(pcoin.first);
-                txNew.vout.push_back(CTxOut(0, scriptPubKeyOut));
+                coinStake.txCoinStake.vout.push_back(CTxOut(0, scriptPubKeyOut));
 
-                if (GetWeight(block.GetBlockTime(), (int64_t)txNew.nTime) < Params().StakeSplitAge())
-                    txNew.vout.push_back(CTxOut(0, scriptPubKeyOut)); // split stake
+                if (GetWeight(block.GetBlockTime(), (int64_t)coinStake.txCoinStake.nTime) <
+                    Params().StakeSplitAge())
+                    coinStake.txCoinStake.vout.push_back(CTxOut(0, scriptPubKeyOut)); // split stake
                 if (fDebug)
                     printf("FindStakeKernel : added kernel type=%d\n", whichType);
                 fKernelFound = true;
@@ -2328,8 +2330,7 @@ boost::optional<CoinStakeResult> CWallet::CreateCoinStake(const CKeyStore& keyst
         // since time search goes backwards, and there's potential for tx time to go back, we store it to
         // use it later in UpdateStakeSearchTimes()
         int64_t nSearchTime = result.txCoinStake.nTime;
-        FindStakeKernel(keystore, result.key, nBits, setCoins, txdb, result.txCoinStake, vwtxPrev,
-                        scriptPubKeyKernel, nCredit);
+        FindStakeKernel(keystore, nBits, setCoins, txdb, vwtxPrev, scriptPubKeyKernel, nCredit, result);
         CWallet::UpdateStakeSearchTimes(nSearchTime);
     }
 
