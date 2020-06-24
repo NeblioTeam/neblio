@@ -2263,7 +2263,7 @@ CoinStakeResult CWallet::FindStakeKernel(const CKeyStore& keystore, const unsign
 
     for (const auto& pcoin : setCoins) {
         CTxIndex txindex;
-        CBlock   block;
+        CBlock   kernelBlock;
         {
             LOCK2(cs_main, cs_wallet);
 
@@ -2271,13 +2271,13 @@ CoinStakeResult CWallet::FindStakeKernel(const CKeyStore& keystore, const unsign
                 continue;
 
             // Read block header
-            if (!block.ReadFromDisk(txindex.pos.nBlockPos, false))
+            if (!kernelBlock.ReadFromDisk(txindex.pos.nBlockPos, false))
                 continue;
         }
 
         static const int   nMaxStakeSearchInterval = 60;
         const unsigned int nSMA                    = Params().StakeMinAge();
-        if (block.GetBlockTime() + nSMA > coinStake.txCoinStake.nTime - nMaxStakeSearchInterval)
+        if (kernelBlock.GetBlockTime() + nSMA > coinStake.txCoinStake.nTime - nMaxStakeSearchInterval)
             continue; // only count coins meeting min age requirement
 
         bool fKernelFound = false;
@@ -2288,7 +2288,7 @@ CoinStakeResult CWallet::FindStakeKernel(const CKeyStore& keystore, const unsign
             // Search nSearchInterval seconds back up to nMaxStakeSearchInterval
             uint256   hashProofOfStake = 0, targetProofOfStake = 0;
             COutPoint prevoutStake = COutPoint(pcoin.first->GetHash(), pcoin.second);
-            if (CheckStakeKernelHash(nBits, block, txindex.pos.nTxPos, *pcoin.first, prevoutStake,
+            if (CheckStakeKernelHash(nBits, kernelBlock, txindex.pos.nTxPos, *pcoin.first, prevoutStake,
                                      coinStake.txCoinStake.nTime - n, hashProofOfStake,
                                      targetProofOfStake)) {
                 // Found a kernel
@@ -2313,7 +2313,7 @@ CoinStakeResult CWallet::FindStakeKernel(const CKeyStore& keystore, const unsign
 
                 int64_t txTime = (int64_t)coinStake.txCoinStake.nTime;
 
-                if (GetWeight(block.GetBlockTime(), txTime) < Params().StakeSplitAge())
+                if (GetWeight(kernelBlock.GetBlockTime(), txTime) < Params().StakeSplitAge())
                     coinStake.txCoinStake.vout.push_back(CTxOut(0, *spkKernel)); // split stake
                 fKernelFound = true;
                 break;
