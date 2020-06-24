@@ -2177,12 +2177,13 @@ bool CWallet::GetStakeWeight(const CKeyStore& /*keystore*/, uint64_t& nMinWeight
     return true;
 }
 
-void CWallet::FindStakeKernel(const CKeyStore& keystore, CKey& key, const int64_t nSearchInterval,
-                              const unsigned int                               nBits,
+void CWallet::FindStakeKernel(const CKeyStore& keystore, CKey& key, const unsigned int nBits,
                               const set<pair<const CWalletTx*, unsigned int>>& setCoins, CTxDB& txdb,
                               CTransaction& txNew, vector<const CWalletTx*>& vwtxPrev,
                               CScript& scriptPubKeyKernel, CAmount& nCredit)
 {
+    const int64_t nSearchInterval = txNew.nTime - nLastCoinStakeSearchTime;
+
     CBlockIndexSmartPtr pindexPrev = boost::atomic_load(&pindexBest);
 
     for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
@@ -2282,11 +2283,9 @@ void CWallet::FindStakeKernel(const CKeyStore& keystore, CKey& key, const int64_
     }
 }
 
-bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, const int64_t nSearchTime,
-                              CAmount nFees, CTransaction& txNew, CKey& key)
+bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, CAmount nFees,
+                              CTransaction& txNew, CKey& key)
 {
-    const int64_t nSearchInterval = nSearchTime - nLastCoinStakeSearchTime;
-
     CBigNum bnTargetPerCoinDay;
     bnTargetPerCoinDay.SetCompact(nBits);
 
@@ -2320,8 +2319,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, con
     CScript scriptPubKeyKernel;
     CTxDB   txdb("r");
 
-    FindStakeKernel(keystore, key, nSearchInterval, nBits, setCoins, txdb, txNew, vwtxPrev,
-                    scriptPubKeyKernel, nCredit);
+    FindStakeKernel(keystore, key, nBits, setCoins, txdb, txNew, vwtxPrev, scriptPubKeyKernel, nCredit);
 
     if (nCredit == 0 || nCredit > nBalance - nReserveBalance)
         return false;
