@@ -1476,7 +1476,8 @@ bool CBlock::SignBlock(CWallet& wallet, int64_t nFees)
     std::call_once(flag, [&]() { nLastCoinStakeSearchTime = GetAdjustedTime(); });
 
     CBlockIndexSmartPtr pindexBestPtr = boost::atomic_load(&pindexBest);
-    if (boost::optional<CoinStakeData> coinStake = wallet.CreateCoinStake(wallet, nBits, nFees)) {
+    if (boost::optional<CoinStakeData> coinStake =
+            wallet.CreateCoinStake(wallet, nBits, nFees, nReserveBalance)) {
         if (coinStake->coinStakeTx.nTime >=
             std::max(pindexBestPtr->GetPastTimeLimit() + 1, PastDrift(pindexBestPtr->GetBlockTime()))) {
             // make sure coinstake would meet timestamp protocol

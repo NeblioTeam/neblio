@@ -84,9 +84,9 @@ extern std::unordered_map<uint256, CBlock*>         mapOrphanBlocks;
 extern boost::atomic<bool>                          fImporting;
 
 // Settings
-extern int64_t      nTransactionFee;
-extern int64_t      nReserveBalance;
-extern int64_t      nMinimumInputValue;
+extern CAmount      nTransactionFee;
+extern CAmount      nReserveBalance;
+extern CAmount      nMinimumInputValue;
 extern unsigned int nDerivationMethodIndex;
 
 extern bool fEnforceCanonical;

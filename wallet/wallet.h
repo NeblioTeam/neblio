@@ -313,7 +313,7 @@ public:
                                    FindStakeKernel(const CKeyStore& keystore, unsigned int nBits, int64_t nCoinstakeInitialTxTime,
                                                    const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins);
     boost::optional<CoinStakeData> CreateCoinStake(const CKeyStore& keystore, unsigned int nBits,
-                                                   CAmount nFees);
+                                                   CAmount nFees, CAmount reservedBalance);
     static void                    UpdateStakeSearchTimes(int64_t nSearchTime);
 
     std::string SendMoney(CScript scriptPubKey, CAmount nValue, CWalletTx& wtxNew, bool fAskFee = false);

@@ -2322,7 +2322,7 @@ CWallet::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBits,
 CoinStakeInputsResult CollectInputsForStake(const StakeKernelData&                           kernelData,
                                             const set<pair<const CWalletTx*, unsigned int>>& setCoins,
                                             const int64_t txTime, const bool splitStake,
-                                            const CAmount nBalance)
+                                            const CAmount nBalance, const CAmount reservedBalance)
 {
     CoinStakeInputsResult result;
 
@@ -2353,7 +2353,7 @@ CoinStakeInputsResult CollectInputsForStake(const StakeKernelData&              
             if (result.nInputsTotalCredit >= Params().StakeCombineThreshold())
                 break;
             // Stop adding inputs if reached reserve limit
-            if (result.nInputsTotalCredit + prevout.nValue > nBalance - nReserveBalance)
+            if (result.nInputsTotalCredit + prevout.nValue > nBalance - reservedBalance)
                 break;
             // Do not add additional significant input
             if (prevout.nValue >= Params().StakeCombineThreshold())
@@ -2391,7 +2391,8 @@ std::vector<CTxOut> MakeStakeOutputs(const StakeKernelData& kernelData, const CA
 }
 
 boost::optional<CoinStakeData> CWallet::CreateCoinStake(const CKeyStore&   keystore,
-                                                        const unsigned int nBits, const CAmount nFees)
+                                                        const unsigned int nBits, const CAmount nFees,
+                                                        const CAmount reservedBalance)
 {
     CBigNum bnTargetPerCoinDay;
     bnTargetPerCoinDay.SetCompact(nBits);
@@ -2399,7 +2400,7 @@ boost::optional<CoinStakeData> CWallet::CreateCoinStake(const CKeyStore&   keyst
     // Choose coins to use
     const CAmount nBalance = GetBalance();
 
-    if (nBalance <= nReserveBalance)
+    if (nBalance <= reservedBalance)
         return boost::none;
 
     int64_t nCoinstakeInitialTxTime = GetAdjustedTime();
@@ -2413,7 +2414,7 @@ boost::optional<CoinStakeData> CWallet::CreateCoinStake(const CKeyStore&   keyst
     // Select coins with suitable depth
     set<pair<const CWalletTx*, unsigned int>> setCoins;
     CAmount                                   nValueIn = 0;
-    if (!SelectCoinsForStaking(nBalance - nReserveBalance, nCoinstakeInitialTxTime, setCoins, nValueIn))
+    if (!SelectCoinsForStaking(nBalance - reservedBalance, nCoinstakeInitialTxTime, setCoins, nValueIn))
         return boost::none;
 
     if (setCoins.empty())
@@ -2432,7 +2433,7 @@ boost::optional<CoinStakeData> CWallet::CreateCoinStake(const CKeyStore&   keyst
         return boost::none;
     }
 
-    if (kernelData->credit == 0 || kernelData->credit > nBalance - nReserveBalance)
+    if (kernelData->credit == 0 || kernelData->credit > nBalance - reservedBalance)
         return boost::none;
 
     CTransaction stakeTx;
@@ -2441,8 +2442,9 @@ boost::optional<CoinStakeData> CWallet::CreateCoinStake(const CKeyStore&   keyst
     const bool splitStake =
         GetWeight(kernelData->kernelBlockTime, kernelData->stakeTxTime) < Params().StakeSplitAge();
 
-    const CoinStakeInputsResult inputs =
-        CollectInputsForStake(*kernelData, setCoins, stakeTx.nTime, splitStake, nBalance);
+    const CoinStakeInputsResult inputs = CollectInputsForStake(*kernelData, setCoins, stakeTx.nTime,
+                                                               splitStake, nBalance, reservedBalance);
+
     stakeTx.vin = inputs.inputs;
 
     CAmount nFinalCredit = inputs.nInputsTotalCredit;
@@ -2456,7 +2458,7 @@ boost::optional<CoinStakeData> CWallet::CreateCoinStake(const CKeyStore&   keyst
             return boost::none;
         }
 
-        CAmount nReward = GetProofOfStakeReward(nCoinAge, nFees);
+        const CAmount nReward = GetProofOfStakeReward(nCoinAge, nFees);
         if (nReward <= 0)
             return boost::none;
 
@@ -2467,9 +2469,9 @@ boost::optional<CoinStakeData> CWallet::CreateCoinStake(const CKeyStore&   keyst
     stakeTx.vout = MakeStakeOutputs(*kernelData, nFinalCredit, splitStake);
 
     // Sign
-    int nIn = 0;
-    for (const CWalletTx* pcoin : inputs.inputsPrevouts) {
-        if (!SignSignature(*this, *pcoin, stakeTx, nIn++)) {
+    for (unsigned i = 0; i < inputs.inputsPrevouts.size(); i++) {
+        const CWalletTx* pcoin = inputs.inputsPrevouts[i];
+        if (!SignSignature(*this, *pcoin, stakeTx, i)) {
             printf("CreateCoinStake : failed to sign coinstake");
             return boost::none;
         }
