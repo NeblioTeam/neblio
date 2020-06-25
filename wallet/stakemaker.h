@@ -58,25 +58,23 @@ class StakeMaker
 
 public:
     StakeMaker() = default;
-    boost::optional<CoinStakeData> CreateCoinStake(const CWallet& wallet, const unsigned int nBits,
-                                                   const CAmount nFees, const CAmount reservedBalance);
+    boost::optional<CoinStakeData> CreateCoinStake(const CWallet& wallet, unsigned int nBits,
+                                                   CAmount nFees, CAmount reservedBalance);
     boost::optional<StakeKernelData>
-    FindStakeKernel(const CKeyStore& keystore, const unsigned int nBits,
-                    const int64_t                                              nCoinstakeInitialTxTime,
+    FindStakeKernel(const CKeyStore& keystore, unsigned int nBits, int64_t nCoinstakeInitialTxTime,
                     const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins);
-    boost::optional<KernelScriptPubKeyResult>
+    static boost::optional<KernelScriptPubKeyResult>
     CalculateScriptPubKeyForStakeOutput(const CKeyStore& keystore, const CScript& scriptPubKeyKernel);
-    CoinStakeInputsResult
-                        CollectInputsForStake(const StakeKernelData&                                     kernelData,
-                                              const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins,
-                                              const int64_t txTime, const bool splitStake, const CAmount nBalance,
-                                              const CAmount reservedBalance);
-    std::vector<CTxOut> MakeStakeOutputs(const StakeKernelData& kernelData, const CAmount totalCredit,
-                                         const bool splitStake);
-    void                UpdateStakeSearchTimes(const int64_t nSearchTime);
-    void                resetLastCoinStakeSearchInterval();
-    int64_t             getLastCoinStakeSearchInterval() const;
-    int64_t             getLastCoinStakeSearchTime() const;
+    static CoinStakeInputsResult
+                               CollectInputsForStake(const StakeKernelData&                                     kernelData,
+                                                     const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins,
+                                                     int64_t txTime, bool splitStake, CAmount nBalance, CAmount reservedBalance);
+    static std::vector<CTxOut> MakeStakeOutputs(const StakeKernelData& kernelData, CAmount totalCredit,
+                                                bool splitStake);
+    void                       UpdateStakeSearchTimes(int64_t nSearchTime);
+    void                       resetLastCoinStakeSearchInterval();
+    int64_t                    getLastCoinStakeSearchInterval() const;
+    int64_t                    getLastCoinStakeSearchTime() const;
 };
 
 #endif // STAKEMAKER_H
