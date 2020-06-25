@@ -2260,7 +2260,7 @@ CWallet::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBits,
         CTxIndex txindex;
         CBlock   kernelBlock;
         {
-            LOCK2(cs_main, cs_wallet);
+            LOCK(cs_main);
 
             if (!txdb.ReadTxIndex(pcoin.first->GetHash(), txindex))
                 continue;
@@ -2331,40 +2331,44 @@ CoinStakeInputsResult CollectInputsForStake(const StakeKernelData&              
     result.inputsPrevouts.push_back(kernelData.kernelTx);
     result.nInputsTotalCredit = kernelData.credit;
 
-    // Attempt to add more inputs
-    for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
-        // Only add coins of the same key/address as kernel
-        const unsigned int nSMA    = Params().StakeMinAge();
-        const CTxOut&      prevout = pcoin.first->vout[pcoin.second];
+    if (!splitStake) {
+        // Attempt to add more inputs
+        for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
+            // Only add coins of the same key/address as kernel
+            const unsigned int nSMA    = Params().StakeMinAge();
+            const CTxOut&      prevout = pcoin.first->vout[pcoin.second];
 
-        const bool sameScriptPubKeyAsKernel = prevout.scriptPubKey == kernelData.kernelScriptPubKey ||
-                                              prevout.scriptPubKey == kernelData.stakeOutputScriptPubKey;
+            const bool sameScriptPubKeyAsKernel =
+                prevout.scriptPubKey == kernelData.kernelScriptPubKey ||
+                prevout.scriptPubKey == kernelData.stakeOutputScriptPubKey;
 
-        const bool isTheKernelWeAlreadyHave = pcoin.first->GetHash() == result.inputs[0].prevout.hash;
+            const bool isTheKernelWeAlreadyHave =
+                pcoin.first->GetHash() == result.inputs[0].prevout.hash;
 
-        if (!splitStake && sameScriptPubKeyAsKernel && !isTheKernelWeAlreadyHave) {
+            if (sameScriptPubKeyAsKernel && !isTheKernelWeAlreadyHave) {
 
-            const int64_t nTimeWeight = GetWeight((int64_t)pcoin.first->nTime, txTime);
+                const int64_t nTimeWeight = GetWeight((int64_t)pcoin.first->nTime, txTime);
 
-            // Stop adding more inputs if already too many inputs
-            if (result.inputs.size() >= Params().MaxInputsInStake())
-                break;
-            // Stop adding more inputs if value is already pretty significant
-            if (result.nInputsTotalCredit >= Params().StakeCombineThreshold())
-                break;
-            // Stop adding inputs if reached reserve limit
-            if (result.nInputsTotalCredit + prevout.nValue > nBalance - reservedBalance)
-                break;
-            // Do not add additional significant input
-            if (prevout.nValue >= Params().StakeCombineThreshold())
-                continue;
-            // Do not add input that is still too young
-            if (nTimeWeight < nSMA)
-                continue;
+                // Stop adding more inputs if already too many inputs
+                if (result.inputs.size() >= Params().MaxInputsInStake())
+                    break;
+                // Stop adding more inputs if value is already pretty significant
+                if (result.nInputsTotalCredit >= Params().StakeCombineThreshold())
+                    break;
+                // Stop adding inputs if reached reserve limit
+                if (result.nInputsTotalCredit + prevout.nValue > nBalance - reservedBalance)
+                    break;
+                // Do not add additional significant input
+                if (prevout.nValue >= Params().StakeCombineThreshold())
+                    continue;
+                // Do not add input that is still too young
+                if (nTimeWeight < nSMA)
+                    continue;
 
-            result.inputs.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
-            result.nInputsTotalCredit += prevout.nValue;
-            result.inputsPrevouts.push_back(pcoin.first);
+                result.inputs.push_back(CTxIn(pcoin.first->GetHash(), pcoin.second));
+                result.nInputsTotalCredit += prevout.nValue;
+                result.inputsPrevouts.push_back(pcoin.first);
+            }
         }
     }
     return result;
@@ -2391,15 +2395,15 @@ std::vector<CTxOut> MakeStakeOutputs(const StakeKernelData& kernelData, const CA
     return result;
 }
 
-boost::optional<CoinStakeData> CWallet::CreateCoinStake(const CKeyStore&   keystore,
-                                                        const unsigned int nBits, const CAmount nFees,
+boost::optional<CoinStakeData> CWallet::CreateCoinStake(const CWallet& wallet, const unsigned int nBits,
+                                                        const CAmount nFees,
                                                         const CAmount reservedBalance)
 {
     CBigNum bnTargetPerCoinDay;
     bnTargetPerCoinDay.SetCompact(nBits);
 
     // Choose coins to use
-    const CAmount nBalance = GetBalance();
+    const CAmount nBalance = wallet.GetBalance();
 
     if (nBalance <= reservedBalance)
         return boost::none;
@@ -2415,7 +2419,8 @@ boost::optional<CoinStakeData> CWallet::CreateCoinStake(const CKeyStore&   keyst
     // Select coins with suitable depth
     set<pair<const CWalletTx*, unsigned int>> setCoins;
     CAmount                                   nValueIn = 0;
-    if (!SelectCoinsForStaking(nBalance - reservedBalance, nCoinstakeInitialTxTime, setCoins, nValueIn))
+    if (!wallet.SelectCoinsForStaking(nBalance - reservedBalance, nCoinstakeInitialTxTime, setCoins,
+                                      nValueIn))
         return boost::none;
 
     if (setCoins.empty())
@@ -2426,7 +2431,7 @@ boost::optional<CoinStakeData> CWallet::CreateCoinStake(const CKeyStore&   keyst
     // since time search goes backwards, and there's potential for tx time to go back, we store it to
     // use it later in UpdateStakeSearchTimes()
     boost::optional<StakeKernelData> kernelData =
-        FindStakeKernel(keystore, nBits, nCoinstakeInitialTxTime, setCoins);
+        FindStakeKernel(wallet, nBits, nCoinstakeInitialTxTime, setCoins);
     CWallet::UpdateStakeSearchTimes(nCoinstakeInitialTxTime);
 
     // stake was not found
@@ -2472,7 +2477,7 @@ boost::optional<CoinStakeData> CWallet::CreateCoinStake(const CKeyStore&   keyst
     // Sign
     for (unsigned i = 0; i < inputs.inputsPrevouts.size(); i++) {
         const CWalletTx* pcoin = inputs.inputsPrevouts[i];
-        if (!SignSignature(*this, *pcoin, stakeTx, i)) {
+        if (!SignSignature(wallet, *pcoin, stakeTx, i)) {
             printf("CreateCoinStake : failed to sign coinstake");
             return boost::none;
         }

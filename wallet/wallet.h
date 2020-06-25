@@ -309,12 +309,12 @@ public:
     static boost::optional<KernelScriptPubKeyResult>
     CalculateScriptPubKeyForStakeOutput(const CKeyStore& keystore, const CScript& scriptPubKeyKernel);
 
-    boost::optional<StakeKernelData>
-                                   FindStakeKernel(const CKeyStore& keystore, unsigned int nBits, int64_t nCoinstakeInitialTxTime,
-                                                   const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins);
-    boost::optional<CoinStakeData> CreateCoinStake(const CKeyStore& keystore, unsigned int nBits,
-                                                   CAmount nFees, CAmount reservedBalance);
-    static void                    UpdateStakeSearchTimes(int64_t nSearchTime);
+    static boost::optional<StakeKernelData>
+                                          FindStakeKernel(const CKeyStore& keystore, unsigned int nBits, int64_t nCoinstakeInitialTxTime,
+                                                          const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins);
+    static boost::optional<CoinStakeData> CreateCoinStake(const CWallet& wallet, unsigned int nBits,
+                                                          CAmount nFees, CAmount reservedBalance);
+    static void                           UpdateStakeSearchTimes(int64_t nSearchTime);
 
     std::string SendMoney(CScript scriptPubKey, CAmount nValue, CWalletTx& wtxNew, bool fAskFee = false);
     std::string SendMoneyToDestination(const CTxDestination& address, CAmount nValue, CWalletTx& wtxNew,
