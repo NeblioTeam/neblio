@@ -74,6 +74,13 @@ struct CoinStakeData
     CKey         key;
 };
 
+struct CoinStakeInputsResult
+{
+    std::vector<CTxIn>            inputs;
+    std::vector<const CWalletTx*> inputsPrevouts;
+    CAmount                       nInputsTotalCredit = 0;
+};
+
 struct KernelScriptPubKeyResult
 {
     KernelScriptPubKeyResult(const CScript& ScriptPubKey, const CKey& Key)
