@@ -14,6 +14,7 @@
 #include "outpoint.h"
 #include "script.h"
 #include "scrypt.h"
+#include "stakemaker.h"
 #include "sync.h"
 #include "transaction.h"
 #include "zerocoin/Zerocoin.h"
@@ -74,8 +75,7 @@ extern uint256                                      nBestInvalidTrust;
 extern uint256                                      hashBestChain;
 extern uint64_t                                     nLastBlockTx;
 extern uint64_t                                     nLastBlockSize;
-extern boost::atomic<int64_t>                       nLastCoinStakeSearchInterval;
-extern boost::atomic<int64_t>                       nLastCoinStakeSearchTime;
+extern StakeMaker                                   stakeMaker;
 extern const std::string                            strMessageMagic;
 extern int64_t                                      nTimeBestReceived;
 extern CCriticalSection                             cs_setpwalletRegistered;
@@ -112,8 +112,6 @@ bool               SendMessages(CNode* pto, bool fSendTrickle);
 void               ThreadImport(void* parg);
 bool               CheckProofOfWork(const uint256& hash, unsigned int nBits, bool silent = false);
 unsigned int       GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake);
-int64_t            GetProofOfWorkReward(int64_t nFees);
-int64_t            GetProofOfStakeReward(int64_t nCoinAge, int64_t nFees);
 unsigned int       ComputeMinWork(unsigned int nBase, int64_t nTime);
 unsigned int       ComputeMinStake(unsigned int nBase, int64_t nTime, unsigned int nBlockTime);
 int                GetNumBlocksOfPeers();

@@ -10,6 +10,7 @@
 #include "main.h"
 #include "txdb.h"
 #include "txmempool.h"
+#include "work.h"
 
 using namespace std;
 
@@ -80,10 +81,9 @@ public:
     }
 };
 
-uint64_t               nLastBlockTx   = 0;
-uint64_t               nLastBlockSize = 0;
-boost::atomic<int64_t> nLastCoinStakeSearchInterval{0};
-boost::atomic<int64_t> nLastCoinStakeSearchTime{GetAdjustedTime()};
+uint64_t   nLastBlockTx   = 0;
+uint64_t   nLastBlockSize = 0;
+StakeMaker stakeMaker;
 
 // We want to sort transactions by priority and fee, so:
 typedef boost::tuple<double, double, CTransaction*> TxPriority;
@@ -600,7 +600,7 @@ void StakeMiner(CWallet* pwallet)
             return;
 
         while (pwallet->IsLocked()) {
-            nLastCoinStakeSearchInterval = 0;
+            stakeMaker.resetLastCoinStakeSearchInterval();
             MilliSleep(1000);
             if (fShutdown)
                 return;
@@ -608,8 +608,8 @@ void StakeMiner(CWallet* pwallet)
 
         if (Params().MiningRequiresPeers()) {
             while (is_vNodesEmpty_safe() || IsInitialBlockDownload()) {
-                nLastCoinStakeSearchInterval = 0;
-                fTryToSync                   = true;
+                stakeMaker.resetLastCoinStakeSearchInterval();
+                fTryToSync = true;
                 MilliSleep(1000);
                 if (fShutdown)
                     return;

@@ -11,6 +11,7 @@
 #include "script.h"
 #include "txdb.h"
 #include "txmempool.h"
+#include "work.h"
 #include <random>
 
 using namespace json_spirit;
@@ -42,7 +43,7 @@ Value getmininginfo(const Array& params, bool fHelp)
     diff.push_back(Pair("proof-of-work", GetDifficulty()));
     diff.push_back(Pair("proof-of-stake",
                         GetDifficulty(GetLastBlockIndex(boost::atomic_load(&pindexBest).get(), true))));
-    diff.push_back(Pair("search-interval", (int)nLastCoinStakeSearchInterval));
+    diff.push_back(Pair("search-interval", (int)stakeMaker.getLastCoinStakeSearchInterval()));
     obj.push_back(Pair("difficulty", diff));
 
     obj.push_back(Pair("blockvalue", (uint64_t)GetProofOfWorkReward(0)));
@@ -71,7 +72,7 @@ Value getstakinginfo(const Array& params, bool fHelp)
     pwalletMain->GetStakeWeight(*pwalletMain, nMinWeight, nMaxWeight, nWeight);
 
     uint64_t     nNetworkWeight = GetPoSKernelPS();
-    bool         staking        = nLastCoinStakeSearchInterval && nWeight;
+    bool         staking        = stakeMaker.getLastCoinStakeSearchInterval() && nWeight;
     unsigned int nTS            = Params().TargetSpacing();
     int          nExpectedTime  = staking ? (nTS * nNetworkWeight / nWeight) : -1;
 
@@ -109,7 +110,7 @@ Value getstakinginfo(const Array& params, bool fHelp)
 
     obj.push_back(Pair("difficulty",
                        GetDifficulty(GetLastBlockIndex(boost::atomic_load(&pindexBest).get(), true))));
-    obj.push_back(Pair("search-interval", (int)nLastCoinStakeSearchInterval));
+    obj.push_back(Pair("search-interval", (int)stakeMaker.getLastCoinStakeSearchInterval()));
 
     obj.push_back(Pair("weight", (uint64_t)nWeight));
     obj.push_back(Pair("netstakeweight", (uint64_t)nNetworkWeight));

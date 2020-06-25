@@ -65,8 +65,8 @@
 #include <memory>
 
 extern std::shared_ptr<CWallet> pwalletMain;
-extern boost::atomic<int64_t>   nLastCoinStakeSearchInterval;
-double                          GetPoSKernelPS();
+
+double GetPoSKernelPS();
 
 BitcoinGUI::BitcoinGUI(QWidget* parent)
     : QMainWindow(parent), clientModel(0), walletModel(0), encryptWalletAction(0),
@@ -1222,7 +1222,7 @@ void BitcoinGUI::updateStakingIcon()
 {
     updateWeight();
 
-    if (nLastCoinStakeSearchInterval && nWeight) {
+    if (stakeMaker.getLastCoinStakeSearchInterval() && nWeight) {
         uint64_t     nNetworkWeight = GetPoSKernelPS();
         unsigned int nTS            = Params().TargetSpacing();
         unsigned     nEstimateTime  = nTS * nNetworkWeight / nWeight;

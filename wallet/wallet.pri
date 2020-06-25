@@ -161,7 +161,9 @@ HEADERS += qt/bitcoingui.h \
     amount.h                   \
     crypto_highlevel.h         \
     merkle.h                   \
-    wallet_ismine.h
+    wallet_ismine.h            \
+    stakemaker.h               \
+    work.h
 
 
 
@@ -318,7 +320,10 @@ SOURCES += qt/bitcoin.cpp \
     consensus_params.cpp                \
     crypto_highlevel.cpp                \
     merkle.cpp                          \
-    wallet_ismine.cpp
+    wallet_ismine.cpp                   \
+    stakemaker.cpp                      \
+    work.cpp
+
 
 
 SOURCES +=                   \

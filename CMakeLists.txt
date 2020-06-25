@@ -605,6 +605,8 @@ add_library(core_lib STATIC
     wallet/CustomTypes.cpp
     wallet/merkle.cpp
     wallet/wallet_ismine.cpp
+    wallet/stakemaker.cpp
+    wallet/work.cpp
     )
 
 target_link_libraries(core_lib

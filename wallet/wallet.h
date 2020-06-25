@@ -56,45 +56,6 @@ public:
     virtual void     setReferenceBlockHeight() {}
 };
 
-struct StakeKernelData
-{
-    CScript          kernelScriptPubKey;
-    CScript          stakeOutputScriptPubKey;
-    CKey             key;
-    CAmount          credit = 0;
-    CTxIn            kernelInput;
-    int64_t          kernelBlockTime = 0;
-    const CWalletTx* kernelTx        = nullptr;
-    int64_t          stakeTxTime     = 0;
-};
-
-struct CoinStakeData
-{
-    CTransaction coinStakeTx;
-    CKey         key;
-};
-
-struct CoinStakeInputsResult
-{
-    std::vector<CTxIn>            inputs;
-    std::vector<const CWalletTx*> inputsPrevouts;
-    CAmount                       nInputsTotalCredit = 0;
-};
-
-struct KernelScriptPubKeyResult
-{
-    KernelScriptPubKeyResult(const CScript& ScriptPubKey, const CKey& Key)
-        : scriptPubKey(ScriptPubKey), key(Key)
-    {
-    }
-    KernelScriptPubKeyResult(CScript&& ScriptPubKey, CKey&& Key)
-        : scriptPubKey(std::move(ScriptPubKey)), key(std::move(Key))
-    {
-    }
-    CScript scriptPubKey;
-    CKey    key;
-};
-
 /** A key pool entry */
 class CKeyPool
 {
@@ -120,9 +81,6 @@ public:
 class CWallet : public CCryptoKeyStore
 {
 private:
-    bool SelectCoinsForStaking(CAmount nTargetValue, unsigned int nSpendTime,
-                               std::set<std::pair<const CWalletTx*, unsigned int>>& setCoinsRet,
-                               CAmount&                                             nValueRet) const;
     bool SelectCoins(CAmount nTargetValue, unsigned int nSpendTime,
                      std::set<std::pair<const CWalletTx*, unsigned int>>& setCoinsRet,
                      CAmount& nValueRet, const CCoinControl* coinControl = nullptr,
@@ -162,6 +120,10 @@ public:
     ///      fFileBacked (immutable after instantiation)
     ///      strWalletFile (immutable after instantiation)
     mutable CCriticalSection cs_wallet;
+
+    bool SelectCoinsForStaking(CAmount nTargetValue, unsigned int nSpendTime,
+                               std::set<std::pair<const CWalletTx*, unsigned int>>& setCoinsRet,
+                               CAmount&                                             nValueRet) const;
 
     // this function is supposed to be called every time a new transcation is added to the wallet
     boost::shared_ptr<WalletNewTxUpdateFunctor> walletNewTxUpdateFunctor;
@@ -305,16 +267,6 @@ public:
 
     bool GetStakeWeight(const CKeyStore& keystore, uint64_t& nMinWeight, uint64_t& nMaxWeight,
                         uint64_t& nWeight);
-
-    static boost::optional<KernelScriptPubKeyResult>
-    CalculateScriptPubKeyForStakeOutput(const CKeyStore& keystore, const CScript& scriptPubKeyKernel);
-
-    static boost::optional<StakeKernelData>
-                                          FindStakeKernel(const CKeyStore& keystore, unsigned int nBits, int64_t nCoinstakeInitialTxTime,
-                                                          const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins);
-    static boost::optional<CoinStakeData> CreateCoinStake(const CWallet& wallet, unsigned int nBits,
-                                                          CAmount nFees, CAmount reservedBalance);
-    static void                           UpdateStakeSearchTimes(int64_t nSearchTime);
 
     std::string SendMoney(CScript scriptPubKey, CAmount nValue, CWalletTx& wtxNew, bool fAskFee = false);
     std::string SendMoneyToDestination(const CTxDestination& address, CAmount nValue, CWalletTx& wtxNew,

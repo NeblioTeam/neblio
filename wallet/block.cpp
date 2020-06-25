@@ -12,6 +12,7 @@
 #include "ui_interface.h"
 #include "util.h"
 #include "wallet.h"
+#include "work.h"
 #include <boost/algorithm/string.hpp>
 #include <boost/foreach.hpp>
 #include <mutex>
@@ -1457,8 +1458,6 @@ bool CBlock::AcceptBlock()
     return true;
 }
 
-std::once_flag flag;
-
 // novacoin: attempt to generate suitable proof-of-stake
 bool CBlock::SignBlock(CWallet& wallet, int64_t nFees)
 {
@@ -1472,12 +1471,9 @@ bool CBlock::SignBlock(CWallet& wallet, int64_t nFees)
     if (IsProofOfStake())
         return true;
 
-    // we set the startup time only once
-    std::call_once(flag, [&]() { nLastCoinStakeSearchTime = GetAdjustedTime(); });
-
     CBlockIndexSmartPtr pindexBestPtr = boost::atomic_load(&pindexBest);
     if (boost::optional<CoinStakeData> coinStake =
-            wallet.CreateCoinStake(wallet, nBits, nFees, nReserveBalance)) {
+            stakeMaker.CreateCoinStake(wallet, nBits, nFees, nReserveBalance)) {
         if (coinStake->coinStakeTx.nTime >=
             std::max(pindexBestPtr->GetPastTimeLimit() + 1, PastDrift(pindexBestPtr->GetBlockTime()))) {
             // make sure coinstake would meet timestamp protocol

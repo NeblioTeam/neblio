@@ -241,7 +241,9 @@ OBJS= \
     obj/ntp1/ntp1v1_issuance_static_data.o    \
     obj/crypto_highlevel.o                    \
     obj/merkle.o                              \
-    obj/wallet_ismine.o
+    obj/wallet_ismine.o                       \
+    obj/stakemaker.o                          \
+    obj/work.o
 
 ifdef NEBLIO_REST
     OBJS += obj/nebliorest.o
