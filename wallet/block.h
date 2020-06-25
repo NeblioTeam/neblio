@@ -175,7 +175,7 @@ public:
     bool CheckBlock(bool fCheckPOW = true, bool fCheckMerkleRoot = true, bool fCheckSig = true);
     bool AcceptBlock();
     bool GetCoinAge(uint64_t& nCoinAge) const; // ppcoin: calculate total coin age spent in block
-    bool SignBlock(CWallet& keystore, int64_t nFees);
+    bool SignBlock(const CWallet& keystore, int64_t nFees);
     bool CheckBlockSignature() const;
 
     static CBlockIndexSmartPtr FindBlockByHeight(int nHeight);

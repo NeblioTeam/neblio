@@ -1459,7 +1459,7 @@ bool CBlock::AcceptBlock()
 }
 
 // novacoin: attempt to generate suitable proof-of-stake
-bool CBlock::SignBlock(CWallet& wallet, int64_t nFees)
+bool CBlock::SignBlock(const CWallet& wallet, int64_t nFees)
 {
     // if we are trying to sign
     //    something except proof-of-stake block template
