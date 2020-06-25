@@ -2370,6 +2370,26 @@ CoinStakeInputsResult CollectInputsForStake(const StakeKernelData&              
     return result;
 }
 
+std::vector<CTxOut> MakeStakeOutputs(const StakeKernelData& kernelData, const CAmount totalCredit,
+                                     const bool splitStake)
+{
+    std::vector<CTxOut> result;
+    // add coinstake marker
+    result.push_back(CTxOut(0, CScript()));
+
+    // add outputs
+    if (splitStake) {
+        const CAmount amount1 = (totalCredit / 2 / CENT) * CENT;
+        const CAmount amount2 = totalCredit - amount1;
+        result.push_back(CTxOut(amount1, kernelData.stakeOutputScriptPubKey));
+        result.push_back(CTxOut(amount2, kernelData.stakeOutputScriptPubKey));
+    } else {
+        result.push_back(CTxOut(totalCredit, kernelData.stakeOutputScriptPubKey));
+    }
+
+    return result;
+}
+
 boost::optional<CoinStakeData> CWallet::CreateCoinStake(const CKeyStore&   keystore,
                                                         const unsigned int nBits, const CAmount nFees)
 {
@@ -2444,18 +2464,7 @@ boost::optional<CoinStakeData> CWallet::CreateCoinStake(const CKeyStore&   keyst
         nFinalCredit += nReward;
     }
 
-    // add coinstake marker
-    stakeTx.vout.push_back(CTxOut(0, CScript()));
-
-    // add outputs
-    if (splitStake) {
-        const CAmount amount1 = (nFinalCredit / 2 / CENT) * CENT;
-        const CAmount amount2 = nFinalCredit - amount1;
-        stakeTx.vout.push_back(CTxOut(amount1, kernelData->stakeOutputScriptPubKey));
-        stakeTx.vout.push_back(CTxOut(amount2, kernelData->stakeOutputScriptPubKey));
-    } else {
-        stakeTx.vout.push_back(CTxOut(nFinalCredit, kernelData->stakeOutputScriptPubKey));
-    }
+    stakeTx.vout = MakeStakeOutputs(*kernelData, nFinalCredit, splitStake);
 
     // Sign
     int nIn = 0;
