@@ -2453,9 +2453,8 @@ boost::optional<CoinStakeData> CWallet::CreateCoinStake(const CWallet& wallet, c
 
     stakeTx.vin = inputs.inputs;
 
+    // Calculate coin age and reward
     CAmount nFinalCredit = inputs.nInputsTotalCredit;
-
-    // Calculate coin age reward
     {
         uint64_t nCoinAge;
         CTxDB    txdb("r");
