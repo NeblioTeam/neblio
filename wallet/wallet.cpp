@@ -2374,6 +2374,7 @@ std::vector<CTxOut> MakeStakeOutputs(const StakeKernelData& kernelData, const CA
                                      const bool splitStake)
 {
     std::vector<CTxOut> result;
+
     // add coinstake marker
     result.push_back(CTxOut(0, CScript()));
 
