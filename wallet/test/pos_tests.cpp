@@ -136,3 +136,54 @@ TEST(pos_tests, kernel_scriptPubKey_unsolvable)
         StakeMaker::CalculateScriptPubKeyForStakeOutput(keyStore, kernelScript);
     ASSERT_EQ(calcResult, boost::none);
 }
+
+TEST(pos_tests, output_creation_with_split)
+{
+    // make key
+    CKey key;
+    key.MakeNewKey(true);
+
+    // create the kernel script
+    CScript outputScript;
+    outputScript.SetDestination(CBitcoinAddress(key.GetPubKey().GetID()).Get()); // P2PKH
+
+    StakeKernelData data;
+
+    CAmount amount = 10 * COIN + 500;
+
+    std::vector<CTxOut> outputs = StakeMaker::MakeStakeOutputs(outputScript, amount, true);
+    ASSERT_EQ(outputs.size(), 3); // marker + output + output
+    EXPECT_EQ(outputs[0].nValue, 0);
+    EXPECT_TRUE(outputs[0].scriptPubKey.empty());
+    EXPECT_EQ(outputs[0].scriptPubKey, CScript());
+    EXPECT_EQ(outputs[1].nValue + outputs[2].nValue, amount);
+    EXPECT_EQ(outputs[1].scriptPubKey, outputScript);
+    EXPECT_EQ(outputs[2].scriptPubKey, outputScript);
+
+    // both outputs are greather than zero
+    EXPECT_GT(outputs[1].nValue, 0);
+    EXPECT_GT(outputs[2].nValue, 0);
+}
+
+TEST(pos_tests, output_creation_no_split)
+{
+    // make key
+    CKey key;
+    key.MakeNewKey(true);
+
+    // create the kernel script
+    CScript outputScript;
+    outputScript.SetDestination(CBitcoinAddress(key.GetPubKey().GetID()).Get()); // P2PKH
+
+    StakeKernelData data;
+
+    CAmount amount = 10 * COIN + 500;
+
+    std::vector<CTxOut> outputs = StakeMaker::MakeStakeOutputs(outputScript, amount, false);
+    ASSERT_EQ(outputs.size(), 2); // marker + output
+    EXPECT_EQ(outputs[0].nValue, 0);
+    EXPECT_TRUE(outputs[0].scriptPubKey.empty());
+    EXPECT_EQ(outputs[0].scriptPubKey, CScript());
+    EXPECT_EQ(outputs[1].nValue, amount);
+    EXPECT_EQ(outputs[1].scriptPubKey, outputScript);
+}

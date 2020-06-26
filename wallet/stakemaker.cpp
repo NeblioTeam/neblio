@@ -91,7 +91,7 @@ boost::optional<CoinStakeData> StakeMaker::CreateCoinStake(const CWallet&     wa
         nFinalCredit += nReward;
     }
 
-    stakeTx.vout = MakeStakeOutputs(*kernelData, nFinalCredit, splitStake);
+    stakeTx.vout = MakeStakeOutputs(kernelData->stakeOutputScriptPubKey, nFinalCredit, splitStake);
 
     // Sign
     for (unsigned i = 0; i < inputs.inputsPrevouts.size(); i++) {
@@ -315,7 +315,7 @@ StakeMaker::CollectInputsForStake(const StakeKernelData&                        
     return result;
 }
 
-std::vector<CTxOut> StakeMaker::MakeStakeOutputs(const StakeKernelData& kernelData,
+std::vector<CTxOut> StakeMaker::MakeStakeOutputs(const CScript& outputScriptPubKey,
                                                  const CAmount totalCredit, const bool splitStake)
 {
     std::vector<CTxOut> result;
@@ -327,10 +327,10 @@ std::vector<CTxOut> StakeMaker::MakeStakeOutputs(const StakeKernelData& kernelDa
     if (splitStake) {
         const CAmount amount1 = (totalCredit / 2 / CENT) * CENT;
         const CAmount amount2 = totalCredit - amount1;
-        result.push_back(CTxOut(amount1, kernelData.stakeOutputScriptPubKey));
-        result.push_back(CTxOut(amount2, kernelData.stakeOutputScriptPubKey));
+        result.push_back(CTxOut(amount1, outputScriptPubKey));
+        result.push_back(CTxOut(amount2, outputScriptPubKey));
     } else {
-        result.push_back(CTxOut(totalCredit, kernelData.stakeOutputScriptPubKey));
+        result.push_back(CTxOut(totalCredit, outputScriptPubKey));
     }
 
     return result;
