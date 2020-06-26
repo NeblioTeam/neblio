@@ -1400,7 +1400,7 @@ bool CWallet::AddAccountingEntry(const CAccountingEntry& acentry, CWalletDB& pwa
 bool CWallet::SelectCoinsMinConf(CAmount nTargetValue, unsigned int nSpendTime, int nConfMine,
                                  int nConfTheirs, vector<COutput> vCoins,
                                  set<pair<const CWalletTx*, unsigned int>>& setCoinsRet,
-                                 CAmount& nValueRet, bool avoidNTP1Outputs) const
+                                 CAmount& nValueRet, bool avoidNTP1Outputs)
 {
     setCoinsRet.clear();
     nValueRet = 0;
@@ -1408,7 +1408,7 @@ bool CWallet::SelectCoinsMinConf(CAmount nTargetValue, unsigned int nSpendTime, 
     // List of values less than target
     pair<CAmount, pair<const CWalletTx*, unsigned int>> coinLowestLarger;
     coinLowestLarger.first        = std::numeric_limits<CAmount>::max();
-    coinLowestLarger.second.first = NULL;
+    coinLowestLarger.second.first = nullptr;
     vector<pair<CAmount, pair<const CWalletTx*, unsigned int>>> vValue;
     CAmount                                                     nTotalLower = 0;
 
@@ -1433,7 +1433,7 @@ bool CWallet::SelectCoinsMinConf(CAmount nTargetValue, unsigned int nSpendTime, 
                 try {
                     const CTransaction* tx = dynamic_cast<const CTransaction*>(pcoin);
                     if (tx == nullptr) {
-                        throw std::runtime_error("Unable to case transaction: " +
+                        throw std::runtime_error("Unable to cast transaction: " +
                                                  pcoin->GetHash().ToString() + " to CTransaction");
                     }
                     std::vector<std::pair<CTransaction, NTP1Transaction>> inputs =

@@ -182,13 +182,13 @@ public:
         return nWalletMaxVersion >= wf;
     }
 
-    void AvailableCoinsForStaking(std::vector<COutput>& vCoins, unsigned int nSpendTime) const;
-    void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed = true,
-                        const CCoinControl* coinControl = nullptr) const;
-    bool SelectCoinsMinConf(CAmount nTargetValue, unsigned int nSpendTime, int nConfMine,
-                            int nConfTheirs, std::vector<COutput> vCoins,
-                            std::set<std::pair<const CWalletTx*, unsigned int>>& setCoinsRet,
-                            CAmount& nValueRet, bool avoidNTP1Outputs = false) const;
+    void        AvailableCoinsForStaking(std::vector<COutput>& vCoins, unsigned int nSpendTime) const;
+    void        AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed = true,
+                               const CCoinControl* coinControl = nullptr) const;
+    static bool SelectCoinsMinConf(CAmount nTargetValue, unsigned int nSpendTime, int nConfMine,
+                                   int nConfTheirs, std::vector<COutput> vCoins,
+                                   std::set<std::pair<const CWalletTx*, unsigned int>>& setCoinsRet,
+                                   CAmount& nValueRet, bool avoidNTP1Outputs = false);
 
     bool IsSpent(const uint256& hash, unsigned int n) const;
 
