@@ -61,6 +61,13 @@ public:
     CWallet              wallet;
     std::vector<COutput> vCoins;
 
+    void empty_wallet(void)
+    {
+        for (COutput output : vCoins)
+            delete output.tx;
+        vCoins.clear();
+    }
+
     void add_coin(int64_t nValue, const CScript& scriptPubKey, int64_t nTime, int nDepth = 6 * 24,
                   bool fIsFromMe = false, int nInput = 0)
     {
@@ -322,13 +329,15 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_inputs)
     EXPECT_EQ(Params().MaxInputsInStake(), 10);
     EXPECT_EQ(vCoins[0].tx->vout[0].scriptPubKey, KeyToP2PKH(key1));
 
+    empty_wallet();
+
     // create many inputs and add them
     for (int i = 0; i < 20; i++) {
         add_coin(50 * COIN, KeyToP2PKH(key1), GetAdjustedTime() - 24 * 60 * 60 * 10);
     }
 
     CAmount nValueRet = 0;
-    ASSERT_TRUE(wallet.SelectCoinsMinConf((115 + 20 * 50) * COIN, GetAdjustedTime(), 1, 6, vCoins,
+    ASSERT_TRUE(wallet.SelectCoinsMinConf(20 * 50 * COIN, GetAdjustedTime(), 1, 6, vCoins,
                                           availableCoins, nValueRet, false));
     balance = nValueRet;
 
@@ -352,4 +361,93 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_inputs)
     // we cannot have more than 10 inputs as per Params().MaxInputsInStake()
     EXPECT_EQ(inputsResult.inputs.size(), 10);
     EXPECT_EQ(inputsResult.inputsPrevouts.size(), 10);
+}
+
+TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_value)
+{
+    ASSERT_EQ(Params().NetType(), NetworkType::Regtest);
+    EXPECT_EQ(Params().MaxInputsInStake(), 10);
+    EXPECT_EQ(vCoins[0].tx->vout[0].scriptPubKey, KeyToP2PKH(key1));
+
+    empty_wallet();
+
+    // create many inputs and add them
+    for (int i = 0; i < 20; i++) {
+        add_coin(500 * COIN, KeyToP2PKH(key1), GetAdjustedTime() - 24 * 60 * 60 * 10);
+    }
+
+    CAmount nValueRet = 0;
+    ASSERT_TRUE(wallet.SelectCoinsMinConf((20 * 500) * COIN, GetAdjustedTime(), 1, 6, vCoins,
+                                          availableCoins, nValueRet, false));
+    balance = nValueRet;
+
+    const unsigned coinIndex   = 0;
+    const unsigned outputIndex = 0;
+
+    StakeKernelData kernelData;
+    kernelData.key.MakeNewKey(true);
+    kernelData.credit                  = vCoins[coinIndex].tx->vout[outputIndex].nValue;
+    kernelData.kernelTx                = vCoins[coinIndex].tx;
+    kernelData.kernelInput             = CTxIn(vCoins[coinIndex].tx->GetHash(), 0);
+    kernelData.stakeTxTime             = GetAdjustedTime() - 60 * 60 * 24 * 5; // 5 days
+    kernelData.kernelBlockTime         = kernelData.stakeTxTime - 60;
+    kernelData.kernelScriptPubKey      = vCoins[coinIndex].tx->vout[outputIndex].scriptPubKey;
+    kernelData.stakeOutputScriptPubKey = CScript()
+                                         << stakePayee.GetPubKey() << OP_CHECKSIG << OP_HASH160;
+
+    CoinStakeInputsResult inputsResult = StakeMaker::CollectInputsForStake(
+        kernelData, availableCoins, GetAdjustedTime(), false, balance, 0);
+
+    // we cannot have more than 2 inputs, since the max is 1000
+    EXPECT_EQ(inputsResult.inputs.size(), 2);
+    EXPECT_EQ(inputsResult.inputsPrevouts.size(), 2);
+}
+
+TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_too_small_age)
+{
+    ASSERT_EQ(Params().NetType(), NetworkType::Regtest);
+    EXPECT_EQ(Params().MaxInputsInStake(), 10);
+    EXPECT_EQ(vCoins[0].tx->vout[0].scriptPubKey, KeyToP2PKH(key1));
+
+    empty_wallet();
+
+    // create many inputs and add them
+    for (int i = 0; i < 20; i++) {
+        add_coin(500 * COIN, KeyToP2PKH(key1), GetAdjustedTime());
+    }
+
+    CAmount nValueRet = 0;
+    ASSERT_TRUE(wallet.SelectCoinsMinConf((20 * 500) * COIN, GetAdjustedTime(), 1, 6, vCoins,
+                                          availableCoins, nValueRet, false));
+    balance = nValueRet;
+
+    const unsigned coinIndex   = 0;
+    const unsigned outputIndex = 0;
+
+    StakeKernelData kernelData;
+    kernelData.key.MakeNewKey(true);
+    kernelData.credit                  = vCoins[coinIndex].tx->vout[outputIndex].nValue;
+    kernelData.kernelTx                = vCoins[coinIndex].tx;
+    kernelData.kernelInput             = CTxIn(vCoins[coinIndex].tx->GetHash(), 0);
+    kernelData.stakeTxTime             = GetAdjustedTime();
+    kernelData.kernelBlockTime         = kernelData.stakeTxTime - 60;
+    kernelData.kernelScriptPubKey      = vCoins[coinIndex].tx->vout[outputIndex].scriptPubKey;
+    kernelData.stakeOutputScriptPubKey = CScript()
+                                         << stakePayee.GetPubKey() << OP_CHECKSIG << OP_HASH160;
+
+    CoinStakeInputsResult inputsResult = StakeMaker::CollectInputsForStake(
+        kernelData, availableCoins, GetAdjustedTime(), false, balance, 0);
+
+    // only the kernel will go in, because all other UTXOs' nTime is equal to current tx's time
+    EXPECT_EQ(inputsResult.inputs.size(), 1);
+    EXPECT_EQ(inputsResult.inputsPrevouts.size(), 1);
+
+    // now we call again, but we change the transaction time to make inputs feasible, and we'll get 2
+    // again (the max that we can get due to max value in a stake)
+    inputsResult = StakeMaker::CollectInputsForStake(
+        kernelData, availableCoins, GetAdjustedTime() + Params().StakeMinAge() + 60 * 60, false, balance,
+        0);
+
+    EXPECT_EQ(inputsResult.inputs.size(), 2);
+    EXPECT_EQ(inputsResult.inputsPrevouts.size(), 2);
 }
