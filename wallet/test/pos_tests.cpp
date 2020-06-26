@@ -2,8 +2,88 @@
 
 #include "base58.h"
 #include "stakemaker.h"
+#include "wallet.h"
 
-TEST(pos_tests, kernel_scriptPubKey_basic_p2pkh)
+class PoS_CollectInputsTestFixture : public ::testing::Test
+{
+protected:
+    static CScript AddressToScriptPubKey(const CBitcoinAddress& address)
+    {
+        CScript result;
+        result.SetDestination(address.Get());
+        return result;
+    }
+
+    static CScript KeyToP2PK(const CKey& key)
+    {
+        return CScript() << key.GetPubKey() << OP_CHECKSIG; // P2PK
+    }
+
+    static CScript KeyToP2PKH(const CKey& key)
+    {
+        return AddressToScriptPubKey(CBitcoinAddress(key.GetPubKey().GetID()));
+    }
+
+public:
+    CAmount balance = 0;
+    CKey    key1, key2;
+    CKey    stakePayee;
+
+    std::set<std::pair<const CWalletTx*, unsigned int>> availableCoins;
+
+    virtual void SetUp()
+    {
+        SelectParams(NetworkType::Regtest);
+
+        key1.MakeNewKey(true);
+        key2.MakeNewKey(true);
+
+        add_coin(50 * COIN, KeyToP2PKH(key1), GetAdjustedTime() - 24 * 60 * 60 * 10);
+        add_coin(25 * COIN, KeyToP2PKH(key1), GetAdjustedTime() - 24 * 60 * 60 * 10);
+        add_coin(25 * COIN, KeyToP2PK(key2), GetAdjustedTime() - 24 * 60 * 60 * 10);
+        add_coin(10 * COIN, KeyToP2PK(key2), GetAdjustedTime() - 24 * 60 * 60 * 10);
+        add_coin(5 * COIN, KeyToP2PK(key2), GetAdjustedTime() - 24 * 60 * 60 * 10);
+
+        CAmount nValueRet = 0;
+
+        ASSERT_TRUE(wallet.SelectCoinsMinConf(115 * COIN, GetAdjustedTime(), 1, 6, vCoins,
+                                              availableCoins, nValueRet, false));
+        EXPECT_EQ(nValueRet, 115 * COIN);
+
+        balance = nValueRet;
+
+        stakePayee.MakeNewKey(true);
+    }
+    virtual void TearDown() {}
+
+    typedef std::set<std::pair<const CWalletTx*, unsigned int>> CoinSet;
+
+    CWallet              wallet;
+    std::vector<COutput> vCoins;
+
+    void add_coin(int64_t nValue, const CScript& scriptPubKey, int64_t nTime, int nDepth = 6 * 24,
+                  bool fIsFromMe = false, int nInput = 0)
+    {
+        static int   i;
+        CTransaction tx;
+        tx.nLockTime = i++; // so all transactions get different hashes
+        tx.nTime     = nTime;
+        tx.vout.resize(nInput + 1);
+        tx.vout[nInput].nValue       = nValue;
+        tx.vout[nInput].scriptPubKey = scriptPubKey;
+        CWalletTx* wtx               = new CWalletTx(&wallet, tx);
+        if (fIsFromMe) {
+            // IsFromMe() returns (GetDebit() > 0), and GetDebit() is 0 if vin.empty(),
+            // so stop vin being empty, and cache a non-zero Debit to fake out IsFromMe()
+            wtx->vin.resize(1);
+            wtx->c_DebitCached = 1;
+        }
+        COutput output(wtx, nInput, nDepth);
+        vCoins.push_back(output);
+    }
+};
+
+TEST(PoS_tests, kernel_scriptPubKey_basic_p2pkh)
 {
     CBasicKeyStore keyStore;
 
@@ -32,7 +112,7 @@ TEST(pos_tests, kernel_scriptPubKey_basic_p2pkh)
     EXPECT_EQ(calcResult->scriptPubKey, CScript() << key.GetPubKey() << OP_CHECKSIG);
 }
 
-TEST(pos_tests, kernel_scriptPubKey_basic_p2pk)
+TEST(PoS_tests, kernel_scriptPubKey_basic_p2pk)
 {
     CBasicKeyStore keyStore;
 
@@ -60,7 +140,7 @@ TEST(pos_tests, kernel_scriptPubKey_basic_p2pk)
     EXPECT_EQ(calcResult->scriptPubKey, CScript() << key.GetPubKey() << OP_CHECKSIG);
 }
 
-TEST(pos_tests, kernel_scriptPubKey_p2pkh_key_does_not_exist_in_keystore)
+TEST(PoS_tests, kernel_scriptPubKey_p2pkh_key_does_not_exist_in_keystore)
 {
     CBasicKeyStore keyStore;
 
@@ -86,7 +166,7 @@ TEST(pos_tests, kernel_scriptPubKey_p2pkh_key_does_not_exist_in_keystore)
     ASSERT_EQ(calcResult, boost::none);
 }
 
-TEST(pos_tests, kernel_scriptPubKey_p2pk_key_does_not_exist_in_keystore)
+TEST(PoS_tests, kernel_scriptPubKey_p2pk_key_does_not_exist_in_keystore)
 {
     CBasicKeyStore keyStore;
 
@@ -111,7 +191,7 @@ TEST(pos_tests, kernel_scriptPubKey_p2pk_key_does_not_exist_in_keystore)
     ASSERT_EQ(calcResult, boost::none);
 }
 
-TEST(pos_tests, kernel_scriptPubKey_unsolvable)
+TEST(PoS_tests, kernel_scriptPubKey_unsolvable)
 {
     CBasicKeyStore keyStore;
 
@@ -137,7 +217,7 @@ TEST(pos_tests, kernel_scriptPubKey_unsolvable)
     ASSERT_EQ(calcResult, boost::none);
 }
 
-TEST(pos_tests, output_creation_with_split)
+TEST(PoS_tests, output_creation_with_split)
 {
     // make key
     CKey key;
@@ -165,7 +245,7 @@ TEST(pos_tests, output_creation_with_split)
     EXPECT_GT(outputs[2].nValue, 0);
 }
 
-TEST(pos_tests, output_creation_no_split)
+TEST(PoS_tests, output_creation_no_split)
 {
     // make key
     CKey key;
@@ -186,4 +266,90 @@ TEST(pos_tests, output_creation_no_split)
     EXPECT_EQ(outputs[0].scriptPubKey, CScript());
     EXPECT_EQ(outputs[1].nValue, amount);
     EXPECT_EQ(outputs[1].scriptPubKey, outputScript);
+}
+
+TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_no_split)
+{
+    EXPECT_EQ(vCoins[0].tx->vout[0].scriptPubKey, KeyToP2PKH(key1));
+
+    const unsigned coinIndex   = 0;
+    const unsigned outputIndex = 0;
+
+    StakeKernelData kernelData;
+    kernelData.key.MakeNewKey(true);
+    kernelData.credit                  = vCoins[coinIndex].tx->vout[outputIndex].nValue;
+    kernelData.kernelTx                = vCoins[coinIndex].tx;
+    kernelData.kernelInput             = CTxIn(vCoins[coinIndex].tx->GetHash(), 0);
+    kernelData.stakeTxTime             = GetAdjustedTime() - 60 * 60 * 24 * 5; // 5 days
+    kernelData.kernelBlockTime         = kernelData.stakeTxTime - 60;
+    kernelData.kernelScriptPubKey      = vCoins[coinIndex].tx->vout[outputIndex].scriptPubKey;
+    kernelData.stakeOutputScriptPubKey = CScript()
+                                         << stakePayee.GetPubKey() << OP_CHECKSIG << OP_HASH160;
+
+    CoinStakeInputsResult inputsResult = StakeMaker::CollectInputsForStake(
+        kernelData, availableCoins, GetAdjustedTime(), false, balance, 0);
+    EXPECT_EQ(inputsResult.inputs.size(), 2);
+    EXPECT_EQ(inputsResult.inputsPrevouts.size(), 2);
+}
+
+TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_with_split)
+{
+    EXPECT_EQ(vCoins[0].tx->vout[0].scriptPubKey, KeyToP2PKH(key1));
+
+    const unsigned coinIndex   = 0;
+    const unsigned outputIndex = 0;
+
+    StakeKernelData kernelData;
+    kernelData.key.MakeNewKey(true);
+    kernelData.credit                  = vCoins[coinIndex].tx->vout[outputIndex].nValue;
+    kernelData.kernelTx                = vCoins[coinIndex].tx;
+    kernelData.kernelInput             = CTxIn(vCoins[coinIndex].tx->GetHash(), 0);
+    kernelData.stakeTxTime             = GetAdjustedTime() - 60 * 60 * 24 * 5; // 5 days
+    kernelData.kernelBlockTime         = kernelData.stakeTxTime - 60;
+    kernelData.kernelScriptPubKey      = vCoins[coinIndex].tx->vout[outputIndex].scriptPubKey;
+    kernelData.stakeOutputScriptPubKey = CScript()
+                                         << stakePayee.GetPubKey() << OP_CHECKSIG << OP_HASH160;
+
+    CoinStakeInputsResult inputsResult = StakeMaker::CollectInputsForStake(
+        kernelData, availableCoins, GetAdjustedTime(), true, balance, 0);
+    EXPECT_EQ(inputsResult.inputs.size(), 1);
+    EXPECT_EQ(inputsResult.inputsPrevouts.size(), 1);
+}
+
+TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_inputs)
+{
+    ASSERT_EQ(Params().NetType(), NetworkType::Regtest);
+    EXPECT_EQ(Params().MaxInputsInStake(), 10);
+    EXPECT_EQ(vCoins[0].tx->vout[0].scriptPubKey, KeyToP2PKH(key1));
+
+    // create many inputs and add them
+    for (int i = 0; i < 20; i++) {
+        add_coin(50 * COIN, KeyToP2PKH(key1), GetAdjustedTime() - 24 * 60 * 60 * 10);
+    }
+
+    CAmount nValueRet = 0;
+    ASSERT_TRUE(wallet.SelectCoinsMinConf((115 + 20 * 50) * COIN, GetAdjustedTime(), 1, 6, vCoins,
+                                          availableCoins, nValueRet, false));
+    balance = nValueRet;
+
+    const unsigned coinIndex   = 0;
+    const unsigned outputIndex = 0;
+
+    StakeKernelData kernelData;
+    kernelData.key.MakeNewKey(true);
+    kernelData.credit                  = vCoins[coinIndex].tx->vout[outputIndex].nValue;
+    kernelData.kernelTx                = vCoins[coinIndex].tx;
+    kernelData.kernelInput             = CTxIn(vCoins[coinIndex].tx->GetHash(), 0);
+    kernelData.stakeTxTime             = GetAdjustedTime() - 60 * 60 * 24 * 5; // 5 days
+    kernelData.kernelBlockTime         = kernelData.stakeTxTime - 60;
+    kernelData.kernelScriptPubKey      = vCoins[coinIndex].tx->vout[outputIndex].scriptPubKey;
+    kernelData.stakeOutputScriptPubKey = CScript()
+                                         << stakePayee.GetPubKey() << OP_CHECKSIG << OP_HASH160;
+
+    CoinStakeInputsResult inputsResult = StakeMaker::CollectInputsForStake(
+        kernelData, availableCoins, GetAdjustedTime(), false, balance, 0);
+
+    // we cannot have more than 10 inputs as per Params().MaxInputsInStake()
+    EXPECT_EQ(inputsResult.inputs.size(), 10);
+    EXPECT_EQ(inputsResult.inputsPrevouts.size(), 10);
 }
