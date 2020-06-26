@@ -297,6 +297,15 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_no_split)
         kernelData, availableCoins, GetAdjustedTime(), false, balance, 0);
     EXPECT_EQ(inputsResult.inputs.size(), 2);
     EXPECT_EQ(inputsResult.inputsPrevouts.size(), 2);
+
+    // now do it again with reserve, ensure the
+
+    inputsResult = StakeMaker::CollectInputsForStake(kernelData, availableCoins, GetAdjustedTime(),
+                                                     false, balance, balance);
+
+    // only the kernel will go through (since it's checked elsewhere when finding the stake)
+    EXPECT_EQ(inputsResult.inputs.size(), 1);
+    EXPECT_EQ(inputsResult.inputsPrevouts.size(), 1);
 }
 
 TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_with_split)
