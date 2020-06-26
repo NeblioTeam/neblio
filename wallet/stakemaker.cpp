@@ -279,14 +279,14 @@ StakeMaker::CollectInputsForStake(const StakeKernelData&                        
             const unsigned int nSMA    = Params().StakeMinAge();
             const CTxOut&      prevout = pcoin.first->vout[pcoin.second];
 
-            const bool sameScriptPubKeyAsKernel =
+            const bool sameScriptPubKeyAsKernelOrStakeOutput =
                 prevout.scriptPubKey == kernelData.kernelScriptPubKey ||
                 prevout.scriptPubKey == kernelData.stakeOutputScriptPubKey;
 
             const bool isTheKernelWeAlreadyHave =
                 pcoin.first->GetHash() == result.inputs[0].prevout.hash;
 
-            if (sameScriptPubKeyAsKernel && !isTheKernelWeAlreadyHave) {
+            if (sameScriptPubKeyAsKernelOrStakeOutput && !isTheKernelWeAlreadyHave) {
 
                 const int64_t nTimeWeight = GetWeight((int64_t)pcoin.first->nTime, txTime);
 
