@@ -1527,7 +1527,7 @@ bool CBlock::SignBlock(const CWallet& wallet, int64_t nFees)
     return false;
 }
 
-CKey ExtractColdStakePubKey(const CBlock& block)
+static CKey ExtractColdStakePubKey(const CBlock& block)
 {
     CKey         key;
     const CTxIn& coinstakeKernel = block.vtx[1].vin[0];
