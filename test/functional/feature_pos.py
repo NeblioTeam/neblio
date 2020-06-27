@@ -103,6 +103,7 @@ class RawTransactionsTest(BitcoinTestFramework):
 
         # Create outputs in nodes[1] to stake them
         inputs = [{"txid": genesis_utxo['txid'], "vout": genesis_utxo['vout']}]
+
         outputs = {}
         outputs_count = 220
         for i in range(outputs_count):
@@ -145,6 +146,10 @@ class RawTransactionsTest(BitcoinTestFramework):
         for i in range(800):  # mine 800 blocks
             hash = self.gen_pow_block(0, average_block_time, block_time_spread)
         self.sync_all()
+
+        n1_balance_before = self.nodes[1].getbalance()
+        n2_balance_before = self.nodes[2].getbalance()
+        n3_balance_before = self.nodes[3].getbalance()
 
         # move to the future to make coins stakable (this is not needed because 10 minutes is too short)
         # self.progress_mock_time(60*10)
@@ -249,6 +254,16 @@ class RawTransactionsTest(BitcoinTestFramework):
         assert_equal(staked_block_in_n4['tx'][1]['vout'][0]['value'], Decimal('0'))
         assert_equal(staked_block_in_n4['tx'][1]['vout'][1]['value'], n4_balance_to_stake/2)
         assert Decimal('1000') < staked_block_in_n4['tx'][1]['vout'][2]['value'] < Decimal('1001')
+
+        self.sync_all()
+
+        assert n2_balance_before < self.nodes[2].getbalance()
+
+        # TODO: determine rewards while staking
+        # the balance can never be determined because times are random
+        # assert_equal(self.nodes[1].getbalance(), Decimal("110001.30160111"))
+        # assert_equal(self.nodes[2].getbalance(), Decimal("1100.08679167"))
+        # assert_equal(self.nodes[3].getbalance(), Decimal("120"))
 
 
 if __name__ == '__main__':
