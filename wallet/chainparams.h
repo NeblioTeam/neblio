@@ -106,6 +106,8 @@ public:
      */
     unsigned int MaxInputsInStake() const;
 
+    bool IsColdStakingEnabled() const;
+
     /**
      * The maximum time to go through in the past, in coinstake transaction time, to find a stake
      */
@@ -160,6 +162,7 @@ protected:
     int64_t      nStakeCombineThreshold;
     unsigned int nMaxInputsInStake;
     int          nMaxStakeSearchInterval;
+    bool         coldStakingEnabled;
 
     int nLastPoWBlock;
 

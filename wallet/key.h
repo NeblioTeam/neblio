@@ -71,6 +71,13 @@ private:
 public:
     CPubKey() {}
     CPubKey(const std::vector<unsigned char>& vchPubKeyIn) : vchPubKey(vchPubKeyIn) {}
+
+    template <typename T>
+    CPubKey(T&& pbegin, const T&& pend)
+    {
+        vchPubKey.assign(pbegin, pend);
+    }
+
     friend bool operator==(const CPubKey& a, const CPubKey& b) { return a.vchPubKey == b.vchPubKey; }
     friend bool operator!=(const CPubKey& a, const CPubKey& b) { return a.vchPubKey != b.vchPubKey; }
     friend bool operator<(const CPubKey& a, const CPubKey& b) { return a.vchPubKey < b.vchPubKey; }

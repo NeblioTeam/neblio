@@ -111,12 +111,11 @@ TEST(PoS_tests, kernel_scriptPubKey_basic_p2pkh)
     EXPECT_TRUE(Solver(kernelScript, whichType, vSolutions));
     EXPECT_EQ(whichType, txnouttype::TX_PUBKEYHASH);
 
-    boost::optional<KernelScriptPubKeyResult> calcResult =
+    boost::optional<CScript> calcResult =
         StakeMaker::CalculateScriptPubKeyForStakeOutput(keyStore, kernelScript);
     ASSERT_NE(calcResult, boost::none);
 
-    EXPECT_EQ(calcResult->key.GetPubKey(), key.GetPubKey());
-    EXPECT_EQ(calcResult->scriptPubKey, CScript() << key.GetPubKey() << OP_CHECKSIG);
+    EXPECT_EQ(calcResult, CScript() << key.GetPubKey() << OP_CHECKSIG);
 }
 
 TEST(PoS_tests, kernel_scriptPubKey_basic_p2pk)
@@ -139,12 +138,11 @@ TEST(PoS_tests, kernel_scriptPubKey_basic_p2pk)
     EXPECT_TRUE(Solver(kernelScript, whichType, vSolutions));
     EXPECT_EQ(whichType, txnouttype::TX_PUBKEY);
 
-    boost::optional<KernelScriptPubKeyResult> calcResult =
+    boost::optional<CScript> calcResult =
         StakeMaker::CalculateScriptPubKeyForStakeOutput(keyStore, kernelScript);
     ASSERT_NE(calcResult, boost::none);
 
-    EXPECT_EQ(calcResult->key.GetPubKey(), key.GetPubKey());
-    EXPECT_EQ(calcResult->scriptPubKey, CScript() << key.GetPubKey() << OP_CHECKSIG);
+    EXPECT_EQ(calcResult, CScript() << key.GetPubKey() << OP_CHECKSIG);
 }
 
 TEST(PoS_tests, kernel_scriptPubKey_p2pkh_key_does_not_exist_in_keystore)
@@ -168,7 +166,7 @@ TEST(PoS_tests, kernel_scriptPubKey_p2pkh_key_does_not_exist_in_keystore)
     EXPECT_TRUE(Solver(kernelScript, whichType, vSolutions));
     EXPECT_EQ(whichType, txnouttype::TX_PUBKEYHASH);
 
-    boost::optional<KernelScriptPubKeyResult> calcResult =
+    boost::optional<CScript> calcResult =
         StakeMaker::CalculateScriptPubKeyForStakeOutput(keyStore, kernelScript);
     ASSERT_EQ(calcResult, boost::none);
 }
@@ -193,7 +191,7 @@ TEST(PoS_tests, kernel_scriptPubKey_p2pk_key_does_not_exist_in_keystore)
     EXPECT_TRUE(Solver(kernelScript, whichType, vSolutions));
     EXPECT_EQ(whichType, txnouttype::TX_PUBKEY);
 
-    boost::optional<KernelScriptPubKeyResult> calcResult =
+    boost::optional<CScript> calcResult =
         StakeMaker::CalculateScriptPubKeyForStakeOutput(keyStore, kernelScript);
     ASSERT_EQ(calcResult, boost::none);
 }
@@ -219,7 +217,7 @@ TEST(PoS_tests, kernel_scriptPubKey_unsolvable)
     EXPECT_FALSE(Solver(kernelScript, whichType, vSolutions));
     EXPECT_EQ(whichType, txnouttype::TX_NONSTANDARD);
 
-    boost::optional<KernelScriptPubKeyResult> calcResult =
+    boost::optional<CScript> calcResult =
         StakeMaker::CalculateScriptPubKeyForStakeOutput(keyStore, kernelScript);
     ASSERT_EQ(calcResult, boost::none);
 }

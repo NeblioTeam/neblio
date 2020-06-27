@@ -12,9 +12,9 @@ int64_t StakeMaker::getLastCoinStakeSearchInterval() const { return nLastCoinSta
 
 int64_t StakeMaker::getLastCoinStakeSearchTime() const { return nLastCoinStakeSearchTime; }
 
-boost::optional<CoinStakeData> StakeMaker::CreateCoinStake(const CWallet&     wallet,
-                                                           const unsigned int nBits, const CAmount nFees,
-                                                           const CAmount reservedBalance)
+boost::optional<CTransaction> StakeMaker::CreateCoinStake(const CWallet&     wallet,
+                                                          const unsigned int nBits, const CAmount nFees,
+                                                          const CAmount reservedBalance)
 {
     // we set the startup time only once
     std::call_once(flag, [&]() { nLastCoinStakeSearchTime = GetAdjustedTime(); });
@@ -109,15 +109,11 @@ boost::optional<CoinStakeData> StakeMaker::CreateCoinStake(const CWallet&     wa
         return boost::none;
     }
 
-    CoinStakeData result;
-    result.key         = kernelData->key;
-    result.coinStakeTx = stakeTx;
-
     // Successfully generated coinstake
-    return result;
+    return stakeTx;
 }
 
-boost::optional<KernelScriptPubKeyResult>
+boost::optional<CScript>
 StakeMaker::CalculateScriptPubKeyForStakeOutput(const CKeyStore& keystore,
                                                 const CScript&   scriptPubKeyKernel)
 {
@@ -147,12 +143,15 @@ StakeMaker::CalculateScriptPubKeyForStakeOutput(const CKeyStore& keystore,
                        whichType);
             return boost::none; // unable to find corresponding public key
         }
-        return KernelScriptPubKeyResult(CScript() << key.GetPubKey() << OP_CHECKSIG, key);
+        return CScript() << key.GetPubKey() << OP_CHECKSIG;
     }
 
     case TX_PUBKEY: // pay to public key
     {
-        valtype& vchPubKey = vSolutions[0];
+        if (!Params().IsColdStakingEnabled()) {
+            return boost::none;
+        }
+        const valtype& vchPubKey = vSolutions[0];
         if (!keystore.GetKey(Hash160(vchPubKey), key)) {
             if (fDebug)
                 printf("CalculateScriptPubKeyForStakeOutput : failed to get key for kernel type=%d\n",
@@ -162,13 +161,21 @@ StakeMaker::CalculateScriptPubKeyForStakeOutput(const CKeyStore& keystore,
 
         if (key.GetPubKey() != vchPubKey) {
             if (fDebug)
-                printf("CalculateScriptPubKeyForStakeOutput : invalid key for kernel type=%d\n",
+                printf("CalculateScriptPubKeyForStakeOutput : invalid key for kernel P2PK type=%d\n",
                        whichType);
             return boost::none; // keys mismatch
         }
-        return KernelScriptPubKeyResult(scriptPubKeyKernel, key);
+        return scriptPubKeyKernel;
     }
-    case TX_COLDSTAKE:
+    case TX_COLDSTAKE: {
+        if (!keystore.GetKey(CKeyID(uint160(vSolutions[0])), key)) {
+            printf(
+                "CalculateScriptPubKeyForStakeOutput : failed to get key for kernel coldstake type=%d\n",
+                whichType);
+            return boost::none;
+        }
+        return scriptPubKeyKernel;
+    }
     case TX_SCRIPTHASH:
     case TX_MULTISIG:
     case TX_NULL_DATA:
@@ -234,7 +241,7 @@ StakeMaker::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBits,
 
             const CScript& kernelScriptPubKey = pcoin.first->vout[pcoin.second].scriptPubKey;
 
-            const boost::optional<KernelScriptPubKeyResult> spkKernel =
+            const boost::optional<CScript> spkKernel =
                 CalculateScriptPubKeyForStakeOutput(keystore, kernelScriptPubKey);
 
             if (!spkKernel) {
@@ -245,13 +252,12 @@ StakeMaker::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBits,
 
             // Fill coin stake transaction
             coinStake.kernelScriptPubKey      = kernelScriptPubKey;
-            coinStake.key                     = spkKernel->key;
             coinStake.credit                  = pcoin.first->vout[pcoin.second].nValue;
             coinStake.kernelTx                = pcoin.first;
             coinStake.kernelBlockTime         = kernelBlock.GetBlockTime();
             coinStake.kernelInput             = CTxIn(pcoin.first->GetHash(), pcoin.second);
             coinStake.stakeTxTime             = txCoinstakeTime;
-            coinStake.stakeOutputScriptPubKey = spkKernel->scriptPubKey;
+            coinStake.stakeOutputScriptPubKey = *spkKernel;
 
             return coinStake;
         }

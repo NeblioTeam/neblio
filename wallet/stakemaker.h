@@ -24,26 +24,6 @@ struct StakeKernelData
     int64_t          stakeTxTime     = 0;
 };
 
-struct KernelScriptPubKeyResult
-{
-    KernelScriptPubKeyResult(const CScript& ScriptPubKey, const CKey& Key)
-        : scriptPubKey(ScriptPubKey), key(Key)
-    {
-    }
-    KernelScriptPubKeyResult(CScript&& ScriptPubKey, CKey&& Key)
-        : scriptPubKey(std::move(ScriptPubKey)), key(std::move(Key))
-    {
-    }
-    CScript scriptPubKey;
-    CKey    key;
-};
-
-struct CoinStakeData
-{
-    CTransaction coinStakeTx;
-    CKey         key;
-};
-
 struct CoinStakeInputsResult
 {
     std::vector<CTxIn>            inputs;
@@ -58,12 +38,12 @@ class StakeMaker
 
 public:
     StakeMaker() = default;
-    boost::optional<CoinStakeData> CreateCoinStake(const CWallet& wallet, unsigned int nBits,
-                                                   CAmount nFees, CAmount reservedBalance);
+    boost::optional<CTransaction> CreateCoinStake(const CWallet& wallet, unsigned int nBits,
+                                                  CAmount nFees, CAmount reservedBalance);
     boost::optional<StakeKernelData>
     FindStakeKernel(const CKeyStore& keystore, unsigned int nBits, int64_t nCoinstakeInitialTxTime,
                     const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins);
-    static boost::optional<KernelScriptPubKeyResult>
+    static boost::optional<CScript>
     CalculateScriptPubKeyForStakeOutput(const CKeyStore& keystore, const CScript& scriptPubKeyKernel);
     static CoinStakeInputsResult
                                CollectInputsForStake(const StakeKernelData&                                     kernelData,

@@ -650,7 +650,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
             return error("ConnectBlock() : %s unable to get coin age for coinstake",
                          vtx[1].GetHash().ToString().c_str());
 
-        CAmount nCalculatedStakeReward = GetProofOfStakeReward(nCoinAge, nFees);
+        const CAmount nCalculatedStakeReward = GetProofOfStakeReward(nCoinAge, nFees);
 
         if (nStakeReward > nCalculatedStakeReward)
             return DoS(100, error("ConnectBlock() : coinstake pays too much(actual=%" PRId64
@@ -1458,6 +1458,22 @@ bool CBlock::AcceptBlock()
     return true;
 }
 
+boost::optional<CKeyID> GetKeyIDFromOutput(const CTxOut& txout)
+{
+    std::vector<valtype> vSolutions;
+    txnouttype           whichType;
+    if (!Solver(txout.scriptPubKey, whichType, vSolutions))
+        return boost::none;
+    if (whichType == TX_PUBKEY) {
+        return CPubKey(vSolutions[0]).GetID();
+    } else if (whichType == TX_PUBKEYHASH || whichType == TX_COLDSTAKE) {
+        return CKeyID(uint160(vSolutions[0]));
+    } else {
+        return boost::none;
+    }
+    return boost::none;
+}
+
 // novacoin: attempt to generate suitable proof-of-stake
 bool CBlock::SignBlock(const CWallet& wallet, int64_t nFees)
 {
@@ -1472,13 +1488,13 @@ bool CBlock::SignBlock(const CWallet& wallet, int64_t nFees)
         return true;
 
     CBlockIndexSmartPtr pindexBestPtr = boost::atomic_load(&pindexBest);
-    if (boost::optional<CoinStakeData> coinStake =
+    if (boost::optional<CTransaction> coinStake =
             stakeMaker.CreateCoinStake(wallet, nBits, nFees, nReserveBalance)) {
-        if (coinStake->coinStakeTx.nTime >=
+        if (coinStake->nTime >=
             std::max(pindexBestPtr->GetPastTimeLimit() + 1, PastDrift(pindexBestPtr->GetBlockTime()))) {
             // make sure coinstake would meet timestamp protocol
-            //    as it would be the same as the block timestamp
-            vtx[0].nTime = nTime = coinStake->coinStakeTx.nTime;
+            // as it would be the same as the block timestamp
+            vtx[0].nTime = nTime = coinStake->nTime;
             nTime = std::max(pindexBestPtr->GetPastTimeLimit() + 1, GetMaxTransactionTime());
             nTime = std::max(GetBlockTime(), PastDrift(pindexBestPtr->GetBlockTime()));
 
@@ -1491,15 +1507,36 @@ bool CBlock::SignBlock(const CWallet& wallet, int64_t nFees)
                     ++it;
                 }
 
-            vtx.insert(vtx.begin() + 1, coinStake->coinStakeTx);
+            vtx.insert(vtx.begin() + 1, *coinStake);
             hashMerkleRoot = GetMerkleRoot();
 
+            boost::optional<CKeyID> keyID = GetKeyIDFromOutput(vtx[1].vout[1]);
+            if (!keyID) {
+                return error("%s: failed to find key for coinstake", __func__);
+            }
+            CKey key;
+            if (!wallet.GetKey(*keyID, key)) {
+                return error("%s: failed to get key from keystore", __func__);
+            }
+
             // append a signature to our block
-            return coinStake->key.Sign(GetHash(), vchBlockSig);
+            return key.Sign(GetHash(), vchBlockSig);
         }
     }
 
     return false;
+}
+
+CKey ExtractColdStakePubKey(const CBlock& block)
+{
+    CKey         key;
+    const CTxIn& coinstakeKernel = block.vtx[1].vin[0];
+    int          start           = 1 + (int)*coinstakeKernel.scriptSig.begin(); // skip sig
+    start += 1 + (int)*(coinstakeKernel.scriptSig.begin() + start);             // skip flag
+    CPubKey pubkey;
+    pubkey = CPubKey(coinstakeKernel.scriptSig.begin() + start + 1, coinstakeKernel.scriptSig.end());
+    key.SetPubKey(pubkey);
+    return key;
 }
 
 bool CBlock::CheckBlockSignature() const
@@ -1515,13 +1552,16 @@ bool CBlock::CheckBlockSignature() const
     if (!Solver(txout.scriptPubKey, whichType, vSolutions))
         return false;
 
+    CKey key;
     if (whichType == TX_PUBKEY) {
-        valtype& vchPubKey = vSolutions[0];
-        CKey     key;
+        const valtype& vchPubKey = vSolutions[0];
         if (!key.SetPubKey(vchPubKey))
             return false;
         if (vchBlockSig.empty())
             return false;
+        return key.Verify(GetHash(), vchBlockSig);
+    } else if (whichType == TX_COLDSTAKE && Params().IsColdStakingEnabled()) {
+        key = ExtractColdStakePubKey(*this);
         return key.Verify(GetHash(), vchBlockSig);
     }
 
