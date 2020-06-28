@@ -102,7 +102,14 @@ class WalletBackupTest(BitcoinTestFramework):
         sync_blocks(self.nodes)
         self.nodes[2].generate(1)
         sync_blocks(self.nodes)
-        self.nodes[3].generate(101)
+
+        # to prevent sync failures, we make create blocks in batches
+        for i in range(10):
+            self.nodes[3].generate(10)
+            self.sync_all([self.nodes[0:3]])
+            time.sleep(3)
+        self.nodes[3].generate(1)
+        self.sync_all([self.nodes[0:3]])
         sync_blocks(self.nodes)
 
         assert_equal(Decimal(self.nodes[0].getbalance()), 124000000)
