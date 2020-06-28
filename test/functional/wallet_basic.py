@@ -50,8 +50,17 @@ class WalletTest(BitcoinTestFramework):
         # assert_equal(walletinfo['immature_balance'], 50)
         # assert_equal(walletinfo['balance'], 0)
 
+        # to prevent sync failures, we make create blocks in batches
         self.sync_all([self.nodes[0:3]])
-        self.nodes[1].generate(101)
+        self.nodes[1].generate(20)
+        self.sync_all([self.nodes[0:3]])
+        self.nodes[1].generate(20)
+        self.sync_all([self.nodes[0:3]])
+        self.nodes[1].generate(20)
+        self.sync_all([self.nodes[0:3]])
+        self.nodes[1].generate(20)
+        self.sync_all([self.nodes[0:3]])
+        self.nodes[1].generate(21)
         self.sync_all([self.nodes[0:3]])
 
         assert_equal(self.nodes[0].getbalance(), block0_reward)
