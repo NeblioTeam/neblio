@@ -574,7 +574,7 @@ Value generateBlocks(int nGenerate, uint64_t nMaxTries, CWallet* const pwallet,
                                "Error: Keypool ran out, please call keypoolrefill first");
         CKeyID keyID = newKey.GetID();
 
-        pwalletMain->SetAddressBookName(keyID, "");
+        pwalletMain->SetAddressBookEntry(keyID, "");
 
         return CBitcoinAddress(keyID);
     }();

@@ -300,14 +300,12 @@ bool ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue, CW
         if (strType == "name") {
             string strAddress;
             ssKey >> strAddress;
-            ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()];
-        }
-        //        else if (strType == "purpose") {
-        //            std::string strAddress;
-        //            ssKey >> strAddress;
-        //            ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].purpose;
-        //        }
-        else if (strType == "tx") {
+            ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].name;
+        } else if (strType == "purpose") {
+            std::string strAddress;
+            ssKey >> strAddress;
+            ssValue >> pwallet->mapAddressBook[CBitcoinAddress(strAddress).Get()].purpose;
+        } else if (strType == "tx") {
             uint256 hash;
             ssKey >> hash;
             CWalletTx& wtx = pwallet->mapWallet[hash];

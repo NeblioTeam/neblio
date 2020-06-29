@@ -138,7 +138,7 @@ Value importprivkey(const Array& params, bool fHelp)
         LOCK2(cs_main, pwalletMain->cs_wallet);
 
         pwalletMain->MarkDirty();
-        pwalletMain->SetAddressBookName(vchAddress, strLabel);
+        pwalletMain->SetAddressBookEntry(vchAddress, strLabel);
 
         // Don't throw error in case a key is already there
         if (pwalletMain->HaveKey(vchAddress))
@@ -223,7 +223,7 @@ Value importwallet(const Array& params, bool fHelp)
         }
         pwalletMain->mapKeyMetadata[keyid].nCreateTime = nTime;
         if (fLabel)
-            pwalletMain->SetAddressBookName(keyid, strLabel);
+            pwalletMain->SetAddressBookEntry(keyid, strLabel);
         nTimeBegin = std::min(nTimeBegin, nTime);
     }
     file.close();
@@ -326,7 +326,7 @@ Value dumpwallet(const Array& params, bool fHelp)
                 file << strprintf(
                     "%s %s label=%s # addr=%s\n",
                     CBitcoinSecret(secret, IsCompressed).ToString().c_str(), strTime.c_str(),
-                    EncodeDumpString(pwalletMain->mapAddressBook[keyid]).c_str(), strAddr.c_str());
+                    EncodeDumpString(pwalletMain->mapAddressBook[keyid].name).c_str(), strAddr.c_str());
             } else if (setKeyPool.count(keyid)) {
                 CSecret secret = key.GetSecret(IsCompressed);
                 file << strprintf("%s %s reserve=1 # addr=%s\n",
@@ -385,7 +385,7 @@ bool _AddKeyToLocalWallet(const CKey& Key, const std::string& strLabel, int64_t 
     // set key creation time, in order to reset the blockchain to that time eventually
     pwalletMain->mapKeyMetadata[keyid].nCreateTime = KeyCreationTime;
     if (addInAddressBook) {
-        pwalletMain->SetAddressBookName(keyid, strLabel);
+        pwalletMain->SetAddressBookEntry(keyid, strLabel);
     }
     earliestTime = std::min(earliestTime, KeyCreationTime);
     return true;
@@ -458,8 +458,8 @@ std::pair<long, long> ImportBackupWallet(const std::string& Src, std::string& Pa
     backupWallet.GetKeys(allKeyIDsSet);
     // deque to simply elements access
     const std::deque<CKeyID> allKeyIDs(allKeyIDsSet.begin(), allKeyIDsSet.end());
-    typedef std::map<CTxDestination, std::string>::const_iterator AddressBookIt;
-    std::map<CTxDestination, std::string>&                        addrBook = backupWallet.mapAddressBook;
+    using AddressBookIt = std::map<CTxDestination, AddressBook::CAddressBookData>::const_iterator;
+    std::map<CTxDestination, AddressBook::CAddressBookData>& addrBook = backupWallet.mapAddressBook;
 
     // set total number of keys
     succeessfullyAddedOutOfTotal.second = allKeyIDs.size();
@@ -479,8 +479,9 @@ std::pair<long, long> ImportBackupWallet(const std::string& Src, std::string& Pa
         if (foundKeyInAddressBook) {
             // import from address book
             bool addSucceeded = _AddKeyToLocalWallet(
-                key, it->second, backupWallet.mapKeyMetadata[boost::get<CKeyID>(it->first)].nCreateTime,
-                earliestTime, true);
+                key, it->second.name,
+                backupWallet.mapKeyMetadata[boost::get<CKeyID>(it->first)].nCreateTime, earliestTime,
+                true);
             if (addSucceeded)
                 succeessfullyAddedOutOfTotal.first++;
         } else {

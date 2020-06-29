@@ -171,7 +171,7 @@ public:
     int64_t                nOrderPosNext;
     std::map<uint256, int> mapRequestCount;
 
-    std::map<CTxDestination, std::string> mapAddressBook;
+    std::map<CTxDestination, AddressBook::CAddressBookData> mapAddressBook;
 
     int64_t nTimeFirstKey;
 
@@ -318,7 +318,8 @@ public:
 
     DBErrors LoadWallet(bool& fFirstRunRet);
 
-    bool SetAddressBookName(const CTxDestination& address, const std::string& strName);
+    bool SetAddressBookEntry(const CTxDestination& address, const std::string& strName,
+                             const std::string& strPurpose = AddressBook::AddressBookPurpose::UNKNOWN);
 
     bool DelAddressBookName(const CTxDestination& address);
 
@@ -397,6 +398,10 @@ public:
     SetTxNTP1OpRet(CTransaction& wtxNew, const std::vector<NTP1Script::TransferInstruction>& TIs,
                    const std::string               ntp1metadata,
                    boost::optional<IssueTokenData> issuanceData = boost::optional<IssueTokenData>());
+
+    std::string purposeForAddress(const CTxDestination& address) const;
+
+    bool HasDelegator(const CTxOut& out) const;
 };
 
 /** A key allocated from the key pool. */

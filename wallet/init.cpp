@@ -929,7 +929,7 @@ bool AppInit2()
             return error("%s %s", __func__, "Unable to generate initial key");
         }
         if (pwalletMain->GetKeyFromPool(newKey)) {
-            if (!pwalletMain->SetAddressBookName(newKey.GetID(), ""))
+            if (!pwalletMain->SetAddressBookEntry(newKey.GetID(), ""))
                 strErrors << _("Cannot write first address") << "\n";
         }
     }

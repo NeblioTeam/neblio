@@ -303,7 +303,7 @@ Value listunspent(const Array& params, bool fHelp)
         if (ExtractDestination(out.tx->vout[out.i].scriptPubKey, address)) {
             entry.push_back(Pair("address", CBitcoinAddress(address).ToString()));
             if (pwalletMain->mapAddressBook.count(address))
-                entry.push_back(Pair("account", pwalletMain->mapAddressBook[address]));
+                entry.push_back(Pair("account", pwalletMain->mapAddressBook[address].name));
         }
         entry.push_back(Pair("scriptPubKey", HexStr(pk.begin(), pk.end())));
         entry.push_back(Pair("amount", ValueFromAmount(nValue)));

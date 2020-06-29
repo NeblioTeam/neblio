@@ -284,11 +284,11 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
         {
             LOCK(wallet->cs_wallet);
 
-            std::map<CTxDestination, std::string>::iterator mi = wallet->mapAddressBook.find(dest);
+            auto mi = wallet->mapAddressBook.find(dest);
 
             // Check if we have a new address or an updated label
-            if (mi == wallet->mapAddressBook.end() || mi->second != strLabel) {
-                wallet->SetAddressBookName(dest, strLabel);
+            if (mi == wallet->mapAddressBook.end() || mi->second.name != strLabel) {
+                wallet->SetAddressBookEntry(dest, strLabel);
             }
         }
     }

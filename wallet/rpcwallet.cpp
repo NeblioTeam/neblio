@@ -401,7 +401,7 @@ Value getnewpubkey(const Array& params, bool fHelp)
                            "Error: Keypool ran out, please call keypoolrefill first");
     CKeyID keyID = newKey.GetID();
 
-    pwalletMain->SetAddressBookName(keyID, strAccount);
+    pwalletMain->SetAddressBookEntry(keyID, strAccount);
     vector<unsigned char> vchPubKey = newKey.Raw();
 
     return HexStr(vchPubKey.begin(), vchPubKey.end());
@@ -430,7 +430,7 @@ Value getnewaddress(const Array& params, bool fHelp)
                            "Error: Keypool ran out, please call keypoolrefill first");
     CKeyID keyID = newKey.GetID();
 
-    pwalletMain->SetAddressBookName(keyID, strAccount);
+    pwalletMain->SetAddressBookEntry(keyID, strAccount);
 
     return CBitcoinAddress(keyID).ToString();
 }
@@ -494,7 +494,7 @@ CBitcoinAddress GetAccountAddress(string strAccount, bool bForceNew = false)
             throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT,
                                "Error: Keypool ran out, please call keypoolrefill first");
 
-        pwalletMain->SetAddressBookName(account.vchPubKey.GetID(), strAccount);
+        pwalletMain->SetAddressBookEntry(account.vchPubKey.GetID(), strAccount);
         walletdb.WriteAccount(strAccount, account);
     }
 
@@ -535,12 +535,12 @@ Value setaccount(const Array& params, bool fHelp)
     // Detect when changing the account of an address that is the 'unused current key' of another
     // account:
     if (pwalletMain->mapAddressBook.count(address.Get())) {
-        string strOldAccount = pwalletMain->mapAddressBook[address.Get()];
+        string strOldAccount = pwalletMain->mapAddressBook[address.Get()].name;
         if (address == GetAccountAddress(strOldAccount))
             GetAccountAddress(strOldAccount, true);
     }
 
-    pwalletMain->SetAddressBookName(address.Get(), strAccount);
+    pwalletMain->SetAddressBookEntry(address.Get(), strAccount);
 
     return Value::null;
 }
@@ -555,10 +555,11 @@ Value getaccount(const Array& params, bool fHelp)
     if (!address.IsValid())
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio address");
 
-    string                                strAccount;
-    map<CTxDestination, string>::iterator mi = pwalletMain->mapAddressBook.find(address.Get());
-    if (mi != pwalletMain->mapAddressBook.end() && !(*mi).second.empty())
-        strAccount = (*mi).second;
+    string                                                       strAccount;
+    map<CTxDestination, AddressBook::CAddressBookData>::iterator mi =
+        pwalletMain->mapAddressBook.find(address.Get());
+    if (mi != pwalletMain->mapAddressBook.end() && !(*mi).second.name.empty())
+        strAccount = (*mi).second.name;
     return strAccount;
 }
 
@@ -572,9 +573,10 @@ Value getaddressesbyaccount(const Array& params, bool fHelp)
 
     // Find all addresses that have the given account
     Array ret;
-    for (const PAIRTYPE(CBitcoinAddress, string) & item : pwalletMain->mapAddressBook) {
+    for (const PAIRTYPE(CBitcoinAddress, AddressBook::CAddressBookData) & item :
+         pwalletMain->mapAddressBook) {
         const CBitcoinAddress& address = item.first;
-        const string&          strName = item.second;
+        const string&          strName = item.second.name;
         if (strName == strAccount)
             ret.push_back(address.ToString());
     }
@@ -750,7 +752,7 @@ Value listaddressgroupings(const Array& /*params*/, bool fHelp)
                 if (pwalletMain->mapAddressBook.find(CBitcoinAddress(address).Get()) !=
                     pwalletMain->mapAddressBook.end()) {
                     addressInfo.push_back(
-                        pwalletMain->mapAddressBook.find(CBitcoinAddress(address).Get())->second);
+                        pwalletMain->mapAddressBook.find(CBitcoinAddress(address).Get())->second.name);
                 }
             }
             // add NTP1 tokens
@@ -885,9 +887,9 @@ Value getreceivedbyaddress(const Array& params, bool fHelp)
 
 void GetAccountAddresses(string strAccount, set<CTxDestination>& setAddress)
 {
-    for (const PAIRTYPE(CTxDestination, string) & item : pwalletMain->mapAddressBook) {
+    for (const auto& item : pwalletMain->mapAddressBook) {
         const CTxDestination& address = item.first;
-        const string&         strName = item.second;
+        const string&         strName = item.second.name;
         if (strName == strAccount)
             setAddress.insert(address);
     }
@@ -1456,7 +1458,7 @@ Value addmultisigaddress(const Array& params, bool fHelp)
     if (!pwalletMain->AddCScript(inner))
         throw runtime_error("AddCScript() failed");
 
-    pwalletMain->SetAddressBookName(innerID, strAccount);
+    pwalletMain->SetAddressBookEntry(innerID, strAccount);
     return CBitcoinAddress(innerID).ToString();
 }
 
@@ -1480,7 +1482,7 @@ Value addredeemscript(const Array& params, bool fHelp)
     if (!pwalletMain->AddCScript(inner))
         throw runtime_error("AddCScript() failed");
 
-    pwalletMain->SetAddressBookName(innerID, strAccount);
+    pwalletMain->SetAddressBookEntry(innerID, strAccount);
     return CBitcoinAddress(innerID).ToString();
 }
 
@@ -1542,9 +1544,9 @@ Value ListReceived(const Array& params, bool fByAccounts)
     // Reply
     Array                  ret;
     map<string, tallyitem> mapAccountTally;
-    for (const PAIRTYPE(CBitcoinAddress, string) & item : pwalletMain->mapAddressBook) {
+    for (const auto& item : pwalletMain->mapAddressBook) {
         const CBitcoinAddress&                    address    = item.first;
-        const string&                             strAccount = item.second;
+        const string&                             strAccount = item.second.name;
         map<CBitcoinAddress, tallyitem>::iterator it         = mapTally.find(address);
         if (it == mapTally.end() && !fIncludeEmpty)
             continue;
@@ -1669,7 +1671,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
         for (const PAIRTYPE(CTxDestination, CAmount) & r : listReceived) {
             string account;
             if (pwalletMain->mapAddressBook.count(r.first))
-                account = pwalletMain->mapAddressBook[r.first];
+                account = pwalletMain->mapAddressBook[r.first].name;
             if (fAllAccounts || (account == strAccount)) {
                 Object entry;
                 entry.push_back(Pair("account", account));
@@ -1804,10 +1806,10 @@ Value listaccounts(const Array& params, bool fHelp)
         includeWatchonly = includeWatchonly | static_cast<isminefilter>(isminetype::ISMINE_WATCH_ONLY);
 
     map<string, CAmount> mapAccountBalances;
-    for (const PAIRTYPE(CTxDestination, string) & entry : pwalletMain->mapAddressBook) {
+    for (const auto& entry : pwalletMain->mapAddressBook) {
         if (IsMineCheck(IsMine(*pwalletMain, entry.first),
                         static_cast<isminetype>(includeWatchonly))) // This address belongs to me
-            mapAccountBalances[entry.second] = 0;
+            mapAccountBalances[entry.second.name] = 0;
     }
 
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
@@ -1828,7 +1830,7 @@ Value listaccounts(const Array& params, bool fHelp)
         if (nDepth >= nMinDepth && wtx.GetBlocksToMaturity() == 0) {
             for (const PAIRTYPE(CTxDestination, CAmount) & r : listReceived)
                 if (pwalletMain->mapAddressBook.count(r.first))
-                    mapAccountBalances[pwalletMain->mapAddressBook[r.first]] += r.second;
+                    mapAccountBalances[pwalletMain->mapAddressBook[r.first].name] += r.second;
                 else
                     mapAccountBalances[""] += r.second;
         }
@@ -2375,7 +2377,7 @@ Value validateaddress(const Array& params, bool fHelp)
             ret.insert(ret.end(), detail.begin(), detail.end());
         }
         if (pwalletMain->mapAddressBook.count(dest))
-            ret.push_back(Pair("account", pwalletMain->mapAddressBook[dest]));
+            ret.push_back(Pair("account", pwalletMain->mapAddressBook[dest].name));
     }
     return ret;
 }
@@ -2411,7 +2413,7 @@ Value validatepubkey(const Array& params, bool fHelp)
             ret.insert(ret.end(), detail.begin(), detail.end());
         }
         if (pwalletMain->mapAddressBook.count(dest))
-            ret.push_back(Pair("account", pwalletMain->mapAddressBook[dest]));
+            ret.push_back(Pair("account", pwalletMain->mapAddressBook[dest].name));
     }
     return ret;
 }

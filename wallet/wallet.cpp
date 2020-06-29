@@ -1003,8 +1003,8 @@ void CWalletTx::GetAccountAmounts(const string& strAccount, CAmount& nReceived, 
         LOCK(pwallet->cs_wallet);
         for (const PAIRTYPE(CTxDestination, CAmount) & r : listReceived) {
             if (pwallet->mapAddressBook.count(r.first)) {
-                map<CTxDestination, string>::const_iterator mi = pwallet->mapAddressBook.find(r.first);
-                if (mi != pwallet->mapAddressBook.end() && (*mi).second == strAccount)
+                auto mi = pwallet->mapAddressBook.find(r.first);
+                if (mi != pwallet->mapAddressBook.end() && (*mi).second.name == strAccount)
                     nReceived += r.second;
             } else if (strAccount.empty()) {
                 nReceived += r.second;
@@ -1301,7 +1301,7 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, bool 
 
                 // --Skip P2CS outputs
                 // skip cold coins
-                if (mine == isminetype::ISMINE_COLD && !fIncludeColdStaking)
+                if (mine == ISMINE_COLD && (!fIncludeColdStaking || !HasDelegator(pcoin->vout[i])))
                     continue;
                 // skip delegated coins
                 if (mine == isminetype::ISMINE_SPENDABLE_DELEGATED && !fIncludeDelegated)
@@ -2516,24 +2516,29 @@ DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
     return DB_LOAD_OK;
 }
 
-bool CWallet::SetAddressBookName(const CTxDestination& address, const string& strName)
+bool CWallet::SetAddressBookEntry(const CTxDestination& address, const string& strName,
+                                  const std::string& strPurpose)
 {
     bool fUpdated = false;
     {
         LOCK(cs_wallet); // mapAddressBook
-        std::map<CTxDestination, std::string>::iterator mi = mapAddressBook.find(address);
-        fUpdated                                           = mi != mapAddressBook.end();
-        mapAddressBook[address]                            = strName;
+        auto mi                      = mapAddressBook.find(address);
+        fUpdated                     = mi != mapAddressBook.end();
+        mapAddressBook[address].name = strName;
     }
     NotifyAddressBookChanged(this, address, strName, ::IsMine(*this, address) != isminetype::ISMINE_NO,
                              (fUpdated ? CT_UPDATED : CT_NEW));
     if (!fFileBacked)
+        return false;
+    std::string addressStr = CBitcoinAddress(address).ToString();
+    if (!strPurpose.empty() && !CWalletDB(strWalletFile).WritePurpose(addressStr, strPurpose))
         return false;
     return CWalletDB(strWalletFile).WriteName(CBitcoinAddress(address).ToString(), strName);
 }
 
 bool CWallet::DelAddressBookName(const CTxDestination& address)
 {
+    std::string strAddress = CBitcoinAddress(address).ToString();
     {
         LOCK(cs_wallet); // mapAddressBook
 
@@ -2545,7 +2550,35 @@ bool CWallet::DelAddressBookName(const CTxDestination& address)
 
     if (!fFileBacked)
         return false;
+    CWalletDB(strWalletFile).ErasePurpose(strAddress);
     return CWalletDB(strWalletFile).EraseName(CBitcoinAddress(address).ToString());
+}
+
+std::string CWallet::purposeForAddress(const CTxDestination& address) const
+{
+    {
+        LOCK(cs_wallet);
+        auto mi = mapAddressBook.find(address);
+        if (mi != mapAddressBook.end()) {
+            return mi->second.purpose;
+        }
+    }
+    return "";
+}
+
+bool CWallet::HasDelegator(const CTxOut& out) const
+{
+    CTxDestination delegator;
+    if (!ExtractDestination(out.scriptPubKey, delegator, false))
+        return false;
+    {
+        LOCK(cs_wallet); // mapAddressBook
+        std::map<CTxDestination, AddressBook::CAddressBookData>::const_iterator mi =
+            mapAddressBook.find(delegator);
+        if (mi == mapAddressBook.end())
+            return false;
+        return (*mi).second.purpose == AddressBook::AddressBookPurpose::DELEGATOR;
+    }
 }
 
 void CWallet::PrintWallet(const CBlock& block)

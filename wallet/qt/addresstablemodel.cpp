@@ -57,7 +57,7 @@ public:
             LOCK(wallet->cs_wallet);
             for (const auto& item : wallet->mapAddressBook) {
                 const CBitcoinAddress& address = item.first;
-                const std::string&     strName = item.second;
+                const std::string&     strName = item.second.name;
                 bool                   fMine   = IsMine(*wallet, address.Get()) != isminetype::ISMINE_NO;
                 cachedAddressTable.append(AddressTableEntry(
                     fMine ? AddressTableEntry::Receiving : AddressTableEntry::Sending,
@@ -202,8 +202,8 @@ bool AddressTableModel::setData(const QModelIndex& index, const QVariant& value,
                 editStatus = NO_CHANGES;
                 return false;
             }
-            wallet->SetAddressBookName(CBitcoinAddress(rec->address.toStdString()).Get(),
-                                       value.toString().toStdString());
+            wallet->SetAddressBookEntry(CBitcoinAddress(rec->address.toStdString()).Get(),
+                                        value.toString().toStdString());
             break;
         case Address:
             // Do nothing, if old address == new address
@@ -231,8 +231,8 @@ bool AddressTableModel::setData(const QModelIndex& index, const QVariant& value,
                     // Remove old entry
                     wallet->DelAddressBookName(CBitcoinAddress(rec->address.toStdString()).Get());
                     // Add new entry with new address
-                    wallet->SetAddressBookName(CBitcoinAddress(value.toString().toStdString()).Get(),
-                                               rec->label.toStdString());
+                    wallet->SetAddressBookEntry(CBitcoinAddress(value.toString().toStdString()).Get(),
+                                                rec->label.toStdString());
                 }
             }
             break;
@@ -327,7 +327,7 @@ QString AddressTableModel::addRow(const QString& type, const QString& label, con
     // Add entry
     {
         LOCK(wallet->cs_wallet);
-        wallet->SetAddressBookName(CBitcoinAddress(strAddress).Get(), strLabel);
+        wallet->SetAddressBookEntry(CBitcoinAddress(strAddress).Get(), strLabel);
     }
     return QString::fromStdString(strAddress);
 }
@@ -356,10 +356,10 @@ QString AddressTableModel::labelForAddress(const QString& address) const
         LOCK(wallet->cs_wallet);
         CBitcoinAddress address_parsed(address.toStdString());
 
-        std::map<CTxDestination, std::string>::iterator mi =
+        std::map<CTxDestination, AddressBook::CAddressBookData>::iterator mi =
             wallet->mapAddressBook.find(address_parsed.Get());
         if (mi != wallet->mapAddressBook.end()) {
-            return QString::fromStdString(mi->second);
+            return QString::fromStdString(mi->second.name);
         }
     }
     return QString();
