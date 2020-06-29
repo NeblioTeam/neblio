@@ -162,7 +162,7 @@ protected:
     int64_t      nStakeCombineThreshold;
     unsigned int nMaxInputsInStake;
     int          nMaxStakeSearchInterval;
-    bool         coldStakingEnabled;
+    bool         fColdStakingEnabled;
 
     int nLastPoWBlock;
 

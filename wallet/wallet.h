@@ -11,6 +11,7 @@
 
 #include <stdlib.h>
 
+#include "addressbook.h"
 #include "key.h"
 #include "keystore.h"
 #include "merkletx.h"
@@ -84,6 +85,7 @@ private:
     bool SelectCoins(CAmount nTargetValue, unsigned int nSpendTime,
                      std::set<std::pair<const CWalletTx*, unsigned int>>& setCoinsRet,
                      CAmount& nValueRet, const CCoinControl* coinControl = nullptr,
+                     bool fIncludeColdStaking = false, bool fIncludeDelegated = true,
                      bool avoidNTP1Outputs = false) const;
 
     CWalletDB* pwalletdbEncryption;
@@ -182,9 +184,14 @@ public:
         return nWalletMaxVersion >= wf;
     }
 
-    void        AvailableCoinsForStaking(std::vector<COutput>& vCoins, unsigned int nSpendTime) const;
-    void        AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed = true,
-                               const CCoinControl* coinControl = nullptr) const;
+    void AvailableCoinsForStaking(std::vector<COutput>& vCoins, unsigned int nSpendTime) const;
+    void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed = true,
+                        bool fIncludeColdStaking = false, bool fIncludeDelegated = true,
+                        const CCoinControl* coinControl = nullptr) const;
+
+    // Get available p2cs utxo
+    void GetAvailableP2CSCoins(std::vector<COutput>& vCoins) const;
+
     static bool SelectCoinsMinConf(CAmount nTargetValue, unsigned int nSpendTime, int nConfMine,
                                    int nConfTheirs, std::vector<COutput> vCoins,
                                    std::set<std::pair<const CWalletTx*, unsigned int>>& setCoinsRet,
@@ -249,7 +256,11 @@ public:
     void    ResendWalletTransactions(bool fForce = false);
     void    SyncTransaction(const CTransaction& tx, const CBlock* pblock);
     CAmount GetBalance() const;
+    CAmount GetColdStakingBalance() const;
+    CAmount GetDelegatedBalance() const;
     CAmount GetUnconfirmedBalance() const;
+    CAmount GetImmatureColdStakingBalance() const;
+    CAmount GetImmatureDelegatedBalance() const;
     CAmount GetImmatureBalance() const;
     CAmount GetStake() const;
     CAmount GetNewMint() const;
@@ -258,11 +269,13 @@ public:
                               CReserveKey& reservekey, CAmount& nFeeRet, NTP1SendTxData ntp1TxData,
                               const RawNTP1MetadataBeforeSend& ntp1metadata = RawNTP1MetadataBeforeSend(),
                               bool isNTP1Issuance = false, const CCoinControl* coinControl = nullptr,
-                              std::string* errorMsg = nullptr);
+                              std::string* errorMsg = nullptr, bool fIncludeDelegated = false);
     bool    CreateTransaction(CScript scriptPubKey, CAmount nValue, CWalletTx& wtxNew,
                               CReserveKey& reservekey, CAmount& nFeeRet, const NTP1SendTxData& ntp1TxData,
+                              std::string*                     strError     = nullptr,
                               const RawNTP1MetadataBeforeSend& ntp1metadata = RawNTP1MetadataBeforeSend(),
-                              bool isNTP1Issuance = false, const CCoinControl* coinControl = nullptr);
+                              bool isNTP1Issuance = false, const CCoinControl* coinControl = nullptr,
+                              bool fIncludeDelegated = false);
     bool    CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
 
     bool GetStakeWeight(const CKeyStore& keystore, uint64_t& nMinWeight, uint64_t& nMaxWeight,
@@ -537,6 +550,8 @@ public:
     CAmount GetDebit(const isminefilter& filter) const;
     CAmount GetCredit(const isminefilter& filter) const;
     CAmount GetAvailableCredit(bool fUseCache = true) const;
+    CAmount GetColdStakingCredit(bool fUseCache = true) const;
+    CAmount GetStakeDelegationCredit(bool fUseCache = true) const;
     CAmount GetUnspentCredit(const isminefilter& filter) const;
     CAmount GetImmatureCredit(
         bool                fUseCache = true,

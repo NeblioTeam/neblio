@@ -1171,6 +1171,34 @@ CAmount CWallet::GetBalance() const
     return nTotal;
 }
 
+CAmount CWallet::GetColdStakingBalance() const
+{
+    CAmount nTotal = 0;
+    {
+        LOCK2(cs_main, cs_wallet);
+        for (const auto& p : mapWallet) {
+            const CWalletTx& pcoin = p.second;
+            if (pcoin.HasP2CSOutputs() && pcoin.IsTrusted())
+                nTotal += pcoin.GetColdStakingCredit();
+        }
+    }
+    return nTotal;
+}
+
+CAmount CWallet::GetDelegatedBalance() const
+{
+    CAmount nTotal = 0;
+    {
+        LOCK2(cs_main, cs_wallet);
+        for (const auto& p : mapWallet) {
+            const CWalletTx& pcoin = p.second;
+            if (pcoin.HasP2CSOutputs() && pcoin.IsTrusted())
+                nTotal += pcoin.GetStakeDelegationCredit();
+        }
+    }
+    return nTotal;
+}
+
 CAmount CWallet::GetUnconfirmedBalance() const
 {
     CAmount nTotal = 0;
@@ -1180,6 +1208,32 @@ CAmount CWallet::GetUnconfirmedBalance() const
             const CWalletTx& pcoin = p.second;
             if (!pcoin.IsTrusted() && pcoin.GetDepthInMainChain() == 0 && pcoin.InMempool())
                 nTotal += pcoin.GetAvailableCredit();
+        }
+    }
+    return nTotal;
+}
+
+CAmount CWallet::GetImmatureColdStakingBalance() const
+{
+    CAmount nTotal = 0;
+    {
+        LOCK2(cs_main, cs_wallet);
+        for (const auto& p : mapWallet) {
+            const CWalletTx& pcoin = p.second;
+            nTotal += pcoin.GetImmatureCredit(false, ISMINE_COLD);
+        }
+    }
+    return nTotal;
+}
+
+CAmount CWallet::GetImmatureDelegatedBalance() const
+{
+    CAmount nTotal = 0;
+    {
+        LOCK2(cs_main, cs_wallet);
+        for (const auto& p : mapWallet) {
+            const CWalletTx& pcoin = p.second;
+            nTotal += pcoin.GetImmatureCredit(false, ISMINE_SPENDABLE_DELEGATED);
         }
     }
     return nTotal;
@@ -1201,8 +1255,8 @@ CAmount CWallet::GetImmatureBalance() const
 }
 
 // populate vCoins with vector of spendable COutputs
-void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed,
-                             const CCoinControl* coinControl) const
+void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, bool fIncludeColdStaking,
+                             bool fIncludeDelegated, const CCoinControl* coinControl) const
 {
     vCoins.clear();
     {
@@ -1238,10 +1292,73 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed,
                 if (IsMineCheck(mine, isminetype::ISMINE_WATCH_ONLY))
                     continue;
 
-                if (pcoin->vout[i].nValue >= nMinimumInputValue &&
-                    (!coinControl || !coinControl->HasSelected() ||
-                     coinControl->IsSelected((*it).first, i))) {
-                    vCoins.push_back(COutput(pcoin, i, nDepth));
+                if (pcoin->vout[i].nValue < nMinimumInputValue)
+                    continue;
+
+                if (!(!coinControl || !coinControl->HasSelected() ||
+                      coinControl->IsSelected((*it).first, i)))
+                    continue;
+
+                // --Skip P2CS outputs
+                // skip cold coins
+                if (mine == isminetype::ISMINE_COLD && !fIncludeColdStaking)
+                    continue;
+                // skip delegated coins
+                if (mine == isminetype::ISMINE_SPENDABLE_DELEGATED && !fIncludeDelegated)
+                    continue;
+                // skip auto-delegated coins
+                if (mine == isminetype::ISMINE_SPENDABLE_STAKEABLE && !fIncludeColdStaking &&
+                    !fIncludeDelegated)
+                    continue;
+
+                // bool fIsValid =
+                //     (((static_cast<isminefilter>(mine) &
+                //        static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE)) !=
+                //       static_cast<isminefilter>(isminetype::ISMINE_NO)) ||
+                //      ((static_cast<isminefilter>(mine) &
+                //        (static_cast<isminefilter>(isminetype::ISMINE_MULTISIG) |
+                //         (fIncludeColdStaking ? static_cast<isminefilter>(isminetype::ISMINE_COLD)
+                //                              : static_cast<isminefilter>(isminetype::ISMINE_NO)) |
+                //         (fIncludeDelegated
+                //              ? static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_DELEGATED)
+                //              : static_cast<isminefilter>(isminetype::ISMINE_NO)))) !=
+                //       static_cast<isminefilter>(isminetype::ISMINE_NO)));
+
+                vCoins.push_back(COutput(pcoin, i, nDepth));
+            }
+        }
+    }
+}
+
+void CWallet::GetAvailableP2CSCoins(std::vector<COutput>& vCoins) const
+{
+    vCoins.clear();
+    {
+        LOCK2(cs_main, cs_wallet);
+        for (const auto& it : mapWallet) {
+            const uint256&   wtxid = it.first;
+            const CWalletTx* pcoin = &it.second;
+
+            bool fConflicted;
+            int  nDepth = pcoin->GetDepthAndMempool(fConflicted);
+
+            if (fConflicted || nDepth < 0)
+                continue;
+
+            if (pcoin->HasP2CSOutputs()) {
+                for (int i = 0; i < (int)pcoin->vout.size(); i++) {
+                    const auto& utxo = pcoin->vout[i];
+
+                    if (IsSpent(wtxid, i))
+                        continue;
+
+                    if (utxo.scriptPubKey.IsPayToColdStaking()) {
+                        isminetype mine = IsMine(utxo);
+                        // bool       isMineSpendable = mine & ISMINE_SPENDABLE_DELEGATED;
+                        if (mine & ISMINE_COLD /* || isMineSpendable*/)
+                            // Depth is not used, no need waste resources and set it for now.
+                            vCoins.emplace_back(COutput(pcoin, i, 0 /*, isMineSpendable*/));
+                    }
                 }
             }
         }
@@ -1285,33 +1402,33 @@ void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins, unsigned int nSp
                       static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE)))
                     continue;
 
-                if (pcoin->vout[i].nValue >= nMinimumInputValue) {
-                    if (txIsNTP1) {
-                        // if this output is an NTP1 output, skip it
-                        try {
-                            const CTransaction* tx = dynamic_cast<const CTransaction*>(pcoin);
-                            if (tx == nullptr) {
-                                throw std::runtime_error(
-                                    "Unable to case transaction: " + pcoin->GetHash().ToString() +
-                                    " to CTransaction");
-                            }
-                            std::vector<std::pair<CTransaction, NTP1Transaction>> inputs =
-                                NTP1Transaction::GetAllNTP1InputsOfTx(*tx, false);
-                            NTP1Transaction ntp1tx;
-                            ntp1tx.readNTP1DataFromTx(*tx, inputs);
-                            // if this output contains tokens, skip it to avoid burning them
-                            if (ntp1tx.getTxOut(i).tokenCount() > 0) {
-                                continue;
-                            }
-                        } catch (std::exception& ex) {
-                            printf(
-                                "Unable to parse script to check whether an output is stakable; error "
-                                "says: %s",
-                                ex.what());
-                        }
-                    }
-                    vCoins.push_back(COutput(pcoin, i, nDepth));
+                if (pcoin->vout[i].nValue < nMinimumInputValue) {
+                    continue;
                 }
+
+                if (txIsNTP1) {
+                    // if this output is an NTP1 output, skip it
+                    try {
+                        const CTransaction* tx = dynamic_cast<const CTransaction*>(pcoin);
+                        if (tx == nullptr) {
+                            throw std::runtime_error("Unable to case transaction: " +
+                                                     pcoin->GetHash().ToString() + " to CTransaction");
+                        }
+                        std::vector<std::pair<CTransaction, NTP1Transaction>> inputs =
+                            NTP1Transaction::GetAllNTP1InputsOfTx(*tx, false);
+                        NTP1Transaction ntp1tx;
+                        ntp1tx.readNTP1DataFromTx(*tx, inputs);
+                        // if this output contains tokens, skip it to avoid burning them
+                        if (ntp1tx.getTxOut(i).tokenCount() > 0) {
+                            continue;
+                        }
+                    } catch (std::exception& ex) {
+                        printf("Unable to parse script to check whether an output is stakable; error "
+                               "says: %s",
+                               ex.what());
+                    }
+                }
+                vCoins.push_back(COutput(pcoin, i, nDepth));
             }
         }
     }
@@ -1557,10 +1674,11 @@ bool CWallet::IsSpent(const uint256& hash, unsigned int n) const
 
 bool CWallet::SelectCoins(CAmount nTargetValue, unsigned int nSpendTime,
                           set<pair<const CWalletTx*, unsigned int>>& setCoinsRet, CAmount& nValueRet,
-                          const CCoinControl* coinControl, bool avoidNTP1Outputs) const
+                          const CCoinControl* coinControl, bool fIncludeColdStaking,
+                          bool fIncludeDelegated, bool avoidNTP1Outputs) const
 {
     vector<COutput> vCoins;
-    AvailableCoins(vCoins, true, coinControl);
+    AvailableCoins(vCoins, true, fIncludeColdStaking, fIncludeDelegated, coinControl);
 
     // coin control -> return all selected outputs (we want all selected to go into the transaction for
     // sure)
@@ -1834,7 +1952,8 @@ void CreateErrorMsg(std::string* errorMsg, const std::string& msg)
 bool CWallet::CreateTransaction(const vector<pair<CScript, CAmount>>& vecSend, CWalletTx& wtxNew,
                                 CReserveKey& reservekey, CAmount& nFeeRet, NTP1SendTxData ntp1TxData,
                                 const RawNTP1MetadataBeforeSend& ntp1metadata, bool isNTP1Issuance,
-                                const CCoinControl* coinControl, std::string* errorMsg)
+                                const CCoinControl* coinControl, std::string* errorMsg,
+                                bool fIncludeDelegated)
 {
     CAmount nValue = 0;
     for (const PAIRTYPE(CScript, CAmount) & s : vecSend) {
@@ -1876,8 +1995,8 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, CAmount>>& vecSend, C
                 // Choose coins to use
                 set<pair<const CWalletTx*, unsigned int>> setCoins;
                 CAmount                                   nValueIn = 0;
-                if (!SelectCoins(nTotalValue, wtxNew.nTime, setCoins, nValueIn, coinControl,
-                                 isNTP1Issuance)) {
+                if (!SelectCoins(nTotalValue, wtxNew.nTime, setCoins, nValueIn, coinControl, false,
+                                 fIncludeDelegated, isNTP1Issuance)) {
                     CreateErrorMsg(errorMsg,
                                    "Failed to collect nebls for the transaction. You are "
                                    "probably trying to spend nebls from NTP1 outputs. NTP1 "
@@ -1904,10 +2023,10 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, CAmount>>& vecSend, C
                         for (const auto s : setCoins) {
                             inputs.insert(COutPoint(s.first->GetHash(), s.second));
                         }
-                        //                        for (const auto s : ntp1TxData.getUsedInputs()) {
-                        //                            inputs.insert(COutPoint(s.getHash(),
-                        //                            s.getIndex()));
-                        //                        }
+                        // for (const auto s : ntp1TxData.getUsedInputs()) {
+                        //     inputs.insert(COutPoint(s.getHash(),
+                        //     s.getIndex()));
+                        // }
 
                         std::vector<COutPoint> inputsFromCoinControl =
                             (takeInputsFromCoinControl ? coinControl->GetSelected()
@@ -2112,14 +2231,14 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, CAmount>>& vecSend, C
 
 bool CWallet::CreateTransaction(CScript scriptPubKey, CAmount nValue, CWalletTx& wtxNew,
                                 CReserveKey& reservekey, CAmount& nFeeRet,
-                                const NTP1SendTxData&            ntp1TxData,
+                                const NTP1SendTxData& ntp1TxData, std::string* strError,
                                 const RawNTP1MetadataBeforeSend& ntp1metadata, bool isNTP1Issuance,
-                                const CCoinControl* coinControl)
+                                const CCoinControl* coinControl, bool fIncludeDelegated)
 {
     vector<pair<CScript, CAmount>> vecSend;
     vecSend.push_back(make_pair(scriptPubKey, nValue));
     return CreateTransaction(vecSend, wtxNew, reservekey, nFeeRet, ntp1TxData, ntp1metadata,
-                             isNTP1Issuance, coinControl);
+                             isNTP1Issuance, coinControl, strError, fIncludeDelegated);
 }
 
 // NovaCoin: get current stake weight
@@ -3085,6 +3204,16 @@ void CWalletTx::Init(const CWallet* pwalletIn)
 CAmount CWalletTx::GetAvailableCredit(bool /*fUseCache*/) const
 {
     return GetUnspentCredit(static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_ALL));
+}
+
+CAmount CWalletTx::GetColdStakingCredit(bool /*fUseCache*/) const
+{
+    return GetUnspentCredit(static_cast<isminefilter>(isminetype::ISMINE_COLD));
+}
+
+CAmount CWalletTx::GetStakeDelegationCredit(bool /*fUseCache*/) const
+{
+    return GetUnspentCredit(static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_DELEGATED));
 }
 
 CAmount CWalletTx::GetUnspentCredit(const isminefilter& filter) const

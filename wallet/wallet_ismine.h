@@ -1,6 +1,7 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2014 The Bitcoin developers
 // Copyright (c) 2017-2019 The PIVX developers
+// Copyright (c) 2020-2020 The Neblio developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -13,7 +14,7 @@ class CKeyStore;
 class CScript;
 
 /** IsMine() return codes */
-enum class isminetype : uint_fast16_t
+enum isminetype : uint_fast16_t
 {
     ISMINE_NO = 0,
     //! Indicates that we dont know how to create a scriptSig that would solve this if we were given the

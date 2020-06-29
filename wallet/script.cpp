@@ -18,6 +18,12 @@ using namespace boost;
 #include "sync.h"
 #include "util.h"
 
+template <typename T>
+std::vector<unsigned char> ToByteVector(const T& in)
+{
+    return std::vector<unsigned char>(in.begin(), in.end());
+}
+
 bool CheckSig(vector<unsigned char> vchSig, vector<unsigned char> vchPubKey, CScript scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType);
 
 static const valtype vchFalse(0);
@@ -245,6 +251,7 @@ const char* GetOpName(opcodetype opcode)
     case OP_SMALLDATA              : return "OP_SMALLDATA";
 
     case OP_INVALIDOPCODE          : return "OP_INVALIDOPCODE";
+    case OP_CHECKCOLDSTAKEVERIFY   : return "OP_CHECKCOLDSTAKEVERIFY";
 
     // Note:
     //  The template matching params etc are defined in opcodetype enum
@@ -1241,6 +1248,14 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, co
                     }
                 }
                 break;
+                case OP_CHECKCOLDSTAKEVERIFY:
+                {
+                    // check it is used in a valid cold stake transaction.
+                    if(!txTo.CheckColdStake(script)) {
+                        return false;
+                    }
+                }
+                break;
 
                 default:
                     return false;
@@ -1450,7 +1465,7 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
 
         // Cold Staking: sender provides P2CS scripts, receiver provides signature, staking-flag and pubkey
         mTemplates.insert(std::make_pair(TX_COLDSTAKE, CScript() << OP_DUP << OP_HASH160 << OP_ROT << OP_IF << OP_CHECKCOLDSTAKEVERIFY <<
-                          OP_PUBKEYHASH << OP_ELSE << OP_PUBKEYHASH << OP_ENDIF << OP_EQUALVERIFY << OP_CHECKSIG));
+                                         OP_PUBKEYHASH << OP_ELSE << OP_PUBKEYHASH << OP_ENDIF << OP_EQUALVERIFY << OP_CHECKSIG));
     }
 
     // Shortcut for pay-to-script-hash, which are more constrained than the other types:
@@ -1490,8 +1505,8 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
                     if (m < 1 || n < 1 || m > n || vSolutionsRet.size()-2 != n)
                         return false;
                 }
-                if (typeRet == TX_COLDSTAKE) {
-                    return false; // Disable coldstake for now
+                if (typeRet == TX_COLDSTAKE && !Params().IsColdStakingEnabled()) {
+                    return false; // coldstaking is disabled
                 }
                 return true;
             }
@@ -1630,23 +1645,26 @@ bool Solver(const CKeyStore& keystore, const CScript& scriptPubKey, uint256 hash
         return (SignN(vSolutions, keystore, hash, nHashType, scriptSigRet));
 
     case TX_COLDSTAKE:
-        return false; // Disable coldstake for now
-//        if (fColdStake) {
-//            // sign with the cold staker key
-//            keyID = CKeyID(uint160(vSolutions[0]));
-//        } else {
-//            // sign with the owner key
-//            keyID = CKeyID(uint160(vSolutions[1]));
-//        }
-//        if (!Sign1(keyID, keystore, hash, nHashType, scriptSigRet))
-//            return error("*** %s: failed to sign with the %s key.",
-//                         __func__, fColdStake ? "cold staker" : "owner");
-//        CPubKey pubKey;
-//        if (!keystore.GetPubKey(keyID, pubKey))
-//            return error("%s : Unable to get public key from keyID", __func__);
-//        std::vector<unsigned char> vch = pubKey.Raw();
-//        scriptSigRet << (fColdStake ? (int)OP_TRUE : OP_FALSE) << vch;
-//        return true;
+        if(!Params().IsColdStakingEnabled()) {
+            return false;
+        }
+
+        if (fColdStake) {
+            // sign with the cold staker key
+            keyID = CKeyID(uint160(vSolutions[0]));
+        } else {
+            // sign with the owner key
+            keyID = CKeyID(uint160(vSolutions[1]));
+        }
+        if (!Sign1(keyID, keystore, hash, nHashType, scriptSigRet))
+            return error("*** %s: failed to sign with the %s key.",
+                         __func__, fColdStake ? "cold staker" : "owner");
+        CPubKey pubKey;
+        if (!keystore.GetPubKey(keyID, pubKey))
+            return error("%s : Unable to get public key from keyID", __func__);
+        std::vector<unsigned char> vch = pubKey.Raw();
+        scriptSigRet << (fColdStake ? (int)OP_TRUE : OP_FALSE) << vch;
+        return true;
     }
     return false;
 }
@@ -1782,7 +1800,7 @@ isminetype IsMine(const CKeyStore &keystore, const CScript& scriptPubKey)
     return isminetype::ISMINE_NO;
 }
 
-bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
+bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet, bool fColdStake)
 {
     vector<valtype> vSolutions;
     txnouttype whichType;
@@ -1802,6 +1820,9 @@ bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
     else if (whichType == TX_SCRIPTHASH)
     {
         addressRet = CScriptID(uint160(vSolutions[0]));
+        return true;
+    } else if (whichType == TX_COLDSTAKE) {
+        addressRet = CKeyID(uint160(vSolutions[!fColdStake]));
         return true;
     }
     // Multisig txns have more than one address...
@@ -1865,8 +1886,16 @@ bool ExtractDestinations(const CScript& scriptPubKey, txnouttype& typeRet, vecto
             CTxDestination address = CPubKey(vSolutions[i]).GetID();
             addressRet.push_back(address);
         }
-    }
-    else
+    } else if (typeRet == TX_COLDSTAKE)
+    {
+        if (vSolutions.size() < 2)
+            return false;
+        nRequiredRet = 2;
+        addressRet.push_back(CKeyID(uint160(vSolutions[0])));
+        addressRet.push_back(CKeyID(uint160(vSolutions[1])));
+        return true;
+
+    } else
     {
         nRequiredRet = 1;
         CTxDestination address;
@@ -2368,5 +2397,15 @@ CScript GetScriptForDestination(const CTxDestination& dest)
     CScript script;
 
     boost::apply_visitor(CScriptVisitor(&script), dest);
+    return script;
+}
+
+CScript GetScriptForStakeDelegation(const CKeyID& stakingKey, const CKeyID& spendingKey)
+{
+    CScript script;
+    script << OP_DUP << OP_HASH160 << OP_ROT <<
+        OP_IF << OP_CHECKCOLDSTAKEVERIFY << ToByteVector(stakingKey) <<
+        OP_ELSE << ToByteVector(spendingKey) << OP_ENDIF <<
+        OP_EQUALVERIFY << OP_CHECKSIG;
     return script;
 }

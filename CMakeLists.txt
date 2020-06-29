@@ -607,6 +607,7 @@ add_library(core_lib STATIC
     wallet/wallet_ismine.cpp
     wallet/stakemaker.cpp
     wallet/work.cpp
+    wallet/addressbook.cpp
     )
 
 target_link_libraries(core_lib

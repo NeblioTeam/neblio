@@ -120,6 +120,266 @@ Value getinfo(const Array& params, bool fHelp)
     return obj;
 }
 
+Object CreateColdStakeDelegation(const Array& params, CWalletTx& wtxNew, CReserveKey& reservekey)
+{
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    // Check that Cold Staking has been enforced or fForceNotEnabled = true
+    //    bool fForceNotEnabled = false;
+    //    if (params.size() > 5 && params[5].type() != Value_type::null_type)
+    //        fForceNotEnabled = params[5].get_bool();
+
+    if (!Params().IsColdStakingEnabled()) {
+        std::string errMsg =
+            "Cold Staking disabled with SPORK 17.\n"
+            "You may force the stake delegation setting fForceNotEnabled to true.\n"
+            "WARNING: If relayed before activation, this tx will be rejected resulting in a ban.\n";
+        throw JSONRPCError(RPC_VERIFY_ERROR, errMsg);
+    }
+
+    // Get Staking Address
+    CBitcoinAddress stakeAddr(params[0].get_str());
+    CKeyID          stakeKey;
+    if (!stakeAddr.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio address");
+    if (!stakeAddr.GetKeyID(stakeKey))
+        throw JSONRPCError(RPC_WALLET_ERROR, "Unable to get stake pubkey hash from stakingaddress");
+
+    // Get Amount
+    CAmount nValue = AmountFromValue(params[1]);
+
+    // include already delegated coins
+    bool fUseDelegated = false;
+    if (params.size() > 4 && params[4].type() != Value_type::null_type)
+        fUseDelegated = params[4].get_bool();
+
+    // Check amount
+    CAmount currBalance =
+        pwalletMain->GetBalance() + (fUseDelegated ? pwalletMain->GetDelegatedBalance() : 0);
+    if (nValue > currBalance)
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
+
+    std::string strError;
+    EnsureWalletIsUnlocked();
+
+    // Get Owner Address
+    CBitcoinAddress ownerAddr;
+    CKeyID          ownerKey;
+    if (params.size() > 2 && params[2].type() != Value_type::null_type && !params[2].get_str().empty()) {
+        // Address provided
+        ownerAddr.SetString(params[2].get_str());
+        if (!ownerAddr.IsValid())
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio spending address");
+        if (!ownerAddr.GetKeyID(ownerKey))
+            throw JSONRPCError(RPC_WALLET_ERROR, "Unable to get spend pubkey hash from owneraddress");
+        // Check that the owner address belongs to this wallet, or fForceExternalAddr is true
+        bool fForceExternalAddr = params.size() > 3 && params[3].type() != Value_type::null_type
+                                      ? params[3].get_bool()
+                                      : false;
+        if (!fForceExternalAddr && !pwalletMain->HaveKey(ownerKey)) {
+            std::string errMsg =
+                strprintf("The provided owneraddress \"%s\" is not present in this wallet.\n"
+                          "Set 'fExternalOwner' argument to true, in order to force the stake "
+                          "delegation to an external owner address.\n"
+                          "e.g. delegatestake stakingaddress amount owneraddress true.\n"
+                          "WARNING: Only the owner of the key to owneraddress will be allowed to spend "
+                          "these coins after the delegation.",
+                          ownerAddr.ToString().c_str());
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, errMsg);
+        }
+
+    } else {
+        // Get new owner address from keypool
+        if (!pwalletMain->IsLocked())
+            pwalletMain->TopUpKeyPool();
+
+        // Generate a new key that is added to wallet
+        CPubKey newKey;
+        if (!pwalletMain->GetKeyFromPool(newKey))
+            throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT,
+                               "Error: Keypool ran out, please call keypoolrefill first");
+        CKeyID keyID = newKey.GetID();
+        ownerAddr    = CBitcoinAddress(keyID);
+
+        if (!ownerAddr.GetKeyID(ownerKey))
+            throw JSONRPCError(RPC_WALLET_ERROR, "Unable to get spend pubkey hash from owneraddress");
+    }
+
+    // Get P2CS script for addresses
+    CScript scriptPubKey = GetScriptForStakeDelegation(stakeKey, ownerKey);
+
+    // Get NTP1 wallet (none)
+    boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();
+    ntp1wallet->setRetrieveFullMetadata(false);
+    ntp1wallet->update();
+
+    NTP1SendTxData tokenSelector;
+    tokenSelector.selectNTP1Tokens(ntp1wallet, std::vector<COutPoint>(),
+                                   std::vector<NTP1SendTokensOneRecipientData>(), false);
+
+    // Create the transaction
+    CAmount nFeeRequired;
+    if (!pwalletMain->CreateTransaction(scriptPubKey, nValue, wtxNew, reservekey, nFeeRequired,
+                                        tokenSelector, &strError, RawNTP1MetadataBeforeSend(), false,
+                                        nullptr, fUseDelegated)) {
+        if (nValue + nFeeRequired > currBalance)
+            strError = strprintf("Error: This transaction requires a transaction fee of at least %s "
+                                 "because of its amount, complexity, or use of recently received "
+                                 "funds!",
+                                 FormatMoney(nFeeRequired).c_str());
+        printf("%s : %s\n", __func__, strError.c_str());
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    }
+
+    Object result;
+    result.push_back(Pair("owner_address", ownerAddr.ToString()));
+    result.push_back(Pair("staker_address", stakeAddr.ToString()));
+    return result;
+}
+
+Value delegatestake(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 2 || params.size() > 6)
+        throw std::runtime_error(
+            "delegatestake \"stakingaddress\" amount ( \"owneraddress\" fExternalOwner fUseDelegated "
+            "fForceNotEnabled )\n"
+            "\nDelegate an amount to a given address for cold staking. The amount is a real and is "
+            "rounded to the nearest 0.00000001\n" +
+            HelpRequiringPassphrase() +
+            "\n"
+
+            "\nArguments:\n"
+            "1. \"stakingaddress\"      (string, required) The neblio address to delegate.\n"
+            "2. \"amount\"              (numeric, required) The amount in nebl to delegate for staking. "
+            "eg 100\n"
+            "3. \"owneraddress\"        (string, optional) The neblio address corresponding to the key "
+            "that will be able to spend the stake. \n"
+            "                               If not provided, or empty string, a new wallet address is "
+            "generated.\n"
+            "4. \"fExternalOwner\"      (boolean, optional, default = false) use the provided "
+            "'owneraddress' anyway, even if not present in this wallet.\n"
+            "                               WARNING: The owner of the keys to 'owneraddress' will be "
+            "the only one allowed to spend these coins.\n"
+            "5. \"fUseDelegated\"       (boolean, optional, default = false) include already delegated "
+            "inputs if needed."
+            "6. \"fForceNotEnabled\"    (boolean, optional, default = false) force the creation even if "
+            "SPORK 17 is disabled (for tests)."
+
+            "\nResult:\n"
+            "{\n"
+            "   \"owner_address\": \"xxx\"   (string) The owner (delegator) owneraddress.\n"
+            "   \"staker_address\": \"xxx\"  (string) The cold staker (delegate) stakingaddress.\n"
+            "   \"txid\": \"xxx\"            (string) The stake delegation transaction id.\n"
+            "}\n"
+            "\nExamples:\n" +
+            "delegatestake \"TAUWWD4oJ3FM36F9CzUwVofGx17X6XtkBG\" 100\n"
+            "delegatestake \"TAUWWD4oJ3FM36F9CzUwVofGx17X6XtkBG\" 1000\n"
+            "\"DMJRSsuU9zfyrvxVaAEFQqK4MxZg34fk\""
+            "delegatestake \"TAUWWD4oJ3FM36F9CzUwVofGx17X6XtkBG\" 1000 "
+            "\"DMJRSsuU9zfyrvxVaAEFQqK4MxZg34fk\"");
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    CWalletTx   wtx;
+    CReserveKey reservekey(pwalletMain.get());
+    Object      ret = CreateColdStakeDelegation(params, wtx, reservekey);
+
+    if (!pwalletMain->CommitTransaction(wtx, reservekey))
+        throw JSONRPCError(RPC_WALLET_ERROR,
+                           "Error: The transaction was rejected! This might happen if some of the coins "
+                           "in your wallet were already spent, such as if you used a copy of wallet.dat "
+                           "and coins were spent in the copy but not marked as spent here.");
+
+    ret.push_back(Pair("txid", wtx.GetHash().GetHex()));
+    return ret;
+}
+
+Value rawdelegatestake(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 2 || params.size() > 5)
+        throw std::runtime_error(
+            "rawdelegatestake \"stakingaddress\" amount ( \"owneraddress\" fExternalOwner fUseDelegated "
+            ")\n"
+            "\nDelegate an amount to a given address for cold staking. The amount is a real and is "
+            "rounded to the nearest 0.00000001\n"
+            "\nDelegate transaction is returned as json object."
+            "\n"
+            "\nArguments:\n"
+            "1. \"stakingaddress\"      (string, required) The neblio address to delegate.\n"
+            "2. \"amount\"              (numeric, required) The amount in nebl to delegate for "
+            "staking. "
+            "eg 100\n"
+            "3. \"owneraddress\"        (string, optional) The neblio address corresponding to the "
+            "key "
+            "that will be able to spend the stake. \n"
+            "                               If not provided, or empty string, a new wallet address "
+            "is "
+            "generated.\n"
+            "4. \"fExternalOwner\"      (boolean, optional, default = false) use the provided "
+            "'owneraddress' anyway, even if not present in this wallet.\n"
+            "                               WARNING: The owner of the keys to 'owneraddress' will "
+            "be "
+            "the only one allowed to spend these coins.\n"
+            "5. \"fUseDelegated         (boolean, optional, default = false) include already "
+            "delegated "
+            "inputs if needed."
+
+            "\nResult:\n"
+            "{\n"
+            "  \"txid\" : \"id\",        (string) The transaction id (same as provided)\n"
+            "  \"version\" : n,          (numeric) The version\n"
+            "  \"size\" : n,             (numeric) The serialized transaction size\n"
+            "  \"locktime\" : ttt,       (numeric) The lock time\n"
+            "  \"vin\" : [               (array of json objects)\n"
+            "     {\n"
+            "       \"txid\": \"id\",    (string) The transaction id\n"
+            "       \"vout\": n,         (numeric) \n"
+            "       \"scriptSig\": {     (json object) The script\n"
+            "         \"asm\": \"asm\",  (string) asm\n"
+            "         \"hex\": \"hex\"   (string) hex\n"
+            "       },\n"
+            "       \"sequence\": n      (numeric) The script sequence number\n"
+            "     }\n"
+            "     ,...\n"
+            "  ],\n"
+            "  \"vout\" : [              (array of json objects)\n"
+            "     {\n"
+            "       \"value\" : x.xxx,            (numeric) The value in btc\n"
+            "       \"n\" : n,                    (numeric) index\n"
+            "       \"scriptPubKey\" : {          (json object)\n"
+            "         \"asm\" : \"asm\",          (string) the asm\n"
+            "         \"hex\" : \"hex\",          (string) the hex\n"
+            "         \"reqSigs\" : n,            (numeric) The required sigs\n"
+            "         \"type\" : \"pubkeyhash\",  (string) The type, eg 'pubkeyhash'\n"
+            "         \"addresses\" : [           (json array of string)\n"
+            "           \"neblioaddress\"        (string) neblio address\n"
+            "           ,...\n"
+            "         ]\n"
+            "       }\n"
+            "     }\n"
+            "     ,...\n"
+            "  ],\n"
+            "  \"hex\" : \"data\",       (string) The serialized, hex-encoded data for 'txid'\n"
+            "}\n"
+
+            "\nExamples:\n"
+            "rawdelegatestake \"TAUWWD4oJ3FM36F9CzUwVofGx17X6XtkBG\" 100 rawdelegatestake"
+            "\"TAUWWD4oJ3FM36F9CzUwVofGx17X6XtkBG\" 1000 \"DMJRSsuU9zfyrvxVaAEFQqK4MxZg34fk\" "
+            "rawdelegatestake"
+            "\"TAUWWD4oJ3FM36F9CzUwVofGx17X6XtkBG\" 1000 \"DMJRSsuU9zfyrvxVaAEFQqK4MxZg34fk\"");
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    CWalletTx   wtx;
+    CReserveKey reservekey(pwalletMain.get());
+    CreateColdStakeDelegation(params, wtx, reservekey);
+
+    Object result;
+    TxToJSON(wtx, 0, result, true);
+
+    return result;
+}
+
 Value getnewpubkey(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() > 1)
@@ -706,6 +966,67 @@ CAmount GetAccountBalance(const string& strAccount, int nMinDepth, const isminef
 {
     CWalletDB walletdb(pwalletMain->strWalletFile);
     return GetAccountBalance(walletdb, strAccount, nMinDepth, filter);
+}
+
+Value getcoldstakingbalance(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 1)
+        throw std::runtime_error(
+            "getcoldstakingbalance ( \"account\" )\n"
+            "\nIf account is not specified, returns the server's total available cold balance.\n"
+            "If account is specified (DEPRECATED), returns the cold balance in the account.\n"
+            "Note that the account \"\" is not the same as leaving the parameter out.\n"
+            "The server total may be different to the balance in the default \"\" account.\n"
+            "\nArguments:\n"
+            "1. \"account\"      (string, optional) DEPRECATED. The selected account, or \"*\" for "
+            "entire wallet. It may be the default account using \"\".\n"
+            "\nResult:\n"
+            "amount              (numeric) The total amount in nebl received for this account in P2CS "
+            "contracts.\n"
+            "\nExamples:\n"
+            "\nThe total amount in the wallet\n"
+            "getcoldstakingbalance"
+            "\nAs a json rpc call\n"
+            "getcoldstakingbalance \"*\"");
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    if (params.size() == 0)
+        return ValueFromAmount(pwalletMain->GetColdStakingBalance());
+
+    std::string strAccount = params[0].get_str();
+    return ValueFromAmount(GetAccountBalance(strAccount, /*nMinDepth*/ 1, ISMINE_COLD));
+}
+
+Value getdelegatedbalance(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 1)
+        throw std::runtime_error(
+            "getdelegatedbalance ( \"account\" )\n"
+            "\nIf account is not specified, returns the server's total available delegated balance (sum "
+            "of all utxos delegated\n"
+            "to a cold staking address to stake on behalf of addresses of this wallet).\n"
+            "If account is specified (DEPRECATED), returns the cold balance in the account.\n"
+            "Note that the account \"\" is not the same as leaving the parameter out.\n"
+            "The server total may be different to the balance in the default \"\" account.\n"
+            "\nArguments:\n"
+            "1. \"account\"      (string, optional) DEPRECATED. The selected account, or \"*\" for "
+            "entire wallet. It may be the default account using \"\".\n"
+            "\nResult:\n"
+            "amount              (numeric) The total amount in nebl received for this account in P2CS "
+            "contracts.\n"
+            "\nExamples:\n"
+            "\nThe total amount in the wallet\n"
+            "getdelegatedbalance \nAs a json rpc call\n"
+            "getdelegatedbalance \"*\"");
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    if (params.size() == 0)
+        return ValueFromAmount(pwalletMain->GetDelegatedBalance());
+
+    std::string strAccount = params[0].get_str();
+    return ValueFromAmount(GetAccountBalance(strAccount, /*nMinDepth*/ 1, ISMINE_SPENDABLE_DELEGATED));
 }
 
 Value getbalance(const Array& params, bool fHelp)
@@ -1780,16 +2101,14 @@ Value getwalletinfo(const Array& params, bool fHelp)
     json_spirit::Object obj;
     obj.push_back(Pair("walletversion", pwalletMain->GetVersion()));
     obj.push_back(Pair("balance", ValueFromAmount(pwalletMain->GetBalance())));
-    //    obj.push_back(Pair("delegated_balance", ValueFromAmount(pwalletMain->GetDelegatedBalance())));
-    //    obj.push_back(Pair("cold_staking_balance",
-    //    ValueFromAmount(pwalletMain->GetColdStakingBalance())));
+    obj.push_back(Pair("delegated_balance", ValueFromAmount(pwalletMain->GetDelegatedBalance())));
+    obj.push_back(Pair("cold_staking_balance", ValueFromAmount(pwalletMain->GetColdStakingBalance())));
     obj.push_back(Pair("unconfirmed_balance", ValueFromAmount(pwalletMain->GetUnconfirmedBalance())));
     obj.push_back(Pair("immature_balance", ValueFromAmount(pwalletMain->GetImmatureBalance())));
-    //    obj.push_back(
-    //        Pair("immature_delegated_balance",
-    //        ValueFromAmount(pwalletMain->GetImmatureDelegatedBalance())));
-    //    obj.push_back(Pair("immature_cold_staking_balance",
-    //                       ValueFromAmount(pwalletMain->GetImmatureColdStakingBalance())));
+    obj.push_back(
+        Pair("immature_delegated_balance", ValueFromAmount(pwalletMain->GetImmatureDelegatedBalance())));
+    obj.push_back(Pair("immature_cold_staking_balance",
+                       ValueFromAmount(pwalletMain->GetImmatureColdStakingBalance())));
     obj.push_back(Pair("txcount", (int)pwalletMain->mapWallet.size()));
     obj.push_back(Pair("keypoololdest", pwalletMain->GetOldestKeyPoolTime()));
     obj.push_back(Pair("keypoolsize", (int)pwalletMain->GetKeyPoolSize()));
@@ -2163,4 +2482,80 @@ Value makekeypair(const Array& params, bool fHelp)
         Pair("PrivateKey", HexStr<CPrivKey::iterator>(vchPrivKey.begin(), vchPrivKey.end())));
     result.push_back(Pair("PublicKey", HexStr(key.GetPubKey().Raw())));
     return result;
+}
+
+Value listcoldutxos(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 1)
+        throw std::runtime_error(
+            "listcoldutxos ( nonWhitelistedOnly )\n"
+            "\nList P2CS unspent outputs received by this wallet as cold-staker-\n"
+
+            "\nArguments:\n"
+            "1. nonWhitelistedOnly   (boolean, optional, default=false) Whether to exclude P2CS from "
+            "whitelisted delegators.\n"
+
+            "\nResult:\n"
+            "[\n"
+            "  {\n"
+            "    \"txid\" : \"true\",            (string) The transaction id of the P2CS utxo\n"
+            "    \"txidn\" : \"accountname\",    (string) The output number of the P2CS utxo\n"
+            "    \"amount\" : x.xxx,             (numeric) The amount of the P2CS utxo\n"
+            "    \"confirmations\" : n           (numeric) The number of confirmations of the P2CS "
+            "utxo\n"
+            "    \"cold-staker\" : n             (string) The cold-staker address of the P2CS utxo\n"
+            "    \"coin-owner\" : n              (string) The coin-owner address of the P2CS utxo\n"
+            "    \"whitelisted\" : n             (string) \"true\"/\"false\" coin-owner in delegator "
+            "whitelist\n"
+            "  }\n"
+            "  ,...\n"
+            "]\n"
+            "\nExamples:\n"
+            "listcoldutxos\n"
+            "listcoldutxos true");
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    bool fExcludeWhitelisted = false;
+    if (params.size() > 0)
+        fExcludeWhitelisted = params[0].get_bool();
+    Array results;
+
+    for (std::map<uint256, CWalletTx>::const_iterator it = pwalletMain->mapWallet.begin();
+         it != pwalletMain->mapWallet.end(); ++it) {
+        const uint256&   wtxid = it->first;
+        const CWalletTx* pcoin = &(*it).second;
+        if (!IsFinalTx(*pcoin) || !pcoin->IsTrusted())
+            continue;
+
+        // if this tx has no unspent P2CS outputs for us, skip it
+        if (pcoin->GetColdStakingCredit() == 0 && pcoin->GetStakeDelegationCredit() == 0)
+            continue;
+
+        for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
+            const CTxOut& out  = pcoin->vout[i];
+            isminetype    mine = pwalletMain->IsMine(out);
+            if (!bool(mine & ISMINE_COLD) && !bool(mine & ISMINE_SPENDABLE_DELEGATED))
+                continue;
+            txnouttype                  type;
+            std::vector<CTxDestination> addresses;
+            int                         nRequired;
+            if (!ExtractDestinations(out.scriptPubKey, type, addresses, nRequired))
+                continue;
+            const bool fWhitelisted = pwalletMain->mapAddressBook.count(addresses[1]) > 0;
+            if (fExcludeWhitelisted && fWhitelisted)
+                continue;
+            Object entry;
+            entry.push_back(Pair("txid", wtxid.GetHex()));
+            entry.push_back(Pair("txidn", (int)i));
+            entry.push_back(Pair("amount", ValueFromAmount(out.nValue)));
+            entry.push_back(Pair("confirmations", pcoin->GetDepthInMainChain()));
+            entry.push_back(Pair("cold-staker", CBitcoinAddress(addresses[0]).ToString()));
+            entry.push_back(Pair("coin-owner", CBitcoinAddress(addresses[1]).ToString()));
+            entry.push_back(Pair("whitelisted", fWhitelisted ? "true" : "false"));
+            results.push_back(entry);
+        }
+    }
+
+    return results;
 }
