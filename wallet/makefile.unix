@@ -243,7 +243,8 @@ OBJS= \
     obj/merkle.o                              \
     obj/wallet_ismine.o                       \
     obj/stakemaker.o                          \
-    obj/work.o
+    obj/work.o                                \
+    obj/addressbook.o
 
 ifdef NEBLIO_REST
     OBJS += obj/nebliorest.o

@@ -163,6 +163,7 @@ HEADERS += qt/bitcoingui.h \
     merkle.h                   \
     wallet_ismine.h            \
     stakemaker.h               \
+    addressbook.h              \
     work.h
 
 
@@ -322,6 +323,7 @@ SOURCES += qt/bitcoin.cpp \
     merkle.cpp                          \
     wallet_ismine.cpp                   \
     stakemaker.cpp                      \
+    addressbook.cpp                     \
     work.cpp
 
 
