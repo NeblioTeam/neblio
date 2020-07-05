@@ -551,6 +551,7 @@ add_library(core_lib STATIC
     wallet/netbase.cpp
     wallet/key.cpp
     wallet/script.cpp
+    wallet/script_error.cpp
     wallet/main.cpp
     wallet/miner.cpp
     wallet/net.cpp

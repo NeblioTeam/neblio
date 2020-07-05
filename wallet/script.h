@@ -16,6 +16,7 @@
 
 #include "bignum.h"
 #include "keystore.h"
+#include "script_error.h"
 #include "wallet_ismine.h"
 
 typedef std::vector<unsigned char> valtype;
@@ -23,6 +24,9 @@ typedef std::vector<unsigned char> valtype;
 class CTransaction;
 
 static const unsigned int MAX_SCRIPT_ELEMENT_SIZE = 520; // bytes
+
+// Maximum script length in bytes
+static const int MAX_SCRIPT_SIZE = 10000;
 
 /** Maximum number of signature check operations in an IsStandard() P2SH script */
 static const unsigned int MAX_P2SH_SIGOPS = 15;
@@ -660,7 +664,8 @@ bool IsCanonicalSignature(const std::vector<unsigned char>& vchSig);
 CScript GetScriptForDestination(const CTxDestination& dest);
 CScript GetScriptForStakeDelegation(const CKeyID& stakingKey, const CKeyID& spendingKey);
 bool    EvalScript(std::vector<std::vector<unsigned char>>& stack, const CScript& script,
-                   const CTransaction& txTo, unsigned int nIn, bool fStrictEncodings, int nHashType);
+                   const CTransaction& txTo, unsigned int nIn, bool fStrictEncodings, int nHashType,
+                   ScriptError* serror = nullptr);
 bool    Solver(const CScript& scriptPubKey, txnouttype& typeRet,
                std::vector<std::vector<unsigned char>>& vSolutionsRet);
 int     ScriptSigArgsExpected(txnouttype t, const std::vector<std::vector<unsigned char>>& vSolutions);
@@ -679,7 +684,8 @@ bool SignSignature(const CKeyStore& keystore, const CScript& fromPubKey, CTransa
 bool SignSignature(const CKeyStore& keystore, const CTransaction& txFrom, CTransaction& txTo,
                    unsigned int nIn, int nHashType = SIGHASH_ALL, bool fColdStake = false);
 bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, const CTransaction& txTo,
-                  unsigned int nIn, bool fValidatePayToScriptHash, bool fStrictEncodings, int nHashType);
+                  unsigned int nIn, bool fValidatePayToScriptHash, bool fStrictEncodings, int nHashType,
+                  ScriptError* serror = nullptr);
 bool VerifySignature(const CTransaction& txFrom, const CTransaction& txTo, unsigned int nIn,
                      bool fValidatePayToScriptHash, bool fStrictEncodings, int nHashType);
 
