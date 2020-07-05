@@ -208,6 +208,7 @@ extern json_spirit::Value signmessage(const json_spirit::Array& params, bool fHe
 extern json_spirit::Value verifymessage(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getreceivedbyaddress(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getreceivedbyaccount(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value listdelegators(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value delegatoradd(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value delegatorremove(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getbalance(const json_spirit::Array& params, bool fHelp);

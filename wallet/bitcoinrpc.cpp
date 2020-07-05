@@ -275,6 +275,7 @@ static const CRPCCommand vRPCCommands[] =
     { "getnewpubkey",              &getnewpubkey,              true,   false },
     { "getaccountaddress",         &getaccountaddress,         true,   false },
     { "delegatestake",             &delegatestake,             true,   false },
+    { "listdelegators",            &listdelegators,            true,   false },
     { "delegatoradd",              &delegatoradd,              true,   false },
     { "delegatorremove",           &delegatorremove,           true,   false },
     { "rawdelegatestake",          &rawdelegatestake,          true,   false },

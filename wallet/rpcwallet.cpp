@@ -934,6 +934,51 @@ Value getreceivedbyaccount(const Array& params, bool fHelp)
     return (double)nAmount / (double)COIN;
 }
 
+Value ListaddressesForPurpose(const std::string& strPurpose)
+{
+    Array ret;
+    {
+        LOCK(pwalletMain->cs_wallet);
+        for (const auto& addr : pwalletMain->mapAddressBook) {
+            if (addr.second.purpose != strPurpose)
+                continue;
+            Object entry;
+            entry.push_back(Pair("label", addr.second.name));
+            entry.push_back(Pair("address", CBitcoinAddress(addr.first).ToString()));
+            ret.push_back(entry);
+        }
+    }
+
+    return ret;
+}
+
+Value listdelegators(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 1)
+        throw std::runtime_error(
+            "listdelegators ( fBlacklist )\n"
+            "\nShows the list of allowed delegator addresses for cold staking.\n"
+
+            "\nArguments:\n"
+            "1. fBlacklist             (boolean, optional, default = false) Show addresses removed\n"
+            "                          from the delegators whitelist\n"
+
+            "\nResult:\n"
+            "[\n"
+            "   {\n"
+            "   \"label\": \"yyy\",    (string) account label\n"
+            "   \"address\": \"xxx\",  (string) neblio address string\n"
+            "   }\n"
+            "  ...\n"
+            "]\n"
+            "\nExamples:\n"
+            "listdelegators");
+
+    const bool fBlacklist = (params.size() > 0 ? params[0].get_bool() : false);
+    return (fBlacklist ? ListaddressesForPurpose(AddressBook::AddressBookPurpose::DELEGABLE)
+                       : ListaddressesForPurpose(AddressBook::AddressBookPurpose::DELEGATOR));
+}
+
 Value delegatoradd(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2)
