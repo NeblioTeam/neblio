@@ -36,6 +36,39 @@ struct CompareValueOnly
     }
 };
 
+CBitcoinAddress CWallet::getNewAddress(const std::string& label)
+{
+    return getNewAddress(label, AddressBook::AddressBookPurpose::RECEIVE);
+}
+
+CBitcoinAddress CWallet::getNewStakingAddress(const std::string& label)
+{
+    return getNewAddress(label, AddressBook::AddressBookPurpose::COLD_STAKING);
+}
+
+CBitcoinAddress CWallet::getNewAddress(const std::string& addressLabel, const string& purpose)
+{
+    LOCK2(cs_main, cs_wallet);
+
+    // Refill keypool if wallet is unlocked
+    if (!IsLocked())
+        TopUpKeyPool();
+
+    CPubKey newKey;
+    // Get a key
+    if (!GetKeyFromPool(newKey)) {
+        // inform the user to top-up the keypool or unlock the wallet
+        throw std::runtime_error(
+            "Keypool ran out, please call keypoolrefill first, or unlock the wallet.");
+    }
+    CKeyID keyID = newKey.GetID();
+
+    if (!SetAddressBookEntry(keyID, addressLabel, purpose))
+        throw std::runtime_error("CWallet::getNewAddress() : SetAddressBook failed");
+
+    return CBitcoinAddress(keyID);
+}
+
 CPubKey CWallet::GenerateNewKey()
 {
     AssertLockHeld(cs_wallet); // mapKeyMetadata

@@ -403,6 +403,11 @@ public:
 
     bool HasDelegator(const CTxOut& out) const;
     bool HasAddressBookEntry(const CTxDestination& address) const;
+
+    /// getNewAddress functions throw std::runtime error on failure
+    CBitcoinAddress getNewAddress(const std::string& addressLabel, const std::string& purpose);
+    CBitcoinAddress getNewAddress(const std::string& label);
+    CBitcoinAddress getNewStakingAddress(const std::string& label);
 };
 
 /** A key allocated from the key pool. */
