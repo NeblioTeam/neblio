@@ -211,6 +211,7 @@ extern json_spirit::Value getreceivedbyaccount(const json_spirit::Array& params,
 extern json_spirit::Value listdelegators(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value delegatoradd(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value delegatorremove(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value liststakingaddresses(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getbalance(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getdelegatedbalance(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getcoldstakingbalance(const json_spirit::Array& params, bool fHelp);

@@ -277,6 +277,7 @@ static const CRPCCommand vRPCCommands[] =
     { "delegatestake",             &delegatestake,             true,   false },
     { "listdelegators",            &listdelegators,            true,   false },
     { "delegatoradd",              &delegatoradd,              true,   false },
+    { "liststakingaddresses",      &liststakingaddresses,      true,   false },
     { "delegatorremove",           &delegatorremove,           true,   false },
     { "rawdelegatestake",          &rawdelegatestake,          true,   false },
     { "listcoldutxos",             &listcoldutxos,             true,   false },

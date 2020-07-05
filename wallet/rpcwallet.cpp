@@ -1052,6 +1052,26 @@ Value delegatorremove(const Array& params, bool fHelp)
     return pwalletMain->SetAddressBookEntry(keyID, label, AddressBook::AddressBookPurpose::DELEGABLE);
 }
 
+Value liststakingaddresses(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw std::runtime_error("liststakingaddresses \"addr\"\n"
+                                 "\nShows the list of staking addresses for this wallet.\n"
+
+                                 "\nResult:\n"
+                                 "[\n"
+                                 "   {\n"
+                                 "   \"label\": \"yyy\",  (string) account label\n"
+                                 "   \"address\": \"xxx\",  (string) neblio address string\n"
+                                 "   }\n"
+                                 "  ...\n"
+                                 "]\n"
+                                 "\nExamples:\n"
+                                 "liststakingaddresses");
+
+    return ListaddressesForPurpose(AddressBook::AddressBookPurpose::COLD_STAKING);
+}
+
 CAmount GetAccountBalance(CWalletDB& walletdb, const string& strAccount, int nMinDepth,
                           const isminefilter& filter)
 {
