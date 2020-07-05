@@ -2566,6 +2566,14 @@ std::string CWallet::purposeForAddress(const CTxDestination& address) const
     return "";
 }
 
+bool CWallet::HasAddressBookEntry(const CTxDestination& address) const
+{
+    LOCK(cs_wallet); // mapAddressBook
+    std::map<CTxDestination, AddressBook::CAddressBookData>::const_iterator mi =
+        mapAddressBook.find(address);
+    return mi != mapAddressBook.end();
+}
+
 bool CWallet::HasDelegator(const CTxOut& out) const
 {
     CTxDestination delegator;

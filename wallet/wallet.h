@@ -402,6 +402,7 @@ public:
     std::string purposeForAddress(const CTxDestination& address) const;
 
     bool HasDelegator(const CTxOut& out) const;
+    bool HasAddressBookEntry(const CTxDestination& address) const;
 };
 
 /** A key allocated from the key pool. */
