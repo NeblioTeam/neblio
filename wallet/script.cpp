@@ -103,6 +103,7 @@ static inline void popstack(vector<valtype>& stack)
 
 const char* GetTxnOutputType(txnouttype t)
 {
+    // clang-format off
     switch (t)
     {
     case TX_NONSTANDARD: return "nonstandard";
@@ -113,10 +114,12 @@ const char* GetTxnOutputType(txnouttype t)
     case TX_NULL_DATA: return "nulldata";
     case TX_COLDSTAKE: return "coldstake";
     }
-    return NULL;
+    return nullptr;
+    // clang-format on
 }
 
 
+// clang-format off
 const char* GetOpName(opcodetype opcode)
 {
     switch (opcode)
@@ -262,6 +265,7 @@ const char* GetOpName(opcodetype opcode)
         return "OP_UNKNOWN";
     }
 }
+// clang-format on
 
 bool IsCanonicalPubKey(const valtype &vchPubKey) {
     if (vchPubKey.size() < 33)
@@ -1278,7 +1282,7 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, co
     return true;
 }
 
-
+//////////////////////////
 
 
 
@@ -1716,7 +1720,7 @@ bool IsStandard(const CScript& scriptPubKey, txnouttype& whichType)
 unsigned int HaveKeys(const vector<valtype>& pubkeys, const CKeyStore& keystore)
 {
     unsigned int nResult = 0;
-    BOOST_FOREACH(const valtype& pubkey, pubkeys)
+    for(const valtype& pubkey: pubkeys)
     {
         CKeyID keyID = CPubKey(pubkey).GetID();
         if (keystore.HaveKey(keyID))
@@ -1842,7 +1846,7 @@ public:
         std::vector<CTxDestination> vDest;
         int nRequired;
         if (ExtractDestinations(script, type, vDest, nRequired)) {
-            BOOST_FOREACH(const CTxDestination &dest, vDest)
+            for(const CTxDestination &dest: vDest)
                 boost::apply_visitor(*this, dest);
         }
     }
@@ -2010,7 +2014,7 @@ bool VerifySignature(const CTransaction& txFrom, const CTransaction& txTo, unsig
 static CScript PushAll(const vector<valtype>& values)
 {
     CScript result;
-    BOOST_FOREACH(const valtype& v, values)
+    for(const valtype& v: values)
         result << v;
     return result;
 }
@@ -2021,12 +2025,12 @@ static CScript CombineMultisig(CScript scriptPubKey, const CTransaction& txTo, u
 {
     // Combine all the signatures we've got:
     set<valtype> allsigs;
-    BOOST_FOREACH(const valtype& v, sigs1)
+    for(const valtype& v: sigs1)
     {
         if (!v.empty())
             allsigs.insert(v);
     }
-    BOOST_FOREACH(const valtype& v, sigs2)
+    for(const valtype& v: sigs2)
     {
         if (!v.empty())
             allsigs.insert(v);
@@ -2037,7 +2041,7 @@ static CScript CombineMultisig(CScript scriptPubKey, const CTransaction& txTo, u
     unsigned int nSigsRequired = vSolutions.front()[0];
     unsigned int nPubKeys = vSolutions.size()-2;
     map<valtype, valtype> sigs;
-    BOOST_FOREACH(const valtype& sig, allsigs)
+    for(const valtype& sig: allsigs)
     {
         for (unsigned int i = 0; i < nPubKeys; i++)
         {
@@ -2262,7 +2266,7 @@ void CScript::SetMultisig(int nRequired, const std::vector<CKey>& keys)
     this->clear();
 
     *this << EncodeOP_N(nRequired);
-    BOOST_FOREACH(const CKey& key, keys)
+    for(const CKey& key: keys)
         *this << key.GetPubKey();
     *this << EncodeOP_N(keys.size()) << OP_CHECKMULTISIG;
 }

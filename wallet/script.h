@@ -71,8 +71,8 @@ enum txnouttype
 
 class CNoDestination {
 public:
-    friend bool operator==(const CNoDestination &a, const CNoDestination &b) { return true; }
-    friend bool operator<(const CNoDestination &a, const CNoDestination &b) { return true; }
+    friend bool operator==(const CNoDestination &/*a*/, const CNoDestination &/*b*/) { return true; }
+    friend bool operator<(const CNoDestination &/*a*/, const CNoDestination &/*b*/) { return true; }
 };
 
 /** A txout script template with a specific destination. It is either:
@@ -261,7 +261,7 @@ inline std::string StackString(const std::vector<std::vector<unsigned char> >& v
 
 
 
-
+////////////////////////////////
 
 
 
@@ -654,7 +654,7 @@ public:
     }
 
     template<typename Stream>
-    void Serialize(Stream &s, int nType, int nVersion) const {
+    void Serialize(Stream &s, int /*nType*/, int /*nVersion*/) const {
         std::vector<unsigned char> compr;
         if (Compress(compr)) {
             s << CFlatData(&compr[0], &compr[compr.size()]);
