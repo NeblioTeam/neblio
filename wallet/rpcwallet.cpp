@@ -995,7 +995,7 @@ Value delegatoradd(const Array& params, bool fHelp)
             "true|false           (boolean) true if successful.\n"
 
             "\nExamples:\n"
-            "delegatoradd DMJRSsuU9zfyrvxVaAEFQqK4MxZg6vgeS6\n");
+            "delegatoradd <address>\n");
 
     CBitcoinAddress address(params[0].get_str());
     if (!address.IsValid())
@@ -1026,7 +1026,7 @@ Value delegatorremove(const Array& params, bool fHelp)
             "true|false           (boolean) true if successful.\n"
 
             "\nExamples:\n"
-            "delegatorremove DMJRSsuU9zfyrvxVaAEFQqK4MxZg6vgeS6");
+            "delegatorremove <address>");
 
     CBitcoinAddress address(params[0].get_str());
     if (!address.IsValid())
