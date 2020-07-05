@@ -19,16 +19,13 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStake(const CWallet&     wal
     // we set the startup time only once
     std::call_once(flag, [&]() { nLastCoinStakeSearchTime = GetAdjustedTime(); });
 
-    CBigNum bnTargetPerCoinDay;
-    bnTargetPerCoinDay.SetCompact(nBits);
-
     // Choose coins to use
     const CAmount nBalance = wallet.GetBalance();
 
     if (nBalance <= reservedBalance)
         return boost::none;
 
-    int64_t nCoinstakeInitialTxTime = GetAdjustedTime();
+    const int64_t nCoinstakeInitialTxTime = GetAdjustedTime();
 
     // no point in searching times that we aleady visited (this is zero interval)
     if (nCoinstakeInitialTxTime <= nLastCoinStakeSearchTime) {
