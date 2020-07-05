@@ -180,6 +180,8 @@ TEST(bloom_tests, bloom_create_insert_serialize_with_tweak)
 
 TEST(bloom_tests, bloom_create_insert_key)
 {
+    SwitchNetworkTypeTemporarily state_holder(NetworkType::Mainnet);
+
     string         strSecret = string("TtnutkcnaPcu3zmjWcrJazf42fp1YAKRpm8grKRRuYjtiykmGuM7");
     CBitcoinSecret vchSecret;
     EXPECT_TRUE(vchSecret.SetString(strSecret));
