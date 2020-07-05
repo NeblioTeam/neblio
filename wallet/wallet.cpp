@@ -1218,6 +1218,12 @@ CAmount CWallet::GetColdStakingBalance() const
     return nTotal;
 }
 
+CAmount CWallet::GetStakingBalance(const bool fIncludeColdStaking) const
+{
+    return GetBalance() +
+           (Params().IsColdStakingEnabled() && fIncludeColdStaking ? GetColdStakingBalance() : 0);
+}
+
 CAmount CWallet::GetDelegatedBalance() const
 {
     CAmount nTotal = 0;
@@ -1337,11 +1343,10 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, bool 
                 if (mine == ISMINE_COLD && (!fIncludeColdStaking || !HasDelegator(pcoin->vout[i])))
                     continue;
                 // skip delegated coins
-                if (mine == isminetype::ISMINE_SPENDABLE_DELEGATED && !fIncludeDelegated)
+                if (mine == ISMINE_SPENDABLE_DELEGATED && !fIncludeDelegated)
                     continue;
                 // skip auto-delegated coins
-                if (mine == isminetype::ISMINE_SPENDABLE_STAKEABLE && !fIncludeColdStaking &&
-                    !fIncludeDelegated)
+                if (mine == ISMINE_SPENDABLE_STAKEABLE && !fIncludeColdStaking && !fIncludeDelegated)
                     continue;
 
                 // bool fIsValid =
@@ -1398,7 +1403,8 @@ void CWallet::GetAvailableP2CSCoins(std::vector<COutput>& vCoins) const
     }
 }
 
-void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins, unsigned int nSpendTime) const
+void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins, unsigned int nSpendTime,
+                                       bool fIncludeColdStaking, bool fIncludeDelegated) const
 {
     vCoins.clear();
 
@@ -1429,11 +1435,33 @@ void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins, unsigned int nSp
                 if (IsSpent(pcoin->GetHash(), i))
                     continue;
 
-                if (!(static_cast<isminefilter>(mine) &
-                      static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_STAKEABLE)) &&
-                    !(static_cast<isminefilter>(mine) &
-                      static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE)))
+                if (!(mine & isminetype::ISMINE_SPENDABLE_STAKEABLE) &&
+                    !(mine & isminetype::ISMINE_SPENDABLE))
                     continue;
+
+                // --Skip P2CS outputs
+                // skip cold coins
+                if (mine == ISMINE_COLD && (!fIncludeColdStaking || !HasDelegator(pcoin->vout[i])))
+                    continue;
+                // skip delegated coins
+                if (mine == ISMINE_SPENDABLE_DELEGATED && !fIncludeDelegated)
+                    continue;
+                // skip auto-delegated coins
+                if (mine == ISMINE_SPENDABLE_STAKEABLE && !fIncludeColdStaking && !fIncludeDelegated)
+                    continue;
+
+                // bool fIsValid =
+                //     (((static_cast<isminefilter>(mine) &
+                //        static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE)) !=
+                //       static_cast<isminefilter>(isminetype::ISMINE_NO)) ||
+                //      ((static_cast<isminefilter>(mine) &
+                //        (static_cast<isminefilter>(isminetype::ISMINE_MULTISIG) |
+                //         (fIncludeColdStaking ? static_cast<isminefilter>(isminetype::ISMINE_COLD)
+                //                              : static_cast<isminefilter>(isminetype::ISMINE_NO)) |
+                //         (fIncludeDelegated
+                //              ? static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_DELEGATED)
+                //              : static_cast<isminefilter>(isminetype::ISMINE_NO)))) !=
+                //       static_cast<isminefilter>(isminetype::ISMINE_NO)));
 
                 if (pcoin->vout[i].nValue < nMinimumInputValue) {
                     continue;
@@ -1734,10 +1762,11 @@ bool CWallet::SelectCoins(CAmount nTargetValue, unsigned int nSpendTime,
 // Select some coins without random shuffle or best subset approximation
 bool CWallet::SelectCoinsForStaking(CAmount nTargetValue, unsigned int nSpendTime,
                                     set<pair<const CWalletTx*, unsigned int>>& setCoinsRet,
-                                    CAmount&                                   nValueRet) const
+                                    CAmount& nValueRet, bool fIncludeColdStaking,
+                                    bool fIncludeDelegated) const
 {
     vector<COutput> vCoins;
-    AvailableCoinsForStaking(vCoins, nSpendTime);
+    AvailableCoinsForStaking(vCoins, nSpendTime, fIncludeColdStaking, fIncludeDelegated);
 
     setCoinsRet.clear();
     nValueRet = 0;

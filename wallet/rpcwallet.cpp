@@ -147,6 +147,10 @@ Object CreateColdStakeDelegation(const Array& params, CWalletTx& wtxNew, CReserv
 
     // Get Amount
     CAmount nValue = AmountFromValue(params[1]);
+    if (nValue < Params().MinColdStakingAmount()) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Invalid amount (%zd). Min amount: %zd",
+                                                            nValue, Params().MinColdStakingAmount()));
+    }
 
     // include already delegated coins
     bool fUseDelegated = false;

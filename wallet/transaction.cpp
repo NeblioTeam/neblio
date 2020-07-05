@@ -241,6 +241,15 @@ bool CTransaction::CheckTransaction(CBlock* sourceBlockPtr) const
         if (!MoneyRange(nValueOut))
             return DoS(100, error("CTransaction::CheckTransaction() : txout total out of range (%zi)",
                                   txout.nValue));
+        // check cold staking enforcement (for delegations) and value out
+        if (txout.scriptPubKey.IsPayToColdStaking()) {
+            if (!Params().IsColdStakingEnabled())
+                return DoS(10, error("%s: cold staking not active", __func__));
+            if (txout.nValue < Params().MinColdStakingAmount())
+                return DoS(100,
+                           error("%s: dust amount (%zd) not allowed for cold staking. Min amount: %zd",
+                                 __func__, txout.nValue, Params().MinColdStakingAmount()));
+        }
     }
 
     // Check for duplicate inputs

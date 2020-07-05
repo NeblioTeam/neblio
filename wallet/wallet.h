@@ -125,7 +125,8 @@ public:
 
     bool SelectCoinsForStaking(CAmount nTargetValue, unsigned int nSpendTime,
                                std::set<std::pair<const CWalletTx*, unsigned int>>& setCoinsRet,
-                               CAmount&                                             nValueRet) const;
+                               CAmount& nValueRet, bool fIncludeColdStaking = true,
+                               bool fIncludeDelegated = false) const;
 
     // this function is supposed to be called every time a new transcation is added to the wallet
     boost::shared_ptr<WalletNewTxUpdateFunctor> walletNewTxUpdateFunctor;
@@ -184,7 +185,8 @@ public:
         return nWalletMaxVersion >= wf;
     }
 
-    void AvailableCoinsForStaking(std::vector<COutput>& vCoins, unsigned int nSpendTime) const;
+    void AvailableCoinsForStaking(std::vector<COutput>& vCoins, unsigned int nSpendTime,
+                                  bool fIncludeColdStaking = true, bool fIncludeDelegated = false) const;
     void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed = true,
                         bool fIncludeColdStaking = false, bool fIncludeDelegated = true,
                         const CCoinControl* coinControl = nullptr) const;
@@ -408,6 +410,7 @@ public:
     CBitcoinAddress getNewAddress(const std::string& addressLabel, const std::string& purpose);
     CBitcoinAddress getNewAddress(const std::string& label);
     CBitcoinAddress getNewStakingAddress(const std::string& label);
+    CAmount         GetStakingBalance(const bool fIncludeColdStaking) const;
 };
 
 /** A key allocated from the key pool. */

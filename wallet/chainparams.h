@@ -7,6 +7,7 @@
 #define BITCOIN_CHAINPARAMS_H
 
 #include "ThreadSafeMap.h"
+#include "amount.h"
 #include "chainparamsbase.h"
 #include "consensus_params.h"
 #include "protocol.h"
@@ -108,6 +109,8 @@ public:
 
     bool IsColdStakingEnabled() const;
 
+    CAmount MinColdStakingAmount() const;
+
     /**
      * The maximum time to go through in the past, in coinstake transaction time, to find a stake
      */
@@ -163,6 +166,7 @@ protected:
     unsigned int nMaxInputsInStake;
     int          nMaxStakeSearchInterval;
     bool         fColdStakingEnabled;
+    CAmount      nMinColdStakingAmount;
 
     int nLastPoWBlock;
 

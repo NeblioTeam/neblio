@@ -142,6 +142,7 @@ public:
         nMaxInputsInStake       = 100;
         nMaxStakeSearchInterval = 60;
         fColdStakingEnabled     = true;
+        nMinColdStakingAmount   = 10 * COIN;
 
         nLastPoWBlock = 1000;
 
@@ -304,6 +305,7 @@ public:
         nMaxInputsInStake       = 100;
         nMaxStakeSearchInterval = 60;
         fColdStakingEnabled     = true;
+        nMinColdStakingAmount   = 10 * COIN;
 
         nLastPoWBlock = 1000;
 
@@ -461,6 +463,7 @@ public:
         nMaxInputsInStake       = 10;
         nMaxStakeSearchInterval = 60;
         fColdStakingEnabled     = true;
+        nMinColdStakingAmount   = 10 * COIN;
 
         nLastPoWBlock = 1000;
 
@@ -578,6 +581,8 @@ int64_t CChainParams::StakeCombineThreshold() const { return nStakeCombineThresh
 unsigned int CChainParams::MaxInputsInStake() const { return nMaxInputsInStake; }
 
 bool CChainParams::IsColdStakingEnabled() const { return fColdStakingEnabled; }
+
+CAmount CChainParams::MinColdStakingAmount() const { return nMinColdStakingAmount; }
 
 int CChainParams::MaxStakeSearchInterval() const { return nMaxStakeSearchInterval; }
 

@@ -37,7 +37,7 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStake(const CWallet&     wal
     std::set<std::pair<const CWalletTx*, unsigned int>> setCoins;
     CAmount                                             nValueIn = 0;
     if (!wallet.SelectCoinsForStaking(nBalance - reservedBalance, nCoinstakeInitialTxTime, setCoins,
-                                      nValueIn))
+                                      nValueIn, GetBoolArg("-coldstaking", true), false))
         return boost::none;
 
     if (setCoins.empty())

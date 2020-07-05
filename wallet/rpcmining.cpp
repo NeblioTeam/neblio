@@ -71,26 +71,29 @@ Value getstakinginfo(const Array& params, bool fHelp)
     uint64_t nMinWeight = 0, nMaxWeight = 0, nWeight = 0;
     pwalletMain->GetStakeWeight(*pwalletMain, nMinWeight, nMaxWeight, nWeight);
 
-    uint64_t     nNetworkWeight = GetPoSKernelPS();
-    bool         staking        = stakeMaker.getLastCoinStakeSearchInterval() && nWeight;
-    unsigned int nTS            = Params().TargetSpacing();
-    int          nExpectedTime  = staking ? (nTS * nNetworkWeight / nWeight) : -1;
+    const uint64_t     nNetworkWeight = GetPoSKernelPS();
+    const bool         staking        = stakeMaker.getLastCoinStakeSearchInterval() && nWeight;
+    const unsigned int nTS            = Params().TargetSpacing();
+    const int          nExpectedTime  = staking ? (nTS * nNetworkWeight / nWeight) : -1;
 
     Object stakingCriteria;
 
-    bool matureCoins      = nWeight;
-    bool activeConnection = true;
-    if (vNodes.empty()) {
-        activeConnection = false;
-    }
-    bool unlocked = true;
-    if (pwalletMain && pwalletMain->IsLocked()) {
-        unlocked = false;
-    }
-    bool synced = true;
-    if (IsInitialBlockDownload()) {
-        synced = false;
-    }
+    const bool matureCoins = !!nWeight;
+
+    bool activeConnection = []() {
+        LOCK(cs_vNodes);
+        return !vNodes.empty();
+    }();
+
+    const bool unlocked = !(pwalletMain && pwalletMain->IsLocked());
+    const bool synced   = !IsInitialBlockDownload();
+
+    const std::size_t stakableCoinsCount = []() {
+        std::vector<COutput> vCoins;
+        bool fIncludeColdStaking = Params().IsColdStakingEnabled() && GetBoolArg("-coldstaking", true);
+        pwalletMain->AvailableCoinsForStaking(vCoins, GetAdjustedTime(), fIncludeColdStaking, false);
+        return vCoins.size();
+    }();
 
     stakingCriteria.push_back(Pair("mature-coins", matureCoins));
     stakingCriteria.push_back(Pair("wallet-unlocked", unlocked));
@@ -103,6 +106,8 @@ Value getstakinginfo(const Array& params, bool fHelp)
     obj.push_back(Pair("staking", staking));
     obj.push_back(Pair("staking-criteria", stakingCriteria));
     obj.push_back(Pair("errors", GetWarnings("statusbar")));
+
+    obj.push_back(Pair("stakableoutputs", (int)stakableCoinsCount));
 
     obj.push_back(Pair("currentblocksize", (uint64_t)nLastBlockSize));
     obj.push_back(Pair("currentblocktx", (uint64_t)nLastBlockTx));
