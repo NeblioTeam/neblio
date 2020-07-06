@@ -1428,6 +1428,7 @@ void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins, unsigned int nSp
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
                 isminetype mine = IsMine(pcoin->vout[i]);
+
                 if (IsSpent(pcoin->GetHash(), i))
                     continue;
 
@@ -2565,12 +2566,12 @@ DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
 bool CWallet::SetAddressBookEntry(const CTxDestination& address, const string& strName,
                                   const std::string& strPurpose)
 {
-    bool fUpdated = false;
+    bool fUpdated = HasAddressBookEntry(address);
     {
         LOCK(cs_wallet); // mapAddressBook
-        auto mi                      = mapAddressBook.find(address);
-        fUpdated                     = mi != mapAddressBook.end();
         mapAddressBook[address].name = strName;
+        if (!strPurpose.empty()) /* update purpose only if requested */
+            mapAddressBook[address].purpose = strPurpose;
     }
     NotifyAddressBookChanged(this, address, strName, ::IsMine(*this, address) != ISMINE_NO,
                              (fUpdated ? CT_UPDATED : CT_NEW));
@@ -2579,7 +2580,7 @@ bool CWallet::SetAddressBookEntry(const CTxDestination& address, const string& s
     std::string addressStr = CBitcoinAddress(address).ToString();
     if (!strPurpose.empty() && !CWalletDB(strWalletFile).WritePurpose(addressStr, strPurpose))
         return false;
-    return CWalletDB(strWalletFile).WriteName(CBitcoinAddress(address).ToString(), strName);
+    return CWalletDB(strWalletFile).WriteName(addressStr, strName);
 }
 
 bool CWallet::DelAddressBookName(const CTxDestination& address)

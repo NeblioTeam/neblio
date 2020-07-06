@@ -19,8 +19,10 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStake(const CWallet&     wal
     // we set the startup time only once
     std::call_once(flag, [&]() { nLastCoinStakeSearchTime = GetAdjustedTime(); });
 
+    const bool fEnableColdStaking = GetBoolArg("-coldstaking", true);
+
     // Choose coins to use
-    const CAmount nBalance = wallet.GetBalance();
+    const CAmount nBalance = wallet.GetStakingBalance(fEnableColdStaking);
 
     if (nBalance <= reservedBalance)
         return boost::none;
@@ -37,7 +39,7 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStake(const CWallet&     wal
     std::set<std::pair<const CWalletTx*, unsigned int>> setCoins;
     CAmount                                             nValueIn = 0;
     if (!wallet.SelectCoinsForStaking(nBalance - reservedBalance, nCoinstakeInitialTxTime, setCoins,
-                                      nValueIn, GetBoolArg("-coldstaking", true), false))
+                                      nValueIn, fEnableColdStaking, false))
         return boost::none;
 
     if (setCoins.empty())
@@ -93,7 +95,7 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStake(const CWallet&     wal
     // Sign
     for (unsigned i = 0; i < inputs.inputsPrevouts.size(); i++) {
         const CWalletTx* pcoin = inputs.inputsPrevouts[i];
-        if (!SignSignature(wallet, *pcoin, stakeTx, i)) {
+        if (!SignSignature(wallet, *pcoin, stakeTx, i, SIGHASH_ALL, true)) {
             printf("CreateCoinStake : failed to sign coinstake");
             return boost::none;
         }
@@ -270,12 +272,14 @@ StakeMaker::CollectInputsForStake(const StakeKernelData&                        
 {
     CoinStakeInputsResult result;
 
+    bool isColdStake = kernelData.kernelScriptPubKey.IsPayToColdStaking();
+
     // add the kernel input
     result.inputs.push_back(kernelData.kernelInput);
     result.inputsPrevouts.push_back(kernelData.kernelTx);
     result.nInputsTotalCredit = kernelData.credit;
 
-    if (!splitStake) {
+    if (!splitStake && !isColdStake) {
         // Attempt to add more inputs
         for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
             // Only add coins of the same key/address as kernel
