@@ -15,7 +15,6 @@ from test_framework.script import CScript, OP_CHECKSIG
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import connect_nodes_bi, p2p_port, bytes_to_hex_str, \
     assert_equal, assert_greater_than, sync_blocks, assert_raises_rpc_error
-import subprocess
 
 import random
 import time
@@ -275,7 +274,7 @@ class ColdStakingTest(BitcoinTestFramework):
         assert_equal(len(stakeable_coins), NUM_OF_INPUTS - 2)
         assert_greater_than(len(stakeInput), 0)
         self.gen_pos_block(1, [[stakeInput["txid"],stakeInput["vout"]]])
-        # Create the block
+        staked_block_mint1 = self.nodes[1].getblockbynumber(self.nodes[1].getblockcount(), True)["mint"]
         self.log.info("New block created (rawtx) by cold-staking.")
 
         # Verify that nodes[0] accepts it
@@ -288,12 +287,15 @@ class ColdStakingTest(BitcoinTestFramework):
             assert s["txid"] != stakeInput["txid"]
         assert_equal(self.nodes[0].getblockcount(), self.nodes[1].getblockcount())
         self.log.info("Great. Cold-staked block was accepted!")
+        staked_block_mint2 = self.nodes[1].getblockbynumber(self.nodes[1].getblockcount(), True)["mint"]
+
+        print(self.nodes[1].getblockbynumber(self.nodes[1].getblockcount(), True)["mint"])
 
         # check balances after staked block.
-        # self.expected_balance -= 100  # 2 x 50 spent
-        # self.expected_immature_balance += 100
-        # self.checkBalances()
-        # self.log.info("Balances check out after staked block")
+        self.expected_balance -= 100  # 2 x 50 spent
+        self.expected_immature_balance += 100 + float(staked_block_mint1) + float(staked_block_mint2)
+        self.checkBalances()
+        self.log.info("Balances check out after staked block")
 
         # # 10) check that the staker cannot stake a block changing the coinstake scriptPubkey.
         # # ----------------------------------------------------------------------------------
