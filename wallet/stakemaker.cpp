@@ -6,7 +6,7 @@
 #include "work.h"
 #include <mutex>
 
-std::once_flag flag;
+static std::once_flag flag;
 
 int64_t StakeMaker::getLastCoinStakeSearchInterval() const { return nLastCoinStakeSearchInterval; }
 
