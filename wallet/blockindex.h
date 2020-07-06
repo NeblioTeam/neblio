@@ -24,8 +24,8 @@ public:
     uint256             nChainTrust; // ppcoin: trust score of block chain
     int                 nHeight;
 
-    int64_t nMint;
-    int64_t nMoneySupply;
+    CAmount nMint;
+    CAmount nMoneySupply;
 
     unsigned int nFlags; // ppcoin: block index flags
     enum
