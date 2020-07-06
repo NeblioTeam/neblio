@@ -788,7 +788,7 @@ Value sendrawtransaction(const Array& params, bool fHelp)
             if (fMissingInputs) {
                 throw JSONRPCError(RPC_TRANSACTION_ERROR, "Missing inputs");
             }
-            throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX rejected");
+            throw JSONRPCError(RPC_VERIFY_REJECTED, "TX rejected");
         }
 
         SyncWithWallets(tx, NULL);

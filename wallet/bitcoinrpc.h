@@ -54,6 +54,7 @@ enum RPCErrorCode
     RPC_DESERIALIZATION_ERROR  = -22, // Error parsing or validating structure in raw format
     RPC_TX_AMEND_FAILED        = -23, // Error parsing or validating structure in raw format
     RPC_VERIFY_ERROR           = -25, // General error during transaction or block submission
+    RPC_VERIFY_REJECTED        = -26, //! Transaction or block was rejected by network rules
 
     //! Aliases for backward compatibility
     RPC_TRANSACTION_ERROR = RPC_VERIFY_ERROR,
