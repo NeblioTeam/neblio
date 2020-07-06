@@ -34,7 +34,7 @@ nci.call_with_err_code('brew uninstall --ignore-dependencies openssl || true')
 nci.call_with_err_code('brew uninstall --ignore-dependencies openssl@1.1 || true')
 nci.call_with_err_code('brew uninstall --ignore-dependencies qrencode || true')
 nci.call_with_err_code('brew uninstall --ignore-dependencies libsodium || true')
-nci.call_with_err_code('brew uninstall --ignore-dependencies icu4c || true')
+# nci.call_with_err_code('brew uninstall --ignore-dependencies icu4c || true')
 
 # Install High Seirra Versions of Depeendencies, due to that being the minimum version we support
 #ccache https://bintray.com/homebrew/bottles/download_file?file_path=ccache-3.7.6.high_sierra.bottle.tar.gz
@@ -44,7 +44,7 @@ nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies
 #berkeley-db@4 https://bintray.com/homebrew/bottles/download_file?file_path=berkeley-db%404-4.8.30.high_sierra.bottle.1.tar.gz
 nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/berkeley-db%404-4.8.30.high_sierra.bottle.1.tar.gz')
 #boost https://homebrew.bintray.com/bottles/boost-1.72.0_2.high_sierra.bottle.tar.gz
-nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/boost-1.72.0_2.high_sierra.bottle.tar.gz')
+nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/boost-1.72.0_3.high_sierra.bottle.tar.gz')
 #miniupnpc https://bintray.com/homebrew/bottles/download_file?file_path=miniupnpc-2.1.high_sierra.bottle.tar.gz
 nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/miniupnpc-2.1.high_sierra.bottle.tar.gz')
 #curl https://bintray.com/homebrew/bottles/download_file?file_path=curl-7.67.0.high_sierra.bottle.tar.gz
@@ -56,7 +56,7 @@ nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies
 #libsodium https://bintray.com/homebrew/bottles/download_file?file_path=libsodium-1.0.18_1.high_sierra.bottle.tar.gz
 nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/libsodium-1.0.18_1.high_sierra.bottle.tar.gz')
 #icu4c https://homebrew.bintray.com/bottles/icu4c-66.1.high_sierra.bottle.tar.gz
-nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/icu4c-66.1.high_sierra.bottle.tar.gz')
+# nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/icu4c-66.1.high_sierra.bottle.tar.gz')
 
 # force relinking
 nci.call_with_err_code('brew unlink qt            && brew link --force --overwrite qt')
@@ -68,7 +68,7 @@ nci.call_with_err_code('brew unlink python        && brew link --force --overwri
 nci.call_with_err_code('brew unlink openssl@1.1   && brew link --force --overwrite openssl@1.1')
 nci.call_with_err_code('brew unlink qrencode      && brew link --force --overwrite qrencode')
 nci.call_with_err_code('brew unlink libsodium     && brew link --force --overwrite libsodium')
-nci.call_with_err_code('brew unlink icu4c         && brew link --force --overwrite icu4c')
+# nci.call_with_err_code('brew unlink icu4c         && brew link --force --overwrite icu4c')
 
 
 nci.call_with_err_code('ccache -s')
