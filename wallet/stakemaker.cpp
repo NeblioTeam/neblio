@@ -12,9 +12,10 @@ int64_t StakeMaker::getLastCoinStakeSearchInterval() const { return nLastCoinSta
 
 int64_t StakeMaker::getLastCoinStakeSearchTime() const { return nLastCoinStakeSearchTime; }
 
-boost::optional<CTransaction> StakeMaker::CreateCoinStake(const CWallet&     wallet,
-                                                          const unsigned int nBits, const CAmount nFees,
-                                                          const CAmount reservedBalance)
+boost::optional<CTransaction>
+StakeMaker::CreateCoinStake(const CWallet& wallet, const unsigned int nBits, const CAmount nFees,
+                            const CAmount reservedBalance,
+                            const boost::optional<std::set<std::pair<uint256, unsigned>>>& customInputs)
 {
     // we set the startup time only once
     std::call_once(flag, [&]() { nLastCoinStakeSearchTime = GetAdjustedTime(); });
@@ -41,6 +42,19 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStake(const CWallet&     wal
     if (!wallet.SelectCoinsForStaking(nBalance - reservedBalance, nCoinstakeInitialTxTime, setCoins,
                                       nValueIn, fEnableColdStaking, false))
         return boost::none;
+
+    if (customInputs.is_initialized()) {
+        decltype(setCoins) toErase;
+        for (const auto& pcoin : setCoins) {
+            auto inputIt = customInputs->find(std::make_pair(pcoin.first->GetHash(), pcoin.second));
+            if (inputIt == customInputs->cend()) {
+                toErase.insert(pcoin);
+            }
+        }
+        for (const auto& pcoin : toErase) {
+            setCoins.erase(pcoin);
+        }
+    }
 
     if (setCoins.empty())
         return boost::none;

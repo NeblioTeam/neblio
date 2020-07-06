@@ -38,8 +38,9 @@ class StakeMaker
 
 public:
     StakeMaker() = default;
-    boost::optional<CTransaction> CreateCoinStake(const CWallet& wallet, unsigned int nBits,
-                                                  CAmount nFees, CAmount reservedBalance);
+    boost::optional<CTransaction> CreateCoinStake(
+        const CWallet& wallet, unsigned int nBits, CAmount nFees, CAmount reservedBalance,
+        const boost::optional<std::set<std::pair<uint256, unsigned>>>& customInputs = boost::none);
     boost::optional<StakeKernelData>
     FindStakeKernel(const CKeyStore& keystore, unsigned int nBits, int64_t nCoinstakeInitialTxTime,
                     const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins);

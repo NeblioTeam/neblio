@@ -43,7 +43,7 @@ class ColdStakingTest(BitcoinTestFramework):
         #         connect_nodes_bi(self.nodes, i, j)
         super().setup_network()
 
-    def gen_pos_block(self, node_number, max_retries=10, average_block_time=STAKE_TARGET_SPACING, block_time_spread=10):
+    def gen_pos_block(self, node_number, inputs_to_use=None, max_retries=10, average_block_time=STAKE_TARGET_SPACING, block_time_spread=10):
         r = random.randrange(-block_time_spread, block_time_spread + 1)
         self.progress_mock_time(average_block_time - self.last_random_time_offset + r)
         self.last_random_time_offset = r
@@ -51,7 +51,10 @@ class ColdStakingTest(BitcoinTestFramework):
         if staking_outputs == 0:
             raise ValueError("Node has no outputs to stake")
         for i in range(max_retries):
-            hashes = self.nodes[node_number].generatepos(1)
+            if inputs_to_use is None:
+                hashes = self.nodes[node_number].generatepos(1)
+            else:
+                hashes = self.nodes[node_number].generatepos(1, inputs_to_use)
             if len(hashes) > 0:
                 return hashes[0]
             else:
@@ -265,31 +268,33 @@ class ColdStakingTest(BitcoinTestFramework):
 
         # 9) check that the staker can use the coins to stake a block with a rawtransaction.
         # ----------------------------------------------------------------------------------
-        # print("*** 9 ***")
-        # self.log.info("Generating another valid cold-stake block...")
-        # stakeable_coins = getDelegatedUtxos(self.nodes[0].listunspent())
-        # stakeInputs = self.get_prevouts(1, stakeable_coins)
-        # assert_greater_than(len(stakeInputs), 0)
-        # # Create the block
-        # new_block = self.stake_next_block(1, stakeInputs, None, staker_privkey)
-        # self.log.info("New block created (rawtx) by cold-staking. Trying to submit...")
-        # # Try to submit the block
-        # ret = self.nodes[1].submitblock(bytes_to_hex_str(new_block.serialize()))
-        # self.log.info("Block %s submitted." % new_block.hash)
-        # assert(ret is None)
+        print("*** 9 ***")
+        self.log.info("Generating another valid cold-stake block...")
+        stakeable_coins = getDelegatedUtxos(self.nodes[0].listunspent())
+        stakeInput = stakeable_coins[0]
+        assert_equal(len(stakeable_coins), NUM_OF_INPUTS - 2)
+        assert_greater_than(len(stakeInput), 0)
+        self.gen_pos_block(1, [[stakeInput["txid"],stakeInput["vout"]]])
+        # Create the block
+        self.log.info("New block created (rawtx) by cold-staking.")
 
-        # # Verify that nodes[0] accepts it
-        # sync_blocks(self.nodes)
-        # assert_equal(self.nodes[0].getblockcount(), self.nodes[1].getblockcount())
-        # assert_equal(new_block.hash, self.nodes[0].getbestblockhash())
-        # self.log.info("Great. Cold-staked block was accepted!")
-        #
-        # # check balances after staked block.
-        # self.expected_balance -= 50
-        # self.expected_immature_balance += 300
+        # Verify that nodes[0] accepts it
+        sync_blocks(self.nodes)
+        remaining_stakable_coins = getDelegatedUtxos(self.nodes[0].listunspent())
+        assert_equal(len(remaining_stakable_coins), NUM_OF_INPUTS - 3)
+        for s in remaining_stakable_coins:
+            print(s["txid"])
+            print(stakeInput["txid"])
+            assert s["txid"] != stakeInput["txid"]
+        assert_equal(self.nodes[0].getblockcount(), self.nodes[1].getblockcount())
+        self.log.info("Great. Cold-staked block was accepted!")
+
+        # check balances after staked block.
+        # self.expected_balance -= 100  # 2 x 50 spent
+        # self.expected_immature_balance += 100
         # self.checkBalances()
         # self.log.info("Balances check out after staked block")
-        #
+
         # # 10) check that the staker cannot stake a block changing the coinstake scriptPubkey.
         # # ----------------------------------------------------------------------------------
         # print("*** 10 ***")

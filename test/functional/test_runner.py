@@ -117,7 +117,8 @@ BASE_SCRIPTS= [
 #    'feature_dersig.py',
 #    'feature_cltv.py',
    'rpc_uptime.py',
-#    'wallet_resendwallettransactions.py',
+   'mining_pos_coldStaking.py',
+    #    'wallet_resendwallettransactions.py',
 #    'feature_minchainwork.py',
 #    'p2p_fingerprint.py',
 #    'feature_uacomment.py',
@@ -143,7 +144,6 @@ EXTENDED_SCRIPTS = [
     # vv Tests less than 2m vv
 #    'feature_bip68_sequence.py',
 #    'mining_getblocktemplate_longpoll.py',
-    'mining_pos_coldStaking.py',
 #    'p2p_timeouts.py',
     # vv Tests less than 60s vv
 #    'feature_bip9_softforks.py',

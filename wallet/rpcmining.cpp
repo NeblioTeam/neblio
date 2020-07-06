@@ -624,7 +624,9 @@ Value generateBlocks(int nGenerate, uint64_t nMaxTries, CWallet* const pwallet,
     return Value(blockHashes);
 }
 
-Value generatePOSBlocks(int nGenerate, CWallet* const pwallet)
+Value generatePOSBlocks(
+    int nGenerate, CWallet* const pwallet,
+    const boost::optional<std::set<std::pair<uint256, unsigned>>>& customInputs = boost::none)
 {
     if (!Params().MineBlocksOnDemand())
         throw JSONRPCError(RPC_INVALID_REQUEST, "This method can only be used on regtest");
@@ -643,7 +645,7 @@ Value generatePOSBlocks(int nGenerate, CWallet* const pwallet)
             if (!pblock)
                 throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
 
-            if (pblock->SignBlock(*pwallet, 0)) {
+            if (pblock->SignBlock(*pwallet, 0, customInputs)) {
                 if (!CheckStake(pblock.get(), *pwallet))
                     throw JSONRPCError(RPC_INTERNAL_ERROR, "CheckStake, CheckStake failed");
             } else {
@@ -708,21 +710,68 @@ Value generate(const Array& params, bool fHelp)
     return generateBlocks(num_generate, max_tries, pwallet);
 }
 
+std::set<std::pair<uint256, unsigned>> ParseCustomInputs(const Value& inputsArray)
+{
+    std::set<std::pair<uint256, unsigned>> result;
+    if (inputsArray.type() == Value_type::array_type) {
+        Array inputs = inputsArray.get_array();
+        for (const Value& el : inputs) {
+            if (el.type() != Value_type::array_type) {
+                throw JSONRPCError(RPC_TYPE_ERROR,
+                                   "Error: Second parameter's elements must be arrays, each are a "
+                                   "pair of string (hash) and output index (int) (error A)");
+            }
+            Array p = el.get_array();
+            if (p.size() != 2) {
+                throw JSONRPCError(RPC_TYPE_ERROR,
+                                   "Error: Second parameter's elements must be arrays, each are a "
+                                   "pair of string (hash) and output index (int) (error B)");
+            }
+            if (p[0].type() != Value_type::str_type) {
+                throw JSONRPCError(RPC_TYPE_ERROR,
+                                   "Error: Second parameter's elements must be arrays, each are a "
+                                   "pair of string (hash) and output index (int) (first element of "
+                                   "a pair is not a string)");
+            }
+            if (p[1].type() != Value_type::int_type) {
+                throw JSONRPCError(RPC_TYPE_ERROR,
+                                   "Error: Second parameter's elements must be arrays, each are a "
+                                   "pair of string (hash) and output index (int) (second element of "
+                                   "a pair is not an int)");
+            }
+            int outIndexS = p[1].get_int();
+            if (outIndexS < 0) {
+                throw JSONRPCError(RPC_TYPE_ERROR,
+                                   "Error: Second parameter's elements must be arrays, each are a "
+                                   "pair of string (hash) and output index (int) (second element of "
+                                   "a pair is < 0)");
+            }
+            unsigned outIndex = static_cast<unsigned>(outIndexS);
+            result.insert(std::make_pair(uint256(p[0].get_str()), outIndex));
+        }
+        return result;
+    } else {
+        throw JSONRPCError(RPC_TYPE_ERROR, "Error: Second parameter must be an array of pairs");
+    }
+}
+
 Value generatepos(const Array& params, bool fHelp)
 {
     EnsureWalletIsUnlocked();
 
     CWallet* const pwallet = pwalletMain.get();
 
-    if (fHelp || params.size() < 1 || params.size() > 1) {
+    if (fHelp || params.size() < 1 || params.size() > 2) {
         throw std::runtime_error(
             "generate nblocks\n"
             "\nMine one block with proof of stake immediately (before the RPC call returns)\n"
             "\nBe aware that staking is a complex principle that requires accurate timing. It's "
             "recommended that you manage timing manually and generate only 1 block at a time\n"
             "\nArguments:\n"
-            "1. nblocks      (numeric, required) How many blocks are generated immediately.\n"
-            "2. count        (numeric, required) Number of blocks to generate.\n"
+            "1. count         (numeric, required) Number of blocks to generate.\n"
+            "2. inputs to use (list of pairs (list of two elements), every one is a hash (uint256 "
+            "string) + input (int); which "
+            "are the inputs to use for the staking)"
             "\nResult:\n"
             "[ blockhashes ]     (array) hashes of blocks generated\n"
             "\nExamples:\n"
@@ -732,7 +781,12 @@ Value generatepos(const Array& params, bool fHelp)
 
     int num_generate = params[0].get_int();
 
-    return generatePOSBlocks(num_generate, pwallet);
+    boost::optional<std::set<std::pair<uint256, unsigned>>> customInputs;
+    if (params.size() > 1) {
+        customInputs = ParseCustomInputs(params[1]);
+    }
+
+    return generatePOSBlocks(num_generate, pwallet, customInputs);
 }
 
 Value generatetoaddress(const Array& params, bool fHelp)
