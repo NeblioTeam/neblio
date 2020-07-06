@@ -788,7 +788,7 @@ isminetype CWallet::IsMine(const CTxIn& txin) const
                 return IsMine(prev.vout.at(txin.prevout.n));
         }
     }
-    return isminetype::ISMINE_NO;
+    return ISMINE_NO;
 }
 
 CAmount CWallet::GetDebit(const CTxIn& txin, const isminefilter& filter) const
@@ -799,7 +799,7 @@ CAmount CWallet::GetDebit(const CTxIn& txin, const isminefilter& filter) const
         if (mi != mapWallet.end()) {
             const CWalletTx& prev = (*mi).second;
             if (txin.prevout.n < prev.vout.size())
-                if (static_cast<isminefilter>(IsMine(prev.vout[txin.prevout.n])) & filter)
+                if (IsMine(prev.vout[txin.prevout.n]) & filter)
                     return prev.vout[txin.prevout.n].nValue;
         }
     }
@@ -812,7 +812,7 @@ CAmount CWallet::GetCredit(const CTxOut& txout, const isminefilter& filter) cons
 {
     if (!MoneyRange(txout.nValue))
         throw std::runtime_error("CWallet::GetCredit() : value out of range");
-    return ((static_cast<isminefilter>(IsMine(txout)) & filter) ? txout.nValue : 0);
+    return ((IsMine(txout) & filter) ? txout.nValue : 0);
 }
 
 bool CWallet::IsChange(const CTxOut& txout) const
@@ -826,8 +826,7 @@ bool CWallet::IsChange(const CTxOut& txout) const
     // a better way of identifying which outputs are 'the send' and which are
     // 'the change' will need to be implemented (maybe extend CWalletTx to remember
     // which output, if any, was change).
-    if (ExtractDestination(txout.scriptPubKey, address) &&
-        ::IsMine(*this, address) != isminetype::ISMINE_NO) {
+    if (ExtractDestination(txout.scriptPubKey, address) && ::IsMine(*this, address) != ISMINE_NO) {
         LOCK(cs_wallet);
         if (!mapAddressBook.count(address))
             return true;
@@ -845,15 +844,12 @@ CAmount CWallet::GetChange(const CTxOut& txout) const
 bool CWallet::IsMine(const CTransaction& tx) const
 {
     for (const CTxOut& txout : tx.vout)
-        if (txout.nValue >= nMinimumInputValue && IsMine(txout) != isminetype::ISMINE_NO)
+        if (txout.nValue >= nMinimumInputValue && IsMine(txout) != ISMINE_NO)
             return true;
     return false;
 }
 
-bool CWallet::IsFromMe(const CTransaction& tx) const
-{
-    return (GetDebit(tx, static_cast<isminefilter>(isminetype::ISMINE_ALL)) > 0);
-}
+bool CWallet::IsFromMe(const CTransaction& tx) const { return (GetDebit(tx, ISMINE_ALL) > 0); }
 
 CAmount CWallet::GetDebit(const CTransaction& tx, const isminefilter& filter) const
 {
@@ -995,7 +991,7 @@ void CWalletTx::GetAmounts(list<pair<CTxDestination, CAmount>>& listReceived,
             if (pwallet->IsChange(txout))
                 continue;
             fIsMine = pwallet->IsMine(txout);
-        } else if (!IsMineCheck((fIsMine = pwallet->IsMine(txout)), isminetype::ISMINE_SPENDABLE))
+        } else if (!IsMineCheck((fIsMine = pwallet->IsMine(txout)), ISMINE_SPENDABLE))
             continue;
 
         // In either case, we need to get the destination address
@@ -1011,7 +1007,7 @@ void CWalletTx::GetAmounts(list<pair<CTxDestination, CAmount>>& listReceived,
             listSent.push_back(make_pair(address, txout.nValue));
 
         // If we are receiving the output, add it as a "received" entry
-        if (static_cast<isminefilter>(fIsMine) & filter)
+        if (fIsMine & filter)
             listReceived.push_back(make_pair(address, txout.nValue));
     }
 }
@@ -1325,10 +1321,10 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, bool 
                 if (IsSpent(pcoin->GetHash(), i))
                     continue;
 
-                if (mine == isminetype::ISMINE_NO)
+                if (mine == ISMINE_NO)
                     continue;
 
-                if (IsMineCheck(mine, isminetype::ISMINE_WATCH_ONLY))
+                if (IsMineCheck(mine, ISMINE_WATCH_ONLY))
                     continue;
 
                 if (pcoin->vout[i].nValue < nMinimumInputValue)
@@ -1350,17 +1346,17 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, bool 
                     continue;
 
                 // bool fIsValid =
-                //     (((static_cast<isminefilter>(mine) &
-                //        static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE)) !=
-                //       static_cast<isminefilter>(isminetype::ISMINE_NO)) ||
-                //      ((static_cast<isminefilter>(mine) &
-                //        (static_cast<isminefilter>(isminetype::ISMINE_MULTISIG) |
-                //         (fIncludeColdStaking ? static_cast<isminefilter>(isminetype::ISMINE_COLD)
-                //                              : static_cast<isminefilter>(isminetype::ISMINE_NO)) |
+                //     (((mine &
+                //        ISMINE_SPENDABLE) !=
+                //       ISMINE_NO) ||
+                //      ((mine &
+                //        (ISMINE_MULTISIG |
+                //         (fIncludeColdStaking ? ISMINE_COLD
+                //                              : ISMINE_NO) |
                 //         (fIncludeDelegated
-                //              ? static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_DELEGATED)
-                //              : static_cast<isminefilter>(isminetype::ISMINE_NO)))) !=
-                //       static_cast<isminefilter>(isminetype::ISMINE_NO)));
+                //              ? ISMINE_SPENDABLE_DELEGATED
+                //              : ISMINE_NO))) !=
+                //       ISMINE_NO));
 
                 vCoins.push_back(COutput(pcoin, i, nDepth));
             }
@@ -1435,8 +1431,7 @@ void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins, unsigned int nSp
                 if (IsSpent(pcoin->GetHash(), i))
                     continue;
 
-                if (!(mine & isminetype::ISMINE_SPENDABLE_STAKEABLE) &&
-                    !(mine & isminetype::ISMINE_SPENDABLE))
+                if (!(mine & ISMINE_SPENDABLE_STAKEABLE) && !(mine & ISMINE_SPENDABLE))
                     continue;
 
                 // --Skip P2CS outputs
@@ -1451,17 +1446,10 @@ void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins, unsigned int nSp
                     continue;
 
                 // bool fIsValid =
-                //     (((static_cast<isminefilter>(mine) &
-                //        static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE)) !=
-                //       static_cast<isminefilter>(isminetype::ISMINE_NO)) ||
-                //      ((static_cast<isminefilter>(mine) &
-                //        (static_cast<isminefilter>(isminetype::ISMINE_MULTISIG) |
-                //         (fIncludeColdStaking ? static_cast<isminefilter>(isminetype::ISMINE_COLD)
-                //                              : static_cast<isminefilter>(isminetype::ISMINE_NO)) |
-                //         (fIncludeDelegated
-                //              ? static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_DELEGATED)
-                //              : static_cast<isminefilter>(isminetype::ISMINE_NO)))) !=
-                //       static_cast<isminefilter>(isminetype::ISMINE_NO)));
+                //     (((mine & ISMINE_SPENDABLE) != ISMINE_NO) ||
+                //      ((mine & (ISMINE_MULTISIG | (fIncludeColdStaking ? ISMINE_COLD : ISMINE_NO) |
+                //                (fIncludeDelegated ? ISMINE_SPENDABLE_DELEGATED : ISMINE_NO))) !=
+                //       ISMINE_NO));
 
                 if (pcoin->vout[i].nValue < nMinimumInputValue) {
                     continue;
@@ -1544,8 +1532,7 @@ CAmount CWallet::GetStake() const
     for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
         const CWalletTx* pcoin = &(*it).second;
         if (pcoin->IsCoinStake() && pcoin->GetBlocksToMaturity() > 0 && pcoin->GetDepthInMainChain() > 0)
-            nTotal += CWallet::GetCredit(
-                *pcoin, static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_ALL), true);
+            nTotal += CWallet::GetCredit(*pcoin, ISMINE_SPENDABLE_ALL, true);
     }
     return nTotal;
 }
@@ -1557,8 +1544,7 @@ CAmount CWallet::GetNewMint() const
     for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
         const CWalletTx* pcoin = &(*it).second;
         if (pcoin->IsCoinBase() && pcoin->GetBlocksToMaturity() > 0 && pcoin->GetDepthInMainChain() > 0)
-            nTotal += CWallet::GetCredit(
-                *pcoin, static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_ALL), true);
+            nTotal += CWallet::GetCredit(*pcoin, ISMINE_SPENDABLE_ALL, true);
     }
     return nTotal;
 }
@@ -1595,9 +1581,7 @@ bool CWallet::SelectCoinsMinConf(CAmount nTargetValue, unsigned int nSpendTime, 
     for (COutput output : vCoins) {
         const CWalletTx* pcoin = output.tx;
 
-        if (output.nDepth < (pcoin->IsFromMe(static_cast<isminefilter>(isminetype::ISMINE_ALL))
-                                 ? nConfMine
-                                 : nConfTheirs))
+        if (output.nDepth < (pcoin->IsFromMe(ISMINE_ALL) ? nConfMine : nConfTheirs))
             continue;
 
         int i = output.i;
@@ -2588,7 +2572,7 @@ bool CWallet::SetAddressBookEntry(const CTxDestination& address, const string& s
         fUpdated                     = mi != mapAddressBook.end();
         mapAddressBook[address].name = strName;
     }
-    NotifyAddressBookChanged(this, address, strName, ::IsMine(*this, address) != isminetype::ISMINE_NO,
+    NotifyAddressBookChanged(this, address, strName, ::IsMine(*this, address) != ISMINE_NO,
                              (fUpdated ? CT_UPDATED : CT_NEW));
     if (!fFileBacked)
         return false;
@@ -2607,8 +2591,7 @@ bool CWallet::DelAddressBookName(const CTxDestination& address)
         mapAddressBook.erase(address);
     }
 
-    NotifyAddressBookChanged(this, address, "", ::IsMine(*this, address) != isminetype::ISMINE_NO,
-                             CT_DELETED);
+    NotifyAddressBookChanged(this, address, "", ::IsMine(*this, address) != ISMINE_NO, CT_DELETED);
 
     if (!fFileBacked)
         return false;
@@ -2658,14 +2641,12 @@ void CWallet::PrintWallet(const CBlock& block)
         if (block.IsProofOfWork() && mapWallet.count(block.vtx[0].GetHash())) {
             CWalletTx& wtx = mapWallet[block.vtx[0].GetHash()];
             printf("    mine:  %d  %d  %" PRId64 "", wtx.GetDepthInMainChain(),
-                   wtx.GetBlocksToMaturity(),
-                   wtx.GetCredit(static_cast<isminefilter>(isminetype::ISMINE_ALL)));
+                   wtx.GetBlocksToMaturity(), wtx.GetCredit(ISMINE_ALL));
         }
         if (block.IsProofOfStake() && mapWallet.count(block.vtx[1].GetHash())) {
             CWalletTx& wtx = mapWallet[block.vtx[1].GetHash()];
             printf("    stake: %d  %d  %" PRId64 "", wtx.GetDepthInMainChain(),
-                   wtx.GetBlocksToMaturity(),
-                   wtx.GetCredit(static_cast<isminefilter>(isminetype::ISMINE_ALL)));
+                   wtx.GetBlocksToMaturity(), wtx.GetCredit(ISMINE_ALL));
         }
     }
     printf("\n");
@@ -2879,12 +2860,12 @@ std::map<CTxDestination, CAmount> CWallet::GetAddressBalances()
             int  nDepth = pcoin->GetDepthAndMempool(fConflicted);
             if (fConflicted)
                 continue;
-            if (nDepth < (pcoin->IsFromMe(static_cast<isminefilter>(isminetype::ISMINE_ALL)) ? 0 : 1))
+            if (nDepth < (pcoin->IsFromMe(ISMINE_ALL) ? 0 : 1))
                 continue;
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
                 CTxDestination addr;
-                if (IsMine(pcoin->vout[i]) == isminetype::ISMINE_NO)
+                if (IsMine(pcoin->vout[i]) == ISMINE_NO)
                     continue;
                 if (!ExtractDestination(pcoin->vout[i].scriptPubKey, addr))
                     continue;
@@ -2915,7 +2896,7 @@ set<set<CTxDestination>> CWallet::GetAddressGroupings()
             // group all input addresses with each other
             for (CTxIn txin : pcoin->vin) {
                 CTxDestination address;
-                if (IsMine(txin) == isminetype::ISMINE_NO) /* If this input isn't mine, ignore it */
+                if (IsMine(txin) == ISMINE_NO) /* If this input isn't mine, ignore it */
                     continue;
                 if (!ExtractDestination(
                         mapWallet.at(txin.prevout.hash).vout.at(txin.prevout.n).scriptPubKey, address))
@@ -2943,7 +2924,7 @@ set<set<CTxDestination>> CWallet::GetAddressGroupings()
 
         // group lone addrs by themselves
         for (unsigned int i = 0; i < pcoin->vout.size(); i++)
-            if (IsMine(pcoin->vout[i]) != isminetype::ISMINE_NO) {
+            if (IsMine(pcoin->vout[i]) != ISMINE_NO) {
                 CTxDestination address;
                 if (!ExtractDestination(pcoin->vout[i].scriptPubKey, address))
                     continue;
@@ -3196,8 +3177,7 @@ bool CWalletTx::IsTrusted() const
         return true;
     if (nDepth < 0)
         return false;
-    if (fConfChange ||
-        !IsFromMe(static_cast<isminefilter>(isminetype::ISMINE_ALL))) // using wtx's cached debit
+    if (fConfChange || !IsFromMe(ISMINE_ALL)) // using wtx's cached debit
         return false;
 
     // Trusted if all inputs are from us and are in the mempool:
@@ -3207,7 +3187,7 @@ bool CWalletTx::IsTrusted() const
         if (parent == nullptr)
             return false;
         const CTxOut& parentOut = parent->vout[txin.prevout.n];
-        if (pwallet->IsMine(parentOut) != isminetype::ISMINE_SPENDABLE)
+        if (pwallet->IsMine(parentOut) != ISMINE_SPENDABLE)
             return false;
     }
 
@@ -3233,39 +3213,35 @@ CAmount CWalletTx::GetDebit(const isminefilter& filter) const
         return 0;
 
     CAmount debit = 0;
-    if (filter & static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE)) {
+    if (filter & ISMINE_SPENDABLE) {
         if (c_DebitCached)
             debit += *c_DebitCached;
         else {
-            c_DebitCached =
-                pwallet->GetDebit(*this, static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE));
+            c_DebitCached = pwallet->GetDebit(*this, ISMINE_SPENDABLE);
             debit += *c_DebitCached;
         }
     }
-    if (filter & static_cast<isminefilter>(isminetype::ISMINE_WATCH_ONLY)) {
+    if (filter & ISMINE_WATCH_ONLY) {
         if (c_WatchDebitCached)
             debit += *c_WatchDebitCached;
         else {
-            c_WatchDebitCached =
-                pwallet->GetDebit(*this, static_cast<isminefilter>(isminetype::ISMINE_WATCH_ONLY));
+            c_WatchDebitCached = pwallet->GetDebit(*this, ISMINE_WATCH_ONLY);
             debit += *c_WatchDebitCached;
         }
     }
-    if (filter & static_cast<isminefilter>(isminetype::ISMINE_COLD)) {
+    if (filter & ISMINE_COLD) {
         if (c_ColdDebitCached)
             debit += *c_ColdDebitCached;
         else {
-            c_ColdDebitCached =
-                pwallet->GetDebit(*this, static_cast<isminefilter>(isminetype::ISMINE_COLD));
+            c_ColdDebitCached = pwallet->GetDebit(*this, ISMINE_COLD);
             debit += *c_ColdDebitCached;
         }
     }
-    if (filter & static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_DELEGATED)) {
+    if (filter & ISMINE_SPENDABLE_DELEGATED) {
         if (c_DelegatedDebitCached)
             debit += *c_DelegatedDebitCached;
         else {
-            c_DelegatedDebitCached = pwallet->GetDebit(
-                *this, static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_DELEGATED));
+            c_DelegatedDebitCached = pwallet->GetDebit(*this, ISMINE_SPENDABLE_DELEGATED);
             debit += *c_DelegatedDebitCached;
         }
     }
@@ -3306,17 +3282,17 @@ void CWalletTx::Init(const CWallet* pwalletIn)
 
 CAmount CWalletTx::GetAvailableCredit(bool /*fUseCache*/) const
 {
-    return GetUnspentCredit(static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_ALL));
+    return GetUnspentCredit(ISMINE_SPENDABLE_ALL);
 }
 
 CAmount CWalletTx::GetColdStakingCredit(bool /*fUseCache*/) const
 {
-    return GetUnspentCredit(static_cast<isminefilter>(isminetype::ISMINE_COLD));
+    return GetUnspentCredit(ISMINE_COLD);
 }
 
 CAmount CWalletTx::GetStakeDelegationCredit(bool /*fUseCache*/) const
 {
-    return GetUnspentCredit(static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_DELEGATED));
+    return GetUnspentCredit(ISMINE_SPENDABLE_DELEGATED);
 }
 
 CAmount CWalletTx::GetUnspentCredit(const isminefilter& filter) const
@@ -3326,20 +3302,20 @@ CAmount CWalletTx::GetUnspentCredit(const isminefilter& filter) const
         return 0;
 
     CAmount credit = 0;
-    if (filter & static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE)) {
-        const auto f = static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE);
+    if (filter & ISMINE_SPENDABLE) {
+        const auto f = ISMINE_SPENDABLE;
         credit += pwallet->GetCredit(*this, f, true);
     }
-    if (filter & static_cast<isminefilter>(isminetype::ISMINE_WATCH_ONLY)) {
-        const auto f = static_cast<isminefilter>(isminetype::ISMINE_WATCH_ONLY);
+    if (filter & ISMINE_WATCH_ONLY) {
+        const auto f = ISMINE_WATCH_ONLY;
         credit += pwallet->GetCredit(*this, f, true);
     }
-    if (filter & static_cast<isminefilter>(isminetype::ISMINE_COLD)) {
-        const auto f = static_cast<isminefilter>(isminetype::ISMINE_COLD);
+    if (filter & ISMINE_COLD) {
+        const auto f = ISMINE_COLD;
         credit += pwallet->GetCredit(*this, f, true);
     }
-    if (filter & static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_DELEGATED)) {
-        const auto f = static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_DELEGATED);
+    if (filter & ISMINE_SPENDABLE_DELEGATED) {
+        const auto f = ISMINE_SPENDABLE_DELEGATED;
         credit += pwallet->GetCredit(*this, f, true);
     }
     return credit;
@@ -3357,8 +3333,7 @@ CAmount CWalletTx::GetImmatureCredit(bool fUseCache, const isminefilter& filter)
 {
     LOCK(cs_main);
     if ((IsCoinBase() || IsCoinStake()) && GetBlocksToMaturity() > 0 && IsInMainChain()) {
-        if (fUseCache && c_ImmatureCreditCached &&
-            filter == static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_ALL))
+        if (fUseCache && c_ImmatureCreditCached && filter == ISMINE_SPENDABLE_ALL)
             return *c_ImmatureCreditCached;
         c_ImmatureCreditCached = pwallet->GetCredit(*this, filter, false);
         return *c_ImmatureCreditCached;
@@ -3377,40 +3352,36 @@ CAmount CWalletTx::GetCredit(const isminefilter& filter) const
 
     CAmount credit = 0;
 
-    if (filter & static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE)) {
+    if (filter & ISMINE_SPENDABLE) {
         // GetBalance can assume transactions in mapWallet won't change
         if (c_CreditCached)
             credit += *c_CreditCached;
         else {
-            c_CreditCached = pwallet->GetCredit(
-                *this, static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE), false);
+            c_CreditCached = pwallet->GetCredit(*this, ISMINE_SPENDABLE, false);
             credit += *c_CreditCached;
         }
     }
-    if (filter & static_cast<isminefilter>(isminetype::ISMINE_WATCH_ONLY)) {
+    if (filter & ISMINE_WATCH_ONLY) {
         if (c_WatchCreditCached)
             credit += *c_WatchCreditCached;
         else {
-            c_WatchCreditCached = pwallet->GetCredit(
-                *this, static_cast<isminefilter>(isminetype::ISMINE_WATCH_ONLY), false);
+            c_WatchCreditCached = pwallet->GetCredit(*this, ISMINE_WATCH_ONLY, false);
             credit += *c_WatchCreditCached;
         }
     }
-    if (filter & static_cast<isminefilter>(isminetype::ISMINE_COLD)) {
+    if (filter & ISMINE_COLD) {
         if (c_ColdCreditCached)
             credit += *c_ColdCreditCached;
         else {
-            c_ColdCreditCached =
-                pwallet->GetCredit(*this, static_cast<isminefilter>(isminetype::ISMINE_COLD), false);
+            c_ColdCreditCached = pwallet->GetCredit(*this, ISMINE_COLD, false);
             credit += *c_ColdCreditCached;
         }
     }
-    if (filter & static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_DELEGATED)) {
+    if (filter & ISMINE_SPENDABLE_DELEGATED) {
         if (c_DelegatedCreditCached)
             credit += *c_DelegatedCreditCached;
         else {
-            c_DelegatedCreditCached = pwallet->GetCredit(
-                *this, static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_DELEGATED), false);
+            c_DelegatedCreditCached = pwallet->GetCredit(*this, ISMINE_SPENDABLE_DELEGATED, false);
             credit += *c_DelegatedCreditCached;
         }
     }

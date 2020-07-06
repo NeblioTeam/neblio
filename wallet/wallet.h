@@ -567,9 +567,8 @@ public:
     CAmount GetColdStakingCredit(bool fUseCache = true) const;
     CAmount GetStakeDelegationCredit(bool fUseCache = true) const;
     CAmount GetUnspentCredit(const isminefilter& filter) const;
-    CAmount GetImmatureCredit(
-        bool                fUseCache = true,
-        const isminefilter& filter = static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_ALL)) const;
+    CAmount GetImmatureCredit(bool                fUseCache = true,
+                              const isminefilter& filter    = isminetype::ISMINE_SPENDABLE_ALL) const;
     CAmount GetChange() const;
 
     void GetAmounts(std::list<std::pair<CTxDestination, CAmount>>& listReceived,
