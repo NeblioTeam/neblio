@@ -42,8 +42,8 @@ nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies
 nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/qt-5.13.2.high_sierra.bottle.tar.gz')
 #berkeley-db@4 https://bintray.com/homebrew/bottles/download_file?file_path=berkeley-db%404-4.8.30.high_sierra.bottle.1.tar.gz
 nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/berkeley-db%404-4.8.30.high_sierra.bottle.1.tar.gz')
-#boost https://homebrew.bintray.com/bottles/boost-1.72.0_2.high_sierra.bottle.tar.gz
-nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/boost-1.72.0_2.high_sierra.bottle.tar.gz')
+#boost https://homebrew.bintray.com/bottles/boost-1.72.0_3.high_sierra.bottle.tar.gz
+nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/boost-1.72.0_3.high_sierra.bottle.tar.gz')
 #miniupnpc https://bintray.com/homebrew/bottles/download_file?file_path=miniupnpc-2.1.high_sierra.bottle.tar.gz
 nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/miniupnpc-2.1.high_sierra.bottle.tar.gz')
 #curl https://bintray.com/homebrew/bottles/download_file?file_path=curl-7.67.0.high_sierra.bottle.tar.gz
@@ -54,6 +54,7 @@ nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies
 nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/qrencode-4.0.2.high_sierra.bottle.tar.gz')
 #libsodium https://bintray.com/homebrew/bottles/download_file?file_path=libsodium-1.0.18_1.high_sierra.bottle.tar.gz
 nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/libsodium-1.0.18_1.high_sierra.bottle.tar.gz')
+
 
 # force relinking
 nci.call_with_err_code('brew unlink qt            && brew link --force --overwrite qt')
