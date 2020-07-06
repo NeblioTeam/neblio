@@ -69,6 +69,8 @@ nci.call_with_err_code('brew unlink libsodium     && brew link --force --overwri
 
 nci.call_with_err_code('ccache -s')
 
+nci.call_with_err_code('ls -al /usr/local/opt/icu4c/lib/')
+
 # prepend ccache to the path, necessary since prior steps prepend things to the path
 os.environ['PATH'] = '/usr/local/opt/ccache/libexec:' + os.environ['PATH']
 
