@@ -102,7 +102,7 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStake(const CWallet&     wal
     }
 
     // Limit size
-    unsigned int nBytes = ::GetSerializeSize(stakeTx, SER_NETWORK, PROTOCOL_VERSION);
+    const unsigned int nBytes = ::GetSerializeSize(stakeTx, SER_NETWORK, PROTOCOL_VERSION);
     if (nBytes >= OLD_MAX_BLOCK_SIZE / 5) {
         printf("CreateCoinStake : exceeded coinstake size limit");
         return boost::none;
