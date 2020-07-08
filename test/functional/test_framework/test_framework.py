@@ -14,6 +14,8 @@ import sys
 import tempfile
 import time
 
+from .address import *
+from .key import *
 from .authproxy import JSONRPCException
 from . import coverage
 from .test_node import TestNode

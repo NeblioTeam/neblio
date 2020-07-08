@@ -625,7 +625,7 @@ Value generateBlocks(int nGenerate, uint64_t nMaxTries, CWallet* const pwallet,
 }
 
 Value generatePOSBlocks(
-    int nGenerate, CWallet* const pwallet,
+    int nGenerate, CWallet* const pwallet, bool submitBlock = true,
     const boost::optional<std::set<std::pair<uint256, unsigned>>>& customInputs = boost::none)
 {
     if (!Params().MineBlocksOnDemand())
@@ -636,7 +636,7 @@ Value generatePOSBlocks(
 
     nHeightEnd = nBestHeight.load() + nGenerate;
 
-    json_spirit::Array blockHashes;
+    json_spirit::Array blockHashesOrSerializedData;
 
     while (nHeight < nHeightEnd) {
         std::unique_ptr<CBlock> pblock;
@@ -646,8 +646,10 @@ Value generatePOSBlocks(
                 throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
 
             if (pblock->SignBlock(*pwallet, 0, customInputs)) {
-                if (!CheckStake(pblock.get(), *pwallet))
-                    throw JSONRPCError(RPC_INTERNAL_ERROR, "CheckStake, CheckStake failed");
+                if (submitBlock) {
+                    if (!CheckStake(pblock.get(), *pwallet))
+                        throw JSONRPCError(RPC_INTERNAL_ERROR, "CheckStake, CheckStake failed");
+                }
             } else {
                 pblock.reset();
             }
@@ -659,9 +661,18 @@ Value generatePOSBlocks(
         }
 
         ++nHeight;
-        blockHashes.push_back(pblock->GetHash().GetHex());
+        if (submitBlock) {
+            blockHashesOrSerializedData.push_back(pblock->GetHash().GetHex());
+        } else {
+            // if block is not submitted, return the serialized format
+            CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+            ss << *pblock;
+            std::string blockRaw = ss.str();
+            blockHashesOrSerializedData.push_back(HexStr(std::make_move_iterator(blockRaw.begin()),
+                                                         std::make_move_iterator(blockRaw.end())));
+        }
     }
-    return Value(blockHashes);
+    return Value(blockHashesOrSerializedData);
 }
 
 Value generate(const Array& params, bool fHelp)
@@ -761,7 +772,7 @@ Value generatepos(const Array& params, bool fHelp)
 
     CWallet* const pwallet = pwalletMain.get();
 
-    if (fHelp || params.size() < 1 || params.size() > 2) {
+    if (fHelp || params.size() < 1 || params.size() > 3) {
         throw std::runtime_error(
             "generate nblocks\n"
             "\nMine one block with proof of stake immediately (before the RPC call returns)\n"
@@ -769,7 +780,10 @@ Value generatepos(const Array& params, bool fHelp)
             "recommended that you manage timing manually and generate only 1 block at a time\n"
             "\nArguments:\n"
             "1. count         (numeric, required) Number of blocks to generate.\n"
-            "2. inputs to use (list of pairs (list of two elements), every one is a hash (uint256 "
+            "2. submit block  (bool, optional, default=true) whether to submit the block after creating "
+            "it or return its serialized hex form"
+            "2. inputs to use (optional list of pairs (list of two elements), every one is a hash "
+            "(uint256 "
             "string) + input (int); which "
             "are the inputs to use for the staking)"
             "\nResult:\n"
@@ -781,12 +795,17 @@ Value generatepos(const Array& params, bool fHelp)
 
     int num_generate = params[0].get_int();
 
-    boost::optional<std::set<std::pair<uint256, unsigned>>> customInputs;
-    if (params.size() > 1) {
-        customInputs = ParseCustomInputs(params[1]);
+    bool fSubmitBlock = true;
+    if (params.size() > 1 && params[1].type() == Value_type::bool_type) {
+        fSubmitBlock = params[1].get_bool();
     }
 
-    return generatePOSBlocks(num_generate, pwallet, customInputs);
+    boost::optional<std::set<std::pair<uint256, unsigned>>> customInputs;
+    if (params.size() > 2 && params[2].type() != Value_type::null_type) {
+        customInputs = ParseCustomInputs(params[2]);
+    }
+
+    return generatePOSBlocks(num_generate, pwallet, fSubmitBlock, customInputs);
 }
 
 Value generatetoaddress(const Array& params, bool fHelp)

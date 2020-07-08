@@ -271,6 +271,30 @@ Value dumpprivkey(const Array& params, bool fHelp)
     return CBitcoinSecret(vchSecret, fCompressed).ToString();
 }
 
+Value dumppubkey(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error("dumppubkey <neblioaddress>\n"
+                            "Reveals the public key corresponding to <neblioaddress>.");
+
+    EnsureWalletIsUnlocked();
+
+    string          strAddress = params[0].get_str();
+    CBitcoinAddress address;
+    if (!address.SetString(strAddress))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio address");
+    if (fWalletUnlockStakingOnly)
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Wallet is unlocked for staking only.");
+    CKeyID keyID;
+    if (!address.GetKeyID(keyID))
+        throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to a key");
+    CPubKey vchPubKey;
+    if (!pwalletMain->GetPubKey(keyID, vchPubKey))
+        throw JSONRPCError(RPC_WALLET_ERROR, "Public key for address " + strAddress + " is not known");
+    const auto pubKeyVec = vchPubKey.Raw();
+    return HexStr(std::make_move_iterator(pubKeyVec.begin()), std::make_move_iterator(pubKeyVec.end()));
+}
+
 Value dumpwallet(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)

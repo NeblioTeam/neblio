@@ -24,6 +24,8 @@ using namespace boost::algorithm;
 extern uint256 SignatureHash(CScript scriptCode, const CTransaction& txTo, unsigned int nIn,
                              int nHashType);
 
+extern bool CastToBool(const valtype& vch);
+
 CScript ParseScript(string s)
 {
     CScript result;
@@ -444,4 +446,42 @@ TEST(script_tests, script_combineSigs)
     EXPECT_TRUE(combined == complete23);
     combined = CombineSignatures(scriptPubKey, txTo, 0, partial3b, partial3a);
     EXPECT_TRUE(combined == partial3c);
+}
+
+TEST(script_tests, CastToBool)
+{
+    {
+        valtype v;
+        EXPECT_FALSE(CastToBool(v));
+    }
+    {
+        valtype v(1, 1);
+        EXPECT_TRUE(CastToBool(v));
+    }
+    {
+        valtype v = {1, 1};
+        EXPECT_TRUE(CastToBool(v));
+    }
+    {
+        valtype v = {1, 0};
+        EXPECT_TRUE(CastToBool(v));
+    }
+    {
+        valtype v = {1, 0, 1};
+        EXPECT_TRUE(CastToBool(v));
+    }
+    {
+        valtype v = {1, 0, 0, 0, 1};
+        EXPECT_TRUE(CastToBool(v));
+    }
+    {
+        // considered -0
+        valtype v = {0, 0, 0, 0, 0x80};
+        EXPECT_FALSE(CastToBool(v));
+    }
+    {
+        // considered +0
+        valtype v = {0, 0, 0, 0, 0};
+        EXPECT_FALSE(CastToBool(v));
+    }
 }

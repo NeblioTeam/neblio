@@ -566,6 +566,42 @@ Value decodescript(const Array& params, bool fHelp)
     return r;
 }
 
+Value getscriptpubkeyfromaddress(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error("getscriptpubkeyfromaddress <address>\n"
+                            "creates the destination P2PKH script from the address.");
+
+    RPCTypeCheck(params, list_of(str_type));
+
+    CBitcoinAddress addr(params[0].get_str());
+    CScript         script;
+    script.SetDestination(addr.Get());
+    return HexStr(script.begin(), script.end());
+}
+
+Value getscriptpubkeyforp2cs(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 2)
+        throw runtime_error("getscriptpubkeyforp2cs <staker address> <owner address>\n"
+                            "creates the destination P2CS script from the addresses provided.");
+
+    RPCTypeCheck(params, list_of(str_type)(str_type));
+
+    CBitcoinAddress stakerAddr(params[0].get_str());
+    CBitcoinAddress ownerAddr(params[1].get_str());
+    CKeyID          stakerKeyID;
+    CKeyID          ownerKeyID;
+    if (!stakerAddr.GetKeyID(stakerKeyID)) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid staker address");
+    }
+    if (!ownerAddr.GetKeyID(ownerKeyID)) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid owner address");
+    }
+    CScript script = GetScriptForStakeDelegation(stakerKeyID, ownerKeyID);
+    return HexStr(script.begin(), script.end());
+}
+
 Value signrawtransaction(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 4)
