@@ -92,6 +92,15 @@ class ColdStakingTest(BitcoinTestFramework):
         eckey.set_compressed(compressed)
         return eckey
 
+    @staticmethod
+    def get_pubkey_from_p2cs_scriptSig(scriptSig):
+        s = CScript(scriptSig)
+        it = s.__iter__()
+        next(it)  # skip sig
+        next(it)  # skip OP_TRUE/OP_FALSE
+        pub_key = next(it)
+        return pub_key[:]
+
     def run_test(self):
         self.sync_all()
         self.reset_mock_time()
@@ -318,12 +327,9 @@ class ColdStakingTest(BitcoinTestFramework):
 
         # extract sign key from scriptSig
         s = CScript(new_block.vtx[1].vin[0].scriptSig)
-        it = s.__iter__()
-        next(it)  # skip sig
-        next(it)  # skip OP_TRUE/OP_FALSE
-        pub_key = next(it)
+        pub_key = self.get_pubkey_from_p2cs_scriptSig(s)
         # get the address associated with that pub key
-        sign_address = key_to_p2pkh(pub_key[:].hex())
+        sign_address = key_to_p2pkh(pub_key.hex())
         # get the private key of that address
         sign_address_priv_key_wif = self.nodes[1].dumpprivkey(sign_address)
         # get arbitrary key from someone else to replace the scriptPubKey of P2CS
@@ -474,26 +480,6 @@ class ColdStakingTest(BitcoinTestFramework):
         spendingTx = self.nodes[node_n].createrawtransaction(inputs, outputs)
         spendingTx_signed = self.nodes[node_n].signrawtransaction(spendingTx)
         return self.nodes[node_n].sendrawtransaction(spendingTx_signed["hex"])
-
-    def add_output_to_coinstake(self, block, value, peer=1):
-        coinstake = block.vtx[1]
-        if not hasattr(self, 'DUMMY_KEY'):
-            self.init_dummy_key()
-        coinstake.vout.append(
-            CTxOut(value * COIN, CScript([self.DUMMY_KEY.get_pubkey(), OP_CHECKSIG])))
-        coinstake.vout[1].nValue -= value * COIN
-        # re-sign coinstake
-        prevout = COutPoint()
-        prevout.deserialize_uniqueness(BytesIO(block.prevoutStake))
-        coinstake.vin[0] = CTxIn(prevout)
-        stake_tx_signed_raw_hex = self.nodes[peer].signrawtransaction(
-            bytes_to_hex_str(coinstake.serialize()))['hex']
-        block.vtx[1] = CTransaction()
-        block.vtx[1].from_hex(stake_tx_signed_raw_hex)
-        # re-sign block
-        block.hashMerkleRoot = block.calc_merkle_root()
-        block.rehash()
-        block.re_sign_block()
 
 
 if __name__ == '__main__':
