@@ -1476,7 +1476,8 @@ boost::optional<CKeyID> GetKeyIDFromOutput(const CTxOut& txout)
 
 // novacoin: attempt to generate suitable proof-of-stake
 bool CBlock::SignBlock(const CWallet& wallet, int64_t nFees,
-                       const boost::optional<std::set<std::pair<uint256, unsigned>>>& customInputs)
+                       const boost::optional<std::set<std::pair<uint256, unsigned>>>& customInputs,
+                       const CAmount                                                  extraPayoutForTest)
 {
     // if we are trying to sign
     //    something except proof-of-stake block template
@@ -1489,8 +1490,8 @@ bool CBlock::SignBlock(const CWallet& wallet, int64_t nFees,
         return true;
 
     CBlockIndexSmartPtr pindexBestPtr = boost::atomic_load(&pindexBest);
-    if (boost::optional<CTransaction> coinStake =
-            stakeMaker.CreateCoinStake(wallet, nBits, nFees, nReserveBalance, customInputs)) {
+    if (boost::optional<CTransaction> coinStake = stakeMaker.CreateCoinStake(
+            wallet, nBits, nFees, nReserveBalance, customInputs, extraPayoutForTest)) {
         if (coinStake->nTime >=
             std::max(pindexBestPtr->GetPastTimeLimit() + 1, PastDrift(pindexBestPtr->GetBlockTime()))) {
             // make sure coinstake would meet timestamp protocol

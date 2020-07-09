@@ -40,7 +40,8 @@ public:
     StakeMaker() = default;
     boost::optional<CTransaction> CreateCoinStake(
         const CWallet& wallet, unsigned int nBits, CAmount nFees, CAmount reservedBalance,
-        const boost::optional<std::set<std::pair<uint256, unsigned>>>& customInputs = boost::none);
+        const boost::optional<std::set<std::pair<uint256, unsigned>>>& customInputs        = boost::none,
+        CAmount                                                        extraPayoutForTests = 0);
     boost::optional<StakeKernelData>
     FindStakeKernel(const CKeyStore& keystore, unsigned int nBits, int64_t nCoinstakeInitialTxTime,
                     const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins);

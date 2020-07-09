@@ -44,7 +44,7 @@ class ColdStakingTest(BitcoinTestFramework):
         #         connect_nodes_bi(self.nodes, i, j)
         super().setup_network()
 
-    def gen_pos_block(self, node_number, submit_block=True, inputs_to_use=None, max_retries=10, average_block_time=STAKE_TARGET_SPACING, block_time_spread=10):
+    def gen_pos_block(self, node_number, submit_block=True, inputs_to_use=None, extra_payout=0, max_retries=10, average_block_time=STAKE_TARGET_SPACING, block_time_spread=10):
         r = random.randrange(-block_time_spread, block_time_spread + 1)
         self.progress_mock_time(average_block_time - self.last_random_time_offset + r)
         self.last_random_time_offset = r
@@ -52,7 +52,7 @@ class ColdStakingTest(BitcoinTestFramework):
         if staking_outputs == 0:
             raise ValueError("Node has no outputs to stake")
         for i in range(max_retries):
-            hashes = self.nodes[node_number].generatepos(1, submit_block, inputs_to_use)
+            hashes = self.nodes[node_number].generatepos(1, submit_block, inputs_to_use, extra_payout)
             if len(hashes) > 0:
                 return hashes[0]
             else:
@@ -340,11 +340,10 @@ class ColdStakingTest(BitcoinTestFramework):
         # attempt to change the destinations to custom ones
         script = self.nodes[1].getscriptpubkeyforp2cs(rogue_address, rogue_address)
         # modify the coinstake with the destination we created
-        new_block.vtx[1].vout[0].scriptSig = b''  # reset scriptSig
         # inject the modified script
         new_block.vtx[1].vout[1].scriptPubKey = hex_str_to_bytes(script)
         serialized_coinstake = new_block.vtx[1].serialize()
-        self.nodes[1].signrawtransaction(bytes_to_hex_str(serialized_coinstake))
+        # self.nodes[1].signrawtransaction(bytes_to_hex_str(serialized_coinstake))
         new_block.hashMerkleRoot = new_block.calc_merkle_root()
         new_block.rehash()
         new_block.vchBlockSig = block_sig_key.sign(bytes.fromhex(new_block.hash)[::-1])
@@ -361,30 +360,31 @@ class ColdStakingTest(BitcoinTestFramework):
         self.checkBalances()
         self.log.info("Balances check out after (non) staked block")
 
-        # # 11) neither adding different outputs to the coinstake.
-        # # ------------------------------------------------------
-        # print("*** 11 ***")
-        # self.log.info("Generating another invalid cold-stake block (adding coinstake output)...")
-        # stakeable_coins = getDelegatedUtxos(self.nodes[0].listunspent())
-        # stakeInputs = self.get_prevouts(1, stakeable_coins)
-        # assert_greater_than(len(stakeInputs), 0)
-        # # Create the block
-        # new_block = self.stake_next_block(1, stakeInputs, None, staker_privkey)
-        # # Add output (dummy key address) to coinstake (taking 100 nebl from the pot)
-        # self.add_output_to_coinstake(new_block, 100)
-        # self.log.info("New block created (rawtx) by cold-staking. Trying to submit...")
-        # # Try to submit the block
-        # ret = self.nodes[1].submitblock(bytes_to_hex_str(new_block.serialize()))
-        # self.log.info("Block %s submitted." % new_block.hash)
-        # assert_equal(ret, "bad-p2cs-outs")
-        #
-        # # Verify that nodes[0] rejects it
-        # sync_blocks(self.nodes)
-        # assert_raises_rpc_error(-5, "Block not found", self.nodes[0].getblock, new_block.hash)
-        # self.log.info("Great. Malicious cold-staked block was NOT accepted!")
-        # self.checkBalances()
-        # self.log.info("Balances check out after (non) staked block")
-        #
+        # 11) neither adding different outputs to the coinstake.
+        # ------------------------------------------------------
+        print("*** 11 ***")
+        self.log.info("Generating another invalid cold-stake block (adding coinstake value)...")
+        stakeable_coins = getDelegatedUtxos(self.nodes[0].listunspent())
+        stakeInput = stakeable_coins[0]
+        assert_equal(len(stakeable_coins), NUM_OF_INPUTS - 3)
+        assert_greater_than(len(stakeInput), 0)
+        # Create the block + add 1 satoshi, illegitimately, and then watch it fail
+        block_serialized = self.gen_pos_block(1, False, [[stakeInput["txid"], stakeInput["vout"]]], 1)
+        new_block = CBlock()
+        new_block.deserialize(BytesIO(bytes.fromhex(block_serialized)))
+        new_block.rehash()
+
+        ret = self.nodes[1].submitblock(bytes_to_hex_str(new_block.serialize()))
+        self.log.info("Block %s submitted." % new_block.hash)
+        assert("rejected" in ret)
+
+        # Verify that nodes[0] rejects it
+        sync_blocks(self.nodes)
+        assert_raises_rpc_error(-5, "Block not found", self.nodes[0].getblock, new_block.hash)
+        self.log.info("Great. Malicious cold-staked block was NOT accepted!")
+        self.checkBalances()
+        self.log.info("Balances check out after (non) staked block")
+
         # # 12) Now node[0] gets mad and spends all the delegated coins, voiding the P2CS contracts.
         # # ----------------------------------------------------------------------------------------
         # self.log.info("Let's void the contracts.")

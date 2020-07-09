@@ -15,7 +15,8 @@ int64_t StakeMaker::getLastCoinStakeSearchTime() const { return nLastCoinStakeSe
 boost::optional<CTransaction>
 StakeMaker::CreateCoinStake(const CWallet& wallet, const unsigned int nBits, const CAmount nFees,
                             const CAmount reservedBalance,
-                            const boost::optional<std::set<std::pair<uint256, unsigned>>>& customInputs)
+                            const boost::optional<std::set<std::pair<uint256, unsigned>>>& customInputs,
+                            const CAmount extraPayoutForTests)
 {
     // we set the startup time only once
     std::call_once(flag, [&]() { nLastCoinStakeSearchTime = GetAdjustedTime(); });
@@ -102,6 +103,7 @@ StakeMaker::CreateCoinStake(const CWallet& wallet, const unsigned int nBits, con
 
         // add reward to total credit
         nFinalCredit += nReward;
+        nFinalCredit += extraPayoutForTests;
     }
 
     stakeTx.vout = MakeStakeOutputs(kernelData->stakeOutputScriptPubKey, nFinalCredit, splitStake);

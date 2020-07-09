@@ -626,7 +626,8 @@ Value generateBlocks(int nGenerate, uint64_t nMaxTries, CWallet* const pwallet,
 
 Value generatePOSBlocks(
     int nGenerate, CWallet* const pwallet, bool submitBlock = true,
-    const boost::optional<std::set<std::pair<uint256, unsigned>>>& customInputs = boost::none)
+    const boost::optional<std::set<std::pair<uint256, unsigned>>>& customInputs        = boost::none,
+    CAmount                                                        extraPayoutForTests = 0)
 {
     if (!Params().MineBlocksOnDemand())
         throw JSONRPCError(RPC_INVALID_REQUEST, "This method can only be used on regtest");
@@ -645,7 +646,7 @@ Value generatePOSBlocks(
             if (!pblock)
                 throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
 
-            if (pblock->SignBlock(*pwallet, 0, customInputs)) {
+            if (pblock->SignBlock(*pwallet, 0, customInputs, extraPayoutForTests)) {
                 if (submitBlock) {
                     if (!CheckStake(pblock.get(), *pwallet))
                         throw JSONRPCError(RPC_INTERNAL_ERROR, "CheckStake, CheckStake failed");
@@ -772,7 +773,7 @@ Value generatepos(const Array& params, bool fHelp)
 
     CWallet* const pwallet = pwalletMain.get();
 
-    if (fHelp || params.size() < 1 || params.size() > 3) {
+    if (fHelp || params.size() < 1 || params.size() > 4) {
         throw std::runtime_error(
             "generate nblocks\n"
             "\nMine one block with proof of stake immediately (before the RPC call returns)\n"
@@ -782,10 +783,9 @@ Value generatepos(const Array& params, bool fHelp)
             "1. count         (numeric, required) Number of blocks to generate.\n"
             "2. submit block  (bool, optional, default=true) whether to submit the block after creating "
             "it or return its serialized hex form"
-            "2. inputs to use (optional list of pairs (list of two elements), every one is a hash "
-            "(uint256 "
-            "string) + input (int); which "
-            "are the inputs to use for the staking)"
+            "3. inputs to use (optional list of pairs (list of two elements), every one is a hash and "
+            "an output index); the staker will filter the available outputs with these"
+            "4. extra payout for tests  (numeric, optional): Extra payout for the stake for testing; "
             "\nResult:\n"
             "[ blockhashes ]     (array) hashes of blocks generated\n"
             "\nExamples:\n"
@@ -805,7 +805,12 @@ Value generatepos(const Array& params, bool fHelp)
         customInputs = ParseCustomInputs(params[2]);
     }
 
-    return generatePOSBlocks(num_generate, pwallet, fSubmitBlock, customInputs);
+    CAmount extraPayoutForTests = 0;
+    if (params.size() > 3 && params[3].type() != Value_type::null_type) {
+        extraPayoutForTests = params[3].get_int();
+    }
+
+    return generatePOSBlocks(num_generate, pwallet, fSubmitBlock, customInputs, extraPayoutForTests);
 }
 
 Value generatetoaddress(const Array& params, bool fHelp)
