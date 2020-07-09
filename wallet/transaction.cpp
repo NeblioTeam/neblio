@@ -707,7 +707,7 @@ std::vector<CKey> CTransaction::GetThisWalletKeysOfTx(const uint256&            
             if (!pwalletMain->GetKey(keyId, key)) {
                 continue;
             }
-            // this is O(N^2), but this is OK, because the numebr of outputs is low
+            // this is O(N^2), but this is OK, because the number of outputs is low
             // we're comparing public keys because CKey objects are not comparable
             if (std::find_if(keys.cbegin(), keys.cend(), [&key](const CKey& k) {
                     return k.GetPubKey() == key.GetPubKey();
