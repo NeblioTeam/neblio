@@ -45,4 +45,3 @@ int64_t GetProofOfStakeReward(int64_t nCoinAge, int64_t nFees)
 
     return nSubsidy + nFees;
 }
-
