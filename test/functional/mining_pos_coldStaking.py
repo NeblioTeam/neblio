@@ -248,7 +248,6 @@ class ColdStakingTest(BitcoinTestFramework):
         sync_blocks(self.nodes)
 
         ###########
-        # TODO: put this in a funtion
         # generate blocks up to 1000 to be able to start with PoS
         current_block_count = self.nodes[1].getblockcount()
         for i in range(1000 - current_block_count):
