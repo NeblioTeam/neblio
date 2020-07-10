@@ -107,7 +107,7 @@ class ColdStakingTest(BitcoinTestFramework):
         self.last_random_time_offset = 0
         block_time_spread = 10
         average_block_time = 30
-        self.DEFAULT_FEE = 2*0.0001
+        self.DEFAULT_FEE = 3*0.0001
 
         self.description = "Performs tests on the Cold Staking P2CS implementation"
         LAST_POW_BLOCK = 30
@@ -385,62 +385,39 @@ class ColdStakingTest(BitcoinTestFramework):
         self.checkBalances()
         self.log.info("Balances check out after (non) staked block")
 
-        # # 12) Now node[0] gets mad and spends all the delegated coins, voiding the P2CS contracts.
-        # # ----------------------------------------------------------------------------------------
-        # self.log.info("Let's void the contracts.")
-        # self.generateBlock()
-        # sync_blocks(self.nodes)
-        # print("*** 12 ***")
-        # self.log.info("Cancel the stake delegation spending the delegated utxos...")
-        # delegated_utxos = getDelegatedUtxos(self.nodes[0].listunspent())
-        # # remove one utxo to spend later
-        # final_spend = delegated_utxos.pop()
-        # txhash = self.spendUTXOsWithNode(delegated_utxos, 0)
-        # assert(txhash != None)
-        # self.log.info("Good. Owner was able to void the stake delegations - tx: %s" % str(txhash))
-        # self.generateBlock()
-        # sync_blocks(self.nodes)
-        #
-        # # deactivate SPORK 17 and check that the owner can still spend the last utxo
-        # self.setColdStakingEnforcement(False)
-        # assert (not self.isColdStakingEnforced())
-        # txhash = self.spendUTXOsWithNode([final_spend], 0)
-        # assert(txhash != None)
-        # self.log.info("Good. Owner was able to void a stake delegation (with SPORK 17 disabled) - tx: %s" % str(txhash))
-        # self.generateBlock()
-        # sync_blocks(self.nodes)
-        #
-        # # check balances after big spend.
-        # self.expected_balance = 0
-        # self.checkBalances()
-        # self.log.info("Balances check out after the delegations have been voided.")
-        # # re-activate SPORK17
-        # self.setColdStakingEnforcement()
-        # assert (self.isColdStakingEnforced())
-        #
-        # # 13) check that coinstaker is empty and can no longer stake.
-        # # -----------------------------------------------------------
-        # print("*** 13 ***")
-        # self.log.info("Trying to generate one cold-stake block again...")
-        # assert_equal(self.nodes[1].getstakingstatus()["mintablecoins"], False)
-        # self.log.info("Cigar. Cold staker was NOT able to create any more blocks.")
-        #
-        # # 14) check balances when mature.
-        # # -----------------------------------------------------------
-        # print("*** 14 ***")
-        # self.log.info("Staking 100 blocks to mature the cold stakes...")
-        # self.generateBlock(100)
-        # self.expected_balance = self.expected_immature_balance
-        # self.expected_immature_balance = 0
-        # self.checkBalances()
-        # delegated_utxos = getDelegatedUtxos(self.nodes[0].listunspent())
-        # txhash = self.spendUTXOsWithNode(delegated_utxos, 0)
-        # assert (txhash != None)
-        # self.log.info("Good. Owner was able to spend the cold staked coins - tx: %s" % str(txhash))
-        # self.generateBlock()
-        # sync_blocks(self.nodes)
-        # self.expected_balance = 0
-        # self.checkBalances()
+        # 12) Now node[0] gets mad and spends all the delegated coins, voiding the P2CS contracts.
+        # ----------------------------------------------------------------------------------------
+        self.log.info("Let's void the contracts.")
+        for i in range(20):
+            block_hash = self.gen_pos_block(3)
+        sync_blocks(self.nodes)
+        print("*** 12 ***")
+        self.log.info("Cancel the stake delegation spending the delegated utxos...")
+        delegated_utxos = getDelegatedUtxos(self.nodes[0].listunspent())
+        assert_equal(len(delegated_utxos), NUM_OF_INPUTS - 1)  # we spent one at the very beginning
+        # remove one utxo to spend later
+        txhash = self.spendUTXOsWithNode(delegated_utxos, 0)
+        assert(txhash != None)
+        self.log.info("Good. Owner was able to void the stake delegations - tx: %s" % str(txhash))
+        block_hash = self.gen_pos_block(0)
+        sync_blocks(self.nodes)
+        print(self.nodes[0].listunspent())
+        print(getDelegatedUtxos(self.nodes[0].listunspent()))
+
+        # check balances after big spend.
+        # no more delegated or cold balance
+        self.expected_balance = 0
+        self.expected_immature_balance = 0
+        self.checkBalances()
+        self.log.info("Balances check out after the delegations have been voided.")
+
+        # 13) check that coinstaker is empty and can no longer stake.
+        # -----------------------------------------------------------
+        print("*** 13 ***")
+        self.log.info("Trying to generate one cold-stake block again...")
+        assert_equal(self.nodes[1].getstakinginfo()["stakableoutputs"], 0)
+        self.log.info("Cigar. Cold staker was NOT able to create any more blocks.")
+
 
     def checkBalances(self):
         w_info = self.nodes[0].getwalletinfo()
