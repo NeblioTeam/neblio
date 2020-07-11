@@ -772,6 +772,17 @@ Value signrawtransaction(const Array& params, bool fHelp)
             txin.scriptSig =
                 CombineSignatures(prevPubKey, mergedTx, i, txin.scriptSig, txv.vin[i].scriptSig);
         }
+    }
+
+    // verify sigs
+    for (unsigned int i = 0; i < mergedTx.vin.size(); i++) {
+        CTxIn& txin = mergedTx.vin[i];
+        if (mapPrevOut.count(txin.prevout) == 0) {
+            fComplete = false;
+            continue;
+        }
+        const CScript& prevPubKey = mapPrevOut[txin.prevout];
+
         if (!VerifyScript(txin.scriptSig, prevPubKey, mergedTx, i, true, true, 0))
             fComplete = false;
     }
