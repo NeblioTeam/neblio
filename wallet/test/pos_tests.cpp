@@ -92,6 +92,8 @@ public:
 
 TEST(PoS_tests, kernel_scriptPubKey_basic_p2pkh)
 {
+    SelectParams(NetworkType::Regtest);
+
     CBasicKeyStore keyStore;
 
     // make key
@@ -120,6 +122,8 @@ TEST(PoS_tests, kernel_scriptPubKey_basic_p2pkh)
 
 TEST(PoS_tests, kernel_scriptPubKey_basic_p2pk)
 {
+    SelectParams(NetworkType::Regtest);
+
     CBasicKeyStore keyStore;
 
     // make key
@@ -147,6 +151,8 @@ TEST(PoS_tests, kernel_scriptPubKey_basic_p2pk)
 
 TEST(PoS_tests, kernel_scriptPubKey_basic_p2cs)
 {
+    SelectParams(NetworkType::Regtest);
+
     CBasicKeyStore keyStore;
 
     // make key
@@ -177,6 +183,8 @@ TEST(PoS_tests, kernel_scriptPubKey_basic_p2cs)
 
 TEST(PoS_tests, kernel_scriptPubKey_basic_p2cs__staker_key_does_not_exist_in_keystore)
 {
+    SelectParams(NetworkType::Regtest);
+
     CBasicKeyStore keyStore;
 
     // make key
@@ -205,6 +213,8 @@ TEST(PoS_tests, kernel_scriptPubKey_basic_p2cs__staker_key_does_not_exist_in_key
 
 TEST(PoS_tests, kernel_scriptPubKey_p2pkh__key_does_not_exist_in_keystore)
 {
+    SelectParams(NetworkType::Regtest);
+
     CBasicKeyStore keyStore;
 
     // make key
@@ -231,6 +241,8 @@ TEST(PoS_tests, kernel_scriptPubKey_p2pkh__key_does_not_exist_in_keystore)
 
 TEST(PoS_tests, kernel_scriptPubKey_p2pk__key_does_not_exist_in_keystore)
 {
+    SelectParams(NetworkType::Regtest);
+
     CBasicKeyStore keyStore;
 
     // make key
@@ -256,6 +268,8 @@ TEST(PoS_tests, kernel_scriptPubKey_p2pk__key_does_not_exist_in_keystore)
 
 TEST(PoS_tests, kernel_scriptPubKey_unsolvable)
 {
+    SelectParams(NetworkType::Regtest);
+
     CBasicKeyStore keyStore;
 
     // make key
@@ -282,6 +296,8 @@ TEST(PoS_tests, kernel_scriptPubKey_unsolvable)
 
 TEST(PoS_tests, output_creation_with_split)
 {
+    SelectParams(NetworkType::Regtest);
+
     // make key
     CKey key;
     key.MakeNewKey(true);
@@ -310,6 +326,8 @@ TEST(PoS_tests, output_creation_with_split)
 
 TEST(PoS_tests, output_creation_no_split)
 {
+    SelectParams(NetworkType::Regtest);
+
     // make key
     CKey key;
     key.MakeNewKey(true);
@@ -522,6 +540,8 @@ extern bool Sign1(const CKeyID& address, const CKeyStore& keystore, uint256 hash
 
 TEST(PoS_tests, scripts_p2cs_scriptSig_test)
 {
+    SelectParams(NetworkType::Regtest);
+
     // hypothetical signature
     std::vector<uint8_t> sig{'a', 'b', 'c'};
     CScript              sigScript;
