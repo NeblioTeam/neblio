@@ -141,7 +141,7 @@ public:
         nStakeCombineThreshold  = 1000 * COIN;
         nMaxInputsInStake       = 100;
         nMaxStakeSearchInterval = 60;
-        fColdStakingEnabled     = true;
+        fColdStakingEnabled     = false;
         nMinColdStakingAmount   = 10 * COIN;
 
         nLastPoWBlock = 1000;
