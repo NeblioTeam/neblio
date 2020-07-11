@@ -110,13 +110,9 @@ StakeMaker::CreateCoinStake(const CWallet& wallet, const unsigned int nBits, con
 
     stakeTx.vout = MakeStakeOutputs(kernelData->stakeOutputScriptPubKey, nFinalCredit, splitStake);
 
-    // Sign
-    for (unsigned i = 0; i < inputs.inputsPrevouts.size(); i++) {
-        const CWalletTx* pcoin = inputs.inputsPrevouts[i];
-        if (SignSignature(wallet, *pcoin, stakeTx, i, SIGHASH_ALL, true) != SignatureState::Verified) {
-            printf("CreateCoinStake : failed to sign coinstake");
-            return boost::none;
-        }
+    if (!SignAndVerify(wallet, inputs, stakeTx)) {
+        printf("CreateCoinStake : SignAndVerify() failed");
+        return boost::none;
     }
 
     // Limit size
@@ -205,6 +201,46 @@ StakeMaker::CalculateScriptPubKeyForStakeOutput(const CKeyStore& keystore,
             "CalculateScriptPubKeyForStakeOutput : Unsupported scriptPubKey type for staking type=%d\n",
             whichType);
     return boost::none;
+}
+
+bool StakeMaker::SignAndVerify(const CKeyStore& keystore, const CoinStakeInputsResult inputs,
+                               CTransaction& stakeTx)
+{
+    // Sign
+    std::vector<SignatureState> sigStates;
+    for (unsigned i = 0; i < inputs.inputsPrevouts.size(); i++) {
+        const CWalletTx* pcoin = inputs.inputsPrevouts[i];
+        SignatureState   sigState{SignatureState::Failed};
+        if ((sigState = SignSignature(keystore, *pcoin, stakeTx, i, SIGHASH_ALL, true)) ==
+            SignatureState::Failed) {
+            printf("CreateCoinStake : failed to sign coinstake");
+            return false;
+        } else {
+            sigStates.push_back(sigState);
+        }
+    }
+
+    // ensure all signatures are successful (even though we checked already, no harm in double-checking)
+    if (std::any_of(sigStates.cbegin(), sigStates.cend(),
+                    [](const SignatureState& state) { return state == SignatureState::Failed; })) {
+        printf("CreateCoinStake : failed to sign coinstake - WARNING: THIS SHOULD NEVER HAPPEN");
+        return false;
+    }
+
+    // after signatures are done, we verify them if they're not verified
+    for (unsigned i = 0; i < inputs.inputsPrevouts.size(); i++) {
+        const CWalletTx* pcoin = inputs.inputsPrevouts[i];
+        const CTxIn&     txin  = stakeTx.vin[i];
+        if (sigStates[i] == SignatureState::Verified) {
+            continue;
+        }
+        if (!VerifyScript(stakeTx.vin[i].scriptSig, pcoin->vout[txin.prevout.n].scriptPubKey, stakeTx, i,
+                          true, true, 0)) {
+            printf("CreateCoinStake : Signature verification failed");
+            return false;
+        }
+    }
+    return true;
 }
 
 boost::optional<StakeKernelData>

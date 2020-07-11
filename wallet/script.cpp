@@ -1875,8 +1875,12 @@ SignatureState SignSignature(const CKeyStore& keystore, const CScript& fromPubKe
     }
 
     // Test solution
-    if (VerifyScript(txin.scriptSig, fromPubKey, txTo, nIn, true, true, 0)) {
+    if (!fColdStake && VerifyScript(txin.scriptSig, fromPubKey, txTo, nIn, true, true, 0)) {
         return SignatureState::Verified;
+    }
+    // we don't verify cold stakes because the verification is transaction dependent, not input dependent
+    if (fColdStake) {
+        return SignatureState::Unverified;
     }
     return SignatureState::Failed;
 }

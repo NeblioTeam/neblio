@@ -46,7 +46,9 @@ public:
     FindStakeKernel(const CKeyStore& keystore, unsigned int nBits, int64_t nCoinstakeInitialTxTime,
                     const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins);
     static boost::optional<CScript>
-    CalculateScriptPubKeyForStakeOutput(const CKeyStore& keystore, const CScript& scriptPubKeyKernel);
+                CalculateScriptPubKeyForStakeOutput(const CKeyStore& keystore, const CScript& scriptPubKeyKernel);
+    static bool SignAndVerify(const CKeyStore& keystore, const CoinStakeInputsResult inputs,
+                              CTransaction& stakeTx);
     static CoinStakeInputsResult
                                CollectInputsForStake(const StakeKernelData&                                     kernelData,
                                                      const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins,
