@@ -1842,8 +1842,8 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, const C
     return set_success(serror);
 }
 
-bool SignSignature(const CKeyStore& keystore, const CScript& fromPubKey, CTransaction& txTo,
-                   unsigned int nIn, int nHashType, bool fColdStake)
+SignatureState SignSignature(const CKeyStore& keystore, const CScript& fromPubKey, CTransaction& txTo,
+                             unsigned int nIn, int nHashType, bool fColdStake)
 {
     assert(nIn < txTo.vin.size());
     CTxIn& txin = txTo.vin[nIn];
@@ -1854,7 +1854,7 @@ bool SignSignature(const CKeyStore& keystore, const CScript& fromPubKey, CTransa
 
     txnouttype whichType;
     if (!Solver(keystore, fromPubKey, hash, nHashType, txin.scriptSig, whichType, fColdStake))
-        return false;
+        return SignatureState::Failed;
 
     if (whichType == TX_SCRIPTHASH) {
         // Solver returns the subscript that need to be evaluated;
@@ -1871,15 +1871,18 @@ bool SignSignature(const CKeyStore& keystore, const CScript& fromPubKey, CTransa
         // Append serialized subscript whether or not it is completely signed:
         txin.scriptSig << static_cast<valtype>(subscript);
         if (!fSolved)
-            return false;
+            return SignatureState::Failed;
     }
 
     // Test solution
-    return VerifyScript(txin.scriptSig, fromPubKey, txTo, nIn, true, true, 0);
+    if (VerifyScript(txin.scriptSig, fromPubKey, txTo, nIn, true, true, 0)) {
+        return SignatureState::Verified;
+    }
+    return SignatureState::Failed;
 }
 
-bool SignSignature(const CKeyStore& keystore, const CTransaction& txFrom, CTransaction& txTo,
-                   unsigned int nIn, int nHashType, bool fColdStake)
+SignatureState SignSignature(const CKeyStore& keystore, const CTransaction& txFrom, CTransaction& txTo,
+                             unsigned int nIn, int nHashType, bool fColdStake)
 {
     assert(nIn < txTo.vin.size());
     CTxIn& txin = txTo.vin[nIn];

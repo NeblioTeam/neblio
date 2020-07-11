@@ -113,7 +113,7 @@ StakeMaker::CreateCoinStake(const CWallet& wallet, const unsigned int nBits, con
     // Sign
     for (unsigned i = 0; i < inputs.inputsPrevouts.size(); i++) {
         const CWalletTx* pcoin = inputs.inputsPrevouts[i];
-        if (!SignSignature(wallet, *pcoin, stakeTx, i, SIGHASH_ALL, true)) {
+        if (SignSignature(wallet, *pcoin, stakeTx, i, SIGHASH_ALL, true) != SignatureState::Verified) {
             printf("CreateCoinStake : failed to sign coinstake");
             return boost::none;
         }

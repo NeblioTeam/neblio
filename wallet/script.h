@@ -663,6 +663,16 @@ public:
     }
 };
 
+enum class SignatureState : uint32_t
+{
+    // signature successful, and it was verified that
+    Verified,
+    // signature successful, but it wasn't verified
+    Unverified,
+    // signature failed
+    Failed
+};
+
 bool IsCanonicalPubKey(const std::vector<unsigned char>& vchPubKey);
 bool IsCanonicalSignature(const std::vector<unsigned char>& vchSig);
 
@@ -678,16 +688,16 @@ bool    IsStandard(const CScript& scriptPubKey, txnouttype& whichType);
 isminetype IsMine(const CKeyStore& keystore, const CScript& scriptPubKey);
 isminetype IsMine(const CKeyStore& keystore, const CTxDestination& dest);
 
-void ExtractAffectedKeys(const CKeyStore& keystore, const CScript& scriptPubKey,
-                         std::vector<CKeyID>& vKeys);
-bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet,
-                        bool fColdStake = false);
-bool ExtractDestinations(const CScript& scriptPubKey, txnouttype& typeRet,
-                         std::vector<CTxDestination>& addressRet, int& nRequiredRet);
-bool SignSignature(const CKeyStore& keystore, const CScript& fromPubKey, CTransaction& txTo,
-                   unsigned int nIn, int nHashType = SIGHASH_ALL, bool fColdStake = false);
-bool SignSignature(const CKeyStore& keystore, const CTransaction& txFrom, CTransaction& txTo,
-                   unsigned int nIn, int nHashType = SIGHASH_ALL, bool fColdStake = false);
+void           ExtractAffectedKeys(const CKeyStore& keystore, const CScript& scriptPubKey,
+                                   std::vector<CKeyID>& vKeys);
+bool           ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet,
+                                  bool fColdStake = false);
+bool           ExtractDestinations(const CScript& scriptPubKey, txnouttype& typeRet,
+                                   std::vector<CTxDestination>& addressRet, int& nRequiredRet);
+SignatureState SignSignature(const CKeyStore& keystore, const CScript& fromPubKey, CTransaction& txTo,
+                             unsigned int nIn, int nHashType = SIGHASH_ALL, bool fColdStake = false);
+SignatureState SignSignature(const CKeyStore& keystore, const CTransaction& txFrom, CTransaction& txTo,
+                             unsigned int nIn, int nHashType = SIGHASH_ALL, bool fColdStake = false);
 bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, const CTransaction& txTo,
                   unsigned int nIn, bool fValidatePayToScriptHash, bool fStrictEncodings, int nHashType,
                   ScriptError* serror = nullptr);

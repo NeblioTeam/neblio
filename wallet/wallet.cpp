@@ -2241,7 +2241,7 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, CAmount>>& vecSend, C
                         return false;
                     }
                     int nIn = std::distance(wtxNew.vin.begin(), it);
-                    if (!SignSignature(*this, *coin.first, wtxNew, nIn)) {
+                    if (SignSignature(*this, *coin.first, wtxNew, nIn) != SignatureState::Verified) {
                         CreateErrorMsg(errorMsg, "Error while signing transactions inputs.");
                         return false;
                     }
