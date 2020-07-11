@@ -131,7 +131,7 @@ Object CreateColdStakeDelegation(const Array& params, CWalletTx& wtxNew, CReserv
 
     if (!Params().IsColdStakingEnabled()) {
         std::string errMsg =
-            "Cold Staking disabled with SPORK 17.\n"
+            "Cold Staking disabled.\n"
             "You may force the stake delegation setting fForceNotEnabled to true.\n"
             "WARNING: If relayed before activation, this tx will be rejected resulting in a ban.\n";
         throw JSONRPCError(RPC_VERIFY_ERROR, errMsg);
