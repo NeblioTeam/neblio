@@ -145,7 +145,65 @@ TEST(PoS_tests, kernel_scriptPubKey_basic_p2pk)
     EXPECT_EQ(calcResult, CScript() << key.GetPubKey() << OP_CHECKSIG);
 }
 
-TEST(PoS_tests, kernel_scriptPubKey_p2pkh_key_does_not_exist_in_keystore)
+TEST(PoS_tests, kernel_scriptPubKey_basic_p2cs)
+{
+    CBasicKeyStore keyStore;
+
+    // make key
+    CKey keyOwner;
+    CKey keyStaker;
+    keyOwner.MakeNewKey(true);
+    keyStaker.MakeNewKey(true);
+
+    // add the key to key store
+    EXPECT_TRUE(keyStore.AddKey(keyStaker));
+
+    // create the kernel script
+    CScript kernelScript =
+        GetScriptForStakeDelegation(keyStaker.GetPubKey().GetID(), keyOwner.GetPubKey().GetID()); // P2CS
+
+    // solve for the kernel script to ensure it's sane
+    std::vector<valtype> vSolutions;
+    txnouttype           whichType;
+    EXPECT_TRUE(Solver(kernelScript, whichType, vSolutions));
+    EXPECT_EQ(whichType, txnouttype::TX_COLDSTAKE);
+
+    boost::optional<CScript> calcResult =
+        StakeMaker::CalculateScriptPubKeyForStakeOutput(keyStore, kernelScript);
+    ASSERT_NE(calcResult, boost::none);
+
+    EXPECT_EQ(calcResult, kernelScript);
+}
+
+TEST(PoS_tests, kernel_scriptPubKey_basic_p2cs__staker_key_does_not_exist_in_keystore)
+{
+    CBasicKeyStore keyStore;
+
+    // make key
+    CKey keyOwner;
+    CKey keyStaker;
+    keyOwner.MakeNewKey(true);
+    keyStaker.MakeNewKey(true);
+
+    // add the key to key store
+    // EXPECT_TRUE(keyStore.AddKey(keyStaker));
+
+    // create the kernel script
+    CScript kernelScript =
+        GetScriptForStakeDelegation(keyStaker.GetPubKey().GetID(), keyOwner.GetPubKey().GetID()); // P2CS
+
+    // solve for the kernel script to ensure it's sane
+    std::vector<valtype> vSolutions;
+    txnouttype           whichType;
+    EXPECT_TRUE(Solver(kernelScript, whichType, vSolutions));
+    EXPECT_EQ(whichType, txnouttype::TX_COLDSTAKE);
+
+    boost::optional<CScript> calcResult =
+        StakeMaker::CalculateScriptPubKeyForStakeOutput(keyStore, kernelScript);
+    ASSERT_EQ(calcResult, boost::none);
+}
+
+TEST(PoS_tests, kernel_scriptPubKey_p2pkh__key_does_not_exist_in_keystore)
 {
     CBasicKeyStore keyStore;
 
@@ -171,7 +229,7 @@ TEST(PoS_tests, kernel_scriptPubKey_p2pkh_key_does_not_exist_in_keystore)
     ASSERT_EQ(calcResult, boost::none);
 }
 
-TEST(PoS_tests, kernel_scriptPubKey_p2pk_key_does_not_exist_in_keystore)
+TEST(PoS_tests, kernel_scriptPubKey_p2pk__key_does_not_exist_in_keystore)
 {
     CBasicKeyStore keyStore;
 
@@ -457,4 +515,70 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_too_small_age)
 
     EXPECT_EQ(inputsResult.inputs.size(), 2);
     EXPECT_EQ(inputsResult.inputsPrevouts.size(), 2);
+}
+
+extern bool Sign1(const CKeyID& address, const CKeyStore& keystore, uint256 hash, int nHashType,
+                  CScript& scriptSigRet);
+
+TEST(PoS_tests, scripts_p2cs_scriptSig_test)
+{
+    // hypothetical signature
+    std::vector<uint8_t> sig{'a', 'b', 'c'};
+    CScript              sigScript;
+
+    // make key
+    CKey key;
+    key.MakeNewKey(true);
+
+    std::vector<uint8_t> pubKey = key.GetPubKey().Raw();
+
+    {
+        // this should pass
+        CScript script = CScript() << sig << (int)OP_TRUE << pubKey;
+
+        const auto pubKeyReturned = script.GetPubKeyOfP2CSScriptSig();
+        EXPECT_EQ(pubKeyReturned, pubKey);
+    }
+    {
+        // OP_FALSE means it's a delegation revocation, so no
+        CScript script = CScript() << sig << (int)OP_FALSE << pubKey;
+
+        const auto pubKeyReturned = script.GetPubKeyOfP2CSScriptSig();
+        EXPECT_EQ(pubKeyReturned, boost::none);
+    }
+    {
+        // empty script should fail
+        CScript script = CScript();
+
+        const auto pubKeyReturned = script.GetPubKeyOfP2CSScriptSig();
+        EXPECT_EQ(pubKeyReturned, boost::none);
+    }
+    {
+        // only sig should fail
+        CScript script = CScript() << sig;
+
+        const auto pubKeyReturned = script.GetPubKeyOfP2CSScriptSig();
+        EXPECT_EQ(pubKeyReturned, boost::none);
+    }
+    {
+        // missing public key should fail
+        CScript script = CScript() << sig << (int)OP_TRUE;
+
+        const auto pubKeyReturned = script.GetPubKeyOfP2CSScriptSig();
+        EXPECT_EQ(pubKeyReturned, boost::none);
+    }
+    {
+        // anything after pubkey should make it fail
+        CScript script = CScript() << sig << (int)OP_TRUE << pubKey << OP_FALSE;
+
+        const auto pubKeyReturned = script.GetPubKeyOfP2CSScriptSig();
+        EXPECT_EQ(pubKeyReturned, boost::none);
+    }
+    {
+        // anything after pubkey should make it fail
+        CScript script = CScript() << sig << (int)OP_TRUE << pubKey << 0x0;
+
+        const auto pubKeyReturned = script.GetPubKeyOfP2CSScriptSig();
+        EXPECT_EQ(pubKeyReturned, boost::none);
+    }
 }

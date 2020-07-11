@@ -2091,6 +2091,39 @@ bool CScript::IsPayToColdStaking() const
 }
 // clang-format on
 
+boost::optional<std::vector<uint8_t>> CScript::GetPubKeyOfP2CSScriptSig() const
+{
+
+    CScript::const_iterator           pc = cbegin();
+    opcodetype                        opcode;
+    valtype                           vchValue;
+    static const std::vector<uint8_t> TRUE_VEC({OP_TRUE});
+
+    if (!GetOp(pc, opcode, vchValue)) {
+        // sig is expected here
+        return boost::none;
+    }
+    if (!GetOp(pc, opcode, vchValue)) {
+        // we expect a OP_TRUE here
+        return boost::none;
+    }
+    if (vchValue != TRUE_VEC) {
+        // if this is false, it's a delegation revocation, it's not what we expect
+        return boost::none;
+    }
+    if (!GetOp(pc, opcode, vchValue)) {
+        // we expect the public key here
+        return boost::none;
+    }
+    // we extract the public key
+    auto pubKey = boost::make_optional(std::move(vchValue));
+    if (GetOp(pc, opcode, vchValue)) {
+        // there should be nothing left, otherwise this is not scriptSig of P2CS
+        return boost::none;
+    }
+    return pubKey;
+}
+
 bool CScript::HasCanonicalPushes() const
 {
     const_iterator pc = begin();

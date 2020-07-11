@@ -60,12 +60,18 @@ bool CTransaction::CheckColdStake(const CScript& script) const
     if (!IsCoinStake())
         return false;
 
-    // all inputs have the same scriptSig
-    CScript firstScript = vin[0].scriptSig;
-    if (vin.size() > 1) {
-        for (unsigned int i = 1; i < vin.size(); i++)
-            if (vin[i].scriptSig != firstScript)
-                return false;
+    if (vin.empty())
+        return false;
+
+    const boost::optional<std::vector<uint8_t>> firstPubKey =
+        vin[0].scriptSig.GetPubKeyOfP2CSScriptSig();
+    if (!firstPubKey)
+        return false; // this is not P2CS
+
+    // all inputs must be P2CS and must be paying to the same pubkey
+    for (unsigned int i = 1; i < vin.size(); i++) {
+        if (vin[i].scriptSig.GetPubKeyOfP2CSScriptSig() != firstPubKey)
+            return false;
     }
 
     // all outputs except first (coinstake marker)

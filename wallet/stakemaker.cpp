@@ -44,6 +44,8 @@ StakeMaker::CreateCoinStake(const CWallet& wallet, const unsigned int nBits, con
                                       nValueIn, fEnableColdStaking, false))
         return boost::none;
 
+    // we can choose custom inputs to use (by filtering the ones we get from the wallet) for testing
+    // purposes
     if (customInputs.is_initialized()) {
         decltype(setCoins) toErase;
         for (const auto& pcoin : setCoins) {

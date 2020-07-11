@@ -536,6 +536,11 @@ public:
 
     bool IsPayToColdStaking() const;
 
+    /**
+     * Checks if the scriptSig is for P2CS; if yes, returns the public key; if no returns boost::none
+     */
+    boost::optional<std::vector<uint8_t>> GetPubKeyOfP2CSScriptSig() const;
+
     // Called by IsStandardTx and P2SH VerifyScript (which makes it consensus-critical).
     bool IsPushOnly() const
     {
