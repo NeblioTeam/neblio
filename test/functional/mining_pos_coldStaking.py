@@ -265,6 +265,7 @@ class ColdStakingTest(BitcoinTestFramework):
         self.log.info("Generating one valid cold-stake block...")
         # hash = self.gen_pow_block(1, average_block_time, block_time_spread)
         self.gen_pos_block(1)
+        staked_block_mint0 = self.nodes[1].getblockbynumber(self.nodes[1].getblockcount(), True)["mint"]
         self.log.info("New block created by cold-staking. Trying to submit...")
         newblockhash = self.nodes[1].getbestblockhash()
         self.log.info("Block %s submitted" % newblockhash)
@@ -275,11 +276,11 @@ class ColdStakingTest(BitcoinTestFramework):
         assert_equal(newblockhash, self.nodes[0].getbestblockhash())
         self.log.info("Great. Cold-staked block was accepted!")
 
-        # # check balances after staked block.
-        # self.expected_balance -= 50
-        # self.expected_immature_balance += 300
-        # self.checkBalances()
-        # self.log.info("Balances check out after staked block")
+        # check balances after staked block.
+        self.expected_balance -= 500  # 10 outputs x 50 spent
+        self.expected_immature_balance += 500 + float(staked_block_mint0)
+        self.checkBalances()
+        self.log.info("Balances check out after staked block")
 
         # 9) check that the staker can use the coins to stake a block with a rawtransaction.
         # ----------------------------------------------------------------------------------
@@ -287,7 +288,8 @@ class ColdStakingTest(BitcoinTestFramework):
         self.log.info("Generating another valid cold-stake block...")
         stakeable_coins = getDelegatedUtxos(self.nodes[0].listunspent())
         stakeInput = stakeable_coins[0]
-        assert_equal(len(stakeable_coins), NUM_OF_INPUTS - 2)
+        # the max inputs in a stake is 10, so 1 + 10 = 11 spent already
+        assert_equal(len(stakeable_coins), NUM_OF_INPUTS - 11)
         assert_greater_than(len(stakeInput), 0)
         self.gen_pos_block(1, True, [[stakeInput["txid"],stakeInput["vout"]]])
         staked_block_mint1 = self.nodes[1].getblockbynumber(self.nodes[1].getblockcount(), True)["mint"]
@@ -296,18 +298,15 @@ class ColdStakingTest(BitcoinTestFramework):
         # Verify that nodes[0] accepts it
         sync_blocks(self.nodes)
         remaining_stakable_coins = getDelegatedUtxos(self.nodes[0].listunspent())
-        assert_equal(len(remaining_stakable_coins), NUM_OF_INPUTS - 3)
+        assert_equal(len(remaining_stakable_coins), NUM_OF_INPUTS - 12)
         for s in remaining_stakable_coins:
-            print(s["txid"])
-            print(stakeInput["txid"])
             assert s["txid"] != stakeInput["txid"]
         assert_equal(self.nodes[0].getblockcount(), self.nodes[1].getblockcount())
         self.log.info("Great. Cold-staked block was accepted!")
-        staked_block_mint2 = self.nodes[1].getblockbynumber(self.nodes[1].getblockcount(), True)["mint"]
 
         # check balances after staked block.
-        self.expected_balance -= 100  # 2 x 50 spent
-        self.expected_immature_balance += 100 + float(staked_block_mint1) + float(staked_block_mint2)
+        self.expected_balance -= 50
+        self.expected_immature_balance += 50 + float(staked_block_mint1)
         self.checkBalances()
         self.log.info("Balances check out after staked block")
 
@@ -317,7 +316,7 @@ class ColdStakingTest(BitcoinTestFramework):
         self.log.info("Generating one invalid cold-stake block (changing first coinstake output)...")
         stakeable_coins = getDelegatedUtxos(self.nodes[0].listunspent())
         stakeInput = stakeable_coins[0]
-        assert_equal(len(stakeable_coins), NUM_OF_INPUTS - 3)
+        assert_equal(len(stakeable_coins), NUM_OF_INPUTS - 12)
         assert_greater_than(len(stakeInput), 0)
         # Create the block
         block_serialized = self.gen_pos_block(1, False, [[stakeInput["txid"], stakeInput["vout"]]])
@@ -365,7 +364,7 @@ class ColdStakingTest(BitcoinTestFramework):
         self.log.info("Generating another invalid cold-stake block (adding coinstake value)...")
         stakeable_coins = getDelegatedUtxos(self.nodes[0].listunspent())
         stakeInput = stakeable_coins[0]
-        assert_equal(len(stakeable_coins), NUM_OF_INPUTS - 3)
+        assert_equal(len(stakeable_coins), NUM_OF_INPUTS - 12)
         assert_greater_than(len(stakeInput), 0)
         # Create the block + add 1 satoshi, illegitimately, and then watch it fail
         block_serialized = self.gen_pos_block(1, False, [[stakeInput["txid"], stakeInput["vout"]]], 1)
@@ -393,7 +392,9 @@ class ColdStakingTest(BitcoinTestFramework):
         print("*** 12 ***")
         self.log.info("Cancel the stake delegation spending the delegated utxos...")
         delegated_utxos = getDelegatedUtxos(self.nodes[0].listunspent())
-        assert_equal(len(delegated_utxos), NUM_OF_INPUTS - 1)  # we spent one at the very beginning
+        # we spent one at the very beginning, then we combined 10 inputs into 1
+        # (so 10-1 are the inputs we lost from doing this combination)
+        assert_equal(len(delegated_utxos), NUM_OF_INPUTS - (1 + (10 - 1)))
         # remove one utxo to spend later
         txhash = self.spendUTXOsWithNode(delegated_utxos, 0)
         assert(txhash != None)

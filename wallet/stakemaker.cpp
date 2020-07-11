@@ -326,14 +326,12 @@ StakeMaker::CollectInputsForStake(const StakeKernelData&                        
 {
     CoinStakeInputsResult result;
 
-    bool isColdStake = kernelData.kernelScriptPubKey.IsPayToColdStaking();
-
     // add the kernel input
     result.inputs.push_back(kernelData.kernelInput);
     result.inputsPrevouts.push_back(kernelData.kernelTx);
     result.nInputsTotalCredit = kernelData.credit;
 
-    if (!splitStake && !isColdStake) {
+    if (!splitStake) {
         // Attempt to add more inputs
         for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
             // Only add coins of the same key/address as kernel
