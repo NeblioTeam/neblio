@@ -1742,11 +1742,14 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         }
 
         // Ask the first connected node for block updates
+        // For regtest, we need to sync immediately after connection; this is important for tests that
+        // split and reconnect the network
         static int nAskedForBlocks = 0;
-        if (!pfrom->fClient && !pfrom->fOneShot && !fImporting &&
-            (pfrom->nStartingHeight > (nBestHeight - 144)) &&
-            (pfrom->nVersion < NOBLKS_VERSION_START || pfrom->nVersion >= NOBLKS_VERSION_END) &&
-            (nAskedForBlocks < 1 || vNodes.size() <= 1)) {
+        if ((!pfrom->fClient && !pfrom->fOneShot && !fImporting) &&
+            (((pfrom->nStartingHeight > (nBestHeight - 144)) &&
+              (pfrom->nVersion < NOBLKS_VERSION_START || pfrom->nVersion >= NOBLKS_VERSION_END) &&
+              (nAskedForBlocks < 1 || vNodes.size() <= 1)) ||
+             Params().NetType() == NetworkType::Regtest)) {
             nAskedForBlocks++;
             pfrom->PushGetBlocks(pindexBest.get(), uint256(0));
         }
