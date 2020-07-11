@@ -125,11 +125,11 @@ Object CreateColdStakeDelegation(const Array& params, CWalletTx& wtxNew, CReserv
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     // Check that Cold Staking has been enforced or fForceNotEnabled = true
-    //    bool fForceNotEnabled = false;
-    //    if (params.size() > 5 && params[5].type() != Value_type::null_type)
-    //        fForceNotEnabled = params[5].get_bool();
+    bool fForceNotEnabled = false;
+    if (params.size() > 5 && params[5].type() != Value_type::null_type)
+        fForceNotEnabled = params[5].get_bool();
 
-    if (!Params().IsColdStakingEnabled()) {
+    if (!Params().IsColdStakingEnabled() && !fForceNotEnabled) {
         std::string errMsg =
             "Cold Staking disabled.\n"
             "You may force the stake delegation setting fForceNotEnabled to true.\n"
