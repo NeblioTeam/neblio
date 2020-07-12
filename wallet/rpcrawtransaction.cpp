@@ -783,7 +783,7 @@ Value signrawtransaction(const Array& params, bool fHelp)
         }
         const CScript& prevPubKey = mapPrevOut[txin.prevout];
 
-        if (!VerifyScript(txin.scriptSig, prevPubKey, mergedTx, i, true, true, 0))
+        if (VerifyScript(txin.scriptSig, prevPubKey, mergedTx, i, true, true, 0).isErr())
             fComplete = false;
     }
 

@@ -803,7 +803,7 @@ struct Constructor<void, E>
 
 } // namespace details
 
-namespace concepts {
+namespace conceptsNS {
 
 template <typename T, typename = void>
 struct EqualityComparable : std::false_type
@@ -818,7 +818,7 @@ struct EqualityComparable<
 {
 };
 
-} // namespace concepts
+} // namespace conceptsNS
 
 template <typename T, typename E>
 struct Result
@@ -960,9 +960,9 @@ private:
 template <typename T, typename E>
 bool operator==(const Result<T, E>& lhs, const Result<T, E>& rhs)
 {
-    static_assert(concepts ::EqualityComparable<T>::value,
+    static_assert(conceptsNS::EqualityComparable<T>::value,
                   "T must be EqualityComparable for Result to be comparable");
-    static_assert(concepts ::EqualityComparable<E>::value,
+    static_assert(conceptsNS::EqualityComparable<E>::value,
                   "E must be EqualityComparable for Result to be comparable");
 
     if (lhs.isOk() && rhs.isOk()) {
@@ -977,7 +977,7 @@ bool operator==(const Result<T, E>& lhs, const Result<T, E>& rhs)
 template <typename T, typename E>
 bool operator==(const Result<T, E>& lhs, types::Ok<T> ok)
 {
-    static_assert(concepts ::EqualityComparable<T>::value,
+    static_assert(conceptsNS ::EqualityComparable<T>::value,
                   "T must be EqualityComparable for Result to be comparable");
 
     if (!lhs.isOk())
@@ -995,7 +995,7 @@ bool operator==(const Result<void, E>& lhs, types::Ok<void>)
 template <typename T, typename E>
 bool operator==(const Result<T, E>& lhs, types::Err<E> err)
 {
-    static_assert(concepts ::EqualityComparable<E>::value,
+    static_assert(conceptsNS ::EqualityComparable<E>::value,
                   "E must be EqualityComparable for Result to be comparable");
     if (!lhs.isErr())
         return false;
@@ -1012,4 +1012,13 @@ bool operator==(const Result<T, E>& lhs, types::Err<E> err)
         }                                                                                               \
         typedef details::ResultOkType<decltype(res)>::type T;                                           \
         res.storage().get<T>();                                                                         \
+    })
+
+#define TRYV(...)                                                                                       \
+    ({                                                                                                  \
+        auto res = __VA_ARGS__;                                                                         \
+        if (!res.isOk()) {                                                                              \
+            typedef details::ResultErrType<decltype(res)>::type E;                                      \
+            return types::Err<E>(res.storage().get<E>());                                               \
+        }                                                                                               \
     })

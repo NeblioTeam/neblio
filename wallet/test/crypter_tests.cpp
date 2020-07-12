@@ -349,7 +349,7 @@ TEST(cryptography_tests, ecdh_get_scriptSig)
     CTransaction tx = TxFromHex_crypterTests(transaction);
 
     std::vector<std::vector<unsigned char>> stack;
-    EXPECT_TRUE(EvalScript(stack, tx.vin[0].scriptSig, tx, 1, false, 0));
+    EXPECT_TRUE(EvalScript(stack, tx.vin[0].scriptSig, tx, 1, false, 0).isOk());
 
     boost::optional<CKey> pubKey = CTransaction::GetPublicKeyFromScriptSig(tx.vin[0].scriptSig);
 

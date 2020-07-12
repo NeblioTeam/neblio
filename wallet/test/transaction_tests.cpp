@@ -71,7 +71,8 @@ TEST(transaction_tests, tx_valid)
                     break;
                 }
                 EXPECT_TRUE(VerifyScript(tx.vin[i].scriptSig, mapprevOutScriptPubKeys[tx.vin[i].prevout],
-                                         tx, i, test[2].get_bool(), false, 0))
+                                         tx, i, test[2].get_bool(), false, 0)
+                                .isOk())
                     << strTest;
             }
         }
@@ -132,7 +133,8 @@ TEST(transaction_tests, tx_invalid)
                     break;
                 }
                 fValid = VerifyScript(tx.vin[i].scriptSig, mapprevOutScriptPubKeys[tx.vin[i].prevout],
-                                      tx, i, test[2].get_bool(), true, 0);
+                                      tx, i, test[2].get_bool(), true, 0)
+                             .isOk();
             }
 
             EXPECT_TRUE(!fValid) << strTest;
