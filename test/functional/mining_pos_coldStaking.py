@@ -240,8 +240,7 @@ class ColdStakingTest(BitcoinTestFramework):
         # this is not usable due to the unavailability of validation state
         # assert_raises_rpc_error(-26, "mandatory-script-verify-flag-failed (Script failed an OP_CHECKCOLDSTAKEVERIFY operation",
         #                         self.spendUTXOwithNode, u, 1)
-        assert_raises_rpc_error(-26, "TX rejected",
-                                self.spendUTXOwithNode, u, 1)
+        assert_raises_rpc_error(-26, "input-connect-error", self.spendUTXOwithNode, u, 1)
         self.log.info("Good. Cold staker was NOT able to spend (failed OP_CHECKCOLDSTAKEVERIFY)")
         for i in range(30):
             hash = self.gen_pow_block(3, average_block_time, block_time_spread)

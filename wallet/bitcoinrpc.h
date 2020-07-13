@@ -44,20 +44,24 @@ enum RPCErrorCode
     RPC_PARSE_ERROR      = -32700,
 
     // General application defined errors
-    RPC_MISC_ERROR             = -1,  // std::exception thrown in command handling
-    RPC_FORBIDDEN_BY_SAFE_MODE = -2,  // Server is in safe mode, and command is not allowed in safe mode
-    RPC_TYPE_ERROR             = -3,  // Unexpected type was passed as parameter
-    RPC_INVALID_ADDRESS_OR_KEY = -5,  // Invalid address or key
-    RPC_OUT_OF_MEMORY          = -7,  // Ran out of memory during operation
-    RPC_INVALID_PARAMETER      = -8,  // Invalid, missing or duplicate parameter
-    RPC_DATABASE_ERROR         = -20, // Database error
-    RPC_DESERIALIZATION_ERROR  = -22, // Error parsing or validating structure in raw format
-    RPC_TX_AMEND_FAILED        = -23, // Error parsing or validating structure in raw format
-    RPC_VERIFY_ERROR           = -25, // General error during transaction or block submission
-    RPC_VERIFY_REJECTED        = -26, //! Transaction or block was rejected by network rules
+    RPC_MISC_ERROR              = -1,  // std::exception thrown in command handling
+    RPC_FORBIDDEN_BY_SAFE_MODE  = -2,  // Server is in safe mode, and command is not allowed in safe mode
+    RPC_TYPE_ERROR              = -3,  // Unexpected type was passed as parameter
+    RPC_INVALID_ADDRESS_OR_KEY  = -5,  // Invalid address or key
+    RPC_OUT_OF_MEMORY           = -7,  // Ran out of memory during operation
+    RPC_INVALID_PARAMETER       = -8,  // Invalid, missing or duplicate parameter
+    RPC_DATABASE_ERROR          = -20, // Database error
+    RPC_DESERIALIZATION_ERROR   = -22, // Error parsing or validating structure in raw format
+    RPC_TX_AMEND_FAILED         = -23, // Error parsing or validating structure in raw format
+    RPC_VERIFY_ERROR            = -25, // General error during transaction or block submission
+    RPC_VERIFY_REJECTED         = -26, //  Transaction or block was rejected by network rules
+    RPC_VERIFY_ALREADY_IN_CHAIN = -27, // Transaction already in chain
+    RPC_IN_WARMUP               = -28, // Client still warming up
 
     //! Aliases for backward compatibility
-    RPC_TRANSACTION_ERROR = RPC_VERIFY_ERROR,
+    RPC_TRANSACTION_ERROR            = RPC_VERIFY_ERROR,
+    RPC_TRANSACTION_REJECTED         = RPC_VERIFY_REJECTED,
+    RPC_TRANSACTION_ALREADY_IN_CHAIN = RPC_VERIFY_ALREADY_IN_CHAIN,
 
     // P2P client errors
     RPC_CLIENT_NOT_CONNECTED       = -9,  // Bitcoin is not connected

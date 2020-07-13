@@ -830,12 +830,17 @@ Value sendrawtransaction(const Array& params, bool fHelp)
         // through to re-relay it.
     } else {
         // push to local node
-        bool fMissingInputs = false;
-        if (!AcceptToMemoryPool(mempool, tx, &fMissingInputs)) {
-            if (fMissingInputs) {
-                throw JSONRPCError(RPC_TRANSACTION_ERROR, "Missing inputs");
+        const auto mempoolRes = AcceptToMemoryPool(mempool, tx);
+        if (mempoolRes.isErr()) {
+            std::string msg = mempoolRes.unwrapErr().GetRejectReason();
+            if (mempoolRes.unwrapErr().GetDebugMessage().empty()) {
+                msg += "; Debug: " + mempoolRes.unwrapErr().GetDebugMessage();
             }
-            throw JSONRPCError(RPC_VERIFY_REJECTED, "TX rejected");
+
+            if (mempoolRes.unwrapErr().GetResult() == TxValidationResult::TX_MISSING_INPUTS) {
+                throw JSONRPCError(RPC_TRANSACTION_ERROR, msg);
+            }
+            throw JSONRPCError(RPC_TRANSACTION_REJECTED, msg);
         }
 
         SyncWithWallets(tx, NULL);

@@ -38,6 +38,9 @@ enum class TxValidationResult {
      */
     TX_CONFLICT,
     TX_MEMPOOL_POLICY,        //!< violated mempool's fee/size/descendant/RBF/etc limits
+    TX_INVALID_INPUTS,
+    TX_INPUT_CONNECT_FAILED,
+    TX_NTP1_ERROR,
 };
 
 /** A "reason" why a block was invalid, suitable for determining whether the
