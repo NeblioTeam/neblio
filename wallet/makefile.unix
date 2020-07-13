@@ -244,7 +244,9 @@ OBJS= \
     obj/wallet_ismine.o                       \
     obj/stakemaker.o                          \
     obj/work.o                                \
-    obj/addressbook.o
+    obj/addressbook.o                         \
+    obj/script_error.o                        \
+    obj/validation.o
 
 ifdef NEBLIO_REST
     OBJS += obj/nebliorest.o
