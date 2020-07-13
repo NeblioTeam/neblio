@@ -613,8 +613,9 @@ bool CTransaction::ConnectInputs(MapPrevTx inputs, std::map<uint256, CTxIndex>& 
 
             // Tally transaction fees
             CAmount nTxFee = nValueIn - GetValueOut();
-            if (nTxFee < 0)
+            if (nTxFee < 0) {
                 return DoS(100, error("ConnectInputs() : %s nTxFee < 0", GetHash().ToString().c_str()));
+            }
 
             // enforce transaction fees for every block
             if (nTxFee < GetMinFee()) {
