@@ -171,9 +171,10 @@ public:
         @param[in] fMiner	true if called from CreateNewBlock
         @return Returns true if all checks succeed
         */
-    bool ConnectInputs(MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTestPool,
-                       const CDiskTxPos& posThisTx, const ConstCBlockIndexSmartPtr& pindexBlock,
-                       bool fBlock, bool fMiner, CBlock* sourceBlockPtr = nullptr);
+    Result<void, TxValidationState>
+                                    ConnectInputs(MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTestPool,
+                                                  const CDiskTxPos& posThisTx, const ConstCBlockIndexSmartPtr& pindexBlock, bool fBlock,
+                                                  bool fMiner, CBlock* sourceBlockPtr = nullptr);
     Result<void, TxValidationState> CheckTransaction(CBlock* sourceBlock = nullptr) const;
     bool GetCoinAge(CTxDB& txdb, uint64_t& nCoinAge) const; // ppcoin: get transaction coin age
 

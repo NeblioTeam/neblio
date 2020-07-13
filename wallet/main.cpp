@@ -542,13 +542,8 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, CTransactio
 
         // Check against previous transactions
         // This is done last to help prevent CPU exhaustion denial-of-service attacks.
-        if (!tx.ConnectInputs(mapInputs, mapUnused, CDiskTxPos(1, 1), boost::atomic_load(&pindexBest),
-                              false, false)) {
-            return Err(MakeInvalidTxState(TxValidationResult::TX_INPUT_CONNECT_FAILED,
-                                          "input-connect-error",
-                                          strprintf("AcceptToMemoryPool : ConnectInputs failed %s",
-                                                    hash.ToString().substr(0, 10).c_str())));
-        }
+        TRYV(tx.ConnectInputs(mapInputs, mapUnused, CDiskTxPos(1, 1), boost::atomic_load(&pindexBest),
+                              false, false));
 
         if (Params().PassedFirstValidNTP1Tx() &&
             Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {

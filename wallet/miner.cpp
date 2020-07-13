@@ -376,7 +376,8 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
                 continue;
             }
 
-            if (!tx.ConnectInputs(mapInputs, mapTestPoolTmp, CDiskTxPos(1, 1), pindexPrev, false, true))
+            if (tx.ConnectInputs(mapInputs, mapTestPoolTmp, CDiskTxPos(1, 1), pindexPrev, false, true)
+                    .isErr())
                 continue;
 
             mapTestPoolTmp[tx.GetHash()] = CTxIndex(CDiskTxPos(1, 1), tx.vout.size());
