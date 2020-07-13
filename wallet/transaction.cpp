@@ -489,8 +489,8 @@ unsigned int CTransaction::GetP2SHSigOpCount(const MapPrevTx& inputs) const
     return nSigOps;
 }
 
-bool CTransaction::ConnectInputs(CTxDB& /*txdb*/, MapPrevTx inputs,
-                                 std::map<uint256, CTxIndex>& mapTestPool, const CDiskTxPos& posThisTx,
+bool CTransaction::ConnectInputs(MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTestPool,
+                                 const CDiskTxPos&               posThisTx,
                                  const ConstCBlockIndexSmartPtr& pindexBlock, bool fBlock, bool fMiner,
                                  CBlock* sourceBlockPtr)
 {

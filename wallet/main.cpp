@@ -542,8 +542,8 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, CTransactio
 
         // Check against previous transactions
         // This is done last to help prevent CPU exhaustion denial-of-service attacks.
-        if (!tx.ConnectInputs(*txdb, mapInputs, mapUnused, CDiskTxPos(1, 1),
-                              boost::atomic_load(&pindexBest), false, false)) {
+        if (!tx.ConnectInputs(mapInputs, mapUnused, CDiskTxPos(1, 1), boost::atomic_load(&pindexBest),
+                              false, false)) {
             return Err(MakeInvalidTxState(TxValidationResult::TX_INPUT_CONNECT_FAILED,
                                           "input-connect-error",
                                           strprintf("AcceptToMemoryPool : ConnectInputs failed %s",
