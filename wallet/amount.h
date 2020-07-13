@@ -27,6 +27,6 @@ static const std::string CURRENCY_UNIT = "NEBL";
 // Total coin that will be released (~infinite);
 static const CAmount MAX_MONEY = std::numeric_limits<int64_t>::max();
 
-inline bool MoneyRange(int64_t nValue) { return (nValue >= 0 && nValue <= MAX_MONEY); }
+inline bool MoneyRange(CAmount nValue) { return (nValue >= 0 && nValue <= MAX_MONEY); }
 
 #endif //  BITCOIN_AMOUNT_H
