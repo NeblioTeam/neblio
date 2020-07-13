@@ -220,61 +220,62 @@ unsigned int CTransaction::GetLegacySigOpCount() const
 
 Result<void, TxValidationState> CTransaction::CheckTransaction(CBlock* sourceBlockPtr) const
 {
-    // TODOVAL: take care of DoS
     // Basic checks that don't depend on any context
-    if (vin.empty())
-        //        return DoS(10, error("CTransaction::CheckTransaction() : vin empty"));
+    if (vin.empty()) {
+        DoS(10, false);
         return Err(MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-txns-vin-empty"));
-    if (vout.empty())
-        //        return DoS(10, error("CTransaction::CheckTransaction() : vout empty"));
+    }
+    if (vout.empty()) {
+        DoS(10, false);
         return Err(MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-empty"));
+    }
 
     // Size limits
     unsigned int nSizeLimit = MaxBlockSize();
-    if (::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > nSizeLimit)
-        //        return DoS(100, error("CTransaction::CheckTransaction() : size limits failed"));
+    if (::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > nSizeLimit) {
+        DoS(100, false);
         return Err(MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-txns-oversize"));
+    }
 
     // Check for negative or overflow output values
     CAmount nValueOut = 0;
     for (unsigned int i = 0; i < vout.size(); i++) {
         const CTxOut& txout = vout[i];
-        if (txout.IsEmpty() && !IsCoinBase() && !IsCoinStake())
-            // return DoS(100,error("CTransaction::CheckTransaction() : txout empty for user
-            // transaction"));
+        if (txout.IsEmpty() && !IsCoinBase() && !IsCoinStake()) {
+            DoS(100, false);
             return Err(MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "txout-empty-for-tx"));
+        }
 
-        if (txout.nValue < 0)
-            // return DoS(100, error("CTransaction::CheckTransaction() : txout.nValue negative (%zi)",
-            // txout.nValue));
+        if (txout.nValue < 0) {
+            DoS(100, false);
             return Err(MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-negative"));
+        }
 
-        if (txout.nValue > MAX_MONEY)
-            // return DoS(100, error("CTransaction::CheckTransaction() : txout.nValue too high
-            // (%zi)",txout.nValue));
+        if (txout.nValue > MAX_MONEY) {
+            DoS(100, false);
             return Err(MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-toolarge"));
+        }
 
         nValueOut += txout.nValue;
-        if (!MoneyRange(nValueOut))
-            // return DoS(100, error("CTransaction::CheckTransaction() : txout total out of range
-            // (%zi)",txout.nValue));
+        if (!MoneyRange(nValueOut)) {
+            DoS(100, false);
             return Err(
                 MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-txns-txouttotal-toolarge"));
+        }
 
         // check cold staking enforcement (for delegations) and value out
         if (txout.scriptPubKey.IsPayToColdStaking()) {
-            if (!Params().IsColdStakingEnabled())
-                // return DoS(10, error("%s: cold staking not active", __func__));
+            if (!Params().IsColdStakingEnabled()) {
+                DoS(10, false);
                 return Err(
                     MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-txns-coldstake-disabled"));
+            }
 
-            if (txout.nValue < Params().MinColdStakingAmount())
-                // return DoS(100, error("%s: dust amount (%zd) not allowed for cold
-                // staking. Min amount: %zd",
-                //                  __func__, txout.nValue,
-                // Params().MinColdStakingAmount()));
+            if (txout.nValue < Params().MinColdStakingAmount()) {
+                DoS(100, false);
                 return Err(MakeInvalidTxState(TxValidationResult::TX_CONSENSUS,
                                               "bad-txns-coldstake-low-amount"));
+            }
         }
     }
 
@@ -300,16 +301,16 @@ Result<void, TxValidationState> CTransaction::CheckTransaction(CBlock* sourceBlo
                 sourceBlockPtr->reject =
                     CBlock::CBlockReject(REJECT_INVALID, "bad-cb-length", sourceBlockPtr->GetHash());
             }
-            // return DoS(100, error("CTransaction::CheckTransaction() : coinbase script size is
-            // invalid"));
+            DoS(100, false);
             return Err(MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-cb-length"));
         }
     } else {
         for (const CTxIn& txin : vin)
-            if (txin.prevout.IsNull())
-                // return DoS(10, error("CTransaction::CheckTransaction() : prevout is null"));
+            if (txin.prevout.IsNull()) {
+                DoS(10, false);
                 return Err(
                     MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-txns-prevout-null"));
+            }
     }
 
     return Ok();
