@@ -507,12 +507,13 @@ bool CTransaction::ConnectInputs(MapPrevTx inputs, std::map<uint256, CTxIndex>& 
             CTxIndex&     txindex = inputs[prevout.hash].first;
             CTransaction& txPrev  = inputs[prevout.hash].second;
 
-            if (prevout.n >= txPrev.vout.size() || prevout.n >= txindex.vSpent.size())
+            if (prevout.n >= txPrev.vout.size() || prevout.n >= txindex.vSpent.size()) {
                 return DoS(100, error("ConnectInputs() : %s prevout.n out of range %d %" PRIszu
                                       " %" PRIszu " prev tx %s\n%s",
                                       GetHash().ToString().c_str(), prevout.n, txPrev.vout.size(),
                                       txindex.vSpent.size(), prevout.hash.ToString().c_str(),
                                       txPrev.ToString().c_str()));
+            }
 
             // If prev is coinbase or coinstake, check that it's matured
             int nCbM = Params().CoinbaseMaturity();
@@ -536,10 +537,11 @@ bool CTransaction::ConnectInputs(MapPrevTx inputs, std::map<uint256, CTxIndex>& 
                 }
 
             // ppcoin: check transaction timestamp
-            if (txPrev.nTime > nTime)
+            if (txPrev.nTime > nTime) {
                 return DoS(
                     100,
                     error("ConnectInputs() : transaction timestamp earlier than input transaction"));
+            }
 
             // Check for negative or overflow input values
             nValueIn += txPrev.vout[prevout.n].nValue;
@@ -615,16 +617,18 @@ bool CTransaction::ConnectInputs(MapPrevTx inputs, std::map<uint256, CTxIndex>& 
                 return DoS(100, error("ConnectInputs() : %s nTxFee < 0", GetHash().ToString().c_str()));
 
             // enforce transaction fees for every block
-            if (nTxFee < GetMinFee())
+            if (nTxFee < GetMinFee()) {
                 return fBlock ? DoS(100,
                                     error("ConnectInputs() : %s not paying required fee=%s, paid=%s",
                                           GetHash().ToString().c_str(), FormatMoney(GetMinFee()).c_str(),
                                           FormatMoney(nTxFee).c_str()))
                               : false;
+            }
 
             nFees += nTxFee;
-            if (!MoneyRange(nFees))
+            if (!MoneyRange(nFees)) {
                 return DoS(100, error("ConnectInputs() : nFees out of range"));
+            }
         }
     }
 
