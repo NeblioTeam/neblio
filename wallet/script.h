@@ -704,8 +704,9 @@ Result<void, ScriptError> VerifyScript(const CScript& scriptSig, const CScript& 
                                        const CTransaction& txTo, unsigned int nIn,
                                        bool fValidatePayToScriptHash, bool fStrictEncodings,
                                        int nHashType);
-bool VerifySignature(const CTransaction& txFrom, const CTransaction& txTo, unsigned int nIn,
-                     bool fValidatePayToScriptHash, bool fStrictEncodings, int nHashType);
+Result<void, ScriptError> VerifySignature(const CTransaction& txFrom, const CTransaction& txTo,
+                                          unsigned int nIn, bool fValidatePayToScriptHash,
+                                          bool fStrictEncodings, int nHashType);
 
 // Given two sets of signatures for scriptPubKey, possibly with OP_0 placeholders,
 // combine them intelligently and return the result.

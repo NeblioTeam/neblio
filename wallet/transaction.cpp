@@ -591,37 +591,37 @@ CTransaction::ConnectInputs(MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTe
             // still computed and checked, and any change will be caught at the next checkpoint.
             if (!(fBlock && (nBestHeight < Checkpoints::GetTotalBlocksEstimate()))) {
                 // Verify signature
-                bool fStrictPayToScriptHash = true;
-                if (!VerifySignature(txPrev, *this, i, fStrictPayToScriptHash, false, 0)) {
+                bool       fStrictPayToScriptHash = true;
+                const auto verifyRes =
+                    VerifySignature(txPrev, *this, i, fStrictPayToScriptHash, false, 0);
+                if (verifyRes.isErr()) {
                     // only during transition phase for P2SH: do not invoke anti-DoS code for
                     // potentially old clients relaying bad P2SH transactions
-                    if (fStrictPayToScriptHash && VerifySignature(txPrev, *this, i, false, false, 0)) {
-                        // TODOVAL: Get script error from return value and replace
-                        // ScriptError::SCRIPT_ERR_UNKNOWN_ERROR
-                        return Err(MakeInvalidTxState(
-                            TxValidationResult::TX_NOT_STANDARD,
-                            strprintf("non-mandatory-script-verify-flag (%s)",
-                                      ScriptErrorString(ScriptError::SCRIPT_ERR_UNKNOWN_ERROR)),
-                            strprintf("ConnectInputs() : %s P2SH VerifySignature failed",
-                                      GetHash().ToString().c_str())));
+                    if (fStrictPayToScriptHash) {
+                        const auto verifyResP2SH = VerifySignature(txPrev, *this, i, false, false, 0);
+                        if (verifyResP2SH.isOk()) {
+                            return Err(MakeInvalidTxState(
+                                TxValidationResult::TX_NOT_STANDARD,
+                                strprintf("non-mandatory-script-verify-flag (%s)",
+                                          ScriptErrorString(verifyResP2SH.unwrapErr())),
+                                strprintf("ConnectInputs() : %s P2SH VerifySignature failed",
+                                          GetHash().ToString().c_str())));
+                        }
                     }
+
+                    const std::string msg = strprintf("mandatory-script-verify-flag-failed (%s)",
+                                                      ScriptErrorString(verifyRes.unwrapErr()));
 
                     if (sourceBlockPtr) {
                         sourceBlockPtr->reject =
-                            CBlock::CBlockReject(REJECT_INVALID, "mandatory-script-verify-flag-failed",
-                                                 sourceBlockPtr->GetHash());
+                            CBlock::CBlockReject(REJECT_INVALID, msg, sourceBlockPtr->GetHash());
                     }
-                    this->reject = CTransaction::CTxReject(
-                        REJECT_INVALID, "mandatory-script-verify-flag-failed", GetHash());
+                    this->reject = CTransaction::CTxReject(REJECT_INVALID, msg, GetHash());
                     DoS(100, false);
-                    // TODOVAL: Get script error from return value and replace
-                    // ScriptError::SCRIPT_ERR_UNKNOWN_ERROR
-                    return Err(MakeInvalidTxState(
-                        TxValidationResult::TX_CONSENSUS,
-                        strprintf("mandatory-script-verify-flag-failed (%s)",
-                                  ScriptErrorString(ScriptError::SCRIPT_ERR_UNKNOWN_ERROR)),
-                        strprintf("ConnectInputs() : %s VerifySignature failed",
-                                  GetHash().ToString().c_str())));
+                    return Err(
+                        MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, msg,
+                                           strprintf("ConnectInputs() : %s VerifySignature failed",
+                                                     GetHash().ToString().c_str())));
                 }
             }
 

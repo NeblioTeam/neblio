@@ -1899,21 +1899,22 @@ SignatureState SignSignature(const CKeyStore& keystore, const CTransaction& txFr
     return SignSignature(keystore, txout.scriptPubKey, txTo, nIn, nHashType, fColdStake);
 }
 
-bool VerifySignature(const CTransaction& txFrom, const CTransaction& txTo, unsigned int nIn,
-                     bool fValidatePayToScriptHash, bool fStrictEncodings, int nHashType)
+Result<void, ScriptError> VerifySignature(const CTransaction& txFrom, const CTransaction& txTo,
+                                          unsigned int nIn, bool fValidatePayToScriptHash,
+                                          bool fStrictEncodings, int nHashType)
 {
     assert(nIn < txTo.vin.size());
     const CTxIn& txin = txTo.vin[nIn];
     if (txin.prevout.n >= txFrom.vout.size())
-        return false;
+        return Err(ScriptError::SCRIPT_ERR_UNKNOWN_ERROR);
     const CTxOut& txout = txFrom.vout[txin.prevout.n];
 
     if (txin.prevout.hash != txFrom.GetHash())
-        return false;
+        return Err(ScriptError::SCRIPT_ERR_UNKNOWN_ERROR);
 
-    return VerifyScript(txin.scriptSig, txout.scriptPubKey, txTo, nIn, fValidatePayToScriptHash,
-                        fStrictEncodings, nHashType)
-        .isOk();
+    TRYV(VerifyScript(txin.scriptSig, txout.scriptPubKey, txTo, nIn, fValidatePayToScriptHash,
+                      fStrictEncodings, nHashType));
+    return Ok();
 }
 
 static CScript PushAll(const vector<valtype>& values)
