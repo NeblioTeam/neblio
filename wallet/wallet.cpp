@@ -1169,7 +1169,7 @@ void CWallet::ResendWalletTransactions(bool fForce)
         }
         for (PAIRTYPE(const unsigned int, CWalletTx*) & item : mapSorted) {
             CWalletTx& wtx = *item.second;
-            if (wtx.CheckTransaction())
+            if (wtx.CheckTransaction().isOk())
                 wtx.RelayWalletTransaction();
             else
                 printf("ResendWalletTransactions() : CheckTransaction failed for transaction %s\n",

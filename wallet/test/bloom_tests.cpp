@@ -226,7 +226,7 @@ TEST(bloom_tests, bloom_match)
     CDataStream  stream(ParseHex(transactionStr), SER_NETWORK, PROTOCOL_VERSION);
     CTransaction tx;
     stream >> tx;
-    EXPECT_TRUE(tx.CheckTransaction()) << "Simple deserialized transaction should be valid.";
+    EXPECT_TRUE(tx.CheckTransaction().isOk()) << "Simple deserialized transaction should be valid.";
 
     string spendTransaction =
         "010000004d73435a01d3db1c519251eeecc76b3c68e550988290aa1d7c63d6b396b0ad069ebe987335000000006b483"
@@ -237,7 +237,7 @@ TEST(bloom_tests, bloom_match)
     CDataStream  spendStream(ParseHex(spendTransaction), SER_NETWORK, PROTOCOL_VERSION);
     CTransaction spendingTx;
     spendStream >> spendingTx;
-    EXPECT_TRUE(spendingTx.CheckTransaction())
+    EXPECT_TRUE(spendingTx.CheckTransaction().isOk())
         << "Simple deserialized of spending transaction should be valid.";
 
     CBloomFilter filter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
