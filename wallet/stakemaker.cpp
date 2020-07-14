@@ -234,8 +234,9 @@ bool StakeMaker::SignAndVerify(const CKeyStore& keystore, const CoinStakeInputsR
         if (sigStates[i] == SignatureState::Verified) {
             continue;
         }
-        if (!VerifyScript(stakeTx.vin[i].scriptSig, pcoin->vout[txin.prevout.n].scriptPubKey, stakeTx, i,
-                          true, true, 0)) {
+        if (VerifyScript(stakeTx.vin[i].scriptSig, pcoin->vout[txin.prevout.n].scriptPubKey, stakeTx, i,
+                         true, true, 0)
+                .isErr()) {
             printf("CreateCoinStake : Signature verification failed");
             return false;
         }

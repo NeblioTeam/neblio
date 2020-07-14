@@ -622,8 +622,8 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
                 }
             }
 
-            if (!tx.ConnectInputs(txdb, mapInputs, mapQueuedChanges, posThisTx, pindex, true, false,
-                                  this)) {
+            if (tx.ConnectInputs(mapInputs, mapQueuedChanges, posThisTx, pindex, true, false, this)
+                    .isErr()) {
                 return false;
             }
         }
@@ -1087,7 +1087,7 @@ bool CBlock::Reorganize(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
 
     // Resurrect memory transactions that were in the disconnected branch
     for (CTransaction& tx : vResurrect)
-        AcceptToMemoryPool(mempool, tx, NULL, &txdb);
+        AcceptToMemoryPool(mempool, tx, &txdb);
 
     // Delete redundant memory transactions that are in the connected branch
     for (CTransaction& tx : vDelete) {
@@ -1275,7 +1275,7 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig)
     for (unsigned i = 0; i < vtx.size(); i++) {
         const CTransaction& tx = vtx[i];
 
-        if (!tx.CheckTransaction(this))
+        if (tx.CheckTransaction(this).isErr())
             return DoS(tx.nDoS, error("CheckBlock() : CheckTransaction failed"));
 
         // ppcoin: check transaction timestamp

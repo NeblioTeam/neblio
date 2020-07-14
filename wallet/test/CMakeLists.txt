@@ -22,6 +22,7 @@ add_executable(neblio-tests
     ntp1_tests.cpp
     pmt_tests.cpp
     pos_tests.cpp
+    result_tests.cpp
     rpc_tests.cpp
     script_tests.cpp
     serialize_tests.cpp

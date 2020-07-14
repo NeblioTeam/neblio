@@ -1174,7 +1174,7 @@ bool CTxDB::LoadBlockIndex()
                                                "of %s:%i from disk\n",
                                                hashTx.ToString().c_str(), nOutput);
                                         pindexFork = pindex->pprev;
-                                    } else if (!txSpend.CheckTransaction()) {
+                                    } else if (txSpend.CheckTransaction().isErr()) {
                                         printf("LoadBlockIndex(): *** spending transaction of %s:%i is "
                                                "invalid\n",
                                                hashTx.ToString().c_str(), nOutput);

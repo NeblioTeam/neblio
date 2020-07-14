@@ -1112,8 +1112,8 @@ void CWallet::ReacceptWalletTransactions(bool fFirstLoad)
         CWalletTx& wtx = *(item.second);
 
         LOCK(mempool.cs);
-        bool fSuccess = wtx.AcceptToMemoryPool();
-        if (!fSuccess && fFirstLoad && GetTime() - wtx.GetTxTime() > 12 * 60 * 60) {
+        auto mempoolRes = wtx.AcceptToMemoryPool();
+        if (mempoolRes.isErr() && fFirstLoad && GetTime() - wtx.GetTxTime() > 12 * 60 * 60) {
             // First load of wallet, failed to accept to mempool, and older than 12 hours... not likely
             // to ever make it in to mempool
             AbandonTransaction(wtx.GetHash());
@@ -1169,7 +1169,7 @@ void CWallet::ResendWalletTransactions(bool fForce)
         }
         for (PAIRTYPE(const unsigned int, CWalletTx*) & item : mapSorted) {
             CWalletTx& wtx = *item.second;
-            if (wtx.CheckTransaction())
+            if (wtx.CheckTransaction().isOk())
                 wtx.RelayWalletTransaction();
             else
                 printf("ResendWalletTransactions() : CheckTransaction failed for transaction %s\n",
@@ -2391,9 +2391,11 @@ bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey)
         mapRequestCount[wtxNew.GetHash()] = 0;
 
         // Broadcast
-        if (!wtxNew.AcceptToMemoryPool()) {
+        auto mempoolRes = wtxNew.AcceptToMemoryPool();
+        if (mempoolRes.isErr()) {
             // This must not fail. The transaction has already been signed and recorded.
-            printf("CommitTransaction() : Error: Transaction not valid\n");
+            printf("CommitTransaction() : Error: Transaction not valid. Error: %s\n",
+                   mempoolRes.unwrapErr().GetRejectReason().c_str());
             return false;
         }
         wtxNew.RelayWalletTransaction();

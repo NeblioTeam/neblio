@@ -212,12 +212,12 @@ class RawTransactionsTest(BitcoinTestFramework):
         test_maturity_rawtx = self.nodes[3].createrawtransaction(inputs, outputs)
         test_maturity_signed_rawtx = self.nodes[3].signrawtransaction(test_maturity_rawtx)
         for node in self.nodes:  # spending stake before maturity should be rejected in all nodes
-            assert_raises_rpc_error(-26, "TX rejected", node.sendrawtransaction, test_maturity_signed_rawtx['hex'])
+            assert_raises_rpc_error(-26, "bad-txns-premature-spend-of-coinstake", node.sendrawtransaction, test_maturity_signed_rawtx['hex'])
 
         # we stake blocks that total to 'COINBASE_MATURITY' blocks, and the staked block to mature
         for i in range(COINBASE_MATURITY):
             # it should not be possible to submit the transaction until the maturity is reached
-            assert_raises_rpc_error(-26, "TX rejected", self.nodes[0].sendrawtransaction,
+            assert_raises_rpc_error(-26, "bad-txns-premature-spend-of-coinstake", self.nodes[0].sendrawtransaction,
                                     test_maturity_signed_rawtx['hex'])
             hash = self.gen_pos_block(0)
         self.sync_all()

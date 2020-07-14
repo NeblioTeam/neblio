@@ -135,7 +135,8 @@ TEST(script_tests, script_valid)
         tx.vin.resize(
             1); // CheckLockTimeVerify requires a nSequence to be present before it can check locktime
         tx.vin[0].nSequence = 0; // Must also be not equal to SEQUENCE_FINAL to work
-        EXPECT_TRUE(VerifyScript(scriptSig, scriptPubKey, tx, 0, true, true, SIGHASH_NONE)) << strTest;
+        EXPECT_TRUE(VerifyScript(scriptSig, scriptPubKey, tx, 0, true, true, SIGHASH_NONE).isOk())
+            << strTest;
     }
 }
 
@@ -163,7 +164,8 @@ TEST(script_tests, script_invalid)
         tx.vin.resize(
             1); // CheckLockTimeVerify requires a nSequence to be present before it can check locktime
         tx.vin[0].nSequence = 0; // Must also be not equal to SEQUENCE_FINAL to work
-        EXPECT_FALSE(VerifyScript(scriptSig, scriptPubKey, tx, 0, true, true, SIGHASH_NONE)) << strTest;
+        EXPECT_FALSE(VerifyScript(scriptSig, scriptPubKey, tx, 0, true, true, SIGHASH_NONE).isOk())
+            << strTest;
     }
 }
 
@@ -177,22 +179,26 @@ TEST(script_tests, script_PushData)
     static const unsigned char pushdata4[] = {OP_PUSHDATA4, 1, 0, 0, 0, 0x5a};
 
     vector<vector<unsigned char>> directStack;
-    EXPECT_TRUE(EvalScript(directStack, CScript(&direct[0], &direct[sizeof(direct)]), CTransaction(), 0,
-                           true, 0));
+    EXPECT_TRUE(
+        EvalScript(directStack, CScript(&direct[0], &direct[sizeof(direct)]), CTransaction(), 0, true, 0)
+            .isOk());
 
     vector<vector<unsigned char>> pushdata1Stack;
     EXPECT_TRUE(EvalScript(pushdata1Stack, CScript(&pushdata1[0], &pushdata1[sizeof(pushdata1)]),
-                           CTransaction(), 0, true, 0));
+                           CTransaction(), 0, true, 0)
+                    .isOk());
     EXPECT_TRUE(pushdata1Stack == directStack);
 
     vector<vector<unsigned char>> pushdata2Stack;
     EXPECT_TRUE(EvalScript(pushdata2Stack, CScript(&pushdata2[0], &pushdata2[sizeof(pushdata2)]),
-                           CTransaction(), 0, true, 0));
+                           CTransaction(), 0, true, 0)
+                    .isOk());
     EXPECT_TRUE(pushdata2Stack == directStack);
 
     vector<vector<unsigned char>> pushdata4Stack;
     EXPECT_TRUE(EvalScript(pushdata4Stack, CScript(&pushdata4[0], &pushdata4[sizeof(pushdata4)]),
-                           CTransaction(), 0, true, 0));
+                           CTransaction(), 0, true, 0)
+                    .isOk());
     EXPECT_TRUE(pushdata4Stack == directStack);
 }
 
@@ -247,15 +253,15 @@ TEST(script_tests, script_CHECKMULTISIG12)
     txTo12.vout[0].nValue      = 1;
 
     CScript goodsig1 = sign_multisig(scriptPubKey12, key1, txTo12);
-    EXPECT_TRUE(VerifyScript(goodsig1, scriptPubKey12, txTo12, 0, true, true, 0));
+    EXPECT_TRUE(VerifyScript(goodsig1, scriptPubKey12, txTo12, 0, true, true, 0).isOk());
     txTo12.vout[0].nValue = 2;
-    EXPECT_TRUE(!VerifyScript(goodsig1, scriptPubKey12, txTo12, 0, true, true, 0));
+    EXPECT_TRUE(VerifyScript(goodsig1, scriptPubKey12, txTo12, 0, true, true, 0).isErr());
 
     CScript goodsig2 = sign_multisig(scriptPubKey12, key2, txTo12);
-    EXPECT_TRUE(VerifyScript(goodsig2, scriptPubKey12, txTo12, 0, true, true, 0));
+    EXPECT_TRUE(VerifyScript(goodsig2, scriptPubKey12, txTo12, 0, true, true, 0).isOk());
 
     CScript badsig1 = sign_multisig(scriptPubKey12, key3, txTo12);
-    EXPECT_TRUE(!VerifyScript(badsig1, scriptPubKey12, txTo12, 0, true, true, 0));
+    EXPECT_TRUE(VerifyScript(badsig1, scriptPubKey12, txTo12, 0, true, true, 0).isErr());
 }
 
 TEST(script_tests, script_CHECKMULTISIG23)
@@ -285,53 +291,53 @@ TEST(script_tests, script_CHECKMULTISIG23)
     keys.push_back(key1);
     keys.push_back(key2);
     CScript goodsig1 = sign_multisig(scriptPubKey23, keys, txTo23);
-    EXPECT_TRUE(VerifyScript(goodsig1, scriptPubKey23, txTo23, 0, true, true, 0));
+    EXPECT_TRUE(VerifyScript(goodsig1, scriptPubKey23, txTo23, 0, true, true, 0).isOk());
 
     keys.clear();
     keys.push_back(key1);
     keys.push_back(key3);
     CScript goodsig2 = sign_multisig(scriptPubKey23, keys, txTo23);
-    EXPECT_TRUE(VerifyScript(goodsig2, scriptPubKey23, txTo23, 0, true, true, 0));
+    EXPECT_TRUE(VerifyScript(goodsig2, scriptPubKey23, txTo23, 0, true, true, 0).isOk());
 
     keys.clear();
     keys.push_back(key2);
     keys.push_back(key3);
     CScript goodsig3 = sign_multisig(scriptPubKey23, keys, txTo23);
-    EXPECT_TRUE(VerifyScript(goodsig3, scriptPubKey23, txTo23, 0, true, true, 0));
+    EXPECT_TRUE(VerifyScript(goodsig3, scriptPubKey23, txTo23, 0, true, true, 0).isOk());
 
     keys.clear();
     keys.push_back(key2);
     keys.push_back(key2); // Can't re-use sig
     CScript badsig1 = sign_multisig(scriptPubKey23, keys, txTo23);
-    EXPECT_TRUE(!VerifyScript(badsig1, scriptPubKey23, txTo23, 0, true, true, 0));
+    EXPECT_TRUE(VerifyScript(badsig1, scriptPubKey23, txTo23, 0, true, true, 0).isErr());
 
     keys.clear();
     keys.push_back(key2);
     keys.push_back(key1); // sigs must be in correct order
     CScript badsig2 = sign_multisig(scriptPubKey23, keys, txTo23);
-    EXPECT_TRUE(!VerifyScript(badsig2, scriptPubKey23, txTo23, 0, true, true, 0));
+    EXPECT_TRUE(VerifyScript(badsig2, scriptPubKey23, txTo23, 0, true, true, 0).isErr());
 
     keys.clear();
     keys.push_back(key3);
     keys.push_back(key2); // sigs must be in correct order
     CScript badsig3 = sign_multisig(scriptPubKey23, keys, txTo23);
-    EXPECT_TRUE(!VerifyScript(badsig3, scriptPubKey23, txTo23, 0, true, true, 0));
+    EXPECT_TRUE(VerifyScript(badsig3, scriptPubKey23, txTo23, 0, true, true, 0).isErr());
 
     keys.clear();
     keys.push_back(key4);
     keys.push_back(key2); // sigs must match pubkeys
     CScript badsig4 = sign_multisig(scriptPubKey23, keys, txTo23);
-    EXPECT_TRUE(!VerifyScript(badsig4, scriptPubKey23, txTo23, 0, true, true, 0));
+    EXPECT_TRUE(VerifyScript(badsig4, scriptPubKey23, txTo23, 0, true, true, 0).isErr());
 
     keys.clear();
     keys.push_back(key1);
     keys.push_back(key4); // sigs must match pubkeys
     CScript badsig5 = sign_multisig(scriptPubKey23, keys, txTo23);
-    EXPECT_TRUE(!VerifyScript(badsig5, scriptPubKey23, txTo23, 0, true, true, 0));
+    EXPECT_TRUE(VerifyScript(badsig5, scriptPubKey23, txTo23, 0, true, true, 0).isErr());
 
     keys.clear(); // Must have signatures
     CScript badsig6 = sign_multisig(scriptPubKey23, keys, txTo23);
-    EXPECT_TRUE(!VerifyScript(badsig6, scriptPubKey23, txTo23, 0, true, true, 0));
+    EXPECT_TRUE(VerifyScript(badsig6, scriptPubKey23, txTo23, 0, true, true, 0).isErr());
 }
 
 TEST(script_tests, script_combineSigs)

@@ -399,32 +399,33 @@ void AssertNTP1TokenNameIsNotAlreadyInMainChain(const NTP1Transaction& ntp1tx, C
     }
 }
 
-bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInputs, CTxDB* txdbPtr)
+Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, CTxDB* txdbPtr)
 {
     AssertLockHeld(cs_main);
-    if (pfMissingInputs)
-        *pfMissingInputs = false;
 
-    if (!tx.CheckTransaction())
-        return error("AcceptToMemoryPool : CheckTransaction failed");
+    TRYV(tx.CheckTransaction());
 
     // Coinbase is only valid in a block, not as a loose transaction
-    if (tx.IsCoinBase())
-        return tx.DoS(100, error("AcceptToMemoryPool : coinbase as individual tx"));
+    if (tx.IsCoinBase()) {
+        tx.DoS(100, false);
+        return Err(MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "coinbase"));
+    }
 
     // ppcoin: coinstake is also only valid in a block, not as a loose transaction
-    if (tx.IsCoinStake())
-        return tx.DoS(100, error("AcceptToMemoryPool : coinstake as individual tx"));
+    if (tx.IsCoinStake()) {
+        tx.DoS(100, false);
+        return Err(MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "coinstake"));
+    }
 
     // Rather not work on nonstandard transactions (unless -testnet)
     string reason;
     if (Params().NetType() == NetworkType::Mainnet && !IsStandardTx(tx, reason))
-        return error("AcceptToMemoryPool : nonstandard transaction: %s", reason.c_str());
+        return Err(MakeInvalidTxState(TxValidationResult::TX_NOT_STANDARD, reason, "non-standard-tx"));
 
     // is it already in the memory pool?
     uint256 hash = tx.GetHash();
     if (pool.exists(hash))
-        return false;
+        return Err(MakeInvalidTxState(TxValidationResult::TX_CONFLICT, "txn-already-in-mempool"));
 
     // Check for conflicts with in-memory transactions
     CTransaction* ptxOld = NULL;
@@ -434,20 +435,24 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
             COutPoint outpoint = tx.vin[i].prevout;
             if (pool.mapNextTx.count(outpoint)) {
                 // Disable replacement feature for now
-                return false;
+                return Err(MakeInvalidTxState(TxValidationResult::TX_CONFLICT, "txn-mempool-conflict"));
 
                 // Allow replacing with a newer version of the same transaction
                 if (i != 0)
-                    return false;
+                    return Err(
+                        MakeInvalidTxState(TxValidationResult::TX_CONFLICT, "txn-mempool-conflict"));
                 ptxOld = pool.mapNextTx[outpoint].ptx;
                 if (IsFinalTx(*ptxOld))
-                    return false;
+                    return Err(
+                        MakeInvalidTxState(TxValidationResult::TX_CONFLICT, "txn-mempool-conflict"));
                 if (!tx.IsNewerThan(*ptxOld))
-                    return false;
+                    return Err(
+                        MakeInvalidTxState(TxValidationResult::TX_CONFLICT, "txn-mempool-conflict"));
                 for (unsigned int i = 0; i < tx.vin.size(); i++) {
                     COutPoint outpoint = tx.vin[i].prevout;
                     if (!pool.mapNextTx.count(outpoint) || pool.mapNextTx[outpoint].ptx != ptxOld)
-                        return false;
+                        return Err(
+                            MakeInvalidTxState(TxValidationResult::TX_CONFLICT, "txn-mempool-conflict"));
                 }
                 break;
             }
@@ -470,37 +475,44 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
 
         // do we already have it?
         if (txdb->ContainsTx(hash))
-            return false;
+            return Err(MakeInvalidTxState(TxValidationResult::TX_CONFLICT, "txn-already-known"));
 
         MapPrevTx                                                           mapInputs;
         map<uint256, CTxIndex>                                              mapUnused;
         map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>> mapUnused2;
         bool                                                                fInvalid = false;
         if (!tx.FetchInputs(*txdb, mapUnused, false, false, mapInputs, fInvalid)) {
-            if (fInvalid)
-                return error("AcceptToMemoryPool : FetchInputs found invalid tx %s",
-                             hash.ToString().substr(0, 10).c_str());
-            if (pfMissingInputs)
-                *pfMissingInputs = true;
-            return false;
+            if (fInvalid) {
+                return Err(
+                    MakeInvalidTxState(TxValidationResult::TX_INVALID_INPUTS, "bad-txns-inputs-invalid",
+                                       strprintf("AcceptToMemoryPool : FetchInputs found invalid tx %s",
+                                                 hash.ToString().substr(0, 10).c_str())));
+            }
+            return Err(MakeInvalidTxState(TxValidationResult::TX_MISSING_INPUTS,
+                                          "bad-txns-inputs-missingorspent"));
         }
 
         // Check for non-standard pay-to-script-hash in inputs
-        if (!tx.AreInputsStandard(mapInputs) && Params().NetType() == NetworkType::Mainnet)
-            return error("AcceptToMemoryPool : nonstandard transaction input");
+        if (!tx.AreInputsStandard(mapInputs) && Params().NetType() == NetworkType::Mainnet) {
+            return Err(
+                MakeInvalidTxState(TxValidationResult::TX_NOT_STANDARD, "bad-txns-nonstandard-inputs"));
+        }
 
         // Note: if you modify this code to accept non-standard transactions, then
         // you should add code here to check that the transaction does a
         // reasonable number of ECDSA signature verifications.
 
-        int64_t      nFees = tx.GetValueIn(mapInputs) - tx.GetValueOut();
-        unsigned int nSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
+        const int64_t      nFees = tx.GetValueIn(mapInputs) - tx.GetValueOut();
+        const unsigned int nSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
 
         // Don't accept it if it can't get into a block
-        int64_t txMinFee = tx.GetMinFee(1000, GMF_RELAY, nSize);
-        if (nFees < txMinFee)
-            return error("AcceptToMemoryPool : not enough fees %s, %" PRId64 " < %" PRId64,
-                         hash.ToString().c_str(), nFees, txMinFee);
+        const int64_t txMinFee = tx.GetMinFee(1000, GMF_RELAY, nSize);
+        if (nFees < txMinFee) {
+            return Err(MakeInvalidTxState(TxValidationResult::TX_MEMPOOL_POLICY, "insufficient fee",
+                                          strprintf("AcceptToMemoryPool : not enough fees %s, %" PRId64
+                                                    " < %" PRId64,
+                                                    hash.ToString().c_str(), nFees, txMinFee)));
+        }
 
         // Continuously rate-limit free transactions
         // This mitigates 'penny-flooding' -- sending thousands of free transactions just to
@@ -519,7 +531,9 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
                 // -limitfreerelay unit is thousand-bytes-per-minute
                 // At default rate it would take over a month to fill 1GB
                 if (dFreeCount > GetArg("-limitfreerelay", 15) * 10 * 1000 && !IsFromMe(tx))
-                    return error("AcceptToMemoryPool : free transaction rejected by rate limiter");
+                    return Err(MakeInvalidTxState(TxValidationResult::TX_MEMPOOL_POLICY,
+                                                  "fee-rejected-by-rate-limiter"));
+
                 if (fDebug)
                     printf("Rate limit dFreeCount: %g => %g\n", dFreeCount, dFreeCount + nSize);
                 dFreeCount += nSize;
@@ -528,11 +542,8 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
 
         // Check against previous transactions
         // This is done last to help prevent CPU exhaustion denial-of-service attacks.
-        if (!tx.ConnectInputs(*txdb, mapInputs, mapUnused, CDiskTxPos(1, 1),
-                              boost::atomic_load(&pindexBest), false, false)) {
-            return error("AcceptToMemoryPool : ConnectInputs failed %s",
-                         hash.ToString().substr(0, 10).c_str());
-        }
+        TRYV(tx.ConnectInputs(mapInputs, mapUnused, CDiskTxPos(1, 1), boost::atomic_load(&pindexBest),
+                              false, false));
 
         if (Params().PassedFirstValidNTP1Tx() &&
             Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
@@ -550,13 +561,16 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
                        "pool; an exception was "
                        "thrown: %s\n",
                        ex.what());
-                return false;
+                // TX_NTP1_ERROR
+                return Err(MakeInvalidTxState(
+                    TxValidationResult::TX_NTP1_ERROR, "ntp1-error",
+                    strprintf(
+                        "AcceptToMemoryPool: An invalid NTP1 transaction was submitted to the memory "
+                        "pool; an exception was "
+                        "thrown: %s\n",
+                        ex.what())));
             } catch (...) {
-                printf("AcceptToMemoryPool: An invalid NTP1 transaction was submitted to the memory "
-                       "pool; an unknown "
-                       "exception was "
-                       "thrown.");
-                return false;
+                return Err(MakeInvalidTxState(TxValidationResult::TX_NTP1_ERROR, "ntp1-error-unknown"));
             }
         }
     }
@@ -580,7 +594,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInput
     printf("AcceptToMemoryPool : accepted %s (poolsz %" PRIszu ")\n",
            hash.ToString().substr(0, 10).c_str(), pool.mapTx.size());
 
-    return true;
+    return Ok();
 }
 
 // Return transaction in tx, and if it was found inside a block, its hash is placed in hashBlock
@@ -2077,8 +2091,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         CInv inv(MSG_TX, tx.GetHash());
         pfrom->AddInventoryKnown(inv);
 
-        bool fMissingInputs = false;
-        if (AcceptToMemoryPool(mempool, tx, &fMissingInputs)) {
+        const Result<void, TxValidationState> mempoolRes = AcceptToMemoryPool(mempool, tx);
+        if (mempoolRes.isOk()) {
             SyncWithWallets(tx, nullptr);
             RelayTransaction(tx);
             mapAlreadyAskedFor.erase(inv);
@@ -2090,18 +2104,20 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                 uint256 hashPrev = vWorkQueue[i];
                 for (set<uint256>::iterator mi = mapOrphanTransactionsByPrev[hashPrev].begin();
                      mi != mapOrphanTransactionsByPrev[hashPrev].end(); ++mi) {
-                    const uint256& orphanTxHash    = *mi;
-                    CTransaction&  orphanTx        = mapOrphanTransactions[orphanTxHash];
-                    bool           fMissingInputs2 = false;
+                    const uint256& orphanTxHash = *mi;
+                    CTransaction&  orphanTx     = mapOrphanTransactions[orphanTxHash];
 
-                    if (AcceptToMemoryPool(mempool, orphanTx, &fMissingInputs2)) {
+                    const Result<void, TxValidationState> mempoolOrphanRes =
+                        AcceptToMemoryPool(mempool, orphanTx);
+                    if (mempoolOrphanRes.isOk()) {
                         printf("   accepted orphan tx %s\n", orphanTxHash.ToString().c_str());
                         SyncWithWallets(tx, nullptr);
                         RelayTransaction(orphanTx);
                         mapAlreadyAskedFor.erase(CInv(MSG_TX, orphanTxHash));
                         vWorkQueue.push_back(orphanTxHash);
                         vEraseQueue.push_back(orphanTxHash);
-                    } else if (!fMissingInputs2) {
+                    } else if (mempoolRes.unwrapErr().GetResult() !=
+                               TxValidationResult::TX_MISSING_INPUTS) {
                         // invalid orphan
                         vEraseQueue.push_back(orphanTxHash);
                         printf("   removed invalid orphan tx %s\n", orphanTxHash.ToString().c_str());
@@ -2111,7 +2127,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 
             for (uint256 hash : vEraseQueue)
                 EraseOrphanTx(hash);
-        } else if (fMissingInputs) {
+        } else if (mempoolRes.unwrapErr().GetResult() == TxValidationResult::TX_MISSING_INPUTS) {
             AddOrphanTx(tx);
 
             // DoS prevention: do not allow mapOrphanTransactions to grow unbounded

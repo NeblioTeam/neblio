@@ -63,7 +63,7 @@ TEST(transaction_tests, tx_valid)
             CTransaction tx;
             stream >> tx;
 
-            EXPECT_TRUE(tx.CheckTransaction()) << strTest;
+            EXPECT_TRUE(tx.CheckTransaction().isOk()) << strTest;
 
             for (unsigned int i = 0; i < tx.vin.size(); i++) {
                 if (!mapprevOutScriptPubKeys.count(tx.vin[i].prevout)) {
@@ -71,7 +71,8 @@ TEST(transaction_tests, tx_valid)
                     break;
                 }
                 EXPECT_TRUE(VerifyScript(tx.vin[i].scriptSig, mapprevOutScriptPubKeys[tx.vin[i].prevout],
-                                         tx, i, test[2].get_bool(), false, 0))
+                                         tx, i, test[2].get_bool(), false, 0)
+                                .isOk())
                     << strTest;
             }
         }
@@ -124,7 +125,7 @@ TEST(transaction_tests, tx_invalid)
             CTransaction tx;
             stream >> tx;
 
-            fValid = tx.CheckTransaction();
+            fValid = tx.CheckTransaction().isOk();
 
             for (unsigned int i = 0; i < tx.vin.size() && fValid; i++) {
                 if (!mapprevOutScriptPubKeys.count(tx.vin[i].prevout)) {
@@ -132,7 +133,8 @@ TEST(transaction_tests, tx_invalid)
                     break;
                 }
                 fValid = VerifyScript(tx.vin[i].scriptSig, mapprevOutScriptPubKeys[tx.vin[i].prevout],
-                                      tx, i, test[2].get_bool(), true, 0);
+                                      tx, i, test[2].get_bool(), true, 0)
+                             .isOk();
             }
 
             EXPECT_TRUE(!fValid) << strTest;
@@ -152,11 +154,13 @@ TEST(transaction_tests, basic_transaction_tests)
     CDataStream  stream(ParseHex(transaction), SER_NETWORK, PROTOCOL_VERSION);
     CTransaction tx;
     stream >> tx;
-    EXPECT_TRUE(tx.CheckTransaction()) << "Simple deserialized transaction should be valid.";
+    EXPECT_TRUE(tx.CheckTransaction().isOk()) << "Simple deserialized transaction should be valid.";
 
     // Check that duplicate txins fail
     tx.vin.push_back(tx.vin[0]);
-    EXPECT_TRUE(!tx.CheckTransaction()) << "Transaction with duplicate txins should be invalid.";
+    ASSERT_TRUE(tx.CheckTransaction().isErr()) << "Transaction with duplicate txins should be invalid.";
+    EXPECT_EQ(tx.CheckTransaction().unwrapErr().GetRejectReason(), "bad-txns-inputs-duplicate")
+        << "Transaction with duplicate has invalid rejection reason.";
 }
 
 // Function that allows us to convert CScript to bytearray (so it can be pushed into another CScript)

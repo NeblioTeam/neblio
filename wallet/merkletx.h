@@ -54,11 +54,11 @@ public:
         const CBlockIndex* pindexRet = nullptr;
         return GetDepthInMainChain(pindexRet) > 0;
     }
-    int  GetBlocksToMaturity() const;
-    bool AcceptToMemoryPool();
-    bool hashUnset() const;
-    bool isAbandoned() const;
-    void setAbandoned();
+    int                             GetBlocksToMaturity() const;
+    Result<void, TxValidationState> AcceptToMemoryPool();
+    bool                            hashUnset() const;
+    bool                            isAbandoned() const;
+    void                            setAbandoned();
 };
 
 #endif // MERKLETX_H

@@ -238,9 +238,7 @@ class ColdStakingTest(BitcoinTestFramework):
         assert_greater_than(len(delegated_utxos), 0)
         u = delegated_utxos[0]
         # this is not usable due to the unavailability of validation state
-        # assert_raises_rpc_error(-26, "mandatory-script-verify-flag-failed (Script failed an OP_CHECKCOLDSTAKEVERIFY operation",
-        #                         self.spendUTXOwithNode, u, 1)
-        assert_raises_rpc_error(-26, "TX rejected",
+        assert_raises_rpc_error(-26, "mandatory-script-verify-flag-failed (Script failed an OP_CHECKCOLDSTAKEVERIFY operation)",
                                 self.spendUTXOwithNode, u, 1)
         self.log.info("Good. Cold staker was NOT able to spend (failed OP_CHECKCOLDSTAKEVERIFY)")
         for i in range(30):

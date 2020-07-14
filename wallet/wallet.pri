@@ -164,7 +164,9 @@ HEADERS += qt/bitcoingui.h \
     wallet_ismine.h            \
     stakemaker.h               \
     addressbook.h              \
-    work.h
+    work.h                     \
+    validation.h               \
+    script_error.h
 
 
 
@@ -324,7 +326,10 @@ SOURCES += qt/bitcoin.cpp \
     wallet_ismine.cpp                   \
     stakemaker.cpp                      \
     addressbook.cpp                     \
-    work.cpp
+    work.cpp                            \
+    validation.cpp                      \
+    script_error.cpp
+
 
 
 
