@@ -154,6 +154,7 @@ HEADERS += qt/bitcoingui.h \
     txmempool.h           \
     merkletx.h            \
     blocklocator.h        \
+    udaddress.h           \
     qt/ntp1/issuenewntp1tokendialog.h \
     chainparamsbase.h          \
     chainparams.h              \
@@ -311,6 +312,7 @@ SOURCES += qt/bitcoin.cpp \
     txmempool.cpp         \
     merkletx.cpp          \
     blocklocator.cpp      \
+    udaddress.cpp         \
     qt/ntp1/issuenewntp1tokendialog.cpp \
     chainparamsbase.cpp                 \
     chainparams.cpp                     \

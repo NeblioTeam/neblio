@@ -199,7 +199,7 @@ std::string cURLTools::GetUserAgent()
 }
 
 std::string cURLTools::GetFileFromHTTPS(const std::string& URL, long ConnectionTimeout,
-                                        bool IncludeProgressBar)
+                                        bool IncludeProgressBar, bool VerifySSLHostAndPeer)
 {
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
@@ -233,6 +233,13 @@ std::string cURLTools::GetFileFromHTTPS(const std::string& URL, long ConnectionT
             curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, CurlProgress_CallbackFunc);
         } else {
             curl_easy_setopt(curl, CURLOPT_NOPROGRESS, true);
+        }
+        if (VerifySSLHostAndPeer) {
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
+        } else {
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
         }
         // curl_easy_setopt (curl, CURLOPT_VERBOSE, 1L); //verbose output
         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, ConnectionTimeout);
