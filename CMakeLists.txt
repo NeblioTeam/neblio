@@ -610,6 +610,7 @@ add_library(core_lib STATIC
     wallet/work.cpp
     wallet/addressbook.cpp
     wallet/validation.cpp
+    wallet/itxdb.h
     )
 
 target_link_libraries(core_lib
