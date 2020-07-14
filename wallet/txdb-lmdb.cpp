@@ -7,6 +7,7 @@
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
+#include <boost/optional.hpp>
 #include <boost/scope_exit.hpp>
 #include <boost/thread/future.hpp>
 #include <boost/version.hpp>
@@ -612,7 +613,7 @@ CTxDB::CTxDB(const char* pszMode)
     loadDbPointers();
 
     if (Exists(string("version"), db_main)) {
-        ReadVersion(nVersion);
+        nVersion = ReadVersion().value_or(0);
         printf("Transaction index version is %d\n", nVersion);
 
         if (nVersion < DATABASE_VERSION) {
@@ -720,21 +721,24 @@ bool CTxDB::test2_WriteStrKeyVal(const string& key, const string& val)
 bool CTxDB::test2_ExistsStrKeyVal(const string& key) { return Exists(key, db_ntp1tokenNames); }
 bool CTxDB::test2_EraseStrKeyVal(const string& key) { return EraseAll(key, db_ntp1tokenNames); }
 
-bool CTxDB::ReadVersion(int& nVersion)
+boost::optional<int> CTxDB::ReadVersion()
 {
-    nVersion = 0;
-    return Read(std::string("version"), nVersion, db_main);
+    return Read(std::string("version"), nVersion, db_main) ? boost::make_optional(nVersion)
+                                                           : boost::none;
 }
 
 bool CTxDB::WriteVersion(int nVersion) { return Write(std::string("version"), nVersion, db_main); }
 
-bool CTxDB::ReadTxIndex(uint256 hash, CTxIndex& txindex)
+bool CTxDB::ReadTxIndex(const uint256& hash, CTxIndex& txindex)
 {
     txindex.SetNull();
     return Read(hash, txindex, db_tx);
 }
 
-bool CTxDB::UpdateTxIndex(uint256 hash, const CTxIndex& txindex) { return Write(hash, txindex, db_tx); }
+bool CTxDB::UpdateTxIndex(const uint256& hash, const CTxIndex& txindex)
+{
+    return Write(hash, txindex, db_tx);
+}
 
 bool CTxDB::ReadTx(const CDiskTxPos& txPos, CTransaction& tx)
 {
@@ -742,7 +746,7 @@ bool CTxDB::ReadTx(const CDiskTxPos& txPos, CTransaction& tx)
     return Read(txPos.nBlockPos, tx, db_blocks, 0, txPos.nTxPos);
 }
 
-bool CTxDB::ReadNTP1Tx(uint256 hash, NTP1Transaction& ntp1tx)
+bool CTxDB::ReadNTP1Tx(const uint256& hash, NTP1Transaction& ntp1tx)
 {
     ntp1tx.setNull();
     return Read(hash, ntp1tx, db_ntp1Tx);
@@ -792,7 +796,7 @@ bool CTxDB::WriteAddressPubKey(const CBitcoinAddress& address, const std::vector
     return Write(address, pubkey, db_addrsVsPubKeys);
 }
 
-bool CTxDB::WriteNTP1Tx(uint256 hash, const NTP1Transaction& ntp1tx)
+bool CTxDB::WriteNTP1Tx(const uint256& hash, const NTP1Transaction& ntp1tx)
 {
     return Write(hash, ntp1tx, db_ntp1Tx);
 }
@@ -803,14 +807,14 @@ bool CTxDB::ReadAllIssuanceTxs(std::vector<uint256>& txs)
     return ReadMultiple(std::string(), txs, true, db_ntp1tokenNames);
 }
 
-bool CTxDB::ReadBlock(uint256 hash, CBlock& blk, bool fReadTransactions)
+bool CTxDB::ReadBlock(const uint256& hash, CBlock& blk, bool fReadTransactions)
 {
     blk.SetNull();
     int modifiers = (fReadTransactions ? 0 : SER_BLOCKHEADERONLY);
     return Read(hash, blk, db_blocks, modifiers);
 }
 
-bool CTxDB::WriteBlock(uint256 hash, const CBlock& blk)
+bool CTxDB::WriteBlock(const uint256& hash, const CBlock& blk)
 {
     assert(blk.GetHash() != 0);
     return Write(hash, blk, db_blocks);
@@ -818,11 +822,11 @@ bool CTxDB::WriteBlock(uint256 hash, const CBlock& blk)
 
 bool CTxDB::EraseTxIndex(const uint256& hash) { return Erase(hash, db_tx); }
 
-bool CTxDB::ContainsTx(uint256 hash) { return Exists(hash, db_tx); }
+bool CTxDB::ContainsTx(const uint256& hash) { return Exists(hash, db_tx); }
 
-bool CTxDB::ContainsNTP1Tx(uint256 hash) { return Exists(hash, db_ntp1Tx); }
+bool CTxDB::ContainsNTP1Tx(const uint256& hash) { return Exists(hash, db_ntp1Tx); }
 
-bool CTxDB::ReadDiskTx(uint256 hash, CTransaction& tx, CTxIndex& txindex)
+bool CTxDB::ReadDiskTx(const uint256& hash, CTransaction& tx, CTxIndex& txindex)
 {
     tx.SetNull();
     if (!ReadTxIndex(hash, txindex))
@@ -830,18 +834,18 @@ bool CTxDB::ReadDiskTx(uint256 hash, CTransaction& tx, CTxIndex& txindex)
     return (tx.ReadFromDisk(txindex.pos, *this));
 }
 
-bool CTxDB::ReadDiskTx(uint256 hash, CTransaction& tx)
+bool CTxDB::ReadDiskTx(const uint256& hash, CTransaction& tx)
 {
     CTxIndex txindex;
     return ReadDiskTx(hash, tx, txindex);
 }
 
-bool CTxDB::ReadDiskTx(COutPoint outpoint, CTransaction& tx, CTxIndex& txindex)
+bool CTxDB::ReadDiskTx(const COutPoint& outpoint, CTransaction& tx, CTxIndex& txindex)
 {
     return ReadDiskTx(outpoint.hash, tx, txindex);
 }
 
-bool CTxDB::ReadDiskTx(COutPoint outpoint, CTransaction& tx)
+bool CTxDB::ReadDiskTx(const COutPoint& outpoint, CTransaction& tx)
 {
     CTxIndex txindex;
     return ReadDiskTx(outpoint.hash, tx, txindex);
@@ -857,7 +861,7 @@ bool CTxDB::ReadHashBestChain(uint256& hashBestChain)
     return Read(string("hashBestChain"), hashBestChain, db_main);
 }
 
-bool CTxDB::WriteHashBestChain(uint256 hashBestChain)
+bool CTxDB::WriteHashBestChain(const uint256& hashBestChain)
 {
     return Write(string("hashBestChain"), hashBestChain, db_main);
 }
@@ -867,7 +871,7 @@ bool CTxDB::ReadBestInvalidTrust(CBigNum& bnBestInvalidTrust)
     return Read(string("bnBestInvalidTrust"), bnBestInvalidTrust, db_main);
 }
 
-bool CTxDB::WriteBestInvalidTrust(CBigNum bnBestInvalidTrust)
+bool CTxDB::WriteBestInvalidTrust(const CBigNum& bnBestInvalidTrust)
 {
     return Write(string("bnBestInvalidTrust"), bnBestInvalidTrust, db_main);
 }
@@ -877,7 +881,7 @@ bool CTxDB::ReadSyncCheckpoint(uint256& hashCheckpoint)
     return Read(string("hashSyncCheckpoint"), hashCheckpoint, db_main);
 }
 
-bool CTxDB::WriteSyncCheckpoint(uint256 hashCheckpoint)
+bool CTxDB::WriteSyncCheckpoint(const uint256& hashCheckpoint)
 {
     return Write(string("hashSyncCheckpoint"), hashCheckpoint, db_main);
 }
@@ -892,7 +896,7 @@ bool CTxDB::WriteCheckpointPubKey(const string& strPubKey)
     return Write(string("strCheckpointPubKey"), strPubKey, db_main);
 }
 
-static CBlockIndexSmartPtr InsertBlockIndex(uint256 hash)
+static CBlockIndexSmartPtr InsertBlockIndex(const uint256& hash)
 {
     if (hash == 0)
         return nullptr;

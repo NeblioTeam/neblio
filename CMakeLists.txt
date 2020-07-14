@@ -715,6 +715,14 @@ if(COMPILE_TESTS)
     target_link_libraries(gtest Threads::Threads)
     ######################
 
+    # GMOCK ##############
+    set(GMOCK_PATH ${CMAKE_SOURCE_DIR}/wallet/test/googletest/googlemock)
+    include_directories(${GMOCK_PATH}/include)
+    include_directories(${GMOCK_PATH}/)
+    add_library(gmock ${GMOCK_PATH}/src/gmock-all.cc)
+    target_link_libraries(gtest Threads::Threads)
+    ######################
+
     enable_testing()
     add_subdirectory(wallet/test)
 endif()
