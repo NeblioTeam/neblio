@@ -80,16 +80,15 @@ bool CheckSync(const uint256& blockHash, const CBlockIndex* pindexPrev, bool ena
                 const auto cp = checkpointsCache.get(pindex->GetBlockHash());
                 if (cp.is_initialized()) {
                     checkpointsCache.add(cp->cachedCheckpoint, blockHash);
-                    return pindex->GetBlockHash() == checkpointIt->second;
+                    return cp->cachedCheckpoint == checkpointIt->second;
                 }
             }
             if (pindex->nHeight == highestRelevantCheckpoint) {
                 checkpointsCache.add(checkpointIt->second, blockHash);
                 return pindex->GetBlockHash() == checkpointIt->second;
             }
-            pindex = pindex->pprev.get();
+            pindex = boost::atomic_load(&pindex->pprev).get();
         }
-        checkpointsCache.add(checkpointIt->second, blockHash);
     }
     return false;
 }
