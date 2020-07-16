@@ -747,10 +747,6 @@ public:
     bool WriteHashBestChain(const uint256& hashBestChain) override;
     bool ReadBestInvalidTrust(CBigNum& bnBestInvalidTrust) override;
     bool WriteBestInvalidTrust(const CBigNum& bnBestInvalidTrust) override;
-    bool ReadSyncCheckpoint(uint256& hashCheckpoint) override;
-    bool WriteSyncCheckpoint(const uint256& hashCheckpoint) override;
-    bool ReadCheckpointPubKey(std::string& strPubKey) override;
-    bool WriteCheckpointPubKey(const std::string& strPubKey) override;
     bool LoadBlockIndex() override;
 
     static uintmax_t GetCurrentDiskUsage();

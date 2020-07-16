@@ -155,7 +155,7 @@ public:
         */
 
         // clang-format off
-        checkpointData = MapCheckpoints(MapCheckpoints::MapType{
+        checkpointData = MapCheckpoints({
             {0,       genesis->GetHash()},
             {500,     uint256{"0x00000342c5dc5f7fd4a8ef041d4df4e569bd40756405a8c336c5f42c77e097a2"}},
             {1000,    uint256{"0x00000c60e3a8d27dedb15fc33d91caec5cf714fae60f24ea22a649cded8e0cca"}},
@@ -318,7 +318,7 @@ public:
         */
 
         // clang-format off
-        checkpointData = MapCheckpoints(MapCheckpoints::MapType{
+        checkpointData = MapCheckpoints({
             {0,       genesis->GetHash()},
             {1,       uint256{"0x0e2eecad99db0eab96abbd7e2de769d92483a090eefcefc014b802d31131a0ce"}},
             {500,     uint256{"0x0000006939777fded9640797f3008d9fca5d6e177e440655ba10f8a900cabe61"}},

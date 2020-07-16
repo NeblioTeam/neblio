@@ -36,9 +36,5 @@ struct mTxDB : public ITxDB
     MOCK_METHOD(bool, WriteHashBestChain, (const uint256& hashBestChain), (override));
     MOCK_METHOD(bool, ReadBestInvalidTrust, (CBigNum & bnBestInvalidTrust), (override));
     MOCK_METHOD(bool, WriteBestInvalidTrust, (const CBigNum& bnBestInvalidTrust), (override));
-    MOCK_METHOD(bool, ReadSyncCheckpoint, (uint256 & hashCheckpoint), (override));
-    MOCK_METHOD(bool, WriteSyncCheckpoint, (const uint256& hashCheckpoint), (override));
-    MOCK_METHOD(bool, ReadCheckpointPubKey, (std::string & strPubKey), (override));
-    MOCK_METHOD(bool, WriteCheckpointPubKey, (const std::string& strPubKey), (override));
     MOCK_METHOD(bool, LoadBlockIndex, (), (override));
 };

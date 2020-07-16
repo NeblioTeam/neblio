@@ -341,37 +341,6 @@ Value getblockbynumber(const Array& params, bool fHelp)
                        fIgnoreNTP1);
 }
 
-// ppcoin: get information of sync-checkpoint
-Value getcheckpoint(const Array& params, bool fHelp)
-{
-    if (fHelp || params.size() != 0)
-        throw runtime_error("getcheckpoint\n"
-                            "Show info of synchronized checkpoint.\n");
-
-    Object       result;
-    CBlockIndex* pindexCheckpoint;
-
-    result.push_back(Pair("synccheckpoint", Checkpoints::hashSyncCheckpoint.ToString().c_str()));
-    pindexCheckpoint = boost::atomic_load(&mapBlockIndex[Checkpoints::hashSyncCheckpoint]).get();
-    result.push_back(Pair("height", pindexCheckpoint->nHeight));
-    result.push_back(Pair("timestamp", DateTimeStrFormat(pindexCheckpoint->GetBlockTime()).c_str()));
-
-    // Check that the block satisfies synchronized checkpoint
-    if (CheckpointsMode == Checkpoints::CPMode_STRICT)
-        result.push_back(Pair("policy", "strict"));
-
-    if (CheckpointsMode == Checkpoints::CPMode_ADVISORY)
-        result.push_back(Pair("policy", "advisory"));
-
-    if (CheckpointsMode == Checkpoints::CPMode_PERMISSIVE)
-        result.push_back(Pair("policy", "permissive"));
-
-    if (mapArgs.exists("-checkpointkey"))
-        result.push_back(Pair("checkpointmaster", true));
-
-    return result;
-}
-
 Value exportblockchain(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2) {

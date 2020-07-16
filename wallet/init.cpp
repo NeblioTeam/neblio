@@ -749,12 +749,6 @@ bool AppInit2()
         }
     }
 
-    if (mapArgs.exists("-checkpointkey")) // ppcoin: checkpoint master priv key
-    {
-        if (!Checkpoints::SetCheckpointPrivKey(GetArg("-checkpointkey", "")))
-            InitError(_("Unable to sign checkpoint, wrong checkpointkey?\n"));
-    }
-
     {
         std::vector<std::string> seednodesVals;
         mapMultiArgs.get("-seednode", seednodesVals);

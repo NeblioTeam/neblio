@@ -4,13 +4,119 @@
 #ifndef BITCOIN_CHECKPOINT_H
 #define BITCOIN_CHECKPOINT_H
 
+#include "globals.h"
 #include "net.h"
 #include "util.h"
 #include <map>
 
+#include <boost/multi_array/index_gen.hpp>
+#include <boost/multi_index/hashed_index.hpp>
+#include <boost/multi_index/mem_fun.hpp>
+#include <boost/multi_index/member.hpp>
+#include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/random_access_index.hpp>
+#include <boost/multi_index/sequenced_index.hpp>
+#include <boost/multi_index_container.hpp>
+
 class uint256;
 class CBlockIndex;
 class CSyncCheckpoint;
+
+namespace Checkpoints {
+
+struct IDTag
+{
+};
+
+struct HashTag
+{
+};
+
+struct CheckpointCacheElement
+{
+    uint256 cachedCheckpoint;
+    uint256 blockHash;
+    int64_t id;
+};
+
+class BlockToCheckpointCache
+{
+    static boost::atomic_int64_t counter;
+    using CheckpointCacheContainer = boost::multi_index_container<
+        CheckpointCacheElement,
+        boost::multi_index::indexed_by<
+            boost::multi_index::ordered_unique<boost::multi_index::tag<IDTag>,
+                                               BOOST_MULTI_INDEX_MEMBER(CheckpointCacheElement, int64_t,
+                                                                        id)>,
+            boost::multi_index::ordered_unique<boost::multi_index::tag<HashTag>,
+                                               BOOST_MULTI_INDEX_MEMBER(CheckpointCacheElement, uint256,
+                                                                        blockHash)>>>;
+
+    mutable boost::shared_mutex mtx;
+    CheckpointCacheContainer    cacheContainer;
+
+    static const int MAX_SIZE = 100;
+
+public:
+    void pop_one_unsafe()
+    {
+        if (cacheContainer.size() <= MAX_SIZE) {
+            return;
+        }
+        auto& byID = cacheContainer.get<IDTag>();
+        byID.erase(byID.begin());
+    }
+
+    void add(const uint256& CheckpointHash, const uint256& BlockHash)
+    {
+        CheckpointCacheElement cp;
+        cp.id               = counter++;
+        cp.blockHash        = BlockHash;
+        cp.cachedCheckpoint = CheckpointHash;
+
+        boost::unique_lock<boost::shared_mutex> lg(mtx);
+        cacheContainer.insert(cp);
+        if (cacheContainer.size() > MAX_SIZE) {
+            pop_one_unsafe();
+        }
+    }
+
+    boost::optional<CheckpointCacheElement> get(const uint256& BlockHash) const
+    {
+        boost::unique_lock<boost::shared_mutex> lg(mtx);
+
+        const auto& byHash = cacheContainer.get<HashTag>();
+        auto        it     = byHash.find(BlockHash);
+        if (it == byHash.cend()) {
+            return boost::none;
+        }
+        return boost::make_optional(*it);
+    }
+
+    void clear()
+    {
+        boost::unique_lock<boost::shared_mutex> lg(mtx);
+
+        clear_unsafe();
+    }
+
+    void clear_unsafe() { cacheContainer.clear(); }
+
+    std::size_t size() const
+    {
+        boost::unique_lock<boost::shared_mutex> lg(mtx);
+
+        return cacheContainer.size();
+    }
+
+    std::size_t size_unsafe() const { return cacheContainer.size(); }
+};
+
+/**
+ * This cache helps in finding the closest a block to a checkpoint in the past to avoid looping back
+ */
+extern BlockToCheckpointCache g_CheckpointsCache;
+} // namespace Checkpoints
 
 /** Block-chain checkpoints are compiled-in sanity checks.
  * They are updated every release or three.
@@ -23,91 +129,13 @@ bool CheckHardened(int nHeight, const uint256& hash);
 int GetTotalBlocksEstimate();
 
 // Returns last CBlockIndex* in mapBlockIndex that is a checkpoint
-CBlockIndex* GetLastCheckpoint(const std::map<uint256, CBlockIndex*>& mapBlockIndex);
-
-extern uint256          hashSyncCheckpoint;
-extern CSyncCheckpoint  checkpointMessage;
-extern uint256          hashInvalidCheckpoint;
-extern CCriticalSection cs_hashSyncCheckpoint;
+CBlockIndex* GetLastCheckpoint(const std::map<uint256, CBlockIndexSmartPtr>& mapBlockIndex);
 
 CBlockIndex* GetLastSyncCheckpoint();
-bool         WriteSyncCheckpoint(const uint256& hashCheckpoint);
-bool         AcceptPendingSyncCheckpoint();
-uint256      AutoSelectSyncCheckpoint();
-bool         CheckSync(const uint256& hashBlock, const CBlockIndex* pindexPrev);
-bool         WantedByPendingSyncCheckpoint(uint256 hashBlock);
-bool         ResetSyncCheckpoint();
-void         AskForPendingSyncCheckpoint(CNode* pfrom);
-bool         SetCheckpointPrivKey(std::string strPrivKey);
-bool         SendSyncCheckpoint(uint256 hashCheckpoint);
-bool         IsMatureSyncCheckpoint();
-int64_t      GetLastCheckpointBlockHeight();
+bool    CheckSync(const uint256& blockHash, const CBlockIndex* pindexPrev, bool enableCaching = true,
+                  const MapCheckpoints&   checkpoints      = Params().Checkpoints(),
+                  BlockToCheckpointCache& checkpointsCache = g_CheckpointsCache);
+int64_t GetLastCheckpointBlockHeight();
 } // namespace Checkpoints
-
-// ppcoin: synchronized checkpoint
-class CUnsignedSyncCheckpoint
-{
-public:
-    int     nVersion;
-    uint256 hashCheckpoint; // checkpoint block
-
-    IMPLEMENT_SERIALIZE(READWRITE(this->nVersion); nVersion = this->nVersion; READWRITE(hashCheckpoint);)
-
-    void SetNull()
-    {
-        nVersion       = 1;
-        hashCheckpoint = 0;
-    }
-
-    std::string ToString() const
-    {
-        return strprintf("CSyncCheckpoint(\n"
-                         "    nVersion       = %d\n"
-                         "    hashCheckpoint = %s\n"
-                         ")\n",
-                         nVersion, hashCheckpoint.ToString().c_str());
-    }
-
-    void print() const { printf("%s", ToString().c_str()); }
-};
-
-class CSyncCheckpoint : public CUnsignedSyncCheckpoint
-{
-public:
-    static const std::string strMasterPubKey;
-    static std::string       strMasterPrivKey;
-
-    std::vector<unsigned char> vchMsg;
-    std::vector<unsigned char> vchSig;
-
-    CSyncCheckpoint() { SetNull(); }
-
-    IMPLEMENT_SERIALIZE(READWRITE(vchMsg); READWRITE(vchSig);)
-
-    void SetNull()
-    {
-        CUnsignedSyncCheckpoint::SetNull();
-        vchMsg.clear();
-        vchSig.clear();
-    }
-
-    bool IsNull() const { return (hashCheckpoint == 0); }
-
-    uint256 GetHash() const { return SerializeHash(*this); }
-
-    bool RelayTo(CNode* pnode) const
-    {
-        // returns true if wasn't already sent
-        if (pnode->hashCheckpointKnown != hashCheckpoint) {
-            pnode->hashCheckpointKnown = hashCheckpoint;
-            pnode->PushMessage("checkpoint", *this);
-            return true;
-        }
-        return false;
-    }
-
-    bool CheckSignature();
-    bool ProcessSyncCheckpoint(CNode* pfrom);
-};
 
 #endif
