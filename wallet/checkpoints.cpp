@@ -64,9 +64,12 @@ bool CheckSync(const uint256& blockHash, const CBlockIndex* pindexPrev, bool ena
     const int nBlockHeight = pindexPrev->nHeight + 1;
 
     // get the last relevant checkpoint
-    auto checkpointIt = checkpoints.lower_bound(nBlockHeight);
-    if (checkpointIt != checkpoints.cbegin()) {
-        --checkpointIt;
+    auto checkpointIt = checkpoints.find(nBlockHeight);
+    if (checkpointIt == checkpoints.cend()) {
+        checkpointIt = checkpoints.lower_bound(nBlockHeight);
+        if (checkpointIt != checkpoints.cbegin()) {
+            --checkpointIt;
+        }
     }
 
     const int highestRelevantCheckpoint = checkpointIt->first;

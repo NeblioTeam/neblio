@@ -60,25 +60,27 @@ TEST(checkpoints_tests, CheckSync1)
             {100, uint256(100)},
         });
 
-        EXPECT_TRUE(Checkpoints::CheckSync(uint256(0), blockIndex.at(0).get(), cache, checkpointData,
+        EXPECT_TRUE(Checkpoints::CheckSync(uint256(1), blockIndex.at(0).get(), cache, checkpointData,
                                            checkpointsCache));
-        EXPECT_TRUE(Checkpoints::CheckSync(uint256(0), blockIndex.at(1).get(), cache, checkpointData,
+        EXPECT_TRUE(Checkpoints::CheckSync(uint256(2), blockIndex.at(1).get(), cache, checkpointData,
                                            checkpointsCache));
-        EXPECT_TRUE(Checkpoints::CheckSync(uint256(0), blockIndex.at(5).get(), cache, checkpointData,
+        EXPECT_TRUE(Checkpoints::CheckSync(uint256(6), blockIndex.at(5).get(), cache, checkpointData,
                                            checkpointsCache));
-        EXPECT_TRUE(Checkpoints::CheckSync(uint256(0), blockIndex.at(9).get(), cache, checkpointData,
+        EXPECT_TRUE(Checkpoints::CheckSync(uint256(10), blockIndex.at(9).get(), cache, checkpointData,
                                            checkpointsCache));
-        EXPECT_TRUE(Checkpoints::CheckSync(uint256(10), blockIndex.at(10).get(), cache, checkpointData,
+        EXPECT_TRUE(Checkpoints::CheckSync(uint256(11), blockIndex.at(10).get(), cache, checkpointData,
                                            checkpointsCache));
         EXPECT_TRUE(Checkpoints::CheckSync(uint256(std::rand()), blockIndex.at(11).get(), cache,
                                            checkpointData, checkpointsCache));
         EXPECT_TRUE(Checkpoints::CheckSync(uint256(std::rand()), blockIndex.at(15).get(), cache,
                                            checkpointData, checkpointsCache));
-        EXPECT_TRUE(Checkpoints::CheckSync(uint256(20), blockIndex.at(20).get(), cache, checkpointData,
+        EXPECT_TRUE(Checkpoints::CheckSync(uint256(20), blockIndex.at(19).get(), cache, checkpointData,
+                                           checkpointsCache));
+        EXPECT_TRUE(Checkpoints::CheckSync(uint256(21), blockIndex.at(20).get(), cache, checkpointData,
                                            checkpointsCache));
         EXPECT_TRUE(Checkpoints::CheckSync(uint256(std::rand()), blockIndex.at(25).get(), cache,
                                            checkpointData, checkpointsCache));
-        EXPECT_TRUE(Checkpoints::CheckSync(uint256(30), blockIndex.at(30).get(), cache, checkpointData,
+        EXPECT_TRUE(Checkpoints::CheckSync(uint256(31), blockIndex.at(30).get(), cache, checkpointData,
                                            checkpointsCache));
         EXPECT_TRUE(Checkpoints::CheckSync(uint256(std::rand()), blockIndex.at(35).get(), cache,
                                            checkpointData, checkpointsCache));
@@ -86,9 +88,9 @@ TEST(checkpoints_tests, CheckSync1)
                                            checkpointsCache));
         EXPECT_TRUE(Checkpoints::CheckSync(uint256(std::rand()), blockIndex.at(45).get(), cache,
                                            checkpointData, checkpointsCache));
-        EXPECT_TRUE(Checkpoints::CheckSync(uint256(90), blockIndex.at(99).get(), cache, checkpointData,
+        EXPECT_TRUE(Checkpoints::CheckSync(uint256(100), blockIndex.at(99).get(), cache, checkpointData,
                                            checkpointsCache));
-        EXPECT_TRUE(Checkpoints::CheckSync(uint256(100), blockIndex.at(100).get(), cache, checkpointData,
+        EXPECT_TRUE(Checkpoints::CheckSync(uint256(101), blockIndex.at(100).get(), cache, checkpointData,
                                            checkpointsCache));
         EXPECT_TRUE(Checkpoints::CheckSync(uint256(std::rand()), blockIndex.at(101).get(), cache,
                                            checkpointData, checkpointsCache));
