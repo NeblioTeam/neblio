@@ -200,6 +200,7 @@ RPC commands are used to interact with a running instance of nebliod or neblio-Q
 
 ```
 addmultisigaddress <nrequired> <'["key","key"]'> [account]
+addnode "node" "add|remove|onetry"
 addredeemscript <redeemScript> [account]
 backupwallet <destination>
 checkwallet
@@ -207,6 +208,7 @@ createrawntp1transaction [{"txid":txid,"vout":n},...] {address:{tokenid/tokenNam
 createrawtransaction [{"txid":txid,"vout":n},...] {address:amount,...}
 decoderawtransaction <hex string> [ignoreNTP1=false]
 decodescript <hex string>
+disconnectnode "node"
 dumpprivkey <neblioaddress>
 dumpwallet <filename>
 encryptwallet <passphrase>
@@ -220,6 +222,7 @@ getblock <hash> [verbose=true] [showtxns=false] [ignoreNTP1=false]
 getblockbynumber <number> [txinfo] [ignoreNTP1=false]
 getblockcount
 getblockhash <index>
+getblockheader <hash>
 getblocktemplate [params]
 getcheckpoint
 getconnectioncount
@@ -231,6 +234,7 @@ getnewpubkey [account]
 getntp1balance <tokenId/name> [minconf=1]
 getntp1balances [minconf=1]
 getpeerinfo
+getrawchangeaddress
 getrawmempool
 getrawtransaction <txid> [verbose=0] [ignoreNTP1=false]
 getreceivedbyaccount <account> [minconf=1]
@@ -238,6 +242,8 @@ getreceivedbyaddress <neblioaddress> [minconf=1]
 getstakinginfo
 getsubsidy [nTarget]
 gettransaction <txid> [ignoreNTP1=false]
+gettxout "txid" n ( include_mempool )
+getwalletinfo
 getwork [data]
 getworkex [data, coinbase]
 help [command]
@@ -263,15 +269,18 @@ sendntp1toaddress <neblioaddress> <amount> <tokenId/tokenName> '{"userData":{"me
 sendrawtransaction <hex string>
 sendtoaddress <neblioaddress> <amount> [comment] [comment-to]
 setaccount <neblioaddress> <account>
+setmocktime <timestamp>
 settxfee <amount>
 signmessage <neblioaddress> <message>
 signrawtransaction <hex string> [{"txid":txid,"vout":n,"scriptPubKey":hex},...] [<privatekey1>,...] [sighashtype="ALL"]
 stop
 submitblock <hex data> [optional-params-obj]
 udtoneblioaddress <unstoppable domain address>
+uptime
 validateaddress <neblioaddress>
 validatepubkey <nebliopubkey>
 verifymessage <neblioaddress> <signature> <message>
+waitforblockheight (timeout)
 ```
 
 
