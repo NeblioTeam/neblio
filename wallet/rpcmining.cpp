@@ -639,22 +639,24 @@ Value generatePOSBlocks(
 
     json_spirit::Array blockHashesOrSerializedData;
 
-    while (nHeight < nHeightEnd) {
-        std::unique_ptr<CBlock> pblock;
-        {
-            pblock = CreateNewBlock(pwallet, true, 0);
-            if (!pblock)
-                throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
+    const auto BlockMaker = [&]() {
+        std::unique_ptr<CBlock> block = CreateNewBlock(pwallet, true, 0);
+        if (!block)
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
 
-            if (pblock->SignBlock(*pwallet, 0, customInputs, extraPayoutForTests)) {
-                if (submitBlock) {
-                    if (!CheckStake(pblock.get(), *pwallet))
-                        throw JSONRPCError(RPC_INTERNAL_ERROR, "CheckStake, CheckStake failed");
-                }
-            } else {
-                pblock.reset();
+        if (block->SignBlock(*pwallet, 0, customInputs, extraPayoutForTests)) {
+            if (submitBlock) {
+                if (!CheckStake(block.get(), *pwallet))
+                    throw JSONRPCError(RPC_INTERNAL_ERROR, "CheckStake, CheckStake failed");
             }
+        } else {
+            block.reset();
         }
+        return block;
+    };
+
+    while (nHeight < nHeightEnd) {
+        const std::unique_ptr<CBlock> pblock = BlockMaker();
 
         if (!pblock) {
             // staking failed
