@@ -2115,6 +2115,12 @@ boost::optional<std::vector<uint8_t>> CScript::GetPubKeyOfP2CSScriptSig() const
         // sig is expected here
         return boost::none;
     }
+
+    // check that the signature is canonical and valid
+    if (!IsCanonicalSignature(vchValue)) {
+        return boost::none;
+    }
+
     if (!GetOp(pc, opcode, vchValue)) {
         // we expect a OP_TRUE here
         return boost::none;
@@ -2125,6 +2131,11 @@ boost::optional<std::vector<uint8_t>> CScript::GetPubKeyOfP2CSScriptSig() const
     }
     if (!GetOp(pc, opcode, vchValue)) {
         // we expect the public key here
+        return boost::none;
+    }
+
+    // check that public key is valid
+    if (!IsCanonicalPubKey(vchValue)) {
         return boost::none;
     }
     // we extract the public key
