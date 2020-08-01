@@ -138,10 +138,10 @@ void WalletModel::updateTransaction(const QString& hash, int status)
 }
 
 void WalletModel::updateAddressBook(const QString& address, const QString& label, bool isMine,
-                                    int status)
+                                    const QString& purpose, int status)
 {
     if (addressTableModel)
-        addressTableModel->updateEntry(address, label, isMine, status);
+        addressTableModel->updateEntry(address, label, isMine, purpose, status);
 }
 
 bool WalletModel::validateAddress(const QString& address)
@@ -360,14 +360,16 @@ static void NotifyKeyStoreStatusChanged(WalletModel* walletmodel, CCryptoKeyStor
 
 static void NotifyAddressBookChanged(WalletModel*          walletmodel, CWallet* /*wallet*/,
                                      const CTxDestination& address, const std::string& label,
-                                     bool isMine, ChangeType status)
+                                     bool isMine, const std::string& purpose, ChangeType status)
 {
-    OutputDebugStringF("NotifyAddressBookChanged %s %s isMine=%i status=%i\n",
-                       CBitcoinAddress(address).ToString().c_str(), label.c_str(), isMine, status);
+    OutputDebugStringF("NotifyAddressBookChanged %s %s isMine=%i purpose=%s status=%i\n",
+                       CBitcoinAddress(address).ToString().c_str(), label.c_str(), isMine,
+                       purpose.c_str(), status);
     QMetaObject::invokeMethod(
         walletmodel, "updateAddressBook", Qt::QueuedConnection,
         Q_ARG(QString, QString::fromStdString(CBitcoinAddress(address).ToString())),
-        Q_ARG(QString, QString::fromStdString(label)), Q_ARG(bool, isMine), Q_ARG(int, status));
+        Q_ARG(QString, QString::fromStdString(label)), Q_ARG(bool, isMine),
+        Q_ARG(QString, QString::fromStdString(purpose)), Q_ARG(int, status));
 }
 
 static void NotifyTransactionChanged(WalletModel* walletmodel, CWallet* /*wallet*/, const uint256& hash,
@@ -383,7 +385,7 @@ void WalletModel::subscribeToCoreSignals()
     // Connect signals to wallet
     wallet->NotifyStatusChanged.connect(boost::bind(&NotifyKeyStoreStatusChanged, this, _1));
     wallet->NotifyAddressBookChanged.connect(
-        boost::bind(NotifyAddressBookChanged, this, _1, _2, _3, _4, _5));
+        boost::bind(NotifyAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
     wallet->NotifyTransactionChanged.connect(boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
 }
 
@@ -392,7 +394,7 @@ void WalletModel::unsubscribeFromCoreSignals()
     // Disconnect signals from wallet
     wallet->NotifyStatusChanged.disconnect(boost::bind(&NotifyKeyStoreStatusChanged, this, _1));
     wallet->NotifyAddressBookChanged.disconnect(
-        boost::bind(NotifyAddressBookChanged, this, _1, _2, _3, _4, _5));
+        boost::bind(NotifyAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
     wallet->NotifyTransactionChanged.disconnect(boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
 }
 

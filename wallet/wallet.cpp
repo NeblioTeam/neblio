@@ -2575,7 +2575,7 @@ bool CWallet::SetAddressBookEntry(const CTxDestination& address, const string& s
         if (!strPurpose.empty()) /* update purpose only if requested */
             mapAddressBook[address].purpose = strPurpose;
     }
-    NotifyAddressBookChanged(this, address, strName, ::IsMine(*this, address) != ISMINE_NO,
+    NotifyAddressBookChanged(this, address, strName, ::IsMine(*this, address) != ISMINE_NO, strPurpose,
                              (fUpdated ? CT_UPDATED : CT_NEW));
     if (!fFileBacked)
         return false;
@@ -2588,13 +2588,16 @@ bool CWallet::SetAddressBookEntry(const CTxDestination& address, const string& s
 bool CWallet::DelAddressBookName(const CTxDestination& address)
 {
     std::string strAddress = CBitcoinAddress(address).ToString();
+    std::string purpose    = purposeForAddress(address);
+
     {
         LOCK(cs_wallet); // mapAddressBook
 
         mapAddressBook.erase(address);
     }
 
-    NotifyAddressBookChanged(this, address, "", ::IsMine(*this, address) != ISMINE_NO, CT_DELETED);
+    NotifyAddressBookChanged(this, address, "", ::IsMine(*this, address) != ISMINE_NO, purpose,
+                             CT_DELETED);
 
     if (!fFileBacked)
         return false;

@@ -68,7 +68,8 @@ public:
         qSort(cachedAddressTable.begin(), cachedAddressTable.end(), AddressTableEntryLessThan());
     }
 
-    void updateEntry(const QString& address, const QString& label, bool isMine, int status)
+    void updateEntry(const QString& address, const QString& label, bool isMine, const QString& purpose,
+                     int status)
     {
         // Find address / label in model
         QList<AddressTableEntry>::iterator lower = qLowerBound(
@@ -280,10 +281,10 @@ QModelIndex AddressTableModel::index(int row, int column, const QModelIndex& par
 }
 
 void AddressTableModel::updateEntry(const QString& address, const QString& label, bool isMine,
-                                    int status)
+                                    const QString& purpose, int status)
 {
     // Update address book model from Bitcoin core
-    priv->updateEntry(address, label, isMine, status);
+    priv->updateEntry(address, label, isMine, purpose, status);
 }
 
 QString AddressTableModel::addRow(const QString& type, const QString& label, const QString& address)
