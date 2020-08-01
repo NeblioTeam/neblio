@@ -193,27 +193,6 @@ void RunCrossPlatformSerializationTests()
         TEST_EQUALITY(boost::algorithm::hex(ss.str()), R"(020010010000000300000005)", __LINE__);
     }
 
-    CUnsignedSyncCheckpoint cUnsignedSyncCheckpoint;
-    cUnsignedSyncCheckpoint.nVersion = 0x12345678;
-    cUnsignedSyncCheckpoint.hashCheckpoint =
-        uint256("12345678135724681122334455667788123456781357246812345678135724");
-    {
-        CDataStream ss(SER_DISK, 0);
-        ss << cUnsignedSyncCheckpoint;
-        TEST_EQUALITY(boost::algorithm::hex(ss.str()),
-                      "785634122457137856341268245713785634128877665544332211682457137856341200",
-                      __LINE__);
-    }
-
-    CSyncCheckpoint cSyncCheckpoint;
-    cSyncCheckpoint.vchMsg = {'a', 'b', 'c', 'd', 'e', 'f'};
-    cSyncCheckpoint.vchSig = {'a', 'b', 'c', 'd', 'e', 'f'};
-    {
-        CDataStream ss(SER_DISK, 0);
-        ss << cSyncCheckpoint;
-        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "0661626364656606616263646566", __LINE__);
-    }
-
     CMasterKey cMasterKey;
     cMasterKey.vchCryptedKey                = {'a', 'b', 'c', 'd', 'e', 'f'};
     cMasterKey.vchSalt                      = {'a', 'b', 'c', 'd', 'e', 'f'};

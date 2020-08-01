@@ -12,6 +12,7 @@
 #include "consensus_params.h"
 #include "protocol.h"
 
+#include <boost/container/flat_map.hpp>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -24,7 +25,7 @@ struct SeedSpec6
     uint16_t port;
 };
 
-using MapCheckpoints              = ThreadSafeMap<int, uint256>;
+using MapCheckpoints              = boost::container::flat_map<int, uint256>;
 using MapStakeModifierCheckpoints = std::map<int, unsigned int>;
 using MapExcludedTxs              = std::unordered_map<uint256, int>;
 using MapBlacklistedTokens        = std::unordered_map<std::string, int>;

@@ -48,10 +48,6 @@ public:
     virtual bool WriteHashBestChain(const uint256& hashBestChain)                                    = 0;
     virtual bool ReadBestInvalidTrust(CBigNum& bnBestInvalidTrust)                                   = 0;
     virtual bool WriteBestInvalidTrust(const CBigNum& bnBestInvalidTrust)                            = 0;
-    virtual bool ReadSyncCheckpoint(uint256& hashCheckpoint)                                         = 0;
-    virtual bool WriteSyncCheckpoint(const uint256& hashCheckpoint)                                  = 0;
-    virtual bool ReadCheckpointPubKey(std::string& strPubKey)                                        = 0;
-    virtual bool WriteCheckpointPubKey(const std::string& strPubKey)                                 = 0;
     virtual bool LoadBlockIndex()                                                                    = 0;
 };
 

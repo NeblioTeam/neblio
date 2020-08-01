@@ -349,7 +349,6 @@ static const CRPCCommand vRPCCommands[] =
     { "getscriptpubkeyforp2cs",    &getscriptpubkeyforp2cs,    false,  false },
     { "signrawtransaction",        &signrawtransaction,        false,  false },
     { "sendrawtransaction",        &sendrawtransaction,        false,  false },
-    { "getcheckpoint",             &getcheckpoint,             true,   false },
     { "reservebalance",            &reservebalance,            false,  true  },
     { "resendtx",                  &resendtx,                  false,  true  },
     { "makekeypair",               &makekeypair,               false,  true  },

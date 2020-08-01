@@ -14,7 +14,6 @@
 #include <future>
 #include <random>
 
-#include "checkpoints.h"
 #include "kernel.h"
 #include "main.h"
 #include "txdb.h"
@@ -876,26 +875,6 @@ bool CTxDB::WriteBestInvalidTrust(const CBigNum& bnBestInvalidTrust)
     return Write(string("bnBestInvalidTrust"), bnBestInvalidTrust, db_main);
 }
 
-bool CTxDB::ReadSyncCheckpoint(uint256& hashCheckpoint)
-{
-    return Read(string("hashSyncCheckpoint"), hashCheckpoint, db_main);
-}
-
-bool CTxDB::WriteSyncCheckpoint(const uint256& hashCheckpoint)
-{
-    return Write(string("hashSyncCheckpoint"), hashCheckpoint, db_main);
-}
-
-bool CTxDB::ReadCheckpointPubKey(string& strPubKey)
-{
-    return Read(string("strCheckpointPubKey"), strPubKey, db_main);
-}
-
-bool CTxDB::WriteCheckpointPubKey(const string& strPubKey)
-{
-    return Write(string("strCheckpointPubKey"), strPubKey, db_main);
-}
-
 static CBlockIndexSmartPtr InsertBlockIndex(const uint256& hash)
 {
     if (hash == 0)
@@ -1089,12 +1068,6 @@ bool CTxDB::LoadBlockIndex()
            hashBestChain.ToString().substr(0, 20).c_str(), nBestHeight.load(),
            CBigNum(nBestChainTrust).ToString().c_str(),
            DateTimeStrFormat("%x %H:%M:%S", pindexBest->GetBlockTime()).c_str());
-
-    // NovaCoin: load hashSyncCheckpoint
-    if (!ReadSyncCheckpoint(Checkpoints::hashSyncCheckpoint))
-        return error("CTxDB::LoadBlockIndex() : hashSyncCheckpoint not loaded");
-    printf("LoadBlockIndex(): synchronized checkpoint %s\n",
-           Checkpoints::hashSyncCheckpoint.ToString().c_str());
 
     // Load bnBestInvalidTrust, OK if it doesn't exist
     CBigNum bnBestInvalidTrust;
