@@ -659,11 +659,6 @@ Value generatePOSBlocks(int nGenerate, CWallet* const pwallet)
 
 Value generate(const Array& params, bool fHelp)
 {
-    if (!Params().MineBlocksOnDemand())
-        throw JSONRPCError(RPC_INVALID_REQUEST, "This method can only be used on regtest");
-
-    EnsureWalletIsUnlocked();
-
     CWallet* const pwallet = pwalletMain.get();
 
     if (fHelp || params.size() < 1 || params.size() > 2) {
@@ -680,6 +675,11 @@ Value generate(const Array& params, bool fHelp)
             "\nGenerate 11 blocks\n"
             "generate 11");
     }
+
+    if (!Params().MineBlocksOnDemand())
+        throw JSONRPCError(RPC_INVALID_REQUEST, "This method can only be used on regtest");
+
+    EnsureWalletIsUnlocked();
 
     int      num_generate = params[0].get_int();
     uint64_t max_tries    = 1000000;
@@ -732,13 +732,6 @@ Value generatepos(const Array& params, bool fHelp)
 
 Value generatetoaddress(const Array& params, bool fHelp)
 {
-    if (!Params().MineBlocksOnDemand())
-        throw JSONRPCError(RPC_INVALID_REQUEST, "This method can only be used on regtest");
-
-    EnsureWalletIsUnlocked();
-
-    CWallet* const pwallet = pwalletMain.get();
-
     if (fHelp || params.size() < 2 || params.size() > 3)
         throw std::runtime_error(
             "generatetoaddress nblocks address (maxtries)\n"
@@ -751,6 +744,13 @@ Value generatetoaddress(const Array& params, bool fHelp)
             "[ blockhashes ]     (array) hashes of blocks generated\n"
             "\nExamples:\n"
             "\nGenerate 11 blocks to myaddress\n");
+
+    if (!Params().MineBlocksOnDemand())
+        throw JSONRPCError(RPC_INVALID_REQUEST, "This method can only be used on regtest");
+
+    EnsureWalletIsUnlocked();
+
+    CWallet* const pwallet = pwalletMain.get();
 
     int      num_generate = params[0].get_int();
     uint64_t max_tries    = 1000000;
