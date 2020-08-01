@@ -64,8 +64,8 @@ Value addnode(const Array& params, bool fHelp)
 
 Value disconnectnode(const Array& params, bool fHelp)
 {
-    bool validType =
-        params[0].type() != Value_type::str_type && params[0].type() != Value_type::int_type;
+    bool validType = params.empty() || (params[0].type() != Value_type::str_type &&
+                                        params[0].type() != Value_type::int_type);
 
     if ((fHelp || params.size() != 1) || validType) {
         throw std::runtime_error("disconnectnode \"node\" \n"
