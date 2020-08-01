@@ -606,8 +606,8 @@ bool ClientAllowed(const boost::asio::ip::address& address)
         return true;
 
     const string             strAddress = address.to_string();
-    std::vector<std::string> rpcallowipVec;
-    mapMultiArgs.get("-rpcallowip", rpcallowipVec);
+    std::vector<std::string> rpcallowipVec =
+        mapMultiArgs.get("-rpcallowip").value_or(std::vector<std::string>());
     const vector<string>& vAllow = rpcallowipVec;
     BOOST_FOREACH (string strAllow, vAllow)
         if (WildcardMatch(strAddress, strAllow))
@@ -1044,8 +1044,7 @@ void ThreadRPCServer3(void* parg)
             /* Deter brute-forcing short passwords.
                If this results in a DOS the user really
                shouldn't have their RPC port exposed.*/
-            std::string rpcPassword;
-            mapArgs.get("-rpcpassword", rpcPassword);
+            const std::string rpcPassword = mapArgs.get("-rpcpassword").value_or("");
             if (rpcPassword.size() < 20)
                 MilliSleep(250);
 
@@ -1140,10 +1139,8 @@ std::vector<string> CRPCTable::listCommands() const
 
 Object CallRPC(const string& strMethod, const Array& params)
 {
-    std::string rpcUser;
-    mapArgs.get("-rpcuser", rpcUser);
-    std::string rpcPassword;
-    mapArgs.get("-rpcpassword", rpcPassword);
+    std::string rpcUser     = mapArgs.get("-rpcuser").value_or("");
+    std::string rpcPassword = mapArgs.get("-rpcpassword").value_or("");
     if (rpcUser == "" && rpcPassword == "")
         throw runtime_error(strprintf(
             _("You must set rpcpassword=<password> in the configuration file:\n%s\n"

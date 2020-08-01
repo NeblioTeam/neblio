@@ -1628,9 +1628,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
     RandAddSeedPerfmon();
     if (fDebug)
         printf("received: %s (%" PRIszu " bytes)\n", strCommand.c_str(), vRecv.size());
-    std::string dropMessageTestVal;
-    bool        dropMessageTestExists = mapArgs.get("-dropmessagestest", dropMessageTestVal);
-    if (dropMessageTestExists && GetRand(atoi(dropMessageTestVal)) == 0) {
+    const boost::optional<std::string> dropMessageTest = mapArgs.get("-dropmessagestest");
+    if (dropMessageTest && GetRand(atoi(*dropMessageTest)) == 0) {
         printf("dropmessagestest DROPPING RECV MESSAGE\n");
         return true;
     }

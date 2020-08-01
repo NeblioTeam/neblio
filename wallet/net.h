@@ -423,9 +423,8 @@ public:
 
     void EndMessage()
     {
-        std::string dropMessageTestVal;
-        bool        dropMessageTestExists = mapArgs.get("-dropmessagestest", dropMessageTestVal);
-        if (dropMessageTestExists && GetRand(atoi(dropMessageTestVal)) == 0) {
+        const boost::optional<std::string> dropMessageTest = mapArgs.get("-dropmessagestest");
+        if (dropMessageTest && GetRand(atoi(*dropMessageTest)) == 0) {
             printf("dropmessages DROPPING SEND MESSAGE\n");
             AbortMessage();
             return;

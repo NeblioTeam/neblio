@@ -173,11 +173,10 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
     // a transaction spammer can cheaply fill blocks using
     // 1-satoshi-fee transactions. It should be set above the real
     // cost to you of processing a transaction.
-    int64_t     nMinTxFee = MIN_TX_FEE;
-    std::string minTxFeeVal;
-    bool        minTxFeeExists = mapArgs.get("-mintxfee", minTxFeeVal);
-    if (minTxFeeExists) {
-        ParseMoney(minTxFeeVal, nMinTxFee);
+    int64_t                            nMinTxFee = MIN_TX_FEE;
+    const boost::optional<std::string> minTxFee  = mapArgs.get("-mintxfee");
+    if (minTxFee) {
+        ParseMoney(*minTxFee, nMinTxFee);
     }
 
     pblock->nBits = GetNextTargetRequired(pindexPrev.get(), fProofOfStake);

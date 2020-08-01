@@ -1,37 +1,38 @@
 #ifndef THREADSAFEMAP_H
 #define THREADSAFEMAP_H
 
+#include <boost/optional.hpp>
 #include <boost/thread.hpp>
 #include <map>
 
 template <typename K, typename V>
 class ThreadSafeMap
 {
-    std::map<K, V> theMap;
-    mutable boost::shared_mutex      mtx;
+    std::map<K, V>              theMap;
+    mutable boost::shared_mutex mtx;
 
 public:
-    using MapType = std::map<K, V>;
-    using key_type = K;
+    using MapType     = std::map<K, V>;
+    using key_type    = K;
     using mapped_type = V;
-    using value_type = std::pair<K, V>;
+    using value_type  = std::pair<K, V>;
 
     ThreadSafeMap();
     ThreadSafeMap(const std::map<K, V>& rhs);
     ThreadSafeMap(const ThreadSafeMap<K, V>& rhs);
-    ThreadSafeMap<K, V>& operator=(const ThreadSafeMap<K, V>& rhs);
-    std::size_t                      erase(const K& key);
-    void                             set(const K& key, const V& value);
-    bool                             exists(const K& key) const;
-    std::size_t                      size() const;
-    bool                             empty() const;
+    ThreadSafeMap<K, V>&      operator=(const ThreadSafeMap<K, V>& rhs);
+    std::size_t               erase(const K& key);
+    void                      set(const K& key, const V& value);
+    [[nodiscard]] bool        exists(const K& key) const;
+    [[nodiscard]] std::size_t size() const;
+    [[nodiscard]] bool        empty() const;
     template <typename K_, typename V_>
     friend bool operator==(const ThreadSafeMap<K_, V_>& lhs, const ThreadSafeMap<K_, V_>& rhs);
-    bool        get(const K& key, V& value) const;
-    bool        front(value_type& key_value) const;
-    bool        back(value_type &key_value) const;
-    void        clear();
-    std::map<K, V> getInternalMap() const;
+    [[nodiscard]] boost::optional<V> get(const K& key) const;
+    [[nodiscard]] boost::optional<V> front() const;
+    [[nodiscard]] boost::optional<V> back() const;
+    void                             clear();
+    [[nodiscard]] std::map<K, V>     getInternalMap() const;
     void                             setInternalMap(const std::map<K, V>& TheMap);
 };
 
@@ -44,8 +45,7 @@ ThreadSafeMap<K, V>::ThreadSafeMap(const ThreadSafeMap<K, V>& rhs)
 }
 
 template <typename K, typename V>
-ThreadSafeMap<K, V>& ThreadSafeMap<K, V>::
-                                 operator=(const ThreadSafeMap<K, V>& rhs)
+ThreadSafeMap<K, V>& ThreadSafeMap<K, V>::operator=(const ThreadSafeMap<K, V>& rhs)
 {
     boost::unique_lock<boost::shared_mutex> lock1(mtx);
     boost::shared_lock<boost::shared_mutex> lock2(rhs.mtx);
@@ -72,38 +72,35 @@ void ThreadSafeMap<K, V>::set(const K& key, const V& value)
 }
 
 template <typename K, typename V>
-bool ThreadSafeMap<K, V>::get(const K& key, V& value) const
+boost::optional<V> ThreadSafeMap<K, V>::get(const K& key) const
 {
-    boost::shared_lock<boost::shared_mutex>                   lock(mtx);
+    boost::shared_lock<boost::shared_mutex> lock(mtx);
     typename std::map<K, V>::const_iterator it = theMap.find(key);
     if (it == theMap.cend()) {
-        return false;
+        return boost::none;
     } else {
-        value = it->second;
-        return true;
+        return boost::make_optional(it->second);
     }
 }
 
-template<typename K, typename V>
-bool ThreadSafeMap<K, V>::front(value_type &key_value) const
+template <typename K, typename V>
+boost::optional<V> ThreadSafeMap<K, V>::front() const
 {
     boost::shared_lock<boost::shared_mutex> lock(mtx);
     if (theMap.size() == 0) {
-        return false;
+        return boost::none;
     }
-    key_value = *theMap.cbegin();
-    return true;
+    return boost::make_optional(*theMap.cbegin());
 }
 
-template<typename K, typename V>
-bool ThreadSafeMap<K, V>::back(value_type &key_value) const
+template <typename K, typename V>
+boost::optional<V> ThreadSafeMap<K, V>::back() const
 {
     boost::shared_lock<boost::shared_mutex> lock(mtx);
     if (theMap.size() == 0) {
-        return false;
+        return boost::none;
     }
-    key_value = *theMap.crbegin();
-    return true;
+    return boost::make_optional(*theMap.crbegin());
 }
 
 template <typename K, typename V>
@@ -157,7 +154,7 @@ template <typename K, typename V>
 std::map<K, V> ThreadSafeMap<K, V>::getInternalMap() const
 {
     boost::unique_lock<boost::shared_mutex> lock(mtx);
-    std::map<K, V>        safeCopy = theMap;
+    std::map<K, V>                          safeCopy = theMap;
     return safeCopy;
 }
 

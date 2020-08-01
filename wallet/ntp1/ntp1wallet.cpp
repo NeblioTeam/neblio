@@ -416,8 +416,7 @@ std::string NTP1Wallet::getTokenIcon(int index)
         IconDownloadThread.detach();
         return "";
     } else {
-        std::string icon;
-        tokenIcons.get(tokenId, icon);
+        std::string icon = tokenIcons.get(tokenId).value_or("");
         // if there was an error getting the icon OR the icon is empty, and a download URL now
         // exists, download again
         if (icon == ICON_ERROR_CONTENT || (icon == "" && !itToken->second.getIconURL().empty())) {
@@ -427,7 +426,7 @@ std::string NTP1Wallet::getTokenIcon(int index)
             IconDownloadThread.detach();
         }
 
-        tokenIcons.get(tokenId, icon);
+        icon = tokenIcons.get(tokenId).value_or("");
         return icon;
     }
 }
