@@ -68,8 +68,8 @@ public:
         qSort(cachedAddressTable.begin(), cachedAddressTable.end(), AddressTableEntryLessThan());
     }
 
-    void updateEntry(const QString& address, const QString& label, bool isMine, const QString& purpose,
-                     int status)
+    void updateEntry(const QString& address, const QString& label, bool isMine,
+                     const QString& /*purpose*/, int status)
     {
         // Find address / label in model
         QList<AddressTableEntry>::iterator lower = qLowerBound(
