@@ -76,7 +76,9 @@ public:
         SendToOther,
         RecvWithAddress,
         RecvFromOther,
-        SendToSelf
+        SendToSelf,
+        ColdStaker,
+        ColdDelegator
     };
 
     static const int RecommendedNumConfirmations =

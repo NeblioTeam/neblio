@@ -187,6 +187,18 @@ QVariant AddressTableModel::data(const QModelIndex& index, int role) const
     return QVariant();
 }
 
+/* Look up purpose for address in address book
+ */
+std::string AddressTableModel::purposeForAddress(const std::string& address) const
+{
+    return wallet->purposeForAddress(CBitcoinAddress(address).Get());
+}
+
+bool AddressTableModel::isWhitelisted(const std::string& address) const
+{
+    return purposeForAddress(address).compare(AddressBook::AddressBookPurpose::DELEGATOR) == 0;
+}
+
 bool AddressTableModel::setData(const QModelIndex& index, const QVariant& value, int role)
 {
     if (!index.isValid())

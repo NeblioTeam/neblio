@@ -216,6 +216,8 @@ void TransactionTableModel::updateTransaction(const QString& hash, int status)
     updated.SetHex(hash.toStdString());
 
     priv->updateWallet(updated, status);
+
+    emit txArrived(hash);
 }
 
 void TransactionTableModel::updateConfirmations()
@@ -324,6 +326,10 @@ QString TransactionTableModel::formatTxType(const TransactionRecord* wtx) const
         return tr("Payment to yourself");
     case TransactionRecord::Generated:
         return tr("Mined");
+    case TransactionRecord::ColdStaker:
+        return tr("Received cold-stake delegation");
+    case TransactionRecord::ColdDelegator:
+        return tr("Sent cold-stake delegation");
     default:
         return QString();
     }
@@ -340,6 +346,10 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord* wtx
     case TransactionRecord::SendToAddress:
     case TransactionRecord::SendToOther:
         return QIcon(":/icons/tx_output");
+    case TransactionRecord::ColdStaker:
+        return QIcon(":/images/coldstaking");
+    case TransactionRecord::ColdDelegator:
+        return QIcon(":/images/coldstaking");
     default:
         return QIcon(":/icons/tx_inout");
     }
@@ -357,6 +367,10 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord* wtx, b
         return lookupAddress(wtx->address, tooltip);
     case TransactionRecord::SendToOther:
         return QString::fromStdString(wtx->address);
+    case TransactionRecord::ColdStaker:
+        return QString::fromStdString(wtx->address);
+    case TransactionRecord::ColdDelegator:
+        return QString::fromStdString(wtx->address);
     case TransactionRecord::SendToSelf:
     default:
         return tr("(n/a)");
@@ -369,6 +383,8 @@ QVariant TransactionTableModel::addressColor(const TransactionRecord* wtx) const
     switch (wtx->type) {
     case TransactionRecord::RecvWithAddress:
     case TransactionRecord::SendToAddress:
+    case TransactionRecord::ColdDelegator:
+    case TransactionRecord::ColdStaker:
     case TransactionRecord::Generated: {
         QString label =
             walletModel->getAddressTableModel()->labelForAddress(QString::fromStdString(wtx->address));

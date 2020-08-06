@@ -503,3 +503,49 @@ void WalletModel::lockCoin(COutPoint& /*output*/) { return; }
 void WalletModel::unlockCoin(COutPoint& /*output*/) { return; }
 
 void WalletModel::listLockedCoins(std::vector<COutPoint>& /*vOutpts*/) { return; }
+
+bool WalletModel::whitelistAddressFromColdStaking(const QString& addressStr)
+{
+    return updateAddressBookPurpose(addressStr, AddressBook::AddressBookPurpose::DELEGATOR);
+}
+
+bool WalletModel::blacklistAddressFromColdStaking(const QString& addressStr)
+{
+    return updateAddressBookPurpose(addressStr, AddressBook::AddressBookPurpose::DELEGABLE);
+}
+
+bool WalletModel::updateAddressBookPurpose(const QString& addressStr, const std::string& purpose)
+{
+    CBitcoinAddress address(addressStr.toStdString());
+    CKeyID          keyID;
+    if (!getKeyId(address, keyID))
+        return false;
+    return pwalletMain->SetAddressBookEntry(keyID, getLabelForAddress(address), purpose);
+}
+
+std::string WalletModel::getLabelForAddress(const CBitcoinAddress& address)
+{
+    std::string label = "";
+    {
+        LOCK(wallet->cs_wallet);
+        std::map<CTxDestination, AddressBook::CAddressBookData>::iterator mi =
+            wallet->mapAddressBook.find(address.Get());
+        if (mi != wallet->mapAddressBook.end()) {
+            label = mi->second.name;
+        }
+    }
+    return label;
+}
+
+bool WalletModel::getKeyId(const CBitcoinAddress& address, CKeyID& keyID)
+{
+    if (!address.IsValid())
+        return ::error("Invalid neblio address: %s", address.ToString().c_str());
+
+    if (!address.GetKeyID(keyID))
+        return ::error("Unable to get KeyID from neblio address: %s", address.ToString().c_str());
+
+    return true;
+}
+
+CWallet* WalletModel::getWallet() { return wallet; }

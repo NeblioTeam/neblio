@@ -345,7 +345,7 @@ void ParseString(const string& str, char c, vector<string>& v)
     }
 }
 
-string FormatMoney(int64_t n, bool fPlus)
+string FormatMoney(CAmount n, bool fPlus)
 {
     // Note: not using straight sprintf here because we do NOT want
     // localized number formatting.

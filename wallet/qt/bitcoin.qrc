@@ -31,6 +31,7 @@
         <file alias="history">res/icons/history.png</file>
         <file alias="overview">res/icons/overview.png</file>
         <file alias="ntp1summary">res/icons/ntp1summary.png</file>
+        <file alias="cold">res/icons/cold.png</file>
         <file alias="open">res/icons/open.png</file>
         <file alias="export">res/icons/export.png</file>
         <file alias="synced">res/icons/synced.png</file>
@@ -57,6 +58,7 @@
         <file alias="splash">res/images/splash3.png</file>
         <file alias="logo_left">res/images/logo_left.png</file>
         <file alias="neblio_vector">res/images/neblio.svg</file>
+        <file alias="coldstaking">res/images/coldstaking.png</file>
         <file alias="neblio">res/images/neblio.png</file>
         <file alias="no-backup-made">res/images/no-backup-made.png</file>
         <file alias="no-backup-made-empty">res/images/no-backup-made-empty.png</file>

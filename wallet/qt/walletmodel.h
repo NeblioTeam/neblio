@@ -147,6 +147,14 @@ public:
     void unlockCoin(COutPoint& output);
     void listLockedCoins(std::vector<COutPoint>& vOutpts);
 
+    bool        whitelistAddressFromColdStaking(const QString& addressStr);
+    bool        blacklistAddressFromColdStaking(const QString& address);
+    bool        updateAddressBookPurpose(const QString& addressStr, const std::string& purpose);
+    std::string getLabelForAddress(const CBitcoinAddress& address);
+    bool        getKeyId(const CBitcoinAddress& address, CKeyID& keyID);
+
+    CWallet* getWallet();
+
 private:
     CWallet* wallet;
 

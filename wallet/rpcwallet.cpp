@@ -205,6 +205,11 @@ Object CreateColdStakeDelegation(const Array& params, CWalletTx& wtxNew, CReserv
         CKeyID keyID = newKey.GetID();
         ownerAddr    = CBitcoinAddress(keyID);
 
+        // set address book entry
+        if (pwalletMain) {
+            pwalletMain->SetAddressBookEntry(ownerAddr.Get(), "Delegator address");
+        }
+
         if (!ownerAddr.GetKeyID(ownerKey))
             throw JSONRPCError(RPC_WALLET_ERROR, "Unable to get spend pubkey hash from owneraddress");
     }

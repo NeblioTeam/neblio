@@ -480,6 +480,9 @@ add_library(gui_lib STATIC
     wallet/qt/ClickableLabel.cpp
     wallet/qt/neblioupdatedialog.cpp
     wallet/qt/messageboxwithtimer.cpp
+    wallet/qt/coldstakingpage.cpp
+    wallet/qt/coldstakingmodel.cpp
+    wallet/qt/coinstakinglistitemdelegate.cpp
     ${QRCODE_SOURCES}
     )
 
@@ -500,6 +503,7 @@ add_library(ui_lib STATIC
     wallet/qt/ui_askpassphrasedialog.h
     wallet/qt/ui_coincontroldialog.h
     wallet/qt/ui_editaddressdialog.h
+    wallet/qt/ui_coldstakingpage.h
     wallet/qt/ui_ntp1summary.h
     wallet/qt/ui_optionsdialog.h
     wallet/qt/ui_overviewpage.h

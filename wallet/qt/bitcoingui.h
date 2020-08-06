@@ -1,7 +1,9 @@
 #ifndef BITCOINGUI_H
 #define BITCOINGUI_H
 
+#include "coldstakingpage.h"
 #include "ntp1summary.h"
+#include "overviewpage.h"
 #include <QLinearGradient>
 #include <QMainWindow>
 #include <QPainter>
@@ -9,7 +11,6 @@
 #include <QStatusBar>
 #include <QSystemTrayIcon>
 #include <QToolBar>
-#include "overviewpage.h"
 
 #include <stdint.h>
 
@@ -103,6 +104,7 @@ private:
 
     OverviewPage*            overviewPage;
     NTP1Summary*             ntp1SummaryPage;
+    ColdStakingPage*         coldStakingPage;
     QWidget*                 transactionsPage;
     AddressBookPage*         addressBookPage;
     AddressBookPage*         receiveCoinsPage;
@@ -122,6 +124,7 @@ private:
     QMenuBar* appMenuBar;
     QAction*  overviewAction;
     QAction*  ntp1tokensAction;
+    QAction*  coldStakingAction;
     QAction*  historyAction;
     QAction*  quitAction;
     QAction*  sendCoinsAction;
@@ -235,6 +238,8 @@ private slots:
     void gotoOverviewPage();
     /** Switch to NTP1 tokens summary page */
     void gotoNTP1SummaryPage();
+    /** Switch to Coldstaking page */
+    void gotoColdStakingPage();
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
     /** Switch to address book page */

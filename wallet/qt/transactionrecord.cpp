@@ -70,6 +70,32 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
                     sub.credit = nNet > 0 ? nNet : wtx.GetValueOut() - nDebit;
                     hashPrev   = hash;
                 }
+                if (wtx.HasP2CSOutputs()) {
+                    CTxOut p2csUtxo;
+                    for (unsigned int nOut = 0; nOut < wtx.vout.size(); nOut++) {
+                        const CTxOut& txout = wtx.vout[nOut];
+                        if (txout.scriptPubKey.IsPayToColdStaking()) {
+                            p2csUtxo = txout;
+                            break;
+                        }
+                    }
+                    bool isSpendable = wallet->IsMine(p2csUtxo) & ISMINE_SPENDABLE_DELEGATED;
+                    if (isSpendable) {
+                        // Wallet delegating balance
+                        sub.type = TransactionRecord::ColdDelegator;
+                        CTxDestination dest;
+                        if (ExtractDestination(p2csUtxo.scriptPubKey, dest, true)) {
+                            sub.address = "Delegated to: " + CBitcoinAddress(dest).ToString();
+                        }
+                    } else {
+                        // Wallet receiving a delegation
+                        sub.type = TransactionRecord::ColdStaker;
+                        CTxDestination dest;
+                        if (ExtractDestination(p2csUtxo.scriptPubKey, dest, false)) {
+                            sub.address = "Delegated from: " + CBitcoinAddress(dest).ToString();
+                        }
+                    }
+                }
 
                 parts.append(sub);
             }

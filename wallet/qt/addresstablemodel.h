@@ -71,6 +71,10 @@ public:
 
     EditStatus getEditStatus() const { return editStatus; }
 
+    std::string purposeForAddress(const std::string& address) const;
+
+    bool isWhitelisted(const std::string& address) const;
+
 private:
     WalletModel*      walletModel;
     CWallet*          wallet;
