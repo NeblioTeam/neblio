@@ -207,6 +207,13 @@ private:
                                  .y(),
                              this->size().width(), ntp1SummaryPage->ui->bottom_bar_widget->height());
         }
+        if (coldStakingAction->isChecked()) {
+            painter.drawRect(0,
+                             coldStakingPage->ui->bottom_bar_widget
+                                 ->mapTo(coldStakingPage->ui->bottom_bar_widget->window(), QPoint(0, 0))
+                                 .y(),
+                             this->size().width(), coldStakingPage->ui->bottom_bar_widget->height());
+        }
     }
 
 public slots:
