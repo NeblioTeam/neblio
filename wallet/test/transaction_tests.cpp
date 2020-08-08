@@ -1,9 +1,12 @@
 #include "googletest/googletest/include/gtest/gtest.h"
+
+#include "environment.h"
+
 #include "json/json_spirit_writer_template.h"
 #include <map>
 #include <string>
 
-#include "NetworkForks.h"
+#include "chainparams.h"
 #include "main.h"
 #include "wallet.h"
 
@@ -358,12 +361,12 @@ TEST(transaction_tests, test_GetThrow)
     EXPECT_THROW(t1.GetValueIn(missingInputs), runtime_error);
 }
 
-void test_op_return_size(int currentHeight, int isTestnet, unsigned int expected_size)
+void test_op_return_size(int currentHeight, NetworkType netType, unsigned int expected_size)
 {
     nBestHeight = currentHeight;
-    fTestNet    = isTestnet;
+    SwitchNetworkTypeTemporarily state_holder(netType);
 
-    unsigned int allowedSize = DataSize();
+    unsigned int allowedSize = Params().OpReturnMaxSize();
 
     EXPECT_EQ(allowedSize, expected_size);
 
@@ -433,24 +436,58 @@ void test_op_return_size(int currentHeight, int isTestnet, unsigned int expected
 
 TEST(transaction_tests, op_return_size_mainnet_before_hf)
 {
-    int blocknum = TestnetForks.getFirstBlockOfFork(NetworkFork::NETFORK__3_TACHYON);
-    test_op_return_size(blocknum - 1, false, 80);
+    SwitchNetworkTypeTemporarily state_holder(NetworkType::Testnet);
+    int blocknum = Params().GetNetForks().getFirstBlockOfFork(NetworkFork::NETFORK__3_TACHYON);
+    test_op_return_size(blocknum - 1, NetworkType::Mainnet, 80);
 }
 
 TEST(transaction_tests, op_return_size_mainnet_after_hf)
 {
-    int blocknum = TestnetForks.getFirstBlockOfFork(NetworkFork::NETFORK__3_TACHYON);
-    test_op_return_size(blocknum, false, 80);
+    SwitchNetworkTypeTemporarily state_holder(NetworkType::Testnet);
+    int blocknum = Params().GetNetForks().getFirstBlockOfFork(NetworkFork::NETFORK__3_TACHYON);
+    test_op_return_size(blocknum, NetworkType::Mainnet, 80);
 }
 
 TEST(transaction_tests, op_return_size_testnet_before_hf)
 {
-    int blocknum = TestnetForks.getFirstBlockOfFork(NetworkFork::NETFORK__3_TACHYON);
-    test_op_return_size(blocknum - 1, true, 80);
+    SwitchNetworkTypeTemporarily state_holder(NetworkType::Testnet);
+    int blocknum = Params().GetNetForks().getFirstBlockOfFork(NetworkFork::NETFORK__3_TACHYON);
+    test_op_return_size(blocknum - 1, NetworkType::Testnet, 80);
 }
 
 TEST(transaction_tests, op_return_size_testnet_after_hf)
 {
-    int blocknum = TestnetForks.getFirstBlockOfFork(NetworkFork::NETFORK__3_TACHYON);
-    test_op_return_size(blocknum, true, 4096);
+    SwitchNetworkTypeTemporarily state_holder(NetworkType::Testnet);
+    int blocknum = Params().GetNetForks().getFirstBlockOfFork(NetworkFork::NETFORK__3_TACHYON);
+    test_op_return_size(blocknum, NetworkType::Testnet, 4096);
+}
+
+TEST(genesis, genesis_block_tests_mainnet)
+{
+    SwitchNetworkTypeTemporarily state_holder(NetworkType::Mainnet);
+    EXPECT_EQ(Params().GenesisBlock().GetHash(),
+              uint256("0x7286972be4dbc1463d256049b7471c252e6557e222cab9be73181d359cd28bcc"));
+    EXPECT_EQ(Params().GenesisBlockHash(), Params().GenesisBlock().GetHash());
+    EXPECT_EQ(Params().GenesisBlock().hashMerkleRoot,
+              uint256("0x203fd13214321a12b01c0d8b32c780977cf52e56ae35b7383cd389c73291aee7"));
+}
+
+TEST(genesis, genesis_block_tests_testnet)
+{
+    SwitchNetworkTypeTemporarily state_holder(NetworkType::Testnet);
+    EXPECT_EQ(Params().GenesisBlock().GetHash(),
+              uint256("0x7286972be4dbc1463d256049b7471c252e6557e222cab9be73181d359cd28bcc"));
+    EXPECT_EQ(Params().GenesisBlockHash(), Params().GenesisBlock().GetHash());
+    EXPECT_EQ(Params().GenesisBlock().hashMerkleRoot,
+              uint256("0x203fd13214321a12b01c0d8b32c780977cf52e56ae35b7383cd389c73291aee7"));
+}
+
+TEST(genesis, genesis_block_tests_regtest)
+{
+    SwitchNetworkTypeTemporarily state_holder(NetworkType::Regtest);
+    EXPECT_EQ(Params().GenesisBlock().GetHash(),
+              uint256("0x30a1a5c355bbdee5ad873ea6b1b74dc77052688cf0421f0ce36fdf968c94e9fa"));
+    EXPECT_EQ(Params().GenesisBlockHash(), Params().GenesisBlock().GetHash());
+    EXPECT_EQ(Params().GenesisBlock().hashMerkleRoot,
+              uint256("0x7f1bebe1b7fd896ebacb63834ee0b4e55880975aba163047fe061c86911b5749"));
 }

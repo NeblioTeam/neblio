@@ -17,14 +17,30 @@ if(WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wa,-mbig-obj")
 endif()
 
-option(COMPILE_GUI "Enable compiling neblio-qt" ON)
-option(COMPILE_DAEMON "Enable compiling nebliod" ON)
-option(COMPILE_CURL "Download and compile libcurl (and OpenSSL) automatically (Not for Windows)" OFF)
-option(COMPILE_TESTS "Build tests" ON)
-option(USE_QRCODE "Enable QRCode" ON)
-option(USE_UPNP   "Enable Miniupnpc" OFF)
-option(USE_DBUS   "Enable Dbus" ON)
-option(USE_CUSTOM_WARNINGS   "Enable custom warnings" OFF)
+option(COMPILE_GUI            "Enable compiling neblio-qt" ON)
+option(COMPILE_DAEMON         "Enable compiling nebliod" ON)
+option(COMPILE_CURL           "Download and compile libcurl (and OpenSSL) automatically (Not for Windows)" OFF)
+option(COMPILE_TESTS          "Build tests" ON)
+option(USE_QRCODE             "Enable QRCode" ON)
+option(USE_UPNP               "Enable Miniupnpc" OFF)
+option(USE_DBUS               "Enable Dbus" ON)
+option(USE_CUSTOM_WARNINGS    "Enable custom warnings" OFF)
+option(DISABLE_ASSERTS        "Disables asserts" OFF)
+option(CONFIGURE_SYSTEM_TESTS "Configure system tests" ON)
+option(DISABLE_ATTRUBTES_WARNINGS "Set the flag -Wno-attributes to disable attributes warnings (for CI)" OFF)
+
+if(DISABLE_ATTRUBTES_WARNINGS)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-attributes")
+endif()
+
+if(NOT DISABLE_ASSERTS)
+    # this removes the definition NDEBUG from release mode and release mode with debug info
+    # for both gcc/clang and Visual Studio
+    string( REPLACE "/DNDEBUG" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+    string( REPLACE "/DNDEBUG" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+    string( REPLACE "-DNDEBUG" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+    string( REPLACE "-DNDEBUG" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+endif()
 
 option(SANITIZE_THREAD "Enable clang thread-sanitizer (only for clang-compiler)" OFF)
 if(SANITIZE_THREAD)
@@ -48,7 +64,7 @@ if(SANITIZE_ADDRESS)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=address")
 endif()
 
-option(SANITIZE_LEAK "Enable clang memory-sanitizer (only for clang-compiler)" OFF)
+option(SANITIZE_LEAK "Enable clang leak-sanitizer (only for clang-compiler)" OFF)
 if(SANITIZE_LEAK)
     set(CMAKE_CXX_FLAGS           "${CMAKE_CXX_FLAGS} -g -fsanitize=leak")
     set(CMAKE_EXE_LINKER_FLAGS    "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=leak")
@@ -214,6 +230,8 @@ STRING(REGEX REPLACE "locale\/(bitcoin[a-zA-Z_]+\.qm)" "\\1" resources_file_data
 FILE(WRITE ${CMAKE_BINARY_DIR}/bitcoin.qrc "${resources_file_data_mod}")
 set(RESOURCE ${CMAKE_BINARY_DIR}/bitcoin.qrc)
 qt5_add_resources(RESOURCE_ADDED ${RESOURCE})
+
+add_subdirectory(test)
 
 add_definitions(-DBOOST_SPIRIT_THREADSAFE)
 
@@ -580,7 +598,12 @@ add_library(core_lib STATIC
     wallet/merkletx.cpp
     wallet/blocklocator.cpp
     wallet/crypto_highlevel.cpp
+    wallet/chainparamsbase.cpp
+    wallet/chainparams.cpp
+    wallet/consensus_params.cpp
+    wallet/amount.h
     wallet/CustomTypes.cpp
+    wallet/merkle.cpp
     wallet/udaddress.cpp
     )
 

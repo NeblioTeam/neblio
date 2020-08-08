@@ -32,6 +32,10 @@ Q_IMPORT_PLUGIN(qkrcodecs)
 Q_IMPORT_PLUGIN(qtaccessiblewidgets)
 #endif
 
+// Declare meta types used for QMetaObject::invokeMethod
+Q_DECLARE_METATYPE(bool*)
+Q_DECLARE_METATYPE(CAmount)
+
 // Need a global reference for the notifications to find the GUI
 static BitcoinGUI*    guiref;
 static QSplashScreen* splashref;
@@ -52,7 +56,7 @@ static void ThreadSafeMessageBox(const std::string& message, const std::string& 
     }
 }
 
-static bool ThreadSafeAskFee(int64_t nFeeRequired, const std::string& strCaption)
+static bool ThreadSafeAskFee(int64_t nFeeRequired, const std::string& /*strCaption*/)
 {
     if (!guiref)
         return false;
@@ -104,9 +108,10 @@ static void handleRunawayException(std::exception* e)
     PrintExceptionContinue(e, "Runaway exception");
     QMessageBox::critical(
         0, "Runaway exception",
-        BitcoinGUI::tr("A fatal error occurred. neblio can no longer continue safely and will quit.") +
-            QString("\n\n") + QString::fromStdString(strMiscWarning));
-    exit(1);
+        BitcoinGUI::tr(
+            "A fatal error occurred. neblio can no longer continue safely and will quit. Error: ") +
+            QString(e->what()) + QString("\n\n") + QString::fromStdString(strMiscWarning));
+    exit(EXIT_FAILURE);
 }
 
 #ifndef BITCOIN_QT_TEST
@@ -131,13 +136,21 @@ int main(int argc, char* argv[])
     Q_INIT_RESOURCE(bitcoin);
     QApplication app(argc, argv);
 
+    // Register meta types used for QMetaObject::invokeMethod
+    qRegisterMetaType<bool*>();
+    //   Need to pass name here as CAmount is a typedef (see
+    //   http://qt-project.org/doc/qt-5/qmetatype.html#qRegisterMetaType) IMPORTANT if it is no longer a
+    //   typedef use the normal variant above
+    qRegisterMetaType<CAmount>("CAmount");
+    qRegisterMetaType<std::function<void(void)>>("std::function<void(void)>");
+
     // Install global event filter that makes sure that long tooltips can be word-wrapped
     app.installEventFilter(new GUIUtil::ToolTipToRichTextFilter(TOOLTIP_WRAP_THRESHOLD, &app));
 
     // Command-line options take precedence:
     ParseParameters(argc, argv);
 
-    // ... then bitcoin.conf:
+    // ... then neblio.conf:
     if (!boost::filesystem::is_directory(GetDataDir(false))) {
         // This message can not be translated, as translation is not initialized yet
         // (which not yet possible because lang=XX can be overridden in bitcoin.conf in the data
@@ -147,9 +160,17 @@ int main(int argc, char* argv[])
         QMessageBox::critical(0, "neblio",
                               QString("Error: Specified data directory \"%1\" does not exist.")
                                   .arg(QString::fromStdString(datadirVal)));
-        return 1;
+        return EXIT_FAILURE;
     }
     ReadConfigFile(mapArgs, mapMultiArgs);
+
+    try {
+        // Check for -testnet or -regtest parameter (Params() calls are only valid after this clause)
+        SelectParams(ChainTypeFromCommandLine());
+    } catch (std::exception& e) {
+        QMessageBox::critical(0, "neblio", QObject::tr("Error: %1").arg(e.what()));
+        return EXIT_FAILURE;
+    }
 
     // Application identification (must be set before OptionsModel is initialized,
     // as it is used to locate QSettings)
@@ -205,7 +226,7 @@ int main(int argc, char* argv[])
     if (mapArgs.exists("-?") || mapArgs.exists("--help")) {
         GUIUtil::HelpMessageBox help;
         help.showOrPrint();
-        return 1;
+        return EXIT_FAILURE;
     }
 
     QSplashScreen splash(QPixmap(":/images/splash"), 0);
@@ -260,13 +281,13 @@ int main(int argc, char* argv[])
             // Shutdown the core and its threads, but don't exit Bitcoin-Qt here
             Shutdown(NULL);
         } else {
-            return 1;
+            return EXIT_FAILURE;
         }
     } catch (std::exception& e) {
         handleRunawayException(&e);
     } catch (...) {
-        handleRunawayException(NULL);
+        handleRunawayException(nullptr);
     }
-    return 0;
+    return EXIT_SUCCESS;
 }
 #endif // BITCOIN_QT_TEST

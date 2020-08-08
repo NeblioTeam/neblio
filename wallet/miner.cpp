@@ -4,12 +4,10 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <boost/interprocess/smart_ptr/unique_ptr.hpp>
-
+#include "miner.h"
 #include "block.h"
 #include "kernel.h"
 #include "main.h"
-#include "miner.h"
 #include "txdb.h"
 #include "txmempool.h"
 
@@ -109,37 +107,47 @@ public:
 };
 
 // CreateNewBlock: create new block (without proof-of-work/proof-of-stake)
-CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
+std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees,
+                                       const boost::optional<CBitcoinAddress>& PoWDestination)
 {
     // Create new block
     std::unique_ptr<CBlock> pblock(new CBlock());
-    if (!pblock.get())
+    if (!pblock)
         return nullptr;
 
     ConstCBlockIndexSmartPtr pindexPrev = boost::atomic_load(&pindexBest);
 
     // Create coinbase tx
-    CTransaction txNew;
-    txNew.vin.resize(1);
-    txNew.vin[0].prevout.SetNull();
-    txNew.vout.resize(1);
+    CTransaction coinbaseTx;
+    coinbaseTx.vin.resize(1);
+    coinbaseTx.vin[0].prevout.SetNull();
+    coinbaseTx.vout.resize(1);
 
     if (!fProofOfStake) {
-        CReserveKey reservekey(pwallet);
-        CPubKey     pubkey;
-        if (!reservekey.GetReservedKey(pubkey))
-            return nullptr;
-        txNew.vout[0].scriptPubKey.SetDestination(pubkey.GetID());
+        if (PoWDestination) {
+            coinbaseTx.vout[0].scriptPubKey.SetDestination(PoWDestination->Get());
+        } else {
+            CReserveKey reservekey(pwallet);
+            CPubKey     pubkey;
+            if (!reservekey.GetReservedKey(pubkey))
+                return nullptr;
+            coinbaseTx.vout[0].scriptPubKey.SetDestination(pubkey.GetID());
+        }
     } else {
         // Height first in coinbase required for block.version=2
-        txNew.vin[0].scriptSig = (CScript() << pindexPrev->nHeight + 1) + COINBASE_FLAGS;
-        assert(txNew.vin[0].scriptSig.size() <= 100);
+        coinbaseTx.vin[0].scriptSig = (CScript() << pindexPrev->nHeight + 1) + COINBASE_FLAGS;
+        assert(coinbaseTx.vin[0].scriptSig.size() <= 100);
 
-        txNew.vout[0].SetEmpty();
+        coinbaseTx.vout[0].SetEmpty();
     }
 
+    // -regtest only: allow overriding block.nVersion with
+    // -blockversion=N to test forking scenarios
+    if (Params().MineBlocksOnDemand())
+        pblock->nVersion = GetArg("-blockversion", pblock->nVersion);
+
     // Add our coinbase tx as first transaction
-    pblock->vtx.push_back(txNew);
+    pblock->vtx.push_back(coinbaseTx);
 
     unsigned int nSizeLimit = MaxBlockSize();
 
@@ -147,7 +155,7 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
     unsigned int nBlockMaxSize = GetArg("-blockmaxsize", nSizeLimit);
     // Limit to betweeen 1K and nSizeLimit-1K for sanity:
     nBlockMaxSize =
-        std::max((unsigned int)1000, std::min((unsigned int)(nSizeLimit - 1000), nBlockMaxSize));
+        std::max(1000u, std::min(static_cast<unsigned int>(nSizeLimit - 1000), nBlockMaxSize));
 
     // How much of the block should be dedicated to high-priority transactions,
     // included regardless of the fees they pay
@@ -425,7 +433,7 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
         pblock->nNonce = 0;
     }
 
-    return pblock.release();
+    return pblock;
 }
 
 void IncrementExtraNonce(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& nExtraNonce)
@@ -443,7 +451,7 @@ void IncrementExtraNonce(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& 
     pblock->vtx[0].vin[0].scriptSig = (CScript() << nHeight << CBigNum(nExtraNonce)) + COINBASE_FLAGS;
     assert(pblock->vtx[0].vin[0].scriptSig.size() <= 100);
 
-    pblock->hashMerkleRoot = pblock->BuildMerkleTree();
+    pblock->hashMerkleRoot = pblock->GetMerkleRoot();
 }
 
 void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash1)
@@ -580,7 +588,11 @@ void StakeMiner(CWallet* pwallet)
     // Make this thread recognisable as the mining thread
     RenameThread("neblio-miner");
 
-    bool fTryToSync = true;
+    bool fTryToSync = Params().MiningRequiresPeers();
+
+    // we don't stake in regtest mode
+    if (Params().MineBlocksOnDemand())
+        return;
 
     // synchronize memory once
     fShutdown.load(boost::memory_order_seq_cst);
@@ -593,7 +605,7 @@ void StakeMiner(CWallet* pwallet)
                 return;
         }
 
-        {
+        if (Params().MiningRequiresPeers()) {
             while (is_vNodesEmpty_safe() || IsInitialBlockDownload()) {
                 nLastCoinStakeSearchInterval = 0;
                 fTryToSync                   = true;
@@ -619,8 +631,8 @@ void StakeMiner(CWallet* pwallet)
         //
         // Create new block
         //
-        int64_t                 nFees;
-        std::unique_ptr<CBlock> pblock(CreateNewBlock(pwallet, true, &nFees));
+        CAmount                 nFees;
+        std::unique_ptr<CBlock> pblock = CreateNewBlock(pwallet, true, &nFees);
         if (!pblock)
             return;
 
@@ -630,7 +642,8 @@ void StakeMiner(CWallet* pwallet)
             CheckStake(pblock.get(), *pwallet);
             SetThreadPriority(THREAD_PRIORITY_LOWEST);
             MilliSleep(500);
-        } else
+        } else {
             MilliSleep(nMinerSleep);
+        }
     }
 }

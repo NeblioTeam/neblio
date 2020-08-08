@@ -1533,7 +1533,7 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
             else if (opcode2 == OP_SMALLDATA)
             {
                 // small pushdata, <= 4096 bytes after hard fork, 80 before
-                if (vch1.size() > DataSize())
+                if (vch1.size() > Params().OpReturnMaxSize())
                     break;
             }
             else if (opcode1 != opcode2 || vch1 != vch2)
@@ -1685,7 +1685,7 @@ private:
     const CKeyStore *keystore;
 public:
     CKeyStoreIsMineVisitor(const CKeyStore *keystoreIn) : keystore(keystoreIn) { }
-    bool operator()(const CNoDestination &dest) const { return false; }
+    bool operator()(const CNoDestination &/*dest*/) const { return false; }
     bool operator()(const CKeyID &keyID) const { return keystore->HaveKey(keyID); }
     bool operator()(const CScriptID &scriptID) const { return keystore->HaveCScript(scriptID); }
 };
@@ -1790,7 +1790,7 @@ public:
             Process(script);
     }
 
-    void operator()(const CNoDestination &none) {}
+    void operator()(const CNoDestination &/*none*/) {}
 };
 
 
@@ -2145,7 +2145,7 @@ private:
 public:
     CScriptVisitor(CScript *scriptin) { script = scriptin; }
 
-    bool operator()(const CNoDestination &dest) const {
+    bool operator()(const CNoDestination &/*dest*/) const {
         script->clear();
         return false;
     }

@@ -14,6 +14,8 @@
 #include <boost/iostreams/copy.hpp>
 #include <boost/iostreams/filter/zlib.hpp>
 #include <boost/iostreams/filtering_stream.hpp>
+#include <future>
+#include <openssl/rand.h>
 
 // Work around clang compilation problem in Boost 1.46:
 // /usr/include/boost/program_options/detail/config_file.hpp:163:17: error: call to function
@@ -75,12 +77,14 @@ bool                                      fDaemon      = false;
 bool                                      fServer      = false;
 bool                                      fCommandLine = false;
 string                                    strMiscWarning;
-bool                                      fTestNet       = false;
 bool                                      fNoListen      = false;
 bool                                      fLogTimestamps = true;
 CMedianFilter<int64_t>                    vTimeOffsets(200, 0);
 bool                                      fReopenDebugLog = false;
 boost::atomic<bool>                       fShutdown{false};
+
+// Application startup time (used for uptime calculation)
+const int64_t nStartupTime = GetTime();
 
 boost::atomic_int MODEL_UPDATE_DELAY{500};
 
@@ -487,16 +491,6 @@ void ParseParameters(int argc, const char* const argv[])
         mapMultiArgs.get(str, vals);
         vals.push_back(strValue);
         mapMultiArgs.set(str, vals);
-    }
-
-    {
-        // add default neblio nodes
-        mapArgs.set("-addnode", "nebliodseed2.nebl.io");
-        std::vector<std::string> nodes;
-        mapMultiArgs.get("-addnode", nodes);
-        nodes.push_back("nebliodseed1.nebl.io");
-        nodes.push_back("nebliodseed2.nebl.io");
-        mapMultiArgs.set("-addnode", nodes);
     }
 
     std::unordered_map<std::string, std::string> mapArgsD = mapArgs.getInternalMap();
@@ -915,10 +909,10 @@ static std::string FormatException(std::exception* pex, const char* pszThread)
     const char* pszModule = "neblio";
 #endif
     if (pex)
-        return strprintf("EXCEPTION: %s       \n%s       \n%s in %s       \n", typeid(*pex).name(),
-                         pex->what(), pszModule, pszThread);
+        return strprintf("HANDLED EXCEPTION: %s       \n%s       \n%s in %s       \n",
+                         typeid(*pex).name(), pex->what(), pszModule, pszThread);
     else
-        return strprintf("UNKNOWN EXCEPTION       \n%s in %s       \n", pszModule, pszThread);
+        return strprintf("HANDLED UNKNOWN EXCEPTION       \n%s in %s       \n", pszModule, pszThread);
 }
 
 void PrintException(std::exception* pex, const char* pszThread)
@@ -985,8 +979,8 @@ const boost::filesystem::path& GetDataDir(bool fNetSpecific)
     LOCK(csPathCached);
 
     std::string datadirVal;
-    bool        datadirExists = mapArgs.get("-datadir", datadirVal);
-    if (datadirExists) {
+    bool        datadirExistsAsArg = mapArgs.get("-datadir", datadirVal);
+    if (datadirExistsAsArg) {
         path = fs::system_complete(datadirVal);
         if (!fs::is_directory(path)) {
             path = "";
@@ -995,8 +989,8 @@ const boost::filesystem::path& GetDataDir(bool fNetSpecific)
     } else {
         path = GetDefaultDataDir();
     }
-    if (fNetSpecific && GetBoolArg("-testnet", false))
-        path /= "testnet";
+    if (fNetSpecific)
+        path /= BaseParams().DataDir();
 
     fs::create_directories(path);
 
@@ -1110,14 +1104,17 @@ void ShrinkDebugFile()
 //  - Median of other nodes clocks
 //  - The user (asking the user to fix the system clock if the first two disagree)
 //
-static int64_t nMockTime = 0; // For unit testing
+static boost::atomic<int64_t> nMockTime{0}; // For unit testing
 
 int64_t GetTime()
 {
-    if (nMockTime)
-        return nMockTime;
+    const int64_t mocktime = nMockTime.load(boost::memory_order_relaxed);
+    if (mocktime)
+        return mocktime;
 
-    return time(NULL);
+    time_t now = time(nullptr);
+    assert(now > 0);
+    return now;
 }
 
 void SetMockTime(int64_t nMockTimeIn) { nMockTime = nMockTimeIn; }
@@ -1492,3 +1489,134 @@ string GetMimeTypeFromPath(const string& path)
         return "image/svg+xml";
     return "application/text";
 }
+
+bool RandomBytesToBuffer(unsigned char* buffer, size_t size)
+{
+    if (RAND_bytes(buffer, size) != 1) {
+        printf("Failed to generate random buffer with size %zu", size);
+        return false;
+    }
+    return true;
+}
+
+/** Upper bound for mantissa.
+ * 10^18-1 is the largest arbitrary decimal that will fit in a signed 64-bit integer.
+ * Larger integers cannot consist of arbitrary combinations of 0-9:
+ *
+ *   999999999999999999  1^18-1
+ *  9223372036854775807  (1<<63)-1  (max int64_t)
+ *  9999999999999999999  1^19-1     (would overflow)
+ */
+static const int64_t UPPER_BOUND = 1000000000000000000LL - 1LL;
+
+/** Helper function for ParseFixedPoint */
+static inline bool ProcessMantissaDigit(char ch, int64_t& mantissa, int& mantissa_tzeros)
+{
+    if (ch == '0')
+        ++mantissa_tzeros;
+    else {
+        for (int i = 0; i <= mantissa_tzeros; ++i) {
+            if (mantissa > (UPPER_BOUND / 10LL))
+                return false; /* overflow */
+            mantissa *= 10;
+        }
+        mantissa += ch - '0';
+        mantissa_tzeros = 0;
+    }
+    return true;
+}
+
+bool ParseFixedPoint(const std::string& val, int decimals, int64_t* amount_out)
+{
+    int64_t mantissa        = 0;
+    int64_t exponent        = 0;
+    int     mantissa_tzeros = 0;
+    bool    mantissa_sign   = false;
+    bool    exponent_sign   = false;
+    int     ptr             = 0;
+    int     end             = val.size();
+    int     point_ofs       = 0;
+
+    if (ptr < end && val[ptr] == '-') {
+        mantissa_sign = true;
+        ++ptr;
+    }
+    if (ptr < end) {
+        if (val[ptr] == '0') {
+            /* pass single 0 */
+            ++ptr;
+        } else if (val[ptr] >= '1' && val[ptr] <= '9') {
+            while (ptr < end && std::isdigit(val[ptr])) {
+                if (!ProcessMantissaDigit(val[ptr], mantissa, mantissa_tzeros))
+                    return false; /* overflow */
+                ++ptr;
+            }
+        } else
+            return false; /* missing expected digit */
+    } else
+        return false; /* empty string or loose '-' */
+    if (ptr < end && val[ptr] == '.') {
+        ++ptr;
+        if (ptr < end && std::isdigit(val[ptr])) {
+            while (ptr < end && std::isdigit(val[ptr])) {
+                if (!ProcessMantissaDigit(val[ptr], mantissa, mantissa_tzeros))
+                    return false; /* overflow */
+                ++ptr;
+                ++point_ofs;
+            }
+        } else
+            return false; /* missing expected digit */
+    }
+    if (ptr < end && (val[ptr] == 'e' || val[ptr] == 'E')) {
+        ++ptr;
+        if (ptr < end && val[ptr] == '+')
+            ++ptr;
+        else if (ptr < end && val[ptr] == '-') {
+            exponent_sign = true;
+            ++ptr;
+        }
+        if (ptr < end && std::isdigit(val[ptr])) {
+            while (ptr < end && std::isdigit(val[ptr])) {
+                if (exponent > (UPPER_BOUND / 10LL))
+                    return false; /* overflow */
+                exponent = exponent * 10 + val[ptr] - '0';
+                ++ptr;
+            }
+        } else
+            return false; /* missing expected digit */
+    }
+    if (ptr != end)
+        return false; /* trailing garbage */
+
+    /* finalize exponent */
+    if (exponent_sign)
+        exponent = -exponent;
+    exponent = exponent - point_ofs + mantissa_tzeros;
+
+    /* finalize mantissa */
+    if (mantissa_sign)
+        mantissa = -mantissa;
+
+    /* convert to one 64-bit fixed-point value */
+    exponent += decimals;
+    if (exponent < 0)
+        return false; /* cannot represent values smaller than 10^-decimals */
+    if (exponent >= 18)
+        return false; /* cannot represent values larger than or equal to 10^(18-decimals) */
+
+    for (int i = 0; i < exponent; ++i) {
+        if (mantissa > (UPPER_BOUND / 10LL) || mantissa < -(UPPER_BOUND / 10LL))
+            return false; /* overflow */
+        mantissa *= 10;
+    }
+    if (mantissa > UPPER_BOUND || mantissa < -UPPER_BOUND)
+        return false; /* overflow */
+
+    if (amount_out)
+        *amount_out = mantissa;
+
+    return true;
+}
+
+// Obtain the application startup time (used for uptime calculation)
+int64_t GetStartupTime() { return nStartupTime; }

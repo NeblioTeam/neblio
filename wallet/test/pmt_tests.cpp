@@ -1,7 +1,7 @@
 #include "googletest/googletest/include/gtest/gtest.h"
 
-#include "uint256.h"
 #include "main.h"
+#include "uint256.h"
 
 using namespace std;
 
@@ -9,10 +9,11 @@ class CPartialMerkleTreeTester : public CPartialMerkleTree
 {
 public:
     // flip one bit in one of the hashes - this should break the authentication
-    void Damage() {
-        unsigned int n = rand() % vHash.size();
-        int bit = rand() % 256;
-        uint256 &hash = vHash[n];
+    void Damage()
+    {
+        unsigned int n    = rand() % vHash.size();
+        int          bit  = rand() % 256;
+        uint256&     hash = vHash[n];
         hash ^= ((uint256)1 << bit);
     }
 };
@@ -26,31 +27,32 @@ TEST(pmt_tests, pmt_test1)
 
         // build a block with some dummy transactions
         CBlock block;
-        for (unsigned int j=0; j<nTx; j++) {
+        for (unsigned int j = 0; j < nTx; j++) {
             CTransaction tx;
-            tx.nLockTime = rand(); // actual transaction data doesn't matter; just make the nLockTime's unique
+            tx.nLockTime =
+                rand(); // actual transaction data doesn't matter; just make the nLockTime's unique
             block.vtx.push_back(tx);
         }
 
         // calculate actual merkle root and height
-        uint256 merkleRoot1 = block.BuildMerkleTree();
+        uint256              merkleRoot1 = block.GetMerkleRoot();
         std::vector<uint256> vTxid(nTx, 0);
-        for (unsigned int j=0; j<nTx; j++)
+        for (unsigned int j = 0; j < nTx; j++)
             vTxid[j] = block.vtx[j].GetHash();
         int nHeight = 1, nTx_ = nTx;
         while (nTx_ > 1) {
-            nTx_ = (nTx_+1)/2;
+            nTx_ = (nTx_ + 1) / 2;
             nHeight++;
         }
 
         // check with random subsets with inclusion chances 1, 1/2, 1/4, ..., 1/128
         for (int att = 1; att < 15; att++) {
             // build random subset of txid's
-            std::vector<bool> vMatch(nTx, false);
+            std::vector<bool>    vMatch(nTx, false);
             std::vector<uint256> vMatchTxid1;
-            for (unsigned int j=0; j<nTx; j++) {
-                bool fInclude = (rand() & ((1 << (att/2)) - 1)) == 0;
-                vMatch[j] = fInclude;
+            for (unsigned int j = 0; j < nTx; j++) {
+                bool fInclude = (rand() & ((1 << (att / 2)) - 1)) == 0;
+                vMatch[j]     = fInclude;
                 if (fInclude)
                     vMatchTxid1.push_back(vTxid[j]);
             }
@@ -63,8 +65,8 @@ TEST(pmt_tests, pmt_test1)
             ss << pmt1;
 
             // verify CPartialMerkleTree's size guarantees
-            unsigned int n = std::min<unsigned int>(nTx, 1 + vMatchTxid1.size()*nHeight);
-            EXPECT_TRUE(ss.size() <= 10 + (258*n+7)/8);
+            unsigned int n = std::min<unsigned int>(nTx, 1 + vMatchTxid1.size() * nHeight);
+            EXPECT_TRUE(ss.size() <= 10 + (258 * n + 7) / 8);
 
             // deserialize into a tester copy
             CPartialMerkleTreeTester pmt2;
@@ -72,7 +74,7 @@ TEST(pmt_tests, pmt_test1)
 
             // extract merkle root and matched txids from copy
             std::vector<uint256> vMatchTxid2;
-            uint256 merkleRoot2 = pmt2.ExtractMatches(vMatchTxid2);
+            uint256              merkleRoot2 = pmt2.ExtractMatches(vMatchTxid2);
 
             // check that it has the same merkle root as the original, and a valid one
             EXPECT_TRUE(merkleRoot1 == merkleRoot2);
@@ -82,11 +84,11 @@ TEST(pmt_tests, pmt_test1)
             EXPECT_TRUE(vMatchTxid1 == vMatchTxid2);
 
             // check that random bit flips break the authentication
-            for (int j=0; j<4; j++) {
+            for (int j = 0; j < 4; j++) {
                 CPartialMerkleTreeTester pmt3(pmt2);
                 pmt3.Damage();
                 std::vector<uint256> vMatchTxid3;
-                uint256 merkleRoot3 = pmt3.ExtractMatches(vMatchTxid3);
+                uint256              merkleRoot3 = pmt3.ExtractMatches(vMatchTxid3);
                 EXPECT_TRUE(merkleRoot3 != merkleRoot1);
             }
         }

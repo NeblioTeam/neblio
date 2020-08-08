@@ -21,31 +21,6 @@ using namespace boost;
 using namespace boost::assign;
 using namespace json_spirit;
 
-void ScriptPubKeyToJSON(const CScript& scriptPubKey, Object& out, bool fIncludeHex)
-{
-    txnouttype             type;
-    vector<CTxDestination> addresses;
-    int                    nRequired;
-
-    out.push_back(Pair("asm", scriptPubKey.ToString()));
-
-    if (fIncludeHex)
-        out.push_back(Pair("hex", HexStr(scriptPubKey.begin(), scriptPubKey.end())));
-
-    if (!ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
-        out.push_back(Pair("type", GetTxnOutputType(type)));
-        return;
-    }
-
-    out.push_back(Pair("reqSigs", nRequired));
-    out.push_back(Pair("type", GetTxnOutputType(type)));
-
-    Array a;
-    for (const CTxDestination& addr : addresses)
-        a.push_back(CBitcoinAddress(addr).ToString());
-    out.push_back(Pair("addresses", a));
-}
-
 template <typename T>
 json_spirit::Value GetNTP1TxMetadata(const CTransaction& tx) noexcept
 {
@@ -82,6 +57,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry, bo
             isNTP1 = false;
         }
     }
+    entry.push_back(Pair("size", (int)::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION)));
     entry.push_back(Pair("txid", tx.GetHash().GetHex()));
     entry.push_back(Pair("version", tx.nVersion));
     entry.push_back(Pair("time", (int64_t)tx.nTime));
@@ -178,26 +154,69 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry, bo
 
 Value getrawtransaction(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 1 || params.size() > 3)
-        throw runtime_error("getrawtransaction <txid> [verbose=0] [ignoreNTP1=false]\n"
+    if (fHelp || params.size() < 1 || params.size() > 4)
+        throw runtime_error("getrawtransaction <txid> [verbose=0] [ignoreNTP1=false] [blockhash=null]\n"
                             "If verbose=0, returns a string that is\n"
                             "serialized, hex-encoded data for <txid>.\n"
                             "If verbose is non-zero, returns an Object\n"
-                            "with information about <txid>. Not ignoring NTP1 will try to retireve NTP1 "
+                            "with information about <txid>. "
+                            "If blockhash is provided, the transaction will be sought only in that block"
+                            "Not ignoring NTP1 will try to retireve NTP1 "
                             "data from the database. This won't work if the transaction is not in the "
                             "blockchain.");
 
-    uint256 hash;
-    hash.SetHex(params[0].get_str());
+    LOCK(cs_main);
+
+    uint256      hash            = ParseHashV(params[0], "parameter 1");
+    bool         in_active_chain = true;
+    CBlockIndex* blockindex      = nullptr;
+
+    if (hash == Params().GenesisBlock().hashMerkleRoot) {
+        // Special exception for the genesis block coinbase transaction
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "The genesis block coinbase is not considered an "
+                                                       "ordinary transaction and cannot be retrieved");
+    }
 
     bool fVerbose = false;
-    if (params.size() > 1)
+    // TODO: verbose should be changed to boolean
+    if (params.size() > 1) {
         fVerbose = (params[1].get_int() != 0);
+    }
 
     CTransaction tx;
     uint256      hashBlock = 0;
-    if (!GetTransaction(hash, tx, hashBlock))
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
+
+    if (params.size() > 3) {
+        // if a specific block was mentioned, get it from the database and look for the tx in it
+        {
+            uint256                     blockhash = ParseHashV(params[3], "parameter 3");
+            BlockIndexMapType::iterator it        = mapBlockIndex.find(blockhash);
+            if (it == mapBlockIndex.end()) {
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block hash not found");
+            }
+            blockindex      = it->second.get();
+            in_active_chain = blockindex->IsInMainChain();
+        }
+
+        hashBlock = ParseHashV(params[3], "blockhash");
+        CTxDB  txdb;
+        CBlock block;
+        if (!txdb.ReadBlock(hashBlock, block, true)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block hash not found");
+        }
+        auto txIt = std::find_if(block.vtx.cbegin(), block.vtx.cend(),
+                                 [&hash](const CTransaction& t) { return t.GetHash() == hash; });
+        if (txIt == block.vtx.cend()) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
+                               "No such transaction found in the provided block. Use gettransaction for "
+                               "wallet transactions.");
+        }
+        tx = *txIt;
+    } else {
+        // if no specific block was mentioned, then get the tx from the mempool, or the main chain
+        if (!GetTransaction(hash, tx, hashBlock))
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
+    }
 
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
     ssTx << tx;
@@ -212,6 +231,9 @@ Value getrawtransaction(const Array& params, bool fHelp)
 
     Object result;
     result.push_back(Pair("hex", strHex));
+    if (blockindex) {
+        result.push_back(Pair("in_active_chain", in_active_chain));
+    }
     TxToJSON(tx, hashBlock, result, fIgnoreNTP1);
     return result;
 }
@@ -272,7 +294,7 @@ Value listunspent(const Array& params, bool fHelp)
                 continue;
         }
 
-        int64_t        nValue = out.tx->vout[out.i].nValue;
+        CAmount        nValue = out.tx->vout[out.i].nValue;
         const CScript& pk     = out.tx->vout[out.i].scriptPubKey;
         Object         entry;
         entry.push_back(Pair("txid", out.tx->GetHash().GetHex()));
@@ -350,7 +372,7 @@ Value createrawtransaction(const Array& params, bool fHelp)
 
         CScript scriptPubKey;
         scriptPubKey.SetDestination(address.Get());
-        int64_t nAmount = AmountFromValue(s.value_);
+        CAmount nAmount = AmountFromValue(s.value_);
 
         CTxOut out(nAmount, scriptPubKey);
         rawTx.vout.push_back(out);
@@ -753,8 +775,13 @@ Value sendrawtransaction(const Array& params, bool fHelp)
         // through to re-relay it.
     } else {
         // push to local node
-        if (!AcceptToMemoryPool(mempool, tx, NULL))
+        bool fMissingInputs = false;
+        if (!AcceptToMemoryPool(mempool, tx, &fMissingInputs)) {
+            if (fMissingInputs) {
+                throw JSONRPCError(RPC_TRANSACTION_ERROR, "Missing inputs");
+            }
             throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX rejected");
+        }
 
         SyncWithWallets(tx, NULL, true);
     }

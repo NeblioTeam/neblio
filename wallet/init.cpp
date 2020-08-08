@@ -39,6 +39,8 @@ unsigned int             nDerivationMethodIndex;
 unsigned int             nMinerSleep;
 enum Checkpoints::CPMode CheckpointsMode;
 
+LockedVar<boost::signals2::signal<void()>> StopRPCRequests;
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // Shutdown
@@ -77,13 +79,18 @@ DBErrors LoadDBWalletTransient(bool& fFirstRun)
 
 void StartShutdown()
 {
+    // this shutdown flag is necessary because the rpc stops reading only when this flag is enabled. If
+    // this isn't done, and since reading the socket stream is synchronous, it'll infinitely block,
+    // preventing the program from shutting down indefinitely.
+    fShutdown.store(true, boost::memory_order_seq_cst);
+
 #ifdef QT_GUI
     // ensure we leave the Qt main loop for a clean GUI exit (Shutdown() is called in bitcoin.cpp
     // afterwards)
     uiInterface.QueueShutdown();
 #else
     // Without UI, Shutdown() can simply be started in a new thread
-    NewThread(Shutdown, NULL);
+    NewThread(Shutdown, nullptr);
 #endif
 }
 
@@ -105,7 +112,7 @@ void Shutdown(void* /*parg*/)
     }
     static bool fExit;
     if (fFirstThread) {
-        fShutdown = true;
+        fShutdown.store(true, boost::memory_order_seq_cst);
         nTransactionsUpdated++;
         //        CTxDB().Close();
         FlushDBWalletTransient(false);
@@ -113,13 +120,11 @@ void Shutdown(void* /*parg*/)
         FlushDBWalletTransient(true);
         boost::filesystem::remove(GetPidFile());
         UnregisterWallet(pwalletMain);
-        if (pwalletMain.use_count() > 1) {
-            printf("Waiting for pwalletMain instance users to finish\n");
-            while (pwalletMain.use_count() > 1) {
-                boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
-            }
-        }
+        std::weak_ptr<CWallet> weakWallet = pwalletMain;
         pwalletMain.reset();
+        while (weakWallet.lock()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
         NewThread(ExitTimeout, NULL);
         MilliSleep(50);
         printf("neblio exited\n\n");
@@ -173,6 +178,14 @@ bool AppInit(int argc, char* argv[])
 
             fprintf(stdout, "%s", strUsage.c_str());
             return false;
+        }
+
+        try {
+            // Check for -testnet or -regtest parameter (Params() calls are only valid after this clause)
+            SelectParams(ChainTypeFromCommandLine());
+        } catch (std::exception& e) {
+            fprintf(stderr, "Error: %s\n", e.what());
+            return EXIT_FAILURE;
         }
 
         // Command-line RPC
@@ -294,18 +307,21 @@ std::string HelpMessage()
 #if !defined(WIN32) && !defined(QT_GUI)
         "  -daemon                " + _("Run in the background as a daemon and accept commands") + "\n" +
 #endif
+        "  -rpccookiefile=<file>  " + _("Location of the auth cookie (default: data dir)") + "\n" +
         "  -testnet               " + _("Use the test network") + "\n" +
         "  -debug                 " + _("Output extra debugging information. Implies all other -debug* options") + "\n" +
         "  -debugnet              " + _("Output extra network debugging information") + "\n" +
         "  -logtimestamps         " + _("Prepend debug output with timestamp") + "\n" +
         "  -shrinkdebugfile       " + _("Shrink debug.log file on client startup (default: 1 when no -debug)") + "\n" +
         "  -printtoconsole        " + _("Send trace/debug info to console instead of debug.log file") + "\n" +
+        "  -uacomment=<cmt>       " + _("Append comment to the user agent string") + "\n" +
 #ifdef WIN32
         "  -printtodebugger       " + _("Send trace/debug info to debugger") + "\n" +
 #endif
+        "  -blockversion=<n>"       + _("Override block version to test forking scenarios (regtest only)") +
         "  -rpcuser=<user>        " + _("Username for JSON-RPC connections") + "\n" +
         "  -rpcpassword=<pw>      " + _("Password for JSON-RPC connections") + "\n" +
-        "  -rpcport=<port>        " + _("Listen for JSON-RPC connections on <port> (default: 6326 or testnet: 16326)") + "\n" +
+        "  -rpcport=<port>        " + _("Listen for JSON-RPC connections on <port> (default: 6326 or testnet: 16326 or regtest: 26326)") + "\n" +
         "  -rpcallowip=<ip>       " + _("Allow JSON-RPC connections from specified IP address") + "\n" +
         "  -rpcconnect=<ip>       " + _("Send commands to node running on <ip> (default: 127.0.0.1)") + "\n" +
         "  -blocknotify=<cmd>     " + _("Execute command when the best block changes (%s in cmd is replaced by block hash)") + "\n" +
@@ -324,13 +340,7 @@ std::string HelpMessage()
         "\n" + _("Block creation options:") + "\n" +
         "  -blockminsize=<n>      "   + _("Set minimum block size in bytes (default: 0)") + "\n" +
         "  -blockmaxsize=<n>      "   + _("Set maximum block size in bytes (default: 250000)") + "\n" +
-        "  -blockprioritysize=<n> "   + _("Set maximum size of high-priority/low-fee transactions in bytes (default: 27000)") + "\n" +
-
-        "\n" + _("SSL options: (see the Bitcoin Wiki for SSL setup instructions)") + "\n" +
-        "  -rpcssl                                  " + _("Use OpenSSL (https) for JSON-RPC connections") + "\n" +
-        "  -rpcsslcertificatechainfile=<file.cert>  " + _("Server certificate file (default: server.cert)") + "\n" +
-        "  -rpcsslprivatekeyfile=<file.pem>         " + _("Server private key (default: server.pem)") + "\n" +
-        "  -rpcsslciphers=<ciphers>                 " + _("Acceptable ciphers (default: TLSv1+HIGH:!SSLv2:!aNULL:!eNULL:!AH:!3DES:@STRENGTH)") + "\n";
+        "  -blockprioritysize=<n> "   + _("Set maximum size of high-priority/low-fee transactions in bytes (default: 27000)") + "\n";
     // clang-format on
     return strUsage;
 }
@@ -420,8 +430,6 @@ bool AppInit2()
         CheckpointsMode = Checkpoints::CPMode_PERMISSIVE;
 
     nDerivationMethodIndex = 0;
-
-    fTestNet = GetBoolArg("-testnet");
 
     if (mapArgs.exists("-bind")) {
         // when specifying an explicit binding address, you want to listen on it
@@ -513,6 +521,22 @@ bool AppInit2()
         if (!ParseMoney(mininpVal, nMinimumInputValue))
             return InitError(
                 strprintf(_("Invalid amount for -mininput=<amount>: '%s'"), mininpVal.c_str()));
+    }
+
+    // sanitize comments per BIP-0014, format user agent and check total size
+    std::vector<std::string> uacommentsOrig;
+    mapMultiArgs.get("-uacomment", uacommentsOrig);
+    std::vector<std::string> uacomments;
+    for (const std::string& cmt : uacommentsOrig) {
+        if (cmt != SanitizeString(cmt, SAFE_CHARS_UA_COMMENT))
+            return InitError("User Agent comment (" + cmt + ") contains unsafe characters.");
+        uacomments.push_back(cmt);
+    }
+    strSubVersion = FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, uacomments);
+    if (strSubVersion.size() > MAX_SUBVERSION_LENGTH) {
+        return InitError(strprintf(_("Total length of network version string (%i) exceeds maximum "
+                                     "length (%i). Reduce the number or size of uacomments."),
+                                   strSubVersion.size(), MAX_SUBVERSION_LENGTH));
     }
 
     // ********************************************************* Step 4: application initialization: dir
@@ -779,7 +803,7 @@ bool AppInit2()
             printf("%s", msg.c_str());
 
             // after failure, wait 3 seconds to try again
-            boost::this_thread::sleep_for(boost::chrono::seconds(3));
+            std::this_thread::sleep_for(std::chrono::seconds(3));
 
             // clear stuff that are loaded before, and reset the blockchain database
             {
@@ -830,7 +854,6 @@ bool AppInit2()
                 CBlockIndexSmartPtr pindex = mi->second;
                 CBlock              block;
                 block.ReadFromDisk(pindex.get());
-                block.BuildMerkleTree();
                 block.print();
                 printf("\n");
                 nFound++;
@@ -853,10 +876,12 @@ bool AppInit2()
 
     uiInterface.InitMessage(_("Loading wallet..."));
     printf("Loading wallet...\n");
-    nStart                             = GetTimeMillis();
-    bool                     fFirstRun = true;
-    std::shared_ptr<CWallet> wlt       = std::make_shared<CWallet>(strWalletFileName);
-    std::atomic_store(&pwalletMain, wlt);
+    nStart         = GetTimeMillis();
+    bool fFirstRun = true;
+    {
+        std::shared_ptr<CWallet> wlt = std::make_shared<CWallet>(strWalletFileName);
+        std::atomic_store(&pwalletMain, wlt);
+    }
     DBErrors nLoadWalletRet = LoadDBWalletTransient(fFirstRun);
     if (nLoadWalletRet != DB_LOAD_OK) {
         if (nLoadWalletRet == DB_CORRUPT)
@@ -919,6 +944,8 @@ bool AppInit2()
         CBlockLocator locator;
         if (walletdb.ReadBestBlock(locator))
             pindexRescan = locator.GetBlockIndex();
+        else
+            pindexRescan = boost::atomic_load(&pindexGenesisBlock);
     }
     if (pindexBest != pindexRescan && pindexBest && pindexRescan &&
         pindexBest->nHeight > pindexRescan->nHeight) {
@@ -974,10 +1001,12 @@ bool AppInit2()
     if (!NewThread(StartNode, NULL))
         InitError(_("Error: could not start node"));
 
-    if (fServer)
+    if (fServer) {
         NewThread(ThreadRPCServer, NULL);
+    }
+    DeleteAuthCookie(); // clear the cookie from the previous session, if it exists
 
-        // ********************************************************* Step 12: start rest listenser
+    // ********************************************************* Step 12: start rest listenser
 
 #ifdef NEBLIO_REST
     uiInterface.InitMessage(_("Starting RESTful API Listener"));

@@ -6,10 +6,22 @@
 #ifndef NOVACOIN_MINER_H
 #define NOVACOIN_MINER_H
 
+#include "block.h"
 #include "wallet.h"
+#include <memory>
+
+struct CBlockTemplate
+{
+    CBlock                     block;
+    std::vector<CAmount>       vTxFees;
+    std::vector<int64_t>       vTxSigOps;
+    std::vector<unsigned char> vchCoinbaseCommitment;
+};
 
 /* Generate a new block, without valid proof-of-work */
-CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake=false, int64_t* pFees = 0);
+std::unique_ptr<CBlock>
+CreateNewBlock(CWallet* pwallet, bool fProofOfStake = false, int64_t* pFees = 0,
+               const boost::optional<CBitcoinAddress>& PoWDestination = boost::none);
 
 /** Modify the extranonce in a block */
 void IncrementExtraNonce(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& nExtraNonce);

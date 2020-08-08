@@ -18,6 +18,7 @@
 #include <boost/regex.hpp>
 #include <map>
 #include <string>
+#include <thread>
 #include <unordered_set>
 #include <vector>
 
@@ -135,14 +136,7 @@ T* alignup(T* p)
 #define MAX_PATH 1024
 #endif
 
-inline void MilliSleep(int64_t n)
-{
-#if BOOST_VERSION >= 105000
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(n));
-#else
-    boost::this_thread::sleep(boost::posix_time::milliseconds(n));
-#endif
-}
+inline void MilliSleep(int64_t n) { std::this_thread::sleep_for(std::chrono::milliseconds(n)); }
 
 /* This GNU C extension enables the compiler to check the format string against the parameters provided.
  * X is the number of the "format string" parameter, and Y is the number of the first variadic parameter.
@@ -165,7 +159,6 @@ extern bool                                                     fDaemon;
 extern bool                                                     fServer;
 extern bool                                                     fCommandLine;
 extern std::string                                              strMiscWarning;
-extern bool                                                     fTestNet;
 extern bool                                                     fNoListen;
 extern bool                                                     fLogTimestamps;
 extern bool                                                     fReopenDebugLog;
@@ -252,6 +245,9 @@ void        AddTimeData(const CNetAddr& ip, int64_t nTime);
 void        runCommand(std::string strCommand);
 
 std::string GetMimeTypeFromPath(const std::string& path);
+
+// Application startup time (used for uptime calculation)
+int64_t GetStartupTime();
 
 template <typename T>
 std::string ToHexString(T&& value, bool prepend_0x = true)
@@ -563,6 +559,8 @@ public:
 
 bool NewThread(void (*pfn)(void*), void* parg);
 
+bool RandomBytesToBuffer(unsigned char* buffer, std::size_t size);
+
 #ifdef WIN32
 inline void SetThreadPriority(int nPriority) { SetThreadPriority(GetCurrentThread(), nPriority); }
 #else
@@ -745,7 +743,15 @@ public:
         return var;
     }
 
+    const T& get() const
+    {
+        boost::lock_guard<MutexType> lg(mtx);
+        return var;
+    }
+
     T& get_unsafe() { return var; }
+
+    const T& get_unsafe() const { return var; }
 
     [[nodiscard]] boost::shared_ptr<boost::lock_guard<MutexType>> get_lock() const
     {
@@ -762,5 +768,14 @@ public:
         }
     }
 };
+
+//! Substitute for C++14 std::make_unique.
+template <typename T, typename... Args>
+std::unique_ptr<T> MakeUnique(Args&&... args)
+{
+    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+
+bool ParseFixedPoint(const std::string& val, int decimals, int64_t* amount_out);
 
 #endif

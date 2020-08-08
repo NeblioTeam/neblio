@@ -14,6 +14,31 @@ env:
   GHAT2: ${{ secrets.GHAT2 }}
 
 jobs:
+
+  linux_daemon_cmake:
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@v1
+    - name: ccache
+      uses: actions/cache@v1
+      with:
+        path: .ccache
+        key: ${{ runner.OS }}--linux_daemon_cmake-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.OS }}--linux_daemon_cmake-
+    - name: Set target_v env var
+      run: |
+        echo "::set-env name=target_v::linux_daemon_cmake"
+    - name: Build nebliod for Linux using cmake
+      run: |
+        python -u ci_scripts/test_linux-daemon-cmake.py
+    - name: Upload test artifacts on failure
+      uses: actions/upload-artifact@v2
+      if: failure()
+      with:
+        name: test-artifacts
+        path: /tmp/bitcoin*
+
   linux_daemon:
     runs-on: ubuntu-16.04
     steps:
@@ -297,7 +322,7 @@ jobs:
     - name: Set target_v env var
       run: |
         echo "::set-env name=target_v::rpi_daemon"
-    - name: Build neblio-Qt for Raspberry Pi
+    - name: Build nebliod for Raspberry Pi
       run: |
         python -u ci_scripts/test_rpi-daemon-gui.py
         echo ::set-env name=RELEASE_TAG::$(echo ${GITHUB_REF:10})

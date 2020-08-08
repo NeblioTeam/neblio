@@ -104,8 +104,9 @@ Value getinfo(const Array& params, bool fHelp)
                         GetDifficulty(GetLastBlockIndex(boost::atomic_load(&pindexBest).get(), true))));
     obj.push_back(Pair("difficulty", diff));
 
-    obj.push_back(Pair("testnet", fTestNet));
-    obj.push_back(Pair("tachyon", GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)));
+    obj.push_back(Pair("testnet", Params().NetType() != NetworkType::Mainnet));
+    obj.push_back(
+        Pair("tachyon", Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)));
     obj.push_back(Pair("keypoololdest", (int64_t)pwalletMain->GetOldestKeyPoolTime()));
     obj.push_back(Pair("keypoolsize", (int)pwalletMain->GetKeyPoolSize()));
     obj.push_back(Pair("paytxfee", ValueFromAmount(nTransactionFee)));
@@ -167,6 +168,37 @@ Value getnewaddress(const Array& params, bool fHelp)
     CKeyID keyID = newKey.GetID();
 
     pwalletMain->SetAddressBookName(keyID, strAccount);
+
+    return CBitcoinAddress(keyID).ToString();
+}
+
+Value getrawchangeaddress(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 1)
+        throw std::runtime_error("getrawchangeaddress\n"
+                                 "\nReturns a new neblio address, for receiving change.\n"
+                                 "This is for use with raw transactions, NOT normal use.\n"
+
+                                 "\nResult:\n"
+                                 "\"address\"    (string) The address\n"
+
+                                 "\nExamples:\n"
+                                 "getrawchangeaddress");
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    if (!pwalletMain->IsLocked())
+        pwalletMain->TopUpKeyPool();
+
+    CReserveKey reservekey(pwalletMain.get());
+    CPubKey     vchPubKey;
+    if (!reservekey.GetReservedKey(vchPubKey))
+        throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT,
+                           "Error: Keypool ran out, please call keypoolrefill first");
+
+    reservekey.KeepKey();
+
+    CKeyID keyID = vchPubKey.GetID();
 
     return CBitcoinAddress(keyID).ToString();
 }
@@ -587,7 +619,7 @@ Value getreceivedbyaddress(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio address");
     scriptPubKey.SetDestination(address.Get());
     if (!IsMine(*pwalletMain, scriptPubKey))
-        return (double)0.0;
+        throw JSONRPCError(RPC_WALLET_ERROR, "Address not found in wallet");
 
     // Minimum confirmations
     int nMinDepth = 1;
@@ -1083,8 +1115,9 @@ Value addredeemscript(const Array& params, bool fHelp)
 
 struct tallyitem
 {
-    int64_t nAmount;
-    int     nConf;
+    int64_t              nAmount;
+    int                  nConf;
+    std::vector<uint256> txids;
     tallyitem()
     {
         nAmount = 0;
@@ -1125,6 +1158,7 @@ Value ListReceived(const Array& params, bool fByAccounts)
             tallyitem& item = mapTally[address];
             item.nAmount += txout.nValue;
             item.nConf = min(item.nConf, nDepth);
+            item.txids.push_back(wtx.GetHash());
         }
     }
 
@@ -1155,6 +1189,13 @@ Value ListReceived(const Array& params, bool fByAccounts)
             obj.push_back(Pair("account", strAccount));
             obj.push_back(Pair("amount", ValueFromAmount(nAmount)));
             obj.push_back(Pair("confirmations", (nConf == std::numeric_limits<int>::max() ? 0 : nConf)));
+            json_spirit::Array transactions;
+            if (it != mapTally.end()) {
+                for (const uint256& _item : (*it).second.txids) {
+                    transactions.push_back(_item.GetHex());
+                }
+            }
+            obj.push_back(Pair("txids", transactions));
             ret.push_back(obj);
         }
     }
@@ -1237,6 +1278,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
             entry.push_back(Pair("category", "send"));
             entry.push_back(Pair("amount", ValueFromAmount(-s.second)));
             entry.push_back(Pair("fee", ValueFromAmount(-nFee)));
+            entry.push_back(Pair("blockheight", nBestHeight - wtx.GetDepthInMainChain()));
             if (fLong)
                 WalletTxToJSON(wtx, entry);
             ret.push_back(entry);
@@ -1244,7 +1286,8 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
     }
 
     // Received
-    if (listReceived.size() > 0 && wtx.GetDepthInMainChain() >= nMinDepth) {
+    int depthInMainChain = wtx.GetDepthInMainChain();
+    if (listReceived.size() > 0 && depthInMainChain >= nMinDepth) {
         bool stop = false;
         for (const PAIRTYPE(CTxDestination, int64_t) & r : listReceived) {
             string account;
@@ -1270,6 +1313,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                     entry.push_back(Pair("amount", ValueFromAmount(-nFee)));
                     stop = true; // only one coinstake output
                 }
+                entry.push_back(Pair("blockheight", 1 + nBestHeight - wtx.GetDepthInMainChain()));
                 if (fLong)
                     WalletTxToJSON(wtx, entry);
                 ret.push_back(entry);
@@ -1414,17 +1458,32 @@ Value listsinceblock(const Array& params, bool fHelp)
 {
     if (fHelp)
         throw runtime_error(
-            "listsinceblock [blockhash] [target-confirmations]\n"
-            "Get all transactions in blocks since block [blockhash], or all transactions if omitted");
+            "listsinceblock [blockhash] [target-confirmations] [include-removed=true]\n"
+            "Get all transactions in blocks since block [blockhash], or all transactions if omitted. If "
+            "include-removed is true, transactions in orphans will be included.");
+
+    LOCK(cs_main);
 
     CBlockIndex* pindex          = nullptr;
     int          target_confirms = 1;
 
-    if (params.size() > 0) {
+    std::vector<uint256> nonMainChain;
+
+    if (params.size() > 0 && !params[0].get_str().empty()) {
         uint256 blockId = 0;
 
         blockId.SetHex(params[0].get_str());
-        pindex = CBlockLocator(blockId).GetBlockIndex().get();
+        auto it = mapBlockIndex.find(blockId);
+        if (it == mapBlockIndex.cend()) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+        }
+        pindex = it->second.get();
+
+        // find the common ancestor if this block is not in mainchain
+        while (pindex && !pindex->IsInMainChain() && pindex->pprev) {
+            nonMainChain.push_back(*pindex->phashBlock);
+            pindex = pindex->pprev.get();
+        }
     }
 
     if (params.size() > 1) {
@@ -1437,13 +1496,38 @@ Value listsinceblock(const Array& params, bool fHelp)
     int depth = pindex ? (1 + nBestHeight - pindex->nHeight) : -1;
 
     Array transactions;
+    Array removed;
 
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
          it != pwalletMain->mapWallet.end(); it++) {
         CWalletTx tx = (*it).second;
 
-        if (depth == -1 || tx.GetDepthInMainChain() < depth)
+        int txDepthInMainChain = tx.GetDepthInMainChain();
+
+        if (depth == -1 || txDepthInMainChain < depth)
             ListTransactions(tx, "*", 0, true, transactions);
+    }
+
+    bool includeRemoved = true;
+    if (params.size() > 2) {
+        includeRemoved = params[2].get_bool();
+    }
+
+    if (includeRemoved) {
+        for (const uint256& h : nonMainChain) {
+            CTxDB  txdb;
+            CBlock block;
+            if (txdb.ReadBlock(h, block, true)) {
+                for (const CTransaction& tx : block.vtx) {
+                    auto it = pwalletMain->mapWallet.find(tx.GetHash());
+                    if (it != pwalletMain->mapWallet.cend()) {
+                        // We want all transactions regardless of confirmation count to appear here,
+                        // even negative confirmation ones, hence the big negative.
+                        ListTransactions(it->second, "*", -100000000, true, removed);
+                    }
+                }
+            }
+        }
     }
 
     uint256 lastblock;
@@ -1463,6 +1547,9 @@ Value listsinceblock(const Array& params, bool fHelp)
 
     Object ret;
     ret.push_back(Pair("transactions", transactions));
+    if (includeRemoved) {
+        ret.push_back(Pair("removed", removed));
+    }
     ret.push_back(Pair("lastblock", lastblock.GetHex()));
 
     return ret;
@@ -1504,6 +1591,11 @@ Value gettransaction(const Array& params, bool fHelp)
         Array details;
         ListTransactions(pwalletMain->mapWallet[hash], "*", 0, false, details);
         entry.push_back(Pair("details", details));
+
+        CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+        ssTx << wtx;
+        std::string txHex = HexStr(ssTx.begin(), ssTx.end());
+        entry.push_back(Pair("hex", txHex));
     } else {
         CTransaction tx;
         uint256      hashBlock = 0;
@@ -1565,6 +1657,69 @@ Value keypoolrefill(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_WALLET_ERROR, "Error refreshing keypool.");
 
     return Value::null;
+}
+
+Value getwalletinfo(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw std::runtime_error(
+            "getwalletinfo\n"
+            "Returns an object containing various wallet state info.\n"
+
+            "\nResult:\n"
+            "{\n"
+            "  \"walletversion\": xxxxx,                  (numeric) the wallet version\n"
+            "  \"balance\": xxxxxxx,                      (numeric) the total nebl balance of the "
+            "wallet "
+            "(cold balance excluded)\n"
+            //            "  \"delegated_balance\": xxxxx,              (numeric) the neblio balance held
+            //            in P2CS (cold " "staking) contracts\n" "  \"cold_staking_balance\": xx,
+            //            (numeric) the neblio balance held in cold " "staking addresses\n"
+            "  \"unconfirmed_balance\": xxx,              (numeric) the total unconfirmed balance of "
+            "the wallet in nebls\n"
+            "  \"immature_delegated_balance\": xxxxxx,    (numeric) the delegated immature balance of "
+            "the wallet in nebls\n"
+            "  \"immature_cold_staking_balance\": xxxxxx, (numeric) the cold-staking immature balance "
+            "of the wallet in nebls\n"
+            //            "  \"immature_balance\": xxxxxx,              (numeric) the total immature
+            //            balance of the " "wallet in nebls\n"
+            "  \"txcount\": xxxxxxx,                      (numeric) the total number of transactions in "
+            "the wallet\n"
+            "  \"keypoololdest\": xxxxxx,                 (numeric) the timestamp (seconds since GMT "
+            "epoch) of the oldest pre-generated key in the key pool\n"
+            "  \"keypoolsize\": xxxx,                     (numeric) how many new keys are "
+            "pre-generated\n"
+            "  \"unlocked_until\": ttt,                   (numeric) the timestamp in seconds since "
+            "epoch (midnight Jan 1 1970 GMT) that the wallet is unlocked for transfers, or 0 if the "
+            "wallet is locked\n"
+            //            "  \"paytxfee\": x.xxxx,                      (numeric) the transaction fee
+            //            configuration, " "set in nebl/kB\n"
+            "}\n"
+            "\nExamples:\n"
+            "getwalletinfo");
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    json_spirit::Object obj;
+    obj.push_back(Pair("walletversion", pwalletMain->GetVersion()));
+    obj.push_back(Pair("balance", ValueFromAmount(pwalletMain->GetBalance())));
+    //    obj.push_back(Pair("delegated_balance", ValueFromAmount(pwalletMain->GetDelegatedBalance())));
+    //    obj.push_back(Pair("cold_staking_balance",
+    //    ValueFromAmount(pwalletMain->GetColdStakingBalance())));
+    obj.push_back(Pair("unconfirmed_balance", ValueFromAmount(pwalletMain->GetUnconfirmedBalance())));
+    obj.push_back(Pair("immature_balance", ValueFromAmount(pwalletMain->GetImmatureBalance())));
+    //    obj.push_back(
+    //        Pair("immature_delegated_balance",
+    //        ValueFromAmount(pwalletMain->GetImmatureDelegatedBalance())));
+    //    obj.push_back(Pair("immature_cold_staking_balance",
+    //                       ValueFromAmount(pwalletMain->GetImmatureColdStakingBalance())));
+    obj.push_back(Pair("txcount", (int)pwalletMain->mapWallet.size()));
+    obj.push_back(Pair("keypoololdest", pwalletMain->GetOldestKeyPoolTime()));
+    obj.push_back(Pair("keypoolsize", (int)pwalletMain->GetKeyPoolSize()));
+    if (pwalletMain->IsCrypted())
+        obj.push_back(Pair("unlocked_until", nWalletUnlockTime));
+    //    obj.push_back(Pair("paytxfee", ValueFromAmount(payTxFee.GetFeePerK())));
+    return obj;
 }
 
 void ThreadTopUpKeyPool(void* /*parg*/)
@@ -1807,7 +1962,7 @@ public:
 Value validateaddress(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
-        throw runtime_error("validateaddress <neblioaddress>\n"
+        throw runtime_error("validateaddress <neblio-address>\n"
                             "Return information about <neblioaddress>.");
 
     CBitcoinAddress address(params[0].get_str());
@@ -1816,9 +1971,14 @@ Value validateaddress(const Array& params, bool fHelp)
     Object ret;
     ret.push_back(Pair("isvalid", isValid));
     if (isValid) {
-        CTxDestination dest           = address.Get();
-        string         currentAddress = address.ToString();
+        CTxDestination dest = address.Get();
+
+        string currentAddress = address.ToString();
         ret.push_back(Pair("address", currentAddress));
+
+        CScript scriptPubKey = GetScriptForDestination(dest);
+        ret.push_back(Pair("scriptPubKey", HexStr(scriptPubKey.begin(), scriptPubKey.end())));
+
         bool fMine = IsMine(*pwalletMain, dest);
         ret.push_back(Pair("ismine", fMine));
         if (fMine) {

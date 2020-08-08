@@ -2,27 +2,13 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <boost/assign/list_of.hpp>
-
-#include "block.h"
 #include "kernel.h"
+#include "block.h"
+#include "chainparams.h"
 #include "main.h"
 #include "txdb.h"
 
 using namespace std;
-
-typedef std::map<int, unsigned int> MapModifierCheckpoints;
-
-// Hard checkpoints of stake modifiers to ensure they are deterministic
-static std::map<int, unsigned int> mapStakeModifierCheckpoints =
-    boost::assign::map_list_of(0, 0xfd11f4e7) // genesis
-    (500, 0x3b54b16d)                         // premine
-    (1000, 0x7b238954);
-
-// Hard checkpoints of stake modifiers to ensure they are deterministic (testNet)
-static std::map<int, unsigned int> mapStakeModifierCheckpointsTestNet =
-    boost::assign::map_list_of(0, 0xfd11f4e7) // genesis
-    (100, 0x7bb33af1);
 
 // Get time weight
 int64_t GetWeight(int64_t nIntervalBeginning, int64_t nIntervalEnd)
@@ -30,8 +16,8 @@ int64_t GetWeight(int64_t nIntervalBeginning, int64_t nIntervalEnd)
     // Kernel hash weight starts from 0 at the min age
     // this change increases active coins participating the hash and helps
     // to secure the network when proof-of-stake difficulty is low
-    unsigned int nSMA = StakeMinAge();
-    return min(nIntervalEnd - nIntervalBeginning - nSMA, (int64_t)nStakeMaxAge);
+    unsigned int nSMA = Params().StakeMinAge();
+    return min(nIntervalEnd - nIntervalBeginning - nSMA, Params().StakeMaxAge());
 }
 
 // Get the last stake modifier and its generation time from a given block
@@ -53,7 +39,8 @@ static bool GetLastStakeModifier(const CBlockIndex* pindex, uint64_t& nStakeModi
 static int64_t GetStakeModifierSelectionIntervalSection(int nSection)
 {
     assert(nSection >= 0 && nSection < 64);
-    return (nModifierInterval * 63 / (63 + ((63 - nSection) * (MODIFIER_INTERVAL_RATIO - 1))));
+    return (Params().StakeModifierInterval() * 63 /
+            (63 + ((63 - nSection) * (MODIFIER_INTERVAL_RATIO - 1))));
 }
 
 // Get stake modifier selection interval (in seconds)
@@ -141,16 +128,18 @@ bool ComputeNextStakeModifier(const CBlockIndex* pindexPrev, uint64_t& nStakeMod
         printf("ComputeNextStakeModifier: prev modifier=0x%016" PRIx64 " time=%s\n", nStakeModifier,
                DateTimeStrFormat(nModifierTime).c_str());
     }
-    if (nModifierTime / nModifierInterval >= pindexPrev->GetBlockTime() / nModifierInterval)
+    if (nModifierTime / Params().StakeModifierInterval() >=
+        pindexPrev->GetBlockTime() / Params().StakeModifierInterval())
         return true;
 
     // Sort candidate blocks by timestamp
     vector<pair<int64_t, uint256>> vSortedByTimestamp;
-    unsigned int                   nTS = TargetSpacing();
-    vSortedByTimestamp.reserve(64 * nModifierInterval / nTS);
-    int64_t nSelectionInterval = GetStakeModifierSelectionInterval();
-    int64_t nSelectionIntervalStart =
-        (pindexPrev->GetBlockTime() / nModifierInterval) * nModifierInterval - nSelectionInterval;
+    unsigned int                   nTS = Params().TargetSpacing();
+    vSortedByTimestamp.reserve(64 * Params().StakeModifierInterval() / nTS);
+    int64_t nSelectionInterval      = GetStakeModifierSelectionInterval();
+    int64_t nSelectionIntervalStart = (pindexPrev->GetBlockTime() / Params().StakeModifierInterval()) *
+                                          Params().StakeModifierInterval() -
+                                      nSelectionInterval;
     const CBlockIndex* pindex = pindexPrev;
     while (pindex && pindex->GetBlockTime() >= nSelectionIntervalStart) {
         vSortedByTimestamp.push_back(make_pair(pindex->GetBlockTime(), pindex->GetBlockHash()));
@@ -221,12 +210,12 @@ static bool GetKernelStakeModifier(uint256 hashBlockFrom, uint64_t& nStakeModifi
     nStakeModifier = 0;
     if (!mapBlockIndex.count(hashBlockFrom))
         return error("GetKernelStakeModifier() : block not indexed");
-    const CBlockIndex* pindexFrom                      = mapBlockIndex[hashBlockFrom].get();
-    nStakeModifierHeight                               = pindexFrom->nHeight;
-    nStakeModifierTime                                 = pindexFrom->GetBlockTime();
-    int64_t            nStakeModifierSelectionInterval = GetStakeModifierSelectionInterval();
-    unsigned int       nSMA                            = StakeMinAge();
-    const CBlockIndex* pindex                          = pindexFrom;
+    const CBlockIndex* pindexFrom                        = mapBlockIndex[hashBlockFrom].get();
+    nStakeModifierHeight                                 = pindexFrom->nHeight;
+    nStakeModifierTime                                   = pindexFrom->GetBlockTime();
+    static const int64_t nStakeModifierSelectionInterval = GetStakeModifierSelectionInterval();
+    unsigned int         nSMA                            = Params().StakeMinAge();
+    const CBlockIndex*   pindex                          = pindexFrom;
     // loop to find the stake modifier later by a selection interval
     while (nStakeModifierTime < pindexFrom->GetBlockTime() + nStakeModifierSelectionInterval) {
         if (!pindex->pnext) { // reached best block; may happen if node is behind on block chain
@@ -280,7 +269,7 @@ bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned 
         return error("CheckStakeKernelHash() : nTime violation");
 
     unsigned int nTimeBlockFrom = blockFrom.GetBlockTime();
-    unsigned int nSMA           = StakeMinAge();
+    unsigned int nSMA           = Params().StakeMinAge();
     if (nTimeBlockFrom + nSMA > nTimeTx) // Min age requirement
         return error("CheckStakeKernelHash() : min age violation");
 
@@ -396,8 +385,7 @@ bool CheckCoinStakeTimestamp(int64_t nTimeBlock, int64_t nTimeTx)
 // Get stake modifier checksum
 unsigned int GetStakeModifierChecksum(const CBlockIndex* pindex)
 {
-    assert(pindex->pprev ||
-           pindex->GetBlockHash() == (!fTestNet ? hashGenesisBlock : hashGenesisBlockTestNet));
+    assert(pindex->pprev || pindex->GetBlockHash() == Params().GenesisBlockHash());
     // Hash previous checksum with flags, hashProofOfStake and nStakeModifier
     CDataStream ss(SER_GETHASH, 0);
     if (pindex->pprev)
@@ -411,10 +399,11 @@ unsigned int GetStakeModifierChecksum(const CBlockIndex* pindex)
 // Check stake modifier hard checkpoints
 bool CheckStakeModifierCheckpoints(int nHeight, unsigned int nStakeModifierChecksum)
 {
-    MapModifierCheckpoints& checkpoints =
-        (fTestNet ? mapStakeModifierCheckpointsTestNet : mapStakeModifierCheckpoints);
+    const MapStakeModifierCheckpoints& checkpoints = Params().StakeModifierCheckpoints();
 
-    if (checkpoints.count(nHeight))
-        return nStakeModifierChecksum == checkpoints[nHeight];
+    auto it = checkpoints.find(nHeight);
+    if (it != checkpoints.cend())
+        return nStakeModifierChecksum == it->second;
+
     return true;
 }

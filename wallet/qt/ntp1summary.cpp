@@ -4,10 +4,10 @@
 #include "bitcoinunits.h"
 #include "guiconstants.h"
 #include "guiutil.h"
+#include "main.h"
 #include "ntp1/ntp1tokenlistitemdelegate.h"
 #include "optionsmodel.h"
 #include "qt/ntp1/ntp1tokenlistmodel.h"
-#include "main.h"
 #include "walletmodel.h"
 
 #include <QAction>
@@ -276,7 +276,7 @@ void NTP1Summary::slot_visitInBlockExplorerAction()
     QString resultStr = ui->listTokens->model()->data(idx, NTP1TokenListModel::TokenIdRole).toString();
     if (!resultStr.isEmpty()) {
         QString link = QString::fromStdString(
-            NTP1Tools::GetURL_ExplorerTokenInfo(resultStr.toStdString(), fTestNet));
+            NTP1Tools::GetURL_ExplorerTokenInfo(resultStr.toStdString(), Params().NetType()));
         if (!QDesktopServices::openUrl(QUrl(link))) {
             QMessageBox::warning(
                 this, "Failed to open browser",
@@ -312,7 +312,7 @@ void NTP1Summary::slot_showMetadataAction()
                 json_spirit::Value v;
                 try {
                     v = NTP1Transaction::GetNTP1IssuanceMetadata(issuanceTxid);
-                } catch(std::exception& ex) {
+                } catch (std::exception& ex) {
                     QMessageBox::warning(this, "Failed to get issuance transaction",
                                          "Failed to retrieve issuance transaction with error: " +
                                              QString(ex.what()));

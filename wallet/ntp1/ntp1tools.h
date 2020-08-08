@@ -1,6 +1,7 @@
 #ifndef NTP1TOOLS_H
 #define NTP1TOOLS_H
 
+#include "chainparams.h"
 #include "curltools.h"
 #include "ntp1script.h"
 #include "json/json_spirit.h"
@@ -42,19 +43,19 @@ public:
                                               const std::string&         fieldName);
 
     // local string manipulation methods
-    static std::string GetURL_APIBase(bool testnet);
-    static std::string GetURL_AddressInfo(const std::string& address, bool testnet);
-    static std::string GetURL_TransactionInfo(const std::string& txHash, bool testnet);
-    static std::string GetURL_TokenID(const std::string& tokenSymbol, bool testnet);
-    static std::string GetURL_TokenMetaData(const std::string& tokenID, bool testnet);
+    static std::string GetURL_APIBase(NetworkType netType);
+    static std::string GetURL_AddressInfo(const std::string& address, NetworkType netType);
+    static std::string GetURL_TransactionInfo(const std::string& txHash, NetworkType netType);
+    static std::string GetURL_TokenID(const std::string& tokenSymbol, NetworkType netType);
+    static std::string GetURL_TokenMetaData(const std::string& tokenID, NetworkType netType);
     static std::string GetURL_TokenUTXOMetaData(const std::string& tokenID, const std::string& txHash,
-                                                unsigned long outputIndex, bool testnet);
-    static std::string GetURL_StakeHolders(const std::string& tokenID, bool testnet);
-    static std::string GetURL_SendTokens(bool testnet);
+                                                unsigned long outputIndex, NetworkType netType);
+    static std::string GetURL_StakeHolders(const std::string& tokenID, NetworkType netType);
+    static std::string GetURL_SendTokens(NetworkType netType);
 
-    static std::string GetURL_ExplorerBase(bool testnet);
-    static std::string GetURL_ExplorerTokenInfo(const std::string& tokenId, bool testnet);
-    static std::string GetURL_ExplorerTransactionInfo(const std::string& txId, bool testnet);
+    static std::string GetURL_ExplorerBase(NetworkType netType);
+    static std::string GetURL_ExplorerTokenInfo(const std::string& tokenId, NetworkType netType);
+    static std::string GetURL_ExplorerTransactionInfo(const std::string& txId, NetworkType netType);
 };
 
 #endif // NTP1TOOLS_H

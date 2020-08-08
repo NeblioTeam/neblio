@@ -20,9 +20,6 @@
 
 using namespace std;
 
-unsigned int nStakeSplitAge         = 1 * 24 * 60 * 60;
-int64_t      nStakeCombineThreshold = 1000 * COIN;
-
 const boost::filesystem::path CWallet::BackupHashFilename = "wallet-hash.txt";
 
 //////////////////////////////////////////////////////////////////////////////
@@ -231,7 +228,9 @@ bool CWallet::ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase,
 void CWallet::SetBestChain(const CBlockLocator& loc)
 {
     CWalletDB walletdb(strWalletFile);
-    walletdb.WriteBestBlock(loc);
+    if (!walletdb.WriteBestBlock(loc))
+        printf("Failed to write best chain to wallet at: %s\n",
+               boost::atomic_load(&pindexBest).get()->phashBlock->ToString().c_str());
 }
 
 bool CWallet::SetMinVersion(enum WalletFeature nVersion, CWalletDB* pwalletdbIn, bool fExplicit)
@@ -1134,7 +1133,7 @@ void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins, unsigned int nSp
 
     {
         LOCK2(cs_main, cs_wallet);
-        unsigned int nSMA = StakeMinAge();
+        unsigned int nSMA = Params().StakeMinAge();
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end();
              ++it) {
             const CWalletTx* pcoin = &(*it).second;
@@ -1486,11 +1485,11 @@ void CWallet::SetTxNTP1OpRet(CTransaction& wtxNew, const std::shared_ptr<NTP1Scr
         throw std::runtime_error("Could not find OP_RETURN output to fix change output index");
     }
 
-    if (opRetScriptBin.size() > DataSize()) {
+    if (opRetScriptBin.size() > Params().OpReturnMaxSize()) {
         // the blockchain consensus rules prevents OP_RETURN sizes larger than DataSize(nBestHeight)
         throw std::runtime_error("The data associated with the transaction is larger than the maximum "
                                  "allowed size for metadata (" +
-                                 ToString(DataSize()) + " bytes).");
+                                 ToString(Params().OpReturnMaxSize()) + " bytes).");
     }
 
     it->scriptPubKey = CScript() << OP_RETURN << ParseHex(opRetScriptHex);
@@ -1994,12 +1993,12 @@ bool CWallet::GetStakeWeight(const CKeyStore& /*keystore*/, uint64_t& nMinWeight
         }
 
         // Weight is greater than zero, but the maximum value isn't reached yet
-        if (nTimeWeight > 0 && nTimeWeight < nStakeMaxAge) {
+        if (nTimeWeight > 0 && nTimeWeight < Params().StakeMaxAge()) {
             nMinWeight += bnCoinDayWeight.getuint64();
         }
 
         // Maximum weight was reached
-        if (nTimeWeight == nStakeMaxAge) {
+        if (nTimeWeight == Params().StakeMaxAge()) {
             nMaxWeight += bnCoinDayWeight.getuint64();
         }
     }
@@ -2060,7 +2059,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
         }
 
         static int   nMaxStakeSearchInterval = 60;
-        unsigned int nSMA                    = StakeMinAge();
+        unsigned int nSMA                    = Params().StakeMinAge();
         if (block.GetBlockTime() + nSMA > txNew.nTime - nMaxStakeSearchInterval)
             continue; // only count coins meeting min age requirement
 
@@ -2128,7 +2127,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
                 vwtxPrev.push_back(pcoin.first);
                 txNew.vout.push_back(CTxOut(0, scriptPubKeyOut));
 
-                if (GetWeight(block.GetBlockTime(), (int64_t)txNew.nTime) < nStakeSplitAge)
+                if (GetWeight(block.GetBlockTime(), (int64_t)txNew.nTime) < Params().StakeSplitAge())
                     txNew.vout.push_back(CTxOut(0, scriptPubKeyOut)); // split stake
                 if (fDebug)
                     printf("CreateCoinStake : added kernel type=%d\n", whichType);
@@ -2147,7 +2146,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
     for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
         // Attempt to add more inputs
         // Only add coins of the same key/address as kernel
-        unsigned int nSMA = StakeMinAge();
+        unsigned int nSMA = Params().StakeMinAge();
         if (txNew.vout.size() == 2 &&
             ((pcoin.first->vout[pcoin.second].scriptPubKey == scriptPubKeyKernel ||
               pcoin.first->vout[pcoin.second].scriptPubKey == txNew.vout[1].scriptPubKey)) &&
@@ -2158,13 +2157,13 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
             if (txNew.vin.size() >= 100)
                 break;
             // Stop adding more inputs if value is already pretty significant
-            if (nCredit >= nStakeCombineThreshold)
+            if (nCredit >= Params().StakeCombineThreshold())
                 break;
             // Stop adding inputs if reached reserve limit
             if (nCredit + pcoin.first->vout[pcoin.second].nValue > nBalance - nReserveBalance)
                 break;
             // Do not add additional significant input
-            if (pcoin.first->vout[pcoin.second].nValue >= nStakeCombineThreshold)
+            if (pcoin.first->vout[pcoin.second].nValue >= Params().StakeCombineThreshold())
                 continue;
             // Do not add input that is still too young
             if (nTimeWeight < nSMA)
@@ -2875,12 +2874,7 @@ bool CReserveKey::GetReservedKey(CPubKey& pubkey)
         if (nIndex != -1)
             vchPubKey = keypool.vchPubKey;
         else {
-            if (pwallet->vchDefaultKey.IsValid()) {
-                printf("CReserveKey::GetReservedKey(): Warning: Using default key instead of a new key, "
-                       "top up your keypool!\n");
-                vchPubKey = pwallet->vchDefaultKey;
-            } else
-                return false;
+            return false;
         }
     }
     assert(vchPubKey.IsValid());

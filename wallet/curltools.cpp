@@ -87,6 +87,32 @@ void cURLTools::CurlGlobalInit_ThreadSafe()
     curl_global_init(CURL_GLOBAL_DEFAULT);
 }
 
+std::string cURLTools::GetFileFromHTTPS_withRetries(const boost::optional<uint64_t>& MaxRetries,
+                                                    uint64_t           waitBetweenRetries_ms,
+                                                    const std::string& URL, long ConnectionTimeout,
+                                                    bool IncludeProgressBar)
+{
+    uint64_t max_retries = std::numeric_limits<uint64_t>::max();
+    if (MaxRetries) {
+        max_retries = *MaxRetries;
+    }
+    std::string result;
+    for (uint64_t i = 0; i < max_retries; i++) {
+        try {
+            result = GetFileFromHTTPS(URL, ConnectionTimeout, IncludeProgressBar);
+            break;
+        } catch (...) {
+            if (i + 1 == max_retries) {
+                std::cerr << "Failed to download " << URL << " after " << i + 1 << " retries"
+                          << std::endl;
+                throw;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(waitBetweenRetries_ms));
+        }
+    }
+    return result;
+}
+
 void cURLTools::GetLargeFileFromHTTPS(const std::string& URL, long ConnectionTimeout,
                                       const boost::filesystem::path& targetPath,
                                       std::atomic<float>&            progress,

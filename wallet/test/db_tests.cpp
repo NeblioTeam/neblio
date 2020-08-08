@@ -342,7 +342,7 @@ TEST(quicksync_tests, download_index_file)
                 //                        std::cout << "File download progress: " << progress.load() <<
                 //                        "%"
                 //                        << std::endl;
-                //                        boost::this_thread::sleep_for(boost::chrono::seconds(2));
+                //                        std::this_thread::sleep_for(std::chrono::seconds(2));
                 //                    }
                 //                    std::cout << "File download progress: "
                 //                              << "100"

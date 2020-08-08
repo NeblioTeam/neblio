@@ -548,9 +548,10 @@ void RunCrossPlatformSerializationTests()
             __LINE__);
     }
 
-    CMessageHeader cMessageHeader;
-    std::string    pchMessageStart = "ABCD";
-    std::string    pchCommand      = "AABBCDEFGHIJ";
+    std::string                       pchMessageStart      = "ABCD";
+    CMessageHeader::MessageStartChars pchMessageStartChars = {'A', 'B', 'C', 'D'};
+    CMessageHeader                    cMessageHeader(pchMessageStartChars);
+    std::string                       pchCommand = "AABBCDEFGHIJ";
     if (pchMessageStart.size() != 4u) {
         throw std::runtime_error("Invalid size for pchMessageStart: " +
                                  std::to_string(pchMessageStart.size()));
@@ -558,7 +559,6 @@ void RunCrossPlatformSerializationTests()
     if (pchCommand.size() != 12u) {
         throw std::runtime_error("Invalid size for pchCommand: " + std::to_string(pchCommand.size()));
     }
-    std::copy(pchMessageStart.cbegin(), pchMessageStart.cend(), cMessageHeader.pchMessageStart);
     std::copy(pchCommand.cbegin(), pchCommand.cend(), cMessageHeader.pchCommand);
     cMessageHeader.nMessageSize = 0x12345678;
     cMessageHeader.nChecksum    = 0x12345678;

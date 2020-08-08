@@ -4,14 +4,11 @@
 #ifndef PPCOIN_KERNEL_H
 #define PPCOIN_KERNEL_H
 
-#include <cstdint>
 #include "transaction.h"
+#include <cstdint>
 
 class CBlock;
 class CBlockIndex;
-
-// MODIFIER_INTERVAL: time to elapse before new modifier is computed
-extern unsigned int nModifierInterval;
 
 // MODIFIER_INTERVAL_RATIO:
 // ratio of group interval length between the last group and the first group

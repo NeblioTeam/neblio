@@ -36,6 +36,20 @@ public:
     std::vector<CTxOut> vout;
     unsigned int        nLockTime;
 
+    struct CTxReject
+    {
+        unsigned char chRejectCode;
+        std::string   strRejectReason;
+        uint256       hashTx;
+        CTxReject(int rejectCode = 0, const std::string& rejectReason = "", const uint256& txHash = 0)
+            : chRejectCode(static_cast<unsigned char>(rejectCode)), strRejectReason(rejectReason),
+              hashTx(txHash)
+        {
+        }
+    };
+
+    boost::optional<CTxReject> reject;
+
     // Denial-of-service detection:
     mutable int nDoS;
     bool        DoS(int nDoSIn, bool fIn) const
@@ -154,8 +168,8 @@ public:
         */
     bool ConnectInputs(CTxDB& txdb, MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTestPool,
                        const CDiskTxPos& posThisTx, const ConstCBlockIndexSmartPtr& pindexBlock,
-                       bool fBlock, bool fMiner);
-    bool CheckTransaction() const;
+                       bool fBlock, bool fMiner, CBlock* sourceBlockPtr = nullptr);
+    bool CheckTransaction(CBlock* sourceBlock = nullptr) const;
     bool GetCoinAge(CTxDB& txdb, uint64_t& nCoinAge) const; // ppcoin: get transaction coin age
 
     [[nodiscard]] static CTransaction FetchTxFromDisk(const uint256& txid);

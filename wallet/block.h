@@ -13,6 +13,16 @@ class CBlockIndex;
 class CTxDB;
 class CWallet;
 
+/** "reject" message codes */
+static const unsigned char REJECT_MALFORMED   = 0x01;
+static const unsigned char REJECT_INVALID     = 0x10;
+static const unsigned char REJECT_OBSOLETE    = 0x11;
+static const unsigned char REJECT_DUPLICATE   = 0x12;
+static const unsigned char REJECT_NONSTANDARD = 0x40;
+// static const unsigned char REJECT_DUST = 0x41; // part of BIP 61
+static const unsigned char REJECT_INSUFFICIENTFEE = 0x42;
+static const unsigned char REJECT_CHECKPOINT      = 0x43;
+
 /** Nodes collect new transactions into a block, hash them into a hash tree,
  * and scan through nonce values to make the block's hash satisfy proof-of-work
  * requirements.  When they solve the proof-of-work, they broadcast the block
@@ -41,8 +51,20 @@ public:
     // ppcoin: block signature - signed by one of the coin base txout[N]'s owner
     std::vector<unsigned char> vchBlockSig;
 
-    // memory only
-    mutable std::vector<uint256> vMerkleTree;
+    struct CBlockReject
+    {
+        unsigned char chRejectCode;
+        std::string   strRejectReason;
+        uint256       hashBlock;
+        CBlockReject(int rejectCode = 0, const std::string& rejectReason = "",
+                     const uint256& blockHash = 0)
+            : chRejectCode(static_cast<unsigned char>(rejectCode)), strRejectReason(rejectReason),
+              hashBlock(blockHash)
+        {
+        }
+    };
+
+    boost::optional<CBlockReject> reject;
 
     // Denial-of-service detection:
     mutable int nDoS;
@@ -54,9 +76,15 @@ public:
 
     CBlock() { SetNull(); }
 
+    // clang-format off
     IMPLEMENT_SERIALIZE(
-        READWRITE(this->nVersion); nVersion = this->nVersion; READWRITE(hashPrevBlock);
-        READWRITE(hashMerkleRoot); READWRITE(nTime); READWRITE(nBits); READWRITE(nNonce);
+        READWRITE(this->nVersion);
+        nVersion = this->nVersion;
+        READWRITE(hashPrevBlock);
+        READWRITE(hashMerkleRoot);
+        READWRITE(nTime);
+        READWRITE(nBits);
+        READWRITE(nNonce);
 
         // ConnectBlock depends on vtx following header to generate CDiskTxPos
         if (!(nType & (SER_GETHASH | SER_BLOCKHEADERONLY))) {
@@ -66,6 +94,7 @@ public:
             const_cast<CBlock*>(this)->vtx.clear();
             const_cast<CBlock*>(this)->vchBlockSig.clear();
         })
+    // clang-format on
 
     void SetNull();
 
@@ -94,9 +123,9 @@ public:
     // ppcoin: get max transaction timestamp
     int64_t GetMaxTransactionTime() const;
 
-    uint256 BuildMerkleTree() const;
+    [[nodiscard]] uint256 GetMerkleRoot(bool* fMutated = nullptr) const;
 
-    std::vector<uint256> GetMerkleBranch(int nIndex) const;
+    [[nodiscard]] std::vector<uint256> GetMerkleBranch(int nIndex) const;
 
     static uint256 CheckMerkleBranch(uint256 hash, const std::vector<uint256>& vMerkleBranch,
                                      int nIndex);
@@ -143,7 +172,7 @@ public:
     bool AddToBlockIndex(uint256 nBlockPos, const uint256& hashProof, CTxDB& txdb,
                          CBlockIndexSmartPtr* newBlockIdxPtr      = nullptr,
                          const bool           createDbTransaction = true);
-    bool CheckBlock(bool fCheckPOW = true, bool fCheckMerkleRoot = true, bool fCheckSig = true) const;
+    bool CheckBlock(bool fCheckPOW = true, bool fCheckMerkleRoot = true, bool fCheckSig = true);
     bool AcceptBlock();
     bool GetCoinAge(uint64_t& nCoinAge) const; // ppcoin: calculate total coin age spent in block
     bool SignBlock(CWallet& keystore, int64_t nFees);
@@ -153,8 +182,8 @@ public:
 
     static void InvalidChainFound(const CBlockIndexSmartPtr& pindexNew, CTxDB& txdb);
 
-    static bool Reorganize(CTxDB& txdb, CBlockIndexSmartPtr& pindexNew,
-                           const bool createDbTransaction = true);
+    bool Reorganize(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
+                    const bool createDbTransaction = true);
 
 private:
     bool SetBestChainInner(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,

@@ -15,9 +15,9 @@
 #include "editaddressdialog.h"
 #include "guiconstants.h"
 #include "guiutil.h"
+#include "main.h"
 #include "notificator.h"
 #include "optionsdialog.h"
-#include "main.h"
 #include "optionsmodel.h"
 #include "overviewpage.h"
 #include "rpcconsole.h"
@@ -211,9 +211,9 @@ BitcoinGUI::BitcoinGUI(QWidget* parent)
     QString curStyle = qApp->style()->metaObject()->className();
 
     progressBar->setStyleSheet("QProgressBar { background-color: #e8e8e8; border: 1px solid grey; "
-                                   "border-radius: 2px; padding: 1px; text-align: center; } "
-                                   "QProgressBar::chunk { background-color: #0bdbd0; border-radius: 2px; "
-                                   "margin: 0px; }");
+                               "border-radius: 2px; padding: 1px; text-align: center; } "
+                               "QProgressBar::chunk { background-color: #0bdbd0; border-radius: 2px; "
+                               "margin: 0px; }");
 
     statusBar()->addWidget(updaterLabel);
     updaterLabel->setAlignment(Qt::AlignCenter);
@@ -900,8 +900,8 @@ void BitcoinGUI::exportBlockchainBootstrap()
         if (includeOrphanResult == QMessageBox::Yes) {
             // with orphans
             boost::thread exporterThread(boost::bind(
-                &ExportBootstrapBlockchainWithOrphans, filename.toStdString(), boost::ref(stopped),
-                boost::ref(progress), boost::ref(finished), graphTraverseType));
+                &ExportBootstrapBlockchainWithOrphans, filename.toUtf8().toStdString(),
+                boost::ref(stopped), boost::ref(progress), boost::ref(finished), graphTraverseType));
             exporterThread.detach();
         } else {
             // without orphans
@@ -917,7 +917,7 @@ void BitcoinGUI::exportBlockchainBootstrap()
                 stopped.store(true);
             } else {
                 blockchainExporterProg->setValue(static_cast<int>(progress * 100));
-                boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
         }
         blockchainExporterProg->setValue(100);
@@ -1224,7 +1224,7 @@ void BitcoinGUI::updateStakingIcon()
 
     if (nLastCoinStakeSearchInterval && nWeight) {
         uint64_t     nNetworkWeight = GetPoSKernelPS();
-        unsigned int nTS            = TargetSpacing();
+        unsigned int nTS            = Params().TargetSpacing();
         unsigned     nEstimateTime  = nTS * nNetworkWeight / nWeight;
 
         QString text;

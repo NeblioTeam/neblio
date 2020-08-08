@@ -54,9 +54,9 @@ bool CTransaction::IsCoinStake() const
     return (vin.size() > 0 && (!vin[0].prevout.IsNull()) && vout.size() >= 2 && vout[0].IsEmpty());
 }
 
-int64_t CTransaction::GetValueOut() const
+CAmount CTransaction::GetValueOut() const
 {
-    int64_t nValueOut = 0;
+    CAmount nValueOut = 0;
     BOOST_FOREACH (const CTxOut& txout, vout) {
         nValueOut += txout.nValue;
         if (!MoneyRange(txout.nValue) || !MoneyRange(nValueOut))
@@ -180,7 +180,7 @@ unsigned int CTransaction::GetLegacySigOpCount() const
     return nSigOps;
 }
 
-bool CTransaction::CheckTransaction() const
+bool CTransaction::CheckTransaction(CBlock* sourceBlockPtr) const
 {
     // Basic checks that don't depend on any context
     if (vin.empty())
@@ -193,32 +193,45 @@ bool CTransaction::CheckTransaction() const
         return DoS(100, error("CTransaction::CheckTransaction() : size limits failed"));
 
     // Check for negative or overflow output values
-    int64_t nValueOut = 0;
+    CAmount nValueOut = 0;
     for (unsigned int i = 0; i < vout.size(); i++) {
         const CTxOut& txout = vout[i];
         if (txout.IsEmpty() && !IsCoinBase() && !IsCoinStake())
             return DoS(100,
                        error("CTransaction::CheckTransaction() : txout empty for user transaction"));
         if (txout.nValue < 0)
-            return DoS(100, error("CTransaction::CheckTransaction() : txout.nValue negative"));
+            return DoS(100, error("CTransaction::CheckTransaction() : txout.nValue negative (%zi)",
+                                  txout.nValue));
         if (txout.nValue > MAX_MONEY)
-            return DoS(100, error("CTransaction::CheckTransaction() : txout.nValue too high"));
+            return DoS(100, error("CTransaction::CheckTransaction() : txout.nValue too high (%zi)",
+                                  txout.nValue));
         nValueOut += txout.nValue;
         if (!MoneyRange(nValueOut))
-            return DoS(100, error("CTransaction::CheckTransaction() : txout total out of range"));
+            return DoS(100, error("CTransaction::CheckTransaction() : txout total out of range (%zi)",
+                                  txout.nValue));
     }
 
     // Check for duplicate inputs
     std::set<COutPoint> vInOutPoints;
     for (const CTxIn& txin : vin) {
-        if (vInOutPoints.count(txin.prevout))
+        if (vInOutPoints.find(txin.prevout) != vInOutPoints.cend()) {
+            if (sourceBlockPtr) {
+                sourceBlockPtr->reject = CBlock::CBlockReject(
+                    REJECT_INVALID, "bad-txns-inputs-duplicate", sourceBlockPtr->GetHash());
+            }
             return false;
+        }
         vInOutPoints.insert(txin.prevout);
     }
 
     if (IsCoinBase()) {
-        if (vin[0].scriptSig.size() < 2 || vin[0].scriptSig.size() > 100)
+        if (vin[0].scriptSig.size() < 2 || vin[0].scriptSig.size() > 100) {
+            if (sourceBlockPtr) {
+                sourceBlockPtr->reject =
+                    CBlock::CBlockReject(REJECT_INVALID, "bad-cb-length", sourceBlockPtr->GetHash());
+            }
             return DoS(100, error("CTransaction::CheckTransaction() : coinbase script size is invalid"));
+        }
     } else {
         for (const CTxIn& txin : vin)
             if (txin.prevout.IsNull())
@@ -228,14 +241,14 @@ bool CTransaction::CheckTransaction() const
     return true;
 }
 
-int64_t CTransaction::GetMinFee(unsigned int nBlockSize, enum GetMinFee_mode mode,
+CAmount CTransaction::GetMinFee(unsigned int nBlockSize, enum GetMinFee_mode mode,
                                 unsigned int nBytes) const
 {
     // Base fee is either MIN_TX_FEE or MIN_RELAY_TX_FEE
-    int64_t nBaseFee = (mode == GMF_RELAY) ? MIN_RELAY_TX_FEE : MIN_TX_FEE;
+    CAmount nBaseFee = (mode == GMF_RELAY) ? MIN_RELAY_TX_FEE : MIN_TX_FEE;
 
     unsigned int nNewBlockSize = nBlockSize + nBytes;
-    int64_t      nMinFee       = (1 + (int64_t)nBytes / 1000) * nBaseFee;
+    CAmount      nMinFee       = (1 + (CAmount)nBytes / 1000) * nBaseFee;
 
     // To limit dust spam, require MIN_TX_FEE/MIN_RELAY_TX_FEE if any output is less than 0.01
     if (nMinFee < nBaseFee) {
@@ -287,7 +300,7 @@ bool CTransaction::DisconnectInputs(CTxDB& txdb)
     // This can fail if a duplicate of this transaction was in a chain that got
     // reorganized away. This is only possible if this transaction was completely
     // spent, so erasing it would be a no-op anyway.
-    txdb.EraseTxIndex(*this);
+    txdb.EraseTxIndex(this->GetHash());
 
     return true;
 }
@@ -375,12 +388,12 @@ const CTxOut& CTransaction::GetOutputFor(const CTxIn& input, const MapPrevTx& in
     return txPrev.vout[input.prevout.n];
 }
 
-int64_t CTransaction::GetValueIn(const MapPrevTx& inputs) const
+CAmount CTransaction::GetValueIn(const MapPrevTx& inputs) const
 {
     if (IsCoinBase())
         return 0;
 
-    int64_t nResult = 0;
+    CAmount nResult = 0;
     for (unsigned int i = 0; i < vin.size(); i++) {
         nResult += GetOutputFor(vin[i], inputs).nValue;
     }
@@ -403,15 +416,16 @@ unsigned int CTransaction::GetP2SHSigOpCount(const MapPrevTx& inputs) const
 
 bool CTransaction::ConnectInputs(CTxDB& /*txdb*/, MapPrevTx inputs,
                                  std::map<uint256, CTxIndex>& mapTestPool, const CDiskTxPos& posThisTx,
-                                 const ConstCBlockIndexSmartPtr& pindexBlock, bool fBlock, bool fMiner)
+                                 const ConstCBlockIndexSmartPtr& pindexBlock, bool fBlock, bool fMiner,
+                                 CBlock* sourceBlockPtr)
 {
     // Take over previous transactions' spent pointers
     // fBlock is true when this is called from AcceptBlock when a new best-block is added to the
     // blockchain fMiner is true when called from the internal bitcoin miner
     // ... both are false when called from CTransaction::AcceptToMemoryPool
     if (!IsCoinBase()) {
-        int64_t nValueIn = 0;
-        int64_t nFees    = 0;
+        CAmount nValueIn = 0;
+        CAmount nFees    = 0;
         for (unsigned int i = 0; i < vin.size(); i++) {
             COutPoint prevout = vin[i].prevout;
             assert(inputs.count(prevout.hash) > 0);
@@ -426,7 +440,7 @@ bool CTransaction::ConnectInputs(CTxDB& /*txdb*/, MapPrevTx inputs,
                                       txPrev.ToString().c_str()));
 
             // If prev is coinbase or coinstake, check that it's matured
-            int nCbM = CoinbaseMaturity();
+            int nCbM = Params().CoinbaseMaturity();
             if (txPrev.IsCoinBase() || txPrev.IsCoinStake())
                 for (ConstCBlockIndexSmartPtr pindex = boost::atomic_load(&pindexBlock);
                      pindex && pindexBlock->nHeight - pindex->nHeight < nCbM;
@@ -435,6 +449,11 @@ bool CTransaction::ConnectInputs(CTxDB& /*txdb*/, MapPrevTx inputs,
                                                decltype(txindex.pos.nBlockPos)>::value,
                                   "Expected same types");
                     if (pindex->blockKeyInDB == txindex.pos.nBlockPos) {
+                        if (sourceBlockPtr) {
+                            sourceBlockPtr->reject = CBlock::CBlockReject(
+                                REJECT_INVALID, "bad-txns-premature-spend-of-coinbase/coinstake",
+                                sourceBlockPtr->GetHash());
+                        }
                         return error("ConnectInputs() : tried to spend %s at depth %d",
                                      txPrev.IsCoinBase() ? "coinbase" : "coinstake",
                                      pindexBlock->nHeight - pindex->nHeight);
@@ -479,10 +498,18 @@ bool CTransaction::ConnectInputs(CTxDB& /*txdb*/, MapPrevTx inputs,
                 if (!VerifySignature(txPrev, *this, i, fStrictPayToScriptHash, false, 0)) {
                     // only during transition phase for P2SH: do not invoke anti-DoS code for
                     // potentially old clients relaying bad P2SH transactions
-                    if (fStrictPayToScriptHash && VerifySignature(txPrev, *this, i, false, false, 0))
+                    if (fStrictPayToScriptHash && VerifySignature(txPrev, *this, i, false, false, 0)) {
                         return error("ConnectInputs() : %s P2SH VerifySignature failed",
                                      GetHash().ToString().c_str());
+                    }
 
+                    if (sourceBlockPtr) {
+                        sourceBlockPtr->reject =
+                            CBlock::CBlockReject(REJECT_INVALID, "mandatory-script-verify-flag-failed",
+                                                 sourceBlockPtr->GetHash());
+                    }
+                    this->reject = CTransaction::CTxReject(
+                        REJECT_INVALID, "mandatory-script-verify-flag-failed", GetHash());
                     return DoS(100, error("ConnectInputs() : %s VerifySignature failed",
                                           GetHash().ToString().c_str()));
                 }
@@ -498,12 +525,17 @@ bool CTransaction::ConnectInputs(CTxDB& /*txdb*/, MapPrevTx inputs,
         }
 
         if (!IsCoinStake()) {
-            if (nValueIn < GetValueOut())
-                return DoS(100, error("ConnectInputs() : %s value in < value out",
-                                      GetHash().ToString().c_str()));
+            if (nValueIn < GetValueOut()) {
+                if (sourceBlockPtr) {
+                    sourceBlockPtr->reject = CBlock::CBlockReject(REJECT_INVALID, "bad-txns-in-belowout",
+                                                                  sourceBlockPtr->GetHash());
+                }
+                return DoS(100, error("ConnectInputs() : %s value in (%zi) < value out (%zi)",
+                                      GetHash().ToString().c_str(), nValueIn, GetValueOut()));
+            }
 
             // Tally transaction fees
-            int64_t nTxFee = nValueIn - GetValueOut();
+            CAmount nTxFee = nValueIn - GetValueOut();
             if (nTxFee < 0)
                 return DoS(100, error("ConnectInputs() : %s nTxFee < 0", GetHash().ToString().c_str()));
 
@@ -534,7 +566,7 @@ bool CTransaction::ConnectInputs(CTxDB& /*txdb*/, MapPrevTx inputs,
 bool CTransaction::GetCoinAge(CTxDB& txdb, uint64_t& nCoinAge) const
 {
     CBigNum      bnCentSecond = 0; // coin age in the unit of cent-seconds
-    unsigned int nSMA         = StakeMinAge();
+    unsigned int nSMA         = Params().StakeMinAge();
     nCoinAge                  = 0;
 
     if (IsCoinBase())
@@ -556,7 +588,7 @@ bool CTransaction::GetCoinAge(CTxDB& txdb, uint64_t& nCoinAge) const
         if (block.GetBlockTime() + nSMA > nTime)
             continue; // only count coins meeting min age requirement
 
-        int64_t nValueIn = txPrev.vout[txin.prevout.n].nValue;
+        CAmount nValueIn = txPrev.vout[txin.prevout.n].nValue;
         bnCentSecond += CBigNum(nValueIn) * (nTime - txPrev.nTime) / CENT;
 
         if (fDebug)
@@ -709,10 +741,10 @@ boost::optional<CKey> CTransaction::GetPublicKeyFromScriptSig(const CScript& scr
     if (!scriptSig.GetOp(beg, opt, vchPub)) {
         return boost::none;
     }
-    if (!IsCanonicalSignature(vchSig)) {
+    if (vchSig.empty() || !IsCanonicalSignature(vchSig)) {
         return boost::none;
     }
-    if (!IsCanonicalPubKey(vchPub)) {
+    if (vchPub.empty() || !IsCanonicalPubKey(vchPub)) {
         return boost::none;
     }
 

@@ -8,6 +8,7 @@
 
 #include <string>
 #include <vector>
+#include <cstring>
 
 #include <stdint.h>
 #include <stdio.h>
@@ -578,6 +579,19 @@ public:
             memcpy(pn, &vch[0], sizeof(pn));
         else
             *this = 0;
+    }
+
+    bool IsNull() const
+    {
+        for (int i = 0; i < WIDTH; i++)
+            if (pn[i] != 0)
+                return false;
+        return true;
+    }
+
+    void SetNull()
+    {
+        std::memset(pn, 0, sizeof(pn));
     }
 };
 

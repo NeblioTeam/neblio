@@ -1,7 +1,6 @@
 #ifndef NTP1TRANSACTION_H
 #define NTP1TRANSACTION_H
 
-#include "ThreadSafeHashMap.h"
 #include "ntp1/ntp1script.h"
 #include "ntp1/ntp1script_burn.h"
 #include "ntp1/ntp1script_issuance.h"
@@ -22,14 +21,6 @@
 
 extern const std::string  NTP1OpReturnRegexStr;
 extern const boost::regex NTP1OpReturnRegex;
-
-extern const ThreadSafeHashMap<std::string, int> ntp1_blacklisted_token_ids;
-extern const ThreadSafeHashMap<uint256, int>     excluded_txs_testnet;
-extern const ThreadSafeHashMap<uint256, int>     excluded_txs_mainnet;
-
-bool IsNTP1TokenBlacklisted(const std::string& tokenId, int& maxHeight);
-bool IsNTP1TokenBlacklisted(const std::string& tokenId);
-bool IsNTP1TxExcluded(const uint256& txHash);
 
 struct TokenMinimalData
 {
@@ -352,7 +343,7 @@ void NTP1Transaction::__TransferTokens(
 
             // check if the token is blacklisted
             int blacklistHeight = 0;
-            if (IsNTP1TokenBlacklisted(currentTokenId, blacklistHeight)) {
+            if (Params().IsNTP1TokenBlacklisted(currentTokenId, blacklistHeight)) {
                 if (nBestHeight >= blacklistHeight) {
                     throw std::runtime_error("The NTP1 token " + currentTokenId +
                                              " is blacklisted and cannot be transferred or burned.");

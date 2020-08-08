@@ -1,5 +1,7 @@
 #include "NetworkForks.h"
 
+#include <string>
+
 NetworkForks::NetworkForks(const std::map<NetworkFork, int>& ForksToBlocks,
                            const boost::atomic<int>&         BestHeightVar)
     : bestHeight_internal(BestHeightVar)
@@ -33,11 +35,3 @@ NetworkFork NetworkForks::getForkAtBlockNumber(int blockNumber) const
 }
 
 int NetworkForks::getFirstBlockOfFork(NetworkFork fork) const { return forksToBlockMap.at(fork); }
-
-const NetworkForks& GetNetForks()
-{
-    if (fTestNet)
-        return TestnetForks;
-    else
-        return MainnetForks;
-}

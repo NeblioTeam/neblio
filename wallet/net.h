@@ -8,6 +8,7 @@
 #include <boost/array.hpp>
 #include <boost/atomic.hpp>
 #include <boost/foreach.hpp>
+#include <chainparams.h>
 #include <deque>
 #include <openssl/rand.h>
 
@@ -36,7 +37,9 @@ bool           RecvLine(SOCKET hSocket, std::string& strLine);
 bool           GetMyExternalIP(CNetAddr& ipRet);
 void           AddressCurrentlyConnected(const CService& addr);
 CNode*         FindNode(const CNetAddr& ip);
+CNode*         FindNode(const std::string& ip);
 CNode*         FindNode(const CService& ip);
+CNode*         FindNode(const int64_t& nodeID);
 CNode*         ConnectNode(CAddress addrConnect, const char* strDest = NULL);
 void           MapPort();
 unsigned short GetListenPort();
@@ -74,6 +77,14 @@ CAddress GetLocalAddress(const CNetAddr* paddrPeer = NULL);
 //     MSG_TX = 1,
 //     MSG_BLOCK,
 // };
+
+struct AddedNodeInfo
+{
+    std::string strAddedNode;
+    CService    resolvedAddress;
+    bool        fConnected;
+    bool        fInbound;
+};
 
 class CRequestTracker
 {
@@ -118,6 +129,7 @@ extern LockedVar<CAddrMan>                         addrman;
 
 extern std::vector<CNode*>                  vNodes;
 extern CCriticalSection                     cs_vNodes;
+extern LockedVar<std::vector<std::string>>  vAddedNodes;
 extern std::map<CInv, CDataStream>          mapRelay;
 extern std::deque<std::pair<int64_t, CInv>> vRelayExpiration;
 extern CCriticalSection                     cs_mapRelay;
@@ -126,6 +138,7 @@ extern ThreadSafeHashMap<CInv, int64_t>     mapAlreadyAskedFor;
 class CNodeStats
 {
 public:
+    int64_t     nodeid;
     uint64_t    nServices;
     int64_t     nLastSend;
     int64_t     nLastRecv;
@@ -150,7 +163,8 @@ public:
     CDataStream  vRecv; // received message data
     unsigned int nDataPos;
 
-    CNetMessage(int nTypeIn, int nVersionIn) : hdrbuf(nTypeIn, nVersionIn), vRecv(nTypeIn, nVersionIn)
+    CNetMessage(const CMessageHeader::MessageStartChars& pchMessageStartIn, int nTypeIn, int nVersionIn)
+        : hdrbuf(nTypeIn, nVersionIn), hdr(pchMessageStartIn), vRecv(nTypeIn, nVersionIn)
     {
         hdrbuf.resize(24);
         in_data  = false;
@@ -180,6 +194,7 @@ class CNode
 {
 public:
     // socket
+    const int64_t              nodeid;
     uint64_t                   nServices;
     SOCKET                     hSocket;
     CDataStream                ssSend;
@@ -197,7 +212,7 @@ public:
     boost::atomic<int64_t> nLastSendEmpty;
     boost::atomic<int64_t> nTimeConnected;
     CAddress               addr;
-    std::string            addrName;
+    LockedVar<std::string> addrName;
     CService               addrLocal;
     int                    nVersion;
     std::string            strSubVer;
@@ -245,8 +260,9 @@ public:
     CCriticalSection             cs_inventory;
     std::multimap<int64_t, CInv> mapAskFor;
 
-    CNode(SOCKET hSocketIn, CAddress addrIn, std::string addrNameIn = "", bool fInboundIn = false)
-        : ssSend(SER_NETWORK, INIT_PROTO_VERSION), setAddrKnown(5000)
+    CNode(int64_t nodeId, SOCKET hSocketIn, CAddress addrIn, std::string addrNameIn = "",
+          bool fInboundIn = false)
+        : nodeid(nodeId), ssSend(SER_NETWORK, INIT_PROTO_VERSION), setAddrKnown(5000)
     {
         nServices                = 0;
         hSocket                  = hSocketIn;
@@ -256,7 +272,7 @@ public:
         nLastSendEmpty           = GetTime();
         nTimeConnected           = GetTime();
         addr                     = addrIn;
-        addrName                 = addrNameIn == "" ? addr.ToStringIPPort() : addrNameIn;
+        addrName.get()           = addrNameIn == "" ? addr.ToStringIPPort() : addrNameIn;
         nVersion                 = 0;
         strSubVer                = "";
         fOneShot                 = false;
@@ -299,6 +315,8 @@ private:
     void operator=(const CNode&);
 
 public:
+    std::string GetAddrName() const { return addrName.get(); }
+
     int GetRefCount()
     {
         assert(nRefCount >= 0);
@@ -388,7 +406,7 @@ public:
     {
         ENTER_CRITICAL_SECTION(cs_vSend);
         assert(ssSend.size() == 0);
-        ssSend << CMessageHeader(pszCommand, 0);
+        ssSend << CMessageHeader(Params().MessageStart(), pszCommand, 0);
         if (fDebug)
             printf("sending: %s ", pszCommand);
     }
@@ -660,5 +678,13 @@ inline void RelayInventory(const CInv& inv)
 class CTransaction;
 void RelayTransaction(const CTransaction& tx, const uint256& hash);
 void RelayTransaction(const CTransaction& tx, const uint256& hash, const CDataStream& ss);
+
+bool OpenNetworkConnection(const CAddress& addrConnect, CSemaphoreGrant* grantOutbound = nullptr,
+                           const char* strDest = nullptr, bool fOneShot = false);
+
+/// functions idea from peercoin; perhaps they should be put in a class, together wish vAddedNodes
+bool                       AddNode(const std::string& strNode);
+bool                       RemoveAddedNode(const std::string& strNode);
+std::vector<AddedNodeInfo> GetAddedNodeInfo();
 
 #endif

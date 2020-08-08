@@ -215,6 +215,9 @@ OBJS= \
     obj/merkletx.o                            \
     obj/blocklocator.o                        \
     obj/curltools.o                           \
+    obj/chainparams.o                         \
+    obj/chainparamsbase.o                     \
+    obj/consensus_params.o                    \
     obj/json/json_spirit_reader.o             \
     obj/json/json_spirit_value.o              \
     obj/json/json_spirit_writer.o             \
@@ -236,8 +239,9 @@ OBJS= \
     obj/ntp1/ntp1sendtxdata.o                 \
     obj/ntp1/ntp1wallet.o                     \
     obj/ntp1/ntp1v1_issuance_static_data.o    \
-    obj/udaddress.o                           \
-    obj/crypto_highlevel.o
+    obj/crypto_highlevel.o                    \
+    obj/merkle.o                              \
+    obj/udaddress.o
 
 ifdef NEBLIO_REST
     OBJS += obj/nebliorest.o

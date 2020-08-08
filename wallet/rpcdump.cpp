@@ -279,8 +279,10 @@ Value dumpwallet(const Array& params, bool fHelp)
 
     EnsureWalletIsUnlocked();
 
-    ofstream file;
-    file.open(params[0].get_str().c_str());
+    boost::filesystem::path filepath = params[0].get_str();
+
+    boost::filesystem::ofstream file;
+    file.open(filepath.c_str());
     if (!file.is_open())
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot open wallet dump file");
 
@@ -341,7 +343,11 @@ Value dumpwallet(const Array& params, bool fHelp)
     file << "\n";
     file << "# End of dump\n";
     file.close();
-    return Value::null;
+
+    Object reply;
+    reply.push_back(Pair("filename", filepath.string()));
+
+    return reply;
 }
 
 void _RescanBlockchain(int64_t earliestTime)

@@ -3,13 +3,16 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "amount.h"
 #include "bitcoinrpc.h"
 #include "main.h"
 #include "merkletx.h"
+#include "txdb.h"
 #include "txmempool.h"
-#include <atomic>
-
 #include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <thread>
 
 using namespace json_spirit;
 using namespace std;
@@ -47,7 +50,7 @@ double GetDifficulty(const CBlockIndex* blockindex)
 
 double GetPoWMHashPS()
 {
-    if (boost::atomic_load(&pindexBest)->nHeight >= LAST_POW_BLOCK)
+    if (boost::atomic_load(&pindexBest)->nHeight >= Params().LastPoWBlock())
         return 0;
 
     int     nPoWInterval          = 72;
@@ -129,7 +132,7 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
     result.push_back(Pair("modifierchecksum", strprintf("%08x", blockindex->nStakeModifierChecksum)));
 
     Array txinfo;
-    BOOST_FOREACH (const CTransaction& tx, block.vtx) {
+    for (const CTransaction& tx : block.vtx) {
         if (fPrintTransactionDetail) {
             Object entry;
 
@@ -175,7 +178,7 @@ Value getdifficulty(const Array& params, bool fHelp)
     Object obj;
     obj.push_back(Pair("proof-of-work", GetDifficulty()));
     obj.push_back(Pair("proof-of-stake", GetDifficulty(GetLastBlockIndex(pindexBest.get(), true))));
-    obj.push_back(Pair("search-interval", (int)nLastCoinStakeSearchInterval));
+    obj.push_back(Pair("search-interval", (int)nLastCoinStakeSearchInterval.load()));
     return obj;
 }
 
@@ -219,6 +222,22 @@ Value getblockhash(const Array& params, bool fHelp)
 
     CBlockIndexSmartPtr pblockindex = CBlock::FindBlockByHeight(nHeight);
     return pblockindex->phashBlock->GetHex();
+}
+
+Value calculateblockhash(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error("getblockhash <block_serialized_hex>\n"
+                            "Returns hash of block that is sent here (used for test purposes).");
+
+    std::string blockHexData = params[0].get_str();
+
+    CDataStream ssBlock(ParseHex(blockHexData), SER_NETWORK, PROTOCOL_VERSION);
+    CBlock      block;
+    ssBlock >> block;
+    block.print();
+
+    return block.GetHash().GetHex();
 }
 
 // Experimentally deprecated in an effort to support the getblock() call electrum requires
@@ -270,7 +289,7 @@ Value getblock(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
 
     CBlock       block;
-    CBlockIndex* pblockindex = boost::atomic_load(&mapBlockIndex[hash]).get();
+    CBlockIndex* pblockindex = boost::atomic_load(&mapBlockIndex.at(hash)).get();
     block.ReadFromDisk(pblockindex, true);
 
     if (!fVerbose) {
@@ -301,7 +320,7 @@ Value getblockbynumber(const Array& params, bool fHelp)
         throw runtime_error("Block number out of range.");
 
     CBlock              block;
-    CBlockIndexSmartPtr pblockindex = boost::atomic_load(&mapBlockIndex[hashBestChain]);
+    CBlockIndexSmartPtr pblockindex = boost::atomic_load(&mapBlockIndex.at(hashBestChain));
     while (pblockindex->nHeight > nHeight)
         pblockindex = pblockindex->pprev;
 
@@ -385,17 +404,17 @@ Value exportblockchain(const Array& params, bool fHelp)
     std::atomic<bool>          stopped{false};
     std::atomic<double>        progress{false};
 
-    if (graphTraverseType != boost::none) {
+    if (graphTraverseType) {
         // with orphans
-        boost::thread exporterThread(
-            boost::bind(&ExportBootstrapBlockchainWithOrphans, filename.string(), boost::ref(stopped),
-                        boost::ref(progress), boost::ref(finished), graphTraverseType.value()));
+        boost::thread exporterThread([&]() {
+            ExportBootstrapBlockchainWithOrphans(filename, stopped, progress, finished,
+                                                 graphTraverseType.value());
+        });
         exporterThread.detach();
     } else {
         // without orphans
-        boost::thread exporterThread(boost::bind(&ExportBootstrapBlockchain, filename.string(),
-                                                 boost::ref(stopped), boost::ref(progress),
-                                                 boost::ref(finished)));
+        boost::thread exporterThread(
+            [&]() { ExportBootstrapBlockchain(filename, stopped, progress, finished); });
         exporterThread.detach();
     }
 
@@ -410,7 +429,7 @@ Value exportblockchain(const Array& params, bool fHelp)
             printf("Export blockchain progress: %i%%\n", progVal);
             lastPrintedProgVal = progVal;
         }
-        boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
         if (fShutdown) {
             stopped.store(true);
         }
@@ -421,4 +440,329 @@ Value exportblockchain(const Array& params, bool fHelp)
     printf("Export blockchain to path %s is done.\n", filename.string().c_str());
 
     return Value();
+}
+
+Value waitforblockheight(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 2)
+        throw std::runtime_error("waitforblockheight <height> (timeout)\n"
+                                 "\nWaits for (at least) block height and returns the height and hash\n"
+                                 "of the current tip.\n"
+                                 "\nReturns the current block on timeout or exit.\n"
+                                 "\nArguments:\n"
+                                 "1. height  (required, int) Block height to wait for (int)\n"
+                                 "2. timeout (int, optional, default=0) Time in milliseconds to wait "
+                                 "for a response. 0 indicates no timeout.\n"
+                                 "\nResult:\n"
+                                 "{                           (json object)\n"
+                                 "  \"hash\" : {       (string) The blockhash\n"
+                                 "  \"height\" : {     (int) Block height\n"
+                                 "}\n"
+                                 "\nExamples:\n"
+                                 "waitforblockheight \"100\" 1000");
+    int timeout = 0;
+
+    int height = params[0].get_int();
+
+    if (params.size() > 1 && params[1].type() != null_type) {
+        timeout = params[1].get_int();
+        printf("Timeout set to: %i\n", timeout);
+    }
+
+    int totalMilliSeconds = 0;
+    while (totalMilliSeconds <= timeout && nBestHeight < height && IsRPCRunning()) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        totalMilliSeconds += 1000;
+    }
+
+    Object ret;
+    ret.push_back(json_spirit::Pair("hash", pindexBest->GetBlockHash().GetHex()));
+    ret.push_back(json_spirit::Pair("height", nBestHeight.load()));
+
+    return ret;
+}
+
+Value syncwithvalidationinterfacequeue(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 0) {
+        throw std::runtime_error("syncwithvalidationinterfacequeue (unimplemented)\n"
+                                 "\nWaits for the validation interface queue to catch up on everything "
+                                 "that was there when we entered this function.\n"
+                                 "\nExamples:\n"
+                                 "syncwithvalidationinterfacequeue");
+    }
+    //    SyncWithValidationInterfaceQueue();
+    return Value();
+}
+
+Value getblockchaininfo(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw std::runtime_error(
+            "getblockchaininfo\n"
+            "Returns an object containing various state info regarding blockchain processing.\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"chain\": \"xxxx\",              (string) current network name as defined in BIP70 "
+            "(main, test, regtest)\n"
+            "  \"blocks\": xxxxxx,             (numeric) the current number of blocks processed in the "
+            "server\n"
+            "  \"headers\": xxxxxx,            (numeric) the current number of headers we have "
+            "validated\n"
+            "  \"bestblockhash\": \"...\",       (string) the hash of the currently best block\n"
+            "  \"difficulty\": xxxxxx,         (numeric) the current difficulty\n"
+            "  \"mediantime\": xxxxxx,         (numeric) median time for the current best block\n"
+            "  \"initialblockdownload\": xxxx, (bool) (debug information) estimate of whether this node "
+            "is in Initial Block Download mode.\n"
+            "  \"chainwork\": \"xxxx\"           (string) total amount of work in active chain, in "
+            "hexadecimal\n"
+            "  \"size_on_disk\": xxxxxx,       (numeric) the estimated size of the block and undo files "
+            "on disk\n"
+            "  \"softforks\": [                (array) status of softforks in progress\n"
+            "     {\n"
+            "        \"id\": \"xxxx\",           (string) name of softfork\n"
+            "        \"version\": xx,          (numeric) block version\n"
+            "        \"reject\": {             (object) progress toward rejecting pre-softfork blocks\n"
+            "           \"status\": xx,        (boolean) true if threshold reached\n"
+            "        },\n"
+            "     }, ...\n"
+            "  ],\n"
+            "  \"warnings\" : \"...\",           (string) any network and blockchain warnings.\n"
+            "}\n"
+            "\nExamples:\n"
+            "getblockchaininfo");
+
+    LOCK(cs_main);
+
+    Object obj;
+    obj.push_back(Pair("chain", Params().NetworkIDString()));
+    obj.push_back(Pair("blocks", nBestHeight.load()));
+    obj.push_back(Pair("headers", pindexBest ? pindexBest->nHeight : -1));
+    obj.push_back(Pair("bestblockhash", pindexBest->phashBlock->GetHex()));
+    obj.push_back(Pair("difficulty", (double)GetDifficulty()));
+    obj.push_back(Pair("mediantime", (int64_t)pindexBest->GetMedianTimePast()));
+    //    obj.push_back(
+    //        Pair("verificationprogress", GuessVerificationProgress(Params().TxData(),
+    //        chainActive.Tip())));
+    obj.push_back(Pair("initialblockdownload", IsInitialBlockDownload()));
+    obj.push_back(Pair("chainwork", pindexBest->nChainTrust.GetHex()));
+    obj.push_back(Pair("size_on_disk", (int64_t)CTxDB::GetCurrentDiskUsage()));
+    obj.push_back(Pair("warnings", GetWarnings("statusbar")));
+    return obj;
+}
+
+Value blockheaderToJSON(const CBlockIndex* blockindex)
+{
+    AssertLockHeld(cs_main);
+    Object result;
+    result.push_back(Pair("hash", blockindex->GetBlockHash().GetHex()));
+    int confirmations = -1;
+    // Only report confirmations if the block is on the main chain
+    if (mapBlockIndex.find(*blockindex->phashBlock) != mapBlockIndex.cend())
+        confirmations = nBestHeight.load() - blockindex->nHeight + 1;
+    result.push_back(Pair("confirmations", confirmations));
+    result.push_back(Pair("height", blockindex->nHeight));
+    result.push_back(Pair("version", blockindex->nVersion));
+    result.push_back(Pair("versionHex", strprintf("%08x", blockindex->nVersion)));
+    result.push_back(Pair("merkleroot", blockindex->hashMerkleRoot.GetHex()));
+    result.push_back(Pair("time", (int64_t)blockindex->nTime));
+    result.push_back(Pair("mediantime", (int64_t)blockindex->GetMedianTimePast()));
+    result.push_back(Pair("nonce", (uint64_t)blockindex->nNonce));
+    result.push_back(Pair("bits", strprintf("%08x", blockindex->nBits)));
+    result.push_back(Pair("difficulty", GetDifficulty(blockindex)));
+    result.push_back(Pair("chainwork", blockindex->nChainTrust.GetHex()));
+    //    result.push_back(Pair("nTx", (uint64_t)blockindex->nTx));
+
+    if (blockindex->pprev)
+        result.push_back(Pair("previousblockhash", blockindex->pprev->GetBlockHash().GetHex()));
+    auto pnext = boost::atomic_load(&blockindex->pnext).get();
+    if (pnext)
+        result.push_back(Pair("nextblockhash", pnext->GetBlockHash().GetHex()));
+    return result;
+}
+
+Value getblockheader(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 2)
+        throw std::runtime_error(
+            "getblockheader \"hash\" ( verbose )\n"
+            "\nIf verbose is false, returns a string that is serialized, hex-encoded data for "
+            "blockheader 'hash'.\n"
+            "If verbose is true, returns an Object with information about blockheader <hash>.\n"
+            "\nArguments:\n"
+            "1. \"hash\"          (string, required) The block hash\n"
+            "2. verbose           (boolean, optional, default=true) true for a json object, false for "
+            "the hex encoded data\n"
+            "\nResult (for verbose = true):\n"
+            "{\n"
+            "  \"hash\" : \"hash\",     (string) the block hash (same as provided)\n"
+            "  \"confirmations\" : n,   (numeric) The number of confirmations, or -1 if the block is "
+            "not on the main chain\n"
+            "  \"height\" : n,          (numeric) The block height or index\n"
+            "  \"version\" : n,         (numeric) The block version\n"
+            "  \"versionHex\" : \"00000000\", (string) The block version formatted in hexadecimal\n"
+            "  \"merkleroot\" : \"xxxx\", (string) The merkle root\n"
+            "  \"time\" : ttt,          (numeric) The block time in seconds since epoch (Jan 1 1970 "
+            "GMT)\n"
+            "  \"mediantime\" : ttt,    (numeric) The median block time in seconds since epoch (Jan 1 "
+            "1970 GMT)\n"
+            "  \"nonce\" : n,           (numeric) The nonce\n"
+            "  \"bits\" : \"1d00ffff\", (string) The bits\n"
+            "  \"difficulty\" : x.xxx,  (numeric) The difficulty\n"
+            "  \"chainwork\" : \"0000...1f3\"     (string) Expected number of hashes required to "
+            "produce the current chain (in hex)\n"
+            "  \"nTx\" : n,             (numeric) The number of transactions in the block.\n"
+            "  \"previousblockhash\" : \"hash\",  (string) The hash of the previous block\n"
+            "  \"nextblockhash\" : \"hash\",      (string) The hash of the next block\n"
+            "}\n"
+            "\nResult (for verbose=false):\n"
+            "\"data\"             (string) A string that is serialized, hex-encoded data for block "
+            "'hash'.\n"
+            "\nExamples:\n"
+            "getblockheader 00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\"");
+
+    LOCK(cs_main);
+
+    std::string strHash = params[0].get_str();
+    uint256     hash(strHash);
+
+    bool fVerbose = true;
+    if (params.size() > 1 && params[1].type() != null_type) {
+        fVerbose = params[1].get_bool();
+    }
+
+    if (mapBlockIndex.count(hash) == 0)
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+
+    CBlockIndex* pblockindex = boost::atomic_load(&mapBlockIndex.at(hash)).get();
+
+    if (!fVerbose) {
+        CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
+        ssBlock << pblockindex->GetBlockHeader();
+        std::string strHex = HexStr(ssBlock.begin(), ssBlock.end());
+        return strHex;
+    }
+
+    return blockheaderToJSON(pblockindex);
+}
+
+Value gettxout(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 2 || params.size() > 3)
+        throw std::runtime_error(
+            "gettxout \"txid\" n ( include_mempool )\n"
+            "\nReturns details about an unspent transaction output.\n"
+            "\nArguments:\n"
+            "1. \"txid\"             (string, required) The transaction id\n"
+            "2. \"n\"                (numeric, required) vout number\n"
+            "3. \"include_mempool\"  (boolean, optional) Whether to include the mempool. Default: true."
+            "     Note that an unspent output that is spent in the mempool won't appear.\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"bestblock\":  \"hash\",    (string) The hash of the block at the tip of the chain\n"
+            "  \"confirmations\" : n,       (numeric) The number of confirmations\n"
+            "  \"value\" : x.xxx,           (numeric) The transaction value in " +
+            CURRENCY_UNIT +
+            "\n"
+            "  \"scriptPubKey\" : {         (json object)\n"
+            "     \"asm\" : \"code\",       (string) \n"
+            "     \"hex\" : \"hex\",        (string) \n"
+            "     \"reqSigs\" : n,          (numeric) Number of required signatures\n"
+            "     \"type\" : \"pubkeyhash\", (string) The type, eg pubkeyhash\n"
+            "     \"addresses\" : [          (array of string) array of neblio addresses\n"
+            "        \"address\"     (string) neblio address\n"
+            "        ,...\n"
+            "     ]\n"
+            "  },\n"
+            "  \"coinbase\" : true|false   (boolean) Coinbase or not\n"
+            "}\n"
+            "\nExamples:\n"
+            "\nGet unspent transactions\n"
+            "listunspent\n"
+            "View the details\n"
+            "gettxout \"txid\" 1\n"
+            "\nAs a json rpc call\n"
+            "gettxout \"txid\" 1");
+
+    LOCK(cs_main);
+
+    json_spirit::Object ret;
+
+    std::string strHash = params[0].get_str();
+    uint256     hash(strHash);
+    unsigned    n = static_cast<unsigned>(params[1].get_int());
+    COutPoint   out(hash, n);
+    bool        fMempool = true;
+    if (params.size() > 2 && params[2].type() != Value_type::null_type)
+        fMempool = params[2].get_bool();
+
+    boost::optional<CTransaction> tx;
+    uint32_t                      nHeight = 0;
+    CTxIndex                      txindex;
+    if (fMempool) {
+        LOCK(mempool.cs);
+        if (mempool.isSpent(out)) {
+            return Value();
+        }
+        const CTransaction* txPtr = mempool.lookup_unsafe(out.hash);
+        if (txPtr) {
+            nHeight = MEMPOOL_HEIGHT;
+            tx      = *txPtr;
+        }
+    }
+
+    // if tx was not found in the mempool
+    if (!tx) {
+        CTxDB txdb;
+        if (!txdb.ReadTxIndex(out.hash, txindex)) {
+            return Value();
+        }
+
+        if (n >= txindex.vSpent.size()) {
+            throw std::runtime_error("Transaction " + out.hash.ToString() + " has only " +
+                                     std::to_string(txindex.vSpent.size()) + " outputs. Output index " +
+                                     std::to_string(n) + " is invalid");
+        }
+
+        if (!txindex.vSpent.at(n).IsNull()) {
+            // it's already spent
+            return Value();
+        }
+        auto it = mapBlockIndex.find(txindex.pos.nBlockPos);
+        if (it != mapBlockIndex.cend()) {
+            nHeight = it->second->nHeight;
+            tx      = CTransaction();
+            if (!txdb.ReadTx(txindex.pos, *tx)) {
+                return Value();
+            }
+        } else {
+            return Value();
+        }
+    }
+
+    if (!tx) {
+        throw std::runtime_error("Failed to find tx " + out.hash.ToString());
+    }
+
+    if (n >= tx->vout.size()) {
+        throw std::runtime_error("Transaction " + out.hash.ToString() + " has only " +
+                                 std::to_string(tx->vout.size()) + " outputs. Output index " +
+                                 std::to_string(n) + " is invalid");
+    }
+
+    CBlockIndex* pindex = pindexBest.get();
+    ret.push_back(Pair("bestblock", pindex->GetBlockHash().GetHex()));
+    if (nHeight == MEMPOOL_HEIGHT) {
+        ret.push_back(Pair("confirmations", 0));
+    } else {
+        ret.push_back(Pair("confirmations", (int64_t)(pindex->nHeight - nHeight)));
+    }
+    ret.push_back(Pair("value", ValueFromAmount(tx->vout.at(n).nValue)));
+    Object o;
+    ScriptPubKeyToJSON(tx->vout.at(n).scriptPubKey, o, true);
+    ret.push_back(Pair("scriptPubKey", o));
+    ret.push_back(Pair("coinbase", tx->IsCoinBase()));
+    ret.push_back(Pair("coinstake", tx->IsCoinStake()));
+
+    return ret;
 }

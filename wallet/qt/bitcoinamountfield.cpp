@@ -37,7 +37,8 @@ BitcoinAmountField::BitcoinAmountField(bool EnableNTP1Tokens, QWidget* parent)
 
     if (enableNTP1Tokens) {
         tokenKindsComboBox = new QComboBox;
-        tokenKindsComboBox->addItem(QIcon(QStringLiteral(":/icons/bitcoin")), "NEBL");
+        tokenKindsComboBox->addItem(QIcon(QStringLiteral(":/icons/bitcoin")),
+                                    QString::fromStdString(CURRENCY_UNIT));
         layout->addWidget(tokenKindsComboBox);
 
         refreshTokensButton = new QToolButton;
@@ -140,7 +141,8 @@ void BitcoinAmountField::slot_updateTokensList()
 
         // update the combobox
         tokenKindsComboBox->clear();
-        tokenKindsComboBox->addItem(QIcon(QStringLiteral(":/icons/bitcoin")), "NEBL");
+        tokenKindsComboBox->addItem(QIcon(QStringLiteral(":/icons/bitcoin")),
+                                    QString::fromStdString(CURRENCY_UNIT));
         for (unsigned i = 0; i < tokenKindsList.size(); i++) {
             tokenKindsComboBox->addItem(tokenKindsList[i].icon,
                                         tokenKindsList[i].name + " (" +

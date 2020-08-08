@@ -2,8 +2,8 @@
 #define BLOCKINDEX_H
 
 #include "globals.h"
-#include "uint256.h"
 #include "outpoint.h"
+#include "uint256.h"
 
 class CBlock;
 

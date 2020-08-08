@@ -10,9 +10,9 @@ greaterThan(QT_MAJOR_VERSION, 4) {
     DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0
 }
 
-#DEFINES += "UNITTEST_DOWNLOAD_TX_DATA"
-#DEFINES += "UNITTEST_RUN_NTP_PARSE_TESTS"
-DEFINES += "UNITTEST_DOWNLOAD_PREMADE_TX_DATA_AND_RUN_PARSE_TESTS"
+DEFINES += "UNITTEST_RUN_NTP1_PARSE_TESTS"
+#DEFINES += "UNITTEST_DOWNLOAD_AND_CREATE_TX_DATA"
+DEFINES += "UNITTEST_REDOWNLOAD_TXID_LIST"
 
 NEBLIO_TEST += TRUE
 NEBLIO_ROOT = $${PWD}/../..
@@ -48,6 +48,8 @@ SOURCES += \
     getarg_tests.cpp      \
     hash_tests.cpp        \
     key_tests.cpp         \
+    merkle_tests.cpp      \
+    miner_tests.cpp       \
     mruset_tests.cpp      \
     netbase_tests.cpp     \
     ntp1_tests.cpp        \
@@ -60,6 +62,7 @@ SOURCES += \
     uint160_tests.cpp     \
     uint256_tests.cpp     \
     util_tests.cpp        \
-    wallet_tests.cpp
+    wallet_tests.cpp      \
+    environment.cpp
 
 DEFINES += BITCOIN_QT_TEST

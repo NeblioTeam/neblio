@@ -85,7 +85,7 @@ void WalletModel::pollBalanceChanged()
         checkBalanceChanged();
 
         // dynamically measure how long updating confirmations takes, and adjust the refresh rate of that
-        using namespace boost::chrono;
+        using namespace std::chrono;
         high_resolution_clock::time_point t1 = high_resolution_clock::now();
 
         if (transactionTableModel) {

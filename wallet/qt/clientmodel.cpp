@@ -101,7 +101,7 @@ void ClientModel::updateAlert(const QString& hash, int status)
     emit numBlocksChanged(getNumBlocks(), getNumBlocksOfPeers());
 }
 
-bool ClientModel::isTestNet() const { return fTestNet; }
+bool ClientModel::isTestNet() const { return Params().NetType() != NetworkType::Mainnet; }
 
 bool ClientModel::inInitialBlockDownload() const { return IsInitialBlockDownload(); }
 

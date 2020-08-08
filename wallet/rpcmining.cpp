@@ -8,8 +8,10 @@
 #include "init.h"
 #include "main.h"
 #include "miner.h"
+#include "script.h"
 #include "txdb.h"
 #include "txmempool.h"
+#include <random>
 
 using namespace json_spirit;
 using namespace std;
@@ -55,7 +57,7 @@ Value getmininginfo(const Array& params, bool fHelp)
     obj.push_back(Pair("stakeweight", weight));
 
     obj.push_back(Pair("stakeinterest", (uint64_t)COIN_YEAR_REWARD));
-    obj.push_back(Pair("testnet", fTestNet));
+    obj.push_back(Pair("testnet", Params().NetType() != Mainnet));
     return obj;
 }
 
@@ -70,7 +72,7 @@ Value getstakinginfo(const Array& params, bool fHelp)
 
     uint64_t     nNetworkWeight = GetPoSKernelPS();
     bool         staking        = nLastCoinStakeSearchInterval && nWeight;
-    unsigned int nTS            = TargetSpacing();
+    unsigned int nTS            = Params().TargetSpacing();
     int          nExpectedTime  = staking ? (nTS * nNetworkWeight / nWeight) : -1;
 
     Object stakingCriteria;
@@ -129,7 +131,7 @@ Value getworkex(const Array& params, bool fHelp)
     if (IsInitialBlockDownload())
         throw JSONRPCError(-10, "neblio is downloading blocks...");
 
-    if (boost::atomic_load(&pindexBest)->nHeight >= LAST_POW_BLOCK)
+    if (boost::atomic_load(&pindexBest)->nHeight >= Params().LastPoWBlock())
         throw JSONRPCError(RPC_MISC_ERROR, "No more PoW blocks");
 
     typedef map<uint256, pair<CBlock*, CScript>> mapNewBlock_t;
@@ -157,7 +159,7 @@ Value getworkex(const Array& params, bool fHelp)
             nStart                   = GetTime();
 
             // Create new block
-            pblock = CreateNewBlock(pwalletMain.get());
+            pblock = CreateNewBlock(pwalletMain.get()).release();
             if (!pblock)
                 throw JSONRPCError(-7, "Out of memory");
             vNewBlock.push_back(pblock);
@@ -232,7 +234,7 @@ Value getworkex(const Array& params, bool fHelp)
         else
             CDataStream(coinbase, SER_NETWORK, PROTOCOL_VERSION) >> pblock->vtx[0]; // FIXME - HACK!
 
-        pblock->hashMerkleRoot = pblock->BuildMerkleTree();
+        pblock->hashMerkleRoot = pblock->GetMerkleRoot();
 
         return CheckWork(pblock, *pwalletMain, reservekey);
     }
@@ -257,7 +259,7 @@ Value getwork(const Array& params, bool fHelp)
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "neblio is downloading blocks...");
 
-    if (boost::atomic_load(&pindexBest)->nHeight >= LAST_POW_BLOCK)
+    if (boost::atomic_load(&pindexBest)->nHeight >= Params().LastPoWBlock())
         throw JSONRPCError(RPC_MISC_ERROR, "No more PoW blocks");
 
     typedef map<uint256, pair<CBlock*, CScript>> mapNewBlock_t;
@@ -276,7 +278,7 @@ Value getwork(const Array& params, bool fHelp)
             if (pindexPrev != pindexBest) {
                 // Deallocate old blocks since they're obsolete now
                 mapNewBlock.clear();
-                BOOST_FOREACH (CBlock* pblock, vNewBlock)
+                for (CBlock* pblock : vNewBlock)
                     delete pblock;
                 vNewBlock.clear();
             }
@@ -290,7 +292,7 @@ Value getwork(const Array& params, bool fHelp)
             nStart                            = GetTime();
 
             // Create new block
-            pblock = CreateNewBlock(pwalletMain.get());
+            pblock = CreateNewBlock(pwalletMain.get()).release();
             if (!pblock)
                 throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
             vNewBlock.push_back(pblock);
@@ -343,7 +345,7 @@ Value getwork(const Array& params, bool fHelp)
         pblock->nTime                   = pdata->nTime;
         pblock->nNonce                  = pdata->nNonce;
         pblock->vtx[0].vin[0].scriptSig = mapNewBlock[pdata->hashMerkleRoot].second;
-        pblock->hashMerkleRoot          = pblock->BuildMerkleTree();
+        pblock->hashMerkleRoot          = pblock->GetMerkleRoot();
 
         return CheckWork(pblock, *pwalletMain, reservekey);
     }
@@ -393,7 +395,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "neblio is downloading blocks...");
 
-    if (boost::atomic_load(&pindexBest)->nHeight >= LAST_POW_BLOCK)
+    if (boost::atomic_load(&pindexBest)->nHeight >= Params().LastPoWBlock())
         throw JSONRPCError(RPC_MISC_ERROR, "No more PoW blocks");
 
     static CReserveKey reservekey(pwalletMain.get());
@@ -418,7 +420,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
             delete pblock;
             pblock = NULL;
         }
-        pblock = CreateNewBlock(pwalletMain.get());
+        pblock = CreateNewBlock(pwalletMain.get()).release();
         if (!pblock)
             throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
 
@@ -523,4 +525,243 @@ Value submitblock(const Array& params, bool fHelp)
         return "rejected";
 
     return Value::null;
+}
+
+boost::optional<unsigned> MineBlock(CBlock block, uint64_t nMaxTries)
+{
+    using NonceType = unsigned;
+    static_assert(std::is_same<NonceType, decltype(block.nNonce)>::value,
+                  "Nonce type is expected to be unsigned");
+
+    auto seed = std::random_device{}();
+
+    std::mt19937                             gen(seed);
+    std::uniform_int_distribution<NonceType> dis;
+    while (nMaxTries > 0) {
+        --nMaxTries;
+        block.nNonce = dis(gen);
+        if (!CheckProofOfWork(block.GetHash(), block.nBits, true)) {
+            continue;
+        } else {
+            return block.nNonce;
+        }
+    }
+    return boost::none;
+}
+
+Value generateBlocks(int nGenerate, uint64_t nMaxTries, CWallet* const pwallet,
+                     const boost::optional<CBitcoinAddress>& destinationAddress = boost::none)
+{
+    static const int nInnerLoopCount = 0x10000;
+    int              nHeightEnd      = 0;
+    int              nHeight         = nBestHeight.load();
+
+    nHeightEnd = nBestHeight.load() + nGenerate;
+
+    unsigned int       nExtraNonce = 0;
+    json_spirit::Array blockHashes;
+
+    // generate a new address
+    const CBitcoinAddress destination = [&destinationAddress]() {
+        if (destinationAddress) {
+            return *destinationAddress;
+        }
+
+        CPubKey newKey;
+        if (!pwalletMain->GetKeyFromPool(newKey, false))
+            throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT,
+                               "Error: Keypool ran out, please call keypoolrefill first");
+        CKeyID keyID = newKey.GetID();
+
+        pwalletMain->SetAddressBookName(keyID, "");
+
+        return CBitcoinAddress(keyID);
+    }();
+
+    while (nHeight < nHeightEnd) {
+        std::unique_ptr<CBlock> pblock = CreateNewBlock(pwallet, false, 0, destination);
+        if (!pblock)
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
+        {
+            LOCK(cs_main);
+            IncrementExtraNonce(pblock.get(), pindexBest.get(), nExtraNonce);
+        }
+
+        boost::optional<unsigned int> nonce = MineBlock(*pblock, nMaxTries);
+        if (nonce) {
+            pblock->nNonce = *nonce;
+        } else {
+            // failed to mine
+            break;
+        }
+
+        if (pblock->nNonce == nInnerLoopCount) {
+            continue;
+        }
+
+        // peercoin: sign block
+        // rfc6: we sign proof of work blocks only before 0.8 fork
+        //        if (!pblock->SignBlock(*pwallet, 0))
+        //            throw JSONRPCError(-100, "Unable to sign block, wallet locked?");
+
+        if (!ProcessBlock(nullptr, pblock.get()))
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBlock, block not accepted");
+        ++nHeight;
+        blockHashes.push_back(pblock->GetHash().GetHex());
+
+        // mark script as important because it was used at least for one coinbase output if the script
+        // came from the wallet
+        //        if (keepScript) {
+        //            coinbaseScript->KeepScript();
+        //        }
+    }
+    return Value(blockHashes);
+}
+
+Value generatePOSBlocks(int nGenerate, CWallet* const pwallet)
+{
+    if (!Params().MineBlocksOnDemand())
+        throw JSONRPCError(RPC_INVALID_REQUEST, "This method can only be used on regtest");
+
+    int nHeightEnd = 0;
+    int nHeight    = nBestHeight.load();
+
+    nHeightEnd = nBestHeight.load() + nGenerate;
+
+    json_spirit::Array blockHashes;
+
+    while (nHeight < nHeightEnd) {
+        std::unique_ptr<CBlock> pblock;
+        {
+            pblock = CreateNewBlock(pwallet, true, 0);
+            if (!pblock)
+                throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
+
+            if (pblock->SignBlock(*pwallet, 0)) {
+                if (!CheckStake(pblock.get(), *pwallet))
+                    throw JSONRPCError(RPC_INTERNAL_ERROR, "CheckStake, CheckStake failed");
+
+            } else {
+                pblock.reset();
+            }
+        }
+
+        if (!pblock) {
+            // staking failed
+            break;
+        }
+
+        ++nHeight;
+        blockHashes.push_back(pblock->GetHash().GetHex());
+    }
+    return Value(blockHashes);
+}
+
+Value generate(const Array& params, bool fHelp)
+{
+    CWallet* const pwallet = pwalletMain.get();
+
+    if (fHelp || params.size() < 1 || params.size() > 2) {
+        throw std::runtime_error(
+            "generate nblocks ( maxtries )\n"
+            "\nMine up to nblocks blocks immediately (before the RPC call returns) to an address in the "
+            "wallet.\n"
+            "\nArguments:\n"
+            "1. nblocks      (numeric, required) How many blocks are generated immediately.\n"
+            "2. maxtries     (numeric, optional) How many iterations to try (default = 1000000).\n"
+            "\nResult:\n"
+            "[ blockhashes ]     (array) hashes of blocks generated\n"
+            "\nExamples:\n"
+            "\nGenerate 11 blocks\n"
+            "generate 11");
+    }
+
+    if (!Params().MineBlocksOnDemand())
+        throw JSONRPCError(RPC_INVALID_REQUEST, "This method can only be used on regtest");
+
+    EnsureWalletIsUnlocked();
+
+    int      num_generate = params[0].get_int();
+    uint64_t max_tries    = 1000000;
+    if (params.size() > 1 && params[1].type() != null_type) {
+        max_tries = params[1].get_int();
+    }
+    //    std::shared_ptr<CReserveScript> coinbase_script;
+    //    pwallet->GetScriptForMining(coinbase_script);
+
+    //    // If the keypool is exhausted, no script is returned at all.  Catch this.
+    //    if (!coinbase_script) {
+    //        throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT,
+    //                           "Error: Keypool ran out, please call keypoolrefill first");
+    //    }
+
+    //    // throw an error if no script was provided
+    //    if (coinbase_script->reserveScript.empty()) {
+    //        throw JSONRPCError(RPC_INTERNAL_ERROR, "No coinbase script available");
+    //    }
+
+    return generateBlocks(num_generate, max_tries, pwallet);
+}
+
+Value generatepos(const Array& params, bool fHelp)
+{
+    EnsureWalletIsUnlocked();
+
+    CWallet* const pwallet = pwalletMain.get();
+
+    if (fHelp || params.size() < 1 || params.size() > 1) {
+        throw std::runtime_error(
+            "generate nblocks\n"
+            "\nMine one block with proof of stake immediately (before the RPC call returns)\n"
+            "\nBe aware that staking is a complex principle that requires accurate timing. It's "
+            "recommended that you manage timing manually and generate only 1 block at a time\n"
+            "\nArguments:\n"
+            "1. nblocks      (numeric, required) How many blocks are generated immediately.\n"
+            "2. count        (numeric, required) Number of blocks to generate.\n"
+            "\nResult:\n"
+            "[ blockhashes ]     (array) hashes of blocks generated\n"
+            "\nExamples:\n"
+            "\nGenerate 11 blocks\n"
+            "generate 11");
+    }
+
+    int num_generate = params[0].get_int();
+
+    return generatePOSBlocks(num_generate, pwallet);
+}
+
+Value generatetoaddress(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 2 || params.size() > 3)
+        throw std::runtime_error(
+            "generatetoaddress nblocks address (maxtries)\n"
+            "\nMine blocks immediately to a specified address (before the RPC call returns)\n"
+            "\nArguments:\n"
+            "1. nblocks      (numeric, required) How many blocks are generated immediately.\n"
+            "2. address      (string, required) The address to send the newly generated nebls to.\n"
+            "3. maxtries     (numeric, optional) How many iterations to try (default = 1000000).\n"
+            "\nResult:\n"
+            "[ blockhashes ]     (array) hashes of blocks generated\n"
+            "\nExamples:\n"
+            "\nGenerate 11 blocks to myaddress\n");
+
+    if (!Params().MineBlocksOnDemand())
+        throw JSONRPCError(RPC_INVALID_REQUEST, "This method can only be used on regtest");
+
+    EnsureWalletIsUnlocked();
+
+    CWallet* const pwallet = pwalletMain.get();
+
+    int      num_generate = params[0].get_int();
+    uint64_t max_tries    = 1000000;
+    if (params.size() > 2 && params[2].type() != Value_type::null_type) {
+        max_tries = params[2].get_int();
+    }
+
+    CBitcoinAddress destination(params[1].get_str());
+    if (!destination.IsValid()) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Error: Invalid address");
+    }
+
+    return generateBlocks(num_generate, max_tries, pwallet, destination);
 }

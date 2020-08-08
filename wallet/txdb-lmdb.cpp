@@ -10,6 +10,7 @@
 #include <boost/scope_exit.hpp>
 #include <boost/thread/future.hpp>
 #include <boost/version.hpp>
+#include <future>
 #include <random>
 
 #include "checkpoints.h"
@@ -61,6 +62,7 @@ bool CTxDB::need_resize(uint64_t threshold_size)
     uint64_t size_used = mst.ms_psize * mei.me_last_pgno;
 
 #ifdef DEEP_LMDB_LOGGING
+    printf("Checking if resize is needed.\n");
     printf("DB map size:     %zu\n", mei.me_mapsize);
     printf("Space used:      %zu\n", size_used);
     printf("Space remaining: %zu\n", mei.me_mapsize - size_used);
@@ -92,6 +94,7 @@ bool CTxDB::need_resize(uint64_t threshold_size)
 
 void lmdb_resized(MDB_env* env)
 {
+    printf("%s\n", __func__);
     mdb_txn_safe::prevent_new_txns();
     BOOST_SCOPE_EXIT(void) { mdb_txn_safe::allow_new_txns(); }
     BOOST_SCOPE_EXIT_END
@@ -114,15 +117,21 @@ void lmdb_resized(MDB_env* env)
 
     std::stringstream ss;
     ss << "LMDB Mapsize increased."
-       << "  Old: " << old / (1024 * 1024) << "MiB"
-       << ", New: " << new_mapsize / (1024 * 1024) << "MiB";
+       << "  Old: " << old / (1024 * 1024) << " MiB"
+       << ", New: " << new_mapsize / (1024 * 1024) << " MiB";
     printf("%s\n", ss.str().c_str());
 }
 
 void CTxDB::do_resize(uint64_t increase_size)
 {
     printf("CTxDB::%s\n", __func__);
-    const uint64_t add_size = 1LL << 30;
+
+    if (increase_size != 0 && increase_size < MIN_MAP_SIZE_INCREASE) {
+        // protect from having very small incremental changes in the DB size, which is not efficient
+        increase_size = MIN_MAP_SIZE_INCREASE;
+    }
+
+    const uintmax_t add_size = UINTMAX_C(1) << 30;
 
     // check disk capacity
     try {
@@ -130,8 +139,9 @@ void CTxDB::do_resize(uint64_t increase_size)
         boost::filesystem::space_info si = boost::filesystem::space(path);
         if (si.available < add_size) {
             stringstream ss;
-            ss << "!! WARNING: Insufficient free space to extend database !!: " << (si.available >> 20L)
-               << " MB available, " << (add_size >> 20L) << " MB needed";
+            ss << "!! WARNING: Insufficient free space to extend database !!: "
+               << (si.available >> UINTMAX_C(20)) << " MB available, " << (add_size >> UINTMAX_C(20))
+               << " MB needed";
             throw std::runtime_error(ss.str());
         }
     } catch (...) {
@@ -157,6 +167,12 @@ void CTxDB::do_resize(uint64_t increase_size)
         new_mapsize = mei.me_mapsize + increase_size;
 
     new_mapsize += (new_mapsize % mst.ms_psize);
+#ifdef DEEP_LMDB_LOGGING
+    printf("Requesting to increase map size by: %zu\n", increase_size);
+    printf("Current map size                  : %zu\n", mei.me_mapsize);
+    printf("New size                          : %zu\n", new_mapsize);
+    printf("System page size                  : %u\n", mst.ms_psize);
+#endif
 
     mdb_txn_safe::prevent_new_txns();
     BOOST_SCOPE_EXIT(void) { mdb_txn_safe::allow_new_txns(); }
@@ -175,9 +191,9 @@ void CTxDB::do_resize(uint64_t increase_size)
 
     std::stringstream ss;
     ss << "LMDB Mapsize increased."
-       << "  Old: " << mei.me_mapsize / (1024 * 1024) << "MiB"
-       << ", New: " << new_mapsize / (1024 * 1024) << "MiB";
-    printf("%s", ss.str().c_str());
+       << "  Old: " << mei.me_mapsize / (1024 * 1024) << " MiB"
+       << ", New: " << new_mapsize / (1024 * 1024) << " MiB";
+    printf("%s\n", ss.str().c_str());
 }
 
 bool IsQuickSyncOSCompatible(const std::string& osValue)
@@ -254,9 +270,9 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
     }
 
     // download the file asynchronously in a new thread
-    boost::promise<void>       downloadThreadPromise;
-    boost::unique_future<void> downloadThreadFuture = downloadThreadPromise.get_future();
-    boost::thread downloadThread([&downloadThreadPromise, &urls, &downloadTempTarget, &progress]() {
+    std::promise<void> downloadThreadPromise;
+    std::future<void>  downloadThreadFuture = downloadThreadPromise.get_future();
+    std::thread        downloadThread([&downloadThreadPromise, &urls, &downloadTempTarget, &progress]() {
         for (unsigned i = 0; i < urls.size(); i++) {
             try {
                 printf("Downloading file for QuickSync: %s...\n", urls[i].c_str());
@@ -272,10 +288,9 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
                 printf("Failed to download a file %s. The last error is: %s\n", urls[i].c_str(),
                        ex.what());
                 if (i + 1 >= urls.size()) {
-                    downloadThreadPromise.set_exception(
-                        boost::enable_current_exception(std::runtime_error(
-                            "Failed to download any of the available files. The last error is: " +
-                            std::string(ex.what()))));
+                    downloadThreadPromise.set_exception(std::make_exception_ptr(std::runtime_error(
+                        "Failed to download any of the available files. The last error is: " +
+                        std::string(ex.what()))));
                 }
             }
         }
@@ -287,8 +302,7 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
         ss << "Downloading QuickSync file " << leaf << ": " << std::setprecision(2)
            << progress.load(std::memory_order_relaxed) << " MB...";
         uiInterface.InitMessage(ss.str());
-    } while (downloadThreadFuture.wait_for(boost::chrono::milliseconds(250)) !=
-             boost::future_status::ready);
+    } while (downloadThreadFuture.wait_for(std::chrono::milliseconds(250)) != std::future_status::ready);
     downloadThread.join();
     downloadThreadFuture.get();
 
@@ -365,7 +379,7 @@ void DoQuickSync(const filesystem::path& dbdir)
             uiInterface.InitMessage(msg);
             printf("Quick sync failed (attempt %i of %i). Error: %s\n", failedAttempts,
                    MAX_FAILED_ATTEMPTS, ex.what());
-            boost::this_thread::sleep_for(boost::chrono::seconds(WAIT_TIME_SECONDS));
+            std::this_thread::sleep_for(std::chrono::seconds(WAIT_TIME_SECONDS));
         }
     }
     uiInterface.InitMessage("QuickSync done");
@@ -388,7 +402,7 @@ bool ShouldQuickSyncBeDone(const filesystem::path& dbdir)
 
     return (!filesystem::exists(dbdir) || !filesystem::exists(dbdir / "data.mdb") ||
             !filesystem::exists(dbdir / "lock.mdb")) &&
-           !fTestNet;
+           Params().NetType() == NetworkType::Mainnet;
 }
 
 void CTxDB::init_blockindex(bool fRemoveOld)
@@ -802,11 +816,7 @@ bool CTxDB::WriteBlock(uint256 hash, const CBlock& blk)
     return Write(hash, blk, db_blocks);
 }
 
-bool CTxDB::EraseTxIndex(const CTransaction& tx)
-{
-    uint256 hash = tx.GetHash();
-    return Erase(hash, db_tx);
-}
+bool CTxDB::EraseTxIndex(const uint256& hash) { return Erase(hash, db_tx); }
 
 bool CTxDB::ContainsTx(uint256 hash) { return Exists(hash, db_tx); }
 
@@ -999,8 +1009,7 @@ bool CTxDB::LoadBlockIndex()
         pindexNew->nNonce             = diskindex.nNonce;
 
         // Watch for genesis block
-        if (pindexGenesisBlock == nullptr &&
-            blockHash == (!fTestNet ? hashGenesisBlock : hashGenesisBlockTestNet))
+        if (pindexGenesisBlock == nullptr && blockHash == Params().GenesisBlockHash())
             pindexGenesisBlock = pindexNew;
 
         if (!pindexNew->CheckIndex()) {
@@ -1223,11 +1232,21 @@ bool CTxDB::LoadBlockIndex()
     return true;
 }
 
+uintmax_t CTxDB::GetCurrentDiskUsage()
+{
+    try {
+        boost::filesystem::path path(GetDataDir() / DB_DIR / "data.mdb");
+        return boost::filesystem::file_size(path);
+    } catch (...) {
+        return 0;
+    }
+}
+
 mdb_txn_safe::mdb_txn_safe(const bool check) : m_txn(nullptr), m_check(check)
 {
     if (check) {
         while (creation_gate.test_and_set()) {
-            boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
         num_active_txns++;
         creation_gate.clear();
@@ -1326,14 +1345,14 @@ uint64_t mdb_txn_safe::num_active_tx() const { return num_active_txns; }
 void mdb_txn_safe::prevent_new_txns()
 {
     while (creation_gate.test_and_set()) {
-        boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }
 
 void mdb_txn_safe::wait_no_active_txns()
 {
     while (num_active_txns > 0) {
-        boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }
 

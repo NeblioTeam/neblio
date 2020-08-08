@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <boost/filesystem/fstream.hpp>
+#include <boost/optional.hpp>
 #include <curl/curl.h>
 #include <deque>
 #include <set>
@@ -16,6 +17,10 @@ public:
     static int    CurlProgress_CallbackFunc(void*, double TotalToDownload, double NowDownloaded,
                                             double /*TotalToUpload*/, double /*NowUploaded*/);
     static void   CurlGlobalInit_ThreadSafe();
+    static std::string GetFileFromHTTPS_withRetries(const boost::optional<uint64_t>& MaxRetries,
+                                                    uint64_t           waitBetweenRetries_ms,
+                                                    const std::string& URL, long ConnectionTimeout,
+                                                    bool IncludeProgressBar);
     static std::string GetFileFromHTTPS(const std::string& URL, long ConnectionTimeout,
                                         bool IncludeProgressBar, bool VerifySSLHostAndPeer = true);
     static std::string PostJsonToHTTPS(const std::string& URL, long ConnectionTimeout,

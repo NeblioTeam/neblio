@@ -15,6 +15,7 @@
 #undef printf
 #include <boost/algorithm/string.hpp>
 #include <boost/asio.hpp>
+#include <boost/asio/buffer.hpp>
 #include <boost/asio/ip/v6_only.hpp>
 #include <boost/asio/ssl.hpp>
 #include <boost/bind.hpp>
@@ -24,7 +25,9 @@
 #include <boost/iostreams/concepts.hpp>
 #include <boost/iostreams/stream.hpp>
 #include <boost/shared_ptr.hpp>
+#include <chrono>
 #include <list>
+#include <thread>
 
 #define printf OutputDebugStringF
 
@@ -39,9 +42,9 @@ static std::string strRPCUserColonPass;
 
 const Object emptyobj;
 
-void ThreadRPCServer3(void* parg);
+boost::atomic_bool fRpcListening{false};
 
-static inline unsigned short GetDefaultRPCPort() { return GetBoolArg("-testnet", false) ? 16326 : 6326; }
+void ThreadRPCServer3(void* parg);
 
 Object JSONRPCError(int code, const string& message)
 {
@@ -49,6 +52,32 @@ Object JSONRPCError(int code, const string& message)
     error.push_back(Pair("code", code));
     error.push_back(Pair("message", message));
     return error;
+}
+
+void ScriptPubKeyToJSON(const CScript& scriptPubKey, Object& out, bool fIncludeHex)
+{
+    txnouttype             type;
+    vector<CTxDestination> addresses;
+    int                    nRequired;
+
+    out.push_back(Pair("asm", scriptPubKey.ToString()));
+
+    if (fIncludeHex)
+        out.push_back(Pair("hex", HexStr(scriptPubKey.begin(), scriptPubKey.end())));
+
+    if (!ExtractDestinations(scriptPubKey, type, addresses, nRequired)) {
+        out.push_back(Pair("type", GetTxnOutputType(type)));
+        return;
+    }
+
+    out.push_back(Pair("reqSigs", nRequired));
+    out.push_back(Pair("type", GetTxnOutputType(type)));
+    out.push_back(Pair("hex", HexStr(scriptPubKey.begin(), scriptPubKey.end())));
+
+    Array a;
+    for (const CTxDestination& addr : addresses)
+        a.push_back(CBitcoinAddress(addr).ToString());
+    out.push_back(Pair("addresses", a));
 }
 
 void RPCTypeCheck(const Array& params, const list<Value_type>& typesExpected, bool fAllowNull)
@@ -83,31 +112,47 @@ void RPCTypeCheck(const Object& o, const map<string, Value_type>& typesExpected,
     }
 }
 
-int64_t AmountFromValue(const Value& value)
+CAmount AmountFromValue(const Value& value)
 {
-    double dAmount = value.get_real();
-    if (dAmount <= 0.0 || dAmount > MAX_MONEY)
-        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount");
-    int64_t nAmount = roundint64(dAmount * COIN);
+    CAmount nAmount = 0;
+    if (value.type() != real_type && value.type() != int_type && value.type() != str_type)
+        throw JSONRPCError(RPC_TYPE_ERROR, "Amount is not a number or string");
+    if (value.type() == str_type) {
+        if (!ParseFixedPoint(value.get_str(), 8, &nAmount))
+            throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount");
+    } else {
+        double dAmount = value.get_real();
+        nAmount        = roundint64(dAmount * COIN);
+    }
     if (!MoneyRange(nAmount))
-        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount");
+        throw JSONRPCError(RPC_TYPE_ERROR, "Amount out of range");
     return nAmount;
 }
 
-Value ValueFromAmount(int64_t amount) { return (double)amount / (double)COIN; }
+Value ValueFromAmount(const CAmount& amount)
+{
+    bool sign = amount < 0;
+    int64_t n_abs = (sign ? -amount : amount);
+    int64_t quotient = n_abs / COIN;
+    int64_t remainder = n_abs % COIN;
+    return Value(std::stod(strprintf("%s%zd.%08zd", sign ? "-" : "", quotient, remainder)));
+}
 
 //
 // Utilities: convert hex-encoded Values
 // (throws error if not hex).
 //
-uint256 ParseHashV(const Value& v, string strName)
+uint256 ParseHashV(const Value& v, const string& strName)
 {
-    string strHex;
-    if (v.type() == str_type)
+    std::string strHex;
+    if (v.type() == json_spirit::str_type)
         strHex = v.get_str();
     if (!IsHex(strHex)) // Note: IsHex("") is false
         throw JSONRPCError(RPC_INVALID_PARAMETER,
                            strName + " must be hexadecimal string (not '" + strHex + "')");
+    if (64 != strHex.length())
+        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must be of length %d (not %zu)",
+                                                            strName.c_str(), 64, strHex.length()));
     uint256 result;
     result.SetHex(strHex);
     return result;
@@ -187,9 +232,19 @@ Value stop(const Array& params, bool fHelp)
     if (fHelp || params.size() > 1)
         throw runtime_error("stop\n"
                             "Stop neblio server.");
+
     // Shutdown will take long enough that the response should get back
     StartShutdown();
     return "neblio server stopping";
+}
+
+Value uptime(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 0)
+        throw runtime_error("uptime\n"
+                            "Returns the total uptime of the server.\n");
+
+    return GetTime() - GetStartupTime();
 }
 
 //
@@ -200,11 +255,16 @@ Value stop(const Array& params, bool fHelp)
 static const CRPCCommand vRPCCommands[] =
 { //  name                         function                    safemd  unlocked
   //  ------------------------     -----------------------     ------  --------
-    { "help",                      &help,                      true,   true },
-    { "stop",                      &stop,                      true,   true },
+    { "help",                      &help,                      true,   true  },
+    { "stop",                      &stop,                      true,   true  },
+    { "uptime",                    &uptime,                    false,  false },
     { "getbestblockhash",          &getbestblockhash,          true,   false },
     { "getblockcount",             &getblockcount,             true,   false },
+    { "waitforblockheight",        &waitforblockheight,        true,   false },
     { "getconnectioncount",        &getconnectioncount,        true,   false },
+    { "addnode",                   &addnode,                   true,   false },
+    { "disconnectnode",            &disconnectnode,            true,   false },
+    { "setmocktime",               &setmocktime,               false,  false },
     { "getpeerinfo",               &getpeerinfo,               true,   false },
     { "getdifficulty",             &getdifficulty,             true,   false },
     { "getinfo",                   &getinfo,                   true,   false },
@@ -226,6 +286,8 @@ static const CRPCCommand vRPCCommands[] =
     { "listreceivedbyaccount",     &listreceivedbyaccount,     false,  false },
     { "backupwallet",              &backupwallet,              true,   false },
     { "keypoolrefill",             &keypoolrefill,             true,   false },
+    { "getwalletinfo",             &getwalletinfo,             true,   false },
+    { "getrawchangeaddress",       &getrawchangeaddress,       true,   false },
     { "walletpassphrase",          &walletpassphrase,          true,   false },
     { "walletpassphrasechange",    &walletpassphrasechange,    false,  false },
     { "walletlock",                &walletlock,                true,   false },
@@ -241,6 +303,8 @@ static const CRPCCommand vRPCCommands[] =
     { "addmultisigaddress",        &addmultisigaddress,        false,  false },
     { "addredeemscript",           &addredeemscript,           false,  false },
     { "getrawmempool",             &getrawmempool,             true,   false },
+    { "calculateblockhash",        &calculateblockhash,        false,  false },
+    { "gettxout",                  &gettxout,                  false,  false },
     { "getblock",                  &getblock,                  false,  false },
     { "getblockbynumber",          &getblockbynumber,          false,  false },
     { "getblockhash",              &getblockhash,              false,  false },
@@ -255,6 +319,9 @@ static const CRPCCommand vRPCCommands[] =
     { "settxfee",                  &settxfee,                  false,  false },
     { "getblocktemplate",          &getblocktemplate,          true,   false },
     { "submitblock",               &submitblock,               false,  false },
+    { "generatepos",               &generatepos,               false,  false },
+    { "generate",                  &generate,                  false,  false },
+    { "generatetoaddress",         &generatetoaddress,         false,  false },
     { "listsinceblock",            &listsinceblock,            false,  false },
     { "dumpprivkey",               &dumpprivkey,               false,  false },
     { "dumpwallet",                &dumpwallet,                true,   false },
@@ -269,13 +336,16 @@ static const CRPCCommand vRPCCommands[] =
     { "signrawtransaction",        &signrawtransaction,        false,  false },
     { "sendrawtransaction",        &sendrawtransaction,        false,  false },
     { "getcheckpoint",             &getcheckpoint,             true,   false },
-    { "reservebalance",            &reservebalance,            false,  true},
-    { "checkwallet",               &checkwallet,               false,  true},
-    { "repairwallet",              &repairwallet,              false,  true},
-    { "resendtx",                  &resendtx,                  false,  true},
-    { "makekeypair",               &makekeypair,               false,  true},
-    { "sendalert",                 &sendalert,                 false,  false},
+    { "reservebalance",            &reservebalance,            false,  true  },
+    { "checkwallet",               &checkwallet,               false,  true  },
+    { "repairwallet",              &repairwallet,              false,  true  },
+    { "resendtx",                  &resendtx,                  false,  true  },
+    { "makekeypair",               &makekeypair,               false,  true  },
+    { "sendalert",                 &sendalert,                 false,  false },
     { "exportblockchain",          &exportblockchain,          false,  false },
+    { "getblockchaininfo",         &getblockchaininfo,         false,  false },
+    { "getblockheader",            &getblockheader,            false,  false },
+    { "syncwithvalidationinterfacequeue", &syncwithvalidationinterfacequeue, true, false },
 };
 // clang-format on
 
@@ -390,7 +460,7 @@ int ReadHTTPStatus(std::basic_istream<char>& stream, int& proto)
         return HTTP_INTERNAL_SERVER_ERROR;
     proto           = 0;
     const char* ver = strstr(str.c_str(), "HTTP/1.");
-    if (ver != NULL)
+    if (ver != nullptr)
         proto = atoi(ver + 7);
     return atoi(vWords[1].c_str());
 }
@@ -632,6 +702,24 @@ private:
     iostreams::stream<SSLIOStreamDevice<Protocol>> _stream;
 };
 
+static bool InitRPCAuthentication()
+{
+    if (GetArg("-rpcpassword", "") == "") {
+        printf("No rpcpassword set - using random cookie authentication\n");
+        if (!GenerateAuthCookie(&strRPCUserColonPass)) {
+            uiInterface.ThreadSafeMessageBox(
+                _("Error: A fatal internal error occurred while generating the authentication cookie, "
+                  "see debug.log for details"), // Same message
+                                                // as AbortNode
+                "", CClientUIInterface::OK | CClientUIInterface::MODAL);
+            return false;
+        }
+    } else {
+        strRPCUserColonPass = GetArg("-rpcuser", "") + ":" + GetArg("-rpcpassword", "");
+    }
+    return true;
+}
+
 void ThreadRPCServer(void* parg)
 {
     // Make this thread recognisable as the RPC listener
@@ -734,88 +822,35 @@ void ThreadRPCServer2(void* /*parg*/)
 {
     printf("ThreadRPCServer started\n");
 
-    std::string rpcUser;
-    mapArgs.get("-rpcuser", rpcUser);
-    std::string rpcPassword;
-    mapArgs.get("-rpcpassword", rpcPassword);
-
-    strRPCUserColonPass = rpcUser + ":" + rpcPassword;
-    if ((rpcPassword == "") || (rpcUser == rpcPassword)) {
-        unsigned char rand_pwd[32];
-        RAND_bytes(rand_pwd, 32);
-        string strWhatAmI = "To use nebliod";
-        if (mapArgs.exists("-server"))
-            strWhatAmI = strprintf(_("To use the %s option"), "\"-server\"");
-        else if (mapArgs.exists("-daemon"))
-            strWhatAmI = strprintf(_("To use the %s option"), "\"-daemon\"");
-        uiInterface.ThreadSafeMessageBox(
-            strprintf(
-                _("%s, you must set a rpcpassword in the configuration file:\n %s\n"
-                  "It is recommended you use the following random password:\n"
-                  "rpcuser=nebliorpc\n"
-                  "rpcpassword=%s\n"
-                  "(you do not need to remember this password)\n"
-                  "The username and password MUST NOT be the same.\n"
-                  "If the file does not exist, create it with owner-readable-only file permissions.\n"
-                  "It is also recommended to set alertnotify so you are notified of problems;\n"
-                  "for example: alertnotify=echo %%s | mail -s \"neblio Alert\" admin@foo.com\n"),
-                strWhatAmI.c_str(), GetConfigFile().string().c_str(),
-                EncodeBase58(&rand_pwd[0], &rand_pwd[0] + 32).c_str()),
-            _("Error"), CClientUIInterface::OK | CClientUIInterface::MODAL);
+    if (!InitRPCAuthentication()) {
         StartShutdown();
         return;
     }
 
-    const bool fUseSSL = GetBoolArg("-rpcssl");
+    const bool fUseSSL = false; // SSL disabled
 
-    asio::io_service io_service;
+    // this is made static due to issues of possible race conditions when shutting down
+    // the issue is probably caused by trying to clear/read the queue after having deleted the acceptor,
+    // where the RPC request is also deleted
+    static asio::io_service io_service;
+    io_service.reset();
+
 #if ((BOOST_VERSION / 100000) > 1) && ((BOOST_VERSION / 100 % 1000) >= 47)
     ssl::context context(io_service, ssl::context::sslv23);
 #else
     ssl::context context(ssl::context::sslv23);
 #endif
 
-    if (fUseSSL) {
-        context.set_options(ssl::context::no_sslv2);
-
-        filesystem::path pathCertFile(GetArg("-rpcsslcertificatechainfile", "server.cert"));
-        if (!pathCertFile.is_complete())
-            pathCertFile = filesystem::path(GetDataDir()) / pathCertFile;
-        if (filesystem::exists(pathCertFile))
-            context.use_certificate_chain_file(pathCertFile.string());
-        else
-            printf("ThreadRPCServer ERROR: missing server certificate file %s\n",
-                   pathCertFile.string().c_str());
-
-        filesystem::path pathPKFile(GetArg("-rpcsslprivatekeyfile", "server.pem"));
-        if (!pathPKFile.is_complete())
-            pathPKFile = filesystem::path(GetDataDir()) / pathPKFile;
-        if (filesystem::exists(pathPKFile))
-            context.use_private_key_file(pathPKFile.string(), ssl::context::pem);
-        else
-            printf("ThreadRPCServer ERROR: missing server private key file %s\n",
-                   pathPKFile.string().c_str());
-
-        string strCiphers =
-            GetArg("-rpcsslciphers", "TLSv1+HIGH:!SSLv2:!aNULL:!eNULL:!AH:!3DES:@STRENGTH");
-#if ((BOOST_VERSION / 100000) > 1) && ((BOOST_VERSION / 100 % 1000) >= 47)
-        SSL_CTX_set_cipher_list(context.impl(), strCiphers.c_str());
-#else
-        SSL_CTX_set_cipher_list(context.native_handle(), strCiphers.c_str());
-#endif
-    }
-
     // Try a dual IPv6/IPv4 socket, falling back to separate IPv4 and IPv6 sockets
     const bool        loopback = !mapArgs.exists("-rpcallowip");
     asio::ip::address bindAddress =
         loopback ? asio::ip::address_v6::loopback() : asio::ip::address_v6::any();
-    ip::tcp::endpoint                    endpoint(bindAddress, GetArg("-rpcport", GetDefaultRPCPort()));
-    boost::system::error_code            v6_only_error;
+    ip::tcp::endpoint         endpoint(bindAddress, GetArg("-rpcport", BaseParams().RPCPort()));
+    boost::system::error_code v6_only_error;
     boost::shared_ptr<ip::tcp::acceptor> acceptor(new ip::tcp::acceptor(io_service));
 
-    boost::signals2::signal<void()> StopRequests;
+    fRpcListening.store(false);
 
-    bool        fListening = false;
     std::string strerr;
     try {
         acceptor->open(endpoint.protocol());
@@ -829,12 +864,15 @@ void ThreadRPCServer2(void* /*parg*/)
 
         RPCListen(acceptor, context, fUseSSL);
         // Cancel outstanding listen-requests for this acceptor when shutting down
-        StopRequests.connect(
-            signals2::slot<void()>(static_cast<void (ip::tcp::acceptor::*)()>(&ip::tcp::acceptor::close),
-                                   acceptor.get())
-                .track(acceptor));
+        StopRPCRequests.get().connect(signals2::slot<void()>([acceptor]() {
+                                          boost::system::error_code ec;
+                                          acceptor->cancel(ec);
+                                          acceptor->close(ec);
+                                          auto dead = boost::signals2::signal<void()>();
+                                          StopRPCRequests.get().swap(dead);
+                                      }).track(acceptor));
 
-        fListening = true;
+        fRpcListening.store(true);
     } catch (boost::system::system_error& e) {
         strerr = strprintf(_("An error occurred while setting up the RPC port %u for listening on IPv6, "
                              "falling back to IPv4: %s"),
@@ -843,7 +881,7 @@ void ThreadRPCServer2(void* /*parg*/)
 
     try {
         // If dual IPv6/IPv4 failed (or we're opening loopback interfaces only), open IPv4 separately
-        if (!fListening || loopback || v6_only_error) {
+        if (!fRpcListening.load() || loopback || v6_only_error) {
             bindAddress = loopback ? asio::ip::address_v4::loopback() : asio::ip::address_v4::any();
             endpoint.address(bindAddress);
 
@@ -855,12 +893,15 @@ void ThreadRPCServer2(void* /*parg*/)
 
             RPCListen(acceptor, context, fUseSSL);
             // Cancel outstanding listen-requests for this acceptor when shutting down
-            StopRequests.connect(signals2::slot<void()>(static_cast<void (ip::tcp::acceptor::*)()>(
-                                                            &ip::tcp::acceptor::close),
-                                                        acceptor.get())
-                                     .track(acceptor));
+            StopRPCRequests.get().connect(signals2::slot<void()>([acceptor]() {
+                                              boost::system::error_code ec;
+                                              acceptor->cancel(ec);
+                                              acceptor->close(ec);
+                                              auto dead = boost::signals2::signal<void()>();
+                                              StopRPCRequests.get().swap(dead);
+                                          }).track(acceptor));
 
-            fListening = true;
+            fRpcListening.store(true);
         }
     } catch (boost::system::system_error& e) {
         strerr =
@@ -868,7 +909,7 @@ void ThreadRPCServer2(void* /*parg*/)
                       endpoint.port(), e.what());
     }
 
-    if (!fListening) {
+    if (!fRpcListening.load()) {
         uiInterface.ThreadSafeMessageBox(strerr, _("Error"),
                                          CClientUIInterface::OK | CClientUIInterface::MODAL);
         StartShutdown();
@@ -876,10 +917,11 @@ void ThreadRPCServer2(void* /*parg*/)
     }
 
     vnThreadsRunning[THREAD_RPCLISTENER]--;
-    while (!fShutdown)
+    while (!fShutdown) {
         io_service.run_one();
+    }
     vnThreadsRunning[THREAD_RPCLISTENER]++;
-    StopRequests();
+    StopRPCRequests.get()();
 }
 
 class JSONRequest
@@ -1048,8 +1090,10 @@ json_spirit::Value CRPCTable::execute(const std::string&        strMethod,
 {
     // Find method
     const CRPCCommand* pcmd = tableRPC[strMethod];
-    if (!pcmd)
-        throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Method not found");
+    if (!pcmd) {
+        printf("Method not found: %s\n", strMethod.c_str());
+        throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Method not found (" + std::string(strMethod) + ")");
+    }
 
     // Observe safe mode
     string strWarning = GetWarnings("rpc");
@@ -1107,7 +1151,8 @@ Object CallRPC(const string& strMethod, const Array& params)
     asio::ssl::stream<asio::ip::tcp::socket>            sslStream(io_service, context);
     SSLIOStreamDevice<asio::ip::tcp>                    d(sslStream, fUseSSL);
     iostreams::stream<SSLIOStreamDevice<asio::ip::tcp>> stream(d);
-    if (!d.connect(GetArg("-rpcconnect", "127.0.0.1"), GetArg("-rpcport", itostr(GetDefaultRPCPort()))))
+    if (!d.connect(GetArg("-rpcconnect", "127.0.0.1"),
+                   GetArg("-rpcport", itostr(BaseParams().RPCPort()))))
         throw runtime_error("couldn't connect to server");
 
     // HTTP basic authentication
@@ -1173,6 +1218,10 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
     //
     // Special case non-string parameter types
     //
+    if (strMethod == "generate" && n > 0)
+        ConvertTo<int64_t>(params[0]);
+    if (strMethod == "generate" && n > 1)
+        ConvertTo<int64_t>(params[1]);
     if (strMethod == "stop" && n > 0)
         ConvertTo<bool>(params[0]);
     if (strMethod == "sendtoaddress" && n > 1)
@@ -1433,7 +1482,7 @@ GetNTP1RecipientsVector(const Object& sendTo, boost::shared_ptr<NTP1Wallet> ntp1
             }
         } else {
             // nebls
-            int64_t nAmount = AmountFromValue(s.value_);
+            CAmount nAmount = AmountFromValue(s.value_);
             res.amount      = static_cast<uint64_t>(nAmount);
             if (nAmount <= 0) {
                 throw std::runtime_error("Invalid amount: " + ::ToString(res.amount));
@@ -1444,3 +1493,5 @@ GetNTP1RecipientsVector(const Object& sendTo, boost::shared_ptr<NTP1Wallet> ntp1
     }
     return result;
 }
+
+bool IsRPCRunning() { return fRpcListening.load(); }

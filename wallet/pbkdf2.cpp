@@ -3,7 +3,7 @@
 #include <string.h>
 #include "pbkdf2.h"
 
-static inline uint32_t
+inline uint32_t
 be32dec(const void *pp)
 {
     const uint8_t *p = (uint8_t const *)pp;
@@ -12,7 +12,7 @@ be32dec(const void *pp)
         ((uint32_t)(p[1]) << 16) + ((uint32_t)(p[0]) << 24));
 }
 
-static inline void
+inline void
 be32enc(void *pp, uint32_t x)
 {
     uint8_t * p = (uint8_t *)pp;

@@ -156,7 +156,12 @@ HEADERS += qt/bitcoingui.h \
     blocklocator.h        \
     udaddress.h           \
     qt/ntp1/issuenewntp1tokendialog.h \
-    crypto_highlevel.h
+    chainparamsbase.h          \
+    chainparams.h              \
+    consensus_params.h         \
+    amount.h                   \
+    crypto_highlevel.h         \
+    merkle.h
 
 
 
@@ -309,7 +314,11 @@ SOURCES += qt/bitcoin.cpp \
     blocklocator.cpp      \
     udaddress.cpp         \
     qt/ntp1/issuenewntp1tokendialog.cpp \
-    crypto_highlevel.cpp
+    chainparamsbase.cpp                 \
+    chainparams.cpp                     \
+    consensus_params.cpp                \
+    crypto_highlevel.cpp                \
+    merkle.cpp
 
 
 SOURCES +=                   \

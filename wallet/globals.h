@@ -1,6 +1,8 @@
 #ifndef GLOBALS_H
 #define GLOBALS_H
 
+#include "amount.h"
+#include "chainparams.h"
 #include "sync.h"
 #include "uint256.h"
 #include <boost/atomic.hpp>
@@ -25,11 +27,6 @@ extern CBlockIndexSmartPtr pindexGenesisBlock;
 extern bool               fUseFastIndex;
 extern boost::atomic<int> nBestHeight;
 
-static const int LAST_POW_BLOCK = 1000; // 1000 PoW Blocks to kickstart
-
-static const int64_t COIN = 100000000;
-static const int64_t CENT = 1000000;
-
 /** The maximum allowed size for a serialized block, in bytes (network rule) */
 static const unsigned int MAX_BLOCK_SIZE     = 8000000;
 static const unsigned int OLD_MAX_BLOCK_SIZE = 1000000;
@@ -43,34 +40,26 @@ static const unsigned int DEFAULT_MAX_ORPHAN_TRANSACTIONS = 100;
 static const unsigned int MAX_INV_SZ = 50000;
 /** Default for -maxorphanblocks, maximum number of orphan blocks kept in memory */
 static const unsigned int DEFAULT_MAX_ORPHAN_BLOCKS = 750;
-/** Fees smaller than this (in satoshi) are considered zero fee (for transaction creation) */
-static const int64_t MIN_TX_FEE = 10000;
 /** Fees smaller than this (in satoshi) are considered zero fee (for relaying) */
 static const int64_t MIN_RELAY_TX_FEE = MIN_TX_FEE;
 /** Threshold for nLockTime: below this value it is interpreted as block number, otherwise as UNIX
  * timestamp. */
 static const unsigned int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20 1985 UTC
+/** Maximum length of reject messages. */
+static const unsigned int MAX_REJECT_MESSAGE_LENGTH = 111;
+/** Maximum length of the user agent string in `version` message */
+static const unsigned int MAX_SUBVERSION_LENGTH = 256;
 
 static const int64_t COIN_YEAR_REWARD = 10 * CENT; // 10%
-
-/** The maximum allowed OP_RETURN size in bytes (network rule) */
-static const unsigned int MAX_DATA_SIZE     = 4096;
-static const unsigned int OLD_MAX_DATA_SIZE = 80;
 
 /** The maximum allowed Peer Protocol Version */
 static const unsigned int MIN_PEER_PROTO_VERSION     = 60210; // v2.1+
 static const unsigned int OLD_MIN_PEER_PROTO_VERSION = 60200; // v2.0+
 
-static const uint256
-    hashGenesisBlock("0x7286972be4dbc1463d256049b7471c252e6557e222cab9be73181d359cd28bcc");
-static const uint256
-    hashGenesisBlockTestNet("0x7286972be4dbc1463d256049b7471c252e6557e222cab9be73181d359cd28bcc");
+extern boost::atomic<int64_t> NodeIDCounter;
 
-/** No amount larger than this (in satoshi) is valid */
-static const int64_t MAX_MONEY =
-    std::numeric_limits<int64_t>::max(); // Total coin that will be released (~infinite)
-
-inline bool MoneyRange(int64_t nValue) { return (nValue >= 0 && nValue <= MAX_MONEY); }
+/** Subversion as sent to the P2P network in `version` messages */
+extern std::string strSubVersion;
 
 extern CBlockIndexSmartPtr pblockindexFBBHLast;
 
@@ -88,5 +77,26 @@ enum CPMode
 } // namespace Checkpoints
 
 extern Checkpoints::CPMode CheckpointsMode;
+
+/** Used by SanitizeString() */
+enum SafeChars
+{
+    SAFE_CHARS_DEFAULT,    //!< The full set of allowed chars
+    SAFE_CHARS_UA_COMMENT, //!< BIP-0014 subset
+    SAFE_CHARS_FILENAME,   //!< Chars allowed in filenames
+    SAFE_CHARS_URI,        //!< Chars allowed in URIs (RFC 3986)
+};
+
+static const std::string CHARS_ALPHA_NUM =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+static const std::string SAFE_CHARS[] = {
+    CHARS_ALPHA_NUM + " .,;-_/:?@()",            // SAFE_CHARS_DEFAULT
+    CHARS_ALPHA_NUM + " .,;-_?@",                // SAFE_CHARS_UA_COMMENT
+    CHARS_ALPHA_NUM + ".-_",                     // SAFE_CHARS_FILENAME
+    CHARS_ALPHA_NUM + "!*'();:@&=+$,/?#[]-_.~%", // SAFE_CHARS_URI
+};
+
+std::string SanitizeString(const std::string& str, int rule);
 
 #endif // GLOBALS_H

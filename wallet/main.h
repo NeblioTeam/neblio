@@ -68,12 +68,7 @@ extern libzerocoin::Params*                         ZCParams;
 extern CScript                                      COINBASE_FLAGS;
 extern std::set<std::pair<COutPoint, unsigned int>> setStakeSeen;
 static constexpr const int64_t                      TARGET_AVERAGE_BLOCK_COUNT = 100;
-extern unsigned int                                 nTargetSpacing;
-extern unsigned int                                 nStakeMinAge;
-extern unsigned int                                 nOldTestnetStakeMinAge;
-extern unsigned int                                 nStakeMaxAge;
 extern unsigned int                                 nNodeLifespan;
-extern int                                          nCoinbaseMaturity;
 extern uint256                                      nBestChainTrust;
 extern uint256                                      nBestInvalidTrust;
 extern uint256                                      hashBestChain;
@@ -84,7 +79,6 @@ extern const std::string                            strMessageMagic;
 extern int64_t                                      nTimeBestReceived;
 extern CCriticalSection                             cs_setpwalletRegistered;
 extern std::set<std::shared_ptr<CWallet>>           setpwalletRegistered;
-extern unsigned char                                pchMessageStart[4];
 extern std::unordered_map<uint256, CBlock*>         mapOrphanBlocks;
 extern boost::atomic<bool>                          fImporting;
 
@@ -116,7 +110,7 @@ void         PrintBlockTree();
 bool         ProcessMessages(CNode* pfrom);
 bool         SendMessages(CNode* pto, bool fSendTrickle);
 void         ThreadImport(void* parg);
-bool         CheckProofOfWork(uint256 hash, unsigned int nBits);
+bool         CheckProofOfWork(const uint256& hash, unsigned int nBits, bool silent = false);
 unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake);
 int64_t      GetProofOfWorkReward(int64_t nFees);
 int64_t      GetProofOfStakeReward(int64_t nCoinAge, int64_t nFees);
@@ -173,31 +167,20 @@ bool IsTxInMainChain(const uint256& txHash);
 int64_t GetTxBlockHeight(const uint256& txHash);
 
 /** (try to) add transaction to memory pool **/
-bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInputs);
+bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInputs,
+                        CTxDB* txdbPtr = nullptr);
 
 bool EnableEnforceUniqueTokenSymbols();
 
 /** the condition for the first valid NTP1 transaction; transactions before this point are invalid in the
  * network*/
-bool PassedFirstValidNTP1Tx(const int bestHeight, const bool isTestnet);
+bool PassedFirstValidNTP1Tx(const int bestHeight, const NetworkType isTestnet);
 
 /** Maximum size of a block */
 unsigned int MaxBlockSize();
 
-/** Target time between blocks */
-unsigned int TargetSpacing();
-
-/** Coinbase Maturity */
-int CoinbaseMaturity();
-
-/** max OP_RETURN size */
-unsigned int DataSize();
-
 /** Minimum Peer Protocol Version */
 int MinPeerVersion();
-
-/** Minimum Staking Age */
-unsigned int StakeMinAge();
 
 bool GetWalletFile(CWallet* pwallet, std::string& strWalletFileOut);
 
@@ -741,17 +724,10 @@ public:
 };
 
 /** Global variable that points to the active CCoinsView (protected by cs_main) */
-extern CCoinsViewCache* pcoinsTip;
+// extern CCoinsViewCache* pcoinsTip;
 
 /** Global variable that points to the active block tree (protected by cs_main) */
 extern CTxDB* pblocktree;
-
-struct CBlockTemplate
-{
-    CBlock               block;
-    std::vector<int64_t> vTxFees;
-    std::vector<int64_t> vTxSigOps;
-};
 
 /** Used to relay blocks as header + vector<merkle branch>
  * to filtered nodes.
@@ -776,10 +752,10 @@ public:
     IMPLEMENT_SERIALIZE(READWRITE(header); READWRITE(txn);)
 };
 
-void ExportBootstrapBlockchain(const std::string& filename, std::atomic<bool>& stopped,
+void ExportBootstrapBlockchain(const boost::filesystem::path& filename, std::atomic<bool>& stopped,
                                std::atomic<double>& progress, boost::promise<void>& result);
-void ExportBootstrapBlockchainWithOrphans(const std::string& filename, std::atomic<bool>& stopped,
-                                          std::atomic<double>& progress, boost::promise<void>& result,
-                                          GraphTraverseType traverseType);
+void ExportBootstrapBlockchainWithOrphans(const boost::filesystem::path& filename,
+                                          std::atomic<bool>& stopped, std::atomic<double>& progress,
+                                          boost::promise<void>& result, GraphTraverseType traverseType);
 
 #endif

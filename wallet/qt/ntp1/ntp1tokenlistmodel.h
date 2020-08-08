@@ -59,7 +59,7 @@ class NTP1TokenListModel : public QAbstractTableModel
     void                                   SetupNTP1WalletTxUpdaterToWallet()
     {
         while (!std::atomic_load(&pwalletMain).get()) {
-            boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
         std::atomic_load(&pwalletMain)->setFunctorOnTxInsert(ntp1WalletTxUpdater);
     }
