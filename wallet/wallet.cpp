@@ -1387,9 +1387,9 @@ void CWallet::GetAvailableP2CSCoins(std::vector<COutput>& vCoins) const
                         continue;
 
                     if (utxo.scriptPubKey.IsPayToColdStaking()) {
-                        isminetype mine            = IsMine(utxo);
-                        bool       isMineSpendable = mine & ISMINE_SPENDABLE_DELEGATED;
-                        if (mine & ISMINE_COLD || isMineSpendable)
+                        isminetype mine = IsMine(utxo);
+                        // bool       isMineSpendable = mine & ISMINE_SPENDABLE_DELEGATED;
+                        if (mine & ISMINE_COLD /* || isMineSpendable*/)
                             // Depth is not used, no need waste resources and set it for now.
                             vCoins.emplace_back(COutput(pcoin, i, 0 /*, isMineSpendable*/));
                     }
@@ -2126,7 +2126,6 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, CAmount>>& vecSend, C
                 }
 
                 CKeyID changeKeyID;
-                bool   newReserveCreatedFromReserve = false;
 
                 if (nChange > 0 || ntp1TokenChangeExists) {
                     // Fill a vout to ourself
@@ -2153,8 +2152,9 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, CAmount>>& vecSend, C
                         // Reserve a new key pair from key pool
                         CPubKey vchPubKey;
 
-                        newReserveCreatedFromReserve = reservekey.GetReservedKey(vchPubKey);
-                        assert(newReserveCreatedFromReserve); // should never fail, as we just unlocked
+                        bool r = reservekey.GetReservedKey(vchPubKey);
+                        ignore_unused(r);
+                        assert(r); // should never fail, as we just unlocked
 
                         scriptChange.SetDestination(vchPubKey.GetID());
 
@@ -2268,11 +2268,6 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, CAmount>>& vecSend, C
                 }
 
                 wtxNew.fTimeReceivedIsTxTime = true;
-
-                // add the change address to the address book
-                if (newReserveCreatedFromReserve) {
-                    SetAddressBookEntry(changeKeyID, "");
-                }
 
                 break;
             }
