@@ -124,8 +124,9 @@ struct CoinStakeDelegationResult
 {
     CBitcoinAddress ownerAddress;
     CBitcoinAddress stakerAddress;
+    CWalletTx       wtx;
 
-    Object ToJsonObject() const
+    Object AddressesToJsonObject() const
     {
         Object result;
         result.push_back(Pair("owner_address", ownerAddress.ToString()));
@@ -134,7 +135,7 @@ struct CoinStakeDelegationResult
     }
 };
 
-CoinStakeDelegationResult CreateColdStakeDelegation(CWalletTx& wtxNew, CReserveKey& reservekey,
+CoinStakeDelegationResult CreateColdStakeDelegation(CReserveKey&       reservekey,
                                                     const std::string& stakeAddress, CAmount nValue,
                                                     const boost::optional<std::string>& ownerAddress,
                                                     bool fForceExternalAddr, bool fUseDelegated,
@@ -231,7 +232,8 @@ CoinStakeDelegationResult CreateColdStakeDelegation(CWalletTx& wtxNew, CReserveK
                                    std::vector<NTP1SendTokensOneRecipientData>(), false);
 
     // Create the transaction
-    CAmount nFeeRequired;
+    CAmount   nFeeRequired;
+    CWalletTx wtxNew;
     if (!pwalletMain->CreateTransaction(scriptPubKey, nValue, wtxNew, reservekey, nFeeRequired,
                                         tokenSelector, &strError, RawNTP1MetadataBeforeSend(), false,
                                         nullptr, fUseDelegated)) {
@@ -247,6 +249,55 @@ CoinStakeDelegationResult CreateColdStakeDelegation(CWalletTx& wtxNew, CReserveK
     CoinStakeDelegationResult result;
     result.ownerAddress  = ownerAddr;
     result.stakerAddress = stakeAddr;
+    result.wtx           = wtxNew;
+    return result;
+}
+
+struct CreateColdStakeDelegationParsedParams
+{
+    std::string stakerAddress;
+
+    CAmount nValue;
+
+    // owner address is optional, otherwise taken from the wallet
+    boost::optional<std::string> ownerAddress;
+
+    // force using an external address that doesn't belong to this wallet
+    bool fForceExternalAddr;
+
+    // include already delegated coins
+    bool fUseDelegated = false;
+
+    // Check that Cold Staking has been enforced or fForceNotEnabled = true
+    bool fForceNotEnabled = false;
+};
+
+CreateColdStakeDelegationParsedParams ParseCreateColdStakeDelegationParams(const Array& params)
+{
+    CreateColdStakeDelegationParsedParams result;
+
+    result.stakerAddress = params[0].get_str();
+
+    result.nValue = AmountFromValue(params[1]);
+
+    // owner address is optional, otherwise taken from the wallet
+    if (params.size() > 2 && params[2].type() != Value_type::null_type && !params[2].get_str().empty())
+        result.ownerAddress = params[2].get_str();
+
+    // force using an external address that doesn't belong to this wallet
+    result.fForceExternalAddr =
+        params.size() > 3 && params[3].type() != Value_type::null_type ? params[3].get_bool() : false;
+
+    // include already delegated coins
+    result.fUseDelegated = false;
+    if (params.size() > 4 && params[4].type() != Value_type::null_type)
+        result.fUseDelegated = params[4].get_bool();
+
+    // Check that Cold Staking has been enforced or fForceNotEnabled = true
+    result.fForceNotEnabled = false;
+    if (params.size() > 5 && params[5].type() != Value_type::null_type)
+        result.fForceNotEnabled = params[5].get_bool();
+
     return result;
 }
 
@@ -293,41 +344,23 @@ Value delegatestake(const Array& params, bool fHelp)
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    CWalletTx   wtx;
     CReserveKey reservekey(pwalletMain.get());
 
-    const CAmount nValue = AmountFromValue(params[1]);
+    const CreateColdStakeDelegationParsedParams pParams = ParseCreateColdStakeDelegationParams(params);
 
-    // owner address is optional, otherwise taken from the wallet
-    boost::optional<std::string> ownerAddress;
-    if (params.size() > 2 && params[2].type() != Value_type::null_type && !params[2].get_str().empty())
-        ownerAddress = params[2].get_str();
+    CoinStakeDelegationResult res = CreateColdStakeDelegation(
+        reservekey, pParams.stakerAddress, pParams.nValue, pParams.ownerAddress,
+        pParams.fForceExternalAddr, pParams.fUseDelegated, pParams.fForceNotEnabled);
 
-    // force using an external address that doesn't belong to this wallet
-    const bool fForceExternalAddr =
-        params.size() > 3 && params[3].type() != Value_type::null_type ? params[3].get_bool() : false;
-
-    // include already delegated coins
-    bool fUseDelegated = false;
-    if (params.size() > 4 && params[4].type() != Value_type::null_type)
-        fUseDelegated = params[4].get_bool();
-
-    // Check that Cold Staking has been enforced or fForceNotEnabled = true
-    bool fForceNotEnabled = false;
-    if (params.size() > 5 && params[5].type() != Value_type::null_type)
-        fForceNotEnabled = params[5].get_bool();
-
-    Object ret = CreateColdStakeDelegation(wtx, reservekey, params[0].get_str(), nValue, ownerAddress,
-                                           fForceExternalAddr, fUseDelegated, fForceNotEnabled)
-                     .ToJsonObject();
-
-    if (!pwalletMain->CommitTransaction(wtx, reservekey))
+    if (!pwalletMain->CommitTransaction(res.wtx, reservekey))
         throw JSONRPCError(RPC_WALLET_ERROR,
                            "Error: The transaction was rejected! This might happen if some of the coins "
                            "in your wallet were already spent, such as if you used a copy of wallet.dat "
                            "and coins were spent in the copy but not marked as spent here.");
 
-    ret.push_back(Pair("txid", wtx.GetHash().GetHex()));
+    Object ret = res.AddressesToJsonObject();
+
+    ret.push_back(Pair("txid", res.wtx.GetHash().GetHex()));
     return ret;
 }
 
@@ -407,32 +440,14 @@ Value rawdelegatestake(const Array& params, bool fHelp)
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    CWalletTx   wtx;
     CReserveKey reservekey(pwalletMain.get());
 
-    const CAmount nValue = AmountFromValue(params[1]);
+    const CreateColdStakeDelegationParsedParams pParams = ParseCreateColdStakeDelegationParams(params);
 
-    // owner address is optional, otherwise taken from the wallet
-    boost::optional<std::string> ownerAddress;
-    if (params.size() > 2 && params[2].type() != Value_type::null_type && !params[2].get_str().empty())
-        ownerAddress = params[2].get_str();
-
-    // force using an external address that doesn't belong to this wallet
-    const bool fForceExternalAddr =
-        params.size() > 3 && params[3].type() != Value_type::null_type ? params[3].get_bool() : false;
-
-    // include already delegated coins
-    bool fUseDelegated = false;
-    if (params.size() > 4 && params[4].type() != Value_type::null_type)
-        fUseDelegated = params[4].get_bool();
-
-    // Check that Cold Staking has been enforced or fForceNotEnabled = true
-    bool fForceNotEnabled = false;
-    if (params.size() > 5 && params[5].type() != Value_type::null_type)
-        fForceNotEnabled = params[5].get_bool();
-
-    CreateColdStakeDelegation(wtx, reservekey, params[0].get_str(), nValue, ownerAddress,
-                              fForceExternalAddr, fUseDelegated, fForceNotEnabled);
+    const CWalletTx wtx = CreateColdStakeDelegation(reservekey, pParams.stakerAddress, pParams.nValue,
+                                                    pParams.ownerAddress, pParams.fForceExternalAddr,
+                                                    pParams.fUseDelegated, pParams.fForceNotEnabled)
+                              .wtx;
 
     Object result;
     TxToJSON(wtx, 0, result, true);
