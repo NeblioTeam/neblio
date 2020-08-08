@@ -27,7 +27,7 @@ class ColdStakingPage : public QWidget
     boost::signals2::connection notifyWalletConnection;
 public:
     explicit ColdStakingPage(QWidget* parent = 0);
-    ~ColdStakingPage();
+    virtual ~ColdStakingPage();
 
     void setModel(ColdStakingModel* model);
     void setWalletModel(WalletModel* wModel);
