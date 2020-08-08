@@ -36,8 +36,6 @@ void CoinStakingListItemDelegate::paint(QPainter* painter, const QStyleOptionVie
     QRect addressLabelRect(mainRect.left() + xspace, stakerAddrRect.y() + stakerAddrRect.height(),
                            mainRect.width() - static_cast<int>(1.1 * xspace), blockheight);
 
-    icon.paint(painter, decorationRect);
-
     QString amount = index.data(ColdStakingModel::ColumnIndex::TOTAL_STACKEABLE_AMOUNT_STR).toString();
     QString owner  = index.data(ColdStakingModel::ColumnIndex::OWNER_ADDRESS).toString();
     QString ownerLabel    = index.data(ColdStakingModel::ColumnIndex::OWNER_ADDRESS_LABEL).toString();
@@ -55,9 +53,13 @@ void CoinStakingListItemDelegate::paint(QPainter* painter, const QStyleOptionVie
         QString titleText = "";
         if (!isRecvdDelgation) {
             titleText = "Delegated to you to stake";
+            icon = QIcon(":/icons/cold_delegate_1");
         } else {
             titleText = "Delegated by you to another node";
+            icon = QIcon(":/icons/cold_delegate_0");
         }
+        icon.paint(painter, decorationRect);
+
         painter->drawText(titleRect, Qt::AlignLeft | Qt::AlignVCenter, titleText);
 
         font.setBold(false);

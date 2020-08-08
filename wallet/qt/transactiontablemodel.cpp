@@ -347,9 +347,9 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord* wtx
     case TransactionRecord::SendToOther:
         return QIcon(":/icons/tx_output");
     case TransactionRecord::ColdStaker:
-        return QIcon(":/images/coldstaking");
+        return QIcon(":/icons/cold_delegate_1");
     case TransactionRecord::ColdDelegator:
-        return QIcon(":/images/coldstaking");
+        return QIcon(":/icons/cold_delegate_0");
     default:
         return QIcon(":/icons/tx_inout");
     }
