@@ -79,6 +79,7 @@ HEADERS += qt/bitcoingui.h \
     qt/ui_qrcodedialog.h \
     qt/ntp1summary.h \
     qt/ui_ntp1summary.h \
+    qt/ui_coldstakingpage.h \
     qt/ui_sendcoinsdialog.h \
     qt/ui_coincontroldialog.h \
     qt/ui_sendcoinsdialog.h \
@@ -166,7 +167,11 @@ HEADERS += qt/bitcoingui.h \
     addressbook.h              \
     work.h                     \
     validation.h               \
-    script_error.h
+    script_error.h             \
+    qt/coinstakinglistitemdelegate.h \
+    qt/coldstakingmodel.h            \
+    qt/coldstakingpage.h
+
 
 
 
@@ -328,7 +333,11 @@ SOURCES += qt/bitcoin.cpp \
     addressbook.cpp                     \
     work.cpp                            \
     validation.cpp                      \
-    script_error.cpp
+    script_error.cpp                    \
+    qt/coinstakinglistitemdelegate.cpp  \
+    qt/coldstakingmodel.cpp             \
+    qt/coldstakingpage.cpp
+
 
 
 
