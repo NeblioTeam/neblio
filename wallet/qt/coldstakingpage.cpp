@@ -6,6 +6,7 @@
 #include "guiconstants.h"
 #include "guiutil.h"
 #include "main.h"
+#include "newstakedelegationdialog.h"
 #include "optionsmodel.h"
 #include "qt/coldstakingmodel.h"
 #include "transactiontablemodel.h"
@@ -51,6 +52,11 @@ ColdStakingPage::ColdStakingPage(QWidget* parent)
     setModel(model);
 
     refreshData();
+
+    newStakeDelegationDialog = new NewStakeDelegationDialog(this);
+
+    connect(ui->delegateStakeButton, &QPushButton::clicked, newStakeDelegationDialog,
+            &NewStakeDelegationDialog::open);
 }
 
 void ColdStakingPage::handleTokenClicked(const QModelIndex& /*index*/) {}

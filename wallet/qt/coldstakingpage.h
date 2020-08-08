@@ -19,6 +19,8 @@ class WalletModel;
 
 class CoinStakingListItemDelegate;
 
+class NewStakeDelegationDialog;
+
 /** ColdStaking page widget */
 class ColdStakingPage : public QWidget
 {
@@ -46,6 +48,8 @@ private:
     ColdStakingModel*       model;
 
     CoinStakingListItemDelegate* itemDelegate;
+
+    NewStakeDelegationDialog* newStakeDelegationDialog = nullptr;
 
     static const QString copyOwnerAddressText;
     static const QString copyStakerAddressText;
