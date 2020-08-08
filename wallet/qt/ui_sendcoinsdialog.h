@@ -80,6 +80,7 @@ public:
     QHBoxLayout*              horizontalLayout;
     QPushButton*              addButton;
     QPushButton*              editMetadataButton;
+    QCheckBox*                allowSpendingDelegatedCoins;
     QPushButton*              clearButton;
     QHBoxLayout*              horizontalLayout_2;
     QLabel*                   label;
@@ -493,6 +494,13 @@ public:
         horizontalLayout->addWidget(sendButton);
 
         verticalLayout->addLayout(horizontalLayout);
+
+        allowSpendingDelegatedCoins = new QCheckBox("Allow Spending &Delegated Coins");
+#ifndef QT_NO_TOOLTIP
+        allowSpendingDelegatedCoins->setToolTip("Allow spending coins that are delegated for cold-staking");
+#endif
+
+        verticalLayout->addWidget(allowSpendingDelegatedCoins);
 
         verticalLayout->setStretch(1, 1);
 

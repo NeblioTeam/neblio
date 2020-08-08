@@ -153,6 +153,7 @@ bool WalletModel::validateAddress(const QString& address)
 WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipient>& recipients,
                                                     boost::shared_ptr<NTP1Wallet>    ntp1wallet,
                                                     const RawNTP1MetadataBeforeSend& ntp1metadata,
+                                                    bool                             fSpendDelegated,
                                                     const CCoinControl*              coinControl)
 {
     qint64  total = 0;
@@ -239,8 +240,9 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
         CReserveKey keyChange(wallet);
         int64_t     nFeeRequired = 0;
         std::string errorMsg;
-        bool fCreated = wallet->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, tokenCalculator,
-                                                  ntp1metadata, false, coinControl, &errorMsg);
+        const bool  fCreated =
+            wallet->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, tokenCalculator,
+                                      ntp1metadata, false, coinControl, &errorMsg, fSpendDelegated);
 
         if (!fCreated) {
             if ((total + nFeeRequired) > nBalance) // FIXME: could cause collisions in the future

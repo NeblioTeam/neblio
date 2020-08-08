@@ -121,12 +121,15 @@ CoinControlDialog::CoinControlDialog(QWidget* parent)
     ui->treeWidget->setColumnWidth(COLUMN_DATE, 110);
     ui->treeWidget->setColumnWidth(COLUMN_CONFIRMATIONS, 100);
     ui->treeWidget->setColumnWidth(COLUMN_PRIORITY, 100);
+    ui->treeWidget->setColumnWidth(COLUMN_IS_DELEGATED, 84);
     ui->treeWidget->setColumnHidden(COLUMN_TXHASH,
                                     true); // store transacton hash in this column, but dont show it
     ui->treeWidget->setColumnHidden(COLUMN_VOUT_INDEX,
                                     true); // store vout index in this column, but dont show it
     ui->treeWidget->setColumnHidden(COLUMN_AMOUNT_INT64,
                                     true); // store amount int64_t in this column, but dont show it
+    ui->treeWidget->setColumnHidden(COLUMN_PRIORITY_INT64,
+                                    true); // store priority int64_t in this column, but dont show it
     ui->treeWidget->setColumnHidden(COLUMN_PRIORITY_INT64,
                                     true); // store priority int64_t in this column, but dont show it
 
@@ -805,6 +808,21 @@ void CoinControlDialog::updateView()
                                      ? strPad(QString::number(out.tx->vout[out.i].nValue), 15,
                                               " ")
                                      : sNTP1TokenAmounts)); // padding so that sorting works correctly
+
+            // is delegated
+            if (out.tx->HasP2CSOutputs()) {
+                const CTxOut& txout    = out.tx->vout[out.i];
+                const bool isSpendable = model->getWallet()->IsMine(txout) & ISMINE_SPENDABLE_DELEGATED;
+                if (isSpendable) {
+                    // Wallet delegating balance
+                    itemOutput->setText(COLUMN_IS_DELEGATED, "Yes");
+                } else {
+                    // Wallet receiving a delegation
+                    itemOutput->setText(COLUMN_IS_DELEGATED, "No");
+                }
+            } else {
+                itemOutput->setText(COLUMN_IS_DELEGATED, "No");
+            }
 
             // date
             itemOutput->setText(
