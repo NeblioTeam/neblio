@@ -1,6 +1,7 @@
 #ifndef UI_COLDSTAKING_H
 #define UI_COLDSTAKING_H
 
+#include <QPushButton>
 #include <QtCore/QVariant>
 #include <QtWidgets/QAction>
 #include <QtWidgets/QApplication>
@@ -52,6 +53,8 @@ public:
     QLabel*      bottom_bar_logo_label;
     QGridLayout* bottom_layout;
     QPixmap      bottom_logo_pix;
+
+    QPushButton* delegateStakeButton;
 
     int bottom_bar_downscale_factor;
 
@@ -117,6 +120,12 @@ public:
         filter_lineEdit->setPlaceholderText("Filter (Ctrl+F)");
 
         horizontalLayout_2->addWidget(upper_table_label);
+
+        delegateStakeButton = new QPushButton();
+        delegateStakeButton->setIcon(QIcon(":/icons/cold_delegate_add"));
+        delegateStakeButton->setToolTip("Create new stake delegation");
+
+        horizontalLayout_2->addWidget(delegateStakeButton, 0, Qt::AlignRight);
 
         //        labelBlockchainSyncStatus = new QLabel(wallet_contents_frame);
         //        labelBlockchainSyncStatus->setObjectName(QStringLiteral("labelBlockchainSyncStatus"));

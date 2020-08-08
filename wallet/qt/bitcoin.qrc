@@ -54,6 +54,7 @@
         <file alias="cold_delegate_1">res/icons/cold_delegate_1.png</file>
         <file alias="tx_input_cold">res/icons/tx_input_cold.png</file>
         <file alias="tx_output_cold">res/icons/tx_output_cold.png</file>
+        <file alias="cold_delegate_add">res/icons/cold_delegate_add.png</file>
     </qresource>
     <qresource prefix="/images">
         <file alias="about">res/images/about.png</file>
