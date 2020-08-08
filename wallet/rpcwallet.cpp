@@ -120,14 +120,27 @@ Value getinfo(const Array& params, bool fHelp)
     return obj;
 }
 
-Object CreateColdStakeDelegation(const Array& params, CWalletTx& wtxNew, CReserveKey& reservekey)
+struct CoinStakeDelegationResult
+{
+    CBitcoinAddress ownerAddress;
+    CBitcoinAddress stakerAddress;
+
+    Object ToJsonObject() const
+    {
+        Object result;
+        result.push_back(Pair("owner_address", ownerAddress.ToString()));
+        result.push_back(Pair("staker_address", stakerAddress.ToString()));
+        return result;
+    }
+};
+
+CoinStakeDelegationResult CreateColdStakeDelegation(CWalletTx& wtxNew, CReserveKey& reservekey,
+                                                    const std::string& stakeAddress, CAmount nValue,
+                                                    const boost::optional<std::string>& ownerAddress,
+                                                    bool fForceExternalAddr, bool fUseDelegated,
+                                                    bool fForceNotEnabled)
 {
     LOCK2(cs_main, pwalletMain->cs_wallet);
-
-    // Check that Cold Staking has been enforced or fForceNotEnabled = true
-    bool fForceNotEnabled = false;
-    if (params.size() > 5 && params[5].type() != Value_type::null_type)
-        fForceNotEnabled = params[5].get_bool();
 
     if (!Params().IsColdStakingEnabled() && !fForceNotEnabled) {
         std::string errMsg =
@@ -138,7 +151,7 @@ Object CreateColdStakeDelegation(const Array& params, CWalletTx& wtxNew, CReserv
     }
 
     // Get Staking Address
-    CBitcoinAddress stakeAddr(params[0].get_str());
+    CBitcoinAddress stakeAddr(stakeAddress);
     CKeyID          stakeKey;
     if (!stakeAddr.IsValid())
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio address");
@@ -146,16 +159,10 @@ Object CreateColdStakeDelegation(const Array& params, CWalletTx& wtxNew, CReserv
         throw JSONRPCError(RPC_WALLET_ERROR, "Unable to get stake pubkey hash from stakingaddress");
 
     // Get Amount
-    CAmount nValue = AmountFromValue(params[1]);
     if (nValue < Params().MinColdStakingAmount()) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Invalid amount (%zd). Min amount: %zd",
                                                             nValue, Params().MinColdStakingAmount()));
     }
-
-    // include already delegated coins
-    bool fUseDelegated = false;
-    if (params.size() > 4 && params[4].type() != Value_type::null_type)
-        fUseDelegated = params[4].get_bool();
 
     // Check amount
     CAmount currBalance =
@@ -169,17 +176,14 @@ Object CreateColdStakeDelegation(const Array& params, CWalletTx& wtxNew, CReserv
     // Get Owner Address
     CBitcoinAddress ownerAddr;
     CKeyID          ownerKey;
-    if (params.size() > 2 && params[2].type() != Value_type::null_type && !params[2].get_str().empty()) {
+    if (ownerAddress) {
         // Address provided
-        ownerAddr.SetString(params[2].get_str());
+        ownerAddr.SetString(*ownerAddress);
         if (!ownerAddr.IsValid())
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio spending address");
         if (!ownerAddr.GetKeyID(ownerKey))
             throw JSONRPCError(RPC_WALLET_ERROR, "Unable to get spend pubkey hash from owneraddress");
         // Check that the owner address belongs to this wallet, or fForceExternalAddr is true
-        bool fForceExternalAddr = params.size() > 3 && params[3].type() != Value_type::null_type
-                                      ? params[3].get_bool()
-                                      : false;
         if (!fForceExternalAddr && !pwalletMain->HaveKey(ownerKey)) {
             std::string errMsg =
                 strprintf("The provided owneraddress \"%s\" is not present in this wallet.\n"
@@ -240,9 +244,9 @@ Object CreateColdStakeDelegation(const Array& params, CWalletTx& wtxNew, CReserv
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
     }
 
-    Object result;
-    result.push_back(Pair("owner_address", ownerAddr.ToString()));
-    result.push_back(Pair("staker_address", stakeAddr.ToString()));
+    CoinStakeDelegationResult result;
+    result.ownerAddress  = ownerAddr;
+    result.stakerAddress = stakeAddr;
     return result;
 }
 
@@ -291,7 +295,31 @@ Value delegatestake(const Array& params, bool fHelp)
 
     CWalletTx   wtx;
     CReserveKey reservekey(pwalletMain.get());
-    Object      ret = CreateColdStakeDelegation(params, wtx, reservekey);
+
+    const CAmount nValue = AmountFromValue(params[1]);
+
+    // owner address is optional, otherwise taken from the wallet
+    boost::optional<std::string> ownerAddress;
+    if (params.size() > 2 && params[2].type() != Value_type::null_type && !params[2].get_str().empty())
+        ownerAddress = params[2].get_str();
+
+    // force using an external address that doesn't belong to this wallet
+    const bool fForceExternalAddr =
+        params.size() > 3 && params[3].type() != Value_type::null_type ? params[3].get_bool() : false;
+
+    // include already delegated coins
+    bool fUseDelegated = false;
+    if (params.size() > 4 && params[4].type() != Value_type::null_type)
+        fUseDelegated = params[4].get_bool();
+
+    // Check that Cold Staking has been enforced or fForceNotEnabled = true
+    bool fForceNotEnabled = false;
+    if (params.size() > 5 && params[5].type() != Value_type::null_type)
+        fForceNotEnabled = params[5].get_bool();
+
+    Object ret = CreateColdStakeDelegation(wtx, reservekey, params[0].get_str(), nValue, ownerAddress,
+                                           fForceExternalAddr, fUseDelegated, fForceNotEnabled)
+                     .ToJsonObject();
 
     if (!pwalletMain->CommitTransaction(wtx, reservekey))
         throw JSONRPCError(RPC_WALLET_ERROR,
@@ -381,7 +409,30 @@ Value rawdelegatestake(const Array& params, bool fHelp)
 
     CWalletTx   wtx;
     CReserveKey reservekey(pwalletMain.get());
-    CreateColdStakeDelegation(params, wtx, reservekey);
+
+    const CAmount nValue = AmountFromValue(params[1]);
+
+    // owner address is optional, otherwise taken from the wallet
+    boost::optional<std::string> ownerAddress;
+    if (params.size() > 2 && params[2].type() != Value_type::null_type && !params[2].get_str().empty())
+        ownerAddress = params[2].get_str();
+
+    // force using an external address that doesn't belong to this wallet
+    const bool fForceExternalAddr =
+        params.size() > 3 && params[3].type() != Value_type::null_type ? params[3].get_bool() : false;
+
+    // include already delegated coins
+    bool fUseDelegated = false;
+    if (params.size() > 4 && params[4].type() != Value_type::null_type)
+        fUseDelegated = params[4].get_bool();
+
+    // Check that Cold Staking has been enforced or fForceNotEnabled = true
+    bool fForceNotEnabled = false;
+    if (params.size() > 5 && params[5].type() != Value_type::null_type)
+        fForceNotEnabled = params[5].get_bool();
+
+    CreateColdStakeDelegation(wtx, reservekey, params[0].get_str(), nValue, ownerAddress,
+                              fForceExternalAddr, fUseDelegated, fForceNotEnabled);
 
     Object result;
     TxToJSON(wtx, 0, result, true);
