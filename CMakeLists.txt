@@ -616,6 +616,7 @@ add_library(core_lib STATIC
     wallet/addressbook.cpp
     wallet/validation.cpp
     wallet/itxdb.h
+    wallet/coldstakedelegation.cpp
     )
 
 target_link_libraries(core_lib
