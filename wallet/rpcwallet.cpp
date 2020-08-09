@@ -135,7 +135,7 @@ struct CoinStakeDelegationResult
     }
 };
 
-enum ColdStakeDelegationErrorCodes
+enum ColdStakeDelegationErrorCode
 {
     ColdStakingDisabled,
     InvalidStakerAddress,
@@ -148,7 +148,6 @@ enum ColdStakeDelegationErrorCodes
     OwnerAddressNotInWallet,
     KeyPoolEmpty,
     GeneratedOwnerAddressPubKeyHashError,
-    TransactionError,
 };
 
 CWalletTx SubmitColdStakeDelegationTx(CReserveKey& reservekey, CAmount nValue,
@@ -185,47 +184,94 @@ CWalletTx SubmitColdStakeDelegationTx(CReserveKey& reservekey, CAmount nValue,
     return wtxNew;
 }
 
-CoinStakeDelegationResult CreateColdStakeDelegation(const std::string& stakeAddress, CAmount nValue,
-                                                    const boost::optional<std::string>& ownerAddress,
-                                                    bool fForceExternalAddr, bool fUseDelegated,
-                                                    bool fForceNotEnabled)
+std::string ColdStakeDelegationErrorStr(const ColdStakeDelegationErrorCode errorCode)
+{
+    switch (errorCode) {
+    case ColdStakingDisabled:
+        return "Cold Staking disabled. "
+               "You may force the stake delegation to true. "
+               "WARNING: If relayed before activation, this tx will be rejected resulting in a ban. ";
+    case InvalidStakerAddress:
+        return "Invalid staker address";
+    case StakerAddressPubKeyHashError:
+        return "Unable to get stake pubkey hash from stakingaddress";
+    case InvalidAmount:
+        return strprintf("Invalid amount. Min amount: %zd", Params().MinColdStakingAmount());
+    case InsufficientBalance:
+        return "Insufficient funds";
+    case WalletLocked:
+        return "Error: Please unlock the wallet first.";
+    case InvalidOwnerAddress:
+        return "Invalid neblio spending/owner address";
+    case OwnerAddressPubKeyHashError:
+        return "Unable to get spend pubkey hash from owneraddress";
+    case OwnerAddressNotInWallet:
+        return "The provided owneraddress is not present in this wallet.";
+    case KeyPoolEmpty:
+        return "Error: Keypool ran out, please call keypoolrefill first";
+    case GeneratedOwnerAddressPubKeyHashError:
+        return "Unable to get spend pubkey hash from owneraddress";
+    }
+}
+
+RPCErrorCode ColdStakeDelegationRPCErrorCode(const ColdStakeDelegationErrorCode errorCode)
+{
+    switch (errorCode) {
+    case ColdStakingDisabled:
+        return RPC_VERIFY_ERROR;
+    case InvalidStakerAddress:
+        return RPC_INVALID_ADDRESS_OR_KEY;
+    case StakerAddressPubKeyHashError:
+        return RPC_WALLET_ERROR;
+    case InvalidAmount:
+        return RPC_INVALID_PARAMETER;
+    case InsufficientBalance:
+        return RPC_WALLET_INSUFFICIENT_FUNDS;
+    case WalletLocked:
+        return RPC_WALLET_UNLOCK_NEEDED;
+    case InvalidOwnerAddress:
+        return RPC_INVALID_ADDRESS_OR_KEY;
+    case OwnerAddressPubKeyHashError:
+        return RPC_WALLET_ERROR;
+    case OwnerAddressNotInWallet:
+        return RPC_INVALID_ADDRESS_OR_KEY;
+    case KeyPoolEmpty:
+        return RPC_WALLET_KEYPOOL_RAN_OUT;
+    case GeneratedOwnerAddressPubKeyHashError:
+        return RPC_WALLET_ERROR;
+    }
+}
+
+Result<CoinStakeDelegationResult, ColdStakeDelegationErrorCode>
+CreateColdStakeDelegation(const std::string& stakeAddress, CAmount nValue,
+                          const boost::optional<std::string>& ownerAddress, bool fForceExternalAddr,
+                          bool fUseDelegated, bool fForceNotEnabled)
 {
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    if (!Params().IsColdStakingEnabled() && !fForceNotEnabled) {
-        std::string errMsg =
-            "Cold Staking disabled.\n"
-            "You may force the stake delegation setting fForceNotEnabled to true.\n"
-            "WARNING: If relayed before activation, this tx will be rejected resulting in a ban.\n";
-        throw JSONRPCError(RPC_VERIFY_ERROR, errMsg);
-    }
+    if (!Params().IsColdStakingEnabled() && !fForceNotEnabled)
+        return Err(ColdStakingDisabled);
 
     // Get Staking Address
     CBitcoinAddress stakeAddr(stakeAddress);
     CKeyID          stakeKey;
     if (!stakeAddr.IsValid())
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio address");
+        return Err(InvalidStakerAddress);
     if (!stakeAddr.GetKeyID(stakeKey))
-        throw JSONRPCError(RPC_WALLET_ERROR, "Unable to get stake pubkey hash from stakingaddress");
+        return Err(StakerAddressPubKeyHashError);
 
     // Get Amount
-    if (nValue < Params().MinColdStakingAmount()) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Invalid amount (%zd). Min amount: %zd",
-                                                            nValue, Params().MinColdStakingAmount()));
-    }
+    if (nValue < Params().MinColdStakingAmount())
+        return Err(InvalidAmount);
 
     // Check amount
     const CAmount currBalance =
         pwalletMain->GetBalance() + (fUseDelegated ? pwalletMain->GetDelegatedBalance() : 0);
     if (nValue > currBalance)
-        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
+        return Err(InsufficientBalance);
 
-    {
-        if (pwalletMain->IsLocked())
-            throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please unlock the wallet first.");
-        if (fWalletUnlockStakingOnly)
-            throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Wallet is unlocked for staking only.");
-    }
+    if (pwalletMain->IsLocked() || fWalletUnlockStakingOnly)
+        return Err(WalletLocked);
 
     // Get Owner Address
     CBitcoinAddress ownerAddr;
@@ -234,20 +280,12 @@ CoinStakeDelegationResult CreateColdStakeDelegation(const std::string& stakeAddr
         // Address provided
         ownerAddr.SetString(*ownerAddress);
         if (!ownerAddr.IsValid())
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio spending address");
+            return Err(InvalidOwnerAddress);
         if (!ownerAddr.GetKeyID(ownerKey))
-            throw JSONRPCError(RPC_WALLET_ERROR, "Unable to get spend pubkey hash from owneraddress");
+            return Err(OwnerAddressPubKeyHashError);
         // Check that the owner address belongs to this wallet, or fForceExternalAddr is true
         if (!fForceExternalAddr && !pwalletMain->HaveKey(ownerKey)) {
-            std::string errMsg =
-                strprintf("The provided owneraddress \"%s\" is not present in this wallet.\n"
-                          "Set 'fExternalOwner' argument to true, in order to force the stake "
-                          "delegation to an external owner address.\n"
-                          "e.g. delegatestake stakingaddress amount owneraddress true.\n"
-                          "WARNING: Only the owner of the key to owneraddress will be allowed to spend "
-                          "these coins after the delegation.",
-                          ownerAddr.ToString().c_str());
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, errMsg);
+            return Err(OwnerAddressNotInWallet);
         }
 
     } else {
@@ -258,8 +296,7 @@ CoinStakeDelegationResult CreateColdStakeDelegation(const std::string& stakeAddr
         // Generate a new key that is added to wallet
         CPubKey newKey;
         if (!pwalletMain->GetKeyFromPool(newKey))
-            throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT,
-                               "Error: Keypool ran out, please call keypoolrefill first");
+            return Err(KeyPoolEmpty);
         CKeyID keyID = newKey.GetID();
         ownerAddr    = CBitcoinAddress(keyID);
 
@@ -269,7 +306,7 @@ CoinStakeDelegationResult CreateColdStakeDelegation(const std::string& stakeAddr
         }
 
         if (!ownerAddr.GetKeyID(ownerKey))
-            throw JSONRPCError(RPC_WALLET_ERROR, "Unable to get spend pubkey hash from owneraddress");
+            return Err(GeneratedOwnerAddressPubKeyHashError);
     }
 
     CoinStakeDelegationResult result;
@@ -277,7 +314,7 @@ CoinStakeDelegationResult CreateColdStakeDelegation(const std::string& stakeAddr
     result.stakerAddress = stakeAddr;
     // Get P2CS script for addresses
     result.scriptPubKey = GetScriptForStakeDelegation(stakeKey, ownerKey);
-    return result;
+    return Ok(result);
 }
 
 struct CreateColdStakeDelegationParsedParams
@@ -375,9 +412,16 @@ Value delegatestake(const Array& params, bool fHelp)
 
     const CreateColdStakeDelegationParsedParams pParams = ParseCreateColdStakeDelegationParams(params);
 
-    const CoinStakeDelegationResult res = CreateColdStakeDelegation(
-        pParams.stakerAddress, pParams.nValue, pParams.ownerAddress, pParams.fForceExternalAddr,
-        pParams.fUseDelegated, pParams.fForceNotEnabled);
+    const auto delegRes = CreateColdStakeDelegation(pParams.stakerAddress, pParams.nValue,
+                                                    pParams.ownerAddress, pParams.fForceExternalAddr,
+                                                    pParams.fUseDelegated, pParams.fForceNotEnabled);
+
+    if (delegRes.isErr()) {
+        throw JSONRPCError(ColdStakeDelegationRPCErrorCode(delegRes.unwrapErr()),
+                           ColdStakeDelegationErrorStr(delegRes.unwrapErr()));
+    }
+
+    const CoinStakeDelegationResult res = delegRes.unwrap();
 
     CWalletTx wtx =
         SubmitColdStakeDelegationTx(reservekey, pParams.nValue, res.scriptPubKey, pParams.fUseDelegated);
@@ -474,9 +518,16 @@ Value rawdelegatestake(const Array& params, bool fHelp)
 
     const CreateColdStakeDelegationParsedParams pParams = ParseCreateColdStakeDelegationParams(params);
 
-    CoinStakeDelegationResult res = CreateColdStakeDelegation(
-        pParams.stakerAddress, pParams.nValue, pParams.ownerAddress, pParams.fForceExternalAddr,
-        pParams.fUseDelegated, pParams.fForceNotEnabled);
+    const auto delegRes = CreateColdStakeDelegation(pParams.stakerAddress, pParams.nValue,
+                                                    pParams.ownerAddress, pParams.fForceExternalAddr,
+                                                    pParams.fUseDelegated, pParams.fForceNotEnabled);
+
+    if (delegRes.isErr()) {
+        throw JSONRPCError(ColdStakeDelegationRPCErrorCode(delegRes.unwrapErr()),
+                           ColdStakeDelegationErrorStr(delegRes.unwrapErr()));
+    }
+
+    CoinStakeDelegationResult res = delegRes.unwrap();
 
     CWalletTx wtx =
         SubmitColdStakeDelegationTx(reservekey, pParams.nValue, res.scriptPubKey, pParams.fUseDelegated);
