@@ -348,7 +348,7 @@ Value delegatestake(const Array& params, bool fHelp)
 
     const CreateColdStakeDelegationParsedParams pParams = ParseCreateColdStakeDelegationParams(params);
 
-    CoinStakeDelegationResult res = CreateColdStakeDelegation(
+    const CoinStakeDelegationResult res = CreateColdStakeDelegation(
         reservekey, pParams.stakerAddress, pParams.nValue, pParams.ownerAddress,
         pParams.fForceExternalAddr, pParams.fUseDelegated, pParams.fForceNotEnabled);
 

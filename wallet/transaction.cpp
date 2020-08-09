@@ -381,7 +381,7 @@ bool CTransaction::DisconnectInputs(CTxDB& txdb)
 }
 
 bool CTransaction::FetchInputs(CTxDB& txdb, const std::map<uint256, CTxIndex>& mapTestPool, bool fBlock,
-                               bool fMiner, MapPrevTx& inputsRet, bool& fInvalid)
+                               bool fMiner, MapPrevTx& inputsRet, bool& fInvalid) const
 {
     // FetchInputs can return false either because we just haven't seen some inputs
     // (in which case the transaction should be stored as an orphan)
@@ -492,7 +492,7 @@ unsigned int CTransaction::GetP2SHSigOpCount(const MapPrevTx& inputs) const
 Result<void, TxValidationState>
 CTransaction::ConnectInputs(MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTestPool,
                             const CDiskTxPos& posThisTx, const ConstCBlockIndexSmartPtr& pindexBlock,
-                            bool fBlock, bool fMiner, CBlock* sourceBlockPtr)
+                            bool fBlock, bool fMiner, CBlock* sourceBlockPtr) const
 {
     // Take over previous transactions' spent pointers
     // fBlock is true when this is called from AcceptBlock when a new best-block is added to the

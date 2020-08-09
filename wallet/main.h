@@ -165,7 +165,7 @@ bool IsTxInMainChain(const uint256& txHash);
 int64_t GetTxBlockHeight(const uint256& txHash);
 
 /** (try to) add transaction to memory pool **/
-Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx,
+Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTransaction& tx,
                                                    CTxDB* txdbPtr = nullptr);
 
 bool EnableEnforceUniqueTokenSymbols();

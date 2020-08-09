@@ -1121,7 +1121,7 @@ void CWallet::ReacceptWalletTransactions(bool fFirstLoad)
     }
 }
 
-void CWalletTx::RelayWalletTransaction()
+void CWalletTx::RelayWalletTransaction() const
 {
     if (!IsCoinBase() && !IsCoinStake()) {
         if (GetDepthInMainChain() == 0 && !isAbandoned()) {
@@ -2344,7 +2344,7 @@ bool CWallet::GetStakeWeight(const CKeyStore& /*keystore*/, uint64_t& nMinWeight
 }
 
 // Call after CreateTransaction unless you want to abort
-bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey)
+bool CWallet::CommitTransaction(const CWalletTx& wtxNew, CReserveKey& reservekey)
 {
     {
         LOCK2(cs_main, cs_wallet);

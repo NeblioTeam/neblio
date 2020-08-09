@@ -55,7 +55,7 @@ public:
         return GetDepthInMainChain(pindexRet) > 0;
     }
     int                             GetBlocksToMaturity() const;
-    Result<void, TxValidationState> AcceptToMemoryPool();
+    Result<void, TxValidationState> AcceptToMemoryPool() const;
     bool                            hashUnset() const;
     bool                            isAbandoned() const;
     void                            setAbandoned();

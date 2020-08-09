@@ -278,7 +278,7 @@ public:
                               const RawNTP1MetadataBeforeSend& ntp1metadata = RawNTP1MetadataBeforeSend(),
                               bool isNTP1Issuance = false, const CCoinControl* coinControl = nullptr,
                               bool fIncludeDelegated = false);
-    bool    CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
+    bool    CommitTransaction(const CWalletTx& wtxNew, CReserveKey& reservekey);
 
     bool GetStakeWeight(const CKeyStore& keystore, uint64_t& nMinWeight, uint64_t& nMaxWeight,
                         uint64_t& nWeight);
@@ -592,7 +592,7 @@ public:
     int64_t GetTxTime() const;
     int     GetRequestCount() const;
 
-    void              RelayWalletTransaction();
+    void              RelayWalletTransaction() const;
     std::set<uint256> GetConflicts() const;
 };
 
