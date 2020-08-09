@@ -124,7 +124,7 @@ struct CoinStakeDelegationResult
 {
     CBitcoinAddress ownerAddress;
     CBitcoinAddress stakerAddress;
-    CWalletTx       wtx;
+    CScript         scriptPubKey;
 
     Object AddressesToJsonObject() const
     {
@@ -135,8 +135,57 @@ struct CoinStakeDelegationResult
     }
 };
 
-CoinStakeDelegationResult CreateColdStakeDelegation(CReserveKey&       reservekey,
-                                                    const std::string& stakeAddress, CAmount nValue,
+enum ColdStakeDelegationErrorCodes
+{
+    ColdStakingDisabled,
+    InvalidStakerAddress,
+    StakerAddressPubKeyHashError,
+    InvalidAmount,
+    InsufficientBalance,
+    WalletLocked,
+    InvalidOwnerAddress,
+    OwnerAddressPubKeyHashError,
+    OwnerAddressNotInWallet,
+    KeyPoolEmpty,
+    GeneratedOwnerAddressPubKeyHashError,
+    TransactionError,
+};
+
+CWalletTx SubmitColdStakeDelegationTx(CReserveKey& reservekey, CAmount nValue,
+                                      const CScript& scriptPubKey, bool fUseDelegated)
+{
+    // Get NTP1 wallet
+    boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();
+    ntp1wallet->setRetrieveFullMetadata(false);
+    ntp1wallet->update();
+
+    NTP1SendTxData tokenSelector;
+    tokenSelector.selectNTP1Tokens(ntp1wallet, std::vector<COutPoint>(),
+                                   std::vector<NTP1SendTokensOneRecipientData>(), false);
+
+    const CAmount currBalance =
+        pwalletMain->GetBalance() + (fUseDelegated ? pwalletMain->GetDelegatedBalance() : 0);
+
+    // Create the transaction
+    CAmount     nFeeRequired;
+    CWalletTx   wtxNew;
+    std::string strError;
+    if (!pwalletMain->CreateTransaction(scriptPubKey, nValue, wtxNew, reservekey, nFeeRequired,
+                                        tokenSelector, &strError, RawNTP1MetadataBeforeSend(), false,
+                                        nullptr, fUseDelegated)) {
+        if (nValue + nFeeRequired > currBalance)
+            strError = strprintf("Error: This transaction requires a transaction fee of at least %s "
+                                 "because of its amount, complexity, or use of recently received "
+                                 "funds!",
+                                 FormatMoney(nFeeRequired).c_str());
+        printf("%s : %s\n", __func__, strError.c_str());
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    }
+
+    return wtxNew;
+}
+
+CoinStakeDelegationResult CreateColdStakeDelegation(const std::string& stakeAddress, CAmount nValue,
                                                     const boost::optional<std::string>& ownerAddress,
                                                     bool fForceExternalAddr, bool fUseDelegated,
                                                     bool fForceNotEnabled)
@@ -166,13 +215,17 @@ CoinStakeDelegationResult CreateColdStakeDelegation(CReserveKey&       reserveke
     }
 
     // Check amount
-    CAmount currBalance =
+    const CAmount currBalance =
         pwalletMain->GetBalance() + (fUseDelegated ? pwalletMain->GetDelegatedBalance() : 0);
     if (nValue > currBalance)
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
 
-    std::string strError;
-    EnsureWalletIsUnlocked();
+    {
+        if (pwalletMain->IsLocked())
+            throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please unlock the wallet first.");
+        if (fWalletUnlockStakingOnly)
+            throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Wallet is unlocked for staking only.");
+    }
 
     // Get Owner Address
     CBitcoinAddress ownerAddr;
@@ -219,37 +272,11 @@ CoinStakeDelegationResult CreateColdStakeDelegation(CReserveKey&       reserveke
             throw JSONRPCError(RPC_WALLET_ERROR, "Unable to get spend pubkey hash from owneraddress");
     }
 
-    // Get P2CS script for addresses
-    CScript scriptPubKey = GetScriptForStakeDelegation(stakeKey, ownerKey);
-
-    // Get NTP1 wallet (none)
-    boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();
-    ntp1wallet->setRetrieveFullMetadata(false);
-    ntp1wallet->update();
-
-    NTP1SendTxData tokenSelector;
-    tokenSelector.selectNTP1Tokens(ntp1wallet, std::vector<COutPoint>(),
-                                   std::vector<NTP1SendTokensOneRecipientData>(), false);
-
-    // Create the transaction
-    CAmount   nFeeRequired;
-    CWalletTx wtxNew;
-    if (!pwalletMain->CreateTransaction(scriptPubKey, nValue, wtxNew, reservekey, nFeeRequired,
-                                        tokenSelector, &strError, RawNTP1MetadataBeforeSend(), false,
-                                        nullptr, fUseDelegated)) {
-        if (nValue + nFeeRequired > currBalance)
-            strError = strprintf("Error: This transaction requires a transaction fee of at least %s "
-                                 "because of its amount, complexity, or use of recently received "
-                                 "funds!",
-                                 FormatMoney(nFeeRequired).c_str());
-        printf("%s : %s\n", __func__, strError.c_str());
-        throw JSONRPCError(RPC_WALLET_ERROR, strError);
-    }
-
     CoinStakeDelegationResult result;
     result.ownerAddress  = ownerAddr;
     result.stakerAddress = stakeAddr;
-    result.wtx           = wtxNew;
+    // Get P2CS script for addresses
+    result.scriptPubKey = GetScriptForStakeDelegation(stakeKey, ownerKey);
     return result;
 }
 
@@ -349,10 +376,13 @@ Value delegatestake(const Array& params, bool fHelp)
     const CreateColdStakeDelegationParsedParams pParams = ParseCreateColdStakeDelegationParams(params);
 
     const CoinStakeDelegationResult res = CreateColdStakeDelegation(
-        reservekey, pParams.stakerAddress, pParams.nValue, pParams.ownerAddress,
-        pParams.fForceExternalAddr, pParams.fUseDelegated, pParams.fForceNotEnabled);
+        pParams.stakerAddress, pParams.nValue, pParams.ownerAddress, pParams.fForceExternalAddr,
+        pParams.fUseDelegated, pParams.fForceNotEnabled);
 
-    if (!pwalletMain->CommitTransaction(res.wtx, reservekey))
+    CWalletTx wtx =
+        SubmitColdStakeDelegationTx(reservekey, pParams.nValue, res.scriptPubKey, pParams.fUseDelegated);
+
+    if (!pwalletMain->CommitTransaction(wtx, reservekey))
         throw JSONRPCError(RPC_WALLET_ERROR,
                            "Error: The transaction was rejected! This might happen if some of the coins "
                            "in your wallet were already spent, such as if you used a copy of wallet.dat "
@@ -360,7 +390,7 @@ Value delegatestake(const Array& params, bool fHelp)
 
     Object ret = res.AddressesToJsonObject();
 
-    ret.push_back(Pair("txid", res.wtx.GetHash().GetHex()));
+    ret.push_back(Pair("txid", wtx.GetHash().GetHex()));
     return ret;
 }
 
@@ -444,10 +474,12 @@ Value rawdelegatestake(const Array& params, bool fHelp)
 
     const CreateColdStakeDelegationParsedParams pParams = ParseCreateColdStakeDelegationParams(params);
 
-    const CWalletTx wtx = CreateColdStakeDelegation(reservekey, pParams.stakerAddress, pParams.nValue,
-                                                    pParams.ownerAddress, pParams.fForceExternalAddr,
-                                                    pParams.fUseDelegated, pParams.fForceNotEnabled)
-                              .wtx;
+    CoinStakeDelegationResult res = CreateColdStakeDelegation(
+        pParams.stakerAddress, pParams.nValue, pParams.ownerAddress, pParams.fForceExternalAddr,
+        pParams.fUseDelegated, pParams.fForceNotEnabled);
+
+    CWalletTx wtx =
+        SubmitColdStakeDelegationTx(reservekey, pParams.nValue, res.scriptPubKey, pParams.fUseDelegated);
 
     Object result;
     TxToJSON(wtx, 0, result, true);
