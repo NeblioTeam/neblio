@@ -2045,10 +2045,9 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, CAmount>>& vecSend, C
                 if (!SelectCoins(nTotalValue, wtxNew.nTime, setCoins, nValueIn, coinControl, false,
                                  fIncludeDelegated, isNTP1Issuance)) {
                     CreateErrorMsg(errorMsg,
-                                   "Failed to collect nebls for the transaction. You are "
-                                   "probably trying to spend nebls from NTP1 outputs. NTP1 "
-                                   "outputs should have a non-zero amount of nebls. Use coin control to "
-                                   "have more control on what outputs to use for your transaction.");
+                                   "Failed to collect nebls for the transaction. You may have chosen to "
+                                   "spend balance you do not have. For example, you chose to spend "
+                                   "balance that is delegated without enabling delegated balance.");
                     return false;
                 }
 
@@ -2293,7 +2292,7 @@ bool CWallet::GetStakeWeight(const CKeyStore& /*keystore*/, uint64_t& nMinWeight
                              uint64_t& nWeight)
 {
     // Choose coins to use
-    CAmount nBalance = GetBalance();
+    const CAmount nBalance = GetBalance();
 
     nMinWeight = nMaxWeight = nWeight = 0;
 

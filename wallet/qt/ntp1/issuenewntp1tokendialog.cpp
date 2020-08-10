@@ -296,7 +296,7 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
             throw std::runtime_error("The wallet pointer is null. Failed to create transaction.");
         }
 
-        const int64_t minAmount = 2 * MIN_TX_FEE + NTP1Transaction::IssuanceFee;
+        const CAmount minAmount = 2 * MIN_TX_FEE + NTP1Transaction::IssuanceFee;
 
         CWalletTx wtx;
 
@@ -306,7 +306,7 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
         ntp1wallet->update();
 
         // Check funds
-        int64_t nBalance = pwalletMain->GetBalance();
+        CAmount nBalance = pwalletMain->GetBalance();
         if (minAmount > nBalance)
             throw std::runtime_error(
                 "You don't have enough NEBLs to issue this token. You need at least: " +
@@ -333,8 +333,8 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
 
         // make sure the amount is correct AND make sure that all inputs are non-NTP1
         if (takeInputsFromCoinControl) {
-            CTxDB    txdb;
-            uint64_t totalInInputs = 0;
+            CTxDB   txdb;
+            CAmount totalInInputs = 0;
             for (const COutPoint o : inputs) {
 
                 CTransaction tx = CTransaction::FetchTxFromDisk(o.hash, txdb);
@@ -389,22 +389,23 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
 
         // Send
         CReserveKey keyChange(pwalletMain.get());
-        int64_t     nFeeRequired = 0;
+        CAmount     nFeeRequired = 0;
 
         CoinControlDialog::coinControl->destChange =
             CNoDestination(); // default is: No change address specified
         if (changeAddressCheckbox->isChecked()) {
             CoinControlDialog::coinControl->destChange =
-                CBitcoinAddress(targetAddressLineEdit->text().toStdString()).Get();
+                CBitcoinAddress(changeAddressLineEdit->text().toStdString()).Get();
         }
 
         std::string errorMessage;
 
         bool fCreated = pwalletMain->CreateTransaction(
-            std::vector<std::pair<CScript, int64_t>>(), wtx, keyChange, nFeeRequired, tokenSelector,
+            std::vector<std::pair<CScript, CAmount>>(), wtx, keyChange, nFeeRequired, tokenSelector,
             metadata, true, CoinControlDialog::coinControl, &errorMessage);
         if (!fCreated) {
-            if (minAmount + nFeeRequired > pwalletMain->GetBalance()) {
+            if (minAmount + nFeeRequired >
+                pwalletMain->GetBalance() - pwalletMain->GetDelegatedBalance()) {
                 throw std::runtime_error(
                     "Insufficient funds to create the transaction. The required fee is: " +
                     FormatMoney(nFeeRequired));

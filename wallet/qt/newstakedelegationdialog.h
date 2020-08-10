@@ -10,15 +10,13 @@
 #include <QPushButton>
 #include <unordered_set>
 
-#include "ntp1/ntp1script.h"
 #include <QValidator>
-
-#include "json/json_spirit.h"
 
 class NewStakeDelegationDialog;
 class CCoinControl;
 class CoinControlDialog;
 class WalletModel;
+class MessageBoxWithTimer;
 
 class NewStakeDelegationDialog : public QDialog
 {
@@ -26,57 +24,54 @@ class NewStakeDelegationDialog : public QDialog
 
     QGridLayout* mainLayout;
 
-    QLabel*                   tokenSymbolLabel;
-    QLineEdit*                tokenSymbolLineEdit;
-    QLabel*                   tokenSymbolErrorLabel;
-    QLabel*                   issuerLabel;
-    QLineEdit*                issuerLineEdit;
-    QLabel*                   tokenNameLabel;
-    QLineEdit*                tokenNameLineEdit;
-    QLabel*                   amountLabel;
-    QLineEdit*                amountLineEdit;
-    QLabel*                   iconUrlLabel;
-    QLabel*                   iconUrlMimeTypeLabel;
-    QLineEdit*                iconUrlLineEdit;
-    QPushButton*              editMetadataButton;
-    QPushButton*              issueButton;
-    QPushButton*              cancelButton;
-    QPushButton*              clearButton;
-    QLabel*                   targetAddressLabel;
-    QLineEdit*                targetAddressLineEdit;
-    QCheckBox*                changeAddressCheckbox;
-    QLineEdit*                changeAddressLineEdit;
-    QLabel*                   costLabel;
-    QFrame*                   paymentSeparator;
-
+    QLabel*      titleLabel;
+    QFrame*      titleSeparator;
+    QLabel*      stakerAddressLabel;
+    QLineEdit*   stakerAddressLineEdit;
+    QLabel*      amountLabel;
+    QLineEdit*   amountLineEdit;
+    QPushButton* createDelegationButton;
+    QPushButton* cancelButton;
+    QPushButton* clearButton;
+    QCheckBox*   ownerAddressCheckbox;
+    QLineEdit*   ownerAddressLineEdit;
+    QCheckBox*   changeAddressCheckbox;
+    QLineEdit*   changeAddressLineEdit;
+    QCheckBox*   useDelegatedCheckbox;
+    QFrame*      paymentSeparator;
 
     CoinControlDialog* coinControlDialog;
     QPushButton*       coinControlButton;
+
+    MessageBoxWithTimer* timedMessageBox;
+    QPushButton*         timedMessageBox_yesButton;
+    QPushButton*         timedMessageBox_noButton;
 
     WalletModel* walletModel = nullptr;
 
     void createWidgets();
 
+    void initializeMessageWithTimer();
+
 public:
     NewStakeDelegationDialog(QWidget* parent = 0);
     void clearData();
     void validateInput() const;
-    void setAlreadyIssuedTokensSymbols(const std::unordered_set<std::string>& tokenSymbols);
-
-    void setTokenSymbolValidatorErrorString(const QString& str);
 
     void setWalletModel(WalletModel* WalletModelPtr);
 
-    json_spirit::Value getIssuanceMetadata() const;
+    void makeError(const QString& msg);
 
 private slots:
     void slot_clearData();
+    void slot_modifyStakerAddressColor();
     void slot_modifyChangeAddressColor();
     void slot_modifyTargetAddressColor();
     void slot_changeAddressCheckboxToggled(bool checked);
-    void slot_doIssueToken();
-    void slot_iconUrlChanged(const QString& url);
+    void slot_createColdStake();
     void slot_coinControlButtonClicked();
+    void slot_toggledSettingManualOwner();
+    void slot_toggledUseDelegated();
 };
 
 #endif // NewStakeDelegationDialog_H

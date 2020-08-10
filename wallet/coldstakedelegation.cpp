@@ -35,7 +35,7 @@ CreateColdStakeDelegation(const std::string& stakeAddress, CAmount nValue,
 
     // Check amount
     const CAmount currBalance =
-        pwalletMain->GetBalance() + (fUseDelegated ? pwalletMain->GetDelegatedBalance() : 0);
+        pwalletMain->GetBalance() - (fUseDelegated ? 0 : pwalletMain->GetDelegatedBalance());
     if (nValue > currBalance)
         return Err(InsufficientBalance);
 

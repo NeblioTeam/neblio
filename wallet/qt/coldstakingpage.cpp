@@ -65,6 +65,7 @@ void ColdStakingPage::keyPressEvent(QKeyEvent* event)
 {
     if (event->key() == Qt::Key_F && (event->modifiers() & Qt::ControlModifier)) {
         //        ui->filter_lineEdit->setFocus();
+        // TODO: add filter
     }
 }
 
@@ -130,6 +131,8 @@ void ColdStakingPage::setWalletModel(WalletModel* wModel)
     model->setWalletModel(wModel);
     connect(model->getTransactionTableModel(), &TransactionTableModel::txArrived, this,
             &ColdStakingPage::onTxArrived);
+
+    newStakeDelegationDialog->setWalletModel(model->getWalletModel());
 
     notifyWalletConnection = model->getWalletModel()->getWallet()->NotifyAddressBookChanged.connect(
         [this](CWallet* /*wallet*/, const CTxDestination& /*address*/, const std::string& /*label*/,
