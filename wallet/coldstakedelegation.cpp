@@ -114,4 +114,5 @@ std::string ColdStakeDelegationErrorStr(const ColdStakeDelegationErrorCode error
     case GeneratedOwnerAddressPubKeyHashError:
         return "Unable to get spend pubkey hash from owneraddress";
     }
+    return "Unknown error";
 }
