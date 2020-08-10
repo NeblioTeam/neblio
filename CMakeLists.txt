@@ -483,6 +483,7 @@ add_library(gui_lib STATIC
     wallet/qt/coldstakingpage.cpp
     wallet/qt/coldstakingmodel.cpp
     wallet/qt/coldstakinglistitemdelegate.cpp
+    wallet/qt/coldstakinglistfilterproxy.cpp
     wallet/qt/newstakedelegationdialog.cpp
     ${QRCODE_SOURCES}
     )

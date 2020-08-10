@@ -21,6 +21,8 @@ class ColdStakingListItemDelegate;
 
 class NewStakeDelegationDialog;
 
+class ColdStakingListFilterProxy;
+
 /** ColdStaking page widget */
 class ColdStakingPage : public QWidget
 {
@@ -46,11 +48,13 @@ public:
     ColdStakingModel* getTokenListModel() const;
 
 private:
-    ColdStakingModel* model;
+    ColdStakingModel* model = Q_NULLPTR;
 
-    ColdStakingListItemDelegate* itemDelegate;
+    ColdStakingListFilterProxy* filter = Q_NULLPTR;
 
-    NewStakeDelegationDialog* newStakeDelegationDialog = nullptr;
+    ColdStakingListItemDelegate* itemDelegate = Q_NULLPTR;
+
+    NewStakeDelegationDialog* newStakeDelegationDialog = Q_NULLPTR;
 
     static const QString copyOwnerAddressText;
     static const QString copyStakerAddressText;
@@ -78,7 +82,7 @@ private:
     void configureToggleStakingAction(const QModelIndex& idx);
 
 private slots:
-    void handleTokenClicked(const QModelIndex& index);
+    void handleElementClicked(const QModelIndex& index);
     void slot_contextMenuRequested(QPoint pos);
     void slot_copyOwnerAddr();
     void slot_copyStakerAddr();

@@ -1,6 +1,7 @@
 #include "coldstakingpage.h"
 
 #include "bitcoinunits.h"
+#include "coldstakinglistfilterproxy.h"
 #include "coldstakinglistitemdelegate.h"
 #include "coldstakingmodel.h"
 #include "guiconstants.h"
@@ -44,11 +45,13 @@ ColdStakingPage::ColdStakingPage(QWidget* parent)
                                               (ColdStakingListItemDelegate::DECORATION_SIZE + 2));
     ui->listColdStakingView->setAttribute(Qt::WA_MacShowFocusRect, false);
 
-    connect(ui->listColdStakingView, SIGNAL(clicked(QModelIndex)), this,
-            SLOT(handleTokenClicked(QModelIndex)));
+    connect(ui->listColdStakingView, &ColdStakingListView::clicked, this,
+            &ColdStakingPage::handleElementClicked);
 
     setupContextMenu();
 
+    filter = new ColdStakingListFilterProxy(ui->filter_lineEdit, this);
+    filter->setDynamicSortFilter(true);
     setModel(model);
 
     refreshData();
@@ -57,15 +60,20 @@ ColdStakingPage::ColdStakingPage(QWidget* parent)
 
     connect(ui->delegateStakeButton, &QPushButton::clicked, newStakeDelegationDialog,
             &NewStakeDelegationDialog::open);
+    connect(ui->filter_lineEdit, &QLineEdit::textChanged, filter,
+            &ColdStakingListFilterProxy::setFilterWildcard);
 }
 
-void ColdStakingPage::handleTokenClicked(const QModelIndex& /*index*/) {}
+void ColdStakingPage::handleElementClicked(const QModelIndex& index)
+{
+    if (filter)
+        emit tokenClicked(filter->mapToSource(index));
+}
 
 void ColdStakingPage::keyPressEvent(QKeyEvent* event)
 {
     if (event->key() == Qt::Key_F && (event->modifiers() & Qt::ControlModifier)) {
-        //        ui->filter_lineEdit->setFocus();
-        // TODO: add filter
+        ui->filter_lineEdit->setFocus();
     }
 }
 
@@ -122,7 +130,8 @@ ColdStakingModel* ColdStakingPage::getTokenListModel() const { return model; }
 void ColdStakingPage::setModel(ColdStakingModel* model)
 {
     if (model) {
-        ui->listColdStakingView->setModel(model);
+        filter->setSourceModel(model);
+        ui->listColdStakingView->setModel(filter);
     }
 }
 
@@ -143,13 +152,10 @@ void ColdStakingPage::setWalletModel(WalletModel* wModel)
 void ColdStakingPage::slot_contextMenuRequested(QPoint pos)
 {
     QModelIndexList selected = ui->listColdStakingView->selectedIndexesP();
-    if (selected.size() != 1) {
-        copyOwnerAddrAction->setDisabled(true);
-    } else {
-        copyOwnerAddrAction->setDisabled(false);
+    if (selected.size() == 1) {
+        contextMenu->popup(ui->listColdStakingView->viewport()->mapToGlobal(pos));
         configureToggleStakingAction(selected.front());
     }
-    contextMenu->popup(ui->listColdStakingView->viewport()->mapToGlobal(pos));
 }
 
 void ColdStakingPage::onTxArrived(const QString& /*hash*/) { tryRefreshData(); }
@@ -168,8 +174,8 @@ void ColdStakingPage::refreshData() { model->updateCSList(); }
 
 void ColdStakingPage::copyField(ColdStakingModel::ColumnIndex column, const QString& columnName)
 {
-    QModelIndexList selected = ui->listColdStakingView->selectedIndexesP();
-    std::set<int>   rows;
+    const QModelIndexList selected = ui->listColdStakingView->selectedIndexesP();
+    std::set<int>         rows;
     for (long i = 0; i < selected.size(); i++) {
         QModelIndex index = selected.at(i);
         int         row   = index.row();
@@ -181,8 +187,8 @@ void ColdStakingPage::copyField(ColdStakingModel::ColumnIndex column, const QStr
                                  "; selected items size is not equal to one");
         return;
     }
-    QModelIndex idx       = ui->listColdStakingView->model()->index(*rows.begin(), 0);
-    QString     resultStr = ui->listColdStakingView->model()->data(idx, column).toString();
+    const QModelIndex idx       = ui->listColdStakingView->model()->index(*rows.begin(), 0);
+    QString           resultStr = ui->listColdStakingView->model()->data(idx, column).toString();
     if (!resultStr.isEmpty()) {
         QClipboard* clipboard = QGuiApplication::clipboard();
         clipboard->setText(resultStr);

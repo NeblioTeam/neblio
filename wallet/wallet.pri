@@ -172,7 +172,8 @@ HEADERS += qt/bitcoingui.h \
     qt/coldstakingmodel.h            \
     qt/coldstakingpage.h             \
     qt/newstakedelegationdialog.h    \
-    coldstakedelegation.h
+    coldstakedelegation.h            \
+    coldstakinglistfilterproxy.cpp
 
 
 
@@ -340,7 +341,8 @@ SOURCES += qt/bitcoin.cpp \
     qt/coldstakingmodel.cpp             \
     qt/coldstakingpage.cpp              \
     qt/newstakedelegationdialog.cpp     \
-    coldstakedelegation.cpp
+    coldstakedelegation.cpp             \
+    coldstakinglistfilterproxy.cpp
 
 
 
