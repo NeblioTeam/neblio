@@ -1,13 +1,13 @@
-#include "coinstakinglistitemdelegate.h"
+#include "coldstakinglistitemdelegate.h"
 
 #include "coldstakingmodel.h"
 #include "guiconstants.h"
 
-CoinStakingListItemDelegate::CoinStakingListItemDelegate() : QAbstractItemDelegate() {}
+ColdStakingListItemDelegate::ColdStakingListItemDelegate() : QAbstractItemDelegate() {}
 
-CoinStakingListItemDelegate::~CoinStakingListItemDelegate() {}
+ColdStakingListItemDelegate::~ColdStakingListItemDelegate() {}
 
-void CoinStakingListItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
+void ColdStakingListItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
                                         const QModelIndex& index) const
 {
     painter->save();
@@ -53,10 +53,10 @@ void CoinStakingListItemDelegate::paint(QPainter* painter, const QStyleOptionVie
         QString titleText = "";
         if (!isRecvdDelgation) {
             titleText = "Delegated to you to stake";
-            icon = QIcon(":/icons/cold_delegate_1");
+            icon      = QIcon(":/icons/cold_delegate_1");
         } else {
             titleText = "Delegated by you to another node";
-            icon = QIcon(":/icons/cold_delegate_0");
+            icon      = QIcon(":/icons/cold_delegate_0");
         }
         icon.paint(painter, decorationRect);
 
@@ -98,7 +98,7 @@ void CoinStakingListItemDelegate::paint(QPainter* painter, const QStyleOptionVie
     painter->restore();
 }
 
-QSize CoinStakingListItemDelegate::sizeHint(const QStyleOptionViewItem& /*option*/,
+QSize ColdStakingListItemDelegate::sizeHint(const QStyleOptionViewItem& /*option*/,
                                             const QModelIndex& /*index*/) const
 {
     return QSize(DECORATION_SIZE, ItemHeight);

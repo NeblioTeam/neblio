@@ -482,7 +482,7 @@ add_library(gui_lib STATIC
     wallet/qt/messageboxwithtimer.cpp
     wallet/qt/coldstakingpage.cpp
     wallet/qt/coldstakingmodel.cpp
-    wallet/qt/coinstakinglistitemdelegate.cpp
+    wallet/qt/coldstakinglistitemdelegate.cpp
     wallet/qt/newstakedelegationdialog.cpp
     ${QRCODE_SOURCES}
     )

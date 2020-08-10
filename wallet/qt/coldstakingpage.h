@@ -1,8 +1,8 @@
 #ifndef COLDSTAKING_H
 #define COLDSTAKING_H
 
-#include "ui_coldstakingpage.h"
 #include "coldstakingmodel.h"
+#include "ui_coldstakingpage.h"
 #include <QTimer>
 #include <QWidget>
 
@@ -17,7 +17,7 @@ class Ui_ColdStaking;
 
 class WalletModel;
 
-class CoinStakingListItemDelegate;
+class ColdStakingListItemDelegate;
 
 class NewStakeDelegationDialog;
 
@@ -27,6 +27,7 @@ class ColdStakingPage : public QWidget
     Q_OBJECT
 
     boost::signals2::connection notifyWalletConnection;
+
 public:
     explicit ColdStakingPage(QWidget* parent = 0);
     virtual ~ColdStakingPage();
@@ -35,19 +36,19 @@ public:
     void setWalletModel(WalletModel* wModel);
 
 public slots:
-    void onTxArrived(const QString &hash);
+    void onTxArrived(const QString& hash);
 
 signals:
     void tokenClicked(const QModelIndex& index);
 
 public:
-    Ui_ColdStaking*     ui;
+    Ui_ColdStaking*   ui;
     ColdStakingModel* getTokenListModel() const;
 
 private:
-    ColdStakingModel*       model;
+    ColdStakingModel* model;
 
-    CoinStakingListItemDelegate* itemDelegate;
+    ColdStakingListItemDelegate* itemDelegate;
 
     NewStakeDelegationDialog* newStakeDelegationDialog = nullptr;
 
@@ -58,12 +59,11 @@ private:
     static const QString disableStakingText;
     static const QString cantStakeText;
 
-    QMenu*   contextMenu             = Q_NULLPTR;
+    QMenu*   contextMenu          = Q_NULLPTR;
     QAction* copyOwnerAddrAction  = Q_NULLPTR;
     QAction* copyStakerAddrAction = Q_NULLPTR;
-    QAction* copyAmountAction        = Q_NULLPTR;
-    QAction* toggleStakingAction     = Q_NULLPTR;
-
+    QAction* copyAmountAction     = Q_NULLPTR;
+    QAction* toggleStakingAction  = Q_NULLPTR;
 
     // caching mechanism for the metadata to avoid accessing the db repeatedly4
     std::unordered_map<uint256, json_spirit::Value> issuanceTxidVsMetadata;

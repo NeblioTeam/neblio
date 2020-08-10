@@ -1,7 +1,7 @@
 #include "coldstakingpage.h"
 
 #include "bitcoinunits.h"
-#include "coinstakinglistitemdelegate.h"
+#include "coldstakinglistitemdelegate.h"
 #include "coldstakingmodel.h"
 #include "guiconstants.h"
 #include "guiutil.h"
@@ -33,15 +33,15 @@ const QString ColdStakingPage::cantStakeText         = "Cannot stake an address 
 
 ColdStakingPage::ColdStakingPage(QWidget* parent)
     : QWidget(parent), ui(new Ui_ColdStaking), model(new ColdStakingModel),
-      itemDelegate(new CoinStakingListItemDelegate)
+      itemDelegate(new ColdStakingListItemDelegate)
 {
     ui->setupUi(this);
 
     ui->listColdStakingView->setItemDelegate(itemDelegate);
-    ui->listColdStakingView->setIconSize(QSize(CoinStakingListItemDelegate::DECORATION_SIZE,
-                                               CoinStakingListItemDelegate::DECORATION_SIZE));
-    ui->listColdStakingView->setMinimumHeight(CoinStakingListItemDelegate::NUM_ITEMS *
-                                              (CoinStakingListItemDelegate::DECORATION_SIZE + 2));
+    ui->listColdStakingView->setIconSize(QSize(ColdStakingListItemDelegate::DECORATION_SIZE,
+                                               ColdStakingListItemDelegate::DECORATION_SIZE));
+    ui->listColdStakingView->setMinimumHeight(ColdStakingListItemDelegate::NUM_ITEMS *
+                                              (ColdStakingListItemDelegate::DECORATION_SIZE + 2));
     ui->listColdStakingView->setAttribute(Qt::WA_MacShowFocusRect, false);
 
     connect(ui->listColdStakingView, SIGNAL(clicked(QModelIndex)), this,

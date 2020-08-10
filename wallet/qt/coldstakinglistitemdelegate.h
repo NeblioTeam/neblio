@@ -1,10 +1,10 @@
-#ifndef COINSTAKINGLISTITEMDELEGATE_H
-#define COINSTAKINGLISTITEMDELEGATE_H
+#ifndef COLDSTAKINGLISTITEMDELEGATE_H
+#define COLDSTAKINGLISTITEMDELEGATE_H
 
 #include <QAbstractItemDelegate>
 #include <QPainter>
 
-class CoinStakingListItemDelegate : public QAbstractItemDelegate
+class ColdStakingListItemDelegate : public QAbstractItemDelegate
 {
     Q_OBJECT
 public:
@@ -13,9 +13,9 @@ public:
 
     static const int ItemHeight = 1.4 * DECORATION_SIZE;
 
-    CoinStakingListItemDelegate();
+    ColdStakingListItemDelegate();
 
-    virtual ~CoinStakingListItemDelegate();
+    virtual ~ColdStakingListItemDelegate();
 
     void paint(QPainter* painter, const QStyleOptionViewItem& option,
                const QModelIndex& index) const Q_DECL_OVERRIDE;
@@ -23,4 +23,4 @@ public:
     QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const Q_DECL_OVERRIDE;
 };
 
-#endif // COINSTAKINGLISTITEMDELEGATE_H
+#endif // COLDSTAKINGLISTITEMDELEGATE_H
