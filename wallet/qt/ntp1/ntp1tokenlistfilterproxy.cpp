@@ -1,14 +1,15 @@
 #include "ntp1tokenlistfilterproxy.h"
 #include "ntp1tokenlistmodel.h"
 
-NTP1TokenListFilterProxy::NTP1TokenListFilterProxy(QLineEdit* FilterLineEdit)
+NTP1TokenListFilterProxy::NTP1TokenListFilterProxy(QLineEdit* FilterLineEdit, QObject* parent)
+    : QSortFilterProxyModel(parent)
 {
     filterLineEdit = FilterLineEdit;
 }
 
 bool NTP1TokenListFilterProxy::filterAcceptsRow(int source_row, const QModelIndex& source_parent) const
 {
-    if (filterLineEdit == NULL) {
+    if (filterLineEdit == Q_NULLPTR) {
         return QSortFilterProxyModel::filterAcceptsRow(source_row, source_parent);
     }
 

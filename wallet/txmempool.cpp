@@ -2,7 +2,7 @@
 
 #include "globals.h"
 
-bool CTxMemPool::addUnchecked(const uint256& hash, CTransaction& tx)
+bool CTxMemPool::addUnchecked(const uint256& hash, const CTransaction& tx)
 {
     // Add to memory pool without checking anything.  Don't call this directly,
     // call AcceptToMemoryPool to properly check the transaction first.

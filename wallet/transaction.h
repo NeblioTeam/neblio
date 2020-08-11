@@ -49,7 +49,7 @@ public:
         }
     };
 
-    boost::optional<CTxReject> reject;
+    mutable boost::optional<CTxReject> reject;
 
     // Denial-of-service detection:
     mutable int nDoS;
@@ -158,7 +158,7 @@ public:
             @return	Returns true if all inputs are in txdb or mapTestPool
                 */
     bool FetchInputs(CTxDB& txdb, const std::map<uint256, CTxIndex>& mapTestPool, bool fBlock,
-                     bool fMiner, MapPrevTx& inputsRet, bool& fInvalid);
+                     bool fMiner, MapPrevTx& inputsRet, bool& fInvalid) const;
 
     /** Sanity check previous transactions, then, if all checks succeed,
         mark them as spent by this transaction.
@@ -174,7 +174,7 @@ public:
     Result<void, TxValidationState>
                                     ConnectInputs(MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTestPool,
                                                   const CDiskTxPos& posThisTx, const ConstCBlockIndexSmartPtr& pindexBlock, bool fBlock,
-                                                  bool fMiner, CBlock* sourceBlockPtr = nullptr);
+                                                  bool fMiner, CBlock* sourceBlockPtr = nullptr) const;
     Result<void, TxValidationState> CheckTransaction(CBlock* sourceBlock = nullptr) const;
     bool GetCoinAge(CTxDB& txdb, uint64_t& nCoinAge) const; // ppcoin: get transaction coin age
 

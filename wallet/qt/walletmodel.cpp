@@ -138,10 +138,10 @@ void WalletModel::updateTransaction(const QString& hash, int status)
 }
 
 void WalletModel::updateAddressBook(const QString& address, const QString& label, bool isMine,
-                                    int status)
+                                    const QString& purpose, int status)
 {
     if (addressTableModel)
-        addressTableModel->updateEntry(address, label, isMine, status);
+        addressTableModel->updateEntry(address, label, isMine, purpose, status);
 }
 
 bool WalletModel::validateAddress(const QString& address)
@@ -153,6 +153,7 @@ bool WalletModel::validateAddress(const QString& address)
 WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipient>& recipients,
                                                     boost::shared_ptr<NTP1Wallet>    ntp1wallet,
                                                     const RawNTP1MetadataBeforeSend& ntp1metadata,
+                                                    bool                             fSpendDelegated,
                                                     const CCoinControl*              coinControl)
 {
     qint64  total = 0;
@@ -239,8 +240,9 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
         CReserveKey keyChange(wallet);
         int64_t     nFeeRequired = 0;
         std::string errorMsg;
-        bool fCreated = wallet->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, tokenCalculator,
-                                                  ntp1metadata, false, coinControl, &errorMsg);
+        const bool  fCreated =
+            wallet->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, tokenCalculator,
+                                      ntp1metadata, false, coinControl, &errorMsg, fSpendDelegated);
 
         if (!fCreated) {
             if ((total + nFeeRequired) > nBalance) // FIXME: could cause collisions in the future
@@ -360,14 +362,16 @@ static void NotifyKeyStoreStatusChanged(WalletModel* walletmodel, CCryptoKeyStor
 
 static void NotifyAddressBookChanged(WalletModel*          walletmodel, CWallet* /*wallet*/,
                                      const CTxDestination& address, const std::string& label,
-                                     bool isMine, ChangeType status)
+                                     bool isMine, const std::string& purpose, ChangeType status)
 {
-    OutputDebugStringF("NotifyAddressBookChanged %s %s isMine=%i status=%i\n",
-                       CBitcoinAddress(address).ToString().c_str(), label.c_str(), isMine, status);
+    OutputDebugStringF("NotifyAddressBookChanged %s %s isMine=%i purpose=%s status=%i\n",
+                       CBitcoinAddress(address).ToString().c_str(), label.c_str(), isMine,
+                       purpose.c_str(), status);
     QMetaObject::invokeMethod(
         walletmodel, "updateAddressBook", Qt::QueuedConnection,
         Q_ARG(QString, QString::fromStdString(CBitcoinAddress(address).ToString())),
-        Q_ARG(QString, QString::fromStdString(label)), Q_ARG(bool, isMine), Q_ARG(int, status));
+        Q_ARG(QString, QString::fromStdString(label)), Q_ARG(bool, isMine),
+        Q_ARG(QString, QString::fromStdString(purpose)), Q_ARG(int, status));
 }
 
 static void NotifyTransactionChanged(WalletModel* walletmodel, CWallet* /*wallet*/, const uint256& hash,
@@ -383,7 +387,7 @@ void WalletModel::subscribeToCoreSignals()
     // Connect signals to wallet
     wallet->NotifyStatusChanged.connect(boost::bind(&NotifyKeyStoreStatusChanged, this, _1));
     wallet->NotifyAddressBookChanged.connect(
-        boost::bind(NotifyAddressBookChanged, this, _1, _2, _3, _4, _5));
+        boost::bind(NotifyAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
     wallet->NotifyTransactionChanged.connect(boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
 }
 
@@ -392,7 +396,7 @@ void WalletModel::unsubscribeFromCoreSignals()
     // Disconnect signals from wallet
     wallet->NotifyStatusChanged.disconnect(boost::bind(&NotifyKeyStoreStatusChanged, this, _1));
     wallet->NotifyAddressBookChanged.disconnect(
-        boost::bind(NotifyAddressBookChanged, this, _1, _2, _3, _4, _5));
+        boost::bind(NotifyAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
     wallet->NotifyTransactionChanged.disconnect(boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
 }
 
@@ -501,3 +505,49 @@ void WalletModel::lockCoin(COutPoint& /*output*/) { return; }
 void WalletModel::unlockCoin(COutPoint& /*output*/) { return; }
 
 void WalletModel::listLockedCoins(std::vector<COutPoint>& /*vOutpts*/) { return; }
+
+bool WalletModel::whitelistAddressFromColdStaking(const QString& addressStr)
+{
+    return updateAddressBookPurpose(addressStr, AddressBook::AddressBookPurpose::DELEGATOR);
+}
+
+bool WalletModel::blacklistAddressFromColdStaking(const QString& addressStr)
+{
+    return updateAddressBookPurpose(addressStr, AddressBook::AddressBookPurpose::DELEGABLE);
+}
+
+bool WalletModel::updateAddressBookPurpose(const QString& addressStr, const std::string& purpose)
+{
+    CBitcoinAddress address(addressStr.toStdString());
+    CKeyID          keyID;
+    if (!getKeyId(address, keyID))
+        return false;
+    return pwalletMain->SetAddressBookEntry(keyID, getLabelForAddress(address), purpose);
+}
+
+std::string WalletModel::getLabelForAddress(const CBitcoinAddress& address)
+{
+    std::string label = "";
+    {
+        LOCK(wallet->cs_wallet);
+        std::map<CTxDestination, AddressBook::CAddressBookData>::iterator mi =
+            wallet->mapAddressBook.find(address.Get());
+        if (mi != wallet->mapAddressBook.end()) {
+            label = mi->second.name;
+        }
+    }
+    return label;
+}
+
+bool WalletModel::getKeyId(const CBitcoinAddress& address, CKeyID& keyID)
+{
+    if (!address.IsValid())
+        return ::error("Invalid neblio address: %s", address.ToString().c_str());
+
+    if (!address.GetKeyID(keyID))
+        return ::error("Unable to get KeyID from neblio address: %s", address.ToString().c_str());
+
+    return true;
+}
+
+CWallet* WalletModel::getWallet() { return wallet; }

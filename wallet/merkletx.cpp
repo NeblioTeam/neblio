@@ -42,7 +42,7 @@ int CMerkleTx::GetBlocksToMaturity() const
     return std::max(0, (nCbM + 1) - GetDepthInMainChain());
 }
 
-Result<void, TxValidationState> CMerkleTx::AcceptToMemoryPool()
+Result<void, TxValidationState> CMerkleTx::AcceptToMemoryPool() const
 {
     return ::AcceptToMemoryPool(mempool, *this);
 }

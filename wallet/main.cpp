@@ -99,7 +99,7 @@ void UnregisterWallet(std::shared_ptr<CWallet> pwalletIn)
 }
 
 // check whether the passed transaction is from us
-bool static IsFromMe(CTransaction& tx)
+bool static IsFromMe(const CTransaction& tx)
 {
     for (const std::shared_ptr<CWallet>& pwallet : setpwalletRegistered)
         if (pwallet->IsFromMe(tx))
@@ -399,7 +399,8 @@ void AssertNTP1TokenNameIsNotAlreadyInMainChain(const NTP1Transaction& ntp1tx, C
     }
 }
 
-Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, CTxDB* txdbPtr)
+Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTransaction& tx,
+                                                   CTxDB* txdbPtr)
 {
     AssertLockHeld(cs_main);
 

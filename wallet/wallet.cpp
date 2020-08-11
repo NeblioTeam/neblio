@@ -1121,7 +1121,7 @@ void CWallet::ReacceptWalletTransactions(bool fFirstLoad)
     }
 }
 
-void CWalletTx::RelayWalletTransaction()
+void CWalletTx::RelayWalletTransaction() const
 {
     if (!IsCoinBase() && !IsCoinStake()) {
         if (GetDepthInMainChain() == 0 && !isAbandoned()) {
@@ -1387,9 +1387,9 @@ void CWallet::GetAvailableP2CSCoins(std::vector<COutput>& vCoins) const
                         continue;
 
                     if (utxo.scriptPubKey.IsPayToColdStaking()) {
-                        isminetype mine = IsMine(utxo);
-                        // bool       isMineSpendable = mine & ISMINE_SPENDABLE_DELEGATED;
-                        if (mine & ISMINE_COLD /* || isMineSpendable*/)
+                        isminetype mine            = IsMine(utxo);
+                        bool       isMineSpendable = mine & ISMINE_SPENDABLE_DELEGATED;
+                        if (mine & ISMINE_COLD || isMineSpendable)
                             // Depth is not used, no need waste resources and set it for now.
                             vCoins.emplace_back(COutput(pcoin, i, 0 /*, isMineSpendable*/));
                     }
@@ -2045,10 +2045,9 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, CAmount>>& vecSend, C
                 if (!SelectCoins(nTotalValue, wtxNew.nTime, setCoins, nValueIn, coinControl, false,
                                  fIncludeDelegated, isNTP1Issuance)) {
                     CreateErrorMsg(errorMsg,
-                                   "Failed to collect nebls for the transaction. You are "
-                                   "probably trying to spend nebls from NTP1 outputs. NTP1 "
-                                   "outputs should have a non-zero amount of nebls. Use coin control to "
-                                   "have more control on what outputs to use for your transaction.");
+                                   "Failed to collect nebls for the transaction. You may have chosen to "
+                                   "spend balance you do not have. For example, you chose to spend "
+                                   "balance that is delegated without enabling delegated balance.");
                     return false;
                 }
 
@@ -2293,7 +2292,7 @@ bool CWallet::GetStakeWeight(const CKeyStore& /*keystore*/, uint64_t& nMinWeight
                              uint64_t& nWeight)
 {
     // Choose coins to use
-    CAmount nBalance = GetBalance();
+    const CAmount nBalance = GetBalance();
 
     nMinWeight = nMaxWeight = nWeight = 0;
 
@@ -2344,7 +2343,7 @@ bool CWallet::GetStakeWeight(const CKeyStore& /*keystore*/, uint64_t& nMinWeight
 }
 
 // Call after CreateTransaction unless you want to abort
-bool CWallet::CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey)
+bool CWallet::CommitTransaction(const CWalletTx& wtxNew, CReserveKey& reservekey)
 {
     {
         LOCK2(cs_main, cs_wallet);
@@ -2575,7 +2574,7 @@ bool CWallet::SetAddressBookEntry(const CTxDestination& address, const string& s
         if (!strPurpose.empty()) /* update purpose only if requested */
             mapAddressBook[address].purpose = strPurpose;
     }
-    NotifyAddressBookChanged(this, address, strName, ::IsMine(*this, address) != ISMINE_NO,
+    NotifyAddressBookChanged(this, address, strName, ::IsMine(*this, address) != ISMINE_NO, strPurpose,
                              (fUpdated ? CT_UPDATED : CT_NEW));
     if (!fFileBacked)
         return false;
@@ -2588,13 +2587,16 @@ bool CWallet::SetAddressBookEntry(const CTxDestination& address, const string& s
 bool CWallet::DelAddressBookName(const CTxDestination& address)
 {
     std::string strAddress = CBitcoinAddress(address).ToString();
+    std::string purpose    = purposeForAddress(address);
+
     {
         LOCK(cs_wallet); // mapAddressBook
 
         mapAddressBook.erase(address);
     }
 
-    NotifyAddressBookChanged(this, address, "", ::IsMine(*this, address) != ISMINE_NO, CT_DELETED);
+    NotifyAddressBookChanged(this, address, "", ::IsMine(*this, address) != ISMINE_NO, purpose,
+                             CT_DELETED);
 
     if (!fFileBacked)
         return false;

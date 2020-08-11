@@ -68,7 +68,8 @@ public:
         qSort(cachedAddressTable.begin(), cachedAddressTable.end(), AddressTableEntryLessThan());
     }
 
-    void updateEntry(const QString& address, const QString& label, bool isMine, int status)
+    void updateEntry(const QString& address, const QString& label, bool isMine,
+                     const QString& /*purpose*/, int status)
     {
         // Find address / label in model
         QList<AddressTableEntry>::iterator lower = qLowerBound(
@@ -186,6 +187,18 @@ QVariant AddressTableModel::data(const QModelIndex& index, int role) const
     return QVariant();
 }
 
+/* Look up purpose for address in address book
+ */
+std::string AddressTableModel::purposeForAddress(const std::string& address) const
+{
+    return wallet->purposeForAddress(CBitcoinAddress(address).Get());
+}
+
+bool AddressTableModel::isWhitelisted(const std::string& address) const
+{
+    return purposeForAddress(address).compare(AddressBook::AddressBookPurpose::DELEGATOR) == 0;
+}
+
 bool AddressTableModel::setData(const QModelIndex& index, const QVariant& value, int role)
 {
     if (!index.isValid())
@@ -280,10 +293,10 @@ QModelIndex AddressTableModel::index(int row, int column, const QModelIndex& par
 }
 
 void AddressTableModel::updateEntry(const QString& address, const QString& label, bool isMine,
-                                    int status)
+                                    const QString& purpose, int status)
 {
     // Update address book model from Bitcoin core
-    priv->updateEntry(address, label, isMine, status);
+    priv->updateEntry(address, label, isMine, purpose, status);
 }
 
 QString AddressTableModel::addRow(const QString& type, const QString& label, const QString& address)

@@ -164,7 +164,7 @@ class ColdStakingTest(BitcoinTestFramework):
         # ------------------------------------------------------------------
         print("*** 4 ***")
         self.log.info("First check warning when using external addresses...")
-        assert_raises_rpc_error(-5, "Only the owner of the key to owneraddress will be allowed to spend these coins",
+        assert_raises_rpc_error(-5, "The provided owneraddress is not present in this wallet",
                                 self.nodes[0].delegatestake, staker_address, INPUT_VALUE, "TNuyq5dXf4dapmXg8XUSgF1zCdVWNY5mk3")
         self.log.info("Good. Warning triggered.")
 

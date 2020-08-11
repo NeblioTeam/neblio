@@ -14,6 +14,9 @@ wallet/qt/res/icons/connect/staking_*.png: Coins by Rockicon from the Noun Proje
 wallet/qt/res/icons/synced.png: Check by Besticons from the Noun Project
 wallet/qt/res/icons/history.png: Wallet by Satisfactory from the Noun Project
 wallet/qt/res/icons/AddNewNTP1Token.png: coin by JS from the Noun Project
+wallet/qt/res/icons/cold.png: Snowflake by Kari Studio, ID from the Noun Project
+wallet/qt/res/icons/cold_delegate_1.png user okay by b farias from the Noun Project
+wallet/qt/res/icons/cold_delegate_0.png Add User by b farias from the Noun Project
 
 
 Icons:
