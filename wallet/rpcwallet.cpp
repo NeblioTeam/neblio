@@ -11,6 +11,7 @@
 #include "globals.h"
 #include "init.h"
 #include "main.h"
+#include "udaddress.h"
 #include "wallet.h"
 #include "walletdb.h"
 
@@ -801,6 +802,30 @@ Value listaddressgroupings(const Array& /*params*/, bool fHelp)
         jsonGroupings.push_back(jsonGrouping);
     }
     return jsonGroupings;
+}
+
+Value udtoneblioaddress(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 1)
+        throw runtime_error(
+            "udtoneblioaddress <unstoppable domain address>\n"
+            "Returns the neblio address associated with the provided unstoppable domain");
+
+    string strUDDomain;
+    if (params.size() > 0)
+        strUDDomain = params[0].get_str();
+
+    if (!IsUDAddressSyntaxValid(strUDDomain)) {
+        throw std::runtime_error("Invalid syntax for unstoppable domains");
+    }
+
+    auto neblAddress = GetNeblioAddressFromUDAddress(strUDDomain);
+    if (!neblAddress) {
+        throw std::runtime_error("Failed to get address from domain. Either the address is invalid or "
+                                 "internet connectivity has a problem.");
+    }
+
+    return *neblAddress;
 }
 
 Value signmessage(const Array& params, bool fHelp)
@@ -2355,6 +2380,10 @@ Value walletpassphrase(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_WALLET_ALREADY_UNLOCKED, "Error: Wallet is already unlocked, use "
                                                         "walletlock first if need to change unlock "
                                                         "settings.");
+    if (params[1].get_int64() < 0)
+        throw JSONRPCError(RPC_INVALID_PARAMETER,
+                           "Error: Negative timeout or int64 overflow (range: 0-99999999).");
+
     // Note that the walletpassphrase is stored in params[0] which is not mlock()ed
     SecureString strWalletPass;
     strWalletPass.reserve(100);
@@ -2373,6 +2402,10 @@ Value walletpassphrase(const Array& params, bool fHelp)
     NewThread(ThreadTopUpKeyPool, NULL);
     if (params.size() >= 2) {
         int64_t* pnSleepTime = new int64_t(params[1].get_int64());
+
+        if (*pnSleepTime > static_cast<int64_t>(std::numeric_limits<int32_t>::max()))
+            *pnSleepTime = static_cast<int64_t>(std::numeric_limits<int32_t>::max());
+
         if (params[1].get_int64() > 0) {
             NewThread(ThreadCleanWalletPassphrase, pnSleepTime);
         }

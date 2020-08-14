@@ -17,9 +17,16 @@ Pull Requests Welcome
 ## Linux (debian-based)
 ### Install the following dependencies
 ```
-sudo apt-get update && sudo apt-get install qt5-default qt5-qmake qtbase5-dev-tools \
+sudo apt-get update && sudo apt-get install git python python-pip qt5-default qt5-qmake qtbase5-dev-tools \
 qttools5-dev-tools build-essential libssl-dev libdb++-dev libminiupnpc-dev \
 libqrencode-dev libcurl4-openssl-dev libldap2-dev libidn11-dev librtmp-dev libsodium-dev -y
+pip install requests
+```
+
+### Clone Repo
+```
+git clone https://github.com/NeblioTeam/neblio
+cd neblio
 ```
 
 ### Build OpenSSL, cURL, QREncode, and Boost
@@ -33,6 +40,8 @@ export OPENSSL_INCLUDE_PATH=$PWD/openssl_build/include/
 export OPENSSL_LIB_PATH=$PWD/openssl_build/lib/
 export BOOST_INCLUDE_PATH=$PWD/boost_build/include/
 export BOOST_LIB_PATH=$PWD/boost_build/lib/
+export QRENCODE_INCLUDE_PATH=$PWD/qrencode_build/include/
+export QRENCODE_LIB_PATH=$PWD/qrencode_build/lib/
 ```
 
 ### Build nebliod
@@ -44,7 +53,8 @@ strip ./nebliod
 
 ### Build neblio-Qt
 ```
-qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "OPENSSL_INCLUDE_PATH=$PWD/openssl_build/include/" "OPENSSL_LIB_PATH=$PWD/openssl_build/lib/" "PKG_CONFIG_PATH=$PWD/curl_build/lib/pkgconfig/" neblio-wallet.pro
+cd wallet
+qmake "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "QRENCODE_INCLUDE_PATH=$QRENCODE_INCLUDE_PATH" "QRENCODE_LIB_PATH=$QRENCODE_LIB_PATH" "BOOST_INCLUDE_PATH=$BOOST_INCLUDE_PATH" "BOOST_LIB_PATH=$BOOST_LIB_PATH" "OPENSSL_INCLUDE_PATH=$OPENSSL_INCLUDE_PATH" "OPENSSL_LIB_PATH=$OPENSSL_LIB_PATH" "PKG_CONFIG_PATH=$PKG_CONFIG_PATH" ../neblio-wallet.pro
 make -B -w -j4
 ```
 
@@ -190,6 +200,7 @@ RPC commands are used to interact with a running instance of nebliod or neblio-Q
 
 ```
 addmultisigaddress <nrequired> <'["key","key"]'> [account]
+addnode "node" "add|remove|onetry"
 addredeemscript <redeemScript> [account]
 backupwallet <destination>
 checkwallet
@@ -197,6 +208,7 @@ createrawntp1transaction [{"txid":txid,"vout":n},...] {address:{tokenid/tokenNam
 createrawtransaction [{"txid":txid,"vout":n},...] {address:amount,...}
 decoderawtransaction <hex string> [ignoreNTP1=false]
 decodescript <hex string>
+disconnectnode "node"
 dumpprivkey <neblioaddress>
 dumpwallet <filename>
 encryptwallet <passphrase>
@@ -210,6 +222,7 @@ getblock <hash> [verbose=true] [showtxns=false] [ignoreNTP1=false]
 getblockbynumber <number> [txinfo] [ignoreNTP1=false]
 getblockcount
 getblockhash <index>
+getblockheader <hash>
 getblocktemplate [params]
 getcheckpoint
 getconnectioncount
@@ -221,6 +234,7 @@ getnewpubkey [account]
 getntp1balance <tokenId/name> [minconf=1]
 getntp1balances [minconf=1]
 getpeerinfo
+getrawchangeaddress
 getrawmempool
 getrawtransaction <txid> [verbose=0] [ignoreNTP1=false]
 getreceivedbyaccount <account> [minconf=1]
@@ -228,6 +242,8 @@ getreceivedbyaddress <neblioaddress> [minconf=1]
 getstakinginfo
 getsubsidy [nTarget]
 gettransaction <txid> [ignoreNTP1=false]
+gettxout "txid" n ( include_mempool )
+getwalletinfo
 getwork [data]
 getworkex [data, coinbase]
 help [command]
@@ -253,14 +269,18 @@ sendntp1toaddress <neblioaddress> <amount> <tokenId/tokenName> '{"userData":{"me
 sendrawtransaction <hex string>
 sendtoaddress <neblioaddress> <amount> [comment] [comment-to]
 setaccount <neblioaddress> <account>
+setmocktime <timestamp>
 settxfee <amount>
 signmessage <neblioaddress> <message>
 signrawtransaction <hex string> [{"txid":txid,"vout":n,"scriptPubKey":hex},...] [<privatekey1>,...] [sighashtype="ALL"]
 stop
 submitblock <hex data> [optional-params-obj]
+udtoneblioaddress <unstoppable domain address>
+uptime
 validateaddress <neblioaddress>
 validatepubkey <nebliopubkey>
 verifymessage <neblioaddress> <signature> <message>
+waitforblockheight (timeout)
 ```
 
 

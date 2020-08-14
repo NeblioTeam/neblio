@@ -116,7 +116,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
     if (!pblock)
         return nullptr;
 
-    CBlockIndexSmartPtr pindexPrev = boost::atomic_load(&pindexBest);
+    ConstCBlockIndexSmartPtr pindexPrev = boost::atomic_load(&pindexBest);
 
     // Create coinbase tx
     CTransaction coinbaseTx;
@@ -594,9 +594,9 @@ void StakeMiner(CWallet* pwallet)
     if (Params().MineBlocksOnDemand())
         return;
 
-    while (true) {
-        if (fShutdown)
-            return;
+    // synchronize memory once
+    fShutdown.load(boost::memory_order_seq_cst);
+    while (!fShutdown.load(boost::memory_order_relaxed)) {
 
         while (pwallet->IsLocked()) {
             stakeMaker.resetLastCoinStakeSearchInterval();

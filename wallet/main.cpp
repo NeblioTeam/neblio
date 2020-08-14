@@ -1051,6 +1051,36 @@ void AssertIssuanceUniquenessInBlock(
     }
 }
 
+void static PruneOrphanBlocks()
+{
+    static const size_t MAX_SIZE =
+        (size_t)std::max(INT64_C(0), GetArg("-maxorphanblocks", DEFAULT_MAX_ORPHAN_BLOCKS));
+    if (mapOrphanBlocksByPrev.size() <= MAX_SIZE)
+        return;
+
+    // Pick a random orphan block.
+    int                                       pos = insecure_rand() % mapOrphanBlocksByPrev.size();
+    std::multimap<uint256, CBlock*>::iterator it  = mapOrphanBlocksByPrev.begin();
+    std::advance(it, pos);
+
+    // As long as this block has other orphans depending on it, move to one of those successors.
+    do {
+        std::multimap<uint256, CBlock*>::iterator it2 =
+            mapOrphanBlocksByPrev.find(it->second->GetHash());
+        if (it2 == mapOrphanBlocksByPrev.end())
+            break;
+        it = it2;
+    } while (true);
+
+    printf("Removing block %s from orphans map as the size of the orphans has exceeded the maximum %lu; "
+           "current size: %lu\n",
+           it->second->GetHash().ToString().c_str(), MAX_SIZE, mapOrphanBlocksByPrev.size());
+    uint256 hash = it->second->GetHash();
+    delete it->second;
+    mapOrphanBlocksByPrev.erase(it);
+    mapOrphanBlocks.erase(hash);
+}
+
 void WriteNTP1BlockTransactionsToDisk(const std::vector<CTransaction>& vtx, CTxDB& txdb)
 {
     if (Params().PassedFirstValidNTP1Tx()) {
@@ -1123,6 +1153,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
             else
                 setStakeSeenOrphan.insert(pblock->GetProofOfStake());
         }
+        PruneOrphanBlocks();
         CBlock* pblock2 = new CBlock(*pblock);
         mapOrphanBlocks.insert(make_pair(hash, pblock2));
         mapOrphanBlocksByPrev.insert(make_pair(pblock2->hashPrevBlock, pblock2));
@@ -2075,7 +2106,9 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
             AddOrphanTx(tx);
 
             // DoS prevention: do not allow mapOrphanTransactions to grow unbounded
-            unsigned int nEvicted = LimitOrphanTxSize(MAX_ORPHAN_TRANSACTIONS);
+            unsigned int nMaxOrphanTx = (unsigned int)std::max(
+                INT64_C(0), GetArg("-maxorphantx", DEFAULT_MAX_ORPHAN_TRANSACTIONS));
+            unsigned int nEvicted = LimitOrphanTxSize(nMaxOrphanTx);
             if (nEvicted > 0)
                 printf("mapOrphan overflow, removed %u tx\n", nEvicted);
         }

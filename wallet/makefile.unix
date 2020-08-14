@@ -247,7 +247,8 @@ OBJS= \
     obj/addressbook.o                         \
     obj/script_error.o                        \
     obj/validation.o                          \
-    obj/coldstakedelegation.o
+    obj/coldstakedelegation.o                 \
+    obj/udaddress.o
 
 ifdef NEBLIO_REST
     OBJS += obj/nebliorest.o

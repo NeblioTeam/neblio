@@ -19,6 +19,8 @@
 #include "ntp1/ntp1sendtxdata.h"
 #include "ntp1/ntp1tools.h"
 
+#include "udaddress.h"
+
 WalletModel::WalletModel(CWallet* wallet, OptionsModel* optionsModel, QObject* parent)
     : QObject(parent), wallet(wallet), optionsModel(optionsModel), addressTableModel(0),
       transactionTableModel(0), cachedBalance(0), cachedStake(0), cachedUnconfirmedBalance(0),
@@ -146,11 +148,17 @@ void WalletModel::updateAddressBook(const QString& address, const QString& label
 
 bool WalletModel::validateAddress(const QString& address)
 {
-    CBitcoinAddress addressParsed(address.toStdString());
-    return addressParsed.IsValid();
+    std::string addressInputStr = address.toStdString();
+    if (auto addr = GetNeblioAddressFromUDAddress(addressInputStr)) {
+        CBitcoinAddress addressParsed(*addr);
+        return addressParsed.IsValid();
+    } else {
+        CBitcoinAddress addressParsed(address.toStdString());
+        return addressParsed.IsValid();
+    }
 }
 
-WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipient>& recipients,
+WalletModel::SendCoinsReturn WalletModel::sendCoins(QList<SendCoinsRecipient>        recipients,
                                                     boost::shared_ptr<NTP1Wallet>    ntp1wallet,
                                                     const RawNTP1MetadataBeforeSend& ntp1metadata,
                                                     bool                             fSpendDelegated,
@@ -163,8 +171,20 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
         return OK;
     }
 
+    // convert UD domains to neblio addresses
+    for (SendCoinsRecipient& rcp : recipients) {
+        const std::string address = rcp.address.toStdString();
+        if (IsUDAddressSyntaxValid(address)) {
+            if (auto converted = GetNeblioAddressFromUDAddress(address)) {
+                rcp.address = QString::fromStdString(*converted);
+            } else {
+                return InvalidAddress;
+            }
+        }
+    }
+
     // Pre-check input data for validity
-    foreach (const SendCoinsRecipient& rcp, recipients) {
+    for (const SendCoinsRecipient& rcp : recipients) {
         if (!validateAddress(rcp.address)) {
             return InvalidAddress;
         }
