@@ -199,17 +199,21 @@ SSL options:
 RPC commands are used to interact with a running instance of nebliod or neblio-Qt. They are used via the command line with nebliod, or via the neblio-Qt Debug Console.
 
 ```
+abandontransaction <txid>
 addmultisigaddress <nrequired> <'["key","key"]'> [account]
 addnode "node" "add|remove|onetry"
 addredeemscript <redeemScript> [account]
 backupwallet <destination>
-checkwallet
 createrawntp1transaction [{"txid":txid,"vout":n},...] {address:{tokenid/tokenName:tokenAmount},address:neblAmount,...} '{"userData":{"meta":[{"K1":"V1"},{},...]}}' [encrypt-metadata=false]
 createrawtransaction [{"txid":txid,"vout":n},...] {address:amount,...}
 decoderawtransaction <hex string> [ignoreNTP1=false]
 decodescript <hex string>
+delegatestake "stakingAddress" amount ("ownerAddress" ExternalOwner=false UseDelegated=false ForceNoEnabled=false)
+delegatoradd "Address" (addressLabel)
+delegatorremove "Address"
 disconnectnode "node"
 dumpprivkey <neblioaddress>
+dumppubkey <neblioaddress>
 dumpwallet <filename>
 encryptwallet <passphrase>
 exportblockchain <path-dir>
@@ -224,8 +228,9 @@ getblockcount
 getblockhash <index>
 getblockheader <hash>
 getblocktemplate [params]
-getcheckpoint
+getcoldstakingbalance
 getconnectioncount
+getdelegatedbalance 
 getdifficulty
 getinfo
 getmininginfo
@@ -239,10 +244,13 @@ getrawmempool
 getrawtransaction <txid> [verbose=0] [ignoreNTP1=false]
 getreceivedbyaccount <account> [minconf=1]
 getreceivedbyaddress <neblioaddress> [minconf=1]
+getscriptpubkeyforp2cs <stakerAddress> <ownerAddress>
+getscriptpubkeyfromaddress <address>
 getstakinginfo
 getsubsidy [nTarget]
 gettransaction <txid> [ignoreNTP1=false]
 gettxout "txid" n ( include_mempool )
+getunconfirmedbalance
 getwalletinfo
 getwork [data]
 getworkex [data, coinbase]
@@ -252,14 +260,17 @@ importwallet <filename>
 keypoolrefill [new-size]
 listaccounts [minconf=1]
 listaddressgroupings
+listcoldutxos (blacklistOnly=false)
+listdelegators (showBlacklist=false)
 listreceivedbyaccount [minconf=1] [includeempty=false]
 listreceivedbyaddress [minconf=1] [includeempty=false]
 listsinceblock [blockhash] [target-confirmations]
+liststakingaddresses 
 listtransactions [account] [count=10] [from=0]
 listunspent [minconf=1] [maxconf=9999999] ["address",...]
 makekeypair [prefix]
 move <fromaccount> <toaccount> <amount> [minconf=1] [comment]
-repairwallet
+rawdelegatestake "stakingAddress" amount ("ownerAddress" externalOwner=false useDelegated=false)
 resendtx
 reservebalance [<reserve> [amount]]
 sendalert <message> <privatekey> <minver> <maxver> <priority> <id> [cancelupto]
