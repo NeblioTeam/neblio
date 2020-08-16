@@ -54,6 +54,44 @@ bool CTransaction::IsCoinStake() const
     return (vin.size() > 0 && (!vin[0].prevout.IsNull()) && vout.size() >= 2 && vout[0].IsEmpty());
 }
 
+bool CTransaction::CheckColdStake(const CScript& script) const
+{
+    // tx is a coinstake tx
+    if (!IsCoinStake())
+        return false;
+
+    if (vin.empty())
+        return false;
+
+    const boost::optional<std::vector<uint8_t>> firstPubKey =
+        vin[0].scriptSig.GetPubKeyOfP2CSScriptSig();
+    if (!firstPubKey)
+        return false; // this is not P2CS
+
+    // all inputs must be P2CS and must be paying to the same pubkey
+    for (unsigned int i = 1; i < vin.size(); i++) {
+        if (vin[i].scriptSig.GetPubKeyOfP2CSScriptSig() != firstPubKey)
+            return false;
+    }
+
+    // all outputs except first (coinstake marker)
+    // have the same pubKeyScript and it matches the script we are spending
+    for (unsigned int i = 1; i < vout.size(); i++)
+        if (vout[i].scriptPubKey != script)
+            return false;
+
+    return true;
+}
+
+bool CTransaction::HasP2CSOutputs() const
+{
+    for (const CTxOut& txout : vout) {
+        if (txout.scriptPubKey.IsPayToColdStaking())
+            return true;
+    }
+    return false;
+}
+
 CAmount CTransaction::GetValueOut() const
 {
     CAmount nValueOut = 0;
@@ -141,7 +179,7 @@ bool CTransaction::AreInputsStandard(const MapPrevTx& mapInputs) const
         // beside "push data" in the scriptSig the
         // IsStandard() call returns false
         std::vector<std::vector<unsigned char>> stack;
-        if (!EvalScript(stack, vin[i].scriptSig, *this, i, false, 0))
+        if (EvalScript(stack, vin[i].scriptSig, *this, i, false, 0).isErr())
             return false;
 
         if (whichType == TX_SCRIPTHASH) {
@@ -180,48 +218,81 @@ unsigned int CTransaction::GetLegacySigOpCount() const
     return nSigOps;
 }
 
-bool CTransaction::CheckTransaction(CBlock* sourceBlockPtr) const
+Result<void, TxValidationState> CTransaction::CheckTransaction(CBlock* sourceBlockPtr) const
 {
     // Basic checks that don't depend on any context
-    if (vin.empty())
-        return DoS(10, error("CTransaction::CheckTransaction() : vin empty"));
-    if (vout.empty())
-        return DoS(10, error("CTransaction::CheckTransaction() : vout empty"));
+    if (vin.empty()) {
+        DoS(10, false);
+        return Err(MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-txns-vin-empty"));
+    }
+    if (vout.empty()) {
+        DoS(10, false);
+        return Err(MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-empty"));
+    }
+
     // Size limits
     unsigned int nSizeLimit = MaxBlockSize();
-    if (::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > nSizeLimit)
-        return DoS(100, error("CTransaction::CheckTransaction() : size limits failed"));
+    if (::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > nSizeLimit) {
+        DoS(100, false);
+        return Err(MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-txns-oversize"));
+    }
 
     // Check for negative or overflow output values
     CAmount nValueOut = 0;
     for (unsigned int i = 0; i < vout.size(); i++) {
         const CTxOut& txout = vout[i];
-        if (txout.IsEmpty() && !IsCoinBase() && !IsCoinStake())
-            return DoS(100,
-                       error("CTransaction::CheckTransaction() : txout empty for user transaction"));
-        if (txout.nValue < 0)
-            return DoS(100, error("CTransaction::CheckTransaction() : txout.nValue negative (%zi)",
-                                  txout.nValue));
-        if (txout.nValue > MAX_MONEY)
-            return DoS(100, error("CTransaction::CheckTransaction() : txout.nValue too high (%zi)",
-                                  txout.nValue));
+        if (txout.IsEmpty() && !IsCoinBase() && !IsCoinStake()) {
+            DoS(100, false);
+            return Err(MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "txout-empty-for-tx"));
+        }
+
+        if (txout.nValue < 0) {
+            DoS(100, false);
+            return Err(MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-negative"));
+        }
+
+        if (txout.nValue > MAX_MONEY) {
+            DoS(100, false);
+            return Err(MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-toolarge"));
+        }
+
         nValueOut += txout.nValue;
-        if (!MoneyRange(nValueOut))
-            return DoS(100, error("CTransaction::CheckTransaction() : txout total out of range (%zi)",
-                                  txout.nValue));
+        if (!MoneyRange(nValueOut)) {
+            DoS(100, false);
+            return Err(
+                MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-txns-txouttotal-toolarge"));
+        }
+
+        // check cold staking enforcement (for delegations) and value out
+        if (txout.scriptPubKey.IsPayToColdStaking()) {
+            if (!Params().IsColdStakingEnabled()) {
+                DoS(10, false);
+                return Err(
+                    MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-txns-coldstake-disabled"));
+            }
+
+            if (txout.nValue < Params().MinColdStakingAmount()) {
+                DoS(100, false);
+                return Err(MakeInvalidTxState(TxValidationResult::TX_CONSENSUS,
+                                              "bad-txns-coldstake-low-amount"));
+            }
+        }
     }
 
     // Check for duplicate inputs
-    std::set<COutPoint> vInOutPoints;
-    for (const CTxIn& txin : vin) {
-        if (vInOutPoints.find(txin.prevout) != vInOutPoints.cend()) {
-            if (sourceBlockPtr) {
-                sourceBlockPtr->reject = CBlock::CBlockReject(
-                    REJECT_INVALID, "bad-txns-inputs-duplicate", sourceBlockPtr->GetHash());
+    {
+        std::set<COutPoint> vInOutPoints;
+        for (const CTxIn& txin : vin) {
+            if (vInOutPoints.find(txin.prevout) != vInOutPoints.cend()) {
+                if (sourceBlockPtr) {
+                    sourceBlockPtr->reject = CBlock::CBlockReject(
+                        REJECT_INVALID, "bad-txns-inputs-duplicate", sourceBlockPtr->GetHash());
+                }
+                return Err(
+                    MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-txns-inputs-duplicate"));
             }
-            return false;
+            vInOutPoints.insert(txin.prevout);
         }
-        vInOutPoints.insert(txin.prevout);
     }
 
     if (IsCoinBase()) {
@@ -230,15 +301,19 @@ bool CTransaction::CheckTransaction(CBlock* sourceBlockPtr) const
                 sourceBlockPtr->reject =
                     CBlock::CBlockReject(REJECT_INVALID, "bad-cb-length", sourceBlockPtr->GetHash());
             }
-            return DoS(100, error("CTransaction::CheckTransaction() : coinbase script size is invalid"));
+            DoS(100, false);
+            return Err(MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-cb-length"));
         }
     } else {
         for (const CTxIn& txin : vin)
-            if (txin.prevout.IsNull())
-                return DoS(10, error("CTransaction::CheckTransaction() : prevout is null"));
+            if (txin.prevout.IsNull()) {
+                DoS(10, false);
+                return Err(
+                    MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-txns-prevout-null"));
+            }
     }
 
-    return true;
+    return Ok();
 }
 
 CAmount CTransaction::GetMinFee(unsigned int nBlockSize, enum GetMinFee_mode mode,
@@ -306,7 +381,7 @@ bool CTransaction::DisconnectInputs(CTxDB& txdb)
 }
 
 bool CTransaction::FetchInputs(CTxDB& txdb, const std::map<uint256, CTxIndex>& mapTestPool, bool fBlock,
-                               bool fMiner, MapPrevTx& inputsRet, bool& fInvalid)
+                               bool fMiner, MapPrevTx& inputsRet, bool& fInvalid) const
 {
     // FetchInputs can return false either because we just haven't seen some inputs
     // (in which case the transaction should be stored as an orphan)
@@ -414,10 +489,10 @@ unsigned int CTransaction::GetP2SHSigOpCount(const MapPrevTx& inputs) const
     return nSigOps;
 }
 
-bool CTransaction::ConnectInputs(CTxDB& /*txdb*/, MapPrevTx inputs,
-                                 std::map<uint256, CTxIndex>& mapTestPool, const CDiskTxPos& posThisTx,
-                                 const ConstCBlockIndexSmartPtr& pindexBlock, bool fBlock, bool fMiner,
-                                 CBlock* sourceBlockPtr)
+Result<void, TxValidationState>
+CTransaction::ConnectInputs(MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTestPool,
+                            const CDiskTxPos& posThisTx, const ConstCBlockIndexSmartPtr& pindexBlock,
+                            bool fBlock, bool fMiner, CBlock* sourceBlockPtr) const
 {
     // Take over previous transactions' spent pointers
     // fBlock is true when this is called from AcceptBlock when a new best-block is added to the
@@ -432,12 +507,16 @@ bool CTransaction::ConnectInputs(CTxDB& /*txdb*/, MapPrevTx inputs,
             CTxIndex&     txindex = inputs[prevout.hash].first;
             CTransaction& txPrev  = inputs[prevout.hash].second;
 
-            if (prevout.n >= txPrev.vout.size() || prevout.n >= txindex.vSpent.size())
-                return DoS(100, error("ConnectInputs() : %s prevout.n out of range %d %" PRIszu
-                                      " %" PRIszu " prev tx %s\n%s",
-                                      GetHash().ToString().c_str(), prevout.n, txPrev.vout.size(),
-                                      txindex.vSpent.size(), prevout.hash.ToString().c_str(),
-                                      txPrev.ToString().c_str()));
+            if (prevout.n >= txPrev.vout.size() || prevout.n >= txindex.vSpent.size()) {
+                DoS(100, false);
+                return Err(MakeInvalidTxState(
+                    TxValidationResult::TX_INVALID_INPUTS, "bad-txns-inputs-invalid",
+                    strprintf("ConnectInputs() : %s prevout.n out of range %d %" PRIszu " %" PRIszu
+                              " prev tx %s\n%s",
+                              GetHash().ToString().c_str(), prevout.n, txPrev.vout.size(),
+                              txindex.vSpent.size(), prevout.hash.ToString().c_str(),
+                              txPrev.ToString().c_str())));
+            }
 
             // If prev is coinbase or coinstake, check that it's matured
             int nCbM = Params().CoinbaseMaturity();
@@ -454,22 +533,33 @@ bool CTransaction::ConnectInputs(CTxDB& /*txdb*/, MapPrevTx inputs,
                                 REJECT_INVALID, "bad-txns-premature-spend-of-coinbase/coinstake",
                                 sourceBlockPtr->GetHash());
                         }
-                        return error("ConnectInputs() : tried to spend %s at depth %d",
-                                     txPrev.IsCoinBase() ? "coinbase" : "coinstake",
-                                     pindexBlock->nHeight - pindex->nHeight);
+                        const std::string msg = txPrev.IsCoinBase()
+                                                    ? "bad-txns-premature-spend-of-coinbase"
+                                                    : "bad-txns-premature-spend-of-coinstake";
+                        return Err(MakeInvalidTxState(
+                            TxValidationResult::TX_PREMATURE_SPEND, msg,
+                            strprintf("ConnectInputs() : tried to spend %s at depth %d",
+                                      txPrev.IsCoinBase() ? "coinbase" : "coinstake",
+                                      pindexBlock->nHeight - pindex->nHeight)));
                     }
                 }
 
             // ppcoin: check transaction timestamp
-            if (txPrev.nTime > nTime)
-                return DoS(
-                    100,
-                    error("ConnectInputs() : transaction timestamp earlier than input transaction"));
+            if (txPrev.nTime > nTime) {
+                DoS(100, false);
+                return Err(MakeInvalidTxState(
+                    TxValidationResult::TX_CONSENSUS, "bad-txns-input-time-order",
+                    "ConnectInputs() : transaction timestamp earlier than input transaction"));
+            }
 
             // Check for negative or overflow input values
             nValueIn += txPrev.vout[prevout.n].nValue;
-            if (!MoneyRange(txPrev.vout[prevout.n].nValue) || !MoneyRange(nValueIn))
-                return DoS(100, error("ConnectInputs() : txin values out of range"));
+            if (!MoneyRange(txPrev.vout[prevout.n].nValue) || !MoneyRange(nValueIn)) {
+                DoS(100, false);
+                return Err(MakeInvalidTxState(TxValidationResult::TX_CONSENSUS,
+                                              "bad-txns-inputvalues-outofrange",
+                                              "ConnectInputs() : txin values out of range"));
+            }
         }
         // The first loop above does all the inexpensive checks.
         // Only if ALL inputs pass do we perform expensive ECDSA signature checks.
@@ -483,35 +573,55 @@ bool CTransaction::ConnectInputs(CTxDB& /*txdb*/, MapPrevTx inputs,
             // Check for conflicts (double-spend)
             // This doesn't trigger the DoS code on purpose; if it did, it would make it easier
             // for an attacker to attempt to split the network.
-            if (!txindex.vSpent[prevout.n].IsNull())
-                return fMiner ? false
-                              : error("ConnectInputs() : %s prev tx already used at %s",
-                                      GetHash().ToString().c_str(),
-                                      txindex.vSpent[prevout.n].ToString().c_str());
+            if (!txindex.vSpent[prevout.n].IsNull()) {
+                const auto code = TxValidationResult::TX_MISSING_INPUTS;
+                const auto msg  = "bad-txns-inputs-missingorspent";
+                if (fMiner) {
+                    return Err(MakeInvalidTxState(code, msg));
+                }
+                return Err(
+                    MakeInvalidTxState(code, msg,
+                                       strprintf("ConnectInputs() : %s prev tx already used at %s",
+                                                 GetHash().ToString().c_str(),
+                                                 txindex.vSpent[prevout.n].ToString().c_str())));
+            }
 
             // Skip ECDSA signature verification when connecting blocks (fBlock=true)
             // before the last blockchain checkpoint. This is safe because block merkle hashes are
             // still computed and checked, and any change will be caught at the next checkpoint.
             if (!(fBlock && (nBestHeight < Checkpoints::GetTotalBlocksEstimate()))) {
                 // Verify signature
-                bool fStrictPayToScriptHash = true;
-                if (!VerifySignature(txPrev, *this, i, fStrictPayToScriptHash, false, 0)) {
+                bool       fStrictPayToScriptHash = true;
+                const auto verifyRes =
+                    VerifySignature(txPrev, *this, i, fStrictPayToScriptHash, false, 0);
+                if (verifyRes.isErr()) {
                     // only during transition phase for P2SH: do not invoke anti-DoS code for
                     // potentially old clients relaying bad P2SH transactions
-                    if (fStrictPayToScriptHash && VerifySignature(txPrev, *this, i, false, false, 0)) {
-                        return error("ConnectInputs() : %s P2SH VerifySignature failed",
-                                     GetHash().ToString().c_str());
+                    if (fStrictPayToScriptHash) {
+                        const auto verifyResP2SH = VerifySignature(txPrev, *this, i, false, false, 0);
+                        if (verifyResP2SH.isOk()) {
+                            return Err(MakeInvalidTxState(
+                                TxValidationResult::TX_NOT_STANDARD,
+                                strprintf("non-mandatory-script-verify-flag (%s)",
+                                          ScriptErrorString(verifyResP2SH.unwrapErr())),
+                                strprintf("ConnectInputs() : %s P2SH VerifySignature failed",
+                                          GetHash().ToString().c_str())));
+                        }
                     }
+
+                    const std::string msg = strprintf("mandatory-script-verify-flag-failed (%s)",
+                                                      ScriptErrorString(verifyRes.unwrapErr()));
 
                     if (sourceBlockPtr) {
                         sourceBlockPtr->reject =
-                            CBlock::CBlockReject(REJECT_INVALID, "mandatory-script-verify-flag-failed",
-                                                 sourceBlockPtr->GetHash());
+                            CBlock::CBlockReject(REJECT_INVALID, msg, sourceBlockPtr->GetHash());
                     }
-                    this->reject = CTransaction::CTxReject(
-                        REJECT_INVALID, "mandatory-script-verify-flag-failed", GetHash());
-                    return DoS(100, error("ConnectInputs() : %s VerifySignature failed",
-                                          GetHash().ToString().c_str()));
+                    this->reject = CTransaction::CTxReject(REJECT_INVALID, msg, GetHash());
+                    DoS(100, false);
+                    return Err(
+                        MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, msg,
+                                           strprintf("ConnectInputs() : %s VerifySignature failed",
+                                                     GetHash().ToString().c_str())));
                 }
             }
 
@@ -530,30 +640,43 @@ bool CTransaction::ConnectInputs(CTxDB& /*txdb*/, MapPrevTx inputs,
                     sourceBlockPtr->reject = CBlock::CBlockReject(REJECT_INVALID, "bad-txns-in-belowout",
                                                                   sourceBlockPtr->GetHash());
                 }
-                return DoS(100, error("ConnectInputs() : %s value in (%zi) < value out (%zi)",
-                                      GetHash().ToString().c_str(), nValueIn, GetValueOut()));
+                DoS(100, false);
+                return Err(MakeInvalidTxState(
+                    TxValidationResult::TX_CONSENSUS, "bad-txns-in-belowout",
+                    strprintf("ConnectInputs() : %s value in (%zi) < value out (%zi)",
+                              GetHash().ToString().c_str(), nValueIn, GetValueOut())));
             }
 
             // Tally transaction fees
             CAmount nTxFee = nValueIn - GetValueOut();
-            if (nTxFee < 0)
-                return DoS(100, error("ConnectInputs() : %s nTxFee < 0", GetHash().ToString().c_str()));
+            if (nTxFee < 0) {
+                DoS(100, false);
+                return Err(MakeInvalidTxState(
+                    TxValidationResult::TX_CONSENSUS, "bad-txns-fee-outofrange1",
+                    strprintf("ConnectInputs() : %s nTxFee < 0", GetHash().ToString().c_str())));
+            }
 
             // enforce transaction fees for every block
-            if (nTxFee < GetMinFee())
-                return fBlock ? DoS(100,
-                                    error("ConnectInputs() : %s not paying required fee=%s, paid=%s",
-                                          GetHash().ToString().c_str(), FormatMoney(GetMinFee()).c_str(),
-                                          FormatMoney(nTxFee).c_str()))
-                              : false;
+            if (nTxFee < GetMinFee()) {
+                if (fBlock) {
+                    DoS(100, error("ConnectInputs() : %s not paying required fee=%s, paid=%s",
+                                   GetHash().ToString().c_str(), FormatMoney(GetMinFee()).c_str(),
+                                   FormatMoney(nTxFee).c_str()));
+                }
+                return Err(MakeInvalidTxState(
+                    TxValidationResult::TX_CONSENSUS, "bad-txns-fee-outofrange2",
+                    strprintf("ConnectInputs() : %s nTxFee < 0", GetHash().ToString().c_str())));
+            }
 
             nFees += nTxFee;
-            if (!MoneyRange(nFees))
-                return DoS(100, error("ConnectInputs() : nFees out of range"));
+            if (!MoneyRange(nFees)) {
+                return Err(
+                    MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-txns-fee-outofrange3"));
+            }
         }
     }
 
-    return true;
+    return Ok();
 }
 
 // ppcoin: total coin age spent in transaction, in the unit of coin-days.
@@ -666,7 +789,7 @@ std::vector<CKey> CTransaction::GetThisWalletKeysOfTx(const uint256&            
             if (!pwalletMain->GetKey(keyId, key)) {
                 continue;
             }
-            // this is O(N^2), but this is OK, because the numebr of outputs is low
+            // this is O(N^2), but this is OK, because the number of outputs is low
             // we're comparing public keys because CKey objects are not comparable
             if (std::find_if(keys.cbegin(), keys.cend(), [&key](const CKey& k) {
                     return k.GetPubKey() == key.GetPubKey();

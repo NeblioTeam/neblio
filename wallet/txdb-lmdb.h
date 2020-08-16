@@ -20,6 +20,7 @@
 
 #include "diskblockindex.h"
 #include "disktxpos.h"
+#include "itxdb.h"
 #include "outpoint.h"
 #include "txindex.h"
 #include "util.h"
@@ -204,7 +205,7 @@ struct mdb_txn_safe
 // together when too many files stack up.
 //
 // Learn more: http://code.google.com/p/leveldb/
-class CTxDB
+class CTxDB : ITxDB
 {
 public:
     static boost::filesystem::path DB_DIR;
@@ -719,37 +720,34 @@ public:
     bool test2_ExistsStrKeyVal(const std::string& key);
     bool test2_EraseStrKeyVal(const std::string& key);
 
-    bool ReadVersion(int& nVersion);
-    bool WriteVersion(int nVersion);
-    bool ReadTxIndex(uint256 hash, CTxIndex& txindex);
-    bool UpdateTxIndex(uint256 hash, const CTxIndex& txindex);
-    bool ReadTx(const CDiskTxPos& txPos, CTransaction& tx);
-    bool ReadNTP1Tx(uint256 hash, NTP1Transaction& ntp1tx);
-    bool WriteNTP1Tx(uint256 hash, const NTP1Transaction& ntp1tx);
-    bool ReadAllIssuanceTxs(std::vector<uint256>& txs);
-    bool ReadNTP1TxsWithTokenSymbol(const std::string& tokenName, std::vector<uint256>& txs);
-    bool WriteNTP1TxWithTokenSymbol(const std::string& tokenName, const NTP1Transaction& tx);
-    bool ReadAddressPubKey(const CBitcoinAddress& address, std::vector<uint8_t>& pubkey);
-    bool WriteAddressPubKey(const CBitcoinAddress& address, const std::vector<uint8_t>& pubkey);
-    bool EraseTxIndex(const uint256& hash);
-    bool ContainsTx(uint256 hash);
-    bool ContainsNTP1Tx(uint256 hash);
-    bool ReadDiskTx(uint256 hash, CTransaction& tx, CTxIndex& txindex);
-    bool ReadDiskTx(uint256 hash, CTransaction& tx);
-    bool ReadDiskTx(COutPoint outpoint, CTransaction& tx, CTxIndex& txindex);
-    bool ReadDiskTx(COutPoint outpoint, CTransaction& tx);
-    bool ReadBlock(uint256 hash, CBlock& blk, bool fReadTransactions = true);
-    bool WriteBlock(uint256 hash, const CBlock& blk);
-    bool WriteBlockIndex(const CDiskBlockIndex& blockindex);
-    bool ReadHashBestChain(uint256& hashBestChain);
-    bool WriteHashBestChain(uint256 hashBestChain);
-    bool ReadBestInvalidTrust(CBigNum& bnBestInvalidTrust);
-    bool WriteBestInvalidTrust(CBigNum bnBestInvalidTrust);
-    bool ReadSyncCheckpoint(uint256& hashCheckpoint);
-    bool WriteSyncCheckpoint(uint256 hashCheckpoint);
-    bool ReadCheckpointPubKey(std::string& strPubKey);
-    bool WriteCheckpointPubKey(const std::string& strPubKey);
-    bool LoadBlockIndex();
+    boost::optional<int> ReadVersion() override;
+
+    bool WriteVersion(int nVersion) override;
+    bool ReadTxIndex(const uint256& hash, CTxIndex& txindex) override;
+    bool UpdateTxIndex(const uint256& hash, const CTxIndex& txindex) override;
+    bool ReadTx(const CDiskTxPos& txPos, CTransaction& tx) override;
+    bool ReadNTP1Tx(const uint256& hash, NTP1Transaction& ntp1tx) override;
+    bool WriteNTP1Tx(const uint256& hash, const NTP1Transaction& ntp1tx) override;
+    bool ReadAllIssuanceTxs(std::vector<uint256>& txs) override;
+    bool ReadNTP1TxsWithTokenSymbol(const std::string& tokenName, std::vector<uint256>& txs) override;
+    bool WriteNTP1TxWithTokenSymbol(const std::string& tokenName, const NTP1Transaction& tx) override;
+    bool ReadAddressPubKey(const CBitcoinAddress& address, std::vector<uint8_t>& pubkey) override;
+    bool WriteAddressPubKey(const CBitcoinAddress& address, const std::vector<uint8_t>& pubkey) override;
+    bool EraseTxIndex(const uint256& hash) override;
+    bool ContainsTx(const uint256& hash) override;
+    bool ContainsNTP1Tx(const uint256& hash) override;
+    bool ReadDiskTx(const uint256& hash, CTransaction& tx, CTxIndex& txindex) override;
+    bool ReadDiskTx(const uint256& hash, CTransaction& tx) override;
+    bool ReadDiskTx(const COutPoint& outpoint, CTransaction& tx, CTxIndex& txindex) override;
+    bool ReadDiskTx(const COutPoint& outpoint, CTransaction& tx) override;
+    bool ReadBlock(const uint256& hash, CBlock& blk, bool fReadTransactions = true) override;
+    bool WriteBlock(const uint256& hash, const CBlock& blk) override;
+    bool WriteBlockIndex(const CDiskBlockIndex& blockindex) override;
+    bool ReadHashBestChain(uint256& hashBestChain) override;
+    bool WriteHashBestChain(const uint256& hashBestChain) override;
+    bool ReadBestInvalidTrust(CBigNum& bnBestInvalidTrust) override;
+    bool WriteBestInvalidTrust(const CBigNum& bnBestInvalidTrust) override;
+    bool LoadBlockIndex() override;
 
     static uintmax_t GetCurrentDiskUsage();
 

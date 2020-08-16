@@ -5,39 +5,31 @@
 #include "txdb.h"
 #include "txmempool.h"
 
+const uint256
+    CMerkleTx::ABANDON_HASH(uint256("0000000000000000000000000000000000000000000000000000000000000001"));
+
 CMerkleTx::CMerkleTx(const CTransaction& txIn) : CTransaction(txIn) { Init(); }
 
-int CMerkleTx::GetDepthInMainChainINTERNAL(CBlockIndex*& pindexRet) const
+int CMerkleTx::GetDepthInMainChain(const CBlockIndex*& pindexRet) const
 {
-    if (hashBlock == 0 || nIndex == -1)
+    if (hashBlock == 0 || hashBlock == ABANDON_HASH)
         return 0;
     AssertLockHeld(cs_main);
+    int nResult = 0;
 
     // Find the block it claims to be in
     BlockIndexMapType::iterator mi = mapBlockIndex.find(hashBlock);
-    if (mi == mapBlockIndex.end())
-        return 0;
-    CBlockIndexSmartPtr pindex = boost::atomic_load(&mi->second);
-    if (!pindex || !pindex->IsInMainChain())
-        return 0;
-
-    // Make sure the merkle branch connects to this block
-    if (!fMerkleVerified) {
-        if (CBlock::CheckMerkleBranch(GetHash(), vMerkleBranch, nIndex) != pindex->hashMerkleRoot)
-            return 0;
-        fMerkleVerified = true;
+    if (mi == mapBlockIndex.end()) {
+        nResult = 0;
+    } else {
+        CBlockIndex* pindex = (*mi).second.get();
+        if (!pindex || !pindex->IsInMainChain()) {
+            nResult = 0;
+        } else {
+            pindexRet = pindex;
+            nResult   = ((nIndex == -1) ? (-1) : 1) * (nBestHeight - pindex->nHeight + 1);
+        }
     }
-
-    pindexRet = pindex.get();
-    return boost::atomic_load(&pindexBest)->nHeight - pindex->nHeight + 1;
-}
-
-int CMerkleTx::GetDepthInMainChain(CBlockIndex*& pindexRet) const
-{
-    AssertLockHeld(cs_main);
-    int nResult = GetDepthInMainChainINTERNAL(pindexRet);
-    if (nResult == 0 && !mempool.exists(GetHash()))
-        return -1; // Not in chain, not in mempool
 
     return nResult;
 }
@@ -47,10 +39,19 @@ int CMerkleTx::GetBlocksToMaturity() const
     if (!(IsCoinBase() || IsCoinStake()))
         return 0;
     int nCbM = Params().CoinbaseMaturity();
-    return std::max(0, (nCbM + 0) - GetDepthInMainChain());
+    return std::max(0, (nCbM + 1) - GetDepthInMainChain());
 }
 
-bool CMerkleTx::AcceptToMemoryPool() { return ::AcceptToMemoryPool(mempool, *this, NULL); }
+Result<void, TxValidationState> CMerkleTx::AcceptToMemoryPool() const
+{
+    return ::AcceptToMemoryPool(mempool, *this);
+}
+
+bool CMerkleTx::hashUnset() const { return (hashBlock.IsNull() || hashBlock == ABANDON_HASH); }
+
+bool CMerkleTx::isAbandoned() const { return (hashBlock == ABANDON_HASH); }
+
+void CMerkleTx::setAbandoned() { hashBlock = ABANDON_HASH; }
 
 int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
 {

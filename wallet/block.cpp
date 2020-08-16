@@ -12,8 +12,10 @@
 #include "ui_interface.h"
 #include "util.h"
 #include "wallet.h"
+#include "work.h"
 #include <boost/algorithm/string.hpp>
 #include <boost/foreach.hpp>
+#include <mutex>
 
 void CBlock::print() const
 {
@@ -148,7 +150,7 @@ bool CBlock::DisconnectBlock(CTxDB& txdb, CBlockIndexSmartPtr& pindex)
 
     // ppcoin: clean up wallet after disconnecting coinstake
     for (CTransaction& tx : vtx)
-        SyncWithWallets(tx, this, false, false);
+        SyncWithWallets(tx, this);
 
     return true;
 }
@@ -502,6 +504,8 @@ bool CBlock::CheckBIP30Attack(CTxDB& txdb, const uint256& hashTx)
 
 bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool fJustCheck)
 {
+    printf("Connecting block: %s\n", this->GetHash().ToString().c_str());
+
     // Check it again in case a previous version let a bad block in, but skip BlockSig checking
     if (!CheckBlock(!fJustCheck, !fJustCheck, false))
         return false;
@@ -618,8 +622,8 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
                 }
             }
 
-            if (!tx.ConnectInputs(txdb, mapInputs, mapQueuedChanges, posThisTx, pindex, true, false,
-                                  this)) {
+            if (tx.ConnectInputs(mapInputs, mapQueuedChanges, posThisTx, pindex, true, false, this)
+                    .isErr()) {
                 return false;
             }
         }
@@ -646,7 +650,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
             return error("ConnectBlock() : %s unable to get coin age for coinstake",
                          vtx[1].GetHash().ToString().c_str());
 
-        CAmount nCalculatedStakeReward = GetProofOfStakeReward(nCoinAge, nFees);
+        const CAmount nCalculatedStakeReward = GetProofOfStakeReward(nCoinAge, nFees);
 
         if (nStakeReward > nCalculatedStakeReward)
             return DoS(100, error("ConnectBlock() : coinstake pays too much(actual=%" PRId64
@@ -696,10 +700,6 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
         if (!txdb.WriteBlockIndex(blockindexPrev))
             return error("ConnectBlock() : WriteBlockIndex failed");
     }
-
-    // Watch for transactions paying to me
-    for (CTransaction& tx : vtx)
-        SyncWithWallets(tx, this, true);
 
     return true;
 }
@@ -799,6 +799,8 @@ bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
         ::SetBestChain(locator);
     }
 
+    const uint256 prevBestChain = hashBestChain;
+
     // New best block
     hashBestChain = hash;
     boost::atomic_store(&pindexBest, pindexNew);
@@ -841,6 +843,68 @@ bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
     if (!fIsInitialDownload && !strCmd.empty()) {
         boost::replace_all(strCmd, "%s", hashBestChain.GetHex());
         boost::thread t(runCommand, strCmd); // thread runs free
+    }
+
+    {
+        /**
+         * Syncing wallets requires that the current state of best block be correct.
+         * Because of this, we have to call SyncWithWallets() only after updating the global variables
+         * of the blockchain state, such as pindexBest and hashBestChain.
+         * Given that a reorg can occur, the call to SyncWithWallets() should happen only after all kinds
+         * of reorgs happen (including ConnectBlock). Therefore, we do it at the very end. Here.
+         */
+        if (nBestHeight > 0) {
+            // get the highest block in the previous check that's main chain
+            CBlockIndexSmartPtr ancestorOfPrevInMainChain = mapBlockIndex.at(prevBestChain);
+            while (ancestorOfPrevInMainChain->pprev && !ancestorOfPrevInMainChain->IsInMainChain()) {
+                ancestorOfPrevInMainChain = ancestorOfPrevInMainChain->pprev;
+            }
+
+            // get the common ancestor between current chain and previous chain
+            CBlockIndexSmartPtr blocksInNewBranch = pindexBest;
+            while (blocksInNewBranch->pprev &&
+                   blocksInNewBranch->GetBlockHash() != ancestorOfPrevInMainChain->GetBlockHash()) {
+                blocksInNewBranch = blocksInNewBranch->pprev;
+            }
+
+            // one step forward from common ancestor, since it matches the last block
+            // (which is synced with wallet)
+            blocksInNewBranch = blocksInNewBranch->pnext;
+
+            // loop over all blocks from the common ancestor, to now, and sync these txs
+            while (blocksInNewBranch) {
+                CBlock*                 blockPtr = nullptr;
+                std::unique_ptr<CBlock> blockUniquePtr;
+                if (this->GetHash() == blocksInNewBranch->GetBlockHash()) {
+                    blockPtr = this;
+                } else {
+                    blockUniquePtr = MakeUnique<CBlock>();
+                    if (!blockUniquePtr->ReadFromDisk(blocksInNewBranch.get(), txdb)) {
+                        printf("SetBestChain() : ReadFromDisk failed + couldn't sync with wallet\n");
+                        continue;
+                    }
+                    blockPtr = blockUniquePtr.get();
+                }
+
+                // Watch for transactions paying to me
+                for (CTransaction& tx : blockPtr->vtx) {
+                    SyncWithWallets(tx, blockPtr);
+                }
+
+                if (blocksInNewBranch->GetBlockHash() == pindexBest->GetBlockHash()) {
+                    break;
+                }
+
+                // pnext is always in the main chain
+                blocksInNewBranch = blocksInNewBranch->pnext;
+            }
+        } else {
+            // this is for genesis
+            // Watch for transactions paying to me
+            for (CTransaction& tx : vtx) {
+                SyncWithWallets(tx, this);
+            }
+        }
     }
 
     return true;
@@ -1023,7 +1087,7 @@ bool CBlock::Reorganize(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
 
     // Resurrect memory transactions that were in the disconnected branch
     for (CTransaction& tx : vResurrect)
-        AcceptToMemoryPool(mempool, tx, NULL, &txdb);
+        AcceptToMemoryPool(mempool, tx, &txdb);
 
     // Delete redundant memory transactions that are in the connected branch
     for (CTransaction& tx : vDelete) {
@@ -1211,7 +1275,7 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig)
     for (unsigned i = 0; i < vtx.size(); i++) {
         const CTransaction& tx = vtx[i];
 
-        if (!tx.CheckTransaction(this))
+        if (tx.CheckTransaction(this).isErr())
             return DoS(tx.nDoS, error("CheckBlock() : CheckTransaction failed"));
 
         // ppcoin: check transaction timestamp
@@ -1388,14 +1452,29 @@ bool CBlock::AcceptBlock()
                 pnode->PushInventory(CInv(MSG_BLOCK, hash));
     }
 
-    // ppcoin: check pending sync-checkpoint
-    Checkpoints::AcceptPendingSyncCheckpoint();
-
     return true;
 }
 
+boost::optional<CKeyID> GetKeyIDFromOutput(const CTxOut& txout)
+{
+    std::vector<valtype> vSolutions;
+    txnouttype           whichType;
+    if (!Solver(txout.scriptPubKey, whichType, vSolutions))
+        return boost::none;
+    if (whichType == TX_PUBKEY) {
+        return CPubKey(vSolutions[0]).GetID();
+    } else if (whichType == TX_PUBKEYHASH || whichType == TX_COLDSTAKE) {
+        return CKeyID(uint160(vSolutions[0]));
+    } else {
+        return boost::none;
+    }
+    return boost::none;
+}
+
 // novacoin: attempt to generate suitable proof-of-stake
-bool CBlock::SignBlock(CWallet& wallet, int64_t nFees)
+bool CBlock::SignBlock(const CWallet& wallet, int64_t nFees,
+                       const boost::optional<std::set<std::pair<uint256, unsigned>>>& customInputs,
+                       const CAmount                                                  extraPayoutForTest)
 {
     // if we are trying to sign
     //    something except proof-of-stake block template
@@ -1407,45 +1486,56 @@ bool CBlock::SignBlock(CWallet& wallet, int64_t nFees)
     if (IsProofOfStake())
         return true;
 
-    static int64_t nLastCoinStakeSearchTime = GetAdjustedTime(); // startup timestamp
-
-    CKey         key;
-    CTransaction txCoinStake;
-    int64_t      nSearchTime = txCoinStake.nTime; // search to current time
-
     CBlockIndexSmartPtr pindexBestPtr = boost::atomic_load(&pindexBest);
-    if (nSearchTime > nLastCoinStakeSearchTime) {
-        if (wallet.CreateCoinStake(wallet, nBits, nSearchTime - nLastCoinStakeSearchTime, nFees,
-                                   txCoinStake, key)) {
-            if (txCoinStake.nTime >= std::max(pindexBestPtr->GetPastTimeLimit() + 1,
-                                              PastDrift(pindexBestPtr->GetBlockTime()))) {
-                // make sure coinstake would meet timestamp protocol
-                //    as it would be the same as the block timestamp
-                vtx[0].nTime = nTime = txCoinStake.nTime;
-                nTime = std::max(pindexBestPtr->GetPastTimeLimit() + 1, GetMaxTransactionTime());
-                nTime = std::max(GetBlockTime(), PastDrift(pindexBestPtr->GetBlockTime()));
+    if (boost::optional<CTransaction> coinStake = stakeMaker.CreateCoinStake(
+            wallet, nBits, nFees, nReserveBalance, customInputs, extraPayoutForTest)) {
+        if (coinStake->nTime >=
+            std::max(pindexBestPtr->GetPastTimeLimit() + 1, PastDrift(pindexBestPtr->GetBlockTime()))) {
+            // make sure coinstake would meet timestamp protocol
+            // as it would be the same as the block timestamp
+            vtx[0].nTime = nTime = coinStake->nTime;
+            nTime = std::max(pindexBestPtr->GetPastTimeLimit() + 1, GetMaxTransactionTime());
+            nTime = std::max(GetBlockTime(), PastDrift(pindexBestPtr->GetBlockTime()));
 
-                // we have to make sure that we have no future timestamps in
-                //    our transactions set
-                for (std::vector<CTransaction>::iterator it = vtx.begin(); it != vtx.end();)
-                    if (it->nTime > nTime) {
-                        it = vtx.erase(it);
-                    } else {
-                        ++it;
-                    }
+            // we have to make sure that we have no future timestamps in
+            //    our transactions set
+            for (std::vector<CTransaction>::iterator it = vtx.begin(); it != vtx.end();)
+                if (it->nTime > nTime) {
+                    it = vtx.erase(it);
+                } else {
+                    ++it;
+                }
 
-                vtx.insert(vtx.begin() + 1, txCoinStake);
-                hashMerkleRoot = GetMerkleRoot();
+            vtx.insert(vtx.begin() + 1, *coinStake);
+            hashMerkleRoot = GetMerkleRoot();
 
-                // append a signature to our block
-                return key.Sign(GetHash(), vchBlockSig);
+            boost::optional<CKeyID> keyID = GetKeyIDFromOutput(vtx[1].vout[1]);
+            if (!keyID) {
+                return error("%s: failed to find key for coinstake", __func__);
             }
+            CKey key;
+            if (!wallet.GetKey(*keyID, key)) {
+                return error("%s: failed to get key from keystore", __func__);
+            }
+
+            // append a signature to our block
+            return key.Sign(GetHash(), vchBlockSig);
         }
-        nLastCoinStakeSearchInterval = nSearchTime - nLastCoinStakeSearchTime;
-        nLastCoinStakeSearchTime     = nSearchTime;
     }
 
     return false;
+}
+
+static CKey ExtractColdStakePubKey(const CBlock& block)
+{
+    CKey         key;
+    const CTxIn& coinstakeKernel = block.vtx[1].vin[0];
+    int          start           = 1 + (int)*coinstakeKernel.scriptSig.begin(); // skip sig
+    start += 1 + (int)*(coinstakeKernel.scriptSig.begin() + start);             // skip flag
+    CPubKey pubkey;
+    pubkey = CPubKey(coinstakeKernel.scriptSig.begin() + start + 1, coinstakeKernel.scriptSig.end());
+    key.SetPubKey(pubkey);
+    return key;
 }
 
 bool CBlock::CheckBlockSignature() const
@@ -1461,13 +1551,16 @@ bool CBlock::CheckBlockSignature() const
     if (!Solver(txout.scriptPubKey, whichType, vSolutions))
         return false;
 
+    CKey key;
     if (whichType == TX_PUBKEY) {
-        valtype& vchPubKey = vSolutions[0];
-        CKey     key;
+        const valtype& vchPubKey = vSolutions[0];
         if (!key.SetPubKey(vchPubKey))
             return false;
         if (vchBlockSig.empty())
             return false;
+        return key.Verify(GetHash(), vchBlockSig);
+    } else if (whichType == TX_COLDSTAKE && Params().IsColdStakingEnabled()) {
+        key = ExtractColdStakePubKey(*this);
         return key.Verify(GetHash(), vchBlockSig);
     }
 

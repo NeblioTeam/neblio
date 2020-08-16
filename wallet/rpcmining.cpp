@@ -11,6 +11,7 @@
 #include "script.h"
 #include "txdb.h"
 #include "txmempool.h"
+#include "work.h"
 #include <random>
 
 using namespace json_spirit;
@@ -42,7 +43,7 @@ Value getmininginfo(const Array& params, bool fHelp)
     diff.push_back(Pair("proof-of-work", GetDifficulty()));
     diff.push_back(Pair("proof-of-stake",
                         GetDifficulty(GetLastBlockIndex(boost::atomic_load(&pindexBest).get(), true))));
-    diff.push_back(Pair("search-interval", (int)nLastCoinStakeSearchInterval));
+    diff.push_back(Pair("search-interval", (int)stakeMaker.getLastCoinStakeSearchInterval()));
     obj.push_back(Pair("difficulty", diff));
 
     obj.push_back(Pair("blockvalue", (uint64_t)GetProofOfWorkReward(0)));
@@ -70,26 +71,29 @@ Value getstakinginfo(const Array& params, bool fHelp)
     uint64_t nMinWeight = 0, nMaxWeight = 0, nWeight = 0;
     pwalletMain->GetStakeWeight(*pwalletMain, nMinWeight, nMaxWeight, nWeight);
 
-    uint64_t     nNetworkWeight = GetPoSKernelPS();
-    bool         staking        = nLastCoinStakeSearchInterval && nWeight;
-    unsigned int nTS            = Params().TargetSpacing();
-    int          nExpectedTime  = staking ? (nTS * nNetworkWeight / nWeight) : -1;
+    const uint64_t     nNetworkWeight = GetPoSKernelPS();
+    const bool         staking        = stakeMaker.getLastCoinStakeSearchInterval() && nWeight;
+    const unsigned int nTS            = Params().TargetSpacing();
+    const int          nExpectedTime  = staking ? (nTS * nNetworkWeight / nWeight) : -1;
 
     Object stakingCriteria;
 
-    bool matureCoins      = nWeight;
-    bool activeConnection = true;
-    if (vNodes.empty()) {
-        activeConnection = false;
-    }
-    bool unlocked = true;
-    if (pwalletMain && pwalletMain->IsLocked()) {
-        unlocked = false;
-    }
-    bool synced = true;
-    if (IsInitialBlockDownload()) {
-        synced = false;
-    }
+    const bool matureCoins = !!nWeight;
+
+    bool activeConnection = []() {
+        LOCK(cs_vNodes);
+        return !vNodes.empty();
+    }();
+
+    const bool unlocked = !(pwalletMain && pwalletMain->IsLocked());
+    const bool synced   = !IsInitialBlockDownload();
+
+    const std::size_t stakableCoinsCount = []() {
+        std::vector<COutput> vCoins;
+        bool fIncludeColdStaking = Params().IsColdStakingEnabled() && GetBoolArg("-coldstaking", true);
+        pwalletMain->AvailableCoinsForStaking(vCoins, GetAdjustedTime(), fIncludeColdStaking, false);
+        return vCoins.size();
+    }();
 
     stakingCriteria.push_back(Pair("mature-coins", matureCoins));
     stakingCriteria.push_back(Pair("wallet-unlocked", unlocked));
@@ -103,13 +107,15 @@ Value getstakinginfo(const Array& params, bool fHelp)
     obj.push_back(Pair("staking-criteria", stakingCriteria));
     obj.push_back(Pair("errors", GetWarnings("statusbar")));
 
+    obj.push_back(Pair("stakableoutputs", (int)stakableCoinsCount));
+
     obj.push_back(Pair("currentblocksize", (uint64_t)nLastBlockSize));
     obj.push_back(Pair("currentblocktx", (uint64_t)nLastBlockTx));
     obj.push_back(Pair("pooledtx", (uint64_t)mempool.size()));
 
     obj.push_back(Pair("difficulty",
                        GetDifficulty(GetLastBlockIndex(boost::atomic_load(&pindexBest).get(), true))));
-    obj.push_back(Pair("search-interval", (int)nLastCoinStakeSearchInterval));
+    obj.push_back(Pair("search-interval", (int)stakeMaker.getLastCoinStakeSearchInterval()));
 
     obj.push_back(Pair("weight", (uint64_t)nWeight));
     obj.push_back(Pair("netstakeweight", (uint64_t)nNetworkWeight));
@@ -568,12 +574,12 @@ Value generateBlocks(int nGenerate, uint64_t nMaxTries, CWallet* const pwallet,
         }
 
         CPubKey newKey;
-        if (!pwalletMain->GetKeyFromPool(newKey, false))
+        if (!pwalletMain->GetKeyFromPool(newKey))
             throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT,
                                "Error: Keypool ran out, please call keypoolrefill first");
         CKeyID keyID = newKey.GetID();
 
-        pwalletMain->SetAddressBookName(keyID, "");
+        pwalletMain->SetAddressBookEntry(keyID, "");
 
         return CBitcoinAddress(keyID);
     }();
@@ -618,7 +624,10 @@ Value generateBlocks(int nGenerate, uint64_t nMaxTries, CWallet* const pwallet,
     return Value(blockHashes);
 }
 
-Value generatePOSBlocks(int nGenerate, CWallet* const pwallet)
+Value generatePOSBlocks(
+    int nGenerate, CWallet* const pwallet, bool submitBlock = true,
+    const boost::optional<std::set<std::pair<uint256, unsigned>>>& customInputs        = boost::none,
+    CAmount                                                        extraPayoutForTests = 0)
 {
     if (!Params().MineBlocksOnDemand())
         throw JSONRPCError(RPC_INVALID_REQUEST, "This method can only be used on regtest");
@@ -628,23 +637,26 @@ Value generatePOSBlocks(int nGenerate, CWallet* const pwallet)
 
     nHeightEnd = nBestHeight.load() + nGenerate;
 
-    json_spirit::Array blockHashes;
+    json_spirit::Array blockHashesOrSerializedData;
+
+    const auto BlockMaker = [&]() {
+        std::unique_ptr<CBlock> block = CreateNewBlock(pwallet, true, 0);
+        if (!block)
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
+
+        if (block->SignBlock(*pwallet, 0, customInputs, extraPayoutForTests)) {
+            if (submitBlock) {
+                if (!CheckStake(block.get(), *pwallet))
+                    throw JSONRPCError(RPC_INTERNAL_ERROR, "CheckStake, CheckStake failed");
+            }
+        } else {
+            block.reset();
+        }
+        return block;
+    };
 
     while (nHeight < nHeightEnd) {
-        std::unique_ptr<CBlock> pblock;
-        {
-            pblock = CreateNewBlock(pwallet, true, 0);
-            if (!pblock)
-                throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
-
-            if (pblock->SignBlock(*pwallet, 0)) {
-                if (!CheckStake(pblock.get(), *pwallet))
-                    throw JSONRPCError(RPC_INTERNAL_ERROR, "CheckStake, CheckStake failed");
-
-            } else {
-                pblock.reset();
-            }
-        }
+        const std::unique_ptr<CBlock> pblock = BlockMaker();
 
         if (!pblock) {
             // staking failed
@@ -652,9 +664,18 @@ Value generatePOSBlocks(int nGenerate, CWallet* const pwallet)
         }
 
         ++nHeight;
-        blockHashes.push_back(pblock->GetHash().GetHex());
+        if (submitBlock) {
+            blockHashesOrSerializedData.push_back(pblock->GetHash().GetHex());
+        } else {
+            // if block is not submitted, return the serialized format
+            CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+            ss << *pblock;
+            std::string blockRaw = ss.str();
+            blockHashesOrSerializedData.push_back(HexStr(std::make_move_iterator(blockRaw.begin()),
+                                                         std::make_move_iterator(blockRaw.end())));
+        }
     }
-    return Value(blockHashes);
+    return Value(blockHashesOrSerializedData);
 }
 
 Value generate(const Array& params, bool fHelp)
@@ -703,21 +724,70 @@ Value generate(const Array& params, bool fHelp)
     return generateBlocks(num_generate, max_tries, pwallet);
 }
 
+std::set<std::pair<uint256, unsigned>> ParseCustomInputs(const Value& inputsArray)
+{
+    std::set<std::pair<uint256, unsigned>> result;
+    if (inputsArray.type() == Value_type::array_type) {
+        Array inputs = inputsArray.get_array();
+        for (const Value& el : inputs) {
+            if (el.type() != Value_type::array_type) {
+                throw JSONRPCError(RPC_TYPE_ERROR,
+                                   "Error: Second parameter's elements must be arrays, each are a "
+                                   "pair of string (hash) and output index (int) (error A)");
+            }
+            Array p = el.get_array();
+            if (p.size() != 2) {
+                throw JSONRPCError(RPC_TYPE_ERROR,
+                                   "Error: Second parameter's elements must be arrays, each are a "
+                                   "pair of string (hash) and output index (int) (error B)");
+            }
+            if (p[0].type() != Value_type::str_type) {
+                throw JSONRPCError(RPC_TYPE_ERROR,
+                                   "Error: Second parameter's elements must be arrays, each are a "
+                                   "pair of string (hash) and output index (int) (first element of "
+                                   "a pair is not a string)");
+            }
+            if (p[1].type() != Value_type::int_type) {
+                throw JSONRPCError(RPC_TYPE_ERROR,
+                                   "Error: Second parameter's elements must be arrays, each are a "
+                                   "pair of string (hash) and output index (int) (second element of "
+                                   "a pair is not an int)");
+            }
+            int outIndexS = p[1].get_int();
+            if (outIndexS < 0) {
+                throw JSONRPCError(RPC_TYPE_ERROR,
+                                   "Error: Second parameter's elements must be arrays, each are a "
+                                   "pair of string (hash) and output index (int) (second element of "
+                                   "a pair is < 0)");
+            }
+            unsigned outIndex = static_cast<unsigned>(outIndexS);
+            result.insert(std::make_pair(uint256(p[0].get_str()), outIndex));
+        }
+        return result;
+    } else {
+        throw JSONRPCError(RPC_TYPE_ERROR, "Error: Second parameter must be an array of pairs");
+    }
+}
+
 Value generatepos(const Array& params, bool fHelp)
 {
     EnsureWalletIsUnlocked();
 
     CWallet* const pwallet = pwalletMain.get();
 
-    if (fHelp || params.size() < 1 || params.size() > 1) {
+    if (fHelp || params.size() < 1 || params.size() > 4) {
         throw std::runtime_error(
             "generate nblocks\n"
             "\nMine one block with proof of stake immediately (before the RPC call returns)\n"
             "\nBe aware that staking is a complex principle that requires accurate timing. It's "
             "recommended that you manage timing manually and generate only 1 block at a time\n"
             "\nArguments:\n"
-            "1. nblocks      (numeric, required) How many blocks are generated immediately.\n"
-            "2. count        (numeric, required) Number of blocks to generate.\n"
+            "1. count         (numeric, required) Number of blocks to generate.\n"
+            "2. submit block  (bool, optional, default=true) whether to submit the block after creating "
+            "it or return its serialized hex form"
+            "3. inputs to use (optional list of pairs (list of two elements), every one is a hash and "
+            "an output index); the staker will filter the available outputs with these"
+            "4. extra payout for tests  (numeric, optional): Extra payout for the stake for testing; "
             "\nResult:\n"
             "[ blockhashes ]     (array) hashes of blocks generated\n"
             "\nExamples:\n"
@@ -727,7 +797,22 @@ Value generatepos(const Array& params, bool fHelp)
 
     int num_generate = params[0].get_int();
 
-    return generatePOSBlocks(num_generate, pwallet);
+    bool fSubmitBlock = true;
+    if (params.size() > 1 && params[1].type() == Value_type::bool_type) {
+        fSubmitBlock = params[1].get_bool();
+    }
+
+    boost::optional<std::set<std::pair<uint256, unsigned>>> customInputs;
+    if (params.size() > 2 && params[2].type() != Value_type::null_type) {
+        customInputs = ParseCustomInputs(params[2]);
+    }
+
+    CAmount extraPayoutForTests = 0;
+    if (params.size() > 3 && params[3].type() != Value_type::null_type) {
+        extraPayoutForTests = params[3].get_int();
+    }
+
+    return generatePOSBlocks(num_generate, pwallet, fSubmitBlock, customInputs, extraPayoutForTests);
 }
 
 Value generatetoaddress(const Array& params, bool fHelp)

@@ -234,7 +234,7 @@ bool NTP1Wallet::removeOutputIfSpent(const NTP1OutPoint& output, const CWalletTx
     std::unordered_map<NTP1OutPoint, NTP1Transaction>::iterator outputIt =
         walletOutputsWithTokens.find(output);
     if (outputIt != walletOutputsWithTokens.end()) {
-        if (neblTx.IsSpent(output.getIndex())) {
+        if (pwalletMain->IsSpent(neblTx.GetHash(), output.getIndex())) {
             walletOutputsWithTokens.erase(outputIt);
         }
         return true;
@@ -256,7 +256,7 @@ void NTP1Wallet::scanSpentTransactions()
         const uint256& txHash      = it->first.getHash();
         if (!localWallet->GetTransaction(txHash, neblTx))
             continue;
-        if (neblTx.IsSpent(outputIndex)) {
+        if (pwalletMain->IsSpent(neblTx.GetHash(), outputIndex)) {
             // this, although the right way to do things, causes a crash. A safer plan is chosen
             // it = walletOutputsWithTokens.erase(it);
             toRemove.push_back(it->first);
@@ -416,8 +416,7 @@ std::string NTP1Wallet::getTokenIcon(int index)
         IconDownloadThread.detach();
         return "";
     } else {
-        std::string icon;
-        tokenIcons.get(tokenId, icon);
+        std::string icon = tokenIcons.get(tokenId).value_or("");
         // if there was an error getting the icon OR the icon is empty, and a download URL now
         // exists, download again
         if (icon == ICON_ERROR_CONTENT || (icon == "" && !itToken->second.getIconURL().empty())) {
@@ -427,7 +426,7 @@ std::string NTP1Wallet::getTokenIcon(int index)
             IconDownloadThread.detach();
         }
 
-        tokenIcons.get(tokenId, icon);
+        icon = tokenIcons.get(tokenId).value_or("");
         return icon;
     }
 }

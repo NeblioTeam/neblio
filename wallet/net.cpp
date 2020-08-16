@@ -1286,13 +1286,13 @@ void ThreadOpenConnections2(void* /*parg*/)
     printf("ThreadOpenConnections started\n");
 
     // Connect to specific addresses
-    std::vector<std::string> connectVals;
-    mapMultiArgs.get("-connect", connectVals);
+    std::vector<std::string> connectVals =
+        mapMultiArgs.get("-connect").value_or(std::vector<std::string>());
     if (connectVals.size() > 0) {
         for (int64_t nLoop = 0;; nLoop++) {
             ProcessOneShot();
-            std::vector<std::string> connectVals;
-            mapMultiArgs.get("-connect", connectVals);
+            std::vector<std::string> connectVals =
+                mapMultiArgs.get("-connect").value_or(std::vector<std::string>());
             BOOST_FOREACH (string strAddr, connectVals) {
                 CAddress addr;
                 OpenNetworkConnection(addr, nullptr, strAddr.c_str());
@@ -1443,8 +1443,8 @@ void ThreadOpenAddedConnections2(void* /*parg*/)
 
     // we add the nodes from the command line arguments
     {
-        std::vector<std::string> addnodeTempVec;
-        mapMultiArgs.get("-addnode", addnodeTempVec);
+        std::vector<std::string> addnodeTempVec =
+            mapMultiArgs.get("-addnode").value_or(std::vector<std::string>());
     }
 
     // we add the nodes that are preset in the chain params
@@ -1938,17 +1938,17 @@ public:
     }
 } instance_of_cnetcleanup;
 
-void RelayTransaction(const CTransaction& tx, const uint256& hash)
+void RelayTransaction(const CTransaction& tx)
 {
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
     ss.reserve(10000);
     ss << tx;
-    RelayTransaction(tx, hash, ss);
+    RelayTransaction(tx, ss);
 }
 
-void RelayTransaction(const CTransaction& tx, const uint256& hash, const CDataStream& ss)
+void RelayTransaction(const CTransaction& tx, const CDataStream& ss)
 {
-    CInv inv(MSG_TX, hash);
+    CInv inv(MSG_TX, tx.GetHash());
     {
         LOCK(cs_mapRelay);
         // Expire old relay messages
@@ -1967,7 +1967,7 @@ void RelayTransaction(const CTransaction& tx, const uint256& hash, const CDataSt
             continue;
         LOCK(pnode->cs_filter);
         if (pnode->pfilter) {
-            if (pnode->pfilter->IsRelevantAndUpdate(tx, hash))
+            if (pnode->pfilter->IsRelevantAndUpdate(tx))
                 pnode->PushInventory(inv);
         } else
             pnode->PushInventory(inv);

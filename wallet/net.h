@@ -423,9 +423,8 @@ public:
 
     void EndMessage()
     {
-        std::string dropMessageTestVal;
-        bool        dropMessageTestExists = mapArgs.get("-dropmessagestest", dropMessageTestVal);
-        if (dropMessageTestExists && GetRand(atoi(dropMessageTestVal)) == 0) {
+        const boost::optional<std::string> dropMessageTest = mapArgs.get("-dropmessagestest");
+        if (dropMessageTest && GetRand(atoi(*dropMessageTest)) == 0) {
             printf("dropmessages DROPPING SEND MESSAGE\n");
             AbortMessage();
             return;
@@ -676,8 +675,8 @@ inline void RelayInventory(const CInv& inv)
 }
 
 class CTransaction;
-void RelayTransaction(const CTransaction& tx, const uint256& hash);
-void RelayTransaction(const CTransaction& tx, const uint256& hash, const CDataStream& ss);
+void RelayTransaction(const CTransaction& tx);
+void RelayTransaction(const CTransaction& tx, const CDataStream& ss);
 
 bool OpenNetworkConnection(const CAddress& addrConnect, CSemaphoreGrant* grantOutbound = nullptr,
                            const char* strDest = nullptr, bool fOneShot = false);

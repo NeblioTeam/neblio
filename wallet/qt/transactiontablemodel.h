@@ -87,6 +87,9 @@ public slots:
     void updateDisplayUnit();
 
     friend class TransactionTablePriv;
+
+signals:
+    void txArrived(const QString& hash);
 };
 
 #endif

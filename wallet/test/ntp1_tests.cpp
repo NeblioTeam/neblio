@@ -695,7 +695,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_issuance)
     CTransaction tx = TxFromHex(transaction);
     EXPECT_EQ(tx.GetHash().ToString(),
               "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
-    EXPECT_TRUE(tx.CheckTransaction());
+    EXPECT_TRUE(tx.CheckTransaction().isOk());
 
     std::string opReturnArg;
     EXPECT_TRUE(NTP1Transaction::IsTxNTP1(&tx, &opReturnArg));
@@ -781,7 +781,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
         "9211705770db88ac10270000000000000e6a0c4e5401150020120169895242409c0000000000001976a9143f7eb"
         "8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
     CTransaction tx = TxFromHex(transaction);
-    EXPECT_TRUE(tx.CheckTransaction());
+    EXPECT_TRUE(tx.CheckTransaction().isOk());
 
     std::string opReturnArg;
     EXPECT_TRUE(NTP1Transaction::IsTxNTP1(&tx, &opReturnArg));
@@ -981,7 +981,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
         "9211705770db88ac10270000000000000e6a0c4e5401150020120169895242409c0000000000001976a9143f7eb"
         "8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
     CTransaction tx = TxFromHex(transaction);
-    EXPECT_TRUE(tx.CheckTransaction());
+    EXPECT_TRUE(tx.CheckTransaction().isOk());
 
     std::string opReturnArg;
     EXPECT_TRUE(NTP1Transaction::IsTxNTP1(&tx, &opReturnArg));
@@ -1188,7 +1188,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
         "000000000a6a084e540125000a1f1410270000000000001976a9143f7eb8c3da2cbe606fd5d46b11ab921170577"
         "0db88ac00000000";
     CTransaction tx = TxFromHex(transaction);
-    EXPECT_TRUE(tx.CheckTransaction());
+    EXPECT_TRUE(tx.CheckTransaction().isOk());
 
     std::string vinA =
         "010000005944185b0226d0e3af9cf2fa36d2cbecd53d54dc68e35489c85fae907e050165dc1a980413010000006"
@@ -1693,7 +1693,7 @@ void TestNTP1TxParsing(const CTransaction& tx, NetworkType netType)
 {
     const std::string&    txid       = tx.GetHash().ToString();
     const NTP1Transaction ntp1tx_ref = NTP1APICalls::RetrieveData_TransactionInfo(txid, netType);
-    EXPECT_TRUE(tx.CheckTransaction()) << "Failed tx: " << txid;
+    EXPECT_TRUE(tx.CheckTransaction().isOk()) << "Failed tx: " << txid;
 
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputs;
 
@@ -1802,7 +1802,7 @@ void TestSingleNTP1TxParsingLocally(const CTransaction&                       tx
 
     NTP1Transaction ntp1tx_ref;
     ntp1tx_ref.importJsonData(ntp1tx_ref_str);
-    EXPECT_TRUE(tx.CheckTransaction()) << "Failed tx: " << txid;
+    EXPECT_TRUE(tx.CheckTransaction().isOk()) << "Failed tx: " << txid;
 
     std::string OpReturnArg;
     EXPECT_TRUE(NTP1Transaction::IsTxNTP1(&tx, &OpReturnArg));

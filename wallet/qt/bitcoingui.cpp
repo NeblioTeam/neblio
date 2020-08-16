@@ -65,8 +65,8 @@
 #include <memory>
 
 extern std::shared_ptr<CWallet> pwalletMain;
-extern boost::atomic<int64_t>   nLastCoinStakeSearchInterval;
-double                          GetPoSKernelPS();
+
+double GetPoSKernelPS();
 
 BitcoinGUI::BitcoinGUI(QWidget* parent)
     : QMainWindow(parent), clientModel(0), walletModel(0), encryptWalletAction(0),
@@ -113,11 +113,13 @@ BitcoinGUI::BitcoinGUI(QWidget* parent)
     blockchainExporterProg->setWindowTitle("Blockchain export progress");
 
     // Create tabs
-    overviewPage    = new OverviewPage();
-    ntp1SummaryPage = new NTP1Summary();
+    overviewPage    = new OverviewPage(this);
+    ntp1SummaryPage = new NTP1Summary(this);
+
+    coldStakingPage = new ColdStakingPage(this);
 
     transactionsPage  = new QWidget(this);
-    QVBoxLayout* vbox = new QVBoxLayout();
+    QVBoxLayout* vbox = new QVBoxLayout;
     transactionView   = new TransactionView(this);
     vbox->addWidget(transactionView);
     transactionsPage->setLayout(vbox);
@@ -134,6 +136,7 @@ BitcoinGUI::BitcoinGUI(QWidget* parent)
     centralWidget->addWidget(overviewPage);
     centralWidget->addWidget(ntp1SummaryPage);
     centralWidget->addWidget(transactionsPage);
+    centralWidget->addWidget(coldStakingPage);
     centralWidget->addWidget(addressBookPage);
     centralWidget->addWidget(receiveCoinsPage);
     centralWidget->addWidget(sendCoinsPage);
@@ -290,22 +293,30 @@ void BitcoinGUI::createActions()
     receiveCoinsAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_4));
     tabGroup->addAction(receiveCoinsAction);
 
+    coldStakingAction = new QAction(QIcon(":/icons/cold"), tr("&Cold-Staking"), this);
+    coldStakingAction->setToolTip(tr("Show transactions and actions related to cold-staking"));
+    coldStakingAction->setCheckable(true);
+    coldStakingAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_5));
+    tabGroup->addAction(coldStakingAction);
+
     historyAction = new QAction(QIcon(":/icons/history"), tr("&Transactions"), this);
     historyAction->setToolTip(tr("Browse transaction history"));
     historyAction->setCheckable(true);
-    historyAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_5));
+    historyAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_6));
     tabGroup->addAction(historyAction);
 
     addressBookAction = new QAction(QIcon(":/icons/address-book"), tr("&Address Book"), this);
     addressBookAction->setToolTip(tr("Edit the list of stored addresses and labels"));
     addressBookAction->setCheckable(true);
-    addressBookAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_6));
+    addressBookAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_7));
     tabGroup->addAction(addressBookAction);
 
     connect(overviewAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(overviewAction, SIGNAL(triggered()), this, SLOT(gotoOverviewPage()));
     connect(ntp1tokensAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(ntp1tokensAction, SIGNAL(triggered()), this, SLOT(gotoNTP1SummaryPage()));
+    connect(coldStakingAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+    connect(coldStakingAction, SIGNAL(triggered()), this, SLOT(gotoColdStakingPage()));
     connect(sendCoinsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(sendCoinsAction, SIGNAL(triggered()), this, SLOT(gotoSendCoinsPage()));
     connect(receiveCoinsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
@@ -419,6 +430,7 @@ void BitcoinGUI::createToolBars()
     toolbar->addAction(ntp1tokensAction);
     toolbar->addAction(sendCoinsAction);
     toolbar->addAction(receiveCoinsAction);
+    toolbar->addAction(coldStakingAction);
     toolbar->addAction(historyAction);
     toolbar->addAction(addressBookAction);
 
@@ -484,6 +496,7 @@ void BitcoinGUI::setWalletModel(WalletModel* walletModel)
         addressBookPage->setModel(walletModel->getAddressTableModel());
         receiveCoinsPage->setModel(walletModel->getAddressTableModel());
         sendCoinsPage->setModel(walletModel);
+        coldStakingPage->setWalletModel(walletModel);
         signVerifyMessageDialog->setModel(walletModel);
         ntp1SummaryPage->ui->issueNewNTP1TokenDialog->setWalletModel(walletModel);
 
@@ -794,6 +807,15 @@ void BitcoinGUI::gotoNTP1SummaryPage()
 {
     ntp1tokensAction->setChecked(true);
     centralWidget->setCurrentWidget(ntp1SummaryPage);
+
+    exportAction->setEnabled(false);
+    disconnect(exportAction, SIGNAL(triggered()), 0, 0);
+}
+
+void BitcoinGUI::gotoColdStakingPage()
+{
+    coldStakingAction->setChecked(true);
+    centralWidget->setCurrentWidget(coldStakingPage);
 
     exportAction->setEnabled(false);
     disconnect(exportAction, SIGNAL(triggered()), 0, 0);
@@ -1222,7 +1244,7 @@ void BitcoinGUI::updateStakingIcon()
 {
     updateWeight();
 
-    if (nLastCoinStakeSearchInterval && nWeight) {
+    if (stakeMaker.getLastCoinStakeSearchInterval() && nWeight) {
         uint64_t     nNetworkWeight = GetPoSKernelPS();
         unsigned int nTS            = Params().TargetSpacing();
         unsigned     nEstimateTime  = nTS * nNetworkWeight / nWeight;

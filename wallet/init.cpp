@@ -292,6 +292,7 @@ std::string HelpMessage()
         "  -maxreceivebuffer=<n>  " + _("Maximum per-connection receive buffer, <n>*1000 bytes (default: 5000)") + "\n" +
         "  -maxsendbuffer=<n>     " + _("Maximum per-connection send buffer, <n>*1000 bytes (default: 1000)") + "\n" +
         "  -noquicksync           " + _("Whether QuickSync should be used to quickly sync with the network") + "\n" +
+        "  -coldstaking           " + _("Enable cold-staking for this node (default: true)") + "\n" +
 #ifdef USE_UPNP
 #if USE_UPNP
         "  -upnp                  " + _("Use UPnP to map the listening port (default: 1 when listening)") + "\n" +
@@ -299,6 +300,7 @@ std::string HelpMessage()
         "  -upnp                  " + _("Use UPnP to map the listening port (default: 0)") + "\n" +
 #endif
 #endif
+        "  -nomempoolwalletresync " + _("(only for regtest) prevent the wallet from re-accepting transactions on start") + "\n" +
         "  -paytxfee=<amt>        " + _("Fee per KB to add to transactions you send") + "\n" +
         "  -mininput=<amt>        " + _("When creating transactions, ignore inputs with value less than this (default: 0.01)") + "\n" +
 #ifdef QT_GUI
@@ -437,9 +439,9 @@ bool AppInit2()
         SoftSetBoolArg("-listen", true);
     }
 
-    std::vector<std::string> connectVals;
-    bool                     connectExists = mapMultiArgs.get("-connect", connectVals);
-    if (connectExists && connectVals.size() > 0) {
+    std::vector<std::string> connectVals =
+        mapMultiArgs.get("-connect").value_or(std::vector<std::string>());
+    if (connectVals.size() > 0) {
         // when only connecting to trusted nodes, do not seed via DNS, or listen by default
         SoftSetBoolArg("-dnsseed", false);
         SoftSetBoolArg("-listen", false);
@@ -501,12 +503,11 @@ bool AppInit2()
             nConnectTimeout = nNewTimeout;
     }
 
-    std::string payTxFeeVal;
-    bool        payTxFeeExists = mapArgs.get("-paytxfee", payTxFeeVal);
-    if (payTxFeeExists) {
-        if (!ParseMoney(payTxFeeVal, nTransactionFee))
+    boost::optional<std::string> payTxFee = mapArgs.get("-paytxfee");
+    if (payTxFee) {
+        if (!ParseMoney(*payTxFee, nTransactionFee))
             return InitError(
-                strprintf(_("Invalid amount for -paytxfee=<amount>: '%s'"), payTxFeeVal.c_str()));
+                strprintf(_("Invalid amount for -paytxfee=<amount>: '%s'"), payTxFee->c_str()));
         if (nTransactionFee > 0.25 * COIN)
             InitWarning(_("Warning: -paytxfee is set very high! This is the transaction fee you will "
                           "pay if you send a transaction."));
@@ -515,17 +516,16 @@ bool AppInit2()
     fConfChange       = GetBoolArg("-confchange", false);
     fEnforceCanonical = GetBoolArg("-enforcecanonical", true);
 
-    std::string mininpVal;
-    bool        mininpExists = mapArgs.get("-mininput", mininpVal);
-    if (mininpExists) {
-        if (!ParseMoney(mininpVal, nMinimumInputValue))
+    boost::optional<std::string> mininpVal = mapArgs.get("-mininput");
+    if (mininpVal) {
+        if (!ParseMoney(*mininpVal, nMinimumInputValue))
             return InitError(
-                strprintf(_("Invalid amount for -mininput=<amount>: '%s'"), mininpVal.c_str()));
+                strprintf(_("Invalid amount for -mininput=<amount>: '%s'"), mininpVal->c_str()));
     }
 
     // sanitize comments per BIP-0014, format user agent and check total size
-    std::vector<std::string> uacommentsOrig;
-    mapMultiArgs.get("-uacomment", uacommentsOrig);
+    std::vector<std::string> uacommentsOrig =
+        mapMultiArgs.get("-uacomment").value_or(std::vector<std::string>());
     std::vector<std::string> uacomments;
     for (const std::string& cmt : uacommentsOrig) {
         if (cmt != SanitizeString(cmt, SAFE_CHARS_UA_COMMENT))
@@ -644,9 +644,9 @@ bool AppInit2()
 
     if (mapArgs.exists("-onlynet")) {
         std::set<enum Network>   nets;
-        std::vector<std::string> onlyNetVals;
-        mapMultiArgs.get("-onlynet", onlyNetVals);
-        BOOST_FOREACH (std::string snet, onlyNetVals) {
+        std::vector<std::string> onlyNetVals =
+            mapMultiArgs.get("-onlynet").value_or(std::vector<std::string>());
+        for (const std::string& snet : onlyNetVals) {
             enum Network net = ParseNetwork(snet);
             if (net == NET_UNROUTABLE)
                 return InitError(
@@ -660,14 +660,13 @@ bool AppInit2()
         }
     }
 
-    CService    addrProxy;
-    bool        fProxy = false;
-    std::string proxyVal;
-    bool        proxyExists = mapArgs.get("-proxy", proxyVal);
-    if (proxyExists) {
-        addrProxy = CService(proxyVal, 9050);
+    CService                     addrProxy;
+    bool                         fProxy = false;
+    boost::optional<std::string> proxy  = mapArgs.get("-proxy");
+    if (proxy) {
+        addrProxy = CService(*proxy, 9050);
         if (!addrProxy.IsValid())
-            return InitError(strprintf(_("Invalid -proxy address: '%s'"), proxyVal.c_str()));
+            return InitError(strprintf(_("Invalid -proxy address: '%s'"), proxy->c_str()));
 
         if (!IsLimited(NET_IPV4))
             SetProxy(NET_IPV4, addrProxy, nSocksVersion);
@@ -680,16 +679,15 @@ bool AppInit2()
     }
 
     // -tor can override normal proxy, -notor disables tor entirely
-    std::string torVal;
-    bool        torExists = mapArgs.get("-tor", torVal);
-    if (!(torExists && torVal == "0") && (fProxy || torExists)) {
+    boost::optional<std::string> tor = mapArgs.get("-tor");
+    if (!(tor && *tor == "0") && (fProxy || tor)) {
         CService addrOnion;
-        if (!torExists)
+        if (!tor)
             addrOnion = addrProxy;
         else
-            addrOnion = CService(torVal, 9050);
+            addrOnion = CService(*tor, 9050);
         if (!addrOnion.IsValid())
-            return InitError(strprintf(_("Invalid -tor address: '%s'"), torVal.c_str()));
+            return InitError(strprintf(_("Invalid -tor address: '%s'"), tor->c_str()));
         SetProxy(NET_TOR, addrOnion, 5);
         SetReachable(NET_TOR);
     }
@@ -704,11 +702,10 @@ bool AppInit2()
 
     bool fBound = false;
     if (!fNoListen) {
-        std::string              strError;
-        std::vector<std::string> bindVals;
-        bool                     bindExists = mapMultiArgs.get("-bind", bindVals);
-        if (bindExists) {
-            BOOST_FOREACH (std::string strBind, bindVals) {
+        std::string                               strError;
+        boost::optional<std::vector<std::string>> bindVals = mapMultiArgs.get("-bind");
+        if (bindVals) {
+            for (const std::string& strBind : *bindVals) {
                 CService addrBind;
                 if (!Lookup(strBind.c_str(), addrBind, GetListenPort(), false))
                     return InitError(
@@ -727,10 +724,9 @@ bool AppInit2()
             return InitError(_("Failed to listen on any port. Use -listen=0 if you want this."));
     }
 
-    std::vector<std::string> externalIPVals;
-    bool                     externalIPExists = mapMultiArgs.get("-externalip", externalIPVals);
-    if (externalIPExists) {
-        BOOST_FOREACH (string strAddr, externalIPVals) {
+    boost::optional<std::vector<std::string>> externalIPVals = mapMultiArgs.get("-externalip");
+    if (externalIPVals) {
+        for (const string& strAddr : *externalIPVals) {
             CService addrLocal(strAddr, GetListenPort(), fNameLookup);
             if (!addrLocal.IsValid())
                 return InitError(
@@ -739,26 +735,19 @@ bool AppInit2()
         }
     }
 
-    std::string reserveBalanceVal;
-    bool        reserveBalanceExists = mapArgs.get("-reservebalance", reserveBalanceVal);
-    if (reserveBalanceExists) // ppcoin: reserve balance amount
+    boost::optional<std::string> reserveBalance = mapArgs.get("-reservebalance");
+    if (reserveBalance) // ppcoin: reserve balance amount
     {
-        if (!ParseMoney(reserveBalanceVal, nReserveBalance)) {
+        if (!ParseMoney(*reserveBalance, nReserveBalance)) {
             InitError(_("Invalid amount for -reservebalance=<amount>"));
             return false;
         }
     }
 
-    if (mapArgs.exists("-checkpointkey")) // ppcoin: checkpoint master priv key
     {
-        if (!Checkpoints::SetCheckpointPrivKey(GetArg("-checkpointkey", "")))
-            InitError(_("Unable to sign checkpoint, wrong checkpointkey?\n"));
-    }
-
-    {
-        std::vector<std::string> seednodesVals;
-        mapMultiArgs.get("-seednode", seednodesVals);
-        BOOST_FOREACH (string strDest, seednodesVals)
+        std::vector<std::string> seednodesVals =
+            mapMultiArgs.get("-seednode").value_or(std::vector<std::string>());
+        for (const string& strDest : seednodesVals)
             AddOneShot(strDest);
     }
 
@@ -843,11 +832,10 @@ bool AppInit2()
         return false;
     }
 
-    std::string printBlockVal;
-    bool        printBlockExists = mapArgs.get("-printblock", printBlockVal);
-    if (printBlockExists) {
-        string strMatch = printBlockVal;
-        int    nFound   = 0;
+    const boost::optional<std::string> printBlock = mapArgs.get("-printblock");
+    if (printBlock) {
+        const string strMatch = *printBlock;
+        int          nFound   = 0;
         for (BlockIndexMapType::iterator mi = mapBlockIndex.begin(); mi != mapBlockIndex.end(); ++mi) {
             uint256 hash = (*mi).first;
             if (strncmp(hash.ToString().c_str(), strMatch.c_str(), strMatch.size()) == 0) {
@@ -922,11 +910,16 @@ bool AppInit2()
         // Create new keyUser and set as default key
         RandAddSeedPerfmon();
 
-        CPubKey newDefaultKey;
-        if (pwalletMain->GetKeyFromPool(newDefaultKey, false)) {
-            pwalletMain->SetDefaultKey(newDefaultKey);
-            if (!pwalletMain->SetAddressBookName(pwalletMain->vchDefaultKey.GetID(), ""))
-                strErrors << _("Cannot write default address") << "\n";
+        CPubKey newKey;
+        // Top up the keypool
+        if (!pwalletMain->TopUpKeyPool()) {
+            // Error generating keys
+            InitError(_("Unable to generate initial key") += "\n");
+            return error("%s %s", __func__, "Unable to generate initial key");
+        }
+        if (pwalletMain->GetKeyFromPool(newKey)) {
+            if (!pwalletMain->SetAddressBookEntry(newKey.GetID(), ""))
+                strErrors << _("Cannot write first address") << "\n";
         }
     }
 
@@ -959,11 +952,10 @@ bool AppInit2()
 
     // ********************************************************* Step 9: import blocks
 
-    std::vector<boost::filesystem::path>* vPath = new std::vector<boost::filesystem::path>();
-    std::vector<std::string>              loadBlockVals;
-    bool loadBlockExists = mapMultiArgs.get("-loadblock", loadBlockVals);
-    if (loadBlockExists) {
-        BOOST_FOREACH (string strFile, loadBlockVals)
+    std::vector<boost::filesystem::path>*     vPath         = new std::vector<boost::filesystem::path>();
+    boost::optional<std::vector<std::string>> loadBlockVals = mapMultiArgs.get("-loadblock");
+    if (loadBlockVals) {
+        for (const string& strFile : *loadBlockVals)
             vPath->push_back(strFile);
     }
     uiInterface.InitMessage(_("Importing blockchain data file."));
@@ -1022,7 +1014,9 @@ bool AppInit2()
         return InitError(strErrors.str());
 
     // Add wallet transactions that aren't already in a block to mapTransactions
-    pwalletMain->ReacceptWalletTransactions();
+    if (!(Params().NetType() == NetworkType::Regtest && GetBoolArg("-nomempoolwalletresync", false))) {
+        pwalletMain->ReacceptWalletTransactions(true);
+    }
 
 #if !defined(QT_GUI)
     // Loop until process is exit()ed from shutdown() function,

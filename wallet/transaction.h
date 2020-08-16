@@ -10,6 +10,7 @@
 #include "txindex.h"
 #include "txout.h"
 #include "uint256.h"
+#include "validation.h"
 #include <vector>
 
 class CTransaction;
@@ -48,7 +49,7 @@ public:
         }
     };
 
-    boost::optional<CTxReject> reject;
+    mutable boost::optional<CTxReject> reject;
 
     // Denial-of-service detection:
     mutable int nDoS;
@@ -81,7 +82,11 @@ public:
 
     bool IsCoinBase() const { return (vin.size() == 1 && vin[0].prevout.IsNull() && vout.size() >= 1); }
 
+    bool CheckColdStake(const CScript& script) const;
+
     bool IsCoinStake() const;
+
+    bool HasP2CSOutputs() const;
 
     /** Check for standard transaction types
         @param[in] mapInputs	Map of previous transactions that have outputs we're spending
@@ -153,7 +158,7 @@ public:
             @return	Returns true if all inputs are in txdb or mapTestPool
                 */
     bool FetchInputs(CTxDB& txdb, const std::map<uint256, CTxIndex>& mapTestPool, bool fBlock,
-                     bool fMiner, MapPrevTx& inputsRet, bool& fInvalid);
+                     bool fMiner, MapPrevTx& inputsRet, bool& fInvalid) const;
 
     /** Sanity check previous transactions, then, if all checks succeed,
         mark them as spent by this transaction.
@@ -166,10 +171,11 @@ public:
         @param[in] fMiner	true if called from CreateNewBlock
         @return Returns true if all checks succeed
         */
-    bool ConnectInputs(CTxDB& txdb, MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTestPool,
-                       const CDiskTxPos& posThisTx, const ConstCBlockIndexSmartPtr& pindexBlock,
-                       bool fBlock, bool fMiner, CBlock* sourceBlockPtr = nullptr);
-    bool CheckTransaction(CBlock* sourceBlock = nullptr) const;
+    Result<void, TxValidationState>
+                                    ConnectInputs(MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTestPool,
+                                                  const CDiskTxPos& posThisTx, const ConstCBlockIndexSmartPtr& pindexBlock, bool fBlock,
+                                                  bool fMiner, CBlock* sourceBlockPtr = nullptr) const;
+    Result<void, TxValidationState> CheckTransaction(CBlock* sourceBlock = nullptr) const;
     bool GetCoinAge(CTxDB& txdb, uint64_t& nCoinAge) const; // ppcoin: get transaction coin age
 
     [[nodiscard]] static CTransaction FetchTxFromDisk(const uint256& txid);

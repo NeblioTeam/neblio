@@ -79,6 +79,7 @@ HEADERS += qt/bitcoingui.h \
     qt/ui_qrcodedialog.h \
     qt/ntp1summary.h \
     qt/ui_ntp1summary.h \
+    qt/ui_coldstakingpage.h \
     qt/ui_sendcoinsdialog.h \
     qt/ui_coincontroldialog.h \
     qt/ui_sendcoinsdialog.h \
@@ -161,7 +162,20 @@ HEADERS += qt/bitcoingui.h \
     consensus_params.h         \
     amount.h                   \
     crypto_highlevel.h         \
-    merkle.h
+    merkle.h                   \
+    wallet_ismine.h            \
+    stakemaker.h               \
+    addressbook.h              \
+    work.h                     \
+    validation.h               \
+    script_error.h             \
+    qt/coldstakinglistitemdelegate.h \
+    qt/coldstakingmodel.h            \
+    qt/coldstakingpage.h             \
+    qt/newstakedelegationdialog.h    \
+    coldstakedelegation.h            \
+    coldstakinglistfilterproxy.cpp
+
 
 
 
@@ -318,7 +332,22 @@ SOURCES += qt/bitcoin.cpp \
     chainparams.cpp                     \
     consensus_params.cpp                \
     crypto_highlevel.cpp                \
-    merkle.cpp
+    merkle.cpp                          \
+    wallet_ismine.cpp                   \
+    stakemaker.cpp                      \
+    addressbook.cpp                     \
+    work.cpp                            \
+    validation.cpp                      \
+    script_error.cpp                    \
+    qt/coldstakinglistitemdelegate.cpp  \
+    qt/coldstakingmodel.cpp             \
+    qt/coldstakingpage.cpp              \
+    qt/newstakedelegationdialog.cpp     \
+    coldstakedelegation.cpp             \
+    coldstakinglistfilterproxy.cpp
+
+
+
 
 
 SOURCES +=                   \

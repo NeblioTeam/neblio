@@ -1,5 +1,7 @@
 #include "googletest/googletest/include/gtest/gtest.h"
 
+#include "environment.h"
+
 #include "base58.h"
 #include "crypter.h"
 #include "crypto_highlevel.h"
@@ -334,6 +336,7 @@ TEST(cryptography_tests, ecdh_fromCKeyShortened)
 
 TEST(cryptography_tests, ecdh_get_scriptSig)
 {
+    SwitchNetworkTypeTemporarily state_holder(NetworkType::Mainnet);
 
     std::string transaction =
         "010000001af29a5a012081139a3e0d764e9fb415bf1601c5bc24eba093c3f6a735aaa9d81d27d55dc5010000006"
@@ -346,7 +349,7 @@ TEST(cryptography_tests, ecdh_get_scriptSig)
     CTransaction tx = TxFromHex_crypterTests(transaction);
 
     std::vector<std::vector<unsigned char>> stack;
-    EXPECT_TRUE(EvalScript(stack, tx.vin[0].scriptSig, tx, 1, false, 0));
+    EXPECT_TRUE(EvalScript(stack, tx.vin[0].scriptSig, tx, 1, false, 0).isOk());
 
     boost::optional<CKey> pubKey = CTransaction::GetPublicKeyFromScriptSig(tx.vin[0].scriptSig);
 

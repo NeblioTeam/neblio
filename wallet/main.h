@@ -14,6 +14,7 @@
 #include "outpoint.h"
 #include "script.h"
 #include "scrypt.h"
+#include "stakemaker.h"
 #include "sync.h"
 #include "transaction.h"
 #include "zerocoin/Zerocoin.h"
@@ -74,7 +75,7 @@ extern uint256                                      nBestInvalidTrust;
 extern uint256                                      hashBestChain;
 extern uint64_t                                     nLastBlockTx;
 extern uint64_t                                     nLastBlockSize;
-extern boost::atomic<int64_t>                       nLastCoinStakeSearchInterval;
+extern StakeMaker                                   stakeMaker;
 extern const std::string                            strMessageMagic;
 extern int64_t                                      nTimeBestReceived;
 extern CCriticalSection                             cs_setpwalletRegistered;
@@ -83,9 +84,9 @@ extern std::unordered_map<uint256, CBlock*>         mapOrphanBlocks;
 extern boost::atomic<bool>                          fImporting;
 
 // Settings
-extern int64_t      nTransactionFee;
-extern int64_t      nReserveBalance;
-extern int64_t      nMinimumInputValue;
+extern CAmount      nTransactionFee;
+extern CAmount      nReserveBalance;
+extern CAmount      nMinimumInputValue;
 extern unsigned int nDerivationMethodIndex;
 
 extern bool fEnforceCanonical;
@@ -99,30 +100,27 @@ class CReserveKey;
 class CTxDB;
 class CTxIndex;
 
-void         RegisterWallet(std::shared_ptr<CWallet> pwalletIn);
-void         UnregisterWallet(std::shared_ptr<CWallet> pwalletIn);
-void         SyncWithWallets(const CTransaction& tx, const CBlock* pblock = NULL, bool fUpdate = false,
-                             bool fConnect = true);
-bool         ProcessBlock(CNode* pfrom, CBlock* pblock);
-bool         CheckDiskSpace(uintmax_t nAdditionalBytes = 0);
-bool         LoadBlockIndex(bool fAllowNew = true);
-void         PrintBlockTree();
-bool         ProcessMessages(CNode* pfrom);
-bool         SendMessages(CNode* pto, bool fSendTrickle);
-void         ThreadImport(void* parg);
-bool         CheckProofOfWork(const uint256& hash, unsigned int nBits, bool silent = false);
-unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake);
-int64_t      GetProofOfWorkReward(int64_t nFees);
-int64_t      GetProofOfStakeReward(int64_t nCoinAge, int64_t nFees);
-unsigned int ComputeMinWork(unsigned int nBase, int64_t nTime);
-unsigned int ComputeMinStake(unsigned int nBase, int64_t nTime, unsigned int nBlockTime);
-int          GetNumBlocksOfPeers();
-bool         IsInitialBlockDownload();
-bool         IsInitialBlockDownload_tolerant();
-bool         __IsInitialBlockDownload_internal();
-std::string  GetWarnings(std::string strFor);
-bool         GetTransaction(const uint256& hash, CTransaction& tx, uint256& hashBlock);
-uint256      WantedByOrphan(const CBlock* pblockOrphan);
+void               RegisterWallet(std::shared_ptr<CWallet> pwalletIn);
+void               UnregisterWallet(std::shared_ptr<CWallet> pwalletIn);
+void               SyncWithWallets(const CTransaction& tx, const CBlock* pblock = NULL);
+bool               ProcessBlock(CNode* pfrom, CBlock* pblock);
+bool               CheckDiskSpace(uintmax_t nAdditionalBytes = 0);
+bool               LoadBlockIndex(bool fAllowNew = true);
+void               PrintBlockTree();
+bool               ProcessMessages(CNode* pfrom);
+bool               SendMessages(CNode* pto, bool fSendTrickle);
+void               ThreadImport(void* parg);
+bool               CheckProofOfWork(const uint256& hash, unsigned int nBits, bool silent = false);
+unsigned int       GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake);
+unsigned int       ComputeMinWork(unsigned int nBase, int64_t nTime);
+unsigned int       ComputeMinStake(unsigned int nBase, int64_t nTime, unsigned int nBlockTime);
+int                GetNumBlocksOfPeers();
+bool               IsInitialBlockDownload();
+bool               IsInitialBlockDownload_tolerant();
+bool               __IsInitialBlockDownload_internal();
+std::string        GetWarnings(std::string strFor);
+bool               GetTransaction(const uint256& hash, CTransaction& tx, uint256& hashBlock);
+uint256            WantedByOrphan(const CBlock* pblockOrphan);
 const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake);
 void               StakeMiner(CWallet* pwallet);
 void               ResendWalletTransactions(bool fForce = false);
@@ -167,8 +165,8 @@ bool IsTxInMainChain(const uint256& txHash);
 int64_t GetTxBlockHeight(const uint256& txHash);
 
 /** (try to) add transaction to memory pool **/
-bool AcceptToMemoryPool(CTxMemPool& pool, CTransaction& tx, bool* pfMissingInputs,
-                        CTxDB* txdbPtr = nullptr);
+Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTransaction& tx,
+                                                   CTxDB* txdbPtr = nullptr);
 
 bool EnableEnforceUniqueTokenSymbols();
 

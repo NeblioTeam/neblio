@@ -54,6 +54,7 @@ SOURCES += \
     netbase_tests.cpp     \
     ntp1_tests.cpp        \
     pmt_tests.cpp         \
+    pos_tests.cpp         \
     rpc_tests.cpp         \
     script_tests.cpp      \
     serialize_tests.cpp   \

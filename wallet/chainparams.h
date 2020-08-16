@@ -7,10 +7,12 @@
 #define BITCOIN_CHAINPARAMS_H
 
 #include "ThreadSafeMap.h"
+#include "amount.h"
 #include "chainparamsbase.h"
 #include "consensus_params.h"
 #include "protocol.h"
 
+#include <boost/container/flat_map.hpp>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -23,7 +25,7 @@ struct SeedSpec6
     uint16_t port;
 };
 
-using MapCheckpoints              = ThreadSafeMap<int, uint256>;
+using MapCheckpoints              = boost::container::flat_map<int, uint256>;
 using MapStakeModifierCheckpoints = std::map<int, unsigned int>;
 using MapExcludedTxs              = std::unordered_map<uint256, int>;
 using MapBlacklistedTokens        = std::unordered_map<std::string, int>;
@@ -101,6 +103,20 @@ public:
      * This works only if coins age > StakeSplitAge() */
     int64_t StakeCombineThreshold() const;
 
+    /**
+     * The maximum inputs to add to a transaction when a stake kernel is successfully found
+     */
+    unsigned int MaxInputsInStake() const;
+
+    bool IsColdStakingEnabled() const;
+
+    CAmount MinColdStakingAmount() const;
+
+    /**
+     * The maximum time to go through in the past, in coinstake transaction time, to find a stake
+     */
+    int MaxStakeSearchInterval() const;
+
     /** to kick-start the blockchain, this specifies the amount of blocks that should be mined with proof
      * of work */
     int LastPoWBlock() const;
@@ -148,6 +164,10 @@ protected:
 
     unsigned int nStakeSplitAge;
     int64_t      nStakeCombineThreshold;
+    unsigned int nMaxInputsInStake;
+    int          nMaxStakeSearchInterval;
+    bool         fColdStakingEnabled;
+    CAmount      nMinColdStakingAmount;
 
     int nLastPoWBlock;
 

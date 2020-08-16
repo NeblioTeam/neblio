@@ -44,19 +44,24 @@ enum RPCErrorCode
     RPC_PARSE_ERROR      = -32700,
 
     // General application defined errors
-    RPC_MISC_ERROR             = -1,  // std::exception thrown in command handling
-    RPC_FORBIDDEN_BY_SAFE_MODE = -2,  // Server is in safe mode, and command is not allowed in safe mode
-    RPC_TYPE_ERROR             = -3,  // Unexpected type was passed as parameter
-    RPC_INVALID_ADDRESS_OR_KEY = -5,  // Invalid address or key
-    RPC_OUT_OF_MEMORY          = -7,  // Ran out of memory during operation
-    RPC_INVALID_PARAMETER      = -8,  // Invalid, missing or duplicate parameter
-    RPC_DATABASE_ERROR         = -20, // Database error
-    RPC_DESERIALIZATION_ERROR  = -22, // Error parsing or validating structure in raw format
-    RPC_TX_AMEND_FAILED        = -23, // Error parsing or validating structure in raw format
-    RPC_VERIFY_ERROR           = -25, // General error during transaction or block submission
+    RPC_MISC_ERROR              = -1,  // std::exception thrown in command handling
+    RPC_FORBIDDEN_BY_SAFE_MODE  = -2,  // Server is in safe mode, and command is not allowed in safe mode
+    RPC_TYPE_ERROR              = -3,  // Unexpected type was passed as parameter
+    RPC_INVALID_ADDRESS_OR_KEY  = -5,  // Invalid address or key
+    RPC_OUT_OF_MEMORY           = -7,  // Ran out of memory during operation
+    RPC_INVALID_PARAMETER       = -8,  // Invalid, missing or duplicate parameter
+    RPC_DATABASE_ERROR          = -20, // Database error
+    RPC_DESERIALIZATION_ERROR   = -22, // Error parsing or validating structure in raw format
+    RPC_TX_AMEND_FAILED         = -23, // Error parsing or validating structure in raw format
+    RPC_VERIFY_ERROR            = -25, // General error during transaction or block submission
+    RPC_VERIFY_REJECTED         = -26, //  Transaction or block was rejected by network rules
+    RPC_VERIFY_ALREADY_IN_CHAIN = -27, // Transaction already in chain
+    RPC_IN_WARMUP               = -28, // Client still warming up
 
     //! Aliases for backward compatibility
-    RPC_TRANSACTION_ERROR = RPC_VERIFY_ERROR,
+    RPC_TRANSACTION_ERROR            = RPC_VERIFY_ERROR,
+    RPC_TRANSACTION_REJECTED         = RPC_VERIFY_REJECTED,
+    RPC_TRANSACTION_ALREADY_IN_CHAIN = RPC_VERIFY_ALREADY_IN_CHAIN,
 
     // P2P client errors
     RPC_CLIENT_NOT_CONNECTED       = -9,  // Bitcoin is not connected
@@ -155,7 +160,7 @@ extern const CRPCTable tableRPC;
 
 extern int64_t            nWalletUnlockTime;
 extern CAmount            AmountFromValue(const json_spirit::Value& value);
-extern json_spirit::Value ValueFromAmount(const CAmount &amount);
+extern json_spirit::Value ValueFromAmount(const CAmount& amount);
 extern double             GetDifficulty(const CBlockIndex* blockindex = NULL);
 
 extern double GetPoWMHashPS();
@@ -185,6 +190,7 @@ extern json_spirit::Value getpeerinfo(const json_spirit::Array& params, bool fHe
 extern json_spirit::Value dumpwallet(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value importwallet(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value dumpprivkey(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value dumppubkey(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value importprivkey(const json_spirit::Array& params, bool fHelp);
 
 // in rpcmining.cpp
@@ -209,9 +215,17 @@ extern json_spirit::Value signmessage(const json_spirit::Array& params, bool fHe
 extern json_spirit::Value verifymessage(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getreceivedbyaddress(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getreceivedbyaccount(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value listdelegators(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value delegatoradd(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value delegatorremove(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value liststakingaddresses(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getbalance(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value getdelegatedbalance(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value getcoldstakingbalance(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value getunconfirmedbalance(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getntp1balances(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getntp1balance(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value abandontransaction(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value movecmd(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value sendfrom(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value sendmany(const json_spirit::Array& params, bool fHelp);
@@ -241,6 +255,9 @@ extern json_spirit::Value resendtx(const json_spirit::Array& params, bool fHelp)
 extern json_spirit::Value makekeypair(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value validatepubkey(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getnewpubkey(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value delegatestake(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value rawdelegatestake(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value listcoldutxos(const json_spirit::Array& params, bool fHelp);
 
 // in rcprawtransaction.cpp
 extern json_spirit::Value getrawtransaction(const json_spirit::Array& params, bool fHelp);
@@ -249,6 +266,8 @@ extern json_spirit::Value createrawtransaction(const json_spirit::Array& params,
 extern json_spirit::Value createrawntp1transaction(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value decoderawtransaction(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value decodescript(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value getscriptpubkeyfromaddress(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value getscriptpubkeyforp2cs(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value signrawtransaction(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value sendrawtransaction(const json_spirit::Array& params, bool fHelp);
 
@@ -268,7 +287,6 @@ extern json_spirit::Value getblockhash(const json_spirit::Array& params, bool fH
 extern json_spirit::Value calculateblockhash(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getblock(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getblockbynumber(const json_spirit::Array& params, bool fHelp);
-extern json_spirit::Value getcheckpoint(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value gettxout(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value exportblockchain(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value waitforblockheight(const json_spirit::Array& params, bool fHelp);

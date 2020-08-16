@@ -480,6 +480,11 @@ add_library(gui_lib STATIC
     wallet/qt/ClickableLabel.cpp
     wallet/qt/neblioupdatedialog.cpp
     wallet/qt/messageboxwithtimer.cpp
+    wallet/qt/coldstakingpage.cpp
+    wallet/qt/coldstakingmodel.cpp
+    wallet/qt/coldstakinglistitemdelegate.cpp
+    wallet/qt/coldstakinglistfilterproxy.cpp
+    wallet/qt/newstakedelegationdialog.cpp
     ${QRCODE_SOURCES}
     )
 
@@ -500,6 +505,7 @@ add_library(ui_lib STATIC
     wallet/qt/ui_askpassphrasedialog.h
     wallet/qt/ui_coincontroldialog.h
     wallet/qt/ui_editaddressdialog.h
+    wallet/qt/ui_coldstakingpage.h
     wallet/qt/ui_ntp1summary.h
     wallet/qt/ui_optionsdialog.h
     wallet/qt/ui_overviewpage.h
@@ -551,6 +557,7 @@ add_library(core_lib STATIC
     wallet/netbase.cpp
     wallet/key.cpp
     wallet/script.cpp
+    wallet/script_error.cpp
     wallet/main.cpp
     wallet/miner.cpp
     wallet/net.cpp
@@ -604,6 +611,13 @@ add_library(core_lib STATIC
     wallet/amount.h
     wallet/CustomTypes.cpp
     wallet/merkle.cpp
+    wallet/wallet_ismine.cpp
+    wallet/stakemaker.cpp
+    wallet/work.cpp
+    wallet/addressbook.cpp
+    wallet/validation.cpp
+    wallet/itxdb.h
+    wallet/coldstakedelegation.cpp
     wallet/udaddress.cpp
     )
 
@@ -706,6 +720,14 @@ if(COMPILE_TESTS)
     include_directories(${GTEST_PATH}/include)
     include_directories(${GTEST_PATH}/)
     add_library(gtest ${GTEST_PATH}/src/gtest-all.cc)
+    target_link_libraries(gtest Threads::Threads)
+    ######################
+
+    # GMOCK ##############
+    set(GMOCK_PATH ${CMAKE_SOURCE_DIR}/wallet/test/googletest/googlemock)
+    include_directories(${GMOCK_PATH}/include)
+    include_directories(${GMOCK_PATH}/)
+    add_library(gmock ${GMOCK_PATH}/src/gmock-all.cc)
     target_link_libraries(gtest Threads::Threads)
     ######################
 

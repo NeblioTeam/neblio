@@ -106,6 +106,10 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
     result.push_back(Pair("hash", block.GetHash().GetHex()));
     CMerkleTx txGen(block.vtx[0]);
     txGen.SetMerkleBranch(&block);
+    int confirmations = -1;
+    // Only report confirmations if the block is on the main chain
+    if (blockindex->IsInMainChain())
+        confirmations = nBestHeight - blockindex->nHeight + 1;
     result.push_back(Pair("confirmations", (int)txGen.GetDepthInMainChain()));
     result.push_back(Pair("size", (int)::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION)));
     result.push_back(Pair("height", blockindex->nHeight));
@@ -178,7 +182,7 @@ Value getdifficulty(const Array& params, bool fHelp)
     Object obj;
     obj.push_back(Pair("proof-of-work", GetDifficulty()));
     obj.push_back(Pair("proof-of-stake", GetDifficulty(GetLastBlockIndex(pindexBest.get(), true))));
-    obj.push_back(Pair("search-interval", (int)nLastCoinStakeSearchInterval.load()));
+    obj.push_back(Pair("search-interval", (int)stakeMaker.getLastCoinStakeSearchInterval()));
     return obj;
 }
 
@@ -335,37 +339,6 @@ Value getblockbynumber(const Array& params, bool fHelp)
 
     return blockToJSON(block, pblockindex.get(), params.size() > 1 ? params[1].get_bool() : false,
                        fIgnoreNTP1);
-}
-
-// ppcoin: get information of sync-checkpoint
-Value getcheckpoint(const Array& params, bool fHelp)
-{
-    if (fHelp || params.size() != 0)
-        throw runtime_error("getcheckpoint\n"
-                            "Show info of synchronized checkpoint.\n");
-
-    Object       result;
-    CBlockIndex* pindexCheckpoint;
-
-    result.push_back(Pair("synccheckpoint", Checkpoints::hashSyncCheckpoint.ToString().c_str()));
-    pindexCheckpoint = boost::atomic_load(&mapBlockIndex[Checkpoints::hashSyncCheckpoint]).get();
-    result.push_back(Pair("height", pindexCheckpoint->nHeight));
-    result.push_back(Pair("timestamp", DateTimeStrFormat(pindexCheckpoint->GetBlockTime()).c_str()));
-
-    // Check that the block satisfies synchronized checkpoint
-    if (CheckpointsMode == Checkpoints::CPMode_STRICT)
-        result.push_back(Pair("policy", "strict"));
-
-    if (CheckpointsMode == Checkpoints::CPMode_ADVISORY)
-        result.push_back(Pair("policy", "advisory"));
-
-    if (CheckpointsMode == Checkpoints::CPMode_PERMISSIVE)
-        result.push_back(Pair("policy", "permissive"));
-
-    if (mapArgs.exists("-checkpointkey"))
-        result.push_back(Pair("checkpointmaster", true));
-
-    return result;
 }
 
 Value exportblockchain(const Array& params, bool fHelp)

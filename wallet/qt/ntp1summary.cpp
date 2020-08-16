@@ -89,11 +89,7 @@ NTP1Summary::NTP1Summary(QWidget* parent)
                                      (NTP1TokenListItemDelegate::DECORATION_SIZE + 2));
     ui->listTokens->setAttribute(Qt::WA_MacShowFocusRect, false);
 
-    connect(ui->listTokens, SIGNAL(clicked(QModelIndex)), this, SLOT(handleTokenClicked(QModelIndex)));
-
-    //    ui->showSendDialogButton->setText(sendDialogHiddenStr);
-    //    connect(ui->showSendDialogButton, &QPushButton::clicked, this,
-    //            &NTP1Summary::slot_actToShowSendTokensView);
+    connect(ui->listTokens, &TokensListView::clicked, this, &NTP1Summary::handleTokenClicked);
 
     // init "out of sync" warning labels
     ui->labelBlockchainSyncStatus->setText("(" + tr("out of sync") + ")");
@@ -103,7 +99,7 @@ NTP1Summary::NTP1Summary(QWidget* parent)
 
     setupContextMenu();
 
-    filter = new NTP1TokenListFilterProxy(ui->filter_lineEdit);
+    filter = new NTP1TokenListFilterProxy(ui->filter_lineEdit, this);
     setModel(model);
 
     connect(model, &NTP1TokenListModel::signal_walletUpdateRunning, ui->upper_table_loading_label,

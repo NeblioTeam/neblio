@@ -102,7 +102,6 @@ class ListSinceBlockTest (BitcoinTestFramework):
 
         # when connecting nodes in neblio, they don't automatically establish connection.
         # therefore, we generate a block to trigger sync between nodes
-        self.nodes[2].generate(1)
         self.sync_all()
 
         # listsinceblock(nodes1_last_blockhash) should now include tx as seen from nodes[0]
@@ -182,7 +181,6 @@ class ListSinceBlockTest (BitcoinTestFramework):
 
         self.join_network(sync=False)
 
-        self.nodes[2].generate(1)
         self.sync_all()
 
         # gettransaction should work for txid1
@@ -262,7 +260,6 @@ class ListSinceBlockTest (BitcoinTestFramework):
 
         self.join_network(sync=False)
 
-        self.nodes[2].generate(1)
         self.sync_all()
 
         # gettransaction should work for txid1
@@ -277,12 +274,12 @@ class ListSinceBlockTest (BitcoinTestFramework):
         # find transaction and ensure confirmations is valid
         for tx in lsbres['transactions']:
             if tx['txid'] == txid1:
-                assert_equal(tx['confirmations'], 3)
+                assert_equal(tx['confirmations'], 2)
 
         # the same check for the removed array; confirmations should STILL be 2
         for tx in lsbres['removed']:
             if tx['txid'] == txid1:
-                assert_equal(tx['confirmations'], 3)
+                assert_equal(tx['confirmations'], 2)
 
 if __name__ == '__main__':
     ListSinceBlockTest().main()

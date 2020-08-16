@@ -138,7 +138,7 @@ Value importprivkey(const Array& params, bool fHelp)
         LOCK2(cs_main, pwalletMain->cs_wallet);
 
         pwalletMain->MarkDirty();
-        pwalletMain->SetAddressBookName(vchAddress, strLabel);
+        pwalletMain->SetAddressBookEntry(vchAddress, strLabel);
 
         // Don't throw error in case a key is already there
         if (pwalletMain->HaveKey(vchAddress))
@@ -223,7 +223,7 @@ Value importwallet(const Array& params, bool fHelp)
         }
         pwalletMain->mapKeyMetadata[keyid].nCreateTime = nTime;
         if (fLabel)
-            pwalletMain->SetAddressBookName(keyid, strLabel);
+            pwalletMain->SetAddressBookEntry(keyid, strLabel);
         nTimeBegin = std::min(nTimeBegin, nTime);
     }
     file.close();
@@ -269,6 +269,30 @@ Value dumpprivkey(const Array& params, bool fHelp)
     if (!pwalletMain->GetSecret(keyID, vchSecret, fCompressed))
         throw JSONRPCError(RPC_WALLET_ERROR, "Private key for address " + strAddress + " is not known");
     return CBitcoinSecret(vchSecret, fCompressed).ToString();
+}
+
+Value dumppubkey(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error("dumppubkey <neblioaddress>\n"
+                            "Reveals the public key corresponding to <neblioaddress>.");
+
+    EnsureWalletIsUnlocked();
+
+    string          strAddress = params[0].get_str();
+    CBitcoinAddress address;
+    if (!address.SetString(strAddress))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio address");
+    if (fWalletUnlockStakingOnly)
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Wallet is unlocked for staking only.");
+    CKeyID keyID;
+    if (!address.GetKeyID(keyID))
+        throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to a key");
+    CPubKey vchPubKey;
+    if (!pwalletMain->GetPubKey(keyID, vchPubKey))
+        throw JSONRPCError(RPC_WALLET_ERROR, "Public key for address " + strAddress + " is not known");
+    const auto pubKeyVec = vchPubKey.Raw();
+    return HexStr(std::make_move_iterator(pubKeyVec.begin()), std::make_move_iterator(pubKeyVec.end()));
 }
 
 Value dumpwallet(const Array& params, bool fHelp)
@@ -326,7 +350,7 @@ Value dumpwallet(const Array& params, bool fHelp)
                 file << strprintf(
                     "%s %s label=%s # addr=%s\n",
                     CBitcoinSecret(secret, IsCompressed).ToString().c_str(), strTime.c_str(),
-                    EncodeDumpString(pwalletMain->mapAddressBook[keyid]).c_str(), strAddr.c_str());
+                    EncodeDumpString(pwalletMain->mapAddressBook[keyid].name).c_str(), strAddr.c_str());
             } else if (setKeyPool.count(keyid)) {
                 CSecret secret = key.GetSecret(IsCompressed);
                 file << strprintf("%s %s reserve=1 # addr=%s\n",
@@ -385,7 +409,7 @@ bool _AddKeyToLocalWallet(const CKey& Key, const std::string& strLabel, int64_t 
     // set key creation time, in order to reset the blockchain to that time eventually
     pwalletMain->mapKeyMetadata[keyid].nCreateTime = KeyCreationTime;
     if (addInAddressBook) {
-        pwalletMain->SetAddressBookName(keyid, strLabel);
+        pwalletMain->SetAddressBookEntry(keyid, strLabel);
     }
     earliestTime = std::min(earliestTime, KeyCreationTime);
     return true;
@@ -458,8 +482,8 @@ std::pair<long, long> ImportBackupWallet(const std::string& Src, std::string& Pa
     backupWallet.GetKeys(allKeyIDsSet);
     // deque to simply elements access
     const std::deque<CKeyID> allKeyIDs(allKeyIDsSet.begin(), allKeyIDsSet.end());
-    typedef std::map<CTxDestination, std::string>::const_iterator AddressBookIt;
-    std::map<CTxDestination, std::string>&                        addrBook = backupWallet.mapAddressBook;
+    using AddressBookIt = std::map<CTxDestination, AddressBook::CAddressBookData>::const_iterator;
+    std::map<CTxDestination, AddressBook::CAddressBookData>& addrBook = backupWallet.mapAddressBook;
 
     // set total number of keys
     succeessfullyAddedOutOfTotal.second = allKeyIDs.size();
@@ -479,8 +503,9 @@ std::pair<long, long> ImportBackupWallet(const std::string& Src, std::string& Pa
         if (foundKeyInAddressBook) {
             // import from address book
             bool addSucceeded = _AddKeyToLocalWallet(
-                key, it->second, backupWallet.mapKeyMetadata[boost::get<CKeyID>(it->first)].nCreateTime,
-                earliestTime, true);
+                key, it->second.name,
+                backupWallet.mapKeyMetadata[boost::get<CKeyID>(it->first)].nCreateTime, earliestTime,
+                true);
             if (addSucceeded)
                 succeessfullyAddedOutOfTotal.first++;
         } else {

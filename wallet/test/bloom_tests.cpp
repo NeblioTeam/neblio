@@ -180,6 +180,8 @@ TEST(bloom_tests, bloom_create_insert_serialize_with_tweak)
 
 TEST(bloom_tests, bloom_create_insert_key)
 {
+    SwitchNetworkTypeTemporarily state_holder(NetworkType::Mainnet);
+
     string         strSecret = string("TtnutkcnaPcu3zmjWcrJazf42fp1YAKRpm8grKRRuYjtiykmGuM7");
     CBitcoinSecret vchSecret;
     EXPECT_TRUE(vchSecret.SetString(strSecret));
@@ -224,7 +226,7 @@ TEST(bloom_tests, bloom_match)
     CDataStream  stream(ParseHex(transactionStr), SER_NETWORK, PROTOCOL_VERSION);
     CTransaction tx;
     stream >> tx;
-    EXPECT_TRUE(tx.CheckTransaction()) << "Simple deserialized transaction should be valid.";
+    EXPECT_TRUE(tx.CheckTransaction().isOk()) << "Simple deserialized transaction should be valid.";
 
     string spendTransaction =
         "010000004d73435a01d3db1c519251eeecc76b3c68e550988290aa1d7c63d6b396b0ad069ebe987335000000006b483"
@@ -235,55 +237,47 @@ TEST(bloom_tests, bloom_match)
     CDataStream  spendStream(ParseHex(spendTransaction), SER_NETWORK, PROTOCOL_VERSION);
     CTransaction spendingTx;
     spendStream >> spendingTx;
-    EXPECT_TRUE(spendingTx.CheckTransaction())
+    EXPECT_TRUE(spendingTx.CheckTransaction().isOk())
         << "Simple deserialized of spending transaction should be valid.";
 
     CBloomFilter filter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
     filter.insert(uint256("0x357398be9e06adb096b3d6637c1daa90829850e5683c6bc7ecee5192511cdbd3"));
-    EXPECT_TRUE(filter.IsRelevantAndUpdate(tx, tx.GetHash()))
-        << "Simple Bloom filter didn't match tx hash";
+    EXPECT_TRUE(filter.IsRelevantAndUpdate(tx)) << "Simple Bloom filter didn't match tx hash";
 
     filter = CBloomFilter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
     // byte-reversed tx hash
     filter.insert(ParseHex("d3db1c519251eeecc76b3c68e550988290aa1d7c63d6b396b0ad069ebe987335"));
-    EXPECT_TRUE(filter.IsRelevantAndUpdate(tx, tx.GetHash()))
+    EXPECT_TRUE(filter.IsRelevantAndUpdate(tx))
         << "Simple Bloom filter didn't match manually serialized tx hash";
 
     filter = CBloomFilter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
     filter.insert(ParseHex("30440220183e52d87de1bcb2a445d385bd4301e10c12aecae37624be8d63c4159dd08eca0220"
                            "6ead801d61dd08c57618e64a619f5aa756a91671efd10aadcf5fb6cb7995f29d01"));
-    EXPECT_TRUE(filter.IsRelevantAndUpdate(tx, tx.GetHash()))
-        << "Simple Bloom filter didn't match input signature";
+    EXPECT_TRUE(filter.IsRelevantAndUpdate(tx)) << "Simple Bloom filter didn't match input signature";
 
     filter = CBloomFilter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
     filter.insert(ParseHex("027a4fab48b61923e4c18b1697b1c61481f1843e865d059a178e1940a7a4d10dbf"));
-    EXPECT_TRUE(filter.IsRelevantAndUpdate(tx, tx.GetHash()))
-        << "Simple Bloom filter didn't match input pub key";
+    EXPECT_TRUE(filter.IsRelevantAndUpdate(tx)) << "Simple Bloom filter didn't match input pub key";
 
     filter = CBloomFilter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
     filter.insert(ParseHex("990176ee35e3f2d5dcf87f849d7c2722a52fd660"));
-    EXPECT_TRUE(filter.IsRelevantAndUpdate(tx, tx.GetHash()))
-        << "Simple Bloom filter didn't match output address";
-    EXPECT_TRUE(filter.IsRelevantAndUpdate(spendingTx, spendingTx.GetHash()))
-        << "Simple Bloom filter didn't add output";
+    EXPECT_TRUE(filter.IsRelevantAndUpdate(tx)) << "Simple Bloom filter didn't match output address";
+    EXPECT_TRUE(filter.IsRelevantAndUpdate(spendingTx)) << "Simple Bloom filter didn't add output";
 
     filter = CBloomFilter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
     filter.insert(
         COutPoint(uint256("0x0565cf0239f8172f6dcfd32526bede29dd7c65e7af4179cd61207ad78f2d1476"), 1));
-    EXPECT_TRUE(filter.IsRelevantAndUpdate(tx, tx.GetHash()))
-        << "Simple Bloom filter didn't match COutPoint";
+    EXPECT_TRUE(filter.IsRelevantAndUpdate(tx)) << "Simple Bloom filter didn't match COutPoint";
 
     filter = CBloomFilter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
     filter.insert(
         COutPoint(uint256("0xbda053cffb2b80ae27542d93a1c40c677e777b87379905d7b68c599490f11f0f"), 1));
-    EXPECT_TRUE(filter.IsRelevantAndUpdate(tx, tx.GetHash()))
-        << "Simple Bloom filter didn't match COutPoint";
+    EXPECT_TRUE(filter.IsRelevantAndUpdate(tx)) << "Simple Bloom filter didn't match COutPoint";
 
     filter = CBloomFilter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
     filter.insert(
         COutPoint(uint256("0x47f2490de69e04d2316ce03f7a3410837a85de960b93849f1c71e28da76bb842"), 1));
-    EXPECT_TRUE(filter.IsRelevantAndUpdate(tx, tx.GetHash()))
-        << "Simple Bloom filter didn't match COutPoint";
+    EXPECT_TRUE(filter.IsRelevantAndUpdate(tx)) << "Simple Bloom filter didn't match COutPoint";
 
     {
         filter = CBloomFilter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
@@ -295,7 +289,7 @@ TEST(bloom_tests, bloom_match)
             memcpy(&data[32], &prevOutPoint.n, sizeof(unsigned int));
             filter.insert(data);
         }
-        EXPECT_TRUE(filter.IsRelevantAndUpdate(tx, tx.GetHash()))
+        EXPECT_TRUE(filter.IsRelevantAndUpdate(tx))
             << "Simple Bloom filter didn't match manually serialized COutPoint";
     }
 
@@ -309,7 +303,7 @@ TEST(bloom_tests, bloom_match)
             memcpy(&data[32], &prevOutPoint.n, sizeof(unsigned int));
             filter.insert(data);
         }
-        EXPECT_TRUE(filter.IsRelevantAndUpdate(tx, tx.GetHash()))
+        EXPECT_TRUE(filter.IsRelevantAndUpdate(tx))
             << "Simple Bloom filter didn't match manually serialized COutPoint";
     }
 
@@ -323,30 +317,28 @@ TEST(bloom_tests, bloom_match)
             memcpy(&data[32], &prevOutPoint.n, sizeof(unsigned int));
             filter.insert(data);
         }
-        EXPECT_TRUE(filter.IsRelevantAndUpdate(tx, tx.GetHash()))
+        EXPECT_TRUE(filter.IsRelevantAndUpdate(tx))
             << "Simple Bloom filter didn't match manually serialized COutPoint";
     }
 
     filter = CBloomFilter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
     filter.insert(uint256("00000009e784f32f62ef849763d4f45b98e07ba658647343b915ff832b110436"));
-    EXPECT_FALSE(filter.IsRelevantAndUpdate(tx, tx.GetHash()))
-        << "Simple Bloom filter matched random tx hash";
+    EXPECT_FALSE(filter.IsRelevantAndUpdate(tx)) << "Simple Bloom filter matched random tx hash";
 
     filter = CBloomFilter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
     filter.insert(ParseHex("0000006d2965547608b9e15d9032a7b9d64fa431"));
-    EXPECT_FALSE(filter.IsRelevantAndUpdate(tx, tx.GetHash()))
-        << "Simple Bloom filter matched random address";
+    EXPECT_FALSE(filter.IsRelevantAndUpdate(tx)) << "Simple Bloom filter matched random address";
 
     filter = CBloomFilter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
     filter.insert(
         COutPoint(uint256("0x90c122d70786e899529d71dbeba91ba216982fb6ba58f3bdaab65e73b7e9260b"), 1));
-    EXPECT_FALSE(filter.IsRelevantAndUpdate(tx, tx.GetHash()))
+    EXPECT_FALSE(filter.IsRelevantAndUpdate(tx))
         << "Simple Bloom filter matched COutPoint for an output we didn't care about";
 
     filter = CBloomFilter(10, 0.000001, 0, BLOOM_UPDATE_ALL);
     filter.insert(
         COutPoint(uint256("0x000000d70786e899529d71dbeba91ba216982fb6ba58f3bdaab65e73b7e9260b"), 0));
-    EXPECT_FALSE(filter.IsRelevantAndUpdate(tx, tx.GetHash()))
+    EXPECT_FALSE(filter.IsRelevantAndUpdate(tx))
         << "Simple Bloom filter matched COutPoint for an output we didn't care about";
 }
 

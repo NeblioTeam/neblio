@@ -123,7 +123,9 @@ SendCoinsDialog::~SendCoinsDialog() { delete ui; }
 void SendCoinsDialog::on_sendButton_clicked()
 {
     QList<SendCoinsRecipient> recipients;
-    bool                      valid = true;
+    bool                      valid                  = true;
+    const bool                      fSpendDelegatedOutputs = ui->allowSpendingDelegatedCoins->isChecked();
+    ui->allowSpendingDelegatedCoins->setChecked(false);
 
     if (!model)
         return;
@@ -227,10 +229,10 @@ void SendCoinsDialog::on_sendButton_clicked()
     WalletModel::SendCoinsReturn sendstatus;
 
     if (!model->getOptionsModel() || !model->getOptionsModel()->getCoinControlFeatures())
-        sendstatus = model->sendCoins(recipients, ntp1wallet, ntp1metadata);
+        sendstatus = model->sendCoins(recipients, ntp1wallet, ntp1metadata, fSpendDelegatedOutputs);
     else
-        sendstatus =
-            model->sendCoins(recipients, ntp1wallet, ntp1metadata, CoinControlDialog::coinControl);
+        sendstatus = model->sendCoins(recipients, ntp1wallet, ntp1metadata, fSpendDelegatedOutputs,
+                                      CoinControlDialog::coinControl);
 
     switch (sendstatus.status) {
     case WalletModel::InvalidAddress:

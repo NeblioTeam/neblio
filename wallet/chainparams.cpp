@@ -136,8 +136,13 @@ public:
         fMiningRequiresPeers = true;
         fMineBlocksOnDemand  = false;
 
-        nStakeSplitAge         = 1 * 24 * 60 * 60;
-        nStakeCombineThreshold = 1000 * COIN;
+        // staking parameters
+        nStakeSplitAge          = 1 * 24 * 60 * 60;
+        nStakeCombineThreshold  = 1000 * COIN;
+        nMaxInputsInStake       = 100;
+        nMaxStakeSearchInterval = 60;
+        fColdStakingEnabled     = false;
+        nMinColdStakingAmount   = 10 * COIN;
 
         nLastPoWBlock = 1000;
 
@@ -150,7 +155,7 @@ public:
         */
 
         // clang-format off
-        checkpointData = MapCheckpoints(MapCheckpoints::MapType{
+        checkpointData = MapCheckpoints({
             {0,       genesis->GetHash()},
             {500,     uint256{"0x00000342c5dc5f7fd4a8ef041d4df4e569bd40756405a8c336c5f42c77e097a2"}},
             {1000,    uint256{"0x00000c60e3a8d27dedb15fc33d91caec5cf714fae60f24ea22a649cded8e0cca"}},
@@ -294,8 +299,13 @@ public:
         fMiningRequiresPeers = true;
         fMineBlocksOnDemand  = false;
 
-        nStakeSplitAge         = 1 * 24 * 60 * 60;
-        nStakeCombineThreshold = 1000 * COIN;
+        // staking parameters
+        nStakeSplitAge          = 1 * 24 * 60 * 60;
+        nStakeCombineThreshold  = 1000 * COIN;
+        nMaxInputsInStake       = 100;
+        nMaxStakeSearchInterval = 60;
+        fColdStakingEnabled     = true;
+        nMinColdStakingAmount   = 10 * COIN;
 
         nLastPoWBlock = 1000;
 
@@ -308,7 +318,7 @@ public:
         */
 
         // clang-format off
-        checkpointData = MapCheckpoints(MapCheckpoints::MapType{
+        checkpointData = MapCheckpoints({
             {0,       genesis->GetHash()},
             {1,       uint256{"0x0e2eecad99db0eab96abbd7e2de769d92483a090eefcefc014b802d31131a0ce"}},
             {500,     uint256{"0x0000006939777fded9640797f3008d9fca5d6e177e440655ba10f8a900cabe61"}},
@@ -447,8 +457,13 @@ public:
         fMiningRequiresPeers = false;
         fMineBlocksOnDemand  = true;
 
-        nStakeSplitAge         = 60 * 60;
-        nStakeCombineThreshold = 1000 * COIN;
+        // staking parameters
+        nStakeSplitAge          = 60 * 60;
+        nStakeCombineThreshold  = 1000 * COIN;
+        nMaxInputsInStake       = 10;
+        nMaxStakeSearchInterval = 60;
+        fColdStakingEnabled     = true;
+        nMinColdStakingAmount   = 10 * COIN;
 
         nLastPoWBlock = 1000;
 
@@ -562,5 +577,13 @@ const MapStakeModifierCheckpoints& CChainParams::StakeModifierCheckpoints() cons
 unsigned CChainParams::StakeSplitAge() const { return nStakeSplitAge; }
 
 int64_t CChainParams::StakeCombineThreshold() const { return nStakeCombineThreshold; }
+
+unsigned int CChainParams::MaxInputsInStake() const { return nMaxInputsInStake; }
+
+bool CChainParams::IsColdStakingEnabled() const { return fColdStakingEnabled; }
+
+CAmount CChainParams::MinColdStakingAmount() const { return nMinColdStakingAmount; }
+
+int CChainParams::MaxStakeSearchInterval() const { return nMaxStakeSearchInterval; }
 
 int CChainParams::LastPoWBlock() const { return nLastPoWBlock; }

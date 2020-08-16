@@ -345,7 +345,7 @@ void ParseString(const string& str, char c, vector<string>& v)
     }
 }
 
-string FormatMoney(int64_t n, bool fPlus)
+string FormatMoney(CAmount n, bool fPlus)
 {
     // Note: not using straight sprintf here because we do NOT want
     // localized number formatting.
@@ -487,8 +487,7 @@ void ParseParameters(int argc, const char* const argv[])
             break;
 
         mapArgs.set(str, strValue);
-        std::vector<std::string> vals;
-        mapMultiArgs.get(str, vals);
+        std::vector<std::string> vals = mapMultiArgs.get(str).value_or(std::vector<std::string>());
         vals.push_back(strValue);
         mapMultiArgs.set(str, vals);
     }
@@ -513,33 +512,26 @@ void ParseParameters(int argc, const char* const argv[])
 
 std::string GetArg(const std::string& strArg, const std::string& strDefault)
 {
-    std::string strVal;
-    bool        valExists = mapArgs.get(strArg, strVal);
-    if (valExists) {
-        return strVal;
-    }
-    return strDefault;
+    return mapArgs.get(strArg).value_or(strDefault);
 }
 
 int64_t GetArg(const std::string& strArg, int64_t nDefault)
 {
-    std::string strVal;
-    bool        valExists = mapArgs.get(strArg, strVal);
-    if (valExists) {
-        return atoi64(strVal);
+    const boost::optional<std::string> strVal = mapArgs.get(strArg);
+    if (strVal) {
+        return atoi64(*strVal);
     }
     return nDefault;
 }
 
 bool GetBoolArg(const std::string& strArg, bool fDefault)
 {
-    std::string strVal;
-    bool        valExists = mapArgs.get(strArg, strVal);
-    if (valExists) {
-        if (strVal.empty()) {
+    const boost::optional<std::string> strVal = mapArgs.get(strArg);
+    if (strVal) {
+        if (strVal->empty()) {
             return true;
         }
-        return (atoi(strVal) != 0);
+        return (atoi(*strVal) != 0);
     }
     return fDefault;
 }
@@ -978,10 +970,9 @@ const boost::filesystem::path& GetDataDir(bool fNetSpecific)
 
     LOCK(csPathCached);
 
-    std::string datadirVal;
-    bool        datadirExistsAsArg = mapArgs.get("-datadir", datadirVal);
-    if (datadirExistsAsArg) {
-        path = fs::system_complete(datadirVal);
+    const boost::optional<std::string> datadir = mapArgs.get("-datadir");
+    if (datadir) {
+        path = fs::system_complete(*datadir);
         if (!fs::is_directory(path)) {
             path = "";
             return path;
@@ -1027,8 +1018,8 @@ void ReadConfigFile(ThreadSafeHashMap<string, string>&         mapSettingsRet,
         }
         // set the new values for the key strKey by loading the current value, modify it, and write it
         // back
-        std::vector<std::string> multimapValVec;
-        mapMultiSettingsRet.get(strKey, multimapValVec);
+        std::vector<std::string> multimapValVec =
+            mapMultiSettingsRet.get(strKey).value_or(std::vector<std::string>());
         multimapValVec.push_back(it->value[0]);
         mapMultiSettingsRet.set(strKey, multimapValVec);
     }

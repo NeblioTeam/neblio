@@ -155,11 +155,10 @@ int main(int argc, char* argv[])
         // This message can not be translated, as translation is not initialized yet
         // (which not yet possible because lang=XX can be overridden in bitcoin.conf in the data
         // directory)
-        std::string datadirVal;
-        mapArgs.get("-datadir", datadirVal);
+        const std::string datadir = mapArgs.get("-datadir").value_or("");
         QMessageBox::critical(0, "neblio",
                               QString("Error: Specified data directory \"%1\" does not exist.")
-                                  .arg(QString::fromStdString(datadirVal)));
+                                  .arg(QString::fromStdString(datadir)));
         return EXIT_FAILURE;
     }
     ReadConfigFile(mapArgs, mapMultiArgs);

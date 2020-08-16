@@ -1,5 +1,9 @@
 include_directories(../..)
 
+add_library(mocks_lib
+    mocks/mtxdb.h
+    )
+
 add_executable(neblio-tests
     accounting_tests.cpp
     allocator_tests.cpp
@@ -10,6 +14,7 @@ add_executable(neblio-tests
     bloom_tests.cpp
     canonical_tests.cpp
     compress_tests.cpp
+    checkpoints_tests.cpp
     crypter_tests.cpp
     db_tests.cpp
     getarg_tests.cpp
@@ -21,6 +26,8 @@ add_executable(neblio-tests
     netbase_tests.cpp
     ntp1_tests.cpp
     pmt_tests.cpp
+    pos_tests.cpp
+    result_tests.cpp
     rpc_tests.cpp
     script_tests.cpp
     serialize_tests.cpp
@@ -45,6 +52,7 @@ target_link_libraries(neblio-tests
     curltools_lib
     json_spirit_lib
     txdb_lib
+    mocks_lib
     -lpthread
     -lrt
     -ldl

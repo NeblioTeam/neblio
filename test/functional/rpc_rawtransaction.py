@@ -53,19 +53,10 @@ class RawTransactionsTest(BitcoinTestFramework):
         for i in range(6):  # mine 60 blocks, we reduce the amount per call to avoid timing out
             self.nodes[0].generate(10)
         self.sync_all()
-        #  TODO: there's an issue if we call sendtoaddress often.
-        #  That's why we inserted the generations between them.
-        #  this is a regression issue that happens because the
-        #  same coins can be spent twice. The wallet doesn't
-        #  recognize the coins are already spent
-        self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(),1.5)
-        self.nodes[0].generate(5)
-        self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(),1.0)
-        self.nodes[0].generate(5)
-        self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(),5.0)
-        self.nodes[0].generate(5)
-        self.sync_all()
-        self.nodes[0].generate(5)
+        self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 1.5)
+        self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 1.0)
+        self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 5.0)
+        self.nodes[0].generate(20)
         self.sync_all()
 
         # Test getrawtransaction on genesis block coinbase returns an error
@@ -164,7 +155,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         rawtx   = self.nodes[2].signrawtransaction(rawtx)
 
         # This will raise an exception since there are missing inputs
-        assert_raises_rpc_error(-25, "Missing inputs", self.nodes[2].sendrawtransaction, rawtx['hex'])
+        assert_raises_rpc_error(-25, "bad-txns-inputs-missingorspent", self.nodes[2].sendrawtransaction, rawtx['hex'])
 
         #####################################
         # getrawtransaction with block hash #

@@ -1,4 +1,4 @@
-// Copyright (c) 2010 Satoshi Nakamoto
+﻿// Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -7,6 +7,7 @@
 #include "base58.h"
 #include "bitcoinrpc.h"
 #include "boost/make_shared.hpp"
+#include "coldstakedelegation.h"
 #include "globals.h"
 #include "init.h"
 #include "main.h"
@@ -62,6 +63,10 @@ void WalletTxToJSON(const CWalletTx& wtx, Object& entry)
         entry.push_back(Pair("blocktime", (int64_t)(mapBlockIndex[wtx.hashBlock]->nTime)));
     }
     entry.push_back(Pair("txid", wtx.GetHash().GetHex()));
+    json_spirit::Array conflicts;
+    for (const uint256& conflict : wtx.GetConflicts())
+        conflicts.push_back(conflict.GetHex());
+    entry.push_back(Pair("walletconflicts", conflicts));
     entry.push_back(Pair("time", (int64_t)wtx.GetTxTime()));
     entry.push_back(Pair("timereceived", (int64_t)wtx.nTimeReceived));
     for (const PAIRTYPE(string, string) & item : wtx.mapValue)
@@ -117,6 +122,291 @@ Value getinfo(const Array& params, bool fHelp)
     return obj;
 }
 
+CWalletTx SubmitColdStakeDelegationTx(CReserveKey& reservekey, CAmount nValue,
+                                      const CScript& scriptPubKey, bool fUseDelegated)
+{
+    // Get NTP1 wallet
+    boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();
+    ntp1wallet->setRetrieveFullMetadata(false);
+    ntp1wallet->update();
+
+    NTP1SendTxData tokenSelector;
+    tokenSelector.selectNTP1Tokens(ntp1wallet, std::vector<COutPoint>(),
+                                   std::vector<NTP1SendTokensOneRecipientData>(), false);
+
+    const CAmount currBalance =
+        pwalletMain->GetBalance() + (fUseDelegated ? pwalletMain->GetDelegatedBalance() : 0);
+
+    // Create the transaction
+    CAmount     nFeeRequired;
+    CWalletTx   wtxNew;
+    std::string strError;
+    if (!pwalletMain->CreateTransaction(scriptPubKey, nValue, wtxNew, reservekey, nFeeRequired,
+                                        tokenSelector, &strError, RawNTP1MetadataBeforeSend(), false,
+                                        nullptr, fUseDelegated)) {
+        if (nValue + nFeeRequired > currBalance)
+            strError = strprintf("Error: This transaction requires a transaction fee of at least %s "
+                                 "because of its amount, complexity, or use of recently received "
+                                 "funds!",
+                                 FormatMoney(nFeeRequired).c_str());
+        printf("%s : %s\n", __func__, strError.c_str());
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    }
+
+    return wtxNew;
+}
+
+RPCErrorCode ColdStakeDelegationRPCErrorCode(const ColdStakeDelegationErrorCode errorCode)
+{
+    switch (errorCode) {
+    case ColdStakingDisabled:
+        return RPC_VERIFY_ERROR;
+    case InvalidStakerAddress:
+        return RPC_INVALID_ADDRESS_OR_KEY;
+    case StakerAddressPubKeyHashError:
+        return RPC_WALLET_ERROR;
+    case InvalidAmount:
+        return RPC_INVALID_PARAMETER;
+    case InsufficientBalance:
+        return RPC_WALLET_INSUFFICIENT_FUNDS;
+    case WalletLocked:
+        return RPC_WALLET_UNLOCK_NEEDED;
+    case InvalidOwnerAddress:
+        return RPC_INVALID_ADDRESS_OR_KEY;
+    case OwnerAddressPubKeyHashError:
+        return RPC_WALLET_ERROR;
+    case OwnerAddressNotInWallet:
+        return RPC_INVALID_ADDRESS_OR_KEY;
+    case KeyPoolEmpty:
+        return RPC_WALLET_KEYPOOL_RAN_OUT;
+    case GeneratedOwnerAddressPubKeyHashError:
+        return RPC_WALLET_ERROR;
+    }
+}
+
+struct CreateColdStakeDelegationParsedParams
+{
+    // the address of the staker
+    std::string stakerAddress;
+
+    // the amount to be delegated
+    CAmount nValue;
+
+    // owner address is optional, otherwise taken from the wallet
+    boost::optional<std::string> ownerAddress;
+
+    // force using an external address that doesn't belong to this wallet
+    bool fForceExternalAddr;
+
+    // include already delegated coins
+    bool fUseDelegated = false;
+
+    // Check that Cold Staking has been enforced or fForceNotEnabled = true
+    bool fForceNotEnabled = false;
+};
+
+CreateColdStakeDelegationParsedParams ParseCreateColdStakeDelegationParams(const Array& params)
+{
+    CreateColdStakeDelegationParsedParams result;
+
+    result.stakerAddress = params[0].get_str();
+
+    result.nValue = AmountFromValue(params[1]);
+
+    // owner address is optional, otherwise taken from the wallet
+    if (params.size() > 2 && params[2].type() != Value_type::null_type && !params[2].get_str().empty())
+        result.ownerAddress = params[2].get_str();
+
+    // force using an external address that doesn't belong to this wallet
+    result.fForceExternalAddr =
+        params.size() > 3 && params[3].type() != Value_type::null_type ? params[3].get_bool() : false;
+
+    // include already delegated coins
+    result.fUseDelegated = false;
+    if (params.size() > 4 && params[4].type() != Value_type::null_type)
+        result.fUseDelegated = params[4].get_bool();
+
+    // Check that Cold Staking has been enforced or fForceNotEnabled = true
+    result.fForceNotEnabled = false;
+    if (params.size() > 5 && params[5].type() != Value_type::null_type)
+        result.fForceNotEnabled = params[5].get_bool();
+
+    return result;
+}
+
+Value delegatestake(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 2 || params.size() > 6)
+        throw std::runtime_error(
+            "delegatestake \"stakingaddress\" amount ( \"owneraddress\" fExternalOwner fUseDelegated "
+            "fForceNotEnabled )\n"
+            "\nDelegate an amount to a given address for cold staking. The amount is a real and is "
+            "rounded to the nearest 0.00000001\n" +
+            HelpRequiringPassphrase() +
+            "\n"
+
+            "\nArguments:\n"
+            "1. \"stakingaddress\"      (string, required) The neblio address to delegate.\n"
+            "2. \"amount\"              (numeric, required) The amount in nebl to delegate for staking. "
+            "eg 100\n"
+            "3. \"owneraddress\"        (string, optional) The neblio address corresponding to the key "
+            "that will be able to spend the stake. \n"
+            "                               If not provided, or empty string, a new wallet address is "
+            "generated.\n"
+            "4. \"fExternalOwner\"      (boolean, optional, default = false) use the provided "
+            "'owneraddress' anyway, even if not present in this wallet.\n"
+            "                               WARNING: The owner of the keys to 'owneraddress' will be "
+            "the only one allowed to spend these coins.\n"
+            "5. \"fUseDelegated\"       (boolean, optional, default = false) include already delegated "
+            "inputs if needed."
+            "6. \"fForceNotEnabled\"    (boolean, optional, default = false) force the creation even if "
+            "SPORK 17 is disabled (for tests)."
+
+            "\nResult:\n"
+            "{\n"
+            "   \"owner_address\": \"xxx\"   (string) The owner (delegator) owneraddress.\n"
+            "   \"staker_address\": \"xxx\"  (string) The cold staker (delegate) stakingaddress.\n"
+            "   \"txid\": \"xxx\"            (string) The stake delegation transaction id.\n"
+            "}\n"
+            "\nExamples:\n" +
+            "delegatestake \"TAUWWD4oJ3FM36F9CzUwVofGx17X6XtkBG\" 100\n"
+            "delegatestake \"TAUWWD4oJ3FM36F9CzUwVofGx17X6XtkBG\" 1000\n"
+            "\"DMJRSsuU9zfyrvxVaAEFQqK4MxZg34fk\""
+            "delegatestake \"TAUWWD4oJ3FM36F9CzUwVofGx17X6XtkBG\" 1000 "
+            "\"DMJRSsuU9zfyrvxVaAEFQqK4MxZg34fk\"");
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    CReserveKey reservekey(pwalletMain.get());
+
+    const CreateColdStakeDelegationParsedParams pParams = ParseCreateColdStakeDelegationParams(params);
+
+    const auto delegRes = CreateColdStakeDelegation(pParams.stakerAddress, pParams.nValue,
+                                                    pParams.ownerAddress, pParams.fForceExternalAddr,
+                                                    pParams.fUseDelegated, pParams.fForceNotEnabled);
+
+    if (delegRes.isErr()) {
+        throw JSONRPCError(ColdStakeDelegationRPCErrorCode(delegRes.unwrapErr()),
+                           ColdStakeDelegationErrorStr(delegRes.unwrapErr()));
+    }
+
+    const CoinStakeDelegationResult res = delegRes.unwrap();
+
+    const CWalletTx wtx =
+        SubmitColdStakeDelegationTx(reservekey, pParams.nValue, res.scriptPubKey, pParams.fUseDelegated);
+
+    if (!pwalletMain->CommitTransaction(wtx, reservekey))
+        throw JSONRPCError(RPC_WALLET_ERROR,
+                           "Error: The transaction was rejected! This might happen if some of the coins "
+                           "in your wallet were already spent, such as if you used a copy of wallet.dat "
+                           "and coins were spent in the copy but not marked as spent here.");
+
+    Object ret = res.AddressesToJsonObject();
+
+    ret.push_back(Pair("txid", wtx.GetHash().GetHex()));
+    return ret;
+}
+
+Value rawdelegatestake(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 2 || params.size() > 5)
+        throw std::runtime_error(
+            "rawdelegatestake \"stakingaddress\" amount ( \"owneraddress\" fExternalOwner fUseDelegated "
+            ")\n"
+            "\nDelegate an amount to a given address for cold staking. The amount is a real and is "
+            "rounded to the nearest 0.00000001\n"
+            "\nDelegate transaction is returned as json object."
+            "\n"
+            "\nArguments:\n"
+            "1. \"stakingaddress\"      (string, required) The neblio address to delegate.\n"
+            "2. \"amount\"              (numeric, required) The amount in nebl to delegate for "
+            "staking. "
+            "eg 100\n"
+            "3. \"owneraddress\"        (string, optional) The neblio address corresponding to the "
+            "key "
+            "that will be able to spend the stake. \n"
+            "                               If not provided, or empty string, a new wallet address "
+            "is "
+            "generated.\n"
+            "4. \"fExternalOwner\"      (boolean, optional, default = false) use the provided "
+            "'owneraddress' anyway, even if not present in this wallet.\n"
+            "                               WARNING: The owner of the keys to 'owneraddress' will "
+            "be "
+            "the only one allowed to spend these coins.\n"
+            "5. \"fUseDelegated         (boolean, optional, default = false) include already "
+            "delegated "
+            "inputs if needed."
+
+            "\nResult:\n"
+            "{\n"
+            "  \"txid\" : \"id\",        (string) The transaction id (same as provided)\n"
+            "  \"version\" : n,          (numeric) The version\n"
+            "  \"size\" : n,             (numeric) The serialized transaction size\n"
+            "  \"locktime\" : ttt,       (numeric) The lock time\n"
+            "  \"vin\" : [               (array of json objects)\n"
+            "     {\n"
+            "       \"txid\": \"id\",    (string) The transaction id\n"
+            "       \"vout\": n,         (numeric) \n"
+            "       \"scriptSig\": {     (json object) The script\n"
+            "         \"asm\": \"asm\",  (string) asm\n"
+            "         \"hex\": \"hex\"   (string) hex\n"
+            "       },\n"
+            "       \"sequence\": n      (numeric) The script sequence number\n"
+            "     }\n"
+            "     ,...\n"
+            "  ],\n"
+            "  \"vout\" : [              (array of json objects)\n"
+            "     {\n"
+            "       \"value\" : x.xxx,            (numeric) The value in btc\n"
+            "       \"n\" : n,                    (numeric) index\n"
+            "       \"scriptPubKey\" : {          (json object)\n"
+            "         \"asm\" : \"asm\",          (string) the asm\n"
+            "         \"hex\" : \"hex\",          (string) the hex\n"
+            "         \"reqSigs\" : n,            (numeric) The required sigs\n"
+            "         \"type\" : \"pubkeyhash\",  (string) The type, eg 'pubkeyhash'\n"
+            "         \"addresses\" : [           (json array of string)\n"
+            "           \"neblioaddress\"        (string) neblio address\n"
+            "           ,...\n"
+            "         ]\n"
+            "       }\n"
+            "     }\n"
+            "     ,...\n"
+            "  ],\n"
+            "  \"hex\" : \"data\",       (string) The serialized, hex-encoded data for 'txid'\n"
+            "}\n"
+
+            "\nExamples:\n"
+            "rawdelegatestake \"TAUWWD4oJ3FM36F9CzUwVofGx17X6XtkBG\" 100 rawdelegatestake"
+            "\"TAUWWD4oJ3FM36F9CzUwVofGx17X6XtkBG\" 1000 \"DMJRSsuU9zfyrvxVaAEFQqK4MxZg34fk\" "
+            "rawdelegatestake"
+            "\"TAUWWD4oJ3FM36F9CzUwVofGx17X6XtkBG\" 1000 \"DMJRSsuU9zfyrvxVaAEFQqK4MxZg34fk\"");
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    CReserveKey reservekey(pwalletMain.get());
+
+    const CreateColdStakeDelegationParsedParams pParams = ParseCreateColdStakeDelegationParams(params);
+
+    const auto delegRes = CreateColdStakeDelegation(pParams.stakerAddress, pParams.nValue,
+                                                    pParams.ownerAddress, pParams.fForceExternalAddr,
+                                                    pParams.fUseDelegated, pParams.fForceNotEnabled);
+
+    if (delegRes.isErr()) {
+        throw JSONRPCError(ColdStakeDelegationRPCErrorCode(delegRes.unwrapErr()),
+                           ColdStakeDelegationErrorStr(delegRes.unwrapErr()));
+    }
+
+    CoinStakeDelegationResult res = delegRes.unwrap();
+
+    CWalletTx wtx =
+        SubmitColdStakeDelegationTx(reservekey, pParams.nValue, res.scriptPubKey, pParams.fUseDelegated);
+
+    Object result;
+    TxToJSON(wtx, 0, result, true);
+
+    return result;
+}
+
 Value getnewpubkey(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() > 1)
@@ -133,12 +423,12 @@ Value getnewpubkey(const Array& params, bool fHelp)
 
     // Generate a new key that is added to wallet
     CPubKey newKey;
-    if (!pwalletMain->GetKeyFromPool(newKey, false))
+    if (!pwalletMain->GetKeyFromPool(newKey))
         throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT,
                            "Error: Keypool ran out, please call keypoolrefill first");
     CKeyID keyID = newKey.GetID();
 
-    pwalletMain->SetAddressBookName(keyID, strAccount);
+    pwalletMain->SetAddressBookEntry(keyID, strAccount);
     vector<unsigned char> vchPubKey = newKey.Raw();
 
     return HexStr(vchPubKey.begin(), vchPubKey.end());
@@ -162,12 +452,12 @@ Value getnewaddress(const Array& params, bool fHelp)
 
     // Generate a new key that is added to wallet
     CPubKey newKey;
-    if (!pwalletMain->GetKeyFromPool(newKey, false))
+    if (!pwalletMain->GetKeyFromPool(newKey))
         throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT,
                            "Error: Keypool ran out, please call keypoolrefill first");
     CKeyID keyID = newKey.GetID();
 
-    pwalletMain->SetAddressBookName(keyID, strAccount);
+    pwalletMain->SetAddressBookEntry(keyID, strAccount);
 
     return CBitcoinAddress(keyID).ToString();
 }
@@ -227,11 +517,11 @@ CBitcoinAddress GetAccountAddress(string strAccount, bool bForceNew = false)
 
     // Generate a new key
     if (!account.vchPubKey.IsValid() || bForceNew || bKeyUsed) {
-        if (!pwalletMain->GetKeyFromPool(account.vchPubKey, false))
+        if (!pwalletMain->GetKeyFromPool(account.vchPubKey))
             throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT,
                                "Error: Keypool ran out, please call keypoolrefill first");
 
-        pwalletMain->SetAddressBookName(account.vchPubKey.GetID(), strAccount);
+        pwalletMain->SetAddressBookEntry(account.vchPubKey.GetID(), strAccount);
         walletdb.WriteAccount(strAccount, account);
     }
 
@@ -272,12 +562,12 @@ Value setaccount(const Array& params, bool fHelp)
     // Detect when changing the account of an address that is the 'unused current key' of another
     // account:
     if (pwalletMain->mapAddressBook.count(address.Get())) {
-        string strOldAccount = pwalletMain->mapAddressBook[address.Get()];
+        string strOldAccount = pwalletMain->mapAddressBook[address.Get()].name;
         if (address == GetAccountAddress(strOldAccount))
             GetAccountAddress(strOldAccount, true);
     }
 
-    pwalletMain->SetAddressBookName(address.Get(), strAccount);
+    pwalletMain->SetAddressBookEntry(address.Get(), strAccount);
 
     return Value::null;
 }
@@ -292,10 +582,11 @@ Value getaccount(const Array& params, bool fHelp)
     if (!address.IsValid())
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio address");
 
-    string                                strAccount;
-    map<CTxDestination, string>::iterator mi = pwalletMain->mapAddressBook.find(address.Get());
-    if (mi != pwalletMain->mapAddressBook.end() && !(*mi).second.empty())
-        strAccount = (*mi).second;
+    string                                                       strAccount;
+    map<CTxDestination, AddressBook::CAddressBookData>::iterator mi =
+        pwalletMain->mapAddressBook.find(address.Get());
+    if (mi != pwalletMain->mapAddressBook.end() && !(*mi).second.name.empty())
+        strAccount = (*mi).second.name;
     return strAccount;
 }
 
@@ -309,9 +600,10 @@ Value getaddressesbyaccount(const Array& params, bool fHelp)
 
     // Find all addresses that have the given account
     Array ret;
-    for (const PAIRTYPE(CBitcoinAddress, string) & item : pwalletMain->mapAddressBook) {
+    for (const PAIRTYPE(CBitcoinAddress, AddressBook::CAddressBookData) & item :
+         pwalletMain->mapAddressBook) {
         const CBitcoinAddress& address = item.first;
-        const string&          strName = item.second;
+        const string&          strName = item.second.name;
         if (strName == strAccount)
             ret.push_back(address.ToString());
     }
@@ -330,7 +622,7 @@ Value sendtoaddress(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio address");
 
     // Amount
-    int64_t nAmount = AmountFromValue(params[1]);
+    CAmount nAmount = AmountFromValue(params[1]);
 
     // Wallet comments
     CWalletTx wtx;
@@ -362,7 +654,7 @@ Value sendntp1toaddress(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio address");
 
     // Amount
-    int64_t nAmount = params[1].get_int64();
+    CAmount nAmount = params[1].get_int64();
 
     // Get NTP1 wallet
     boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();
@@ -474,7 +766,7 @@ Value listaddressgroupings(const Array& /*params*/, bool fHelp)
         ntp1AddressVsTokenBalances = GetNTP1AddressVsTokenBalances();
 
     Array                        jsonGroupings;
-    map<CTxDestination, int64_t> balances = pwalletMain->GetAddressBalances();
+    map<CTxDestination, CAmount> balances = pwalletMain->GetAddressBalances();
     for (set<CTxDestination> grouping : pwalletMain->GetAddressGroupings()) {
         Array jsonGrouping;
         for (CTxDestination address : grouping) {
@@ -487,7 +779,7 @@ Value listaddressgroupings(const Array& /*params*/, bool fHelp)
                 if (pwalletMain->mapAddressBook.find(CBitcoinAddress(address).Get()) !=
                     pwalletMain->mapAddressBook.end()) {
                     addressInfo.push_back(
-                        pwalletMain->mapAddressBook.find(CBitcoinAddress(address).Get())->second);
+                        pwalletMain->mapAddressBook.find(CBitcoinAddress(address).Get())->second.name);
                 }
             }
             // add NTP1 tokens
@@ -618,7 +910,8 @@ Value getreceivedbyaddress(const Array& params, bool fHelp)
     if (!address.IsValid())
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio address");
     scriptPubKey.SetDestination(address.Get());
-    if (!IsMine(*pwalletMain, scriptPubKey))
+
+    if (IsMine(*pwalletMain, scriptPubKey) == isminetype::ISMINE_NO)
         throw JSONRPCError(RPC_WALLET_ERROR, "Address not found in wallet");
 
     // Minimum confirmations
@@ -627,7 +920,7 @@ Value getreceivedbyaddress(const Array& params, bool fHelp)
         nMinDepth = params[1].get_int();
 
     // Tally
-    int64_t nAmount = 0;
+    CAmount nAmount = 0;
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
          it != pwalletMain->mapWallet.end(); ++it) {
         const CWalletTx& wtx = (*it).second;
@@ -645,9 +938,9 @@ Value getreceivedbyaddress(const Array& params, bool fHelp)
 
 void GetAccountAddresses(string strAccount, set<CTxDestination>& setAddress)
 {
-    for (const PAIRTYPE(CTxDestination, string) & item : pwalletMain->mapAddressBook) {
+    for (const auto& item : pwalletMain->mapAddressBook) {
         const CTxDestination& address = item.first;
-        const string&         strName = item.second;
+        const string&         strName = item.second.name;
         if (strName == strAccount)
             setAddress.insert(address);
     }
@@ -673,7 +966,7 @@ Value getreceivedbyaccount(const Array& params, bool fHelp)
     GetAccountAddresses(strAccount, setAddress);
 
     // Tally
-    int64_t nAmount = 0;
+    CAmount nAmount = 0;
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
          it != pwalletMain->mapWallet.end(); ++it) {
         const CWalletTx& wtx = (*it).second;
@@ -682,8 +975,8 @@ Value getreceivedbyaccount(const Array& params, bool fHelp)
 
         for (const CTxOut& txout : wtx.vout) {
             CTxDestination address;
-            if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*pwalletMain, address) &&
-                setAddress.count(address))
+            if (ExtractDestination(txout.scriptPubKey, address) &&
+                IsMine(*pwalletMain, address) != isminetype::ISMINE_NO && setAddress.count(address))
                 if (wtx.GetDepthInMainChain() >= nMinDepth)
                     nAmount += txout.nValue;
         }
@@ -692,19 +985,162 @@ Value getreceivedbyaccount(const Array& params, bool fHelp)
     return (double)nAmount / (double)COIN;
 }
 
-int64_t GetAccountBalance(CWalletDB& walletdb, const string& strAccount, int nMinDepth)
+Value ListaddressesForPurpose(const std::string& strPurpose)
 {
-    int64_t nBalance = 0;
+    Array ret;
+    {
+        LOCK(pwalletMain->cs_wallet);
+        for (const auto& addr : pwalletMain->mapAddressBook) {
+            if (addr.second.purpose != strPurpose)
+                continue;
+            Object entry;
+            entry.push_back(Pair("label", addr.second.name));
+            entry.push_back(Pair("address", CBitcoinAddress(addr.first).ToString()));
+            ret.push_back(entry);
+        }
+    }
+
+    return ret;
+}
+
+Value listdelegators(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 1)
+        throw std::runtime_error(
+            "listdelegators ( fBlacklist )\n"
+            "\nShows the list of allowed delegator addresses for cold staking.\n"
+
+            "\nArguments:\n"
+            "1. fBlacklist             (boolean, optional, default = false) Show addresses removed\n"
+            "                          from the delegators whitelist\n"
+
+            "\nResult:\n"
+            "[\n"
+            "   {\n"
+            "   \"label\": \"yyy\",    (string) account label\n"
+            "   \"address\": \"xxx\",  (string) neblio address string\n"
+            "   }\n"
+            "  ...\n"
+            "]\n"
+            "\nExamples:\n"
+            "listdelegators");
+
+    const bool fBlacklist = (params.size() > 0 ? params[0].get_bool() : false);
+    return (fBlacklist ? ListaddressesForPurpose(AddressBook::AddressBookPurpose::DELEGABLE)
+                       : ListaddressesForPurpose(AddressBook::AddressBookPurpose::DELEGATOR));
+}
+
+Value delegatoradd(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 2)
+        throw std::runtime_error(
+            "delegatoradd \"addr\" ( \"label\" )\n"
+            "\nAdd the provided address <addr> into the allowed delegators AddressBook.\n"
+            "This enables the staking of coins delegated to this wallet, owned by <addr>\n"
+
+            "\nArguments:\n"
+            "1. \"addr\"        (string, required) The address to whitelist\n"
+            "2. \"label\"       (string, optional) A label for the address to whitelist\n"
+
+            "\nResult:\n"
+            "true|false           (boolean) true if successful.\n"
+
+            "\nExamples:\n"
+            "delegatoradd <address>\n");
+
+    CBitcoinAddress address(params[0].get_str());
+    if (!address.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio address");
+
+    const std::string strLabel = (params.size() > 1 ? params[1].get_str() : "");
+
+    CKeyID keyID;
+    if (!address.GetKeyID(keyID))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Unable to get KeyID from neblio address");
+
+    return pwalletMain->SetAddressBookEntry(keyID, strLabel, AddressBook::AddressBookPurpose::DELEGATOR);
+}
+
+Value delegatorremove(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw std::runtime_error(
+            "delegatorremove \"addr\"\n"
+            "\nUpdates the provided address <addr> from the allowed delegators keystore to a "
+            "\"delegable\" status.\n"
+            "This disables the staking of coins delegated to this wallet, owned by <addr>\n"
+
+            "\nArguments:\n"
+            "1. \"addr\"        (string, required) The address to blacklist\n"
+
+            "\nResult:\n"
+            "true|false           (boolean) true if successful.\n"
+
+            "\nExamples:\n"
+            "delegatorremove <address>");
+
+    CBitcoinAddress address(params[0].get_str());
+    if (!address.IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio address");
+
+    CKeyID keyID;
+    if (!address.GetKeyID(keyID))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Unable to get KeyID from neblio address");
+
+    if (!pwalletMain->HasAddressBookEntry(keyID))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Unable to get neblio address from addressBook");
+
+    std::string label = "";
+    {
+        LOCK(pwalletMain->cs_wallet);
+        std::map<CTxDestination, AddressBook::CAddressBookData>::iterator mi =
+            pwalletMain->mapAddressBook.find(address.Get());
+        if (mi != pwalletMain->mapAddressBook.end()) {
+            label = mi->second.name;
+        }
+    }
+
+    return pwalletMain->SetAddressBookEntry(keyID, label, AddressBook::AddressBookPurpose::DELEGABLE);
+}
+
+Value liststakingaddresses(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw std::runtime_error("liststakingaddresses \"addr\"\n"
+                                 "\nShows the list of staking addresses for this wallet.\n"
+
+                                 "\nResult:\n"
+                                 "[\n"
+                                 "   {\n"
+                                 "   \"label\": \"yyy\",  (string) account label\n"
+                                 "   \"address\": \"xxx\",  (string) neblio address string\n"
+                                 "   }\n"
+                                 "  ...\n"
+                                 "]\n"
+                                 "\nExamples:\n"
+                                 "liststakingaddresses");
+
+    return ListaddressesForPurpose(AddressBook::AddressBookPurpose::COLD_STAKING);
+}
+
+CAmount GetAccountBalance(CWalletDB& walletdb, const string& strAccount, int nMinDepth,
+                          const isminefilter& filter)
+{
+    CAmount nBalance = 0;
 
     // Tally wallet transactions
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
          it != pwalletMain->mapWallet.end(); ++it) {
         const CWalletTx& wtx = (*it).second;
-        if (!IsFinalTx(wtx) || wtx.GetDepthInMainChain() < 0)
+
+        bool fConflicted = false;
+        int  depth       = wtx.GetDepthAndMempool(fConflicted);
+
+        if (!IsFinalTx(wtx) || wtx.GetBlocksToMaturity() > 0 || depth < 0 || fConflicted)
             continue;
 
-        int64_t nReceived, nSent, nFee;
-        wtx.GetAccountAmounts(strAccount, nReceived, nSent, nFee);
+        CAmount nReceived, nSent, nFee;
+        wtx.GetAccountAmounts(strAccount, nReceived, nSent, nFee, filter);
 
         if (nReceived != 0 && wtx.GetDepthInMainChain() >= nMinDepth && wtx.GetBlocksToMaturity() == 0)
             nBalance += nReceived;
@@ -717,19 +1153,91 @@ int64_t GetAccountBalance(CWalletDB& walletdb, const string& strAccount, int nMi
     return nBalance;
 }
 
-int64_t GetAccountBalance(const string& strAccount, int nMinDepth)
+CAmount GetAccountBalance(const string& strAccount, int nMinDepth, const isminefilter& filter)
 {
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    return GetAccountBalance(walletdb, strAccount, nMinDepth);
+    return GetAccountBalance(walletdb, strAccount, nMinDepth, filter);
+}
+
+Value getcoldstakingbalance(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 1)
+        throw std::runtime_error(
+            "getcoldstakingbalance ( \"account\" )\n"
+            "\nIf account is not specified, returns the server's total available cold balance.\n"
+            "If account is specified (DEPRECATED), returns the cold balance in the account.\n"
+            "Note that the account \"\" is not the same as leaving the parameter out.\n"
+            "The server total may be different to the balance in the default \"\" account.\n"
+            "\nArguments:\n"
+            "1. \"account\"      (string, optional) DEPRECATED. The selected account, or \"*\" for "
+            "entire wallet. It may be the default account using \"\".\n"
+            "\nResult:\n"
+            "amount              (numeric) The total amount in nebl received for this account in P2CS "
+            "contracts.\n"
+            "\nExamples:\n"
+            "\nThe total amount in the wallet\n"
+            "getcoldstakingbalance"
+            "\nAs a json rpc call\n"
+            "getcoldstakingbalance \"*\"");
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    if (params.size() == 0)
+        return ValueFromAmount(pwalletMain->GetColdStakingBalance());
+
+    std::string strAccount = params[0].get_str();
+    return ValueFromAmount(GetAccountBalance(strAccount, /*nMinDepth*/ 1, ISMINE_COLD));
+}
+
+Value getdelegatedbalance(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 1)
+        throw std::runtime_error(
+            "getdelegatedbalance ( \"account\" )\n"
+            "\nIf account is not specified, returns the server's total available delegated balance (sum "
+            "of all utxos delegated\n"
+            "to a cold staking address to stake on behalf of addresses of this wallet).\n"
+            "If account is specified (DEPRECATED), returns the cold balance in the account.\n"
+            "Note that the account \"\" is not the same as leaving the parameter out.\n"
+            "The server total may be different to the balance in the default \"\" account.\n"
+            "\nArguments:\n"
+            "1. \"account\"      (string, optional) DEPRECATED. The selected account, or \"*\" for "
+            "entire wallet. It may be the default account using \"\".\n"
+            "\nResult:\n"
+            "amount              (numeric) The total amount in nebl received for this account in P2CS "
+            "contracts.\n"
+            "\nExamples:\n"
+            "\nThe total amount in the wallet\n"
+            "getdelegatedbalance \nAs a json rpc call\n"
+            "getdelegatedbalance \"*\"");
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    if (params.size() == 0)
+        return ValueFromAmount(pwalletMain->GetDelegatedBalance());
+
+    std::string strAccount = params[0].get_str();
+    return ValueFromAmount(GetAccountBalance(strAccount, /*nMinDepth*/ 1, ISMINE_SPENDABLE_DELEGATED));
 }
 
 Value getbalance(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() > 2)
         throw runtime_error(
-            "getbalance [account] [minconf=1]\n"
+            "getbalance [account] [minconf=1] [includeWatchonly=false] [includeDelegated=true]\n"
+            "\n"
             "If [account] is not specified, returns the server's total available balance.\n"
-            "If [account] is specified, returns the balance in the account.");
+            "If [account] is specified, returns the balance in the account."
+            "\n"
+            "\nArguments:\n"
+            "1. \"account\"      (string, optional) DEPRECATED. The selected account, "
+            "or \"*\" for entire wallet. It may be the default account using \"\".\n"
+            "2. minconf          (numeric, optional, default=1) Only include "
+            "transactions confirmed at least this many times.\n"
+            "3. includeWatchonly (bool, optional, default=false) Also include balance "
+            "in watchonly addresses (see 'importaddress')\n"
+            "4. includeDelegated (bool, optional, default=true) Also include balance "
+            "delegated to cold stakers\n");
 
     if (params.size() == 0)
         return ValueFromAmount(pwalletMain->GetBalance());
@@ -737,28 +1245,35 @@ Value getbalance(const Array& params, bool fHelp)
     int nMinDepth = 1;
     if (params.size() > 1)
         nMinDepth = params[1].get_int();
+    if (params.size() > 1)
+        nMinDepth = params[1].get_int();
+    isminefilter filter = static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE);
+    if (params.size() > 2 && params[2].get_bool())
+        filter = filter | static_cast<isminefilter>(isminetype::ISMINE_WATCH_ONLY);
+    if (!(params.size() > 3) || params[3].get_bool())
+        filter = filter | static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_DELEGATED);
 
     if (params[0].get_str() == "*") {
         // Calculate total balance a different way from GetBalance()
         // (GetBalance() sums up all unspent TxOuts)
         // getbalance and getbalance '*' 0 should return the same number.
-        int64_t nBalance = 0;
+        CAmount nBalance = 0;
         for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
              it != pwalletMain->mapWallet.end(); ++it) {
             const CWalletTx& wtx = (*it).second;
             if (!wtx.IsTrusted())
                 continue;
 
-            int64_t                             allFee;
+            CAmount                             allFee;
             string                              strSentAccount;
-            list<pair<CTxDestination, int64_t>> listReceived;
-            list<pair<CTxDestination, int64_t>> listSent;
-            wtx.GetAmounts(listReceived, listSent, allFee, strSentAccount);
+            list<pair<CTxDestination, CAmount>> listReceived;
+            list<pair<CTxDestination, CAmount>> listSent;
+            wtx.GetAmounts(listReceived, listSent, allFee, strSentAccount, filter);
             if (wtx.GetDepthInMainChain() >= nMinDepth && wtx.GetBlocksToMaturity() == 0) {
-                for (const PAIRTYPE(CTxDestination, int64_t) & r : listReceived)
+                for (const PAIRTYPE(CTxDestination, CAmount) & r : listReceived)
                     nBalance += r.second;
             }
-            for (const PAIRTYPE(CTxDestination, int64_t) & r : listSent)
+            for (const PAIRTYPE(CTxDestination, CAmount) & r : listSent)
                 nBalance -= r.second;
             nBalance -= allFee;
         }
@@ -769,9 +1284,20 @@ Value getbalance(const Array& params, bool fHelp)
 
     string strAccount = AccountFromValue(params[0]);
 
-    int64_t nBalance = GetAccountBalance(strAccount, nMinDepth);
+    CAmount nBalance = GetAccountBalance(strAccount, nMinDepth, filter);
 
     return ValueFromAmount(nBalance);
+}
+
+Value getunconfirmedbalance(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 0)
+        throw std::runtime_error("getunconfirmedbalance\n"
+                                 "Returns the server's total unconfirmed balance\n");
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    return ValueFromAmount(pwalletMain->GetUnconfirmedBalance());
 }
 
 Value getntp1balances(const Array& params, bool fHelp)
@@ -851,6 +1377,41 @@ Value getntp1balance(const Array& params, bool fHelp)
     return json_spirit::Value(root);
 }
 
+Value abandontransaction(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw std::runtime_error(
+            "abandontransaction \"txid\"\n"
+            "\nMark in-wallet transaction <txid> as abandoned\n"
+            "This will mark this transaction and all its in-wallet descendants as abandoned which will "
+            "allow\n"
+            "for their inputs to be respent.  It can be used to replace \"stuck\" or evicted "
+            "transactions.\n"
+            "It only works on transactions which are not included in a block and are not currently in "
+            "the mempool.\n"
+            "It has no effect on transactions which are already conflicted or abandoned.\n"
+            "\nArguments:\n"
+            "1. \"txid\" (string, required) The transaction id\n"
+            "\nResult:\n"
+            "\nExamples:\n"
+            "abandontransaction "
+            "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\"");
+
+    EnsureWalletIsUnlocked();
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    uint256 hash;
+    hash.SetHex(params[0].get_str());
+
+    if (!pwalletMain->mapWallet.count(hash))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid or non-wallet transaction id");
+    if (!pwalletMain->AbandonTransaction(hash))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Transaction not eligible for abandonment");
+
+    return Value();
+}
+
 Value movecmd(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 3 || params.size() > 5)
@@ -861,7 +1422,7 @@ Value movecmd(const Array& params, bool fHelp)
 
     string  strFrom = AccountFromValue(params[0]);
     string  strTo   = AccountFromValue(params[1]);
-    int64_t nAmount = AmountFromValue(params[2]);
+    CAmount nAmount = AmountFromValue(params[2]);
 
     if (params.size() > 3)
         // unused parameter, used to be nMinDepth, keep type-checking it though
@@ -884,7 +1445,7 @@ Value movecmd(const Array& params, bool fHelp)
     debit.nTime           = nNow;
     debit.strOtherAccount = strTo;
     debit.strComment      = strComment;
-    walletdb.WriteAccountingEntry(debit);
+    pwalletMain->AddAccountingEntry(debit, walletdb);
 
     // Credit
     CAccountingEntry credit;
@@ -894,7 +1455,7 @@ Value movecmd(const Array& params, bool fHelp)
     credit.nTime           = nNow;
     credit.strOtherAccount = strFrom;
     credit.strComment      = strComment;
-    walletdb.WriteAccountingEntry(credit);
+    pwalletMain->AddAccountingEntry(credit, walletdb);
 
     if (!walletdb.TxnCommit())
         throw JSONRPCError(RPC_DATABASE_ERROR, "database error");
@@ -914,7 +1475,7 @@ Value sendfrom(const Array& params, bool fHelp)
     CBitcoinAddress address(params[1].get_str());
     if (!address.IsValid())
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio address");
-    int64_t nAmount = AmountFromValue(params[2]);
+    CAmount nAmount = AmountFromValue(params[2]);
 
     int nMinDepth = 1;
     if (params.size() > 3)
@@ -930,7 +1491,8 @@ Value sendfrom(const Array& params, bool fHelp)
     EnsureWalletIsUnlocked();
 
     // Check funds
-    int64_t nBalance = GetAccountBalance(strAccount, nMinDepth);
+    CAmount nBalance = GetAccountBalance(strAccount, nMinDepth,
+                                         static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_ALL));
     if (nAmount > nBalance)
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Account has insufficient funds");
 
@@ -965,9 +1527,9 @@ Value sendmany(const Array& params, bool fHelp)
     if (params.size() > 2 && params[2].type() != null_type && !params[2].get_str().empty())
         wtx.mapValue["comment"] = params[2].get_str();
 
-    vector<pair<CScript, int64_t>> vecSend;
+    vector<pair<CScript, CAmount>> vecSend;
 
-    int64_t totalAmount = 0;
+    CAmount totalAmount = 0;
     for (const Pair& s : sendTo) {
         CBitcoinAddress address(s.name_);
         if (!address.IsValid())
@@ -975,7 +1537,7 @@ Value sendmany(const Array& params, bool fHelp)
 
         CScript scriptPubKey;
         scriptPubKey.SetDestination(address.Get());
-        int64_t nAmount = AmountFromValue(s.value_);
+        CAmount nAmount = AmountFromValue(s.value_);
 
         totalAmount += nAmount;
 
@@ -985,7 +1547,7 @@ Value sendmany(const Array& params, bool fHelp)
     EnsureWalletIsUnlocked();
 
     // Check funds
-    int64_t nBalance = pwalletMain->GetBalance();
+    CAmount nBalance = pwalletMain->GetBalance();
     if (totalAmount > nBalance)
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
 
@@ -998,7 +1560,7 @@ Value sendmany(const Array& params, bool fHelp)
 
     // Send
     CReserveKey keyChange(pwalletMain.get());
-    int64_t     nFeeRequired = 0;
+    CAmount     nFeeRequired = 0;
 
     bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, tokenSelector);
     if (!fCreated) {
@@ -1085,7 +1647,7 @@ Value addmultisigaddress(const Array& params, bool fHelp)
     if (!pwalletMain->AddCScript(inner))
         throw runtime_error("AddCScript() failed");
 
-    pwalletMain->SetAddressBookName(innerID, strAccount);
+    pwalletMain->SetAddressBookEntry(innerID, strAccount);
     return CBitcoinAddress(innerID).ToString();
 }
 
@@ -1109,13 +1671,13 @@ Value addredeemscript(const Array& params, bool fHelp)
     if (!pwalletMain->AddCScript(inner))
         throw runtime_error("AddCScript() failed");
 
-    pwalletMain->SetAddressBookName(innerID, strAccount);
+    pwalletMain->SetAddressBookEntry(innerID, strAccount);
     return CBitcoinAddress(innerID).ToString();
 }
 
 struct tallyitem
 {
-    int64_t              nAmount;
+    CAmount              nAmount;
     int                  nConf;
     std::vector<uint256> txids;
     tallyitem()
@@ -1137,6 +1699,11 @@ Value ListReceived(const Array& params, bool fByAccounts)
     if (params.size() > 1)
         fIncludeEmpty = params[1].get_bool();
 
+    isminefilter filter = static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_ALL);
+    if (params.size() > 2)
+        if (params[2].get_bool())
+            filter = filter | static_cast<isminefilter>(isminetype::ISMINE_WATCH_ONLY);
+
     // Tally
     map<CBitcoinAddress, tallyitem> mapTally;
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
@@ -1152,7 +1719,8 @@ Value ListReceived(const Array& params, bool fByAccounts)
 
         for (const CTxOut& txout : wtx.vout) {
             CTxDestination address;
-            if (!ExtractDestination(txout.scriptPubKey, address) || !IsMine(*pwalletMain, address))
+            if (!ExtractDestination(txout.scriptPubKey, address) ||
+                !IsMineCheck(IsMine(*pwalletMain, address), static_cast<isminetype>(filter)))
                 continue;
 
             tallyitem& item = mapTally[address];
@@ -1165,14 +1733,14 @@ Value ListReceived(const Array& params, bool fByAccounts)
     // Reply
     Array                  ret;
     map<string, tallyitem> mapAccountTally;
-    for (const PAIRTYPE(CBitcoinAddress, string) & item : pwalletMain->mapAddressBook) {
+    for (const auto& item : pwalletMain->mapAddressBook) {
         const CBitcoinAddress&                    address    = item.first;
-        const string&                             strAccount = item.second;
+        const string&                             strAccount = item.second.name;
         map<CBitcoinAddress, tallyitem>::iterator it         = mapTally.find(address);
         if (it == mapTally.end() && !fIncludeEmpty)
             continue;
 
-        int64_t nAmount = 0;
+        CAmount nAmount = 0;
         int     nConf   = std::numeric_limits<int>::max();
         if (it != mapTally.end()) {
             nAmount = (*it).second.nAmount;
@@ -1203,7 +1771,7 @@ Value ListReceived(const Array& params, bool fByAccounts)
     if (fByAccounts) {
         for (map<string, tallyitem>::iterator it = mapAccountTally.begin(); it != mapAccountTally.end();
              ++it) {
-            int64_t nAmount = (*it).second.nAmount;
+            CAmount nAmount = (*it).second.nAmount;
             int     nConf   = (*it).second.nConf;
             Object  obj;
             obj.push_back(Pair("account", (*it).first));
@@ -1220,7 +1788,7 @@ Value listreceivedbyaddress(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() > 2)
         throw runtime_error(
-            "listreceivedbyaddress [minconf=1] [includeempty=false]\n"
+            "listreceivedbyaddress [minconf=1] [includeempty=false] [includeWatchonly=false]\n"
             "[minconf] is the minimum number of confirmations before payments are included.\n"
             "[includeempty] whether to include addresses that haven't received any payments.\n"
             "Returns an array of objects containing:\n"
@@ -1236,7 +1804,7 @@ Value listreceivedbyaccount(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() > 2)
         throw runtime_error(
-            "listreceivedbyaccount [minconf=1] [includeempty=false]\n"
+            "listreceivedbyaccount [minconf=1] [includeempty=false] [includeWatchonly=false]\n"
             "[minconf] is the minimum number of confirmations before payments are included.\n"
             "[includeempty] whether to include accounts that haven't received any payments.\n"
             "Returns an array of objects containing:\n"
@@ -1257,21 +1825,21 @@ static void MaybePushAddress(Object& entry, const CTxDestination& dest)
 }
 
 void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDepth, bool fLong,
-                      Array& ret)
+                      const isminefilter& filter, Array& ret)
 {
-    int64_t                             nFee;
+    CAmount                             nFee;
     string                              strSentAccount;
-    list<pair<CTxDestination, int64_t>> listReceived;
-    list<pair<CTxDestination, int64_t>> listSent;
+    list<pair<CTxDestination, CAmount>> listReceived;
+    list<pair<CTxDestination, CAmount>> listSent;
 
-    wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount);
+    wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount, filter);
 
     bool fAllAccounts = (strAccount == string("*"));
 
     // Sent
     if ((!wtx.IsCoinStake()) && (!listSent.empty() || nFee != 0) &&
         (fAllAccounts || strAccount == strSentAccount)) {
-        for (const PAIRTYPE(CTxDestination, int64_t) & s : listSent) {
+        for (const PAIRTYPE(CTxDestination, CAmount) & s : listSent) {
             Object entry;
             entry.push_back(Pair("account", strSentAccount));
             MaybePushAddress(entry, s.first);
@@ -1289,10 +1857,10 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
     int depthInMainChain = wtx.GetDepthInMainChain();
     if (listReceived.size() > 0 && depthInMainChain >= nMinDepth) {
         bool stop = false;
-        for (const PAIRTYPE(CTxDestination, int64_t) & r : listReceived) {
+        for (const PAIRTYPE(CTxDestination, CAmount) & r : listReceived) {
             string account;
             if (pwalletMain->mapAddressBook.count(r.first))
-                account = pwalletMain->mapAddressBook[r.first];
+                account = pwalletMain->mapAddressBook[r.first].name;
             if (fAllAccounts || (account == strAccount)) {
                 Object entry;
                 entry.push_back(Pair("account", account));
@@ -1343,7 +1911,8 @@ void AcentryToJSON(const CAccountingEntry& acentry, const string& strAccount, Ar
 Value listtransactions(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() > 3)
-        throw runtime_error("listtransactions [account] [count=10] [from=0]\n"
+        throw runtime_error("listtransactions [account] [count=10] [from=0] [includeWatchonly=false] "
+                            "[includeDelegated=true] [includeCold=true]\n"
                             "Returns up to [count] most recent transactions skipping the first [from] "
                             "transactions for account [account].");
 
@@ -1356,6 +1925,14 @@ Value listtransactions(const Array& params, bool fHelp)
     int nFrom = 0;
     if (params.size() > 2)
         nFrom = params[2].get_int();
+
+    isminefilter filter = static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE);
+    if (params.size() > 3 && params[3].get_bool())
+        filter = filter | static_cast<isminefilter>(isminetype::ISMINE_WATCH_ONLY);
+    if (!(params.size() > 4) || params[4].get_bool())
+        filter = filter | static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_DELEGATED);
+    if (!(params.size() > 5) || params[5].get_bool())
+        filter = filter | static_cast<isminefilter>(isminetype::ISMINE_COLD);
 
     if (nCount < 0)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Negative count");
@@ -1371,7 +1948,7 @@ Value listtransactions(const Array& params, bool fHelp)
     for (CWallet::TxItems::reverse_iterator it = txOrdered.rbegin(); it != txOrdered.rend(); ++it) {
         CWalletTx* const pwtx = (*it).second.first;
         if (pwtx != 0)
-            ListTransactions(*pwtx, strAccount, 0, true, ret);
+            ListTransactions(*pwtx, strAccount, 0, true, filter, ret);
         CAccountingEntry* const pacentry = (*it).second.second;
         if (pacentry != 0)
             AcentryToJSON(*pacentry, strAccount, ret);
@@ -1404,7 +1981,7 @@ Value listaccounts(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() > 1)
         throw runtime_error(
-            "listaccounts [minconf=1]\n"
+            "listaccounts [minconf=1] [includeWatchonly=false]\n"
             "Returns Object that has account names as keys, account balances as values.");
 
     accountingDeprecationCheck();
@@ -1413,30 +1990,36 @@ Value listaccounts(const Array& params, bool fHelp)
     if (params.size() > 0)
         nMinDepth = params[0].get_int();
 
-    map<string, int64_t> mapAccountBalances;
-    for (const PAIRTYPE(CTxDestination, string) & entry : pwalletMain->mapAddressBook) {
-        if (IsMine(*pwalletMain, entry.first)) // This address belongs to me
-            mapAccountBalances[entry.second] = 0;
+    isminefilter includeWatchonly = static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE);
+    if (params.size() > 1 && params[1].get_bool())
+        includeWatchonly = includeWatchonly | static_cast<isminefilter>(isminetype::ISMINE_WATCH_ONLY);
+
+    map<string, CAmount> mapAccountBalances;
+    for (const auto& entry : pwalletMain->mapAddressBook) {
+        if (IsMineCheck(IsMine(*pwalletMain, entry.first),
+                        static_cast<isminetype>(includeWatchonly))) // This address belongs to me
+            mapAccountBalances[entry.second.name] = 0;
     }
 
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
          it != pwalletMain->mapWallet.end(); ++it) {
         const CWalletTx&                    wtx = (*it).second;
-        int64_t                             nFee;
+        CAmount                             nFee;
         string                              strSentAccount;
-        list<pair<CTxDestination, int64_t>> listReceived;
-        list<pair<CTxDestination, int64_t>> listSent;
-        int                                 nDepth = wtx.GetDepthInMainChain();
-        if (nDepth < 0)
+        list<pair<CTxDestination, CAmount>> listReceived;
+        list<pair<CTxDestination, CAmount>> listSent;
+        bool                                fConflicted = false;
+        int                                 nDepth      = wtx.GetDepthAndMempool(fConflicted);
+        if (wtx.GetBlocksToMaturity() > 0 || nDepth < 0 || fConflicted)
             continue;
-        wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount);
+        wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount, includeWatchonly);
         mapAccountBalances[strSentAccount] -= nFee;
-        for (const PAIRTYPE(CTxDestination, int64_t) & s : listSent)
+        for (const PAIRTYPE(CTxDestination, CAmount) & s : listSent)
             mapAccountBalances[strSentAccount] -= s.second;
         if (nDepth >= nMinDepth && wtx.GetBlocksToMaturity() == 0) {
-            for (const PAIRTYPE(CTxDestination, int64_t) & r : listReceived)
+            for (const PAIRTYPE(CTxDestination, CAmount) & r : listReceived)
                 if (pwalletMain->mapAddressBook.count(r.first))
-                    mapAccountBalances[pwalletMain->mapAddressBook[r.first]] += r.second;
+                    mapAccountBalances[pwalletMain->mapAddressBook[r.first].name] += r.second;
                 else
                     mapAccountBalances[""] += r.second;
         }
@@ -1448,7 +2031,7 @@ Value listaccounts(const Array& params, bool fHelp)
         mapAccountBalances[entry.strAccount] += entry.nCreditDebit;
 
     Object ret;
-    for (const PAIRTYPE(string, int64_t) & accountBalance : mapAccountBalances) {
+    for (const PAIRTYPE(string, CAmount) & accountBalance : mapAccountBalances) {
         ret.push_back(Pair(accountBalance.first, ValueFromAmount(accountBalance.second)));
     }
     return ret;
@@ -1458,7 +2041,8 @@ Value listsinceblock(const Array& params, bool fHelp)
 {
     if (fHelp)
         throw runtime_error(
-            "listsinceblock [blockhash] [target-confirmations] [include-removed=true]\n"
+            "listsinceblock [blockhash] [target-confirmations] [include-removed=true] "
+            "[include-watchonly=false]\n"
             "Get all transactions in blocks since block [blockhash], or all transactions if omitted. If "
             "include-removed is true, transactions in orphans will be included.");
 
@@ -1466,6 +2050,8 @@ Value listsinceblock(const Array& params, bool fHelp)
 
     CBlockIndex* pindex          = nullptr;
     int          target_confirms = 1;
+    isminefilter filter          = static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_ALL) |
+                          static_cast<isminefilter>(isminetype::ISMINE_COLD);
 
     std::vector<uint256> nonMainChain;
 
@@ -1502,10 +2088,8 @@ Value listsinceblock(const Array& params, bool fHelp)
          it != pwalletMain->mapWallet.end(); it++) {
         CWalletTx tx = (*it).second;
 
-        int txDepthInMainChain = tx.GetDepthInMainChain();
-
-        if (depth == -1 || txDepthInMainChain < depth)
-            ListTransactions(tx, "*", 0, true, transactions);
+        if (depth == -1 || tx.GetDepthInMainChain() < depth)
+            ListTransactions(tx, "*", 0, true, filter, transactions);
     }
 
     bool includeRemoved = true;
@@ -1523,7 +2107,7 @@ Value listsinceblock(const Array& params, bool fHelp)
                     if (it != pwalletMain->mapWallet.cend()) {
                         // We want all transactions regardless of confirmation count to appear here,
                         // even negative confirmation ones, hence the big negative.
-                        ListTransactions(it->second, "*", -100000000, true, removed);
+                        ListTransactions(it->second, "*", -100000000, true, filter, removed);
                     }
                 }
             }
@@ -1559,7 +2143,7 @@ Value gettransaction(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
-            "gettransaction <txid> [ignoreNTP1=false]\n"
+            "gettransaction <txid> [ignoreNTP1=false] [includeWatchonly=false]\n"
             "Get detailed information about <txid>. Not ignoring NTP1 will try to retireve "
             "NTP1 data from the database. This won't work if the transaction is not in the blockchain.");
 
@@ -1572,24 +2156,29 @@ Value gettransaction(const Array& params, bool fHelp)
     if (params.size() > 1)
         fIgnoreNTP1 = params[1].get_bool();
 
+    isminefilter filter = static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_ALL) |
+                          static_cast<isminefilter>(isminetype::ISMINE_COLD);
+    if (params.size() > 2 && params[2].get_bool())
+        filter = filter | static_cast<isminefilter>(isminetype::ISMINE_WATCH_ONLY);
+
     if (pwalletMain->mapWallet.count(hash)) {
         const CWalletTx& wtx = pwalletMain->mapWallet[hash];
 
         TxToJSON(wtx, 0, entry, fIgnoreNTP1);
 
-        int64_t nCredit = wtx.GetCredit();
-        int64_t nDebit  = wtx.GetDebit();
-        int64_t nNet    = nCredit - nDebit;
-        int64_t nFee    = (wtx.IsFromMe() ? wtx.GetValueOut() - nDebit : 0);
+        CAmount nCredit = wtx.GetCredit(filter);
+        CAmount nDebit  = wtx.GetDebit(filter);
+        CAmount nNet    = nCredit - nDebit;
+        CAmount nFee    = (wtx.IsFromMe(filter) ? wtx.GetValueOut() - nDebit : 0);
 
         entry.push_back(Pair("amount", ValueFromAmount(nNet - nFee)));
-        if (wtx.IsFromMe())
+        if (wtx.IsFromMe(filter))
             entry.push_back(Pair("fee", ValueFromAmount(nFee)));
 
         WalletTxToJSON(wtx, entry);
 
         Array details;
-        ListTransactions(pwalletMain->mapWallet[hash], "*", 0, false, details);
+        ListTransactions(pwalletMain->mapWallet[hash], "*", 0, false, filter, details);
         entry.push_back(Pair("details", details));
 
         CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
@@ -1703,16 +2292,14 @@ Value getwalletinfo(const Array& params, bool fHelp)
     json_spirit::Object obj;
     obj.push_back(Pair("walletversion", pwalletMain->GetVersion()));
     obj.push_back(Pair("balance", ValueFromAmount(pwalletMain->GetBalance())));
-    //    obj.push_back(Pair("delegated_balance", ValueFromAmount(pwalletMain->GetDelegatedBalance())));
-    //    obj.push_back(Pair("cold_staking_balance",
-    //    ValueFromAmount(pwalletMain->GetColdStakingBalance())));
+    obj.push_back(Pair("delegated_balance", ValueFromAmount(pwalletMain->GetDelegatedBalance())));
+    obj.push_back(Pair("cold_staking_balance", ValueFromAmount(pwalletMain->GetColdStakingBalance())));
     obj.push_back(Pair("unconfirmed_balance", ValueFromAmount(pwalletMain->GetUnconfirmedBalance())));
     obj.push_back(Pair("immature_balance", ValueFromAmount(pwalletMain->GetImmatureBalance())));
-    //    obj.push_back(
-    //        Pair("immature_delegated_balance",
-    //        ValueFromAmount(pwalletMain->GetImmatureDelegatedBalance())));
-    //    obj.push_back(Pair("immature_cold_staking_balance",
-    //                       ValueFromAmount(pwalletMain->GetImmatureColdStakingBalance())));
+    obj.push_back(
+        Pair("immature_delegated_balance", ValueFromAmount(pwalletMain->GetImmatureDelegatedBalance())));
+    obj.push_back(Pair("immature_cold_staking_balance",
+                       ValueFromAmount(pwalletMain->GetImmatureColdStakingBalance())));
     obj.push_back(Pair("txcount", (int)pwalletMain->mapWallet.size()));
     obj.push_back(Pair("keypoololdest", pwalletMain->GetOldestKeyPoolTime()));
     obj.push_back(Pair("keypoolsize", (int)pwalletMain->GetKeyPoolSize()));
@@ -1979,14 +2566,15 @@ Value validateaddress(const Array& params, bool fHelp)
         CScript scriptPubKey = GetScriptForDestination(dest);
         ret.push_back(Pair("scriptPubKey", HexStr(scriptPubKey.begin(), scriptPubKey.end())));
 
-        bool fMine = IsMine(*pwalletMain, dest);
-        ret.push_back(Pair("ismine", fMine));
-        if (fMine) {
+        isminetype mine = pwalletMain ? IsMine(*pwalletMain, dest) : isminetype::ISMINE_NO;
+        ret.push_back(Pair("ismine", IsMineCheck(mine, isminetype::ISMINE_SPENDABLE_ALL) ||
+                                         IsMineCheck(mine, isminetype::ISMINE_COLD)));
+        if (mine != isminetype::ISMINE_NO) {
             Object detail = boost::apply_visitor(DescribeAddressVisitor(), dest);
             ret.insert(ret.end(), detail.begin(), detail.end());
         }
         if (pwalletMain->mapAddressBook.count(dest))
-            ret.push_back(Pair("account", pwalletMain->mapAddressBook[dest]));
+            ret.push_back(Pair("account", pwalletMain->mapAddressBook[dest].name));
     }
     return ret;
 }
@@ -2013,7 +2601,8 @@ Value validatepubkey(const Array& params, bool fHelp)
         CTxDestination dest           = address.Get();
         string         currentAddress = address.ToString();
         ret.push_back(Pair("address", currentAddress));
-        bool fMine = IsMine(*pwalletMain, dest);
+        bool fMine = IsMineCheck(IsMine(*pwalletMain, dest), isminetype::ISMINE_SPENDABLE_ALL) ||
+                     IsMineCheck(IsMine(*pwalletMain, dest), isminetype::ISMINE_COLD);
         ret.push_back(Pair("ismine", fMine));
         ret.push_back(Pair("iscompressed", isCompressed));
         if (fMine) {
@@ -2021,7 +2610,7 @@ Value validatepubkey(const Array& params, bool fHelp)
             ret.insert(ret.end(), detail.begin(), detail.end());
         }
         if (pwalletMain->mapAddressBook.count(dest))
-            ret.push_back(Pair("account", pwalletMain->mapAddressBook[dest]));
+            ret.push_back(Pair("account", pwalletMain->mapAddressBook[dest].name));
     }
     return ret;
 }
@@ -2041,7 +2630,7 @@ Value reservebalance(const Array& params, bool fHelp)
         if (fReserve) {
             if (params.size() == 1)
                 throw runtime_error("must provide amount to reserve balance.\n");
-            int64_t nAmount = AmountFromValue(params[1]);
+            CAmount nAmount = AmountFromValue(params[1]);
             nAmount         = (nAmount / CENT) * CENT; // round to cent
             if (nAmount < 0)
                 throw runtime_error("amount cannot be negative.\n");
@@ -2056,46 +2645,6 @@ Value reservebalance(const Array& params, bool fHelp)
     Object result;
     result.push_back(Pair("reserve", (nReserveBalance > 0)));
     result.push_back(Pair("amount", ValueFromAmount(nReserveBalance)));
-    return result;
-}
-
-// ppcoin: check wallet integrity
-Value checkwallet(const Array& params, bool fHelp)
-{
-    if (fHelp || params.size() > 0)
-        throw runtime_error("checkwallet\n"
-                            "Check wallet for integrity.\n");
-
-    int     nMismatchSpent;
-    int64_t nBalanceInQuestion;
-    pwalletMain->FixSpentCoins(nMismatchSpent, nBalanceInQuestion, true);
-    Object result;
-    if (nMismatchSpent == 0)
-        result.push_back(Pair("wallet check passed", true));
-    else {
-        result.push_back(Pair("mismatched spent coins", nMismatchSpent));
-        result.push_back(Pair("amount in question", ValueFromAmount(nBalanceInQuestion)));
-    }
-    return result;
-}
-
-// ppcoin: repair wallet
-Value repairwallet(const Array& params, bool fHelp)
-{
-    if (fHelp || params.size() > 0)
-        throw runtime_error("repairwallet\n"
-                            "Repair wallet if checkwallet reports any problem.\n");
-
-    int     nMismatchSpent;
-    int64_t nBalanceInQuestion;
-    pwalletMain->FixSpentCoins(nMismatchSpent, nBalanceInQuestion);
-    Object result;
-    if (nMismatchSpent == 0)
-        result.push_back(Pair("wallet check passed", true));
-    else {
-        result.push_back(Pair("mismatched spent coins", nMismatchSpent));
-        result.push_back(Pair("amount affected by repair", ValueFromAmount(nBalanceInQuestion)));
-    }
     return result;
 }
 
@@ -2132,4 +2681,80 @@ Value makekeypair(const Array& params, bool fHelp)
         Pair("PrivateKey", HexStr<CPrivKey::iterator>(vchPrivKey.begin(), vchPrivKey.end())));
     result.push_back(Pair("PublicKey", HexStr(key.GetPubKey().Raw())));
     return result;
+}
+
+Value listcoldutxos(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 1)
+        throw std::runtime_error(
+            "listcoldutxos ( nonWhitelistedOnly )\n"
+            "\nList P2CS unspent outputs received by this wallet as cold-staker-\n"
+
+            "\nArguments:\n"
+            "1. nonWhitelistedOnly   (boolean, optional, default=false) Whether to exclude P2CS from "
+            "whitelisted delegators.\n"
+
+            "\nResult:\n"
+            "[\n"
+            "  {\n"
+            "    \"txid\" : \"true\",            (string) The transaction id of the P2CS utxo\n"
+            "    \"txidn\" : \"accountname\",    (string) The output number of the P2CS utxo\n"
+            "    \"amount\" : x.xxx,             (numeric) The amount of the P2CS utxo\n"
+            "    \"confirmations\" : n           (numeric) The number of confirmations of the P2CS "
+            "utxo\n"
+            "    \"cold-staker\" : n             (string) The cold-staker address of the P2CS utxo\n"
+            "    \"coin-owner\" : n              (string) The coin-owner address of the P2CS utxo\n"
+            "    \"whitelisted\" : n             (string) \"true\"/\"false\" coin-owner in delegator "
+            "whitelist\n"
+            "  }\n"
+            "  ,...\n"
+            "]\n"
+            "\nExamples:\n"
+            "listcoldutxos\n"
+            "listcoldutxos true");
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    bool fExcludeWhitelisted = false;
+    if (params.size() > 0)
+        fExcludeWhitelisted = params[0].get_bool();
+    Array results;
+
+    for (std::map<uint256, CWalletTx>::const_iterator it = pwalletMain->mapWallet.begin();
+         it != pwalletMain->mapWallet.end(); ++it) {
+        const uint256&   wtxid = it->first;
+        const CWalletTx* pcoin = &(*it).second;
+        if (!IsFinalTx(*pcoin) || !pcoin->IsTrusted())
+            continue;
+
+        // if this tx has no unspent P2CS outputs for us, skip it
+        if (pcoin->GetColdStakingCredit() == 0 && pcoin->GetStakeDelegationCredit() == 0)
+            continue;
+
+        for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
+            const CTxOut& out  = pcoin->vout[i];
+            isminetype    mine = pwalletMain->IsMine(out);
+            if (!bool(mine & ISMINE_COLD) && !bool(mine & ISMINE_SPENDABLE_DELEGATED))
+                continue;
+            txnouttype                  type;
+            std::vector<CTxDestination> addresses;
+            int                         nRequired;
+            if (!ExtractDestinations(out.scriptPubKey, type, addresses, nRequired))
+                continue;
+            const bool fWhitelisted = pwalletMain->mapAddressBook.count(addresses[1]) > 0;
+            if (fExcludeWhitelisted && fWhitelisted)
+                continue;
+            Object entry;
+            entry.push_back(Pair("txid", wtxid.GetHex()));
+            entry.push_back(Pair("txidn", (int)i));
+            entry.push_back(Pair("amount", ValueFromAmount(out.nValue)));
+            entry.push_back(Pair("confirmations", pcoin->GetDepthInMainChain()));
+            entry.push_back(Pair("cold-staker", CBitcoinAddress(addresses[0]).ToString()));
+            entry.push_back(Pair("coin-owner", CBitcoinAddress(addresses[1]).ToString()));
+            entry.push_back(Pair("whitelisted", fWhitelisted ? "true" : "false"));
+            results.push_back(entry);
+        }
+    }
+
+    return results;
 }

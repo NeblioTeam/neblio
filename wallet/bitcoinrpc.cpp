@@ -275,6 +275,13 @@ static const CRPCCommand vRPCCommands[] =
     { "udtoneblioaddress",         &udtoneblioaddress,         true,   false },
     { "getnewpubkey",              &getnewpubkey,              true,   false },
     { "getaccountaddress",         &getaccountaddress,         true,   false },
+    { "delegatestake",             &delegatestake,             true,   false },
+    { "listdelegators",            &listdelegators,            true,   false },
+    { "delegatoradd",              &delegatoradd,              true,   false },
+    { "liststakingaddresses",      &liststakingaddresses,      true,   false },
+    { "delegatorremove",           &delegatorremove,           true,   false },
+    { "rawdelegatestake",          &rawdelegatestake,          true,   false },
+    { "listcoldutxos",             &listcoldutxos,             true,   false },
     { "setaccount",                &setaccount,                true,   false },
     { "getaccount",                &getaccount,                false,  false },
     { "getaddressesbyaccount",     &getaddressesbyaccount,     true,   false },
@@ -295,8 +302,13 @@ static const CRPCCommand vRPCCommands[] =
     { "validateaddress",           &validateaddress,           true,   false },
     { "validatepubkey",            &validatepubkey,            true,   false },
     { "getbalance",                &getbalance,                false,  false },
+    { "getdelegatedbalance",       &getdelegatedbalance,       false,  false },
+    { "getcoldstakingbalance",     &getcoldstakingbalance,     false,  false },
+    { "getbalance",                &getbalance,                false,  false },
+    { "getunconfirmedbalance",     &getunconfirmedbalance,     false,  false },
     { "getntp1balances",           &getntp1balances,           false,  false },
     { "getntp1balance",            &getntp1balance,            false,  false },
+    { "abandontransaction",        &abandontransaction,        false,  false },
     { "move",                      &movecmd,                   false,  false },
     { "sendfrom",                  &sendfrom,                  false,  false },
     { "sendmany",                  &sendmany,                  false,  false },
@@ -324,6 +336,7 @@ static const CRPCCommand vRPCCommands[] =
     { "generatetoaddress",         &generatetoaddress,         false,  false },
     { "listsinceblock",            &listsinceblock,            false,  false },
     { "dumpprivkey",               &dumpprivkey,               false,  false },
+    { "dumppubkey",                &dumppubkey,                false,  false },
     { "dumpwallet",                &dumpwallet,                true,   false },
     { "importwallet",              &importwallet,              false,  false },
     { "importprivkey",             &importprivkey,             false,  false },
@@ -333,12 +346,11 @@ static const CRPCCommand vRPCCommands[] =
     { "createrawntp1transaction",  &createrawntp1transaction,  false,  false },
     { "decoderawtransaction",      &decoderawtransaction,      false,  false },
     { "decodescript",              &decodescript,              false,  false },
+    { "getscriptpubkeyfromaddress",&getscriptpubkeyfromaddress,false,  false },
+    { "getscriptpubkeyforp2cs",    &getscriptpubkeyforp2cs,    false,  false },
     { "signrawtransaction",        &signrawtransaction,        false,  false },
     { "sendrawtransaction",        &sendrawtransaction,        false,  false },
-    { "getcheckpoint",             &getcheckpoint,             true,   false },
     { "reservebalance",            &reservebalance,            false,  true  },
-    { "checkwallet",               &checkwallet,               false,  true  },
-    { "repairwallet",              &repairwallet,              false,  true  },
     { "resendtx",                  &resendtx,                  false,  true  },
     { "makekeypair",               &makekeypair,               false,  true  },
     { "sendalert",                 &sendalert,                 false,  false },
@@ -595,8 +607,8 @@ bool ClientAllowed(const boost::asio::ip::address& address)
         return true;
 
     const string             strAddress = address.to_string();
-    std::vector<std::string> rpcallowipVec;
-    mapMultiArgs.get("-rpcallowip", rpcallowipVec);
+    std::vector<std::string> rpcallowipVec =
+        mapMultiArgs.get("-rpcallowip").value_or(std::vector<std::string>());
     const vector<string>& vAllow = rpcallowipVec;
     BOOST_FOREACH (string strAllow, vAllow)
         if (WildcardMatch(strAddress, strAllow))
@@ -1033,8 +1045,7 @@ void ThreadRPCServer3(void* parg)
             /* Deter brute-forcing short passwords.
                If this results in a DOS the user really
                shouldn't have their RPC port exposed.*/
-            std::string rpcPassword;
-            mapArgs.get("-rpcpassword", rpcPassword);
+            const std::string rpcPassword = mapArgs.get("-rpcpassword").value_or("");
             if (rpcPassword.size() < 20)
                 MilliSleep(250);
 
@@ -1129,10 +1140,8 @@ std::vector<string> CRPCTable::listCommands() const
 
 Object CallRPC(const string& strMethod, const Array& params)
 {
-    std::string rpcUser;
-    mapArgs.get("-rpcuser", rpcUser);
-    std::string rpcPassword;
-    mapArgs.get("-rpcpassword", rpcPassword);
+    std::string rpcUser     = mapArgs.get("-rpcuser").value_or("");
+    std::string rpcPassword = mapArgs.get("-rpcpassword").value_or("");
     if (rpcUser == "" && rpcPassword == "")
         throw runtime_error(strprintf(
             _("You must set rpcpassword=<password> in the configuration file:\n%s\n"

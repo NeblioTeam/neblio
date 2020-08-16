@@ -36,6 +36,7 @@
 #include <openssl/sha.h>
 
 #include "ThreadSafeHashMap.h"
+#include "amount.h"
 #include "netbase.h" // for AddTimeData
 
 // to obtain PRId64 on some old systems
@@ -199,7 +200,7 @@ bool ATTR_WARN_PRINTF(1, 2) error(const char* format, ...);
 void                           PrintException(std::exception* pex, const char* pszThread);
 void                           PrintExceptionContinue(std::exception* pex, const char* pszThread);
 void                           ParseString(const std::string& str, char c, std::vector<std::string>& v);
-std::string                    FormatMoney(int64_t n, bool fPlus = false);
+std::string                    FormatMoney(CAmount n, bool fPlus = false);
 bool                           ParseMoney(const std::string& str, int64_t& nRet);
 bool                           ParseMoney(const char* pszIn, int64_t& nRet);
 std::vector<unsigned char>     ParseHex(const char* psz);

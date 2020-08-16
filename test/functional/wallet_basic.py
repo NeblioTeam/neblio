@@ -50,18 +50,27 @@ class WalletTest(BitcoinTestFramework):
         # assert_equal(walletinfo['immature_balance'], 50)
         # assert_equal(walletinfo['balance'], 0)
 
+        # to prevent sync failures, we make create blocks in batches
         self.sync_all([self.nodes[0:3]])
-        self.nodes[1].generate(101)
+        self.nodes[1].generate(20)
+        self.sync_all([self.nodes[0:3]])
+        self.nodes[1].generate(20)
+        self.sync_all([self.nodes[0:3]])
+        self.nodes[1].generate(20)
+        self.sync_all([self.nodes[0:3]])
+        self.nodes[1].generate(20)
+        self.sync_all([self.nodes[0:3]])
+        self.nodes[1].generate(21)
         self.sync_all([self.nodes[0:3]])
 
         assert_equal(self.nodes[0].getbalance(), block0_reward)
-        assert_equal(self.nodes[1].getbalance(), (102-10)*2000)
+        assert_equal(self.nodes[1].getbalance(), (101-10)*2000)
         assert_equal(self.nodes[2].getbalance(), 0)
 
         # Check that only first and second nodes have UTXOs
         utxos = self.nodes[0].listunspent()
         assert_equal(len(utxos), 1)
-        assert_equal(len(self.nodes[1].listunspent()), 102-10)
+        assert_equal(len(self.nodes[1].listunspent()), 101-10)
         assert_equal(len(self.nodes[2].listunspent()), 0)
 
         self.log.info("test gettxout")
@@ -227,7 +236,7 @@ class WalletTest(BitcoinTestFramework):
         inputs = [{"txid":usp[0]['txid'], "vout":usp[0]['vout']}]
         outputs = {self.nodes[1].getnewaddress(): 49.998, self.nodes[0].getnewaddress(): 11.11}
 
-        rawTx = self.nodes[1].createrawtransaction(inputs, outputs).replace("c0833842", "00000000") #replace 11.11 with 0.0 (int32)
+        rawTx = self.nodes[1].createrawtransaction(inputs, outputs).replace("c0833842", "00000000")  # replace 11.11 with 0.0 (int32)
         decRawTx = self.nodes[1].decoderawtransaction(rawTx)
         signedRawTx = self.nodes[1].signrawtransaction(rawTx)
         decRawTx = self.nodes[1].decoderawtransaction(signedRawTx['hex'])
@@ -237,7 +246,7 @@ class WalletTest(BitcoinTestFramework):
         self.nodes[1].generate(1)  # mine a block
         self.sync_all()
 
-        unspentTxs = self.nodes[0].listunspent() #zero value tx must be in listunspents output
+        unspentTxs = self.nodes[0].listunspent()  # zero value tx must be in listunspents output
         found = False
         for uTx in unspentTxs:
             if uTx['txid'] == zeroValueTxid:

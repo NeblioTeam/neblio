@@ -10,24 +10,6 @@ from test_framework.util import *
 from test_framework.messages import *
 
 
-class multidict(dict):
-    """Dictionary that allows duplicate keys.
-
-    Constructed with a list of (key, value) tuples. When dumped by the json module,
-    will output invalid json with repeated keys, eg:
-    >>> json.dumps(multidict([(1,2),(1,2)])
-    '{"1": 2, "1": 2}'
-
-    Used to test calls to rpc methods with repeated keys in the json object."""
-
-    def __init__(self, x):
-        dict.__init__(self, x)
-        self.x = x
-
-    def items(self):
-        return self.x
-
-
 # Create one-input, one-output, no-fee transaction:
 class RawTransactionsTest(BitcoinTestFramework):
     def set_test_params(self):
@@ -121,6 +103,7 @@ class RawTransactionsTest(BitcoinTestFramework):
 
         # Create outputs in nodes[1] to stake them
         inputs = [{"txid": genesis_utxo['txid'], "vout": genesis_utxo['vout']}]
+
         outputs = {}
         outputs_count = 220
         for i in range(outputs_count):
@@ -163,6 +146,10 @@ class RawTransactionsTest(BitcoinTestFramework):
         for i in range(800):  # mine 800 blocks
             hash = self.gen_pow_block(0, average_block_time, block_time_spread)
         self.sync_all()
+
+        n1_balance_before = self.nodes[1].getbalance()
+        n2_balance_before = self.nodes[2].getbalance()
+        n3_balance_before = self.nodes[3].getbalance()
 
         # move to the future to make coins stakable (this is not needed because 10 minutes is too short)
         # self.progress_mock_time(60*10)
@@ -225,12 +212,12 @@ class RawTransactionsTest(BitcoinTestFramework):
         test_maturity_rawtx = self.nodes[3].createrawtransaction(inputs, outputs)
         test_maturity_signed_rawtx = self.nodes[3].signrawtransaction(test_maturity_rawtx)
         for node in self.nodes:  # spending stake before maturity should be rejected in all nodes
-            assert_raises_rpc_error(-22, "TX rejected", node.sendrawtransaction, test_maturity_signed_rawtx['hex'])
+            assert_raises_rpc_error(-26, "bad-txns-premature-spend-of-coinstake", node.sendrawtransaction, test_maturity_signed_rawtx['hex'])
 
         # we stake blocks that total to 'COINBASE_MATURITY' blocks, and the staked block to mature
         for i in range(COINBASE_MATURITY):
             # it should not be possible to submit the transaction until the maturity is reached
-            assert_raises_rpc_error(-22, "TX rejected", self.nodes[0].sendrawtransaction,
+            assert_raises_rpc_error(-26, "bad-txns-premature-spend-of-coinstake", self.nodes[0].sendrawtransaction,
                                     test_maturity_signed_rawtx['hex'])
             hash = self.gen_pos_block(0)
         self.sync_all()
@@ -267,6 +254,16 @@ class RawTransactionsTest(BitcoinTestFramework):
         assert_equal(staked_block_in_n4['tx'][1]['vout'][0]['value'], Decimal('0'))
         assert_equal(staked_block_in_n4['tx'][1]['vout'][1]['value'], n4_balance_to_stake/2)
         assert Decimal('1000') < staked_block_in_n4['tx'][1]['vout'][2]['value'] < Decimal('1001')
+
+        self.sync_all()
+
+        assert n2_balance_before < self.nodes[2].getbalance()
+
+        # TODO: determine rewards while staking
+        # the balance can never be determined because times are random
+        # assert_equal(self.nodes[1].getbalance(), Decimal("110001.30160111"))
+        # assert_equal(self.nodes[2].getbalance(), Decimal("1100.08679167"))
+        # assert_equal(self.nodes[3].getbalance(), Decimal("120"))
 
 
 if __name__ == '__main__':

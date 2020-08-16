@@ -6,10 +6,19 @@
 
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
+from test_framework.messages import *
 
 class TxnMallTest(BitcoinTestFramework):
     def set_test_params(self):
-        self.num_nodes = 4
+        # NOTE: this test is already modified a little bit for neblio
+
+        self.extra_args = [["-enableaccounts"],
+                           ["-enableaccounts"],
+                           ["-enableaccounts"],
+                           ["-enableaccounts"],
+                           ["-enableaccounts"]]
+        self.setup_clean_chain = True
+        self.num_nodes = 5
 
     def add_options(self, parser):
         parser.add_option("--mineblock", dest="mine_block", default=False, action="store_true",
@@ -20,17 +29,25 @@ class TxnMallTest(BitcoinTestFramework):
     def setup_network(self):
         # Start with split network:
         super(TxnMallTest, self).setup_network()
+
+    def run_test(self):
+
+        starting_balance = 100000
+        self.nodes[4].generate(11)
+
+        tx0 = self.nodes[4].sendtoaddress(self.nodes[0].getnewaddress(), Decimal(starting_balance))
+        tx1 = self.nodes[4].sendtoaddress(self.nodes[1].getnewaddress(), Decimal(starting_balance))
+        tx2 = self.nodes[4].sendtoaddress(self.nodes[2].getnewaddress(), Decimal(starting_balance))
+        tx3 = self.nodes[4].sendtoaddress(self.nodes[3].getnewaddress(), Decimal(starting_balance))
+
+        sync_blocks(self.nodes)
+        self.nodes[4].generate(11)
+        sync_blocks(self.nodes)
+
         disconnect_nodes(self.nodes[1], 2)
         disconnect_nodes(self.nodes[2], 1)
 
-    def run_test(self):
-        if self.options.segwit:
-            output_type="p2sh-segwit"
-        else:
-            output_type="legacy"
-
         # All nodes should start with 1,250 BTC:
-        starting_balance = 1250
         for i in range(4):
             assert_equal(self.nodes[i].getbalance(), starting_balance)
             self.nodes[i].getnewaddress("")  # bug workaround, coins generated assigned to first getnewaddress!
@@ -38,11 +55,11 @@ class TxnMallTest(BitcoinTestFramework):
         # Assign coins to foo and bar accounts:
         self.nodes[0].settxfee(.001)
 
-        node0_address_foo = self.nodes[0].getnewaddress("foo", output_type)
+        node0_address_foo = self.nodes[0].getnewaddress("foo")
         fund_foo_txid = self.nodes[0].sendfrom("", node0_address_foo, 1219)
         fund_foo_tx = self.nodes[0].gettransaction(fund_foo_txid)
 
-        node0_address_bar = self.nodes[0].getnewaddress("bar", output_type)
+        node0_address_bar = self.nodes[0].getnewaddress("bar")
         fund_bar_txid = self.nodes[0].sendfrom("", node0_address_bar, 29)
         fund_bar_tx = self.nodes[0].gettransaction(fund_bar_txid)
 
@@ -61,9 +78,10 @@ class TxnMallTest(BitcoinTestFramework):
         clone_inputs = [{"txid":rawtx1["vin"][0]["txid"],"vout":rawtx1["vin"][0]["vout"]}]
         clone_outputs = {rawtx1["vout"][0]["scriptPubKey"]["addresses"][0]:rawtx1["vout"][0]["value"],
                          rawtx1["vout"][1]["scriptPubKey"]["addresses"][0]:rawtx1["vout"][1]["value"]}
-        clone_locktime = rawtx1["locktime"]
-        clone_raw = self.nodes[0].createrawtransaction(clone_inputs, clone_outputs, clone_locktime)
+        # clone_locktime = rawtx1["locktime"]
+        clone_raw = self.nodes[0].createrawtransaction(clone_inputs, clone_outputs)
 
+        print(clone_raw)
         # createrawtransaction randomizes the order of its outputs, so swap them if necessary.
         # output 0 is at version+#inputs+input+sigstub+sequence+#outputs
         # 40 BTC serialized is 00286bee00000000
@@ -75,7 +93,7 @@ class TxnMallTest(BitcoinTestFramework):
             output0 = clone_raw[pos0 : pos0 + output_len]
             output1 = clone_raw[pos0 + output_len : pos0 + 2 * output_len]
             clone_raw = clone_raw[:pos0] + output1 + output0 + clone_raw[pos0 + 2 * output_len:]
-
+        print(clone_raw)
         # Use a different signature hash type to sign.  This creates an equivalent but malleated clone.
         # Don't send the clone anywhere yet
         tx1_clone = self.nodes[0].signrawtransaction(clone_raw, None, None, "ALL|ANYONECANPAY")

@@ -101,8 +101,8 @@ public:
     // Send coins to a list of recipients
     SendCoinsReturn sendCoins(QList<SendCoinsRecipient>        recipients,
                               boost::shared_ptr<NTP1Wallet>    ntp1wallet,
-                              const RawNTP1MetadataBeforeSend& ntp1metadata,
-                              const CCoinControl*              coinControl = nullptr);
+                              const RawNTP1MetadataBeforeSend& ntp1metadata, bool fSpendDelegated,
+                              const CCoinControl* coinControl = nullptr);
 
     // Wallet encryption
     bool setWalletEncrypted(bool encrypted, const SecureString& passphrase);
@@ -147,6 +147,14 @@ public:
     void unlockCoin(COutPoint& output);
     void listLockedCoins(std::vector<COutPoint>& vOutpts);
 
+    bool        whitelistAddressFromColdStaking(const QString& addressStr);
+    bool        blacklistAddressFromColdStaking(const QString& address);
+    bool        updateAddressBookPurpose(const QString& addressStr, const std::string& purpose);
+    std::string getLabelForAddress(const CBitcoinAddress& address);
+    bool        getKeyId(const CBitcoinAddress& address, CKeyID& keyID);
+
+    CWallet* getWallet();
+
 private:
     CWallet* wallet;
 
@@ -178,7 +186,8 @@ public slots:
     /* New transaction, or transaction changed status */
     void updateTransaction(const QString& hash, int status);
     /* New, updated or removed address book entry */
-    void updateAddressBook(const QString& address, const QString& label, bool isMine, int status);
+    void updateAddressBook(const QString& address, const QString& label, bool isMine,
+                           const QString& purpose, int status);
     /* Current, immature or unconfirmed balance might have changed - emit 'balanceChanged' if so */
     void pollBalanceChanged();
 

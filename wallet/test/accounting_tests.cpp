@@ -62,7 +62,7 @@ TEST(accounting_tests, acc_orderupgrade)
     walletdb.WriteAccountingEntry(ae);
 
     wtx.mapValue["comment"] = "z";
-    wallet->AddToWallet(wtx);
+    wallet->AddToWallet(wtx, false, nullptr);
     vpwtx.push_back(&wallet->mapWallet[wtx.GetHash()]);
     vpwtx[0]->nTimeReceived = (unsigned int)1333333335;
     vpwtx[0]->nOrderPos     = -1;
@@ -98,13 +98,13 @@ TEST(accounting_tests, acc_orderupgrade)
 
     wtx.mapValue["comment"] = "y";
     --wtx.nLockTime; // Just to change the hash :)
-    wallet->AddToWallet(wtx);
+    wallet->AddToWallet(wtx, false, nullptr);
     vpwtx.push_back(&wallet->mapWallet[wtx.GetHash()]);
     vpwtx[1]->nTimeReceived = (unsigned int)1333333336;
 
     wtx.mapValue["comment"] = "x";
     --wtx.nLockTime; // Just to change the hash :)
-    wallet->AddToWallet(wtx);
+    wallet->AddToWallet(wtx, false, nullptr);
     vpwtx.push_back(&wallet->mapWallet[wtx.GetHash()]);
     vpwtx[2]->nTimeReceived = (unsigned int)1333333329;
     vpwtx[2]->nOrderPos     = -1;

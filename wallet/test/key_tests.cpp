@@ -1,23 +1,23 @@
 #include "googletest/googletest/include/gtest/gtest.h"
 
+#include "environment.h"
+
 #include <string>
 #include <vector>
 
-#include "key.h"
 #include "base58.h"
+#include "key.h"
 #include "uint256.h"
 #include "util.h"
 
 using namespace std;
 
-static const string strSecret1C    ("TtnutkcnaPcu3zmjWcrJazf42fp1YAKRpm8grKRRuYjtiykmGuM7");
-static const string strSecret2C    ("TnNwg92Wpw8iuBRwaeJydzw2c6MMqTe2c6cA5hn3NBBdqFWvpViF");
+static const string          strSecret1C("TtnutkcnaPcu3zmjWcrJazf42fp1YAKRpm8grKRRuYjtiykmGuM7");
+static const string          strSecret2C("TnNwg92Wpw8iuBRwaeJydzw2c6MMqTe2c6cA5hn3NBBdqFWvpViF");
 static const CBitcoinAddress addr1C("NVFdK9ik6mBCG6syVw2gD1gBwJzKF5me5i");
 static const CBitcoinAddress addr2C("NSTdV7BgFeYXR61ywiMyAoof2ihwUPDPpj");
 
-
 static const string strAddressBad("NSTdV7BgFeYXR61ywiMyAoof2ihwUPDPp");
-
 
 #ifdef KEY_TESTS_DUMPINFO
 void dumpKeyInfo(uint256 privkey)
@@ -30,8 +30,7 @@ void dumpKeyInfo(uint256 privkey)
     memcpy(&sec[0], &secret[0], 32);
     printf("  * secret (hex): %s\n", HexStr(sec).c_str());
 
-    for (int nCompressed=0; nCompressed<2; nCompressed++)
-    {
+    for (int nCompressed = 0; nCompressed < 2; nCompressed++) {
         bool fCompressed = nCompressed == 1;
         printf("  * %s:\n", fCompressed ? "compressed" : "uncompressed");
         CBitcoinSecret bsecret;
@@ -48,12 +47,14 @@ void dumpKeyInfo(uint256 privkey)
 
 TEST(key_tests, key_test1)
 {
+    SwitchNetworkTypeTemporarily state_holder(NetworkType::Mainnet);
+
     CBitcoinSecret bsecret1C, bsecret2C, baddress1;
-    EXPECT_TRUE( bsecret1C.SetString(strSecret1C));
-    EXPECT_TRUE( bsecret2C.SetString(strSecret2C));
+    EXPECT_TRUE(bsecret1C.SetString(strSecret1C));
+    EXPECT_TRUE(bsecret2C.SetString(strSecret2C));
     EXPECT_TRUE(!baddress1.SetString(strAddressBad));
 
-    bool fCompressed;
+    bool    fCompressed;
     CSecret secret1C = bsecret1C.GetSecret(fCompressed);
     EXPECT_TRUE(fCompressed == true);
     CSecret secret2C = bsecret2C.GetSecret(fCompressed);
@@ -66,9 +67,8 @@ TEST(key_tests, key_test1)
     EXPECT_TRUE(addr1C.Get() == CTxDestination(key1C.GetPubKey().GetID()));
     EXPECT_TRUE(addr2C.Get() == CTxDestination(key2C.GetPubKey().GetID()));
 
-    for (int n=0; n<16; n++)
-    {
-        string strMsg = strprintf("Very secret message %i: 11", n);
+    for (int n = 0; n < 16; n++) {
+        string  strMsg  = strprintf("Very secret message %i: 11", n);
         uint256 hashMsg = Hash(strMsg.begin(), strMsg.end());
 
         // normal signatures
@@ -78,17 +78,17 @@ TEST(key_tests, key_test1)
         EXPECT_TRUE(key1C.Sign(hashMsg, sign1C));
         EXPECT_TRUE(key2C.Sign(hashMsg, sign2C));
 
-        EXPECT_TRUE( key1C.Verify(hashMsg, sign1C));
+        EXPECT_TRUE(key1C.Verify(hashMsg, sign1C));
         EXPECT_TRUE(!key1C.Verify(hashMsg, sign2C));
 
         EXPECT_TRUE(!key2C.Verify(hashMsg, sign1C));
-        EXPECT_TRUE( key2C.Verify(hashMsg, sign2C));
+        EXPECT_TRUE(key2C.Verify(hashMsg, sign2C));
 
-        EXPECT_TRUE( key1C.Verify(hashMsg, sign1C));
+        EXPECT_TRUE(key1C.Verify(hashMsg, sign1C));
         EXPECT_TRUE(!key1C.Verify(hashMsg, sign2C));
 
         EXPECT_TRUE(!key2C.Verify(hashMsg, sign1C));
-        EXPECT_TRUE( key2C.Verify(hashMsg, sign2C));
+        EXPECT_TRUE(key2C.Verify(hashMsg, sign2C));
 
         // compact signatures (with key recovery)
 

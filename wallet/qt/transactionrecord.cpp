@@ -24,12 +24,12 @@ bool TransactionRecord::showTransaction(const CWalletTx& wtx)
 QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet*   wallet,
                                                                  const CWalletTx& wtx)
 {
-    QList<TransactionRecord>           parts;
-    int64_t                            nTime   = wtx.GetTxTime();
-    int64_t                            nCredit = wtx.GetCredit(true);
-    int64_t                            nDebit  = wtx.GetDebit();
-    int64_t                            nNet    = nCredit - nDebit;
-    uint256                            hash = wtx.GetHash(), hashPrev = 0;
+    QList<TransactionRecord> parts;
+    int64_t                  nTime   = wtx.GetTxTime();
+    int64_t                  nCredit = wtx.GetCredit(static_cast<isminefilter>(isminetype::ISMINE_ALL));
+    int64_t                  nDebit  = wtx.GetDebit(static_cast<isminefilter>(isminetype::ISMINE_ALL));
+    int64_t                  nNet    = nCredit - nDebit;
+    uint256                  hash = wtx.GetHash(), hashPrev = 0;
     std::map<std::string, std::string> mapValue = wtx.mapValue;
 
     if (nNet > 0 || wtx.IsCoinBase() || wtx.IsCoinStake()) {
@@ -40,12 +40,13 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
             if (NTP1Transaction::IsTxOutputOpRet(&txout, nullptr)) {
                 continue;
             }
-            if (wallet->IsMine(txout)) {
+            if (wallet->IsMine(txout) != isminetype::ISMINE_NO) {
                 TransactionRecord sub(hash, nTime);
                 CTxDestination    address;
                 sub.idx    = parts.size(); // sequence number
                 sub.credit = txout.nValue;
-                if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address)) {
+                if (ExtractDestination(txout.scriptPubKey, address) &&
+                    IsMine(*wallet, address) != isminetype::ISMINE_NO) {
                     // Received by Bitcoin Address
                     sub.type    = TransactionRecord::RecvWithAddress;
                     sub.address = CBitcoinAddress(address).ToString();
@@ -69,6 +70,32 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
                     sub.credit = nNet > 0 ? nNet : wtx.GetValueOut() - nDebit;
                     hashPrev   = hash;
                 }
+                if (wtx.HasP2CSOutputs()) {
+                    CTxOut p2csUtxo;
+                    for (unsigned int nOut = 0; nOut < wtx.vout.size(); nOut++) {
+                        const CTxOut& txout = wtx.vout[nOut];
+                        if (txout.scriptPubKey.IsPayToColdStaking()) {
+                            p2csUtxo = txout;
+                            break;
+                        }
+                    }
+                    bool isSpendable = wallet->IsMine(p2csUtxo) & ISMINE_SPENDABLE_DELEGATED;
+                    if (isSpendable) {
+                        // Wallet delegating balance
+                        sub.type = TransactionRecord::ColdDelegator;
+                        CTxDestination dest;
+                        if (ExtractDestination(p2csUtxo.scriptPubKey, dest, true)) {
+                            sub.address = "Delegated to: " + CBitcoinAddress(dest).ToString();
+                        }
+                    } else {
+                        // Wallet receiving a delegation
+                        sub.type = TransactionRecord::ColdStaker;
+                        CTxDestination dest;
+                        if (ExtractDestination(p2csUtxo.scriptPubKey, dest, false)) {
+                            sub.address = "Delegated from: " + CBitcoinAddress(dest).ToString();
+                        }
+                    }
+                }
 
                 parts.append(sub);
             }
@@ -76,7 +103,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
     } else {
         bool fAllFromMe = true;
         for (const CTxIn& txin : wtx.vin) {
-            fAllFromMe = fAllFromMe && wallet->IsMine(txin);
+            fAllFromMe = fAllFromMe && IsMineCheck(wallet->IsMine(txin), isminetype::ISMINE_SPENDABLE);
         }
 
         bool fAllToMe = true;
@@ -85,7 +112,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
             if (NTP1Transaction::IsTxOutputOpRet(&txout, nullptr)) {
                 continue;
             }
-            fAllToMe = fAllToMe && wallet->IsMine(txout);
+            fAllToMe = fAllToMe && IsMineCheck(wallet->IsMine(txout), isminetype::ISMINE_SPENDABLE);
         }
 
         if (fAllFromMe && fAllToMe) {
@@ -108,7 +135,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
                 TransactionRecord sub(hash, nTime);
                 sub.idx = parts.size();
 
-                if (wallet->IsMine(txout)) {
+                if (wallet->IsMine(txout) != isminetype::ISMINE_NO) {
                     // Ignore parts sent to self, as this is usually the change
                     // from a transaction sent back to our own address.
                     continue;
@@ -181,7 +208,8 @@ void TransactionRecord::updateStatus(const CWalletTx& wtx)
         strprintf("%010d-%01d-%010u-%03d", (pindex ? pindex->nHeight : std::numeric_limits<int>::max()),
                   (wtx.IsCoinBase() ? 1 : 0), wtx.nTimeReceived, idx);
     status.countsForBalance = wtx.IsTrusted() && !(wtx.GetBlocksToMaturity() > 0);
-    status.depth            = wtx.GetDepthInMainChain();
+    bool fConflicted        = false;
+    status.depth            = wtx.GetDepthAndMempool(fConflicted);
     status.cur_num_blocks   = nBestHeight;
 
     if (!IsFinalTx(wtx, nBestHeight + 1)) {
@@ -212,7 +240,7 @@ void TransactionRecord::updateStatus(const CWalletTx& wtx)
             status.status = TransactionStatus::Confirmed;
         }
     } else {
-        if (status.depth < 0) {
+        if (status.depth < 0 || fConflicted) {
             status.status = TransactionStatus::Conflicted;
         } else if (GetAdjustedTime() - wtx.nTimeReceived > 2 * 60 && wtx.GetRequestCount() == 0) {
             status.status = TransactionStatus::Offline;

@@ -303,7 +303,7 @@ Value listunspent(const Array& params, bool fHelp)
         if (ExtractDestination(out.tx->vout[out.i].scriptPubKey, address)) {
             entry.push_back(Pair("address", CBitcoinAddress(address).ToString()));
             if (pwalletMain->mapAddressBook.count(address))
-                entry.push_back(Pair("account", pwalletMain->mapAddressBook[address]));
+                entry.push_back(Pair("account", pwalletMain->mapAddressBook[address].name));
         }
         entry.push_back(Pair("scriptPubKey", HexStr(pk.begin(), pk.end())));
         entry.push_back(Pair("amount", ValueFromAmount(nValue)));
@@ -566,6 +566,42 @@ Value decodescript(const Array& params, bool fHelp)
     return r;
 }
 
+Value getscriptpubkeyfromaddress(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error("getscriptpubkeyfromaddress <address>\n"
+                            "creates the destination P2PKH script from the address.");
+
+    RPCTypeCheck(params, list_of(str_type));
+
+    CBitcoinAddress addr(params[0].get_str());
+    CScript         script;
+    script.SetDestination(addr.Get());
+    return HexStr(script.begin(), script.end());
+}
+
+Value getscriptpubkeyforp2cs(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 2)
+        throw runtime_error("getscriptpubkeyforp2cs <staker address> <owner address>\n"
+                            "creates the destination P2CS script from the addresses provided.");
+
+    RPCTypeCheck(params, list_of(str_type)(str_type));
+
+    CBitcoinAddress stakerAddr(params[0].get_str());
+    CBitcoinAddress ownerAddr(params[1].get_str());
+    CKeyID          stakerKeyID;
+    CKeyID          ownerKeyID;
+    if (!stakerAddr.GetKeyID(stakerKeyID)) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid staker address");
+    }
+    if (!ownerAddr.GetKeyID(ownerKeyID)) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid owner address");
+    }
+    CScript script = GetScriptForStakeDelegation(stakerKeyID, ownerKeyID);
+    return HexStr(script.begin(), script.end());
+}
+
 Value signrawtransaction(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 4)
@@ -720,15 +756,34 @@ Value signrawtransaction(const Array& params, bool fHelp)
 
         txin.scriptSig.clear();
         // Only sign SIGHASH_SINGLE if there's a corresponding output:
+
+        // if this is a P2CS script, select which key to use
+        bool fColdStake = false;
+        if (prevPubKey.IsPayToColdStaking()) {
+            // if we have both keys, sign with the spender key
+            fColdStake = !bool(IsMine(keystore, prevPubKey) & ISMINE_SPENDABLE_DELEGATED);
+        }
+
         if (!fHashSingle || (i < mergedTx.vout.size()))
-            SignSignature(keystore, prevPubKey, mergedTx, i, nHashType);
+            SignSignature(keystore, prevPubKey, mergedTx, i, nHashType, fColdStake);
 
         // ... and merge in other signatures:
         for (const CTransaction& txv : txVariants) {
             txin.scriptSig =
                 CombineSignatures(prevPubKey, mergedTx, i, txin.scriptSig, txv.vin[i].scriptSig);
         }
-        if (!VerifyScript(txin.scriptSig, prevPubKey, mergedTx, i, true, true, 0))
+    }
+
+    // verify sigs
+    for (unsigned int i = 0; i < mergedTx.vin.size(); i++) {
+        CTxIn& txin = mergedTx.vin[i];
+        if (mapPrevOut.count(txin.prevout) == 0) {
+            fComplete = false;
+            continue;
+        }
+        const CScript& prevPubKey = mapPrevOut[txin.prevout];
+
+        if (VerifyScript(txin.scriptSig, prevPubKey, mergedTx, i, true, true, 0).isErr())
             fComplete = false;
     }
 
@@ -775,17 +830,22 @@ Value sendrawtransaction(const Array& params, bool fHelp)
         // through to re-relay it.
     } else {
         // push to local node
-        bool fMissingInputs = false;
-        if (!AcceptToMemoryPool(mempool, tx, &fMissingInputs)) {
-            if (fMissingInputs) {
-                throw JSONRPCError(RPC_TRANSACTION_ERROR, "Missing inputs");
+        const auto mempoolRes = AcceptToMemoryPool(mempool, tx);
+        if (mempoolRes.isErr()) {
+            std::string msg = mempoolRes.unwrapErr().GetRejectReason();
+            if (mempoolRes.unwrapErr().GetDebugMessage().empty()) {
+                msg += "; Debug: " + mempoolRes.unwrapErr().GetDebugMessage();
             }
-            throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX rejected");
+
+            if (mempoolRes.unwrapErr().GetResult() == TxValidationResult::TX_MISSING_INPUTS) {
+                throw JSONRPCError(RPC_TRANSACTION_ERROR, msg);
+            }
+            throw JSONRPCError(RPC_TRANSACTION_REJECTED, msg);
         }
 
-        SyncWithWallets(tx, NULL, true);
+        SyncWithWallets(tx, NULL);
     }
-    RelayTransaction(tx, hashTx);
+    RelayTransaction(tx);
 
     return hashTx.GetHex();
 }

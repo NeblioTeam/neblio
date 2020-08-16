@@ -205,13 +205,14 @@ void CDBEnv::CheckpointLSN(std::string strFile)
     dbenv.lsn_reset(strFile.c_str(), 0);
 }
 
-CDB::CDB(const char* pszFile, const char* pszMode) : pdb(NULL), activeTxn(NULL)
+CDB::CDB(const char* pszFile, const char* pszMode, bool fFlushOnCloseIn) : pdb(NULL), activeTxn(NULL)
 {
     int ret;
     if (pszFile == NULL)
         return;
 
     fReadOnly            = (!strchr(pszMode, '+') && !strchr(pszMode, 'w'));
+    fFlushOnClose        = fFlushOnCloseIn;
     bool         fCreate = strchr(pszMode, 'c');
     unsigned int nFlags  = DB_THREAD;
     if (fCreate)
@@ -266,14 +267,10 @@ CDB::CDB(const char* pszFile, const char* pszMode) : pdb(NULL), activeTxn(NULL)
     }
 }
 
-void CDB::Close()
+void CDB::Flush()
 {
-    if (!pdb)
-        return;
     if (activeTxn)
-        activeTxn->abort();
-    activeTxn = NULL;
-    pdb       = NULL;
+        return;
 
     // Flush database activity from memory pool to disk log
     unsigned int nMinutes = 0;
@@ -281,6 +278,19 @@ void CDB::Close()
         nMinutes = 1;
 
     bitdb.dbenv.txn_checkpoint(nMinutes ? GetArg("-dblogsize", 100) * 1024 : 0, nMinutes, 0);
+}
+
+void CDB::Close()
+{
+    if (!pdb)
+        return;
+    if (activeTxn)
+        activeTxn->abort();
+    activeTxn = nullptr;
+    pdb       = nullptr;
+
+    if (fFlushOnClose)
+        Flush();
 
     {
         LOCK(bitdb.cs_db);
