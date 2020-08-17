@@ -10,6 +10,7 @@
 
 #include "block.h"
 #include <assert.h>
+#include <boost/optional.hpp>
 #include <cinttypes>
 #include <memory>
 
@@ -86,14 +87,17 @@ public:
         consensus.nMaxOpReturnSizeV1 = 80;
         consensus.nMaxOpReturnSizeV2 = 4096;
 
-        consensus.forks.reset(new NetworkForks(
-            std::map<NetworkFork, int>{{NetworkFork::NETFORK__1_FIRST_ONE, 0},
-                                       // number of stake confirmations changed to 10
-                                       {NetworkFork::NETFORK__2_CONFS_CHANGE, 248000},
-                                       // Tachyon upgrade. Approx Jan 12th 2019
-                                       {NetworkFork::NETFORK__3_TACHYON, 387028},
-                                       // RetargetV3 upgrade. Approx June 15 2019
-                                       {NetworkFork::NETFORK__4_RETARGET_CORRECTION, 1003125}},
+        consensus.forks.emplace(NetworkForks(
+            boost::container::flat_map<NetworkFork, int>{
+                {NetworkFork::NETFORK__1_FIRST_ONE, 0},
+                // number of stake confirmations changed to 10
+                {NetworkFork::NETFORK__2_CONFS_CHANGE, 248000},
+                // Tachyon upgrade. Approx Jan 12th 2019
+                {NetworkFork::NETFORK__3_TACHYON, 387028},
+                // RetargetV3 upgrade. Approx June 15 2019
+                {NetworkFork::NETFORK__4_RETARGET_CORRECTION, 1003125},
+                // Enable cold-staking - unset placeholder
+                {NetworkFork::NETFORK__5_COLD_STAKING, 1000000000}},
             nBestHeight));
 
         consensus.nCoinbaseMaturityV1 = 30;
@@ -141,7 +145,6 @@ public:
         nStakeCombineThreshold  = 1000 * COIN;
         nMaxInputsInStake       = 100;
         nMaxStakeSearchInterval = 60;
-        fColdStakingEnabled     = false;
         nMinColdStakingAmount   = 10 * COIN;
 
         nLastPoWBlock = 1000;
@@ -262,12 +265,15 @@ public:
         consensus.nMaxOpReturnSizeV1 = 80;
         consensus.nMaxOpReturnSizeV2 = 4096;
 
-        consensus.forks.reset(new NetworkForks(
-            std::map<NetworkFork, int>{{NetworkFork::NETFORK__1_FIRST_ONE, 0},
-                                       {NetworkFork::NETFORK__2_CONFS_CHANGE, 0},
-                                       // Roughly Aug 1 2018 Noon EDT
-                                       {NetworkFork::NETFORK__3_TACHYON, 110100},
-                                       {NetworkFork::NETFORK__4_RETARGET_CORRECTION, 1163000}},
+        consensus.forks.emplace(NetworkForks(
+            boost::container::flat_map<NetworkFork, int>{
+                {NetworkFork::NETFORK__1_FIRST_ONE, 0},
+                {NetworkFork::NETFORK__2_CONFS_CHANGE, 0},
+                // Roughly Aug 1 2018 Noon EDT
+                {NetworkFork::NETFORK__3_TACHYON, 110100},
+                {NetworkFork::NETFORK__4_RETARGET_CORRECTION, 1163000},
+                // Enable cold-staking - unset placeholder
+                {NetworkFork::NETFORK__5_COLD_STAKING, 1000000000}},
             nBestHeight));
 
         pchMessageStart[0] = 0x1b;
@@ -304,7 +310,6 @@ public:
         nStakeCombineThreshold  = 1000 * COIN;
         nMaxInputsInStake       = 100;
         nMaxStakeSearchInterval = 60;
-        fColdStakingEnabled     = true;
         nMinColdStakingAmount   = 10 * COIN;
 
         nLastPoWBlock = 1000;
@@ -419,11 +424,13 @@ public:
         consensus.nMaxOpReturnSizeV1 = 4096;
         consensus.nMaxOpReturnSizeV2 = 4096;
 
-        consensus.forks.reset(new NetworkForks(
-            std::map<NetworkFork, int>{{NetworkFork::NETFORK__1_FIRST_ONE, 1000},
-                                       {NetworkFork::NETFORK__2_CONFS_CHANGE, 2000},
-                                       {NetworkFork::NETFORK__3_TACHYON, 3000},
-                                       {NetworkFork::NETFORK__4_RETARGET_CORRECTION, 4000}},
+        consensus.forks.emplace(NetworkForks(
+            boost::container::flat_map<NetworkFork, int>{
+                {NetworkFork::NETFORK__1_FIRST_ONE, 1000},
+                {NetworkFork::NETFORK__2_CONFS_CHANGE, 2000},
+                {NetworkFork::NETFORK__3_TACHYON, 3000},
+                {NetworkFork::NETFORK__4_RETARGET_CORRECTION, 4000},
+                {NetworkFork::NETFORK__5_COLD_STAKING, -1}},
             nBestHeight));
 
         pchMessageStart[0] = 0xcd;
@@ -462,7 +469,6 @@ public:
         nStakeCombineThreshold  = 1000 * COIN;
         nMaxInputsInStake       = 10;
         nMaxStakeSearchInterval = 60;
-        fColdStakingEnabled     = true;
         nMinColdStakingAmount   = 10 * COIN;
 
         nLastPoWBlock = 1000;
@@ -580,7 +586,10 @@ int64_t CChainParams::StakeCombineThreshold() const { return nStakeCombineThresh
 
 unsigned int CChainParams::MaxInputsInStake() const { return nMaxInputsInStake; }
 
-bool CChainParams::IsColdStakingEnabled() const { return fColdStakingEnabled; }
+bool CChainParams::IsColdStakingEnabled() const
+{
+    return consensus.forks->isForkActivated(NetworkFork::NETFORK__5_COLD_STAKING);
+}
 
 CAmount CChainParams::MinColdStakingAmount() const { return nMinColdStakingAmount; }
 

@@ -161,9 +161,6 @@ StakeMaker::CalculateScriptPubKeyForStakeOutput(const CKeyStore& keystore,
 
     case TX_PUBKEY: // pay to public key
     {
-        if (!Params().IsColdStakingEnabled()) {
-            return boost::none;
-        }
         const valtype& vchPubKey = vSolutions[0];
         if (!keystore.GetKey(Hash160(vchPubKey), key)) {
             if (fDebug)

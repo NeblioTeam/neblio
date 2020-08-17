@@ -9,7 +9,6 @@
 #include "NetworkForks.h"
 #include <bignum.h>
 #include <limits>
-#include <map>
 #include <memory>
 #include <string>
 #include <uint256.h>
@@ -50,7 +49,7 @@ struct Params
     /** neblio specific */
     int firstValidNTP1Height; // first block height with a valid NTP1 transaction
 
-    std::unique_ptr<NetworkForks> forks;
+    boost::optional<NetworkForks> forks;
 
     /** Max OP_RETURN Size */
     unsigned int nMaxOpReturnSizeV1;

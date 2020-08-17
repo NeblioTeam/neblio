@@ -2,8 +2,8 @@
 
 #include <string>
 
-NetworkForks::NetworkForks(const std::map<NetworkFork, int>& ForksToBlocks,
-                           const boost::atomic<int>&         BestHeightVar)
+NetworkForks::NetworkForks(const boost::container::flat_map<NetworkFork, int>& ForksToBlocks,
+                           const boost::atomic<int>&                           BestHeightVar)
     : bestHeight_internal(BestHeightVar)
 {
     if (ForksToBlocks.empty()) {
@@ -20,18 +20,6 @@ bool NetworkForks::isForkActivated(NetworkFork fork) const
     } else {
         throw std::runtime_error("Fork number " + std::to_string(fork) + " was not found");
     }
-}
-
-NetworkFork NetworkForks::getForkAtBlockNumber(int blockNumber) const
-{
-    for (auto it = forksToBlockMap.crbegin(); it != forksToBlockMap.crend(); ++it) {
-        const std::pair<NetworkFork, int>& e = *it;
-        if (blockNumber >= e.second) {
-            return e.first;
-        }
-    }
-
-    return forksToBlockMap.crbegin()->first;
 }
 
 int NetworkForks::getFirstBlockOfFork(NetworkFork fork) const { return forksToBlockMap.at(fork); }
