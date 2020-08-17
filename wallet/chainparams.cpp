@@ -272,8 +272,8 @@ public:
                 // Roughly Aug 1 2018 Noon EDT
                 {NetworkFork::NETFORK__3_TACHYON, 110100},
                 {NetworkFork::NETFORK__4_RETARGET_CORRECTION, 1163000},
-                // Enable cold-staking - unset placeholder
-                {NetworkFork::NETFORK__5_COLD_STAKING, 1000000000}},
+                // Enable cold-staking
+                {NetworkFork::NETFORK__5_COLD_STAKING, 2430000}},
             nBestHeight));
 
         pchMessageStart[0] = 0x1b;
