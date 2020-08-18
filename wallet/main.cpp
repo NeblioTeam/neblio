@@ -2544,7 +2544,7 @@ unsigned int MaxBlockSize()
 /** Minimum Peer Version */
 int MinPeerVersion()
 {
-    if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__4_RETARGET_CORRECTION)) {
+    if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__5_COLD_STAKING)) {
         return MIN_PEER_PROTO_VERSION;
     } else {
         return OLD_MIN_PEER_PROTO_VERSION;

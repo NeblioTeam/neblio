@@ -324,10 +324,11 @@ TEST(util_tests, util_seed_insecure_rand)
 TEST(util_tests, network_fork)
 {
     boost::atomic<int> currentBlock{0};
-    NetworkForks       netfork(std::map<NetworkFork, int>{{NetworkFork::NETFORK__1_FIRST_ONE, 0},
-                                                    {NetworkFork::NETFORK__2_CONFS_CHANGE, 100},
-                                                    {NetworkFork::NETFORK__3_TACHYON, 200}},
-                         currentBlock);
+    NetworkForks       netfork(
+        boost::container::flat_map<NetworkFork, int>{{NetworkFork::NETFORK__1_FIRST_ONE, 0},
+                                                     {NetworkFork::NETFORK__2_CONFS_CHANGE, 100},
+                                                     {NetworkFork::NETFORK__3_TACHYON, 200}},
+        currentBlock);
 
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE), true);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE), false);
@@ -376,18 +377,6 @@ TEST(util_tests, network_fork)
     EXPECT_EQ(netfork.getFirstBlockOfFork(NetworkFork::NETFORK__1_FIRST_ONE), 0);
     EXPECT_EQ(netfork.getFirstBlockOfFork(NetworkFork::NETFORK__2_CONFS_CHANGE), 100);
     EXPECT_EQ(netfork.getFirstBlockOfFork(NetworkFork::NETFORK__3_TACHYON), 200);
-
-    EXPECT_EQ(netfork.getForkAtBlockNumber(0), NetworkFork::NETFORK__1_FIRST_ONE);
-    EXPECT_EQ(netfork.getForkAtBlockNumber(50), NetworkFork::NETFORK__1_FIRST_ONE);
-    EXPECT_EQ(netfork.getForkAtBlockNumber(99), NetworkFork::NETFORK__1_FIRST_ONE);
-    EXPECT_EQ(netfork.getForkAtBlockNumber(100), NetworkFork::NETFORK__2_CONFS_CHANGE);
-    EXPECT_EQ(netfork.getForkAtBlockNumber(101), NetworkFork::NETFORK__2_CONFS_CHANGE);
-    EXPECT_EQ(netfork.getForkAtBlockNumber(150), NetworkFork::NETFORK__2_CONFS_CHANGE);
-    EXPECT_EQ(netfork.getForkAtBlockNumber(199), NetworkFork::NETFORK__2_CONFS_CHANGE);
-    EXPECT_EQ(netfork.getForkAtBlockNumber(200), NetworkFork::NETFORK__3_TACHYON);
-    EXPECT_EQ(netfork.getForkAtBlockNumber(201), NetworkFork::NETFORK__3_TACHYON);
-    EXPECT_EQ(netfork.getForkAtBlockNumber(250), NetworkFork::NETFORK__3_TACHYON);
-    EXPECT_EQ(netfork.getForkAtBlockNumber(300), NetworkFork::NETFORK__3_TACHYON);
 }
 
 TEST(util_tests, op_on_restart)

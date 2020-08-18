@@ -166,7 +166,6 @@ protected:
     int64_t      nStakeCombineThreshold;
     unsigned int nMaxInputsInStake;
     int          nMaxStakeSearchInterval;
-    bool         fColdStakingEnabled;
     CAmount      nMinColdStakingAmount;
 
     int nLastPoWBlock;
