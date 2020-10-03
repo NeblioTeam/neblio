@@ -11,8 +11,6 @@
 
 const std::string NTP1Wallet::ICON_ERROR_CONTENT = "<DownloadError>";
 
-boost::atomic<bool> appInitiated(false);
-
 NTP1Wallet::NTP1Wallet()
 {
     lastTxCount                  = 0;
@@ -48,10 +46,13 @@ void NTP1Wallet::__getOutputs()
 
     std::shared_ptr<CWallet> localWallet = std::atomic_load(&pwalletMain);
 
+    if (!appInitiated) {
+        return;
+    }
+
 #ifdef QT_GUI
     for (int i = 0;
-         i < 100 &&
-         ((!everSucceededInLoadingTokens && std::atomic_load(&localWallet) == nullptr) || !appInitiated);
+         i < 100 && ((!everSucceededInLoadingTokens && std::atomic_load(&localWallet) == nullptr));
          i++) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }

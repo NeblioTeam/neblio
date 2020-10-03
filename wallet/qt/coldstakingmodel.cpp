@@ -71,6 +71,10 @@ void ColdStakingModel::setWalletModel(WalletModel* wModel)
 
 void ColdStakingModel::refresh()
 {
+    if (!appInitiated) {
+        return;
+    }
+
     {
         beginResetModel();
         // this is an RAII hack to guarantee that the function will end the model reset
