@@ -123,9 +123,9 @@ StakeMaker::CreateCoinStake(const CWallet& wallet, const unsigned int nBits, con
     return stakeTx;
 }
 
-boost::optional<CScript> StakeMaker::CalculateScriptPubKeyForStakeOutput(
-    const std::function<boost::optional<CKey>(const CKeyID& address)>& keyGetter,
-    const CScript&                                                     scriptPubKeyKernel)
+boost::optional<CScript>
+StakeMaker::CalculateScriptPubKeyForStakeOutput(const KeyGetterFunctorType& keyGetter,
+                                                const CScript&              scriptPubKeyKernel)
 {
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
@@ -234,11 +234,10 @@ bool StakeMaker::SignAndVerify(const CKeyStore& keystore, const CoinStakeInputsR
     return true;
 }
 
-boost::optional<StakeKernelData>
-TestAndCreateStakeKernel(CTxDB& txdb, const CKeyStore& keystore, const unsigned int nBits,
-                         const int64_t nCoinstakeInitialTxTime, const int64_t lastCoinStakeSearchTime,
-                         const ConstCBlockIndexSmartPtr&                  pindexPrev,
-                         const std::pair<const CWalletTx*, unsigned int>& pcoin)
+boost::optional<StakeKernelData> TestAndCreateStakeKernel(
+    CTxDB& txdb, const StakeMaker::KeyGetterFunctorType& keyGetter, const unsigned int nBits,
+    const int64_t nCoinstakeInitialTxTime, const int64_t lastCoinStakeSearchTime,
+    const ConstCBlockIndexSmartPtr& pindexPrev, const std::pair<const CWalletTx*, unsigned int>& pcoin)
 {
     CTxIndex txindex;
     CBlock   kernelBlock;
@@ -279,8 +278,8 @@ TestAndCreateStakeKernel(CTxDB& txdb, const CKeyStore& keystore, const unsigned 
 
         const CScript& kernelScriptPubKey = pcoin.first->vout[pcoin.second].scriptPubKey;
 
-        const boost::optional<CScript> spkKernel = StakeMaker::CalculateScriptPubKeyForStakeOutput(
-            StakeMaker::DefaultKeyGetter(keystore), kernelScriptPubKey);
+        const boost::optional<CScript> spkKernel =
+            StakeMaker::CalculateScriptPubKeyForStakeOutput(keyGetter, kernelScriptPubKey);
 
         if (!spkKernel) {
             if (fDebug)
@@ -314,9 +313,9 @@ StakeMaker::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBits,
     CTxDB txdb("r");
 
     for (const auto& pcoin : setCoins) {
-        if (boost::optional<StakeKernelData> res =
-                TestAndCreateStakeKernel(txdb, keystore, nBits, nCoinstakeInitialTxTime,
-                                         nLastCoinStakeSearchTime, pindexPrev, pcoin)) {
+        if (boost::optional<StakeKernelData> res = TestAndCreateStakeKernel(
+                txdb, StakeMaker::DefaultKeyGetter(keystore), nBits, nCoinstakeInitialTxTime,
+                nLastCoinStakeSearchTime, pindexPrev, pcoin)) {
             return res;
         }
     }

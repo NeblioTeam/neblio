@@ -41,6 +41,8 @@ class StakeMaker
 public:
     StakeMaker() = default;
 
+    using KeyGetterFunctorType = std::function<boost::optional<CKey>(const CKeyID&)>;
+
     struct DefaultKeyGetter
     {
         const CKeyStore& keystore;
@@ -61,11 +63,11 @@ public:
         const boost::optional<std::set<std::pair<uint256, unsigned>>>& customInputs        = boost::none,
         CAmount                                                        extraPayoutForTests = 0);
     boost::optional<StakeKernelData>
-                                    FindStakeKernel(const CKeyStore& keystore, unsigned int nBits, int64_t nCoinstakeInitialTxTime,
-                                                    const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins);
-    static boost::optional<CScript> CalculateScriptPubKeyForStakeOutput(
-        const std::function<boost::optional<CKey>(const CKeyID&)>& keyGetter,
-        const CScript&                                             scriptPubKeyKernel);
+    FindStakeKernel(const CKeyStore& keystore, unsigned int nBits, int64_t nCoinstakeInitialTxTime,
+                    const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins);
+    static boost::optional<CScript>
+                CalculateScriptPubKeyForStakeOutput(const KeyGetterFunctorType& keyGetter,
+                                                    const CScript&              scriptPubKeyKernel);
     static bool SignAndVerify(const CKeyStore& keystore, const CoinStakeInputsResult inputs,
                               CTransaction& stakeTx);
     static CoinStakeInputsResult
