@@ -237,7 +237,7 @@ bool StakeMaker::SignAndVerify(const CKeyStore& keystore, const CoinStakeInputsR
 boost::optional<StakeKernelData>
 TestAndCreateStakeKernel(CTxDB& txdb, const CKeyStore& keystore, const unsigned int nBits,
                          const int64_t nCoinstakeInitialTxTime, const int64_t lastCoinStakeSearchTime,
-                         CBlockIndexSmartPtr                              pindexPrev,
+                         const ConstCBlockIndexSmartPtr&                  pindexPrev,
                          const std::pair<const CWalletTx*, unsigned int>& pcoin)
 {
     CTxIndex txindex;
