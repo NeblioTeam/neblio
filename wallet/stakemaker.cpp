@@ -123,13 +123,12 @@ StakeMaker::CreateCoinStake(const CWallet& wallet, const unsigned int nBits, con
     return stakeTx;
 }
 
-boost::optional<CScript>
-StakeMaker::CalculateScriptPubKeyForStakeOutput(const CKeyStore& keystore,
-                                                const CScript&   scriptPubKeyKernel)
+boost::optional<CScript> StakeMaker::CalculateScriptPubKeyForStakeOutput(
+    const std::function<boost::optional<CKey>(const CKeyID& address)>& keyGetter,
+    const CScript&                                                     scriptPubKeyKernel)
 {
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
-    CKey                 key;
     if (!Solver(scriptPubKeyKernel, whichType, vSolutions)) {
         if (fDebug)
             printf("CalculateScriptPubKeyForStakeOutput : failed to parse kernel\n");
@@ -137,36 +136,32 @@ StakeMaker::CalculateScriptPubKeyForStakeOutput(const CKeyStore& keystore,
     }
     if (fDebug)
         printf("CalculateScriptPubKeyForStakeOutput : parsed kernel type=%d\n", whichType);
-    if (whichType != TX_PUBKEY && whichType != TX_PUBKEYHASH && whichType != TX_COLDSTAKE) {
-        if (fDebug)
-            printf("CalculateScriptPubKeyForStakeOutput : no support for kernel type=%d\n", whichType);
-        return boost::none; // only support pay to public key and pay to address
-    }
 
     switch (whichType) {
     case TX_PUBKEYHASH: // pay to address type
     {
         // convert to pay to public key type
-        if (!keystore.GetKey(uint160(vSolutions[0]), key)) {
+        const boost::optional<CKey> key = keyGetter(uint160(vSolutions[0]));
+        if (!key) {
             if (fDebug)
                 printf("CalculateScriptPubKeyForStakeOutput : failed to get key for kernel type=%d\n",
                        whichType);
             return boost::none; // unable to find corresponding public key
         }
-        return CScript() << key.GetPubKey() << OP_CHECKSIG;
+        return CScript() << key->GetPubKey() << OP_CHECKSIG;
     }
-
     case TX_PUBKEY: // pay to public key
     {
-        const valtype& vchPubKey = vSolutions[0];
-        if (!keystore.GetKey(Hash160(vchPubKey), key)) {
+        const valtype&              vchPubKey = vSolutions[0];
+        const boost::optional<CKey> key       = keyGetter(Hash160(vchPubKey));
+        if (!key) {
             if (fDebug)
                 printf("CalculateScriptPubKeyForStakeOutput : failed to get key for kernel type=%d\n",
                        whichType);
             return boost::none; // unable to find corresponding public key
         }
 
-        if (key.GetPubKey() != vchPubKey) {
+        if (key->GetPubKey() != vchPubKey) {
             if (fDebug)
                 printf("CalculateScriptPubKeyForStakeOutput : invalid key for kernel P2PK type=%d\n",
                        whichType);
@@ -175,7 +170,8 @@ StakeMaker::CalculateScriptPubKeyForStakeOutput(const CKeyStore& keystore,
         return scriptPubKeyKernel;
     }
     case TX_COLDSTAKE: {
-        if (!keystore.GetKey(CKeyID(uint160(vSolutions[0])), key)) {
+        const boost::optional<CKey> key = keyGetter(CKeyID(uint160(vSolutions[0])));
+        if (!key) {
             printf(
                 "CalculateScriptPubKeyForStakeOutput : failed to get key for kernel coldstake type=%d\n",
                 whichType);
@@ -283,8 +279,8 @@ TestAndCreateStakeKernel(CTxDB& txdb, const CKeyStore& keystore, const unsigned 
 
         const CScript& kernelScriptPubKey = pcoin.first->vout[pcoin.second].scriptPubKey;
 
-        const boost::optional<CScript> spkKernel =
-            StakeMaker::CalculateScriptPubKeyForStakeOutput(keystore, kernelScriptPubKey);
+        const boost::optional<CScript> spkKernel = StakeMaker::CalculateScriptPubKeyForStakeOutput(
+            StakeMaker::DefaultKeyGetter(keystore), kernelScriptPubKey);
 
         if (!spkKernel) {
             if (fDebug)
