@@ -7,6 +7,7 @@
 #include "transaction.h"
 #include "txin.h"
 #include <boost/optional.hpp>
+#include <mutex>
 
 class CWallet;
 class CWalletTx;
@@ -35,6 +36,7 @@ class StakeMaker
 {
     boost::atomic_int64_t nLastCoinStakeSearchTime{0};
     boost::atomic_int64_t nLastCoinStakeSearchInterval{0};
+    std::once_flag        timeSetterOnceFlag;
 
 public:
     StakeMaker() = default;
