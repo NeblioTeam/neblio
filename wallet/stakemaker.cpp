@@ -9,6 +9,77 @@ int64_t StakeMaker::getLastCoinStakeSearchInterval() const { return nLastCoinSta
 
 int64_t StakeMaker::getLastCoinStakeSearchTime() const { return nLastCoinStakeSearchTime; }
 
+boost::optional<StakeKernelData>
+TestAndCreateStakeKernel(CTxDB& txdb, const StakeMaker::KeyGetterFunctorType& keyGetter,
+                         const unsigned int nBits, const int64_t nCoinstakeInitialTxTime,
+                         const int64_t                                       lastCoinStakeSearchTime,
+                         const ConstCBlockIndexSmartPtr&                     pindexPrev,
+                         const std::pair<const CTransaction*, unsigned int>& pcoin)
+{
+    CTxIndex txindex;
+    CBlock   kernelBlock;
+    {
+        LOCK(cs_main);
+
+        if (!txdb.ReadTxIndex(pcoin.first->GetHash(), txindex))
+            return boost::none;
+
+        // Read block header
+        if (!kernelBlock.ReadFromDisk(txindex.pos.nBlockPos, false))
+            return boost::none;
+    }
+
+    const int64_t nSearchInterval = nCoinstakeInitialTxTime - lastCoinStakeSearchTime;
+
+    const int          nMaxStakeSearchInterval = Params().MaxStakeSearchInterval();
+    const unsigned int nSMA                    = Params().StakeMinAge();
+    if (kernelBlock.GetBlockTime() + nSMA > nCoinstakeInitialTxTime - nMaxStakeSearchInterval)
+        return boost::none; // only count coins meeting min age requirement
+
+    for (unsigned int n = 0; n < std::min(nSearchInterval, (int64_t)nMaxStakeSearchInterval) &&
+                             !fShutdown && pindexPrev == pindexBest;
+         n++) {
+        // Search backward in time from the given tx timestamp
+        // Search nSearchInterval seconds back up to nMaxStakeSearchInterval
+        uint256       hashProofOfStake = 0, targetProofOfStake = 0;
+        COutPoint     prevoutStake    = COutPoint(pcoin.first->GetHash(), pcoin.second);
+        const int64_t txCoinstakeTime = nCoinstakeInitialTxTime - n;
+        if (!CheckStakeKernelHash(nBits, kernelBlock, txindex.pos.nTxPos, *pcoin.first, prevoutStake,
+                                  txCoinstakeTime, hashProofOfStake, targetProofOfStake)) {
+            continue;
+        }
+
+        // Found a kernel
+        if (fDebug)
+            printf("FindStakeKernel : kernel found\n");
+
+        const CScript& kernelScriptPubKey = pcoin.first->vout[pcoin.second].scriptPubKey;
+
+        const boost::optional<CScript> spkKernel =
+            StakeMaker::CalculateScriptPubKeyForStakeOutput(keyGetter, kernelScriptPubKey);
+
+        if (!spkKernel) {
+            if (fDebug)
+                printf("FindStakeKernel : failed to get scriptPubKey for kernel");
+            continue;
+        }
+
+        StakeKernelData coinStake;
+
+        // Fill coin stake transaction
+        coinStake.kernelScriptPubKey      = kernelScriptPubKey;
+        coinStake.credit                  = pcoin.first->vout[pcoin.second].nValue;
+        coinStake.kernelTx                = pcoin.first;
+        coinStake.kernelBlockTime         = kernelBlock.GetBlockTime();
+        coinStake.kernelInput             = CTxIn(pcoin.first->GetHash(), pcoin.second);
+        coinStake.stakeTxTime             = txCoinstakeTime;
+        coinStake.stakeOutputScriptPubKey = *spkKernel;
+
+        return coinStake;
+    }
+    return boost::none;
+}
+
 boost::optional<CTransaction>
 StakeMaker::CreateCoinStake(const CWallet& wallet, const unsigned int nBits, const CAmount nFees,
                             const CAmount reservedBalance,
@@ -199,8 +270,8 @@ bool StakeMaker::SignAndVerify(const CKeyStore& keystore, const CoinStakeInputsR
     // Sign
     std::vector<SignatureState> sigStates;
     for (unsigned i = 0; i < inputs.inputsPrevouts.size(); i++) {
-        const CWalletTx* pcoin = inputs.inputsPrevouts[i];
-        SignatureState   sigState{SignatureState::Failed};
+        const CTransaction* pcoin = inputs.inputsPrevouts[i];
+        SignatureState      sigState{SignatureState::Failed};
         if ((sigState = SignSignature(keystore, *pcoin, stakeTx, i, SIGHASH_ALL, true)) ==
             SignatureState::Failed) {
             printf("CreateCoinStake : failed to sign coinstake");
@@ -219,8 +290,8 @@ bool StakeMaker::SignAndVerify(const CKeyStore& keystore, const CoinStakeInputsR
 
     // after signatures are done, we verify them if they're not verified
     for (unsigned i = 0; i < inputs.inputsPrevouts.size(); i++) {
-        const CWalletTx* pcoin = inputs.inputsPrevouts[i];
-        const CTxIn&     txin  = stakeTx.vin[i];
+        const CTransaction* pcoin = inputs.inputsPrevouts[i];
+        const CTxIn&        txin  = stakeTx.vin[i];
         if (sigStates[i] == SignatureState::Verified) {
             continue;
         }
@@ -232,75 +303,6 @@ bool StakeMaker::SignAndVerify(const CKeyStore& keystore, const CoinStakeInputsR
         }
     }
     return true;
-}
-
-boost::optional<StakeKernelData> TestAndCreateStakeKernel(
-    CTxDB& txdb, const StakeMaker::KeyGetterFunctorType& keyGetter, const unsigned int nBits,
-    const int64_t nCoinstakeInitialTxTime, const int64_t lastCoinStakeSearchTime,
-    const ConstCBlockIndexSmartPtr& pindexPrev, const std::pair<const CWalletTx*, unsigned int>& pcoin)
-{
-    CTxIndex txindex;
-    CBlock   kernelBlock;
-    {
-        LOCK(cs_main);
-
-        if (!txdb.ReadTxIndex(pcoin.first->GetHash(), txindex))
-            return boost::none;
-
-        // Read block header
-        if (!kernelBlock.ReadFromDisk(txindex.pos.nBlockPos, false))
-            return boost::none;
-    }
-
-    const int64_t nSearchInterval = nCoinstakeInitialTxTime - lastCoinStakeSearchTime;
-
-    const int          nMaxStakeSearchInterval = Params().MaxStakeSearchInterval();
-    const unsigned int nSMA                    = Params().StakeMinAge();
-    if (kernelBlock.GetBlockTime() + nSMA > nCoinstakeInitialTxTime - nMaxStakeSearchInterval)
-        return boost::none; // only count coins meeting min age requirement
-
-    for (unsigned int n = 0; n < std::min(nSearchInterval, (int64_t)nMaxStakeSearchInterval) &&
-                             !fShutdown && pindexPrev == pindexBest;
-         n++) {
-        // Search backward in time from the given tx timestamp
-        // Search nSearchInterval seconds back up to nMaxStakeSearchInterval
-        uint256       hashProofOfStake = 0, targetProofOfStake = 0;
-        COutPoint     prevoutStake    = COutPoint(pcoin.first->GetHash(), pcoin.second);
-        const int64_t txCoinstakeTime = nCoinstakeInitialTxTime - n;
-        if (!CheckStakeKernelHash(nBits, kernelBlock, txindex.pos.nTxPos, *pcoin.first, prevoutStake,
-                                  txCoinstakeTime, hashProofOfStake, targetProofOfStake)) {
-            continue;
-        }
-
-        // Found a kernel
-        if (fDebug)
-            printf("FindStakeKernel : kernel found\n");
-
-        const CScript& kernelScriptPubKey = pcoin.first->vout[pcoin.second].scriptPubKey;
-
-        const boost::optional<CScript> spkKernel =
-            StakeMaker::CalculateScriptPubKeyForStakeOutput(keyGetter, kernelScriptPubKey);
-
-        if (!spkKernel) {
-            if (fDebug)
-                printf("FindStakeKernel : failed to get scriptPubKey for kernel");
-            continue;
-        }
-
-        StakeKernelData coinStake;
-
-        // Fill coin stake transaction
-        coinStake.kernelScriptPubKey      = kernelScriptPubKey;
-        coinStake.credit                  = pcoin.first->vout[pcoin.second].nValue;
-        coinStake.kernelTx                = pcoin.first;
-        coinStake.kernelBlockTime         = kernelBlock.GetBlockTime();
-        coinStake.kernelInput             = CTxIn(pcoin.first->GetHash(), pcoin.second);
-        coinStake.stakeTxTime             = txCoinstakeTime;
-        coinStake.stakeOutputScriptPubKey = *spkKernel;
-
-        return coinStake;
-    }
-    return boost::none;
 }
 
 boost::optional<StakeKernelData>

@@ -15,21 +15,21 @@ class CKeyStore;
 
 struct StakeKernelData
 {
-    CScript          kernelScriptPubKey;
-    CScript          stakeOutputScriptPubKey;
-    CKey             key;
-    CAmount          credit = 0;
-    CTxIn            kernelInput;
-    int64_t          kernelBlockTime = 0;
-    const CWalletTx* kernelTx        = nullptr;
-    int64_t          stakeTxTime     = 0;
+    CScript             kernelScriptPubKey;
+    CScript             stakeOutputScriptPubKey;
+    CKey                key;
+    CAmount             credit = 0;
+    CTxIn               kernelInput;
+    int64_t             kernelBlockTime = 0;
+    const CTransaction* kernelTx        = nullptr;
+    int64_t             stakeTxTime     = 0;
 };
 
 struct CoinStakeInputsResult
 {
-    std::vector<CTxIn>            inputs;
-    std::vector<const CWalletTx*> inputsPrevouts;
-    CAmount                       nInputsTotalCredit = 0;
+    std::vector<CTxIn>               inputs;
+    std::vector<const CTransaction*> inputsPrevouts;
+    CAmount                          nInputsTotalCredit = 0;
 };
 
 class StakeMaker
@@ -62,6 +62,7 @@ public:
         const CWallet& wallet, unsigned int nBits, CAmount nFees, CAmount reservedBalance,
         const boost::optional<std::set<std::pair<uint256, unsigned>>>& customInputs        = boost::none,
         CAmount                                                        extraPayoutForTests = 0);
+
     boost::optional<StakeKernelData>
     FindStakeKernel(const CKeyStore& keystore, unsigned int nBits, int64_t nCoinstakeInitialTxTime,
                     const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins);
