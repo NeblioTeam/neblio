@@ -21,6 +21,15 @@ CoinStakeInputsResult MakeInitialStakeInputsResult(const StakeKernelData& kernel
     return result;
 }
 
+bool IsStakeTxSizeValid(const CTransaction& stakeTx)
+{
+    const unsigned int nBytes = ::GetSerializeSize(stakeTx, SER_NETWORK, PROTOCOL_VERSION);
+    if (nBytes >= OLD_MAX_BLOCK_SIZE / 5) {
+        return false;
+    }
+    return true;
+}
+
 boost::optional<StakeKernelData>
 TestAndCreateStakeKernel(CTxDB& txdb, const StakeMaker::KeyGetterFunctorType& keyGetter,
                          const unsigned int nBits, const int64_t nCoinstakeInitialTxTime,
@@ -90,6 +99,29 @@ TestAndCreateStakeKernel(CTxDB& txdb, const StakeMaker::KeyGetterFunctorType& ke
         return coinStake;
     }
     return boost::none;
+}
+
+boost::optional<CAmount> CalculateStakeReward(const CTransaction& stakeTx, CAmount nFees,
+                                              CAmount extraPayoutForTests = 0)
+{
+    CAmount result = 0;
+
+    uint64_t nCoinAge;
+    CTxDB    txdb("r");
+    if (!stakeTx.GetCoinAge(txdb, nCoinAge)) {
+        printf("CreateCoinStake : failed to calculate coin age");
+        return boost::none;
+    }
+
+    const CAmount nReward = GetProofOfStakeReward(nCoinAge, nFees);
+    if (nReward <= 0)
+        return boost::none;
+
+    // add reward to total credit
+    result += nReward;
+    result += extraPayoutForTests;
+
+    return boost::make_optional(result);
 }
 
 boost::optional<CTransaction>
@@ -171,22 +203,12 @@ StakeMaker::CreateCoinStake(const CWallet& wallet, const unsigned int nBits, con
 
     // Calculate coin age and reward
     CAmount nFinalCredit = inputs.nInputsTotalCredit;
-    {
-        uint64_t nCoinAge;
-        CTxDB    txdb("r");
-        if (!stakeTx.GetCoinAge(txdb, nCoinAge)) {
-            printf("CreateCoinStake : failed to calculate coin age");
-            return boost::none;
-        }
 
-        const CAmount nReward = GetProofOfStakeReward(nCoinAge, nFees);
-        if (nReward <= 0)
-            return boost::none;
-
-        // add reward to total credit
-        nFinalCredit += nReward;
-        nFinalCredit += extraPayoutForTests;
+    const boost::optional<CAmount> oReward = CalculateStakeReward(stakeTx, nFees, extraPayoutForTests);
+    if (!oReward) {
+        return boost::none;
     }
+    nFinalCredit += *oReward;
 
     stakeTx.vout = MakeStakeOutputs(kernelData->stakeOutputScriptPubKey, nFinalCredit, splitStake);
 
@@ -196,8 +218,7 @@ StakeMaker::CreateCoinStake(const CWallet& wallet, const unsigned int nBits, con
     }
 
     // Limit size
-    const unsigned int nBytes = ::GetSerializeSize(stakeTx, SER_NETWORK, PROTOCOL_VERSION);
-    if (nBytes >= OLD_MAX_BLOCK_SIZE / 5) {
+    if (!IsStakeTxSizeValid(stakeTx)) {
         printf("CreateCoinStake : exceeded coinstake size limit");
         return boost::none;
     }
@@ -265,22 +286,12 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStakeFromSpecificOutput(cons
 
     // Calculate coin age and reward
     CAmount nFinalCredit = inputs.nInputsTotalCredit;
-    // TODO: take the next part to a separate function and use it for both CreateCoinStake functions
-    {
-        uint64_t nCoinAge;
-        CTxDB    txdb("r");
-        if (!stakeTx.GetCoinAge(txdb, nCoinAge)) {
-            printf("CreateCoinStake : failed to calculate coin age");
-            return boost::none;
-        }
 
-        const CAmount nReward = GetProofOfStakeReward(nCoinAge, nFees);
-        if (nReward <= 0)
-            return boost::none;
-
-        // add reward to total credit
-        nFinalCredit += nReward;
+    const boost::optional<CAmount> oReward = CalculateStakeReward(stakeTx, nFees, 0);
+    if (!oReward) {
+        return boost::none;
     }
+    nFinalCredit += *oReward;
 
     stakeTx.vout = MakeStakeOutputs(kernelData->stakeOutputScriptPubKey, nFinalCredit, splitStake);
 
@@ -297,8 +308,7 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStakeFromSpecificOutput(cons
     }
 
     // Limit size
-    const unsigned int nBytes = ::GetSerializeSize(stakeTx, SER_NETWORK, PROTOCOL_VERSION);
-    if (nBytes >= OLD_MAX_BLOCK_SIZE / 5) {
+    if (!IsStakeTxSizeValid(stakeTx)) {
         printf("CreateCoinStake : exceeded coinstake size limit");
         return boost::none;
     }
