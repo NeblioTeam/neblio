@@ -63,6 +63,10 @@ public:
         const boost::optional<std::set<std::pair<uint256, unsigned>>>& customInputs        = boost::none,
         CAmount                                                        extraPayoutForTests = 0);
 
+    boost::optional<CTransaction> CreateCoinStakeFromSpecificOutput(const COutPoint& output,
+                                                                    const CKey&      spendKeyOfOutput,
+                                                                    unsigned int nBits, CAmount nFees);
+
     boost::optional<StakeKernelData>
     FindStakeKernel(const CKeyStore& keystore, unsigned int nBits, int64_t nCoinstakeInitialTxTime,
                     const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins);

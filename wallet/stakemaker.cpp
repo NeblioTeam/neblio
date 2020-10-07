@@ -9,6 +9,18 @@ int64_t StakeMaker::getLastCoinStakeSearchInterval() const { return nLastCoinSta
 
 int64_t StakeMaker::getLastCoinStakeSearchTime() const { return nLastCoinStakeSearchTime; }
 
+CoinStakeInputsResult MakeInitialStakeInputsResult(const StakeKernelData& kernelData)
+{
+    CoinStakeInputsResult result;
+
+    // add the kernel input
+    result.inputs.push_back(kernelData.kernelInput);
+    result.inputsPrevouts.push_back(kernelData.kernelTx);
+    result.nInputsTotalCredit = kernelData.credit;
+
+    return result;
+}
+
 boost::optional<StakeKernelData>
 TestAndCreateStakeKernel(CTxDB& txdb, const StakeMaker::KeyGetterFunctorType& keyGetter,
                          const unsigned int nBits, const int64_t nCoinstakeInitialTxTime,
@@ -132,7 +144,7 @@ StakeMaker::CreateCoinStake(const CWallet& wallet, const unsigned int nBits, con
 
     // since time search goes backwards, and there's potential for tx time to go back, we store it to
     // use it later in UpdateStakeSearchTimes()
-    boost::optional<StakeKernelData> kernelData =
+    const boost::optional<StakeKernelData> kernelData =
         FindStakeKernel(wallet, nBits, nCoinstakeInitialTxTime, setCoins);
     UpdateStakeSearchTimes(nCoinstakeInitialTxTime);
 
@@ -179,6 +191,107 @@ StakeMaker::CreateCoinStake(const CWallet& wallet, const unsigned int nBits, con
     stakeTx.vout = MakeStakeOutputs(kernelData->stakeOutputScriptPubKey, nFinalCredit, splitStake);
 
     if (!SignAndVerify(wallet, inputs, stakeTx)) {
+        printf("CreateCoinStake : SignAndVerify() failed");
+        return boost::none;
+    }
+
+    // Limit size
+    const unsigned int nBytes = ::GetSerializeSize(stakeTx, SER_NETWORK, PROTOCOL_VERSION);
+    if (nBytes >= OLD_MAX_BLOCK_SIZE / 5) {
+        printf("CreateCoinStake : exceeded coinstake size limit");
+        return boost::none;
+    }
+
+    // Successfully generated coinstake
+    return stakeTx;
+}
+
+boost::optional<CTransaction> StakeMaker::CreateCoinStakeFromSpecificOutput(const COutPoint& output,
+                                                                            const CKey& spendKeyOfOutput,
+                                                                            unsigned int nBits,
+                                                                            CAmount      nFees)
+{
+    // we set the startup time only once
+    std::call_once(timeSetterOnceFlag, [&]() { nLastCoinStakeSearchTime = GetAdjustedTime(); });
+
+    const int64_t nCoinstakeInitialTxTime = GetAdjustedTime();
+
+    // no point in searching times that we aleady visited (this is zero interval)
+    if (nCoinstakeInitialTxTime <= nLastCoinStakeSearchTime) {
+        UpdateStakeSearchTimes(nCoinstakeInitialTxTime);
+        return boost::none;
+    }
+
+    CTxDB               txdb("r");
+    CBlockIndexSmartPtr pindexPrev = boost::atomic_load(&pindexBest);
+    // TODO: see if you can use the keyID with CKey to verify that they belong to each other
+    const auto keyGetter = [&spendKeyOfOutput](const CKeyID&) {
+        return boost::make_optional(spendKeyOfOutput);
+    };
+
+    CTxIndex     txindex;
+    CTransaction outputTx;
+    {
+        LOCK(cs_main);
+
+        if (!txdb.ReadTxIndex(output.hash, txindex))
+            return boost::none;
+
+        if (!txdb.ReadTx(txindex.pos, outputTx))
+            return boost::none;
+    }
+
+    if (output.n >= outputTx.vout.size()) {
+        printf("Invalid output index %u >= %zu", output.n, outputTx.vout.size());
+        return boost::none;
+    }
+
+    const boost::optional<StakeKernelData> kernelData = TestAndCreateStakeKernel(
+        txdb, keyGetter, nBits, nCoinstakeInitialTxTime, nLastCoinStakeSearchTime, pindexPrev,
+        std::make_pair(&outputTx, output.n));
+
+    // stake was not found
+    if (!kernelData) {
+        return boost::none;
+    }
+
+    CTransaction stakeTx;
+    stakeTx.nTime = kernelData->stakeTxTime;
+
+    const bool splitStake =
+        GetWeight(kernelData->kernelBlockTime, kernelData->stakeTxTime) < Params().StakeSplitAge();
+
+    const CoinStakeInputsResult inputs = MakeInitialStakeInputsResult(*kernelData);
+
+    // Calculate coin age and reward
+    CAmount nFinalCredit = inputs.nInputsTotalCredit;
+    // TODO: take the next part to a separate function and use it for both CreateCoinStake functions
+    {
+        uint64_t nCoinAge;
+        CTxDB    txdb("r");
+        if (!stakeTx.GetCoinAge(txdb, nCoinAge)) {
+            printf("CreateCoinStake : failed to calculate coin age");
+            return boost::none;
+        }
+
+        const CAmount nReward = GetProofOfStakeReward(nCoinAge, nFees);
+        if (nReward <= 0)
+            return boost::none;
+
+        // add reward to total credit
+        nFinalCredit += nReward;
+    }
+
+    stakeTx.vout = MakeStakeOutputs(kernelData->stakeOutputScriptPubKey, nFinalCredit, splitStake);
+
+    // create a temporary key store and store our key in it
+    CBasicKeyStore keyStore;
+    if (!keyStore.AddKey(spendKeyOfOutput)) {
+        printf("Failed to add key to temporary key store");
+        return boost::none;
+    }
+
+    if (!SignAndVerify(keyStore, inputs, stakeTx)) {
         printf("CreateCoinStake : SignAndVerify() failed");
         return boost::none;
     }
@@ -330,12 +443,7 @@ StakeMaker::CollectInputsForStake(const StakeKernelData&                        
                                   const int64_t txTime, const bool splitStake, const CAmount nBalance,
                                   const CAmount reservedBalance)
 {
-    CoinStakeInputsResult result;
-
-    // add the kernel input
-    result.inputs.push_back(kernelData.kernelInput);
-    result.inputsPrevouts.push_back(kernelData.kernelTx);
-    result.nInputsTotalCredit = kernelData.credit;
+    CoinStakeInputsResult result = MakeInitialStakeInputsResult(kernelData);
 
     if (!splitStake) {
         // Attempt to add more inputs
