@@ -1486,44 +1486,102 @@ bool CBlock::SignBlock(const CWallet& wallet, int64_t nFees,
     if (IsProofOfStake())
         return true;
 
-    CBlockIndexSmartPtr pindexBestPtr = boost::atomic_load(&pindexBest);
-    if (boost::optional<CTransaction> coinStake = stakeMaker.CreateCoinStake(
-            wallet, nBits, nFees, nReserveBalance, customInputs, extraPayoutForTest)) {
-        if (coinStake->nTime >=
-            std::max(pindexBestPtr->GetPastTimeLimit() + 1, PastDrift(pindexBestPtr->GetBlockTime()))) {
-            // make sure coinstake would meet timestamp protocol
-            // as it would be the same as the block timestamp
-            vtx[0].nTime = nTime = coinStake->nTime;
-            nTime = std::max(pindexBestPtr->GetPastTimeLimit() + 1, GetMaxTransactionTime());
-            nTime = std::max(GetBlockTime(), PastDrift(pindexBestPtr->GetBlockTime()));
+    CBlockIndexSmartPtr                 pindexBestPtr = boost::atomic_load(&pindexBest);
+    const boost::optional<CTransaction> coinStake     = stakeMaker.CreateCoinStake(
+        wallet, nBits, nFees, nReserveBalance, customInputs, extraPayoutForTest);
 
-            // we have to make sure that we have no future timestamps in
-            //    our transactions set
-            for (std::vector<CTransaction>::iterator it = vtx.begin(); it != vtx.end();)
-                if (it->nTime > nTime) {
-                    it = vtx.erase(it);
-                } else {
-                    ++it;
-                }
+    if (!coinStake) {
+        return false;
+    }
 
-            vtx.insert(vtx.begin() + 1, *coinStake);
-            hashMerkleRoot = GetMerkleRoot();
+    const int64_t minTime =
+        std::max(pindexBestPtr->GetPastTimeLimit() + 1, PastDrift(pindexBestPtr->GetBlockTime()));
 
-            boost::optional<CKeyID> keyID = GetKeyIDFromOutput(vtx[1].vout[1]);
-            if (!keyID) {
-                return error("%s: failed to find key for coinstake", __func__);
-            }
-            CKey key;
-            if (!wallet.GetKey(*keyID, key)) {
-                return error("%s: failed to get key from keystore", __func__);
-            }
+    if (coinStake->nTime < minTime) {
+        return false;
+    }
 
-            // append a signature to our block
-            return key.Sign(GetHash(), vchBlockSig);
+    // make sure coinstake would meet timestamp protocol
+    // as it would be the same as the block timestamp
+    vtx[0].nTime = nTime = coinStake->nTime;
+    nTime                = std::max(pindexBestPtr->GetPastTimeLimit() + 1, GetMaxTransactionTime());
+    nTime                = std::max(GetBlockTime(), PastDrift(pindexBestPtr->GetBlockTime()));
+
+    // we have to make sure that we have no future timestamps in our transactions set
+    for (auto it = vtx.begin(); it != vtx.end();) {
+        if (it->nTime > nTime) {
+            it = vtx.erase(it);
+        } else {
+            ++it;
         }
     }
 
-    return false;
+    // tx[1] is the coinstake transaction
+    vtx.insert(vtx.begin() + 1, *coinStake);
+    hashMerkleRoot = GetMerkleRoot();
+
+    const boost::optional<CKeyID> keyID = GetKeyIDFromOutput(vtx[1].vout[1]);
+    if (!keyID) {
+        return error("%s: failed to find key for coinstake", __func__);
+    }
+    CKey key;
+    if (!wallet.GetKey(*keyID, key)) {
+        return error("%s: failed to get key from keystore", __func__);
+    }
+
+    // append a signature to our block
+    return key.Sign(GetHash(), vchBlockSig);
+}
+
+bool CBlock::SignBlockWithSpecificKey(const COutPoint& outputToStake, const CKey& keyOfOutput,
+                                      int64_t nFees)
+{
+    // if we are trying to sign
+    //    something except proof-of-stake block template
+    if (!vtx[0].vout[0].IsEmpty())
+        return false;
+
+    // if we are trying to sign
+    //    a complete proof-of-stake block
+    if (IsProofOfStake())
+        return true;
+
+    CBlockIndexSmartPtr                 pindexBestPtr = boost::atomic_load(&pindexBest);
+    const boost::optional<CTransaction> coinStake =
+        stakeMaker.CreateCoinStakeFromSpecificOutput(outputToStake, keyOfOutput, nBits, nFees);
+
+    if (!coinStake) {
+        return false;
+    }
+
+    const int64_t minTime =
+        std::max(pindexBestPtr->GetPastTimeLimit() + 1, PastDrift(pindexBestPtr->GetBlockTime()));
+
+    if (coinStake->nTime < minTime) {
+        return false;
+    }
+
+    // make sure coinstake would meet timestamp protocol
+    // as it would be the same as the block timestamp
+    vtx[0].nTime = nTime = coinStake->nTime;
+    nTime                = std::max(pindexBestPtr->GetPastTimeLimit() + 1, GetMaxTransactionTime());
+    nTime                = std::max(GetBlockTime(), PastDrift(pindexBestPtr->GetBlockTime()));
+
+    // we have to make sure that we have no future timestamps in our transactions set
+    for (auto it = vtx.begin(); it != vtx.end();) {
+        if (it->nTime > nTime) {
+            it = vtx.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    // tx[1] is the coinstake transaction
+    vtx.insert(vtx.begin() + 1, *coinStake);
+    hashMerkleRoot = GetMerkleRoot();
+
+    // append a signature to our block
+    return keyOfOutput.Sign(GetHash(), vchBlockSig);
 }
 
 static CKey ExtractColdStakePubKey(const CBlock& block)

@@ -179,6 +179,9 @@ public:
          SignBlock(const CWallet& keystore, int64_t nFees,
                    const boost::optional<std::set<std::pair<uint256, unsigned>>>& customInputs = boost::none,
                    CAmount                                                        extraPayoutForTest = 0);
+    bool SignBlockWithSpecificKey(const COutPoint& outputToStake, const CKey& keyOfOutput,
+                                  int64_t nFees);
+
     bool CheckBlockSignature() const;
 
     static CBlockIndexSmartPtr FindBlockByHeight(int nHeight);
