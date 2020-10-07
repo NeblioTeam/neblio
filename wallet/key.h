@@ -132,7 +132,7 @@ public:
     bool     SetPubKey(const CPubKey& vchPubKey);
     CPubKey  GetPubKey() const;
 
-    bool Sign(uint256 hash, std::vector<unsigned char>& vchSig);
+    bool Sign(uint256 hash, std::vector<unsigned char>& vchSig) const;
 
     // create a compact signature (65 bytes), which allows reconstructing the used public key
     // The format is one header byte, followed by two times 32 bytes for the serialized r and s values.
