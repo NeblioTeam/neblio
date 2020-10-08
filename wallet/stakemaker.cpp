@@ -247,7 +247,7 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStakeFromSpecificOutput(cons
 
     CTxDB               txdb("r");
     CBlockIndexSmartPtr pindexPrev = boost::atomic_load(&pindexBest);
-    // TODO: see if you can use the keyID with CKey to verify that they belong to each other
+
     const auto keyGetter = [&spendKeyOfOutput](const CKeyID&) {
         return boost::make_optional(spendKeyOfOutput);
     };
