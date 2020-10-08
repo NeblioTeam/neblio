@@ -233,7 +233,9 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStakeFromSpecificOutput(cons
                                                                             CAmount      nFees)
 {
     // we set the startup time only once
-    std::call_once(timeSetterOnceFlag, [&]() { nLastCoinStakeSearchTime = GetAdjustedTime(); });
+    std::call_once(timeSetterOnceFlag, [&]() {
+        nLastCoinStakeSearchTime = GetAdjustedTime() - Params().MaxStakeSearchInterval();
+    });
 
     const int64_t nCoinstakeInitialTxTime = GetAdjustedTime();
 
@@ -283,6 +285,8 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStakeFromSpecificOutput(cons
         GetWeight(kernelData->kernelBlockTime, kernelData->stakeTxTime) < Params().StakeSplitAge();
 
     const CoinStakeInputsResult inputs = MakeInitialStakeInputsResult(*kernelData);
+
+    stakeTx.vin = inputs.inputs;
 
     // Calculate coin age and reward
     CAmount nFinalCredit = inputs.nInputsTotalCredit;

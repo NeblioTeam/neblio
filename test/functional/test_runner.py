@@ -60,6 +60,7 @@ BASE_SCRIPTS= [
     # vv Tests less than 5m vv
     'feature_block.py',
     'feature_pos.py',
+    'feature_pos_rpc.py',
 #    'p2p_compactblocks.py',
 #    'feature_segwit.py',
     # vv Tests less than 2m vv

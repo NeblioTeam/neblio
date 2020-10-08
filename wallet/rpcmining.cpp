@@ -850,3 +850,96 @@ Value generatetoaddress(const Array& params, bool fHelp)
 
     return generateBlocks(num_generate, max_tries, pwallet, destination);
 }
+
+static CKey WIFSecretToKey(const std::string& wifKey)
+{
+    // decode the wif string of the private key
+    CBitcoinSecret secret;
+    secret.SetString(wifKey);
+    bool fCompressed = false;
+
+    // set the ECC key of the secret
+    CKey key;
+    key.SetSecret(secret.GetSecret(fCompressed), fCompressed);
+
+    return key;
+}
+
+static CTransaction TxFromHex(const std::string& tx_hex)
+{
+    vector<unsigned char> blockData(ParseHex(tx_hex));
+    CDataStream           ssTx(blockData, SER_NETWORK, PROTOCOL_VERSION);
+    CTransaction          tx;
+    try {
+        ssTx >> tx;
+    } catch (std::exception& e) {
+        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Failed to deserialize transaction");
+    }
+    return tx;
+}
+
+Value generateblockwithkey(const Array& params, bool fHelp)
+{
+    // clang-format off
+    if (fHelp || params.size() < 3 || params.size() > 4)
+        throw std::runtime_error(
+            "generateblockwithkey output-tx-hash output-index private-key txs (maxtries)\n"
+            "\nMine blocks immediately to a specified address (before the RPC call returns)\n"
+            "\nArguments:\n"
+            "1. output-tx-hash (string, required) The output transaction that should be used as stake kernel.\n"
+            "2. output-index   (int, required) The index of the output to be used in the transaction above.\n"
+            "3. txs            (list<string>, required) raw txs to include in the block\n"
+            "4. maxtries       (numeric, optional) How many times to try to create the block (default = 10000).\n"
+            "\nResult:\n"
+            "raw block;  raw block as hex string, to be submitted using `submitblock` rpc function\n"
+            "\nExamples:\n\n"
+            "generateblockwithkey 0xabcdefg 1 Vxyzabc [0xabc, 0xdef]\n");
+    // clang-format on
+
+    uint256                   outputHash(params[0].get_str());
+    uint32_t                  outputIndex = static_cast<uint32_t>(params[1].get_int());
+    const CKey                key         = WIFSecretToKey(params[2].get_str());
+    uint32_t                  maxRetries  = 10000;
+    std::vector<CTransaction> txs;
+    if (params.size() > 3) {
+        if (params[3].type() != Value_type::array_type) {
+            throw JSONRPCError(RPC_INVALID_PARAMS,
+                               "Parameter txs must be an array of strings (top type isn't an array)");
+        }
+        const Array& txs_json = params[3].get_array();
+        for (const Value& val : txs_json) {
+            if (val.type() != Value_type::str_type) {
+                throw JSONRPCError(RPC_INVALID_PARAMS,
+                                   "Parameter txs must be an array of strings (element is not str)");
+            }
+            txs.push_back(TxFromHex(val.get_str()));
+        }
+    }
+    if (params.size() > 4) {
+        maxRetries = static_cast<uint32_t>(params[4].get_int());
+    }
+
+    const auto BlockMaker = [&]() {
+        std::unique_ptr<CBlock> block = CreateNewBlock(nullptr, true, 0);
+        if (!block)
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't assemble new block");
+        block->vtx.insert(block->vtx.end(), txs.begin(), txs.end());
+
+        if (!block->SignBlockWithSpecificKey(COutPoint(outputHash, outputIndex), key, 0)) {
+            block.reset();
+        }
+        return block;
+    };
+
+    for (uint32_t i = 0; i < maxRetries; i++) {
+        const std::unique_ptr<CBlock> block = BlockMaker();
+        if (block) {
+            CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
+            ssBlock << *block;
+            std::string strHex = HexStr(ssBlock.begin(), ssBlock.end());
+            return strHex;
+        }
+    }
+
+    throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block; max retries exceeded");
+}
