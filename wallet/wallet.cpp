@@ -1085,6 +1085,8 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
             }
             pindex = boost::atomic_load(&pindex->pnext).get();
         }
+        uiInterface.InitMessage(_("Updating wallet on disk (do not shutdown)..."));
+        FlushWalletDB(true, strWalletFile, nullptr);
         uiInterface.InitMessage(_("Rescanning... ") + "(done)");
     }
     return ret;
@@ -1318,9 +1320,6 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, bool 
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
                 isminetype mine = IsMine(pcoin->vout[i]);
-                if (IsSpent(pcoin->GetHash(), i))
-                    continue;
-
                 if (mine == ISMINE_NO)
                     continue;
 
@@ -1328,6 +1327,9 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, bool 
                     continue;
 
                 if (pcoin->vout[i].nValue < nMinimumInputValue)
+                    continue;
+
+                if (IsSpent(pcoin->GetHash(), i))
                     continue;
 
                 if (!(!coinControl || !coinControl->HasSelected() ||
