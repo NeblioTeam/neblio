@@ -1348,6 +1348,8 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
         ConvertTo<Array>(params[2], true);
     if (strMethod == "keypoolrefill" && n > 0)
         ConvertTo<int64_t>(params[0]);
+    if (strMethod == "generateblockwithkey" && n > 1)
+        ConvertTo<int64_t>(params[1]);
 
     return params;
 }
