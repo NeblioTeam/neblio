@@ -1350,6 +1350,10 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
         ConvertTo<int64_t>(params[0]);
     if (strMethod == "generateblockwithkey" && n > 1)
         ConvertTo<int64_t>(params[1]);
+    if (strMethod == "generateblockwithkey" && n > 3)
+        ConvertTo<Array>(params[3]);
+    if (strMethod == "generateblockwithkey" && n > 4)
+        ConvertTo<int64_t>(params[4]);
 
     return params;
 }
