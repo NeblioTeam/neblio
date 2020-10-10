@@ -854,13 +854,14 @@ Value generatetoaddress(const Array& params, bool fHelp)
 static CKey WIFSecretToKey(const std::string& wifKey)
 {
     // decode the wif string of the private key
-    CBitcoinSecret secret;
-    secret.SetString(wifKey);
+    CBitcoinSecret bitcoinSecret;
+    bitcoinSecret.SetString(wifKey);
     bool fCompressed = false;
 
     // set the ECC key of the secret
-    CKey key;
-    key.SetSecret(secret.GetSecret(fCompressed), fCompressed);
+    CKey          key;
+    const CSecret secret = bitcoinSecret.GetSecret(fCompressed);
+    key.SetSecret(secret, fCompressed);
 
     return key;
 }
