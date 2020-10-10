@@ -882,15 +882,16 @@ static CTransaction TxFromHex(const std::string& tx_hex)
 Value generateblockwithkey(const Array& params, bool fHelp)
 {
     // clang-format off
-    if (fHelp || params.size() < 3 || params.size() > 4)
+    if (fHelp || params.size() < 3 || params.size() > 5)
         throw std::runtime_error(
             "generateblockwithkey output-tx-hash output-index private-key txs (maxtries)\n"
             "\nMine blocks immediately to a specified address (before the RPC call returns)\n"
             "\nArguments:\n"
             "1. output-tx-hash (string, required) The output transaction that should be used as stake kernel.\n"
             "2. output-index   (int, required) The index of the output to be used in the transaction above.\n"
-            "3. txs            (list<string>, required) raw txs to include in the block\n"
-            "4. maxtries       (numeric, optional) How many times to try to create the block (default = 10000).\n"
+            "3. private-key    (string, required) The private key of the address the UTXO is from.\n"
+            "4. txs            (list<string>, optional) raw txs to include in the block\n"
+            "5. maxtries       (numeric, optional) How many times to try to create the block (default = 10000).\n"
             "\nResult:\n"
             "raw block;  raw block as hex string, to be submitted using `submitblock` rpc function\n"
             "\nExamples:\n\n"
