@@ -2068,7 +2068,7 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, CAmount>>& vecSend, C
                     try {
                         // join both inputs from NTP1SendTxData and setCoins
                         std::set<COutPoint> inputs;
-                        for (const auto s : setCoins) {
+                        for (const auto& s : setCoins) {
                             inputs.insert(COutPoint(s.first->GetHash(), s.second));
                         }
                         // for (const auto s : ntp1TxData.getUsedInputs()) {
