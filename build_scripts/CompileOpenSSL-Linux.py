@@ -4,13 +4,15 @@ import sys
 import re
 import multiprocessing as mp
 import string
-import urllib
 import shutil
 
 configure_flags = "no-shared"
 cflags = "-fPIC"
 
 base_openssl_version = "1.1.1"
+
+def is_python3_or_higher():
+    return sys.version_info.major >= 3
 
 def get_openssl_filename(ver):
     return "openssl-" + ver + ".tar.gz"
@@ -20,7 +22,8 @@ def get_openssl_link(ver):
 #    print(link)
     return link
 
-def download_file(filelink, target):
+def download_file_python2(filelink, target):
+    import urllib
     try:
         testfile = urllib.URLopener()
         try:
@@ -32,6 +35,28 @@ def download_file(filelink, target):
         return True
     except:
         return False
+
+def download_file_python3(filelink, target):
+    import urllib.request
+    try:
+        try:
+            os.remove(target)
+            print("Found file " + target + ", which is now deleted.")
+        except:
+            pass
+
+        with urllib.request.urlopen(filelink) as response, open(target, 'wb') as out_file:
+            shutil.copyfileobj(response, out_file)
+
+        return True
+    except Exception as e:
+        return False
+
+def download_file(filelink, target):
+    if is_python3_or_higher():
+        return download_file_python3(filelink, target)
+    else:
+        return download_file_python2(filelink, target)
 
 def download_openssl():
     openssl_version_found = False
@@ -51,6 +76,7 @@ def download_openssl():
 if len(sys.argv) < 2:
     filename = download_openssl()
 else:
+
     filename = sys.argv[1]
 
 dirname  = filename.replace(".tar.gz","")

@@ -10,6 +10,9 @@ import requests
 
 version = "1_65_1"
 
+def is_python3_or_higher():
+    return sys.version_info.major >= 3
+
 def get_boost_filename(ver):
     return "boost_" + ver + ".tar.gz"
 
@@ -19,7 +22,8 @@ def get_boost_link(ver):
     print(link)
     return link
 
-def download_file(filelink, target):
+def download_file_python2(filelink, target):
+    import urllib
     try:
         testfile = requests.get(filelink, allow_redirects=True)
         try:
@@ -31,6 +35,28 @@ def download_file(filelink, target):
         return True
     except:
         return False
+
+def download_file_python3(filelink, target):
+    import urllib.request
+    try:
+        try:
+            os.remove(target)
+            print("Found file " + target + ", which is now deleted.")
+        except:
+            pass
+
+        with urllib.request.urlopen(filelink) as response, open(target, 'wb') as out_file:
+            shutil.copyfileobj(response, out_file)
+
+        return True
+    except Exception as e:
+        return False
+
+def download_file(filelink, target):
+    if is_python3_or_higher():
+        return download_file_python3(filelink, target)
+    else:
+        return download_file_python2(filelink, target)
 
 def download_boost():
     boost_version_found = False
