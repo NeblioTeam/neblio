@@ -93,7 +93,9 @@ foreach(plugin ${Qt5Widgets_PLUGINS})
 endforeach()
 
 set(Boost_USE_STATIC_LIBS 1)
-set(Boost_USE_STATIC_RUNTIME 1)
+if(WIN32)
+    set(Boost_USE_STATIC_RUNTIME 1)
+endif()
 
 find_package(Qt5Widgets       REQUIRED)
 find_package(Qt5Core          REQUIRED)
