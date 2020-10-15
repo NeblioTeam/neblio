@@ -88,7 +88,7 @@ bool parseBitcoinURI(const QUrl &uri, SendCoinsRecipient *out)
     SendCoinsRecipient rv;
     rv.address = uri.path();
     rv.amount = 0;
-    QList<QPair<QString, QString> > items = uri.queryItems();
+    QList<QPair<QString, QString> > items = QUrlQuery(uri).queryItems();
     for (QList<QPair<QString, QString> >::iterator i = items.begin(); i != items.end(); i++)
     {
         bool fShouldReturnFalse = false;
@@ -141,7 +141,7 @@ bool parseBitcoinURI(QString uri, SendCoinsRecipient *out)
 
 QString HtmlEscape(const QString& str, bool fMultiLine)
 {
-    QString escaped = Qt::escape(str);
+    QString escaped = str.toHtmlEscaped();
     if(fMultiLine)
     {
         escaped = escaped.replace("\n", "<br>\n");
@@ -176,7 +176,8 @@ QString getSaveFileName(QWidget *parent, const QString &caption,
     QString myDir;
     if(dir.isEmpty()) // Default to user documents location
     {
-        myDir = QDesktopServices::storageLocation(QDesktopServices::DocumentsLocation);
+        const QStringList docsLocations = QStandardPaths::standardLocations(QStandardPaths::DocumentsLocation);
+        myDir = docsLocations.isEmpty() ? "" : docsLocations[0];
     }
     else
     {

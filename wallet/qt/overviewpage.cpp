@@ -46,7 +46,7 @@ public:
         QVariant  value      = index.data(Qt::ForegroundRole);
         bool      isNTP1     = index.data(TransactionTableModel::IsNTP1Role).toBool();
         QColor    foreground = option.palette.color(QPalette::Text);
-        if (qVariantCanConvert<QColor>(value)) {
+        if (value.template canConvert<QColor>()) {
             foreground = qvariant_cast<QColor>(value);
         }
 

@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <memory>
 #include <vector>
+#include <stdexcept>
 
 template <typename NodeType, template <typename> class SharedPtrType = std::shared_ptr,
           template <typename> class EnableSharedFromThisType = std::enable_shared_from_this>

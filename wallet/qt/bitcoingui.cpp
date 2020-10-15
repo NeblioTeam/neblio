@@ -871,8 +871,12 @@ void BitcoinGUI::gotoSignMessageTab(QString addr)
 
 void BitcoinGUI::exportBlockchainBootstrap()
 {
-    QString saveDir =
-        QDesktopServices::storageLocation(QDesktopServices::DocumentsLocation) + "/" + "bootstrap.dat";
+    QString docsLocation = "";
+    const QStringList docsLocations = QStandardPaths::standardLocations(QStandardPaths::DocumentsLocation);
+    if(!docsLocations.isEmpty()) {
+        docsLocation = docsLocations[0];
+    }
+    QString saveDir = docsLocation + "/" + "bootstrap.dat";
     QString filename = QFileDialog::getSaveFileName(this, tr("Export blockchain"), saveDir,
                                                     tr("Blockchain Data (*.dat)"));
 
@@ -1087,7 +1091,8 @@ void BitcoinGUI::backupWallet()
         }
     }
 
-    QString saveDir = QDesktopServices::storageLocation(QDesktopServices::DocumentsLocation);
+    QStringList docsDir = QStandardPaths::standardLocations(QStandardPaths::DocumentsLocation);
+    QString saveDir = docsDir.isEmpty() ? "" : "/";
     QString filename =
         QFileDialog::getSaveFileName(this, tr("Backup Wallet"), saveDir, tr("Wallet Data (*.dat)"));
     if (!filename.isEmpty()) {
@@ -1118,7 +1123,8 @@ void BitcoinGUI::backupWallet()
 
 void BitcoinGUI::importWallet()
 {
-    QString openDir = QDesktopServices::storageLocation(QDesktopServices::DocumentsLocation);
+    QStringList docsDir = QStandardPaths::standardLocations(QStandardPaths::DocumentsLocation);
+    QString openDir = docsDir.isEmpty() ? "" : docsDir[0];
     QString filename =
         QFileDialog::getOpenFileName(this, tr("Import Wallet"), openDir, tr("Wallet Data (*.dat)"));
     if (!filename.isEmpty()) {
