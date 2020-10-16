@@ -1248,6 +1248,10 @@ void BitcoinGUI::updateWeight()
 
 void BitcoinGUI::updateStakingIcon()
 {
+    if (!appInitiated) {
+        return;
+    }
+
     updateWeight();
 
     if (stakeMaker.getLastCoinStakeSearchInterval() && nWeight) {

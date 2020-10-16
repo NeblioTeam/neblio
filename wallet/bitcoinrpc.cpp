@@ -131,9 +131,9 @@ CAmount AmountFromValue(const Value& value)
 
 Value ValueFromAmount(const CAmount& amount)
 {
-    bool sign = amount < 0;
-    int64_t n_abs = (sign ? -amount : amount);
-    int64_t quotient = n_abs / COIN;
+    bool    sign      = amount < 0;
+    int64_t n_abs     = (sign ? -amount : amount);
+    int64_t quotient  = n_abs / COIN;
     int64_t remainder = n_abs % COIN;
     return Value(std::stod(strprintf("%s%zd.%08zd", sign ? "-" : "", quotient, remainder)));
 }
@@ -331,6 +331,7 @@ static const CRPCCommand vRPCCommands[] =
     { "settxfee",                  &settxfee,                  false,  false },
     { "getblocktemplate",          &getblocktemplate,          true,   false },
     { "submitblock",               &submitblock,               false,  false },
+    { "generateblockwithkey",      &generateblockwithkey,      false,  false },
     { "generatepos",               &generatepos,               false,  false },
     { "generate",                  &generate,                  false,  false },
     { "generatetoaddress",         &generatetoaddress,         false,  false },
@@ -1347,6 +1348,12 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
         ConvertTo<Array>(params[2], true);
     if (strMethod == "keypoolrefill" && n > 0)
         ConvertTo<int64_t>(params[0]);
+    if (strMethod == "generateblockwithkey" && n > 1)
+        ConvertTo<int64_t>(params[1]);
+    if (strMethod == "generateblockwithkey" && n > 3)
+        ConvertTo<Array>(params[3]);
+    if (strMethod == "generateblockwithkey" && n > 4)
+        ConvertTo<int64_t>(params[4]);
 
     return params;
 }

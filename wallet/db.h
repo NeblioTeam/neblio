@@ -27,6 +27,8 @@ class CWalletTx;
 
 extern boost::atomic<uint32_t> nWalletDBUpdated;
 
+void FlushWalletDB(bool forceLockAndFlush, const std::string& strFile,
+                   unsigned int* nLastFlushedPtr = nullptr);
 void ThreadFlushWalletDB(void* parg);
 bool BackupWallet(const CWallet& wallet, const std::string& strDest);
 

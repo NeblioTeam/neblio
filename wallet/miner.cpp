@@ -125,6 +125,9 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
     coinbaseTx.vout.resize(1);
 
     if (!fProofOfStake) {
+        if (!pwallet) {
+            return nullptr;
+        }
         if (PoWDestination) {
             coinbaseTx.vout[0].scriptPubKey.SetDestination(PoWDestination->Get());
         } else {

@@ -673,7 +673,7 @@ TEST(ntp1_tests, script_get_amount_size)
               static_cast<unsigned>(7));
 }
 
-CTransaction TxFromHex(const std::string& hex)
+static CTransaction TxFromHex(const std::string& hex)
 {
     CDataStream  stream(ParseHex(hex), SER_NETWORK, PROTOCOL_VERSION);
     CTransaction tx;

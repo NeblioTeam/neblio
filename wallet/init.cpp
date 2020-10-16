@@ -38,6 +38,7 @@ unsigned int             nNodeLifespan;
 unsigned int             nDerivationMethodIndex;
 unsigned int             nMinerSleep;
 enum Checkpoints::CPMode CheckpointsMode;
+boost::atomic<bool>      appInitiated{false};
 
 LockedVar<boost::signals2::signal<void()>> StopRPCRequests;
 

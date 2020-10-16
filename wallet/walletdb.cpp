@@ -578,6 +578,49 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
     return result;
 }
 
+// only call this when you're sure that cs_db lock is activated
+void FlushWalletDB_unsafe(const std::string& strFile, unsigned int* nLastFlushedPtr = nullptr)
+{
+    // Don't do this if any databases are in use
+    int                        nRefCount = 0;
+    map<string, int>::iterator mi        = bitdb.mapFileUseCount.begin();
+    while (mi != bitdb.mapFileUseCount.end()) {
+        nRefCount += (*mi).second;
+        mi++;
+    }
+
+    if (nRefCount == 0 && !fShutdown) {
+        map<string, int>::iterator mi = bitdb.mapFileUseCount.find(strFile);
+        if (mi != bitdb.mapFileUseCount.end()) {
+            printf("Flushing wallet.dat\n");
+            if (nLastFlushedPtr) {
+                *nLastFlushedPtr = nWalletDBUpdated;
+            }
+            const int64_t nStart = GetTimeMillis();
+
+            // Flush wallet.dat so it's self contained
+            bitdb.CloseDb(strFile);
+            bitdb.CheckpointLSN(strFile);
+
+            bitdb.mapFileUseCount.erase(mi++);
+            printf("Flushed wallet.dat %" PRId64 "ms\n", GetTimeMillis() - nStart);
+        }
+    }
+}
+
+void FlushWalletDB(bool forceLockAndFlush, const std::string& strFile, unsigned int* nLastFlushedPtr)
+{
+    if (!forceLockAndFlush) {
+        TRY_LOCK(bitdb.cs_db, lockDb);
+        if (lockDb) {
+            FlushWalletDB_unsafe(strFile, nLastFlushedPtr);
+        }
+    } else {
+        LOCK(bitdb.cs_db);
+        FlushWalletDB_unsafe(strFile, nLastFlushedPtr);
+    }
+}
+
 void ThreadFlushWalletDB(void* parg)
 {
     // Make this thread recognisable as the wallet flushing thread
@@ -603,32 +646,7 @@ void ThreadFlushWalletDB(void* parg)
         }
 
         if (nLastFlushed != nWalletDBUpdated && GetTime() - nLastWalletUpdate >= 2) {
-            TRY_LOCK(bitdb.cs_db, lockDb);
-            if (lockDb) {
-                // Don't do this if any databases are in use
-                int                        nRefCount = 0;
-                map<string, int>::iterator mi        = bitdb.mapFileUseCount.begin();
-                while (mi != bitdb.mapFileUseCount.end()) {
-                    nRefCount += (*mi).second;
-                    mi++;
-                }
-
-                if (nRefCount == 0 && !fShutdown) {
-                    map<string, int>::iterator mi = bitdb.mapFileUseCount.find(strFile);
-                    if (mi != bitdb.mapFileUseCount.end()) {
-                        printf("Flushing wallet.dat\n");
-                        nLastFlushed   = nWalletDBUpdated;
-                        int64_t nStart = GetTimeMillis();
-
-                        // Flush wallet.dat so it's self contained
-                        bitdb.CloseDb(strFile);
-                        bitdb.CheckpointLSN(strFile);
-
-                        bitdb.mapFileUseCount.erase(mi++);
-                        printf("Flushed wallet.dat %" PRId64 "ms\n", GetTimeMillis() - nStart);
-                    }
-                }
-            }
+            FlushWalletDB(false, strFile, &nLastFlushed);
         }
     }
 }

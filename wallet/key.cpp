@@ -500,7 +500,7 @@ CPubKey CKey::GetPubKey() const
     return CPubKey(vchPubKey);
 }
 
-bool CKey::Sign(uint256 hash, std::vector<unsigned char>& vchSig)
+bool CKey::Sign(uint256 hash, std::vector<unsigned char>& vchSig) const
 {
     vchSig.clear();
     ECDSA_SIG* sig = ECDSA_do_sign((unsigned char*)&hash, sizeof(hash), pkey);
