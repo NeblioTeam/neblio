@@ -273,7 +273,7 @@ public:
                 {NetworkFork::NETFORK__3_TACHYON, 110100},
                 {NetworkFork::NETFORK__4_RETARGET_CORRECTION, 1163000},
                 // Enable cold-staking
-                {NetworkFork::NETFORK__5_COLD_STAKING, 2430000}}},
+                {NetworkFork::NETFORK__5_COLD_STAKING, 2430000}},
             nBestHeight));
 
         pchMessageStart[0] = 0x1b;
