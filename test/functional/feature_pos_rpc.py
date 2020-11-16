@@ -139,7 +139,6 @@ class RawTransactionsTest(BitcoinTestFramework):
 
         # let's create many more blocks!
         for i in range(100):
-            print(i)
             output_to_stake = i + 2
             address = self.nodes[2].gettransaction(initial_tx_hash)['vout'][output_to_stake]['scriptPubKey']['addresses'][0]
             privkey = self.nodes[1].dumpprivkey(address)
