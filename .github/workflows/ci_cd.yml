@@ -28,7 +28,7 @@ jobs:
           ${{ runner.OS }}--linux_daemon_cmake-
     - name: Set target_v env var
       run: |
-        echo "::set-env name=target_v::linux_daemon_cmake"
+        echo "target_v=linux_daemon_cmake" >> $GITHUB_ENV
     - name: Build nebliod for Linux using cmake
       run: |
         python -u ci_scripts/test_linux-daemon-cmake.py
@@ -52,12 +52,12 @@ jobs:
           ${{ runner.OS }}--linux_daemon-
     - name: Set target_v env var
       run: |
-        echo "::set-env name=target_v::linux_daemon"
+        echo "target_v=linux_daemon" >> $GITHUB_ENV
     - name: Build nebliod for Linux
       run: |
-        echo ::set-env name=GITHUB_REF::$(echo ${GITHUB_REF})
+        echo "GITHUB_REF=$(echo ${GITHUB_REF})" >> $GITHUB_ENV
         python -u ci_scripts/test_linux-daemon-gui.py
-        echo ::set-env name=RELEASE_TAG::$(echo ${GITHUB_REF:10})
+        echo "RELEASE_TAG=$(echo ${GITHUB_REF:10})" >> $GITHUB_ENV
     - name: Build Upload to S3
       uses: jakejarvis/s3-sync-action@v0.5.0
       with:
@@ -84,11 +84,11 @@ jobs:
           ${{ runner.OS }}--linux_wallet-
     - name: Set target_v env var
       run: |
-        echo "::set-env name=target_v::linux_wallet"
+        echo "target_v=linux_wallet" >> $GITHUB_ENV
     - name: Build neblio-Qt for Linux
       run: |
         python -u ci_scripts/test_linux-daemon-gui.py
-        echo ::set-env name=RELEASE_TAG::$(echo ${GITHUB_REF:10})
+        echo "RELEASE_TAG=$(echo ${GITHUB_REF:10})" >> $GITHUB_ENV
     - name: Build Upload to S3
       uses: jakejarvis/s3-sync-action@v0.5.0
       with:
@@ -115,7 +115,7 @@ jobs:
           ${{ runner.OS }}--linux_wallet_test-
     - name: Set target_v env var
       run: |
-        echo "::set-env name=target_v::linux_wallet_test"
+        echo "target_v=linux_wallet_test" >> $GITHUB_ENV
     - name: Build neblio-Qt for Linux and Run Tests
       run: |
         python -u ci_scripts/test_linux-daemon-gui.py -t
@@ -135,7 +135,7 @@ jobs:
     - name: Build neblio-Qt for Windows x86
       run: |
         python -u ci_scripts/test_win_x86-gui_wallet.py
-        echo ::set-env name=RELEASE_TAG::$(echo ${GITHUB_REF:10})
+        echo "RELEASE_TAG=$(echo ${GITHUB_REF:10})" >> $GITHUB_ENV
     - name: Build Upload to S3
       uses: jakejarvis/s3-sync-action@v0.5.0
       with:
@@ -166,7 +166,7 @@ jobs:
     - name: Build neblio-Qt for macOS
       run: |
         python -u ci_scripts/test_osx-gui_wallet.py
-        echo ::set-env name=RELEASE_TAG::$(echo ${GITHUB_REF:10})
+        echo "RELEASE_TAG=$(echo ${GITHUB_REF:10})" >> $GITHUB_ENV
     - name: Build Upload to S3
       run: |
         brew fetch --retry s3cmd
@@ -267,11 +267,11 @@ jobs:
           ${{ runner.OS }}--rpi_wallet-
     - name: Set target_v env var
       run: |
-        echo "::set-env name=target_v::rpi_wallet"
+        echo "target_v=rpi_wallet" >> $GITHUB_ENV
     - name: Build neblio-Qt for Raspberry Pi
       run: |
         python -u ci_scripts/test_rpi-daemon-gui.py
-        echo ::set-env name=RELEASE_TAG::$(echo ${GITHUB_REF:10})
+        echo "RELEASE_TAG=$(echo ${GITHUB_REF:10})" >> $GITHUB_ENV
     - name: Build Upload to S3
       uses: jakejarvis/s3-sync-action@v0.5.0
       with:
@@ -300,7 +300,7 @@ jobs:
           ${{ runner.OS }}--rpi_wallet_test-
     - name: Set target_v env var
       run: |
-        echo "::set-env name=target_v::rpi_wallet_test"
+        echo "target_v=rpi_wallet_test" >> $GITHUB_ENV
     - name: Build neblio-Qt for Raspberry Pi and Run Tests
       run: |
         python -u ci_scripts/test_rpi-daemon-gui.py -t
@@ -321,11 +321,11 @@ jobs:
           ${{ runner.OS }}--rpi_daemon-
     - name: Set target_v env var
       run: |
-        echo "::set-env name=target_v::rpi_daemon"
+        echo "target_v=rpi_daemon" >> $GITHUB_ENV
     - name: Build nebliod for Raspberry Pi
       run: |
         python -u ci_scripts/test_rpi-daemon-gui.py
-        echo ::set-env name=RELEASE_TAG::$(echo ${GITHUB_REF:10})
+        echo "RELEASE_TAG=$(echo ${GITHUB_REF:10})" >> $GITHUB_ENV
     - name: Build Upload to S3
       uses: jakejarvis/s3-sync-action@v0.5.0
       with:
