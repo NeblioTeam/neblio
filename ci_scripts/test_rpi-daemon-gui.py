@@ -78,8 +78,8 @@ if(os.path.isfile(build_target)):
   nci.call_with_err_code('rm -f ' + build_target)
   nci.call_with_err_code('echo "Binary package at ' + deploy_dir + file_name + '"')
   # set the SOURCE_DIR & SOURCE_PATH env vars, these point to the binary that will be uploaded
-  nci.call_with_err_code('echo "::set-env name=SOURCE_DIR::'  + deploy_dir + '"')
-  nci.call_with_err_code('echo "::set-env name=SOURCE_PATH::' + deploy_dir + file_name + '"')
+  nci.call_with_err_code('echo "SOURCE_DIR='  + deploy_dir + '" >> $GITHUB_ENV')
+  nci.call_with_err_code('echo "SOURCE_PATH=' + deploy_dir + file_name + '" >> $GITHUB_ENV')
 
   # if we are just running tests, delete the deploy package
   if(os.environ['target_v'] == "rpi_wallet_test"):
