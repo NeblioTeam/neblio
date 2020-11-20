@@ -348,7 +348,7 @@ void NewStakeDelegationDialog::slot_toggledSettingManualOwner()
     if (ownerAddressCheckbox->isChecked()) {
 	        const QString msg = "Setting the Owner Address manually should ONLY be done if you own that address! \n"
                                 "WARNING: The Owner Address will be able to spend these NEBL at any time! \n"
-                                "\nAre you sure you want to manually specify the Owner Address instead of ";
+                                "\nAre you sure you want to manually specify the Owner Address instead of "
                                 "letting the wallet pick automatically?";
         timedMessageBox->setText(msg);
         timedMessageBox->setWindowTitle("Confirm Setting Owner Address Manually");

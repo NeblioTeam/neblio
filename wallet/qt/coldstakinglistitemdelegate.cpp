@@ -52,10 +52,10 @@ void ColdStakingListItemDelegate::paint(QPainter* painter, const QStyleOptionVie
         painter->setPen(foreground);
         QString titleText = "";
         if (!isRecvdDelgation) {
-            titleText = "This Node Is Staking:";
+            titleText = "This Node Is Staking";
             icon      = QIcon(":/icons/cold_delegate_1");
         } else {
-            titleText = "Another Node Is Staking:";
+            titleText = "Another Node Is Staking";
             icon      = QIcon(":/icons/cold_delegate_0");
         }
         icon.paint(painter, decorationRect);
