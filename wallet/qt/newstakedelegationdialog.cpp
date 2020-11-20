@@ -15,32 +15,33 @@
 
 void NewStakeDelegationDialog::createWidgets()
 {
-    setWindowTitle("Create new cold-stake delegation");
+    setWindowTitle("Create A New Cold Stake Delegation");
 
     mainLayout = new QGridLayout(this);
 
     this->setLayout(mainLayout);
 
     titleLabel = new QLabel(this);
-    titleLabel->setText("Here you can delegate staking to another node, given its address\n"
-                        "With this feature, you can authorize another node, given an address\n"
-                        "in that node, to stake your nebls without it being able to spend them.\n"
-                        "If your staking node gets compromised, you will never lose your nebls.");
+    titleLabel->setText("Delegate your NEBL to another Node to Cold Stake for you. This is an\n"
+    	                "advanced feature. The Staker Address is the address that can stake\n"
+    	                "but cannnot spend the delegated NEBL. Only the Owner Address can ever\n"
+    	                "spend NEBL from this Smart Contract. See Neblio University for details.");
+
     titleLabel->setAlignment(Qt::AlignHCenter);
 
-    stakerAddressLabel    = new QLabel("Staker address", this);
+    stakerAddressLabel    = new QLabel("Staker Address", this);
     stakerAddressLineEdit = new QLineEdit(this);
-    amountLabel           = new QLabel("Amount to delegate (in nebls)", this);
+    amountLabel           = new QLabel("Amount to Delegate (in NEBLs)", this);
     amountLineEdit        = new QLineEdit(this);
-    ownerAddressCheckbox  = new QCheckBox("Manually specify owner/spender address", this);
+    ownerAddressCheckbox  = new QCheckBox("Manually Specify Owner Address", this);
     ownerAddressLineEdit  = new QLineEdit(this);
     useDelegatedCheckbox =
-        new QCheckBox("Allow spending already delegated coins to fill this transaction", this);
-    coinControlButton = new QPushButton("Coin control (Advanced)", this);
+        new QCheckBox("Allow Spending Already Delegated NEBL to Fill This Transaction", this);
+    coinControlButton = new QPushButton("Coin Control (Advanced)", this);
     changeAddressCheckbox =
-        new QCheckBox("Send the change from this transaction to a specific address", this);
+        new QCheckBox("Send Change From This Transaction to a Specific Address", this);
     changeAddressLineEdit = new QLineEdit(this);
-    changeAddressLineEdit->setPlaceholderText("Change address");
+    changeAddressLineEdit->setPlaceholderText("Change Address");
     createDelegationButton = new QPushButton("Create", this);
     clearButton            = new QPushButton("Clear", this);
     cancelButton           = new QPushButton("Cancel", this);
@@ -144,7 +145,7 @@ void NewStakeDelegationDialog::setWalletModel(WalletModel* WalletModelPtr)
 
 void NewStakeDelegationDialog::makeError(const QString& msg)
 {
-    QMessageBox::warning(this, "Failed to create delegation transaction",
+    QMessageBox::warning(this, "Failed to Create Delegation Transaction",
                          "Error while processing cold-stake delegation transaction: " + msg);
 }
 
@@ -207,13 +208,13 @@ void NewStakeDelegationDialog::slot_createColdStake()
     // parse the amount from the text field
     qint64 amount = 0;
     if (!BitcoinUnits::parse(BitcoinUnits::BTC, amountLineEdit->text(), &amount)) {
-        return makeError("Failed to parse amount to a valid amount of nebls");
+        return makeError("Failed to parse amount to a valid amount of NEBL");
     }
 
     // ensure the wallet is unlocked
     if (pwalletMain->IsLocked() || fWalletUnlockStakingOnly)
         return makeError(
-            "You should fully unlock your wallet (not just for staking) before attempting to "
+            "You must fully unlock your wallet (not just for staking) before attempting to "
             "delegate stakes");
 
     // ensure the owner address is in this wallet
@@ -224,12 +225,12 @@ void NewStakeDelegationDialog::slot_createColdStake()
             return makeError("Failed to calculate public key hash from owner address");
         if (!pwalletMain->HaveKey(ownerKey)) {
             const QString msg =
-                "The private key of the owner address you provided is not in this "
-                "wallet; this effectively means you are giving your nebls to whoever "
-                "owns the key to that address. \n\nARE YOU SURE YOU WANT TO PROCEED WITH THAT?"
-                "\n\nTHIS CAN NEVER BE REVERSED.";
+                "WARNING: The Owner Address you provided is not in this wallet! You are giving full "
+                "control of these NEBL to this Owner Address. It should be part of a Neblio-Qt "
+                "or Neblio Orion wallet that you control! \n\nARE YOU SURE YOU WANT TO PROCEED???"
+                "\n\nTHIS CANNOT BE REVERSED!";
             timedMessageBox->setText(msg);
-            timedMessageBox->setWindowTitle("Confirm an external owner");
+            timedMessageBox->setWindowTitle("Confirm External Owner Address");
             timedMessageBox->exec();
             if (timedMessageBox->clickedButton() != timedMessageBox_yesButton) {
                 return;
@@ -300,10 +301,10 @@ void NewStakeDelegationDialog::slot_createColdStake()
 
         {
             QMessageBox::StandardButton answer =
-                QMessageBox::question(this, "Do you want to proceed?",
-                                      "Creating this delegation will cost " +
+                QMessageBox::question(this, "Do You Want to Proceed?",
+                                      "Creating this Delegation Smart-Contract will cost " +
                                           QString::fromStdString(FormatMoney(nFeeRequired)) +
-                                          " NEBL. Are you sure you want to proceed?");
+                                          " NEBL in fees. Are you sure you want to proceed?");
 
             if (answer != QMessageBox::Yes) {
                 return;
@@ -318,7 +319,7 @@ void NewStakeDelegationDialog::slot_createColdStake()
 
         QMessageBox::information(
             this, "Success!",
-            QString::fromStdString("The delegation was created successfully!\n"
+            QString::fromStdString("The Delegation Smart-Contract was Created Successfully!\n"
                                    "Transaction ID: " +
                                    wtxNew.GetHash().GetHex() +
                                    "\n"
@@ -328,8 +329,9 @@ void NewStakeDelegationDialog::slot_createColdStake()
                                    "Staker: " +
                                    res.stakerAddress.ToString() +
                                    "\n"
-                                   "To revoke the delegation, simply spend that output. You can find "
-                                   "this delegation entry in the cold-staking tab."));
+                                   "To revoke the Delegation, simply spend these NEBL from the\n"
+                                   "Owner Address. You can find this delegation entry on the \n"
+                                   "Cold Staking tab."));
         clearData();
     }
 }
@@ -344,13 +346,12 @@ void NewStakeDelegationDialog::slot_coinControlButtonClicked()
 void NewStakeDelegationDialog::slot_toggledSettingManualOwner()
 {
     if (ownerAddressCheckbox->isChecked()) {
-        const QString msg = "Setting the owner address manually is basically setting who will be able "
-                            "to spend the delegated nebls to revoke the delegation. In other words: You "
-                            "are giving these nebls to that address.\nAre you sure you "
-                            "want to do this manually and not let the wallet manually pick a local "
-                            "address for that purpose?";
+	        const QString msg = "Setting the Owner Address manually should ONLY be done if you own that address! \n"
+                                "WARNING: The Owner Address will be able to spend these NEBL at any time! \n"
+                                "\nAre you sure you want to manually specify the Owner Address instead of ";
+                                "letting the wallet pick automatically?";
         timedMessageBox->setText(msg);
-        timedMessageBox->setWindowTitle("Confirm setting owner manually");
+        timedMessageBox->setWindowTitle("Confirm Setting Owner Address Manually");
         timedMessageBox->exec();
         if (timedMessageBox->clickedButton() == timedMessageBox_yesButton) {
             ownerAddressCheckbox->setChecked(true);
@@ -369,11 +370,11 @@ void NewStakeDelegationDialog::slot_toggledUseDelegated()
 {
     if (useDelegatedCheckbox->isChecked()) {
         const QString msg =
-            "By enabling this, you are allowing the wallet to potentially revoke any existing "
-            "delegations to create the new delegation (this can be controlled using coin-control). Are "
-            "you sure you want to proceed?";
+            "WARNING: This will allow the wallet to potentially revoke any existing "
+            "delegations to create this new delegation (this can be controlled using coin-control). "
+            "This is only recommended if you know what you are doing. Are you sure you want to proceed?";
         timedMessageBox->setText(msg);
-        timedMessageBox->setWindowTitle("Confirm potentially revoking existing delegations");
+        timedMessageBox->setWindowTitle("Confirm Potentially Revoking Existing Delegations");
         timedMessageBox->exec();
         if (timedMessageBox->clickedButton() == timedMessageBox_yesButton) {
             useDelegatedCheckbox->setChecked(true);
