@@ -111,7 +111,7 @@ int JsonTreeModel::columnCount(const QModelIndex& /*parent*/) const { return 3; 
 Qt::ItemFlags JsonTreeModel::flags(const QModelIndex& index) const
 {
     if (!index.isValid())
-        return Qt::NoItemFlags;
+        return 0;
 
     QFlags<Qt::ItemFlag> res = Qt::ItemIsEditable | Qt::ItemIsDragEnabled | Qt::ItemIsDragEnabled |
                                QAbstractItemModel::flags(index);

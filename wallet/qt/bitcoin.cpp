@@ -228,7 +228,7 @@ int main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
-    QSplashScreen splash(QPixmap(":/images/splash"));
+    QSplashScreen splash(QPixmap(":/images/splash"), 0);
     if (GetBoolArg("-splash", true) && !GetBoolArg("-min")) {
         splash.show();
         splashref = &splash;
