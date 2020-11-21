@@ -210,6 +210,15 @@ void TransactionView::showInactive(int state)
     transactionProxyModel->setShowInactive((state == Qt::Checked));
 }
 
+QDateTime GetStartOfDay(const QDate& dt)
+{
+#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
+    return dt.startOfDay();
+#else
+    return QDateTime(dt);
+#endif
+}
+
 void TransactionView::chooseDate(int idx)
 {
     if (!transactionProxyModel)
@@ -222,24 +231,24 @@ void TransactionView::chooseDate(int idx)
                                             TransactionFilterProxy::MAX_DATE);
         break;
     case Today:
-        transactionProxyModel->setDateRange(QDateTime(current), TransactionFilterProxy::MAX_DATE);
+        transactionProxyModel->setDateRange(GetStartOfDay(current), TransactionFilterProxy::MAX_DATE);
         break;
     case ThisWeek: {
         // Find last Monday
         QDate startOfWeek = current.addDays(-(current.dayOfWeek() - 1));
-        transactionProxyModel->setDateRange(QDateTime(startOfWeek), TransactionFilterProxy::MAX_DATE);
+        transactionProxyModel->setDateRange(GetStartOfDay(startOfWeek), TransactionFilterProxy::MAX_DATE);
 
     } break;
     case ThisMonth:
-        transactionProxyModel->setDateRange(QDateTime(QDate(current.year(), current.month(), 1)),
+        transactionProxyModel->setDateRange(GetStartOfDay(QDate(current.year(), current.month(), 1)),
                                             TransactionFilterProxy::MAX_DATE);
         break;
     case LastMonth:
-        transactionProxyModel->setDateRange(QDateTime(QDate(current.year(), current.month() - 1, 1)),
-                                            QDateTime(QDate(current.year(), current.month(), 1)));
+        transactionProxyModel->setDateRange(GetStartOfDay(QDate(current.year(), current.month() - 1, 1)),
+                                            GetStartOfDay(QDate(current.year(), current.month(), 1)));
         break;
     case ThisYear:
-        transactionProxyModel->setDateRange(QDateTime(QDate(current.year(), 1, 1)),
+        transactionProxyModel->setDateRange(GetStartOfDay(QDate(current.year(), 1, 1)),
                                             TransactionFilterProxy::MAX_DATE);
         break;
     case Range:
@@ -445,8 +454,8 @@ void TransactionView::dateRangeChanged()
 {
     if (!transactionProxyModel)
         return;
-    transactionProxyModel->setDateRange(QDateTime(dateFrom->date()),
-                                        QDateTime(dateTo->date()).addDays(1));
+    transactionProxyModel->setDateRange(GetStartOfDay(dateFrom->date()),
+                                        GetStartOfDay(dateTo->date().addDays(1)));
 }
 
 void TransactionView::focusTransaction(const QModelIndex& idx)
