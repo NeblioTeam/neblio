@@ -89,6 +89,7 @@ private slots:
     void slot_copyAmount();
     void slot_enableStaking(const QModelIndex& idx);
     void slot_disableStaking(const QModelIndex& idx);
+    void slot_messageColdStakeNotReady();
 
     // QWidget interface
 protected:
