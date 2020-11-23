@@ -182,6 +182,7 @@ RPCErrorCode ColdStakeDelegationRPCErrorCode(const ColdStakeDelegationErrorCode 
     case GeneratedOwnerAddressPubKeyHashError:
         return RPC_WALLET_ERROR;
     }
+    return RPC_MISC_ERROR;
 }
 
 struct CreateColdStakeDelegationParsedParams

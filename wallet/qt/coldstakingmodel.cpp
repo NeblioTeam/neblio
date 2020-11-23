@@ -72,6 +72,7 @@ void ColdStakingModel::setWalletModel(WalletModel* wModel)
 void ColdStakingModel::refresh()
 {
     if (!appInitiated) {
+        QTimer::singleShot(5000, this, &ColdStakingModel::refresh);
         return;
     }
 
