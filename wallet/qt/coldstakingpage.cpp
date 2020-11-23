@@ -58,10 +58,14 @@ ColdStakingPage::ColdStakingPage(QWidget* parent)
 
     newStakeDelegationDialog = new NewStakeDelegationDialog(this);
 
-    //    connect(ui->delegateStakeButton, &QPushButton::clicked, newStakeDelegationDialog,
-    //            &NewStakeDelegationDialog::open);
-    connect(ui->delegateStakeButton, &QPushButton::clicked, this,
+    if (!Params().IsColdStakingEnabled()) {
+    	connect(ui->delegateStakeButton, &QPushButton::clicked, this,
             &ColdStakingPage::slot_messageColdStakeNotReady);
+    } else {
+    	connect(ui->delegateStakeButton, &QPushButton::clicked, newStakeDelegationDialog,
+            &NewStakeDelegationDialog::open);
+    }
+
     connect(ui->filter_lineEdit, &QLineEdit::textChanged, filter,
             &ColdStakingListFilterProxy::setFilterWildcard);
 }
