@@ -127,7 +127,7 @@ void ColdStakingPage::slot_disableStaking(const QModelIndex& idx) { model->black
 
 void ColdStakingPage::slot_messageColdStakeNotReady()
 {
-    QMessageBox::information(this, "Cold Staking is not enabled", "Cold Staking is not yet enabled.");
+    QMessageBox::information(this, "Cold Staking is Testnet-Only", "Neblio Cold Staking is not yet enabled on Mainnet.");
 }
 
 ColdStakingPage::~ColdStakingPage()
