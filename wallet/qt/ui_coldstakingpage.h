@@ -164,7 +164,7 @@ public:
     {
         ColdStakingPage->setWindowTitle(QApplication::translate("Cold-staking", "Form", Q_NULLPTR));
         upper_table_label->setText(QApplication::translate(
-            "NTP1Summary", "<b>Addresses related to cold-staking</b>", Q_NULLPTR));
+            "NTP1Summary", "<b>Cold Staking Addresses</b>", Q_NULLPTR));
     } // retranslateUi
 };
 

@@ -77,8 +77,8 @@ if (args.test):
     nci.call_with_err_code('qmake "QMAKE_CXX=ccache clang++" "USE_UPNP=1" "USE_QRCODE=1" "RELEASE=1" "DEFINES += UNITTEST_RUN_NTP_PARSE_TESTS" "DEFINES += UNITTEST_FORCE_DISABLE_PREMADE_DATA_DOWNLOAD" "NEBLIO_CONFIG += NoWallet" ../neblio-wallet.pro')
     nci.call_with_err_code("make -j" + str(mp.cpu_count()))
     # download test data
-    nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/test_data_mainnet_tab.tar.xz -O ../wallet/test/data/test_data_mainnet_tab.tar.xz')
-    nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/test_data_testnet_tab.tar.xz -O ../wallet/test/data/test_data_testnet_tab.tar.xz')
+    nci.call_with_err_code('wget --no-check-certificate --progress=dot:giga https://files.nebl.io/test_data_mainnet_tab.tar.xz -O ../wallet/test/data/test_data_mainnet_tab.tar.xz')
+    nci.call_with_err_code('wget --no-check-certificate --progress=dot:giga https://files.nebl.io/test_data_testnet_tab.tar.xz -O ../wallet/test/data/test_data_testnet_tab.tar.xz')
     nci.call_with_err_code('tar -xJvf ../wallet/test/data/test_data_mainnet_tab.tar.xz -C ../wallet/test/data')
     nci.call_with_err_code('tar -xJvf ../wallet/test/data/test_data_testnet_tab.tar.xz -C ../wallet/test/data')
     nci.call_with_err_code('rm ../wallet/test/data/*.tar.xz')

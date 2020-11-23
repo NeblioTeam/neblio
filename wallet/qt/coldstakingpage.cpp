@@ -58,10 +58,14 @@ ColdStakingPage::ColdStakingPage(QWidget* parent)
 
     newStakeDelegationDialog = new NewStakeDelegationDialog(this);
 
-    //    connect(ui->delegateStakeButton, &QPushButton::clicked, newStakeDelegationDialog,
-    //            &NewStakeDelegationDialog::open);
-    connect(ui->delegateStakeButton, &QPushButton::clicked, this,
-            &ColdStakingPage::slot_messageColdStakeNotReady);
+    if (Params().NetType() == NetworkType::Mainnet) {
+        connect(ui->delegateStakeButton, &QPushButton::clicked, this,
+             &ColdStakingPage::slot_messageColdStakeNotReady);
+     } else {
+    	connect(ui->delegateStakeButton, &QPushButton::clicked, newStakeDelegationDialog,
+            &NewStakeDelegationDialog::open);
+     }
+
     connect(ui->filter_lineEdit, &QLineEdit::textChanged, filter,
             &ColdStakingListFilterProxy::setFilterWildcard);
 }
@@ -123,7 +127,7 @@ void ColdStakingPage::slot_disableStaking(const QModelIndex& idx) { model->black
 
 void ColdStakingPage::slot_messageColdStakeNotReady()
 {
-    QMessageBox::information(this, "No cold-staking yet", "Cold-staking is still not enabled in neblio");
+    QMessageBox::information(this, "Cold Staking is Testnet-Only", "Neblio Cold Staking is not yet enabled on Mainnet.");
 }
 
 ColdStakingPage::~ColdStakingPage()
