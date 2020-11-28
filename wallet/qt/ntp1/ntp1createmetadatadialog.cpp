@@ -26,6 +26,9 @@ NTP1CreateMetadataDialog::NTP1CreateMetadataDialog(QWidget* parent) : QDialog(pa
     connect(customDataWidget, &NTP1CustomMetadataWidget::sig_okPressed, this, &QWidget::hide);
     connect(this->editModeCheckbox, &QCheckBox::toggled, this,
             &NTP1CreateMetadataDialog::slot_customJsonDataSwitched);
+
+    // remove the "?" button in window title
+    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 }
 
 json_spirit::Object NTP1CreateMetadataDialog::getJsonData() const

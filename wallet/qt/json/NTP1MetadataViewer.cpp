@@ -27,6 +27,9 @@ NTP1MetadataViewer::NTP1MetadataViewer(QWidget* parent) : QDialog(parent)
 
     connect(switchTreeTextViewButton, &QPushButton::clicked, this,
             &NTP1MetadataViewer::slot_switchTreeTextView);
+
+    // remove the "?" button in window title
+    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 }
 
 void NTP1MetadataViewer::setRoot(std::shared_ptr<JsonTreeNode> root) { treeModel.setRoot(root); }
