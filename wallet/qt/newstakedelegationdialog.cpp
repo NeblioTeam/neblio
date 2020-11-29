@@ -23,18 +23,19 @@ void NewStakeDelegationDialog::createWidgets()
 
     titleLabel = new QLabel(this);
     titleLabel->setText("Delegate your NEBL to another Node to Cold Stake for you. This is an\n"
-    	                "advanced feature. The Staker Address is the address that can stake\n"
-    	                "but cannnot spend the delegated NEBL. Only the Owner Address can ever\n"
-    	                "spend NEBL from this Smart Contract. See Neblio University for details.");
+                        "advanced feature. The Staker Address is the address that can stake\n"
+                        "but cannnot spend the delegated NEBL. Only the Owner Address can ever\n"
+                        "spend NEBL from this Smart Contract. See Neblio University for details.");
 
     titleLabel->setAlignment(Qt::AlignHCenter);
 
-    stakerAddressLabel    = new QLabel("Staker Address", this);
-    stakerAddressLineEdit = new QLineEdit(this);
-    amountLabel           = new QLabel("Amount to Delegate (in NEBLs)", this);
-    amountLineEdit        = new QLineEdit(this);
-    ownerAddressCheckbox  = new QCheckBox("Manually Specify Owner Address", this);
-    ownerAddressLineEdit  = new QLineEdit(this);
+    stakerAddressLabel          = new QLabel("Staker Address", this);
+    stakerAddressLineEdit       = new QLineEdit(this);
+    amountLabel                 = new QLabel("Amount to Delegate (in NEBLs)", this);
+    amountLineEdit              = new QLineEdit(this);
+    showAdvancedOptionsCheckbox = new QCheckBox("Show advanced options", this);
+    ownerAddressCheckbox        = new QCheckBox("Manually Specify Owner Address", this);
+    ownerAddressLineEdit        = new QLineEdit(this);
     useDelegatedCheckbox =
         new QCheckBox("Allow Spending Already Delegated NEBL to Fill This Transaction", this);
     coinControlButton = new QPushButton("Coin Control (Advanced)", this);
@@ -67,6 +68,7 @@ void NewStakeDelegationDialog::createWidgets()
     mainLayout->addWidget(stakerAddressLineEdit, row++, 0, 1, 3);
     mainLayout->addWidget(amountLabel, row++, 0, 1, 3);
     mainLayout->addWidget(amountLineEdit, row++, 0, 1, 3);
+    mainLayout->addWidget(showAdvancedOptionsCheckbox, row++, 0, 1, 3);
     mainLayout->addWidget(ownerAddressCheckbox, row++, 0, 1, 3);
     mainLayout->addWidget(ownerAddressLineEdit, row++, 0, 1, 3);
     mainLayout->addWidget(useDelegatedCheckbox, row++, 0, 1, 3);
@@ -103,11 +105,18 @@ void NewStakeDelegationDialog::createWidgets()
             &NewStakeDelegationDialog::slot_toggledSettingManualOwner);
     connect(this->useDelegatedCheckbox, &QCheckBox::toggled, this,
             &NewStakeDelegationDialog::slot_toggledUseDelegated);
+    connect(this->showAdvancedOptionsCheckbox, &QCheckBox::toggled, this,
+            &NewStakeDelegationDialog::slot_toggledShowAdvancedOptions);
 
     slot_changeAddressCheckboxToggled(changeAddressCheckbox->isChecked());
     slot_toggledSettingManualOwner();
+    slot_toggledShowAdvancedOptions(showAdvancedOptionsCheckbox->isChecked());
 
     initializeMessageWithTimer();
+
+    layout()->setSizeConstraint(QLayout::SetFixedSize);
+    // remove the "?" button in window title
+    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 }
 
 NewStakeDelegationDialog::NewStakeDelegationDialog(QWidget* parent) : QDialog(parent)
@@ -213,9 +222,8 @@ void NewStakeDelegationDialog::slot_createColdStake()
 
     // ensure the wallet is unlocked
     if (pwalletMain->IsLocked() || fWalletUnlockStakingOnly)
-        return makeError(
-            "You must fully unlock your wallet (not just for staking) before attempting to "
-            "delegate stakes");
+        return makeError("You must fully unlock your wallet (not just for staking) before attempting to "
+                         "delegate stakes");
 
     // ensure the owner address is in this wallet
     static const bool fForceExternalAddr = true;
@@ -346,10 +354,11 @@ void NewStakeDelegationDialog::slot_coinControlButtonClicked()
 void NewStakeDelegationDialog::slot_toggledSettingManualOwner()
 {
     if (ownerAddressCheckbox->isChecked()) {
-	        const QString msg = "Setting the Owner Address manually should ONLY be done if you own that address! \n"
-                                "WARNING: The Owner Address will be able to spend these NEBL at any time! \n"
-                                "\nAre you sure you want to manually specify the Owner Address instead of "
-                                "letting the wallet pick automatically?";
+        const QString msg =
+            "Setting the Owner Address manually should ONLY be done if you own that address! \n"
+            "WARNING: The Owner Address will be able to spend these NEBL at any time! \n"
+            "\nAre you sure you want to manually specify the Owner Address instead of "
+            "letting the wallet pick automatically?";
         timedMessageBox->setText(msg);
         timedMessageBox->setWindowTitle("Confirm Setting Owner Address Manually");
         timedMessageBox->exec();
@@ -382,4 +391,11 @@ void NewStakeDelegationDialog::slot_toggledUseDelegated()
             useDelegatedCheckbox->setChecked(false);
         }
     }
+}
+
+void NewStakeDelegationDialog::slot_toggledShowAdvancedOptions(bool checked)
+{
+    ownerAddressCheckbox->setVisible(checked);
+    ownerAddressLineEdit->setVisible(checked);
+    useDelegatedCheckbox->setVisible(checked);
 }

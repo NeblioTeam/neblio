@@ -33,6 +33,7 @@ class NewStakeDelegationDialog : public QDialog
     QPushButton* createDelegationButton;
     QPushButton* cancelButton;
     QPushButton* clearButton;
+    QCheckBox*   showAdvancedOptionsCheckbox;
     QCheckBox*   ownerAddressCheckbox;
     QLineEdit*   ownerAddressLineEdit;
     QCheckBox*   changeAddressCheckbox;
@@ -72,6 +73,7 @@ private slots:
     void slot_coinControlButtonClicked();
     void slot_toggledSettingManualOwner();
     void slot_toggledUseDelegated();
+    void slot_toggledShowAdvancedOptions(bool checked);
 };
 
 #endif // NewStakeDelegationDialog_H
