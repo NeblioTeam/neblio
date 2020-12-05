@@ -1454,8 +1454,43 @@ int main(int argc, char* argv[])
 
 const CRPCTable tableRPC;
 
+std::string GetTokenIDFromTokenName(const std::string& tokenName)
+{
+    CTxDB                txdb;
+    std::vector<uint256> ntp1IssuanceTxHashes;
+    if (!txdb.ReadNTP1TxsWithTokenSymbol(tokenName, ntp1IssuanceTxHashes)) {
+        throw std::runtime_error("An NTP1 token name was (at least an invalid token "
+                                 "ID), but it wasn't found in the blockchain: " +
+                                 tokenName);
+    }
+    // ensure token issuance was done in main chain
+    boost::optional<uint256> issuanceTxInMainChain;
+    for (const uint256& hash : ntp1IssuanceTxHashes) {
+        CTxIndex txindex;
+        if (txdb.ReadTxIndex(hash, txindex)) {
+            issuanceTxInMainChain = hash;
+            break;
+        }
+    }
+    if (!issuanceTxInMainChain) {
+        throw std::runtime_error("The token name given " + tokenName +
+                                 " was not found in any transaction that issued it");
+    }
+
+    // get the NTP1Transaction object
+    const CTransaction tx     = CTransaction::FetchTxFromDisk(*issuanceTxInMainChain, txdb);
+    auto               txPair = std::make_pair(tx, NTP1Transaction());
+    FetchNTP1TxFromDisk(txPair, txdb, false);
+
+    // extract token ID
+    const auto& prevout0 = txPair.first.vin[0].prevout;
+    std::string tokenId  = txPair.second.getTokenIdIfIssuance(prevout0.hash.ToString(), prevout0.n);
+    return tokenId;
+}
+
 NTP1SendTokensOneRecipientData ParseRPCNTP1OutputJson(const json_spirit::Pair&             s,
-                                                      const boost::shared_ptr<NTP1Wallet>& ntp1wallet)
+                                                      const boost::shared_ptr<NTP1Wallet>& ntp1wallet,
+                                                      bool getDataStrictlyFromNTP1Wallet)
 {
     NTP1SendTokensOneRecipientData res;
     if (s.value_.type() == json_spirit::Value_type::obj_type) {
@@ -1486,8 +1521,38 @@ NTP1SendTokensOneRecipientData ParseRPCNTP1OutputJson(const json_spirit::Pair&  
             if (res.tokenId == "") {
                 throw std::runtime_error("Failed to find token by the id/name: " + providedId);
             }
-            if (nameCount > 1) {
-                throw std::runtime_error("Found multiple tokens by the name " + providedId);
+            res.amount                   = static_cast<uint64_t>(nAmount);
+            const std::string providedId = obj[0].name_;
+
+            const std::unordered_map<std::string, NTP1TokenMetaData> tokenMetadataMap =
+                ntp1wallet->getTokenMetadataMap();
+            // token id was not found
+            if (getDataStrictlyFromNTP1Wallet &&
+                tokenMetadataMap.find(providedId) == tokenMetadataMap.end()) {
+                res.tokenId   = "";
+                int nameCount = 0; // number of tokens that have that name
+                // try to find whether the name of the token matches with what's provided
+                for (const auto& tokenMetadata : tokenMetadataMap) {
+                    if (tokenMetadata.second.getTokenName() == providedId) {
+                        res.tokenId = tokenMetadata.second.getTokenId();
+                        nameCount++;
+                    }
+                }
+                if (res.tokenId == "") {
+                    throw std::runtime_error("Failed to find token by the id/name: " + providedId);
+                }
+                if (nameCount > 1) {
+                    throw std::runtime_error("Found multiple tokens by the name " + providedId);
+                }
+            } else {
+                std::vector<unsigned char> decoded;
+                if (!DecodeBase58Check(providedId, decoded)) {
+                    // this is a token given by name, not by ID
+                    res.tokenId = GetTokenIDFromTokenName(providedId);
+                } else {
+                    // this is a token given by ID, not by name
+                    res.tokenId = providedId;
+                }
             }
         } else {
             res.tokenId = providedId;
@@ -1505,7 +1570,8 @@ NTP1SendTokensOneRecipientData ParseRPCNTP1OutputJson(const json_spirit::Pair&  
 }
 
 std::vector<NTP1SendTokensOneRecipientData>
-GetNTP1RecipientsVector(const Value& sendToVal, boost::shared_ptr<NTP1Wallet> ntp1wallet)
+GetNTP1RecipientsVector(const Value& sendToVal, boost::shared_ptr<NTP1Wallet> ntp1wallet,
+                        bool getDataStrictlyFromNTP1Wallet)
 {
     std::vector<NTP1SendTokensOneRecipientData> result;
     if (sendToVal.type() == Value_type::obj_type) {
@@ -1524,8 +1590,9 @@ GetNTP1RecipientsVector(const Value& sendToVal, boost::shared_ptr<NTP1Wallet> nt
             CScript scriptPubKey;
             scriptPubKey.SetDestination(address.Get());
 
-            NTP1SendTokensOneRecipientData res = ParseRPCNTP1OutputJson(s, ntp1wallet);
-            res.destination                    = address.ToString();
+            NTP1SendTokensOneRecipientData res =
+                ParseRPCNTP1OutputJson(s, ntp1wallet, getDataStrictlyFromNTP1Wallet);
+            res.destination = address.ToString();
             result.push_back(res);
         }
     } else if (sendToVal.type() == Value_type::array_type) {
@@ -1552,8 +1619,9 @@ GetNTP1RecipientsVector(const Value& sendToVal, boost::shared_ptr<NTP1Wallet> nt
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
                                    string("Invalid neblio address: ") + s.name_);
 
-            NTP1SendTokensOneRecipientData res = ParseRPCNTP1OutputJson(s, ntp1wallet);
-            res.destination                    = address.ToString();
+            NTP1SendTokensOneRecipientData res =
+                ParseRPCNTP1OutputJson(s, ntp1wallet, getDataStrictlyFromNTP1Wallet);
+            res.destination = address.ToString();
             result.push_back(res);
         }
     } else {

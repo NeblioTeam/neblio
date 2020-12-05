@@ -461,7 +461,7 @@ Value createrawntp1transaction(const Array& params, bool fHelp)
 
     // create the list of recipients that's compatible with NTP1 token selector
     const std::vector<NTP1SendTokensOneRecipientData> ntp1recipients =
-        GetNTP1RecipientsVector(sendTo, ntp1wallet);
+        GetNTP1RecipientsVector(sendTo, ntp1wallet, false);
 
     // create inputs' vector
     std::vector<COutPoint> cinputs;
