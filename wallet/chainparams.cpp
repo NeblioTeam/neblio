@@ -133,6 +133,7 @@ public:
 
         vDNSSeeds.clear();
         vDNSSeeds.emplace_back("seed.nebl.io");
+        vDNSSeeds.emplace_back("seed2.nebl.io");
 
         base58Prefixes[PUBKEY_ADDRESS] = 53;  // Neblio: addresses begin with 'N'
         base58Prefixes[SCRIPT_ADDRESS] = 112; // Neblio: addresses begin with 'n'
@@ -298,6 +299,7 @@ public:
         vAdditionalNodes.emplace_back("nebliodseed2.nebl.io");
 
         vDNSSeeds.clear();
+        vDNSSeeds.emplace_back("testnet-seed.nebl.io");
 
         base58Prefixes[PUBKEY_ADDRESS] = 65;  // Neblio: addresses begin with 'T'
         base58Prefixes[SCRIPT_ADDRESS] = 127; // Neblio: addresses begin with 't'
