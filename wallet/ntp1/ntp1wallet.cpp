@@ -436,12 +436,10 @@ int64_t NTP1Wallet::getNumberOfTokens() const { return balances.size(); }
 
 const std::map<std::string, NTP1Int>& NTP1Wallet::getBalancesMap() const { return balances; }
 
-const std::unordered_map<NTP1OutPoint, NTP1Transaction>& NTP1Wallet::getWalletOutputsWithTokens()
+const std::unordered_map<NTP1OutPoint, NTP1Transaction>& NTP1Wallet::getWalletOutputsWithTokens() const
 {
     return walletOutputsWithTokens;
 }
-
-bool NTP1Wallet::hasEverSucceeded() const { return everSucceededInLoadingTokens; }
 
 bool NTP1Wallet::IconHasErrorContent(const std::string& icon) { return icon == ICON_ERROR_CONTENT; }
 

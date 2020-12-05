@@ -659,6 +659,7 @@ add_library(ntp1_lib STATIC
     wallet/ntp1/ntp1tokenminimalmetadata.cpp
     wallet/ntp1/ntp1sendtxdata.cpp
     wallet/ntp1/ntp1tokenmetadata.cpp
+    wallet/ntp1/intp1wallet.h
     wallet/ntp1/ntp1wallet.cpp
     wallet/ntp1/ntp1tools.cpp
     wallet/ntp1/ntp1inpoint.cpp

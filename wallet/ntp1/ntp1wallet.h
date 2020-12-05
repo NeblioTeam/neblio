@@ -3,9 +3,8 @@
 
 #include "ThreadSafeHashMap.h"
 #include "curltools.h"
-#include "ntp1/ntp1outpoint.h"
+#include "intp1wallet.h"
 #include "ntp1/ntp1tokenmetadata.h"
-#include "ntp1/ntp1transaction.h"
 #include "json/json_spirit.h"
 
 #include <unordered_map>
@@ -13,7 +12,7 @@
 class COutput;
 class CWalletTx;
 
-class NTP1Wallet : public boost::enable_shared_from_this<NTP1Wallet>
+class NTP1Wallet : public INTP1Wallet, public boost::enable_shared_from_this<NTP1Wallet>
 {
     bool retrieveFullMetadata = true;
 
@@ -62,23 +61,31 @@ class NTP1Wallet : public boost::enable_shared_from_this<NTP1Wallet>
 
 public:
     NTP1Wallet();
-    void                                  update();
-    std::string                           getTokenName(const std::string& tokenID) const;
-    NTP1Int                               getTokenBalance(const std::string& tokenID) const;
-    std::string                           getTokenName(int index) const;
-    std::string                           getTokenId(int index) const;
-    std::string                           getTokenIssuanceTxid(int index) const;
-    std::string                           getTokenDescription(int index) const;
-    NTP1Int                               getTokenBalance(int index) const;
-    std::string                           getTokenIcon(int index);
-    int64_t                               getNumberOfTokens() const;
-    const std::map<std::string, NTP1Int>& getBalancesMap() const;
-    const std::unordered_map<NTP1OutPoint, NTP1Transaction>& getWalletOutputsWithTokens();
-    bool                                                     hasEverSucceeded() const;
+    void                                  update() override;
+    std::string                           getTokenName(const std::string& tokenID) const override;
+    NTP1Int                               getTokenBalance(const std::string& tokenID) const override;
+    std::string                           getTokenName(int index) const override;
+    std::string                           getTokenId(int index) const override;
+    std::string                           getTokenIssuanceTxid(int index) const override;
+    std::string                           getTokenDescription(int index) const override;
+    NTP1Int                               getTokenBalance(int index) const override;
+    std::string                           getTokenIcon(int index) override;
+    int64_t                               getNumberOfTokens() const override;
+    const std::map<std::string, NTP1Int>& getBalancesMap() const override;
+    const std::unordered_map<NTP1OutPoint, NTP1Transaction>& getWalletOutputsWithTokens() const override;
+    void                                                     clear() override;
+    void setMinMaxConfirmations(int minConfs, int maxConfs = -1) override;
+
+    std::map<std::string, NTP1Int> getBalances() const override;
+
+    bool getRetrieveFullMetadata() const override;
+    void setRetrieveFullMetadata(bool value) override;
+
+    void exportToFile(const boost::filesystem::path& filePath) const override;
+    void importFromFile(const boost::filesystem::path& filePath) override;
+
     friend inline bool operator==(const NTP1Wallet& lhs, const NTP1Wallet& rhs);
-    static bool        IconHasErrorContent(const std::string& icon);
-    void               clear();
-    void               setMinMaxConfirmations(int minConfs, int maxConfs = -1);
+
     static std::string Serialize(const NTP1Wallet& wallet);
     static NTP1Wallet  Deserialize(const std::string& data);
 
@@ -92,15 +99,7 @@ public:
     static Container DeserializeMap(const json_spirit::Value& json_val, bool deserializeKey,
                                     bool deserializeValue);
 
-    void exportToFile(const boost::filesystem::path& filePath) const;
-    void importFromFile(const boost::filesystem::path& filePath);
-
-    //    static void CreateNTP1SendTransaction(uint64_t fee);
-
-    bool getRetrieveFullMetadata() const;
-    void setRetrieveFullMetadata(bool value);
-
-    std::map<std::string, NTP1Int> getBalances() const;
+    static bool IconHasErrorContent(const std::string& icon);
 
     const std::unordered_map<std::string, NTP1TokenMetaData>& getTokenMetadataMap() const;
 
