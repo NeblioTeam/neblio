@@ -5,7 +5,7 @@
 #include "ntp1/ntp1script.h"
 #include "ntp1/ntp1transaction.h"
 
-class INTP1Wallet
+class INTP1Wallet : public boost::enable_shared_from_this<INTP1Wallet>
 {
 public:
     INTP1Wallet()                                          = default;

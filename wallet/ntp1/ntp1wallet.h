@@ -12,7 +12,7 @@
 class COutput;
 class CWalletTx;
 
-class NTP1Wallet : public INTP1Wallet, public boost::enable_shared_from_this<NTP1Wallet>
+class NTP1Wallet : public INTP1Wallet
 {
     bool retrieveFullMetadata = true;
 

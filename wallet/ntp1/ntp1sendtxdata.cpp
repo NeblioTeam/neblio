@@ -71,7 +71,7 @@ void NTP1SendTxData::verifyNTP1IssuanceRecipientsValidity(
 }
 
 // get available balances, either from inputs (if provided) or from the wallet
-std::map<std::string, NTP1Int> GetAvailableTokenBalances(boost::shared_ptr<NTP1Wallet>    wallet,
+std::map<std::string, NTP1Int> GetAvailableTokenBalances(boost::shared_ptr<INTP1Wallet>   wallet,
                                                          const std::vector<NTP1OutPoint>& inputs,
                                                          bool useBalancesFromWallet)
 {
@@ -133,7 +133,7 @@ int64_t CalculateTotalNeblsInInputs(std::vector<NTP1OutPoint> inputs)
     return currentTotalNeblsInSelectedInputs;
 }
 
-void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>                      wallet,
+void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<INTP1Wallet>                     wallet,
                                       const std::vector<COutPoint>&                      inputs,
                                       const std::vector<NTP1SendTokensOneRecipientData>& recipients,
                                       bool addMoreInputsIfRequired)
@@ -161,7 +161,7 @@ boost::optional<IssueTokenData> NTP1SendTxData::getNTP1TokenIssuanceData() const
 
 bool NTP1SendTxData::getWhetherIssuanceExists() const { return tokenToIssueData.is_initialized(); }
 
-void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>               wallet,
+void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<INTP1Wallet>              wallet,
                                       std::vector<NTP1OutPoint>                   inputs,
                                       std::vector<NTP1SendTokensOneRecipientData> recipients,
                                       bool addMoreInputsIfRequired)
@@ -252,12 +252,12 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
 
     // this container will be filled and must have tokens that are higher than the required amounts
     // reset fulfilled amounts and change to zero
-    for (const std::pair<std::string, NTP1Int>& el : targetAmounts) {
+    for (const std::pair<const std::string, NTP1Int>& el : targetAmounts) {
         totalTokenAmountsInSelectedInputs[el.first] = 0;
     }
 
     // fill tokenSourceInputs if inputs are not given
-    for (const std::pair<std::string, NTP1Int>& targetAmount : targetAmounts) {
+    for (const std::pair<const std::string, NTP1Int>& targetAmount : targetAmounts) {
         for (int i = 0; i < (int)availableOutputs.size(); i++) {
             const auto& output   = availableOutputs.at(i);
             auto        ntp1TxIt = walletOutputsMap.find(output);
@@ -530,7 +530,7 @@ void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<NTP1Wallet>             
     }
 
     // make sure that all recipients have received their tokens
-    for (const auto r : recps) {
+    for (const auto& r : recps) {
         // we don't select nebls
         if (r.tokenId == NTP1SendTxData::NEBL_TOKEN_ID) {
             continue;
@@ -575,7 +575,7 @@ std::vector<NTP1SendTokensOneRecipientData> NTP1SendTxData::getNTP1TokenRecipien
     return recipientsList;
 }
 
-boost::shared_ptr<NTP1Wallet> NTP1SendTxData::getWallet() const
+boost::shared_ptr<INTP1Wallet> NTP1SendTxData::getWallet() const
 {
     if (!ready)
         throw std::runtime_error("NTP1SendTxData not ready; cannot get the wallet used in calculations");
