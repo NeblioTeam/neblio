@@ -29,6 +29,7 @@ public:
     virtual void                           setRetrieveFullMetadata(bool value)                     = 0;
     virtual void exportToFile(const boost::filesystem::path& filePath) const                       = 0;
     virtual void importFromFile(const boost::filesystem::path& filePath)                           = 0;
+    virtual void setTokenIcon(const std::string& tokenId, const std::string& iconData)             = 0;
 };
 
 #endif // INTP1WALLET_H

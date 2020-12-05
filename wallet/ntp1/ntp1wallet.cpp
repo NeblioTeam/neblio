@@ -390,9 +390,9 @@ std::string NTP1Wallet::__downloadIcon(const std::string& IconURL)
 }
 
 void NTP1Wallet::__asyncDownloadAndSetIcon(std::string IconURL, std::string tokenId,
-                                           boost::shared_ptr<NTP1Wallet> wallet)
+                                           boost::shared_ptr<INTP1Wallet> wallet)
 {
-    wallet->tokenIcons.set(tokenId, __downloadIcon(IconURL));
+    wallet->setTokenIcon(tokenId, __downloadIcon(IconURL));
 }
 
 std::string NTP1Wallet::getTokenIcon(int index)
@@ -457,6 +457,11 @@ void NTP1Wallet::setMinMaxConfirmations(int minConfs, int maxConfs)
 {
     minConfirmations = minConfs;
     maxConfirmations = maxConfs;
+}
+
+void NTP1Wallet::setTokenIcon(const std::string& tokenId, const std::string& iconData)
+{
+    tokenIcons.set(tokenId, iconData);
 }
 
 std::string NTP1Wallet::Serialize(const NTP1Wallet& wallet)

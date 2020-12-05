@@ -40,7 +40,7 @@ class NTP1Wallet : public INTP1Wallet, public boost::enable_shared_from_this<NTP
     // if the shared_ptr's content gets deleted before the thread gets executed, it will lead to a
     // segfault passing a shared_ptr guarantees that the object will survive until the end
     static void __asyncDownloadAndSetIcon(std::string IconURL, std::string tokenId,
-                                          boost::shared_ptr<NTP1Wallet> wallet);
+                                          boost::shared_ptr<INTP1Wallet> wallet);
 
     static std::string __downloadIcon(const std::string& IconURL);
     static void        AddOutputToWalletBalance(const NTP1Transaction& tx, int outputIndex,
@@ -75,6 +75,7 @@ public:
     const std::unordered_map<NTP1OutPoint, NTP1Transaction>& getWalletOutputsWithTokens() const override;
     void                                                     clear() override;
     void setMinMaxConfirmations(int minConfs, int maxConfs = -1) override;
+    void setTokenIcon(const std::string& tokenId, const std::string& iconData) override;
 
     std::map<std::string, NTP1Int> getBalances() const override;
 
