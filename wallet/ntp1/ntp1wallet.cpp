@@ -313,7 +313,7 @@ NTP1Int NTP1Wallet::getTokenBalance(const std::string& tokenID) const
     }
 }
 
-std::string NTP1Wallet::getTokenName(int index) const
+std::string NTP1Wallet::getTokenNameFromIndex(int index) const
 {
     std::map<std::string, NTP1Int>::const_iterator it = balances.begin();
     std::advance(it, index);
@@ -326,7 +326,7 @@ std::string NTP1Wallet::getTokenName(int index) const
     }
 }
 
-std::string NTP1Wallet::getTokenId(int index) const
+std::string NTP1Wallet::getTokenID(int index) const
 {
     std::map<std::string, NTP1Int>::const_iterator it = balances.begin();
     std::advance(it, index);
@@ -390,12 +390,12 @@ std::string NTP1Wallet::__downloadIcon(const std::string& IconURL)
 }
 
 void NTP1Wallet::__asyncDownloadAndSetIcon(std::string IconURL, std::string tokenId,
-                                           boost::shared_ptr<INTP1Wallet> wallet)
+                                           NTP1WalletPtr wallet)
 {
     wallet->setTokenIcon(tokenId, __downloadIcon(IconURL));
 }
 
-std::string NTP1Wallet::getTokenIcon(int index)
+std::string NTP1Wallet::getAndCacheTokenIcon(int index)
 {
     std::map<std::string, NTP1Int>::const_iterator it = balances.begin();
     std::advance(it, index);

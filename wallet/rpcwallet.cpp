@@ -69,7 +69,7 @@ void WalletTxToJSON(const CWalletTx& wtx, Object& entry)
     entry.push_back(Pair("walletconflicts", conflicts));
     entry.push_back(Pair("time", (int64_t)wtx.GetTxTime()));
     entry.push_back(Pair("timereceived", (int64_t)wtx.nTimeReceived));
-    for (const PAIRTYPE(string, string) & item : wtx.mapValue)
+    for (const PAIRTYPE(const string, string) & item : wtx.mapValue)
         entry.push_back(Pair(item.first, item.second));
 }
 
@@ -601,8 +601,7 @@ Value getaddressesbyaccount(const Array& params, bool fHelp)
 
     // Find all addresses that have the given account
     Array ret;
-    for (const PAIRTYPE(CBitcoinAddress, AddressBook::CAddressBookData) & item :
-         pwalletMain->mapAddressBook) {
+    for (const auto& item : pwalletMain->mapAddressBook) {
         const CBitcoinAddress& address = item.first;
         const string&          strName = item.second.name;
         if (strName == strAccount)
@@ -787,8 +786,8 @@ Value listaddressgroupings(const Array& /*params*/, bool fHelp)
             {
                 Array ntp1SingleTokenBalance;
                 if (ntp1AddressVsTokenBalances.find(addrStr) != ntp1AddressVsTokenBalances.end()) {
-                    for (const std::pair<std::string, std::pair<std::string, NTP1Int>>& tokenBalance :
-                         ntp1AddressVsTokenBalances[addrStr]) {
+                    for (const std::pair<const std::string, std::pair<std::string, NTP1Int>>&
+                             tokenBalance : ntp1AddressVsTokenBalances[addrStr]) {
                         Array inner;
                         inner.push_back(tokenBalance.second.first);            // token name
                         inner.push_back(ToString(tokenBalance.second.second)); // balance
@@ -1321,7 +1320,7 @@ Value getntp1balances(const Array& params, bool fHelp)
     json_spirit::Object root;
 
     for (int i = 0; i < tokenCount; i++) {
-        std::string tokenId   = ntp1wallet->getTokenId(i);
+        std::string tokenId   = ntp1wallet->getTokenID(i);
         std::string tokenName = ntp1wallet->getTokenName(tokenId);
         NTP1Int     balance   = ntp1wallet->getTokenBalance(tokenId);
 
@@ -1363,7 +1362,7 @@ Value getntp1balance(const Array& params, bool fHelp)
     json_spirit::Object root;
 
     for (int i = 0; i < tokenCount; i++) {
-        std::string tokenId   = ntp1wallet->getTokenId(i);
+        std::string tokenId   = ntp1wallet->getTokenID(i);
         std::string tokenName = ntp1wallet->getTokenName(tokenId);
         std::transform(tokenName.begin(), tokenName.end(), tokenName.begin(), ::tolower);
         if (tokenId != requestedToken && tokenName != requestedTokenLowerCase) {
@@ -2034,7 +2033,7 @@ Value listaccounts(const Array& params, bool fHelp)
         mapAccountBalances[entry.strAccount] += entry.nCreditDebit;
 
     Object ret;
-    for (const PAIRTYPE(string, CAmount) & accountBalance : mapAccountBalances) {
+    for (const PAIRTYPE(const string, CAmount) & accountBalance : mapAccountBalances) {
         ret.push_back(Pair(accountBalance.first, ValueFromAmount(accountBalance.second)));
     }
     return ret;

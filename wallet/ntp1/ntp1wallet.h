@@ -40,7 +40,7 @@ class NTP1Wallet : public INTP1Wallet
     // if the shared_ptr's content gets deleted before the thread gets executed, it will lead to a
     // segfault passing a shared_ptr guarantees that the object will survive until the end
     static void __asyncDownloadAndSetIcon(std::string IconURL, std::string tokenId,
-                                          boost::shared_ptr<INTP1Wallet> wallet);
+                                          NTP1WalletPtr wallet);
 
     static std::string __downloadIcon(const std::string& IconURL);
     static void        AddOutputToWalletBalance(const NTP1Transaction& tx, int outputIndex,
@@ -64,12 +64,12 @@ public:
     void                                  update() override;
     std::string                           getTokenName(const std::string& tokenID) const override;
     NTP1Int                               getTokenBalance(const std::string& tokenID) const override;
-    std::string                           getTokenName(int index) const override;
-    std::string                           getTokenId(int index) const override;
+    std::string                           getTokenNameFromIndex(int index) const override;
+    std::string                           getTokenID(int index) const override;
     std::string                           getTokenIssuanceTxid(int index) const override;
     std::string                           getTokenDescription(int index) const override;
     NTP1Int                               getTokenBalance(int index) const override;
-    std::string                           getTokenIcon(int index) override;
+    std::string                           getAndCacheTokenIcon(int index) override;
     int64_t                               getNumberOfTokens() const override;
     const std::map<std::string, NTP1Int>& getBalancesMap() const override;
     const std::unordered_map<NTP1OutPoint, NTP1Transaction>& getWalletOutputsWithTokens() const override;

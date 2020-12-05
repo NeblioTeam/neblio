@@ -43,7 +43,7 @@ class NTP1SendTxData
     std::map<std::string, NTP1Int>              totalChangeTokens;
     std::map<std::string, NTP1Int>              totalTokenAmountsInSelectedInputs;
     std::vector<NTP1SendTokensOneRecipientData> recipientsList;
-    boost::shared_ptr<INTP1Wallet>              usedWallet;
+    NTP1WalletPtr                               usedWallet;
 
     int64_t __addInputsThatCoversNeblAmount(uint64_t neblAmount);
     bool    ready = false;
@@ -60,10 +60,10 @@ public:
      * @param recalculateFee
      * @param neblAmount amount to be sent with the transaction
      */
-    void selectNTP1Tokens(boost::shared_ptr<INTP1Wallet> wallet, std::vector<NTP1OutPoint> inputs,
+    void selectNTP1Tokens(NTP1WalletPtr wallet, std::vector<NTP1OutPoint> inputs,
                           std::vector<NTP1SendTokensOneRecipientData> recipients,
                           bool                                        addMoreInputsIfRequired);
-    void selectNTP1Tokens(boost::shared_ptr<INTP1Wallet> wallet, const std::vector<COutPoint>& inputs,
+    void selectNTP1Tokens(NTP1WalletPtr wallet, const std::vector<COutPoint>& inputs,
                           const std::vector<NTP1SendTokensOneRecipientData>& recipients,
                           bool                                               addMoreInputsIfRequired);
 
@@ -87,7 +87,7 @@ public:
     bool                           isReady() const;
     // list of recipients after removing Nebl recipients
     std::vector<NTP1SendTokensOneRecipientData> getNTP1TokenRecipientsList() const;
-    boost::shared_ptr<INTP1Wallet>              getWallet() const;
+    NTP1WalletPtr                               getWallet() const;
 
     std::vector<IntermediaryTI> getIntermediaryTIs() const;
     /**

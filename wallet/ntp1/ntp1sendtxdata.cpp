@@ -71,7 +71,7 @@ void NTP1SendTxData::verifyNTP1IssuanceRecipientsValidity(
 }
 
 // get available balances, either from inputs (if provided) or from the wallet
-std::map<std::string, NTP1Int> GetAvailableTokenBalances(boost::shared_ptr<INTP1Wallet>   wallet,
+std::map<std::string, NTP1Int> GetAvailableTokenBalances(NTP1WalletPtr                    wallet,
                                                          const std::vector<NTP1OutPoint>& inputs,
                                                          bool useBalancesFromWallet)
 {
@@ -133,8 +133,7 @@ int64_t CalculateTotalNeblsInInputs(std::vector<NTP1OutPoint> inputs)
     return currentTotalNeblsInSelectedInputs;
 }
 
-void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<INTP1Wallet>                     wallet,
-                                      const std::vector<COutPoint>&                      inputs,
+void NTP1SendTxData::selectNTP1Tokens(NTP1WalletPtr wallet, const std::vector<COutPoint>& inputs,
                                       const std::vector<NTP1SendTokensOneRecipientData>& recipients,
                                       bool addMoreInputsIfRequired)
 {
@@ -161,8 +160,7 @@ boost::optional<IssueTokenData> NTP1SendTxData::getNTP1TokenIssuanceData() const
 
 bool NTP1SendTxData::getWhetherIssuanceExists() const { return tokenToIssueData.is_initialized(); }
 
-void NTP1SendTxData::selectNTP1Tokens(boost::shared_ptr<INTP1Wallet>              wallet,
-                                      std::vector<NTP1OutPoint>                   inputs,
+void NTP1SendTxData::selectNTP1Tokens(NTP1WalletPtr wallet, std::vector<NTP1OutPoint> inputs,
                                       std::vector<NTP1SendTokensOneRecipientData> recipients,
                                       bool addMoreInputsIfRequired)
 {
@@ -575,7 +573,7 @@ std::vector<NTP1SendTokensOneRecipientData> NTP1SendTxData::getNTP1TokenRecipien
     return recipientsList;
 }
 
-boost::shared_ptr<INTP1Wallet> NTP1SendTxData::getWallet() const
+NTP1WalletPtr NTP1SendTxData::getWallet() const
 {
     if (!ready)
         throw std::runtime_error("NTP1SendTxData not ready; cannot get the wallet used in calculations");

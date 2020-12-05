@@ -2,6 +2,7 @@ include_directories(../..)
 
 add_library(mocks_lib
     mocks/mtxdb.h
+    mocks/mntp1wallet.h
     )
 
 add_executable(neblio-tests
@@ -25,6 +26,7 @@ add_executable(neblio-tests
     mruset_tests.cpp
     netbase_tests.cpp
     ntp1_tests.cpp
+    ntp1_selection_tests.cpp
     pmt_tests.cpp
     pos_tests.cpp
     result_tests.cpp
@@ -39,6 +41,7 @@ add_executable(neblio-tests
     wallet_tests.cpp
     environment.cpp
     ${GTEST_PATH}/src/gtest_main.cc
+    ${GMOCK_PATH}/src/gmock-all.cc
     # sources that depend on target as they have defs inside them, these are not tests
     ${CMAKE_SOURCE_DIR}/wallet/wallet.cpp
     ${CMAKE_SOURCE_DIR}/wallet/init.cpp
