@@ -427,18 +427,22 @@ Value createrawtransaction(const Array& params, bool fHelp)
 
 Value createrawntp1transaction(const Array& params, bool fHelp)
 {
+    // clang-format off
     if (fHelp || (params.size() != 2 && params.size() != 3 && params.size() != 4))
         throw runtime_error(
-            "createrawntp1transaction [{\"txid\":txid,\"vout\":n},...] "
-            "{address:{tokenid/tokenName:tokenAmount},{address:neblAmount,...}} [NTP1 Metadata=\"\"] "
+            "createrawntp1transaction [{\"txid\":txid,\"vout\":n},...] {address:{tokenid/tokenName:tokenAmount},{address:neblAmount,...}} [NTP1 Metadata=\"\"] or"
+            "createrawntp1transaction [{\"txid\":txid,\"vout\":n},...] [{address:{tokenid/tokenName:tokenAmount},{address:neblAmount}},...] [NTP1 Metadata=\"\"]"
             "[Encrypt-metadata=false]\n"
             "Create a transaction spending given inputs\n"
             "(array of objects containing transaction id and output number),\n"
             "sending to given address(es).\n"
             "Returns hex-encoded raw transaction.\n"
             "Note that the transaction is not stored in the wallet or transmitted to the network.");
+    // clang-format on
 
-    RPCTypeCheck(params, list_of(array_type)(obj_type));
+    if (params[0].type() != Value_type::array_type) {
+        throw JSONRPCError(RPC_TYPE_ERROR, "Expected type array for inputs");
+    }
 
     Array                     inputs = params[0].get_array();
     Object                    sendTo = params[1].get_obj();
@@ -458,7 +462,7 @@ Value createrawntp1transaction(const Array& params, bool fHelp)
     ntp1wallet->update();
 
     // create the list of recipients that's compatible with NTP1 token selector
-    std::vector<NTP1SendTokensOneRecipientData> ntp1recipients =
+    const std::vector<NTP1SendTokensOneRecipientData> ntp1recipients =
         GetNTP1RecipientsVector(sendTo, ntp1wallet);
 
     // create inputs' vector
