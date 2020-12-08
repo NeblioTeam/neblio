@@ -83,7 +83,7 @@ class RawTransactionsTest(BitcoinTestFramework):
 
         # Test `createrawtransaction` invalid `outputs`
         address = self.nodes[0].getnewaddress()
-        assert_raises_rpc_error(-3, "Expected type obj", self.nodes[0].createrawtransaction, [], 'foo')
+        assert_raises_rpc_error(-3, "Invalid parameter type for destination", self.nodes[0].createrawtransaction, [], 'foo')
         assert_raises_rpc_error(-5, "Invalid neblio address", self.nodes[0].createrawtransaction, [], {'data': 'foo'})
         assert_raises_rpc_error(-5, "Invalid neblio address", self.nodes[0].createrawtransaction, [], {'foo': 0})
         assert_raises_rpc_error(-3, "Invalid amount", self.nodes[0].createrawtransaction, [], {address: 'foo'})
@@ -95,6 +95,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         #assert_raises_rpc_error(-8, "Invalid parameter, locktime out of range", self.nodes[0].createrawtransaction, [], {}, -1)
         #assert_raises_rpc_error(-8, "Invalid parameter, locktime out of range", self.nodes[0].createrawtransaction, [], {}, 4294967296)
 
+        # test old format of createrawtransaction
         for type in ["legacy"]:
             addr = self.nodes[0].getnewaddress("")
             addrinfo = self.nodes[0].validateaddress(addr)
@@ -146,6 +147,59 @@ class RawTransactionsTest(BitcoinTestFramework):
                 }
             ])
 
+        # test new format of createrawtransaction (array of destination)
+        for type in ["legacy"]:
+            addr = self.nodes[0].getnewaddress("")
+            addrinfo = self.nodes[0].validateaddress(addr)
+            pubkey = addrinfo["scriptPubKey"]
+
+            self.log.info('sendrawtransaction with missing prevtx info (%s)' %(type))
+
+            # Test `signrawtransaction` invalid `prevtxs`
+            inputs  = [ {'txid' : txid, 'vout' : 3, 'sequence' : 1000}]
+            outputs = []
+            outputs.append({ self.nodes[0].getnewaddress() : 1 })
+            rawtx   = self.nodes[0].createrawtransaction(inputs, outputs)
+
+            prevtx = dict(txid=txid, scriptPubKey=pubkey, vout=3, amount=1)
+            succ = self.nodes[0].signrawtransaction(rawtx, [prevtx])
+            assert succ["complete"]
+            if type == "legacy":
+                del prevtx["amount"]
+                succ = self.nodes[0].signrawtransaction(rawtx, [prevtx])
+                assert succ["complete"]
+
+            if type != "legacy":
+                assert_raises_rpc_error(-3, "Missing amount", self.nodes[0].signrawtransaction, rawtx, [
+                    {
+                        "txid": txid,
+                        "scriptPubKey": pubkey,
+                        "vout": 3,
+                    }
+                ])
+
+            assert_raises_rpc_error(-3, "Missing vout", self.nodes[0].signrawtransaction, rawtx, [
+                {
+                    "txid": txid,
+                    "scriptPubKey": pubkey,
+                    "amount": 1,
+                }
+            ])
+            assert_raises_rpc_error(-3, "Missing txid", self.nodes[0].signrawtransaction, rawtx, [
+                {
+                    "scriptPubKey": pubkey,
+                    "vout": 3,
+                    "amount": 1,
+                }
+            ])
+            assert_raises_rpc_error(-3, "Missing scriptPubKey", self.nodes[0].signrawtransaction, rawtx, [
+                {
+                    "txid": txid,
+                    "vout": 3,
+                    "amount": 1
+                }
+            ])
+
         #########################################
         # sendrawtransaction with missing input #
         #########################################
@@ -156,6 +210,24 @@ class RawTransactionsTest(BitcoinTestFramework):
 
         # This will raise an exception since there are missing inputs
         assert_raises_rpc_error(-25, "bad-txns-inputs-missingorspent", self.nodes[2].sendrawtransaction, rawtx['hex'])
+
+        #########################################
+        # sendrawtransaction with invalid output array (more than one output per array element)
+        #########################################
+        inputs  = [] # not important
+        outputs = [{ self.nodes[0].getnewaddress() : 4.998 , "abc": 5}] # there can't more than one
+
+        # This will raise an exception since there are missing inputs
+        assert_raises_rpc_error(-8, "Invalid parameter in the destination array", self.nodes[2].createrawtransaction, inputs, outputs)
+
+        #########################################
+        # sendrawtransaction with invalid output array (non-object in array elements)
+        #########################################
+        inputs  = [] # not important
+        outputs = ["abc"] # there can't more than one
+
+        # This will raise an exception since there are missing inputs
+        assert_raises_rpc_error(-3, "Invalid parameter type in the destination array", self.nodes[2].createrawtransaction, inputs, outputs)
 
         #####################################
         # getrawtransaction with block hash #
@@ -281,6 +353,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         assert_raises_rpc_error(-1, "expected int", self.nodes[0].getrawtransaction, txHash, {})
 
         # TODO: Neblio: add tests for the third parameter, which is a boolean only
+
 
 if __name__ == '__main__':
     RawTransactionsTest().main()

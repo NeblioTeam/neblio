@@ -321,20 +321,22 @@ Value listunspent(const Array& params, bool fHelp)
 
 Value createrawtransaction(const Array& params, bool fHelp)
 {
+    // clang-format off
     if (fHelp || params.size() != 2)
         throw runtime_error(
-            "createrawtransaction [{\"txid\":txid,\"vout\":n},...] {address:amount,...}\n"
+            "createrawtransaction [{\"txid\":txid,\"vout\":n},...] {address1:amount1,address2:amount2,...} or\n"
+            "createrawtransaction [{\"txid\":txid,\"vout\":n},...] [{address1:amount1},{address2:amount2}]\n"
             "Create a transaction spending given inputs\n"
             "(array of objects containing transaction id and output number),\n"
             "sending to given address(es).\n"
             "Returns hex-encoded raw transaction.\n"
             "Note that the transaction's inputs are not signed, and\n"
             "it is not stored in the wallet or transmitted to the network.");
-
-    RPCTypeCheck(params, list_of(array_type)(obj_type));
-
-    Array  inputs = params[0].get_array();
-    Object sendTo = params[1].get_obj();
+    // clang-format on
+    if (params[0].type() != Value_type::array_type) {
+        throw JSONRPCError(RPC_TYPE_ERROR, "Expected type array for inputs");
+    }
+    Array inputs = params[0].get_array();
 
     CTransaction rawTx;
 
@@ -355,27 +357,63 @@ Value createrawtransaction(const Array& params, bool fHelp)
         if (nOutput < 0)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout must be positive");
 
-        CTxIn in(COutPoint(uint256(txid), nOutput));
+        const CTxIn in(COutPoint(uint256(txid), nOutput));
         rawTx.vin.push_back(in);
     }
 
-    set<CBitcoinAddress> setAddress;
-    for (const Pair& s : sendTo) {
-        CBitcoinAddress address(s.name_);
-        if (!address.IsValid())
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid neblio address: ") + s.name_);
+    if (params[1].type() == Value_type::obj_type) {
+        const Object         sendTo = params[1].get_obj();
+        set<CBitcoinAddress> setAddress;
+        for (const Pair& s : sendTo) {
+            const CBitcoinAddress address(s.name_);
+            if (!address.IsValid())
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
+                                   string("Invalid neblio address: ") + s.name_);
 
-        if (setAddress.count(address))
-            throw JSONRPCError(RPC_INVALID_PARAMETER,
-                               string("Invalid parameter, duplicated address: ") + s.name_);
-        setAddress.insert(address);
+            if (setAddress.count(address))
+                throw JSONRPCError(RPC_INVALID_PARAMETER,
+                                   string("Invalid parameter, duplicated address: ") + s.name_);
+            setAddress.insert(address);
 
-        CScript scriptPubKey;
-        scriptPubKey.SetDestination(address.Get());
-        CAmount nAmount = AmountFromValue(s.value_);
+            CScript scriptPubKey;
+            scriptPubKey.SetDestination(address.Get());
+            const CAmount nAmount = AmountFromValue(s.value_);
 
-        CTxOut out(nAmount, scriptPubKey);
-        rawTx.vout.push_back(out);
+            const CTxOut out(nAmount, scriptPubKey);
+            rawTx.vout.push_back(out);
+        }
+    } else if (params[1].type() == Value_type::array_type) {
+        const Array sendTo = params[1].get_array();
+        for (long i = 0; i < static_cast<long>(sendTo.size()); i++) {
+            if (sendTo[i].type() != Value_type::obj_type) {
+                throw JSONRPCError(
+                    RPC_TYPE_ERROR,
+                    string("Invalid parameter type in the destination array; element number " +
+                           std::to_string(i) + " (starting from 0) is not an object"));
+            }
+            const Object addressObj = sendTo[i].get_obj();
+            if (addressObj.size() != 1) {
+                throw JSONRPCError(
+                    RPC_INVALID_PARAMETER,
+                    string("Invalid parameter in the destination array; element number " +
+                           std::to_string(i) +
+                           " (starting from 0) is an object that contains more than one element"));
+            }
+            const Pair            s = addressObj.front();
+            const CBitcoinAddress address(s.name_);
+
+            CScript scriptPubKey;
+            scriptPubKey.SetDestination(address.Get());
+            const CAmount nAmount = AmountFromValue(s.value_);
+
+            const CTxOut out(nAmount, scriptPubKey);
+            rawTx.vout.push_back(out);
+        }
+    } else {
+        throw JSONRPCError(
+            RPC_TYPE_ERROR,
+            "Invalid parameter type for destination; it can be either an object or an array "
+            "of objects; please refer to the examples.");
     }
 
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
