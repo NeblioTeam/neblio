@@ -430,8 +430,8 @@ Value createrawntp1transaction(const Array& params, bool fHelp)
     // clang-format off
     if (fHelp || (params.size() != 2 && params.size() != 3 && params.size() != 4))
         throw runtime_error(
-            "createrawntp1transaction [{\"txid\":txid,\"vout\":n},...] {address:{tokenid/tokenName:tokenAmount},{address:neblAmount,...}} [NTP1 Metadata=\"\"] or"
-            "createrawntp1transaction [{\"txid\":txid,\"vout\":n},...] [{address:{tokenid/tokenName:tokenAmount},{address:neblAmount}},...] [NTP1 Metadata=\"\"]"
+            "createrawntp1transaction [{\"txid\":txid,\"vout\":n},...] {address:{tokenid/tokenName:tokenAmount},{address:neblAmount,...}} [NTP1 Metadata=\"\"] or\n"
+            "createrawntp1transaction [{\"txid\":txid,\"vout\":n},...] [{address:{tokenid/tokenName:tokenAmount},{address:neblAmount}},...] [NTP1 Metadata=\"\"]\n"
             "[Encrypt-metadata=false]\n"
             "Create a transaction spending given inputs\n"
             "(array of objects containing transaction id and output number),\n"
