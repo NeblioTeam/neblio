@@ -402,6 +402,10 @@ Value createrawtransaction(const Array& params, bool fHelp)
             const Pair            s = addressObj.front();
             const CBitcoinAddress address(s.name_);
 
+            if (!address.IsValid())
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
+                                   string("Invalid neblio address: ") + s.name_);
+
             CScript scriptPubKey;
             scriptPubKey.SetDestination(address.Get());
             const CAmount nAmount = AmountFromValue(s.value_);
