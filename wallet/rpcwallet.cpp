@@ -1508,10 +1508,12 @@ Value sendfrom(const Array& params, bool fHelp)
 Value sendmany(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 2 || params.size() > 5)
-        throw runtime_error("sendmany <fromaccount (must be empty, unsupported)> {address:amount,...} "
-                            "[comment]\n"
-                            "amounts are double-precision floating point numbers" +
-                            HelpRequiringPassphrase());
+        throw runtime_error(
+            "sendmany <fromaccount (must be empty, unsupported)> {address:amount,...} or \n"
+            "sendmany <fromaccount (must be empty, unsupported)> [{address:amount},...]\n"
+            "[comment]\n"
+            "amounts are double-precision floating point numbers" +
+            HelpRequiringPassphrase());
 
     string strAccount = params[0].get_str();
     if (!strAccount.empty()) {
