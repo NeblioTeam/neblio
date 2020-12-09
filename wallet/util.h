@@ -31,6 +31,7 @@
 #include <boost/filesystem/path.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/thread.hpp>
+#include <codecvt> // std::codecvt_utf8
 #include <openssl/md5.h>
 #include <openssl/ripemd.h>
 #include <openssl/sha.h>
@@ -223,6 +224,10 @@ boost::filesystem::path        GetDefaultDataDir();
 const boost::filesystem::path& GetDataDir(bool fNetSpecific = true);
 boost::filesystem::path        GetConfigFile();
 boost::filesystem::path        GetPidFile();
+
+std::string PossiblyWideStringToString(const std::string& str);
+std::string PossiblyWideStringToString(const std::wstring& str);
+
 #ifndef WIN32
 void CreatePidFile(const boost::filesystem::path& path, pid_t pid);
 #endif

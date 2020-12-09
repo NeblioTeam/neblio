@@ -408,7 +408,7 @@ bool ShouldQuickSyncBeDone(const filesystem::path& dbdir)
 void CTxDB::init_blockindex(bool fRemoveOld)
 {
     // First time init.
-    filesystem::path directory = GetDataDir() / DB_DIR;
+    const filesystem::path directory = GetDataDir() / DB_DIR;
 
     if (fRemoveOld ||
         SC_CheckOperationOnRestartScheduleThenDeleteIt(SC_SCHEDULE_ON_RESTART_OPNAME__RESYNC)) {
@@ -506,7 +506,8 @@ void CTxDB::init_blockindex(bool fRemoveOld)
 
     mdb_env_set_maxdbs(dbEnv.get(), 20);
 
-    if (auto result = mdb_env_open(dbEnv.get(), directory.string().c_str(), /*MDB_NOTLS*/ 0, 0644)) {
+    if (auto result = mdb_env_open(dbEnv.get(), PossiblyWideStringToString(directory.native()).c_str(),
+                                   /*MDB_NOTLS*/ 0, 0644)) {
         throw std::runtime_error("Failed to open lmdb environment: " + std::to_string(result) +
                                  "; message: " + std::string(mdb_strerror(result)));
     }
@@ -1026,7 +1027,7 @@ bool CTxDB::LoadBlockIndex()
     vector<pair<int, CBlockIndex*>> vSortedByHeight;
     vSortedByHeight.reserve(mapBlockIndex.size());
     uiInterface.InitMessage("Building chain trust... (allocating memory...)");
-    for (const PAIRTYPE(uint256, CBlockIndexSmartPtr) & item : mapBlockIndex) {
+    for (const PAIRTYPE(const uint256, CBlockIndexSmartPtr) & item : mapBlockIndex) {
         CBlockIndex* pindex = item.second.get();
         vSortedByHeight.push_back(make_pair(pindex->nHeight, pindex));
     }
