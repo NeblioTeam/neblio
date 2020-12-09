@@ -323,18 +323,15 @@ void NTP1SendTxData::selectNTP1Tokens(NTP1WalletPtr wallet, std::vector<NTP1OutP
         tokenSourceInputs = std::vector<NTP1OutPoint>(inputsSet.begin(), inputsSet.end());
     }
 
-    const std::unordered_map<NTP1OutPoint, NTP1Transaction> walletOutputs =
-        wallet->getWalletOutputsWithTokens();
-
     // sort inputs by which has more tokens first
     std::sort(
         tokenSourceInputs.begin(), tokenSourceInputs.end(),
-        [&walletOutputs](const NTP1OutPoint& o1, const NTP1OutPoint& o2) {
-            auto it1    = walletOutputs.find(o1);
-            auto it2    = walletOutputs.find(o2);
+        [&walletOutputsMap](const NTP1OutPoint& o1, const NTP1OutPoint& o2) {
+            auto it1    = walletOutputsMap.find(o1);
+            auto it2    = walletOutputsMap.find(o2);
             int  count1 = 0;
             int  count2 = 0;
-            if (it1 != walletOutputs.end()) {
+            if (it1 != walletOutputsMap.end()) {
                 const NTP1Transaction& tx1 = it1->second;
                 if (o1.getIndex() + 1 > tx1.getTxOutCount()) {
                     throw std::runtime_error(
@@ -343,7 +340,7 @@ void NTP1SendTxData::selectNTP1Tokens(NTP1WalletPtr wallet, std::vector<NTP1OutP
                 }
                 count1 = tx1.getTxOut(o1.getIndex()).tokenCount();
             }
-            if (it2 != walletOutputs.end()) {
+            if (it2 != walletOutputsMap.end()) {
                 const NTP1Transaction& tx2 = it2->second;
                 if (o2.getIndex() + 1 > tx2.getTxOutCount()) {
                     throw std::runtime_error(
@@ -359,9 +356,9 @@ void NTP1SendTxData::selectNTP1Tokens(NTP1WalletPtr wallet, std::vector<NTP1OutP
     std::unordered_map<NTP1OutPoint, NTP1TxOut> decreditMap;
     for (const auto& in : tokenSourceInputs) {
         // get the output
-        auto it = walletOutputs.find(in);
+        auto it = walletOutputsMap.find(in);
 
-        if (it == walletOutputs.end()) {
+        if (it == walletOutputsMap.end()) {
             // No NTP1 token in this input
             continue;
         }
