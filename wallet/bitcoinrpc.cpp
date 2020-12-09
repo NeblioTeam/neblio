@@ -1483,8 +1483,8 @@ std::string GetTokenIDFromTokenName(const std::string& tokenName)
     FetchNTP1TxFromDisk(txPair, txdb, false);
 
     // extract token ID
-    const auto& prevout0 = txPair.first.vin[0].prevout;
-    std::string tokenId  = txPair.second.getTokenIdIfIssuance(prevout0.hash.ToString(), prevout0.n);
+    const auto&       prevout0 = txPair.first.vin[0].prevout;
+    const std::string tokenId = txPair.second.getTokenIdIfIssuance(prevout0.hash.ToString(), prevout0.n);
     return tokenId;
 }
 
@@ -1494,6 +1494,7 @@ NTP1SendTokensOneRecipientData ParseRPCNTP1OutputJson(const json_spirit::Pair&  
 {
     NTP1SendTokensOneRecipientData res;
     if (s.value_.type() == json_spirit::Value_type::obj_type) {
+        // NTP1 token (since the json type is object)
         json_spirit::Object obj = s.value_.get_obj();
         if (obj.size() != 1) {
             throw std::runtime_error("Invalid tokenId and amount pair.");
@@ -1502,13 +1503,14 @@ NTP1SendTokensOneRecipientData ParseRPCNTP1OutputJson(const json_spirit::Pair&  
         if (nAmount <= 0) {
             throw std::runtime_error("Invalid amount: " + ::ToString(res.amount));
         }
-        res.amount             = static_cast<uint64_t>(nAmount);
-        std::string providedId = obj[0].name_;
+        res.amount                   = static_cast<uint64_t>(nAmount);
+        const std::string providedId = obj[0].name_;
 
         const std::unordered_map<std::string, NTP1TokenMetaData> tokenMetadataMap =
             ntp1wallet->getTokenMetadataMap();
         // token id was not found
-        if (tokenMetadataMap.find(providedId) == tokenMetadataMap.end()) {
+        if (getDataStrictlyFromNTP1Wallet &&
+            tokenMetadataMap.find(providedId) == tokenMetadataMap.end()) {
             res.tokenId   = "";
             int nameCount = 0; // number of tokens that have that name
             // try to find whether the name of the token matches with what's provided
@@ -1521,41 +1523,18 @@ NTP1SendTokensOneRecipientData ParseRPCNTP1OutputJson(const json_spirit::Pair&  
             if (res.tokenId == "") {
                 throw std::runtime_error("Failed to find token by the id/name: " + providedId);
             }
-            res.amount                   = static_cast<uint64_t>(nAmount);
-            const std::string providedId = obj[0].name_;
-
-            const std::unordered_map<std::string, NTP1TokenMetaData> tokenMetadataMap =
-                ntp1wallet->getTokenMetadataMap();
-            // token id was not found
-            if (getDataStrictlyFromNTP1Wallet &&
-                tokenMetadataMap.find(providedId) == tokenMetadataMap.end()) {
-                res.tokenId   = "";
-                int nameCount = 0; // number of tokens that have that name
-                // try to find whether the name of the token matches with what's provided
-                for (const auto& tokenMetadata : tokenMetadataMap) {
-                    if (tokenMetadata.second.getTokenName() == providedId) {
-                        res.tokenId = tokenMetadata.second.getTokenId();
-                        nameCount++;
-                    }
-                }
-                if (res.tokenId == "") {
-                    throw std::runtime_error("Failed to find token by the id/name: " + providedId);
-                }
-                if (nameCount > 1) {
-                    throw std::runtime_error("Found multiple tokens by the name " + providedId);
-                }
-            } else {
-                std::vector<unsigned char> decoded;
-                if (!DecodeBase58Check(providedId, decoded)) {
-                    // this is a token given by name, not by ID
-                    res.tokenId = GetTokenIDFromTokenName(providedId);
-                } else {
-                    // this is a token given by ID, not by name
-                    res.tokenId = providedId;
-                }
+            if (nameCount > 1) {
+                throw std::runtime_error("Found multiple tokens by the name " + providedId);
             }
         } else {
-            res.tokenId = providedId;
+            std::vector<unsigned char> decoded;
+            if (!DecodeBase58Check(providedId, decoded)) {
+                // this is a token given by name, not by ID
+                res.tokenId = GetTokenIDFromTokenName(providedId);
+            } else {
+                // this is a token given by ID, not by name
+                res.tokenId = providedId;
+            }
         }
     } else {
         // nebls
