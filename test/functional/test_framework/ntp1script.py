@@ -5,7 +5,6 @@ from binascii import hexlify
 import hashlib
 import sys
 from enum import Enum
-import unittest
 
 
 class NTP1ScriptType(Enum):

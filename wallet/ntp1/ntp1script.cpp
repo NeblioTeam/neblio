@@ -195,7 +195,7 @@ std::string NTP1Script::ParseMetadataFromLongEnoughString(const std::string& Bin
                                                           const std::string& op_code_bin,
                                                           const std::string& wholeScriptHex)
 {
-    int metadataSize = CalculateMetadataSize(op_code_bin);
+    const int metadataSize = CalculateMetadataSize(op_code_bin);
     if ((int)BinMetadataStartsAtByte0.size() < metadataSize) {
         throw std::runtime_error("Error parsing script" +
                                  (wholeScriptHex.size() > 0 ? ": " + wholeScriptHex : "") +
@@ -239,7 +239,7 @@ NTP1Script::ParseNTP1v3MetadataFromLongEnoughString(const std::string& BinMetada
 std::string
 NTP1Script::ParseTokenSymbolFromLongEnoughString(const std::string& BinTokenSymbolStartsAtByte0)
 {
-    if ((int)BinTokenSymbolStartsAtByte0.size() < 0) {
+    if ((int)BinTokenSymbolStartsAtByte0.size() < 5) {
         throw std::runtime_error(
             "Error parsing script (starting at this point a symbol is expected). " +
             (BinTokenSymbolStartsAtByte0.size() > 0 ? ": " + BinTokenSymbolStartsAtByte0 : "") +
@@ -274,7 +274,7 @@ std::vector<NTP1Script::TransferInstruction> NTP1Script::ParseTransferInstructio
     std::string                      toParse = BinInstructionsStartFromByte0;
     std::vector<TransferInstruction> result;
     totalRawSize = 0;
-    for (int i = 0;; i++) {
+    while (true) {
         if (toParse.size() <= 1) {
             break;
         }
@@ -450,6 +450,7 @@ std::string NTP1Script::NumberToHexNTP1Amount(const NTP1Int& num, bool caps)
     std::string numStr     = ToString(num);
     int         zerosCount = 0;
     // numbers less than 32 can fit in a single byte with no exponent
+    // this other condition is provided to match the API server
     if (num >= 32 && ToString(NTP1Script::GetTrailingZeros(num)).size() <= 12) {
         for (unsigned i = 0; i < numStr.size(); i++) {
             if (numStr[numStr.size() - i - 1] == '0') {
@@ -669,9 +670,9 @@ NTP1Int NTP1Script::NTP1AmountHexToNumber(std::string hexVal)
         set_in_range(bits, bin[bin.size() - i - 1], i * 8 + 0, (i + 1) * 8);
     }
 
-    bool bit0 = bits[bits.size() - 1];
-    bool bit1 = bits[bits.size() - 2];
-    bool bit2 = bits[bits.size() - 3];
+    const bool bit0 = bits[bits.size() - 1];
+    const bool bit1 = bits[bits.size() - 2];
+    const bool bit2 = bits[bits.size() - 3];
 
     // sizes in bits
     int headerSize   = 0;
