@@ -293,7 +293,7 @@ extern json_spirit::Value exportblockchain(const json_spirit::Array& params, boo
 extern json_spirit::Value waitforblockheight(const json_spirit::Array& params, bool fHelp);
 
 std::vector<NTP1SendTokensOneRecipientData>
-     GetNTP1RecipientsVector(const json_spirit::Object& sendTo, boost::shared_ptr<NTP1Wallet> ntp1wallet);
+     GetNTP1RecipientsVector(const json_spirit::Value& sendTo, boost::shared_ptr<NTP1Wallet> ntp1wallet);
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, json_spirit::Object& out, bool fIncludeHex);
 
 #endif
