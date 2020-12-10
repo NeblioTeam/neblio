@@ -1334,12 +1334,24 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
         ConvertTo<bool>(params[2]);
     if (strMethod == "createrawtransaction" && n > 0)
         ConvertTo<Array>(params[0]);
-    if (strMethod == "createrawtransaction" && n > 1)
-        ConvertTo<Object>(params[1]);
+    if (strMethod == "createrawtransaction" && n > 1) {
+        // it can be either an array or an object
+        try {
+            ConvertTo<Object>(params[1]);
+        } catch (const std::exception& ex) {
+            ConvertTo<Array>(params[1]);
+        }
+    }
     if (strMethod == "createrawntp1transaction" && n > 0)
         ConvertTo<Array>(params[0]);
-    if (strMethod == "createrawntp1transaction" && n > 1)
-        ConvertTo<Object>(params[1]);
+    if (strMethod == "createrawntp1transaction" && n > 1) {
+        // it can be either an array or an object
+        try {
+            ConvertTo<Object>(params[1]);
+        } catch (const std::exception& ex) {
+            ConvertTo<Array>(params[1]);
+        }
+    }
     if (strMethod == "createrawntp1transaction" && n > 3)
         ConvertTo<bool>(params[3]);
     if (strMethod == "signrawtransaction" && n > 1)

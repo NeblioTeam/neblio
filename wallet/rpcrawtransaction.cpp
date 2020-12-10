@@ -444,8 +444,8 @@ Value createrawntp1transaction(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_TYPE_ERROR, "Expected type array for inputs");
     }
 
-    Array                     inputs = params[0].get_array();
-    Object                    sendTo = params[1].get_obj();
+    const Array               inputs = params[0].get_array();
+    const Value               sendTo = params[1];
     std::string               processedMetadata;
     RawNTP1MetadataBeforeSend rawNTP1Data("", false);
     if (params.size() > 2) {
@@ -467,7 +467,7 @@ Value createrawntp1transaction(const Array& params, bool fHelp)
 
     // create inputs' vector
     std::vector<COutPoint> cinputs;
-    for (Value& input : inputs) {
+    for (const Value& input : inputs) {
         const Object& o = input.get_obj();
 
         const Value& txid_v = find_value(o, "txid");
