@@ -466,6 +466,7 @@ TEST(ntp1_tests, script_transfer)
     EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, static_cast<unsigned>(0));
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(0).rawAmount), "69892A92");
     EXPECT_EQ(script_transfer->getTransferInstruction(0).firstRawByte, 0);
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).rawSize, 5);
 }
 
 TEST(ntp1_tests, script_issuance_allowed_chars_in_token_symbol)
