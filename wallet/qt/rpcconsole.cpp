@@ -501,7 +501,7 @@ void RPCConsole::on_openDataDirButton_clicked()
     QString dataDir = QString::fromStdWString(GetDataDir().wstring());
     if(fileExistsInOneOfDirs(pathEnvVarPaths, fileManagerProgram))
     {
-        QProcess::startDetached(fileManagerProgram, QStringList({"\"" + dataDir + "\""}));
+        QProcess::startDetached(fileManagerProgram, QStringList({dataDir}));
     }
     else
     {
