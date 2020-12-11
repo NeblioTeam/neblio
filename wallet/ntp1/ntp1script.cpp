@@ -158,7 +158,7 @@ uint64_t NTP1Script::CalculateAmountSize(uint8_t firstChar)
 NTP1Int NTP1Script::ParseAmountFromLongEnoughString(const std::string& BinAmountStartsAtByte0,
                                                     int&               rawSize)
 {
-    if (BinAmountStartsAtByte0.size() < 2) {
+    if (BinAmountStartsAtByte0.size() < 1) {
         throw std::runtime_error("Too short a string to be parsed " +
                                  boost::algorithm::hex(BinAmountStartsAtByte0));
     }
@@ -268,6 +268,29 @@ NTP1Script::ParseTokenSymbolFromLongEnoughString(const std::string& BinTokenSymb
     return result;
 }
 
+NTP1Script::TransferInstruction ParseTransferInstruction(const std::string& toParse)
+{
+    if(toParse.size() <= 1) {
+        throw std::runtime_error("ParseTransferInstruction failed as input is too short");
+    }
+
+    // one byte of flags, and then N bytes for the amount
+    NTP1Script::TransferInstruction transferInst;
+    transferInst.firstRawByte = static_cast<unsigned char>(toParse[0]);
+    transferInst.rawAmount    = toParse.substr(1, NTP1Script::CalculateAmountSize(toParse[1]));
+    transferInst.rawSize = 1 + transferInst.rawAmount.size();
+
+    // parse data from raw
+    std::bitset<8> rawByte(transferInst.firstRawByte);
+    std::bitset<5> outputIndex(rawByte.to_string().substr(3, 5));
+    transferInst.skipInput   = rawByte.test(7); // first big-endian bit (is the last one in bitset)
+    transferInst.outputIndex = static_cast<int>(outputIndex.to_ulong());
+
+    transferInst.amount = NTP1Script::NTP1AmountHexToNumber(boost::algorithm::hex(transferInst.rawAmount));
+
+    return transferInst;
+}
+
 std::vector<NTP1Script::TransferInstruction> NTP1Script::ParseTransferInstructionsFromLongEnoughString(
     const std::string& BinInstructionsStartFromByte0, int& totalRawSize)
 {
@@ -279,21 +302,9 @@ std::vector<NTP1Script::TransferInstruction> NTP1Script::ParseTransferInstructio
             break;
         }
 
-        // one byte of flags, and then N bytes for the amount
-        TransferInstruction transferInst;
-        transferInst.firstRawByte = static_cast<unsigned char>(toParse[0]);
-        transferInst.rawAmount    = toParse.substr(1, CalculateAmountSize(toParse[1]));
-        int currentSize           = 1 + transferInst.rawAmount.size();
-        totalRawSize += currentSize;
-        toParse.erase(toParse.begin(), toParse.begin() + currentSize);
-
-        // parse data from raw
-        std::bitset<8> rawByte(transferInst.firstRawByte);
-        std::bitset<5> outputIndex(rawByte.to_string().substr(3, 5));
-        transferInst.skipInput   = rawByte.test(7); // first big-endian bit (is the last one in bitset)
-        transferInst.outputIndex = static_cast<int>(outputIndex.to_ulong());
-
-        transferInst.amount = NTP1AmountHexToNumber(boost::algorithm::hex(transferInst.rawAmount));
+        const TransferInstruction transferInst = ParseTransferInstruction(toParse);
+        toParse.erase(toParse.begin(), toParse.begin() + transferInst.rawSize);
+        totalRawSize += transferInst.rawSize;
 
         // push to the vector
         result.push_back(transferInst);
@@ -327,21 +338,9 @@ NTP1Script::ParseNTP1v3TransferInstructionsFromLongEnoughString(
             throw std::runtime_error("Transfer instruction number " + ToString(i) + " has a size <= 1");
         }
 
-        // one byte of flags, and then N bytes for the amount
-        TransferInstruction transferInst;
-        transferInst.firstRawByte = static_cast<unsigned char>(toParse[0]);
-        transferInst.rawAmount    = toParse.substr(1, CalculateAmountSize(toParse[1]));
-        int currentSize           = 1 + transferInst.rawAmount.size();
-        totalRawSize += currentSize;
-        toParse.erase(toParse.begin(), toParse.begin() + currentSize);
-
-        // parse data from raw
-        std::bitset<8> rawByte(transferInst.firstRawByte);
-        std::bitset<5> outputIndex(rawByte.to_string().substr(3, 5));
-        transferInst.skipInput   = rawByte.test(7); // first big-endian bit (is the last one in bitset)
-        transferInst.outputIndex = static_cast<int>(outputIndex.to_ulong());
-
-        transferInst.amount = NTP1AmountHexToNumber(boost::algorithm::hex(transferInst.rawAmount));
+        const TransferInstruction transferInst = ParseTransferInstruction(toParse);
+        toParse.erase(toParse.begin(), toParse.begin() + transferInst.rawSize);
+        totalRawSize += transferInst.rawSize;
 
         // push to the vector
         result.push_back(transferInst);
