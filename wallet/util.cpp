@@ -510,6 +510,15 @@ void ParseParameters(int argc, const char* const argv[])
     }
 }
 
+/// These two functions convert a path to a string to be passed to lmdb, or any other legacy software
+/// that takes only c_str as argument
+string PossiblyWideStringToString(const string& str) { return str; }
+string PossiblyWideStringToString(const wstring& str)
+{
+    std::wstring_convert<std::codecvt_utf8<wstring::value_type>, wstring::value_type> cv;
+    return cv.to_bytes(str);
+}
+
 std::string GetArg(const std::string& strArg, const std::string& strDefault)
 {
     return mapArgs.get(strArg).value_or(strDefault);
