@@ -2623,6 +2623,37 @@ TEST(ntp1_tests, some_transfer_instructions_test)
               boost::algorithm::unhex(std::string("19")));
 }
 
+TEST(ntp1_tests, ntp1v3_burn_test)
+{
+    const std::string script = "4e5403200200081f02";
+
+    auto scriptPtr  = NTP1Script::ParseScript(script);
+    auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Burn>(scriptPtr);
+    EXPECT_NE(scriptPtrD, nullptr);
+
+    EXPECT_EQ(scriptPtrD->getProtocolVersion(), 3);
+    EXPECT_EQ(scriptPtrD->getHeader(), boost::algorithm::unhex(std::string("4e5403")));
+    EXPECT_EQ(scriptPtrD->getRawMetadata(), "");
+
+    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), static_cast<unsigned>(2));
+
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, static_cast<unsigned>(8));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).skipInput, false);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, static_cast<unsigned>(0));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).firstRawByte, 0);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).rawSize, 2);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).rawAmount,
+              boost::algorithm::unhex(std::string("08")));
+
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).amount, static_cast<unsigned>(2));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).skipInput, false);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).outputIndex, static_cast<unsigned>(31));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).firstRawByte, 31);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).rawSize, 2);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).rawAmount,
+              boost::algorithm::unhex(std::string("02")));
+}
+
 TEST(ntp1_tests, amend_tx_with_op_return)
 {
     SwitchNetworkTypeTemporarily state_holder(NetworkType::Testnet);

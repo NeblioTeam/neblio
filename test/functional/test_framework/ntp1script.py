@@ -633,6 +633,7 @@ def run_burn_ntp1v1_parsing_tests():
     parsed = parse_ntp1_script(bytes.fromhex(transfer_script))
     assert_equal(parsed['header'], bytes.fromhex('4e5401'))
     assert_equal(parsed['protocol_version'], 1)
+    assert_equal(parsed['script_type'], NTP1ScriptType.BURN)
     assert_equal(parsed['burn_data']['metadata'], b'')
     assert_equal(parsed['burn_data']['metadata_size'], 0)
     assert_equal(len(parsed['burn_data']['transfer_instructions']), 1)
@@ -645,19 +646,30 @@ def run_burn_ntp1v1_parsing_tests():
 
 
 def run_burn_ntp1v3_parsing_tests():
-    transfer_script = ''
-    # parsed = parse_ntp1_script(bytes.fromhex(transfer_script))
-    # assert_equal(parsed['header'], bytes.fromhex('4e5401'))
-    # assert_equal(parsed['protocol_version'], 1)
-    # assert_equal(parsed['burn_data']['metadata'], b'')
-    # assert_equal(parsed['burn_data']['metadata_size'], 0)
-    # assert_equal(len(parsed['burn_data']['transfer_instructions']), 1)
-    # assert_equal(parsed['burn_data']['transfer_instructions'][0].amount, 1000)
-    # assert_equal(parsed['burn_data']['transfer_instructions'][0].first_raw_byte, 31)
-    # assert_equal(parsed['burn_data']['transfer_instructions'][0].raw_amount, bytes.fromhex('2013'))
-    # assert_equal(parsed['burn_data']['transfer_instructions'][0].skip_input, False)
-    # assert_equal(parsed['burn_data']['transfer_instructions'][0].output_index, 31)
-    # assert_equal(parsed['burn_data']['transfer_instructions'][0].total_raw_size, 3)
+    script = '4e5403200200081f02'
+    parsed = parse_ntp1_script(bytes.fromhex(script))
+
+    assert_equal(parsed['header'], bytes.fromhex('4e5403'))
+    assert_equal(parsed['script_type'], NTP1ScriptType.BURN)
+    assert_equal(parsed['protocol_version'], 3)
+    assert_equal(parsed['burn_data']['metadata'], b'')
+    assert_equal(parsed['burn_data']['metadata_size'], 0)
+
+    assert_equal(len(parsed['burn_data']['transfer_instructions']), 2)
+
+    assert_equal(parsed['burn_data']['transfer_instructions'][0].amount, 8)
+    assert_equal(parsed['burn_data']['transfer_instructions'][0].first_raw_byte, 0)
+    assert_equal(parsed['burn_data']['transfer_instructions'][0].raw_amount, bytes.fromhex('08'))
+    assert_equal(parsed['burn_data']['transfer_instructions'][0].skip_input, False)
+    assert_equal(parsed['burn_data']['transfer_instructions'][0].output_index, 0)
+    assert_equal(parsed['burn_data']['transfer_instructions'][0].total_raw_size, 2)
+
+    assert_equal(parsed['burn_data']['transfer_instructions'][1].amount, 2)
+    assert_equal(parsed['burn_data']['transfer_instructions'][1].first_raw_byte, 31)
+    assert_equal(parsed['burn_data']['transfer_instructions'][1].raw_amount, bytes.fromhex('02'))
+    assert_equal(parsed['burn_data']['transfer_instructions'][1].skip_input, False)
+    assert_equal(parsed['burn_data']['transfer_instructions'][1].output_index, 31)
+    assert_equal(parsed['burn_data']['transfer_instructions'][1].total_raw_size, 2)
 
 
 def run_transfer_ntp1v1_parsing_tests():
@@ -667,6 +679,7 @@ def run_transfer_ntp1v1_parsing_tests():
     assert_equal(transfer_script_parse_result['protocol_version'], 1)
     assert_equal(transfer_script_parse_result['transfer_data']['metadata'], b'')
     assert_equal(transfer_script_parse_result['transfer_data']['metadata_size'], 0)
+    assert_equal(transfer_script_parse_result['script_type'], NTP1ScriptType.TRANSFER)
     assert_equal(len(transfer_script_parse_result['transfer_data']['transfer_instructions']), 1)
     assert_equal(transfer_script_parse_result['transfer_data']['transfer_instructions'][0].amount, 999901700)
     assert_equal(transfer_script_parse_result['transfer_data']['transfer_instructions'][0].first_raw_byte, 0)
@@ -687,6 +700,7 @@ def run_transfer_ntp1v3_parsing_tests():
     assert_equal(parsed['transfer_data']['metadata'], b'')
     assert_equal(parsed['transfer_data']['metadata_size'], 0)
     assert_equal(len(parsed['transfer_data']['transfer_instructions']), 5)
+    assert_equal(parsed['script_type'], NTP1ScriptType.TRANSFER)
 
     assert_equal(parsed['transfer_data']['transfer_instructions'][0].amount, 50)
     assert_equal(parsed['transfer_data']['transfer_instructions'][0].first_raw_byte, 3)
