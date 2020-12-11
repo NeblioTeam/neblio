@@ -654,6 +654,7 @@ TEST(ntp1_tests, script_burn)
     EXPECT_EQ(script_burn->getTransferInstruction(0).outputIndex, static_cast<unsigned>(31));
     EXPECT_EQ(boost::algorithm::hex(script_burn->getTransferInstruction(0).rawAmount), "2013");
     EXPECT_EQ(script_burn->getTransferInstruction(0).firstRawByte, 31);
+    EXPECT_EQ(script_burn->getTransferInstruction(0).rawSize, 3);
 }
 
 TEST(ntp1_tests, script_get_amount_size)
