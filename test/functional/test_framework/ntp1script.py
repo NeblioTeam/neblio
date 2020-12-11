@@ -287,8 +287,8 @@ def parse_ntp1v3_transfer_instructions_from_long_enough_bytes(subscript: bytes, 
         amount_size = calculate_amount_size(subscript[bytes_ptr + 1])
         ti.raw_amount = subscript[bytes_ptr + 1: bytes_ptr + 1 + amount_size]
         ti.amount = decode_ntp1_amount_bytes(ti.raw_amount)
-        ti.skip_input = bool(ti.first_raw_byte & 1)
-        ti.output_index = ti.first_raw_byte >> 3
+        ti.skip_input = bool(ti.first_raw_byte >> 7)
+        ti.output_index = ti.first_raw_byte & 0x1F
         ti.total_raw_size = 1 + amount_size
 
         bytes_ptr += 1 + amount_size
@@ -316,8 +316,6 @@ def parse_ntp1v3_metadata_from_long_enough_string(subscript: bytes) -> bytes:
 
     metadata = subscript[ptr:]
     return metadata
-
-
 
 
 def parse_ntp1v3_issuance_data(subscript: bytes) -> dict:
@@ -386,6 +384,31 @@ def parse_ntp1v1_transfer_data(op_code, subscript: bytes) -> dict:
         total_ti_size += ti.total_raw_size
 
     ptr += total_ti_size
+
+    return result
+
+
+def parse_ntp1v3_transfer_data(subscript: bytes) -> dict:
+    result = {}
+    ptr = 0
+
+    num_of_transfer_instructions = subscript[ptr]
+    if num_of_transfer_instructions <= 0:
+        raise ValueError("The number of transfer instructions cannot be zero")
+    ptr += 1
+
+    result['transfer_instructions'] = parse_ntp1v3_transfer_instructions_from_long_enough_bytes(subscript[ptr:], num_of_transfer_instructions)
+    total_ti_size = 0
+    for ti in result['transfer_instructions']:
+        total_ti_size += ti.total_raw_size
+
+    ptr += total_ti_size
+
+    metadata = parse_ntp1v3_metadata_from_long_enough_string(subscript[ptr:])
+    result['metadata'] = metadata
+    result['metadata_size'] = len(metadata)
+
+    ptr += len(metadata)
 
     return result
 
@@ -462,7 +485,7 @@ def parse_ntp1_script(script: bytes):
         if protocol_version == 1:
             result['transfer_data'] = parse_ntp1v1_transfer_data(op_code, script[4:])
         elif protocol_version == 3:
-            pass
+            result['transfer_data'] = parse_ntp1v3_transfer_data(script[4:])
         else:
             raise ValueError("Unknown protocol version ({}) for transfer".format(protocol_version))
     elif script_type == NTP1ScriptType.BURN:
@@ -541,6 +564,53 @@ def run_transfer_ntp1v1_parsing_tests():
     assert_equal(transfer_script_parse_result['transfer_data']['transfer_instructions'][0].total_raw_size, 5)
 
 
+def run_transfer_ntp1v3_parsing_tests():
+    # I changed the last the MSB of the last transfer instruction manually to make it
+    # have a "skip input" by changing the byte from 07 to 87, just for tests
+    transfer_script = '4e540310050320510420410520e20638b18719'
+    parsed = parse_ntp1_script(bytes.fromhex(transfer_script))
+    assert_equal(parsed['header'], bytes.fromhex('4e5403'))
+    assert_equal(parsed['protocol_version'], 3)
+    assert_equal(parsed['transfer_data']['metadata'], b'')
+    assert_equal(parsed['transfer_data']['metadata_size'], 0)
+    assert_equal(len(parsed['transfer_data']['transfer_instructions']), 5)
+
+    assert_equal(parsed['transfer_data']['transfer_instructions'][0].amount, 50)
+    assert_equal(parsed['transfer_data']['transfer_instructions'][0].first_raw_byte, 3)
+    assert_equal(parsed['transfer_data']['transfer_instructions'][0].raw_amount, bytes.fromhex('2051'))
+    assert_equal(parsed['transfer_data']['transfer_instructions'][0].skip_input, False)
+    assert_equal(parsed['transfer_data']['transfer_instructions'][0].output_index, 3)
+    assert_equal(parsed['transfer_data']['transfer_instructions'][0].total_raw_size, 3)
+
+    assert_equal(parsed['transfer_data']['transfer_instructions'][1].amount, 40)
+    assert_equal(parsed['transfer_data']['transfer_instructions'][1].first_raw_byte, 4)
+    assert_equal(parsed['transfer_data']['transfer_instructions'][1].raw_amount, bytes.fromhex('2041'))
+    assert_equal(parsed['transfer_data']['transfer_instructions'][1].skip_input, False)
+    assert_equal(parsed['transfer_data']['transfer_instructions'][1].output_index, 4)
+    assert_equal(parsed['transfer_data']['transfer_instructions'][1].total_raw_size, 3)
+
+    assert_equal(parsed['transfer_data']['transfer_instructions'][2].amount, 1400)
+    assert_equal(parsed['transfer_data']['transfer_instructions'][2].first_raw_byte, 5)
+    assert_equal(parsed['transfer_data']['transfer_instructions'][2].raw_amount, bytes.fromhex('20e2'))
+    assert_equal(parsed['transfer_data']['transfer_instructions'][2].skip_input, False)
+    assert_equal(parsed['transfer_data']['transfer_instructions'][2].output_index, 5)
+    assert_equal(parsed['transfer_data']['transfer_instructions'][2].total_raw_size, 3)
+
+    assert_equal(parsed['transfer_data']['transfer_instructions'][3].amount, 3950)
+    assert_equal(parsed['transfer_data']['transfer_instructions'][3].first_raw_byte, 6)
+    assert_equal(parsed['transfer_data']['transfer_instructions'][3].raw_amount, bytes.fromhex('38b1'))
+    assert_equal(parsed['transfer_data']['transfer_instructions'][3].skip_input, False)
+    assert_equal(parsed['transfer_data']['transfer_instructions'][3].output_index, 6)
+    assert_equal(parsed['transfer_data']['transfer_instructions'][3].total_raw_size, 3)
+
+    assert_equal(parsed['transfer_data']['transfer_instructions'][4].amount, 25)
+    assert_equal(parsed['transfer_data']['transfer_instructions'][4].first_raw_byte, 135)
+    assert_equal(parsed['transfer_data']['transfer_instructions'][4].raw_amount, bytes.fromhex('19'))
+    assert_equal(parsed['transfer_data']['transfer_instructions'][4].skip_input, True)
+    assert_equal(parsed['transfer_data']['transfer_instructions'][4].output_index, 7)
+    assert_equal(parsed['transfer_data']['transfer_instructions'][4].total_raw_size, 2)
+
+
 def run_issuance_ntp1v1_parsing_tests():
     nibbl_issuance_script = '4e5401014e4942424cab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef215620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0'
     nibbl_issuance_parse_result = parse_ntp1_script(bytes.fromhex(nibbl_issuance_script))
@@ -590,6 +660,7 @@ def run_all_local_tests():
     run_issuance_ntp1v1_parsing_tests()
     run_issuance_ntp1v3_parsing_tests()
     run_transfer_ntp1v1_parsing_tests()
+    run_transfer_ntp1v3_parsing_tests()
 
 
 # to test this file
