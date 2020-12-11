@@ -16,11 +16,11 @@ class NTP1ScriptType(Enum):
 
     @staticmethod
     def calcuate_tx_type(op_code):
-        if op_code <= 0x1F:
+        if op_code <= 0x0F:
             return NTP1ScriptType.ISSUANCE
-        if op_code <= 0x2F:
+        if op_code <= 0x1F:
             return NTP1ScriptType.TRANSFER
-        if op_code <= 0x3F:
+        if op_code <= 0x2F:
             return NTP1ScriptType.BURN
         raise ValueError("Unknown op_code for NTP1ScriptType {}".format(op_code))
 
@@ -367,9 +367,31 @@ def parse_ntp1v3_issuance_data(subscript: bytes) -> dict:
     return result
 
 
+def parse_ntp1v1_transfer_data(op_code, subscript: bytes) -> dict:
+    result = {}
+    ptr = 0
+
+    metadata_size = calculate_ntp1v1_metadata_size(op_code)
+    result['metadata_size'] = metadata_size
+
+    if len(subscript[ptr:]) < metadata_size:
+        raise ValueError("Invalid metadata size; smaller than expected (expected {}, found {})".format(metadata_size, len(subscript[5:])))
+    result['metadata'] = subscript[ptr:ptr+metadata_size]
+
+    ptr += metadata_size
+
+    result['transfer_instructions'] = parse_ntp1v1_transfer_instructions_from_long_enough_bytes(subscript[ptr:])
+    total_ti_size = 0
+    for ti in result['transfer_instructions']:
+        total_ti_size += ti.total_raw_size
+
+    ptr += total_ti_size
+
+    return result
+
+
 def parse_ntp1v1_issuance_data(op_code, subscript: bytes) -> dict:
     result = {}
-
     ptr = 0
 
     # parse token symbol
@@ -425,7 +447,7 @@ def parse_ntp1_script(script: bytes):
     result['protocol_version'] = protocol_version
 
     # parse script type
-    op_code = script[2]
+    op_code = script[3]
     script_type = NTP1ScriptType.calcuate_tx_type(op_code)
     result['script_type'] = script_type
 
@@ -437,7 +459,12 @@ def parse_ntp1_script(script: bytes):
         else:
             raise ValueError("Unknown protocol version ({}) for issuance".format(protocol_version))
     elif script_type == NTP1ScriptType.TRANSFER:
-        pass
+        if protocol_version == 1:
+            result['transfer_data'] = parse_ntp1v1_transfer_data(op_code, script[4:])
+        elif protocol_version == 3:
+            pass
+        else:
+            raise ValueError("Unknown protocol version ({}) for transfer".format(protocol_version))
     elif script_type == NTP1ScriptType.BURN:
         pass
     else:
@@ -498,6 +525,22 @@ def run_numerics_tests():
     assert_equal(encode_ntp1_amount_bytes(1412849080), bytes.fromhex("80435eb161"))
 
 
+def run_transfer_ntp1v1_parsing_tests():
+    transfer_script = '4e5401150069892a92'
+    transfer_script_parse_result = parse_ntp1_script(bytes.fromhex(transfer_script))
+    assert_equal(transfer_script_parse_result['header'], bytes.fromhex('4e5401'))
+    assert_equal(transfer_script_parse_result['protocol_version'], 1)
+    assert_equal(transfer_script_parse_result['transfer_data']['metadata'], b'')
+    assert_equal(transfer_script_parse_result['transfer_data']['metadata_size'], 0)
+    assert_equal(len(transfer_script_parse_result['transfer_data']['transfer_instructions']), 1)
+    assert_equal(transfer_script_parse_result['transfer_data']['transfer_instructions'][0].amount, 999901700)
+    assert_equal(transfer_script_parse_result['transfer_data']['transfer_instructions'][0].first_raw_byte, 0)
+    assert_equal(transfer_script_parse_result['transfer_data']['transfer_instructions'][0].raw_amount, bytes.fromhex('69892A92'))
+    assert_equal(transfer_script_parse_result['transfer_data']['transfer_instructions'][0].skip_input, False)
+    assert_equal(transfer_script_parse_result['transfer_data']['transfer_instructions'][0].output_index, 0)
+    assert_equal(transfer_script_parse_result['transfer_data']['transfer_instructions'][0].total_raw_size, 5)
+
+
 def run_issuance_ntp1v1_parsing_tests():
     nibbl_issuance_script = '4e5401014e4942424cab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef215620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0'
     nibbl_issuance_parse_result = parse_ntp1_script(bytes.fromhex(nibbl_issuance_script))
@@ -546,6 +589,7 @@ def run_all_local_tests():
     run_numerics_tests()
     run_issuance_ntp1v1_parsing_tests()
     run_issuance_ntp1v3_parsing_tests()
+    run_transfer_ntp1v1_parsing_tests()
 
 
 # to test this file
