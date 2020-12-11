@@ -33,8 +33,8 @@ public:
     unsigned                                    getTransferInstructionsCount() const;
     TransferInstruction                         getTransferInstruction(unsigned index) const;
     std::vector<TransferInstruction>            getTransferInstructions() const;
-    static std::shared_ptr<NTP1Script_Issuance> ParseIssuancePostHeaderData(std::string ScriptBin,
-                                                                            std::string OpCodeBin);
+    static std::shared_ptr<NTP1Script_Issuance> ParseNTP1v1IssuancePostHeaderData(std::string ScriptBin,
+                                                                                  std::string OpCodeBin);
     static std::shared_ptr<NTP1Script_Issuance> ParseNTP1v3IssuancePostHeaderData(std::string ScriptBin);
     std::string getTokenID(std::string input0txid, unsigned int input0index) const;
 

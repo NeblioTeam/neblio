@@ -32,7 +32,7 @@ std::vector<NTP1Script::TransferInstruction> NTP1Script_Burn::getTransferInstruc
     return transferInstructions;
 }
 
-std::shared_ptr<NTP1Script_Burn> NTP1Script_Burn::ParseBurnPostHeaderData(std::string ScriptBin,
+std::shared_ptr<NTP1Script_Burn> NTP1Script_Burn::ParseNTP1v1BurnPostHeaderData(std::string ScriptBin,
                                                                           std::string OpCodeBin)
 {
     std::shared_ptr<NTP1Script_Burn> result = std::make_shared<NTP1Script_Burn>();

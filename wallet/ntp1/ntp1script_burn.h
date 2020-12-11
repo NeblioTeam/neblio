@@ -20,7 +20,7 @@ public:
     TransferInstruction              getTransferInstruction(unsigned index) const;
     std::vector<TransferInstruction> getTransferInstructions() const;
 
-    static std::shared_ptr<NTP1Script_Burn> ParseBurnPostHeaderData(std::string ScriptBin,
+    static std::shared_ptr<NTP1Script_Burn> ParseNTP1v1BurnPostHeaderData(std::string ScriptBin,
                                                                     std::string OpCodeBin);
     static std::shared_ptr<NTP1Script_Burn> ParseNTP1v3BurnPostHeaderData(std::string ScriptBin);
     static std::string                      Create_OpCodeFromMetadata(const std::string& metadata);

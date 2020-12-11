@@ -270,7 +270,7 @@ NTP1Script::ParseTokenSymbolFromLongEnoughString(const std::string& BinTokenSymb
 
 NTP1Script::TransferInstruction ParseTransferInstruction(const std::string& toParse)
 {
-    if(toParse.size() <= 1) {
+    if (toParse.size() <= 1) {
         throw std::runtime_error("ParseTransferInstruction failed as input is too short");
     }
 
@@ -278,7 +278,7 @@ NTP1Script::TransferInstruction ParseTransferInstruction(const std::string& toPa
     NTP1Script::TransferInstruction transferInst;
     transferInst.firstRawByte = static_cast<unsigned char>(toParse[0]);
     transferInst.rawAmount    = toParse.substr(1, NTP1Script::CalculateAmountSize(toParse[1]));
-    transferInst.rawSize = 1 + transferInst.rawAmount.size();
+    transferInst.rawSize      = 1 + transferInst.rawAmount.size();
 
     // parse data from raw
     std::bitset<8> rawByte(transferInst.firstRawByte);
@@ -286,7 +286,8 @@ NTP1Script::TransferInstruction ParseTransferInstruction(const std::string& toPa
     transferInst.skipInput   = rawByte.test(7); // first big-endian bit (is the last one in bitset)
     transferInst.outputIndex = static_cast<int>(outputIndex.to_ulong());
 
-    transferInst.amount = NTP1Script::NTP1AmountHexToNumber(boost::algorithm::hex(transferInst.rawAmount));
+    transferInst.amount =
+        NTP1Script::NTP1AmountHexToNumber(boost::algorithm::hex(transferInst.rawAmount));
 
     return transferInst;
 }
@@ -383,7 +384,7 @@ std::shared_ptr<NTP1Script> NTP1Script::ParseScript(const std::string& scriptHex
 
         if (txType == TxType::TxType_Issuance) {
             if (protocolVersion == 1) {
-                result_ = NTP1Script_Issuance::ParseIssuancePostHeaderData(scriptBin, opCodeBin);
+                result_ = NTP1Script_Issuance::ParseNTP1v1IssuancePostHeaderData(scriptBin, opCodeBin);
             } else if (protocolVersion == 3) {
                 result_ = NTP1Script_Issuance::ParseNTP1v3IssuancePostHeaderData(scriptBin);
             } else {
@@ -392,7 +393,7 @@ std::shared_ptr<NTP1Script> NTP1Script::ParseScript(const std::string& scriptHex
             }
         } else if (txType == TxType::TxType_Transfer) {
             if (protocolVersion == 1) {
-                result_ = NTP1Script_Transfer::ParseTransferPostHeaderData(scriptBin, opCodeBin);
+                result_ = NTP1Script_Transfer::ParseNTP1v1TransferPostHeaderData(scriptBin, opCodeBin);
             } else if (protocolVersion == 3) {
                 result_ = NTP1Script_Transfer::ParseNTP1v3TransferPostHeaderData(scriptBin);
             } else {
@@ -401,7 +402,7 @@ std::shared_ptr<NTP1Script> NTP1Script::ParseScript(const std::string& scriptHex
             }
         } else if (txType == TxType::TxType_Burn) {
             if (protocolVersion == 1) {
-                result_ = NTP1Script_Burn::ParseBurnPostHeaderData(scriptBin, opCodeBin);
+                result_ = NTP1Script_Burn::ParseNTP1v1BurnPostHeaderData(scriptBin, opCodeBin);
             } else if (protocolVersion == 3) {
                 result_ = NTP1Script_Burn::ParseNTP1v3BurnPostHeaderData(scriptBin);
             } else {

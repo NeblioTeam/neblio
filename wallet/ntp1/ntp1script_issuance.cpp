@@ -87,7 +87,7 @@ std::vector<NTP1Script::TransferInstruction> NTP1Script_Issuance::getTransferIns
 }
 
 std::shared_ptr<NTP1Script_Issuance>
-NTP1Script_Issuance::ParseIssuancePostHeaderData(std::string ScriptBin, std::string OpCodeBin)
+NTP1Script_Issuance::ParseNTP1v1IssuancePostHeaderData(std::string ScriptBin, std::string OpCodeBin)
 {
     std::shared_ptr<NTP1Script_Issuance> result = std::make_shared<NTP1Script_Issuance>();
 
