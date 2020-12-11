@@ -2531,22 +2531,95 @@ TEST(ntp1_tests, amend_tx_6)
     EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, static_cast<unsigned>(50));
     EXPECT_EQ(scriptPtrD->getTransferInstruction(0).skipInput, false);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, static_cast<unsigned>(3));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).firstRawByte, 3);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).rawSize, 3);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).rawAmount,
+              boost::algorithm::unhex(std::string("2051")));
 
     EXPECT_EQ(scriptPtrD->getTransferInstruction(1).amount, static_cast<unsigned>(40));
     EXPECT_EQ(scriptPtrD->getTransferInstruction(1).skipInput, false);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(1).outputIndex, static_cast<unsigned>(4));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).firstRawByte, 4);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).rawSize, 3);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).rawAmount,
+              boost::algorithm::unhex(std::string("2041")));
 
     EXPECT_EQ(scriptPtrD->getTransferInstruction(2).amount, static_cast<unsigned>(1400));
     EXPECT_EQ(scriptPtrD->getTransferInstruction(2).skipInput, false);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(2).outputIndex, static_cast<unsigned>(5));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).firstRawByte, 5);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).rawSize, 3);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).rawAmount,
+              boost::algorithm::unhex(std::string("20e2")));
 
     EXPECT_EQ(scriptPtrD->getTransferInstruction(3).amount, static_cast<unsigned>(3950));
     EXPECT_EQ(scriptPtrD->getTransferInstruction(3).skipInput, false);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(3).outputIndex, static_cast<unsigned>(6));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).firstRawByte, 6);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).rawSize, 3);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).rawAmount,
+              boost::algorithm::unhex(std::string("38b1")));
 
     EXPECT_EQ(scriptPtrD->getTransferInstruction(4).amount, static_cast<unsigned>(25));
     EXPECT_EQ(scriptPtrD->getTransferInstruction(4).skipInput, false);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(4).outputIndex, static_cast<unsigned>(7));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).firstRawByte, 7);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).rawSize, 2);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).rawAmount,
+              boost::algorithm::unhex(std::string("19")));
+}
+
+TEST(ntp1_tests, some_transfer_instructions_test)
+{
+    // this test I added just so that I manipulate skipInput and test it
+
+    const std::string script = "4e540310050320510420418520e20638b18719";
+
+    auto scriptPtr  = NTP1Script::ParseScript(script);
+    auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
+    EXPECT_NE(scriptPtrD, nullptr);
+
+    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), static_cast<unsigned>(5));
+
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, static_cast<unsigned>(50));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).skipInput, false);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, static_cast<unsigned>(3));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).firstRawByte, 3);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).rawSize, 3);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).rawAmount,
+              boost::algorithm::unhex(std::string("2051")));
+
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).amount, static_cast<unsigned>(40));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).skipInput, false);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).outputIndex, static_cast<unsigned>(4));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).firstRawByte, 4);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).rawSize, 3);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).rawAmount,
+              boost::algorithm::unhex(std::string("2041")));
+
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).amount, static_cast<unsigned>(1400));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).skipInput, true);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).outputIndex, static_cast<unsigned>(5));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).firstRawByte, 133);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).rawSize, 3);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).rawAmount,
+              boost::algorithm::unhex(std::string("20e2")));
+
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).amount, static_cast<unsigned>(3950));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).skipInput, false);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).outputIndex, static_cast<unsigned>(6));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).firstRawByte, 6);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).rawSize, 3);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).rawAmount,
+              boost::algorithm::unhex(std::string("38b1")));
+
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).amount, static_cast<unsigned>(25));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).skipInput, true);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).outputIndex, static_cast<unsigned>(7));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).firstRawByte, 135);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).rawSize, 2);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).rawAmount,
+              boost::algorithm::unhex(std::string("19")));
 }
 
 TEST(ntp1_tests, amend_tx_with_op_return)
