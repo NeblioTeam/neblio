@@ -452,6 +452,40 @@ def parse_ntp1v3_transfer_data(subscript: bytes) -> dict:
     return result
 
 
+def parse_ntp1v3_burn_data(subscript: bytes) -> dict:
+    result = {}
+    ptr = 0
+
+    num_of_transfer_instructions = subscript[ptr]
+    if num_of_transfer_instructions <= 0:
+        raise ValueError("The number of transfer instructions cannot be zero")
+    ptr += 1
+
+    result['transfer_instructions'] = parse_ntp1v3_transfer_instructions_from_long_enough_bytes(subscript[ptr:],
+                                                                                                num_of_transfer_instructions)
+    total_ti_size = 0
+    found_burn_ti = False
+    for ti in result['transfer_instructions']:
+        total_ti_size += ti.total_raw_size
+        if ti.output_index == 31:
+            found_burn_ti = True
+
+    if not found_burn_ti:
+        raise ValueError("A burn transaction was created, but transfer instructions had invalid "
+                         "outputs. At least one of the outputs should have the index 31, "
+                         "indicating the amount to burn")
+
+    ptr += total_ti_size
+
+    metadata = parse_ntp1v3_metadata_from_long_enough_string(subscript[ptr:])
+    result['metadata'] = metadata
+    result['metadata_size'] = len(metadata)
+
+    ptr += len(metadata)
+
+    return result
+
+
 def parse_ntp1v1_issuance_data(op_code, subscript: bytes) -> dict:
     result = {}
     ptr = 0
@@ -533,7 +567,7 @@ def parse_ntp1_script(script: bytes):
         if protocol_version == 1:
             result['burn_data'] = parse_ntp1v1_burn_data(op_code, script[4:])
         elif protocol_version == 3:
-            pass
+            result['burn_data'] = parse_ntp1v3_burn_data(script[4:])
         else:
             raise ValueError("Unknown protocol version ({}) for transfer".format(protocol_version))
     else:
@@ -608,6 +642,22 @@ def run_burn_ntp1v1_parsing_tests():
     assert_equal(parsed['burn_data']['transfer_instructions'][0].skip_input, False)
     assert_equal(parsed['burn_data']['transfer_instructions'][0].output_index, 31)
     assert_equal(parsed['burn_data']['transfer_instructions'][0].total_raw_size, 3)
+
+
+def run_burn_ntp1v3_parsing_tests():
+    transfer_script = ''
+    # parsed = parse_ntp1_script(bytes.fromhex(transfer_script))
+    # assert_equal(parsed['header'], bytes.fromhex('4e5401'))
+    # assert_equal(parsed['protocol_version'], 1)
+    # assert_equal(parsed['burn_data']['metadata'], b'')
+    # assert_equal(parsed['burn_data']['metadata_size'], 0)
+    # assert_equal(len(parsed['burn_data']['transfer_instructions']), 1)
+    # assert_equal(parsed['burn_data']['transfer_instructions'][0].amount, 1000)
+    # assert_equal(parsed['burn_data']['transfer_instructions'][0].first_raw_byte, 31)
+    # assert_equal(parsed['burn_data']['transfer_instructions'][0].raw_amount, bytes.fromhex('2013'))
+    # assert_equal(parsed['burn_data']['transfer_instructions'][0].skip_input, False)
+    # assert_equal(parsed['burn_data']['transfer_instructions'][0].output_index, 31)
+    # assert_equal(parsed['burn_data']['transfer_instructions'][0].total_raw_size, 3)
 
 
 def run_transfer_ntp1v1_parsing_tests():
@@ -730,6 +780,7 @@ def run_all_local_tests():
     run_transfer_ntp1v1_parsing_tests()
     run_transfer_ntp1v3_parsing_tests()
     run_burn_ntp1v1_parsing_tests()
+    run_burn_ntp1v3_parsing_tests()
 
 
 # to test this file
