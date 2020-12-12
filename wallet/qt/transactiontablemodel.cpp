@@ -85,7 +85,7 @@ public:
             QList<TransactionRecord>::iterator lower =
                 std::lower_bound(cachedWallet.begin(), cachedWallet.end(), hash, TxLessThan());
             QList<TransactionRecord>::iterator upper =
-                std::lower_bound(cachedWallet.begin(), cachedWallet.end(), hash, TxLessThan());
+                std::upper_bound(cachedWallet.begin(), cachedWallet.end(), hash, TxLessThan());
             int  lowerIndex = (lower - cachedWallet.begin());
             int  upperIndex = (upper - cachedWallet.begin());
             bool inModel    = (lower != upper);
