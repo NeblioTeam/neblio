@@ -74,7 +74,7 @@ public:
         // Find address / label in model
         QList<AddressTableEntry>::iterator lower = std::lower_bound(
             cachedAddressTable.begin(), cachedAddressTable.end(), address, AddressTableEntryLessThan());
-        QList<AddressTableEntry>::iterator upper = std::lower_bound(
+        QList<AddressTableEntry>::iterator upper = std::upper_bound(
             cachedAddressTable.begin(), cachedAddressTable.end(), address, AddressTableEntryLessThan());
         int                     lowerIndex = (lower - cachedAddressTable.begin());
         int                     upperIndex = (upper - cachedAddressTable.begin());
