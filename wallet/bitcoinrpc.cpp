@@ -345,6 +345,7 @@ static const CRPCCommand vRPCCommands[] =
     { "getrawtransaction",         &getrawtransaction,         false,  false },
     { "createrawtransaction",      &createrawtransaction,      false,  false },
     { "createrawntp1transaction",  &createrawntp1transaction,  false,  false },
+    { "issuenewntp1token",         &issuenewntp1token,         false,  false },
     { "decoderawtransaction",      &decoderawtransaction,      false,  false },
     { "decodescript",              &decodescript,              false,  false },
     { "getscriptpubkeyfromaddress",&getscriptpubkeyfromaddress,false,  false },

@@ -559,6 +559,165 @@ Value createrawntp1transaction(const Array& params, bool fHelp)
     return HexStr(ss.begin(), ss.end());
 }
 
+Value issuenewntp1token(const Array& params, bool fHelp)
+{
+    // clang-format off
+    if (fHelp || (params.size() != 4 && params.size() != 5))
+        throw runtime_error(
+            "issuenewntp1token [{\"txid\":txid,\"vout\":n},...] [tokenSymbol] [amountToIssue] [recipientAddress] [NTP1 Metadata=\"\"] [Verify transaction=true]\n"
+            "Create a transaction that issues a new NTP1 token and hands all the issued amount to the provided address.\n"
+            "Returns hex-encoded raw transaction.\n"
+            "Note that the transaction is not stored in the wallet or transmitted to the network.");
+    // clang-format on
+
+    if (params[0].type() != Value_type::array_type) {
+        throw JSONRPCError(RPC_TYPE_ERROR, "Expected type array for inputs");
+    }
+
+    const Array       inputs      = params[0].get_array();
+    const std::string tokenSymbol = params[1].get_str();
+    Value             jsonAmount  = params[2];
+    const NTP1Int     amount      = [&]() {
+        if (jsonAmount.type() == Value_type::str_type) {
+            return NTP1Int(params[2].get_str());
+        }
+        if (jsonAmount.type() == Value_type::int_type) {
+            return NTP1Int(params[2].get_int64());
+        }
+        throw JSONRPCError(RPC_TYPE_ERROR, "Amount can be either a string or integer");
+    }();
+
+    const std::string         recipientAddress(params[3].get_str());
+    RawNTP1MetadataBeforeSend rawNTP1Data("", false);
+    rawNTP1Data.metadata      = params.size() > 4 ? params[4].get_str() : "";
+    const bool verifyResultTx = params.size() <= 5 || params[5].get_bool();
+
+    CTransaction rawTx;
+
+    boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();
+    ntp1wallet->setRetrieveFullMetadata(false);
+    ntp1wallet->update();
+
+    // create inputs' vector
+    std::vector<COutPoint> cinputs;
+    for (const Value& input : inputs) {
+        const Object& o = input.get_obj();
+
+        const Value& txid_v = find_value(o, "txid");
+        if (txid_v.type() != str_type)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing txid key");
+        string txid = txid_v.get_str();
+        if (!IsHex(txid))
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, expected hex txid");
+
+        const Value& vout_v = find_value(o, "vout");
+        if (vout_v.type() != int_type)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing vout key");
+        int nOutput = vout_v.get_int();
+        if (nOutput < 0)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout must be positive");
+
+        cinputs.push_back(COutPoint(uint256(txid), nOutput));
+    }
+
+    NTP1SendTokensOneRecipientData ntp1recipient;
+    ntp1recipient.amount      = amount;
+    ntp1recipient.destination = CBitcoinAddress(recipientAddress).ToString();
+    ntp1recipient.tokenId     = NTP1SendTxData::TO_ISSUE_TOKEN_ID;
+
+    std::vector<NTP1SendTokensOneRecipientData> ntp1recipients{ntp1recipient};
+
+    NTP1SendTxData tokenSelector;
+    tokenSelector.issueNTP1Token(IssueTokenData(amount, tokenSymbol, rawNTP1Data.metadata));
+    tokenSelector.selectNTP1Tokens(ntp1wallet, cinputs, ntp1recipients, false);
+
+    const std::map<std::string, NTP1Int>& changeMap    = tokenSelector.getChangeTokens();
+    NTP1Int                               changeTokens = std::accumulate(
+        changeMap.begin(), changeMap.end(), NTP1Int(0),
+        [](NTP1Int n, const std::pair<std::string, NTP1Int>& p1) { return n + p1.second; });
+
+    if (changeTokens > 0) {
+        std::string except_msg;
+        try {
+            // safety
+            if (changeMap.size() > 0) {
+                std::string tokenId      = changeMap.begin()->first;
+                NTP1Int     changeAmount = changeMap.begin()->second;
+
+                std::string tokenName = ntp1wallet->getTokenMetadataMap().at(tokenId).getTokenName();
+
+                except_msg =
+                    "The transaction has NTP1 tokens change. Please spend all NTP1 tokens in the "
+                    "transaction. Token with name " +
+                    tokenName + " and ID " + tokenId +
+                    " has the following amount unspent: " + ::ToString(changeAmount);
+            }
+        } catch (std::exception&) {
+            throw std::runtime_error("The transaction has NTP1 tokens change. Please spend all NTP1 "
+                                     "tokens in the transaction");
+        }
+
+        throw std::runtime_error(except_msg);
+    }
+
+    std::vector<NTP1OutPoint> usedInputs = tokenSelector.getUsedInputs();
+
+    for (const NTP1OutPoint& in : usedInputs) {
+        rawTx.vin.push_back(CTxIn(in.getHash(), in.getIndex()));
+    }
+
+    // Pre-check input data for validity
+    for (const NTP1SendTokensOneRecipientData& rcp : ntp1recipients) {
+        CScript scriptPubKey;
+        scriptPubKey.SetDestination(CBitcoinAddress(rcp.destination).Get());
+        // here we add only nebls. NTP1 tokens will be added later
+        if (rcp.tokenId == NTP1SendTxData::NEBL_TOKEN_ID) {
+            using NeblInt = int64_t;
+            NeblInt val   = 0;
+            if (rcp.amount > NTP1Int(std::numeric_limits<NeblInt>::max())) {
+                val = std::numeric_limits<NeblInt>::max();
+            } else if (rcp.amount < 0) {
+                val = 0;
+            } else {
+                val = rcp.amount.convert_to<NeblInt>();
+            }
+            rawTx.vout.push_back(CTxOut(val, scriptPubKey));
+        }
+    }
+
+    // add NTP1 outputs to tx
+    int tokenOutputOffset = -1;
+    tokenOutputOffset     = CWallet::AddNTP1TokenOutputsToTx(rawTx, tokenSelector);
+
+    // add NTP1 inputs to tx
+    std::vector<NTP1Script::TransferInstruction> TIs;
+    TIs = CWallet::AddNTP1TokenInputsToTx(rawTx, tokenSelector, tokenOutputOffset);
+
+    const std::string processedMetadata =
+        rawNTP1Data.applyMetadataEncryption(rawTx, tokenSelector.getNTP1TokenRecipientsList());
+    CWallet::SetTxNTP1OpRet(rawTx, TIs, processedMetadata, tokenSelector.getNTP1TokenIssuanceData());
+
+    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    ss << rawTx;
+
+    if (verifyResultTx) {
+        try {
+            std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
+                NTP1Transaction::GetAllNTP1InputsOfTx(rawTx, false);
+            NTP1Transaction ntp1tx;
+            ntp1tx.readNTP1DataFromTx(rawTx, inputsTxs);
+        } catch (std::exception& ex) {
+            printf("An invalid NTP1 transaction was created; an exception was thrown: %s\n", ex.what());
+            throw std::runtime_error(
+                "Unable to create the transaction. The transaction created would result in an invalid "
+                "transaction. The error is: " +
+                std::string(ex.what()));
+        }
+    }
+
+    return HexStr(ss.begin(), ss.end());
+}
+
 Value decoderawtransaction(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2)

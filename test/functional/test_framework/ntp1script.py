@@ -65,6 +65,9 @@ class TransferInstruction:
         self.raw_amount = b''
         self.total_raw_size = None
 
+    def __str__(self):
+        return "{{skip_input: {}, output_index: {}, amount: {}}}".format(self.skip_input, self.output_index, self.amount)
+
 
 NTP1_HEADER_BYTES = bytes.fromhex('4e54')
 
