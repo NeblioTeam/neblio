@@ -752,12 +752,13 @@ bool CTxDB::ReadNTP1Tx(const uint256& hash, NTP1Transaction& ntp1tx)
     return Read(hash, ntp1tx, db_ntp1Tx);
 }
 
-bool CTxDB::ReadNTP1TxsWithTokenSymbol(const std::string& tokenName, std::vector<uint256>& txs)
+bool CTxDB::ReadNTP1TxsWithTokenSymbol(std::string tokenName, std::vector<uint256>& txs)
 {
+    std::transform(tokenName.begin(), tokenName.end(), tokenName.begin(), ::toupper);
     return ReadMultiple(tokenName, txs, false, db_ntp1tokenNames);
 }
 
-bool CTxDB::WriteNTP1TxWithTokenSymbol(const std::string& tokenSymbol, const NTP1Transaction& ntp1tx)
+bool CTxDB::WriteNTP1TxWithTokenSymbol(std::string tokenSymbol, const NTP1Transaction& ntp1tx)
 {
     if (ntp1tx.isNull()) {
         printf("Attempted to store token symbol information of token with given symbol %s",
@@ -777,6 +778,10 @@ bool CTxDB::WriteNTP1TxWithTokenSymbol(const std::string& tokenSymbol, const NTP
                ntp1tx.getTxHash().ToString().c_str(), tokenSymbol.c_str());
         return false;
     }
+
+    std::transform(tokenSymbol.begin(), tokenSymbol.end(), tokenSymbol.begin(), ::toupper);
+    std::transform(symbol.begin(), symbol.end(), symbol.begin(), ::toupper);
+
     if (symbol != tokenSymbol) {
         printf("While writing NTP1 tx for token names, the token name provided is not equal to the "
                "token name calculated: %s != %s",

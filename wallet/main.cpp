@@ -356,10 +356,10 @@ bool IsIssuedTokenBlacklisted(std::pair<CTransaction, NTP1Transaction>& txPair)
     return Params().IsNTP1TokenBlacklisted(storedTokenId);
 }
 
-void AssertNTP1TokenNameIsNotAlreadyInMainChain(std::string sym, const uint256& txHash, CTxDB& txdb)
+void AssertNTP1TokenNameIsNotAlreadyInMainChain(const std::string& sym, const uint256& txHash,
+                                                CTxDB& txdb)
 {
     // make sure that case doesn't matter by converting to upper case
-    std::transform(sym.begin(), sym.end(), sym.begin(), ::toupper);
     std::vector<uint256> storedSymbolsTxHashes;
     if (txdb.ReadNTP1TxsWithTokenSymbol(sym, storedSymbolsTxHashes)) {
         for (const uint256& h : storedSymbolsTxHashes) {
@@ -375,7 +375,7 @@ void AssertNTP1TokenNameIsNotAlreadyInMainChain(std::string sym, const uint256& 
             }
             // make sure that case doesn't matter by converting to upper case
             std::transform(storedSymbol.begin(), storedSymbol.end(), storedSymbol.begin(), ::toupper);
-            if (sym == storedSymbol && txHash != h) {
+            if (AreTokenSymbolsEquivalent(sym, storedSymbol) && txHash != h) {
                 throw std::runtime_error(
                     "Failed to accept issuance of token " + sym + " from transaction " +
                     txHash.ToString() +

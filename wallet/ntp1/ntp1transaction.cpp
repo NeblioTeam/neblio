@@ -1078,3 +1078,10 @@ bool NTP1Transaction::IsTxOutputOpRet(const CTxOut* output, std::string* opRetur
     }
     return false;
 }
+
+bool AreTokenSymbolsEquivalent(std::string lhs, std::string rhs)
+{
+    std::transform(lhs.begin(), lhs.end(), lhs.begin(), ::toupper);
+    std::transform(rhs.begin(), rhs.end(), rhs.begin(), ::toupper);
+    return lhs == rhs;
+}

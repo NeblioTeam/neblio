@@ -12,10 +12,10 @@ struct mTxDB : public ITxDB
     MOCK_METHOD(bool, ReadNTP1Tx, (const uint256& hash, NTP1Transaction& ntp1tx), (override));
     MOCK_METHOD(bool, WriteNTP1Tx, (const uint256& hash, const NTP1Transaction& ntp1tx), (override));
     MOCK_METHOD(bool, ReadAllIssuanceTxs, (std::vector<uint256> & txs), (override));
-    MOCK_METHOD(bool, ReadNTP1TxsWithTokenSymbol,
-                (const std::string& tokenName, std::vector<uint256>& txs), (override));
-    MOCK_METHOD(bool, WriteNTP1TxWithTokenSymbol,
-                (const std::string& tokenName, const NTP1Transaction& tx), (override));
+    MOCK_METHOD(bool, ReadNTP1TxsWithTokenSymbol, (std::string tokenName, std::vector<uint256>& txs),
+                (override));
+    MOCK_METHOD(bool, WriteNTP1TxWithTokenSymbol, (std::string tokenName, const NTP1Transaction& tx),
+                (override));
     MOCK_METHOD(bool, ReadAddressPubKey, (const CBitcoinAddress& address, std::vector<uint8_t>& pubkey),
                 (override));
     MOCK_METHOD(bool, WriteAddressPubKey,

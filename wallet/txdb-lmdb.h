@@ -729,8 +729,8 @@ public:
     bool ReadNTP1Tx(const uint256& hash, NTP1Transaction& ntp1tx) override;
     bool WriteNTP1Tx(const uint256& hash, const NTP1Transaction& ntp1tx) override;
     bool ReadAllIssuanceTxs(std::vector<uint256>& txs) override;
-    bool ReadNTP1TxsWithTokenSymbol(const std::string& tokenName, std::vector<uint256>& txs) override;
-    bool WriteNTP1TxWithTokenSymbol(const std::string& tokenName, const NTP1Transaction& tx) override;
+    bool ReadNTP1TxsWithTokenSymbol(std::string tokenName, std::vector<uint256>& txs) override;
+    bool WriteNTP1TxWithTokenSymbol(std::string tokenName, const NTP1Transaction& tx) override;
     bool ReadAddressPubKey(const CBitcoinAddress& address, std::vector<uint8_t>& pubkey) override;
     bool WriteAddressPubKey(const CBitcoinAddress& address, const std::vector<uint8_t>& pubkey) override;
     bool EraseTxIndex(const uint256& hash) override;

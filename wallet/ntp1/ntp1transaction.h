@@ -31,6 +31,8 @@ struct TokenMinimalData
     TokenMinimalData() : amount(0) {}
 };
 
+bool AreTokenSymbolsEquivalent(std::string lhs, std::string rhs);
+
 /**
  * @brief The NTP1Transaction class
  * A single NTP1 transaction
