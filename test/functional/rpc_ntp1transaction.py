@@ -11,6 +11,7 @@ Test the following RPCs:
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
 import test_framework.ntp1script as n1s
+import zlib
 
 
 
@@ -37,7 +38,12 @@ class RawTransactionsTest(BitcoinTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = True
         self.num_nodes = 3
-        self.extra_args = [["-addresstype=legacy"], ["-addresstype=legacy"], ["-addresstype=legacy"]]
+        node_args = ["-addresstype=legacy",
+                     "-forksheight=first,10",
+                     "-forksheight=confs_changed,20",
+                     "-forksheight=tachyon,25",
+                     "-forksheight=retarget_correction,30"]
+        self.extra_args = [node_args] * self.num_nodes
 
     def setup_network(self, split=False):
         super().setup_network()
@@ -55,6 +61,10 @@ class RawTransactionsTest(BitcoinTestFramework):
         self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 1.0)
         self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 5.0)
         output1 = self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 11)
+        output2 = self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 11)
+        output3 = self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 11)
+        output4 = self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 11)
+        output5 = self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 11)
         self.nodes[0].generate(20)
         self.sync_all()
 
@@ -62,9 +72,9 @@ class RawTransactionsTest(BitcoinTestFramework):
         block = self.nodes[0].getblock(self.nodes[0].getblockhash(0))
         assert_raises_rpc_error(-5, "The genesis block coinbase is not considered an ordinary transaction", self.nodes[0].getrawtransaction, block['merkleroot'])
 
-        txid = output1
-        inputs  = [ {'txid': txid, 'vout': 0}]
-        issue_raw_tx = self.nodes[0].issuenewntp1token(inputs, "XyZ", "10000", self.nodes[0].getnewaddress())
+        inputs  = [ {'txid': output1, 'vout': 0}]
+        issue_tx_dest = self.nodes[0].getnewaddress()
+        issue_raw_tx = self.nodes[0].issuenewntp1token(inputs, "XyZ", "10000", issue_tx_dest, "MyMetadata")
         issue_tx = self.nodes[0].decoderawtransaction(issue_raw_tx, True)
         scriptPubKey = issue_tx['vout'][0]['scriptPubKey']['asm']
         ntp1_issue_script = scriptPubKey.lstrip("OP_RETURN ")
@@ -73,12 +83,34 @@ class RawTransactionsTest(BitcoinTestFramework):
         assert_equal(parsed_script['script_type'], n1s.NTP1ScriptType.ISSUANCE)
         assert_equal(parsed_script['issuance_data']['token_symbol'], "XyZ")
         assert_equal(parsed_script['issuance_data']['amount'], 10000)
-        assert_equal(parsed_script['issuance_data']['metadata'], b'')
+        assert_equal(zlib.decompress(parsed_script['issuance_data']['metadata']), "MyMetadata".encode("ascii"))
         assert_equal(len(parsed_script['issuance_data']['transfer_instructions']), 1)
         assert_equal(parsed_script['issuance_data']['transfer_instructions'][0].skip_input, False)
         assert_equal(parsed_script['issuance_data']['transfer_instructions'][0].output_index, 1)
         assert_equal(parsed_script['issuance_data']['transfer_instructions'][0].amount, 10000)
 
+        signed_issue_raw_tx = self.nodes[0].signrawtransaction(issue_raw_tx)
+        signed_issue_raw_tx_hash = self.nodes[0].sendrawtransaction(signed_issue_raw_tx['hex'])
+
+        self.nodes[0].generate(1)
+
+        ntp1balances = self.nodes[0].getntp1balances()
+
+        assert_equal(len(ntp1balances), 1)
+        assert_equal(list(ntp1balances.items())[0][1]['Name'], 'XyZ')
+        assert_equal(list(ntp1balances.items())[0][1]['Balance'], '10000')
+
+        # attempt to reissue a token with the same name (should fail)
+        inputs2  = [ {'txid': output2, 'vout': 0}]
+        issue_raw_tx2 = self.nodes[0].issuenewntp1token(inputs2, "XyZ", "10000000", issue_tx_dest, "")
+        signed_issue_raw_tx2 = self.nodes[0].signrawtransaction(issue_raw_tx2)
+        assert_raises_rpc_error(-26, "ntp1-error", self.nodes[0].sendrawtransaction, signed_issue_raw_tx2['hex'])
+        # signed_issue_raw_tx2_hash = self.nodes[0].sendrawtransaction(signed_issue_raw_tx2['hex'])
+
+        self.nodes[0].generate(1)
+
+        ntp1balances = self.nodes[0].getntp1balances()
+        assert_equal(len(ntp1balances), 1)
 
         # TODO: more input tests
         # Test `issuenewntp1token` required parameters
