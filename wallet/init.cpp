@@ -1019,6 +1019,8 @@ bool AppInit2()
         pwalletMain->ReacceptWalletTransactions(true);
     }
 
+    appInitiated = true;
+
 #if !defined(QT_GUI)
     // Loop until process is exit()ed from shutdown() function,
     // called from ThreadRPCServer thread when a "stop" command is received.

@@ -204,7 +204,7 @@ class BitcoinTestFramework():
         if hasattr(self, "extra_args"):
             extra_args = self.extra_args
         self.add_nodes(self.num_nodes, extra_args)
-        self.start_nodes()
+        self.start_nodes(extra_args)
 
     def run_test(self):
         """Tests must override this method to define test logic"""

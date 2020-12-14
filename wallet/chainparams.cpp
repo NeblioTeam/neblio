@@ -426,14 +426,29 @@ public:
         consensus.nMaxOpReturnSizeV1 = 4096;
         consensus.nMaxOpReturnSizeV2 = 4096;
 
-        consensus.forks.emplace(NetworkForks(
-            boost::container::flat_map<NetworkFork, int>{
+        // setup forks
+        {
+            const boost::optional<std::vector<std::string>> forksHeights =
+                mapMultiArgs.get("-forksheight");
+
+            // parse the argument
+            const boost::container::flat_map<NetworkFork, int> customForks =
+                ParseForkHeightsArgs(forksHeights.get_value_or({}));
+
+            boost::container::flat_map<NetworkFork, int> defaultRegtestForkHeights{
                 {NetworkFork::NETFORK__1_FIRST_ONE, 1000},
                 {NetworkFork::NETFORK__2_CONFS_CHANGE, 2000},
                 {NetworkFork::NETFORK__3_TACHYON, 3000},
                 {NetworkFork::NETFORK__4_RETARGET_CORRECTION, 4000},
-                {NetworkFork::NETFORK__5_COLD_STAKING, -1}},
-            nBestHeight));
+                {NetworkFork::NETFORK__5_COLD_STAKING, -1}};
+
+            // replace the default fork heights
+            for (const auto& f : customForks) {
+                defaultRegtestForkHeights[f.first] = f.second;
+            }
+
+            consensus.forks.emplace(NetworkForks(defaultRegtestForkHeights, nBestHeight));
+        }
 
         pchMessageStart[0] = 0xcd;
         pchMessageStart[1] = 0xf3;
