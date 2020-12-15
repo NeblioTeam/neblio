@@ -1275,8 +1275,11 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig)
     for (unsigned i = 0; i < vtx.size(); i++) {
         const CTransaction& tx = vtx[i];
 
-        if (tx.CheckTransaction(this).isErr())
-            return DoS(tx.nDoS, error("CheckBlock() : CheckTransaction failed"));
+        const auto checkTxResult = tx.CheckTransaction(this);
+        if (checkTxResult.isErr())
+            return DoS(tx.nDoS, error("CheckBlock() : CheckTransaction failed: (Msg: %s) - (Debug: %s)",
+                                      checkTxResult.unwrapErr().GetRejectReason().c_str(),
+                                      checkTxResult.unwrapErr().GetDebugMessage().c_str()));
 
         // ppcoin: check transaction timestamp
         if (GetBlockTime() < (int64_t)tx.nTime)
