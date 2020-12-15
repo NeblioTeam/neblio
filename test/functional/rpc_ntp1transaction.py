@@ -12,6 +12,7 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
 import test_framework.ntp1script as n1s
 import zlib
+import itertools
 
 
 
@@ -101,11 +102,12 @@ class RawTransactionsTest(BitcoinTestFramework):
         assert_equal(list(ntp1balances.items())[0][1]['Balance'], '10000')
 
         # attempt to reissue a token with the same name (should fail)
-        inputs2  = [ {'txid': output2, 'vout': 0}]
-        issue_raw_tx2 = self.nodes[0].issuenewntp1token(inputs2, "XyZ", "10000000", issue_tx_dest, "")
-        signed_issue_raw_tx2 = self.nodes[0].signrawtransaction(issue_raw_tx2)
-        assert_raises_rpc_error(-26, "ntp1-error", self.nodes[0].sendrawtransaction, signed_issue_raw_tx2['hex'])
-        # signed_issue_raw_tx2_hash = self.nodes[0].sendrawtransaction(signed_issue_raw_tx2['hex'])
+        for chars in itertools.product('xX', 'yY', 'zZ'):  # generate all cap variations of xyz
+            symbol = ''.join(chars)
+            inputs2  = [ {'txid': output2, 'vout': 0}]
+            issue_raw_tx2 = self.nodes[0].issuenewntp1token(inputs2, symbol, "10000000", issue_tx_dest, "")
+            signed_issue_raw_tx2 = self.nodes[0].signrawtransaction(issue_raw_tx2)
+            assert_raises_rpc_error(-26, "ntp1-error", self.nodes[0].sendrawtransaction, signed_issue_raw_tx2['hex'])
 
         self.nodes[0].generate(1)
 
