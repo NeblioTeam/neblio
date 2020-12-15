@@ -274,7 +274,7 @@ public:
                 {NetworkFork::NETFORK__3_TACHYON, 110100},
                 {NetworkFork::NETFORK__4_RETARGET_CORRECTION, 1163000},
                 // Enable cold-staking
-                {NetworkFork::NETFORK__5_COLD_STAKING, 2430000}},
+                {NetworkFork::NETFORK__5_COLD_STAKING, 2386991}},
             nBestHeight));
 
         pchMessageStart[0] = 0x1b;
@@ -347,7 +347,8 @@ public:
             {1500000, uint256{"0x1fc65c5e904c0dda39a26826df0feaa1d35f5d49657acee2d1674271f38b2100"}},
             {1600000, uint256{"0x8510acea950aa7e2da8d287bacc66cca6056bf89f5f0d70109fd92adaf1023d9"}},
             {1700000, uint256{"0x65738a87a454cfe97b8200149cd4be7199d1ceff30b18778bd79d222203962ce"}},
-            {1801000, uint256{"0x406fc58723c11eae128c85174e81b5b6b333eaf683ff4f6ca34bbd8cee3b24f5"}}});
+            {1801000, uint256{"0x406fc58723c11eae128c85174e81b5b6b333eaf683ff4f6ca34bbd8cee3b24f5"}},
+            {2521000, uint256{"0xd3dc0dd25f4850fa8a607620620959e1970e7bcfe9b36ffd8df3bda1004e5cab"}}});
         // clang-format on
 
         // Hard checkpoints of stake modifiers to ensure they are deterministic (testNet)
