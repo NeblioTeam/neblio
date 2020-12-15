@@ -63,8 +63,8 @@ nci.call_with_err_code("make -j" + str(mp.cpu_count()))
 nci.call_with_err_code('ccache -s')
 
 # download test data
-nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/test_data_mainnet_tab.tar.xz -O ../wallet/test/data/test_data_mainnet_tab.tar.xz')
-nci.call_with_err_code('wget --progress=dot:giga https://files.nebl.io/test_data_testnet_tab.tar.xz -O ../wallet/test/data/test_data_testnet_tab.tar.xz')
+nci.call_with_err_code('wget --progress=dot:giga https://assets.nebl.io/testdata/test_data_mainnet_tab.tar.xz -O ../wallet/test/data/test_data_mainnet_tab.tar.xz')
+nci.call_with_err_code('wget --progress=dot:giga https://assets.nebl.io/testdata/test_data_testnet_tab.tar.xz -O ../wallet/test/data/test_data_testnet_tab.tar.xz')
 nci.call_with_err_code('tar -xJvf ../wallet/test/data/test_data_mainnet_tab.tar.xz -C ../wallet/test/data')
 nci.call_with_err_code('tar -xJvf ../wallet/test/data/test_data_testnet_tab.tar.xz -C ../wallet/test/data')
 nci.call_with_err_code('rm ../wallet/test/data/*.tar.xz')

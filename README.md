@@ -63,7 +63,7 @@ We cross compile the windows binary on Linux using MXE (Ubuntu recommended)
 
 ### Download our pre-compiled MXE toolchain
 ```
-https://files.nebl.io/dependencies/parts=12/mxe.tar.gz
+https://assets.nebl.io/dependencies/mxe.tar.gz
 tar -xf mxe.tar.gz
 sudo mv mxe /
 export PATH=/mxe/mxe/usr/bin:$PATH
@@ -231,7 +231,7 @@ getblockheader <hash>
 getblocktemplate [params]
 getcoldstakingbalance
 getconnectioncount
-getdelegatedbalance 
+getdelegatedbalance
 getdifficulty
 getinfo
 getmininginfo
@@ -266,7 +266,7 @@ listdelegators (showBlacklist=false)
 listreceivedbyaccount [minconf=1] [includeempty=false]
 listreceivedbyaddress [minconf=1] [includeempty=false]
 listsinceblock [blockhash] [target-confirmations]
-liststakingaddresses 
+liststakingaddresses
 listtransactions [account] [count=10] [from=0]
 listunspent [minconf=1] [maxconf=9999999] ["address",...]
 makekeypair [prefix]
