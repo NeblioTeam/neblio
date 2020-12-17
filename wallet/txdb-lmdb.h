@@ -748,6 +748,9 @@ public:
     bool ReadBestInvalidTrust(CBigNum& bnBestInvalidTrust) override;
     bool WriteBestInvalidTrust(const CBigNum& bnBestInvalidTrust) override;
     bool LoadBlockIndex() override;
+    boost::optional<int>                            GetBestChainHeight() override;
+    boost::optional<uint256>                        GetBestChainTrust() override;
+    boost::optional<boost::shared_ptr<CBlockIndex>> GetBestBlockIndex() override;
 
     static uintmax_t GetCurrentDiskUsage();
 

@@ -15,6 +15,7 @@ class COutPoint;
 class CBlock;
 class CDiskBlockIndex;
 class CBigNum;
+class CBlockIndex;
 
 class ITxDB
 {
@@ -49,6 +50,9 @@ public:
     virtual bool ReadBestInvalidTrust(CBigNum& bnBestInvalidTrust)                               = 0;
     virtual bool WriteBestInvalidTrust(const CBigNum& bnBestInvalidTrust)                        = 0;
     virtual bool LoadBlockIndex()                                                                = 0;
+    virtual boost::optional<int>                            GetBestChainHeight()                 = 0;
+    virtual boost::optional<uint256>                        GetBestChainTrust()                  = 0;
+    virtual boost::optional<boost::shared_ptr<CBlockIndex>> GetBestBlockIndex()                  = 0;
 };
 
 #endif // ITXDB_H

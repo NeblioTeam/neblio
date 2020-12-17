@@ -1216,6 +1216,42 @@ bool CTxDB::LoadBlockIndex()
     return true;
 }
 
+boost::optional<int> CTxDB::GetBestChainHeight()
+{
+    uint256 bestChainHash = 0;
+    if (ReadHashBestChain(bestChainHash)) {
+        auto it = mapBlockIndex.find(bestChainHash);
+        if (it != mapBlockIndex.cend()) {
+            return it->second->nHeight;
+        }
+    }
+    return boost::none;
+}
+
+boost::optional<uint256> CTxDB::GetBestChainTrust()
+{
+    uint256 bestChainHash = 0;
+    if (ReadHashBestChain(bestChainHash)) {
+        auto it = mapBlockIndex.find(bestChainHash);
+        if (it != mapBlockIndex.cend()) {
+            return it->second->nChainTrust;
+        }
+    }
+    return boost::none;
+}
+
+boost::optional<CBlockIndexSmartPtr> CTxDB::GetBestBlockIndex()
+{
+    uint256 bestChainHash = 0;
+    if (ReadHashBestChain(bestChainHash)) {
+        auto it = mapBlockIndex.find(bestChainHash);
+        if (it != mapBlockIndex.cend()) {
+            return it->second;
+        }
+    }
+    return boost::none;
+}
+
 uintmax_t CTxDB::GetCurrentDiskUsage()
 {
     try {
