@@ -123,7 +123,7 @@ void SyncWithWallets(const CTransaction& tx, const CBlock* pblock)
 {
     // update NTP1 transactions
     if (pwalletMain && pwalletMain->walletNewTxUpdateFunctor) {
-        pwalletMain->walletNewTxUpdateFunctor->run(tx.GetHash(), nBestHeight);
+        pwalletMain->walletNewTxUpdateFunctor->run(tx.GetHash(), bestChain.height());
     }
 
     for (const std::shared_ptr<CWallet>& pwallet : setpwalletRegistered)
@@ -258,7 +258,7 @@ bool IsStandardTx(const CTransaction& tx, string& reason)
     // Timestamps on the other hand don't get any special treatment, because we
     // can't know what timestamp the next block will have, and there aren't
     // timestamp applications where it matters.
-    if (!IsFinalTx(tx, nBestHeight + 1)) {
+    if (!IsFinalTx(tx, bestChain.height() + 1)) {
         reason = "non-final";
         return false;
     }
@@ -332,7 +332,7 @@ bool IsFinalTx(const CTransaction& tx, int nBlockHeight, int64_t nBlockTime)
     if (tx.nLockTime == 0)
         return true;
     if (nBlockHeight == 0)
-        nBlockHeight = nBestHeight;
+        nBlockHeight = bestChain.height();
     if (nBlockTime == 0)
         nBlockTime = GetAdjustedTime();
     if ((int64_t)tx.nLockTime <
@@ -538,8 +538,8 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTran
 
         // Check against previous transactions
         // This is done last to help prevent CPU exhaustion denial-of-service attacks.
-        TRYV(tx.ConnectInputs(mapInputs, mapUnused, CDiskTxPos(1, 1), boost::atomic_load(&pindexBest),
-                              false, false));
+        TRYV(tx.ConnectInputs(mapInputs, mapUnused, CDiskTxPos(1, 1), bestChain.blockIndex(), false,
+                              false));
 
         if (Params().PassedFirstValidNTP1Tx() &&
             Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
@@ -899,11 +899,11 @@ int GetNumBlocksOfPeers()
 // IsInitialBlockDownload_tolerant
 bool __IsInitialBlockDownload_internal()
 {
-    if (pindexBest == NULL || nBestHeight < Checkpoints::GetTotalBlocksEstimate())
+    if (bestChain.blockIndex() == nullptr || bestChain.height() < Checkpoints::GetTotalBlocksEstimate())
         return true;
     static int64_t             nLastUpdate;
     static CBlockIndexSmartPtr pindexLastBest;
-    CBlockIndexSmartPtr        pindexBestPtr = boost::atomic_load(&pindexBest);
+    CBlockIndexSmartPtr        pindexBestPtr = bestChain.blockIndex();
     if (pindexBestPtr != pindexLastBest) {
         pindexLastBest = pindexBestPtr;
         nLastUpdate    = GetTime();
@@ -1111,7 +1111,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
         return error("ProcessBlock() : CheckBlock FAILED");
 
     CBlockIndex* pcheckpoint = Checkpoints::GetLastCheckpoint(mapBlockIndex);
-    if (pcheckpoint && pblock->hashPrevBlock != hashBestChain) {
+    if (pcheckpoint && pblock->hashPrevBlock != bestChain.blockHash()) {
         // Extra checks to prevent "fill up memory by spamming with bogus blocks"
         int64_t deltaTime = pblock->GetBlockTime() - pcheckpoint->nTime;
         CBigNum bnNewBlock;
@@ -1155,7 +1155,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
 
         // Ask this guy to fill in what we're missing
         if (pfrom) {
-            pfrom->PushGetBlocks(boost::atomic_load(&pindexBest).get(), GetOrphanRoot(pblock2));
+            pfrom->PushGetBlocks(bestChain.blockIndex().get(), GetOrphanRoot(pblock2));
             // ppcoin: getblocks may not obtain the ancestor block rejected
             // earlier by duplicate-stake check so we ask for it again directly
             if (!IsInitialBlockDownload())
@@ -1752,12 +1752,12 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         // split and reconnect the network
         static int nAskedForBlocks = 0;
         if ((!pfrom->fClient && !pfrom->fOneShot && !fImporting) &&
-            (((pfrom->nStartingHeight > (nBestHeight - 144)) &&
+            (((pfrom->nStartingHeight > (bestChain.height() - 144)) &&
               (pfrom->nVersion < NOBLKS_VERSION_START || pfrom->nVersion >= NOBLKS_VERSION_END) &&
               (nAskedForBlocks < 1 || vNodes.size() <= 1)) ||
              Params().NetType() == NetworkType::Regtest)) {
             nAskedForBlocks++;
-            pfrom->PushGetBlocks(pindexBest.get(), uint256(0));
+            pfrom->PushGetBlocks(bestChain.blockIndex().get(), uint256(0));
         }
 
         // Relay alerts
@@ -1883,7 +1883,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                 if (!fImporting)
                     pfrom->AskFor(inv);
             } else if (inv.type == MSG_BLOCK && mapOrphanBlocks.count(inv.hash)) {
-                pfrom->PushGetBlocks(pindexBest.get(), GetOrphanRoot(mapOrphanBlocks[inv.hash]));
+                pfrom->PushGetBlocks(bestChain.blockIndex().get(),
+                                     GetOrphanRoot(mapOrphanBlocks[inv.hash]));
             } else if (nInv == nLastBlock) {
                 // In case we are on a very long side-chain, it is possible that we already have
                 // the last block in an inv bundle sent in response to getblocks. Try to detect
@@ -1951,8 +1952,9 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                         // download node to accept as orphan (proof-of-stake
                         // block might be rejected by stake connection check)
                         vector<CInv> vInv;
-                        vInv.push_back(
-                            CInv(MSG_BLOCK, GetLastBlockIndex(pindexBest.get(), false)->GetBlockHash()));
+                        vInv.push_back(CInv(
+                            MSG_BLOCK,
+                            GetLastBlockIndex(bestChain.blockIndex().get(), false)->GetBlockHash()));
                         pfrom->PushMessage("inv", vInv);
                         pfrom->hashContinue = 0;
                     }
@@ -2005,9 +2007,9 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                 unsigned int nSMA = Params().StakeMinAge();
                 // ppcoin: tell downloading node about the latest block if it's
                 // without risk being rejected due to stake connection check
-                if (hashStop != hashBestChain &&
-                    pindex->GetBlockTime() + nSMA > boost::atomic_load(&pindexBest)->GetBlockTime())
-                    pfrom->PushInventory(CInv(MSG_BLOCK, hashBestChain));
+                if (hashStop != bestChain.blockHash() &&
+                    pindex->GetBlockTime() + nSMA > bestChain.blockIndex()->GetBlockTime())
+                    pfrom->PushInventory(CInv(MSG_BLOCK, bestChain.blockHash()));
                 break;
             }
             pfrom->PushInventory(CInv(MSG_BLOCK, pindex->GetBlockHash()));
@@ -2650,7 +2652,7 @@ void ExportBootstrapBlockchain(const filesystem::path& filename, std::atomic<boo
         std::vector<CBlockIndex*> chainBlocksIndices;
 
         {
-            CBlockIndex* pblockindex = boost::atomic_load(&mapBlockIndex[hashBestChain]).get();
+            CBlockIndex* pblockindex = bestChain.blockIndex().get();
             chainBlocksIndices.push_back(pblockindex);
             while (pblockindex->nHeight > 0 && !stopped.load() && !fShutdown) {
                 pblockindex = boost::atomic_load(&pblockindex->pprev).get();

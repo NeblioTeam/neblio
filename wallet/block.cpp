@@ -744,7 +744,7 @@ bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
         if (createDbTransaction && !txdb.TxnCommit())
             return error("SetBestChain() : TxnCommit failed");
         pindexGenesisBlock = pindexNew;
-    } else if (hashPrevBlock == hashBestChain) {
+    } else if (hashPrevBlock == bestChain.blockHash()) {
         if (!SetBestChainInner(txdb, pindexNew, createDbTransaction))
             return error("SetBestChain() : SetBestChainInner failed");
     } else {
@@ -757,7 +757,7 @@ bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
         // Reorganize is costly in terms of db load, as it works in a single db transaction.
         // Try to limit how much needs to be done inside
         while (pindexIntermediate->pprev &&
-               pindexIntermediate->pprev->nChainTrust > boost::atomic_load(&pindexBest)->nChainTrust) {
+               pindexIntermediate->pprev->nChainTrust > bestChain.blockIndex()->nChainTrust) {
             vpindexSecondary.push_back(pindexIntermediate);
             pindexIntermediate = pindexIntermediate->pprev;
         }
@@ -799,10 +799,10 @@ bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
         ::SetBestChain(locator);
     }
 
-    const uint256 prevBestChain = hashBestChain;
+    const uint256 prevBestChain = bestChain.blockHash();
 
     // New best block
-    SetGlobalBestChainParameters(pindexNew, true);
+    bestChain.setBestChain(pindexNew, true);
 
     ConstCBlockIndexSmartPtr pindexBestPtr   = pindexNew;
     uint256                  nBestBlockTrust = pindexBestPtr->nHeight != 0
@@ -810,14 +810,14 @@ bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
                                                    : pindexBestPtr->nChainTrust;
 
     printf("SetBestChain: new best=%s  height=%d  trust=%s  blocktrust=%" PRId64 "  date=%s\n",
-           hashBestChain.load().ToString().c_str(), nBestHeight.load(),
-           CBigNum(nBestChainTrust).ToString().c_str(), nBestBlockTrust.Get64(),
+           bestChain.blockHash().ToString().c_str(), bestChain.height(),
+           CBigNum(bestChain.chainTrust()).ToString().c_str(), nBestBlockTrust.Get64(),
            DateTimeStrFormat("%x %H:%M:%S", pindexBestPtr->GetBlockTime()).c_str());
 
     // Check the version of the last 100 blocks to see if we need to upgrade:
     if (!fIsInitialDownload) {
         int                      nUpgraded = 0;
-        ConstCBlockIndexSmartPtr pindex    = boost::atomic_load(&pindexBest);
+        ConstCBlockIndexSmartPtr pindex    = bestChain.blockIndex();
         for (int i = 0; i < 100 && pindex != NULL; i++) {
             if (pindex->nVersion > CBlock::CURRENT_VERSION)
                 ++nUpgraded;
@@ -835,7 +835,7 @@ bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
     std::string strCmd = GetArg("-blocknotify", "");
 
     if (!fIsInitialDownload && !strCmd.empty()) {
-        boost::replace_all(strCmd, "%s", hashBestChain.load().GetHex());
+        boost::replace_all(strCmd, "%s", bestChain.blockHash().GetHex());
         boost::thread t(runCommand, strCmd); // thread runs free
     }
 
@@ -843,11 +843,11 @@ bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
         /**
          * Syncing wallets requires that the current state of best block be correct.
          * Because of this, we have to call SyncWithWallets() only after updating the global variables
-         * of the blockchain state, such as pindexBest and hashBestChain.
+         * of the blockchain state (bestChain of BestChainState).
          * Given that a reorg can occur, the call to SyncWithWallets() should happen only after all kinds
          * of reorgs happen (including ConnectBlock). Therefore, we do it at the very end. Here.
          */
-        if (nBestHeight > 0) {
+        if (bestChain.height() > 0) {
             // get the highest block in the previous check that's main chain
             CBlockIndexSmartPtr ancestorOfPrevInMainChain = mapBlockIndex.at(prevBestChain);
             while (ancestorOfPrevInMainChain->pprev && !ancestorOfPrevInMainChain->IsInMainChain()) {
@@ -855,7 +855,7 @@ bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
             }
 
             // get the common ancestor between current chain and previous chain
-            CBlockIndexSmartPtr blocksInNewBranch = pindexBest;
+            CBlockIndexSmartPtr blocksInNewBranch = bestChain.blockIndex();
             while (blocksInNewBranch->pprev &&
                    blocksInNewBranch->GetBlockHash() != ancestorOfPrevInMainChain->GetBlockHash()) {
                 blocksInNewBranch = blocksInNewBranch->pprev;
@@ -885,7 +885,7 @@ bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
                     SyncWithWallets(tx, blockPtr);
                 }
 
-                if (blocksInNewBranch->GetBlockHash() == pindexBest->GetBlockHash()) {
+                if (blocksInNewBranch->GetBlockHash() == bestChain.blockHash()) {
                     break;
                 }
 
@@ -935,10 +935,10 @@ bool CBlock::IsProofOfStake() const { return (vtx.size() > 1 && vtx[1].IsCoinSta
 CBlockIndexSmartPtr CBlock::FindBlockByHeight(int nHeight)
 {
     CBlockIndexSmartPtr pblockindex;
-    if (nHeight < nBestHeight / 2) {
+    if (nHeight < bestChain.height() / 2) {
         pblockindex = boost::atomic_load(&pindexGenesisBlock);
     } else {
-        pblockindex = boost::atomic_load(&pindexBest);
+        pblockindex = bestChain.blockIndex();
     }
     while (pblockindex->nHeight > nHeight) {
         pblockindex = pblockindex->pprev;
@@ -959,7 +959,7 @@ void CBlock::InvalidChainFound(const CBlockIndexSmartPtr& pindexNew, CTxDB& txdb
 
     uint256 nBestInvalidBlockTrust = pindexNew->nChainTrust - pindexNew->pprev->nChainTrust;
 
-    CBlockIndexSmartPtr pindexBestPtr = boost::atomic_load(&pindexBest);
+    CBlockIndexSmartPtr pindexBestPtr = bestChain.blockIndex();
 
     uint256 nBestBlockTrust = pindexBestPtr->nHeight != 0
                                   ? (pindexBestPtr->nChainTrust - pindexBestPtr->pprev->nChainTrust)
@@ -970,7 +970,7 @@ void CBlock::InvalidChainFound(const CBlockIndexSmartPtr& pindexNew, CTxDB& txdb
            CBigNum(pindexNew->nChainTrust).ToString().c_str(), nBestInvalidBlockTrust.Get64(),
            DateTimeStrFormat("%x %H:%M:%S", pindexNew->GetBlockTime()).c_str());
     printf("InvalidChainFound:  current best=%s  height=%d  trust=%s  blocktrust=%" PRId64 "  date=%s\n",
-           hashBestChain.load().ToString().c_str(), nBestHeight.load(),
+           bestChain.blockHash().ToString().c_str(), bestChain.height(),
            CBigNum(pindexBestPtr->nChainTrust).ToString().c_str(), nBestBlockTrust.Get64(),
            DateTimeStrFormat("%x %H:%M:%S", pindexBestPtr->GetBlockTime()).c_str());
 }
@@ -981,7 +981,7 @@ bool CBlock::Reorganize(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
     printf("REORGANIZE\n");
 
     // Find the fork
-    CBlockIndexSmartPtr pfork   = boost::atomic_load(&pindexBest);
+    CBlockIndexSmartPtr pfork   = bestChain.blockIndex();
     CBlockIndexSmartPtr plonger = pindexNew;
     while (pfork != plonger) {
         while (plonger->nHeight > pfork->nHeight)
@@ -995,7 +995,7 @@ bool CBlock::Reorganize(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
 
     // List of what to disconnect
     std::vector<CBlockIndexSmartPtr> vDisconnect;
-    for (CBlockIndexSmartPtr pindex = boost::atomic_load(&pindexBest); pindex != pfork;
+    for (CBlockIndexSmartPtr pindex = bestChain.blockIndex(); pindex != pfork;
          pindex                     = boost::atomic_load(&pindex->pprev)) {
         vDisconnect.push_back(pindex);
     }
@@ -1010,7 +1010,7 @@ bool CBlock::Reorganize(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
 
     printf("REORGANIZE: Disconnect %" PRIszu " blocks; %s..%s\n", vDisconnect.size(),
            pfork->GetBlockHash().ToString().c_str(),
-           boost::atomic_load(&pindexBest)->GetBlockHash().ToString().c_str());
+           bestChain.blockIndex()->GetBlockHash().ToString().c_str());
     printf("REORGANIZE: Connect %" PRIszu " blocks; %s..%s\n", vConnect.size(),
            pfork->GetBlockHash().ToString().c_str(), pindexNew->GetBlockHash().ToString().c_str());
 
@@ -1170,11 +1170,11 @@ bool CBlock::AddToBlockIndex(uint256 nBlockPos, const uint256& hashProof, CTxDB&
     LOCK(cs_main);
 
     // New best
-    if (pindexNew->nChainTrust > nBestChainTrust)
+    if (pindexNew->nChainTrust > bestChain.chainTrust())
         if (!SetBestChain(txdb, pindexNew, createDbTransaction))
             return false;
 
-    if (pindexNew == pindexBest) {
+    if (pindexNew == bestChain.blockIndex()) {
         // Notify UI to display prev block's coinbase if it was ours
         static uint256 hashPrevBestCoinBase;
         UpdatedTransaction(hashPrevBestCoinBase);
@@ -1323,14 +1323,14 @@ bool CBlock::AcceptBlock()
         return DoS(100, error("AcceptBlock() : reject unknown block version %d", nVersion));
 
     // Check for duplicate
-    uint256 hash = GetHash();
+    const uint256 hash = GetHash();
     if (mapBlockIndex.count(hash))
         return error("AcceptBlock() : block already in mapBlockIndex");
 
     // protect against a possible attack where an attacker sends predecessors of very early blocks in the
     // blockchain, forcing a non-necessary scan of the whole blockchain
     int64_t maxCheckpointBlockHeight = Checkpoints::GetLastCheckpointBlockHeight();
-    if (nBestHeight > maxCheckpointBlockHeight + 1) {
+    if (bestChain.height() > maxCheckpointBlockHeight + 1) {
         const uint256 prevBlockHash = this->hashPrevBlock;
         auto          it            = mapBlockIndex.find(prevBlockHash);
         if (it != mapBlockIndex.cend()) {
@@ -1440,10 +1440,10 @@ bool CBlock::AcceptBlock()
 
     // Relay inventory, but don't relay old inventory during initial block download
     int nBlockEstimate = Checkpoints::GetTotalBlocksEstimate();
-    if (hashBestChain == hash) {
+    if (bestChain.blockHash() == hash) {
         LOCK(cs_vNodes);
         for (CNode* pnode : vNodes)
-            if (nBestHeight >
+            if (bestChain.height() >
                 (pnode->nStartingHeight != -1 ? pnode->nStartingHeight - 2000 : nBlockEstimate))
                 pnode->PushInventory(CInv(MSG_BLOCK, hash));
     }
@@ -1482,7 +1482,7 @@ bool CBlock::SignBlock(const CWallet& wallet, int64_t nFees,
     if (IsProofOfStake())
         return true;
 
-    CBlockIndexSmartPtr                 pindexBestPtr = boost::atomic_load(&pindexBest);
+    CBlockIndexSmartPtr                 pindexBestPtr = bestChain.blockIndex();
     const boost::optional<CTransaction> coinStake     = stakeMaker.CreateCoinStake(
         wallet, nBits, nFees, nReserveBalance, customInputs, extraPayoutForTest);
 
@@ -1542,7 +1542,7 @@ bool CBlock::SignBlockWithSpecificKey(const COutPoint& outputToStake, const CKey
     if (IsProofOfStake())
         return true;
 
-    CBlockIndexSmartPtr                 pindexBestPtr = boost::atomic_load(&pindexBest);
+    CBlockIndexSmartPtr                 pindexBestPtr = bestChain.blockIndex();
     const boost::optional<CTransaction> coinStake =
         stakeMaker.CreateCoinStakeFromSpecificOutput(outputToStake, keyOfOutput, nBits, nFees);
 

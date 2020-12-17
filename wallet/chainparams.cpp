@@ -98,7 +98,7 @@ public:
                 {NetworkFork::NETFORK__4_RETARGET_CORRECTION, 1003125},
                 // Enable cold-staking - unset placeholder
                 {NetworkFork::NETFORK__5_COLD_STAKING, 1000000000}},
-            nBestHeight));
+            bestChain));
 
         consensus.nCoinbaseMaturityV1 = 30;
         consensus.nCoinbaseMaturityV2 = 10;
@@ -458,7 +458,7 @@ public:
                 defaultRegtestForkHeights[f.first] = f.second;
             }
 
-            consensus.forks.emplace(NetworkForks(defaultRegtestForkHeights, nBestHeight));
+            consensus.forks.emplace(NetworkForks(defaultRegtestForkHeights, bestChain));
         }
 
         pchMessageStart[0] = 0xcd;
@@ -565,7 +565,7 @@ NetworkType CChainParams::NetType() const { return networkType; }
 
 bool CChainParams::PassedFirstValidNTP1Tx() const
 {
-    return (nBestHeight >= consensus.firstValidNTP1Height);
+    return (bestChain.height() >= consensus.firstValidNTP1Height);
 }
 
 int64_t CChainParams::TargetTimeSpan() const { return consensus.nTargetTimespan; }

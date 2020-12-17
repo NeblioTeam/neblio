@@ -58,7 +58,7 @@ TestAndCreateStakeKernel(CTxDB& txdb, const StakeMaker::KeyGetterFunctorType& ke
         return boost::none; // only count coins meeting min age requirement
 
     for (unsigned int n = 0; n < std::min(nSearchInterval, (int64_t)nMaxStakeSearchInterval) &&
-                             !fShutdown && pindexPrev == pindexBest;
+                             !fShutdown && pindexPrev == bestChain.blockIndex();
          n++) {
         // Search backward in time from the given tx timestamp
         // Search nSearchInterval seconds back up to nMaxStakeSearchInterval
@@ -246,7 +246,7 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStakeFromSpecificOutput(cons
     }
 
     CTxDB                    txdb("r");
-    ConstCBlockIndexSmartPtr pindexPrev = boost::atomic_load(&pindexBest);
+    ConstCBlockIndexSmartPtr pindexPrev = bestChain.blockIndex();
 
     const auto keyGetter = [&spendKeyOfOutput](const CKeyID&) {
         return boost::make_optional(spendKeyOfOutput);
@@ -437,7 +437,7 @@ StakeMaker::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBits,
                             const int64_t nCoinstakeInitialTxTime,
                             const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins)
 {
-    ConstCBlockIndexSmartPtr pindexPrev = boost::atomic_load(&pindexBest);
+    ConstCBlockIndexSmartPtr pindexPrev = bestChain.blockIndex();
 
     CTxDB txdb("r");
 

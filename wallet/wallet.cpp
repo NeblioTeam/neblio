@@ -271,7 +271,7 @@ void CWallet::SetBestChain(const CBlockLocator& loc)
     CWalletDB walletdb(strWalletFile);
     if (!walletdb.WriteBestBlock(loc))
         printf("Failed to write best chain to wallet at: %s\n",
-               boost::atomic_load(&pindexBest).get()->phashBlock->ToString().c_str());
+               bestChain.blockIndex().get()->phashBlock->ToString().c_str());
 }
 
 bool CWallet::SetMinVersion(enum WalletFeature nVersion, CWalletDB* pwalletdbIn, bool fExplicit)
@@ -543,7 +543,7 @@ void CWallet::MarkConflicted(const uint256& hashBlock, const uint256& hashTx)
 {
     LOCK2(cs_main, cs_wallet);
 
-    const std::string bestblock = pindexBest->phashBlock->ToString();
+    const std::string bestblock = bestChain.blockIndex()->phashBlock->ToString();
     const std::string bh        = hashBlock.ToString();
 
     CBlockIndex* pindex;
@@ -551,7 +551,7 @@ void CWallet::MarkConflicted(const uint256& hashBlock, const uint256& hashTx)
     pindex               = mapBlockIndex.at(hashBlock).get();
     int conflictconfirms = 0;
     if (pindex->IsInMainChain()) {
-        conflictconfirms = -(nBestHeight - pindex->nHeight + 1);
+        conflictconfirms = -(bestChain.height() - pindex->nHeight + 1);
     }
     //    assert(conflictconfirms < 0);
     if (conflictconfirms >= 0)
@@ -628,7 +628,7 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFromLoadWallet, CWalletD
     // update NTP1 transactions
     if (walletNewTxUpdateFunctor) {
         walletNewTxUpdateFunctor->setReferenceBlockHeight();
-        walletNewTxUpdateFunctor->run(hash, nBestHeight);
+        walletNewTxUpdateFunctor->run(hash, bestChain.height());
     }
 
     if (fFromLoadWallet) {
@@ -1067,7 +1067,7 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
 
             if (blockCount % 1000 == 0) {
                 uiInterface.InitMessage(_("Rescanning... ") + "(block: " + std::to_string(blockCount) +
-                                        "/" + std::to_string(nBestHeight) + ")");
+                                        "/" + std::to_string(bestChain.height()) + ")");
             }
 
             // no need to read and scan block, if block was created before
@@ -1150,7 +1150,7 @@ void CWallet::ResendWalletTransactions(bool fForce)
 
         // Only do it if there's been a new block since last time
         static int64_t nLastTime;
-        if (nTimeBestReceived < nLastTime)
+        if (bestChain.timeLastBestReceived() < nLastTime)
             return;
         nLastTime = GetTime();
     }
@@ -1166,7 +1166,7 @@ void CWallet::ResendWalletTransactions(bool fForce)
             CWalletTx& wtx = item.second;
             // Don't rebroadcast until it's had plenty of time that
             // it should have gotten in already by now.
-            if (fForce || nTimeBestReceived - (int64_t)wtx.nTimeReceived > 5 * 60)
+            if (fForce || bestChain.timeLastBestReceived() - (int64_t)wtx.nTimeReceived > 5 * 60)
                 mapSorted.insert(make_pair(wtx.nTimeReceived, &wtx));
         }
         for (PAIRTYPE(const unsigned int, CWalletTx*) & item : mapSorted) {
@@ -1826,7 +1826,8 @@ void CWallet::SetTxNTP1OpRet(CTransaction& wtxNew, const std::shared_ptr<NTP1Scr
     }
 
     if (opRetScriptBin.size() > Params().OpReturnMaxSize()) {
-        // the blockchain consensus rules prevents OP_RETURN sizes larger than DataSize(nBestHeight)
+        // the blockchain consensus rules prevents OP_RETURN sizes larger than
+        // DataSize(bestChain.getBestHeight())
         throw std::runtime_error("The data associated with the transaction is larger than the maximum "
                                  "allowed size for metadata (" +
                                  ToString(Params().OpReturnMaxSize()) + " bytes).");
@@ -3065,8 +3066,8 @@ void CWallet::GetKeyBirthTimes(std::map<CKeyID, int64_t>& mapKeyBirth) const
             mapKeyBirth[it->first] = it->second.nCreateTime;
 
     // map in which we'll infer heights of other keys
-    CBlockIndexSmartPtr pindexMax = CBlock::FindBlockByHeight(
-        std::max(0, nBestHeight - 144)); // the tip can be reorganised; use a 144-block safety margin
+    CBlockIndexSmartPtr                   pindexMax = CBlock::FindBlockByHeight(std::max(
+        0, bestChain.height() - 144)); // the tip can be reorganised; use a 144-block safety margin
     std::map<CKeyID, CBlockIndexSmartPtr> mapKeyFirstBlock;
     std::set<CKeyID>                      setKeys;
     GetKeys(setKeys);

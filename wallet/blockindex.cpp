@@ -99,7 +99,7 @@ uint256 CBlockIndex::GetBlockTrust() const
 
 bool CBlockIndex::IsInMainChain() const
 {
-    return (pnext || this == boost::atomic_load(&pindexBest).get());
+    return (pnext || this == bestChain.blockIndex().get());
 }
 
 bool CBlockIndex::IsSuperMajority(int minVersion, const CBlockIndex* pstart, unsigned int nRequired,

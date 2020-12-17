@@ -172,7 +172,7 @@ Value importwallet(const Array& params, bool fHelp)
     if (!file.is_open())
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot open wallet dump file");
 
-    int64_t nTimeBegin = boost::atomic_load(&pindexBest)->nTime;
+    int64_t nTimeBegin = bestChain.blockIndex()->nTime;
 
     bool fGood = true;
 
@@ -228,15 +228,14 @@ Value importwallet(const Array& params, bool fHelp)
     }
     file.close();
 
-    CBlockIndexSmartPtr pindex = pindexBest;
+    CBlockIndexSmartPtr pindex = bestChain.blockIndex();
     while (pindex && pindex->pprev && pindex->nTime > nTimeBegin - 7200)
         pindex = pindex->pprev;
 
     if (!pwalletMain->nTimeFirstKey || nTimeBegin < pwalletMain->nTimeFirstKey)
         pwalletMain->nTimeFirstKey = nTimeBegin;
 
-    printf("Rescanning last %i blocks\n",
-           boost::atomic_load(&pindexBest)->nHeight - pindex->nHeight + 1);
+    printf("Rescanning last %i blocks\n", bestChain.blockIndex()->nHeight - pindex->nHeight + 1);
     pwalletMain->ScanForWalletTransactions(pindex.get());
     pwalletMain->ReacceptWalletTransactions();
     pwalletMain->MarkDirty();
@@ -331,10 +330,9 @@ Value dumpwallet(const Array& params, bool fHelp)
     file << strprintf("# Wallet dump created by neblio %s (%s)\n", CLIENT_BUILD.c_str(),
                       CLIENT_DATE.c_str());
     file << strprintf("# * Created on %s\n", EncodeDumpTime(GetTime()).c_str());
-    file << strprintf("# * Best block at time of backup was %i (%s),\n", nBestHeight.load(),
-                      hashBestChain.load().ToString().c_str());
-    file << strprintf("#   mined on %s\n",
-                      EncodeDumpTime(boost::atomic_load(&pindexBest)->nTime).c_str());
+    file << strprintf("# * Best block at time of backup was %i (%s),\n", bestChain.height(),
+                      bestChain.blockHash().ToString().c_str());
+    file << strprintf("#   mined on %s\n", EncodeDumpTime(bestChain.blockIndex()->nTime).c_str());
     file << "\n";
     for (std::vector<std::pair<int64_t, CKeyID>>::const_iterator it = vKeyBirth.begin();
          it != vKeyBirth.end(); it++) {
@@ -376,15 +374,14 @@ Value dumpwallet(const Array& params, bool fHelp)
 
 void _RescanBlockchain(int64_t earliestTime)
 {
-    CBlockIndexSmartPtr pindex = boost::atomic_load(&pindexBest);
+    CBlockIndexSmartPtr pindex = bestChain.blockIndex();
     while (pindex && pindex->pprev && pindex->nTime > earliestTime - 7200)
         pindex = pindex->pprev;
 
     if (!pwalletMain->nTimeFirstKey || earliestTime < pwalletMain->nTimeFirstKey)
         pwalletMain->nTimeFirstKey = earliestTime;
 
-    printf("Rescanning last %i blocks\n",
-           boost::atomic_load(&pindexBest)->nHeight - pindex->nHeight + 1);
+    printf("Rescanning last %i blocks\n", bestChain.blockIndex()->nHeight - pindex->nHeight + 1);
     pwalletMain->ScanForWalletTransactions(pindex.get());
     pwalletMain->ReacceptWalletTransactions();
     pwalletMain->MarkDirty();
@@ -476,7 +473,7 @@ std::pair<long, long> ImportBackupWallet(const std::string& Src, std::string& Pa
     }
 
     // earliest time to rescan the blockchain
-    int64_t earliestTime = boost::atomic_load(&pindexBest)->nTime;
+    int64_t earliestTime = bestChain.blockIndex()->nTime;
 
     std::set<CKeyID> allKeyIDsSet;
     backupWallet.GetKeys(allKeyIDsSet);

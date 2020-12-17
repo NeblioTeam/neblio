@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+class BestChainState;
+
 enum NetworkFork : uint16_t
 {
     NETFORK__1_FIRST_ONE = 0,
@@ -40,11 +42,11 @@ class NetworkForks
 {
     boost::container::flat_map<NetworkFork, int> forksToBlockMap;
     boost::container::flat_map<int, NetworkFork> blockToForksMap;
-    const boost::atomic<int>&                    bestHeight_internal;
+    const BestChainState&                        bestChain_internal;
 
 public:
     NetworkForks(const boost::container::flat_map<NetworkFork, int>& ForksToBlocks,
-                 const boost::atomic<int>&                           BestHeightVar);
+                 const BestChainState&                               BestChainVar);
 
     bool isForkActivated(NetworkFork fork) const;
 

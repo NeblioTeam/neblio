@@ -1068,12 +1068,12 @@ bool CTxDB::LoadBlockIndex()
     }
     if (!mapBlockIndex.count(hashBestChainTemp))
         return error("CTxDB::LoadBlockIndex() : hashBestChain not found in the block index");
-    SetGlobalBestChainParameters(mapBlockIndex.at(hashBestChainTemp), false);
+    bestChain.setBestChain(mapBlockIndex.at(hashBestChainTemp), false);
 
     printf("LoadBlockIndex(): hashBestChain=%s  height=%d  trust=%s  date=%s\n",
-           hashBestChain.load().ToString().substr(0, 20).c_str(), nBestHeight.load(),
-           CBigNum(nBestChainTrust).ToString().c_str(),
-           DateTimeStrFormat("%x %H:%M:%S", pindexBest->GetBlockTime()).c_str());
+           bestChain.blockHash().ToString().substr(0, 20).c_str(), bestChain.height(),
+           CBigNum(bestChain.chainTrust()).ToString().c_str(),
+           DateTimeStrFormat("%x %H:%M:%S", bestChain.blockIndex()->GetBlockTime()).c_str());
 
     // Load bnBestInvalidTrust, OK if it doesn't exist
     CBigNum bnBestInvalidTrust;
@@ -1086,13 +1086,14 @@ bool CTxDB::LoadBlockIndex()
     int nCheckDepth = GetArg("-checkblocks", 2500);
     if (nCheckDepth == 0)
         nCheckDepth = 1000000000; // suffices until the year 19000
-    if (nCheckDepth > nBestHeight)
-        nCheckDepth = nBestHeight;
+    if (nCheckDepth > bestChain.height())
+        nCheckDepth = bestChain.height();
     printf("Verifying last %i blocks at level %i\n", nCheckDepth, nCheckLevel);
     CBlockIndexSmartPtr              pindexFork = nullptr;
     map<uint256, const CBlockIndex*> mapBlockPos;
     loadedCount = 0;
-    for (ConstCBlockIndexSmartPtr pindex = pindexBest; pindex && pindex->pprev; pindex = pindex->pprev) {
+    for (ConstCBlockIndexSmartPtr pindex = bestChain.blockIndex(); pindex && pindex->pprev;
+         pindex                          = pindex->pprev) {
 
         if (loadedCount % 100 == 0) {
             uiInterface.InitMessage("Verifying latest blocks (" + std::to_string(loadedCount) + "/" +
@@ -1100,7 +1101,7 @@ bool CTxDB::LoadBlockIndex()
         }
         loadedCount++;
 
-        if (fRequestShutdown || pindex->nHeight < nBestHeight - nCheckDepth)
+        if (fRequestShutdown || pindex->nHeight < bestChain.height() - nCheckDepth)
             break;
         CBlock block;
         if (!block.ReadFromDisk(pindex.get()))

@@ -78,9 +78,9 @@ void WalletModel::pollBalanceChanged()
     if (!lockWallet)
         return;
 
-    if (nBestHeight != cachedNumBlocks) {
+    if (bestChain.height() != cachedNumBlocks) {
         // Balance and number of transactions might have changed
-        cachedNumBlocks = nBestHeight;
+        cachedNumBlocks = bestChain.height();
 
         checkBalanceChanged();
 

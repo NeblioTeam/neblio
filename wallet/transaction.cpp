@@ -589,7 +589,7 @@ CTransaction::ConnectInputs(MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTe
             // Skip ECDSA signature verification when connecting blocks (fBlock=true)
             // before the last blockchain checkpoint. This is safe because block merkle hashes are
             // still computed and checked, and any change will be caught at the next checkpoint.
-            if (!(fBlock && (nBestHeight < Checkpoints::GetTotalBlocksEstimate()))) {
+            if (!(fBlock && (bestChain.height() < Checkpoints::GetTotalBlocksEstimate()))) {
                 // Verify signature
                 bool       fStrictPayToScriptHash = true;
                 const auto verifyRes =

@@ -116,7 +116,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
     if (!pblock)
         return nullptr;
 
-    ConstCBlockIndexSmartPtr pindexPrev = boost::atomic_load(&pindexBest);
+    ConstCBlockIndexSmartPtr pindexPrev = bestChain.blockIndex();
 
     // Create coinbase tx
     CTransaction coinbaseTx;
@@ -520,7 +520,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
     // Found a solution
     {
         LOCK(cs_main);
-        if (pblock->hashPrevBlock != hashBestChain)
+        if (pblock->hashPrevBlock != bestChain.blockHash())
             return error("CheckWork() : generated block is stale");
 
         // Remove key from key pool
@@ -561,7 +561,7 @@ bool CheckStake(CBlock* pblock, CWallet& wallet)
     // Found a solution
     {
         LOCK(cs_main);
-        if (pblock->hashPrevBlock != hashBestChain)
+        if (pblock->hashPrevBlock != bestChain.blockHash())
             return error("CheckStake() : generated block is stale");
 
         // Track how many getdata requests this block gets
@@ -625,7 +625,7 @@ void StakeMiner(CWallet* pwallet)
                 LOCK(cs_vNodes);
                 vNodesSize = vNodes.size();
             }
-            if (vNodesSize < 3 || nBestHeight < GetNumBlocksOfPeers()) {
+            if (vNodesSize < 3 || bestChain.height() < GetNumBlocksOfPeers()) {
                 MilliSleep(60000);
                 continue;
             }

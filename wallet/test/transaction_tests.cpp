@@ -367,7 +367,7 @@ TEST(transaction_tests, test_GetThrow)
 
 void test_op_return_size(int currentHeight, NetworkType netType, unsigned int expected_size)
 {
-    nBestHeight = currentHeight;
+    bestChain.__test_setHeight(currentHeight);
     SwitchNetworkTypeTemporarily state_holder(netType);
 
     unsigned int allowedSize = Params().OpReturnMaxSize();

@@ -4,7 +4,7 @@
 
 CTxIndex::CTxIndex() { SetNull(); }
 
-CTxIndex::CTxIndex(const CDiskTxPos &posIn, unsigned int nOutputs)
+CTxIndex::CTxIndex(const CDiskTxPos& posIn, unsigned int nOutputs)
 {
     pos = posIn;
     vSpent.resize(nOutputs);
@@ -31,6 +31,5 @@ int CTxIndex::GetDepthInMainChain() const
     CBlockIndexSmartPtr pindex = boost::atomic_load(&mi->second);
     if (!pindex || !pindex->IsInMainChain())
         return 0;
-    return 1 + nBestHeight - pindex->nHeight;
+    return 1 + bestChain.height() - pindex->nHeight;
 }
-

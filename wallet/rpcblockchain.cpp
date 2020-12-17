@@ -26,10 +26,10 @@ double GetDifficulty(const CBlockIndex* blockindex)
     // Floating point number that is a multiple of the minimum difficulty,
     // minimum difficulty = 1.0.
     if (blockindex == NULL) {
-        if (pindexBest == NULL)
+        if (bestChain.blockIndex() == NULL)
             return 1.0;
         else
-            blockindex = GetLastBlockIndex(pindexBest.get(), false);
+            blockindex = GetLastBlockIndex(bestChain.blockIndex().get(), false);
     }
 
     int nShift = (blockindex->nBits >> 24) & 0xff;
@@ -50,7 +50,7 @@ double GetDifficulty(const CBlockIndex* blockindex)
 
 double GetPoWMHashPS()
 {
-    if (boost::atomic_load(&pindexBest)->nHeight >= Params().LastPoWBlock())
+    if (bestChain.blockIndex()->nHeight >= Params().LastPoWBlock())
         return 0;
 
     int     nPoWInterval          = 72;
@@ -81,7 +81,7 @@ double GetPoSKernelPS()
     double dStakeKernelsTriedAvg = 0;
     int    nStakesHandled = 0, nStakesTime = 0;
 
-    ConstCBlockIndexSmartPtr pindex = pindexBest;
+    ConstCBlockIndexSmartPtr pindex = bestChain.blockIndex();
 
     ConstCBlockIndexSmartPtr pindexPrevStake = nullptr;
 
@@ -109,7 +109,7 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
     int confirmations = -1;
     // Only report confirmations if the block is on the main chain
     if (blockindex->IsInMainChain())
-        confirmations = nBestHeight - blockindex->nHeight + 1;
+        confirmations = bestChain.height() - blockindex->nHeight + 1;
     result.push_back(Pair("confirmations", (int)txGen.GetDepthInMainChain()));
     result.push_back(Pair("size", (int)::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION)));
     result.push_back(Pair("height", blockindex->nHeight));
@@ -161,7 +161,7 @@ Value getbestblockhash(const Array& params, bool fHelp)
         throw runtime_error("getbestblockhash\n"
                             "Returns the hash of the best block in the longest block chain.");
 
-    return hashBestChain.load().GetHex();
+    return bestChain.blockHash().GetHex();
 }
 
 Value getblockcount(const Array& params, bool fHelp)
@@ -170,7 +170,7 @@ Value getblockcount(const Array& params, bool fHelp)
         throw runtime_error("getblockcount\n"
                             "Returns the number of blocks in the longest block chain.");
 
-    return nBestHeight.load();
+    return bestChain.height();
 }
 
 Value getdifficulty(const Array& params, bool fHelp)
@@ -181,7 +181,8 @@ Value getdifficulty(const Array& params, bool fHelp)
 
     Object obj;
     obj.push_back(Pair("proof-of-work", GetDifficulty()));
-    obj.push_back(Pair("proof-of-stake", GetDifficulty(GetLastBlockIndex(pindexBest.get(), true))));
+    obj.push_back(
+        Pair("proof-of-stake", GetDifficulty(GetLastBlockIndex(bestChain.blockIndex().get(), true))));
     obj.push_back(Pair("search-interval", (int)stakeMaker.getLastCoinStakeSearchInterval()));
     return obj;
 }
@@ -221,7 +222,7 @@ Value getblockhash(const Array& params, bool fHelp)
                             "Returns hash of block in best-block-chain at <index>.");
 
     int nHeight = params[0].get_int();
-    if (nHeight < 0 || nHeight > nBestHeight)
+    if (nHeight < 0 || nHeight > bestChain.height())
         throw runtime_error("Block number out of range.");
 
     CBlockIndexSmartPtr pblockindex = CBlock::FindBlockByHeight(nHeight);
@@ -320,11 +321,11 @@ Value getblockbynumber(const Array& params, bool fHelp)
                             "transaction is not in the blockchain.");
 
     int nHeight = params[0].get_int();
-    if (nHeight < 0 || nHeight > nBestHeight)
+    if (nHeight < 0 || nHeight > bestChain.height())
         throw runtime_error("Block number out of range.");
 
     CBlock              block;
-    CBlockIndexSmartPtr pblockindex = boost::atomic_load(&mapBlockIndex.at(hashBestChain));
+    CBlockIndexSmartPtr pblockindex = bestChain.blockIndex();
     while (pblockindex->nHeight > nHeight)
         pblockindex = pblockindex->pprev;
 
@@ -443,14 +444,14 @@ Value waitforblockheight(const Array& params, bool fHelp)
     }
 
     int totalMilliSeconds = 0;
-    while (totalMilliSeconds <= timeout && nBestHeight < height && IsRPCRunning()) {
+    while (totalMilliSeconds <= timeout && bestChain.height() < height && IsRPCRunning()) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         totalMilliSeconds += 1000;
     }
 
     Object ret;
-    ret.push_back(json_spirit::Pair("hash", pindexBest->GetBlockHash().GetHex()));
-    ret.push_back(json_spirit::Pair("height", nBestHeight.load()));
+    ret.push_back(json_spirit::Pair("hash", bestChain.blockIndex()->GetBlockHash().GetHex()));
+    ret.push_back(json_spirit::Pair("height", bestChain.height()));
 
     return ret;
 }
@@ -509,16 +510,16 @@ Value getblockchaininfo(const Array& params, bool fHelp)
 
     Object obj;
     obj.push_back(Pair("chain", Params().NetworkIDString()));
-    obj.push_back(Pair("blocks", nBestHeight.load()));
-    obj.push_back(Pair("headers", pindexBest ? pindexBest->nHeight : -1));
-    obj.push_back(Pair("bestblockhash", pindexBest->phashBlock->GetHex()));
+    obj.push_back(Pair("blocks", bestChain.height()));
+    obj.push_back(Pair("headers", bestChain.blockIndex() ? bestChain.blockIndex()->nHeight : -1));
+    obj.push_back(Pair("bestblockhash", bestChain.blockIndex()->phashBlock->GetHex()));
     obj.push_back(Pair("difficulty", (double)GetDifficulty()));
-    obj.push_back(Pair("mediantime", (int64_t)pindexBest->GetMedianTimePast()));
+    obj.push_back(Pair("mediantime", (int64_t)bestChain.blockIndex()->GetMedianTimePast()));
     //    obj.push_back(
     //        Pair("verificationprogress", GuessVerificationProgress(Params().TxData(),
     //        chainActive.Tip())));
     obj.push_back(Pair("initialblockdownload", IsInitialBlockDownload()));
-    obj.push_back(Pair("chainwork", pindexBest->nChainTrust.GetHex()));
+    obj.push_back(Pair("chainwork", bestChain.blockIndex()->nChainTrust.GetHex()));
     obj.push_back(Pair("size_on_disk", (int64_t)CTxDB::GetCurrentDiskUsage()));
     obj.push_back(Pair("warnings", GetWarnings("statusbar")));
     return obj;
@@ -532,7 +533,7 @@ Value blockheaderToJSON(const CBlockIndex* blockindex)
     int confirmations = -1;
     // Only report confirmations if the block is on the main chain
     if (mapBlockIndex.find(*blockindex->phashBlock) != mapBlockIndex.cend())
-        confirmations = nBestHeight.load() - blockindex->nHeight + 1;
+        confirmations = bestChain.height() - blockindex->nHeight + 1;
     result.push_back(Pair("confirmations", confirmations));
     result.push_back(Pair("height", blockindex->nHeight));
     result.push_back(Pair("version", blockindex->nVersion));
@@ -723,7 +724,7 @@ Value gettxout(const Array& params, bool fHelp)
                                  std::to_string(n) + " is invalid");
     }
 
-    const CBlockIndex* pindex = pindexBest.get();
+    const CBlockIndex* pindex = bestChain.blockIndex().get();
     ret.push_back(Pair("bestblock", pindex->GetBlockHash().GetHex()));
     if (nHeight == MEMPOOL_HEIGHT) {
         ret.push_back(Pair("confirmations", 0));

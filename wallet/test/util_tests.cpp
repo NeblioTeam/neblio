@@ -323,53 +323,58 @@ TEST(util_tests, util_seed_insecure_rand)
 
 TEST(util_tests, network_fork)
 {
-    boost::atomic<int> currentBlock{0};
-    NetworkForks       netfork(
+    BestChainState      bestChain;
+    CBlockIndexSmartPtr bestBlockIndexPtr = boost::make_shared<CBlockIndex>();
+    bestBlockIndexPtr->nHeight            = 0;
+    bestBlockIndexPtr->phashBlock         = new uint256(0);
+    bestChain.setBestChain(bestBlockIndexPtr);
+
+    NetworkForks netfork(
         boost::container::flat_map<NetworkFork, int>{{NetworkFork::NETFORK__1_FIRST_ONE, 0},
                                                      {NetworkFork::NETFORK__2_CONFS_CHANGE, 100},
                                                      {NetworkFork::NETFORK__3_TACHYON, 200}},
-        currentBlock);
+        bestChain);
 
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE), true);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE), false);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON), false);
 
-    currentBlock = 99;
+    bestChain.__test_setHeight(99);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE), true);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE), false);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON), false);
 
-    currentBlock = 100;
+    bestChain.__test_setHeight(100);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE), true);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE), true);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON), false);
 
-    currentBlock = 101;
+    bestChain.__test_setHeight(101);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE), true);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE), true);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON), false);
 
-    currentBlock = 150;
+    bestChain.__test_setHeight(150);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE), true);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE), true);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON), false);
 
-    currentBlock = 199;
+    bestChain.__test_setHeight(199);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE), true);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE), true);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON), false);
 
-    currentBlock = 200;
+    bestChain.__test_setHeight(200);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE), true);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE), true);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON), true);
 
-    currentBlock = 201;
+    bestChain.__test_setHeight(201);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE), true);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE), true);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON), true);
 
-    currentBlock = 250;
+    bestChain.__test_setHeight(250);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE), true);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE), true);
     EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON), true);

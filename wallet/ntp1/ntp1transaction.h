@@ -346,7 +346,7 @@ void NTP1Transaction::__TransferTokens(
             // check if the token is blacklisted
             int blacklistHeight = 0;
             if (Params().IsNTP1TokenBlacklisted(currentTokenId, blacklistHeight)) {
-                if (nBestHeight >= blacklistHeight) {
+                if (bestChain.height() >= blacklistHeight) {
                     throw std::runtime_error("The NTP1 token " + currentTokenId +
                                              " is blacklisted and cannot be transferred or burned.");
                 }

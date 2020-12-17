@@ -11,26 +11,25 @@
 
 class CTxMemPool;
 class CBlockIndex;
+class BestChainState;
 
 using CBlockIndexSmartPtr      = boost::shared_ptr<CBlockIndex>;
 using ConstCBlockIndexSmartPtr = boost::shared_ptr<const CBlockIndex>;
 using BlockIndexMapType        = std::map<uint256, CBlockIndexSmartPtr>;
 
-extern CTxMemPool              mempool;
-extern boost::atomic<uint32_t> nTransactionsUpdated;
+extern BestChainState bestChain;
+
+extern CTxMemPool mempool;
 
 extern CCriticalSection    cs_main;
 extern BlockIndexMapType   mapBlockIndex;
-extern CBlockIndexSmartPtr pindexBest;
 extern CBlockIndexSmartPtr pindexGenesisBlock;
 
-extern bool               fUseFastIndex;
-extern boost::atomic<int> nBestHeight;
-
-extern boost::atomic<uint256> nBestChainTrust;
 extern boost::atomic<uint256> nBestInvalidTrust;
-extern boost::atomic<uint256> hashBestChain;
-extern boost::atomic<int64_t> nTimeBestReceived;
+
+extern boost::atomic<uint32_t> nTransactionsUpdated;
+
+extern bool fUseFastIndex;
 
 /** The maximum allowed size for a serialized block, in bytes (network rule) */
 static const unsigned int MAX_BLOCK_SIZE     = 8000000;
@@ -102,6 +101,22 @@ static const std::string SAFE_CHARS[] = {
 
 std::string SanitizeString(const std::string& str, int rule);
 
-void SetGlobalBestChainParameters(const CBlockIndexSmartPtr pindex, bool updateCountersAndTimes = false);
+class BestChainState
+{
+    boost::atomic<int>     bestHeight{-1};
+    CBlockIndexSmartPtr    bestBlockIndex{nullptr};
+    boost::atomic<uint256> bestChainTrust{0};
+    boost::atomic<uint256> bestBlockHash{0};
+    boost::atomic_int64_t  timeLastBestBlockReceived{0};
+
+public:
+    void                __test_setHeight(int v) { bestHeight = v; }
+    int                 height() const { return bestHeight; }
+    uint256             chainTrust() const { return bestChainTrust; }
+    CBlockIndexSmartPtr blockIndex() const { return boost::atomic_load(&bestBlockIndex); }
+    uint256             blockHash() const { return bestBlockHash; }
+    int64_t             timeLastBestReceived() const { return timeLastBestBlockReceived; }
+    void setBestChain(const CBlockIndexSmartPtr pindex, bool updateCountersAndTimes = false);
+};
 
 #endif // GLOBALS_H

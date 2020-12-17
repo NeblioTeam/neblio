@@ -509,11 +509,11 @@ void CNode::PushVersion()
     CAddress addrMe  = GetLocalAddress(&addr);
     RAND_bytes((unsigned char*)&nLocalHostNonce, sizeof(nLocalHostNonce));
     printf("send version message: version %d, blocks=%d, us=%s, them=%s, peer=%s\n", PROTOCOL_VERSION,
-           nBestHeight.load(), addrMe.ToString().c_str(), addrYou.ToString().c_str(),
+           bestChain.height(), addrMe.ToString().c_str(), addrYou.ToString().c_str(),
            addr.ToString().c_str());
 
     PushMessage("version", PROTOCOL_VERSION, nLocalServices.load(), nTime, addrYou, addrMe,
-                nLocalHostNonce.load(), strSubVersion, nBestHeight.load());
+                nLocalHostNonce.load(), strSubVersion, bestChain.height());
 }
 
 std::map<CNetAddr, int64_t> CNode::setBanned;

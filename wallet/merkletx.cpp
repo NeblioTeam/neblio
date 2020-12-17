@@ -27,7 +27,7 @@ int CMerkleTx::GetDepthInMainChain(const CBlockIndex*& pindexRet) const
             nResult = 0;
         } else {
             pindexRet = pindex;
-            nResult   = ((nIndex == -1) ? (-1) : 1) * (nBestHeight - pindex->nHeight + 1);
+            nResult   = ((nIndex == -1) ? (-1) : 1) * (bestChain.height() - pindex->nHeight + 1);
         }
     }
 
@@ -93,5 +93,5 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
     if (!pindex || !pindex->IsInMainChain())
         return 0;
 
-    return boost::atomic_load(&pindexBest)->nHeight - pindex->nHeight + 1;
+    return bestChain.blockIndex()->nHeight - pindex->nHeight + 1;
 }
