@@ -27,6 +27,11 @@ extern CBlockIndexSmartPtr pindexGenesisBlock;
 extern bool               fUseFastIndex;
 extern boost::atomic<int> nBestHeight;
 
+extern boost::atomic<uint256> nBestChainTrust;
+extern boost::atomic<uint256> nBestInvalidTrust;
+extern boost::atomic<uint256> hashBestChain;
+extern boost::atomic<int64_t> nTimeBestReceived;
+
 /** The maximum allowed size for a serialized block, in bytes (network rule) */
 static const unsigned int MAX_BLOCK_SIZE     = 8000000;
 static const unsigned int OLD_MAX_BLOCK_SIZE = 1000000;
@@ -60,8 +65,6 @@ extern boost::atomic<int64_t> NodeIDCounter;
 
 /** Subversion as sent to the P2P network in `version` messages */
 extern std::string strSubVersion;
-
-extern CBlockIndexSmartPtr pblockindexFBBHLast;
 
 namespace Checkpoints {
 /** Checkpointing mode */
@@ -98,5 +101,7 @@ static const std::string SAFE_CHARS[] = {
 };
 
 std::string SanitizeString(const std::string& str, int rule);
+
+void SetGlobalBestChainParameters(const CBlockIndexSmartPtr pindex, bool updateCountersAndTimes = false);
 
 #endif // GLOBALS_H

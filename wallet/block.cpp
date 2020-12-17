@@ -734,7 +734,7 @@ bool CBlock::SetBestChainInner(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew
 bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
                           const bool createDbTransaction)
 {
-    uint256 hash = GetHash();
+    const uint256 hash = GetHash();
 
     if (createDbTransaction && !txdb.TxnBegin())
         return error("SetBestChain() : TxnBegin failed");
@@ -793,7 +793,7 @@ bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
     }
 
     // Update best block in wallet (so we can detect restored wallets)
-    bool fIsInitialDownload = IsInitialBlockDownload();
+    const bool fIsInitialDownload = IsInitialBlockDownload();
     if (!fIsInitialDownload) {
         const CBlockLocator locator(pindexNew.get());
         ::SetBestChain(locator);
@@ -802,21 +802,15 @@ bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
     const uint256 prevBestChain = hashBestChain;
 
     // New best block
-    hashBestChain = hash;
-    boost::atomic_store(&pindexBest, pindexNew);
-    CBlockIndexSmartPtr pindexBestPtr = boost::atomic_load(&pindexBest);
-    pblockindexFBBHLast               = nullptr;
-    nBestHeight                       = pindexBestPtr->nHeight;
-    nBestChainTrust                   = pindexNew->nChainTrust;
-    nTimeBestReceived                 = GetTime();
-    nTransactionsUpdated++;
+    SetGlobalBestChainParameters(pindexNew, true);
 
-    uint256 nBestBlockTrust = pindexBestPtr->nHeight != 0
-                                  ? (pindexBestPtr->nChainTrust - pindexBestPtr->pprev->nChainTrust)
-                                  : pindexBestPtr->nChainTrust;
+    ConstCBlockIndexSmartPtr pindexBestPtr   = pindexNew;
+    uint256                  nBestBlockTrust = pindexBestPtr->nHeight != 0
+                                                   ? (pindexBestPtr->nChainTrust - pindexBestPtr->pprev->nChainTrust)
+                                                   : pindexBestPtr->nChainTrust;
 
     printf("SetBestChain: new best=%s  height=%d  trust=%s  blocktrust=%" PRId64 "  date=%s\n",
-           hashBestChain.ToString().c_str(), nBestHeight.load(),
+           hashBestChain.load().ToString().c_str(), nBestHeight.load(),
            CBigNum(nBestChainTrust).ToString().c_str(), nBestBlockTrust.Get64(),
            DateTimeStrFormat("%x %H:%M:%S", pindexBestPtr->GetBlockTime()).c_str());
 
@@ -841,7 +835,7 @@ bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
     std::string strCmd = GetArg("-blocknotify", "");
 
     if (!fIsInitialDownload && !strCmd.empty()) {
-        boost::replace_all(strCmd, "%s", hashBestChain.GetHex());
+        boost::replace_all(strCmd, "%s", hashBestChain.load().GetHex());
         boost::thread t(runCommand, strCmd); // thread runs free
     }
 
@@ -946,17 +940,12 @@ CBlockIndexSmartPtr CBlock::FindBlockByHeight(int nHeight)
     } else {
         pblockindex = boost::atomic_load(&pindexBest);
     }
-    if (pblockindexFBBHLast &&
-        abs(nHeight - pblockindex->nHeight) > abs(nHeight - pblockindexFBBHLast->nHeight)) {
-        pblockindex = pblockindexFBBHLast;
-    }
     while (pblockindex->nHeight > nHeight) {
         pblockindex = pblockindex->pprev;
     }
     while (pblockindex->nHeight < nHeight) {
         pblockindex = pblockindex->pnext;
     }
-    pblockindexFBBHLast = pblockindex;
     return pblockindex;
 }
 
@@ -981,7 +970,7 @@ void CBlock::InvalidChainFound(const CBlockIndexSmartPtr& pindexNew, CTxDB& txdb
            CBigNum(pindexNew->nChainTrust).ToString().c_str(), nBestInvalidBlockTrust.Get64(),
            DateTimeStrFormat("%x %H:%M:%S", pindexNew->GetBlockTime()).c_str());
     printf("InvalidChainFound:  current best=%s  height=%d  trust=%s  blocktrust=%" PRId64 "  date=%s\n",
-           hashBestChain.ToString().c_str(), nBestHeight.load(),
+           hashBestChain.load().ToString().c_str(), nBestHeight.load(),
            CBigNum(pindexBestPtr->nChainTrust).ToString().c_str(), nBestBlockTrust.Get64(),
            DateTimeStrFormat("%x %H:%M:%S", pindexBestPtr->GetBlockTime()).c_str());
 }
@@ -1275,8 +1264,11 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig)
     for (unsigned i = 0; i < vtx.size(); i++) {
         const CTransaction& tx = vtx[i];
 
-        if (tx.CheckTransaction(this).isErr())
-            return DoS(tx.nDoS, error("CheckBlock() : CheckTransaction failed"));
+        const auto checkTxResult = tx.CheckTransaction(this);
+        if (checkTxResult.isErr())
+            return DoS(tx.nDoS, error("CheckBlock() : CheckTransaction failed: (Msg: %s) - (Debug: %s)",
+                                      checkTxResult.unwrapErr().GetRejectReason().c_str(),
+                                      checkTxResult.unwrapErr().GetDebugMessage().c_str()));
 
         // ppcoin: check transaction timestamp
         if (GetBlockTime() < (int64_t)tx.nTime)
@@ -1753,6 +1745,7 @@ bool CBlock::WriteToDisk(const uint256& nBlockPos, const uint256& hashProof)
 
     CBlockIndexSmartPtr pindexNew = nullptr;
 
+    // database transactions are disabled in there because we already have a transaction around here
     if (!AddToBlockIndex(nBlockPos, hashProof, txdb, &pindexNew, false)) {
         return error("AcceptBlock() : AddToBlockIndex failed");
     }

@@ -245,8 +245,8 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStakeFromSpecificOutput(cons
         return boost::none;
     }
 
-    CTxDB               txdb("r");
-    CBlockIndexSmartPtr pindexPrev = boost::atomic_load(&pindexBest);
+    CTxDB                    txdb("r");
+    ConstCBlockIndexSmartPtr pindexPrev = boost::atomic_load(&pindexBest);
 
     const auto keyGetter = [&spendKeyOfOutput](const CKeyID&) {
         return boost::make_optional(spendKeyOfOutput);
@@ -437,7 +437,7 @@ StakeMaker::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBits,
                             const int64_t nCoinstakeInitialTxTime,
                             const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins)
 {
-    CBlockIndexSmartPtr pindexPrev = boost::atomic_load(&pindexBest);
+    ConstCBlockIndexSmartPtr pindexPrev = boost::atomic_load(&pindexBest);
 
     CTxDB txdb("r");
 

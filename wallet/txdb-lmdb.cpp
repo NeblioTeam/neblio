@@ -14,6 +14,7 @@
 #include <future>
 #include <random>
 
+#include "globals.h"
 #include "kernel.h"
 #include "main.h"
 #include "txdb.h"
@@ -1059,19 +1060,18 @@ bool CTxDB::LoadBlockIndex()
     }
 
     // Load hashBestChain pointer to end of best chain
-    if (!ReadHashBestChain(hashBestChain)) {
+    uint256 hashBestChainTemp = 0;
+    if (!ReadHashBestChain(hashBestChainTemp)) {
         if (pindexGenesisBlock == nullptr)
             return true;
         return error("CTxDB::LoadBlockIndex() : hashBestChain not loaded");
     }
-    if (!mapBlockIndex.count(hashBestChain))
+    if (!mapBlockIndex.count(hashBestChainTemp))
         return error("CTxDB::LoadBlockIndex() : hashBestChain not found in the block index");
-    pindexBest      = mapBlockIndex[hashBestChain];
-    nBestHeight     = pindexBest->nHeight;
-    nBestChainTrust = pindexBest->nChainTrust;
+    SetGlobalBestChainParameters(mapBlockIndex.at(hashBestChainTemp), false);
 
     printf("LoadBlockIndex(): hashBestChain=%s  height=%d  trust=%s  date=%s\n",
-           hashBestChain.ToString().substr(0, 20).c_str(), nBestHeight.load(),
+           hashBestChain.load().ToString().substr(0, 20).c_str(), nBestHeight.load(),
            CBigNum(nBestChainTrust).ToString().c_str(),
            DateTimeStrFormat("%x %H:%M:%S", pindexBest->GetBlockTime()).c_str());
 
@@ -1089,10 +1089,10 @@ bool CTxDB::LoadBlockIndex()
     if (nCheckDepth > nBestHeight)
         nCheckDepth = nBestHeight;
     printf("Verifying last %i blocks at level %i\n", nCheckDepth, nCheckLevel);
-    CBlockIndexSmartPtr        pindexFork = nullptr;
-    map<uint256, CBlockIndex*> mapBlockPos;
+    CBlockIndexSmartPtr              pindexFork = nullptr;
+    map<uint256, const CBlockIndex*> mapBlockPos;
     loadedCount = 0;
-    for (CBlockIndexSmartPtr pindex = pindexBest; pindex && pindex->pprev; pindex = pindex->pprev) {
+    for (ConstCBlockIndexSmartPtr pindex = pindexBest; pindex && pindex->pprev; pindex = pindex->pprev) {
 
         if (loadedCount % 100 == 0) {
             uiInterface.InitMessage("Verifying latest blocks (" + std::to_string(loadedCount) + "/" +

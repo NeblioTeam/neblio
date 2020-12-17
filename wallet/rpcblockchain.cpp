@@ -56,8 +56,8 @@ double GetPoWMHashPS()
     int     nPoWInterval          = 72;
     int64_t nTargetSpacingWorkMin = 30, nTargetSpacingWork = 30;
 
-    CBlockIndexSmartPtr pindex         = boost::atomic_load(&pindexGenesisBlock);
-    CBlockIndexSmartPtr pindexPrevWork = boost::atomic_load(&pindexGenesisBlock);
+    ConstCBlockIndexSmartPtr pindex         = boost::atomic_load(&pindexGenesisBlock);
+    ConstCBlockIndexSmartPtr pindexPrevWork = boost::atomic_load(&pindexGenesisBlock);
 
     while (pindex) {
         if (pindex->IsProofOfWork()) {
@@ -81,9 +81,9 @@ double GetPoSKernelPS()
     double dStakeKernelsTriedAvg = 0;
     int    nStakesHandled = 0, nStakesTime = 0;
 
-    CBlockIndexSmartPtr pindex = pindexBest;
+    ConstCBlockIndexSmartPtr pindex = pindexBest;
 
-    CBlockIndexSmartPtr pindexPrevStake = nullptr;
+    ConstCBlockIndexSmartPtr pindexPrevStake = nullptr;
 
     while (pindex && nStakesHandled < nPoSInterval) {
         if (pindex->IsProofOfStake()) {
@@ -161,7 +161,7 @@ Value getbestblockhash(const Array& params, bool fHelp)
         throw runtime_error("getbestblockhash\n"
                             "Returns the hash of the best block in the longest block chain.");
 
-    return hashBestChain.GetHex();
+    return hashBestChain.load().GetHex();
 }
 
 Value getblockcount(const Array& params, bool fHelp)
@@ -723,7 +723,7 @@ Value gettxout(const Array& params, bool fHelp)
                                  std::to_string(n) + " is invalid");
     }
 
-    CBlockIndex* pindex = pindexBest.get();
+    const CBlockIndex* pindex = pindexBest.get();
     ret.push_back(Pair("bestblock", pindex->GetBlockHash().GetHex()));
     if (nHeight == MEMPOOL_HEIGHT) {
         ret.push_back(Pair("confirmations", 0));

@@ -332,7 +332,7 @@ Value dumpwallet(const Array& params, bool fHelp)
                       CLIENT_DATE.c_str());
     file << strprintf("# * Created on %s\n", EncodeDumpTime(GetTime()).c_str());
     file << strprintf("# * Best block at time of backup was %i (%s),\n", nBestHeight.load(),
-                      hashBestChain.ToString().c_str());
+                      hashBestChain.load().ToString().c_str());
     file << strprintf("#   mined on %s\n",
                       EncodeDumpTime(boost::atomic_load(&pindexBest)->nTime).c_str());
     file << "\n";

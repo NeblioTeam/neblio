@@ -49,11 +49,6 @@ CCriticalSection cs_main;
 set<pair<COutPoint, unsigned int>> setStakeSeen;
 libzerocoin::Params*               ZCParams;
 
-uint256 nBestChainTrust   = 0;
-uint256 nBestInvalidTrust = 0;
-
-uint256             hashBestChain     = 0;
-int64_t             nTimeBestReceived = 0;
 boost::atomic<bool> fImporting{false};
 
 CMedianFilter<int> cPeerBlockCounts(5, 0); // Amount of blocks that other nodes claim to have
