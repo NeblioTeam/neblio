@@ -25,6 +25,8 @@ extern CCriticalSection    cs_main;
 extern BlockIndexMapType   mapBlockIndex;
 extern CBlockIndexSmartPtr pindexGenesisBlock;
 
+extern boost::atomic_int64_t nTimeLastBestBlockReceived;
+
 extern boost::atomic<uint256> nBestInvalidTrust;
 
 extern boost::atomic<uint32_t> nTransactionsUpdated;
@@ -107,7 +109,6 @@ class BestChainState
     CBlockIndexSmartPtr    bestBlockIndex{nullptr};
     boost::atomic<uint256> bestChainTrust{0};
     boost::atomic<uint256> bestBlockHash{0};
-    boost::atomic_int64_t  timeLastBestBlockReceived{0};
 
 public:
     void                __test_setHeight(int v) { bestHeight = v; }
@@ -115,7 +116,6 @@ public:
     uint256             chainTrust() const { return bestChainTrust; }
     CBlockIndexSmartPtr blockIndex() const { return boost::atomic_load(&bestBlockIndex); }
     uint256             blockHash() const { return bestBlockHash; }
-    int64_t             timeLastBestReceived() const { return timeLastBestBlockReceived; }
     void setBestChain(const CBlockIndexSmartPtr pindex, bool updateCountersAndTimes = false);
 };
 

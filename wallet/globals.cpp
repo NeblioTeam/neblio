@@ -7,6 +7,8 @@ CTxMemPool mempool;
 BlockIndexMapType   mapBlockIndex;
 CBlockIndexSmartPtr pindexGenesisBlock = nullptr;
 
+boost::atomic_int64_t nTimeLastBestBlockReceived{0};
+
 bool fUseFastIndex;
 
 BestChainState bestChain;
@@ -36,7 +38,7 @@ void BestChainState::setBestChain(const CBlockIndexSmartPtr pindex, bool updateC
     bestHeight     = pindex->nHeight;
     bestChainTrust = pindex->nChainTrust;
     if (updateCountersAndTimes) {
-        timeLastBestBlockReceived = GetTime();
+        nTimeLastBestBlockReceived = GetTime();
         nTransactionsUpdated++;
     }
 }
