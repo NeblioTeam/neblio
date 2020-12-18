@@ -15,10 +15,10 @@
         <location line="+41"/>
         <source>Copyright © 2009-2014 The Bitcoin developers
 Copyright © 2012-2014 The NovaCoin developers
-Copyright © 2017-2019 The Neblio developers</source>
+Copyright © 2017-2021 The Neblio developers</source>
         <translation>Copyright © 2009-2014 Les développeurs Bitcoin
 Copyright © 2012-2014 Les développeurs NovaCoin
-Copyright © 2017-2019 Les développeurs neblio</translation>
+Copyright © 2017-2021 Les développeurs neblio</translation>
     </message>
     <message>
         <location line="+15"/>
