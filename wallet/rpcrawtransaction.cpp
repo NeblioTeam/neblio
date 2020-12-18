@@ -49,8 +49,8 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry, bo
     std::string                              opRet;
     bool                                     isNTP1 = NTP1Transaction::IsTxNTP1(&tx, &opRet);
 
+    CTxDB txdb("r");
     if (isNTP1 && !ignoreNTP1) {
-        CTxDB txdb("r");
         pair = std::make_pair(CTransaction::FetchTxFromDisk(tx.GetHash()), NTP1Transaction());
         FetchNTP1TxFromDisk(pair, txdb, false);
         if (pair.second.isNull()) {
@@ -140,8 +140,9 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry, bo
         BlockIndexMapType::iterator mi = mapBlockIndex.find(hashBlock);
         if (mi != mapBlockIndex.end() && (*mi).second) {
             CBlockIndexSmartPtr pindex = boost::atomic_load(&mi->second);
-            if (pindex->IsInMainChain()) {
-                entry.push_back(Pair("confirmations", 1 + bestChain.height() - pindex->nHeight));
+            if (pindex->IsInMainChain(txdb)) {
+                entry.push_back(
+                    Pair("confirmations", 1 + txdb.GetBestChainHeight().value_or(0) - pindex->nHeight));
                 entry.push_back(Pair("time", (int64_t)pindex->nTime));
                 entry.push_back(Pair("blocktime", (int64_t)pindex->nTime));
             } else
@@ -186,6 +187,7 @@ Value getrawtransaction(const Array& params, bool fHelp)
 
     if (params.size() > 3) {
         // if a specific block was mentioned, get it from the database and look for the tx in it
+        CTxDB txdb;
         {
             uint256                     blockhash = ParseHashV(params[3], "parameter 3");
             BlockIndexMapType::iterator it        = mapBlockIndex.find(blockhash);
@@ -193,11 +195,10 @@ Value getrawtransaction(const Array& params, bool fHelp)
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block hash not found");
             }
             blockindex      = it->second.get();
-            in_active_chain = blockindex->IsInMainChain();
+            in_active_chain = blockindex->IsInMainChain(txdb);
         }
 
         hashBlock = ParseHashV(params[3], "blockhash");
-        CTxDB  txdb;
         CBlock block;
         if (!txdb.ReadBlock(hashBlock, block, true)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block hash not found");
@@ -1046,7 +1047,7 @@ Value sendrawtransaction(const Array& params, bool fHelp)
             throw JSONRPCError(RPC_TRANSACTION_REJECTED, msg);
         }
 
-        SyncWithWallets(tx, NULL);
+        SyncWithWallets(CTxDB(), tx, nullptr);
     }
     RelayTransaction(tx);
 

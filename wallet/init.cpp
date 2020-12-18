@@ -929,7 +929,7 @@ bool AppInit2()
 
     RegisterWallet(pwalletMain);
 
-    CBlockIndexSmartPtr pindexRescan = bestChain.blockIndex();
+    CBlockIndexSmartPtr pindexRescan = CTxDB().GetBestBlockIndex();
     if (GetBoolArg("-rescan") ||
         SC_CheckOperationOnRestartScheduleThenDeleteIt(SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN))
         pindexRescan = boost::atomic_load(&pindexGenesisBlock);
@@ -941,11 +941,12 @@ bool AppInit2()
         else
             pindexRescan = boost::atomic_load(&pindexGenesisBlock);
     }
-    if (bestChain.blockIndex() != pindexRescan && bestChain.blockIndex() && pindexRescan &&
-        bestChain.height() > pindexRescan->nHeight) {
+    ConstCBlockIndexSmartPtr bestBlockIndex = CTxDB().GetBestBlockIndex();
+    if (bestBlockIndex != pindexRescan && CTxDB().GetBestBlockIndex() && pindexRescan &&
+        bestBlockIndex->nHeight > pindexRescan->nHeight) {
         uiInterface.InitMessage(_("Rescanning..."));
         printf("Rescanning last %i blocks (from block %i)...\n",
-               bestChain.height() - pindexRescan->nHeight, pindexRescan->nHeight);
+               bestBlockIndex->nHeight - pindexRescan->nHeight, pindexRescan->nHeight);
         nStart = GetTimeMillis();
         pwalletMain->ScanForWalletTransactions(pindexRescan.get(), true);
         printf(" rescan      %15" PRId64 "ms\n", GetTimeMillis() - nStart);
@@ -986,7 +987,7 @@ bool AppInit2()
 
     //// debug print
     printf("mapBlockIndex.size() = %" PRIszu "\n", mapBlockIndex.size());
-    printf("BestHeight = %d\n", bestChain.height());
+    printf("BestHeight = %d\n", bestBlockIndex->nHeight);
     printf("setKeyPool.size() = %" PRIszu "\n", pwalletMain->setKeyPool.size());
     printf("mapWallet.size() = %" PRIszu "\n", pwalletMain->mapWallet.size());
     printf("mapAddressBook.size() = %" PRIszu "\n", pwalletMain->mapAddressBook.size());

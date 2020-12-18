@@ -1,6 +1,7 @@
 #ifndef NETWORKFORKS_H
 #define NETWORKFORKS_H
 
+#include "wallet/itxdb.h"
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/atomic.hpp>
@@ -9,7 +10,7 @@
 #include <string>
 #include <vector>
 
-class BestChainState;
+class ITxDB;
 
 enum NetworkFork : uint16_t
 {
@@ -42,13 +43,11 @@ class NetworkForks
 {
     boost::container::flat_map<NetworkFork, int> forksToBlockMap;
     boost::container::flat_map<int, NetworkFork> blockToForksMap;
-    const BestChainState&                        bestChain_internal;
 
 public:
-    NetworkForks(const boost::container::flat_map<NetworkFork, int>& ForksToBlocks,
-                 const BestChainState&                               BestChainVar);
+    NetworkForks(const boost::container::flat_map<NetworkFork, int>& ForksToBlocks);
 
-    bool isForkActivated(NetworkFork fork) const;
+    bool isForkActivated(NetworkFork fork, const ITxDB& txdb) const;
 
     NetworkFork getForkAtBlockNumber(int blockNumber) const;
 

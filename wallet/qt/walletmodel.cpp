@@ -78,9 +78,10 @@ void WalletModel::pollBalanceChanged()
     if (!lockWallet)
         return;
 
-    if (bestChain.height() != cachedNumBlocks) {
+    int currentBlockHeight = CTxDB().GetBestChainHeight().value_or(0);
+    if (currentBlockHeight != cachedNumBlocks) {
         // Balance and number of transactions might have changed
-        cachedNumBlocks = bestChain.height();
+        cachedNumBlocks = currentBlockHeight;
 
         checkBalanceChanged();
 

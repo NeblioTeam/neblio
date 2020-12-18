@@ -6,6 +6,7 @@
 #include "main.h"
 #include "util.h"
 #include "wallet.h"
+#include "wallet/test/mocks/mtxdb.h"
 
 using namespace std;
 
@@ -323,61 +324,60 @@ TEST(util_tests, util_seed_insecure_rand)
 
 TEST(util_tests, network_fork)
 {
-    BestChainState      bestChain;
-    CBlockIndexSmartPtr bestBlockIndexPtr = boost::make_shared<CBlockIndex>();
-    bestBlockIndexPtr->nHeight            = 0;
-    bestBlockIndexPtr->phashBlock         = new uint256(0);
-    bestChain.setBestChain(bestBlockIndexPtr);
+    using namespace testing;
+
+    boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
 
     NetworkForks netfork(
         boost::container::flat_map<NetworkFork, int>{{NetworkFork::NETFORK__1_FIRST_ONE, 0},
                                                      {NetworkFork::NETFORK__2_CONFS_CHANGE, 100},
-                                                     {NetworkFork::NETFORK__3_TACHYON, 200}},
-        bestChain);
+                                                     {NetworkFork::NETFORK__3_TACHYON, 200}});
 
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE), true);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE), false);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON), false);
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(Return(boost::make_optional<int>(0)));
 
-    bestChain.__test_setHeight(99);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE), true);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE), false);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON), false);
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE, *dbMock), true);
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE, *dbMock), false);
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON, *dbMock), false);
 
-    bestChain.__test_setHeight(100);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE), true);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE), true);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON), false);
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(Return(boost::make_optional<int>(99)));
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE, *dbMock), true);
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE, *dbMock), false);
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON, *dbMock), false);
 
-    bestChain.__test_setHeight(101);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE), true);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE), true);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON), false);
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(Return(boost::make_optional<int>(100)));
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE, *dbMock), true);
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE, *dbMock), true);
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON, *dbMock), false);
 
-    bestChain.__test_setHeight(150);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE), true);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE), true);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON), false);
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(Return(boost::make_optional<int>(101)));
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE, *dbMock), true);
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE, *dbMock), true);
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON, *dbMock), false);
 
-    bestChain.__test_setHeight(199);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE), true);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE), true);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON), false);
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(Return(boost::make_optional<int>(150)));
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE, *dbMock), true);
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE, *dbMock), true);
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON, *dbMock), false);
 
-    bestChain.__test_setHeight(200);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE), true);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE), true);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON), true);
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(Return(boost::make_optional<int>(199)));
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE, *dbMock), true);
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE, *dbMock), true);
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON, *dbMock), false);
 
-    bestChain.__test_setHeight(201);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE), true);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE), true);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON), true);
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(Return(boost::make_optional<int>(200)));
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE, *dbMock), true);
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE, *dbMock), true);
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON, *dbMock), true);
 
-    bestChain.__test_setHeight(250);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE), true);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE), true);
-    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON), true);
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(Return(boost::make_optional<int>(201)));
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE, *dbMock), true);
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE, *dbMock), true);
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON, *dbMock), true);
+
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(Return(boost::make_optional<int>(250)));
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__1_FIRST_ONE, *dbMock), true);
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE, *dbMock), true);
+    EXPECT_EQ(netfork.isForkActivated(NetworkFork::NETFORK__3_TACHYON, *dbMock), true);
 
     EXPECT_EQ(netfork.getFirstBlockOfFork(NetworkFork::NETFORK__1_FIRST_ONE), 0);
     EXPECT_EQ(netfork.getFirstBlockOfFork(NetworkFork::NETFORK__2_CONFS_CHANGE), 100);

@@ -271,10 +271,12 @@ std::string NTP1Script_Issuance::calculateScriptBin() const
             result += metadata;
         }
 
-        if (isOpReturnSizeCheckEnabled() && result.size() > Params().OpReturnMaxSize()) {
+        const CTxDB txdb;
+
+        if (isOpReturnSizeCheckEnabled() && result.size() > Params().OpReturnMaxSize(txdb)) {
             throw std::runtime_error("Calculated script size (" + std::to_string(result.size()) +
                                      " bytes) is larger than the maximum allowed (" +
-                                     std::to_string(Params().OpReturnMaxSize()) + " bytes)");
+                                     std::to_string(Params().OpReturnMaxSize(txdb)) + " bytes)");
         }
 
         return result;

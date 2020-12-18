@@ -90,6 +90,10 @@ Value getinfo(const Array& params, bool fHelp)
     proxyType proxy;
     GetProxy(NET_IPV4, proxy);
 
+    CTxDB txdb;
+
+    auto bestBlockIndex = txdb.GetBestBlockIndex();
+
     Object obj, diff;
     obj.push_back(Pair("version", FormatFullVersion()));
     obj.push_back(Pair("protocolversion", (int)PROTOCOL_VERSION));
@@ -97,21 +101,20 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("balance", ValueFromAmount(pwalletMain->GetBalance())));
     obj.push_back(Pair("newmint", ValueFromAmount(pwalletMain->GetNewMint())));
     obj.push_back(Pair("stake", ValueFromAmount(pwalletMain->GetStake())));
-    obj.push_back(Pair("blocks", (int)bestChain.height()));
+    obj.push_back(Pair("blocks", (int)bestBlockIndex->nHeight));
     obj.push_back(Pair("timeoffset", (int64_t)GetTimeOffset()));
-    obj.push_back(Pair("moneysupply", ValueFromAmount(bestChain.blockIndex()->nMoneySupply)));
+    obj.push_back(Pair("moneysupply", ValueFromAmount(bestBlockIndex->nMoneySupply)));
     obj.push_back(Pair("connections", (int)vNodes.size()));
     obj.push_back(Pair("proxy", (proxy.first.IsValid() ? proxy.first.ToStringIPPort() : string())));
     obj.push_back(Pair("ip", addrSeenByPeer.get().ToStringIP()));
 
     diff.push_back(Pair("proof-of-work", GetDifficulty()));
-    diff.push_back(
-        Pair("proof-of-stake", GetDifficulty(GetLastBlockIndex(bestChain.blockIndex().get(), true))));
+    diff.push_back(Pair("proof-of-stake", GetDifficulty(GetLastBlockIndex(bestBlockIndex.get(), true))));
     obj.push_back(Pair("difficulty", diff));
 
     obj.push_back(Pair("testnet", Params().NetType() != NetworkType::Mainnet));
     obj.push_back(
-        Pair("tachyon", Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)));
+        Pair("tachyon", Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, txdb)));
     obj.push_back(Pair("keypoololdest", (int64_t)pwalletMain->GetOldestKeyPoolTime()));
     obj.push_back(Pair("keypoolsize", (int)pwalletMain->GetKeyPoolSize()));
     obj.push_back(Pair("paytxfee", ValueFromAmount(nTransactionFee)));
@@ -1848,7 +1851,8 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
             entry.push_back(Pair("category", "send"));
             entry.push_back(Pair("amount", ValueFromAmount(-s.second)));
             entry.push_back(Pair("fee", ValueFromAmount(-nFee)));
-            entry.push_back(Pair("blockheight", bestChain.height() - wtx.GetDepthInMainChain()));
+            entry.push_back(Pair("blockheight",
+                                 CTxDB().GetBestChainHeight().value_or(0) - wtx.GetDepthInMainChain()));
             if (fLong)
                 WalletTxToJSON(wtx, entry);
             ret.push_back(entry);
@@ -1883,7 +1887,8 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                     entry.push_back(Pair("amount", ValueFromAmount(-nFee)));
                     stop = true; // only one coinstake output
                 }
-                entry.push_back(Pair("blockheight", 1 + bestChain.height() - wtx.GetDepthInMainChain()));
+                entry.push_back(Pair("blockheight", 1 + CTxDB().GetBestChainHeight().value_or(0) -
+                                                        wtx.GetDepthInMainChain()));
                 if (fLong)
                     WalletTxToJSON(wtx, entry);
                 ret.push_back(entry);
@@ -2068,7 +2073,7 @@ Value listsinceblock(const Array& params, bool fHelp)
         pindex = it->second.get();
 
         // find the common ancestor if this block is not in mainchain
-        while (pindex && !pindex->IsInMainChain() && pindex->pprev) {
+        while (pindex && !pindex->IsInMainChain(CTxDB()) && pindex->pprev) {
             nonMainChain.push_back(*pindex->phashBlock);
             pindex = pindex->pprev.get();
         }
@@ -2081,7 +2086,7 @@ Value listsinceblock(const Array& params, bool fHelp)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter");
     }
 
-    int depth = pindex ? (1 + bestChain.height() - pindex->nHeight) : -1;
+    int depth = pindex ? (1 + CTxDB().GetBestChainHeight().value_or(0) - pindex->nHeight) : -1;
 
     Array transactions;
     Array removed;
@@ -2099,9 +2104,9 @@ Value listsinceblock(const Array& params, bool fHelp)
         includeRemoved = params[2].get_bool();
     }
 
+    CTxDB txdb;
     if (includeRemoved) {
         for (const uint256& h : nonMainChain) {
-            CTxDB  txdb;
             CBlock block;
             if (txdb.ReadBlock(h, block, true)) {
                 for (const CTransaction& tx : block.vtx) {
@@ -2119,12 +2124,12 @@ Value listsinceblock(const Array& params, bool fHelp)
     uint256 lastblock;
 
     if (target_confirms == 1) {
-        lastblock = bestChain.blockHash();
+        lastblock = txdb.GetBestBlockHash();
     } else {
-        int target_height = bestChain.height() + 1 - target_confirms;
+        int target_height = CTxDB().GetBestChainHeight().value_or(0) + 1 - target_confirms;
 
         CBlockIndex* block;
-        for (block = bestChain.blockIndex().get(); block && block->nHeight > target_height;
+        for (block = txdb.GetBestBlockIndex().get(); block && block->nHeight > target_height;
              block = boost::atomic_load(&block->pprev).get()) {
         }
 
@@ -2199,8 +2204,10 @@ Value gettransaction(const Array& params, bool fHelp)
                 BlockIndexMapType::iterator mi = mapBlockIndex.find(hashBlock);
                 if (mi != mapBlockIndex.end() && (*mi).second) {
                     CBlockIndexSmartPtr pindex = boost::atomic_load(&mi->second);
-                    if (pindex->IsInMainChain())
-                        entry.push_back(Pair("confirmations", 1 + bestChain.height() - pindex->nHeight));
+                    if (pindex->IsInMainChain(CTxDB()))
+                        entry.push_back(
+                            Pair("confirmations",
+                                 1 + CTxDB().GetBestChainHeight().value_or(0) - pindex->nHeight));
                     else
                         entry.push_back(Pair("confirmations", 0));
                 }

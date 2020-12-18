@@ -23,11 +23,12 @@ int CMerkleTx::GetDepthInMainChain(const CBlockIndex*& pindexRet) const
         nResult = 0;
     } else {
         CBlockIndex* pindex = (*mi).second.get();
-        if (!pindex || !pindex->IsInMainChain()) {
+        if (!pindex || !pindex->IsInMainChain(CTxDB())) {
             nResult = 0;
         } else {
             pindexRet = pindex;
-            nResult   = ((nIndex == -1) ? (-1) : 1) * (bestChain.height() - pindex->nHeight + 1);
+            nResult   = ((nIndex == -1) ? (-1) : 1) *
+                      (CTxDB().GetBestChainHeight().value_or(0) - pindex->nHeight + 1);
         }
     }
 
@@ -38,7 +39,7 @@ int CMerkleTx::GetBlocksToMaturity() const
 {
     if (!(IsCoinBase() || IsCoinStake()))
         return 0;
-    int nCbM = Params().CoinbaseMaturity();
+    int nCbM = Params().CoinbaseMaturity(CTxDB());
     return std::max(0, (nCbM + 1) - GetDepthInMainChain());
 }
 
@@ -57,11 +58,13 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
 {
     AssertLockHeld(cs_main);
 
+    const CTxDB txdb("r");
+
     CBlock blockTmp;
     if (pblock == NULL) {
         // Load the block this tx is in
         CTxIndex txindex;
-        if (!CTxDB("r").ReadTxIndex(GetHash(), txindex))
+        if (!txdb.ReadTxIndex(GetHash(), txindex))
             return 0;
         if (!blockTmp.ReadFromDisk(txindex.pos.nBlockPos))
             return 0;
@@ -90,8 +93,8 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
     if (mi == mapBlockIndex.end())
         return 0;
     CBlockIndexSmartPtr pindex = boost::atomic_load(&mi->second);
-    if (!pindex || !pindex->IsInMainChain())
+    if (!pindex || !pindex->IsInMainChain(txdb))
         return 0;
 
-    return bestChain.blockIndex()->nHeight - pindex->nHeight + 1;
+    return txdb.GetBestBlockIndex()->nHeight - pindex->nHeight + 1;
 }

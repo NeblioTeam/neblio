@@ -508,12 +508,12 @@ void CNode::PushVersion()
     CAddress addrYou = (addr.IsRoutable() && !IsProxy(addr) ? addr : CAddress(CService("0.0.0.0", 0)));
     CAddress addrMe  = GetLocalAddress(&addr);
     RAND_bytes((unsigned char*)&nLocalHostNonce, sizeof(nLocalHostNonce));
+    const int bestHeight = CTxDB().GetBestChainHeight().value_or(0);
     printf("send version message: version %d, blocks=%d, us=%s, them=%s, peer=%s\n", PROTOCOL_VERSION,
-           bestChain.height(), addrMe.ToString().c_str(), addrYou.ToString().c_str(),
-           addr.ToString().c_str());
+           bestHeight, addrMe.ToString().c_str(), addrYou.ToString().c_str(), addr.ToString().c_str());
 
     PushMessage("version", PROTOCOL_VERSION, nLocalServices.load(), nTime, addrYou, addrMe,
-                nLocalHostNonce.load(), strSubVersion, bestChain.height());
+                nLocalHostNonce.load(), strSubVersion, bestHeight);
 }
 
 std::map<CNetAddr, int64_t> CNode::setBanned;

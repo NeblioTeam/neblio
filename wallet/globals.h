@@ -103,6 +103,8 @@ static const std::string SAFE_CHARS[] = {
 
 std::string SanitizeString(const std::string& str, int rule);
 
+// this was the last used way to track the chain state, but now we replaced it with database calls for
+// consistency
 class BestChainState
 {
     boost::atomic<int>     bestHeight{-1};

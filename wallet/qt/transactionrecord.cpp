@@ -210,12 +210,13 @@ void TransactionRecord::updateStatus(const CWalletTx& wtx)
     status.countsForBalance = wtx.IsTrusted() && !(wtx.GetBlocksToMaturity() > 0);
     bool fConflicted        = false;
     status.depth            = wtx.GetDepthAndMempool(fConflicted);
-    status.cur_num_blocks   = bestChain.height();
+    const int bestHeight    = CTxDB().GetBestChainHeight().value_or(0);
+    status.cur_num_blocks   = bestHeight;
 
-    if (!IsFinalTx(wtx, bestChain.height() + 1)) {
+    if (!IsFinalTx(wtx, bestHeight + 1)) {
         if (wtx.nLockTime < LOCKTIME_THRESHOLD) {
             status.status   = TransactionStatus::OpenUntilBlock;
-            status.open_for = wtx.nLockTime - bestChain.height();
+            status.open_for = wtx.nLockTime - bestHeight;
         } else {
             status.status   = TransactionStatus::OpenUntilDate;
             status.open_for = wtx.nLockTime;
@@ -257,7 +258,7 @@ void TransactionRecord::updateStatus(const CWalletTx& wtx)
 bool TransactionRecord::statusUpdateNeeded()
 {
     AssertLockHeld(cs_main);
-    return status.cur_num_blocks != bestChain.height();
+    return status.cur_num_blocks != CTxDB().GetBestChainHeight().value_or(0);
 }
 
 std::string TransactionRecord::getTxID() { return hash.ToString(); }

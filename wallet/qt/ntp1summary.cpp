@@ -47,7 +47,7 @@ void NTP1Summary::GetAlreadyIssuedNTP1Tokens(boost::promise<std::unordered_set<s
                             "Failed to find the block that belongs to transaction: " + hash.ToString());
                     }
                     auto it = mapBlockIndex.find(blockHash);
-                    if (it != mapBlockIndex.cend() && it->second->IsInMainChain()) {
+                    if (it != mapBlockIndex.cend() && it->second->IsInMainChain(CTxDB())) {
                         std::string tokenSymbol = ntp1tx.getTokenSymbolIfIssuance();
                         // symbols should be in upper case for the comparison to work
                         std::transform(tokenSymbol.begin(), tokenSymbol.end(), tokenSymbol.begin(),

@@ -97,9 +97,9 @@ uint256 CBlockIndex::GetBlockTrust() const
     return ((CBigNum(1) << 256) / (bnTarget + 1)).getuint256();
 }
 
-bool CBlockIndex::IsInMainChain() const
+bool CBlockIndex::IsInMainChain(const ITxDB& txdb) const
 {
-    return (pnext || this == bestChain.blockIndex().get());
+    return (pnext || this == txdb.GetBestBlockIndex().get());
 }
 
 bool CBlockIndex::IsSuperMajority(int minVersion, const CBlockIndex* pstart, unsigned int nRequired,

@@ -1,6 +1,7 @@
 #include "txindex.h"
 
 #include "block.h"
+#include "itxdb.h"
 
 CTxIndex::CTxIndex() { SetNull(); }
 
@@ -18,7 +19,7 @@ void CTxIndex::SetNull()
 
 bool CTxIndex::IsNull() { return pos.IsNull(); }
 
-int CTxIndex::GetDepthInMainChain() const
+int CTxIndex::GetDepthInMainChain(const ITxDB& txdb) const
 {
     // Read block header
     CBlock block;
@@ -29,7 +30,7 @@ int CTxIndex::GetDepthInMainChain() const
     if (mi == mapBlockIndex.end())
         return 0;
     CBlockIndexSmartPtr pindex = boost::atomic_load(&mi->second);
-    if (!pindex || !pindex->IsInMainChain())
+    if (!pindex || !pindex->IsInMainChain(txdb))
         return 0;
-    return 1 + bestChain.height() - pindex->nHeight;
+    return 1 + txdb.GetBestChainHeight().value_or(0) - pindex->nHeight;
 }

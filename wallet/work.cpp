@@ -1,6 +1,7 @@
 #include "work.h"
 
 #include "globals.h"
+#include "txdb-lmdb.h"
 #include "util.h"
 
 // miner's coin base reward
@@ -9,13 +10,15 @@ int64_t GetProofOfWorkReward(int64_t nFees)
     // Miner reward: 2000 coin for 500 Blocks = 1,000,000 coin
     int64_t nSubsidy = 2000 * COIN;
 
-    if (bestChain.height() == 0) {
+    const int bestHeight = CTxDB().GetBestChainHeight().value_or(0);
+
+    if (bestHeight == 0) {
         // Total premine coin, after the first 501 blocks are mined there will be a total of 125,000,000
         nSubsidy = 124000000 * COIN;
     }
 
     // 0 reward for PoW blocks after 500
-    if (bestChain.height() > 500) {
+    if (bestHeight > 500) {
         nSubsidy = 0;
     }
 
@@ -33,7 +36,7 @@ int64_t GetProofOfStakeReward(int64_t nCoinAge, int64_t nFees)
 
     int64_t nRewardCoinYear = COIN_YEAR_REWARD; // 10% reward up to end
 
-    printf("Block Number %d \n", bestChain.height());
+    printf("Block Number %d \n", CTxDB().GetBestChainHeight().value_or(0));
 
     int64_t nSubsidy = nCoinAge * nRewardCoinYear * 33 / (365 * 33 + 8);
     printf("coin-Subsidy %" PRId64 "\n", nSubsidy);

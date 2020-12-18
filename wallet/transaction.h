@@ -124,10 +124,10 @@ public:
         */
     int64_t GetValueIn(const MapPrevTx& mapInputs) const;
 
-    int64_t GetMinFee(unsigned int nBlockSize = 1, enum GetMinFee_mode mode = GMF_BLOCK,
-                      unsigned int nBytes = 0) const;
+    int64_t GetMinFee(const ITxDB& txdb, unsigned int nBlockSize = 1,
+                      enum GetMinFee_mode mode = GMF_BLOCK, unsigned int nBytes = 0) const;
 
-    bool ReadFromDisk(CDiskTxPos pos, CTxDB& txdb);
+    bool ReadFromDisk(CDiskTxPos pos, const ITxDB& txdb);
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)
     {
@@ -143,7 +143,7 @@ public:
 
     void print() const;
 
-    bool ReadFromDisk(CTxDB& txdb, COutPoint prevout, CTxIndex& txindexRet);
+    bool ReadFromDisk(const ITxDB& txdb, COutPoint prevout, CTxIndex& txindexRet);
     bool ReadFromDisk(CTxDB& txdb, COutPoint prevout);
     bool DisconnectInputs(CTxDB& txdb);
 
@@ -157,7 +157,7 @@ public:
             @param[out] fInvalid	returns true if transaction is invalid
             @return	Returns true if all inputs are in txdb or mapTestPool
                 */
-    bool FetchInputs(CTxDB& txdb, const std::map<uint256, CTxIndex>& mapTestPool, bool fBlock,
+    bool FetchInputs(const ITxDB& txdb, const std::map<uint256, CTxIndex>& mapTestPool, bool fBlock,
                      bool fMiner, MapPrevTx& inputsRet, bool& fInvalid) const;
 
     /** Sanity check previous transactions, then, if all checks succeed,
@@ -172,17 +172,18 @@ public:
         @return Returns true if all checks succeed
         */
     Result<void, TxValidationState>
-                                    ConnectInputs(MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTestPool,
-                                                  const CDiskTxPos& posThisTx, const ConstCBlockIndexSmartPtr& pindexBlock, bool fBlock,
-                                                  bool fMiner, CBlock* sourceBlockPtr = nullptr) const;
-    Result<void, TxValidationState> CheckTransaction(CBlock* sourceBlock = nullptr) const;
-    bool GetCoinAge(CTxDB& txdb, uint64_t& nCoinAge) const; // ppcoin: get transaction coin age
+    ConnectInputs(const ITxDB& txdb, MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTestPool,
+                  const CDiskTxPos& posThisTx, const ConstCBlockIndexSmartPtr& pindexBlock, bool fBlock,
+                  bool fMiner, CBlock* sourceBlockPtr = nullptr) const;
+    Result<void, TxValidationState> CheckTransaction(const ITxDB& txdb,
+                                                     CBlock*      sourceBlock = nullptr) const;
+    bool GetCoinAge(const ITxDB& txdb, uint64_t& nCoinAge) const; // ppcoin: get transaction coin age
 
     [[nodiscard]] static CTransaction FetchTxFromDisk(const uint256& txid);
     [[nodiscard]] static CTransaction FetchTxFromDisk(const uint256& txid, CTxDB& txdb);
 
     [[nodiscard]] static std::vector<CKey>
-                                     GetThisWalletKeysOfTx(const uint256& txid, boost::optional<unsigned> outputNumber = boost::none);
+    GetThisWalletKeysOfTx(const uint256& txid, boost::optional<unsigned> outputNumber = boost::none);
     [[nodiscard]] static std::string DecryptMetadataOfTx(const StringViewT             metadataStr,
                                                          const uint256&                txid,
                                                          boost::optional<std::string>& error);

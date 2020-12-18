@@ -12,9 +12,10 @@
 QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
 {
     AssertLockHeld(cs_main);
-    if (!IsFinalTx(wtx, bestChain.height() + 1)) {
+    if (!IsFinalTx(wtx, CTxDB().GetBestChainHeight().value_or(0) + 1)) {
         if (wtx.nLockTime < LOCKTIME_THRESHOLD)
-            return tr("Open for %n more block(s)", "", wtx.nLockTime - bestChain.height());
+            return tr("Open for %n more block(s)", "",
+                      wtx.nLockTime - CTxDB().GetBestChainHeight().value_or(0));
         else
             return tr("Open until %1").arg(GUIUtil::dateTimeStr(wtx.nLockTime));
     } else {

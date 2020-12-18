@@ -63,7 +63,7 @@ public:
 
     uint256 GetBlockTrust() const;
 
-    bool IsInMainChain() const;
+    bool IsInMainChain(const ITxDB& txdb) const;
 
     bool CheckIndex() const { return true; }
 

@@ -179,7 +179,7 @@ public:
     GetAllNTP1InputsOfTx(CTransaction tx, CTxDB& txdb, bool recoverProtection, int recursionCount = 0);
 
     static std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(
-        CTransaction tx, CTxDB& txdb, bool recoverProtection,
+        CTransaction tx, const ITxDB& txdb, bool recoverProtection,
         const std::map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>&
                                            mapQueuedNTP1Inputs,
         const std::map<uint256, CTxIndex>& queuedAcceptedTxs = std::map<uint256, CTxIndex>(),
@@ -187,16 +187,18 @@ public:
 
     /** Take a list of standard neblio transactions and return pairs of neblio and NTP1 transactions */
     static std::vector<std::pair<CTransaction, NTP1Transaction>> StdFetchedInputTxsToNTP1(
-        const CTransaction& tx, const MapPrevTx& mapInputs, CTxDB& txdb, bool recoverProtection,
+        const CTransaction& tx, const MapPrevTx& mapInputs, const ITxDB& txdb, bool recoverProtection,
         const std::map<uint256, CTxIndex>& queuedAcceptedTxs = std::map<uint256, CTxIndex>(),
         int                                recursionCount    = 0);
 
     static std::vector<std::pair<CTransaction, NTP1Transaction>> StdFetchedInputTxsToNTP1(
-        const CTransaction& tx, const MapPrevTx& mapInputs, CTxDB& txdb, bool recoverProtection,
+        const CTransaction& tx, const MapPrevTx& mapInputs, const ITxDB& txdb, bool recoverProtection,
         const std::map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>&
                                            mapQueuedNTP1Inputs,
         const std::map<uint256, CTxIndex>& queuedAcceptedTxs = std::map<uint256, CTxIndex>(),
         int                                recursionCount    = 0);
+
+    static int GetCurrentBlockHeight(CTxDB* txdb = nullptr);
 };
 
 bool operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs)
@@ -346,7 +348,7 @@ void NTP1Transaction::__TransferTokens(
             // check if the token is blacklisted
             int blacklistHeight = 0;
             if (Params().IsNTP1TokenBlacklisted(currentTokenId, blacklistHeight)) {
-                if (bestChain.height() >= blacklistHeight) {
+                if (GetCurrentBlockHeight() >= blacklistHeight) {
                     throw std::runtime_error("The NTP1 token " + currentTokenId +
                                              " is blacklisted and cannot be transferred or burned.");
                 }

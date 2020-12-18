@@ -2,6 +2,7 @@
 
 #include "blockindex.h"
 #include "protocol.h"
+#include "txdb-lmdb.h"
 
 CBlockLocator::CBlockLocator(const CBlockIndex* pindex) { Set(pindex); }
 
@@ -43,7 +44,7 @@ int CBlockLocator::GetDistanceBack()
         BlockIndexMapType::iterator mi = mapBlockIndex.find(hash);
         if (mi != mapBlockIndex.end()) {
             CBlockIndexSmartPtr pindex = boost::atomic_load(&mi->second);
-            if (pindex->IsInMainChain())
+            if (pindex->IsInMainChain(CTxDB()))
                 return nDistance;
         }
         nDistance += nStep;
@@ -60,7 +61,7 @@ CBlockIndexSmartPtr CBlockLocator::GetBlockIndex()
         BlockIndexMapType::iterator mi = mapBlockIndex.find(hash);
         if (mi != mapBlockIndex.end()) {
             CBlockIndexSmartPtr pindex = boost::atomic_load(&mi->second);
-            if (pindex->IsInMainChain())
+            if (pindex->IsInMainChain(CTxDB()))
                 return pindex;
         }
     }
@@ -74,7 +75,7 @@ uint256 CBlockLocator::GetBlockHash()
         BlockIndexMapType::iterator mi = mapBlockIndex.find(hash);
         if (mi != mapBlockIndex.end()) {
             CBlockIndexSmartPtr pindex = boost::atomic_load(&mi->second);
-            if (pindex->IsInMainChain())
+            if (pindex->IsInMainChain(CTxDB()))
                 return hash;
         }
     }

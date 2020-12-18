@@ -135,7 +135,7 @@ public:
     bool WriteBlockPubKeys(CTxDB& txdb);
 
     bool ReadFromDisk(const uint256& hash, bool fReadTransactions = true);
-    bool ReadFromDisk(const uint256& hash, CTxDB& txdb, bool fReadTransactions = true);
+    bool ReadFromDisk(const uint256& hash, const ITxDB& txdb, bool fReadTransactions = true);
 
     void print() const;
 
@@ -158,32 +158,34 @@ public:
         CBlockIndexSmartPtr commonAncestor;
     };
 
-    CommonAncestorSuccessorBlocks GetBlocksUpToCommonAncestorInMainChain() const;
-    ChainReplaceTxs               GetAlternateChainTxsUpToCommonAncestor(CTxDB& txdb) const;
+    CommonAncestorSuccessorBlocks GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const;
+    ChainReplaceTxs               GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const;
 
     bool DisconnectBlock(CTxDB& txdb, CBlockIndexSmartPtr& pindex);
     bool ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool fJustCheck = false);
     bool VerifyInputsUnspent(CTxDB& txdb) const;
     bool VerifyBlock(CTxDB& txdb);
     bool ReadFromDisk(const CBlockIndex* pindex, bool fReadTransactions = true);
-    bool ReadFromDisk(const CBlockIndex* pindex, CTxDB& txdb, bool fReadTransactions = true);
+    bool ReadFromDisk(const CBlockIndex* pindex, const ITxDB& txdb, bool fReadTransactions = true);
     bool SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
                       const bool createDbTransaction = true);
     bool AddToBlockIndex(uint256 nBlockPos, const uint256& hashProof, CTxDB& txdb,
                          CBlockIndexSmartPtr* newBlockIdxPtr      = nullptr,
                          const bool           createDbTransaction = true);
-    bool CheckBlock(bool fCheckPOW = true, bool fCheckMerkleRoot = true, bool fCheckSig = true);
+    bool CheckBlock(const ITxDB& txdb, bool fCheckPOW = true, bool fCheckMerkleRoot = true,
+                    bool fCheckSig = true);
     bool AcceptBlock();
     bool GetCoinAge(uint64_t& nCoinAge) const; // ppcoin: calculate total coin age spent in block
     bool
-         SignBlock(const CWallet& keystore, int64_t nFees,
+         SignBlock(const CTxDB& txdb, const CWallet& keystore, int64_t nFees,
                    const boost::optional<std::set<std::pair<uint256, unsigned>>>& customInputs = boost::none,
                    CAmount                                                        extraPayoutForTest = 0);
     bool SignBlockWithSpecificKey(const COutPoint& outputToStake, const CKey& keyOfOutput,
                                   int64_t nFees);
 
-    bool CheckBlockSignature() const;
-    bool IsColdStakedBlock() const;
+    bool IsColdStakedBlock(const ITxDB& txdb) const;
+
+    bool CheckBlockSignature(const ITxDB& txdb) const;
 
     static CBlockIndexSmartPtr FindBlockByHeight(int nHeight);
 

@@ -11,8 +11,6 @@ boost::atomic_int64_t nTimeLastBestBlockReceived{0};
 
 bool fUseFastIndex;
 
-BestChainState bestChain;
-
 boost::atomic<uint32_t> nTransactionsUpdated{0};
 
 boost::atomic<uint256> nBestInvalidTrust{0};

@@ -39,7 +39,7 @@ int ClientModel::getNumBlocks() const
 {
     // The lock was removed after changing nBestHeight to atomic
     //    LOCK(cs_main);
-    return bestChain.height();
+    return CTxDB().GetBestChainHeight().value_or(0);
 }
 
 int ClientModel::getNumBlocksAtStartup()
@@ -52,8 +52,9 @@ int ClientModel::getNumBlocksAtStartup()
 QDateTime ClientModel::getLastBlockDate() const
 {
     LOCK(cs_main);
-    if (bestChain.blockIndex())
-        return QDateTime::fromTime_t(bestChain.blockIndex()->GetBlockTime());
+    const ConstCBlockIndexSmartPtr bi = CTxDB().GetBestBlockIndex();
+    if (bi)
+        return QDateTime::fromTime_t(bi->GetBlockTime());
     else
         return QDateTime::fromTime_t(Params().GenesisBlock().GetBlockTime()); // Genesis block's time
 }
@@ -128,7 +129,7 @@ QString ClientModel::formatClientStartupTime() const
 }
 
 // Handlers for core signals
-static void NotifyBlocksChanged(ClientModel* clientmodel)
+static void NotifyBlocksChanged(ClientModel* /*clientmodel*/)
 {
     // This notification is too frequent. Don't trigger a signal.
     // Don't remove it, though, as it might be useful later.

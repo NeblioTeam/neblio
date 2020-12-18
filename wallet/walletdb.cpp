@@ -310,7 +310,7 @@ bool ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue, CW
             ssKey >> hash;
             CWalletTx& wtx = pwallet->mapWallet[hash];
             ssValue >> wtx;
-            if (wtx.CheckTransaction().isOk() && (wtx.GetHash() == hash))
+            if (wtx.CheckTransaction(CTxDB()).isOk() && (wtx.GetHash() == hash))
                 wtx.BindWallet(pwallet);
             else {
                 pwallet->mapWallet.erase(hash);

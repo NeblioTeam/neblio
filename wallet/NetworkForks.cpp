@@ -1,11 +1,10 @@
 #include "NetworkForks.h"
 
+#include "txdb-lmdb.h"
 #include <globals.h>
 #include <string>
 
-NetworkForks::NetworkForks(const boost::container::flat_map<NetworkFork, int>& ForksToBlocks,
-                           const BestChainState&                               BestChainVar)
-    : bestChain_internal(BestChainVar)
+NetworkForks::NetworkForks(const boost::container::flat_map<NetworkFork, int>& ForksToBlocks)
 {
     if (ForksToBlocks.empty()) {
         throw std::logic_error("Forks list");
@@ -13,11 +12,11 @@ NetworkForks::NetworkForks(const boost::container::flat_map<NetworkFork, int>& F
     forksToBlockMap = ForksToBlocks;
 }
 
-bool NetworkForks::isForkActivated(NetworkFork fork) const
+bool NetworkForks::isForkActivated(NetworkFork fork, const ITxDB& txdb) const
 {
     auto it = forksToBlockMap.find(fork);
     if (it != forksToBlockMap.cend()) {
-        return bestChain_internal.height() >= it->second;
+        return txdb.GetBestChainHeight().value_or(0) >= it->second;
     } else {
         throw std::runtime_error("Fork number " + std::to_string(fork) + " was not found");
     }

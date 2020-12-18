@@ -871,12 +871,13 @@ void BitcoinGUI::gotoSignMessageTab(QString addr)
 
 void BitcoinGUI::exportBlockchainBootstrap()
 {
-    QString docsLocation = "";
-    const QStringList docsLocations = QStandardPaths::standardLocations(QStandardPaths::DocumentsLocation);
-    if(!docsLocations.isEmpty()) {
+    QString           docsLocation = "";
+    const QStringList docsLocations =
+        QStandardPaths::standardLocations(QStandardPaths::DocumentsLocation);
+    if (!docsLocations.isEmpty()) {
         docsLocation = docsLocations[0];
     }
-    QString saveDir = docsLocation + "/" + "bootstrap.dat";
+    QString saveDir  = docsLocation + "/" + "bootstrap.dat";
     QString filename = QFileDialog::getSaveFileName(this, tr("Export blockchain"), saveDir,
                                                     tr("Blockchain Data (*.dat)"));
 
@@ -1092,8 +1093,8 @@ void BitcoinGUI::backupWallet()
     }
 
     QStringList docsDir = QStandardPaths::standardLocations(QStandardPaths::DocumentsLocation);
-    QString saveDir = docsDir.isEmpty() ? "" : "/";
-    QString filename =
+    QString     saveDir = docsDir.isEmpty() ? "" : "/";
+    QString     filename =
         QFileDialog::getSaveFileName(this, tr("Backup Wallet"), saveDir, tr("Wallet Data (*.dat)"));
     if (!filename.isEmpty()) {
         if (!walletModel->backupWallet(filename)) {
@@ -1124,8 +1125,8 @@ void BitcoinGUI::backupWallet()
 void BitcoinGUI::importWallet()
 {
     QStringList docsDir = QStandardPaths::standardLocations(QStandardPaths::DocumentsLocation);
-    QString openDir = docsDir.isEmpty() ? "" : docsDir[0];
-    QString filename =
+    QString     openDir = docsDir.isEmpty() ? "" : docsDir[0];
+    QString     filename =
         QFileDialog::getOpenFileName(this, tr("Import Wallet"), openDir, tr("Wallet Data (*.dat)"));
     if (!filename.isEmpty()) {
         // make sure the local wallet is unlocked
@@ -1196,7 +1197,7 @@ void BitcoinGUI::unlockWallet()
         AskPassphraseDialog::Mode mode = sender() == unlockWalletAction
                                              ? AskPassphraseDialog::UnlockStaking
                                              : AskPassphraseDialog::Unlock;
-        AskPassphraseDialog dlg(mode, this);
+        AskPassphraseDialog       dlg(mode, this);
         dlg.setModel(walletModel);
         dlg.exec();
     }
@@ -1256,7 +1257,7 @@ void BitcoinGUI::updateStakingIcon()
 
     if (stakeMaker.getLastCoinStakeSearchInterval() && nWeight) {
         uint64_t     nNetworkWeight = GetPoSKernelPS();
-        unsigned int nTS            = Params().TargetSpacing();
+        unsigned int nTS            = Params().TargetSpacing(CTxDB());
         unsigned     nEstimateTime  = nTS * nNetworkWeight / nWeight;
 
         QString text;

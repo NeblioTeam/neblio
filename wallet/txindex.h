@@ -4,6 +4,8 @@
 #include "disktxpos.h"
 #include <vector>
 
+class ITxDB;
+
 /**  A txdb record that contains the disk location of a transaction and the
  * locations of transactions that spend its outputs.  vSpent is really only
  * used as a flag, but having the location is very helpful for debugging.
@@ -31,7 +33,7 @@ public:
     }
 
     friend bool operator!=(const CTxIndex& a, const CTxIndex& b) { return !(a == b); }
-    int         GetDepthInMainChain() const;
+    int         GetDepthInMainChain(const ITxDB& txdb) const;
 };
 
 #endif // TXINDEX_H

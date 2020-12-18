@@ -54,7 +54,7 @@ class NTP1TokenListModel : public QAbstractTableModel
     public:
         void setReferenceBlockHeight() Q_DECL_OVERRIDE
         {
-            currentBlockHeight = bestChain.height();
+            currentBlockHeight = NTP1Transaction::GetCurrentBlockHeight();
         }
     };
 

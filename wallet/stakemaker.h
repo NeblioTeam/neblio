@@ -59,7 +59,8 @@ public:
     };
 
     boost::optional<CTransaction> CreateCoinStake(
-        const CWallet& wallet, unsigned int nBits, CAmount nFees, CAmount reservedBalance,
+        const ITxDB& txdb, const CWallet& wallet, unsigned int nBits, CAmount nFees,
+        CAmount                                                        reservedBalance,
         const boost::optional<std::set<std::pair<uint256, unsigned>>>& customInputs        = boost::none,
         CAmount                                                        extraPayoutForTests = 0);
 
@@ -71,14 +72,14 @@ public:
     FindStakeKernel(const CKeyStore& keystore, unsigned int nBits, int64_t nCoinstakeInitialTxTime,
                     const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins);
     static boost::optional<CScript>
-                CalculateScriptPubKeyForStakeOutput(const KeyGetterFunctorType& keyGetter,
-                                                    const CScript&              scriptPubKeyKernel);
+    CalculateScriptPubKeyForStakeOutput(const ITxDB& txdb, const KeyGetterFunctorType& keyGetter,
+                                        const CScript& scriptPubKeyKernel);
     static bool SignAndVerify(const CKeyStore& keystore, const CoinStakeInputsResult inputs,
                               CTransaction& stakeTx);
     static CoinStakeInputsResult
-                               CollectInputsForStake(const StakeKernelData&                                     kernelData,
-                                                     const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins,
-                                                     int64_t txTime, bool splitStake, CAmount nBalance, CAmount reservedBalance);
+    CollectInputsForStake(const ITxDB& txdb, const StakeKernelData& kernelData,
+                          const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins,
+                          int64_t txTime, bool splitStake, CAmount nBalance, CAmount reservedBalance);
     static std::vector<CTxOut> MakeStakeOutputs(const CScript& outputScriptPubKey, CAmount totalCredit,
                                                 bool splitStake);
     void                       UpdateStakeSearchTimes(int64_t nSearchTime);

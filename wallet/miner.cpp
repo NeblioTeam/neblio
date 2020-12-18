@@ -116,7 +116,9 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
     if (!pblock)
         return nullptr;
 
-    ConstCBlockIndexSmartPtr pindexPrev = bestChain.blockIndex();
+    CTxDB txdb("r");
+
+    ConstCBlockIndexSmartPtr pindexPrev = txdb.GetBestBlockIndex();
 
     // Create coinbase tx
     CTransaction coinbaseTx;
@@ -153,7 +155,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
     // Add our coinbase tx as first transaction
     pblock->vtx.push_back(coinbaseTx);
 
-    unsigned int nSizeLimit = MaxBlockSize();
+    unsigned int nSizeLimit = MaxBlockSize(txdb);
 
     // Largest block you're willing to create:
     unsigned int nBlockMaxSize = GetArg("-blockmaxsize", nSizeLimit);
@@ -192,7 +194,6 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
     int64_t nFees = 0;
     {
         LOCK2(cs_main, mempool.cs);
-        CTxDB txdb("r");
 
         // Priority order to process transactions
         list<COrphan>                  vOrphan; // list memory doesn't move
@@ -243,7 +244,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
                 int64_t nValueIn = txPrev.vout[txin.prevout.n].nValue;
                 nTotalIn += nValueIn;
 
-                int nConf = txindex.GetDepthInMainChain();
+                int nConf = txindex.GetDepthInMainChain(txdb);
                 dPriority += (double)nValueIn * nConf;
             }
             if (fMissingInputs)
@@ -301,7 +302,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
                 continue;
 
             // Transaction fee
-            int64_t nMinFee = tx.GetMinFee(nBlockSize, GMF_BLOCK);
+            int64_t nMinFee = tx.GetMinFee(txdb, nBlockSize, GMF_BLOCK);
 
             // Skip free transactions if we're past the minimum block size:
             if (fSortedByFee && (dFeePerKb < nMinTxFee) && (nBlockSize + nTxSize >= nBlockMinSize))
@@ -378,7 +379,8 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
                 continue;
             }
 
-            if (tx.ConnectInputs(mapInputs, mapTestPoolTmp, CDiskTxPos(1, 1), pindexPrev, false, true)
+            if (tx.ConnectInputs(txdb, mapInputs, mapTestPoolTmp, CDiskTxPos(1, 1), pindexPrev, false,
+                                 true)
                     .isErr())
                 continue;
 
@@ -520,7 +522,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
     // Found a solution
     {
         LOCK(cs_main);
-        if (pblock->hashPrevBlock != bestChain.blockHash())
+        if (pblock->hashPrevBlock != CTxDB().GetBestBlockHash())
             return error("CheckWork() : generated block is stale");
 
         // Remove key from key pool
@@ -561,7 +563,7 @@ bool CheckStake(CBlock* pblock, CWallet& wallet)
     // Found a solution
     {
         LOCK(cs_main);
-        if (pblock->hashPrevBlock != bestChain.blockHash())
+        if (pblock->hashPrevBlock != CTxDB().GetBestBlockHash())
             return error("CheckStake() : generated block is stale");
 
         // Track how many getdata requests this block gets
@@ -600,6 +602,7 @@ void StakeMiner(CWallet* pwallet)
     // synchronize memory once
     fShutdown.load(boost::memory_order_seq_cst);
     while (!fShutdown.load(boost::memory_order_relaxed)) {
+        const CTxDB txdb;
 
         while (pwallet->IsLocked()) {
             stakeMaker.resetLastCoinStakeSearchInterval();
@@ -625,7 +628,7 @@ void StakeMiner(CWallet* pwallet)
                 LOCK(cs_vNodes);
                 vNodesSize = vNodes.size();
             }
-            if (vNodesSize < 3 || bestChain.height() < GetNumBlocksOfPeers()) {
+            if (vNodesSize < 3 || txdb.GetBestChainHeight().value_or(0) < GetNumBlocksOfPeers()) {
                 MilliSleep(60000);
                 continue;
             }
@@ -640,7 +643,7 @@ void StakeMiner(CWallet* pwallet)
             return;
 
         // Trying to sign a block
-        if (pblock->SignBlock(*pwallet, nFees)) {
+        if (pblock->SignBlock(txdb, *pwallet, nFees)) {
             SetThreadPriority(THREAD_PRIORITY_NORMAL);
             CheckStake(pblock.get(), *pwallet);
             SetThreadPriority(THREAD_PRIORITY_LOWEST);
