@@ -616,11 +616,16 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
                     AssertIssuanceUniquenessInBlock(issuedTokensSymbolsInThisBlock, txdb, tx,
                                                     mapQueuedNTP1Inputs, mapQueuedChanges);
                 } catch (std::exception& ex) {
+                    reject = CBlockReject(REJECT_INVALID, "ntp1-error-issuance-symbol-duplicate",
+                                          this->GetHash());
                     return error("Error while verifying the uniqueness of issued token symbol in "
                                  "ConnectBlock(): "
                                  "%s\n",
                                  ex.what());
                 } catch (...) {
+                    reject = CBlockReject(REJECT_INVALID,
+                                          "ntp1-error-issuance-symbol-duplicate-unknown-error",
+                                          this->GetHash());
                     return error("Error while verifying the uniqueness of issued token symbol in "
                                  "ConnectBlock(). "
                                  "Unknown exception thrown\n");
