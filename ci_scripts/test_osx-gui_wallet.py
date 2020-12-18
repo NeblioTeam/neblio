@@ -34,6 +34,7 @@ nci.call_with_err_code('brew uninstall --ignore-dependencies openssl || true')
 nci.call_with_err_code('brew uninstall --ignore-dependencies openssl@1.1 || true')
 nci.call_with_err_code('brew uninstall --ignore-dependencies qrencode || true')
 nci.call_with_err_code('brew uninstall --ignore-dependencies libsodium || true')
+nci.call_with_err_code('brew uninstall --ignore-dependencies brotli || true')
 
 # Install High Seirra Versions of Depeendencies, due to that being the minimum version we support
 #ccache https://bintray.com/homebrew/bottles/download_file?file_path=ccache-3.7.6.high_sierra.bottle.tar.gz
@@ -54,6 +55,7 @@ nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies
 nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/qrencode-4.0.2.high_sierra.bottle.tar.gz')
 #libsodium https://bintray.com/homebrew/bottles/download_file?file_path=libsodium-1.0.18_1.high_sierra.bottle.tar.gz
 nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/libsodium-1.0.18_1.high_sierra.bottle.tar.gz')
+nci.call_retry_on_fail('brew install --force brotli')
 
 
 # force relinking
@@ -66,6 +68,7 @@ nci.call_with_err_code('brew unlink python        && brew link --force --overwri
 nci.call_with_err_code('brew unlink openssl@1.1   && brew link --force --overwrite openssl@1.1')
 nci.call_with_err_code('brew unlink qrencode      && brew link --force --overwrite qrencode')
 nci.call_with_err_code('brew unlink libsodium     && brew link --force --overwrite libsodium')
+nci.call_with_err_code('brew unlink brotli        && brew link --force --overwrite brotli')
 
 
 nci.call_with_err_code('ccache -s')
