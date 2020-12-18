@@ -35,6 +35,9 @@ nci.call_with_err_code('brew uninstall --ignore-dependencies openssl@1.1 || true
 nci.call_with_err_code('brew uninstall --ignore-dependencies qrencode || true')
 nci.call_with_err_code('brew uninstall --ignore-dependencies libsodium || true')
 
+# pin dependencies we do not want to be auto-upgraded while installing the dependencies we need
+nci.call_retry_on_fail('brew pin php') # prevents cURL from updating PHP which breaks a bunch of things
+
 # Install High Seirra Versions of Depeendencies, due to that being the minimum version we support
 #ccache https://bintray.com/homebrew/bottles/download_file?file_path=ccache-3.7.6.high_sierra.bottle.tar.gz
 nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/ccache-3.7.6.high_sierra.bottle.tar.gz')
