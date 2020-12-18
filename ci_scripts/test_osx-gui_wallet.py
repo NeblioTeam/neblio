@@ -116,6 +116,9 @@ else:
 
 nci.call_with_err_code('ccache -s')
 
+# You must `brew unpin openssl@1.1` as installing s3cmd requires the latest version of pinned dependencies
+nci.call_retry_on_fail('brew unpin openssl@1.1')
+
 
 print("")
 print("")
