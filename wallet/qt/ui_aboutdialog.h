@@ -131,7 +131,7 @@ public:
         label->setText(QApplication::translate("AboutDialog", "<b>neblio</b> version", Q_NULLPTR));
         copyrightLabel->setText(QApplication::translate("AboutDialog", "Copyright \302\251 2009-2014 The Bitcoin developers\n"
 "Copyright \302\251 2012-2014 The NovaCoin developers\n"
-"Copyright \302\251 2017-2019 The Neblio developers", Q_NULLPTR));
+"Copyright \302\251 2017-2021 The Neblio developers", Q_NULLPTR));
         label_2->setText(QApplication::translate("AboutDialog", "\n"
 "This is experimental software.\n"
 "\n"
