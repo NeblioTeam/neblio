@@ -146,6 +146,10 @@ bool CBlock::DisconnectBlock(CTxDB& txdb, CBlockIndexSmartPtr& pindex)
         blockindexPrev.hashNext = 0;
         if (!txdb.WriteBlockIndex(blockindexPrev))
             return error("DisconnectBlock() : WriteBlockIndex failed");
+
+        // we change the best hash. Remember this is within a transaction and will be reverted in case of
+        // failure.
+        txdb.WriteHashBestChain(blockindexPrev.GetBlockHash());
     }
 
     // ppcoin: clean up wallet after disconnecting coinstake
@@ -701,6 +705,10 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
         if (!txdb.WriteBlockIndex(blockindexPrev))
             return error("ConnectBlock() : WriteBlockIndex failed");
     }
+
+    // we change the best hash. Remember this is within a transaction and will be reverted in case of
+    // failure.
+    txdb.WriteHashBestChain(pindex->GetBlockHash());
 
     return true;
 }
