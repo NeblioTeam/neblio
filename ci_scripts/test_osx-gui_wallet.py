@@ -78,7 +78,6 @@ nci.call_with_err_code('brew unlink python        && brew link --force --overwri
 nci.call_with_err_code('brew unlink openssl@1.1   && brew link --force --overwrite openssl@1.1')
 nci.call_with_err_code('brew unlink qrencode      && brew link --force --overwrite qrencode')
 nci.call_with_err_code('brew unlink libsodium     && brew link --force --overwrite libsodium')
-nci.call_with_err_code('brew unlink brotli        && brew link --force --overwrite brotli')
 
 
 nci.call_with_err_code('ccache -s')
