@@ -403,8 +403,10 @@ TEST(util_tests, op_on_restart)
     EXPECT_TRUE(SC_IsOperationOnRestartScheduled("test3" + suffix));
     EXPECT_TRUE(SC_IsOperationOnRestartScheduled("test4" + suffix));
 
-    auto ops = SC_GetScheduledOperationsOnRestart();
-    EXPECT_EQ(ops.size(), 3u);
+    const auto ops = SC_GetScheduledOperationsOnRestart();
+    EXPECT_TRUE(ops.count("test2" + suffix));
+    EXPECT_TRUE(ops.count("test3" + suffix));
+    EXPECT_TRUE(ops.count("test4" + suffix));
 
     // delete the created ops
     EXPECT_TRUE(SC_DeleteOperationScheduledOnRestart("test2" + suffix));
@@ -419,6 +421,12 @@ TEST(util_tests, op_on_restart)
 
     // after check and delete, it should not be there
     EXPECT_FALSE(SC_IsOperationOnRestartScheduled("test4" + suffix));
+
+    // all of them should not be there anymore
+    const auto ops_after = SC_GetScheduledOperationsOnRestart();
+    EXPECT_FALSE(ops_after.count("test2" + suffix));
+    EXPECT_FALSE(ops_after.count("test3" + suffix));
+    EXPECT_FALSE(ops_after.count("test4" + suffix));
 }
 
 TEST(FixedPoint, ParseFixedPoint)
