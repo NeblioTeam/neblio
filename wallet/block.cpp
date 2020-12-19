@@ -1617,7 +1617,7 @@ bool CBlock::CheckBlockSignature() const
         if (vchBlockSig.empty())
             return false;
         return key.Verify(GetHash(), vchBlockSig);
-    } else if (whichType == TX_COLDSTAKE && Params().IsColdStakingEnabled()) {
+    } else if (whichType == TX_COLDSTAKE) {
         key = ExtractColdStakePubKey(*this);
         return key.Verify(GetHash(), vchBlockSig);
     }
