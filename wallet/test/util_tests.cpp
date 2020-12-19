@@ -4,9 +4,9 @@
 
 #include "NetworkForks.h"
 #include "main.h"
+#include "test/mocks/mtxdb.h"
 #include "util.h"
 #include "wallet.h"
-#include "wallet/test/mocks/mtxdb.h"
 
 using namespace std;
 

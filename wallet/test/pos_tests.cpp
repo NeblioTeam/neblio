@@ -3,8 +3,8 @@
 #include "base58.h"
 #include "block.h"
 #include "stakemaker.h"
+#include "test/mocks/mtxdb.h"
 #include "wallet.h"
-#include "wallet/test/mocks/mtxdb.h"
 
 class PoS_CollectInputsTestFixture : public ::testing::Test
 {
