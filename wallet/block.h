@@ -154,7 +154,7 @@ public:
         // while finding the common ancestor, this is the part of this block's chain (excluding this
         // block)
         std::vector<uint256>
-                            inFork; // order matters here because we want to simulate respending these in order
+            inFork; // order matters here because we want to simulate respending these in order
         CBlockIndexSmartPtr commonAncestor;
     };
 
@@ -183,6 +183,7 @@ public:
                                   int64_t nFees);
 
     bool CheckBlockSignature() const;
+    bool IsColdStakedBlock() const;
 
     static CBlockIndexSmartPtr FindBlockByHeight(int nHeight);
 

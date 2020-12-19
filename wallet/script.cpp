@@ -1414,9 +1414,6 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet,
                     if (m < 1 || n < 1 || m > n || vSolutionsRet.size() - 2 != n)
                         return false;
                 }
-                if (typeRet == TX_COLDSTAKE && !Params().IsColdStakingEnabled()) {
-                    return false; // coldstaking is disabled
-                }
                 return true;
             }
             if (!script1.GetOp(pc1, opcode1, vch1))

@@ -404,6 +404,8 @@ static void NotifyTransactionChanged(WalletModel* walletmodel, CWallet* /*wallet
 
 void WalletModel::subscribeToCoreSignals()
 {
+    using namespace boost::placeholders;
+
     // Connect signals to wallet
     wallet->NotifyStatusChanged.connect(boost::bind(&NotifyKeyStoreStatusChanged, this, _1));
     wallet->NotifyAddressBookChanged.connect(
@@ -413,6 +415,8 @@ void WalletModel::subscribeToCoreSignals()
 
 void WalletModel::unsubscribeFromCoreSignals()
 {
+    using namespace boost::placeholders;
+
     // Disconnect signals from wallet
     wallet->NotifyStatusChanged.disconnect(boost::bind(&NotifyKeyStoreStatusChanged, this, _1));
     wallet->NotifyAddressBookChanged.disconnect(
