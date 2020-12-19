@@ -1380,6 +1380,10 @@ bool CBlock::AcceptBlock()
     if (IsProofOfWork() && nHeight > Params().LastPoWBlock())
         return DoS(100, error("AcceptBlock() : reject proof-of-work at height %d", nHeight));
 
+    if (IsColdStakedBlock() && !Params().IsColdStakingEnabled()) {
+        return DoS(100, error("AcceptBlock() : reject cold-staked block at height %d", nHeight));
+    }
+
     // Check proof-of-work or proof-of-stake
     if (nBits != GetNextTargetRequired(pindexPrev.get(), IsProofOfStake())) {
         reject = CBlockReject(REJECT_INVALID, "bad-diffbits", this->GetHash());
@@ -1596,6 +1600,26 @@ static CKey ExtractColdStakePubKey(const CBlock& block)
     return key;
 }
 
+bool CBlock::IsColdStakedBlock() const
+{
+    if (IsProofOfWork())
+        return false;
+
+    std::vector<valtype> vSolutions;
+    txnouttype           whichType;
+
+    if (vtx.size() < 2) {
+        return error("IsColdStakedBlock(): Stake marker transactions were not found");
+    }
+
+    const CTxOut& txout = vtx[1].vout[1];
+
+    if (!Solver(txout.scriptPubKey, whichType, vSolutions))
+        return error("IsColdStakedBlock(): Failed to solve for scriptPubKey type");
+
+    return whichType == TX_COLDSTAKE;
+}
+
 bool CBlock::CheckBlockSignature() const
 {
     if (IsProofOfWork())
@@ -1604,10 +1628,15 @@ bool CBlock::CheckBlockSignature() const
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
 
+    // this check isn't really necessary, but let's be paranoid!
+    if (vtx.size() < 2) {
+        return error("CheckBlockSignature(): Stake marker transactions were not found");
+    }
+
     const CTxOut& txout = vtx[1].vout[1];
 
     if (!Solver(txout.scriptPubKey, whichType, vSolutions))
-        return false;
+        return error("CheckBlockSignature(): Failed to solve for scriptPubKey type");
 
     CKey key;
     if (whichType == TX_PUBKEY) {
@@ -1622,7 +1651,18 @@ bool CBlock::CheckBlockSignature() const
         return key.Verify(GetHash(), vchBlockSig);
     }
 
-    return false;
+    const std::string sigTypeStr = [&]() {
+        if (whichType == TX_PUBKEY) {
+            return "PubKey";
+        } else if (whichType == TX_COLDSTAKE) {
+            return "ColdStake";
+        } else {
+            return "Unrecognized";
+        }
+    }();
+
+    return error("CheckBlockSignature(): Failed to verify block signature of type %s",
+                 sigTypeStr.c_str());
 }
 
 bool CBlock::WriteBlockPubKeys(CTxDB& txdb)

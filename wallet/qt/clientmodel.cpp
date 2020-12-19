@@ -150,6 +150,8 @@ static void NotifyAlertChanged(ClientModel* clientmodel, const uint256& hash, Ch
 
 void ClientModel::subscribeToCoreSignals()
 {
+    using namespace boost::placeholders;
+
     // Connect signals to client
     uiInterface.NotifyBlocksChanged.connect(boost::bind(NotifyBlocksChanged, this));
     uiInterface.NotifyNumConnectionsChanged.connect(boost::bind(NotifyNumConnectionsChanged, this, _1));
@@ -158,6 +160,8 @@ void ClientModel::subscribeToCoreSignals()
 
 void ClientModel::unsubscribeFromCoreSignals()
 {
+    using namespace boost::placeholders;
+
     // Disconnect signals from client
     uiInterface.NotifyBlocksChanged.disconnect(boost::bind(NotifyBlocksChanged, this));
     uiInterface.NotifyNumConnectionsChanged.disconnect(
