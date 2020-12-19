@@ -22,6 +22,7 @@ VPATH       += $${NEBLIO_ROOT}/wallet $${NEBLIO_ROOT}/wallet/json $${NEBLIO_ROOT
 INCLUDEPATH += $${NEBLIO_ROOT}/wallet $${NEBLIO_ROOT}/wallet/json $${NEBLIO_ROOT}/wallet/qt
 
 INCLUDEPATH += googletest/googletest googletest/googletest/include
+INCLUDEPATH += googletest/googlemock googletest/googlemock/include
 
 # since this is for tests, unused functions can exist
 unix:QMAKE_CXXFLAGS += -Wno-unused-function
@@ -31,7 +32,8 @@ include($${NEBLIO_ROOT}/wallet/wallet-libs.pri)
 
 SOURCES += \
     googletest/googletest/src/gtest-all.cc \
-    googletest/googletest/src/gtest_main.cc
+    googletest/googletest/src/gtest_main.cc \
+    googletest/googlemock/src/gmock-all.cc \
 
 SOURCES += \
     accounting_tests.cpp  \
@@ -42,6 +44,7 @@ SOURCES += \
     bignum_tests.cpp      \
     bloom_tests.cpp       \
     canonical_tests.cpp   \
+    checkpoints_tests.cpp \
     compress_tests.cpp    \
     crypter_tests.cpp     \
     db_tests.cpp          \
@@ -52,10 +55,12 @@ SOURCES += \
     miner_tests.cpp       \
     mruset_tests.cpp      \
     netbase_tests.cpp     \
+    ntp1_selection_tests.cpp \
     ntp1_tests.cpp        \
     pmt_tests.cpp         \
     pos_tests.cpp         \
     rpc_tests.cpp         \
+    result_tests.cpp      \
     script_tests.cpp      \
     serialize_tests.cpp   \
     sigopcount_tests.cpp  \
