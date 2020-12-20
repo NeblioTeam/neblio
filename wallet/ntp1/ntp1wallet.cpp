@@ -3,6 +3,7 @@
 // the following is a necessary include for pwalletMain and CWalletTx objects
 #include "init.h"
 #include "main.h"
+#include "txmempool.h"
 
 #include <boost/algorithm/hex.hpp>
 #include <boost/algorithm/string.hpp>
@@ -142,7 +143,17 @@ void NTP1Wallet::__getOutputs()
 
                     // find issue transaction to get meta data from
                     uint256      issueTxid = tokenTx.getIssueTxId();
-                    CTransaction issueTx   = CTransaction::FetchTxFromDisk(issueTxid);
+                    CTransaction issueTx;
+                    try {
+                        issueTx = CTransaction::FetchTxFromDisk(issueTxid);
+                    } catch (const std::exception& ex) {
+                        if (!mempool.lookup(issueTxid, issueTx)) {
+                            throw std::runtime_error(
+                                "Transaction not found on disk or mempool. Disk search error: " +
+                                std::string(ex.what()));
+                        }
+                    }
+
                     std::vector<std::pair<CTransaction, NTP1Transaction>> issueTxInputs =
                         NTP1Transaction::GetAllNTP1InputsOfTx(issueTx, true);
                     NTP1Transaction issueNTP1Tx;
