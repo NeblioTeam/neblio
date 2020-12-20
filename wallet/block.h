@@ -64,6 +64,16 @@ public:
         }
     };
 
+    enum class BlockColdStakingCheckError
+    {
+        SolverOnStakeTransactionFailed,
+    };
+
+    enum class ColdStakeKeyExtractionError
+    {
+        KeySizeInvalid,
+    };
+
     boost::optional<CBlockReject> reject;
 
     // Denial-of-service detection:
@@ -182,8 +192,8 @@ public:
     bool SignBlockWithSpecificKey(const COutPoint& outputToStake, const CKey& keyOfOutput,
                                   int64_t nFees);
 
-    bool CheckBlockSignature() const;
-    bool IsColdStakedBlock() const;
+    bool                                     CheckBlockSignature() const;
+    Result<bool, BlockColdStakingCheckError> HasColdStaking() const;
 
     static CBlockIndexSmartPtr FindBlockByHeight(int nHeight);
 

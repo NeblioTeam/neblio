@@ -265,12 +265,6 @@ Result<void, TxValidationState> CTransaction::CheckTransaction(CBlock* sourceBlo
 
         // check cold staking enforcement (for delegations) and value out
         if (txout.scriptPubKey.IsPayToColdStaking()) {
-            if (!Params().IsColdStakingEnabled()) {
-                DoS(10, false);
-                return Err(
-                    MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-txns-coldstake-disabled"));
-            }
-
             if (txout.nValue < Params().MinColdStakingAmount()) {
                 DoS(100, false);
                 return Err(MakeInvalidTxState(TxValidationResult::TX_CONSENSUS,
