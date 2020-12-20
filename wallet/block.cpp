@@ -1380,8 +1380,15 @@ bool CBlock::AcceptBlock()
     if (IsProofOfWork() && nHeight > Params().LastPoWBlock())
         return DoS(100, error("AcceptBlock() : reject proof-of-work at height %d", nHeight));
 
-    if (IsColdStakedBlock() && !Params().IsColdStakingEnabled()) {
-        return DoS(100, error("AcceptBlock() : reject cold-staked block at height %d", nHeight));
+    {
+        const auto hasColdStakingResult = HasColdStaking();
+        if (hasColdStakingResult.isErr()) {
+            return DoS(100, error("AcceptBlock() : reject cold-stake at height %d with error", nHeight));
+        }
+
+        if (hasColdStakingResult.unwrap() && !Params().IsColdStakingEnabled()) {
+            return DoS(100, error("AcceptBlock() : reject cold-staked at height %d", nHeight));
+        }
     }
 
     // Check proof-of-work or proof-of-stake
@@ -1588,36 +1595,48 @@ bool CBlock::SignBlockWithSpecificKey(const COutPoint& outputToStake, const CKey
     return keyOfOutput.Sign(GetHash(), vchBlockSig);
 }
 
-static CKey ExtractColdStakePubKey(const CBlock& block)
+static Result<CKey, CBlock::ColdStakeKeyExtractionError> ExtractColdStakePubKey(const CBlock& block)
 {
     CKey         key;
     const CTxIn& coinstakeKernel = block.vtx[1].vin[0];
     int          start           = 1 + (int)*coinstakeKernel.scriptSig.begin(); // skip sig
     start += 1 + (int)*(coinstakeKernel.scriptSig.begin() + start);             // skip flag
-    CPubKey pubkey;
-    pubkey = CPubKey(coinstakeKernel.scriptSig.begin() + start + 1, coinstakeKernel.scriptSig.end());
+    const auto beg = coinstakeKernel.scriptSig.begin() + start + 1;
+    const auto end = coinstakeKernel.scriptSig.end();
+    if (beg > end) {
+        return Err(CBlock::ColdStakeKeyExtractionError::KeySizeInvalid);
+    }
+    const CPubKey pubkey(std::vector<unsigned char>(beg, end));
     key.SetPubKey(pubkey);
-    return key;
+    return Ok(key);
 }
 
-bool CBlock::IsColdStakedBlock() const
+Result<bool, CBlock::BlockColdStakingCheckError> CBlock::HasColdStaking() const
 {
     if (IsProofOfWork())
-        return false;
+        return Ok(false);
+
+    // check the signature type of the staking reward
+    const CTxOut& txout = vtx[1].vout[1];
 
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
+    if (!Solver(txout.scriptPubKey, whichType, vSolutions))
+        return Err(BlockColdStakingCheckError::SolverOnStakeTransactionFailed);
 
-    if (vtx.size() < 2) {
-        return error("IsColdStakedBlock(): Stake marker transactions were not found");
+    if (whichType == TX_COLDSTAKE) {
+        return Ok(true);
     }
 
-    const CTxOut& txout = vtx[1].vout[1];
+    // Check transactions
+    for (unsigned i = 0; i < vtx.size(); i++) {
+        const CTransaction& tx = vtx[i];
+        if (tx.HasP2CSOutputs()) {
+            return Ok(true);
+        }
+    }
 
-    if (!Solver(txout.scriptPubKey, whichType, vSolutions))
-        return error("IsColdStakedBlock(): Failed to solve for scriptPubKey type");
-
-    return whichType == TX_COLDSTAKE;
+    return Ok(false);
 }
 
 bool CBlock::CheckBlockSignature() const
@@ -1627,11 +1646,6 @@ bool CBlock::CheckBlockSignature() const
 
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
-
-    // this check isn't really necessary, but let's be paranoid!
-    if (vtx.size() < 2) {
-        return error("CheckBlockSignature(): Stake marker transactions were not found");
-    }
 
     const CTxOut& txout = vtx[1].vout[1];
 
@@ -1647,7 +1661,11 @@ bool CBlock::CheckBlockSignature() const
             return false;
         return key.Verify(GetHash(), vchBlockSig);
     } else if (whichType == TX_COLDSTAKE) {
-        key = ExtractColdStakePubKey(*this);
+        auto keyResult = ExtractColdStakePubKey(*this);
+        if (keyResult.isErr()) {
+            return error("CheckBlockSignature(): ColdStaking key extraction failed");
+        }
+        key = keyResult.unwrap();
         return key.Verify(GetHash(), vchBlockSig);
     }
 
