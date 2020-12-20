@@ -82,7 +82,7 @@ std::map<std::string, NTP1Int> GetAvailableTokenBalances(NTP1WalletPtr          
     } else {
         // loop over all inputs and collect the total amount of tokens available
         for (const auto& input : inputs) {
-            std::unordered_map<NTP1OutPoint, NTP1Transaction> availableOutputsMap =
+            const std::unordered_map<NTP1OutPoint, NTP1Transaction> availableOutputsMap =
                 wallet->getWalletOutputsWithTokens();
             auto it = availableOutputsMap.find(input);
             if (it != availableOutputsMap.end()) {
@@ -96,7 +96,7 @@ std::map<std::string, NTP1Int> GetAvailableTokenBalances(NTP1WalletPtr          
                 // loop over tokens
                 for (int i = 0; i < (int)ntp1tx.getTxOut(input.getIndex()).tokenCount(); i++) {
                     const NTP1TokenTxData& tokenT    = ntp1tx.getTxOut(input.getIndex()).getToken(i);
-                    auto                   balanceIt = balancesMap.find(tokenT.getTokenId());
+                    const auto             balanceIt = balancesMap.find(tokenT.getTokenId());
                     if (balanceIt == balancesMap.end()) {
                         balancesMap[tokenT.getTokenId()] = 0;
                     }
@@ -187,10 +187,10 @@ void NTP1SendTxData::selectNTP1Tokens(NTP1WalletPtr wallet, std::vector<NTP1OutP
     }
 
     // collect all required amounts in one map, with tokenId vs amount
-    std::map<std::string, NTP1Int> targetAmounts = CalculateRequiredTokenAmounts(recipients);
+    const std::map<std::string, NTP1Int> targetAmounts = CalculateRequiredTokenAmounts(recipients);
 
     // get available balances, either from inputs (if provided) or from the wallet
-    std::map<std::string, NTP1Int> balancesMap =
+    const std::map<std::string, NTP1Int> balancesMap =
         GetAvailableTokenBalances(wallet, inputs, addMoreInputsIfRequired);
 
     // check whether the required amounts can be covered by the available balances

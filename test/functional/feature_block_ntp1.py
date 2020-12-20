@@ -329,7 +329,7 @@ class FullBlockTest(ComparisonTestFramework):
         yield accepted()
 
         # let's issue one token on ensure it's mainchain
-        issue_raw_tx = self.nodes[0].issuenewntp1token([{"txid": out[5].tx.hash, "vout": out[5].n}], "XyZ", "10000", self.nodes[0].getnewaddress(), "MyMetadata")
+        issue_raw_tx = self.nodes[0].issuenewntp1token([{"txid": out[5].tx.hash, "vout": out[5].n}], "XyZ", "10000", self.nodes[0].getnewaddress(), "MyMetadata".encode("ascii").hex())
         signed_issue_raw_tx = self.nodes[0].signrawtransaction(issue_raw_tx)
         issue_tx_signed = CTransaction()
         issue_tx_signed.deserialize(BytesIO(bytes.fromhex(signed_issue_raw_tx['hex'])))
@@ -341,7 +341,7 @@ class FullBlockTest(ComparisonTestFramework):
         yield accepted()
 
         # if we attempt to issue a token with the same symbol, it should fail
-        issue_raw_tx = self.nodes[0].issuenewntp1token([{"txid": out[7].tx.hash, "vout": out[7].n}], "xyz", "100000", self.nodes[0].getnewaddress(), "OtheryMetadata")
+        issue_raw_tx = self.nodes[0].issuenewntp1token([{"txid": out[7].tx.hash, "vout": out[7].n}], "xyz", "100000", self.nodes[0].getnewaddress(), "OtheryMetadata".encode("ascii").hex())
         signed_issue_raw_tx = self.nodes[0].signrawtransaction(issue_raw_tx)
         issue_tx_signed = CTransaction()
         issue_tx_signed.deserialize(BytesIO(bytes.fromhex(signed_issue_raw_tx['hex'])))
@@ -355,7 +355,7 @@ class FullBlockTest(ComparisonTestFramework):
 
         # now we try to issue a token in another branch in the blockchain, and this should succeed
         tip(6)
-        issue_raw_tx = self.nodes[0].issuenewntp1token([{"txid": out[8].tx.hash, "vout": out[8].n}], "XyZ", "10000", self.nodes[0].getnewaddress(), "MyMetadata")
+        issue_raw_tx = self.nodes[0].issuenewntp1token([{"txid": out[8].tx.hash, "vout": out[8].n}], "XyZ", "10000", self.nodes[0].getnewaddress(), "MyMetadata".encode("ascii").hex())
         signed_issue_raw_tx = self.nodes[0].signrawtransaction(issue_raw_tx)
         issue_tx_signed = CTransaction()
         issue_tx_signed.deserialize(BytesIO(bytes.fromhex(signed_issue_raw_tx['hex'])))
@@ -373,14 +373,14 @@ class FullBlockTest(ComparisonTestFramework):
 
 
         # add the same token twice in one block; should be rejected
-        issue_raw_tx1 = self.nodes[0].issuenewntp1token([{"txid": out[11].tx.hash, "vout": out[11].n}], "XyZ1", "20000", self.nodes[0].getnewaddress(), "MyMetadata")
+        issue_raw_tx1 = self.nodes[0].issuenewntp1token([{"txid": out[11].tx.hash, "vout": out[11].n}], "XyZ1", "20000", self.nodes[0].getnewaddress(), "MyMetadata".encode("ascii").hex())
         signed_issue_raw_tx1 = self.nodes[0].signrawtransaction(issue_raw_tx1)
         issue_tx_signed1 = CTransaction()
         issue_tx_signed1.deserialize(BytesIO(bytes.fromhex(signed_issue_raw_tx1['hex'])))
         self.sign_tx(issue_tx_signed1, out[11].tx, out[11].n)
         issue_tx_signed1.rehash()
 
-        issue_raw_tx2 = self.nodes[0].issuenewntp1token([{"txid": out[12].tx.hash, "vout": out[12].n}], "XyZ1", "30000", self.nodes[0].getnewaddress(), "MyMetadata")
+        issue_raw_tx2 = self.nodes[0].issuenewntp1token([{"txid": out[12].tx.hash, "vout": out[12].n}], "XyZ1", "30000", self.nodes[0].getnewaddress(), "MyMetadata".encode("ascii").hex())
         signed_issue_raw_tx2 = self.nodes[0].signrawtransaction(issue_raw_tx2)
         issue_tx_signed2 = CTransaction()
         issue_tx_signed2.deserialize(BytesIO(bytes.fromhex(signed_issue_raw_tx2['hex'])))

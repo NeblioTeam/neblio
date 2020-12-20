@@ -565,7 +565,7 @@ Value issuenewntp1token(const Array& params, bool fHelp)
     // clang-format off
     if (fHelp || (params.size() != 4 && params.size() != 5))
         throw runtime_error(
-            "issuenewntp1token [{\"txid\":txid,\"vout\":n},...] [tokenSymbol] [amountToIssue] [recipientAddress] [NTP1 Metadata=\"\"] [Verify transaction=true]\n"
+            "issuenewntp1token [{\"txid\":txid,\"vout\":n},...] [tokenSymbol] [amountToIssue] [recipientAddress] [NTP1 Metadata hex=\"\"] [Verify transaction=true]\n"
             "Create a transaction that issues a new NTP1 token and hands all the issued amount to the provided address.\n"
             "Returns hex-encoded raw transaction.\n"
             "Note that the transaction is not stored in the wallet or transmitted to the network.");
@@ -590,7 +590,7 @@ Value issuenewntp1token(const Array& params, bool fHelp)
 
     const std::string         recipientAddress(params[3].get_str());
     RawNTP1MetadataBeforeSend rawNTP1Data("", false);
-    rawNTP1Data.metadata      = params.size() > 4 ? params[4].get_str() : "";
+    rawNTP1Data.metadata      = params.size() > 4 ? boost::algorithm::unhex(params[4].get_str()) : "";
     const bool verifyResultTx = params.size() <= 5 || params[5].get_bool();
 
     CTransaction rawTx;
