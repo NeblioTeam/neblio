@@ -79,7 +79,8 @@ BASE_SCRIPTS= [
    'wallet_abandonconflict.py',
 #    'feature_csv_activation.py',
     'rpc_rawtransaction.py',
-    'rpc_ntp1transaction.py',
+    'rpc_ntp1_issuance.py',
+    'rpc_ntp1_random_sends.py',
 #    'wallet_address_types.py',
 #    'feature_reindex.py',
     # vv Tests less than 30s vv

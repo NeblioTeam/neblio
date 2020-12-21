@@ -565,7 +565,7 @@ Value issuenewntp1token(const Array& params, bool fHelp)
     // clang-format off
     if (fHelp || (params.size() != 4 && params.size() != 5))
         throw runtime_error(
-            "issuenewntp1token [{\"txid\":txid,\"vout\":n},...] [tokenSymbol] [amountToIssue] [recipientAddress] [NTP1 Metadata hex=\"\"] [Verify transaction=true]\n"
+            "issuenewntp1token [{\"txid\":txid,\"vout\":n},...] [tokenSymbol] [amountToIssue (string or int)] [recipientAddress] [NTP1 Metadata hex=\"\"] [Verify transaction=true]\n"
             "Create a transaction that issues a new NTP1 token and hands all the issued amount to the provided address.\n"
             "Returns hex-encoded raw transaction.\n"
             "Note that the transaction is not stored in the wallet or transmitted to the network.");

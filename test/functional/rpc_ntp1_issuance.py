@@ -52,7 +52,8 @@ class RawTransactionsTest(BitcoinTestFramework):
 
     def make_few_ntp1_tokens_data(self, count: int):
         resulting_coins = []
-        for i in range(count):
+        symbols = {}  # used to ensure no duplicates exist
+        while len(resulting_coins) < count:
             metadata_len = random.randint(0, 5)
             metadata = bytes.fromhex(''.join(random.choices(string.hexdigits + string.digits,
                                                             k=2*metadata_len)))
@@ -60,6 +61,9 @@ class RawTransactionsTest(BitcoinTestFramework):
             token_symbol_length = random.randint(1, 5)
             token_symbol = ''.join(random.choices(string.ascii_letters + string.digits,
                                                   k=token_symbol_length))
+            if token_symbol in symbols:  # ensure no token symbol duplicates will ever exist
+                continue
+            symbols[token_symbol] = 0
             resulting_coins.append({"metadata": metadata,
                                     "amount": amount,
                                     "symbol": token_symbol})
@@ -95,6 +99,40 @@ class RawTransactionsTest(BitcoinTestFramework):
         signedRawTx = self.nodes[0].signrawtransaction(rawTx)
         return (self.nodes[0].sendrawtransaction(signedRawTx['hex']), node_to_output)
 
+    '''
+    Given a list of balances, create a random list of transfers
+    '''
+    def pick_random_amounts_and_send(self, current_balances, probability_to_pick):
+        assert probability_to_pick >= 0
+        assert probability_to_pick <= 1
+        result = {}
+        for tokenID in current_balances:
+            if random.uniform(0, 1) < probability_to_pick:
+                result[tokenID] = current_balances[tokenID]
+                # pick a random amount to transfer
+                bal = result[tokenID]['Balance']
+                result[tokenID]['Balance'] = str(random.randint(1, int(bal)))
+        return result
+
+    '''
+    Given a list of tokens to transfer from a source node, do these transfers,
+    and return a list of what transfers were done (node in dict key vs list tokens transferred)
+    '''
+    def send_transactions_for_token_transfers(self, source_node_id, tokens_to_transfer: dict):
+        # get the list of available nodes
+        nodes_ids = list(range(0, self.num_nodes))
+        assert source_node_id in nodes_ids
+        node_vs_received = {}
+        for transferTID in tokens_to_transfer:
+            target_node = random.choice(nodes_ids)
+            txid = self.nodes[source_node_id].sendntp1toaddress(
+                self.nodes[target_node].getnewaddress(),
+                int(tokens_to_transfer[transferTID]['Balance']),
+                transferTID)
+            if target_node not in node_vs_received:
+                node_vs_received[target_node] = []
+            node_vs_received[target_node].append(tokens_to_transfer[transferTID])
+        return node_vs_received
 
     def run_test(self):
         #prepare some coins for multiple *rawtransaction commands
@@ -151,48 +189,11 @@ class RawTransactionsTest(BitcoinTestFramework):
         ntp1balances = self.nodes[0].getntp1balances()
         assert_equal(len(ntp1balances), 1)
 
-        tokens_to_issue_count = 5
-        tokens_to_issue = self.make_few_ntp1_tokens_data(tokens_to_issue_count)
-        assert len(tokens_to_issue) == tokens_to_issue_count
-        issued_tokens = {}
-        for i in range(len(tokens_to_issue)):
-            output_index = 2+i  # 2 were used, + the index we're in now
-            node_id = 1
-            txid = self.issue_ntp1_token(node_id,
-                                         [{'txid': spendable_tx[0], 'vout': spendable_tx[1][node_id][output_index]}],
-                                         tokens_to_issue[i]['symbol'],
-                                         tokens_to_issue[i]['amount'],
-                                         self.nodes[node_id].getnewaddress(),
-                                         tokens_to_issue[i]['metadata']
-                                         )
-            issued_tokens[tokens_to_issue[i]['symbol']] = (txid, tokens_to_issue[i])
-
-        self.nodes[0].generate(5)
-        sync_blocks(self.nodes)
-
-        token_balances_node1 = self.nodes[1].getntp1balances()
-        for token in tokens_to_issue:
-            symbol = token['symbol']
-            metadata = token['metadata']
-            amount = token['amount']
-            assert symbol in issued_tokens
-            assert symbol == issued_tokens[symbol][1]['symbol']
-            assert metadata == issued_tokens[symbol][1]['metadata']
-            assert amount == issued_tokens[symbol][1]['amount']
-            # test the result from getntp1balances()
-            found = False
-            for tokenID in token_balances_node1:
-                if token_balances_node1[tokenID]['Name'] == symbol:
-                    found = True
-                    assert token_balances_node1[tokenID]['Balance'] == amount
-            assert found
-
-        # assert False
-
-        # TODO: more input tests
         # Test `issuenewntp1token` required parameters
         assert_raises_rpc_error(-1, "issuenewntp1token", self.nodes[0].issuenewntp1token)
         assert_raises_rpc_error(-1, "issuenewntp1token", self.nodes[0].issuenewntp1token, [])
+        assert_raises_rpc_error(-1, "issuenewntp1token", self.nodes[0].issuenewntp1token, "")
+        assert_raises_rpc_error(-1, "issuenewntp1token", self.nodes[0].issuenewntp1token, "", [])
 
         # Test `issuenewntp1token` invalid extra parameters
         assert_raises_rpc_error(-1, "value is type obj, expected str", self.nodes[0].issuenewntp1token, [], {}, 0, False, 'foo')
