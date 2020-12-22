@@ -625,7 +625,7 @@ Value sendtoaddress(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio address");
 
     // Amount
-    CAmount nAmount = AmountFromValue(params[1]);
+    const CAmount nAmount = AmountFromValue(params[1]);
 
     // Wallet comments
     CWalletTx wtx;
@@ -657,7 +657,7 @@ Value sendntp1toaddress(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio address");
 
     // Amount
-    CAmount nAmount = params[1].get_int64();
+    const NTP1Int nAmount = NTP1AmountFromValue(params[1]);
 
     // Get NTP1 wallet
     boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();

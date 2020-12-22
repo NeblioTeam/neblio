@@ -129,6 +129,23 @@ CAmount AmountFromValue(const Value& value)
     return nAmount;
 }
 
+NTP1Int NTP1AmountFromValue(const Value& value)
+{
+    NTP1Int nAmount = 0;
+    if (value.type() != int_type && value.type() != str_type) {
+        throw JSONRPCError(RPC_TYPE_ERROR, "NTP1 Amount is not a number or string");
+    }
+    if (value.type() == Value_type::str_type) {
+        nAmount = NTP1Int(value.get_str());
+    } else if (value.type() == Value_type::int_type) {
+        nAmount = value.get_int64();
+    }
+    if (nAmount <= 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMS, "Invalid amount: " + ::ToString(nAmount));
+    }
+    return nAmount;
+}
+
 Value ValueFromAmount(const CAmount& amount)
 {
     bool    sign      = amount < 0;
@@ -1500,7 +1517,7 @@ NTP1SendTokensOneRecipientData ParseRPCNTP1OutputJson(const json_spirit::Pair&  
         if (obj.size() != 1) {
             throw std::runtime_error("Invalid tokenId and amount pair.");
         }
-        int64_t nAmount = obj[0].value_.get_int64();
+        NTP1Int nAmount = NTP1AmountFromValue(obj[0].value_);
         if (nAmount <= 0) {
             throw std::runtime_error("Invalid amount: " + ::ToString(res.amount));
         }

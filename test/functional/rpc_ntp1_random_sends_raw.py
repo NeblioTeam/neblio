@@ -90,7 +90,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         # we map node ids to output indices in this transaction
         node_to_output = {}
         outputs = {}
-        outputs_count = 100
+        outputs_count = 10
         for node_id in range(self.num_nodes):
             node_to_output[node_id] = []
             for i in range(outputs_count):
@@ -135,6 +135,17 @@ class RawTransactionsTest(BitcoinTestFramework):
             node_vs_received[target_node].append(tokens_to_transfer[transferTID])
         return node_vs_received
 
+    def create_destinations_for_transfers(self, tokens_to_transfer: dict):
+        # get the list of available nodes
+        nodes_ids = list(range(0, self.num_nodes))
+        node_vs_received = {}
+        for transferTID in tokens_to_transfer:
+            target_node = random.choice(nodes_ids)
+            if target_node not in node_vs_received:
+                node_vs_received[target_node] = []
+            node_vs_received[target_node].append(tokens_to_transfer[transferTID])
+        return node_vs_received
+
     def create_expected_balances(self, source_node_id, initial_balances_of_nodes, transfers):
         new_balances = copy.deepcopy(initial_balances_of_nodes)
         for node_id in transfers:
@@ -161,10 +172,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         return new_balances
 
     def get_current_ntp1_balances_per_node(self):
-        balances = []
-        for node in self.nodes:
-            balances.append(node.getntp1balances())
-        return balances
+        return [node.getntp1balances() for node in self.nodes]
 
     @staticmethod
     def compare_balances(current, expected):
@@ -187,6 +195,73 @@ class RawTransactionsTest(BitcoinTestFramework):
                 else:
                     current_b = current[i][tokenID]['Balance']
                     assert_equal(current_b, expected_b)
+
+
+    @staticmethod
+    def collect_inputs_for_transaction(source_node_outputs, transfers):
+        outputs = copy.deepcopy(source_node_outputs)
+        random.shuffle(outputs)
+        result_inputs = {}
+        required_amounts = copy.deepcopy(transfers)
+        for output in outputs:
+            output_taken = False
+            if 'tokens' in output and len(output['tokens']) > 0:
+                for token_info in output['tokens']:
+                    if output_taken:
+                        continue
+                    tokenID = token_info['tokenId']
+                    if tokenID not in required_amounts:
+                        # we just add the TokenID and the Balance/Amount (not complete, but enough)
+                        required_amounts[tokenID] = {'TokenId': tokenID, 'Balance': '0'}
+                    if int(required_amounts[tokenID]['Balance']) > 0:
+                        txid = output['txid']
+                        vout = output['vout']
+                        result_inputs[(txid, vout)] = output
+                        output_taken = True
+                        continue
+            # if the output is added to the result, we subtract its tokens from the required amounts
+            if output_taken:
+                for token_info in output['tokens']:
+                    tokenID = token_info['tokenId']
+                    current_amount = int(required_amounts[tokenID]['Balance'])
+                    to_sub = int(token_info['amount'])
+                    # negative amounts indicate change
+                    new_amount = str(current_amount - to_sub)
+                    required_amounts[tokenID]['Balance'] = new_amount
+        for tokenID in required_amounts:
+            if int(required_amounts[tokenID]['Balance']) > 0:
+                raise ArithmeticError("Failed to find inputs for token: {}".format(tokenID))
+        return result_inputs, required_amounts
+
+    def create_outputs_json(self, source_node_id, transfers_per_node, taken_amounts):
+        result = []
+        # transfers
+        for node_id in transfers_per_node:
+            tokens_data = transfers_per_node[node_id]
+            for token_data in tokens_data:
+                dest_address = self.nodes[node_id].getnewaddress()
+                result.append({dest_address: {token_data['TokenId']: token_data['Balance']}})
+        # change
+        for token_id in taken_amounts:
+            token_data = taken_amounts[token_id]
+            amount = str(-int(token_data['Balance']))  # remove the "-" sign
+            if int(amount) == 0:
+                continue
+            dest_address = self.nodes[source_node_id].getnewaddress()
+            result.append({dest_address: {token_data['TokenId']: amount}})
+        return result
+
+    @staticmethod
+    def make_inputs_for_call(inputs):
+        return [{"txid": input[0], "vout": input[1]} for input in inputs]
+
+    @staticmethod
+    def pick_input_for_fee(source_node_outputs):
+        for output in source_node_outputs:
+            # let's pick outputs that have no tokens, just nebls
+            if 'tokens' not in output or len(output['tokens']) == 0:
+                if output['amount'] > 0.1:
+                    return {"txid": output["txid"], "vout": output["vout"]}
 
 
     def run_test(self):
@@ -244,10 +319,16 @@ class RawTransactionsTest(BitcoinTestFramework):
                     assert balances_before_send[node_to_send_from][tokenID]['Balance'] == amount
             assert found
 
+        for node in self.nodes:
+            node.generate(1)
+            sync_blocks(self.nodes)
+
+
         # for multiple rounds we transfer randomly from one node to others
-        rounds_count = 8
-        for i in range(rounds_count):
-            print("Round {} in transfers:".format(i))
+        rounds_count = 10
+        i = 0
+        while i < rounds_count:
+            print("Round {} in transfers from node id {}".format(i, node_to_send_from))
 
             balances_before_send = self.get_current_ntp1_balances_per_node()
             print("Balances before transfer", balances_before_send)
@@ -255,15 +336,55 @@ class RawTransactionsTest(BitcoinTestFramework):
             transfers = self.pick_random_amounts_and_send(balances_before_send[node_to_send_from], 0.7)
             print("Planned transfers:", transfers)
 
-            transferred = self.send_transactions_for_token_transfers(node_to_send_from, transfers)
-            print("Transferred that happened:", transferred)
+            outputs_to_be_used = [node.listunspent() for node in self.nodes]
+            print("Outputs from sender node:", outputs_to_be_used)
+
+            (inputs, change) = self.collect_inputs_for_transaction(
+                outputs_to_be_used[node_to_send_from],
+                transfers)
+            print("Inputs:", inputs)
+            print("Change:", change)
+
+            if len(inputs) == 0:
+                print("Failed attempt to send from a node with no tokens. Retrying.")
+                node_to_send_from = random.randint(0, self.num_nodes - 1)
+                i -= 1
+                continue
+
+            transfers_per_node = self.create_destinations_for_transfers(transfers)
+            print("Transfers per node:", transfers_per_node)
+
+            destinations_for_call = self.create_outputs_json(node_to_send_from, transfers_per_node, change)
+            print("Destinations for call:", destinations_for_call)
+
+            inputs_for_call = self.make_inputs_for_call(inputs)
+            print("Inputs for call:", inputs_for_call)
+
+            nebl_output_for_fee = self.pick_input_for_fee(outputs_to_be_used[node_to_send_from])
+            print("Input with nebls for fee:", nebl_output_for_fee)
+
+            inputs_for_call.append(nebl_output_for_fee)
+
+            raw_tx = self.nodes[node_to_send_from].createrawntp1transaction(inputs_for_call,
+                                                                   destinations_for_call)
+            print("Raw tx:", raw_tx)
+
+            signed_raw_tx = self.nodes[node_to_send_from].signrawtransaction(raw_tx)
+            print("Signed raw tx:", signed_raw_tx)
+            assert signed_raw_tx['complete']
+
+            txid = self.nodes[node_to_send_from].sendrawtransaction(signed_raw_tx['hex'])
+            print("Txid:", txid)
 
             # generate blocks to ensure sends are in the blockchain
             for node in self.nodes:
                 node.generate(1)
                 sync_blocks(self.nodes)
 
-            new_expected_balances = self.create_expected_balances(node_to_send_from, balances_before_send, transferred)
+            new_expected_balances = self.create_expected_balances(
+                node_to_send_from,
+                balances_before_send,
+                transfers_per_node)
             print("New expected balances:", new_expected_balances)
 
             new_balances = self.get_current_ntp1_balances_per_node()
@@ -273,6 +394,7 @@ class RawTransactionsTest(BitcoinTestFramework):
 
             # source node for nexst round
             node_to_send_from = random.randint(0, self.num_nodes - 1)
+            i += 1
 
 
 if __name__ == '__main__':

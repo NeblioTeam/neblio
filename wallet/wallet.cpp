@@ -2485,7 +2485,7 @@ string CWallet::SendMoneyToDestination(const CTxDestination& address, CAmount nV
     return SendMoney(scriptPubKey, nValue, wtxNew, fAskFee);
 }
 
-string CWallet::SendNTP1ToDestination(const CTxDestination& address, CAmount nValue,
+string CWallet::SendNTP1ToDestination(const CTxDestination& address, NTP1Int nValue,
                                       const std::string& TokenId, CWalletTx& wtxNew,
                                       boost::shared_ptr<NTP1Wallet>    ntp1wallet,
                                       const RawNTP1MetadataBeforeSend& ntp1metadata, bool fAskFee)

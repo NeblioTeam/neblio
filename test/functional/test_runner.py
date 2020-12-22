@@ -81,6 +81,7 @@ BASE_SCRIPTS= [
     'rpc_rawtransaction.py',
     'rpc_ntp1_issuance.py',
     'rpc_ntp1_random_sends.py',
+    'rpc_ntp1_random_sends_raw.py',
 #    'wallet_address_types.py',
 #    'feature_reindex.py',
     # vv Tests less than 30s vv
