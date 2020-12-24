@@ -493,3 +493,69 @@ TEST(FixedPoint, ParseFixedPoint)
     EXPECT_FALSE(ParseFixedPoint("1.1e-", 8, &amount));
     EXPECT_FALSE(ParseFixedPoint("1.", 8, &amount));
 }
+
+TEST(util_tests, cache_with_options)
+{
+    CachedKeyValueWithOptions<uint256, int, bool, bool> cache;
+
+    // one key with one set of options
+    cache.update(uint256(10), 5, std::make_tuple(false, false));
+    EXPECT_EQ(cache.getValue(10, std::make_tuple(false, false)), 5);
+    EXPECT_EQ(cache.getValue(10, std::make_tuple(false, true)), boost::none);
+    EXPECT_EQ(cache.getValue(10, std::make_tuple(true, false)), boost::none);
+    EXPECT_EQ(cache.getValue(10, std::make_tuple(true, true)), boost::none);
+
+    // ensure other keys don't return anything
+    EXPECT_EQ(cache.getValue(5, std::make_tuple(false, false)), boost::none);
+    EXPECT_EQ(cache.getValue(5, std::make_tuple(false, true)), boost::none);
+    EXPECT_EQ(cache.getValue(5, std::make_tuple(true, false)), boost::none);
+    EXPECT_EQ(cache.getValue(5, std::make_tuple(true, true)), boost::none);
+
+    // now we add the same first key but with new options
+    cache.update(uint256(10), 15, std::make_tuple(false, true));
+    EXPECT_EQ(cache.getValue(10, std::make_tuple(false, false)), 5);
+    EXPECT_EQ(cache.getValue(10, std::make_tuple(false, true)), 15);
+    EXPECT_EQ(cache.getValue(10, std::make_tuple(true, false)), boost::none);
+    EXPECT_EQ(cache.getValue(10, std::make_tuple(true, true)), boost::none);
+
+    // now new key that overwrites everything
+    cache.update(uint256(20), 25, std::make_tuple(true, true));
+    EXPECT_EQ(cache.getValue(10, std::make_tuple(false, false)), boost::none);
+    EXPECT_EQ(cache.getValue(10, std::make_tuple(false, true)), boost::none);
+    EXPECT_EQ(cache.getValue(10, std::make_tuple(true, false)), boost::none);
+    EXPECT_EQ(cache.getValue(10, std::make_tuple(true, true)), boost::none);
+
+    EXPECT_EQ(cache.getValue(20, std::make_tuple(false, false)), boost::none);
+    EXPECT_EQ(cache.getValue(20, std::make_tuple(false, true)), boost::none);
+    EXPECT_EQ(cache.getValue(20, std::make_tuple(true, false)), boost::none);
+    EXPECT_EQ(cache.getValue(20, std::make_tuple(true, true)), 25);
+
+    cache.clear();
+
+    EXPECT_EQ(cache.getValue(20, std::make_tuple(false, false)), boost::none);
+    EXPECT_EQ(cache.getValue(20, std::make_tuple(false, true)), boost::none);
+    EXPECT_EQ(cache.getValue(20, std::make_tuple(true, false)), boost::none);
+    EXPECT_EQ(cache.getValue(20, std::make_tuple(true, true)), boost::none);
+}
+
+TEST(util_tests, cache_with_no_options)
+{
+    CachedKeyValueWithOptions<uint256, int> cache;
+
+    // one key with one set of options
+    cache.update(uint256(10), 5);
+    EXPECT_EQ(cache.getValue(10), 5);
+
+    // ensure other keys don't return anything
+    EXPECT_EQ(cache.getValue(5), boost::none);
+
+    // now new key that overwrites everything
+    cache.update(uint256(20), 25);
+    EXPECT_EQ(cache.getValue(10), boost::none);
+
+    EXPECT_EQ(cache.getValue(20), 25);
+
+    cache.clear();
+
+    EXPECT_EQ(cache.getValue(20), boost::none);
+}
