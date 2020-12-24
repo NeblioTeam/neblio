@@ -66,6 +66,11 @@ void WalletModel::updateStatus()
         emit encryptionStatusChanged(newEncryptionStatus);
 }
 
+int64_t WalletModel::getCreationTime() const
+{
+    return wallet->nTimeFirstKey;
+}
+
 void WalletModel::pollBalanceChanged()
 {
     // Get required locks upfront. This avoids the GUI from getting stuck on
@@ -76,6 +81,13 @@ void WalletModel::pollBalanceChanged()
         return;
     TRY_LOCK(wallet->cs_wallet, lockWallet);
     if (!lockWallet)
+        return;
+
+    // Don't continue processing if the chain tip time is less than the first
+    // key creation time as there is no need to iterate over the transaction
+    // table model in this case.
+    auto tip = pindexBest;
+    if (pindexBest && tip->GetBlockTime() < getCreationTime())
         return;
 
     if (nBestHeight != cachedNumBlocks) {

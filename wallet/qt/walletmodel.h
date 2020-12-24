@@ -155,6 +155,8 @@ public:
 
     CWallet* getWallet();
 
+    int64_t getCreationTime() const;
+
 private:
     CWallet* wallet;
 
