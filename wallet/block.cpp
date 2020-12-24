@@ -1785,6 +1785,8 @@ bool CBlock::WriteToDisk(const uint256& nBlockPos, const uint256& hashProof)
                this->GetHash().ToString().c_str());
     }
 
+    uiInterface.NotifyBlockTip(IsInitialBlockDownload(), pindexNew);
+
     success = true;
     txEnder.reset();
     return true;
