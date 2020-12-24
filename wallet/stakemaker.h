@@ -38,6 +38,12 @@ class StakeMaker
     boost::atomic_int64_t nLastCoinStakeSearchInterval{0};
     std::once_flag        timeSetterOnceFlag;
 
+    CachedKeyValueWithOptions<uint256, CAmount> cachedBalance;
+    // cached outputs with their total value
+    CachedKeyValueWithOptions<uint256,
+                              std::pair<CAmount, std::set<std::pair<const CWalletTx*, unsigned int>>>>
+        cachedSelectedOutputs;
+
 public:
     StakeMaker() = default;
 

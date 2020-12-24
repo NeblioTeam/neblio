@@ -135,8 +135,19 @@ StakeMaker::CreateCoinStake(const CWallet& wallet, const unsigned int nBits, con
 
     const bool fEnableColdStaking = GetBoolArg("-coldstaking", true);
 
+    const uint256 currentBestBlock = pindexBest->GetBlockHash();
+
     // Choose coins to use
-    const CAmount nBalance = wallet.GetStakingBalance(fEnableColdStaking);
+    const CAmount nBalance = [&]() {
+        boost::optional<CAmount> cachedBalanceValue = cachedBalance.getValue(currentBestBlock);
+        if (cachedBalanceValue) {
+            return *cachedBalanceValue;
+        } else {
+            const CAmount res = wallet.GetStakingBalance(fEnableColdStaking);
+            cachedBalance.update(currentBestBlock, res);
+            return res;
+        }
+    }();
 
     if (nBalance <= reservedBalance)
         return boost::none;
@@ -152,9 +163,15 @@ StakeMaker::CreateCoinStake(const CWallet& wallet, const unsigned int nBits, con
     // Select coins with suitable depth
     std::set<std::pair<const CWalletTx*, unsigned int>> setCoins;
     CAmount                                             nValueIn = 0;
-    if (!wallet.SelectCoinsForStaking(nBalance - reservedBalance, nCoinstakeInitialTxTime, setCoins,
-                                      nValueIn, fEnableColdStaking, false))
-        return boost::none;
+    const auto cachedOutputs = cachedSelectedOutputs.getValue(currentBestBlock);
+    if (cachedOutputs) {
+        std::tie(nValueIn, setCoins) = *cachedOutputs;
+    } else {
+        if (!wallet.SelectCoinsForStaking(nBalance - reservedBalance, nCoinstakeInitialTxTime, setCoins,
+                                          nValueIn, fEnableColdStaking, false))
+            return boost::none;
+        cachedSelectedOutputs.update(currentBestBlock, std::make_pair(nValueIn, setCoins));
+    }
 
     // we can choose custom inputs to use (by filtering the ones we get from the wallet) for testing
     // purposes
