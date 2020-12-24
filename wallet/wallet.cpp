@@ -1785,6 +1785,17 @@ bool CWallet::SelectCoinsForStaking(CAmount nTargetValue, unsigned int nSpendTim
     return true;
 }
 
+std::vector<CWalletTx> CWallet::getWalletTxs()
+{
+    LOCK(cs_wallet);
+    std::vector<CWalletTx> result;
+    result.reserve(mapWallet.size());
+    for (const auto& entry : mapWallet) {
+        result.emplace_back(entry.second);
+    }
+    return result;
+}
+
 void AddCoinsToInputsSet(set<pair<const CWalletTx*, unsigned int>>& setInputs, const NTP1OutPoint& input)
 {
     std::vector<COutput> coins;

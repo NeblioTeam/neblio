@@ -18,6 +18,11 @@
 #include <QLocale>
 #include <QtAlgorithms>
 
+// Maximum amount of loaded records in ram in the first load.
+// If the user has more and want to load them:
+// TODO, add load on demand in pages (not every tx loaded all the time into the records list).
+#define MAX_AMOUNT_LOADED_RECORDS 10000
+
 // Amount column is right-aligned it contains numbers
 static int column_alignments[] = {Qt::AlignLeft | Qt::AlignVCenter, Qt::AlignLeft | Qt::AlignVCenter,
                                   Qt::AlignLeft | Qt::AlignVCenter, Qt::AlignLeft | Qt::AlignVCenter,
@@ -57,11 +62,17 @@ public:
         OutputDebugStringF("refreshWallet\n");
         cachedWallet.clear();
         {
-            LOCK2(cs_main, wallet->cs_wallet);
-            for (std::map<uint256, CWalletTx>::iterator it = wallet->mapWallet.begin();
-                 it != wallet->mapWallet.end(); ++it) {
-                if (TransactionRecord::showTransaction(it->second))
-                    cachedWallet.append(TransactionRecord::decomposeTransaction(wallet, it->second));
+            std::vector<CWalletTx> walletTxes = wallet->getWalletTxs();
+
+            std::sort(walletTxes.begin(), walletTxes.end(),
+                      [](const CWalletTx& a, const CWalletTx& b) -> bool {
+                          return a.GetTxTime() < b.GetTxTime();
+                      });
+
+            for (unsigned i = 0; i < walletTxes.size() && i < MAX_AMOUNT_LOADED_RECORDS; i++) {
+                const CWalletTx& wtx = walletTxes[i];
+                if (TransactionRecord::showTransaction(wtx))
+                    cachedWallet.append(TransactionRecord::decomposeTransaction(wallet, wtx));
             }
         }
     }
