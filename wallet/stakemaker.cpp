@@ -9,6 +9,8 @@ int64_t StakeMaker::getLastCoinStakeSearchInterval() const { return nLastCoinSta
 
 int64_t StakeMaker::getLastCoinStakeSearchTime() const { return nLastCoinStakeSearchTime; }
 
+boost::optional<uint64_t> StakeMaker::getLatestStakeWeight() const { return cachedStakeWeight; }
+
 CoinStakeInputsResult MakeInitialStakeInputsResult(const StakeKernelData& kernelData)
 {
     CoinStakeInputsResult result;
@@ -40,7 +42,7 @@ TestAndCreateStakeKernel(CTxDB& txdb, const StakeMaker::KeyGetterFunctorType& ke
     CTxIndex txindex;
     CBlock   kernelBlock;
     {
-        LOCK(cs_main);
+        // LOCK(cs_main); // Seems unnecessary, since we only read from DB
 
         if (!txdb.ReadTxIndex(pcoin.first->GetHash(), txindex))
             return boost::none;
@@ -124,6 +126,16 @@ boost::optional<CAmount> CalculateStakeReward(const CTransaction& stakeTx, CAmou
     return boost::make_optional(result);
 }
 
+void StakeMaker::updateStakeWeight(const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins)
+{
+    uint64_t nMinWeight = 0, nMaxWeight = 0, nWeight = 0;
+    if (CWallet::GetStakeWeight(setCoins, nMinWeight, nMaxWeight, nWeight)) {
+        cachedStakeWeight = nWeight;
+    } else {
+        cachedStakeWeight = boost::none;
+    }
+}
+
 boost::optional<CTransaction>
 StakeMaker::CreateCoinStake(const CWallet& wallet, const unsigned int nBits, const CAmount nFees,
                             const CAmount reservedBalance,
@@ -168,10 +180,15 @@ StakeMaker::CreateCoinStake(const CWallet& wallet, const unsigned int nBits, con
         std::tie(nValueIn, setCoins) = *cachedOutputs;
     } else {
         if (!wallet.SelectCoinsForStaking(nBalance - reservedBalance, nCoinstakeInitialTxTime, setCoins,
-                                          nValueIn, fEnableColdStaking, false))
+                                          nValueIn, fEnableColdStaking, false)) {
+            // failure to get coins means they're spent. We reset stake weight
+            cachedStakeWeight = boost::none;
             return boost::none;
+        }
         cachedSelectedOutputs.update(currentBestBlock, std::make_pair(nValueIn, setCoins));
     }
+
+    updateStakeWeight(setCoins);
 
     // we can choose custom inputs to use (by filtering the ones we get from the wallet) for testing
     // purposes

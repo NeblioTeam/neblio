@@ -194,7 +194,7 @@ public:
                         const CCoinControl* coinControl = nullptr) const;
 
     // Get available p2cs utxo
-    void GetAvailableP2CSCoins(std::vector<COutput>& vCoins) const;
+    bool GetAvailableP2CSCoins(std::vector<COutput>& vCoins) const;
 
     static bool SelectCoinsMinConf(CAmount nTargetValue, unsigned int nSpendTime, int nConfMine,
                                    int nConfTheirs, std::vector<COutput> vCoins,
@@ -282,8 +282,9 @@ public:
                               bool fIncludeDelegated = false);
     bool    CommitTransaction(const CWalletTx& wtxNew, CReserveKey& reservekey);
 
-    bool GetStakeWeight(const CKeyStore& keystore, uint64_t& nMinWeight, uint64_t& nMaxWeight,
-                        uint64_t& nWeight);
+    bool        GetStakeWeight(uint64_t& nMinWeight, uint64_t& nMaxWeight, uint64_t& nWeight) const;
+    static bool GetStakeWeight(const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins,
+                               uint64_t& nMinWeight, uint64_t& nMaxWeight, uint64_t& nWeight);
 
     std::string SendMoney(CScript scriptPubKey, CAmount nValue, CWalletTx& wtxNew, bool fAskFee = false);
     std::string SendMoneyToDestination(const CTxDestination& address, CAmount nValue, CWalletTx& wtxNew,

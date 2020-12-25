@@ -66,7 +66,7 @@ public:
 
             std::sort(walletTxes.begin(), walletTxes.end(),
                       [](const CWalletTx& a, const CWalletTx& b) -> bool {
-                          return a.GetTxTime() < b.GetTxTime();
+                          return a.GetTxTime() > b.GetTxTime();
                       });
 
             for (unsigned i = 0; i < walletTxes.size() && i < MAX_AMOUNT_LOADED_RECORDS; i++) {

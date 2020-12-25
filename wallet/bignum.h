@@ -142,7 +142,8 @@ public:
      *
      * @return the size
      */
-    int bitSize() const{
+    int bitSize() const
+    {
         return BN_num_bits(this->bignum_internal);
     }
 
@@ -219,7 +220,7 @@ public:
         BN_mpi2bn(pch, p - pch, this->bignum_internal);
     }
 
-    uint64_t getuint64()
+    uint64_t getuint64() const
     {
         unsigned int nSize = BN_bn2mpi(this->bignum_internal, NULL);
         if (nSize < 4)

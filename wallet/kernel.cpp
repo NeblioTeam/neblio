@@ -16,7 +16,7 @@ int64_t GetWeight(int64_t nIntervalBeginning, int64_t nIntervalEnd)
     // Kernel hash weight starts from 0 at the min age
     // this change increases active coins participating the hash and helps
     // to secure the network when proof-of-stake difficulty is low
-    unsigned int nSMA = Params().StakeMinAge();
+    const unsigned int nSMA = Params().StakeMinAge();
     return min(nIntervalEnd - nIntervalBeginning - nSMA, Params().StakeMaxAge());
 }
 

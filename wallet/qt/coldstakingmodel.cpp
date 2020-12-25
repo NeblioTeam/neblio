@@ -92,7 +92,10 @@ void ColdStakingModel::refresh()
         cachedAmount = 0;
         // First get all of the p2cs utxo inside the wallet
         std::vector<COutput> utxoList;
-        pwalletMain->GetAvailableP2CSCoins(utxoList);
+        if (!pwalletMain->GetAvailableP2CSCoins(utxoList)) {
+            QTimer::singleShot(1000, this, &ColdStakingModel::refresh);
+            return;
+        }
 
         if (!utxoList.empty()) {
             // Loop over each COutput into a CSDelegation

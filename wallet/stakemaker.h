@@ -42,7 +42,10 @@ class StakeMaker
     // cached outputs with their total value
     CachedKeyValueWithOptions<uint256,
                               std::pair<CAmount, std::set<std::pair<const CWalletTx*, unsigned int>>>>
-        cachedSelectedOutputs;
+                                             cachedSelectedOutputs;
+    boost::atomic<boost::optional<uint64_t>> cachedStakeWeight;
+
+    void updateStakeWeight(const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins);
 
 public:
     StakeMaker() = default;
@@ -91,6 +94,7 @@ public:
     void                       resetLastCoinStakeSearchInterval();
     int64_t                    getLastCoinStakeSearchInterval() const;
     int64_t                    getLastCoinStakeSearchTime() const;
+    boost::optional<uint64_t>  getLatestStakeWeight() const;
 };
 
 #endif // STAKEMAKER_H

@@ -1366,11 +1366,19 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, bool 
     }
 }
 
-void CWallet::GetAvailableP2CSCoins(std::vector<COutput>& vCoins) const
+bool CWallet::GetAvailableP2CSCoins(std::vector<COutput>& vCoins) const
 {
     vCoins.clear();
     {
-        LOCK2(cs_main, cs_wallet);
+        TRY_LOCK(cs_main, lockMain);
+        if (!lockMain) {
+            return false;
+        }
+        TRY_LOCK(cs_wallet, lockWallet);
+        if (!lockWallet) {
+            return false;
+        }
+
         for (const auto& it : mapWallet) {
             const uint256&   wtxid = it.first;
             const CWalletTx* pcoin = &it.second;
@@ -1399,6 +1407,7 @@ void CWallet::GetAvailableP2CSCoins(std::vector<COutput>& vCoins) const
             }
         }
     }
+    return true;
 }
 
 void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins, unsigned int nSpendTime,
@@ -2301,8 +2310,7 @@ bool CWallet::CreateTransaction(CScript scriptPubKey, CAmount nValue, CWalletTx&
 }
 
 // NovaCoin: get current stake weight
-bool CWallet::GetStakeWeight(const CKeyStore& /*keystore*/, uint64_t& nMinWeight, uint64_t& nMaxWeight,
-                             uint64_t& nWeight)
+bool CWallet::GetStakeWeight(uint64_t& nMinWeight, uint64_t& nMaxWeight, uint64_t& nWeight) const
 {
     // Choose coins to use
     const CAmount nBalance = GetBalance();
@@ -2311,8 +2319,6 @@ bool CWallet::GetStakeWeight(const CKeyStore& /*keystore*/, uint64_t& nMinWeight
 
     if (nBalance <= nReserveBalance)
         return false;
-
-    vector<const CWalletTx*> vwtxPrev;
 
     set<pair<const CWalletTx*, unsigned int>> setCoins;
     CAmount                                   nValueIn = 0;
@@ -2323,32 +2329,38 @@ bool CWallet::GetStakeWeight(const CKeyStore& /*keystore*/, uint64_t& nMinWeight
     if (setCoins.empty())
         return false;
 
-    CTxDB txdb("r");
-    for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
-        CTxIndex txindex;
-        {
-            LOCK2(cs_main, cs_wallet);
-            if (!txdb.ReadTxIndex(pcoin.first->GetHash(), txindex))
-                continue;
-        }
+    return GetStakeWeight(setCoins, nMinWeight, nMaxWeight, nWeight);
+}
 
-        int64_t nTimeWeight = GetWeight((int64_t)pcoin.first->nTime, (int64_t)GetTime());
-        CBigNum bnCoinDayWeight =
+// NovaCoin: get current stake weight
+bool CWallet::GetStakeWeight(const set<pair<const CWalletTx*, unsigned int>>& setCoins,
+                             uint64_t& nMinWeight, uint64_t& nMaxWeight, uint64_t& nWeight)
+{
+    nMinWeight = nMaxWeight = nWeight = 0;
+
+    if (setCoins.empty())
+        return false;
+
+    for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
+        const int64_t nTimeWeight = GetWeight((int64_t)pcoin.first->nTime, (int64_t)GetTime());
+        const CBigNum bnCoinDayWeight =
             CBigNum(pcoin.first->vout[pcoin.second].nValue) * nTimeWeight / COIN / (24 * 60 * 60);
+
+        const uint64_t dayWeight = bnCoinDayWeight.getuint64();
 
         // Weight is greater than zero
         if (nTimeWeight > 0) {
-            nWeight += bnCoinDayWeight.getuint64();
+            nWeight += dayWeight;
         }
 
         // Weight is greater than zero, but the maximum value isn't reached yet
         if (nTimeWeight > 0 && nTimeWeight < Params().StakeMaxAge()) {
-            nMinWeight += bnCoinDayWeight.getuint64();
+            nMinWeight += dayWeight;
         }
 
         // Maximum weight was reached
         if (nTimeWeight == Params().StakeMaxAge()) {
-            nMaxWeight += bnCoinDayWeight.getuint64();
+            nMaxWeight += dayWeight;
         }
     }
 
