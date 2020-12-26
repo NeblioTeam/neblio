@@ -66,10 +66,7 @@ void WalletModel::updateStatus()
         emit encryptionStatusChanged(newEncryptionStatus);
 }
 
-int64_t WalletModel::getCreationTime() const
-{
-    return wallet->nTimeFirstKey;
-}
+int64_t WalletModel::getCreationTime() const { return wallet->nTimeFirstKey; }
 
 void WalletModel::pollBalanceChanged()
 {
@@ -316,12 +313,10 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(QList<SendCoinsRecipient>   
         CTxDestination dest       = CBitcoinAddress(strAddress).Get();
         std::string    strLabel   = rcp.label.toStdString();
         {
-            LOCK(wallet->cs_wallet);
-
-            auto mi = wallet->mapAddressBook.find(dest);
+            auto mi = wallet->mapAddressBook.get(dest);
 
             // Check if we have a new address or an updated label
-            if (mi == wallet->mapAddressBook.end() || mi->second.name != strLabel) {
+            if (!mi.has_value() || mi->name != strLabel) {
                 wallet->SetAddressBookEntry(dest, strLabel);
             }
         }
@@ -565,11 +560,9 @@ std::string WalletModel::getLabelForAddress(const CBitcoinAddress& address)
 {
     std::string label = "";
     {
-        LOCK(wallet->cs_wallet);
-        std::map<CTxDestination, AddressBook::CAddressBookData>::iterator mi =
-            wallet->mapAddressBook.find(address.Get());
-        if (mi != wallet->mapAddressBook.end()) {
-            label = mi->second.name;
+        const auto mi = wallet->mapAddressBook.get(address.Get());
+        if (mi.has_value()) {
+            label = mi->name;
         }
     }
     return label;

@@ -172,7 +172,7 @@ public:
     int64_t                nOrderPosNext;
     std::map<uint256, int> mapRequestCount;
 
-    std::map<CTxDestination, AddressBook::CAddressBookData> mapAddressBook;
+    ThreadSafeMap<CTxDestination, AddressBook::CAddressBookData> mapAddressBook;
 
     int64_t nTimeFirstKey;
 

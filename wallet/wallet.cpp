@@ -827,8 +827,7 @@ bool CWallet::IsChange(const CTxOut& txout) const
     // 'the change' will need to be implemented (maybe extend CWalletTx to remember
     // which output, if any, was change).
     if (ExtractDestination(txout.scriptPubKey, address) && ::IsMine(*this, address) != ISMINE_NO) {
-        LOCK(cs_wallet);
-        if (!mapAddressBook.count(address))
+        if (!mapAddressBook.exists(address))
             return true;
     }
     return false;
@@ -1028,16 +1027,12 @@ void CWalletTx::GetAccountAmounts(const string& strAccount, CAmount& nReceived, 
             nSent += s.second;
         nFee = allFee;
     }
-    {
-        LOCK(pwallet->cs_wallet);
-        for (const PAIRTYPE(CTxDestination, CAmount) & r : listReceived) {
-            if (pwallet->mapAddressBook.count(r.first)) {
-                auto mi = pwallet->mapAddressBook.find(r.first);
-                if (mi != pwallet->mapAddressBook.end() && (*mi).second.name == strAccount)
-                    nReceived += r.second;
-            } else if (strAccount.empty()) {
+    for (const PAIRTYPE(CTxDestination, CAmount) & r : listReceived) {
+        if (const auto entry = pwallet->mapAddressBook.get(r.first)) {
+            if (entry.has_value() && entry->name == strAccount)
                 nReceived += r.second;
-            }
+        } else if (strAccount.empty()) {
+            nReceived += r.second;
         }
     }
 }
@@ -2594,10 +2589,11 @@ bool CWallet::SetAddressBookEntry(const CTxDestination& address, const string& s
 {
     bool fUpdated = HasAddressBookEntry(address);
     {
-        LOCK(cs_wallet); // mapAddressBook
-        mapAddressBook[address].name = strName;
+        AddressBook::CAddressBookData d;
+        d.name = strName;
         if (!strPurpose.empty()) /* update purpose only if requested */
-            mapAddressBook[address].purpose = strPurpose;
+            d.purpose = strPurpose;
+        mapAddressBook.set(address, d);
     }
     NotifyAddressBookChanged(this, address, strName, ::IsMine(*this, address) != ISMINE_NO, strPurpose,
                              (fUpdated ? CT_UPDATED : CT_NEW));
@@ -2631,22 +2627,16 @@ bool CWallet::DelAddressBookName(const CTxDestination& address)
 
 std::string CWallet::purposeForAddress(const CTxDestination& address) const
 {
-    {
-        LOCK(cs_wallet);
-        auto mi = mapAddressBook.find(address);
-        if (mi != mapAddressBook.end()) {
-            return mi->second.purpose;
-        }
+    const auto mi = mapAddressBook.get(address);
+    if (mi.has_value()) {
+        return mi->purpose;
     }
     return "";
 }
 
 bool CWallet::HasAddressBookEntry(const CTxDestination& address) const
 {
-    LOCK(cs_wallet); // mapAddressBook
-    std::map<CTxDestination, AddressBook::CAddressBookData>::const_iterator mi =
-        mapAddressBook.find(address);
-    return mi != mapAddressBook.end();
+    return mapAddressBook.exists(address);
 }
 
 bool CWallet::HasDelegator(const CTxOut& out) const
@@ -2655,12 +2645,10 @@ bool CWallet::HasDelegator(const CTxOut& out) const
     if (!ExtractDestination(out.scriptPubKey, delegator, false))
         return false;
     {
-        LOCK(cs_wallet); // mapAddressBook
-        std::map<CTxDestination, AddressBook::CAddressBookData>::const_iterator mi =
-            mapAddressBook.find(delegator);
-        if (mi == mapAddressBook.end())
+        const auto mi = mapAddressBook.get(delegator);
+        if (!mi.has_value())
             return false;
-        return (*mi).second.purpose == AddressBook::AddressBookPurpose::DELEGATOR;
+        return mi->purpose == AddressBook::AddressBookPurpose::DELEGATOR;
     }
 }
 
