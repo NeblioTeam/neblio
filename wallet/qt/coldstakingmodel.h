@@ -36,12 +36,14 @@ class ColdStakingModel : public QAbstractTableModel
     Q_OBJECT
 
     QList<ColdStakingCachedItem> cachedItems;
-
-    CAmount cachedAmount;
+    CAmount                      cachedAmount;
 
     WalletModel*           walletModel;
     AddressTableModel*     addressTableModel = nullptr;
     TransactionTableModel* tableModel        = nullptr;
+
+    static std::pair<QList<ColdStakingCachedItem>, CAmount>
+    ProcessColdStakingUTXOList(const std::vector<COutput>& utxoList);
 
 public:
     WalletModel*           getWalletModel();
@@ -74,8 +76,9 @@ public:
 
     void updateCSList();
 
-    boost::optional<ColdStakingCachedItem>
-    parseColdStakingCachedItem(const CTxOut& out, const QString& txId, const int& utxoIndex);
+    boost::optional<ColdStakingCachedItem> static parseColdStakingCachedItem(const CTxOut&  out,
+                                                                             const QString& txId,
+                                                                             const int&     utxoIndex);
 
     bool whitelist(const QModelIndex& modelIndex);
     bool blacklist(const QModelIndex& index);

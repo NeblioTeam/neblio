@@ -9,6 +9,55 @@
 #include <QIcon>
 #include <QImage>
 
+std::pair<QList<ColdStakingCachedItem>, CAmount>
+ColdStakingModel::ProcessColdStakingUTXOList(const std::vector<COutput>& utxoList)
+{
+    QList<ColdStakingCachedItem> cachedItemsResult;
+    CAmount                      cachedAmountResult = 0;
+
+    if (!utxoList.empty()) {
+        // Loop over each COutput into a CSDelegation
+        for (const auto& utxo : utxoList) {
+
+            const CWalletTx* wtx  = utxo.tx;
+            const QString    txId = QString::fromStdString(wtx->GetHash().GetHex());
+            const CTxOut&    out  = wtx->vout[utxo.i];
+
+            // First parse the cs delegation
+            boost::optional<ColdStakingCachedItem> item = parseColdStakingCachedItem(out, txId, utxo.i);
+            if (!item)
+                continue;
+
+            // it's spendable only when this wallet has the keys to spend it, a.k.a is the owner
+            item->isSpendable =
+                (IsMine(*pwalletMain, out.scriptPubKey) & isminetype::ISMINE_SPENDABLE_ALL) != 0;
+            item->cachedTotalAmount += out.nValue;
+            item->delegatedUtxo.insert(txId, utxo.i);
+
+            // Now verify if the delegation exists in the cached list
+            int indexDel = cachedItemsResult.indexOf(*item);
+            if (indexDel == -1) {
+                // If it doesn't, let's append it.
+                cachedItemsResult.append(*item);
+            } else {
+                ColdStakingCachedItem& del = cachedItemsResult[indexDel];
+                del.delegatedUtxo.unite(item->delegatedUtxo);
+                del.cachedTotalAmount += item->cachedTotalAmount;
+            }
+
+            // add amount to cachedAmount if either:
+            // - this is a owned delegation
+            // - this is a staked delegation, and the owner is whitelisted
+            //            if (!delegation.isSpendable &&
+            //            !addressTableModel->isWhitelisted(delegation.ownerAddress))
+            //                continue;
+            cachedAmountResult += item->cachedTotalAmount;
+        }
+    }
+
+    return std::make_pair(cachedItemsResult, cachedAmountResult);
+}
+
 WalletModel* ColdStakingModel::getWalletModel() { return walletModel; }
 
 TransactionTableModel* ColdStakingModel::getTransactionTableModel() { return tableModel; }
@@ -77,19 +126,11 @@ void ColdStakingModel::refresh()
     }
 
     {
-        beginResetModel();
-        // this is an RAII hack to guarantee that the function will end the model reset
-        // WalletModel has nothing to do with this. It's just a dummy variable
-        auto modelResetEnderFunctor = [this](WalletModel*) { endResetModel(); };
-        std::unique_ptr<WalletModel, decltype(modelResetEnderFunctor)> txEnder(walletModel,
-                                                                               modelResetEnderFunctor);
-
         if (!pwalletMain) {
             QTimer::singleShot(5000, this, &ColdStakingModel::refresh);
             return;
         }
-        cachedItems.clear();
-        cachedAmount = 0;
+
         // First get all of the p2cs utxo inside the wallet
         std::vector<COutput> utxoList;
         if (!pwalletMain->GetAvailableP2CSCoins(utxoList)) {
@@ -97,46 +138,14 @@ void ColdStakingModel::refresh()
             return;
         }
 
-        if (!utxoList.empty()) {
-            // Loop over each COutput into a CSDelegation
-            for (const auto& utxo : utxoList) {
+        beginResetModel();
+        // this is an RAII hack to guarantee that the function will end the model reset
+        // WalletModel has nothing to do with this. It's just a dummy variable
+        auto modelResetEnderFunctor = [this](WalletModel*) { endResetModel(); };
+        std::unique_ptr<WalletModel, decltype(modelResetEnderFunctor)> txEnder(walletModel,
+                                                                               modelResetEnderFunctor);
 
-                const CWalletTx* wtx  = utxo.tx;
-                const QString    txId = QString::fromStdString(wtx->GetHash().GetHex());
-                const CTxOut&    out  = wtx->vout[utxo.i];
-
-                // First parse the cs delegation
-                boost::optional<ColdStakingCachedItem> item =
-                    parseColdStakingCachedItem(out, txId, utxo.i);
-                if (!item)
-                    continue;
-
-                // it's spendable only when this wallet has the keys to spend it, a.k.a is the owner
-                item->isSpendable =
-                    (IsMine(*pwalletMain, out.scriptPubKey) & isminetype::ISMINE_SPENDABLE_ALL) != 0;
-                item->cachedTotalAmount += out.nValue;
-                item->delegatedUtxo.insert(txId, utxo.i);
-
-                // Now verify if the delegation exists in the cached list
-                int indexDel = cachedItems.indexOf(*item);
-                if (indexDel == -1) {
-                    // If it doesn't, let's append it.
-                    cachedItems.append(*item);
-                } else {
-                    ColdStakingCachedItem& del = cachedItems[indexDel];
-                    del.delegatedUtxo.unite(item->delegatedUtxo);
-                    del.cachedTotalAmount += item->cachedTotalAmount;
-                }
-
-                // add amount to cachedAmount if either:
-                // - this is a owned delegation
-                // - this is a staked delegation, and the owner is whitelisted
-                //            if (!delegation.isSpendable &&
-                //            !addressTableModel->isWhitelisted(delegation.ownerAddress))
-                //                continue;
-                cachedAmount += item->cachedTotalAmount;
-            }
-        }
+        std::tie(cachedItems, cachedAmount) = ProcessColdStakingUTXOList(utxoList);
     }
     QMetaObject::invokeMethod(this, "emitDataSetChanged", Qt::QueuedConnection);
 }
