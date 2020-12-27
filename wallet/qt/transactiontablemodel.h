@@ -3,11 +3,26 @@
 
 #include <QAbstractTableModel>
 #include <QStringList>
+#include <QThread>
 
 class CWallet;
 class TransactionTablePriv;
 class TransactionRecord;
 class WalletModel;
+
+class TxsRetrieverWorker : public QObject
+{
+    Q_OBJECT
+
+public slots:
+    // we use the shared pointer argument to ensure that workerPtr will be deleted after doing the
+    // retrieval
+    void getTxs(CWallet* wallet, QSharedPointer<TxsRetrieverWorker> workerPtr);
+
+signals:
+    // Signal that balance in wallet changed
+    void resultReady(QSharedPointer<QList<TransactionRecord>> records);
+};
 
 /** UI model for the transaction table of a wallet.
  */
@@ -63,12 +78,16 @@ public:
     QVariant    data(const QModelIndex& index, int role) const;
     QVariant    headerData(int section, Qt::Orientation orientation, int role) const;
     QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const;
+    bool        isTxsRetrieverThreadRunning() const;
 
 private:
     CWallet*              wallet;
     WalletModel*          walletModel;
     QStringList           columns;
     TransactionTablePriv* priv;
+
+    QThread txsRetrieverThread;
+    bool    txsRetrieverWorkerRunning = false;
 
     QString  lookupAddress(const std::string& address, bool tooltip) const;
     QVariant addressColor(const TransactionRecord* wtx) const;
@@ -86,10 +105,14 @@ public slots:
     void updateConfirmations();
     void updateDisplayUnit();
 
+    void refreshWallet();
+    void finishRefreshWallet(QSharedPointer<QList<TransactionRecord>> records);
+
     friend class TransactionTablePriv;
 
 signals:
     void txArrived(const QString& hash);
+    void triggerRefeshTxs(CWallet* wallet, QSharedPointer<TxsRetrieverWorker> workerPtr);
 };
 
 #endif
