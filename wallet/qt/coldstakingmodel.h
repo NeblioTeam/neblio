@@ -40,19 +40,10 @@ class AvailableP2CSCoinsWorker : public QObject
 public slots:
     // we use the shared pointer argument to ensure that workerPtr will be deleted after doing the
     // retrieval
-    void retrieveOutputs(QSharedPointer<AvailableP2CSCoinsWorker> workerPtr)
-    {
-        QSharedPointer<std::vector<COutput>> utxoList = QSharedPointer<std::vector<COutput>>::create();
-        while (!fShutdown && !pwalletMain->GetAvailableP2CSCoins(*utxoList)) {
-            QThread::msleep(100);
-        }
-
-        emit resultReady(utxoList);
-        workerPtr.reset();
-    }
+    void retrieveOutputs(QSharedPointer<AvailableP2CSCoinsWorker> workerPtr);
 
 signals:
-    void resultReady(QSharedPointer<std::vector<COutput>> utxoListPtr);
+    void resultReady(QSharedPointer<std::pair<QList<ColdStakingCachedItem>, CAmount>> itemsAndAmount);
 };
 
 class ColdStakingModel : public QAbstractTableModel
@@ -65,9 +56,6 @@ class ColdStakingModel : public QAbstractTableModel
     WalletModel*           walletModel;
     AddressTableModel*     addressTableModel = nullptr;
     TransactionTableModel* tableModel        = nullptr;
-
-    static std::pair<QList<ColdStakingCachedItem>, CAmount>
-    ProcessColdStakingUTXOList(const std::vector<COutput>& utxoList);
 
     QThread retrieveOutputsThread;
     bool    isWorkerRunning = false;
@@ -105,6 +93,8 @@ public:
 
     static boost::optional<ColdStakingCachedItem>
     ParseColdStakingCachedItem(const CTxOut& out, const QString& txId, const int& utxoIndex);
+    static std::pair<QList<ColdStakingCachedItem>, CAmount>
+    ProcessColdStakingUTXOList(const std::vector<COutput>& utxoList);
 
     bool whitelist(const QModelIndex& modelIndex);
     bool blacklist(const QModelIndex& index);
@@ -116,7 +106,7 @@ signals:
 
 public slots:
     void refresh();
-    void finishRefresh(QSharedPointer<std::vector<COutput>> utxoListPtr);
+    void finishRefresh(QSharedPointer<std::pair<QList<ColdStakingCachedItem>, CAmount>> itemsAndAmount);
     void emitDataSetChanged();
 };
 

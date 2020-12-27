@@ -70,6 +70,8 @@ ColdStakingModel::ColdStakingModel()
     qRegisterMetaType<QSharedPointer<std::vector<COutput>>>("QSharedPointer<std::vector<COutput>>");
     qRegisterMetaType<QSharedPointer<AvailableP2CSCoinsWorker>>(
         "QSharedPointer<AvailableP2CSCoinsWorker>");
+    qRegisterMetaType<QSharedPointer<std::pair<QList<ColdStakingCachedItem>, CAmount>>>(
+        "QSharedPointer<std::pair<QList<ColdStakingCachedItem>, CAmount>>");
     retrieveOutputsThread.start();
 }
 
@@ -159,8 +161,11 @@ void ColdStakingModel::refresh()
     emit triggerWorkerRetrieveOutputs(worker);
 }
 
-void ColdStakingModel::finishRefresh(QSharedPointer<std::vector<COutput>> utxoListPtr)
+void ColdStakingModel::finishRefresh(
+    QSharedPointer<std::pair<QList<ColdStakingCachedItem>, CAmount>> itemsAndAmount)
 {
+    assert(itemsAndAmount);
+
     // force sync since we got a vector from another thread
     std::atomic_thread_fence(std::memory_order_seq_cst);
 
@@ -171,7 +176,8 @@ void ColdStakingModel::finishRefresh(QSharedPointer<std::vector<COutput>> utxoLi
     std::unique_ptr<WalletModel, decltype(modelResetEnderFunctor)> txEnder(walletModel,
                                                                            modelResetEnderFunctor);
 
-    std::tie(cachedItems, cachedAmount) = ProcessColdStakingUTXOList(*utxoListPtr);
+    std::tie(cachedItems, cachedAmount) = *itemsAndAmount;
+
     QMetaObject::invokeMethod(this, "emitDataSetChanged", Qt::QueuedConnection);
 
     isWorkerRunning = false;
@@ -249,4 +255,18 @@ void ColdStakingModel::updateCSList()
 void ColdStakingModel::emitDataSetChanged()
 {
     emit dataChanged(index(0, 0, QModelIndex()), index(cachedItems.size(), COLUMN_COUNT, QModelIndex()));
+}
+
+void AvailableP2CSCoinsWorker::retrieveOutputs(QSharedPointer<AvailableP2CSCoinsWorker> workerPtr)
+{
+    QSharedPointer<std::vector<COutput>> utxoList = QSharedPointer<std::vector<COutput>>::create();
+    while (!fShutdown && !pwalletMain->GetAvailableP2CSCoins(*utxoList)) {
+        QThread::msleep(100);
+    }
+
+    const auto result = ColdStakingModel::ProcessColdStakingUTXOList(*utxoList);
+
+    emit resultReady(
+        QSharedPointer<std::pair<QList<ColdStakingCachedItem>, CAmount>>::create(std::move(result)));
+    workerPtr.reset();
 }
