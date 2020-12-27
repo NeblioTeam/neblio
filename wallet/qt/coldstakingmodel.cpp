@@ -72,6 +72,7 @@ ColdStakingModel::ColdStakingModel()
         "QSharedPointer<AvailableP2CSCoinsWorker>");
     qRegisterMetaType<QSharedPointer<std::pair<QList<ColdStakingCachedItem>, CAmount>>>(
         "QSharedPointer<std::pair<QList<ColdStakingCachedItem>, CAmount>>");
+    retrieveOutputsThread.setObjectName("neblio-CsUTXORetriever"); // thread name
     retrieveOutputsThread.start();
 }
 
@@ -264,7 +265,7 @@ void AvailableP2CSCoinsWorker::retrieveOutputs(QSharedPointer<AvailableP2CSCoins
         QThread::msleep(100);
     }
 
-    const auto result = ColdStakingModel::ProcessColdStakingUTXOList(*utxoList);
+    auto result = ColdStakingModel::ProcessColdStakingUTXOList(*utxoList);
 
     emit resultReady(
         QSharedPointer<std::pair<QList<ColdStakingCachedItem>, CAmount>>::create(std::move(result)));
