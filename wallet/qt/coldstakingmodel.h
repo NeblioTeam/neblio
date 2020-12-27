@@ -2,6 +2,8 @@
 #define COLDSTAKINGMODEL_H
 
 #include <QAbstractTableModel>
+#include <QSharedPointer>
+#include <QThread>
 #include <QTimer>
 #include <atomic>
 
@@ -31,6 +33,28 @@ public:
     bool operator==(const ColdStakingCachedItem& obj) { return obj.ownerAddress == ownerAddress; }
 };
 
+class AvailableP2CSCoinsWorker : public QObject
+{
+    Q_OBJECT
+
+public slots:
+    // we use the shared pointer argument to ensure that workerPtr will be deleted after doing the
+    // retrieval
+    void retrieveOutputs(QSharedPointer<AvailableP2CSCoinsWorker> workerPtr)
+    {
+        QSharedPointer<std::vector<COutput>> utxoList = QSharedPointer<std::vector<COutput>>::create();
+        while (!fShutdown && !pwalletMain->GetAvailableP2CSCoins(*utxoList)) {
+            QThread::msleep(100);
+        }
+
+        emit resultReady(utxoList);
+        workerPtr.reset();
+    }
+
+signals:
+    void resultReady(QSharedPointer<std::vector<COutput>> utxoListPtr);
+};
+
 class ColdStakingModel : public QAbstractTableModel
 {
     Q_OBJECT
@@ -44,6 +68,9 @@ class ColdStakingModel : public QAbstractTableModel
 
     static std::pair<QList<ColdStakingCachedItem>, CAmount>
     ProcessColdStakingUTXOList(const std::vector<COutput>& utxoList);
+
+    QThread retrieveOutputsThread;
+    bool    isWorkerRunning = false;
 
 public:
     WalletModel*           getWalletModel();
@@ -86,9 +113,11 @@ public:
     void removeRowAndEmitDataChanged(const int idx);
 
 signals:
+    void triggerWorkerRetrieveOutputs(QSharedPointer<AvailableP2CSCoinsWorker> workerPtr);
 
 public slots:
     void refresh();
+    void finishRefresh(QSharedPointer<std::vector<COutput>> utxoListPtr);
     void emitDataSetChanged();
 };
 

@@ -8,6 +8,7 @@
 
 #include <QIcon>
 #include <QImage>
+#include <QMetaType>
 
 std::pair<QList<ColdStakingCachedItem>, CAmount>
 ColdStakingModel::ProcessColdStakingUTXOList(const std::vector<COutput>& utxoList)
@@ -64,9 +65,19 @@ TransactionTableModel* ColdStakingModel::getTransactionTableModel() { return tab
 
 AddressTableModel* ColdStakingModel::getAddressTableModel() { return addressTableModel; }
 
-ColdStakingModel::ColdStakingModel() {}
+ColdStakingModel::ColdStakingModel()
+{
+    qRegisterMetaType<QSharedPointer<std::vector<COutput>>>("QSharedPointer<std::vector<COutput>>");
+    qRegisterMetaType<QSharedPointer<AvailableP2CSCoinsWorker>>(
+        "QSharedPointer<AvailableP2CSCoinsWorker>");
+    retrieveOutputsThread.start();
+}
 
-ColdStakingModel::~ColdStakingModel() {}
+ColdStakingModel::~ColdStakingModel()
+{
+    retrieveOutputsThread.quit();
+    retrieveOutputsThread.wait();
+}
 
 int ColdStakingModel::rowCount(const QModelIndex& /*parent*/) const { return cachedItems.size(); }
 
@@ -125,29 +136,45 @@ void ColdStakingModel::refresh()
         return;
     }
 
-    {
-        if (!pwalletMain) {
-            QTimer::singleShot(5000, this, &ColdStakingModel::refresh);
-            return;
-        }
-
-        // First get all of the p2cs utxo inside the wallet
-        std::vector<COutput> utxoList;
-        if (!pwalletMain->GetAvailableP2CSCoins(utxoList)) {
-            QTimer::singleShot(1000, this, &ColdStakingModel::refresh);
-            return;
-        }
-
-        beginResetModel();
-        // this is an RAII hack to guarantee that the function will end the model reset
-        // WalletModel has nothing to do with this. It's just a dummy variable
-        auto modelResetEnderFunctor = [this](WalletModel*) { endResetModel(); };
-        std::unique_ptr<WalletModel, decltype(modelResetEnderFunctor)> txEnder(walletModel,
-                                                                               modelResetEnderFunctor);
-
-        std::tie(cachedItems, cachedAmount) = ProcessColdStakingUTXOList(utxoList);
+    if (!pwalletMain) {
+        QTimer::singleShot(5000, this, &ColdStakingModel::refresh);
+        return;
     }
+
+    // we want only one instane of the worker running
+    if (isWorkerRunning) {
+        QTimer::singleShot(5000, this, &ColdStakingModel::refresh);
+        return;
+    }
+
+    isWorkerRunning = true;
+
+    QSharedPointer<AvailableP2CSCoinsWorker> worker = QSharedPointer<AvailableP2CSCoinsWorker>::create();
+    worker->moveToThread(&retrieveOutputsThread);
+    connect(&retrieveOutputsThread, &QThread::finished, worker.get(), &QObject::deleteLater);
+    connect(worker.get(), &AvailableP2CSCoinsWorker::resultReady, this, &ColdStakingModel::finishRefresh,
+            Qt::QueuedConnection);
+    connect(this, &ColdStakingModel::triggerWorkerRetrieveOutputs, worker.get(),
+            &AvailableP2CSCoinsWorker::retrieveOutputs, Qt::QueuedConnection);
+    emit triggerWorkerRetrieveOutputs(worker);
+}
+
+void ColdStakingModel::finishRefresh(QSharedPointer<std::vector<COutput>> utxoListPtr)
+{
+    // force sync since we got a vector from another thread
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+
+    beginResetModel();
+    // this is an RAII hack to guarantee that the function will end the model reset
+    // WalletModel has nothing to do with this. It's just a dummy variable
+    auto modelResetEnderFunctor = [this](WalletModel*) { endResetModel(); };
+    std::unique_ptr<WalletModel, decltype(modelResetEnderFunctor)> txEnder(walletModel,
+                                                                           modelResetEnderFunctor);
+
+    std::tie(cachedItems, cachedAmount) = ProcessColdStakingUTXOList(*utxoListPtr);
     QMetaObject::invokeMethod(this, "emitDataSetChanged", Qt::QueuedConnection);
+
+    isWorkerRunning = false;
 }
 
 boost::optional<ColdStakingCachedItem> ColdStakingModel::parseColdStakingCachedItem(const CTxOut&  out,
