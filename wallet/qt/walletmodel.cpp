@@ -36,9 +36,21 @@ WalletModel::WalletModel(CWallet* wallet, OptionsModel* optionsModel, QObject* p
     pollTimer->start(MODEL_UPDATE_DELAY);
 
     subscribeToCoreSignals();
+
+    qRegisterMetaType<QSharedPointer<BalancesWorker>>("QSharedPointer<BalancesWorker>");
+    qRegisterMetaType<WalletModel*>("WalletModel*");
+
+    balancesThread.setObjectName("neblio-balancesWorker"); // thread name
+    balancesThread.start();
 }
 
-WalletModel::~WalletModel() { unsubscribeFromCoreSignals(); }
+WalletModel::~WalletModel()
+{
+    unsubscribeFromCoreSignals();
+
+    balancesThread.quit();
+    balancesThread.wait();
+}
 
 qint64 WalletModel::getBalance() const { return wallet->GetBalance(); }
 
@@ -117,11 +129,25 @@ void WalletModel::pollBalanceChanged()
 
 void WalletModel::checkBalanceChanged()
 {
-    qint64 newBalance            = getBalance();
-    qint64 newStake              = getStake();
-    qint64 newUnconfirmedBalance = getUnconfirmedBalance();
-    qint64 newImmatureBalance    = getImmatureBalance();
+    if (isBalancesWorkerRunning) {
+        QTimer::singleShot(1000, this, &WalletModel::checkBalanceChanged);
+        return;
+    }
 
+    isBalancesWorkerRunning = true;
+
+    QSharedPointer<BalancesWorker> worker = QSharedPointer<BalancesWorker>::create();
+    worker->moveToThread(&balancesThread);
+    connect(worker.data(), &BalancesWorker::resultReady, this, &WalletModel::updateBalancesIfChanged,
+            Qt::QueuedConnection);
+    connect(this, &WalletModel::triggerBalanceUpdateInWorker, worker.data(),
+            &BalancesWorker::getBalances, Qt::QueuedConnection);
+    emit triggerBalanceUpdateInWorker(this, worker);
+}
+
+void WalletModel::updateBalancesIfChanged(qint64 newBalance, qint64 newStake,
+                                          qint64 newUnconfirmedBalance, qint64 newImmatureBalance)
+{
     if (cachedBalance != newBalance || cachedStake != newStake ||
         cachedUnconfirmedBalance != newUnconfirmedBalance ||
         cachedImmatureBalance != newImmatureBalance) {
@@ -131,6 +157,8 @@ void WalletModel::checkBalanceChanged()
         cachedImmatureBalance    = newImmatureBalance;
         emit balanceChanged(newBalance, newStake, newUnconfirmedBalance, newImmatureBalance);
     }
+
+    isBalancesWorkerRunning = false;
 }
 
 void WalletModel::updateTransaction(const QString& hash, int status)
@@ -580,3 +608,14 @@ bool WalletModel::getKeyId(const CBitcoinAddress& address, CKeyID& keyID)
 }
 
 CWallet* WalletModel::getWallet() { return wallet; }
+
+void BalancesWorker::getBalances(WalletModel* walletModel, QSharedPointer<BalancesWorker> workerPtr)
+{
+    const qint64 newBalance            = walletModel->getBalance();
+    const qint64 newStake              = walletModel->getStake();
+    const qint64 newUnconfirmedBalance = walletModel->getUnconfirmedBalance();
+    const qint64 newImmatureBalance    = walletModel->getImmatureBalance();
+
+    emit resultReady(newBalance, newStake, newUnconfirmedBalance, newImmatureBalance);
+    workerPtr.reset();
+}

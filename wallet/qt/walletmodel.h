@@ -2,6 +2,8 @@
 #define WALLETMODEL_H
 
 #include <QObject>
+#include <QSharedPointer>
+#include <QThread>
 #include <map>
 #include <vector>
 
@@ -9,6 +11,7 @@
 
 #include "allocators.h" /* for SecureString */
 
+class WalletModel;
 class OptionsModel;
 class AddressTableModel;
 class TransactionTableModel;
@@ -31,6 +34,20 @@ public:
     QString label;
     QString tokenId;
     qint64  amount;
+};
+
+class BalancesWorker : public QObject
+{
+    Q_OBJECT
+
+public slots:
+    // we use the shared pointer argument to ensure that workerPtr will be deleted after doing the
+    // retrieval
+    void getBalances(WalletModel* walletModel, QSharedPointer<BalancesWorker> workerPtr);
+
+signals:
+    // Signal that balance in wallet changed
+    void resultReady(qint64 balance, qint64 stake, qint64 unconfirmedBalance, qint64 immatureBalance);
 };
 
 /** Interface to Bitcoin wallet from Qt view code. */
@@ -94,8 +111,8 @@ public:
         qint64     fee; // is used in case status is "AmountWithFeeExceedsBalance"
         QString    hex; // is filled with the transaction hash if status is "OK"
         QString
-                address; // is filled with address if a problem with an address exists (due to NTP1 tokens)
-        QString msg;     // error message, if necessary
+            address; // is filled with address if a problem with an address exists (due to NTP1 tokens)
+        QString msg; // error message, if necessary
     };
 
     // Send coins to a list of recipients
@@ -160,6 +177,9 @@ public:
 private:
     CWallet* wallet;
 
+    QThread balancesThread;
+    bool    isBalancesWorkerRunning = false;
+
     // Wallet has an options model for wallet-specific options
     // (transaction fee, for example)
     OptionsModel* optionsModel;
@@ -181,7 +201,6 @@ private:
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();
     void checkBalanceChanged();
-
 public slots:
     /* Wallet status might have changed */
     void updateStatus();
@@ -192,6 +211,9 @@ public slots:
                            const QString& purpose, int status);
     /* Current, immature or unconfirmed balance might have changed - emit 'balanceChanged' if so */
     void pollBalanceChanged();
+
+    void updateBalancesIfChanged(qint64 newBalance, qint64 newStake, qint64 newUnconfirmedBalance,
+                                 qint64 newImmatureBalance);
 
 signals:
     // Signal that balance in wallet changed
@@ -210,6 +232,9 @@ signals:
 
     // Asynchronous error notification
     void error(const QString& title, const QString& message, bool modal);
+
+    void triggerBalanceUpdateInWorker(WalletModel*                   walletModel,
+                                      QSharedPointer<BalancesWorker> workerPtr);
 };
 
 #endif // WALLETMODEL_H
