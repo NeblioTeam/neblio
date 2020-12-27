@@ -99,6 +99,7 @@ Value getstakinginfo(const Array& params, bool fHelp)
     stakingCriteria.push_back(Pair("wallet-unlocked", unlocked));
     stakingCriteria.push_back(Pair("online", activeConnection));
     stakingCriteria.push_back(Pair("synced", synced));
+    stakingCriteria.push_back(Pair("LastCoinStakeSearchInterval", stakeMaker.getLastCoinStakeSearchInterval()));
 
     Object obj;
 
