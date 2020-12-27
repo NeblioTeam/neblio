@@ -25,7 +25,7 @@ ColdStakingModel::ProcessColdStakingUTXOList(const std::vector<COutput>& utxoLis
             const CTxOut&    out  = wtx->vout[utxo.i];
 
             // First parse the cs delegation
-            boost::optional<ColdStakingCachedItem> item = parseColdStakingCachedItem(out, txId, utxo.i);
+            boost::optional<ColdStakingCachedItem> item = ParseColdStakingCachedItem(out, txId, utxo.i);
             if (!item)
                 continue;
 
@@ -177,7 +177,7 @@ void ColdStakingModel::finishRefresh(QSharedPointer<std::vector<COutput>> utxoLi
     isWorkerRunning = false;
 }
 
-boost::optional<ColdStakingCachedItem> ColdStakingModel::parseColdStakingCachedItem(const CTxOut&  out,
+boost::optional<ColdStakingCachedItem> ColdStakingModel::ParseColdStakingCachedItem(const CTxOut&  out,
                                                                                     const QString& txId,
                                                                                     const int& utxoIndex)
 {

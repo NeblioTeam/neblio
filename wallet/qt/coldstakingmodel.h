@@ -103,9 +103,8 @@ public:
 
     void updateCSList();
 
-    boost::optional<ColdStakingCachedItem> static parseColdStakingCachedItem(const CTxOut&  out,
-                                                                             const QString& txId,
-                                                                             const int&     utxoIndex);
+    static boost::optional<ColdStakingCachedItem>
+    ParseColdStakingCachedItem(const CTxOut& out, const QString& txId, const int& utxoIndex);
 
     bool whitelist(const QModelIndex& modelIndex);
     bool blacklist(const QModelIndex& index);
