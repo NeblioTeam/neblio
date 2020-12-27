@@ -54,15 +54,6 @@ void NTP1TokenListModel::clearNTP1Wallet()
     }
 }
 
-void NTP1TokenListModel::refreshNTP1Wallet()
-{
-    if (ntp1wallet) {
-        beginResetModel();
-        ntp1wallet->update();
-        endResetModel();
-    }
-}
-
 void NTP1TokenListModel::UpdateWalletBalances(boost::shared_ptr<NTP1Wallet>                  wallet,
                                               boost::promise<boost::shared_ptr<NTP1Wallet>>& promise)
 {

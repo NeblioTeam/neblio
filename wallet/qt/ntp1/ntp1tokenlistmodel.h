@@ -73,7 +73,6 @@ public:
     static QIcon   __getTokenIcon(int index, boost::shared_ptr<NTP1Wallet> theWallet);
 
     void clearNTP1Wallet();
-    void refreshNTP1Wallet();
 
     NTP1TokenListModel();
     virtual ~NTP1TokenListModel();
