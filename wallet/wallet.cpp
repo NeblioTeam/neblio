@@ -1029,7 +1029,7 @@ void CWalletTx::GetAccountAmounts(const string& strAccount, CAmount& nReceived, 
     }
     for (const PAIRTYPE(CTxDestination, CAmount) & r : listReceived) {
         if (const auto entry = pwallet->mapAddressBook.get(r.first)) {
-            if (entry.has_value() && entry->name == strAccount)
+            if (entry.is_initialized() && entry->name == strAccount)
                 nReceived += r.second;
         } else if (strAccount.empty()) {
             nReceived += r.second;
@@ -2628,7 +2628,7 @@ bool CWallet::DelAddressBookName(const CTxDestination& address)
 std::string CWallet::purposeForAddress(const CTxDestination& address) const
 {
     const auto mi = mapAddressBook.get(address);
-    if (mi.has_value()) {
+    if (mi.is_initialized()) {
         return mi->purpose;
     }
     return "";
@@ -2646,7 +2646,7 @@ bool CWallet::HasDelegator(const CTxOut& out) const
         return false;
     {
         const auto mi = mapAddressBook.get(delegator);
-        if (!mi.has_value())
+        if (!mi.is_initialized())
             return false;
         return mi->purpose == AddressBook::AddressBookPurpose::DELEGATOR;
     }

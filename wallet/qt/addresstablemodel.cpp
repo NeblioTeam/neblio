@@ -368,7 +368,7 @@ QString AddressTableModel::labelForAddress(const QString& address) const
         CBitcoinAddress address_parsed(address.toStdString());
 
         const auto mi = wallet->mapAddressBook.get(address_parsed.Get());
-        if (mi.has_value()) {
+        if (mi.is_initialized()) {
             return QString::fromStdString(mi->name);
         }
     }

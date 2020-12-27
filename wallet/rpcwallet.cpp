@@ -585,7 +585,7 @@ Value getaccount(const Array& params, bool fHelp)
 
     string     strAccount;
     const auto mi = pwalletMain->mapAddressBook.get(address.Get());
-    if (mi.has_value() && !mi->name.empty())
+    if (mi.is_initialized() && !mi->name.empty())
         strAccount = mi->name;
     return strAccount;
 }
@@ -1091,7 +1091,7 @@ Value delegatorremove(const Array& params, bool fHelp)
     std::string label = "";
     {
         const auto mi = pwalletMain->mapAddressBook.get(address.Get());
-        if (mi.has_value()) {
+        if (mi.is_initialized()) {
             label = mi->name;
         }
     }

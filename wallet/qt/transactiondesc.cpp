@@ -128,7 +128,7 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
         strHTML += "<b>" + tr("To") + ":</b> ";
         CTxDestination dest  = CBitcoinAddress(strAddress).Get();
         const auto     entry = wallet->mapAddressBook.get(dest);
-        if (entry.has_value() && !entry->name.empty())
+        if (entry.is_initialized() && !entry->name.empty())
             strHTML += GUIUtil::HtmlEscape(entry->name) + " ";
         strHTML += GUIUtil::HtmlEscape(strAddress) + "<br>";
     }

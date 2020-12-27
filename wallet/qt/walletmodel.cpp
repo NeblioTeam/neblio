@@ -316,7 +316,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(QList<SendCoinsRecipient>   
             auto mi = wallet->mapAddressBook.get(dest);
 
             // Check if we have a new address or an updated label
-            if (!mi.has_value() || mi->name != strLabel) {
+            if (!mi.is_initialized() || mi->name != strLabel) {
                 wallet->SetAddressBookEntry(dest, strLabel);
             }
         }
@@ -561,7 +561,7 @@ std::string WalletModel::getLabelForAddress(const CBitcoinAddress& address)
     std::string label = "";
     {
         const auto mi = wallet->mapAddressBook.get(address.Get());
-        if (mi.has_value()) {
+        if (mi.is_initialized()) {
             label = mi->name;
         }
     }
