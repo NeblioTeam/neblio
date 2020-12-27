@@ -729,7 +729,8 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlock* pbl
 
         if (pblock && !tx.IsCoinBase()) {
             for (const CTxIn& txin : tx.vin) {
-                auto txSpends = mapTxSpends.get();
+                auto        lock     = mapTxSpends.get_lock();
+                const auto& txSpends = mapTxSpends.get();
                 std::pair<TxSpends::const_iterator, TxSpends::const_iterator> range =
                     txSpends.equal_range(txin.prevout);
                 while (range.first != range.second) {
@@ -1706,8 +1707,9 @@ bool CWallet::IsSpent(const uint256& hash, unsigned int n) const
     const COutPoint                                               outpoint(hash, n);
     std::pair<TxSpends::const_iterator, TxSpends::const_iterator> range;
 
-    auto txSpends = mapTxSpends.get();
-    range         = txSpends.equal_range(outpoint);
+    auto            lock     = mapTxSpends.get_lock();
+    const TxSpends& txSpends = mapTxSpends.get_unsafe();
+    range                    = txSpends.equal_range(outpoint);
 
     for (TxSpends::const_iterator it = range.first; it != range.second; ++it) {
         const uint256&                               wtxid = it->second;
