@@ -122,6 +122,7 @@ private slots:
 
 signals:
     void txArrived(const QString& hash);
+    void triggerRefeshTxs(CWallet* wallet, QSharedPointer<TxsRetrieverWorker> workerPtr);
 };
 
 #endif

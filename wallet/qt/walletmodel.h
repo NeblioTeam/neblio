@@ -235,6 +235,9 @@ signals:
 
     // Asynchronous error notification
     void error(const QString& title, const QString& message, bool modal);
+
+    void triggerBalanceUpdateInWorker(WalletModel*                   walletModel,
+                                      QSharedPointer<BalancesWorker> workerPtr);
 };
 
 #endif // WALLETMODEL_H
