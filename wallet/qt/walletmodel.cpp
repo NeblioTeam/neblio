@@ -140,10 +140,10 @@ void WalletModel::checkBalanceChanged()
     worker->moveToThread(&balancesThread);
     connect(worker.data(), &BalancesWorker::resultReady, this, &WalletModel::updateBalancesIfChanged,
             Qt::QueuedConnection);
-    connect(this, &WalletModel::triggerBalanceUpdateInWorker, worker.data(),
-            &BalancesWorker::getBalances, Qt::QueuedConnection);
-    emit triggerBalanceUpdateInWorker(this, worker);
+    QTimer::singleShot(0, worker.data(), [this, worker]() { worker->getBalances(this, worker); });
 }
+
+QThread* WalletModel::getBalancesThread() { return &balancesThread; }
 
 void WalletModel::updateBalancesIfChanged(qint64 newBalance, qint64 newStake,
                                           qint64 newUnconfirmedBalance, qint64 newImmatureBalance)

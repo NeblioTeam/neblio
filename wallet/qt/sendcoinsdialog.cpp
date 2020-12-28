@@ -99,8 +99,8 @@ void SendCoinsDialog::setModel(WalletModel* model)
         }
     }
     if (model && model->getOptionsModel()) {
-        setBalance(model->getBalance(), model->getStake(), model->getUnconfirmedBalance(),
-                   model->getImmatureBalance());
+        setUnknownBalance();
+        triggerUpdateBalance();
         connect(model, SIGNAL(balanceChanged(qint64, qint64, qint64, qint64)), this,
                 SLOT(setBalance(qint64, qint64, qint64, qint64)));
         connect(model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this,
@@ -124,7 +124,7 @@ void SendCoinsDialog::on_sendButton_clicked()
 {
     QList<SendCoinsRecipient> recipients;
     bool                      valid                  = true;
-    const bool                      fSpendDelegatedOutputs = ui->allowSpendingDelegatedCoins->isChecked();
+    const bool                fSpendDelegatedOutputs = ui->allowSpendingDelegatedCoins->isChecked();
     ui->allowSpendingDelegatedCoins->setChecked(false);
 
     if (!model)
@@ -480,6 +480,17 @@ void SendCoinsDialog::setBalance(qint64 balance, qint64 stake, qint64 unconfirme
 
     int unit = model->getOptionsModel()->getDisplayUnit();
     ui->labelBalance->setText(BitcoinUnits::formatWithUnit(unit, balance));
+}
+
+void SendCoinsDialog::setUnknownBalance() { ui->labelBalance->setText("?"); }
+
+void SendCoinsDialog::triggerUpdateBalance()
+{
+    QSharedPointer<BalancesWorker> worker = QSharedPointer<BalancesWorker>::create();
+    worker->moveToThread(model->getBalancesThread());
+    connect(worker.data(), &BalancesWorker::resultReady, this, &SendCoinsDialog::setBalance,
+            Qt::QueuedConnection);
+    QTimer::singleShot(0, worker.data(), [this, worker]() { worker->getBalances(model, worker); });
 }
 
 void SendCoinsDialog::showEditMetadataDialog()
