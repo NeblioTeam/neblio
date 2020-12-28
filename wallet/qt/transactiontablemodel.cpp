@@ -346,7 +346,7 @@ QString TransactionTableModel::formatTxType(const TransactionRecord* wtx) const
     case TransactionRecord::Generated:
         return tr("Mined");
     case TransactionRecord::ColdStaker:
-        return tr("Received cold-stake delegation");
+        return tr("Received cold-stake reward");
     case TransactionRecord::ColdDelegator:
         return tr("Sent cold-stake delegation");
     default:
