@@ -141,6 +141,16 @@ void OverviewPage::setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBa
     ui->immature_title_label->setVisible(showImmature);
 }
 
+void OverviewPage::setUnknownBalance()
+{
+    ui->spendable_value_label->setText("?");
+    ui->stake_value_label->setText("?");
+    ui->unconfirmed_value_label->setText("?");
+    ui->immature_value_label->setText("?");
+    ui->total_value_label->setText("?");
+    ui->immature_title_label->setVisible(false);
+}
+
 void OverviewPage::setModel(WalletModel* model)
 {
     this->model = model;
@@ -158,8 +168,8 @@ void OverviewPage::setModel(WalletModel* model)
         ui->listTransactions->setModelColumn(TransactionTableModel::ToAddress);
 
         // Keep up to date with wallet
-        setBalance(model->getBalance(), model->getStake(), model->getUnconfirmedBalance(),
-                   model->getImmatureBalance());
+        setUnknownBalance();          // we set balances to zero initially
+        model->checkBalanceChanged(); // then we trigger a check asynchronously
         connect(model, SIGNAL(balanceChanged(qint64, qint64, qint64, qint64)), this,
                 SLOT(setBalance(qint64, qint64, qint64, qint64)));
 

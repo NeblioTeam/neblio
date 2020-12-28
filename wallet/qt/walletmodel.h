@@ -174,6 +174,8 @@ public:
 
     int64_t getCreationTime() const;
 
+    void checkBalanceChanged();
+
 private:
     CWallet* wallet;
 
@@ -200,7 +202,6 @@ private:
 
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();
-    void checkBalanceChanged();
 public slots:
     /* Wallet status might have changed */
     void updateStatus();
