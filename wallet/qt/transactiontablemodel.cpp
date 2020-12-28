@@ -394,14 +394,15 @@ void TransactionTableModel::refreshWallet()
     worker->moveToThread(&txsRetrieverThread);
     connect(worker.data(), &TxsRetrieverWorker::resultReady, this,
             &TransactionTableModel::finishRefreshWallet, Qt::QueuedConnection);
-    connect(this, &TransactionTableModel::triggerRefeshTxs, worker.data(), &TxsRetrieverWorker::getTxs,
-            Qt::QueuedConnection);
-    emit triggerRefeshTxs(wallet, worker);
+    QTimer::singleShot(0, this, [this, worker]() { worker->getTxs(wallet, worker); });
 }
 
 void TransactionTableModel::finishRefreshWallet(QSharedPointer<QList<TransactionRecord>> records)
 {
     assert(records);
+
+    // force sync since we got a vector from another thread
+    std::atomic_thread_fence(std::memory_order_seq_cst);
 
     beginResetModel();
     // this is an RAII hack to guarantee that the function will end the model reset
