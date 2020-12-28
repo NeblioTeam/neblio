@@ -4,6 +4,9 @@
 #include <QAbstractTableModel>
 #include <QStringList>
 #include <QThread>
+#include <QTimer>
+#include <deque>
+#include <uint256.h>
 
 class CWallet;
 class TransactionTablePriv;
@@ -86,6 +89,9 @@ private:
     QStringList           columns;
     TransactionTablePriv* priv;
 
+    std::deque<std::pair<uint256, int>> walletUpdatesQueue;
+    QTimer                              walletUpdatesQueueConsumer;
+
     QThread txsRetrieverThread;
     bool    txsRetrieverWorkerRunning = false;
 
@@ -99,6 +105,7 @@ private:
     QString  formatTooltip(const TransactionRecord* rec) const;
     QVariant txStatusDecoration(const TransactionRecord* wtx) const;
     QVariant txAddressDecoration(const TransactionRecord* wtx) const;
+    void     pushToWalletUpdate(uint256 hash, int status);
 
 public slots:
     void updateTransaction(const QString& hash, int status);
@@ -109,6 +116,9 @@ public slots:
     void finishRefreshWallet(QSharedPointer<QList<TransactionRecord>> records);
 
     friend class TransactionTablePriv;
+
+private slots:
+    void consumeWalletUpdatesQueue();
 
 signals:
     void txArrived(const QString& hash);

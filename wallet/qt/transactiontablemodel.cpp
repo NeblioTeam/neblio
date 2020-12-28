@@ -59,32 +59,26 @@ public:
 
        Call with transaction that was added, removed or changed.
      */
-    void updateWallet(const uint256& hash, int status)
+    [[nodiscard]] bool updateWallet(const uint256& hash, int status)
     {
-        OutputDebugStringF("updateWallet %s %i\n", hash.ToString().c_str(), status);
+        OutputDebugStringF("updateWalletFromQueue %s %i\n", hash.ToString().c_str(), status);
         {
             if (parent->isTxsRetrieverThreadRunning()) {
-                QTimer::singleShot(1000, parent,
-                                   boost::bind(&TransactionTablePriv::updateWallet, this, hash, status));
-                return;
+                return false;
             }
 
             TRY_LOCK(cs_main, lockMain);
-            if (lockMain) {
-                QTimer::singleShot(1000, parent,
-                                   boost::bind(&TransactionTablePriv::updateWallet, this, hash, status));
-                return;
+            if (!lockMain) {
+                return false;
             }
             TRY_LOCK(wallet->cs_wallet, lockWallet);
-            if (lockWallet) {
-                QTimer::singleShot(1000, parent,
-                                   boost::bind(&TransactionTablePriv::updateWallet, this, hash, status));
-                return;
+            if (!lockWallet) {
+                return false;
             }
 
             // Find transaction in wallet
-            std::map<uint256, CWalletTx>::iterator mi       = wallet->mapWallet.find(hash);
-            bool                                   inWallet = mi != wallet->mapWallet.end();
+            std::map<uint256, CWalletTx>::const_iterator mi       = wallet->mapWallet.find(hash);
+            const bool                                   inWallet = mi != wallet->mapWallet.end();
 
             // Find bounds of this transaction in model
             QList<TransactionRecord>::iterator lower =
@@ -155,6 +149,7 @@ public:
                 break;
             }
         }
+        return true;
     }
 
     int size() { return cachedWallet.size(); }
@@ -215,10 +210,14 @@ TransactionTableModel::TransactionTableModel(CWallet* wallet, WalletModel* paren
     txsRetrieverThread.setObjectName("neblio-txRetrieverWorker"); // thread name
     txsRetrieverThread.start();
 
-    connect(walletModel->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this,
-            SLOT(updateDisplayUnit()));
+    connect(walletModel->getOptionsModel(), &OptionsModel::displayUnitChanged, this,
+            &TransactionTableModel::updateDisplayUnit);
 
     QMetaObject::invokeMethod(this, "refreshWallet", Qt::QueuedConnection);
+
+    connect(&walletUpdatesQueueConsumer, &QTimer::timeout, this,
+            &TransactionTableModel::consumeWalletUpdatesQueue);
+    walletUpdatesQueueConsumer.start(100);
 }
 
 TransactionTableModel::~TransactionTableModel()
@@ -233,7 +232,9 @@ void TransactionTableModel::updateTransaction(const QString& hash, int status)
     uint256 updated;
     updated.SetHex(hash.toStdString());
 
-    priv->updateWallet(updated, status);
+    // we use singleShot because Qt's invokeMethod doesn't support functors before a late version
+    QTimer::singleShot(0, this,
+                       [this, updated, status]() { this->pushToWalletUpdate(updated, status); });
 
     emit txArrived(hash);
 }
@@ -374,6 +375,11 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord* wtx
     return QVariant();
 }
 
+void TransactionTableModel::pushToWalletUpdate(uint256 hash, int status)
+{
+    walletUpdatesQueue.push_back(std::make_pair(std::move(hash), status));
+}
+
 void TransactionTableModel::refreshWallet()
 {
     OutputDebugStringF("refreshWallet\n");
@@ -407,6 +413,27 @@ void TransactionTableModel::finishRefreshWallet(QSharedPointer<QList<Transaction
     priv->cachedWallet = *records;
 
     txsRetrieverWorkerRunning = false;
+}
+
+void TransactionTableModel::consumeWalletUpdatesQueue()
+{
+    if (txsRetrieverWorkerRunning) {
+        return;
+    }
+
+    static constexpr int MAX_TO_POP = 200;
+
+    for (int i = 0; i < MAX_TO_POP; i++) {
+        if (walletUpdatesQueue.empty()) {
+            break;
+        }
+        const bool success =
+            priv->updateWallet(walletUpdatesQueue.front().first, walletUpdatesQueue.front().second);
+
+        if (success) {
+            walletUpdatesQueue.pop_front();
+        }
+    }
 }
 
 QString TransactionTableModel::formatTxToAddress(const TransactionRecord* wtx, bool tooltip) const
