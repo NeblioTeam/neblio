@@ -61,7 +61,6 @@ public:
      */
     [[nodiscard]] bool updateWallet(const uint256& hash, int status)
     {
-        OutputDebugStringF("updateWalletFromQueue %s %i\n", hash.ToString().c_str(), status);
         {
             if (parent->isTxsRetrieverThreadRunning()) {
                 return false;
@@ -437,6 +436,8 @@ void TransactionTableModel::consumeWalletUpdatesQueue()
 
         if (success) {
             walletUpdatesQueue.pop_front();
+        } else {
+            return;
         }
     }
 }
