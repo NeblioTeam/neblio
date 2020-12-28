@@ -182,7 +182,7 @@ public:
         }
     }
 
-    QString describe(TransactionRecord* rec)
+    QString describe(const TransactionRecord* rec)
     {
         {
             LOCK2(cs_main, wallet->cs_wallet);
@@ -565,7 +565,7 @@ QVariant TransactionTableModel::data(const QModelIndex& index, int role) const
 {
     if (!index.isValid())
         return QVariant();
-    TransactionRecord* rec = static_cast<TransactionRecord*>(index.internalPointer());
+    const TransactionRecord* rec = static_cast<TransactionRecord*>(index.internalPointer());
 
     switch (role) {
     case Qt::DecorationRole:

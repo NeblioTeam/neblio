@@ -134,7 +134,7 @@ public:
     TransactionStatus status;
 
     /** Return the unique identifier for this transaction (part) */
-    std::string getTxID();
+    std::string getTxID() const;
 
     /** Update status from core wallet tx.
      */
