@@ -156,9 +156,7 @@ void ColdStakingModel::refresh()
     worker->moveToThread(&retrieveOutputsThread);
     connect(worker.data(), &AvailableP2CSCoinsWorker::resultReady, this,
             &ColdStakingModel::finishRefresh, Qt::QueuedConnection);
-    connect(this, &ColdStakingModel::triggerWorkerRetrieveOutputs, worker.data(),
-            &AvailableP2CSCoinsWorker::retrieveOutputs, Qt::QueuedConnection);
-    emit triggerWorkerRetrieveOutputs(worker);
+    QTimer::singleShot(0, worker.data(), [worker]() { worker->retrieveOutputs(worker); });
 }
 
 void ColdStakingModel::finishRefresh(

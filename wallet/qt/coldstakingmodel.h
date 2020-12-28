@@ -101,9 +101,6 @@ public:
 
     void removeRowAndEmitDataChanged(const int idx);
 
-signals:
-    void triggerWorkerRetrieveOutputs(QSharedPointer<AvailableP2CSCoinsWorker> workerPtr);
-
 public slots:
     void refresh();
     void finishRefresh(QSharedPointer<std::pair<QList<ColdStakingCachedItem>, CAmount>> itemsAndAmount);
