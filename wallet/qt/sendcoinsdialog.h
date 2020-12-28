@@ -70,10 +70,6 @@ private slots:
     void coinControlClipboardLowOutput();
     void coinControlClipboardChange();
     void updateAllTokenLists();
-
-signals:
-    void triggerBalanceUpdateInWorker(WalletModel*                   walletModel,
-                                      QSharedPointer<BalancesWorker> workerPtr);
 };
 
 #endif // SENDCOINSDIALOG_H

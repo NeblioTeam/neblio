@@ -490,9 +490,7 @@ void SendCoinsDialog::triggerUpdateBalance()
     worker->moveToThread(model->getBalancesThread());
     connect(worker.data(), &BalancesWorker::resultReady, this, &SendCoinsDialog::setBalance,
             Qt::QueuedConnection);
-    connect(this, &SendCoinsDialog::triggerBalanceUpdateInWorker, worker.data(),
-            &BalancesWorker::getBalances, Qt::QueuedConnection);
-    emit triggerBalanceUpdateInWorker(model, worker);
+    QTimer::singleShot(0, worker.data(), [this, worker]() { worker->getBalances(model, worker); });
 }
 
 void SendCoinsDialog::showEditMetadataDialog()

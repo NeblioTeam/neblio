@@ -394,9 +394,7 @@ void TransactionTableModel::refreshWallet()
     worker->moveToThread(&txsRetrieverThread);
     connect(worker.data(), &TxsRetrieverWorker::resultReady, this,
             &TransactionTableModel::finishRefreshWallet, Qt::QueuedConnection);
-    connect(this, &TransactionTableModel::triggerRefeshTxs, worker.data(), &TxsRetrieverWorker::getTxs,
-            Qt::QueuedConnection);
-    emit triggerRefeshTxs(wallet, worker);
+    QTimer::singleShot(0, worker.data(), [this, worker]() { worker->getTxs(wallet, worker); });
 }
 
 void TransactionTableModel::finishRefreshWallet(QSharedPointer<QList<TransactionRecord>> records)
@@ -719,6 +717,8 @@ void TxsRetrieverWorker::getTxs(CWallet* wallet, QSharedPointer<TxsRetrieverWork
     for (const CWalletTx& wtx : walletTxes) {
         if (TransactionRecord::showTransaction(wtx))
             cachedWallet->append(TransactionRecord::decomposeTransaction(wallet, wtx));
+        if (fShutdown.load(boost::memory_order_relaxed))
+            break;
     }
 
     resultReady(cachedWallet);
