@@ -95,6 +95,7 @@ public:
     int64_t                    getLastCoinStakeSearchInterval() const;
     int64_t                    getLastCoinStakeSearchTime() const;
     boost::optional<uint64_t>  getLatestStakeWeight() const;
+    bool                       IsStakingActive();
 };
 
 #endif // STAKEMAKER_H

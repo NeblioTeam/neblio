@@ -1254,7 +1254,7 @@ void BitcoinGUI::updateStakingIcon()
 
     updateWeight();
 
-    if (stakeMaker.getLastCoinStakeSearchInterval() && nWeight) {
+    if (stakeMaker.IsStakingActive()) {
         uint64_t     nNetworkWeight = GetPoSKernelPS();
         unsigned int nTS            = Params().TargetSpacing();
         unsigned     nEstimateTime  = nTS * nNetworkWeight / nWeight;

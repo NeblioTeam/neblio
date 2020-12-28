@@ -68,13 +68,11 @@ Value getstakinginfo(const Array& params, bool fHelp)
         throw runtime_error("getstakinginfo\n"
                             "Returns an object containing staking-related information.");
 
-    uint64_t nMinWeight = 0, nMaxWeight = 0, nWeight = 0;
-    pwalletMain->GetStakeWeight(nMinWeight, nMaxWeight, nWeight);
-
     const uint64_t     nNetworkWeight = GetPoSKernelPS();
-    const bool         staking        = stakeMaker.getLastCoinStakeSearchInterval() && nWeight;
+    const bool         staking        = stakeMaker.IsStakingActive();
+    const uint64_t     nWeight        = stakeMaker.getLatestStakeWeight().value_or(0);
     const unsigned int nTS            = Params().TargetSpacing();
-    const int          nExpectedTime  = staking ? (nTS * nNetworkWeight / nWeight) : -1;
+    const int          nExpectedTime  = staking && !!nWeight ? (nTS * nNetworkWeight / nWeight) : -1;
 
     Object stakingCriteria;
 
