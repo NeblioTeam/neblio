@@ -217,7 +217,7 @@ TransactionTableModel::TransactionTableModel(CWallet* wallet, WalletModel* paren
 
     connect(&walletUpdatesQueueConsumer, &QTimer::timeout, this,
             &TransactionTableModel::consumeWalletUpdatesQueue);
-    walletUpdatesQueueConsumer.start(100);
+    walletUpdatesQueueConsumer.start(1000);
 }
 
 TransactionTableModel::~TransactionTableModel()
@@ -418,6 +418,10 @@ void TransactionTableModel::finishRefreshWallet(QSharedPointer<QList<Transaction
 
 void TransactionTableModel::consumeWalletUpdatesQueue()
 {
+    if (walletUpdatesQueue.empty()) {
+        return;
+    }
+
     if (txsRetrieverWorkerRunning) {
         return;
     }
