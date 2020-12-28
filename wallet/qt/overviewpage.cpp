@@ -143,11 +143,11 @@ void OverviewPage::setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBa
 
 void OverviewPage::setUnknownBalance()
 {
-    ui->spendable_value_label->setText("?");
-    ui->stake_value_label->setText("?");
-    ui->unconfirmed_value_label->setText("?");
-    ui->immature_value_label->setText("?");
-    ui->total_value_label->setText("?");
+    ui->spendable_value_label->setText("Updating...");
+    ui->stake_value_label->setText("Updating...");
+    ui->unconfirmed_value_label->setText("Updating...");
+    ui->immature_value_label->setText("Updating...");
+    ui->total_value_label->setText("Updating...");
     ui->immature_value_label->setVisible(false);
     ui->immature_title_label->setVisible(false);
 }

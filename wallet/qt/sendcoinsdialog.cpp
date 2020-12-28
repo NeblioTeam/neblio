@@ -482,7 +482,7 @@ void SendCoinsDialog::setBalance(qint64 balance, qint64 stake, qint64 unconfirme
     ui->labelBalance->setText(BitcoinUnits::formatWithUnit(unit, balance));
 }
 
-void SendCoinsDialog::setUnknownBalance() { ui->labelBalance->setText("?"); }
+void SendCoinsDialog::setUnknownBalance() { ui->labelBalance->setText("Updating..."); }
 
 void SendCoinsDialog::triggerUpdateBalance()
 {
