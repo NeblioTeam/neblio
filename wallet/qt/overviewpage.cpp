@@ -148,6 +148,7 @@ void OverviewPage::setUnknownBalance()
     ui->unconfirmed_value_label->setText("?");
     ui->immature_value_label->setText("?");
     ui->total_value_label->setText("?");
+    ui->immature_value_label->setVisible(false);
     ui->immature_title_label->setVisible(false);
 }
 
