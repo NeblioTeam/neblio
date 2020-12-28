@@ -192,6 +192,7 @@ private:
     TransactionTableModel* transactionTableModel;
 
     // Cache some values to be able to detect changes
+    bool             firstUpdateOfBalanceDone = false;
     qint64           cachedBalance;
     qint64           cachedStake;
     qint64           cachedUnconfirmedBalance;
