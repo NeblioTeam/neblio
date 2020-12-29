@@ -237,7 +237,8 @@ void TransactionTableModel::updateTransaction(const QString& hash, int status)
     updated.SetHex(hash.toStdString());
 
     // we use singleShot because Qt's invokeMethod doesn't support functors before a late version
-    GUIUtil::AsyncQtCall(this, [this, updated, status]() { this->pushToWalletUpdate(updated, status); });
+    QTimer::singleShot(0, this,
+                       [this, updated, status]() { this->pushToWalletUpdate(updated, status); });
 
     emit txArrived(hash);
 }
@@ -397,8 +398,8 @@ void TransactionTableModel::refreshWallet()
     worker->moveToThread(&txsRetrieverThread);
     connect(worker.data(), &TxsRetrieverWorker::resultReady, this,
             &TransactionTableModel::finishRefreshWallet, Qt::QueuedConnection);
-    GUIUtil::AsyncQtCall(worker.data(),
-                         [this, worker]() { worker->getTxs(wallet, worker, &maxTransactionInView); });
+    QTimer::singleShot(0, worker.data(),
+                       [this, worker]() { worker->getTxs(wallet, worker, &maxTransactionInView); });
 }
 
 void TransactionTableModel::finishRefreshWallet(QSharedPointer<QList<TransactionRecord>> records)

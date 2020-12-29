@@ -4,7 +4,6 @@
 #include <QString>
 #include <QObject>
 #include <QMessageBox>
-#include <QTimer>
 
 QT_BEGIN_NAMESPACE
 class QFont;
@@ -20,12 +19,6 @@ class SendCoinsRecipient;
  */
 namespace GUIUtil
 {
-    template <typename Functor>
-    void AsyncQtCall(const QObject* object, Functor func)
-    {
-        QTimer::singleShot(0, object, func);
-    }
-
     // Create human-readable string from date
     QString dateTimeStr(const QDateTime &datetime);
     QString dateTimeStr(qint64 nTime);

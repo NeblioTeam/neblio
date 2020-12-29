@@ -2,7 +2,6 @@
 #include "addresstablemodel.h"
 #include "base58.h"
 #include "boost/thread/future.hpp"
-#include "guiutil.h"
 #include <boost/atomic/atomic.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/shared_ptr.hpp>
@@ -157,7 +156,7 @@ void ColdStakingModel::refresh()
     worker->moveToThread(&retrieveOutputsThread);
     connect(worker.data(), &AvailableP2CSCoinsWorker::resultReady, this,
             &ColdStakingModel::finishRefresh, Qt::QueuedConnection);
-    GUIUtil::AsyncQtCall(worker.data(), [worker]() { worker->retrieveOutputs(worker); });
+    QTimer::singleShot(0, worker.data(), [worker]() { worker->retrieveOutputs(worker); });
 }
 
 void ColdStakingModel::finishRefresh(

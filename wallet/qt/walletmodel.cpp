@@ -5,7 +5,6 @@
 #include "main.h"
 #include "optionsmodel.h"
 #include "transactiontablemodel.h"
-#include "guiutil.h"
 
 #include "base58.h"
 #include "ui_interface.h"
@@ -141,7 +140,7 @@ void WalletModel::checkBalanceChanged()
     worker->moveToThread(&balancesThread);
     connect(worker.data(), &BalancesWorker::resultReady, this, &WalletModel::updateBalancesIfChanged,
             Qt::QueuedConnection);
-    GUIUtil::AsyncQtCall(worker.data(), [this, worker]() { worker->getBalances(this, worker); });
+    QTimer::singleShot(0, worker.data(), [this, worker]() { worker->getBalances(this, worker); });
 }
 
 QThread* WalletModel::getBalancesThread() { return &balancesThread; }
