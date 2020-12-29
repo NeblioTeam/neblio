@@ -66,14 +66,15 @@ public:
                 return false;
             }
 
-            TRY_LOCK(cs_main, lockMain);
-            if (!lockMain) {
-                return false;
-            }
-            TRY_LOCK(wallet->cs_wallet, lockWallet);
-            if (!lockWallet) {
-                return false;
-            }
+            // These locks were MOVED to the caller
+            // TRY_LOCK(cs_main, lockMain);
+            // if (!lockMain) {
+            //     return false;
+            // }
+            // TRY_LOCK(wallet->cs_wallet, lockWallet);
+            // if (!lockWallet) {
+            //     return false;
+            // }
 
             // Find transaction in wallet
             std::map<uint256, CWalletTx>::const_iterator mi       = wallet->mapWallet.find(hash);
@@ -232,8 +233,7 @@ void TransactionTableModel::updateTransaction(const QString& hash, int status)
     updated.SetHex(hash.toStdString());
 
     // we use singleShot because Qt's invokeMethod doesn't support functors before a late version
-    QTimer::singleShot(0, this,
-                       [this, updated, status]() { this->pushToWalletUpdate(updated, status); });
+    GUIUtil::AsyncQtCall(this, [this, updated, status]() { this->pushToWalletUpdate(updated, status); });
 
     emit txArrived(hash);
 }
@@ -393,7 +393,7 @@ void TransactionTableModel::refreshWallet()
     worker->moveToThread(&txsRetrieverThread);
     connect(worker.data(), &TxsRetrieverWorker::resultReady, this,
             &TransactionTableModel::finishRefreshWallet, Qt::QueuedConnection);
-    QTimer::singleShot(0, worker.data(), [this, worker]() { worker->getTxs(wallet, worker); });
+    GUIUtil::AsyncQtCall(worker.data(), [this, worker]() { worker->getTxs(wallet, worker); });
 }
 
 void TransactionTableModel::finishRefreshWallet(QSharedPointer<QList<TransactionRecord>> records)
@@ -425,6 +425,15 @@ void TransactionTableModel::consumeWalletUpdatesQueue()
         return;
     }
 
+    TRY_LOCK(cs_main, lockMain);
+    if (!lockMain) {
+        return;
+    }
+    TRY_LOCK(wallet->cs_wallet, lockWallet);
+    if (!lockWallet) {
+        return;
+    }
+
     static constexpr int MAX_TO_POP = 200;
 
     for (int i = 0; i < MAX_TO_POP; i++) {
@@ -436,8 +445,6 @@ void TransactionTableModel::consumeWalletUpdatesQueue()
 
         if (success) {
             walletUpdatesQueue.pop_front();
-        } else {
-            return;
         }
     }
 }

@@ -3,6 +3,7 @@
 
 #include "addressbookpage.h"
 #include "addresstablemodel.h"
+#include "guiutil.h"
 #include "init.h"
 #include "walletmodel.h"
 
@@ -490,7 +491,7 @@ void SendCoinsDialog::triggerUpdateBalance()
     worker->moveToThread(model->getBalancesThread());
     connect(worker.data(), &BalancesWorker::resultReady, this, &SendCoinsDialog::setBalance,
             Qt::QueuedConnection);
-    QTimer::singleShot(0, worker.data(), [this, worker]() { worker->getBalances(model, worker); });
+    GUIUtil::AsyncQtCall(worker.data(), [this, worker]() { worker->getBalances(model, worker); });
 }
 
 void SendCoinsDialog::showEditMetadataDialog()
