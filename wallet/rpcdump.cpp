@@ -345,12 +345,12 @@ Value dumpwallet(const Array& params, bool fHelp)
 
         CKey key;
         if (pwalletMain->GetKey(keyid, key)) {
-            if (pwalletMain->mapAddressBook.count(keyid)) {
+            if (auto entry = pwalletMain->mapAddressBook.get(keyid)) {
                 CSecret secret = key.GetSecret(IsCompressed);
-                file << strprintf(
-                    "%s %s label=%s # addr=%s\n",
-                    CBitcoinSecret(secret, IsCompressed).ToString().c_str(), strTime.c_str(),
-                    EncodeDumpString(pwalletMain->mapAddressBook[keyid].name).c_str(), strAddr.c_str());
+                file << strprintf("%s %s label=%s # addr=%s\n",
+                                  CBitcoinSecret(secret, IsCompressed).ToString().c_str(),
+                                  strTime.c_str(), EncodeDumpString(entry->name).c_str(),
+                                  strAddr.c_str());
             } else if (setKeyPool.count(keyid)) {
                 CSecret secret = key.GetSecret(IsCompressed);
                 file << strprintf("%s %s reserve=1 # addr=%s\n",
@@ -483,7 +483,8 @@ std::pair<long, long> ImportBackupWallet(const std::string& Src, std::string& Pa
     // deque to simply elements access
     const std::deque<CKeyID> allKeyIDs(allKeyIDsSet.begin(), allKeyIDsSet.end());
     using AddressBookIt = std::map<CTxDestination, AddressBook::CAddressBookData>::const_iterator;
-    std::map<CTxDestination, AddressBook::CAddressBookData>& addrBook = backupWallet.mapAddressBook;
+    const std::map<CTxDestination, AddressBook::CAddressBookData> addrBook =
+        backupWallet.mapAddressBook.getInternalMap();
 
     // set total number of keys
     succeessfullyAddedOutOfTotal.second = allKeyIDs.size();
@@ -504,14 +505,14 @@ std::pair<long, long> ImportBackupWallet(const std::string& Src, std::string& Pa
             // import from address book
             bool addSucceeded = _AddKeyToLocalWallet(
                 key, it->second.name,
-                backupWallet.mapKeyMetadata[boost::get<CKeyID>(it->first)].nCreateTime, earliestTime,
+                backupWallet.mapKeyMetadata.at(boost::get<CKeyID>(it->first)).nCreateTime, earliestTime,
                 true);
             if (addSucceeded)
                 succeessfullyAddedOutOfTotal.first++;
         } else {
             // import reserve keys
             bool addSucceeded =
-                _AddKeyToLocalWallet(key, "", backupWallet.mapKeyMetadata[allKeyIDs[i]].nCreateTime,
+                _AddKeyToLocalWallet(key, "", backupWallet.mapKeyMetadata.at(allKeyIDs[i]).nCreateTime,
                                      earliestTime, importReserveToAddressBook);
             if (addSucceeded)
                 succeessfullyAddedOutOfTotal.first++;

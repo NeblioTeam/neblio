@@ -2,6 +2,8 @@
 #define WALLETMODEL_H
 
 #include <QObject>
+#include <QSharedPointer>
+#include <QThread>
 #include <map>
 #include <vector>
 
@@ -9,6 +11,7 @@
 
 #include "allocators.h" /* for SecureString */
 
+class WalletModel;
 class OptionsModel;
 class AddressTableModel;
 class TransactionTableModel;
@@ -31,6 +34,20 @@ public:
     QString label;
     QString tokenId;
     qint64  amount;
+};
+
+class BalancesWorker : public QObject
+{
+    Q_OBJECT
+
+public slots:
+    // we use the shared pointer argument to ensure that workerPtr will be deleted after doing the
+    // retrieval
+    void getBalances(WalletModel* walletModel, QSharedPointer<BalancesWorker> workerPtr);
+
+signals:
+    // Signal that balance in wallet changed
+    void resultReady(qint64 balance, qint64 stake, qint64 unconfirmedBalance, qint64 immatureBalance);
 };
 
 /** Interface to Bitcoin wallet from Qt view code. */
@@ -73,12 +90,12 @@ public:
     AddressTableModel*     getAddressTableModel();
     TransactionTableModel* getTransactionTableModel();
 
-    qint64           getBalance() const;
-    qint64           getStake() const;
-    qint64           getUnconfirmedBalance() const;
-    qint64           getImmatureBalance() const;
-    int              getNumTransactions() const;
-    EncryptionStatus getEncryptionStatus() const;
+    qint64                    getBalance() const;
+    qint64                    getStake() const;
+    qint64                    getUnconfirmedBalance() const;
+    qint64                    getImmatureBalance() const;
+    boost::optional<uint64_t> getNumTransactions() const;
+    EncryptionStatus          getEncryptionStatus() const;
 
     // Check address for validity
     bool validateAddress(const QString& address);
@@ -94,8 +111,8 @@ public:
         qint64     fee; // is used in case status is "AmountWithFeeExceedsBalance"
         QString    hex; // is filled with the transaction hash if status is "OK"
         QString
-                address; // is filled with address if a problem with an address exists (due to NTP1 tokens)
-        QString msg;     // error message, if necessary
+            address; // is filled with address if a problem with an address exists (due to NTP1 tokens)
+        QString msg; // error message, if necessary
     };
 
     // Send coins to a list of recipients
@@ -155,8 +172,17 @@ public:
 
     CWallet* getWallet();
 
+    int64_t getCreationTime() const;
+
+    void checkBalanceChanged();
+
+    QThread* getBalancesThread();
+
 private:
     CWallet* wallet;
+
+    QThread balancesThread;
+    bool    isBalancesWorkerRunning = false;
 
     // Wallet has an options model for wallet-specific options
     // (transaction fee, for example)
@@ -166,11 +192,12 @@ private:
     TransactionTableModel* transactionTableModel;
 
     // Cache some values to be able to detect changes
+    bool             firstUpdateOfBalanceDone = false;
     qint64           cachedBalance;
     qint64           cachedStake;
     qint64           cachedUnconfirmedBalance;
     qint64           cachedImmatureBalance;
-    qint64           cachedNumTransactions;
+    quint64          cachedNumTransactions;
     EncryptionStatus cachedEncryptionStatus;
     int              cachedNumBlocks;
 
@@ -178,18 +205,21 @@ private:
 
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();
-    void checkBalanceChanged();
-
 public slots:
     /* Wallet status might have changed */
     void updateStatus();
     /* New transaction, or transaction changed status */
     void updateTransaction(const QString& hash, int status);
+    /**/
+    void updateNumTransactions();
     /* New, updated or removed address book entry */
     void updateAddressBook(const QString& address, const QString& label, bool isMine,
                            const QString& purpose, int status);
     /* Current, immature or unconfirmed balance might have changed - emit 'balanceChanged' if so */
     void pollBalanceChanged();
+
+    void updateBalancesIfChanged(qint64 newBalance, qint64 newStake, qint64 newUnconfirmedBalance,
+                                 qint64 newImmatureBalance);
 
 signals:
     // Signal that balance in wallet changed

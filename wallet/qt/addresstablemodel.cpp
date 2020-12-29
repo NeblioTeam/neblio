@@ -54,8 +54,8 @@ public:
     {
         cachedAddressTable.clear();
         {
-            LOCK(wallet->cs_wallet);
-            for (const auto& item : wallet->mapAddressBook) {
+            const auto addressBookMap = wallet->mapAddressBook.getInternalMap();
+            for (const auto& item : addressBookMap) {
                 const CBitcoinAddress& address = item.first;
                 const std::string&     strName = item.second.name;
                 bool                   fMine   = IsMine(*wallet, address.Get()) != isminetype::ISMINE_NO;
@@ -232,7 +232,7 @@ bool AddressTableModel::setData(const QModelIndex& index, const QVariant& value,
             }
             // Check for duplicate addresses to prevent accidental deletion of addresses, if you try
             // to paste an existing address over another address (with a different label)
-            else if (wallet->mapAddressBook.count(
+            else if (wallet->mapAddressBook.exists(
                          CBitcoinAddress(value.toString().toStdString()).Get())) {
                 editStatus = DUPLICATE_ADDRESS;
                 return false;
@@ -313,8 +313,7 @@ QString AddressTableModel::addRow(const QString& type, const QString& label, con
         }
         // Check for duplicate addresses
         {
-            LOCK(wallet->cs_wallet);
-            if (wallet->mapAddressBook.count(CBitcoinAddress(strAddress).Get())) {
+            if (wallet->mapAddressBook.exists(CBitcoinAddress(strAddress).Get())) {
                 editStatus = DUPLICATE_ADDRESS;
                 return QString();
             }
@@ -366,13 +365,11 @@ bool AddressTableModel::removeRows(int row, int count, const QModelIndex& parent
 QString AddressTableModel::labelForAddress(const QString& address) const
 {
     {
-        LOCK(wallet->cs_wallet);
         CBitcoinAddress address_parsed(address.toStdString());
 
-        std::map<CTxDestination, AddressBook::CAddressBookData>::iterator mi =
-            wallet->mapAddressBook.find(address_parsed.Get());
-        if (mi != wallet->mapAddressBook.end()) {
-            return QString::fromStdString(mi->second.name);
+        const auto mi = wallet->mapAddressBook.get(address_parsed.Get());
+        if (mi.is_initialized()) {
+            return QString::fromStdString(mi->name);
         }
     }
     return QString();

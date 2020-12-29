@@ -9,6 +9,8 @@ int64_t StakeMaker::getLastCoinStakeSearchInterval() const { return nLastCoinSta
 
 int64_t StakeMaker::getLastCoinStakeSearchTime() const { return nLastCoinStakeSearchTime; }
 
+boost::optional<uint64_t> StakeMaker::getLatestStakeWeight() const { return cachedStakeWeight; }
+
 CoinStakeInputsResult MakeInitialStakeInputsResult(const StakeKernelData& kernelData)
 {
     CoinStakeInputsResult result;
@@ -40,7 +42,7 @@ TestAndCreateStakeKernel(CTxDB& txdb, const StakeMaker::KeyGetterFunctorType& ke
     CTxIndex txindex;
     CBlock   kernelBlock;
     {
-        LOCK(cs_main);
+        // LOCK(cs_main); // Seems unnecessary, since we only read from DB
 
         if (!txdb.ReadTxIndex(pcoin.first->GetHash(), txindex))
             return boost::none;
@@ -124,6 +126,16 @@ boost::optional<CAmount> CalculateStakeReward(const CTransaction& stakeTx, CAmou
     return boost::make_optional(result);
 }
 
+void StakeMaker::updateStakeWeight(const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins)
+{
+    uint64_t nMinWeight = 0, nMaxWeight = 0, nWeight = 0;
+    if (CWallet::GetStakeWeight(setCoins, nMinWeight, nMaxWeight, nWeight)) {
+        cachedStakeWeight = nWeight;
+    } else {
+        cachedStakeWeight = boost::none;
+    }
+}
+
 boost::optional<CTransaction>
 StakeMaker::CreateCoinStake(const CWallet& wallet, const unsigned int nBits, const CAmount nFees,
                             const CAmount reservedBalance,
@@ -135,8 +147,19 @@ StakeMaker::CreateCoinStake(const CWallet& wallet, const unsigned int nBits, con
 
     const bool fEnableColdStaking = GetBoolArg("-coldstaking", true);
 
+    const uint256 currentBestBlock = pindexBest->GetBlockHash();
+
     // Choose coins to use
-    const CAmount nBalance = wallet.GetStakingBalance(fEnableColdStaking);
+    const CAmount nBalance = [&]() {
+        boost::optional<CAmount> cachedBalanceValue = cachedBalance.getValue(currentBestBlock);
+        if (cachedBalanceValue) {
+            return *cachedBalanceValue;
+        } else {
+            const CAmount res = wallet.GetStakingBalance(fEnableColdStaking);
+            cachedBalance.update(currentBestBlock, res);
+            return res;
+        }
+    }();
 
     if (nBalance <= reservedBalance)
         return boost::none;
@@ -152,9 +175,20 @@ StakeMaker::CreateCoinStake(const CWallet& wallet, const unsigned int nBits, con
     // Select coins with suitable depth
     std::set<std::pair<const CWalletTx*, unsigned int>> setCoins;
     CAmount                                             nValueIn = 0;
-    if (!wallet.SelectCoinsForStaking(nBalance - reservedBalance, nCoinstakeInitialTxTime, setCoins,
-                                      nValueIn, fEnableColdStaking, false))
-        return boost::none;
+    const auto cachedOutputs = cachedSelectedOutputs.getValue(currentBestBlock);
+    if (cachedOutputs) {
+        std::tie(nValueIn, setCoins) = *cachedOutputs;
+    } else {
+        if (!wallet.SelectCoinsForStaking(nBalance - reservedBalance, nCoinstakeInitialTxTime, setCoins,
+                                          nValueIn, fEnableColdStaking, false)) {
+            // failure to get coins means they're spent. We reset stake weight
+            cachedStakeWeight = boost::none;
+            return boost::none;
+        }
+        cachedSelectedOutputs.update(currentBestBlock, std::make_pair(nValueIn, setCoins));
+    }
+
+    updateStakeWeight(setCoins);
 
     // we can choose custom inputs to use (by filtering the ones we get from the wallet) for testing
     // purposes
@@ -530,3 +564,9 @@ void StakeMaker::UpdateStakeSearchTimes(const int64_t nSearchTime)
 }
 
 void StakeMaker::resetLastCoinStakeSearchInterval() { nLastCoinStakeSearchInterval = 0; }
+
+bool StakeMaker::IsStakingActive()
+{
+    // returns true if we have weight and we tried to stake in the last 30 seconds
+    return cachedStakeWeight.load().value_or(0) > 0 && (nLastCoinStakeSearchTime + 30) >= GetAdjustedTime();
+}

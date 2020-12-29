@@ -784,4 +784,103 @@ std::unique_ptr<T> MakeUnique(Args&&... args)
 
 bool ParseFixedPoint(const std::string& val, int decimals, int64_t* amount_out);
 
+/**
+ * This is a class that can be used in two ways:
+ * 1. A cache of a simple key/value, caches for a single key
+ * 2. A cache that caches key/value where the value is associated with a set of custom options; where
+ * overwriting the key will clear the options and the value
+ *
+ * To choose between these options, option 1 requires only key/value template parameters, and option 2
+ * requires additional template parameters
+ *
+ * This class was designed to cache for best block as key, with any value desired
+ *
+ * See the tests for examples
+ */
+template <typename K, typename V, typename... O>
+class CachedKeyValueWithOptions
+{
+    mutable boost::mutex mtx;
+    boost::optional<K>   key; // optional indicates whether a cached value exists
+    using ValueType =
+        typename boost::conditional<sizeof...(O) != 0, std::map<std::tuple<O...>, V>, V>::type;
+    ValueType value;
+
+public:
+    boost::optional<V> getValue(const K& k, const std::tuple<O...>& options) const
+    {
+        static_assert(sizeof...(O) != 0, "");
+        boost::lock_guard<boost::mutex> lg(mtx);
+        return getValue_unsafe(k, options);
+    }
+    boost::optional<V> getValue_unsafe(const K& k, const std::tuple<O...>& options) const
+    {
+        static_assert(sizeof...(O) != 0, "");
+        if (key && k == *key) {
+            auto it = value.find(options);
+            if (it != value.cend()) {
+                return boost::make_optional(it->second);
+            }
+        }
+        return boost::none;
+    }
+    boost::optional<V> getValue(const K& k) const
+    {
+        static_assert(sizeof...(O) == 0, "");
+        boost::lock_guard<boost::mutex> lg(mtx);
+        return getValue_unsafe(k);
+    }
+    boost::optional<V> getValue_unsafe(const K& k) const
+    {
+        static_assert(sizeof...(O) == 0, "");
+        if (key && k == *key) {
+            return boost::make_optional(value);
+        }
+        return boost::none;
+    }
+    void update(const K& k, const V& v, const std::tuple<O...>& options)
+    {
+        static_assert(sizeof...(O) != 0, "");
+        boost::lock_guard<boost::mutex> lg(mtx);
+        update_unsafe(k, v, options);
+    }
+    void update_unsafe(const K& k, const V& v, const std::tuple<O...>& options)
+    {
+        static_assert(sizeof...(O) != 0, "");
+        if (key && k == *key) {
+            value[options] = v;
+        } else {
+            key = k;
+            value.clear();
+            value[options] = v;
+        }
+    }
+    void update(const K& k, const V& v)
+    {
+        static_assert(sizeof...(O) == 0, "");
+        boost::lock_guard<boost::mutex> lg(mtx);
+        update_unsafe(k, v);
+    }
+    void update_unsafe(const K& k, const V& v)
+    {
+        static_assert(sizeof...(O) == 0, "");
+        key   = k;
+        value = v;
+    }
+    void clear()
+    {
+        boost::lock_guard<boost::mutex> lg(mtx);
+        clear_unsafe();
+    }
+    void clear_unsafe()
+    {
+        key   = boost::none;
+        value = decltype(value)();
+    }
+    boost::shared_ptr<boost::lock_guard<boost::mutex>> getLock() const
+    {
+        return boost::make_shared<boost::lock_guard<boost::mutex>>(mtx);
+    }
+};
+
 #endif

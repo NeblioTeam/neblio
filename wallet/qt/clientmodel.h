@@ -3,6 +3,8 @@
 
 #include <QObject>
 
+#include "globals.h"
+
 class OptionsModel;
 class AddressTableModel;
 class TransactionTableModel;
@@ -13,15 +15,25 @@ class QDateTime;
 class QTimer;
 QT_END_NAMESPACE
 
+struct ChainTipData
+{
+    boost::atomic_int     height{0};
+    boost::atomic_int64_t time{0};
+    boost::atomic<uint256> hash{0};
+    boost::atomic_bool isInitialSync{true};
+};
+
+extern int64_t nLastBlockTipUpdateNotification;
+
 /** Model for Bitcoin network client. */
 class ClientModel : public QObject
 {
     Q_OBJECT
 public:
-    explicit ClientModel(OptionsModel *optionsModel, QObject *parent = 0);
+    explicit ClientModel(OptionsModel* optionsModel, QObject* parent = 0);
     ~ClientModel();
 
-    OptionsModel *getOptionsModel();
+    OptionsModel* getOptionsModel();
 
     int getNumConnections() const;
     int getNumBlocks() const;
@@ -45,15 +57,19 @@ public:
     QString clientName() const;
     QString formatClientStartupTime() const;
 
+    void setTipBlock(const ConstCBlockIndexSmartPtr &pindex, bool initialSync);
+
 private:
-    OptionsModel *optionsModel;
+    OptionsModel* optionsModel;
 
     int cachedNumBlocks;
     int cachedNumBlocksOfPeers;
 
     int numBlocksAtStartup;
 
-    QTimer *pollTimer;
+    QTimer* pollTimer;
+
+    ChainTipData cachedTip;
 
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();
@@ -62,12 +78,12 @@ signals:
     void numBlocksChanged(int count, int countOfPeers);
 
     //! Asynchronous error notification
-    void error(const QString &title, const QString &message, bool modal);
+    void error(const QString& title, const QString& message, bool modal);
 
 public slots:
     void updateTimer();
     void updateNumConnections(int numConnections);
-    void updateAlert(const QString &hash, int status);
+    void updateAlert(const QString& hash, int status);
 };
 
 #endif // CLIENTMODEL_H

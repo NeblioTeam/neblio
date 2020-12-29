@@ -78,6 +78,9 @@ public:
     QValueComboBox*     unit;
     QCheckBox*          displayAddresses;
     QCheckBox*          coinControlFeatures;
+    QHBoxLayout*        limitTxViewCountHLayout;
+    QLabel*             limitTxViewCountLabel;
+    QLineEdit*          limitTxViewCountLineEdit;
     QSpacerItem*        verticalSpacer_Display;
     QHBoxLayout*        horizontalLayout_Buttons;
     QSpacerItem*        horizontalSpacer_1;
@@ -304,7 +307,17 @@ public:
         coinControlFeatures = new QCheckBox(tabDisplay);
         coinControlFeatures->setObjectName(QStringLiteral("coinControlFeatures"));
 
+        limitTxViewCountHLayout = new QHBoxLayout;
+        limitTxViewCountLabel   = new QLabel(
+            "Limit the number of transactions in transaction view (0 = no limit)", tabDisplay);
+        limitTxViewCountLabel->setObjectName(QStringLiteral("limitTxViewCountLabel"));
+        limitTxViewCountLineEdit = new QLineEdit(tabDisplay);
+        limitTxViewCountLineEdit->setObjectName(QStringLiteral("limitTxViewCountLineEdit"));
+
         verticalLayout_Display->addWidget(coinControlFeatures);
+        verticalLayout_Display->addLayout(limitTxViewCountHLayout);
+        limitTxViewCountHLayout->addWidget(limitTxViewCountLabel);
+        limitTxViewCountHLayout->addWidget(limitTxViewCountLineEdit);
 
         verticalSpacer_Display = new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding);
 
@@ -490,6 +503,16 @@ public:
 #ifndef QT_NO_TOOLTIP
         coinControlFeatures->setToolTip(QApplication::translate(
             "OptionsDialog", "Whether to show coin control features or not.", Q_NULLPTR));
+        limitTxViewCountLabel->setToolTip(QApplication::translate(
+            "OptionsDialog",
+            "Due to a historical bug in Qt framework, when many transactions exist in the transactions "
+            "view (100k+), it may become laggy. You can limit the number here.",
+            Q_NULLPTR));
+        limitTxViewCountLineEdit->setToolTip(QApplication::translate(
+            "OptionsDialog",
+            "Due to a historical bug in Qt framework, when many transactions exist in the transactions "
+            "view (100k+), it may become laggy. You can limit the number here.",
+            Q_NULLPTR));
 #endif // QT_NO_TOOLTIP
         coinControlFeatures->setText(QApplication::translate(
             "OptionsDialog", "Display coin &control features (experts only!)", Q_NULLPTR));

@@ -1,9 +1,9 @@
 #ifndef OVERVIEWPAGE_H
 #define OVERVIEWPAGE_H
 
+#include "ui_overviewpage.h"
 #include <QTimer>
 #include <QWidget>
-#include "ui_overviewpage.h"
 
 #include <boost/thread.hpp>
 #include <boost/thread/future.hpp>
@@ -33,6 +33,7 @@ public:
 
 public slots:
     void setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBalance, qint64 immatureBalance);
+    void setUnknownBalance();
 
 signals:
     void transactionClicked(const QModelIndex& index);

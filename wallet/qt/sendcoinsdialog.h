@@ -2,6 +2,7 @@
 #define SENDCOINSDIALOG_H
 
 #include <QDialog>
+#include <QSharedPointer>
 #include <QString>
 
 namespace Ui {
@@ -10,6 +11,7 @@ class SendCoinsDialog;
 class WalletModel;
 class SendCoinsEntry;
 class SendCoinsRecipient;
+class BalancesWorker;
 
 QT_BEGIN_NAMESPACE
 class QUrl;
@@ -41,6 +43,8 @@ public slots:
     SendCoinsEntry* addEntry();
     void            updateRemoveEnabled();
     void setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBalance, qint64 immatureBalance);
+    void setUnknownBalance();
+    void triggerUpdateBalance();
     void showEditMetadataDialog();
 
 private:

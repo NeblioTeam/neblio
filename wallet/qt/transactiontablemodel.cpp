@@ -16,6 +16,7 @@
 #include <QIcon>
 #include <QList>
 #include <QLocale>
+#include <QTimer>
 #include <QtAlgorithms>
 
 // Amount column is right-aligned it contains numbers
@@ -37,10 +38,13 @@ struct TxLessThan
 // Private implementation
 class TransactionTablePriv
 {
+public slots:
+
 public:
     TransactionTablePriv(CWallet* wallet, TransactionTableModel* parent) : wallet(wallet), parent(parent)
     {
     }
+
     CWallet*               wallet;
     TransactionTableModel* parent;
 
@@ -50,36 +54,31 @@ public:
      */
     QList<TransactionRecord> cachedWallet;
 
-    /* Query entire wallet anew from core.
-     */
-    void refreshWallet()
-    {
-        OutputDebugStringF("refreshWallet\n");
-        cachedWallet.clear();
-        {
-            LOCK2(cs_main, wallet->cs_wallet);
-            for (std::map<uint256, CWalletTx>::iterator it = wallet->mapWallet.begin();
-                 it != wallet->mapWallet.end(); ++it) {
-                if (TransactionRecord::showTransaction(it->second))
-                    cachedWallet.append(TransactionRecord::decomposeTransaction(wallet, it->second));
-            }
-        }
-    }
-
     /* Update our model of the wallet incrementally, to synchronize our model of the wallet
        with that of the core.
 
        Call with transaction that was added, removed or changed.
      */
-    void updateWallet(const uint256& hash, int status)
+    [[nodiscard]] bool updateWallet(const uint256& hash, int status)
     {
-        OutputDebugStringF("updateWallet %s %i\n", hash.ToString().c_str(), status);
         {
-            LOCK2(cs_main, wallet->cs_wallet);
+            if (parent->isTxsRetrieverThreadRunning()) {
+                return false;
+            }
+
+            // These locks were MOVED to the caller
+            // TRY_LOCK(cs_main, lockMain);
+            // if (!lockMain) {
+            //     return false;
+            // }
+            // TRY_LOCK(wallet->cs_wallet, lockWallet);
+            // if (!lockWallet) {
+            //     return false;
+            // }
 
             // Find transaction in wallet
-            std::map<uint256, CWalletTx>::iterator mi       = wallet->mapWallet.find(hash);
-            bool                                   inWallet = mi != wallet->mapWallet.end();
+            std::map<uint256, CWalletTx>::const_iterator mi       = wallet->mapWallet.find(hash);
+            const bool                                   inWallet = mi != wallet->mapWallet.end();
 
             // Find bounds of this transaction in model
             QList<TransactionRecord>::iterator lower =
@@ -150,6 +149,7 @@ public:
                 break;
             }
         }
+        return true;
     }
 
     int size() { return cachedWallet.size(); }
@@ -183,7 +183,7 @@ public:
         }
     }
 
-    QString describe(TransactionRecord* rec)
+    QString describe(const TransactionRecord* rec)
     {
         {
             LOCK2(cs_main, wallet->cs_wallet);
@@ -202,20 +202,43 @@ TransactionTableModel::TransactionTableModel(CWallet* wallet, WalletModel* paren
 {
     columns << QString() << tr("Date") << tr("Type") << tr("Address") << tr("Amount");
 
-    priv->refreshWallet();
+    qRegisterMetaType<QSharedPointer<TxsRetrieverWorker>>("QSharedPointer<TxsRetrieverWorker>");
+    qRegisterMetaType<QSharedPointer<QList<TransactionRecord>>>(
+        "QSharedPointer<QList<TransactionRecord>>");
+    qRegisterMetaType<CWallet*>("CWallet*");
 
-    connect(walletModel->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this,
-            SLOT(updateDisplayUnit()));
+    txsRetrieverThread.setObjectName("neblio-txRetrieverWorker"); // thread name
+    txsRetrieverThread.start();
+
+    connect(walletModel->getOptionsModel(), &OptionsModel::displayUnitChanged, this,
+            &TransactionTableModel::updateDisplayUnit);
+    connect(walletModel->getOptionsModel(), &OptionsModel::maxTransactionsViewLimitChanged, this,
+            &TransactionTableModel::updateMaxTransactionsToLoad);
+
+    QMetaObject::invokeMethod(this, "refreshWallet", Qt::QueuedConnection);
+
+    maxTransactionInView = walletModel->getOptionsModel()->getMaxTransactionsToView();
+
+    connect(&walletUpdatesQueueConsumer, &QTimer::timeout, this,
+            &TransactionTableModel::consumeWalletUpdatesQueue);
+    walletUpdatesQueueConsumer.start(1000);
 }
 
-TransactionTableModel::~TransactionTableModel() { delete priv; }
+TransactionTableModel::~TransactionTableModel()
+{
+    txsRetrieverThread.quit();
+    txsRetrieverThread.wait();
+    delete priv;
+}
 
 void TransactionTableModel::updateTransaction(const QString& hash, int status)
 {
     uint256 updated;
     updated.SetHex(hash.toStdString());
 
-    priv->updateWallet(updated, status);
+    // we use singleShot because Qt's invokeMethod doesn't support functors before a late version
+    QTimer::singleShot(0, this,
+                       [this, updated, status]() { this->pushToWalletUpdate(updated, status); });
 
     emit txArrived(hash);
 }
@@ -327,7 +350,7 @@ QString TransactionTableModel::formatTxType(const TransactionRecord* wtx) const
     case TransactionRecord::Generated:
         return tr("Mined");
     case TransactionRecord::ColdStaker:
-        return tr("Received cold-stake delegation");
+        return tr("Received cold-stake reward");
     case TransactionRecord::ColdDelegator:
         return tr("Sent cold-stake delegation");
     default:
@@ -354,6 +377,82 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord* wtx
         return QIcon(":/icons/tx_inout");
     }
     return QVariant();
+}
+
+void TransactionTableModel::pushToWalletUpdate(uint256 hash, int status)
+{
+    walletUpdatesQueue.push_back(std::make_pair(std::move(hash), status));
+}
+
+void TransactionTableModel::refreshWallet()
+{
+    OutputDebugStringF("refreshWallet\n");
+    if (txsRetrieverWorkerRunning) {
+        QTimer::singleShot(1000, this, &TransactionTableModel::refreshWallet);
+        return;
+    }
+
+    txsRetrieverWorkerRunning = true;
+
+    QSharedPointer<TxsRetrieverWorker> worker = QSharedPointer<TxsRetrieverWorker>::create();
+    worker->moveToThread(&txsRetrieverThread);
+    connect(worker.data(), &TxsRetrieverWorker::resultReady, this,
+            &TransactionTableModel::finishRefreshWallet, Qt::QueuedConnection);
+    QTimer::singleShot(0, worker.data(),
+                       [this, worker]() { worker->getTxs(wallet, worker, &maxTransactionInView); });
+}
+
+void TransactionTableModel::finishRefreshWallet(QSharedPointer<QList<TransactionRecord>> records)
+{
+    assert(records);
+
+    // force sync since we got a vector from another thread
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+
+    beginResetModel();
+    // this is an RAII hack to guarantee that the function will end the model reset
+    // WalletModel has nothing to do with this. It's just a dummy variable
+    auto modelResetEnderFunctor = [this](WalletModel*) { endResetModel(); };
+    std::unique_ptr<WalletModel, decltype(modelResetEnderFunctor)> txEnder(walletModel,
+                                                                           modelResetEnderFunctor);
+
+    priv->cachedWallet = *records;
+
+    txsRetrieverWorkerRunning = false;
+}
+
+void TransactionTableModel::consumeWalletUpdatesQueue()
+{
+    if (walletUpdatesQueue.empty()) {
+        return;
+    }
+
+    if (txsRetrieverWorkerRunning) {
+        return;
+    }
+
+    TRY_LOCK(cs_main, lockMain);
+    if (!lockMain) {
+        return;
+    }
+    TRY_LOCK(wallet->cs_wallet, lockWallet);
+    if (!lockWallet) {
+        return;
+    }
+
+    static constexpr int MAX_TO_POP = 200;
+
+    for (int i = 0; i < MAX_TO_POP; i++) {
+        if (walletUpdatesQueue.empty()) {
+            break;
+        }
+        const bool success =
+            priv->updateWallet(walletUpdatesQueue.front().first, walletUpdatesQueue.front().second);
+
+        if (success) {
+            walletUpdatesQueue.pop_front();
+        }
+    }
 }
 
 QString TransactionTableModel::formatTxToAddress(const TransactionRecord* wtx, bool tooltip) const
@@ -479,7 +578,7 @@ QVariant TransactionTableModel::data(const QModelIndex& index, int role) const
 {
     if (!index.isValid())
         return QVariant();
-    TransactionRecord* rec = static_cast<TransactionRecord*>(index.internalPointer());
+    const TransactionRecord* rec = static_cast<TransactionRecord*>(index.internalPointer());
 
     switch (role) {
     case Qt::DecorationRole:
@@ -612,14 +711,58 @@ QModelIndex TransactionTableModel::index(int row, int column, const QModelIndex&
     Q_UNUSED(parent);
     TransactionRecord* data = priv->index(row);
     if (data) {
-        return createIndex(row, column, priv->index(row));
+        return createIndex(row, column, data);
     } else {
         return QModelIndex();
     }
 }
 
+bool TransactionTableModel::isTxsRetrieverThreadRunning() const { return txsRetrieverWorkerRunning; }
+
 void TransactionTableModel::updateDisplayUnit()
 {
     // emit dataChanged to update Amount column with the current unit
     emit dataChanged(index(0, Amount), index(priv->size() - 1, Amount));
+}
+
+void TransactionTableModel::updateMaxTransactionsToLoad(quint64 value)
+{
+    const bool valueWasChanged = maxTransactionInView != value;
+    maxTransactionInView       = value;
+    if (valueWasChanged) {
+        refreshWallet();
+    }
+}
+
+void TxsRetrieverWorker::getTxs(CWallet* wallet, QSharedPointer<TxsRetrieverWorker> workerPtr,
+                                const quint64* limit)
+{
+    assert(limit);
+
+    QSharedPointer<QList<TransactionRecord>> cachedWallet =
+        QSharedPointer<QList<TransactionRecord>>::create();
+
+    std::vector<CWalletTx> walletTxs = wallet->getWalletTxs();
+
+    const quint64 originalLimit = *limit;
+
+    if (originalLimit > 0) {
+        static const auto TxSortFunctor = [](const CWalletTx& a, const CWalletTx& b) -> bool {
+            return a.GetTxTime() > b.GetTxTime();
+        };
+        sort(walletTxs.begin(), walletTxs.end(), TxSortFunctor);
+        walletTxs.resize(originalLimit > walletTxs.size() ? walletTxs.size() : originalLimit);
+    }
+
+    for (const CWalletTx& wtx : walletTxs) {
+        if (TransactionRecord::showTransaction(wtx))
+            cachedWallet->append(TransactionRecord::decomposeTransaction(wallet, wtx));
+        if (*limit != originalLimit)
+            break; // if the value changes, we just stop because we'll refresh again
+        if (fShutdown.load(boost::memory_order_relaxed))
+            break;
+    }
+
+    resultReady(cachedWallet, *limit != originalLimit);
+    workerPtr.reset();
 }
