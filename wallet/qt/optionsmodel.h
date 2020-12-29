@@ -32,7 +32,9 @@ public:
         DisplayAddresses,    // bool
         Language,            // QString
         CoinControlFeatures, // bool
-        OptionIDRowCount,    // last element defines the size, this must be last
+        MaxTxsRowsValue,     // quint64
+
+        OptionIDRowCount, // last element defines the size, this must be last
     };
 
     void Init();
@@ -50,6 +52,7 @@ public:
     int     getDisplayUnit() { return nDisplayUnit; }
     bool    getDisplayAddresses() { return bDisplayAddresses; }
     QString getLanguage() { return language; }
+    quint64 getMaxTransactionsToView() const;
 
 private:
     int     nDisplayUnit;
@@ -64,6 +67,7 @@ signals:
     void transactionFeeChanged(qint64);
     void reserveBalanceChanged(qint64);
     void coinControlFeaturesChanged(bool);
+    void maxTransactionsViewLimitChanged(quint64 maxSize);
 };
 
 #endif // OPTIONSMODEL_H

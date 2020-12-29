@@ -212,8 +212,12 @@ TransactionTableModel::TransactionTableModel(CWallet* wallet, WalletModel* paren
 
     connect(walletModel->getOptionsModel(), &OptionsModel::displayUnitChanged, this,
             &TransactionTableModel::updateDisplayUnit);
+    connect(walletModel->getOptionsModel(), &OptionsModel::maxTransactionsViewLimitChanged, this,
+            &TransactionTableModel::updateMaxTransactionsToLoad);
 
     QMetaObject::invokeMethod(this, "refreshWallet", Qt::QueuedConnection);
+
+    maxTransactionInView = walletModel->getOptionsModel()->getMaxTransactionsToView();
 
     connect(&walletUpdatesQueueConsumer, &QTimer::timeout, this,
             &TransactionTableModel::consumeWalletUpdatesQueue);
@@ -393,7 +397,8 @@ void TransactionTableModel::refreshWallet()
     worker->moveToThread(&txsRetrieverThread);
     connect(worker.data(), &TxsRetrieverWorker::resultReady, this,
             &TransactionTableModel::finishRefreshWallet, Qt::QueuedConnection);
-    GUIUtil::AsyncQtCall(worker.data(), [this, worker]() { worker->getTxs(wallet, worker); });
+    GUIUtil::AsyncQtCall(worker.data(),
+                         [this, worker]() { worker->getTxs(wallet, worker, &maxTransactionInView); });
 }
 
 void TransactionTableModel::finishRefreshWallet(QSharedPointer<QList<TransactionRecord>> records)
@@ -719,20 +724,44 @@ void TransactionTableModel::updateDisplayUnit()
     emit dataChanged(index(0, Amount), index(priv->size() - 1, Amount));
 }
 
-void TxsRetrieverWorker::getTxs(CWallet* wallet, QSharedPointer<TxsRetrieverWorker> workerPtr)
+void TransactionTableModel::updateMaxTransactionsToLoad(quint64 value)
 {
+    const bool valueWasChanged = maxTransactionInView != value;
+    maxTransactionInView       = value;
+    if (valueWasChanged) {
+        refreshWallet();
+    }
+}
+
+void TxsRetrieverWorker::getTxs(CWallet* wallet, QSharedPointer<TxsRetrieverWorker> workerPtr,
+                                const quint64* limit)
+{
+    assert(limit);
+
     QSharedPointer<QList<TransactionRecord>> cachedWallet =
         QSharedPointer<QList<TransactionRecord>>::create();
 
-    const std::vector<CWalletTx> walletTxes = wallet->getWalletTxs();
+    std::vector<CWalletTx> walletTxs = wallet->getWalletTxs();
 
-    for (const CWalletTx& wtx : walletTxes) {
+    const quint64 originalLimit = *limit;
+
+    if (originalLimit > 0) {
+        static const auto TxSortFunctor = [](const CWalletTx& a, const CWalletTx& b) -> bool {
+            return a.GetTxTime() > b.GetTxTime();
+        };
+        sort(walletTxs.begin(), walletTxs.end(), TxSortFunctor);
+        walletTxs.resize(originalLimit > walletTxs.size() ? walletTxs.size() : originalLimit);
+    }
+
+    for (const CWalletTx& wtx : walletTxs) {
         if (TransactionRecord::showTransaction(wtx))
             cachedWallet->append(TransactionRecord::decomposeTransaction(wallet, wtx));
+        if (*limit != originalLimit)
+            break; // if the value changes, we just stop because we'll refresh again
         if (fShutdown.load(boost::memory_order_relaxed))
             break;
     }
 
-    resultReady(cachedWallet);
+    resultReady(cachedWallet, *limit != originalLimit);
     workerPtr.reset();
 }

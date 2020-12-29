@@ -20,11 +20,11 @@ class TxsRetrieverWorker : public QObject
 public slots:
     // we use the shared pointer argument to ensure that workerPtr will be deleted after doing the
     // retrieval
-    void getTxs(CWallet* wallet, QSharedPointer<TxsRetrieverWorker> workerPtr);
+    void getTxs(CWallet* wallet, QSharedPointer<TxsRetrieverWorker> workerPtr, const quint64* limit);
 
 signals:
     // Signal that balance in wallet changed
-    void resultReady(QSharedPointer<QList<TransactionRecord>> records);
+    void resultReady(QSharedPointer<QList<TransactionRecord>> records, bool refreshRequiredAgain);
 };
 
 /** UI model for the transaction table of a wallet.
@@ -94,6 +94,7 @@ private:
 
     QThread txsRetrieverThread;
     bool    txsRetrieverWorkerRunning = false;
+    quint64 maxTransactionInView      = 0;
 
     QString  lookupAddress(const std::string& address, bool tooltip) const;
     QVariant addressColor(const TransactionRecord* wtx) const;
@@ -111,6 +112,7 @@ public slots:
     void updateTransaction(const QString& hash, int status);
     void updateConfirmations();
     void updateDisplayUnit();
+    void updateMaxTransactionsToLoad(quint64 value);
 
     void refreshWallet();
     void finishRefreshWallet(QSharedPointer<QList<TransactionRecord>> records);

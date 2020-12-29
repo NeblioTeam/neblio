@@ -102,8 +102,8 @@ QVariant OptionsModel::data(const QModelIndex& index, int role) const
             return settings.value("language", "");
         case CoinControlFeatures:
             return QVariant(fCoinControlFeatures);
-        default:
-            return QVariant();
+        case MaxTxsRowsValue:
+            return settings.value("nMaxTxsRowsCount", quint64(0));
         }
     }
     return QVariant();
@@ -191,8 +191,11 @@ bool OptionsModel::setData(const QModelIndex& index, const QVariant& value, int 
             emit coinControlFeaturesChanged(fCoinControlFeatures);
             break;
         }
-        default:
+        case MaxTxsRowsValue: {
+            settings.setValue("nMaxTxsRowsCount", value);
+            emit maxTransactionsViewLimitChanged(value.toULongLong());
             break;
+        }
         }
     }
     emit dataChanged(index, index);
@@ -205,3 +208,9 @@ qint64 OptionsModel::getTransactionFee() { return nTransactionFee; }
 qint64 OptionsModel::getReserveBalance() { return nReserveBalance; }
 
 bool OptionsModel::getCoinControlFeatures() { return fCoinControlFeatures; }
+
+quint64 OptionsModel::getMaxTransactionsToView() const
+{
+    const QModelIndex columnsIndex = index(MaxTxsRowsValue, 0);
+    return data(columnsIndex, Qt::EditRole).toULongLong();
+}
