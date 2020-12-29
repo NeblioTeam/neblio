@@ -65,7 +65,7 @@ boost::optional<uint64_t> WalletModel::getNumTransactions() const
     TRY_LOCK(wallet->cs_wallet, lock);
     if (!lock)
         return boost::none;
-    return boost::make_optional(wallet->mapWallet.size());
+    return boost::make_optional(static_cast<uint64_t>(wallet->mapWallet.size()));
 }
 
 void WalletModel::updateStatus()
