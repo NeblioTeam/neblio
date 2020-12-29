@@ -1058,12 +1058,14 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
 
     {
         LOCK2(cs_main, cs_wallet);
+        printf("Starting wallet rescan of %d blocks...\n", nBestHeight.load());
         while (pindex) {
             blockCount++;
 
             if (blockCount % 1000 == 0) {
                 uiInterface.InitMessage(_("Rescanning... ") + "(block: " + std::to_string(blockCount) +
                                         "/" + std::to_string(nBestHeight) + ")");
+                printf("Done scanning %zu blocks\n", blockCount);
             }
 
             // no need to read and scan block, if block was created before
@@ -1084,6 +1086,7 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
         uiInterface.InitMessage(_("Updating wallet on disk (do not shutdown)..."));
         FlushWalletDB(true, strWalletFile, nullptr);
         uiInterface.InitMessage(_("Rescanning... ") + "(done)");
+        printf("Done rescanning wallet.\n");
     }
     return ret;
 }
