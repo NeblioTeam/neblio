@@ -60,14 +60,12 @@ qint64 WalletModel::getStake() const { return wallet->GetStake(); }
 
 qint64 WalletModel::getImmatureBalance() const { return wallet->GetImmatureBalance(); }
 
-int WalletModel::getNumTransactions() const
+boost::optional<uint64_t> WalletModel::getNumTransactions() const
 {
-    int numTransactions = 0;
-    {
-        LOCK(wallet->cs_wallet);
-        numTransactions = wallet->mapWallet.size();
-    }
-    return numTransactions;
+    TRY_LOCK(wallet->cs_wallet, lock);
+    if (!lock)
+        return boost::none;
+    return boost::make_optional(wallet->mapWallet.size());
 }
 
 void WalletModel::updateStatus()
@@ -173,10 +171,20 @@ void WalletModel::updateTransaction(const QString& hash, int status)
     // Balance and number of transactions might have changed
     checkBalanceChanged();
 
-    int newNumTransactions = getNumTransactions();
-    if (cachedNumTransactions != newNumTransactions) {
-        cachedNumTransactions = newNumTransactions;
-        emit numTransactionsChanged(newNumTransactions);
+    updateNumTransactions();
+}
+
+void WalletModel::updateNumTransactions()
+{
+    const boost::optional<uint64_t> newNumTransactions = getNumTransactions();
+    if (!newNumTransactions.is_initialized()) {
+        QTimer::singleShot(1000, this, &WalletModel::updateNumTransactions);
+        return;
+    }
+
+    if (cachedNumTransactions != *newNumTransactions) {
+        cachedNumTransactions = *newNumTransactions;
+        emit numTransactionsChanged(*newNumTransactions);
     }
 }
 

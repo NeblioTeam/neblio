@@ -90,12 +90,12 @@ public:
     AddressTableModel*     getAddressTableModel();
     TransactionTableModel* getTransactionTableModel();
 
-    qint64           getBalance() const;
-    qint64           getStake() const;
-    qint64           getUnconfirmedBalance() const;
-    qint64           getImmatureBalance() const;
-    int              getNumTransactions() const;
-    EncryptionStatus getEncryptionStatus() const;
+    qint64                    getBalance() const;
+    qint64                    getStake() const;
+    qint64                    getUnconfirmedBalance() const;
+    qint64                    getImmatureBalance() const;
+    boost::optional<uint64_t> getNumTransactions() const;
+    EncryptionStatus          getEncryptionStatus() const;
 
     // Check address for validity
     bool validateAddress(const QString& address);
@@ -197,7 +197,7 @@ private:
     qint64           cachedStake;
     qint64           cachedUnconfirmedBalance;
     qint64           cachedImmatureBalance;
-    qint64           cachedNumTransactions;
+    quint64          cachedNumTransactions;
     EncryptionStatus cachedEncryptionStatus;
     int              cachedNumBlocks;
 
@@ -210,6 +210,8 @@ public slots:
     void updateStatus();
     /* New transaction, or transaction changed status */
     void updateTransaction(const QString& hash, int status);
+    /**/
+    void updateNumTransactions();
     /* New, updated or removed address book entry */
     void updateAddressBook(const QString& address, const QString& label, bool isMine,
                            const QString& purpose, int status);
