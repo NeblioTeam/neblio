@@ -57,6 +57,8 @@ contains(RELEASE, 1) {
     }
 }
 
+# required definition for gcc for inttypes.h's PRIu64 and similar to work
+DEFINES += __STDC_FORMAT_MACROS
 
 !win32 {
 # for extra security against potential buffer overflows: enable GCCs Stack Smashing Protection
