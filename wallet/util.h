@@ -883,4 +883,148 @@ public:
     }
 };
 
+inline bool FP_is_number(const std::string& s)
+{
+    return !s.empty() &&
+           std::find_if(s.begin(), s.end(), [](char c) { return !std::isdigit(c); }) == s.end();
+}
+
+inline void FP_remove_right_most_zeros_and_decimal_point(std::string& s)
+{
+    if (s.find('.') == std::string::npos)
+        return;
+
+    // count from the right and see how many zeros to remove
+    for (unsigned long i = 0; i < s.size(); i++) {
+        char c = s[s.size() - i - 1];
+        if (c != '0') {
+            // nothing to remove
+            if (i == 0) {
+                return;
+            }
+            // if next char is '.', remove it as well
+            char c1 = s[s.size() - i - 1];
+            if (c1 == '.') {
+                i++;
+            }
+            s.erase(s.end() - i, s.end());
+
+            // in case everything was removed (for the case of .000000), make the string 0
+            if (s.size() == 0) {
+                s = "0";
+            }
+            return;
+        }
+    }
+}
+
+inline void FP_remove_left_most_zeros(std::string& s)
+{
+    // count from the right and see how many zeros to remove
+    for (unsigned long i = 0; i < s.size(); i++) {
+        if (s[i] != '0') {
+            // nothing to remove
+            if (i == 0) {
+                return;
+            }
+
+            // if next char is '.', keep the zero before it
+            char c1 = s[i];
+            if (c1 == '.' && i != 0) {
+                i--;
+            }
+            s.erase(s.begin(), s.begin() + i);
+
+            // in case everything was removed (for the case of .000000...), make the string 0
+            if (s.size() == 0) {
+                s = "0";
+            }
+            return;
+        }
+    }
+}
+
+template <typename T>
+T FP_DecimalToInt(std::string amount, unsigned int N)
+{
+    if (amount.empty()) {
+        return T(0);
+    }
+    bool negative = false;
+    if (amount.size() > 100) {
+        throw std::runtime_error("FixedPoint: Very long string: " + amount);
+    }
+    if (amount[0] == '-') {
+        negative = true;
+        amount.erase(amount.begin());
+    }
+    // after removing `-`, can't be empty
+    if (amount.empty()) {
+        throw std::runtime_error("FixedPoint: Only negative sign is not a valid amount");
+    }
+    long numOfDecimals = std::count_if(amount.begin(), amount.end(), [](char c) { return c == '.'; });
+    if (numOfDecimals > 1) {
+        throw std::runtime_error("FixedPoint: Invalid number of decimal points for input: " + amount);
+    }
+    if (numOfDecimals == 0) {
+        // if there is no decimal point, then just add N zeros and we're done
+        if (!FP_is_number(amount)) {
+            throw std::runtime_error("FixedPoint: String given is not a number: " + amount);
+        }
+        std::string zeros(N, '0');
+        std::string resStr = amount + zeros;
+        FP_remove_left_most_zeros(resStr);
+        return (negative ? -FromString<T>(resStr) : FromString<T>(resStr));
+    }
+    std::vector<std::string> partsAroundDecimals;
+    boost::algorithm::split(partsAroundDecimals, amount, boost::is_any_of("."),
+                            boost::token_compress_off);
+    if (partsAroundDecimals.size() > 2) {
+        throw std::runtime_error("FixedPoint: Invalid number of decimal points (stage 2 error): " +
+                                 amount);
+    }
+    if (partsAroundDecimals[0].size() > 0 && !FP_is_number(partsAroundDecimals[0])) {
+        throw std::runtime_error("FixedPoint: String given is not a number: " + amount);
+    }
+    if (partsAroundDecimals[1].size() > 0 && !FP_is_number(partsAroundDecimals[1])) {
+        throw std::runtime_error("FixedPoint: String given is not a number: " + amount);
+    }
+    if (partsAroundDecimals[1].length() > N) {
+        throw std::runtime_error("FixedPoint: Too many decimals. Maximum allowed is " + ToString(N) +
+                                 ". Amount provided: " + amount);
+    }
+    std::string zeros(N - partsAroundDecimals[1].length(), '0');
+    std::string satsString = partsAroundDecimals[0] + partsAroundDecimals[1] + zeros;
+    FP_remove_left_most_zeros(satsString);
+    return (negative ? -FromString<T>(satsString) : FromString<T>(satsString));
+}
+
+template <typename T>
+std::string FP_IntToDecimal(T amount, unsigned int N)
+{
+    bool negative = (amount < 0);
+    if (negative) {
+        // remove the negative to deal with it later
+        amount = -amount;
+    }
+    std::string amount_str = ToString(amount);
+    // nothing after the demical point, just add 0. + padding
+    if (amount_str.size() <= N) {
+        std::string zeros(N - amount_str.size(), '0');
+        std::string negativeSymbol = (negative ? "-" : "");
+        std::string result         = "0." + zeros + amount_str;
+        FP_remove_right_most_zeros_and_decimal_point(result);
+        return negativeSymbol + result;
+    } else {
+        // insert decimal point at position number N from the right
+        std::size_t insert_pos = amount_str.length() - N;
+        // no point in inserting at the last digit
+        if (insert_pos < amount_str.length()) {
+            amount_str.insert(insert_pos, 1, '.');
+        }
+        FP_remove_right_most_zeros_and_decimal_point(amount_str);
+        return (negative ? "-" : "") + amount_str;
+    }
+}
+
 #endif

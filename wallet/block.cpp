@@ -1272,7 +1272,7 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig)
     }
 
     // Check transactions
-    for (unsigned i = 0; i < vtx.size(); i++) {
+    for (uint32_t i = 0; i < vtx.size(); i++) {
         const CTransaction& tx = vtx[i];
 
         if (tx.CheckTransaction(this).isErr())
@@ -1280,8 +1280,8 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig)
 
         // ppcoin: check transaction timestamp
         if (GetBlockTime() < (int64_t)tx.nTime)
-            return DoS(50, error("CheckBlock() : block timestamp (%zi) is earlier than transaction "
-                                 "(tx number %u in block) timestamp (%zi)",
+            return DoS(50, error("CheckBlock() : block timestamp (%" PRIu64 ") is earlier than transaction "
+                                 "(tx number %" PRIu32 " in block) timestamp (%" PRIi64 ")",
                                  GetBlockTime(), i, (int64_t)tx.nTime));
     }
 

@@ -131,11 +131,7 @@ CAmount AmountFromValue(const Value& value)
 
 Value ValueFromAmount(const CAmount& amount)
 {
-    bool    sign      = amount < 0;
-    int64_t n_abs     = (sign ? -amount : amount);
-    int64_t quotient  = n_abs / COIN;
-    int64_t remainder = n_abs % COIN;
-    return Value(std::stod(strprintf("%s%zd.%08zd", sign ? "-" : "", quotient, remainder)));
+    return Value(std::stod(FP_IntToDecimal(amount, 8)));
 }
 
 //
