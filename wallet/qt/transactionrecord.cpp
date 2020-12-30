@@ -223,7 +223,7 @@ void TransactionRecord::updateStatus(const CWalletTx& wtx)
     }
 
     // For generated transactions, determine maturity
-    else if (type == TransactionRecord::Generated) {
+    else if (type == TransactionRecord::Generated || type == TransactionRecord::ColdStaker) {
         if (wtx.GetBlocksToMaturity() > 0) {
             status.status = TransactionStatus::Immature;
 
