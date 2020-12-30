@@ -637,7 +637,7 @@ CTransaction::ConnectInputs(MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTe
                 DoS(100, false);
                 return Err(MakeInvalidTxState(
                     TxValidationResult::TX_CONSENSUS, "bad-txns-in-belowout",
-                    strprintf("ConnectInputs() : %s value in (%zi) < value out (%zi)",
+                    strprintf("ConnectInputs() : %s value in (%" PRIi64 ") < value out (%" PRIi64 ")",
                               GetHash().ToString().c_str(), nValueIn, GetValueOut())));
             }
 

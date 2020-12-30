@@ -98,7 +98,7 @@ std::string ColdStakeDelegationErrorStr(const ColdStakeDelegationErrorCode error
     case StakerAddressPubKeyHashError:
         return "Unable to get stake pubkey hash from stakingaddress";
     case InvalidAmount:
-        return strprintf("Invalid amount. Min amount: %zd", Params().MinColdStakingAmount());
+        return strprintf("Invalid amount. Min amount: %" PRIi64, Params().MinColdStakingAmount());
     case InsufficientBalance:
         return "Insufficient funds";
     case WalletLocked:

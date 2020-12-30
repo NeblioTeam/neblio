@@ -1071,8 +1071,8 @@ void static PruneOrphanBlocks()
         it = it2;
     } while (true);
 
-    printf("Removing block %s from orphans map as the size of the orphans has exceeded the maximum %lu; "
-           "current size: %lu\n",
+    printf("Removing block %s from orphans map as the size of the orphans has exceeded the maximum %zu; "
+           "current size: %zu\n",
            it->second->GetHash().ToString().c_str(), MAX_SIZE, mapOrphanBlocksByPrev.size());
     uint256 hash = it->second->GetHash();
     delete it->second;
