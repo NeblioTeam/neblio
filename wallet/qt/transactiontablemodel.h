@@ -123,7 +123,7 @@ private slots:
     void consumeWalletUpdatesQueue();
 
 signals:
-    void txArrived(const QString& hash);
+    void txArrived(QString hash);
 };
 
 #endif

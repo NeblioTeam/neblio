@@ -239,8 +239,6 @@ void TransactionTableModel::updateTransaction(const QString& hash, int status)
     // we use singleShot because Qt's invokeMethod doesn't support functors before a late version
     QTimer::singleShot(0, this,
                        [this, updated, status]() { this->pushToWalletUpdate(updated, status); });
-
-    emit txArrived(hash);
 }
 
 void TransactionTableModel::updateConfirmations()
@@ -450,6 +448,7 @@ void TransactionTableModel::consumeWalletUpdatesQueue()
             priv->updateWallet(walletUpdatesQueue.front().first, walletUpdatesQueue.front().second);
 
         if (success) {
+            emit txArrived(QString::fromStdString(walletUpdatesQueue.front().first.ToString()));
             walletUpdatesQueue.pop_front();
         }
     }

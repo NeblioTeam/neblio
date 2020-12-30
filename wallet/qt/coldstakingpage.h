@@ -38,7 +38,7 @@ public:
     void setWalletModel(WalletModel* wModel);
 
 public slots:
-    void onTxArrived(const QString& hash);
+    void onTxArrived(QString hash);
 
 signals:
     void tokenClicked(const QModelIndex& index);
