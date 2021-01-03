@@ -13,6 +13,7 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/atomic.hpp>
 #include <boost/thread/recursive_mutex.hpp>
+#include <boost/optional.hpp>
 
 
 ////////////////////////////////////////////////
@@ -172,9 +173,41 @@ auto _lock2_internal(M1&& m1, M2&& m2) -> std::pair<std::unique_ptr<boost::uniqu
     return res;
 }
 
-#define LOCK(cs) boost::lock_guard<decltype(cs)> __lockguard__(cs);
-#define LOCK2(cs1,cs2) auto __lockguard2__ = _lock2_internal(cs1, cs2)
-#define TRY_LOCK(cs,name) CCriticalBlock name(cs, #cs, __FILE__, __LINE__, true)
+template <typename M>
+auto _trylock_internal(M&& m) -> std::unique_ptr<boost::unique_lock<typename std::decay<decltype(m)>::type>> {
+    auto lm = __InternalSyncMakeUnique<boost::unique_lock<typename std::decay<decltype(m)>::type>>(m, boost::defer_lock);
+    if (lm->try_lock()) {
+        return lm;
+    } else {
+        return nullptr;
+    }
+}
+
+template <typename M1, typename M2>
+auto _trylock2_internal(M1&& m1, M2&& m2) ->
+    boost::optional<
+        std::pair<
+            std::unique_ptr<boost::unique_lock<typename std::decay<decltype(m1)>::type>>,
+            std::unique_ptr<boost::unique_lock<typename std::decay<decltype(m2)>::type>>
+            >
+        > {
+    auto res = boost::make_optional(std::make_pair(
+        __InternalSyncMakeUnique<boost::unique_lock<typename std::decay<decltype(m1)>::type>>(m1, boost::defer_lock),
+        __InternalSyncMakeUnique<boost::unique_lock<typename std::decay<decltype(m2)>::type>>(m2, boost::defer_lock)));
+    if (boost::try_lock(*res->first, *res->second)) {
+        return res;
+    } else {
+        return boost::none;
+    }
+}
+
+
+#define LOCK(cs) boost::lock_guard<decltype(cs)> __lockguard__(cs)
+#define LOCKN(cs, name) boost::lock_guard<decltype(cs)> name(cs)
+#define LOCK2(cs1, cs2) auto __lockguard2__ = _lock2_internal(cs1, cs2)
+#define LOCK2N(cs1, cs2, name) auto name = _lock2_internal(cs1, cs2)
+#define TRY_LOCK(cs, name) auto name = _trylock_internal(cs)
+#define TRY_LOCK2(cs1, cs2, name) auto name = _trylock2_internal(cs1, cs2)
 
 #define ENTER_CRITICAL_SECTION(cs) \
     { \
