@@ -154,8 +154,26 @@ public:
 
 typedef CMutexLock<CCriticalSection> CCriticalBlock;
 
-#define LOCK(cs) CCriticalBlock criticalblock(cs, #cs, __FILE__, __LINE__)
-#define LOCK2(cs1,cs2) CCriticalBlock criticalblock1(cs1, #cs1, __FILE__, __LINE__),criticalblock2(cs2, #cs2, __FILE__, __LINE__)
+//! Substitute for C++14 std::make_unique for this file.
+template <typename T, typename... Args>
+std::unique_ptr<T> __InternalSyncMakeUnique(Args&&... args)
+{
+    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+
+template <typename M1, typename M2>
+auto _lock2_internal(M1&& m1, M2&& m2) -> std::pair<std::unique_ptr<boost::unique_lock<typename std::decay<decltype(m1)>::type>>, std::unique_ptr<boost::unique_lock<typename std::decay<decltype(m2)>::type>>>
+{
+    auto res =
+        std::make_pair(
+            __InternalSyncMakeUnique<boost::unique_lock<typename std::decay<decltype(m1)>::type>>(m1, boost::defer_lock),
+            __InternalSyncMakeUnique<boost::unique_lock<typename std::decay<decltype(m2)>::type>>(m2, boost::defer_lock));
+    boost::lock(*res.first, *res.second);
+    return res;
+}
+
+#define LOCK(cs) boost::lock_guard<decltype(cs)> __lockguard__(cs);
+#define LOCK2(cs1,cs2) auto __lockguard2__ = _lock2_internal(cs1, cs2)
 #define TRY_LOCK(cs,name) CCriticalBlock name(cs, #cs, __FILE__, __LINE__, true)
 
 #define ENTER_CRITICAL_SECTION(cs) \
