@@ -202,12 +202,41 @@ auto _trylock2_internal(M1&& m1, M2&& m2) ->
 }
 
 
+// Unfortunately, no variadic templates gymnastics until C++17...
+// we need std::apply to avoid having a function for every number of locks
+template <typename M1, typename M2, typename M3, typename M4>
+auto _trylock4_internal(M1&& m1, M2&& m2, M3&& m3, M4&& m4) ->
+    boost::optional<
+        std::tuple<
+            std::unique_ptr<boost::unique_lock<typename std::decay<decltype(m1)>::type>>,
+            std::unique_ptr<boost::unique_lock<typename std::decay<decltype(m2)>::type>>,
+            std::unique_ptr<boost::unique_lock<typename std::decay<decltype(m3)>::type>>,
+            std::unique_ptr<boost::unique_lock<typename std::decay<decltype(m4)>::type>>
+            >
+        >
+{
+    auto res = boost::make_optional(std::make_tuple(
+        __InternalSyncMakeUnique<boost::unique_lock<typename std::decay<decltype(m1)>::type>>(m1, boost::defer_lock),
+        __InternalSyncMakeUnique<boost::unique_lock<typename std::decay<decltype(m2)>::type>>(m2, boost::defer_lock),
+        __InternalSyncMakeUnique<boost::unique_lock<typename std::decay<decltype(m2)>::type>>(m3, boost::defer_lock),
+        __InternalSyncMakeUnique<boost::unique_lock<typename std::decay<decltype(m3)>::type>>(m4, boost::defer_lock)));
+    if (boost::try_lock(*std::get<0>(*res),
+                        *std::get<1>(*res),
+                        *std::get<2>(*res),
+                        *std::get<3>(*res))) {
+        return res;
+    } else {
+        return boost::none;
+    }
+}
+
 #define LOCK(cs) boost::lock_guard<decltype(cs)> __lockguard__(cs)
 #define LOCKN(cs, name) boost::lock_guard<decltype(cs)> name(cs)
 #define LOCK2(cs1, cs2) auto __lockguard2__ = _lock2_internal(cs1, cs2)
 #define LOCK2N(cs1, cs2, name) auto name = _lock2_internal(cs1, cs2)
 #define TRY_LOCK(cs, name) auto name = _trylock_internal(cs)
 #define TRY_LOCK2(cs1, cs2, name) auto name = _trylock2_internal(cs1, cs2)
+#define TRY_LOCK4(cs1, cs2, cs3, cs4, name) auto name = _trylock4_internal(cs1, cs2, cs3, cs4)
 
 #define ENTER_CRITICAL_SECTION(cs) \
     { \

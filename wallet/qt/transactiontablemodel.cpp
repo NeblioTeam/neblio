@@ -166,10 +166,9 @@ public:
             // If a status update is needed (blocks came in since last check),
             //  update the status of this transaction from the wallet. Otherwise,
             // simply re-use the cached status.
-            TRY_LOCK(cs_main, lockMain);
-            if (lockMain) {
-                TRY_LOCK(wallet->cs_wallet, lockWallet);
-                if (lockWallet && rec->statusUpdateNeeded()) {
+            TRY_LOCK2(cs_main, wallet->cs_wallet, lock);
+            if (lock) {
+                if (rec->statusUpdateNeeded()) {
                     std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(rec->hash);
 
                     if (mi != wallet->mapWallet.end()) {
@@ -429,12 +428,8 @@ void TransactionTableModel::consumeWalletUpdatesQueue()
         return;
     }
 
-    TRY_LOCK(cs_main, lockMain);
-    if (!lockMain) {
-        return;
-    }
-    TRY_LOCK(wallet->cs_wallet, lockWallet);
-    if (!lockWallet) {
+    TRY_LOCK2(cs_main, wallet->cs_wallet, lock);
+    if (!lock) {
         return;
     }
 
