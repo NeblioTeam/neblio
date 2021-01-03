@@ -183,15 +183,15 @@ auto _trylock_internal(M&& m) -> std::unique_ptr<boost::unique_lock<typename std
     }
 }
 
-template <typename M1, typename M2>
-auto _trylock2_internal(M1&& m1, M2&& m2) ->
-    boost::optional<
-        std::pair<
-            std::unique_ptr<boost::unique_lock<typename std::decay<decltype(m1)>::type>>,
-            std::unique_ptr<boost::unique_lock<typename std::decay<decltype(m2)>::type>>
+using __Lock2ReturnType__ = boost::optional<std::pair<
+            std::unique_ptr<boost::unique_lock<CCriticalSection>>,
+            std::unique_ptr<boost::unique_lock<CCriticalSection>>
             >
-        > {
-    auto res = boost::make_optional(std::make_pair(
+        >;
+
+template <typename M1, typename M2>
+auto _trylock2_internal(M1&& m1, M2&& m2) -> __Lock2ReturnType__ {
+    auto res = __Lock2ReturnType__(std::make_pair(
         __InternalSyncMakeUnique<boost::unique_lock<typename std::decay<decltype(m1)>::type>>(m1, boost::defer_lock),
         __InternalSyncMakeUnique<boost::unique_lock<typename std::decay<decltype(m2)>::type>>(m2, boost::defer_lock)));
     if (boost::try_lock(*res->first, *res->second)) {
@@ -201,21 +201,20 @@ auto _trylock2_internal(M1&& m1, M2&& m2) ->
     }
 }
 
+using __Lock4ReturnType__ = boost::optional<std::tuple<
+            std::unique_ptr<boost::unique_lock<CCriticalSection>>,
+            std::unique_ptr<boost::unique_lock<CCriticalSection>>,
+            std::unique_ptr<boost::unique_lock<CCriticalSection>>,
+            std::unique_ptr<boost::unique_lock<CCriticalSection>>
+            >
+        >;
 
 // Unfortunately, no variadic templates gymnastics until C++17...
 // we need std::apply to avoid having a function for every number of locks
 template <typename M1, typename M2, typename M3, typename M4>
-auto _trylock4_internal(M1&& m1, M2&& m2, M3&& m3, M4&& m4) ->
-    boost::optional<
-        std::tuple<
-            std::unique_ptr<boost::unique_lock<typename std::decay<decltype(m1)>::type>>,
-            std::unique_ptr<boost::unique_lock<typename std::decay<decltype(m2)>::type>>,
-            std::unique_ptr<boost::unique_lock<typename std::decay<decltype(m3)>::type>>,
-            std::unique_ptr<boost::unique_lock<typename std::decay<decltype(m4)>::type>>
-            >
-        >
+auto _trylock4_internal(M1&& m1, M2&& m2, M3&& m3, M4&& m4) -> __Lock4ReturnType__
 {
-    auto res = boost::make_optional(std::make_tuple(
+    auto res = __Lock4ReturnType__(std::make_tuple(
         __InternalSyncMakeUnique<boost::unique_lock<typename std::decay<decltype(m1)>::type>>(m1, boost::defer_lock),
         __InternalSyncMakeUnique<boost::unique_lock<typename std::decay<decltype(m2)>::type>>(m2, boost::defer_lock),
         __InternalSyncMakeUnique<boost::unique_lock<typename std::decay<decltype(m2)>::type>>(m3, boost::defer_lock),
