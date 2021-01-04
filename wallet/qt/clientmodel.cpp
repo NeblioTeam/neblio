@@ -13,6 +13,8 @@
 
 static const int64_t nClientStartupTime = GetTime();
 
+int64_t nLastBlockTipUpdateNotification = 0;
+
 ClientModel::ClientModel(OptionsModel* optionsModel, QObject* parent)
     : QObject(parent), optionsModel(optionsModel), cachedNumBlocks(0), cachedNumBlocksOfPeers(0),
       pollTimer(0)
@@ -25,6 +27,8 @@ ClientModel::ClientModel(OptionsModel* optionsModel, QObject* parent)
     connect(pollTimer, SIGNAL(timeout()), this, SLOT(updateTimer()));
 
     subscribeToCoreSignals();
+
+    setTipBlock(pindexGenesisBlock, true);
 }
 
 ClientModel::~ClientModel() { unsubscribeFromCoreSignals(); }
@@ -51,10 +55,9 @@ int ClientModel::getNumBlocksAtStartup()
 
 QDateTime ClientModel::getLastBlockDate() const
 {
-    LOCK(cs_main);
     const ConstCBlockIndexSmartPtr bi = CTxDB().GetBestBlockIndex();
     if (bi)
-        return QDateTime::fromTime_t(bi->GetBlockTime());
+        return QDateTime::fromTime_t(cachedTip.time);
     else
         return QDateTime::fromTime_t(Params().GenesisBlock().GetBlockTime()); // Genesis block's time
 }
@@ -64,9 +67,12 @@ void ClientModel::updateTimer()
     // Get required lock upfront. This avoids the GUI from getting stuck on
     // periodical polls if the core is holding the locks for a longer time -
     // for example, during a wallet rescan.
-    TRY_LOCK(cs_main, lockMain);
-    if (!lockMain)
-        return;
+
+    // This is disabled because both getNumBlocks() and getNumBlocksOfPeers() are now thread-safe
+    //    TRY_LOCK(cs_main, lockMain);
+    //    if (!lockMain)
+    //        return;
+
     // Some quantities (such as number of blocks) change so fast that we don't want to be notified for
     // each change. Periodically check and update with a timer.
     int newNumBlocks        = getNumBlocks();
@@ -128,11 +134,30 @@ QString ClientModel::formatClientStartupTime() const
     return QDateTime::fromTime_t(nClientStartupTime).toString();
 }
 
-// Handlers for core signals
-static void NotifyBlocksChanged(ClientModel* /*clientmodel*/)
+void ClientModel::setTipBlock(const ConstCBlockIndexSmartPtr &pindex, bool initialSync)
 {
-    // This notification is too frequent. Don't trigger a signal.
-    // Don't remove it, though, as it might be useful later.
+    cachedTip.hash = pindex->GetBlockHash();
+    cachedTip.time = pindex->GetBlockTime();
+    cachedTip.height = pindex->nHeight;
+    cachedTip.isInitialSync = initialSync;
+}
+
+static void BlockTipChanged(ClientModel *clientmodel, bool initialSync, const ConstCBlockIndexSmartPtr pIndex)
+{
+    // lock free async UI updates in case we have a new block tip
+    // during initial sync, only update the UI if the last update
+    // was > 1000ms (MODEL_UPDATE_DELAY) ago
+    int64_t now = 0;
+    if (initialSync)
+        now = GetTimeMillis();
+
+    // if we are in-sync, update the UI regardless of last update time
+    if (!initialSync || now - nLastBlockTipUpdateNotification > MODEL_UPDATE_DELAY) {
+        //pass a async signal to the UI thread
+        clientmodel->setTipBlock(pIndex,initialSync);
+        Q_EMIT clientmodel->numBlocksChanged(pIndex->nHeight, GetNumBlocksOfPeers());
+        nLastBlockTipUpdateNotification = now;
+    }
 }
 
 static void NotifyNumConnectionsChanged(ClientModel* clientmodel, int newNumConnections)
@@ -154,7 +179,7 @@ void ClientModel::subscribeToCoreSignals()
     using namespace boost::placeholders;
 
     // Connect signals to client
-    uiInterface.NotifyBlocksChanged.connect(boost::bind(NotifyBlocksChanged, this));
+    uiInterface.NotifyBlockTip.connect(boost::bind(BlockTipChanged, this, _1, _2));
     uiInterface.NotifyNumConnectionsChanged.connect(boost::bind(NotifyNumConnectionsChanged, this, _1));
     uiInterface.NotifyAlertChanged.connect(boost::bind(NotifyAlertChanged, this, _1, _2));
 }
@@ -164,7 +189,7 @@ void ClientModel::unsubscribeFromCoreSignals()
     using namespace boost::placeholders;
 
     // Disconnect signals from client
-    uiInterface.NotifyBlocksChanged.disconnect(boost::bind(NotifyBlocksChanged, this));
+    uiInterface.NotifyBlockTip.disconnect(boost::bind(BlockTipChanged, this, _1, _2));
     uiInterface.NotifyNumConnectionsChanged.disconnect(
         boost::bind(NotifyNumConnectionsChanged, this, _1));
     uiInterface.NotifyAlertChanged.disconnect(boost::bind(NotifyAlertChanged, this, _1, _2));

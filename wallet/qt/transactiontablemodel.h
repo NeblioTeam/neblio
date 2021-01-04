@@ -3,11 +3,29 @@
 
 #include <QAbstractTableModel>
 #include <QStringList>
+#include <QThread>
+#include <QTimer>
+#include <deque>
+#include <uint256.h>
 
 class CWallet;
 class TransactionTablePriv;
 class TransactionRecord;
 class WalletModel;
+
+class TxsRetrieverWorker : public QObject
+{
+    Q_OBJECT
+
+public slots:
+    // we use the shared pointer argument to ensure that workerPtr will be deleted after doing the
+    // retrieval
+    void getTxs(CWallet* wallet, QSharedPointer<TxsRetrieverWorker> workerPtr, const quint64* limit);
+
+signals:
+    // Signal that balance in wallet changed
+    void resultReady(QSharedPointer<QList<TransactionRecord>> records, bool refreshRequiredAgain);
+};
 
 /** UI model for the transaction table of a wallet.
  */
@@ -63,12 +81,20 @@ public:
     QVariant    data(const QModelIndex& index, int role) const;
     QVariant    headerData(int section, Qt::Orientation orientation, int role) const;
     QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const;
+    bool        isTxsRetrieverThreadRunning() const;
 
 private:
     CWallet*              wallet;
     WalletModel*          walletModel;
     QStringList           columns;
     TransactionTablePriv* priv;
+
+    std::deque<std::pair<uint256, int>> walletUpdatesQueue;
+    QTimer                              walletUpdatesQueueConsumer;
+
+    QThread txsRetrieverThread;
+    bool    txsRetrieverWorkerRunning = false;
+    quint64 maxTransactionInView      = 0;
 
     QString  lookupAddress(const std::string& address, bool tooltip) const;
     QVariant addressColor(const TransactionRecord* wtx) const;
@@ -80,16 +106,24 @@ private:
     QString  formatTooltip(const TransactionRecord* rec) const;
     QVariant txStatusDecoration(const TransactionRecord* wtx) const;
     QVariant txAddressDecoration(const TransactionRecord* wtx) const;
+    void     pushToWalletUpdate(uint256 hash, int status);
 
 public slots:
     void updateTransaction(const QString& hash, int status);
     void updateConfirmations();
     void updateDisplayUnit();
+    void updateMaxTransactionsToLoad(quint64 value);
+
+    void refreshWallet();
+    void finishRefreshWallet(QSharedPointer<QList<TransactionRecord>> records);
 
     friend class TransactionTablePriv;
 
+private slots:
+    void consumeWalletUpdatesQueue();
+
 signals:
-    void txArrived(const QString& hash);
+    void txArrived(QString hash);
 };
 
 #endif

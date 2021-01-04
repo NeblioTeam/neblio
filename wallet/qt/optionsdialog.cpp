@@ -34,6 +34,9 @@ OptionsDialog::OptionsDialog(QWidget* parent)
     ui->socksVersion->addItem("4", 4);
     ui->socksVersion->setCurrentIndex(0);
 
+    ui->limitTxViewCountLineEdit->setValidator(
+        new QIntValidator(0, std::numeric_limits<int>::max(), this));
+
     connect(ui->connectSocks, SIGNAL(toggled(bool)), ui->proxyIp, SLOT(setEnabled(bool)));
     connect(ui->connectSocks, SIGNAL(toggled(bool)), ui->proxyPort, SLOT(setEnabled(bool)));
     connect(ui->connectSocks, SIGNAL(toggled(bool)), ui->socksVersion, SLOT(setEnabled(bool)));
@@ -158,6 +161,8 @@ void OptionsDialog::setMapper()
     mapper->addMapping(ui->unit, OptionsModel::DisplayUnit);
     mapper->addMapping(ui->displayAddresses, OptionsModel::DisplayAddresses);
     mapper->addMapping(ui->coinControlFeatures, OptionsModel::CoinControlFeatures);
+
+    mapper->addMapping(ui->limitTxViewCountLineEdit, OptionsModel::MaxTxsRowsValue);
 }
 
 void OptionsDialog::enableApplyButton() { ui->applyButton->setEnabled(true); }

@@ -327,7 +327,6 @@ bool IsStandardTx(const ITxDB& txdb, const CTransaction& tx, string& reason)
 
 bool IsFinalTx(const CTransaction& tx, int nBlockHeight, int64_t nBlockTime)
 {
-    AssertLockHeld(cs_main);
     // Time based nLockTime implemented in 0.1.6
     if (tx.nLockTime == 0)
         return true;
@@ -1071,8 +1070,8 @@ void static PruneOrphanBlocks()
         it = it2;
     } while (true);
 
-    printf("Removing block %s from orphans map as the size of the orphans has exceeded the maximum %lu; "
-           "current size: %lu\n",
+    printf("Removing block %s from orphans map as the size of the orphans has exceeded the maximum %zu; "
+           "current size: %zu\n",
            it->second->GetHash().ToString().c_str(), MAX_SIZE, mapOrphanBlocksByPrev.size());
     uint256 hash = it->second->GetHash();
     delete it->second;

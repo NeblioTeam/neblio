@@ -13,6 +13,8 @@
 
 #include <stdint.h>
 
+#include "globals.h"
+
 class CBasicKeyStore;
 class CWallet;
 class uint256;
@@ -82,6 +84,9 @@ public:
 
     /** Block chain changed. */
     boost::signals2::signal<void ()> NotifyBlocksChanged;
+
+    /** Blockchain tip changed */
+    boost::signals2::signal<void(bool fInitialDownload, CBlockIndexSmartPtr newTip)> NotifyBlockTip;
 
     /** Number of network connections changed. */
     boost::signals2::signal<void (int newNumConnections)> NotifyNumConnectionsChanged;

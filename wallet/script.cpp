@@ -1535,10 +1535,6 @@ bool Solver(const ITxDB& txdb, const CKeyStore& keystore, const CScript& scriptP
         return (SignN(vSolutions, keystore, hash, nHashType, scriptSigRet));
 
     case TX_COLDSTAKE:
-        if (!Params().IsColdStakingEnabled(txdb)) {
-            return false;
-        }
-
         if (fColdStake) {
             // sign with the cold staker key
             keyID = CKeyID(uint160(vSolutions[0]));

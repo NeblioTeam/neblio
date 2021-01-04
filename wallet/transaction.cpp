@@ -266,12 +266,6 @@ Result<void, TxValidationState> CTransaction::CheckTransaction(const ITxDB& txdb
 
         // check cold staking enforcement (for delegations) and value out
         if (txout.scriptPubKey.IsPayToColdStaking()) {
-            if (!Params().IsColdStakingEnabled(txdb)) {
-                DoS(10, false);
-                return Err(
-                    MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-txns-coldstake-disabled"));
-            }
-
             if (txout.nValue < Params().MinColdStakingAmount()) {
                 DoS(100, false);
                 return Err(MakeInvalidTxState(TxValidationResult::TX_CONSENSUS,
@@ -647,7 +641,7 @@ Result<void, TxValidationState> CTransaction::ConnectInputs(const ITxDB& txdb, M
                 DoS(100, false);
                 return Err(MakeInvalidTxState(
                     TxValidationResult::TX_CONSENSUS, "bad-txns-in-belowout",
-                    strprintf("ConnectInputs() : %s value in (%zi) < value out (%zi)",
+                    strprintf("ConnectInputs() : %s value in (%" PRIi64 ") < value out (%" PRIi64 ")",
                               GetHash().ToString().c_str(), nValueIn, GetValueOut())));
             }
 

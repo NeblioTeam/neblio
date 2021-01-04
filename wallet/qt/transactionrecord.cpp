@@ -224,7 +224,7 @@ void TransactionRecord::updateStatus(const CWalletTx& wtx)
     }
 
     // For generated transactions, determine maturity
-    else if (type == TransactionRecord::Generated) {
+    else if (type == TransactionRecord::Generated || type == TransactionRecord::ColdStaker) {
         if (wtx.GetBlocksToMaturity() > 0) {
             status.status = TransactionStatus::Immature;
 
@@ -261,4 +261,4 @@ bool TransactionRecord::statusUpdateNeeded()
     return status.cur_num_blocks != CTxDB().GetBestChainHeight().value_or(0);
 }
 
-std::string TransactionRecord::getTxID() { return hash.ToString(); }
+std::string TransactionRecord::getTxID() const { return hash.ToString(); }

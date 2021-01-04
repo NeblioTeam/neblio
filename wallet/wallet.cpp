@@ -730,7 +730,8 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlock* pbl
 
         if (pblock && !tx.IsCoinBase()) {
             for (const CTxIn& txin : tx.vin) {
-                auto txSpends = mapTxSpends.get();
+                auto        lock     = mapTxSpends.get_lock();
+                const auto& txSpends = mapTxSpends.get();
                 std::pair<TxSpends::const_iterator, TxSpends::const_iterator> range =
                     txSpends.equal_range(txin.prevout);
                 while (range.first != range.second) {
@@ -828,8 +829,7 @@ bool CWallet::IsChange(const CTxOut& txout) const
     // 'the change' will need to be implemented (maybe extend CWalletTx to remember
     // which output, if any, was change).
     if (ExtractDestination(txout.scriptPubKey, address) && ::IsMine(*this, address) != ISMINE_NO) {
-        LOCK(cs_wallet);
-        if (!mapAddressBook.count(address))
+        if (!mapAddressBook.exists(address))
             return true;
     }
     return false;
@@ -1029,16 +1029,12 @@ void CWalletTx::GetAccountAmounts(const string& strAccount, CAmount& nReceived, 
             nSent += s.second;
         nFee = allFee;
     }
-    {
-        LOCK(pwallet->cs_wallet);
-        for (const PAIRTYPE(CTxDestination, CAmount) & r : listReceived) {
-            if (pwallet->mapAddressBook.count(r.first)) {
-                auto mi = pwallet->mapAddressBook.find(r.first);
-                if (mi != pwallet->mapAddressBook.end() && (*mi).second.name == strAccount)
-                    nReceived += r.second;
-            } else if (strAccount.empty()) {
+    for (const PAIRTYPE(CTxDestination, CAmount) & r : listReceived) {
+        if (const auto entry = pwallet->mapAddressBook.get(r.first)) {
+            if (entry.is_initialized() && entry->name == strAccount)
                 nReceived += r.second;
-            }
+        } else if (strAccount.empty()) {
+            nReceived += r.second;
         }
     }
 }
@@ -1064,13 +1060,16 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
     {
         CTxDB txdb;
         LOCK2(cs_main, cs_wallet);
+        const int bestHeight = txdb.GetBestChainHeight().value_or(0);
+        printf("Starting wallet rescan of %d blocks...\n", bestHeight);
         while (pindex) {
             blockCount++;
 
             if (blockCount % 1000 == 0) {
                 uiInterface.InitMessage(_("Rescanning... ") + "(block: " + std::to_string(blockCount) +
-                                        "/" + std::to_string(txdb.GetBestChainHeight().value_or(0)) +
+                                        "/" + std::to_string(bestHeight) +
                                         ")");
+                printf("Done scanning %" PRIu64 " blocks\n", blockCount);
             }
 
             // no need to read and scan block, if block was created before
@@ -1091,6 +1090,7 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
         uiInterface.InitMessage(_("Updating wallet on disk (do not shutdown)..."));
         FlushWalletDB(true, strWalletFile, nullptr);
         uiInterface.InitMessage(_("Rescanning... ") + "(done)");
+        printf("Done rescanning wallet.\n");
     }
     return ret;
 }
@@ -1369,11 +1369,19 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, bool 
     }
 }
 
-void CWallet::GetAvailableP2CSCoins(std::vector<COutput>& vCoins) const
+bool CWallet::GetAvailableP2CSCoins(std::vector<COutput>& vCoins) const
 {
     vCoins.clear();
     {
-        LOCK2(cs_main, cs_wallet);
+        TRY_LOCK(cs_main, lockMain);
+        if (!lockMain) {
+            return false;
+        }
+        TRY_LOCK(cs_wallet, lockWallet);
+        if (!lockWallet) {
+            return false;
+        }
+
         for (const auto& it : mapWallet) {
             const uint256&   wtxid = it.first;
             const CWalletTx* pcoin = &it.second;
@@ -1402,6 +1410,7 @@ void CWallet::GetAvailableP2CSCoins(std::vector<COutput>& vCoins) const
             }
         }
     }
+    return true;
 }
 
 void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins, unsigned int nSpendTime,
@@ -1705,8 +1714,9 @@ bool CWallet::IsSpent(const uint256& hash, unsigned int n) const
     const COutPoint                                               outpoint(hash, n);
     std::pair<TxSpends::const_iterator, TxSpends::const_iterator> range;
 
-    auto txSpends = mapTxSpends.get();
-    range         = txSpends.equal_range(outpoint);
+    auto            lock     = mapTxSpends.get_lock();
+    const TxSpends& txSpends = mapTxSpends.get_unsafe();
+    range                    = txSpends.equal_range(outpoint);
 
     for (TxSpends::const_iterator it = range.first; it != range.second; ++it) {
         const uint256&                               wtxid = it->second;
@@ -1786,6 +1796,17 @@ bool CWallet::SelectCoinsForStaking(CAmount nTargetValue, unsigned int nSpendTim
     }
 
     return true;
+}
+
+std::vector<CWalletTx> CWallet::getWalletTxs()
+{
+    LOCK(cs_wallet);
+    std::vector<CWalletTx> result;
+    result.reserve(mapWallet.size());
+    for (const auto& entry : mapWallet) {
+        result.emplace_back(entry.second);
+    }
+    return result;
 }
 
 void AddCoinsToInputsSet(set<pair<const CWalletTx*, unsigned int>>& setInputs, const NTP1OutPoint& input)
@@ -2294,8 +2315,7 @@ bool CWallet::CreateTransaction(CScript scriptPubKey, CAmount nValue, CWalletTx&
 }
 
 // NovaCoin: get current stake weight
-bool CWallet::GetStakeWeight(const CKeyStore& /*keystore*/, uint64_t& nMinWeight, uint64_t& nMaxWeight,
-                             uint64_t& nWeight)
+bool CWallet::GetStakeWeight(uint64_t& nMinWeight, uint64_t& nMaxWeight, uint64_t& nWeight) const
 {
     // Choose coins to use
     const CAmount nBalance = GetBalance();
@@ -2304,8 +2324,6 @@ bool CWallet::GetStakeWeight(const CKeyStore& /*keystore*/, uint64_t& nMinWeight
 
     if (nBalance <= nReserveBalance)
         return false;
-
-    vector<const CWalletTx*> vwtxPrev;
 
     set<pair<const CWalletTx*, unsigned int>> setCoins;
     CAmount                                   nValueIn = 0;
@@ -2316,32 +2334,39 @@ bool CWallet::GetStakeWeight(const CKeyStore& /*keystore*/, uint64_t& nMinWeight
     if (setCoins.empty())
         return false;
 
+    return GetStakeWeight(setCoins, nMinWeight, nMaxWeight, nWeight);
+}
+
+// NovaCoin: get current stake weight
+bool CWallet::GetStakeWeight(const set<pair<const CWalletTx*, unsigned int>>& setCoins,
+                             uint64_t& nMinWeight, uint64_t& nMaxWeight, uint64_t& nWeight)
+{
+    nMinWeight = nMaxWeight = nWeight = 0;
+
+    if (setCoins.empty())
+        return false;
+
     CTxDB txdb("r");
     for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
-        CTxIndex txindex;
-        {
-            LOCK2(cs_main, cs_wallet);
-            if (!txdb.ReadTxIndex(pcoin.first->GetHash(), txindex))
-                continue;
-        }
-
-        int64_t nTimeWeight = GetWeight(txdb, (int64_t)pcoin.first->nTime, (int64_t)GetTime());
-        CBigNum bnCoinDayWeight =
+        const int64_t nTimeWeight = GetWeight(txdb, (int64_t)pcoin.first->nTime, (int64_t)GetTime());
+        const CBigNum bnCoinDayWeight =
             CBigNum(pcoin.first->vout[pcoin.second].nValue) * nTimeWeight / COIN / (24 * 60 * 60);
+
+        const uint64_t dayWeight = bnCoinDayWeight.getuint64();
 
         // Weight is greater than zero
         if (nTimeWeight > 0) {
-            nWeight += bnCoinDayWeight.getuint64();
+            nWeight += dayWeight;
         }
 
         // Weight is greater than zero, but the maximum value isn't reached yet
         if (nTimeWeight > 0 && nTimeWeight < Params().StakeMaxAge()) {
-            nMinWeight += bnCoinDayWeight.getuint64();
+            nMinWeight += dayWeight;
         }
 
         // Maximum weight was reached
         if (nTimeWeight == Params().StakeMaxAge()) {
-            nMaxWeight += bnCoinDayWeight.getuint64();
+            nMaxWeight += dayWeight;
         }
     }
 
@@ -2575,10 +2600,11 @@ bool CWallet::SetAddressBookEntry(const CTxDestination& address, const string& s
 {
     bool fUpdated = HasAddressBookEntry(address);
     {
-        LOCK(cs_wallet); // mapAddressBook
-        mapAddressBook[address].name = strName;
+        AddressBook::CAddressBookData d;
+        d.name = strName;
         if (!strPurpose.empty()) /* update purpose only if requested */
-            mapAddressBook[address].purpose = strPurpose;
+            d.purpose = strPurpose;
+        mapAddressBook.set(address, d);
     }
     NotifyAddressBookChanged(this, address, strName, ::IsMine(*this, address) != ISMINE_NO, strPurpose,
                              (fUpdated ? CT_UPDATED : CT_NEW));
@@ -2612,22 +2638,16 @@ bool CWallet::DelAddressBookName(const CTxDestination& address)
 
 std::string CWallet::purposeForAddress(const CTxDestination& address) const
 {
-    {
-        LOCK(cs_wallet);
-        auto mi = mapAddressBook.find(address);
-        if (mi != mapAddressBook.end()) {
-            return mi->second.purpose;
-        }
+    const auto mi = mapAddressBook.get(address);
+    if (mi.is_initialized()) {
+        return mi->purpose;
     }
     return "";
 }
 
 bool CWallet::HasAddressBookEntry(const CTxDestination& address) const
 {
-    LOCK(cs_wallet); // mapAddressBook
-    std::map<CTxDestination, AddressBook::CAddressBookData>::const_iterator mi =
-        mapAddressBook.find(address);
-    return mi != mapAddressBook.end();
+    return mapAddressBook.exists(address);
 }
 
 bool CWallet::HasDelegator(const CTxOut& out) const
@@ -2636,12 +2656,10 @@ bool CWallet::HasDelegator(const CTxOut& out) const
     if (!ExtractDestination(out.scriptPubKey, delegator, false))
         return false;
     {
-        LOCK(cs_wallet); // mapAddressBook
-        std::map<CTxDestination, AddressBook::CAddressBookData>::const_iterator mi =
-            mapAddressBook.find(delegator);
-        if (mi == mapAddressBook.end())
+        const auto mi = mapAddressBook.get(delegator);
+        if (!mi.is_initialized())
             return false;
-        return (*mi).second.purpose == AddressBook::AddressBookPurpose::DELEGATOR;
+        return mi->purpose == AddressBook::AddressBookPurpose::DELEGATOR;
     }
 }
 

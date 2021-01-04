@@ -36,9 +36,21 @@ WalletModel::WalletModel(CWallet* wallet, OptionsModel* optionsModel, QObject* p
     pollTimer->start(MODEL_UPDATE_DELAY);
 
     subscribeToCoreSignals();
+
+    qRegisterMetaType<QSharedPointer<BalancesWorker>>("QSharedPointer<BalancesWorker>");
+    qRegisterMetaType<WalletModel*>("WalletModel*");
+
+    balancesThread.setObjectName("neblio-balancesWorker"); // thread name
+    balancesThread.start();
 }
 
-WalletModel::~WalletModel() { unsubscribeFromCoreSignals(); }
+WalletModel::~WalletModel()
+{
+    unsubscribeFromCoreSignals();
+
+    balancesThread.quit();
+    balancesThread.wait();
+}
 
 qint64 WalletModel::getBalance() const { return wallet->GetBalance(); }
 
@@ -48,14 +60,12 @@ qint64 WalletModel::getStake() const { return wallet->GetStake(); }
 
 qint64 WalletModel::getImmatureBalance() const { return wallet->GetImmatureBalance(); }
 
-int WalletModel::getNumTransactions() const
+boost::optional<uint64_t> WalletModel::getNumTransactions() const
 {
-    int numTransactions = 0;
-    {
-        LOCK(wallet->cs_wallet);
-        numTransactions = wallet->mapWallet.size();
-    }
-    return numTransactions;
+    TRY_LOCK(wallet->cs_wallet, lock);
+    if (!lock)
+        return boost::none;
+    return boost::make_optional(static_cast<uint64_t>(wallet->mapWallet.size()));
 }
 
 void WalletModel::updateStatus()
@@ -65,6 +75,8 @@ void WalletModel::updateStatus()
     if (cachedEncryptionStatus != newEncryptionStatus)
         emit encryptionStatusChanged(newEncryptionStatus);
 }
+
+int64_t WalletModel::getCreationTime() const { return wallet->nTimeFirstKey; }
 
 void WalletModel::pollBalanceChanged()
 {
@@ -78,7 +90,16 @@ void WalletModel::pollBalanceChanged()
     if (!lockWallet)
         return;
 
-    int currentBlockHeight = CTxDB().GetBestChainHeight().value_or(0);
+    const ConstCBlockIndexSmartPtr pindexBest = CTxDB().GetBestBlockIndex();
+    const int currentBlockHeight = pindexBest ? pindexBest->nHeight : 0;
+
+    // Don't continue processing if the chain tip time is less than the first
+    // key creation time as there is no need to iterate over the transaction
+    // table model in this case.
+    auto tip = pindexBest;
+    if (pindexBest && tip->GetBlockTime() < getCreationTime())
+        return;
+
     if (currentBlockHeight != cachedNumBlocks) {
         // Balance and number of transactions might have changed
         cachedNumBlocks = currentBlockHeight;
@@ -109,20 +130,40 @@ void WalletModel::pollBalanceChanged()
 
 void WalletModel::checkBalanceChanged()
 {
-    qint64 newBalance            = getBalance();
-    qint64 newStake              = getStake();
-    qint64 newUnconfirmedBalance = getUnconfirmedBalance();
-    qint64 newImmatureBalance    = getImmatureBalance();
+    if (isBalancesWorkerRunning) {
+        QTimer::singleShot(1000, this, &WalletModel::checkBalanceChanged);
+        return;
+    }
 
-    if (cachedBalance != newBalance || cachedStake != newStake ||
+    isBalancesWorkerRunning = true;
+
+    QSharedPointer<BalancesWorker> worker = QSharedPointer<BalancesWorker>::create();
+    worker->moveToThread(&balancesThread);
+    connect(worker.data(), &BalancesWorker::resultReady, this, &WalletModel::updateBalancesIfChanged,
+            Qt::QueuedConnection);
+    QTimer::singleShot(0, worker.data(), [this, worker]() { worker->getBalances(this, worker); });
+}
+
+QThread* WalletModel::getBalancesThread() { return &balancesThread; }
+
+void WalletModel::updateBalancesIfChanged(qint64 newBalance, qint64 newStake,
+                                          qint64 newUnconfirmedBalance, qint64 newImmatureBalance)
+{
+    // force sync since we got a vector from another thread
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+
+    if (!firstUpdateOfBalanceDone || cachedBalance != newBalance || cachedStake != newStake ||
         cachedUnconfirmedBalance != newUnconfirmedBalance ||
         cachedImmatureBalance != newImmatureBalance) {
+        firstUpdateOfBalanceDone = true;
         cachedBalance            = newBalance;
         cachedStake              = newStake;
         cachedUnconfirmedBalance = newUnconfirmedBalance;
         cachedImmatureBalance    = newImmatureBalance;
         emit balanceChanged(newBalance, newStake, newUnconfirmedBalance, newImmatureBalance);
     }
+
+    isBalancesWorkerRunning = false;
 }
 
 void WalletModel::updateTransaction(const QString& hash, int status)
@@ -133,10 +174,20 @@ void WalletModel::updateTransaction(const QString& hash, int status)
     // Balance and number of transactions might have changed
     checkBalanceChanged();
 
-    int newNumTransactions = getNumTransactions();
-    if (cachedNumTransactions != newNumTransactions) {
-        cachedNumTransactions = newNumTransactions;
-        emit numTransactionsChanged(newNumTransactions);
+    updateNumTransactions();
+}
+
+void WalletModel::updateNumTransactions()
+{
+    const boost::optional<uint64_t> newNumTransactions = getNumTransactions();
+    if (!newNumTransactions.is_initialized()) {
+        QTimer::singleShot(1000, this, &WalletModel::updateNumTransactions);
+        return;
+    }
+
+    if (cachedNumTransactions != *newNumTransactions) {
+        cachedNumTransactions = *newNumTransactions;
+        emit numTransactionsChanged(*newNumTransactions);
     }
 }
 
@@ -305,12 +356,10 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(QList<SendCoinsRecipient>   
         CTxDestination dest       = CBitcoinAddress(strAddress).Get();
         std::string    strLabel   = rcp.label.toStdString();
         {
-            LOCK(wallet->cs_wallet);
-
-            auto mi = wallet->mapAddressBook.find(dest);
+            auto mi = wallet->mapAddressBook.get(dest);
 
             // Check if we have a new address or an updated label
-            if (mi == wallet->mapAddressBook.end() || mi->second.name != strLabel) {
+            if (!mi.is_initialized() || mi->name != strLabel) {
                 wallet->SetAddressBookEntry(dest, strLabel);
             }
         }
@@ -554,11 +603,9 @@ std::string WalletModel::getLabelForAddress(const CBitcoinAddress& address)
 {
     std::string label = "";
     {
-        LOCK(wallet->cs_wallet);
-        std::map<CTxDestination, AddressBook::CAddressBookData>::iterator mi =
-            wallet->mapAddressBook.find(address.Get());
-        if (mi != wallet->mapAddressBook.end()) {
-            label = mi->second.name;
+        const auto mi = wallet->mapAddressBook.get(address.Get());
+        if (mi.is_initialized()) {
+            label = mi->name;
         }
     }
     return label;
@@ -576,3 +623,14 @@ bool WalletModel::getKeyId(const CBitcoinAddress& address, CKeyID& keyID)
 }
 
 CWallet* WalletModel::getWallet() { return wallet; }
+
+void BalancesWorker::getBalances(WalletModel* walletModel, QSharedPointer<BalancesWorker> workerPtr)
+{
+    const qint64 newBalance            = walletModel->getBalance();
+    const qint64 newStake              = walletModel->getStake();
+    const qint64 newUnconfirmedBalance = walletModel->getUnconfirmedBalance();
+    const qint64 newImmatureBalance    = walletModel->getImmatureBalance();
+
+    emit resultReady(newBalance, newStake, newUnconfirmedBalance, newImmatureBalance);
+    workerPtr.reset();
+}
