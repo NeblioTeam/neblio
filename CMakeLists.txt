@@ -102,7 +102,7 @@ find_package(Qt5Core          REQUIRED)
 find_package(Qt5LinguistTools REQUIRED)
 find_package(BerkeleyDB       REQUIRED)
 find_package(PkgConfig        REQUIRED)
-find_package(Boost 1.55       COMPONENTS system random filesystem thread regex program_options iostreams atomic REQUIRED)
+find_package(Boost 1.65       COMPONENTS system random filesystem thread regex program_options iostreams atomic REQUIRED)
 find_package(Threads          REQUIRED)
 find_package(sodium           REQUIRED)
 
