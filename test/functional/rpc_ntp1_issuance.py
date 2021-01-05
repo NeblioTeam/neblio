@@ -135,6 +135,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         return node_vs_received
 
     def run_test(self):
+        n1s.run_all_local_tests()
         #prepare some coins for multiple *rawtransaction commands
         self.nodes[0].generate(1)
         spendable_tx = self.get_spendable_outputs()

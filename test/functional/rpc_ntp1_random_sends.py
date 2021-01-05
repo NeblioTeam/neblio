@@ -188,8 +188,8 @@ class RawTransactionsTest(BitcoinTestFramework):
                     current_b = current[i][tokenID]['Balance']
                     assert_equal(current_b, expected_b)
 
-
     def run_test(self):
+        n1s.run_all_local_tests()
         # prepare some coins
         self.nodes[0].generate(1)
         spendable_tx = self.get_spendable_outputs()
