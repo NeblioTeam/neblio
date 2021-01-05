@@ -7,7 +7,7 @@
 
 CBlockIndex::CBlockIndex()
 {
-    phashBlock             = NULL;
+    phashBlock             = 0;
     pprev                  = NULL;
     pnext                  = NULL;
     blockKeyInDB           = 0;
@@ -31,7 +31,7 @@ CBlockIndex::CBlockIndex()
 
 CBlockIndex::CBlockIndex(uint256 nBlockPosIn, CBlock& block)
 {
-    phashBlock             = NULL;
+    phashBlock             = 0;
     pprev                  = NULL;
     pnext                  = NULL;
     blockKeyInDB           = nBlockPosIn;
