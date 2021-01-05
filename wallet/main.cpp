@@ -1094,8 +1094,8 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
 
     // Check for duplicate
     uint256 hash = pblock->GetHash();
-    if (mapBlockIndex.count(hash))
-        return error("ProcessBlock() : already have block %d %s", mapBlockIndex[hash]->nHeight,
+    if (auto v = mapBlockIndex.get(hash).value_or(nullptr))
+        return error("ProcessBlock() : already have block %d %s", v->nHeight,
                      hash.ToString().c_str());
     if (mapOrphanBlocks.count(hash))
         return error("ProcessBlock() : already have block (orphan) %s", hash.ToString().c_str());
@@ -1139,7 +1139,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     }
 
     // If don't already have its previous block, shunt it off to holding area until we get it
-    if (!mapBlockIndex.count(pblock->hashPrevBlock)) {
+    if (!mapBlockIndex.exists(pblock->hashPrevBlock)) {
         printf("ProcessBlock: ORPHAN BLOCK, prev=%s\n", pblock->hashPrevBlock.ToString().c_str());
         // ppcoin: check proof-of-stake
         if (pblock->IsProofOfStake()) {
@@ -1408,9 +1408,14 @@ bool LoadBlockIndex(bool fAllowNew)
 void PrintBlockTree()
 {
     AssertLockHeld(cs_main);
+
+    const auto blockIndexMap = mapBlockIndex.getInternalMap();
+
     // pre-compute tree structure
     map<CBlockIndex*, vector<CBlockIndexSmartPtr>> mapNext;
-    for (BlockIndexMapType::iterator mi = mapBlockIndex.begin(); mi != mapBlockIndex.end(); ++mi) {
+    for (BlockIndexMapType::MapType::const_iterator mi = blockIndexMap.cbegin();
+         mi != blockIndexMap.cend();
+         ++mi) {
         CBlockIndexSmartPtr pindex = boost::atomic_load(&mi->second);
         mapNext[boost::atomic_load(&pindex->pprev).get()].push_back(pindex);
         // test
@@ -1638,7 +1643,7 @@ string GetWarnings(string strFor)
 // Messages
 //
 
-bool static AlreadyHave(CTxDB& txdb, const CInv& inv)
+bool static AlreadyHave(CTxDB& txdb, const CInv& inv, const BlockIndexMapType& blockIndexMap)
 {
     switch (inv.type) {
     case MSG_TX: {
@@ -1648,7 +1653,7 @@ bool static AlreadyHave(CTxDB& txdb, const CInv& inv)
     }
 
     case MSG_BLOCK:
-        return mapBlockIndex.count(inv.hash) || mapOrphanBlocks.count(inv.hash);
+        return blockIndexMap.exists_unsafe(inv.hash) || mapOrphanBlocks.count(inv.hash);
     }
     // Don't know what it is, just say we already got one
     return true;
@@ -1880,24 +1885,28 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                 return true;
             pfrom->AddInventoryKnown(inv);
 
-            bool fAlreadyHave = AlreadyHave(txdb, inv);
-            if (fDebug)
-                printf("  got inventory: %s  %s\n", inv.ToString().c_str(),
-                       fAlreadyHave ? "have" : "new");
+            {
+                auto lock = mapBlockIndex.get_shared_lock();
 
-            if (!fAlreadyHave) {
-                if (!fImporting)
-                    pfrom->AskFor(inv);
-            } else if (inv.type == MSG_BLOCK && mapOrphanBlocks.count(inv.hash)) {
-                pfrom->PushGetBlocks(txdb.GetBestBlockIndex().get(),
-                                     GetOrphanRoot(mapOrphanBlocks[inv.hash]));
-            } else if (nInv == nLastBlock) {
-                // In case we are on a very long side-chain, it is possible that we already have
-                // the last block in an inv bundle sent in response to getblocks. Try to detect
-                // this situation and push another getblocks to continue.
-                pfrom->PushGetBlocks(boost::atomic_load(&mapBlockIndex[inv.hash]).get(), uint256(0));
+                bool fAlreadyHave = AlreadyHave(txdb, inv, mapBlockIndex);
                 if (fDebug)
-                    printf("force request: %s\n", inv.ToString().c_str());
+                    printf("  got inventory: %s  %s\n", inv.ToString().c_str(),
+                           fAlreadyHave ? "have" : "new");
+
+                if (!fAlreadyHave) {
+                    if (!fImporting)
+                        pfrom->AskFor(inv);
+                } else if (inv.type == MSG_BLOCK && mapOrphanBlocks.count(inv.hash)) {
+                    pfrom->PushGetBlocks(txdb.GetBestBlockIndex().get(),
+                                         GetOrphanRoot(mapOrphanBlocks[inv.hash]));
+                } else if (nInv == nLastBlock) {
+                    // In case we are on a very long side-chain, it is possible that we already have
+                    // the last block in an inv bundle sent in response to getblocks. Try to detect
+                    // this situation and push another getblocks to continue.
+                    pfrom->PushGetBlocks(mapBlockIndex.get_unsafe(inv.hash).value_or(nullptr).get(), uint256(0));
+                    if (fDebug)
+                        printf("force request: %s\n", inv.ToString().c_str());
+                }
             }
 
             // Track requests for our stuff
@@ -1924,10 +1933,10 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 
             if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK) {
                 // Send block from disk
-                BlockIndexMapType::iterator mi = mapBlockIndex.find(inv.hash);
-                if (mi != mapBlockIndex.end()) {
+                auto mi = mapBlockIndex.get(inv.hash).value_or(nullptr);
+                if (mi) {
                     CBlock block;
-                    block.ReadFromDisk(boost::atomic_load(&mi->second).get());
+                    block.ReadFromDisk(mi.get());
                     if (inv.type == MSG_BLOCK)
                         pfrom->PushMessage("block", block);
                     else // MSG_FILTERED_BLOCK)
@@ -2040,10 +2049,10 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         CBlockIndexSmartPtr pindex = NULL;
         if (locator.IsNull()) {
             // If locator is null, return the hashStop block
-            BlockIndexMapType::iterator mi = mapBlockIndex.find(hashStop);
-            if (mi == mapBlockIndex.end())
+            const auto mi = mapBlockIndex.get(hashStop).value_or(nullptr);
+            if (!mi)
                 return true;
-            CBlockIndexSmartPtr pindex = boost::atomic_load(&mi->second);
+            pindex = mi;
         } else {
             // Find the last block the caller has in the main chain
             pindex = locator.GetBlockIndex();
@@ -2510,7 +2519,8 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
         CTxDB        txdb("r");
         while (!pto->mapAskFor.empty() && (*pto->mapAskFor.begin()).first <= nNow) {
             const CInv& inv = (*pto->mapAskFor.begin()).second;
-            if (!AlreadyHave(txdb, inv)) {
+            auto lock = mapBlockIndex.get_shared_lock();
+            if (!AlreadyHave(txdb, inv, mapBlockIndex)) {
                 if (fDebugNet)
                     printf("sending getdata: %s\n", inv.ToString().c_str());
                 vGetData.push_back(inv);
@@ -2618,10 +2628,9 @@ bool IsTxInMainChain(const ITxDB& txdb, const uint256& txHash)
     CTransaction tx;
     uint256      hashBlock;
     if (GetTransaction(txHash, tx, hashBlock)) {
-        BlockIndexMapType::iterator mi = mapBlockIndex.find(hashBlock);
-        if (mi != mapBlockIndex.end() && (*mi).second) {
-            CBlockIndexSmartPtr pindex = boost::atomic_load(&mi->second);
-            return pindex->IsInMainChain(txdb);
+        const auto mi = mapBlockIndex.get(hashBlock).value_or(nullptr);
+        if (mi) {
+            return mi->IsInMainChain(txdb);
         } else {
             throw std::runtime_error("Unable to find the block that has the transaction " +
                                      txHash.ToString());
@@ -2750,7 +2759,7 @@ GetBlockIndexAsGraph(const BlockIndexMapType& BlockIndex = mapBlockIndex)
     BlockIndexGraphType graph;
 
     // copy block index to avoid conflicts
-    const BlockIndexMapType tempBlockIndex = BlockIndex;
+    const BlockIndexMapType::MapType tempBlockIndex = BlockIndex.getInternalMap();
 
     VerticesDescriptorsMapType verticesDescriptors;
 
@@ -2762,7 +2771,7 @@ GetBlockIndexAsGraph(const BlockIndexMapType& BlockIndex = mapBlockIndex)
     // add edges, which are previous blocks connected to subsequent blocks
     for (const auto& bi : tempBlockIndex) {
         if (bi.first != Params().GenesisBlockHash()) {
-            boost::add_edge(verticesDescriptors.at(*bi.second->pprev->phashBlock),
+            boost::add_edge(verticesDescriptors.at(bi.second->pprev->phashBlock),
                             verticesDescriptors.at(bi.first), graph);
         }
     }

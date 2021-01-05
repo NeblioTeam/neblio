@@ -65,10 +65,11 @@ static bool SelectBlockFromCandidates(const vector<pair<int64_t, uint256>>&   vS
     uint256 hashBest  = 0;
     *pindexSelected   = (const CBlockIndex*)0;
     BOOST_FOREACH (const PAIRTYPE(int64_t, uint256) & item, vSortedByTimestamp) {
-        if (!mapBlockIndex.count(item.second))
+        const auto bi = mapBlockIndex.get(item.second).value_or(nullptr);
+        if (!bi)
             return error("SelectBlockFromCandidates: failed to find block index for candidate block %s",
                          item.second.ToString().c_str());
-        const CBlockIndex* pindex = mapBlockIndex[item.second].get();
+        const CBlockIndex* pindex = bi.get();
         if (fSelected && pindex->GetBlockTime() > nSelectionIntervalStop)
             break;
         if (mapSelectedBlocks.count(pindex->GetBlockHash()) > 0)
@@ -208,9 +209,10 @@ static bool GetKernelStakeModifier(const ITxDB& txdb, uint256 hashBlockFrom, uin
                                    bool fPrintProofOfStake)
 {
     nStakeModifier = 0;
-    if (!mapBlockIndex.count(hashBlockFrom))
+    const auto bi = mapBlockIndex.get(hashBlockFrom).value_or(nullptr);
+    if (!bi)
         return error("GetKernelStakeModifier() : block not indexed");
-    const CBlockIndex* pindexFrom                        = mapBlockIndex[hashBlockFrom].get();
+    const CBlockIndex* pindexFrom                        = bi.get();
     nStakeModifierHeight                                 = pindexFrom->nHeight;
     nStakeModifierTime                                   = pindexFrom->GetBlockTime();
     static const int64_t nStakeModifierSelectionInterval = GetStakeModifierSelectionInterval();
@@ -299,10 +301,11 @@ bool CheckStakeKernelHash(const ITxDB& txdb, unsigned int nBits, const CBlock& b
     ss << nTimeBlockFrom << nTxPrevOffset << txPrev.nTime << prevout.n << nTimeTx;
     hashProofOfStake = Hash(ss.begin(), ss.end());
     if (fDebug && fPrintProofOfStake) {
+        const auto bi = mapBlockIndex.get(hashBlockFrom).value_or(nullptr);
         printf("CheckStakeKernelHash() : using modifier 0x%016" PRIx64
                " at height=%d timestamp=%s for block from height=%d timestamp=%s\n",
                nStakeModifier, nStakeModifierHeight, DateTimeStrFormat(nStakeModifierTime).c_str(),
-               mapBlockIndex[hashBlockFrom]->nHeight,
+               bi ? bi->nHeight : -1,
                DateTimeStrFormat(blockFrom.GetBlockTime()).c_str());
         printf(
             "CheckStakeKernelHash() : check modifier=0x%016" PRIx64
@@ -317,10 +320,11 @@ bool CheckStakeKernelHash(const ITxDB& txdb, unsigned int nBits, const CBlock& b
     }
 
     if (fDebug && !fPrintProofOfStake) {
+        const auto bi = mapBlockIndex.get(hashBlockFrom).value_or(nullptr);
         printf("CheckStakeKernelHash() : using modifier 0x%016" PRIx64
                " at height=%d timestamp=%s for block from height=%d timestamp=%s\n",
                nStakeModifier, nStakeModifierHeight, DateTimeStrFormat(nStakeModifierTime).c_str(),
-               mapBlockIndex[hashBlockFrom]->nHeight,
+               bi ? bi->nHeight : -1,
                DateTimeStrFormat(blockFrom.GetBlockTime()).c_str());
         printf(
             "CheckStakeKernelHash() : pass modifier=0x%016" PRIx64

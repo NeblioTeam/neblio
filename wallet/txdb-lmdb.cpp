@@ -882,22 +882,22 @@ bool CTxDB::WriteBestInvalidTrust(const CBigNum& bnBestInvalidTrust)
     return Write(string("bnBestInvalidTrust"), bnBestInvalidTrust, db_main);
 }
 
-static CBlockIndexSmartPtr InsertBlockIndex(const uint256& hash)
+static CBlockIndexSmartPtr InsertBlockIndex(const uint256& hash, BlockIndexMapType::MapType& blockIndexMap)
 {
     if (hash == 0)
         return nullptr;
 
     // Return existing
-    BlockIndexMapType::iterator mi = mapBlockIndex.find(hash);
-    if (mi != mapBlockIndex.end())
+    BlockIndexMapType::MapType::iterator mi = blockIndexMap.find(hash);
+    if (mi != blockIndexMap.end())
         return mi->second;
 
     // Create new
     CBlockIndexSmartPtr pindexNew = boost::make_shared<CBlockIndex>();
     if (!pindexNew)
         throw runtime_error("LoadBlockIndex() : new CBlockIndex failed");
-    mi                    = mapBlockIndex.insert(make_pair(hash, pindexNew)).first;
-    pindexNew->phashBlock = &((*mi).first);
+    mi                    = blockIndexMap.insert(make_pair(hash, pindexNew)).first;
+    pindexNew->phashBlock = mi->first;
 
     return pindexNew;
 }
@@ -950,6 +950,8 @@ bool CTxDB::LoadBlockIndex()
 
     uint64_t loadedCount = 0;
 
+    BlockIndexMapType::MapType loadedBlockIndex;
+
     // Now read each entry.
     do {
         // if the first item is empty, break immediately
@@ -980,9 +982,9 @@ bool CTxDB::LoadBlockIndex()
         diskindex.SetBlockHash(blockHash);
 
         // Construct block index object
-        CBlockIndexSmartPtr pindexNew = InsertBlockIndex(blockHash);
-        pindexNew->pprev              = InsertBlockIndex(diskindex.hashPrev);
-        pindexNew->pnext              = InsertBlockIndex(diskindex.hashNext);
+        CBlockIndexSmartPtr pindexNew = InsertBlockIndex(blockHash, loadedBlockIndex);
+        pindexNew->pprev              = InsertBlockIndex(diskindex.hashPrev, loadedBlockIndex);
+        pindexNew->pnext              = InsertBlockIndex(diskindex.hashNext, loadedBlockIndex);
         pindexNew->blockKeyInDB       = diskindex.blockKeyInDB;
         pindexNew->nHeight            = diskindex.nHeight;
         pindexNew->nMint              = diskindex.nMint;
@@ -1031,9 +1033,9 @@ bool CTxDB::LoadBlockIndex()
 
     // Calculate nChainTrust
     vector<pair<int, CBlockIndex*>> vSortedByHeight;
-    vSortedByHeight.reserve(mapBlockIndex.size());
+    vSortedByHeight.reserve(loadedBlockIndex.size());
     uiInterface.InitMessage("Building chain trust... (allocating memory...)");
-    for (const PAIRTYPE(const uint256, CBlockIndexSmartPtr) & item : mapBlockIndex) {
+    for (const PAIRTYPE(const uint256, CBlockIndexSmartPtr) & item : loadedBlockIndex) {
         CBlockIndex* pindex = item.second.get();
         vSortedByHeight.push_back(make_pair(pindex->nHeight, pindex));
     }
@@ -1066,17 +1068,17 @@ bool CTxDB::LoadBlockIndex()
             return true;
         return error("CTxDB::LoadBlockIndex() : hashBestChain not loaded");
     }
-    if (!mapBlockIndex.count(hashBestChainTemp))
+    if (!loadedBlockIndex.count(hashBestChainTemp))
         return error("CTxDB::LoadBlockIndex() : hashBestChain not found in the block index");
-    //    bestChain.setBestChain(mapBlockIndex.at(hashBestChainTemp), false);
+    //    bestChain.setBestChain(loadedBlockIndex.at(hashBestChainTemp), false);
 
-    const int bestHeight = mapBlockIndex.at(hashBestChainTemp)->nHeight;
+    const int bestHeight = loadedBlockIndex.at(hashBestChainTemp)->nHeight;
 
     printf(
         "LoadBlockIndex(): hashBestChain=%s  height=%d  trust=%s  date=%s\n",
         hashBestChainTemp.ToString().substr(0, 20).c_str(), bestHeight,
         CBigNum(GetBestChainTrust().value_or(0)).ToString().c_str(),
-        DateTimeStrFormat("%x %H:%M:%S", mapBlockIndex.at(hashBestChainTemp)->GetBlockTime()).c_str());
+        DateTimeStrFormat("%x %H:%M:%S", loadedBlockIndex.at(hashBestChainTemp)->GetBlockTime()).c_str());
 
     // Load bnBestInvalidTrust, OK if it doesn't exist
     CBigNum bnBestInvalidTrust;
@@ -1095,7 +1097,7 @@ bool CTxDB::LoadBlockIndex()
     CBlockIndexSmartPtr              pindexFork = nullptr;
     map<uint256, const CBlockIndex*> mapBlockPos;
     loadedCount = 0;
-    for (ConstCBlockIndexSmartPtr pindex = mapBlockIndex.at(hashBestChainTemp); pindex && pindex->pprev;
+    for (ConstCBlockIndexSmartPtr pindex = loadedBlockIndex.at(hashBestChainTemp); pindex && pindex->pprev;
          pindex                          = pindex->pprev) {
 
         if (loadedCount % 100 == 0) {
@@ -1216,6 +1218,8 @@ bool CTxDB::LoadBlockIndex()
         block.SetBestChain(txdb, pindexFork);
     }
 
+    mapBlockIndex.setInternalMap(std::move(loadedBlockIndex));
+
     return true;
 }
 
@@ -1223,9 +1227,9 @@ boost::optional<int> CTxDB::GetBestChainHeight() const
 {
     uint256 bestChainHash = 0;
     if (ReadHashBestChain(bestChainHash)) {
-        auto it = mapBlockIndex.find(bestChainHash);
-        if (it != mapBlockIndex.cend()) {
-            return it->second->nHeight;
+        const auto v = mapBlockIndex.get(bestChainHash);
+        if (v.is_initialized()) {
+            return (*v)->nHeight;
         }
     }
     return boost::none;
@@ -1235,9 +1239,9 @@ boost::optional<uint256> CTxDB::GetBestChainTrust() const
 {
     uint256 bestChainHash = 0;
     if (ReadHashBestChain(bestChainHash)) {
-        auto it = mapBlockIndex.find(bestChainHash);
-        if (it != mapBlockIndex.cend()) {
-            return it->second->nChainTrust;
+        const auto v = mapBlockIndex.get(bestChainHash);
+        if (v.is_initialized()) {
+            return (*v)->nChainTrust;
         }
     }
     return boost::none;
@@ -1256,10 +1260,7 @@ CBlockIndexSmartPtr CTxDB::GetBestBlockIndex() const
 {
     uint256 bestChainHash = 0;
     if (ReadHashBestChain(bestChainHash)) {
-        auto it = mapBlockIndex.find(bestChainHash);
-        if (it != mapBlockIndex.cend()) {
-            return it->second;
-        }
+        return mapBlockIndex.get(bestChainHash).value_or(nullptr);
     }
     return nullptr;
 }

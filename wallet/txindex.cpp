@@ -26,11 +26,10 @@ int CTxIndex::GetDepthInMainChain(const ITxDB& txdb) const
     if (!block.ReadFromDisk(pos.nBlockPos, false))
         return 0;
     // Find the block in the index
-    BlockIndexMapType::iterator mi = mapBlockIndex.find(block.GetHash());
-    if (mi == mapBlockIndex.end())
+    const auto bi = mapBlockIndex.get(block.GetHash()).value_or(nullptr);
+    if (!bi)
         return 0;
-    CBlockIndexSmartPtr pindex = boost::atomic_load(&mi->second);
-    if (!pindex || !pindex->IsInMainChain(txdb))
+    if (!bi || !bi->IsInMainChain(txdb))
         return 0;
-    return 1 + txdb.GetBestChainHeight().value_or(0) - pindex->nHeight;
+    return 1 + txdb.GetBestChainHeight().value_or(0) - bi->nHeight;
 }

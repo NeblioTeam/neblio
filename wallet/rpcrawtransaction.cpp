@@ -137,14 +137,13 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry, bo
 
     if (hashBlock != 0) {
         entry.push_back(Pair("blockhash", hashBlock.GetHex()));
-        BlockIndexMapType::iterator mi = mapBlockIndex.find(hashBlock);
-        if (mi != mapBlockIndex.end() && (*mi).second) {
-            CBlockIndexSmartPtr pindex = boost::atomic_load(&mi->second);
-            if (pindex->IsInMainChain(txdb)) {
+        const auto bi = mapBlockIndex.get(hashBlock).value_or(nullptr);
+        if (bi) {
+            if (bi->IsInMainChain(txdb)) {
                 entry.push_back(
-                    Pair("confirmations", 1 + txdb.GetBestChainHeight().value_or(0) - pindex->nHeight));
-                entry.push_back(Pair("time", (int64_t)pindex->nTime));
-                entry.push_back(Pair("blocktime", (int64_t)pindex->nTime));
+                    Pair("confirmations", 1 + txdb.GetBestChainHeight().value_or(0) - bi->nHeight));
+                entry.push_back(Pair("time", (int64_t)bi->nTime));
+                entry.push_back(Pair("blocktime", (int64_t)bi->nTime));
             } else
                 entry.push_back(Pair("confirmations", 0));
         }
@@ -190,11 +189,11 @@ Value getrawtransaction(const Array& params, bool fHelp)
         CTxDB txdb;
         {
             uint256                     blockhash = ParseHashV(params[3], "parameter 3");
-            BlockIndexMapType::iterator it        = mapBlockIndex.find(blockhash);
-            if (it == mapBlockIndex.end()) {
+            const auto bi        = mapBlockIndex.get(blockhash).value_or(nullptr);
+            if (!bi) {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block hash not found");
             }
-            blockindex      = it->second.get();
+            blockindex      = bi.get();
             in_active_chain = blockindex->IsInMainChain(txdb);
         }
 

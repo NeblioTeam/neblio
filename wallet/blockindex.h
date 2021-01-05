@@ -17,7 +17,7 @@ class CBlock;
 class CBlockIndex
 {
 public:
-    const uint256*      phashBlock;
+    uint256             phashBlock;
     CBlockIndexSmartPtr pprev;
     CBlockIndexSmartPtr pnext;
     uint256             blockKeyInDB;
@@ -57,7 +57,7 @@ public:
 
     CBlock GetBlockHeader() const;
 
-    uint256 GetBlockHash() const { return *phashBlock; }
+    uint256 GetBlockHash() const { return phashBlock; }
 
     int64_t GetBlockTime() const { return (int64_t)nTime; }
 

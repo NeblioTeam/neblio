@@ -5,9 +5,9 @@
 #include "chainparams.h"
 #include "sync.h"
 #include "uint256.h"
+#include <ThreadSafeMap.h>
 #include <boost/atomic.hpp>
 #include <boost/shared_ptr.hpp>
-#include <map>
 
 class CTxMemPool;
 class CBlockIndex;
@@ -15,7 +15,7 @@ class BestChainState;
 
 using CBlockIndexSmartPtr      = boost::shared_ptr<CBlockIndex>;
 using ConstCBlockIndexSmartPtr = boost::shared_ptr<const CBlockIndex>;
-using BlockIndexMapType        = std::map<uint256, CBlockIndexSmartPtr>;
+using BlockIndexMapType        = ThreadSafeMap<uint256, CBlockIndexSmartPtr>;
 
 extern BestChainState bestChain;
 

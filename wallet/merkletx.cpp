@@ -18,11 +18,11 @@ int CMerkleTx::GetDepthInMainChain(const CBlockIndex*& pindexRet) const
     int nResult = 0;
 
     // Find the block it claims to be in
-    BlockIndexMapType::iterator mi = mapBlockIndex.find(hashBlock);
-    if (mi == mapBlockIndex.end()) {
+    const auto bi = mapBlockIndex.get(hashBlock).value_or(nullptr);
+    if (!bi) {
         nResult = 0;
     } else {
-        CBlockIndex* pindex = (*mi).second.get();
+        CBlockIndex* pindex = bi.get();
         if (!pindex || !pindex->IsInMainChain(CTxDB())) {
             nResult = 0;
         } else {
@@ -89,10 +89,10 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
     vMerkleBranch = pblock->GetMerkleBranch(nIndex);
 
     // Is the tx in a block that's in the main chain
-    BlockIndexMapType::iterator mi = mapBlockIndex.find(hashBlock);
-    if (mi == mapBlockIndex.end())
+    const auto bi = mapBlockIndex.get(hashBlock).value_or(nullptr);
+    if (!bi)
         return 0;
-    CBlockIndexSmartPtr pindex = boost::atomic_load(&mi->second);
+    CBlockIndexSmartPtr pindex = bi;
     if (!pindex || !pindex->IsInMainChain(txdb))
         return 0;
 

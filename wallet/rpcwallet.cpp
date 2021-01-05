@@ -60,7 +60,9 @@ void WalletTxToJSON(const CWalletTx& wtx, Object& entry)
     if (confirms > 0) {
         entry.push_back(Pair("blockhash", wtx.hashBlock.GetHex()));
         entry.push_back(Pair("blockindex", wtx.nIndex));
-        entry.push_back(Pair("blocktime", (int64_t)(mapBlockIndex[wtx.hashBlock]->nTime)));
+        const auto bi = mapBlockIndex.get(wtx.hashBlock).value_or(nullptr);
+        const int64_t nTime = static_cast<int64_t>(bi ? bi->nTime : 0);
+        entry.push_back(Pair("blocktime", nTime));
     }
     entry.push_back(Pair("txid", wtx.GetHash().GetHex()));
     json_spirit::Array conflicts;
@@ -2064,15 +2066,15 @@ Value listsinceblock(const Array& params, bool fHelp)
         uint256 blockId = 0;
 
         blockId.SetHex(params[0].get_str());
-        auto it = mapBlockIndex.find(blockId);
-        if (it == mapBlockIndex.cend()) {
+        const auto bi = mapBlockIndex.get(blockId).value_or(nullptr);
+        if (!bi) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
         }
-        pindex = it->second.get();
+        pindex = bi.get();
 
         // find the common ancestor if this block is not in mainchain
         while (pindex && !pindex->IsInMainChain(CTxDB()) && pindex->pprev) {
-            nonMainChain.push_back(*pindex->phashBlock);
+            nonMainChain.push_back(pindex->phashBlock);
             pindex = pindex->pprev.get();
         }
     }
@@ -2199,9 +2201,9 @@ Value gettransaction(const Array& params, bool fHelp)
                 entry.push_back(Pair("confirmations", 0));
             else {
                 entry.push_back(Pair("blockhash", hashBlock.GetHex()));
-                BlockIndexMapType::iterator mi = mapBlockIndex.find(hashBlock);
-                if (mi != mapBlockIndex.end() && (*mi).second) {
-                    CBlockIndexSmartPtr pindex = boost::atomic_load(&mi->second);
+                const auto bi = mapBlockIndex.get(hashBlock).value_or(nullptr);
+                if (bi) {
+                    CBlockIndexSmartPtr pindex = bi;
                     if (pindex->IsInMainChain(CTxDB()))
                         entry.push_back(
                             Pair("confirmations",

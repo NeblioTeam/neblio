@@ -169,10 +169,10 @@ CBlock::GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const
     // fork part
     CBlockIndexSmartPtr                           T             = nullptr;
     const uint256                                 prevBlockHash = this->hashPrevBlock;
-    const decltype(mapBlockIndex)::const_iterator itTarget      = mapBlockIndex.find(prevBlockHash);
+    const auto biTarget      = mapBlockIndex.get(prevBlockHash).value_or(nullptr);
 
-    if (itTarget != mapBlockIndex.end()) {
-        T = boost::atomic_load(&itTarget->second);
+    if (biTarget) {
+        T = biTarget;
         // keep stepping back from the orphan (new block) until we find the main chain
         while (!T->IsInMainChain(txdb)) {
             // this map will be empty if the fork from main chain has only this block
@@ -284,8 +284,8 @@ CBlock::ChainReplaceTxs CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITx
                 }
 
                 uint256 spenderBlockHash = txindex.vSpent[outputNumInTx].nBlockPos;
-                auto    blockIt          = mapBlockIndex.find(spenderBlockHash);
-                if (blockIt == mapBlockIndex.cend()) {
+                const auto bi            = mapBlockIndex.get(spenderBlockHash).value_or(nullptr);
+                if (!bi) {
                     throw std::runtime_error(
                         std::string(__PRETTY_FUNCTION__) + ": The input of transaction " +
                         tx.GetHash().ToString() + " whose index " + std::to_string(outputNumInTx) +
@@ -296,7 +296,7 @@ CBlock::ChainReplaceTxs CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITx
 
                 // this should be true anyway, because ReadTxIndex has only blocks with spent
                 // transactions from the main chain, but we double check for consistency
-                if (!blockIt->second->IsInMainChain(txdb)) {
+                if (!bi->IsInMainChain(txdb)) {
                     throw std::runtime_error(
                         std::string(__PRETTY_FUNCTION__) + ": The input of transaction " +
                         tx.GetHash().ToString() + " whose index " + std::to_string(outputNumInTx) +
@@ -306,7 +306,7 @@ CBlock::ChainReplaceTxs CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITx
                 }
 
                 // make sure that the spending transaction is in the main chain above the common ancestor
-                if (blockIt->second->nHeight > commonAncestory.commonAncestor->nHeight) {
+                if (bi->nHeight > commonAncestory.commonAncestor->nHeight) {
                     // unspend, which is equivalent to disconnecting the blockchain (without updating
                     // the database)
                     txindex.vSpent[outputNumInTx].SetNull();
@@ -1065,17 +1065,17 @@ bool CBlock::AddToBlockIndex(uint256 nBlockPos, const uint256& hashProof, CTxDB&
 {
     // Check for duplicate
     uint256 hash = GetHash();
-    if (mapBlockIndex.count(hash))
+    if (mapBlockIndex.exists(hash))
         return error("AddToBlockIndex() : %s already exists", hash.ToString().c_str());
 
     // Construct new block index object
     CBlockIndexSmartPtr pindexNew = boost::make_shared<CBlockIndex>(nBlockPos, *this);
     if (!pindexNew)
         return error("AddToBlockIndex() : new CBlockIndex failed");
-    pindexNew->phashBlock              = &hash;
-    BlockIndexMapType::iterator miPrev = mapBlockIndex.find(hashPrevBlock);
-    if (miPrev != mapBlockIndex.end()) {
-        pindexNew->pprev   = boost::atomic_load(&miPrev->second);
+    pindexNew->phashBlock = hash;
+    const auto biPrev = mapBlockIndex.get(hashPrevBlock).value_or(nullptr);
+    if (biPrev) {
+        pindexNew->pprev   = biPrev;
         pindexNew->nHeight = pindexNew->pprev->nHeight + 1;
     }
 
@@ -1105,10 +1105,9 @@ bool CBlock::AddToBlockIndex(uint256 nBlockPos, const uint256& hashProof, CTxDB&
     // checksum=0x%016" PRIx64, pindexNew->nHeight, pindexNew->nStakeModifierChecksum);
 
     // Add to mapBlockIndex
-    BlockIndexMapType::iterator mi = mapBlockIndex.insert(std::make_pair(hash, pindexNew)).first;
+    mapBlockIndex.set(hash, pindexNew);
     if (pindexNew->IsProofOfStake())
         setStakeSeen.insert(std::make_pair(pindexNew->prevoutStake, pindexNew->nStakeTime));
-    pindexNew->phashBlock = &((*mi).first);
 
     // Write to disk block index
     if (createDbTransaction && !txdb.TxnBegin())
@@ -1274,7 +1273,7 @@ bool CBlock::AcceptBlock()
 
     // Check for duplicate
     const uint256 hash = GetHash();
-    if (mapBlockIndex.count(hash))
+    if (mapBlockIndex.exists(hash))
         return error("AcceptBlock() : block already in mapBlockIndex");
 
     // protect against a possible attack where an attacker sends predecessors of very early blocks in the
@@ -1282,9 +1281,9 @@ bool CBlock::AcceptBlock()
     int64_t maxCheckpointBlockHeight = Checkpoints::GetLastCheckpointBlockHeight();
     if (CTxDB().GetBestChainHeight().value_or(0) > maxCheckpointBlockHeight + 1) {
         const uint256 prevBlockHash = this->hashPrevBlock;
-        auto          it            = mapBlockIndex.find(prevBlockHash);
-        if (it != mapBlockIndex.cend()) {
-            int64_t newBlockPrevBlockHeight = it->second->nHeight;
+        const auto bi               = mapBlockIndex.get(prevBlockHash).value_or(nullptr);
+        if (bi) {
+            int64_t newBlockPrevBlockHeight = bi->nHeight;
             if (newBlockPrevBlockHeight + 1 < maxCheckpointBlockHeight) {
                 return DoS(
                     25,
@@ -1313,10 +1312,10 @@ bool CBlock::AcceptBlock()
     }
 
     // Get prev block index
-    BlockIndexMapType::iterator mi = mapBlockIndex.find(hashPrevBlock);
-    if (mi == mapBlockIndex.end())
+    const auto bi = mapBlockIndex.get(hashPrevBlock).value_or(nullptr);
+    if (!bi)
         return DoS(10, error("AcceptBlock() : prev block not found\n"));
-    CBlockIndexSmartPtr pindexPrev = boost::atomic_load(&mi->second);
+    CBlockIndexSmartPtr pindexPrev = bi;
     int                 nHeight    = pindexPrev->nHeight + 1;
 
     if (IsProofOfWork() && nHeight > Params().LastPoWBlock())
@@ -1696,7 +1695,8 @@ void UpdateWallets(const uint256& prevBestChain)
          */
         if (txdb.GetBestChainHeight().value_or(0) > 0) {
             // get the highest block in the previous check that's main chain
-            CBlockIndexSmartPtr ancestorOfPrevInMainChain = mapBlockIndex.at(prevBestChain);
+            CBlockIndexSmartPtr ancestorOfPrevInMainChain = mapBlockIndex.get(prevBestChain).value_or(nullptr);
+            assert(ancestorOfPrevInMainChain);
             while (ancestorOfPrevInMainChain->pprev && !ancestorOfPrevInMainChain->IsInMainChain(txdb)) {
                 ancestorOfPrevInMainChain = ancestorOfPrevInMainChain->pprev;
             }

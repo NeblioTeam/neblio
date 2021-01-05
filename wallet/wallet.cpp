@@ -451,7 +451,8 @@ unsigned int CWallet::ComputeTimeSmart(const CWalletTx& wtx) const
 {
     unsigned int nTimeSmart = wtx.nTimeReceived;
     if (wtx.hashBlock != 0) {
-        if (mapBlockIndex.count(wtx.hashBlock)) {
+        const auto bi = mapBlockIndex.get(wtx.hashBlock).value_or(nullptr);
+        if (bi) {
             int64_t latestNow   = wtx.nTimeReceived;
             int64_t latestEntry = 0;
             {
@@ -480,7 +481,7 @@ unsigned int CWallet::ComputeTimeSmart(const CWalletTx& wtx) const
                 }
             }
 
-            int64_t blocktime = mapBlockIndex[wtx.hashBlock]->GetBlockTime();
+            int64_t blocktime = bi->GetBlockTime();
             nTimeSmart        = std::max(latestEntry, std::min(blocktime, latestNow));
         } else
             printf("AddToWallet() : found %s in block %s not in index\n",
@@ -548,8 +549,9 @@ void CWallet::MarkConflicted(const uint256& hashBlock, const uint256& hashTx)
     const CTxDB txdb;
 
     CBlockIndex* pindex;
-    assert(mapBlockIndex.count(hashBlock));
-    pindex               = mapBlockIndex.at(hashBlock).get();
+    const auto bi = mapBlockIndex.get(hashBlock).value_or(nullptr);
+    assert(bi);
+    pindex               = bi.get();
     int conflictconfirms = 0;
     if (pindex->IsInMainChain(txdb)) {
         conflictconfirms = -(txdb.GetBestChainHeight().value_or(0) - pindex->nHeight + 1);
@@ -3111,10 +3113,10 @@ void CWallet::GetKeyBirthTimes(std::map<CKeyID, int64_t>& mapKeyBirth) const
          it++) {
         // iterate over all wallet transactions...
         const CWalletTx&                  wtx  = it->second;
-        BlockIndexMapType::const_iterator blit = mapBlockIndex.find(wtx.hashBlock);
-        if (blit != mapBlockIndex.end() && blit->second->IsInMainChain(txdb)) {
+        const auto bli = mapBlockIndex.get(wtx.hashBlock).value_or(nullptr);
+        if (bli && bli->IsInMainChain(txdb)) {
             // ... which are already in a block
-            int nHeight = blit->second->nHeight;
+            int nHeight = bli->nHeight;
             for (const CTxOut& txout : wtx.vout) {
                 // iterate over all their outputs
                 ::ExtractAffectedKeys(*this, txout.scriptPubKey, vAffected);
@@ -3122,7 +3124,7 @@ void CWallet::GetKeyBirthTimes(std::map<CKeyID, int64_t>& mapKeyBirth) const
                     // ... and all their affected keys
                     std::map<CKeyID, CBlockIndexSmartPtr>::iterator rit = mapKeyFirstBlock.find(keyid);
                     if (rit != mapKeyFirstBlock.end() && nHeight < rit->second->nHeight)
-                        rit->second = boost::atomic_load(&blit->second);
+                        rit->second = bli;
                 }
                 vAffected.clear();
             }

@@ -11,7 +11,7 @@
 
 using namespace std;
 
-static CBlockIndexSmartPtr InsertBlockIndex(const uint256& hash, BlockIndexMapType& mapBlockIndexIn)
+static CBlockIndexSmartPtr InsertBlockIndex(const uint256& hash, BlockIndexMapType::MapType& mapBlockIndexIn)
 {
     // Return existing
     map<uint256, CBlockIndexSmartPtr>::iterator mi = mapBlockIndexIn.find(hash);
@@ -23,7 +23,7 @@ static CBlockIndexSmartPtr InsertBlockIndex(const uint256& hash, BlockIndexMapTy
     if (!pindexNew)
         throw runtime_error("LoadBlockIndex() : new CBlockIndex failed");
     mi                    = mapBlockIndexIn.insert(make_pair(hash, pindexNew)).first;
-    pindexNew->phashBlock = &((*mi).first);
+    pindexNew->phashBlock = mi->first;
 
     return pindexNew;
 }
@@ -36,7 +36,7 @@ TEST(checkpoints_tests, CheckSync1)
 
         const bool cache = !!i;
 
-        BlockIndexMapType blockIndex;
+        BlockIndexMapType::MapType blockIndex;
         for (int i = 0; i < 200; i++) {
             CBlockIndexSmartPtr pindexNew = InsertBlockIndex(i, blockIndex);
             if (i > 0) {
@@ -113,7 +113,7 @@ TEST(checkpoints_tests, CheckSync2)
 
         const bool cache = !!i;
 
-        BlockIndexMapType blockIndex;
+        BlockIndexMapType::MapType blockIndex;
         for (int i = 0; i < 200; i++) {
             CBlockIndexSmartPtr pindexNew = InsertBlockIndex(i, blockIndex);
             if (i > 0) {
@@ -177,7 +177,7 @@ TEST(checkpoints_tests, CheckSync3)
 
         const bool cache = !!i;
 
-        BlockIndexMapType blockIndex;
+        BlockIndexMapType::MapType blockIndex;
         for (int i = 0; i < 200; i++) {
             CBlockIndexSmartPtr pindexNew = InsertBlockIndex(i, blockIndex);
             if (i > 0) {

@@ -837,7 +837,8 @@ bool AppInit2()
     if (printBlock) {
         const string strMatch = *printBlock;
         int          nFound   = 0;
-        for (BlockIndexMapType::iterator mi = mapBlockIndex.begin(); mi != mapBlockIndex.end(); ++mi) {
+        const auto blockIndexMap = mapBlockIndex.getInternalMap();
+        for (auto mi = blockIndexMap.cbegin(); mi != blockIndexMap.cend(); ++mi) {
             uint256 hash = (*mi).first;
             if (strncmp(hash.ToString().c_str(), strMatch.c_str(), strMatch.size()) == 0) {
                 CBlockIndexSmartPtr pindex = mi->second;

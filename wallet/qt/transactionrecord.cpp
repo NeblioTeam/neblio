@@ -199,9 +199,9 @@ void TransactionRecord::updateStatus(const CWalletTx& wtx)
 
     // Find the block the tx is in
     CBlockIndex*                pindex = nullptr;
-    BlockIndexMapType::iterator mi     = mapBlockIndex.find(wtx.hashBlock);
-    if (mi != mapBlockIndex.end())
-        pindex = boost::atomic_load(&mi->second).get();
+    const auto mi     = mapBlockIndex.get(wtx.hashBlock).value_or(nullptr);
+    if (mi)
+        pindex = mi.get();
 
     // Sort order, unrecorded transactions sort to the top
     status.sortKey =

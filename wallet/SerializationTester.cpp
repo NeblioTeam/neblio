@@ -380,7 +380,7 @@ void RunCrossPlatformSerializationTests()
     uint256 uint256v("12345678135724681122424455667788123456781357246812343535135724");
 
     CDiskBlockIndex cDiskBlockIndex;
-    cDiskBlockIndex.phashBlock = &uint256v; // const uint256*
+    cDiskBlockIndex.phashBlock = uint256v; // const uint256
     cDiskBlockIndex.pprev =
         CBlockIndexSmartPtr(&cDiskBlockIndex, [](CBlockIndex*) {}); // CBlockIndexSmartPtr
     cDiskBlockIndex.pnext =
