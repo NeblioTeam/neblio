@@ -302,6 +302,9 @@ QString TransactionTableModel::formatTxStatus(const TransactionRecord* wtx) cons
     case TransactionStatus::NotAccepted:
         status = tr("Generated but not accepted");
         break;
+    case TransactionStatus::Undetermined:
+        status = tr("Loading...");
+        break;
     }
 
     return status;
@@ -558,6 +561,8 @@ QVariant TransactionTableModel::txStatusDecoration(const TransactionRecord* wtx)
     case TransactionStatus::MaturesWarning:
     case TransactionStatus::NotAccepted:
         return QIcon(":/icons/transaction_0");
+    case TransactionStatus::Undetermined:
+        return QIcon(":/icons/hourglass");
     }
     return QColor(0, 0, 0);
 }
