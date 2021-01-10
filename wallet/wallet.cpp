@@ -449,6 +449,8 @@ void CWallet::MarkDirty()
 
 unsigned int CWallet::ComputeTimeSmart(const CWalletTx& wtx) const
 {
+    AssertLockHeld(cs_wallet);
+
     unsigned int nTimeSmart = wtx.nTimeReceived;
     if (wtx.hashBlock != 0) {
         const auto bi = mapBlockIndex.get(wtx.hashBlock).value_or(nullptr);
@@ -635,6 +637,8 @@ void CWallet::AddToSpends(const uint256& wtxid)
 
 bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFromLoadWallet, CWalletDB* pwalletdb)
 {
+    AssertLockHeld(cs_wallet);
+
     uint256 hash = wtxIn.GetHash();
 
     // update NTP1 transactions
@@ -1578,6 +1582,8 @@ bool CWallet::AddAccountingEntry(const CAccountingEntry& acentry, CWalletDB& pwa
 {
     if (!pwalletdb.WriteAccountingEntry(acentry))
         return false;
+
+    LOCK(cs_wallet);
 
     laccentries.push_back(acentry);
     CAccountingEntry& entry = laccentries.back();
