@@ -510,13 +510,22 @@ void CWallet::SyncMetaData(std::pair<TxSpends::iterator, TxSpends::iterator> ran
     if (!copyFrom) {
         return;
     }
-
+    if (copyFrom->IsCoinStake()) {
+        // we don't sync information from old coinstakes because they're definitely orphans
+        // this can cause the orphan transaction nTimeSmart to be adopted from the new transaction
+        return;
+    }
     // Now copy data from copyFrom to rest:
     for (TxSpends::iterator it = range.first; it != range.second; ++it) {
         const uint256& hash   = it->second;
         CWalletTx*     copyTo = &mapWallet[hash];
         if (copyFrom == copyTo)
             continue;
+        if (copyTo->IsCoinStake()) {
+            // we don't sync information to new coinstakes because we don't want new stakes data
+            // (including nTimeSmart) to be changed
+            continue;
+        }
         assert(copyFrom && "Oldest wallet transaction in range assumed to have been found.");
         // if (!copyFrom->IsEquivalentTo(*copyTo)) continue;
         copyTo->mapValue   = copyFrom->mapValue;
@@ -549,7 +558,7 @@ void CWallet::MarkConflicted(const uint256& hashBlock, const uint256& hashTx)
     const CTxDB txdb;
 
     CBlockIndex* pindex;
-    const auto bi = mapBlockIndex.get(hashBlock).value_or(nullptr);
+    const auto   bi = mapBlockIndex.get(hashBlock).value_or(nullptr);
     assert(bi);
     pindex               = bi.get();
     int conflictconfirms = 0;
@@ -1069,8 +1078,7 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
 
             if (blockCount % 1000 == 0) {
                 uiInterface.InitMessage(_("Rescanning... ") + "(block: " + std::to_string(blockCount) +
-                                        "/" + std::to_string(bestHeight) +
-                                        ")");
+                                        "/" + std::to_string(bestHeight) + ")");
                 printf("Done scanning %" PRIu64 " blocks\n", blockCount);
             }
 
@@ -3112,8 +3120,8 @@ void CWallet::GetKeyBirthTimes(std::map<CKeyID, int64_t>& mapKeyBirth) const
     for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end();
          it++) {
         // iterate over all wallet transactions...
-        const CWalletTx&                  wtx  = it->second;
-        const auto bli = mapBlockIndex.get(wtx.hashBlock).value_or(nullptr);
+        const CWalletTx& wtx = it->second;
+        const auto       bli = mapBlockIndex.get(wtx.hashBlock).value_or(nullptr);
         if (bli && bli->IsInMainChain(txdb)) {
             // ... which are already in a block
             int nHeight = bli->nHeight;
