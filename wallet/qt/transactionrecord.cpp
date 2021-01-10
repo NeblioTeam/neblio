@@ -25,7 +25,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
                                                                  const CWalletTx& wtx)
 {
     QList<TransactionRecord> parts;
-    int64_t                  nTime   = wtx.GetTxTime();
+    int64_t                  nTime   = wtx.nTimeReceived;
     int64_t                  nCredit = wtx.GetCredit(static_cast<isminefilter>(isminetype::ISMINE_ALL));
     int64_t                  nDebit  = wtx.GetDebit(static_cast<isminefilter>(isminetype::ISMINE_ALL));
     int64_t                  nNet    = nCredit - nDebit;
@@ -198,8 +198,8 @@ void TransactionRecord::updateStatus(const CWalletTx& wtx)
     // Determine transaction status
 
     // Find the block the tx is in
-    CBlockIndex*                pindex = nullptr;
-    const auto mi     = mapBlockIndex.get(wtx.hashBlock).value_or(nullptr);
+    CBlockIndex* pindex = nullptr;
+    const auto   mi     = mapBlockIndex.get(wtx.hashBlock).value_or(nullptr);
     if (mi)
         pindex = mi.get();
 
@@ -255,9 +255,9 @@ void TransactionRecord::updateStatus(const CWalletTx& wtx)
     }
 }
 
-bool TransactionRecord::statusUpdateNeeded()
+bool TransactionRecord::statusUpdateNeeded() const
 {
-    AssertLockHeld(cs_main);
+    // AssertLockHeld(cs_main);
     return status.cur_num_blocks != CTxDB().GetBestChainHeight().value_or(0);
 }
 

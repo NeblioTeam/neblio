@@ -165,7 +165,7 @@ void ColdStakingModel::finishRefresh(
     assert(itemsAndAmount);
 
     // force sync since we got a vector from another thread
-    std::atomic_thread_fence(std::memory_order_seq_cst);
+    boost::atomic_thread_fence(boost::memory_order_seq_cst);
 
     beginResetModel();
     // this is an RAII hack to guarantee that the function will end the model reset

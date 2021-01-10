@@ -150,7 +150,7 @@ void WalletModel::updateBalancesIfChanged(qint64 newBalance, qint64 newStake,
                                           qint64 newUnconfirmedBalance, qint64 newImmatureBalance)
 {
     // force sync since we got a vector from another thread
-    std::atomic_thread_fence(std::memory_order_seq_cst);
+    boost::atomic_thread_fence(boost::memory_order_seq_cst);
 
     if (!firstUpdateOfBalanceDone || cachedBalance != newBalance || cachedStake != newStake ||
         cachedUnconfirmedBalance != newUnconfirmedBalance ||

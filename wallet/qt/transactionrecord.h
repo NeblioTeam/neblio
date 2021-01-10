@@ -142,7 +142,7 @@ public:
 
     /** Return whether a status update is needed.
      */
-    bool statusUpdateNeeded();
+    bool statusUpdateNeeded() const;
 };
 
 #endif // TRANSACTIONRECORD_H

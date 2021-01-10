@@ -728,6 +728,13 @@ void ignore_unused()
 {
 }
 
+//! Substitute for C++14 std::make_unique.
+template <typename T, typename... Args>
+std::unique_ptr<T> MakeUnique(Args&&... args)
+{
+    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+
 template <typename T, typename MutexType = boost::recursive_mutex>
 class LockedVar
 {
@@ -759,14 +766,14 @@ public:
 
     const T& get_unsafe() const { return var; }
 
-    [[nodiscard]] boost::shared_ptr<boost::lock_guard<MutexType>> get_lock() const
+    [[nodiscard]] std::unique_ptr<boost::lock_guard<MutexType>> get_lock() const
     {
-        return boost::make_shared<boost::lock_guard<MutexType>>(mtx);
+        return MakeUnique<boost::lock_guard<MutexType>>(mtx);
     }
 
-    [[nodiscard]] boost::shared_ptr<boost::unique_lock<MutexType>> get_try_lock() const
+    [[nodiscard]] std::unique_ptr<boost::unique_lock<MutexType>> get_try_lock() const
     {
-        auto lock = boost::make_shared<boost::unique_lock<MutexType>>(mtx, boost::defer_lock);
+        auto lock = MakeUnique<boost::unique_lock<MutexType>>(mtx, boost::defer_lock);
         if (mtx.try_lock()) {
             return lock;
         } else {
@@ -774,13 +781,6 @@ public:
         }
     }
 };
-
-//! Substitute for C++14 std::make_unique.
-template <typename T, typename... Args>
-std::unique_ptr<T> MakeUnique(Args&&... args)
-{
-    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
-}
 
 bool ParseFixedPoint(const std::string& val, int decimals, int64_t* amount_out);
 

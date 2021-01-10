@@ -5,6 +5,7 @@
 #include <QStringList>
 #include <QThread>
 #include <QTimer>
+#include <boost/atomic.hpp>
 #include <deque>
 #include <uint256.h>
 
@@ -20,7 +21,8 @@ class TxsRetrieverWorker : public QObject
 public slots:
     // we use the shared pointer argument to ensure that workerPtr will be deleted after doing the
     // retrieval
-    void getTxs(CWallet* wallet, QSharedPointer<TxsRetrieverWorker> workerPtr, const quint64* limit);
+    void getTxs(CWallet* wallet, QSharedPointer<TxsRetrieverWorker> workerPtr,
+                const boost::atomic<quint64>* limit);
 
 signals:
     // Signal that balance in wallet changed
@@ -76,11 +78,11 @@ public:
         StatusRole
     };
 
-    int         rowCount(const QModelIndex& parent) const;
-    int         columnCount(const QModelIndex& parent) const;
-    QVariant    data(const QModelIndex& index, int role) const;
-    QVariant    headerData(int section, Qt::Orientation orientation, int role) const;
-    QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const;
+    int         rowCount(const QModelIndex& parent) const override;
+    int         columnCount(const QModelIndex& parent) const override;
+    QVariant    data(const QModelIndex& index, int role) const override;
+    QVariant    headerData(int section, Qt::Orientation orientation, int role) const override;
+    QModelIndex index(int row, int column, const QModelIndex& parent = QModelIndex()) const override;
     bool        isTxsRetrieverThreadRunning() const;
 
 private:
@@ -92,9 +94,9 @@ private:
     std::deque<std::pair<uint256, int>> walletUpdatesQueue;
     QTimer                              walletUpdatesQueueConsumer;
 
-    QThread txsRetrieverThread;
-    bool    txsRetrieverWorkerRunning = false;
-    quint64 maxTransactionInView      = 0;
+    QThread                txsRetrieverThread;
+    bool                   txsRetrieverWorkerRunning = false;
+    boost::atomic<quint64> maxTransactionInView{0};
 
     QString  lookupAddress(const std::string& address, bool tooltip) const;
     QVariant addressColor(const TransactionRecord* wtx) const;
