@@ -83,11 +83,8 @@ void WalletModel::pollBalanceChanged()
     // Get required locks upfront. This avoids the GUI from getting stuck on
     // periodical polls if the core is holding the locks for a longer time -
     // for example, during a wallet rescan.
-    TRY_LOCK(cs_main, lockMain);
-    if (!lockMain)
-        return;
-    TRY_LOCK(wallet->cs_wallet, lockWallet);
-    if (!lockWallet)
+    TRY_LOCK2(cs_main, wallet->cs_wallet, lock);
+    if (!lock)
         return;
 
     // Don't continue processing if the chain tip time is less than the first

@@ -755,17 +755,9 @@ void ThreadSocketHandler2(void* /*parg*/)
                 if (pnode->GetRefCount() <= 0) {
                     bool fDelete = false;
                     {
-                        TRY_LOCK(pnode->cs_vSend, lockSend);
-                        if (lockSend) {
-                            TRY_LOCK(pnode->cs_vRecvMsg, lockRecv);
-                            if (lockRecv) {
-                                TRY_LOCK(pnode->cs_mapRequests, lockReq);
-                                if (lockReq) {
-                                    TRY_LOCK(pnode->cs_inventory, lockInv);
-                                    if (lockInv)
-                                        fDelete = true;
-                                }
-                            }
+                        TRY_LOCK4(pnode->cs_vSend, pnode->cs_vRecvMsg, pnode->cs_mapRequests, pnode->cs_inventory, lock);
+                        if (lock) {
+                            fDelete = true;
                         }
                     }
                     if (fDelete) {

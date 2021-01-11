@@ -1369,12 +1369,8 @@ bool CWallet::GetAvailableP2CSCoins(std::vector<COutput>& vCoins) const
 {
     vCoins.clear();
     {
-        TRY_LOCK(cs_main, lockMain);
-        if (!lockMain) {
-            return false;
-        }
-        TRY_LOCK(cs_wallet, lockWallet);
-        if (!lockWallet) {
+        TRY_LOCK2(cs_main, cs_wallet, lock);
+        if (!lock) {
             return false;
         }
 

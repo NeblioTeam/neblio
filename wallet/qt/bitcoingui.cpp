@@ -1235,12 +1235,8 @@ void BitcoinGUI::updateWeight()
     if (!pwalletMain)
         return;
 
-    TRY_LOCK(cs_main, lockMain);
-    if (!lockMain)
-        return;
-
-    TRY_LOCK(pwalletMain->cs_wallet, lockWallet);
-    if (!lockWallet)
+    TRY_LOCK2(cs_main, pwalletMain->cs_wallet, lock);
+    if (!lock)
         return;
 
     nWeight = stakeMaker.getLatestStakeWeight().value_or(0);

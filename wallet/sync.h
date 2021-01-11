@@ -13,6 +13,7 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/atomic.hpp>
 #include <boost/thread/recursive_mutex.hpp>
+#include <boost/optional.hpp>
 
 
 ////////////////////////////////////////////////
@@ -154,9 +155,87 @@ public:
 
 typedef CMutexLock<CCriticalSection> CCriticalBlock;
 
-#define LOCK(cs) CCriticalBlock criticalblock(cs, #cs, __FILE__, __LINE__)
-#define LOCK2(cs1,cs2) CCriticalBlock criticalblock1(cs1, #cs1, __FILE__, __LINE__),criticalblock2(cs2, #cs2, __FILE__, __LINE__)
-#define TRY_LOCK(cs,name) CCriticalBlock name(cs, #cs, __FILE__, __LINE__, true)
+//! Substitute for C++14 std::make_unique for this file.
+template <typename T, typename... Args>
+std::unique_ptr<T> __InternalSyncMakeUnique(Args&&... args)
+{
+    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+
+template <typename M1, typename M2>
+auto _lock2_internal(M1&& m1, M2&& m2) -> std::pair<std::unique_ptr<boost::unique_lock<typename std::decay<decltype(m1)>::type>>, std::unique_ptr<boost::unique_lock<typename std::decay<decltype(m2)>::type>>>
+{
+    auto res =
+        std::make_pair(
+            __InternalSyncMakeUnique<boost::unique_lock<typename std::decay<decltype(m1)>::type>>(m1, boost::defer_lock),
+            __InternalSyncMakeUnique<boost::unique_lock<typename std::decay<decltype(m2)>::type>>(m2, boost::defer_lock));
+    boost::lock(*res.first, *res.second);
+    return res;
+}
+
+template <typename M>
+auto _trylock_internal(M&& m) -> std::unique_ptr<boost::unique_lock<typename std::decay<decltype(m)>::type>> {
+    auto lm = __InternalSyncMakeUnique<boost::unique_lock<typename std::decay<decltype(m)>::type>>(m, boost::defer_lock);
+    if (lm->try_lock()) {
+        return lm;
+    } else {
+        return nullptr;
+    }
+}
+
+using __Lock2ReturnType__ = boost::optional<std::pair<
+            std::unique_ptr<boost::unique_lock<CCriticalSection>>,
+            std::unique_ptr<boost::unique_lock<CCriticalSection>>
+            >
+        >;
+
+template <typename M1, typename M2>
+auto _trylock2_internal(M1&& m1, M2&& m2) -> __Lock2ReturnType__ {
+    auto res = __Lock2ReturnType__(std::make_pair(
+        __InternalSyncMakeUnique<boost::unique_lock<typename std::decay<decltype(m1)>::type>>(m1, boost::defer_lock),
+        __InternalSyncMakeUnique<boost::unique_lock<typename std::decay<decltype(m2)>::type>>(m2, boost::defer_lock)));
+    if (boost::try_lock(*res->first, *res->second)) {
+        return res;
+    } else {
+        return boost::none;
+    }
+}
+
+using __Lock4ReturnType__ = boost::optional<std::tuple<
+            std::unique_ptr<boost::unique_lock<CCriticalSection>>,
+            std::unique_ptr<boost::unique_lock<CCriticalSection>>,
+            std::unique_ptr<boost::unique_lock<CCriticalSection>>,
+            std::unique_ptr<boost::unique_lock<CCriticalSection>>
+            >
+        >;
+
+// Unfortunately, no variadic templates gymnastics until C++17...
+// we need std::apply to avoid having a function for every number of locks
+template <typename M1, typename M2, typename M3, typename M4>
+auto _trylock4_internal(M1&& m1, M2&& m2, M3&& m3, M4&& m4) -> __Lock4ReturnType__
+{
+    auto res = __Lock4ReturnType__(std::make_tuple(
+        __InternalSyncMakeUnique<boost::unique_lock<typename std::decay<decltype(m1)>::type>>(m1, boost::defer_lock),
+        __InternalSyncMakeUnique<boost::unique_lock<typename std::decay<decltype(m2)>::type>>(m2, boost::defer_lock),
+        __InternalSyncMakeUnique<boost::unique_lock<typename std::decay<decltype(m2)>::type>>(m3, boost::defer_lock),
+        __InternalSyncMakeUnique<boost::unique_lock<typename std::decay<decltype(m3)>::type>>(m4, boost::defer_lock)));
+    if (boost::try_lock(*std::get<0>(*res),
+                        *std::get<1>(*res),
+                        *std::get<2>(*res),
+                        *std::get<3>(*res))) {
+        return res;
+    } else {
+        return boost::none;
+    }
+}
+
+#define LOCK(cs) boost::lock_guard<decltype(cs)> __lockguard__(cs)
+#define LOCKN(cs, name) boost::lock_guard<decltype(cs)> name(cs)
+#define LOCK2(cs1, cs2) auto __lockguard2__ = _lock2_internal(cs1, cs2)
+#define LOCK2N(cs1, cs2, name) auto name = _lock2_internal(cs1, cs2)
+#define TRY_LOCK(cs, name) auto name = _trylock_internal(cs)
+#define TRY_LOCK2(cs1, cs2, name) auto name = _trylock2_internal(cs1, cs2)
+#define TRY_LOCK4(cs1, cs2, cs3, cs4, name) auto name = _trylock4_internal(cs1, cs2, cs3, cs4)
 
 #define ENTER_CRITICAL_SECTION(cs) \
     { \
