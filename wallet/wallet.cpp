@@ -916,7 +916,7 @@ std::set<uint256> CWallet::GetConflicts(const uint256& txid) const
 
     auto lock = mapTxSpends.get_lock();
     for (const CTxIn& txin : wtx.vin) {
-        if (mapTxSpends.get_unsafe().count(txin.prevout) <= 1 /* || wtx.HasZerocoinSpendInputs()*/)
+        if (mapTxSpends.get_unsafe().count(txin.prevout) <= 1)
             continue; // No conflict if zero or one spends
         range = mapTxSpends.get_unsafe().equal_range(txin.prevout);
         for (TxSpends::const_iterator it = range.first; it != range.second; ++it)

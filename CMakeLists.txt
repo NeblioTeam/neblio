@@ -640,19 +640,6 @@ if(USE_UPNP)
     target_compile_definitions(core_lib PRIVATE -DUSE_UPNP=1)
 endif()
 
-add_library(zerocoin_lib STATIC
-    wallet/zerocoin/Accumulator.cpp
-    wallet/zerocoin/AccumulatorProofOfKnowledge.cpp
-    wallet/zerocoin/Coin.cpp
-    wallet/zerocoin/CoinSpend.cpp
-    wallet/zerocoin/Commitment.cpp
-    wallet/zerocoin/ParamGeneration.cpp
-    wallet/zerocoin/Params.cpp
-    wallet/zerocoin/SerialNumberSignatureOfKnowledge.cpp
-    wallet/zerocoin/SpendMetaData.cpp
-    wallet/zerocoin/ZeroTest.cpp
-    )
-
 add_library(ntp1_lib STATIC
     wallet/ntp1/ntp1sendtokensonerecipientdata.cpp
     wallet/ntp1/ntp1script_burn.cpp
@@ -755,7 +742,6 @@ if(WIN32)
             ui_lib
             ntp1_gui_lib
             curltools_lib
-            zerocoin_lib
             ntp1_lib
             core_lib
             json_spirit_lib
@@ -791,7 +777,6 @@ if(WIN32)
 
         target_link_libraries(nebliod
             core_lib
-            zerocoin_lib
             ntp1_lib
             curltools_lib
             json_spirit_lib
@@ -832,7 +817,6 @@ else()
             ui_lib
             ntp1_gui_lib
             curltools_lib
-            zerocoin_lib
             ntp1_lib
             core_lib
             json_spirit_lib
@@ -866,7 +850,6 @@ else()
 
         target_link_libraries(nebliod
             core_lib
-            zerocoin_lib
             ntp1_lib
             curltools_lib
             json_spirit_lib
