@@ -23,7 +23,6 @@
 #include "txindex.h"
 #include "txmempool.h"
 #include "ui_interface.h"
-#include "zerocoin/Zerocoin.h"
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
@@ -47,7 +46,6 @@ set<std::shared_ptr<CWallet>> setpwalletRegistered;
 CCriticalSection cs_main;
 
 set<pair<COutPoint, unsigned int>> setStakeSeen;
-libzerocoin::Params*               ZCParams;
 
 boost::atomic<bool> fImporting{false};
 

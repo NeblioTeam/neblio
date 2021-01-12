@@ -17,7 +17,6 @@
 #include "stakemaker.h"
 #include "sync.h"
 #include "transaction.h"
-#include "zerocoin/Zerocoin.h"
 
 #include <atomic>
 #include <boost/enable_shared_from_this.hpp>
@@ -65,7 +64,6 @@ extern std::set<uint256> UnrecoverableNTP1Txs;
 inline int64_t PastDrift(int64_t nTime) { return nTime - 10 * 60; }   // up to 10 minutes from the past
 inline int64_t FutureDrift(int64_t nTime) { return nTime + 10 * 60; } // up to 10 minutes in the future
 
-extern libzerocoin::Params*                         ZCParams;
 extern CScript                                      COINBASE_FLAGS;
 extern std::set<std::pair<COutPoint, unsigned int>> setStakeSeen;
 static constexpr const int64_t                      TARGET_AVERAGE_BLOCK_COUNT = 100;

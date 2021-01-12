@@ -17,8 +17,6 @@
 #include "protocol.h"
 #include "util.h"
 #include "wallet.h"
-#include "zerocoin/Accumulator.h"
-#include "zerocoin/AccumulatorProofOfKnowledge.h"
 
 #include <type_traits>
 

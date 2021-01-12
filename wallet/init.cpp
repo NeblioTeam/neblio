@@ -15,7 +15,6 @@
 #include "net.h"
 #include "ui_interface.h"
 #include "util.h"
-#include "zerocoin/ZeroTest.h"
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/convenience.hpp>
@@ -835,9 +834,9 @@ bool AppInit2()
 
     const boost::optional<std::string> printBlock = mapArgs.get("-printblock");
     if (printBlock) {
-        const string strMatch = *printBlock;
-        int          nFound   = 0;
-        const auto blockIndexMap = mapBlockIndex.getInternalMap();
+        const string strMatch      = *printBlock;
+        int          nFound        = 0;
+        const auto   blockIndexMap = mapBlockIndex.getInternalMap();
         for (auto mi = blockIndexMap.cbegin(); mi != blockIndexMap.cend(); ++mi) {
             uint256 hash = (*mi).first;
             if (strncmp(hash.ToString().c_str(), strMatch.c_str(), strMatch.size()) == 0) {
@@ -852,14 +851,6 @@ bool AppInit2()
         if (nFound == 0)
             printf("No blocks matching %s were found\n", strMatch.c_str());
         return false;
-    }
-
-    // ********************************************************* Testing Zerocoin
-
-    if (GetBoolArg("-zerotest", false)) {
-        printf("\n=== ZeroCoin tests start ===\n");
-        Test_RunAllTests();
-        printf("=== ZeroCoin tests end ===\n\n");
     }
 
     // ********************************************************* Step 8: load wallet
