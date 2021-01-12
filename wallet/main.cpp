@@ -596,11 +596,8 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTran
 bool GetTransaction(const uint256& hash, CTransaction& tx, uint256& hashBlock)
 {
     {
-        LOCK(cs_main);
-        {
-            if (mempool.lookup(hash, tx)) {
-                return true;
-            }
+        if (mempool.lookup(hash, tx)) {
+            return true;
         }
         CTxDB    txdb("r");
         CTxIndex txindex;
@@ -1095,8 +1092,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     // Check for duplicate
     uint256 hash = pblock->GetHash();
     if (auto v = mapBlockIndex.get(hash).value_or(nullptr))
-        return error("ProcessBlock() : already have block %d %s", v->nHeight,
-                     hash.ToString().c_str());
+        return error("ProcessBlock() : already have block %d %s", v->nHeight, hash.ToString().c_str());
     if (mapOrphanBlocks.count(hash))
         return error("ProcessBlock() : already have block (orphan) %s", hash.ToString().c_str());
 
@@ -1414,8 +1410,7 @@ void PrintBlockTree()
     // pre-compute tree structure
     map<CBlockIndex*, vector<CBlockIndexSmartPtr>> mapNext;
     for (BlockIndexMapType::MapType::const_iterator mi = blockIndexMap.cbegin();
-         mi != blockIndexMap.cend();
-         ++mi) {
+         mi != blockIndexMap.cend(); ++mi) {
         CBlockIndexSmartPtr pindex = boost::atomic_load(&mi->second);
         mapNext[boost::atomic_load(&pindex->pprev).get()].push_back(pindex);
         // test
@@ -1903,7 +1898,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                     // In case we are on a very long side-chain, it is possible that we already have
                     // the last block in an inv bundle sent in response to getblocks. Try to detect
                     // this situation and push another getblocks to continue.
-                    pfrom->PushGetBlocks(mapBlockIndex.get_unsafe(inv.hash).value_or(nullptr).get(), uint256(0));
+                    pfrom->PushGetBlocks(mapBlockIndex.get_unsafe(inv.hash).value_or(nullptr).get(),
+                                         uint256(0));
                     if (fDebug)
                         printf("force request: %s\n", inv.ToString().c_str());
                 }
@@ -2518,8 +2514,8 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
         int64_t      nNow = GetTime() * 1000000;
         CTxDB        txdb("r");
         while (!pto->mapAskFor.empty() && (*pto->mapAskFor.begin()).first <= nNow) {
-            const CInv& inv = (*pto->mapAskFor.begin()).second;
-            auto lock = mapBlockIndex.get_shared_lock();
+            const CInv& inv  = (*pto->mapAskFor.begin()).second;
+            auto        lock = mapBlockIndex.get_shared_lock();
             if (!AlreadyHave(txdb, inv, mapBlockIndex)) {
                 if (fDebugNet)
                     printf("sending getdata: %s\n", inv.ToString().c_str());
