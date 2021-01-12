@@ -58,13 +58,8 @@ ColdStakingPage::ColdStakingPage(QWidget* parent)
 
     newStakeDelegationDialog = new NewStakeDelegationDialog(this);
 
-    if (Params().NetType() == NetworkType::Mainnet) {
-        connect(ui->delegateStakeButton, &QPushButton::clicked, this,
-                &ColdStakingPage::slot_messageColdStakeNotReady);
-    } else {
-        connect(ui->delegateStakeButton, &QPushButton::clicked, newStakeDelegationDialog,
-                &NewStakeDelegationDialog::open);
-    }
+    connect(ui->delegateStakeButton, &QPushButton::clicked, this,
+            &ColdStakingPage::slot_openNewColdStakeDialog);
 
     connect(ui->filter_lineEdit, &QLineEdit::textChanged, filter,
             &ColdStakingListFilterProxy::setFilterWildcard);
@@ -125,10 +120,23 @@ void ColdStakingPage::slot_enableStaking(const QModelIndex& idx) { model->whitel
 
 void ColdStakingPage::slot_disableStaking(const QModelIndex& idx) { model->blacklist(idx); }
 
-void ColdStakingPage::slot_messageColdStakeNotReady()
+void ColdStakingPage::slot_openNewColdStakeDialog()
 {
-    QMessageBox::information(this, "Cold Staking is Testnet-Only",
-                             "Neblio Cold Staking is not yet enabled on Mainnet.");
+    const int currentHeight =
+        std::max(cPeerBlockCounts.median(), CTxDB().GetBestChainHeight().value_or(0));
+    const int activationHeight =
+        Params().GetNetForks().getFirstBlockOfFork(NetworkFork::NETFORK__5_COLD_STAKING);
+
+    if (currentHeight >= activationHeight) {
+        newStakeDelegationDialog->open();
+    } else {
+        QMessageBox::information(this, "Cold Staking is Testnet-Only",
+                                 "Neblio Cold Staking is not yet enabled on Mainnet."
+                                 "It will be activated at height " +
+                                     QVariant(activationHeight).toString() + ". \n\n" +
+                                     QVariant(activationHeight - currentHeight).toString() +
+                                     " blocks remain for the activation");
+    }
 }
 
 ColdStakingPage::~ColdStakingPage()

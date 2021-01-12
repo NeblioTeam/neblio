@@ -80,6 +80,9 @@ extern std::set<std::shared_ptr<CWallet>>           setpwalletRegistered;
 extern std::unordered_map<uint256, CBlock*>         mapOrphanBlocks;
 extern boost::atomic<bool>                          fImporting;
 
+// Amount of blocks that other nodes claim to have
+extern CMedianFilter<int> cPeerBlockCounts;
+
 // Settings
 extern CAmount      nTransactionFee;
 extern CAmount      nReserveBalance;

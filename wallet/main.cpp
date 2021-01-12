@@ -51,7 +51,7 @@ libzerocoin::Params*               ZCParams;
 
 boost::atomic<bool> fImporting{false};
 
-CMedianFilter<int> cPeerBlockCounts(5, 0); // Amount of blocks that other nodes claim to have
+CMedianFilter<int> cPeerBlockCounts(5, 0);
 
 std::unordered_map<uint256, CBlock*> mapOrphanBlocks;
 multimap<uint256, CBlock*>           mapOrphanBlocksByPrev;
