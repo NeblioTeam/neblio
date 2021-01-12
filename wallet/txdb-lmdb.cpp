@@ -709,9 +709,14 @@ bool CTxDB::test1_ReadStrKeyVal(const string& key, string& val) { return Read(ke
 bool CTxDB::test1_ExistsStrKeyVal(const string& key) { return Exists(key, db_main); }
 bool CTxDB::test1_EraseStrKeyVal(const string& key) { return Erase(key, db_main); }
 
-bool CTxDB::test2_ReadMultipleStr1KeyVal(const string& key, std::vector<string>& val)
+bool CTxDB::test2_ReadMultipleStr1KeyVal(const string& key, vector<string>& val)
 {
     return ReadMultiple(key, val, false, db_ntp1tokenNames);
+}
+
+bool CTxDB::test2_ReadMultipleAllStr1KeyVal(std::map<string, vector<string>>& vals)
+{
+    return ReadMultipleWithKeys(vals, db_ntp1tokenNames);
 }
 
 bool CTxDB::test2_WriteStrKeyVal(const string& key, const string& val)
@@ -882,7 +887,8 @@ bool CTxDB::WriteBestInvalidTrust(const CBigNum& bnBestInvalidTrust)
     return Write(string("bnBestInvalidTrust"), bnBestInvalidTrust, db_main);
 }
 
-static CBlockIndexSmartPtr InsertBlockIndex(const uint256& hash, BlockIndexMapType::MapType& blockIndexMap)
+static CBlockIndexSmartPtr InsertBlockIndex(const uint256&              hash,
+                                            BlockIndexMapType::MapType& blockIndexMap)
 {
     if (hash == 0)
         return nullptr;
@@ -1074,11 +1080,11 @@ bool CTxDB::LoadBlockIndex()
 
     const int bestHeight = loadedBlockIndex.at(hashBestChainTemp)->nHeight;
 
-    printf(
-        "LoadBlockIndex(): hashBestChain=%s  height=%d  trust=%s  date=%s\n",
-        hashBestChainTemp.ToString().substr(0, 20).c_str(), bestHeight,
-        CBigNum(GetBestChainTrust().value_or(0)).ToString().c_str(),
-        DateTimeStrFormat("%x %H:%M:%S", loadedBlockIndex.at(hashBestChainTemp)->GetBlockTime()).c_str());
+    printf("LoadBlockIndex(): hashBestChain=%s  height=%d  trust=%s  date=%s\n",
+           hashBestChainTemp.ToString().substr(0, 20).c_str(), bestHeight,
+           CBigNum(GetBestChainTrust().value_or(0)).ToString().c_str(),
+           DateTimeStrFormat("%x %H:%M:%S", loadedBlockIndex.at(hashBestChainTemp)->GetBlockTime())
+               .c_str());
 
     // Load bnBestInvalidTrust, OK if it doesn't exist
     CBigNum bnBestInvalidTrust;
@@ -1097,8 +1103,8 @@ bool CTxDB::LoadBlockIndex()
     CBlockIndexSmartPtr              pindexFork = nullptr;
     map<uint256, const CBlockIndex*> mapBlockPos;
     loadedCount = 0;
-    for (ConstCBlockIndexSmartPtr pindex = loadedBlockIndex.at(hashBestChainTemp); pindex && pindex->pprev;
-         pindex                          = pindex->pprev) {
+    for (ConstCBlockIndexSmartPtr pindex = loadedBlockIndex.at(hashBestChainTemp);
+         pindex && pindex->pprev; pindex = pindex->pprev) {
 
         if (loadedCount % 100 == 0) {
             uiInterface.InitMessage("Verifying latest blocks (" + std::to_string(loadedCount) + "/" +
