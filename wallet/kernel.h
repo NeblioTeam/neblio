@@ -15,15 +15,15 @@ class CBlockIndex;
 static const int MODIFIER_INTERVAL_RATIO = 3;
 
 // Compute the hash modifier for proof-of-stake
-bool ComputeNextStakeModifier(const CBlockIndex* pindexPrev, uint64_t& nStakeModifier,
+bool ComputeNextStakeModifier(const ITxDB& txdb, const CBlockIndex* pindexPrev, uint64_t& nStakeModifier,
                               bool& fGeneratedStakeModifier);
 
 // Check whether stake kernel meets hash target
 // Sets hashProofOfStake on success return
-bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned int nTxPrevOffset,
-                          const CTransaction& txPrev, const COutPoint& prevout, unsigned int nTimeTx,
-                          uint256& hashProofOfStake, uint256& targetProofOfStake,
-                          bool fPrintProofOfStake = false);
+bool CheckStakeKernelHash(const ITxDB& txdb, unsigned int nBits, const CBlock& blockFrom,
+                          unsigned int nTxPrevOffset, const CTransaction& txPrev,
+                          const COutPoint& prevout, unsigned int nTimeTx, uint256& hashProofOfStake,
+                          uint256& targetProofOfStake, bool fPrintProofOfStake = false);
 
 // Check kernel hash target and coinstake signature
 // Sets hashProofOfStake on success return
@@ -40,6 +40,6 @@ unsigned int GetStakeModifierChecksum(const CBlockIndex* pindex);
 bool CheckStakeModifierCheckpoints(int nHeight, unsigned int nStakeModifierChecksum);
 
 // Get time weight using supplied timestamps
-int64_t GetWeight(int64_t nIntervalBeginning, int64_t nIntervalEnd);
+int64_t GetWeight(const ITxDB& txdb, int64_t nIntervalBeginning, int64_t nIntervalEnd);
 
 #endif // PPCOIN_KERNEL_H

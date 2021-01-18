@@ -77,18 +77,18 @@ public:
 
     const NetworkForks& GetNetForks() const { return *consensus.forks; }
 
-    int64_t     StakeMinAge() const;
+    int64_t     StakeMinAge(const ITxDB& txdb) const;
     int64_t     StakeMaxAge() const;
     int64_t     StakeModifierInterval() const;
     NetworkType NetType() const;
-    bool        PassedFirstValidNTP1Tx() const;
+    bool        PassedFirstValidNTP1Tx(const ITxDB* txdb = nullptr) const;
     int64_t     TargetTimeSpan() const;
 
-    unsigned int OpReturnMaxSize() const;
+    unsigned int OpReturnMaxSize(const ITxDB& txdb) const;
 
-    unsigned int TargetSpacing() const;
+    unsigned int TargetSpacing(const ITxDB& txdb) const;
 
-    int CoinbaseMaturity() const;
+    int CoinbaseMaturity(const ITxDB& txdb) const;
 
     const CBigNum& PoWLimit() const;
     const CBigNum& PoSLimit() const;
@@ -108,7 +108,7 @@ public:
      */
     unsigned int MaxInputsInStake() const;
 
-    bool IsColdStakingEnabled() const;
+    bool IsColdStakingEnabled(const ITxDB& txdb) const;
 
     CAmount MinColdStakingAmount() const;
 

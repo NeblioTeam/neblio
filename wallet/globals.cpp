@@ -2,17 +2,18 @@
 
 #include "txmempool.h"
 
-CTxMemPool              mempool;
-boost::atomic<uint32_t> nTransactionsUpdated{0};
+CTxMemPool mempool;
 
 BlockIndexMapType   mapBlockIndex;
-CBlockIndexSmartPtr pindexBest{nullptr};
 CBlockIndexSmartPtr pindexGenesisBlock = nullptr;
 
-bool               fUseFastIndex;
-boost::atomic<int> nBestHeight{-1};
+boost::atomic_int64_t nTimeLastBestBlockReceived{0};
 
-CBlockIndexSmartPtr pblockindexFBBHLast;
+bool fUseFastIndex;
+
+boost::atomic<uint32_t> nTransactionsUpdated{0};
+
+boost::atomic<uint256> nBestInvalidTrust{0};
 
 boost::atomic<int64_t> NodeIDCounter{0};
 
@@ -26,4 +27,16 @@ std::string SanitizeString(const std::string& str, int rule)
             strResult.push_back(str[i]);
     }
     return strResult;
+}
+
+void BestChainState::setBestChain(const CBlockIndexSmartPtr pindex, bool updateCountersAndTimes)
+{
+    bestBlockHash = pindex->GetBlockHash();
+    boost::atomic_store(&bestBlockIndex, pindex);
+    bestHeight     = pindex->nHeight;
+    bestChainTrust = pindex->nChainTrust;
+    if (updateCountersAndTimes) {
+        nTimeLastBestBlockReceived = GetTime();
+        nTransactionsUpdated++;
+    }
 }

@@ -7,7 +7,7 @@
 
 CBlockIndex::CBlockIndex()
 {
-    phashBlock             = NULL;
+    phashBlock             = 0;
     pprev                  = NULL;
     pnext                  = NULL;
     blockKeyInDB           = 0;
@@ -31,7 +31,7 @@ CBlockIndex::CBlockIndex()
 
 CBlockIndex::CBlockIndex(uint256 nBlockPosIn, CBlock& block)
 {
-    phashBlock             = NULL;
+    phashBlock             = 0;
     pprev                  = NULL;
     pnext                  = NULL;
     blockKeyInDB           = nBlockPosIn;
@@ -97,9 +97,9 @@ uint256 CBlockIndex::GetBlockTrust() const
     return ((CBigNum(1) << 256) / (bnTarget + 1)).getuint256();
 }
 
-bool CBlockIndex::IsInMainChain() const
+bool CBlockIndex::IsInMainChain(const ITxDB& txdb) const
 {
-    return (pnext || this == boost::atomic_load(&pindexBest).get());
+    return (pnext || this == txdb.GetBestBlockIndex().get());
 }
 
 bool CBlockIndex::IsSuperMajority(int minVersion, const CBlockIndex* pstart, unsigned int nRequired,

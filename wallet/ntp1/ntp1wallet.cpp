@@ -3,6 +3,7 @@
 // the following is a necessary include for pwalletMain and CWalletTx objects
 #include "init.h"
 #include "main.h"
+#include "txmempool.h"
 
 #include <boost/algorithm/hex.hpp>
 #include <boost/algorithm/string.hpp>
@@ -142,7 +143,17 @@ void NTP1Wallet::__getOutputs()
 
                     // find issue transaction to get meta data from
                     uint256      issueTxid = tokenTx.getIssueTxId();
-                    CTransaction issueTx   = CTransaction::FetchTxFromDisk(issueTxid);
+                    CTransaction issueTx;
+                    try {
+                        issueTx = CTransaction::FetchTxFromDisk(issueTxid);
+                    } catch (const std::exception& ex) {
+                        if (!mempool.lookup(issueTxid, issueTx)) {
+                            throw std::runtime_error(
+                                "Transaction not found on disk or mempool. Disk search error: " +
+                                std::string(ex.what()));
+                        }
+                    }
+
                     std::vector<std::pair<CTransaction, NTP1Transaction>> issueTxInputs =
                         NTP1Transaction::GetAllNTP1InputsOfTx(issueTx, true);
                     NTP1Transaction issueNTP1Tx;
@@ -313,7 +324,7 @@ NTP1Int NTP1Wallet::getTokenBalance(const std::string& tokenID) const
     }
 }
 
-std::string NTP1Wallet::getTokenName(int index) const
+std::string NTP1Wallet::getTokenNameFromIndex(int index) const
 {
     std::map<std::string, NTP1Int>::const_iterator it = balances.begin();
     std::advance(it, index);
@@ -326,7 +337,7 @@ std::string NTP1Wallet::getTokenName(int index) const
     }
 }
 
-std::string NTP1Wallet::getTokenId(int index) const
+std::string NTP1Wallet::getTokenID(int index) const
 {
     std::map<std::string, NTP1Int>::const_iterator it = balances.begin();
     std::advance(it, index);
@@ -390,12 +401,12 @@ std::string NTP1Wallet::__downloadIcon(const std::string& IconURL)
 }
 
 void NTP1Wallet::__asyncDownloadAndSetIcon(std::string IconURL, std::string tokenId,
-                                           boost::shared_ptr<NTP1Wallet> wallet)
+                                           NTP1WalletPtr wallet)
 {
-    wallet->tokenIcons.set(tokenId, __downloadIcon(IconURL));
+    wallet->setTokenIcon(tokenId, __downloadIcon(IconURL));
 }
 
-std::string NTP1Wallet::getTokenIcon(int index)
+std::string NTP1Wallet::getAndCacheTokenIcon(int index)
 {
     std::map<std::string, NTP1Int>::const_iterator it = balances.begin();
     std::advance(it, index);
@@ -436,12 +447,10 @@ int64_t NTP1Wallet::getNumberOfTokens() const { return balances.size(); }
 
 const std::map<std::string, NTP1Int>& NTP1Wallet::getBalancesMap() const { return balances; }
 
-const std::unordered_map<NTP1OutPoint, NTP1Transaction>& NTP1Wallet::getWalletOutputsWithTokens()
+const std::unordered_map<NTP1OutPoint, NTP1Transaction>& NTP1Wallet::getWalletOutputsWithTokens() const
 {
     return walletOutputsWithTokens;
 }
-
-bool NTP1Wallet::hasEverSucceeded() const { return everSucceededInLoadingTokens; }
 
 bool NTP1Wallet::IconHasErrorContent(const std::string& icon) { return icon == ICON_ERROR_CONTENT; }
 
@@ -459,6 +468,11 @@ void NTP1Wallet::setMinMaxConfirmations(int minConfs, int maxConfs)
 {
     minConfirmations = minConfs;
     maxConfirmations = maxConfs;
+}
+
+void NTP1Wallet::setTokenIcon(const std::string& tokenId, const std::string& iconData)
+{
+    tokenIcons.set(tokenId, iconData);
 }
 
 std::string NTP1Wallet::Serialize(const NTP1Wallet& wallet)

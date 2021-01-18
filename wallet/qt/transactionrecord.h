@@ -18,7 +18,7 @@ class TransactionStatus
 {
 public:
     TransactionStatus()
-        : countsForBalance(false), sortKey(""), matures_in(0), status(Offline), depth(0), open_for(0),
+        : countsForBalance(false), sortKey(""), matures_in(0), status(Undetermined), depth(0), open_for(0),
           cur_num_blocks(-1)
     {
     }
@@ -36,7 +36,8 @@ public:
         /// Generated (mined) transactions
         Immature,       /**< Mined but waiting for maturity */
         MaturesWarning, /**< Transaction will likely not mature because no nodes have confirmed */
-        NotAccepted     /**< Mined but not accepted */
+        NotAccepted,    /**< Mined but not accepted */
+        Undetermined    /**< Initial state */
     };
 
     /// Transaction counts towards available balance
@@ -142,7 +143,7 @@ public:
 
     /** Return whether a status update is needed.
      */
-    bool statusUpdateNeeded();
+    bool statusUpdateNeeded() const;
 };
 
 #endif // TRANSACTIONRECORD_H

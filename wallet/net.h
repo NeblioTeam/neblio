@@ -27,7 +27,6 @@
 class CRequestTracker;
 class CNode;
 class CBlockIndex;
-extern boost::atomic<int> nBestHeight;
 
 inline unsigned int ReceiveFloodSize() { return 1000 * GetArg("-maxreceivebuffer", 5 * 1000); }
 inline unsigned int SendBufferSize() { return 1000 * GetArg("-maxsendbuffer", 1 * 1000); }

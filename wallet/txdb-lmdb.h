@@ -205,7 +205,7 @@ struct mdb_txn_safe
 // together when too many files stack up.
 //
 // Learn more: http://code.google.com/p/leveldb/
-class CTxDB : ITxDB
+class CTxDB : public ITxDB
 {
 public:
     static boost::filesystem::path DB_DIR;
@@ -256,7 +256,7 @@ protected:
 
     template <typename K, typename T>
     bool Read(const K& key, T& value, MDB_dbi* dbPtr, int serializationTypeModifiers = 0,
-              size_t offset = 0)
+              size_t offset = 0) const
     {
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         ssKey.reserve(1000);
@@ -299,7 +299,7 @@ protected:
                                 static_cast<const char*>(vS.mv_data) + vS.mv_size,
                                 SER_DISK | serializationTypeModifiers, CLIENT_VERSION);
             ssValue >> value;
-        } catch (std::exception& e) {
+        } catch (const std::exception& e) {
             printf("Failed to deserialized data when reading for key %s\n", ssKey.str().c_str());
             return false;
         }
@@ -314,7 +314,7 @@ protected:
      * is true, everything in the db will be read
      */
     template <typename K, typename T, template <typename, typename = std::allocator<T>> class Container>
-    bool ReadMultiple(const K& key, Container<T>& values, bool readAll, MDB_dbi* dbPtr)
+    bool ReadMultiple(const K& key, Container<T>& values, bool readAll, MDB_dbi* dbPtr) const
     {
         values.clear();
 
@@ -377,17 +377,110 @@ protected:
             // Unserialize value
             assert(vS.mv_data != nullptr);
             try {
+                CDataStream ssKeyFound(static_cast<const char*>(kS.mv_data),
+                                       static_cast<const char*>(kS.mv_data) + kS.mv_size, SER_DISK,
+                                       CLIENT_VERSION);
+                std::string keyFound;
+                ssKeyFound >> keyFound;
+                if (keyFound != key) {
+                    break;
+                }
                 CDataStream ssValue(static_cast<const char*>(vS.mv_data),
                                     static_cast<const char*>(vS.mv_data) + vS.mv_size, SER_DISK,
                                     CLIENT_VERSION);
                 T           value;
                 ssValue >> value;
                 values.insert(values.end(), value);
-            } catch (std::exception& e) {
+            } catch (const std::exception& e) {
                 unsigned int sz = static_cast<unsigned int>(values.size());
                 printf("Failed to deserialized element number %u in lmdb ReadMultiple() data when "
                        "reading for key %s\n",
                        sz, ssKey.str().c_str());
+                return false;
+            }
+
+            itemRes = mdb_cursor_get(cursorRawPtr, &kS, &vS, MDB_NEXT);
+        } while (itemRes == 0);
+
+        cursorPtr.reset();
+        if (localTxn.rawPtr()) {
+            localTxn.abort();
+        }
+        return true;
+    }
+
+    /**
+     * ReadMultipleWithKeys reads all keys and values in a db
+     */
+    template <typename K, typename T, template <typename, typename = std::allocator<T>> class Container>
+    bool ReadMultipleWithKeys(std::map<K, Container<T>>& values, MDB_dbi* dbPtr) const
+    {
+        values.clear();
+
+        mdb_txn_safe localTxn(false);
+        if (!activeBatch) {
+            localTxn = mdb_txn_safe();
+            if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
+                printf("Failed to begin transaction at read with error code %i; and error code: %s\n",
+                       res, mdb_strerror(res));
+            }
+        }
+        // only one of them should be active
+        assert(localTxn.rawPtr() == nullptr || activeBatch == nullptr);
+
+        MDB_val     kS           = {0, nullptr};
+        MDB_val     vS           = {0, nullptr};
+        MDB_cursor* cursorRawPtr = nullptr;
+        if (auto rc = mdb_cursor_open((!activeBatch ? localTxn : *activeBatch), *dbPtr, &cursorRawPtr)) {
+            return error("ReadMultiple: Failed to open lmdb cursor with error code %d; and error: %s\n",
+                         rc, mdb_strerror(rc));
+        }
+
+        std::unique_ptr<MDB_cursor, void (*)(MDB_cursor*)> cursorPtr(cursorRawPtr, [](MDB_cursor* p) {
+            if (p)
+                mdb_cursor_close(p);
+        });
+
+        int itemRes = 1;
+
+        // read all items in that database
+        itemRes = mdb_cursor_get(cursorPtr.get(), &kS, &vS, MDB_FIRST);
+        if (itemRes) {
+            if (itemRes != 0 && itemRes != MDB_NOTFOUND) {
+                printf("txdb-lmdb: Cursor does not exist while reading all entries; with an error of "
+                       "code %i; and error: %s\n",
+                       itemRes, mdb_strerror(itemRes));
+                if (localTxn.rawPtr()) {
+                    localTxn.abort();
+                }
+                return false;
+            }
+        }
+        do {
+            // if the first item is empty, break immediately
+            if (itemRes) {
+                break;
+            }
+
+            // Unserialize value
+            assert(vS.mv_data != nullptr);
+            try {
+                CDataStream ssKey(static_cast<const char*>(kS.mv_data),
+                                  static_cast<const char*>(kS.mv_data) + kS.mv_size, SER_DISK,
+                                  CLIENT_VERSION);
+                std::string key;
+                ssKey >> key;
+                CDataStream ssValue(static_cast<const char*>(vS.mv_data),
+                                    static_cast<const char*>(vS.mv_data) + vS.mv_size, SER_DISK,
+                                    CLIENT_VERSION);
+                T           value;
+                ssValue >> value;
+                Container<T>& cont = values[key];
+                cont.insert(cont.end(), value);
+            } catch (const std::exception& e) {
+                unsigned int sz = static_cast<unsigned int>(values.size());
+                printf("Failed to deserialized element number %u in lmdb ReadMultipleWithKeys() data\n",
+                       sz);
                 return false;
             }
 
@@ -461,74 +554,6 @@ protected:
         if (localTxn.rawPtr()) {
             localTxn.commitIfValid("Tx while writing");
         }
-        return true;
-    }
-
-    template <typename K, typename T>
-    bool WriteMultiple(const K& key, const T& value, MDB_dbi* dbPtr)
-    {
-        if (fReadOnly) {
-            printf("Accessing lmdb write function in read only mode");
-            assert("Write called on database in read-only mode");
-            return false;
-        }
-
-        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        ssKey.reserve(1000);
-        ssKey << key;
-        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        ssValue.reserve(10000);
-        ssValue << value;
-
-        // you can't resize the db when a tx is active
-        if (!activeBatch && CTxDB::need_resize()) {
-            printf("LMDB memory map needs to be resized, doing that now.\n");
-            CTxDB::do_resize();
-        }
-
-        mdb_txn_safe localTxn(false);
-        if (!activeBatch) {
-            localTxn = mdb_txn_safe();
-            if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, 0, localTxn)) {
-                printf("Failed to begin transaction at read with error code %i; and error: %s\n", res,
-                       mdb_strerror(res));
-            }
-        }
-
-        // only one of them should be active
-        assert(localTxn.rawPtr() == nullptr || activeBatch == nullptr);
-
-        std::string&& keyBin       = ssKey.str();
-        MDB_val       kS           = {keyBin.size(), (void*)(keyBin.c_str())};
-        std::string&& valBin       = ssValue.str();
-        MDB_val       vS           = {valBin.size(), (void*)(valBin.c_str())};
-        MDB_cursor*   cursorRawPtr = nullptr;
-        if (auto rc = mdb_cursor_open((!activeBatch ? localTxn : *activeBatch), *dbPtr, &cursorRawPtr)) {
-            return error("ReadMultiple: Failed to open lmdb cursor with error code %d; and error: %s\n",
-                         rc, mdb_strerror(rc));
-        }
-
-        std::unique_ptr<MDB_cursor, void (*)(MDB_cursor*)> cursorPtr(cursorRawPtr, [](MDB_cursor* p) {
-            if (p)
-                mdb_cursor_close(p);
-        });
-
-        if (auto ret = mdb_cursor_put(cursorPtr.get(), &kS, &vS, 0)) {
-            std::string dbgKey = KeyAsString(key, ssKey.str());
-            if (ret == MDB_MAP_FULL) {
-                printf("Failed to write key %s with lmdb, MDB_MAP_FULL\n", dbgKey.c_str());
-            } else {
-                printf("Failed to write key %s with lmdb; Code %i; Error: %s\n", dbgKey.c_str(), ret,
-                       mdb_strerror(ret));
-            }
-            if (localTxn.rawPtr()) {
-                localTxn.abort();
-            }
-            return false;
-        }
-
-        cursorPtr.reset();
-        localTxn.commitIfValid("Tx while writing");
         return true;
     }
 
@@ -648,7 +673,7 @@ protected:
     }
 
     template <typename K>
-    bool Exists(const K& key, MDB_dbi* dbPtr)
+    bool Exists(const K& key, MDB_dbi* dbPtr) const
     {
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         ssKey.reserve(1000);
@@ -716,38 +741,43 @@ public:
     bool test1_EraseStrKeyVal(const std::string& key);
 
     bool test2_ReadMultipleStr1KeyVal(const std::string& key, std::vector<std::string>& val);
+    bool test2_ReadMultipleAllStr1KeyVal(std::map<std::string, std::vector<std::string>>& vals);
     bool test2_WriteStrKeyVal(const std::string& key, const std::string& val);
     bool test2_ExistsStrKeyVal(const std::string& key);
     bool test2_EraseStrKeyVal(const std::string& key);
 
-    boost::optional<int> ReadVersion() override;
+    boost::optional<int> ReadVersion();
 
     bool WriteVersion(int nVersion) override;
-    bool ReadTxIndex(const uint256& hash, CTxIndex& txindex) override;
+    bool ReadTxIndex(const uint256& hash, CTxIndex& txindex) const override;
     bool UpdateTxIndex(const uint256& hash, const CTxIndex& txindex) override;
-    bool ReadTx(const CDiskTxPos& txPos, CTransaction& tx) override;
-    bool ReadNTP1Tx(const uint256& hash, NTP1Transaction& ntp1tx) override;
+    bool ReadTx(const CDiskTxPos& txPos, CTransaction& tx) const override;
+    bool ReadNTP1Tx(const uint256& hash, NTP1Transaction& ntp1tx) const override;
     bool WriteNTP1Tx(const uint256& hash, const NTP1Transaction& ntp1tx) override;
-    bool ReadAllIssuanceTxs(std::vector<uint256>& txs) override;
-    bool ReadNTP1TxsWithTokenSymbol(const std::string& tokenName, std::vector<uint256>& txs) override;
-    bool WriteNTP1TxWithTokenSymbol(const std::string& tokenName, const NTP1Transaction& tx) override;
-    bool ReadAddressPubKey(const CBitcoinAddress& address, std::vector<uint8_t>& pubkey) override;
+    bool ReadAllIssuanceTxs(std::vector<uint256>& txs) const override;
+    bool ReadNTP1TxsWithTokenSymbol(std::string tokenName, std::vector<uint256>& txs) const override;
+    bool WriteNTP1TxWithTokenSymbol(std::string tokenName, const NTP1Transaction& tx) override;
+    bool ReadAddressPubKey(const CBitcoinAddress& address, std::vector<uint8_t>& pubkey) const override;
     bool WriteAddressPubKey(const CBitcoinAddress& address, const std::vector<uint8_t>& pubkey) override;
     bool EraseTxIndex(const uint256& hash) override;
-    bool ContainsTx(const uint256& hash) override;
-    bool ContainsNTP1Tx(const uint256& hash) override;
-    bool ReadDiskTx(const uint256& hash, CTransaction& tx, CTxIndex& txindex) override;
-    bool ReadDiskTx(const uint256& hash, CTransaction& tx) override;
-    bool ReadDiskTx(const COutPoint& outpoint, CTransaction& tx, CTxIndex& txindex) override;
-    bool ReadDiskTx(const COutPoint& outpoint, CTransaction& tx) override;
-    bool ReadBlock(const uint256& hash, CBlock& blk, bool fReadTransactions = true) override;
+    bool ContainsTx(const uint256& hash) const override;
+    bool ContainsNTP1Tx(const uint256& hash) const override;
+    bool ReadDiskTx(const uint256& hash, CTransaction& tx, CTxIndex& txindex) const override;
+    bool ReadDiskTx(const uint256& hash, CTransaction& tx) const override;
+    bool ReadDiskTx(const COutPoint& outpoint, CTransaction& tx, CTxIndex& txindex) const override;
+    bool ReadDiskTx(const COutPoint& outpoint, CTransaction& tx) const override;
+    bool ReadBlock(const uint256& hash, CBlock& blk, bool fReadTransactions = true) const override;
     bool WriteBlock(const uint256& hash, const CBlock& blk) override;
     bool WriteBlockIndex(const CDiskBlockIndex& blockindex) override;
-    bool ReadHashBestChain(uint256& hashBestChain) override;
+    bool ReadHashBestChain(uint256& hashBestChain) const override;
     bool WriteHashBestChain(const uint256& hashBestChain) override;
-    bool ReadBestInvalidTrust(CBigNum& bnBestInvalidTrust) override;
+    bool ReadBestInvalidTrust(CBigNum& bnBestInvalidTrust) const override;
     bool WriteBestInvalidTrust(const CBigNum& bnBestInvalidTrust) override;
     bool LoadBlockIndex() override;
+    boost::optional<int>           GetBestChainHeight() const override;
+    boost::optional<uint256>       GetBestChainTrust() const override;
+    boost::shared_ptr<CBlockIndex> GetBestBlockIndex() const override;
+    uint256                        GetBestBlockHash() const override;
 
     static uintmax_t GetCurrentDiskUsage();
 

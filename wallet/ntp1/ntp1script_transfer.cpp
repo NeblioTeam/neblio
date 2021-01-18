@@ -37,7 +37,7 @@ std::vector<NTP1Script::TransferInstruction> NTP1Script_Transfer::getTransferIns
 }
 
 std::shared_ptr<NTP1Script_Transfer>
-NTP1Script_Transfer::ParseTransferPostHeaderData(std::string ScriptBin, std::string OpCodeBin)
+NTP1Script_Transfer::ParseNTP1v1TransferPostHeaderData(std::string ScriptBin, std::string OpCodeBin)
 {
     std::shared_ptr<NTP1Script_Transfer> result = std::make_shared<NTP1Script_Transfer>();
 
@@ -122,10 +122,12 @@ std::string NTP1Script_Transfer::calculateScriptBin() const
             result += metadata;
         }
 
-        if (isOpReturnSizeCheckEnabled() && result.size() > Params().OpReturnMaxSize()) {
+        const CTxDB txdb;
+
+        if (isOpReturnSizeCheckEnabled() && result.size() > Params().OpReturnMaxSize(txdb)) {
             throw std::runtime_error("Calculated script size (" + std::to_string(result.size()) +
                                      " bytes) is larger than the maximum allowed (" +
-                                     std::to_string(Params().OpReturnMaxSize()) + " bytes)");
+                                     std::to_string(Params().OpReturnMaxSize(txdb)) + " bytes)");
         }
 
         return result;

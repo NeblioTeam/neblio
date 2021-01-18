@@ -129,7 +129,7 @@ bool CheckHardened(int nHeight, const uint256& hash);
 int GetTotalBlocksEstimate();
 
 // Returns last CBlockIndex* in mapBlockIndex that is a checkpoint
-CBlockIndex* GetLastCheckpoint(const std::map<uint256, CBlockIndexSmartPtr>& mapBlockIndex);
+CBlockIndex* GetLastCheckpoint(const BlockIndexMapType &mapBlockIndex);
 
 CBlockIndex* GetLastSyncCheckpoint();
 bool    CheckSync(const uint256& blockHash, const CBlockIndex* pindexPrev, bool enableCaching = true,

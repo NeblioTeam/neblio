@@ -181,17 +181,33 @@ TEST(lmdb_tests, basic_multiple_read)
     CTxDB::QuickSyncHigherControl_Enabled = false;
     CTxDB db;
 
-    std::string k1 = "key1";
-    std::string v1 = "val1";
-    std::string v2 = "val2";
-    std::string v3 = "val3";
+    const std::string k1 = "key1";
+    const std::string k2 = "key2";
+    const std::string v1 = "val1";
+    const std::string v2 = "val2";
+    const std::string v3 = "val3";
+    const std::string v4 = "val4";
+    const std::string v5 = "val5";
+    const std::string v6 = "val6";
 
     EXPECT_TRUE(db.test2_WriteStrKeyVal(k1, v1));
     EXPECT_TRUE(db.test2_WriteStrKeyVal(k1, v2));
     EXPECT_TRUE(db.test2_WriteStrKeyVal(k1, v3));
-    std::vector<std::string> outs;
-    EXPECT_TRUE(db.test2_ReadMultipleStr1KeyVal(k1, outs));
-    EXPECT_EQ(outs, std::vector<std::string>({v1, v2, v3}));
+    EXPECT_TRUE(db.test2_WriteStrKeyVal(k2, v4));
+    EXPECT_TRUE(db.test2_WriteStrKeyVal(k2, v5));
+    EXPECT_TRUE(db.test2_WriteStrKeyVal(k2, v6));
+    std::vector<std::string> outs1;
+    std::vector<std::string> outs2;
+    EXPECT_TRUE(db.test2_ReadMultipleStr1KeyVal(k1, outs1));
+    EXPECT_EQ(outs1, std::vector<std::string>({v1, v2, v3}));
+    EXPECT_TRUE(db.test2_ReadMultipleStr1KeyVal(k2, outs2));
+    EXPECT_EQ(outs2, std::vector<std::string>({v4, v5, v6}));
+
+    std::map<std::string, std::vector<std::string>> allValsMap;
+    EXPECT_TRUE(db.test2_ReadMultipleAllStr1KeyVal(allValsMap));
+    EXPECT_EQ(allValsMap, (std::map<std::string, std::vector<std::string>>(
+                              {{k1, std::vector<std::string>({v1, v2, v3})},
+                               {k2, std::vector<std::string>({v4, v5, v6})}})));
 
     EXPECT_TRUE(db.test2_ExistsStrKeyVal(k1));
 

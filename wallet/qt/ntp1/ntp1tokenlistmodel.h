@@ -52,7 +52,10 @@ class NTP1TokenListModel : public QAbstractTableModel
 
         // WalletNewTxUpdateFunctor interface
     public:
-        void setReferenceBlockHeight() Q_DECL_OVERRIDE { currentBlockHeight = nBestHeight; }
+        void setReferenceBlockHeight() Q_DECL_OVERRIDE
+        {
+            currentBlockHeight = NTP1Transaction::GetCurrentBlockHeight();
+        }
     };
 
     boost::shared_ptr<NTP1WalletTxUpdater> ntp1WalletTxUpdater;

@@ -18,7 +18,7 @@ CreateColdStakeDelegation(const std::string& stakeAddress, CAmount nValue,
 {
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    if (!Params().IsColdStakingEnabled() && !fForceNotEnabled)
+    if (!Params().IsColdStakingEnabled(CTxDB()) && !fForceNotEnabled)
         return Err(ColdStakingDisabled);
 
     // Get Staking Address

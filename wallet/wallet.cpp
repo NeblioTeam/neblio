@@ -271,7 +271,7 @@ void CWallet::SetBestChain(const CBlockLocator& loc)
     CWalletDB walletdb(strWalletFile);
     if (!walletdb.WriteBestBlock(loc))
         printf("Failed to write best chain to wallet at: %s\n",
-               boost::atomic_load(&pindexBest).get()->phashBlock->ToString().c_str());
+               CTxDB().GetBestBlockHash().ToString().c_str());
 }
 
 bool CWallet::SetMinVersion(enum WalletFeature nVersion, CWalletDB* pwalletdbIn, bool fExplicit)
@@ -449,9 +449,12 @@ void CWallet::MarkDirty()
 
 unsigned int CWallet::ComputeTimeSmart(const CWalletTx& wtx) const
 {
+    AssertLockHeld(cs_wallet);
+
     unsigned int nTimeSmart = wtx.nTimeReceived;
     if (wtx.hashBlock != 0) {
-        if (mapBlockIndex.count(wtx.hashBlock)) {
+        const auto bi = mapBlockIndex.get(wtx.hashBlock).value_or(nullptr);
+        if (bi) {
             int64_t latestNow   = wtx.nTimeReceived;
             int64_t latestEntry = 0;
             {
@@ -480,7 +483,7 @@ unsigned int CWallet::ComputeTimeSmart(const CWalletTx& wtx) const
                 }
             }
 
-            int64_t blocktime = mapBlockIndex[wtx.hashBlock]->GetBlockTime();
+            int64_t blocktime = bi->GetBlockTime();
             nTimeSmart        = std::max(latestEntry, std::min(blocktime, latestNow));
         } else
             printf("AddToWallet() : found %s in block %s not in index\n",
@@ -509,13 +512,22 @@ void CWallet::SyncMetaData(std::pair<TxSpends::iterator, TxSpends::iterator> ran
     if (!copyFrom) {
         return;
     }
-
+    if (copyFrom->IsCoinStake()) {
+        // we don't sync information from old coinstakes because they're definitely orphans
+        // this can cause the orphan transaction nTimeSmart to be adopted from the new transaction
+        return;
+    }
     // Now copy data from copyFrom to rest:
     for (TxSpends::iterator it = range.first; it != range.second; ++it) {
         const uint256& hash   = it->second;
         CWalletTx*     copyTo = &mapWallet[hash];
         if (copyFrom == copyTo)
             continue;
+        if (copyTo->IsCoinStake()) {
+            // we don't sync information to new coinstakes because we don't want new stakes data
+            // (including nTimeSmart) to be changed
+            continue;
+        }
         assert(copyFrom && "Oldest wallet transaction in range assumed to have been found.");
         // if (!copyFrom->IsEquivalentTo(*copyTo)) continue;
         copyTo->mapValue   = copyFrom->mapValue;
@@ -543,15 +555,17 @@ void CWallet::MarkConflicted(const uint256& hashBlock, const uint256& hashTx)
 {
     LOCK2(cs_main, cs_wallet);
 
-    const std::string bestblock = pindexBest->phashBlock->ToString();
-    const std::string bh        = hashBlock.ToString();
+    const std::string bh = hashBlock.ToString();
+
+    const CTxDB txdb;
 
     CBlockIndex* pindex;
-    assert(mapBlockIndex.count(hashBlock));
-    pindex               = mapBlockIndex.at(hashBlock).get();
+    const auto   bi = mapBlockIndex.get(hashBlock).value_or(nullptr);
+    assert(bi);
+    pindex               = bi.get();
     int conflictconfirms = 0;
-    if (pindex->IsInMainChain()) {
-        conflictconfirms = -(nBestHeight - pindex->nHeight + 1);
+    if (pindex->IsInMainChain(txdb)) {
+        conflictconfirms = -(txdb.GetBestChainHeight().value_or(0) - pindex->nHeight + 1);
     }
     //    assert(conflictconfirms < 0);
     if (conflictconfirms >= 0)
@@ -623,12 +637,14 @@ void CWallet::AddToSpends(const uint256& wtxid)
 
 bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFromLoadWallet, CWalletDB* pwalletdb)
 {
+    AssertLockHeld(cs_wallet);
+
     uint256 hash = wtxIn.GetHash();
 
     // update NTP1 transactions
     if (walletNewTxUpdateFunctor) {
         walletNewTxUpdateFunctor->setReferenceBlockHeight();
-        walletNewTxUpdateFunctor->run(hash, nBestHeight);
+        walletNewTxUpdateFunctor->run(hash, CTxDB().GetBestChainHeight().value_or(0));
     }
 
     if (fFromLoadWallet) {
@@ -900,7 +916,7 @@ std::set<uint256> CWallet::GetConflicts(const uint256& txid) const
 
     auto lock = mapTxSpends.get_lock();
     for (const CTxIn& txin : wtx.vin) {
-        if (mapTxSpends.get_unsafe().count(txin.prevout) <= 1 /* || wtx.HasZerocoinSpendInputs()*/)
+        if (mapTxSpends.get_unsafe().count(txin.prevout) <= 1)
             continue; // No conflict if zero or one spends
         range = mapTxSpends.get_unsafe().equal_range(txin.prevout);
         for (TxSpends::const_iterator it = range.first; it != range.second; ++it)
@@ -1057,14 +1073,16 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
     uint64_t blockCount = pindexStart->nHeight;
 
     {
+        CTxDB txdb;
         LOCK2(cs_main, cs_wallet);
-        printf("Starting wallet rescan of %d blocks...\n", nBestHeight.load());
+        const int bestHeight = txdb.GetBestChainHeight().value_or(0);
+        printf("Starting wallet rescan of %d blocks...\n", bestHeight);
         while (pindex) {
             blockCount++;
 
             if (blockCount % 1000 == 0) {
                 uiInterface.InitMessage(_("Rescanning... ") + "(block: " + std::to_string(blockCount) +
-                                        "/" + std::to_string(nBestHeight) + ")");
+                                        "/" + std::to_string(bestHeight) + ")");
                 printf("Done scanning %" PRIu64 " blocks\n", blockCount);
             }
 
@@ -1149,7 +1167,7 @@ void CWallet::ResendWalletTransactions(bool fForce)
 
         // Only do it if there's been a new block since last time
         static int64_t nLastTime;
-        if (nTimeBestReceived < nLastTime)
+        if (nTimeLastBestBlockReceived < nLastTime)
             return;
         nLastTime = GetTime();
     }
@@ -1165,12 +1183,12 @@ void CWallet::ResendWalletTransactions(bool fForce)
             CWalletTx& wtx = item.second;
             // Don't rebroadcast until it's had plenty of time that
             // it should have gotten in already by now.
-            if (fForce || nTimeBestReceived - (int64_t)wtx.nTimeReceived > 5 * 60)
+            if (fForce || nTimeLastBestBlockReceived - (int64_t)wtx.nTimeReceived > 5 * 60)
                 mapSorted.insert(make_pair(wtx.nTimeReceived, &wtx));
         }
         for (PAIRTYPE(const unsigned int, CWalletTx*) & item : mapSorted) {
             CWalletTx& wtx = *item.second;
-            if (wtx.CheckTransaction().isOk())
+            if (wtx.CheckTransaction(txdb).isOk())
                 wtx.RelayWalletTransaction();
             else
                 printf("ResendWalletTransactions() : CheckTransaction failed for transaction %s\n",
@@ -1218,7 +1236,7 @@ CAmount CWallet::GetColdStakingBalance() const
 CAmount CWallet::GetStakingBalance(const bool fIncludeColdStaking) const
 {
     return GetBalance() +
-           (Params().IsColdStakingEnabled() && fIncludeColdStaking ? GetColdStakingBalance() : 0);
+           (Params().IsColdStakingEnabled(CTxDB()) && fIncludeColdStaking ? GetColdStakingBalance() : 0);
 }
 
 CAmount CWallet::GetDelegatedBalance() const
@@ -1412,7 +1430,7 @@ void CWallet::AvailableCoinsForStaking(vector<COutput>& vCoins, unsigned int nSp
 
     {
         LOCK2(cs_main, cs_wallet);
-        unsigned int nSMA = Params().StakeMinAge();
+        unsigned int nSMA = Params().StakeMinAge(CTxDB());
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end();
              ++it) {
             const CWalletTx* pcoin = &(*it).second;
@@ -1560,6 +1578,8 @@ bool CWallet::AddAccountingEntry(const CAccountingEntry& acentry, CWalletDB& pwa
 {
     if (!pwalletdb.WriteAccountingEntry(acentry))
         return false;
+
+    LOCK(cs_wallet);
 
     laccentries.push_back(acentry);
     CAccountingEntry& entry = laccentries.back();
@@ -1841,11 +1861,12 @@ void CWallet::SetTxNTP1OpRet(CTransaction& wtxNew, const std::shared_ptr<NTP1Scr
         throw std::runtime_error("Could not find OP_RETURN output to fix change output index");
     }
 
-    if (opRetScriptBin.size() > Params().OpReturnMaxSize()) {
-        // the blockchain consensus rules prevents OP_RETURN sizes larger than DataSize(nBestHeight)
+    if (opRetScriptBin.size() > Params().OpReturnMaxSize(CTxDB())) {
+        // the blockchain consensus rules prevents OP_RETURN sizes larger than
+        // DataSize(bestChain.getBestHeight())
         throw std::runtime_error("The data associated with the transaction is larger than the maximum "
                                  "allowed size for metadata (" +
-                                 ToString(Params().OpReturnMaxSize()) + " bytes).");
+                                 ToString(Params().OpReturnMaxSize(CTxDB())) + " bytes).");
     }
 
     it->scriptPubKey = CScript() << OP_RETURN << ParseHex(opRetScriptHex);
@@ -2277,7 +2298,7 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, CAmount>>& vecSend, C
                 // Check that enough fee is included
                 CAmount NTP1Fee = ntp1TxData.getRequiredNeblsForOutputs();
                 CAmount nPayFee = nTransactionFee * (1 + (CAmount)nBytes / 1000) + NTP1Fee;
-                CAmount nMinFee = wtxNew.GetMinFee(1, GMF_SEND, nBytes) + NTP1Fee;
+                CAmount nMinFee = wtxNew.GetMinFee(txdb, 1, GMF_SEND, nBytes) + NTP1Fee;
 
                 if (nFeeRet < max(nPayFee, nMinFee)) {
                     nFeeRet = max(nPayFee, nMinFee);
@@ -2337,8 +2358,9 @@ bool CWallet::GetStakeWeight(const set<pair<const CWalletTx*, unsigned int>>& se
     if (setCoins.empty())
         return false;
 
+    CTxDB txdb("r");
     for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
-        const int64_t nTimeWeight = GetWeight((int64_t)pcoin.first->nTime, (int64_t)GetTime());
+        const int64_t nTimeWeight = GetWeight(txdb, (int64_t)pcoin.first->nTime, (int64_t)GetTime());
         const CBigNum bnCoinDayWeight =
             CBigNum(pcoin.first->vout[pcoin.second].nValue) * nTimeWeight / COIN / (24 * 60 * 60);
 
@@ -2500,7 +2522,7 @@ string CWallet::SendMoneyToDestination(const CTxDestination& address, CAmount nV
     return SendMoney(scriptPubKey, nValue, wtxNew, fAskFee);
 }
 
-string CWallet::SendNTP1ToDestination(const CTxDestination& address, CAmount nValue,
+string CWallet::SendNTP1ToDestination(const CTxDestination& address, NTP1Int nValue,
                                       const std::string& TokenId, CWalletTx& wtxNew,
                                       boost::shared_ptr<NTP1Wallet>    ntp1wallet,
                                       const RawNTP1MetadataBeforeSend& ntp1metadata, bool fAskFee)
@@ -3070,6 +3092,8 @@ void CWallet::GetKeyBirthTimes(std::map<CKeyID, int64_t>& mapKeyBirth) const
     AssertLockHeld(cs_wallet); // mapKeyMetadata
     mapKeyBirth.clear();
 
+    const CTxDB txdb;
+
     // get birth times for keys with metadata
     for (std::map<CKeyID, CKeyMetadata>::const_iterator it = mapKeyMetadata.begin();
          it != mapKeyMetadata.end(); it++)
@@ -3078,7 +3102,8 @@ void CWallet::GetKeyBirthTimes(std::map<CKeyID, int64_t>& mapKeyBirth) const
 
     // map in which we'll infer heights of other keys
     CBlockIndexSmartPtr pindexMax = CBlock::FindBlockByHeight(
-        std::max(0, nBestHeight - 144)); // the tip can be reorganised; use a 144-block safety margin
+        std::max(0, txdb.GetBestChainHeight().value_or(0) -
+                        144)); // the tip can be reorganised; use a 144-block safety margin
     std::map<CKeyID, CBlockIndexSmartPtr> mapKeyFirstBlock;
     std::set<CKeyID>                      setKeys;
     GetKeys(setKeys);
@@ -3097,11 +3122,11 @@ void CWallet::GetKeyBirthTimes(std::map<CKeyID, int64_t>& mapKeyBirth) const
     for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end();
          it++) {
         // iterate over all wallet transactions...
-        const CWalletTx&                  wtx  = it->second;
-        BlockIndexMapType::const_iterator blit = mapBlockIndex.find(wtx.hashBlock);
-        if (blit != mapBlockIndex.end() && blit->second->IsInMainChain()) {
+        const CWalletTx& wtx = it->second;
+        const auto       bli = mapBlockIndex.get(wtx.hashBlock).value_or(nullptr);
+        if (bli && bli->IsInMainChain(txdb)) {
             // ... which are already in a block
-            int nHeight = blit->second->nHeight;
+            int nHeight = bli->nHeight;
             for (const CTxOut& txout : wtx.vout) {
                 // iterate over all their outputs
                 ::ExtractAffectedKeys(*this, txout.scriptPubKey, vAffected);
@@ -3109,7 +3134,7 @@ void CWallet::GetKeyBirthTimes(std::map<CKeyID, int64_t>& mapKeyBirth) const
                     // ... and all their affected keys
                     std::map<CKeyID, CBlockIndexSmartPtr>::iterator rit = mapKeyFirstBlock.find(keyid);
                     if (rit != mapKeyFirstBlock.end() && nHeight < rit->second->nHeight)
-                        rit->second = boost::atomic_load(&blit->second);
+                        rit->second = bli;
                 }
                 vAffected.clear();
             }

@@ -8,6 +8,8 @@
 #include "bloom.h"
 #include "key.h"
 #include "main.h"
+#include "mocks/mtxdb.h"
+#include "ntp1/ntp1transaction.h"
 #include "util.h"
 
 using namespace std;
@@ -226,7 +228,13 @@ TEST(bloom_tests, bloom_match)
     CDataStream  stream(ParseHex(transactionStr), SER_NETWORK, PROTOCOL_VERSION);
     CTransaction tx;
     stream >> tx;
-    EXPECT_TRUE(tx.CheckTransaction().isOk()) << "Simple deserialized transaction should be valid.";
+
+    boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
+    EXPECT_CALL(*dbMock, GetBestChainHeight())
+        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+
+    EXPECT_TRUE(tx.CheckTransaction(*dbMock).isOk())
+        << "Simple deserialized transaction should be valid.";
 
     string spendTransaction =
         "010000004d73435a01d3db1c519251eeecc76b3c68e550988290aa1d7c63d6b396b0ad069ebe987335000000006b483"
@@ -237,7 +245,7 @@ TEST(bloom_tests, bloom_match)
     CDataStream  spendStream(ParseHex(spendTransaction), SER_NETWORK, PROTOCOL_VERSION);
     CTransaction spendingTx;
     spendStream >> spendingTx;
-    EXPECT_TRUE(spendingTx.CheckTransaction().isOk())
+    EXPECT_TRUE(spendingTx.CheckTransaction(*dbMock).isOk())
         << "Simple deserialized of spending transaction should be valid.";
 
     CBloomFilter filter(10, 0.000001, 0, BLOOM_UPDATE_ALL);

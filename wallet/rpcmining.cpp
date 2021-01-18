@@ -35,14 +35,15 @@ Value getmininginfo(const Array& params, bool fHelp)
     uint64_t nMinWeight = 0, nMaxWeight = 0, nWeight = 0;
     pwalletMain->GetStakeWeight(nMinWeight, nMaxWeight, nWeight);
 
+    ConstCBlockIndexSmartPtr bestBlockIndex = CTxDB().GetBestBlockIndex();
+
     Object obj, diff, weight;
-    obj.push_back(Pair("blocks", (int)nBestHeight));
+    obj.push_back(Pair("blocks", (int)bestBlockIndex->nHeight));
     obj.push_back(Pair("currentblocksize", (uint64_t)nLastBlockSize));
     obj.push_back(Pair("currentblocktx", (uint64_t)nLastBlockTx));
 
     diff.push_back(Pair("proof-of-work", GetDifficulty()));
-    diff.push_back(Pair("proof-of-stake",
-                        GetDifficulty(GetLastBlockIndex(boost::atomic_load(&pindexBest).get(), true))));
+    diff.push_back(Pair("proof-of-stake", GetDifficulty(GetLastBlockIndex(bestBlockIndex.get(), true))));
     diff.push_back(Pair("search-interval", (int)stakeMaker.getLastCoinStakeSearchInterval()));
     obj.push_back(Pair("difficulty", diff));
 
@@ -71,7 +72,7 @@ Value getstakinginfo(const Array& params, bool fHelp)
     const uint64_t     nNetworkWeight = GetPoSKernelPS();
     const bool         staking        = stakeMaker.IsStakingActive();
     const uint64_t     nWeight        = stakeMaker.getLatestStakeWeight().value_or(0);
-    const unsigned int nTS            = Params().TargetSpacing();
+    const unsigned int nTS            = Params().TargetSpacing(CTxDB());
     const int          nExpectedTime  = staking && !!nWeight ? (nTS * nNetworkWeight / nWeight) : -1;
 
     Object stakingCriteria;
@@ -88,7 +89,8 @@ Value getstakinginfo(const Array& params, bool fHelp)
 
     const std::size_t stakableCoinsCount = []() {
         std::vector<COutput> vCoins;
-        bool fIncludeColdStaking = Params().IsColdStakingEnabled() && GetBoolArg("-coldstaking", true);
+        bool                 fIncludeColdStaking =
+            Params().IsColdStakingEnabled(CTxDB()) && GetBoolArg("-coldstaking", true);
         pwalletMain->AvailableCoinsForStaking(vCoins, GetAdjustedTime(), fIncludeColdStaking, false);
         return vCoins.size();
     }();
@@ -111,8 +113,8 @@ Value getstakinginfo(const Array& params, bool fHelp)
     obj.push_back(Pair("currentblocktx", (uint64_t)nLastBlockTx));
     obj.push_back(Pair("pooledtx", (uint64_t)mempool.size()));
 
-    obj.push_back(Pair("difficulty",
-                       GetDifficulty(GetLastBlockIndex(boost::atomic_load(&pindexBest).get(), true))));
+    obj.push_back(
+        Pair("difficulty", GetDifficulty(GetLastBlockIndex(CTxDB().GetBestBlockIndex().get(), true))));
     obj.push_back(Pair("search-interval", (int)stakeMaker.getLastCoinStakeSearchInterval()));
 
     obj.push_back(Pair("weight", (uint64_t)nWeight));
@@ -135,7 +137,7 @@ Value getworkex(const Array& params, bool fHelp)
     if (IsInitialBlockDownload())
         throw JSONRPCError(-10, "neblio is downloading blocks...");
 
-    if (boost::atomic_load(&pindexBest)->nHeight >= Params().LastPoWBlock())
+    if (CTxDB().GetBestChainHeight().value_or(0) >= Params().LastPoWBlock())
         throw JSONRPCError(RPC_MISC_ERROR, "No more PoW blocks");
 
     typedef map<uint256, pair<CBlock*, CScript>> mapNewBlock_t;
@@ -149,9 +151,10 @@ Value getworkex(const Array& params, bool fHelp)
         static CBlockIndexSmartPtr pindexPrev;
         static int64_t             nStart;
         static CBlock*             pblock;
-        if (pindexPrev != pindexBest ||
+        auto                       bestBlockIndex = CTxDB().GetBestBlockIndex();
+        if (pindexPrev != bestBlockIndex ||
             (nTransactionsUpdated != nTransactionsUpdatedLast && GetTime() - nStart > 60)) {
-            if (pindexPrev != pindexBest) {
+            if (pindexPrev != bestBlockIndex) {
                 // Deallocate old blocks since they're obsolete now
                 mapNewBlock.clear();
                 BOOST_FOREACH (CBlock* pblock, vNewBlock)
@@ -159,7 +162,7 @@ Value getworkex(const Array& params, bool fHelp)
                 vNewBlock.clear();
             }
             nTransactionsUpdatedLast = nTransactionsUpdated;
-            pindexPrev               = pindexBest;
+            pindexPrev               = bestBlockIndex;
             nStart                   = GetTime();
 
             // Create new block
@@ -263,7 +266,8 @@ Value getwork(const Array& params, bool fHelp)
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "neblio is downloading blocks...");
 
-    if (boost::atomic_load(&pindexBest)->nHeight >= Params().LastPoWBlock())
+    auto bestBlockIndex = CTxDB().GetBestBlockIndex();
+    if (bestBlockIndex->nHeight >= Params().LastPoWBlock())
         throw JSONRPCError(RPC_MISC_ERROR, "No more PoW blocks");
 
     typedef map<uint256, pair<CBlock*, CScript>> mapNewBlock_t;
@@ -277,9 +281,9 @@ Value getwork(const Array& params, bool fHelp)
         static CBlockIndexSmartPtr pindexPrev;
         static int64_t             nStart;
         static CBlock*             pblock;
-        if (pindexPrev != boost::atomic_load(&pindexBest) ||
+        if (pindexPrev != bestBlockIndex ||
             (nTransactionsUpdated != nTransactionsUpdatedLast && GetTime() - nStart > 60)) {
-            if (pindexPrev != pindexBest) {
+            if (pindexPrev != bestBlockIndex) {
                 // Deallocate old blocks since they're obsolete now
                 mapNewBlock.clear();
                 for (CBlock* pblock : vNewBlock)
@@ -292,7 +296,7 @@ Value getwork(const Array& params, bool fHelp)
 
             // Store the pindexBest used before CreateNewBlock, to avoid races
             nTransactionsUpdatedLast          = nTransactionsUpdated;
-            CBlockIndexSmartPtr pindexPrevNew = pindexBest;
+            CBlockIndexSmartPtr pindexPrevNew = bestBlockIndex;
             nStart                            = GetTime();
 
             // Create new block
@@ -399,7 +403,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "neblio is downloading blocks...");
 
-    if (boost::atomic_load(&pindexBest)->nHeight >= Params().LastPoWBlock())
+    if (CTxDB().GetBestChainHeight().value_or(0) >= Params().LastPoWBlock())
         throw JSONRPCError(RPC_MISC_ERROR, "No more PoW blocks");
 
     static CReserveKey reservekey(pwalletMain.get());
@@ -409,14 +413,15 @@ Value getblocktemplate(const Array& params, bool fHelp)
     static CBlockIndexSmartPtr pindexPrev;
     static int64_t             nStart;
     static CBlock*             pblock;
-    if (pindexPrev != pindexBest ||
+    auto                       bestBlockIndex = CTxDB().GetBestBlockIndex();
+    if (pindexPrev != bestBlockIndex ||
         (nTransactionsUpdated != nTransactionsUpdatedLast && GetTime() - nStart > 5)) {
         // Clear pindexPrev so future calls make a new block, despite any failures from here on
         pindexPrev = NULL;
 
         // Store the pindexBest used before CreateNewBlock, to avoid races
         nTransactionsUpdatedLast          = nTransactionsUpdated;
-        CBlockIndexSmartPtr pindexPrevNew = boost::atomic_load(&pindexBest);
+        CBlockIndexSmartPtr pindexPrevNew = bestBlockIndex;
         nStart                            = GetTime();
 
         // Create new block
@@ -499,7 +504,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
     result.push_back(Pair("mutable", aMutable));
     result.push_back(Pair("noncerange", "00000000ffffffff"));
     result.push_back(Pair("sigoplimit", (int64_t)MAX_BLOCK_SIGOPS));
-    result.push_back(Pair("sizelimit", (int64_t)MaxBlockSize()));
+    result.push_back(Pair("sizelimit", (int64_t)MaxBlockSize(txdb)));
     result.push_back(Pair("curtime", (int64_t)pblock->nTime));
     result.push_back(Pair("bits", strprintf("%08x", pblock->nBits)));
     result.push_back(Pair("height", (int64_t)(pindexPrev->nHeight + 1)));
@@ -558,9 +563,9 @@ Value generateBlocks(int nGenerate, uint64_t nMaxTries, CWallet* const pwallet,
 {
     static const int nInnerLoopCount = 0x10000;
     int              nHeightEnd      = 0;
-    int              nHeight         = nBestHeight.load();
+    int              nHeight         = CTxDB().GetBestChainHeight().value_or(0);
 
-    nHeightEnd = nBestHeight.load() + nGenerate;
+    nHeightEnd = CTxDB().GetBestChainHeight().value_or(0) + nGenerate;
 
     unsigned int       nExtraNonce = 0;
     json_spirit::Array blockHashes;
@@ -588,7 +593,7 @@ Value generateBlocks(int nGenerate, uint64_t nMaxTries, CWallet* const pwallet,
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
         {
             LOCK(cs_main);
-            IncrementExtraNonce(pblock.get(), pindexBest.get(), nExtraNonce);
+            IncrementExtraNonce(pblock.get(), CTxDB().GetBestBlockIndex().get(), nExtraNonce);
         }
 
         boost::optional<unsigned int> nonce = MineBlock(*pblock, nMaxTries);
@@ -630,10 +635,12 @@ Value generatePOSBlocks(
     if (!Params().MineBlocksOnDemand())
         throw JSONRPCError(RPC_INVALID_REQUEST, "This method can only be used on regtest");
 
-    int nHeightEnd = 0;
-    int nHeight    = nBestHeight.load();
+    const CTxDB txdb;
 
-    nHeightEnd = nBestHeight.load() + nGenerate;
+    int nHeightEnd = 0;
+    int nHeight    = txdb.GetBestChainHeight().value_or(0);
+
+    nHeightEnd = txdb.GetBestChainHeight().value_or(0) + nGenerate;
 
     json_spirit::Array blockHashesOrSerializedData;
 
@@ -642,7 +649,7 @@ Value generatePOSBlocks(
         if (!block)
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
 
-        if (block->SignBlock(*pwallet, 0, customInputs, extraPayoutForTests)) {
+        if (block->SignBlock(txdb, *pwallet, 0, customInputs, extraPayoutForTests)) {
             if (submitBlock) {
                 if (!CheckStake(block.get(), *pwallet))
                     throw JSONRPCError(RPC_INTERNAL_ERROR, "CheckStake, CheckStake failed");

@@ -887,7 +887,7 @@ NTP1Transaction::GetAllNTP1InputsOfTx(CTransaction tx, CTxDB& txdb, bool recover
 }
 
 std::vector<std::pair<CTransaction, NTP1Transaction>> NTP1Transaction::GetAllNTP1InputsOfTx(
-    CTransaction tx, CTxDB& txdb, bool recoverProtection,
+    CTransaction tx, const ITxDB& txdb, bool recoverProtection,
     const std::map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>& mapQueuedNTP1Inputs,
     const std::map<uint256, CTxIndex>& queuedAcceptedTxs, int recursionCount)
 {
@@ -909,7 +909,7 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> NTP1Transaction::GetAllNTP
 }
 
 std::vector<std::pair<CTransaction, NTP1Transaction>> NTP1Transaction::StdFetchedInputTxsToNTP1(
-    const CTransaction& tx, const MapPrevTx& mapInputs, CTxDB& txdb, bool recoverProtection,
+    const CTransaction& tx, const MapPrevTx& mapInputs, const ITxDB& txdb, bool recoverProtection,
     const std::map<uint256, CTxIndex>& queuedAcceptedTxs, int recursionCount)
 {
     // It's not possible to use default parameter here because NTP1Transaction is an incomplete type in
@@ -921,7 +921,7 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> NTP1Transaction::StdFetche
 }
 
 std::vector<std::pair<CTransaction, NTP1Transaction>> NTP1Transaction::StdFetchedInputTxsToNTP1(
-    const CTransaction& tx, const MapPrevTx& mapInputs, CTxDB& txdb, bool recoverProtection,
+    const CTransaction& tx, const MapPrevTx& mapInputs, const ITxDB& txdb, bool recoverProtection,
     const std::map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>& mapQueuedNTP1Inputs,
     const std::map<uint256, CTxIndex>& queuedAcceptedTxs, int recursionCount)
 {
@@ -979,6 +979,15 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> NTP1Transaction::StdFetche
         inputsWithNTP1 = it->second;
     }
     return inputsWithNTP1;
+}
+
+int NTP1Transaction::GetCurrentBlockHeight(CTxDB* txdb)
+{
+    if (txdb) {
+        return txdb->GetBestChainHeight().value_or(0);
+    } else {
+        return CTxDB().GetBestChainHeight().value_or(0);
+    }
 }
 
 bool NTP1Transaction::IsTxNTP1(const CTransaction* tx, std::string* opReturnArg)
@@ -1077,4 +1086,11 @@ bool NTP1Transaction::IsTxOutputOpRet(const CTxOut* output, std::string* opRetur
         return true; // could not retrieve OP_RETURN argument
     }
     return false;
+}
+
+bool AreTokenSymbolsEquivalent(std::string lhs, std::string rhs)
+{
+    std::transform(lhs.begin(), lhs.end(), lhs.begin(), ::toupper);
+    std::transform(rhs.begin(), rhs.end(), rhs.begin(), ::toupper);
+    return lhs == rhs;
 }

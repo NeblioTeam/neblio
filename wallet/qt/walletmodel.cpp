@@ -87,6 +87,9 @@ void WalletModel::pollBalanceChanged()
     if (!lock)
         return;
 
+    const ConstCBlockIndexSmartPtr pindexBest = CTxDB().GetBestBlockIndex();
+    const int currentBlockHeight = pindexBest ? pindexBest->nHeight : 0;
+
     // Don't continue processing if the chain tip time is less than the first
     // key creation time as there is no need to iterate over the transaction
     // table model in this case.
@@ -94,9 +97,9 @@ void WalletModel::pollBalanceChanged()
     if (pindexBest && tip->GetBlockTime() < getCreationTime())
         return;
 
-    if (nBestHeight != cachedNumBlocks) {
+    if (currentBlockHeight != cachedNumBlocks) {
         // Balance and number of transactions might have changed
-        cachedNumBlocks = nBestHeight;
+        cachedNumBlocks = currentBlockHeight;
 
         checkBalanceChanged();
 
@@ -144,7 +147,7 @@ void WalletModel::updateBalancesIfChanged(qint64 newBalance, qint64 newStake,
                                           qint64 newUnconfirmedBalance, qint64 newImmatureBalance)
 {
     // force sync since we got a vector from another thread
-    std::atomic_thread_fence(std::memory_order_seq_cst);
+    boost::atomic_thread_fence(boost::memory_order_seq_cst);
 
     if (!firstUpdateOfBalanceDone || cachedBalance != newBalance || cachedStake != newStake ||
         cachedUnconfirmedBalance != newUnconfirmedBalance ||

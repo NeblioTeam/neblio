@@ -15,7 +15,6 @@
 #include "net.h"
 #include "ui_interface.h"
 #include "util.h"
-#include "zerocoin/ZeroTest.h"
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/convenience.hpp>
@@ -835,9 +834,10 @@ bool AppInit2()
 
     const boost::optional<std::string> printBlock = mapArgs.get("-printblock");
     if (printBlock) {
-        const string strMatch = *printBlock;
-        int          nFound   = 0;
-        for (BlockIndexMapType::iterator mi = mapBlockIndex.begin(); mi != mapBlockIndex.end(); ++mi) {
+        const string strMatch      = *printBlock;
+        int          nFound        = 0;
+        const auto   blockIndexMap = mapBlockIndex.getInternalMap();
+        for (auto mi = blockIndexMap.cbegin(); mi != blockIndexMap.cend(); ++mi) {
             uint256 hash = (*mi).first;
             if (strncmp(hash.ToString().c_str(), strMatch.c_str(), strMatch.size()) == 0) {
                 CBlockIndexSmartPtr pindex = mi->second;
@@ -851,14 +851,6 @@ bool AppInit2()
         if (nFound == 0)
             printf("No blocks matching %s were found\n", strMatch.c_str());
         return false;
-    }
-
-    // ********************************************************* Testing Zerocoin
-
-    if (GetBoolArg("-zerotest", false)) {
-        printf("\n=== ZeroCoin tests start ===\n");
-        Test_RunAllTests();
-        printf("=== ZeroCoin tests end ===\n\n");
     }
 
     // ********************************************************* Step 8: load wallet
@@ -929,7 +921,7 @@ bool AppInit2()
 
     RegisterWallet(pwalletMain);
 
-    CBlockIndexSmartPtr pindexRescan = pindexBest;
+    CBlockIndexSmartPtr pindexRescan = CTxDB().GetBestBlockIndex();
     if (GetBoolArg("-rescan") ||
         SC_CheckOperationOnRestartScheduleThenDeleteIt(SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN))
         pindexRescan = boost::atomic_load(&pindexGenesisBlock);
@@ -941,11 +933,12 @@ bool AppInit2()
         else
             pindexRescan = boost::atomic_load(&pindexGenesisBlock);
     }
-    if (pindexBest != pindexRescan && pindexBest && pindexRescan &&
-        pindexBest->nHeight > pindexRescan->nHeight) {
+    ConstCBlockIndexSmartPtr bestBlockIndex = CTxDB().GetBestBlockIndex();
+    if (bestBlockIndex != pindexRescan && CTxDB().GetBestBlockIndex() && pindexRescan &&
+        bestBlockIndex->nHeight > pindexRescan->nHeight) {
         uiInterface.InitMessage(_("Rescanning..."));
         printf("Rescanning last %i blocks (from block %i)...\n",
-               pindexBest->nHeight - pindexRescan->nHeight, pindexRescan->nHeight);
+               bestBlockIndex->nHeight - pindexRescan->nHeight, pindexRescan->nHeight);
         nStart = GetTimeMillis();
         pwalletMain->ScanForWalletTransactions(pindexRescan.get(), true);
         printf(" rescan      %15" PRId64 "ms\n", GetTimeMillis() - nStart);
@@ -986,7 +979,7 @@ bool AppInit2()
 
     //// debug print
     printf("mapBlockIndex.size() = %" PRIszu "\n", mapBlockIndex.size());
-    printf("nBestHeight = %d\n", nBestHeight.load());
+    printf("BestHeight = %d\n", bestBlockIndex->nHeight);
     printf("setKeyPool.size() = %" PRIszu "\n", pwalletMain->setKeyPool.size());
     printf("mapWallet.size() = %" PRIszu "\n", pwalletMain->mapWallet.size());
     printf("mapAddressBook.size() = %" PRIszu "\n", pwalletMain->mapAddressBook.size());
@@ -1018,6 +1011,8 @@ bool AppInit2()
     if (!(Params().NetType() == NetworkType::Regtest && GetBoolArg("-nomempoolwalletresync", false))) {
         pwalletMain->ReacceptWalletTransactions(true);
     }
+
+    appInitiated = true;
 
 #if !defined(QT_GUI)
     // Loop until process is exit()ed from shutdown() function,

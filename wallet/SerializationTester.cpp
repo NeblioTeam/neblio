@@ -380,7 +380,7 @@ void RunCrossPlatformSerializationTests()
     uint256 uint256v("12345678135724681122424455667788123456781357246812343535135724");
 
     CDiskBlockIndex cDiskBlockIndex;
-    cDiskBlockIndex.phashBlock = &uint256v; // const uint256*
+    cDiskBlockIndex.phashBlock = uint256v; // const uint256
     cDiskBlockIndex.pprev =
         CBlockIndexSmartPtr(&cDiskBlockIndex, [](CBlockIndex*) {}); // CBlockIndexSmartPtr
     cDiskBlockIndex.pnext =
@@ -653,89 +653,10 @@ void RunCrossPlatformSerializationTests()
         TEST_EQUALITY(boost::algorithm::hex(ss.str()), "785634126824571378563412", __LINE__);
     }
 
-    libzerocoin::IntegerGroupParams integerGroupParams;
-    integerGroupParams.initialized = 1;
-    integerGroupParams.g           = 0x1222367813579;
-    integerGroupParams.h           = 0x123557813579;
-    integerGroupParams.modulus     = 0x12345678122579;
-    integerGroupParams.groupOrder  = 0x12345678122589;
-    {
-        CDataStream ss(SER_DISK, 0);
-        ss << integerGroupParams;
-        TEST_EQUALITY(boost::algorithm::hex(ss.str()),
-                      "0107793581672322010679358157351207792512785634120789251278563412", __LINE__);
-    }
-
-    libzerocoin::AccumulatorAndProofParams accumulatorAndProofParams;
-    accumulatorAndProofParams.initialized                   = 1;
-    accumulatorAndProofParams.accumulatorModulus            = 0x1234567813579;
-    accumulatorAndProofParams.accumulatorBase               = 0x1234569813579;
-    accumulatorAndProofParams.accumulatorPoKCommitmentGroup = integerGroupParams;
-    accumulatorAndProofParams.accumulatorQRNCommitmentGroup = integerGroupParams;
-    accumulatorAndProofParams.minCoinValue                  = 0x123456777813579;
-    accumulatorAndProofParams.maxCoinValue                  = 0x12333367813579;
-    accumulatorAndProofParams.k_prime                       = 0x12345678;
-    accumulatorAndProofParams.k_dprime                      = 0x13574372;
-    {
-        CDataStream ss(SER_DISK, 0);
-        ss << accumulatorAndProofParams;
-        TEST_EQUALITY(
-            boost::algorithm::hex(ss.str()),
-            "0107793581674523010779358169452301010779358167232201067935815735120779251278563412078"
-            "9251278563412010779358167232201067935815735120779251278563412078925127856341208793581"
-            "776745230107793581673333127856341272435713",
-            __LINE__);
-    }
-
     CBigNum bg(0x1234567892468);
     // number must be > 1023 bits
     bg = bg * bg * bg * bg * bg * bg * bg * bg * bg * bg * bg * bg * bg * bg * bg * bg * bg * bg * bg *
          bg * bg * bg * bg * bg;
-    libzerocoin::Params params(bg);
-    params.initialized                    = 1;
-    params.accumulatorParams              = accumulatorAndProofParams;
-    params.coinCommitmentGroup            = integerGroupParams;
-    params.serialNumberSoKCommitmentGroup = integerGroupParams;
-    params.zkp_iterations                 = 0x12345678;
-    params.zkp_hash_len                   = 0x13595258;
-    {
-        CDataStream ss(SER_DISK, 0);
-        ss << params;
-        TEST_EQUALITY(
-            boost::algorithm::hex(ss.str()),
-            "0101077935816745230107793581694523010107793581672322010679358157351207792512785634120"
-            "7892512785634120107793581672322010679358157351207792512785634120789251278563412087935"
-            "8177674523010779358167333312785634127243571301077935816723220106793581573512077925127"
-            "8563412078925127856341201077935816723220106793581573512077925127856341207892512785634"
-            "127856341258525913",
-            __LINE__);
-    }
-
-    libzerocoin::PublicCoin publicCoin(&params);
-    {
-        CDataStream ss(SER_DISK, 0);
-        ss << publicCoin;
-        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "0032000000", __LINE__);
-    }
-
-    libzerocoin::PublicCoin privateCoin(&params);
-    {
-        CDataStream ss(SER_DISK, 0);
-        ss << privateCoin;
-        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "0032000000", __LINE__);
-    }
-
-    libzerocoin::SpendMetaData spendMetaData(uint256v, uint256v + 0x2425464757325336);
-    {
-        CDataStream ss(SER_DISK, 0);
-        ss << spendMetaData;
-        TEST_EQUALITY(boost::algorithm::hex(ss.str()),
-                      "2457133535341268245713785634128877665544422211682457"
-                      "1378563412005AAA458C7C7A378C245713785634128877665544"
-                      "422211682457137856341200",
-                      __LINE__);
-    }
-
     {
         CDataStream ss(SER_DISK, 0);
         ss << bg;

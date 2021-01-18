@@ -87,18 +87,16 @@ public:
         consensus.nMaxOpReturnSizeV1 = 80;
         consensus.nMaxOpReturnSizeV2 = 4096;
 
-        consensus.forks.emplace(NetworkForks(
-            boost::container::flat_map<NetworkFork, int>{
-                {NetworkFork::NETFORK__1_FIRST_ONE, 0},
-                // number of stake confirmations changed to 10
-                {NetworkFork::NETFORK__2_CONFS_CHANGE, 248000},
-                // Tachyon upgrade. Approx Jan 12th 2019
-                {NetworkFork::NETFORK__3_TACHYON, 387028},
-                // RetargetV3 upgrade. Approx June 15 2019
-                {NetworkFork::NETFORK__4_RETARGET_CORRECTION, 1003125},
-                // Enable cold-staking - unset placeholder
-                {NetworkFork::NETFORK__5_COLD_STAKING, 1000000000}},
-            nBestHeight));
+        consensus.forks.emplace(NetworkForks(boost::container::flat_map<NetworkFork, int>{
+            {NetworkFork::NETFORK__1_FIRST_ONE, 0},
+            // number of stake confirmations changed to 10
+            {NetworkFork::NETFORK__2_CONFS_CHANGE, 248000},
+            // Tachyon upgrade. Approx Jan 12th 2019
+            {NetworkFork::NETFORK__3_TACHYON, 387028},
+            // RetargetV3 upgrade. Approx June 15 2019
+            {NetworkFork::NETFORK__4_RETARGET_CORRECTION, 1003125},
+            // Enable cold-staking - unset placeholder
+            {NetworkFork::NETFORK__5_COLD_STAKING, 1000000000}}));
 
         consensus.nCoinbaseMaturityV1 = 30;
         consensus.nCoinbaseMaturityV2 = 10;
@@ -276,16 +274,14 @@ public:
         consensus.nMaxOpReturnSizeV1 = 80;
         consensus.nMaxOpReturnSizeV2 = 4096;
 
-        consensus.forks.emplace(NetworkForks(
-            boost::container::flat_map<NetworkFork, int>{
-                {NetworkFork::NETFORK__1_FIRST_ONE, 0},
-                {NetworkFork::NETFORK__2_CONFS_CHANGE, 0},
-                // Roughly Aug 1 2018 Noon EDT
-                {NetworkFork::NETFORK__3_TACHYON, 110100},
-                {NetworkFork::NETFORK__4_RETARGET_CORRECTION, 1163000},
-                // Enable cold-staking
-                {NetworkFork::NETFORK__5_COLD_STAKING, 2386991}},
-            nBestHeight));
+        consensus.forks.emplace(NetworkForks(boost::container::flat_map<NetworkFork, int>{
+            {NetworkFork::NETFORK__1_FIRST_ONE, 0},
+            {NetworkFork::NETFORK__2_CONFS_CHANGE, 0},
+            // Roughly Aug 1 2018 Noon EDT
+            {NetworkFork::NETFORK__3_TACHYON, 110100},
+            {NetworkFork::NETFORK__4_RETARGET_CORRECTION, 1163000},
+            // Enable cold-staking
+            {NetworkFork::NETFORK__5_COLD_STAKING, 2386991}}));
 
         pchMessageStart[0] = 0x1b;
         pchMessageStart[1] = 0xba;
@@ -437,14 +433,29 @@ public:
         consensus.nMaxOpReturnSizeV1 = 4096;
         consensus.nMaxOpReturnSizeV2 = 4096;
 
-        consensus.forks.emplace(NetworkForks(
-            boost::container::flat_map<NetworkFork, int>{
+        // setup forks
+        {
+            const boost::optional<std::vector<std::string>> forksHeights =
+                mapMultiArgs.get("-forksheight");
+
+            // parse the argument
+            const boost::container::flat_map<NetworkFork, int> customForks =
+                ParseForkHeightsArgs(forksHeights.get_value_or({}));
+
+            boost::container::flat_map<NetworkFork, int> defaultRegtestForkHeights{
                 {NetworkFork::NETFORK__1_FIRST_ONE, 1000},
                 {NetworkFork::NETFORK__2_CONFS_CHANGE, 2000},
                 {NetworkFork::NETFORK__3_TACHYON, 3000},
                 {NetworkFork::NETFORK__4_RETARGET_CORRECTION, 4000},
-                {NetworkFork::NETFORK__5_COLD_STAKING, -1}},
-            nBestHeight));
+                {NetworkFork::NETFORK__5_COLD_STAKING, -1}};
+
+            // replace the default fork heights
+            for (const auto& f : customForks) {
+                defaultRegtestForkHeights[f.first] = f.second;
+            }
+
+            consensus.forks.emplace(NetworkForks(defaultRegtestForkHeights));
+        }
 
         pchMessageStart[0] = 0xcd;
         pchMessageStart[1] = 0xf3;
@@ -533,9 +544,9 @@ const CBlock& CChainParams::GenesisBlock() const
 
 const uint256& CChainParams::GenesisBlockHash() const { return consensus.hashGenesisBlock; }
 
-int64_t CChainParams::StakeMinAge() const
+int64_t CChainParams::StakeMinAge(const ITxDB& txdb) const
 {
-    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
+    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, txdb)) {
         return consensus.nStakeMinAgeV2;
     } else {
         return consensus.nStakeMinAgeV1;
@@ -548,36 +559,37 @@ int64_t CChainParams::StakeModifierInterval() const { return consensus.nModifier
 
 NetworkType CChainParams::NetType() const { return networkType; }
 
-bool CChainParams::PassedFirstValidNTP1Tx() const
+bool CChainParams::PassedFirstValidNTP1Tx(const ITxDB* txdb) const
 {
-    return (nBestHeight >= consensus.firstValidNTP1Height);
+    return ((txdb ? txdb->GetBestChainHeight().value_or(0) : CTxDB().GetBestChainHeight().value_or(0)) >=
+            consensus.firstValidNTP1Height);
 }
 
 int64_t CChainParams::TargetTimeSpan() const { return consensus.nTargetTimespan; }
 
-unsigned int CChainParams::OpReturnMaxSize() const
+unsigned int CChainParams::OpReturnMaxSize(const ITxDB& txdb) const
 {
-    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
+    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, txdb)) {
         return consensus.nMaxOpReturnSizeV2;
     } else {
         return consensus.nMaxOpReturnSizeV1;
     }
 }
 
-unsigned int CChainParams::TargetSpacing() const
+unsigned int CChainParams::TargetSpacing(const ITxDB& txdb) const
 {
-    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
+    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, txdb)) {
         return consensus.nStakeTargetSpacingV2;
     } else {
         return consensus.nStakeTargetSpacingV1;
     }
 }
 
-int CChainParams::CoinbaseMaturity() const
+int CChainParams::CoinbaseMaturity(const ITxDB& txdb) const
 {
-    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)) {
+    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, txdb)) {
         return consensus.nCoinbaseMaturityV3;
-    } else if (GetNetForks().isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE)) {
+    } else if (GetNetForks().isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE, txdb)) {
         return consensus.nCoinbaseMaturityV2;
     } else {
         return consensus.nCoinbaseMaturityV1;
@@ -599,9 +611,9 @@ int64_t CChainParams::StakeCombineThreshold() const { return nStakeCombineThresh
 
 unsigned int CChainParams::MaxInputsInStake() const { return nMaxInputsInStake; }
 
-bool CChainParams::IsColdStakingEnabled() const
+bool CChainParams::IsColdStakingEnabled(const ITxDB& txdb) const
 {
-    return consensus.forks->isForkActivated(NetworkFork::NETFORK__5_COLD_STAKING);
+    return consensus.forks->isForkActivated(NetworkFork::NETFORK__5_COLD_STAKING, txdb);
 }
 
 CAmount CChainParams::MinColdStakingAmount() const { return nMinColdStakingAmount; }

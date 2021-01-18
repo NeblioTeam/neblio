@@ -11,12 +11,12 @@ std::atomic<NTP1TokenListModel*> ntp1TokenListModelInstance{nullptr};
 
 QString NTP1TokenListModel::__getTokenName(int index, boost::shared_ptr<NTP1Wallet> theWallet)
 {
-    return QString::fromStdString(theWallet->getTokenName(index));
+    return QString::fromStdString(theWallet->getTokenNameFromIndex(index));
 }
 
 QString NTP1TokenListModel::__getTokenId(int index, boost::shared_ptr<NTP1Wallet> theWallet)
 {
-    return QString::fromStdString(theWallet->getTokenId(index));
+    return QString::fromStdString(theWallet->getTokenID(index));
 }
 
 QString NTP1TokenListModel::__getTokenDescription(int index, boost::shared_ptr<NTP1Wallet> theWallet)
@@ -36,7 +36,7 @@ QString NTP1TokenListModel::__getIssuanceTxid(int index, boost::shared_ptr<NTP1W
 
 QIcon NTP1TokenListModel::__getTokenIcon(int index, boost::shared_ptr<NTP1Wallet> theWallet)
 {
-    const std::string& iconData = theWallet->getTokenIcon(index);
+    const std::string& iconData = theWallet->getAndCacheTokenIcon(index);
     if (iconData.empty() || NTP1Wallet::IconHasErrorContent(iconData)) {
         return QIcon();
     }

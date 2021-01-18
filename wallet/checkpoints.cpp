@@ -38,16 +38,18 @@ int GetTotalBlocksEstimate()
     }
 }
 
-CBlockIndex* GetLastCheckpoint(const std::map<uint256, CBlockIndexSmartPtr>& mapBlockIndex)
+CBlockIndex* GetLastCheckpoint(const BlockIndexMapType& mapBlockIndex)
 {
     const MapCheckpoints& checkpoints = Params().Checkpoints();
+
+    auto lock = mapBlockIndex.get_shared_lock();
 
     BOOST_REVERSE_FOREACH(const MapCheckpoints::value_type& i, checkpoints)
     {
         const uint256&                                         hash = i.second;
-        std::map<uint256, CBlockIndexSmartPtr>::const_iterator it   = mapBlockIndex.find(hash);
-        if (it != mapBlockIndex.end())
-            return boost::atomic_load(&it->second).get();
+        auto val   = mapBlockIndex.get_unsafe(hash).value_or(nullptr);
+        if (val)
+            return val.get();
     }
     return nullptr;
 }

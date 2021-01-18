@@ -298,8 +298,6 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
 
         const CAmount minAmount = 2 * MIN_TX_FEE + NTP1Transaction::IssuanceFee;
 
-        CWalletTx wtx;
-
         // Get NTP1 wallet
         boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();
         ntp1wallet->setRetrieveFullMetadata(false);
@@ -398,6 +396,7 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
                 CBitcoinAddress(changeAddressLineEdit->text().toStdString()).Get();
         }
 
+        CWalletTx   wtx;
         std::string errorMessage;
 
         bool fCreated = pwalletMain->CreateTransaction(

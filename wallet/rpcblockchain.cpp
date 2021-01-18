@@ -25,11 +25,12 @@ double GetDifficulty(const CBlockIndex* blockindex)
 {
     // Floating point number that is a multiple of the minimum difficulty,
     // minimum difficulty = 1.0.
-    if (blockindex == NULL) {
-        if (pindexBest == NULL)
+    if (blockindex == nullptr) {
+        auto bestBlockIndex = CTxDB().GetBestBlockIndex();
+        if (bestBlockIndex == nullptr)
             return 1.0;
         else
-            blockindex = GetLastBlockIndex(pindexBest.get(), false);
+            blockindex = GetLastBlockIndex(bestBlockIndex.get(), false);
     }
 
     int nShift = (blockindex->nBits >> 24) & 0xff;
@@ -50,14 +51,14 @@ double GetDifficulty(const CBlockIndex* blockindex)
 
 double GetPoWMHashPS()
 {
-    if (boost::atomic_load(&pindexBest)->nHeight >= Params().LastPoWBlock())
+    if (CTxDB().GetBestBlockIndex()->nHeight >= Params().LastPoWBlock())
         return 0;
 
     int     nPoWInterval          = 72;
     int64_t nTargetSpacingWorkMin = 30, nTargetSpacingWork = 30;
 
-    CBlockIndexSmartPtr pindex         = boost::atomic_load(&pindexGenesisBlock);
-    CBlockIndexSmartPtr pindexPrevWork = boost::atomic_load(&pindexGenesisBlock);
+    ConstCBlockIndexSmartPtr pindex         = boost::atomic_load(&pindexGenesisBlock);
+    ConstCBlockIndexSmartPtr pindexPrevWork = boost::atomic_load(&pindexGenesisBlock);
 
     while (pindex) {
         if (pindex->IsProofOfWork()) {
@@ -81,9 +82,9 @@ double GetPoSKernelPS()
     double dStakeKernelsTriedAvg = 0;
     int    nStakesHandled = 0, nStakesTime = 0;
 
-    CBlockIndexSmartPtr pindex = pindexBest;
+    ConstCBlockIndexSmartPtr pindex = CTxDB().GetBestBlockIndex();
 
-    CBlockIndexSmartPtr pindexPrevStake = nullptr;
+    ConstCBlockIndexSmartPtr pindexPrevStake = nullptr;
 
     while (pindex && nStakesHandled < nPoSInterval) {
         if (pindex->IsProofOfStake()) {
@@ -108,8 +109,8 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
     txGen.SetMerkleBranch(&block);
     int confirmations = -1;
     // Only report confirmations if the block is on the main chain
-    if (blockindex->IsInMainChain())
-        confirmations = nBestHeight - blockindex->nHeight + 1;
+    if (blockindex->IsInMainChain(CTxDB()))
+        confirmations = CTxDB().GetBestChainHeight().value_or(0) - blockindex->nHeight + 1;
     result.push_back(Pair("confirmations", (int)txGen.GetDepthInMainChain()));
     result.push_back(Pair("size", (int)::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION)));
     result.push_back(Pair("height", blockindex->nHeight));
@@ -161,7 +162,7 @@ Value getbestblockhash(const Array& params, bool fHelp)
         throw runtime_error("getbestblockhash\n"
                             "Returns the hash of the best block in the longest block chain.");
 
-    return hashBestChain.GetHex();
+    return CTxDB().GetBestBlockHash().GetHex();
 }
 
 Value getblockcount(const Array& params, bool fHelp)
@@ -170,7 +171,7 @@ Value getblockcount(const Array& params, bool fHelp)
         throw runtime_error("getblockcount\n"
                             "Returns the number of blocks in the longest block chain.");
 
-    return nBestHeight.load();
+    return CTxDB().GetBestChainHeight().value_or(0);
 }
 
 Value getdifficulty(const Array& params, bool fHelp)
@@ -181,7 +182,8 @@ Value getdifficulty(const Array& params, bool fHelp)
 
     Object obj;
     obj.push_back(Pair("proof-of-work", GetDifficulty()));
-    obj.push_back(Pair("proof-of-stake", GetDifficulty(GetLastBlockIndex(pindexBest.get(), true))));
+    obj.push_back(Pair("proof-of-stake",
+                       GetDifficulty(GetLastBlockIndex(CTxDB().GetBestBlockIndex().get(), true))));
     obj.push_back(Pair("search-interval", (int)stakeMaker.getLastCoinStakeSearchInterval()));
     return obj;
 }
@@ -221,11 +223,11 @@ Value getblockhash(const Array& params, bool fHelp)
                             "Returns hash of block in best-block-chain at <index>.");
 
     int nHeight = params[0].get_int();
-    if (nHeight < 0 || nHeight > nBestHeight)
+    if (nHeight < 0 || nHeight > CTxDB().GetBestChainHeight().value_or(0))
         throw runtime_error("Block number out of range.");
 
     CBlockIndexSmartPtr pblockindex = CBlock::FindBlockByHeight(nHeight);
-    return pblockindex->phashBlock->GetHex();
+    return pblockindex->phashBlock.GetHex();
 }
 
 Value calculateblockhash(const Array& params, bool fHelp)
@@ -289,11 +291,12 @@ Value getblock(const Array& params, bool fHelp)
     if (params.size() > 2)
         fShowTxns = params[2].get_bool();
 
-    if (mapBlockIndex.count(hash) == 0)
+    const auto bi = mapBlockIndex.get(hash);
+    if (!bi.is_initialized())
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
 
     CBlock       block;
-    CBlockIndex* pblockindex = boost::atomic_load(&mapBlockIndex.at(hash)).get();
+    CBlockIndex* pblockindex = bi->get();
     block.ReadFromDisk(pblockindex, true);
 
     if (!fVerbose) {
@@ -320,17 +323,20 @@ Value getblockbynumber(const Array& params, bool fHelp)
                             "transaction is not in the blockchain.");
 
     int nHeight = params[0].get_int();
-    if (nHeight < 0 || nHeight > nBestHeight)
+    if (nHeight < 0 || nHeight > CTxDB().GetBestChainHeight().value_or(0))
         throw runtime_error("Block number out of range.");
 
     CBlock              block;
-    CBlockIndexSmartPtr pblockindex = boost::atomic_load(&mapBlockIndex.at(hashBestChain));
+    CBlockIndexSmartPtr pblockindex = CTxDB().GetBestBlockIndex();
     while (pblockindex->nHeight > nHeight)
         pblockindex = pblockindex->pprev;
 
-    uint256 hash = *pblockindex->phashBlock;
+    const uint256 hash = pblockindex->phashBlock;
 
-    pblockindex = boost::atomic_load(&mapBlockIndex[hash]);
+    pblockindex = mapBlockIndex.get(hash).value_or(nullptr);
+    if(!pblockindex) {
+        throw runtime_error("Failed to get block after finding its hash.");
+    }
     block.ReadFromDisk(pblockindex.get(), true);
 
     bool fIgnoreNTP1 = false;
@@ -442,15 +448,17 @@ Value waitforblockheight(const Array& params, bool fHelp)
         printf("Timeout set to: %i\n", timeout);
     }
 
+    const int bestHeight = CTxDB().GetBestChainHeight().value_or(0);
+
     int totalMilliSeconds = 0;
-    while (totalMilliSeconds <= timeout && nBestHeight < height && IsRPCRunning()) {
+    while (totalMilliSeconds <= timeout && bestHeight < height && IsRPCRunning()) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         totalMilliSeconds += 1000;
     }
 
     Object ret;
-    ret.push_back(json_spirit::Pair("hash", pindexBest->GetBlockHash().GetHex()));
-    ret.push_back(json_spirit::Pair("height", nBestHeight.load()));
+    ret.push_back(json_spirit::Pair("hash", CTxDB().GetBestBlockHash().GetHex()));
+    ret.push_back(json_spirit::Pair("height", bestHeight));
 
     return ret;
 }
@@ -507,18 +515,22 @@ Value getblockchaininfo(const Array& params, bool fHelp)
 
     LOCK(cs_main);
 
+    const CTxDB txdb;
+
+    auto bestBlockIndex = txdb.GetBestBlockIndex();
+
     Object obj;
     obj.push_back(Pair("chain", Params().NetworkIDString()));
-    obj.push_back(Pair("blocks", nBestHeight.load()));
-    obj.push_back(Pair("headers", pindexBest ? pindexBest->nHeight : -1));
-    obj.push_back(Pair("bestblockhash", pindexBest->phashBlock->GetHex()));
+    obj.push_back(Pair("blocks", CTxDB().GetBestChainHeight().value_or(0)));
+    obj.push_back(Pair("headers", bestBlockIndex ? bestBlockIndex->nHeight : -1));
+    obj.push_back(Pair("bestblockhash", bestBlockIndex->phashBlock.GetHex()));
     obj.push_back(Pair("difficulty", (double)GetDifficulty()));
-    obj.push_back(Pair("mediantime", (int64_t)pindexBest->GetMedianTimePast()));
+    obj.push_back(Pair("mediantime", (int64_t)bestBlockIndex->GetMedianTimePast()));
     //    obj.push_back(
     //        Pair("verificationprogress", GuessVerificationProgress(Params().TxData(),
     //        chainActive.Tip())));
     obj.push_back(Pair("initialblockdownload", IsInitialBlockDownload()));
-    obj.push_back(Pair("chainwork", pindexBest->nChainTrust.GetHex()));
+    obj.push_back(Pair("chainwork", bestBlockIndex->nChainTrust.GetHex()));
     obj.push_back(Pair("size_on_disk", (int64_t)CTxDB::GetCurrentDiskUsage()));
     obj.push_back(Pair("warnings", GetWarnings("statusbar")));
     return obj;
@@ -531,8 +543,8 @@ Value blockheaderToJSON(const CBlockIndex* blockindex)
     result.push_back(Pair("hash", blockindex->GetBlockHash().GetHex()));
     int confirmations = -1;
     // Only report confirmations if the block is on the main chain
-    if (mapBlockIndex.find(*blockindex->phashBlock) != mapBlockIndex.cend())
-        confirmations = nBestHeight.load() - blockindex->nHeight + 1;
+    if (blockindex->IsInMainChain(CTxDB()))
+        confirmations = CTxDB().GetBestChainHeight().value_or(0) - blockindex->nHeight + 1;
     result.push_back(Pair("confirmations", confirmations));
     result.push_back(Pair("height", blockindex->nHeight));
     result.push_back(Pair("version", blockindex->nVersion));
@@ -604,10 +616,12 @@ Value getblockheader(const Array& params, bool fHelp)
         fVerbose = params[1].get_bool();
     }
 
-    if (mapBlockIndex.count(hash) == 0)
+    const auto bi = mapBlockIndex.get(hash).value_or(nullptr);
+
+    if (!bi)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
 
-    CBlockIndex* pblockindex = boost::atomic_load(&mapBlockIndex.at(hash)).get();
+    CBlockIndex* pblockindex = bi.get();
 
     if (!fVerbose) {
         CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
@@ -685,8 +699,8 @@ Value gettxout(const Array& params, bool fHelp)
     }
 
     // if tx was not found in the mempool
+    CTxDB txdb;
     if (!tx) {
-        CTxDB txdb;
         if (!txdb.ReadTxIndex(out.hash, txindex)) {
             return Value();
         }
@@ -701,9 +715,9 @@ Value gettxout(const Array& params, bool fHelp)
             // it's already spent
             return Value();
         }
-        auto it = mapBlockIndex.find(txindex.pos.nBlockPos);
-        if (it != mapBlockIndex.cend()) {
-            nHeight = it->second->nHeight;
+        auto bi = mapBlockIndex.get(txindex.pos.nBlockPos).value_or(nullptr);
+        if (bi) {
+            nHeight = bi->nHeight;
             tx      = CTransaction();
             if (!txdb.ReadTx(txindex.pos, *tx)) {
                 return Value();
@@ -723,7 +737,7 @@ Value gettxout(const Array& params, bool fHelp)
                                  std::to_string(n) + " is invalid");
     }
 
-    CBlockIndex* pindex = pindexBest.get();
+    const CBlockIndex* pindex = txdb.GetBestBlockIndex().get();
     ret.push_back(Pair("bestblock", pindex->GetBlockHash().GetHex()));
     if (nHeight == MEMPOOL_HEIGHT) {
         ret.push_back(Pair("confirmations", 0));

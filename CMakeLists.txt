@@ -102,7 +102,7 @@ find_package(Qt5Core          REQUIRED)
 find_package(Qt5LinguistTools REQUIRED)
 find_package(BerkeleyDB       REQUIRED)
 find_package(PkgConfig        REQUIRED)
-find_package(Boost 1.55       COMPONENTS system random filesystem thread regex program_options iostreams atomic REQUIRED)
+find_package(Boost 1.65       COMPONENTS system random filesystem thread regex program_options iostreams atomic REQUIRED)
 find_package(Threads          REQUIRED)
 find_package(sodium           REQUIRED)
 
@@ -640,25 +640,13 @@ if(USE_UPNP)
     target_compile_definitions(core_lib PRIVATE -DUSE_UPNP=1)
 endif()
 
-add_library(zerocoin_lib STATIC
-    wallet/zerocoin/Accumulator.cpp
-    wallet/zerocoin/AccumulatorProofOfKnowledge.cpp
-    wallet/zerocoin/Coin.cpp
-    wallet/zerocoin/CoinSpend.cpp
-    wallet/zerocoin/Commitment.cpp
-    wallet/zerocoin/ParamGeneration.cpp
-    wallet/zerocoin/Params.cpp
-    wallet/zerocoin/SerialNumberSignatureOfKnowledge.cpp
-    wallet/zerocoin/SpendMetaData.cpp
-    wallet/zerocoin/ZeroTest.cpp
-    )
-
 add_library(ntp1_lib STATIC
     wallet/ntp1/ntp1sendtokensonerecipientdata.cpp
     wallet/ntp1/ntp1script_burn.cpp
     wallet/ntp1/ntp1tokenminimalmetadata.cpp
     wallet/ntp1/ntp1sendtxdata.cpp
     wallet/ntp1/ntp1tokenmetadata.cpp
+    wallet/ntp1/intp1wallet.h
     wallet/ntp1/ntp1wallet.cpp
     wallet/ntp1/ntp1tools.cpp
     wallet/ntp1/ntp1inpoint.cpp
@@ -754,7 +742,6 @@ if(WIN32)
             ui_lib
             ntp1_gui_lib
             curltools_lib
-            zerocoin_lib
             ntp1_lib
             core_lib
             json_spirit_lib
@@ -790,7 +777,6 @@ if(WIN32)
 
         target_link_libraries(nebliod
             core_lib
-            zerocoin_lib
             ntp1_lib
             curltools_lib
             json_spirit_lib
@@ -831,7 +817,6 @@ else()
             ui_lib
             ntp1_gui_lib
             curltools_lib
-            zerocoin_lib
             ntp1_lib
             core_lib
             json_spirit_lib
@@ -865,7 +850,6 @@ else()
 
         target_link_libraries(nebliod
             core_lib
-            zerocoin_lib
             ntp1_lib
             curltools_lib
             json_spirit_lib

@@ -33,7 +33,7 @@ bool IsStakeTxSizeValid(const CTransaction& stakeTx)
 }
 
 boost::optional<StakeKernelData>
-TestAndCreateStakeKernel(CTxDB& txdb, const StakeMaker::KeyGetterFunctorType& keyGetter,
+TestAndCreateStakeKernel(const CTxDB& txdb, const StakeMaker::KeyGetterFunctorType& keyGetter,
                          const unsigned int nBits, const int64_t nCoinstakeInitialTxTime,
                          const int64_t                                       lastCoinStakeSearchTime,
                          const ConstCBlockIndexSmartPtr&                     pindexPrev,
@@ -55,20 +55,20 @@ TestAndCreateStakeKernel(CTxDB& txdb, const StakeMaker::KeyGetterFunctorType& ke
     const int64_t nSearchInterval = nCoinstakeInitialTxTime - lastCoinStakeSearchTime;
 
     const int          nMaxStakeSearchInterval = Params().MaxStakeSearchInterval();
-    const unsigned int nSMA                    = Params().StakeMinAge();
+    const unsigned int nSMA                    = Params().StakeMinAge(txdb);
     if (kernelBlock.GetBlockTime() + nSMA > nCoinstakeInitialTxTime - nMaxStakeSearchInterval)
         return boost::none; // only count coins meeting min age requirement
 
     for (unsigned int n = 0; n < std::min(nSearchInterval, (int64_t)nMaxStakeSearchInterval) &&
-                             !fShutdown && pindexPrev == pindexBest;
+                             !fShutdown && pindexPrev == txdb.GetBestBlockIndex();
          n++) {
         // Search backward in time from the given tx timestamp
         // Search nSearchInterval seconds back up to nMaxStakeSearchInterval
         uint256       hashProofOfStake = 0, targetProofOfStake = 0;
         COutPoint     prevoutStake    = COutPoint(pcoin.first->GetHash(), pcoin.second);
         const int64_t txCoinstakeTime = nCoinstakeInitialTxTime - n;
-        if (!CheckStakeKernelHash(nBits, kernelBlock, txindex.pos.nTxPos, *pcoin.first, prevoutStake,
-                                  txCoinstakeTime, hashProofOfStake, targetProofOfStake)) {
+        if (!CheckStakeKernelHash(txdb, nBits, kernelBlock, txindex.pos.nTxPos, *pcoin.first,
+                                  prevoutStake, txCoinstakeTime, hashProofOfStake, targetProofOfStake)) {
             continue;
         }
 
@@ -79,7 +79,7 @@ TestAndCreateStakeKernel(CTxDB& txdb, const StakeMaker::KeyGetterFunctorType& ke
         const CScript& kernelScriptPubKey = pcoin.first->vout[pcoin.second].scriptPubKey;
 
         const boost::optional<CScript> spkKernel =
-            StakeMaker::CalculateScriptPubKeyForStakeOutput(keyGetter, kernelScriptPubKey);
+            StakeMaker::CalculateScriptPubKeyForStakeOutput(txdb, keyGetter, kernelScriptPubKey);
 
         if (!spkKernel) {
             if (fDebug)
@@ -103,13 +103,12 @@ TestAndCreateStakeKernel(CTxDB& txdb, const StakeMaker::KeyGetterFunctorType& ke
     return boost::none;
 }
 
-boost::optional<CAmount> CalculateStakeReward(const CTransaction& stakeTx, CAmount nFees,
-                                              CAmount extraPayoutForTests = 0)
+boost::optional<CAmount> CalculateStakeReward(const ITxDB& txdb, const CTransaction& stakeTx,
+                                              CAmount nFees, CAmount extraPayoutForTests = 0)
 {
     CAmount result = 0;
 
     uint64_t nCoinAge;
-    CTxDB    txdb("r");
     if (!stakeTx.GetCoinAge(txdb, nCoinAge)) {
         printf("CreateCoinStake : failed to calculate coin age");
         return boost::none;
@@ -137,8 +136,8 @@ void StakeMaker::updateStakeWeight(const std::set<std::pair<const CWalletTx*, un
 }
 
 boost::optional<CTransaction>
-StakeMaker::CreateCoinStake(const CWallet& wallet, const unsigned int nBits, const CAmount nFees,
-                            const CAmount reservedBalance,
+StakeMaker::CreateCoinStake(const ITxDB& txdb, const CWallet& wallet, const unsigned int nBits,
+                            const CAmount nFees, const CAmount reservedBalance,
                             const boost::optional<std::set<std::pair<uint256, unsigned>>>& customInputs,
                             const CAmount extraPayoutForTests)
 {
@@ -147,7 +146,7 @@ StakeMaker::CreateCoinStake(const CWallet& wallet, const unsigned int nBits, con
 
     const bool fEnableColdStaking = GetBoolArg("-coldstaking", true);
 
-    const uint256 currentBestBlock = pindexBest->GetBlockHash();
+    const uint256 currentBestBlock = txdb.GetBestBlockHash();
 
     // Choose coins to use
     const CAmount nBalance = [&]() {
@@ -228,17 +227,18 @@ StakeMaker::CreateCoinStake(const CWallet& wallet, const unsigned int nBits, con
     stakeTx.nTime = kernelData->stakeTxTime;
 
     const bool splitStake =
-        GetWeight(kernelData->kernelBlockTime, kernelData->stakeTxTime) < Params().StakeSplitAge();
+        GetWeight(txdb, kernelData->kernelBlockTime, kernelData->stakeTxTime) < Params().StakeSplitAge();
 
-    const CoinStakeInputsResult inputs = CollectInputsForStake(*kernelData, setCoins, stakeTx.nTime,
-                                                               splitStake, nBalance, reservedBalance);
+    const CoinStakeInputsResult inputs = CollectInputsForStake(
+        txdb, *kernelData, setCoins, stakeTx.nTime, splitStake, nBalance, reservedBalance);
 
     stakeTx.vin = inputs.inputs;
 
     // Calculate coin age and reward
     CAmount nFinalCredit = inputs.nInputsTotalCredit;
 
-    const boost::optional<CAmount> oReward = CalculateStakeReward(stakeTx, nFees, extraPayoutForTests);
+    const boost::optional<CAmount> oReward =
+        CalculateStakeReward(txdb, stakeTx, nFees, extraPayoutForTests);
     if (!oReward) {
         return boost::none;
     }
@@ -279,8 +279,8 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStakeFromSpecificOutput(cons
         return boost::none;
     }
 
-    CTxDB               txdb("r");
-    CBlockIndexSmartPtr pindexPrev = boost::atomic_load(&pindexBest);
+    const CTxDB              txdb("r");
+    ConstCBlockIndexSmartPtr pindexPrev = txdb.GetBestBlockIndex();
 
     const auto keyGetter = [&spendKeyOfOutput](const CKeyID&) {
         return boost::make_optional(spendKeyOfOutput);
@@ -316,7 +316,7 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStakeFromSpecificOutput(cons
     stakeTx.nTime = kernelData->stakeTxTime;
 
     const bool splitStake =
-        GetWeight(kernelData->kernelBlockTime, kernelData->stakeTxTime) < Params().StakeSplitAge();
+        GetWeight(txdb, kernelData->kernelBlockTime, kernelData->stakeTxTime) < Params().StakeSplitAge();
 
     const CoinStakeInputsResult inputs = MakeInitialStakeInputsResult(*kernelData);
 
@@ -325,7 +325,7 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStakeFromSpecificOutput(cons
     // Calculate coin age and reward
     CAmount nFinalCredit = inputs.nInputsTotalCredit;
 
-    const boost::optional<CAmount> oReward = CalculateStakeReward(stakeTx, nFees, 0);
+    const boost::optional<CAmount> oReward = CalculateStakeReward(txdb, stakeTx, nFees, 0);
     if (!oReward) {
         return boost::none;
     }
@@ -356,12 +356,12 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStakeFromSpecificOutput(cons
 }
 
 boost::optional<CScript>
-StakeMaker::CalculateScriptPubKeyForStakeOutput(const KeyGetterFunctorType& keyGetter,
-                                                const CScript&              scriptPubKeyKernel)
+StakeMaker::CalculateScriptPubKeyForStakeOutput(const ITxDB& txdb, const KeyGetterFunctorType& keyGetter,
+                                                const CScript& scriptPubKeyKernel)
 {
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
-    if (!Solver(scriptPubKeyKernel, whichType, vSolutions)) {
+    if (!Solver(txdb, scriptPubKeyKernel, whichType, vSolutions)) {
         if (fDebug)
             printf("CalculateScriptPubKeyForStakeOutput : failed to parse kernel\n");
         return boost::none;
@@ -471,9 +471,9 @@ StakeMaker::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBits,
                             const int64_t nCoinstakeInitialTxTime,
                             const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins)
 {
-    CBlockIndexSmartPtr pindexPrev = boost::atomic_load(&pindexBest);
-
     CTxDB txdb("r");
+
+    ConstCBlockIndexSmartPtr pindexPrev = txdb.GetBestBlockIndex();
 
     for (const auto& pcoin : setCoins) {
         if (boost::optional<StakeKernelData> res = TestAndCreateStakeKernel(
@@ -486,7 +486,7 @@ StakeMaker::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBits,
 }
 
 CoinStakeInputsResult
-StakeMaker::CollectInputsForStake(const StakeKernelData&                                     kernelData,
+StakeMaker::CollectInputsForStake(const ITxDB& txdb, const StakeKernelData& kernelData,
                                   const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins,
                                   const int64_t txTime, const bool splitStake, const CAmount nBalance,
                                   const CAmount reservedBalance)
@@ -497,7 +497,7 @@ StakeMaker::CollectInputsForStake(const StakeKernelData&                        
         // Attempt to add more inputs
         for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
             // Only add coins of the same key/address as kernel
-            const unsigned int nSMA    = Params().StakeMinAge();
+            const unsigned int nSMA    = Params().StakeMinAge(txdb);
             const CTxOut&      prevout = pcoin.first->vout[pcoin.second];
 
             const bool sameScriptPubKeyAsKernelOrStakeOutput =
@@ -509,7 +509,7 @@ StakeMaker::CollectInputsForStake(const StakeKernelData&                        
 
             if (sameScriptPubKeyAsKernelOrStakeOutput && !isTheKernelWeAlreadyHave) {
 
-                const int64_t nTimeWeight = GetWeight((int64_t)pcoin.first->nTime, txTime);
+                const int64_t nTimeWeight = GetWeight(txdb, (int64_t)pcoin.first->nTime, txTime);
 
                 // Stop adding more inputs if already too many inputs
                 if (result.inputs.size() >= Params().MaxInputsInStake())

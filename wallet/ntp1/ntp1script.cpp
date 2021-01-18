@@ -158,7 +158,7 @@ uint64_t NTP1Script::CalculateAmountSize(uint8_t firstChar)
 NTP1Int NTP1Script::ParseAmountFromLongEnoughString(const std::string& BinAmountStartsAtByte0,
                                                     int&               rawSize)
 {
-    if (BinAmountStartsAtByte0.size() < 2) {
+    if (BinAmountStartsAtByte0.size() < 1) {
         throw std::runtime_error("Too short a string to be parsed " +
                                  boost::algorithm::hex(BinAmountStartsAtByte0));
     }
@@ -195,7 +195,7 @@ std::string NTP1Script::ParseMetadataFromLongEnoughString(const std::string& Bin
                                                           const std::string& op_code_bin,
                                                           const std::string& wholeScriptHex)
 {
-    int metadataSize = CalculateMetadataSize(op_code_bin);
+    const int metadataSize = CalculateMetadataSize(op_code_bin);
     if ((int)BinMetadataStartsAtByte0.size() < metadataSize) {
         throw std::runtime_error("Error parsing script" +
                                  (wholeScriptHex.size() > 0 ? ": " + wholeScriptHex : "") +
@@ -239,7 +239,7 @@ NTP1Script::ParseNTP1v3MetadataFromLongEnoughString(const std::string& BinMetada
 std::string
 NTP1Script::ParseTokenSymbolFromLongEnoughString(const std::string& BinTokenSymbolStartsAtByte0)
 {
-    if ((int)BinTokenSymbolStartsAtByte0.size() < 0) {
+    if ((int)BinTokenSymbolStartsAtByte0.size() < 5) {
         throw std::runtime_error(
             "Error parsing script (starting at this point a symbol is expected). " +
             (BinTokenSymbolStartsAtByte0.size() > 0 ? ": " + BinTokenSymbolStartsAtByte0 : "") +
@@ -268,32 +268,44 @@ NTP1Script::ParseTokenSymbolFromLongEnoughString(const std::string& BinTokenSymb
     return result;
 }
 
+NTP1Script::TransferInstruction ParseTransferInstruction(const std::string& toParse)
+{
+    if (toParse.size() <= 1) {
+        throw std::runtime_error("ParseTransferInstruction failed as input is too short");
+    }
+
+    // one byte of flags, and then N bytes for the amount
+    NTP1Script::TransferInstruction transferInst;
+    transferInst.firstRawByte = static_cast<unsigned char>(toParse[0]);
+    transferInst.rawAmount    = toParse.substr(1, NTP1Script::CalculateAmountSize(toParse[1]));
+    transferInst.rawSize      = 1 + transferInst.rawAmount.size();
+
+    // parse data from raw
+    std::bitset<8> rawByte(transferInst.firstRawByte);
+    std::bitset<5> outputIndex(rawByte.to_string().substr(3, 5));
+    transferInst.skipInput   = rawByte.test(7); // first big-endian bit (is the last one in bitset)
+    transferInst.outputIndex = static_cast<int>(outputIndex.to_ulong());
+
+    transferInst.amount =
+        NTP1Script::NTP1AmountHexToNumber(boost::algorithm::hex(transferInst.rawAmount));
+
+    return transferInst;
+}
+
 std::vector<NTP1Script::TransferInstruction> NTP1Script::ParseTransferInstructionsFromLongEnoughString(
     const std::string& BinInstructionsStartFromByte0, int& totalRawSize)
 {
     std::string                      toParse = BinInstructionsStartFromByte0;
     std::vector<TransferInstruction> result;
     totalRawSize = 0;
-    for (int i = 0;; i++) {
+    while (true) {
         if (toParse.size() <= 1) {
             break;
         }
 
-        // one byte of flags, and then N bytes for the amount
-        TransferInstruction transferInst;
-        transferInst.firstRawByte = static_cast<unsigned char>(toParse[0]);
-        transferInst.rawAmount    = toParse.substr(1, CalculateAmountSize(toParse[1]));
-        int currentSize           = 1 + transferInst.rawAmount.size();
-        totalRawSize += currentSize;
-        toParse.erase(toParse.begin(), toParse.begin() + currentSize);
-
-        // parse data from raw
-        std::bitset<8> rawByte(transferInst.firstRawByte);
-        std::bitset<5> outputIndex(rawByte.to_string().substr(3, 5));
-        transferInst.skipInput   = rawByte.test(7); // first big-endian bit (is the last one in bitset)
-        transferInst.outputIndex = static_cast<int>(outputIndex.to_ulong());
-
-        transferInst.amount = NTP1AmountHexToNumber(boost::algorithm::hex(transferInst.rawAmount));
+        const TransferInstruction transferInst = ParseTransferInstruction(toParse);
+        toParse.erase(toParse.begin(), toParse.begin() + transferInst.rawSize);
+        totalRawSize += transferInst.rawSize;
 
         // push to the vector
         result.push_back(transferInst);
@@ -327,21 +339,9 @@ NTP1Script::ParseNTP1v3TransferInstructionsFromLongEnoughString(
             throw std::runtime_error("Transfer instruction number " + ToString(i) + " has a size <= 1");
         }
 
-        // one byte of flags, and then N bytes for the amount
-        TransferInstruction transferInst;
-        transferInst.firstRawByte = static_cast<unsigned char>(toParse[0]);
-        transferInst.rawAmount    = toParse.substr(1, CalculateAmountSize(toParse[1]));
-        int currentSize           = 1 + transferInst.rawAmount.size();
-        totalRawSize += currentSize;
-        toParse.erase(toParse.begin(), toParse.begin() + currentSize);
-
-        // parse data from raw
-        std::bitset<8> rawByte(transferInst.firstRawByte);
-        std::bitset<5> outputIndex(rawByte.to_string().substr(3, 5));
-        transferInst.skipInput   = rawByte.test(7); // first big-endian bit (is the last one in bitset)
-        transferInst.outputIndex = static_cast<int>(outputIndex.to_ulong());
-
-        transferInst.amount = NTP1AmountHexToNumber(boost::algorithm::hex(transferInst.rawAmount));
+        const TransferInstruction transferInst = ParseTransferInstruction(toParse);
+        toParse.erase(toParse.begin(), toParse.begin() + transferInst.rawSize);
+        totalRawSize += transferInst.rawSize;
 
         // push to the vector
         result.push_back(transferInst);
@@ -384,7 +384,7 @@ std::shared_ptr<NTP1Script> NTP1Script::ParseScript(const std::string& scriptHex
 
         if (txType == TxType::TxType_Issuance) {
             if (protocolVersion == 1) {
-                result_ = NTP1Script_Issuance::ParseIssuancePostHeaderData(scriptBin, opCodeBin);
+                result_ = NTP1Script_Issuance::ParseNTP1v1IssuancePostHeaderData(scriptBin, opCodeBin);
             } else if (protocolVersion == 3) {
                 result_ = NTP1Script_Issuance::ParseNTP1v3IssuancePostHeaderData(scriptBin);
             } else {
@@ -393,7 +393,7 @@ std::shared_ptr<NTP1Script> NTP1Script::ParseScript(const std::string& scriptHex
             }
         } else if (txType == TxType::TxType_Transfer) {
             if (protocolVersion == 1) {
-                result_ = NTP1Script_Transfer::ParseTransferPostHeaderData(scriptBin, opCodeBin);
+                result_ = NTP1Script_Transfer::ParseNTP1v1TransferPostHeaderData(scriptBin, opCodeBin);
             } else if (protocolVersion == 3) {
                 result_ = NTP1Script_Transfer::ParseNTP1v3TransferPostHeaderData(scriptBin);
             } else {
@@ -402,7 +402,7 @@ std::shared_ptr<NTP1Script> NTP1Script::ParseScript(const std::string& scriptHex
             }
         } else if (txType == TxType::TxType_Burn) {
             if (protocolVersion == 1) {
-                result_ = NTP1Script_Burn::ParseBurnPostHeaderData(scriptBin, opCodeBin);
+                result_ = NTP1Script_Burn::ParseNTP1v1BurnPostHeaderData(scriptBin, opCodeBin);
             } else if (protocolVersion == 3) {
                 result_ = NTP1Script_Burn::ParseNTP1v3BurnPostHeaderData(scriptBin);
             } else {
@@ -450,6 +450,7 @@ std::string NTP1Script::NumberToHexNTP1Amount(const NTP1Int& num, bool caps)
     std::string numStr     = ToString(num);
     int         zerosCount = 0;
     // numbers less than 32 can fit in a single byte with no exponent
+    // this other condition is provided to match the API server
     if (num >= 32 && ToString(NTP1Script::GetTrailingZeros(num)).size() <= 12) {
         for (unsigned i = 0; i < numStr.size(); i++) {
             if (numStr[numStr.size() - i - 1] == '0') {
@@ -669,9 +670,9 @@ NTP1Int NTP1Script::NTP1AmountHexToNumber(std::string hexVal)
         set_in_range(bits, bin[bin.size() - i - 1], i * 8 + 0, (i + 1) * 8);
     }
 
-    bool bit0 = bits[bits.size() - 1];
-    bool bit1 = bits[bits.size() - 2];
-    bool bit2 = bits[bits.size() - 3];
+    const bool bit0 = bits[bits.size() - 1];
+    const bool bit1 = bits[bits.size() - 2];
+    const bool bit2 = bits[bits.size() - 3];
 
     // sizes in bits
     int headerSize   = 0;

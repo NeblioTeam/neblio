@@ -43,7 +43,7 @@ int ClientModel::getNumBlocks() const
 {
     // The lock was removed after changing nBestHeight to atomic
     //    LOCK(cs_main);
-    return nBestHeight;
+    return CTxDB().GetBestChainHeight().value_or(0);
 }
 
 int ClientModel::getNumBlocksAtStartup()
@@ -55,10 +55,11 @@ int ClientModel::getNumBlocksAtStartup()
 
 QDateTime ClientModel::getLastBlockDate() const
 {
-    if (pindexBest)
+    const ConstCBlockIndexSmartPtr bi = CTxDB().GetBestBlockIndex();
+    if (bi)
         return QDateTime::fromTime_t(cachedTip.time);
     else
-        return QDateTime::fromTime_t(pindexGenesisBlock->GetBlockTime()); // Genesis block's time
+        return QDateTime::fromTime_t(Params().GenesisBlock().GetBlockTime()); // Genesis block's time
 }
 
 void ClientModel::updateTimer()

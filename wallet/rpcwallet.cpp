@@ -60,7 +60,9 @@ void WalletTxToJSON(const CWalletTx& wtx, Object& entry)
     if (confirms > 0) {
         entry.push_back(Pair("blockhash", wtx.hashBlock.GetHex()));
         entry.push_back(Pair("blockindex", wtx.nIndex));
-        entry.push_back(Pair("blocktime", (int64_t)(mapBlockIndex[wtx.hashBlock]->nTime)));
+        const auto bi = mapBlockIndex.get(wtx.hashBlock).value_or(nullptr);
+        const int64_t nTime = static_cast<int64_t>(bi ? bi->nTime : 0);
+        entry.push_back(Pair("blocktime", nTime));
     }
     entry.push_back(Pair("txid", wtx.GetHash().GetHex()));
     json_spirit::Array conflicts;
@@ -69,7 +71,7 @@ void WalletTxToJSON(const CWalletTx& wtx, Object& entry)
     entry.push_back(Pair("walletconflicts", conflicts));
     entry.push_back(Pair("time", (int64_t)wtx.GetTxTime()));
     entry.push_back(Pair("timereceived", (int64_t)wtx.nTimeReceived));
-    for (const PAIRTYPE(string, string) & item : wtx.mapValue)
+    for (const PAIRTYPE(const string, string) & item : wtx.mapValue)
         entry.push_back(Pair(item.first, item.second));
 }
 
@@ -90,6 +92,10 @@ Value getinfo(const Array& params, bool fHelp)
     proxyType proxy;
     GetProxy(NET_IPV4, proxy);
 
+    CTxDB txdb;
+
+    auto bestBlockIndex = txdb.GetBestBlockIndex();
+
     Object obj, diff;
     obj.push_back(Pair("version", FormatFullVersion()));
     obj.push_back(Pair("protocolversion", (int)PROTOCOL_VERSION));
@@ -97,21 +103,20 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("balance", ValueFromAmount(pwalletMain->GetBalance())));
     obj.push_back(Pair("newmint", ValueFromAmount(pwalletMain->GetNewMint())));
     obj.push_back(Pair("stake", ValueFromAmount(pwalletMain->GetStake())));
-    obj.push_back(Pair("blocks", (int)nBestHeight));
+    obj.push_back(Pair("blocks", (int)bestBlockIndex->nHeight));
     obj.push_back(Pair("timeoffset", (int64_t)GetTimeOffset()));
-    obj.push_back(Pair("moneysupply", ValueFromAmount(boost::atomic_load(&pindexBest)->nMoneySupply)));
+    obj.push_back(Pair("moneysupply", ValueFromAmount(bestBlockIndex->nMoneySupply)));
     obj.push_back(Pair("connections", (int)vNodes.size()));
     obj.push_back(Pair("proxy", (proxy.first.IsValid() ? proxy.first.ToStringIPPort() : string())));
     obj.push_back(Pair("ip", addrSeenByPeer.get().ToStringIP()));
 
     diff.push_back(Pair("proof-of-work", GetDifficulty()));
-    diff.push_back(Pair("proof-of-stake",
-                        GetDifficulty(GetLastBlockIndex(boost::atomic_load(&pindexBest).get(), true))));
+    diff.push_back(Pair("proof-of-stake", GetDifficulty(GetLastBlockIndex(bestBlockIndex.get(), true))));
     obj.push_back(Pair("difficulty", diff));
 
     obj.push_back(Pair("testnet", Params().NetType() != NetworkType::Mainnet));
     obj.push_back(
-        Pair("tachyon", Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON)));
+        Pair("tachyon", Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, txdb)));
     obj.push_back(Pair("keypoololdest", (int64_t)pwalletMain->GetOldestKeyPoolTime()));
     obj.push_back(Pair("keypoolsize", (int)pwalletMain->GetKeyPoolSize()));
     obj.push_back(Pair("paytxfee", ValueFromAmount(nTransactionFee)));
@@ -622,7 +627,7 @@ Value sendtoaddress(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio address");
 
     // Amount
-    CAmount nAmount = AmountFromValue(params[1]);
+    const CAmount nAmount = AmountFromValue(params[1]);
 
     // Wallet comments
     CWalletTx wtx;
@@ -654,7 +659,7 @@ Value sendntp1toaddress(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid neblio address");
 
     // Amount
-    CAmount nAmount = params[1].get_int64();
+    const NTP1Int nAmount = NTP1AmountFromValue(params[1]);
 
     // Get NTP1 wallet
     boost::shared_ptr<NTP1Wallet> ntp1wallet = boost::make_shared<NTP1Wallet>();
@@ -1316,7 +1321,7 @@ Value getntp1balances(const Array& params, bool fHelp)
     json_spirit::Object root;
 
     for (int i = 0; i < tokenCount; i++) {
-        std::string tokenId   = ntp1wallet->getTokenId(i);
+        std::string tokenId   = ntp1wallet->getTokenID(i);
         std::string tokenName = ntp1wallet->getTokenName(tokenId);
         NTP1Int     balance   = ntp1wallet->getTokenBalance(tokenId);
 
@@ -1358,7 +1363,7 @@ Value getntp1balance(const Array& params, bool fHelp)
     json_spirit::Object root;
 
     for (int i = 0; i < tokenCount; i++) {
-        std::string tokenId   = ntp1wallet->getTokenId(i);
+        std::string tokenId   = ntp1wallet->getTokenID(i);
         std::string tokenName = ntp1wallet->getTokenName(tokenId);
         std::transform(tokenName.begin(), tokenName.end(), tokenName.begin(), ::tolower);
         if (tokenId != requestedToken && tokenName != requestedTokenLowerCase) {
@@ -1845,7 +1850,8 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
             entry.push_back(Pair("category", "send"));
             entry.push_back(Pair("amount", ValueFromAmount(-s.second)));
             entry.push_back(Pair("fee", ValueFromAmount(-nFee)));
-            entry.push_back(Pair("blockheight", nBestHeight - wtx.GetDepthInMainChain()));
+            entry.push_back(Pair("blockheight",
+                                 CTxDB().GetBestChainHeight().value_or(0) - wtx.GetDepthInMainChain()));
             if (fLong)
                 WalletTxToJSON(wtx, entry);
             ret.push_back(entry);
@@ -1880,7 +1886,8 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                     entry.push_back(Pair("amount", ValueFromAmount(-nFee)));
                     stop = true; // only one coinstake output
                 }
-                entry.push_back(Pair("blockheight", 1 + nBestHeight - wtx.GetDepthInMainChain()));
+                entry.push_back(Pair("blockheight", 1 + CTxDB().GetBestChainHeight().value_or(0) -
+                                                        wtx.GetDepthInMainChain()));
                 if (fLong)
                     WalletTxToJSON(wtx, entry);
                 ret.push_back(entry);
@@ -2059,15 +2066,15 @@ Value listsinceblock(const Array& params, bool fHelp)
         uint256 blockId = 0;
 
         blockId.SetHex(params[0].get_str());
-        auto it = mapBlockIndex.find(blockId);
-        if (it == mapBlockIndex.cend()) {
+        const auto bi = mapBlockIndex.get(blockId).value_or(nullptr);
+        if (!bi) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
         }
-        pindex = it->second.get();
+        pindex = bi.get();
 
         // find the common ancestor if this block is not in mainchain
-        while (pindex && !pindex->IsInMainChain() && pindex->pprev) {
-            nonMainChain.push_back(*pindex->phashBlock);
+        while (pindex && !pindex->IsInMainChain(CTxDB()) && pindex->pprev) {
+            nonMainChain.push_back(pindex->phashBlock);
             pindex = pindex->pprev.get();
         }
     }
@@ -2079,7 +2086,7 @@ Value listsinceblock(const Array& params, bool fHelp)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter");
     }
 
-    int depth = pindex ? (1 + nBestHeight - pindex->nHeight) : -1;
+    int depth = pindex ? (1 + CTxDB().GetBestChainHeight().value_or(0) - pindex->nHeight) : -1;
 
     Array transactions;
     Array removed;
@@ -2097,9 +2104,9 @@ Value listsinceblock(const Array& params, bool fHelp)
         includeRemoved = params[2].get_bool();
     }
 
+    CTxDB txdb;
     if (includeRemoved) {
         for (const uint256& h : nonMainChain) {
-            CTxDB  txdb;
             CBlock block;
             if (txdb.ReadBlock(h, block, true)) {
                 for (const CTransaction& tx : block.vtx) {
@@ -2117,12 +2124,12 @@ Value listsinceblock(const Array& params, bool fHelp)
     uint256 lastblock;
 
     if (target_confirms == 1) {
-        lastblock = hashBestChain;
+        lastblock = txdb.GetBestBlockHash();
     } else {
-        int target_height = boost::atomic_load(&pindexBest)->nHeight + 1 - target_confirms;
+        int target_height = CTxDB().GetBestChainHeight().value_or(0) + 1 - target_confirms;
 
         CBlockIndex* block;
-        for (block = pindexBest.get(); block && block->nHeight > target_height;
+        for (block = txdb.GetBestBlockIndex().get(); block && block->nHeight > target_height;
              block = boost::atomic_load(&block->pprev).get()) {
         }
 
@@ -2194,11 +2201,13 @@ Value gettransaction(const Array& params, bool fHelp)
                 entry.push_back(Pair("confirmations", 0));
             else {
                 entry.push_back(Pair("blockhash", hashBlock.GetHex()));
-                BlockIndexMapType::iterator mi = mapBlockIndex.find(hashBlock);
-                if (mi != mapBlockIndex.end() && (*mi).second) {
-                    CBlockIndexSmartPtr pindex = boost::atomic_load(&mi->second);
-                    if (pindex->IsInMainChain())
-                        entry.push_back(Pair("confirmations", 1 + nBestHeight - pindex->nHeight));
+                const auto bi = mapBlockIndex.get(hashBlock).value_or(nullptr);
+                if (bi) {
+                    CBlockIndexSmartPtr pindex = bi;
+                    if (pindex->IsInMainChain(CTxDB()))
+                        entry.push_back(
+                            Pair("confirmations",
+                                 1 + CTxDB().GetBestChainHeight().value_or(0) - pindex->nHeight));
                     else
                         entry.push_back(Pair("confirmations", 0));
                 }

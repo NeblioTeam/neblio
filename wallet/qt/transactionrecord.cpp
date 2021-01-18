@@ -25,7 +25,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
                                                                  const CWalletTx& wtx)
 {
     QList<TransactionRecord> parts;
-    int64_t                  nTime   = wtx.GetTxTime();
+    int64_t                  nTime   = wtx.nTimeReceived;
     int64_t                  nCredit = wtx.GetCredit(static_cast<isminefilter>(isminetype::ISMINE_ALL));
     int64_t                  nDebit  = wtx.GetDebit(static_cast<isminefilter>(isminetype::ISMINE_ALL));
     int64_t                  nNet    = nCredit - nDebit;
@@ -198,10 +198,10 @@ void TransactionRecord::updateStatus(const CWalletTx& wtx)
     // Determine transaction status
 
     // Find the block the tx is in
-    CBlockIndex*                pindex = nullptr;
-    BlockIndexMapType::iterator mi     = mapBlockIndex.find(wtx.hashBlock);
-    if (mi != mapBlockIndex.end())
-        pindex = boost::atomic_load(&mi->second).get();
+    CBlockIndex* pindex = nullptr;
+    const auto   mi     = mapBlockIndex.get(wtx.hashBlock).value_or(nullptr);
+    if (mi)
+        pindex = mi.get();
 
     // Sort order, unrecorded transactions sort to the top
     status.sortKey =
@@ -210,12 +210,13 @@ void TransactionRecord::updateStatus(const CWalletTx& wtx)
     status.countsForBalance = wtx.IsTrusted() && !(wtx.GetBlocksToMaturity() > 0);
     bool fConflicted        = false;
     status.depth            = wtx.GetDepthAndMempool(fConflicted);
-    status.cur_num_blocks   = nBestHeight;
+    const int bestHeight    = CTxDB().GetBestChainHeight().value_or(0);
+    status.cur_num_blocks   = bestHeight;
 
-    if (!IsFinalTx(wtx, nBestHeight + 1)) {
+    if (!IsFinalTx(wtx, bestHeight + 1)) {
         if (wtx.nLockTime < LOCKTIME_THRESHOLD) {
             status.status   = TransactionStatus::OpenUntilBlock;
-            status.open_for = wtx.nLockTime - nBestHeight;
+            status.open_for = wtx.nLockTime - bestHeight;
         } else {
             status.status   = TransactionStatus::OpenUntilDate;
             status.open_for = wtx.nLockTime;
@@ -254,10 +255,10 @@ void TransactionRecord::updateStatus(const CWalletTx& wtx)
     }
 }
 
-bool TransactionRecord::statusUpdateNeeded()
+bool TransactionRecord::statusUpdateNeeded() const
 {
-    AssertLockHeld(cs_main);
-    return status.cur_num_blocks != nBestHeight;
+    // AssertLockHeld(cs_main);
+    return status.cur_num_blocks != CTxDB().GetBestChainHeight().value_or(0);
 }
 
 std::string TransactionRecord::getTxID() const { return hash.ToString(); }

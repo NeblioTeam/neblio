@@ -17,7 +17,6 @@
 #include "stakemaker.h"
 #include "sync.h"
 #include "transaction.h"
-#include "zerocoin/Zerocoin.h"
 
 #include <atomic>
 #include <boost/enable_shared_from_this.hpp>
@@ -65,23 +64,22 @@ extern std::set<uint256> UnrecoverableNTP1Txs;
 inline int64_t PastDrift(int64_t nTime) { return nTime - 10 * 60; }   // up to 10 minutes from the past
 inline int64_t FutureDrift(int64_t nTime) { return nTime + 10 * 60; } // up to 10 minutes in the future
 
-extern libzerocoin::Params*                         ZCParams;
 extern CScript                                      COINBASE_FLAGS;
 extern std::set<std::pair<COutPoint, unsigned int>> setStakeSeen;
 static constexpr const int64_t                      TARGET_AVERAGE_BLOCK_COUNT = 100;
 extern unsigned int                                 nNodeLifespan;
-extern uint256                                      nBestChainTrust;
-extern uint256                                      nBestInvalidTrust;
-extern uint256                                      hashBestChain;
 extern uint64_t                                     nLastBlockTx;
 extern uint64_t                                     nLastBlockSize;
 extern StakeMaker                                   stakeMaker;
 extern const std::string                            strMessageMagic;
-extern int64_t                                      nTimeBestReceived;
+extern boost::atomic_int64_t                        nTimeBestReceived;
 extern CCriticalSection                             cs_setpwalletRegistered;
 extern std::set<std::shared_ptr<CWallet>>           setpwalletRegistered;
 extern std::unordered_map<uint256, CBlock*>         mapOrphanBlocks;
 extern boost::atomic<bool>                          fImporting;
+
+// Amount of blocks that other nodes claim to have
+extern CMedianFilter<int> cPeerBlockCounts;
 
 // Settings
 extern CAmount      nTransactionFee;
@@ -100,27 +98,27 @@ class CReserveKey;
 class CTxDB;
 class CTxIndex;
 
-void               RegisterWallet(std::shared_ptr<CWallet> pwalletIn);
-void               UnregisterWallet(std::shared_ptr<CWallet> pwalletIn);
-void               SyncWithWallets(const CTransaction& tx, const CBlock* pblock = NULL);
-bool               ProcessBlock(CNode* pfrom, CBlock* pblock);
-bool               CheckDiskSpace(uintmax_t nAdditionalBytes = 0);
-bool               LoadBlockIndex(bool fAllowNew = true);
-void               PrintBlockTree();
-bool               ProcessMessages(CNode* pfrom);
-bool               SendMessages(CNode* pto, bool fSendTrickle);
-void               ThreadImport(void* parg);
-bool               CheckProofOfWork(const uint256& hash, unsigned int nBits, bool silent = false);
-unsigned int       GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake);
-unsigned int       ComputeMinWork(unsigned int nBase, int64_t nTime);
-unsigned int       ComputeMinStake(unsigned int nBase, int64_t nTime, unsigned int nBlockTime);
-int                GetNumBlocksOfPeers();
-bool               IsInitialBlockDownload();
-bool               IsInitialBlockDownload_tolerant();
-bool               __IsInitialBlockDownload_internal();
-std::string        GetWarnings(std::string strFor);
-bool               GetTransaction(const uint256& hash, CTransaction& tx, uint256& hashBlock);
-uint256            WantedByOrphan(const CBlock* pblockOrphan);
+void         RegisterWallet(std::shared_ptr<CWallet> pwalletIn);
+void         UnregisterWallet(std::shared_ptr<CWallet> pwalletIn);
+void         SyncWithWallets(const ITxDB& txdb, const CTransaction& tx, const CBlock* pblock = NULL);
+bool         ProcessBlock(CNode* pfrom, CBlock* pblock);
+bool         CheckDiskSpace(uintmax_t nAdditionalBytes = 0);
+bool         LoadBlockIndex(bool fAllowNew = true);
+void         PrintBlockTree();
+bool         ProcessMessages(CNode* pfrom);
+bool         SendMessages(CNode* pto, bool fSendTrickle);
+void         ThreadImport(void* parg);
+bool         CheckProofOfWork(const uint256& hash, unsigned int nBits, bool silent = false);
+unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake);
+unsigned int ComputeMinWork(unsigned int nBase, int64_t nTime);
+unsigned int ComputeMinStake(unsigned int nBase, int64_t nTime, unsigned int nBlockTime);
+int          GetNumBlocksOfPeers();
+bool         IsInitialBlockDownload();
+bool         IsInitialBlockDownload_tolerant();
+bool         __IsInitialBlockDownload_internal();
+std::string  GetWarnings(std::string strFor);
+bool         GetTransaction(const uint256& hash, CTransaction& tx, uint256& hashBlock);
+uint256      WantedByOrphan(const CBlock* pblockOrphan);
 const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake);
 void               StakeMiner(CWallet* pwallet);
 void               ResendWalletTransactions(bool fForce = false);
@@ -129,7 +127,7 @@ void SetBestChain(const CBlockLocator& loc);
 void UpdatedTransaction(const uint256& hashTx);
 
 /** given a neblio tx, get the corresponding NTP1 tx */
-void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, CTxDB& txdb,
+void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, const ITxDB& txdb,
                          bool recoverProtection, unsigned recurseDepth = 0);
 void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, CTxDB& txdb);
 
@@ -149,8 +147,9 @@ CDiskTxPos CreateFakeSpentTxPos(const uint256& blockhash);
 /** blacklisted tokens are tokens that are to be ignored and not used for historical reasons */
 bool IsIssuedTokenBlacklisted(std::pair<CTransaction, NTP1Transaction>& txPair);
 
-void AssertNTP1TokenNameIsNotAlreadyInMainChain(std::string sym, const uint256& txHash, CTxDB& txdb);
-void AssertNTP1TokenNameIsNotAlreadyInMainChain(const NTP1Transaction& ntp1tx, CTxDB& txdb);
+void AssertNTP1TokenNameIsNotAlreadyInMainChain(const std::string& sym, const uint256& txHash,
+                                                const ITxDB& txdb);
+void AssertNTP1TokenNameIsNotAlreadyInMainChain(const NTP1Transaction& ntp1tx, const ITxDB& txdb);
 
 /** this function solves the problem of blocks having inputs from the same block. To process transactions
  * in such a situation (or always, to be safe), first we pop the transactions from the leaves (the
@@ -159,33 +158,30 @@ void AssertNTP1TokenNameIsNotAlreadyInMainChain(const NTP1Transaction& ntp1tx, C
 CTransaction PopLeafTransaction(std::vector<CTransaction>& vtx);
 
 /** True if the transaction is in the main chain (can throw) */
-bool IsTxInMainChain(const uint256& txHash);
-
-/** The number of the block where the transaction is located */
-int64_t GetTxBlockHeight(const uint256& txHash);
+bool IsTxInMainChain(const ITxDB& txdb, const uint256& txHash);
 
 /** (try to) add transaction to memory pool **/
 Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTransaction& tx,
-                                                   CTxDB* txdbPtr = nullptr);
+                                                   const ITxDB* txdbPtr = nullptr);
 
-bool EnableEnforceUniqueTokenSymbols();
+bool EnableEnforceUniqueTokenSymbols(const ITxDB& txdb);
 
 /** the condition for the first valid NTP1 transaction; transactions before this point are invalid in the
  * network*/
 bool PassedFirstValidNTP1Tx(const int bestHeight, const NetworkType isTestnet);
 
 /** Maximum size of a block */
-unsigned int MaxBlockSize();
+unsigned int MaxBlockSize(const ITxDB& txdb);
 
 /** Minimum Peer Protocol Version */
-int MinPeerVersion();
+int MinPeerVersion(const ITxDB& txdb);
 
 bool GetWalletFile(CWallet* pwallet, std::string& strWalletFileOut);
 
 /** Check for standard transaction types
     @return True if all outputs (scriptPubKeys) use only standard transaction forms
 */
-bool IsStandardTx(const CTransaction& tx, std::string& reason);
+bool IsStandardTx(const ITxDB& txdb, const CTransaction& tx, std::string& reason);
 
 /** wrapper for CTxOut that provides a more compact serialization */
 class CTxOutCompressor

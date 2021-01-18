@@ -8,6 +8,7 @@
 
 #include "chainparams.h"
 #include "main.h"
+#include "mocks/mtxdb.h"
 #include "wallet.h"
 
 using namespace std;
@@ -63,7 +64,11 @@ TEST(transaction_tests, tx_valid)
             CTransaction tx;
             stream >> tx;
 
-            EXPECT_TRUE(tx.CheckTransaction().isOk()) << strTest;
+            boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
+            EXPECT_CALL(*dbMock, GetBestChainHeight())
+                .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+
+            EXPECT_TRUE(tx.CheckTransaction(*dbMock).isOk()) << strTest;
 
             for (unsigned int i = 0; i < tx.vin.size(); i++) {
                 if (!mapprevOutScriptPubKeys.count(tx.vin[i].prevout)) {
@@ -125,7 +130,11 @@ TEST(transaction_tests, tx_invalid)
             CTransaction tx;
             stream >> tx;
 
-            fValid = tx.CheckTransaction().isOk();
+            boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
+            EXPECT_CALL(*dbMock, GetBestChainHeight())
+                .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+
+            fValid = tx.CheckTransaction(*dbMock).isOk();
 
             for (unsigned int i = 0; i < tx.vin.size() && fValid; i++) {
                 if (!mapprevOutScriptPubKeys.count(tx.vin[i].prevout)) {
@@ -154,12 +163,19 @@ TEST(transaction_tests, basic_transaction_tests)
     CDataStream  stream(ParseHex(transaction), SER_NETWORK, PROTOCOL_VERSION);
     CTransaction tx;
     stream >> tx;
-    EXPECT_TRUE(tx.CheckTransaction().isOk()) << "Simple deserialized transaction should be valid.";
+
+    boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
+    EXPECT_CALL(*dbMock, GetBestChainHeight())
+        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+
+    EXPECT_TRUE(tx.CheckTransaction(*dbMock).isOk())
+        << "Simple deserialized transaction should be valid.";
 
     // Check that duplicate txins fail
     tx.vin.push_back(tx.vin[0]);
-    ASSERT_TRUE(tx.CheckTransaction().isErr()) << "Transaction with duplicate txins should be invalid.";
-    EXPECT_EQ(tx.CheckTransaction().unwrapErr().GetRejectReason(), "bad-txns-inputs-duplicate")
+    ASSERT_TRUE(tx.CheckTransaction(*dbMock).isErr())
+        << "Transaction with duplicate txins should be invalid.";
+    EXPECT_EQ(tx.CheckTransaction(*dbMock).unwrapErr().GetRejectReason(), "bad-txns-inputs-duplicate")
         << "Transaction with duplicate has invalid rejection reason.";
 }
 
@@ -327,8 +343,12 @@ TEST(transaction_tests, test_Get)
         "CHECKSIG CHECKSIG CHECKSIG CHECKSIG CHECKSIG")); // Push the redeemScript bytes
     EXPECT_EQ(t2.vin[0].scriptSig.size(), 501u);          // Confirm that this is 501 bytes
     EXPECT_TRUE(t2.AreInputsStandard(dummyInputs));
+
+    boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(boost::optional<int>(0)));
+
     std::string reason;
-    EXPECT_FALSE(IsStandardTx(t2, reason));
+    EXPECT_FALSE(IsStandardTx(*dbMock, t2, reason));
 
     t2.vin[0].prevout.hash = dummyTransactions[4].GetHash();
     t2.vin[0].scriptSig    = ParseScript(
@@ -365,12 +385,11 @@ TEST(transaction_tests, test_GetThrow)
     EXPECT_THROW(t1.GetValueIn(missingInputs), runtime_error);
 }
 
-void test_op_return_size(int currentHeight, NetworkType netType, unsigned int expected_size)
+void test_op_return_size(const ITxDB& txdb, NetworkType netType, unsigned int expected_size)
 {
-    nBestHeight = currentHeight;
     SwitchNetworkTypeTemporarily state_holder(netType);
 
-    unsigned int allowedSize = Params().OpReturnMaxSize();
+    unsigned int allowedSize = Params().OpReturnMaxSize(txdb);
 
     EXPECT_EQ(allowedSize, expected_size);
 
@@ -391,20 +410,20 @@ void test_op_return_size(int currentHeight, NetworkType netType, unsigned int ex
         t.vout[0].scriptPubKey = GetScriptForDestination(key.GetPubKey().GetID());
 
         std::string reason;
-        EXPECT_TRUE(IsStandardTx(t, reason)) << reason;
+        EXPECT_TRUE(IsStandardTx(txdb, t, reason)) << reason;
 
         t.vout[0].scriptPubKey = CScript() << OP_RETURN << ParseHex("");
-        EXPECT_TRUE(IsStandardTx(t, reason)) << reason;
+        EXPECT_TRUE(IsStandardTx(txdb, t, reason)) << reason;
 
         // exactly the allowed data size
         t.vout[0].scriptPubKey = CScript()
                                  << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2 * allowedSize));
-        EXPECT_TRUE(IsStandardTx(t, reason)) << reason;
+        EXPECT_TRUE(IsStandardTx(txdb, t, reason)) << reason;
 
         // 81 bytes (1-byte over the limit)
         t.vout[0].scriptPubKey = CScript() << OP_RETURN
                                            << ParseHex(GeneratePseudoRandomHex(2 * (allowedSize + 1)));
-        EXPECT_FALSE(IsStandardTx(t, reason)) << reason;
+        EXPECT_FALSE(IsStandardTx(txdb, t, reason)) << reason;
 
         // Only one TX_NULL_DATA permitted in all cases
         t.vout.resize(2);
@@ -412,58 +431,81 @@ void test_op_return_size(int currentHeight, NetworkType netType, unsigned int ex
 
         t.vout[1].scriptPubKey = CScript()
                                  << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2 * allowedSize));
-        EXPECT_TRUE(IsStandardTx(t, reason)) << reason;
+        EXPECT_TRUE(IsStandardTx(txdb, t, reason)) << reason;
 
         t.vout.resize(2);
         t.vout[0].scriptPubKey = CScript()
                                  << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2 * allowedSize));
         t.vout[1].scriptPubKey = GetScriptForDestination(key.GetPubKey().GetID());
 
-        EXPECT_TRUE(IsStandardTx(t, reason)) << reason;
+        EXPECT_TRUE(IsStandardTx(txdb, t, reason)) << reason;
 
         t.vout[0].scriptPubKey = CScript()
                                  << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2 * allowedSize));
         t.vout[1].scriptPubKey = CScript()
                                  << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2 * allowedSize));
-        EXPECT_FALSE(IsStandardTx(t, reason)) << reason;
+        EXPECT_FALSE(IsStandardTx(txdb, t, reason)) << reason;
 
         t.vout[0].scriptPubKey = CScript()
                                  << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2 * allowedSize));
         t.vout[1].scriptPubKey = CScript() << OP_RETURN;
-        EXPECT_FALSE(IsStandardTx(t, reason)) << reason;
+        EXPECT_FALSE(IsStandardTx(txdb, t, reason)) << reason;
 
         t.vout[0].scriptPubKey = CScript() << OP_RETURN;
         t.vout[1].scriptPubKey = CScript() << OP_RETURN;
-        EXPECT_FALSE(IsStandardTx(t, reason)) << reason;
+        EXPECT_FALSE(IsStandardTx(txdb, t, reason)) << reason;
     }
 }
 
 TEST(transaction_tests, op_return_size_mainnet_before_hf)
 {
+    boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
+
     SwitchNetworkTypeTemporarily state_holder(NetworkType::Testnet);
     int blocknum = Params().GetNetForks().getFirstBlockOfFork(NetworkFork::NETFORK__3_TACHYON);
-    test_op_return_size(blocknum - 1, NetworkType::Mainnet, 80);
+
+    EXPECT_CALL(*dbMock, GetBestChainHeight())
+        .WillRepeatedly(testing::Return(boost::optional<int>(blocknum - 1)));
+    test_op_return_size(*dbMock, NetworkType::Mainnet, 80);
 }
 
 TEST(transaction_tests, op_return_size_mainnet_after_hf)
 {
+    boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
+
     SwitchNetworkTypeTemporarily state_holder(NetworkType::Testnet);
     int blocknum = Params().GetNetForks().getFirstBlockOfFork(NetworkFork::NETFORK__3_TACHYON);
-    test_op_return_size(blocknum, NetworkType::Mainnet, 80);
+
+    EXPECT_CALL(*dbMock, GetBestChainHeight())
+        .WillRepeatedly(testing::Return(boost::optional<int>(blocknum)));
+
+    test_op_return_size(*dbMock, NetworkType::Mainnet, 80);
 }
 
 TEST(transaction_tests, op_return_size_testnet_before_hf)
 {
+    boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
+
     SwitchNetworkTypeTemporarily state_holder(NetworkType::Testnet);
     int blocknum = Params().GetNetForks().getFirstBlockOfFork(NetworkFork::NETFORK__3_TACHYON);
-    test_op_return_size(blocknum - 1, NetworkType::Testnet, 80);
+
+    EXPECT_CALL(*dbMock, GetBestChainHeight())
+        .WillRepeatedly(testing::Return(boost::optional<int>(blocknum - 1)));
+
+    test_op_return_size(*dbMock, NetworkType::Testnet, 80);
 }
 
 TEST(transaction_tests, op_return_size_testnet_after_hf)
 {
+    boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
+
     SwitchNetworkTypeTemporarily state_holder(NetworkType::Testnet);
     int blocknum = Params().GetNetForks().getFirstBlockOfFork(NetworkFork::NETFORK__3_TACHYON);
-    test_op_return_size(blocknum, NetworkType::Testnet, 4096);
+
+    EXPECT_CALL(*dbMock, GetBestChainHeight())
+        .WillRepeatedly(testing::Return(boost::optional<int>(blocknum)));
+
+    test_op_return_size(*dbMock, NetworkType::Testnet, 4096);
 }
 
 TEST(genesis, genesis_block_tests_mainnet)

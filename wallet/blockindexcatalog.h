@@ -12,12 +12,8 @@ class CBlockIndex;
 
 class BlockIndexCatalog
 {
-    BlockIndexMapType blockIndexMap;
-
-    CBlockIndexSmartPtr InsertBlockIndex(uint256 hash);
-
 public:
-    BlockIndexCatalog();
+    BlockIndexCatalog() {}
 };
 
 #endif // BLOCKINDEXCATALOG_H

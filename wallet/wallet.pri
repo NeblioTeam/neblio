@@ -26,17 +26,6 @@ HEADERS += qt/bitcoingui.h \
     kernel.h \
     scrypt.h \
     pbkdf2.h \
-    zerocoin/Accumulator.h \
-    zerocoin/AccumulatorProofOfKnowledge.h \
-    zerocoin/Coin.h \
-    zerocoin/CoinSpend.h \
-    zerocoin/Commitment.h \
-    zerocoin/ParamGeneration.h \
-    zerocoin/Params.h \
-    zerocoin/SerialNumberSignatureOfKnowledge.h \
-    zerocoin/SpendMetaData.h \
-    zerocoin/ZeroTest.h \
-    zerocoin/Zerocoin.h \
     serialize.h \
     main.h \
     miner.h \
@@ -270,22 +259,12 @@ SOURCES += qt/bitcoin.cpp \
     scrypt-x86_64.S \
     scrypt.cpp \
     pbkdf2.cpp \
-    zerocoin/Accumulator.cpp \
-    zerocoin/AccumulatorProofOfKnowledge.cpp \
-    zerocoin/Coin.cpp \
-    zerocoin/CoinSpend.cpp \
-    zerocoin/Commitment.cpp \
-    zerocoin/ParamGeneration.cpp \
-    zerocoin/Params.cpp \
-    zerocoin/SerialNumberSignatureOfKnowledge.cpp \
-    zerocoin/SpendMetaData.cpp \
     neblioupdater.cpp \
     neblioversion.cpp \
     json/json_spirit_value.cpp \
     json/json_spirit_reader.cpp \
     json/json_spirit_writer.cpp \
     neblioreleaseinfo.cpp \
-    zerocoin/ZeroTest.cpp \
     curltools.cpp \
     qt/ntp1/ntp1tokenlistmodel.cpp \
     qt/ntp1/ntp1tokenlistfilterproxy.cpp \

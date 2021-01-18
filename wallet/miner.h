@@ -24,7 +24,7 @@ CreateNewBlock(CWallet* pwallet, bool fProofOfStake = false, int64_t* pFees = 0,
                const boost::optional<CBitcoinAddress>& PoWDestination = boost::none);
 
 /** Modify the extranonce in a block */
-void IncrementExtraNonce(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& nExtraNonce);
+void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned int& nExtraNonce);
 
 /** Do mining precalculation */
 void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash1);

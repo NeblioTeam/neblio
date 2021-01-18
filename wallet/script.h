@@ -23,6 +23,7 @@
 typedef std::vector<unsigned char> valtype;
 
 class CTransaction;
+class ITxDB;
 
 static const unsigned int MAX_SCRIPT_ELEMENT_SIZE = 520; // bytes
 
@@ -683,10 +684,10 @@ Result<void, ScriptError> EvalScript(std::vector<std::vector<unsigned char>>& st
                                      const CScript& script, const CTransaction& txTo, unsigned int nIn,
                                      bool fStrictEncodings, int nHashType,
                                      ScriptError* serror = nullptr);
-bool                      Solver(const CScript& scriptPubKey, txnouttype& typeRet,
+bool                      Solver(const ITxDB& txdb, const CScript& scriptPubKey, txnouttype& typeRet,
                                  std::vector<std::vector<unsigned char>>& vSolutionsRet);
 int  ScriptSigArgsExpected(txnouttype t, const std::vector<std::vector<unsigned char>>& vSolutions);
-bool IsStandard(const CScript& scriptPubKey, txnouttype& whichType);
+bool IsStandard(const ITxDB& txdb, const CScript& scriptPubKey, txnouttype& whichType);
 isminetype IsMine(const CKeyStore& keystore, const CScript& scriptPubKey);
 isminetype IsMine(const CKeyStore& keystore, const CTxDestination& dest);
 

@@ -129,6 +129,23 @@ CAmount AmountFromValue(const Value& value)
     return nAmount;
 }
 
+NTP1Int NTP1AmountFromValue(const Value& value)
+{
+    NTP1Int nAmount = 0;
+    if (value.type() != int_type && value.type() != str_type) {
+        throw JSONRPCError(RPC_TYPE_ERROR, "NTP1 Amount is not a number or string");
+    }
+    if (value.type() == Value_type::str_type) {
+        nAmount = NTP1Int(value.get_str());
+    } else if (value.type() == Value_type::int_type) {
+        nAmount = value.get_int64();
+    }
+    if (nAmount <= 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMS, "Invalid amount: " + ::ToString(nAmount));
+    }
+    return nAmount;
+}
+
 Value ValueFromAmount(const CAmount& amount)
 {
     return Value(std::stod(FP_IntToDecimal(amount, 8)));
@@ -341,6 +358,7 @@ static const CRPCCommand vRPCCommands[] =
     { "getrawtransaction",         &getrawtransaction,         false,  false },
     { "createrawtransaction",      &createrawtransaction,      false,  false },
     { "createrawntp1transaction",  &createrawntp1transaction,  false,  false },
+    { "issuenewntp1token",         &issuenewntp1token,         false,  false },
     { "decoderawtransaction",      &decoderawtransaction,      false,  false },
     { "decodescript",              &decodescript,              false,  false },
     { "getscriptpubkeyfromaddress",&getscriptpubkeyfromaddress,false,  false },
@@ -1450,26 +1468,63 @@ int main(int argc, char* argv[])
 
 const CRPCTable tableRPC;
 
+std::string GetTokenIDFromTokenName(const std::string& tokenName)
+{
+    CTxDB                txdb;
+    std::vector<uint256> ntp1IssuanceTxHashes;
+    if (!txdb.ReadNTP1TxsWithTokenSymbol(tokenName, ntp1IssuanceTxHashes)) {
+        throw std::runtime_error("An NTP1 token name was (at least an invalid token "
+                                 "ID), but it wasn't found in the blockchain: " +
+                                 tokenName);
+    }
+    // ensure token issuance was done in main chain
+    boost::optional<uint256> issuanceTxInMainChain;
+    for (const uint256& hash : ntp1IssuanceTxHashes) {
+        CTxIndex txindex;
+        if (txdb.ReadTxIndex(hash, txindex)) {
+            issuanceTxInMainChain = hash;
+            break;
+        }
+    }
+    if (!issuanceTxInMainChain) {
+        throw std::runtime_error("The token name given " + tokenName +
+                                 " was not found in any transaction that issued it");
+    }
+
+    // get the NTP1Transaction object
+    const CTransaction tx     = CTransaction::FetchTxFromDisk(*issuanceTxInMainChain, txdb);
+    auto               txPair = std::make_pair(tx, NTP1Transaction());
+    FetchNTP1TxFromDisk(txPair, txdb, false);
+
+    // extract token ID
+    const auto&       prevout0 = txPair.first.vin[0].prevout;
+    const std::string tokenId = txPair.second.getTokenIdIfIssuance(prevout0.hash.ToString(), prevout0.n);
+    return tokenId;
+}
+
 NTP1SendTokensOneRecipientData ParseRPCNTP1OutputJson(const json_spirit::Pair&             s,
-                                                      const boost::shared_ptr<NTP1Wallet>& ntp1wallet)
+                                                      const boost::shared_ptr<NTP1Wallet>& ntp1wallet,
+                                                      bool getDataStrictlyFromNTP1Wallet)
 {
     NTP1SendTokensOneRecipientData res;
     if (s.value_.type() == json_spirit::Value_type::obj_type) {
+        // NTP1 token (since the json type is object)
         json_spirit::Object obj = s.value_.get_obj();
         if (obj.size() != 1) {
             throw std::runtime_error("Invalid tokenId and amount pair.");
         }
-        int64_t nAmount = obj[0].value_.get_int64();
+        NTP1Int nAmount = NTP1AmountFromValue(obj[0].value_);
         if (nAmount <= 0) {
             throw std::runtime_error("Invalid amount: " + ::ToString(res.amount));
         }
-        res.amount             = static_cast<uint64_t>(nAmount);
-        std::string providedId = obj[0].name_;
+        res.amount                   = static_cast<uint64_t>(nAmount);
+        const std::string providedId = obj[0].name_;
 
         const std::unordered_map<std::string, NTP1TokenMetaData> tokenMetadataMap =
             ntp1wallet->getTokenMetadataMap();
         // token id was not found
-        if (tokenMetadataMap.find(providedId) == tokenMetadataMap.end()) {
+        if (getDataStrictlyFromNTP1Wallet &&
+            tokenMetadataMap.find(providedId) == tokenMetadataMap.end()) {
             res.tokenId   = "";
             int nameCount = 0; // number of tokens that have that name
             // try to find whether the name of the token matches with what's provided
@@ -1486,7 +1541,14 @@ NTP1SendTokensOneRecipientData ParseRPCNTP1OutputJson(const json_spirit::Pair&  
                 throw std::runtime_error("Found multiple tokens by the name " + providedId);
             }
         } else {
-            res.tokenId = providedId;
+            std::vector<unsigned char> decoded;
+            if (!DecodeBase58Check(providedId, decoded)) {
+                // this is a token given by name, not by ID
+                res.tokenId = GetTokenIDFromTokenName(providedId);
+            } else {
+                // this is a token given by ID, not by name
+                res.tokenId = providedId;
+            }
         }
     } else {
         // nebls
@@ -1501,7 +1563,8 @@ NTP1SendTokensOneRecipientData ParseRPCNTP1OutputJson(const json_spirit::Pair&  
 }
 
 std::vector<NTP1SendTokensOneRecipientData>
-GetNTP1RecipientsVector(const Value& sendToVal, boost::shared_ptr<NTP1Wallet> ntp1wallet)
+GetNTP1RecipientsVector(const Value& sendToVal, boost::shared_ptr<NTP1Wallet> ntp1wallet,
+                        bool getDataStrictlyFromNTP1Wallet)
 {
     std::vector<NTP1SendTokensOneRecipientData> result;
     if (sendToVal.type() == Value_type::obj_type) {
@@ -1520,8 +1583,9 @@ GetNTP1RecipientsVector(const Value& sendToVal, boost::shared_ptr<NTP1Wallet> nt
             CScript scriptPubKey;
             scriptPubKey.SetDestination(address.Get());
 
-            NTP1SendTokensOneRecipientData res = ParseRPCNTP1OutputJson(s, ntp1wallet);
-            res.destination                    = address.ToString();
+            NTP1SendTokensOneRecipientData res =
+                ParseRPCNTP1OutputJson(s, ntp1wallet, getDataStrictlyFromNTP1Wallet);
+            res.destination = address.ToString();
             result.push_back(res);
         }
     } else if (sendToVal.type() == Value_type::array_type) {
@@ -1548,8 +1612,9 @@ GetNTP1RecipientsVector(const Value& sendToVal, boost::shared_ptr<NTP1Wallet> nt
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
                                    string("Invalid neblio address: ") + s.name_);
 
-            NTP1SendTokensOneRecipientData res = ParseRPCNTP1OutputJson(s, ntp1wallet);
-            res.destination                    = address.ToString();
+            NTP1SendTokensOneRecipientData res =
+                ParseRPCNTP1OutputJson(s, ntp1wallet, getDataStrictlyFromNTP1Wallet);
+            res.destination = address.ToString();
             result.push_back(res);
         }
     } else {

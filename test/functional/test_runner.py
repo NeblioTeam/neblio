@@ -59,6 +59,7 @@ BASE_SCRIPTS= [
    'wallet_backup.py',
     # vv Tests less than 5m vv
     'feature_block.py',
+    'feature_block_ntp1.py',
     'feature_pos.py',
     'feature_pos_rpc.py',
 #    'p2p_compactblocks.py',
@@ -78,6 +79,9 @@ BASE_SCRIPTS= [
    'wallet_abandonconflict.py',
 #    'feature_csv_activation.py',
     'rpc_rawtransaction.py',
+    'rpc_ntp1_issuance.py',
+    'rpc_ntp1_random_sends.py',
+    'rpc_ntp1_random_sends_raw.py',
 #    'wallet_address_types.py',
 #    'feature_reindex.py',
     # vv Tests less than 30s vv

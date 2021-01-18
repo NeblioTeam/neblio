@@ -127,7 +127,7 @@ std::string CTransaction::ToString() const
 
 void CTransaction::print() const { printf("%s", ToString().c_str()); }
 
-bool CTransaction::ReadFromDisk(CTxDB& txdb, COutPoint prevout, CTxIndex& txindexRet)
+bool CTransaction::ReadFromDisk(const ITxDB& txdb, COutPoint prevout, CTxIndex& txindexRet)
 {
     SetNull();
     if (!txdb.ReadTxIndex(prevout.hash, txindexRet))
@@ -170,7 +170,7 @@ bool CTransaction::AreInputsStandard(const MapPrevTx& mapInputs) const
         txnouttype                              whichType;
         // get the scriptPubKey corresponding to this input:
         const CScript& prevScript = prev.scriptPubKey;
-        if (!Solver(prevScript, whichType, vSolutions))
+        if (!Solver(CTxDB(), prevScript, whichType, vSolutions))
             return false;
 
         // Transactions with extra stuff in their scriptSigs are
@@ -218,7 +218,8 @@ unsigned int CTransaction::GetLegacySigOpCount() const
     return nSigOps;
 }
 
-Result<void, TxValidationState> CTransaction::CheckTransaction(CBlock* sourceBlockPtr) const
+Result<void, TxValidationState> CTransaction::CheckTransaction(const ITxDB& txdb,
+                                                               CBlock*      sourceBlockPtr) const
 {
     // Basic checks that don't depend on any context
     if (vin.empty()) {
@@ -231,7 +232,7 @@ Result<void, TxValidationState> CTransaction::CheckTransaction(CBlock* sourceBlo
     }
 
     // Size limits
-    unsigned int nSizeLimit = MaxBlockSize();
+    unsigned int nSizeLimit = MaxBlockSize(txdb);
     if (::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > nSizeLimit) {
         DoS(100, false);
         return Err(MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-txns-oversize"));
@@ -310,7 +311,7 @@ Result<void, TxValidationState> CTransaction::CheckTransaction(CBlock* sourceBlo
     return Ok();
 }
 
-CAmount CTransaction::GetMinFee(unsigned int nBlockSize, enum GetMinFee_mode mode,
+CAmount CTransaction::GetMinFee(const ITxDB& txdb, unsigned int nBlockSize, enum GetMinFee_mode mode,
                                 unsigned int nBytes) const
 {
     // Base fee is either MIN_TX_FEE or MIN_RELAY_TX_FEE
@@ -327,7 +328,7 @@ CAmount CTransaction::GetMinFee(unsigned int nBlockSize, enum GetMinFee_mode mod
     }
 
     // Raise the price as the block approaches full
-    unsigned int nSizeLimit = MaxBlockSize();
+    unsigned int nSizeLimit = MaxBlockSize(txdb);
     if (nBlockSize != 1 && nNewBlockSize >= nSizeLimit / 2) {
         if (nNewBlockSize >= nSizeLimit)
             return MAX_MONEY;
@@ -339,7 +340,7 @@ CAmount CTransaction::GetMinFee(unsigned int nBlockSize, enum GetMinFee_mode mod
     return nMinFee;
 }
 
-bool CTransaction::ReadFromDisk(CDiskTxPos pos, CTxDB& txdb) { return txdb.ReadTx(pos, *this); }
+bool CTransaction::ReadFromDisk(CDiskTxPos pos, const ITxDB& txdb) { return txdb.ReadTx(pos, *this); }
 
 bool CTransaction::DisconnectInputs(CTxDB& txdb)
 {
@@ -374,8 +375,8 @@ bool CTransaction::DisconnectInputs(CTxDB& txdb)
     return true;
 }
 
-bool CTransaction::FetchInputs(CTxDB& txdb, const std::map<uint256, CTxIndex>& mapTestPool, bool fBlock,
-                               bool fMiner, MapPrevTx& inputsRet, bool& fInvalid) const
+bool CTransaction::FetchInputs(const ITxDB& txdb, const std::map<uint256, CTxIndex>& mapTestPool,
+                               bool fBlock, bool fMiner, MapPrevTx& inputsRet, bool& fInvalid) const
 {
     // FetchInputs can return false either because we just haven't seen some inputs
     // (in which case the transaction should be stored as an orphan)
@@ -483,10 +484,12 @@ unsigned int CTransaction::GetP2SHSigOpCount(const MapPrevTx& inputs) const
     return nSigOps;
 }
 
-Result<void, TxValidationState>
-CTransaction::ConnectInputs(MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTestPool,
-                            const CDiskTxPos& posThisTx, const ConstCBlockIndexSmartPtr& pindexBlock,
-                            bool fBlock, bool fMiner, CBlock* sourceBlockPtr) const
+Result<void, TxValidationState> CTransaction::ConnectInputs(const ITxDB& txdb, MapPrevTx inputs,
+                                                            std::map<uint256, CTxIndex>&    mapTestPool,
+                                                            const CDiskTxPos&               posThisTx,
+                                                            const ConstCBlockIndexSmartPtr& pindexBlock,
+                                                            bool fBlock, bool fMiner,
+                                                            CBlock* sourceBlockPtr) const
 {
     // Take over previous transactions' spent pointers
     // fBlock is true when this is called from AcceptBlock when a new best-block is added to the
@@ -513,7 +516,7 @@ CTransaction::ConnectInputs(MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTe
             }
 
             // If prev is coinbase or coinstake, check that it's matured
-            int nCbM = Params().CoinbaseMaturity();
+            int nCbM = Params().CoinbaseMaturity(txdb);
             if (txPrev.IsCoinBase() || txPrev.IsCoinStake())
                 for (ConstCBlockIndexSmartPtr pindex = boost::atomic_load(&pindexBlock);
                      pindex && pindexBlock->nHeight - pindex->nHeight < nCbM;
@@ -583,7 +586,8 @@ CTransaction::ConnectInputs(MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTe
             // Skip ECDSA signature verification when connecting blocks (fBlock=true)
             // before the last blockchain checkpoint. This is safe because block merkle hashes are
             // still computed and checked, and any change will be caught at the next checkpoint.
-            if (!(fBlock && (nBestHeight < Checkpoints::GetTotalBlocksEstimate()))) {
+            if (!(fBlock &&
+                  (txdb.GetBestChainHeight().value_or(0) < Checkpoints::GetTotalBlocksEstimate()))) {
                 // Verify signature
                 bool       fStrictPayToScriptHash = true;
                 const auto verifyRes =
@@ -651,10 +655,10 @@ CTransaction::ConnectInputs(MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTe
             }
 
             // enforce transaction fees for every block
-            if (nTxFee < GetMinFee()) {
+            if (nTxFee < GetMinFee(txdb)) {
                 if (fBlock) {
                     DoS(100, error("ConnectInputs() : %s not paying required fee=%s, paid=%s",
-                                   GetHash().ToString().c_str(), FormatMoney(GetMinFee()).c_str(),
+                                   GetHash().ToString().c_str(), FormatMoney(GetMinFee(txdb)).c_str(),
                                    FormatMoney(nTxFee).c_str()));
                 }
                 return Err(MakeInvalidTxState(
@@ -680,10 +684,10 @@ CTransaction::ConnectInputs(MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTe
 // guaranteed to be in main chain by sync-checkpoint. This rule is
 // introduced to help nodes establish a consistent view of the coin
 // age (trust score) of competing branches.
-bool CTransaction::GetCoinAge(CTxDB& txdb, uint64_t& nCoinAge) const
+bool CTransaction::GetCoinAge(const ITxDB& txdb, uint64_t& nCoinAge) const
 {
     CBigNum      bnCentSecond = 0; // coin age in the unit of cent-seconds
-    unsigned int nSMA         = Params().StakeMinAge();
+    unsigned int nSMA         = Params().StakeMinAge(txdb);
     nCoinAge                  = 0;
 
     if (IsCoinBase())
@@ -773,7 +777,7 @@ std::vector<CKey> CTransaction::GetThisWalletKeysOfTx(const uint256&            
         std::vector<std::vector<uint8_t>> vSolutions;
         // this solution can be improved later for multiple kinds of transactions, here we only support
         // P2PKH transactions, more in CScript class's source file
-        Solver(out.scriptPubKey, outtype, vSolutions);
+        Solver(CTxDB(), out.scriptPubKey, outtype, vSolutions);
         if (outtype == TX_PUBKEYHASH) {
             CKeyID keyId = CKeyID(uint160(vSolutions[0]));
             if (!CBitcoinAddress(keyId).IsValid()) {

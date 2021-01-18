@@ -109,6 +109,7 @@ public:
 
         std::string rawAmount;
         NTP1Int     amount;
+        unsigned int rawSize = 0;
     };
 
     struct IssuanceFlags

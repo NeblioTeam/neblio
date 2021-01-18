@@ -160,6 +160,7 @@ extern const CRPCTable tableRPC;
 
 extern int64_t            nWalletUnlockTime;
 extern CAmount            AmountFromValue(const json_spirit::Value& value);
+NTP1Int                   NTP1AmountFromValue(const json_spirit::Value& value);
 extern json_spirit::Value ValueFromAmount(const CAmount& amount);
 extern double             GetDifficulty(const CBlockIndex* blockindex = NULL);
 
@@ -264,6 +265,7 @@ extern json_spirit::Value getrawtransaction(const json_spirit::Array& params, bo
 extern json_spirit::Value listunspent(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value createrawtransaction(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value createrawntp1transaction(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value issuenewntp1token(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value decoderawtransaction(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value decodescript(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getscriptpubkeyfromaddress(const json_spirit::Array& params, bool fHelp);
@@ -293,7 +295,8 @@ extern json_spirit::Value exportblockchain(const json_spirit::Array& params, boo
 extern json_spirit::Value waitforblockheight(const json_spirit::Array& params, bool fHelp);
 
 std::vector<NTP1SendTokensOneRecipientData>
-     GetNTP1RecipientsVector(const json_spirit::Value& sendTo, boost::shared_ptr<NTP1Wallet> ntp1wallet);
+     GetNTP1RecipientsVector(const json_spirit::Value& sendTo, boost::shared_ptr<NTP1Wallet> ntp1wallet,
+                             bool getDataStrictlyFromNTP1Wallet = true);
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, json_spirit::Object& out, bool fIncludeHex);
 
 #endif

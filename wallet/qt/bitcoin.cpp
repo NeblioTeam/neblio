@@ -247,7 +247,6 @@ int main(int argc, char* argv[])
         guiref = &window;
         if (AppInit2()) {
             {
-                appInitiated = true;
                 // Put this in a block, so that the Model objects are cleaned up before
                 // calling Shutdown().
 

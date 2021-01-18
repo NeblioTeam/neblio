@@ -290,7 +290,7 @@ public:
     std::string SendMoneyToDestination(const CTxDestination& address, CAmount nValue, CWalletTx& wtxNew,
                                        bool fAskFee = false);
     std::string
-    SendNTP1ToDestination(const CTxDestination& address, CAmount nValue, const std::string& tokenId,
+    SendNTP1ToDestination(const CTxDestination& address, NTP1Int nValue, const std::string& tokenId,
                           CWalletTx& wtxNew, boost::shared_ptr<NTP1Wallet> ntp1wallet,
                           const RawNTP1MetadataBeforeSend& ntp1metadata = RawNTP1MetadataBeforeSend(),
                           bool                             fAskFee      = false);

@@ -301,6 +301,9 @@ QString TransactionTableModel::formatTxStatus(const TransactionRecord* wtx) cons
     case TransactionStatus::NotAccepted:
         status = tr("Generated but not accepted");
         break;
+    case TransactionStatus::Undetermined:
+        status = tr("Loading...");
+        break;
     }
 
     return status;
@@ -404,7 +407,7 @@ void TransactionTableModel::finishRefreshWallet(QSharedPointer<QList<Transaction
     assert(records);
 
     // force sync since we got a vector from another thread
-    std::atomic_thread_fence(std::memory_order_seq_cst);
+    boost::atomic_thread_fence(boost::memory_order_seq_cst);
 
     beginResetModel();
     // this is an RAII hack to guarantee that the function will end the model reset
@@ -553,6 +556,8 @@ QVariant TransactionTableModel::txStatusDecoration(const TransactionRecord* wtx)
     case TransactionStatus::MaturesWarning:
     case TransactionStatus::NotAccepted:
         return QIcon(":/icons/transaction_0");
+    case TransactionStatus::Undetermined:
+        return QIcon(":/icons/hourglass");
     }
     return QColor(0, 0, 0);
 }
@@ -700,9 +705,8 @@ QVariant TransactionTableModel::headerData(int section, Qt::Orientation orientat
     return QVariant();
 }
 
-QModelIndex TransactionTableModel::index(int row, int column, const QModelIndex& parent) const
+QModelIndex TransactionTableModel::index(int row, int column, const QModelIndex& /*parent*/) const
 {
-    Q_UNUSED(parent);
     TransactionRecord* data = priv->index(row);
     if (data) {
         return createIndex(row, column, data);
@@ -729,7 +733,7 @@ void TransactionTableModel::updateMaxTransactionsToLoad(quint64 value)
 }
 
 void TxsRetrieverWorker::getTxs(CWallet* wallet, QSharedPointer<TxsRetrieverWorker> workerPtr,
-                                const quint64* limit)
+                                const boost::atomic<quint64>* limit)
 {
     assert(limit);
 
@@ -738,7 +742,7 @@ void TxsRetrieverWorker::getTxs(CWallet* wallet, QSharedPointer<TxsRetrieverWork
 
     std::vector<CWalletTx> walletTxs = wallet->getWalletTxs();
 
-    const quint64 originalLimit = *limit;
+    const quint64 originalLimit = limit->load(boost::memory_order_seq_cst);
 
     if (originalLimit > 0) {
         static const auto TxSortFunctor = [](const CWalletTx& a, const CWalletTx& b) -> bool {

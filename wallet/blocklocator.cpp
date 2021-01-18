@@ -2,14 +2,15 @@
 
 #include "blockindex.h"
 #include "protocol.h"
+#include "txdb-lmdb.h"
 
 CBlockLocator::CBlockLocator(const CBlockIndex* pindex) { Set(pindex); }
 
 CBlockLocator::CBlockLocator(uint256 hashBlock)
 {
-    BlockIndexMapType::iterator mi = mapBlockIndex.find(hashBlock);
-    if (mi != mapBlockIndex.end())
-        Set(boost::atomic_load(&mi->second).get());
+    const auto bi = mapBlockIndex.get(hashBlock).value_or(nullptr);
+    if (bi)
+        Set(bi.get());
 }
 
 CBlockLocator::CBlockLocator(const std::vector<uint256>& vHaveIn) { vHave = vHaveIn; }
@@ -40,10 +41,9 @@ int CBlockLocator::GetDistanceBack()
     int nDistance = 0;
     int nStep     = 1;
     BOOST_FOREACH (const uint256& hash, vHave) {
-        BlockIndexMapType::iterator mi = mapBlockIndex.find(hash);
-        if (mi != mapBlockIndex.end()) {
-            CBlockIndexSmartPtr pindex = boost::atomic_load(&mi->second);
-            if (pindex->IsInMainChain())
+        const auto bi = mapBlockIndex.get(hash).value_or(nullptr);
+        if (bi) {
+            if (bi->IsInMainChain(CTxDB()))
                 return nDistance;
         }
         nDistance += nStep;
@@ -57,11 +57,10 @@ CBlockIndexSmartPtr CBlockLocator::GetBlockIndex()
 {
     // Find the first block the caller has in the main chain
     BOOST_FOREACH (const uint256& hash, vHave) {
-        BlockIndexMapType::iterator mi = mapBlockIndex.find(hash);
-        if (mi != mapBlockIndex.end()) {
-            CBlockIndexSmartPtr pindex = boost::atomic_load(&mi->second);
-            if (pindex->IsInMainChain())
-                return pindex;
+        const auto bi = mapBlockIndex.get(hash).value_or(nullptr);
+        if (bi) {
+            if (bi->IsInMainChain(CTxDB()))
+                return bi;
         }
     }
     return pindexGenesisBlock;
@@ -71,10 +70,9 @@ uint256 CBlockLocator::GetBlockHash()
 {
     // Find the first block the caller has in the main chain
     BOOST_FOREACH (const uint256& hash, vHave) {
-        BlockIndexMapType::iterator mi = mapBlockIndex.find(hash);
-        if (mi != mapBlockIndex.end()) {
-            CBlockIndexSmartPtr pindex = boost::atomic_load(&mi->second);
-            if (pindex->IsInMainChain())
+        const auto bi = mapBlockIndex.get(hash).value_or(nullptr);
+        if (bi) {
+            if (bi->IsInMainChain(CTxDB()))
                 return hash;
         }
     }
