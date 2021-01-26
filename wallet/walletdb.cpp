@@ -306,11 +306,11 @@ bool ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue, CW
             ssValue >> d.name;
             pwallet->mapAddressBook.set(CBitcoinAddress(strAddress).Get(), d);
         } else if (strType == "purpose") {
-            std::string                   strAddress;
+            std::string strAddress;
+            ssKey >> strAddress;
             AddressBook::CAddressBookData d =
                 pwallet->mapAddressBook.get(CBitcoinAddress(strAddress).Get())
                     .value_or(AddressBook::CAddressBookData());
-            ssKey >> strAddress;
             ssValue >> d.purpose;
             pwallet->mapAddressBook.set(CBitcoinAddress(strAddress).Get(), d);
         } else if (strType == "tx") {
