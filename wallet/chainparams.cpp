@@ -218,7 +218,7 @@ public:
             {2400000, uint256{"0xdd8ed2992b0df4422d1fc950350c82f84d9a0862f93582f9404d5c3bb4b3a625"}},
             {2500000, uint256{"0x07ad693d84ef66eaa81f96db7ad901e871ca02a76b1fabb72c1e300580dd2c71"}},
             {2600000, uint256{"0x8d1855390705044b515907cc2096cd2bb4979cb18d6bf1edd26983da60387502"}},
-            {2687000, unit256{"0x6d2097fce84bd83b066f2a63512b8a44225314cd5f2561eac471071eae291d9a"}}});
+            {2687000, uint256{"0x6d2097fce84bd83b066f2a63512b8a44225314cd5f2561eac471071eae291d9a"}}});
         // clang-format on
 
         mapStakeModifierCheckpoints = MapStakeModifierCheckpoints{{0, 0xfd11f4e7},   // genesis
