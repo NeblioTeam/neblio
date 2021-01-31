@@ -96,7 +96,7 @@ public:
             // RetargetV3 upgrade. Approx June 15 2019
             {NetworkFork::NETFORK__4_RETARGET_CORRECTION, 1003125},
             // Enable cold-staking - unset placeholder
-            {NetworkFork::NETFORK__5_COLD_STAKING, 1000000000}}));
+            {NetworkFork::NETFORK__5_COLD_STAKING, 2730450}}));
 
         consensus.nCoinbaseMaturityV1 = 30;
         consensus.nCoinbaseMaturityV2 = 10;
@@ -217,7 +217,8 @@ public:
             {2300000, uint256{"0x575ca59268e10b92cfedca6059a388043882f95442b7290012bf8a333ce889c4"}},
             {2400000, uint256{"0xdd8ed2992b0df4422d1fc950350c82f84d9a0862f93582f9404d5c3bb4b3a625"}},
             {2500000, uint256{"0x07ad693d84ef66eaa81f96db7ad901e871ca02a76b1fabb72c1e300580dd2c71"}},
-            {2560000, uint256{"0x0df2f2cf5c196b44ee47d4cd0ad9e2b608dbca49c1b45656731393d2c333a789"}}});
+            {2600000, uint256{"0x8d1855390705044b515907cc2096cd2bb4979cb18d6bf1edd26983da60387502"}},
+            {2687000, uint256{"0x6d2097fce84bd83b066f2a63512b8a44225314cd5f2561eac471071eae291d9a"}}});
         // clang-format on
 
         mapStakeModifierCheckpoints = MapStakeModifierCheckpoints{{0, 0xfd11f4e7},   // genesis
@@ -354,7 +355,8 @@ public:
             {1600000, uint256{"0x8510acea950aa7e2da8d287bacc66cca6056bf89f5f0d70109fd92adaf1023d9"}},
             {1700000, uint256{"0x65738a87a454cfe97b8200149cd4be7199d1ceff30b18778bd79d222203962ce"}},
             {1801000, uint256{"0x406fc58723c11eae128c85174e81b5b6b333eaf683ff4f6ca34bbd8cee3b24f5"}},
-            {2521000, uint256{"0xd3dc0dd25f4850fa8a607620620959e1970e7bcfe9b36ffd8df3bda1004e5cab"}}});
+            {2521000, uint256{"0xd3dc0dd25f4850fa8a607620620959e1970e7bcfe9b36ffd8df3bda1004e5cab"}},
+            {2581300, uint256{"0xe90b2a55da410f834e047a1f2c1d1901f6beeba2a366a6ce05b01112e9973432"}}});
         // clang-format on
 
         // Hard checkpoints of stake modifiers to ensure they are deterministic (testNet)

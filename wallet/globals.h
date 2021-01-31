@@ -59,9 +59,8 @@ static const unsigned int MAX_SUBVERSION_LENGTH = 256;
 static const int64_t COIN_YEAR_REWARD = 10 * CENT; // 10%
 
 /** The maximum allowed Peer Protocol Version */
-static const unsigned int MIN_PEER_PROTO_VERSION     = 60303; // v3.0.3+
+static const unsigned int MIN_PEER_PROTO_VERSION     = 60320; // v3.2.0+
 static const unsigned int OLD_MIN_PEER_PROTO_VERSION = 60210; // v2.1+
-
 extern boost::atomic<int64_t> NodeIDCounter;
 
 /** Subversion as sent to the P2P network in `version` messages */

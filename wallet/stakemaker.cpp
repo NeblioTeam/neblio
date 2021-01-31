@@ -567,6 +567,6 @@ void StakeMaker::resetLastCoinStakeSearchInterval() { nLastCoinStakeSearchInterv
 
 bool StakeMaker::IsStakingActive()
 {
-    // returns true if we have weight and we tried to stake in the last 30 seconds
-    return cachedStakeWeight.load().value_or(0) > 0 && (nLastCoinStakeSearchTime + 30) >= GetAdjustedTime();
+    // returns true if we have weight and we tried to stake in the last 120 seconds
+    return cachedStakeWeight.load().value_or(0) > 0 && (nLastCoinStakeSearchTime + 120) >= GetAdjustedTime();
 }
