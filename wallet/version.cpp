@@ -14,7 +14,7 @@ const std::string CLIENT_NAME("Satoshi");
 #ifdef NEBLIO_REST
 #define CLIENT_VERSION_SUFFIX   "-REST-Enabled"
 #else
-#define CLIENT_VERSION_SUFFIX   "-RC1"
+#define CLIENT_VERSION_SUFFIX   ""
 #endif
 
 // The following part of the code determines the CLIENT_BUILD variable.
