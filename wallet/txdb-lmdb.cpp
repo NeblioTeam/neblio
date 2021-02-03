@@ -489,6 +489,74 @@ void CTxDB::init_blockindex(bool fRemoveOld)
         }
     }
 
+    OpenDatabase();
+}
+
+// CDB subclasses are created and destroyed VERY OFTEN. That's why
+// we shouldn't treat this as a free operations.
+CTxDB::CTxDB(const char* pszMode)
+{
+    assert(pszMode);
+    fReadOnly = (!strchr(pszMode, '+') && !strchr(pszMode, 'w'));
+
+    if (glob_db_main) {
+        loadDbPointers();
+        return;
+    }
+
+    printf("Initializing lmdb with db size: %" PRIu64 "\n", DB_DEFAULT_MAPSIZE);
+    bool fCreate = strchr(pszMode, 'c');
+
+    init_blockindex(); // Init directory
+    loadDbPointers();
+
+    if (Exists(string("version"), db_main)) {
+        nVersion = ReadVersion().value_or(0);
+        printf("Transaction index version is %d\n", nVersion);
+
+        if (nVersion < DATABASE_VERSION) {
+            printf("Required index version is %d, removing old database\n", DATABASE_VERSION);
+
+            // lmdb instance destruction
+            resetDbPointers();
+            resetGlobalDbPointers();
+            if (activeBatch) {
+                activeBatch->abort();
+                activeBatch.reset();
+            }
+
+            init_blockindex(true); // Remove directory and create new database
+            loadDbPointers();
+
+            bool fTmp = fReadOnly;
+            fReadOnly = false;
+            WriteVersion(DATABASE_VERSION); // Save transaction index version
+            fReadOnly = fTmp;
+        }
+    } else if (fCreate) {
+        bool fTmp = fReadOnly;
+        fReadOnly = false;
+        WriteVersion(DATABASE_VERSION);
+        fReadOnly = fTmp;
+    }
+
+    printf("Opened LMDB successfully\n");
+}
+
+void CTxDB::Close()
+{
+    if (activeBatch) {
+        activeBatch->abort();
+        activeBatch.reset();
+    }
+    resetDbPointers();
+    resetGlobalDbPointers();
+}
+
+void CTxDB::OpenDatabase()
+{
+    const filesystem::path directory = GetDataDir() / DB_DIR;
+
     printf("Opening the blockchain database...\n");
     uiInterface.InitMessage("Opening the blockchain database...");
 
@@ -593,67 +661,6 @@ void CTxDB::init_blockindex(bool fRemoveOld)
 
     printf("Done opening the database\n");
     uiInterface.InitMessage("Done opening the database");
-}
-
-// CDB subclasses are created and destroyed VERY OFTEN. That's why
-// we shouldn't treat this as a free operations.
-CTxDB::CTxDB(const char* pszMode)
-{
-    assert(pszMode);
-    fReadOnly = (!strchr(pszMode, '+') && !strchr(pszMode, 'w'));
-
-    if (glob_db_main) {
-        loadDbPointers();
-        return;
-    }
-
-    printf("Initializing lmdb with db size: %" PRIu64 "\n", DB_DEFAULT_MAPSIZE);
-    bool fCreate = strchr(pszMode, 'c');
-
-    init_blockindex(); // Init directory
-    loadDbPointers();
-
-    if (Exists(string("version"), db_main)) {
-        nVersion = ReadVersion().value_or(0);
-        printf("Transaction index version is %d\n", nVersion);
-
-        if (nVersion < DATABASE_VERSION) {
-            printf("Required index version is %d, removing old database\n", DATABASE_VERSION);
-
-            // lmdb instance destruction
-            resetDbPointers();
-            resetGlobalDbPointers();
-            if (activeBatch) {
-                activeBatch->abort();
-                activeBatch.reset();
-            }
-
-            init_blockindex(true); // Remove directory and create new database
-            loadDbPointers();
-
-            bool fTmp = fReadOnly;
-            fReadOnly = false;
-            WriteVersion(DATABASE_VERSION); // Save transaction index version
-            fReadOnly = fTmp;
-        }
-    } else if (fCreate) {
-        bool fTmp = fReadOnly;
-        fReadOnly = false;
-        WriteVersion(DATABASE_VERSION);
-        fReadOnly = fTmp;
-    }
-
-    printf("Opened LMDB successfully\n");
-}
-
-void CTxDB::Close()
-{
-    if (activeBatch) {
-        activeBatch->abort();
-        activeBatch.reset();
-    }
-    resetDbPointers();
-    resetGlobalDbPointers();
 }
 
 void CTxDB::__deleteDb()

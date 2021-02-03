@@ -207,6 +207,8 @@ struct mdb_txn_safe
 // Learn more: http://code.google.com/p/leveldb/
 class CTxDB : public ITxDB
 {
+    void OpenDatabase();
+
 public:
     static boost::filesystem::path DB_DIR;
 
@@ -784,8 +786,6 @@ public:
     void init_blockindex(bool fRemoveOld = false);
 
 private:
-    bool LoadBlockIndexGuts();
-
     inline void        loadDbPointers();
     inline void        resetDbPointers();
     static inline void resetGlobalDbPointers();
