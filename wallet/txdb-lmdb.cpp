@@ -822,7 +822,17 @@ bool CTxDB::WriteNTP1Tx(const uint256& hash, const NTP1Transaction& ntp1tx)
 bool CTxDB::ReadAllIssuanceTxs(std::vector<uint256>& txs) const
 {
     // the key is empty because we want to get all keys in the database
-    return ReadMultiple(std::string(), txs, db_ntp1tokenNames);
+    std::map<std::string, std::vector<uint256>> resMap;
+    bool success = ReadMultipleWithKeys(resMap, db_ntp1tokenNames);
+    if (!success) {
+        return false;
+    }
+    txs.clear();
+    for (auto&& p : resMap) {
+        txs.insert(txs.end(), std::make_move_iterator(p.second.begin()),
+                   std::make_move_iterator(p.second.end()));
+    }
+    return true;
 }
 
 bool CTxDB::ReadBlock(const uint256& hash, CBlock& blk, bool fReadTransactions) const
