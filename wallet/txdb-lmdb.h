@@ -352,7 +352,7 @@ protected:
         int itemRes = 1;
 
         // set the pointer to the first value
-        itemRes = mdb_cursor_get(cursorPtr.get(), &kS, &vS, MDB_SET);
+        itemRes = mdb_cursor_get(cursorPtr.get(), &kS, &vS, MDB_SET_RANGE);
         if (itemRes) {
             std::string dbgKey = KeyAsString(key, ssKey.str());
             if (itemRes != 0 && itemRes != MDB_NOTFOUND) {
