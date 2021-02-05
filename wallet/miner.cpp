@@ -222,7 +222,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
                     // pool should connect to either transactions in the chain
                     // or other transactions in the memory pool.
                     const auto txIt = mempool_.mapTx.find(txin.prevout.hash);
-                    if (txIt != mempool_.mapTx.cend()) {
+                    if (txIt == mempool_.mapTx.cend()) {
                         printf("ERROR: mempool transaction missing input\n");
                         if (fDebug)
                             assert("mempool transaction missing input" == 0);
