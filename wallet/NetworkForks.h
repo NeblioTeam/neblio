@@ -49,6 +49,8 @@ public:
 
     bool isForkActivated(NetworkFork fork, const ITxDB& txdb) const;
 
+    bool isForkActivated(NetworkFork fork, int height) const;
+
     NetworkFork getForkAtBlockNumber(int blockNumber) const;
 
     int getFirstBlockOfFork(NetworkFork fork) const;

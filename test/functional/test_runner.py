@@ -80,6 +80,7 @@ BASE_SCRIPTS= [
 #    'feature_csv_activation.py',
     'rpc_rawtransaction.py',
     'rpc_ntp1_issuance.py',
+    'rpc_ntp1_issuance_duplicates.py',
     'rpc_ntp1_random_sends.py',
     'rpc_ntp1_random_sends_raw.py',
 #    'wallet_address_types.py',

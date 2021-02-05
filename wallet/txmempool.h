@@ -14,49 +14,40 @@ public:
     std::map<uint256, CTransaction> mapTx;
     std::map<COutPoint, CInPoint>   mapNextTx;
 
+    // bi-directional mapping of the txid and NTP1 token symbol
+    std::map<uint256, std::string> txidToissuedNTP1TokenSymbols;
+    std::map<std::string, uint256> issuedNTP1TokenSymbolsToTxid;
+
     bool addUnchecked(const uint256& hash, const CTransaction& tx);
     bool remove(const CTransaction& tx, bool fRecursive = false);
     bool removeConflicts(const CTransaction& tx);
     void clear();
     void queryHashes(std::vector<uint256>& vtxid);
 
-    unsigned long size() const
-    {
-        LOCK(cs);
-        return mapTx.size();
-    }
+    unsigned long size() const;
 
-    bool exists(uint256 hash) const
-    {
-        LOCK(cs);
-        return (mapTx.count(hash) != 0);
-    }
+    bool exists(uint256 hash) const;
 
-    bool lookup(uint256 hash, CTransaction& result) const
-    {
-        LOCK(cs);
-        std::map<uint256, CTransaction>::const_iterator i = mapTx.find(hash);
-        if (i == mapTx.end())
-            return false;
-        result = i->second;
-        return true;
-    }
+    bool lookup(uint256 hash, CTransaction& result) const;
 
-    bool isSpent(const COutPoint& outpoint)
-    {
-        LOCK(cs);
-        return mapNextTx.count(outpoint);
-    }
+    bool isSpent(const COutPoint& outpoint) const;
+
+    bool isSpent_unsafe(const COutPoint& outpoint) const;
+
+    bool isIssaunceTokenSymbolAlreadyInMempool(const CTransaction& tx) const;
+
+    bool isIssaunceTokenSymbolAlreadyInMempool_unsafe(const CTransaction& tx) const;
+
+    bool isIssaunceTokenSymbolAlreadyInMempool(const std::string& symbol) const;
+
+    bool isIssaunceTokenSymbolAlreadyInMempool_unsafe(const std::string& symbol) const;
 
     /// the returned pointer isn't guaranteed to remain valid, ensure to lock before using this method
-    const CTransaction* lookup_unsafe(const uint256& hash) const
-    {
-        auto it = mapTx.find(hash);
-        if (it != mapTx.cend())
-            return &it->second;
-        else
-            return nullptr;
-    }
+    const CTransaction* lookup_unsafe(const uint256& hash) const;
+
+private:
+    static std::string                  ConvertSymbolToComparableString(std::string symbol);
+    static boost::optional<std::string> GetTokenSymbolIfIssuance(const CTransaction& tx);
 };
 
 #endif // TXMEMPOOL_H

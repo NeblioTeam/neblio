@@ -167,9 +167,9 @@ CBlock::GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const
     CommonAncestorSuccessorBlocks res;
 
     // fork part
-    CBlockIndexSmartPtr                           T             = nullptr;
-    const uint256                                 prevBlockHash = this->hashPrevBlock;
-    const auto biTarget      = mapBlockIndex.get(prevBlockHash).value_or(nullptr);
+    CBlockIndexSmartPtr T             = nullptr;
+    const uint256       prevBlockHash = this->hashPrevBlock;
+    const auto          biTarget      = mapBlockIndex.get(prevBlockHash).value_or(nullptr);
 
     if (biTarget) {
         T = biTarget;
@@ -283,8 +283,8 @@ CBlock::ChainReplaceTxs CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITx
                     continue;
                 }
 
-                uint256 spenderBlockHash = txindex.vSpent[outputNumInTx].nBlockPos;
-                const auto bi            = mapBlockIndex.get(spenderBlockHash).value_or(nullptr);
+                uint256    spenderBlockHash = txindex.vSpent[outputNumInTx].nBlockPos;
+                const auto bi               = mapBlockIndex.get(spenderBlockHash).value_or(nullptr);
                 if (!bi) {
                     throw std::runtime_error(
                         std::string(__PRETTY_FUNCTION__) + ": The input of transaction " +
@@ -739,7 +739,7 @@ bool CBlock::SetBestChainInner(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew
     pindexNew->pprev->pnext = pindexNew;
 
     // Delete redundant memory transactions
-    for (CTransaction& tx : vtx)
+    for (const CTransaction& tx : vtx)
         mempool.remove(tx);
 
     return true;
@@ -1073,7 +1073,7 @@ bool CBlock::AddToBlockIndex(uint256 nBlockPos, const uint256& hashProof, CTxDB&
     if (!pindexNew)
         return error("AddToBlockIndex() : new CBlockIndex failed");
     pindexNew->phashBlock = hash;
-    const auto biPrev = mapBlockIndex.get(hashPrevBlock).value_or(nullptr);
+    const auto biPrev     = mapBlockIndex.get(hashPrevBlock).value_or(nullptr);
     if (biPrev) {
         pindexNew->pprev   = biPrev;
         pindexNew->nHeight = pindexNew->pprev->nHeight + 1;
@@ -1221,9 +1221,10 @@ bool CBlock::CheckBlock(const ITxDB& txdb, bool fCheckPOW, bool fCheckMerkleRoot
 
         // ppcoin: check transaction timestamp
         if (GetBlockTime() < (int64_t)tx.nTime)
-            return DoS(50, error("CheckBlock() : block timestamp (%" PRIu64 ") is earlier than transaction "
-                                 "(tx number %" PRIu32 " in block) timestamp (%" PRIi64 ")",
-                                 GetBlockTime(), i, (int64_t)tx.nTime));
+            return DoS(50,
+                       error("CheckBlock() : block timestamp (%" PRIu64 ") is earlier than transaction "
+                             "(tx number %" PRIu32 " in block) timestamp (%" PRIi64 ")",
+                             GetBlockTime(), i, (int64_t)tx.nTime));
     }
 
     // Check for duplicate txids. This is caught by ConnectInputs(),
@@ -1281,7 +1282,7 @@ bool CBlock::AcceptBlock()
     int64_t maxCheckpointBlockHeight = Checkpoints::GetLastCheckpointBlockHeight();
     if (CTxDB().GetBestChainHeight().value_or(0) > maxCheckpointBlockHeight + 1) {
         const uint256 prevBlockHash = this->hashPrevBlock;
-        const auto bi               = mapBlockIndex.get(prevBlockHash).value_or(nullptr);
+        const auto    bi            = mapBlockIndex.get(prevBlockHash).value_or(nullptr);
         if (bi) {
             int64_t newBlockPrevBlockHeight = bi->nHeight;
             if (newBlockPrevBlockHeight + 1 < maxCheckpointBlockHeight) {
@@ -1323,7 +1324,7 @@ bool CBlock::AcceptBlock()
 
     {
         const CTxDB txdb;
-        const auto hasColdStakingResult = HasColdStaking(txdb);
+        const auto  hasColdStakingResult = HasColdStaking(txdb);
         if (hasColdStakingResult.isErr()) {
             return DoS(100, error("AcceptBlock() : reject cold-stake at height %d with error", nHeight));
         }
@@ -1695,7 +1696,8 @@ void UpdateWallets(const uint256& prevBestChain)
          */
         if (txdb.GetBestChainHeight().value_or(0) > 0) {
             // get the highest block in the previous check that's main chain
-            CBlockIndexSmartPtr ancestorOfPrevInMainChain = mapBlockIndex.get(prevBestChain).value_or(nullptr);
+            CBlockIndexSmartPtr ancestorOfPrevInMainChain =
+                mapBlockIndex.get(prevBestChain).value_or(nullptr);
             assert(ancestorOfPrevInMainChain);
             while (ancestorOfPrevInMainChain->pprev && !ancestorOfPrevInMainChain->IsInMainChain(txdb)) {
                 ancestorOfPrevInMainChain = ancestorOfPrevInMainChain->pprev;
@@ -1764,11 +1766,13 @@ bool CBlock::WriteToDisk(const uint256& nBlockPos, const uint256& hashProof)
     bool success = false;
 
     // this is an RAII hack to guarantee that the function will commit/abort the transaction on exit
-    auto txReverseFunctor = [&txdb, &success](bool*) {
+    auto txReverseFunctor = [&txdb, &success, this](bool*) {
         if (success) {
             txdb.TxnCommit();
         } else {
             txdb.TxnAbort();
+            // ensure that a block that is not added successfully doesn't exist in the block index
+            mapBlockIndex.erase(this->GetHash());
         }
     };
     std::unique_ptr<bool, decltype(txReverseFunctor)> txEnder(&success, txReverseFunctor);

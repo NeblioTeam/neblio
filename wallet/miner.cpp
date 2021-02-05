@@ -61,12 +61,12 @@ void SHA256Transform(void* pstate, void* pinput, const void* pinit)
 class COrphan
 {
 public:
-    CTransaction* ptx;
-    set<uint256>  setDependsOn;
-    double        dPriority;
-    double        dFeePerKb;
+    const CTransaction* ptx;
+    set<uint256>        setDependsOn;
+    double              dPriority;
+    double              dFeePerKb;
 
-    COrphan(CTransaction* ptxIn)
+    COrphan(const CTransaction* ptxIn)
     {
         ptx       = ptxIn;
         dPriority = dFeePerKb = 0;
@@ -86,7 +86,7 @@ uint64_t   nLastBlockSize = 0;
 StakeMaker stakeMaker;
 
 // We want to sort transactions by priority and fee, so:
-typedef boost::tuple<double, double, CTransaction*> TxPriority;
+typedef boost::tuple<double, double, const CTransaction*> TxPriority;
 class TxPriorityCompare
 {
     bool byFee;
@@ -193,7 +193,8 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
     // Collect memory pool transactions into the block
     int64_t nFees = 0;
     {
-        LOCK2(cs_main, mempool.cs);
+        const CTxMemPool& mempool_ = ::mempool;
+        LOCK2(cs_main, mempool_.cs);
 
         // Priority order to process transactions
         list<COrphan>                  vOrphan; // list memory doesn't move
@@ -201,10 +202,10 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
 
         // This vector will be sorted into a priority queue:
         vector<TxPriority> vecPriority;
-        vecPriority.reserve(mempool.mapTx.size());
-        for (map<uint256, CTransaction>::iterator mi = mempool.mapTx.begin(); mi != mempool.mapTx.end();
-             ++mi) {
-            CTransaction& tx = (*mi).second;
+        vecPriority.reserve(mempool_.mapTx.size());
+        for (map<uint256, CTransaction>::const_iterator mi = mempool_.mapTx.cbegin();
+             mi != mempool_.mapTx.cend(); ++mi) {
+            const CTransaction& tx = (*mi).second;
             if (tx.IsCoinBase() || tx.IsCoinStake() || !IsFinalTx(tx, pindexPrev->nHeight + 1))
                 continue;
 
@@ -220,7 +221,8 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
                     // This should never happen; all transactions in the memory
                     // pool should connect to either transactions in the chain
                     // or other transactions in the memory pool.
-                    if (!mempool.mapTx.count(txin.prevout.hash)) {
+                    const auto txIt = mempool_.mapTx.find(txin.prevout.hash);
+                    if (txIt != mempool_.mapTx.cend()) {
                         printf("ERROR: mempool transaction missing input\n");
                         if (fDebug)
                             assert("mempool transaction missing input" == 0);
@@ -238,7 +240,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
                     }
                     mapDependers[txin.prevout.hash].push_back(porphan);
                     porphan->setDependsOn.insert(txin.prevout.hash);
-                    nTotalIn += mempool.mapTx[txin.prevout.hash].vout[txin.prevout.n].nValue;
+                    nTotalIn += txIt->second.vout[txin.prevout.n].nValue;
                     continue;
                 }
                 int64_t nValueIn = txPrev.vout[txin.prevout.n].nValue;
@@ -280,9 +282,9 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
 
         while (!vecPriority.empty()) {
             // Take highest priority transaction off the priority queue:
-            double        dPriority = vecPriority.front().get<0>();
-            double        dFeePerKb = vecPriority.front().get<1>();
-            CTransaction& tx        = *(vecPriority.front().get<2>());
+            double              dPriority = vecPriority.front().get<0>();
+            double              dFeePerKb = vecPriority.front().get<1>();
+            const CTransaction& tx        = *(vecPriority.front().get<2>());
 
             std::pop_heap(vecPriority.begin(), vecPriority.end(), comparer);
             vecPriority.pop_back();
