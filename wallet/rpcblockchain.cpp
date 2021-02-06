@@ -105,8 +105,6 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
 {
     Object result;
     result.push_back(Pair("hash", block.GetHash().GetHex()));
-    CMerkleTx txGen(block.vtx[0]);
-    txGen.SetMerkleBranch(&block);
     int confirmations = -1;
     // Only report confirmations if the block is on the main chain
     if (blockindex->IsInMainChain(CTxDB()))
