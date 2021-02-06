@@ -17,6 +17,7 @@
 #include "globals.h"
 #include "kernel.h"
 #include "main.h"
+#include "stringmanip.h"
 #include "txdb.h"
 #include "util.h"
 
@@ -37,9 +38,6 @@ using namespace boost;
 
 boost::filesystem::path CTxDB::DB_DIR                         = "txlmdb";
 bool                    CTxDB::QuickSyncHigherControl_Enabled = true;
-
-std::atomic<uint64_t> mdb_txn_safe::num_active_txns{0};
-std::atomic_flag      mdb_txn_safe::creation_gate = ATOMIC_FLAG_INIT;
 
 // threshold_size is used for batch transactions
 bool CTxDB::need_resize(uint64_t threshold_size)
@@ -96,8 +94,8 @@ bool CTxDB::need_resize(uint64_t threshold_size)
 void lmdb_resized(MDB_env* env)
 {
     printf("%s\n", __func__);
-    mdb_txn_safe::prevent_new_txns();
-    BOOST_SCOPE_EXIT(void) { mdb_txn_safe::allow_new_txns(); }
+    LMDBTransaction::prevent_new_txns();
+    BOOST_SCOPE_EXIT(void) { LMDBTransaction::allow_new_txns(); }
     BOOST_SCOPE_EXIT_END
 
     printf("LMDB map resize detected.\n");
@@ -107,7 +105,7 @@ void lmdb_resized(MDB_env* env)
     mdb_env_info(env, &mei);
     uint64_t old = mei.me_mapsize;
 
-    mdb_txn_safe::wait_no_active_txns();
+    LMDBTransaction::wait_no_active_txns();
 
     int result = mdb_env_set_mapsize(env, 0);
     if (result)
@@ -175,8 +173,8 @@ void CTxDB::do_resize(uint64_t increase_size)
     printf("System page size                  : %u\n", mst.ms_psize);
 #endif
 
-    mdb_txn_safe::prevent_new_txns();
-    BOOST_SCOPE_EXIT(void) { mdb_txn_safe::allow_new_txns(); }
+    LMDBTransaction::prevent_new_txns();
+    BOOST_SCOPE_EXIT(void) { LMDBTransaction::allow_new_txns(); }
     BOOST_SCOPE_EXIT_END
 
     if (activeBatch) {
@@ -184,7 +182,7 @@ void CTxDB::do_resize(uint64_t increase_size)
             "attempting resize with write transaction in progress, this should not happen!");
     }
 
-    mdb_txn_safe::wait_no_active_txns();
+    LMDBTransaction::wait_no_active_txns();
 
     int result = mdb_env_set_mapsize(dbEnv.get(), new_mapsize);
     if (result)
@@ -603,7 +601,7 @@ void CTxDB::OpenDatabase()
         CTxDB::do_resize();
     }
 
-    mdb_txn_safe txn;
+    LMDBTransaction txn;
     if (auto mdb_res = mdb_txn_begin(dbEnv.get(), NULL, 0, txn)) {
         throw std::runtime_error(
             "Failed to create a transaction for the db: " + std::to_string(mdb_res) +
@@ -678,7 +676,7 @@ bool CTxDB::TxnBegin(size_t required_size)
         printf("LMDB memory map needs to be resized, doing that now.\n");
         CTxDB::do_resize(required_size);
     }
-    activeBatch = std::unique_ptr<mdb_txn_safe>(new mdb_txn_safe);
+    activeBatch = std::unique_ptr<LMDBTransaction>(new LMDBTransaction);
     if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, 0, *activeBatch)) {
         printf("Failed to begin transaction at read with error code %i; with error: %s\n", res,
                mdb_strerror(res));
@@ -942,8 +940,8 @@ bool CTxDB::LoadBlockIndex()
     // locations where the contents of the block can be found. Here, we scan it
     // out of the DB and into mapBlockIndex.
 
-    MDB_cursor*  cursorRawPtr = nullptr;
-    mdb_txn_safe localTxn;
+    MDB_cursor*     cursorRawPtr = nullptr;
+    LMDBTransaction localTxn;
     if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
         return error("Failed to begin transaction at read with error code %i; and error: %s\n", res,
                      mdb_strerror(res));
@@ -1297,122 +1295,6 @@ uintmax_t CTxDB::GetCurrentDiskUsage()
         return 0;
     }
 }
-
-mdb_txn_safe::mdb_txn_safe(const bool check) : m_txn(nullptr), m_check(check)
-{
-    if (check) {
-        while (creation_gate.test_and_set()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
-        num_active_txns++;
-        creation_gate.clear();
-    }
-}
-
-mdb_txn_safe::~mdb_txn_safe()
-{
-    if (!m_check)
-        return;
-    //    printf("mdb_txn_safe: destructor\n");
-    if (m_txn != nullptr) {
-        if (m_batch_txn) // this is a batch txn and should have been handled before this point for safety
-        {
-            printf("WARNING: mdb_txn_safe: m_txn is a batch txn and it's not NULL in destructor - "
-                   "calling mdb_txn_abort()\n");
-        } else {
-            // Example of when this occurs: a lookup fails, so a read-only txn is
-            // aborted through this destructor. However, successful read-only txns
-            // ideally should have been committed when done and not end up here.
-            //
-            // NOTE: not sure if this is ever reached for a non-batch write
-            // transaction, but it's probably not ideal if it did.
-            printf("mdb_txn_safe: m_txn not NULL in destructor - calling mdb_txn_abort()\n");
-        }
-    }
-    mdb_txn_abort(m_txn);
-
-    num_active_txns--;
-}
-
-mdb_txn_safe& mdb_txn_safe::operator=(mdb_txn_safe&& other)
-{
-    m_txn             = other.m_txn;
-    m_batch_txn       = other.m_batch_txn;
-    m_check           = other.m_check;
-    other.m_check     = false;
-    other.m_txn       = nullptr;
-    other.m_batch_txn = false;
-    return *this;
-}
-
-mdb_txn_safe::mdb_txn_safe(mdb_txn_safe&& other)
-    : m_txn(other.m_txn), m_batch_txn(other.m_batch_txn), m_check(other.m_check)
-{
-    other.m_check     = false;
-    other.m_txn       = nullptr;
-    other.m_batch_txn = false;
-}
-
-void mdb_txn_safe::uncheck()
-{
-    num_active_txns--;
-    m_check = false;
-}
-
-void mdb_txn_safe::commit(std::string message)
-{
-    if (message.size() == 0) {
-        message = "Failed to commit a transaction to the db";
-    }
-
-    if (auto result = mdb_txn_commit(m_txn)) {
-        m_txn = nullptr;
-        throw std::runtime_error(message + ": " + std::to_string(result));
-    }
-    m_txn = nullptr;
-}
-
-void mdb_txn_safe::commitIfValid(string message)
-{
-    if (m_txn) {
-        commit(message);
-    }
-}
-
-void mdb_txn_safe::abort()
-{
-    if (m_txn != nullptr) {
-        mdb_txn_abort(m_txn);
-        m_txn = nullptr;
-    } else {
-        printf("WARNING: mdb_txn_safe: abort() called, but m_txn is NULL\n");
-    }
-}
-
-void mdb_txn_safe::abortIfValid()
-{
-    if (m_txn) {
-        abort();
-    }
-}
-
-uint64_t mdb_txn_safe::num_active_tx() const { return num_active_txns; }
-
-void mdb_txn_safe::prevent_new_txns()
-{
-    while (creation_gate.test_and_set()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
-}
-
-void mdb_txn_safe::wait_no_active_txns()
-{
-    while (num_active_txns > 0) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
-}
-
-void mdb_txn_safe::allow_new_txns() { creation_gate.clear(); }
 
 CTxDB::~CTxDB()
 {

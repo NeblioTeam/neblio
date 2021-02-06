@@ -18,6 +18,7 @@
 
 #include "liblmdb/lmdb.h"
 
+#include "db/lmdb/lmdbtransaction.h"
 #include "diskblockindex.h"
 #include "disktxpos.h"
 #include "itxdb.h"
@@ -151,48 +152,6 @@ inline int lmdb_txn_begin(MDB_env* env, MDB_txn* parent, unsigned int flags, MDB
     return res;
 }
 
-struct mdb_txn_safe
-{
-    mdb_txn_safe(const bool check = true);
-    mdb_txn_safe(const mdb_txn_safe&) = delete;
-    mdb_txn_safe& operator=(const mdb_txn_safe&) = delete;
-    ~mdb_txn_safe();
-
-    mdb_txn_safe(mdb_txn_safe&& other);
-    mdb_txn_safe& operator=(mdb_txn_safe&& other);
-
-    void commit(std::string message = "");
-    void commitIfValid(std::string message = "");
-
-    // This should only be needed for batch transaction which must be ensured to
-    // be aborted before mdb_env_close, not after. So we can't rely on
-    // BlockchainLMDB destructor to call mdb_txn_safe destructor, as that's too late
-    // to properly abort, since mdb_env_close would have been called earlier.
-    void abort();
-    void abortIfValid();
-    void uncheck();
-
-    operator MDB_txn*() { return m_txn; }
-
-    operator MDB_txn**() { return &m_txn; }
-
-    MDB_txn* rawPtr() const { return m_txn; }
-
-    uint64_t num_active_tx() const;
-
-    static void prevent_new_txns();
-    static void wait_no_active_txns();
-    static void allow_new_txns();
-
-    MDB_txn*                     m_txn;
-    bool                         m_batch_txn = false;
-    bool                         m_check;
-    static std::atomic<uint64_t> num_active_txns;
-
-    // could use a mutex here, but this should be sufficient.
-    static std::atomic_flag creation_gate;
-};
-
 // Class that provides access to a LevelDB. Note that this class is frequently
 // instantiated on the stack and then destroyed again, so instantiation has to
 // be very cheap. Unfortunately that means, a CTxDB instance is actually just a
@@ -239,9 +198,9 @@ private:
 
     // A batch stores up writes and deletes for atomic application. When this
     // field is non-NULL, writes/deletes go there instead of directly to disk.
-    std::unique_ptr<mdb_txn_safe> activeBatch;
-    bool                          fReadOnly;
-    int                           nVersion;
+    std::unique_ptr<LMDBTransaction> activeBatch;
+    bool                             fReadOnly;
+    int                              nVersion;
 
     void (*dbDeleter)(MDB_dbi*) = [](MDB_dbi* p) {
         if (p) {
@@ -265,9 +224,9 @@ protected:
         ssKey << key;
 
         // if there's no active transaction, we start one for this read
-        mdb_txn_safe localTxn(false);
+        LMDBTransaction localTxn(false);
         if (!activeBatch) {
-            localTxn = mdb_txn_safe();
+            localTxn = LMDBTransaction();
             if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
                 printf("Failed to begin transaction at read with error code %i; and error code: %s\n",
                        res, mdb_strerror(res));
@@ -324,9 +283,9 @@ protected:
         ssKey.reserve(1000);
         ssKey << key;
 
-        mdb_txn_safe localTxn(false);
+        LMDBTransaction localTxn(false);
         if (!activeBatch) {
-            localTxn = mdb_txn_safe();
+            localTxn = LMDBTransaction();
             if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
                 printf("Failed to begin transaction at read with error code %i; and error code: %s\n",
                        res, mdb_strerror(res));
@@ -414,9 +373,9 @@ protected:
     {
         values.clear();
 
-        mdb_txn_safe localTxn(false);
+        LMDBTransaction localTxn(false);
         if (!activeBatch) {
-            localTxn = mdb_txn_safe();
+            localTxn = LMDBTransaction();
             if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
                 printf("Failed to begin transaction at read with error code %i; and error code: %s\n",
                        res, mdb_strerror(res));
@@ -513,9 +472,9 @@ protected:
             CTxDB::do_resize();
         }
 
-        mdb_txn_safe localTxn(false);
+        LMDBTransaction localTxn(false);
         if (!activeBatch) {
-            localTxn = mdb_txn_safe();
+            localTxn = LMDBTransaction();
             if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, 0, localTxn)) {
                 printf("Failed to begin transaction at read with error code %i; and error: %s\n", res,
                        mdb_strerror(res));
@@ -569,9 +528,9 @@ protected:
         ssKey.reserve(1000);
         ssKey << key;
 
-        mdb_txn_safe localTxn(false);
+        LMDBTransaction localTxn(false);
         if (!activeBatch) {
-            localTxn = mdb_txn_safe();
+            localTxn = LMDBTransaction();
             if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, 0, localTxn)) {
                 printf("Failed to begin transaction at read with error code %i; and error: %s\n", res,
                        mdb_strerror(res));
@@ -614,9 +573,9 @@ protected:
         ssKey.reserve(1000);
         ssKey << key;
 
-        mdb_txn_safe localTxn(false);
+        LMDBTransaction localTxn(false);
         if (!activeBatch) {
-            localTxn = mdb_txn_safe();
+            localTxn = LMDBTransaction();
             if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, 0, localTxn)) {
                 printf("Failed to begin transaction at read with error code %i; and error: %s\n", res,
                        mdb_strerror(res));
@@ -677,9 +636,9 @@ protected:
         ssKey << key;
         std::string unused;
 
-        mdb_txn_safe localTxn(false);
+        LMDBTransaction localTxn(false);
         if (!activeBatch) {
-            localTxn = mdb_txn_safe();
+            localTxn = LMDBTransaction();
             if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
                 printf("Failed to begin transaction at read with error code %i; and error: %s\n", res,
                        mdb_strerror(res));
