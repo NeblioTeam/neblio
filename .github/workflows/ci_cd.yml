@@ -304,6 +304,12 @@ jobs:
     - name: Build neblio-Qt for Raspberry Pi and Run Tests
       run: |
         python -u ci_scripts/test_rpi-daemon-gui.py -t
+    - name: Upload test artifacts on failure
+      uses: actions/upload-artifact@v2
+      if: failure()
+      with:
+        name: test-artifacts
+        path: /home/runner/work/neblio/neblio/deploy/debug.log
 
 
   rpi_daemon:
