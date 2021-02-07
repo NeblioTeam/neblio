@@ -492,50 +492,31 @@ void CTxDB::init_blockindex(bool fRemoveOld)
 
 // CDB subclasses are created and destroyed VERY OFTEN. That's why
 // we shouldn't treat this as a free operations.
-CTxDB::CTxDB(const char* pszMode)
+CTxDB::CTxDB()
 {
-    assert(pszMode);
-    fReadOnly = (!strchr(pszMode, '+') && !strchr(pszMode, 'w'));
-
     if (glob_db_main) {
         loadDbPointers();
         return;
     }
 
     printf("Initializing lmdb with db size: %" PRIu64 "\n", DB_DEFAULT_MAPSIZE);
-    bool fCreate = strchr(pszMode, 'c');
 
     init_blockindex(); // Init directory
     loadDbPointers();
 
-    if (Exists(string("version"), db_main)) {
-        nVersion = ReadVersion().value_or(0);
-        printf("Transaction index version is %d\n", nVersion);
+    nVersion = ReadVersion().value_or(0);
+    printf("Transaction index version is %d\n", nVersion);
 
-        if (nVersion < DATABASE_VERSION) {
-            printf("Required index version is %d, removing old database\n", DATABASE_VERSION);
+    if (nVersion < DATABASE_VERSION) {
+        printf("Required index version is %d, removing old database\n", DATABASE_VERSION);
 
-            // lmdb instance destruction
-            resetDbPointers();
-            resetGlobalDbPointers();
-            if (activeBatch) {
-                activeBatch->abort();
-                activeBatch.reset();
-            }
+        // db instance destruction
+        Close();
 
-            init_blockindex(true); // Remove directory and create new database
-            loadDbPointers();
+        init_blockindex(true); // Remove directory and create new database
+        loadDbPointers();
 
-            bool fTmp = fReadOnly;
-            fReadOnly = false;
-            WriteVersion(DATABASE_VERSION); // Save transaction index version
-            fReadOnly = fTmp;
-        }
-    } else if (fCreate) {
-        bool fTmp = fReadOnly;
-        fReadOnly = false;
-        WriteVersion(DATABASE_VERSION);
-        fReadOnly = fTmp;
+        WriteVersion(DATABASE_VERSION); // Save transaction index version
     }
 
     printf("Opened LMDB successfully\n");

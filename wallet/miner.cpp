@@ -116,7 +116,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
     if (!pblock)
         return nullptr;
 
-    CTxDB txdb("r");
+    const CTxDB txdb;
 
     ConstCBlockIndexSmartPtr pindexPrev = txdb.GetBestBlockIndex();
 

@@ -279,7 +279,7 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStakeFromSpecificOutput(cons
         return boost::none;
     }
 
-    const CTxDB              txdb("r");
+    const CTxDB              txdb;
     ConstCBlockIndexSmartPtr pindexPrev = txdb.GetBestBlockIndex();
 
     const auto keyGetter = [&spendKeyOfOutput](const CKeyID&) {
@@ -471,7 +471,7 @@ StakeMaker::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBits,
                             const int64_t nCoinstakeInitialTxTime,
                             const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins)
 {
-    CTxDB txdb("r");
+    const CTxDB txdb;
 
     ConstCBlockIndexSmartPtr pindexPrev = txdb.GetBestBlockIndex();
 
@@ -568,5 +568,6 @@ void StakeMaker::resetLastCoinStakeSearchInterval() { nLastCoinStakeSearchInterv
 bool StakeMaker::IsStakingActive()
 {
     // returns true if we have weight and we tried to stake in the last 120 seconds
-    return cachedStakeWeight.load().value_or(0) > 0 && (nLastCoinStakeSearchTime + 120) >= GetAdjustedTime();
+    return cachedStakeWeight.load().value_or(0) > 0 &&
+           (nLastCoinStakeSearchTime + 120) >= GetAdjustedTime();
 }

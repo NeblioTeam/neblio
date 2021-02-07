@@ -58,7 +58,7 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
 {
     AssertLockHeld(cs_main);
 
-    const CTxDB txdb("r");
+    const CTxDB txdb;
 
     CBlock blockTmp;
     if (pblock == NULL) {

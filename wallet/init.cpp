@@ -762,7 +762,7 @@ bool AppInit2()
     }
 
     if (GetBoolArg("-loadblockindextest")) {
-        CTxDB txdb("r");
+        CTxDB txdb;
         txdb.LoadBlockIndex();
         PrintBlockTree();
         return false;
@@ -798,7 +798,7 @@ bool AppInit2()
             {
                 mapBlockIndex.clear();
                 setStakeSeen.clear();
-                CTxDB txdb("r");
+                CTxDB txdb;
                 txdb.init_blockindex(true);
             }
 

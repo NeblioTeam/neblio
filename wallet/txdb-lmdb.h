@@ -174,7 +174,7 @@ public:
     // this flag is useful for disabling quicksync manually, for example, for tests
     static bool QuickSyncHigherControl_Enabled;
 
-    CTxDB(const char* pszMode = "r+");
+    CTxDB();
     CTxDB(const CTxDB&) = delete;
     CTxDB(CTxDB&&)      = delete;
     CTxDB& operator=(const CTxDB&) = delete;
@@ -199,7 +199,6 @@ private:
     // A batch stores up writes and deletes for atomic application. When this
     // field is non-NULL, writes/deletes go there instead of directly to disk.
     std::unique_ptr<LMDBTransaction> activeBatch;
-    bool                             fReadOnly;
     int                              nVersion;
 
     void (*dbDeleter)(MDB_dbi*) = [](MDB_dbi* p) {
@@ -453,12 +452,6 @@ protected:
     template <typename K, typename T>
     bool Write(const K& key, const T& value, MDB_dbi* dbPtr)
     {
-        if (fReadOnly) {
-            printf("Accessing lmdb write function in read only mode");
-            assert("Write called on database in read-only mode");
-            return false;
-        }
-
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         ssKey.reserve(1000);
         ssKey << key;
@@ -518,11 +511,6 @@ protected:
     {
         if (!dbPtr)
             return false;
-        if (fReadOnly) {
-            printf("Accessing lmdb erase function in read-only mode.");
-            assert("Erase called on database in read-only mode");
-            return false;
-        }
 
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         ssKey.reserve(1000);
@@ -563,11 +551,6 @@ protected:
     {
         if (!dbPtr)
             return false;
-        if (fReadOnly) {
-            printf("Accessing lmdb erase function in read-only mode.");
-            assert("Erase called on database in read-only mode");
-            return false;
-        }
 
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         ssKey.reserve(1000);

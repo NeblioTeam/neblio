@@ -1174,7 +1174,7 @@ void CWallet::ResendWalletTransactions(bool fForce)
 
     // Rebroadcast any of our txes that aren't in a block yet
     printf("ResendWalletTransactions()\n");
-    CTxDB txdb("r");
+    const CTxDB txdb;
     {
         LOCK(cs_wallet);
         // Sort them in chronological order
@@ -2061,7 +2061,7 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, CAmount>>& vecSend, C
     {
         LOCK2(cs_main, cs_wallet);
         // txdb must be opened before the mapWallet lock
-        CTxDB txdb("r");
+        const CTxDB txdb;
         {
             nFeeRet = nTransactionFee;
             while (true) {
@@ -2358,7 +2358,7 @@ bool CWallet::GetStakeWeight(const set<pair<const CWalletTx*, unsigned int>>& se
     if (setCoins.empty())
         return false;
 
-    CTxDB txdb("r");
+    const CTxDB txdb;
     for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
         const int64_t nTimeWeight = GetWeight(txdb, (int64_t)pcoin.first->nTime, (int64_t)GetTime());
         const CBigNum bnCoinDayWeight =

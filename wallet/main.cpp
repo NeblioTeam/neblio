@@ -601,8 +601,8 @@ bool GetTransaction(const uint256& hash, CTransaction& tx, uint256& hashBlock)
         if (mempool.lookup(hash, tx)) {
             return true;
         }
-        CTxDB    txdb("r");
-        CTxIndex txindex;
+        const CTxDB txdb;
+        CTxIndex    txindex;
         if (tx.ReadFromDisk(txdb, COutPoint(hash, 0), txindex)) {
             CBlock block;
             if (block.ReadFromDisk(txindex.pos.nBlockPos, false))
@@ -1370,7 +1370,7 @@ bool LoadBlockIndex(bool fAllowNew)
     //
     // Load block index
     //
-    CTxDB txdb("cr+");
+    CTxDB txdb;
     if (!txdb.LoadBlockIndex())
         return false;
 
@@ -1640,7 +1640,7 @@ string GetWarnings(string strFor)
 // Messages
 //
 
-bool static AlreadyHave(CTxDB& txdb, const CInv& inv, const BlockIndexMapType& blockIndexMap)
+bool static AlreadyHave(const CTxDB& txdb, const CInv& inv, const BlockIndexMapType& blockIndexMap)
 {
     switch (inv.type) {
     case MSG_TX: {
@@ -1874,7 +1874,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                 break;
             }
         }
-        CTxDB txdb("r");
+        const CTxDB txdb;
         for (unsigned int nInv = 0; nInv < vInv.size(); nInv++) {
             const CInv& inv = vInv[nInv];
 
@@ -2514,7 +2514,7 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
         //
         vector<CInv> vGetData;
         int64_t      nNow = GetTime() * 1000000;
-        CTxDB        txdb("r");
+        const CTxDB  txdb;
         while (!pto->mapAskFor.empty() && (*pto->mapAskFor.begin()).first <= nNow) {
             const CInv& inv  = (*pto->mapAskFor.begin()).second;
             auto        lock = mapBlockIndex.get_shared_lock();
