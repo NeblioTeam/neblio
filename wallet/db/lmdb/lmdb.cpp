@@ -554,7 +554,7 @@ boost::optional<std::vector<std::string>> LMDB::readMultiple(IDB::Index         
     }
 }
 
-std::map<std::string, std::vector<std::string>> LMDB::readAll(IDB::Index dbindex) const
+boost::optional<std::map<std::string, std::vector<std::string>>> LMDB::readAll(IDB::Index dbindex) const
 {
     const MDB_dbi* dbPtr = getDbByIndex(dbindex);
 
@@ -584,7 +584,7 @@ std::map<std::string, std::vector<std::string>> LMDB::readAll(IDB::Index dbindex
     if (auto rc = mdb_cursor_open((!activeBatch ? localTxn : *activeBatch), *dbPtr, &cursorRawPtr)) {
         logger->logWrite("LMDB::readAll: Failed to open lmdb cursor with error code " +
                          std::to_string(rc) + "; and error: " + std::string(mdb_strerror(rc)));
-        return {};
+        return boost::none;
     }
 
     std::unique_ptr<MDB_cursor, void (*)(MDB_cursor*)> cursorPtr(cursorRawPtr, [](MDB_cursor* p) {
@@ -602,7 +602,7 @@ std::map<std::string, std::vector<std::string>> LMDB::readAll(IDB::Index dbindex
                 "LMDB::readAll: Cursor does not exist while reading all entries; with an error of "
                 "code " +
                 std::to_string(itemRes) + "; and error: " + std::string(mdb_strerror(itemRes)));
-            return {};
+            return boost::none;
         }
     }
     std::map<std::string, std::vector<std::string>> result;

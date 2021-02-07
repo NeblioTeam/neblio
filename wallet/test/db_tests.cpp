@@ -303,7 +303,8 @@ TEST(lmdb_tests, basic_multiple_many_inputs)
 static void EnsureDBIsEmpty(IDB* db, IDB::Index dbindex)
 {
     auto m = db->readAll(dbindex);
-    EXPECT_EQ(m.size(), 0);
+    ASSERT_TRUE(m);
+    EXPECT_EQ(m->size(), 0);
 }
 
 static void TestReadWriteUnique(IDB* db, const std::map<std::string, std::string>& data)
@@ -437,9 +438,11 @@ TEST(db_interface_impl_tests, read_write_unique_with_transaction)
     db->abortDBTransaction();
 
     // after having aborted the transaction, we only have the value we committed
-    const auto map = db->readAll(IDB::Index::DB_MAIN_INDEX);
-    ASSERT_EQ(map.size(), 1);
-    ASSERT_EQ(map.count(someRandomKeyVal.first), 1);
+    const boost::optional<std::map<std::string, std::vector<std::string>>> map =
+        db->readAll(IDB::Index::DB_MAIN_INDEX);
+    ASSERT_TRUE(map);
+    ASSERT_EQ(map->size(), 1);
+    ASSERT_EQ(map->count(someRandomKeyVal.first), 1);
 }
 
 static void TestReadMultipleAndRealAll(IDB*                                                   db,
@@ -469,9 +472,10 @@ static void TestReadMultipleAndRealAll(IDB*                                     
             // ensure entries are unique
             v.second.erase(std::unique(v.second.begin(), v.second.end()), v.second.end());
         }
-        std::map<std::string, std::vector<std::string>> r =
+        boost::optional<std::map<std::string, std::vector<std::string>>> r =
             db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
-        for (auto&& v : r) {
+        ASSERT_TRUE(r);
+        for (auto&& v : *r) {
             std::sort(v.second.begin(), v.second.end());
         }
         EXPECT_EQ(expected, r);
@@ -498,9 +502,10 @@ static void TestReadMultipleAndRealAll(IDB*                                     
             // value doesn't exist anymore, let's verify that
             EXPECT_FALSE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key));
             EXPECT_EQ(db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key), boost::none);
-            const std::map<std::string, std::vector<std::string>> m =
+            const boost::optional<std::map<std::string, std::vector<std::string>>> m =
                 db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
-            EXPECT_TRUE(m.find(key) == m.cend());
+            ASSERT_TRUE(m);
+            EXPECT_TRUE(m->find(key) == m->cend());
         }
     }
 
@@ -578,12 +583,13 @@ static void TestReadMultipleAndRealAllWithTx(IDB*                               
             // ensure entries are unique
             v.second.erase(std::unique(v.second.begin(), v.second.end()), v.second.end());
         }
-        std::map<std::string, std::vector<std::string>> r =
+        boost::optional<std::map<std::string, std::vector<std::string>>> r =
             db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
-        for (auto&& v : r) {
+        ASSERT_TRUE(r);
+        for (auto&& v : *r) {
             std::sort(v.second.begin(), v.second.end());
         }
-        r.erase(someRandomKeyVal.first);
+        r->erase(someRandomKeyVal.first);
         EXPECT_EQ(expected, r);
     }
 
@@ -608,9 +614,10 @@ static void TestReadMultipleAndRealAllWithTx(IDB*                               
             // value doesn't exist anymore, let's verify that
             EXPECT_FALSE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key));
             EXPECT_EQ(db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key), boost::none);
-            const std::map<std::string, std::vector<std::string>> m =
+            const boost::optional<std::map<std::string, std::vector<std::string>>> m =
                 db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
-            EXPECT_TRUE(m.find(key) == m.cend());
+            ASSERT_TRUE(m);
+            EXPECT_TRUE(m->find(key) == m->cend());
         }
     }
 
@@ -618,9 +625,11 @@ static void TestReadMultipleAndRealAllWithTx(IDB*                               
     db->abortDBTransaction();
 
     // after having aborted the transaction, we only have the value we committed
-    const auto map = db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
-    ASSERT_EQ(map.size(), 1);
-    ASSERT_EQ(map.count(someRandomKeyVal.first), 1);
+    const boost::optional<std::map<std::string, std::vector<std::string>>> map =
+        db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
+    ASSERT_TRUE(map);
+    ASSERT_EQ(map->size(), 1);
+    ASSERT_EQ(map->count(someRandomKeyVal.first), 1);
 
     EnsureDBIsEmpty(db, IDB::Index::DB_MAIN_INDEX);
     EnsureDBIsEmpty(db, IDB::Index::DB_BLOCKINDEX_INDEX);
