@@ -413,7 +413,7 @@ LMDB::LMDB(const boost::filesystem::path* const dbdir, ILog* logger, bool startN
 {
     assert(dbdir);
 
-    if (glob_lmdb_db_pointers) {
+    if (glob_lmdb_db_pointers && !startNewDatabase) {
         loadDbPointers();
         return;
     }
