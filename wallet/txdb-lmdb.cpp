@@ -14,6 +14,7 @@
 #include <future>
 #include <random>
 
+#include "db/defaultlogger/defaultlogger.h"
 #include "globals.h"
 #include "kernel.h"
 #include "main.h"
@@ -23,177 +24,12 @@
 
 #include "SerializationTester.h"
 
-std::unique_ptr<MDB_env, void (*)(MDB_env*)> dbEnv(nullptr, [](MDB_env*) {});
-
-DbSmartPtrType glob_db_main(nullptr, [](MDB_dbi*) {});
-DbSmartPtrType glob_db_blockIndex(nullptr, [](MDB_dbi*) {});
-DbSmartPtrType glob_db_blocks(nullptr, [](MDB_dbi*) {});
-DbSmartPtrType glob_db_tx(nullptr, [](MDB_dbi*) {});
-DbSmartPtrType glob_db_ntp1Tx(nullptr, [](MDB_dbi*) {});
-DbSmartPtrType glob_db_ntp1tokenNames(nullptr, [](MDB_dbi*) {});
-DbSmartPtrType glob_db_addrsVsPubKeys(nullptr, [](MDB_dbi*) {});
-
 using namespace std;
 using namespace boost;
 
 boost::filesystem::path CTxDB::DB_DIR                         = "txlmdb";
 bool                    CTxDB::QuickSyncHigherControl_Enabled = true;
-
-// threshold_size is used for batch transactions
-bool CTxDB::need_resize(uint64_t threshold_size)
-{
-#ifdef DEEP_LMDB_LOGGING
-    printf("CTxDB::%s\n", __func__);
-#endif
-#if defined(ENABLE_AUTO_RESIZE)
-    MDB_envinfo mei;
-
-    mdb_env_info(dbEnv.get(), &mei);
-
-    MDB_stat mst;
-
-    mdb_env_stat(dbEnv.get(), &mst);
-
-    // size_used doesn't include data yet to be committed, which can be
-    // significant size during batch transactions. For that, we estimate the size
-    // needed at the beginning of the batch transaction and pass in the
-    // additional size needed.
-    uint64_t size_used = mst.ms_psize * mei.me_last_pgno;
-
-#ifdef DEEP_LMDB_LOGGING
-    printf("Checking if resize is needed.\n");
-    printf("DB map size:     %zu\n", mei.me_mapsize);
-    printf("Space used:      %zu\n", size_used);
-    printf("Space remaining: %zu\n", mei.me_mapsize - size_used);
-    printf("Size threshold:  %zu\n", threshold_size);
-#endif
-    float resize_percent = DB_RESIZE_PERCENT;
-#ifdef DEEP_LMDB_LOGGING
-    printf("Percent used: %.04f  Percent threshold: %.04f\n", ((double)size_used / mei.me_mapsize),
-           resize_percent);
-#endif
-
-    if (threshold_size > 0) {
-        if (mei.me_mapsize - size_used < threshold_size) {
-            printf("Threshold met (size-based)\n");
-            return true;
-        } else
-            return false;
-    }
-
-    if ((double)size_used / mei.me_mapsize > resize_percent) {
-        printf("Mapsize threshold met (percent-based)\n");
-        return true;
-    }
-    return false;
-#else
-    return false;
-#endif
-}
-
-void lmdb_resized(MDB_env* env)
-{
-    printf("%s\n", __func__);
-    LMDBTransaction::prevent_new_txns();
-    BOOST_SCOPE_EXIT(void) { LMDBTransaction::allow_new_txns(); }
-    BOOST_SCOPE_EXIT_END
-
-    printf("LMDB map resize detected.\n");
-
-    MDB_envinfo mei;
-
-    mdb_env_info(env, &mei);
-    uint64_t old = mei.me_mapsize;
-
-    LMDBTransaction::wait_no_active_txns();
-
-    int result = mdb_env_set_mapsize(env, 0);
-    if (result)
-        printf("Failed to set new mapsize: %d\n", result);
-
-    mdb_env_info(env, &mei);
-    uint64_t new_mapsize = mei.me_mapsize;
-
-    std::stringstream ss;
-    ss << "LMDB Mapsize increased."
-       << "  Old: " << old / (1024 * 1024) << " MiB"
-       << ", New: " << new_mapsize / (1024 * 1024) << " MiB";
-    printf("%s\n", ss.str().c_str());
-}
-
-void CTxDB::do_resize(uint64_t increase_size)
-{
-    printf("CTxDB::%s\n", __func__);
-
-    if (increase_size != 0 && increase_size < MIN_MAP_SIZE_INCREASE) {
-        // protect from having very small incremental changes in the DB size, which is not efficient
-        increase_size = MIN_MAP_SIZE_INCREASE;
-    }
-
-    const uintmax_t add_size = UINTMAX_C(1) << 30;
-
-    // check disk capacity
-    try {
-        boost::filesystem::path       path(GetDataDir() / DB_DIR);
-        boost::filesystem::space_info si = boost::filesystem::space(path);
-        if (si.available < add_size) {
-            stringstream ss;
-            ss << "!! WARNING: Insufficient free space to extend database !!: "
-               << (si.available >> UINTMAX_C(20)) << " MB available, " << (add_size >> UINTMAX_C(20))
-               << " MB needed";
-            throw std::runtime_error(ss.str());
-        }
-    } catch (...) {
-        // print something but proceed.
-        throw std::runtime_error("Unable to query free disk space.");
-    }
-
-    MDB_envinfo mei;
-
-    mdb_env_info(dbEnv.get(), &mei);
-
-    MDB_stat mst;
-
-    mdb_env_stat(dbEnv.get(), &mst);
-
-    // add 1Gb per resize, instead of doing a percentage increase
-    uint64_t new_mapsize = (double)mei.me_mapsize + add_size;
-
-    // If given, use increase_size instead of above way of resizing.
-    // This is currently used for increasing by an estimated size at start of new
-    // batch txn.
-    if (increase_size > 0)
-        new_mapsize = mei.me_mapsize + increase_size;
-
-    new_mapsize += (new_mapsize % mst.ms_psize);
-#ifdef DEEP_LMDB_LOGGING
-    printf("Requesting to increase map size by: %zu\n", increase_size);
-    printf("Current map size                  : %zu\n", mei.me_mapsize);
-    printf("New size                          : %zu\n", new_mapsize);
-    printf("System page size                  : %u\n", mst.ms_psize);
-#endif
-
-    LMDBTransaction::prevent_new_txns();
-    BOOST_SCOPE_EXIT(void) { LMDBTransaction::allow_new_txns(); }
-    BOOST_SCOPE_EXIT_END
-
-    if (activeBatch) {
-        throw std::runtime_error(
-            "attempting resize with write transaction in progress, this should not happen!");
-    }
-
-    LMDBTransaction::wait_no_active_txns();
-
-    int result = mdb_env_set_mapsize(dbEnv.get(), new_mapsize);
-    if (result)
-        throw std::runtime_error("Failed to set new mapsize: " + std::to_string(result));
-
-    std::stringstream ss;
-    ss << "LMDB Mapsize increased."
-       << "  Old: " << mei.me_mapsize / (1024 * 1024) << " MiB"
-       << ", New: " << new_mapsize / (1024 * 1024) << " MiB";
-    printf("%s\n", ss.str().c_str());
-}
+std::unique_ptr<ILog>   CTxDB::TxDBLogger                     = MakeUnique<DefaultLogger>();
 
 bool IsQuickSyncOSCompatible(const std::string& osValue)
 {
@@ -404,55 +240,12 @@ bool ShouldQuickSyncBeDone(const filesystem::path& dbdir)
            Params().NetType() == NetworkType::Mainnet;
 }
 
-void CTxDB::init_blockindex(bool fRemoveOld)
+void CTxDB::resyncIfNecessary(bool forceClearDB)
 {
-    // First time init.
-    const filesystem::path directory = GetDataDir() / DB_DIR;
-
-    if (fRemoveOld ||
+    if (forceClearDB ||
         SC_CheckOperationOnRestartScheduleThenDeleteIt(SC_SCHEDULE_ON_RESTART_OPNAME__RESYNC)) {
-        // close the database before deleting
-        this->Close();
 
-        filesystem::remove_all(directory); // remove directory
-        {
-            boost::system::error_code ec;
-            filesystem::remove(GetDataDir() / NTP1WalletCacheFileName, ec);
-        }
-
-        // delete block data files
-        {
-            unsigned int nFile = 1;
-
-            while (true) {
-                filesystem::path strBlockFile = GetDataDir() / strprintf("blk%04u.dat", nFile);
-
-                // Break if no such file
-                if (!filesystem::exists(strBlockFile))
-                    break;
-
-                filesystem::remove(strBlockFile);
-
-                nFile++;
-            }
-        }
-
-        // delete NTP1 transaction data files
-        {
-            unsigned int nFile = 1;
-
-            while (true) {
-                filesystem::path strBlockFile = GetDataDir() / strprintf("ntp1txs%04u.dat", nFile);
-
-                // Break if no such file
-                if (!filesystem::exists(strBlockFile))
-                    break;
-
-                filesystem::remove(strBlockFile);
-
-                nFile++;
-            }
-        }
+        db->clearDBData();
 
         // after a resync, always rescan the wallet
         SC_CreateScheduledOperationOnRestart(SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN);
@@ -465,182 +258,41 @@ void CTxDB::init_blockindex(bool fRemoveOld)
         printf("Binary format tests have failed: %s\n", ex.what());
     }
 
-    // if the directory doesn't exist, use quicksync
-    if (ShouldQuickSyncBeDone(directory)) {
-        // close the database before running quicksync
-        this->Close();
+    if (const auto dbdir = db->getDataDir()) {
+        // if the directory doesn't exist, use quicksync
+        if (ShouldQuickSyncBeDone(*dbdir)) {
+            // close the database before running quicksync
+            this->Close();
 
-        try {
+            try {
+                // binary layout compatibility is necessary for quicksync to work
+                RunCrossPlatformSerializationTests();
+                printf("Binary format tests have passed.\n");
+                DoQuickSync(*dbdir);
 
-            // binary layout compatibility is necessary for quicksync to work
-            RunCrossPlatformSerializationTests();
-            printf("Binary format tests have passed.\n");
-            DoQuickSync(directory);
-
-            // after quicksync, a rescan has to be done
-            SC_CreateScheduledOperationOnRestart(SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN);
-
-        } catch (std::exception& ex) {
-            printf("Quicksync exited with an exception (this is not expected to happen): %s\n",
-                   ex.what());
-            filesystem::remove_all(directory);
+                // after quicksync, a rescan has to be done
+                SC_CreateScheduledOperationOnRestart(SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN);
+            } catch (std::exception& ex) {
+                printf("Quicksync exited with an exception (this is not expected to happen): %s\n",
+                       ex.what());
+                db->clearDBData();
+            }
         }
     }
 
-    OpenDatabase();
+    db->openDB(false);
 }
 
 // CDB subclasses are created and destroyed VERY OFTEN. That's why
 // we shouldn't treat this as a free operations.
 CTxDB::CTxDB()
 {
-    if (glob_db_main) {
-        loadDbPointers();
-        return;
-    }
+    static boost::filesystem::path DBDir = GetDataDir() / DB_DIR;
 
-    printf("Initializing lmdb with db size: %" PRIu64 "\n", DB_DEFAULT_MAPSIZE);
-
-    init_blockindex(); // Init directory
-    loadDbPointers();
-
-    nVersion = ReadVersion().value_or(0);
-    printf("Transaction index version is %d\n", nVersion);
-
-    if (nVersion < DATABASE_VERSION) {
-        printf("Required index version is %d, removing old database\n", DATABASE_VERSION);
-
-        // db instance destruction
-        Close();
-
-        init_blockindex(true); // Remove directory and create new database
-        loadDbPointers();
-
-        WriteVersion(DATABASE_VERSION); // Save transaction index version
-    }
-
-    printf("Opened LMDB successfully\n");
+    db = MakeUnique<LMDB>(&DBDir, TxDBLogger.get());
 }
 
-void CTxDB::Close()
-{
-    if (activeBatch) {
-        activeBatch->abort();
-        activeBatch.reset();
-    }
-    resetDbPointers();
-    resetGlobalDbPointers();
-}
-
-void CTxDB::OpenDatabase()
-{
-    const filesystem::path directory = GetDataDir() / DB_DIR;
-
-    printf("Opening the blockchain database...\n");
-    uiInterface.InitMessage("Opening the blockchain database...");
-
-    // open the database in the traditional way (whether quicksync succeeded or not)
-    filesystem::create_directories(directory);
-    printf("Opening lmdb in %s\n", directory.string().c_str());
-    MDB_env* envPtr = nullptr;
-    if (const int rc = mdb_env_create(&envPtr)) {
-        throw std::runtime_error("Error creating lmdb environment: " + std::to_string(rc) +
-                                 "; message: " + std::string(mdb_strerror(rc)));
-    }
-    dbEnv = std::unique_ptr<MDB_env, void (*)(MDB_env*)>(envPtr, [](MDB_env* p) {
-        if (p)
-            mdb_env_close(p);
-    });
-
-    mdb_env_set_maxdbs(dbEnv.get(), 20);
-
-    if (auto result = mdb_env_open(dbEnv.get(), PossiblyWideStringToString(directory.native()).c_str(),
-                                   /*MDB_NOTLS*/ 0, 0644)) {
-        throw std::runtime_error("Failed to open lmdb environment: " + std::to_string(result) +
-                                 "; message: " + std::string(mdb_strerror(result)));
-    }
-
-    MDB_envinfo mei;
-    mdb_env_info(dbEnv.get(), &mei);
-    std::size_t currMapSize = mei.me_mapsize;
-
-    std::size_t mapSize = DB_DEFAULT_MAPSIZE;
-
-    if (currMapSize < mapSize) {
-        if (auto mapSizeErr = mdb_env_set_mapsize(dbEnv.get(), mapSize))
-            throw std::runtime_error(
-                "Error: set max memory map size failed: " + std::to_string(mapSizeErr) +
-                "; message: " + std::string(mdb_strerror(mapSizeErr)));
-
-        mdb_env_info(dbEnv.get(), &mei);
-        currMapSize = (double)mei.me_mapsize;
-        printf("LMDB memory map size: %zu\n", currMapSize);
-    }
-
-    if (CTxDB::need_resize()) {
-        printf("LMDB memory map needs to be resized, doing that now.\n");
-        CTxDB::do_resize();
-    }
-
-    LMDBTransaction txn;
-    if (auto mdb_res = mdb_txn_begin(dbEnv.get(), NULL, 0, txn)) {
-        throw std::runtime_error(
-            "Failed to create a transaction for the db: " + std::to_string(mdb_res) +
-            "; message: " + std::string(mdb_strerror(mdb_res)));
-    }
-
-    glob_db_main           = DbSmartPtrType(new MDB_dbi, dbDeleter);
-    glob_db_blockIndex     = DbSmartPtrType(new MDB_dbi, dbDeleter);
-    glob_db_blocks         = DbSmartPtrType(new MDB_dbi, dbDeleter);
-    glob_db_tx             = DbSmartPtrType(new MDB_dbi, dbDeleter);
-    glob_db_ntp1Tx         = DbSmartPtrType(new MDB_dbi, dbDeleter);
-    glob_db_ntp1tokenNames = DbSmartPtrType(new MDB_dbi, dbDeleter);
-    glob_db_addrsVsPubKeys = DbSmartPtrType(new MDB_dbi, dbDeleter);
-
-    // MDB_CREATE: Create the named database if it doesn't exist.
-    CTxDB::lmdb_db_open(txn, LMDB_MAINDB.c_str(), MDB_CREATE, *glob_db_main,
-                        "Failed to open db handle for db_main");
-    CTxDB::lmdb_db_open(txn, LMDB_BLOCKINDEXDB.c_str(), MDB_CREATE, *glob_db_blockIndex,
-                        "Failed to open db handle for db_blockIndex");
-    CTxDB::lmdb_db_open(txn, LMDB_BLOCKSDB.c_str(), MDB_CREATE, *glob_db_blocks,
-                        "Failed to open db handle for db_blocks");
-    CTxDB::lmdb_db_open(txn, LMDB_TXDB.c_str(), MDB_CREATE, *glob_db_tx,
-                        "Failed to open db handle for glob_db_tx");
-    CTxDB::lmdb_db_open(txn, LMDB_NTP1TXDB.c_str(), MDB_CREATE, *glob_db_ntp1Tx,
-                        "Failed to open db handle for glob_db_ntp1Tx");
-    CTxDB::lmdb_db_open(txn, LMDB_NTP1TOKENNAMESDB.c_str(), MDB_CREATE | MDB_DUPSORT,
-                        *glob_db_ntp1tokenNames, "Failed to open db handle for glob_db_ntp1Tx");
-    CTxDB::lmdb_db_open(txn, LMDB_ADDRSVSPUBKEYSDB.c_str(), MDB_CREATE, *glob_db_addrsVsPubKeys,
-                        "Failed to open db handle for glob_db_ntp1Tx");
-
-    // commit the transaction
-    txn.commit();
-
-    if (!glob_db_main) {
-        throw std::runtime_error("LMDB nullptr after opening the db_main database.");
-    }
-    if (!glob_db_blockIndex) {
-        throw std::runtime_error("LMDB nullptr after opening the db_blockIndex database.");
-    }
-    if (!glob_db_blocks) {
-        throw std::runtime_error("LMDB nullptr after opening the db_blocks database.");
-    }
-    if (!glob_db_tx) {
-        throw std::runtime_error("LMDB nullptr after opening the db_tx database.");
-    }
-    if (!glob_db_ntp1Tx) {
-        throw std::runtime_error("LMDB nullptr after opening the db_ntp1Tx database.");
-    }
-    if (!glob_db_ntp1tokenNames) {
-        throw std::runtime_error("LMDB nullptr after opening the db_ntp1tokenNames database.");
-    }
-    if (!glob_db_addrsVsPubKeys) {
-        throw std::runtime_error("LMDB nullptr after opening the db_addrsVsPubKeys database.");
-    }
-
-    printf("Done opening the database\n");
-    uiInterface.InitMessage("Done opening the database");
-}
+void CTxDB::Close() { db->close(); }
 
 void CTxDB::__deleteDb()
 {
@@ -650,104 +302,97 @@ void CTxDB::__deleteDb()
     }
 }
 
-bool CTxDB::TxnBegin(size_t required_size)
-{
-    assert(activeBatch == nullptr);
-    if (CTxDB::need_resize(required_size)) {
-        printf("LMDB memory map needs to be resized, doing that now.\n");
-        CTxDB::do_resize(required_size);
-    }
-    activeBatch = std::unique_ptr<LMDBTransaction>(new LMDBTransaction);
-    if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, 0, *activeBatch)) {
-        printf("Failed to begin transaction at read with error code %i; with error: %s\n", res,
-               mdb_strerror(res));
-        activeBatch.reset();
-    }
-    return true;
-}
+bool CTxDB::TxnBegin(size_t required_size) { return db->beginDBTransaction(required_size); }
 
-bool CTxDB::TxnCommit()
-{
-    assert(activeBatch);
-    if (activeBatch) {
-        activeBatch->commit();
-        activeBatch.reset();
-    }
-    return true;
-}
+bool CTxDB::TxnCommit() { return db->commitDBTransaction(); }
 
-bool CTxDB::TxnAbort()
-{
-    assert(activeBatch);
-    if (activeBatch) {
-        activeBatch->abort();
-        activeBatch.reset();
-    }
-    return true;
-}
+bool CTxDB::TxnAbort() { return db->abortDBTransaction(); }
 
 bool CTxDB::test1_WriteStrKeyVal(const string& key, const string& val)
 {
-    return Write(key, val, db_main);
+    return db->write(IDB::Index::DB_MAIN_INDEX, key, val);
 }
 
-bool CTxDB::test1_ReadStrKeyVal(const string& key, string& val) { return Read(key, val, db_main); }
-bool CTxDB::test1_ExistsStrKeyVal(const string& key) { return Exists(key, db_main); }
-bool CTxDB::test1_EraseStrKeyVal(const string& key) { return Erase(key, db_main); }
+bool CTxDB::test1_ReadStrKeyVal(const string& key, string& val)
+{
+    auto res = db->read(IDB::Index::DB_MAIN_INDEX, key, 0, boost::none);
+    val      = res.value_or(val);
+    return !!res;
+}
+
+bool CTxDB::test1_ExistsStrKeyVal(const string& key)
+{
+    return db->exists(IDB::Index::DB_MAIN_INDEX, key);
+}
+bool CTxDB::test1_EraseStrKeyVal(const string& key) { return db->erase(IDB::Index::DB_MAIN_INDEX, key); }
 
 bool CTxDB::test2_ReadMultipleStr1KeyVal(const string& key, vector<string>& val)
 {
-    return ReadMultiple(key, val, db_ntp1tokenNames);
+    auto res = db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key);
+    val      = res.value_or(val);
+    return !!res;
 }
 
 bool CTxDB::test2_ReadMultipleAllStr1KeyVal(std::map<string, vector<string>>& vals)
 {
-    return ReadMultipleWithKeys(vals, db_ntp1tokenNames);
+    auto res = db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
+    vals     = res.value_or(vals);
+    return !!res;
 }
 
 bool CTxDB::test2_WriteStrKeyVal(const string& key, const string& val)
 {
-    return Write(key, val, db_ntp1tokenNames);
+    return db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key, val);
 }
 
-bool CTxDB::test2_ExistsStrKeyVal(const string& key) { return Exists(key, db_ntp1tokenNames); }
-bool CTxDB::test2_EraseStrKeyVal(const string& key) { return EraseAll(key, db_ntp1tokenNames); }
+bool CTxDB::test2_ExistsStrKeyVal(const string& key)
+{
+    return db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key);
+}
+bool CTxDB::test2_EraseStrKeyVal(const string& key)
+{
+    return db->eraseAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key);
+}
 
 boost::optional<int> CTxDB::ReadVersion()
 {
-    return Read(std::string("version"), nVersion, db_main) ? boost::make_optional(nVersion)
-                                                           : boost::none;
+    return Read(std::string("version"), nVersion, IDB::Index::DB_MAIN_INDEX)
+               ? boost::make_optional(nVersion)
+               : boost::none;
 }
 
-bool CTxDB::WriteVersion(int nVersion) { return Write(std::string("version"), nVersion, db_main); }
+bool CTxDB::WriteVersion(int nVersion)
+{
+    return Write(std::string("version"), nVersion, IDB::Index::DB_MAIN_INDEX);
+}
 
 bool CTxDB::ReadTxIndex(const uint256& hash, CTxIndex& txindex) const
 {
     txindex.SetNull();
-    return Read(hash, txindex, db_tx);
+    return Read(hash, txindex, IDB::Index::DB_TX_INDEX);
 }
 
 bool CTxDB::UpdateTxIndex(const uint256& hash, const CTxIndex& txindex)
 {
-    return Write(hash, txindex, db_tx);
+    return Write(hash, txindex, IDB::Index::DB_TX_INDEX);
 }
 
 bool CTxDB::ReadTx(const CDiskTxPos& txPos, CTransaction& tx) const
 {
     tx.SetNull();
-    return Read(txPos.nBlockPos, tx, db_blocks, 0, txPos.nTxPos);
+    return Read(txPos.nBlockPos, tx, IDB::Index::DB_BLOCKS_INDEX, 0, txPos.nTxPos);
 }
 
 bool CTxDB::ReadNTP1Tx(const uint256& hash, NTP1Transaction& ntp1tx) const
 {
     ntp1tx.setNull();
-    return Read(hash, ntp1tx, db_ntp1Tx);
+    return Read(hash, ntp1tx, IDB::Index::DB_NTP1TX_INDEX);
 }
 
 bool CTxDB::ReadNTP1TxsWithTokenSymbol(std::string tokenName, std::vector<uint256>& txs) const
 {
     std::transform(tokenName.begin(), tokenName.end(), tokenName.begin(), ::toupper);
-    return ReadMultiple(tokenName, txs, db_ntp1tokenNames);
+    return ReadMultiple(tokenName, txs, IDB::Index::DB_NTP1TOKENNAMES_INDEX);
 }
 
 bool CTxDB::WriteNTP1TxWithTokenSymbol(std::string tokenSymbol, const NTP1Transaction& ntp1tx)
@@ -780,29 +425,29 @@ bool CTxDB::WriteNTP1TxWithTokenSymbol(std::string tokenSymbol, const NTP1Transa
                symbol.c_str(), tokenSymbol.c_str());
         return false;
     }
-    return Write(tokenSymbol, ntp1tx.getTxHash(), db_ntp1tokenNames);
+    return Write(tokenSymbol, ntp1tx.getTxHash(), IDB::Index::DB_NTP1TOKENNAMES_INDEX);
 }
 
 bool CTxDB::ReadAddressPubKey(const CBitcoinAddress& address, std::vector<uint8_t>& pubkey) const
 {
-    return Read(address, pubkey, db_addrsVsPubKeys);
+    return Read(address, pubkey, IDB::Index::DB_ADDRSVSPUBKEYS_INDEX);
 }
 
 bool CTxDB::WriteAddressPubKey(const CBitcoinAddress& address, const std::vector<uint8_t>& pubkey)
 {
-    return Write(address, pubkey, db_addrsVsPubKeys);
+    return Write(address, pubkey, IDB::Index::DB_ADDRSVSPUBKEYS_INDEX);
 }
 
 bool CTxDB::WriteNTP1Tx(const uint256& hash, const NTP1Transaction& ntp1tx)
 {
-    return Write(hash, ntp1tx, db_ntp1Tx);
+    return Write(hash, ntp1tx, IDB::Index::DB_NTP1TX_INDEX);
 }
 
 bool CTxDB::ReadAllIssuanceTxs(std::vector<uint256>& txs) const
 {
     // the key is empty because we want to get all keys in the database
     std::map<std::string, std::vector<uint256>> resMap;
-    bool success = ReadMultipleWithKeys(resMap, db_ntp1tokenNames);
+    bool success = ReadMultipleWithKeys(resMap, IDB::Index::DB_NTP1TOKENNAMES_INDEX);
     if (!success) {
         return false;
     }
@@ -818,20 +463,23 @@ bool CTxDB::ReadBlock(const uint256& hash, CBlock& blk, bool fReadTransactions) 
 {
     blk.SetNull();
     int modifiers = (fReadTransactions ? 0 : SER_BLOCKHEADERONLY);
-    return Read(hash, blk, db_blocks, modifiers);
+    return Read(hash, blk, IDB::Index::DB_BLOCKS_INDEX, modifiers);
 }
 
 bool CTxDB::WriteBlock(const uint256& hash, const CBlock& blk)
 {
     assert(blk.GetHash() != 0);
-    return Write(hash, blk, db_blocks);
+    return Write(hash, blk, IDB::Index::DB_BLOCKS_INDEX);
 }
 
-bool CTxDB::EraseTxIndex(const uint256& hash) { return Erase(hash, db_tx); }
+bool CTxDB::EraseTxIndex(const uint256& hash) { return Erase(hash, IDB::Index::DB_TX_INDEX); }
 
-bool CTxDB::ContainsTx(const uint256& hash) const { return Exists(hash, db_tx); }
+bool CTxDB::ContainsTx(const uint256& hash) const { return Exists(hash, IDB::Index::DB_TX_INDEX); }
 
-bool CTxDB::ContainsNTP1Tx(const uint256& hash) const { return Exists(hash, db_ntp1Tx); }
+bool CTxDB::ContainsNTP1Tx(const uint256& hash) const
+{
+    return Exists(hash, IDB::Index::DB_NTP1TX_INDEX);
+}
 
 bool CTxDB::ReadDiskTx(const uint256& hash, CTransaction& tx, CTxIndex& txindex) const
 {
@@ -860,27 +508,27 @@ bool CTxDB::ReadDiskTx(const COutPoint& outpoint, CTransaction& tx) const
 
 bool CTxDB::WriteBlockIndex(const CDiskBlockIndex& blockindex)
 {
-    return Write(blockindex.GetBlockHash(), blockindex, db_blockIndex);
+    return Write(blockindex.GetBlockHash(), blockindex, IDB::Index::DB_BLOCKINDEX_INDEX);
 }
 
 bool CTxDB::ReadHashBestChain(uint256& hashBestChain) const
 {
-    return Read(string("hashBestChain"), hashBestChain, db_main);
+    return Read(string("hashBestChain"), hashBestChain, IDB::Index::DB_MAIN_INDEX);
 }
 
 bool CTxDB::WriteHashBestChain(const uint256& hashBestChain)
 {
-    return Write(string("hashBestChain"), hashBestChain, db_main);
+    return Write(string("hashBestChain"), hashBestChain, IDB::Index::DB_MAIN_INDEX);
 }
 
 bool CTxDB::ReadBestInvalidTrust(CBigNum& bnBestInvalidTrust) const
 {
-    return Read(string("bnBestInvalidTrust"), bnBestInvalidTrust, db_main);
+    return Read(string("bnBestInvalidTrust"), bnBestInvalidTrust, IDB::Index::DB_MAIN_INDEX);
 }
 
 bool CTxDB::WriteBestInvalidTrust(const CBigNum& bnBestInvalidTrust)
 {
-    return Write(string("bnBestInvalidTrust"), bnBestInvalidTrust, db_main);
+    return Write(string("bnBestInvalidTrust"), bnBestInvalidTrust, IDB::Index::DB_MAIN_INDEX);
 }
 
 static CBlockIndexSmartPtr InsertBlockIndex(const uint256&              hash,
@@ -921,114 +569,82 @@ bool CTxDB::LoadBlockIndex()
     // locations where the contents of the block can be found. Here, we scan it
     // out of the DB and into mapBlockIndex.
 
-    MDB_cursor*     cursorRawPtr = nullptr;
-    LMDBTransaction localTxn;
-    if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
-        return error("Failed to begin transaction at read with error code %i; and error: %s\n", res,
-                     mdb_strerror(res));
-    }
-    if (auto rc = mdb_cursor_open(localTxn, *db_blockIndex, &cursorRawPtr)) {
-        return error(
-            "CTxDB::LoadBlockIndex() : Failed to open lmdb cursor with error code %d; and error: %s\n",
-            rc, mdb_strerror(rc));
-    }
-    std::unique_ptr<MDB_cursor, void (*)(MDB_cursor*)> cursorPtr(cursorRawPtr, [](MDB_cursor* p) {
-        if (p)
-            mdb_cursor_close(p);
-    });
-
-    // Seek to start key.
-    CDataStream ssStartKey(SER_DISK, CLIENT_VERSION);
-    ssStartKey << uint256(0);
-    std::string&& keyBin = ssStartKey.str();
-    MDB_val       key    = {(size_t)ssStartKey.size(), (void*)keyBin.data()};
-    MDB_val       data;
-
-    int itemRes = mdb_cursor_get(cursorPtr.get(), &key, &data, MDB_FIRST);
-    if (itemRes != 0 && itemRes != MDB_NOTFOUND) {
-        return error("Error while opening cursor to load index. Error code %i, and error: %s\n", itemRes,
-                     mdb_strerror(itemRes));
-    }
+    boost::optional<std::map<std::string, std::vector<std::string>>> blockIndexStr =
+        db->readAll(IDB::Index::DB_BLOCKINDEX_INDEX);
 
     uint64_t loadedCount = 0;
 
     BlockIndexMapType::MapType loadedBlockIndex;
 
-    // Now read each entry.
-    do {
-        // if the first item is empty, break immediately
-        if (itemRes) {
-            break;
+    if (blockIndexStr) {
+        // Now read each entry.
+        while (!blockIndexStr->empty()) {
+            // TODO: make db->readAllUnique to not read to a vector
+            const std::pair<const std::string, const std::vector<std::string>> p =
+                *blockIndexStr->begin();
+
+            // Unpack keys and values.
+            CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+            ssKey.write(p.first.data(), p.first.size());
+            CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+            ssValue.write(p.second.front().data(), p.second.front().size());
+
+            if (fRequestShutdown)
+                break;
+
+            uint256 blockHash;
+            ssKey >> blockHash;
+
+            CDiskBlockIndex diskindex;
+            ssValue >> diskindex;
+
+            // (Changed by Sam) previously, using diskindex.GetBlockHash retrieved the block hash AND set
+            // it inside the diskindex object with a const_cast. Now this is fixed to be correct
+            diskindex.SetBlockHash(blockHash);
+
+            // Construct block index object
+            CBlockIndexSmartPtr pindexNew = InsertBlockIndex(blockHash, loadedBlockIndex);
+            pindexNew->pprev              = InsertBlockIndex(diskindex.hashPrev, loadedBlockIndex);
+            pindexNew->pnext              = InsertBlockIndex(diskindex.hashNext, loadedBlockIndex);
+            pindexNew->blockKeyInDB       = diskindex.blockKeyInDB;
+            pindexNew->nHeight            = diskindex.nHeight;
+            pindexNew->nMint              = diskindex.nMint;
+            pindexNew->nMoneySupply       = diskindex.nMoneySupply;
+            pindexNew->nFlags             = diskindex.nFlags;
+            pindexNew->nStakeModifier     = diskindex.nStakeModifier;
+            pindexNew->prevoutStake       = diskindex.prevoutStake;
+            pindexNew->nStakeTime         = diskindex.nStakeTime;
+            pindexNew->hashProof          = diskindex.hashProof;
+            pindexNew->nVersion           = diskindex.nVersion;
+            pindexNew->hashMerkleRoot     = diskindex.hashMerkleRoot;
+            pindexNew->nTime              = diskindex.nTime;
+            pindexNew->nBits              = diskindex.nBits;
+            pindexNew->nNonce             = diskindex.nNonce;
+
+            // Watch for genesis block
+            if (pindexGenesisBlock == nullptr && blockHash == Params().GenesisBlockHash())
+                pindexGenesisBlock = pindexNew;
+
+            if (!pindexNew->CheckIndex()) {
+                return error("LoadBlockIndex() : CheckIndex failed at %d", pindexNew->nHeight);
+            }
+
+            // NovaCoin: build setStakeSeen
+            if (pindexNew->IsProofOfStake())
+                setStakeSeen.insert(make_pair(pindexNew->prevoutStake, pindexNew->nStakeTime));
+
+            loadedCount++;
+            if (loadedCount % 10000 == 0) {
+                uiInterface.InitMessage(_("Loading block index...") +
+                                        " (block: " + std::to_string(loadedCount) + ")");
+            }
+
+            // delete the current loaded entry from the map
+            blockIndexStr->erase(p.first);
         }
-
-        std::string keyStr = LmdbValToString(key);
-        std::string valStr = LmdbValToString(data);
-
-        // Unpack keys and values.
-        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
-        ssKey.write(keyStr.data(), keyStr.size());
-        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-        ssValue.write(valStr.data(), valStr.size());
-
-        if (fRequestShutdown)
-            break;
-
-        uint256 blockHash;
-        ssKey >> blockHash;
-
-        CDiskBlockIndex diskindex;
-        ssValue >> diskindex;
-
-        // (Changed by Sam) previously, using diskindex.GetBlockHash retrieved the block hash AND set it
-        // inside the diskindex object with a const_cast. Now this is fixed to be correct
-        diskindex.SetBlockHash(blockHash);
-
-        // Construct block index object
-        CBlockIndexSmartPtr pindexNew = InsertBlockIndex(blockHash, loadedBlockIndex);
-        pindexNew->pprev              = InsertBlockIndex(diskindex.hashPrev, loadedBlockIndex);
-        pindexNew->pnext              = InsertBlockIndex(diskindex.hashNext, loadedBlockIndex);
-        pindexNew->blockKeyInDB       = diskindex.blockKeyInDB;
-        pindexNew->nHeight            = diskindex.nHeight;
-        pindexNew->nMint              = diskindex.nMint;
-        pindexNew->nMoneySupply       = diskindex.nMoneySupply;
-        pindexNew->nFlags             = diskindex.nFlags;
-        pindexNew->nStakeModifier     = diskindex.nStakeModifier;
-        pindexNew->prevoutStake       = diskindex.prevoutStake;
-        pindexNew->nStakeTime         = diskindex.nStakeTime;
-        pindexNew->hashProof          = diskindex.hashProof;
-        pindexNew->nVersion           = diskindex.nVersion;
-        pindexNew->hashMerkleRoot     = diskindex.hashMerkleRoot;
-        pindexNew->nTime              = diskindex.nTime;
-        pindexNew->nBits              = diskindex.nBits;
-        pindexNew->nNonce             = diskindex.nNonce;
-
-        // Watch for genesis block
-        if (pindexGenesisBlock == nullptr && blockHash == Params().GenesisBlockHash())
-            pindexGenesisBlock = pindexNew;
-
-        if (!pindexNew->CheckIndex()) {
-            cursorPtr.reset();
-            return error("LoadBlockIndex() : CheckIndex failed at %d", pindexNew->nHeight);
-        }
-
-        // NovaCoin: build setStakeSeen
-        if (pindexNew->IsProofOfStake())
-            setStakeSeen.insert(make_pair(pindexNew->prevoutStake, pindexNew->nStakeTime));
-
-        itemRes = mdb_cursor_get(cursorRawPtr, &key, &data, MDB_NEXT);
-
-        loadedCount++;
-        if (loadedCount % 10000 == 0) {
-            uiInterface.InitMessage(_("Loading block index...") +
-                                    " (block: " + std::to_string(loadedCount) + ")");
-        }
-        //        std::cout << "Read status: " << itemRes << "\t" << mdb_strerror(itemRes) << std::endl;
-    } while (itemRes == 0);
+    }
     printf("Done reading block index\n");
     uiInterface.InitMessage(_("Loading block index...") + " (done reading block index)");
-
-    cursorPtr.reset();
-    localTxn.commit();
 
     if (fRequestShutdown)
         return true;
@@ -1277,9 +893,4 @@ uintmax_t CTxDB::GetCurrentDiskUsage()
     }
 }
 
-CTxDB::~CTxDB()
-{
-    // Note that this is not the same as Close() because it deletes only
-    // data scoped to this TxDB object.
-    resetDbPointers();
-}
+CTxDB::~CTxDB() {}

@@ -1371,6 +1371,7 @@ bool LoadBlockIndex(bool fAllowNew)
     // Load block index
     //
     CTxDB txdb;
+    txdb.resyncIfNecessary();
     if (!txdb.LoadBlockIndex())
         return false;
 

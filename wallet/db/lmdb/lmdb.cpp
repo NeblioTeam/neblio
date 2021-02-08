@@ -6,6 +6,8 @@
 #include <boost/filesystem.hpp>
 #include <boost/scope_exit.hpp>
 
+std::unique_ptr<MDB_env, void (*)(MDB_env*)> dbEnv(nullptr, [](MDB_env*) {});
+
 std::unique_ptr<__lmdb_db_pointers> glob_lmdb_db_pointers;
 
 const std::string LMDB_MAINDB           = "MainDb";
@@ -413,15 +415,7 @@ LMDB::LMDB(const boost::filesystem::path* const dbdir, ILog* logger, bool startN
 {
     assert(dbdir);
 
-    if (glob_lmdb_db_pointers && !startNewDatabase) {
-        loadDbPointers();
-        return;
-    }
-
-    logger->logWrite("Initializing lmdb with db size: " + std::to_string(DB_DEFAULT_MAPSIZE));
-
-    openDatabase(*dbdir, startNewDatabase); // Init database
-    loadDbPointers();
+    openDB(startNewDatabase);
 }
 
 boost::optional<std::string> LMDB::read(IDB::Index dbindex, const std::string& key, std::size_t offset,
@@ -547,11 +541,7 @@ boost::optional<std::vector<std::string>> LMDB::readMultiple(IDB::Index         
     } while (itemRes == 0);
 
     cursorPtr.reset();
-    if (result.empty()) {
-        return boost::none;
-    } else {
-        return boost::make_optional(std::move(result));
-    }
+    return boost::make_optional(std::move(result));
 }
 
 boost::optional<std::map<std::string, std::vector<std::string>>> LMDB::readAll(IDB::Index dbindex) const
@@ -860,6 +850,23 @@ bool LMDB::abortDBTransaction()
         activeBatch.reset();
     }
     return true;
+}
+
+bool LMDB::openDB(bool clearDataBeforeOpen)
+{
+    if (glob_lmdb_db_pointers && !clearDataBeforeOpen) {
+        loadDbPointers();
+        return true;
+    }
+
+    openDatabase(*dbdir, clearDataBeforeOpen); // Init database
+    loadDbPointers();
+    return true;
+}
+
+boost::optional<boost::filesystem::path> LMDB::getDataDir() const
+{
+    return dbdir ? boost::make_optional(*dbdir) : boost::none;
 }
 
 void LMDB::close()

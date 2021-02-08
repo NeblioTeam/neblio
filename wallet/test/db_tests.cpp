@@ -33,7 +33,7 @@ std::string RandomString(const int len)
 
 TEST(lmdb_tests, basic)
 {
-    std::cout << "LMDB DB size: " << DB_DEFAULT_MAPSIZE << std::endl;
+    //    std::cout << "LMDB DB size: " << DB_DEFAULT_MAPSIZE << std::endl;
 
     CTxDB::DB_DIR = "test-txdb"; // avoid writing to the main database
 
@@ -501,7 +501,9 @@ static void TestReadMultipleAndRealAll(IDB*                                     
 
             // value doesn't exist anymore, let's verify that
             EXPECT_FALSE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key));
-            EXPECT_EQ(db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key), boost::none);
+            auto v = db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key);
+            ASSERT_TRUE(v);
+            EXPECT_EQ(v->size(), 0);
             const boost::optional<std::map<std::string, std::vector<std::string>>> m =
                 db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
             ASSERT_TRUE(m);
@@ -613,7 +615,9 @@ static void TestReadMultipleAndRealAllWithTx(IDB*                               
 
             // value doesn't exist anymore, let's verify that
             EXPECT_FALSE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key));
-            EXPECT_EQ(db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key), boost::none);
+            auto v = db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key);
+            ASSERT_TRUE(v);
+            EXPECT_EQ(v->size(), 0);
             const boost::optional<std::map<std::string, std::vector<std::string>>> m =
                 db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
             ASSERT_TRUE(m);

@@ -70,14 +70,14 @@ class LMDB : public IDB
 
     MDB_dbi* getDbByIndex(const Index index) const;
 
-    void clearDBData();
-
     // A batch stores up writes and deletes for atomic application. When this
     // field is non-NULL, writes/deletes go there instead of directly to disk.
     std::unique_ptr<LMDBTransaction> activeBatch;
 
 public:
     LMDB(const boost::filesystem::path* const dbdir, ILog* logger, bool startNewDatabase = false);
+
+    void clearDBData();
 
     boost::optional<std::string> read(IDB::Index dbindex, const std::string& key, std::size_t offset,
                                       const boost::optional<std::size_t>& size) const override;
@@ -92,6 +92,9 @@ public:
     bool beginDBTransaction(std::size_t expectedDataSize) override;
     bool commitDBTransaction() override;
     bool abortDBTransaction() override;
+    bool openDB(bool clearDataBeforeOpen) override;
+
+    boost::optional<boost::filesystem::path> getDataDir() const override;
 
     void close() override;
 };

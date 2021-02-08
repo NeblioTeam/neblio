@@ -1,6 +1,7 @@
 #ifndef IDB_H
 #define IDB_H
 
+#include <boost/filesystem/path.hpp>
 #include <boost/optional.hpp>
 #include <map>
 #include <vector>
@@ -27,7 +28,7 @@ public:
      * @brief ReadMultiple reads all the elements under the given key
      * @param dbindex
      * @param key
-     * @return all elements that are under the given key
+     * @return all elements that are under the given key, boost::none on error
      */
     virtual boost::optional<std::vector<std::string>> readMultiple(IDB::Index         dbindex,
                                                                    const std::string& key) const = 0;
@@ -35,7 +36,7 @@ public:
     /**
      * @brief ReadAll returns all the items in the database in a map
      * @param dbindex
-     * @return
+     * @return boost::none on error, results otherwise
      */
     virtual boost::optional<std::map<std::string, std::vector<std::string>>>
     readAll(IDB::Index dbindex) const = 0;
@@ -66,6 +67,10 @@ public:
     virtual bool commitDBTransaction() = 0;
 
     virtual bool abortDBTransaction() = 0;
+
+    virtual boost::optional<boost::filesystem::path> getDataDir() const = 0;
+
+    virtual bool openDB(bool clearDataBeforeOpen) = 0;
 
     /**
      * @brief Close shutdowns the database (to be used before closing the program)
