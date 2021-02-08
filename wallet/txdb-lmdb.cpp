@@ -242,6 +242,19 @@ bool ShouldQuickSyncBeDone(const filesystem::path& dbdir)
 
 void CTxDB::resyncIfNecessary(bool forceClearDB)
 {
+
+    nVersion = ReadVersion().value_or(0);
+    printf("Transaction index version is %d\n", nVersion);
+
+    if (nVersion != DATABASE_VERSION) {
+        printf("Required index version is %d, removing old database\n", DATABASE_VERSION);
+
+        forceClearDB = true;
+    }
+
+    printf("Opened LMDB successfully\n");
+
+    // check if the database has to be wiped
     if (forceClearDB ||
         SC_CheckOperationOnRestartScheduleThenDeleteIt(SC_SCHEDULE_ON_RESTART_OPNAME__RESYNC)) {
 
@@ -251,6 +264,7 @@ void CTxDB::resyncIfNecessary(bool forceClearDB)
         SC_CreateScheduledOperationOnRestart(SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN);
     }
 
+    // run serialization tests to ensure that no binary interpretation platforms will arise
     try {
         RunCrossPlatformSerializationTests();
         printf("Binary format tests have passed.\n");
@@ -258,6 +272,7 @@ void CTxDB::resyncIfNecessary(bool forceClearDB)
         printf("Binary format tests have failed: %s\n", ex.what());
     }
 
+    // at this point, there's no database, so we attempt quicksync
     if (const auto dbdir = db->getDataDir()) {
         // if the directory doesn't exist, use quicksync
         if (ShouldQuickSyncBeDone(*dbdir)) {
@@ -281,6 +296,15 @@ void CTxDB::resyncIfNecessary(bool forceClearDB)
     }
 
     db->openDB(false);
+
+    WriteVersion(DATABASE_VERSION); // Save db schema version
+
+    // ensure the correct version is now there
+    nVersion = ReadVersion().value_or(0);
+    if (nVersion != DATABASE_VERSION) {
+        throw std::runtime_error(
+            "Failed to persist database schema version number after clearing the database.");
+    }
 }
 
 // CDB subclasses are created and destroyed VERY OFTEN. That's why
