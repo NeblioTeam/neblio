@@ -76,6 +76,8 @@ public:
      * @brief Close shutdowns the database (to be used before closing the program)
      */
     virtual void close() = 0;
+
+    virtual ~IDB() {}
 };
 
 #endif // IDB_H
