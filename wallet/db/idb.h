@@ -41,6 +41,13 @@ public:
     virtual boost::optional<std::map<std::string, std::vector<std::string>>>
     readAll(IDB::Index dbindex) const = 0;
 
+    /**
+     * @brief readAllUnique returns all items, just like readAll, but assumes key/value pairs are unique
+     * @return boost::none on error, results otherwise
+     */
+    virtual boost::optional<std::map<std::string, std::string>>
+    readAllUnique(IDB::Index dbindex) const = 0;
+
     virtual bool write(IDB::Index dbindex, const std::string& key, const std::string& value) = 0;
 
     /**

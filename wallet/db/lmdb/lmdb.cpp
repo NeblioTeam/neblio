@@ -615,6 +615,77 @@ boost::optional<std::map<std::string, std::vector<std::string>>> LMDB::readAll(I
     return result;
 }
 
+boost::optional<std::map<std::string, std::string>> LMDB::readAllUnique(IDB::Index dbindex) const
+{
+    const MDB_dbi* dbPtr = getDbByIndex(dbindex);
+
+    LMDBTransaction localTxn(false);
+    if (!activeBatch) {
+        localTxn = LMDBTransaction();
+        if (auto res = lmdb_txn_begin(logger, dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
+            logger->logWrite("LMDB::readAll: Failed to begin transaction at read with error code " +
+                             std::to_string(res) +
+                             "; and error code: " + std::string(mdb_strerror(res)));
+        }
+    }
+    // only one of them should be active
+    assert(localTxn.rawPtr() == nullptr || activeBatch == nullptr);
+
+    BOOST_SCOPE_EXIT(&localTxn)
+    {
+        if (localTxn.rawPtr()) {
+            localTxn.abort();
+        }
+    }
+    BOOST_SCOPE_EXIT_END
+
+    MDB_val     kS           = {0, nullptr};
+    MDB_val     vS           = {0, nullptr};
+    MDB_cursor* cursorRawPtr = nullptr;
+    if (auto rc = mdb_cursor_open((!activeBatch ? localTxn : *activeBatch), *dbPtr, &cursorRawPtr)) {
+        logger->logWrite("LMDB::readAll: Failed to open lmdb cursor with error code " +
+                         std::to_string(rc) + "; and error: " + std::string(mdb_strerror(rc)));
+        return boost::none;
+    }
+
+    std::unique_ptr<MDB_cursor, void (*)(MDB_cursor*)> cursorPtr(cursorRawPtr, [](MDB_cursor* p) {
+        if (p)
+            mdb_cursor_close(p);
+    });
+
+    int itemRes = 1;
+
+    // read all items in that database
+    itemRes = mdb_cursor_get(cursorPtr.get(), &kS, &vS, MDB_FIRST);
+    if (itemRes) {
+        if (itemRes != 0 && itemRes != MDB_NOTFOUND) {
+            logger->logWrite(
+                "LMDB::readAll: Cursor does not exist while reading all entries; with an error of "
+                "code " +
+                std::to_string(itemRes) + "; and error: " + std::string(mdb_strerror(itemRes)));
+            return boost::none;
+        }
+    }
+    std::map<std::string, std::string> result;
+    do {
+        // if the first item is empty, break immediately
+        if (itemRes) {
+            break;
+        }
+
+        assert(vS.mv_data != nullptr);
+
+        std::string keyFound(static_cast<const char*>(kS.mv_data), kS.mv_size);
+        std::string value(static_cast<const char*>(vS.mv_data), vS.mv_size);
+        result[keyFound] = value;
+
+        itemRes = mdb_cursor_get(cursorRawPtr, &kS, &vS, MDB_NEXT);
+    } while (itemRes == 0);
+
+    cursorPtr.reset();
+    return result;
+}
+
 bool LMDB::write(IDB::Index dbindex, const std::string& key, const std::string& value)
 {
     const MDB_dbi* dbPtr = getDbByIndex(dbindex);

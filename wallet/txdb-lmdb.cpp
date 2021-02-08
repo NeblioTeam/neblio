@@ -593,8 +593,8 @@ bool CTxDB::LoadBlockIndex()
     // locations where the contents of the block can be found. Here, we scan it
     // out of the DB and into mapBlockIndex.
 
-    boost::optional<std::map<std::string, std::vector<std::string>>> blockIndexStr =
-        db->readAll(IDB::Index::DB_BLOCKINDEX_INDEX);
+    boost::optional<std::map<std::string, std::string>> blockIndexStr =
+        db->readAllUnique(IDB::Index::DB_BLOCKINDEX_INDEX);
 
     uint64_t loadedCount = 0;
 
@@ -603,15 +603,13 @@ bool CTxDB::LoadBlockIndex()
     if (blockIndexStr) {
         // Now read each entry.
         while (!blockIndexStr->empty()) {
-            // TODO: make db->readAllUnique to not read to a vector
-            const std::pair<const std::string, const std::vector<std::string>> p =
-                *blockIndexStr->begin();
+            const std::pair<const std::string, const std::string> p = *blockIndexStr->begin();
 
             // Unpack keys and values.
             CDataStream ssKey(SER_DISK, CLIENT_VERSION);
             ssKey.write(p.first.data(), p.first.size());
             CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-            ssValue.write(p.second.front().data(), p.second.front().size());
+            ssValue.write(p.second.data(), p.second.size());
 
             if (fRequestShutdown)
                 break;

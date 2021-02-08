@@ -84,7 +84,8 @@ public:
     boost::optional<std::vector<std::string>> readMultiple(IDB::Index         dbindex,
                                                            const std::string& key) const override;
     boost::optional<std::map<std::string, std::vector<std::string>>>
-         readAll(IDB::Index dbindex) const override;
+                                                        readAll(IDB::Index dbindex) const override;
+    boost::optional<std::map<std::string, std::string>> readAllUnique(IDB::Index dbindex) const override;
     bool write(IDB::Index dbindex, const std::string& key, const std::string& value) override;
     bool erase(IDB::Index dbindex, const std::string& key) override;
     bool eraseAll(IDB::Index dbindex, const std::string& key) override;
