@@ -1,9 +1,9 @@
 #ifndef DEFAULTLOGGER_H
 #define DEFAULTLOGGER_H
 
-#include "../ilog.h"
+#include "../idblog.h"
 
-class DefaultLogger : public ILog
+class DefaultDBLogger : public ILog
 {
 public:
     void logWrite(const StringViewT message) override;

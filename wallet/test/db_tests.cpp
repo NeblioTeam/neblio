@@ -2,7 +2,7 @@
 
 #include "boost/scope_exit.hpp"
 #include "curltools.h"
-#include "db/defaultlogger/defaultlogger.h"
+#include "db/defaultdblogger/defaultdblogger.h"
 #include "db/lmdb/lmdb.h"
 #include "hash.h"
 #include "ntp1/ntp1tools.h"
@@ -391,7 +391,7 @@ TEST(db_interface_impl_tests, read_write_unique)
 
     const boost::filesystem::path p = GetDataDir() / "test-txdb";
 
-    DefaultLogger logger;
+    DefaultDBLogger logger;
 
     std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, &logger, true);
 
@@ -419,7 +419,7 @@ TEST(db_interface_impl_tests, read_write_unique_with_transaction)
 
     const boost::filesystem::path p = GetDataDir() / "test-txdb";
 
-    DefaultLogger logger;
+    DefaultDBLogger logger;
 
     std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, &logger, true);
 
@@ -540,7 +540,7 @@ TEST(db_interface_impl_tests, read_write_multiple)
 
     const boost::filesystem::path p = GetDataDir() / "test-txdb";
 
-    DefaultLogger logger;
+    DefaultDBLogger logger;
 
     std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, &logger, true);
 
@@ -664,7 +664,7 @@ TEST(db_interface_impl_tests, read_write_multiple_with_db_transaction)
 
     const boost::filesystem::path p = GetDataDir() / "test-txdb";
 
-    DefaultLogger logger;
+    DefaultDBLogger logger;
 
     std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, &logger, true);
 

@@ -687,8 +687,8 @@ endif()
 
 add_library(db_lib STATIC
     wallet/db/idb.h
-    wallet/db/ilog.h
-    wallet/db/defaultlogger/defaultlogger.cpp
+    wallet/db/idblog.h
+    wallet/db/defaultdblogger/defaultdblogger.cpp
     wallet/db/lmdb/lmdb.cpp
     wallet/db/lmdb/lmdbtransaction.cpp
     )

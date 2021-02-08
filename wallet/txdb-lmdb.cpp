@@ -14,7 +14,7 @@
 #include <future>
 #include <random>
 
-#include "db/defaultlogger/defaultlogger.h"
+#include "db/defaultdblogger/defaultdblogger.h"
 #include "globals.h"
 #include "kernel.h"
 #include "main.h"
@@ -29,7 +29,7 @@ using namespace boost;
 
 boost::filesystem::path CTxDB::DB_DIR                         = "txlmdb";
 bool                    CTxDB::QuickSyncHigherControl_Enabled = true;
-std::unique_ptr<ILog>   CTxDB::TxDBLogger                     = MakeUnique<DefaultLogger>();
+std::unique_ptr<ILog>   CTxDB::TxDBLogger                     = MakeUnique<DefaultDBLogger>();
 
 bool IsQuickSyncOSCompatible(const std::string& osValue)
 {

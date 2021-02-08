@@ -1,6 +1,6 @@
 #include "lmdb.h"
 
-#include "../defaultlogger/defaultlogger.h"
+#include "../defaultdblogger/defaultdblogger.h"
 #include "stringmanip.h"
 #include "ui_interface.h"
 #include <boost/filesystem.hpp>
