@@ -1,4 +1,4 @@
-// Copyright (c) 2009-2012 The Bitcoin Developers.
+﻿// Copyright (c) 2009-2012 The Bitcoin Developers.
 // Authored by Google, Inc.
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -44,7 +44,7 @@ boost::optional<std::string> SerializeSimple(const T& key)
         ssKey << key;
         return ssKey.str();
     } catch (const std::exception& e) {
-        printf("Failed to serialize key in SerializeKey %s\n", ssKey.str().c_str());
+        NLog.write(b_sev::err, "Failed to serialize key in SerializeKey {}", ssKey.str());
         return boost::none;
     }
 }
@@ -121,7 +121,8 @@ protected:
             ssValue >> value;
             return true;
         } catch (const std::exception& e) {
-            printf("Failed to deserialized in lmdb Read() data for key %s\n", ssKey->c_str());
+            NLog.write(b_sev::err, "Failed to deserialized in lmdb Read() data for key {}",
+                       ssKey->c_str());
             return false;
         }
     }
@@ -155,7 +156,8 @@ protected:
                 values.insert(values.end(), std::move(value));
             } catch (const std::exception& e) {
                 unsigned int sz = static_cast<unsigned int>(values.size());
-                printf("Failed to deserialized element number %u in lmdb ReadMultiple() data\n", sz);
+                NLog.write(b_sev::err,
+                           "Failed to deserialized element number {} in lmdb ReadMultiple() data", sz);
                 return false;
             }
         }
@@ -193,8 +195,9 @@ protected:
                     cont.insert(cont.end(), value);
                 } catch (const std::exception& e) {
                     unsigned int sz = static_cast<unsigned int>(values.size());
-                    printf(
-                        "Failed to deserialized element number %u in lmdb ReadMultipleWithKeys() data\n",
+                    NLog.write(
+                        b_sev::err,
+                        "Failed to deserialized element number {} in lmdb ReadMultipleWithKeys() data",
                         sz);
                     return false;
                 }

@@ -74,10 +74,10 @@ public:
 
     void print() const
     {
-        printf("COrphan(hash=%s, dPriority=%.1f, dFeePerKb=%.1f)\n",
-               ptx->GetHash().ToString().substr(0, 10).c_str(), dPriority, dFeePerKb);
+        NLog.write(b_sev::info, "COrphan(hash={}, dPriority={:.1f}, dFeePerKb={:.1f})",
+                  ptx->GetHash().ToString().substr(0, 10), dPriority, dFeePerKb);
         for (uint256 hash : setDependsOn)
-            printf("   setDependsOn %s\n", hash.ToString().substr(0, 10).c_str());
+            NLog.write(b_sev::info, "   setDependsOn {}", hash.ToString().substr(0, 10));
     }
 };
 
@@ -223,7 +223,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
                     // or other transactions in the memory pool.
                     const auto txIt = mempool_.mapTx.find(txin.prevout.hash);
                     if (txIt == mempool_.mapTx.cend()) {
-                        printf("ERROR: mempool transaction missing input\n");
+                        NLog.write(b_sev::err, "ERROR: mempool transaction missing input");
                         if (fDebug)
                             assert("mempool transaction missing input" == 0);
                         fMissingInputs = true;
@@ -369,15 +369,15 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
                     }
                 }
             } catch (std::exception& ex) {
-                printf("Error while mining and verifying the uniqueness of issued token symbol in "
-                       "CreateNewBlock(): "
-                       "%s\n",
-                       ex.what());
+                NLog.write(b_sev::err,
+                          "Error while mining and verifying the uniqueness of issued token symbol in "
+                          "CreateNewBlock(): {}",
+                          ex.what());
                 continue;
             } catch (...) {
-                printf("Error while mining and verifying the uniqueness of issued token symbol in "
-                       "CreateNewBlock(). "
-                       "Unknown exception thrown\n");
+                NLog.write(b_sev::err,
+                          "Error while mining and verifying the uniqueness of issued token symbol in "
+                          "CreateNewBlock(). Unknown exception thrown");
                 continue;
             }
 
@@ -399,8 +399,8 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
             nFees += nTxFees;
 
             if (fDebug) {
-                printf("priority %.1f feeperkb %.1f txid %s\n", dPriority, dFeePerKb,
-                       tx.GetHash().ToString().c_str());
+                NLog.write(b_sev::info, "priority {:.1f} feeperkb {:.1f} txid {}", dPriority, dFeePerKb,
+                          tx.GetHash().ToString());
             }
 
             // Add transactions that depend on this one to the priority queue
@@ -423,7 +423,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
         nLastBlockSize = nBlockSize;
 
         if (fDebug)
-            printf("CreateNewBlock(): total size %" PRIu64 "\n", nBlockSize);
+            NLog.write(b_sev::debug, "CreateNewBlock(): total size {}", nBlockSize);
 
         if (!fProofOfStake)
             pblock->vtx[0].vout[0].nValue = GetProofOfWorkReward(nFees);
@@ -510,22 +510,22 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
     uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
 
     if (!pblock->IsProofOfWork())
-        return error("CheckWork() : %s is not a proof-of-work block", hashBlock.GetHex().c_str());
+        return NLog.error("CheckWork() : {} is not a proof-of-work block", hashBlock.GetHex());
 
     if (hashBlock > hashTarget)
-        return error("CheckWork() : proof-of-work not meeting target");
+        return NLog.error("CheckWork() : proof-of-work not meeting target");
 
     //// debug print
-    printf("CheckWork() : new proof-of-work block found  \n  hash: %s  \ntarget: %s\n",
-           hashBlock.GetHex().c_str(), hashTarget.GetHex().c_str());
+    NLog.write(b_sev::debug, "CheckWork() : new proof-of-work block found hash: {} target: {}",
+              hashBlock.GetHex(), hashTarget.GetHex());
     pblock->print();
-    printf("generated %s\n", FormatMoney(pblock->vtx[0].vout[0].nValue).c_str());
+    NLog.write(b_sev::debug, "generated {}", FormatMoney(pblock->vtx[0].vout[0].nValue));
 
     // Found a solution
     {
         LOCK(cs_main);
         if (pblock->hashPrevBlock != CTxDB().GetBestBlockHash())
-            return error("CheckWork() : generated block is stale");
+            return NLog.error("CheckWork() : generated block is stale");
 
         // Remove key from key pool
         reservekey.KeepKey();
@@ -538,7 +538,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
 
         // Process this block the same as if we had received it from another node
         if (!ProcessBlock(nullptr, pblock))
-            return error("CheckWork() : ProcessBlock, block not accepted");
+            return NLog.error("CheckWork() : ProcessBlock, block not accepted");
     }
 
     return true;
@@ -550,23 +550,24 @@ bool CheckStake(CBlock* pblock, CWallet& wallet)
     uint256 hashBlock = pblock->GetHash();
 
     if (!pblock->IsProofOfStake())
-        return error("CheckStake() : %s is not a proof-of-stake block", hashBlock.GetHex().c_str());
+        return NLog.error("CheckStake() : {} is not a proof-of-stake block", hashBlock.GetHex());
 
     // verify hash target and signature of coinstake tx
     if (!CheckProofOfStake(pblock->vtx[1], pblock->nBits, proofHash, hashTarget))
-        return error("CheckStake() : proof-of-stake checking failed");
+        return NLog.error("CheckStake() : proof-of-stake checking failed");
 
     //// debug print
-    printf("CheckStake() : new proof-of-stake block found  \n  hash: %s \nproofhash: %s  \ntarget: %s\n",
-           hashBlock.GetHex().c_str(), proofHash.GetHex().c_str(), hashTarget.GetHex().c_str());
+    NLog.write(b_sev::info,
+              "CheckStake() : new proof-of-stake block found  hash: {} proofhash: {} target: {}",
+              hashBlock.GetHex(), proofHash.GetHex(), hashTarget.GetHex());
     pblock->print();
-    printf("out %s\n", FormatMoney(pblock->vtx[1].GetValueOut()).c_str());
+    NLog.write(b_sev::info, "out {}", FormatMoney(pblock->vtx[1].GetValueOut()));
 
     // Found a solution
     {
         LOCK(cs_main);
         if (pblock->hashPrevBlock != CTxDB().GetBestBlockHash())
-            return error("CheckStake() : generated block is stale");
+            return NLog.error("CheckStake() : generated block is stale");
 
         // Track how many getdata requests this block gets
         {
@@ -576,7 +577,7 @@ bool CheckStake(CBlock* pblock, CWallet& wallet)
 
         // Process this block the same as if we had received it from another node
         if (!ProcessBlock(nullptr, pblock))
-            return error("CheckStake() : ProcessBlock, block not accepted");
+            return NLog.error("CheckStake() : ProcessBlock, block not accepted");
     }
 
     return true;

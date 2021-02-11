@@ -29,8 +29,6 @@
 #include <list>
 #include <thread>
 
-#define printf OutputDebugStringF
-
 using namespace std;
 using namespace boost;
 using namespace boost::asio;
@@ -83,14 +81,14 @@ void ScriptPubKeyToJSON(const CScript& scriptPubKey, Object& out, bool fIncludeH
 void RPCTypeCheck(const Array& params, const list<Value_type>& typesExpected, bool fAllowNull)
 {
     unsigned int i = 0;
-    BOOST_FOREACH (Value_type t, typesExpected) {
+    for (Value_type t : typesExpected) {
         if (params.size() <= i)
             break;
 
         const Value& v = params[i];
         if (!((v.type() == t) || (fAllowNull && (v.type() == null_type)))) {
             string err =
-                strprintf("Expected type %s, got %s", Value_type_name[t], Value_type_name[v.type()]);
+                fmt::format("Expected type {}, got {}", Value_type_name[t], Value_type_name[v.type()]);
             throw JSONRPCError(RPC_TYPE_ERROR, err);
         }
         i++;
@@ -99,14 +97,14 @@ void RPCTypeCheck(const Array& params, const list<Value_type>& typesExpected, bo
 
 void RPCTypeCheck(const Object& o, const map<string, Value_type>& typesExpected, bool fAllowNull)
 {
-    BOOST_FOREACH (const PAIRTYPE(string, Value_type) & t, typesExpected) {
+    for (const PAIRTYPE(const string, Value_type) & t : typesExpected) {
         const Value& v = find_value(o, t.first);
         if (!fAllowNull && v.type() == null_type)
-            throw JSONRPCError(RPC_TYPE_ERROR, strprintf("Missing %s", t.first.c_str()));
+            throw JSONRPCError(RPC_TYPE_ERROR, fmt::format("Missing {}", t.first));
 
         if (!((v.type() == t.second) || (fAllowNull && (v.type() == null_type)))) {
-            string err = strprintf("Expected type %s for %s, got %s", Value_type_name[t.second],
-                                   t.first.c_str(), Value_type_name[v.type()]);
+            string err = fmt::format("Expected type {} for {}, got {}", Value_type_name[t.second],
+                                     t.first, Value_type_name[v.type()]);
             throw JSONRPCError(RPC_TYPE_ERROR, err);
         }
     }
@@ -146,10 +144,7 @@ NTP1Int NTP1AmountFromValue(const Value& value)
     return nAmount;
 }
 
-Value ValueFromAmount(const CAmount& amount)
-{
-    return Value(std::stod(FP_IntToDecimal(amount, 8)));
-}
+Value ValueFromAmount(const CAmount& amount) { return Value(std::stod(FP_IntToDecimal(amount, 8))); }
 
 //
 // Utilities: convert hex-encoded Values
@@ -164,8 +159,8 @@ uint256 ParseHashV(const Value& v, const string& strName)
         throw JSONRPCError(RPC_INVALID_PARAMETER,
                            strName + " must be hexadecimal string (not '" + strHex + "')");
     if (64 != strHex.length())
-        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must be of length %d (not %zu)",
-                                                            strName.c_str(), 64, strHex.length()));
+        throw JSONRPCError(RPC_INVALID_PARAMETER, fmt::format("{} must be of length {} (not {})",
+                                                              strName.c_str(), 64, strHex.length()));
     uint256 result;
     result.SetHex(strHex);
     return result;
@@ -221,7 +216,7 @@ string CRPCTable::help(string strCommand) const
         }
     }
     if (strRet == "")
-        strRet = strprintf("help: unknown command: %s\n", strCommand.c_str());
+        strRet = fmt::format("help: unknown command: {}\n", strCommand.c_str());
     strRet = strRet.substr(0, strRet.size() - 1);
     return strRet;
 }
@@ -435,23 +430,23 @@ string rfc1123Time()
 static string HTTPReply(int nStatus, const string& strMsg, bool keepalive)
 {
     if (nStatus == HTTP_UNAUTHORIZED)
-        return strprintf("HTTP/1.0 401 Authorization Required\r\n"
-                         "Date: %s\r\n"
-                         "Server: neblio-json-rpc/%s\r\n"
-                         "WWW-Authenticate: Basic realm=\"jsonrpc\"\r\n"
-                         "Content-Type: text/html\r\n"
-                         "Content-Length: 296\r\n"
-                         "\r\n"
-                         "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"\r\n"
-                         "\"http://www.w3.org/TR/1999/REC-html401-19991224/loose.dtd\">\r\n"
-                         "<HTML>\r\n"
-                         "<HEAD>\r\n"
-                         "<TITLE>Error</TITLE>\r\n"
-                         "<META HTTP-EQUIV='Content-Type' CONTENT='text/html; charset=ISO-8859-1'>\r\n"
-                         "</HEAD>\r\n"
-                         "<BODY><H1>401 Unauthorized.</H1></BODY>\r\n"
-                         "</HTML>\r\n",
-                         rfc1123Time().c_str(), FormatFullVersion().c_str());
+        return fmt::format("HTTP/1.0 401 Authorization Required\r\n"
+                           "Date: {}\r\n"
+                           "Server: neblio-json-rpc/{}\r\n"
+                           "WWW-Authenticate: Basic realm=\"jsonrpc\"\r\n"
+                           "Content-Type: text/html\r\n"
+                           "Content-Length: 296\r\n"
+                           "\r\n"
+                           "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\"\r\n"
+                           "\"http://www.w3.org/TR/1999/REC-html401-19991224/loose.dtd\">\r\n"
+                           "<HTML>\r\n"
+                           "<HEAD>\r\n"
+                           "<TITLE>Error</TITLE>\r\n"
+                           "<META HTTP-EQUIV='Content-Type' CONTENT='text/html; charset=ISO-8859-1'>\r\n"
+                           "</HEAD>\r\n"
+                           "<BODY><H1>401 Unauthorized.</H1></BODY>\r\n"
+                           "</HTML>\r\n",
+                           rfc1123Time(), FormatFullVersion());
     const char* cStatus;
     if (nStatus == HTTP_OK)
         cStatus = "OK";
@@ -465,16 +460,16 @@ static string HTTPReply(int nStatus, const string& strMsg, bool keepalive)
         cStatus = "Internal Server Error";
     else
         cStatus = "";
-    return strprintf("HTTP/1.1 %d %s\r\n"
-                     "Date: %s\r\n"
-                     "Connection: %s\r\n"
-                     "Content-Length: %" PRIszu "\r\n"
-                     "Content-Type: application/json\r\n"
-                     "Server: neblio-json-rpc/%s\r\n"
-                     "\r\n"
-                     "%s",
-                     nStatus, cStatus, rfc1123Time().c_str(), keepalive ? "keep-alive" : "close",
-                     strMsg.size(), FormatFullVersion().c_str(), strMsg.c_str());
+    return fmt::format("HTTP/1.1 {} {}\r\n"
+                       "Date: {}\r\n"
+                       "Connection: {}\r\n"
+                       "Content-Length: {}\r\n"
+                       "Content-Type: application/json\r\n"
+                       "Server: neblio-json-rpc/{}\r\n"
+                       "\r\n"
+                       "{}",
+                       nStatus, cStatus, rfc1123Time(), keepalive ? "keep-alive" : "close",
+                       strMsg.size(), FormatFullVersion(), strMsg);
 }
 
 int ReadHTTPStatus(std::basic_istream<char>& stream, int& proto)
@@ -732,7 +727,7 @@ private:
 static bool InitRPCAuthentication()
 {
     if (GetArg("-rpcpassword", "") == "") {
-        printf("No rpcpassword set - using random cookie authentication\n");
+        NLog.write(b_sev::info, "No rpcpassword set - using random cookie authentication");
         if (!GenerateAuthCookie(&strRPCUserColonPass)) {
             uiInterface.ThreadSafeMessageBox(
                 _("Error: A fatal internal error occurred while generating the authentication cookie, "
@@ -763,7 +758,7 @@ void ThreadRPCServer(void* parg)
         vnThreadsRunning[THREAD_RPCLISTENER]--;
         PrintException(NULL, "ThreadRPCServer()");
     }
-    printf("ThreadRPCServer exited\n");
+    NLog.write(b_sev::info, "ThreadRPCServer exited");
 }
 
 // Forward declaration required for RPCListen
@@ -838,7 +833,7 @@ static void RPCAcceptHandler(boost::shared_ptr<basic_socket_acceptor<Protocol>> 
 
     // start HTTP client thread
     else if (!NewThread(ThreadRPCServer3, conn)) {
-        printf("Failed to create RPC server client thread\n");
+        NLog.write(b_sev::err, "Failed to create RPC server client thread");
         delete conn;
     }
 
@@ -847,7 +842,7 @@ static void RPCAcceptHandler(boost::shared_ptr<basic_socket_acceptor<Protocol>> 
 
 void ThreadRPCServer2(void* /*parg*/)
 {
-    printf("ThreadRPCServer started\n");
+    NLog.write(b_sev::info, "ThreadRPCServer started");
 
     if (!InitRPCAuthentication()) {
         StartShutdown();
@@ -901,9 +896,10 @@ void ThreadRPCServer2(void* /*parg*/)
 
         fRpcListening.store(true);
     } catch (boost::system::system_error& e) {
-        strerr = strprintf(_("An error occurred while setting up the RPC port %u for listening on IPv6, "
-                             "falling back to IPv4: %s"),
-                           endpoint.port(), e.what());
+        strerr =
+            fmt::format(_("An error occurred while setting up the RPC port {} for listening on IPv6, "
+                          "falling back to IPv4: {}"),
+                        endpoint.port(), e.what());
     }
 
     try {
@@ -931,9 +927,9 @@ void ThreadRPCServer2(void* /*parg*/)
             fRpcListening.store(true);
         }
     } catch (boost::system::system_error& e) {
-        strerr =
-            strprintf(_("An error occurred while setting up the RPC port %u for listening on IPv4: %s"),
-                      endpoint.port(), e.what());
+        strerr = fmt::format(
+            _("An error occurred while setting up the RPC port {} for listening on IPv4: {}"),
+            endpoint.port(), e.what());
     }
 
     if (!fRpcListening.load()) {
@@ -980,7 +976,7 @@ void JSONRequest::parse(const Value& valRequest)
         throw JSONRPCError(RPC_INVALID_REQUEST, "Method must be a string");
     strMethod = valMethod.get_str();
     if (strMethod != "getwork" && strMethod != "getblocktemplate")
-        printf("ThreadRPCServer method=%s\n", strMethod.c_str());
+        NLog.write(b_sev::info, "ThreadRPCServer method={}", strMethod);
 
     // Parse params
     Value valParams = find_value(request, "params");
@@ -1055,8 +1051,8 @@ void ThreadRPCServer3(void* parg)
             break;
         }
         if (!HTTPAuthorized(mapHeaders)) {
-            printf("ThreadRPCServer incorrect password attempt from %s\n",
-                   conn->peer_address_to_string().c_str());
+            NLog.write(b_sev::err, "ThreadRPCServer incorrect password attempt from {}",
+                       conn->peer_address_to_string());
             /* Deter brute-forcing short passwords.
                If this results in a DOS the user really
                shouldn't have their RPC port exposed.*/
@@ -1117,7 +1113,7 @@ json_spirit::Value CRPCTable::execute(const std::string&        strMethod,
     // Find method
     const CRPCCommand* pcmd = tableRPC[strMethod];
     if (!pcmd) {
-        printf("Method not found: %s\n", strMethod.c_str());
+        NLog.write(b_sev::info, "Method not found: {}", strMethod);
         throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Method not found (" + std::string(strMethod) + ")");
     }
 
@@ -1158,10 +1154,10 @@ Object CallRPC(const string& strMethod, const Array& params)
     std::string rpcUser     = mapArgs.get("-rpcuser").value_or("");
     std::string rpcPassword = mapArgs.get("-rpcpassword").value_or("");
     if (rpcUser == "" && rpcPassword == "")
-        throw runtime_error(strprintf(
-            _("You must set rpcpassword=<password> in the configuration file:\n%s\n"
+        throw runtime_error(fmt::format(
+            _("You must set rpcpassword=<password> in the configuration file:\n{}\n"
               "If the file does not exist, create it with owner-readable-only file permissions."),
-            GetConfigFile().string().c_str()));
+            GetConfigFile().string()));
 
     // Connect to localhost
     bool             fUseSSL = GetBoolArg("-rpcssl");
@@ -1197,7 +1193,7 @@ Object CallRPC(const string& strMethod, const Array& params)
         throw runtime_error("incorrect rpcuser or rpcpassword (authorization failed)");
     else if (nStatus >= 400 && nStatus != HTTP_BAD_REQUEST && nStatus != HTTP_NOT_FOUND &&
              nStatus != HTTP_INTERNAL_SERVER_ERROR)
-        throw runtime_error(strprintf("server returned HTTP error %d", nStatus));
+        throw runtime_error(fmt::format("server returned HTTP error {}", nStatus));
     else if (strReply.empty())
         throw runtime_error("no response from server");
 
@@ -1452,7 +1448,7 @@ int main(int argc, char* argv[])
 
     try {
         if (argc >= 2 && string(argv[1]) == "-server") {
-            printf("server ready\n");
+            NLog.write(b_sev::info, "server ready");
             ThreadRPCServer(NULL);
         } else {
             return CommandLineRPC(argc, argv);

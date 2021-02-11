@@ -74,16 +74,16 @@ CBlock CBlockIndex::GetBlockHeader() const
 
 std::string CBlockIndex::ToString() const
 {
-    return strprintf("CBlockIndex(nprev=%p, pnext=%p, nBlockPos=%s nHeight=%d, "
-                     "nMint=%s, nMoneySupply=%s, nFlags=(%s)(%d)(%s), nStakeModifier=%016" PRIx64
-                     ", nStakeModifierChecksum=%08x, hashProof=%s, prevoutStake=(%s), nStakeTime=%d "
-                     "merkle=%s, hashBlock=%s)",
-                     pprev.get(), pnext.get(), blockKeyInDB.ToString().c_str(), nHeight,
-                     FormatMoney(nMint).c_str(), FormatMoney(nMoneySupply).c_str(),
-                     GeneratedStakeModifier() ? "MOD" : "-", GetStakeEntropyBit(),
-                     IsProofOfStake() ? "PoS" : "PoW", nStakeModifier, nStakeModifierChecksum,
-                     hashProof.ToString().c_str(), prevoutStake.ToString().c_str(), nStakeTime,
-                     hashMerkleRoot.ToString().c_str(), GetBlockHash().ToString().c_str());
+    return fmt::format("CBlockIndex(nprev={}, pnext={}, nBlockPos={} nHeight={}, "
+                       "nMint={}, nMoneySupply={}, nFlags=({})({})({}), nStakeModifier={:x}"
+                       ", nStakeModifierChecksum={:x}, hashProof={}, prevoutStake=({}), nStakeTime={} "
+                       "merkle={}, hashBlock={})",
+                       fmt::ptr(pprev.get()), fmt::ptr(pnext.get()), blockKeyInDB.ToString(), nHeight,
+                       FormatMoney(nMint), FormatMoney(nMoneySupply),
+                       GeneratedStakeModifier() ? "MOD" : "-", GetStakeEntropyBit(),
+                       IsProofOfStake() ? "PoS" : "PoW", nStakeModifier, nStakeModifierChecksum,
+                       hashProof.ToString(), prevoutStake.ToString(), nStakeTime,
+                       hashMerkleRoot.ToString(), GetBlockHash().ToString());
 }
 
 uint256 CBlockIndex::GetBlockTrust() const

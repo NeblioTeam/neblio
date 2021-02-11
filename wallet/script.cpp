@@ -282,15 +282,15 @@ const char* GetOpName(opcodetype opcode)
 bool IsCanonicalPubKey(const valtype& vchPubKey)
 {
     if (vchPubKey.size() < 33)
-        return error("Non-canonical public key: too short");
+        return NLog.error("Non-canonical public key: too short");
     if (vchPubKey[0] == 0x04) {
         if (vchPubKey.size() != 65)
-            return error("Non-canonical public key: invalid length for uncompressed key");
+            return NLog.error("Non-canonical public key: invalid length for uncompressed key");
     } else if (vchPubKey[0] == 0x02 || vchPubKey[0] == 0x03) {
         if (vchPubKey.size() != 33)
-            return error("Non-canonical public key: invalid length for compressed key");
+            return NLog.error("Non-canonical public key: invalid length for compressed key");
     } else {
-        return error("Non-canonical public key: compressed nor uncompressed");
+        return NLog.error("Non-canonical public key: compressed nor uncompressed");
     }
     return true;
 }
@@ -303,47 +303,47 @@ bool IsCanonicalSignature(const valtype& vchSig)
     // excessively padded (do not start with a 0 byte, unless an otherwise negative number follows,
     // in which case a single 0 byte is necessary and even required).
     if (vchSig.size() < 9)
-        return error("Non-canonical signature: too short");
+        return NLog.error("Non-canonical signature: too short");
     if (vchSig.size() > 73)
-        return error("Non-canonical signature: too long");
+        return NLog.error("Non-canonical signature: too long");
     if (vchSig[vchSig.size() - 1] & 0x7C)
-        return error("Non-canonical signature: unknown hashtype byte");
+        return NLog.error("Non-canonical signature: unknown hashtype byte");
     if (vchSig[0] != 0x30)
-        return error("Non-canonical signature: wrong type");
+        return NLog.error("Non-canonical signature: wrong type");
     if (vchSig[1] != vchSig.size() - 3)
-        return error("Non-canonical signature: wrong length marker");
+        return NLog.error("Non-canonical signature: wrong length marker");
     unsigned int nLenR = vchSig[3];
     if (5 + nLenR >= vchSig.size())
-        return error("Non-canonical signature: S length misplaced");
+        return NLog.error("Non-canonical signature: S length misplaced");
     unsigned int nLenS = vchSig[5 + nLenR];
     if ((unsigned long)(nLenR + nLenS + 7) != vchSig.size())
-        return error("Non-canonical signature: R+S length mismatch");
+        return NLog.error("Non-canonical signature: R+S length mismatch");
 
     const unsigned char* R = &vchSig[4];
     if (R[-2] != 0x02)
-        return error("Non-canonical signature: R value type mismatch");
+        return NLog.error("Non-canonical signature: R value type mismatch");
     if (nLenR == 0)
-        return error("Non-canonical signature: R length is zero");
+        return NLog.error("Non-canonical signature: R length is zero");
     if (R[0] & 0x80)
-        return error("Non-canonical signature: R value negative");
+        return NLog.error("Non-canonical signature: R value negative");
     if (nLenR > 1 && (R[0] == 0x00) && !(R[1] & 0x80))
-        return error("Non-canonical signature: R value excessively padded");
+        return NLog.error("Non-canonical signature: R value excessively padded");
 
     const unsigned char* S = &vchSig[6 + nLenR];
     if (S[-2] != 0x02)
-        return error("Non-canonical signature: S value type mismatch");
+        return NLog.error("Non-canonical signature: S value type mismatch");
     if (nLenS == 0)
-        return error("Non-canonical signature: S length is zero");
+        return NLog.error("Non-canonical signature: S length is zero");
     if (S[0] & 0x80)
-        return error("Non-canonical signature: S value negative");
+        return NLog.error("Non-canonical signature: S value negative");
     if (nLenS > 1 && (S[0] == 0x00) && !(S[1] & 0x80))
-        return error("Non-canonical signature: S value excessively padded");
+        return NLog.error("Non-canonical signature: S value excessively padded");
 
     // If the S value is above the order of the curve divided by two, its
     // complement modulo the order could have been used instead, which is
     // one byte shorter when encoded correctly.
     if (!CKey::CheckSignatureElement(S, nLenS, true))
-        return error("Non-canonical signature: S value is unnecessarily high");
+        return NLog.error("Non-canonical signature: S value is unnecessarily high");
 
     return true;
 }
@@ -1212,7 +1212,7 @@ Result<void, ScriptError> EvalScript(vector<vector<unsigned char>>& stack, const
 uint256 SignatureHash(CScript scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType)
 {
     if (nIn >= txTo.vin.size()) {
-        printf("ERROR: SignatureHash() : nIn=%d out of range\n", nIn);
+        NLog.write(b_sev::err, "ERROR: SignatureHash() : nIn={} out of range", nIn);
         return 1;
     }
     CTransaction txTmp(txTo);
@@ -1239,7 +1239,7 @@ uint256 SignatureHash(CScript scriptCode, const CTransaction& txTo, unsigned int
         // Only lock-in the txout payee at same index as txin
         unsigned int nOut = nIn;
         if (nOut >= txTmp.vout.size()) {
-            printf("ERROR: SignatureHash() : nOut=%d out of range\n", nOut);
+            NLog.write(b_sev::err, "ERROR: SignatureHash() : nOut={} out of range", nOut);
             return 1;
         }
         txTmp.vout.resize(nOut + 1);
@@ -1543,11 +1543,11 @@ bool Solver(const ITxDB& txdb, const CKeyStore& keystore, const CScript& scriptP
             keyID = CKeyID(uint160(vSolutions[1]));
         }
         if (!Sign1(keyID, keystore, hash, nHashType, scriptSigRet))
-            return error("*** %s: failed to sign with the %s key.", __func__,
-                         fColdStake ? "cold staker" : "owner");
+            return NLog.error("*** {}: failed to sign with the {} key.", FUNCTIONSIG,
+                             fColdStake ? "cold staker" : "owner");
         CPubKey pubKey;
         if (!keystore.GetPubKey(keyID, pubKey))
-            return error("%s : Unable to get public key from keyID", __func__);
+            return NLog.error("{} : Unable to get public key from keyID", FUNCTIONSIG);
         std::vector<unsigned char> vch = pubKey.Raw();
         scriptSigRet << (fColdStake ? (int)OP_TRUE : OP_FALSE) << vch;
         return true;

@@ -106,8 +106,8 @@ CAmount CTransaction::GetValueOut() const
 std::string CTransaction::ToStringShort() const
 {
     std::string str;
-    str += strprintf("%s %s", GetHash().ToString().c_str(),
-                     IsCoinBase() ? "base" : (IsCoinStake() ? "stake" : "user"));
+    str += fmt::format("{} {}", GetHash().ToString().c_str(),
+                       IsCoinBase() ? "base" : (IsCoinStake() ? "stake" : "user"));
     return str;
 }
 
@@ -115,9 +115,9 @@ std::string CTransaction::ToString() const
 {
     std::string str;
     str += IsCoinBase() ? "Coinbase" : (IsCoinStake() ? "Coinstake" : "CTransaction");
-    str += strprintf(
-        "(hash=%s, nTime=%d, ver=%d, vin.size=%" PRIszu ", vout.size=%" PRIszu ", nLockTime=%d)\n",
-        GetHash().ToString().substr(0, 10).c_str(), nTime, nVersion, vin.size(), vout.size(), nLockTime);
+    str += fmt::format("(hash={}, nTime={}, ver={}, vin.size={}, vout.size={}, nLockTime={})\n",
+                       GetHash().ToString().substr(0, 10), nTime, nVersion, vin.size(), vout.size(),
+                       nLockTime);
     for (unsigned int i = 0; i < vin.size(); i++)
         str += "    " + vin[i].ToString() + "\n";
     for (unsigned int i = 0; i < vout.size(); i++)
@@ -125,7 +125,7 @@ std::string CTransaction::ToString() const
     return str;
 }
 
-void CTransaction::print() const { printf("%s", ToString().c_str()); }
+void CTransaction::print() const { NLog.write(b_sev::info, "{}", ToString()); }
 
 bool CTransaction::ReadFromDisk(const ITxDB& txdb, COutPoint prevout, CTxIndex& txindexRet)
 {
@@ -352,17 +352,17 @@ bool CTransaction::DisconnectInputs(CTxDB& txdb)
             // Get prev txindex from disk
             CTxIndex txindex;
             if (!txdb.ReadTxIndex(prevout.hash, txindex))
-                return error("DisconnectInputs() : ReadTxIndex failed");
+                return NLog.error("DisconnectInputs() : ReadTxIndex failed");
 
             if (prevout.n >= txindex.vSpent.size())
-                return error("DisconnectInputs() : prevout.n out of range");
+                return NLog.error("DisconnectInputs() : prevout.n out of range");
 
             // Mark outpoint as not spent
             txindex.vSpent[prevout.n].SetNull();
 
             // Write back
             if (!txdb.UpdateTxIndex(prevout.hash, txindex))
-                return error("DisconnectInputs() : UpdateTxIndex failed");
+                return NLog.error("DisconnectInputs() : UpdateTxIndex failed");
         }
     }
 
@@ -404,23 +404,23 @@ bool CTransaction::FetchInputs(const ITxDB& txdb, const std::map<uint256, CTxInd
         }
         if (!fFound && (fBlock || fMiner))
             return fMiner ? false
-                          : error("FetchInputs() : %s prev tx %s index entry not found",
-                                  GetHash().ToString().c_str(), prevout.hash.ToString().c_str());
+                          : NLog.error("FetchInputs() : {} prev tx {} index entry not found",
+                                       GetHash().ToString().c_str(), prevout.hash.ToString());
 
         // Read txPrev
         CTransaction& txPrev = inputsRet[prevout.hash].second;
         if (!fFound || txindex.pos == CDiskTxPos(1, 1)) {
             // Get prev tx from single transactions in memory
             if (!mempool.lookup(prevout.hash, txPrev))
-                return error("FetchInputs() : %s mempool Tx prev not found %s",
-                             GetHash().ToString().c_str(), prevout.hash.ToString().c_str());
+                return NLog.error("FetchInputs() : {} mempool Tx prev not found {}",
+                                  GetHash().ToString().c_str(), prevout.hash.ToString());
             if (!fFound)
                 txindex.vSpent.resize(txPrev.vout.size());
         } else {
             // Get prev tx from disk
             if (!txPrev.ReadFromDisk(txindex.pos, txdb))
-                return error("FetchInputs() : %s ReadFromDisk prev tx %s failed",
-                             GetHash().ToString().c_str(), prevout.hash.ToString().c_str());
+                return NLog.error("FetchInputs() : {} ReadFromDisk prev tx {} failed",
+                                  GetHash().ToString().c_str(), prevout.hash.ToString());
         }
     }
 
@@ -434,11 +434,11 @@ bool CTransaction::FetchInputs(const ITxDB& txdb, const std::map<uint256, CTxInd
             // Revisit this if/when transaction replacement is implemented and allows
             // adding inputs:
             fInvalid = true;
-            return DoS(100, error("FetchInputs() : %s prevout.n out of range %d %" PRIszu " %" PRIszu
-                                  " prev tx %s\n%s",
-                                  GetHash().ToString().c_str(), prevout.n, txPrev.vout.size(),
-                                  txindex.vSpent.size(), prevout.hash.ToString().c_str(),
-                                  txPrev.ToString().c_str()));
+            return DoS(100,
+                       NLog.error("FetchInputs() : {} prevout.n out of range {} {} {}"
+                                  " prev tx {}\n{}",
+                                  GetHash().ToString(), prevout.n, txPrev.vout.size(),
+                                  txindex.vSpent.size(), prevout.hash.ToString(), txPrev.ToString()));
         }
     }
 
@@ -508,11 +508,10 @@ Result<void, TxValidationState> CTransaction::ConnectInputs(const ITxDB& txdb, M
                 DoS(100, false);
                 return Err(MakeInvalidTxState(
                     TxValidationResult::TX_INVALID_INPUTS, "bad-txns-inputs-invalid",
-                    strprintf("ConnectInputs() : %s prevout.n out of range %d %" PRIszu " %" PRIszu
-                              " prev tx %s\n%s",
-                              GetHash().ToString().c_str(), prevout.n, txPrev.vout.size(),
-                              txindex.vSpent.size(), prevout.hash.ToString().c_str(),
-                              txPrev.ToString().c_str())));
+                    fmt::format("ConnectInputs() : {} prevout.n out of range {} {} {}"
+                                " prev tx {}\n{}",
+                                GetHash().ToString(), prevout.n, txPrev.vout.size(),
+                                txindex.vSpent.size(), prevout.hash.ToString(), txPrev.ToString())));
             }
 
             // If prev is coinbase or coinstake, check that it's matured
@@ -535,9 +534,9 @@ Result<void, TxValidationState> CTransaction::ConnectInputs(const ITxDB& txdb, M
                                                     : "bad-txns-premature-spend-of-coinstake";
                         return Err(MakeInvalidTxState(
                             TxValidationResult::TX_PREMATURE_SPEND, msg,
-                            strprintf("ConnectInputs() : tried to spend %s at depth %d",
-                                      txPrev.IsCoinBase() ? "coinbase" : "coinstake",
-                                      pindexBlock->nHeight - pindex->nHeight)));
+                            fmt::format("ConnectInputs() : tried to spend {} at depth {}",
+                                        txPrev.IsCoinBase() ? "coinbase" : "coinstake",
+                                        pindexBlock->nHeight - pindex->nHeight)));
                     }
                 }
 
@@ -576,11 +575,10 @@ Result<void, TxValidationState> CTransaction::ConnectInputs(const ITxDB& txdb, M
                 if (fMiner) {
                     return Err(MakeInvalidTxState(code, msg));
                 }
-                return Err(
-                    MakeInvalidTxState(code, msg,
-                                       strprintf("ConnectInputs() : %s prev tx already used at %s",
-                                                 GetHash().ToString().c_str(),
-                                                 txindex.vSpent[prevout.n].ToString().c_str())));
+                return Err(MakeInvalidTxState(
+                    code, msg,
+                    fmt::format("ConnectInputs() : {} prev tx already used at {}", GetHash().ToString(),
+                                txindex.vSpent[prevout.n].ToString())));
             }
 
             // Skip ECDSA signature verification when connecting blocks (fBlock=true)
@@ -600,15 +598,15 @@ Result<void, TxValidationState> CTransaction::ConnectInputs(const ITxDB& txdb, M
                         if (verifyResP2SH.isOk()) {
                             return Err(MakeInvalidTxState(
                                 TxValidationResult::TX_NOT_STANDARD,
-                                strprintf("non-mandatory-script-verify-flag (%s)",
-                                          ScriptErrorString(verifyResP2SH.unwrapErr())),
-                                strprintf("ConnectInputs() : %s P2SH VerifySignature failed",
-                                          GetHash().ToString().c_str())));
+                                fmt::format("non-mandatory-script-verify-flag ({})",
+                                            ScriptErrorString(verifyResP2SH.unwrapErr())),
+                                fmt::format("ConnectInputs() : {} P2SH VerifySignature failed",
+                                            GetHash().ToString())));
                         }
                     }
 
-                    const std::string msg = strprintf("mandatory-script-verify-flag-failed (%s)",
-                                                      ScriptErrorString(verifyRes.unwrapErr()));
+                    const std::string msg = fmt::format("mandatory-script-verify-flag-failed ({})",
+                                                        ScriptErrorString(verifyRes.unwrapErr()));
 
                     if (sourceBlockPtr) {
                         sourceBlockPtr->reject =
@@ -618,8 +616,8 @@ Result<void, TxValidationState> CTransaction::ConnectInputs(const ITxDB& txdb, M
                     DoS(100, false);
                     return Err(
                         MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, msg,
-                                           strprintf("ConnectInputs() : %s VerifySignature failed",
-                                                     GetHash().ToString().c_str())));
+                                           fmt::format("ConnectInputs() : {} VerifySignature failed",
+                                                       GetHash().ToString())));
                 }
             }
 
@@ -639,10 +637,10 @@ Result<void, TxValidationState> CTransaction::ConnectInputs(const ITxDB& txdb, M
                                                                   sourceBlockPtr->GetHash());
                 }
                 DoS(100, false);
-                return Err(MakeInvalidTxState(
-                    TxValidationResult::TX_CONSENSUS, "bad-txns-in-belowout",
-                    strprintf("ConnectInputs() : %s value in (%" PRIi64 ") < value out (%" PRIi64 ")",
-                              GetHash().ToString().c_str(), nValueIn, GetValueOut())));
+                return Err(
+                    MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-txns-in-belowout",
+                                       fmt::format("ConnectInputs() : {} value in ({}) < value out ({})",
+                                                   GetHash().ToString(), nValueIn, GetValueOut())));
             }
 
             // Tally transaction fees
@@ -651,19 +649,19 @@ Result<void, TxValidationState> CTransaction::ConnectInputs(const ITxDB& txdb, M
                 DoS(100, false);
                 return Err(MakeInvalidTxState(
                     TxValidationResult::TX_CONSENSUS, "bad-txns-fee-outofrange1",
-                    strprintf("ConnectInputs() : %s nTxFee < 0", GetHash().ToString().c_str())));
+                    fmt::format("ConnectInputs() : {} nTxFee < 0", GetHash().ToString())));
             }
 
             // enforce transaction fees for every block
             if (nTxFee < GetMinFee(txdb)) {
                 if (fBlock) {
-                    DoS(100, error("ConnectInputs() : %s not paying required fee=%s, paid=%s",
-                                   GetHash().ToString().c_str(), FormatMoney(GetMinFee(txdb)).c_str(),
-                                   FormatMoney(nTxFee).c_str()));
+                    DoS(100, NLog.error("ConnectInputs() : {} not paying required fee={}, paid={}",
+                                        GetHash().ToString(), FormatMoney(GetMinFee(txdb)),
+                                        FormatMoney(nTxFee)));
                 }
                 return Err(MakeInvalidTxState(
                     TxValidationResult::TX_CONSENSUS, "bad-txns-fee-outofrange2",
-                    strprintf("ConnectInputs() : %s nTxFee < 0", GetHash().ToString().c_str())));
+                    fmt::format("ConnectInputs() : {} nTxFee < 0", GetHash().ToString())));
             }
 
             nFees += nTxFee;
@@ -713,13 +711,13 @@ bool CTransaction::GetCoinAge(const ITxDB& txdb, uint64_t& nCoinAge) const
         bnCentSecond += CBigNum(nValueIn) * (nTime - txPrev.nTime) / CENT;
 
         if (fDebug)
-            printf("coin age nValueIn=%" PRId64 " nTimeDiff=%d bnCentSecond=%s\n", nValueIn,
-                   nTime - txPrev.nTime, bnCentSecond.ToString().c_str());
+            NLog.write(b_sev::debug, "coin age nValueIn={} nTimeDiff={} bnCentSecond={}", nValueIn,
+                       nTime - txPrev.nTime, bnCentSecond.ToString());
     }
 
     CBigNum bnCoinDay = bnCentSecond * CENT / COIN / (24 * 60 * 60);
     if (fDebug)
-        printf("coin age bnCoinDay=%s\n", bnCoinDay.ToString().c_str());
+        NLog.write(b_sev::debug, "coin age bnCoinDay={}", bnCoinDay.ToString());
     nCoinAge = bnCoinDay.getuint64();
     return true;
 }
@@ -735,13 +733,14 @@ CTransaction CTransaction::FetchTxFromDisk(const uint256& txid, CTxDB& txdb)
     CTransaction result;
     CTxIndex     txPos;
     if (!txdb.ReadTxIndex(txid, txPos)) {
-        printf("Unable to read standard transaction from db: %s\n", txid.ToString().c_str());
+        NLog.write(b_sev::err, "Unable to read standard transaction from db: {}", txid.ToString());
         throw std::runtime_error("Unable to read standard transaction from db: " + txid.ToString());
     }
     if (!result.ReadFromDisk(txPos.pos, txdb)) {
-        printf("Unable to read standard transaction from disk with the "
-               "index given by db: %s\n",
-               txid.ToString().c_str());
+        NLog.write(b_sev::err,
+                   "Unable to read standard transaction from disk with the "
+                   "index given by db: {}",
+                   txid.ToString());
         throw std::runtime_error("Unable to read standard transaction from db: " + txid.ToString());
     }
     return result;

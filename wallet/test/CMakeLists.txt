@@ -51,6 +51,7 @@ add_executable(neblio-tests
 target_link_libraries(neblio-tests
     gtest
     core_lib
+    logging_lib
     ntp1_lib
     curltools_lib
     json_spirit_lib

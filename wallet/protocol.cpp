@@ -68,8 +68,8 @@ bool CMessageHeader::IsValid(const MessageStartChars& pchMessageStartIn) const
 
     // Message size
     if (nMessageSize > MAX_SIZE) {
-        printf("CMessageHeader::IsValid() : (%s, %u bytes) nMessageSize > MAX_SIZE\n",
-               GetCommand().c_str(), nMessageSize);
+        NLog.write(b_sev::info, "CMessageHeader::IsValid() : ({}, {} bytes) nMessageSize > MAX_SIZE",
+               GetCommand(), nMessageSize);
         return false;
     }
 
@@ -114,7 +114,7 @@ CInv::CInv(const std::string& strType, const uint256& hashIn)
     }
     if (i == ARRAYLEN(ppszTypeName))
         throw std::out_of_range(
-            strprintf("CInv::CInv(string, uint256) : unknown type '%s'", strType.c_str()));
+            fmt::format("CInv::CInv(string, uint256) : unknown type '{}'", strType));
     hash = hashIn;
 }
 
@@ -130,16 +130,16 @@ bool CInv::IsKnownType() const { return (type >= 1 && type < (int)ARRAYLEN(ppszT
 const char* CInv::GetCommand() const
 {
     if (!IsKnownType())
-        throw std::out_of_range(strprintf("CInv::GetCommand() : type=%d unknown type", type));
+        throw std::out_of_range(fmt::format("CInv::GetCommand() : type={} unknown type", type));
     return ppszTypeName[type];
 }
 
 std::string CInv::ToString() const
 {
-    return strprintf("%s %s", GetCommand(), hash.ToString().substr(0, 20).c_str());
+    return fmt::format("{} {}", GetCommand(), hash.ToString().substr(0, 20));
 }
 
-void CInv::print() const { printf("CInv(%s)\n", ToString().c_str()); }
+void CInv::print() const { NLog.write(b_sev::info, "CInv({})", ToString()); }
 
 /** Get name of RPC authentication cookie file */
 static fs::path GetAuthCookieFile(bool temp = false)
@@ -160,7 +160,7 @@ bool GenerateAuthCookie(std::string* cookie_out)
 
     std::array<unsigned char, COOKIE_SIZE> rand_pwd;
     if (!RandomBytesToBuffer(rand_pwd.data(), rand_pwd.size())) {
-        printf("Generating a random password for the cookie failed");
+        NLog.write(b_sev::err, "Generating a random password for the cookie failed");
         return false;
     }
     const std::string cookie = COOKIEAUTH_USER + ":" + HexStr(rand_pwd.begin(), rand_pwd.end());
@@ -172,8 +172,8 @@ bool GenerateAuthCookie(std::string* cookie_out)
     fs::path      filepath_tmp = GetAuthCookieFile(true);
     file.open(filepath_tmp.string().c_str());
     if (!file.is_open()) {
-        printf("Unable to open cookie authentication file %s for writing\n",
-               filepath_tmp.string().c_str());
+        NLog.write(b_sev::err, "Unable to open cookie authentication file {} for writing",
+               filepath_tmp.string());
         return false;
     }
     file << cookie;
@@ -181,11 +181,11 @@ bool GenerateAuthCookie(std::string* cookie_out)
 
     fs::path filepath = GetAuthCookieFile(false);
     if (!RenameOver(filepath_tmp, filepath)) {
-        printf("Unable to rename cookie authentication file %s to %s\n", filepath_tmp.string().c_str(),
-               filepath.string().c_str());
+        NLog.write(b_sev::err, "Unable to rename cookie authentication file {} to {}", filepath_tmp.string(),
+               filepath.string());
         return false;
     }
-    printf("Generated RPC authentication cookie %s\n", filepath.string().c_str());
+    NLog.write(b_sev::info, "Generated RPC authentication cookie {}", filepath.string());
 
     if (cookie_out) {
         *cookie_out = cookie;
@@ -212,6 +212,6 @@ void DeleteAuthCookie()
     try {
         fs::remove(GetAuthCookieFile());
     } catch (const fs::filesystem_error& e) {
-        printf("%s: Unable to remove random auth cookie file: %s\n", __func__, e.what());
+        NLog.write(b_sev::info, "{}: Unable to remove random auth cookie file: {}", FUNCTIONSIG, e.what());
     }
 }

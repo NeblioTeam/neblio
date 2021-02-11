@@ -61,7 +61,7 @@ void NTP1Transaction::importJsonData(const std::string& data)
             vout[i].importJsonData(vout_list[i]);
         }
     } catch (std::exception& ex) {
-        printf("%s", ex.what());
+        NLog.write(b_sev::err, "{}", ex.what());
         throw;
     }
 }
@@ -896,8 +896,8 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> NTP1Transaction::GetAllNTP
     bool      fInvalid = false;
     if (!tx.FetchInputs(txdb, queuedAcceptedTxs, true, false, mapInputs, fInvalid)) {
         if (fInvalid) {
-            printf("Error: For GetAllNTP1InputsOfTx, FetchInputs found invalid tx %s\n",
-                   tx.GetHash().ToString().c_str());
+            NLog.write(b_sev::err, "Error: For GetAllNTP1InputsOfTx, FetchInputs found invalid tx {}",
+                      tx.GetHash().ToString());
             throw std::runtime_error("Error: For NTP1, FetchInputs found invalid tx " +
                                      tx.GetHash().ToString());
         }

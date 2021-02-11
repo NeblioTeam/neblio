@@ -1,6 +1,7 @@
 #include "outpoint.h"
 
 #include "util.h"
+#include "logging/logger.h"
 
 COutPoint::COutPoint(uint256 hashIn, uint32_t nIn)
 {
@@ -10,5 +11,7 @@ COutPoint::COutPoint(uint256 hashIn, uint32_t nIn)
 
 std::string COutPoint::ToString() const
 {
-    return strprintf("COutPoint(%s, %u)", hash.ToString().substr(0, 10).c_str(), n);
+    return fmt::format("COutPoint({}, {})", hash.ToString().substr(0, 10), n);
 }
+
+void COutPoint::print() const { NLog.write(b_sev::info, "{}", ToString()); }

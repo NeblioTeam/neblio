@@ -37,6 +37,7 @@
 
 #include "ThreadSafeHashMap.h"
 #include "amount.h"
+#include "logging/logger.h"
 #include "netbase.h" // for AddTimeData
 
 // to obtain PRId64 on some old systems
@@ -67,18 +68,6 @@ extern boost::atomic_int MODEL_UPDATE_DELAY;
 #define CVOIDBEGIN(a) ((const void*)&(a))
 #define UINTBEGIN(a) ((uint32_t*)&(a))
 #define CUINTBEGIN(a) ((const uint32_t*)&(a))
-
-#ifndef PRId64
-#if defined(_MSC_VER) || defined(__MSVCRT__)
-#define PRId64 "I64d"
-#define PRIu64 "I64u"
-#define PRIx64 "I64x"
-#else
-#define PRId64 "lld"
-#define PRIu64 "llu"
-#define PRIx64 "llx"
-#endif
-#endif
 
 #ifndef THROW_WITH_STACKTRACE
 #define THROW_WITH_STACKTRACE(exception)                                                                \
@@ -139,16 +128,6 @@ T* alignup(T* p)
 
 inline void MilliSleep(int64_t n) { std::this_thread::sleep_for(std::chrono::milliseconds(n)); }
 
-/* This GNU C extension enables the compiler to check the format string against the parameters provided.
- * X is the number of the "format string" parameter, and Y is the number of the first variadic parameter.
- * Parameters count from 1.
- */
-#ifdef __GNUC__
-#define ATTR_WARN_PRINTF(X, Y) __attribute__((format(printf, X, Y)))
-#else
-#define ATTR_WARN_PRINTF(X, Y)
-#endif
-
 extern ThreadSafeHashMap<std::string, std::string>              mapArgs;
 extern ThreadSafeHashMap<std::string, std::vector<std::string>> mapMultiArgs;
 extern bool                                                     fDebug;
@@ -169,33 +148,6 @@ const std::string NTP1WalletCacheFileName = "NTP1DataCacheV2.json";
 
 void RandAddSeed();
 void RandAddSeedPerfmon();
-int  ATTR_WARN_PRINTF(1, 2) OutputDebugStringF(const char* pszFormat, ...);
-
-/*
-  Rationale for the real_strprintf / strprintf construction:
-    It is not allowed to use va_start with a pass-by-reference argument.
-    (C++ standard, 18.7, paragraph 3). Use a dummy argument to work around this, and use a
-    macro to keep similar semantics.
-*/
-
-/** Overload strprintf for char*, so that GCC format type warnings can be given */
-std::string ATTR_WARN_PRINTF(1, 3) real_strprintf(const char* format, int dummy, ...);
-/** Overload strprintf for std::string, to be able to use it with _ (translation).
- * This will not support GCC format type warnings (-Wformat) so be careful.
- */
-std::string real_strprintf(const std::string& format, int dummy, ...);
-#define strprintf(format, ...) real_strprintf(format, 0, __VA_ARGS__)
-std::string vstrprintf(const char* format, va_list ap);
-
-bool ATTR_WARN_PRINTF(1, 2) error(const char* format, ...);
-
-/* Redefine printf so that it directs output to debug.log
- *
- * Do this *after* defining the other printf-like functions, because otherwise the
- * __attribute__((format(printf,X,Y))) gets expanded to __attribute__((format(OutputDebugStringF,X,Y)))
- * which confuses gcc.
- */
-#define printf OutputDebugStringF
 
 void                           PrintException(std::exception* pex, const char* pszThread);
 void                           PrintExceptionContinue(std::exception* pex, const char* pszThread);
@@ -300,9 +252,9 @@ FromString(U&& str)
     return ret;
 }
 
-inline std::string i64tostr(int64_t n) { return strprintf("%" PRId64, n); }
+inline std::string i64tostr(int64_t n) { return fmt::format("{}", n); }
 
-inline std::string itostr(int n) { return strprintf("%d", n); }
+inline std::string itostr(int n) { return fmt::format("{}", n); }
 
 inline int64_t atoi64(const char* psz)
 {

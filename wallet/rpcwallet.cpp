@@ -60,7 +60,7 @@ void WalletTxToJSON(const CWalletTx& wtx, Object& entry)
     if (confirms > 0) {
         entry.push_back(Pair("blockhash", wtx.hashBlock.GetHex()));
         entry.push_back(Pair("blockindex", wtx.nIndex));
-        const auto bi = mapBlockIndex.get(wtx.hashBlock).value_or(nullptr);
+        const auto    bi    = mapBlockIndex.get(wtx.hashBlock).value_or(nullptr);
         const int64_t nTime = static_cast<int64_t>(bi ? bi->nTime : 0);
         entry.push_back(Pair("blocktime", nTime));
     }
@@ -150,11 +150,11 @@ CWalletTx SubmitColdStakeDelegationTx(CReserveKey& reservekey, CAmount nValue,
                                         tokenSelector, &strError, RawNTP1MetadataBeforeSend(), false,
                                         nullptr, fUseDelegated)) {
         if (nValue + nFeeRequired > currBalance)
-            strError = strprintf("Error: This transaction requires a transaction fee of at least %s "
-                                 "because of its amount, complexity, or use of recently received "
-                                 "funds!",
-                                 FormatMoney(nFeeRequired).c_str());
-        printf("%s : %s\n", __func__, strError.c_str());
+            strError = fmt::format("Error: This transaction requires a transaction fee of at least {} "
+                                   "because of its amount, complexity, or use of recently received "
+                                   "funds!",
+                                   FormatMoney(nFeeRequired));
+        fmt::format("{} : {}", FUNCTIONSIG, strError);
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
     }
 
@@ -1579,7 +1579,8 @@ Value sendmany(const Array& params, bool fHelp)
         NTP1Transaction ntp1tx;
         ntp1tx.readNTP1DataFromTx(wtx, inputsTxs);
     } catch (std::exception& ex) {
-        printf("An invalid NTP1 transaction was created; an exception was thrown: %s\n", ex.what());
+        NLog.write(b_sev::info, "An invalid NTP1 transaction was created; an exception was thrown: {}",
+                  ex.what());
         throw std::runtime_error(
             "Unable to create the transaction. The transaction created would result in an invalid "
             "transaction. Please report your transaction details to the Neblio team. The "
@@ -1612,9 +1613,9 @@ Value addmultisigaddress(const Array& params, bool fHelp)
     if (nRequired < 1)
         throw runtime_error("a multisignature address must require at least one key to redeem");
     if ((int)keys.size() < nRequired)
-        throw runtime_error(strprintf("not enough keys supplied "
-                                      "(got %" PRIszu " keys, but need at least %d to redeem)",
-                                      keys.size(), nRequired));
+        throw runtime_error(fmt::format("not enough keys supplied "
+                                        "(got {} keys, but need at least {} to redeem)",
+                                        keys.size(), nRequired));
     std::vector<CKey> pubkeys;
     pubkeys.resize(keys.size());
     for (unsigned int i = 0; i < keys.size(); i++) {
@@ -1625,10 +1626,10 @@ Value addmultisigaddress(const Array& params, bool fHelp)
         if (address.IsValid()) {
             CKeyID keyID;
             if (!address.GetKeyID(keyID))
-                throw runtime_error(strprintf("%s does not refer to a key", ks.c_str()));
+                throw runtime_error(fmt::format("{} does not refer to a key", ks));
             CPubKey vchPubKey;
             if (!pwalletMain->GetPubKey(keyID, vchPubKey))
-                throw runtime_error(strprintf("no full public key for address %s", ks.c_str()));
+                throw runtime_error(fmt::format("no full public key for address {}", ks));
             if (!vchPubKey.IsValid() || !pubkeys[i].SetPubKey(vchPubKey))
                 throw runtime_error(" Invalid public key: " + ks);
         }

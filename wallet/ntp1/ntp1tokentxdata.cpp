@@ -36,7 +36,7 @@ void NTP1TokenTxData::importJsonData(const std::string& data)
         json_spirit::read_or_throw(data, parsedData);
         importJsonData(parsedData);
     } catch (std::exception& ex) {
-        printf("%s", ex.what());
+        NLog.write(b_sev::err, "{}", ex.what());
         throw;
     }
 }
@@ -51,7 +51,7 @@ void NTP1TokenTxData::importJsonData(const json_spirit::Value& data)
         lockStatus        = (int)NTP1Tools::GetBoolField(data.get_obj(), "lockStatus");
         aggregationPolicy = NTP1Tools::GetStrField(data.get_obj(), "aggregationPolicy");
     } catch (std::exception& ex) {
-        printf("%s", ex.what());
+        NLog.write(b_sev::err, "{}", ex.what());
         throw;
     }
 }

@@ -21,7 +21,7 @@ bool NTP1APICalls::RetrieveData_AddressContainsNTP1Tokens(const std::string& add
         }
         return false;
     } catch (std::exception& ex) {
-        printf("%s\n", ex.what());
+        NLog.write(b_sev::err, "{}", ex.what());
         throw;
     }
 }
@@ -45,7 +45,7 @@ uint64_t NTP1APICalls::RetrieveData_TotalNeblsExcludingNTP1(const std::string& a
         }
         return totalSats;
     } catch (std::exception& ex) {
-        printf("%s\n", ex.what());
+        NLog.write(b_sev::err, "{}", ex.what());
         throw;
     }
 }
@@ -63,7 +63,7 @@ NTP1TokenMetaData NTP1APICalls::RetrieveData_NTP1TokensMetaData(const std::strin
         metadata.importRestfulAPIJsonData(ntpData);
         return metadata;
     } catch (std::exception& ex) {
-        printf("%s\n", ex.what());
+        NLog.write(b_sev::err, "{}", ex.what());
         throw;
     }
 }

@@ -26,8 +26,7 @@ std::string CDiskBlockIndex::ToString() const
 {
     std::string str = "CDiskBlockIndex(";
     str += CBlockIndex::ToString();
-    str += strprintf("\n                hashBlock=%s, hashPrev=%s, hashNext=%s)",
-                     GetBlockHash().ToString().c_str(), hashPrev.ToString().c_str(),
-                     hashNext.ToString().c_str());
+    str += fmt::format("hashBlock={}, hashPrev={}, hashNext={})", GetBlockHash().ToString(),
+                       hashPrev.ToString(), hashNext.ToString());
     return str;
 }

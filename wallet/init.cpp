@@ -2,19 +2,18 @@
 // Copyright (c) 2009-2012 The Bitcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
+#include "init.h"
 #include "bitcoinrpc.h"
-#include "txdb.h"
-#include "walletdb.h"
-#ifdef NEBLIO_REST
-#include "nebliorest.h"
-#endif
 #include "checkpoints.h"
 #include "globals.h"
-#include "init.h"
+#include "logging/defaultlogger.h"
 #include "main.h"
 #include "net.h"
+#include "stringmanip.h"
+#include "txdb.h"
 #include "ui_interface.h"
 #include "util.h"
+#include "walletdb.h"
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/convenience.hpp>
@@ -127,7 +126,7 @@ void Shutdown(void* /*parg*/)
         }
         NewThread(ExitTimeout, NULL);
         MilliSleep(50);
-        printf("neblio exited\n\n");
+        NLog.write(b_sev::info, "neblio exited\n\n\n\n\n\n\n\n\n");
         fExit = true;
 #ifndef QT_GUI
         // ensure non-UI client gets exited here, but let Bitcoin-Qt reach 'return 0;' in bitcoin.cpp
@@ -145,6 +144,24 @@ void HandleSIGTERM(int) { fRequestShutdown = true; }
 
 void HandleSIGHUP(int) { fReopenDebugLog = true; }
 
+void InitLogging()
+{
+    const boost::filesystem::path LogFilesDir = GetDataDir() / "logs";
+    boost::filesystem::create_directories(LogFilesDir);
+    const boost::filesystem::path LogFilePath = LogFilesDir / "neblio.log";
+
+    bool logFileAddingResult =
+        LoggerSingleton::get().add_file(PossiblyWideStringToString(LogFilePath.native()), b_sev::info);
+    if (!logFileAddingResult) {
+        throw std::runtime_error("Failed to open log file for writing: " +
+                                 PossiblyWideStringToString(LogFilePath.native()));
+    }
+
+    NLog.write(b_sev::info, "---------------------------------\n\n\n\n\n\n\n\n\n\n");
+
+    NLog.write(b_sev::info, "Initialized logging successfully!");
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // Start
@@ -160,8 +177,8 @@ bool AppInit(int argc, char* argv[])
         // If Qt is used, parameters/bitcoin.conf are parsed in qt/bitcoin.cpp's main()
         ParseParameters(argc, argv);
         if (!boost::filesystem::is_directory(GetDataDir(false))) {
-            fprintf(stderr, "Error: Specified directory does not exist\n");
-            Shutdown(NULL);
+            std::cerr << "Error: Specified directory does not exist" << std::endl;
+            Shutdown(nullptr);
         }
         ReadConfigFile(mapArgs, mapMultiArgs);
 
@@ -176,17 +193,19 @@ bool AppInit(int argc, char* argv[])
 
             strUsage += "\n" + HelpMessage();
 
-            fprintf(stdout, "%s", strUsage.c_str());
+            std::cout << strUsage << std::endl;
             return false;
         }
 
         try {
             // Check for -testnet or -regtest parameter (Params() calls are only valid after this clause)
             SelectParams(ChainTypeFromCommandLine());
-        } catch (std::exception& e) {
-            fprintf(stderr, "Error: %s\n", e.what());
+        } catch (const std::exception& e) {
+            std::cerr << "Error: " << e.what() << std::endl;
             return EXIT_FAILURE;
         }
+
+        InitLogging();
 
         // Command-line RPC
         for (int i = 1; i < argc; i++)
@@ -503,11 +522,10 @@ bool AppInit2()
             nConnectTimeout = nNewTimeout;
     }
 
-    boost::optional<std::string> payTxFee = mapArgs.get("-paytxfee");
+    const boost::optional<std::string> payTxFee = mapArgs.get("-paytxfee");
     if (payTxFee) {
         if (!ParseMoney(*payTxFee, nTransactionFee))
-            return InitError(
-                strprintf(_("Invalid amount for -paytxfee=<amount>: '%s'"), payTxFee->c_str()));
+            return InitError(fmt::format(_("Invalid amount for -paytxfee=<amount>: '{}'"), *payTxFee));
         if (nTransactionFee > 0.25 * COIN)
             InitWarning(_("Warning: -paytxfee is set very high! This is the transaction fee you will "
                           "pay if you send a transaction."));
@@ -519,8 +537,7 @@ bool AppInit2()
     boost::optional<std::string> mininpVal = mapArgs.get("-mininput");
     if (mininpVal) {
         if (!ParseMoney(*mininpVal, nMinimumInputValue))
-            return InitError(
-                strprintf(_("Invalid amount for -mininput=<amount>: '%s'"), mininpVal->c_str()));
+            return InitError(fmt::format(_("Invalid amount for -mininput=<amount>: '{}'"), *mininpVal));
     }
 
     // sanitize comments per BIP-0014, format user agent and check total size
@@ -534,9 +551,9 @@ bool AppInit2()
     }
     strSubVersion = FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, uacomments);
     if (strSubVersion.size() > MAX_SUBVERSION_LENGTH) {
-        return InitError(strprintf(_("Total length of network version string (%i) exceeds maximum "
-                                     "length (%i). Reduce the number or size of uacomments."),
-                                   strSubVersion.size(), MAX_SUBVERSION_LENGTH));
+        return InitError(fmt::format(_("Total length of network version string ({}) exceeds maximum "
+                                       "length ({}). Reduce the number or size of uacomments."),
+                                     strSubVersion.size(), MAX_SUBVERSION_LENGTH));
     }
 
     // ********************************************************* Step 4: application initialization: dir
@@ -550,8 +567,8 @@ bool AppInit2()
     // strWalletFileName must be a plain filename without a directory
     if (strWalletFileName !=
         boost::filesystem::basename(strWalletFileName) + boost::filesystem::extension(strWalletFileName))
-        return InitError(strprintf(_("Wallet %s resides outside data directory %s."),
-                                   strWalletFileName.c_str(), strDataDir.c_str()));
+        return InitError(fmt::format(_("Wallet {} resides outside data directory {}."),
+                                     strWalletFileName, strDataDir));
 
     // Make sure only a single Bitcoin process is using the data directory.
     boost::filesystem::path pathLockFile = GetDataDir() / ".lock";
@@ -561,8 +578,8 @@ bool AppInit2()
         fclose(file);
     static boost::interprocess::file_lock lock(pathLockFile.string().c_str());
     if (!lock.try_lock())
-        return InitError(strprintf(
-            _("Cannot obtain a lock on data directory %s.  neblio is probably already running."),
+        return InitError(fmt::format(
+            _("Cannot obtain a lock on data directory {}.  neblio is probably already running."),
             strDataDir.c_str()));
 
 #if !defined(WIN32) && !defined(QT_GUI)
@@ -570,7 +587,7 @@ bool AppInit2()
         // Daemonize
         pid_t pid = fork();
         if (pid < 0) {
-            fprintf(stderr, "Error: fork() returned %d errno %d\n", pid, errno);
+            std::cerr << "Error: fork() returned " << pid << " errno " << errno << std::endl;
             return false;
         }
         if (pid > 0) {
@@ -579,24 +596,25 @@ bool AppInit2()
         }
 
         pid_t sid = setsid();
-        if (sid < 0)
-            fprintf(stderr, "Error: setsid() returned %d errno %d\n", sid, errno);
+        if (sid < 0) {
+            std::cerr << "Error: setsid() returned " << sid << " errno " << errno << std::endl;
+        }
     }
 #endif
 
     if (GetBoolArg("-shrinkdebugfile", !fDebug))
         ShrinkDebugFile();
-    printf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-    printf("neblio version %s (%s)\n", FormatFullVersion().c_str(), CLIENT_DATE.c_str());
-    printf("Using OpenSSL version %s\n", SSLeay_version(SSLEAY_VERSION));
+    NLog.write(b_sev::info, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
+    NLog.write(b_sev::info, "neblio version {} ({})", FormatFullVersion(), CLIENT_DATE);
+    NLog.write(b_sev::info, "Using OpenSSL version {}", SSLeay_version(SSLEAY_VERSION));
     if (!fLogTimestamps)
-        printf("Startup time: %s\n", DateTimeStrFormat("%x %H:%M:%S", GetTime()).c_str());
-    printf("Default data directory %s\n", GetDefaultDataDir().string().c_str());
-    printf("Used data directory %s\n", strDataDir.c_str());
+        NLog.write(b_sev::info, "Startup time: {}", DateTimeStrFormat("%x %H:%M:%S", GetTime()));
+    NLog.write(b_sev::info, "Default data directory {}", GetDefaultDataDir().string());
+    NLog.write(b_sev::info, "Used data directory {}", strDataDir);
     std::ostringstream strErrors;
 
     if (fDaemon)
-        fprintf(stdout, "neblio server starting\n");
+        std::cout << "neblio server starting" << std::endl;
 
     int64_t nStart;
 
@@ -605,10 +623,10 @@ bool AppInit2()
     uiInterface.InitMessage(_("Verifying database integrity..."));
 
     if (!OpenDBWalletTransient()) {
-        string msg = strprintf(_("Error initializing database environment %s!"
-                                 " To recover, BACKUP THAT DIRECTORY, then remove"
-                                 " everything from it except for wallet.dat."),
-                               strDataDir.c_str());
+        string msg = fmt::format(_("Error initializing database environment {}!"
+                                   " To recover, BACKUP THAT DIRECTORY, then remove"
+                                   " everything from it except for wallet.dat."),
+                                 strDataDir);
         return InitError(msg);
     }
 
@@ -621,11 +639,12 @@ bool AppInit2()
     if (filesystem::exists(GetDataDir() / strWalletFileName)) {
         CDBEnv::VerifyResult r = VerifyDBWalletTransient(strWalletFileName);
         if (r == CDBEnv::RECOVER_OK) {
-            string msg = strprintf(_("Warning: wallet.dat corrupt, data salvaged!"
-                                     " Original wallet.dat saved as wallet.{timestamp}.bak in %s; if"
-                                     " your balance or transactions are incorrect you should"
-                                     " restore from a backup."),
-                                   strDataDir.c_str());
+            const string msg =
+                fmt::format(_("Warning: wallet.dat corrupt, data salvaged!"
+                              " Original wallet.dat saved as wallet.{timestamp}.bak in {}; if"
+                              " your balance or transactions are incorrect you should"
+                              " restore from a backup."),
+                            strDataDir);
             uiInterface.ThreadSafeMessageBox(msg, _("neblio"),
                                              CClientUIInterface::OK |
                                                  CClientUIInterface::ICON_EXCLAMATION |
@@ -640,7 +659,7 @@ bool AppInit2()
     int nSocksVersion = GetArg("-socks", 5);
 
     if (nSocksVersion != 4 && nSocksVersion != 5)
-        return InitError(strprintf(_("Unknown -socks proxy version requested: %i"), nSocksVersion));
+        return InitError(fmt::format(_("Unknown -socks proxy version requested: {}"), nSocksVersion));
 
     if (mapArgs.exists("-onlynet")) {
         std::set<enum Network>   nets;
@@ -649,8 +668,7 @@ bool AppInit2()
         for (const std::string& snet : onlyNetVals) {
             enum Network net = ParseNetwork(snet);
             if (net == NET_UNROUTABLE)
-                return InitError(
-                    strprintf(_("Unknown network specified in -onlynet: '%s'"), snet.c_str()));
+                return InitError(fmt::format(_("Unknown network specified in -onlynet: '{}'"), snet));
             nets.insert(net);
         }
         for (int n = 0; n < NET_MAX; n++) {
@@ -666,7 +684,7 @@ bool AppInit2()
     if (proxy) {
         addrProxy = CService(*proxy, 9050);
         if (!addrProxy.IsValid())
-            return InitError(strprintf(_("Invalid -proxy address: '%s'"), proxy->c_str()));
+            return InitError(fmt::format(_("Invalid -proxy address: '{}'"), *proxy));
 
         if (!IsLimited(NET_IPV4))
             SetProxy(NET_IPV4, addrProxy, nSocksVersion);
@@ -687,7 +705,7 @@ bool AppInit2()
         else
             addrOnion = CService(*tor, 9050);
         if (!addrOnion.IsValid())
-            return InitError(strprintf(_("Invalid -tor address: '%s'"), tor->c_str()));
+            return InitError(fmt::format(_("Invalid -tor address: '{}'"), *tor));
         SetProxy(NET_TOR, addrOnion, 5);
         SetReachable(NET_TOR);
     }
@@ -708,8 +726,7 @@ bool AppInit2()
             for (const std::string& strBind : *bindVals) {
                 CService addrBind;
                 if (!Lookup(strBind.c_str(), addrBind, GetListenPort(), false))
-                    return InitError(
-                        strprintf(_("Cannot resolve -bind address: '%s'"), strBind.c_str()));
+                    return InitError(fmt::format(_("Cannot resolve -bind address: '{}'"), strBind));
                 fBound |= Bind(addrBind);
             }
         } else {
@@ -729,8 +746,7 @@ bool AppInit2()
         for (const string& strAddr : *externalIPVals) {
             CService addrLocal(strAddr, GetListenPort(), fNameLookup);
             if (!addrLocal.IsValid())
-                return InitError(
-                    strprintf(_("Cannot resolve -externalip address: '%s'"), strAddr.c_str()));
+                return InitError(fmt::format(_("Cannot resolve -externalip address: '{}'"), strAddr));
             AddLocal(CService(strAddr, GetListenPort(), fNameLookup), LOCAL_MANUAL);
         }
     }
@@ -754,10 +770,10 @@ bool AppInit2()
     // ********************************************************* Step 7: load blockchain
 
     if (!bitdb.Open(GetDataDir())) {
-        string msg = strprintf(_("Error initializing database environment %s!"
-                                 " To recover, BACKUP THAT DIRECTORY, then remove"
-                                 " everything from it except for wallet.dat."),
-                               strDataDir.c_str());
+        const string msg = fmt::format(_("Error initializing database environment {}!"
+                                         " To recover, BACKUP THAT DIRECTORY, then remove"
+                                         " everything from it except for wallet.dat."),
+                                       strDataDir);
         return InitError(msg);
     }
 
@@ -769,7 +785,7 @@ bool AppInit2()
     }
 
     uiInterface.InitMessage(_("Loading block index..."));
-    printf("Loading block index...\n");
+    NLog.write(b_sev::info, "Loading block index...");
     nStart = GetTimeMillis();
 
     // load the block index and make a few attempts before deeming it impossible
@@ -777,7 +793,8 @@ bool AppInit2()
     try {
         loadBlockIndexSuccess = LoadBlockIndex();
     } catch (std::exception& ex) {
-        printf("Failed to load the block index in the first attempt with error: %s", ex.what());
+        NLog.write(b_sev::err, "Failed to load the block index in the first attempt with error: {}",
+                   ex.what());
     }
 
     if (!loadBlockIndexSuccess) {
@@ -789,7 +806,7 @@ bool AppInit2()
                                     "to resync (attempt: " +
                                     std::to_string(i + 1) + "/" + std::to_string(MAX_ATTEMPTS) + ")...";
             uiInterface.InitMessage(msg);
-            printf("%s", msg.c_str());
+            NLog.write(b_sev::err, "{}", msg);
 
             // after failure, wait 3 seconds to try again
             std::this_thread::sleep_for(std::chrono::seconds(3));
@@ -810,7 +827,7 @@ bool AppInit2()
                     break;
                 }
             } catch (std::exception& ex) {
-                printf("Failed to load the block index with error: %s", ex.what());
+                NLog.write(b_sev::err, "Failed to load the block index with error: {}", ex.what());
             }
         }
         if (!success) {
@@ -822,10 +839,10 @@ bool AppInit2()
     // requested to kill bitcoin-qt during the last operation. If so, exit.
     // As the program has not fully started yet, Shutdown() is possibly overkill.
     if (fRequestShutdown) {
-        printf("Shutdown requested. Exiting.\n");
+        NLog.write(b_sev::info, "Shutdown requested. Exiting.");
         return false;
     }
-    printf(" block index %15" PRId64 "ms\n", GetTimeMillis() - nStart);
+    NLog.write(b_sev::info, " block index {} ms", GetTimeMillis() - nStart);
 
     if (GetBoolArg("-printblockindex") || GetBoolArg("-printblocktree")) {
         PrintBlockTree();
@@ -844,19 +861,18 @@ bool AppInit2()
                 CBlock              block;
                 block.ReadFromDisk(pindex.get());
                 block.print();
-                printf("\n");
                 nFound++;
             }
         }
         if (nFound == 0)
-            printf("No blocks matching %s were found\n", strMatch.c_str());
+            NLog.write(b_sev::info, "No blocks matching {} were found", strMatch);
         return false;
     }
 
     // ********************************************************* Step 8: load wallet
 
     uiInterface.InitMessage(_("Loading wallet..."));
-    printf("Loading wallet...\n");
+    NLog.write(b_sev::info, "Loading wallet...");
     nStart         = GetTimeMillis();
     bool fFirstRun = true;
     {
@@ -879,7 +895,7 @@ bool AppInit2()
             strErrors << _("Error loading wallet.dat: Wallet requires newer version of neblio") << "\n";
         else if (nLoadWalletRet == DB_NEED_REWRITE) {
             strErrors << _("Wallet needed to be rewritten: restart neblio to complete") << "\n";
-            printf("%s", strErrors.str().c_str());
+            NLog.write(b_sev::info, "{}", strErrors.str());
             return InitError(strErrors.str());
         } else
             strErrors << _("Error loading wallet.dat") << "\n";
@@ -889,11 +905,11 @@ bool AppInit2()
         int nMaxVersion = GetArg("-upgradewallet", 0);
         if (nMaxVersion == 0) // the -upgradewallet without argument case
         {
-            printf("Performing wallet upgrade to %i\n", FEATURE_LATEST);
+            NLog.write(b_sev::info, "Performing wallet upgrade to {}", FEATURE_LATEST);
             nMaxVersion = CLIENT_VERSION;
             pwalletMain->SetMinVersion(FEATURE_LATEST); // permanently upgrade the wallet immediately
         } else
-            printf("Allowing wallet upgrade up to %i\n", nMaxVersion);
+            NLog.write(b_sev::info, "Allowing wallet upgrade up to {}", nMaxVersion);
         if (nMaxVersion < pwalletMain->GetVersion())
             strErrors << _("Cannot downgrade wallet") << "\n";
         pwalletMain->SetMaxVersion(nMaxVersion);
@@ -908,7 +924,7 @@ bool AppInit2()
         if (!pwalletMain->TopUpKeyPool()) {
             // Error generating keys
             InitError(_("Unable to generate initial key") += "\n");
-            return error("%s %s", __func__, "Unable to generate initial key");
+            return NLog.error("{} {}", FUNCTIONSIG, "Unable to generate initial key");
         }
         if (pwalletMain->GetKeyFromPool(newKey)) {
             if (!pwalletMain->SetAddressBookEntry(newKey.GetID(), ""))
@@ -916,8 +932,8 @@ bool AppInit2()
         }
     }
 
-    printf("%s", strErrors.str().c_str());
-    printf(" wallet      %15" PRId64 "ms\n", GetTimeMillis() - nStart);
+    NLog.write(b_sev::info, "{}", strErrors.str());
+    NLog.write(b_sev::info, " wallet      {} ms", GetTimeMillis() - nStart);
 
     RegisterWallet(pwalletMain);
 
@@ -937,11 +953,11 @@ bool AppInit2()
     if (bestBlockIndex != pindexRescan && CTxDB().GetBestBlockIndex() && pindexRescan &&
         bestBlockIndex->nHeight > pindexRescan->nHeight) {
         uiInterface.InitMessage(_("Rescanning..."));
-        printf("Rescanning last %i blocks (from block %i)...\n",
-               bestBlockIndex->nHeight - pindexRescan->nHeight, pindexRescan->nHeight);
+        NLog.write(b_sev::info, "Rescanning last {} blocks (from block {})...",
+                   bestBlockIndex->nHeight - pindexRescan->nHeight, pindexRescan->nHeight);
         nStart = GetTimeMillis();
         pwalletMain->ScanForWalletTransactions(pindexRescan.get(), true);
-        printf(" rescan      %15" PRId64 "ms\n", GetTimeMillis() - nStart);
+        NLog.write(b_sev::info, " rescan      {} ms", GetTimeMillis() - nStart);
     }
 
     // ********************************************************* Step 9: import blocks
@@ -958,17 +974,17 @@ bool AppInit2()
     // ********************************************************* Step 10: load peers
 
     uiInterface.InitMessage(_("Loading addresses..."));
-    printf("Loading addresses...\n");
+    NLog.write(b_sev::info, "Loading addresses...");
     nStart = GetTimeMillis();
 
     {
         CAddrDB adb;
         if (!adb.Read(addrman.get()))
-            printf("Invalid or missing peers.dat; recreating\n");
+            NLog.write(b_sev::err, "Invalid or missing peers.dat; recreating");
     }
 
-    printf("Loaded %i addresses from peers.dat  %" PRId64 "ms\n", addrman.get().size(),
-           GetTimeMillis() - nStart);
+    NLog.write(b_sev::info, "Loaded {} addresses from peers.dat  {} ms", addrman.get().size(),
+               GetTimeMillis() - nStart);
 
     // ********************************************************* Step 11: start node
 
@@ -978,11 +994,11 @@ bool AppInit2()
     RandAddSeedPerfmon();
 
     //// debug print
-    printf("mapBlockIndex.size() = %" PRIszu "\n", mapBlockIndex.size());
-    printf("BestHeight = %d\n", bestBlockIndex->nHeight);
-    printf("setKeyPool.size() = %" PRIszu "\n", pwalletMain->setKeyPool.size());
-    printf("mapWallet.size() = %" PRIszu "\n", pwalletMain->mapWallet.size());
-    printf("mapAddressBook.size() = %" PRIszu "\n", pwalletMain->mapAddressBook.size());
+    NLog.write(b_sev::info, "mapBlockIndex.size() = {}", mapBlockIndex.size());
+    NLog.write(b_sev::info, "BestHeight = {}", bestBlockIndex->nHeight);
+    NLog.write(b_sev::info, "setKeyPool.size() = {}", pwalletMain->setKeyPool.size());
+    NLog.write(b_sev::info, "mapWallet.size() = {}", pwalletMain->mapWallet.size());
+    NLog.write(b_sev::info, "mapAddressBook.size() = {}", pwalletMain->mapAddressBook.size());
 
     if (!NewThread(StartNode, NULL))
         InitError(_("Error: could not start node"));
@@ -992,17 +1008,9 @@ bool AppInit2()
     }
     DeleteAuthCookie(); // clear the cookie from the previous session, if it exists
 
-    // ********************************************************* Step 12: start rest listenser
-
-#ifdef NEBLIO_REST
-    uiInterface.InitMessage(_("Starting RESTful API Listener"));
-    printf("Starting RESTful API Listener\n");
-    NewThread(ThreadRESTServer, NULL);
-#endif
-
     // ********************************************************* Step 13: finished
     uiInterface.InitMessage(_("Done loading"));
-    printf("Done loading\n");
+    NLog.write(b_sev::info, "Done loading");
 
     if (!strErrors.str().empty())
         return InitError(strErrors.str());

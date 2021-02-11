@@ -1252,7 +1252,7 @@ void BitcoinGUI::updateStakingIcon()
 
     if (stakeMaker.IsStakingActive()) {
         uint64_t       nNetworkWeight = GetPoSKernelPS();
-        unsigned int nTS              = Params().TargetSpacing(CTxDB());
+        unsigned int   nTS            = Params().TargetSpacing(CTxDB());
         const uint64_t nWeight        = stakeMaker.getLatestStakeWeight().value_or(0);
         unsigned       nEstimateTime  = !!nWeight ? (nTS * nNetworkWeight / nWeight) : -1;
 
@@ -1305,7 +1305,7 @@ void BitcoinGUI::updateCheckAnimation_frameChanged(int frameNumber)
 void BitcoinGUI::checkForNeblioUpdates()
 {
     if (!isUpdateRunning && appInitiated) {
-        printf("Checking for updates...\n");
+        NLog.write(b_sev::debug, "Checking for updates...");
         updaterLabel->setToolTip("Checking for updates...");
         updaterLabel->setMovie(updaterSpinnerMovie);
         updaterSpinnerMovie->start();
@@ -1324,7 +1324,7 @@ void BitcoinGUI::checkForNeblioUpdates()
 void BitcoinGUI::finishCheckForNeblioUpdates()
 {
     if (isUpdateRunning && updateAvailableFuture.is_ready()) {
-        printf("Concluding update check...\n");
+        NLog.write(b_sev::debug, "Concluding update check...");
         try {
             bool updateAvailable = updateAvailableFuture.get();
             if (updateAvailable) {
@@ -1357,7 +1357,7 @@ void BitcoinGUI::finishCheckForNeblioUpdates()
         }
         updaterSpinnerMovie->stop();
         updateConcluderTimer->stop();
-        printf("Done with updates check.\n");
+        NLog.write(b_sev::debug, "Done with updates check.");
         isUpdateRunning = false;
     }
 }
@@ -1384,7 +1384,7 @@ void BitcoinGUI::checkWhetherBackupIsMade()
             stopBackupAlertBlinker();
         }
     } catch (std::exception& ex) {
-        printf("%s", ex.what());
+        NLog.write(b_sev::err, "{}", ex.what());
         std::cerr << ex.what() << std::endl;
     }
 }

@@ -7,7 +7,7 @@ std::string CDiskTxPos::ToString() const
     if (IsNull())
         return "null";
     else
-        return strprintf("(nBlockPos=%s, nTxPos=%u)", nBlockPos.ToString().c_str(), nTxPos);
+        return fmt::format("(nBlockPos={}, nTxPos={})", nBlockPos.ToString(), nTxPos);
 }
 
-void CDiskTxPos::print() const { printf("%s", ToString().c_str()); }
+void CDiskTxPos::print() const { NLog.write(b_sev::trace, "{}", ToString()); }

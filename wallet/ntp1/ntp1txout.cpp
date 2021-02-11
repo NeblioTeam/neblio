@@ -1,4 +1,5 @@
 #include "ntp1txout.h"
+#include "logging/logger.h"
 #include "ntp1tools.h"
 
 std::string NTP1TxOut::getAddress() const { return address; }
@@ -63,7 +64,7 @@ void NTP1TxOut::importJsonData(const std::string& data)
         json_spirit::read_or_throw(data, parsedData);
         importJsonData(parsedData);
     } catch (std::exception& ex) {
-        printf("%s\n", ex.what());
+        NLog.write(b_sev::info, "{}", ex.what());
         throw;
     }
 }
@@ -94,7 +95,7 @@ void NTP1TxOut::importJsonData(const json_spirit::Value& parsedData)
             tokens[i].importJsonData(tokens_list[i]);
         }
     } catch (std::exception& ex) {
-        printf("%s\n", ex.what());
+        NLog.write(b_sev::info, "{}", ex.what());
         throw;
     }
 }

@@ -1,8 +1,8 @@
 #include "defaultdblogger.h"
 
-#include "util.h"
+#include "logging/logger.h"
 
 void DefaultDBLogger::logWrite(const StringViewT message)
 {
-    OutputDebugStringF("%s\n", message.to_string().c_str());
+    NLog.write(b_sev::info, "{}", message.to_string());
 }

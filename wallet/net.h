@@ -385,8 +385,8 @@ public:
         int64_t nRequestTime = 0;
 
         if (fDebugNet)
-            printf("askfor %s   %" PRId64 " (%s)\n", inv.ToString().c_str(), nRequestTime,
-                   DateTimeStrFormat("%H:%M:%S", nRequestTime / 1000000).c_str());
+            NLog.write(b_sev::debug, "askfor {}   {} ({})", inv.ToString(), nRequestTime,
+                      DateTimeStrFormat("%H:%M:%S", nRequestTime / 1000000));
 
         // Make sure not to reuse time indexes to keep things in the same order
         int64_t        nNow = (GetTime() - 1) * 1000000;
@@ -407,7 +407,7 @@ public:
         assert(ssSend.size() == 0);
         ssSend << CMessageHeader(Params().MessageStart(), pszCommand, 0);
         if (fDebug)
-            printf("sending: %s ", pszCommand);
+            NLog.write(b_sev::debug, "sending: {} ", pszCommand);
     }
 
     void AbortMessage()
@@ -417,14 +417,14 @@ public:
         LEAVE_CRITICAL_SECTION(cs_vSend);
 
         if (fDebug)
-            printf("(aborted)\n");
+            NLog.write(b_sev::debug, "(aborted)");
     }
 
     void EndMessage()
     {
         const boost::optional<std::string> dropMessageTest = mapArgs.get("-dropmessagestest");
         if (dropMessageTest && GetRand(atoi(*dropMessageTest)) == 0) {
-            printf("dropmessages DROPPING SEND MESSAGE\n");
+            NLog.write(b_sev::warn, "dropmessages DROPPING SEND MESSAGE");
             AbortMessage();
             return;
         }
@@ -444,7 +444,7 @@ public:
         memcpy((char*)&ssSend[CMessageHeader::CHECKSUM_OFFSET], &nChecksum, sizeof(nChecksum));
 
         if (fDebug) {
-            printf("(%d bytes)\n", nSize);
+            NLog.write(b_sev::debug, "({} bytes)", nSize);
         }
 
         std::deque<CSerializeData>::iterator it = vSendMsg.insert(vSendMsg.end(), CSerializeData());

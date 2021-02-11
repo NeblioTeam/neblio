@@ -41,8 +41,8 @@ std::vector<NeblioReleaseInfo> NeblioReleaseInfo::ParseAllReleaseDataFromJSON(co
         try {
             rel = ParseSingleReleaseData(array[i].get_obj());
         } catch (std::exception& ex) {
-            std::string msg = std::string("Unable to parse a release: ") + ex.what();
-            printf("%s", msg.c_str());
+            const std::string msg = std::string("Unable to parse a release: ") + ex.what();
+            NLog.write(b_sev::info, "{}", msg);
         }
         releases.push_back(rel);
     }

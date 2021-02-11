@@ -74,7 +74,7 @@ TestAndCreateStakeKernel(const CTxDB& txdb, const StakeMaker::KeyGetterFunctorTy
 
         // Found a kernel
         if (fDebug)
-            printf("FindStakeKernel : kernel found\n");
+            NLog.write(b_sev::debug, "FindStakeKernel : kernel found");
 
         const CScript& kernelScriptPubKey = pcoin.first->vout[pcoin.second].scriptPubKey;
 
@@ -83,7 +83,7 @@ TestAndCreateStakeKernel(const CTxDB& txdb, const StakeMaker::KeyGetterFunctorTy
 
         if (!spkKernel) {
             if (fDebug)
-                printf("FindStakeKernel : failed to get scriptPubKey for kernel");
+                NLog.write(b_sev::debug, "FindStakeKernel : failed to get scriptPubKey for kernel");
             continue;
         }
 
@@ -110,7 +110,7 @@ boost::optional<CAmount> CalculateStakeReward(const ITxDB& txdb, const CTransact
 
     uint64_t nCoinAge;
     if (!stakeTx.GetCoinAge(txdb, nCoinAge)) {
-        printf("CreateCoinStake : failed to calculate coin age");
+        NLog.write(b_sev::err, "CreateCoinStake : failed to calculate coin age");
         return boost::none;
     }
 
@@ -247,13 +247,13 @@ StakeMaker::CreateCoinStake(const ITxDB& txdb, const CWallet& wallet, const unsi
     stakeTx.vout = MakeStakeOutputs(kernelData->stakeOutputScriptPubKey, nFinalCredit, splitStake);
 
     if (!SignAndVerify(wallet, inputs, stakeTx)) {
-        printf("CreateCoinStake : SignAndVerify() failed");
+        NLog.write(b_sev::err, "CreateCoinStake : SignAndVerify() failed");
         return boost::none;
     }
 
     // Limit size
     if (!IsStakeTxSizeValid(stakeTx)) {
-        printf("CreateCoinStake : exceeded coinstake size limit");
+        NLog.write(b_sev::err, "CreateCoinStake : exceeded coinstake size limit");
         return boost::none;
     }
 
@@ -299,7 +299,7 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStakeFromSpecificOutput(cons
     }
 
     if (output.n >= outputTx.vout.size()) {
-        printf("Invalid output index %u >= %zu", output.n, outputTx.vout.size());
+        NLog.write(b_sev::err, "Invalid output index {} >= {}", output.n, outputTx.vout.size());
         return boost::none;
     }
 
@@ -336,18 +336,18 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStakeFromSpecificOutput(cons
     // create a temporary key store and store our key in it
     CBasicKeyStore keyStore;
     if (!keyStore.AddKey(spendKeyOfOutput)) {
-        printf("Failed to add key to temporary key store");
+        NLog.write(b_sev::err, "Failed to add key to temporary key store");
         return boost::none;
     }
 
     if (!SignAndVerify(keyStore, inputs, stakeTx)) {
-        printf("CreateCoinStake : SignAndVerify() failed");
+        NLog.write(b_sev::err, "CreateCoinStake : SignAndVerify() failed");
         return boost::none;
     }
 
     // Limit size
     if (!IsStakeTxSizeValid(stakeTx)) {
-        printf("CreateCoinStake : exceeded coinstake size limit");
+        NLog.write(b_sev::err, "CreateCoinStake : exceeded coinstake size limit");
         return boost::none;
     }
 
@@ -363,11 +363,12 @@ StakeMaker::CalculateScriptPubKeyForStakeOutput(const ITxDB& txdb, const KeyGett
     txnouttype           whichType;
     if (!Solver(txdb, scriptPubKeyKernel, whichType, vSolutions)) {
         if (fDebug)
-            printf("CalculateScriptPubKeyForStakeOutput : failed to parse kernel\n");
+            NLog.write(b_sev::debug, "CalculateScriptPubKeyForStakeOutput : failed to parse kernel");
         return boost::none;
     }
     if (fDebug)
-        printf("CalculateScriptPubKeyForStakeOutput : parsed kernel type=%d\n", whichType);
+        NLog.write(b_sev::debug, "CalculateScriptPubKeyForStakeOutput : parsed kernel type={}",
+                  whichType);
 
     switch (whichType) {
     case TX_PUBKEYHASH: // pay to address type
@@ -376,8 +377,9 @@ StakeMaker::CalculateScriptPubKeyForStakeOutput(const ITxDB& txdb, const KeyGett
         const boost::optional<CKey> key = keyGetter(uint160(vSolutions[0]));
         if (!key) {
             if (fDebug)
-                printf("CalculateScriptPubKeyForStakeOutput : failed to get key for kernel type=%d\n",
-                       whichType);
+                NLog.write(b_sev::debug,
+                          "CalculateScriptPubKeyForStakeOutput : failed to get key for kernel type={}",
+                          whichType);
             return boost::none; // unable to find corresponding public key
         }
         return CScript() << key->GetPubKey() << OP_CHECKSIG;
@@ -388,15 +390,17 @@ StakeMaker::CalculateScriptPubKeyForStakeOutput(const ITxDB& txdb, const KeyGett
         const boost::optional<CKey> key       = keyGetter(Hash160(vchPubKey));
         if (!key) {
             if (fDebug)
-                printf("CalculateScriptPubKeyForStakeOutput : failed to get key for kernel type=%d\n",
-                       whichType);
+                NLog.write(b_sev::debug,
+                          "CalculateScriptPubKeyForStakeOutput : failed to get key for kernel type={}",
+                          whichType);
             return boost::none; // unable to find corresponding public key
         }
 
         if (key->GetPubKey() != vchPubKey) {
             if (fDebug)
-                printf("CalculateScriptPubKeyForStakeOutput : invalid key for kernel P2PK type=%d\n",
-                       whichType);
+                NLog.write(b_sev::debug,
+                          "CalculateScriptPubKeyForStakeOutput : invalid key for kernel P2PK type={}",
+                          whichType);
             return boost::none; // keys mismatch
         }
         return scriptPubKeyKernel;
@@ -404,8 +408,9 @@ StakeMaker::CalculateScriptPubKeyForStakeOutput(const ITxDB& txdb, const KeyGett
     case TX_COLDSTAKE: {
         const boost::optional<CKey> key = keyGetter(CKeyID(uint160(vSolutions[0])));
         if (!key) {
-            printf(
-                "CalculateScriptPubKeyForStakeOutput : failed to get key for kernel coldstake type=%d\n",
+            NLog.write(
+                b_sev::err,
+                "CalculateScriptPubKeyForStakeOutput : failed to get key for kernel coldstake type={}",
                 whichType);
             return boost::none;
         }
@@ -419,8 +424,9 @@ StakeMaker::CalculateScriptPubKeyForStakeOutput(const ITxDB& txdb, const KeyGett
     }
 
     if (fDebug)
-        printf(
-            "CalculateScriptPubKeyForStakeOutput : Unsupported scriptPubKey type for staking type=%d\n",
+        NLog.write(
+            b_sev::debug,
+            "CalculateScriptPubKeyForStakeOutput : Unsupported scriptPubKey type for staking type={}",
             whichType);
     return boost::none;
 }
@@ -435,7 +441,7 @@ bool StakeMaker::SignAndVerify(const CKeyStore& keystore, const CoinStakeInputsR
         SignatureState      sigState{SignatureState::Failed};
         if ((sigState = SignSignature(keystore, *pcoin, stakeTx, i, SIGHASH_ALL, true)) ==
             SignatureState::Failed) {
-            printf("CreateCoinStake : failed to sign coinstake");
+            NLog.write(b_sev::err, "CreateCoinStake : failed to sign coinstake");
             return false;
         } else {
             sigStates.push_back(sigState);
@@ -445,7 +451,8 @@ bool StakeMaker::SignAndVerify(const CKeyStore& keystore, const CoinStakeInputsR
     // ensure all signatures are successful (even though we checked already, no harm in double-checking)
     if (std::any_of(sigStates.cbegin(), sigStates.cend(),
                     [](const SignatureState& state) { return state == SignatureState::Failed; })) {
-        printf("CreateCoinStake : failed to sign coinstake - WARNING: THIS SHOULD NEVER HAPPEN");
+        NLog.write(b_sev::err,
+                  "CreateCoinStake : failed to sign coinstake - WARNING: THIS SHOULD NEVER HAPPEN");
         return false;
     }
 
@@ -459,7 +466,7 @@ bool StakeMaker::SignAndVerify(const CKeyStore& keystore, const CoinStakeInputsR
         if (VerifyScript(stakeTx.vin[i].scriptSig, pcoin->vout[txin.prevout.n].scriptPubKey, stakeTx, i,
                          true, true, 0)
                 .isErr()) {
-            printf("CreateCoinStake : Signature verification failed");
+            NLog.write(b_sev::err, "CreateCoinStake : Signature verification failed");
             return false;
         }
     }

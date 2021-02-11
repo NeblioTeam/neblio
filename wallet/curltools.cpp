@@ -30,7 +30,7 @@ size_t cURLTools::CurlWrite_CallbackFunc_StdString(void* contents, size_t size, 
     } catch (std::bad_alloc& e) {
         std::stringstream msg;
         msg << "Error allocating memory: " << e.what() << std::endl;
-        printf("%s", msg.str().c_str());
+        NLog.write(b_sev::err, "{}", msg.str());
         return 0;
     }
 
@@ -65,7 +65,7 @@ int cURLTools::CurlProgress_CallbackFunc(void*, double TotalToDownload, double N
     return CURLE_OK;
 }
 
-int cURLTools::CurlAtomicProgress_CallbackFunc(void* number, double TotalToDownload,
+int cURLTools::CurlAtomicProgress_CallbackFunc(void*  number, double /*TotalToDownload*/,
                                                double NowDownloaded, double /*TotalToUpload*/,
                                                double /*NowUploaded*/)
 {
@@ -162,7 +162,7 @@ void cURLTools::GetLargeFileFromHTTPS(const std::string& URL, long ConnectionTim
         /* Check for errors */
         if (res != CURLE_OK && errorsToIgnore.find(res) == errorsToIgnore.cend()) {
             std::string errorMsg(curl_easy_strerror(res));
-            printf("Curl error: %s\n", errorMsg.c_str());
+            NLog.write(b_sev::err, "Curl error: {}", errorMsg);
             throw std::runtime_error(std::string(errorMsg).c_str());
         } else {
             long http_response_code;
@@ -171,7 +171,7 @@ void cURLTools::GetLargeFileFromHTTPS(const std::string& URL, long ConnectionTim
                 std::string errorMsg("Error retrieving data with https protocol from URL \"" + URL +
                                      "\", error code: " + ToString(http_response_code) +
                                      ". Probably the URL is invalid.");
-                printf("Curl http code error: %s\n", errorMsg.c_str());
+                NLog.write(b_sev::err, "Curl http code error: {}", errorMsg);
                 throw std::runtime_error(errorMsg);
             }
         }

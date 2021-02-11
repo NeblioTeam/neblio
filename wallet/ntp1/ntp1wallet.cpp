@@ -104,9 +104,11 @@ void NTP1Wallet::__getOutputs()
         // get the transaction from the wallet
         CWalletTx neblTx;
         if (!std::atomic_load(&localWallet)->GetTransaction(txHash, neblTx)) {
-            printf("Error: Although the output number %i of transaction %s belongs to you, it couldn't "
-                   "be found in your wallet.\n",
-                   vecOutputs[i].i, txHash.ToString().c_str());
+            NLog.write(
+                b_sev::err,
+                "Error: Although the output number {} of transaction {} belongs to you, it couldn't "
+                "be found in your wallet.",
+                vecOutputs[i].i, txHash.ToString());
             continue;
         }
 
@@ -126,7 +128,8 @@ void NTP1Wallet::__getOutputs()
                 NTP1Transaction::GetAllNTP1InputsOfTx(neblTx, true);
             ntp1tx.readNTP1DataFromTx(neblTx, prevTxs);
         } catch (std::exception& ex) {
-            printf("Unable to download transaction information. Error says: %s\n", ex.what());
+            NLog.write(b_sev::err, "Unable to download transaction information. Error says: {}",
+                      ex.what());
             failedRetrievals++;
             continue;
         }
@@ -187,11 +190,13 @@ void NTP1Wallet::__getOutputs()
                             tokenInformation[tokenTx.getTokenId()] =
                                 NTP1Transaction::GetFullNTP1IssuanceMetadata(issueTxid);
                         } catch (std::exception& ex) {
-                            printf("Failed to retrieve NTP1 token metadata. Error: %s\n", ex.what());
+                            NLog.write(b_sev::err, "Failed to retrieve NTP1 token metadata. Error: {}",
+                                      ex.what());
                             tokenInformation[tokenTx.getTokenId()] =
                                 GetMinimalMetadataInfoFromTxData(tokenTx);
                         } catch (...) {
-                            printf("Failed to retrieve NTP1 token metadata. Unknown exception.\n");
+                            NLog.write(b_sev::err,
+                                      "Failed to retrieve NTP1 token metadata. Unknown exception.");
                             tokenInformation[tokenTx.getTokenId()] =
                                 GetMinimalMetadataInfoFromTxData(tokenTx);
                         }
@@ -202,7 +207,7 @@ void NTP1Wallet::__getOutputs()
                     }
                 }
             } catch (std::exception& ex) {
-                printf("Unable to download token metadata. Error says: %s\n", ex.what());
+                NLog.write(b_sev::err, "Unable to download token metadata. Error says: {}", ex.what());
                 continue;
             }
         }
@@ -278,9 +283,10 @@ void NTP1Wallet::scanSpentTransactions()
         if (walletOutputsWithTokens.find(toRemove[i]) != walletOutputsWithTokens.end()) {
             walletOutputsWithTokens.erase(toRemove[i]);
         } else {
-            printf("Unable to find output %s:%s, although it was found before and marked for "
-                   "removal.\n",
-                   toRemove[i].getHash().ToString().c_str(), ToString(toRemove[i].getIndex()).c_str());
+            NLog.write(b_sev::err,
+                      "Unable to find output {}:{}, although it was found before and marked for "
+                      "removal.",
+                      toRemove[i].getHash().ToString(), ToString(toRemove[i].getIndex()));
             //            std::cerr<<"Unable to find output " << toRemove[i].getHash().ToString() <<
             //            ":"
             //            << ToString(toRemove[i].getIndex()) << ", although it was found before and
@@ -394,8 +400,8 @@ std::string NTP1Wallet::__downloadIcon(const std::string& IconURL)
     try {
         return cURLTools::GetFileFromHTTPS(IconURL, 30, false);
     } catch (std::exception& ex) {
-        printf("Error: Failed at downloading icon from %s. Error says: %s\n", IconURL.c_str(),
-               ex.what());
+        NLog.write(b_sev::err, "Error: Failed at downloading icon from {}. Error says: {}", IconURL,
+                  ex.what());
         return ICON_ERROR_CONTENT;
     }
 }

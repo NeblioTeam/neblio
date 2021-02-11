@@ -99,20 +99,20 @@ public:
                     status = CT_DELETED; /* In model, but want to hide, treat as deleted */
             }
 
-            OutputDebugStringF(
-                "   inWallet=%i inModel=%i Index=%i-%i showTransaction=%i derivedStatus=%i\n", inWallet,
-                inModel, lowerIndex, upperIndex, showTransaction, status);
+            NLog.write(b_sev::info,
+                      "inWallet={} inModel={} Index={}-{} showTransaction={} derivedStatus={}", inWallet,
+                      inModel, lowerIndex, upperIndex, showTransaction, status);
 
             switch (status) {
             case CT_NEW:
                 if (inModel) {
-                    OutputDebugStringF(
-                        "Warning: updateWallet: Got CT_NEW, but transaction is already in model\n");
+                    NLog.write(b_sev::warn,
+                              "Warning: updateWallet: Got CT_NEW, but transaction is already in model");
                     break;
                 }
                 if (!inWallet) {
-                    OutputDebugStringF(
-                        "Warning: updateWallet: Got CT_NEW, but transaction is not in wallet\n");
+                    NLog.write(b_sev::warn,
+                              "Warning: updateWallet: Got CT_NEW, but transaction is not in wallet");
                     break;
                 }
                 if (showTransaction) {
@@ -134,8 +134,8 @@ public:
                 break;
             case CT_DELETED:
                 if (!inModel) {
-                    OutputDebugStringF(
-                        "Warning: updateWallet: Got CT_DELETED, but transaction is not in model\n");
+                    NLog.write(b_sev::warn,
+                              "Warning: updateWallet: Got CT_DELETED, but transaction is not in model");
                     break;
                 }
                 // Removed -- remove entire transaction from table
@@ -386,7 +386,7 @@ void TransactionTableModel::pushToWalletUpdate(uint256 hash, int status)
 
 void TransactionTableModel::refreshWallet()
 {
-    OutputDebugStringF("refreshWallet\n");
+    NLog.write(b_sev::info, "refreshWallet");
     if (txsRetrieverWorkerRunning) {
         QTimer::singleShot(1000, this, &TransactionTableModel::refreshWallet);
         return;

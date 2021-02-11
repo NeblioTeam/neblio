@@ -1,10 +1,10 @@
 #ifndef TXIN_H
 #define TXIN_H
 
-#include     "globals.h"
-#include <string>
+#include "globals.h"
 #include "outpoint.h"
 #include "script.h"
+#include <string>
 
 /** An input of a transaction.  It contains the location of the previous
  * transaction's output that it claims and a signature that matches the
@@ -51,7 +51,7 @@ public:
 
     std::string ToString() const;
 
-    void print() const { printf("%s\n", ToString().c_str()); }
+    void print() const { NLog.write(b_sev::info, "{}", ToString()); }
 };
 
 #endif // TXIN_H

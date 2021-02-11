@@ -27,7 +27,7 @@ void NTP1TokenMetaData::importRestfulAPIJsonData(const std::string& data)
         json_spirit::read_or_throw(data, parsedData);
         importRestfulAPIJsonData(parsedData);
     } catch (std::exception& ex) {
-        printf("%s\n", ex.what());
+        NLog.write(b_sev::err, "{}", ex.what());
         throw;
     }
 }
@@ -62,7 +62,7 @@ void NTP1TokenMetaData::importRestfulAPIJsonData(const json_spirit::Value& data)
         } catch (...) {
         }
     } catch (std::exception& ex) {
-        printf("%s\n", ex.what());
+        NLog.write(b_sev::err, "{}", ex.what());
         throw;
     }
 }

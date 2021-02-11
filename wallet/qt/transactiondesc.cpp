@@ -114,9 +114,10 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
             NTP1Transaction::GetAllNTP1InputsOfTx(wtx, false);
         ntp1tx.readNTP1DataFromTx(wtx, ntp1inputs);
     } catch (std::exception& ex) {
-        printf("(This doesn't have to be an error if the tx is not NTP1). For transaction details, "
-               "failed to retrieve NTP1 data of transaction: %s. Error: %s",
-               wtx.GetHash().ToString().c_str(), ex.what());
+        NLog.write(b_sev::err,
+                  "(This doesn't have to be an error if the tx is not NTP1). For transaction details, "
+                  "failed to retrieve NTP1 data of transaction: {}. Error: {}",
+                  wtx.GetHash().ToString(), ex.what());
         successInRetrievingNTP1Tx = false;
     }
 

@@ -572,15 +572,15 @@ std::string NTP1Script::GetMetadataAsString(const NTP1Script*   ntp1script,
             boost::optional<std::string> decError;
             std::string dec = CTransaction::DecryptMetadataOfTx(textMetadata, tx.GetHash(), decError);
             if (decError) {
-                printf("Message decryption failed: %s\n", decError->c_str());
+                NLog.write(b_sev::err, "Message decryption failed: {}", decError->c_str());
             } else {
                 textMetadata = std::move(dec);
             }
         }
     } catch (std::exception& ex) {
-        printf("Failed at decompressing \"%s\". Reason: %s\n", textMetadata.c_str(), ex.what());
+        NLog.write(b_sev::err, "Failed at decompressing \"{}\". Reason: {}", textMetadata, ex.what());
     } catch (...) {
-        printf("Failed at decompressing \"%s\". Unknown exception.\n", textMetadata.c_str());
+        NLog.write(b_sev::err, "Failed at decompressing \"{}\". Unknown exception.", textMetadata);
     }
 
     return textMetadata;

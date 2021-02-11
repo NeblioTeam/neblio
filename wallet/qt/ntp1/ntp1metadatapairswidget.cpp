@@ -1,5 +1,7 @@
 #include "ntp1metadatapairswidget.h"
 
+#include "logging/logger.h"
+
 NTP1MetadataPairsWidget::NTP1MetadataPairsWidget(QWidget* parent) : QWidget(parent)
 {
     mainLayout              = new QGridLayout(this);
@@ -96,7 +98,7 @@ void NTP1MetadataPairsWidget::slot_removePairWidget(QWidget* widget)
     if (it != metadataPairsWidgets.end()) {
         metadataPairsWidgets.erase(it);
     } else {
-        printf("Unable to find the metadata pair widget to erase");
+        NLog.write(b_sev::info, "Unable to find the metadata pair widget to erase");
     }
     slot_actToShowOrHideCloseButtons();
 }

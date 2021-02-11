@@ -190,8 +190,8 @@ boost::optional<ColdStakingCachedItem> ColdStakingModel::ParseColdStakingCachedI
     int                         nRequired;
 
     if (!ExtractDestinations(out.scriptPubKey, type, addresses, nRequired) || addresses.size() != 2) {
-        printf("%s : Error extracting P2CS destinations for utxo: %s-%d", __func__,
-               txId.toStdString().c_str(), utxoIndex);
+        NLog.write(b_sev::info, "{} : Error extracting P2CS destinations for utxo: {}-{}", FUNCTIONSIG,
+                  txId.toStdString(), utxoIndex);
         return boost::none;
     }
 
@@ -206,7 +206,7 @@ bool ColdStakingModel::whitelist(const QModelIndex& modelIndex)
 {
     QString address = modelIndex.data(ColumnIndex::OWNER_ADDRESS).toString();
     if (addressTableModel->isWhitelisted(address.toStdString())) {
-        return error("trying to whitelist already whitelisted address");
+        return NLog.error("trying to whitelist already whitelisted address");
     }
 
     if (!walletModel->whitelistAddressFromColdStaking(address))
@@ -224,7 +224,7 @@ bool ColdStakingModel::blacklist(const QModelIndex& modelIndex)
 {
     QString address = modelIndex.data(ColumnIndex::OWNER_ADDRESS).toString();
     if (!addressTableModel->isWhitelisted(address.toStdString())) {
-        return error("trying to blacklist already blacklisted address");
+        return NLog.error("trying to blacklist already blacklisted address");
     }
 
     if (!walletModel->blacklistAddressFromColdStaking(address))

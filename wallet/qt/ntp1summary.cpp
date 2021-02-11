@@ -343,7 +343,7 @@ void NTP1Summary::slot_showMetadataAction()
 void NTP1Summary::slot_showIssueNewTokenDialog()
 {
     if (!isNTP1TokensLoadRunning) {
-        printf("Loading NTP1 tokens list...\n");
+        NLog.write(b_sev::debug, "Loading NTP1 tokens list...");
         QSize iconSize(ui->issueNewNTP1TokenButton->height(), ui->issueNewNTP1TokenButton->height());
         ui->loadIssuedNTP1SpinnerMovie->setScaledSize(iconSize);
 
@@ -368,7 +368,7 @@ void NTP1Summary::slot_concludeLoadNTP1Tokens()
 {
     try {
         if (isNTP1TokensLoadRunning && alreadyIssuedNTP1SymbolsFuture.is_ready()) {
-            printf("Concluding loading issued NTP1 tokens...\n");
+            NLog.write(b_sev::debug, "Concluding loading issued NTP1 tokens...");
 
             ntp1LoaderConcluderTimer->stop();
 

@@ -38,7 +38,7 @@ void NTP1TxIn::importJsonData(const json_spirit::Value& parsedData)
             tokens[i].importJsonData(tokens_list[i]);
         }
     } catch (std::exception& ex) {
-        printf("%s", ex.what());
+        NLog.write(b_sev::err, "{}", ex.what());
         throw;
     }
 }
@@ -81,7 +81,7 @@ void NTP1TxIn::importJsonData(const std::string& data)
         json_spirit::read_or_throw(data, parsedData);
         importJsonData(parsedData);
     } catch (std::exception& ex) {
-        printf("%s", ex.what());
+        NLog.write(b_sev::err, "{}", ex.what());
         throw;
     }
 }

@@ -527,7 +527,7 @@ public:
             WriteOrderPos(pthis->nOrderPos, pthis->mapValue);
 
             if (nTimeSmart)
-                pthis->mapValue["timesmart"] = strprintf("%u", nTimeSmart);
+                pthis->mapValue["timesmart"] = fmt::format("{}", nTimeSmart);
         }
 
         nSerSize += SerReadWrite(s, *(CMerkleTx*)this, nType, nVersion, ser_action);
@@ -615,11 +615,11 @@ public:
 
     std::string ToString() const
     {
-        return strprintf("COutput(%s, %d, %d) [%s]", tx->GetHash().ToString().substr(0, 10).c_str(), i,
-                         nDepth, FormatMoney(tx->vout[i].nValue).c_str());
+        return fmt::format("COutput({}, {}, {}) [{}]", tx->GetHash().ToString().substr(0, 10), i, nDepth,
+                           FormatMoney(tx->vout[i].nValue).c_str());
     }
 
-    void print() const { printf("%s\n", ToString().c_str()); }
+    void print() const { NLog.write(b_sev::info, "{}", ToString()); }
 };
 
 /** Private key that includes an expiration date in case it never gets used. */

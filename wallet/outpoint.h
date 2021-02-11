@@ -36,7 +36,7 @@ public:
 
     std::string ToString() const;
 
-    void print() const { printf("%s\n", ToString().c_str()); }
+    void print() const;
 };
 
 #endif // OUTPOINT_H
