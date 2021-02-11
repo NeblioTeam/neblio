@@ -1,5 +1,5 @@
-#ifndef LOGGER_H
-#define LOGGER_H
+#ifndef DEFAULTLOGGER_H
+#define DEFAULTLOGGER_H
 
 #include <fstream>
 #include <functional>
@@ -125,4 +125,4 @@ public:
     }
 };
 
-#endif // LOGGER_H
+#endif // DEFAULTLOGGER_H

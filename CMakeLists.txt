@@ -448,7 +448,7 @@ endif()
 
 add_library(logging_lib STATIC
     wallet/logging/defaultlogger.cpp
-    wallet/logging/logger.h
+    wallet/logging/logger.cpp
     )
 
 add_library(gui_lib STATIC

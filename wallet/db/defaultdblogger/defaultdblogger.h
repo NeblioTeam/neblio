@@ -1,5 +1,5 @@
-#ifndef DEFAULTLOGGER_H
-#define DEFAULTLOGGER_H
+#ifndef DEFAULTDBLOGGER_H
+#define DEFAULTDBLOGGER_H
 
 #include "../idblog.h"
 
@@ -9,4 +9,4 @@ public:
     void logWrite(const StringViewT message) override;
 };
 
-#endif // DEFAULTLOGGER_H
+#endif // DEFAULTDBLOGGER_H

@@ -244,7 +244,7 @@ bool isObscured(QWidget *w)
 
 void openDebugLogfile()
 {
-    boost::filesystem::path pathDebug = GetDataDir() / "debug.log";
+    const boost::filesystem::path pathDebug = GetLogFileFullPath(GetDataDir());
 
     /* Open debug.log with the associated application */
     if (boost::filesystem::exists(pathDebug))

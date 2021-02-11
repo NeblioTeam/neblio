@@ -146,9 +146,11 @@ void HandleSIGHUP(int) { fReopenDebugLog = true; }
 
 void InitLogging()
 {
-    const boost::filesystem::path LogFilesDir = GetDataDir() / "logs";
-    boost::filesystem::create_directories(LogFilesDir);
-    const boost::filesystem::path LogFilePath = LogFilesDir / "neblio.log";
+    const boost::filesystem::path LogFilesDir = GetLoggingDir(GetDataDir());
+    if(!boost::filesystem::is_directory(LogFilesDir)) {
+        boost::filesystem::create_directories(GetLoggingDir(GetDataDir()));
+    }
+    const boost::filesystem::path LogFilePath = GetLogFileFullPath(GetDataDir());
 
     bool logFileAddingResult =
         LoggerSingleton::get().add_file(PossiblyWideStringToString(LogFilePath.native()), b_sev::info);

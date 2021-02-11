@@ -168,7 +168,9 @@ HEADERS += qt/bitcoingui.h \
     db/defaultdblogger/defaultdblogger.h \
     db/lmdb/lmdb.h                     \
     db/lmdb/lmdbtransaction.h          \
-    stringmanip.h
+    stringmanip.h                      \
+    logging/defaultlogger.h            \
+    logging/logger.h
 
 
 
@@ -332,7 +334,9 @@ SOURCES += qt/bitcoin.cpp \
     db/defaultdblogger/defaultdblogger.cpp \
     db/lmdb/lmdb.cpp                    \
     db/lmdb/lmdbtransaction.cpp         \
-    stringmanip.cpp
+    stringmanip.cpp                     \
+    logging/defaultlogger.cpp           \
+    logging/logger.cpp
 
 
 

@@ -933,22 +933,22 @@ void FileCommit(FILE* fileout)
 
 void ShrinkDebugFile()
 {
-    // Scroll debug.log if it's getting too big
-    boost::filesystem::path pathLog = GetDataDir() / "debug.log";
-    FILE*                   file    = fopen(pathLog.string().c_str(), "r");
-    if (file && boost::filesystem::file_size(pathLog) > 10 * 1000000) {
-        // Restart the file with some of the end
-        char pch[200000];
-        fseek(file, -sizeof(pch), SEEK_END);
-        int nBytes = fread(pch, 1, sizeof(pch), file);
-        fclose(file);
+    //    // Scroll debug.log if it's getting too big
+    //    boost::filesystem::path pathLog = GetLogFileFullPath(GetDataDir());
+    //    FILE*                   file    = fopen(pathLog.string().c_str(), "r");
+    //    if (file && boost::filesystem::file_size(pathLog) > 10 * 1000000) {
+    //        // Restart the file with some of the end
+    //        char pch[200000];
+    //        fseek(file, -sizeof(pch), SEEK_END);
+    //        int nBytes = fread(pch, 1, sizeof(pch), file);
+    //        fclose(file);
 
-        file = fopen(pathLog.string().c_str(), "w");
-        if (file) {
-            fwrite(pch, 1, nBytes, file);
-            fclose(file);
-        }
-    }
+    //        file = fopen(pathLog.string().c_str(), "w");
+    //        if (file) {
+    //            fwrite(pch, 1, nBytes, file);
+    //            fclose(file);
+    //        }
+    //    }
 }
 
 //
