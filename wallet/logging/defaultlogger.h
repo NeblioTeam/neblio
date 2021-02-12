@@ -50,7 +50,8 @@ class DefaultLogger
         std::make_shared<spdlog::async_logger>("", dist_sink, tp);
 
 public:
-    DefaultLogger() {
+    DefaultLogger()
+    {
         spdlog::register_logger(logger);
         spdlog::flush_every(std::chrono::seconds(5));
     }
@@ -77,6 +78,21 @@ public:
     {
         try {
             auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(filename, false);
+            file_sink->set_level(minimum_severity);
+            dist_sink->add_sink(file_sink);
+            return true;
+        } catch (std::exception& ex) {
+            std::cerr << "Failed to open log file: " << filename << std::endl;
+            return false;
+        }
+    }
+
+    bool add_rotating_file(const std::string& filename, std::size_t max_size, std::size_t max_files,
+                           bool rotateNow, const spdlog::level::level_enum& minimum_severity)
+    {
+        try {
+            auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
+                filename, max_size, max_files, rotateNow);
             file_sink->set_level(minimum_severity);
             dist_sink->add_sink(file_sink);
             return true;

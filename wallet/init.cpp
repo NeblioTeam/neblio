@@ -147,13 +147,40 @@ void HandleSIGHUP(int) { fReopenDebugLog = true; }
 void InitLogging()
 {
     const boost::filesystem::path LogFilesDir = GetLoggingDir(GetDataDir());
-    if(!boost::filesystem::is_directory(LogFilesDir)) {
+    if (!boost::filesystem::is_directory(LogFilesDir)) {
         boost::filesystem::create_directories(GetLoggingDir(GetDataDir()));
     }
     const boost::filesystem::path LogFilePath = GetLogFileFullPath(GetDataDir());
 
-    bool logFileAddingResult =
-        LoggerSingleton::get().add_file(PossiblyWideStringToString(LogFilePath.native()), b_sev::info);
+    const bool isDebugMode = GetBoolArg("-debug");
+    const bool rotateFile  = GetBoolArg("-rotatelogfile");
+
+    // max file size
+    const std::size_t maxSize = [&]() {
+        const int64_t paramMaxLogFiles = GetArg("-maxlogfiles", -1);
+        if (paramMaxLogFiles <= 0) {
+            // default values
+            return static_cast<std::size_t>(isDebugMode ? 1 << 30 : 1 << 30);
+        } else {
+            return static_cast<std::size_t>(paramMaxLogFiles);
+        }
+    }();
+
+    // max rotated files
+    const std::size_t maxFiles = [&]() {
+        const int64_t paramMaxLogFileSize = GetArg("-maxlogfilesize", -1);
+        if (paramMaxLogFileSize <= 0) {
+            // default values
+            return static_cast<std::size_t>(isDebugMode ? 10 : 2);
+        } else {
+            return static_cast<std::size_t>(paramMaxLogFileSize);
+        }
+    }();
+
+    const b_sev minSeverity = isDebugMode ? b_sev::debug : b_sev::info;
+
+    const bool logFileAddingResult = NLog.add_rotating_file(
+        PossiblyWideStringToString(LogFilePath.native()), maxSize, maxFiles, rotateFile, minSeverity);
     if (!logFileAddingResult) {
         throw std::runtime_error("Failed to open log file for writing: " +
                                  PossiblyWideStringToString(LogFilePath.native()));
@@ -335,7 +362,9 @@ std::string HelpMessage()
         "  -debug                 " + _("Output extra debugging information. Implies all other -debug* options") + "\n" +
         "  -debugnet              " + _("Output extra network debugging information") + "\n" +
         "  -logtimestamps         " + _("Prepend debug output with timestamp") + "\n" +
-        "  -shrinkdebugfile       " + _("Shrink debug.log file on client startup (default: 1 when no -debug)") + "\n" +
+        "  -maxlogfiles           " + _("Max number of log files resulting from log files rotation; default: 2 for normal; 10 for debug mode") + "\n" +
+        "  -maxlogfilesize        " + _("Max size of a single rotated log file; default: 1 GB") + "\n" +
+        "  -rotatelogfile         " + _("Rotate the current log file on startup; default: false") + "\n" +
         "  -printtoconsole        " + _("Send trace/debug info to console instead of debug.log file") + "\n" +
         "  -uacomment=<cmt>       " + _("Append comment to the user agent string") + "\n" +
 #ifdef WIN32
@@ -604,8 +633,6 @@ bool AppInit2()
     }
 #endif
 
-    if (GetBoolArg("-shrinkdebugfile", !fDebug))
-        ShrinkDebugFile();
     NLog.write(b_sev::info, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
     NLog.write(b_sev::info, "neblio version {} ({})", FormatFullVersion(), CLIENT_DATE);
     NLog.write(b_sev::info, "Using OpenSSL version {}", SSLeay_version(SSLEAY_VERSION));
