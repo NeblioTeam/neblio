@@ -1,4 +1,4 @@
-#ifndef DEFAULTLOGGER_H
+﻿#ifndef DEFAULTLOGGER_H
 #define DEFAULTLOGGER_H
 
 #include <fstream>
@@ -30,13 +30,11 @@
 #endif
 
 #define LOG_PRE                                                                                         \
-    "[File, function, line]: [" + std::string(__FILE__) + ", " + std::string(FUNCTIONSIG) +             \
-        ", Line: " + std::to_string(__LINE__) + "]:\n"
+    "[" + boost::filesystem::path(__FILE__).filename().string() + ":" + std::to_string(__LINE__) +      \
+        ", " + std::string(FUNCTIONSIG) + "]"
 
-//#define LogWrite(msg, sev) LoggerSingleton::get().write(sev, std::string(LOG_PRE) + msg)
-//#define LogWrite(msg, sev) std::clog << (msg) << std::endl;
-//#define LogWrite(msg, sev)
-#define NLog LoggerSingleton::get()
+//#define NLog LoggerSingleton::get()
+#define NLog LogSourceForwarder(std::string(LOG_PRE))
 
 using b_sev = spdlog::level::level_enum;
 
@@ -88,11 +86,11 @@ public:
     }
 
     bool add_rotating_file(const std::string& filename, std::size_t max_size, std::size_t max_files,
-                           bool rotateNow, const spdlog::level::level_enum& minimum_severity)
+                           bool rotate_name, const spdlog::level::level_enum& minimum_severity)
     {
         try {
             auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
-                filename, max_size, max_files, rotateNow);
+                filename, max_size, max_files, rotate_name);
             file_sink->set_level(minimum_severity);
             dist_sink->add_sink(file_sink);
             return true;
@@ -138,6 +136,42 @@ public:
     {
         static DefaultLogger logger;
         return logger;
+    }
+};
+
+/**
+ * @brief The LogSourceForwarder class
+ * This class wraps the singleton and adds to it the source of the log information
+ */
+class LogSourceForwarder
+{
+    std::string sourceInfo;
+
+public:
+    LogSourceForwarder(const std::string& SourceInfo) : sourceInfo(SourceInfo) {}
+
+    LogSourceForwarder(std::string&& SourceInfo) : sourceInfo(std::move(SourceInfo)) {}
+
+    bool add_rotating_file(const std::string& filename, std::size_t max_size, std::size_t max_files,
+                           bool rotate_name, const spdlog::level::level_enum& minimum_severity)
+    {
+        return LoggerSingleton::get().add_rotating_file(filename, max_size, max_files, rotate_name,
+                                                        minimum_severity);
+    }
+
+    template <typename FormatString, typename... Args>
+    void write(b_sev severity, const FormatString& fmtStr, Args&&... args)
+    {
+        LoggerSingleton::get().write(severity, "{}: {}", std::move(sourceInfo),
+                                     fmt::format(fmtStr, std::forward<Args>(args)...));
+    }
+
+    template <typename FormatString, typename... Args>
+    bool error(const FormatString& fmtStr, Args&&... args)
+    {
+        LoggerSingleton::get().write(b_sev::err, "{}: {}", std::move(sourceInfo),
+                                     fmt::format(fmtStr, std::forward<Args>(args)...));
+        return false;
     }
 };
 

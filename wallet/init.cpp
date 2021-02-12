@@ -186,7 +186,7 @@ void InitLogging()
                                  PossiblyWideStringToString(LogFilePath.native()));
     }
 
-    NLog.write(b_sev::info, "---------------------------------\n\n\n\n\n\n\n\n\n\n");
+    NLog.write(b_sev::info, "\n\n\n\n\n\n\n\n\n\n---------------------------------");
 
     NLog.write(b_sev::info, "Initialized logging successfully!");
 }
@@ -633,7 +633,6 @@ bool AppInit2()
     }
 #endif
 
-    NLog.write(b_sev::info, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
     NLog.write(b_sev::info, "neblio version {} ({})", FormatFullVersion(), CLIENT_DATE);
     NLog.write(b_sev::info, "Using OpenSSL version {}", SSLeay_version(SSLEAY_VERSION));
     if (!fLogTimestamps)
