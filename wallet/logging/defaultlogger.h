@@ -31,7 +31,7 @@
 
 #define LOG_PRE                                                                                         \
     "[" + boost::filesystem::path(__FILE__).filename().string() + ":" + std::to_string(__LINE__) +      \
-        ", " + std::string(FUNCTIONSIG) + "]"
+        "] [" + std::string(FUNCTIONSIG) + "]"
 
 //#define NLog LoggerSingleton::get()
 #define NLog LogSourceForwarder(std::string(LOG_PRE))
@@ -79,7 +79,7 @@ public:
             file_sink->set_level(minimum_severity);
             dist_sink->add_sink(file_sink);
             return true;
-        } catch (std::exception& ex) {
+        } catch (const std::exception& ex) {
             std::cerr << "Failed to open log file: " << filename << std::endl;
             return false;
         }
@@ -94,7 +94,7 @@ public:
             file_sink->set_level(minimum_severity);
             dist_sink->add_sink(file_sink);
             return true;
-        } catch (std::exception& ex) {
+        } catch (const std::exception& ex) {
             std::cerr << "Failed to open log file: " << filename << std::endl;
             return false;
         }
@@ -125,6 +125,8 @@ public:
             return false;
         }
     }
+
+    void set_level(const b_sev& minimum_severity) { dist_sink->set_level(minimum_severity); }
 
     spdlog::async_logger* getInternalLogger() { return logger.get(); }
 };
@@ -158,6 +160,14 @@ public:
         return LoggerSingleton::get().add_rotating_file(filename, max_size, max_files, rotate_name,
                                                         minimum_severity);
     }
+
+    template <typename T>
+    bool add_stream(std::shared_ptr<T> sink, const b_sev& minimum_severity)
+    {
+        return LoggerSingleton::get().add_stream(sink, minimum_severity);
+    }
+
+    void set_level(const b_sev& minimum_severity) { LoggerSingleton::get().set_level(minimum_severity); }
 
     template <typename FormatString, typename... Args>
     void write(b_sev severity, const FormatString& fmtStr, Args&&... args)

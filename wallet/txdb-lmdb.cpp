@@ -14,7 +14,6 @@
 #include <future>
 #include <random>
 
-#include "db/defaultdblogger/defaultdblogger.h"
 #include "globals.h"
 #include "kernel.h"
 #include "main.h"
@@ -29,7 +28,6 @@ using namespace boost;
 
 boost::filesystem::path CTxDB::DB_DIR                         = "txlmdb";
 bool                    CTxDB::QuickSyncHigherControl_Enabled = true;
-std::unique_ptr<ILog>   CTxDB::TxDBLogger                     = MakeUnique<DefaultDBLogger>();
 
 bool IsQuickSyncOSCompatible(const std::string& osValue)
 {
@@ -315,7 +313,7 @@ CTxDB::CTxDB()
 {
     static boost::filesystem::path DBDir = GetDataDir() / DB_DIR;
 
-    db = MakeUnique<LMDB>(&DBDir, TxDBLogger.get());
+    db = MakeUnique<LMDB>(&DBDir);
 }
 
 void CTxDB::Close() { db->close(); }
@@ -601,12 +599,19 @@ bool CTxDB::LoadBlockIndex()
     // locations where the contents of the block can be found. Here, we scan it
     // out of the DB and into mapBlockIndex.
 
+    NLog.write(b_sev::info, "Reading raw block index data... please wait.");
+    uiInterface.InitMessage(_("Reading raw block index data..."));
+
     boost::optional<std::map<std::string, std::string>> blockIndexStr =
         db->readAllUnique(IDB::Index::DB_BLOCKINDEX_INDEX);
+
+    NLog.write(b_sev::info, "Done reading raw block index data.");
 
     uint64_t loadedCount = 0;
 
     BlockIndexMapType::MapType loadedBlockIndex;
+
+    NLog.write(b_sev::info, "Deserializing block index...");
 
     if (blockIndexStr) {
         // Now read each entry.

@@ -179,6 +179,8 @@ void InitLogging()
 
     const b_sev minSeverity = isDebugMode ? b_sev::debug : b_sev::info;
 
+    NLog.set_level(minSeverity);
+
     const bool logFileAddingResult = NLog.add_rotating_file(
         PossiblyWideStringToString(LogFilePath.native()), maxSize, maxFiles, rotateFile, minSeverity);
     if (!logFileAddingResult) {

@@ -241,7 +241,6 @@ OBJS= \
     obj/validation.o                          \
     obj/coldstakedelegation.o                 \
     obj/udaddress.o                           \
-    obj/db/defaultdblogger.o                  \
     obj/db/lmdb.o                             \
     obj/db/lmdbtransaction.o                  \
     obj/stringmanip.o                         \
@@ -293,14 +292,6 @@ obj/%.o: %.cpp
 
 obj/ntp1/%.o: ntp1/%.cpp
 	${MKDIR_P} obj obj/ntp1
-	$(CXX) -c $(xCXXFLAGS) -MMD -MF $(@:%.o=%.d) -o $@ $<
-	@cp $(@:%.o=%.d) $(@:%.o=%.P); \
-	  sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
-	      -e '/^$$/ d' -e 's/$$/ :/' < $(@:%.o=%.d) >> $(@:%.o=%.P); \
-	  rm -f $(@:%.o=%.d)
-
-obj/db/%.o: db/defaultdblogger/%.cpp
-	${MKDIR_P} obj/db
 	$(CXX) -c $(xCXXFLAGS) -MMD -MF $(@:%.o=%.d) -o $@ $<
 	@cp $(@:%.o=%.d) $(@:%.o=%.P); \
 	  sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \

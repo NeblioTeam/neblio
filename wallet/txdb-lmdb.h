@@ -78,8 +78,6 @@ public:
     // this flag is useful for disabling quicksync manually, for example, for tests
     static bool QuickSyncHigherControl_Enabled;
 
-    static std::unique_ptr<ILog> TxDBLogger;
-
     CTxDB();
     CTxDB(const CTxDB&) = delete;
     CTxDB(CTxDB&&)      = delete;
