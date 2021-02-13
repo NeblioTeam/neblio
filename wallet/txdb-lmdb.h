@@ -88,8 +88,6 @@ public:
     // Destroys the underlying shared global state accessed by this TxDB.
     void Close();
 
-    static void __deleteDb();
-
 private:
     int nVersion;
 
@@ -257,18 +255,6 @@ public:
     bool TxnBegin(std::size_t required_size = 0);
     bool TxnCommit();
     bool TxnAbort();
-
-    // for tests
-    bool test1_WriteStrKeyVal(const std::string& key, const std::string& val);
-    bool test1_ReadStrKeyVal(const std::string& key, std::string& val);
-    bool test1_ExistsStrKeyVal(const std::string& key);
-    bool test1_EraseStrKeyVal(const std::string& key);
-
-    bool test2_ReadMultipleStr1KeyVal(const std::string& key, std::vector<std::string>& val);
-    bool test2_ReadMultipleAllStr1KeyVal(std::map<std::string, std::vector<std::string>>& vals);
-    bool test2_WriteStrKeyVal(const std::string& key, const std::string& val);
-    bool test2_ExistsStrKeyVal(const std::string& key);
-    bool test2_EraseStrKeyVal(const std::string& key);
 
     boost::optional<int> ReadVersion();
 

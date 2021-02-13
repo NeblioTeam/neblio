@@ -318,65 +318,11 @@ CTxDB::CTxDB()
 
 void CTxDB::Close() { db->close(); }
 
-void CTxDB::__deleteDb()
-{
-    try {
-        boost::filesystem::remove_all(GetDataDir() / DB_DIR);
-    } catch (...) {
-    }
-}
-
 bool CTxDB::TxnBegin(size_t required_size) { return db->beginDBTransaction(required_size); }
 
 bool CTxDB::TxnCommit() { return db->commitDBTransaction(); }
 
 bool CTxDB::TxnAbort() { return db->abortDBTransaction(); }
-
-bool CTxDB::test1_WriteStrKeyVal(const string& key, const string& val)
-{
-    return db->write(IDB::Index::DB_MAIN_INDEX, key, val);
-}
-
-bool CTxDB::test1_ReadStrKeyVal(const string& key, string& val)
-{
-    auto res = db->read(IDB::Index::DB_MAIN_INDEX, key, 0, boost::none);
-    val      = res.value_or(val);
-    return !!res;
-}
-
-bool CTxDB::test1_ExistsStrKeyVal(const string& key)
-{
-    return db->exists(IDB::Index::DB_MAIN_INDEX, key);
-}
-bool CTxDB::test1_EraseStrKeyVal(const string& key) { return db->erase(IDB::Index::DB_MAIN_INDEX, key); }
-
-bool CTxDB::test2_ReadMultipleStr1KeyVal(const string& key, vector<string>& val)
-{
-    auto res = db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key);
-    val      = res.value_or(val);
-    return !!res;
-}
-
-bool CTxDB::test2_ReadMultipleAllStr1KeyVal(std::map<string, vector<string>>& vals)
-{
-    auto res = db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
-    vals     = res.value_or(vals);
-    return !!res;
-}
-
-bool CTxDB::test2_WriteStrKeyVal(const string& key, const string& val)
-{
-    return db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key, val);
-}
-
-bool CTxDB::test2_ExistsStrKeyVal(const string& key)
-{
-    return db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key);
-}
-bool CTxDB::test2_EraseStrKeyVal(const string& key)
-{
-    return db->eraseAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key);
-}
 
 boost::optional<int> CTxDB::ReadVersion()
 {
