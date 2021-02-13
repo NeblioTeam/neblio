@@ -386,7 +386,7 @@ def sync_blocks(rpc_connections, *, wait=1, timeout=600):
     raise AssertionError("Block sync to height {} timed out:{}".format(
                          maxheight, "".join("\n  {!r}".format(tip) for tip in tips)))
 
-def sync_chain(rpc_connections, *, wait=1, timeout=60):
+def sync_chain(rpc_connections, *, wait=1, timeout=600):
     """
     Wait until everybody has the same best block
     """
@@ -399,7 +399,7 @@ def sync_chain(rpc_connections, *, wait=1, timeout=60):
     raise AssertionError("Chain sync failed: Best block hashes don't match")
 
 
-def sync_mempools(rpc_connections, *, wait=1, timeout=60, flush_scheduler=True):
+def sync_mempools(rpc_connections, *, wait=1, timeout=600, flush_scheduler=True):
     """
     Wait until everybody has the same transactions in their memory
     pools
