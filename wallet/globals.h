@@ -31,8 +31,6 @@ extern boost::atomic<uint256> nBestInvalidTrust;
 
 extern boost::atomic<uint32_t> nTransactionsUpdated;
 
-extern bool fUseFastIndex;
-
 /** The maximum allowed size for a serialized block, in bytes (network rule) */
 static const unsigned int MAX_BLOCK_SIZE     = 8000000;
 static const unsigned int OLD_MAX_BLOCK_SIZE = 1000000;
@@ -59,8 +57,8 @@ static const unsigned int MAX_SUBVERSION_LENGTH = 256;
 static const int64_t COIN_YEAR_REWARD = 10 * CENT; // 10%
 
 /** The maximum allowed Peer Protocol Version */
-static const unsigned int MIN_PEER_PROTO_VERSION     = 60320; // v3.2.0+
-static const unsigned int OLD_MIN_PEER_PROTO_VERSION = 60210; // v2.1+
+static const unsigned int     MIN_PEER_PROTO_VERSION     = 60320; // v3.2.0+
+static const unsigned int     OLD_MIN_PEER_PROTO_VERSION = 60210; // v2.1+
 extern boost::atomic<int64_t> NodeIDCounter;
 
 /** Subversion as sent to the P2P network in `version` messages */

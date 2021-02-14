@@ -468,7 +468,6 @@ bool AppInit2()
     // ********************************************************* Step 2: parameter interactions
 
     nNodeLifespan = GetArg("-addrlifespan", 7);
-    fUseFastIndex = GetBoolArg("-fastindex", true);
     nMinerSleep   = GetArg("-minersleep", 500);
 
     CheckpointsMode       = Checkpoints::CPMode_STRICT;

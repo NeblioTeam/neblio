@@ -4,23 +4,7 @@
 #include "globals.h"
 #include "util.h"
 
-uint256 CDiskBlockIndex::GetBlockHash() const
-{
-    if (fUseFastIndex && (nTime < GetAdjustedTime() - 24 * 60 * 60) && blockHash != 0)
-        return blockHash;
-
-    CBlock block;
-    block.nVersion       = nVersion;
-    block.hashPrevBlock  = hashPrev;
-    block.hashMerkleRoot = hashMerkleRoot;
-    block.nTime          = nTime;
-    block.nBits          = nBits;
-    block.nNonce         = nNonce;
-
-    const_cast<CDiskBlockIndex*>(this)->blockHash = block.GetHash();
-
-    return blockHash;
-}
+uint256 CDiskBlockIndex::GetBlockHash() const { return phashBlock; }
 
 std::string CDiskBlockIndex::ToString() const
 {
@@ -30,3 +14,7 @@ std::string CDiskBlockIndex::ToString() const
                        hashPrev.ToString(), hashNext.ToString());
     return str;
 }
+
+void CDiskBlockIndex::SetBlockHash(const uint256& hash) { phashBlock = hash; }
+
+void CDiskBlockIndex::print() const { NLog.write(b_sev::info, "{}", ToString()); }
