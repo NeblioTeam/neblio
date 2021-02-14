@@ -899,7 +899,7 @@ CBlockIndexSmartPtr CBlock::FindBlockByHeight(int nHeight)
     return pblockindex;
 }
 
-void CBlock::InvalidChainFound(const CBlockIndexSmartPtr& pindexNew, CTxDB& txdb)
+void CBlock::InvalidChainFound(const ConstCBlockIndexSmartPtr& pindexNew, CTxDB& txdb)
 {
     if (pindexNew->nChainTrust > nBestInvalidTrust) {
         nBestInvalidTrust = pindexNew->nChainTrust;

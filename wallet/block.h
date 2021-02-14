@@ -198,7 +198,7 @@ public:
 
     static CBlockIndexSmartPtr FindBlockByHeight(int nHeight);
 
-    static void InvalidChainFound(const CBlockIndexSmartPtr& pindexNew, CTxDB& txdb);
+    static void InvalidChainFound(const ConstCBlockIndexSmartPtr& pindexNew, CTxDB& txdb);
 
     bool Reorganize(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
                     const bool createDbTransaction = true);
