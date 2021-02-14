@@ -601,6 +601,7 @@ bool CTxDB::LoadBlockIndex()
             pindexNew->nTime              = diskindex.nTime;
             pindexNew->nBits              = diskindex.nBits;
             pindexNew->nNonce             = diskindex.nNonce;
+            pindexNew->nChainTrust        = diskindex.nChainTrust;
 
             // Watch for genesis block
             if (pindexGenesisBlock == nullptr && blockHash == Params().GenesisBlockHash())
@@ -631,38 +632,40 @@ bool CTxDB::LoadBlockIndex()
     if (fRequestShutdown)
         return true;
 
+    // we don't calcualte nChainTrust anymore since we store it on disk now
     // Calculate nChainTrust
-    vector<pair<int, CBlockIndex*>> vSortedByHeight;
-    vSortedByHeight.reserve(loadedBlockIndex.size());
-    uiInterface.InitMessage("Building chain trust... (allocating memory...)");
-    for (const PAIRTYPE(const uint256, CBlockIndexSmartPtr) & item : loadedBlockIndex) {
-        CBlockIndex* pindex = item.second.get();
-        vSortedByHeight.push_back(make_pair(pindex->nHeight, pindex));
-    }
-    // use heap-sort to guarantee O(n*log(n)) performance, since std::sort() can have O(n^2) complexity
-    uiInterface.InitMessage("Building chain trust... (sorting...)");
-    std::make_heap(vSortedByHeight.begin(), vSortedByHeight.end());
-    std::sort_heap(vSortedByHeight.begin(), vSortedByHeight.end());
-    loadedCount = 0;
-    for (const PAIRTYPE(int, CBlockIndex*) & item : vSortedByHeight) {
-        loadedCount++;
-        if (loadedCount % 50000 == 0) {
-            uiInterface.InitMessage(
-                "Building chain trust... (chaining block: " + std::to_string(loadedCount) + "/" +
-                std::to_string(vSortedByHeight.size()) + ")");
-        }
-        CBlockIndex* pindex = item.second;
-        pindex->nChainTrust = (pindex->pprev ? pindex->pprev->nChainTrust : 0) + pindex->GetBlockTrust();
-        // NovaCoin: calculate stake modifier checksum
-        pindex->nStakeModifierChecksum = GetStakeModifierChecksum(pindex);
-        if (!CheckStakeModifierCheckpoints(pindex->nHeight, pindex->nStakeModifierChecksum)) {
-            NLog.write(b_sev::err,
-                       "CTxDB::LoadBlockIndex() : Failed stake modifier checkpoint height={}, "
-                       "modifier={:016x}",
-                       pindex->nHeight, pindex->nStakeModifier);
-            return false;
-        }
-    }
+    //    vector<pair<int, CBlockIndex*>> vSortedByHeight;
+    //    vSortedByHeight.reserve(loadedBlockIndex.size());
+    //    uiInterface.InitMessage("Building chain trust... (allocating memory...)");
+    //    for (const PAIRTYPE(const uint256, CBlockIndexSmartPtr) & item : loadedBlockIndex) {
+    //        CBlockIndex* pindex = item.second.get();
+    //        vSortedByHeight.push_back(make_pair(pindex->nHeight, pindex));
+    //    }
+    //    // use heap-sort to guarantee O(n*log(n)) performance, since std::sort() can have O(n^2)
+    //    complexity uiInterface.InitMessage("Building chain trust... (sorting...)");
+    //    std::make_heap(vSortedByHeight.begin(), vSortedByHeight.end());
+    //    std::sort_heap(vSortedByHeight.begin(), vSortedByHeight.end());
+    //    loadedCount = 0;
+    //    for (const PAIRTYPE(int, CBlockIndex*) & item : vSortedByHeight) {
+    //        loadedCount++;
+    //        if (loadedCount % 50000 == 0) {
+    //            uiInterface.InitMessage(
+    //                "Building chain trust... (chaining block: " + std::to_string(loadedCount) + "/" +
+    //                std::to_string(vSortedByHeight.size()) + ")");
+    //        }
+    //        CBlockIndex* pindex = item.second;
+    //        pindex->nChainTrust = (pindex->pprev ? pindex->pprev->nChainTrust : 0) +
+    //        pindex->GetBlockTrust();
+    //        // NovaCoin: calculate stake modifier checksum
+    //        pindex->nStakeModifierChecksum = GetStakeModifierChecksum(pindex);
+    //        if (!CheckStakeModifierCheckpoints(pindex->nHeight, pindex->nStakeModifierChecksum)) {
+    //            NLog.write(b_sev::err,
+    //                       "CTxDB::LoadBlockIndex() : Failed stake modifier checkpoint height={}, "
+    //                       "modifier={:016x}",
+    //                       pindex->nHeight, pindex->nStakeModifier);
+    //            return false;
+    //        }
+    //    }
 
     // Load hashBestChain pointer to end of best chain
     uint256 hashBestChainTemp = 0;

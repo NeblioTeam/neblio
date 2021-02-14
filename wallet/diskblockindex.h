@@ -54,6 +54,7 @@ public:
         READWRITE(nBits);
         READWRITE(nNonce);
         READWRITE(phashBlock);
+        READWRITE(nChainTrust);
     )
     // clang-format on
 
