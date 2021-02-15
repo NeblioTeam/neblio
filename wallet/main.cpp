@@ -194,7 +194,7 @@ bool AddOrphanTx(const CTransaction& tx)
         mapOrphanTransactionsByPrev[txin.prevout.hash].insert(hash);
 
     NLog.write(b_sev::info, "stored orphan tx {} (mapsz {})", hash.ToString().substr(0, 10),
-              mapOrphanTransactions.size());
+               mapOrphanTransactions.size());
     return true;
 }
 
@@ -531,7 +531,7 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTran
 
                 if (fDebug)
                     NLog.write(b_sev::debug, "Rate limit dFreeCount: {} => {}", dFreeCount,
-                              dFreeCount + nSize);
+                               dFreeCount + nSize);
                 dFreeCount += nSize;
             }
         }
@@ -554,9 +554,9 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTran
                 }
             } catch (std::exception& ex) {
                 NLog.write(b_sev::err,
-                          "AcceptToMemoryPool: An invalid NTP1 transaction was submitted to the memory "
-                          "pool; an exception was thrown: {}",
-                          ex.what());
+                           "AcceptToMemoryPool: An invalid NTP1 transaction was submitted to the memory "
+                           "pool; an exception was thrown: {}",
+                           ex.what());
                 // TX_NTP1_ERROR
                 return Err(MakeInvalidTxState(
                     TxValidationResult::TX_NTP1_ERROR, "ntp1-error",
@@ -575,7 +575,7 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTran
         LOCK(pool.cs);
         if (ptxOld) {
             NLog.write(b_sev::info, "AcceptToMemoryPool : replacing tx {} with new version",
-                      ptxOld->GetHash().ToString());
+                       ptxOld->GetHash().ToString());
             pool.remove(*ptxOld);
         }
         pool.addUnchecked(hash, tx);
@@ -586,8 +586,8 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTran
     if (ptxOld)
         EraseFromWallets(ptxOld->GetHash());
 
-    NLog.write(b_sev::info, "AcceptToMemoryPool : accepted {} (poolsz {})", hash.ToString().substr(0, 10),
-              pool.mapTx.size());
+    NLog.write(b_sev::info, "AcceptToMemoryPool : accepted {} (poolsz {})",
+               hash.ToString().substr(0, 10), pool.mapTx.size());
 
     return Ok();
 }
@@ -1089,8 +1089,8 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     if (pblock->IsProofOfStake() && setStakeSeen.count(pblock->GetProofOfStake()) &&
         !mapOrphanBlocksByPrev.count(hash))
         return NLog.error("ProcessBlock() : duplicate proof-of-stake ({}, {}) for block {}",
-                         pblock->GetProofOfStake().first.ToString(), pblock->GetProofOfStake().second,
-                         hash.ToString());
+                          pblock->GetProofOfStake().first.ToString(), pblock->GetProofOfStake().second,
+                          hash.ToString());
 
     const CTxDB txdb;
 
@@ -1117,7 +1117,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
             if (pfrom)
                 pfrom->Misbehaving(100);
             return NLog.error("ProcessBlock() : block with too little {}",
-                             pblock->IsProofOfStake() ? "proof-of-stake" : "proof-of-work");
+                              pblock->IsProofOfStake() ? "proof-of-stake" : "proof-of-work");
         }
     }
 
@@ -1440,10 +1440,9 @@ void PrintBlockTree()
         // print item
         CBlock block;
         block.ReadFromDisk(pindex.get());
-        NLog.write(b_sev::info, "{} ({}) {}  {:08x}  {}  mint {}  tx {}", pindex->nHeight,
-                  pindex->blockKeyInDB.ToString(), block.GetHash().ToString(), block.nBits,
-                  DateTimeStrFormat("%x %H:%M:%S", block.GetBlockTime()), FormatMoney(pindex->nMint),
-                  block.vtx.size());
+        NLog.write(b_sev::info, "{} ({}) {}  {:08x}  {}  tx {}", pindex->nHeight,
+                   pindex->blockKeyInDB.ToString(), block.GetHash().ToString(), block.nBits,
+                   DateTimeStrFormat("%x %H:%M:%S", block.GetBlockTime()), block.vtx.size());
 
         PrintWallets(block);
 
@@ -1528,7 +1527,7 @@ bool LoadExternalBlockFile(FILE* fileIn)
         }
     }
     NLog.write(b_sev::info, "Loaded {} blocks from external file in {} ms", nLoaded,
-              GetTimeMillis() - nStart);
+               GetTimeMillis() - nStart);
     return nLoaded > 0;
 }
 
@@ -1677,7 +1676,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         if (pfrom->nVersion < minPeerVer) {
             // disconnect from peers older than this proto version
             NLog.write(b_sev::info, "partner {} using obsolete version {}; disconnecting",
-                      pfrom->addr.ToString(), pfrom->nVersion);
+                       pfrom->addr.ToString(), pfrom->nVersion);
             pfrom->fDisconnect = true;
             return false;
         }
@@ -1770,9 +1769,10 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 
         pfrom->fSuccessfullyConnected = true;
 
-        NLog.write(b_sev::info, "receive version message: version {}, blocks={}, us={}, them={}, peer={}",
-                  pfrom->nVersion, pfrom->nStartingHeight, addrMe.ToString(), addrFrom.ToString(),
-                  pfrom->addr.ToString());
+        NLog.write(b_sev::info,
+                   "receive version message: version {}, blocks={}, us={}, them={}, peer={}",
+                   pfrom->nVersion, pfrom->nStartingHeight, addrMe.ToString(), addrFrom.ToString(),
+                   pfrom->addr.ToString());
 
         cPeerBlockCounts.input(pfrom->nStartingHeight);
     }
@@ -1881,7 +1881,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                 bool fAlreadyHave = AlreadyHave(txdb, inv, mapBlockIndex);
                 if (fDebug)
                     NLog.write(b_sev::debug, "got inventory: {}  {}", inv.ToString(),
-                              fAlreadyHave ? "have" : "new");
+                               fAlreadyHave ? "have" : "new");
 
                 if (!fAlreadyHave) {
                     if (!fImporting)
@@ -2005,12 +2005,12 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
             pindex = boost::atomic_load(&pindex->pnext);
         int nLimit = 500;
         NLog.write(b_sev::info, "getblocks {} to {} limit {}", (pindex ? pindex->nHeight : -1),
-                  hashStop.ToString(), nLimit);
+                   hashStop.ToString(), nLimit);
         CTxDB txdb;
         for (; pindex; pindex = pindex->pnext) {
             if (pindex->GetBlockHash() == hashStop) {
                 NLog.write(b_sev::info, "  getblocks stopping at {} {}", pindex->nHeight,
-                          pindex->GetBlockHash().ToString());
+                           pindex->GetBlockHash().ToString());
                 unsigned int nSMA = Params().StakeMinAge(txdb);
                 // ppcoin: tell downloading node about the latest block if it's
                 // without risk being rejected due to stake connection check
@@ -2025,7 +2025,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                 // When this block is requested, we'll send an inv that'll make them
                 // getblocks the next batch of inventory.
                 NLog.write(b_sev::info, "  getblocks stopping at limit {} {}", pindex->nHeight,
-                          pindex->GetBlockHash().ToString());
+                           pindex->GetBlockHash().ToString());
                 pfrom->hashContinue = pindex->GetBlockHash();
                 break;
             }
@@ -2054,7 +2054,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         vector<CBlock> vHeaders;
         int            nLimit = 2000;
         NLog.write(b_sev::info, "getheaders {} to {}", (pindex ? pindex->nHeight : -1),
-                  hashStop.ToString());
+                   hashStop.ToString());
         for (; pindex; pindex = pindex->pnext) {
             vHeaders.push_back(pindex->GetBlockHeader());
             if (--nLimit <= 0 || pindex->GetBlockHash() == hashStop)
@@ -2104,7 +2104,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                         // invalid orphan
                         vEraseQueue.push_back(orphanTxHash);
                         NLog.write(b_sev::info, "   removed invalid orphan tx {}",
-                                  orphanTxHash.ToString());
+                                   orphanTxHash.ToString());
                     }
                 }
             }
@@ -2308,7 +2308,7 @@ bool ProcessMessages(CNode* pfrom)
 
         if (fDebug)
             NLog.write(b_sev::debug, "ProcessMessages(message {} msgsz, {} bytes, complete:{})",
-                      msg.hdr.nMessageSize, msg.vRecv.size(), msg.complete() ? "Y" : "N");
+                       msg.hdr.nMessageSize, msg.vRecv.size(), msg.complete() ? "Y" : "N");
 
         // end, if an incomplete message is found
         if (!msg.complete())
@@ -2364,13 +2364,13 @@ bool ProcessMessages(CNode* pfrom)
             if (strstr(e.what(), "end of data")) {
                 // Allow exceptions from under-length message on vRecv
                 NLog.write(b_sev::err,
-                          "ProcessMessages({}, {} bytes) : Exception '{}' caught, normally caused by a "
-                          "message being shorter than its stated length",
-                          strCommand, nMessageSize, e.what());
+                           "ProcessMessages({}, {} bytes) : Exception '{}' caught, normally caused by a "
+                           "message being shorter than its stated length",
+                           strCommand, nMessageSize, e.what());
             } else if (strstr(e.what(), "size too large")) {
                 // Allow exceptions from over-long size
                 NLog.write(b_sev::err, "ProcessMessages({}, {} bytes) : Exception '{}' caught",
-                          strCommand, nMessageSize, e.what());
+                           strCommand, nMessageSize, e.what());
             } else {
                 PrintExceptionContinue(&e, "ProcessMessages()");
             }

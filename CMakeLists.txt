@@ -632,6 +632,8 @@ add_library(core_lib STATIC
     wallet/itxdb.h
     wallet/coldstakedelegation.cpp
     wallet/udaddress.cpp
+    wallet/blockreject.cpp
+    wallet/blockmetadata.cpp
     )
 
 target_link_libraries(core_lib

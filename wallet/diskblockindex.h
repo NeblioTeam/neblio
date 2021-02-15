@@ -17,7 +17,7 @@ public:
         hashNext = 0;
     }
 
-    explicit CDiskBlockIndex(CBlockIndex* pindex) : CBlockIndex(*pindex)
+    explicit CDiskBlockIndex(const CBlockIndex* pindex) : CBlockIndex(*pindex)
     {
         hashPrev = (pprev ? pprev->GetBlockHash() : 0);
         hashNext = (pnext ? pnext->GetBlockHash() : 0);
@@ -31,8 +31,6 @@ public:
         READWRITE(hashNext);
         READWRITE(blockKeyInDB);
         READWRITE(nHeight);
-        READWRITE(nMint);
-        READWRITE(nMoneySupply);
         READWRITE(nFlags);
         READWRITE(nStakeModifier);
 

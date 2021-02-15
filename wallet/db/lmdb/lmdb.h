@@ -21,12 +21,13 @@ struct __lmdb_db_pointers
     DbSmartPtrType db_ntp1Tx;
     DbSmartPtrType db_ntp1tokenNames;
     DbSmartPtrType db_addrsVsPubKeys;
+    DbSmartPtrType db_blockMetadata;
 
     __lmdb_db_pointers()
         : db_main(nullptr, [](MDB_dbi*) {}), db_blockIndex(nullptr, [](MDB_dbi*) {}),
           db_blocks(nullptr, [](MDB_dbi*) {}), db_tx(nullptr, [](MDB_dbi*) {}),
           db_ntp1Tx(nullptr, [](MDB_dbi*) {}), db_ntp1tokenNames(nullptr, [](MDB_dbi*) {}),
-          db_addrsVsPubKeys(nullptr, [](MDB_dbi*) {})
+          db_addrsVsPubKeys(nullptr, [](MDB_dbi*) {}), db_blockMetadata(nullptr, [](MDB_dbi*) {})
     {
     }
 
@@ -39,6 +40,7 @@ struct __lmdb_db_pointers
         db_ntp1Tx.reset();
         db_ntp1tokenNames.reset();
         db_addrsVsPubKeys.reset();
+        db_blockMetadata.reset();
     }
 };
 

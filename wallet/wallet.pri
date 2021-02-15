@@ -163,12 +163,14 @@ HEADERS += qt/bitcoingui.h \
     qt/coldstakingpage.h             \
     qt/newstakedelegationdialog.h    \
     coldstakedelegation.h            \
-    db/idb.h                           \
-    db/lmdb/lmdb.h                     \
-    db/lmdb/lmdbtransaction.h          \
-    stringmanip.h                      \
-    logging/defaultlogger.h            \
-    logging/logger.h
+    db/idb.h                         \
+    db/lmdb/lmdb.h                   \
+    db/lmdb/lmdbtransaction.h        \
+    stringmanip.h                    \
+    logging/defaultlogger.h          \
+    logging/logger.h                 \
+    blockreject.h                    \
+    blockmetadata.h
 
 
 
@@ -333,7 +335,9 @@ SOURCES += qt/bitcoin.cpp \
     db/lmdb/lmdbtransaction.cpp         \
     stringmanip.cpp                     \
     logging/defaultlogger.cpp           \
-    logging/logger.cpp
+    logging/logger.cpp                  \
+    blockreject.cpp                     \
+    blockmetadata.cpp
 
 
 

@@ -1,8 +1,9 @@
-﻿#include "block.h"
+#include "block.h"
 
 #include "NetworkForks.h"
 #include "blockindex.h"
 #include "blocklocator.h"
+#include "blockmetadata.h"
 #include "checkpoints.h"
 #include "kernel.h"
 #include "main.h"
@@ -15,6 +16,7 @@
 #include "work.h"
 #include <boost/algorithm/string.hpp>
 #include <boost/foreach.hpp>
+#include <boost/scope_exit.hpp>
 #include <mutex>
 
 void CBlock::print() const
@@ -504,9 +506,11 @@ bool CBlock::CheckBIP30Attack(CTxDB& txdb, const uint256& hashTx)
     return true;
 }
 
-bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool fJustCheck)
+bool CBlock::ConnectBlock(CTxDB& txdb, const ConstCBlockIndexSmartPtr& pindex, bool fJustCheck)
 {
-    NLog.write(b_sev::info, "Connecting block: {}", this->GetHash().ToString());
+    const uint256 blockHash = GetHash();
+
+    NLog.write(b_sev::info, "Connecting block: {}", blockHash.ToString());
 
     // Check it again in case a previous version let a bad block in, but skip BlockSig checking
     if (!CheckBlock(txdb, !fJustCheck, !fJustCheck, false))
@@ -541,7 +545,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
     std::unordered_map<std::string, uint256> issuedTokensSymbolsInThisBlock;
 
     for (CTransaction& tx : vtx) {
-        uint256 hashTx = tx.GetHash();
+        const uint256 hashTx = tx.GetHash();
 
         std::vector<std::pair<CTransaction, NTP1Transaction>> inputsWithNTP1;
 
@@ -667,14 +671,37 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
                                   nStakeReward, nCalculatedStakeReward));
     }
 
-    // ppcoin: track money supply and mint amount info
-    pindex->nMint        = nValueOut - nValueIn + nFees;
-    pindex->nMoneySupply = (pindex->pprev ? pindex->pprev->nMoneySupply : 0) + nValueOut - nValueIn;
-    if (!txdb.WriteBlockIndex(CDiskBlockIndex(pindex.get())))
-        return NLog.error("Connect() : WriteBlockIndex for pindex failed");
-
     if (fJustCheck)
         return true;
+
+    // ppcoin: track money supply and mint amount info
+    const CAmount                  nMint            = nValueOut - nValueIn + nFees;
+    const boost::optional<CAmount> nPrevMoneySupply = [&]() {
+        // genesis and block 1 have prev money supply = 0
+        if (pindex->pprev && pindex->nHeight > 1) {
+            const uint256 prevHash = pindex->pprev->GetBlockHash();
+
+            const boost::optional<BlockMetadata> blockMetadata = txdb.ReadBlockMetadata(prevHash);
+            if (blockMetadata) {
+                return boost::make_optional(blockMetadata->getMoneySupply());
+            } else {
+                return boost::optional<CAmount>();
+            }
+        }
+        return boost::make_optional<CAmount>(0);
+    }();
+    if (!nPrevMoneySupply) {
+        return NLog.error("Connect() : Failed to retrieve prev money supply from block metadata");
+    }
+
+    const CAmount nMoneySupply = *nPrevMoneySupply + nValueOut - nValueIn;
+
+    const BlockMetadata blockMetadata(blockHash, nMoneySupply, nMint);
+    if (!txdb.WriteBlockMetadata(blockMetadata))
+        return NLog.error("Connect() : WriteBlockMetadata for blockMetadata failed");
+
+    if (!txdb.WriteBlockIndex(CDiskBlockIndex(pindex.get())))
+        return NLog.error("Connect() : WriteBlockIndex for pindex failed");
 
     // Write queued txindex changes
     for (std::map<uint256, CTxIndex>::iterator mi = mapQueuedChanges.begin();
@@ -721,7 +748,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
 bool CBlock::SetBestChainInner(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
                                const bool createDbTransaction)
 {
-    uint256 hash = GetHash();
+    const uint256 hash = GetHash();
 
     // Adding to current best branch
     if (!ConnectBlock(txdb, pindexNew) || !txdb.WriteHashBestChain(hash)) {

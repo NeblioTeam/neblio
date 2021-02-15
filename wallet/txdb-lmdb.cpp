@@ -14,6 +14,7 @@
 #include <future>
 #include <random>
 
+#include "blockmetadata.h"
 #include "globals.h"
 #include "kernel.h"
 #include "main.h"
@@ -487,6 +488,21 @@ bool CTxDB::WriteBlockIndex(const CDiskBlockIndex& blockindex)
     return Write(blockindex.GetBlockHash(), blockindex, IDB::Index::DB_BLOCKINDEX_INDEX);
 }
 
+boost::optional<BlockMetadata> CTxDB::ReadBlockMetadata(const uint256& blockHash) const
+{
+    BlockMetadata blockMetadata(0, 0, 0);
+    if (Read(blockHash, blockMetadata, IDB::Index::DB_BLOCKMETADATA_INDEX)) {
+        return boost::make_optional(std::move(blockMetadata));
+    } else {
+        return boost::none;
+    }
+}
+
+bool CTxDB::WriteBlockMetadata(const BlockMetadata& blockMetadata)
+{
+    return Write(blockMetadata.getBlockHash(), blockMetadata, IDB::Index::DB_BLOCKMETADATA_INDEX);
+}
+
 bool CTxDB::ReadHashBestChain(uint256& hashBestChain) const
 {
     return Read(string("hashBestChain"), hashBestChain, IDB::Index::DB_MAIN_INDEX);
@@ -589,8 +605,6 @@ bool CTxDB::LoadBlockIndex()
             pindexNew->pnext              = InsertBlockIndex(diskindex.hashNext, loadedBlockIndex);
             pindexNew->blockKeyInDB       = diskindex.blockKeyInDB;
             pindexNew->nHeight            = diskindex.nHeight;
-            pindexNew->nMint              = diskindex.nMint;
-            pindexNew->nMoneySupply       = diskindex.nMoneySupply;
             pindexNew->nFlags             = diskindex.nFlags;
             pindexNew->nStakeModifier     = diskindex.nStakeModifier;
             pindexNew->prevoutStake       = diskindex.prevoutStake;

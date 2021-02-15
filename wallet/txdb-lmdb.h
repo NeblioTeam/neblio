@@ -279,11 +279,13 @@ public:
     bool ReadBlock(const uint256& hash, CBlock& blk, bool fReadTransactions = true) const override;
     bool WriteBlock(const uint256& hash, const CBlock& blk) override;
     bool WriteBlockIndex(const CDiskBlockIndex& blockindex) override;
-    bool ReadHashBestChain(uint256& hashBestChain) const override;
-    bool WriteHashBestChain(const uint256& hashBestChain) override;
-    bool ReadBestInvalidTrust(CBigNum& bnBestInvalidTrust) const override;
-    bool WriteBestInvalidTrust(const CBigNum& bnBestInvalidTrust) override;
-    bool LoadBlockIndex() override;
+    boost::optional<BlockMetadata> ReadBlockMetadata(const uint256& blockHash) const override;
+    bool                           WriteBlockMetadata(const BlockMetadata& blockMetadata) override;
+    bool                           ReadHashBestChain(uint256& hashBestChain) const override;
+    bool                           WriteHashBestChain(const uint256& hashBestChain) override;
+    bool                           ReadBestInvalidTrust(CBigNum& bnBestInvalidTrust) const override;
+    bool                           WriteBestInvalidTrust(const CBigNum& bnBestInvalidTrust) override;
+    bool                           LoadBlockIndex() override;
     boost::optional<int>           GetBestChainHeight() const override;
     boost::optional<uint256>       GetBestChainTrust() const override;
     boost::shared_ptr<CBlockIndex> GetBestBlockIndex() const override;

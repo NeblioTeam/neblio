@@ -5,6 +5,7 @@
 
 #include "amount.h"
 #include "bitcoinrpc.h"
+#include "blockmetadata.h"
 #include "main.h"
 #include "merkletx.h"
 #include "txdb.h"
@@ -105,16 +106,19 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
 {
     Object result;
     result.push_back(Pair("hash", block.GetHash().GetHex()));
-    int confirmations = -1;
+    const CTxDB txdb;
+    int         confirmations = -1;
     // Only report confirmations if the block is on the main chain
-    if (blockindex->IsInMainChain(CTxDB()))
-        confirmations = CTxDB().GetBestChainHeight().value_or(0) - blockindex->nHeight + 1;
+    if (blockindex->IsInMainChain(txdb))
+        confirmations = txdb.GetBestChainHeight().value_or(0) - blockindex->nHeight + 1;
     result.push_back(Pair("confirmations", confirmations));
     result.push_back(Pair("size", (int)::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION)));
     result.push_back(Pair("height", blockindex->nHeight));
     result.push_back(Pair("version", block.nVersion));
     result.push_back(Pair("merkleroot", block.hashMerkleRoot.GetHex()));
-    result.push_back(Pair("mint", ValueFromAmount(blockindex->nMint)));
+    const boost::optional<BlockMetadata> blockMetadata = txdb.ReadBlockMetadata(block.GetHash());
+    result.push_back(
+        Pair("mint", blockMetadata ? ValueFromAmount(blockMetadata->getMint()) : "<ERROR>"));
     result.push_back(Pair("time", (int64_t)block.GetBlockTime()));
     result.push_back(Pair("nonce", (uint64_t)block.nNonce));
     result.push_back(Pair("bits", fmt::format("{:08x}", block.nBits)));
@@ -397,7 +401,7 @@ Value exportblockchain(const Array& params, bool fHelp)
     }
 
     NLog.write(b_sev::info, "Export blockchain to path started in another thread. Writing to path: {}",
-              filename.string());
+               filename.string());
 
     int progVal            = 0;
     int lastPrintedProgVal = -1;

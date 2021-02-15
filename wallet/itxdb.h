@@ -1,6 +1,7 @@
 #ifndef ITXDB_H
 #define ITXDB_H
 
+#include "blockmetadata.h"
 #include <boost/optional.hpp>
 #include <string>
 #include <vector>
@@ -45,11 +46,13 @@ public:
     virtual bool ReadBlock(const uint256& hash, CBlock& blk, bool fReadTransactions = true) const   = 0;
     virtual bool WriteBlock(const uint256& hash, const CBlock& blk)                                 = 0;
     virtual bool WriteBlockIndex(const CDiskBlockIndex& blockindex)                                 = 0;
-    virtual bool ReadHashBestChain(uint256& hashBestChain) const                                    = 0;
-    virtual bool WriteHashBestChain(const uint256& hashBestChain)                                   = 0;
-    virtual bool ReadBestInvalidTrust(CBigNum& bnBestInvalidTrust) const                            = 0;
-    virtual bool WriteBestInvalidTrust(const CBigNum& bnBestInvalidTrust)                           = 0;
-    virtual bool LoadBlockIndex()                                                                   = 0;
+    virtual boost::optional<BlockMetadata> ReadBlockMetadata(const uint256& blockHash) const        = 0;
+    virtual bool                           WriteBlockMetadata(const BlockMetadata& blockMetadata)   = 0;
+    virtual bool                           ReadHashBestChain(uint256& hashBestChain) const          = 0;
+    virtual bool                           WriteHashBestChain(const uint256& hashBestChain)         = 0;
+    virtual bool                           ReadBestInvalidTrust(CBigNum& bnBestInvalidTrust) const  = 0;
+    virtual bool                           WriteBestInvalidTrust(const CBigNum& bnBestInvalidTrust) = 0;
+    virtual bool                           LoadBlockIndex()                                         = 0;
     virtual boost::optional<int>           GetBestChainHeight() const                               = 0;
     virtual boost::optional<uint256>       GetBestChainTrust() const                                = 0;
     virtual boost::shared_ptr<CBlockIndex> GetBestBlockIndex() const                                = 0;

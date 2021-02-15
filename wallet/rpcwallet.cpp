@@ -6,6 +6,7 @@
 #include "NetworkForks.h"
 #include "base58.h"
 #include "bitcoinrpc.h"
+#include "blockmetadata.h"
 #include "boost/make_shared.hpp"
 #include "coldstakedelegation.h"
 #include "globals.h"
@@ -95,6 +96,10 @@ Value getinfo(const Array& params, bool fHelp)
     CTxDB txdb;
 
     auto bestBlockIndex = txdb.GetBestBlockIndex();
+    if (!bestBlockIndex) {
+        NLog.write(b_sev::err, "Failed to find best block in RPC call to getinfo");
+        throw runtime_error("Failed to find best block in RPC call to getinfo");
+    }
 
     Object obj, diff;
     obj.push_back(Pair("version", FormatFullVersion()));
@@ -105,7 +110,10 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("stake", ValueFromAmount(pwalletMain->GetStake())));
     obj.push_back(Pair("blocks", (int)bestBlockIndex->nHeight));
     obj.push_back(Pair("timeoffset", (int64_t)GetTimeOffset()));
-    obj.push_back(Pair("moneysupply", ValueFromAmount(bestBlockIndex->nMoneySupply)));
+    const boost::optional<BlockMetadata> blockMetadata =
+        txdb.ReadBlockMetadata(bestBlockIndex->GetBlockHash());
+    obj.push_back(Pair("moneysupply",
+                       blockMetadata ? ValueFromAmount(blockMetadata->getMoneySupply()) : "<ERROR>"));
     obj.push_back(Pair("connections", (int)vNodes.size()));
     obj.push_back(Pair("proxy", (proxy.first.IsValid() ? proxy.first.ToStringIPPort() : string())));
     obj.push_back(Pair("ip", addrSeenByPeer.get().ToStringIP()));
@@ -1580,7 +1588,7 @@ Value sendmany(const Array& params, bool fHelp)
         ntp1tx.readNTP1DataFromTx(wtx, inputsTxs);
     } catch (std::exception& ex) {
         NLog.write(b_sev::info, "An invalid NTP1 transaction was created; an exception was thrown: {}",
-                  ex.what());
+                   ex.what());
         throw std::runtime_error(
             "Unable to create the transaction. The transaction created would result in an invalid "
             "transaction. Please report your transaction details to the Neblio team. The "

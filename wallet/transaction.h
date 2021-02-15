@@ -1,6 +1,7 @@
 #ifndef TRANSACTION_H
 #define TRANSACTION_H
 
+#include "blockreject.h"
 #include "globals.h"
 #include "inpoint.h"
 #include "outpoint.h"

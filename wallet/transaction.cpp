@@ -280,8 +280,8 @@ Result<void, TxValidationState> CTransaction::CheckTransaction(const ITxDB& txdb
         for (const CTxIn& txin : vin) {
             if (vInOutPoints.find(txin.prevout) != vInOutPoints.cend()) {
                 if (sourceBlockPtr) {
-                    sourceBlockPtr->reject = CBlock::CBlockReject(
-                        REJECT_INVALID, "bad-txns-inputs-duplicate", sourceBlockPtr->GetHash());
+                    sourceBlockPtr->reject = CBlockReject(REJECT_INVALID, "bad-txns-inputs-duplicate",
+                                                          sourceBlockPtr->GetHash());
                 }
                 return Err(
                     MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-txns-inputs-duplicate"));
@@ -294,7 +294,7 @@ Result<void, TxValidationState> CTransaction::CheckTransaction(const ITxDB& txdb
         if (vin[0].scriptSig.size() < 2 || vin[0].scriptSig.size() > 100) {
             if (sourceBlockPtr) {
                 sourceBlockPtr->reject =
-                    CBlock::CBlockReject(REJECT_INVALID, "bad-cb-length", sourceBlockPtr->GetHash());
+                    CBlockReject(REJECT_INVALID, "bad-cb-length", sourceBlockPtr->GetHash());
             }
             DoS(100, false);
             return Err(MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-cb-length"));
@@ -405,7 +405,7 @@ bool CTransaction::FetchInputs(const ITxDB& txdb, const std::map<uint256, CTxInd
         if (!fFound && (fBlock || fMiner))
             return fMiner ? false
                           : NLog.error("FetchInputs() : {} prev tx {} index entry not found",
-                                       GetHash().ToString().c_str(), prevout.hash.ToString());
+                                       GetHash().ToString(), prevout.hash.ToString());
 
         // Read txPrev
         CTransaction& txPrev = inputsRet[prevout.hash].second;
@@ -413,14 +413,14 @@ bool CTransaction::FetchInputs(const ITxDB& txdb, const std::map<uint256, CTxInd
             // Get prev tx from single transactions in memory
             if (!mempool.lookup(prevout.hash, txPrev))
                 return NLog.error("FetchInputs() : {} mempool Tx prev not found {}",
-                                  GetHash().ToString().c_str(), prevout.hash.ToString());
+                                  GetHash().ToString(), prevout.hash.ToString());
             if (!fFound)
                 txindex.vSpent.resize(txPrev.vout.size());
         } else {
             // Get prev tx from disk
             if (!txPrev.ReadFromDisk(txindex.pos, txdb))
                 return NLog.error("FetchInputs() : {} ReadFromDisk prev tx {} failed",
-                                  GetHash().ToString().c_str(), prevout.hash.ToString());
+                                  GetHash().ToString(), prevout.hash.ToString());
         }
     }
 
@@ -525,7 +525,7 @@ Result<void, TxValidationState> CTransaction::ConnectInputs(const ITxDB& txdb, M
                                   "Expected same types");
                     if (pindex->blockKeyInDB == txindex.pos.nBlockPos) {
                         if (sourceBlockPtr) {
-                            sourceBlockPtr->reject = CBlock::CBlockReject(
+                            sourceBlockPtr->reject = CBlockReject(
                                 REJECT_INVALID, "bad-txns-premature-spend-of-coinbase/coinstake",
                                 sourceBlockPtr->GetHash());
                         }
@@ -610,7 +610,7 @@ Result<void, TxValidationState> CTransaction::ConnectInputs(const ITxDB& txdb, M
 
                     if (sourceBlockPtr) {
                         sourceBlockPtr->reject =
-                            CBlock::CBlockReject(REJECT_INVALID, msg, sourceBlockPtr->GetHash());
+                            CBlockReject(REJECT_INVALID, msg, sourceBlockPtr->GetHash());
                     }
                     this->reject = CTransaction::CTxReject(REJECT_INVALID, msg, GetHash());
                     DoS(100, false);
@@ -633,8 +633,8 @@ Result<void, TxValidationState> CTransaction::ConnectInputs(const ITxDB& txdb, M
         if (!IsCoinStake()) {
             if (nValueIn < GetValueOut()) {
                 if (sourceBlockPtr) {
-                    sourceBlockPtr->reject = CBlock::CBlockReject(REJECT_INVALID, "bad-txns-in-belowout",
-                                                                  sourceBlockPtr->GetHash());
+                    sourceBlockPtr->reject =
+                        CBlockReject(REJECT_INVALID, "bad-txns-in-belowout", sourceBlockPtr->GetHash());
                 }
                 DoS(100, false);
                 return Err(
