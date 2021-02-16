@@ -577,6 +577,11 @@ bool CTxDB::LoadBlockIndex()
         return true;
     }
 
+    if (!WriteBlockHashOfHeight(0, Params().GenesisBlockHash())) {
+        NLog.write(b_sev::err, "Failed to write genesis block height");
+        throw std::runtime_error("Failed to write genesis block height");
+    }
+
     // The block index is an in-memory structure that maps hashes to on-disk
     // locations where the contents of the block can be found. Here, we scan it
     // out of the DB and into mapBlockIndex.
@@ -635,10 +640,6 @@ bool CTxDB::LoadBlockIndex()
             // Watch for genesis block
             if (pindexGenesisBlock == nullptr && blockHash == Params().GenesisBlockHash()) {
                 pindexGenesisBlock = pindexNew;
-                if (!WriteBlockHashOfHeight(0, pindexGenesisBlock->GetBlockHash())) {
-                    NLog.write(b_sev::err, "Failed to write genesis block height");
-                    throw std::runtime_error("Failed to write genesis block height");
-                }
             }
 
             if (!pindexNew->CheckIndex()) {

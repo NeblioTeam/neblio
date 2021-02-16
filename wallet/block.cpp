@@ -918,19 +918,11 @@ bool CBlock::IsProofOfStake() const { return (vtx.size() > 1 && vtx[1].IsCoinSta
 
 CBlockIndexSmartPtr CBlock::FindBlockByHeight(int nHeight)
 {
-    CBlockIndexSmartPtr pblockindex;
-    if (nHeight < CTxDB().GetBestChainHeight().value_or(0) / 2) {
-        pblockindex = boost::atomic_load(&pindexGenesisBlock);
-    } else {
-        pblockindex = CTxDB().GetBestBlockIndex();
+    boost::optional<uint256> hash = CTxDB().ReadBlockHashOfHeight(nHeight);
+    if (!hash) {
+        return nullptr;
     }
-    while (pblockindex->nHeight > nHeight) {
-        pblockindex = pblockindex->pprev;
-    }
-    while (pblockindex->nHeight < nHeight) {
-        pblockindex = pblockindex->pnext;
-    }
-    return pblockindex;
+    return mapBlockIndex.get(*hash).value_or(nullptr);
 }
 
 void CBlock::InvalidChainFound(const ConstCBlockIndexSmartPtr& pindexNew, CTxDB& txdb)
