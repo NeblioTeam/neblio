@@ -603,7 +603,6 @@ bool CTxDB::LoadBlockIndex()
             CBlockIndexSmartPtr pindexNew = InsertBlockIndex(blockHash, loadedBlockIndex);
             pindexNew->pprev              = InsertBlockIndex(diskindex.hashPrev, loadedBlockIndex);
             pindexNew->pnext              = InsertBlockIndex(diskindex.hashNext, loadedBlockIndex);
-            pindexNew->blockKeyInDB       = diskindex.blockKeyInDB;
             pindexNew->nHeight            = diskindex.nHeight;
             pindexNew->nFlags             = diskindex.nFlags;
             pindexNew->nStakeModifier     = diskindex.nStakeModifier;
@@ -744,14 +743,14 @@ bool CTxDB::LoadBlockIndex()
         }
         // check level 2: verify transaction index validity
         if (nCheckLevel > 1) {
-            uint256 pos      = pindex->blockKeyInDB;
+            uint256 pos      = pindex->GetBlockHash();
             mapBlockPos[pos] = pindex.get();
             for (const CTransaction& tx : block.vtx) {
                 uint256  hashTx = tx.GetHash();
                 CTxIndex txindex;
                 if (ReadTxIndex(hashTx, txindex)) {
                     // check level 3: checker transaction hashes
-                    if (nCheckLevel > 2 || pindex->blockKeyInDB != txindex.pos.nBlockPos) {
+                    if (nCheckLevel > 2 || pindex->GetBlockHash() != txindex.pos.nBlockPos) {
                         // either an error or a duplicate transaction
                         CTransaction txFound;
                         if (!txFound.ReadFromDisk(txindex.pos, txdb)) {

@@ -21,7 +21,6 @@ public:
     uint256             phashBlock;
     CBlockIndexSmartPtr pprev;
     CBlockIndexSmartPtr pnext;
-    uint256             blockKeyInDB;
     uint256             nChainTrust; // ppcoin: trust score of block chain
     int32_t             nHeight;
 

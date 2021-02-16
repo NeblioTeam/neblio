@@ -520,10 +520,10 @@ Result<void, TxValidationState> CTransaction::ConnectInputs(const ITxDB& txdb, M
                 for (ConstCBlockIndexSmartPtr pindex = boost::atomic_load(&pindexBlock);
                      pindex && pindexBlock->nHeight - pindex->nHeight < nCbM;
                      pindex = boost::atomic_load(&pindex->pprev)) {
-                    static_assert(std::is_same<decltype(pindex->blockKeyInDB),
+                    static_assert(std::is_same<decltype(pindex->GetBlockHash()),
                                                decltype(txindex.pos.nBlockPos)>::value,
                                   "Expected same types");
-                    if (pindex->blockKeyInDB == txindex.pos.nBlockPos) {
+                    if (pindex->GetBlockHash() == txindex.pos.nBlockPos) {
                         if (sourceBlockPtr) {
                             sourceBlockPtr->reject = CBlockReject(
                                 REJECT_INVALID, "bad-txns-premature-spend-of-coinbase/coinstake",

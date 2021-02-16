@@ -29,7 +29,6 @@ public:
             READWRITE(nVersion);
 
         READWRITE(hashNext);
-        READWRITE(blockKeyInDB);
         READWRITE(nHeight);
         READWRITE(nFlags);
         READWRITE(nStakeModifier);

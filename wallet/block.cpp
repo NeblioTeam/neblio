@@ -561,7 +561,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const ConstCBlockIndexSmartPtr& pindex, b
             return DoS(100, NLog.error("ConnectBlock() : too many sigops"));
         }
 
-        CDiskTxPos posThisTx(pindex->blockKeyInDB, nTxPos);
+        CDiskTxPos posThisTx(pindex->GetBlockHash(), nTxPos);
         if (!fJustCheck)
             nTxPos += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
 
@@ -887,7 +887,7 @@ bool CBlock::ReadFromDisk(const CBlockIndex* pindex, bool fReadTransactions)
         *this = pindex->GetBlockHeader();
         return true;
     }
-    if (!ReadFromDisk(pindex->blockKeyInDB, fReadTransactions))
+    if (!ReadFromDisk(pindex->GetBlockHash(), fReadTransactions))
         return false;
     if (GetHash() != pindex->GetBlockHash())
         return NLog.error("CBlock::ReadFromDisk() : GetHash() doesn't match index");
@@ -900,7 +900,7 @@ bool CBlock::ReadFromDisk(const CBlockIndex* pindex, const ITxDB& txdb, bool fRe
         *this = pindex->GetBlockHeader();
         return true;
     }
-    if (!ReadFromDisk(pindex->blockKeyInDB, txdb, fReadTransactions))
+    if (!ReadFromDisk(pindex->GetBlockHash(), txdb, fReadTransactions))
         return false;
     if (GetHash() != pindex->GetBlockHash())
         return NLog.error("CBlock::ReadFromDisk() : GetHash() doesn't match index");

@@ -10,7 +10,6 @@ CBlockIndex::CBlockIndex()
     phashBlock             = 0;
     pprev                  = NULL;
     pnext                  = NULL;
-    blockKeyInDB           = 0;
     nHeight                = 0;
     nChainTrust            = 0;
     nFlags                 = 0;
@@ -29,10 +28,9 @@ CBlockIndex::CBlockIndex()
 
 CBlockIndex::CBlockIndex(uint256 nBlockPosIn, CBlock& block)
 {
-    phashBlock             = 0;
+    phashBlock             = nBlockPosIn;
     pprev                  = NULL;
     pnext                  = NULL;
-    blockKeyInDB           = nBlockPosIn;
     nHeight                = 0;
     nChainTrust            = 0;
     nFlags                 = 0;
@@ -70,11 +68,11 @@ CBlock CBlockIndex::GetBlockHeader() const
 
 std::string CBlockIndex::ToString() const
 {
-    return fmt::format("CBlockIndex(nprev={}, pnext={}, nBlockPos={} nHeight={}, "
+    return fmt::format("CBlockIndex(nprev={}, pnext={}, nHeight={}, "
                        "nFlags=({})({})({}), nStakeModifier={:x}"
                        ", nStakeModifierChecksum={:x}, hashProof={}, prevoutStake=({}), nStakeTime={} "
                        "merkle={}, hashBlock={})",
-                       fmt::ptr(pprev.get()), fmt::ptr(pnext.get()), blockKeyInDB.ToString(), nHeight,
+                       fmt::ptr(pprev.get()), fmt::ptr(pnext.get()), nHeight,
                        GeneratedStakeModifier() ? "MOD" : "-", GetStakeEntropyBit(),
                        IsProofOfStake() ? "PoS" : "PoW", nStakeModifier, nStakeModifierChecksum,
                        hashProof.ToString(), prevoutStake.ToString(), nStakeTime,

@@ -1441,7 +1441,7 @@ void PrintBlockTree()
         CBlock block;
         block.ReadFromDisk(pindex.get());
         NLog.write(b_sev::info, "{} ({}) {}  {:08x}  {}  tx {}", pindex->nHeight,
-                   pindex->blockKeyInDB.ToString(), block.GetHash().ToString(), block.nBits,
+                   pindex->GetBlockHash().ToString(), block.GetHash().ToString(), block.nBits,
                    DateTimeStrFormat("%x %H:%M:%S", block.GetBlockTime()), block.vtx.size());
 
         PrintWallets(block);
