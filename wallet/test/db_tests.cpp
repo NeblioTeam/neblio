@@ -8,7 +8,6 @@
 #include "hash.h"
 #include "ntp1/ntp1tools.h"
 #include "txdb-lmdb.h"
-#include "util.h"
 #include <boost/algorithm/string.hpp>
 #include <fstream>
 #include <unordered_map>
@@ -33,7 +32,7 @@ std::string RandomString(const int len)
 
 TEST(lmdb_tests, basic)
 {
-    const boost::filesystem::path p = GetDataDir() / "test-txdb";
+    const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
     std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
 
@@ -56,7 +55,7 @@ TEST(lmdb_tests, basic)
 
 TEST(lmdb_tests, basic_in_1_tx)
 {
-    const boost::filesystem::path p = GetDataDir() / "test-txdb";
+    const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
     std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
 
@@ -83,7 +82,7 @@ TEST(lmdb_tests, basic_in_1_tx)
 
 TEST(lmdb_tests, many_inputs)
 {
-    const boost::filesystem::path p = GetDataDir() / "test-txdb";
+    const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
     std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
 
@@ -123,7 +122,7 @@ TEST(lmdb_tests, many_inputs)
 
 TEST(lmdb_tests, many_inputs_one_tx)
 {
-    const boost::filesystem::path p = GetDataDir() / "test-txdb";
+    const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
     std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
 
@@ -169,7 +168,7 @@ TEST(lmdb_tests, many_inputs_one_tx)
 
 TEST(lmdb_tests, basic_multiple_read)
 {
-    const boost::filesystem::path p = GetDataDir() / "test-txdb";
+    const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
     std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
 
@@ -224,7 +223,7 @@ TEST(lmdb_tests, basic_multiple_read)
 
 TEST(lmdb_tests, basic_multiple_read_in_tx)
 {
-    const boost::filesystem::path p = GetDataDir() / "test-txdb";
+    const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
     std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
 
@@ -259,7 +258,7 @@ TEST(lmdb_tests, basic_multiple_read_in_tx)
 
 TEST(lmdb_tests, basic_multiple_many_inputs)
 {
-    const boost::filesystem::path p = GetDataDir() / "test-txdb";
+    const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
     std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
 
@@ -387,7 +386,7 @@ TEST(db_interface_impl_tests, read_write_unique)
         data[key] = val;
     }
 
-    const boost::filesystem::path p = GetDataDir() / "test-txdb";
+    const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
     std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
 
@@ -413,7 +412,7 @@ TEST(db_interface_impl_tests, read_write_unique_with_transaction)
         data[key] = val;
     }
 
-    const boost::filesystem::path p = GetDataDir() / "test-txdb";
+    const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
     std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
 
@@ -532,7 +531,7 @@ TEST(db_interface_impl_tests, read_write_multiple)
         }
     }
 
-    const boost::filesystem::path p = GetDataDir() / "test-txdb";
+    const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
     std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
 
@@ -654,7 +653,7 @@ TEST(db_interface_impl_tests, read_write_multiple_with_db_transaction)
         }
     }
 
-    const boost::filesystem::path p = GetDataDir() / "test-txdb";
+    const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
     std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
 
