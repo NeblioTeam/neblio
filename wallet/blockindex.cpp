@@ -26,9 +26,9 @@ CBlockIndex::CBlockIndex()
     nNonce         = 0;
 }
 
-CBlockIndex::CBlockIndex(uint256 nBlockPosIn, CBlock& block)
+CBlockIndex::CBlockIndex(uint256 blockHashIn, const CBlock& block)
 {
-    phashBlock             = nBlockPosIn;
+    phashBlock             = blockHashIn;
     pprev                  = NULL;
     pnext                  = NULL;
     nHeight                = 0;
