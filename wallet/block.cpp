@@ -1100,8 +1100,8 @@ bool CBlock::AddToBlockIndex(uint256 nBlockPos, const uint256& hashProof, CTxDB&
     CBlockIndexSmartPtr pindexNew = boost::make_shared<CBlockIndex>(nBlockPos, *this);
     if (!pindexNew)
         return NLog.error("AddToBlockIndex() : new CBlockIndex failed");
-    pindexNew->phashBlock = hash;
-    const auto biPrev     = mapBlockIndex.get(hashPrevBlock).value_or(nullptr);
+    pindexNew->blockHash = hash;
+    const auto biPrev    = mapBlockIndex.get(hashPrevBlock).value_or(nullptr);
     if (biPrev) {
         pindexNew->pprev   = biPrev;
         pindexNew->nHeight = pindexNew->pprev->nHeight + 1;

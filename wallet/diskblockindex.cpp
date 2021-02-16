@@ -4,7 +4,7 @@
 #include "globals.h"
 #include "util.h"
 
-uint256 CDiskBlockIndex::GetBlockHash() const { return phashBlock; }
+uint256 CDiskBlockIndex::GetBlockHash() const { return blockHash; }
 
 std::string CDiskBlockIndex::ToString() const
 {

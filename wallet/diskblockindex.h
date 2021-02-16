@@ -50,7 +50,7 @@ public:
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
-        READWRITE(phashBlock);
+        READWRITE(blockHash);
         READWRITE(nChainTrust);
     )
     // clang-format on

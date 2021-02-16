@@ -230,7 +230,7 @@ Value getblockhash(const Array& params, bool fHelp)
         throw runtime_error("Block number out of range.");
 
     CBlockIndexSmartPtr pblockindex = CBlock::FindBlockByHeight(nHeight);
-    return pblockindex->phashBlock.GetHex();
+    return pblockindex->blockHash.GetHex();
 }
 
 Value calculateblockhash(const Array& params, bool fHelp)
@@ -334,7 +334,7 @@ Value getblockbynumber(const Array& params, bool fHelp)
     while (pblockindex->nHeight > nHeight)
         pblockindex = pblockindex->pprev;
 
-    const uint256 hash = pblockindex->phashBlock;
+    const uint256 hash = pblockindex->blockHash;
 
     pblockindex = mapBlockIndex.get(hash).value_or(nullptr);
     if (!pblockindex) {
@@ -526,7 +526,7 @@ Value getblockchaininfo(const Array& params, bool fHelp)
     obj.push_back(Pair("chain", Params().NetworkIDString()));
     obj.push_back(Pair("blocks", CTxDB().GetBestChainHeight().value_or(0)));
     obj.push_back(Pair("headers", bestBlockIndex ? bestBlockIndex->nHeight : -1));
-    obj.push_back(Pair("bestblockhash", bestBlockIndex->phashBlock.GetHex()));
+    obj.push_back(Pair("bestblockhash", bestBlockIndex->blockHash.GetHex()));
     obj.push_back(Pair("difficulty", (double)GetDifficulty()));
     obj.push_back(Pair("mediantime", (int64_t)bestBlockIndex->GetMedianTimePast()));
     //    obj.push_back(

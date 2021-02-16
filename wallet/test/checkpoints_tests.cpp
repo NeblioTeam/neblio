@@ -23,7 +23,7 @@ static CBlockIndexSmartPtr InsertBlockIndex(const uint256& hash, BlockIndexMapTy
     if (!pindexNew)
         throw runtime_error("LoadBlockIndex() : new CBlockIndex failed");
     mi                    = mapBlockIndexIn.insert(make_pair(hash, pindexNew)).first;
-    pindexNew->phashBlock = mi->first;
+    pindexNew->blockHash = mi->first;
 
     return pindexNew;
 }

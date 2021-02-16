@@ -538,8 +538,8 @@ static CBlockIndexSmartPtr InsertBlockIndex(const uint256&              hash,
     CBlockIndexSmartPtr pindexNew = boost::make_shared<CBlockIndex>();
     if (!pindexNew)
         throw runtime_error("LoadBlockIndex() : new CBlockIndex failed");
-    mi                    = blockIndexMap.insert(make_pair(hash, pindexNew)).first;
-    pindexNew->phashBlock = mi->first;
+    mi                   = blockIndexMap.insert(make_pair(hash, pindexNew)).first;
+    pindexNew->blockHash = mi->first;
 
     return pindexNew;
 }

@@ -2766,7 +2766,7 @@ GetBlockIndexAsGraph(const BlockIndexMapType& BlockIndex = mapBlockIndex)
     // add edges, which are previous blocks connected to subsequent blocks
     for (const auto& bi : tempBlockIndex) {
         if (bi.first != Params().GenesisBlockHash()) {
-            boost::add_edge(verticesDescriptors.at(bi.second->pprev->phashBlock),
+            boost::add_edge(verticesDescriptors.at(bi.second->pprev->blockHash),
                             verticesDescriptors.at(bi.first), graph);
         }
     }

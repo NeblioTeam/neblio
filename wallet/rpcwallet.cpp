@@ -2083,7 +2083,7 @@ Value listsinceblock(const Array& params, bool fHelp)
 
         // find the common ancestor if this block is not in mainchain
         while (pindex && !pindex->IsInMainChain(CTxDB()) && pindex->pprev) {
-            nonMainChain.push_back(pindex->phashBlock);
+            nonMainChain.push_back(pindex->blockHash);
             pindex = pindex->pprev.get();
         }
     }

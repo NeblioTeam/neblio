@@ -18,7 +18,7 @@ class CBlock;
 class CBlockIndex
 {
 public:
-    uint256             phashBlock;
+    uint256             blockHash;
     CBlockIndexSmartPtr pprev;
     CBlockIndexSmartPtr pnext;
     uint256             nChainTrust; // ppcoin: trust score of block chain
@@ -54,7 +54,7 @@ public:
 
     CBlock GetBlockHeader() const;
 
-    uint256 GetBlockHash() const { return phashBlock; }
+    uint256 GetBlockHash() const { return blockHash; }
 
     int64_t GetBlockTime() const { return (int64_t)nTime; }
 

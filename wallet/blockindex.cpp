@@ -7,7 +7,7 @@
 
 CBlockIndex::CBlockIndex()
 {
-    phashBlock             = 0;
+    blockHash              = 0;
     pprev                  = NULL;
     pnext                  = NULL;
     nHeight                = 0;
@@ -28,7 +28,7 @@ CBlockIndex::CBlockIndex()
 
 CBlockIndex::CBlockIndex(uint256 blockHashIn, const CBlock& block)
 {
-    phashBlock             = blockHashIn;
+    blockHash              = blockHashIn;
     pprev                  = NULL;
     pnext                  = NULL;
     nHeight                = 0;
