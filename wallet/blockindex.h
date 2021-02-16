@@ -23,9 +23,9 @@ public:
     CBlockIndexSmartPtr pnext;
     uint256             blockKeyInDB;
     uint256             nChainTrust; // ppcoin: trust score of block chain
-    int                 nHeight;
+    int32_t             nHeight;
 
-    unsigned int nFlags; // ppcoin: block index flags
+    uint32_t nFlags; // ppcoin: block index flags
     enum
     {
         BLOCK_PROOF_OF_STAKE = (1 << 0), // is proof-of-stake block
@@ -33,21 +33,21 @@ public:
         BLOCK_STAKE_MODIFIER = (1 << 2), // regenerated stake modifier
     };
 
-    uint64_t     nStakeModifier;         // hash modifier for proof-of-stake
-    unsigned int nStakeModifierChecksum; // checksum of index; in-memeory only
+    uint64_t nStakeModifier;         // hash modifier for proof-of-stake
+    uint32_t nStakeModifierChecksum; // checksum of index; in-memeory only
 
     // proof-of-stake specific fields
-    COutPoint    prevoutStake;
-    unsigned int nStakeTime;
+    COutPoint prevoutStake;
+    uint32_t  nStakeTime;
 
     uint256 hashProof;
 
     // block header
-    int          nVersion;
-    uint256      hashMerkleRoot;
-    unsigned int nTime;
-    unsigned int nBits;
-    unsigned int nNonce;
+    int32_t  nVersion;
+    uint256  hashMerkleRoot;
+    uint32_t nTime;
+    uint32_t nBits;
+    uint32_t nNonce;
 
     CBlockIndex();
 
