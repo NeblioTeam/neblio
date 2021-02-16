@@ -595,10 +595,6 @@ bool CTxDB::LoadBlockIndex()
             CDiskBlockIndex diskindex;
             ssValue >> diskindex;
 
-            // (Changed by Sam) previously, using diskindex.GetBlockHash retrieved the block hash AND set
-            // it inside the diskindex object with a const_cast. Now this is fixed to be correct
-            diskindex.SetBlockHash(blockHash);
-
             // Construct block index object
             CBlockIndexSmartPtr pindexNew = InsertBlockIndex(blockHash, loadedBlockIndex);
             pindexNew->pprev              = InsertBlockIndex(diskindex.hashPrev, loadedBlockIndex);

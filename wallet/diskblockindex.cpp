@@ -15,6 +15,4 @@ std::string CDiskBlockIndex::ToString() const
     return str;
 }
 
-void CDiskBlockIndex::SetBlockHash(const uint256& hash) { phashBlock = hash; }
-
 void CDiskBlockIndex::print() const { NLog.write(b_sev::info, "{}", ToString()); }

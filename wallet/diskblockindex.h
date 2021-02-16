@@ -55,8 +55,6 @@ public:
     )
     // clang-format on
 
-    void SetBlockHash(const uint256& hash);
-
     uint256 GetBlockHash() const;
 
     std::string ToString() const;
