@@ -140,11 +140,15 @@ bool CBlock::DisconnectBlock(CTxDB& txdb, CBlockIndexSmartPtr& pindex)
         if (!vtx[i].DisconnectInputs(txdb))
             return false;
 
+    if (!txdb.EraseBlockHashOfHeight(pindex->nHeight))
+        return NLog.error("DisconnectBlock() : EraseBlockHashOfHeight failed");
+
     // Update block index on disk without changing it in memory.
     // The memory index structure will be changed after the db commits.
     if (pindex->pprev) {
         CDiskBlockIndex blockindexPrev(boost::atomic_load(&pindex->pprev).get());
         blockindexPrev.hashNext = 0;
+
         if (!txdb.WriteBlockIndex(blockindexPrev))
             return NLog.error("DisconnectBlock() : WriteBlockIndex failed");
 
@@ -702,6 +706,9 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const ConstCBlockIndexSmartPtr& pindex, b
 
     if (!txdb.WriteBlockIndex(CDiskBlockIndex(pindex.get())))
         return NLog.error("Connect() : WriteBlockIndex for pindex failed");
+
+    if (!txdb.WriteBlockHashOfHeight(pindex->nHeight, pindex->GetBlockHash()))
+        return NLog.error("Connect() : WriteBlockHashOfHeight for pindex failed");
 
     // Write queued txindex changes
     for (std::map<uint256, CTxIndex>::iterator mi = mapQueuedChanges.begin();

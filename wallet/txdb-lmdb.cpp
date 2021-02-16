@@ -488,6 +488,11 @@ bool CTxDB::WriteBlockIndex(const CDiskBlockIndex& blockindex)
     return Write(blockindex.GetBlockHash(), blockindex, IDB::Index::DB_BLOCKINDEX_INDEX);
 }
 
+bool CTxDB::EraseBlockHashOfHeight(int32_t height)
+{
+    return Erase(height, IDB::Index::DB_BLOCKHEIGHTS_INDEX);
+}
+
 boost::optional<uint256> CTxDB::ReadBlockHashOfHeight(int32_t height) const
 {
     uint256 result = 0;

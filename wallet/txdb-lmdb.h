@@ -279,6 +279,7 @@ public:
     bool ReadBlock(const uint256& hash, CBlock& blk, bool fReadTransactions = true) const override;
     bool WriteBlock(const uint256& hash, const CBlock& blk) override;
     bool WriteBlockIndex(const CDiskBlockIndex& blockindex) override;
+    bool EraseBlockHashOfHeight(int32_t height) override;
     boost::optional<uint256> ReadBlockHashOfHeight(int32_t height) const override;
     bool                     WriteBlockHashOfHeight(int32_t height, const uint256& blockHash) override;
     boost::optional<BlockMetadata> ReadBlockMetadata(const uint256& blockHash) const override;
