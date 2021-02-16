@@ -46,6 +46,8 @@ public:
     virtual bool ReadBlock(const uint256& hash, CBlock& blk, bool fReadTransactions = true) const   = 0;
     virtual bool WriteBlock(const uint256& hash, const CBlock& blk)                                 = 0;
     virtual bool WriteBlockIndex(const CDiskBlockIndex& blockindex)                                 = 0;
+    virtual boost::optional<uint256> ReadBlockHashOfHeight(int32_t height) const                    = 0;
+    virtual bool WriteBlockHashOfHeight(int32_t height, const uint256& blockHash)                   = 0;
     virtual boost::optional<BlockMetadata> ReadBlockMetadata(const uint256& blockHash) const        = 0;
     virtual bool                           WriteBlockMetadata(const BlockMetadata& blockMetadata)   = 0;
     virtual bool                           ReadHashBestChain(uint256& hashBestChain) const          = 0;

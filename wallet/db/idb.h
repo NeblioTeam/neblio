@@ -18,7 +18,8 @@ public:
         DB_NTP1TX_INDEX         = 4,
         DB_NTP1TOKENNAMES_INDEX = 5,
         DB_ADDRSVSPUBKEYS_INDEX = 6,
-        DB_BLOCKMETADATA_INDEX  = 7
+        DB_BLOCKMETADATA_INDEX  = 7,
+        DB_BLOCKHEIGHTS_INDEX   = 8
     };
 
     virtual boost::optional<std::string>

@@ -488,6 +488,21 @@ bool CTxDB::WriteBlockIndex(const CDiskBlockIndex& blockindex)
     return Write(blockindex.GetBlockHash(), blockindex, IDB::Index::DB_BLOCKINDEX_INDEX);
 }
 
+boost::optional<uint256> CTxDB::ReadBlockHashOfHeight(int32_t height) const
+{
+    uint256 result = 0;
+    if (Read(height, result, IDB::Index::DB_BLOCKHEIGHTS_INDEX)) {
+        return boost::make_optional(std::move(result));
+    } else {
+        return boost::none;
+    }
+}
+
+bool CTxDB::WriteBlockHashOfHeight(int32_t height, const uint256& blockHash)
+{
+    return Write(height, blockHash, IDB::Index::DB_BLOCKHEIGHTS_INDEX);
+}
+
 boost::optional<BlockMetadata> CTxDB::ReadBlockMetadata(const uint256& blockHash) const
 {
     BlockMetadata blockMetadata(0, 0, 0);
@@ -613,8 +628,13 @@ bool CTxDB::LoadBlockIndex()
             pindexNew->nChainTrust        = diskindex.nChainTrust;
 
             // Watch for genesis block
-            if (pindexGenesisBlock == nullptr && blockHash == Params().GenesisBlockHash())
+            if (pindexGenesisBlock == nullptr && blockHash == Params().GenesisBlockHash()) {
                 pindexGenesisBlock = pindexNew;
+                if (!WriteBlockHashOfHeight(0, pindexGenesisBlock->GetBlockHash())) {
+                    NLog.write(b_sev::err, "Failed to write genesis block height");
+                    throw std::runtime_error("Failed to write genesis block height");
+                }
+            }
 
             if (!pindexNew->CheckIndex()) {
                 NLog.write(b_sev::err, "LoadBlockIndex() : CheckIndex failed at {}", pindexNew->nHeight);

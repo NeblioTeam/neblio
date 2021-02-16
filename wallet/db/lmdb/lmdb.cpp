@@ -17,7 +17,8 @@ const std::string LMDB_TXDB             = "TxDb";
 const std::string LMDB_NTP1TXDB         = "Ntp1txDb";
 const std::string LMDB_NTP1TOKENNAMESDB = "Ntp1NamesDb";
 const std::string LMDB_ADDRSVSPUBKEYSDB = "AddrsVsPubKeysDb";
-const std::string LMDB_BLOCKMETADATASDB = "BlockMetadataDb";
+const std::string LMDB_BLOCKMETADATADB  = "BlockMetadataDb";
+const std::string LMDB_BLOCKHEIGHTSDB   = "BlockHeightsDB";
 
 namespace {
 
@@ -289,6 +290,7 @@ void LMDB::openDatabase(const boost::filesystem::path& directory, bool clearDBBe
     glob_lmdb_db_pointers->db_ntp1tokenNames = DbSmartPtrType(new MDB_dbi, dbDeleter);
     glob_lmdb_db_pointers->db_addrsVsPubKeys = DbSmartPtrType(new MDB_dbi, dbDeleter);
     glob_lmdb_db_pointers->db_blockMetadata  = DbSmartPtrType(new MDB_dbi, dbDeleter);
+    glob_lmdb_db_pointers->db_blockHeights   = DbSmartPtrType(new MDB_dbi, dbDeleter);
 
     // MDB_CREATE: Create the named database if it doesn't exist.
     lmdb_db_open(txn, LMDB_MAINDB.c_str(), MDB_CREATE, *glob_lmdb_db_pointers->db_main,
@@ -307,9 +309,10 @@ void LMDB::openDatabase(const boost::filesystem::path& directory, bool clearDBBe
     lmdb_db_open(txn, LMDB_ADDRSVSPUBKEYSDB.c_str(), MDB_CREATE,
                  *glob_lmdb_db_pointers->db_addrsVsPubKeys,
                  "Failed to open db handle for db_addrsVsPubKeys");
-    lmdb_db_open(txn, LMDB_BLOCKMETADATASDB.c_str(), MDB_CREATE,
-                 *glob_lmdb_db_pointers->db_blockMetadata,
+    lmdb_db_open(txn, LMDB_BLOCKMETADATADB.c_str(), MDB_CREATE, *glob_lmdb_db_pointers->db_blockMetadata,
                  "Failed to open db handle for db_blockMetadata");
+    lmdb_db_open(txn, LMDB_BLOCKHEIGHTSDB.c_str(), MDB_CREATE, *glob_lmdb_db_pointers->db_blockHeights,
+                 "Failed to open db handle for db_blockHeights");
 
     // commit the transaction
     txn.commit();
@@ -337,6 +340,10 @@ void LMDB::openDatabase(const boost::filesystem::path& directory, bool clearDBBe
     }
     if (!glob_lmdb_db_pointers->db_blockMetadata) {
         throw std::runtime_error("LMDB nullptr after opening the db_blockMetadata database.");
+    }
+
+    if (!glob_lmdb_db_pointers->db_blockHeights) {
+        throw std::runtime_error("LMDB nullptr after opening the db_blockHeights database.");
     }
 
     boost::atomic_thread_fence(boost::memory_order_seq_cst);
@@ -982,6 +989,7 @@ MDB_dbi* LMDB::getDbByIndex(const IDB::Index index) const
         case IDB::Index::DB_NTP1TOKENNAMES_INDEX: return dbPointers->db_ntp1tokenNames.get();
         case IDB::Index::DB_ADDRSVSPUBKEYS_INDEX: return dbPointers->db_addrsVsPubKeys.get();
         case IDB::Index::DB_BLOCKMETADATA_INDEX:  return dbPointers->db_blockMetadata.get();
+        case IDB::Index::DB_BLOCKHEIGHTS_INDEX:  return dbPointers->db_blockHeights.get();
     }
     // clang-format on
     throw std::runtime_error("Invalid db index provided in getDbByIndex");
