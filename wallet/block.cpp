@@ -146,15 +146,15 @@ bool CBlock::DisconnectBlock(CTxDB& txdb, CBlockIndexSmartPtr& pindex)
     // Update block index on disk without changing it in memory.
     // The memory index structure will be changed after the db commits.
     if (pindex->pprev) {
-        CDiskBlockIndex blockindexPrev(boost::atomic_load(&pindex->pprev).get());
-        blockindexPrev.hashNext = 0;
+        CBlockIndexSmartPtr blockindexPrev(boost::atomic_load(&pindex->pprev));
+        blockindexPrev->hashNext = 0;
 
-        if (!txdb.WriteBlockIndex(blockindexPrev))
+        if (!txdb.WriteBlockIndex(*blockindexPrev))
             return NLog.error("DisconnectBlock() : WriteBlockIndex failed");
 
         // we change the best hash. Remember this is within a transaction and will be reverted in case of
         // failure.
-        txdb.WriteHashBestChain(blockindexPrev.GetBlockHash());
+        txdb.WriteHashBestChain(blockindexPrev->GetBlockHash());
     }
 
     // ppcoin: clean up wallet after disconnecting coinstake
@@ -704,7 +704,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const ConstCBlockIndexSmartPtr& pindex, b
     if (!txdb.WriteBlockMetadata(blockMetadata))
         return NLog.error("Connect() : WriteBlockMetadata for blockMetadata failed");
 
-    if (!txdb.WriteBlockIndex(CDiskBlockIndex(pindex.get())))
+    if (!txdb.WriteBlockIndex(*pindex))
         return NLog.error("Connect() : WriteBlockIndex for pindex failed");
 
     if (!txdb.WriteBlockHashOfHeight(pindex->nHeight, pindex->GetBlockHash()))
@@ -738,9 +738,9 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const ConstCBlockIndexSmartPtr& pindex, b
     // Update block index on disk without changing it in memory.
     // The memory index structure will be changed after the db commits.
     if (pindex->pprev) {
-        CDiskBlockIndex blockindexPrev(boost::atomic_load(&pindex->pprev).get());
-        blockindexPrev.hashNext = pindex->GetBlockHash();
-        if (!txdb.WriteBlockIndex(blockindexPrev))
+        CBlockIndexSmartPtr blockindexPrev(boost::atomic_load(&pindex->pprev));
+        blockindexPrev->hashNext = pindex->GetBlockHash();
+        if (!txdb.WriteBlockIndex(*blockindexPrev))
             return NLog.error("ConnectBlock() : WriteBlockIndex failed");
     }
 
@@ -1102,8 +1102,9 @@ bool CBlock::AddToBlockIndex(uint256 nBlockPos, const uint256& hashProof, CTxDB&
     pindexNew->blockHash = hash;
     const auto biPrev    = mapBlockIndex.get(hashPrevBlock).value_or(nullptr);
     if (biPrev) {
-        pindexNew->pprev   = biPrev;
-        pindexNew->nHeight = pindexNew->pprev->nHeight + 1;
+        pindexNew->pprev    = biPrev;
+        pindexNew->hashPrev = hashPrevBlock;
+        pindexNew->nHeight  = pindexNew->pprev->nHeight + 1;
     }
 
     // ppcoin: compute chain trust score
@@ -1139,7 +1140,7 @@ bool CBlock::AddToBlockIndex(uint256 nBlockPos, const uint256& hashProof, CTxDB&
     // Write to disk block index
     if (createDbTransaction && !txdb.TxnBegin())
         return false;
-    txdb.WriteBlockIndex(CDiskBlockIndex(pindexNew.get()));
+    txdb.WriteBlockIndex(*pindexNew);
     if (createDbTransaction && !txdb.TxnCommit())
         return false;
 

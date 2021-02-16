@@ -14,7 +14,6 @@ class CDiskTxPos;
 class CBitcoinAddress;
 class COutPoint;
 class CBlock;
-class CDiskBlockIndex;
 class CBigNum;
 class CBlockIndex;
 
@@ -45,7 +44,7 @@ public:
     virtual bool ReadDiskTx(const COutPoint& outpoint, CTransaction& tx) const                      = 0;
     virtual bool ReadBlock(const uint256& hash, CBlock& blk, bool fReadTransactions = true) const   = 0;
     virtual bool WriteBlock(const uint256& hash, const CBlock& blk)                                 = 0;
-    virtual bool WriteBlockIndex(const CDiskBlockIndex& blockindex)                                 = 0;
+    virtual bool WriteBlockIndex(const CBlockIndex& blockindex)                                     = 0;
     virtual boost::optional<uint256> ReadBlockHashOfHeight(int32_t height) const                    = 0;
     virtual bool                     EraseBlockHashOfHeight(int32_t height)                         = 0;
     virtual bool WriteBlockHashOfHeight(int32_t height, const uint256& blockHash)                   = 0;

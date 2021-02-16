@@ -8,6 +8,8 @@
 CBlockIndex::CBlockIndex()
 {
     blockHash              = 0;
+    hashPrev               = 0;
+    hashNext               = 0;
     pprev                  = NULL;
     pnext                  = NULL;
     nHeight                = 0;
@@ -29,6 +31,8 @@ CBlockIndex::CBlockIndex()
 CBlockIndex::CBlockIndex(uint256 blockHashIn, const CBlock& block)
 {
     blockHash              = blockHashIn;
+    hashPrev               = 0;
+    hashNext               = 0;
     pprev                  = NULL;
     pnext                  = NULL;
     nHeight                = 0;

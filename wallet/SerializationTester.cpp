@@ -379,28 +379,26 @@ void RunCrossPlatformSerializationTests()
 
     uint256 uint256v("12345678135724681122424455667788123456781357246812343535135724");
 
-    CDiskBlockIndex cDiskBlockIndex;
-    cDiskBlockIndex.blockHash = uint256v; // const uint256
-    cDiskBlockIndex.pprev =
-        CBlockIndexSmartPtr(&cDiskBlockIndex, [](CBlockIndex*) {}); // CBlockIndexSmartPtr
-    cDiskBlockIndex.pnext =
-        CBlockIndexSmartPtr(&cDiskBlockIndex, [](CBlockIndex*) {}); // CBlockIndexSmartPtr
-    cDiskBlockIndex.nChainTrust            = uint256v + 22233456;   // uint256
-    cDiskBlockIndex.nHeight                = 0x12345678;            // int
-    cDiskBlockIndex.nFlags                 = 0x12345678;            // unsigned int
-    cDiskBlockIndex.nStakeModifier         = 0x1234567813572468;    // uint64_t
-    cDiskBlockIndex.nStakeModifierChecksum = 0x12345678;            // unsigned int
-    cDiskBlockIndex.prevoutStake           = cOutPoint;             // COutPoint
-    cDiskBlockIndex.nStakeTime             = 0x12345678;            // unsigned int
-    cDiskBlockIndex.hashProof              = uint256v + 13131313;   // uint256
-    cDiskBlockIndex.nVersion               = 0x12345679;            // int
-    cDiskBlockIndex.hashMerkleRoot         = uint256v - 242536447;  // uint256
-    cDiskBlockIndex.nTime                  = 0x12345678;            // unsigned int
-    cDiskBlockIndex.nBits                  = 0x12345622;            // unsigned int
-    cDiskBlockIndex.nNonce                 = 0x12345655;            // unsigned int
+    CBlockIndex cBlockIndex;
+    cBlockIndex.blockHash = uint256v;                                           // const uint256
+    cBlockIndex.pprev = CBlockIndexSmartPtr(&cBlockIndex, [](CBlockIndex*) {}); // CBlockIndexSmartPtr
+    cBlockIndex.pnext = CBlockIndexSmartPtr(&cBlockIndex, [](CBlockIndex*) {}); // CBlockIndexSmartPtr
+    cBlockIndex.nChainTrust            = uint256v + 22233456;                   // uint256
+    cBlockIndex.nHeight                = 0x12345678;                            // int
+    cBlockIndex.nFlags                 = 0x12345678;                            // unsigned int
+    cBlockIndex.nStakeModifier         = 0x1234567813572468;                    // uint64_t
+    cBlockIndex.nStakeModifierChecksum = 0x12345678;                            // unsigned int
+    cBlockIndex.prevoutStake           = cOutPoint;                             // COutPoint
+    cBlockIndex.nStakeTime             = 0x12345678;                            // unsigned int
+    cBlockIndex.hashProof              = uint256v + 13131313;                   // uint256
+    cBlockIndex.nVersion               = 0x12345679;                            // int
+    cBlockIndex.hashMerkleRoot         = uint256v - 242536447;                  // uint256
+    cBlockIndex.nTime                  = 0x12345678;                            // unsigned int
+    cBlockIndex.nBits                  = 0x12345622;                            // unsigned int
+    cBlockIndex.nNonce                 = 0x12345655;                            // unsigned int
     {
         CDataStream ss(SER_DISK, 0);
-        ss << cDiskBlockIndex;
+        ss << cBlockIndex;
         TEST_EQUALITY(boost::algorithm::hex(ss.str()),
                       "000000000000000000000000000000000000000000000000000000000000000000000000785634127"
                       "8563412682457137856341255B5DB3535341268245713785634128877665544422211682457137856"

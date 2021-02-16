@@ -483,7 +483,7 @@ bool CTxDB::ReadDiskTx(const COutPoint& outpoint, CTransaction& tx) const
     return ReadDiskTx(outpoint.hash, tx, txindex);
 }
 
-bool CTxDB::WriteBlockIndex(const CDiskBlockIndex& blockindex)
+bool CTxDB::WriteBlockIndex(const CBlockIndex& blockindex)
 {
     return Write(blockindex.GetBlockHash(), blockindex, IDB::Index::DB_BLOCKINDEX_INDEX);
 }
@@ -617,7 +617,7 @@ bool CTxDB::LoadBlockIndex()
             uint256 blockHash;
             ssKey >> blockHash;
 
-            CDiskBlockIndex diskindex;
+            CBlockIndex diskindex;
             ssValue >> diskindex;
 
             // Construct block index object
@@ -636,11 +636,16 @@ bool CTxDB::LoadBlockIndex()
             pindexNew->nBits              = diskindex.nBits;
             pindexNew->nNonce             = diskindex.nNonce;
             pindexNew->nChainTrust        = diskindex.nChainTrust;
+            pindexNew->hashPrev           = diskindex.hashPrev;
+            pindexNew->hashNext           = diskindex.hashNext;
 
             // Watch for genesis block
             if (pindexGenesisBlock == nullptr && blockHash == Params().GenesisBlockHash()) {
                 pindexGenesisBlock = pindexNew;
+            } else {
+                assert(pindexNew->hashPrev != 0);
             }
+            assert(!!pindexNew->hashNext == !!pindexNew->pnext);
 
             if (!pindexNew->CheckIndex()) {
                 NLog.write(b_sev::err, "LoadBlockIndex() : CheckIndex failed at {}", pindexNew->nHeight);

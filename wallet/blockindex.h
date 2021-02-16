@@ -18,7 +18,10 @@ class CBlock;
 class CBlockIndex
 {
 public:
-    uint256             blockHash;
+    uint256 blockHash;
+    uint256 hashPrev;
+    uint256 hashNext;
+
     CBlockIndexSmartPtr pprev;
     CBlockIndexSmartPtr pnext;
     uint256             nChainTrust; // ppcoin: trust score of block chain
@@ -114,6 +117,38 @@ public:
     std::string ToString() const;
 
     void print() const { NLog.write(b_sev::info, "{}", ToString()); }
+
+    // clang-format off
+        IMPLEMENT_SERIALIZE(
+            if (!(nType & SER_GETHASH))
+                READWRITE(nVersion);
+
+            READWRITE(hashNext);
+            READWRITE(nHeight);
+            READWRITE(nFlags);
+            READWRITE(nStakeModifier);
+
+            if (IsProofOfStake()) {
+                READWRITE(prevoutStake);
+                READWRITE(nStakeTime);
+            } else if (fRead) {
+                const_cast<CBlockIndex*>(this)->prevoutStake.SetNull();
+                const_cast<CBlockIndex*>(this)->nStakeTime = 0;
+            }
+
+            READWRITE(hashProof);
+
+            // block header
+            READWRITE(this->nVersion);
+            READWRITE(hashPrev);
+            READWRITE(hashMerkleRoot);
+            READWRITE(nTime);
+            READWRITE(nBits);
+            READWRITE(nNonce);
+            READWRITE(blockHash);
+            READWRITE(nChainTrust);
+        )
+    // clang-format on
 };
 
 #endif // BLOCKINDEX_H

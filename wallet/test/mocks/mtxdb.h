@@ -35,7 +35,7 @@ struct mTxDB : public ITxDB
     MOCK_METHOD(bool, ReadBlock, (const uint256& hash, CBlock& blk, bool fReadTransactions),
                 (const, override));
     MOCK_METHOD(bool, WriteBlock, (const uint256& hash, const CBlock& blk), (override));
-    MOCK_METHOD(bool, WriteBlockIndex, (const CDiskBlockIndex& blockindex), (override));
+    MOCK_METHOD(bool, WriteBlockIndex, (const CBlockIndex& blockindex), (override));
     MOCK_METHOD(boost::optional<uint256>, ReadBlockHashOfHeight, (int32_t height), (const, override));
     MOCK_METHOD(bool, EraseBlockHashOfHeight, (int32_t height), (override));
     MOCK_METHOD(bool, WriteBlockHashOfHeight, (int32_t height, const uint256& blockHash), (override));
