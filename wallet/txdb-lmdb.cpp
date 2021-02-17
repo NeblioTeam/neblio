@@ -489,6 +489,74 @@ void CTxDB::init_blockindex(bool fRemoveOld)
         }
     }
 
+    OpenDatabase();
+}
+
+// CDB subclasses are created and destroyed VERY OFTEN. That's why
+// we shouldn't treat this as a free operations.
+CTxDB::CTxDB(const char* pszMode)
+{
+    assert(pszMode);
+    fReadOnly = (!strchr(pszMode, '+') && !strchr(pszMode, 'w'));
+
+    if (glob_db_main) {
+        loadDbPointers();
+        return;
+    }
+
+    printf("Initializing lmdb with db size: %" PRIu64 "\n", DB_DEFAULT_MAPSIZE);
+    bool fCreate = strchr(pszMode, 'c');
+
+    init_blockindex(); // Init directory
+    loadDbPointers();
+
+    if (Exists(string("version"), db_main)) {
+        nVersion = ReadVersion().value_or(0);
+        printf("Transaction index version is %d\n", nVersion);
+
+        if (nVersion < DATABASE_VERSION) {
+            printf("Required index version is %d, removing old database\n", DATABASE_VERSION);
+
+            // lmdb instance destruction
+            resetDbPointers();
+            resetGlobalDbPointers();
+            if (activeBatch) {
+                activeBatch->abort();
+                activeBatch.reset();
+            }
+
+            init_blockindex(true); // Remove directory and create new database
+            loadDbPointers();
+
+            bool fTmp = fReadOnly;
+            fReadOnly = false;
+            WriteVersion(DATABASE_VERSION); // Save transaction index version
+            fReadOnly = fTmp;
+        }
+    } else if (fCreate) {
+        bool fTmp = fReadOnly;
+        fReadOnly = false;
+        WriteVersion(DATABASE_VERSION);
+        fReadOnly = fTmp;
+    }
+
+    printf("Opened LMDB successfully\n");
+}
+
+void CTxDB::Close()
+{
+    if (activeBatch) {
+        activeBatch->abort();
+        activeBatch.reset();
+    }
+    resetDbPointers();
+    resetGlobalDbPointers();
+}
+
+void CTxDB::OpenDatabase()
+{
+    const filesystem::path directory = GetDataDir() / DB_DIR;
+
     printf("Opening the blockchain database...\n");
     uiInterface.InitMessage("Opening the blockchain database...");
 
@@ -595,67 +663,6 @@ void CTxDB::init_blockindex(bool fRemoveOld)
     uiInterface.InitMessage("Done opening the database");
 }
 
-// CDB subclasses are created and destroyed VERY OFTEN. That's why
-// we shouldn't treat this as a free operations.
-CTxDB::CTxDB(const char* pszMode)
-{
-    assert(pszMode);
-    fReadOnly = (!strchr(pszMode, '+') && !strchr(pszMode, 'w'));
-
-    if (glob_db_main) {
-        loadDbPointers();
-        return;
-    }
-
-    printf("Initializing lmdb with db size: %" PRIu64 "\n", DB_DEFAULT_MAPSIZE);
-    bool fCreate = strchr(pszMode, 'c');
-
-    init_blockindex(); // Init directory
-    loadDbPointers();
-
-    if (Exists(string("version"), db_main)) {
-        nVersion = ReadVersion().value_or(0);
-        printf("Transaction index version is %d\n", nVersion);
-
-        if (nVersion < DATABASE_VERSION) {
-            printf("Required index version is %d, removing old database\n", DATABASE_VERSION);
-
-            // lmdb instance destruction
-            resetDbPointers();
-            resetGlobalDbPointers();
-            if (activeBatch) {
-                activeBatch->abort();
-                activeBatch.reset();
-            }
-
-            init_blockindex(true); // Remove directory and create new database
-            loadDbPointers();
-
-            bool fTmp = fReadOnly;
-            fReadOnly = false;
-            WriteVersion(DATABASE_VERSION); // Save transaction index version
-            fReadOnly = fTmp;
-        }
-    } else if (fCreate) {
-        bool fTmp = fReadOnly;
-        fReadOnly = false;
-        WriteVersion(DATABASE_VERSION);
-        fReadOnly = fTmp;
-    }
-
-    printf("Opened LMDB successfully\n");
-}
-
-void CTxDB::Close()
-{
-    if (activeBatch) {
-        activeBatch->abort();
-        activeBatch.reset();
-    }
-    resetDbPointers();
-    resetGlobalDbPointers();
-}
-
 void CTxDB::__deleteDb()
 {
     try {
@@ -711,7 +718,7 @@ bool CTxDB::test1_EraseStrKeyVal(const string& key) { return Erase(key, db_main)
 
 bool CTxDB::test2_ReadMultipleStr1KeyVal(const string& key, vector<string>& val)
 {
-    return ReadMultiple(key, val, false, db_ntp1tokenNames);
+    return ReadMultiple(key, val, db_ntp1tokenNames);
 }
 
 bool CTxDB::test2_ReadMultipleAllStr1KeyVal(std::map<string, vector<string>>& vals)
@@ -761,7 +768,7 @@ bool CTxDB::ReadNTP1Tx(const uint256& hash, NTP1Transaction& ntp1tx) const
 bool CTxDB::ReadNTP1TxsWithTokenSymbol(std::string tokenName, std::vector<uint256>& txs) const
 {
     std::transform(tokenName.begin(), tokenName.end(), tokenName.begin(), ::toupper);
-    return ReadMultiple(tokenName, txs, false, db_ntp1tokenNames);
+    return ReadMultiple(tokenName, txs, db_ntp1tokenNames);
 }
 
 bool CTxDB::WriteNTP1TxWithTokenSymbol(std::string tokenSymbol, const NTP1Transaction& ntp1tx)
@@ -815,7 +822,17 @@ bool CTxDB::WriteNTP1Tx(const uint256& hash, const NTP1Transaction& ntp1tx)
 bool CTxDB::ReadAllIssuanceTxs(std::vector<uint256>& txs) const
 {
     // the key is empty because we want to get all keys in the database
-    return ReadMultiple(std::string(), txs, true, db_ntp1tokenNames);
+    std::map<std::string, std::vector<uint256>> resMap;
+    bool success = ReadMultipleWithKeys(resMap, db_ntp1tokenNames);
+    if (!success) {
+        return false;
+    }
+    txs.clear();
+    for (auto&& p : resMap) {
+        txs.insert(txs.end(), std::make_move_iterator(p.second.begin()),
+                   std::make_move_iterator(p.second.end()));
+    }
+    return true;
 }
 
 bool CTxDB::ReadBlock(const uint256& hash, CBlock& blk, bool fReadTransactions) const

@@ -207,6 +207,8 @@ struct mdb_txn_safe
 // Learn more: http://code.google.com/p/leveldb/
 class CTxDB : public ITxDB
 {
+    void OpenDatabase();
+
 public:
     static boost::filesystem::path DB_DIR;
 
@@ -314,7 +316,7 @@ protected:
      * is true, everything in the db will be read
      */
     template <typename K, typename T, template <typename, typename = std::allocator<T>> class Container>
-    bool ReadMultiple(const K& key, Container<T>& values, bool readAll, MDB_dbi* dbPtr) const
+    bool ReadMultiple(const K& key, Container<T>& values, MDB_dbi* dbPtr) const
     {
         values.clear();
 
@@ -349,13 +351,8 @@ protected:
 
         int itemRes = 1;
 
-        if (readAll) {
-            // read all items in that database
-            itemRes = mdb_cursor_get(cursorPtr.get(), &kS, &vS, MDB_FIRST);
-        } else {
-            // read only starting at some valud
-            itemRes = mdb_cursor_get(cursorPtr.get(), &kS, &vS, MDB_SET);
-        }
+        // set the pointer to the first value
+        itemRes = mdb_cursor_get(cursorPtr.get(), &kS, &vS, MDB_SET_RANGE);
         if (itemRes) {
             std::string dbgKey = KeyAsString(key, ssKey.str());
             if (itemRes != 0 && itemRes != MDB_NOTFOUND) {
@@ -784,8 +781,6 @@ public:
     void init_blockindex(bool fRemoveOld = false);
 
 private:
-    bool LoadBlockIndexGuts();
-
     inline void        loadDbPointers();
     inline void        resetDbPointers();
     static inline void resetGlobalDbPointers();
