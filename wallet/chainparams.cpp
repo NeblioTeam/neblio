@@ -587,6 +587,15 @@ unsigned int CChainParams::TargetSpacing(const ITxDB& txdb) const
     }
 }
 
+unsigned int CChainParams::TargetSpacing(int height) const
+{
+    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, height)) {
+        return consensus.nStakeTargetSpacingV2;
+    } else {
+        return consensus.nStakeTargetSpacingV1;
+    }
+}
+
 int CChainParams::CoinbaseMaturity(const ITxDB& txdb) const
 {
     if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, txdb)) {

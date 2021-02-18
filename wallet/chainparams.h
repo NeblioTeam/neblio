@@ -88,6 +88,8 @@ public:
 
     unsigned int TargetSpacing(const ITxDB& txdb) const;
 
+    unsigned int TargetSpacing(int height) const;
+
     int CoinbaseMaturity(const ITxDB& txdb) const;
 
     const CBigNum& PoWLimit() const;

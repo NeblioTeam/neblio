@@ -439,7 +439,7 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTran
         LOCK(pool.cs); // protect pool.mapNextTx
         for (unsigned int i = 0; i < tx.vin.size(); i++) {
             COutPoint outpoint = tx.vin[i].prevout;
-            if (pool.mapNextTx.count(outpoint)) {
+            if (pool.isSpent_unsafe(outpoint)) {
                 // Disable replacement feature for now
                 return Err(MakeInvalidTxState(TxValidationResult::TX_CONFLICT, "txn-mempool-conflict"));
 
@@ -461,6 +461,10 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTran
                             MakeInvalidTxState(TxValidationResult::TX_CONFLICT, "txn-mempool-conflict"));
                 }
                 break;
+            }
+            if (pool.isIssaunceTokenSymbolAlreadyInMempool_unsafe(tx)) {
+                return Err(
+                    MakeInvalidTxState(TxValidationResult::TX_CONFLICT, "txn-ntp1-mempool-conflict"));
             }
         }
     }
@@ -772,7 +776,7 @@ static unsigned int GetNextTargetRequiredV2(const CBlockIndex* pindexLast, bool 
         return bnTargetLimit.GetCompact(); // second block
 
     int64_t      nActualSpacing = pindexPrev->GetBlockTime() - pindexPrevPrev->GetBlockTime();
-    unsigned int nTS            = Params().TargetSpacing(CTxDB());
+    unsigned int nTS            = Params().TargetSpacing(pindexLast->nHeight);
     if (nActualSpacing < 0)
         nActualSpacing = nTS;
 
@@ -807,7 +811,7 @@ static unsigned int GetNextTargetRequiredV3(const CBlockIndex* pindexLast, bool 
 
     int64_t nActualSpacing = CalculateActualBlockSpacingForV3(pindexLast);
 
-    const unsigned int nTS = Params().TargetSpacing(CTxDB());
+    const unsigned int nTS = Params().TargetSpacing(pindexLast->nHeight);
     if (nActualSpacing < 0)
         nActualSpacing = nTS;
 
@@ -821,7 +825,7 @@ static unsigned int GetNextTargetRequiredV3(const CBlockIndex* pindexLast, bool 
      * easier to change/manipulate the difficulty when mining
      */
     assert(FutureDrift(0) == 10 * 60);
-    assert(Params().TargetSpacing(CTxDB()) == 30);
+    assert(Params().TargetSpacing(pindexLast->nHeight) == 30);
     assert(Params().TargetTimeSpan() == 2 * 60 * 60);
 
     // ppcoin: target change every block
@@ -852,7 +856,7 @@ unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfS
     if (pindexLast->nHeight < 2000)
         return GetNextTargetRequiredV1(pindexLast, fProofOfStake);
     else if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__4_RETARGET_CORRECTION,
-                                                    CTxDB()))
+                                                    pindexLast->nHeight))
         return GetNextTargetRequiredV3(pindexLast, fProofOfStake);
     else
         return GetNextTargetRequiredV2(pindexLast, fProofOfStake);

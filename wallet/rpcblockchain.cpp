@@ -105,13 +105,11 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
 {
     Object result;
     result.push_back(Pair("hash", block.GetHash().GetHex()));
-    CMerkleTx txGen(block.vtx[0]);
-    txGen.SetMerkleBranch(&block);
     int confirmations = -1;
     // Only report confirmations if the block is on the main chain
     if (blockindex->IsInMainChain(CTxDB()))
         confirmations = CTxDB().GetBestChainHeight().value_or(0) - blockindex->nHeight + 1;
-    result.push_back(Pair("confirmations", (int)txGen.GetDepthInMainChain()));
+    result.push_back(Pair("confirmations", confirmations));
     result.push_back(Pair("size", (int)::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION)));
     result.push_back(Pair("height", blockindex->nHeight));
     result.push_back(Pair("version", block.nVersion));
@@ -334,7 +332,7 @@ Value getblockbynumber(const Array& params, bool fHelp)
     const uint256 hash = pblockindex->phashBlock;
 
     pblockindex = mapBlockIndex.get(hash).value_or(nullptr);
-    if(!pblockindex) {
+    if (!pblockindex) {
         throw runtime_error("Failed to get block after finding its hash.");
     }
     block.ReadFromDisk(pblockindex.get(), true);
