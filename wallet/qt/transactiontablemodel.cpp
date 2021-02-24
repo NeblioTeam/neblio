@@ -100,19 +100,19 @@ public:
             }
 
             NLog.write(b_sev::info,
-                      "inWallet={} inModel={} Index={}-{} showTransaction={} derivedStatus={}", inWallet,
-                      inModel, lowerIndex, upperIndex, showTransaction, status);
+                       "inWallet={} inModel={} Index={}-{} showTransaction={} derivedStatus={}",
+                       inWallet, inModel, lowerIndex, upperIndex, showTransaction, status);
 
             switch (status) {
             case CT_NEW:
                 if (inModel) {
                     NLog.write(b_sev::warn,
-                              "Warning: updateWallet: Got CT_NEW, but transaction is already in model");
+                               "Warning: updateWallet: Got CT_NEW, but transaction is already in model");
                     break;
                 }
                 if (!inWallet) {
                     NLog.write(b_sev::warn,
-                              "Warning: updateWallet: Got CT_NEW, but transaction is not in wallet");
+                               "Warning: updateWallet: Got CT_NEW, but transaction is not in wallet");
                     break;
                 }
                 if (showTransaction) {
@@ -135,7 +135,7 @@ public:
             case CT_DELETED:
                 if (!inModel) {
                     NLog.write(b_sev::warn,
-                              "Warning: updateWallet: Got CT_DELETED, but transaction is not in model");
+                               "Warning: updateWallet: Got CT_DELETED, but transaction is not in model");
                     break;
                 }
                 // Removed -- remove entire transaction from table
@@ -168,7 +168,7 @@ public:
             // simply re-use the cached status.
             TRY_LOCK2(cs_main, wallet->cs_wallet, lock);
             if (lock) {
-                if (rec->statusUpdateNeeded()) {
+                if (rec->statusUpdateNeeded(CTxDB())) {
                     std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(rec->hash);
 
                     if (mi != wallet->mapWallet.end()) {
@@ -188,7 +188,7 @@ public:
             LOCK2(cs_main, wallet->cs_wallet);
             std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(rec->hash);
             if (mi != wallet->mapWallet.end()) {
-                return TransactionDesc::toHTML(wallet, mi->second);
+                return TransactionDesc::toHTML(CTxDB(), wallet, mi->second);
             }
         }
         return QString("");

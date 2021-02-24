@@ -26,7 +26,7 @@ int CTxIndex::GetDepthInMainChain(const ITxDB& txdb) const
     if (!block.ReadFromDisk(pos.nBlockPos, false))
         return 0;
     // Find the block in the index
-    const auto bi = mapBlockIndex.get(block.GetHash()).value_or(nullptr);
+    const auto bi = txdb.ReadBlockIndex(block.GetHash());
     if (!bi)
         return 0;
     if (!bi || !bi->IsInMainChain(txdb))

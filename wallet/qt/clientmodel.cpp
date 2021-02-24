@@ -28,7 +28,7 @@ ClientModel::ClientModel(OptionsModel* optionsModel, QObject* parent)
 
     subscribeToCoreSignals();
 
-    setTipBlock(pindexGenesisBlock, true);
+    setTipBlock(*pindexGenesisBlock, true);
 }
 
 ClientModel::~ClientModel() { unsubscribeFromCoreSignals(); }
@@ -55,7 +55,7 @@ int ClientModel::getNumBlocksAtStartup()
 
 QDateTime ClientModel::getLastBlockDate() const
 {
-    const ConstCBlockIndexSmartPtr bi = CTxDB().GetBestBlockIndex();
+    const boost::optional<CBlockIndex> bi = CTxDB().GetBestBlockIndex();
     if (bi)
         return QDateTime::fromTime_t(cachedTip.time);
     else
@@ -110,7 +110,7 @@ void ClientModel::updateAlert(const QString& hash, int status)
 
 bool ClientModel::isTestNet() const { return Params().NetType() != NetworkType::Mainnet; }
 
-bool ClientModel::inInitialBlockDownload() const { return IsInitialBlockDownload(); }
+bool ClientModel::inInitialBlockDownload() const { return IsInitialBlockDownload(CTxDB()); }
 
 bool ClientModel::isImporting() const { return fImporting.load(); }
 
@@ -134,16 +134,15 @@ QString ClientModel::formatClientStartupTime() const
     return QDateTime::fromTime_t(nClientStartupTime).toString();
 }
 
-void ClientModel::setTipBlock(const ConstCBlockIndexSmartPtr& pindex, bool initialSync)
+void ClientModel::setTipBlock(const CBlockIndex& pindex, bool initialSync)
 {
-    cachedTip.hash          = pindex->GetBlockHash();
-    cachedTip.time          = pindex->GetBlockTime();
-    cachedTip.height        = pindex->nHeight;
+    cachedTip.hash          = pindex.GetBlockHash();
+    cachedTip.time          = pindex.GetBlockTime();
+    cachedTip.height        = pindex.nHeight;
     cachedTip.isInitialSync = initialSync;
 }
 
-static void BlockTipChanged(ClientModel* clientmodel, bool initialSync,
-                            const ConstCBlockIndexSmartPtr pIndex)
+static void BlockTipChanged(ClientModel* clientmodel, bool initialSync, const CBlockIndex& pIndex)
 {
     // lock free async UI updates in case we have a new block tip
     // during initial sync, only update the UI if the last update
@@ -156,7 +155,7 @@ static void BlockTipChanged(ClientModel* clientmodel, bool initialSync,
     if (!initialSync || now - nLastBlockTipUpdateNotification > MODEL_UPDATE_DELAY) {
         // pass a async signal to the UI thread
         clientmodel->setTipBlock(pIndex, initialSync);
-        Q_EMIT clientmodel->numBlocksChanged(pIndex->nHeight, GetNumBlocksOfPeers());
+        Q_EMIT clientmodel->numBlocksChanged(pIndex.nHeight, GetNumBlocksOfPeers());
         nLastBlockTipUpdateNotification = now;
     }
 }

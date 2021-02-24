@@ -22,10 +22,10 @@ public:
     uint256 hashPrev;
     uint256 hashNext;
 
-    CBlockIndexSmartPtr pprev;
-    CBlockIndexSmartPtr pnext;
-    uint256             nChainTrust; // ppcoin: trust score of block chain
-    int32_t             nHeight;
+    //    CBlockIndexSmartPtr pprev;
+    //    CBlockIndexSmartPtr pnext;
+    uint256 nChainTrust; // ppcoin: trust score of block chain
+    int32_t nHeight;
 
     uint32_t nFlags; // ppcoin: block index flags
     enum
@@ -36,7 +36,7 @@ public:
     };
 
     uint64_t nStakeModifier;         // hash modifier for proof-of-stake
-    uint32_t nStakeModifierChecksum; // checksum of index; in-memeory only
+    uint32_t nStakeModifierChecksum; // checksum of index
 
     // proof-of-stake specific fields
     COutPoint prevoutStake;
@@ -74,20 +74,7 @@ public:
         nMedianTimeSpan = 11
     };
 
-    int64_t GetMedianTimePast() const
-    {
-        int64_t  pmedian[nMedianTimeSpan];
-        int64_t* pbegin = &pmedian[nMedianTimeSpan];
-        int64_t* pend   = &pmedian[nMedianTimeSpan];
-
-        const CBlockIndex* pindex = this;
-        for (int i = 0; i < nMedianTimeSpan && pindex;
-             i++, pindex = boost::atomic_load(&pindex->pprev).get())
-            *(--pbegin) = pindex->GetBlockTime();
-
-        std::sort(pbegin, pend);
-        return pbegin[(pend - pbegin) / 2];
-    }
+    int64_t GetMedianTimePast() const;
 
     bool IsProofOfWork() const { return !(nFlags & BLOCK_PROOF_OF_STAKE); }
 
@@ -118,6 +105,9 @@ public:
 
     void print() const { NLog.write(b_sev::info, "{}", ToString()); }
 
+    boost::optional<CBlockIndex> getPrev(const ITxDB& txdb) const;
+    boost::optional<CBlockIndex> getNext(const ITxDB& txdb) const;
+
     // clang-format off
         IMPLEMENT_SERIALIZE(
             if (!(nType & SER_GETHASH))
@@ -127,6 +117,7 @@ public:
             READWRITE(nHeight);
             READWRITE(nFlags);
             READWRITE(nStakeModifier);
+            READWRITE(nStakeModifierChecksum);
 
             if (IsProofOfStake()) {
                 READWRITE(prevoutStake);

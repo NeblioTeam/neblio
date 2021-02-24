@@ -38,14 +38,10 @@ using namespace boost;
 // Global state
 //
 
-std::set<uint256> UnrecoverableNTP1Txs;
-
 CCriticalSection              cs_setpwalletRegistered;
 set<std::shared_ptr<CWallet>> setpwalletRegistered;
 
 CCriticalSection cs_main;
-
-set<pair<COutPoint, unsigned int>> setStakeSeen;
 
 boost::atomic<bool> fImporting{false};
 
@@ -125,7 +121,7 @@ void SyncWithWallets(const ITxDB& txdb, const CTransaction& tx, const CBlock* pb
     }
 
     for (const std::shared_ptr<CWallet>& pwallet : setpwalletRegistered)
-        pwallet->SyncTransaction(tx, pblock);
+        pwallet->SyncTransaction(txdb, tx, pblock);
 }
 
 // notify wallets about a new best chain
@@ -160,7 +156,7 @@ void static Inventory(const uint256& hash)
 void ResendWalletTransactions(bool fForce)
 {
     for (const std::shared_ptr<CWallet>& pwallet : setpwalletRegistered)
-        pwallet->ResendWalletTransactions(fForce);
+        pwallet->ResendWalletTransactions(CTxDB(), fForce);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -255,7 +251,7 @@ bool IsStandardTx(const ITxDB& txdb, const CTransaction& tx, string& reason)
     // Timestamps on the other hand don't get any special treatment, because we
     // can't know what timestamp the next block will have, and there aren't
     // timestamp applications where it matters.
-    if (!IsFinalTx(tx, txdb.GetBestChainHeight().value_or(0) + 1)) {
+    if (!IsFinalTx(tx, txdb, txdb.GetBestChainHeight().value_or(0) + 1)) {
         reason = "non-final";
         return false;
     }
@@ -322,13 +318,13 @@ bool IsStandardTx(const ITxDB& txdb, const CTransaction& tx, string& reason)
     return true;
 }
 
-bool IsFinalTx(const CTransaction& tx, int nBlockHeight, int64_t nBlockTime)
+bool IsFinalTx(const CTransaction& tx, const ITxDB& txdb, int nBlockHeight, int64_t nBlockTime)
 {
     // Time based nLockTime implemented in 0.1.6
     if (tx.nLockTime == 0)
         return true;
     if (nBlockHeight == 0)
-        nBlockHeight = CTxDB().GetBestChainHeight().value_or(0);
+        nBlockHeight = txdb.GetBestChainHeight().value_or(0);
     if (nBlockTime == 0)
         nBlockTime = GetAdjustedTime();
     if ((int64_t)tx.nLockTime <
@@ -447,7 +443,7 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTran
                     return Err(
                         MakeInvalidTxState(TxValidationResult::TX_CONFLICT, "txn-mempool-conflict"));
                 ptxOld = pool.mapNextTx[outpoint].ptx;
-                if (IsFinalTx(*ptxOld))
+                if (IsFinalTx(*ptxOld, *txdb))
                     return Err(
                         MakeInvalidTxState(TxValidationResult::TX_CONFLICT, "txn-mempool-conflict"));
                 if (!tx.IsNewerThan(*ptxOld))
@@ -538,7 +534,7 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTran
 
         // Check against previous transactions
         // This is done last to help prevent CPU exhaustion denial-of-service attacks.
-        TRYV(tx.ConnectInputs(*txdb, mapInputs, mapUnused, CDiskTxPos(1, 1), txdb->GetBestBlockIndex(),
+        TRYV(tx.ConnectInputs(*txdb, mapInputs, mapUnused, CDiskTxPos(1, 1), *txdb->GetBestBlockIndex(),
                               false, false));
 
         if (Params().PassedFirstValidNTP1Tx(txdb) &&
@@ -548,7 +544,7 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTran
                     NTP1Transaction::StdFetchedInputTxsToNTP1(tx, mapInputs, *txdb, false, mapUnused2,
                                                               mapUnused);
                 NTP1Transaction ntp1tx;
-                ntp1tx.readNTP1DataFromTx(tx, inputsTxs);
+                ntp1tx.readNTP1DataFromTx(*txdb, tx, inputsTxs);
                 if (EnableEnforceUniqueTokenSymbols(*txdb)) {
                     AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, *txdb);
                 }
@@ -670,34 +666,52 @@ unsigned int ComputeMinStake(unsigned int nBase, int64_t nTime, unsigned int /*n
 }
 
 // ppcoin: find last block index up to pindex
-const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake)
+CBlockIndex GetLastBlockIndex(CBlockIndex index, bool fProofOfStake)
 {
-    while (pindex && pindex->pprev && (pindex->IsProofOfStake() != fProofOfStake))
-        pindex = boost::atomic_load(&pindex->pprev).get();
-    return pindex;
+    const CTxDB txdb;
+    while (index.blockHash != Params().GenesisBlockHash() && index.hashPrev != 0 &&
+           (index.IsProofOfStake() != fProofOfStake)) {
+        const boost::optional<CBlockIndex> bindex = index.getPrev(txdb);
+        if (bindex) {
+            index = *bindex;
+        } else if (index.blockHash == Params().GenesisBlockHash()) {
+            return index;
+        } else {
+            NLog.write(b_sev::err, "Failed to get prev block index, even though it's not genesis block");
+            break;
+        }
+    }
+    return index;
 }
 
 static unsigned int GetNextTargetRequiredV1(const CBlockIndex* pindexLast, bool fProofOfStake)
 {
+    const CTxDB txdb;
+
     CBigNum bnTargetLimit = fProofOfStake ? Params().PoSLimit() : Params().PoWLimit();
 
-    if (pindexLast == NULL)
+    if (pindexLast == nullptr)
         return bnTargetLimit.GetCompact(); // genesis block
 
-    const CBlockIndex* pindexPrev = GetLastBlockIndex(pindexLast, fProofOfStake);
-    if (pindexPrev->pprev == NULL)
+    const CBlockIndex pindexPrev = GetLastBlockIndex(*pindexLast, fProofOfStake);
+    if (pindexPrev.hashPrev == 0)
         return bnTargetLimit.GetCompact(); // first block
-    const CBlockIndex* pindexPrevPrev =
-        GetLastBlockIndex(boost::atomic_load(&pindexPrev->pprev).get(), fProofOfStake);
-    if (pindexPrevPrev->pprev == NULL)
+    const boost::optional<CBlockIndex> indexPrevPrev = pindexPrev.getPrev(txdb);
+    if (!indexPrevPrev) {
+        NLog.write(b_sev::err,
+                   "Failed to get prev prev block index, even though it's not genesis block");
+        return 0;
+    }
+    const CBlockIndex pindexPrevPrev = GetLastBlockIndex(*indexPrevPrev, fProofOfStake);
+    if (pindexPrevPrev.hashPrev == 0)
         return bnTargetLimit.GetCompact(); // second block
 
-    int64_t nActualSpacing = pindexPrev->GetBlockTime() - pindexPrevPrev->GetBlockTime();
+    int64_t nActualSpacing = pindexPrev.GetBlockTime() - pindexPrevPrev.GetBlockTime();
 
     // ppcoin: target change every block
     // ppcoin: retarget with exponential moving toward target spacing
     CBigNum bnNew;
-    bnNew.SetCompact(pindexPrev->nBits);
+    bnNew.SetCompact(pindexPrev.nBits);
     unsigned int nTS       = Params().TargetSpacing(CTxDB());
     int64_t      nInterval = Params().TargetTimeSpan() / nTS;
     bnNew *= ((nInterval - 1) * nTS + nActualSpacing + nActualSpacing);
@@ -732,18 +746,26 @@ int64_t CalculateActualBlockSpacingForV3(const CBlockIndex* pindexLast)
         numOfBlocksToAverage = TARGET_AVERAGE_BLOCK_COUNT;
     }
 
+    const CTxDB txdb;
+
     // push block times to a vector
     std::vector<int64_t> blockTimes;
     std::vector<int64_t> blockTimeDifferences;
     blockTimes.reserve(numOfBlocksToAverage);
     blockTimeDifferences.reserve(numOfBlocksToAverage);
-    const CBlockIndex* currIndex = pindexLast;
+    CBlockIndex currIndex = *pindexLast;
     blockTimes.resize(numOfBlocksToAverage);
     for (int64_t i = 0; i < numOfBlocksToAverage; i++) {
         // fill the blocks in reverse order
-        blockTimes.at(numOfBlocksToAverage - i - 1) = currIndex->GetBlockTime();
+        blockTimes.at(numOfBlocksToAverage - i - 1) = currIndex.GetBlockTime();
         // move to the previous block
-        currIndex = boost::atomic_load(&currIndex->pprev).get();
+        boost::optional<CBlockIndex> bi = currIndex.getPrev(txdb);
+        if (bi) {
+            currIndex = std::move(*bi);
+        } else {
+            NLog.write(b_sev::err, "CRITICAL ERROR: prev block not found even though it's not genesis. "
+                                   "THIS SHOULD NEVER HAPPEN. Database corrupt?");
+        }
     }
 
     // sort block times to avoid negative values
@@ -760,20 +782,25 @@ int64_t CalculateActualBlockSpacingForV3(const CBlockIndex* pindexLast)
 
 static unsigned int GetNextTargetRequiredV2(const CBlockIndex* pindexLast, bool fProofOfStake)
 {
+    const CTxDB txdb;
+
     CBigNum bnTargetLimit = fProofOfStake ? Params().PoSLimit() : Params().PoWLimit();
 
     if (pindexLast == NULL)
         return bnTargetLimit.GetCompact(); // genesis block
 
-    const CBlockIndex* pindexPrev = GetLastBlockIndex(pindexLast, fProofOfStake);
-    if (pindexPrev->pprev == NULL)
+    const CBlockIndex pindexPrev = GetLastBlockIndex(*pindexLast, fProofOfStake);
+    if (pindexPrev.hashPrev == 0)
         return bnTargetLimit.GetCompact(); // first block
-    const CBlockIndex* pindexPrevPrev =
-        GetLastBlockIndex(boost::atomic_load(&pindexPrev->pprev).get(), fProofOfStake);
-    if (pindexPrevPrev->pprev == NULL)
-        return bnTargetLimit.GetCompact(); // second block
+    const boost::optional<CBlockIndex> indexPrevPrev = pindexPrev.getPrev(txdb);
+    if (!indexPrevPrev) {
+        NLog.write(b_sev::err,
+                   "Failed to get prev prev block index, even though it's not genesis block");
+        return 0;
+    }
+    const CBlockIndex pindexPrevPrev = GetLastBlockIndex(*indexPrevPrev, fProofOfStake);
 
-    int64_t      nActualSpacing = pindexPrev->GetBlockTime() - pindexPrevPrev->GetBlockTime();
+    int64_t      nActualSpacing = pindexPrev.GetBlockTime() - pindexPrevPrev.GetBlockTime();
     unsigned int nTS            = Params().TargetSpacing(pindexLast->nHeight);
     if (nActualSpacing < 0)
         nActualSpacing = nTS;
@@ -781,7 +808,7 @@ static unsigned int GetNextTargetRequiredV2(const CBlockIndex* pindexLast, bool 
     // ppcoin: target change every block
     // ppcoin: retarget with exponential moving toward target spacing
     CBigNum bnNew;
-    bnNew.SetCompact(pindexPrev->nBits);
+    bnNew.SetCompact(pindexPrev.nBits);
     int64_t nInterval = Params().TargetTimeSpan() / nTS;
     bnNew *= ((nInterval - 1) * nTS + nActualSpacing + nActualSpacing);
     bnNew /= ((nInterval + 1) * nTS);
@@ -794,17 +821,24 @@ static unsigned int GetNextTargetRequiredV2(const CBlockIndex* pindexLast, bool 
 
 static unsigned int GetNextTargetRequiredV3(const CBlockIndex* pindexLast, bool fProofOfStake)
 {
+    const CTxDB txdb;
+
     CBigNum bnTargetLimit = fProofOfStake ? Params().PoSLimit() : Params().PoWLimit();
 
     if (pindexLast == NULL)
         return bnTargetLimit.GetCompact(); // genesis block
 
-    const CBlockIndex* pindexPrev = GetLastBlockIndex(pindexLast, fProofOfStake);
-    if (pindexPrev->pprev == NULL)
+    const CBlockIndex pindexPrev = GetLastBlockIndex(*pindexLast, fProofOfStake);
+    if (pindexPrev.hashPrev == 0)
         return bnTargetLimit.GetCompact(); // first block
-    const CBlockIndex* pindexPrevPrev =
-        GetLastBlockIndex(boost::atomic_load(&pindexPrev->pprev).get(), fProofOfStake);
-    if (pindexPrevPrev->pprev == NULL)
+    const boost::optional<CBlockIndex> indexPrevPrev = pindexPrev.getPrev(txdb);
+    if (!indexPrevPrev) {
+        NLog.write(b_sev::err,
+                   "Failed to get prev prev block index, even though it's not genesis block");
+        return 0;
+    }
+    const CBlockIndex pindexPrevPrev = GetLastBlockIndex(*indexPrevPrev, fProofOfStake);
+    if (pindexPrevPrev.hashPrev == 0)
         return bnTargetLimit.GetCompact(); // second block
 
     int64_t nActualSpacing = CalculateActualBlockSpacingForV3(pindexLast);
@@ -829,7 +863,7 @@ static unsigned int GetNextTargetRequiredV3(const CBlockIndex* pindexLast, bool 
     // ppcoin: target change every block
     // ppcoin: retarget with exponential moving toward target spacing
     CBigNum newTarget;
-    newTarget.SetCompact(pindexPrev->nBits); // target from previous block
+    newTarget.SetCompact(pindexPrev.nBits); // target from previous block
     int64_t nInterval = Params().TargetTimeSpan() / nTS;
 
     static constexpr const int k = 15;
@@ -894,36 +928,46 @@ int GetNumBlocksOfPeers()
 
 // DO NOT call this function it's NOT thread-safe. Use IsInitialBlockDownload or
 // IsInitialBlockDownload_tolerant
-bool __IsInitialBlockDownload_internal()
+bool __IsInitialBlockDownload_internal(const ITxDB& txdb)
 {
-    CTxDB txdb;
-    auto  pindex = txdb.GetBestBlockIndex();
-    if (pindex == nullptr || pindex == pindexGenesisBlock ||
-        txdb.GetBestChainHeight().value_or(0) < Checkpoints::GetTotalBlocksEstimate())
+    // Once this function has returned false, it must remain false.
+    static std::atomic<bool> latchToFalse{false};
+    // Optimization: pre-test latch before taking the lock.
+    if (latchToFalse.load(std::memory_order_relaxed))
+        return false;
+
+    if (txdb.GetBestChainHeight().value_or(0) < Checkpoints::GetTotalBlocksEstimate())
         return true;
-    static int64_t             nLastUpdate;
-    static CBlockIndexSmartPtr pindexLastBest;
-    CBlockIndexSmartPtr        pindexBestPtr = pindex;
-    if (pindexBestPtr != pindexLastBest) {
+    if (fImporting)
+        return true;
+    static int64_t                      nLastUpdate;
+    static boost::optional<CBlockIndex> pindexLastBest;
+    boost::optional<CBlockIndex>        pindexBestPtr = txdb.GetBestBlockIndex();
+    if (!pindexLastBest || pindexBestPtr->GetBlockHash() != pindexLastBest->GetBlockHash()) {
         pindexLastBest = pindexBestPtr;
         nLastUpdate    = GetTime();
     }
-    return (GetTime() - nLastUpdate < 15 && pindexBestPtr->GetBlockTime() < GetTime() - 8 * 60 * 60);
+    const bool result =
+        (GetTime() - nLastUpdate < 15 && pindexBestPtr->GetBlockTime() < GetTime() - 8 * 60 * 60);
+    if (!result) {
+        latchToFalse.store(true, std::memory_order_seq_cst);
+    }
+    return result;
 }
-bool IsInitialBlockDownload_tolerant()
+bool IsInitialBlockDownload_tolerant(const ITxDB& txdb)
 {
     // will try to lock. If failed, will return false
     TRY_LOCK(cs_main, lockMain);
     if (!lockMain) {
         return false;
     }
-    return __IsInitialBlockDownload_internal();
+    return __IsInitialBlockDownload_internal(txdb);
 }
 
-bool IsInitialBlockDownload()
+bool IsInitialBlockDownload(const ITxDB& txdb)
 {
     LOCK(cs_main);
-    return __IsInitialBlockDownload_internal();
+    return __IsInitialBlockDownload_internal(txdb);
 }
 
 CDiskTxPos CreateFakeSpentTxPos(const uint256& blockhash)
@@ -949,7 +993,7 @@ void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, const
     txPair.second.updateDebugStrHash();
 }
 
-void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, CTxDB& txdb)
+void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, ITxDB& txdb)
 {
     if (ntp1tx.getTxType() == NTP1TxType_UNKNOWN) {
         throw std::runtime_error(
@@ -977,7 +1021,7 @@ void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, CTxDB& txdb)
     }
 }
 
-void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, CTxDB& txdb)
+void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, ITxDB& txdb)
 {
     if (Params().PassedFirstValidNTP1Tx(&txdb)) {
         // read previous transactions (inputs) which are necessary to validate an NTP1
@@ -992,14 +1036,14 @@ void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, CTxDB& txdb)
 
         // write NTP1 transactions' data
         NTP1Transaction ntp1tx;
-        ntp1tx.readNTP1DataFromTx(tx, inputsWithNTP1);
+        ntp1tx.readNTP1DataFromTx(txdb, tx, inputsWithNTP1);
 
         WriteNTP1TxToDbAndDisk(ntp1tx, txdb);
     }
 }
 
 void AssertIssuanceUniquenessInBlock(
-    std::unordered_map<std::string, uint256>& issuedTokensSymbolsInThisBlock, CTxDB& txdb,
+    std::unordered_map<std::string, uint256>& issuedTokensSymbolsInThisBlock, const ITxDB& txdb,
     const CTransaction&                                                        tx,
     const map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>& mapQueuedNTP1Inputs,
     const map<uint256, CTxIndex>&                                              queuedAcceptedTxs)
@@ -1013,7 +1057,7 @@ void AssertIssuanceUniquenessInBlock(
                                                       queuedAcceptedTxs);
 
             NTP1Transaction ntp1tx;
-            ntp1tx.readNTP1DataFromTx(tx, inputsTxs);
+            ntp1tx.readNTP1DataFromTx(txdb, tx, inputsTxs);
             AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, txdb);
             if (ntp1tx.getTxType() == NTP1TxType_ISSUANCE) {
                 std::string currSymbol = ntp1tx.getTokenSymbolIfIssuance();
@@ -1063,7 +1107,7 @@ void static PruneOrphanBlocks()
     mapOrphanBlocks.erase(hash);
 }
 
-void WriteNTP1BlockTransactionsToDisk(const std::vector<CTransaction>& vtx, CTxDB& txdb)
+void WriteNTP1BlockTransactionsToDisk(const std::vector<CTransaction>& vtx, ITxDB& txdb)
 {
     if (Params().PassedFirstValidNTP1Tx(&txdb)) {
         for (const CTransaction& tx : vtx) {
@@ -1076,9 +1120,11 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
 {
     AssertLockHeld(cs_main);
 
+    const CTxDB   txdb;
+    const uint256 hash = pblock->GetHash();
+
     // Check for duplicate
-    uint256 hash = pblock->GetHash();
-    if (auto v = mapBlockIndex.get(hash).value_or(nullptr))
+    if (auto v = txdb.ReadBlockIndex(hash))
         return NLog.error("ProcessBlock() : already have block {} {}", v->nHeight, hash.ToString());
     if (mapOrphanBlocks.count(hash))
         return NLog.error("ProcessBlock() : already have block (orphan) {}", hash.ToString());
@@ -1086,32 +1132,32 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     // ppcoin: check proof-of-stake
     // Limited duplicity on stake: prevents block flood attack
     // Duplicate stake allowed only when there is orphan child block
-    if (pblock->IsProofOfStake() && setStakeSeen.count(pblock->GetProofOfStake()) &&
-        !mapOrphanBlocksByPrev.count(hash))
+    if (pblock->IsProofOfStake() && txdb.WasStakeSeen(pblock->GetProofOfStake()).value_or(false) &&
+        !mapOrphanBlocksByPrev.count(hash)) {
         return NLog.error("ProcessBlock() : duplicate proof-of-stake ({}, {}) for block {}",
                           pblock->GetProofOfStake().first.ToString(), pblock->GetProofOfStake().second,
                           hash.ToString());
-
-    const CTxDB txdb;
+    }
 
     // Preliminary checks
     if (!pblock->CheckBlock(txdb))
         return NLog.error("ProcessBlock() : CheckBlock FAILED");
 
-    CBlockIndex* pcheckpoint = Checkpoints::GetLastCheckpoint(mapBlockIndex);
-    if (pcheckpoint && pblock->hashPrevBlock != txdb.GetBestBlockHash()) {
+    const boost::optional<CBlockIndex> checkpoint = Checkpoints::GetLastCheckpoint(txdb);
+    if (checkpoint && pblock->hashPrevBlock != txdb.GetBestBlockHash()) {
         // Extra checks to prevent "fill up memory by spamming with bogus blocks"
-        int64_t deltaTime = pblock->GetBlockTime() - pcheckpoint->nTime;
+        int64_t deltaTime = pblock->GetBlockTime() - checkpoint->nTime;
         CBigNum bnNewBlock;
         bnNewBlock.SetCompact(pblock->nBits);
         CBigNum bnRequired;
 
-        if (pblock->IsProofOfStake())
-            bnRequired.SetCompact(
-                ComputeMinStake(GetLastBlockIndex(pcheckpoint, true)->nBits, deltaTime, pblock->nTime));
-        else
-            bnRequired.SetCompact(
-                ComputeMinWork(GetLastBlockIndex(pcheckpoint, false)->nBits, deltaTime));
+        if (pblock->IsProofOfStake()) {
+            const CBlockIndex& bi = GetLastBlockIndex(*checkpoint, true);
+            bnRequired.SetCompact(ComputeMinStake(bi.nBits, deltaTime, pblock->nTime));
+        } else {
+            const CBlockIndex& bi = GetLastBlockIndex(*checkpoint, false);
+            bnRequired.SetCompact(ComputeMinWork(bi.nBits, deltaTime));
+        }
 
         if (bnNewBlock > bnRequired) {
             if (pfrom)
@@ -1121,8 +1167,10 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
         }
     }
 
+    const boost::optional<CBlockIndex> prevBlockIndex = txdb.ReadBlockIndex(pblock->hashPrevBlock);
+
     // If don't already have its previous block, shunt it off to holding area until we get it
-    if (!mapBlockIndex.exists(pblock->hashPrevBlock)) {
+    if (!prevBlockIndex) {
         NLog.write(b_sev::info, "ProcessBlock: ORPHAN BLOCK, prev={}", pblock->hashPrevBlock.ToString());
         // ppcoin: check proof-of-stake
         if (pblock->IsProofOfStake()) {
@@ -1144,17 +1192,20 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
 
         // Ask this guy to fill in what we're missing
         if (pfrom) {
-            pfrom->PushGetBlocks(txdb.GetBestBlockIndex().get(), GetOrphanRoot(pblock2));
+            const boost::optional<CBlockIndex> bestBlockIndex = txdb.GetBestBlockIndex();
+            pfrom->PushGetBlocks(&*bestBlockIndex, GetOrphanRoot(pblock2));
             // ppcoin: getblocks may not obtain the ancestor block rejected
             // earlier by duplicate-stake check so we ask for it again directly
-            if (!IsInitialBlockDownload())
+            if (!IsInitialBlockDownload(txdb))
                 pfrom->AskFor(CInv(MSG_BLOCK, WantedByOrphan(pblock2)));
         }
         return true;
     }
 
     // Store to disk
-    if (!pblock->AcceptBlock())
+    NLog.write(b_sev::info, "Attempting to accept block of height {} with hash {}",
+               prevBlockIndex->nHeight + 1, hash.ToString());
+    if (!pblock->AcceptBlock(*prevBlockIndex))
         return NLog.error("ProcessBlock() : AcceptBlock FAILED");
 
     // Recursively process any orphan blocks that depended on this one
@@ -1165,8 +1216,18 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
         for (multimap<uint256, CBlock*>::iterator mi = mapOrphanBlocksByPrev.lower_bound(hashPrev);
              mi != mapOrphanBlocksByPrev.upper_bound(hashPrev); ++mi) {
             CBlock* pblockOrphan = (*mi).second;
-            if (pblockOrphan->AcceptBlock())
+
+            // we use a new instance of CTxDB to ensure that newly added blocks are included
+            const boost::optional<CBlockIndex> prevBlockIdx = CTxDB().ReadBlockIndex(hashPrev);
+            if (!prevBlockIdx) {
+                NLog.write(b_sev::err, "CRITICAL ERROR: A prev block was not found after having been "
+                                       "added! This should NEVER happen.");
+                continue;
+            }
+
+            if (pblockOrphan->AcceptBlock(*prevBlockIdx))
                 vWorkQueue.push_back(pblockOrphan->GetHash());
+
             mapOrphanBlocks.erase(pblockOrphan->GetHash());
             setStakeSeenOrphan.erase(pblockOrphan->GetProofOfStake());
             delete pblockOrphan;
@@ -1356,35 +1417,38 @@ bool LoadBlockIndex(bool fAllowNew)
     //
     // Load block index
     //
-    CTxDB txdb;
-    txdb.resyncIfNecessary();
-    if (!txdb.LoadBlockIndex())
-        return false;
-
-    //
-    // Init with genesis block
-    //
-    if (mapBlockIndex.empty()) {
-        if (!fAllowNew)
+    {
+        CTxDB txdb;
+        txdb.resyncIfNecessary();
+        if (!txdb.LoadBlockIndex())
             return false;
 
-        CBlock genesisBlock = Params().GenesisBlock();
+        //
+        // Init with genesis block
+        //
+        if (!txdb.GetBestBlockIndex()) {
+            if (!fAllowNew)
+                return false;
 
-        //// debug print
-        genesisBlock.print();
+            CBlock genesisBlock = Params().GenesisBlock();
 
-        NLog.write(b_sev::info, "block.GetHash() == {}", genesisBlock.GetHash().ToString());
-        NLog.write(b_sev::info, "block.hashMerkleRoot == {}", genesisBlock.hashMerkleRoot.ToString());
-        NLog.write(b_sev::info, "block.nTime = {}", genesisBlock.nTime);
-        NLog.write(b_sev::info, "block.nNonce = {}", genesisBlock.nNonce);
+            //// debug print
+            genesisBlock.print();
 
-        assert(genesisBlock.hashMerkleRoot == Params().GenesisBlock().hashMerkleRoot);
-        assert(genesisBlock.GetHash() == Params().GenesisBlockHash());
-        assert(genesisBlock.CheckBlock(txdb));
+            NLog.write(b_sev::info, "block.GetHash() == {}", genesisBlock.GetHash().ToString());
+            NLog.write(b_sev::info, "block.hashMerkleRoot == {}",
+                       genesisBlock.hashMerkleRoot.ToString());
+            NLog.write(b_sev::info, "block.nTime = {}", genesisBlock.nTime);
+            NLog.write(b_sev::info, "block.nNonce = {}", genesisBlock.nNonce);
 
-        // Start new block file
-        if (!genesisBlock.WriteToDisk(genesisBlock.GetHash(), genesisBlock.GetHash()))
-            return NLog.error("LoadBlockIndex() : writing genesis block to disk failed");
+            assert(genesisBlock.hashMerkleRoot == Params().GenesisBlock().hashMerkleRoot);
+            assert(genesisBlock.GetHash() == Params().GenesisBlockHash());
+            assert(genesisBlock.CheckBlock(txdb));
+
+            // Start new block file
+            if (!genesisBlock.WriteToDisk(boost::none, genesisBlock.GetHash()))
+                return NLog.error("LoadBlockIndex() : writing genesis block to disk failed");
+        }
     }
 
     return true;
@@ -1394,26 +1458,33 @@ void PrintBlockTree()
 {
     AssertLockHeld(cs_main);
 
-    const auto blockIndexMap = mapBlockIndex.getInternalMap();
+    const CTxDB txdb;
+
+    const auto blockIndexMap = txdb.ReadAllBlockIndexEntries();
+
+    if (!blockIndexMap) {
+        NLog.write(b_sev::err, "Failed to read block index from database");
+        return;
+    }
 
     // pre-compute tree structure
-    map<CBlockIndex*, vector<CBlockIndexSmartPtr>> mapNext;
-    for (BlockIndexMapType::MapType::const_iterator mi = blockIndexMap.cbegin();
-         mi != blockIndexMap.cend(); ++mi) {
-        CBlockIndexSmartPtr pindex = boost::atomic_load(&mi->second);
-        mapNext[boost::atomic_load(&pindex->pprev).get()].push_back(pindex);
+    map<uint256, vector<boost::optional<CBlockIndex>>> mapNext;
+    for (BlockIndexMapType::MapType::const_iterator mi = blockIndexMap->cbegin();
+         mi != blockIndexMap->cend(); ++mi) {
+        const boost::optional<CBlockIndex> pindex = mi->second;
+        mapNext[pindex->GetBlockHash()].push_back(pindex);
         // test
         // while (rand() % 3 == 0)
         //    mapNext[pindex->pprev].push_back(pindex);
     }
 
-    vector<pair<int, CBlockIndexSmartPtr>> vStack;
-    vStack.push_back(make_pair(0, pindexGenesisBlock));
+    vector<pair<int, boost::optional<CBlockIndex>>> vStack;
+    vStack.push_back(make_pair(0, *pindexGenesisBlock));
 
     int nPrevCol = 0;
     while (!vStack.empty()) {
-        int                 nCol   = vStack.back().first;
-        CBlockIndexSmartPtr pindex = vStack.back().second;
+        int                          nCol   = vStack.back().first;
+        boost::optional<CBlockIndex> pindex = vStack.back().second;
         vStack.pop_back();
 
         // print split or gap
@@ -1439,7 +1510,7 @@ void PrintBlockTree()
 
         // print item
         CBlock block;
-        block.ReadFromDisk(pindex.get());
+        block.ReadFromDisk(&*pindex);
         NLog.write(b_sev::info, "{} ({}) {}  {:08x}  {}  tx {}", pindex->nHeight,
                    pindex->GetBlockHash().ToString(), block.GetHash().ToString(), block.nBits,
                    DateTimeStrFormat("%x %H:%M:%S", block.GetBlockTime()), block.vtx.size());
@@ -1447,9 +1518,9 @@ void PrintBlockTree()
         PrintWallets(block);
 
         // put the main time-chain first
-        vector<CBlockIndexSmartPtr>& vNext = mapNext[pindex.get()];
+        vector<boost::optional<CBlockIndex>>& vNext = mapNext[pindex->GetBlockHash()];
         for (unsigned int i = 0; i < vNext.size(); i++) {
-            if (vNext[i]->pnext) {
+            if (vNext[i]->getNext(txdb)) {
                 swap(vNext[0], vNext[i]);
                 break;
             }
@@ -1516,7 +1587,7 @@ bool LoadExternalBlockFile(FILE* fileIn)
 
                     LOCK(cs_main);
 
-                    if (ProcessBlock(NULL, &block)) {
+                    if (ProcessBlock(nullptr, &block)) {
                         nLoaded++;
                         nPos += 4 + nSize;
                     }
@@ -1632,7 +1703,7 @@ string GetWarnings(string strFor)
 // Messages
 //
 
-bool static AlreadyHave(const CTxDB& txdb, const CInv& inv, const BlockIndexMapType& blockIndexMap)
+bool static AlreadyHave(const CTxDB& txdb, const CInv& inv)
 {
     switch (inv.type) {
     case MSG_TX: {
@@ -1642,7 +1713,7 @@ bool static AlreadyHave(const CTxDB& txdb, const CInv& inv, const BlockIndexMapT
     }
 
     case MSG_BLOCK:
-        return blockIndexMap.exists_unsafe(inv.hash) || mapOrphanBlocks.count(inv.hash);
+        return txdb.ReadBlockIndex(inv.hash) || mapOrphanBlocks.count(inv.hash);
     }
     // Don't know what it is, just say we already got one
     return true;
@@ -1725,7 +1796,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 
         if (!pfrom->fInbound) {
             // Advertise our address
-            if (!fNoListen && !IsInitialBlockDownload()) {
+            if (!fNoListen && !IsInitialBlockDownload(CTxDB())) {
                 CAddress addr = GetLocalAddress(&pfrom->addr);
                 if (addr.IsRoutable())
                     pfrom->PushAddress(addr);
@@ -1757,7 +1828,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
               (nAskedForBlocks < 1 || vNodes.size() <= 1)) ||
              Params().NetType() == NetworkType::Regtest)) {
             nAskedForBlocks++;
-            pfrom->PushGetBlocks(txdb.GetBestBlockIndex().get(), uint256(0));
+            const boost::optional<CBlockIndex> best = txdb.GetBestBlockIndex();
+            pfrom->PushGetBlocks(&*best, uint256(0));
         }
 
         // Relay alerts
@@ -1876,9 +1948,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
             pfrom->AddInventoryKnown(inv);
 
             {
-                auto lock = mapBlockIndex.get_shared_lock();
-
-                bool fAlreadyHave = AlreadyHave(txdb, inv, mapBlockIndex);
+                bool fAlreadyHave = AlreadyHave(txdb, inv);
                 if (fDebug)
                     NLog.write(b_sev::debug, "got inventory: {}  {}", inv.ToString(),
                                fAlreadyHave ? "have" : "new");
@@ -1887,14 +1957,14 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                     if (!fImporting)
                         pfrom->AskFor(inv);
                 } else if (inv.type == MSG_BLOCK && mapOrphanBlocks.count(inv.hash)) {
-                    pfrom->PushGetBlocks(txdb.GetBestBlockIndex().get(),
-                                         GetOrphanRoot(mapOrphanBlocks[inv.hash]));
+                    const boost::optional<CBlockIndex> best = txdb.GetBestBlockIndex();
+                    pfrom->PushGetBlocks(&*best, GetOrphanRoot(mapOrphanBlocks[inv.hash]));
                 } else if (nInv == nLastBlock) {
                     // In case we are on a very long side-chain, it is possible that we already have
                     // the last block in an inv bundle sent in response to getblocks. Try to detect
                     // this situation and push another getblocks to continue.
-                    pfrom->PushGetBlocks(mapBlockIndex.get_unsafe(inv.hash).value_or(nullptr).get(),
-                                         uint256(0));
+                    const boost::optional<CBlockIndex> bi = txdb.ReadBlockIndex(inv.hash);
+                    pfrom->PushGetBlocks(&*bi, uint256(0));
                     if (fDebug)
                         NLog.write(b_sev::debug, "force request: {}", inv.ToString());
                 }
@@ -1906,6 +1976,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
     }
 
     else if (strCommand == "getdata") {
+        const CTxDB txdb;
+
         vector<CInv> vInv;
         vRecv >> vInv;
         if (vInv.size() > MAX_INV_SZ) {
@@ -1924,10 +1996,10 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 
             if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK) {
                 // Send block from disk
-                auto mi = mapBlockIndex.get(inv.hash).value_or(nullptr);
+                auto mi = txdb.ReadBlockIndex(inv.hash);
                 if (mi) {
                     CBlock block;
-                    block.ReadFromDisk(mi.get());
+                    block.ReadFromDisk(&*mi);
                     if (inv.type == MSG_BLOCK)
                         pfrom->PushMessage("block", block);
                     else // MSG_FILTERED_BLOCK)
@@ -1959,8 +2031,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                         // block might be rejected by stake connection check)
                         vector<CInv> vInv;
                         vInv.push_back(
-                            CInv(MSG_BLOCK, GetLastBlockIndex(CTxDB().GetBestBlockIndex().get(), false)
-                                                ->GetBlockHash()));
+                            CInv(MSG_BLOCK,
+                                 GetLastBlockIndex(*CTxDB().GetBestBlockIndex(), false).GetBlockHash()));
                         pfrom->PushMessage("inv", vInv);
                         pfrom->hashContinue = 0;
                     }
@@ -1997,17 +2069,18 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         uint256       hashStop;
         vRecv >> locator >> hashStop;
 
+        CTxDB txdb;
+
         // Find the last block the caller has in the main chain
-        CBlockIndexSmartPtr pindex = locator.GetBlockIndex();
+        boost::optional<CBlockIndex> pindex = locator.GetBlockIndex(txdb);
 
         // Send the rest of the chain
         if (pindex)
-            pindex = boost::atomic_load(&pindex->pnext);
+            pindex = pindex->getPrev(txdb);
         int nLimit = 500;
         NLog.write(b_sev::info, "getblocks {} to {} limit {}", (pindex ? pindex->nHeight : -1),
                    hashStop.ToString(), nLimit);
-        CTxDB txdb;
-        for (; pindex; pindex = pindex->pnext) {
+        while (pindex) {
             if (pindex->GetBlockHash() == hashStop) {
                 NLog.write(b_sev::info, "  getblocks stopping at {} {}", pindex->nHeight,
                            pindex->GetBlockHash().ToString());
@@ -2029,6 +2102,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                 pfrom->hashContinue = pindex->GetBlockHash();
                 break;
             }
+            pindex = pindex->getNext(txdb);
         }
     }
 
@@ -2037,28 +2111,32 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         uint256       hashStop;
         vRecv >> locator >> hashStop;
 
-        CBlockIndexSmartPtr pindex = NULL;
+        const CTxDB txdb;
+
+        boost::optional<CBlockIndex> pindex = boost::none;
         if (locator.IsNull()) {
             // If locator is null, return the hashStop block
-            const auto mi = mapBlockIndex.get(hashStop).value_or(nullptr);
+            const auto mi = txdb.ReadBlockIndex(hashStop);
             if (!mi)
                 return true;
             pindex = mi;
         } else {
             // Find the last block the caller has in the main chain
-            pindex = locator.GetBlockIndex();
-            if (pindex)
-                pindex = boost::atomic_load(&pindex->pnext);
+            pindex = locator.GetBlockIndex(txdb);
+            if (pindex) {
+                pindex = pindex->getNext(txdb);
+            }
         }
 
         vector<CBlock> vHeaders;
         int            nLimit = 2000;
         NLog.write(b_sev::info, "getheaders {} to {}", (pindex ? pindex->nHeight : -1),
                    hashStop.ToString());
-        for (; pindex; pindex = pindex->pnext) {
+        while (pindex) {
             vHeaders.push_back(pindex->GetBlockHeader());
             if (--nLimit <= 0 || pindex->GetBlockHash() == hashStop)
                 break;
+            pindex = pindex->getNext(txdb);
         }
         pfrom->PushMessage("headers", vHeaders);
     }
@@ -2414,7 +2492,7 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
 
         // Address refresh broadcast
         static int64_t nLastRebroadcast;
-        if (!IsInitialBlockDownload() && (GetTime() - nLastRebroadcast > 24 * 60 * 60)) {
+        if (!IsInitialBlockDownload(CTxDB()) && (GetTime() - nLastRebroadcast > 24 * 60 * 60)) {
             {
                 LOCK(cs_vNodes);
                 for (CNode* pnode : vNodes) {
@@ -2513,9 +2591,8 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
         int64_t      nNow = GetTime() * 1000000;
         const CTxDB  txdb;
         while (!pto->mapAskFor.empty() && (*pto->mapAskFor.begin()).first <= nNow) {
-            const CInv& inv  = (*pto->mapAskFor.begin()).second;
-            auto        lock = mapBlockIndex.get_shared_lock();
-            if (!AlreadyHave(txdb, inv, mapBlockIndex)) {
+            const CInv& inv = (*pto->mapAskFor.begin()).second;
+            if (!AlreadyHave(txdb, inv)) {
                 if (fDebugNet)
                     NLog.write(b_sev::debug, "sending getdata: {}", inv.ToString());
                 vGetData.push_back(inv);
@@ -2623,7 +2700,7 @@ bool IsTxInMainChain(const ITxDB& txdb, const uint256& txHash)
     CTransaction tx;
     uint256      hashBlock;
     if (GetTransaction(txHash, tx, hashBlock)) {
-        const auto mi = mapBlockIndex.get(hashBlock).value_or(nullptr);
+        const auto mi = txdb.ReadBlockIndex(hashBlock);
         if (mi) {
             return mi->IsInMainChain(txdb);
         } else {
@@ -2641,14 +2718,16 @@ void ExportBootstrapBlockchain(const filesystem::path& filename, std::atomic<boo
     try {
         progress.store(0, std::memory_order_relaxed);
 
-        std::vector<CBlockIndex*> chainBlocksIndices;
+        std::vector<CBlockIndex> chainBlocksIndices;
+
+        const CTxDB txdb;
 
         {
-            CBlockIndex* pblockindex = CTxDB().GetBestBlockIndex().get();
-            chainBlocksIndices.push_back(pblockindex);
+            boost::optional<CBlockIndex> pblockindex = *txdb.GetBestBlockIndex();
+            chainBlocksIndices.push_back(*pblockindex);
             while (pblockindex->nHeight > 0 && !stopped.load() && !fShutdown) {
-                pblockindex = boost::atomic_load(&pblockindex->pprev).get();
-                chainBlocksIndices.push_back(pblockindex);
+                pblockindex = pblockindex->getPrev(txdb);
+                chainBlocksIndices.push_back(*pblockindex);
             }
         }
 
@@ -2667,14 +2746,14 @@ void ExportBootstrapBlockchain(const filesystem::path& filename, std::atomic<boo
         CDataStream  serializedBlocks(SER_DISK, CLIENT_VERSION);
         size_t       written = 0;
         const size_t total   = chainBlocksIndices.size();
-        for (CBlockIndex* blockIndex : boost::adaptors::reverse(chainBlocksIndices)) {
+        for (const CBlockIndex& blockIndex : boost::adaptors::reverse(chainBlocksIndices)) {
             progress.store(static_cast<double>(written) / static_cast<double>(total),
                            std::memory_order_relaxed);
             if (stopped.load() || fShutdown) {
                 throw std::runtime_error("Operation was stopped.");
             }
             CBlock block;
-            block.ReadFromDisk(blockIndex, true);
+            block.ReadFromDisk(&blockIndex, true);
 
             // every block starts with pchMessageStart
             unsigned int nSize = block.GetSerializeSize(SER_DISK, CLIENT_VERSION);
@@ -2748,26 +2827,30 @@ public:
     std::deque<uint256> getTraversedList() { return base.getTraversedList(); }
 };
 
-std::pair<BlockIndexGraphType, VerticesDescriptorsMapType>
-GetBlockIndexAsGraph(const BlockIndexMapType& BlockIndex = mapBlockIndex)
+std::pair<BlockIndexGraphType, VerticesDescriptorsMapType> GetBlockIndexAsGraph(const ITxDB& txdb)
 {
     BlockIndexGraphType graph;
 
     // copy block index to avoid conflicts
-    const BlockIndexMapType::MapType tempBlockIndex = BlockIndex.getInternalMap();
+    const boost::optional<std::map<uint256, CBlockIndex>> tempBlockIndex =
+        txdb.ReadAllBlockIndexEntries();
+    if (!tempBlockIndex) {
+        throw std::runtime_error("Failed to retrieve the block index from the database");
+    }
 
     VerticesDescriptorsMapType verticesDescriptors;
 
     // add all vertices, which are block hashes
-    for (const auto& bi : tempBlockIndex) {
+    for (const auto& bi : *tempBlockIndex) {
         verticesDescriptors[bi.first] = boost::add_vertex(bi.first, graph);
     }
 
     // add edges, which are previous blocks connected to subsequent blocks
-    for (const auto& bi : tempBlockIndex) {
+    for (const auto& bi : *tempBlockIndex) {
         if (bi.first != Params().GenesisBlockHash()) {
-            boost::add_edge(verticesDescriptors.at(bi.second->pprev->blockHash),
-                            verticesDescriptors.at(bi.first), graph);
+            const CBlockIndex& prev = tempBlockIndex->at(bi.first);
+            boost::add_edge(verticesDescriptors.at(prev.blockHash), verticesDescriptors.at(bi.first),
+                            graph);
         }
     }
     return std::make_pair(graph, verticesDescriptors);
@@ -2799,11 +2882,13 @@ void ExportBootstrapBlockchainWithOrphans(const filesystem::path& filename, std:
 {
     RenameThread("Export-blockchain");
     try {
+        const CTxDB txdb;
+
         progress.store(0, std::memory_order_relaxed);
 
         BlockIndexGraphType        graph;
         VerticesDescriptorsMapType verticesDescriptors;
-        std::tie(graph, verticesDescriptors) = GetBlockIndexAsGraph(mapBlockIndex);
+        std::tie(graph, verticesDescriptors) = GetBlockIndexAsGraph(txdb);
 
         std::deque<uint256> blocksHashes =
             TraverseBlockIndexGraph(graph, verticesDescriptors, traverseType);

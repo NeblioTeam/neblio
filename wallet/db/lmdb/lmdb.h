@@ -23,13 +23,14 @@ struct __lmdb_db_pointers
     DbSmartPtrType db_addrsVsPubKeys;
     DbSmartPtrType db_blockMetadata;
     DbSmartPtrType db_blockHeights;
+    DbSmartPtrType db_stakes;
 
     __lmdb_db_pointers()
         : db_main(nullptr, [](MDB_dbi*) {}), db_blockIndex(nullptr, [](MDB_dbi*) {}),
           db_blocks(nullptr, [](MDB_dbi*) {}), db_tx(nullptr, [](MDB_dbi*) {}),
           db_ntp1Tx(nullptr, [](MDB_dbi*) {}), db_ntp1tokenNames(nullptr, [](MDB_dbi*) {}),
           db_addrsVsPubKeys(nullptr, [](MDB_dbi*) {}), db_blockMetadata(nullptr, [](MDB_dbi*) {}),
-          db_blockHeights(nullptr, [](MDB_dbi*) {})
+          db_blockHeights(nullptr, [](MDB_dbi*) {}), db_stakes(nullptr, [](MDB_dbi*) {})
     {
     }
 
@@ -44,6 +45,7 @@ struct __lmdb_db_pointers
         db_addrsVsPubKeys.reset();
         db_blockMetadata.reset();
         db_blockHeights.reset();
+        db_stakes.reset();
     }
 };
 

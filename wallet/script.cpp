@@ -1544,7 +1544,7 @@ bool Solver(const ITxDB& txdb, const CKeyStore& keystore, const CScript& scriptP
         }
         if (!Sign1(keyID, keystore, hash, nHashType, scriptSigRet))
             return NLog.error("*** {}: failed to sign with the {} key.", FUNCTIONSIG,
-                             fColdStake ? "cold staker" : "owner");
+                              fColdStake ? "cold staker" : "owner");
         CPubKey pubKey;
         if (!keystore.GetPubKey(keyID, pubKey))
             return NLog.error("{} : Unable to get public key from keyID", FUNCTIONSIG);
@@ -1687,11 +1687,12 @@ isminetype IsMine(const CKeyStore& keystore, const CScript& scriptPubKey)
     return isminetype::ISMINE_NO;
 }
 
-bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet, bool fColdStake)
+bool ExtractDestination(const ITxDB& txdb, const CScript& scriptPubKey, CTxDestination& addressRet,
+                        bool fColdStake)
 {
     vector<valtype> vSolutions;
     txnouttype      whichType;
-    if (!Solver(CTxDB(), scriptPubKey, whichType, vSolutions))
+    if (!Solver(txdb, scriptPubKey, whichType, vSolutions))
         return false;
 
     if (whichType == TX_PUBKEY) {
@@ -1714,12 +1715,13 @@ bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet,
 class CAffectedKeysVisitor : public boost::static_visitor<void>
 {
 private:
+    const ITxDB&         txdb;
     const CKeyStore&     keystore;
     std::vector<CKeyID>& vKeys;
 
 public:
-    CAffectedKeysVisitor(const CKeyStore& keystoreIn, std::vector<CKeyID>& vKeysIn)
-        : keystore(keystoreIn), vKeys(vKeysIn)
+    CAffectedKeysVisitor(const ITxDB& txdbIn, const CKeyStore& keystoreIn, std::vector<CKeyID>& vKeysIn)
+        : txdb(txdbIn), keystore(keystoreIn), vKeys(vKeysIn)
     {
     }
 
@@ -1728,7 +1730,7 @@ public:
         txnouttype                  type;
         std::vector<CTxDestination> vDest;
         int                         nRequired;
-        if (ExtractDestinations(script, type, vDest, nRequired)) {
+        if (ExtractDestinations(txdb, script, type, vDest, nRequired)) {
             for (const CTxDestination& dest : vDest)
                 boost::apply_visitor(*this, dest);
         }
@@ -1750,19 +1752,19 @@ public:
     void operator()(const CNoDestination& /*none*/) {}
 };
 
-void ExtractAffectedKeys(const CKeyStore& keystore, const CScript& scriptPubKey,
+void ExtractAffectedKeys(const ITxDB& txdb, const CKeyStore& keystore, const CScript& scriptPubKey,
                          std::vector<CKeyID>& vKeys)
 {
-    CAffectedKeysVisitor(keystore, vKeys).Process(scriptPubKey);
+    CAffectedKeysVisitor(txdb, keystore, vKeys).Process(scriptPubKey);
 }
 
-bool ExtractDestinations(const CScript& scriptPubKey, txnouttype& typeRet,
+bool ExtractDestinations(const ITxDB& txdb, const CScript& scriptPubKey, txnouttype& typeRet,
                          vector<CTxDestination>& addressRet, int& nRequiredRet)
 {
     addressRet.clear();
     typeRet = TX_NONSTANDARD;
     vector<valtype> vSolutions;
-    if (!Solver(CTxDB(), scriptPubKey, typeRet, vSolutions))
+    if (!Solver(txdb, scriptPubKey, typeRet, vSolutions))
         return false;
     if (typeRet == TX_NULL_DATA) {
         // This is data, not addresses
@@ -1786,7 +1788,7 @@ bool ExtractDestinations(const CScript& scriptPubKey, txnouttype& typeRet,
     } else {
         nRequiredRet = 1;
         CTxDestination address;
-        if (!ExtractDestination(scriptPubKey, address))
+        if (!ExtractDestination(txdb, scriptPubKey, address))
             return false;
         addressRet.push_back(address);
     }

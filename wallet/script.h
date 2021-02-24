@@ -690,12 +690,12 @@ bool IsStandard(const ITxDB& txdb, const CScript& scriptPubKey, txnouttype& whic
 isminetype IsMine(const CKeyStore& keystore, const CScript& scriptPubKey);
 isminetype IsMine(const CKeyStore& keystore, const CTxDestination& dest);
 
-void           ExtractAffectedKeys(const CKeyStore& keystore, const CScript& scriptPubKey,
-                                   std::vector<CKeyID>& vKeys);
-bool           ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet,
-                                  bool fColdStake = false);
-bool           ExtractDestinations(const CScript& scriptPubKey, txnouttype& typeRet,
-                                   std::vector<CTxDestination>& addressRet, int& nRequiredRet);
+void ExtractAffectedKeys(const ITxDB& txdb, const CKeyStore& keystore, const CScript& scriptPubKey,
+                         std::vector<CKeyID>& vKeys);
+bool ExtractDestination(const ITxDB& txdb, const CScript& scriptPubKey, CTxDestination& addressRet,
+                        bool fColdStake = false);
+bool ExtractDestinations(const ITxDB& txdb, const CScript& scriptPubKey, txnouttype& typeRet,
+                         std::vector<CTxDestination>& addressRet, int& nRequiredRet);
 SignatureState SignSignature(const CKeyStore& keystore, const CScript& fromPubKey, CTransaction& txTo,
                              unsigned int nIn, int nHashType = SIGHASH_ALL, bool fColdStake = false);
 SignatureState SignSignature(const CKeyStore& keystore, const CTransaction& txFrom, CTransaction& txTo,

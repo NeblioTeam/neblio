@@ -484,12 +484,11 @@ unsigned int CTransaction::GetP2SHSigOpCount(const MapPrevTx& inputs) const
     return nSigOps;
 }
 
-Result<void, TxValidationState> CTransaction::ConnectInputs(const ITxDB& txdb, MapPrevTx inputs,
-                                                            std::map<uint256, CTxIndex>&    mapTestPool,
-                                                            const CDiskTxPos&               posThisTx,
-                                                            const ConstCBlockIndexSmartPtr& pindexBlock,
-                                                            bool fBlock, bool fMiner,
-                                                            CBlock* sourceBlockPtr) const
+Result<void, TxValidationState>
+CTransaction::ConnectInputs(const ITxDB& txdb, MapPrevTx inputs,
+                            std::map<uint256, CTxIndex>& mapTestPool, const CDiskTxPos& posThisTx,
+                            const boost::optional<CBlockIndex>& pindexBlock, bool fBlock, bool fMiner,
+                            CBlock* sourceBlockPtr) const
 {
     // Take over previous transactions' spent pointers
     // fBlock is true when this is called from AcceptBlock when a new best-block is added to the
@@ -517,9 +516,9 @@ Result<void, TxValidationState> CTransaction::ConnectInputs(const ITxDB& txdb, M
             // If prev is coinbase or coinstake, check that it's matured
             int nCbM = Params().CoinbaseMaturity(txdb);
             if (txPrev.IsCoinBase() || txPrev.IsCoinStake())
-                for (ConstCBlockIndexSmartPtr pindex = boost::atomic_load(&pindexBlock);
+                for (boost::optional<CBlockIndex> pindex = pindexBlock;
                      pindex && pindexBlock->nHeight - pindex->nHeight < nCbM;
-                     pindex = boost::atomic_load(&pindex->pprev)) {
+                     pindex = pindex->getPrev(txdb)) {
                     static_assert(std::is_same<decltype(pindex->GetBlockHash()),
                                                decltype(txindex.pos.nBlockPos)>::value,
                                   "Expected same types");
@@ -728,7 +727,7 @@ CTransaction CTransaction::FetchTxFromDisk(const uint256& txid)
     return FetchTxFromDisk(txid, txdb);
 }
 
-CTransaction CTransaction::FetchTxFromDisk(const uint256& txid, CTxDB& txdb)
+CTransaction CTransaction::FetchTxFromDisk(const uint256& txid, const ITxDB& txdb)
 {
     CTransaction result;
     CTxIndex     txPos;

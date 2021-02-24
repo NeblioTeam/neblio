@@ -208,6 +208,8 @@ void NewStakeDelegationDialog::slot_createColdStake()
 
     const std::string stakerAddress = stakerAddressLineEdit->text().toStdString();
 
+    const CTxDB txdb;
+
     // get the owner address
     const boost::optional<std::string> ownerAddress =
         ownerAddressCheckbox->isChecked()
@@ -257,7 +259,7 @@ void NewStakeDelegationDialog::slot_createColdStake()
     const CoinStakeDelegationResult res = delegRes.unwrap();
 
     const CAmount currBalance =
-        pwalletMain->GetBalance() - (fUseDelegated ? 0 : pwalletMain->GetDelegatedBalance());
+        pwalletMain->GetBalance(txdb) - (fUseDelegated ? 0 : pwalletMain->GetDelegatedBalance(txdb));
 
     {
         // calculate inputs from coin control, if necessary
@@ -295,8 +297,9 @@ void NewStakeDelegationDialog::slot_createColdStake()
                 CBitcoinAddress(changeAddressLineEdit->text().toStdString()).Get();
         }
 
-        if (!pwalletMain->CreateTransaction(res.scriptPubKey, amount, wtxNew, reservekey, nFeeRequired,
-                                            tokenSelector, &strError, RawNTP1MetadataBeforeSend(), false,
+        if (!pwalletMain->CreateTransaction(txdb, res.scriptPubKey, amount, wtxNew, reservekey,
+                                            nFeeRequired, tokenSelector, &strError,
+                                            RawNTP1MetadataBeforeSend(), false,
                                             CoinControlDialog::coinControl, fUseDelegated)) {
             if (amount + nFeeRequired > currBalance)
                 strError =
@@ -320,7 +323,7 @@ void NewStakeDelegationDialog::slot_createColdStake()
             }
         }
 
-        if (!pwalletMain->CommitTransaction(wtxNew, reservekey))
+        if (!pwalletMain->CommitTransaction(wtxNew, CTxDB(), reservekey))
             return makeError(
                 "Error: The transaction was rejected! This might happen if some of the coins "
                 "in your wallet were already spent, such as if you used a copy of wallet.dat "

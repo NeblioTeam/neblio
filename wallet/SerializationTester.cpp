@@ -380,32 +380,30 @@ void RunCrossPlatformSerializationTests()
     uint256 uint256v("12345678135724681122424455667788123456781357246812343535135724");
 
     CBlockIndex cBlockIndex;
-    cBlockIndex.blockHash = uint256v;                                           // const uint256
-    cBlockIndex.pprev = CBlockIndexSmartPtr(&cBlockIndex, [](CBlockIndex*) {}); // CBlockIndexSmartPtr
-    cBlockIndex.pnext = CBlockIndexSmartPtr(&cBlockIndex, [](CBlockIndex*) {}); // CBlockIndexSmartPtr
-    cBlockIndex.nChainTrust            = uint256v + 22233456;                   // uint256
-    cBlockIndex.nHeight                = 0x12345678;                            // int
-    cBlockIndex.nFlags                 = 0x12345678;                            // unsigned int
-    cBlockIndex.nStakeModifier         = 0x1234567813572468;                    // uint64_t
-    cBlockIndex.nStakeModifierChecksum = 0x12345678;                            // unsigned int
-    cBlockIndex.prevoutStake           = cOutPoint;                             // COutPoint
-    cBlockIndex.nStakeTime             = 0x12345678;                            // unsigned int
-    cBlockIndex.hashProof              = uint256v + 13131313;                   // uint256
-    cBlockIndex.nVersion               = 0x12345679;                            // int
-    cBlockIndex.hashMerkleRoot         = uint256v - 242536447;                  // uint256
-    cBlockIndex.nTime                  = 0x12345678;                            // unsigned int
-    cBlockIndex.nBits                  = 0x12345622;                            // unsigned int
-    cBlockIndex.nNonce                 = 0x12345655;                            // unsigned int
+    cBlockIndex.blockHash              = uint256v;             // const uint256
+    cBlockIndex.nChainTrust            = uint256v + 22233456;  // uint256
+    cBlockIndex.nHeight                = 0x12345678;           // int
+    cBlockIndex.nFlags                 = 0x12345678;           // unsigned int
+    cBlockIndex.nStakeModifier         = 0x1234567813572468;   // uint64_t
+    cBlockIndex.nStakeModifierChecksum = 0x12345678;           // unsigned int
+    cBlockIndex.prevoutStake           = cOutPoint;            // COutPoint
+    cBlockIndex.nStakeTime             = 0x12345678;           // unsigned int
+    cBlockIndex.hashProof              = uint256v + 13131313;  // uint256
+    cBlockIndex.nVersion               = 0x12345679;           // int
+    cBlockIndex.hashMerkleRoot         = uint256v - 242536447; // uint256
+    cBlockIndex.nTime                  = 0x12345678;           // unsigned int
+    cBlockIndex.nBits                  = 0x12345622;           // unsigned int
+    cBlockIndex.nNonce                 = 0x12345655;           // unsigned int
     {
         CDataStream ss(SER_DISK, 0);
         ss << cBlockIndex;
         TEST_EQUALITY(boost::algorithm::hex(ss.str()),
                       "000000000000000000000000000000000000000000000000000000000000000000000000785634127"
-                      "8563412682457137856341255B5DB3535341268245713785634128877665544422211682457137856"
-                      "341200795634120000000000000000000000000000000000000000000000000000000000000000258"
-                      "79E263534126824571378563412887766554442221168245713785634120078563412225634125556"
-                      "341224571335353412682457137856341288776655444222116824571378563412009498663635341"
-                      "268245713785634128877665544422211682457137856341200",
+                      "856341268245713785634127856341255B5DB35353412682457137856341288776655444222116824"
+                      "571378563412007956341200000000000000000000000000000000000000000000000000000000000"
+                      "0000025879E2635341268245713785634128877665544422211682457137856341200785634122256"
+                      "341255563412245713353534126824571378563412887766554442221168245713785634120094986"
+                      "63635341268245713785634128877665544422211682457137856341200",
                       __LINE__);
     }
 

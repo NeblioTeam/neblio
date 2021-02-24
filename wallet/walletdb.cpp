@@ -4,6 +4,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "walletdb.h"
+#include "txdb.h"
 #include "wallet.h"
 #include <boost/filesystem.hpp>
 #include <boost/version.hpp>
@@ -289,8 +290,8 @@ public:
     }
 };
 
-bool ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue, CWalletScanState& wss,
-                  string& strType, string& strErr)
+bool ReadKeyValue(const ITxDB& txdb, CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
+                  CWalletScanState& wss, string& strType, string& strErr)
 {
     try {
         // Unserialize
@@ -346,7 +347,7 @@ bool ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue, CW
             if (wtx.nOrderPos == -1)
                 wss.fAnyUnordered = true;
 
-            pwallet->AddToWallet(wtx, true, nullptr);
+            pwallet->AddToWallet(txdb, wtx, true, nullptr);
 
             //// debug print
             // NLog.write(b_sev::debug, "LoadWallet  {}", wtx.GetHash().ToString());
@@ -500,6 +501,8 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
     bool             fNoncriticalErrors = false;
     DBErrors         result             = DB_LOAD_OK;
 
+    const CTxDB txdb;
+
     try {
         LOCK(pwallet->cs_wallet);
         int nMinVersion = 0;
@@ -530,7 +533,7 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
 
             // Try to be tolerant of single corrupt records:
             string strType, strErr;
-            if (!ReadKeyValue(pwallet, ssKey, ssValue, wss, strType, strErr)) {
+            if (!ReadKeyValue(txdb, pwallet, ssKey, ssValue, wss, strType, strErr)) {
                 // losing keys is considered a catastrophic error, anything else
                 // we assume the user can live with:
                 if (IsKeyType(strType) || strType == "defaultkey")
@@ -562,7 +565,7 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
     NLog.write(b_sev::info, "nFileVersion = {}", wss.nFileVersion);
 
     NLog.write(b_sev::info, "Keys: {} plaintext, {} encrypted, {} w/ metadata, {} total", wss.nKeys,
-              wss.nCKeys, wss.nKeyMeta, wss.nKeys + wss.nCKeys);
+               wss.nCKeys, wss.nKeyMeta, wss.nKeys + wss.nCKeys);
 
     // nTimeFirstKey is only reliable if all keys have metadata
     if ((wss.nKeys + wss.nCKeys) != wss.nKeyMeta)
@@ -688,7 +691,7 @@ bool BackupWallet(const CWallet& wallet, const string& strDest)
                     return true;
                 } catch (const filesystem::filesystem_error& e) {
                     NLog.write(b_sev::err, "error copying wallet.dat to {} - {}", pathDest.string(),
-                              e.what());
+                               e.what());
                     return false;
                 }
             }
@@ -721,6 +724,8 @@ bool CWalletDB::Recover(CDBEnv& dbenv, std::string filename, bool fOnlyKeys)
         return false;
     }
 
+    const CTxDB txdb;
+
     std::vector<CDBEnv::KeyValPair> salvagedData;
     bool                            allOK = dbenv.Salvage(newFilename, true, salvagedData);
     if (salvagedData.empty()) {
@@ -745,12 +750,12 @@ bool CWalletDB::Recover(CDBEnv& dbenv, std::string filename, bool fOnlyKeys)
     CWalletScanState wss;
 
     DbTxn* ptxn = dbenv.TxnBegin();
-    BOOST_FOREACH (CDBEnv::KeyValPair& row, salvagedData) {
+    for (CDBEnv::KeyValPair& row : salvagedData) {
         if (fOnlyKeys) {
             CDataStream ssKey(row.first, SER_DISK, CLIENT_VERSION);
             CDataStream ssValue(row.second, SER_DISK, CLIENT_VERSION);
             string      strType, strErr;
-            bool        fReadOK = ReadKeyValue(&dummyWallet, ssKey, ssValue, wss, strType, strErr);
+            bool        fReadOK = ReadKeyValue(txdb, &dummyWallet, ssKey, ssValue, wss, strType, strErr);
             if (!IsKeyType(strType))
                 continue;
             if (!fReadOK) {

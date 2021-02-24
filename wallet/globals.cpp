@@ -4,8 +4,8 @@
 
 CTxMemPool mempool;
 
-BlockIndexMapType   mapBlockIndex;
-CBlockIndexSmartPtr pindexGenesisBlock = nullptr;
+// BlockIndexMapType   mapBlockIndex;
+boost::shared_ptr<CBlockIndex> pindexGenesisBlock = nullptr;
 
 boost::atomic_int64_t nTimeLastBestBlockReceived{0};
 
@@ -25,16 +25,4 @@ std::string SanitizeString(const std::string& str, int rule)
             strResult.push_back(str[i]);
     }
     return strResult;
-}
-
-void BestChainState::setBestChain(const CBlockIndexSmartPtr pindex, bool updateCountersAndTimes)
-{
-    bestBlockHash = pindex->GetBlockHash();
-    boost::atomic_store(&bestBlockIndex, pindex);
-    bestHeight     = pindex->nHeight;
-    bestChainTrust = pindex->nChainTrust;
-    if (updateCountersAndTimes) {
-        nTimeLastBestBlockReceived = GetTime();
-        nTransactionsUpdated++;
-    }
 }

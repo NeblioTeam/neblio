@@ -379,6 +379,14 @@ public:
             {uint256("054cead1a3b498ec845462a1920508698e4f0ab2a71e1f4f8d827d007a43a2f4"), 0},
             {uint256("7d211b98e4796e9375233d935eb8d1262d6fb9d79645b576f15ad1b85427facf"), 0},
             {uint256("ab336eecf51cdaecd3f7444d5da7eca2286462d44e7f3439458ecbe3d7514971"), 0},
+            {uint256("2feb60b06d175603b159d4d2c3e436d514f775968a83fc610993e6abc2e96dcc"), 0},
+            {uint256("58640bf32069a8e54b6a2d11a4f3c33084c849484ab799c82680b94989b1dda8"), 0},
+            {uint256("b4c4b0532f89d582292ce2c199f75f9629d0751f08a72f9ae30cf3f410f6cbf0"), 0},
+            {uint256("43cf479c59b2a14876e390c63ea17846251b43cee1ad9a0cd3a9f5c824ac1aba"), 0},
+            {uint256("0295e6d8e9e57acc8e4b80e095e2f10bebcc89e4bc1720c27e30c27a37a7464f"), 0},
+            {uint256("d68305e8a8efc4535185c3e6923006fcd81c007a96022f08d556ab7832fd6f83"), 0},
+            {uint256("1cfb6af9299854257b0697264ce2f574ae37b543dc8c2b2c60182bcf570ba60c"), 0},
+            {uint256("834c4809152fb9a964f3b2ba76d281868044114661285913cead8cabb69f91e9"), 0},
             {uint256("95c6f2b978160ab0d51545a13a7ee7b931713a52bd1c9f12807f4cd77ff7536b"), 0}});
 
         // token id vs max block to take transactions from these tokens due to bugs

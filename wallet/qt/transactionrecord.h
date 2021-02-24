@@ -18,8 +18,8 @@ class TransactionStatus
 {
 public:
     TransactionStatus()
-        : countsForBalance(false), sortKey(""), matures_in(0), status(Undetermined), depth(0), open_for(0),
-          cur_num_blocks(-1)
+        : countsForBalance(false), sortKey(""), matures_in(0), status(Undetermined), depth(0),
+          open_for(0), cur_num_blocks(-1)
     {
     }
 
@@ -143,7 +143,7 @@ public:
 
     /** Return whether a status update is needed.
      */
-    bool statusUpdateNeeded() const;
+    bool statusUpdateNeeded(const ITxDB& txdb) const;
 };
 
 #endif // TRANSACTIONRECORD_H

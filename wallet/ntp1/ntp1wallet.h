@@ -46,8 +46,8 @@ class NTP1Wallet : public INTP1Wallet
     static void        AddOutputToWalletBalance(const NTP1Transaction& tx, int outputIndex,
                                                 std::map<std::string, NTP1Int>& balancesTable);
     // returns true if removed
-    bool                removeOutputIfSpent(const NTP1OutPoint& output, const CWalletTx& neblTx);
-    void                scanSpentTransactions();
+    bool removeOutputIfSpent(const NTP1OutPoint& output, const CWalletTx& neblTx, const ITxDB& txdb);
+    void scanSpentTransactions(const ITxDB& txdb);
     static NTP1OutPoint ConvertNeblOutputToNTP1(const COutput& output);
 
     // when scanning the neblio wallet, this is the number of relevant transactions found

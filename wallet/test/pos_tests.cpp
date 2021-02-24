@@ -48,7 +48,11 @@ public:
 
         CAmount nValueRet = 0;
 
-        ASSERT_TRUE(wallet.SelectCoinsMinConf(115 * COIN, GetAdjustedTime(), 1, 6, vCoins,
+        boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
+        EXPECT_CALL(*dbMock, GetBestChainHeight())
+            .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+
+        ASSERT_TRUE(wallet.SelectCoinsMinConf(*dbMock, 115 * COIN, GetAdjustedTime(), 1, 6, vCoins,
                                               availableCoins, nValueRet, false));
         EXPECT_EQ(nValueRet, 115 * COIN);
 
@@ -457,8 +461,12 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_inputs)
         add_coin(50 * COIN, KeyToP2PKH(key1), GetAdjustedTime() - 24 * 60 * 60 * 10);
     }
 
+    boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
+    EXPECT_CALL(*dbMock, GetBestChainHeight())
+        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+
     CAmount nValueRet = 0;
-    ASSERT_TRUE(wallet.SelectCoinsMinConf(20 * 50 * COIN, GetAdjustedTime(), 1, 6, vCoins,
+    ASSERT_TRUE(wallet.SelectCoinsMinConf(*dbMock, 20 * 50 * COIN, GetAdjustedTime(), 1, 6, vCoins,
                                           availableCoins, nValueRet, false));
     balance = nValueRet;
 
@@ -475,10 +483,6 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_inputs)
     kernelData.kernelScriptPubKey      = vCoins[coinIndex].tx->vout[outputIndex].scriptPubKey;
     kernelData.stakeOutputScriptPubKey = CScript()
                                          << stakePayee.GetPubKey() << OP_CHECKSIG << OP_HASH160;
-
-    boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
 
     CoinStakeInputsResult inputsResult = StakeMaker::CollectInputsForStake(
         *dbMock, kernelData, availableCoins, GetAdjustedTime(), false, balance, 0);
@@ -501,8 +505,12 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_value)
         add_coin(500 * COIN, KeyToP2PKH(key1), GetAdjustedTime() - 24 * 60 * 60 * 10);
     }
 
+    boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
+    EXPECT_CALL(*dbMock, GetBestChainHeight())
+        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+
     CAmount nValueRet = 0;
-    ASSERT_TRUE(wallet.SelectCoinsMinConf((20 * 500) * COIN, GetAdjustedTime(), 1, 6, vCoins,
+    ASSERT_TRUE(wallet.SelectCoinsMinConf(*dbMock, (20 * 500) * COIN, GetAdjustedTime(), 1, 6, vCoins,
                                           availableCoins, nValueRet, false));
     balance = nValueRet;
 
@@ -519,10 +527,6 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_value)
     kernelData.kernelScriptPubKey      = vCoins[coinIndex].tx->vout[outputIndex].scriptPubKey;
     kernelData.stakeOutputScriptPubKey = CScript()
                                          << stakePayee.GetPubKey() << OP_CHECKSIG << OP_HASH160;
-
-    boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
 
     CoinStakeInputsResult inputsResult = StakeMaker::CollectInputsForStake(
         *dbMock, kernelData, availableCoins, GetAdjustedTime(), false, balance, 0);
@@ -545,8 +549,12 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_too_small_age)
         add_coin(500 * COIN, KeyToP2PKH(key1), GetAdjustedTime());
     }
 
+    boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
+    EXPECT_CALL(*dbMock, GetBestChainHeight())
+        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+
     CAmount nValueRet = 0;
-    ASSERT_TRUE(wallet.SelectCoinsMinConf((20 * 500) * COIN, GetAdjustedTime(), 1, 6, vCoins,
+    ASSERT_TRUE(wallet.SelectCoinsMinConf(*dbMock, (20 * 500) * COIN, GetAdjustedTime(), 1, 6, vCoins,
                                           availableCoins, nValueRet, false));
     balance = nValueRet;
 
@@ -563,10 +571,6 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_too_small_age)
     kernelData.kernelScriptPubKey      = vCoins[coinIndex].tx->vout[outputIndex].scriptPubKey;
     kernelData.stakeOutputScriptPubKey = CScript()
                                          << stakePayee.GetPubKey() << OP_CHECKSIG << OP_HASH160;
-
-    boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
 
     CoinStakeInputsResult inputsResult = StakeMaker::CollectInputsForStake(
         *dbMock, kernelData, availableCoins, GetAdjustedTime(), false, balance, 0);

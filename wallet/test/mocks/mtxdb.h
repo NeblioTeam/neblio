@@ -3,6 +3,7 @@
 #include "itxdb.h"
 #include "uint256.h"
 #include <boost/shared_ptr.hpp>
+#include <utility>
 
 class CBlockIndex;
 
@@ -35,6 +36,8 @@ struct mTxDB : public ITxDB
     MOCK_METHOD(bool, ReadBlock, (const uint256& hash, CBlock& blk, bool fReadTransactions),
                 (const, override));
     MOCK_METHOD(bool, WriteBlock, (const uint256& hash, const CBlock& blk), (override));
+    MOCK_METHOD(boost::optional<CBlockIndex>, ReadBlockIndex, (const uint256& blockHash),
+                (const, override));
     MOCK_METHOD(bool, WriteBlockIndex, (const CBlockIndex& blockindex), (override));
     MOCK_METHOD(boost::optional<uint256>, ReadBlockHashOfHeight, (int32_t height), (const, override));
     MOCK_METHOD(bool, EraseBlockHashOfHeight, (int32_t height), (override));
@@ -44,11 +47,17 @@ struct mTxDB : public ITxDB
     MOCK_METHOD(bool, WriteBlockMetadata, (const BlockMetadata& blockMetadata), (override));
     MOCK_METHOD(bool, ReadHashBestChain, (uint256 & hashBestChain), (const, override));
     MOCK_METHOD(bool, WriteHashBestChain, (const uint256& hashBestChain), (override));
+    MOCK_METHOD(boost::optional<bool>, WasStakeSeen, ((const std::pair<COutPoint, unsigned int>& stake)),
+                (const, override));
+    MOCK_METHOD(bool, WriteStakeSeen, ((const std::pair<COutPoint, unsigned int>& stake)), (override));
     MOCK_METHOD(bool, ReadBestInvalidTrust, (CBigNum & bnBestInvalidTrust), (const, override));
     MOCK_METHOD(bool, WriteBestInvalidTrust, (const CBigNum& bnBestInvalidTrust), (override));
+    MOCK_METHOD((boost::optional<std::map<uint256, CBlockIndex>>), ReadAllBlockIndexEntries, (),
+                (const, override));
+
     MOCK_METHOD(bool, LoadBlockIndex, (), (override));
     MOCK_METHOD(boost::optional<int>, GetBestChainHeight, (), (const, override));
     MOCK_METHOD(boost::optional<uint256>, GetBestChainTrust, (), (const, override));
-    MOCK_METHOD(boost::shared_ptr<CBlockIndex>, GetBestBlockIndex, (), (const, override));
+    MOCK_METHOD(boost::optional<CBlockIndex>, GetBestBlockIndex, (), (const, override));
     MOCK_METHOD(uint256, GetBestBlockHash, (), (const, override));
 };

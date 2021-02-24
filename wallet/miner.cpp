@@ -75,7 +75,7 @@ public:
     void print() const
     {
         NLog.write(b_sev::info, "COrphan(hash={}, dPriority={:.1f}, dFeePerKb={:.1f})",
-                  ptx->GetHash().ToString().substr(0, 10), dPriority, dFeePerKb);
+                   ptx->GetHash().ToString().substr(0, 10), dPriority, dFeePerKb);
         for (uint256 hash : setDependsOn)
             NLog.write(b_sev::info, "   setDependsOn {}", hash.ToString().substr(0, 10));
     }
@@ -118,7 +118,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
 
     const CTxDB txdb;
 
-    ConstCBlockIndexSmartPtr pindexPrev = txdb.GetBestBlockIndex();
+    boost::optional<CBlockIndex> pindexPrev = *txdb.GetBestBlockIndex();
 
     // Create coinbase tx
     CTransaction coinbaseTx;
@@ -184,7 +184,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
         ParseMoney(*minTxFee, nMinTxFee);
     }
 
-    pblock->nBits = GetNextTargetRequired(pindexPrev.get(), fProofOfStake);
+    pblock->nBits = GetNextTargetRequired(&*pindexPrev, fProofOfStake);
 
     // map of issued token names in this block vs token hashes
     // this is used to prevent duplicate token names
@@ -206,7 +206,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
         for (map<uint256, CTransaction>::const_iterator mi = mempool_.mapTx.cbegin();
              mi != mempool_.mapTx.cend(); ++mi) {
             const CTransaction& tx = (*mi).second;
-            if (tx.IsCoinBase() || tx.IsCoinStake() || !IsFinalTx(tx, pindexPrev->nHeight + 1))
+            if (tx.IsCoinBase() || tx.IsCoinStake() || !IsFinalTx(tx, txdb, pindexPrev->nHeight + 1))
                 continue;
 
             COrphan* porphan        = nullptr;
@@ -350,7 +350,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
                             tx, mapInputs, txdb, false, mapQueuedNTP1InputsTmp, mapTestPoolTmp);
 
                         NTP1Transaction ntp1tx;
-                        ntp1tx.readNTP1DataFromTx(tx, inputsTxs);
+                        ntp1tx.readNTP1DataFromTx(txdb, tx, inputsTxs);
                         AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, txdb);
                         if (ntp1tx.getTxType() == NTP1TxType_ISSUANCE) {
                             std::string currSymbol = ntp1tx.getTokenSymbolIfIssuance();
@@ -370,14 +370,14 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
                 }
             } catch (std::exception& ex) {
                 NLog.write(b_sev::err,
-                          "Error while mining and verifying the uniqueness of issued token symbol in "
-                          "CreateNewBlock(): {}",
-                          ex.what());
+                           "Error while mining and verifying the uniqueness of issued token symbol in "
+                           "CreateNewBlock(): {}",
+                           ex.what());
                 continue;
             } catch (...) {
                 NLog.write(b_sev::err,
-                          "Error while mining and verifying the uniqueness of issued token symbol in "
-                          "CreateNewBlock(). Unknown exception thrown");
+                           "Error while mining and verifying the uniqueness of issued token symbol in "
+                           "CreateNewBlock(). Unknown exception thrown");
                 continue;
             }
 
@@ -400,7 +400,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
 
             if (fDebug) {
                 NLog.write(b_sev::info, "priority {:.1f} feeperkb {:.1f} txid {}", dPriority, dFeePerKb,
-                          tx.GetHash().ToString());
+                           tx.GetHash().ToString());
             }
 
             // Add transactions that depend on this one to the priority queue
@@ -436,7 +436,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
         pblock->nTime         = max(pindexPrev->GetPastTimeLimit() + 1, pblock->GetMaxTransactionTime());
         pblock->nTime         = max(pblock->GetBlockTime(), PastDrift(pindexPrev->GetBlockTime()));
         if (!fProofOfStake)
-            pblock->UpdateTime(pindexPrev.get());
+            pblock->UpdateTime(&*pindexPrev);
         pblock->nNonce = 0;
     }
 
@@ -517,7 +517,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
 
     //// debug print
     NLog.write(b_sev::debug, "CheckWork() : new proof-of-work block found hash: {} target: {}",
-              hashBlock.GetHex(), hashTarget.GetHex());
+               hashBlock.GetHex(), hashTarget.GetHex());
     pblock->print();
     NLog.write(b_sev::debug, "generated {}", FormatMoney(pblock->vtx[0].vout[0].nValue));
 
@@ -558,8 +558,8 @@ bool CheckStake(CBlock* pblock, CWallet& wallet)
 
     //// debug print
     NLog.write(b_sev::info,
-              "CheckStake() : new proof-of-stake block found  hash: {} proofhash: {} target: {}",
-              hashBlock.GetHex(), proofHash.GetHex(), hashTarget.GetHex());
+               "CheckStake() : new proof-of-stake block found  hash: {} proofhash: {} target: {}",
+               hashBlock.GetHex(), proofHash.GetHex(), hashTarget.GetHex());
     pblock->print();
     NLog.write(b_sev::info, "out {}", FormatMoney(pblock->vtx[1].GetValueOut()));
 
@@ -615,7 +615,7 @@ void StakeMiner(CWallet* pwallet)
         }
 
         if (Params().MiningRequiresPeers()) {
-            while (is_vNodesEmpty_safe() || IsInitialBlockDownload()) {
+            while (is_vNodesEmpty_safe() || IsInitialBlockDownload(txdb)) {
                 stakeMaker.resetLastCoinStakeSearchInterval();
                 fTryToSync = true;
                 MilliSleep(1000);

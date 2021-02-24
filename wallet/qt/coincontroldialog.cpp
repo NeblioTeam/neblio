@@ -486,6 +486,8 @@ void CoinControlDialog::updateLabels(WalletModel* model, QDialog* dialog)
     double       dPriorityInputs = 0;
     unsigned int nQuantity       = 0;
 
+    const CTxDB txdb;
+
     vector<COutPoint> vCoinControl;
     vector<COutput>   vOutputs;
     coinControl->ListSelected(vCoinControl);
@@ -503,13 +505,13 @@ void CoinControlDialog::updateLabels(WalletModel* model, QDialog* dialog)
                 NTP1Transaction                                       ntp1tx;
                 std::vector<std::pair<CTransaction, NTP1Transaction>> prevTxs =
                     NTP1Transaction::GetAllNTP1InputsOfTx(*out.tx, false);
-                ntp1tx.readNTP1DataFromTx(*out.tx, prevTxs);
+                ntp1tx.readNTP1DataFromTx(txdb, *out.tx, prevTxs);
                 outputIsNTP1 = (ntp1tx.getTxOut(out.i).tokenCount() != 0);
 
             } catch (std::exception& ex) {
                 NLog.write(b_sev::err,
-                          "Unable to read NTP1 transaction for coin control: {}. Error says: {}",
-                          out.tx->GetHash().ToString().c_str(), ex.what());
+                           "Unable to read NTP1 transaction for coin control: {}. Error says: {}",
+                           out.tx->GetHash().ToString().c_str(), ex.what());
                 outputIsNTP1 = false;
             }
         }
@@ -524,7 +526,7 @@ void CoinControlDialog::updateLabels(WalletModel* model, QDialog* dialog)
 
         // Bytes
         CTxDestination address;
-        if (ExtractDestination(out.tx->vout[out.i].scriptPubKey, address)) {
+        if (ExtractDestination(txdb, out.tx->vout[out.i].scriptPubKey, address)) {
             CPubKey pubkey;
             CKeyID* keyid = boost::get<CKeyID>(&address);
             if (keyid && model->getPubKey(*keyid, pubkey))
@@ -552,7 +554,7 @@ void CoinControlDialog::updateLabels(WalletModel* model, QDialog* dialog)
         int64_t nFee = nTransactionFee * (1 + (int64_t)nBytes / 1000);
 
         // Min Fee
-        int64_t nMinFee = txDummy.GetMinFee(CTxDB(), 1, GMF_SEND, nBytes);
+        int64_t nMinFee = txDummy.GetMinFee(txdb, 1, GMF_SEND, nBytes);
 
         nPayFee = max(nFee, nMinFee);
 
@@ -667,6 +669,8 @@ void CoinControlDialog::updateView()
     map<QString, vector<COutput>> mapCoins;
     model->listCoins(mapCoins);
 
+    const CTxDB txdb;
+
     for (PAIRTYPE(QString, vector<COutput>) coins : mapCoins) {
         QTreeWidgetItem* itemWalletAddress = new QTreeWidgetItem();
         QString          sWalletAddress    = coins.first;
@@ -713,7 +717,7 @@ void CoinControlDialog::updateView()
             // address
             CTxDestination outputAddress;
             QString        sAddress = "";
-            if (ExtractDestination(out.tx->vout[out.i].scriptPubKey, outputAddress)) {
+            if (ExtractDestination(txdb, out.tx->vout[out.i].scriptPubKey, outputAddress)) {
                 sAddress = CBitcoinAddress(outputAddress).ToString().c_str();
 
                 // if listMode or change => show bitcoin address. In tree mode, address is not shown
@@ -752,7 +756,7 @@ void CoinControlDialog::updateView()
                     NTP1Transaction                                       ntp1tx;
                     std::vector<std::pair<CTransaction, NTP1Transaction>> prevTxs =
                         NTP1Transaction::GetAllNTP1InputsOfTx(*out.tx, false);
-                    ntp1tx.readNTP1DataFromTx(*out.tx, prevTxs);
+                    ntp1tx.readNTP1DataFromTx(txdb, *out.tx, prevTxs);
                     bool considerNeblsToo = (out.tx->vout[out.i].nValue > MIN_TX_FEE);
                     if (considerNeblsToo) {
                         sTokenType += QString::fromStdString(CURRENCY_UNIT);
@@ -780,8 +784,8 @@ void CoinControlDialog::updateView()
 
                 } catch (std::exception& ex) {
                     NLog.write(b_sev::err,
-                              "Unable to read NTP1 transaction for coin control: {}. Error says: {}",
-                              out.tx->GetHash().ToString().c_str(), ex.what());
+                               "Unable to read NTP1 transaction for coin control: {}. Error says: {}",
+                               out.tx->GetHash().ToString().c_str(), ex.what());
                     sTokenType        = "(Unknown)";
                     sNTP1TokenAmounts = "(Unknown)";
                     sTokenId          = "(Unknown)";
@@ -832,8 +836,8 @@ void CoinControlDialog::updateView()
                 QDateTime::fromTime_t(out.tx->GetTxTime()).toUTC().toString("yy-MM-dd hh:mm"));
 
             // immature PoS reward
-            if (out.tx->IsCoinStake() && out.tx->GetBlocksToMaturity() > 0 &&
-                out.tx->GetDepthInMainChain() > 0) {
+            if (out.tx->IsCoinStake() && out.tx->GetBlocksToMaturity(txdb) > 0 &&
+                out.tx->GetDepthInMainChain(txdb) > 0) {
                 itemOutput->setBackground(COLUMN_CONFIRMATIONS, Qt::red);
                 itemOutput->setDisabled(true);
             }

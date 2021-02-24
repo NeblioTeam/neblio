@@ -52,13 +52,13 @@ WalletModel::~WalletModel()
     balancesThread.wait();
 }
 
-qint64 WalletModel::getBalance() const { return wallet->GetBalance(); }
+qint64 WalletModel::getBalance() const { return wallet->GetBalance(CTxDB()); }
 
-qint64 WalletModel::getUnconfirmedBalance() const { return wallet->GetUnconfirmedBalance(); }
+qint64 WalletModel::getUnconfirmedBalance() const { return wallet->GetUnconfirmedBalance(CTxDB()); }
 
-qint64 WalletModel::getStake() const { return wallet->GetStake(); }
+qint64 WalletModel::getStake() const { return wallet->GetStake(CTxDB()); }
 
-qint64 WalletModel::getImmatureBalance() const { return wallet->GetImmatureBalance(); }
+qint64 WalletModel::getImmatureBalance() const { return wallet->GetImmatureBalance(CTxDB()); }
 
 boost::optional<uint64_t> WalletModel::getNumTransactions() const
 {
@@ -87,8 +87,8 @@ void WalletModel::pollBalanceChanged()
     if (!lock)
         return;
 
-    const ConstCBlockIndexSmartPtr pindexBest         = CTxDB().GetBestBlockIndex();
-    const int                      currentBlockHeight = pindexBest ? pindexBest->nHeight : 0;
+    const boost::optional<CBlockIndex> pindexBest         = CTxDB().GetBestBlockIndex();
+    const int                          currentBlockHeight = pindexBest ? pindexBest->nHeight : 0;
 
     // Don't continue processing if the chain tip time is less than the first
     // key creation time as there is no need to iterate over the transaction
@@ -249,7 +249,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(QList<SendCoinsRecipient>   
 
     int64_t              nBalance = 0;
     std::vector<COutput> vCoins;
-    wallet->AvailableCoins(vCoins, true, coinControl);
+    wallet->AvailableCoins(CTxDB(), vCoins, true, coinControl);
 
     for (const COutput& out : vCoins) {
         nBalance += out.tx->vout[out.i].nValue;
@@ -310,7 +310,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(QList<SendCoinsRecipient>   
         int64_t     nFeeRequired = 0;
         std::string errorMsg;
         const bool  fCreated =
-            wallet->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, tokenCalculator,
+            wallet->CreateTransaction(CTxDB(), vecSend, wtx, keyChange, nFeeRequired, tokenCalculator,
                                       ntp1metadata, false, coinControl, &errorMsg, fSpendDelegated);
 
         if (!fCreated) {
@@ -327,10 +327,11 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(QList<SendCoinsRecipient>   
             std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
                 NTP1Transaction::GetAllNTP1InputsOfTx(wtx, false);
             NTP1Transaction ntp1tx;
-            ntp1tx.readNTP1DataFromTx(wtx, inputsTxs);
+            ntp1tx.readNTP1DataFromTx(CTxDB(), wtx, inputsTxs);
         } catch (const std::exception& ex) {
             NLog.write(b_sev::info,
-                      "An invalid NTP1 transaction was created; an exception was thrown: {}", ex.what());
+                       "An invalid NTP1 transaction was created; an exception was thrown: {}",
+                       ex.what());
             SendCoinsReturn ret(StatusCode::NTP1TokenCalculationsFailed);
             ret.msg =
                 "Unable to create the transaction. The transaction created would result in an invalid "
@@ -342,7 +343,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(QList<SendCoinsRecipient>   
         if (!uiInterface.ThreadSafeAskFee(nFeeRequired, tr("Sending...").toStdString())) {
             return Aborted;
         }
-        if (!wallet->CommitTransaction(wtx, keyChange)) {
+        if (!wallet->CommitTransaction(wtx, CTxDB(), keyChange)) {
             return TransactionCommitFailed;
         }
         hex = QString::fromStdString(wtx.GetHash().GetHex());
@@ -433,7 +434,7 @@ static void NotifyAddressBookChanged(WalletModel*          walletmodel, CWallet*
                                      bool isMine, const std::string& purpose, ChangeType status)
 {
     NLog.write(b_sev::info, "NotifyAddressBookChanged {} {} isMine={} purpose={} status={}",
-              CBitcoinAddress(address).ToString(), label.c_str(), isMine, purpose, status);
+               CBitcoinAddress(address).ToString(), label.c_str(), isMine, purpose, status);
     QMetaObject::invokeMethod(
         walletmodel, "updateAddressBook", Qt::QueuedConnection,
         Q_ARG(QString, QString::fromStdString(CBitcoinAddress(address).ToString())),
@@ -522,7 +523,7 @@ void WalletModel::getOutputs(const std::vector<COutPoint>& vOutpoints, std::vect
         if (!wallet->mapWallet.count(outpoint.hash))
             continue;
         bool fConflicted = false;
-        int  nDepth      = wallet->mapWallet[outpoint.hash].GetDepthAndMempool(fConflicted);
+        int  nDepth      = wallet->mapWallet[outpoint.hash].GetDepthAndMempool(fConflicted, CTxDB());
         if (nDepth < 0 || fConflicted)
             continue;
         COutput out(&wallet->mapWallet[outpoint.hash], outpoint.n, nDepth);
@@ -533,8 +534,10 @@ void WalletModel::getOutputs(const std::vector<COutPoint>& vOutpoints, std::vect
 // AvailableCoins + LockedCoins grouped by wallet address (put change in one group with wallet address)
 void WalletModel::listCoins(std::map<QString, std::vector<COutput>>& mapCoins) const
 {
+    const CTxDB txdb;
+
     std::vector<COutput> vCoins;
-    wallet->AvailableCoins(vCoins);
+    wallet->AvailableCoins(txdb, vCoins);
 
     LOCK2(cs_main, wallet->cs_wallet); // ListLockedCoins, mapWallet
     std::vector<COutPoint> vLockedCoins;
@@ -544,7 +547,7 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput>>& mapCoins) c
         if (!wallet->mapWallet.count(outpoint.hash))
             continue;
         bool fConflicted = false;
-        int  nDepth      = wallet->mapWallet[outpoint.hash].GetDepthAndMempool(fConflicted);
+        int  nDepth      = wallet->mapWallet[outpoint.hash].GetDepthAndMempool(fConflicted, CTxDB());
         if (nDepth < 0 || fConflicted)
             continue;
         COutput out(&wallet->mapWallet[outpoint.hash], outpoint.n, nDepth);
@@ -554,7 +557,7 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput>>& mapCoins) c
     for (const COutput& out : vCoins) {
         COutput cout = out;
 
-        while (wallet->IsChange(cout.tx->vout[cout.i]) && cout.tx->vin.size() > 0 &&
+        while (wallet->IsChange(txdb, cout.tx->vout[cout.i]) && cout.tx->vin.size() > 0 &&
                IsMineCheck(wallet->IsMine(cout.tx->vin[0]), isminetype::ISMINE_SPENDABLE_ALL)) {
             if (!wallet->mapWallet.count(cout.tx->vin[0].prevout.hash))
                 break;
@@ -563,7 +566,7 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput>>& mapCoins) c
         }
 
         CTxDestination address;
-        if (!ExtractDestination(cout.tx->vout[cout.i].scriptPubKey, address))
+        if (!ExtractDestination(CTxDB(), cout.tx->vout[cout.i].scriptPubKey, address))
             continue;
         mapCoins[CBitcoinAddress(address).ToString().c_str()].push_back(out);
     }

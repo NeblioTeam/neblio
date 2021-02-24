@@ -12,7 +12,9 @@
 QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
 {
     AssertLockHeld(cs_main);
-    if (!IsFinalTx(wtx, CTxDB().GetBestChainHeight().value_or(0) + 1)) {
+
+    const CTxDB txdb;
+    if (!IsFinalTx(wtx, txdb, txdb.GetBestChainHeight().value_or(0) + 1)) {
         if (wtx.nLockTime < LOCKTIME_THRESHOLD)
             return tr("Open for %n more block(s)", "",
                       wtx.nLockTime - CTxDB().GetBestChainHeight().value_or(0));
@@ -20,7 +22,7 @@ QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
             return tr("Open until %1").arg(GUIUtil::dateTimeStr(wtx.nLockTime));
     } else {
         bool fConflicted = false;
-        int  nDepth      = wtx.GetDepthAndMempool(fConflicted);
+        int  nDepth      = wtx.GetDepthAndMempool(fConflicted, txdb);
         if (nDepth < 0 || fConflicted)
             return tr("conflicted");
         else if (GetAdjustedTime() - wtx.nTimeReceived > 2 * 60 && wtx.GetRequestCount() == 0)
@@ -43,7 +45,7 @@ std::string FormatNTP1TokenAmount(const TokenMinimalData& token)
     return ::ToString(token.amount) + " " + token.tokenName + " (Token ID: " + token.tokenId + ")";
 }
 
-QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
+QString TransactionDesc::toHTML(const ITxDB& txdb, CWallet* wallet, const CWalletTx& wtx)
 {
     QString strHTML;
 
@@ -52,7 +54,7 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
     strHTML += "<html><font face='verdana, arial, helvetica, sans-serif'>";
 
     int64_t nTime   = wtx.GetTxTime();
-    int64_t nCredit = wtx.GetCredit(static_cast<isminefilter>(isminetype::ISMINE_ALL));
+    int64_t nCredit = wtx.GetCredit(txdb, static_cast<isminefilter>(isminetype::ISMINE_ALL));
     int64_t nDebit  = wtx.GetDebit(static_cast<isminefilter>(isminetype::ISMINE_ALL));
     int64_t nNet    = nCredit - nDebit;
 
@@ -73,9 +75,9 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
     //
     if (wtx.IsCoinBase() || wtx.IsCoinStake()) {
         strHTML += "<b>" + tr("Source") + ":</b> " + tr("Generated") + "<br>";
-    } else if (wtx.mapValue.count("from") && !wtx.mapValue["from"].empty()) {
+    } else if (wtx.mapValue.count("from") && !wtx.mapValue.at("from").empty()) {
         // Online transaction
-        strHTML += "<b>" + tr("From") + ":</b> " + GUIUtil::HtmlEscape(wtx.mapValue["from"]) + "<br>";
+        strHTML += "<b>" + tr("From") + ":</b> " + GUIUtil::HtmlEscape(wtx.mapValue.at("from")) + "<br>";
     } else {
         // Offline transaction
         if (nNet > 0) {
@@ -86,7 +88,7 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
                 }
                 if (wallet->IsMine(txout) != isminetype::ISMINE_NO) {
                     CTxDestination address;
-                    if (ExtractDestination(txout.scriptPubKey, address) &&
+                    if (ExtractDestination(txdb, txout.scriptPubKey, address) &&
                         IsMineCheck(IsMine(*wallet, address), isminetype::ISMINE_SPENDABLE)) {
                         if (const auto entry = wallet->mapAddressBook.get(address)) {
                             strHTML += "<b>" + tr("From") + ":</b> " + tr("unknown") + "<br>";
@@ -112,21 +114,21 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
     try {
         std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs =
             NTP1Transaction::GetAllNTP1InputsOfTx(wtx, false);
-        ntp1tx.readNTP1DataFromTx(wtx, ntp1inputs);
+        ntp1tx.readNTP1DataFromTx(txdb, wtx, ntp1inputs);
     } catch (std::exception& ex) {
         NLog.write(b_sev::err,
-                  "(This doesn't have to be an error if the tx is not NTP1). For transaction details, "
-                  "failed to retrieve NTP1 data of transaction: {}. Error: {}",
-                  wtx.GetHash().ToString(), ex.what());
+                   "(This doesn't have to be an error if the tx is not NTP1). For transaction details, "
+                   "failed to retrieve NTP1 data of transaction: {}. Error: {}",
+                   wtx.GetHash().ToString(), ex.what());
         successInRetrievingNTP1Tx = false;
     }
 
     //
     // To
     //
-    if (wtx.mapValue.count("to") && !wtx.mapValue["to"].empty()) {
+    if (wtx.mapValue.count("to") && !wtx.mapValue.at("to").empty()) {
         // Online transaction
-        std::string strAddress = wtx.mapValue["to"];
+        std::string strAddress = wtx.mapValue.at("to");
         strHTML += "<b>" + tr("To") + ":</b> ";
         CTxDestination dest  = CBitcoinAddress(strAddress).Get();
         const auto     entry = wallet->mapAddressBook.get(dest);
@@ -150,9 +152,9 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
             nUnmatured += wallet->GetCredit(txout, static_cast<isminefilter>(isminetype::ISMINE_ALL));
         }
         strHTML += "<b>" + tr("Credit") + ":</b> ";
-        if (wtx.IsInMainChain()) {
+        if (wtx.IsInMainChain(txdb)) {
             strHTML += BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, nUnmatured) + " (" +
-                       tr("matures in %n more block(s)", "", wtx.GetBlocksToMaturity()) + ")";
+                       tr("matures in %n more block(s)", "", wtx.GetBlocksToMaturity(txdb)) + ")";
         } else {
             strHTML += "(" + tr("not accepted") + ")";
         }
@@ -208,10 +210,10 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
                 if (IsMineCheck(wallet->IsMine(txout), isminetype::ISMINE_SPENDABLE))
                     continue;
 
-                if (!wtx.mapValue.count("to") || wtx.mapValue["to"].empty()) {
+                if (!wtx.mapValue.count("to") || wtx.mapValue.at("to").empty()) {
                     // Offline transaction
                     CTxDestination address;
-                    if (ExtractDestination(txout.scriptPubKey, address)) {
+                    if (ExtractDestination(txdb, txout.scriptPubKey, address)) {
                         strHTML += "<b>" + tr("To") + ":</b> ";
                         const auto entry = wallet->mapAddressBook.get(address);
                         if (entry && !entry->name.empty())
@@ -235,7 +237,7 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
 
             if (fAllToMe) {
                 // Payment to self
-                int64_t nChange = wtx.GetChange();
+                int64_t nChange = wtx.GetChange(txdb);
                 int64_t nValue  = nCredit - nChange;
                 strHTML += "<b>" + tr("Debit") + ":</b> " +
                            BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, -nValue) + "<br>";
@@ -300,12 +302,12 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
     //
     // Message
     //
-    if (wtx.mapValue.count("message") && !wtx.mapValue["message"].empty())
+    if (wtx.mapValue.count("message") && !wtx.mapValue.at("message").empty())
         strHTML += "<br><b>" + tr("Message") + ":</b><br>" +
-                   GUIUtil::HtmlEscape(wtx.mapValue["message"], true) + "<br>";
-    if (wtx.mapValue.count("comment") && !wtx.mapValue["comment"].empty())
+                   GUIUtil::HtmlEscape(wtx.mapValue.at("message"), true) + "<br>";
+    if (wtx.mapValue.count("comment") && !wtx.mapValue.at("comment").empty())
         strHTML += "<br><b>" + tr("Comment") + ":</b><br>" +
-                   GUIUtil::HtmlEscape(wtx.mapValue["comment"], true) + "<br>";
+                   GUIUtil::HtmlEscape(wtx.mapValue.at("comment"), true) + "<br>";
 
     strHTML += "<b>" + tr("Transaction ID") + ":</b> " + wtx.GetHash().ToString().c_str() + "<br>";
 
@@ -370,7 +372,7 @@ QString TransactionDesc::toHTML(CWallet* wallet, CWalletTx& wtx)
                     strHTML += "<li>";
                     const CTxOut&  vout = prev.vout[prevout.n];
                     CTxDestination address;
-                    if (ExtractDestination(vout.scriptPubKey, address)) {
+                    if (ExtractDestination(txdb, vout.scriptPubKey, address)) {
                         const auto entry = wallet->mapAddressBook.get(address);
                         if (entry && !entry->name.empty())
                             strHTML += GUIUtil::HtmlEscape(entry->name) + " ";

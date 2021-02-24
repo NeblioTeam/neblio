@@ -18,7 +18,9 @@ CreateColdStakeDelegation(const std::string& stakeAddress, CAmount nValue,
 {
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    if (!Params().IsColdStakingEnabled(CTxDB()) && !fForceNotEnabled)
+    const CTxDB txdb;
+
+    if (!Params().IsColdStakingEnabled(txdb) && !fForceNotEnabled)
         return Err(ColdStakingDisabled);
 
     // Get Staking Address
@@ -35,7 +37,7 @@ CreateColdStakeDelegation(const std::string& stakeAddress, CAmount nValue,
 
     // Check amount
     const CAmount currBalance =
-        pwalletMain->GetBalance() - (fUseDelegated ? 0 : pwalletMain->GetDelegatedBalance());
+        pwalletMain->GetBalance(txdb) - (fUseDelegated ? 0 : pwalletMain->GetDelegatedBalance(txdb));
     if (nValue > currBalance)
         return Err(InsufficientBalance);
 

@@ -45,8 +45,7 @@ class NTP1SendTxData
     std::vector<NTP1SendTokensOneRecipientData> recipientsList;
     NTP1WalletPtr                               usedWallet;
 
-    int64_t __addInputsThatCoversNeblAmount(uint64_t neblAmount);
-    bool    ready = false;
+    bool ready = false;
 
     boost::optional<IssueTokenData> tokenToIssueData;
 

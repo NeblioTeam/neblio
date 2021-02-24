@@ -13,17 +13,17 @@ class CTxMemPool;
 class CBlockIndex;
 class BestChainState;
 
-using CBlockIndexSmartPtr      = boost::shared_ptr<CBlockIndex>;
-using ConstCBlockIndexSmartPtr = boost::shared_ptr<const CBlockIndex>;
-using BlockIndexMapType        = ThreadSafeMap<uint256, CBlockIndexSmartPtr>;
+// using CBlockIndexSmartPtr      = boost::shared_ptr<CBlockIndex>;
+// using ConstCBlockIndexSmartPtr = boost::shared_ptr<const CBlockIndex>;
+using BlockIndexMapType = ThreadSafeMap<uint256, CBlockIndex>;
 
 extern BestChainState bestChain;
 
 extern CTxMemPool mempool;
 
-extern CCriticalSection    cs_main;
-extern BlockIndexMapType   mapBlockIndex;
-extern CBlockIndexSmartPtr pindexGenesisBlock;
+extern CCriticalSection cs_main;
+// extern BlockIndexMapType   mapBlockIndex;
+extern boost::shared_ptr<CBlockIndex> pindexGenesisBlock;
 
 extern boost::atomic_int64_t nTimeLastBestBlockReceived;
 
@@ -99,23 +99,5 @@ static const std::string SAFE_CHARS[] = {
 };
 
 std::string SanitizeString(const std::string& str, int rule);
-
-// this was the last used way to track the chain state, but now we replaced it with database calls for
-// consistency
-class BestChainState
-{
-    boost::atomic<int>     bestHeight{-1};
-    CBlockIndexSmartPtr    bestBlockIndex{nullptr};
-    boost::atomic<uint256> bestChainTrust{0};
-    boost::atomic<uint256> bestBlockHash{0};
-
-public:
-    void                __test_setHeight(int v) { bestHeight = v; }
-    int                 height() const { return bestHeight; }
-    uint256             chainTrust() const { return bestChainTrust; }
-    CBlockIndexSmartPtr blockIndex() const { return boost::atomic_load(&bestBlockIndex); }
-    uint256             blockHash() const { return bestBlockHash; }
-    void setBestChain(const CBlockIndexSmartPtr pindex, bool updateCountersAndTimes = false);
-};
 
 #endif // GLOBALS_H

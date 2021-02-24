@@ -44,9 +44,10 @@ public:
     virtual bool ReadDiskTx(const COutPoint& outpoint, CTransaction& tx) const                      = 0;
     virtual bool ReadBlock(const uint256& hash, CBlock& blk, bool fReadTransactions = true) const   = 0;
     virtual bool WriteBlock(const uint256& hash, const CBlock& blk)                                 = 0;
-    virtual bool WriteBlockIndex(const CBlockIndex& blockindex)                                     = 0;
-    virtual boost::optional<uint256> ReadBlockHashOfHeight(int32_t height) const                    = 0;
-    virtual bool                     EraseBlockHashOfHeight(int32_t height)                         = 0;
+    virtual boost::optional<CBlockIndex> ReadBlockIndex(const uint256& blockHash) const             = 0;
+    virtual bool                         WriteBlockIndex(const CBlockIndex& blockindex)             = 0;
+    virtual boost::optional<uint256>     ReadBlockHashOfHeight(int32_t height) const                = 0;
+    virtual bool                         EraseBlockHashOfHeight(int32_t height)                     = 0;
     virtual bool WriteBlockHashOfHeight(int32_t height, const uint256& blockHash)                   = 0;
     virtual boost::optional<BlockMetadata> ReadBlockMetadata(const uint256& blockHash) const        = 0;
     virtual bool                           WriteBlockMetadata(const BlockMetadata& blockMetadata)   = 0;
@@ -54,11 +55,15 @@ public:
     virtual bool                           WriteHashBestChain(const uint256& hashBestChain)         = 0;
     virtual bool                           ReadBestInvalidTrust(CBigNum& bnBestInvalidTrust) const  = 0;
     virtual bool                           WriteBestInvalidTrust(const CBigNum& bnBestInvalidTrust) = 0;
-    virtual bool                           LoadBlockIndex()                                         = 0;
-    virtual boost::optional<int>           GetBestChainHeight() const                               = 0;
-    virtual boost::optional<uint256>       GetBestChainTrust() const                                = 0;
-    virtual boost::shared_ptr<CBlockIndex> GetBestBlockIndex() const                                = 0;
-    virtual uint256                        GetBestBlockHash() const                                 = 0;
+    virtual boost::optional<std::map<uint256, CBlockIndex>> ReadAllBlockIndexEntries() const        = 0;
+    virtual bool WriteStakeSeen(const std::pair<COutPoint, unsigned int>& stake)                    = 0;
+    virtual boost::optional<bool>
+                                 WasStakeSeen(const std::pair<COutPoint, unsigned int>& stake) const = 0;
+    virtual bool                 LoadBlockIndex()                                                    = 0;
+    virtual boost::optional<int> GetBestChainHeight() const                                          = 0;
+    virtual boost::optional<uint256>     GetBestChainTrust() const                                   = 0;
+    virtual boost::optional<CBlockIndex> GetBestBlockIndex() const                                   = 0;
+    virtual uint256                      GetBestBlockHash() const                                    = 0;
 };
 
 #endif // ITXDB_H

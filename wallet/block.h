@@ -118,7 +118,7 @@ public:
     static uint256 CheckMerkleBranch(uint256 hash, const std::vector<uint256>& vMerkleBranch,
                                      int nIndex);
 
-    bool WriteToDisk(const uint256& nBlockPos, const uint256& hashProof);
+    bool WriteToDisk(const boost::optional<CBlockIndex>& prevBlockIndex, const uint256& hashProof);
 
     bool WriteBlockPubKeys(CTxDB& txdb);
 
@@ -127,14 +127,14 @@ public:
 
     void print() const;
 
-    static bool CheckBIP30Attack(CTxDB& txdb, const uint256& hashTx);
+    static bool CheckBIP30Attack(ITxDB& txdb, const uint256& hashTx);
 
     struct ChainReplaceTxs
     {
         // transactions that are being spent in the above ones
         std::unordered_map<uint256, CTxIndex> modifiedOutputsTxs;
         // the common ancestor block between the new fork of the new block and the main chain
-        CBlockIndexSmartPtr commonAncestorBlockIndex;
+        CBlockIndex commonAncestorBlockIndex;
     };
 
     struct CommonAncestorSuccessorBlocks
@@ -142,27 +142,27 @@ public:
         // while finding the common ancestor, this is the part of this block's chain (excluding this
         // block)
         std::vector<uint256>
-            inFork; // order matters here because we want to simulate respending these in order
-        CBlockIndexSmartPtr commonAncestor;
+                    inFork; // order matters here because we want to simulate respending these in order
+        CBlockIndex commonAncestor;
     };
 
     CommonAncestorSuccessorBlocks GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const;
     ChainReplaceTxs               GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const;
 
-    bool DisconnectBlock(CTxDB& txdb, CBlockIndexSmartPtr& pindex);
-    bool ConnectBlock(CTxDB& txdb, const ConstCBlockIndexSmartPtr& pindex, bool fJustCheck = false);
-    bool VerifyInputsUnspent(CTxDB& txdb) const;
+    bool DisconnectBlock(CTxDB& txdb, const CBlockIndex& pindex);
+    bool ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pindex, bool fJustCheck = false);
+    bool VerifyInputsUnspent(const CTxDB& txdb) const;
     bool VerifyBlock(CTxDB& txdb);
     bool ReadFromDisk(const CBlockIndex* pindex, bool fReadTransactions = true);
     bool ReadFromDisk(const CBlockIndex* pindex, const ITxDB& txdb, bool fReadTransactions = true);
-    bool SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
+    bool SetBestChain(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
                       const bool createDbTransaction = true);
-    bool AddToBlockIndex(uint256 nBlockPos, const uint256& hashProof, CTxDB& txdb,
-                         CBlockIndexSmartPtr* newBlockIdxPtr      = nullptr,
-                         const bool           createDbTransaction = true);
+    boost::optional<CBlockIndex> AddToBlockIndex(const boost::optional<CBlockIndex>& prevBlockIndex,
+                                                 const uint256& hashProof, CTxDB& txdb,
+                                                 const bool createDbTransaction = true);
     bool CheckBlock(const ITxDB& txdb, bool fCheckPOW = true, bool fCheckMerkleRoot = true,
                     bool fCheckSig = true);
-    bool AcceptBlock();
+    bool AcceptBlock(const CBlockIndex& prevBlockIndex);
     bool GetCoinAge(uint64_t& nCoinAge) const; // ppcoin: calculate total coin age spent in block
     bool
          SignBlock(const CTxDB& txdb, const CWallet& keystore, int64_t nFees,
@@ -174,15 +174,15 @@ public:
     bool                                     CheckBlockSignature(const ITxDB& txdb) const;
     Result<bool, BlockColdStakingCheckError> HasColdStaking(const ITxDB& txdb) const;
 
-    static CBlockIndexSmartPtr FindBlockByHeight(int nHeight);
+    static boost::optional<CBlockIndex> FindBlockByHeight(int nHeight);
 
-    static void InvalidChainFound(const ConstCBlockIndexSmartPtr& pindexNew, CTxDB& txdb);
+    static void InvalidChainFound(const CBlockIndex& pindexNew, ITxDB& txdb);
 
-    bool Reorganize(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
+    bool Reorganize(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
                     const bool createDbTransaction = true);
 
 private:
-    bool SetBestChainInner(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
+    bool SetBestChainInner(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
                            const bool createDbTransaction = true);
 };
 

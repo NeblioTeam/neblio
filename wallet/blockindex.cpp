@@ -1,4 +1,4 @@
-#include "blockindex.h"
+﻿#include "blockindex.h"
 
 #include "bignum.h"
 #include "block.h"
@@ -7,11 +7,11 @@
 
 CBlockIndex::CBlockIndex()
 {
-    blockHash              = 0;
-    hashPrev               = 0;
-    hashNext               = 0;
-    pprev                  = NULL;
-    pnext                  = NULL;
+    blockHash = 0;
+    hashPrev  = 0;
+    hashNext  = 0;
+    //    pprev                  = NULL;
+    //    pnext                  = NULL;
     nHeight                = 0;
     nChainTrust            = 0;
     nFlags                 = 0;
@@ -30,11 +30,11 @@ CBlockIndex::CBlockIndex()
 
 CBlockIndex::CBlockIndex(uint256 blockHashIn, const CBlock& block)
 {
-    blockHash              = blockHashIn;
-    hashPrev               = 0;
-    hashNext               = 0;
-    pprev                  = NULL;
-    pnext                  = NULL;
+    blockHash = blockHashIn;
+    hashPrev  = 0;
+    hashNext  = 0;
+    //    pprev                  = NULL;
+    //    pnext                  = NULL;
     nHeight                = 0;
     nChainTrust            = 0;
     nFlags                 = 0;
@@ -60,9 +60,8 @@ CBlockIndex::CBlockIndex(uint256 blockHashIn, const CBlock& block)
 CBlock CBlockIndex::GetBlockHeader() const
 {
     CBlock block;
-    block.nVersion = nVersion;
-    if (pprev)
-        block.hashPrevBlock = pprev->GetBlockHash();
+    block.nVersion       = nVersion;
+    block.hashPrevBlock  = hashPrev;
     block.hashMerkleRoot = hashMerkleRoot;
     block.nTime          = nTime;
     block.nBits          = nBits;
@@ -72,15 +71,33 @@ CBlock CBlockIndex::GetBlockHeader() const
 
 std::string CBlockIndex::ToString() const
 {
-    return fmt::format("CBlockIndex(nprev={}, pnext={}, nHeight={}, "
+    return fmt::format("CBlockIndex(hashPrev={}, hashNext={}, nHeight={}, "
                        "nFlags=({})({})({}), nStakeModifier={:x}"
                        ", nStakeModifierChecksum={:x}, hashProof={}, prevoutStake=({}), nStakeTime={} "
                        "merkle={}, hashBlock={})",
-                       fmt::ptr(pprev.get()), fmt::ptr(pnext.get()), nHeight,
+                       hashPrev.ToString(), hashNext.ToString(), nHeight,
                        GeneratedStakeModifier() ? "MOD" : "-", GetStakeEntropyBit(),
                        IsProofOfStake() ? "PoS" : "PoW", nStakeModifier, nStakeModifierChecksum,
                        hashProof.ToString(), prevoutStake.ToString(), nStakeTime,
                        hashMerkleRoot.ToString(), GetBlockHash().ToString());
+}
+
+boost::optional<CBlockIndex> CBlockIndex::getPrev(const ITxDB& txdb) const
+{
+    if (hashPrev != 0) {
+        return txdb.ReadBlockIndex(hashPrev);
+    } else {
+        return boost::none;
+    }
+}
+
+boost::optional<CBlockIndex> CBlockIndex::getNext(const ITxDB& txdb) const
+{
+    if (hashNext != 0) {
+        return txdb.ReadBlockIndex(hashNext);
+    } else {
+        return boost::none;
+    }
 }
 
 uint256 CBlockIndex::GetBlockTrust() const
@@ -96,5 +113,27 @@ uint256 CBlockIndex::GetBlockTrust() const
 
 bool CBlockIndex::IsInMainChain(const ITxDB& txdb) const
 {
-    return (pnext || this == txdb.GetBestBlockIndex().get());
+    return (hashNext != 0 || blockHash == txdb.GetBestBlockHash());
+}
+
+int64_t CBlockIndex::GetMedianTimePast() const
+{
+    int64_t  pmedian[nMedianTimeSpan];
+    int64_t* pbegin = &pmedian[nMedianTimeSpan];
+    int64_t* pend   = &pmedian[nMedianTimeSpan];
+
+    const CTxDB txdb;
+
+    CBlockIndex index = *this;
+    for (int i = 0; i < nMedianTimeSpan; i++) {
+        *(--pbegin)                     = index.GetBlockTime();
+        boost::optional<CBlockIndex> bi = index.getPrev(txdb);
+        if (!bi) {
+            break;
+        }
+        index = std::move(*bi);
+    }
+
+    std::sort(pbegin, pend);
+    return pbegin[(pend - pbegin) / 2];
 }

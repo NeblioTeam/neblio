@@ -10,7 +10,7 @@ const uint256
 
 CMerkleTx::CMerkleTx(const CTransaction& txIn) : CTransaction(txIn) { Init(); }
 
-int CMerkleTx::GetDepthInMainChain(const CBlockIndex*& pindexRet) const
+int CMerkleTx::GetDepthInMainChain(boost::optional<CBlockIndex>& pindexRet, const ITxDB& txdb) const
 {
     if (hashBlock == 0 || hashBlock == ABANDON_HASH)
         return 0;
@@ -18,29 +18,28 @@ int CMerkleTx::GetDepthInMainChain(const CBlockIndex*& pindexRet) const
     int nResult = 0;
 
     // Find the block it claims to be in
-    const auto bi = mapBlockIndex.get(hashBlock).value_or(nullptr);
+    const auto bi = txdb.ReadBlockIndex(hashBlock);
     if (!bi) {
         nResult = 0;
     } else {
-        CBlockIndex* pindex = bi.get();
-        if (!pindex || !pindex->IsInMainChain(CTxDB())) {
+        if (!bi || !bi->IsInMainChain(txdb)) {
             nResult = 0;
         } else {
-            pindexRet = pindex;
-            nResult   = ((nIndex == -1) ? (-1) : 1) *
-                      (CTxDB().GetBestChainHeight().value_or(0) - pindex->nHeight + 1);
+            nResult =
+                ((nIndex == -1) ? (-1) : 1) * (txdb.GetBestChainHeight().value_or(0) - bi->nHeight + 1);
+            pindexRet = std::move(bi);
         }
     }
 
     return nResult;
 }
 
-int CMerkleTx::GetBlocksToMaturity() const
+int CMerkleTx::GetBlocksToMaturity(const ITxDB& txdb) const
 {
     if (!(IsCoinBase() || IsCoinStake()))
         return 0;
-    int nCbM = Params().CoinbaseMaturity(CTxDB());
-    return std::max(0, (nCbM + 1) - GetDepthInMainChain());
+    int nCbM = Params().CoinbaseMaturity(txdb);
+    return std::max(0, (nCbM + 1) - GetDepthInMainChain(txdb));
 }
 
 Result<void, TxValidationState> CMerkleTx::AcceptToMemoryPool() const
@@ -54,14 +53,12 @@ bool CMerkleTx::isAbandoned() const { return (hashBlock == ABANDON_HASH); }
 
 void CMerkleTx::setAbandoned() { hashBlock = ABANDON_HASH; }
 
-int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
+int CMerkleTx::SetMerkleBranch(const ITxDB& txdb, const CBlock* pblock)
 {
     AssertLockHeld(cs_main);
 
-    const CTxDB txdb;
-
     CBlock blockTmp;
-    if (pblock == NULL) {
+    if (pblock == nullptr) {
         // Load the block this tx is in
         CTxIndex txindex;
         if (!txdb.ReadTxIndex(GetHash(), txindex))
@@ -89,10 +86,10 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
     vMerkleBranch = pblock->GetMerkleBranch(nIndex);
 
     // Is the tx in a block that's in the main chain
-    const auto bi = mapBlockIndex.get(hashBlock).value_or(nullptr);
+    const auto bi = txdb.ReadBlockIndex(hashBlock);
     if (!bi)
         return 0;
-    CBlockIndexSmartPtr pindex = bi;
+    const boost::optional<CBlockIndex> pindex = bi;
     if (!pindex || !pindex->IsInMainChain(txdb))
         return 0;
 

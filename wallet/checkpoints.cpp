@@ -1,4 +1,4 @@
-// Copyright (c) 2009-2012 The Bitcoin developers
+﻿// Copyright (c) 2009-2012 The Bitcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -17,46 +17,58 @@ namespace Checkpoints {
 boost::atomic_int64_t BlockToCheckpointCache::counter{0};
 
 BlockToCheckpointCache g_CheckpointsCache;
-bool                   CheckHardened(int nHeight, const uint256& hash)
-{
-    const MapCheckpoints& checkpoints = Params().Checkpoints();
 
+bool CheckHardened(int nHeight, const uint256& hash, const MapCheckpoints& checkpoints)
+{
     auto it = checkpoints.find(nHeight);
     if (it == checkpoints.cend())
         return true;
     return hash == it->second;
 }
 
-int GetTotalBlocksEstimate()
+int GetTotalBlocksEstimate(const MapCheckpoints& checkpoints)
 {
-    const MapCheckpoints& checkpoints = Params().Checkpoints();
-
-    if (checkpoints.empty()) {
+    if (!checkpoints.empty()) {
         return checkpoints.rbegin()->first;
     } else {
         return 0;
     }
 }
 
-CBlockIndex* GetLastCheckpoint(const BlockIndexMapType& mapBlockIndex)
+boost::optional<CBlockIndex> GetLastCheckpoint(const ITxDB& txdb, const MapCheckpoints& checkpoints)
 {
-    const MapCheckpoints& checkpoints = Params().Checkpoints();
-
-    auto lock = mapBlockIndex.get_shared_lock();
-
-    BOOST_REVERSE_FOREACH(const MapCheckpoints::value_type& i, checkpoints)
-    {
-        const uint256&                                         hash = i.second;
-        auto val   = mapBlockIndex.get_unsafe(hash).value_or(nullptr);
-        if (val)
-            return val.get();
+    if (checkpoints.empty()) {
+        return boost::make_optional(*pindexGenesisBlock);
     }
-    return nullptr;
+
+    const boost::optional<int> bestHeight = txdb.GetBestChainHeight();
+    if (!bestHeight) {
+        NLog.write(b_sev::err, "Unable to retrieve best block height to retrieve the latest checkpoint");
+        return boost::none;
+    }
+    auto it = checkpoints.lower_bound(*bestHeight);
+    if (it == checkpoints.cend()) {
+        assert(!checkpoints.empty() && "This function was supposed to assert the array is not empty");
+        --it;
+    } else if (it != checkpoints.cbegin() && it->first != *bestHeight) {
+        // get the right checkpoint since lower_bound doesn't do what we need
+        --it;
+    }
+    const uint256&                     blockHash  = it->second;
+    const boost::optional<CBlockIndex> blockIndex = txdb.ReadBlockIndex(blockHash);
+    std::string                        h          = blockHash.ToString();
+    if (!blockIndex) {
+        NLog.write(b_sev::err, "Failed to retrieve the block index at best block height {} and hash {}",
+                   *bestHeight, blockHash.ToString());
+        return boost::none;
+    }
+    return blockIndex;
 }
 
 // Check against synchronized checkpoint
-bool CheckSync(const uint256& blockHash, const CBlockIndex* pindexPrev, bool enableCaching,
-               const MapCheckpoints& checkpoints, BlockToCheckpointCache& checkpointsCache)
+bool CheckSync(const ITxDB& txdb, const uint256& blockHash, const CBlockIndex* pindexPrev,
+               bool enableCaching, const MapCheckpoints& checkpoints,
+               BlockToCheckpointCache& checkpointsCache)
 {
     // if checkpoints are empty, then everything is valid
     if (checkpoints.empty()) {
@@ -79,20 +91,31 @@ bool CheckSync(const uint256& blockHash, const CBlockIndex* pindexPrev, bool ena
     if (checkpointIt->first == nBlockHeight) {
         return checkpointIt->second == blockHash;
     } else {
-        const CBlockIndex* pindex = pindexPrev;
-        while (pindex) {
+        CBlockIndex index = *pindexPrev;
+        while (true) {
+            if (index.GetBlockHash() == Params().GenesisBlockHash()) {
+                // this is the special case when nHeight == 1
+                return true;
+            }
             if (enableCaching) {
-                const auto cp = checkpointsCache.get(pindex->GetBlockHash());
+                const auto cp = checkpointsCache.get(index.GetBlockHash());
                 if (cp.is_initialized()) {
                     checkpointsCache.add(cp->cachedCheckpoint, blockHash);
                     return cp->cachedCheckpoint == checkpointIt->second;
                 }
             }
-            if (pindex->nHeight == highestRelevantCheckpoint) {
+            if (index.nHeight == highestRelevantCheckpoint) {
                 checkpointsCache.add(checkpointIt->second, blockHash);
-                return pindex->GetBlockHash() == checkpointIt->second;
+                return index.GetBlockHash() == checkpointIt->second;
             }
-            pindex = boost::atomic_load(&pindex->pprev).get();
+            boost::optional<CBlockIndex> bi = index.getPrev(txdb);
+            if (bi) {
+                index = std::move(*bi);
+            } else {
+                NLog.write(b_sev::err,
+                           "CRITICAL ERROR: failed to get prev block for check point even though it's "
+                           "not genesis. THIS SHOULD NEVER HAPPEN. Database broken?");
+            }
         }
     }
     return false;

@@ -17,10 +17,10 @@ QT_END_NAMESPACE
 
 struct ChainTipData
 {
-    boost::atomic_int     height{0};
-    boost::atomic_int64_t time{0};
+    boost::atomic_int      height{0};
+    boost::atomic_int64_t  time{0};
     boost::atomic<uint256> hash{0};
-    boost::atomic_bool isInitialSync{true};
+    boost::atomic_bool     isInitialSync{true};
 };
 
 extern int64_t nLastBlockTipUpdateNotification;
@@ -57,7 +57,7 @@ public:
     QString clientName() const;
     QString formatClientStartupTime() const;
 
-    void setTipBlock(const ConstCBlockIndexSmartPtr &pindex, bool initialSync);
+    void setTipBlock(const CBlockIndex& pindex, bool initialSync);
 
 private:
     OptionsModel* optionsModel;

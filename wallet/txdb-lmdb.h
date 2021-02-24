@@ -83,7 +83,6 @@ public:
     CTxDB(CTxDB&&)      = delete;
     CTxDB& operator=(const CTxDB&) = delete;
     CTxDB& operator=(CTxDB&&) = delete;
-    ~CTxDB();
 
     // Destroys the underlying shared global state accessed by this TxDB.
     void Close();
@@ -278,21 +277,25 @@ public:
     bool ReadDiskTx(const COutPoint& outpoint, CTransaction& tx) const override;
     bool ReadBlock(const uint256& hash, CBlock& blk, bool fReadTransactions = true) const override;
     bool WriteBlock(const uint256& hash, const CBlock& blk) override;
-    bool WriteBlockIndex(const CBlockIndex& blockindex) override;
-    bool EraseBlockHashOfHeight(int32_t height) override;
-    boost::optional<uint256> ReadBlockHashOfHeight(int32_t height) const override;
-    bool                     WriteBlockHashOfHeight(int32_t height, const uint256& blockHash) override;
+    boost::optional<CBlockIndex> ReadBlockIndex(const uint256& blockHash) const override;
+    bool                         WriteBlockIndex(const CBlockIndex& blockindex) override;
+    bool                         EraseBlockHashOfHeight(int32_t height) override;
+    boost::optional<uint256>     ReadBlockHashOfHeight(int32_t height) const override;
+    bool WriteBlockHashOfHeight(int32_t height, const uint256& blockHash) override;
     boost::optional<BlockMetadata> ReadBlockMetadata(const uint256& blockHash) const override;
     bool                           WriteBlockMetadata(const BlockMetadata& blockMetadata) override;
     bool                           ReadHashBestChain(uint256& hashBestChain) const override;
     bool                           WriteHashBestChain(const uint256& hashBestChain) override;
     bool                           ReadBestInvalidTrust(CBigNum& bnBestInvalidTrust) const override;
     bool                           WriteBestInvalidTrust(const CBigNum& bnBestInvalidTrust) override;
-    bool                           LoadBlockIndex() override;
-    boost::optional<int>           GetBestChainHeight() const override;
-    boost::optional<uint256>       GetBestChainTrust() const override;
-    boost::shared_ptr<CBlockIndex> GetBestBlockIndex() const override;
-    uint256                        GetBestBlockHash() const override;
+    boost::optional<std::map<uint256, CBlockIndex>> ReadAllBlockIndexEntries() const override;
+    bool                  WriteStakeSeen(const std::pair<COutPoint, unsigned int>& stake) override;
+    boost::optional<bool> WasStakeSeen(const std::pair<COutPoint, unsigned int>& stake) const override;
+    bool                  LoadBlockIndex() override;
+    boost::optional<int>  GetBestChainHeight() const override;
+    boost::optional<uint256>     GetBestChainTrust() const override;
+    boost::optional<CBlockIndex> GetBestBlockIndex() const override;
+    uint256                      GetBestBlockHash() const override;
 
     static uintmax_t GetCurrentDiskUsage();
 

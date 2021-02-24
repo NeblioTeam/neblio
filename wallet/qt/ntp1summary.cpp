@@ -31,7 +31,7 @@ void NTP1Summary::GetAlreadyIssuedNTP1Tokens(boost::promise<std::unordered_set<s
     try {
         LOCK(cs_main);
         std::unordered_set<std::string> result;
-        CTxDB                           txdb;
+        const CTxDB                     txdb;
         std::vector<uint256>            txs;
         // retrieve all issuance transactions hashes from db
         if (txdb.ReadAllIssuanceTxs(txs)) {
@@ -46,8 +46,8 @@ void NTP1Summary::GetAlreadyIssuedNTP1Tokens(boost::promise<std::unordered_set<s
                         throw std::runtime_error(
                             "Failed to find the block that belongs to transaction: " + hash.ToString());
                     }
-                    auto bi = mapBlockIndex.get(blockHash).value_or(nullptr);
-                    if (bi && bi->IsInMainChain(CTxDB())) {
+                    auto bi = txdb.ReadBlockIndex(blockHash);
+                    if (bi && bi->IsInMainChain(txdb)) {
                         std::string tokenSymbol = ntp1tx.getTokenSymbolIfIssuance();
                         // symbols should be in upper case for the comparison to work
                         std::transform(tokenSymbol.begin(), tokenSymbol.end(), tokenSymbol.begin(),
@@ -307,7 +307,7 @@ void NTP1Summary::slot_showMetadataAction()
             if (it == issuanceTxidVsMetadata.cend()) {
                 json_spirit::Value v;
                 try {
-                    v = NTP1Transaction::GetNTP1IssuanceMetadata(issuanceTxid);
+                    v = NTP1Transaction::GetNTP1IssuanceMetadata(CTxDB(), issuanceTxid);
                 } catch (std::exception& ex) {
                     QMessageBox::warning(this, "Failed to get issuance transaction",
                                          "Failed to retrieve issuance transaction with error: " +

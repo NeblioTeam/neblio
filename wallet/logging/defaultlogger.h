@@ -1,6 +1,7 @@
 ﻿#ifndef DEFAULTLOGGER_H
 #define DEFAULTLOGGER_H
 
+#include <boost/optional.hpp>
 #include <fstream>
 #include <functional>
 #include <iomanip>
@@ -182,6 +183,14 @@ public:
         LoggerSingleton::get().write(b_sev::err, "{}: {}", std::move(sourceInfo),
                                      fmt::format(fmtStr, std::forward<Args>(args)...));
         return false;
+    }
+
+    template <typename FormatString, typename... Args>
+    boost::none_t errorn(const FormatString& fmtStr, Args&&... args)
+    {
+        LoggerSingleton::get().write(b_sev::err, "{}: {}", std::move(sourceInfo),
+                                     fmt::format(fmtStr, std::forward<Args>(args)...));
+        return boost::none;
     }
 };
 
