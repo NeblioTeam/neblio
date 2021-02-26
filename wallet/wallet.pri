@@ -170,7 +170,8 @@ HEADERS += qt/bitcoingui.h \
     logging/defaultlogger.h          \
     logging/logger.h                 \
     blockreject.h                    \
-    blockmetadata.h
+    blockmetadata.h                  \
+    blockindexlrucache.h
 
 
 
@@ -337,7 +338,8 @@ SOURCES += qt/bitcoin.cpp \
     logging/defaultlogger.cpp           \
     logging/logger.cpp                  \
     blockreject.cpp                     \
-    blockmetadata.cpp
+    blockmetadata.cpp                   \
+    blockindexlrucache.cpp
 
 
 

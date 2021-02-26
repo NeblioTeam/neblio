@@ -12,6 +12,7 @@ add_executable(neblio-tests
     base58_tests.cpp
     base64_tests.cpp
     bignum_tests.cpp
+    blockindexlru_tests.cpp
     bloom_tests.cpp
     canonical_tests.cpp
     compress_tests.cpp

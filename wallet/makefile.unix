@@ -247,7 +247,8 @@ OBJS= \
     obj/defaultlogger.o                       \
     obj/logger.o                              \
     obj/blockreject.o                         \
-    obj/blockmetadata.o
+    obj/blockmetadata.o                       \
+    obj/blockindexlrucache.o
 
 
 ifdef NEBLIO_REST
