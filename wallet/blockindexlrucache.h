@@ -10,10 +10,21 @@
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/random_access_index.hpp>
 #include <boost/multi_index/sequenced_index.hpp>
+#include <boost/thread/lock_guard.hpp>
 #include <boost/multi_index_container.hpp>
 #include <cstdint>
 
-template <typename T>
+namespace neblio_dummy {
+class dummy_mutex
+{
+public:
+    void lock() {}
+    bool try_lock() {return true;}
+    void unlock() {}
+};
+}
+
+template <typename T, typename MutexType = neblio_dummy::dummy_mutex>
 class BlockIndexLRUCache
 {
 public:
@@ -25,6 +36,8 @@ public:
     };
 
 private:
+    mutable MutexType mtx;
+
     struct KeyTag
     {
     };
@@ -77,7 +90,7 @@ private:
     std::function<boost::optional<BICacheEntry>(const ITxDB&, const uint256&)> retriever;
     std::uint_fast64_t                                                         counter = 0;
 
-    bool moveToTop(const uint256& key);
+    bool moveToTop_unsafe(const uint256& key);
 
 public:
     using RetrieverFunc = std::function<boost::optional<BICacheEntry>(const ITxDB&, const uint256&)>;
@@ -93,8 +106,8 @@ public:
     void                          clear();
 };
 
-template <typename T>
-bool BlockIndexLRUCache<T>::moveToTop(const uint256& key)
+template <typename T, typename MutexType>
+bool BlockIndexLRUCache<T, MutexType>::moveToTop_unsafe(const uint256& key)
 {
     auto& byKey = cacheContainer.template get<KeyTag>();
     auto  it    = byKey.find(key);
@@ -105,9 +118,10 @@ bool BlockIndexLRUCache<T>::moveToTop(const uint256& key)
     return true;
 }
 
-template <typename T>
-void BlockIndexLRUCache<T>::popOne()
+template <typename T, typename MutexType>
+void BlockIndexLRUCache<T, MutexType>::popOne()
 {
+    boost::lock_guard<MutexType> lg(mtx);
     if (cacheContainer.empty()) {
         return;
     }
@@ -115,17 +129,17 @@ void BlockIndexLRUCache<T>::popOne()
     byOrder.erase(byOrder.begin());
 }
 
-template <typename T>
-BlockIndexLRUCache<T>::BlockIndexLRUCache(std::size_t CacheSize, const RetrieverFunc& retrieverFunc)
+template <typename T, typename MutexType>
+BlockIndexLRUCache<T, MutexType>::BlockIndexLRUCache(std::size_t CacheSize, const RetrieverFunc& retrieverFunc)
     : maxCacheSize(CacheSize), retriever(retrieverFunc)
 {
 }
 
-template <typename T>
-boost::optional<typename BlockIndexLRUCache<T>::BICacheEntry>
-BlockIndexLRUCache<T>::get(const ITxDB& txdb, const uint256& key)
+template <typename T, typename MutexType>
+boost::optional<typename BlockIndexLRUCache<T, MutexType>::BICacheEntry>
+BlockIndexLRUCache<T, MutexType>::get(const ITxDB& txdb, const uint256& key)
 {
-    boost::optional<BICacheEntry> valFromCache = getFromCache(key);
+    const boost::optional<BICacheEntry> valFromCache = getFromCache(key);
     if (valFromCache) {
         return valFromCache;
     }
@@ -137,6 +151,7 @@ BlockIndexLRUCache<T>::get(const ITxDB& txdb, const uint256& key)
         entry.val     = val->value;
         entry.prevKey = val->prevHash;
         entry.order   = counter++;
+        boost::lock_guard<MutexType> lg(mtx);
         cacheContainer.insert(entry);
     }
 
@@ -146,23 +161,25 @@ BlockIndexLRUCache<T>::get(const ITxDB& txdb, const uint256& key)
     return val;
 }
 
-template <typename T>
-boost::optional<typename BlockIndexLRUCache<T>::BICacheEntry>
-BlockIndexLRUCache<T>::getFromCache(const uint256& key)
+template <typename T, typename MutexType>
+boost::optional<typename BlockIndexLRUCache<T, MutexType>::BICacheEntry>
+BlockIndexLRUCache<T, MutexType>::getFromCache(const uint256& key)
 {
+    boost::lock_guard<MutexType> lg(mtx);
     auto& byKey = cacheContainer.template get<KeyTag>();
     auto  it    = byKey.find(key);
     if (it != byKey.cend()) {
-        moveToTop(key);
+        moveToTop_unsafe(key);
         return it->toValue();
     }
     return boost::none;
 }
 
-template <typename T>
-boost::optional<typename BlockIndexLRUCache<T>::BICacheEntry>
-BlockIndexLRUCache<T>::getOrderedFront() const
+template <typename T, typename MutexType>
+boost::optional<typename BlockIndexLRUCache<T, MutexType>::BICacheEntry>
+BlockIndexLRUCache<T, MutexType>::getOrderedFront() const
 {
+    boost::lock_guard<MutexType> lg(mtx);
     if (cacheContainer.empty()) {
         return boost::none;
     }
@@ -170,10 +187,11 @@ BlockIndexLRUCache<T>::getOrderedFront() const
     return boost::make_optional(byOrder.begin()->toValue());
 }
 
-template <typename T>
-boost::optional<typename BlockIndexLRUCache<T>::BICacheEntry>
-BlockIndexLRUCache<T>::getOrderedBack() const
+template <typename T, typename MutexType>
+boost::optional<typename BlockIndexLRUCache<T, MutexType>::BICacheEntry>
+BlockIndexLRUCache<T, MutexType>::getOrderedBack() const
 {
+    boost::lock_guard<MutexType> lg(mtx);
     if (cacheContainer.empty()) {
         return boost::none;
     }
@@ -181,21 +199,24 @@ BlockIndexLRUCache<T>::getOrderedBack() const
     return boost::make_optional(byOrder.rbegin()->toValue());
 }
 
-template <typename T>
-bool BlockIndexLRUCache<T>::empty() const
+template <typename T, typename MutexType>
+bool BlockIndexLRUCache<T, MutexType>::empty() const
 {
+    boost::lock_guard<MutexType> lg(mtx);
     return cacheContainer.empty();
 }
 
-template <typename T>
-void BlockIndexLRUCache<T>::clear()
+template <typename T, typename MutexType>
+void BlockIndexLRUCache<T, MutexType>::clear()
 {
+    boost::lock_guard<MutexType> lg(mtx);
     cacheContainer.clear();
 }
 
-template <typename T>
-std::size_t BlockIndexLRUCache<T>::size() const
+template <typename T, typename MutexType>
+std::size_t BlockIndexLRUCache<T, MutexType>::size() const
 {
+    boost::lock_guard<MutexType> lg(mtx);
     return cacheContainer.size();
 }
 

@@ -8,7 +8,6 @@
 #include "hash.h"
 #include "mocks/mtxdb.h"
 #include "ntp1/ntp1transaction.h"
-
 #include <cstdlib>
 
 namespace {
@@ -116,27 +115,29 @@ public:
     }
 };
 
-TEST_F(BlockIndexLRUTests, basic)
+template <typename MutexType>
+static void TestBlockIndexLRUCache(BlockIndexLRUTests& fixture)
 {
-    auto dbMock = MakeDBMock(10);
+    auto dbMock = fixture.MakeDBMock(10);
 
     for (int j = 0; j < 200; j++) {
         if (j > 0) {
-            insertNewBlockIndex(HashFromHeight(j), HashFromHeight(j - 1), HashFromHeight(j + 1), j);
+            fixture.insertNewBlockIndex(HashFromHeight(j), HashFromHeight(j - 1), HashFromHeight(j + 1),
+                                        j);
         } else {
-            insertNewBlockIndex(HashFromHeight(j), 0, HashFromHeight(j + 1), j);
+            fixture.insertNewBlockIndex(HashFromHeight(j), 0, HashFromHeight(j + 1), j);
         }
     }
 
-    using CacheType = BlockIndexLRUCache<uint64_t>;
+    using CacheType = BlockIndexLRUCache<uint64_t, MutexType>;
 
-    CacheType::RetrieverFunc retriever =
-        [](const ITxDB& txdb, const uint256& hash) -> boost::optional<CacheType::BICacheEntry> {
+    typename CacheType::RetrieverFunc retriever =
+        [](const ITxDB& txdb, const uint256& hash) -> boost::optional<typename CacheType::BICacheEntry> {
         const boost::optional<CBlockIndex> bi = txdb.ReadBlockIndex(hash);
         if (!bi) {
             return boost::none;
         }
-        CacheType::BICacheEntry result;
+        typename CacheType::BICacheEntry result;
         result.hash     = bi->blockHash;
         result.prevHash = bi->hashPrev;
         result.value    = bi->GetBlockTime();
@@ -173,7 +174,7 @@ TEST_F(BlockIndexLRUTests, basic)
     {
         // get a value that'll NOT be pulled from the db
         const int  height = 10;
-        const auto val    = cache.get(*MakeUnimplementedDBMock(), HashFromHeight(height));
+        const auto val    = cache.get(*fixture.MakeUnimplementedDBMock(), HashFromHeight(height));
         ASSERT_TRUE(val);
         EXPECT_EQ(val->hash, HashFromHeight(height));
         EXPECT_EQ(val->prevHash, HashFromHeight(height - 1));
@@ -214,7 +215,7 @@ TEST_F(BlockIndexLRUTests, basic)
     {
         // get a value that'll NOT be pulled from the db
         const int  height = 15;
-        const auto val    = cache.get(*MakeUnimplementedDBMock(), HashFromHeight(height));
+        const auto val    = cache.get(*fixture.MakeUnimplementedDBMock(), HashFromHeight(height));
         ASSERT_TRUE(val);
         EXPECT_EQ(val->hash, HashFromHeight(height));
         EXPECT_EQ(val->prevHash, HashFromHeight(height - 1));
@@ -255,7 +256,7 @@ TEST_F(BlockIndexLRUTests, basic)
     {
         // get a value that'll NOT be pulled from the db
         const int  height = 25;
-        const auto val    = cache.get(*MakeUnimplementedDBMock(), HashFromHeight(height));
+        const auto val    = cache.get(*fixture.MakeUnimplementedDBMock(), HashFromHeight(height));
         ASSERT_TRUE(val);
         EXPECT_EQ(val->hash, HashFromHeight(height));
         EXPECT_EQ(val->prevHash, HashFromHeight(height - 1));
@@ -296,7 +297,7 @@ TEST_F(BlockIndexLRUTests, basic)
     {
         // get a value that'll NOT be pulled from the db
         const int  height = 35;
-        const auto val    = cache.get(*MakeUnimplementedDBMock(), HashFromHeight(height));
+        const auto val    = cache.get(*fixture.MakeUnimplementedDBMock(), HashFromHeight(height));
         ASSERT_TRUE(val);
         EXPECT_EQ(val->hash, HashFromHeight(height));
         EXPECT_EQ(val->prevHash, HashFromHeight(height - 1));
@@ -337,7 +338,7 @@ TEST_F(BlockIndexLRUTests, basic)
     {
         // get a value that'll NOT be pulled from the db
         const int  height = 15;
-        const auto val    = cache.get(*MakeUnimplementedDBMock(), HashFromHeight(height));
+        const auto val    = cache.get(*fixture.MakeUnimplementedDBMock(), HashFromHeight(height));
         ASSERT_TRUE(val);
         EXPECT_EQ(val->hash, HashFromHeight(height));
         EXPECT_EQ(val->prevHash, HashFromHeight(height - 1));
@@ -378,7 +379,7 @@ TEST_F(BlockIndexLRUTests, basic)
     {
         // get a value that'll NOT be pulled from the db
         const int  height = 35;
-        const auto val    = cache.get(*MakeUnimplementedDBMock(), HashFromHeight(height));
+        const auto val    = cache.get(*fixture.MakeUnimplementedDBMock(), HashFromHeight(height));
         ASSERT_TRUE(val);
         EXPECT_EQ(val->hash, HashFromHeight(height));
         EXPECT_EQ(val->prevHash, HashFromHeight(height - 1));
@@ -410,3 +411,7 @@ TEST_F(BlockIndexLRUTests, basic)
         EXPECT_TRUE(cache.empty());
     }
 }
+
+TEST_F(BlockIndexLRUTests, thread_unsafe) { TestBlockIndexLRUCache<neblio_dummy::dummy_mutex>(*this); }
+
+TEST_F(BlockIndexLRUTests, thread_safe) { TestBlockIndexLRUCache<boost::mutex>(*this); }
