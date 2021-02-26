@@ -104,7 +104,7 @@ bool         ProcessMessages(CNode* pfrom);
 bool         SendMessages(CNode* pto, bool fSendTrickle);
 void         ThreadImport(void* parg);
 bool         CheckProofOfWork(const uint256& hash, unsigned int nBits, bool silent = false);
-unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake);
+unsigned int GetNextTargetRequired(const ITxDB& txdb, const CBlockIndex* pindexLast, bool fProofOfStake);
 unsigned int ComputeMinWork(unsigned int nBase, int64_t nTime);
 unsigned int ComputeMinStake(unsigned int nBase, int64_t nTime, unsigned int nBlockTime);
 int          GetNumBlocksOfPeers();
@@ -114,7 +114,7 @@ bool         __IsInitialBlockDownload_internal(const ITxDB& txdb);
 std::string  GetWarnings(std::string strFor);
 bool         GetTransaction(const uint256& hash, CTransaction& tx, uint256& hashBlock);
 uint256      WantedByOrphan(const CBlock* pblockOrphan);
-CBlockIndex  GetLastBlockIndex(CBlockIndex pindex, bool fProofOfStake);
+CBlockIndex  GetLastBlockIndex(CBlockIndex pindex, bool fProofOfStake, const ITxDB& txdb);
 void         StakeMiner(CWallet* pwallet);
 void         ResendWalletTransactions(bool fForce = false);
 

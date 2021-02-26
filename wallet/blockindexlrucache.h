@@ -1,6 +1,7 @@
 #ifndef BLOCKINDEXLRUCACHE_H
 #define BLOCKINDEXLRUCACHE_H
 
+#include "blockindex.h"
 #include "itxdb.h"
 #include "uint256.h"
 #include <boost/multi_array/index_gen.hpp>
@@ -34,6 +35,11 @@ public:
         uint256 prevHash;
         T       value;
     };
+
+    // function that retrieves the value from the database
+    using RetrieverFunc = std::function<boost::optional<BICacheEntry>(const ITxDB&, const uint256&)>;
+    // function that extracts the T value from the block index
+    using ExtractorFunc = std::function<T(const CBlockIndex&)>;
 
 private:
     mutable MutexType mtx;
@@ -85,24 +91,26 @@ private:
             // clang-format on
             >>;
 
-    BlockIndexLRUCacheContainer                                                cacheContainer;
-    const std::size_t                                                          maxCacheSize;
-    std::function<boost::optional<BICacheEntry>(const ITxDB&, const uint256&)> retriever;
-    std::uint_fast64_t                                                         counter = 0;
+    BlockIndexLRUCacheContainer cacheContainer;
+    const std::size_t           maxCacheSize;
+    RetrieverFunc               retriever;
+    ExtractorFunc               extractor;
+    std::uint_fast64_t          counter = 0;
 
     bool moveToTop_unsafe(const uint256& key);
 
 public:
-    using RetrieverFunc = std::function<boost::optional<BICacheEntry>(const ITxDB&, const uint256&)>;
-
-    BlockIndexLRUCache(std::size_t CacheSize, const RetrieverFunc& retrieverFunc);
+    BlockIndexLRUCache(std::size_t CacheSize, const RetrieverFunc& retrieverFunc,
+                       const ExtractorFunc& extractorFunc);
     boost::optional<BICacheEntry> get(const ITxDB& txdb, const uint256& key);
     boost::optional<BICacheEntry> getFromCache(const uint256& key) const;
     boost::optional<BICacheEntry> getOrderedFront() const;
     boost::optional<BICacheEntry> getOrderedBack() const;
+    void                          manualAdd(const CBlockIndex& bi);
     std::size_t                   size() const;
     bool                          empty() const;
     void                          popOne();
+    void                          popOne_unsafe();
     void                          clear();
 };
 
@@ -119,9 +127,8 @@ bool BlockIndexLRUCache<T, MutexType>::moveToTop_unsafe(const uint256& key)
 }
 
 template <typename T, typename MutexType>
-void BlockIndexLRUCache<T, MutexType>::popOne()
+void BlockIndexLRUCache<T, MutexType>::popOne_unsafe()
 {
-    boost::lock_guard<MutexType> lg(mtx);
     if (cacheContainer.empty()) {
         return;
     }
@@ -130,9 +137,17 @@ void BlockIndexLRUCache<T, MutexType>::popOne()
 }
 
 template <typename T, typename MutexType>
+void BlockIndexLRUCache<T, MutexType>::popOne()
+{
+    boost::lock_guard<MutexType> lg(mtx);
+    popOne_unsafe();
+}
+
+template <typename T, typename MutexType>
 BlockIndexLRUCache<T, MutexType>::BlockIndexLRUCache(std::size_t          CacheSize,
-                                                     const RetrieverFunc& retrieverFunc)
-    : maxCacheSize(CacheSize), retriever(retrieverFunc)
+                                                     const RetrieverFunc& retrieverFunc,
+                                                     const ExtractorFunc& extractorFunc)
+    : maxCacheSize(CacheSize), retriever(retrieverFunc), extractor(extractorFunc)
 {
 }
 
@@ -145,6 +160,8 @@ BlockIndexLRUCache<T, MutexType>::get(const ITxDB& txdb, const uint256& key)
         return valFromCache;
     }
 
+    boost::lock_guard<MutexType> lg(mtx);
+
     const boost::optional<BICacheEntry> val = retriever(txdb, key);
     if (val) {
         BIInternalCacheEntry entry;
@@ -152,12 +169,11 @@ BlockIndexLRUCache<T, MutexType>::get(const ITxDB& txdb, const uint256& key)
         entry.val     = val->value;
         entry.prevKey = val->prevHash;
         entry.order   = counter++;
-        boost::lock_guard<MutexType> lg(mtx);
         cacheContainer.insert(entry);
     }
 
-    if (size() > maxCacheSize) {
-        popOne();
+    if (cacheContainer.size() > maxCacheSize) {
+        popOne_unsafe();
     }
     return val;
 }
@@ -199,6 +215,22 @@ BlockIndexLRUCache<T, MutexType>::getOrderedBack() const
     }
     const auto& byOrder = cacheContainer.template get<OrderTag>();
     return boost::make_optional(byOrder.rbegin()->toValue());
+}
+
+template <typename T, typename MutexType>
+void BlockIndexLRUCache<T, MutexType>::manualAdd(const CBlockIndex& bi)
+{
+    BIInternalCacheEntry entry;
+    entry.key     = bi.GetBlockHash();
+    entry.val     = extractor(bi);
+    entry.prevKey = bi.hashPrev;
+    entry.order   = counter++;
+    boost::lock_guard<MutexType> lg(mtx);
+    cacheContainer.insert(entry);
+
+    if (cacheContainer.size() > maxCacheSize) {
+        popOne_unsafe();
+    }
 }
 
 template <typename T, typename MutexType>

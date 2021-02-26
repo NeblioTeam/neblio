@@ -24,15 +24,17 @@ extern enum Checkpoints::CPMode CheckpointsMode;
 
 double GetDifficulty(const CBlockIndex* pblockindex)
 {
+    const CTxDB txdb;
+
     CBlockIndex blockIndex;
     // Floating point number that is a multiple of the minimum difficulty,
     // minimum difficulty = 1.0.
     if (pblockindex == nullptr) {
-        auto bestBlockIndex = CTxDB().GetBestBlockIndex();
+        auto bestBlockIndex = txdb.GetBestBlockIndex();
         if (!bestBlockIndex)
             return 1.0;
         else {
-            blockIndex = GetLastBlockIndex(*bestBlockIndex, false);
+            blockIndex = GetLastBlockIndex(*bestBlockIndex, false, txdb);
         }
     } else {
         blockIndex = *pblockindex;
@@ -192,7 +194,7 @@ Value getdifficulty(const Array& params, bool fHelp)
 
     Object obj;
     obj.push_back(Pair("proof-of-work", GetDifficulty()));
-    const CBlockIndex bi = GetLastBlockIndex(*CTxDB().GetBestBlockIndex(), true);
+    const CBlockIndex bi = GetLastBlockIndex(*CTxDB().GetBestBlockIndex(), true, CTxDB());
     obj.push_back(Pair("proof-of-stake", GetDifficulty(&bi)));
     obj.push_back(Pair("search-interval", (int)stakeMaker.getLastCoinStakeSearchInterval()));
     return obj;

@@ -32,8 +32,10 @@ Value getmininginfo(const Array& params, bool fHelp)
         throw runtime_error("getmininginfo\n"
                             "Returns an object containing mining-related information.");
 
+    const CTxDB txdb;
+
     uint64_t nMinWeight = 0, nMaxWeight = 0, nWeight = 0;
-    pwalletMain->GetStakeWeight(CTxDB(), nMinWeight, nMaxWeight, nWeight);
+    pwalletMain->GetStakeWeight(txdb, nMinWeight, nMaxWeight, nWeight);
 
     boost::optional<CBlockIndex> bestBlockIndex = CTxDB().GetBestBlockIndex();
 
@@ -43,7 +45,7 @@ Value getmininginfo(const Array& params, bool fHelp)
     obj.push_back(Pair("currentblocktx", (uint64_t)nLastBlockTx));
 
     diff.push_back(Pair("proof-of-work", GetDifficulty()));
-    const CBlockIndex bi = GetLastBlockIndex(*bestBlockIndex, true);
+    const CBlockIndex bi = GetLastBlockIndex(*bestBlockIndex, true, txdb);
     diff.push_back(Pair("proof-of-stake", GetDifficulty(&bi)));
     diff.push_back(Pair("search-interval", (int)stakeMaker.getLastCoinStakeSearchInterval()));
     obj.push_back(Pair("difficulty", diff));
@@ -117,7 +119,7 @@ Value getstakinginfo(const Array& params, bool fHelp)
     obj.push_back(Pair("currentblocktx", (uint64_t)nLastBlockTx));
     obj.push_back(Pair("pooledtx", (uint64_t)mempool.size()));
 
-    const CBlockIndex bi = GetLastBlockIndex(*CTxDB().GetBestBlockIndex(), true);
+    const CBlockIndex bi = GetLastBlockIndex(*CTxDB().GetBestBlockIndex(), true, txdb);
     obj.push_back(Pair("difficulty", GetDifficulty(&bi)));
     obj.push_back(Pair("search-interval", (int)stakeMaker.getLastCoinStakeSearchInterval()));
 

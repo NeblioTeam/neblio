@@ -184,7 +184,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
         ParseMoney(*minTxFee, nMinTxFee);
     }
 
-    pblock->nBits = GetNextTargetRequired(&*pindexPrev, fProofOfStake);
+    pblock->nBits = GetNextTargetRequired(txdb, &*pindexPrev, fProofOfStake);
 
     // map of issued token names in this block vs token hashes
     // this is used to prevent duplicate token names

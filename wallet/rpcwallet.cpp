@@ -121,7 +121,7 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("ip", addrSeenByPeer.get().ToStringIP()));
 
     diff.push_back(Pair("proof-of-work", GetDifficulty()));
-    const CBlockIndex bi = GetLastBlockIndex(*bestBlockIndex, true);
+    const CBlockIndex bi = GetLastBlockIndex(*bestBlockIndex, true, txdb);
     diff.push_back(Pair("proof-of-stake", GetDifficulty(&bi)));
     obj.push_back(Pair("difficulty", diff));
 

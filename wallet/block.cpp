@@ -1400,7 +1400,7 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex)
     }
 
     // Check proof-of-work or proof-of-stake
-    if (nBits != GetNextTargetRequired(&prevBlockIndex, IsProofOfStake())) {
+    if (nBits != GetNextTargetRequired(txdb, &prevBlockIndex, IsProofOfStake())) {
         reject = CBlockReject(REJECT_INVALID, "bad-diffbits", this->GetHash());
         return DoS(100, NLog.error("AcceptBlock() : incorrect {}",
                                    IsProofOfWork() ? "proof-of-work" : "proof-of-stake"));

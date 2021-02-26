@@ -158,7 +158,11 @@ static void TestBlockIndexLRUCache(BlockIndexLRUTests& fixture)
         return result;
     };
 
-    CacheType cache(3, retriever);
+    static typename CacheType::ExtractorFunc extractor = [](const CBlockIndex& bi) -> int64_t {
+        return bi.GetBlockTime();
+    };
+
+    CacheType cache(3, retriever, extractor);
     ASSERT_TRUE(cache.empty());
     ASSERT_FALSE(cache.getOrderedFront());
     ASSERT_FALSE(cache.getOrderedBack());
@@ -412,6 +416,23 @@ static void TestBlockIndexLRUCache(BlockIndexLRUTests& fixture)
         ASSERT_TRUE(cache.getOrderedFront());
         ASSERT_TRUE(cache.getOrderedBack());
         EXPECT_EQ(cache.getOrderedFront()->hash, HashFromHeight(15));
+        EXPECT_EQ(cache.getOrderedBack()->hash, HashFromHeight(height));
+        EXPECT_EQ(cache.size(), 3u);
+    }
+
+    {
+        // manually add block index
+        const int height = 50;
+        ASSERT_FALSE(cache.getFromCache(HashFromHeight(height)));
+        cache.manualAdd(*fixture.getBlockIndex(HashFromHeight(height)));
+        const auto val = cache.getFromCache(HashFromHeight(height));
+        ASSERT_TRUE(val);
+        EXPECT_EQ(val->hash, HashFromHeight(height));
+        EXPECT_EQ(val->prevHash, HashFromHeight(height - 1));
+        EXPECT_EQ(val->value, BlockTimeFromHeight(height));
+        ASSERT_TRUE(cache.getOrderedFront());
+        ASSERT_TRUE(cache.getOrderedBack());
+        EXPECT_EQ(cache.getOrderedFront()->hash, HashFromHeight(25));
         EXPECT_EQ(cache.getOrderedBack()->hash, HashFromHeight(height));
         EXPECT_EQ(cache.size(), 3u);
     }

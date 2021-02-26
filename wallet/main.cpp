@@ -65,6 +65,8 @@ CAmount nTransactionFee    = MIN_TX_FEE;
 CAmount nReserveBalance    = 0;
 CAmount nMinimumInputValue = 0;
 
+using BlockTimeCacheType = BlockIndexLRUCache<int64_t, boost::mutex>;
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // dispatching functions
@@ -667,11 +669,10 @@ unsigned int ComputeMinStake(unsigned int nBase, int64_t nTime, unsigned int /*n
 }
 
 // ppcoin: find last block index up to pindex
-CBlockIndex GetLastBlockIndex(CBlockIndex index, bool fProofOfStake)
+CBlockIndex GetLastBlockIndex(CBlockIndex index, bool fProofOfStake, const ITxDB& txdb)
 {
-    const CTxDB txdb;
     while (index.blockHash != Params().GenesisBlockHash() && index.hashPrev != 0 &&
-           (index.IsProofOfStake() != fProofOfStake)) {
+           index.IsProofOfStake() != fProofOfStake) {
         const boost::optional<CBlockIndex> bindex = index.getPrev(txdb);
         if (bindex) {
             index = *bindex;
@@ -694,7 +695,7 @@ static unsigned int GetNextTargetRequiredV1(const CBlockIndex* pindexLast, bool 
     if (pindexLast == nullptr)
         return bnTargetLimit.GetCompact(); // genesis block
 
-    const CBlockIndex pindexPrev = GetLastBlockIndex(*pindexLast, fProofOfStake);
+    const CBlockIndex pindexPrev = GetLastBlockIndex(*pindexLast, fProofOfStake, txdb);
     if (pindexPrev.hashPrev == 0)
         return bnTargetLimit.GetCompact(); // first block
     const boost::optional<CBlockIndex> indexPrevPrev = pindexPrev.getPrev(txdb);
@@ -703,7 +704,7 @@ static unsigned int GetNextTargetRequiredV1(const CBlockIndex* pindexLast, bool 
                    "Failed to get prev prev block index, even though it's not genesis block");
         return 0;
     }
-    const CBlockIndex pindexPrevPrev = GetLastBlockIndex(*indexPrevPrev, fProofOfStake);
+    const CBlockIndex pindexPrevPrev = GetLastBlockIndex(*indexPrevPrev, fProofOfStake, txdb);
     if (pindexPrevPrev.hashPrev == 0)
         return bnTargetLimit.GetCompact(); // second block
 
@@ -732,24 +733,9 @@ static unsigned int GetNextTargetRequiredV1(const CBlockIndex* pindexLast, bool 
  * @param pindexLast
  * @return the average time spacing between blocks
  */
-int64_t CalculateActualBlockSpacingForV3(const CBlockIndex* pindexLast)
+int64_t CalculateActualBlockSpacingForV3(const ITxDB& txdb, const CBlockIndex* pindexLast,
+                                         BlockTimeCacheType& blockTimeCache)
 {
-    using CacheType = BlockIndexLRUCache<uint64_t>;
-
-    static typename CacheType::RetrieverFunc retrieverFunc =
-        [](const ITxDB& txdb, const uint256& hash) -> boost::optional<typename CacheType::BICacheEntry> {
-        const boost::optional<CBlockIndex> bi = txdb.ReadBlockIndex(hash);
-        if (!bi) {
-            return boost::none;
-        }
-        typename CacheType::BICacheEntry result;
-        result.hash     = bi->blockHash;
-        result.prevHash = bi->hashPrev;
-        result.value    = bi->GetBlockTime();
-        return result;
-    };
-
-    static CacheType blockIndexBlockTimeCache(500, retrieverFunc);
 
     // get the latest blocks from the blocks. The amount of blocks is: TARGET_AVERAGE_BLOCK_COUNT
     int64_t forkBlock =
@@ -764,17 +750,16 @@ int64_t CalculateActualBlockSpacingForV3(const CBlockIndex* pindexLast)
         numOfBlocksToAverage = TARGET_AVERAGE_BLOCK_COUNT;
     }
 
-    const CTxDB txdb;
-
     // push block times to a vector
     std::vector<int64_t> blockTimes;
     std::vector<int64_t> blockTimeDifferences;
     blockTimes.reserve(numOfBlocksToAverage);
     blockTimeDifferences.reserve(numOfBlocksToAverage);
     uint256 currHash = pindexLast->GetBlockHash();
+    blockTimeCache.manualAdd(*pindexLast);
     blockTimes.resize(numOfBlocksToAverage);
     for (int64_t i = 0; i < numOfBlocksToAverage; i++) {
-        const boost::optional<CacheType::BICacheEntry> t = blockIndexBlockTimeCache.get(txdb, currHash);
+        const boost::optional<BlockTimeCacheType::BICacheEntry> t = blockTimeCache.get(txdb, currHash);
         if (!t) {
             NLog.write(b_sev::err, "CRITICAL ERROR: block not found while calculating target");
             break;
@@ -803,16 +788,15 @@ int64_t CalculateActualBlockSpacingForV3(const CBlockIndex* pindexLast)
            (numOfBlocksToAverage - 1);
 }
 
-static unsigned int GetNextTargetRequiredV2(const CBlockIndex* pindexLast, bool fProofOfStake)
+static unsigned int GetNextTargetRequiredV2(const ITxDB& txdb, const CBlockIndex* pindexLast,
+                                            bool fProofOfStake)
 {
-    const CTxDB txdb;
-
     CBigNum bnTargetLimit = fProofOfStake ? Params().PoSLimit() : Params().PoWLimit();
 
     if (pindexLast == NULL)
         return bnTargetLimit.GetCompact(); // genesis block
 
-    const CBlockIndex pindexPrev = GetLastBlockIndex(*pindexLast, fProofOfStake);
+    const CBlockIndex pindexPrev = GetLastBlockIndex(*pindexLast, fProofOfStake, txdb);
     if (pindexPrev.hashPrev == 0)
         return bnTargetLimit.GetCompact(); // first block
     const boost::optional<CBlockIndex> indexPrevPrev = pindexPrev.getPrev(txdb);
@@ -821,7 +805,7 @@ static unsigned int GetNextTargetRequiredV2(const CBlockIndex* pindexLast, bool 
                    "Failed to get prev prev block index, even though it's not genesis block");
         return 0;
     }
-    const CBlockIndex pindexPrevPrev = GetLastBlockIndex(*indexPrevPrev, fProofOfStake);
+    const CBlockIndex pindexPrevPrev = GetLastBlockIndex(*indexPrevPrev, fProofOfStake, txdb);
 
     int64_t      nActualSpacing = pindexPrev.GetBlockTime() - pindexPrevPrev.GetBlockTime();
     unsigned int nTS            = Params().TargetSpacing(pindexLast->nHeight);
@@ -842,16 +826,16 @@ static unsigned int GetNextTargetRequiredV2(const CBlockIndex* pindexLast, bool 
     return bnNew.GetCompact();
 }
 
-static unsigned int GetNextTargetRequiredV3(const CBlockIndex* pindexLast, bool fProofOfStake)
+static unsigned int GetNextTargetRequiredV3(const ITxDB& txdb, const CBlockIndex* pindexLast,
+                                            bool fProofOfStake, BlockTimeCacheType& blockTimeCache)
 {
-    const CTxDB txdb;
 
     CBigNum bnTargetLimit = fProofOfStake ? Params().PoSLimit() : Params().PoWLimit();
 
     if (pindexLast == NULL)
         return bnTargetLimit.GetCompact(); // genesis block
 
-    const CBlockIndex pindexPrev = GetLastBlockIndex(*pindexLast, fProofOfStake);
+    const CBlockIndex pindexPrev = GetLastBlockIndex(*pindexLast, fProofOfStake, txdb);
     if (pindexPrev.hashPrev == 0)
         return bnTargetLimit.GetCompact(); // first block
     const boost::optional<CBlockIndex> indexPrevPrev = pindexPrev.getPrev(txdb);
@@ -860,11 +844,11 @@ static unsigned int GetNextTargetRequiredV3(const CBlockIndex* pindexLast, bool 
                    "Failed to get prev prev block index, even though it's not genesis block");
         return 0;
     }
-    const CBlockIndex pindexPrevPrev = GetLastBlockIndex(*indexPrevPrev, fProofOfStake);
+    const CBlockIndex pindexPrevPrev = GetLastBlockIndex(*indexPrevPrev, fProofOfStake, txdb);
     if (pindexPrevPrev.hashPrev == 0)
         return bnTargetLimit.GetCompact(); // second block
 
-    int64_t nActualSpacing = CalculateActualBlockSpacingForV3(pindexLast);
+    int64_t nActualSpacing = CalculateActualBlockSpacingForV3(txdb, pindexLast, blockTimeCache);
 
     const unsigned int nTS = Params().TargetSpacing(pindexLast->nHeight);
     if (nActualSpacing < 0)
@@ -901,20 +885,39 @@ static unsigned int GetNextTargetRequiredV3(const CBlockIndex* pindexLast, bool 
     return newTarget.GetCompact();
 }
 
-unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake)
+unsigned int GetNextTargetRequired(const ITxDB& txdb, const CBlockIndex* pindexLast, bool fProofOfStake)
 {
     if (!fProofOfStake && Params().MineBlocksOnDemand())
         return pindexLast->nBits;
     if (fProofOfStake && Params().MineBlocksOnDemand())
         return Params().PoWLimit().GetCompact();
 
+    static typename BlockTimeCacheType::RetrieverFunc retrieverFunc =
+        [](const ITxDB&   txdb,
+           const uint256& hash) -> boost::optional<typename BlockTimeCacheType::BICacheEntry> {
+        const boost::optional<CBlockIndex> bi = txdb.ReadBlockIndex(hash);
+        if (!bi) {
+            return boost::none;
+        }
+        typename BlockTimeCacheType::BICacheEntry result;
+        result.hash     = bi->blockHash;
+        result.prevHash = bi->hashPrev;
+        result.value    = bi->GetBlockTime();
+        return result;
+    };
+
+    static typename BlockTimeCacheType::ExtractorFunc extractorFunc =
+        [](const CBlockIndex& bi) -> int64_t { return bi.GetBlockTime(); };
+
+    static BlockTimeCacheType blockIndexBlockTimeCache(500, retrieverFunc, extractorFunc);
+
     if (pindexLast->nHeight < 2000)
         return GetNextTargetRequiredV1(pindexLast, fProofOfStake);
     else if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__4_RETARGET_CORRECTION,
                                                     pindexLast->nHeight))
-        return GetNextTargetRequiredV3(pindexLast, fProofOfStake);
+        return GetNextTargetRequiredV3(txdb, pindexLast, fProofOfStake, blockIndexBlockTimeCache);
     else
-        return GetNextTargetRequiredV2(pindexLast, fProofOfStake);
+        return GetNextTargetRequiredV2(txdb, pindexLast, fProofOfStake);
 }
 
 bool CheckProofOfWork(const uint256& hash, unsigned int nBits, bool silent)
@@ -1175,10 +1178,10 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
         CBigNum bnRequired;
 
         if (pblock->IsProofOfStake()) {
-            const CBlockIndex& bi = GetLastBlockIndex(*checkpoint, true);
+            const CBlockIndex& bi = GetLastBlockIndex(*checkpoint, true, txdb);
             bnRequired.SetCompact(ComputeMinStake(bi.nBits, deltaTime, pblock->nTime));
         } else {
-            const CBlockIndex& bi = GetLastBlockIndex(*checkpoint, false);
+            const CBlockIndex& bi = GetLastBlockIndex(*checkpoint, false, txdb);
             bnRequired.SetCompact(ComputeMinWork(bi.nBits, deltaTime));
         }
 
@@ -2054,8 +2057,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                         // block might be rejected by stake connection check)
                         vector<CInv> vInv;
                         vInv.push_back(
-                            CInv(MSG_BLOCK,
-                                 GetLastBlockIndex(*CTxDB().GetBestBlockIndex(), false).GetBlockHash()));
+                            CInv(MSG_BLOCK, GetLastBlockIndex(*CTxDB().GetBestBlockIndex(), false, txdb)
+                                                .GetBlockHash()));
                         pfrom->PushMessage("inv", vInv);
                         pfrom->hashContinue = 0;
                     }
