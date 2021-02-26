@@ -97,7 +97,7 @@ public:
 
     BlockIndexLRUCache(std::size_t CacheSize, const RetrieverFunc& retrieverFunc);
     boost::optional<BICacheEntry> get(const ITxDB& txdb, const uint256& key);
-    boost::optional<BICacheEntry> getFromCache(const uint256& key);
+    boost::optional<BICacheEntry> getFromCache(const uint256& key) const;
     boost::optional<BICacheEntry> getOrderedFront() const;
     boost::optional<BICacheEntry> getOrderedBack() const;
     std::size_t                   size() const;
@@ -164,13 +164,14 @@ BlockIndexLRUCache<T, MutexType>::get(const ITxDB& txdb, const uint256& key)
 
 template <typename T, typename MutexType>
 boost::optional<typename BlockIndexLRUCache<T, MutexType>::BICacheEntry>
-BlockIndexLRUCache<T, MutexType>::getFromCache(const uint256& key)
+BlockIndexLRUCache<T, MutexType>::getFromCache(const uint256& key) const
 {
     boost::lock_guard<MutexType> lg(mtx);
     auto&                        byKey = cacheContainer.template get<KeyTag>();
     auto                         it    = byKey.find(key);
     if (it != byKey.cend()) {
-        moveToTop_unsafe(key);
+        // we don't move to top because it doesn't help performance when scanning back through many
+        // blocks moveToTop_unsafe(key);
         return it->toValue();
     }
     return boost::none;

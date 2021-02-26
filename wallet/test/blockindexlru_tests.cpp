@@ -10,7 +10,20 @@
 #include "ntp1/ntp1transaction.h"
 #include <cstdlib>
 
+namespace testing {
+namespace internal {
+
+template <>
+void PrintTo(const uint256& value, std::ostream* o)
+{
+    *o << value.ToString();
+}
+
+} // namespace internal
+} // namespace testing
+
 namespace {
+
 template <typename T>
 std::string PODToString(const T& val)
 {
@@ -121,6 +134,7 @@ static void TestBlockIndexLRUCache(BlockIndexLRUTests& fixture)
     auto dbMock = fixture.MakeDBMock(10);
 
     for (int j = 0; j < 200; j++) {
+        //        std::cout << j << "\t" << HashFromHeight(j).ToString() << std::endl;
         if (j > 0) {
             fixture.insertNewBlockIndex(HashFromHeight(j), HashFromHeight(j - 1), HashFromHeight(j + 1),
                                         j);
@@ -330,8 +344,8 @@ static void TestBlockIndexLRUCache(BlockIndexLRUTests& fixture)
         EXPECT_EQ(val->value, BlockTimeFromHeight(height));
         ASSERT_TRUE(cache.getOrderedFront());
         ASSERT_TRUE(cache.getOrderedBack());
-        EXPECT_EQ(cache.getOrderedFront()->hash, HashFromHeight(25));
-        EXPECT_EQ(cache.getOrderedBack()->hash, HashFromHeight(height));
+        EXPECT_EQ(cache.getOrderedFront()->hash, HashFromHeight(15));
+        EXPECT_EQ(cache.getOrderedBack()->hash, HashFromHeight(35));
         EXPECT_EQ(cache.size(), 3u);
     }
 
@@ -356,8 +370,8 @@ static void TestBlockIndexLRUCache(BlockIndexLRUTests& fixture)
         EXPECT_EQ(val->value, BlockTimeFromHeight(height));
         ASSERT_TRUE(cache.getOrderedFront());
         ASSERT_TRUE(cache.getOrderedBack());
-        EXPECT_EQ(cache.getOrderedFront()->hash, HashFromHeight(25));
-        EXPECT_EQ(cache.getOrderedBack()->hash, HashFromHeight(height));
+        EXPECT_EQ(cache.getOrderedFront()->hash, HashFromHeight(15));
+        EXPECT_EQ(cache.getOrderedBack()->hash, HashFromHeight(35));
         EXPECT_EQ(cache.size(), 3u);
     }
 
@@ -371,7 +385,7 @@ static void TestBlockIndexLRUCache(BlockIndexLRUTests& fixture)
         EXPECT_EQ(val->value, BlockTimeFromHeight(height));
         ASSERT_TRUE(cache.getOrderedFront());
         ASSERT_TRUE(cache.getOrderedBack());
-        EXPECT_EQ(cache.getOrderedFront()->hash, HashFromHeight(25));
+        EXPECT_EQ(cache.getOrderedFront()->hash, HashFromHeight(15));
         EXPECT_EQ(cache.getOrderedBack()->hash, HashFromHeight(height));
         EXPECT_EQ(cache.size(), 3u);
     }
@@ -397,7 +411,7 @@ static void TestBlockIndexLRUCache(BlockIndexLRUTests& fixture)
         EXPECT_EQ(val->value, BlockTimeFromHeight(height));
         ASSERT_TRUE(cache.getOrderedFront());
         ASSERT_TRUE(cache.getOrderedBack());
-        EXPECT_EQ(cache.getOrderedFront()->hash, HashFromHeight(25));
+        EXPECT_EQ(cache.getOrderedFront()->hash, HashFromHeight(15));
         EXPECT_EQ(cache.getOrderedBack()->hash, HashFromHeight(height));
         EXPECT_EQ(cache.size(), 3u);
     }
