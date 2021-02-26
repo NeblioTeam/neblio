@@ -904,12 +904,40 @@ bool CBlock::SetBestChain(CTxDB& txdb, const boost::optional<CBlockIndex>& pinde
 
     // Check the version of the last 100 blocks to see if we need to upgrade:
     if (!fIsInitialDownload) {
-        int                          nUpgraded = 0;
-        boost::optional<CBlockIndex> pindex    = *txdb.GetBestBlockIndex();
-        for (int i = 0; i < 100 && pindex; i++) {
-            if (pindex->nVersion > CBlock::CURRENT_VERSION)
+        using BlockVersionCacheType = BlockIndexLRUCache<int32_t, boost::mutex>;
+
+        static typename BlockVersionCacheType::RetrieverFunc retrieverFunc =
+            [](const ITxDB&   txdb,
+               const uint256& hash) -> boost::optional<typename BlockVersionCacheType::BICacheEntry> {
+            const boost::optional<CBlockIndex> bi = txdb.ReadBlockIndex(hash);
+            if (!bi) {
+                return boost::none;
+            }
+            typename BlockVersionCacheType::BICacheEntry result;
+            result.hash     = bi->blockHash;
+            result.prevHash = bi->hashPrev;
+            result.value    = bi->nVersion;
+            return boost::make_optional(std::move(result));
+        };
+
+        static typename BlockVersionCacheType::ExtractorFunc extractorFunc =
+            [](const CBlockIndex& bi) -> int32_t { return bi.nVersion; };
+
+        static BlockVersionCacheType blockIndexCache(1000, retrieverFunc, extractorFunc);
+
+        int     nUpgraded = 0;
+        uint256 hash      = txdb.GetBestBlockHash();
+        for (int i = 0; i < 100 && hash != 0; i++) {
+            const boost::optional<BlockVersionCacheType::BICacheEntry> blockIndexVersionData =
+                blockIndexCache.get(txdb, hash);
+            if (!blockIndexVersionData) {
+                NLog.write(b_sev::err, "CRITICAL: Error retrieving previous block of block {}",
+                           hash.ToString());
+                break;
+            }
+            if (blockIndexVersionData->value > CBlock::CURRENT_VERSION)
                 ++nUpgraded;
-            pindex = pindex->getPrev(txdb);
+            hash = blockIndexVersionData->prevHash;
         }
         if (nUpgraded > 0)
             NLog.write(b_sev::info, "SetBestChain: {} of last 100 blocks above version {}", nUpgraded,
@@ -1754,27 +1782,26 @@ bool CBlock::WriteBlockPubKeys(CTxDB& txdb)
 
 void UpdateWallets(const uint256& prevBestChain, const ITxDB& txdb)
 {
-    using BlockTimeCacheType = BlockIndexLRUCache<bool>;
+    using BlockIndexCacheType = BlockIndexLRUCache<bool, boost::mutex>;
 
-    static typename BlockTimeCacheType::RetrieverFunc retrieverFunc =
+    static typename BlockIndexCacheType::RetrieverFunc retrieverFunc =
         [](const ITxDB&   txdb,
-           const uint256& hash) -> boost::optional<typename BlockTimeCacheType::BICacheEntry> {
+           const uint256& hash) -> boost::optional<typename BlockIndexCacheType::BICacheEntry> {
         const boost::optional<CBlockIndex> bi = txdb.ReadBlockIndex(hash);
         if (!bi) {
             return boost::none;
         }
-        typename BlockTimeCacheType::BICacheEntry result;
+        typename BlockIndexCacheType::BICacheEntry result;
         result.hash     = bi->blockHash;
         result.prevHash = bi->hashPrev;
         result.value    = false; // no need for a value here. Just constant false.
         return boost::make_optional(std::move(result));
     };
 
-    static typename BlockTimeCacheType::ExtractorFunc extractorFunc = [](const CBlockIndex&) -> int64_t {
-        return false;
-    };
+    static typename BlockIndexCacheType::ExtractorFunc extractorFunc =
+        [](const CBlockIndex&) -> int64_t { return false; };
 
-    static BlockTimeCacheType blockIndexCache(1000, retrieverFunc, extractorFunc);
+    static BlockIndexCacheType blockIndexCache(1000, retrieverFunc, extractorFunc);
 
     {
         /**
@@ -1800,7 +1827,7 @@ void UpdateWallets(const uint256& prevBestChain, const ITxDB& txdb)
             while (mainChainCurrentHash != 0 &&
                    mainChainCurrentHash != ancestorOfPrevInMainChain->GetBlockHash()) {
                 mainChain.push_back(mainChainCurrentHash);
-                boost::optional<BlockTimeCacheType::BICacheEntry> prev =
+                boost::optional<BlockIndexCacheType::BICacheEntry> prev =
                     blockIndexCache.get(txdb, mainChain.back());
                 if (!prev || prev->prevHash == ancestorOfPrevInMainChain->GetBlockHash()) {
                     // we exclude the last block that matches the common ancestor since it's already in
