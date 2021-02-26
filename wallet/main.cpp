@@ -6,6 +6,7 @@
 #include "main.h"
 #include "alert.h"
 #include "block.h"
+#include "blockindexlrucache.h"
 #include "checkpoints.h"
 #include "db.h"
 #include "disktxpos.h"
@@ -733,6 +734,23 @@ static unsigned int GetNextTargetRequiredV1(const CBlockIndex* pindexLast, bool 
  */
 int64_t CalculateActualBlockSpacingForV3(const CBlockIndex* pindexLast)
 {
+    using CacheType = BlockIndexLRUCache<uint64_t>;
+
+    static typename CacheType::RetrieverFunc retrieverFunc =
+        [](const ITxDB& txdb, const uint256& hash) -> boost::optional<typename CacheType::BICacheEntry> {
+        const boost::optional<CBlockIndex> bi = txdb.ReadBlockIndex(hash);
+        if (!bi) {
+            return boost::none;
+        }
+        typename CacheType::BICacheEntry result;
+        result.hash     = bi->blockHash;
+        result.prevHash = bi->hashPrev;
+        result.value    = bi->GetBlockTime();
+        return result;
+    };
+
+    static CacheType blockIndexBlockTimeCache(500, retrieverFunc);
+
     // get the latest blocks from the blocks. The amount of blocks is: TARGET_AVERAGE_BLOCK_COUNT
     int64_t forkBlock =
         Params().GetNetForks().getFirstBlockOfFork(NetworkFork::NETFORK__4_RETARGET_CORRECTION);
@@ -753,18 +771,23 @@ int64_t CalculateActualBlockSpacingForV3(const CBlockIndex* pindexLast)
     std::vector<int64_t> blockTimeDifferences;
     blockTimes.reserve(numOfBlocksToAverage);
     blockTimeDifferences.reserve(numOfBlocksToAverage);
-    CBlockIndex currIndex = *pindexLast;
+    uint256 currHash = pindexLast->GetBlockHash();
     blockTimes.resize(numOfBlocksToAverage);
     for (int64_t i = 0; i < numOfBlocksToAverage; i++) {
+        const boost::optional<CacheType::BICacheEntry> t = blockIndexBlockTimeCache.get(txdb, currHash);
+        if (!t) {
+            NLog.write(b_sev::err, "CRITICAL ERROR: block not found while calculating target");
+            break;
+        }
         // fill the blocks in reverse order
-        blockTimes.at(numOfBlocksToAverage - i - 1) = currIndex.GetBlockTime();
+        blockTimes.at(numOfBlocksToAverage - i - 1) = t->value;
         // move to the previous block
-        boost::optional<CBlockIndex> bi = currIndex.getPrev(txdb);
-        if (bi) {
-            currIndex = std::move(*bi);
+        if (t->prevHash != 0) {
+            currHash = t->prevHash;
         } else {
-            NLog.write(b_sev::err, "CRITICAL ERROR: prev block not found even though it's not genesis. "
-                                   "THIS SHOULD NEVER HAPPEN. Database corrupt?");
+            NLog.write(b_sev::err,
+                       "CRITICAL ERROR: prev block has zero hash even though it's not genesis. "
+                       "THIS SHOULD NEVER HAPPEN. Database corrupt?");
         }
     }
 
