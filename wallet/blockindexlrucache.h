@@ -10,8 +10,8 @@
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/random_access_index.hpp>
 #include <boost/multi_index/sequenced_index.hpp>
-#include <boost/thread/lock_guard.hpp>
 #include <boost/multi_index_container.hpp>
+#include <boost/thread/lock_guard.hpp>
 #include <cstdint>
 
 namespace neblio_dummy {
@@ -19,10 +19,10 @@ class dummy_mutex
 {
 public:
     void lock() {}
-    bool try_lock() {return true;}
+    bool try_lock() { return true; }
     void unlock() {}
 };
-}
+} // namespace neblio_dummy
 
 template <typename T, typename MutexType = neblio_dummy::dummy_mutex>
 class BlockIndexLRUCache
@@ -130,7 +130,8 @@ void BlockIndexLRUCache<T, MutexType>::popOne()
 }
 
 template <typename T, typename MutexType>
-BlockIndexLRUCache<T, MutexType>::BlockIndexLRUCache(std::size_t CacheSize, const RetrieverFunc& retrieverFunc)
+BlockIndexLRUCache<T, MutexType>::BlockIndexLRUCache(std::size_t          CacheSize,
+                                                     const RetrieverFunc& retrieverFunc)
     : maxCacheSize(CacheSize), retriever(retrieverFunc)
 {
 }
@@ -166,8 +167,8 @@ boost::optional<typename BlockIndexLRUCache<T, MutexType>::BICacheEntry>
 BlockIndexLRUCache<T, MutexType>::getFromCache(const uint256& key)
 {
     boost::lock_guard<MutexType> lg(mtx);
-    auto& byKey = cacheContainer.template get<KeyTag>();
-    auto  it    = byKey.find(key);
+    auto&                        byKey = cacheContainer.template get<KeyTag>();
+    auto                         it    = byKey.find(key);
     if (it != byKey.cend()) {
         moveToTop_unsafe(key);
         return it->toValue();
