@@ -903,7 +903,7 @@ unsigned int GetNextTargetRequired(const ITxDB& txdb, const CBlockIndex* pindexL
         result.hash     = bi->blockHash;
         result.prevHash = bi->hashPrev;
         result.value    = bi->GetBlockTime();
-        return result;
+        return boost::make_optional(std::move(result));
     };
 
     static typename BlockTimeCacheType::ExtractorFunc extractorFunc =
