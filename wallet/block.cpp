@@ -2,6 +2,7 @@
 
 #include "NetworkForks.h"
 #include "blockindex.h"
+#include "blockindexlrucache.h"
 #include "blocklocator.h"
 #include "blockmetadata.h"
 #include "checkpoints.h"
@@ -16,6 +17,7 @@
 #include "work.h"
 #include <boost/algorithm/string.hpp>
 #include <boost/foreach.hpp>
+#include <boost/range/adaptor/reversed.hpp>
 #include <boost/scope_exit.hpp>
 #include <mutex>
 
@@ -1750,9 +1752,29 @@ bool CBlock::WriteBlockPubKeys(CTxDB& txdb)
     return success;
 }
 
-void UpdateWallets(const uint256& prevBestChain)
+void UpdateWallets(const uint256& prevBestChain, const ITxDB& txdb)
 {
-    const CTxDB txdb;
+    using BlockTimeCacheType = BlockIndexLRUCache<bool>;
+
+    static typename BlockTimeCacheType::RetrieverFunc retrieverFunc =
+        [](const ITxDB&   txdb,
+           const uint256& hash) -> boost::optional<typename BlockTimeCacheType::BICacheEntry> {
+        const boost::optional<CBlockIndex> bi = txdb.ReadBlockIndex(hash);
+        if (!bi) {
+            return boost::none;
+        }
+        typename BlockTimeCacheType::BICacheEntry result;
+        result.hash     = bi->blockHash;
+        result.prevHash = bi->hashPrev;
+        result.value    = false; // no need for a value here. Just constant false.
+        return boost::make_optional(std::move(result));
+    };
+
+    static typename BlockTimeCacheType::ExtractorFunc extractorFunc = [](const CBlockIndex&) -> int64_t {
+        return false;
+    };
+
+    static BlockTimeCacheType blockIndexCache(1000, retrieverFunc, extractorFunc);
 
     {
         /**
@@ -1771,23 +1793,31 @@ void UpdateWallets(const uint256& prevBestChain)
                 ancestorOfPrevInMainChain = ancestorOfPrevInMainChain->getPrev(txdb);
             }
 
+            std::vector<uint256> mainChain;
+
             // get the common ancestor between current chain and previous chain
-            boost::optional<CBlockIndex> blocksInNewBranch = txdb.GetBestBlockIndex();
-            while (blocksInNewBranch->hashPrev != 0 &&
-                   blocksInNewBranch->GetBlockHash() != ancestorOfPrevInMainChain->GetBlockHash()) {
-                blocksInNewBranch = blocksInNewBranch->getPrev(txdb);
+            uint256 mainChainCurrentHash = txdb.GetBestBlockHash();
+            while (mainChainCurrentHash != 0 &&
+                   mainChainCurrentHash != ancestorOfPrevInMainChain->GetBlockHash()) {
+                mainChain.push_back(mainChainCurrentHash);
+                boost::optional<BlockTimeCacheType::BICacheEntry> prev =
+                    blockIndexCache.get(txdb, mainChain.back());
+                if (!prev || prev->prevHash == ancestorOfPrevInMainChain->GetBlockHash()) {
+                    // we exclude the last block that matches the common ancestor since it's already in
+                    // the wallet
+                    break;
+                }
+                mainChainCurrentHash = prev->prevHash;
             }
 
-            // one step forward from common ancestor, since it matches the last block
-            // (which is synced with wallet)
-            blocksInNewBranch = blocksInNewBranch->getNext(txdb);
-
             // loop over all blocks from the common ancestor, to now, and sync these txs
-            while (blocksInNewBranch) {
+            for (const uint256& h : boost::adaptors::reverse(mainChain)) {
                 CBlock block;
-                if (!block.ReadFromDisk(&*blocksInNewBranch, txdb)) {
+                if (!block.ReadFromDisk(h, txdb)) {
                     NLog.write(b_sev::err,
-                               "SetBestChain() : ReadFromDisk failed + couldn't sync with wallet");
+                               "SetBestChain() : CRITICAL ReadFromDisk failed + couldn't sync with "
+                               "wallet (block hash: {})",
+                               h.ToString());
                     continue;
                 }
 
@@ -1795,19 +1825,12 @@ void UpdateWallets(const uint256& prevBestChain)
                 for (CTransaction& tx : block.vtx) {
                     SyncWithWallets(txdb, tx, &block);
                 }
-
-                if (blocksInNewBranch->GetBlockHash() == txdb.GetBestBlockHash()) {
-                    break;
-                }
-
-                // pnext is always in the main chain
-                blocksInNewBranch = blocksInNewBranch->getNext(txdb);
             }
         } else {
             // this is for genesis
             // Watch for transactions paying to me
-            CBlock genesis = Params().GenesisBlock();
-            for (CTransaction& tx : genesis.vtx) {
+            const CBlock genesis = Params().GenesisBlock();
+            for (const CTransaction& tx : genesis.vtx) {
                 SyncWithWallets(txdb, tx, &genesis);
             }
         }
@@ -1868,7 +1891,7 @@ bool CBlock::WriteToDisk(const boost::optional<CBlockIndex>& prevBlockIndex, con
     txEnder.reset();
 
     // after having (potentially) updated the best block, we sync with wallets
-    UpdateWallets(prevBestChain);
+    UpdateWallets(prevBestChain, txdb);
 
     return true;
 }
