@@ -292,9 +292,10 @@ static bool GetKernelStakeModifier(const ITxDB& txdb, uint256 hashBlockFrom, uin
 //   a proof-of-work situation.
 //
 bool CheckStakeKernelHash(const ITxDB& txdb, unsigned int nBits, const CBlock& blockFrom,
-                          unsigned int nTxPrevOffset, const CTransaction& txPrev,
-                          const COutPoint& prevout, unsigned int nTimeTx, uint256& hashProofOfStake,
-                          uint256& targetProofOfStake, bool fPrintProofOfStake)
+                          const uint256& blockFromHash, unsigned int nTxPrevOffset,
+                          const CTransaction& txPrev, const COutPoint& prevout, unsigned int nTimeTx,
+                          uint256& hashProofOfStake, uint256& targetProofOfStake,
+                          bool fPrintProofOfStake)
 {
     if (nTimeTx < txPrev.nTime) // Transaction timestamp violation
         return NLog.error("CheckStakeKernelHash() : nTime violation");
@@ -308,8 +309,6 @@ bool CheckStakeKernelHash(const ITxDB& txdb, unsigned int nBits, const CBlock& b
     bnTargetPerCoinDay.SetCompact(nBits);
     int64_t nValueIn = txPrev.vout[prevout.n].nValue;
 
-    uint256 hashBlockFrom = blockFrom.GetHash();
-
     CBigNum bnCoinDayWeight = CBigNum(nValueIn) *
                               GetWeight(txdb, (int64_t)txPrev.nTime, (int64_t)nTimeTx) / COIN /
                               (24 * 60 * 60);
@@ -322,7 +321,7 @@ bool CheckStakeKernelHash(const ITxDB& txdb, unsigned int nBits, const CBlock& b
     int         nStakeModifierHeight = 0;
     int64_t     nStakeModifierTime   = 0;
 
-    if (!GetKernelStakeModifier(txdb, hashBlockFrom, nStakeModifier, nStakeModifierHeight,
+    if (!GetKernelStakeModifier(txdb, blockFromHash, nStakeModifier, nStakeModifierHeight,
                                 nStakeModifierTime, fPrintProofOfStake))
         return false;
     ss << nStakeModifier;
@@ -330,7 +329,7 @@ bool CheckStakeKernelHash(const ITxDB& txdb, unsigned int nBits, const CBlock& b
     ss << nTimeBlockFrom << nTxPrevOffset << txPrev.nTime << prevout.n << nTimeTx;
     hashProofOfStake = Hash(ss.begin(), ss.end());
     if (fDebug && fPrintProofOfStake) {
-        const auto bi = txdb.ReadBlockIndex(hashBlockFrom);
+        const auto bi = txdb.ReadBlockIndex(blockFromHash);
         NLog.write(b_sev::info,
                    "CheckStakeKernelHash() : using modifier 0x{:016x}"
                    " at height={} timestamp={} for block from height={} timestamp={}",
@@ -350,7 +349,7 @@ bool CheckStakeKernelHash(const ITxDB& txdb, unsigned int nBits, const CBlock& b
     }
 
     if (fDebug && !fPrintProofOfStake) {
-        const auto bi = txdb.ReadBlockIndex(hashBlockFrom);
+        const auto bi = txdb.ReadBlockIndex(blockFromHash);
         NLog.write(b_sev::info,
                    "CheckStakeKernelHash() : using modifier 0x{:016x}"
                    " at height={} timestamp={} for block from height={} timestamp={}",
@@ -398,8 +397,8 @@ bool CheckProofOfStake(const ITxDB& txdb, const CTransaction& tx, unsigned int n
         return fDebug ? NLog.error("CheckProofOfStake() : read block failed")
                       : false; // unable to read block of previous transaction
 
-    if (!CheckStakeKernelHash(txdb, nBits, block, txindex.pos.nTxPos, txPrev, txin.prevout, tx.nTime,
-                              hashProofOfStake, targetProofOfStake, fDebug))
+    if (!CheckStakeKernelHash(txdb, nBits, block, txindex.pos.nBlockPos, txindex.pos.nTxPos, txPrev,
+                              txin.prevout, tx.nTime, hashProofOfStake, targetProofOfStake, fDebug))
         return tx.DoS(
             1,
             NLog.error("CheckProofOfStake() : INFO: check kernel failed on coinstake {}, hashProof={}",

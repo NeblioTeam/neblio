@@ -67,8 +67,9 @@ TestAndCreateStakeKernel(const CTxDB& txdb, const StakeMaker::KeyGetterFunctorTy
         uint256       hashProofOfStake = 0, targetProofOfStake = 0;
         COutPoint     prevoutStake    = COutPoint(pcoin.first->GetHash(), pcoin.second);
         const int64_t txCoinstakeTime = nCoinstakeInitialTxTime - n;
-        if (!CheckStakeKernelHash(txdb, nBits, kernelBlock, txindex.pos.nTxPos, *pcoin.first,
-                                  prevoutStake, txCoinstakeTime, hashProofOfStake, targetProofOfStake)) {
+        if (!CheckStakeKernelHash(txdb, nBits, kernelBlock, txindex.pos.nBlockPos, txindex.pos.nTxPos,
+                                  *pcoin.first, prevoutStake, txCoinstakeTime, hashProofOfStake,
+                                  targetProofOfStake)) {
             continue;
         }
 

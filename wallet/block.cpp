@@ -1208,7 +1208,7 @@ bool CBlock::CheckBlock(const ITxDB& txdb, const uint256& blockHash, bool fCheck
     }
 
     // Check proof of work matches claimed amount
-    if (fCheckPOW && IsProofOfWork() && !CheckProofOfWork(GetPoWHash(), nBits)) {
+    if (fCheckPOW && IsProofOfWork() && !CheckProofOfWork(blockHash, nBits)) {
         reject = CBlockReject(REJECT_INVALID, "high-hash", this->GetHash());
         return DoS(50, NLog.error("CheckBlock() : proof of work failed"));
     }
