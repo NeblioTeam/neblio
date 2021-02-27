@@ -569,7 +569,7 @@ bool CBlock::ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pinde
     // this is used to prevent duplicate token names
     std::unordered_map<std::string, uint256> issuedTokensSymbolsInThisBlock;
 
-    for (CTransaction& tx : vtx) {
+    for (const CTransaction& tx : vtx) {
         const uint256 hashTx = tx.GetHash();
 
         std::vector<std::pair<CTransaction, NTP1Transaction>> inputsWithNTP1;
@@ -671,7 +671,7 @@ bool CBlock::ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pinde
     }
 
     if (IsProofOfWork()) {
-        const CAmount nExpectedReward = GetProofOfWorkReward(nFees);
+        const CAmount nExpectedReward = GetProofOfWorkReward(txdb, nFees);
         const CAmount nRewardInBlock  = vtx[0].GetValueOut();
         // Check coinbase reward
         if (nRewardInBlock > nExpectedReward) {
@@ -688,7 +688,7 @@ bool CBlock::ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pinde
             return NLog.error("ConnectBlock() : {} unable to get coin age for coinstake",
                               vtx[1].GetHash().ToString());
 
-        const CAmount nCalculatedStakeReward = GetProofOfStakeReward(nCoinAge, nFees);
+        const CAmount nCalculatedStakeReward = GetProofOfStakeReward(txdb, nCoinAge, nFees);
 
         if (nStakeReward > nCalculatedStakeReward)
             return DoS(100,
@@ -944,19 +944,6 @@ bool CBlock::SetBestChain(CTxDB& txdb, const boost::optional<CBlockIndex>& pinde
     return true;
 }
 
-bool CBlock::ReadFromDisk(const CBlockIndex* pindex, bool fReadTransactions)
-{
-    if (!fReadTransactions) {
-        *this = pindex->GetBlockHeader();
-        return true;
-    }
-    if (!ReadFromDisk(pindex->GetBlockHash(), fReadTransactions))
-        return false;
-    if (GetHash() != pindex->GetBlockHash())
-        return NLog.error("CBlock::ReadFromDisk() : GetHash() doesn't match index");
-    return true;
-}
-
 bool CBlock::ReadFromDisk(const CBlockIndex* pindex, const ITxDB& txdb, bool fReadTransactions)
 {
     if (!fReadTransactions) {
@@ -1058,7 +1045,7 @@ bool CBlock::Reorganize(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexN
     std::list<CTransaction> vResurrect;
     for (boost::optional<CBlockIndex>& pindex : vDisconnect) {
         CBlock block;
-        if (!block.ReadFromDisk(&*pindex))
+        if (!block.ReadFromDisk(&*pindex, txdb))
             return NLog.error("Reorganize() : ReadFromDisk for disconnect failed");
         if (!block.DisconnectBlock(txdb, *pindex))
             return NLog.error("Reorganize() : DisconnectBlock {} failed",
@@ -1445,7 +1432,7 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex)
     // Verify hash target and signature of coinstake tx
     if (IsProofOfStake()) {
         uint256 targetProofOfStake;
-        if (!CheckProofOfStake(vtx[1], nBits, hashProof, targetProofOfStake)) {
+        if (!CheckProofOfStake(txdb, vtx[1], nBits, hashProof, targetProofOfStake)) {
             NLog.write(b_sev::err, "WARNING: AcceptBlock(): check proof-of-stake failed for block {}",
                        hash.ToString());
             return false; // do not error here as we expect this during initial block download
@@ -1480,10 +1467,10 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex)
 
     // Relay inventory, but don't relay old inventory during initial block download
     int nBlockEstimate = Checkpoints::GetTotalBlocksEstimate();
-    if (CTxDB().GetBestBlockHash() == hash) {
+    if (txdb.GetBestBlockHash() == hash) {
         LOCK(cs_vNodes);
         for (CNode* pnode : vNodes)
-            if (CTxDB().GetBestChainHeight().value_or(0) >
+            if (txdb.GetBestChainHeight().value_or(0) >
                 (pnode->nStartingHeight != -1 ? pnode->nStartingHeight - 2000 : nBlockEstimate))
                 pnode->PushInventory(CInv(MSG_BLOCK, hash));
     }
@@ -1893,12 +1880,6 @@ bool CBlock::WriteToDisk(const boost::optional<CBlockIndex>& prevBlockIndex, con
     UpdateWallets(prevBestChain, txdb);
 
     return true;
-}
-
-bool CBlock::ReadFromDisk(const uint256& hash, bool fReadTransactions)
-{
-    SetNull();
-    return CTxDB().ReadBlock(hash, *this, fReadTransactions);
 }
 
 bool CBlock::ReadFromDisk(const uint256& hash, const ITxDB& txdb, bool fReadTransactions)

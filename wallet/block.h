@@ -122,7 +122,6 @@ public:
 
     bool WriteBlockPubKeys(CTxDB& txdb);
 
-    bool ReadFromDisk(const uint256& hash, bool fReadTransactions = true);
     bool ReadFromDisk(const uint256& hash, const ITxDB& txdb, bool fReadTransactions = true);
 
     void print() const;
@@ -153,7 +152,6 @@ public:
     bool ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pindex, bool fJustCheck = false);
     bool VerifyInputsUnspent(const CTxDB& txdb) const;
     bool VerifyBlock(CTxDB& txdb);
-    bool ReadFromDisk(const CBlockIndex* pindex, bool fReadTransactions = true);
     bool ReadFromDisk(const CBlockIndex* pindex, const ITxDB& txdb, bool fReadTransactions = true);
     bool SetBestChain(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
                       const bool createDbTransaction = true);

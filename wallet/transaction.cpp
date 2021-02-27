@@ -131,12 +131,13 @@ bool CTransaction::ReadFromDisk(const ITxDB& txdb, COutPoint prevout, CTxIndex& 
 {
     SetNull();
     if (!txdb.ReadTxIndex(prevout.hash, txindexRet))
-        return false;
+        return fDebug ? NLog.error("Tx index not found for tx {}", prevout.hash.ToString()) : false;
     if (!txdb.ReadTx(txindexRet.pos, *this))
-        return false;
+        return fDebug ? NLog.error("Tx not found for tx {}", prevout.hash.ToString()) : false;
     if (prevout.n >= vout.size()) {
         SetNull();
-        return false;
+        return fDebug ? NLog.error("Invalid prevout with n >= vout.size()", prevout.hash.ToString())
+                      : false;
     }
     return true;
 }
@@ -701,7 +702,7 @@ bool CTransaction::GetCoinAge(const ITxDB& txdb, uint64_t& nCoinAge) const
 
         // Read block header
         CBlock block;
-        if (!block.ReadFromDisk(txindex.pos.nBlockPos, false))
+        if (!block.ReadFromDisk(txindex.pos.nBlockPos, txdb, false))
             return false; // unable to read block of previous transaction
         if (block.GetBlockTime() + nSMA > nTime)
             continue; // only count coins meeting min age requirement

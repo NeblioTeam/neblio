@@ -652,7 +652,6 @@ bool CTxDB::LoadBlockIndex()
     ReadBestInvalidTrust(bnBestInvalidTrust);
     nBestInvalidTrust = bnBestInvalidTrust.getuint256();
 
-    CTxDB txdb;
     // Verify blocks in the best chain
     int nCheckLevel = GetArg("-checklevel", 1);
     int nCheckDepth = GetArg("-checkblocks", 2500);
@@ -676,13 +675,13 @@ bool CTxDB::LoadBlockIndex()
         if (fRequestShutdown || pindex->nHeight < bestHeight - nCheckDepth)
             break;
         CBlock block;
-        if (!block.ReadFromDisk(&*pindex)) {
+        if (!block.ReadFromDisk(&*pindex, *this)) {
             NLog.write(b_sev::err, "LoadBlockIndex() : block.ReadFromDisk failed");
             return false;
         }
         // check level 1: verify block validity
         // check level 7: verify block signature too
-        if (nCheckLevel > 0 && !block.CheckBlock(txdb, true, true, (nCheckLevel > 6))) {
+        if (nCheckLevel > 0 && !block.CheckBlock(*this, true, true, (nCheckLevel > 6))) {
             NLog.write(b_sev::warn, "LoadBlockIndex() : *** found bad block at {}, hash={}",
                        pindex->nHeight, pindex->GetBlockHash().ToString());
             pindexFork = pindex->getPrev(*this);
@@ -699,7 +698,7 @@ bool CTxDB::LoadBlockIndex()
                     if (nCheckLevel > 2 || pindex->GetBlockHash() != txindex.pos.nBlockPos) {
                         // either an error or a duplicate transaction
                         CTransaction txFound;
-                        if (!txFound.ReadFromDisk(txindex.pos, txdb)) {
+                        if (!txFound.ReadFromDisk(txindex.pos, *this)) {
                             NLog.write(b_sev::warn,
                                        "LoadBlockIndex() : *** cannot read mislocated transaction {}",
                                        hashTx.ToString());
@@ -730,14 +729,14 @@ bool CTxDB::LoadBlockIndex()
                                 // transaction that consume them
                                 if (nCheckLevel > 5) {
                                     CTransaction txSpend;
-                                    if (!txSpend.ReadFromDisk(txpos, txdb)) {
+                                    if (!txSpend.ReadFromDisk(txpos, *this)) {
                                         NLog.write(
                                             b_sev::warn,
                                             "LoadBlockIndex(): *** cannot read spending transaction "
                                             "of {}:{} from disk",
                                             hashTx.ToString(), nOutput);
                                         pindexFork = pindex->getPrev(*this);
-                                    } else if (txSpend.CheckTransaction(txdb).isErr()) {
+                                    } else if (txSpend.CheckTransaction(*this).isErr()) {
                                         NLog.write(b_sev::warn,
                                                    "LoadBlockIndex(): *** spending transaction of {}:{} "
                                                    "is invalid",
@@ -790,12 +789,11 @@ bool CTxDB::LoadBlockIndex()
         NLog.write(b_sev::debug, "LoadBlockIndex() : *** moving best chain pointer back to block {}",
                    pindexFork->nHeight);
         CBlock block;
-        if (!block.ReadFromDisk(&*pindexFork)) {
+        if (!block.ReadFromDisk(&*pindexFork, *this)) {
             NLog.write(b_sev::err, "LoadBlockIndex() : block.ReadFromDisk failed");
             return false;
         }
-        CTxDB txdb;
-        block.SetBestChain(txdb, pindexFork);
+        block.SetBestChain(*this, pindexFork);
     }
 
     return true;

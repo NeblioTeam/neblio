@@ -291,7 +291,7 @@ Value getblock(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
 
     CBlock block;
-    block.ReadFromDisk(&*bi, true);
+    block.ReadFromDisk(&*bi, txdb, true);
 
     if (!fVerbose) {
         CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
@@ -329,7 +329,7 @@ Value getblockbynumber(const Array& params, bool fHelp)
     if (!pblockindex) {
         throw runtime_error(fmt::format("Failed to get block at height: {}", nHeight));
     }
-    block.ReadFromDisk(&*pblockindex, true);
+    block.ReadFromDisk(&*pblockindex, txdb, true);
 
     bool fIgnoreNTP1 = false;
     if (params.size() > 2)

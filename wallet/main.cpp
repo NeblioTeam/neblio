@@ -602,7 +602,7 @@ bool GetTransaction(const uint256& hash, CTransaction& tx, uint256& hashBlock)
         CTxIndex    txindex;
         if (tx.ReadFromDisk(txdb, COutPoint(hash, 0), txindex)) {
             CBlock block;
-            if (block.ReadFromDisk(txindex.pos.nBlockPos, false))
+            if (block.ReadFromDisk(txindex.pos.nBlockPos, txdb, false))
                 hashBlock = block.GetHash();
             return true;
         }
@@ -1230,7 +1230,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
             CBlock* pblockOrphan = (*mi).second;
 
             // we use a new instance of CTxDB to ensure that newly added blocks are included
-            const boost::optional<CBlockIndex> prevBlockIdx = CTxDB().ReadBlockIndex(hashPrev);
+            const boost::optional<CBlockIndex> prevBlockIdx = txdb.ReadBlockIndex(hashPrev);
             if (!prevBlockIdx) {
                 NLog.write(b_sev::err, "CRITICAL ERROR: A prev block was not found after having been "
                                        "added! This should NEVER happen.");
@@ -1522,7 +1522,7 @@ void PrintBlockTree()
 
         // print item
         CBlock block;
-        block.ReadFromDisk(&*pindex);
+        block.ReadFromDisk(&*pindex, txdb);
         NLog.write(b_sev::info, "{} ({}) {}  {:08x}  {}  tx {}", pindex->nHeight,
                    pindex->GetBlockHash().ToString(), block.GetHash().ToString(), block.nBits,
                    DateTimeStrFormat("%x %H:%M:%S", block.GetBlockTime()), block.vtx.size());
@@ -2011,7 +2011,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                 auto mi = txdb.ReadBlockIndex(inv.hash);
                 if (mi) {
                     CBlock block;
-                    block.ReadFromDisk(&*mi);
+                    block.ReadFromDisk(&*mi, txdb);
                     if (inv.type == MSG_BLOCK)
                         pfrom->PushMessage("block", block);
                     else // MSG_FILTERED_BLOCK)
@@ -2042,9 +2042,9 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                         // download node to accept as orphan (proof-of-stake
                         // block might be rejected by stake connection check)
                         vector<CInv> vInv;
-                        vInv.push_back(
-                            CInv(MSG_BLOCK, GetLastBlockIndex(*CTxDB().GetBestBlockIndex(), false, txdb)
-                                                .GetBlockHash()));
+                        vInv.push_back(CInv(
+                            MSG_BLOCK,
+                            GetLastBlockIndex(*txdb.GetBestBlockIndex(), false, txdb).GetBlockHash()));
                         pfrom->PushMessage("inv", vInv);
                         pfrom->hashContinue = 0;
                     }
@@ -2765,7 +2765,7 @@ void ExportBootstrapBlockchain(const filesystem::path& filename, std::atomic<boo
                 throw std::runtime_error("Operation was stopped.");
             }
             CBlock block;
-            block.ReadFromDisk(&blockIndex, true);
+            block.ReadFromDisk(&blockIndex, txdb, true);
 
             // every block starts with pchMessageStart
             unsigned int nSize = block.GetSerializeSize(SER_DISK, CLIENT_VERSION);
@@ -2928,7 +2928,7 @@ void ExportBootstrapBlockchainWithOrphans(const filesystem::path& filename, std:
                 throw std::runtime_error("Operation was stopped.");
             }
             CBlock block;
-            block.ReadFromDisk(h, true);
+            block.ReadFromDisk(h, txdb, true);
 
             // every block starts with pchMessageStart
             unsigned int nSize = block.GetSerializeSize(SER_DISK, CLIENT_VERSION);

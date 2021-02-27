@@ -367,8 +367,8 @@ bool CheckStakeKernelHash(const ITxDB& txdb, unsigned int nBits, const CBlock& b
 }
 
 // Check kernel hash target and coinstake signature
-bool CheckProofOfStake(const CTransaction& tx, unsigned int nBits, uint256& hashProofOfStake,
-                       uint256& targetProofOfStake)
+bool CheckProofOfStake(const ITxDB& txdb, const CTransaction& tx, unsigned int nBits,
+                       uint256& hashProofOfStake, uint256& targetProofOfStake)
 {
     if (!tx.IsCoinStake())
         return NLog.error("CheckProofOfStake() : called on non-coinstake {}", tx.GetHash().ToString());
@@ -377,16 +377,15 @@ bool CheckProofOfStake(const CTransaction& tx, unsigned int nBits, uint256& hash
     const CTxIn& txin = tx.vin[0];
 
     // First try finding the previous transaction in database
-    const CTxDB  txdb;
     CTransaction txPrev;
     CTxIndex     txindex;
     if (!txPrev.ReadFromDisk(txdb, txin.prevout, txindex))
-        return tx.DoS(1,
-                      NLog.error("CheckProofOfStake() : INFO: read txPrev failed")); // previous
-                                                                                     // transaction not
-                                                                                     // in main chain,
-                                                                                     // may occur during
-                                                                                     // initial download
+        return tx.DoS(1, NLog.error("CheckProofOfStake() : INFO: read txPrev failed {}:{}",
+                                    txin.prevout.hash.ToString(), txin.prevout.n)); // previous
+                                                                                    // transaction not
+                                                                                    // in main chain,
+                                                                                    // may occur during
+                                                                                    // initial download
 
     // Verify signature
     if (VerifySignature(txPrev, tx, 0, false, false, 0).isErr())
@@ -395,7 +394,7 @@ bool CheckProofOfStake(const CTransaction& tx, unsigned int nBits, uint256& hash
 
     // Read block header
     CBlock block;
-    if (!block.ReadFromDisk(txindex.pos.nBlockPos, false))
+    if (!block.ReadFromDisk(txindex.pos.nBlockPos, txdb, false))
         return fDebug ? NLog.error("CheckProofOfStake() : read block failed")
                       : false; // unable to read block of previous transaction
 

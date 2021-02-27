@@ -892,7 +892,7 @@ bool AppInit2()
             if (strncmp(hash.ToString().c_str(), strMatch.c_str(), strMatch.size()) == 0) {
                 boost::optional<CBlockIndex> pindex = mi->second;
                 CBlock                       block;
-                block.ReadFromDisk(&*pindex);
+                block.ReadFromDisk(&*pindex, txdb);
                 block.print();
                 nFound++;
             }

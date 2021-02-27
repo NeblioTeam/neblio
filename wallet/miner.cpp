@@ -426,7 +426,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
             NLog.write(b_sev::debug, "CreateNewBlock(): total size {}", nBlockSize);
 
         if (!fProofOfStake)
-            pblock->vtx[0].vout[0].nValue = GetProofOfWorkReward(nFees);
+            pblock->vtx[0].vout[0].nValue = GetProofOfWorkReward(txdb, nFees);
 
         if (pFees)
             *pFees = nFees;
@@ -544,7 +544,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
     return true;
 }
 
-bool CheckStake(CBlock* pblock, CWallet& wallet)
+bool CheckStake(const ITxDB& txdb, CBlock* pblock, CWallet& wallet)
 {
     uint256 proofHash = 0, hashTarget = 0;
     uint256 hashBlock = pblock->GetHash();
@@ -553,7 +553,7 @@ bool CheckStake(CBlock* pblock, CWallet& wallet)
         return NLog.error("CheckStake() : {} is not a proof-of-stake block", hashBlock.GetHex());
 
     // verify hash target and signature of coinstake tx
-    if (!CheckProofOfStake(pblock->vtx[1], pblock->nBits, proofHash, hashTarget))
+    if (!CheckProofOfStake(txdb, pblock->vtx[1], pblock->nBits, proofHash, hashTarget))
         return NLog.error("CheckStake() : proof-of-stake checking failed");
 
     //// debug print
@@ -648,7 +648,7 @@ void StakeMiner(CWallet* pwallet)
         // Trying to sign a block
         if (pblock->SignBlock(txdb, *pwallet, nFees)) {
             SetThreadPriority(THREAD_PRIORITY_NORMAL);
-            CheckStake(pblock.get(), *pwallet);
+            CheckStake(txdb, pblock.get(), *pwallet);
             SetThreadPriority(THREAD_PRIORITY_LOWEST);
             MilliSleep(500);
         } else {

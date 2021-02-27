@@ -871,7 +871,7 @@ bool NTP1Transaction::TxContainsOpReturn(const CTransaction* tx, std::string* op
 std::vector<std::pair<CTransaction, NTP1Transaction>>
 NTP1Transaction::GetAllNTP1InputsOfTx(CTransaction tx, bool recoverProtection, int recursionCount)
 {
-    CTxDB txdb;
+    const CTxDB txdb;
     return GetAllNTP1InputsOfTx(
         tx, txdb, recoverProtection,
         std::map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>(),

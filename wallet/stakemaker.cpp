@@ -48,7 +48,7 @@ TestAndCreateStakeKernel(const CTxDB& txdb, const StakeMaker::KeyGetterFunctorTy
             return boost::none;
 
         // Read block header
-        if (!kernelBlock.ReadFromDisk(txindex.pos.nBlockPos, false))
+        if (!kernelBlock.ReadFromDisk(txindex.pos.nBlockPos, txdb, false))
             return boost::none;
     }
 
@@ -114,7 +114,7 @@ boost::optional<CAmount> CalculateStakeReward(const ITxDB& txdb, const CTransact
         return boost::none;
     }
 
-    const CAmount nReward = GetProofOfStakeReward(nCoinAge, nFees);
+    const CAmount nReward = GetProofOfStakeReward(txdb, nCoinAge, nFees);
     if (nReward <= 0)
         return boost::none;
 
