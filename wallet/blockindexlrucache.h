@@ -36,8 +36,6 @@ public:
         T       value;
     };
 
-    // function that retrieves the value from the database
-    using RetrieverFunc = std::function<boost::optional<BICacheEntry>(const ITxDB&, const uint256&)>;
     // function that extracts the T value from the block index
     using ExtractorFunc = std::function<T(const CBlockIndex&)>;
 
@@ -93,15 +91,26 @@ private:
 
     BlockIndexLRUCacheContainer cacheContainer;
     const std::size_t           maxCacheSize;
-    RetrieverFunc               retriever;
     ExtractorFunc               extractor;
     std::uint_fast64_t          counter = 0;
 
     bool moveToTop_unsafe(const uint256& key);
 
+    boost::optional<BICacheEntry> FromDBRetriever(const ITxDB& txdb, const uint256& hash)
+    {
+        const boost::optional<CBlockIndex> bi = txdb.ReadBlockIndex(hash);
+        if (!bi) {
+            return boost::none;
+        }
+        BICacheEntry result;
+        result.hash     = bi->blockHash;
+        result.prevHash = bi->hashPrev;
+        result.value    = extractor(*bi);
+        return boost::make_optional(std::move(result));
+    }
+
 public:
-    BlockIndexLRUCache(std::size_t CacheSize, const RetrieverFunc& retrieverFunc,
-                       const ExtractorFunc& extractorFunc);
+    BlockIndexLRUCache(std::size_t CacheSize, const ExtractorFunc& extractorFunc);
     boost::optional<BICacheEntry> get(const ITxDB& txdb, const uint256& key);
     boost::optional<BICacheEntry> getFromCache(const uint256& key) const;
     boost::optional<BICacheEntry> getOrderedFront() const;
@@ -145,9 +154,8 @@ void BlockIndexLRUCache<T, MutexType>::popOne()
 
 template <typename T, typename MutexType>
 BlockIndexLRUCache<T, MutexType>::BlockIndexLRUCache(std::size_t          CacheSize,
-                                                     const RetrieverFunc& retrieverFunc,
                                                      const ExtractorFunc& extractorFunc)
-    : maxCacheSize(CacheSize), retriever(retrieverFunc), extractor(extractorFunc)
+    : maxCacheSize(CacheSize), extractor(extractorFunc)
 {
 }
 
@@ -162,7 +170,7 @@ BlockIndexLRUCache<T, MutexType>::get(const ITxDB& txdb, const uint256& key)
 
     boost::lock_guard<MutexType> lg(mtx);
 
-    const boost::optional<BICacheEntry> val = retriever(txdb, key);
+    const boost::optional<BICacheEntry> val = FromDBRetriever(txdb, key);
     if (val) {
         BIInternalCacheEntry entry;
         entry.key     = val->hash;

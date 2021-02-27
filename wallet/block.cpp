@@ -906,24 +906,10 @@ bool CBlock::SetBestChain(CTxDB& txdb, const boost::optional<CBlockIndex>& pinde
     if (!fIsInitialDownload) {
         using BlockVersionCacheType = BlockIndexLRUCache<int32_t, boost::mutex>;
 
-        static typename BlockVersionCacheType::RetrieverFunc retrieverFunc =
-            [](const ITxDB&   txdb,
-               const uint256& hash) -> boost::optional<typename BlockVersionCacheType::BICacheEntry> {
-            const boost::optional<CBlockIndex> bi = txdb.ReadBlockIndex(hash);
-            if (!bi) {
-                return boost::none;
-            }
-            typename BlockVersionCacheType::BICacheEntry result;
-            result.hash     = bi->blockHash;
-            result.prevHash = bi->hashPrev;
-            result.value    = bi->nVersion;
-            return boost::make_optional(std::move(result));
-        };
-
         static typename BlockVersionCacheType::ExtractorFunc extractorFunc =
             [](const CBlockIndex& bi) -> int32_t { return bi.nVersion; };
 
-        static BlockVersionCacheType blockIndexCache(1000, retrieverFunc, extractorFunc);
+        static BlockVersionCacheType blockIndexCache(1000, extractorFunc);
 
         int     nUpgraded = 0;
         uint256 hash      = txdb.GetBestBlockHash();
@@ -1784,24 +1770,10 @@ void UpdateWallets(const uint256& prevBestChain, const ITxDB& txdb)
 {
     using BlockIndexCacheType = BlockIndexLRUCache<bool, boost::mutex>;
 
-    static typename BlockIndexCacheType::RetrieverFunc retrieverFunc =
-        [](const ITxDB&   txdb,
-           const uint256& hash) -> boost::optional<typename BlockIndexCacheType::BICacheEntry> {
-        const boost::optional<CBlockIndex> bi = txdb.ReadBlockIndex(hash);
-        if (!bi) {
-            return boost::none;
-        }
-        typename BlockIndexCacheType::BICacheEntry result;
-        result.hash     = bi->blockHash;
-        result.prevHash = bi->hashPrev;
-        result.value    = false; // no need for a value here. Just constant false.
-        return boost::make_optional(std::move(result));
-    };
-
     static typename BlockIndexCacheType::ExtractorFunc extractorFunc =
         [](const CBlockIndex&) -> int64_t { return false; };
 
-    static BlockIndexCacheType blockIndexCache(1000, retrieverFunc, extractorFunc);
+    static BlockIndexCacheType blockIndexCache(1000, extractorFunc);
 
     {
         /**

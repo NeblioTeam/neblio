@@ -892,24 +892,10 @@ unsigned int GetNextTargetRequired(const ITxDB& txdb, const CBlockIndex* pindexL
     if (fProofOfStake && Params().MineBlocksOnDemand())
         return Params().PoWLimit().GetCompact();
 
-    static typename BlockTimeCacheType::RetrieverFunc retrieverFunc =
-        [](const ITxDB&   txdb,
-           const uint256& hash) -> boost::optional<typename BlockTimeCacheType::BICacheEntry> {
-        const boost::optional<CBlockIndex> bi = txdb.ReadBlockIndex(hash);
-        if (!bi) {
-            return boost::none;
-        }
-        typename BlockTimeCacheType::BICacheEntry result;
-        result.hash     = bi->blockHash;
-        result.prevHash = bi->hashPrev;
-        result.value    = bi->GetBlockTime();
-        return boost::make_optional(std::move(result));
-    };
-
     static typename BlockTimeCacheType::ExtractorFunc extractorFunc =
         [](const CBlockIndex& bi) -> int64_t { return bi.GetBlockTime(); };
 
-    static BlockTimeCacheType blockIndexBlockTimeCache(500, retrieverFunc, extractorFunc);
+    static BlockTimeCacheType blockIndexBlockTimeCache(500, extractorFunc);
 
     if (pindexLast->nHeight < 2000)
         return GetNextTargetRequiredV1(pindexLast, fProofOfStake);

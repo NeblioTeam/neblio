@@ -145,24 +145,11 @@ static void TestBlockIndexLRUCache(BlockIndexLRUTests& fixture)
 
     using CacheType = BlockIndexLRUCache<uint64_t, MutexType>;
 
-    typename CacheType::RetrieverFunc retriever =
-        [](const ITxDB& txdb, const uint256& hash) -> boost::optional<typename CacheType::BICacheEntry> {
-        const boost::optional<CBlockIndex> bi = txdb.ReadBlockIndex(hash);
-        if (!bi) {
-            return boost::none;
-        }
-        typename CacheType::BICacheEntry result;
-        result.hash     = bi->blockHash;
-        result.prevHash = bi->hashPrev;
-        result.value    = bi->GetBlockTime();
-        return result;
-    };
-
     static typename CacheType::ExtractorFunc extractor = [](const CBlockIndex& bi) -> int64_t {
         return bi.GetBlockTime();
     };
 
-    CacheType cache(3, retriever, extractor);
+    CacheType cache(3, extractor);
     ASSERT_TRUE(cache.empty());
     ASSERT_FALSE(cache.getOrderedFront());
     ASSERT_FALSE(cache.getOrderedBack());
