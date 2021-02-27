@@ -129,6 +129,8 @@ public:
 
     void set_level(const b_sev& minimum_severity) { dist_sink->set_level(minimum_severity); }
 
+    void flush() { logger->flush(); }
+
     spdlog::async_logger* getInternalLogger() { return logger.get(); }
 };
 
@@ -192,6 +194,8 @@ public:
                                      fmt::format(fmtStr, std::forward<Args>(args)...));
         return boost::none;
     }
+
+    void flush() { LoggerSingleton::get().flush(); }
 };
 
 #endif // DEFAULTLOGGER_H

@@ -127,6 +127,7 @@ void Shutdown(void* /*parg*/)
         NewThread(ExitTimeout, NULL);
         MilliSleep(50);
         NLog.write(b_sev::info, "neblio exited\n\n\n\n\n\n\n\n\n");
+        NLog.flush();
         fExit = true;
 #ifndef QT_GUI
         // ensure non-UI client gets exited here, but let Bitcoin-Qt reach 'return 0;' in bitcoin.cpp
