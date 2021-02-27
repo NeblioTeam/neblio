@@ -533,7 +533,7 @@ bool CBlock::CheckBIP30Attack(ITxDB& txdb, const uint256& hashTx)
 
 bool CBlock::ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pindex, bool fJustCheck)
 {
-    const uint256 blockHash = GetHash();
+    const uint256 blockHash = pindex->GetBlockHash();
 
     NLog.write(b_sev::info, "Connecting block: {}", blockHash.ToString());
 
@@ -779,7 +779,7 @@ bool CBlock::ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pinde
 bool CBlock::SetBestChainInner(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
                                const bool createDbTransaction)
 {
-    const uint256 hash = GetHash();
+    const uint256 hash = pindexNew->GetBlockHash();
 
     // Adding to current best branch
     if (!ConnectBlock(txdb, pindexNew) || !txdb.WriteHashBestChain(hash)) {
@@ -805,7 +805,7 @@ bool CBlock::SetBestChainInner(CTxDB& txdb, const boost::optional<CBlockIndex>& 
 bool CBlock::SetBestChain(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
                           const bool createDbTransaction)
 {
-    const uint256 hash = GetHash();
+    const uint256 hash = pindexNew->GetBlockHash();
 
     if (createDbTransaction && !txdb.TxnBegin())
         return NLog.error("SetBestChain() : TxnBegin failed");
