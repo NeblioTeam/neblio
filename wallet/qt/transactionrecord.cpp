@@ -183,7 +183,7 @@ void TransactionRecord::readNTP1TxData()
             tx = CTransaction::FetchTxFromDisk(hash);
         }
         std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs =
-            NTP1Transaction::GetAllNTP1InputsOfTx(tx, false);
+            NTP1Transaction::GetAllNTP1InputsOfTx(tx, txdb, false);
         ntp1tx.readNTP1DataFromTx(txdb, tx, ntp1inputs);
         ntp1DataLoaded    = true;
         ntp1DataLoadError = false;

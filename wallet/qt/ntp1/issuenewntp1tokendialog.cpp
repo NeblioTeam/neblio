@@ -348,7 +348,7 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
                     // if this output is an NTP1 output, skip it
                     try {
                         std::vector<std::pair<CTransaction, NTP1Transaction>> inputs =
-                            NTP1Transaction::GetAllNTP1InputsOfTx(tx, false);
+                            NTP1Transaction::GetAllNTP1InputsOfTx(tx, txdb, false);
                         NTP1Transaction ntp1tx;
                         ntp1tx.readNTP1DataFromTx(txdb, tx, inputs);
                         // if this output contains tokens, skip it to avoid burning them
@@ -427,7 +427,7 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
         // verify the NTP1 transaction before commiting
         try {
             std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
-                NTP1Transaction::GetAllNTP1InputsOfTx(wtx, false);
+                NTP1Transaction::GetAllNTP1InputsOfTx(wtx, txdb, false);
             NTP1Transaction ntp1tx;
             ntp1tx.readNTP1DataFromTx(txdb, wtx, inputsTxs);
         } catch (std::exception& ex) {

@@ -127,7 +127,7 @@ void NTP1Wallet::__getOutputs()
         NTP1Transaction ntp1tx;
         try {
             std::vector<std::pair<CTransaction, NTP1Transaction>> prevTxs =
-                NTP1Transaction::GetAllNTP1InputsOfTx(neblTx, true);
+                NTP1Transaction::GetAllNTP1InputsOfTx(neblTx, txdb, true);
             ntp1tx.readNTP1DataFromTx(txdb, neblTx, prevTxs);
         } catch (std::exception& ex) {
             NLog.write(b_sev::err, "Unable to download transaction information. Error says: {}",
@@ -160,7 +160,7 @@ void NTP1Wallet::__getOutputs()
                     }
 
                     std::vector<std::pair<CTransaction, NTP1Transaction>> issueTxInputs =
-                        NTP1Transaction::GetAllNTP1InputsOfTx(issueTx, true);
+                        NTP1Transaction::GetAllNTP1InputsOfTx(issueTx, txdb, true);
                     NTP1Transaction issueNTP1Tx;
                     issueNTP1Tx.readNTP1DataFromTx(txdb, issueTx, issueTxInputs);
 

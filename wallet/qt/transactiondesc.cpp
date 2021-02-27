@@ -113,7 +113,7 @@ QString TransactionDesc::toHTML(const ITxDB& txdb, CWallet* wallet, const CWalle
     NTP1Transaction ntp1tx;
     try {
         std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs =
-            NTP1Transaction::GetAllNTP1InputsOfTx(wtx, false);
+            NTP1Transaction::GetAllNTP1InputsOfTx(wtx, txdb, false);
         ntp1tx.readNTP1DataFromTx(txdb, wtx, ntp1inputs);
     } catch (std::exception& ex) {
         NLog.write(b_sev::err,

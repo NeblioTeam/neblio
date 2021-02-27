@@ -220,6 +220,8 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(QList<SendCoinsRecipient>   
         return OK;
     }
 
+    const CTxDB txdb;
+
     // convert UD domains to neblio addresses
     for (SendCoinsRecipient& rcp : recipients) {
         const std::string address = rcp.address.toStdString();
@@ -249,7 +251,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(QList<SendCoinsRecipient>   
 
     int64_t              nBalance = 0;
     std::vector<COutput> vCoins;
-    wallet->AvailableCoins(CTxDB(), vCoins, true, coinControl);
+    wallet->AvailableCoins(txdb, vCoins, true, coinControl);
 
     for (const COutput& out : vCoins) {
         nBalance += out.tx->vout[out.i].nValue;
@@ -310,7 +312,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(QList<SendCoinsRecipient>   
         int64_t     nFeeRequired = 0;
         std::string errorMsg;
         const bool  fCreated =
-            wallet->CreateTransaction(CTxDB(), vecSend, wtx, keyChange, nFeeRequired, tokenCalculator,
+            wallet->CreateTransaction(txdb, vecSend, wtx, keyChange, nFeeRequired, tokenCalculator,
                                       ntp1metadata, false, coinControl, &errorMsg, fSpendDelegated);
 
         if (!fCreated) {
@@ -325,9 +327,9 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(QList<SendCoinsRecipient>   
         // verify the NTP1 transaction before commiting
         try {
             std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
-                NTP1Transaction::GetAllNTP1InputsOfTx(wtx, false);
+                NTP1Transaction::GetAllNTP1InputsOfTx(wtx, txdb, false);
             NTP1Transaction ntp1tx;
-            ntp1tx.readNTP1DataFromTx(CTxDB(), wtx, inputsTxs);
+            ntp1tx.readNTP1DataFromTx(txdb, wtx, inputsTxs);
         } catch (const std::exception& ex) {
             NLog.write(b_sev::info,
                        "An invalid NTP1 transaction was created; an exception was thrown: {}",
@@ -343,7 +345,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(QList<SendCoinsRecipient>   
         if (!uiInterface.ThreadSafeAskFee(nFeeRequired, tr("Sending...").toStdString())) {
             return Aborted;
         }
-        if (!wallet->CommitTransaction(wtx, CTxDB(), keyChange)) {
+        if (!wallet->CommitTransaction(wtx, txdb, keyChange)) {
             return TransactionCommitFailed;
         }
         hex = QString::fromStdString(wtx.GetHash().GetHex());

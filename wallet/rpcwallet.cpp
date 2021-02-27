@@ -1605,7 +1605,7 @@ Value sendmany(const Array& params, bool fHelp)
     // verify the NTP1 transaction before commiting
     try {
         std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
-            NTP1Transaction::GetAllNTP1InputsOfTx(wtx, false);
+            NTP1Transaction::GetAllNTP1InputsOfTx(wtx, txdb, false);
         NTP1Transaction ntp1tx;
         ntp1tx.readNTP1DataFromTx(CTxDB(), wtx, inputsTxs);
     } catch (std::exception& ex) {

@@ -869,16 +869,6 @@ bool NTP1Transaction::TxContainsOpReturn(const CTransaction* tx, std::string* op
 }
 
 std::vector<std::pair<CTransaction, NTP1Transaction>>
-NTP1Transaction::GetAllNTP1InputsOfTx(CTransaction tx, bool recoverProtection, int recursionCount)
-{
-    const CTxDB txdb;
-    return GetAllNTP1InputsOfTx(
-        tx, txdb, recoverProtection,
-        std::map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>(),
-        std::map<uint256, CTxIndex>(), recursionCount);
-}
-
-std::vector<std::pair<CTransaction, NTP1Transaction>>
 NTP1Transaction::GetAllNTP1InputsOfTx(CTransaction tx, const ITxDB& txdb, bool recoverProtection,
                                       int recursionCount)
 {
@@ -983,13 +973,9 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> NTP1Transaction::StdFetche
     return inputsWithNTP1;
 }
 
-int NTP1Transaction::GetCurrentBlockHeight(const ITxDB* txdb)
+int NTP1Transaction::GetCurrentBlockHeight(const ITxDB& txdb)
 {
-    if (txdb) {
-        return txdb->GetBestChainHeight().value_or(0);
-    } else {
-        return CTxDB().GetBestChainHeight().value_or(0);
-    }
+    return txdb.GetBestChainHeight().value_or(0);
 }
 
 bool NTP1Transaction::IsTxNTP1(const CTransaction* tx, std::string* opReturnArg)

@@ -1495,7 +1495,7 @@ void CWallet::AvailableCoinsForStaking(const ITxDB& txdb, vector<COutput>& vCoin
                                                      pcoin->GetHash().ToString() + " to CTransaction");
                         }
                         std::vector<std::pair<CTransaction, NTP1Transaction>> inputs =
-                            NTP1Transaction::GetAllNTP1InputsOfTx(*tx, false);
+                            NTP1Transaction::GetAllNTP1InputsOfTx(*tx, txdb, false);
                         NTP1Transaction ntp1tx;
                         ntp1tx.readNTP1DataFromTx(txdb, *tx, inputs);
                         // if this output contains tokens, skip it to avoid burning them
@@ -1636,7 +1636,7 @@ bool CWallet::SelectCoinsMinConf(const ITxDB& txdb, CAmount nTargetValue, unsign
                                                  pcoin->GetHash().ToString() + " to CTransaction");
                     }
                     std::vector<std::pair<CTransaction, NTP1Transaction>> inputs =
-                        NTP1Transaction::GetAllNTP1InputsOfTx(*tx, false);
+                        NTP1Transaction::GetAllNTP1InputsOfTx(*tx, txdb, false);
                     NTP1Transaction ntp1tx;
                     ntp1tx.readNTP1DataFromTx(txdb, *tx, inputs);
                     // if this output contains tokens, skip it to avoid burning them

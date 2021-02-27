@@ -174,9 +174,6 @@ public:
 
     /** for a certain transaction, retrieve all NTP1 data from the database */
     static std::vector<std::pair<CTransaction, NTP1Transaction>>
-    GetAllNTP1InputsOfTx(CTransaction tx, bool recoverProtection, int recursionCount = 0);
-
-    static std::vector<std::pair<CTransaction, NTP1Transaction>>
     GetAllNTP1InputsOfTx(CTransaction tx, const ITxDB& txdb, bool recoverProtection,
                          int recursionCount = 0);
 
@@ -200,7 +197,7 @@ public:
         const std::map<uint256, CTxIndex>& queuedAcceptedTxs = std::map<uint256, CTxIndex>(),
         int                                recursionCount    = 0);
 
-    static int GetCurrentBlockHeight(const ITxDB* txdb = nullptr);
+    static int GetCurrentBlockHeight(const ITxDB& txdb);
 };
 
 bool operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs)
@@ -350,7 +347,7 @@ void NTP1Transaction::__TransferTokens(
             // check if the token is blacklisted
             int blacklistHeight = 0;
             if (Params().IsNTP1TokenBlacklisted(currentTokenId, blacklistHeight)) {
-                int currentHeight = GetCurrentBlockHeight(&txdb);
+                int currentHeight = GetCurrentBlockHeight(txdb);
                 if (currentHeight >= blacklistHeight) {
                     throw std::runtime_error("The NTP1 token " + currentTokenId +
                                              " is blacklisted and cannot be transferred or burned.");

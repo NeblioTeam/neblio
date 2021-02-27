@@ -281,7 +281,7 @@ Value listunspent(const Array& params, bool fHelp)
             continue;
 
         std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs =
-            NTP1Transaction::GetAllNTP1InputsOfTx(static_cast<CTransaction>(*out.tx), false);
+            NTP1Transaction::GetAllNTP1InputsOfTx(static_cast<CTransaction>(*out.tx), txdb, false);
         NTP1Transaction ntp1tx;
         ntp1tx.readNTP1DataFromTx(txdb, static_cast<CTransaction>(*out.tx), ntp1inputs);
 
@@ -589,6 +589,7 @@ Value issuenewntp1token(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_TYPE_ERROR, "Amount can be either a string or integer");
     }();
 
+    const CTxDB               txdb;
     const std::string         recipientAddress(params[3].get_str());
     RawNTP1MetadataBeforeSend rawNTP1Data("", false);
     rawNTP1Data.metadata      = params.size() > 4 ? boost::algorithm::unhex(params[4].get_str()) : "";
@@ -705,9 +706,9 @@ Value issuenewntp1token(const Array& params, bool fHelp)
     if (verifyResultTx) {
         try {
             std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
-                NTP1Transaction::GetAllNTP1InputsOfTx(rawTx, false);
+                NTP1Transaction::GetAllNTP1InputsOfTx(rawTx, txdb, false);
             NTP1Transaction ntp1tx;
-            ntp1tx.readNTP1DataFromTx(CTxDB(), rawTx, inputsTxs);
+            ntp1tx.readNTP1DataFromTx(txdb, rawTx, inputsTxs);
         } catch (const std::exception& ex) {
             NLog.write(b_sev::info,
                        "An invalid NTP1 transaction was created; an exception was thrown: {}",
