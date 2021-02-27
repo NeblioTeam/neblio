@@ -1217,7 +1217,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     // Store to disk
     NLog.write(b_sev::info, "Attempting to accept block of height {} with hash {}",
                prevBlockIndex->nHeight + 1, hash.ToString());
-    if (!pblock->AcceptBlock(*prevBlockIndex))
+    if (!pblock->AcceptBlock(*prevBlockIndex, hash))
         return NLog.error("ProcessBlock() : AcceptBlock FAILED");
 
     // Recursively process any orphan blocks that depended on this one
@@ -1237,7 +1237,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
                 continue;
             }
 
-            if (pblockOrphan->AcceptBlock(*prevBlockIdx))
+            if (pblockOrphan->AcceptBlock(*prevBlockIdx, pblockOrphan->GetHash()))
                 vWorkQueue.push_back(pblockOrphan->GetHash());
 
             mapOrphanBlocks.erase(pblockOrphan->GetHash());

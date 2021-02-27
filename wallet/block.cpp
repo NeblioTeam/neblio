@@ -1341,7 +1341,7 @@ bool CBlock::CheckBlock(const ITxDB& txdb, bool fCheckPOW, bool fCheckMerkleRoot
     return true;
 }
 
-bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex)
+bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& blockHash)
 {
     AssertLockHeld(cs_main);
 
@@ -1353,8 +1353,7 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex)
         return DoS(100, NLog.error("AcceptBlock() : reject unknown block version {}", nVersion));
 
     // Check for duplicate
-    const uint256 hash = GetHash();
-    if (txdb.ReadBlockIndex(hash))
+    if (txdb.ReadBlockIndex(blockHash))
         return NLog.error("AcceptBlock() : block already in database");
 
     // protect against a possible attack where an attacker sends predecessors of very early blocks in the
@@ -1368,20 +1367,19 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex)
                 100,
                 NLog.error("Prevblock of block {}, which is {}, is behind the latest checkpoint block "
                            "height: {}",
-                           this->GetHash().ToString(), prevBlockHash.ToString(),
-                           maxCheckpointBlockHeight));
+                           blockHash.ToString(), prevBlockHash.ToString(), maxCheckpointBlockHeight));
         }
     }
 
     try {
         if (!VerifyInputsUnspent(txdb)) {
-            reject = CBlockReject(REJECT_INVALID, "bad-txns-inputs-missingorspent", this->GetHash());
-            return DoS(100, NLog.error("VerifyInputsUnspent() failed for block {}",
-                                       this->GetHash().ToString()));
+            reject = CBlockReject(REJECT_INVALID, "bad-txns-inputs-missingorspent", blockHash);
+            return DoS(100,
+                       NLog.error("VerifyInputsUnspent() failed for block {}", blockHash.ToString()));
         }
     } catch (std::exception& ex) {
         return NLog.error("VerifyInputsUnspent() threw an exception for block {}; with error: {}",
-                          this->GetHash().ToString(), ex.what());
+                          blockHash.ToString(), ex.what());
     }
 
     const int nHeight = prevBlockIndex.nHeight + 1;
@@ -1404,7 +1402,7 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex)
 
     // Check proof-of-work or proof-of-stake
     if (nBits != GetNextTargetRequired(txdb, &prevBlockIndex, IsProofOfStake())) {
-        reject = CBlockReject(REJECT_INVALID, "bad-diffbits", this->GetHash());
+        reject = CBlockReject(REJECT_INVALID, "bad-diffbits", blockHash);
         return DoS(100, NLog.error("AcceptBlock() : incorrect {}",
                                    IsProofOfWork() ? "proof-of-work" : "proof-of-stake"));
     }
@@ -1412,19 +1410,19 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex)
     // Check timestamp against prev
     if (GetBlockTime() <= prevBlockIndex.GetPastTimeLimit() ||
         FutureDrift(GetBlockTime()) < prevBlockIndex.GetBlockTime()) {
-        reject = CBlockReject(REJECT_INVALID, "time-too-old", this->GetHash());
+        reject = CBlockReject(REJECT_INVALID, "time-too-old", blockHash);
         return NLog.error("AcceptBlock() : block's timestamp is too early");
     }
 
     // Check that all transactions are finalized
     for (const CTransaction& tx : vtx)
         if (!IsFinalTx(tx, txdb, nHeight, GetBlockTime())) {
-            reject = CBlockReject(REJECT_INVALID, "bad-txns-nonfinal", this->GetHash());
+            reject = CBlockReject(REJECT_INVALID, "bad-txns-nonfinal", blockHash);
             return DoS(10, NLog.error("AcceptBlock() : contains a non-final transaction"));
         }
 
     // Check that the block chain matches the known block chain up to a checkpoint
-    if (!Checkpoints::CheckHardened(nHeight, hash))
+    if (!Checkpoints::CheckHardened(nHeight, blockHash))
         return DoS(100,
                    NLog.error("AcceptBlock() : rejected by hardened checkpoint lock-in at {}", nHeight));
 
@@ -1434,7 +1432,7 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex)
         uint256 targetProofOfStake;
         if (!CheckProofOfStake(txdb, vtx[1], nBits, hashProof, targetProofOfStake)) {
             NLog.write(b_sev::err, "WARNING: AcceptBlock(): check proof-of-stake failed for block {}",
-                       hash.ToString());
+                       blockHash.ToString());
             return false; // do not error here as we expect this during initial block download
         }
     }
@@ -1443,7 +1441,7 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex)
         hashProof = GetPoWHash();
     }
 
-    const bool cpSatisfies = Checkpoints::CheckSync(txdb, hash, &prevBlockIndex);
+    const bool cpSatisfies = Checkpoints::CheckSync(txdb, blockHash, &prevBlockIndex);
 
     // Check that the block satisfies synchronized checkpoint
     if (CheckpointsMode == Checkpoints::CPMode_STRICT && !cpSatisfies)
@@ -1467,12 +1465,12 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex)
 
     // Relay inventory, but don't relay old inventory during initial block download
     int nBlockEstimate = Checkpoints::GetTotalBlocksEstimate();
-    if (txdb.GetBestBlockHash() == hash) {
+    if (txdb.GetBestBlockHash() == blockHash) {
         LOCK(cs_vNodes);
         for (CNode* pnode : vNodes)
             if (txdb.GetBestChainHeight().value_or(0) >
                 (pnode->nStartingHeight != -1 ? pnode->nStartingHeight - 2000 : nBlockEstimate))
-                pnode->PushInventory(CInv(MSG_BLOCK, hash));
+                pnode->PushInventory(CInv(MSG_BLOCK, blockHash));
     }
 
     return true;
