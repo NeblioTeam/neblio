@@ -1,4 +1,4 @@
-#include "blocklocator.h"
+﻿#include "blocklocator.h"
 
 #include "blockindex.h"
 #include "protocol.h"
@@ -17,14 +17,33 @@ void CBlockLocator::Set(const CBlockIndex* pindex, const ITxDB& txdb)
     vHave.clear();
     int                          nStep = 1;
     boost::optional<CBlockIndex> index = pindex ? boost::make_optional(*pindex) : boost::none;
+
+    vHave.push_back(index->GetBlockHash());
     while (index) {
-        vHave.push_back(pindex->GetBlockHash());
+        if (!index->IsInMainChain(txdb)) {
+            for (int i = 0; index && i < nStep; i++) {
+                index = index->getPrev(txdb);
+            }
+            vHave.push_back(index->GetBlockHash());
+        } else {
+            const int currentHeight = index->nHeight;
+            if (currentHeight < nStep) {
+                break;
+            }
+            const int                      targetHeight = currentHeight - nStep;
+            const boost::optional<uint256> hash         = txdb.ReadBlockHashOfHeight(targetHeight);
+            if (!hash) {
+                NLog.write(
+                    b_sev::err,
+                    "CRITICAL: Could not get block hash from height in the mainchain for height: {}",
+                    targetHeight);
+                break;
+            }
+            vHave.push_back(*hash);
+            index = txdb.ReadBlockIndex(*hash);
+        }
 
         // Exponentially larger steps back
-        for (int i = 0; index && i < nStep; i++) {
-            // TODO: this can be optimized by using the block height
-            index = index->getPrev(txdb);
-        }
         if (vHave.size() > 10) {
             nStep *= 2;
         }
