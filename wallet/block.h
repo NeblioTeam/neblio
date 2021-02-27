@@ -99,7 +99,7 @@ public:
     void UpdateTime(const CBlockIndex* pindexPrev);
 
     // entropy bit for stake modifier if chosen by modifier
-    unsigned int GetStakeEntropyBit() const;
+    unsigned int GetStakeEntropyBit(const uint256& hash) const;
 
     // ppcoin: two types of block: proof-of-work or proof-of-stake
     bool IsProofOfStake() const;

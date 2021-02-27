@@ -87,12 +87,12 @@ std::pair<COutPoint, unsigned int> CBlock::GetProofOfStake() const
                             : std::make_pair(COutPoint(), (unsigned int)0);
 }
 
-unsigned int CBlock::GetStakeEntropyBit() const
+unsigned int CBlock::GetStakeEntropyBit(const uint256& hash) const
 {
     // Take last bit of block hash as entropy bit
-    unsigned int nEntropyBit = ((GetHash().Get64()) & 1llu);
+    unsigned int nEntropyBit = ((hash.Get64()) & UINT64_C(1));
     if (fDebug)
-        NLog.write(b_sev::debug, "GetStakeEntropyBit: hashBlock={} nEntropyBit={}", GetHash().ToString(),
+        NLog.write(b_sev::debug, "GetStakeEntropyBit: hashBlock={} nEntropyBit={}", hash.ToString(),
                    nEntropyBit);
     return nEntropyBit;
 }
@@ -1140,7 +1140,7 @@ boost::optional<CBlockIndex> CBlock::AddToBlockIndex(const uint256&             
         (prevBlockIndex ? prevBlockIndex->nChainTrust : 0) + pindexNew.GetBlockTrust();
 
     // ppcoin: compute stake entropy bit for stake modifier
-    if (!pindexNew.SetStakeEntropyBit(GetStakeEntropyBit()))
+    if (!pindexNew.SetStakeEntropyBit(GetStakeEntropyBit(blockHash)))
         return NLog.errorn("AddToBlockIndex() : SetStakeEntropyBit() failed");
 
     // Record proof hash value
