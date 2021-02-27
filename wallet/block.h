@@ -156,7 +156,8 @@ public:
     bool ReadFromDisk(const CBlockIndex* pindex, const ITxDB& txdb, bool fReadTransactions = true);
     bool SetBestChain(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
                       const bool createDbTransaction = true);
-    boost::optional<CBlockIndex> AddToBlockIndex(const boost::optional<CBlockIndex>& prevBlockIndex,
+    boost::optional<CBlockIndex> AddToBlockIndex(const uint256&                      blockHash,
+                                                 const boost::optional<CBlockIndex>& prevBlockIndex,
                                                  const uint256& hashProof, CTxDB& txdb,
                                                  const bool createDbTransaction = true);
     bool CheckBlock(const ITxDB& txdb, bool fCheckPOW = true, bool fCheckMerkleRoot = true,

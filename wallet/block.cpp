@@ -1,4 +1,4 @@
-#include "block.h"
+﻿#include "block.h"
 
 #include "NetworkForks.h"
 #include "blockindex.h"
@@ -1137,19 +1137,19 @@ bool CBlock::GetCoinAge(uint64_t& nCoinAge) const
     return true;
 }
 
-boost::optional<CBlockIndex> CBlock::AddToBlockIndex(const boost::optional<CBlockIndex>& prevBlockIndex,
+boost::optional<CBlockIndex> CBlock::AddToBlockIndex(const uint256&                      blockHash,
+                                                     const boost::optional<CBlockIndex>& prevBlockIndex,
                                                      const uint256& hashProof, CTxDB& txdb,
                                                      const bool createDbTransaction)
 {
     // Check for duplicate
-    const uint256 hash = GetHash();
-    if (txdb.ReadBlockIndex(hash))
-        return NLog.errorn("AddToBlockIndex() : {} already exists", hash.ToString());
+    if (txdb.ReadBlockIndex(blockHash))
+        return NLog.errorn("AddToBlockIndex() : {} already exists", blockHash.ToString());
 
     // Construct new block index object
-    CBlockIndex pindexNew = CBlockIndex(hash, *this);
+    CBlockIndex pindexNew = CBlockIndex(blockHash, *this);
 
-    pindexNew.blockHash = hash;
+    pindexNew.blockHash = blockHash;
     if (prevBlockIndex) {
         //        pindexNew.pprev    = biPrev;
         pindexNew.hashPrev = hashPrevBlock;
@@ -1857,7 +1857,7 @@ bool CBlock::WriteToDisk(const boost::optional<CBlockIndex>& prevBlockIndex, con
     }
 
     const boost::optional<CBlockIndex> pindexNew =
-        AddToBlockIndex(prevBlockIndex, hashProof, txdb, false);
+        AddToBlockIndex(blockHash, prevBlockIndex, hashProof, txdb, false);
 
     // database transactions are disabled in there because we already have a transaction around here
     if (!pindexNew) {
