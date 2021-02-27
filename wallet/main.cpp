@@ -1152,7 +1152,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     }
 
     // Preliminary checks
-    if (!pblock->CheckBlock(txdb))
+    if (!pblock->CheckBlock(txdb, hash))
         return NLog.error("ProcessBlock() : CheckBlock FAILED");
 
     const boost::optional<CBlockIndex> checkpoint = Checkpoints::GetLastCheckpoint(txdb);
@@ -1455,7 +1455,7 @@ bool LoadBlockIndex(bool fAllowNew)
 
             assert(genesisBlock.hashMerkleRoot == Params().GenesisBlock().hashMerkleRoot);
             assert(genesisBlock.GetHash() == Params().GenesisBlockHash());
-            assert(genesisBlock.CheckBlock(txdb));
+            assert(genesisBlock.CheckBlock(txdb, Params().GenesisBlockHash()));
 
             // Start new block file
             if (!genesisBlock.WriteToDisk(boost::none, genesisBlock.GetHash(), genesisBlock.GetHash()))

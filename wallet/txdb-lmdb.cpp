@@ -680,7 +680,8 @@ bool CTxDB::LoadBlockIndex()
         }
         // check level 1: verify block validity
         // check level 7: verify block signature too
-        if (nCheckLevel > 0 && !block.CheckBlock(*this, true, true, (nCheckLevel > 6))) {
+        if (nCheckLevel > 0 &&
+            !block.CheckBlock(*this, block.GetHash(), true, true, (nCheckLevel > 6))) {
             NLog.write(b_sev::warn, "LoadBlockIndex() : *** found bad block at {}, hash={}",
                        pindex->nHeight, pindex->GetBlockHash().ToString());
             pindexFork = pindex->getPrev(*this);

@@ -538,7 +538,7 @@ bool CBlock::ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pinde
     NLog.write(b_sev::info, "Connecting block: {}", blockHash.ToString());
 
     // Check it again in case a previous version let a bad block in, but skip BlockSig checking
-    if (!CheckBlock(txdb, !fJustCheck, !fJustCheck, false))
+    if (!CheckBlock(txdb, blockHash, !fJustCheck, !fJustCheck, false))
         return false;
 
     //// issue here: it doesn't know the version
@@ -1193,7 +1193,8 @@ boost::optional<CBlockIndex> CBlock::AddToBlockIndex(const uint256&             
     return boost::make_optional(std::move(pindexNew));
 }
 
-bool CBlock::CheckBlock(const ITxDB& txdb, bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig)
+bool CBlock::CheckBlock(const ITxDB& txdb, const uint256& blockHash, bool fCheckPOW,
+                        bool fCheckMerkleRoot, bool fCheckSig)
 {
     // These are checks that are independent of context
     // that can be verified before saving an orphan block.
@@ -1260,7 +1261,7 @@ bool CBlock::CheckBlock(const ITxDB& txdb, bool fCheckPOW, bool fCheckMerkleRoot
                                GetBlockTime(), vtx[1].nTime));
 
         // NovaCoin: check proof-of-stake block signature
-        if (fCheckSig && !CheckBlockSignature(txdb))
+        if (fCheckSig && !CheckBlockSignature(txdb, blockHash))
             return DoS(100, NLog.error("CheckBlock() : bad proof-of-stake block signature"));
     }
 
@@ -1628,7 +1629,7 @@ Result<bool, CBlock::BlockColdStakingCheckError> CBlock::HasColdStaking(const IT
     return Ok(false);
 }
 
-bool CBlock::CheckBlockSignature(const ITxDB& txdb) const
+bool CBlock::CheckBlockSignature(const ITxDB& txdb, const uint256& blockHash) const
 {
     if (IsProofOfWork())
         return vchBlockSig.empty();
@@ -1648,14 +1649,14 @@ bool CBlock::CheckBlockSignature(const ITxDB& txdb) const
             return false;
         if (vchBlockSig.empty())
             return false;
-        return key.Verify(GetHash(), vchBlockSig);
+        return key.Verify(blockHash, vchBlockSig);
     } else if (whichType == TX_COLDSTAKE) {
         auto keyResult = ExtractColdStakePubKey(*this);
         if (keyResult.isErr()) {
             return NLog.error("CheckBlockSignature(): ColdStaking key extraction failed");
         }
         key = keyResult.unwrap();
-        return key.Verify(GetHash(), vchBlockSig);
+        return key.Verify(blockHash, vchBlockSig);
     }
 
     const std::string sigTypeStr = [&]() {

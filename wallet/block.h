@@ -160,8 +160,8 @@ public:
                                                  const boost::optional<CBlockIndex>& prevBlockIndex,
                                                  const uint256& hashProof, CTxDB& txdb,
                                                  const bool createDbTransaction = true);
-    bool CheckBlock(const ITxDB& txdb, bool fCheckPOW = true, bool fCheckMerkleRoot = true,
-                    bool fCheckSig = true);
+    bool CheckBlock(const ITxDB& txdb, const uint256& blockHash, bool fCheckPOW = true,
+                    bool fCheckMerkleRoot = true, bool fCheckSig = true);
     bool AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& blockHash);
     bool
          SignBlock(const CTxDB& txdb, const CWallet& keystore, int64_t nFees,
@@ -170,7 +170,7 @@ public:
     bool SignBlockWithSpecificKey(const COutPoint& outputToStake, const CKey& keyOfOutput,
                                   int64_t nFees);
 
-    bool                                     CheckBlockSignature(const ITxDB& txdb) const;
+    bool CheckBlockSignature(const ITxDB& txdb, const uint256& blockHash) const;
     Result<bool, BlockColdStakingCheckError> HasColdStaking(const ITxDB& txdb) const;
 
     static boost::optional<CBlockIndex> FindBlockByHeight(int nHeight);
