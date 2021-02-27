@@ -1460,7 +1460,7 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& block
     if (!CheckDiskSpace(::GetSerializeSize(*this, SER_DISK, CLIENT_VERSION)))
         return NLog.error("AcceptBlock() : out of disk space");
 
-    if (!WriteToDisk(prevBlockIndex, hashProof))
+    if (!WriteToDisk(prevBlockIndex, hashProof, blockHash))
         return NLog.error("AcceptBlock() : WriteToDisk failed");
 
     // Relay inventory, but don't relay old inventory during initial block download
@@ -1821,7 +1821,8 @@ void UpdateWallets(const uint256& prevBestChain, const ITxDB& txdb)
     }
 }
 
-bool CBlock::WriteToDisk(const boost::optional<CBlockIndex>& prevBlockIndex, const uint256& hashProof)
+bool CBlock::WriteToDisk(const boost::optional<CBlockIndex>& prevBlockIndex, const uint256& hashProof,
+                         const uint256& blockHash)
 {
     /**
      * @brief txdb
@@ -1851,7 +1852,7 @@ bool CBlock::WriteToDisk(const boost::optional<CBlockIndex>& prevBlockIndex, con
     };
     std::unique_ptr<bool, decltype(txReverseFunctor)> txEnder(&success, txReverseFunctor);
 
-    if (!txdb.WriteBlock(this->GetHash(), *this)) {
+    if (!txdb.WriteBlock(blockHash, *this)) {
         return NLog.error("WriteBlock failed");
     }
 
@@ -1866,7 +1867,7 @@ bool CBlock::WriteToDisk(const boost::optional<CBlockIndex>& prevBlockIndex, con
     if (!WriteBlockPubKeys(txdb)) {
         NLog.write(b_sev::err,
                    "Failed to write address vs public key values for some transactions in the block {}",
-                   this->GetHash().ToString());
+                   blockHash.ToString());
     }
 
     uiInterface.NotifyBlockTip(IsInitialBlockDownload(txdb), *pindexNew);

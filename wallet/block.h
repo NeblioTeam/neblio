@@ -118,7 +118,8 @@ public:
     static uint256 CheckMerkleBranch(uint256 hash, const std::vector<uint256>& vMerkleBranch,
                                      int nIndex);
 
-    bool WriteToDisk(const boost::optional<CBlockIndex>& prevBlockIndex, const uint256& hashProof);
+    bool WriteToDisk(const boost::optional<CBlockIndex>& prevBlockIndex, const uint256& hashProof,
+                     const uint256& blockHash);
 
     bool WriteBlockPubKeys(CTxDB& txdb);
 

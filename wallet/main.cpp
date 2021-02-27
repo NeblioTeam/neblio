@@ -1458,7 +1458,7 @@ bool LoadBlockIndex(bool fAllowNew)
             assert(genesisBlock.CheckBlock(txdb));
 
             // Start new block file
-            if (!genesisBlock.WriteToDisk(boost::none, genesisBlock.GetHash()))
+            if (!genesisBlock.WriteToDisk(boost::none, genesisBlock.GetHash(), genesisBlock.GetHash()))
                 return NLog.error("LoadBlockIndex() : writing genesis block to disk failed");
         }
     }
