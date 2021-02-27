@@ -449,7 +449,6 @@ bool CTxDB::ReadBlock(const uint256& hash, CBlock& blk, bool fReadTransactions) 
 
 bool CTxDB::WriteBlock(const uint256& hash, const CBlock& blk)
 {
-    assert(blk.GetHash() != 0);
     return Write(hash, blk, IDB::Index::DB_BLOCKS_INDEX);
 }
 
