@@ -1116,27 +1116,6 @@ bool CBlock::Reorganize(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexN
     return true;
 }
 
-// ppcoin: total coin age spent in block, in the unit of coin-days.
-bool CBlock::GetCoinAge(uint64_t& nCoinAge) const
-{
-    nCoinAge = 0;
-
-    const CTxDB txdb;
-    for (const CTransaction& tx : vtx) {
-        uint64_t nTxCoinAge;
-        if (tx.GetCoinAge(txdb, nTxCoinAge))
-            nCoinAge += nTxCoinAge;
-        else
-            return false;
-    }
-
-    if (nCoinAge == 0) // block coin age minimum 1 coin-day
-        nCoinAge = 1;
-    if (fDebug)
-        NLog.write(b_sev::debug, "block coin age total nCoinDays={}", nCoinAge);
-    return true;
-}
-
 boost::optional<CBlockIndex> CBlock::AddToBlockIndex(const uint256&                      blockHash,
                                                      const boost::optional<CBlockIndex>& prevBlockIndex,
                                                      const uint256& hashProof, CTxDB& txdb,

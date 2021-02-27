@@ -163,7 +163,6 @@ public:
     bool CheckBlock(const ITxDB& txdb, bool fCheckPOW = true, bool fCheckMerkleRoot = true,
                     bool fCheckSig = true);
     bool AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& blockHash);
-    bool GetCoinAge(uint64_t& nCoinAge) const; // ppcoin: calculate total coin age spent in block
     bool
          SignBlock(const CTxDB& txdb, const CWallet& keystore, int64_t nFees,
                    const boost::optional<std::set<std::pair<uint256, unsigned>>>& customInputs = boost::none,
