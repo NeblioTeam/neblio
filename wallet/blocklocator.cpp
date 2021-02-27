@@ -73,7 +73,6 @@ boost::optional<CBlockIndex> CBlockLocator::GetBlockIndex(const ITxDB& txdb)
 {
     // Find the first block the caller has in the main chain
     for (const uint256& hash : vHave) {
-        // TODO: this can be optimized with block height
         const auto bi = txdb.ReadBlockIndex(hash);
         if (bi) {
             if (bi->IsInMainChain(txdb))
