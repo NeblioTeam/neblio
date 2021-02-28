@@ -2082,7 +2082,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         uint256       hashStop;
         vRecv >> locator >> hashStop;
 
-        CTxDB txdb;
+        const CTxDB txdb;
 
         // Find the last block the caller has in the main chain
         boost::optional<CBlockIndex> pindex = locator.GetBlockIndex(txdb);
