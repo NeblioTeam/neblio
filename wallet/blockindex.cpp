@@ -2,6 +2,7 @@
 
 #include "bignum.h"
 #include "block.h"
+#include "blockindexlrucache.h"
 #include "boost/shared_ptr.hpp"
 #include "util.h"
 
@@ -126,14 +127,35 @@ int64_t CBlockIndex::GetMedianTimePast(const ITxDB& txdb) const
     int64_t* pbegin = &pmedian[nMedianTimeSpan];
     int64_t* pend   = &pmedian[nMedianTimeSpan];
 
-    CBlockIndex index = *this;
+    using BlockTimeCacheType = BlockIndexLRUCache<int64_t, boost::mutex>;
+
+    static typename BlockTimeCacheType::ExtractorFunc extractorFunc =
+        [](const CBlockIndex& bi) -> int64_t { return bi.GetBlockTime(); };
+
+    static BlockTimeCacheType blockTimeCache(500, extractorFunc);
+
+    uint256 currHash = this->GetBlockHash();
+    blockTimeCache.manualAdd(*this);
     for (int i = 0; i < nMedianTimeSpan; i++) {
-        *(--pbegin)                     = index.GetBlockTime();
-        boost::optional<CBlockIndex> bi = index.getPrev(txdb);
-        if (!bi) {
+        const boost::optional<BlockTimeCacheType::BICacheEntry> blockTime =
+            blockTimeCache.get(txdb, currHash);
+        if (!blockTime) {
+            NLog.write(b_sev::err, "CRITICAL ERROR: block not found while calculating target");
             break;
         }
-        index = std::move(*bi);
+
+        *(--pbegin) = blockTime->value;
+
+        // move to the previous block
+        if (blockTime->prevHash != 0) {
+            currHash = blockTime->prevHash;
+        } else {
+            if (currHash != Params().GenesisBlockHash()) {
+                NLog.write(b_sev::critical,
+                           "CRITICAL ERROR: prev block has zero hash even though it's not genesis. "
+                           "THIS SHOULD NEVER HAPPEN. Database corrupt?");
+            }
+        }
     }
 
     std::sort(pbegin, pend);
