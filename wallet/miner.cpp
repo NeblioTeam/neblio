@@ -118,7 +118,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
 
     const CTxDB txdb;
 
-    boost::optional<CBlockIndex> pindexPrev = *txdb.GetBestBlockIndex();
+    boost::optional<CBlockIndex> pindexPrev = txdb.GetBestBlockIndex();
 
     // Create coinbase tx
     CTransaction coinbaseTx;

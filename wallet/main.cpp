@@ -2735,7 +2735,7 @@ void ExportBootstrapBlockchain(const filesystem::path& filename, std::atomic<boo
         const CTxDB txdb;
 
         {
-            boost::optional<CBlockIndex> pblockindex = *txdb.GetBestBlockIndex();
+            boost::optional<CBlockIndex> pblockindex = txdb.GetBestBlockIndex();
             chainBlocksIndices.push_back(*pblockindex);
             while (pblockindex->nHeight > 0 && !stopped.load() && !fShutdown) {
                 pblockindex = pblockindex->getPrev(txdb);

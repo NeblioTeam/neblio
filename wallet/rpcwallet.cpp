@@ -2180,7 +2180,7 @@ Value listsinceblock(const Array& params, bool fHelp)
         int target_height = txdb.GetBestChainHeight().value_or(0) + 1 - target_confirms;
 
         boost::optional<CBlockIndex> block;
-        for (block = *txdb.GetBestBlockIndex(); block && block->nHeight > target_height;) {
+        for (block = txdb.GetBestBlockIndex(); block && block->nHeight > target_height;) {
             block = block->getPrev(txdb);
         }
 

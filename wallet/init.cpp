@@ -973,7 +973,7 @@ bool AppInit2()
 
     const CTxDB txdb;
 
-    boost::optional<CBlockIndex> pindexRescan = *txdb.GetBestBlockIndex();
+    boost::optional<CBlockIndex> pindexRescan = txdb.GetBestBlockIndex();
     if (GetBoolArg("-rescan") ||
         SC_CheckOperationOnRestartScheduleThenDeleteIt(SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN))
         pindexRescan = *pindexGenesisBlock;
@@ -985,7 +985,7 @@ bool AppInit2()
         else
             pindexRescan = *pindexGenesisBlock;
     }
-    boost::optional<CBlockIndex> bestBlockIndex = boost::make_optional(*txdb.GetBestBlockIndex());
+    boost::optional<CBlockIndex> bestBlockIndex = txdb.GetBestBlockIndex();
     if (pindexRescan && bestBlockIndex->GetBlockHash() != pindexRescan->GetBlockHash() &&
         txdb.GetBestBlockIndex() && bestBlockIndex->nHeight > pindexRescan->nHeight) {
         uiInterface.InitMessage(_("Rescanning..."));

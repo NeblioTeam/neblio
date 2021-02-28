@@ -93,7 +93,7 @@ double GetPoSKernelPS()
 
     const CTxDB txdb;
 
-    boost::optional<CBlockIndex> pindex          = *txdb.GetBestBlockIndex();
+    boost::optional<CBlockIndex> pindex          = txdb.GetBestBlockIndex();
     boost::optional<CBlockIndex> pindexPrevStake = boost::none;
 
     while (pindex && nStakesHandled < nPoSInterval) {

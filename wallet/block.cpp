@@ -1009,7 +1009,7 @@ bool CBlock::Reorganize(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexN
     NLog.write(b_sev::info, "REORGANIZE");
 
     // Find the fork
-    boost::optional<CBlockIndex> pfork   = *txdb.GetBestBlockIndex();
+    boost::optional<CBlockIndex> pfork   = txdb.GetBestBlockIndex();
     boost::optional<CBlockIndex> plonger = pindexNew;
     while (pfork->GetBlockHash() != plonger->GetBlockHash()) {
         while (plonger->nHeight > pfork->nHeight)
@@ -1023,7 +1023,7 @@ bool CBlock::Reorganize(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexN
 
     // List of what to disconnect
     std::vector<boost::optional<CBlockIndex>> vDisconnect;
-    for (boost::optional<CBlockIndex> pindex                     = *txdb.GetBestBlockIndex();
+    for (boost::optional<CBlockIndex> pindex                     = txdb.GetBestBlockIndex();
          pindex->GetBlockHash() != pfork->GetBlockHash(); pindex = pindex->getPrev(txdb)) {
         vDisconnect.push_back(pindex);
     }
