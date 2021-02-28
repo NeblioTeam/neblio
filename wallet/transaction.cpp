@@ -496,13 +496,16 @@ CTransaction::ConnectInputs(const ITxDB& txdb, MapPrevTx inputs,
     // blockchain fMiner is true when called from the internal bitcoin miner
     // ... both are false when called from CTransaction::AcceptToMemoryPool
     if (!IsCoinBase()) {
-        CAmount nValueIn = 0;
-        CAmount nFees    = 0;
+        const int nCbM     = Params().CoinbaseMaturity(txdb);
+        CAmount   nValueIn = 0;
+        CAmount   nFees    = 0;
         for (unsigned int i = 0; i < vin.size(); i++) {
             COutPoint prevout = vin[i].prevout;
             assert(inputs.count(prevout.hash) > 0);
             CTxIndex&     txindex = inputs[prevout.hash].first;
             CTransaction& txPrev  = inputs[prevout.hash].second;
+            static_assert(std::is_same<uint256, decltype(txindex.pos.nBlockPos)>::value,
+                          "Expected same types");
 
             if (prevout.n >= txPrev.vout.size() || prevout.n >= txindex.vSpent.size()) {
                 DoS(100, false);
@@ -515,30 +518,43 @@ CTransaction::ConnectInputs(const ITxDB& txdb, MapPrevTx inputs,
             }
 
             // If prev is coinbase or coinstake, check that it's matured
-            int nCbM = Params().CoinbaseMaturity(txdb);
-            if (txPrev.IsCoinBase() || txPrev.IsCoinStake())
-                for (boost::optional<CBlockIndex> pindex = pindexBlock;
-                     pindex && pindexBlock->nHeight - pindex->nHeight < nCbM;
-                     pindex = pindex->getPrev(txdb)) {
-                    static_assert(std::is_same<decltype(pindex->GetBlockHash()),
-                                               decltype(txindex.pos.nBlockPos)>::value,
-                                  "Expected same types");
-                    if (pindex->GetBlockHash() == txindex.pos.nBlockPos) {
-                        if (sourceBlockPtr) {
-                            sourceBlockPtr->reject = CBlockReject(
-                                REJECT_INVALID, "bad-txns-premature-spend-of-coinbase/coinstake",
-                                sourceBlockPtr->GetHash());
-                        }
-                        const std::string msg = txPrev.IsCoinBase()
-                                                    ? "bad-txns-premature-spend-of-coinbase"
-                                                    : "bad-txns-premature-spend-of-coinstake";
-                        return Err(MakeInvalidTxState(
-                            TxValidationResult::TX_PREMATURE_SPEND, msg,
-                            fmt::format("ConnectInputs() : tried to spend {} at depth {}",
-                                        txPrev.IsCoinBase() ? "coinbase" : "coinstake",
-                                        pindexBlock->nHeight - pindex->nHeight)));
+            if (txPrev.IsCoinBase() || txPrev.IsCoinStake()) {
+                const boost::optional<CBlockIndex> inputIndex =
+                    txdb.ReadBlockIndex(txindex.pos.nBlockPos);
+                // failed to read/find block in db
+                if (!inputIndex) {
+                    if (sourceBlockPtr) {
+                        sourceBlockPtr->reject =
+                            CBlockReject(REJECT_INVALID,
+                                         "bad-txns-premature-spend-of-coinbase/coinstake-check-failed",
+                                         sourceBlockPtr->GetHash());
                     }
+                    const std::string msg =
+                        "bad-txns-premature-spend-of-coinbase/coinstake-check-failed";
+                    return Err(MakeInvalidTxState(
+                        TxValidationResult::TX_PREMATURE_SPEND_CHECK_ERROR, msg,
+                        fmt::format("ConnectInputs() : Failed to check coinbase/coinstake block "
+                                    "maturity for spend; reading block {} failed",
+                                    txindex.pos.nBlockPos.ToString())));
                 }
+
+                // check if spent before maturity
+                if (pindexBlock->nHeight - inputIndex->nHeight < nCbM) {
+                    if (sourceBlockPtr) {
+                        sourceBlockPtr->reject = CBlockReject(
+                            REJECT_INVALID, "bad-txns-premature-spend-of-coinbase/coinstake",
+                            sourceBlockPtr->GetHash());
+                    }
+                    const std::string msg = txPrev.IsCoinBase()
+                                                ? "bad-txns-premature-spend-of-coinbase"
+                                                : "bad-txns-premature-spend-of-coinstake";
+                    return Err(
+                        MakeInvalidTxState(TxValidationResult::TX_PREMATURE_SPEND, msg,
+                                           fmt::format("ConnectInputs() : tried to spend {} at depth {}",
+                                                       txPrev.IsCoinBase() ? "coinbase" : "coinstake",
+                                                       pindexBlock->nHeight - inputIndex->nHeight)));
+                }
+            }
 
             // ppcoin: check transaction timestamp
             if (txPrev.nTime > nTime) {
