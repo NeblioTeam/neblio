@@ -770,7 +770,7 @@ int64_t CalculateActualBlockSpacingForV3(const ITxDB& txdb, const CBlockIndex* p
         if (t->prevHash != 0) {
             currHash = t->prevHash;
         } else {
-            NLog.write(b_sev::err,
+            NLog.write(b_sev::critical,
                        "CRITICAL ERROR: prev block has zero hash even though it's not genesis. "
                        "THIS SHOULD NEVER HAPPEN. Database corrupt?");
         }
