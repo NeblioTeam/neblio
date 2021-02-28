@@ -892,8 +892,9 @@ unsigned int GetNextTargetRequired(const ITxDB& txdb, const CBlockIndex* pindexL
     if (fProofOfStake && Params().MineBlocksOnDemand())
         return Params().PoWLimit().GetCompact();
 
-    static typename BlockTimeCacheType::ExtractorFunc extractorFunc =
-        [](const CBlockIndex& bi) -> int64_t { return bi.GetBlockTime(); };
+    static typename BlockTimeCacheType::ExtractorFunc extractorFunc = [](const CBlockIndex& bi) {
+        return bi.GetBlockTime();
+    };
 
     static BlockTimeCacheType blockIndexBlockTimeCache(500, extractorFunc);
 

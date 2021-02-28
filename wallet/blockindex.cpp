@@ -129,8 +129,9 @@ int64_t CBlockIndex::GetMedianTimePast(const ITxDB& txdb) const
 
     using BlockTimeCacheType = BlockIndexLRUCache<int64_t, boost::mutex>;
 
-    static typename BlockTimeCacheType::ExtractorFunc extractorFunc =
-        [](const CBlockIndex& bi) -> int64_t { return bi.GetBlockTime(); };
+    static typename BlockTimeCacheType::ExtractorFunc extractorFunc = [](const CBlockIndex& bi) {
+        return bi.GetBlockTime();
+    };
 
     static BlockTimeCacheType blockTimeCache(500, extractorFunc);
 

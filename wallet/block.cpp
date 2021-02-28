@@ -906,8 +906,9 @@ bool CBlock::SetBestChain(CTxDB& txdb, const boost::optional<CBlockIndex>& pinde
     if (!fIsInitialDownload) {
         using BlockVersionCacheType = BlockIndexLRUCache<int32_t, boost::mutex>;
 
-        static typename BlockVersionCacheType::ExtractorFunc extractorFunc =
-            [](const CBlockIndex& bi) -> int32_t { return bi.nVersion; };
+        static typename BlockVersionCacheType::ExtractorFunc extractorFunc = [](const CBlockIndex& bi) {
+            return bi.nVersion;
+        };
 
         static BlockVersionCacheType blockIndexCache(1000, extractorFunc);
 
