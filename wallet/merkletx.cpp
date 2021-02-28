@@ -8,6 +8,27 @@
 const uint256
     CMerkleTx::ABANDON_HASH(uint256("0000000000000000000000000000000000000000000000000000000000000001"));
 
+thread_local std::pair<uint256, int> cachedBestHeight = std::make_pair(0, 0);
+
+static int GetBestBlockHeight(const ITxDB& txdb)
+{
+    // to minimize database calls, we cache the best height vs its block hash
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
+    int           bestHeight    = 0;
+    if (cachedBestHeight.first == bestBlockHash) {
+        return cachedBestHeight.second;
+    } else {
+        const boost::optional<CBlockIndex> bestBlockIndex = txdb.ReadBlockIndex(bestBlockHash);
+        if (!bestBlockIndex) {
+            bestHeight = 0;
+        } else {
+            bestHeight       = bestBlockIndex->nHeight;
+            cachedBestHeight = std::make_pair(bestBlockHash, bestHeight);
+        }
+    }
+    return bestHeight;
+}
+
 CMerkleTx::CMerkleTx(const CTransaction& txIn) : CTransaction(txIn) { Init(); }
 
 int CMerkleTx::GetDepthInMainChain(boost::optional<CBlockIndex>& pindexRet, const ITxDB& txdb) const
@@ -25,9 +46,9 @@ int CMerkleTx::GetDepthInMainChain(boost::optional<CBlockIndex>& pindexRet, cons
         if (!bi || !bi->IsInMainChain(txdb)) {
             nResult = 0;
         } else {
-            nResult =
-                ((nIndex == -1) ? (-1) : 1) * (txdb.GetBestChainHeight().value_or(0) - bi->nHeight + 1);
-            pindexRet = std::move(bi);
+            const int bestHeight = GetBestBlockHeight(txdb);
+            nResult              = ((nIndex == -1) ? (-1) : 1) * (bestHeight - bi->nHeight + 1);
+            pindexRet            = std::move(bi);
         }
     }
 
