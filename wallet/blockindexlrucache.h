@@ -90,7 +90,7 @@ private:
             >>;
 
     BlockIndexLRUCacheContainer cacheContainer;
-    const std::size_t           maxCacheSize;
+    std::size_t           maxCacheSize;
     ExtractorFunc               extractor;
     std::uint_fast64_t          counter = 0;
 
@@ -116,10 +116,12 @@ public:
     boost::optional<BICacheEntry> getOrderedFront() const;
     boost::optional<BICacheEntry> getOrderedBack() const;
     void                          manualAdd(const CBlockIndex& bi);
+    void                          setExtractor(const ExtractorFunc& extractorFunc);
     std::size_t                   size() const;
     bool                          empty() const;
     void                          popOne();
     void                          popOne_unsafe();
+    void                          updateCacheSize(std::size_t newCacheSize);
     void                          clear();
 };
 
@@ -143,6 +145,13 @@ void BlockIndexLRUCache<T, MutexType>::popOne_unsafe()
     }
     auto& byOrder = cacheContainer.template get<OrderTag>();
     byOrder.erase(byOrder.begin());
+}
+
+template<typename T, typename MutexType>
+void BlockIndexLRUCache<T,MutexType>::updateCacheSize(std::size_t newCacheSize)
+{
+    boost::lock_guard<MutexType> lg(mtx);
+    maxCacheSize = newCacheSize;
 }
 
 template <typename T, typename MutexType>
@@ -180,7 +189,7 @@ BlockIndexLRUCache<T, MutexType>::get(const ITxDB& txdb, const uint256& key)
         cacheContainer.insert(entry);
     }
 
-    if (cacheContainer.size() > maxCacheSize) {
+    while (cacheContainer.size() > maxCacheSize) {
         popOne_unsafe();
     }
     return val;
@@ -236,9 +245,15 @@ void BlockIndexLRUCache<T, MutexType>::manualAdd(const CBlockIndex& bi)
     boost::lock_guard<MutexType> lg(mtx);
     cacheContainer.insert(entry);
 
-    if (cacheContainer.size() > maxCacheSize) {
+    while (cacheContainer.size() > maxCacheSize) {
         popOne_unsafe();
     }
+}
+
+template<typename T, typename MutexType>
+void BlockIndexLRUCache<T,MutexType>::setExtractor(const ExtractorFunc& extractorFunc)
+{
+    extractor = extractorFunc;
 }
 
 template <typename T, typename MutexType>

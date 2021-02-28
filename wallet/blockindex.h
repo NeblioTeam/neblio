@@ -63,6 +63,8 @@ public:
 
     bool IsInMainChain(const ITxDB& txdb) const;
 
+    bool IsInMainChain(const uint256& bestBlockHash) const;
+
     bool CheckIndex() const { return true; }
 
     int64_t GetPastTimeLimit(const ITxDB& txdb) const;

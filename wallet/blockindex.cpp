@@ -119,6 +119,11 @@ bool CBlockIndex::IsInMainChain(const ITxDB& txdb) const
     return (hashNext != 0 || blockHash == txdb.GetBestBlockHash());
 }
 
+bool CBlockIndex::IsInMainChain(const uint256& bestBlockHash) const
+{
+    return (hashNext != 0 || blockHash == bestBlockHash);
+}
+
 int64_t CBlockIndex::GetPastTimeLimit(const ITxDB& txdb) const { return GetMedianTimePast(txdb); }
 
 int64_t CBlockIndex::GetMedianTimePast(const ITxDB& txdb) const

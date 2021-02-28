@@ -178,6 +178,8 @@ public:
 
     std::vector<CWalletTx> getWalletTxs();
 
+    std::size_t getWalletTxsCount();
+
     const CWalletTx* GetWalletTx(const uint256& hash) const;
 
     // check whether we are allowed to upgrade (or already support) to the named feature
@@ -325,8 +327,8 @@ public:
     bool       IsMine(const CTransaction& tx) const;
     bool       IsFromMe(const CTransaction& tx) const;
     CAmount    GetDebit(const CTransaction& tx, const isminefilter& filter) const;
-    CAmount    GetCredit(const ITxDB& txdb, const CTransaction& tx, const isminefilter& filter,
-                         const bool fUnspent) const;
+    CAmount    GetCredit(const uint256 bestBlockHash, const ITxDB& txdb, const CTransaction& tx,
+                         const isminefilter& filter, const bool fUnspent) const;
     CAmount    GetChange(const ITxDB& txdb, const CTransaction& tx) const;
     void       SetBestChain(const CBlockLocator& loc);
 

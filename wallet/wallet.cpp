@@ -880,12 +880,11 @@ CAmount CWallet::GetDebit(const CTransaction& tx, const isminefilter& filter) co
     return nDebit;
 }
 
-CAmount CWallet::GetCredit(const ITxDB& txdb, const CTransaction& tx, const isminefilter& filter,
-                           const bool fUnspent) const
+CAmount CWallet::GetCredit(const uint256 bestBlockHash, const ITxDB& txdb, const CTransaction& tx,
+                           const isminefilter& filter, const bool fUnspent) const
 {
     CAmount nCredit = 0;
 
-    const uint256 bestBlockHash = txdb.GetBestBlockHash();
     if (bestBlockHash == 0) {
         NLog.write(b_sev::critical, "CRITICAL ERROR: failed to get best block hash");
     }
@@ -1591,7 +1590,7 @@ CAmount CWallet::GetStake(const ITxDB& txdb) const
         const CWalletTx* pcoin = &(*it).second;
         if (pcoin->IsCoinStake() && pcoin->GetBlocksToMaturity(txdb, bestBlockHash) > 0 &&
             pcoin->GetDepthInMainChain(txdb, bestBlockHash) > 0)
-            nTotal += CWallet::GetCredit(txdb, *pcoin, ISMINE_SPENDABLE_ALL, true);
+            nTotal += CWallet::GetCredit(bestBlockHash, txdb, *pcoin, ISMINE_SPENDABLE_ALL, true);
     }
     return nTotal;
 }
@@ -1605,7 +1604,7 @@ CAmount CWallet::GetNewMint(const ITxDB& txdb) const
         const CWalletTx* pcoin = &(*it).second;
         if (pcoin->IsCoinBase() && pcoin->GetBlocksToMaturity(txdb, bestBlockHash) > 0 &&
             pcoin->GetDepthInMainChain(txdb, bestBlockHash) > 0)
-            nTotal += CWallet::GetCredit(txdb, *pcoin, ISMINE_SPENDABLE_ALL, true);
+            nTotal += CWallet::GetCredit(bestBlockHash, txdb, *pcoin, ISMINE_SPENDABLE_ALL, true);
     }
     return nTotal;
 }
@@ -1857,6 +1856,12 @@ std::vector<CWalletTx> CWallet::getWalletTxs()
         result.emplace_back(entry.second);
     }
     return result;
+}
+
+std::size_t CWallet::getWalletTxsCount()
+{
+    LOCK(cs_wallet);
+    return mapWallet.size();
 }
 
 void AddCoinsToInputsSet(const ITxDB& txdb, set<pair<const CWalletTx*, unsigned int>>& setInputs,
@@ -3411,19 +3416,19 @@ CAmount CWalletTx::GetUnspentCredit(const ITxDB& txdb, const uint256& bestBlockH
     CAmount credit = 0;
     if (filter & ISMINE_SPENDABLE) {
         const auto f = ISMINE_SPENDABLE;
-        credit += pwallet->GetCredit(txdb, *this, f, true);
+        credit += pwallet->GetCredit(bestBlockHash, txdb, *this, f, true);
     }
     if (filter & ISMINE_WATCH_ONLY) {
         const auto f = ISMINE_WATCH_ONLY;
-        credit += pwallet->GetCredit(txdb, *this, f, true);
+        credit += pwallet->GetCredit(bestBlockHash, txdb, *this, f, true);
     }
     if (filter & ISMINE_COLD) {
         const auto f = ISMINE_COLD;
-        credit += pwallet->GetCredit(txdb, *this, f, true);
+        credit += pwallet->GetCredit(bestBlockHash, txdb, *this, f, true);
     }
     if (filter & ISMINE_SPENDABLE_DELEGATED) {
         const auto f = ISMINE_SPENDABLE_DELEGATED;
-        credit += pwallet->GetCredit(txdb, *this, f, true);
+        credit += pwallet->GetCredit(bestBlockHash, txdb, *this, f, true);
     }
     return credit;
 }
@@ -3444,7 +3449,7 @@ CAmount CWalletTx::GetImmatureCredit(const uint256& bestBlockHash, const ITxDB& 
         IsInMainChain(txdb, bestBlockHash)) {
         if (fUseCache && c_ImmatureCreditCached && filter == ISMINE_SPENDABLE_ALL)
             return *c_ImmatureCreditCached;
-        c_ImmatureCreditCached = pwallet->GetCredit(txdb, *this, filter, false);
+        c_ImmatureCreditCached = pwallet->GetCredit(bestBlockHash, txdb, *this, filter, false);
         return *c_ImmatureCreditCached;
     }
 
@@ -3467,7 +3472,7 @@ CAmount CWalletTx::GetCredit(const uint256& bestBlockHash, const ITxDB& txdb,
         if (c_CreditCached)
             credit += *c_CreditCached;
         else {
-            c_CreditCached = pwallet->GetCredit(txdb, *this, ISMINE_SPENDABLE, false);
+            c_CreditCached = pwallet->GetCredit(bestBlockHash, txdb, *this, ISMINE_SPENDABLE, false);
             credit += *c_CreditCached;
         }
     }
@@ -3475,7 +3480,8 @@ CAmount CWalletTx::GetCredit(const uint256& bestBlockHash, const ITxDB& txdb,
         if (c_WatchCreditCached)
             credit += *c_WatchCreditCached;
         else {
-            c_WatchCreditCached = pwallet->GetCredit(txdb, *this, ISMINE_WATCH_ONLY, false);
+            c_WatchCreditCached =
+                pwallet->GetCredit(bestBlockHash, txdb, *this, ISMINE_WATCH_ONLY, false);
             credit += *c_WatchCreditCached;
         }
     }
@@ -3483,7 +3489,7 @@ CAmount CWalletTx::GetCredit(const uint256& bestBlockHash, const ITxDB& txdb,
         if (c_ColdCreditCached)
             credit += *c_ColdCreditCached;
         else {
-            c_ColdCreditCached = pwallet->GetCredit(txdb, *this, ISMINE_COLD, false);
+            c_ColdCreditCached = pwallet->GetCredit(bestBlockHash, txdb, *this, ISMINE_COLD, false);
             credit += *c_ColdCreditCached;
         }
     }
@@ -3491,7 +3497,8 @@ CAmount CWalletTx::GetCredit(const uint256& bestBlockHash, const ITxDB& txdb,
         if (c_DelegatedCreditCached)
             credit += *c_DelegatedCreditCached;
         else {
-            c_DelegatedCreditCached = pwallet->GetCredit(txdb, *this, ISMINE_SPENDABLE_DELEGATED, false);
+            c_DelegatedCreditCached =
+                pwallet->GetCredit(bestBlockHash, txdb, *this, ISMINE_SPENDABLE_DELEGATED, false);
             credit += *c_DelegatedCreditCached;
         }
     }
