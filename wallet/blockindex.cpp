@@ -7,11 +7,9 @@
 
 CBlockIndex::CBlockIndex()
 {
-    blockHash = 0;
-    hashPrev  = 0;
-    hashNext  = 0;
-    //    pprev                  = NULL;
-    //    pnext                  = NULL;
+    blockHash              = 0;
+    hashPrev               = 0;
+    hashNext               = 0;
     nHeight                = 0;
     nChainTrust            = 0;
     nFlags                 = 0;
@@ -30,11 +28,9 @@ CBlockIndex::CBlockIndex()
 
 CBlockIndex::CBlockIndex(uint256 blockHashIn, const CBlock& block)
 {
-    blockHash = blockHashIn;
-    hashPrev  = 0;
-    hashNext  = 0;
-    //    pprev                  = NULL;
-    //    pnext                  = NULL;
+    blockHash              = blockHashIn;
+    hashPrev               = 0;
+    hashNext               = 0;
     nHeight                = 0;
     nChainTrust            = 0;
     nFlags                 = 0;
@@ -69,6 +65,10 @@ CBlock CBlockIndex::GetBlockHeader() const
     return block;
 }
 
+uint256 CBlockIndex::GetBlockHash() const { return blockHash; }
+
+int64_t CBlockIndex::GetBlockTime() const { return (int64_t)nTime; }
+
 std::string CBlockIndex::ToString() const
 {
     return fmt::format("CBlockIndex(hashPrev={}, hashNext={}, nHeight={}, "
@@ -81,6 +81,8 @@ std::string CBlockIndex::ToString() const
                        hashProof.ToString(), prevoutStake.ToString(), nStakeTime,
                        hashMerkleRoot.ToString(), GetBlockHash().ToString());
 }
+
+void CBlockIndex::print() const { NLog.write(b_sev::info, "{}", ToString()); }
 
 boost::optional<CBlockIndex> CBlockIndex::getPrev(const ITxDB& txdb) const
 {
@@ -116,13 +118,13 @@ bool CBlockIndex::IsInMainChain(const ITxDB& txdb) const
     return (hashNext != 0 || blockHash == txdb.GetBestBlockHash());
 }
 
-int64_t CBlockIndex::GetMedianTimePast() const
+int64_t CBlockIndex::GetPastTimeLimit(const ITxDB& txdb) const { return GetMedianTimePast(txdb); }
+
+int64_t CBlockIndex::GetMedianTimePast(const ITxDB& txdb) const
 {
     int64_t  pmedian[nMedianTimeSpan];
     int64_t* pbegin = &pmedian[nMedianTimeSpan];
     int64_t* pend   = &pmedian[nMedianTimeSpan];
-
-    const CTxDB txdb;
 
     CBlockIndex index = *this;
     for (int i = 0; i < nMedianTimeSpan; i++) {
@@ -136,4 +138,29 @@ int64_t CBlockIndex::GetMedianTimePast() const
 
     std::sort(pbegin, pend);
     return pbegin[(pend - pbegin) / 2];
+}
+
+bool CBlockIndex::IsProofOfWork() const { return !(nFlags & BLOCK_PROOF_OF_STAKE); }
+
+bool CBlockIndex::IsProofOfStake() const { return (nFlags & BLOCK_PROOF_OF_STAKE); }
+
+void CBlockIndex::SetProofOfStake() { nFlags |= BLOCK_PROOF_OF_STAKE; }
+
+unsigned int CBlockIndex::GetStakeEntropyBit() const { return ((nFlags & BLOCK_STAKE_ENTROPY) >> 1); }
+
+bool CBlockIndex::SetStakeEntropyBit(unsigned int nEntropyBit)
+{
+    if (nEntropyBit > 1)
+        return false;
+    nFlags |= (nEntropyBit ? BLOCK_STAKE_ENTROPY : 0);
+    return true;
+}
+
+bool CBlockIndex::GeneratedStakeModifier() const { return (nFlags & BLOCK_STAKE_MODIFIER); }
+
+void CBlockIndex::SetStakeModifier(uint64_t nModifier, bool fGeneratedStakeModifier)
+{
+    nStakeModifier = nModifier;
+    if (fGeneratedStakeModifier)
+        nFlags |= BLOCK_STAKE_MODIFIER;
 }

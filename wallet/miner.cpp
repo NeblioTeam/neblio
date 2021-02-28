@@ -433,8 +433,8 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
 
         // Fill in header
         pblock->hashPrevBlock = pindexPrev->GetBlockHash();
-        pblock->nTime         = max(pindexPrev->GetPastTimeLimit() + 1, pblock->GetMaxTransactionTime());
-        pblock->nTime         = max(pblock->GetBlockTime(), PastDrift(pindexPrev->GetBlockTime()));
+        pblock->nTime = max(pindexPrev->GetPastTimeLimit(txdb) + 1, pblock->GetMaxTransactionTime());
+        pblock->nTime = max(pblock->GetBlockTime(), PastDrift(pindexPrev->GetBlockTime()));
         if (!fProofOfStake)
             pblock->UpdateTime(&*pindexPrev);
         pblock->nNonce = 0;

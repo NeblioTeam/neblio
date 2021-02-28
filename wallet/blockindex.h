@@ -1,7 +1,7 @@
 #ifndef BLOCKINDEX_H
 #define BLOCKINDEX_H
 
-#include "globals.h"
+#include "itxdb.h"
 #include "logging/logger.h"
 #include "outpoint.h"
 #include "uint256.h"
@@ -22,8 +22,6 @@ public:
     uint256 hashPrev;
     uint256 hashNext;
 
-    //    CBlockIndexSmartPtr pprev;
-    //    CBlockIndexSmartPtr pnext;
     uint256 nChainTrust; // ppcoin: trust score of block chain
     int32_t nHeight;
 
@@ -57,9 +55,9 @@ public:
 
     CBlock GetBlockHeader() const;
 
-    uint256 GetBlockHash() const { return blockHash; }
+    uint256 GetBlockHash() const;
 
-    int64_t GetBlockTime() const { return (int64_t)nTime; }
+    int64_t GetBlockTime() const;
 
     uint256 GetBlockTrust() const;
 
@@ -67,43 +65,32 @@ public:
 
     bool CheckIndex() const { return true; }
 
-    int64_t GetPastTimeLimit() const { return GetMedianTimePast(); }
+    int64_t GetPastTimeLimit(const ITxDB& txdb) const;
 
     enum
     {
         nMedianTimeSpan = 11
     };
 
-    int64_t GetMedianTimePast() const;
+    int64_t GetMedianTimePast(const ITxDB& txdb) const;
 
-    bool IsProofOfWork() const { return !(nFlags & BLOCK_PROOF_OF_STAKE); }
+    bool IsProofOfWork() const;
 
-    bool IsProofOfStake() const { return (nFlags & BLOCK_PROOF_OF_STAKE); }
+    bool IsProofOfStake() const;
 
-    void SetProofOfStake() { nFlags |= BLOCK_PROOF_OF_STAKE; }
+    void SetProofOfStake();
 
-    unsigned int GetStakeEntropyBit() const { return ((nFlags & BLOCK_STAKE_ENTROPY) >> 1); }
+    unsigned int GetStakeEntropyBit() const;
 
-    bool SetStakeEntropyBit(unsigned int nEntropyBit)
-    {
-        if (nEntropyBit > 1)
-            return false;
-        nFlags |= (nEntropyBit ? BLOCK_STAKE_ENTROPY : 0);
-        return true;
-    }
+    bool SetStakeEntropyBit(unsigned int nEntropyBit);
 
-    bool GeneratedStakeModifier() const { return (nFlags & BLOCK_STAKE_MODIFIER); }
+    bool GeneratedStakeModifier() const;
 
-    void SetStakeModifier(uint64_t nModifier, bool fGeneratedStakeModifier)
-    {
-        nStakeModifier = nModifier;
-        if (fGeneratedStakeModifier)
-            nFlags |= BLOCK_STAKE_MODIFIER;
-    }
+    void SetStakeModifier(uint64_t nModifier, bool fGeneratedStakeModifier);
 
     std::string ToString() const;
 
-    void print() const { NLog.write(b_sev::info, "{}", ToString()); }
+    void print() const;
 
     boost::optional<CBlockIndex> getPrev(const ITxDB& txdb) const;
     boost::optional<CBlockIndex> getNext(const ITxDB& txdb) const;

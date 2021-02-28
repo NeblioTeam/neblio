@@ -1388,7 +1388,7 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& block
     }
 
     // Check timestamp against prev
-    if (GetBlockTime() <= prevBlockIndex.GetPastTimeLimit() ||
+    if (GetBlockTime() <= prevBlockIndex.GetPastTimeLimit(txdb) ||
         FutureDrift(GetBlockTime()) < prevBlockIndex.GetBlockTime()) {
         reject = CBlockReject(REJECT_INVALID, "time-too-old", blockHash);
         return NLog.error("AcceptBlock() : block's timestamp is too early");
@@ -1496,7 +1496,7 @@ bool CBlock::SignBlock(const CTxDB& txdb, const CWallet& wallet, int64_t nFees,
     }
 
     const int64_t minTime =
-        std::max(pindexBestPtr->GetPastTimeLimit() + 1, PastDrift(pindexBestPtr->GetBlockTime()));
+        std::max(pindexBestPtr->GetPastTimeLimit(txdb) + 1, PastDrift(pindexBestPtr->GetBlockTime()));
 
     if (coinStake->nTime < minTime) {
         return false;
@@ -1505,7 +1505,7 @@ bool CBlock::SignBlock(const CTxDB& txdb, const CWallet& wallet, int64_t nFees,
     // make sure coinstake would meet timestamp protocol
     // as it would be the same as the block timestamp
     vtx[0].nTime = nTime = coinStake->nTime;
-    nTime                = std::max(pindexBestPtr->GetPastTimeLimit() + 1, GetMaxTransactionTime());
+    nTime                = std::max(pindexBestPtr->GetPastTimeLimit(txdb) + 1, GetMaxTransactionTime());
     nTime                = std::max(GetBlockTime(), PastDrift(pindexBestPtr->GetBlockTime()));
 
     // we have to make sure that we have no future timestamps in our transactions set
@@ -1534,8 +1534,8 @@ bool CBlock::SignBlock(const CTxDB& txdb, const CWallet& wallet, int64_t nFees,
     return key.Sign(GetHash(), vchBlockSig);
 }
 
-bool CBlock::SignBlockWithSpecificKey(const COutPoint& outputToStake, const CKey& keyOfOutput,
-                                      int64_t nFees)
+bool CBlock::SignBlockWithSpecificKey(const ITxDB& txdb, const COutPoint& outputToStake,
+                                      const CKey& keyOfOutput, int64_t nFees)
 {
     // if we are trying to sign
     //    something except proof-of-stake block template
@@ -1547,7 +1547,7 @@ bool CBlock::SignBlockWithSpecificKey(const COutPoint& outputToStake, const CKey
     if (IsProofOfStake())
         return true;
 
-    const boost::optional<CBlockIndex>  pindexBestPtr = CTxDB().GetBestBlockIndex();
+    const boost::optional<CBlockIndex>  pindexBestPtr = txdb.GetBestBlockIndex();
     const boost::optional<CTransaction> coinStake =
         stakeMaker.CreateCoinStakeFromSpecificOutput(outputToStake, keyOfOutput, nBits, nFees);
 
@@ -1556,7 +1556,7 @@ bool CBlock::SignBlockWithSpecificKey(const COutPoint& outputToStake, const CKey
     }
 
     const int64_t minTime =
-        std::max(pindexBestPtr->GetPastTimeLimit() + 1, PastDrift(pindexBestPtr->GetBlockTime()));
+        std::max(pindexBestPtr->GetPastTimeLimit(txdb) + 1, PastDrift(pindexBestPtr->GetBlockTime()));
 
     if (coinStake->nTime < minTime) {
         return false;
@@ -1565,7 +1565,7 @@ bool CBlock::SignBlockWithSpecificKey(const COutPoint& outputToStake, const CKey
     // make sure coinstake would meet timestamp protocol
     // as it would be the same as the block timestamp
     vtx[0].nTime = nTime = coinStake->nTime;
-    nTime                = std::max(pindexBestPtr->GetPastTimeLimit() + 1, GetMaxTransactionTime());
+    nTime                = std::max(pindexBestPtr->GetPastTimeLimit(txdb) + 1, GetMaxTransactionTime());
     nTime                = std::max(GetBlockTime(), PastDrift(pindexBestPtr->GetBlockTime()));
 
     // we have to make sure that we have no future timestamps in our transactions set

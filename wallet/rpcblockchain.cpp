@@ -517,7 +517,7 @@ Value getblockchaininfo(const Array& params, bool fHelp)
     obj.push_back(Pair("headers", bestBlockIndex ? bestBlockIndex->nHeight : -1));
     obj.push_back(Pair("bestblockhash", bestBlockIndex->blockHash.GetHex()));
     obj.push_back(Pair("difficulty", (double)GetDifficulty()));
-    obj.push_back(Pair("mediantime", (int64_t)bestBlockIndex->GetMedianTimePast()));
+    obj.push_back(Pair("mediantime", (int64_t)bestBlockIndex->GetMedianTimePast(txdb)));
     //    obj.push_back(
     //        Pair("verificationprogress", GuessVerificationProgress(Params().TxData(),
     //        chainActive.Tip())));
@@ -546,7 +546,7 @@ Value blockheaderToJSON(const CBlockIndex* blockindex)
     result.push_back(Pair("versionHex", fmt::format("{:08x}", blockindex->nVersion)));
     result.push_back(Pair("merkleroot", blockindex->hashMerkleRoot.GetHex()));
     result.push_back(Pair("time", (int64_t)blockindex->nTime));
-    result.push_back(Pair("mediantime", (int64_t)blockindex->GetMedianTimePast()));
+    result.push_back(Pair("mediantime", (int64_t)blockindex->GetMedianTimePast(txdb)));
     result.push_back(Pair("nonce", (uint64_t)blockindex->nNonce));
     result.push_back(Pair("bits", fmt::format("{:08x}", blockindex->nBits)));
     result.push_back(Pair("difficulty", GetDifficulty(blockindex)));

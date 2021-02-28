@@ -181,7 +181,7 @@ Value getworkex(const Array& params, bool fHelp)
         }
 
         // Update nTime
-        pblock->nTime  = max(pindexPrev->GetPastTimeLimit() + 1, GetAdjustedTime());
+        pblock->nTime  = max(pindexPrev->GetPastTimeLimit(txdb) + 1, GetAdjustedTime());
         pblock->nNonce = 0;
 
         // Update nExtraNonce
@@ -512,7 +512,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
     result.push_back(Pair("coinbaseaux", aux));
     result.push_back(Pair("coinbasevalue", (int64_t)pblock->vtx[0].vout[0].nValue));
     result.push_back(Pair("target", hashTarget.GetHex()));
-    result.push_back(Pair("mintime", (int64_t)pindexPrev->GetPastTimeLimit() + 1));
+    result.push_back(Pair("mintime", (int64_t)pindexPrev->GetPastTimeLimit(txdb) + 1));
     result.push_back(Pair("mutable", aMutable));
     result.push_back(Pair("noncerange", "00000000ffffffff"));
     result.push_back(Pair("sigoplimit", (int64_t)MAX_BLOCK_SIGOPS));
@@ -916,10 +916,13 @@ Value generateblockwithkey(const Array& params, bool fHelp)
             "generateblockwithkey 0xabcdefg 1 Vxyzabc [0xabc, 0xdef]\n");
     // clang-format on
 
-    uint256                   outputHash(params[0].get_str());
-    uint32_t                  outputIndex = static_cast<uint32_t>(params[1].get_int());
-    const CKey                key         = WIFSecretToKey(params[2].get_str());
-    uint32_t                  maxRetries  = 10000;
+    uint256    outputHash(params[0].get_str());
+    uint32_t   outputIndex = static_cast<uint32_t>(params[1].get_int());
+    const CKey key         = WIFSecretToKey(params[2].get_str());
+    uint32_t   maxRetries  = 10000;
+
+    const CTxDB txdb;
+
     std::vector<CTransaction> txs;
     if (params.size() > 3) {
         if (params[3].type() != Value_type::array_type) {
@@ -945,7 +948,7 @@ Value generateblockwithkey(const Array& params, bool fHelp)
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't assemble new block");
         block->vtx.insert(block->vtx.end(), txs.begin(), txs.end());
 
-        if (!block->SignBlockWithSpecificKey(COutPoint(outputHash, outputIndex), key, 0)) {
+        if (!block->SignBlockWithSpecificKey(txdb, COutPoint(outputHash, outputIndex), key, 0)) {
             block.reset();
         }
         return block;
