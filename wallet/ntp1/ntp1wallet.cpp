@@ -65,16 +65,20 @@ void NTP1Wallet::__getOutputs()
 
     const CTxDB txdb;
 
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
+
     std::vector<COutput> vecOutputs;
     std::atomic_load(&localWallet)->AvailableCoins(txdb, vecOutputs);
 
     // remove outputs that are outside confirmation bounds
-    auto outputToRemoveIt =
-        std::remove_if(vecOutputs.begin(), vecOutputs.end(), [this, &txdb](const COutput& output) {
-            if (maxConfirmations >= 0 && output.tx->GetDepthInMainChain(txdb) > maxConfirmations) {
+    auto outputToRemoveIt = std::remove_if(
+        vecOutputs.begin(), vecOutputs.end(), [this, &txdb, &bestBlockHash](const COutput& output) {
+            if (maxConfirmations >= 0 &&
+                output.tx->GetDepthInMainChain(txdb, bestBlockHash) > maxConfirmations) {
                 return true;
             }
-            if (minConfirmations >= 0 && output.tx->GetDepthInMainChain(txdb) < minConfirmations) {
+            if (minConfirmations >= 0 &&
+                output.tx->GetDepthInMainChain(txdb, bestBlockHash) < minConfirmations) {
                 return true;
             }
             return false;
@@ -121,7 +125,7 @@ void NTP1Wallet::__getOutputs()
         }
 
         // if output already exists, check if it's spent, if it's remove it
-        if (removeOutputIfSpent(output, neblTx, txdb))
+        if (removeOutputIfSpent(output, neblTx, bestBlockHash, txdb))
             continue;
 
         NTP1Transaction ntp1tx;
@@ -215,7 +219,7 @@ void NTP1Wallet::__getOutputs()
         }
     }
 
-    scanSpentTransactions(txdb);
+    scanSpentTransactions(txdb, bestBlockHash);
 
     lastTxCount      = currTxCount - failedRetrievals;
     lastOutputsCount = currOutputsCount - failedRetrievals;
@@ -249,12 +253,12 @@ void NTP1Wallet::AddOutputToWalletBalance(const NTP1Transaction& tx, int outputI
 }
 
 bool NTP1Wallet::removeOutputIfSpent(const NTP1OutPoint& output, const CWalletTx& neblTx,
-                                     const ITxDB& txdb)
+                                     const uint256& bestBlockHash, const ITxDB& txdb)
 {
     std::unordered_map<NTP1OutPoint, NTP1Transaction>::iterator outputIt =
         walletOutputsWithTokens.find(output);
     if (outputIt != walletOutputsWithTokens.end()) {
-        if (pwalletMain->IsSpent(neblTx.GetHash(), output.getIndex(), txdb)) {
+        if (pwalletMain->IsSpent(neblTx.GetHash(), output.getIndex(), txdb, bestBlockHash)) {
             walletOutputsWithTokens.erase(outputIt);
         }
         return true;
@@ -262,7 +266,7 @@ bool NTP1Wallet::removeOutputIfSpent(const NTP1OutPoint& output, const CWalletTx
     return false;
 }
 
-void NTP1Wallet::scanSpentTransactions(const ITxDB& txdb)
+void NTP1Wallet::scanSpentTransactions(const ITxDB& txdb, const uint256& bestBlockHash)
 {
     std::shared_ptr<CWallet> localWallet = std::atomic_load(&pwalletMain);
     if (localWallet == nullptr)
@@ -276,7 +280,7 @@ void NTP1Wallet::scanSpentTransactions(const ITxDB& txdb)
         const uint256& txHash      = it->first.getHash();
         if (!localWallet->GetTransaction(txHash, neblTx))
             continue;
-        if (pwalletMain->IsSpent(neblTx.GetHash(), outputIndex, txdb)) {
+        if (pwalletMain->IsSpent(neblTx.GetHash(), outputIndex, txdb, bestBlockHash)) {
             // this, although the right way to do things, causes a crash. A safer plan is chosen
             // it = walletOutputsWithTokens.erase(it);
             toRemove.push_back(it->first);

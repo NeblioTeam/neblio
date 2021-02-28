@@ -13,16 +13,19 @@ QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
 {
     AssertLockHeld(cs_main);
 
-    const CTxDB txdb;
-    if (!IsFinalTx(wtx, txdb, txdb.GetBestChainHeight().value_or(0) + 1)) {
+    const CTxDB       txdb;
+    const CBlockIndex bestBlockIndex = txdb.GetBestBlockIndex().value_or(CBlockIndex());
+    if (bestBlockIndex.GetBlockHash() == 0) {
+        NLog.write(b_sev::critical, "CRITICAL ERROR: Failed to read the best block index");
+    }
+    if (!IsFinalTx(wtx, txdb, bestBlockIndex.nHeight + 1)) {
         if (wtx.nLockTime < LOCKTIME_THRESHOLD)
-            return tr("Open for %n more block(s)", "",
-                      wtx.nLockTime - CTxDB().GetBestChainHeight().value_or(0));
+            return tr("Open for %n more block(s)", "", wtx.nLockTime - bestBlockIndex.nHeight);
         else
             return tr("Open until %1").arg(GUIUtil::dateTimeStr(wtx.nLockTime));
     } else {
         bool fConflicted = false;
-        int  nDepth      = wtx.GetDepthAndMempool(fConflicted, txdb);
+        int  nDepth      = wtx.GetDepthAndMempool(fConflicted, txdb, bestBlockIndex.nHeight);
         if (nDepth < 0 || fConflicted)
             return tr("conflicted");
         else if (GetAdjustedTime() - wtx.nTimeReceived > 2 * 60 && wtx.GetRequestCount() == 0)
@@ -49,14 +52,17 @@ QString TransactionDesc::toHTML(const ITxDB& txdb, CWallet* wallet, const CWalle
 {
     QString strHTML;
 
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
+
     LOCK2(cs_main, wallet->cs_wallet);
     strHTML.reserve(4000);
     strHTML += "<html><font face='verdana, arial, helvetica, sans-serif'>";
 
-    int64_t nTime   = wtx.GetTxTime();
-    int64_t nCredit = wtx.GetCredit(txdb, static_cast<isminefilter>(isminetype::ISMINE_ALL));
-    int64_t nDebit  = wtx.GetDebit(static_cast<isminefilter>(isminetype::ISMINE_ALL));
-    int64_t nNet    = nCredit - nDebit;
+    int64_t nTime = wtx.GetTxTime();
+    int64_t nCredit =
+        wtx.GetCredit(bestBlockHash, txdb, static_cast<isminefilter>(isminetype::ISMINE_ALL));
+    int64_t nDebit = wtx.GetDebit(static_cast<isminefilter>(isminetype::ISMINE_ALL));
+    int64_t nNet   = nCredit - nDebit;
 
     strHTML += "<b>" + tr("Status") + ":</b> " + FormatTxStatus(wtx);
     int nRequests = wtx.GetRequestCount();
@@ -152,9 +158,11 @@ QString TransactionDesc::toHTML(const ITxDB& txdb, CWallet* wallet, const CWalle
             nUnmatured += wallet->GetCredit(txout, static_cast<isminefilter>(isminetype::ISMINE_ALL));
         }
         strHTML += "<b>" + tr("Credit") + ":</b> ";
-        if (wtx.IsInMainChain(txdb)) {
-            strHTML += BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, nUnmatured) + " (" +
-                       tr("matures in %n more block(s)", "", wtx.GetBlocksToMaturity(txdb)) + ")";
+        if (wtx.IsInMainChain(txdb, bestBlockHash)) {
+            strHTML +=
+                BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, nUnmatured) + " (" +
+                tr("matures in %n more block(s)", "", wtx.GetBlocksToMaturity(txdb, bestBlockHash)) +
+                ")";
         } else {
             strHTML += "(" + tr("not accepted") + ")";
         }

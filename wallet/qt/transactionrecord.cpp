@@ -11,7 +11,8 @@ bool TransactionRecord::showTransaction(const CWalletTx& wtx)
 {
     if (wtx.IsCoinBase()) {
         // Ensures we show generated coins / mined transactions at depth 1
-        if (!wtx.IsInMainChain(CTxDB())) {
+        const CTxDB txdb;
+        if (!wtx.IsInMainChain(txdb, txdb.GetBestBlockHash())) {
             return false;
         }
     }
@@ -28,9 +29,10 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
 
     QList<TransactionRecord> parts;
     int64_t                  nTime = wtx.nTimeReceived;
-    int64_t nCredit = wtx.GetCredit(txdb, static_cast<isminefilter>(isminetype::ISMINE_ALL));
-    int64_t nDebit  = wtx.GetDebit(static_cast<isminefilter>(isminetype::ISMINE_ALL));
-    int64_t nNet    = nCredit - nDebit;
+    int64_t                  nCredit =
+        wtx.GetCredit(txdb.GetBestBlockHash(), txdb, static_cast<isminefilter>(isminetype::ISMINE_ALL));
+    int64_t nDebit = wtx.GetDebit(static_cast<isminefilter>(isminetype::ISMINE_ALL));
+    int64_t nNet   = nCredit - nDebit;
     uint256 hash = wtx.GetHash(), hashPrev = 0;
     std::map<std::string, std::string> mapValue = wtx.mapValue;
 
@@ -206,15 +208,18 @@ void TransactionRecord::updateStatus(const CWalletTx& wtx)
     // Find the block the tx is in
     const auto index = txdb.ReadBlockIndex(wtx.hashBlock);
 
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
+
     // Sort order, unrecorded transactions sort to the top
-    status.sortKey          = fmt::format("{:010d}-{:01d}-{:010d}-{:03d}",
+    status.sortKey = fmt::format("{:010d}-{:01d}-{:010d}-{:03d}",
                                  (index ? index->nHeight : std::numeric_limits<int>::max()),
                                  (wtx.IsCoinBase() ? 1 : 0), wtx.nTimeReceived, idx);
-    status.countsForBalance = wtx.IsTrusted(txdb) && !(wtx.GetBlocksToMaturity(txdb) > 0);
-    bool fConflicted        = false;
-    status.depth            = wtx.GetDepthAndMempool(fConflicted, txdb);
-    const int bestHeight    = txdb.GetBestChainHeight().value_or(0);
-    status.cur_num_blocks   = bestHeight;
+    status.countsForBalance =
+        wtx.IsTrusted(txdb, bestBlockHash) && !(wtx.GetBlocksToMaturity(txdb, bestBlockHash) > 0);
+    bool fConflicted      = false;
+    status.depth          = wtx.GetDepthAndMempool(fConflicted, txdb, bestBlockHash);
+    const int bestHeight  = txdb.GetBestChainHeight().value_or(0);
+    status.cur_num_blocks = bestHeight;
 
     if (!IsFinalTx(wtx, txdb, bestHeight + 1)) {
         if (wtx.nLockTime < LOCKTIME_THRESHOLD) {
@@ -228,11 +233,11 @@ void TransactionRecord::updateStatus(const CWalletTx& wtx)
 
     // For generated transactions, determine maturity
     else if (type == TransactionRecord::Generated || type == TransactionRecord::ColdStaker) {
-        if (wtx.GetBlocksToMaturity(txdb) > 0) {
+        if (wtx.GetBlocksToMaturity(txdb, bestBlockHash) > 0) {
             status.status = TransactionStatus::Immature;
 
-            if (wtx.IsInMainChain(txdb)) {
-                status.matures_in = wtx.GetBlocksToMaturity(txdb);
+            if (wtx.IsInMainChain(txdb, bestBlockHash)) {
+                status.matures_in = wtx.GetBlocksToMaturity(txdb, bestBlockHash);
 
                 // Check if the block was requested by anyone
                 if (GetAdjustedTime() - wtx.nTimeReceived > 2 * 60 && wtx.GetRequestCount() == 0)

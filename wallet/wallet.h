@@ -202,7 +202,8 @@ public:
                                    std::set<std::pair<const CWalletTx*, unsigned int>>& setCoinsRet,
                                    CAmount& nValueRet, bool avoidNTP1Outputs = false);
 
-    bool IsSpent(const uint256& hash, unsigned int n, const ITxDB& txdb) const;
+    bool IsSpent(const uint256& hash, unsigned int n, const ITxDB& txdb,
+                 const uint256& bestBlockHash) const;
 
     // keystore implementation
     // Generate a new key
@@ -574,12 +575,16 @@ public:
     void BindWallet(CWallet* pwalletIn);
 
     CAmount GetDebit(const isminefilter& filter) const;
-    CAmount GetCredit(const ITxDB& txdb, const isminefilter& filter) const;
-    CAmount GetAvailableCredit(const ITxDB& txdb, bool fUseCache = true) const;
-    CAmount GetColdStakingCredit(const ITxDB& txdb, bool fUseCache = true) const;
-    CAmount GetStakeDelegationCredit(const ITxDB& txdb, bool fUseCache = true) const;
-    CAmount GetUnspentCredit(const ITxDB& txdb, const isminefilter& filter) const;
-    CAmount GetImmatureCredit(const ITxDB& txdb, bool fUseCache = true,
+    CAmount GetCredit(const uint256& bestBlockHash, const ITxDB& txdb, const isminefilter& filter) const;
+    CAmount GetAvailableCredit(const uint256& bestBlockHash, const ITxDB& txdb,
+                               bool fUseCache = true) const;
+    CAmount GetColdStakingCredit(const uint256& bestBlockHash, const ITxDB& txdb,
+                                 bool fUseCache = true) const;
+    CAmount GetStakeDelegationCredit(const uint256& bestBlockHash, const ITxDB& txdb,
+                                     bool fUseCache = true) const;
+    CAmount GetUnspentCredit(const ITxDB& txdb, const uint256& bestBlockHash,
+                             const isminefilter& filter) const;
+    CAmount GetImmatureCredit(const uint256& bestBlockHash, const ITxDB& txdb, bool fUseCache = true,
                               const isminefilter& filter = isminetype::ISMINE_SPENDABLE_ALL) const;
     CAmount GetChange(const ITxDB& txdb) const;
 
@@ -592,11 +597,11 @@ public:
 
     bool IsFromMe(const isminefilter& filter) const;
 
-    bool IsTrusted(const ITxDB& txdb) const;
+    bool IsTrusted(const ITxDB& txdb, const uint256& bestBlockHash) const;
 
     bool InMempool() const;
 
-    int GetDepthAndMempool(bool& fConflicted, const ITxDB& txdb) const;
+    int GetDepthAndMempool(bool& fConflicted, const ITxDB& txdb, const uint256& bestBlockHash) const;
 
     bool WriteToDisk(CWalletDB* pwalletdb);
 

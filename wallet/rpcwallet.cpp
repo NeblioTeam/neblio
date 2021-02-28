@@ -56,7 +56,7 @@ void WalletTxToJSON(const CWalletTx& wtx, Object& entry)
 {
     const CTxDB txdb;
 
-    int confirms = wtx.GetDepthInMainChain(txdb);
+    int confirms = wtx.GetDepthInMainChain(txdb, txdb.GetBestBlockHash());
     entry.push_back(Pair("confirmations", confirms));
     if (wtx.IsCoinBase() || wtx.IsCoinStake())
         entry.push_back(Pair("generated", true));
@@ -938,7 +938,8 @@ Value getreceivedbyaddress(const Array& params, bool fHelp)
         nMinDepth = params[1].get_int();
 
     // Tally
-    CAmount nAmount = 0;
+    CAmount       nAmount       = 0;
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
          it != pwalletMain->mapWallet.end(); ++it) {
         const CWalletTx& wtx = (*it).second;
@@ -947,7 +948,7 @@ Value getreceivedbyaddress(const Array& params, bool fHelp)
 
         for (const CTxOut& txout : wtx.vout)
             if (txout.scriptPubKey == scriptPubKey)
-                if (wtx.GetDepthInMainChain(CTxDB()) >= nMinDepth)
+                if (wtx.GetDepthInMainChain(txdb, bestBlockHash) >= nMinDepth)
                     nAmount += txout.nValue;
     }
 
@@ -985,8 +986,9 @@ Value getreceivedbyaccount(const Array& params, bool fHelp)
     GetAccountAddresses(strAccount, setAddress);
 
     // Tally
-    CAmount     nAmount = 0;
-    const CTxDB txdb;
+    CAmount       nAmount = 0;
+    const CTxDB   txdb;
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
          it != pwalletMain->mapWallet.end(); ++it) {
         const CWalletTx& wtx = (*it).second;
@@ -997,7 +999,7 @@ Value getreceivedbyaccount(const Array& params, bool fHelp)
             CTxDestination address;
             if (ExtractDestination(CTxDB(), txout.scriptPubKey, address) &&
                 IsMine(*pwalletMain, address) != isminetype::ISMINE_NO && setAddress.count(address))
-                if (wtx.GetDepthInMainChain(CTxDB()) >= nMinDepth)
+                if (wtx.GetDepthInMainChain(txdb, bestBlockHash) >= nMinDepth)
                     nAmount += txout.nValue;
         }
     }
@@ -1146,23 +1148,26 @@ CAmount GetAccountBalance(CWalletDB& walletdb, const string& strAccount, int nMi
 {
     CAmount nBalance = 0;
 
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
+
     // Tally wallet transactions
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
          it != pwalletMain->mapWallet.end(); ++it) {
         const CWalletTx& wtx = (*it).second;
 
         bool fConflicted = false;
-        int  depth       = wtx.GetDepthAndMempool(fConflicted, txdb);
+        int  depth       = wtx.GetDepthAndMempool(fConflicted, txdb, bestBlockHash);
 
         const CTxDB txdb;
-        if (!IsFinalTx(wtx, txdb) || wtx.GetBlocksToMaturity(txdb) > 0 || depth < 0 || fConflicted)
+        if (!IsFinalTx(wtx, txdb) || wtx.GetBlocksToMaturity(txdb, bestBlockHash) > 0 || depth < 0 ||
+            fConflicted)
             continue;
 
         CAmount nReceived, nSent, nFee;
         wtx.GetAccountAmounts(txdb, strAccount, nReceived, nSent, nFee, filter);
 
-        if (nReceived != 0 && wtx.GetDepthInMainChain(txdb) >= nMinDepth &&
-            wtx.GetBlocksToMaturity(txdb) == 0)
+        if (nReceived != 0 && wtx.GetDepthInMainChain(txdb, bestBlockHash) >= nMinDepth &&
+            wtx.GetBlocksToMaturity(txdb, bestBlockHash) == 0)
             nBalance += nReceived;
         nBalance -= nSent + nFee;
     }
@@ -1261,10 +1266,12 @@ Value getbalance(const Array& params, bool fHelp)
             "4. includeDelegated (bool, optional, default=true) Also include balance "
             "delegated to cold stakers\n");
 
-    if (params.size() == 0)
-        return ValueFromAmount(pwalletMain->GetBalance(CTxDB()));
-
     const CTxDB txdb;
+
+    if (params.size() == 0)
+        return ValueFromAmount(pwalletMain->GetBalance(txdb));
+
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
 
     int nMinDepth = 1;
     if (params.size() > 1)
@@ -1285,17 +1292,16 @@ Value getbalance(const Array& params, bool fHelp)
         for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
              it != pwalletMain->mapWallet.end(); ++it) {
             const CWalletTx& wtx = (*it).second;
-            if (!wtx.IsTrusted(txdb))
+            if (!wtx.IsTrusted(txdb, bestBlockHash))
                 continue;
-
-            const CTxDB txdb;
 
             CAmount                             allFee;
             string                              strSentAccount;
             list<pair<CTxDestination, CAmount>> listReceived;
             list<pair<CTxDestination, CAmount>> listSent;
             wtx.GetAmounts(txdb, listReceived, listSent, allFee, strSentAccount, filter);
-            if (wtx.GetDepthInMainChain(txdb) >= nMinDepth && wtx.GetBlocksToMaturity(txdb) == 0) {
+            if (wtx.GetDepthInMainChain(txdb, bestBlockHash) >= nMinDepth &&
+                wtx.GetBlocksToMaturity(txdb, bestBlockHash) == 0) {
                 for (const PAIRTYPE(CTxDestination, CAmount) & r : listReceived)
                     nBalance += r.second;
             }
@@ -1740,6 +1746,8 @@ Value ListReceived(const Array& params, bool fByAccounts)
 
     const CTxDB txdb;
 
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
+
     // Tally
     map<CBitcoinAddress, tallyitem> mapTally;
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
@@ -1749,7 +1757,7 @@ Value ListReceived(const Array& params, bool fByAccounts)
         if (wtx.IsCoinBase() || wtx.IsCoinStake() || !IsFinalTx(wtx, txdb))
             continue;
 
-        int nDepth = wtx.GetDepthInMainChain(CTxDB());
+        int nDepth = wtx.GetDepthInMainChain(txdb, bestBlockHash);
         if (nDepth < nMinDepth)
             continue;
 
@@ -1875,6 +1883,8 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
 
     bool fAllAccounts = (strAccount == string("*"));
 
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
+
     // Sent
     if ((!wtx.IsCoinStake()) && (!listSent.empty() || nFee != 0) &&
         (fAllAccounts || strAccount == strSentAccount)) {
@@ -1885,8 +1895,8 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
             entry.push_back(Pair("category", "send"));
             entry.push_back(Pair("amount", ValueFromAmount(-s.second)));
             entry.push_back(Pair("fee", ValueFromAmount(-nFee)));
-            entry.push_back(Pair("blockheight",
-                                 txdb.GetBestChainHeight().value_or(0) - wtx.GetDepthInMainChain(txdb)));
+            entry.push_back(Pair("blockheight", txdb.GetBestChainHeight().value_or(0) -
+                                                    wtx.GetDepthInMainChain(txdb, bestBlockHash)));
             if (fLong)
                 WalletTxToJSON(wtx, entry);
             ret.push_back(entry);
@@ -1894,7 +1904,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
     }
 
     // Received
-    int depthInMainChain = wtx.GetDepthInMainChain(txdb);
+    int depthInMainChain = wtx.GetDepthInMainChain(txdb, bestBlockHash);
     if (listReceived.size() > 0 && depthInMainChain >= nMinDepth) {
         bool stop = false;
         for (const PAIRTYPE(CTxDestination, CAmount) & r : listReceived) {
@@ -1906,9 +1916,9 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                 entry.push_back(Pair("account", account));
                 MaybePushAddress(entry, r.first);
                 if (wtx.IsCoinBase() || wtx.IsCoinStake()) {
-                    if (wtx.GetDepthInMainChain(txdb) < 1)
+                    if (wtx.GetDepthInMainChain(txdb, bestBlockHash) < 1)
                         entry.push_back(Pair("category", "orphan"));
-                    else if (wtx.GetBlocksToMaturity(txdb) > 0)
+                    else if (wtx.GetBlocksToMaturity(txdb, bestBlockHash) > 0)
                         entry.push_back(Pair("category", "immature"));
                     else
                         entry.push_back(Pair("category", "generate"));
@@ -1922,7 +1932,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                     stop = true; // only one coinstake output
                 }
                 entry.push_back(Pair("blockheight", 1 + txdb.GetBestChainHeight().value_or(0) -
-                                                        wtx.GetDepthInMainChain(txdb)));
+                                                        wtx.GetDepthInMainChain(txdb, bestBlockHash)));
                 if (fLong)
                     WalletTxToJSON(wtx, entry);
                 ret.push_back(entry);
@@ -2045,6 +2055,8 @@ Value listaccounts(const Array& params, bool fHelp)
 
     const CTxDB txdb;
 
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
+
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
          it != pwalletMain->mapWallet.end(); ++it) {
         const CWalletTx&                    wtx = (*it).second;
@@ -2053,14 +2065,14 @@ Value listaccounts(const Array& params, bool fHelp)
         list<pair<CTxDestination, CAmount>> listReceived;
         list<pair<CTxDestination, CAmount>> listSent;
         bool                                fConflicted = false;
-        int                                 nDepth      = wtx.GetDepthAndMempool(fConflicted, txdb);
-        if (wtx.GetBlocksToMaturity(txdb) > 0 || nDepth < 0 || fConflicted)
+        int nDepth = wtx.GetDepthAndMempool(fConflicted, txdb, bestBlockHash);
+        if (wtx.GetBlocksToMaturity(txdb, bestBlockHash) > 0 || nDepth < 0 || fConflicted)
             continue;
         wtx.GetAmounts(txdb, listReceived, listSent, nFee, strSentAccount, includeWatchonly);
         mapAccountBalances[strSentAccount] -= nFee;
         for (const PAIRTYPE(CTxDestination, CAmount) & s : listSent)
             mapAccountBalances[strSentAccount] -= s.second;
-        if (nDepth >= nMinDepth && wtx.GetBlocksToMaturity(txdb) == 0) {
+        if (nDepth >= nMinDepth && wtx.GetBlocksToMaturity(txdb, bestBlockHash) == 0) {
             for (const PAIRTYPE(CTxDestination, CAmount) & r : listReceived)
                 if (const auto en = pwalletMain->mapAddressBook.get(r.first))
                     mapAccountBalances[en->name] += r.second;
@@ -2129,11 +2141,13 @@ Value listsinceblock(const Array& params, bool fHelp)
     Array transactions;
     Array removed;
 
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
+
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin();
          it != pwalletMain->mapWallet.end(); it++) {
         CWalletTx tx = (*it).second;
 
-        if (depth == -1 || tx.GetDepthInMainChain(txdb) < depth)
+        if (depth == -1 || tx.GetDepthInMainChain(txdb, bestBlockHash) < depth)
             ListTransactions(tx, "*", 0, true, filter, transactions);
     }
 
@@ -2196,6 +2210,8 @@ Value gettransaction(const Array& params, bool fHelp)
 
     const CTxDB txdb;
 
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
+
     Object entry;
 
     bool fIgnoreNTP1 = false;
@@ -2212,7 +2228,7 @@ Value gettransaction(const Array& params, bool fHelp)
 
         TxToJSON(wtx, 0, entry, fIgnoreNTP1);
 
-        CAmount nCredit = wtx.GetCredit(txdb, filter);
+        CAmount nCredit = wtx.GetCredit(bestBlockHash, txdb, filter);
         CAmount nDebit  = wtx.GetDebit(filter);
         CAmount nNet    = nCredit - nDebit;
         CAmount nFee    = (wtx.IsFromMe(filter) ? wtx.GetValueOut() - nDebit : 0);
@@ -2772,15 +2788,18 @@ Value listcoldutxos(const Array& params, bool fHelp)
 
     const CTxDB txdb;
 
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
+
     for (std::map<uint256, CWalletTx>::const_iterator it = pwalletMain->mapWallet.begin();
          it != pwalletMain->mapWallet.end(); ++it) {
         const uint256&   wtxid = it->first;
         const CWalletTx* pcoin = &(*it).second;
-        if (!IsFinalTx(*pcoin, txdb) || !pcoin->IsTrusted(txdb))
+        if (!IsFinalTx(*pcoin, txdb) || !pcoin->IsTrusted(txdb, bestBlockHash))
             continue;
 
         // if this tx has no unspent P2CS outputs for us, skip it
-        if (pcoin->GetColdStakingCredit(txdb) == 0 && pcoin->GetStakeDelegationCredit(txdb) == 0)
+        if (pcoin->GetColdStakingCredit(bestBlockHash, txdb) == 0 &&
+            pcoin->GetStakeDelegationCredit(bestBlockHash, txdb) == 0)
             continue;
 
         for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
@@ -2800,7 +2819,7 @@ Value listcoldutxos(const Array& params, bool fHelp)
             entry.push_back(Pair("txid", wtxid.GetHex()));
             entry.push_back(Pair("txidn", (int)i));
             entry.push_back(Pair("amount", ValueFromAmount(out.nValue)));
-            entry.push_back(Pair("confirmations", pcoin->GetDepthInMainChain(CTxDB())));
+            entry.push_back(Pair("confirmations", pcoin->GetDepthInMainChain(txdb, bestBlockHash)));
             entry.push_back(Pair("cold-staker", CBitcoinAddress(addresses[0]).ToString()));
             entry.push_back(Pair("coin-owner", CBitcoinAddress(addresses[1]).ToString()));
             entry.push_back(Pair("whitelisted", fWhitelisted ? "true" : "false"));

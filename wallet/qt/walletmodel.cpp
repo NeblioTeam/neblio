@@ -520,12 +520,16 @@ bool WalletModel::getPubKey(const CKeyID& address, CPubKey& vchPubKeyOut) const
 // returns a list of COutputs from COutPoints
 void WalletModel::getOutputs(const std::vector<COutPoint>& vOutpoints, std::vector<COutput>& vOutputs)
 {
+    const CTxDB   txdb;
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
+
     LOCK2(cs_main, wallet->cs_wallet);
     for (const COutPoint& outpoint : vOutpoints) {
         if (!wallet->mapWallet.count(outpoint.hash))
             continue;
         bool fConflicted = false;
-        int  nDepth      = wallet->mapWallet[outpoint.hash].GetDepthAndMempool(fConflicted, CTxDB());
+        int  nDepth =
+            wallet->mapWallet[outpoint.hash].GetDepthAndMempool(fConflicted, txdb, bestBlockHash);
         if (nDepth < 0 || fConflicted)
             continue;
         COutput out(&wallet->mapWallet[outpoint.hash], outpoint.n, nDepth);
@@ -538,6 +542,8 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput>>& mapCoins) c
 {
     const CTxDB txdb;
 
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
+
     std::vector<COutput> vCoins;
     wallet->AvailableCoins(txdb, vCoins);
 
@@ -549,7 +555,8 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput>>& mapCoins) c
         if (!wallet->mapWallet.count(outpoint.hash))
             continue;
         bool fConflicted = false;
-        int  nDepth      = wallet->mapWallet[outpoint.hash].GetDepthAndMempool(fConflicted, CTxDB());
+        int  nDepth =
+            wallet->mapWallet[outpoint.hash].GetDepthAndMempool(fConflicted, txdb, bestBlockHash);
         if (nDepth < 0 || fConflicted)
             continue;
         COutput out(&wallet->mapWallet[outpoint.hash], outpoint.n, nDepth);

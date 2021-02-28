@@ -671,6 +671,8 @@ void CoinControlDialog::updateView()
 
     const CTxDB txdb;
 
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
+
     for (PAIRTYPE(QString, vector<COutput>) coins : mapCoins) {
         QTreeWidgetItem* itemWalletAddress = new QTreeWidgetItem();
         QString          sWalletAddress    = coins.first;
@@ -836,8 +838,8 @@ void CoinControlDialog::updateView()
                 QDateTime::fromTime_t(out.tx->GetTxTime()).toUTC().toString("yy-MM-dd hh:mm"));
 
             // immature PoS reward
-            if (out.tx->IsCoinStake() && out.tx->GetBlocksToMaturity(txdb) > 0 &&
-                out.tx->GetDepthInMainChain(txdb) > 0) {
+            if (out.tx->IsCoinStake() && out.tx->GetBlocksToMaturity(txdb, bestBlockHash) > 0 &&
+                out.tx->GetDepthInMainChain(txdb, bestBlockHash) > 0) {
                 itemOutput->setBackground(COLUMN_CONFIRMATIONS, Qt::red);
                 itemOutput->setDisabled(true);
             }

@@ -577,13 +577,15 @@ void CWallet::MarkConflicted(const ITxDB& txdb, const uint256& hashBlock, const 
 
     todo.insert(hashTx);
 
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
+
     while (!todo.empty()) {
         uint256 now = *todo.begin();
         todo.erase(now);
         done.insert(now);
         assert(mapWallet.count(now));
         CWalletTx& wtx            = mapWallet[now];
-        int        currentconfirm = wtx.GetDepthInMainChain(txdb);
+        int        currentconfirm = wtx.GetDepthInMainChain(txdb, bestBlockHash);
         if (conflictconfirms < currentconfirm) {
             // Block is 'more conflicted' than current confirm; update.
             // Mark transaction as conflicted with this block.
@@ -882,8 +884,13 @@ CAmount CWallet::GetCredit(const ITxDB& txdb, const CTransaction& tx, const ismi
                            const bool fUnspent) const
 {
     CAmount nCredit = 0;
+
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
+    if (bestBlockHash == 0) {
+        NLog.write(b_sev::critical, "CRITICAL ERROR: failed to get best block hash");
+    }
     for (unsigned int i = 0; i < tx.vout.size(); i++) {
-        if (fUnspent && IsSpent(tx.GetHash(), i, txdb))
+        if (fUnspent && IsSpent(tx.GetHash(), i, txdb, bestBlockHash))
             continue;
         nCredit += GetCredit(tx.vout[i], filter);
     }
@@ -1117,13 +1124,15 @@ void CWallet::ReacceptWalletTransactions(const ITxDB& txdb, bool fFirstLoad)
     LOCK2(cs_main, cs_wallet);
     std::map<int64_t, CWalletTx*> mapSorted;
 
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
+
     // Sort pending wallet transactions based on their initial wallet insertion order
     for (PAIRTYPE(const uint256, CWalletTx) & item : mapWallet) {
         const uint256& wtxid = item.first;
         CWalletTx&     wtx   = item.second;
         assert(wtx.GetHash() == wtxid);
 
-        int nDepth = wtx.GetDepthInMainChain(txdb);
+        int nDepth = wtx.GetDepthInMainChain(txdb, bestBlockHash);
         if (!wtx.IsCoinBase() && !wtx.IsCoinStake() && nDepth == 0 && !wtx.isAbandoned()) {
             mapSorted.insert(std::make_pair(wtx.nOrderPos, &wtx));
         }
@@ -1146,7 +1155,7 @@ void CWallet::ReacceptWalletTransactions(const ITxDB& txdb, bool fFirstLoad)
 void CWalletTx::RelayWalletTransaction(const ITxDB& txdb) const
 {
     if (!IsCoinBase() && !IsCoinStake()) {
-        if (GetDepthInMainChain(txdb) == 0 && !isAbandoned()) {
+        if (GetDepthInMainChain(txdb, txdb.GetBestBlockHash()) == 0 && !isAbandoned()) {
             uint256 hash = GetHash();
             NLog.write(b_sev::info, "Relaying wtx {}", hash.ToString());
 
@@ -1207,14 +1216,15 @@ void CWallet::ResendWalletTransactions(const ITxDB& txdb, bool fForce)
 
 CAmount CWallet::GetBalance(const ITxDB& txdb) const
 {
-    CAmount nTotal = 0;
+    CAmount       nTotal        = 0;
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
     {
         LOCK2(cs_main, cs_wallet);
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end();
              ++it) {
             const CWalletTx* pcoin = &(*it).second;
-            if (pcoin->IsTrusted(txdb)) {
-                nTotal += pcoin->GetAvailableCredit(txdb);
+            if (pcoin->IsTrusted(txdb, bestBlockHash)) {
+                nTotal += pcoin->GetAvailableCredit(bestBlockHash, txdb);
             }
         }
     }
@@ -1227,10 +1237,11 @@ CAmount CWallet::GetColdStakingBalance(const ITxDB& txdb) const
     CAmount nTotal = 0;
     {
         LOCK2(cs_main, cs_wallet);
+        const uint256 bestBlockHash = txdb.GetBestBlockHash();
         for (const auto& p : mapWallet) {
             const CWalletTx& pcoin = p.second;
-            if (pcoin.HasP2CSOutputs() && pcoin.IsTrusted(txdb))
-                nTotal += pcoin.GetColdStakingCredit(txdb);
+            if (pcoin.HasP2CSOutputs() && pcoin.IsTrusted(txdb, bestBlockHash))
+                nTotal += pcoin.GetColdStakingCredit(bestBlockHash, txdb);
         }
     }
     return nTotal;
@@ -1245,13 +1256,14 @@ CAmount CWallet::GetStakingBalance(const ITxDB& txdb, const bool fIncludeColdSta
 
 CAmount CWallet::GetDelegatedBalance(const ITxDB& txdb) const
 {
-    CAmount nTotal = 0;
+    CAmount       nTotal        = 0;
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
     {
         LOCK2(cs_main, cs_wallet);
         for (const auto& p : mapWallet) {
             const CWalletTx& pcoin = p.second;
-            if (pcoin.HasP2CSOutputs() && pcoin.IsTrusted(txdb))
-                nTotal += pcoin.GetStakeDelegationCredit(txdb);
+            if (pcoin.HasP2CSOutputs() && pcoin.IsTrusted(txdb, bestBlockHash))
+                nTotal += pcoin.GetStakeDelegationCredit(bestBlockHash, txdb);
         }
     }
     return nTotal;
@@ -1259,13 +1271,15 @@ CAmount CWallet::GetDelegatedBalance(const ITxDB& txdb) const
 
 CAmount CWallet::GetUnconfirmedBalance(const ITxDB& txdb) const
 {
-    CAmount nTotal = 0;
+    CAmount       nTotal        = 0;
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
     {
         LOCK2(cs_main, cs_wallet);
         for (const auto& p : mapWallet) {
             const CWalletTx& pcoin = p.second;
-            if (!pcoin.IsTrusted(txdb) && pcoin.GetDepthInMainChain(txdb) == 0 && pcoin.InMempool())
-                nTotal += pcoin.GetAvailableCredit(txdb);
+            if (!pcoin.IsTrusted(txdb, bestBlockHash) &&
+                pcoin.GetDepthInMainChain(txdb, bestBlockHash) == 0 && pcoin.InMempool())
+                nTotal += pcoin.GetAvailableCredit(bestBlockHash, txdb);
         }
     }
     return nTotal;
@@ -1273,12 +1287,13 @@ CAmount CWallet::GetUnconfirmedBalance(const ITxDB& txdb) const
 
 CAmount CWallet::GetImmatureColdStakingBalance(const ITxDB& txdb) const
 {
-    CAmount nTotal = 0;
+    CAmount       nTotal        = 0;
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
     {
         LOCK2(cs_main, cs_wallet);
         for (const auto& p : mapWallet) {
             const CWalletTx& pcoin = p.second;
-            nTotal += pcoin.GetImmatureCredit(txdb, false, ISMINE_COLD);
+            nTotal += pcoin.GetImmatureCredit(bestBlockHash, txdb, false, ISMINE_COLD);
         }
     }
     return nTotal;
@@ -1286,12 +1301,13 @@ CAmount CWallet::GetImmatureColdStakingBalance(const ITxDB& txdb) const
 
 CAmount CWallet::GetImmatureDelegatedBalance(const ITxDB& txdb) const
 {
-    CAmount nTotal = 0;
+    CAmount       nTotal        = 0;
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
     {
         LOCK2(cs_main, cs_wallet);
         for (const auto& p : mapWallet) {
             const CWalletTx& pcoin = p.second;
-            nTotal += pcoin.GetImmatureCredit(txdb, false, ISMINE_SPENDABLE_DELEGATED);
+            nTotal += pcoin.GetImmatureCredit(bestBlockHash, txdb, false, ISMINE_SPENDABLE_DELEGATED);
         }
     }
     return nTotal;
@@ -1299,13 +1315,15 @@ CAmount CWallet::GetImmatureDelegatedBalance(const ITxDB& txdb) const
 
 CAmount CWallet::GetImmatureBalance(const ITxDB& txdb) const
 {
-    CAmount nTotal = 0;
+    CAmount       nTotal        = 0;
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
     {
         LOCK2(cs_main, cs_wallet);
         for (const auto& p : mapWallet) {
             const CWalletTx& pcoin = p.second;
-            if (pcoin.IsCoinBase() && pcoin.GetBlocksToMaturity(txdb) > 0 && pcoin.IsInMainChain(txdb)) {
-                nTotal += pcoin.GetImmatureCredit(txdb, false);
+            if (pcoin.IsCoinBase() && pcoin.GetBlocksToMaturity(txdb, bestBlockHash) > 0 &&
+                pcoin.IsInMainChain(txdb, bestBlockHash)) {
+                nTotal += pcoin.GetImmatureCredit(bestBlockHash, txdb, false);
             }
         }
     }
@@ -1317,8 +1335,10 @@ void CWallet::AvailableCoins(const ITxDB& txdb, vector<COutput>& vCoins, bool fO
                              bool fIncludeColdStaking, bool fIncludeDelegated,
                              const CCoinControl* coinControl) const
 {
+
     vCoins.clear();
     {
+        const uint256 bestBlockHash = txdb.GetBestBlockHash();
         LOCK2(cs_main, cs_wallet);
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end();
              ++it) {
@@ -1327,16 +1347,16 @@ void CWallet::AvailableCoins(const ITxDB& txdb, vector<COutput>& vCoins, bool fO
             if (!IsFinalTx(*pcoin, txdb))
                 continue;
 
-            if (fOnlyConfirmed && !pcoin->IsTrusted(txdb))
+            if (fOnlyConfirmed && !pcoin->IsTrusted(txdb, bestBlockHash))
                 continue;
 
-            if (pcoin->IsCoinBase() && pcoin->GetBlocksToMaturity(txdb) > 0)
+            if (pcoin->IsCoinBase() && pcoin->GetBlocksToMaturity(txdb, bestBlockHash) > 0)
                 continue;
 
-            if (pcoin->IsCoinStake() && pcoin->GetBlocksToMaturity(txdb) > 0)
+            if (pcoin->IsCoinStake() && pcoin->GetBlocksToMaturity(txdb, bestBlockHash) > 0)
                 continue;
 
-            int nDepth = pcoin->GetDepthInMainChain(txdb);
+            int nDepth = pcoin->GetDepthInMainChain(txdb, bestBlockHash);
             if (nDepth == 0 && !pcoin->InMempool())
                 continue;
 
@@ -1351,7 +1371,7 @@ void CWallet::AvailableCoins(const ITxDB& txdb, vector<COutput>& vCoins, bool fO
                 if (pcoin->vout[i].nValue < nMinimumInputValue)
                     continue;
 
-                if (IsSpent(pcoin->GetHash(), i, txdb))
+                if (IsSpent(pcoin->GetHash(), i, txdb, bestBlockHash))
                     continue;
 
                 if (!(!coinControl || !coinControl->HasSelected() ||
@@ -1392,6 +1412,8 @@ bool CWallet::GetAvailableP2CSCoins(const ITxDB& txdb, std::vector<COutput>& vCo
 {
     vCoins.clear();
     {
+        const uint256 bestBlockHash = txdb.GetBestBlockHash();
+
         TRY_LOCK2(cs_main, cs_wallet, lock);
         if (!lock) {
             return false;
@@ -1402,7 +1424,7 @@ bool CWallet::GetAvailableP2CSCoins(const ITxDB& txdb, std::vector<COutput>& vCo
             const CWalletTx* pcoin = &it.second;
 
             bool fConflicted;
-            int  nDepth = pcoin->GetDepthAndMempool(fConflicted, txdb);
+            int  nDepth = pcoin->GetDepthAndMempool(fConflicted, txdb, bestBlockHash);
 
             if (fConflicted || nDepth < 0)
                 continue;
@@ -1411,7 +1433,7 @@ bool CWallet::GetAvailableP2CSCoins(const ITxDB& txdb, std::vector<COutput>& vCo
                 for (int i = 0; i < (int)pcoin->vout.size(); i++) {
                     const auto& utxo = pcoin->vout[i];
 
-                    if (IsSpent(wtxid, i, txdb))
+                    if (IsSpent(wtxid, i, txdb, bestBlockHash))
                         continue;
 
                     if (utxo.scriptPubKey.IsPayToColdStaking()) {
@@ -1435,6 +1457,8 @@ void CWallet::AvailableCoinsForStaking(const ITxDB& txdb, vector<COutput>& vCoin
     vCoins.clear();
 
     {
+        const uint256 bestBlockHash = txdb.GetBestBlockHash();
+
         LOCK2(cs_main, cs_wallet);
         unsigned int nSMA = Params().StakeMinAge(txdb);
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end();
@@ -1446,10 +1470,10 @@ void CWallet::AvailableCoinsForStaking(const ITxDB& txdb, vector<COutput>& vCoin
             if (pcoin->nTime + nSMA > nSpendTime)
                 continue;
 
-            if (pcoin->GetBlocksToMaturity(txdb) > 0)
+            if (pcoin->GetBlocksToMaturity(txdb, bestBlockHash) > 0)
                 continue;
 
-            int nDepth = pcoin->GetDepthInMainChain(txdb);
+            int nDepth = pcoin->GetDepthInMainChain(txdb, bestBlockHash);
             if (nDepth == 0 && !pcoin->InMempool())
                 continue;
 
@@ -1459,7 +1483,7 @@ void CWallet::AvailableCoinsForStaking(const ITxDB& txdb, vector<COutput>& vCoin
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
                 isminetype mine = IsMine(pcoin->vout[i]);
 
-                if (IsSpent(pcoin->GetHash(), i, txdb))
+                if (IsSpent(pcoin->GetHash(), i, txdb, bestBlockHash))
                     continue;
 
                 if (!(mine & ISMINE_SPENDABLE_STAKEABLE) && !(mine & ISMINE_SPENDABLE))
@@ -1560,12 +1584,13 @@ static void ApproximateBestSubset(vector<pair<CAmount, pair<const CWalletTx*, un
 // ppcoin: total coins staked (non-spendable until maturity)
 CAmount CWallet::GetStake(const ITxDB& txdb) const
 {
-    CAmount nTotal = 0;
+    CAmount       nTotal        = 0;
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
     LOCK2(cs_main, cs_wallet);
     for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
         const CWalletTx* pcoin = &(*it).second;
-        if (pcoin->IsCoinStake() && pcoin->GetBlocksToMaturity(txdb) > 0 &&
-            pcoin->GetDepthInMainChain(txdb) > 0)
+        if (pcoin->IsCoinStake() && pcoin->GetBlocksToMaturity(txdb, bestBlockHash) > 0 &&
+            pcoin->GetDepthInMainChain(txdb, bestBlockHash) > 0)
             nTotal += CWallet::GetCredit(txdb, *pcoin, ISMINE_SPENDABLE_ALL, true);
     }
     return nTotal;
@@ -1573,12 +1598,13 @@ CAmount CWallet::GetStake(const ITxDB& txdb) const
 
 CAmount CWallet::GetNewMint(const ITxDB& txdb) const
 {
-    CAmount nTotal = 0;
+    CAmount       nTotal        = 0;
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
     LOCK2(cs_main, cs_wallet);
     for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
         const CWalletTx* pcoin = &(*it).second;
-        if (pcoin->IsCoinBase() && pcoin->GetBlocksToMaturity(txdb) > 0 &&
-            pcoin->GetDepthInMainChain(txdb) > 0)
+        if (pcoin->IsCoinBase() && pcoin->GetBlocksToMaturity(txdb, bestBlockHash) > 0 &&
+            pcoin->GetDepthInMainChain(txdb, bestBlockHash) > 0)
             nTotal += CWallet::GetCredit(txdb, *pcoin, ISMINE_SPENDABLE_ALL, true);
     }
     return nTotal;
@@ -1732,7 +1758,8 @@ bool CWallet::SelectCoinsMinConf(const ITxDB& txdb, CAmount nTargetValue, unsign
  * Outpoint is spent if any non-conflicted transaction
  * spends it:
  */
-bool CWallet::IsSpent(const uint256& hash, unsigned int n, const ITxDB& txdb) const
+bool CWallet::IsSpent(const uint256& hash, unsigned int n, const ITxDB& txdb,
+                      const uint256& bestBlockHash) const
 {
     const COutPoint                                               outpoint(hash, n);
     std::pair<TxSpends::const_iterator, TxSpends::const_iterator> range;
@@ -1746,7 +1773,7 @@ bool CWallet::IsSpent(const uint256& hash, unsigned int n, const ITxDB& txdb) co
         std::map<uint256, CWalletTx>::const_iterator mit   = mapWallet.find(wtxid);
         if (mit != mapWallet.end()) {
             bool      fConflicted;
-            const int nDepth = mit->second.GetDepthAndMempool(fConflicted, txdb);
+            const int nDepth = mit->second.GetDepthAndMempool(fConflicted, txdb, bestBlockHash);
             // not in mempool txes can spend coins only if not coinstakes
             const bool fConflictedCoinstake = fConflicted && mit->second.IsCoinStake();
             if (nDepth > 0 || (nDepth == 0 && !mit->second.isAbandoned() && !fConflictedCoinstake))
@@ -2070,6 +2097,8 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
 
     wtxNew.BindWallet(this);
 
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
+
     {
         LOCK2(cs_main, cs_wallet);
         // txdb must be opened before the mapWallet lock
@@ -2103,7 +2132,7 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
 
                 for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
                     CAmount nCredit = pcoin.first->vout[pcoin.second].nValue;
-                    dPriority += (double)nCredit * pcoin.first->GetDepthInMainChain(txdb);
+                    dPriority += (double)nCredit * pcoin.first->GetDepthInMainChain(txdb, bestBlockHash);
                 }
 
                 // select NTP1 tokens to determine change (this may be superfluous the first time this is
@@ -2702,13 +2731,17 @@ void CWallet::PrintWallet(const CBlock& block)
         const CTxDB txdb;
         if (block.IsProofOfWork() && mapWallet.count(block.vtx[0].GetHash())) {
             CWalletTx& wtx = mapWallet[block.vtx[0].GetHash()];
-            NLog.write(b_sev::info, "    mine:  {}  {}  {}", wtx.GetDepthInMainChain(txdb),
-                       wtx.GetBlocksToMaturity(txdb), wtx.GetCredit(txdb, ISMINE_ALL));
+            NLog.write(b_sev::info, "    mine:  {}  {}  {}",
+                       wtx.GetDepthInMainChain(txdb, txdb.GetBestBlockHash()),
+                       wtx.GetBlocksToMaturity(txdb, txdb.GetBestBlockHash()),
+                       wtx.GetCredit(txdb.GetBestBlockHash(), txdb, ISMINE_ALL));
         }
         if (block.IsProofOfStake() && mapWallet.count(block.vtx[1].GetHash())) {
             CWalletTx& wtx = mapWallet[block.vtx[1].GetHash()];
-            NLog.write(b_sev::info, "    stake: {}  {}  {}", wtx.GetDepthInMainChain(txdb),
-                       wtx.GetBlocksToMaturity(txdb), wtx.GetCredit(txdb, ISMINE_ALL));
+            NLog.write(b_sev::info, "    stake: {}  {}  {}",
+                       wtx.GetDepthInMainChain(txdb, txdb.GetBestBlockHash()),
+                       wtx.GetBlocksToMaturity(txdb, txdb.GetBestBlockHash()),
+                       wtx.GetCredit(txdb.GetBestBlockHash(), txdb, ISMINE_ALL));
         }
     }
 }
@@ -2907,18 +2940,20 @@ std::map<CTxDestination, CAmount> CWallet::GetAddressBalances(const ITxDB& txdb)
     map<CTxDestination, CAmount> balances;
 
     {
+        const uint256 bestBlockHash = txdb.GetBestBlockHash();
         LOCK(cs_wallet);
         for (PAIRTYPE(uint256, CWalletTx) walletEntry : mapWallet) {
             CWalletTx* pcoin = &walletEntry.second;
 
-            if (!IsFinalTx(*pcoin, txdb) || !pcoin->IsTrusted(txdb))
+            if (!IsFinalTx(*pcoin, txdb) || !pcoin->IsTrusted(txdb, bestBlockHash))
                 continue;
 
-            if ((pcoin->IsCoinBase() || pcoin->IsCoinStake()) && pcoin->GetBlocksToMaturity(txdb) > 0)
+            if ((pcoin->IsCoinBase() || pcoin->IsCoinStake()) &&
+                pcoin->GetBlocksToMaturity(txdb, bestBlockHash) > 0)
                 continue;
 
             bool fConflicted;
-            int  nDepth = pcoin->GetDepthAndMempool(fConflicted, txdb);
+            int  nDepth = pcoin->GetDepthAndMempool(fConflicted, txdb, bestBlockHash);
             if (fConflicted)
                 continue;
             if (nDepth < (pcoin->IsFromMe(ISMINE_ALL) ? 0 : 1))
@@ -2931,7 +2966,8 @@ std::map<CTxDestination, CAmount> CWallet::GetAddressBalances(const ITxDB& txdb)
                 if (!ExtractDestination(txdb, pcoin->vout[i].scriptPubKey, addr))
                     continue;
 
-                CAmount n = IsSpent(walletEntry.first, i, txdb) ? 0 : pcoin->vout[i].nValue;
+                CAmount n =
+                    IsSpent(walletEntry.first, i, txdb, bestBlockHash) ? 0 : pcoin->vout[i].nValue;
 
                 if (!balances.count(addr))
                     balances[addr] = 0;
@@ -3177,10 +3213,12 @@ bool CWallet::AbandonTransaction(const ITxDB& txdb, const uint256& hashTx)
     std::set<uint256> todo;
     std::set<uint256> done;
 
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
+
     // Can't mark abandoned if confirmed or in mempool
     assert(mapWallet.count(hashTx));
     CWalletTx& origtx = mapWallet[hashTx];
-    if (origtx.GetDepthInMainChain(txdb) > 0 || origtx.InMempool()) {
+    if (origtx.GetDepthInMainChain(txdb, bestBlockHash) > 0 || origtx.InMempool()) {
         return false;
     }
 
@@ -3192,7 +3230,7 @@ bool CWallet::AbandonTransaction(const ITxDB& txdb, const uint256& hashTx)
         done.insert(now);
         assert(mapWallet.count(now));
         CWalletTx& wtx            = mapWallet[now];
-        int        currentconfirm = wtx.GetDepthInMainChain(txdb);
+        int        currentconfirm = wtx.GetDepthInMainChain(txdb, bestBlockHash);
         // If the orig tx was not in block, none of its spends can be
         assert(currentconfirm <= 0);
         // if (currentconfirm < 0) {Tx and spends are already conflicted, no need to abandon}
@@ -3226,14 +3264,14 @@ bool CWallet::AbandonTransaction(const ITxDB& txdb, const uint256& hashTx)
     return true;
 }
 
-bool CWalletTx::IsTrusted(const ITxDB& txdb) const
+bool CWalletTx::IsTrusted(const ITxDB& txdb, const uint256& bestBlockHash) const
 {
     // Quick answer in most cases
     if (!IsFinalTx(*this, txdb))
         return false;
 
     bool fConflicted = false;
-    int  nDepth      = GetDepthAndMempool(fConflicted, txdb);
+    int  nDepth      = GetDepthAndMempool(fConflicted, txdb, bestBlockHash);
     if (fConflicted) // Don't trust unconfirmed transactions from us unless they are in the mempool.
         return false;
 
@@ -3258,9 +3296,10 @@ bool CWalletTx::IsTrusted(const ITxDB& txdb) const
     return true;
 }
 
-int CWalletTx::GetDepthAndMempool(bool& fConflicted, const ITxDB& txdb) const
+int CWalletTx::GetDepthAndMempool(bool& fConflicted, const ITxDB& txdb,
+                                  const uint256& bestBlockHash) const
 {
-    int ret     = GetDepthInMainChain(txdb);
+    int ret     = GetDepthInMainChain(txdb, bestBlockHash);
     fConflicted = (ret == 0 && !InMempool()); // not in chain nor in mempool
     return ret;
 }
@@ -3344,25 +3383,29 @@ void CWalletTx::Init(const CWallet* pwalletIn)
     nOrderPos = -1;
 }
 
-CAmount CWalletTx::GetAvailableCredit(const ITxDB& txdb, bool /*fUseCache*/) const
+CAmount CWalletTx::GetAvailableCredit(const uint256& bestBlockHash, const ITxDB& txdb,
+                                      bool /*fUseCache*/) const
 {
-    return GetUnspentCredit(txdb, ISMINE_SPENDABLE_ALL);
+    return GetUnspentCredit(txdb, bestBlockHash, ISMINE_SPENDABLE_ALL);
 }
 
-CAmount CWalletTx::GetColdStakingCredit(const ITxDB& txdb, bool /*fUseCache*/) const
+CAmount CWalletTx::GetColdStakingCredit(const uint256& bestBlockHash, const ITxDB& txdb,
+                                        bool /*fUseCache*/) const
 {
-    return GetUnspentCredit(txdb, ISMINE_COLD);
+    return GetUnspentCredit(txdb, bestBlockHash, ISMINE_COLD);
 }
 
-CAmount CWalletTx::GetStakeDelegationCredit(const ITxDB& txdb, bool /*fUseCache*/) const
+CAmount CWalletTx::GetStakeDelegationCredit(const uint256& bestBlockHash, const ITxDB& txdb,
+                                            bool /*fUseCache*/) const
 {
-    return GetUnspentCredit(txdb, ISMINE_SPENDABLE_DELEGATED);
+    return GetUnspentCredit(txdb, bestBlockHash, ISMINE_SPENDABLE_DELEGATED);
 }
 
-CAmount CWalletTx::GetUnspentCredit(const ITxDB& txdb, const isminefilter& filter) const
+CAmount CWalletTx::GetUnspentCredit(const ITxDB& txdb, const uint256& bestBlockHash,
+                                    const isminefilter& filter) const
 {
     // Must wait until coinbase is safely deep enough in the chain before valuing it
-    if (GetBlocksToMaturity(txdb) > 0)
+    if (GetBlocksToMaturity(txdb, bestBlockHash) > 0)
         return 0;
 
     CAmount credit = 0;
@@ -3393,10 +3436,12 @@ CAmount CWalletTx::GetChange(const ITxDB& txdb) const
     return *c_ChangeCached;
 }
 
-CAmount CWalletTx::GetImmatureCredit(const ITxDB& txdb, bool fUseCache, const isminefilter& filter) const
+CAmount CWalletTx::GetImmatureCredit(const uint256& bestBlockHash, const ITxDB& txdb, bool fUseCache,
+                                     const isminefilter& filter) const
 {
     LOCK(cs_main);
-    if ((IsCoinBase() || IsCoinStake()) && GetBlocksToMaturity(txdb) > 0 && IsInMainChain(txdb)) {
+    if ((IsCoinBase() || IsCoinStake()) && GetBlocksToMaturity(txdb, bestBlockHash) > 0 &&
+        IsInMainChain(txdb, bestBlockHash)) {
         if (fUseCache && c_ImmatureCreditCached && filter == ISMINE_SPENDABLE_ALL)
             return *c_ImmatureCreditCached;
         c_ImmatureCreditCached = pwallet->GetCredit(txdb, *this, filter, false);
@@ -3408,10 +3453,11 @@ CAmount CWalletTx::GetImmatureCredit(const ITxDB& txdb, bool fUseCache, const is
 
 bool CWalletTx::IsFromMe(const isminefilter& filter) const { return (GetDebit(filter) > 0); }
 
-CAmount CWalletTx::GetCredit(const ITxDB& txdb, const isminefilter& filter) const
+CAmount CWalletTx::GetCredit(const uint256& bestBlockHash, const ITxDB& txdb,
+                             const isminefilter& filter) const
 {
     // Must wait until coinbase is safely deep enough in the chain before valuing it
-    if ((IsCoinBase() || IsCoinStake()) && GetBlocksToMaturity(txdb) > 0)
+    if ((IsCoinBase() || IsCoinStake()) && GetBlocksToMaturity(txdb, bestBlockHash) > 0)
         return 0;
 
     CAmount credit = 0;
