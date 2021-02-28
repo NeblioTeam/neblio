@@ -65,7 +65,7 @@ CAmount nTransactionFee    = MIN_TX_FEE;
 CAmount nReserveBalance    = 0;
 CAmount nMinimumInputValue = 0;
 
-using BlockTimeCacheType = BlockIndexLRUCache<int64_t, boost::mutex>;
+using BlockTimeCacheType = BlockIndexLRUCache<int64_t>;
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -892,11 +892,10 @@ unsigned int GetNextTargetRequired(const ITxDB& txdb, const CBlockIndex* pindexL
     if (fProofOfStake && Params().MineBlocksOnDemand())
         return Params().PoWLimit().GetCompact();
 
-    static typename BlockTimeCacheType::ExtractorFunc extractorFunc = [](const CBlockIndex& bi) {
-        return bi.GetBlockTime();
-    };
+    static thread_local typename BlockTimeCacheType::ExtractorFunc extractorFunc =
+        [](const CBlockIndex& bi) { return bi.GetBlockTime(); };
 
-    static BlockTimeCacheType blockIndexBlockTimeCache(500, extractorFunc);
+    static thread_local BlockTimeCacheType blockIndexBlockTimeCache(500, extractorFunc);
 
     if (pindexLast->nHeight < 2000)
         return GetNextTargetRequiredV1(pindexLast, fProofOfStake);

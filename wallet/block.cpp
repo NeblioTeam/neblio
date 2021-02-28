@@ -904,13 +904,12 @@ bool CBlock::SetBestChain(CTxDB& txdb, const boost::optional<CBlockIndex>& pinde
 
     // Check the version of the last 100 blocks to see if we need to upgrade:
     if (!fIsInitialDownload) {
-        using BlockVersionCacheType = BlockIndexLRUCache<int32_t, boost::mutex>;
+        using BlockVersionCacheType = BlockIndexLRUCache<int32_t>;
 
-        static typename BlockVersionCacheType::ExtractorFunc extractorFunc = [](const CBlockIndex& bi) {
-            return bi.nVersion;
-        };
+        static thread_local typename BlockVersionCacheType::ExtractorFunc extractorFunc =
+            [](const CBlockIndex& bi) { return bi.nVersion; };
 
-        static BlockVersionCacheType blockIndexCache(1000, extractorFunc);
+        static thread_local BlockVersionCacheType blockIndexCache(1000, extractorFunc);
 
         int     nUpgraded = 0;
         uint256 hash      = txdb.GetBestBlockHash();
@@ -1734,12 +1733,12 @@ bool CBlock::WriteBlockPubKeys(CTxDB& txdb)
 
 void UpdateWallets(const uint256& prevBestChain, const ITxDB& txdb)
 {
-    using BlockIndexCacheType = BlockIndexLRUCache<bool, boost::mutex>;
+    using BlockIndexCacheType = BlockIndexLRUCache<bool>;
 
-    static typename BlockIndexCacheType::ExtractorFunc extractorFunc =
+    static thread_local typename BlockIndexCacheType::ExtractorFunc extractorFunc =
         [](const CBlockIndex&) -> int64_t { return false; };
 
-    static BlockIndexCacheType blockIndexCache(1000, extractorFunc);
+    static thread_local BlockIndexCacheType blockIndexCache(1000, extractorFunc);
 
     {
         /**

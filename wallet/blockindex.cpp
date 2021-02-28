@@ -132,13 +132,12 @@ int64_t CBlockIndex::GetMedianTimePast(const ITxDB& txdb) const
     int64_t* pbegin = &pmedian[nMedianTimeSpan];
     int64_t* pend   = &pmedian[nMedianTimeSpan];
 
-    using BlockTimeCacheType = BlockIndexLRUCache<int64_t, boost::mutex>;
+    using BlockTimeCacheType = BlockIndexLRUCache<int64_t>;
 
-    static typename BlockTimeCacheType::ExtractorFunc extractorFunc = [](const CBlockIndex& bi) {
-        return bi.GetBlockTime();
-    };
+    static thread_local typename BlockTimeCacheType::ExtractorFunc extractorFunc =
+        [](const CBlockIndex& bi) { return bi.GetBlockTime(); };
 
-    static BlockTimeCacheType blockTimeCache(500, extractorFunc);
+    static thread_local BlockTimeCacheType blockTimeCache(500, extractorFunc);
 
     uint256 currHash = this->GetBlockHash();
     blockTimeCache.manualAdd(*this);
