@@ -1755,6 +1755,7 @@ void UpdateWallets(const uint256& prevBestChain, const ITxDB& txdb)
             assert(ancestorOfPrevInMainChain);
             while (ancestorOfPrevInMainChain->hashPrev != 0 &&
                    !ancestorOfPrevInMainChain->IsInMainChain(txdb)) {
+                // we can't cache this because IsInMainChain() call can change over time
                 ancestorOfPrevInMainChain = ancestorOfPrevInMainChain->getPrev(txdb);
             }
 
