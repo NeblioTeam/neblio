@@ -801,9 +801,7 @@ bool CTxDB::LoadBlockIndex()
 
 boost::optional<int> CTxDB::GetBestChainHeight() const
 {
-    uint256 bestChainHash = 0;
-    if (ReadHashBestChain(bestChainHash)) {
-        const auto v = ReadBlockIndex(bestChainHash);
+    if (auto v = GetBestBlockIndex()) {
         if (v.is_initialized()) {
             return v->nHeight;
         }
@@ -813,9 +811,7 @@ boost::optional<int> CTxDB::GetBestChainHeight() const
 
 boost::optional<uint256> CTxDB::GetBestChainTrust() const
 {
-    uint256 bestChainHash = 0;
-    if (ReadHashBestChain(bestChainHash)) {
-        const auto v = ReadBlockIndex(bestChainHash);
+    if (auto v = GetBestBlockIndex()) {
         if (v.is_initialized()) {
             return v->nChainTrust;
         }
