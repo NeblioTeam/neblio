@@ -46,6 +46,8 @@ public:
     uint256 GetBlockHash(const ITxDB& txdb);
 
     int GetHeight(const ITxDB& txdb);
+
+    std::size_t size() const;
 };
 
 #endif // BLOCKLOCATOR_H

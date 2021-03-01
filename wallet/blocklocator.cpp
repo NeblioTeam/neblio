@@ -102,3 +102,5 @@ int CBlockLocator::GetHeight(const ITxDB& txdb)
         return 0;
     return pindex->nHeight;
 }
+
+std::size_t CBlockLocator::size() const { return vHave.size(); }

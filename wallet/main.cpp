@@ -2081,6 +2081,13 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         uint256       hashStop;
         vRecv >> locator >> hashStop;
 
+        if (locator.size() > MAX_LOCATOR_SZ) {
+            NLog.write(b_sev::err, "locator size {} > {}, disconnect peer={} with addr={}",
+                       locator.size(), MAX_LOCATOR_SZ, pfrom->nodeid, pfrom->addr.ToString());
+            pfrom->fDisconnect = true;
+            return true;
+        }
+
         const CTxDB txdb;
 
         // Find the last block the caller has in the main chain
@@ -2122,6 +2129,13 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         CBlockLocator locator;
         uint256       hashStop;
         vRecv >> locator >> hashStop;
+
+        if (locator.size() > MAX_LOCATOR_SZ) {
+            NLog.write(b_sev::err, "locator size {} > {}, disconnect peer={} with addr={}",
+                       locator.size(), MAX_LOCATOR_SZ, pfrom->nodeid, pfrom->addr.ToString());
+            pfrom->fDisconnect = true;
+            return true;
+        }
 
         const CTxDB txdb;
 
