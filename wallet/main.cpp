@@ -2095,7 +2095,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 
         // Send the rest of the chain
         if (pindex)
-            pindex = pindex->getPrev(txdb);
+            pindex = pindex->getNext(txdb);
         int nLimit = 500;
         NLog.write(b_sev::info, "getblocks {} to {} limit {}", (pindex ? pindex->nHeight : -1),
                    hashStop.ToString(), nLimit);
