@@ -440,17 +440,17 @@ Value waitforblockheight(const Array& params, bool fHelp)
         NLog.write(b_sev::info, "Timeout set to: {}", timeout);
     }
 
-    const int bestHeight = CTxDB().GetBestChainHeight().value_or(0);
+    const auto bestHeight = []() -> int { return CTxDB().GetBestChainHeight().value_or(0); };
 
     int totalMilliSeconds = 0;
-    while (totalMilliSeconds <= timeout && bestHeight < height && IsRPCRunning()) {
+    while (totalMilliSeconds <= timeout && bestHeight() < height && IsRPCRunning()) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         totalMilliSeconds += 1000;
     }
 
     Object ret;
     ret.push_back(json_spirit::Pair("hash", CTxDB().GetBestBlockHash().GetHex()));
-    ret.push_back(json_spirit::Pair("height", bestHeight));
+    ret.push_back(json_spirit::Pair("height", bestHeight()));
 
     return ret;
 }
