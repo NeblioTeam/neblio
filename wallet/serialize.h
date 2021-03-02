@@ -18,6 +18,7 @@
 
 #include <boost/type_traits/is_fundamental.hpp>
 #include <boost/tuple/tuple.hpp>
+#include <boost/core/ignore_unused.hpp>
 
 #include "allocators.h"
 #include "ntp1/ntp1script.h"
@@ -73,6 +74,7 @@ enum
     template<typename Stream>                   \
     void Serialize(Stream& s, int nType, int nVersion) const  \
     {                                           \
+        boost::ignore_unused(nVersion);         \
         CSerActionSerialize ser_action;         \
         const bool fGetSize = false;            \
         const bool fWrite = true;               \
@@ -84,6 +86,7 @@ enum
     template<typename Stream>                   \
     void Unserialize(Stream& s, int nType, int nVersion)  \
     {                                           \
+        boost::ignore_unused(nVersion);         \
         CSerActionUnserialize ser_action;       \
         const bool fGetSize = false;            \
         const bool fWrite = false;              \

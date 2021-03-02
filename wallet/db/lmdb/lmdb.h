@@ -59,7 +59,7 @@ class path;
 
 class LMDB : public IDB
 {
-    const boost::filesystem::path* const dbdir;
+    const boost::filesystem::path* const dbdir_;
 
     __lmdb_db_pointers* dbPointers = nullptr;
 

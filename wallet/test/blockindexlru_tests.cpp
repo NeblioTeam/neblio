@@ -143,7 +143,7 @@ static void TestBlockIndexLRUCache(BlockIndexLRUTests& fixture)
         }
     }
 
-    using CacheType = BlockIndexLRUCache<uint64_t, MutexType>;
+    using CacheType = BlockIndexLRUCache<int64_t, MutexType>;
 
     static typename CacheType::ExtractorFunc extractor = [](const CBlockIndex& bi) -> int64_t {
         return bi.GetBlockTime();

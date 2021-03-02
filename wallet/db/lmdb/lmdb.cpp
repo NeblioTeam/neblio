@@ -371,7 +371,7 @@ void LMDB::doResize(uint64_t increase_size)
 
     // check disk capacity
     try {
-        boost::filesystem::space_info si = boost::filesystem::space(*dbdir);
+        boost::filesystem::space_info si = boost::filesystem::space(*dbdir_);
         if (si.available < add_size) {
             std::stringstream ss;
             ss << "!! WARNING: Insufficient free space to extend database !!: "
@@ -431,7 +431,7 @@ void LMDB::doResize(uint64_t increase_size)
     NLog.write(b_sev::info, ss.str());
 }
 
-LMDB::LMDB(const boost::filesystem::path* const dbdir, bool startNewDatabase) : dbdir(dbdir)
+LMDB::LMDB(const boost::filesystem::path* const dbdir, bool startNewDatabase) : dbdir_(dbdir)
 {
     assert(dbdir);
 
@@ -963,14 +963,14 @@ bool LMDB::openDB(bool clearDataBeforeOpen)
         return true;
     }
 
-    openDatabase(*dbdir, clearDataBeforeOpen); // Init database
+    openDatabase(*dbdir_, clearDataBeforeOpen); // Init database
     loadDbPointers();
     return true;
 }
 
 boost::optional<boost::filesystem::path> LMDB::getDataDir() const
 {
-    return dbdir ? boost::make_optional(*dbdir) : boost::none;
+    return dbdir_ ? boost::make_optional(*dbdir_) : boost::none;
 }
 
 void LMDB::close()
@@ -1007,5 +1007,5 @@ void LMDB::clearDBData()
     // close the database before deleting
     this->close();
 
-    boost::filesystem::remove_all(*dbdir); // remove directory
+    boost::filesystem::remove_all(*dbdir_); // remove directory
 }

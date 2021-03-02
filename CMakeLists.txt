@@ -13,7 +13,7 @@ message("Building on machine: " ${hostname})
 
 set(CMAKE_CXX_STANDARD 11)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-unused-variable -Wno-unused-function -Wno-unused-private-field")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-variable -Wno-unused-function -Wno-unused-private-field -Wno-class-memaccess")
 
 if(WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wa,-mbig-obj")
@@ -224,7 +224,7 @@ if(USE_DBUS)
     if (NOT DBUS_INCLUDES_RETURN_VALUE EQUAL 0)
         message(FATAL_ERROR "Failed to retrieve libs for dbus with pkg-config: ${DBUS_INCLUDE_DIRS}")
     endif()
-    set(CMAKE_CXX_FLAGS "-Wno-unused-command-line-argument")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-command-line-argument")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${DBUS_LIBRARY_DIRS}")
 endif()
 
@@ -740,6 +740,7 @@ if(COMPILE_TESTS)
     include_directories(${GTEST_PATH}/)
     add_library(gtest ${GTEST_PATH}/src/gtest-all.cc)
     target_link_libraries(gtest Threads::Threads)
+    set_property(TARGET gtest PROPERTY COMPILE_FLAGS "-w")
     ######################
 
     # GMOCK ##############
@@ -748,6 +749,7 @@ if(COMPILE_TESTS)
     include_directories(${GMOCK_PATH}/)
     add_library(gmock ${GMOCK_PATH}/src/gmock-all.cc)
     target_link_libraries(gtest Threads::Threads)
+    set_property(TARGET gmock PROPERTY COMPILE_FLAGS "-w")
     ######################
 
     enable_testing()

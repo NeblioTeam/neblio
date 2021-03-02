@@ -45,7 +45,7 @@ template <class Locker> class LockedPageManagerBase
 {
 public:
     LockedPageManagerBase(size_t page_size):
-        page_size(page_size)
+        m_page_size(page_size)
     {
         // Determine bitmask for extracting page from address
         assert(!(page_size & (page_size-1))); // size must be power of two
@@ -60,12 +60,12 @@ public:
         const size_t base_addr = reinterpret_cast<size_t>(p);
         const size_t start_page = base_addr & page_mask;
         const size_t end_page = (base_addr + size - 1) & page_mask;
-        for(size_t page = start_page; page <= end_page; page += page_size)
+        for(size_t page = start_page; page <= end_page; page += m_page_size)
         {
             Histogram::iterator it = histogram.find(page);
             if(it == histogram.end()) // Newly locked page
             {
-                locker.Lock(reinterpret_cast<void*>(page), page_size);
+                locker.Lock(reinterpret_cast<void*>(page), m_page_size);
                 histogram.insert(std::make_pair(page, 1));
             }
             else // Page was already locked; increase counter
@@ -83,7 +83,7 @@ public:
         const size_t base_addr = reinterpret_cast<size_t>(p);
         const size_t start_page = base_addr & page_mask;
         const size_t end_page = (base_addr + size - 1) & page_mask;
-        for(size_t page = start_page; page <= end_page; page += page_size)
+        for(size_t page = start_page; page <= end_page; page += m_page_size)
         {
             Histogram::iterator it = histogram.find(page);
             assert(it != histogram.end()); // Cannot unlock an area that was not locked
@@ -92,7 +92,7 @@ public:
             if(it->second == 0) // Nothing on the page anymore that keeps it locked
             {
                 // Unlock page and remove the count from histogram
-                locker.Unlock(reinterpret_cast<void*>(page), page_size);
+                locker.Unlock(reinterpret_cast<void*>(page), m_page_size);
                 histogram.erase(it);
             }
         }
@@ -108,7 +108,7 @@ public:
 private:
     Locker locker;
     boost::mutex mutex;
-    size_t page_size, page_mask;
+    size_t m_page_size, page_mask;
     // map of page base address to lock count
     typedef std::map<size_t,int> Histogram;
     Histogram histogram;
