@@ -163,7 +163,12 @@ HEADERS += qt/bitcoingui.h \
     qt/coldstakingpage.h             \
     qt/newstakedelegationdialog.h    \
     coldstakedelegation.h            \
-    coldstakinglistfilterproxy.cpp
+    db/idb.h                           \
+    db/idblog.h                        \
+    db/defaultdblogger/defaultdblogger.h \
+    db/lmdb/lmdb.h                     \
+    db/lmdb/lmdbtransaction.h          \
+    stringmanip.h
 
 
 
@@ -323,7 +328,12 @@ SOURCES += qt/bitcoin.cpp \
     qt/coldstakingpage.cpp              \
     qt/newstakedelegationdialog.cpp     \
     coldstakedelegation.cpp             \
-    coldstakinglistfilterproxy.cpp
+    coldstakinglistfilterproxy.cpp      \
+    db/defaultdblogger/defaultdblogger.cpp \
+    db/lmdb/lmdb.cpp                    \
+    db/lmdb/lmdbtransaction.cpp         \
+    stringmanip.cpp
+
 
 
 

@@ -67,7 +67,7 @@ void JsonStringQueue::pushData(Iterator dataBegin, Iterator dataEnd)
                 //                dataQueue.erase(dataQueue.begin(), dataQueue.begin() + charCount);
                 //                charCount -= std::distance(dataQueue.begin(), dataQueue.begin() +
                 //                charCount);
-                assert(charCount >= 0);
+                //                assert(charCount >= 0);
             }
             continue;
         } else {

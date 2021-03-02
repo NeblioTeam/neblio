@@ -299,7 +299,6 @@ protected:
 
 public:
     CScript() {}
-    CScript(const CScript& b) : std::vector<unsigned char>(b.begin(), b.end()) {}
     CScript(const_iterator pbegin, const_iterator pend) : std::vector<unsigned char>(pbegin, pend) {}
 #ifndef _MSC_VER
     CScript(const unsigned char* pbegin, const unsigned char* pend)
@@ -404,7 +403,7 @@ public:
         return *this;
     }
 
-    CScript& operator<<(const CScript& b)
+    CScript& operator<<(const CScript& /*b*/)
     {
         // I'm not sure if this should push the script or concatenate scripts.
         // If there's ever a use for pushing a script onto a script, delete this member fn

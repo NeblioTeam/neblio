@@ -11,7 +11,7 @@ ARCH:=$(system lscpu | head -n 1 | awk '{print $2}')
 
 CXXARCH:=$(shell $(CXX) -dumpmachine | grep -i 'x86_64')
 
-DEFS=-DBOOST_SPIRIT_THREADSAFE -DUSE_LMDB
+DEFS=-DBOOST_SPIRIT_THREADSAFE -DUSE_LMDB -DBOOST_BIND_GLOBAL_PLACEHOLDERS
 
 # detect arch for lmdb32
 ifeq ($(CXXARCH),)
@@ -238,7 +238,12 @@ OBJS= \
     obj/script_error.o                        \
     obj/validation.o                          \
     obj/coldstakedelegation.o                 \
-    obj/udaddress.o
+    obj/udaddress.o                           \
+    obj/db/defaultdblogger.o  \
+    obj/db/lmdb.o                        \
+    obj/db/lmdbtransaction.o             \
+    obj/stringmanip.o
+
 
 ifdef NEBLIO_REST
     OBJS += obj/nebliorest.o
@@ -283,7 +288,23 @@ obj/%.o: %.cpp
 	  rm -f $(@:%.o=%.d)
 
 obj/ntp1/%.o: ntp1/%.cpp
-	${MKDIR_P} obj/ntp1 obj/json
+	${MKDIR_P} obj obj/ntp1
+	$(CXX) -c $(xCXXFLAGS) -MMD -MF $(@:%.o=%.d) -o $@ $<
+	@cp $(@:%.o=%.d) $(@:%.o=%.P); \
+	  sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
+	      -e '/^$$/ d' -e 's/$$/ :/' < $(@:%.o=%.d) >> $(@:%.o=%.P); \
+	  rm -f $(@:%.o=%.d)
+
+obj/db/%.o: db/defaultdblogger/%.cpp
+	${MKDIR_P} obj/db
+	$(CXX) -c $(xCXXFLAGS) -MMD -MF $(@:%.o=%.d) -o $@ $<
+	@cp $(@:%.o=%.d) $(@:%.o=%.P); \
+	  sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
+	      -e '/^$$/ d' -e 's/$$/ :/' < $(@:%.o=%.d) >> $(@:%.o=%.P); \
+	  rm -f $(@:%.o=%.d)
+
+obj/db/%.o: db/lmdb/%.cpp
+	${MKDIR_P} obj/db
 	$(CXX) -c $(xCXXFLAGS) -MMD -MF $(@:%.o=%.d) -o $@ $<
 	@cp $(@:%.o=%.d) $(@:%.o=%.P); \
 	  sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
@@ -313,6 +334,7 @@ clean:
 	-rm -f obj-test/*.o
 	-rm -f obj/ntp1/*.o
 	-rm -f obj/json/*.o
+	-rm -f obj/db/*.o
 	-rm -f obj/*.P
 	-rm -f obj-test/*.P
 	-rm -f obj/ntp1/*.P

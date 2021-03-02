@@ -10,6 +10,8 @@ unix:QMAKE_CXXFLAGS += -Wno-attributes
 
 NEBLIO_ROOT = $${PWD}/../
 
+DEFINES += BOOST_BIND_GLOBAL_PLACEHOLDERS
+
 VPATH += $${NEBLIO_ROOT}/wallet/ $${NEBLIO_ROOT}/wallet/json $${NEBLIO_ROOT}/wallet/qt
 
 mac {

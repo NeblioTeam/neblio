@@ -82,6 +82,8 @@ set(CMAKE_AUTOMOC ON)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+add_definitions(-DBOOST_BIND_GLOBAL_PLACEHOLDERS)
+
 list(INSERT CMAKE_MODULE_PATH 0
      "${CMAKE_SOURCE_DIR}/cmake")
 
@@ -549,6 +551,10 @@ target_link_libraries(ntp1_gui_lib
     ui_lib
     )
 
+add_library(utils_lib STATIC
+    wallet/stringmanip.cpp
+    )
+
 add_library(core_lib STATIC
     ${CMAKE_BINARY_DIR}/build/build.h
     wallet/alert.cpp
@@ -627,6 +633,8 @@ target_link_libraries(core_lib
     ntp1_lib
     curltools_lib
     sodium
+    db_lib
+    utils_lib
     )
 
 add_library(curltools_lib STATIC
@@ -677,14 +685,25 @@ if(WIN32)
     set_property(TARGET json_spirit_lib PROPERTY COMPILE_FLAGS "-O2")
 endif()
 
+add_library(db_lib STATIC
+    wallet/db/idb.h
+    wallet/db/idblog.h
+    wallet/db/defaultdblogger/defaultdblogger.cpp
+    wallet/db/lmdb/lmdb.cpp
+    wallet/db/lmdb/lmdbtransaction.cpp
+    )
+
 add_library(txdb_lib STATIC
     wallet/txdb-lmdb.cpp
     wallet/SerializationTester.cpp
     wallet/diskblockindex.cpp
+    wallet/db/lmdb/lmdbtransaction.cpp
     )
 
 target_link_libraries(txdb_lib
+    db_lib
     lmdb
+    utils_lib
     )
 
 target_link_libraries(curltools_lib

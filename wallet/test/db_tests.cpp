@@ -1,6 +1,9 @@
-#include "googletest/googletest/include/gtest/gtest.h"
+﻿#include "googletest/googletest/include/gtest/gtest.h"
 
+#include "boost/scope_exit.hpp"
 #include "curltools.h"
+#include "db/defaultdblogger/defaultdblogger.h"
+#include "db/lmdb/lmdb.h"
 #include "hash.h"
 #include "ntp1/ntp1tools.h"
 #include <boost/algorithm/string.hpp>
@@ -30,7 +33,7 @@ std::string RandomString(const int len)
 
 TEST(lmdb_tests, basic)
 {
-    std::cout << "LMDB DB size: " << DB_DEFAULT_MAPSIZE << std::endl;
+    //    std::cout << "LMDB DB size: " << DB_DEFAULT_MAPSIZE << std::endl;
 
     CTxDB::DB_DIR = "test-txdb"; // avoid writing to the main database
 
@@ -295,6 +298,380 @@ TEST(lmdb_tests, basic_multiple_many_inputs)
     EXPECT_FALSE(db.test2_ExistsStrKeyVal(k));
 
     db.Close();
+}
+
+static void EnsureDBIsEmpty(IDB* db, IDB::Index dbindex)
+{
+    auto m = db->readAll(dbindex);
+    ASSERT_TRUE(m);
+    EXPECT_EQ(m->size(), 0);
+}
+
+static void TestReadWriteUnique(IDB* db, const std::map<std::string, std::string>& data)
+{
+    for (const auto& v : data) {
+        db->write(IDB::Index::DB_MAIN_INDEX, v.first, v.second);
+    }
+
+    for (const auto& v : data) {
+        boost::optional<std::string> r = db->read(IDB::Index::DB_MAIN_INDEX, v.first, 0, boost::none);
+        ASSERT_TRUE(r);
+        EXPECT_EQ(v.second, *r);
+    }
+
+    static constexpr std::size_t MAX_OFFSET_TESTS = 100;
+    static constexpr std::size_t MAX_SIZE_TESTS   = 100;
+
+    for (const auto& v : data) {
+        const std::string expected = v.second;
+        for (std::size_t sizeStep = 0; sizeStep <= MAX_SIZE_TESTS; sizeStep++) {
+            const std::size_t size = rand() % (MAX_SIZE + 1);
+            for (std::size_t offsetStep = 0; offsetStep < MAX_OFFSET_TESTS; offsetStep++) {
+                const std::size_t offset = rand() % (expected.size() + 1);
+                // offset can't be larger than string size
+                const std::string subExpected = expected.substr(offset, size);
+
+                const boost::optional<std::string> r =
+                    db->read(IDB::Index::DB_MAIN_INDEX, v.first, offset, size);
+                ASSERT_TRUE(r);
+                EXPECT_EQ(subExpected, *r)
+                    << "Failed with expected " << expected << "; subExpected " << subExpected
+                    << "; offset: " << offset << "; size: " << size;
+            }
+        }
+    }
+
+    for (const auto& v : data) {
+        const std::string& key = v.first;
+        EXPECT_TRUE(db->exists(IDB::Index::DB_MAIN_INDEX, key));
+    }
+
+    {
+        std::map<std::string, std::string> expected = data;
+        while (!expected.empty()) {
+            std::size_t indexToDelete = rand() % expected.size();
+            auto        it            = expected.begin();
+            std::advance(it, indexToDelete);
+            const std::string key = it->first;
+            EXPECT_TRUE(db->exists(IDB::Index::DB_MAIN_INDEX, key));
+
+            // erase the key
+            expected.erase(key);
+            EXPECT_TRUE(db->erase(IDB::Index::DB_MAIN_INDEX, key));
+
+            // value doesn't exist anymore, let's verify that
+            EXPECT_FALSE(db->exists(IDB::Index::DB_MAIN_INDEX, key));
+            EXPECT_EQ(db->read(IDB::Index::DB_MAIN_INDEX, key), boost::none);
+        }
+    }
+
+    EnsureDBIsEmpty(db, IDB::Index::DB_BLOCKINDEX_INDEX);
+    EnsureDBIsEmpty(db, IDB::Index::DB_BLOCKS_INDEX);
+    EnsureDBIsEmpty(db, IDB::Index::DB_TX_INDEX);
+    EnsureDBIsEmpty(db, IDB::Index::DB_NTP1TX_INDEX);
+    EnsureDBIsEmpty(db, IDB::Index::DB_NTP1TOKENNAMES_INDEX);
+    EnsureDBIsEmpty(db, IDB::Index::DB_ADDRSVSPUBKEYS_INDEX);
+}
+
+TEST(db_interface_impl_tests, read_write_unique)
+{
+    static constexpr int MAX_ENTRIES = 20;
+    static constexpr int MAX_SIZE    = 500;
+
+    std::map<std::string, std::string> data;
+
+    for (int i = 0; i < MAX_ENTRIES; i++) {
+        const std::size_t keySize = static_cast<std::size_t>(1 + rand() % MAX_SIZE);
+        const std::size_t valSize = static_cast<std::size_t>(1 + rand() % MAX_SIZE);
+        const std::string key     = GeneratePseudoRandomString(keySize);
+        const std::string val     = GeneratePseudoRandomString(valSize);
+
+        data[key] = val;
+    }
+
+    const boost::filesystem::path p = GetDataDir() / "test-txdb";
+
+    DefaultDBLogger logger;
+
+    std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, &logger, true);
+
+    BOOST_SCOPE_EXIT(&db) { db->close(); }
+    BOOST_SCOPE_EXIT_END
+
+    TestReadWriteUnique(db.get(), data);
+}
+
+TEST(db_interface_impl_tests, read_write_unique_with_transaction)
+{
+    static constexpr int MAX_ENTRIES = 20;
+    static constexpr int MAX_SIZE    = 500;
+
+    std::map<std::string, std::string> data;
+
+    for (int i = 0; i < MAX_ENTRIES; i++) {
+        const std::size_t keySize = static_cast<std::size_t>(1 + rand() % MAX_SIZE);
+        const std::size_t valSize = static_cast<std::size_t>(1 + rand() % MAX_SIZE);
+        const std::string key     = GeneratePseudoRandomString(keySize);
+        const std::string val     = GeneratePseudoRandomString(valSize);
+
+        data[key] = val;
+    }
+
+    const boost::filesystem::path p = GetDataDir() / "test-txdb";
+
+    DefaultDBLogger logger;
+
+    std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, &logger, true);
+
+    BOOST_SCOPE_EXIT(&db) { db->close(); }
+    BOOST_SCOPE_EXIT_END
+
+    const std::pair<std::string, std::string> someRandomKeyVal =
+        std::make_pair(GeneratePseudoRandomString(100), GeneratePseudoRandomString(100));
+
+    db->write(IDB::Index::DB_MAIN_INDEX, someRandomKeyVal.first, someRandomKeyVal.second);
+
+    db->beginDBTransaction();
+
+    TestReadWriteUnique(db.get(), data);
+
+    db->abortDBTransaction();
+
+    // after having aborted the transaction, we only have the value we committed
+    const boost::optional<std::map<std::string, std::vector<std::string>>> map =
+        db->readAll(IDB::Index::DB_MAIN_INDEX);
+    ASSERT_TRUE(map);
+    ASSERT_EQ(map->size(), 1);
+    ASSERT_EQ(map->count(someRandomKeyVal.first), 1);
+}
+
+static void TestReadMultipleAndRealAll(IDB*                                                   db,
+                                       const std::map<std::string, std::vector<std::string>>& data)
+{
+    for (const auto& v : data) {
+        for (const auto& e : v.second) {
+            db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, v.first, e);
+        }
+    }
+
+    for (const auto& v : data) {
+        std::vector<std::string>                  expected = v.second;
+        boost::optional<std::vector<std::string>> r =
+            db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, v.first);
+        ASSERT_TRUE(r);
+        std::sort(r->begin(), r->end());
+        std::sort(expected.begin(), expected.end());
+        expected.erase(std::unique(expected.begin(), expected.end()), expected.end());
+        EXPECT_EQ(expected, *r);
+    }
+
+    {
+        std::map<std::string, std::vector<std::string>> expected = data;
+        for (auto&& v : expected) {
+            std::sort(v.second.begin(), v.second.end());
+            // ensure entries are unique
+            v.second.erase(std::unique(v.second.begin(), v.second.end()), v.second.end());
+        }
+        boost::optional<std::map<std::string, std::vector<std::string>>> r =
+            db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
+        ASSERT_TRUE(r);
+        for (auto&& v : *r) {
+            std::sort(v.second.begin(), v.second.end());
+        }
+        EXPECT_EQ(expected, r);
+    }
+
+    for (const auto& v : data) {
+        const std::string& key = v.first;
+        EXPECT_TRUE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key));
+    }
+
+    {
+        std::map<std::string, std::vector<std::string>> expected = data;
+        while (!expected.empty()) {
+            std::size_t indexToDelete = rand() % expected.size();
+            auto        it            = expected.begin();
+            std::advance(it, indexToDelete);
+            const std::string key = it->first;
+            EXPECT_TRUE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key));
+
+            // erase the key
+            expected.erase(key);
+            EXPECT_TRUE(db->eraseAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key));
+
+            // value doesn't exist anymore, let's verify that
+            EXPECT_FALSE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key));
+            auto v = db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key);
+            ASSERT_TRUE(v);
+            EXPECT_EQ(v->size(), 0);
+            const boost::optional<std::map<std::string, std::vector<std::string>>> m =
+                db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
+            ASSERT_TRUE(m);
+            EXPECT_TRUE(m->find(key) == m->cend());
+        }
+    }
+
+    EnsureDBIsEmpty(db, IDB::Index::DB_MAIN_INDEX);
+    EnsureDBIsEmpty(db, IDB::Index::DB_BLOCKINDEX_INDEX);
+    EnsureDBIsEmpty(db, IDB::Index::DB_BLOCKS_INDEX);
+    EnsureDBIsEmpty(db, IDB::Index::DB_TX_INDEX);
+    EnsureDBIsEmpty(db, IDB::Index::DB_NTP1TX_INDEX);
+    EnsureDBIsEmpty(db, IDB::Index::DB_ADDRSVSPUBKEYS_INDEX);
+}
+
+TEST(db_interface_impl_tests, read_write_multiple)
+{
+    static constexpr int MAX_ENTRIES    = 5;
+    static constexpr int MAX_SUBENTRIES = 3;
+    static constexpr int MAX_SIZE       = 500;
+
+    std::map<std::string, std::vector<std::string>> data;
+
+    for (int i = 0; i < MAX_ENTRIES; i++) {
+        const std::size_t keySize = static_cast<std::size_t>(1 + rand() % MAX_SIZE);
+        const std::string key     = GeneratePseudoRandomString(keySize);
+        for (int j = 0; j < MAX_SUBENTRIES; j++) {
+            const std::size_t valSize = static_cast<std::size_t>(1 + rand() % MAX_SIZE);
+            const std::string val     = GeneratePseudoRandomString(valSize);
+
+            data[key].push_back(val);
+        }
+    }
+
+    const boost::filesystem::path p = GetDataDir() / "test-txdb";
+
+    DefaultDBLogger logger;
+
+    std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, &logger, true);
+
+    BOOST_SCOPE_EXIT(&db) { db->close(); }
+    BOOST_SCOPE_EXIT_END
+
+    TestReadMultipleAndRealAll(db.get(), data);
+}
+
+static void TestReadMultipleAndRealAllWithTx(IDB*                                                   db,
+                                             const std::map<std::string, std::vector<std::string>>& data)
+{
+    const std::pair<std::string, std::string> someRandomKeyVal =
+        std::make_pair(GeneratePseudoRandomString(100), GeneratePseudoRandomString(100));
+
+    db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, someRandomKeyVal.first, someRandomKeyVal.second);
+
+    db->beginDBTransaction();
+
+    ////////////////
+    for (const auto& v : data) {
+        for (const auto& e : v.second) {
+            db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, v.first, e);
+        }
+    }
+
+    for (const auto& v : data) {
+        std::vector<std::string>                  expected = v.second;
+        boost::optional<std::vector<std::string>> r =
+            db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, v.first);
+        ASSERT_TRUE(r);
+        std::sort(r->begin(), r->end());
+        std::sort(expected.begin(), expected.end());
+        expected.erase(std::unique(expected.begin(), expected.end()), expected.end());
+        EXPECT_EQ(expected, *r);
+    }
+
+    {
+        std::map<std::string, std::vector<std::string>> expected = data;
+        for (auto&& v : expected) {
+            std::sort(v.second.begin(), v.second.end());
+            // ensure entries are unique
+            v.second.erase(std::unique(v.second.begin(), v.second.end()), v.second.end());
+        }
+        boost::optional<std::map<std::string, std::vector<std::string>>> r =
+            db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
+        ASSERT_TRUE(r);
+        for (auto&& v : *r) {
+            std::sort(v.second.begin(), v.second.end());
+        }
+        r->erase(someRandomKeyVal.first);
+        EXPECT_EQ(expected, r);
+    }
+
+    for (const auto& v : data) {
+        const std::string& key = v.first;
+        EXPECT_TRUE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key));
+    }
+
+    {
+        std::map<std::string, std::vector<std::string>> expected = data;
+        while (!expected.empty()) {
+            std::size_t indexToDelete = rand() % expected.size();
+            auto        it            = expected.begin();
+            std::advance(it, indexToDelete);
+            const std::string key = it->first;
+            EXPECT_TRUE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key));
+
+            // erase the key
+            expected.erase(key);
+            EXPECT_TRUE(db->eraseAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key));
+
+            // value doesn't exist anymore, let's verify that
+            EXPECT_FALSE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key));
+            auto v = db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key);
+            ASSERT_TRUE(v);
+            EXPECT_EQ(v->size(), 0);
+            const boost::optional<std::map<std::string, std::vector<std::string>>> m =
+                db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
+            ASSERT_TRUE(m);
+            EXPECT_TRUE(m->find(key) == m->cend());
+        }
+    }
+
+    ////////////////
+    db->abortDBTransaction();
+
+    // after having aborted the transaction, we only have the value we committed
+    const boost::optional<std::map<std::string, std::vector<std::string>>> map =
+        db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
+    ASSERT_TRUE(map);
+    ASSERT_EQ(map->size(), 1);
+    ASSERT_EQ(map->count(someRandomKeyVal.first), 1);
+
+    EnsureDBIsEmpty(db, IDB::Index::DB_MAIN_INDEX);
+    EnsureDBIsEmpty(db, IDB::Index::DB_BLOCKINDEX_INDEX);
+    EnsureDBIsEmpty(db, IDB::Index::DB_BLOCKS_INDEX);
+    EnsureDBIsEmpty(db, IDB::Index::DB_TX_INDEX);
+    EnsureDBIsEmpty(db, IDB::Index::DB_NTP1TX_INDEX);
+    EnsureDBIsEmpty(db, IDB::Index::DB_ADDRSVSPUBKEYS_INDEX);
+}
+
+TEST(db_interface_impl_tests, read_write_multiple_with_db_transaction)
+{
+    static constexpr int MAX_ENTRIES    = 5;
+    static constexpr int MAX_SUBENTRIES = 3;
+    static constexpr int MAX_SIZE       = 500;
+
+    std::map<std::string, std::vector<std::string>> data;
+
+    for (int i = 0; i < MAX_ENTRIES; i++) {
+        const std::size_t keySize = static_cast<std::size_t>(1 + rand() % MAX_SIZE);
+        const std::string key     = GeneratePseudoRandomString(keySize);
+        for (int j = 0; j < MAX_SUBENTRIES; j++) {
+            const std::size_t valSize = static_cast<std::size_t>(1 + rand() % MAX_SIZE);
+            const std::string val     = GeneratePseudoRandomString(valSize);
+
+            data[key].push_back(val);
+        }
+    }
+
+    const boost::filesystem::path p = GetDataDir() / "test-txdb";
+
+    DefaultDBLogger logger;
+
+    std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, &logger, true);
+
+    BOOST_SCOPE_EXIT(&db) { db->close(); }
+    BOOST_SCOPE_EXIT_END
+
+    TestReadMultipleAndRealAllWithTx(db.get(), data);
 }
 
 TEST(quicksync_tests, download_index_file)

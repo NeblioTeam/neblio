@@ -209,7 +209,7 @@ static bool GetKernelStakeModifier(const ITxDB& txdb, uint256 hashBlockFrom, uin
                                    bool fPrintProofOfStake)
 {
     nStakeModifier = 0;
-    const auto bi = mapBlockIndex.get(hashBlockFrom).value_or(nullptr);
+    const auto bi  = mapBlockIndex.get(hashBlockFrom).value_or(nullptr);
     if (!bi)
         return error("GetKernelStakeModifier() : block not indexed");
     const CBlockIndex* pindexFrom                        = bi.get();
@@ -305,8 +305,7 @@ bool CheckStakeKernelHash(const ITxDB& txdb, unsigned int nBits, const CBlock& b
         printf("CheckStakeKernelHash() : using modifier 0x%016" PRIx64
                " at height=%d timestamp=%s for block from height=%d timestamp=%s\n",
                nStakeModifier, nStakeModifierHeight, DateTimeStrFormat(nStakeModifierTime).c_str(),
-               bi ? bi->nHeight : -1,
-               DateTimeStrFormat(blockFrom.GetBlockTime()).c_str());
+               bi ? bi->nHeight : -1, DateTimeStrFormat(blockFrom.GetBlockTime()).c_str());
         printf(
             "CheckStakeKernelHash() : check modifier=0x%016" PRIx64
             " nTimeBlockFrom=%u nTxPrevOffset=%u nTimeTxPrev=%u nPrevout=%u nTimeTx=%u hashProof=%s\n",
@@ -324,8 +323,7 @@ bool CheckStakeKernelHash(const ITxDB& txdb, unsigned int nBits, const CBlock& b
         printf("CheckStakeKernelHash() : using modifier 0x%016" PRIx64
                " at height=%d timestamp=%s for block from height=%d timestamp=%s\n",
                nStakeModifier, nStakeModifierHeight, DateTimeStrFormat(nStakeModifierTime).c_str(),
-               bi ? bi->nHeight : -1,
-               DateTimeStrFormat(blockFrom.GetBlockTime()).c_str());
+               bi ? bi->nHeight : -1, DateTimeStrFormat(blockFrom.GetBlockTime()).c_str());
         printf(
             "CheckStakeKernelHash() : pass modifier=0x%016" PRIx64
             " nTimeBlockFrom=%u nTxPrevOffset=%u nTimeTxPrev=%u nPrevout=%u nTimeTx=%u hashProof=%s\n",
@@ -347,7 +345,7 @@ bool CheckProofOfStake(const CTransaction& tx, unsigned int nBits, uint256& hash
     const CTxIn& txin = tx.vin[0];
 
     // First try finding the previous transaction in database
-    CTxDB        txdb("r");
+    const CTxDB  txdb;
     CTransaction txPrev;
     CTxIndex     txindex;
     if (!txPrev.ReadFromDisk(txdb, txin.prevout, txindex))

@@ -49,7 +49,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry, bo
     std::string                              opRet;
     bool                                     isNTP1 = NTP1Transaction::IsTxNTP1(&tx, &opRet);
 
-    CTxDB txdb("r");
+    const CTxDB txdb;
     if (isNTP1 && !ignoreNTP1) {
         pair = std::make_pair(CTransaction::FetchTxFromDisk(tx.GetHash()), NTP1Transaction());
         FetchNTP1TxFromDisk(pair, txdb, false);
@@ -188,7 +188,7 @@ Value getrawtransaction(const Array& params, bool fHelp)
         // if a specific block was mentioned, get it from the database and look for the tx in it
         CTxDB txdb;
         {
-            uint256                     blockhash = ParseHashV(params[3], "parameter 3");
+            uint256    blockhash = ParseHashV(params[3], "parameter 3");
             const auto bi        = mapBlockIndex.get(blockhash).value_or(nullptr);
             if (!bi) {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block hash not found");
@@ -851,7 +851,7 @@ Value signrawtransaction(const Array& params, bool fHelp)
     for (unsigned int i = 0; i < mergedTx.vin.size(); i++) {
         CTransaction           tempTx;
         MapPrevTx              mapPrevTx;
-        CTxDB                  txdb("r");
+        const CTxDB            txdb;
         map<uint256, CTxIndex> unused;
         bool                   fInvalid;
 

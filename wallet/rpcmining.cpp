@@ -444,7 +444,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
     Array                 transactions;
     map<uint256, int64_t> setTxIndex;
     int                   i = 0;
-    CTxDB                 txdb("r");
+    const CTxDB           txdb;
     BOOST_FOREACH (CTransaction& tx, pblock->vtx) {
         uint256 txHash     = tx.GetHash();
         setTxIndex[txHash] = i++;

@@ -56,6 +56,7 @@ target_link_libraries(neblio-tests
     json_spirit_lib
     txdb_lib
     mocks_lib
+    db_lib
     -lpthread
     -lrt
     -ldl

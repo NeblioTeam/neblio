@@ -1,4 +1,4 @@
-// Copyright (c) 2009-2010 Satoshi Nakamoto
+﻿// Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -762,7 +762,7 @@ bool AppInit2()
     }
 
     if (GetBoolArg("-loadblockindextest")) {
-        CTxDB txdb("r");
+        CTxDB txdb;
         txdb.LoadBlockIndex();
         PrintBlockTree();
         return false;
@@ -798,8 +798,8 @@ bool AppInit2()
             {
                 mapBlockIndex.clear();
                 setStakeSeen.clear();
-                CTxDB txdb("r");
-                txdb.init_blockindex(true);
+                CTxDB txdb;
+                txdb.resyncIfNecessary(true);
             }
 
             // attempt to recreate the blockindex again
