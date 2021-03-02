@@ -345,7 +345,7 @@ TEST(PoS_tests, output_creation_with_split)
     CAmount amount = 10 * COIN + 500;
 
     std::vector<CTxOut> outputs = StakeMaker::MakeStakeOutputs(outputScript, amount, true);
-    ASSERT_EQ(outputs.size(), 3); // marker + output + output
+    ASSERT_EQ(outputs.size(), 3u); // marker + output + output
     EXPECT_EQ(outputs[0].nValue, 0);
     EXPECT_TRUE(outputs[0].scriptPubKey.empty());
     EXPECT_EQ(outputs[0].scriptPubKey, CScript());
@@ -375,7 +375,7 @@ TEST(PoS_tests, output_creation_no_split)
     CAmount amount = 10 * COIN + 500;
 
     std::vector<CTxOut> outputs = StakeMaker::MakeStakeOutputs(outputScript, amount, false);
-    ASSERT_EQ(outputs.size(), 2); // marker + output
+    ASSERT_EQ(outputs.size(), 2u); // marker + output
     EXPECT_EQ(outputs[0].nValue, 0);
     EXPECT_TRUE(outputs[0].scriptPubKey.empty());
     EXPECT_EQ(outputs[0].scriptPubKey, CScript());
@@ -407,8 +407,8 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_no_split)
 
     CoinStakeInputsResult inputsResult = StakeMaker::CollectInputsForStake(
         *dbMock, kernelData, availableCoins, GetAdjustedTime(), false, balance, 0);
-    EXPECT_EQ(inputsResult.inputs.size(), 2);
-    EXPECT_EQ(inputsResult.inputsPrevouts.size(), 2);
+    EXPECT_EQ(inputsResult.inputs.size(), 2u);
+    EXPECT_EQ(inputsResult.inputsPrevouts.size(), 2u);
 
     // now do it again with reserve, ensure the
 
@@ -416,8 +416,8 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_no_split)
                                                      GetAdjustedTime(), false, balance, balance);
 
     // only the kernel will go through (since it's checked elsewhere when finding the stake)
-    EXPECT_EQ(inputsResult.inputs.size(), 1);
-    EXPECT_EQ(inputsResult.inputsPrevouts.size(), 1);
+    EXPECT_EQ(inputsResult.inputs.size(), 1u);
+    EXPECT_EQ(inputsResult.inputsPrevouts.size(), 1u);
 }
 
 TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_with_split)
@@ -444,14 +444,14 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_with_split)
 
     CoinStakeInputsResult inputsResult = StakeMaker::CollectInputsForStake(
         *dbMock, kernelData, availableCoins, GetAdjustedTime(), true, balance, 0);
-    EXPECT_EQ(inputsResult.inputs.size(), 1);
-    EXPECT_EQ(inputsResult.inputsPrevouts.size(), 1);
+    EXPECT_EQ(inputsResult.inputs.size(), 1u);
+    EXPECT_EQ(inputsResult.inputsPrevouts.size(), 1u);
 }
 
 TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_inputs)
 {
     ASSERT_EQ(Params().NetType(), NetworkType::Regtest);
-    EXPECT_EQ(Params().MaxInputsInStake(), 10);
+    EXPECT_EQ(Params().MaxInputsInStake(), 10u);
     EXPECT_EQ(vCoins[0].tx->vout[0].scriptPubKey, KeyToP2PKH(key1));
 
     empty_wallet();
@@ -488,14 +488,14 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_inputs)
         *dbMock, kernelData, availableCoins, GetAdjustedTime(), false, balance, 0);
 
     // we cannot have more than 10 inputs as per Params().MaxInputsInStake()
-    EXPECT_EQ(inputsResult.inputs.size(), 10);
-    EXPECT_EQ(inputsResult.inputsPrevouts.size(), 10);
+    EXPECT_EQ(inputsResult.inputs.size(), 10u);
+    EXPECT_EQ(inputsResult.inputsPrevouts.size(), 10u);
 }
 
 TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_value)
 {
     ASSERT_EQ(Params().NetType(), NetworkType::Regtest);
-    EXPECT_EQ(Params().MaxInputsInStake(), 10);
+    EXPECT_EQ(Params().MaxInputsInStake(), 10u);
     EXPECT_EQ(vCoins[0].tx->vout[0].scriptPubKey, KeyToP2PKH(key1));
 
     empty_wallet();
@@ -532,14 +532,14 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_value)
         *dbMock, kernelData, availableCoins, GetAdjustedTime(), false, balance, 0);
 
     // we cannot have more than 2 inputs, since the max is 1000
-    EXPECT_EQ(inputsResult.inputs.size(), 2);
-    EXPECT_EQ(inputsResult.inputsPrevouts.size(), 2);
+    EXPECT_EQ(inputsResult.inputs.size(), 2u);
+    EXPECT_EQ(inputsResult.inputsPrevouts.size(), 2u);
 }
 
 TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_too_small_age)
 {
     ASSERT_EQ(Params().NetType(), NetworkType::Regtest);
-    EXPECT_EQ(Params().MaxInputsInStake(), 10);
+    EXPECT_EQ(Params().MaxInputsInStake(), 10u);
     EXPECT_EQ(vCoins[0].tx->vout[0].scriptPubKey, KeyToP2PKH(key1));
 
     empty_wallet();
@@ -576,8 +576,8 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_too_small_age)
         *dbMock, kernelData, availableCoins, GetAdjustedTime(), false, balance, 0);
 
     // only the kernel will go in, because all other UTXOs' nTime is equal to current tx's time
-    EXPECT_EQ(inputsResult.inputs.size(), 1);
-    EXPECT_EQ(inputsResult.inputsPrevouts.size(), 1);
+    EXPECT_EQ(inputsResult.inputs.size(), 1u);
+    EXPECT_EQ(inputsResult.inputsPrevouts.size(), 1u);
 
     // now we call again, but we change the transaction time to make inputs feasible, and we'll get 2
     // again (the max that we can get due to max value in a stake)
@@ -585,8 +585,8 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_too_small_age)
         *dbMock, kernelData, availableCoins, GetAdjustedTime() + Params().StakeMinAge(*dbMock) + 60 * 60,
         false, balance, 0);
 
-    EXPECT_EQ(inputsResult.inputs.size(), 2);
-    EXPECT_EQ(inputsResult.inputsPrevouts.size(), 2);
+    EXPECT_EQ(inputsResult.inputs.size(), 2u);
+    EXPECT_EQ(inputsResult.inputsPrevouts.size(), 2u);
 }
 
 extern bool Sign1(const CKeyID& address, const CKeyStore& keystore, uint256 hash, int nHashType,

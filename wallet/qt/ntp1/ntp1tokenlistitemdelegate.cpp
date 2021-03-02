@@ -67,8 +67,8 @@ void NTP1TokenListItemDelegate::paint(QPainter* painter, const QStyleOptionViewI
     painter->restore();
 }
 
-QSize NTP1TokenListItemDelegate::sizeHint(const QStyleOptionViewItem& option,
-                                          const QModelIndex&          index) const
+QSize NTP1TokenListItemDelegate::sizeHint(const QStyleOptionViewItem& /*option*/,
+                                          const QModelIndex&          /*index*/) const
 {
     return QSize(DECORATION_SIZE, DECORATION_SIZE);
 }

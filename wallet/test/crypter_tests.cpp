@@ -853,7 +853,7 @@ TEST(cryptography_tests, crypto_secretbox_salsa20poly1305_long_message_three_pac
 
 TEST(cryptography_tests, crypto_secretbox_salsa20poly1305_long_message_all_sizes)
 {
-    for (int i = 1; i < 17000; i++) {
+    for (unsigned i = 1; i < 17000; i++) {
         CHL::Bytes random_message = CHL::RandomBytes(i);
         CHL::Bytes message(std::make_move_iterator(random_message.begin()),
                            std::make_move_iterator(random_message.end()));
@@ -902,7 +902,7 @@ TEST(cryptography_tests, serialize)
         EXPECT_EQ(data[1], 0x56);
         EXPECT_EQ(data[2], 0x34);
         EXPECT_EQ(data[3], 0x12);
-        EXPECT_EQ(data.size(), 4);
+        EXPECT_EQ(data.size(), 4u);
         uint32_t n2 = CHL::DeserializeSimple<uint32_t>(data);
         EXPECT_EQ(n1, n2);
     }
@@ -911,7 +911,7 @@ TEST(cryptography_tests, serialize)
         auto     data = CHL::SerializeSimple(n1);
         EXPECT_EQ(data[0], 0x34);
         EXPECT_EQ(data[1], 0x12);
-        EXPECT_EQ(data.size(), 2);
+        EXPECT_EQ(data.size(), 2u);
         uint16_t n2 = CHL::DeserializeSimple<uint16_t>(data);
         EXPECT_EQ(n1, n2);
     }
@@ -926,7 +926,7 @@ TEST(cryptography_tests, serialize)
         EXPECT_EQ(data[5], 0x56);
         EXPECT_EQ(data[6], 0x34);
         EXPECT_EQ(data[7], 0x12);
-        EXPECT_EQ(data.size(), 8);
+        EXPECT_EQ(data.size(), 8u);
         uint64_t n2 = CHL::DeserializeSimple<uint64_t>(data);
         EXPECT_EQ(n1, n2);
     }
@@ -938,7 +938,7 @@ TEST(cryptography_tests, serialize)
         EXPECT_EQ(data[1], 0x56);
         EXPECT_EQ(data[2], 0x34);
         EXPECT_EQ(data[3], 0x12);
-        EXPECT_EQ(data.size(), 4);
+        EXPECT_EQ(data.size(), 4u);
         int32_t n2 = CHL::DeserializeSimple<int32_t>(data);
         EXPECT_EQ(n1, n2);
     }
@@ -947,7 +947,7 @@ TEST(cryptography_tests, serialize)
         auto    data = CHL::SerializeSimple(n1);
         EXPECT_EQ(data[0], 0x34);
         EXPECT_EQ(data[1], 0x12);
-        EXPECT_EQ(data.size(), 2);
+        EXPECT_EQ(data.size(), 2u);
         int16_t n2 = CHL::DeserializeSimple<int16_t>(data);
         EXPECT_EQ(n1, n2);
     }
@@ -962,7 +962,7 @@ TEST(cryptography_tests, serialize)
         EXPECT_EQ(data[5], 0x56);
         EXPECT_EQ(data[6], 0x34);
         EXPECT_EQ(data[7], 0x12);
-        EXPECT_EQ(data.size(), 8);
+        EXPECT_EQ(data.size(), 8u);
         int64_t n2 = CHL::DeserializeSimple<int64_t>(data);
         EXPECT_EQ(n1, n2);
     }
@@ -974,7 +974,7 @@ TEST(cryptography_tests, serialize)
         EXPECT_EQ(data[1], 0x56);
         EXPECT_EQ(data[2], 0x34);
         EXPECT_EQ(data[3], 0xF2);
-        EXPECT_EQ(data.size(), 4);
+        EXPECT_EQ(data.size(), 4u);
         int32_t n2 = CHL::DeserializeSimple<int32_t>(data);
         EXPECT_EQ(n1, n2);
     }
@@ -983,7 +983,7 @@ TEST(cryptography_tests, serialize)
         auto    data = CHL::SerializeSimple(n1);
         EXPECT_EQ(data[0], 0x34);
         EXPECT_EQ(data[1], 0xF2);
-        EXPECT_EQ(data.size(), 2);
+        EXPECT_EQ(data.size(), 2u);
         int16_t n2 = CHL::DeserializeSimple<int16_t>(data);
         EXPECT_EQ(n1, n2);
     }
@@ -998,9 +998,9 @@ TEST(cryptography_tests, serialize)
         EXPECT_EQ(data[5], 0x56);
         EXPECT_EQ(data[6], 0x34);
         EXPECT_EQ(data[7], 0xF2);
-        EXPECT_EQ(data.size(), 8);
+        EXPECT_EQ(data.size(), 8u);
         uint64_t n2 = CHL::DeserializeSimple<uint64_t>(data);
-        EXPECT_EQ(n1, n2);
+        EXPECT_EQ(n1, static_cast<int64_t>(n2));
     }
 }
 
@@ -1054,11 +1054,11 @@ TEST(cryptography_tests, names_and_variations)
     EXPECT_EQ(CHL::GetEncryptionAlgoKeyLength(CHL::EncryptionAlgorithm::Enc_XSalsa20Poly1305).get(),
               crypto_secretbox_xsalsa20poly1305_KEYBYTES);
     EXPECT_EQ(CHL::GetRatchetAlgoOutputLength(CHL::AuthKeyRatchetAlgorithm::Ratchet_Sha256).get(),
-              SHA256_DIGEST_LENGTH);
+              static_cast<uint64_t>(SHA256_DIGEST_LENGTH));
     EXPECT_EQ(CHL::GetRatchetAlgoOutputLength(CHL::AuthKeyRatchetAlgorithm::Ratchet_Sha384).get(),
-              SHA384_DIGEST_LENGTH);
+              static_cast<uint64_t>(SHA384_DIGEST_LENGTH));
     EXPECT_EQ(CHL::GetRatchetAlgoOutputLength(CHL::AuthKeyRatchetAlgorithm::Ratchet_Sha512).get(),
-              SHA512_DIGEST_LENGTH);
+              static_cast<uint64_t>(SHA512_DIGEST_LENGTH));
     EXPECT_EQ(CHL::GetAuthAlgoKeyLength(CHL::AuthenticationAlgorithm::Auth_Poly1305).get(),
               crypto_onetimeauth_poly1305_KEYBYTES);
 }

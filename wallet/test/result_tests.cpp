@@ -7,7 +7,7 @@ TEST(result_tests, basic_result)
     Result<uint64_t, uint32_t> r1 = Ok(UINT64_C(3));
 
     auto val = r1.expect("Failed to retrieve the value");
-    EXPECT_EQ(val, 3);
+    EXPECT_EQ(val, 3u);
 }
 
 TEST(result_tests, rvalue_result)
@@ -56,7 +56,7 @@ TEST(result_tests, basic_error)
     Result<std::string, uint32_t> r1 = Err(15u);
 
     EXPECT_TRUE(r1.isErr());
-    EXPECT_EQ(r1.unwrapErr(), 15);
+    EXPECT_EQ(r1.unwrapErr(), 15u);
 }
 
 TEST(result_tests, rvalue_error)
