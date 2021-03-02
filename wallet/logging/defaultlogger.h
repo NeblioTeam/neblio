@@ -12,13 +12,7 @@
 // without this, it won't compile
 #define SPDLOG_DISABLE_DEFAULT_LOGGER
 
-#include "spdlog/async.h"
-#include "spdlog/async_logger.h"
-#include "spdlog/details/thread_pool.h"
-#include "spdlog/sinks/basic_file_sink.h"
-#include "spdlog/sinks/dist_sink.h"
-#include "spdlog/sinks/rotating_file_sink.h"
-#include "spdlog/spdlog.h"
+#include "logger_includes.h"
 
 #ifndef FUNCTIONSIG
 #if defined(__GNUC__)
