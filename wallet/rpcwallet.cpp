@@ -1869,15 +1869,13 @@ static void MaybePushAddress(Object& entry, const CTxDestination& dest)
         entry.push_back(Pair("address", addr.ToString()));
 }
 
-void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDepth, bool fLong,
-                      const isminefilter& filter, Array& ret)
+void ListTransactions(const ITxDB& txdb, const CWalletTx& wtx, const string& strAccount, int nMinDepth,
+                      bool fLong, const isminefilter& filter, Array& ret)
 {
     CAmount                             nFee;
     string                              strSentAccount;
     list<pair<CTxDestination, CAmount>> listReceived;
     list<pair<CTxDestination, CAmount>> listSent;
-
-    const CTxDB txdb;
 
     wtx.GetAmounts(txdb, listReceived, listSent, nFee, strSentAccount, filter);
 
@@ -1995,11 +1993,13 @@ Value listtransactions(const Array& params, bool fHelp)
     std::list<CAccountingEntry> acentries;
     CWallet::TxItems            txOrdered = pwalletMain->OrderedTxItems(acentries, strAccount);
 
+    const CTxDB txdb;
+
     // iterate backwards until we have nCount items to return:
     for (CWallet::TxItems::reverse_iterator it = txOrdered.rbegin(); it != txOrdered.rend(); ++it) {
         CWalletTx* const pwtx = (*it).second.first;
         if (pwtx != 0)
-            ListTransactions(*pwtx, strAccount, 0, true, filter, ret);
+            ListTransactions(txdb, *pwtx, strAccount, 0, true, filter, ret);
         CAccountingEntry* const pacentry = (*it).second.second;
         if (pacentry != 0)
             AcentryToJSON(*pacentry, strAccount, ret);
@@ -2117,13 +2117,13 @@ Value listsinceblock(const Array& params, bool fHelp)
         uint256 blockId = 0;
 
         blockId.SetHex(params[0].get_str());
-        boost::optional<CBlockIndex> index = txdb.ReadBlockIndex(blockId);
+        index = txdb.ReadBlockIndex(blockId);
         if (!index) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
         }
 
         // find the common ancestor if this block is not in mainchain
-        while (index && !index->IsInMainChain(txdb) && index->getPrev(txdb)) {
+        while (index && !index->IsInMainChain(txdb) && index->hashPrev != 0) {
             nonMainChain.push_back(index->blockHash);
             index = index->getPrev(txdb);
         }
@@ -2136,7 +2136,9 @@ Value listsinceblock(const Array& params, bool fHelp)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter");
     }
 
-    int depth = index ? (1 + txdb.GetBestChainHeight().value_or(0) - index->nHeight) : -1;
+    const int currentHeight = txdb.GetBestChainHeight().value_or(0);
+
+    int depth = index ? (1 + currentHeight - index->nHeight) : -1;
 
     Array transactions;
     Array removed;
@@ -2148,7 +2150,7 @@ Value listsinceblock(const Array& params, bool fHelp)
         CWalletTx tx = (*it).second;
 
         if (depth == -1 || tx.GetDepthInMainChain(txdb, bestBlockHash) < depth)
-            ListTransactions(tx, "*", 0, true, filter, transactions);
+            ListTransactions(txdb, tx, "*", 0, true, filter, transactions);
     }
 
     bool includeRemoved = true;
@@ -2165,7 +2167,7 @@ Value listsinceblock(const Array& params, bool fHelp)
                     if (it != pwalletMain->mapWallet.cend()) {
                         // We want all transactions regardless of confirmation count to appear here,
                         // even negative confirmation ones, hence the big negative.
-                        ListTransactions(it->second, "*", -100000000, true, filter, removed);
+                        ListTransactions(txdb, it->second, "*", -100000000, true, filter, removed);
                     }
                 }
             }
@@ -2240,7 +2242,7 @@ Value gettransaction(const Array& params, bool fHelp)
         WalletTxToJSON(wtx, entry);
 
         Array details;
-        ListTransactions(pwalletMain->mapWallet[hash], "*", 0, false, filter, details);
+        ListTransactions(txdb, pwalletMain->mapWallet[hash], "*", 0, false, filter, details);
         entry.push_back(Pair("details", details));
 
         CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
