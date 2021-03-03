@@ -14,7 +14,6 @@
 #include <future>
 #include <random>
 
-#include "db/defaultdblogger/defaultdblogger.h"
 #include "globals.h"
 #include "kernel.h"
 #include "main.h"
@@ -29,7 +28,6 @@ using namespace boost;
 
 boost::filesystem::path CTxDB::DB_DIR                         = "txlmdb";
 bool                    CTxDB::QuickSyncHigherControl_Enabled = true;
-std::unique_ptr<ILog>   CTxDB::TxDBLogger                     = MakeUnique<DefaultDBLogger>();
 
 bool IsQuickSyncOSCompatible(const std::string& osValue)
 {
@@ -110,18 +108,19 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
     std::thread        downloadThread([&downloadThreadPromise, &urls, &downloadTempTarget, &progress]() {
         for (unsigned i = 0; i < urls.size(); i++) {
             try {
-                printf("Downloading file for QuickSync: %s...\n", urls[i].c_str());
+                NLog.write(b_sev::info, "Downloading file for QuickSync: {}...", urls[i]);
                 static const long connectionTimeout = 300;
                 cURLTools::GetLargeFileFromHTTPS(urls[i], connectionTimeout, downloadTempTarget,
                                                  progress, std::set<CURLcode>({CURLE_PARTIAL_FILE}));
-                printf("Setting promise value for downloaded file: %s...\n", urls[i].c_str());
+                NLog.write(b_sev::debug, "Setting promise value for downloaded file: {}...", urls[i]);
                 downloadThreadPromise.set_value();
-                printf("Done setting promise value for downloaded file: %s...\n", urls[i].c_str());
+                NLog.write(b_sev::info, "Done setting promise value for downloaded file: {}...",
+                           urls[i]);
                 break; // break if a file is downloaded successfully
             } catch (std::exception& ex) {
                 // if this is the last file, set the exception and fail
-                printf("Failed to download a file %s. The last error is: %s\n", urls[i].c_str(),
-                       ex.what());
+                NLog.write(b_sev::err, "Failed to download a file {}. The last error is: {}", urls[i],
+                           ex.what());
                 if (i + 1 >= urls.size()) {
                     downloadThreadPromise.set_exception(std::make_exception_ptr(std::runtime_error(
                         "Failed to download any of the available files. The last error is: " +
@@ -142,7 +141,7 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
     downloadThreadFuture.get();
 
     uiInterface.InitMessage("Calculating hash to verify integrity...");
-    printf("Done downloading %s\n", leaf.c_str());
+    NLog.write(b_sev::info, "Done downloading {}", leaf);
     std::string calculatedHash = CalculateHashOfFile<Sha256Calculator>(downloadTempTarget);
     if (calculatedHash != sumBin) {
         throw std::runtime_error("The calculated checksum for the downloaded file: " +
@@ -173,7 +172,7 @@ void DoQuickSync(const filesystem::path& dbdir)
             std::string msg = "Attempting quicksync... (attempt " + std::to_string(failedAttempts + 1) +
                               " out of " + std::to_string(MAX_FAILED_ATTEMPTS) + ")";
             uiInterface.InitMessage(msg);
-            printf("%s\n", msg.c_str());
+            NLog.write(b_sev::info, "{}", msg);
         }
         try {
             filesystem::remove_all(dbdir);
@@ -189,12 +188,12 @@ void DoQuickSync(const filesystem::path& dbdir)
                 json_spirit::Array files     = NTP1Tools::GetArrayField(val.get_obj(), "files");
 
                 if (dbversion != DATABASE_VERSION) {
-                    printf("Skipping database with version %" PRIu64 "", dbversion);
+                    NLog.write(b_sev::debug, "Skipping database with version {}", dbversion);
                     continue;
                 }
 
                 if (!IsQuickSyncOSCompatible(os)) {
-                    printf("Skipping database with OS %" PRIu64 "", dbversion);
+                    NLog.write(b_sev::debug, "Skipping database with OS {}", dbversion);
                     continue;
                 }
                 for (const json_spirit::Value& fileVal : files) {
@@ -212,8 +211,8 @@ void DoQuickSync(const filesystem::path& dbdir)
                 msg += "retrying in " + std::to_string(WAIT_TIME_SECONDS) + " seconds...";
             }
             uiInterface.InitMessage(msg);
-            printf("Quick sync failed (attempt %i of %i). Error: %s\n", failedAttempts,
-                   MAX_FAILED_ATTEMPTS, ex.what());
+            NLog.write(b_sev::err, "Quick sync failed (attempt {} of {}). Error: {}", failedAttempts,
+                       MAX_FAILED_ATTEMPTS, ex.what());
             std::this_thread::sleep_for(std::chrono::seconds(WAIT_TIME_SECONDS));
         }
     }
@@ -222,7 +221,7 @@ void DoQuickSync(const filesystem::path& dbdir)
         throw std::runtime_error("QuickSync error: None of the files matched the correct settings or "
                                  "another error occurred.");
     }
-    printf("QuickSync done\n");
+    NLog.write(b_sev::info, "QuickSync done");
 }
 
 bool ShouldQuickSyncBeDone(const filesystem::path& dbdir)
@@ -244,15 +243,15 @@ void CTxDB::resyncIfNecessary(bool forceClearDB)
 {
 
     nVersion = ReadVersion().value_or(0);
-    printf("Transaction index version is %d\n", nVersion);
+    NLog.write(b_sev::info, "Transaction index version is {}", nVersion);
 
     if (nVersion != DATABASE_VERSION) {
-        printf("Required index version is %d, removing old database\n", DATABASE_VERSION);
+        NLog.write(b_sev::warn, "Required index version is {}, removing old database", DATABASE_VERSION);
 
         forceClearDB = true;
     }
 
-    printf("Opened LMDB successfully\n");
+    NLog.write(b_sev::info, "Opened LMDB successfully");
 
     // check if the database has to be wiped
     if (forceClearDB ||
@@ -267,9 +266,9 @@ void CTxDB::resyncIfNecessary(bool forceClearDB)
     // run serialization tests to ensure that no binary interpretation platforms will arise
     try {
         RunCrossPlatformSerializationTests();
-        printf("Binary format tests have passed.\n");
+        NLog.write(b_sev::info, "Binary format tests have passed.");
     } catch (std::exception& ex) {
-        printf("Binary format tests have failed: %s\n", ex.what());
+        NLog.write(b_sev::err, "Binary format tests have failed: {}", ex.what());
     }
 
     // at this point, there's no database, so we attempt quicksync
@@ -282,14 +281,15 @@ void CTxDB::resyncIfNecessary(bool forceClearDB)
             try {
                 // binary layout compatibility is necessary for quicksync to work
                 RunCrossPlatformSerializationTests();
-                printf("Binary format tests have passed.\n");
+                NLog.write(b_sev::info, "Binary format tests have passed.");
                 DoQuickSync(*dbdir);
 
                 // after quicksync, a rescan has to be done
                 SC_CreateScheduledOperationOnRestart(SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN);
             } catch (std::exception& ex) {
-                printf("Quicksync exited with an exception (this is not expected to happen): %s\n",
-                       ex.what());
+                NLog.write(b_sev::err,
+                           "Quicksync exited with an exception (this is not expected to happen): {}",
+                           ex.what());
                 db->clearDBData();
             }
         }
@@ -313,7 +313,7 @@ CTxDB::CTxDB()
 {
     static boost::filesystem::path DBDir = GetDataDir() / DB_DIR;
 
-    db = MakeUnique<LMDB>(&DBDir, TxDBLogger.get());
+    db = MakeUnique<LMDB>(&DBDir);
 }
 
 void CTxDB::Close() { db->close(); }
@@ -422,21 +422,26 @@ bool CTxDB::ReadNTP1TxsWithTokenSymbol(std::string tokenName, std::vector<uint25
 bool CTxDB::WriteNTP1TxWithTokenSymbol(std::string tokenSymbol, const NTP1Transaction& ntp1tx)
 {
     if (ntp1tx.isNull()) {
-        printf("Attempted to store token symbol information of token with given symbol %s",
-               tokenSymbol.c_str());
+        NLog.write(b_sev::err,
+                   "Attempted to store token symbol information of token with given symbol {}",
+                   tokenSymbol);
         return false;
     }
     std::string symbol;
     try {
         symbol = ntp1tx.getTokenSymbolIfIssuance();
     } catch (std::exception& ex) {
-        printf("Failed to get token symbol for transaction: %s; with claimed token symbol %s. Error: %s",
-               ntp1tx.getTxHash().ToString().c_str(), tokenSymbol.c_str(), ex.what());
+        NLog.write(
+            b_sev::err,
+            "Failed to get token symbol for transaction: {}; with claimed token symbol {}. Error: {}",
+            ntp1tx.getTxHash().ToString(), tokenSymbol, ex.what());
         return false;
     } catch (...) {
-        printf("Failed to get token symbol for transaction: %s; with claimed token symbol %s. Unknown "
-               "error.",
-               ntp1tx.getTxHash().ToString().c_str(), tokenSymbol.c_str());
+        NLog.write(
+            b_sev::err,
+            "Failed to get token symbol for transaction: {}; with claimed token symbol {}. Unknown "
+            "error.",
+            ntp1tx.getTxHash().ToString(), tokenSymbol);
         return false;
     }
 
@@ -444,9 +449,10 @@ bool CTxDB::WriteNTP1TxWithTokenSymbol(std::string tokenSymbol, const NTP1Transa
     std::transform(symbol.begin(), symbol.end(), symbol.begin(), ::toupper);
 
     if (symbol != tokenSymbol) {
-        printf("While writing NTP1 tx for token names, the token name provided is not equal to the "
-               "token name calculated: %s != %s",
-               symbol.c_str(), tokenSymbol.c_str());
+        NLog.write(b_sev::err,
+                   "While writing NTP1 tx for token names, the token name provided is not equal to the "
+                   "token name calculated: {} != {}",
+                   symbol, tokenSymbol);
         return false;
     }
     return Write(tokenSymbol, ntp1tx.getTxHash(), IDB::Index::DB_NTP1TOKENNAMES_INDEX);
@@ -593,12 +599,19 @@ bool CTxDB::LoadBlockIndex()
     // locations where the contents of the block can be found. Here, we scan it
     // out of the DB and into mapBlockIndex.
 
+    NLog.write(b_sev::info, "Reading raw block index data... please wait.");
+    uiInterface.InitMessage(_("Reading raw block index data..."));
+
     boost::optional<std::map<std::string, std::string>> blockIndexStr =
         db->readAllUnique(IDB::Index::DB_BLOCKINDEX_INDEX);
+
+    NLog.write(b_sev::info, "Done reading raw block index data.");
 
     uint64_t loadedCount = 0;
 
     BlockIndexMapType::MapType loadedBlockIndex;
+
+    NLog.write(b_sev::info, "Deserializing block index...");
 
     if (blockIndexStr) {
         // Now read each entry.
@@ -648,7 +661,8 @@ bool CTxDB::LoadBlockIndex()
                 pindexGenesisBlock = pindexNew;
 
             if (!pindexNew->CheckIndex()) {
-                return error("LoadBlockIndex() : CheckIndex failed at %d", pindexNew->nHeight);
+                NLog.write(b_sev::err, "LoadBlockIndex() : CheckIndex failed at {}", pindexNew->nHeight);
+                return false;
             }
 
             // NovaCoin: build setStakeSeen
@@ -665,7 +679,7 @@ bool CTxDB::LoadBlockIndex()
             blockIndexStr->erase(p.first);
         }
     }
-    printf("Done reading block index\n");
+    NLog.write(b_sev::info, "Done reading block index");
     uiInterface.InitMessage(_("Loading block index...") + " (done reading block index)");
 
     if (fRequestShutdown)
@@ -695,10 +709,13 @@ bool CTxDB::LoadBlockIndex()
         pindex->nChainTrust = (pindex->pprev ? pindex->pprev->nChainTrust : 0) + pindex->GetBlockTrust();
         // NovaCoin: calculate stake modifier checksum
         pindex->nStakeModifierChecksum = GetStakeModifierChecksum(pindex);
-        if (!CheckStakeModifierCheckpoints(pindex->nHeight, pindex->nStakeModifierChecksum))
-            return error("CTxDB::LoadBlockIndex() : Failed stake modifier checkpoint height=%d, "
-                         "modifier=0x%016" PRIx64,
-                         pindex->nHeight, pindex->nStakeModifier);
+        if (!CheckStakeModifierCheckpoints(pindex->nHeight, pindex->nStakeModifierChecksum)) {
+            NLog.write(b_sev::err,
+                       "CTxDB::LoadBlockIndex() : Failed stake modifier checkpoint height={}, "
+                       "modifier={:016x}",
+                       pindex->nHeight, pindex->nStakeModifier);
+            return false;
+        }
     }
 
     // Load hashBestChain pointer to end of best chain
@@ -706,19 +723,21 @@ bool CTxDB::LoadBlockIndex()
     if (!ReadHashBestChain(hashBestChainTemp)) {
         if (pindexGenesisBlock == nullptr)
             return true;
-        return error("CTxDB::LoadBlockIndex() : hashBestChain not loaded");
+        NLog.write(b_sev::err, "CTxDB::LoadBlockIndex() : hashBestChain not loaded");
+        return false;
     }
-    if (!loadedBlockIndex.count(hashBestChainTemp))
-        return error("CTxDB::LoadBlockIndex() : hashBestChain not found in the block index");
+    if (!loadedBlockIndex.count(hashBestChainTemp)) {
+        NLog.write(b_sev::err, "CTxDB::LoadBlockIndex() : hashBestChain not found in the block index");
+        return false;
+    }
     //    bestChain.setBestChain(loadedBlockIndex.at(hashBestChainTemp), false);
 
     const int bestHeight = loadedBlockIndex.at(hashBestChainTemp)->nHeight;
 
-    printf("LoadBlockIndex(): hashBestChain=%s  height=%d  trust=%s  date=%s\n",
-           hashBestChainTemp.ToString().substr(0, 20).c_str(), bestHeight,
-           CBigNum(GetBestChainTrust().value_or(0)).ToString().c_str(),
-           DateTimeStrFormat("%x %H:%M:%S", loadedBlockIndex.at(hashBestChainTemp)->GetBlockTime())
-               .c_str());
+    NLog.write(b_sev::err, "LoadBlockIndex(): hashBestChain={}  height={}  trust={}  date={}",
+               hashBestChainTemp.ToString().substr(0, 20), bestHeight,
+               CBigNum(GetBestChainTrust().value_or(0)).ToString(),
+               DateTimeStrFormat("%x %H:%M:%S", loadedBlockIndex.at(hashBestChainTemp)->GetBlockTime()));
 
     // Load bnBestInvalidTrust, OK if it doesn't exist
     CBigNum bnBestInvalidTrust;
@@ -733,7 +752,7 @@ bool CTxDB::LoadBlockIndex()
         nCheckDepth = 1000000000; // suffices until the year 19000
     if (nCheckDepth > bestHeight)
         nCheckDepth = bestHeight;
-    printf("Verifying last %i blocks at level %i\n", nCheckDepth, nCheckLevel);
+    NLog.write(b_sev::info, "Verifying last {} blocks at level {}", nCheckDepth, nCheckLevel);
     CBlockIndexSmartPtr              pindexFork = nullptr;
     map<uint256, const CBlockIndex*> mapBlockPos;
     loadedCount = 0;
@@ -749,13 +768,15 @@ bool CTxDB::LoadBlockIndex()
         if (fRequestShutdown || pindex->nHeight < bestHeight - nCheckDepth)
             break;
         CBlock block;
-        if (!block.ReadFromDisk(pindex.get()))
-            return error("LoadBlockIndex() : block.ReadFromDisk failed");
+        if (!block.ReadFromDisk(pindex.get())) {
+            NLog.write(b_sev::err, "LoadBlockIndex() : block.ReadFromDisk failed");
+            return false;
+        }
         // check level 1: verify block validity
         // check level 7: verify block signature too
         if (nCheckLevel > 0 && !block.CheckBlock(txdb, true, true, (nCheckLevel > 6))) {
-            printf("LoadBlockIndex() : *** found bad block at %d, hash=%s\n", pindex->nHeight,
-                   pindex->GetBlockHash().ToString().c_str());
+            NLog.write(b_sev::warn, "LoadBlockIndex() : *** found bad block at {}, hash={}",
+                       pindex->nHeight, pindex->GetBlockHash().ToString());
             pindexFork = pindex->pprev;
         }
         // check level 2: verify transaction index validity
@@ -771,13 +792,14 @@ bool CTxDB::LoadBlockIndex()
                         // either an error or a duplicate transaction
                         CTransaction txFound;
                         if (!txFound.ReadFromDisk(txindex.pos, txdb)) {
-                            printf("LoadBlockIndex() : *** cannot read mislocated transaction %s\n",
-                                   hashTx.ToString().c_str());
+                            NLog.write(b_sev::warn,
+                                       "LoadBlockIndex() : *** cannot read mislocated transaction {}",
+                                       hashTx.ToString());
                             pindexFork = pindex->pprev;
                         } else if (txFound.GetHash() != hashTx) // not a duplicate tx
                         {
-                            printf("LoadBlockIndex(): *** invalid tx position for %s\n",
-                                   hashTx.ToString().c_str());
+                            NLog.write(b_sev::warn, "LoadBlockIndex(): *** invalid tx position for {}",
+                                       hashTx.ToString());
                             pindexFork = pindex->pprev;
                         }
                     }
@@ -788,10 +810,12 @@ bool CTxDB::LoadBlockIndex()
                             if (!txpos.IsNull()) {
                                 uint256 posFind = txpos.nBlockPos;
                                 if (!mapBlockPos.count(posFind)) {
-                                    printf("LoadBlockIndex(): *** found bad spend at %d, hashBlock=%s, "
-                                           "hashTx=%s\n",
-                                           pindex->nHeight, pindex->GetBlockHash().ToString().c_str(),
-                                           hashTx.ToString().c_str());
+                                    NLog.write(
+                                        b_sev::warn,
+                                        "LoadBlockIndex(): *** found bad spend at {}, hashBlock={}, "
+                                        "hashTx={}",
+                                        pindex->nHeight, pindex->GetBlockHash().ToString(),
+                                        hashTx.ToString());
                                     pindexFork = pindex->pprev;
                                 }
                                 // check level 6: check whether spent txouts were spent by a valid
@@ -799,14 +823,17 @@ bool CTxDB::LoadBlockIndex()
                                 if (nCheckLevel > 5) {
                                     CTransaction txSpend;
                                     if (!txSpend.ReadFromDisk(txpos, txdb)) {
-                                        printf("LoadBlockIndex(): *** cannot read spending transaction "
-                                               "of %s:%i from disk\n",
-                                               hashTx.ToString().c_str(), nOutput);
+                                        NLog.write(
+                                            b_sev::warn,
+                                            "LoadBlockIndex(): *** cannot read spending transaction "
+                                            "of {}:{} from disk",
+                                            hashTx.ToString(), nOutput);
                                         pindexFork = pindex->pprev;
                                     } else if (txSpend.CheckTransaction(txdb).isErr()) {
-                                        printf("LoadBlockIndex(): *** spending transaction of %s:%i is "
-                                               "invalid\n",
-                                               hashTx.ToString().c_str(), nOutput);
+                                        NLog.write(b_sev::warn,
+                                                   "LoadBlockIndex(): *** spending transaction of {}:{} "
+                                                   "is invalid",
+                                                   hashTx.ToString(), nOutput);
                                         pindexFork = pindex->pprev;
                                     } else {
                                         bool fFound = false;
@@ -814,9 +841,11 @@ bool CTxDB::LoadBlockIndex()
                                             if (txin.prevout.hash == hashTx && txin.prevout.n == nOutput)
                                                 fFound = true;
                                         if (!fFound) {
-                                            printf("LoadBlockIndex(): *** spending transaction of %s:%i "
-                                                   "does not spend it\n",
-                                                   hashTx.ToString().c_str(), nOutput);
+                                            NLog.write(
+                                                b_sev::warn,
+                                                "LoadBlockIndex(): *** spending transaction of {}:{} "
+                                                "does not spend it",
+                                                hashTx.ToString(), nOutput);
                                             pindexFork = pindex->pprev;
                                         }
                                     }
@@ -833,9 +862,10 @@ bool CTxDB::LoadBlockIndex()
                         if (ReadTxIndex(txin.prevout.hash, txindex))
                             if (txindex.vSpent.size() - 1 < txin.prevout.n ||
                                 txindex.vSpent[txin.prevout.n].IsNull()) {
-                                printf("LoadBlockIndex(): *** found unspent prevout %s:%i in %s\n",
-                                       txin.prevout.hash.ToString().c_str(), txin.prevout.n,
-                                       hashTx.ToString().c_str());
+                                NLog.write(b_sev::debug,
+                                           "LoadBlockIndex(): *** found unspent prevout {}:{} in {}",
+                                           txin.prevout.hash.ToString(), txin.prevout.n,
+                                           hashTx.ToString());
                                 pindexFork = pindex->pprev;
                             }
                     }
@@ -844,16 +874,18 @@ bool CTxDB::LoadBlockIndex()
         }
     }
 
-    printf("Verifying latest blocks done.\n");
+    NLog.write(b_sev::info, "Verifying latest blocks done.");
     uiInterface.InitMessage("Verifying latest blocks done");
 
     if (pindexFork && !fRequestShutdown) {
         // Reorg back to the fork
-        printf("LoadBlockIndex() : *** moving best chain pointer back to block %d\n",
-               pindexFork->nHeight);
+        NLog.write(b_sev::debug, "LoadBlockIndex() : *** moving best chain pointer back to block {}",
+                   pindexFork->nHeight);
         CBlock block;
-        if (!block.ReadFromDisk(pindexFork.get()))
-            return error("LoadBlockIndex() : block.ReadFromDisk failed");
+        if (!block.ReadFromDisk(pindexFork.get())) {
+            NLog.write(b_sev::err, "LoadBlockIndex() : block.ReadFromDisk failed");
+            return false;
+        }
         CTxDB txdb;
         block.SetBestChain(txdb, pindexFork);
     }

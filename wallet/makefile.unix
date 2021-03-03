@@ -34,6 +34,8 @@ endif
 DEFS += $(addprefix -I,$(CURDIR) $(CURDIR)/obj $(BOOST_INCLUDE_PATH) $(BDB_INCLUDE_PATH) $(OPENSSL_INCLUDE_PATH) $(shell pkg-config libcurl --cflags)) $(MDB32D)
 LIBS = $(addprefix -L,$(BOOST_LIB_PATH) $(BDB_LIB_PATH) $(OPENSSL_LIB_PATH))
 
+DEFS += $(addprefix -I,$(CURDIR)/spdlog/include)
+
 TESTDEFS = -DTEST_DATA_DIR=$(abspath test/data)
 
 LMODE = dynamic
@@ -239,10 +241,11 @@ OBJS= \
     obj/validation.o                          \
     obj/coldstakedelegation.o                 \
     obj/udaddress.o                           \
-    obj/db/defaultdblogger.o  \
-    obj/db/lmdb.o                        \
-    obj/db/lmdbtransaction.o             \
-    obj/stringmanip.o
+    obj/db/lmdb.o                             \
+    obj/db/lmdbtransaction.o                  \
+    obj/stringmanip.o                         \
+    obj/defaultlogger.o                       \
+    obj/logger.o
 
 
 ifdef NEBLIO_REST
@@ -295,8 +298,8 @@ obj/ntp1/%.o: ntp1/%.cpp
 	      -e '/^$$/ d' -e 's/$$/ :/' < $(@:%.o=%.d) >> $(@:%.o=%.P); \
 	  rm -f $(@:%.o=%.d)
 
-obj/db/%.o: db/defaultdblogger/%.cpp
-	${MKDIR_P} obj/db
+obj/%.o: logging/%.cpp
+	${MKDIR_P} obj
 	$(CXX) -c $(xCXXFLAGS) -MMD -MF $(@:%.o=%.d) -o $@ $<
 	@cp $(@:%.o=%.d) $(@:%.o=%.P); \
 	  sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \

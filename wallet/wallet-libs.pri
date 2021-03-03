@@ -75,6 +75,10 @@ QMAKE_CXXFLAGS *= -D_FORTIFY_SOURCE=2
 # for extra security on Windows: enable ASLR and DEP via GCC linker flags
 compiler_info = $$system("$${QMAKE_CXX} -dumpmachine")
 win32:QMAKE_LFLAGS *= -Wl,--dynamicbase -Wl,--nxcompat
+
+# The [[nodiscard]] attribute is used often and generates tons of warnings on MXE
+win32:QMAKE_CXXFLAGS += -Wno-attributes
+
 !contains(compiler_info, .*x86_64.*) {
     win32:QMAKE_LFLAGS *= -Wl,--large-address-aware -static
 }
@@ -139,6 +143,8 @@ message("Using lmdb as the blockchain database")
     LMDB_32_BIT = true
 }
 #    LIBS += -llmdb
+
+INCLUDEPATH += $$PWD/spdlog/include
 
 INCLUDEPATH += $$PWD/liblmdb
 macx: INCLUDEPATH += /usr/local/opt/berkeley-db@4/include /usr/local/opt/boost/include /usr/local/opt/openssl@1.1/include

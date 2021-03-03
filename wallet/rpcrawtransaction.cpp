@@ -706,8 +706,9 @@ Value issuenewntp1token(const Array& params, bool fHelp)
                 NTP1Transaction::GetAllNTP1InputsOfTx(rawTx, false);
             NTP1Transaction ntp1tx;
             ntp1tx.readNTP1DataFromTx(rawTx, inputsTxs);
-        } catch (std::exception& ex) {
-            printf("An invalid NTP1 transaction was created; an exception was thrown: %s\n", ex.what());
+        } catch (const std::exception& ex) {
+            NLog.write(b_sev::info,
+                      "An invalid NTP1 transaction was created; an exception was thrown: {}", ex.what());
             throw std::runtime_error(
                 "Unable to create the transaction. The transaction created would result in an invalid "
                 "transaction. The error is: " +

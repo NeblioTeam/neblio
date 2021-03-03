@@ -168,16 +168,17 @@ boost::optional<std::string> CTxMemPool::GetTokenSymbolIfIssuance(const CTransac
                 std::shared_ptr<const NTP1Script_Issuance> scriptPtrD =
                     std::dynamic_pointer_cast<const NTP1Script_Issuance>(scriptPtr);
                 if (!scriptPtrD) {
-                    printf("ERROR: even though the type of the NTP1Script is issuance, dynamic cast "
-                           "failed. This SHOULD NEVER HAPPEN.");
+                    NLog.write(b_sev::err,
+                              "ERROR: even though the type of the NTP1Script is issuance, dynamic cast "
+                              "failed. This SHOULD NEVER HAPPEN.");
                 }
                 return boost::make_optional(scriptPtrD->getTokenSymbol());
             }
         }
     } catch (std::exception& ex) {
-        printf("ERROR: Exception thrown while parsing submitted script: %s\n", ex.what());
+        NLog.write(b_sev::err, "ERROR: Exception thrown while parsing submitted script: {}", ex.what());
     } catch (...) {
-        printf("ERROR: Unknown exception thrown while parsing submitted script\n");
+        NLog.write(b_sev::err, "ERROR: Unknown exception thrown while parsing submitted script");
     }
     return boost::none;
 }

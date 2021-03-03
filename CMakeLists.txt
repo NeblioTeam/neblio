@@ -446,6 +446,11 @@ if(USE_QRCODE AND COMPILE_GUI)
     add_definitions(-DUSE_QRCODE)
 endif()
 
+add_library(logging_lib STATIC
+    wallet/logging/defaultlogger.cpp
+    wallet/logging/logger.cpp
+    )
+
 add_library(gui_lib STATIC
     wallet/qt/bitcoingui.cpp
     wallet/qt/transactiontablemodel.cpp
@@ -630,6 +635,7 @@ add_library(core_lib STATIC
     )
 
 target_link_libraries(core_lib
+    logging_lib
     ntp1_lib
     curltools_lib
     sodium
@@ -687,8 +693,6 @@ endif()
 
 add_library(db_lib STATIC
     wallet/db/idb.h
-    wallet/db/idblog.h
-    wallet/db/defaultdblogger/defaultdblogger.cpp
     wallet/db/lmdb/lmdb.cpp
     wallet/db/lmdb/lmdbtransaction.cpp
     )
@@ -712,6 +716,7 @@ target_link_libraries(curltools_lib
 )
 
 include_directories(wallet)
+include_directories(wallet/spdlog/include)
 include_directories(wallet/json)
 target_include_directories(gui_lib PRIVATE wallet/qt)
 target_include_directories(ntp1_gui_lib PRIVATE wallet/qt)

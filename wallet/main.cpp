@@ -185,8 +185,7 @@ bool AddOrphanTx(const CTransaction& tx)
     size_t nSize = tx.GetSerializeSize(SER_NETWORK, CTransaction::CURRENT_VERSION);
 
     if (nSize > 5000) {
-        printf("ignoring large orphan tx (size: %" PRIszu ", hash: %s)\n", nSize,
-               hash.ToString().c_str());
+        NLog.write(b_sev::warn, "ignoring large orphan tx (size: {}, hash: {})", nSize, hash.ToString());
         return false;
     }
 
@@ -194,8 +193,8 @@ bool AddOrphanTx(const CTransaction& tx)
     for (const CTxIn& txin : tx.vin)
         mapOrphanTransactionsByPrev[txin.prevout.hash].insert(hash);
 
-    printf("stored orphan tx %s (mapsz %" PRIszu ")\n", hash.ToString().substr(0, 10).c_str(),
-           mapOrphanTransactions.size());
+    NLog.write(b_sev::info, "stored orphan tx {} (mapsz {})", hash.ToString().substr(0, 10),
+              mapOrphanTransactions.size());
     return true;
 }
 
@@ -480,10 +479,10 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTran
         bool                                                                fInvalid = false;
         if (!tx.FetchInputs(*txdb, mapUnused, false, false, mapInputs, fInvalid)) {
             if (fInvalid) {
-                return Err(
-                    MakeInvalidTxState(TxValidationResult::TX_INVALID_INPUTS, "bad-txns-inputs-invalid",
-                                       strprintf("AcceptToMemoryPool : FetchInputs found invalid tx %s",
-                                                 hash.ToString().substr(0, 10).c_str())));
+                return Err(MakeInvalidTxState(
+                    TxValidationResult::TX_INVALID_INPUTS, "bad-txns-inputs-invalid",
+                    fmt::format("AcceptToMemoryPool : FetchInputs found invalid tx {}",
+                                hash.ToString().substr(0, 10))));
             }
             return Err(MakeInvalidTxState(TxValidationResult::TX_MISSING_INPUTS,
                                           "bad-txns-inputs-missingorspent"));
@@ -506,9 +505,8 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTran
         const int64_t txMinFee = tx.GetMinFee(*txdb, 1000, GMF_RELAY, nSize);
         if (nFees < txMinFee) {
             return Err(MakeInvalidTxState(TxValidationResult::TX_MEMPOOL_POLICY, "insufficient fee",
-                                          strprintf("AcceptToMemoryPool : not enough fees %s, %" PRId64
-                                                    " < %" PRId64,
-                                                    hash.ToString().c_str(), nFees, txMinFee)));
+                                          fmt::format("AcceptToMemoryPool : not enough fees {}, {} < {}",
+                                                      hash.ToString(), nFees, txMinFee)));
         }
 
         // Continuously rate-limit free transactions
@@ -532,7 +530,8 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTran
                                                   "fee-rejected-by-rate-limiter"));
 
                 if (fDebug)
-                    printf("Rate limit dFreeCount: %g => %g\n", dFreeCount, dFreeCount + nSize);
+                    NLog.write(b_sev::debug, "Rate limit dFreeCount: {} => {}", dFreeCount,
+                              dFreeCount + nSize);
                 dFreeCount += nSize;
             }
         }
@@ -554,17 +553,16 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTran
                     AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, *txdb);
                 }
             } catch (std::exception& ex) {
-                printf("AcceptToMemoryPool: An invalid NTP1 transaction was submitted to the memory "
-                       "pool; an exception was "
-                       "thrown: %s\n",
-                       ex.what());
+                NLog.write(b_sev::err,
+                          "AcceptToMemoryPool: An invalid NTP1 transaction was submitted to the memory "
+                          "pool; an exception was thrown: {}",
+                          ex.what());
                 // TX_NTP1_ERROR
                 return Err(MakeInvalidTxState(
                     TxValidationResult::TX_NTP1_ERROR, "ntp1-error",
-                    strprintf(
+                    fmt::format(
                         "AcceptToMemoryPool: An invalid NTP1 transaction was submitted to the memory "
-                        "pool; an exception was "
-                        "thrown: %s\n",
+                        "pool; an exception was thrown: {}",
                         ex.what())));
             } catch (...) {
                 return Err(MakeInvalidTxState(TxValidationResult::TX_NTP1_ERROR, "ntp1-error-unknown"));
@@ -576,8 +574,8 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTran
     {
         LOCK(pool.cs);
         if (ptxOld) {
-            printf("AcceptToMemoryPool : replacing tx %s with new version\n",
-                   ptxOld->GetHash().ToString().c_str());
+            NLog.write(b_sev::info, "AcceptToMemoryPool : replacing tx {} with new version",
+                      ptxOld->GetHash().ToString());
             pool.remove(*ptxOld);
         }
         pool.addUnchecked(hash, tx);
@@ -588,8 +586,8 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTran
     if (ptxOld)
         EraseFromWallets(ptxOld->GetHash());
 
-    printf("AcceptToMemoryPool : accepted %s (poolsz %" PRIszu ")\n",
-           hash.ToString().substr(0, 10).c_str(), pool.mapTx.size());
+    NLog.write(b_sev::info, "AcceptToMemoryPool : accepted {} (poolsz {})", hash.ToString().substr(0, 10),
+              pool.mapTx.size());
 
     return Ok();
 }
@@ -872,7 +870,7 @@ bool CheckProofOfWork(const uint256& hash, unsigned int nBits, bool silent)
         if (silent) {
             return false;
         } else {
-            return error("CheckProofOfWork() : nBits below minimum work");
+            return NLog.error("CheckProofOfWork() : nBits below minimum work");
         }
     }
 
@@ -881,7 +879,7 @@ bool CheckProofOfWork(const uint256& hash, unsigned int nBits, bool silent)
         if (silent) {
             return false;
         } else {
-            return error("CheckProofOfWork() : hash doesn't match nBits");
+            return NLog.error("CheckProofOfWork() : hash doesn't match nBits");
         }
     }
 
@@ -945,22 +943,7 @@ void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, const
         return;
     }
     if (!txdb.ReadNTP1Tx(txPair.first.GetHash(), txPair.second)) {
-        //        printf("Unable to read NTP1 transaction from db: %s\n",
-        //               txPair.first.GetHash().ToString().c_str());
-        //        if (recurseDepth < 32) {
-        //            if (RecoverNTP1TxInDatabase(txPair.first, txdb, recoverProtection, recurseDepth +
-        //            1)) {
-        //                FetchNTP1TxFromDisk(txPair, txdb, recurseDepth + 1);
-        //            } else {
-        //                printf("Error: Failed to retrieve (and recover) NTP1 transaction %s.\n",
-        //                       txPair.first.GetHash().ToString().c_str());
-        //            }
-        //        } else {
-        //            printf("Error: max recursion depth, %u, reached while fetching transaction %s.
-        //            Stopping!\n",
-        //                   recurseDepth, txPair.first.GetHash().ToString().c_str());
-        //        }
-        printf("Failed to fetch NTP1 transaction %s", txPair.first.GetHash().ToString().c_str());
+        NLog.write(b_sev::err, "Failed to fetch NTP1 transaction {}", txPair.first.GetHash().ToString());
         return;
     }
     txPair.second.updateDebugStrHash();
@@ -1069,9 +1052,11 @@ void static PruneOrphanBlocks()
         it = it2;
     } while (true);
 
-    printf("Removing block %s from orphans map as the size of the orphans has exceeded the maximum %zu; "
-           "current size: %zu\n",
-           it->second->GetHash().ToString().c_str(), MAX_SIZE, mapOrphanBlocksByPrev.size());
+    NLog.write(
+        b_sev::info,
+        "Removing block {} from orphans map as the size of the orphans has exceeded the maximum {}; "
+        "current size: {}",
+        it->second->GetHash().ToString(), MAX_SIZE, mapOrphanBlocksByPrev.size());
     uint256 hash = it->second->GetHash();
     delete it->second;
     mapOrphanBlocksByPrev.erase(it);
@@ -1094,24 +1079,24 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
     // Check for duplicate
     uint256 hash = pblock->GetHash();
     if (auto v = mapBlockIndex.get(hash).value_or(nullptr))
-        return error("ProcessBlock() : already have block %d %s", v->nHeight, hash.ToString().c_str());
+        return NLog.error("ProcessBlock() : already have block {} {}", v->nHeight, hash.ToString());
     if (mapOrphanBlocks.count(hash))
-        return error("ProcessBlock() : already have block (orphan) %s", hash.ToString().c_str());
+        return NLog.error("ProcessBlock() : already have block (orphan) {}", hash.ToString());
 
     // ppcoin: check proof-of-stake
     // Limited duplicity on stake: prevents block flood attack
     // Duplicate stake allowed only when there is orphan child block
     if (pblock->IsProofOfStake() && setStakeSeen.count(pblock->GetProofOfStake()) &&
         !mapOrphanBlocksByPrev.count(hash))
-        return error("ProcessBlock() : duplicate proof-of-stake (%s, %d) for block %s",
-                     pblock->GetProofOfStake().first.ToString().c_str(),
-                     pblock->GetProofOfStake().second, hash.ToString().c_str());
+        return NLog.error("ProcessBlock() : duplicate proof-of-stake ({}, {}) for block {}",
+                         pblock->GetProofOfStake().first.ToString(), pblock->GetProofOfStake().second,
+                         hash.ToString());
 
     const CTxDB txdb;
 
     // Preliminary checks
     if (!pblock->CheckBlock(txdb))
-        return error("ProcessBlock() : CheckBlock FAILED");
+        return NLog.error("ProcessBlock() : CheckBlock FAILED");
 
     CBlockIndex* pcheckpoint = Checkpoints::GetLastCheckpoint(mapBlockIndex);
     if (pcheckpoint && pblock->hashPrevBlock != txdb.GetBestBlockHash()) {
@@ -1131,23 +1116,24 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
         if (bnNewBlock > bnRequired) {
             if (pfrom)
                 pfrom->Misbehaving(100);
-            return error("ProcessBlock() : block with too little %s",
-                         pblock->IsProofOfStake() ? "proof-of-stake" : "proof-of-work");
+            return NLog.error("ProcessBlock() : block with too little {}",
+                             pblock->IsProofOfStake() ? "proof-of-stake" : "proof-of-work");
         }
     }
 
     // If don't already have its previous block, shunt it off to holding area until we get it
     if (!mapBlockIndex.exists(pblock->hashPrevBlock)) {
-        printf("ProcessBlock: ORPHAN BLOCK, prev=%s\n", pblock->hashPrevBlock.ToString().c_str());
+        NLog.write(b_sev::info, "ProcessBlock: ORPHAN BLOCK, prev={}", pblock->hashPrevBlock.ToString());
         // ppcoin: check proof-of-stake
         if (pblock->IsProofOfStake()) {
             // Limited duplicity on stake: prevents block flood attack
             // Duplicate stake allowed only when there is orphan child block
             if (setStakeSeenOrphan.count(pblock->GetProofOfStake()) &&
                 !mapOrphanBlocksByPrev.count(hash))
-                return error("ProcessBlock() : duplicate proof-of-stake (%s, %d) for orphan block %s",
-                             pblock->GetProofOfStake().first.ToString().c_str(),
-                             pblock->GetProofOfStake().second, hash.ToString().c_str());
+                return NLog.error(
+                    "ProcessBlock() : duplicate proof-of-stake ({}, {}) for orphan block {}",
+                    pblock->GetProofOfStake().first.ToString(), pblock->GetProofOfStake().second,
+                    hash.ToString());
             else
                 setStakeSeenOrphan.insert(pblock->GetProofOfStake());
         }
@@ -1169,7 +1155,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
 
     // Store to disk
     if (!pblock->AcceptBlock())
-        return error("ProcessBlock() : AcceptBlock FAILED");
+        return NLog.error("ProcessBlock() : AcceptBlock FAILED");
 
     // Recursively process any orphan blocks that depended on this one
     vector<uint256> vWorkQueue;
@@ -1188,7 +1174,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
         mapOrphanBlocksByPrev.erase(hashPrev);
     }
 
-    printf("ProcessBlock: ACCEPTED\n");
+    NLog.write(b_sev::info, "ProcessBlock: ACCEPTED");
 
     return true;
 }
@@ -1353,7 +1339,7 @@ bool CheckDiskSpace(std::uintmax_t nAdditionalBytes)
         fShutdown         = true;
         string strMessage = _("Warning: Disk space is low!");
         strMiscWarning    = strMessage;
-        printf("*** %s\n", strMessage.c_str());
+        NLog.write(b_sev::err, "*** {}", strMessage);
         uiInterface.ThreadSafeMessageBox(strMessage, "neblio",
                                          CClientUIInterface::OK | CClientUIInterface::ICON_EXCLAMATION |
                                              CClientUIInterface::MODAL);
@@ -1387,10 +1373,10 @@ bool LoadBlockIndex(bool fAllowNew)
         //// debug print
         genesisBlock.print();
 
-        printf("block.GetHash() == %s\n", genesisBlock.GetHash().ToString().c_str());
-        printf("block.hashMerkleRoot == %s\n", genesisBlock.hashMerkleRoot.ToString().c_str());
-        printf("block.nTime = %u \n", genesisBlock.nTime);
-        printf("block.nNonce = %u \n", genesisBlock.nNonce);
+        NLog.write(b_sev::info, "block.GetHash() == {}", genesisBlock.GetHash().ToString());
+        NLog.write(b_sev::info, "block.hashMerkleRoot == {}", genesisBlock.hashMerkleRoot.ToString());
+        NLog.write(b_sev::info, "block.nTime = {}", genesisBlock.nTime);
+        NLog.write(b_sev::info, "block.nNonce = {}", genesisBlock.nNonce);
 
         assert(genesisBlock.hashMerkleRoot == Params().GenesisBlock().hashMerkleRoot);
         assert(genesisBlock.GetHash() == Params().GenesisBlockHash());
@@ -1398,7 +1384,7 @@ bool LoadBlockIndex(bool fAllowNew)
 
         // Start new block file
         if (!genesisBlock.WriteToDisk(genesisBlock.GetHash(), genesisBlock.GetHash()))
-            return error("LoadBlockIndex() : writing genesis block to disk failed");
+            return NLog.error("LoadBlockIndex() : writing genesis block to disk failed");
     }
 
     return true;
@@ -1431,28 +1417,33 @@ void PrintBlockTree()
         vStack.pop_back();
 
         // print split or gap
+        std::stringstream b;
         if (nCol > nPrevCol) {
             for (int i = 0; i < nCol - 1; i++)
-                printf("| ");
-            printf("|\\\n");
+                b << "| ";
+            b << "|";
         } else if (nCol < nPrevCol) {
             for (int i = 0; i < nCol; i++)
-                printf("| ");
-            printf("|\n");
+                b << "| ";
+            b << "|";
         }
+        NLog.write(b_sev::info, b.str());
+        b.str("");
+
         nPrevCol = nCol;
 
         // print columns
         for (int i = 0; i < nCol; i++)
-            printf("| ");
+            b << "| ";
+        NLog.write(b_sev::info, "{}", b.str());
 
         // print item
         CBlock block;
         block.ReadFromDisk(pindex.get());
-        printf("%d (%s) %s  %08x  %s  mint %7s  tx %" PRIszu "", pindex->nHeight,
-               pindex->blockKeyInDB.ToString().c_str(), block.GetHash().ToString().c_str(), block.nBits,
-               DateTimeStrFormat("%x %H:%M:%S", block.GetBlockTime()).c_str(),
-               FormatMoney(pindex->nMint).c_str(), block.vtx.size());
+        NLog.write(b_sev::info, "{} ({}) {}  {:08x}  {}  mint {}  tx {}", pindex->nHeight,
+                  pindex->blockKeyInDB.ToString(), block.GetHash().ToString(), block.nBits,
+                  DateTimeStrFormat("%x %H:%M:%S", block.GetBlockTime()), FormatMoney(pindex->nMint),
+                  block.vtx.size());
 
         PrintWallets(block);
 
@@ -1515,14 +1506,14 @@ bool LoadExternalBlockFile(FILE* fileIn)
                 // static const unsigned int fileStartFrom = 0;
                 // if (nPos < fileStartFrom) {
                 //     nPos += 4 + nSize;
-                //     printf("Skipping block at file pos: %u\n", nPos);
+                //     NLog.write(b_sev::info, "Skipping block at file pos: {}", nPos);
                 //     continue;
                 // }
 
                 if (nSize > 0 && nSize <= nSizeLimit) {
                     CBlock block;
                     blkdat >> block;
-                    printf("Reading block at file pos: %u\n", nPos);
+                    NLog.write(b_sev::info, "Reading block at file pos: {}", nPos);
 
                     LOCK(cs_main);
 
@@ -1533,10 +1524,11 @@ bool LoadExternalBlockFile(FILE* fileIn)
                 }
             }
         } catch (std::exception& e) {
-            printf("%s() : Deserialize or I/O error caught during load\n", __PRETTY_FUNCTION__);
+            NLog.write(b_sev::err, "{} : Deserialize or I/O error caught during load", FUNCTIONSIG);
         }
     }
-    printf("Loaded %i blocks from external file in %" PRId64 "ms\n", nLoaded, GetTimeMillis() - nStart);
+    NLog.write(b_sev::info, "Loaded {} blocks from external file in {} ms", nLoaded,
+              GetTimeMillis() - nStart);
     return nLoaded > 0;
 }
 
@@ -1662,10 +1654,10 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
     static map<CService, CPubKey> mapReuseKey;
     RandAddSeedPerfmon();
     if (fDebug)
-        printf("received: %s (%" PRIszu " bytes)\n", strCommand.c_str(), vRecv.size());
+        NLog.write(b_sev::debug, "received: {} ({} bytes)", strCommand, vRecv.size());
     const boost::optional<std::string> dropMessageTest = mapArgs.get("-dropmessagestest");
     if (dropMessageTest && GetRand(atoi(*dropMessageTest)) == 0) {
-        printf("dropmessagestest DROPPING RECV MESSAGE\n");
+        NLog.write(b_sev::info, "dropmessagestest DROPPING RECV MESSAGE");
         return true;
     }
 
@@ -1684,8 +1676,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         int minPeerVer = MinPeerVersion(CTxDB());
         if (pfrom->nVersion < minPeerVer) {
             // disconnect from peers older than this proto version
-            printf("partner %s using obsolete version %i; disconnecting\n",
-                   pfrom->addr.ToString().c_str(), pfrom->nVersion);
+            NLog.write(b_sev::info, "partner {} using obsolete version {}; disconnecting",
+                      pfrom->addr.ToString(), pfrom->nVersion);
             pfrom->fDisconnect = true;
             return false;
         }
@@ -1710,7 +1702,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 
         // Disconnect if we connected to ourself
         if (nNonce == nLocalHostNonce && nNonce > 1) {
-            printf("connected to self at %s, disconnecting\n", pfrom->addr.ToString().c_str());
+            NLog.write(b_sev::info, "connected to self at {}, disconnecting", pfrom->addr.ToString());
             pfrom->fDisconnect = true;
             return true;
         }
@@ -1778,9 +1770,9 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 
         pfrom->fSuccessfullyConnected = true;
 
-        printf("receive version message: version %d, blocks=%d, us=%s, them=%s, peer=%s\n",
-               pfrom->nVersion, pfrom->nStartingHeight, addrMe.ToString().c_str(),
-               addrFrom.ToString().c_str(), pfrom->addr.ToString().c_str());
+        NLog.write(b_sev::info, "receive version message: version {}, blocks={}, us={}, them={}, peer={}",
+                  pfrom->nVersion, pfrom->nStartingHeight, addrMe.ToString(), addrFrom.ToString(),
+                  pfrom->addr.ToString());
 
         cPeerBlockCounts.input(pfrom->nStartingHeight);
     }
@@ -1804,7 +1796,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
             return true;
         if (vAddr.size() > 1000) {
             pfrom->Misbehaving(20);
-            return error("message addr size() = %" PRIszu "", vAddr.size());
+            return NLog.error("message addr size() = {}", vAddr.size());
         }
 
         // Store the new addresses
@@ -1864,7 +1856,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         vRecv >> vInv;
         if (vInv.size() > MAX_INV_SZ) {
             pfrom->Misbehaving(20);
-            return error("message inv size() = %" PRIszu "", vInv.size());
+            return NLog.error("message inv size() = {}", vInv.size());
         }
 
         // find last block in inv vector
@@ -1888,8 +1880,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 
                 bool fAlreadyHave = AlreadyHave(txdb, inv, mapBlockIndex);
                 if (fDebug)
-                    printf("  got inventory: %s  %s\n", inv.ToString().c_str(),
-                           fAlreadyHave ? "have" : "new");
+                    NLog.write(b_sev::debug, "got inventory: {}  {}", inv.ToString(),
+                              fAlreadyHave ? "have" : "new");
 
                 if (!fAlreadyHave) {
                     if (!fImporting)
@@ -1904,7 +1896,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                     pfrom->PushGetBlocks(mapBlockIndex.get_unsafe(inv.hash).value_or(nullptr).get(),
                                          uint256(0));
                     if (fDebug)
-                        printf("force request: %s\n", inv.ToString().c_str());
+                        NLog.write(b_sev::debug, "force request: {}", inv.ToString());
                 }
             }
 
@@ -1918,17 +1910,17 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         vRecv >> vInv;
         if (vInv.size() > MAX_INV_SZ) {
             pfrom->Misbehaving(20);
-            return error("message getdata size() = %" PRIszu "", vInv.size());
+            return NLog.error("message getdata size() = {}", vInv.size());
         }
 
         if (fDebugNet || (vInv.size() != 1))
-            printf("received getdata (%" PRIszu " invsz)\n", vInv.size());
+            NLog.write(b_sev::debug, "received getdata ({} invsz)", vInv.size());
 
         for (const CInv& inv : vInv) {
             if (fShutdown)
                 return true;
             if (fDebugNet || (vInv.size() == 1))
-                printf("received getdata for: %s\n", inv.ToString().c_str());
+                NLog.write(b_sev::debug, "received getdata for: {}", inv.ToString());
 
             if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK) {
                 // Send block from disk
@@ -2012,13 +2004,13 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         if (pindex)
             pindex = boost::atomic_load(&pindex->pnext);
         int nLimit = 500;
-        printf("getblocks %d to %s limit %d\n", (pindex ? pindex->nHeight : -1),
-               hashStop.ToString().c_str(), nLimit);
+        NLog.write(b_sev::info, "getblocks {} to {} limit {}", (pindex ? pindex->nHeight : -1),
+                  hashStop.ToString(), nLimit);
         CTxDB txdb;
         for (; pindex; pindex = pindex->pnext) {
             if (pindex->GetBlockHash() == hashStop) {
-                printf("  getblocks stopping at %d %s\n", pindex->nHeight,
-                       pindex->GetBlockHash().ToString().c_str());
+                NLog.write(b_sev::info, "  getblocks stopping at {} {}", pindex->nHeight,
+                          pindex->GetBlockHash().ToString());
                 unsigned int nSMA = Params().StakeMinAge(txdb);
                 // ppcoin: tell downloading node about the latest block if it's
                 // without risk being rejected due to stake connection check
@@ -2032,8 +2024,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
             if (--nLimit <= 0) {
                 // When this block is requested, we'll send an inv that'll make them
                 // getblocks the next batch of inventory.
-                printf("  getblocks stopping at limit %d %s\n", pindex->nHeight,
-                       pindex->GetBlockHash().ToString().c_str());
+                NLog.write(b_sev::info, "  getblocks stopping at limit {} {}", pindex->nHeight,
+                          pindex->GetBlockHash().ToString());
                 pfrom->hashContinue = pindex->GetBlockHash();
                 break;
             }
@@ -2061,7 +2053,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 
         vector<CBlock> vHeaders;
         int            nLimit = 2000;
-        printf("getheaders %d to %s\n", (pindex ? pindex->nHeight : -1), hashStop.ToString().c_str());
+        NLog.write(b_sev::info, "getheaders {} to {}", (pindex ? pindex->nHeight : -1),
+                  hashStop.ToString());
         for (; pindex; pindex = pindex->pnext) {
             vHeaders.push_back(pindex->GetBlockHeader());
             if (--nLimit <= 0 || pindex->GetBlockHash() == hashStop)
@@ -2094,13 +2087,13 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                 uint256 hashPrev = vWorkQueue[i];
                 for (set<uint256>::iterator mi = mapOrphanTransactionsByPrev[hashPrev].begin();
                      mi != mapOrphanTransactionsByPrev[hashPrev].end(); ++mi) {
-                    const uint256& orphanTxHash = *mi;
-                    CTransaction&  orphanTx     = mapOrphanTransactions[orphanTxHash];
+                    const uint256&      orphanTxHash = *mi;
+                    const CTransaction& orphanTx     = mapOrphanTransactions[orphanTxHash];
 
                     const Result<void, TxValidationState> mempoolOrphanRes =
                         AcceptToMemoryPool(mempool, orphanTx);
                     if (mempoolOrphanRes.isOk()) {
-                        printf("   accepted orphan tx %s\n", orphanTxHash.ToString().c_str());
+                        NLog.write(b_sev::info, "   accepted orphan tx {}", orphanTxHash.ToString());
                         SyncWithWallets(txdb, tx, nullptr);
                         RelayTransaction(orphanTx);
                         mapAlreadyAskedFor.erase(CInv(MSG_TX, orphanTxHash));
@@ -2110,7 +2103,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                                TxValidationResult::TX_MISSING_INPUTS) {
                         // invalid orphan
                         vEraseQueue.push_back(orphanTxHash);
-                        printf("   removed invalid orphan tx %s\n", orphanTxHash.ToString().c_str());
+                        NLog.write(b_sev::info, "   removed invalid orphan tx {}",
+                                  orphanTxHash.ToString());
                     }
                 }
             }
@@ -2125,7 +2119,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                 INT64_C(0), GetArg("-maxorphantx", DEFAULT_MAX_ORPHAN_TRANSACTIONS));
             unsigned int nEvicted = LimitOrphanTxSize(nMaxOrphanTx);
             if (nEvicted > 0)
-                printf("mapOrphan overflow, removed %u tx\n", nEvicted);
+                NLog.write(b_sev::warn, "mapOrphan overflow, removed {} tx", nEvicted);
         }
 
         if (tx.reject) {
@@ -2143,7 +2137,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         vRecv >> block;
         uint256 hashBlock = block.GetHash();
 
-        printf("received block %s\n", hashBlock.ToString().c_str());
+        NLog.write(b_sev::info, "received block {}", hashBlock.ToString());
 
         CInv inv(MSG_BLOCK, hashBlock);
         pfrom->AddInventoryKnown(inv);
@@ -2290,8 +2284,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 // requires LOCK(cs_vRecvMsg)
 bool ProcessMessages(CNode* pfrom)
 {
-    // if (fDebug)
-    //    printf("ProcessMessages(%zu messages)\n", pfrom->vRecvMsg.size());
+    if (fDebug)
+        NLog.write(b_sev::debug, "ProcessMessages({} messages)", pfrom->vRecvMsg.size());
 
     //
     // Message format
@@ -2312,10 +2306,9 @@ bool ProcessMessages(CNode* pfrom)
         // get next message
         CNetMessage& msg = *it;
 
-        // if (fDebug)
-        //    printf("ProcessMessages(message %u msgsz, %zu bytes, complete:%s)\n",
-        //            msg.hdr.nMessageSize, msg.vRecv.size(),
-        //            msg.complete() ? "Y" : "N");
+        if (fDebug)
+            NLog.write(b_sev::debug, "ProcessMessages(message {} msgsz, {} bytes, complete:{})",
+                      msg.hdr.nMessageSize, msg.vRecv.size(), msg.complete() ? "Y" : "N");
 
         // end, if an incomplete message is found
         if (!msg.complete())
@@ -2327,7 +2320,7 @@ bool ProcessMessages(CNode* pfrom)
         // Scan for message start
         if (memcmp(msg.hdr.pchMessageStart, Params().MessageStart(),
                    CMessageHeader::MESSAGE_START_SIZE) != 0) {
-            printf("\n\nPROCESSMESSAGE: INVALID MESSAGESTART\n\n");
+            NLog.write(b_sev::err, "PROCESSMESSAGE: INVALID MESSAGESTART");
             fOk = false;
             break;
         }
@@ -2335,7 +2328,7 @@ bool ProcessMessages(CNode* pfrom)
         // Read header
         CMessageHeader& hdr = msg.hdr;
         if (!hdr.IsValid(Params().MessageStart())) {
-            printf("\n\nPROCESSMESSAGE: ERRORS IN HEADER %s\n\n\n", hdr.GetCommand().c_str());
+            NLog.write(b_sev::err, "PROCESSMESSAGE: ERRORS IN HEADER {}", hdr.GetCommand());
             continue;
         }
         string strCommand = hdr.GetCommand();
@@ -2349,8 +2342,10 @@ bool ProcessMessages(CNode* pfrom)
         unsigned int nChecksum = 0;
         memcpy(&nChecksum, &hash, sizeof(nChecksum));
         if (nChecksum != hdr.nChecksum) {
-            printf("ProcessMessages(%s, %u bytes) : CHECKSUM ERROR nChecksum=%08x hdr.nChecksum=%08x\n",
-                   strCommand.c_str(), nMessageSize, nChecksum, hdr.nChecksum);
+            NLog.write(
+                b_sev::err,
+                "ProcessMessages({}, {} bytes) : CHECKSUM ERROR nChecksum={:08x} hdr.nChecksum={:08x}",
+                strCommand, nMessageSize, nChecksum, hdr.nChecksum);
             continue;
         }
 
@@ -2368,13 +2363,14 @@ bool ProcessMessages(CNode* pfrom)
                                std::string("error parsing message"));
             if (strstr(e.what(), "end of data")) {
                 // Allow exceptions from under-length message on vRecv
-                printf("ProcessMessages(%s, %u bytes) : Exception '%s' caught, normally caused by a "
-                       "message being shorter than its stated length\n",
-                       strCommand.c_str(), nMessageSize, e.what());
+                NLog.write(b_sev::err,
+                          "ProcessMessages({}, {} bytes) : Exception '{}' caught, normally caused by a "
+                          "message being shorter than its stated length",
+                          strCommand, nMessageSize, e.what());
             } else if (strstr(e.what(), "size too large")) {
                 // Allow exceptions from over-long size
-                printf("ProcessMessages(%s, %u bytes) : Exception '%s' caught\n", strCommand.c_str(),
-                       nMessageSize, e.what());
+                NLog.write(b_sev::err, "ProcessMessages({}, {} bytes) : Exception '{}' caught",
+                          strCommand, nMessageSize, e.what());
             } else {
                 PrintExceptionContinue(&e, "ProcessMessages()");
             }
@@ -2385,7 +2381,7 @@ bool ProcessMessages(CNode* pfrom)
         }
 
         if (!fRet)
-            printf("ProcessMessage(%s, %u bytes) FAILED\n", strCommand.c_str(), nMessageSize);
+            NLog.write(b_sev::err, "ProcessMessage({}, {} bytes) FAILED", strCommand, nMessageSize);
     }
 
     // In case the connection got shut down, its receive buffer was wiped
@@ -2521,7 +2517,7 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
             auto        lock = mapBlockIndex.get_shared_lock();
             if (!AlreadyHave(txdb, inv, mapBlockIndex)) {
                 if (fDebugNet)
-                    printf("sending getdata: %s\n", inv.ToString().c_str());
+                    NLog.write(b_sev::debug, "sending getdata: {}", inv.ToString());
                 vGetData.push_back(inv);
                 if (vGetData.size() >= 1000) {
                     pto->PushMessage("getdata", vGetData);

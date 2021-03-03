@@ -2155,8 +2155,9 @@ void DownloadTxidList(NetworkType netType)
     for (uint64_t i = 0; i < (uint64_t)files.size(); i++) {
         std::cout << "Downloading test data file " << files[i] << std::endl;
         EXPECT_NO_THROW(boost::filesystem::remove(Path(TEST_ROOT_PATH) / Path("/data/" + files[i])));
-        std::string content = cURLTools::GetFileFromHTTPS("https://assets.nebl.io/testdata/" + files[i], 10000, 0);
-        fs::path    testFile = testRootPath / "data" / files[i];
+        std::string content =
+            cURLTools::GetFileFromHTTPS("https://assets.nebl.io/testdata/" + files[i], 10000, 0);
+        fs::path      testFile = testRootPath / "data" / files[i];
         std::ofstream os(testFile.string().c_str());
         os << content;
         os.close();
@@ -2178,8 +2179,9 @@ void DownloadPreMadeData(NetworkType netType)
     for (uint64_t i = 0; i < (uint64_t)files.size(); i++) {
         std::cout << "Downloading test data file " << files[i] << std::endl;
         EXPECT_NO_THROW(boost::filesystem::remove(Path(TEST_ROOT_PATH) / Path("/data/" + files[i])));
-        std::string content = cURLTools::GetFileFromHTTPS("https://assets.nebl.io/testdata/" + files[i], 10000, 0);
-        fs::path    testFile = testRootPath / "data" / files[i];
+        std::string content =
+            cURLTools::GetFileFromHTTPS("https://assets.nebl.io/testdata/" + files[i], 10000, 0);
+        fs::path      testFile = testRootPath / "data" / files[i];
         std::ofstream os(testFile.string().c_str());
         os << content;
         os.close();

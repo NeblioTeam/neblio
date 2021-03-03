@@ -2,20 +2,21 @@
 // Copyright (c) 2009-2012 The Bitcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
-#include "ui_interface.h"
-#include "init.h"
 #include "bitcoinrpc.h"
+#include "init.h"
+#include "ui_interface.h"
 
 #include <string>
 
-static int noui_ThreadSafeMessageBox(const std::string& message, const std::string& caption, int style)
+static int noui_ThreadSafeMessageBox(const std::string& message, const std::string& caption,
+                                     int /*style*/)
 {
-    printf("%s: %s\n", caption.c_str(), message.c_str());
-    fprintf(stderr, "%s: %s\n", caption.c_str(), message.c_str());
+    NLog.write(b_sev::info, "{}: {}", caption, message);
+    std::cerr << fmt::format("{}: {}", caption, message) << std::endl;
     return 4;
 }
 
-static bool noui_ThreadSafeAskFee(int64_t nFeeRequired, const std::string& strCaption)
+static bool noui_ThreadSafeAskFee(int64_t /*nFeeRequired*/, const std::string& /*strCaption*/)
 {
     return true;
 }

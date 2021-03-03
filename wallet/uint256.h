@@ -663,44 +663,46 @@ inline const uint256 operator-(const uint256& a, const uint256& b)      { return
 
 #ifdef TEST_UINT256
 
-inline int Testuint256AdHoc(std::vector<std::string> vArg)
+#include "logging/logger.h"
+
+inline int Testuint256AdHoc(std::vector<std::string> /*vArg*/)
 {
     uint256 g(0);
 
 
-    printf("%s\n", g.ToString().c_str());
-    g--;  printf("g--\n");
-    printf("%s\n", g.ToString().c_str());
-    g--;  printf("g--\n");
-    printf("%s\n", g.ToString().c_str());
-    g++;  printf("g++\n");
-    printf("%s\n", g.ToString().c_str());
-    g++;  printf("g++\n");
-    printf("%s\n", g.ToString().c_str());
-    g++;  printf("g++\n");
-    printf("%s\n", g.ToString().c_str());
-    g++;  printf("g++\n");
-    printf("%s\n", g.ToString().c_str());
+    NLog.write(b_sev::info, "{}", g.ToString());
+    g--;  NLog.write(b_sev::info, "g--");
+    NLog.write(b_sev::info, "{}", g.ToString());
+    g--;  NLog.write(b_sev::info, "g--");
+    NLog.write(b_sev::info, "{}", g.ToString());
+    g++;  NLog.write(b_sev::info, "g++");
+    NLog.write(b_sev::info, "{}", g.ToString());
+    g++;  NLog.write(b_sev::info, "g++");
+    NLog.write(b_sev::info, "{}", g.ToString());
+    g++;  NLog.write(b_sev::info, "g++");
+    NLog.write(b_sev::info, "{}", g.ToString());
+    g++;  NLog.write(b_sev::info, "g++");
+    NLog.write(b_sev::info, "{}", g.ToString());
 
 
 
     uint256 a(7);
-    printf("a=7\n");
-    printf("%s\n", a.ToString().c_str());
+    NLog.write(b_sev::info, "a=7");
+    NLog.write(b_sev::info, "{}", a.ToString());
 
     uint256 b;
-    printf("b undefined\n");
-    printf("%s\n", b.ToString().c_str());
+    NLog.write(b_sev::info, "b undefined");
+    NLog.write(b_sev::info, "{}", b.ToString());
     int c = 3;
 
     a = c;
     a.pn[3] = 15;
-    printf("%s\n", a.ToString().c_str());
+    NLog.write(b_sev::info, "{}", a.ToString());
     uint256 k(c);
 
     a = 5;
     a.pn[3] = 15;
-    printf("%s\n", a.ToString().c_str());
+    NLog.write(b_sev::info, "{}", a.ToString());
     b = 1;
     b <<= 52;
 
@@ -708,86 +710,86 @@ inline int Testuint256AdHoc(std::vector<std::string> vArg)
 
     a ^= 0x500;
 
-    printf("a %s\n", a.ToString().c_str());
+    NLog.write(b_sev::info, "a {}", a.ToString());
 
     a = a | b | (uint256)0x1000;
 
 
-    printf("a %s\n", a.ToString().c_str());
-    printf("b %s\n", b.ToString().c_str());
+    NLog.write(b_sev::info, "a {}", a.ToString());
+    NLog.write(b_sev::info, "b {}", b.ToString());
 
     a = 0xfffffffe;
     a.pn[4] = 9;
 
-    printf("%s\n", a.ToString().c_str());
+    NLog.write(b_sev::info, "{}", a.ToString());
     a++;
-    printf("%s\n", a.ToString().c_str());
+    NLog.write(b_sev::info, "{}", a.ToString());
     a++;
-    printf("%s\n", a.ToString().c_str());
+    NLog.write(b_sev::info, "{}", a.ToString());
     a++;
-    printf("%s\n", a.ToString().c_str());
+    NLog.write(b_sev::info, "{}", a.ToString());
     a++;
-    printf("%s\n", a.ToString().c_str());
+    NLog.write(b_sev::info, "{}", a.ToString());
 
     a--;
-    printf("%s\n", a.ToString().c_str());
+    NLog.write(b_sev::info, "{}", a.ToString());
     a--;
-    printf("%s\n", a.ToString().c_str());
+    NLog.write(b_sev::info, "{}", a.ToString());
     a--;
-    printf("%s\n", a.ToString().c_str());
+    NLog.write(b_sev::info, "{}", a.ToString());
     uint256 d = a--;
-    printf("%s\n", d.ToString().c_str());
-    printf("%s\n", a.ToString().c_str());
+    NLog.write(b_sev::info, "{}", d.ToString());
+    NLog.write(b_sev::info, "{}", a.ToString());
     a--;
-    printf("%s\n", a.ToString().c_str());
+    NLog.write(b_sev::info, "{}", a.ToString());
     a--;
-    printf("%s\n", a.ToString().c_str());
+    NLog.write(b_sev::info, "{}", a.ToString());
 
     d = a;
 
-    printf("%s\n", d.ToString().c_str());
-    for (int i = uint256::WIDTH-1; i >= 0; i--) printf("%08x", d.pn[i]); printf("\n");
+    NLog.write(b_sev::info, "{}", d.ToString());
+    for (int i = uint256::WIDTH-1; i >= 0; i--) NLog.write(b_sev::info, "%08x", d.pn[i]); NLog.write(b_sev::info, "");
 
     uint256 neg = d;
     neg = ~neg;
-    printf("%s\n", neg.ToString().c_str());
+    NLog.write(b_sev::info, "{}", neg.ToString());
 
 
     uint256 e = uint256("0xABCDEF123abcdef12345678909832180000011111111");
-    printf("\n");
-    printf("%s\n", e.ToString().c_str());
+    NLog.write(b_sev::info, "");
+    NLog.write(b_sev::info, "{}", e.ToString());
 
 
-    printf("\n");
+    NLog.write(b_sev::info, "");
     uint256 x1 = uint256("0xABCDEF123abcdef12345678909832180000011111111");
     uint256 x2;
-    printf("%s\n", x1.ToString().c_str());
+    NLog.write(b_sev::info, "{}", x1.ToString());
     for (int i = 0; i < 270; i += 4)
     {
         x2 = x1 << i;
-        printf("%s\n", x2.ToString().c_str());
+        NLog.write(b_sev::info, "{}", x2.ToString());
     }
 
-    printf("\n");
-    printf("%s\n", x1.ToString().c_str());
+    NLog.write(b_sev::info, "");
+    NLog.write(b_sev::info, "{}", x1.ToString());
     for (int i = 0; i < 270; i += 4)
     {
         x2 = x1;
         x2 >>= i;
-        printf("%s\n", x2.ToString().c_str());
+        NLog.write(b_sev::info, "{}", x2.ToString());
     }
 
 
     for (int i = 0; i < 100; i++)
     {
         uint256 k = (~uint256(0) >> i);
-        printf("%s\n", k.ToString().c_str());
+        NLog.write(b_sev::info, "{}", k.ToString());
     }
 
     for (int i = 0; i < 100; i++)
     {
         uint256 k = (~uint256(0) << i);
-        printf("%s\n", k.ToString().c_str());
+        NLog.write(b_sev::info, "{}", k.ToString());
     }
 
     return (0);

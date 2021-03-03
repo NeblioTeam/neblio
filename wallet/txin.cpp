@@ -11,7 +11,7 @@ bool CTxIn::IsFinal() const { return (nSequence == std::numeric_limits<unsigned 
 
 std::string CTxIn::ToStringShort() const
 {
-    return strprintf(" %s %d", prevout.hash.ToString().c_str(), prevout.n);
+    return fmt::format(" {} {}", prevout.hash.ToString().c_str(), prevout.n);
 }
 
 std::string CTxIn::ToString() const
@@ -20,11 +20,11 @@ std::string CTxIn::ToString() const
     str += "CTxIn(";
     str += prevout.ToString();
     if (prevout.IsNull())
-        str += strprintf(", coinbase %s", HexStr(scriptSig).c_str());
+        str += fmt::format(", coinbase {}", HexStr(scriptSig));
     else
-        str += strprintf(", scriptSig=%s", scriptSig.ToString().substr(0, 24).c_str());
+        str += fmt::format(", scriptSig={}", scriptSig.ToString().substr(0, 24));
     if (nSequence != std::numeric_limits<unsigned int>::max())
-        str += strprintf(", nSequence=%u", nSequence);
+        str += fmt::format(", nSequence={}", nSequence);
     str += ")";
     return str;
 }

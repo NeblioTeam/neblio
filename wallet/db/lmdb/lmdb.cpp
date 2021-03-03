@@ -1,6 +1,6 @@
 #include "lmdb.h"
 
-#include "../defaultdblogger/defaultdblogger.h"
+#include "logging/logger.h"
 #include "stringmanip.h"
 #include "ui_interface.h"
 #include <boost/filesystem.hpp>
@@ -116,24 +116,24 @@ KeyAsString(const T& /*t*/, const std::string& keyStr)
     }
 }
 
-void lmdb_db_open(ILog* logger, MDB_txn* txn, const char* name, int flags, MDB_dbi& dbi,
+void lmdb_db_open(MDB_txn* txn, const char* name, int flags, MDB_dbi& dbi,
                   const std::string& error_string)
 {
     if (int res = mdb_dbi_open(txn, name, flags, &dbi)) {
-        logger->logWrite("Error opening lmdb database. Error code: " + std::to_string(res) +
-                         "; and error: " + std::string(mdb_strerror(res)));
+        NLog.write(b_sev::info, "Error opening lmdb database. Error code: " + std::to_string(res) +
+                                    "; and error: " + std::string(mdb_strerror(res)));
         throw std::runtime_error(error_string + ": " + std::to_string(res));
     }
 }
 
-void lmdb_resized(ILog* logger, MDB_env* env)
+void lmdb_resized(MDB_env* env)
 {
-    logger->logWrite(std::string(__func__));
+    NLog.write(b_sev::info, std::string(__func__));
     LMDBTransaction::prevent_new_txns();
     BOOST_SCOPE_EXIT(void) { LMDBTransaction::allow_new_txns(); }
     BOOST_SCOPE_EXIT_END
 
-    logger->logWrite("LMDB map resize detected.\n");
+    NLog.write(b_sev::info, "LMDB map resize detected.");
 
     MDB_envinfo mei;
 
@@ -144,7 +144,7 @@ void lmdb_resized(ILog* logger, MDB_env* env)
 
     const int result = mdb_env_set_mapsize(env, 0);
     if (result)
-        logger->logWrite("Failed to set new mapsize: " + std::to_string(result));
+        NLog.write(b_sev::err, "Failed to set new mapsize: " + std::to_string(result));
 
     mdb_env_info(env, &mei);
     const uint64_t new_mapsize = mei.me_mapsize;
@@ -153,24 +153,24 @@ void lmdb_resized(ILog* logger, MDB_env* env)
     ss << "LMDB Mapsize increased."
        << "  Old: " << old / (1024 * 1024) << " MiB"
        << ", New: " << new_mapsize / (1024 * 1024) << " MiB";
-    logger->logWrite(ss.str());
+    NLog.write(b_sev::info, ss.str());
 }
 
-int lmdb_txn_begin(ILog* logger, MDB_env* env, MDB_txn* parent, unsigned int flags, MDB_txn** txn)
+int lmdb_txn_begin(MDB_env* env, MDB_txn* parent, unsigned int flags, MDB_txn** txn)
 {
     int res = mdb_txn_begin(env, parent, flags, txn);
     if (res == MDB_MAP_RESIZED) {
-        lmdb_resized(logger, env);
+        lmdb_resized(env);
         res = mdb_txn_begin(env, parent, flags, txn);
     }
     return res;
 }
 
 // threshold_size is used for batch transactions
-static bool need_resize(ILog* logger, uint64_t threshold_size = 0)
+static bool need_resize(uint64_t threshold_size = 0)
 {
 #ifdef DEEP_LMDB_LOGGING
-    logger->logWrite("LMDB: " + std::string(__func__));
+    NLog.write("LMDB: " + std::string(__func__));
 #endif
 #if defined(ENABLE_AUTO_RESIZE)
     MDB_envinfo mei;
@@ -188,28 +188,28 @@ static bool need_resize(ILog* logger, uint64_t threshold_size = 0)
     const uint64_t size_used = mst.ms_psize * mei.me_last_pgno;
 
 #ifdef DEEP_LMDB_LOGGING
-    logger->logWrite("Checking if resize is needed.");
-    logger->logWrite("DB map size:     " + std::to_string(mei.me_mapsize));
-    logger->logWrite("Space used:      " + std::to_string(size_used));
-    logger->logWrite("Space remaining: " + std::to_string(mei.me_mapsize - size_used));
-    logger->logWrite("Size threshold:  " + std::to_string(threshold_size));
+    NLog.write("Checking if resize is needed.");
+    NLog.write("DB map size:     " + std::to_string(mei.me_mapsize));
+    NLog.write("Space used:      " + std::to_string(size_used));
+    NLog.write("Space remaining: " + std::to_string(mei.me_mapsize - size_used));
+    NLog.write("Size threshold:  " + std::to_string(threshold_size));
 #endif
     const float resize_percent = DB_RESIZE_PERCENT;
 #ifdef DEEP_LMDB_LOGGING
-    logger->logWrite("Percent used: %.04f  Percent threshold: %.04f\n",
-                     ((double)size_used / mei.me_mapsize), resize_percent);
+    NLog.write("Percent used: %.04f  Percent threshold: %.04f", ((double)size_used / mei.me_mapsize),
+               resize_percent);
 #endif
 
     if (threshold_size > 0) {
         if (mei.me_mapsize - size_used < threshold_size) {
-            logger->logWrite("Threshold met (size-based)");
+            NLog.write(b_sev::warn, "Threshold met (size-based)");
             return true;
         } else
             return false;
     }
 
     if ((double)size_used / mei.me_mapsize > resize_percent) {
-        logger->logWrite("Mapsize threshold met (percent-based)");
+        NLog.write(b_sev::warn, "Mapsize threshold met (percent-based)");
         return true;
     }
     return false;
@@ -225,12 +225,12 @@ void LMDB::openDatabase(const boost::filesystem::path& directory, bool clearDBBe
         clearDBData();
     }
 
-    logger->logWrite("Opening the blockchain database...\n");
+    NLog.write(b_sev::info, "Opening the blockchain database...");
     uiInterface.InitMessage("Opening the blockchain database...");
 
     // open the database in the traditional way (whether quicksync succeeded or not)
     boost::filesystem::create_directories(directory);
-    logger->logWrite("Opening lmdb in " + directory.string());
+    NLog.write(b_sev::info, "Opening lmdb in " + directory.string());
     MDB_env* envPtr = nullptr;
     if (const int rc = mdb_env_create(&envPtr)) {
         throw std::runtime_error("Error creating lmdb environment: " + std::to_string(rc) +
@@ -263,11 +263,11 @@ void LMDB::openDatabase(const boost::filesystem::path& directory, bool clearDBBe
 
         mdb_env_info(dbEnv.get(), &mei);
         currMapSize = (double)mei.me_mapsize;
-        logger->logWrite("LMDB memory map size: " + std::to_string(currMapSize));
+        NLog.write(b_sev::info, "LMDB memory map size: " + std::to_string(currMapSize));
     }
 
-    if (need_resize(logger)) {
-        logger->logWrite("LMDB memory map needs to be resized, doing that now.");
+    if (need_resize()) {
+        NLog.write(b_sev::info, "LMDB memory map needs to be resized, doing that now.");
         doResize();
     }
 
@@ -289,20 +289,20 @@ void LMDB::openDatabase(const boost::filesystem::path& directory, bool clearDBBe
     glob_lmdb_db_pointers->db_addrsVsPubKeys = DbSmartPtrType(new MDB_dbi, dbDeleter);
 
     // MDB_CREATE: Create the named database if it doesn't exist.
-    lmdb_db_open(logger, txn, LMDB_MAINDB.c_str(), MDB_CREATE, *glob_lmdb_db_pointers->db_main,
+    lmdb_db_open(txn, LMDB_MAINDB.c_str(), MDB_CREATE, *glob_lmdb_db_pointers->db_main,
                  "Failed to open db handle for db_main");
-    lmdb_db_open(logger, txn, LMDB_BLOCKINDEXDB.c_str(), MDB_CREATE,
-                 *glob_lmdb_db_pointers->db_blockIndex, "Failed to open db handle for db_blockIndex");
-    lmdb_db_open(logger, txn, LMDB_BLOCKSDB.c_str(), MDB_CREATE, *glob_lmdb_db_pointers->db_blocks,
+    lmdb_db_open(txn, LMDB_BLOCKINDEXDB.c_str(), MDB_CREATE, *glob_lmdb_db_pointers->db_blockIndex,
+                 "Failed to open db handle for db_blockIndex");
+    lmdb_db_open(txn, LMDB_BLOCKSDB.c_str(), MDB_CREATE, *glob_lmdb_db_pointers->db_blocks,
                  "Failed to open db handle for db_blocks");
-    lmdb_db_open(logger, txn, LMDB_TXDB.c_str(), MDB_CREATE, *glob_lmdb_db_pointers->db_tx,
+    lmdb_db_open(txn, LMDB_TXDB.c_str(), MDB_CREATE, *glob_lmdb_db_pointers->db_tx,
                  "Failed to open db handle for glob_db_tx");
-    lmdb_db_open(logger, txn, LMDB_NTP1TXDB.c_str(), MDB_CREATE, *glob_lmdb_db_pointers->db_ntp1Tx,
+    lmdb_db_open(txn, LMDB_NTP1TXDB.c_str(), MDB_CREATE, *glob_lmdb_db_pointers->db_ntp1Tx,
                  "Failed to open db handle for glob_db_ntp1Tx");
-    lmdb_db_open(logger, txn, LMDB_NTP1TOKENNAMESDB.c_str(), MDB_CREATE | MDB_DUPSORT,
+    lmdb_db_open(txn, LMDB_NTP1TOKENNAMESDB.c_str(), MDB_CREATE | MDB_DUPSORT,
                  *glob_lmdb_db_pointers->db_ntp1tokenNames,
                  "Failed to open db handle for glob_db_ntp1Tx");
-    lmdb_db_open(logger, txn, LMDB_ADDRSVSPUBKEYSDB.c_str(), MDB_CREATE,
+    lmdb_db_open(txn, LMDB_ADDRSVSPUBKEYSDB.c_str(), MDB_CREATE,
                  *glob_lmdb_db_pointers->db_addrsVsPubKeys,
                  "Failed to open db handle for glob_db_ntp1Tx");
 
@@ -333,13 +333,13 @@ void LMDB::openDatabase(const boost::filesystem::path& directory, bool clearDBBe
 
     boost::atomic_thread_fence(boost::memory_order_seq_cst);
 
-    logger->logWrite("Done opening the database");
+    NLog.write(b_sev::info, "Done opening the database");
     uiInterface.InitMessage("Done opening the database");
 }
 
 void LMDB::doResize(uint64_t increase_size)
 {
-    logger->logWrite("LMDB::" + std::string(__func__));
+    NLog.write(b_sev::info, std::string(FUNCTIONSIG));
 
     if (increase_size != 0 && increase_size < MIN_MAP_SIZE_INCREASE) {
         // protect from having very small incremental changes in the DB size, which is not efficient
@@ -382,10 +382,10 @@ void LMDB::doResize(uint64_t increase_size)
 
     new_mapsize += (new_mapsize % mst.ms_psize);
 #ifdef DEEP_LMDB_LOGGING
-    logger->logWrite("Requesting to increase map size by: %zu\n", increase_size);
-    logger->logWrite("Current map size                  : %zu\n", mei.me_mapsize);
-    logger->logWrite("New size                          : %zu\n", new_mapsize);
-    logger->logWrite("System page size                  : %u\n", mst.ms_psize);
+    NLog.write("Requesting to increase map size by: %zu", increase_size);
+    NLog.write("Current map size                  : %zu", mei.me_mapsize);
+    NLog.write("New size                          : %zu", new_mapsize);
+    NLog.write("System page size                  : %u", mst.ms_psize);
 #endif
 
     LMDBTransaction::prevent_new_txns();
@@ -407,11 +407,10 @@ void LMDB::doResize(uint64_t increase_size)
     ss << "LMDB Mapsize increased."
        << "  Old: " << mei.me_mapsize / (1024 * 1024) << " MiB"
        << ", New: " << new_mapsize / (1024 * 1024) << " MiB";
-    logger->logWrite(ss.str());
+    NLog.write(b_sev::info, ss.str());
 }
 
-LMDB::LMDB(const boost::filesystem::path* const dbdir, ILog* logger, bool startNewDatabase)
-    : dbdir(dbdir), logger(logger)
+LMDB::LMDB(const boost::filesystem::path* const dbdir, bool startNewDatabase) : dbdir(dbdir)
 {
     assert(dbdir);
 
@@ -427,10 +426,10 @@ boost::optional<std::string> LMDB::read(IDB::Index dbindex, const std::string& k
     LMDBTransaction localTxn(false);
     if (!activeBatch) {
         localTxn = LMDBTransaction();
-        if (auto res = lmdb_txn_begin(logger, dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
-            logger->logWrite("Failed to begin transaction at read with error code " +
-                             std::to_string(res) +
-                             "; and error code: " + std::string(mdb_strerror(res)));
+        if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
+            NLog.write(b_sev::err, "Failed to begin transaction at read with error code " +
+                                       std::to_string(res) +
+                                       "; and error code: " + std::string(mdb_strerror(res)));
         }
     }
     // only one of them should be active
@@ -449,10 +448,11 @@ boost::optional<std::string> LMDB::read(IDB::Index dbindex, const std::string& k
     if (auto ret = mdb_get((!activeBatch ? localTxn : *activeBatch), *dbPtr, &kS, &vS)) {
         std::string dbgKey = KeyAsString(key, key);
         if (ret == MDB_NOTFOUND) {
-            logger->logWrite("Failed to read lmdb key " + dbgKey + " as it doesn't exist");
+            NLog.write(b_sev::debug, "Failed to read lmdb key " + dbgKey + " as it doesn't exist");
         } else {
-            logger->logWrite("Failed to read lmdb key " + dbgKey + " with an unknown error of code " +
-                             std::to_string(ret) + "; and error: " + std::string(mdb_strerror(ret)));
+            NLog.write(b_sev::err, "Failed to read lmdb key " + dbgKey +
+                                       " with an unknown error of code " + std::to_string(ret) +
+                                       "; and error: " + std::string(mdb_strerror(ret)));
         }
         return boost::none;
     }
@@ -476,12 +476,12 @@ boost::optional<std::vector<std::string>> LMDB::readMultiple(IDB::Index         
     LMDBTransaction localTxn(false);
     if (!activeBatch) {
         localTxn = LMDBTransaction();
-        if (auto res = lmdb_txn_begin(logger, dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
-            logger->logWrite("readMultiple: Failed to begin transaction at read with error code " +
-                             std::to_string(res) +
-                             "; and error "
-                             "code: " +
-                             std::string(mdb_strerror(res)));
+        if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
+            NLog.write(b_sev::err, "readMultiple: Failed to begin transaction at read with error code " +
+                                       std::to_string(res) +
+                                       "; and error "
+                                       "code: " +
+                                       std::string(mdb_strerror(res)));
         }
     }
     // only one of them should be active
@@ -499,8 +499,8 @@ boost::optional<std::vector<std::string>> LMDB::readMultiple(IDB::Index         
     MDB_val     vS           = {0, nullptr};
     MDB_cursor* cursorRawPtr = nullptr;
     if (auto rc = mdb_cursor_open((!activeBatch ? localTxn : *activeBatch), *dbPtr, &cursorRawPtr)) {
-        logger->logWrite("readMultiple: Failed to open lmdb cursor with error code " +
-                         std::to_string(rc) + "; and error: " + std::string(mdb_strerror(rc)));
+        NLog.write(b_sev::err, "readMultiple: Failed to open lmdb cursor with error code " +
+                                   std::to_string(rc) + "; and error: " + std::string(mdb_strerror(rc)));
         return boost::none;
     }
 
@@ -516,9 +516,10 @@ boost::optional<std::vector<std::string>> LMDB::readMultiple(IDB::Index         
     if (itemRes) {
         if (itemRes != 0 && itemRes != MDB_NOTFOUND) {
             const std::string dbgKey = KeyAsString(key, key);
-            logger->logWrite("readMultiple: Cursor with key " + dbgKey +
-                             " does not exist; with an error of code " + std::to_string(itemRes) +
-                             "; and error: " + std::string(mdb_strerror(itemRes)));
+            NLog.write(b_sev::err, "readMultiple: Cursor with key " + dbgKey +
+                                       " does not exist; with an error of code " +
+                                       std::to_string(itemRes) +
+                                       "; and error: " + std::string(mdb_strerror(itemRes)));
             return boost::none;
         }
     }
@@ -551,10 +552,10 @@ boost::optional<std::map<std::string, std::vector<std::string>>> LMDB::readAll(I
     LMDBTransaction localTxn(false);
     if (!activeBatch) {
         localTxn = LMDBTransaction();
-        if (auto res = lmdb_txn_begin(logger, dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
-            logger->logWrite("LMDB::readAll: Failed to begin transaction at read with error code " +
-                             std::to_string(res) +
-                             "; and error code: " + std::string(mdb_strerror(res)));
+        if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
+            NLog.write(b_sev::err,
+                       "LMDB::readAll: Failed to begin transaction at read with error code " +
+                           std::to_string(res) + "; and error code: " + std::string(mdb_strerror(res)));
         }
     }
     // only one of them should be active
@@ -572,8 +573,8 @@ boost::optional<std::map<std::string, std::vector<std::string>>> LMDB::readAll(I
     MDB_val     vS           = {0, nullptr};
     MDB_cursor* cursorRawPtr = nullptr;
     if (auto rc = mdb_cursor_open((!activeBatch ? localTxn : *activeBatch), *dbPtr, &cursorRawPtr)) {
-        logger->logWrite("LMDB::readAll: Failed to open lmdb cursor with error code " +
-                         std::to_string(rc) + "; and error: " + std::string(mdb_strerror(rc)));
+        NLog.write(b_sev::err, "LMDB::readAll: Failed to open lmdb cursor with error code " +
+                                   std::to_string(rc) + "; and error: " + std::string(mdb_strerror(rc)));
         return boost::none;
     }
 
@@ -588,10 +589,11 @@ boost::optional<std::map<std::string, std::vector<std::string>>> LMDB::readAll(I
     itemRes = mdb_cursor_get(cursorPtr.get(), &kS, &vS, MDB_FIRST);
     if (itemRes) {
         if (itemRes != 0 && itemRes != MDB_NOTFOUND) {
-            logger->logWrite(
+            NLog.write(
+                b_sev::err,
                 "LMDB::readAll: Cursor does not exist while reading all entries; with an error of "
                 "code " +
-                std::to_string(itemRes) + "; and error: " + std::string(mdb_strerror(itemRes)));
+                    std::to_string(itemRes) + "; and error: " + std::string(mdb_strerror(itemRes)));
             return boost::none;
         }
     }
@@ -622,10 +624,10 @@ boost::optional<std::map<std::string, std::string>> LMDB::readAllUnique(IDB::Ind
     LMDBTransaction localTxn(false);
     if (!activeBatch) {
         localTxn = LMDBTransaction();
-        if (auto res = lmdb_txn_begin(logger, dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
-            logger->logWrite("LMDB::readAll: Failed to begin transaction at read with error code " +
-                             std::to_string(res) +
-                             "; and error code: " + std::string(mdb_strerror(res)));
+        if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
+            NLog.write(b_sev::err,
+                       "LMDB::readAll: Failed to begin transaction at read with error code " +
+                           std::to_string(res) + "; and error code: " + std::string(mdb_strerror(res)));
         }
     }
     // only one of them should be active
@@ -643,8 +645,8 @@ boost::optional<std::map<std::string, std::string>> LMDB::readAllUnique(IDB::Ind
     MDB_val     vS           = {0, nullptr};
     MDB_cursor* cursorRawPtr = nullptr;
     if (auto rc = mdb_cursor_open((!activeBatch ? localTxn : *activeBatch), *dbPtr, &cursorRawPtr)) {
-        logger->logWrite("LMDB::readAll: Failed to open lmdb cursor with error code " +
-                         std::to_string(rc) + "; and error: " + std::string(mdb_strerror(rc)));
+        NLog.write(b_sev::err, "LMDB::readAll: Failed to open lmdb cursor with error code " +
+                                   std::to_string(rc) + "; and error: " + std::string(mdb_strerror(rc)));
         return boost::none;
     }
 
@@ -659,10 +661,11 @@ boost::optional<std::map<std::string, std::string>> LMDB::readAllUnique(IDB::Ind
     itemRes = mdb_cursor_get(cursorPtr.get(), &kS, &vS, MDB_FIRST);
     if (itemRes) {
         if (itemRes != 0 && itemRes != MDB_NOTFOUND) {
-            logger->logWrite(
+            NLog.write(
+                b_sev::err,
                 "LMDB::readAll: Cursor does not exist while reading all entries; with an error of "
                 "code " +
-                std::to_string(itemRes) + "; and error: " + std::string(mdb_strerror(itemRes)));
+                    std::to_string(itemRes) + "; and error: " + std::string(mdb_strerror(itemRes)));
             return boost::none;
         }
     }
@@ -691,17 +694,18 @@ bool LMDB::write(IDB::Index dbindex, const std::string& key, const std::string& 
     const MDB_dbi* dbPtr = getDbByIndex(dbindex);
 
     // you can't resize the db when a tx is active
-    if (!activeBatch && need_resize(logger)) {
-        logger->logWrite("LMDB memory map needs to be resized, doing that now.");
+    if (!activeBatch && need_resize()) {
+        NLog.write(b_sev::info, "LMDB memory map needs to be resized, doing that now.");
         doResize();
     }
 
     LMDBTransaction localTxn(false);
     if (!activeBatch) {
         localTxn = LMDBTransaction();
-        if (auto res = lmdb_txn_begin(logger, dbEnv.get(), nullptr, 0, localTxn)) {
-            logger->logWrite("Failed to begin transaction at read with error code " +
-                             std::to_string(res) + "; and error: " + std::string(mdb_strerror(res)));
+        if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, 0, localTxn)) {
+            NLog.write(b_sev::err, "Failed to begin transaction at read with error code " +
+                                       std::to_string(res) +
+                                       "; and error: " + std::string(mdb_strerror(res)));
         }
     }
 
@@ -722,16 +726,17 @@ bool LMDB::write(IDB::Index dbindex, const std::string& key, const std::string& 
     if (auto ret = mdb_put((!activeBatch ? localTxn : *activeBatch), *dbPtr, &kS, &vS, 0)) {
         const std::string dbgKey = KeyAsString(key, key);
         if (ret == MDB_MAP_FULL) {
-            if (need_resize(logger)) {
-                logger->logWrite(
-                    "Failed to write and LMDB memory map was found to need to be resized, doing "
-                    "that now.");
+            if (need_resize()) {
+                NLog.write(b_sev::err,
+                           "Failed to write and LMDB memory map was found to need to be resized, doing "
+                           "that now.");
                 doResize();
             }
-            logger->logWrite("Failed to write key " + dbgKey + " with lmdb, MDB_MAP_FULL");
+            NLog.write(b_sev::err, "Failed to write key " + dbgKey + " with lmdb, MDB_MAP_FULL");
         } else {
-            logger->logWrite("Failed to write key " + dbgKey + " with lmdb; Code " +
-                             std::to_string(ret) + "; Error: " + std::string(mdb_strerror(ret)));
+            NLog.write(b_sev::err, "Failed to write key " + dbgKey + " with lmdb; Code " +
+                                       std::to_string(ret) +
+                                       "; Error: " + std::string(mdb_strerror(ret)));
         }
         return false;
     }
@@ -748,9 +753,10 @@ bool LMDB::erase(IDB::Index dbindex, const std::string& key)
     LMDBTransaction localTxn(false);
     if (!activeBatch) {
         localTxn = LMDBTransaction();
-        if (auto res = lmdb_txn_begin(logger, dbEnv.get(), nullptr, 0, localTxn)) {
-            logger->logWrite("Failed to begin transaction at read with error code " +
-                             std::to_string(res) + "; and error: " + std::string(mdb_strerror(res)));
+        if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, 0, localTxn)) {
+            NLog.write(b_sev::err, "Failed to begin transaction at read with error code " +
+                                       std::to_string(res) +
+                                       "; and error: " + std::string(mdb_strerror(res)));
         }
     }
 
@@ -770,8 +776,9 @@ bool LMDB::erase(IDB::Index dbindex, const std::string& key)
 
     if (auto ret = mdb_del((!activeBatch ? localTxn : *activeBatch), *dbPtr, &kS, &vS)) {
         const std::string dbgKey = KeyAsString(key, key);
-        logger->logWrite("Failed to delete entry with key " + dbgKey + " with lmdb; Code " +
-                         std::to_string(ret) + "; Error message: " + std::string(mdb_strerror(ret)));
+        NLog.write(b_sev::err, "Failed to delete entry with key " + dbgKey + " with lmdb; Code " +
+                                   std::to_string(ret) +
+                                   "; Error message: " + std::string(mdb_strerror(ret)));
         return false;
     }
 
@@ -788,9 +795,10 @@ bool LMDB::eraseAll(IDB::Index dbindex, const std::string& key)
     LMDBTransaction localTxn(false);
     if (!activeBatch) {
         localTxn = LMDBTransaction();
-        if (auto res = lmdb_txn_begin(logger, dbEnv.get(), nullptr, 0, localTxn)) {
-            logger->logWrite("Failed to begin transaction at read with error code " +
-                             std::to_string(res) + "; and error: " + std::string(mdb_strerror(res)));
+        if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, 0, localTxn)) {
+            NLog.write(b_sev::err, "Failed to begin transaction at read with error code " +
+                                       std::to_string(res) +
+                                       "; and error: " + std::string(mdb_strerror(res)));
         }
     }
 
@@ -810,8 +818,8 @@ bool LMDB::eraseAll(IDB::Index dbindex, const std::string& key)
 
     MDB_cursor* cursorRawPtr = nullptr;
     if (auto rc = mdb_cursor_open((!activeBatch ? localTxn : *activeBatch), *dbPtr, &cursorRawPtr)) {
-        logger->logWrite("EraseDup: Failed to open lmdb cursor with error code " + std::to_string(rc) +
-                         "; and error: " + std::string(mdb_strerror(rc)));
+        NLog.write(b_sev::err, "EraseDup: Failed to open lmdb cursor with error code " +
+                                   std::to_string(rc) + "; and error: " + std::string(mdb_strerror(rc)));
         return false;
     }
 
@@ -824,17 +832,18 @@ bool LMDB::eraseAll(IDB::Index dbindex, const std::string& key)
     if (itemRes) {
         std::string dbgKey = KeyAsString(key, key);
         if (itemRes != 0) {
-            logger->logWrite("Failed to erase lmdb key " + dbgKey + " with an error of code " +
-                             std::to_string(itemRes) +
-                             "; and error: " + std::string(mdb_strerror(itemRes)));
+            NLog.write(b_sev::err, "Failed to erase lmdb key " + dbgKey + " with an error of code " +
+                                       std::to_string(itemRes) +
+                                       "; and error: " + std::string(mdb_strerror(itemRes)));
         }
         return false;
     }
 
     if (auto ret = mdb_cursor_del(cursorPtr.get(), MDB_NODUPDATA)) {
         std::string dbgKey = KeyAsString(key, key);
-        logger->logWrite("Failed to delete entry with key " + dbgKey + " with lmdb; Code " +
-                         std::to_string(ret) + "; Error message: " + std::string(mdb_strerror(ret)));
+        NLog.write(b_sev::err, "Failed to delete entry with key " + dbgKey + " with lmdb; Code " +
+                                   std::to_string(ret) +
+                                   "; Error message: " + std::string(mdb_strerror(ret)));
         return false;
     }
 
@@ -852,9 +861,10 @@ bool LMDB::exists(IDB::Index dbindex, const std::string& key) const
     LMDBTransaction localTxn(false);
     if (!activeBatch) {
         localTxn = LMDBTransaction();
-        if (auto res = lmdb_txn_begin(logger, dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
-            logger->logWrite("Failed to begin transaction at read with error code " +
-                             std::to_string(res) + "; and error: " + std::string(mdb_strerror(res)));
+        if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, MDB_RDONLY, localTxn)) {
+            NLog.write(b_sev::err, "Failed to begin transaction at read with error code " +
+                                       std::to_string(res) +
+                                       "; and error: " + std::string(mdb_strerror(res)));
         }
     }
 
@@ -877,9 +887,9 @@ bool LMDB::exists(IDB::Index dbindex, const std::string& key) const
         if (ret == MDB_NOTFOUND) {
             return false;
         } else {
-            logger->logWrite("Failed to check whether key " + dbgKey +
-                             " exists with an unknown error of code " + std::to_string(ret) +
-                             "; and error: " + std::string(mdb_strerror(ret)));
+            NLog.write(b_sev::info, "Failed to check whether key " + dbgKey +
+                                        " exists with an unknown error of code " + std::to_string(ret) +
+                                        "; and error: " + std::string(mdb_strerror(ret)));
         }
         return false;
     } else {
@@ -890,15 +900,17 @@ bool LMDB::exists(IDB::Index dbindex, const std::string& key) const
 bool LMDB::beginDBTransaction(std::size_t expectedDataSize)
 {
     assert(activeBatch == nullptr);
-    if (need_resize(logger, expectedDataSize)) {
-        logger->logWrite("LMDB memory map needs to be resized, doing that now.");
+    if (need_resize(expectedDataSize)) {
+        NLog.write(b_sev::info, "LMDB memory map needs to be resized, doing that now.");
         doResize(expectedDataSize);
     }
     activeBatch = std::unique_ptr<LMDBTransaction>(new LMDBTransaction);
-    if (auto res = lmdb_txn_begin(logger, dbEnv.get(), nullptr, 0, *activeBatch)) {
-        logger->logWrite("Failed to begin transaction at read with error code " + std::to_string(res) +
-                         "; with error: " + std::string(mdb_strerror(res)));
+    if (auto res = lmdb_txn_begin(dbEnv.get(), nullptr, 0, *activeBatch)) {
+        NLog.write(b_sev::err, "Failed to begin custom transaction with error code " +
+                                   std::to_string(res) +
+                                   "; with error: " + std::string(mdb_strerror(res)));
         activeBatch.reset();
+        return false;
     }
     return true;
 }

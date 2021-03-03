@@ -50,13 +50,9 @@ class path;
 }
 } // namespace boost
 
-class ILog;
-
 class LMDB : public IDB
 {
     const boost::filesystem::path* const dbdir;
-
-    ILog* const logger;
 
     __lmdb_db_pointers* dbPointers = nullptr;
 
@@ -75,7 +71,7 @@ class LMDB : public IDB
     std::unique_ptr<LMDBTransaction> activeBatch;
 
 public:
-    LMDB(const boost::filesystem::path* const dbdir, ILog* logger, bool startNewDatabase = false);
+    LMDB(const boost::filesystem::path* const dbdir, bool startNewDatabase = false);
 
     void clearDBData();
 

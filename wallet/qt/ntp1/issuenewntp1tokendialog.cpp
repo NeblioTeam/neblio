@@ -430,7 +430,8 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
             NTP1Transaction ntp1tx;
             ntp1tx.readNTP1DataFromTx(wtx, inputsTxs);
         } catch (std::exception& ex) {
-            printf("An invalid NTP1 transaction was created; an exception was thrown: %s\n", ex.what());
+            NLog.write(b_sev::err, "An invalid NTP1 transaction was created; an exception was thrown: {}",
+                      ex.what());
             throw std::runtime_error(
                 "Unable to create the transaction. The transaction created would result in an invalid "
                 "transaction. Please report your transaction details to the Neblio team. The "

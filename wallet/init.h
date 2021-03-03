@@ -15,6 +15,7 @@ void                            StartShutdown();
 void                            Shutdown(void* parg);
 bool                            AppInit2();
 std::string                     HelpMessage();
+void                            InitLogging();
 
 extern LockedVar<boost::signals2::signal<void()>> StopRPCRequests;
 

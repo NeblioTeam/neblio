@@ -527,15 +527,15 @@ std::unique_ptr<CChainParams> CreateChainParams(NetworkType networkType)
     case NetworkType::Regtest:
         return std::unique_ptr<CChainParams>(new CRegTestParams());
     }
-    throw std::runtime_error(strprintf("%s: Unknown chain %s.", std::string(__func__).c_str(),
-                                       GetChainName(networkType).c_str()));
+    throw std::runtime_error(
+        fmt::format("{}: Unknown chain {}.", FUNCTIONSIG, GetChainName(networkType)));
 }
 
 void SelectParams(NetworkType networkType)
 {
     SelectBaseParams(networkType);
     globalChainParams = CreateChainParams(networkType);
-    printf("Selected network/chain type: %s\n", GetChainName(networkType).c_str());
+    NLog.write(b_sev::info, "Selected network/chain type: {}", GetChainName(networkType));
 }
 
 const CBlock& CChainParams::GenesisBlock() const

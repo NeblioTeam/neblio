@@ -83,9 +83,8 @@ std::string GetChainName(NetworkType networkType)
     case NetworkType::Regtest:
         return CBaseChainParams::REGTEST;
     }
-    throw std::runtime_error(strprintf("%s: Unknown chain with id %" PRIi32 ".",
-                                       std::string(__func__).c_str(),
-                                       static_cast<int32_t>(networkType)));
+    throw std::runtime_error(
+        fmt::format("{}: Unknown chain with id {}.", FUNCTIONSIG, static_cast<int32_t>(networkType)));
 }
 
 std::unique_ptr<CBaseChainParams> CreateBaseChainParams(NetworkType networkType)
@@ -98,8 +97,8 @@ std::unique_ptr<CBaseChainParams> CreateBaseChainParams(NetworkType networkType)
     case NetworkType::Regtest:
         return std::unique_ptr<CBaseChainParams>(new CBaseRegTestParams());
     }
-    throw std::runtime_error(strprintf("%s: Unknown chain %s.", std::string(__func__).c_str(),
-                                       GetChainName(networkType).c_str()));
+    throw std::runtime_error(
+        fmt::format("{}: Unknown chain {}.", FUNCTIONSIG, GetChainName(networkType)));
 }
 
 void SelectBaseParams(NetworkType networkType)

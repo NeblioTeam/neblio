@@ -161,7 +161,7 @@ void RandAddSeedPerfmon()
     if (ret == ERROR_SUCCESS) {
         RAND_add(pdata, nSize, nSize / 100.0);
         memset(pdata, 0, nSize);
-        printf("RandAddSeed() %lu bytes\n", nSize);
+        NLog.write(b_sev::err, "RandAddSeed() {} bytes", nSize);
     }
 #endif
 }
@@ -190,144 +190,6 @@ uint256 GetRandHash()
     return hash;
 }
 
-inline int OutputDebugStringF(const char* pszFormat, ...)
-{
-    int ret = 0;
-    if (fPrintToConsole) {
-        // print to console
-        va_list arg_ptr;
-        va_start(arg_ptr, pszFormat);
-        ret = vprintf(pszFormat, arg_ptr);
-        va_end(arg_ptr);
-    } else if (!fPrintToDebugger) {
-        // print to debug.log
-        static FILE* fileout = NULL;
-
-        if (!fileout) {
-            boost::filesystem::path pathDebug = GetDataDir() / "debug.log";
-            fileout                           = fopen(pathDebug.string().c_str(), "a");
-            if (fileout)
-                setbuf(fileout, NULL); // unbuffered
-        }
-        if (fileout) {
-            static bool fStartedNewLine = true;
-
-            // This routine may be called by global destructors during shutdown.
-            // Since the order of destruction of static/global objects is undefined,
-            // allocate mutexDebugLog on the heap the first time this routine
-            // is called to avoid crashes during shutdown.
-            static boost::mutex* mutexDebugLog = NULL;
-            if (mutexDebugLog == NULL)
-                mutexDebugLog = new boost::mutex();
-            boost::mutex::scoped_lock scoped_lock(*mutexDebugLog);
-
-            // reopen the log file, if requested
-            if (fReopenDebugLog) {
-                fReopenDebugLog                   = false;
-                boost::filesystem::path pathDebug = GetDataDir() / "debug.log";
-                if (freopen(pathDebug.string().c_str(), "a", fileout) != NULL)
-                    setbuf(fileout, NULL); // unbuffered
-            }
-
-            // Debug print useful for profiling
-            if (fLogTimestamps && fStartedNewLine)
-                fprintf(fileout, "%s ", DateTimeStrFormat("%x %H:%M:%S", GetTime()).c_str());
-            if (pszFormat[strlen(pszFormat) - 1] == '\n')
-                fStartedNewLine = true;
-            else
-                fStartedNewLine = false;
-
-            va_list arg_ptr;
-            va_start(arg_ptr, pszFormat);
-            ret = vfprintf(fileout, pszFormat, arg_ptr);
-            va_end(arg_ptr);
-        }
-    }
-
-#ifdef WIN32
-    if (fPrintToDebugger) {
-        static CCriticalSection cs_OutputDebugStringF;
-
-        // accumulate and output a line at a time
-        {
-            LOCK(cs_OutputDebugStringF);
-            static std::string buffer;
-
-            va_list arg_ptr;
-            va_start(arg_ptr, pszFormat);
-            buffer += vstrprintf(pszFormat, arg_ptr);
-            va_end(arg_ptr);
-
-            int line_start = 0, line_end;
-            while ((line_end = buffer.find('\n', line_start)) != -1) {
-                OutputDebugStringA(buffer.substr(line_start, line_end - line_start).c_str());
-                line_start = line_end + 1;
-            }
-            buffer.erase(0, line_start);
-        }
-    }
-#endif
-    return ret;
-}
-
-string vstrprintf(const char* format, va_list ap)
-{
-    char  buffer[50000];
-    char* p     = buffer;
-    int   limit = sizeof(buffer);
-    int   ret;
-    while (true) {
-        va_list arg_ptr;
-        va_copy(arg_ptr, ap);
-#ifdef WIN32
-        ret = _vsnprintf(p, limit, format, arg_ptr);
-#else
-        ret = vsnprintf(p, limit, format, arg_ptr);
-#endif
-        va_end(arg_ptr);
-        if (ret >= 0 && ret < limit)
-            break;
-        if (p != buffer)
-            delete[] p;
-        limit *= 2;
-        p = new char[limit];
-        if (p == NULL)
-            throw std::bad_alloc();
-    }
-    string str(p, p + ret);
-    if (p != buffer)
-        delete[] p;
-    return str;
-}
-
-string real_strprintf(const char* format, int dummy, ...)
-{
-    va_list arg_ptr;
-    va_start(arg_ptr, dummy);
-    string str = vstrprintf(format, arg_ptr);
-    va_end(arg_ptr);
-    return str;
-}
-
-string real_strprintf(const std::string& format, int dummy, ...)
-{
-    va_list arg_ptr;
-    va_start(arg_ptr, dummy);
-    string str = vstrprintf(format.c_str(), arg_ptr);
-    va_end(arg_ptr);
-    return str;
-}
-
-bool error(const char* format, ...)
-{
-    va_list arg_ptr;
-    va_start(arg_ptr, format);
-    std::string str = vstrprintf(format, arg_ptr);
-    va_end(arg_ptr);
-    printf("ERROR: %s\n", str.c_str());
-    return false;
-}
-
 void ParseString(const string& str, char c, vector<string>& v)
 {
     if (str.empty())
@@ -352,7 +214,7 @@ string FormatMoney(CAmount n, bool fPlus)
     int64_t n_abs     = (n > 0 ? n : -n);
     int64_t quotient  = n_abs / COIN;
     int64_t remainder = n_abs % COIN;
-    string  str       = strprintf("%" PRId64 ".%08" PRId64, quotient, remainder);
+    string  str       = fmt::format("{}.{:08}", quotient, remainder);
 
     // Right-trim excess zeros before the decimal point:
     int nTrim = 0;
@@ -901,17 +763,17 @@ static std::string FormatException(std::exception* pex, const char* pszThread)
     const char* pszModule = "neblio";
 #endif
     if (pex)
-        return strprintf("HANDLED EXCEPTION: %s       \n%s       \n%s in %s       \n",
-                         typeid(*pex).name(), pex->what(), pszModule, pszThread);
+        return fmt::format("HANDLED EXCEPTION: {}       \n{}       \n{} in {}       \n",
+                           typeid(*pex).name(), pex->what(), pszModule, pszThread);
     else
-        return strprintf("HANDLED UNKNOWN EXCEPTION       \n%s in %s       \n", pszModule, pszThread);
+        return fmt::format("HANDLED UNKNOWN EXCEPTION       \n{} in {}       \n", pszModule, pszThread);
 }
 
 void PrintException(std::exception* pex, const char* pszThread)
 {
     std::string message = FormatException(pex, pszThread);
-    printf("\n\n************************\n%s\n", message.c_str());
-    fprintf(stderr, "\n\n************************\n%s\n", message.c_str());
+    NLog.write(b_sev::err, "\n\n************************\n{}", message);
+    std::cerr << "\n\n************************\n" << message << std::endl;
     strMiscWarning = message;
     throw;
 }
@@ -919,8 +781,9 @@ void PrintException(std::exception* pex, const char* pszThread)
 void PrintExceptionContinue(std::exception* pex, const char* pszThread)
 {
     std::string message = FormatException(pex, pszThread);
-    printf("\n\n************************\n%s\n", message.c_str());
-    fprintf(stderr, "\n\n************************\n%s\n", message.c_str());
+    NLog.write(b_sev::err, "\n\n************************\n{}", message);
+    std::cerr << "\n\n************************\n" << message << std::endl;
+
     strMiscWarning = message;
 }
 
@@ -935,8 +798,8 @@ boost::filesystem::path GetDefaultDataDir()
     // Windows
     return GetSpecialFolderPath(CSIDL_APPDATA) / "neblio";
 #else
-    fs::path pathRet;
-    char* pszHome = getenv("HOME");
+    fs::path    pathRet;
+    char*       pszHome = getenv("HOME");
     if (pszHome == NULL || strlen(pszHome) == 0)
         pathRet = fs::path("/");
     else
@@ -1068,26 +931,6 @@ void FileCommit(FILE* fileout)
 #endif
 }
 
-void ShrinkDebugFile()
-{
-    // Scroll debug.log if it's getting too big
-    boost::filesystem::path pathLog = GetDataDir() / "debug.log";
-    FILE*                   file    = fopen(pathLog.string().c_str(), "r");
-    if (file && boost::filesystem::file_size(pathLog) > 10 * 1000000) {
-        // Restart the file with some of the end
-        char pch[200000];
-        fseek(file, -sizeof(pch), SEEK_END);
-        int nBytes = fread(pch, 1, sizeof(pch), file);
-        fclose(file);
-
-        file = fopen(pathLog.string().c_str(), "w");
-        if (file) {
-            fwrite(pch, 1, nBytes, file);
-            fclose(file);
-        }
-    }
-}
-
 //
 // "Never go to sea with two chronometers; take one or three."
 // Our three time sources are:
@@ -1127,8 +970,8 @@ void AddTimeData(const CNetAddr& ip, int64_t nTime)
 
     // Add data
     vTimeOffsets.input(nOffsetSample);
-    printf("Added time data, samples %d, offset %+" PRId64 " (%+" PRId64 " minutes)\n",
-           vTimeOffsets.size(), nOffsetSample, nOffsetSample / 60);
+    NLog.write(b_sev::info, "Added time data, samples {}, offset {:+} ({:+} minutes)",
+               vTimeOffsets.size(), nOffsetSample, nOffsetSample / 60);
     if (vTimeOffsets.size() >= 5 && vTimeOffsets.size() % 2 == 1) {
         int64_t              nMedian = vTimeOffsets.median();
         std::vector<int64_t> vSorted = vTimeOffsets.sorted();
@@ -1142,7 +985,7 @@ void AddTimeData(const CNetAddr& ip, int64_t nTime)
             if (!fDone) {
                 // If nobody has a time different than ours but within 5 minutes of ours, give a warning
                 bool fMatch = false;
-                BOOST_FOREACH (int64_t nOffset, vSorted)
+                for (int64_t nOffset : vSorted)
                     if (nOffset != 0 && abs64(nOffset) < 5 * 60)
                         fMatch = true;
 
@@ -1152,7 +995,7 @@ void AddTimeData(const CNetAddr& ip, int64_t nTime)
                         _("Warning: Please check that your computer's date and time are correct! If "
                           "your clock is wrong neblio will not work properly.");
                     strMiscWarning = strMessage;
-                    printf("*** %s\n", strMessage.c_str());
+                    NLog.write(b_sev::warn, "*** {}", strMessage);
                     uiInterface.ThreadSafeMessageBox(strMessage + " ", string("neblio"),
                                                      CClientUIInterface::OK |
                                                          CClientUIInterface::ICON_EXCLAMATION);
@@ -1160,12 +1003,13 @@ void AddTimeData(const CNetAddr& ip, int64_t nTime)
             }
         }
         if (fDebug) {
-            BOOST_FOREACH (int64_t n, vSorted)
-                printf("%+" PRId64 "  ", n);
-            printf("|  ");
+            std::stringstream ss;
+            for (int64_t n : vSorted)
+                ss << fmt::format("{:+}  ", n);
+            NLog.write(b_sev::debug, "{}|  ", ss.str());
         }
-        printf("nTimeOffset = %+" PRId64 "  (%+" PRId64 " minutes)\n", nTimeOffset.load(),
-               nTimeOffset.load() / 60);
+        NLog.write(b_sev::debug, "nTimeOffset = {:+}  ({:+} minutes)", nTimeOffset.load(),
+                   nTimeOffset.load() / 60);
     }
 }
 
@@ -1192,11 +1036,11 @@ void     seed_insecure_rand(bool fDeterministic)
 string FormatVersion(int nVersion)
 {
     if (nVersion % 100 == 0)
-        return strprintf("%d.%d.%d", nVersion / 1000000, (nVersion / 10000) % 100,
-                         (nVersion / 100) % 100);
+        return fmt::format("{}.{}.{}", nVersion / 1000000, (nVersion / 10000) % 100,
+                           (nVersion / 100) % 100);
     else
-        return strprintf("%d.%d.%d.%d", nVersion / 1000000, (nVersion / 10000) % 100,
-                         (nVersion / 100) % 100, nVersion % 100);
+        return fmt::format("{}.{}.{}.{}", nVersion / 1000000, (nVersion / 10000) % 100,
+                           (nVersion / 100) % 100, nVersion % 100);
 }
 
 string FormatFullVersion() { return CLIENT_BUILD; }
@@ -1225,7 +1069,7 @@ boost::filesystem::path GetSpecialFolderPath(int nFolder, bool fCreate)
         return fs::path(pszPath);
     }
 
-    printf("SHGetSpecialFolderPathA() failed, could not obtain requested path.\n");
+    NLog.write(b_sev::err, "SHGetSpecialFolderPathA() failed, could not obtain requested path.");
     return fs::path("");
 }
 #endif
@@ -1234,7 +1078,7 @@ void runCommand(std::string strCommand)
 {
     int nErr = ::system(strCommand.c_str());
     if (nErr)
-        printf("runCommand error: system(%s) returned %d\n", strCommand.c_str(), nErr);
+        NLog.write(b_sev::err, "runCommand error: system({}) returned {}", strCommand, nErr);
 }
 
 void RenameThread(const char* name)
@@ -1263,7 +1107,7 @@ bool NewThread(void (*pfn)(void*), void* parg)
     try {
         boost::thread(pfn, parg); // thread detaches when out of scope
     } catch (boost::thread_resource_error& e) {
-        printf("Error creating thread: %s\n", e.what());
+        NLog.write(b_sev::err, "Error creating thread: {}", e.what());
         return false;
     }
     return true;
@@ -1338,14 +1182,14 @@ bool SC_CreateScheduledOperationOnRestart(const std::string& OpName)
     PathType opFilePath = SC_GetScheduledOperationFileName(OpName);
     // check if the operation file already exist
     if (boost::filesystem::exists(opFilePath)) {
-        printf("Operation %s is already scheduled\n", OpName.c_str());
+        NLog.write(b_sev::info, "Operation {} is already scheduled", OpName);
         return true;
     }
     boost::filesystem::ofstream of(opFilePath, std::ios::binary);
     of.write("1", 1); // avoid empty file, so write "1" to the file
     of.close();
     if (boost::filesystem::exists(opFilePath)) {
-        printf("Operation %s has been successfully scheduled", OpName.c_str());
+        NLog.write(b_sev::info, "Operation {} has been successfully scheduled", OpName);
         return true;
     } else {
         throw std::runtime_error("Failed to schedule operation: " + OpName +
@@ -1395,13 +1239,14 @@ bool SC_DeleteOperationScheduledOnRestart(const std::string& OpName)
         if (boost::filesystem::remove(opFilePath, ec2)) {
             return true;
         } else {
-            printf("Error while removing scheduled operation on restart. OpFile: %s; Error: %s\n",
-                   opFilePath.string().c_str(), ec2.message().c_str());
+            NLog.write(b_sev::err,
+                       "Error while removing scheduled operation on restart. OpFile: {}; Error: {}",
+                       opFilePath.string(), ec2.message());
             return false;
         }
     } else {
-        printf("Requested to remove operation \"%s\", which is not scheduled\n",
-               opFilePath.string().c_str());
+        NLog.write(b_sev::err, "Requested to remove operation \"{}\", which is not scheduled",
+                   opFilePath.string());
         return false;
     }
 }
@@ -1417,7 +1262,7 @@ bool SC_CheckOperationOnRestartScheduleThenDeleteIt(const string& OpName)
     if (opExists) {
         bool deleteSuccess = SC_DeleteOperationScheduledOnRestart(OpName);
         if (!deleteSuccess) {
-            printf("Failed to delete operation \"%s\"", OpName.c_str());
+            NLog.write(b_sev::err, "Failed to delete operation \"{}\"", OpName);
         }
         return true;
     } else {
@@ -1484,7 +1329,7 @@ string GetMimeTypeFromPath(const string& path)
 bool RandomBytesToBuffer(unsigned char* buffer, size_t size)
 {
     if (RAND_bytes(buffer, size) != 1) {
-        printf("Failed to generate random buffer with size %zu", size);
+        NLog.write(b_sev::err, "Failed to generate random buffer with size {}", size);
         return false;
     }
     return true;

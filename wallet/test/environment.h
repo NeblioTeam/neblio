@@ -3,6 +3,8 @@
 
 #include "gtest/gtest.h"
 
+#include "logging/logger.h"
+
 #include "chainparams.h"
 #include <boost/core/ignore_unused.hpp>
 #include <fstream>

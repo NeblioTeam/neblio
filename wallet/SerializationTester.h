@@ -33,7 +33,7 @@ TEST_EQUALITY(T a, T b, unsigned line)
         ss << "Binary format check failed for pair \"" << a << "\" and \"" << b << "\" from line "
            << line;
         std::cerr << ss.str();
-        printf("%s\n", ss.str().c_str());
+        NLog.write(b_sev::err, "{}", ss.str());
         throw std::runtime_error(ss.str());
     }
 #endif
@@ -52,7 +52,7 @@ TEST_EQUALITY(const T& a, StringViewT b, unsigned line)
         ss << "Binary format check failed for pair \"" << a << "\" and \"" << b << "\" from line "
            << line;
         std::cerr << ss.str();
-        printf("%s\n", ss.str().c_str());
+        NLog.write(b_sev::err, "{}", ss.str());
         throw std::runtime_error(ss.str());
     }
 #endif

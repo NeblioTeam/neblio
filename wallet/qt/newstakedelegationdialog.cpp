@@ -299,11 +299,12 @@ void NewStakeDelegationDialog::slot_createColdStake()
                                             tokenSelector, &strError, RawNTP1MetadataBeforeSend(), false,
                                             CoinControlDialog::coinControl, fUseDelegated)) {
             if (amount + nFeeRequired > currBalance)
-                strError = strprintf("Error: This transaction requires a transaction fee of at least %s"
-                                     "because of its amount, complexity, or use of recently received "
-                                     "funds!",
-                                     FormatMoney(nFeeRequired).c_str());
-            printf("Cold-stake delegation error: %s: %s\n", __func__, strError.c_str());
+                strError =
+                    fmt::format("Error: This transaction requires a transaction fee of at least {}"
+                                "because of its amount, complexity, or use of recently received "
+                                "funds!",
+                                FormatMoney(nFeeRequired));
+            NLog.write(b_sev::err, "{}: Cold-stake delegation error: {}", FUNCTIONSIG, strError);
             return makeError(QString::fromStdString(strError));
         }
 

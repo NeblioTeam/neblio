@@ -117,7 +117,7 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
     result.push_back(Pair("mint", ValueFromAmount(blockindex->nMint)));
     result.push_back(Pair("time", (int64_t)block.GetBlockTime()));
     result.push_back(Pair("nonce", (uint64_t)block.nNonce));
-    result.push_back(Pair("bits", strprintf("%08x", block.nBits)));
+    result.push_back(Pair("bits", fmt::format("{:08x}", block.nBits)));
     result.push_back(Pair("difficulty", GetDifficulty(blockindex)));
     result.push_back(Pair("blocktrust", leftTrim(blockindex->GetBlockTrust().GetHex(), '0')));
     result.push_back(Pair("chaintrust", leftTrim(blockindex->nChainTrust.GetHex(), '0')));
@@ -127,12 +127,13 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
         result.push_back(Pair("nextblockhash", blockindex->pnext->GetBlockHash().GetHex()));
 
     result.push_back(Pair(
-        "flags", strprintf("%s%s", blockindex->IsProofOfStake() ? "proof-of-stake" : "proof-of-work",
-                           blockindex->GeneratedStakeModifier() ? " stake-modifier" : "")));
+        "flags", fmt::format("{}{}", blockindex->IsProofOfStake() ? "proof-of-stake" : "proof-of-work",
+                             blockindex->GeneratedStakeModifier() ? " stake-modifier" : "")));
     result.push_back(Pair("proofhash", blockindex->hashProof.GetHex()));
     result.push_back(Pair("entropybit", (int)blockindex->GetStakeEntropyBit()));
-    result.push_back(Pair("modifier", strprintf("%016" PRIx64, blockindex->nStakeModifier)));
-    result.push_back(Pair("modifierchecksum", strprintf("%08x", blockindex->nStakeModifierChecksum)));
+    result.push_back(Pair("modifier", fmt::format("{:016x}", blockindex->nStakeModifier)));
+    result.push_back(
+        Pair("modifierchecksum", fmt::format("{:08x}", blockindex->nStakeModifierChecksum)));
 
     Array txinfo;
     for (const CTransaction& tx : block.vtx) {
@@ -395,15 +396,15 @@ Value exportblockchain(const Array& params, bool fHelp)
         exporterThread.detach();
     }
 
-    printf("Export blockchain to path started in another thread. Writing to path: %s\n",
-           filename.string().c_str());
+    NLog.write(b_sev::info, "Export blockchain to path started in another thread. Writing to path: {}",
+              filename.string());
 
     int progVal            = 0;
     int lastPrintedProgVal = -1;
     while (!finished_future.is_ready()) {
         progVal = static_cast<int>(progress.load() * 100);
         if (progVal > lastPrintedProgVal) {
-            printf("Export blockchain progress: %i%%\n", progVal);
+            NLog.write(b_sev::info, "Export blockchain progress: {}", progVal);
             lastPrintedProgVal = progVal;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -414,7 +415,7 @@ Value exportblockchain(const Array& params, bool fHelp)
 
     finished_future.get(); // throws, but that's compatible with exception handle in this function
 
-    printf("Export blockchain to path %s is done.\n", filename.string().c_str());
+    NLog.write(b_sev::info, "Export blockchain to path {} is done.\n", filename.string());
 
     return Value();
 }
@@ -443,7 +444,7 @@ Value waitforblockheight(const Array& params, bool fHelp)
 
     if (params.size() > 1 && params[1].type() != null_type) {
         timeout = params[1].get_int();
-        printf("Timeout set to: %i\n", timeout);
+        NLog.write(b_sev::info, "Timeout set to: {}", timeout);
     }
 
     const int bestHeight = CTxDB().GetBestChainHeight().value_or(0);
@@ -546,12 +547,12 @@ Value blockheaderToJSON(const CBlockIndex* blockindex)
     result.push_back(Pair("confirmations", confirmations));
     result.push_back(Pair("height", blockindex->nHeight));
     result.push_back(Pair("version", blockindex->nVersion));
-    result.push_back(Pair("versionHex", strprintf("%08x", blockindex->nVersion)));
+    result.push_back(Pair("versionHex", fmt::format("{:08x}", blockindex->nVersion)));
     result.push_back(Pair("merkleroot", blockindex->hashMerkleRoot.GetHex()));
     result.push_back(Pair("time", (int64_t)blockindex->nTime));
     result.push_back(Pair("mediantime", (int64_t)blockindex->GetMedianTimePast()));
     result.push_back(Pair("nonce", (uint64_t)blockindex->nNonce));
-    result.push_back(Pair("bits", strprintf("%08x", blockindex->nBits)));
+    result.push_back(Pair("bits", fmt::format("{:08x}", blockindex->nBits)));
     result.push_back(Pair("difficulty", GetDifficulty(blockindex)));
     result.push_back(Pair("chainwork", blockindex->nChainTrust.GetHex()));
     //    result.push_back(Pair("nTx", (uint64_t)blockindex->nTx));

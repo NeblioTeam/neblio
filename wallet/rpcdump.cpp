@@ -18,8 +18,6 @@
 
 #include <openssl/md5.h>
 
-#define printf OutputDebugStringF
-
 using namespace json_spirit;
 using namespace std;
 
@@ -197,8 +195,8 @@ Value importwallet(const Array& params, bool fHelp)
         CKeyID keyid = key.GetPubKey().GetID();
 
         if (pwalletMain->HaveKey(keyid)) {
-            printf("Skipping import of %s (key already present)\n",
-                   CBitcoinAddress(keyid).ToString().c_str());
+            NLog.write(b_sev::info, "Skipping import of {} (key already present)\n",
+                      CBitcoinAddress(keyid).ToString());
             continue;
         }
         int64_t     nTime = DecodeDumpTime(vstr[1]);
@@ -216,7 +214,7 @@ Value importwallet(const Array& params, bool fHelp)
                 fLabel   = true;
             }
         }
-        printf("Importing %s...\n", CBitcoinAddress(keyid).ToString().c_str());
+        NLog.write(b_sev::info, "Importing {}...", CBitcoinAddress(keyid).ToString());
         if (!pwalletMain->AddKey(key)) {
             fGood = false;
             continue;
@@ -237,7 +235,7 @@ Value importwallet(const Array& params, bool fHelp)
     if (!pwalletMain->nTimeFirstKey || nTimeBegin < pwalletMain->nTimeFirstKey)
         pwalletMain->nTimeFirstKey = nTimeBegin;
 
-    printf("Rescanning last %i blocks\n", bestBlockIndex->nHeight - pindex->nHeight + 1);
+    NLog.write(b_sev::info, "Rescanning last {} blocks", bestBlockIndex->nHeight - pindex->nHeight + 1);
     pwalletMain->ScanForWalletTransactions(pindex.get());
     pwalletMain->ReacceptWalletTransactions();
     pwalletMain->MarkDirty();
@@ -331,12 +329,11 @@ Value dumpwallet(const Array& params, bool fHelp)
     ConstCBlockIndexSmartPtr bestBlockIndex = CTxDB().GetBestBlockIndex();
 
     // produce output
-    file << strprintf("# Wallet dump created by neblio %s (%s)\n", CLIENT_BUILD.c_str(),
-                      CLIENT_DATE.c_str());
-    file << strprintf("# * Created on %s\n", EncodeDumpTime(GetTime()).c_str());
-    file << strprintf("# * Best block at time of backup was %i (%s),\n", bestBlockIndex->nHeight,
-                      bestBlockIndex->GetBlockHash().ToString().c_str());
-    file << strprintf("#   mined on %s\n", EncodeDumpTime(bestBlockIndex->nTime).c_str());
+    file << fmt::format("# Wallet dump created by neblio {} ({})\n", CLIENT_BUILD, CLIENT_DATE);
+    file << fmt::format("# * Created on {}\n", EncodeDumpTime(GetTime()));
+    file << fmt::format("# * Best block at time of backup was {} ({}),\n", bestBlockIndex->nHeight,
+                        bestBlockIndex->GetBlockHash().ToString());
+    file << fmt::format("#   mined on {}\n", EncodeDumpTime(bestBlockIndex->nTime));
     file << "\n";
     for (std::vector<std::pair<int64_t, CKeyID>>::const_iterator it = vKeyBirth.begin();
          it != vKeyBirth.end(); it++) {
@@ -349,20 +346,17 @@ Value dumpwallet(const Array& params, bool fHelp)
         if (pwalletMain->GetKey(keyid, key)) {
             if (auto entry = pwalletMain->mapAddressBook.get(keyid)) {
                 CSecret secret = key.GetSecret(IsCompressed);
-                file << strprintf("%s %s label=%s # addr=%s\n",
-                                  CBitcoinSecret(secret, IsCompressed).ToString().c_str(),
-                                  strTime.c_str(), EncodeDumpString(entry->name).c_str(),
-                                  strAddr.c_str());
+                file << fmt::format("{} {} label={} # addr={}\n",
+                                    CBitcoinSecret(secret, IsCompressed).ToString(), strTime,
+                                    EncodeDumpString(entry->name), strAddr);
             } else if (setKeyPool.count(keyid)) {
                 CSecret secret = key.GetSecret(IsCompressed);
-                file << strprintf("%s %s reserve=1 # addr=%s\n",
-                                  CBitcoinSecret(secret, IsCompressed).ToString().c_str(),
-                                  strTime.c_str(), strAddr.c_str());
+                file << fmt::format("{} {} reserve=1 # addr={}\n",
+                                    CBitcoinSecret(secret, IsCompressed).ToString(), strTime, strAddr);
             } else {
                 CSecret secret = key.GetSecret(IsCompressed);
-                file << strprintf("%s %s change=1 # addr=%s\n",
-                                  CBitcoinSecret(secret, IsCompressed).ToString().c_str(),
-                                  strTime.c_str(), strAddr.c_str());
+                file << fmt::format("{} {} change=1 # addr={}\n",
+                                    CBitcoinSecret(secret, IsCompressed).ToString(), strTime, strAddr);
             }
         }
     }
@@ -387,7 +381,7 @@ void _RescanBlockchain(int64_t earliestTime)
     if (!pwalletMain->nTimeFirstKey || earliestTime < pwalletMain->nTimeFirstKey)
         pwalletMain->nTimeFirstKey = earliestTime;
 
-    printf("Rescanning last %i blocks\n", bestBlockIndex->nHeight - pindex->nHeight + 1);
+    NLog.write(b_sev::info, "Rescanning last {} blocks", bestBlockIndex->nHeight - pindex->nHeight + 1);
     pwalletMain->ScanForWalletTransactions(pindex.get());
     pwalletMain->ReacceptWalletTransactions();
     pwalletMain->MarkDirty();
@@ -397,7 +391,7 @@ bool _AddKeyToLocalWallet(const CKey& Key, const std::string& strLabel, int64_t 
                           int64_t& earliestTime, bool addInAddressBook)
 {
     CKeyID keyid = Key.GetPubKey().GetID();
-    printf("Importing %s...\n", CBitcoinAddress(keyid).ToString().c_str());
+    NLog.write(b_sev::info, "Importing {}...", CBitcoinAddress(keyid).ToString());
 
     // if key exists already in the local wallet, don't add it
     if (pwalletMain->HaveKey(keyid)) {
@@ -578,7 +572,7 @@ std::string GetCurrentWalletHash()
         CKey key;
         bool getKeySucceeded = pwalletMain->GetKey(allKeyIDs[i], key);
         if (!getKeySucceeded) {
-            printf("Failed to get key number %ld", i);
+            NLog.write(b_sev::err, "Failed to get key number {}", i);
             continue;
         }
         finalStringToHash += key.GetPubKey().GetHash().ToString();

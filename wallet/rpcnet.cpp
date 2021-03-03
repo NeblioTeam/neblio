@@ -126,7 +126,7 @@ Value getpeerinfo(const Array& params, bool fHelp)
 
         obj.push_back(Pair("id", stats.nodeid));
         obj.push_back(Pair("addr", stats.addrName));
-        obj.push_back(Pair("services", strprintf("%08" PRIx64, stats.nServices)));
+        obj.push_back(Pair("services", fmt::format("{:016x}", stats.nServices)));
         obj.push_back(Pair("lastsend", (int64_t)stats.nLastSend));
         obj.push_back(Pair("lastrecv", (int64_t)stats.nLastRecv));
         obj.push_back(Pair("conntime", (int64_t)stats.nTimeConnected));

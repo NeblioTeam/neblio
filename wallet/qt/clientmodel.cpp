@@ -134,15 +134,16 @@ QString ClientModel::formatClientStartupTime() const
     return QDateTime::fromTime_t(nClientStartupTime).toString();
 }
 
-void ClientModel::setTipBlock(const ConstCBlockIndexSmartPtr &pindex, bool initialSync)
+void ClientModel::setTipBlock(const ConstCBlockIndexSmartPtr& pindex, bool initialSync)
 {
-    cachedTip.hash = pindex->GetBlockHash();
-    cachedTip.time = pindex->GetBlockTime();
-    cachedTip.height = pindex->nHeight;
+    cachedTip.hash          = pindex->GetBlockHash();
+    cachedTip.time          = pindex->GetBlockTime();
+    cachedTip.height        = pindex->nHeight;
     cachedTip.isInitialSync = initialSync;
 }
 
-static void BlockTipChanged(ClientModel *clientmodel, bool initialSync, const ConstCBlockIndexSmartPtr pIndex)
+static void BlockTipChanged(ClientModel* clientmodel, bool initialSync,
+                            const ConstCBlockIndexSmartPtr pIndex)
 {
     // lock free async UI updates in case we have a new block tip
     // during initial sync, only update the UI if the last update
@@ -153,8 +154,8 @@ static void BlockTipChanged(ClientModel *clientmodel, bool initialSync, const Co
 
     // if we are in-sync, update the UI regardless of last update time
     if (!initialSync || now - nLastBlockTipUpdateNotification > MODEL_UPDATE_DELAY) {
-        //pass a async signal to the UI thread
-        clientmodel->setTipBlock(pIndex,initialSync);
+        // pass a async signal to the UI thread
+        clientmodel->setTipBlock(pIndex, initialSync);
         Q_EMIT clientmodel->numBlocksChanged(pIndex->nHeight, GetNumBlocksOfPeers());
         nLastBlockTipUpdateNotification = now;
     }
@@ -162,14 +163,14 @@ static void BlockTipChanged(ClientModel *clientmodel, bool initialSync, const Co
 
 static void NotifyNumConnectionsChanged(ClientModel* clientmodel, int newNumConnections)
 {
-    // Too noisy: OutputDebugStringF("NotifyNumConnectionsChanged %i\n", newNumConnections);
+    NLog.write(b_sev::trace, "NotifyNumConnectionsChanged {}", newNumConnections);
     QMetaObject::invokeMethod(clientmodel, "updateNumConnections", Qt::QueuedConnection,
                               Q_ARG(int, newNumConnections));
 }
 
 static void NotifyAlertChanged(ClientModel* clientmodel, const uint256& hash, ChangeType status)
 {
-    OutputDebugStringF("NotifyAlertChanged %s status=%i\n", hash.GetHex().c_str(), status);
+    NLog.write(b_sev::info, "NotifyAlertChanged {} status={}", hash.GetHex().c_str(), status);
     QMetaObject::invokeMethod(clientmodel, "updateAlert", Qt::QueuedConnection,
                               Q_ARG(QString, QString::fromStdString(hash.GetHex())), Q_ARG(int, status));
 }

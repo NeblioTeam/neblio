@@ -1,5 +1,6 @@
 #include "lmdbtransaction.h"
 
+#include "logging/logger.h"
 #include <chrono>
 #include <stdexcept>
 #include <thread>
@@ -22,12 +23,13 @@ LMDBTransaction::~LMDBTransaction()
 {
     if (!m_check)
         return;
-    //    printf("mdb_txn_safe: destructor\n");
+    NLog.write(b_sev::trace, "mdb_txn_safe: destructor");
     if (m_txn != nullptr) {
         if (m_batch_txn) // this is a batch txn and should have been handled before this point for safety
         {
-            printf("WARNING: mdb_txn_safe: m_txn is a batch txn and it's not NULL in destructor - "
-                   "calling mdb_txn_abort()\n");
+            NLog.write(b_sev::err,
+                      "WARNING: mdb_txn_safe: m_txn is a batch txn and it's not NULL in destructor - "
+                      "calling mdb_txn_abort()");
         } else {
             // Example of when this occurs: a lookup fails, so a read-only txn is
             // aborted through this destructor. However, successful read-only txns
@@ -35,7 +37,8 @@ LMDBTransaction::~LMDBTransaction()
             //
             // NOTE: not sure if this is ever reached for a non-batch write
             // transaction, but it's probably not ideal if it did.
-            printf("mdb_txn_safe: m_txn not NULL in destructor - calling mdb_txn_abort()\n");
+            NLog.write(b_sev::err,
+                      "mdb_txn_safe: m_txn not NULL in destructor - calling mdb_txn_abort()");
         }
     }
     mdb_txn_abort(m_txn);
@@ -94,7 +97,7 @@ void LMDBTransaction::abort()
         mdb_txn_abort(m_txn);
         m_txn = nullptr;
     } else {
-        printf("WARNING: mdb_txn_safe: abort() called, but m_txn is NULL\n");
+        NLog.write(b_sev::warn, "WARNING: mdb_txn_safe: abort() called, but m_txn is NULL");
     }
 }
 

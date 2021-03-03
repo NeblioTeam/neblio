@@ -23,8 +23,8 @@ int64_t GetProofOfWorkReward(int64_t nFees)
     }
 
     if (fDebug)
-        printf("GetProofOfWorkReward() : create=%s nSubsidy=%" PRId64 "\n",
-               FormatMoney(nSubsidy).c_str(), nSubsidy);
+        NLog.write(b_sev::debug, "GetProofOfWorkReward() : create={} nSubsidy={}", FormatMoney(nSubsidy),
+                  nSubsidy);
 
     return nSubsidy + nFees;
 }
@@ -36,15 +36,15 @@ int64_t GetProofOfStakeReward(int64_t nCoinAge, int64_t nFees)
 
     int64_t nRewardCoinYear = COIN_YEAR_REWARD; // 10% reward up to end
 
-    printf("Block Number %d \n", CTxDB().GetBestChainHeight().value_or(0));
+    NLog.write(b_sev::info, "Block Number {}", CTxDB().GetBestChainHeight().value_or(0));
 
     int64_t nSubsidy = nCoinAge * nRewardCoinYear * 33 / (365 * 33 + 8);
-    printf("coin-Subsidy %" PRId64 "\n", nSubsidy);
-    printf("coin-Age %" PRId64 "\n", nCoinAge);
-    printf("Coin Reward %" PRId64 "\n", nRewardCoinYear);
+    NLog.write(b_sev::info, "coin-Subsidy {}", nSubsidy);
+    NLog.write(b_sev::info, "coin-Age {}", nCoinAge);
+    NLog.write(b_sev::info, "Coin Reward {}", nRewardCoinYear);
     if (fDebug)
-        printf("GetProofOfStakeReward(): create=%s nCoinAge=%" PRId64 "\n",
-               FormatMoney(nSubsidy).c_str(), nCoinAge);
+        NLog.write(b_sev::debug, "GetProofOfStakeReward(): create={} nCoinAge={}", FormatMoney(nSubsidy),
+                  nCoinAge);
 
     return nSubsidy + nFees;
 }

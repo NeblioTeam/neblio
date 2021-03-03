@@ -1,5 +1,6 @@
 #include "udaddress.h"
 
+#include "logging/logger.h"
 #include "ntp1/ntp1tools.h"
 
 const std::string  UnstoppableDomainsRegexStr = R"(^[a-zA-Z0-9\-]+\.(?:crypto|zil)$)";
@@ -37,7 +38,7 @@ boost::optional<std::string> GetNeblioAddressFromUDAddress(const StringViewT UDD
         json_spirit::Object addressesObj = NTP1Tools::GetObjectField(val.get_obj(), "addresses");
         return NTP1Tools::GetStrField(addressesObj, "NEBL");
     } catch (const std::exception& ex) {
-        printf("Failed to get address from unstoppable domain: %s", ex.what());
+        NLog.write(b_sev::err, "Failed to get address from unstoppable domain: {}", ex.what());
         return boost::none;
     }
 }

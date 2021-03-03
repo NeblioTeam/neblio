@@ -49,7 +49,7 @@ public:
 
     std::string ToString() const;
 
-    void print() const { printf("%s\n", ToString().c_str()); }
+    void print() const { NLog.write(b_sev::info, "{}", ToString()); }
 };
 
 #endif // DISKBLOCKINDEX_H

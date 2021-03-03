@@ -56,18 +56,18 @@ public:
 
     std::string ToStringShort() const
     {
-        return strprintf(" out %s %s", FormatMoney(nValue).c_str(), scriptPubKey.ToString(true).c_str());
+        return fmt::format(" out {} {}", FormatMoney(nValue), scriptPubKey.ToString(true));
     }
 
     std::string ToString() const
     {
         if (IsEmpty())
             return "CTxOut(empty)";
-        return strprintf("CTxOut(nValue=%s, scriptPubKey=%s)", FormatMoney(nValue).c_str(),
-                         scriptPubKey.ToString().c_str());
+        return fmt::format("CTxOut(nValue={}, scriptPubKey={})", FormatMoney(nValue),
+                           scriptPubKey.ToString());
     }
 
-    void print() const { printf("%s\n", ToString().c_str()); }
+    void print() const { NLog.write(b_sev::info, "{}", ToString()); }
 };
 
 #endif // TXOUT_H

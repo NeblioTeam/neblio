@@ -244,7 +244,7 @@ bool isObscured(QWidget *w)
 
 void openDebugLogfile()
 {
-    boost::filesystem::path pathDebug = GetDataDir() / "debug.log";
+    const boost::filesystem::path pathDebug = GetLogFileFullPath(GetDataDir());
 
     /* Open debug.log with the associated application */
     if (boost::filesystem::exists(pathDebug))
@@ -445,7 +445,7 @@ void HelpMessageBox::printToConsole()
 {
     // On other operating systems, the expected action is to print the message to the console.
     QString strUsage = header + "\n" + coreOptions + "\n" + uiOptions;
-    fprintf(stdout, "%s", strUsage.toStdString().c_str());
+    std::cout << strUsage.toStdString() << std::endl;
 }
 
 void HelpMessageBox::showOrPrint()

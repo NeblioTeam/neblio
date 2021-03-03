@@ -873,7 +873,7 @@ struct Result
     T expect(const char* str) const
     {
         if (!isOk()) {
-            std::fprintf(stderr, "%s\n", str);
+            std::cerr << str << std::endl;
             std::terminate();
         }
         return expect_impl(std::is_same<T, void>());
@@ -935,7 +935,7 @@ struct Result
             return storage().template get<U>();
         }
 
-        std::fprintf(stderr, "Attempting to unwrap an error Result\n");
+        std::cerr << "Attempting to unwrap an error Result" << std::endl;
         std::terminate();
     }
 
@@ -945,7 +945,7 @@ struct Result
             return storage().template get<E>();
         }
 
-        std::fprintf(stderr, "Attempting to unwrapErr an ok Result\n");
+        std::cerr << "Attempting to unwrapErr an ok Result" << std::endl;
         std::terminate();
     }
 

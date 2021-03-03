@@ -507,8 +507,9 @@ void CoinControlDialog::updateLabels(WalletModel* model, QDialog* dialog)
                 outputIsNTP1 = (ntp1tx.getTxOut(out.i).tokenCount() != 0);
 
             } catch (std::exception& ex) {
-                printf("Unable to read NTP1 transaction for coin control: %s. Error says: %s",
-                       out.tx->GetHash().ToString().c_str(), ex.what());
+                NLog.write(b_sev::err,
+                          "Unable to read NTP1 transaction for coin control: {}. Error says: {}",
+                          out.tx->GetHash().ToString().c_str(), ex.what());
                 outputIsNTP1 = false;
             }
         }
@@ -778,8 +779,9 @@ void CoinControlDialog::updateView()
                     }
 
                 } catch (std::exception& ex) {
-                    printf("Unable to read NTP1 transaction for coin control: %s. Error says: %s\n",
-                           out.tx->GetHash().ToString().c_str(), ex.what());
+                    NLog.write(b_sev::err,
+                              "Unable to read NTP1 transaction for coin control: {}. Error says: {}",
+                              out.tx->GetHash().ToString().c_str(), ex.what());
                     sTokenType        = "(Unknown)";
                     sNTP1TokenAmounts = "(Unknown)";
                     sTokenId          = "(Unknown)";

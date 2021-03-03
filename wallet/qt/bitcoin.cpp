@@ -51,8 +51,8 @@ static void ThreadSafeMessageBox(const std::string& message, const std::string& 
                                   Q_ARG(QString, QString::fromStdString(caption)),
                                   Q_ARG(QString, QString::fromStdString(message)), Q_ARG(bool, modal));
     } else {
-        printf("%s: %s\n", caption.c_str(), message.c_str());
-        fprintf(stderr, "%s: %s\n", caption.c_str(), message.c_str());
+        NLog.write(b_sev::err, "{}: {}", caption, message);
+        std::cerr << fmt::format("{}: {}", caption, message) << std::endl;
     }
 }
 
@@ -170,6 +170,8 @@ int main(int argc, char* argv[])
         QMessageBox::critical(0, "neblio", QObject::tr("Error: %1").arg(e.what()));
         return EXIT_FAILURE;
     }
+
+    InitLogging();
 
     // Application identification (must be set before OptionsModel is initialized,
     // as it is used to locate QSettings)

@@ -41,29 +41,29 @@ std::string CUnsignedAlert::ToString() const
 {
     std::string strSetCancel;
     for (int n : setCancel)
-        strSetCancel += strprintf("%d ", n);
+        strSetCancel += fmt::format("{} ", n);
     std::string strSetSubVer;
     for (std::string str : setSubVer)
         strSetSubVer += "\"" + str + "\" ";
-    return strprintf("CAlert(\n"
-                     "    nVersion     = %d\n"
-                     "    nRelayUntil  = %" PRId64 "\n"
-                     "    nExpiration  = %" PRId64 "\n"
-                     "    nID          = %d\n"
-                     "    nCancel      = %d\n"
-                     "    setCancel    = %s\n"
-                     "    nMinVer      = %d\n"
-                     "    nMaxVer      = %d\n"
-                     "    setSubVer    = %s\n"
-                     "    nPriority    = %d\n"
-                     "    strComment   = \"%s\"\n"
-                     "    strStatusBar = \"%s\"\n"
+    return fmt::format("CAlert(\n"
+                     "    nVersion     = {}\n"
+                     "    nRelayUntil  = {}\n"
+                     "    nExpiration  = {}\n"
+                     "    nID          = {}\n"
+                     "    nCancel      = {}\n"
+                     "    setCancel    = {}\n"
+                     "    nMinVer      = {}\n"
+                     "    nMaxVer      = {}\n"
+                     "    setSubVer    = {}\n"
+                     "    nPriority    = {}\n"
+                     "    strComment   = \"{}\"\n"
+                     "    strStatusBar = \"{}\"\n"
                      ")\n",
                      nVersion, nRelayUntil, nExpiration, nID, nCancel, strSetCancel.c_str(), nMinVer,
                      nMaxVer, strSetSubVer.c_str(), nPriority, strComment.c_str(), strStatusBar.c_str());
 }
 
-void CUnsignedAlert::print() const { printf("%s", ToString().c_str()); }
+void CUnsignedAlert::print() const { NLog.write(b_sev::info, "{}", ToString()); }
 
 void CAlert::SetNull()
 {
@@ -117,9 +117,9 @@ bool CAlert::CheckSignature() const
 {
     CKey key;
     if (!key.SetPubKey(Params().AlertKey()))
-        return error("CAlert::CheckSignature() : SetPubKey failed");
+        return NLog.error("CAlert::CheckSignature() : SetPubKey failed");
     if (!key.Verify(Hash(vchMsg.begin(), vchMsg.end()), vchSig))
-        return error("CAlert::CheckSignature() : verify signature failed");
+        return NLog.error("CAlert::CheckSignature() : verify signature failed");
 
     // Now unserialize the data
     CDataStream sMsg(vchMsg, SER_NETWORK, PROTOCOL_VERSION);
@@ -167,11 +167,11 @@ bool CAlert::ProcessAlert(bool fThread)
         for (map<uint256, CAlert>::iterator mi = mapAlerts.begin(); mi != mapAlerts.end();) {
             const CAlert& alert = (*mi).second;
             if (Cancels(alert)) {
-                printf("cancelling alert %d\n", alert.nID);
+                NLog.write(b_sev::warn, "cancelling alert {}", alert.nID);
                 uiInterface.NotifyAlertChanged((*mi).first, CT_DELETED);
                 mapAlerts.erase(mi++);
             } else if (!alert.IsInEffect()) {
-                printf("expiring alert %d\n", alert.nID);
+                NLog.write(b_sev::warn, "expiring alert {}", alert.nID);
                 uiInterface.NotifyAlertChanged((*mi).first, CT_DELETED);
                 mapAlerts.erase(mi++);
             } else
@@ -182,7 +182,7 @@ bool CAlert::ProcessAlert(bool fThread)
         for (PAIRTYPE(const uint256, CAlert) & item : mapAlerts) {
             const CAlert& alert = item.second;
             if (alert.Cancels(*this)) {
-                printf("alert already cancelled by %d\n", alert.nID);
+                NLog.write(b_sev::info, "alert already cancelled by {}", alert.nID);
                 return false;
             }
         }
@@ -218,6 +218,6 @@ bool CAlert::ProcessAlert(bool fThread)
         }
     }
 
-    printf("accepted alert %d, AppliesToMe()=%d\n", nID, AppliesToMe());
+    NLog.write(b_sev::info, "accepted alert {}, AppliesToMe()={}", nID, AppliesToMe());
     return true;
 }

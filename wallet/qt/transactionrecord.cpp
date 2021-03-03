@@ -185,9 +185,10 @@ void TransactionRecord::readNTP1TxData()
         ntp1DataLoaded    = true;
         ntp1DataLoadError = false;
     } catch (std::exception& ex) {
-        printf("Failed to read NTP1 transaction data for transaction record. Transaction hash: %s. "
-               "Error: %s\n",
-               hash.ToString().c_str(), ex.what());
+        NLog.write(b_sev::err,
+                   "Failed to read NTP1 transaction data for transaction record. Transaction hash: {}. "
+                   "Error: {}",
+                   hash.ToString(), ex.what());
         ntp1DataLoadError = true;
     }
 }
@@ -204,9 +205,9 @@ void TransactionRecord::updateStatus(const CWalletTx& wtx)
         pindex = mi.get();
 
     // Sort order, unrecorded transactions sort to the top
-    status.sortKey =
-        strprintf("%010d-%01d-%010u-%03d", (pindex ? pindex->nHeight : std::numeric_limits<int>::max()),
-                  (wtx.IsCoinBase() ? 1 : 0), wtx.nTimeReceived, idx);
+    status.sortKey          = fmt::format("{:010d}-{:01d}-{:010d}-{:03d}",
+                                 (pindex ? pindex->nHeight : std::numeric_limits<int>::max()),
+                                 (wtx.IsCoinBase() ? 1 : 0), wtx.nTimeReceived, idx);
     status.countsForBalance = wtx.IsTrusted() && !(wtx.GetBlocksToMaturity() > 0);
     bool fConflicted        = false;
     status.depth            = wtx.GetDepthAndMempool(fConflicted);

@@ -64,10 +64,12 @@ void NTP1TokenListModel::UpdateWalletBalances(boost::shared_ptr<NTP1Wallet>     
         try {
             promise.set_exception(boost::current_exception());
         } catch (std::exception& ex) {
-            printf("Error: Setting promise exception failed for NTP1TokenListModel wallet: %s",
-                   ex.what());
+            NLog.write(b_sev::err,
+                      "Error: Setting promise exception failed for NTP1TokenListModel wallet: {}",
+                      ex.what());
         } catch (...) {
-            printf(
+            NLog.write(
+                b_sev::err,
                 "Error: Setting promise exception failed for NTP1TokenListModel wallet (Unknown error)");
         }
     }
@@ -155,7 +157,7 @@ void NTP1TokenListModel::endWalletUpdate()
                 endResetModel();
             }
         } catch (std::exception& ex) {
-            printf("Error while updating NTP1 balances: %s", ex.what());
+            NLog.write(b_sev::err, "Error while updating NTP1 balances: {}", ex.what());
         }
         walletUpdateRunning = false;
         emit signal_walletUpdateRunning(false);
@@ -216,7 +218,7 @@ void NTP1TokenListModel::saveWalletToFile()
             boost::filesystem::remove(permFile);
         boost::filesystem::rename(tempFile, permFile);
     } catch (std::exception& ex) {
-        printf("Failed at exporting wallet data. Error says %s", ex.what());
+        NLog.write(b_sev::err, "Failed at exporting wallet data. Error says {}", ex.what());
     }
 }
 
@@ -230,11 +232,11 @@ void NTP1TokenListModel::loadWalletFromFile()
         if (boost::filesystem::exists(file)) {
             ntp1wallet->importFromFile(file);
         } else {
-            printf("NTP1 wallet not found. One will be created soon.");
+            NLog.write(b_sev::warn, "NTP1 wallet not found. One will be created soon.");
         }
     } catch (std::exception& ex) {
         ntp1wallet->clear();
-        printf("Failed at exporting wallet data. Error says %s", ex.what());
+        NLog.write(b_sev::err, "Failed at exporting wallet data. Error says {}", ex.what());
     }
 }
 

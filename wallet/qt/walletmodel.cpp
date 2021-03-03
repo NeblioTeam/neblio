@@ -87,8 +87,8 @@ void WalletModel::pollBalanceChanged()
     if (!lock)
         return;
 
-    const ConstCBlockIndexSmartPtr pindexBest = CTxDB().GetBestBlockIndex();
-    const int currentBlockHeight = pindexBest ? pindexBest->nHeight : 0;
+    const ConstCBlockIndexSmartPtr pindexBest         = CTxDB().GetBestBlockIndex();
+    const int                      currentBlockHeight = pindexBest ? pindexBest->nHeight : 0;
 
     // Don't continue processing if the chain tip time is less than the first
     // key creation time as there is no need to iterate over the transaction
@@ -328,8 +328,9 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(QList<SendCoinsRecipient>   
                 NTP1Transaction::GetAllNTP1InputsOfTx(wtx, false);
             NTP1Transaction ntp1tx;
             ntp1tx.readNTP1DataFromTx(wtx, inputsTxs);
-        } catch (std::exception& ex) {
-            printf("An invalid NTP1 transaction was created; an exception was thrown: %s\n", ex.what());
+        } catch (const std::exception& ex) {
+            NLog.write(b_sev::info,
+                      "An invalid NTP1 transaction was created; an exception was thrown: {}", ex.what());
             SendCoinsReturn ret(StatusCode::NTP1TokenCalculationsFailed);
             ret.msg =
                 "Unable to create the transaction. The transaction created would result in an invalid "
@@ -423,7 +424,7 @@ bool WalletModel::backupWallet(const QString& filename)
 // Handlers for core signals
 static void NotifyKeyStoreStatusChanged(WalletModel* walletmodel, CCryptoKeyStore* /*wallet*/)
 {
-    OutputDebugStringF("NotifyKeyStoreStatusChanged\n");
+    NLog.write(b_sev::info, "NotifyKeyStoreStatusChanged");
     QMetaObject::invokeMethod(walletmodel, "updateStatus", Qt::QueuedConnection);
 }
 
@@ -431,9 +432,8 @@ static void NotifyAddressBookChanged(WalletModel*          walletmodel, CWallet*
                                      const CTxDestination& address, const std::string& label,
                                      bool isMine, const std::string& purpose, ChangeType status)
 {
-    OutputDebugStringF("NotifyAddressBookChanged %s %s isMine=%i purpose=%s status=%i\n",
-                       CBitcoinAddress(address).ToString().c_str(), label.c_str(), isMine,
-                       purpose.c_str(), status);
+    NLog.write(b_sev::info, "NotifyAddressBookChanged {} {} isMine={} purpose={} status={}",
+              CBitcoinAddress(address).ToString(), label.c_str(), isMine, purpose, status);
     QMetaObject::invokeMethod(
         walletmodel, "updateAddressBook", Qt::QueuedConnection,
         Q_ARG(QString, QString::fromStdString(CBitcoinAddress(address).ToString())),
@@ -444,7 +444,7 @@ static void NotifyAddressBookChanged(WalletModel*          walletmodel, CWallet*
 static void NotifyTransactionChanged(WalletModel* walletmodel, CWallet* /*wallet*/, const uint256& hash,
                                      ChangeType status)
 {
-    OutputDebugStringF("NotifyTransactionChanged %s status=%i\n", hash.GetHex().c_str(), status);
+    NLog.write(b_sev::info, "NotifyTransactionChanged {} status={}", hash.GetHex(), status);
     QMetaObject::invokeMethod(walletmodel, "updateTransaction", Qt::QueuedConnection,
                               Q_ARG(QString, QString::fromStdString(hash.GetHex())), Q_ARG(int, status));
 }
@@ -611,10 +611,10 @@ std::string WalletModel::getLabelForAddress(const CBitcoinAddress& address)
 bool WalletModel::getKeyId(const CBitcoinAddress& address, CKeyID& keyID)
 {
     if (!address.IsValid())
-        return ::error("Invalid neblio address: %s", address.ToString().c_str());
+        return NLog.error("Invalid neblio address: {}", address.ToString());
 
     if (!address.GetKeyID(keyID))
-        return ::error("Unable to get KeyID from neblio address: %s", address.ToString().c_str());
+        return NLog.error("Unable to get KeyID from neblio address: {}", address.ToString());
 
     return true;
 }
