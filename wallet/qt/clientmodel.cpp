@@ -15,8 +15,8 @@ static const int64_t nClientStartupTime = GetTime();
 
 int64_t nLastBlockTipUpdateNotification = 0;
 
-ClientModel::ClientModel(OptionsModel* optionsModel, QObject* parent)
-    : QObject(parent), optionsModel(optionsModel), cachedNumBlocks(0), cachedNumBlocksOfPeers(0),
+ClientModel::ClientModel(OptionsModel* optionsModelIn, QObject* parent)
+    : QObject(parent), optionsModel(optionsModelIn), cachedNumBlocks(0), cachedNumBlocksOfPeers(0),
       pollTimer(0)
 {
     numBlocksAtStartup = -1;

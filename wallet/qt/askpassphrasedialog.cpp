@@ -10,10 +10,10 @@
 
 extern bool fWalletUnlockStakingOnly;
 
-AskPassphraseDialog::AskPassphraseDialog(Mode mode, QWidget *parent) :
+AskPassphraseDialog::AskPassphraseDialog(Mode modeIn, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::AskPassphraseDialog),
-    mode(mode),
+    mode(modeIn),
     model(0),
     fCapsLock(false)
 {
@@ -29,7 +29,7 @@ AskPassphraseDialog::AskPassphraseDialog(Mode mode, QWidget *parent) :
 
     ui->stakingCheckBox->setChecked(fWalletUnlockStakingOnly);
 
-    switch(mode)
+    switch(modeIn)
     {
         case Encrypt: // Ask passphrase x2
             ui->passLabel1->hide();
@@ -75,9 +75,9 @@ AskPassphraseDialog::~AskPassphraseDialog()
     delete ui;
 }
 
-void AskPassphraseDialog::setModel(WalletModel *model)
+void AskPassphraseDialog::setModel(WalletModel *modelP)
 {
-    this->model = model;
+    this->model = modelP;
 }
 
 void AskPassphraseDialog::accept()

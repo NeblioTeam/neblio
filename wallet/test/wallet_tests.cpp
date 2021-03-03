@@ -235,7 +235,7 @@ TEST(wallet_tests, coin_selection_tests)
         // http://blockexplorer.com/tx/29a3efd3ef04f9153d47a990bd7b048a4b2d213daaa5fb8ed670fb85f13bdbcf)
         // they tried to consolidate 10 50k coins into one 500k coin, and ended up with 50k in change
         empty_wallet();
-        for (int i = 0; i < 20; i++)
+        for (int j = 0; j < 20; j++)
             add_coin(50000 * COIN);
 
         EXPECT_TRUE(wallet.SelectCoinsMinConf(*dbMock, 500000 * COIN, GetAdjustedTime(), 1, 1, vCoins,
@@ -302,7 +302,7 @@ TEST(wallet_tests, coin_selection_tests)
             EXPECT_TRUE(!equal_sets(setCoinsRet, setCoinsRet2));
 
             int fails = 0;
-            for (int i = 0; i < RANDOM_REPEATS; i++) {
+            for (int j = 0; j < RANDOM_REPEATS; j++) {
                 // selecting 1 from 100 identical coins depends on the shuffle; this test will fail 1% of
                 // the time run the test RANDOM_REPEATS times and only complain if all of them fail
                 EXPECT_TRUE(wallet.SelectCoinsMinConf(*dbMock, COIN, GetAdjustedTime(), 1, 6, vCoins,
@@ -324,7 +324,7 @@ TEST(wallet_tests, coin_selection_tests)
             add_coin(25 * CENT);
 
             fails = 0;
-            for (int i = 0; i < RANDOM_REPEATS; i++) {
+            for (int j = 0; j < RANDOM_REPEATS; j++) {
                 // selecting 1 from 100 identical coins depends on the shuffle; this test will fail 1% of
                 // the time run the test RANDOM_REPEATS times and only complain if all of them fail
                 EXPECT_TRUE(wallet.SelectCoinsMinConf(*dbMock, 90 * CENT, GetAdjustedTime(), 1, 6,

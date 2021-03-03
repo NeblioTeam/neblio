@@ -34,7 +34,7 @@ public:
     explicit ColdStakingPage(QWidget* parent = 0);
     virtual ~ColdStakingPage();
 
-    void setModel(ColdStakingModel* model);
+    void setModel(ColdStakingModel* modelIn);
     void setWalletModel(WalletModel* wModel);
 
 public slots:

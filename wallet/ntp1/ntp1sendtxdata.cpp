@@ -270,8 +270,8 @@ void NTP1SendTxData::selectNTP1Tokens(NTP1WalletPtr wallet, std::vector<NTP1OutP
             auto numOfTokensInOutput = ntp1txOut.tokenCount();
             bool takeThisOutput      = false;
             if (addMoreInputsIfRequired) {
-                for (auto i = 0u; i < numOfTokensInOutput; i++) {
-                    std::string outputTokenId = ntp1txOut.getToken(i).getTokenId();
+                for (auto j = 0u; j < numOfTokensInOutput; j++) {
+                    std::string outputTokenId = ntp1txOut.getToken(j).getTokenId();
                     // if token id matches in the transaction with the required one, take it into account
                     NTP1Int required_amount_still =
                         targetAmount.second - totalTokenAmountsInSelectedInputs[outputTokenId];
@@ -291,10 +291,10 @@ void NTP1SendTxData::selectNTP1Tokens(NTP1WalletPtr wallet, std::vector<NTP1OutP
             // 3. add the address to the list of inputs to use (pointless if a list of inputs was
             // provided)
             if (takeThisOutput) {
-                for (auto i = 0u; i < numOfTokensInOutput; i++) {
-                    std::string outputTokenId = ntp1txOut.getToken(i).getTokenId();
+                for (auto j = 0u; j < numOfTokensInOutput; j++) {
+                    std::string outputTokenId = ntp1txOut.getToken(j).getTokenId();
                     totalTokenAmountsInSelectedInputs[outputTokenId] +=
-                        ntp1txOut.getToken(i).getAmount();
+                        ntp1txOut.getToken(j).getAmount();
                 }
                 tokenSourceInputs.push_back(output);
                 availableOutputs.erase(availableOutputs.begin() + i);

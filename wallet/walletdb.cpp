@@ -19,8 +19,8 @@ extern bool     fWalletUnlockStakingOnly;
 // CWalletDB
 //
 
-CWalletDB::CWalletDB(string strFilename, const char* pszMode, bool fFlushOnClose)
-    : CDB(strFilename.c_str(), pszMode, fFlushOnClose)
+CWalletDB::CWalletDB(string strFilename, const char* pszMode, bool fFlushOnCloseIn)
+    : CDB(strFilename.c_str(), pszMode, fFlushOnCloseIn)
 {
 }
 
@@ -599,8 +599,8 @@ void FlushWalletDB_unsafe(const std::string& strFile, unsigned int* nLastFlushed
     }
 
     if (nRefCount == 0 && !fShutdown) {
-        map<string, int>::iterator mi = bitdb.mapFileUseCount.find(strFile);
-        if (mi != bitdb.mapFileUseCount.end()) {
+        map<string, int>::iterator mit = bitdb.mapFileUseCount.find(strFile);
+        if (mit != bitdb.mapFileUseCount.end()) {
             NLog.write(b_sev::info, "Flushing wallet.dat");
             if (nLastFlushedPtr) {
                 *nLastFlushedPtr = nWalletDBUpdated;
@@ -611,7 +611,7 @@ void FlushWalletDB_unsafe(const std::string& strFile, unsigned int* nLastFlushed
             bitdb.CloseDb(strFile);
             bitdb.CheckpointLSN(strFile);
 
-            bitdb.mapFileUseCount.erase(mi++);
+            bitdb.mapFileUseCount.erase(mit++);
             NLog.write(b_sev::info, "Flushed wallet.dat | {} ms", GetTimeMillis() - nStart);
         }
     }

@@ -91,16 +91,16 @@ public:
     {
     }
 
-    TransactionRecord(uint256 hash, int64_t time)
-        : hash(hash), time(time), type(Other), address(""), debit(0), credit(0), idx(0),
+    TransactionRecord(uint256 hashIn, int64_t timeIn)
+        : hash(hashIn), time(timeIn), type(Other), address(""), debit(0), credit(0), idx(0),
           ntp1DataLoaded(false), ntp1DataLoadError(false)
     {
         readNTP1TxData();
     }
 
-    TransactionRecord(uint256 hash, int64_t time, Type type, const std::string& address, int64_t debit,
-                      int64_t credit)
-        : hash(hash), time(time), type(type), address(address), debit(debit), credit(credit), idx(0),
+    TransactionRecord(uint256 hashIn, int64_t timeIn, Type typeIn, const std::string& addressIn, int64_t debitIn,
+                      int64_t creditIn)
+        : hash(hashIn), time(timeIn), type(typeIn), address(addressIn), debit(debitIn), credit(creditIn), idx(0),
           ntp1DataLoaded(false), ntp1DataLoadError(false)
     {
         readNTP1TxData();

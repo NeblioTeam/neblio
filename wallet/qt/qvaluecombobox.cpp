@@ -16,9 +16,9 @@ void QValueComboBox::setValue(const QVariant &value)
     setCurrentIndex(findData(value, role));
 }
 
-void QValueComboBox::setRole(int role)
+void QValueComboBox::setRole(int roleIn)
 {
-    this->role = role;
+    this->role = roleIn;
 }
 
 void QValueComboBox::handleSelectionChanged(int /*idx*/)

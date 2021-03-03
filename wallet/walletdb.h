@@ -33,7 +33,14 @@ public:
     CKeyMetadata();
     CKeyMetadata(int64_t nCreateTime_);
 
+#if !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
+#endif
     IMPLEMENT_SERIALIZE(READWRITE(this->nVersion); nVersion = this->nVersion; READWRITE(nCreateTime);)
+#if !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
     void SetNull();
 };
@@ -45,7 +52,7 @@ public:
     // WARNING: TODO: The fact that the filename is std::string may be a problem with non-ascii
     // filenames, check! Keep in mind that this may work with wallet.dat, but any other name (which may
     // come from a backup) may not work.
-    CWalletDB(std::string strFilename, const char* pszMode = "r+", bool fFlushOnClose = true);
+    CWalletDB(std::string strFilename, const char* pszMode = "r+", bool fFlushOnCloseIn = true);
 
 private:
     CWalletDB(const CWalletDB&);

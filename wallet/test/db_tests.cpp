@@ -373,13 +373,13 @@ static void TestReadWriteUnique(IDB* db, const std::map<std::string, std::string
 TEST(db_interface_impl_tests, read_write_unique)
 {
     static constexpr int MAX_ENTRIES = 20;
-    static constexpr int MAX_SIZE    = 500;
+    static constexpr int MAX_SIZE_P    = 500;
 
     std::map<std::string, std::string> data;
 
     for (int i = 0; i < MAX_ENTRIES; i++) {
-        const std::size_t keySize = static_cast<std::size_t>(1 + rand() % MAX_SIZE);
-        const std::size_t valSize = static_cast<std::size_t>(1 + rand() % MAX_SIZE);
+        const std::size_t keySize = static_cast<std::size_t>(1 + rand() % MAX_SIZE_P);
+        const std::size_t valSize = static_cast<std::size_t>(1 + rand() % MAX_SIZE_P);
         const std::string key     = GeneratePseudoRandomString(keySize);
         const std::string val     = GeneratePseudoRandomString(valSize);
 
@@ -399,13 +399,13 @@ TEST(db_interface_impl_tests, read_write_unique)
 TEST(db_interface_impl_tests, read_write_unique_with_transaction)
 {
     static constexpr int MAX_ENTRIES = 20;
-    static constexpr int MAX_SIZE    = 500;
+    static constexpr int MAX_SIZE_P    = 500;
 
     std::map<std::string, std::string> data;
 
     for (int i = 0; i < MAX_ENTRIES; i++) {
-        const std::size_t keySize = static_cast<std::size_t>(1 + rand() % MAX_SIZE);
-        const std::size_t valSize = static_cast<std::size_t>(1 + rand() % MAX_SIZE);
+        const std::size_t keySize = static_cast<std::size_t>(1 + rand() % MAX_SIZE_P);
+        const std::size_t valSize = static_cast<std::size_t>(1 + rand() % MAX_SIZE_P);
         const std::string key     = GeneratePseudoRandomString(keySize);
         const std::string val     = GeneratePseudoRandomString(valSize);
 
@@ -516,15 +516,15 @@ TEST(db_interface_impl_tests, read_write_multiple)
 {
     static constexpr int MAX_ENTRIES    = 5;
     static constexpr int MAX_SUBENTRIES = 3;
-    static constexpr int MAX_SIZE       = 500;
+    static constexpr int MAX_SIZE_P       = 500;
 
     std::map<std::string, std::vector<std::string>> data;
 
     for (int i = 0; i < MAX_ENTRIES; i++) {
-        const std::size_t keySize = static_cast<std::size_t>(1 + rand() % MAX_SIZE);
+        const std::size_t keySize = static_cast<std::size_t>(1 + rand() % MAX_SIZE_P);
         const std::string key     = GeneratePseudoRandomString(keySize);
         for (int j = 0; j < MAX_SUBENTRIES; j++) {
-            const std::size_t valSize = static_cast<std::size_t>(1 + rand() % MAX_SIZE);
+            const std::size_t valSize = static_cast<std::size_t>(1 + rand() % MAX_SIZE_P);
             const std::string val     = GeneratePseudoRandomString(valSize);
 
             data[key].push_back(val);
@@ -638,15 +638,15 @@ TEST(db_interface_impl_tests, read_write_multiple_with_db_transaction)
 {
     static constexpr int MAX_ENTRIES    = 5;
     static constexpr int MAX_SUBENTRIES = 3;
-    static constexpr int MAX_SIZE       = 500;
+    static constexpr int MAX_SIZE_P       = 500;
 
     std::map<std::string, std::vector<std::string>> data;
 
     for (int i = 0; i < MAX_ENTRIES; i++) {
-        const std::size_t keySize = static_cast<std::size_t>(1 + rand() % MAX_SIZE);
+        const std::size_t keySize = static_cast<std::size_t>(1 + rand() % MAX_SIZE_P);
         const std::string key     = GeneratePseudoRandomString(keySize);
         for (int j = 0; j < MAX_SUBENTRIES; j++) {
-            const std::size_t valSize = static_cast<std::size_t>(1 + rand() % MAX_SIZE);
+            const std::size_t valSize = static_cast<std::size_t>(1 + rand() % MAX_SIZE_P);
             const std::string val     = GeneratePseudoRandomString(valSize);
 
             data[key].push_back(val);

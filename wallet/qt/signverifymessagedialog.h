@@ -19,7 +19,7 @@ public:
     explicit SignVerifyMessageDialog(QWidget *parent = 0);
     ~SignVerifyMessageDialog();
 
-    void setModel(WalletModel *model);
+    void setModel(WalletModel *modelIn);
     void setAddress_SM(QString address);
     void setAddress_VM(QString address);
 

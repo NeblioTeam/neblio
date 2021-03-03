@@ -1290,9 +1290,9 @@ void ThreadOpenConnections2(void* /*parg*/)
     if (connectVals.size() > 0) {
         for (int64_t nLoop = 0;; nLoop++) {
             ProcessOneShot();
-            std::vector<std::string> connectVals =
+            std::vector<std::string> connectValsP =
                 mapMultiArgs.get("-connect").value_or(std::vector<std::string>());
-            BOOST_FOREACH (string strAddr, connectVals) {
+            for (const string& strAddr: connectValsP) {
                 CAddress addr;
                 OpenNetworkConnection(addr, nullptr, strAddr.c_str());
                 for (int i = 0; i < 10 && i < nLoop; i++) {
@@ -1965,7 +1965,7 @@ void RelayTransaction(const CTransaction& tx, const CDataStream& ss)
     for (CNode* pnode : vNodes) {
         if (!pnode->fRelayTxes)
             continue;
-        LOCK(pnode->cs_filter);
+        LOCKN(pnode->cs_filter, filterLock);
         if (pnode->pfilter) {
             if (pnode->pfilter->IsRelevantAndUpdate(tx))
                 pnode->PushInventory(inv);

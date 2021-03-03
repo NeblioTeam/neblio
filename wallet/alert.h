@@ -39,6 +39,10 @@ public:
     std::string strStatusBar;
     std::string strReserved;
 
+#if !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
+#endif
     // clang-format off
     IMPLEMENT_SERIALIZE
     (
@@ -59,6 +63,9 @@ public:
         READWRITE(strReserved);
     )
     // clang-format on
+#if !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
     void SetNull();
 
@@ -75,14 +82,22 @@ public:
 
     CAlert() { SetNull(); }
 
+#if !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
+#endif
     IMPLEMENT_SERIALIZE(READWRITE(vchMsg); READWRITE(vchSig);)
+#if !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
+
 
     void    SetNull();
     bool    IsNull() const;
     uint256 GetHash() const;
     bool    IsInEffect() const;
     bool    Cancels(const CAlert& alert) const;
-    bool    AppliesTo(int nVersion, std::string strSubVerIn) const;
+    bool    AppliesTo(int nVersionIn, std::string strSubVerIn) const;
     bool    AppliesToMe() const;
     bool    RelayTo(CNode* pnode) const;
     bool    CheckSignature() const;

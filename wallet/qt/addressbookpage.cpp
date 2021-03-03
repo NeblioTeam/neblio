@@ -17,13 +17,13 @@
 #include "qrcodedialog.h"
 #endif
 
-AddressBookPage::AddressBookPage(Mode mode, Tabs tab, QWidget *parent) :
+AddressBookPage::AddressBookPage(Mode modeIn, Tabs tabIn, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::AddressBookPage),
     model(0),
     optionsModel(0),
-    mode(mode),
-    tab(tab)
+    mode(modeIn),
+    tab(tabIn)
 {
     ui->setupUi(this);
 
@@ -37,7 +37,7 @@ AddressBookPage::AddressBookPage(Mode mode, Tabs tab, QWidget *parent) :
     ui->showQRCode->setVisible(false);
 #endif
 
-    switch(mode)
+    switch(modeIn)
     {
     case ForSending:
         connect(ui->tableView, SIGNAL(doubleClicked(QModelIndex)), this, SLOT(accept()));
@@ -48,7 +48,7 @@ AddressBookPage::AddressBookPage(Mode mode, Tabs tab, QWidget *parent) :
         ui->buttonBox->setVisible(false);
         break;
     }
-    switch(tab)
+    switch(tabIn)
     {
     case SendingTab:
         ui->labelExplanation->setVisible(false);
@@ -75,15 +75,15 @@ AddressBookPage::AddressBookPage(Mode mode, Tabs tab, QWidget *parent) :
     contextMenu->addAction(copyAddressAction);
     contextMenu->addAction(copyLabelAction);
     contextMenu->addAction(editAction);
-    if(tab == SendingTab)
+    if(tabIn == SendingTab)
         contextMenu->addAction(deleteAction);
     contextMenu->addSeparator();
 #ifdef USE_QRCODE
     contextMenu->addAction(showQRCodeAction);
 #endif
-    if(tab == ReceivingTab)
+    if(tabIn == ReceivingTab)
         contextMenu->addAction(signMessageAction);
-    else if(tab == SendingTab)
+    else if(tabIn == SendingTab)
         contextMenu->addAction(verifyMessageAction);
 
     // Connect signals for context menu actions
@@ -106,14 +106,14 @@ AddressBookPage::~AddressBookPage()
     delete ui;
 }
 
-void AddressBookPage::setModel(AddressTableModel *model)
+void AddressBookPage::setModel(AddressTableModel *modelIn)
 {
-    this->model = model;
-    if(!model)
+    this->model = modelIn;
+    if(!modelIn)
         return;
 
     proxyModel = new QSortFilterProxyModel(this);
-    proxyModel->setSourceModel(model);
+    proxyModel->setSourceModel(modelIn);
     proxyModel->setDynamicSortFilter(true);
     proxyModel->setSortCaseSensitivity(Qt::CaseInsensitive);
     proxyModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
@@ -143,15 +143,15 @@ void AddressBookPage::setModel(AddressTableModel *model)
             this, SLOT(selectionChanged()));
 
     // Select row for newly created address
-    connect(model, SIGNAL(rowsInserted(QModelIndex,int,int)),
+    connect(modelIn, SIGNAL(rowsInserted(QModelIndex,int,int)),
             this, SLOT(selectNewAddress(QModelIndex,int,int)));
 
     selectionChanged();
 }
 
-void AddressBookPage::setOptionsModel(OptionsModel *optionsModel)
+void AddressBookPage::setOptionsModel(OptionsModel *optionsModelIn)
 {
-    this->optionsModel = optionsModel;
+    this->optionsModel = optionsModelIn;
 }
 
 void AddressBookPage::on_copyToClipboard_clicked()

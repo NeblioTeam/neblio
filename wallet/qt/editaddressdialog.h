@@ -26,14 +26,14 @@ public:
         EditSendingAddress
     };
 
-    explicit EditAddressDialog(Mode mode, QWidget *parent = 0);
+    explicit EditAddressDialog(Mode modeIn, QWidget *parent = 0);
     ~EditAddressDialog();
 
     void setModel(AddressTableModel *model);
     void loadRow(int row);
 
     QString getAddress() const;
-    void setAddress(const QString &address);
+    void setAddress(const QString &addressIn);
 
 public slots:
     void accept();

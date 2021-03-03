@@ -347,10 +347,10 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
                 if (txIsNTP1) {
                     // if this output is an NTP1 output, skip it
                     try {
-                        std::vector<std::pair<CTransaction, NTP1Transaction>> inputs =
+                        std::vector<std::pair<CTransaction, NTP1Transaction>> inputsP =
                             NTP1Transaction::GetAllNTP1InputsOfTx(tx, txdb, false);
                         NTP1Transaction ntp1tx;
-                        ntp1tx.readNTP1DataFromTx(txdb, tx, inputs);
+                        ntp1tx.readNTP1DataFromTx(txdb, tx, inputsP);
                         // if this output contains tokens, skip it to avoid burning them
                         if (ntp1tx.getTxOut(o.n).tokenCount() > 0) {
                             QMessageBox::warning(

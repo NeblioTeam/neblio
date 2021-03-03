@@ -174,12 +174,12 @@ TransactionView::TransactionView(QWidget* parent)
     connect(viewTxInExplorer, &QAction::triggered, this, &TransactionView::showInBlockExplorer);
 }
 
-void TransactionView::setModel(WalletModel* model)
+void TransactionView::setModel(WalletModel* modelIn)
 {
-    this->model = model;
-    if (model) {
+    this->model = modelIn;
+    if (modelIn) {
         transactionProxyModel = new TransactionFilterProxy(this);
-        transactionProxyModel->setSourceModel(model->getTransactionTableModel());
+        transactionProxyModel->setSourceModel(modelIn->getTransactionTableModel());
         transactionProxyModel->setDynamicSortFilter(true);
         transactionProxyModel->setSortCaseSensitivity(Qt::CaseInsensitive);
         transactionProxyModel->setFilterCaseSensitivity(Qt::CaseInsensitive);

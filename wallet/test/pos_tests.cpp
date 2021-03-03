@@ -607,13 +607,13 @@ TEST(PoS_tests, scripts_p2cs_scriptSig_test)
 
     // hypothetical signature
     const CScript sigScript = [&key, &keyStore]() -> CScript {
-        CScript sigScript;
+        CScript sigScriptP;
 
         CHashWriter ss(SER_GETHASH, 0);
         ss << std::string("abc");
-        EXPECT_TRUE(Sign1(key.GetPubKey().GetID(), keyStore, ss.GetHash(), SIGHASH_ALL, sigScript));
+        EXPECT_TRUE(Sign1(key.GetPubKey().GetID(), keyStore, ss.GetHash(), SIGHASH_ALL, sigScriptP));
 
-        return sigScript;
+        return sigScriptP;
     }();
 
     const std::vector<uint8_t> pubKey = key.GetPubKey().Raw();

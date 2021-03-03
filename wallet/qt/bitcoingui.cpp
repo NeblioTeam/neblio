@@ -438,12 +438,12 @@ void BitcoinGUI::createToolBars()
     toolbar->addAction(exportAction);
 }
 
-void BitcoinGUI::setClientModel(ClientModel* clientModel)
+void BitcoinGUI::setClientModel(ClientModel* clientModelIn)
 {
-    this->clientModel = clientModel;
-    if (clientModel) {
+    this->clientModel = clientModelIn;
+    if (clientModelIn) {
         // Replace some strings and icons, when using the testnet
-        if (clientModel->isTestNet()) {
+        if (clientModelIn->isTestNet()) {
             setWindowTitle(windowTitle() + QString(" ") + tr("[testnet]"));
 #ifndef Q_OS_MAC
             qApp->setWindowIcon(QIcon(":icons/bitcoin_testnet"));
@@ -465,50 +465,50 @@ void BitcoinGUI::setClientModel(ClientModel* clientModel)
         createTrayIconMenu();
 
         // Keep up to date with client
-        setNumConnections(clientModel->getNumConnections());
-        connect(clientModel, SIGNAL(numConnectionsChanged(int)), this, SLOT(setNumConnections(int)));
+        setNumConnections(clientModelIn->getNumConnections());
+        connect(clientModelIn, SIGNAL(numConnectionsChanged(int)), this, SLOT(setNumConnections(int)));
 
-        setNumBlocks(clientModel->getNumBlocks(), clientModel->getNumBlocksOfPeers());
-        connect(clientModel, SIGNAL(numBlocksChanged(int, int)), this, SLOT(setNumBlocks(int, int)));
+        setNumBlocks(clientModelIn->getNumBlocks(), clientModelIn->getNumBlocksOfPeers());
+        connect(clientModelIn, SIGNAL(numBlocksChanged(int, int)), this, SLOT(setNumBlocks(int, int)));
 
         // Report errors from network/worker thread
-        connect(clientModel, SIGNAL(error(QString, QString, bool)), this,
+        connect(clientModelIn, SIGNAL(error(QString, QString, bool)), this,
                 SLOT(error(QString, QString, bool)));
 
-        rpcConsole->setClientModel(clientModel);
-        addressBookPage->setOptionsModel(clientModel->getOptionsModel());
-        receiveCoinsPage->setOptionsModel(clientModel->getOptionsModel());
+        rpcConsole->setClientModel(clientModelIn);
+        addressBookPage->setOptionsModel(clientModelIn->getOptionsModel());
+        receiveCoinsPage->setOptionsModel(clientModelIn->getOptionsModel());
     }
 }
 
-void BitcoinGUI::setWalletModel(WalletModel* walletModel)
+void BitcoinGUI::setWalletModel(WalletModel* walletModelIn)
 {
-    this->walletModel = walletModel;
-    if (walletModel) {
+    this->walletModel = walletModelIn;
+    if (walletModelIn) {
         // Report errors from wallet thread
-        connect(walletModel, SIGNAL(error(QString, QString, bool)), this,
+        connect(walletModelIn, SIGNAL(error(QString, QString, bool)), this,
                 SLOT(error(QString, QString, bool)));
 
         // Put transaction list in tabs
-        transactionView->setModel(walletModel);
+        transactionView->setModel(walletModelIn);
 
-        overviewPage->setModel(walletModel);
-        addressBookPage->setModel(walletModel->getAddressTableModel());
-        receiveCoinsPage->setModel(walletModel->getAddressTableModel());
-        sendCoinsPage->setModel(walletModel);
-        coldStakingPage->setWalletModel(walletModel);
-        signVerifyMessageDialog->setModel(walletModel);
-        ntp1SummaryPage->ui->issueNewNTP1TokenDialog->setWalletModel(walletModel);
+        overviewPage->setModel(walletModelIn);
+        addressBookPage->setModel(walletModelIn->getAddressTableModel());
+        receiveCoinsPage->setModel(walletModelIn->getAddressTableModel());
+        sendCoinsPage->setModel(walletModelIn);
+        coldStakingPage->setWalletModel(walletModelIn);
+        signVerifyMessageDialog->setModel(walletModelIn);
+        ntp1SummaryPage->ui->issueNewNTP1TokenDialog->setWalletModel(walletModelIn);
 
-        setEncryptionStatus(walletModel->getEncryptionStatus());
-        connect(walletModel, SIGNAL(encryptionStatusChanged(int)), this, SLOT(setEncryptionStatus(int)));
+        setEncryptionStatus(walletModelIn->getEncryptionStatus());
+        connect(walletModelIn, SIGNAL(encryptionStatusChanged(int)), this, SLOT(setEncryptionStatus(int)));
 
         // Balloon pop-up for new transaction
-        connect(walletModel->getTransactionTableModel(), SIGNAL(rowsInserted(QModelIndex, int, int)),
+        connect(walletModelIn->getTransactionTableModel(), SIGNAL(rowsInserted(QModelIndex, int, int)),
                 this, SLOT(incomingTransaction(QModelIndex, int, int)));
 
         // Ask for passphrase if needed
-        connect(walletModel, SIGNAL(requireUnlock()), this, SLOT(unlockWallet()));
+        connect(walletModelIn, SIGNAL(requireUnlock()), this, SLOT(unlockWallet()));
     }
 }
 
@@ -1255,8 +1255,8 @@ void BitcoinGUI::updateStakingIcon()
     if (stakeMaker.IsStakingActive()) {
         uint64_t       nNetworkWeight = GetPoSKernelPS();
         unsigned int   nTS            = Params().TargetSpacing(txdb);
-        const uint64_t nWeight        = stakeMaker.getLatestStakeWeight().value_or(0);
-        unsigned       nEstimateTime  = !!nWeight ? (nTS * nNetworkWeight / nWeight) : -1;
+        const uint64_t nWeightP        = stakeMaker.getLatestStakeWeight().value_or(0);
+        unsigned       nEstimateTime  = !!nWeightP ? (nTS * nNetworkWeight / nWeightP) : -1;
 
         QString text;
         if (nEstimateTime < 60) {
@@ -1273,7 +1273,7 @@ void BitcoinGUI::updateStakingIcon()
             QIcon(":/icons/staking_on").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
         labelStakingIcon->setToolTip(tr("Staking.<br>Your weight is %1<br>Network weight is "
                                         "%2<br>Expected time to earn reward is %3")
-                                         .arg(nWeight)
+                                         .arg(nWeightP)
                                          .arg(nNetworkWeight)
                                          .arg(text));
     } else {
