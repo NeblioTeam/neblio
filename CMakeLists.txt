@@ -13,7 +13,7 @@ message("Building on machine: " ${hostname})
 
 set(CMAKE_CXX_STANDARD 11)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wshadow -Wno-unused-variable -Wno-unused-function -Wno-unused-private-field -Wno-class-memaccess -Wno-stringop-truncation")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-variable -Wno-unused-function -Wno-unused-private-field -Wno-class-memaccess -Wno-stringop-truncation")
 
 if(WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wa,-mbig-obj")
