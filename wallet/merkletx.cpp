@@ -40,7 +40,7 @@ struct ExtractorFunctor
 {
     const uint256 bestBlockHash;
 
-    ExtractorFunctor(const uint256& bestBlockHash) : bestBlockHash(bestBlockHash) {}
+    ExtractorFunctor(const uint256& bestBlockHashIn) : bestBlockHash(bestBlockHashIn) {}
 
     boost::optional<int> operator()(const CBlockIndex& bi)
     {

@@ -165,8 +165,8 @@ Value getworkex(const Array& params, bool fHelp)
             if (pindexPrev->GetBlockHash() != bestBlockIndex->GetBlockHash()) {
                 // Deallocate old blocks since they're obsolete now
                 mapNewBlock.clear();
-                BOOST_FOREACH (CBlock* pblock, vNewBlock)
-                    delete pblock;
+                for (CBlock* pblockP: vNewBlock)
+                    delete pblockP;
                 vNewBlock.clear();
             }
             nTransactionsUpdatedLast = nTransactionsUpdated;
@@ -296,8 +296,8 @@ Value getwork(const Array& params, bool fHelp)
             if (pindexPrev->GetBlockHash() != bestBlockIndex->GetBlockHash()) {
                 // Deallocate old blocks since they're obsolete now
                 mapNewBlock.clear();
-                for (CBlock* pblock : vNewBlock)
-                    delete pblock;
+                for (CBlock* pblockP : vNewBlock)
+                    delete pblockP;
                 vNewBlock.clear();
             }
 

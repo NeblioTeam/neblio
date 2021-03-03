@@ -18,10 +18,10 @@ namespace types {
 template <typename T>
 struct Ok
 {
-    Ok(const T& val) : val(val) {}
-    Ok(T&& val) : val(std::move(val)) {}
+    Ok(const T& val) : val_(val) {}
+    Ok(T&& val) : val_(std::move(val)) {}
 
-    T val;
+    T val_;
 };
 
 template <>
@@ -32,10 +32,10 @@ struct Ok<void>
 template <typename E>
 struct Err
 {
-    Err(const E& val) : val(val) {}
-    Err(E&& val) : val(std::move(val)) {}
+    Err(const E& val) : val_(val) {}
+    Err(E&& val) : val_(std::move(val)) {}
 
-    E val;
+    E val_;
 };
 } // namespace types
 
@@ -648,22 +648,22 @@ struct Storage
 
     void construct(types::Ok<T>&& ok)
     {
-        new (&storage_) T(std::move(ok.val));
+        new (&storage_) T(std::move(ok.val_));
         initialized_ = true;
     }
     void construct(const types::Ok<T>& ok)
     {
-        new (&storage_) T(ok.val);
+        new (&storage_) T(ok.val_);
         initialized_ = true;
     }
     void construct(types::Err<E>&& err)
     {
-        new (&storage_) E(err.val);
+        new (&storage_) E(err.val_);
         initialized_ = true;
     }
     void construct(const types::Err<E>& err)
     {
-        new (&storage_) E(err.val);
+        new (&storage_) E(err.val_);
         initialized_ = true;
     }
 
@@ -717,7 +717,7 @@ struct Storage<void, E>
 
     void construct(types::Err<E> err)
     {
-        new (&storage_) E(err.val);
+        new (&storage_) E(err.val_);
         initialized_ = true;
     }
 
@@ -983,7 +983,7 @@ bool operator==(const Result<T, E>& lhs, types::Ok<T> ok)
     if (!lhs.isOk())
         return false;
 
-    return lhs.storage().template get<T>() == ok.val;
+    return lhs.storage().template get<T>() == ok.val_;
 }
 
 template <typename E>
@@ -1000,7 +1000,7 @@ bool operator==(const Result<T, E>& lhs, types::Err<E> err)
     if (!lhs.isErr())
         return false;
 
-    return lhs.storage().template get<E>() == err.val;
+    return lhs.storage().template get<E>() == err.val_;
 }
 
 #define TRY(...)                                                                                        \

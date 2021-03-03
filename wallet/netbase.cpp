@@ -708,13 +708,13 @@ bool CNetAddr::IsValid() const
     if (IsIPv4())
     {
         // INADDR_NONE
-        uint32_t ipNone = INADDR_NONE;
-        if (memcmp(ip+12, &ipNone, 4) == 0)
+        uint32_t ipNoneP = INADDR_NONE;
+        if (memcmp(ip+12, &ipNoneP, 4) == 0)
             return false;
 
         // 0
-        ipNone = 0;
-        if (memcmp(ip+12, &ipNone, 4) == 0)
+        ipNoneP = 0;
+        if (memcmp(ip+12, &ipNoneP, 4) == 0)
             return false;
     }
 
@@ -999,33 +999,33 @@ bool CService::SetSockAddr(const struct sockaddr *paddr)
 CService::CService(const char *pszIpPort, bool fAllowLookup)
 {
     Init();
-    CService ip;
-    if (Lookup(pszIpPort, ip, 0, fAllowLookup))
-        *this = ip;
+    CService ipP;
+    if (Lookup(pszIpPort, ipP, 0, fAllowLookup))
+        *this = ipP;
 }
 
 CService::CService(const char *pszIpPort, int portDefault, bool fAllowLookup)
 {
     Init();
-    CService ip;
-    if (Lookup(pszIpPort, ip, portDefault, fAllowLookup))
-        *this = ip;
+    CService ipP;
+    if (Lookup(pszIpPort, ipP, portDefault, fAllowLookup))
+        *this = ipP;
 }
 
 CService::CService(const std::string &strIpPort, bool fAllowLookup)
 {
     Init();
-    CService ip;
-    if (Lookup(strIpPort.c_str(), ip, 0, fAllowLookup))
-        *this = ip;
+    CService ipP;
+    if (Lookup(strIpPort.c_str(), ipP, 0, fAllowLookup))
+        *this = ipP;
 }
 
 CService::CService(const std::string &strIpPort, int portDefault, bool fAllowLookup)
 {
     Init();
-    CService ip;
-    if (Lookup(strIpPort.c_str(), ip, portDefault, fAllowLookup))
-        *this = ip;
+    CService ipP;
+    if (Lookup(strIpPort.c_str(), ipP, portDefault, fAllowLookup))
+        *this = ipP;
 }
 
 unsigned short CService::GetPort() const

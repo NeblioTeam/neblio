@@ -20,7 +20,7 @@ public:
     explicit OptionsDialog(QWidget* parent = 0);
     ~OptionsDialog();
 
-    void setModel(OptionsModel* model);
+    void setModel(OptionsModel* modelIn);
     void setMapper();
 
 protected:

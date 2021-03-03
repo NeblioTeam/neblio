@@ -265,7 +265,15 @@ public:
 class CBitcoinAddress : public CBase58Data
 {
 public:
+
+#if !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
+#endif
     IMPLEMENT_SERIALIZE(READWRITE(vchData); READWRITE(nVersion);)
+#if !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
     bool Set(const CKeyID& id)
     {

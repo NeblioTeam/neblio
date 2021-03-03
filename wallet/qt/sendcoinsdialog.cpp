@@ -88,32 +88,32 @@ SendCoinsDialog::SendCoinsDialog(QWidget* parent)
     fNewRecipientAllowed = true;
 }
 
-void SendCoinsDialog::setModel(WalletModel* model)
+void SendCoinsDialog::setModel(WalletModel* modelIn)
 {
-    this->model = model;
+    this->model = modelIn;
 
     for (int i = 0; i < ui->entries->count(); ++i) {
         SendCoinsEntry* entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
         if (entry) {
-            entry->setModel(model);
+            entry->setModel(modelIn);
         }
     }
-    if (model && model->getOptionsModel()) {
+    if (modelIn && modelIn->getOptionsModel()) {
         setUnknownBalance();
         triggerUpdateBalance();
-        connect(model, SIGNAL(balanceChanged(qint64, qint64, qint64, qint64)), this,
+        connect(modelIn, SIGNAL(balanceChanged(qint64, qint64, qint64, qint64)), this,
                 SLOT(setBalance(qint64, qint64, qint64, qint64)));
-        connect(model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this,
+        connect(modelIn->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this,
                 SLOT(updateDisplayUnit()));
 
         // Coin Control
-        connect(model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this,
+        connect(modelIn->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this,
                 SLOT(coinControlUpdateLabels()));
-        connect(model->getOptionsModel(), SIGNAL(coinControlFeaturesChanged(bool)), this,
+        connect(modelIn->getOptionsModel(), SIGNAL(coinControlFeaturesChanged(bool)), this,
                 SLOT(coinControlFeatureChanged(bool)));
-        connect(model->getOptionsModel(), SIGNAL(transactionFeeChanged(qint64)), this,
+        connect(modelIn->getOptionsModel(), SIGNAL(transactionFeeChanged(qint64)), this,
                 SLOT(coinControlUpdateLabels()));
-        ui->frameCoinControl->setVisible(model->getOptionsModel()->getCoinControlFeatures());
+        ui->frameCoinControl->setVisible(modelIn->getOptionsModel()->getCoinControlFeatures());
         coinControlUpdateLabels();
     }
 }

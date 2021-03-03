@@ -77,9 +77,9 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
                 if (wtx.HasP2CSOutputs()) {
                     CTxOut p2csUtxo;
                     for (unsigned int nOut = 0; nOut < wtx.vout.size(); nOut++) {
-                        const CTxOut& txout = wtx.vout[nOut];
-                        if (txout.scriptPubKey.IsPayToColdStaking()) {
-                            p2csUtxo = txout;
+                        const CTxOut& txoutP = wtx.vout[nOut];
+                        if (txoutP.scriptPubKey.IsPayToColdStaking()) {
+                            p2csUtxo = txoutP;
                             break;
                         }
                     }

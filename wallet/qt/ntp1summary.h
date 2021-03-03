@@ -39,7 +39,7 @@ public:
     explicit NTP1Summary(QWidget* parent = 0);
     ~NTP1Summary();
 
-    void setModel(NTP1TokenListModel* model);
+    void setModel(NTP1TokenListModel* modelIn);
     void showOutOfSyncWarning(bool fShow);
 
 public slots:

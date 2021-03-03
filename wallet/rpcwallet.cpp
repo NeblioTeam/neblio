@@ -1158,7 +1158,6 @@ CAmount GetAccountBalance(CWalletDB& walletdb, const string& strAccount, int nMi
         bool fConflicted = false;
         int  depth       = wtx.GetDepthAndMempool(fConflicted, txdb, bestBlockHash);
 
-        const CTxDB txdb;
         if (!IsFinalTx(wtx, txdb) || wtx.GetBlocksToMaturity(txdb, bestBlockHash) > 0 || depth < 0 ||
             fConflicted)
             continue;
@@ -1793,9 +1792,9 @@ Value ListReceived(const Array& params, bool fByAccounts)
         }
 
         if (fByAccounts) {
-            tallyitem& item = mapAccountTally[strAccount];
-            item.nAmount += nAmount;
-            item.nConf = min(item.nConf, nConf);
+            tallyitem& itemP = mapAccountTally[strAccount];
+            itemP.nAmount += nAmount;
+            itemP.nConf = min(itemP.nConf, nConf);
         } else {
             Object obj;
             obj.push_back(Pair("address", address.ToString()));

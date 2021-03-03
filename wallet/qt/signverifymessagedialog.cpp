@@ -50,9 +50,9 @@ SignVerifyMessageDialog::~SignVerifyMessageDialog()
     delete ui;
 }
 
-void SignVerifyMessageDialog::setModel(WalletModel *model)
+void SignVerifyMessageDialog::setModel(WalletModel *modelIn)
 {
-    this->model = model;
+    this->model = modelIn;
 }
 
 void SignVerifyMessageDialog::setAddress_SM(QString address)

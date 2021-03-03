@@ -684,7 +684,7 @@ Value gettxout(const Array& params, bool fHelp)
     uint32_t                      nHeight = 0;
     CTxIndex                      txindex;
     if (fMempool) {
-        LOCK(mempool.cs);
+        LOCKN(mempool.cs, mempoolLock);
         if (mempool.isSpent(out)) {
             return Value();
         }

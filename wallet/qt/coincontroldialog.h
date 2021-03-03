@@ -24,7 +24,7 @@ public:
     explicit CoinControlDialog(QWidget* parent = 0);
     ~CoinControlDialog();
 
-    void setModel(WalletModel* model);
+    void setModel(WalletModel* modelIn);
 
     // static because also called from sendcoinsdialog
     static void    updateLabels(WalletModel*, QDialog*);

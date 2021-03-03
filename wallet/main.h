@@ -227,6 +227,10 @@ public:
     {
     }
 
+#if !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
+#endif
     unsigned int GetSerializeSize(int nType, int nVersion) const
     {
         return ::GetSerializeSize(VARINT(nHeight * 2 + (fCoinBase ? 1 : 0)), nType, nVersion) +
@@ -254,6 +258,9 @@ public:
             ::Unserialize(s, VARINT(this->nVersion), nType, nVersion);
         ::Unserialize(s, REF(CTxOutCompressor(REF(txout))), nType, nVersion);
     }
+#if !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 };
 
 /** Undo information for a CTransaction */
@@ -262,7 +269,14 @@ class CTxUndo
 public:
     std::vector<CTxInUndo> vprevout;
 
+#if !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
+#endif
     IMPLEMENT_SERIALIZE(READWRITE(vprevout);)
+#if !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 };
 
 /** pruned version of CTransaction: only retains metadata and unspent transaction outputs
@@ -384,6 +398,10 @@ public:
 
     bool IsCoinBase() const { return fCoinBase; }
 
+#if !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
+#endif
     unsigned int GetSerializeSize(int nType, int nVersion) const
     {
         unsigned int nSize     = 0;
@@ -474,6 +492,9 @@ public:
         ::Unserialize(s, VARINT(nHeight), nType, nVersion);
         Cleanup();
     }
+#if !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
     // mark an outpoint spent, and construct undo information
     bool Spend(const COutPoint& out, CTxInUndo& undo)

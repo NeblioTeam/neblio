@@ -21,14 +21,14 @@
 
 #include "udaddress.h"
 
-WalletModel::WalletModel(CWallet* wallet, OptionsModel* optionsModel, QObject* parent)
-    : QObject(parent), wallet(wallet), optionsModel(optionsModel), addressTableModel(0),
+WalletModel::WalletModel(CWallet* walletIn, OptionsModel* optionsModelIn, QObject* parent)
+    : QObject(parent), wallet(walletIn), optionsModel(optionsModelIn), addressTableModel(0),
       transactionTableModel(0), cachedBalance(0), cachedStake(0), cachedUnconfirmedBalance(0),
       cachedImmatureBalance(0), cachedNumTransactions(0), cachedEncryptionStatus(Unencrypted),
       cachedNumBlocks(0)
 {
-    addressTableModel     = new AddressTableModel(wallet, this);
-    transactionTableModel = new TransactionTableModel(wallet, this);
+    addressTableModel     = new AddressTableModel(walletIn, this);
+    transactionTableModel = new TransactionTableModel(walletIn, this);
 
     // This timer will be fired repeatedly to update the balance
     pollTimer = new QTimer(this);
@@ -493,8 +493,8 @@ WalletModel::UnlockContext WalletModel::requestUnlock()
     return UnlockContext(this, valid, was_locked && !fWalletUnlockStakingOnly);
 }
 
-WalletModel::UnlockContext::UnlockContext(WalletModel* wallet, bool valid, bool relock)
-    : wallet(wallet), valid(valid), relock(relock)
+WalletModel::UnlockContext::UnlockContext(WalletModel* walletIn, bool validIn, bool relockIn)
+    : wallet(walletIn), valid(validIn), relock(relockIn)
 {
 }
 

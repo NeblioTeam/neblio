@@ -919,18 +919,18 @@ bool CBlock::SetBestChain(CTxDB& txdb, const boost::optional<CBlockIndex>& pinde
         static thread_local BlockVersionCacheType blockIndexCache(1000, extractorFunc);
 
         int     nUpgraded = 0;
-        uint256 hash      = txdb.GetBestBlockHash();
-        for (int i = 0; i < 100 && hash != 0; i++) {
+        uint256 h      = txdb.GetBestBlockHash();
+        for (int i = 0; i < 100 && h != 0; i++) {
             const boost::optional<BlockVersionCacheType::BICacheEntry> blockIndexVersionData =
-                blockIndexCache.get(txdb, hash);
+                blockIndexCache.get(txdb, h);
             if (!blockIndexVersionData) {
                 NLog.write(b_sev::err, "CRITICAL: Error retrieving previous block of block {}",
-                           hash.ToString());
+                           h.ToString());
                 break;
             }
             if (blockIndexVersionData->value > CBlock::CURRENT_VERSION)
                 ++nUpgraded;
-            hash = blockIndexVersionData->prevHash;
+            h = blockIndexVersionData->prevHash;
         }
         if (nUpgraded > 0)
             NLog.write(b_sev::info, "SetBestChain: {} of last 100 blocks above version {}", nUpgraded,
@@ -1375,7 +1375,6 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& block
         return DoS(100, NLog.error("AcceptBlock() : reject proof-of-work at height {}", nHeight));
 
     {
-        const CTxDB txdb;
         const auto  hasColdStakingResult = HasColdStaking(txdb);
         if (hasColdStakingResult.isErr()) {
             return DoS(100,

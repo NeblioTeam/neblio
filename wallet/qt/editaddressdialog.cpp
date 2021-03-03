@@ -6,15 +6,15 @@
 #include <QDataWidgetMapper>
 #include <QMessageBox>
 
-EditAddressDialog::EditAddressDialog(Mode mode, QWidget *parent) :
+EditAddressDialog::EditAddressDialog(Mode modeIn, QWidget *parent) :
     QDialog(parent),
-    ui(new Ui::EditAddressDialog), mapper(0), mode(mode), model(0)
+    ui(new Ui::EditAddressDialog), mapper(0), mode(modeIn), model(0)
 {
     ui->setupUi(this);
 
     GUIUtil::setupAddressWidget(ui->addressEdit, this);
 
-    switch(mode)
+    switch(modeIn)
     {
     case NewReceivingAddress:
         setWindowTitle(tr("New receiving address"));
@@ -41,13 +41,13 @@ EditAddressDialog::~EditAddressDialog()
     delete ui;
 }
 
-void EditAddressDialog::setModel(AddressTableModel *model)
+void EditAddressDialog::setModel(AddressTableModel *modelIn)
 {
-    this->model = model;
-    if(!model)
+    this->model = modelIn;
+    if(!modelIn)
         return;
 
-    mapper->setModel(model);
+    mapper->setModel(modelIn);
     mapper->addMapping(ui->labelEdit, AddressTableModel::Label);
     mapper->addMapping(ui->addressEdit, AddressTableModel::Address);
 }
@@ -129,8 +129,8 @@ QString EditAddressDialog::getAddress() const
     return address;
 }
 
-void EditAddressDialog::setAddress(const QString &address)
+void EditAddressDialog::setAddress(const QString &addressIn)
 {
-    this->address = address;
-    ui->addressEdit->setText(address);
+    this->address = addressIn;
+    ui->addressEdit->setText(addressIn);
 }

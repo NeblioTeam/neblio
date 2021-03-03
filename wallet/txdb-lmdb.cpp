@@ -336,9 +336,9 @@ boost::optional<int> CTxDB::ReadVersion()
                : boost::none;
 }
 
-bool CTxDB::WriteVersion(int nVersion)
+bool CTxDB::WriteVersion(int nVersionIn)
 {
-    return Write(std::string("version"), nVersion, IDB::Index::DB_MAIN_INDEX);
+    return Write(std::string("version"), nVersionIn, IDB::Index::DB_MAIN_INDEX);
 }
 
 bool CTxDB::ReadTxIndex(const uint256& hash, CTxIndex& txindex) const
@@ -765,10 +765,10 @@ bool CTxDB::LoadBlockIndex()
                 // check level 5: check whether all prevouts are marked spent
                 if (nCheckLevel > 4) {
                     for (const CTxIn& txin : tx.vin) {
-                        CTxIndex txindex;
-                        if (ReadTxIndex(txin.prevout.hash, txindex))
-                            if (txindex.vSpent.size() - 1 < txin.prevout.n ||
-                                txindex.vSpent[txin.prevout.n].IsNull()) {
+                        CTxIndex txindexP;
+                        if (ReadTxIndex(txin.prevout.hash, txindexP))
+                            if (txindexP.vSpent.size() - 1 < txin.prevout.n ||
+                                txindexP.vSpent[txin.prevout.n].IsNull()) {
                                 NLog.write(b_sev::debug,
                                            "LoadBlockIndex(): *** found unspent prevout {}:{} in {}",
                                            txin.prevout.hash.ToString(), txin.prevout.n,

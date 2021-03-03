@@ -180,13 +180,13 @@ protected:
                 const std::string& valStr = v;
                 try {
                     CDataStream ssKey(key.c_str(), key.c_str() + key.size(), SER_DISK, CLIENT_VERSION);
-                    std::string key;
-                    ssKey >> key;
+                    std::string keyP;
+                    ssKey >> keyP;
                     CDataStream ssValue(valStr.c_str(), valStr.c_str() + valStr.size(), SER_DISK,
                                         CLIENT_VERSION);
                     T           value;
                     ssValue >> value;
-                    Container<T>& cont = values[key];
+                    Container<T>& cont = values[keyP];
                     cont.insert(cont.end(), value);
                 } catch (const std::exception& e) {
                     unsigned int sz = static_cast<unsigned int>(values.size());
@@ -257,7 +257,7 @@ public:
 
     boost::optional<int> ReadVersion();
 
-    bool WriteVersion(int nVersion) override;
+    bool WriteVersion(int nVersionIn) override;
     bool ReadTxIndex(const uint256& hash, CTxIndex& txindex) const override;
     bool UpdateTxIndex(const uint256& hash, const CTxIndex& txindex) override;
     bool ReadTx(const CDiskTxPos& txPos, CTransaction& tx) const override;

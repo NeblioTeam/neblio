@@ -452,9 +452,9 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTran
                 if (!tx.IsNewerThan(*ptxOld))
                     return Err(
                         MakeInvalidTxState(TxValidationResult::TX_CONFLICT, "txn-mempool-conflict"));
-                for (unsigned int i = 0; i < tx.vin.size(); i++) {
-                    COutPoint outpoint = tx.vin[i].prevout;
-                    if (!pool.mapNextTx.count(outpoint) || pool.mapNextTx[outpoint].ptx != ptxOld)
+                for (unsigned int j = 0; j < tx.vin.size(); j++) {
+                    COutPoint outpointP = tx.vin[j].prevout;
+                    if (!pool.mapNextTx.count(outpointP) || pool.mapNextTx[outpointP].ptx != ptxOld)
                         return Err(
                             MakeInvalidTxState(TxValidationResult::TX_CONFLICT, "txn-mempool-conflict"));
                 }
@@ -1089,9 +1089,9 @@ void AssertIssuanceUniquenessInBlock(
 
 void static PruneOrphanBlocks()
 {
-    static const size_t MAX_SIZE =
+    static const size_t MAX_SIZE_P =
         (size_t)std::max(INT64_C(0), GetArg("-maxorphanblocks", DEFAULT_MAX_ORPHAN_BLOCKS));
-    if (mapOrphanBlocksByPrev.size() <= MAX_SIZE)
+    if (mapOrphanBlocksByPrev.size() <= MAX_SIZE_P)
         return;
 
     // Pick a random orphan block.
@@ -1112,7 +1112,7 @@ void static PruneOrphanBlocks()
         b_sev::info,
         "Removing block {} from orphans map as the size of the orphans has exceeded the maximum {}; "
         "current size: {}",
-        it->second->GetHash().ToString(), MAX_SIZE, mapOrphanBlocksByPrev.size());
+        it->second->GetHash().ToString(), MAX_SIZE_P, mapOrphanBlocksByPrev.size());
     uint256 hash = it->second->GetHash();
     delete it->second;
     mapOrphanBlocksByPrev.erase(it);
@@ -2041,11 +2041,11 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                         // ppcoin: send latest proof-of-work block to allow the
                         // download node to accept as orphan (proof-of-stake
                         // block might be rejected by stake connection check)
-                        vector<CInv> vInv;
-                        vInv.push_back(CInv(
+                        vector<CInv> vInvP;
+                        vInvP.push_back(CInv(
                             MSG_BLOCK,
                             GetLastBlockIndex(*txdb.GetBestBlockIndex(), false, txdb).GetBlockHash()));
-                        pfrom->PushMessage("inv", vInv);
+                        pfrom->PushMessage("inv", vInvP);
                         pfrom->hashContinue = 0;
                     }
                 }

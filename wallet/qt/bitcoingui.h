@@ -83,12 +83,12 @@ public:
         The client model represents the part of the core that communicates with the P2P network, and is
        wallet-agnostic.
     */
-    void setClientModel(ClientModel* clientModel);
+    void setClientModel(ClientModel* clientModelIn);
     /** Set the wallet model.
         The wallet model represents a bitcoin wallet, and offers access to the list of transactions,
        address book and sending functionality.
     */
-    void setWalletModel(WalletModel* walletModel);
+    void setWalletModel(WalletModel* walletModelIn);
 
 protected:
     void changeEvent(QEvent* e);

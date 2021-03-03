@@ -2120,8 +2120,8 @@ void DownloadAndCreateTxData(NetworkType netType)
         rawNeblioTxsMap[txids[i]] = rawTx;
         ntp1TxsMap[txids[i]]      = ntp1tx_ref;
 
-        for (int i = 0; i < (int)tx.vin.size(); i++) {
-            std::string inputTxid = tx.vin[i].prevout.hash.ToString();
+        for (int j = 0; j < (int)tx.vin.size(); j++) {
+            std::string inputTxid = tx.vin[j].prevout.hash.ToString();
 
             // if the tx is already in there, skip it
             if (rawNeblioTxsMap.find(inputTxid) != rawNeblioTxsMap.cend()) {

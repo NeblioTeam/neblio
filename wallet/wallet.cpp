@@ -191,7 +191,7 @@ bool CWallet::Unlock(const SecureString& strWalletPassphrase)
         return false;
 
     CCrypter        crypter;
-    CKeyingMaterial vMasterKey;
+    CKeyingMaterial vMasterKeyP;
 
     {
         LOCK(cs_wallet);
@@ -200,9 +200,9 @@ bool CWallet::Unlock(const SecureString& strWalletPassphrase)
                                               pMasterKey.second.nDeriveIterations,
                                               pMasterKey.second.nDerivationMethod))
                 return false;
-            if (!crypter.Decrypt(pMasterKey.second.vchCryptedKey, vMasterKey))
+            if (!crypter.Decrypt(pMasterKey.second.vchCryptedKey, vMasterKeyP))
                 return false;
-            if (CCryptoKeyStore::Unlock(vMasterKey))
+            if (CCryptoKeyStore::Unlock(vMasterKeyP))
                 return true;
         }
     }
@@ -219,15 +219,15 @@ bool CWallet::ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase,
         Lock();
 
         CCrypter        crypter;
-        CKeyingMaterial vMasterKey;
+        CKeyingMaterial vMasterKeyP;
         for (MasterKeyMap::value_type& pMasterKey : mapMasterKeys) {
             if (!crypter.SetKeyFromPassphrase(strOldWalletPassphrase, pMasterKey.second.vchSalt,
                                               pMasterKey.second.nDeriveIterations,
                                               pMasterKey.second.nDerivationMethod))
                 return false;
-            if (!crypter.Decrypt(pMasterKey.second.vchCryptedKey, vMasterKey))
+            if (!crypter.Decrypt(pMasterKey.second.vchCryptedKey, vMasterKeyP))
                 return false;
-            if (CCryptoKeyStore::Unlock(vMasterKey)) {
+            if (CCryptoKeyStore::Unlock(vMasterKeyP)) {
                 int64_t nStartTime = GetTimeMillis();
                 crypter.SetKeyFromPassphrase(strNewWalletPassphrase, pMasterKey.second.vchSalt,
                                              pMasterKey.second.nDeriveIterations,
@@ -254,7 +254,7 @@ bool CWallet::ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase,
                                                   pMasterKey.second.nDeriveIterations,
                                                   pMasterKey.second.nDerivationMethod))
                     return false;
-                if (!crypter.Encrypt(vMasterKey, pMasterKey.second.vchCryptedKey))
+                if (!crypter.Encrypt(vMasterKeyP, pMasterKey.second.vchCryptedKey))
                     return false;
                 CWalletDB(strWalletFile).WriteMasterKey(pMasterKey.first, pMasterKey.second);
                 if (fWasLocked)
@@ -324,11 +324,11 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
     if (IsCrypted())
         return false;
 
-    CKeyingMaterial vMasterKey;
+    CKeyingMaterial vMasterKeyP;
     RandAddSeedPerfmon();
 
-    vMasterKey.resize(WALLET_CRYPTO_KEY_SIZE);
-    RAND_bytes(&vMasterKey[0], WALLET_CRYPTO_KEY_SIZE);
+    vMasterKeyP.resize(WALLET_CRYPTO_KEY_SIZE);
+    RAND_bytes(&vMasterKeyP[0], WALLET_CRYPTO_KEY_SIZE);
 
     CMasterKey kMasterKey(nDerivationMethodIndex);
 
@@ -359,7 +359,7 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
     if (!crypter.SetKeyFromPassphrase(strWalletPassphrase, kMasterKey.vchSalt,
                                       kMasterKey.nDeriveIterations, kMasterKey.nDerivationMethod))
         return false;
-    if (!crypter.Encrypt(vMasterKey, kMasterKey.vchCryptedKey))
+    if (!crypter.Encrypt(vMasterKeyP, kMasterKey.vchCryptedKey))
         return false;
 
     {
@@ -372,7 +372,7 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
             pwalletdbEncryption->WriteMasterKey(nMasterKeyMaxID, kMasterKey);
         }
 
-        if (!EncryptKeys(vMasterKey)) {
+        if (!EncryptKeys(vMasterKeyP)) {
             if (fFileBacked)
                 pwalletdbEncryption->TxnAbort();
             exit(1); // We now probably have half of our keys encrypted in memory, and half not...die and
@@ -926,8 +926,8 @@ std::set<uint256> CWallet::GetConflicts(const uint256& txid) const
         if (mapTxSpends.get_unsafe().count(txin.prevout) <= 1)
             continue; // No conflict if zero or one spends
         range = mapTxSpends.get_unsafe().equal_range(txin.prevout);
-        for (TxSpends::const_iterator it = range.first; it != range.second; ++it)
-            result.insert(it->second);
+        for (TxSpends::const_iterator itt = range.first; itt != range.second; ++itt)
+            result.insert(itt->second);
     }
     return result;
 }
@@ -970,9 +970,9 @@ int CWalletTx::GetRequestCount() const
 
                 // How about the block it's in?
                 if (nRequests == 0 && hashBlock != 0) {
-                    map<uint256, int>::const_iterator mi = pwallet->mapRequestCount.find(hashBlock);
-                    if (mi != pwallet->mapRequestCount.end())
-                        nRequests = (*mi).second;
+                    map<uint256, int>::const_iterator mit = pwallet->mapRequestCount.find(hashBlock);
+                    if (mit != pwallet->mapRequestCount.end())
+                        nRequests = (*mit).second;
                     else
                         nRequests = 1; // If it's in someone else's block it must have got out
                 }
@@ -3039,16 +3039,16 @@ set<set<CTxDestination>> CWallet::GetAddressGroupings(const ITxDB& txdb)
 
     set<set<CTxDestination>*> uniqueGroupings;        // a set of pointers to groups of addresses
     map<CTxDestination, set<CTxDestination>*> setmap; // map addresses to the unique group containing it
-    for (set<CTxDestination> grouping : groupings) {
+    for (set<CTxDestination> groupingP : groupings) {
         // make a set of all the groups hit by this new group
         set<set<CTxDestination>*>                           hits;
         map<CTxDestination, set<CTxDestination>*>::iterator it;
-        for (CTxDestination address : grouping)
+        for (CTxDestination address : groupingP)
             if ((it = setmap.find(address)) != setmap.end())
                 hits.insert((*it).second);
 
         // merge all hit groups into a new single group and delete old groups
-        set<CTxDestination>* merged = new set<CTxDestination>(grouping);
+        set<CTxDestination>* merged = new set<CTxDestination>(groupingP);
         for (set<CTxDestination>* hit : hits) {
             merged->insert(hit->begin(), hit->end());
             uniqueGroupings.erase(hit);

@@ -112,14 +112,14 @@ OptionsDialog::OptionsDialog(QWidget* parent)
 
 OptionsDialog::~OptionsDialog() { delete ui; }
 
-void OptionsDialog::setModel(OptionsModel* model)
+void OptionsDialog::setModel(OptionsModel* modelIn)
 {
-    this->model = model;
+    this->model = modelIn;
 
-    if (model) {
-        connect(model, SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
+    if (modelIn) {
+        connect(modelIn, SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
 
-        mapper->setModel(model);
+        mapper->setModel(modelIn);
         setMapper();
         mapper->toFirst();
     }

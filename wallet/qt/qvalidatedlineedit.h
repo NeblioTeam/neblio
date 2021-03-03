@@ -20,7 +20,7 @@ private:
     bool valid;
 
 public slots:
-    void setValid(bool valid);
+    void setValid(bool validIn);
 
 private slots:
     void markValid();
