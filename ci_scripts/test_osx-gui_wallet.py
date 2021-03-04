@@ -34,9 +34,13 @@ nci.call_with_err_code('brew uninstall --ignore-dependencies openssl || true')
 nci.call_with_err_code('brew uninstall --ignore-dependencies openssl@1.1 || true')
 nci.call_with_err_code('brew uninstall --ignore-dependencies qrencode || true')
 nci.call_with_err_code('brew uninstall --ignore-dependencies libsodium || true')
+nci.call_with_err_code('brew uninstall --ignore-dependencies icu4c || true')
+nci.call_with_err_code('brew uninstall --ignore-dependencies node@14 || true')
+
 
 # pin dependencies we do not want to be auto-upgraded while installing the dependencies we need
-nci.call_retry_on_fail('brew pin php') # prevents cURL from updating PHP which breaks a bunch of things
+nci.call_retry_on_fail('brew pin php || true') # prevents cURL from updating PHP which breaks a bunch of things
+nci.call_retry_on_fail('brew pin postgresql || true')
 
 # Install High Seirra Versions of Depeendencies, due to that being the minimum version we support
 #ccache https://bintray.com/homebrew/bottles/download_file?file_path=ccache-3.7.6.high_sierra.bottle.tar.gz
@@ -48,8 +52,14 @@ nci.call_retry_on_fail('brew pin qt')
 #berkeley-db@4 https://bintray.com/homebrew/bottles/download_file?file_path=berkeley-db%404-4.8.30.high_sierra.bottle.1.tar.gz
 nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/berkeley-db%404-4.8.30.high_sierra.bottle.1.tar.gz')
 nci.call_retry_on_fail('brew pin berkeley-db@4')
+#node@14 https://homebrew.bintray.com/bottles/node@14-14.15.0.high_sierra.bottle.tar.gz
+nci.call_retry_on_fail('brew install --force --ignore-dependencies https://assets.nebl.io/dependencies/macos/node@14-14.15.0.high_sierra.bottle.tar.gz')
+nci.call_retry_on_fail('brew pin node@14')
+#icu4c https://homebrew.bintray.com/bottles/icu4c-67.1.high_sierra.bottle.tar.gz
+nci.call_retry_on_fail('brew install --force --ignore-dependencies https://assets.nebl.io/dependencies/macos/icu4c-67.1.high_sierra.bottle.tar.gz')
+nci.call_retry_on_fail('brew pin icu4c')
 #boost https://homebrew.bintray.com/bottles/boost-1.72.0_3.high_sierra.bottle.tar.gz
-nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/boost-1.72.0_3.high_sierra.bottle.tar.gz')
+nci.call_retry_on_fail('brew install --force --ignore-dependencies https://assets.nebl.io/dependencies/macos/boost-1.72.0_3.high_sierra.bottle.tar.gz')
 nci.call_retry_on_fail('brew pin boost')
 #miniupnpc https://bintray.com/homebrew/bottles/download_file?file_path=miniupnpc-2.1.high_sierra.bottle.tar.gz
 nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/miniupnpc-2.1.high_sierra.bottle.tar.gz')
@@ -68,6 +78,7 @@ nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies
 nci.call_retry_on_fail('brew pin libsodium')
 
 
+
 # force relinking
 nci.call_with_err_code('brew unlink qt            && brew link --force --overwrite qt')
 nci.call_with_err_code('brew unlink berkeley-db@4 && brew link --force --overwrite berkeley-db@4')
@@ -78,6 +89,11 @@ nci.call_with_err_code('brew unlink python        && brew link --force --overwri
 nci.call_with_err_code('brew unlink openssl@1.1   && brew link --force --overwrite openssl@1.1')
 nci.call_with_err_code('brew unlink qrencode      && brew link --force --overwrite qrencode')
 nci.call_with_err_code('brew unlink libsodium     && brew link --force --overwrite libsodium')
+nci.call_with_err_code('brew unlink icu4c         && brew link --force --overwrite icu4c')
+nci.call_with_err_code('brew unlink node@14       && brew link --force --overwrite node@14')
+
+# debug icu4c linking issues
+#nci.call_with_err_code('ls -al /usr/local/opt/icu4c/lib/')
 
 
 nci.call_with_err_code('ccache -s')
@@ -103,7 +119,7 @@ else:
     nci.call_with_err_code('npm install -g appdmg')
     os.chdir("wallet")
     nci.call_with_err_code('../../contrib/macdeploy/macdeployqtplus ./neblio-Qt.app -add-qt-tr da,de,es,hu,ru,uk,zh_CN,zh_TW -verbose 1 -rpath /usr/local/opt/qt/lib')
-    nci.call_with_err_code('appdmg ../../contrib/macdeploy/appdmg.json ./neblio-Qt.dmg')
+    nci.call_with_err_code('/usr/local/Cellar/node@14/14.15.0/bin/appdmg ../../contrib/macdeploy/appdmg.json ./neblio-Qt.dmg')
 
     file_name = '$(date +%Y-%m-%d)---' + os.environ['BRANCH'] + '-' + os.environ['COMMIT'][:7] + '---neblio-Qt---macOS.zip'
 
