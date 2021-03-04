@@ -30,9 +30,15 @@ option(USE_CUSTOM_WARNINGS    "Enable custom warnings" OFF)
 option(DISABLE_ASSERTS        "Disables asserts" OFF)
 option(CONFIGURE_SYSTEM_TESTS "Configure system tests" ON)
 option(DISABLE_ATTRUBTES_WARNINGS "Set the flag -Wno-attributes to disable attributes warnings (for CI)" OFF)
+option(ASSEMBLY_OPTIMIZED_SCRYPT "Enable optimized scrypt and xor_salsa8 for better performance" ON)
+
 
 if(DISABLE_ATTRUBTES_WARNINGS)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-attributes")
+endif()
+
+if(ASSEMBLY_OPTIMIZED_SCRYPT)
+    add_definitions(-DOPTIMIZED_SALSA)
 endif()
 
 if(NOT DISABLE_ASSERTS)
@@ -561,6 +567,10 @@ target_link_libraries(ntp1_gui_lib
 add_library(utils_lib STATIC
     wallet/stringmanip.cpp
     )
+
+set_source_files_properties(wallet/scrypt-arm.S PROPERTIES LANGUAGE CXX)
+set_source_files_properties(wallet/scrypt-x86.S PROPERTIES LANGUAGE CXX)
+set_source_files_properties(wallet/scrypt-x86_64.S PROPERTIES LANGUAGE CXX)
 
 add_library(core_lib STATIC
     ${CMAKE_BINARY_DIR}/build/build.h
