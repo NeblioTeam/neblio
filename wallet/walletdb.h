@@ -33,14 +33,7 @@ public:
     CKeyMetadata();
     CKeyMetadata(int64_t nCreateTime_);
 
-#if !defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wshadow"
-#endif
     IMPLEMENT_SERIALIZE(READWRITE(this->nVersion); nVersion = this->nVersion; READWRITE(nCreateTime);)
-#if !defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
 
     void SetNull();
 };

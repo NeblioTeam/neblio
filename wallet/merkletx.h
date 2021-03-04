@@ -33,16 +33,9 @@ public:
         fMerkleVerified = false;
     }
 
-#if !defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wshadow"
-#endif
     IMPLEMENT_SERIALIZE(nSerSize += SerReadWrite(s, *(CTransaction*)this, nType, nVersion, ser_action);
                         nVersion = this->nVersion; READWRITE(hashBlock); READWRITE(vMerkleBranch);
                         READWRITE(nIndex);)
-#if !defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
 
     int SetMerkleBranch(const ITxDB& txdb, const CBlock* pblock = nullptr);
 

@@ -97,11 +97,6 @@ public:
     boost::optional<CBlockIndex> getPrev(const ITxDB& txdb) const;
     boost::optional<CBlockIndex> getNext(const ITxDB& txdb) const;
 
-#if !defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wshadow"
-#endif
-
     // clang-format off
         IMPLEMENT_SERIALIZE(
             if (!(nType & SER_GETHASH))
@@ -134,11 +129,6 @@ public:
             READWRITE(nChainTrust);
         )
     // clang-format on
-
-#if !defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
-
 };
 
 #endif // BLOCKINDEX_H

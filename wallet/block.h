@@ -64,10 +64,6 @@ public:
 
     CBlock() { SetNull(); }
 
-#if !defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wshadow"
-#endif
     // clang-format off
     IMPLEMENT_SERIALIZE(
         READWRITE(this->nVersion);
@@ -87,9 +83,6 @@ public:
             const_cast<CBlock*>(this)->vchBlockSig.clear();
         })
     // clang-format on
-#if !defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
 
     void SetNull();
 

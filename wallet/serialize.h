@@ -57,6 +57,8 @@ enum
 };
 
 #define IMPLEMENT_SERIALIZE(statements)    \
+    _Pragma(NEBLIO_DIAGNOSTIC_PUSH);       \
+    _Pragma(NEBLIO_HIDE_SHADOW_WARNING);   \
     unsigned int GetSerializeSize(int nType, int nVersion) const  \
     {                                           \
         CSerActionGetSerializeSize ser_action;  \
@@ -94,7 +96,8 @@ enum
         unsigned int nSerSize = 0;              \
         assert(fGetSize||fWrite||fRead); /* suppress warning */ \
         {statements}                            \
-    }
+    }                                           \
+    _Pragma(NEBLIO_DIAGNOSTIC_POP);
 
 #define READWRITE(obj)      (nSerSize += ::SerReadWrite(s, (obj), nType, nVersion, ser_action))
 
