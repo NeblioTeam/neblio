@@ -183,7 +183,7 @@ class RawTransactionsTest(BitcoinTestFramework):
             for tokenID in current[i]:
                 current_b = current[i][tokenID]['Balance']
                 if tokenID not in expected[i]:
-                    assert assert_equal(current_b, '0')
+                    assert_equal(current_b, '0')
                 else:
                     expected_b = expected[i][tokenID]['Balance']
                     assert_equal(current_b, expected_b)
@@ -191,7 +191,7 @@ class RawTransactionsTest(BitcoinTestFramework):
             for tokenID in expected[i]:
                 expected_b = expected[i][tokenID]['Balance']
                 if tokenID not in current[i]:
-                    assert assert_equal(expected_b, '0')
+                    assert_equal(expected_b, '0')
                 else:
                     current_b = current[i][tokenID]['Balance']
                     assert_equal(current_b, expected_b)
@@ -264,6 +264,10 @@ class RawTransactionsTest(BitcoinTestFramework):
                     return {"txid": output["txid"], "vout": output["vout"]}
 
     def run_test(self):
+        seed = random.randint(0, 10000000000)
+        print("Using seed value: {}".format(seed))
+        random.seed(5)
+
         n1s.run_all_local_tests()
         # prepare some coins
         self.nodes[0].generate(1)
