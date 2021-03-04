@@ -520,10 +520,6 @@ public:
 
     void Init(const CWallet* pwalletIn);
 
-#if !defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wshadow"
-#endif
     IMPLEMENT_SERIALIZE(
         CWalletTx* pthis  = const_cast<CWalletTx*>(this); if (fRead) pthis->Init(nullptr);
         char       fSpent = false;
@@ -574,9 +570,6 @@ public:
         pthis->mapValue.erase("fromaccount");
         pthis->mapValue.erase("version"); pthis->mapValue.erase("spent"); pthis->mapValue.erase("n");
         pthis->mapValue.erase("timesmart");)
-#if !defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
 
     // make sure balances are recalculated
     void MarkDirty();

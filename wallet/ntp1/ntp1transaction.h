@@ -61,10 +61,6 @@ class NTP1Transaction
 public:
     static const uint64_t IssuanceFee = 1000000000; // 10 nebls
 
-#if !defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wshadow"
-#endif
     // clang-format off
     IMPLEMENT_SERIALIZE(
                         READWRITE(this->nVersion);
@@ -77,9 +73,6 @@ public:
                         READWRITE(ntp1TransactionType);
                         )
     // clang-format on
-#if !defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
 
     NTP1Transaction();
     void                setNull();

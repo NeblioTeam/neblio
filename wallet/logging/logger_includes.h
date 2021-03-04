@@ -1,10 +1,8 @@
 #ifndef LOGGER_INCLUDES_H
 #define LOGGER_INCLUDES_H
 
-#if !defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wshadow"
-#endif
+_Pragma(NEBLIO_DIAGNOSTIC_PUSH);
+_Pragma(NEBLIO_HIDE_SHADOW_WARNING);
 
 #include "spdlog/async.h"
 #include "spdlog/async_logger.h"
@@ -14,8 +12,6 @@
 #include "spdlog/sinks/rotating_file_sink.h"
 #include "spdlog/spdlog.h"
 
-#if !defined(__clang__)
-#pragma GCC diagnostic pop
-#endif
+_Pragma(NEBLIO_DIAGNOSTIC_POP);
 
 #endif // LOGGER_INCLUDES_H

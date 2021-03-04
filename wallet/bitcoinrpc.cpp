@@ -669,11 +669,17 @@ public:
         auto& executionContextOrExecutor = stream.get_io_service();
 #endif
 
+        _Pragma(NEBLIO_DIAGNOSTIC_PUSH);
+        _Pragma(NEBLIO_HIDE_SHADOW_WARNING);
+
         ip::tcp::resolver           resolver(executionContextOrExecutor);
         ip::tcp::resolver::query    query(server.c_str(), port.c_str());
         ip::tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
         ip::tcp::resolver::iterator end;
         boost::system::error_code   error = asio::error::host_not_found;
+
+        _Pragma(NEBLIO_DIAGNOSTIC_POP);
+
         while (error && endpoint_iterator != end) {
             stream.lowest_layer().close();
             stream.lowest_layer().connect(*endpoint_iterator++, error);
