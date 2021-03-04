@@ -1,6 +1,8 @@
 #ifndef LOGGER_INCLUDES_H
 #define LOGGER_INCLUDES_H
 
+#include "compilerspecific.h"
+
 _Pragma(NEBLIO_DIAGNOSTIC_PUSH);
 _Pragma(NEBLIO_HIDE_SHADOW_WARNING);
 

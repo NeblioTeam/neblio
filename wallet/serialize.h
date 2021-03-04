@@ -21,6 +21,7 @@
 #include <boost/core/ignore_unused.hpp>
 
 #include "allocators.h"
+#include "compilerspecific.h"
 #include "ntp1/ntp1script.h"
 #include "version.h"
 
