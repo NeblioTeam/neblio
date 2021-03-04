@@ -7,6 +7,8 @@
 #include "db/lmdb/lmdb.h"
 #include "hash.h"
 #include "ntp1/ntp1tools.h"
+#include "txdb-lmdb.h"
+#include "util.h"
 #include <boost/algorithm/string.hpp>
 #include <fstream>
 #include <unordered_map>
@@ -29,73 +31,64 @@ std::string RandomString(const int len)
     return s;
 }
 
-#define CUSTOM_LMDB_DB_SIZE (1 << 14)
-#include "../txdb-lmdb.h"
-
 TEST(lmdb_tests, basic)
 {
-    //    std::cout << "LMDB DB size: " << DB_DEFAULT_MAPSIZE << std::endl;
+    const boost::filesystem::path p = GetDataDir() / "test-txdb";
 
-    CTxDB::DB_DIR = "test-txdb"; // avoid writing to the main database
+    std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
 
-    CTxDB::__deleteDb(); // clean up
-
-    CTxDB::QuickSyncHigherControl_Enabled = false;
-    CTxDB db;
+    BOOST_SCOPE_EXIT(&db) { db->close(); }
+    BOOST_SCOPE_EXIT_END
 
     std::string k1 = "key1";
     std::string v1 = "val1";
 
-    EXPECT_TRUE(db.test1_WriteStrKeyVal(k1, v1));
-    std::string out;
-    EXPECT_TRUE(db.test1_ReadStrKeyVal(k1, out));
-    EXPECT_EQ(out, v1);
+    EXPECT_TRUE(db->write(IDB::Index::DB_MAIN_INDEX, k1, v1));
+    boost::optional<std::string> out;
+    ASSERT_TRUE(out = db->read(IDB::Index::DB_MAIN_INDEX, k1));
+    EXPECT_EQ(*out, v1);
 
-    EXPECT_TRUE(db.test1_ExistsStrKeyVal(k1));
+    EXPECT_TRUE(db->exists(IDB::Index::DB_MAIN_INDEX, k1));
 
-    EXPECT_TRUE(db.test1_EraseStrKeyVal(k1));
-    EXPECT_FALSE(db.test1_ExistsStrKeyVal(k1));
-
-    db.Close();
+    EXPECT_TRUE(db->erase(IDB::Index::DB_MAIN_INDEX, k1));
+    EXPECT_FALSE(db->exists(IDB::Index::DB_MAIN_INDEX, k1));
 }
 
 TEST(lmdb_tests, basic_in_1_tx)
 {
-    CTxDB::DB_DIR = "test-txdb"; // avoid writing to the main database
+    const boost::filesystem::path p = GetDataDir() / "test-txdb";
 
-    CTxDB::__deleteDb(); // clean up
+    std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
 
-    CTxDB::QuickSyncHigherControl_Enabled = false;
-    CTxDB db;
+    BOOST_SCOPE_EXIT(&db) { db->close(); }
+    BOOST_SCOPE_EXIT_END
 
-    db.TxnBegin();
+    ASSERT_TRUE(db->beginDBTransaction());
 
     std::string k1 = "key1";
     std::string v1 = "val1";
 
-    EXPECT_TRUE(db.test1_WriteStrKeyVal(k1, v1));
-    std::string out;
-    EXPECT_TRUE(db.test1_ReadStrKeyVal(k1, out));
-    EXPECT_EQ(out, v1);
+    EXPECT_TRUE(db->write(IDB::Index::DB_MAIN_INDEX, k1, v1));
+    boost::optional<std::string> out;
+    ASSERT_TRUE(out = db->read(IDB::Index::DB_MAIN_INDEX, k1));
+    EXPECT_EQ(*out, v1);
 
-    EXPECT_TRUE(db.test1_ExistsStrKeyVal(k1));
+    EXPECT_TRUE(db->exists(IDB::Index::DB_MAIN_INDEX, k1));
 
-    db.TxnAbort();
+    db->abortDBTransaction();
 
     // uncommitted data shouldn't exist
-    EXPECT_FALSE(db.test1_ExistsStrKeyVal(k1));
-
-    db.Close();
+    EXPECT_FALSE(db->exists(IDB::Index::DB_MAIN_INDEX, k1));
 }
 
 TEST(lmdb_tests, many_inputs)
 {
-    CTxDB::DB_DIR = "test-txdb"; // avoid writing to the main database
+    const boost::filesystem::path p = GetDataDir() / "test-txdb";
 
-    CTxDB::__deleteDb(); // clean up
+    std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
 
-    CTxDB::QuickSyncHigherControl_Enabled = false;
-    CTxDB db;
+    BOOST_SCOPE_EXIT(&db) { db->close(); }
+    BOOST_SCOPE_EXIT_END
 
     std::unordered_map<std::string, std::string> entries;
 
@@ -110,33 +103,32 @@ TEST(lmdb_tests, many_inputs)
 
         entries[k] = v;
 
-        EXPECT_TRUE(db.test1_WriteStrKeyVal(k, v));
-        std::string out;
+        EXPECT_TRUE(db->write(IDB::Index::DB_MAIN_INDEX, k, v));
 
-        EXPECT_TRUE(db.test1_ReadStrKeyVal(k, out));
-        EXPECT_EQ(out, v);
+        boost::optional<std::string> out;
+        ASSERT_TRUE(out = db->read(IDB::Index::DB_MAIN_INDEX, k));
+        EXPECT_EQ(*out, v);
 
-        EXPECT_TRUE(db.test1_ExistsStrKeyVal(k));
+        EXPECT_TRUE(db->exists(IDB::Index::DB_MAIN_INDEX, k));
     }
 
     for (const auto& pair : entries) {
-        std::string out;
-        EXPECT_TRUE(db.test1_ReadStrKeyVal(pair.first, out));
-        EXPECT_EQ(out, pair.second);
+        boost::optional<std::string> out;
+        ASSERT_TRUE(out = db->read(IDB::Index::DB_MAIN_INDEX, pair.first));
+        EXPECT_EQ(*out, pair.second);
 
-        EXPECT_TRUE(db.test1_ExistsStrKeyVal(pair.first));
+        EXPECT_TRUE(db->exists(IDB::Index::DB_MAIN_INDEX, pair.first));
     }
-    db.Close();
 }
 
 TEST(lmdb_tests, many_inputs_one_tx)
 {
-    CTxDB::DB_DIR = "test-txdb"; // avoid writing to the main database
+    const boost::filesystem::path p = GetDataDir() / "test-txdb";
 
-    CTxDB::__deleteDb(); // clean up
+    std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
 
-    CTxDB::QuickSyncHigherControl_Enabled = false;
-    CTxDB db;
+    BOOST_SCOPE_EXIT(&db) { db->close(); }
+    BOOST_SCOPE_EXIT_END
 
     std::unordered_map<std::string, std::string> entries;
 
@@ -145,7 +137,7 @@ TEST(lmdb_tests, many_inputs_one_tx)
     std::size_t keySize = 100;
     std::size_t valSize = 1000000;
 
-    db.TxnBegin(keySize * valSize * 11 / 10);
+    db->beginDBTransaction(keySize * valSize * 11 / 10);
     for (uint64_t i = 0; i < entriesCount; i++) {
         std::string k = RandomString(keySize);
         std::string v = RandomString(valSize);
@@ -156,34 +148,33 @@ TEST(lmdb_tests, many_inputs_one_tx)
 
         entries[k] = v;
 
-        EXPECT_TRUE(db.test1_WriteStrKeyVal(k, v));
-        std::string out;
+        EXPECT_TRUE(db->write(IDB::Index::DB_MAIN_INDEX, k, v));
 
-        EXPECT_TRUE(db.test1_ReadStrKeyVal(k, out));
+        boost::optional<std::string> out;
+        EXPECT_TRUE(out = db->read(IDB::Index::DB_MAIN_INDEX, k));
         EXPECT_EQ(out, v);
 
-        EXPECT_TRUE(db.test1_ExistsStrKeyVal(k));
+        EXPECT_TRUE(db->exists(IDB::Index::DB_MAIN_INDEX, k));
     }
-    db.TxnCommit();
+    db->commitDBTransaction();
 
     for (const auto& pair : entries) {
-        std::string out;
-        EXPECT_TRUE(db.test1_ReadStrKeyVal(pair.first, out));
+        boost::optional<std::string> out;
+        EXPECT_TRUE(out = db->read(IDB::Index::DB_MAIN_INDEX, pair.first));
         EXPECT_EQ(out, pair.second);
 
-        EXPECT_TRUE(db.test1_ExistsStrKeyVal(pair.first));
+        EXPECT_TRUE(db->exists(IDB::Index::DB_MAIN_INDEX, pair.first));
     }
-    db.Close();
 }
 
 TEST(lmdb_tests, basic_multiple_read)
 {
-    CTxDB::DB_DIR = "test-txdb"; // avoid writing to the main database
+    const boost::filesystem::path p = GetDataDir() / "test-txdb";
 
-    CTxDB::__deleteDb(); // clean up
+    std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
 
-    CTxDB::QuickSyncHigherControl_Enabled = false;
-    CTxDB db;
+    BOOST_SCOPE_EXIT(&db) { db->close(); }
+    BOOST_SCOPE_EXIT_END
 
     const std::string k1 = "key1";
     const std::string k2 = "key2";
@@ -194,87 +185,92 @@ TEST(lmdb_tests, basic_multiple_read)
     const std::string v5 = "val5";
     const std::string v6 = "val6";
 
-    EXPECT_TRUE(db.test2_WriteStrKeyVal(k1, v1));
-    EXPECT_TRUE(db.test2_WriteStrKeyVal(k1, v2));
-    EXPECT_TRUE(db.test2_WriteStrKeyVal(k1, v3));
-    EXPECT_TRUE(db.test2_WriteStrKeyVal(k2, v4));
-    EXPECT_TRUE(db.test2_WriteStrKeyVal(k2, v5));
-    EXPECT_TRUE(db.test2_WriteStrKeyVal(k2, v6));
-    std::vector<std::string> outs1;
-    std::vector<std::string> outs2;
-    EXPECT_TRUE(db.test2_ReadMultipleStr1KeyVal(k1, outs1));
+    EXPECT_TRUE(db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1, v1));
+    EXPECT_TRUE(db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1, v2));
+    EXPECT_TRUE(db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1, v3));
+    EXPECT_TRUE(db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k2, v4));
+    EXPECT_TRUE(db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k2, v5));
+    EXPECT_TRUE(db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k2, v6));
+    boost::optional<std::vector<std::string>> outs1;
+    boost::optional<std::vector<std::string>> outs2;
+    EXPECT_TRUE(outs1 = db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1));
     EXPECT_EQ(outs1, std::vector<std::string>({v1, v2, v3}));
-    EXPECT_TRUE(db.test2_ReadMultipleStr1KeyVal(k2, outs2));
+    EXPECT_TRUE(outs2 = db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k2));
     EXPECT_EQ(outs2, std::vector<std::string>({v4, v5, v6}));
 
-    std::map<std::string, std::vector<std::string>> allValsMap;
-    EXPECT_TRUE(db.test2_ReadMultipleAllStr1KeyVal(allValsMap));
-    EXPECT_EQ(allValsMap, (std::map<std::string, std::vector<std::string>>(
-                              {{k1, std::vector<std::string>({v1, v2, v3})},
-                               {k2, std::vector<std::string>({v4, v5, v6})}})));
+    // realAll with key vs multiple values
+    boost::optional<std::map<std::string, std::vector<std::string>>> allValsMap;
+    ASSERT_TRUE(allValsMap = db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX));
+    EXPECT_EQ(*allValsMap, (std::map<std::string, std::vector<std::string>>(
+                               {{k1, std::vector<std::string>({v1, v2, v3})},
+                                {k2, std::vector<std::string>({v4, v5, v6})}})));
 
-    EXPECT_TRUE(db.test2_ExistsStrKeyVal(k1));
+    // readAllUnique with key vs unique values, we expect every key will find one random value
+    boost::optional<std::map<std::string, std::string>> allValsUniqueMap;
+    ASSERT_TRUE(allValsUniqueMap = db->readAllUnique(IDB::Index::DB_NTP1TOKENNAMES_INDEX));
+    ASSERT_TRUE(allValsUniqueMap->count(k1));
+    ASSERT_TRUE(allValsUniqueMap->count(k2));
+    EXPECT_TRUE(allValsUniqueMap->at(k1) == v1 || allValsUniqueMap->at(k1) == v2 ||
+                allValsUniqueMap->at(k1) == v3);
+    EXPECT_TRUE(allValsUniqueMap->at(k2) == v4 || allValsUniqueMap->at(k2) == v5 ||
+                allValsUniqueMap->at(k2) == v6);
 
-    EXPECT_TRUE(db.test2_EraseStrKeyVal(k1));
+    EXPECT_TRUE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1));
 
-    EXPECT_FALSE(db.test2_ExistsStrKeyVal(k1));
+    EXPECT_TRUE(db->eraseAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1));
 
-    // uncommitted data shouldn't exist
-    EXPECT_FALSE(db.test1_ExistsStrKeyVal(k1));
-
-    db.Close();
+    EXPECT_FALSE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1));
 }
 
 TEST(lmdb_tests, basic_multiple_read_in_tx)
 {
-    CTxDB::DB_DIR = "test-txdb"; // avoid writing to the main database
+    const boost::filesystem::path p = GetDataDir() / "test-txdb";
 
-    CTxDB::__deleteDb(); // clean up
+    std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
 
-    CTxDB::QuickSyncHigherControl_Enabled = false;
-    CTxDB db;
-    db.TxnBegin(100);
+    BOOST_SCOPE_EXIT(&db) { db->close(); }
+    BOOST_SCOPE_EXIT_END
+
+    db->beginDBTransaction(100);
 
     std::string k1 = "key1";
     std::string v1 = "val1";
     std::string v2 = "val2";
     std::string v3 = "val3";
 
-    EXPECT_TRUE(db.test2_WriteStrKeyVal(k1, v1));
-    EXPECT_TRUE(db.test2_WriteStrKeyVal(k1, v2));
-    EXPECT_TRUE(db.test2_WriteStrKeyVal(k1, v3));
-    std::vector<std::string> outs;
-    EXPECT_TRUE(db.test2_ReadMultipleStr1KeyVal(k1, outs));
-    EXPECT_EQ(outs, std::vector<std::string>({v1, v2, v3}));
+    EXPECT_TRUE(db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1, v1));
+    EXPECT_TRUE(db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1, v2));
+    EXPECT_TRUE(db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1, v3));
+    boost::optional<std::vector<std::string>> outs;
+    ASSERT_TRUE(outs = db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1));
+    EXPECT_EQ(*outs, std::vector<std::string>({v1, v2, v3}));
 
-    EXPECT_TRUE(db.test2_ExistsStrKeyVal(k1));
+    EXPECT_TRUE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1));
 
-    EXPECT_TRUE(db.test2_EraseStrKeyVal(k1));
+    EXPECT_TRUE(db->eraseAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1));
 
-    EXPECT_FALSE(db.test2_ExistsStrKeyVal(k1));
+    EXPECT_FALSE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1));
 
-    // uncommitted data shouldn't exist
-    EXPECT_FALSE(db.test1_ExistsStrKeyVal(k1));
+    db->abortDBTransaction();
 
-    db.TxnCommit();
-
-    db.Close();
+    ASSERT_TRUE(outs = db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1));
+    EXPECT_EQ(outs, std::vector<std::string>({}));
 }
 
 TEST(lmdb_tests, basic_multiple_many_inputs)
 {
-    CTxDB::DB_DIR = "test-txdb"; // avoid writing to the main database
+    const boost::filesystem::path p = GetDataDir() / "test-txdb";
 
-    CTxDB::__deleteDb(); // clean up
+    std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
 
-    CTxDB::QuickSyncHigherControl_Enabled = false;
-    CTxDB db;
+    BOOST_SCOPE_EXIT(&db) { db->close(); }
+    BOOST_SCOPE_EXIT_END
 
     std::vector<std::string> entries;
 
     std::string k = "TheKey";
 
-    EXPECT_FALSE(db.test2_ExistsStrKeyVal(k));
+    EXPECT_FALSE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k));
 
     const uint64_t entriesCount = 1;
     for (uint64_t i = 0; i < entriesCount; i++) {
@@ -282,23 +278,24 @@ TEST(lmdb_tests, basic_multiple_many_inputs)
 
         entries.push_back(v);
 
-        EXPECT_TRUE(db.test2_WriteStrKeyVal(k, v));
-        std::string out;
+        EXPECT_TRUE(db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k, v));
 
-        EXPECT_TRUE(db.test2_ExistsStrKeyVal(k));
+        boost::optional<std::string> out;
+        ASSERT_TRUE(out = db->read(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k));
+        EXPECT_EQ(*out, v);
+
+        EXPECT_TRUE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k));
     }
 
-    std::vector<std::string> outs;
-    EXPECT_TRUE(db.test2_ReadMultipleStr1KeyVal(k, outs));
+    boost::optional<std::vector<std::string>> outs;
+    EXPECT_TRUE(outs = db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k));
     EXPECT_EQ(outs, entries);
 
-    EXPECT_TRUE(db.test2_ExistsStrKeyVal(k));
+    EXPECT_TRUE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k));
 
-    EXPECT_TRUE(db.test2_EraseStrKeyVal(k));
+    EXPECT_TRUE(db->eraseAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k));
 
-    EXPECT_FALSE(db.test2_ExistsStrKeyVal(k));
-
-    db.Close();
+    EXPECT_FALSE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k));
 }
 
 static void EnsureDBIsEmpty(IDB* db, IDB::Index dbindex)
@@ -667,7 +664,7 @@ TEST(db_interface_impl_tests, read_write_multiple_with_db_transaction)
     TestReadMultipleAndRealAllWithTx(db.get(), data);
 }
 
-TEST(quicksync_tests, download_index_file)
+TEST(db_quicksync_tests, download_index_file)
 {
     std::string        s = cURLTools::GetFileFromHTTPS(QuickSyncDataLink, 30, false);
     json_spirit::Value parsedData;
