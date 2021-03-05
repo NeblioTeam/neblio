@@ -13,11 +13,20 @@ message("Building on machine: " ${hostname})
 
 set(CMAKE_CXX_STANDARD 11)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wshadow -Wno-unused-variable -Wno-unused-function -Wno-unused-private-field -Wno-class-memaccess -Wno-stringop-truncation")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-variable -Wno-unused-function -Wno-unused-private-field -Wno-class-memaccess -Wno-stringop-truncation")
+
+if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-psabi")  # some ABI compatbility warnings... irrelevant: https://gcc.gnu.org/legacy-ml/gcc/2017-05/msg00073.html
+else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wshadow")  # pragma to disable warnings doesn't work with arm gcc
+endif()
 
 if(WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wa,-mbig-obj")
 endif()
+
+include(CMakePushCheckState)
+include(CheckCXXSourceCompiles)
 
 option(COMPILE_GUI            "Enable compiling neblio-qt" ON)
 option(COMPILE_DAEMON         "Enable compiling nebliod" ON)
@@ -115,6 +124,90 @@ find_package(PkgConfig        REQUIRED)
 find_package(Boost 1.65       COMPONENTS system random filesystem thread regex program_options iostreams atomic REQUIRED)
 find_package(Threads          REQUIRED)
 find_package(sodium           REQUIRED)
+
+set(ATOMIC32_TEST_CODE "
+    #include <atomic>
+    #include <stdint.h>
+    int main() {
+        std::atomic<int32_t> x;
+        x.store(1);
+        x--;
+        return x.load();
+    }")
+
+set(ATOMIC64_TEST_CODE "
+    #include <atomic>
+    #include <stdint.h>
+    int main() {
+        std::atomic<int64_t> x;
+        x.store(1);
+        x--;
+        return x.load();
+    }")
+
+macro(ATOMIC_CHECK)
+
+    # test whether atomic works
+    check_cxx_source_compiles("${ATOMIC32_TEST_CODE}" atomic32_test)
+    check_cxx_source_compiles("${ATOMIC64_TEST_CODE}" atomic64_test)
+
+    # if doesn't work, attempt to find the atomic library, link with it and try again
+    if(NOT atomic32_test OR NOT atomic64_test)
+        find_library(ATOMIC NAMES libatomic.so.1
+        HINTS
+          $ENV{HOME}/local/lib64
+          $ENV{HOME}/local/lib
+          /usr/local/lib64
+          /usr/local/lib
+          /opt/local/lib64
+          /opt/local/lib
+          /usr/lib64
+          /usr/lib
+          /lib64
+          /lib
+          /usr/lib/arm-linux-gnueabihf
+        )
+
+        if(ATOMIC)
+            set(LIBATOMIC ${ATOMIC})
+            message(STATUS "Found libatomic: ${LIBATOMIC}")
+            message(STATUS "Attempting to test atomic with atomic library linked")
+
+            get_filename_component(atomic_lib_dir ${LIBATOMIC} DIRECTORY)
+
+            # Before setting CMAKE_REQUIRED_FLAGS, we preserve the current state
+            cmake_push_check_state()
+
+            set(CMAKE_REQUIRED_FLAGS "-L${atomic_lib_dir} -latomic")
+            check_cxx_source_compiles("${ATOMIC32_TEST_CODE}" atomic32_test_with_atomic_linking)
+            check_cxx_source_compiles("${ATOMIC64_TEST_CODE}" atomic64_test_with_atomic_linking)
+
+            cmake_pop_check_state()
+
+            if(NOT atomic32_test_with_atomic_linking)
+                message(FATAL_ERROR "Even after linking with the atomic library, atomic 32-bit compilation failed.")
+            endif()
+
+            if(NOT atomic64_test_with_atomic_linking)
+                message(FATAL_ERROR "Even after linking with the atomic library, atomic 64-bit compilation failed.")
+            endif()
+
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L${atomic_lib_dir} -latomic")
+            set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -L${atomic_lib_dir} -latomic")
+        else()
+            message(FATAL_ERROR "Failed to find libatomic even though it seems to be required")
+        endif()
+    endif()
+
+endmacro()
+
+ATOMIC_CHECK()
+
+if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm") # 32-bit arm
+elseif(CMAKE_SIZEOF_VOID_P EQUAL "4") # 32-bit compiler + x86
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse2")
+    set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -msse2")
+endif()
 
 SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 find_package(ZLIB       REQUIRED)
@@ -328,11 +421,6 @@ add_custom_command(
 )
 set_property(SOURCE ${CMAKE_BINARY_DIR}/build/build.h PROPERTY SKIP_AUTOMOC ON)
 ###################
-
-if(CMAKE_SIZEOF_VOID_P EQUAL "4") # 32-bit compiler
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse2")
-    set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -msse2")
-endif()
 
 if(USE_CUSTOM_WARNINGS)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fdiagnostics-show-option -Wall -Wextra -Wno-ignored-qualifiers -Wformat -Wformat-security -Wno-unused-parameter -Wstack-protector")
@@ -719,9 +807,12 @@ add_library(txdb_lib STATIC
     wallet/db/lmdb/lmdbtransaction.cpp
     )
 
+target_link_libraries(db_lib
+    lmdb
+    )
+
 target_link_libraries(txdb_lib
     db_lib
-    lmdb
     utils_lib
     )
 
