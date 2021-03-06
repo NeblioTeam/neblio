@@ -919,7 +919,7 @@ bool CBlock::SetBestChain(CTxDB& txdb, const boost::optional<CBlockIndex>& pinde
         static thread_local BlockVersionCacheType blockIndexCache(1000, extractorFunc);
 
         int     nUpgraded = 0;
-        uint256 h      = txdb.GetBestBlockHash();
+        uint256 h         = txdb.GetBestBlockHash();
         for (int i = 0; i < 100 && h != 0; i++) {
             const boost::optional<BlockVersionCacheType::BICacheEntry> blockIndexVersionData =
                 blockIndexCache.get(txdb, h);
@@ -1113,7 +1113,7 @@ bool CBlock::Reorganize(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexN
         AcceptToMemoryPool(mempool, tx, &txdb);
 
     // Delete redundant memory transactions that are in the connected branch
-    for (CTransaction& tx : vDelete) {
+    for (const CTransaction& tx : vDelete) {
         mempool.remove(tx);
         mempool.removeConflicts(tx);
     }
@@ -1365,8 +1365,10 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& block
                        NLog.error("VerifyInputsUnspent() failed for block {}", blockHash.ToString()));
         }
     } catch (std::exception& ex) {
-        return NLog.error("VerifyInputsUnspent() threw an exception for block {}; with error: {}",
-                          blockHash.ToString(), ex.what());
+        reject = CBlockReject(REJECT_INVALID, "bad-txns-inputs-missingorspent-check-failed", blockHash);
+        return DoS(100,
+                   NLog.error("VerifyInputsUnspent() threw an exception for block {}; with error: {}",
+                              blockHash.ToString(), ex.what()));
     }
 
     const int nHeight = prevBlockIndex.nHeight + 1;
@@ -1375,7 +1377,7 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& block
         return DoS(100, NLog.error("AcceptBlock() : reject proof-of-work at height {}", nHeight));
 
     {
-        const auto  hasColdStakingResult = HasColdStaking(txdb);
+        const auto hasColdStakingResult = HasColdStaking(txdb);
         if (hasColdStakingResult.isErr()) {
             return DoS(100,
                        NLog.error("AcceptBlock() : reject cold-stake at height {} with error", nHeight));
