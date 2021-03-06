@@ -242,7 +242,7 @@ CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const
         if (!txdb.ReadBlock(bh, blk, true)) {
             NLog.write(b_sev::err, "In fork chain search, block {} was not found in the database",
                        bh.ToString());
-            return Err(VIUError::BlockUnreadable);
+            return Err(VIUError::BlockCannotBeReadFromDB);
         }
         forkChainBlocks.push_back(blk);
     }
@@ -1367,10 +1367,14 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& block
     }
 
     try {
-        if (VerifyInputsUnspent(txdb).isErr()) {
-            reject = CBlockReject(REJECT_INVALID, "bad-txns-inputs-missingorspent", blockHash);
-            return DoS(100,
-                       NLog.error("VerifyInputsUnspent() failed for block {}", blockHash.ToString()));
+        const auto viuResult = VerifyInputsUnspent(txdb);
+        if (viuResult.isErr()) {
+            reject = CBlockReject(REJECT_INVALID,
+                                  fmt::format("bad-txns-inputs-missingorspent-{}",
+                                              VIUErrorToString(viuResult.unwrapErr())),
+                                  blockHash);
+            return DoS(100, NLog.error("VerifyInputsUnspent() failed for block {} ({})",
+                                       blockHash.ToString(), VIUErrorToString(viuResult.unwrapErr())));
         }
     } catch (const std::exception& ex) {
         return NLog.critical("VerifyInputsUnspent() threw an exception for block {}; with error: {}",
@@ -1880,4 +1884,39 @@ bool CBlock::ReadFromDisk(const uint256& hash, const ITxDB& txdb, bool fReadTran
 {
     SetNull();
     return txdb.ReadBlock(hash, *this, fReadTransactions);
+}
+
+const char* CBlock::VIUErrorToString(VIUError err)
+{
+    switch (err) {
+    case VIUError::UnknownErrorWhileCollectingTxs:
+        return "UnknownErrorWhileCollectingTxs";
+    case VIUError::TxInputIndexOutOfRange_Case1:
+        return "TxInputIndexOutOfRange_Case1";
+    case VIUError::TxInputIndexOutOfRange_Case2:
+        return "TxInputIndexOutOfRange_Case2";
+    case VIUError::TxInputIndexOutOfRange_Case3:
+        return "TxInputIndexOutOfRange_Case3";
+    case VIUError::TxInputIndexOutOfRange_Case4:
+        return "TxInputIndexOutOfRange_Case4";
+    case VIUError::DoublespendAttempt_Case1:
+        return "DoublespendAttempt_Case1";
+    case VIUError::DoublespendAttempt_Case2:
+        return "DoublespendAttempt_Case2";
+    case VIUError::SpendingNonexistentTx:
+        return "SpendingNonexistentTx";
+    case VIUError::BlockCannotBeReadFromDB:
+        return "BlockCannotBeReadFromDB";
+    case VIUError::ReadTxIndexFailed_Case1:
+        return "ReadTxIndexFailed_Case1";
+    case VIUError::ReadTxIndexFailed_Case2:
+        return "ReadTxIndexFailed_Case2";
+    case VIUError::ReadBlockIndexFailed:
+        return "ReadBlockIndexFailed";
+    case VIUError::BlockIsNotInMainChainEvenThoughItShould:
+        return "BlockIsNotInMainChainEvenThoughItShould";
+    case VIUError::BlockIndexOfPrevBlockNotFound:
+        return "BlockIndexOfPrevBlockNotFound";
+    }
+    return "Unknown";
 }

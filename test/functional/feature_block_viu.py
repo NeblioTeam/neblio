@@ -297,7 +297,7 @@ class FullBlockTest(ComparisonTestFramework):
         block("f16a", spend=out[15])
         save_spendable_output()
         # TODO: get an error specific message from VIU() (still not implemented in neblio-Qt)
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent'))
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt'))
 
         # create one valid transaction above the last tip as a template
         tip("f15")
@@ -337,7 +337,7 @@ class FullBlockTest(ComparisonTestFramework):
         self.tip = blk16
         self.block_heights[blk16.sha256] = height
         self.blocks["f16b"] = blk16
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent'))
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxInputIndexOutOfRange'))
 
 
 if __name__ == '__main__':
