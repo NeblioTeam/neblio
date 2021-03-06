@@ -296,7 +296,6 @@ class FullBlockTest(ComparisonTestFramework):
         tip("f15")
         block("f16a", spend=out[15])
         save_spendable_output()
-        # TODO: get an error specific message from VIU() (still not implemented in neblio-Qt)
         yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt'))
 
         # create one valid transaction above the last tip as a template
