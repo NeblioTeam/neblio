@@ -146,13 +146,24 @@ public:
         CBlockIndex commonAncestor;
     };
 
-    CommonAncestorSuccessorBlocks GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const;
-    ChainReplaceTxs               GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const;
+    enum class VIUError
+    {
+        UnknownError,
+        UnknownErrorWhileCollectingTxs,
+        TxInputIndexOutOfRange_Case1,
+        TxInputIndexOutOfRange_Case2,
+        DoublespendAttempt_Case1,
+        DoublespendAttempt_Case2,
+        SpendingNonexistentTx,
+    };
+
+    CommonAncestorSuccessorBlocks     GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const;
+    Result<ChainReplaceTxs, VIUError> GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const;
 
     bool DisconnectBlock(CTxDB& txdb, const CBlockIndex& pindex);
     bool ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pindex, bool fJustCheck = false);
-    bool VerifyInputsUnspent(const CTxDB& txdb) const;
-    bool VerifyBlock(CTxDB& txdb);
+    Result<void, CBlock::VIUError> VerifyInputsUnspent(const CTxDB& txdb) const;
+    bool                           VerifyBlock(CTxDB& txdb);
     bool ReadFromDisk(const CBlockIndex* pindex, const ITxDB& txdb, bool fReadTransactions = true);
     bool SetBestChain(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
                       const bool createDbTransaction = true);

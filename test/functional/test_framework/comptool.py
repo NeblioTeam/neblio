@@ -260,6 +260,9 @@ class TestManager():
                         logger.error('Block rejected with %s instead of expected %s: %064x' % (c.block_reject_map[blockhash], outcome, blockhash))
                         return False
                 elif ((c.bestblockhash == blockhash) != outcome):
+                    if outcome is True and blockhash in c.block_reject_map:
+                        logger.error('Block in reject map even though it should be accepted. '
+                                     '(Block hash: {:064x} ; given reject reason: {}'.format(blockhash, c.block_reject_map[blockhash]))
                     return False
 
                 # added by Sam: We want to exactly pinpoint the reason for failure

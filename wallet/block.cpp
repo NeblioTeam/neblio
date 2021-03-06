@@ -231,7 +231,8 @@ CBlock::GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const
  * then, it'll unspend all the transactions in these blocks and return them in the map. This is necessary
  * to solve the problem of stake attack described in VerifyInputsUnspent()
  */
-CBlock::ChainReplaceTxs CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const
+Result<CBlock::ChainReplaceTxs, CBlock::VIUError>
+CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const
 {
     CommonAncestorSuccessorBlocks commonAncestory = GetBlocksUpToCommonAncestorInMainChain(txdb);
     std::vector<CBlock>           forkChainBlocks; // to be reconnected
@@ -409,10 +410,10 @@ CBlock::ChainReplaceTxs CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITx
         }
     }
     //    std::cout << "End reconnecting txs" << std::endl;
-    return result;
+    return Ok(result);
 }
 
-bool CBlock::VerifyInputsUnspent(const CTxDB& txdb) const
+Result<void, CBlock::VIUError> CBlock::VerifyInputsUnspent(const CTxDB& txdb) const
 {
     // this function solves the problem in
     // https://medium.com/@dsl_uiuc/fake-stake-attacks-on-chain-based-proof-of-stake-cryptocurrencies-b8b05723f806
@@ -425,13 +426,14 @@ bool CBlock::VerifyInputsUnspent(const CTxDB& txdb) const
     // queued transactions are the inputs that we already found (even from this block). The map stores
     // whether transactions are spent already. This solves the problem of spending an output in the same
     // block where it's created
-    ChainReplaceTxs alternateChainTxs;
+    CBlock::ChainReplaceTxs alternateChainTxs;
 
     try {
-        alternateChainTxs = GetAlternateChainTxsUpToCommonAncestor(txdb);
+        alternateChainTxs = TRY(GetAlternateChainTxsUpToCommonAncestor(txdb));
     } catch (std::exception& ex) {
-        return NLog.error("Failed to verify unspent inputs for block {}; error: {}",
-                          this->GetHash().ToString(), ex.what());
+        NLog.error("Failed to verify unspent inputs for block {}; error: {}", this->GetHash().ToString(),
+                   ex.what());
+        return Err(VIUError::UnknownErrorWhileCollectingTxs);
     }
 
     std::unordered_map<uint256, CTxIndex>& queuedTxs = alternateChainTxs.modifiedOutputsTxs;
@@ -464,28 +466,30 @@ bool CBlock::VerifyInputsUnspent(const CTxDB& txdb) const
             bool     inputFoundInQueue = (it != queuedTxs.cend());
             if (inputFoundInQueue) {
                 if (outputNumInTx >= it->second.vSpent.size()) {
-                    return NLog.error("Output number {} in tx {} which is an input to tx {} "
-                                      "has an invalid input index in block {} (1)",
-                                      outputNumInTx, outputTxHash.ToString(), tx.GetHash().ToString(),
-                                      this->GetHash().ToString());
+                    NLog.error("Output number {} in tx {} which is an input to tx {} "
+                               "has an invalid input index in block {} (1)",
+                               outputNumInTx, outputTxHash.ToString(), tx.GetHash().ToString(),
+                               this->GetHash().ToString());
+                    return Err(VIUError::TxInputIndexOutOfRange_Case1);
                 }
 
                 if (it->second.vSpent[outputNumInTx].IsNull()) {
                     // tx is not spent yet, so we mark it as spent
                     it->second.vSpent[outputNumInTx] = CreateFakeSpentTxPos(this->GetHash());
                 } else {
-                    return NLog.error(
-                        "Output number {} in tx {} which is an input to tx {} is attempting to "
-                        "double-spend in the same block {}",
-                        outputNumInTx, outputTxHash.ToString(), tx.GetHash().ToString(),
-                        this->GetHash().ToString());
+                    NLog.error("Output number {} in tx {} which is an input to tx {} is attempting to "
+                               "double-spend in the same block {}",
+                               outputNumInTx, outputTxHash.ToString(), tx.GetHash().ToString(),
+                               this->GetHash().ToString());
+                    return Err(VIUError::DoublespendAttempt_Case2);
                 }
             } else if (txdb.ReadTxIndex(outputTxHash, txindex)) {
                 if (outputNumInTx >= txindex.vSpent.size()) {
-                    return NLog.error("Output number {} in tx {} which is an input to tx {} "
-                                      "has an invalid input index in block {} (2)",
-                                      outputNumInTx, outputTxHash.ToString(), tx.GetHash().ToString(),
-                                      this->GetHash().ToString());
+                    NLog.error("Output number {} in tx {} which is an input to tx {} "
+                               "has an invalid input index in block {} (2)",
+                               outputNumInTx, outputTxHash.ToString(), tx.GetHash().ToString(),
+                               this->GetHash().ToString());
+                    return Err(VIUError::TxInputIndexOutOfRange_Case2);
                 }
 
                 queuedTxs[outputTxHash] = txindex;
@@ -493,22 +497,24 @@ bool CBlock::VerifyInputsUnspent(const CTxDB& txdb) const
                     queuedTxs.find(outputTxHash)->second.vSpent[outputNumInTx] =
                         CreateFakeSpentTxPos(this->GetHash());
                 } else {
-                    return NLog.error(
-                        "Output number {} in tx {} which is an input to tx {} is being "
-                        "spent in block {} +++++ it was already spent in block {}, this is a "
-                        "double-spend attempt",
-                        outputNumInTx, outputTxHash.ToString(), tx.GetHash().ToString(),
-                        this->GetHash().ToString(), txindex.vSpent[outputNumInTx].nBlockPos.ToString());
+                    NLog.error("Output number {} in tx {} which is an input to tx {} is being "
+                               "spent in block {} +++++ it was already spent in block {}, this is a "
+                               "double-spend attempt",
+                               outputNumInTx, outputTxHash.ToString(), tx.GetHash().ToString(),
+                               this->GetHash().ToString(),
+                               txindex.vSpent[outputNumInTx].nBlockPos.ToString());
+                    return Err(VIUError::DoublespendAttempt_Case2);
                 }
             } else {
-                return NLog.error("Output number {} in tx {} which is an input to tx {} and is being "
-                                  "attempted to spend it in block {}. it's an invalid tx",
-                                  outputNumInTx, outputTxHash.ToString(), tx.GetHash().ToString(),
-                                  vin[inIdx].prevout.hash.ToString());
+                NLog.error("Output number {} in tx {} which is an input to tx {} and is being "
+                           "attempted to spend it in block {}. it's an invalid tx",
+                           outputNumInTx, outputTxHash.ToString(), tx.GetHash().ToString(),
+                           vin[inIdx].prevout.hash.ToString());
+                return Err(VIUError::SpendingNonexistentTx);
             }
         }
     }
-    return true;
+    return Ok();
 }
 
 bool CBlock::CheckBIP30Attack(ITxDB& txdb, const uint256& hashTx)
@@ -1359,7 +1365,7 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& block
     }
 
     try {
-        if (!VerifyInputsUnspent(txdb)) {
+        if (VerifyInputsUnspent(txdb).isErr()) {
             reject = CBlockReject(REJECT_INVALID, "bad-txns-inputs-missingorspent", blockHash);
             return DoS(100,
                        NLog.error("VerifyInputsUnspent() failed for block {}", blockHash.ToString()));
