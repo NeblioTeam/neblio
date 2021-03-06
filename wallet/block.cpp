@@ -186,34 +186,31 @@ CBlock::GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const
     const boost::optional<CBlockIndex> biTarget      = txdb.ReadBlockIndex(prevBlockHash);
 
     if (!biTarget) {
-        throw std::runtime_error(fmt::format("CRITCAL ERROR: Failed to prev block index at the "
-                                             "beginning of VerifyInputsUnspent() for block with hash {}",
-                                             hashPrevBlock.ToString()));
+        NLog.write(b_sev::critical,
+                   "CRITCAL ERROR: Failed to prev block index at the "
+                   "beginning of VerifyInputsUnspent() for block with hash {}",
+                   hashPrevBlock.ToString());
+        return Err(VIUError::BlockIndexOfPrevBlockNotFound);
     }
 
-    if (biTarget) {
-        T = biTarget;
-        // keep stepping back from the orphan (new block) until we find the main chain
-        while (!T->IsInMainChain(txdb)) {
-            // this map will be empty if the fork from main chain has only this block
-            res.inFork.push_back(T->GetBlockHash());
-            NLog.write(b_sev::trace, "Block in fork chain: {}\t{}", T->GetBlockHash().ToString(),
-                       T->nHeight);
-            if (T->hashPrev != 0) {
-                T = T->getPrev(txdb);
-                if (!T) {
-                    NLog.write(b_sev::err,
-                               "Failed to read prev block index for height {} and block index {}",
-                               T->nHeight, T->blockHash.ToString());
-                    break;
-                }
-            } else {
+    T = biTarget;
+    // keep stepping back from the orphan (new block) until we find the main chain
+    while (!T->IsInMainChain(txdb)) {
+        // this map will be empty if the fork from main chain has only this block
+        res.inFork.push_back(T->GetBlockHash());
+        NLog.write(b_sev::trace, "Block in fork chain: {}\t{}", T->GetBlockHash().ToString(),
+                   T->nHeight);
+        if (T->hashPrev != 0) {
+            T = T->getPrev(txdb);
+            if (!T) {
+                NLog.write(b_sev::err,
+                           "Failed to read prev block index for height {} and block index {}",
+                           T->nHeight, T->blockHash.ToString());
                 break;
             }
+        } else {
+            break;
         }
-    } else {
-        throw std::runtime_error("Failed to find target block " + prevBlockHash.ToString() +
-                                 "in block index in " + std::string(__PRETTY_FUNCTION__));
     }
 
     // the fork should be in temporal order because it's to be spent in order later
@@ -1375,11 +1372,9 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& block
             return DoS(100,
                        NLog.error("VerifyInputsUnspent() failed for block {}", blockHash.ToString()));
         }
-    } catch (std::exception& ex) {
-        reject = CBlockReject(REJECT_INVALID, "bad-txns-inputs-missingorspent-check-failed", blockHash);
-        return DoS(100,
-                   NLog.error("VerifyInputsUnspent() threw an exception for block {}; with error: {}",
-                              blockHash.ToString(), ex.what()));
+    } catch (const std::exception& ex) {
+        return NLog.critical("VerifyInputsUnspent() threw an exception for block {}; with error: {}",
+                             blockHash.ToString(), ex.what());
     }
 
     const int nHeight = prevBlockIndex.nHeight + 1;

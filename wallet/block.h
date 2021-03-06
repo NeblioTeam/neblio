@@ -161,6 +161,7 @@ public:
         ReadTxIndexFailed_Case2,
         ReadBlockIndexFailed,
         BlockIsNotInMainChainEvenThoughItShould,
+        BlockIndexOfPrevBlockNotFound,
     };
 
     Result<CommonAncestorSuccessorBlocks, VIUError>
