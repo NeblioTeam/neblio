@@ -175,7 +175,7 @@ bool CBlock::DisconnectBlock(CTxDB& txdb, const CBlockIndex& pindex)
 
 /// returns all the blocks from the tip of the main chain up to the common ancestor (without the common
 /// ancestor)
-CBlock::CommonAncestorSuccessorBlocks
+Result<CBlock::CommonAncestorSuccessorBlocks, CBlock::VIUError>
 CBlock::GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const
 {
     CommonAncestorSuccessorBlocks res;
@@ -221,7 +221,7 @@ CBlock::GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const
 
     assert(T);
     res.commonAncestor = *T;
-    return res;
+    return Ok(res);
 }
 
 /**
@@ -234,7 +234,7 @@ CBlock::GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const
 Result<CBlock::ChainReplaceTxs, CBlock::VIUError>
 CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const
 {
-    CommonAncestorSuccessorBlocks commonAncestory = GetBlocksUpToCommonAncestorInMainChain(txdb);
+    CommonAncestorSuccessorBlocks commonAncestory = TRY(GetBlocksUpToCommonAncestorInMainChain(txdb));
     std::vector<CBlock>           forkChainBlocks; // to be reconnected
     forkChainBlocks.reserve(commonAncestory.inFork.size() + 1);
 
@@ -243,8 +243,9 @@ CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const
         CBlock blk;
         //        std::cout << "In fork block hash: " << bh.ToString() << std::endl;
         if (!txdb.ReadBlock(bh, blk, true)) {
-            throw std::runtime_error("In fork chain search, block " + bh.ToString() +
-                                     " was not found in the database");
+            NLog.write(b_sev::err, "In fork chain search, block {} was not found in the database",
+                       bh.ToString());
+            return Err(VIUError::BlockUnreadable);
         }
         forkChainBlocks.push_back(blk);
     }
@@ -288,10 +289,11 @@ CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const
                             // since they're not main chain
                             continue;
                         } else {
-                            throw std::runtime_error(
-                                std::string(__PRETTY_FUNCTION__) +
-                                ": ReadTxIndex failed for transaction " + outputTxHash.ToString() +
-                                " and the transaction was not found in the fork itself (1)");
+                            NLog.write(b_sev::err,
+                                       "ReadTxIndex failed for transaction {} and the transaction was "
+                                       "not found in the fork itself (1)",
+                                       outputTxHash.ToString());
+                            return Err(VIUError::ReadTxIndexFailed_Case1);
                         }
                     }
 
@@ -301,10 +303,9 @@ CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const
 
                 // check range
                 if (outputNumInTx >= txindex.vSpent.size()) {
-                    throw std::runtime_error(std::string(__PRETTY_FUNCTION__) +
-                                             ": prevout.n out of range for transaction " +
-                                             outputTxHash.ToString() + " and output " +
-                                             std::to_string(outputNumInTx) + " (1)");
+                    NLog.write(b_sev::err, "prevout.n out of range for transaction {} and output {} (1)",
+                               outputTxHash.ToString(), outputNumInTx);
+                    return Err(VIUError::TxInputIndexOutOfRange_Case3);
                 }
 
                 if (txindex.vSpent[outputNumInTx].IsNull()) {
@@ -315,23 +316,25 @@ CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const
                 uint256 spenderBlockHash              = txindex.vSpent[outputNumInTx].nBlockPos;
                 const boost::optional<CBlockIndex> bi = txdb.ReadBlockIndex(spenderBlockHash);
                 if (!bi) {
-                    throw std::runtime_error(
-                        std::string(__PRETTY_FUNCTION__) + ": The input of transaction " +
-                        tx.GetHash().ToString() + " whose index " + std::to_string(outputNumInTx) +
-                        " and hash " + outputTxHash.ToString() + "is found to be in block " +
-                        spenderBlockHash.ToString() +
-                        " but that block is not found in the block index. This should never happen.");
+                    NLog.write(b_sev::err,
+                               "The input of transaction {} whose index {} and hash {} is found to be "
+                               "in block {} but that block is not found in the block index. This "
+                               "should never happen.",
+                               tx.GetHash().ToString(), outputNumInTx, outputTxHash.ToString(),
+                               spenderBlockHash.ToString());
+                    return Err(VIUError::ReadBlockIndexFailed);
                 }
 
                 // this should be true anyway, because ReadTxIndex has only blocks with spent
                 // transactions from the main chain, but we double check for consistency
                 if (!bi->IsInMainChain(txdb)) {
-                    throw std::runtime_error(
-                        std::string(__PRETTY_FUNCTION__) + ": The input of transaction " +
-                        tx.GetHash().ToString() + " whose index " + std::to_string(outputNumInTx) +
-                        " and hash " + outputTxHash.ToString() + "is found to be in block " +
-                        spenderBlockHash.ToString() +
-                        " but while that block was found, it's not in the main chain");
+                    NLog.write(
+                        b_sev::err,
+                        "The input of transaction {} whose index {} and hash {} is found to be in "
+                        "block {} but while that block was found, it's not in the main chain",
+                        tx.GetHash().ToString(), outputNumInTx, outputTxHash.ToString(),
+                        spenderBlockHash.ToString());
+                    return Err(VIUError::BlockIsNotInMainChainEvenThoughItShould);
                 }
 
                 // make sure that the spending transaction is in the main chain above the common ancestor
@@ -378,10 +381,11 @@ CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const
                             const CTransaction& txInFork = forkTxIt->second;
                             txindex = CTxIndex(CDiskTxPos(blk.GetHash(), 42), txInFork.vout.size());
                         } else {
-                            throw std::runtime_error(
-                                std::string(__PRETTY_FUNCTION__) +
-                                ": ReadTxIndex failed for transaction " + outputTxHash.ToString() +
-                                " and the transaction was not found in the fork itself (2)");
+                            NLog.write(b_sev::err,
+                                       "ReadTxIndex failed for transaction {} and the transaction was "
+                                       "not found in the fork itself (2)",
+                                       outputTxHash.ToString());
+                            return Err(VIUError::ReadTxIndexFailed_Case2);
                         }
                     }
                 } else {
@@ -390,9 +394,10 @@ CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const
 
                 // check range
                 if (outputNumInTx >= txindex.vSpent.size()) {
-                    throw std::runtime_error(
-                        std::string(__PRETTY_FUNCTION__) + ": prevout.n out of range for transaction " +
-                        outputTxHash.ToString() + " and output " + std::to_string(outputNumInTx));
+                    NLog.write(b_sev::err, "prevout.n out of range for transaction " +
+                                               outputTxHash.ToString() + " and output " +
+                                               std::to_string(outputNumInTx));
+                    return Err(VIUError::TxInputIndexOutOfRange_Case4);
                 }
 
                 // spend the output (without updating the database)
