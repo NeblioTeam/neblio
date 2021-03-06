@@ -148,16 +148,23 @@ public:
 
     enum class VIUError
     {
-        UnknownError,
         UnknownErrorWhileCollectingTxs,
         TxInputIndexOutOfRange_Case1,
         TxInputIndexOutOfRange_Case2,
+        TxInputIndexOutOfRange_Case3,
+        TxInputIndexOutOfRange_Case4,
         DoublespendAttempt_Case1,
         DoublespendAttempt_Case2,
         SpendingNonexistentTx,
+        BlockUnreadable,
+        ReadTxIndexFailed_Case1,
+        ReadTxIndexFailed_Case2,
+        ReadBlockIndexFailed,
+        BlockIsNotInMainChainEvenThoughItShould,
     };
 
-    CommonAncestorSuccessorBlocks     GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const;
+    Result<CommonAncestorSuccessorBlocks, VIUError>
+                                      GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const;
     Result<ChainReplaceTxs, VIUError> GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const;
 
     bool DisconnectBlock(CTxDB& txdb, const CBlockIndex& pindex);
