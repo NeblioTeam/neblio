@@ -261,6 +261,15 @@ class TestManager():
                         return False
                 elif ((c.bestblockhash == blockhash) != outcome):
                     return False
+
+                # added by Sam: We want to exactly pinpoint the reason for failure
+                # and distinguish between blocks that are rejected for being invalid
+                # and blocks that are simply not at the tip
+                if outcome is False:
+                    if blockhash in c.block_reject_map:
+                        logger.error('Block in reject map even though no reject reason given. '
+                                     '(Block hash: {:064x} ; expected reject reason: {}'.format(blockhash, c.block_reject_map[blockhash]))
+                        return False
             return True
 
     # Either check that the mempools all agree with each other, or that
