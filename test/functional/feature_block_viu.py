@@ -302,16 +302,16 @@ class FullBlockTest(ComparisonTestFramework):
         tip("f15")
         height = self.block_heights[self.tip.sha256] + 1
         coinbase = create_coinbase(height, self.coinbase_pubkey)
-        blk16 = CBlock()
-        blk16.nTime = self.tip.nTime + 1
-        blk16.hashPrevBlock = self.tip.sha256
-        blk16.nBits = 0x207fffff
-        blk16.vtx.append(coinbase)
-        blk16.hashMerkleRoot = blk16.calc_merkle_root()
-        blk16.fix_time_then_resolve()
-        self.tip = blk16
-        self.block_heights[blk16.sha256] = height
-        self.blocks["f16b"] = blk16
+        blk16a = CBlock()
+        blk16a.nTime = self.tip.nTime + 1
+        blk16a.hashPrevBlock = self.tip.sha256
+        blk16a.nBits = 0x207fffff
+        blk16a.vtx.append(coinbase)
+        blk16a.hashMerkleRoot = blk16a.calc_merkle_root()
+        blk16a.fix_time_then_resolve()
+        self.tip = blk16a
+        self.block_heights[blk16a.sha256] = height
+        self.blocks["f16a"] = blk16a
         yield rejected()
 
         def create_tx_manual(prevout_hash, n, value):
@@ -321,22 +321,41 @@ class FullBlockTest(ComparisonTestFramework):
             tx.calc_sha256()
             return tx
 
-        tip("f16b")
+        # invalid input index - out of range
+        tip("f16a")
         height = self.block_heights[self.tip.sha256] + 1
         coinbase = create_coinbase(height, self.coinbase_pubkey)
-        blk16 = CBlock()
-        blk16.nTime = self.tip.nTime + 1
-        blk16.hashPrevBlock = self.tip.sha256
-        blk16.nBits = 0x207fffff
-        blk16.vtx.append(coinbase)
+        blk16b = CBlock()
+        blk16b.nTime = self.tip.nTime + 1
+        blk16b.hashPrevBlock = self.tip.sha256
+        blk16b.nBits = 0x207fffff
+        blk16b.vtx.append(coinbase)
         tx1 = create_tx_manual(out[16].tx.sha256, out[16].n+10, 10000)
-        blk16.vtx.append(tx1)
-        blk16.hashMerkleRoot = blk16.calc_merkle_root()
-        blk16.fix_time_then_resolve()
-        self.tip = blk16
-        self.block_heights[blk16.sha256] = height
-        self.blocks["f16b"] = blk16
+        blk16b.vtx.append(tx1)
+        blk16b.hashMerkleRoot = blk16b.calc_merkle_root()
+        blk16b.fix_time_then_resolve()
+        self.tip = blk16b
+        self.block_heights[blk16b.sha256] = height
+        self.blocks["f16b"] = blk16b
         yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxInputIndexOutOfRange'))
+
+        # fake input transaction hash that doesn't exist
+        tip("f16a")
+        height = self.block_heights[self.tip.sha256] + 1
+        coinbase = create_coinbase(height, self.coinbase_pubkey)
+        blk16c = CBlock()
+        blk16c.nTime = self.tip.nTime + 1
+        blk16c.hashPrevBlock = self.tip.sha256
+        blk16c.nBits = 0x207fffff
+        blk16c.vtx.append(coinbase)
+        tx1 = create_tx_manual(12345, 0, 10000)
+        blk16c.vtx.append(tx1)
+        blk16c.hashMerkleRoot = blk16c.calc_merkle_root()
+        blk16c.fix_time_then_resolve()
+        self.tip = blk16c
+        self.block_heights[blk16c.sha256] = height
+        self.blocks["f16c"] = blk16c
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxNonExistent_ReadTxIndexFailed'))
 
 
 if __name__ == '__main__':

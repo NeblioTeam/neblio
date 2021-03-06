@@ -290,7 +290,7 @@ CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const
                                        "ReadTxIndex failed for transaction {} and the transaction was "
                                        "not found in the fork itself (1)",
                                        outputTxHash.ToString());
-                            return Err(VIUError::ReadTxIndexFailed_Case1);
+                            return Err(VIUError::TxNonExistent_ReadTxIndexFailed_Case1);
                         }
                     }
 
@@ -382,7 +382,7 @@ CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const
                                        "ReadTxIndex failed for transaction {} and the transaction was "
                                        "not found in the fork itself (2)",
                                        outputTxHash.ToString());
-                            return Err(VIUError::ReadTxIndexFailed_Case2);
+                            return Err(VIUError::TxNonExistent_ReadTxIndexFailed_Case2);
                         }
                     }
                 } else {
@@ -1907,10 +1907,10 @@ const char* CBlock::VIUErrorToString(VIUError err)
         return "SpendingNonexistentTx";
     case VIUError::BlockCannotBeReadFromDB:
         return "BlockCannotBeReadFromDB";
-    case VIUError::ReadTxIndexFailed_Case1:
-        return "ReadTxIndexFailed_Case1";
-    case VIUError::ReadTxIndexFailed_Case2:
-        return "ReadTxIndexFailed_Case2";
+    case VIUError::TxNonExistent_ReadTxIndexFailed_Case1:
+        return "TxNonExistent_ReadTxIndexFailed_Case1";
+    case VIUError::TxNonExistent_ReadTxIndexFailed_Case2:
+        return "TxNonExistent_ReadTxIndexFailed_Case2";
     case VIUError::ReadBlockIndexFailed:
         return "ReadBlockIndexFailed";
     case VIUError::BlockIsNotInMainChainEvenThoughItShould:
