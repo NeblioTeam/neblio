@@ -156,13 +156,15 @@ public:
         DoublespendAttempt_Case1,
         DoublespendAttempt_Case2,
         SpendingNonexistentTx,
-        BlockUnreadable,
+        BlockCannotBeReadFromDB,
         ReadTxIndexFailed_Case1,
         ReadTxIndexFailed_Case2,
         ReadBlockIndexFailed,
         BlockIsNotInMainChainEvenThoughItShould,
         BlockIndexOfPrevBlockNotFound,
     };
+
+    static const char* VIUErrorToString(VIUError err);
 
     Result<CommonAncestorSuccessorBlocks, VIUError>
                                       GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const;
