@@ -1746,7 +1746,7 @@ void UpdateWallets(const uint256& prevBestChain, const ITxDB& txdb)
     using BlockIndexCacheType = BlockIndexLRUCache<bool>;
 
     static thread_local typename BlockIndexCacheType::ExtractorFunc extractorFunc =
-        [](const CBlockIndex&) -> int64_t { return false; };
+        [](const CBlockIndex&) -> bool { return false; };
 
     static thread_local BlockIndexCacheType blockIndexCache(1000, extractorFunc);
 
