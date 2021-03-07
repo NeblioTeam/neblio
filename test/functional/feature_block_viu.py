@@ -407,8 +407,27 @@ class FullBlockTest(ComparisonTestFramework):
         self.blocks["f36c"] = blk36c
         yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxNonExistent_ReadTxIndexFailed_Case1'))
 
-
-
+        # double-spend in same block
+        tip("f35")
+        height = self.block_heights[self.tip.sha256] + 1
+        coinbase = create_coinbase(height, self.coinbase_pubkey)
+        blk36d = CBlock()
+        blk36d.nTime = self.tip.nTime + 1
+        blk36d.hashPrevBlock = self.tip.sha256
+        blk36d.nBits = 0x207fffff
+        blk36d.vtx.append(coinbase)
+        tx1 = create_tx_manual(out[37].tx.sha256, out[17].n, 10000000)
+        tx2 = create_tx_manual(tx1.sha256, 0, 5000000)
+        tx3 = create_tx_manual(tx1.sha256, 0, 4000000)
+        blk36d.vtx.append(tx1)
+        blk36d.vtx.append(tx2)
+        blk36d.vtx.append(tx3)
+        blk36d.hashMerkleRoot = blk36d.calc_merkle_root()
+        blk36d.fix_time_then_resolve()
+        self.tip = blk36d
+        self.block_heights[blk36d.sha256] = height
+        self.blocks["f36d"] = blk36d
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt'))
 
 if __name__ == '__main__':
     FullBlockTest().main()
