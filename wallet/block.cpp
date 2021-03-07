@@ -1,4 +1,4 @@
-﻿#include "block.h"
+#include "block.h"
 
 #include "NetworkForks.h"
 #include "blockindex.h"
@@ -384,9 +384,16 @@ RespendBlock(const ITxDB& txdb, const CBlock& blk,
             }
 
             // spend the output (without updating the database)
-            txindex.vSpent[outputNumInTx] = CreateFakeSpentTxPos(txindex.pos.nBlockPos);
-
-            spendingState[outputTxHash] = txindex;
+            if (txindex.vSpent[outputNumInTx].IsNull()) {
+                // tx is not spent yet, so we mark it as spent
+                txindex.vSpent[outputNumInTx] = CreateFakeSpentTxPos(txindex.pos.nBlockPos);
+                spendingState[outputTxHash]   = txindex;
+            } else {
+                NLog.error("Output number {} in tx {} which is an input to tx {} is attempting to "
+                           "double-spend in the same block",
+                           outputNumInTx, outputTxHash.ToString(), tx.GetHash().ToString());
+                return Err(CBlock::VIUError::DoublespendAttempt);
+            }
         }
 
         // since we're respending the transactions, we should store spenders the in a modified list
@@ -424,6 +431,8 @@ CBlock::ReplaceMainChainWithForkUpToCommonAncestor(const ITxDB& txdb) const
         }
         forkChainBlocks.push_back(blk);
     }
+    // we also include THIS block to process
+    forkChainBlocks.push_back(*this);
 
     ChainReplaceTxs result;
     result.commonAncestorBlockIndex = commonAncestory.commonAncestor;
@@ -434,13 +443,10 @@ CBlock::ReplaceMainChainWithForkUpToCommonAncestor(const ITxDB& txdb) const
 
     // unspend/disconnect all inputs that are in the fork
     // we also need to unspend this block, so we add it and pop it later
-    forkChainBlocks.push_back(*this);
     for (const CBlock& blk : forkChainBlocks) {
         TRYV(UnspendBlock(txdb, blk, commonAncestory.commonAncestor, forkTxsOutCount,
                           result.modifiedOutputsTxs));
     }
-    // now that this block's inputs are unspent in the fork, we pop it
-    forkChainBlocks.pop_back();
 
     // at this point, all transactions from the fork that are spent in the main chain are now unspent
 
@@ -453,21 +459,6 @@ CBlock::ReplaceMainChainWithForkUpToCommonAncestor(const ITxDB& txdb) const
     result.forkTxsOutCount = std::move(forkTxsOutCount);
 
     return Ok(result);
-}
-
-static Result<CTxIndex, CBlock::VIUError> GetMissingTxIndex(const CTxDB&   txdb,
-                                                            const uint256& outputTxHash,
-                                                            const unsigned outputNumInTx,
-                                                            const uint256& spenderTxHash)
-{
-    CTxIndex txindex;
-    if (txdb.ReadTxIndex(outputTxHash, txindex)) {
-        return Ok(std::move(txindex));
-    } else {
-        NLog.error("Output number {} in tx {} which is an input to tx {}. it's an invalid tx",
-                   outputNumInTx, outputTxHash.ToString(), spenderTxHash.ToString());
-        return Err(CBlock::VIUError::SpendingNonexistentTx);
-    }
 }
 
 Result<void, CBlock::VIUError> CBlock::VerifyInputsUnspent(const CTxDB& txdb) const
@@ -493,69 +484,6 @@ Result<void, CBlock::VIUError> CBlock::VerifyInputsUnspent(const CTxDB& txdb) co
         return Err(VIUError::UnknownErrorWhileCollectingTxs);
     }
 
-    std::unordered_map<uint256, CTxIndex>& queuedTxs = alternateChainTxs.modifiedOutputsTxs;
-
-    // here we actively attempt to respend transactions from *this block
-    for (const CTransaction& tx : vtx) {
-        {
-            // if an output in the transaction is spent in the same block, it should also be found in the
-            // queued transactions list in order for the tests below to work because it's not in the
-            // blockchain yet
-            auto it = queuedTxs.find(tx.GetHash());
-            if (it == queuedTxs.cend()) {
-                // unspent tx (all vSpent are null)
-                CTxIndex txindex(CDiskTxPos(this->GetHash(), 2), tx.vout.size());
-                queuedTxs[tx.GetHash()] = txindex;
-            }
-        }
-
-        // coinbase don't have any inputs
-        if (tx.IsCoinBase()) {
-            continue;
-        }
-
-        // loop over inputs of this transaction, and check whether the outputs are already spent
-        const std::vector<CTxIn>& vin = tx.vin;
-        for (unsigned int inIdx = 0; inIdx < vin.size(); inIdx++) {
-            const uint256  outputTxHash  = vin[inIdx].prevout.hash;
-            const unsigned outputNumInTx = vin[inIdx].prevout.n;
-
-            auto it = queuedTxs.find(outputTxHash);
-
-            // if tx is not in the queue, retrieve it
-            if (it == queuedTxs.cend()) {
-                NLog.error("Unable to find TxIndex in the provided queue for output {} that is spent in "
-                           "tx {} in block {}. The TxIndex will be retrieved from the database",
-                           outputTxHash.ToString(), tx.GetHash().ToString(), this->GetHash().ToString());
-
-                queuedTxs[outputTxHash] =
-                    TRY(GetMissingTxIndex(txdb, outputTxHash, outputNumInTx, tx.GetHash()));
-
-                it = queuedTxs.find(outputTxHash);
-            }
-
-            assert(it != queuedTxs.cend());
-
-            if (outputNumInTx >= it->second.vSpent.size()) {
-                NLog.error("Output number {} in tx {} which is an input to tx {} "
-                           "has an invalid input index in block {} (1)",
-                           outputNumInTx, outputTxHash.ToString(), tx.GetHash().ToString(),
-                           this->GetHash().ToString());
-                return Err(VIUError::TxInputIndexOutOfRange_Case1);
-            }
-
-            if (it->second.vSpent[outputNumInTx].IsNull()) {
-                // tx is not spent yet, so we mark it as spent
-                it->second.vSpent[outputNumInTx] = CreateFakeSpentTxPos(this->GetHash());
-            } else {
-                NLog.error("Output number {} in tx {} which is an input to tx {} is attempting to "
-                           "double-spend in the same block {}",
-                           outputNumInTx, outputTxHash.ToString(), tx.GetHash().ToString(),
-                           this->GetHash().ToString());
-                return Err(VIUError::DoublespendAttempt);
-            }
-        }
-    }
     return Ok();
 }
 
