@@ -166,8 +166,9 @@ public:
     static const char* VIUErrorToString(VIUError err);
 
     Result<CommonAncestorSuccessorBlocks, VIUError>
-                                      GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const;
-    Result<ChainReplaceTxs, VIUError> GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const;
+    GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const;
+    Result<ChainReplaceTxs, VIUError>
+    ReplaceMainChainWithForkUpToCommonAncestor(const ITxDB& txdb) const;
 
     bool DisconnectBlock(CTxDB& txdb, const CBlockIndex& pindex);
     bool ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pindex, bool fJustCheck = false);
