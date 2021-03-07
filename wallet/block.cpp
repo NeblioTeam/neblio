@@ -355,9 +355,9 @@ CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const
             // std::cout << "Reconnecting inputs in: " << tx.GetHash().ToString() << std::endl;
             const std::vector<CTxIn>& vin = tx.vin;
             for (unsigned int inIdx = 0; inIdx < vin.size(); inIdx++) {
-                const CTxIn& txin          = vin[inIdx];
-                uint256      outputTxHash  = txin.prevout.hash;
-                unsigned     outputNumInTx = txin.prevout.n;
+                const CTxIn&   txin          = vin[inIdx];
+                const uint256  outputTxHash  = txin.prevout.hash;
+                const unsigned outputNumInTx = txin.prevout.n;
 
                 auto     idxIt = result.modifiedOutputsTxs.find(outputTxHash);
                 CTxIndex txindex;
