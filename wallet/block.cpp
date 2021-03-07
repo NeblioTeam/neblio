@@ -483,6 +483,8 @@ Result<void, CBlock::VIUError> CBlock::VerifyInputsUnspent(const CTxDB& txdb) co
                 it = queuedTxs.find(outputTxHash);
             }
 
+            assert(it != queuedTxs.cend());
+
             if (outputNumInTx >= it->second.vSpent.size()) {
                 NLog.error("Output number {} in tx {} which is an input to tx {} "
                            "has an invalid input index in block {} (1)",
