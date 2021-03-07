@@ -226,6 +226,11 @@ CBlock::GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const
 Result<CBlock::ChainReplaceTxs, CBlock::VIUError>
 CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const
 {
+    using BlockIndexHeightCacheType = BlockIndexLRUCache<int>;
+    static thread_local typename BlockIndexHeightCacheType::ExtractorFunc extractorFunc =
+        [](const CBlockIndex& bi) -> int { return bi.nHeight; };
+    static thread_local BlockIndexHeightCacheType blockIndexCache(10000, extractorFunc);
+
     CommonAncestorSuccessorBlocks commonAncestory = TRY(GetBlocksUpToCommonAncestorInMainChain(txdb));
     std::vector<CBlock>           forkChainBlocks; // to be reconnected
     forkChainBlocks.reserve(commonAncestory.inFork.size() + 1);
@@ -305,9 +310,10 @@ CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const
                     continue;
                 }
 
-                uint256 spenderBlockHash              = txindex.vSpent[outputNumInTx].nBlockPos;
-                const boost::optional<CBlockIndex> bi = txdb.ReadBlockIndex(spenderBlockHash);
-                if (!bi) {
+                const uint256 spenderBlockHash = txindex.vSpent[outputNumInTx].nBlockPos;
+                const boost::optional<BlockIndexHeightCacheType::BICacheEntry> blockIndexHeight =
+                    blockIndexCache.get(txdb, spenderBlockHash);
+                if (!blockIndexHeight) {
                     NLog.write(b_sev::err,
                                "The input of transaction {} whose index {} and hash {} is found to be "
                                "in block {} but that block is not found in the block index. This "
@@ -317,20 +323,11 @@ CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const
                     return Err(VIUError::ReadBlockIndexFailed);
                 }
 
-                // this should be true anyway, because ReadTxIndex has only blocks with spent
-                // transactions from the main chain, but we double check for consistency
-                if (!bi->IsInMainChain(txdb)) {
-                    NLog.write(
-                        b_sev::err,
-                        "The input of transaction {} whose index {} and hash {} is found to be in "
-                        "block {} but while that block was found, it's not in the main chain",
-                        tx.GetHash().ToString(), outputNumInTx, outputTxHash.ToString(),
-                        spenderBlockHash.ToString());
-                    return Err(VIUError::BlockIsNotInMainChainEvenThoughItShould);
-                }
+                const int spenderBlockHeight = blockIndexHeight->value;
 
-                // make sure that the spending transaction is in the main chain above the common ancestor
-                if (bi->nHeight > commonAncestory.commonAncestor.nHeight) {
+                // make sure that the spending transaction is in the main chain above the common
+                // ancestor
+                if (spenderBlockHeight > commonAncestory.commonAncestor.nHeight) {
                     // unspend, which is equivalent to disconnecting the blockchain (without updating
                     // the database)
                     txindex.vSpent[outputNumInTx].SetNull();
