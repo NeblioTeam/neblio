@@ -478,7 +478,7 @@ Result<void, CBlock::VIUError> CBlock::VerifyInputsUnspent(const CTxDB& txdb) co
                                "double-spend in the same block {}",
                                outputNumInTx, outputTxHash.ToString(), tx.GetHash().ToString(),
                                this->GetHash().ToString());
-                    return Err(VIUError::DoublespendAttempt_Case2);
+                    return Err(VIUError::DoublespendAttempt_Case1);
                 }
             } else if (txdb.ReadTxIndex(outputTxHash, txindex)) {
                 if (outputNumInTx >= txindex.vSpent.size()) {
