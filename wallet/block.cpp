@@ -369,7 +369,7 @@ RespendBlock(const ITxDB& txdb, const CBlock& blk,
         const std::vector<CTxIn>& vin = tx.vin;
         for (unsigned int inIdx = 0; inIdx < vin.size(); inIdx++) {
             const CTxIn&   txin          = vin[inIdx];
-            const uint256  outputTxHash  = txin.prevout.hash;
+            const uint256& outputTxHash  = txin.prevout.hash;
             const unsigned outputNumInTx = txin.prevout.n;
 
             CTxIndex txindex = TRY(GetTxIndexFromQueueThenDBThenForkThenError(
