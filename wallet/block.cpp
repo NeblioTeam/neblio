@@ -460,7 +460,7 @@ static Result<CTxIndex, CBlock::VIUError> GetMissingTxIndex(const CTxDB&   txdb,
 {
     CTxIndex txindex;
     if (txdb.ReadTxIndex(outputTxHash, txindex)) {
-        return Ok(txindex);
+        return Ok(std::move(txindex));
     } else {
         NLog.error("Output number {} in tx {} which is an input to tx {}. it's an invalid tx",
                    outputNumInTx, outputTxHash.ToString(), spenderTxHash.ToString());
