@@ -284,7 +284,7 @@ UnspendBlock(const ITxDB& txdb, const CBlock& blk, const CBlockIndex& commonAnce
             if (outputNumInTx >= txindex->vSpent.size()) {
                 NLog.write(b_sev::err, "prevout.n out of range for transaction {} and output {} (1)",
                            outputTxHash.ToString(), outputNumInTx);
-                return Err(CBlock::VIUError::TxInputIndexOutOfRange_Case2);
+                return Err(CBlock::VIUError::TxInputIndexOutOfRange_Case1);
             }
 
             if (txindex->vSpent[outputNumInTx].IsNull()) {
@@ -378,7 +378,7 @@ RespendBlock(const ITxDB& txdb, const CBlock& blk,
                 NLog.write(b_sev::err, "prevout.n out of range for transaction " +
                                            outputTxHash.ToString() + " and output " +
                                            std::to_string(outputNumInTx));
-                return Err(CBlock::VIUError::TxInputIndexOutOfRange_Case3);
+                return Err(CBlock::VIUError::TxInputIndexOutOfRange_Case2);
             }
 
             // spend the output (without updating the database)
@@ -1861,12 +1861,8 @@ const char* CBlock::VIUErrorToString(VIUError err)
         return "TxInputIndexOutOfRange_Case1";
     case VIUError::TxInputIndexOutOfRange_Case2:
         return "TxInputIndexOutOfRange_Case2";
-    case VIUError::TxInputIndexOutOfRange_Case3:
-        return "TxInputIndexOutOfRange_Case3";
     case VIUError::DoublespendAttempt:
         return "DoublespendAttempt";
-    case VIUError::SpendingNonexistentTx:
-        return "SpendingNonexistentTx";
     case VIUError::BlockCannotBeReadFromDB:
         return "BlockCannotBeReadFromDB";
     case VIUError::TxNonExistent_ReadTxIndexFailed_Case1:
@@ -1875,8 +1871,6 @@ const char* CBlock::VIUErrorToString(VIUError err)
         return "TxNonExistent_ReadTxIndexFailed_Case2";
     case VIUError::ReadBlockIndexFailed:
         return "ReadBlockIndexFailed";
-    case VIUError::BlockIsNotInMainChainEvenThoughItShould:
-        return "BlockIsNotInMainChainEvenThoughItShould";
     case VIUError::BlockIndexOfPrevBlockNotFound:
         return "BlockIndexOfPrevBlockNotFound";
     case VIUError::CommonAncestorSearchFailed:

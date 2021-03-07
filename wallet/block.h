@@ -153,14 +153,11 @@ public:
         UnknownErrorWhileCollectingTxs,
         TxInputIndexOutOfRange_Case1,
         TxInputIndexOutOfRange_Case2,
-        TxInputIndexOutOfRange_Case3,
         DoublespendAttempt,
-        SpendingNonexistentTx,
         BlockCannotBeReadFromDB,
         TxNonExistent_ReadTxIndexFailed_Case1,
         TxNonExistent_ReadTxIndexFailed_Case2,
         ReadBlockIndexFailed,
-        BlockIsNotInMainChainEvenThoughItShould,
         BlockIndexOfPrevBlockNotFound,
         CommonAncestorSearchFailed
     };

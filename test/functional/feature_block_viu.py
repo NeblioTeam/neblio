@@ -342,7 +342,7 @@ class FullBlockTest(ComparisonTestFramework):
         self.tip = blk16b
         self.block_heights[blk16b.sha256] = height
         self.blocks["f16b"] = blk16b
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxInputIndexOutOfRange_Case2'))
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxInputIndexOutOfRange_Case1'))
 
         # fake input transaction hash that doesn't exist
         tip("f16")
@@ -393,7 +393,7 @@ class FullBlockTest(ComparisonTestFramework):
         self.tip = blk36b
         self.block_heights[blk36b.sha256] = height
         self.blocks["f36b"] = blk36b
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxInputIndexOutOfRange_Case2'))
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxInputIndexOutOfRange_Case1'))
 
         # fake input transaction hash that doesn't exist
         tip("f35")
