@@ -218,8 +218,8 @@ CBlock::GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const
 
 static Result<boost::optional<CTxIndex>, CBlock::VIUError>
 GetTxIndexFromQueueThenDBThenForkOrNoneThenError(const ITxDB& txdb, const uint256& outputTxHash,
-                                                 std::unordered_map<uint256, CTransaction>& forkTxs,
-                                                 std::unordered_map<uint256, CTxIndex>&     queue)
+                                                 std::unordered_map<uint256, uint32_t>& forkTxsOutCount,
+                                                 std::unordered_map<uint256, CTxIndex>& queue)
 {
     CTxIndex txindex;
     // we see if we already have prev txindex in the list of modified outputs
@@ -229,8 +229,8 @@ GetTxIndexFromQueueThenDBThenForkOrNoneThenError(const ITxDB& txdb, const uint25
         if (!txdb.ReadTxIndex(outputTxHash, txindex)) {
             // the only place left is on the fork itself: the block is spending a tx created
             // on the fork
-            auto forkTxIt = forkTxs.find(outputTxHash);
-            if (forkTxIt != forkTxs.cend()) {
+            auto forkTxIt = forkTxsOutCount.find(outputTxHash);
+            if (forkTxIt != forkTxsOutCount.cend()) {
                 // we don't unspend transactions that were created on the fork, because
                 // they're already unspent since they're not main chain
                 return Ok(boost::optional<CTxIndex>(boost::none));
@@ -249,10 +249,10 @@ GetTxIndexFromQueueThenDBThenForkOrNoneThenError(const ITxDB& txdb, const uint25
     return Ok(boost::make_optional(std::move(txindex)));
 }
 
-static Result<void, CBlock::VIUError> UnspendBlock(const ITxDB& txdb, const CBlock& blk,
-                                                   const CBlockIndex& commonAncestorBlockIndex,
-                                                   std::unordered_map<uint256, CTransaction>& forkTxs,
-                                                   std::unordered_map<uint256, CTxIndex>& spendingState)
+static Result<void, CBlock::VIUError>
+UnspendBlock(const ITxDB& txdb, const CBlock& blk, const CBlockIndex& commonAncestorBlockIndex,
+             std::unordered_map<uint256, uint32_t>& forkTxsOutCount,
+             std::unordered_map<uint256, CTxIndex>& spendingState)
 {
     using BlockIndexHeightCacheType = BlockIndexLRUCache<int>;
     static thread_local typename BlockIndexHeightCacheType::ExtractorFunc extractorFunc =
@@ -260,7 +260,7 @@ static Result<void, CBlock::VIUError> UnspendBlock(const ITxDB& txdb, const CBlo
     static thread_local BlockIndexHeightCacheType blockIndexCache(10000, extractorFunc);
 
     for (const CTransaction& tx : blk.vtx) {
-        forkTxs[tx.GetHash()] = tx;
+        forkTxsOutCount[tx.GetHash()] = tx.vout.size();
     }
 
     for (const CTransaction& tx : blk.vtx) {
@@ -274,7 +274,7 @@ static Result<void, CBlock::VIUError> UnspendBlock(const ITxDB& txdb, const CBlo
             const unsigned outputNumInTx = txin.prevout.n;
 
             boost::optional<CTxIndex> txindex = TRY(GetTxIndexFromQueueThenDBThenForkOrNoneThenError(
-                txdb, outputTxHash, forkTxs, spendingState));
+                txdb, outputTxHash, forkTxsOutCount, spendingState));
 
             if (!txindex) {
                 // we don't unspend transactions that were created on the fork, because
@@ -327,7 +327,7 @@ static Result<void, CBlock::VIUError> UnspendBlock(const ITxDB& txdb, const CBlo
 
 static Result<CTxIndex, CBlock::VIUError> GetTxIndexFromQueueThenDBThenForkThenError(
     const ITxDB& txdb, const uint256& outputTxHash, const uint256& blockHash,
-    std::unordered_map<uint256, CTransaction>& forkTxs, std::unordered_map<uint256, CTxIndex>& queue)
+    std::unordered_map<uint256, uint32_t>& forkTxsOutCount, std::unordered_map<uint256, CTxIndex>& queue)
 {
     CTxIndex txindex;
     auto     idxIt = queue.find(outputTxHash);
@@ -336,11 +336,10 @@ static Result<CTxIndex, CBlock::VIUError> GetTxIndexFromQueueThenDBThenForkThenE
         if (!txdb.ReadTxIndex(outputTxHash, txindex)) {
             // the only place left is on the fork itself: the block is spending a tx on the
             // fork
-            auto forkTxIt = forkTxs.find(outputTxHash);
-            if (forkTxIt != forkTxs.cend()) {
-                const CTransaction& txInFork = forkTxIt->second;
-
-                txindex = CTxIndex(CDiskTxPos(blockHash, 42), txInFork.vout.size());
+            auto forkTxIt = forkTxsOutCount.find(outputTxHash);
+            if (forkTxIt != forkTxsOutCount.cend()) {
+                const uint32_t txOutCount = forkTxIt->second;
+                txindex                   = CTxIndex(CDiskTxPos(blockHash, 42), txOutCount);
             } else {
                 NLog.write(b_sev::err,
                            "ReadTxIndex failed for transaction {} and the transaction was "
@@ -355,9 +354,10 @@ static Result<CTxIndex, CBlock::VIUError> GetTxIndexFromQueueThenDBThenForkThenE
     return Ok(std::move(txindex));
 }
 
-static Result<void, CBlock::VIUError> RespendBlock(const ITxDB& txdb, const CBlock& blk,
-                                                   std::unordered_map<uint256, CTransaction>& forkTxs,
-                                                   std::unordered_map<uint256, CTxIndex>& spendingState)
+static Result<void, CBlock::VIUError>
+RespendBlock(const ITxDB& txdb, const CBlock& blk,
+             std::unordered_map<uint256, uint32_t>& forkTxsOutCount,
+             std::unordered_map<uint256, CTxIndex>& spendingState)
 {
     for (const CTransaction& tx : blk.vtx) {
         if (tx.IsCoinBase()) {
@@ -373,7 +373,7 @@ static Result<void, CBlock::VIUError> RespendBlock(const ITxDB& txdb, const CBlo
             const unsigned outputNumInTx = txin.prevout.n;
 
             CTxIndex txindex = TRY(GetTxIndexFromQueueThenDBThenForkThenError(
-                txdb, outputTxHash, blkHash, forkTxs, spendingState));
+                txdb, outputTxHash, blkHash, forkTxsOutCount, spendingState));
 
             // check range
             if (outputNumInTx >= txindex.vSpent.size()) {
@@ -430,14 +430,14 @@ CBlock::ReplaceMainChainWithForkUpToCommonAncestor(const ITxDB& txdb) const
 
     // since the fork can spend transactions from itself, we need to put them in such a way they're
     // reachable in O(1)
-    std::unordered_map<uint256, CTransaction> forkTxs;
+    std::unordered_map<uint256, uint32_t> forkTxsOutCount;
 
     // unspend/disconnect all inputs that are in the fork
     // we also need to unspend this block, so we add it and pop it later
     forkChainBlocks.push_back(*this);
     for (const CBlock& blk : forkChainBlocks) {
-        TRYV(
-            UnspendBlock(txdb, blk, commonAncestory.commonAncestor, forkTxs, result.modifiedOutputsTxs));
+        TRYV(UnspendBlock(txdb, blk, commonAncestory.commonAncestor, forkTxsOutCount,
+                          result.modifiedOutputsTxs));
     }
     // now that this block's inputs are unspent in the fork, we pop it
     forkChainBlocks.pop_back();
@@ -447,8 +447,10 @@ CBlock::ReplaceMainChainWithForkUpToCommonAncestor(const ITxDB& txdb) const
     // respend the transactions on the fork (to test whether this block is valid at this chain)
     // we respend everything except for *this block
     for (const CBlock& blk : forkChainBlocks) {
-        TRYV(RespendBlock(txdb, blk, forkTxs, result.modifiedOutputsTxs));
+        TRYV(RespendBlock(txdb, blk, forkTxsOutCount, result.modifiedOutputsTxs));
     }
+
+    result.forkTxsOutCount = std::move(forkTxsOutCount);
 
     return Ok(result);
 }

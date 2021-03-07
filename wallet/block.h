@@ -135,6 +135,8 @@ public:
         std::unordered_map<uint256, CTxIndex> modifiedOutputsTxs;
         // the common ancestor block between the new fork of the new block and the main chain
         CBlockIndex commonAncestorBlockIndex;
+        // tx vs number of outputs, we don't care about the out count but we have it as a side effect
+        std::unordered_map<uint256, uint32_t> forkTxsOutCount;
     };
 
     struct CommonAncestorSuccessorBlocks
