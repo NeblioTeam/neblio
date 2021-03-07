@@ -181,7 +181,7 @@ CBlock::GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const
     CommonAncestorSuccessorBlocks res;
 
     // fork part
-    boost::optional<CBlockIndex>       T             = boost::none;
+    boost::optional<CBlockIndex>       currBI        = boost::none;
     const uint256                      prevBlockHash = this->hashPrevBlock;
     const boost::optional<CBlockIndex> biTarget      = txdb.ReadBlockIndex(prevBlockHash);
 
@@ -193,31 +193,26 @@ CBlock::GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const
         return Err(VIUError::BlockIndexOfPrevBlockNotFound);
     }
 
-    T = biTarget;
+    currBI = biTarget;
     // keep stepping back from the orphan (new block) until we find the main chain
-    while (!T->IsInMainChain(txdb)) {
+    while (!currBI->IsInMainChain(txdb)) {
+        NLog.write(b_sev::trace, "Block in fork chain: {}\t{}", currBI->GetBlockHash().ToString(),
+                   currBI->nHeight);
+
         // this map will be empty if the fork from main chain has only this block
-        res.inFork.push_back(T->GetBlockHash());
-        NLog.write(b_sev::trace, "Block in fork chain: {}\t{}", T->GetBlockHash().ToString(),
-                   T->nHeight);
-        if (T->hashPrev != 0) {
-            T = T->getPrev(txdb);
-            if (!T) {
-                NLog.write(b_sev::err,
-                           "Failed to read prev block index for height {} and block index {}",
-                           T->nHeight, T->blockHash.ToString());
-                break;
-            }
-        } else {
-            break;
+        res.inFork.push_back(currBI->GetBlockHash());
+        currBI = currBI->getPrev(txdb);
+        if (!currBI) {
+            NLog.write(b_sev::err, "Failed to read prev block index for height {} and block index {}",
+                       currBI->nHeight, currBI->blockHash.ToString());
+            return Err(VIUError::CommonAncestorSearchFailed);
         }
     }
 
     // the fork should be in temporal order because it's to be spent in order later
     std::reverse(res.inFork.begin(), res.inFork.end());
 
-    assert(T);
-    res.commonAncestor = *T;
+    res.commonAncestor = *currBI;
     return Ok(res);
 }
 
@@ -1917,6 +1912,8 @@ const char* CBlock::VIUErrorToString(VIUError err)
         return "BlockIsNotInMainChainEvenThoughItShould";
     case VIUError::BlockIndexOfPrevBlockNotFound:
         return "BlockIndexOfPrevBlockNotFound";
+    case VIUError::CommonAncestorSearchFailed:
+        return "CommonAncestorSearchFailed";
     }
     return "Unknown";
 }
