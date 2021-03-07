@@ -429,5 +429,47 @@ class FullBlockTest(ComparisonTestFramework):
         self.blocks["f36d"] = blk36d
         yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt'))
 
+        #############################################################
+        # double spend a transaction in two blocks but that was created in the fork
+        # first, create a valid block with a new transaction
+        tip("f35")
+        height = self.block_heights[self.tip.sha256] + 1
+        coinbase = create_coinbase(height, self.coinbase_pubkey)
+        blk36e = CBlock()
+        blk36e.nTime = self.tip.nTime + 1
+        blk36e.hashPrevBlock = self.tip.sha256
+        blk36e.nBits = 0x207fffff
+        blk36e.vtx.append(coinbase)
+        tx1 = create_tx_manual(out[37].tx.sha256, out[17].n, 10000000)
+        tx2 = create_tx_manual(tx1.sha256, 0, 5000000)
+        blk36e.vtx.append(tx1)
+        blk36e.vtx.append(tx2)
+        blk36e.hashMerkleRoot = blk36e.calc_merkle_root()
+        blk36e.fix_time_then_resolve()
+        self.tip = blk36e
+        self.block_heights[blk36e.sha256] = height
+        self.blocks["f36e"] = blk36e
+        yield rejected()
+
+        # now spend tx1 again from the last block
+        tip("f36e")
+        height = self.block_heights[self.tip.sha256] + 1
+        coinbase = create_coinbase(height, self.coinbase_pubkey)
+        blk37a = CBlock()
+        blk37a.nTime = self.tip.nTime + 1
+        blk37a.hashPrevBlock = self.tip.sha256
+        blk37a.nBits = 0x207fffff
+        blk37a.vtx.append(coinbase)
+        tx3 = create_tx_manual(tx1.sha256, 0, 4000000)
+        blk37a.vtx.append(tx3)
+        blk37a.hashMerkleRoot = blk37a.calc_merkle_root()
+        blk37a.fix_time_then_resolve()
+        self.tip = blk37a
+        self.block_heights[blk37a.sha256] = height
+        self.blocks["f37a"] = blk37a
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt'))
+        #############################################################
+
+
 if __name__ == '__main__':
     FullBlockTest().main()
