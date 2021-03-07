@@ -252,6 +252,13 @@ class FullBlockTest(ComparisonTestFramework):
             logger.info("Updated block {} with hash {}".format(block_number, block.hash))  # useful marker for debugging, marks the last block that was created
             return block
 
+        def create_tx_manual(prevout_hash, n, value):
+            tx = CTransaction()
+            tx.vin.append(CTxIn(COutPoint(prevout_hash, n), b'', 0xffffffff))
+            tx.vout.append(CTxOut(value, CScript([OP_TRUE])))
+            tx.calc_sha256()
+            return tx
+
         # shorthand for functions
         block = self.next_block
         create_tx = self.create_tx
@@ -264,7 +271,6 @@ class FullBlockTest(ComparisonTestFramework):
         block(0)
         save_spendable_output()
         yield accepted()
-
 
         # Now we need that block to mature so we can spend the coinbase.
         test = TestInstance(sync_every_block=False)
@@ -284,6 +290,14 @@ class FullBlockTest(ComparisonTestFramework):
             block(i+1, spend=out[i])
             save_spendable_output()
             yield accepted()
+
+        # spend a tx before its input is created
+        tip(0)
+        block("1")
+        tx1 = create_tx_manual(out[20].tx.sha256, out[20].n, 1000000)
+        tx2 = create_tx_manual(tx1.sha256, 0, 500000)
+        update_block("1", [tx2, tx1])
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent'))
 
         tip(15)
         block("f15", spend=out[15])
@@ -311,13 +325,6 @@ class FullBlockTest(ComparisonTestFramework):
         self.block_heights[blk16.sha256] = height
         self.blocks["f16"] = blk16
         yield rejected()
-
-        def create_tx_manual(prevout_hash, n, value):
-            tx = CTransaction()
-            tx.vin.append(CTxIn(COutPoint(prevout_hash, n), b'', 0xffffffff))
-            tx.vout.append(CTxOut(value, CScript([OP_TRUE])))
-            tx.calc_sha256()
-            return tx
 
         # invalid input index - out of range
         tip("f16")

@@ -261,9 +261,7 @@ UnspendBlock(const ITxDB& txdb, const CBlock& blk, const CBlockIndex& commonAnce
 
     for (const CTransaction& tx : blk.vtx) {
         forkTxsOutCount[tx.GetHash()] = tx.vout.size();
-    }
 
-    for (const CTransaction& tx : blk.vtx) {
         if (tx.IsCoinBase()) {
             continue;
         }
