@@ -38,8 +38,7 @@
 
 #define SCRYPT_BUFFER_SIZE (131072 + 63)
 
-// optimized xor_salsa8 assembly doesn't work on MAC with error: invalid alignment value .align 32
-#if (defined (OPTIMIZED_SALSA) && ( defined (__x86_64__) || defined (__i386__) || defined(__arm__) )) && !defined (MAC_OSX)
+#if defined (OPTIMIZED_SALSA) && ( defined (__x86_64__) || defined (__i386__) || defined(__arm__) )
 extern "C" void scrypt_core(unsigned int *X, unsigned int *V);
 #else
 // Generic scrypt_core implementation

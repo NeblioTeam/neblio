@@ -39,7 +39,7 @@ option(USE_CUSTOM_WARNINGS    "Enable custom warnings" OFF)
 option(DISABLE_ASSERTS        "Disables asserts" OFF)
 option(CONFIGURE_SYSTEM_TESTS "Configure system tests" ON)
 option(DISABLE_ATTRUBTES_WARNINGS "Set the flag -Wno-attributes to disable attributes warnings (for CI)" OFF)
-option(ASSEMBLY_OPTIMIZED_SCRYPT "Enable optimized scrypt and xor_salsa8 for better performance (not supported on MAC)" ON)
+option(ASSEMBLY_OPTIMIZED_SCRYPT "Enable optimized scrypt and xor_salsa8 for better performance" ON)
 
 
 if(DISABLE_ATTRUBTES_WARNINGS)
