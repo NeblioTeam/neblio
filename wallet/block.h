@@ -162,6 +162,7 @@ public:
         ReadBlockIndexFailed,
         BlockIsNotInMainChainEvenThoughItShould,
         BlockIndexOfPrevBlockNotFound,
+        CommonAncestorSearchFailed
     };
 
     static const char* VIUErrorToString(VIUError err);
