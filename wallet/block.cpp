@@ -250,7 +250,7 @@ CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const
     std::unordered_map<uint256, CTransaction> forkTxs;
 
     // unspend/disconnect all inputs that are in the fork
-    // we also need to unspent this block, so we add it and pop it later
+    // we also need to unspend this block, so we add it and pop it later
     forkChainBlocks.push_back(*this);
     for (const CBlock& blk : forkChainBlocks) {
         for (const CTransaction& tx : blk.vtx) {
@@ -263,9 +263,9 @@ CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const
             }
             const std::vector<CTxIn>& vin = tx.vin;
             for (unsigned int inIdx = 0; inIdx < vin.size(); inIdx++) {
-                const CTxIn& txin          = vin[inIdx];
-                uint256      outputTxHash  = txin.prevout.hash;
-                unsigned     outputNumInTx = txin.prevout.n;
+                const CTxIn&   txin          = vin[inIdx];
+                const uint256  outputTxHash  = txin.prevout.hash;
+                const unsigned outputNumInTx = txin.prevout.n;
 
                 // we see if we already have prev txindex in the list of modified outputs
                 auto     idxIt = result.modifiedOutputsTxs.find(outputTxHash);
@@ -273,8 +273,8 @@ CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const
                 if (idxIt == result.modifiedOutputsTxs.cend()) {
                     // It's not in the list of modified outputs, so we get prev txindex from disk
                     if (!txdb.ReadTxIndex(outputTxHash, txindex)) {
-                        // the only place left is on the fork itself: the block is spending a tx on the
-                        // fork
+                        // the only place left is on the fork itself: the block is spending a tx created
+                        // on the fork
                         auto forkTxIt = forkTxs.find(outputTxHash);
                         if (forkTxIt != forkTxs.cend()) {
                             // we don't unspend transaction on the fork, because they're already unspent
@@ -297,7 +297,7 @@ CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const
                 if (outputNumInTx >= txindex.vSpent.size()) {
                     NLog.write(b_sev::err, "prevout.n out of range for transaction {} and output {} (1)",
                                outputTxHash.ToString(), outputNumInTx);
-                    return Err(VIUError::TxInputIndexOutOfRange_Case3);
+                    return Err(VIUError::TxInputIndexOutOfRange_Case2);
                 }
 
                 if (txindex.vSpent[outputNumInTx].IsNull()) {
@@ -349,6 +349,7 @@ CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const
 
     //    std::cout << "Start reconnecting txs" << std::endl;
     // respend the transactions on the fork (to test whether this block is valid at this chain)
+    // we respend everything except for *this block
     for (const CBlock& blk : forkChainBlocks) {
         for (const CTransaction& tx : blk.vtx) {
             if (tx.IsCoinBase()) {
@@ -389,7 +390,7 @@ CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const
                     NLog.write(b_sev::err, "prevout.n out of range for transaction " +
                                                outputTxHash.ToString() + " and output " +
                                                std::to_string(outputNumInTx));
-                    return Err(VIUError::TxInputIndexOutOfRange_Case4);
+                    return Err(VIUError::TxInputIndexOutOfRange_Case3);
                 }
 
                 // spend the output (without updating the database)
@@ -449,6 +450,7 @@ Result<void, CBlock::VIUError> CBlock::VerifyInputsUnspent(const CTxDB& txdb) co
 
     std::unordered_map<uint256, CTxIndex>& queuedTxs = alternateChainTxs.modifiedOutputsTxs;
 
+    // here we actively attempt to respend transactions from *this block
     for (const CTransaction& tx : vtx) {
         {
             // if an output in the transaction is spent in the same block, it should also be found in the
@@ -470,13 +472,17 @@ Result<void, CBlock::VIUError> CBlock::VerifyInputsUnspent(const CTxDB& txdb) co
         // loop over inputs of this transaction, and check whether the outputs are already spent
         const std::vector<CTxIn>& vin = tx.vin;
         for (unsigned int inIdx = 0; inIdx < vin.size(); inIdx++) {
-            const uint256  outputTxHash      = vin[inIdx].prevout.hash;
-            const unsigned outputNumInTx     = vin[inIdx].prevout.n;
-            auto           it                = queuedTxs.find(outputTxHash);
-            const bool     inputFoundInQueue = (it != queuedTxs.cend());
+            const uint256  outputTxHash  = vin[inIdx].prevout.hash;
+            const unsigned outputNumInTx = vin[inIdx].prevout.n;
+
+            auto it = queuedTxs.find(outputTxHash);
 
             // if tx is not in the queue, retrieve it
-            if (!inputFoundInQueue) {
+            if (it == queuedTxs.cend()) {
+                NLog.error("Unable to find TxIndex in the provided queue for output {} that is spent in "
+                           "tx {} in block {}. The TxIndex will be retrieved from the database",
+                           outputTxHash.ToString(), tx.GetHash().ToString(), this->GetHash().ToString());
+
                 queuedTxs[outputTxHash] =
                     TRY(GetMissingTxIndex(txdb, outputTxHash, outputNumInTx, tx.GetHash()));
 
@@ -501,7 +507,7 @@ Result<void, CBlock::VIUError> CBlock::VerifyInputsUnspent(const CTxDB& txdb) co
                            "double-spend in the same block {}",
                            outputNumInTx, outputTxHash.ToString(), tx.GetHash().ToString(),
                            this->GetHash().ToString());
-                return Err(VIUError::DoublespendAttempt_Case1);
+                return Err(VIUError::DoublespendAttempt);
             }
         }
     }
@@ -1886,12 +1892,8 @@ const char* CBlock::VIUErrorToString(VIUError err)
         return "TxInputIndexOutOfRange_Case2";
     case VIUError::TxInputIndexOutOfRange_Case3:
         return "TxInputIndexOutOfRange_Case3";
-    case VIUError::TxInputIndexOutOfRange_Case4:
-        return "TxInputIndexOutOfRange_Case4";
-    case VIUError::DoublespendAttempt_Case1:
-        return "DoublespendAttempt_Case1";
-    case VIUError::DoublespendAttempt_Case2:
-        return "DoublespendAttempt_Case2";
+    case VIUError::DoublespendAttempt:
+        return "DoublespendAttempt";
     case VIUError::SpendingNonexistentTx:
         return "SpendingNonexistentTx";
     case VIUError::BlockCannotBeReadFromDB:
