@@ -470,6 +470,12 @@ class FullBlockTest(ComparisonTestFramework):
         yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt'))
         #############################################################
 
+        # Attempt to doublespend something from before the fork
+        tip("f36e")
+        block("f37e", spend=out[5])
+        save_spendable_output()
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt'))
+
 
 if __name__ == '__main__':
     FullBlockTest().main()
