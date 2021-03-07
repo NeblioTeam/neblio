@@ -410,6 +410,20 @@ CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const
     return Ok(result);
 }
 
+Result<CTxIndex, CBlock::VIUError> GetMissingTxIndex(const CTxDB& txdb, const uint256& outputTxHash,
+                                                     const unsigned outputNumInTx,
+                                                     const uint256& spenderTxHash)
+{
+    CTxIndex txindex;
+    if (txdb.ReadTxIndex(outputTxHash, txindex)) {
+        return Ok(txindex);
+    } else {
+        NLog.error("Output number {} in tx {} which is an input to tx {}. it's an invalid tx",
+                   outputNumInTx, outputTxHash.ToString(), spenderTxHash.ToString());
+        return Err(CBlock::VIUError::SpendingNonexistentTx);
+    }
+}
+
 Result<void, CBlock::VIUError> CBlock::VerifyInputsUnspent(const CTxDB& txdb) const
 {
     // this function solves the problem in
@@ -456,58 +470,36 @@ Result<void, CBlock::VIUError> CBlock::VerifyInputsUnspent(const CTxDB& txdb) co
         // loop over inputs of this transaction, and check whether the outputs are already spent
         const std::vector<CTxIn>& vin = tx.vin;
         for (unsigned int inIdx = 0; inIdx < vin.size(); inIdx++) {
-            uint256  outputTxHash  = vin[inIdx].prevout.hash;
-            unsigned outputNumInTx = vin[inIdx].prevout.n;
-            CTxIndex txindex;
-            auto     it                = queuedTxs.find(vin[inIdx].prevout.hash);
-            bool     inputFoundInQueue = (it != queuedTxs.cend());
-            if (inputFoundInQueue) {
-                if (outputNumInTx >= it->second.vSpent.size()) {
-                    NLog.error("Output number {} in tx {} which is an input to tx {} "
-                               "has an invalid input index in block {} (1)",
-                               outputNumInTx, outputTxHash.ToString(), tx.GetHash().ToString(),
-                               this->GetHash().ToString());
-                    return Err(VIUError::TxInputIndexOutOfRange_Case1);
-                }
+            const uint256  outputTxHash      = vin[inIdx].prevout.hash;
+            const unsigned outputNumInTx     = vin[inIdx].prevout.n;
+            auto           it                = queuedTxs.find(outputTxHash);
+            const bool     inputFoundInQueue = (it != queuedTxs.cend());
 
-                if (it->second.vSpent[outputNumInTx].IsNull()) {
-                    // tx is not spent yet, so we mark it as spent
-                    it->second.vSpent[outputNumInTx] = CreateFakeSpentTxPos(this->GetHash());
-                } else {
-                    NLog.error("Output number {} in tx {} which is an input to tx {} is attempting to "
-                               "double-spend in the same block {}",
-                               outputNumInTx, outputTxHash.ToString(), tx.GetHash().ToString(),
-                               this->GetHash().ToString());
-                    return Err(VIUError::DoublespendAttempt_Case1);
-                }
-            } else if (txdb.ReadTxIndex(outputTxHash, txindex)) {
-                if (outputNumInTx >= txindex.vSpent.size()) {
-                    NLog.error("Output number {} in tx {} which is an input to tx {} "
-                               "has an invalid input index in block {} (2)",
-                               outputNumInTx, outputTxHash.ToString(), tx.GetHash().ToString(),
-                               this->GetHash().ToString());
-                    return Err(VIUError::TxInputIndexOutOfRange_Case2);
-                }
+            // if tx is not in the queue, retrieve it
+            if (!inputFoundInQueue) {
+                queuedTxs[outputTxHash] =
+                    TRY(GetMissingTxIndex(txdb, outputTxHash, outputNumInTx, tx.GetHash()));
 
-                queuedTxs[outputTxHash] = txindex;
-                if (txindex.vSpent[outputNumInTx].IsNull()) {
-                    queuedTxs.find(outputTxHash)->second.vSpent[outputNumInTx] =
-                        CreateFakeSpentTxPos(this->GetHash());
-                } else {
-                    NLog.error("Output number {} in tx {} which is an input to tx {} is being "
-                               "spent in block {} +++++ it was already spent in block {}, this is a "
-                               "double-spend attempt",
-                               outputNumInTx, outputTxHash.ToString(), tx.GetHash().ToString(),
-                               this->GetHash().ToString(),
-                               txindex.vSpent[outputNumInTx].nBlockPos.ToString());
-                    return Err(VIUError::DoublespendAttempt_Case2);
-                }
-            } else {
-                NLog.error("Output number {} in tx {} which is an input to tx {} and is being "
-                           "attempted to spend it in block {}. it's an invalid tx",
+                it = queuedTxs.find(outputTxHash);
+            }
+
+            if (outputNumInTx >= it->second.vSpent.size()) {
+                NLog.error("Output number {} in tx {} which is an input to tx {} "
+                           "has an invalid input index in block {} (1)",
                            outputNumInTx, outputTxHash.ToString(), tx.GetHash().ToString(),
-                           vin[inIdx].prevout.hash.ToString());
-                return Err(VIUError::SpendingNonexistentTx);
+                           this->GetHash().ToString());
+                return Err(VIUError::TxInputIndexOutOfRange_Case1);
+            }
+
+            if (it->second.vSpent[outputNumInTx].IsNull()) {
+                // tx is not spent yet, so we mark it as spent
+                it->second.vSpent[outputNumInTx] = CreateFakeSpentTxPos(this->GetHash());
+            } else {
+                NLog.error("Output number {} in tx {} which is an input to tx {} is attempting to "
+                           "double-spend in the same block {}",
+                           outputNumInTx, outputTxHash.ToString(), tx.GetHash().ToString(),
+                           this->GetHash().ToString());
+                return Err(VIUError::DoublespendAttempt_Case1);
             }
         }
     }
