@@ -282,8 +282,8 @@ CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITxDB& txdb) const
                         // on the fork
                         auto forkTxIt = forkTxs.find(outputTxHash);
                         if (forkTxIt != forkTxs.cend()) {
-                            // we don't unspend transaction on the fork, because they're already unspent
-                            // since they're not main chain
+                            // we don't unspend transactions that were created on the fork, because
+                            // they're already unspent since they're not main chain
                             continue;
                         } else {
                             NLog.write(b_sev::err,
