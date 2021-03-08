@@ -17,7 +17,7 @@ def get_curl_filename(ver):
     return "curl-" + ver + ".tar.gz"
 
 def get_curl_link(ver):
-    link = "https://curl.haxx.se/download/" + get_curl_filename(ver)
+    link = "https://curl.se/download/" + get_curl_filename(ver)
 #    print(link)
     return link
 
