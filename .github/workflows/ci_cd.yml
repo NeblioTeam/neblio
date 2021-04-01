@@ -298,6 +298,7 @@ jobs:
         key: ${{ runner.OS }}--rpi_wallet_test-${{ github.sha }}
         restore-keys: |
           ${{ runner.OS }}--rpi_wallet_test-
+          ${{ runner.OS }}--rpi_wallet-
     - name: Set target_v env var
       run: |
         echo "target_v=rpi_wallet_test" >> $GITHUB_ENV
