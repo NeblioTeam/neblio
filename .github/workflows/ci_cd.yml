@@ -203,8 +203,8 @@ jobs:
 
 
   docker:
-    # Do not build PRs on Docker due to incompatibility
-    if: "!startsWith(github.ref, 'refs/pull')"
+    # Only Build Docker on Daily Scheduled Runs and releases to save time (no cache)
+    if: github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Docker Files
@@ -253,8 +253,6 @@ jobs:
 
 
   rpi_wallet:
-    # Do not build PRs on RPi due to inability to use ccache
-    if: "!startsWith(github.ref, 'refs/pull')"
     runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v1
@@ -286,8 +284,6 @@ jobs:
 
 
   rpi_wallet_test:
-    # Do not build PRs on RPi due to inability to use ccache
-    if: "!startsWith(github.ref, 'refs/pull')"
     runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v1
@@ -314,8 +310,6 @@ jobs:
 
 
   rpi_daemon:
-    # Do not build PRs on RPi due to inability to use ccache
-    if: "!startsWith(github.ref, 'refs/pull')"
     runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v1
