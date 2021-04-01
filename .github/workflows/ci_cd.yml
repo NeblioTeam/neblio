@@ -20,7 +20,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: ccache
-      uses: actions/cache@v1
+      uses: actions/cache@v2
       with:
         path: .ccache
         key: ${{ runner.OS }}--linux_daemon_cmake-${{ github.sha }}
@@ -44,7 +44,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: ccache
-      uses: actions/cache@v1
+      uses: actions/cache@v2
       with:
         path: .ccache
         key: ${{ runner.OS }}--linux_daemon-${{ github.sha }}
@@ -76,7 +76,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: ccache
-      uses: actions/cache@v1
+      uses: actions/cache@v2
       with:
         path: .ccache
         key: ${{ runner.OS }}--linux_wallet-${{ github.sha }}
@@ -107,7 +107,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: ccache
-      uses: actions/cache@v1
+      uses: actions/cache@v2
       with:
         path: .ccache
         key: ${{ runner.OS }}--linux_wallet_test-${{ github.sha }}
@@ -126,7 +126,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: ccache
-      uses: actions/cache@v1
+      uses: actions/cache@v2
       with:
         path: .ccache
         key: ${{ runner.OS }}--windows_x86-${{ github.sha }}
@@ -154,7 +154,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: ccache
-      uses: actions/cache@v1
+      uses: actions/cache@v2
       with:
         path: .ccache
         key: ${{ runner.OS }}--osx-${{ github.sha }}
@@ -188,7 +188,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: ccache
-      uses: actions/cache@v1
+      uses: actions/cache@v2
       with:
         path: .ccache
         key: ${{ runner.OS }}--osx_test-${{ github.sha }}
@@ -259,7 +259,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: ccache
-      uses: actions/cache@v1
+      uses: actions/cache@v2
       with:
         path: .ccache
         key: ${{ runner.OS }}--rpi_wallet-${{ github.sha }}
@@ -292,7 +292,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: ccache
-      uses: actions/cache@v1
+      uses: actions/cache@v2
       with:
         path: .ccache
         key: ${{ runner.OS }}--rpi_wallet_test-${{ github.sha }}
@@ -320,7 +320,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: ccache
-      uses: actions/cache@v1
+      uses: actions/cache@v2
       with:
         path: .ccache
         key: ${{ runner.OS }}--rpi_daemon-${{ github.sha }}
