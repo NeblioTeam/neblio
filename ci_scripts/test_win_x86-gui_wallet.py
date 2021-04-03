@@ -42,6 +42,7 @@ os.chdir(working_dir)
 os.environ['PATH'] = '/usr/lib/ccache:' + os.environ['PATH']
 
 nci.call_with_err_code('ccache -s')
+nci.call_with_err_code('ccache -z')
 
 #Go to build dir and build
 nci.mkdir_p(build_dir)

@@ -113,6 +113,7 @@ jobs:
         key: ${{ runner.OS }}--linux_wallet_test-${{ github.sha }}
         restore-keys: |
           ${{ runner.OS }}--linux_wallet_test-
+          ${{ runner.OS }}--linux_wallet-
     - name: Set target_v env var
       run: |
         echo "target_v=linux_wallet_test" >> $GITHUB_ENV
@@ -194,6 +195,7 @@ jobs:
         key: ${{ runner.OS }}--osx_test-${{ github.sha }}
         restore-keys: |
           ${{ runner.OS }}--osx_test-
+          ${{ runner.OS }}--osx-
     - name: Switch Xcode Version
       run: |
         sudo xcode-select -s /Applications/Xcode_11.2.1.app/Contents/Developer
