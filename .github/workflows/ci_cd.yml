@@ -20,7 +20,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: ccache
-      uses: actions/cache@v1
+      uses: actions/cache@v2
       with:
         path: .ccache
         key: ${{ runner.OS }}--linux_daemon_cmake-${{ github.sha }}
@@ -44,7 +44,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: ccache
-      uses: actions/cache@v1
+      uses: actions/cache@v2
       with:
         path: .ccache
         key: ${{ runner.OS }}--linux_daemon-${{ github.sha }}
@@ -76,7 +76,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: ccache
-      uses: actions/cache@v1
+      uses: actions/cache@v2
       with:
         path: .ccache
         key: ${{ runner.OS }}--linux_wallet-${{ github.sha }}
@@ -107,12 +107,13 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: ccache
-      uses: actions/cache@v1
+      uses: actions/cache@v2
       with:
         path: .ccache
         key: ${{ runner.OS }}--linux_wallet_test-${{ github.sha }}
         restore-keys: |
           ${{ runner.OS }}--linux_wallet_test-
+          ${{ runner.OS }}--linux_wallet-
     - name: Set target_v env var
       run: |
         echo "target_v=linux_wallet_test" >> $GITHUB_ENV
@@ -126,7 +127,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: ccache
-      uses: actions/cache@v1
+      uses: actions/cache@v2
       with:
         path: .ccache
         key: ${{ runner.OS }}--windows_x86-${{ github.sha }}
@@ -154,7 +155,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: ccache
-      uses: actions/cache@v1
+      uses: actions/cache@v2
       with:
         path: .ccache
         key: ${{ runner.OS }}--osx-${{ github.sha }}
@@ -188,12 +189,13 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: ccache
-      uses: actions/cache@v1
+      uses: actions/cache@v2
       with:
         path: .ccache
         key: ${{ runner.OS }}--osx_test-${{ github.sha }}
         restore-keys: |
           ${{ runner.OS }}--osx_test-
+          ${{ runner.OS }}--osx-
     - name: Switch Xcode Version
       run: |
         sudo xcode-select -s /Applications/Xcode_11.2.1.app/Contents/Developer
@@ -203,8 +205,8 @@ jobs:
 
 
   docker:
-    # Do not build PRs on Docker due to incompatibility
-    if: "!startsWith(github.ref, 'refs/pull')"
+    # Only Build Docker on Daily Scheduled Runs and releases to save time (no cache)
+    if: github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Docker Files
@@ -253,13 +255,11 @@ jobs:
 
 
   rpi_wallet:
-    # Do not build PRs on RPi due to inability to use ccache
-    if: "!startsWith(github.ref, 'refs/pull')"
     runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v1
     - name: ccache
-      uses: actions/cache@v1
+      uses: actions/cache@v2
       with:
         path: .ccache
         key: ${{ runner.OS }}--rpi_wallet-${{ github.sha }}
@@ -286,18 +286,17 @@ jobs:
 
 
   rpi_wallet_test:
-    # Do not build PRs on RPi due to inability to use ccache
-    if: "!startsWith(github.ref, 'refs/pull')"
     runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v1
     - name: ccache
-      uses: actions/cache@v1
+      uses: actions/cache@v2
       with:
         path: .ccache
         key: ${{ runner.OS }}--rpi_wallet_test-${{ github.sha }}
         restore-keys: |
           ${{ runner.OS }}--rpi_wallet_test-
+          ${{ runner.OS }}--rpi_wallet-
     - name: Set target_v env var
       run: |
         echo "target_v=rpi_wallet_test" >> $GITHUB_ENV
@@ -313,13 +312,11 @@ jobs:
 
 
   rpi_daemon:
-    # Do not build PRs on RPi due to inability to use ccache
-    if: "!startsWith(github.ref, 'refs/pull')"
     runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v1
     - name: ccache
-      uses: actions/cache@v1
+      uses: actions/cache@v2
       with:
         path: .ccache
         key: ${{ runner.OS }}--rpi_daemon-${{ github.sha }}

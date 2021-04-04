@@ -64,7 +64,7 @@ def setup_travis_or_gh_actions_env_vars():
 		os.environ['CCACHE_DIR'] = os.path.join(os.environ['GITHUB_WORKSPACE'],'.ccache')
 		os.environ['CCACHE_COMPRESS'] = "1"
 		os.environ['CCACHE_COMPRESSLEVEL'] = "9"
-		os.environ['CCACHE_MAXSIZE'] = "150M"
+		os.environ['CCACHE_MAXSIZE'] = "350M"
 		os.environ['CPATH'] = '/Applications/Xcode_11.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include'
 
 
