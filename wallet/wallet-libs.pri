@@ -43,9 +43,6 @@ UI_DIR = build
 
 DEFINES += BOOST_STACKTRACE_USE_ADDR2LINE
 
-# needed for BOOST_STACKTRACE_USE_ADDR2LINE to work on mac
-macx: DEFINES += _GNU_SOURCE
-
 # fixes an issue with boost 1.66 and the number of template parameters of basic_socket_acceptor
 #DEFINES += BOOST_ASIO_ENABLE_OLD_SERVICES
 # TODO: Move to the new standard of boost as current code is deprecated
