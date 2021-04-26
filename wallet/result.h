@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include <boost/stacktrace.hpp>
 #include <functional>
 #include <iostream>
 #include <type_traits>
@@ -874,6 +875,7 @@ struct Result
     {
         if (!isOk()) {
             std::fprintf(stderr, "%s\n", str);
+            std::cerr << boost::stacktrace::stacktrace();
             std::terminate();
         }
         return expect_impl(std::is_same<T, void>());
@@ -936,6 +938,7 @@ struct Result
         }
 
         std::fprintf(stderr, "Attempting to unwrap an error Result\n");
+        std::cerr << boost::stacktrace::stacktrace();
         std::terminate();
     }
 
@@ -946,6 +949,7 @@ struct Result
         }
 
         std::fprintf(stderr, "Attempting to unwrapErr an ok Result\n");
+        std::cerr << boost::stacktrace::stacktrace();
         std::terminate();
     }
 
