@@ -11,7 +11,7 @@ ARCH:=$(system lscpu | head -n 1 | awk '{print $2}')
 
 CXXARCH:=$(shell $(CXX) -dumpmachine | grep -i 'x86_64')
 
-DEFS=-DBOOST_SPIRIT_THREADSAFE -DUSE_LMDB -DBOOST_STACKTRACE_USE_ADDR2LINE
+DEFS=-DBOOST_SPIRIT_THREADSAFE -DUSE_LMDB
 
 # detect arch for lmdb32
 ifeq ($(CXXARCH),)

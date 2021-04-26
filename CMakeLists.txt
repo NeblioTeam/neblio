@@ -85,8 +85,6 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 list(INSERT CMAKE_MODULE_PATH 0
      "${CMAKE_SOURCE_DIR}/cmake")
 
-add_definitions(-DBOOST_STACKTRACE_USE_ADDR2LINE)
-
 add_definitions("-DQT_STATICPLUGIN")
 
 foreach(plugin ${Qt5Widgets_PLUGINS})

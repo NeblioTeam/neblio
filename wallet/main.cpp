@@ -2101,7 +2101,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                         mapAlreadyAskedFor.erase(CInv(MSG_TX, orphanTxHash));
                         vWorkQueue.push_back(orphanTxHash);
                         vEraseQueue.push_back(orphanTxHash);
-                    } else if (mempoolOrphanRes.unwrapErr().GetResult() !=
+                    } else if (mempoolRes.unwrapErr().GetResult() !=
                                TxValidationResult::TX_MISSING_INPUTS) {
                         // invalid orphan
                         vEraseQueue.push_back(orphanTxHash);
