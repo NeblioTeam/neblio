@@ -2437,7 +2437,7 @@ bool CWallet::CommitTransaction(const CWalletTx& wtxNew, CReserveKey& reservekey
         if (mempoolRes.isErr()) {
             // This must not fail. The transaction has already been signed and recorded.
             printf("CommitTransaction() : Error: Transaction not valid. Error: %s\n",
-                   mempoolRes.unwrapErr().GetRejectReason().c_str());
+                   mempoolRes.unwrapErr(RESULT_PRE).GetRejectReason().c_str());
             return false;
         }
         wtxNew.RelayWalletTransaction();

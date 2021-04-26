@@ -188,7 +188,7 @@ Value getrawtransaction(const Array& params, bool fHelp)
         // if a specific block was mentioned, get it from the database and look for the tx in it
         CTxDB txdb;
         {
-            uint256                     blockhash = ParseHashV(params[3], "parameter 3");
+            uint256    blockhash = ParseHashV(params[3], "parameter 3");
             const auto bi        = mapBlockIndex.get(blockhash).value_or(nullptr);
             if (!bi) {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block hash not found");
@@ -1035,12 +1035,12 @@ Value sendrawtransaction(const Array& params, bool fHelp)
         // push to local node
         const auto mempoolRes = AcceptToMemoryPool(mempool, tx);
         if (mempoolRes.isErr()) {
-            std::string msg = mempoolRes.unwrapErr().GetRejectReason();
-            if (mempoolRes.unwrapErr().GetDebugMessage().empty()) {
-                msg += "; Debug: " + mempoolRes.unwrapErr().GetDebugMessage();
+            std::string msg = mempoolRes.unwrapErr(RESULT_PRE).GetRejectReason();
+            if (mempoolRes.unwrapErr(RESULT_PRE).GetDebugMessage().empty()) {
+                msg += "; Debug: " + mempoolRes.unwrapErr(RESULT_PRE).GetDebugMessage();
             }
 
-            if (mempoolRes.unwrapErr().GetResult() == TxValidationResult::TX_MISSING_INPUTS) {
+            if (mempoolRes.unwrapErr(RESULT_PRE).GetResult() == TxValidationResult::TX_MISSING_INPUTS) {
                 throw JSONRPCError(RPC_TRANSACTION_ERROR, msg);
             }
             throw JSONRPCError(RPC_TRANSACTION_REJECTED, msg);
