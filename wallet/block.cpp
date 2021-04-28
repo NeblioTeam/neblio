@@ -1219,8 +1219,8 @@ bool CBlock::CheckBlock(const ITxDB& txdb, bool fCheckPOW, bool fCheckMerkleRoot
         if (checkTxResult.isErr())
             return DoS(tx.nDoS,
                        NLog.error("CheckBlock() : CheckTransaction failed: (Msg: {}) - (Debug: {})",
-                                  checkTxResult.unwrapErr().GetRejectReason(),
-                                  checkTxResult.unwrapErr().GetDebugMessage()));
+                                  checkTxResult.unwrapErr(RESULT_PRE).GetRejectReason(),
+                                  checkTxResult.unwrapErr(RESULT_PRE).GetDebugMessage()));
 
         // ppcoin: check transaction timestamp
         if (GetBlockTime() < (int64_t)tx.nTime)
@@ -1333,7 +1333,7 @@ bool CBlock::AcceptBlock()
                        NLog.error("AcceptBlock() : reject cold-stake at height {} with error", nHeight));
         }
 
-        if (hasColdStakingResult.unwrap() && !Params().IsColdStakingEnabled(txdb)) {
+        if (hasColdStakingResult.unwrap(RESULT_PRE) && !Params().IsColdStakingEnabled(txdb)) {
             return DoS(100, NLog.error("AcceptBlock() : reject cold-staked at height {}", nHeight));
         }
     }
@@ -1613,7 +1613,7 @@ bool CBlock::CheckBlockSignature(const ITxDB& txdb) const
         if (keyResult.isErr()) {
             return NLog.error("CheckBlockSignature(): ColdStaking key extraction failed");
         }
-        key = keyResult.unwrap();
+        key = keyResult.unwrap(RESULT_PRE);
         return key.Verify(GetHash(), vchBlockSig);
     }
 

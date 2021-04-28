@@ -175,7 +175,8 @@ TEST(transaction_tests, basic_transaction_tests)
     tx.vin.push_back(tx.vin[0]);
     ASSERT_TRUE(tx.CheckTransaction(*dbMock).isErr())
         << "Transaction with duplicate txins should be invalid.";
-    EXPECT_EQ(tx.CheckTransaction(*dbMock).unwrapErr().GetRejectReason(), "bad-txns-inputs-duplicate")
+    EXPECT_EQ(tx.CheckTransaction(*dbMock).unwrapErr(RESULT_PRE).GetRejectReason(),
+              "bad-txns-inputs-duplicate")
         << "Transaction with duplicate has invalid rejection reason.";
 }
 
