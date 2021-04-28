@@ -615,14 +615,15 @@ CTransaction::ConnectInputs(const ITxDB& txdb, MapPrevTx inputs,
                             return Err(MakeInvalidTxState(
                                 TxValidationResult::TX_NOT_STANDARD,
                                 fmt::format("non-mandatory-script-verify-flag ({})",
-                                            ScriptErrorString(verifyResP2SH.unwrapErr())),
+                                            ScriptErrorString(verifyResP2SH.unwrapErr(RESULT_PRE))),
                                 fmt::format("ConnectInputs() : {} P2SH VerifySignature failed",
                                             GetHash().ToString())));
                         }
                     }
 
-                    const std::string msg = fmt::format("mandatory-script-verify-flag-failed ({})",
-                                                        ScriptErrorString(verifyRes.unwrapErr()));
+                    const std::string msg =
+                        fmt::format("mandatory-script-verify-flag-failed ({})",
+                                    ScriptErrorString(verifyRes.unwrapErr(RESULT_PRE)));
 
                     if (sourceBlockPtr) {
                         sourceBlockPtr->reject =

@@ -97,6 +97,7 @@ nci.call_with_err_code('brew unlink node@14       && brew link --force --overwri
 
 
 nci.call_with_err_code('ccache -s')
+nci.call_with_err_code('ccache -z')
 
 # prepend ccache to the path, necessary since prior steps prepend things to the path
 os.environ['PATH'] = '/usr/local/opt/ccache/libexec:' + os.environ['PATH']

@@ -2203,7 +2203,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                         mapAlreadyAskedFor.erase(CInv(MSG_TX, orphanTxHash));
                         vWorkQueue.push_back(orphanTxHash);
                         vEraseQueue.push_back(orphanTxHash);
-                    } else if (mempoolRes.unwrapErr().GetResult() !=
+                    } else if (mempoolOrphanRes.unwrapErr(RESULT_PRE).GetResult() !=
                                TxValidationResult::TX_MISSING_INPUTS) {
                         // invalid orphan
                         vEraseQueue.push_back(orphanTxHash);
@@ -2215,7 +2215,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 
             for (uint256 hash : vEraseQueue)
                 EraseOrphanTx(hash);
-        } else if (mempoolRes.unwrapErr().GetResult() == TxValidationResult::TX_MISSING_INPUTS) {
+        } else if (mempoolRes.unwrapErr(RESULT_PRE).GetResult() ==
+                   TxValidationResult::TX_MISSING_INPUTS) {
             AddOrphanTx(tx);
 
             // DoS prevention: do not allow mapOrphanTransactions to grow unbounded

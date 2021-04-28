@@ -6,7 +6,7 @@ TEST(result_tests, basic_result)
 {
     Result<uint64_t, uint32_t> r1 = Ok(UINT64_C(3));
 
-    auto val = r1.expect("Failed to retrieve the value");
+    auto val = r1.expect("Failed to retrieve the value", RESULT_PRE);
     EXPECT_EQ(val, 3);
 }
 
@@ -14,7 +14,7 @@ TEST(result_tests, rvalue_result)
 {
     Result<std::string, uint32_t> r1 = Ok(std::string("Success!"));
 
-    auto val = r1.expect("Failed to retrieve the value");
+    auto val = r1.expect("Failed to retrieve the value", RESULT_PRE);
     EXPECT_EQ(val, "Success!");
 }
 
@@ -26,7 +26,7 @@ TEST(result_tests, rvalue_result_forced)
 
     EXPECT_TRUE(str.empty());
 
-    auto val = r1.expect("Failed to retrieve the value");
+    auto val = r1.expect("Failed to retrieve the value", RESULT_PRE);
     EXPECT_EQ(val, "Success!");
 }
 
@@ -38,7 +38,7 @@ TEST(result_tests, rvalue_error_forced)
     EXPECT_TRUE(str.empty());
     EXPECT_TRUE(r1.isErr());
 
-    EXPECT_EQ(r1.unwrapErr(), "Success!");
+    EXPECT_EQ(r1.unwrapErr(RESULT_PRE), "Success!");
 }
 
 TEST(result_tests, lvalue_result)
@@ -47,7 +47,7 @@ TEST(result_tests, lvalue_result)
 
     Result<std::string, uint32_t> r1 = Ok(str);
 
-    auto val = r1.expect("Failed to retrieve the value");
+    auto val = r1.expect("Failed to retrieve the value", RESULT_PRE);
     EXPECT_EQ(val, "Success!");
 }
 
@@ -56,7 +56,7 @@ TEST(result_tests, basic_error)
     Result<std::string, uint32_t> r1 = Err(15u);
 
     EXPECT_TRUE(r1.isErr());
-    EXPECT_EQ(r1.unwrapErr(), 15);
+    EXPECT_EQ(r1.unwrapErr(RESULT_PRE), 15);
 }
 
 TEST(result_tests, rvalue_error)
@@ -64,7 +64,7 @@ TEST(result_tests, rvalue_error)
     Result<uint32_t, std::string> r1 = Err(std::string("Error!"));
 
     EXPECT_TRUE(r1.isErr());
-    EXPECT_EQ(r1.unwrapErr(), "Error!");
+    EXPECT_EQ(r1.unwrapErr(RESULT_PRE), "Error!");
 }
 
 TEST(result_tests, lvalue_error)
@@ -74,5 +74,5 @@ TEST(result_tests, lvalue_error)
     Result<uint32_t, std::string> r1 = Err(str);
 
     EXPECT_TRUE(r1.isErr());
-    EXPECT_EQ(r1.unwrapErr(), str);
+    EXPECT_EQ(r1.unwrapErr(RESULT_PRE), str);
 }

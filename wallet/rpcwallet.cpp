@@ -305,11 +305,11 @@ Value delegatestake(const Array& params, bool fHelp)
                                                     pParams.fUseDelegated, pParams.fForceNotEnabled);
 
     if (delegRes.isErr()) {
-        throw JSONRPCError(ColdStakeDelegationRPCErrorCode(delegRes.unwrapErr()),
-                           ColdStakeDelegationErrorStr(delegRes.unwrapErr()));
+        throw JSONRPCError(ColdStakeDelegationRPCErrorCode(delegRes.unwrapErr(RESULT_PRE)),
+                           ColdStakeDelegationErrorStr(delegRes.unwrapErr(RESULT_PRE)));
     }
 
-    const CoinStakeDelegationResult res = delegRes.unwrap();
+    const CoinStakeDelegationResult res = delegRes.unwrap(RESULT_PRE);
 
     const CWalletTx wtx =
         SubmitColdStakeDelegationTx(reservekey, pParams.nValue, res.scriptPubKey, pParams.fUseDelegated);
@@ -411,11 +411,11 @@ Value rawdelegatestake(const Array& params, bool fHelp)
                                                     pParams.fUseDelegated, pParams.fForceNotEnabled);
 
     if (delegRes.isErr()) {
-        throw JSONRPCError(ColdStakeDelegationRPCErrorCode(delegRes.unwrapErr()),
-                           ColdStakeDelegationErrorStr(delegRes.unwrapErr()));
+        throw JSONRPCError(ColdStakeDelegationRPCErrorCode(delegRes.unwrapErr(RESULT_PRE)),
+                           ColdStakeDelegationErrorStr(delegRes.unwrapErr(RESULT_PRE)));
     }
 
-    CoinStakeDelegationResult res = delegRes.unwrap();
+    CoinStakeDelegationResult res = delegRes.unwrap(RESULT_PRE);
 
     CWalletTx wtx =
         SubmitColdStakeDelegationTx(reservekey, pParams.nValue, res.scriptPubKey, pParams.fUseDelegated);

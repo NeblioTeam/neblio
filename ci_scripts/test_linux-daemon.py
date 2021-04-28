@@ -42,6 +42,7 @@ nci.mkdir_p(deploy_dir)
 os.chdir(build_dir)
 
 nci.call_with_err_code('ccache -s')
+nci.call_with_err_code('ccache -z')
 
 nci.call_with_err_code('python ../build_scripts/CompileOpenSSL-Linux.py')
 nci.call_with_err_code('python ../build_scripts/CompileCurl-Linux.py')

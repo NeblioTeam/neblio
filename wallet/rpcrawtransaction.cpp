@@ -1040,12 +1040,12 @@ Value sendrawtransaction(const Array& params, bool fHelp)
         // push to local node
         const auto mempoolRes = AcceptToMemoryPool(mempool, tx);
         if (mempoolRes.isErr()) {
-            std::string msg = mempoolRes.unwrapErr().GetRejectReason();
-            if (mempoolRes.unwrapErr().GetDebugMessage().empty()) {
-                msg += "; Debug: " + mempoolRes.unwrapErr().GetDebugMessage();
+            std::string msg = mempoolRes.unwrapErr(RESULT_PRE).GetRejectReason();
+            if (mempoolRes.unwrapErr(RESULT_PRE).GetDebugMessage().empty()) {
+                msg += "; Debug: " + mempoolRes.unwrapErr(RESULT_PRE).GetDebugMessage();
             }
 
-            if (mempoolRes.unwrapErr().GetResult() == TxValidationResult::TX_MISSING_INPUTS) {
+            if (mempoolRes.unwrapErr(RESULT_PRE).GetResult() == TxValidationResult::TX_MISSING_INPUTS) {
                 throw JSONRPCError(RPC_TRANSACTION_ERROR, msg);
             }
             throw JSONRPCError(RPC_TRANSACTION_REJECTED, msg);
