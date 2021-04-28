@@ -292,11 +292,11 @@ Value delegatestake(const Array& params, bool fHelp)
                                                     pParams.fUseDelegated, pParams.fForceNotEnabled);
 
     if (delegRes.isErr()) {
-        throw JSONRPCError(ColdStakeDelegationRPCErrorCode(delegRes.unwrapErr()),
-                           ColdStakeDelegationErrorStr(delegRes.unwrapErr()));
+        throw JSONRPCError(ColdStakeDelegationRPCErrorCode(delegRes.unwrapErr(RESULT_PRE)),
+                           ColdStakeDelegationErrorStr(delegRes.unwrapErr(RESULT_PRE)));
     }
 
-    const CoinStakeDelegationResult res = delegRes.unwrap();
+    const CoinStakeDelegationResult res = delegRes.unwrap(RESULT_PRE);
 
     const CWalletTx wtx =
         SubmitColdStakeDelegationTx(reservekey, pParams.nValue, res.scriptPubKey, pParams.fUseDelegated);
@@ -398,11 +398,11 @@ Value rawdelegatestake(const Array& params, bool fHelp)
                                                     pParams.fUseDelegated, pParams.fForceNotEnabled);
 
     if (delegRes.isErr()) {
-        throw JSONRPCError(ColdStakeDelegationRPCErrorCode(delegRes.unwrapErr()),
-                           ColdStakeDelegationErrorStr(delegRes.unwrapErr()));
+        throw JSONRPCError(ColdStakeDelegationRPCErrorCode(delegRes.unwrapErr(RESULT_PRE)),
+                           ColdStakeDelegationErrorStr(delegRes.unwrapErr(RESULT_PRE)));
     }
 
-    CoinStakeDelegationResult res = delegRes.unwrap();
+    CoinStakeDelegationResult res = delegRes.unwrap(RESULT_PRE);
 
     CWalletTx wtx =
         SubmitColdStakeDelegationTx(reservekey, pParams.nValue, res.scriptPubKey, pParams.fUseDelegated);
@@ -1580,7 +1580,7 @@ Value sendmany(const Array& params, bool fHelp)
         ntp1tx.readNTP1DataFromTx(wtx, inputsTxs);
     } catch (std::exception& ex) {
         NLog.write(b_sev::info, "An invalid NTP1 transaction was created; an exception was thrown: {}",
-                  ex.what());
+                   ex.what());
         throw std::runtime_error(
             "Unable to create the transaction. The transaction created would result in an invalid "
             "transaction. Please report your transaction details to the Neblio team. The "

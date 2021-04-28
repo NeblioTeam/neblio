@@ -251,10 +251,11 @@ void NewStakeDelegationDialog::slot_createColdStake()
                                                     fForceExternalAddr, fUseDelegated, false);
 
     if (delegRes.isErr()) {
-        return makeError(QString::fromStdString(ColdStakeDelegationErrorStr(delegRes.unwrapErr())));
+        return makeError(
+            QString::fromStdString(ColdStakeDelegationErrorStr(delegRes.unwrapErr(RESULT_PRE))));
     }
 
-    const CoinStakeDelegationResult res = delegRes.unwrap();
+    const CoinStakeDelegationResult res = delegRes.unwrap(RESULT_PRE);
 
     const CAmount currBalance =
         pwalletMain->GetBalance() - (fUseDelegated ? 0 : pwalletMain->GetDelegatedBalance());
