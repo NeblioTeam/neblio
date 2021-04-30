@@ -112,7 +112,7 @@ bool CheckSync(const ITxDB& txdb, const uint256& blockHash, const CBlockIndex* p
             if (bi) {
                 index = std::move(*bi);
             } else {
-                NLog.write(b_sev::err,
+                NLog.write(b_sev::critical,
                            "CRITICAL ERROR: failed to get prev block for check point even though it's "
                            "not genesis. THIS SHOULD NEVER HAPPEN. Database broken?");
             }

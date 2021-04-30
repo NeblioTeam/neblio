@@ -432,7 +432,7 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTran
         return Err(MakeInvalidTxState(TxValidationResult::TX_CONFLICT, "txn-already-in-mempool"));
 
     // Check for conflicts with in-memory transactions
-    CTransaction* ptxOld = NULL;
+    CTransaction* ptxOld = nullptr;
     {
         LOCK(pool.cs); // protect pool.mapNextTx
         for (unsigned int i = 0; i < tx.vin.size(); i++) {
@@ -761,7 +761,7 @@ int64_t CalculateActualBlockSpacingForV3(const ITxDB& txdb, const CBlockIndex* p
     for (int64_t i = 0; i < numOfBlocksToAverage; i++) {
         const boost::optional<BlockTimeCacheType::BICacheEntry> t = blockTimeCache.get(txdb, currHash);
         if (!t) {
-            NLog.write(b_sev::err, "CRITICAL ERROR: block not found while calculating target");
+            NLog.write(b_sev::critical, "CRITICAL ERROR: block not found while calculating target");
             break;
         }
         // fill the blocks in reverse order
@@ -793,7 +793,7 @@ static unsigned int GetNextTargetRequiredV2(const ITxDB& txdb, const CBlockIndex
 {
     CBigNum bnTargetLimit = fProofOfStake ? Params().PoSLimit() : Params().PoWLimit();
 
-    if (pindexLast == NULL)
+    if (pindexLast == nullptr)
         return bnTargetLimit.GetCompact(); // genesis block
 
     const CBlockIndex pindexPrev = GetLastBlockIndex(*pindexLast, fProofOfStake, txdb);
@@ -829,10 +829,9 @@ static unsigned int GetNextTargetRequiredV2(const ITxDB& txdb, const CBlockIndex
 static unsigned int GetNextTargetRequiredV3(const ITxDB& txdb, const CBlockIndex* pindexLast,
                                             bool fProofOfStake, BlockTimeCacheType& blockTimeCache)
 {
-
     CBigNum bnTargetLimit = fProofOfStake ? Params().PoSLimit() : Params().PoWLimit();
 
-    if (pindexLast == NULL)
+    if (pindexLast == nullptr)
         return bnTargetLimit.GetCompact(); // genesis block
 
     const CBlockIndex pindexPrev = GetLastBlockIndex(*pindexLast, fProofOfStake, txdb);
@@ -945,7 +944,7 @@ bool __IsInitialBlockDownload_internal(const ITxDB& txdb)
     // Once this function has returned false, it must remain false.
     static std::atomic<bool> latchToFalse{false};
     // Optimization: pre-test latch before taking the lock.
-    if (latchToFalse.load(std::memory_order_relaxed))
+    if (latchToFalse.load(std::memory_order_acquire))
         return false;
 
     if (txdb.GetBestChainHeight().value_or(0) < Checkpoints::GetTotalBlocksEstimate())
@@ -1131,94 +1130,96 @@ void WriteNTP1BlockTransactionsToDisk(const std::vector<CTransaction>& vtx, ITxD
 bool ProcessBlock(CNode* pfrom, CBlock* pblock)
 {
     AssertLockHeld(cs_main);
-
-    const CTxDB   txdb;
     const uint256 hash = pblock->GetHash();
+    {
+        const CTxDB txdb;
 
-    // Check for duplicate
-    if (auto v = txdb.ReadBlockIndex(hash))
-        return NLog.error("ProcessBlock() : already have block {} {}", v->nHeight, hash.ToString());
-    if (mapOrphanBlocks.count(hash))
-        return NLog.error("ProcessBlock() : already have block (orphan) {}", hash.ToString());
+        // Check for duplicate
+        if (auto v = txdb.ReadBlockIndex(hash))
+            return NLog.error("ProcessBlock() : already have block {} {}", v->nHeight, hash.ToString());
+        if (mapOrphanBlocks.count(hash))
+            return NLog.error("ProcessBlock() : already have block (orphan) {}", hash.ToString());
 
-    // ppcoin: check proof-of-stake
-    // Limited duplicity on stake: prevents block flood attack
-    // Duplicate stake allowed only when there is orphan child block
-    if (pblock->IsProofOfStake() && txdb.WasStakeSeen(pblock->GetProofOfStake()).value_or(false) &&
-        !mapOrphanBlocksByPrev.count(hash)) {
-        return NLog.error("ProcessBlock() : duplicate proof-of-stake ({}, {}) for block {}",
-                          pblock->GetProofOfStake().first.ToString(), pblock->GetProofOfStake().second,
-                          hash.ToString());
-    }
-
-    // Preliminary checks
-    if (!pblock->CheckBlock(txdb, hash))
-        return NLog.error("ProcessBlock() : CheckBlock FAILED");
-
-    const boost::optional<CBlockIndex> checkpoint = Checkpoints::GetLastCheckpoint(txdb);
-    if (checkpoint && pblock->hashPrevBlock != txdb.GetBestBlockHash()) {
-        // Extra checks to prevent "fill up memory by spamming with bogus blocks"
-        int64_t deltaTime = pblock->GetBlockTime() - checkpoint->nTime;
-        CBigNum bnNewBlock;
-        bnNewBlock.SetCompact(pblock->nBits);
-        CBigNum bnRequired;
-
-        if (pblock->IsProofOfStake()) {
-            const CBlockIndex& bi = GetLastBlockIndex(*checkpoint, true, txdb);
-            bnRequired.SetCompact(ComputeMinStake(bi.nBits, deltaTime, pblock->nTime));
-        } else {
-            const CBlockIndex& bi = GetLastBlockIndex(*checkpoint, false, txdb);
-            bnRequired.SetCompact(ComputeMinWork(bi.nBits, deltaTime));
-        }
-
-        if (bnNewBlock > bnRequired) {
-            if (pfrom)
-                pfrom->Misbehaving(100);
-            return NLog.error("ProcessBlock() : block with too little {}",
-                              pblock->IsProofOfStake() ? "proof-of-stake" : "proof-of-work");
-        }
-    }
-
-    const boost::optional<CBlockIndex> prevBlockIndex = txdb.ReadBlockIndex(pblock->hashPrevBlock);
-
-    // If don't already have its previous block, shunt it off to holding area until we get it
-    if (!prevBlockIndex) {
-        NLog.write(b_sev::info, "ProcessBlock: ORPHAN BLOCK, prev={}", pblock->hashPrevBlock.ToString());
         // ppcoin: check proof-of-stake
-        if (pblock->IsProofOfStake()) {
-            // Limited duplicity on stake: prevents block flood attack
-            // Duplicate stake allowed only when there is orphan child block
-            if (setStakeSeenOrphan.count(pblock->GetProofOfStake()) &&
-                !mapOrphanBlocksByPrev.count(hash))
-                return NLog.error(
-                    "ProcessBlock() : duplicate proof-of-stake ({}, {}) for orphan block {}",
-                    pblock->GetProofOfStake().first.ToString(), pblock->GetProofOfStake().second,
-                    hash.ToString());
-            else
-                setStakeSeenOrphan.insert(pblock->GetProofOfStake());
+        // Limited duplicity on stake: prevents block flood attack
+        // Duplicate stake allowed only when there is orphan child block
+        if (pblock->IsProofOfStake() && txdb.WasStakeSeen(pblock->GetProofOfStake()).value_or(false) &&
+            !mapOrphanBlocksByPrev.count(hash)) {
+            return NLog.error("ProcessBlock() : duplicate proof-of-stake ({}, {}) for block {}",
+                              pblock->GetProofOfStake().first.ToString(),
+                              pblock->GetProofOfStake().second, hash.ToString());
         }
-        PruneOrphanBlocks();
-        CBlock* pblock2 = new CBlock(*pblock);
-        mapOrphanBlocks.insert(make_pair(hash, pblock2));
-        mapOrphanBlocksByPrev.insert(make_pair(pblock2->hashPrevBlock, pblock2));
 
-        // Ask this guy to fill in what we're missing
-        if (pfrom) {
-            const boost::optional<CBlockIndex> bestBlockIndex = txdb.GetBestBlockIndex();
-            pfrom->PushGetBlocks(&*bestBlockIndex, GetOrphanRoot(pblock2));
-            // ppcoin: getblocks may not obtain the ancestor block rejected
-            // earlier by duplicate-stake check so we ask for it again directly
-            if (!IsInitialBlockDownload(txdb))
-                pfrom->AskFor(CInv(MSG_BLOCK, WantedByOrphan(pblock2)));
+        // Preliminary checks
+        if (!pblock->CheckBlock(txdb, hash))
+            return NLog.error("ProcessBlock() : CheckBlock FAILED");
+
+        const boost::optional<CBlockIndex> checkpoint = Checkpoints::GetLastCheckpoint(txdb);
+        if (checkpoint && pblock->hashPrevBlock != txdb.GetBestBlockHash()) {
+            // Extra checks to prevent "fill up memory by spamming with bogus blocks"
+            int64_t deltaTime = pblock->GetBlockTime() - checkpoint->nTime;
+            CBigNum bnNewBlock;
+            bnNewBlock.SetCompact(pblock->nBits);
+            CBigNum bnRequired;
+
+            if (pblock->IsProofOfStake()) {
+                const CBlockIndex& bi = GetLastBlockIndex(*checkpoint, true, txdb);
+                bnRequired.SetCompact(ComputeMinStake(bi.nBits, deltaTime, pblock->nTime));
+            } else {
+                const CBlockIndex& bi = GetLastBlockIndex(*checkpoint, false, txdb);
+                bnRequired.SetCompact(ComputeMinWork(bi.nBits, deltaTime));
+            }
+
+            if (bnNewBlock > bnRequired) {
+                if (pfrom)
+                    pfrom->Misbehaving(100);
+                return NLog.error("ProcessBlock() : block with too little {}",
+                                  pblock->IsProofOfStake() ? "proof-of-stake" : "proof-of-work");
+            }
         }
-        return true;
+
+        const boost::optional<CBlockIndex> prevBlockIndex = txdb.ReadBlockIndex(pblock->hashPrevBlock);
+
+        // If don't already have its previous block, shunt it off to holding area until we get it
+        if (!prevBlockIndex) {
+            NLog.write(b_sev::info, "ProcessBlock: ORPHAN BLOCK, prev={}",
+                       pblock->hashPrevBlock.ToString());
+            // ppcoin: check proof-of-stake
+            if (pblock->IsProofOfStake()) {
+                // Limited duplicity on stake: prevents block flood attack
+                // Duplicate stake allowed only when there is orphan child block
+                if (setStakeSeenOrphan.count(pblock->GetProofOfStake()) &&
+                    !mapOrphanBlocksByPrev.count(hash))
+                    return NLog.error(
+                        "ProcessBlock() : duplicate proof-of-stake ({}, {}) for orphan block {}",
+                        pblock->GetProofOfStake().first.ToString(), pblock->GetProofOfStake().second,
+                        hash.ToString());
+                else
+                    setStakeSeenOrphan.insert(pblock->GetProofOfStake());
+            }
+            PruneOrphanBlocks();
+            CBlock* pblock2 = new CBlock(*pblock);
+            mapOrphanBlocks.insert(make_pair(hash, pblock2));
+            mapOrphanBlocksByPrev.insert(make_pair(pblock2->hashPrevBlock, pblock2));
+
+            // Ask this guy to fill in what we're missing
+            if (pfrom) {
+                const boost::optional<CBlockIndex> bestBlockIndex = txdb.GetBestBlockIndex();
+                pfrom->PushGetBlocks(&*bestBlockIndex, GetOrphanRoot(pblock2));
+                // ppcoin: getblocks may not obtain the ancestor block rejected
+                // earlier by duplicate-stake check so we ask for it again directly
+                if (!IsInitialBlockDownload(txdb))
+                    pfrom->AskFor(CInv(MSG_BLOCK, WantedByOrphan(pblock2)));
+            }
+            return true;
+        }
+
+        // Store to disk
+        NLog.write(b_sev::info, "Attempting to accept block of height {} with hash {}",
+                   prevBlockIndex->nHeight + 1, hash.ToString());
+        if (!pblock->AcceptBlock(*prevBlockIndex, hash))
+            return NLog.error("ProcessBlock() : AcceptBlock FAILED");
     }
-
-    // Store to disk
-    NLog.write(b_sev::info, "Attempting to accept block of height {} with hash {}",
-               prevBlockIndex->nHeight + 1, hash.ToString());
-    if (!pblock->AcceptBlock(*prevBlockIndex, hash))
-        return NLog.error("ProcessBlock() : AcceptBlock FAILED");
 
     // Recursively process any orphan blocks that depended on this one
     vector<uint256> vWorkQueue;
@@ -1230,10 +1231,13 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
             CBlock* pblockOrphan = (*mi).second;
 
             // we use a new instance of CTxDB to ensure that newly added blocks are included
-            const boost::optional<CBlockIndex> prevBlockIdx = txdb.ReadBlockIndex(hashPrev);
+            const CTxDB txdbNew;
+
+            const boost::optional<CBlockIndex> prevBlockIdx = txdbNew.ReadBlockIndex(hashPrev);
             if (!prevBlockIdx) {
-                NLog.write(b_sev::err, "CRITICAL ERROR: A prev block was not found after having been "
-                                       "added! This should NEVER happen.");
+                NLog.write(b_sev::critical,
+                           "CRITICAL ERROR: A prev block was not found after having been "
+                           "added! This should NEVER happen.");
                 continue;
             }
 
@@ -1976,7 +1980,11 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                     // the last block in an inv bundle sent in response to getblocks. Try to detect
                     // this situation and push another getblocks to continue.
                     const boost::optional<CBlockIndex> bi = txdb.ReadBlockIndex(inv.hash);
-                    pfrom->PushGetBlocks(&*bi, uint256(0));
+                    if (bi) {
+                        pfrom->PushGetBlocks(&*bi, uint256(0));
+                    } else {
+                        pfrom->PushGetBlocks(nullptr, uint256(0));
+                    }
                     if (fDebug)
                         NLog.write(b_sev::debug, "force request: {}", inv.ToString());
                 }
@@ -2369,7 +2377,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
     else if (strCommand == "filterclear") {
         LOCK(pfrom->cs_filter);
         delete pfrom->pfilter;
-        pfrom->pfilter    = NULL;
+        pfrom->pfilter    = nullptr;
         pfrom->fRelayTxes = true;
     }
 
@@ -2482,7 +2490,7 @@ bool ProcessMessages(CNode* pfrom)
         } catch (std::exception& e) {
             PrintExceptionContinue(&e, "ProcessMessages()");
         } catch (...) {
-            PrintExceptionContinue(NULL, "ProcessMessages()");
+            PrintExceptionContinue(nullptr, "ProcessMessages()");
         }
 
         if (!fRet)
