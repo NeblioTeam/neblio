@@ -182,7 +182,8 @@ private:
     CWallet* wallet;
 
     QThread balancesThread;
-    bool    isBalancesWorkerRunning = false;
+    bool    isBalancesWorkerRunning  = false;
+    bool    isBalanceWorkerScheduled = false;
 
     // Wallet has an options model for wallet-specific options
     // (transaction fee, for example)
