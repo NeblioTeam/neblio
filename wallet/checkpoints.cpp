@@ -125,7 +125,7 @@ int64_t GetLastCheckpointBlockHeight()
 {
     const MapCheckpoints& checkpoints = Params().Checkpoints();
 
-    if (checkpoints.empty()) {
+    if (!checkpoints.empty()) {
         return checkpoints.rbegin()->first;
     } else {
         return 0;
