@@ -255,9 +255,9 @@ public:
     void         MarkDirty();
     unsigned int ComputeTimeSmart(const ITxDB& txdb, const CWalletTx& wtx) const;
     bool         AddToWallet(const ITxDB& txdb, const CWalletTx& wtxIn, bool fFromLoadWallet,
-                             CWalletDB* pwalletdb);
+                             CWalletDB* pwalletdb, bool walletRescan);
     bool AddToWalletIfInvolvingMe(const ITxDB& txdb, const CTransaction& tx, const CBlock* pblock,
-                                  bool fUpdate = false, bool fFindBlock = false);
+                                  bool fUpdate, bool walletRescan);
     bool EraseFromWallet(uint256 hash);
     //    void    WalletUpdateSpent(const CTransaction& prevout, bool fBlock = false);
     int     ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate = false);

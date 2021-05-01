@@ -636,7 +636,7 @@ void CWallet::AddToSpends(const uint256& wtxid)
 }
 
 bool CWallet::AddToWallet(const ITxDB& txdb, const CWalletTx& wtxIn, bool fFromLoadWallet,
-                          CWalletDB* pwalletdb)
+                          CWalletDB* pwalletdb, bool walletRescan)
 {
     AssertLockHeld(cs_wallet);
 
@@ -664,7 +664,7 @@ bool CWallet::AddToWallet(const ITxDB& txdb, const CWalletTx& wtxIn, bool fFromL
         bool fInsertedNew = ret.second;
         if (fInsertedNew) {
             if (!wtx.nTimeReceived)
-                wtx.nTimeReceived = GetAdjustedTime();
+                wtx.nTimeReceived = walletRescan ? wtx.nTime : GetAdjustedTime();
             wtx.nOrderPos = IncOrderPosNext(pwalletdb);
             wtxOrdered.insert(std::make_pair(wtx.nOrderPos, TxPair(&wtx, (CAccountingEntry*)0)));
             wtx.nTimeSmart = ComputeTimeSmart(txdb, wtx);
@@ -738,7 +738,7 @@ bool CWallet::AddToWallet(const ITxDB& txdb, const CWalletTx& wtxIn, bool fFromL
 // pblock is optional, but should be provided if the transaction is known to be in a block.
 // If fUpdate is true, existing transactions will be updated.
 bool CWallet::AddToWalletIfInvolvingMe(const ITxDB& txdb, const CTransaction& tx, const CBlock* pblock,
-                                       bool fUpdate, bool /*fFindBlock*/)
+                                       bool fUpdate, bool walletRescan)
 {
     uint256 hash = tx.GetHash();
     {
@@ -778,7 +778,7 @@ bool CWallet::AddToWalletIfInvolvingMe(const ITxDB& txdb, const CTransaction& tx
             // SetBestChain-mechanism
             CWalletDB walletdb(strWalletFile, "r+", false);
 
-            return AddToWallet(txdb, wtx, false, &walletdb);
+            return AddToWallet(txdb, wtx, false, &walletdb, walletRescan);
         }
     }
     return false;
@@ -1105,7 +1105,7 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
             CBlock block;
             block.ReadFromDisk(&*pindex, txdb, true);
             for (CTransaction& tx : block.vtx) {
-                if (AddToWalletIfInvolvingMe(txdb, tx, &block, fUpdate))
+                if (AddToWalletIfInvolvingMe(txdb, tx, &block, fUpdate, true))
                     ret++;
             }
             pindex = pindex->getNext(txdb);
@@ -2451,7 +2451,7 @@ bool CWallet::CommitTransaction(const CWalletTx& wtxNew, const ITxDB& txdb, CRes
 
             // Add tx to wallet, because if it has change it's also ours,
             // otherwise just for transaction history.
-            AddToWallet(txdb, wtxNew, false, pwalletdb);
+            AddToWallet(txdb, wtxNew, false, pwalletdb, false);
 
             // Mark old coins as spent
             std::set<uint256> updated_hahes;
@@ -3073,7 +3073,7 @@ set<set<CTxDestination>> CWallet::GetAddressGroupings(const ITxDB& txdb)
 void CWallet::SyncTransaction(const ITxDB& txdb, const CTransaction& tx, const CBlock* pblock)
 {
     LOCK2(cs_main, cs_wallet);
-    if (!AddToWalletIfInvolvingMe(txdb, tx, pblock, true))
+    if (!AddToWalletIfInvolvingMe(txdb, tx, pblock, true, false))
         return; // Not one of ours
 
     // If a transaction changes 'conflicted' state, that changes the balance
