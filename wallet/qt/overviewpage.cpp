@@ -7,6 +7,7 @@
 #include "optionsmodel.h"
 #include "transactionfilterproxy.h"
 #include "transactiontablemodel.h"
+#include "ui_interface.h"
 #include "walletmodel.h"
 
 #include <QAbstractItemDelegate>
@@ -109,6 +110,14 @@ OverviewPage::OverviewPage(QWidget* parent)
 
     // start with displaying the "out of sync" warnings
     showOutOfSyncWarning(true);
+
+    showRescanControls(false);
+    walletBlockchainRescanStartedConnection =
+        uiInterface.WalletBlockchainRescanStarted.connect([this]() { this->startRescan(); });
+    walletBlockchainRescanEndedConnection =
+        uiInterface.WalletBlockchainRescanEnded.connect([this]() { this->endRescan(); });
+    walletBlockchainRescanAtHeightConnect = uiInterface.WalletBlockchainRescanAtHeight.connect(
+        [this](int progress) { this->setRescanProgress(progress); });
 }
 
 void OverviewPage::handleTransactionClicked(const QModelIndex& index)
@@ -117,7 +126,13 @@ void OverviewPage::handleTransactionClicked(const QModelIndex& index)
         emit transactionClicked(filter->mapToSource(index));
 }
 
-OverviewPage::~OverviewPage() { delete ui; }
+OverviewPage::~OverviewPage()
+{
+    walletBlockchainRescanStartedConnection.disconnect();
+    walletBlockchainRescanEndedConnection.disconnect();
+    walletBlockchainRescanAtHeightConnect.disconnect();
+    delete ui;
+}
 
 void OverviewPage::setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBalance,
                               qint64 immatureBalance)
@@ -169,7 +184,7 @@ void OverviewPage::setModel(WalletModel* modelIn)
         ui->listTransactions->setModelColumn(TransactionTableModel::ToAddress);
 
         // Keep up to date with wallet
-        setUnknownBalance();          // we set balances to zero initially
+        setUnknownBalance();            // we set balances to zero initially
         modelIn->checkBalanceChanged(); // then we trigger a check asynchronously
         connect(modelIn, SIGNAL(balanceChanged(qint64, qint64, qint64, qint64)), this,
                 SLOT(setBalance(qint64, qint64, qint64, qint64)));
@@ -200,4 +215,23 @@ void OverviewPage::showOutOfSyncWarning(bool fShow)
 {
     ui->labelWalletStatus->setVisible(fShow);
     ui->labelTransactionsStatus->setVisible(fShow);
+}
+
+void OverviewPage::startRescan()
+{
+    showRescanControls(true);
+    setRescanProgress(0);
+}
+
+void OverviewPage::endRescan() { showRescanControls(false); }
+
+void OverviewPage::setRescanProgress(int progress)
+{
+    ui->wallet_blockchain_rescan_progress->setValue(progress);
+}
+
+void OverviewPage::showRescanControls(bool show)
+{
+    ui->wallet_blockchain_rescan_label->setVisible(show);
+    ui->wallet_blockchain_rescan_progress->setVisible(show);
 }

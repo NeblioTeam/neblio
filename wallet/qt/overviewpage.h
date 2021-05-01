@@ -5,6 +5,7 @@
 #include <QTimer>
 #include <QWidget>
 
+#include <boost/signals2.hpp>
 #include <boost/thread.hpp>
 #include <boost/thread/future.hpp>
 
@@ -30,6 +31,16 @@ public:
 
     void setModel(WalletModel* modelIn);
     void showOutOfSyncWarning(bool fShow);
+
+    // rescan wallet blockchain control
+    void startRescan();
+    void endRescan();
+    void setRescanProgress(int progress);
+    void showRescanControls(bool show);
+
+    boost::signals2::connection walletBlockchainRescanStartedConnection;
+    boost::signals2::connection walletBlockchainRescanEndedConnection;
+    boost::signals2::connection walletBlockchainRescanAtHeightConnect;
 
 public slots:
     void setBalance(qint64 balance, qint64 stake, qint64 unconfirmedBalance, qint64 immatureBalance);
