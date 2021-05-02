@@ -942,7 +942,7 @@ static boost::atomic<int64_t> nMockTime{0}; // For unit testing
 
 int64_t GetTime()
 {
-    const int64_t mocktime = nMockTime.load(boost::memory_order_relaxed);
+    const int64_t mocktime = nMockTime.load(boost::memory_order_acquire);
     if (mocktime)
         return mocktime;
 
@@ -951,7 +951,7 @@ int64_t GetTime()
     return now;
 }
 
-void SetMockTime(int64_t nMockTimeIn) { nMockTime = nMockTimeIn; }
+void SetMockTime(int64_t nMockTimeIn) { nMockTime.store(nMockTimeIn, boost::memory_order_release); }
 
 static boost::atomic<int64_t> nTimeOffset{0};
 

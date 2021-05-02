@@ -937,9 +937,7 @@ int GetNumBlocksOfPeers()
     return std::max(cPeerBlockCounts.median(), Checkpoints::GetTotalBlocksEstimate());
 }
 
-// DO NOT call this function it's NOT thread-safe. Use IsInitialBlockDownload or
-// IsInitialBlockDownload_tolerant
-bool __IsInitialBlockDownload_internal(const ITxDB& txdb)
+bool IsInitialBlockDownload(const ITxDB& txdb)
 {
     // Once this function has returned false, it must remain false.
     static std::atomic<bool> latchToFalse{false};
@@ -953,32 +951,28 @@ bool __IsInitialBlockDownload_internal(const ITxDB& txdb)
         return true;
     static int64_t                      nLastUpdate;
     static boost::optional<CBlockIndex> pindexLastBest;
-    boost::optional<CBlockIndex>        pindexBestPtr = txdb.GetBestBlockIndex();
+    const boost::optional<CBlockIndex>  pindexBestPtr = txdb.GetBestBlockIndex();
+    if (!pindexBestPtr) {
+        NLog.write(b_sev::critical, "CRITICAL ERROR: Best block index return none!");
+        return false;
+    }
+
     if (!pindexLastBest || pindexBestPtr->GetBlockHash() != pindexLastBest->GetBlockHash()) {
         pindexLastBest = pindexBestPtr;
         nLastUpdate    = GetTime();
     }
-    const bool result =
-        (GetTime() - nLastUpdate < 15 && pindexBestPtr->GetBlockTime() < GetTime() - 8 * 60 * 60);
-    if (!result) {
+
+    const int64_t timeNow       = GetTime();
+    const int64_t bestBlockTime = pindexBestPtr->GetBlockTime();
+
+    const bool lastTwoBlocksCameMuchFasterThanBlockTime = timeNow - nLastUpdate < 15;
+    const bool lastBlockIsTooOld                        = bestBlockTime < timeNow - 8 * 60 * 60;
+
+    const bool tooNew = (!lastTwoBlocksCameMuchFasterThanBlockTime && !lastBlockIsTooOld);
+    if (tooNew) {
         latchToFalse.store(true, std::memory_order_seq_cst);
     }
-    return result;
-}
-bool IsInitialBlockDownload_tolerant(const ITxDB& txdb)
-{
-    // will try to lock. If failed, will return false
-    TRY_LOCK(cs_main, lockMain);
-    if (!lockMain) {
-        return false;
-    }
-    return __IsInitialBlockDownload_internal(txdb);
-}
-
-bool IsInitialBlockDownload(const ITxDB& txdb)
-{
-    LOCK(cs_main);
-    return __IsInitialBlockDownload_internal(txdb);
+    return tooNew;
 }
 
 CDiskTxPos CreateFakeSpentTxPos(const uint256& blockhash)
