@@ -30,14 +30,14 @@ using namespace boost;
 
 static const int MAX_OUTBOUND_CONNECTIONS = 16;
 
-void ThreadMessageHandler2(void* parg);
-void ThreadSocketHandler2(void* parg);
-void ThreadOpenConnections2(void* parg);
-void ThreadOpenAddedConnections2(void* parg);
+void ThreadMessageHandler2();
+void ThreadSocketHandler2();
+void ThreadOpenConnections2();
+void ThreadOpenAddedConnections2();
 #ifdef USE_UPNP
 void ThreadMapPort2(void* parg);
 #endif
-void ThreadDNSAddressSeed2(void* parg);
+void ThreadDNSAddressSeed2();
 
 struct LocalServiceInfo
 {
@@ -379,7 +379,7 @@ bool GetMyExternalIP(CNetAddr& ipRet)
     return false;
 }
 
-void ThreadGetMyExternalIP(void* /*parg*/)
+void ThreadGetMyExternalIP()
 {
     // Make this thread recognisable as the external IP detection thread
     RenameThread("neblio-ext-ip");
@@ -702,14 +702,14 @@ void SocketSendData(CNode* pnode)
     pnode->vSendMsg.erase(pnode->vSendMsg.begin(), it);
 }
 
-void ThreadSocketHandler(void* parg)
+void ThreadSocketHandler()
 {
     // Make this thread recognisable as the networking thread
     RenameThread("neblio-net");
 
     try {
         vnThreadsRunning[THREAD_SOCKETHANDLER]++;
-        ThreadSocketHandler2(parg);
+        ThreadSocketHandler2();
         vnThreadsRunning[THREAD_SOCKETHANDLER]--;
     } catch (std::exception& e) {
         vnThreadsRunning[THREAD_SOCKETHANDLER]--;
@@ -721,7 +721,7 @@ void ThreadSocketHandler(void* parg)
     NLog.write(b_sev::info, "ThreadSocketHandler exited");
 }
 
-void ThreadSocketHandler2(void* /*parg*/)
+void ThreadSocketHandler2()
 {
     NLog.write(b_sev::info, "ThreadSocketHandler started");
     list<CNode*> vNodesDisconnected;
@@ -1124,14 +1124,14 @@ void MapPort()
 }
 #endif
 
-void ThreadDNSAddressSeed(void* parg)
+void ThreadDNSAddressSeed()
 {
     // Make this thread recognisable as the DNS seeding thread
     RenameThread("neblio-dnsseed");
 
     try {
         vnThreadsRunning[THREAD_DNSSEED]++;
-        ThreadDNSAddressSeed2(parg);
+        ThreadDNSAddressSeed2();
         vnThreadsRunning[THREAD_DNSSEED]--;
     } catch (std::exception& e) {
         vnThreadsRunning[THREAD_DNSSEED]--;
@@ -1143,7 +1143,7 @@ void ThreadDNSAddressSeed(void* parg)
     NLog.write(b_sev::info, "ThreadDNSAddressSeed exited");
 }
 
-void ThreadDNSAddressSeed2(void* /*parg*/)
+void ThreadDNSAddressSeed2()
 {
     NLog.write(b_sev::info, "ThreadDNSAddressSeed started");
     int found = 0;
@@ -1190,7 +1190,7 @@ void DumpAddresses()
                GetTimeMillis() - nStart);
 }
 
-void ThreadDumpAddress2(void* /*parg*/)
+void ThreadDumpAddress2()
 {
     vnThreadsRunning[THREAD_DUMPADDRESS]++;
     while (!fShutdown) {
@@ -1202,27 +1202,27 @@ void ThreadDumpAddress2(void* /*parg*/)
     vnThreadsRunning[THREAD_DUMPADDRESS]--;
 }
 
-void ThreadDumpAddress(void* parg)
+void ThreadDumpAddress()
 {
     // Make this thread recognisable as the address dumping thread
     RenameThread("neblio-adrdump");
 
     try {
-        ThreadDumpAddress2(parg);
+        ThreadDumpAddress2();
     } catch (std::exception& e) {
         PrintException(&e, "ThreadDumpAddress()");
     }
     NLog.write(b_sev::info, "ThreadDumpAddress exited");
 }
 
-void ThreadOpenConnections(void* parg)
+void ThreadOpenConnections()
 {
     // Make this thread recognisable as the connection opening thread
     RenameThread("neblio-opencon");
 
     try {
         vnThreadsRunning[THREAD_OPENCONNECTIONS]++;
-        ThreadOpenConnections2(parg);
+        ThreadOpenConnections2();
         vnThreadsRunning[THREAD_OPENCONNECTIONS]--;
     } catch (std::exception& e) {
         vnThreadsRunning[THREAD_OPENCONNECTIONS]--;
@@ -1252,10 +1252,9 @@ void static ProcessOneShot()
     }
 }
 
-void static ThreadStakeMiner(void* parg)
+void static ThreadStakeMiner(std::shared_ptr<CWallet> pwallet)
 {
     NLog.write(b_sev::info, "ThreadStakeMiner started");
-    CWallet* pwallet = (CWallet*)parg;
     try {
         vnThreadsRunning[THREAD_STAKE_MINER]++;
         StakeMiner(pwallet);
@@ -1280,7 +1279,7 @@ void static ThreadStakeMiner(void* parg)
     NLog.write(b_sev::info, "ThreadStakeMiner exiting, {} threads remaining", threadsRemainingStr);
 }
 
-void ThreadOpenConnections2(void* /*parg*/)
+void ThreadOpenConnections2()
 {
     NLog.write(b_sev::info, "ThreadOpenConnections started");
 
@@ -1292,7 +1291,7 @@ void ThreadOpenConnections2(void* /*parg*/)
             ProcessOneShot();
             std::vector<std::string> connectValsP =
                 mapMultiArgs.get("-connect").value_or(std::vector<std::string>());
-            for (const string& strAddr: connectValsP) {
+            for (const string& strAddr : connectValsP) {
                 CAddress addr;
                 OpenNetworkConnection(addr, nullptr, strAddr.c_str());
                 for (int i = 0; i < 10 && i < nLoop; i++) {
@@ -1400,14 +1399,14 @@ void ThreadOpenConnections2(void* /*parg*/)
     }
 }
 
-void ThreadOpenAddedConnections(void* parg)
+void ThreadOpenAddedConnections()
 {
     // Make this thread recognisable as the connection opening thread
     RenameThread("neblio-opencon");
 
     try {
         vnThreadsRunning[THREAD_ADDEDCONNECTIONS]++;
-        ThreadOpenAddedConnections2(parg);
+        ThreadOpenAddedConnections2();
         vnThreadsRunning[THREAD_ADDEDCONNECTIONS]--;
     } catch (std::exception& e) {
         vnThreadsRunning[THREAD_ADDEDCONNECTIONS]--;
@@ -1432,7 +1431,7 @@ void SleepOrWaitForAddedNodesToChange(std::size_t prevNodesCount)
     }
 }
 
-void ThreadOpenAddedConnections2(void* /*parg*/)
+void ThreadOpenAddedConnections2()
 {
     NLog.write(b_sev::info, "ThreadOpenAddedConnections started");
 
@@ -1570,14 +1569,14 @@ bool OpenNetworkConnection(const CAddress& addrConnect, CSemaphoreGrant* grantOu
     return true;
 }
 
-void ThreadMessageHandler(void* parg)
+void ThreadMessageHandler()
 {
     // Make this thread recognisable as the message handling thread
     RenameThread("neblio-msghand");
 
     try {
         vnThreadsRunning[THREAD_MESSAGEHANDLER]++;
-        ThreadMessageHandler2(parg);
+        ThreadMessageHandler2();
         vnThreadsRunning[THREAD_MESSAGEHANDLER]--;
     } catch (std::exception& e) {
         vnThreadsRunning[THREAD_MESSAGEHANDLER]--;
@@ -1589,7 +1588,7 @@ void ThreadMessageHandler(void* parg)
     NLog.write(b_sev::info, "ThreadMessageHandler exited");
 }
 
-void ThreadMessageHandler2(void* /*parg*/)
+void ThreadMessageHandler2()
 {
     NLog.write(b_sev::info, "ThreadMessageHandler started");
     SetThreadPriority(THREAD_PRIORITY_BELOW_NORMAL);
@@ -1806,10 +1805,10 @@ void static Discover()
 
     // Don't use external IPv4 discovery, when -onlynet="IPv6"
     if (!IsLimited(NET_IPV4))
-        NewThread(ThreadGetMyExternalIP, nullptr);
+        NewThread(ThreadGetMyExternalIP);
 }
 
-void StartNode(void* /*parg*/)
+void StartNode()
 {
     // Make this thread recognisable as the startup thread
     RenameThread("neblio-start");
@@ -1832,7 +1831,7 @@ void StartNode(void* /*parg*/)
 
     if (!GetBoolArg("-dnsseed", true))
         NLog.write(b_sev::info, "DNS seeding disabled");
-    else if (!NewThread(ThreadDNSAddressSeed, nullptr))
+    else if (!NewThread(ThreadDNSAddressSeed))
         NLog.write(b_sev::err, "Error: NewThread(ThreadDNSAddressSeed) failed");
 
     // Map ports with UPnP
@@ -1840,29 +1839,29 @@ void StartNode(void* /*parg*/)
         MapPort();
 
     // Send and receive from sockets, accept connections
-    if (!NewThread(ThreadSocketHandler, nullptr))
+    if (!NewThread(ThreadSocketHandler))
         NLog.write(b_sev::err, "Error: NewThread(ThreadSocketHandler) failed");
 
     // Initiate outbound connections from -addnode
-    if (!NewThread(ThreadOpenAddedConnections, nullptr))
+    if (!NewThread(ThreadOpenAddedConnections))
         NLog.write(b_sev::err, "Error: NewThread(ThreadOpenAddedConnections) failed");
 
     // Initiate outbound connections
-    if (!NewThread(ThreadOpenConnections, nullptr))
+    if (!NewThread(ThreadOpenConnections))
         NLog.write(b_sev::err, "Error: NewThread(ThreadOpenConnections) failed");
 
     // Process messages
-    if (!NewThread(ThreadMessageHandler, nullptr))
+    if (!NewThread(ThreadMessageHandler))
         NLog.write(b_sev::err, "Error: NewThread(ThreadMessageHandler) failed");
 
     // Dump network addresses
-    if (!NewThread(ThreadDumpAddress, nullptr))
+    if (!NewThread(ThreadDumpAddress))
         NLog.write(b_sev::err, "Error; NewThread(ThreadDumpAddress) failed");
 
     // Mine proof-of-stake blocks in the background
     if (!GetBoolArg("-staking", true))
         NLog.write(b_sev::info, "Staking disabled");
-    else if (!NewThread(ThreadStakeMiner, pwalletMain.get()))
+    else if (!NewThread(ThreadStakeMiner, pwalletMain))
         NLog.write(b_sev::err, "Error: NewThread(ThreadStakeMiner) failed");
 }
 

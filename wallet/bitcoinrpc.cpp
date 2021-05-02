@@ -34,15 +34,13 @@ using namespace boost;
 using namespace boost::asio;
 using namespace json_spirit;
 
-void ThreadRPCServer2(void* parg);
+void ThreadRPCServer2();
 
 static std::string strRPCUserColonPass;
 
 const Object emptyobj;
 
 boost::atomic_bool fRpcListening{false};
-
-void ThreadRPCServer3(void* parg);
 
 Object JSONRPCError(int code, const string& message)
 {
@@ -748,14 +746,14 @@ static bool InitRPCAuthentication()
     return true;
 }
 
-void ThreadRPCServer(void* parg)
+void ThreadRPCServer()
 {
     // Make this thread recognisable as the RPC listener
     RenameThread("neblio-rpclist");
 
     try {
         vnThreadsRunning[THREAD_RPCLISTENER]++;
-        ThreadRPCServer2(parg);
+        ThreadRPCServer2();
         vnThreadsRunning[THREAD_RPCLISTENER]--;
     } catch (std::exception& e) {
         vnThreadsRunning[THREAD_RPCLISTENER]--;
@@ -767,11 +765,14 @@ void ThreadRPCServer(void* parg)
     NLog.write(b_sev::info, "ThreadRPCServer exited");
 }
 
+void ThreadRPCServer3(boost::shared_ptr<AcceptedConnection> conn);
+
 // Forward declaration required for RPCListen
 template <typename Protocol>
 static void RPCAcceptHandler(boost::shared_ptr<basic_socket_acceptor<Protocol>> acceptor,
-                             ssl::context& context, bool fUseSSL, AcceptedConnection* conn,
-                             const boost::system::error_code& error);
+                             ssl::context& context, bool fUseSSL,
+                             boost::shared_ptr<AcceptedConnection> conn,
+                             const boost::system::error_code&      error);
 
 /**
  * Sets up I/O resources to accept and handle a new connection.
@@ -789,8 +790,10 @@ static void RPCListen(boost::shared_ptr<basic_socket_acceptor<Protocol>> accepto
     using ExecutorType = typename std::remove_reference<decltype(executionContextOrExecutor)>::type;
 
     // Accept connection
-    AcceptedConnectionImpl<Protocol, ExecutorType>* conn =
-        new AcceptedConnectionImpl<Protocol, ExecutorType>(executionContextOrExecutor, context, fUseSSL);
+    boost::shared_ptr<AcceptedConnectionImpl<Protocol, ExecutorType>> conn =
+        boost::shared_ptr<AcceptedConnectionImpl<Protocol, ExecutorType>>(
+            new AcceptedConnectionImpl<Protocol, ExecutorType>(executionContextOrExecutor, context,
+                                                               fUseSSL));
 
     acceptor->async_accept(conn->sslStream.lowest_layer(), conn->peer,
                            boost::bind(&RPCAcceptHandler<Protocol>, acceptor, boost::ref(context),
@@ -802,8 +805,9 @@ static void RPCListen(boost::shared_ptr<basic_socket_acceptor<Protocol>> accepto
  */
 template <typename Protocol>
 static void RPCAcceptHandler(boost::shared_ptr<basic_socket_acceptor<Protocol>> acceptor,
-                             ssl::context& context, const bool fUseSSL, AcceptedConnection* conn,
-                             const boost::system::error_code& error)
+                             ssl::context& context, const bool fUseSSL,
+                             boost::shared_ptr<AcceptedConnection> conn,
+                             const boost::system::error_code&      error)
 {
     vnThreadsRunning[THREAD_RPCLISTENER]++;
 
@@ -819,12 +823,12 @@ static void RPCAcceptHandler(boost::shared_ptr<basic_socket_acceptor<Protocol>> 
 
     using ExecutorType = typename std::remove_reference<decltype(executionContextOrExecutor)>::type;
 
-    AcceptedConnectionImpl<ip::tcp, ExecutorType>* tcp_conn =
-        dynamic_cast<AcceptedConnectionImpl<ip::tcp, ExecutorType>*>(conn);
+    boost::shared_ptr<AcceptedConnectionImpl<ip::tcp, ExecutorType>> tcp_conn =
+        boost::dynamic_pointer_cast<AcceptedConnectionImpl<ip::tcp, ExecutorType>>(conn);
 
     // TODO: Actually handle errors
     if (error) {
-        delete conn;
+        // delete conn;
     }
 
     // Restrict callers by IP.  It is important to
@@ -834,19 +838,17 @@ static void RPCAcceptHandler(boost::shared_ptr<basic_socket_acceptor<Protocol>> 
         // Only send a 403 if we're not using SSL to prevent a DoS during the SSL handshake.
         if (!fUseSSL)
             conn->stream() << HTTPReply(HTTP_FORBIDDEN, "", false) << std::flush;
-        delete conn;
     }
 
     // start HTTP client thread
     else if (!NewThread(ThreadRPCServer3, conn)) {
         NLog.write(b_sev::err, "Failed to create RPC server client thread");
-        delete conn;
     }
 
     vnThreadsRunning[THREAD_RPCLISTENER]--;
 }
 
-void ThreadRPCServer2(void* /*parg*/)
+void ThreadRPCServer2()
 {
     NLog.write(b_sev::info, "ThreadRPCServer started");
 
@@ -1024,7 +1026,7 @@ static string JSONRPCExecBatch(const Array& vReq)
 
 static CCriticalSection cs_THREAD_RPCHANDLER;
 
-void ThreadRPCServer3(void* parg)
+void ThreadRPCServer3(boost::shared_ptr<AcceptedConnection> conn)
 {
     // Make this thread recognisable as the RPC handler
     RenameThread("neblio-rpchand");
@@ -1033,13 +1035,11 @@ void ThreadRPCServer3(void* parg)
         LOCK(cs_THREAD_RPCHANDLER);
         vnThreadsRunning[THREAD_RPCHANDLER]++;
     }
-    AcceptedConnection* conn = (AcceptedConnection*)parg;
 
     bool fRun = true;
     while (true) {
         if (fShutdown || !fRun) {
             conn->close();
-            delete conn;
             {
                 LOCK(cs_THREAD_RPCHANDLER);
                 --vnThreadsRunning[THREAD_RPCHANDLER];
@@ -1106,7 +1106,6 @@ void ThreadRPCServer3(void* parg)
         }
     }
 
-    delete conn;
     {
         LOCK(cs_THREAD_RPCHANDLER);
         vnThreadsRunning[THREAD_RPCHANDLER]--;

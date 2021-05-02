@@ -29,7 +29,7 @@ extern boost::atomic<uint32_t> nWalletDBUpdated;
 
 void FlushWalletDB(bool forceLockAndFlush, const std::string& strFile,
                    unsigned int* nLastFlushedPtr = nullptr);
-void ThreadFlushWalletDB(void* parg);
+void ThreadFlushWalletDB(const std::string strFile);
 bool BackupWallet(const CWallet& wallet, const std::string& strDest);
 
 class CDBEnv

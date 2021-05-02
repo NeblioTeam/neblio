@@ -1627,11 +1627,8 @@ struct CImportingNow
     }
 };
 
-void ThreadImport(void* data)
+void ThreadImport(const std::vector<boost::filesystem::path> vFiles)
 {
-    std::vector<boost::filesystem::path>* vFiles =
-        reinterpret_cast<std::vector<boost::filesystem::path>*>(data);
-
     RenameThread("bitcoin-loadblk");
 
     CImportingNow imp;
@@ -1639,7 +1636,7 @@ void ThreadImport(void* data)
 
     // -loadblock=
     // uiInterface.InitMessage(_("Starting block import..."));
-    for (boost::filesystem::path& path : *vFiles) {
+    for (const boost::filesystem::path& path : vFiles) {
         FILE* file = fopen(path.string().c_str(), "rb");
         if (file)
             LoadExternalBlockFile(file);
@@ -1657,8 +1654,6 @@ void ThreadImport(void* data)
             RenameOver(pathBootstrap, pathBootstrapOld);
         }
     }
-
-    delete vFiles;
 
     vnThreadsRunning[THREAD_IMPORT]--;
 }

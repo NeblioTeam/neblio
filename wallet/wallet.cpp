@@ -2682,7 +2682,7 @@ DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
     if (nLoadWalletRet != DB_LOAD_OK)
         return nLoadWalletRet;
 
-    NewThread(ThreadFlushWalletDB, &strWalletFile);
+    NewThread(ThreadFlushWalletDB, strWalletFile);
     return DB_LOAD_OK;
 }
 

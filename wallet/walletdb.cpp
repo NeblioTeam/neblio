@@ -630,13 +630,12 @@ void FlushWalletDB(bool forceLockAndFlush, const std::string& strFile, unsigned 
     }
 }
 
-void ThreadFlushWalletDB(void* parg)
+void ThreadFlushWalletDB(const string strFile)
 {
     // Make this thread recognisable as the wallet flushing thread
     RenameThread("neblio-wallet");
 
-    const string& strFile = ((const string*)parg)[0];
-    static bool   fOneThread;
+    static bool fOneThread;
     if (fOneThread)
         return;
     fOneThread = true;

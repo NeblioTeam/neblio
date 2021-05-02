@@ -102,7 +102,7 @@ bool         LoadBlockIndex(bool fAllowNew = true);
 void         PrintBlockTree();
 bool         ProcessMessages(CNode* pfrom);
 bool         SendMessages(CNode* pto, bool fSendTrickle);
-void         ThreadImport(void* parg);
+void         ThreadImport(std::vector<boost::filesystem::path> vFiles);
 bool         CheckProofOfWork(const uint256& hash, unsigned int nBits, bool silent = false);
 unsigned int GetNextTargetRequired(const ITxDB& txdb, const CBlockIndex* pindexLast, bool fProofOfStake);
 unsigned int ComputeMinWork(unsigned int nBase, int64_t nTime);
@@ -113,7 +113,7 @@ std::string  GetWarnings(std::string strFor);
 bool         GetTransaction(const uint256& hash, CTransaction& tx, uint256& hashBlock);
 uint256      WantedByOrphan(const CBlock* pblockOrphan);
 CBlockIndex  GetLastBlockIndex(CBlockIndex pindex, bool fProofOfStake, const ITxDB& txdb);
-void         StakeMiner(CWallet* pwallet);
+void         StakeMiner(std::shared_ptr<CWallet> pwallet);
 void         ResendWalletTransactions(bool fForce = false);
 
 void SetBestChain(const CBlockLocator& loc);
