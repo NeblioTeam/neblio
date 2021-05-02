@@ -3,10 +3,10 @@
 #include <boost/algorithm/hex.hpp>
 #include <util.h>
 
-TEST(fixed_point, Conversions_tests)
-{
-    using Int = NTP1Int;
+using Int = NTP1Int;
 
+TEST(fixed_point, Conversions_tests1)
+{
     EXPECT_EQ(FP_DecimalToInt<Int>("987654321", 8), 98765432100000000);
     EXPECT_EQ(FP_DecimalToInt<Int>("87654321", 8), 8765432100000000);
     EXPECT_EQ(FP_DecimalToInt<Int>("7654321", 8), 765432100000000);
@@ -111,7 +111,10 @@ TEST(fixed_point, Conversions_tests)
     EXPECT_ANY_THROW(FP_DecimalToInt<Int>("-1.23a4567891,", 8));
     EXPECT_ANY_THROW(FP_DecimalToInt<Int>("-1.23-4567891", 8));
     EXPECT_ANY_THROW(FP_DecimalToInt<Int>("-1.23e4567891", 8));
+}
 
+TEST(fixed_point, Conversions_tests2)
+{
     EXPECT_EQ(FP_DecimalToInt<Int>("987654321", 0), 987654321);
     EXPECT_EQ(FP_DecimalToInt<Int>("87654321", 0), 87654321);
     EXPECT_EQ(FP_DecimalToInt<Int>("7654321", 0), 7654321);
@@ -217,7 +220,10 @@ TEST(fixed_point, Conversions_tests)
     EXPECT_ANY_THROW(FP_DecimalToInt<Int>("-1.23a4567891,", 0));
     EXPECT_ANY_THROW(FP_DecimalToInt<Int>("-1.23-4567891", 0));
     EXPECT_ANY_THROW(FP_DecimalToInt<Int>("-1.23e4567891", 0));
+}
 
+TEST(fixed_point, Conversions_tests3)
+{
     EXPECT_EQ(FP_DecimalToInt<Int>("987654321", 1), 9876543210);
     EXPECT_EQ(FP_DecimalToInt<Int>("87654321", 1), 876543210);
     EXPECT_EQ(FP_DecimalToInt<Int>("7654321", 1), 76543210);
@@ -323,7 +329,10 @@ TEST(fixed_point, Conversions_tests)
     EXPECT_ANY_THROW(FP_DecimalToInt<Int>("-1.23a4567891,", 1));
     EXPECT_ANY_THROW(FP_DecimalToInt<Int>("-1.23-4567891", 1));
     EXPECT_ANY_THROW(FP_DecimalToInt<Int>("-1.23e4567891", 1));
+}
 
+TEST(fixed_point, Conversions_tests4)
+{
     EXPECT_EQ(FP_DecimalToInt<Int>("-1", 0), -1);
     EXPECT_EQ(FP_DecimalToInt<Int>("-12", 0), -12);
     EXPECT_EQ(FP_DecimalToInt<Int>("-123", 0), -123);
@@ -463,7 +472,10 @@ TEST(fixed_point, Conversions_tests)
     EXPECT_EQ(FP_IntToDecimal<Int>(1234567890100, 0), "1234567890100");
     EXPECT_EQ(FP_IntToDecimal<Int>(12345678901200, 0), "12345678901200");
     EXPECT_EQ(FP_IntToDecimal<Int>(123456789012300, 0), "123456789012300");
+}
 
+TEST(fixed_point, Conversions_tests5)
+{
     EXPECT_EQ(FP_IntToDecimal<Int>(-1, 0), "-1");
     EXPECT_EQ(FP_IntToDecimal<Int>(-12, 0), "-12");
     EXPECT_EQ(FP_IntToDecimal<Int>(-123, 0), "-123");
