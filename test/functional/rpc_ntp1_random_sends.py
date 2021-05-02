@@ -62,7 +62,8 @@ class RawTransactionsTest(BitcoinTestFramework):
             token_symbol_length = random.randint(1, 5)
             token_symbol = ''.join(random.choices(string.ascii_letters + string.digits,
                                                   k=token_symbol_length))
-            if token_symbol in symbols:  # ensure no token symbol duplicates will ever exist
+            # ensure no token symbol duplicates will ever exist
+            if token_symbol.lower() in [s.lower() for s in symbols]:
                 continue
             symbols[token_symbol] = 0
             resulting_coins.append({"metadata": metadata,
