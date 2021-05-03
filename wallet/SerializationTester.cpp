@@ -379,40 +379,32 @@ void RunCrossPlatformSerializationTests()
 
     uint256 uint256v("12345678135724681122424455667788123456781357246812343535135724");
 
-    CDiskBlockIndex cDiskBlockIndex;
-    cDiskBlockIndex.phashBlock = uint256v; // const uint256
-    cDiskBlockIndex.pprev =
-        CBlockIndexSmartPtr(&cDiskBlockIndex, [](CBlockIndex*) {}); // CBlockIndexSmartPtr
-    cDiskBlockIndex.pnext =
-        CBlockIndexSmartPtr(&cDiskBlockIndex, [](CBlockIndex*) {}); // CBlockIndexSmartPtr
-    cDiskBlockIndex.blockKeyInDB           = uint256v + 12345678;   // uint256
-    cDiskBlockIndex.nChainTrust            = uint256v + 22233456;   // uint256
-    cDiskBlockIndex.nHeight                = 0x12345678;            // int
-    cDiskBlockIndex.nMint                  = 0x1234567813572468;    // int64_t
-    cDiskBlockIndex.nMoneySupply           = 0x1234567813572468;    // int64_t
-    cDiskBlockIndex.nFlags                 = 0x12345678;            // unsigned int
-    cDiskBlockIndex.nStakeModifier         = 0x1234567813572468;    // uint64_t
-    cDiskBlockIndex.nStakeModifierChecksum = 0x12345678;            // unsigned int
-    cDiskBlockIndex.prevoutStake           = cOutPoint;             // COutPoint
-    cDiskBlockIndex.nStakeTime             = 0x12345678;            // unsigned int
-    cDiskBlockIndex.hashProof              = uint256v + 13131313;   // uint256
-    cDiskBlockIndex.nVersion               = 0x12345679;            // int
-    cDiskBlockIndex.hashMerkleRoot         = uint256v - 242536447;  // uint256
-    cDiskBlockIndex.nTime                  = 0x12345678;            // unsigned int
-    cDiskBlockIndex.nBits                  = 0x12345622;            // unsigned int
-    cDiskBlockIndex.nNonce                 = 0x12345655;            // unsigned int
+    CBlockIndex cBlockIndex;
+    cBlockIndex.blockHash              = uint256v;             // const uint256
+    cBlockIndex.nChainTrust            = uint256v + 22233456;  // uint256
+    cBlockIndex.nHeight                = 0x12345678;           // int
+    cBlockIndex.nFlags                 = 0x12345678;           // unsigned int
+    cBlockIndex.nStakeModifier         = 0x1234567813572468;   // uint64_t
+    cBlockIndex.nStakeModifierChecksum = 0x12345678;           // unsigned int
+    cBlockIndex.prevoutStake           = cOutPoint;            // COutPoint
+    cBlockIndex.nStakeTime             = 0x12345678;           // unsigned int
+    cBlockIndex.hashProof              = uint256v + 13131313;  // uint256
+    cBlockIndex.nVersion               = 0x12345679;           // int
+    cBlockIndex.hashMerkleRoot         = uint256v - 242536447; // uint256
+    cBlockIndex.nTime                  = 0x12345678;           // unsigned int
+    cBlockIndex.nBits                  = 0x12345622;           // unsigned int
+    cBlockIndex.nNonce                 = 0x12345655;           // unsigned int
     {
         CDataStream ss(SER_DISK, 0);
-        ss << cDiskBlockIndex;
-        TEST_EQUALITY(
-            boost::algorithm::hex(ss.str()),
-            "00000000000000000000000000000000000000000000000000000000000000000000000072B8CF3535341"
-            "2682457137856341288776655444222116824571378563412007856341268245713785634126824571378"
-            "56341278563412682457137856341255B5DB3535341268245713785634128877665544422211682457137"
-            "8563412007956341200000000000000000000000000000000000000000000000000000000000000002587"
-            "9E26353412682457137856341288776655444222116824571378563412007856341222563412555634120"
-            "000000000000000000000000000000000000000000000000000000000000000",
-            __LINE__);
+        ss << cBlockIndex;
+        TEST_EQUALITY(boost::algorithm::hex(ss.str()),
+                      "000000000000000000000000000000000000000000000000000000000000000000000000785634127"
+                      "856341268245713785634127856341255B5DB35353412682457137856341288776655444222116824"
+                      "571378563412007956341200000000000000000000000000000000000000000000000000000000000"
+                      "0000025879E2635341268245713785634128877665544422211682457137856341200785634122256"
+                      "341255563412245713353534126824571378563412887766554442221168245713785634120094986"
+                      "63635341268245713785634128877665544422211682457137856341200",
+                      __LINE__);
     }
 
     struct CBlockLocatorDer : public CBlockLocator

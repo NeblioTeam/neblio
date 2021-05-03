@@ -189,9 +189,10 @@ boost::optional<ColdStakingCachedItem> ColdStakingModel::ParseColdStakingCachedI
     std::vector<CTxDestination> addresses;
     int                         nRequired;
 
-    if (!ExtractDestinations(out.scriptPubKey, type, addresses, nRequired) || addresses.size() != 2) {
+    if (!ExtractDestinations(CTxDB(), out.scriptPubKey, type, addresses, nRequired) ||
+        addresses.size() != 2) {
         NLog.write(b_sev::info, "{} : Error extracting P2CS destinations for utxo: {}-{}", FUNCTIONSIG,
-                  txId.toStdString(), utxoIndex);
+                   txId.toStdString(), utxoIndex);
         return boost::none;
     }
 
@@ -258,7 +259,7 @@ void ColdStakingModel::emitDataSetChanged()
 void AvailableP2CSCoinsWorker::retrieveOutputs(QSharedPointer<AvailableP2CSCoinsWorker> workerPtr)
 {
     QSharedPointer<std::vector<COutput>> utxoList = QSharedPointer<std::vector<COutput>>::create();
-    while (!fShutdown && !pwalletMain->GetAvailableP2CSCoins(*utxoList)) {
+    while (!fShutdown && !pwalletMain->GetAvailableP2CSCoins(CTxDB(), *utxoList)) {
         QThread::msleep(100);
     }
 

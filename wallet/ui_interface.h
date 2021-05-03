@@ -86,7 +86,7 @@ public:
     boost::signals2::signal<void ()> NotifyBlocksChanged;
 
     /** Blockchain tip changed */
-    boost::signals2::signal<void(bool fInitialDownload, CBlockIndexSmartPtr newTip)> NotifyBlockTip;
+    boost::signals2::signal<void(bool fInitialDownload, const CBlockIndex& newTip)> NotifyBlockTip;
 
     /** Number of network connections changed. */
     boost::signals2::signal<void (int newNumConnections)> NotifyNumConnectionsChanged;

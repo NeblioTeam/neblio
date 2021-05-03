@@ -57,26 +57,21 @@ class CNode;
 
 class CTxMemPool;
 
-// this prevents attempting to recover NTP1 transactions again and again recursively
-// once a tx is on this list, it won't be recovered
-extern std::set<uint256> UnrecoverableNTP1Txs;
-
 inline int64_t PastDrift(int64_t nTime) { return nTime - 10 * 60; }   // up to 10 minutes from the past
 inline int64_t FutureDrift(int64_t nTime) { return nTime + 10 * 60; } // up to 10 minutes in the future
 
-extern CScript                                      COINBASE_FLAGS;
-extern std::set<std::pair<COutPoint, unsigned int>> setStakeSeen;
-static constexpr const int64_t                      TARGET_AVERAGE_BLOCK_COUNT = 100;
-extern unsigned int                                 nNodeLifespan;
-extern uint64_t                                     nLastBlockTx;
-extern uint64_t                                     nLastBlockSize;
-extern StakeMaker                                   stakeMaker;
-extern const std::string                            strMessageMagic;
-extern boost::atomic_int64_t                        nTimeBestReceived;
-extern CCriticalSection                             cs_setpwalletRegistered;
-extern std::set<std::shared_ptr<CWallet>>           setpwalletRegistered;
-extern std::unordered_map<uint256, CBlock*>         mapOrphanBlocks;
-extern boost::atomic<bool>                          fImporting;
+extern CScript                              COINBASE_FLAGS;
+static constexpr const int64_t              TARGET_AVERAGE_BLOCK_COUNT = 100;
+extern unsigned int                         nNodeLifespan;
+extern uint64_t                             nLastBlockTx;
+extern uint64_t                             nLastBlockSize;
+extern StakeMaker                           stakeMaker;
+extern const std::string                    strMessageMagic;
+extern boost::atomic_int64_t                nTimeBestReceived;
+extern CCriticalSection                     cs_setpwalletRegistered;
+extern std::set<std::shared_ptr<CWallet>>   setpwalletRegistered;
+extern std::unordered_map<uint256, CBlock*> mapOrphanBlocks;
+extern boost::atomic<bool>                  fImporting;
 
 // Amount of blocks that other nodes claim to have
 extern CMedianFilter<int> cPeerBlockCounts;
@@ -109,19 +104,19 @@ bool         ProcessMessages(CNode* pfrom);
 bool         SendMessages(CNode* pto, bool fSendTrickle);
 void         ThreadImport(void* parg);
 bool         CheckProofOfWork(const uint256& hash, unsigned int nBits, bool silent = false);
-unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake);
+unsigned int GetNextTargetRequired(const ITxDB& txdb, const CBlockIndex* pindexLast, bool fProofOfStake);
 unsigned int ComputeMinWork(unsigned int nBase, int64_t nTime);
 unsigned int ComputeMinStake(unsigned int nBase, int64_t nTime, unsigned int nBlockTime);
 int          GetNumBlocksOfPeers();
-bool         IsInitialBlockDownload();
-bool         IsInitialBlockDownload_tolerant();
-bool         __IsInitialBlockDownload_internal();
+bool         IsInitialBlockDownload(const ITxDB& txdb);
+bool         IsInitialBlockDownload_tolerant(const ITxDB& txdb);
+bool         __IsInitialBlockDownload_internal(const ITxDB& txdb);
 std::string  GetWarnings(std::string strFor);
 bool         GetTransaction(const uint256& hash, CTransaction& tx, uint256& hashBlock);
 uint256      WantedByOrphan(const CBlock* pblockOrphan);
-const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake);
-void               StakeMiner(CWallet* pwallet);
-void               ResendWalletTransactions(bool fForce = false);
+CBlockIndex  GetLastBlockIndex(CBlockIndex pindex, bool fProofOfStake, const ITxDB& txdb);
+void         StakeMiner(CWallet* pwallet);
+void         ResendWalletTransactions(bool fForce = false);
 
 void SetBestChain(const CBlockLocator& loc);
 void UpdatedTransaction(const uint256& hashTx);
@@ -129,17 +124,17 @@ void UpdatedTransaction(const uint256& hashTx);
 /** given a neblio tx, get the corresponding NTP1 tx */
 void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, const ITxDB& txdb,
                          bool recoverProtection, unsigned recurseDepth = 0);
-void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, CTxDB& txdb);
+void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, ITxDB& txdb);
 
-void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, CTxDB& txdb);
+void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, ITxDB& txdb);
 
 void AssertIssuanceUniquenessInBlock(
-    std::unordered_map<std::string, uint256>& issuedTokensSymbolsInThisBlock, CTxDB& txdb,
+    std::unordered_map<std::string, uint256>& issuedTokensSymbolsInThisBlock, const ITxDB& txdb,
     const CTransaction&                                                             tx,
     const std::map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>& mapQueuedNTP1Inputs,
     const std::map<uint256, CTxIndex>&                                              queuedAcceptedTxs);
 
-void WriteNTP1BlockTransactionsToDisk(const std::vector<CTransaction>& vtx, CTxDB& txdb);
+void WriteNTP1BlockTransactionsToDisk(const std::vector<CTransaction>& vtx, ITxDB& txdb);
 
 /// create a fake tx position that helps in marking an output as spent
 CDiskTxPos CreateFakeSpentTxPos(const uint256& blockhash);
@@ -209,7 +204,7 @@ public:
                         });)
 };
 
-bool IsFinalTx(const CTransaction& tx, int nBlockHeight = 0, int64_t nBlockTime = 0);
+bool IsFinalTx(const CTransaction& tx, const ITxDB& txdb, int nBlockHeight = 0, int64_t nBlockTime = 0);
 
 /** Undo information for a CTxIn
  *
@@ -721,7 +716,7 @@ public:
 // extern CCoinsViewCache* pcoinsTip;
 
 /** Global variable that points to the active block tree (protected by cs_main) */
-extern CTxDB* pblocktree;
+extern ITxDB* pblocktree;
 
 /** Used to relay blocks as header + vector<merkle branch>
  * to filtered nodes.

@@ -36,7 +36,7 @@ boost::optional<StakeKernelData>
 TestAndCreateStakeKernel(const CTxDB& txdb, const StakeMaker::KeyGetterFunctorType& keyGetter,
                          const unsigned int nBits, const int64_t nCoinstakeInitialTxTime,
                          const int64_t                                       lastCoinStakeSearchTime,
-                         const ConstCBlockIndexSmartPtr&                     pindexPrev,
+                         const boost::optional<CBlockIndex>&                 pindexPrev,
                          const std::pair<const CTransaction*, unsigned int>& pcoin)
 {
     CTxIndex txindex;
@@ -48,7 +48,7 @@ TestAndCreateStakeKernel(const CTxDB& txdb, const StakeMaker::KeyGetterFunctorTy
             return boost::none;
 
         // Read block header
-        if (!kernelBlock.ReadFromDisk(txindex.pos.nBlockPos, false))
+        if (!kernelBlock.ReadFromDisk(txindex.pos.nBlockPos, txdb, false))
             return boost::none;
     }
 
@@ -60,15 +60,16 @@ TestAndCreateStakeKernel(const CTxDB& txdb, const StakeMaker::KeyGetterFunctorTy
         return boost::none; // only count coins meeting min age requirement
 
     for (unsigned int n = 0; n < std::min(nSearchInterval, (int64_t)nMaxStakeSearchInterval) &&
-                             !fShutdown && pindexPrev == txdb.GetBestBlockIndex();
+                             !fShutdown && pindexPrev->GetBlockHash() == txdb.GetBestBlockHash();
          n++) {
         // Search backward in time from the given tx timestamp
         // Search nSearchInterval seconds back up to nMaxStakeSearchInterval
         uint256       hashProofOfStake = 0, targetProofOfStake = 0;
         COutPoint     prevoutStake    = COutPoint(pcoin.first->GetHash(), pcoin.second);
         const int64_t txCoinstakeTime = nCoinstakeInitialTxTime - n;
-        if (!CheckStakeKernelHash(txdb, nBits, kernelBlock, txindex.pos.nTxPos, *pcoin.first,
-                                  prevoutStake, txCoinstakeTime, hashProofOfStake, targetProofOfStake)) {
+        if (!CheckStakeKernelHash(txdb, nBits, kernelBlock, txindex.pos.nBlockPos, txindex.pos.nTxPos,
+                                  *pcoin.first, prevoutStake, txCoinstakeTime, hashProofOfStake,
+                                  targetProofOfStake)) {
             continue;
         }
 
@@ -114,7 +115,7 @@ boost::optional<CAmount> CalculateStakeReward(const ITxDB& txdb, const CTransact
         return boost::none;
     }
 
-    const CAmount nReward = GetProofOfStakeReward(nCoinAge, nFees);
+    const CAmount nReward = GetProofOfStakeReward(txdb, nCoinAge, nFees);
     if (nReward <= 0)
         return boost::none;
 
@@ -125,10 +126,11 @@ boost::optional<CAmount> CalculateStakeReward(const ITxDB& txdb, const CTransact
     return boost::make_optional(result);
 }
 
-void StakeMaker::updateStakeWeight(const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins)
+void StakeMaker::updateStakeWeight(const ITxDB&                                               txdb,
+                                   const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins)
 {
     uint64_t nMinWeight = 0, nMaxWeight = 0, nWeight = 0;
-    if (CWallet::GetStakeWeight(setCoins, nMinWeight, nMaxWeight, nWeight)) {
+    if (CWallet::GetStakeWeight(txdb, setCoins, nMinWeight, nMaxWeight, nWeight)) {
         cachedStakeWeight = nWeight;
     } else {
         cachedStakeWeight = boost::none;
@@ -154,7 +156,7 @@ StakeMaker::CreateCoinStake(const ITxDB& txdb, const CWallet& wallet, const unsi
         if (cachedBalanceValue) {
             return *cachedBalanceValue;
         } else {
-            const CAmount res = wallet.GetStakingBalance(fEnableColdStaking);
+            const CAmount res = wallet.GetStakingBalance(txdb, fEnableColdStaking);
             cachedBalance.update(currentBestBlock, res);
             return res;
         }
@@ -178,8 +180,8 @@ StakeMaker::CreateCoinStake(const ITxDB& txdb, const CWallet& wallet, const unsi
     if (cachedOutputs) {
         std::tie(nValueIn, setCoins) = *cachedOutputs;
     } else {
-        if (!wallet.SelectCoinsForStaking(nBalance - reservedBalance, nCoinstakeInitialTxTime, setCoins,
-                                          nValueIn, fEnableColdStaking, false)) {
+        if (!wallet.SelectCoinsForStaking(txdb, nBalance - reservedBalance, nCoinstakeInitialTxTime,
+                                          setCoins, nValueIn, fEnableColdStaking, false)) {
             // failure to get coins means they're spent. We reset stake weight
             cachedStakeWeight = boost::none;
             return boost::none;
@@ -187,7 +189,7 @@ StakeMaker::CreateCoinStake(const ITxDB& txdb, const CWallet& wallet, const unsi
         cachedSelectedOutputs.update(currentBestBlock, std::make_pair(nValueIn, setCoins));
     }
 
-    updateStakeWeight(setCoins);
+    updateStakeWeight(txdb, setCoins);
 
     // we can choose custom inputs to use (by filtering the ones we get from the wallet) for testing
     // purposes
@@ -279,8 +281,8 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStakeFromSpecificOutput(cons
         return boost::none;
     }
 
-    const CTxDB              txdb;
-    ConstCBlockIndexSmartPtr pindexPrev = txdb.GetBestBlockIndex();
+    const CTxDB                        txdb;
+    const boost::optional<CBlockIndex> pindexPrev = txdb.GetBestBlockIndex();
 
     const auto keyGetter = [&spendKeyOfOutput](const CKeyID&) {
         return boost::make_optional(spendKeyOfOutput);
@@ -368,7 +370,7 @@ StakeMaker::CalculateScriptPubKeyForStakeOutput(const ITxDB& txdb, const KeyGett
     }
     if (fDebug)
         NLog.write(b_sev::debug, "CalculateScriptPubKeyForStakeOutput : parsed kernel type={}",
-                  whichType);
+                   whichType);
 
     switch (whichType) {
     case TX_PUBKEYHASH: // pay to address type
@@ -378,8 +380,8 @@ StakeMaker::CalculateScriptPubKeyForStakeOutput(const ITxDB& txdb, const KeyGett
         if (!key) {
             if (fDebug)
                 NLog.write(b_sev::debug,
-                          "CalculateScriptPubKeyForStakeOutput : failed to get key for kernel type={}",
-                          whichType);
+                           "CalculateScriptPubKeyForStakeOutput : failed to get key for kernel type={}",
+                           whichType);
             return boost::none; // unable to find corresponding public key
         }
         return CScript() << key->GetPubKey() << OP_CHECKSIG;
@@ -391,16 +393,16 @@ StakeMaker::CalculateScriptPubKeyForStakeOutput(const ITxDB& txdb, const KeyGett
         if (!key) {
             if (fDebug)
                 NLog.write(b_sev::debug,
-                          "CalculateScriptPubKeyForStakeOutput : failed to get key for kernel type={}",
-                          whichType);
+                           "CalculateScriptPubKeyForStakeOutput : failed to get key for kernel type={}",
+                           whichType);
             return boost::none; // unable to find corresponding public key
         }
 
         if (key->GetPubKey() != vchPubKey) {
             if (fDebug)
                 NLog.write(b_sev::debug,
-                          "CalculateScriptPubKeyForStakeOutput : invalid key for kernel P2PK type={}",
-                          whichType);
+                           "CalculateScriptPubKeyForStakeOutput : invalid key for kernel P2PK type={}",
+                           whichType);
             return boost::none; // keys mismatch
         }
         return scriptPubKeyKernel;
@@ -452,7 +454,7 @@ bool StakeMaker::SignAndVerify(const CKeyStore& keystore, const CoinStakeInputsR
     if (std::any_of(sigStates.cbegin(), sigStates.cend(),
                     [](const SignatureState& state) { return state == SignatureState::Failed; })) {
         NLog.write(b_sev::err,
-                  "CreateCoinStake : failed to sign coinstake - WARNING: THIS SHOULD NEVER HAPPEN");
+                   "CreateCoinStake : failed to sign coinstake - WARNING: THIS SHOULD NEVER HAPPEN");
         return false;
     }
 
@@ -480,7 +482,7 @@ StakeMaker::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBits,
 {
     const CTxDB txdb;
 
-    ConstCBlockIndexSmartPtr pindexPrev = txdb.GetBestBlockIndex();
+    const boost::optional<CBlockIndex> pindexPrev = txdb.GetBestBlockIndex();
 
     for (const auto& pcoin : setCoins) {
         if (boost::optional<StakeKernelData> res = TestAndCreateStakeKernel(

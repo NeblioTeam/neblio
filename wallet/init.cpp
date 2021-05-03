@@ -127,6 +127,7 @@ void Shutdown(void* /*parg*/)
         NewThread(ExitTimeout, NULL);
         MilliSleep(50);
         NLog.write(b_sev::info, "neblio exited\n\n\n\n\n\n\n\n\n");
+        NLog.flush();
         fExit = true;
 #ifndef QT_GUI
         // ensure non-UI client gets exited here, but let Bitcoin-Qt reach 'return 0;' in bitcoin.cpp
@@ -468,7 +469,6 @@ bool AppInit2()
     // ********************************************************* Step 2: parameter interactions
 
     nNodeLifespan = GetArg("-addrlifespan", 7);
-    fUseFastIndex = GetBoolArg("-fastindex", true);
     nMinerSleep   = GetArg("-minersleep", 500);
 
     CheckpointsMode       = Checkpoints::CPMode_STRICT;
@@ -843,8 +843,8 @@ bool AppInit2()
 
             // clear stuff that are loaded before, and reset the blockchain database
             {
-                mapBlockIndex.clear();
-                setStakeSeen.clear();
+                //                mapBlockIndex.clear();
+                //                setStakeSeen.clear();
                 CTxDB txdb;
                 txdb.resyncIfNecessary(true);
             }
@@ -881,15 +881,19 @@ bool AppInit2()
 
     const boost::optional<std::string> printBlock = mapArgs.get("-printblock");
     if (printBlock) {
+        const CTxDB  txdb;
         const string strMatch      = *printBlock;
         int          nFound        = 0;
-        const auto   blockIndexMap = mapBlockIndex.getInternalMap();
-        for (auto mi = blockIndexMap.cbegin(); mi != blockIndexMap.cend(); ++mi) {
+        const auto   blockIndexMap = txdb.ReadAllBlockIndexEntries();
+        if (!blockIndexMap) {
+            return NLog.error("Failed to read the block index map from the database");
+        }
+        for (auto mi = blockIndexMap->cbegin(); mi != blockIndexMap->cend(); ++mi) {
             uint256 hash = (*mi).first;
             if (strncmp(hash.ToString().c_str(), strMatch.c_str(), strMatch.size()) == 0) {
-                CBlockIndexSmartPtr pindex = mi->second;
-                CBlock              block;
-                block.ReadFromDisk(pindex.get());
+                boost::optional<CBlockIndex> pindex = mi->second;
+                CBlock                       block;
+                block.ReadFromDisk(&*pindex, txdb);
                 block.print();
                 nFound++;
             }
@@ -967,26 +971,28 @@ bool AppInit2()
 
     RegisterWallet(pwalletMain);
 
-    CBlockIndexSmartPtr pindexRescan = CTxDB().GetBestBlockIndex();
+    const CTxDB txdb;
+
+    boost::optional<CBlockIndex> pindexRescan = txdb.GetBestBlockIndex();
     if (GetBoolArg("-rescan") ||
         SC_CheckOperationOnRestartScheduleThenDeleteIt(SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN))
-        pindexRescan = boost::atomic_load(&pindexGenesisBlock);
+        pindexRescan = *pindexGenesisBlock;
     else {
         CWalletDB     walletdb(strWalletFileName);
         CBlockLocator locator;
         if (walletdb.ReadBestBlock(locator))
-            pindexRescan = locator.GetBlockIndex();
+            pindexRescan = locator.GetBlockIndex(txdb);
         else
-            pindexRescan = boost::atomic_load(&pindexGenesisBlock);
+            pindexRescan = *pindexGenesisBlock;
     }
-    ConstCBlockIndexSmartPtr bestBlockIndex = CTxDB().GetBestBlockIndex();
-    if (bestBlockIndex != pindexRescan && CTxDB().GetBestBlockIndex() && pindexRescan &&
-        bestBlockIndex->nHeight > pindexRescan->nHeight) {
+    boost::optional<CBlockIndex> bestBlockIndex = txdb.GetBestBlockIndex();
+    if (pindexRescan && bestBlockIndex->GetBlockHash() != pindexRescan->GetBlockHash() &&
+        txdb.GetBestBlockIndex() && bestBlockIndex->nHeight > pindexRescan->nHeight) {
         uiInterface.InitMessage(_("Rescanning..."));
         NLog.write(b_sev::info, "Rescanning last {} blocks (from block {})...",
                    bestBlockIndex->nHeight - pindexRescan->nHeight, pindexRescan->nHeight);
         nStart = GetTimeMillis();
-        pwalletMain->ScanForWalletTransactions(pindexRescan.get(), true);
+        pwalletMain->ScanForWalletTransactions(pindexRescan ? &*pindexRescan : nullptr, true);
         NLog.write(b_sev::info, " rescan      {} ms", GetTimeMillis() - nStart);
     }
 
@@ -1024,7 +1030,7 @@ bool AppInit2()
     RandAddSeedPerfmon();
 
     //// debug print
-    NLog.write(b_sev::info, "mapBlockIndex.size() = {}", mapBlockIndex.size());
+    //    NLog.write(b_sev::info, "mapBlockIndex.size() = {}", mapBlockIndex.size());
     NLog.write(b_sev::info, "BestHeight = {}", bestBlockIndex->nHeight);
     NLog.write(b_sev::info, "setKeyPool.size() = {}", pwalletMain->setKeyPool.size());
     NLog.write(b_sev::info, "mapWallet.size() = {}", pwalletMain->mapWallet.size());
@@ -1047,7 +1053,7 @@ bool AppInit2()
 
     // Add wallet transactions that aren't already in a block to mapTransactions
     if (!(Params().NetType() == NetworkType::Regtest && GetBoolArg("-nomempoolwalletresync", false))) {
-        pwalletMain->ReacceptWalletTransactions(true);
+        pwalletMain->ReacceptWalletTransactions(txdb, true);
     }
 
     appInitiated = true;

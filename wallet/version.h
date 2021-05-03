@@ -26,7 +26,7 @@ extern const std::string CLIENT_DATE;
 //
 // database format versioning
 //
-static const int DATABASE_VERSION = 70516;
+static const int DATABASE_VERSION = 70517;
 
 //
 // network protocol versioning

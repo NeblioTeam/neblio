@@ -37,24 +37,17 @@ public:
                         nVersion = this->nVersion; READWRITE(hashBlock); READWRITE(vMerkleBranch);
                         READWRITE(nIndex);)
 
-    int SetMerkleBranch(const CBlock* pblock = NULL);
+    int SetMerkleBranch(const ITxDB& txdb, const CBlock* pblock = nullptr);
 
     // Return depth of transaction in blockchain:
     // <0  : conflicts with a transaction, this deep in the blockchain
     //  0  : in memory pool, waiting to be included in a block
     // >=1 : this many blocks deep in the main chain
-    int GetDepthInMainChain(const CBlockIndex*& pindexRet) const;
-    int GetDepthInMainChain() const
-    {
-        const CBlockIndex* pindexRet = nullptr;
-        return GetDepthInMainChain(pindexRet);
-    }
-    bool IsInMainChain() const
-    {
-        const CBlockIndex* pindexRet = nullptr;
-        return GetDepthInMainChain(pindexRet) > 0;
-    }
-    int                             GetBlocksToMaturity() const;
+    int  GetDepthInMainChain(boost::optional<CBlockIndex>& pindexRet, const ITxDB& txdb,
+                             const uint256& bestBlockHash) const;
+    int  GetDepthInMainChain(const ITxDB& txdb, const uint256& bestBlockHash) const;
+    bool IsInMainChain(const ITxDB& txdb, const uint256& bestBlockHash) const;
+    int  GetBlocksToMaturity(const ITxDB& txdb, const uint256& bestBlockHash) const;
     Result<void, TxValidationState> AcceptToMemoryPool() const;
     bool                            hashUnset() const;
     bool                            isAbandoned() const;

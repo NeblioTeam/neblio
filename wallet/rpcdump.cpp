@@ -127,6 +127,8 @@ Value importprivkey(const Array& params, bool fHelp)
     if (fWalletUnlockStakingOnly)
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Wallet is unlocked for staking only.");
 
+    const CTxDB txdb;
+
     CKey    key;
     bool    fCompressed;
     CSecret secret = vchSecret.GetSecret(fCompressed);
@@ -151,7 +153,7 @@ Value importprivkey(const Array& params, bool fHelp)
         pwalletMain->nTimeFirstKey = 1; // 0 would be considered 'no value'
 
         pwalletMain->ScanForWalletTransactions(boost::atomic_load(&pindexGenesisBlock).get(), true);
-        pwalletMain->ReacceptWalletTransactions();
+        pwalletMain->ReacceptWalletTransactions(txdb);
     }
 
     return Value::null;
@@ -170,7 +172,9 @@ Value importwallet(const Array& params, bool fHelp)
     if (!file.is_open())
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot open wallet dump file");
 
-    int64_t nTimeBegin = CTxDB().GetBestBlockIndex()->nTime;
+    const CTxDB txdb;
+
+    int64_t nTimeBegin = txdb.GetBestBlockIndex()->nTime;
 
     bool fGood = true;
 
@@ -196,7 +200,7 @@ Value importwallet(const Array& params, bool fHelp)
 
         if (pwalletMain->HaveKey(keyid)) {
             NLog.write(b_sev::info, "Skipping import of {} (key already present)\n",
-                      CBitcoinAddress(keyid).ToString());
+                       CBitcoinAddress(keyid).ToString());
             continue;
         }
         int64_t     nTime = DecodeDumpTime(vstr[1]);
@@ -226,18 +230,18 @@ Value importwallet(const Array& params, bool fHelp)
     }
     file.close();
 
-    auto bestBlockIndex = CTxDB().GetBestBlockIndex();
+    auto bestBlockIndex = txdb.GetBestBlockIndex();
 
-    CBlockIndexSmartPtr pindex = bestBlockIndex;
-    while (pindex && pindex->pprev && pindex->nTime > nTimeBegin - 7200)
-        pindex = pindex->pprev;
+    boost::optional<CBlockIndex> pindex = *bestBlockIndex;
+    while (pindex && pindex->getPrev(txdb) && pindex->nTime > nTimeBegin - 7200)
+        pindex = pindex->getPrev(txdb);
 
     if (!pwalletMain->nTimeFirstKey || nTimeBegin < pwalletMain->nTimeFirstKey)
         pwalletMain->nTimeFirstKey = nTimeBegin;
 
     NLog.write(b_sev::info, "Rescanning last {} blocks", bestBlockIndex->nHeight - pindex->nHeight + 1);
-    pwalletMain->ScanForWalletTransactions(pindex.get());
-    pwalletMain->ReacceptWalletTransactions();
+    pwalletMain->ScanForWalletTransactions(&*pindex);
+    pwalletMain->ReacceptWalletTransactions(txdb);
     pwalletMain->MarkDirty();
 
     if (!fGood)
@@ -309,11 +313,13 @@ Value dumpwallet(const Array& params, bool fHelp)
     if (!file.is_open())
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot open wallet dump file");
 
+    const CTxDB txdb;
+
     std::map<CKeyID, int64_t> mapKeyBirth;
 
     std::set<CKeyID> setKeyPool;
 
-    pwalletMain->GetKeyBirthTimes(mapKeyBirth);
+    pwalletMain->GetKeyBirthTimes(txdb, mapKeyBirth);
 
     pwalletMain->GetAllReserveKeys(setKeyPool);
 
@@ -326,7 +332,9 @@ Value dumpwallet(const Array& params, bool fHelp)
     mapKeyBirth.clear();
     std::sort(vKeyBirth.begin(), vKeyBirth.end());
 
-    ConstCBlockIndexSmartPtr bestBlockIndex = CTxDB().GetBestBlockIndex();
+    boost::optional<CBlockIndex> bestBlockIndex = txdb.GetBestBlockIndex();
+
+    assert(bestBlockIndex);
 
     // produce output
     file << fmt::format("# Wallet dump created by neblio {} ({})\n", CLIENT_BUILD, CLIENT_DATE);
@@ -370,20 +378,20 @@ Value dumpwallet(const Array& params, bool fHelp)
     return reply;
 }
 
-void _RescanBlockchain(int64_t earliestTime)
+void _RescanBlockchain(int64_t earliestTime, const ITxDB& txdb)
 {
-    auto bestBlockIndex = CTxDB().GetBestBlockIndex();
+    auto bestBlockIndex = txdb.GetBestBlockIndex();
 
-    CBlockIndexSmartPtr pindex = bestBlockIndex;
-    while (pindex && pindex->pprev && pindex->nTime > earliestTime - 7200)
-        pindex = pindex->pprev;
+    boost::optional<CBlockIndex> pindex = *bestBlockIndex;
+    while (pindex && pindex->getPrev(txdb) && pindex->nTime > earliestTime - 7200)
+        pindex = pindex->getPrev(txdb);
 
     if (!pwalletMain->nTimeFirstKey || earliestTime < pwalletMain->nTimeFirstKey)
         pwalletMain->nTimeFirstKey = earliestTime;
 
     NLog.write(b_sev::info, "Rescanning last {} blocks", bestBlockIndex->nHeight - pindex->nHeight + 1);
-    pwalletMain->ScanForWalletTransactions(pindex.get());
-    pwalletMain->ReacceptWalletTransactions();
+    pwalletMain->ScanForWalletTransactions(&*pindex);
+    pwalletMain->ReacceptWalletTransactions(txdb);
     pwalletMain->MarkDirty();
 }
 
@@ -447,6 +455,8 @@ bool IsWalletEncrypted(const std::string& Src)
 std::pair<long, long> ImportBackupWallet(const std::string& Src, std::string& PassPhrase,
                                          bool importReserveToAddressBook)
 {
+    const CTxDB txdb;
+
     if (pwalletMain->IsLocked()) {
         throw std::logic_error("Please unlock the wallet before importing.");
     }
@@ -515,7 +525,7 @@ std::pair<long, long> ImportBackupWallet(const std::string& Src, std::string& Pa
                 succeessfullyAddedOutOfTotal.first++;
         }
     }
-    _RescanBlockchain(earliestTime);
+    _RescanBlockchain(earliestTime, txdb);
     return succeessfullyAddedOutOfTotal;
 }
 

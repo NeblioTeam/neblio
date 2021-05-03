@@ -1,6 +1,7 @@
 #ifndef TRANSACTION_H
 #define TRANSACTION_H
 
+#include "blockreject.h"
 #include "globals.h"
 #include "inpoint.h"
 #include "outpoint.h"
@@ -173,14 +174,14 @@ public:
         */
     Result<void, TxValidationState>
     ConnectInputs(const ITxDB& txdb, MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTestPool,
-                  const CDiskTxPos& posThisTx, const ConstCBlockIndexSmartPtr& pindexBlock, bool fBlock,
-                  bool fMiner, CBlock* sourceBlockPtr = nullptr) const;
+                  const CDiskTxPos& posThisTx, const boost::optional<CBlockIndex>& pindexBlock,
+                  bool fBlock, bool fMiner, CBlock* sourceBlockPtr = nullptr) const;
     Result<void, TxValidationState> CheckTransaction(const ITxDB& txdb,
                                                      CBlock*      sourceBlock = nullptr) const;
     bool GetCoinAge(const ITxDB& txdb, uint64_t& nCoinAge) const; // ppcoin: get transaction coin age
 
     [[nodiscard]] static CTransaction FetchTxFromDisk(const uint256& txid);
-    [[nodiscard]] static CTransaction FetchTxFromDisk(const uint256& txid, CTxDB& txdb);
+    [[nodiscard]] static CTransaction FetchTxFromDisk(const uint256& txid, const ITxDB& txdb);
 
     [[nodiscard]] static std::vector<CKey>
     GetThisWalletKeysOfTx(const uint256& txid, boost::optional<unsigned> outputNumber = boost::none);

@@ -340,17 +340,16 @@ NTP1Transaction::GetPrevInputIt(const CTransaction& tx, const uint256& inputTxHa
     return it;
 }
 
-void NTP1Transaction::AmendStdTxWithNTP1(CTransaction& tx, int changeIndex)
+void NTP1Transaction::AmendStdTxWithNTP1(const ITxDB& txdb, CTransaction& tx, int changeIndex)
 {
-    CTxDB                                                 txdb;
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputs = GetAllNTP1InputsOfTx(tx, txdb, false);
 
-    AmendStdTxWithNTP1(tx, inputs, changeIndex);
+    AmendStdTxWithNTP1(txdb, tx, inputs, changeIndex);
 }
 
 void NTP1Transaction::AmendStdTxWithNTP1(
-    CTransaction& tx, const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputs,
-    int changeIndex)
+    const ITxDB& txdb, CTransaction& tx,
+    const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputs, int changeIndex)
 {
     // temp copy to avoid changing the original if the operation fails
     CTransaction tx_ = tx;
@@ -406,7 +405,7 @@ void NTP1Transaction::AmendStdTxWithNTP1(
                 // prepare native Neblio output
                 CTxDestination currentTokenAddress;
                 // get the current address where the token is
-                if (!ExtractDestination(inputTxNebl.vout.at(inIndex).scriptPubKey,
+                if (!ExtractDestination(txdb, inputTxNebl.vout.at(inIndex).scriptPubKey,
                                         currentTokenAddress)) {
                     throw std::runtime_error("Unable to extract address from previous output; tx: " +
                                              tx_.GetHash().ToString() + " and prevout: " +
@@ -522,7 +521,7 @@ std::string NTP1Transaction::getNTP1OpReturnScriptHex() const
                              txHash.ToString());
 }
 
-void NTP1Transaction::readNTP1DataFromTx_minimal(const CTransaction& tx)
+void NTP1Transaction::readNTP1DataFromTx_minimal(const ITxDB& txdb, const CTransaction& tx)
 {
     txHash = tx.GetHash();
 #ifdef DEBUG__INCLUDE_STR_HASH
@@ -547,7 +546,7 @@ void NTP1Transaction::readNTP1DataFromTx_minimal(const CTransaction& tx)
                               std::back_inserter(vout[i].scriptPubKeyHex));
         vout[i].scriptPubKeyAsm = tx.vout[i].scriptPubKey.ToString();
         CTxDestination dest;
-        if (ExtractDestination(tx.vout[i].scriptPubKey, dest)) {
+        if (ExtractDestination(txdb, tx.vout[i].scriptPubKey, dest)) {
             vout[i].setAddress(CBitcoinAddress(dest).ToString());
         } else {
             vout[i].setAddress("");
@@ -557,13 +556,14 @@ void NTP1Transaction::readNTP1DataFromTx_minimal(const CTransaction& tx)
 }
 
 void NTP1Transaction::readNTP1DataFromTx(
-    const CTransaction& tx, const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs)
+    const ITxDB& txdb, const CTransaction& tx,
+    const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs)
 {
     if (Params().IsNTP1TxExcluded(tx.GetHash())) {
         return;
     }
 
-    readNTP1DataFromTx_minimal(tx);
+    readNTP1DataFromTx_minimal(txdb, tx);
 
     std::string opReturnArg;
     if (!IsTxNTP1(&tx, &opReturnArg)) {
@@ -726,7 +726,7 @@ void NTP1Transaction::readNTP1DataFromTx(
                 opReturnArg);
         }
 
-        __TransferTokens<NTP1Script_Transfer>(scriptPtrD, tx, inputsTxs, false);
+        __TransferTokens<NTP1Script_Transfer>(txdb, scriptPtrD, tx, inputsTxs, false);
 
     } else if (scriptPtr->getTxType() == NTP1Script::TxType::TxType_Burn) {
         ntp1TransactionType = NTP1TxType_BURN;
@@ -739,7 +739,7 @@ void NTP1Transaction::readNTP1DataFromTx(
                 opReturnArg);
         }
 
-        __TransferTokens<NTP1Script_Burn>(scriptPtrD, tx, inputsTxs, true);
+        __TransferTokens<NTP1Script_Burn>(txdb, scriptPtrD, tx, inputsTxs, true);
 
     } else {
         ntp1TransactionType = NTP1TxType_UNKNOWN;
@@ -747,11 +747,12 @@ void NTP1Transaction::readNTP1DataFromTx(
     }
 }
 
-json_spirit::Value NTP1Transaction::GetNTP1IssuanceMetadata(const uint256& issuanceTxid)
+json_spirit::Value NTP1Transaction::GetNTP1IssuanceMetadata(const ITxDB&   txdb,
+                                                            const uint256& issuanceTxid)
 {
     CTransaction    tx = CTransaction::FetchTxFromDisk(issuanceTxid);
     NTP1Transaction ntp1tx;
-    ntp1tx.readNTP1DataFromTx_minimal(tx);
+    ntp1tx.readNTP1DataFromTx_minimal(txdb, tx);
     std::string opRet;
     bool        isNTP1 = IsTxNTP1(&tx, &opRet);
     if (!isNTP1) {
@@ -834,11 +835,12 @@ NTP1TokenMetaData NTP1Transaction::GetFullNTP1IssuanceMetadata(const CTransactio
     }
 }
 
-NTP1TokenMetaData NTP1Transaction::GetFullNTP1IssuanceMetadata(const uint256& issuanceTxid)
+NTP1TokenMetaData NTP1Transaction::GetFullNTP1IssuanceMetadata(const ITxDB&   txdb,
+                                                               const uint256& issuanceTxid)
 {
     CTransaction    tx = CTransaction::FetchTxFromDisk(issuanceTxid);
     NTP1Transaction ntp1tx;
-    ntp1tx.readNTP1DataFromTx_minimal(tx);
+    ntp1tx.readNTP1DataFromTx_minimal(txdb, tx);
     CDataStream ds1(SER_NETWORK, PROTOCOL_VERSION);
     CDataStream ds2(SER_NETWORK, PROTOCOL_VERSION);
     return GetFullNTP1IssuanceMetadata(tx, ntp1tx);
@@ -867,17 +869,7 @@ bool NTP1Transaction::TxContainsOpReturn(const CTransaction* tx, std::string* op
 }
 
 std::vector<std::pair<CTransaction, NTP1Transaction>>
-NTP1Transaction::GetAllNTP1InputsOfTx(CTransaction tx, bool recoverProtection, int recursionCount)
-{
-    CTxDB txdb;
-    return GetAllNTP1InputsOfTx(
-        tx, txdb, recoverProtection,
-        std::map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>(),
-        std::map<uint256, CTxIndex>(), recursionCount);
-}
-
-std::vector<std::pair<CTransaction, NTP1Transaction>>
-NTP1Transaction::GetAllNTP1InputsOfTx(CTransaction tx, CTxDB& txdb, bool recoverProtection,
+NTP1Transaction::GetAllNTP1InputsOfTx(CTransaction tx, const ITxDB& txdb, bool recoverProtection,
                                       int recursionCount)
 {
     return GetAllNTP1InputsOfTx(
@@ -897,7 +889,7 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> NTP1Transaction::GetAllNTP
     if (!tx.FetchInputs(txdb, queuedAcceptedTxs, true, false, mapInputs, fInvalid)) {
         if (fInvalid) {
             NLog.write(b_sev::err, "Error: For GetAllNTP1InputsOfTx, FetchInputs found invalid tx {}",
-                      tx.GetHash().ToString());
+                       tx.GetHash().ToString());
             throw std::runtime_error("Error: For NTP1, FetchInputs found invalid tx " +
                                      tx.GetHash().ToString());
         }
@@ -938,7 +930,7 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> NTP1Transaction::StdFetche
     {
         inputsWithNTP1.clear();
         std::transform(tx.vin.begin(), tx.vin.end(), std::back_inserter(inputsWithNTP1),
-                       [&mapInputs, &tx](const CTxIn& in) {
+                       [&mapInputs, &tx, &txdb](const CTxIn& in) {
                            if (mapInputs.count(in.prevout.hash) == 0) {
                                throw std::runtime_error("Could not find input after having fetched it "
                                                         "(for NTP1 database storage); for tx: " +
@@ -946,7 +938,7 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> NTP1Transaction::StdFetche
                            }
                            auto result = std::make_pair(mapInputs.find(in.prevout.hash)->second.second,
                                                         NTP1Transaction());
-                           result.second.readNTP1DataFromTx_minimal(result.first);
+                           result.second.readNTP1DataFromTx_minimal(txdb, result.first);
                            return result;
                        });
     }
@@ -967,7 +959,7 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> NTP1Transaction::StdFetche
                                              queuedAcceptedTxs, recursionCount + 1);
 
                     NTP1Transaction ntp1tx;
-                    inTx.second.readNTP1DataFromTx(inTx.first, inputsOfInput);
+                    inTx.second.readNTP1DataFromTx(txdb, inTx.first, inputsOfInput);
                 } else {
                     // read NTP1 transaction inputs. If they fail, that's OK, because they will
                     // fail later if they're necessary
@@ -981,13 +973,9 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> NTP1Transaction::StdFetche
     return inputsWithNTP1;
 }
 
-int NTP1Transaction::GetCurrentBlockHeight(CTxDB* txdb)
+int NTP1Transaction::GetCurrentBlockHeight(const ITxDB& txdb)
 {
-    if (txdb) {
-        return txdb->GetBestChainHeight().value_or(0);
-    } else {
-        return CTxDB().GetBestChainHeight().value_or(0);
-    }
+    return txdb.GetBestChainHeight().value_or(0);
 }
 
 bool NTP1Transaction::IsTxNTP1(const CTransaction* tx, std::string* opReturnArg)

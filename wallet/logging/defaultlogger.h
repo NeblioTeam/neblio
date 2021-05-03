@@ -1,6 +1,7 @@
 ﻿#ifndef DEFAULTLOGGER_H
 #define DEFAULTLOGGER_H
 
+#include <boost/optional.hpp>
 #include <fstream>
 #include <functional>
 #include <iomanip>
@@ -42,10 +43,7 @@ class DefaultLogger
 {
     std::shared_ptr<spdlog::sinks::dist_sink_mt> dist_sink =
         std::make_shared<spdlog::sinks::dist_sink_mt>();
-    std::shared_ptr<spdlog::details::thread_pool> tp =
-        std::make_shared<spdlog::details::thread_pool>(4096, std::thread::hardware_concurrency());
-    std::shared_ptr<spdlog::async_logger> logger =
-        std::make_shared<spdlog::async_logger>("", dist_sink, tp);
+    std::shared_ptr<spdlog::logger> logger = std::make_shared<spdlog::logger>("", dist_sink);
 
 public:
     DefaultLogger()
@@ -128,7 +126,9 @@ public:
 
     void set_level(const b_sev& minimum_severity) { dist_sink->set_level(minimum_severity); }
 
-    spdlog::async_logger* getInternalLogger() { return logger.get(); }
+    void flush() { logger->flush(); }
+
+    spdlog::logger* getInternalLogger() { return logger.get(); }
 };
 
 class LoggerSingleton
@@ -183,6 +183,16 @@ public:
                                      fmt::format(fmtStr, std::forward<Args>(args)...));
         return false;
     }
+
+    template <typename FormatString, typename... Args>
+    boost::none_t errorn(const FormatString& fmtStr, Args&&... args)
+    {
+        LoggerSingleton::get().write(b_sev::err, "{}: {}", std::move(sourceInfo),
+                                     fmt::format(fmtStr, std::forward<Args>(args)...));
+        return boost::none;
+    }
+
+    void flush() { LoggerSingleton::get().flush(); }
 };
 
 #endif // DEFAULTLOGGER_H

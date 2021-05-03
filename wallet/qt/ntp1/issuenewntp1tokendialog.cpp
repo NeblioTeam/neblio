@@ -303,8 +303,10 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
         ntp1wallet->setRetrieveFullMetadata(false);
         ntp1wallet->update();
 
+        const CTxDB txdb;
+
         // Check funds
-        CAmount nBalance = pwalletMain->GetBalance();
+        CAmount nBalance = pwalletMain->GetBalance(txdb);
         if (minAmount > nBalance)
             throw std::runtime_error(
                 "You don't have enough NEBLs to issue this token. You need at least: " +
@@ -331,7 +333,6 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
 
         // make sure the amount is correct AND make sure that all inputs are non-NTP1
         if (takeInputsFromCoinControl) {
-            CTxDB   txdb;
             CAmount totalInInputs = 0;
             for (const COutPoint o : inputs) {
 
@@ -347,9 +348,9 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
                     // if this output is an NTP1 output, skip it
                     try {
                         std::vector<std::pair<CTransaction, NTP1Transaction>> inputs =
-                            NTP1Transaction::GetAllNTP1InputsOfTx(tx, false);
+                            NTP1Transaction::GetAllNTP1InputsOfTx(tx, txdb, false);
                         NTP1Transaction ntp1tx;
-                        ntp1tx.readNTP1DataFromTx(tx, inputs);
+                        ntp1tx.readNTP1DataFromTx(txdb, tx, inputs);
                         // if this output contains tokens, skip it to avoid burning them
                         if (ntp1tx.getTxOut(o.n).tokenCount() > 0) {
                             QMessageBox::warning(
@@ -400,11 +401,11 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
         std::string errorMessage;
 
         bool fCreated = pwalletMain->CreateTransaction(
-            std::vector<std::pair<CScript, CAmount>>(), wtx, keyChange, nFeeRequired, tokenSelector,
-            metadata, true, CoinControlDialog::coinControl, &errorMessage);
+            txdb, std::vector<std::pair<CScript, CAmount>>(), wtx, keyChange, nFeeRequired,
+            tokenSelector, metadata, true, CoinControlDialog::coinControl, &errorMessage);
         if (!fCreated) {
             if (minAmount + nFeeRequired >
-                pwalletMain->GetBalance() - pwalletMain->GetDelegatedBalance()) {
+                pwalletMain->GetBalance(txdb) - pwalletMain->GetDelegatedBalance(txdb)) {
                 throw std::runtime_error(
                     "Insufficient funds to create the transaction. The required fee is: " +
                     FormatMoney(nFeeRequired));
@@ -426,12 +427,13 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
         // verify the NTP1 transaction before commiting
         try {
             std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
-                NTP1Transaction::GetAllNTP1InputsOfTx(wtx, false);
+                NTP1Transaction::GetAllNTP1InputsOfTx(wtx, txdb, false);
             NTP1Transaction ntp1tx;
-            ntp1tx.readNTP1DataFromTx(wtx, inputsTxs);
+            ntp1tx.readNTP1DataFromTx(txdb, wtx, inputsTxs);
         } catch (std::exception& ex) {
-            NLog.write(b_sev::err, "An invalid NTP1 transaction was created; an exception was thrown: {}",
-                      ex.what());
+            NLog.write(b_sev::err,
+                       "An invalid NTP1 transaction was created; an exception was thrown: {}",
+                       ex.what());
             throw std::runtime_error(
                 "Unable to create the transaction. The transaction created would result in an invalid "
                 "transaction. Please report your transaction details to the Neblio team. The "
@@ -439,7 +441,7 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
                 std::string(ex.what()));
         }
 
-        if (!pwalletMain->CommitTransaction(wtx, keyChange))
+        if (!pwalletMain->CommitTransaction(wtx, txdb, keyChange))
             throw std::runtime_error("Transaction commit for broadcast failed");
 
         QMessageBox::information(this, "Success!",

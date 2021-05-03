@@ -1,7 +1,7 @@
 #ifndef BLOCKINDEX_H
 #define BLOCKINDEX_H
 
-#include "globals.h"
+#include "itxdb.h"
 #include "logging/logger.h"
 #include "outpoint.h"
 #include "uint256.h"
@@ -18,17 +18,14 @@ class CBlock;
 class CBlockIndex
 {
 public:
-    uint256             phashBlock;
-    CBlockIndexSmartPtr pprev;
-    CBlockIndexSmartPtr pnext;
-    uint256             blockKeyInDB;
-    uint256             nChainTrust; // ppcoin: trust score of block chain
-    int                 nHeight;
+    uint256 blockHash;
+    uint256 hashPrev;
+    uint256 hashNext;
 
-    CAmount nMint;
-    CAmount nMoneySupply;
+    uint256 nChainTrust; // ppcoin: trust score of block chain
+    int32_t nHeight;
 
-    unsigned int nFlags; // ppcoin: block index flags
+    uint32_t nFlags; // ppcoin: block index flags
     enum
     {
         BLOCK_PROOF_OF_STAKE = (1 << 0), // is proof-of-stake block
@@ -36,95 +33,102 @@ public:
         BLOCK_STAKE_MODIFIER = (1 << 2), // regenerated stake modifier
     };
 
-    uint64_t     nStakeModifier;         // hash modifier for proof-of-stake
-    unsigned int nStakeModifierChecksum; // checksum of index; in-memeory only
+    uint64_t nStakeModifier;         // hash modifier for proof-of-stake
+    uint32_t nStakeModifierChecksum; // checksum of index
 
     // proof-of-stake specific fields
-    COutPoint    prevoutStake;
-    unsigned int nStakeTime;
+    COutPoint prevoutStake;
+    uint32_t  nStakeTime;
 
     uint256 hashProof;
 
     // block header
-    int          nVersion;
-    uint256      hashMerkleRoot;
-    unsigned int nTime;
-    unsigned int nBits;
-    unsigned int nNonce;
+    int32_t  nVersion;
+    uint256  hashMerkleRoot;
+    uint32_t nTime;
+    uint32_t nBits;
+    uint32_t nNonce;
 
     CBlockIndex();
 
-    CBlockIndex(uint256 nBlockPosIn, CBlock& block);
+    CBlockIndex(uint256 blockHashIn, const CBlock& block);
 
     CBlock GetBlockHeader() const;
 
-    uint256 GetBlockHash() const { return phashBlock; }
+    uint256 GetBlockHash() const;
 
-    int64_t GetBlockTime() const { return (int64_t)nTime; }
+    int64_t GetBlockTime() const;
 
     uint256 GetBlockTrust() const;
 
     bool IsInMainChain(const ITxDB& txdb) const;
 
+    bool IsInMainChain(const uint256& bestBlockHash) const;
+
     bool CheckIndex() const { return true; }
 
-    int64_t GetPastTimeLimit() const { return GetMedianTimePast(); }
+    int64_t GetPastTimeLimit(const ITxDB& txdb) const;
 
     enum
     {
         nMedianTimeSpan = 11
     };
 
-    int64_t GetMedianTimePast() const
-    {
-        int64_t  pmedian[nMedianTimeSpan];
-        int64_t* pbegin = &pmedian[nMedianTimeSpan];
-        int64_t* pend   = &pmedian[nMedianTimeSpan];
+    int64_t GetMedianTimePast(const ITxDB& txdb) const;
 
-        const CBlockIndex* pindex = this;
-        for (int i = 0; i < nMedianTimeSpan && pindex;
-             i++, pindex = boost::atomic_load(&pindex->pprev).get())
-            *(--pbegin) = pindex->GetBlockTime();
+    bool IsProofOfWork() const;
 
-        std::sort(pbegin, pend);
-        return pbegin[(pend - pbegin) / 2];
-    }
+    bool IsProofOfStake() const;
 
-    /**
-     * Returns true if there are nRequired or more blocks of minVersion or above
-     * in the last nToCheck blocks, starting at pstart and going backwards.
-     */
-    static bool IsSuperMajority(int minVersion, const CBlockIndex* pstart, unsigned int nRequired,
-                                unsigned int nToCheck);
+    void SetProofOfStake();
 
-    bool IsProofOfWork() const { return !(nFlags & BLOCK_PROOF_OF_STAKE); }
+    unsigned int GetStakeEntropyBit() const;
 
-    bool IsProofOfStake() const { return (nFlags & BLOCK_PROOF_OF_STAKE); }
+    bool SetStakeEntropyBit(unsigned int nEntropyBit);
 
-    void SetProofOfStake() { nFlags |= BLOCK_PROOF_OF_STAKE; }
+    bool GeneratedStakeModifier() const;
 
-    unsigned int GetStakeEntropyBit() const { return ((nFlags & BLOCK_STAKE_ENTROPY) >> 1); }
-
-    bool SetStakeEntropyBit(unsigned int nEntropyBit)
-    {
-        if (nEntropyBit > 1)
-            return false;
-        nFlags |= (nEntropyBit ? BLOCK_STAKE_ENTROPY : 0);
-        return true;
-    }
-
-    bool GeneratedStakeModifier() const { return (nFlags & BLOCK_STAKE_MODIFIER); }
-
-    void SetStakeModifier(uint64_t nModifier, bool fGeneratedStakeModifier)
-    {
-        nStakeModifier = nModifier;
-        if (fGeneratedStakeModifier)
-            nFlags |= BLOCK_STAKE_MODIFIER;
-    }
+    void SetStakeModifier(uint64_t nModifier, bool fGeneratedStakeModifier);
 
     std::string ToString() const;
 
-    void print() const { NLog.write(b_sev::info, "{}", ToString()); }
+    void print() const;
+
+    boost::optional<CBlockIndex> getPrev(const ITxDB& txdb) const;
+    boost::optional<CBlockIndex> getNext(const ITxDB& txdb) const;
+
+    // clang-format off
+        IMPLEMENT_SERIALIZE(
+            if (!(nType & SER_GETHASH))
+                READWRITE(nVersion);
+
+            READWRITE(hashNext);
+            READWRITE(nHeight);
+            READWRITE(nFlags);
+            READWRITE(nStakeModifier);
+            READWRITE(nStakeModifierChecksum);
+
+            if (IsProofOfStake()) {
+                READWRITE(prevoutStake);
+                READWRITE(nStakeTime);
+            } else if (fRead) {
+                const_cast<CBlockIndex*>(this)->prevoutStake.SetNull();
+                const_cast<CBlockIndex*>(this)->nStakeTime = 0;
+            }
+
+            READWRITE(hashProof);
+
+            // block header
+            READWRITE(this->nVersion);
+            READWRITE(hashPrev);
+            READWRITE(hashMerkleRoot);
+            READWRITE(nTime);
+            READWRITE(nBits);
+            READWRITE(nNonce);
+            READWRITE(blockHash);
+            READWRITE(nChainTrust);
+        )
+    // clang-format on
 };
 
 #endif // BLOCKINDEX_H

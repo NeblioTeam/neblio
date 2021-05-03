@@ -1250,9 +1250,11 @@ void BitcoinGUI::updateStakingIcon()
 
     updateWeight();
 
+    const CTxDB txdb;
+
     if (stakeMaker.IsStakingActive()) {
         uint64_t       nNetworkWeight = GetPoSKernelPS();
-        unsigned int   nTS            = Params().TargetSpacing(CTxDB());
+        unsigned int   nTS            = Params().TargetSpacing(txdb);
         const uint64_t nWeight        = stakeMaker.getLatestStakeWeight().value_or(0);
         unsigned       nEstimateTime  = !!nWeight ? (nTS * nNetworkWeight / nWeight) : -1;
 
@@ -1286,7 +1288,7 @@ void BitcoinGUI::updateStakingIcon()
             labelStakingIcon->setToolTip(tr("Not staking because wallet is locked"));
         else if (isvNodesEmpty)
             labelStakingIcon->setToolTip(tr("Not staking because wallet is offline"));
-        else if (IsInitialBlockDownload_tolerant()) {
+        else if (IsInitialBlockDownload_tolerant(txdb)) {
             labelStakingIcon->setToolTip(tr("Not staking because wallet is syncing"));
         } else if (!nWeight)
             labelStakingIcon->setToolTip(tr("Not staking because you don't have mature tokens"));

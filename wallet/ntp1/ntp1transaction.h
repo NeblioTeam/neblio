@@ -53,7 +53,8 @@ class NTP1Transaction
     NTP1TransactionType        ntp1TransactionType = NTP1TxType_NOT_NTP1;
 
     template <typename ScriptType>
-    void __TransferTokens(const std::shared_ptr<ScriptType>& scriptPtrD, const CTransaction& tx,
+    void __TransferTokens(const ITxDB& txdb, const std::shared_ptr<ScriptType>& scriptPtrD,
+                          const CTransaction&                                          tx,
                           const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs,
                           bool                                                         burnOutput31);
 
@@ -99,10 +100,10 @@ public:
     static std::unordered_map<std::string, TokenMinimalData>
     CalculateTotalOutputTokens(const NTP1Transaction& ntp1tx);
 
-    static json_spirit::Value GetNTP1IssuanceMetadata(const uint256& issuanceTxid);
+    static json_spirit::Value GetNTP1IssuanceMetadata(const ITxDB& txdb, const uint256& issuanceTxid);
     static NTP1TokenMetaData  GetFullNTP1IssuanceMetadata(const CTransaction&    issuanceTx,
                                                           const NTP1Transaction& ntp1IssuanceTx);
-    static NTP1TokenMetaData  GetFullNTP1IssuanceMetadata(const uint256& issuanceTxid);
+    static NTP1TokenMetaData GetFullNTP1IssuanceMetadata(const ITxDB& txdb, const uint256& issuanceTxid);
 
     static void
     ReorderTokenInputsToGoFirst(CTransaction&                                                tx,
@@ -140,8 +141,8 @@ public:
      * @brief ComplementStdTxWithNTP1
      * @param tx
      */
-    static void AmendStdTxWithNTP1(CTransaction& tx, int changeIndex);
-    static void AmendStdTxWithNTP1(CTransaction&                                                tx_,
+    static void AmendStdTxWithNTP1(const ITxDB& txdb, CTransaction& tx, int changeIndex);
+    static void AmendStdTxWithNTP1(const ITxDB& txdb, CTransaction& tx_,
                                    const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputs,
                                    int changeIndex);
 
@@ -158,9 +159,9 @@ public:
      * @brief readNTP1DataFromTx_minimal
      * @param tx the source Neblio transcation
      */
-    void readNTP1DataFromTx_minimal(const CTransaction& tx);
+    void readNTP1DataFromTx_minimal(const ITxDB& txdb, const CTransaction& tx);
 
-    void readNTP1DataFromTx(const CTransaction&                                          tx,
+    void readNTP1DataFromTx(const ITxDB& txdb, const CTransaction& tx,
                             const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs);
 
     static bool TxContainsOpReturn(const CTransaction* tx, std::string* opReturnArg = nullptr);
@@ -173,10 +174,8 @@ public:
 
     /** for a certain transaction, retrieve all NTP1 data from the database */
     static std::vector<std::pair<CTransaction, NTP1Transaction>>
-    GetAllNTP1InputsOfTx(CTransaction tx, bool recoverProtection, int recursionCount = 0);
-
-    static std::vector<std::pair<CTransaction, NTP1Transaction>>
-    GetAllNTP1InputsOfTx(CTransaction tx, CTxDB& txdb, bool recoverProtection, int recursionCount = 0);
+    GetAllNTP1InputsOfTx(CTransaction tx, const ITxDB& txdb, bool recoverProtection,
+                         int recursionCount = 0);
 
     static std::vector<std::pair<CTransaction, NTP1Transaction>> GetAllNTP1InputsOfTx(
         CTransaction tx, const ITxDB& txdb, bool recoverProtection,
@@ -198,7 +197,7 @@ public:
         const std::map<uint256, CTxIndex>& queuedAcceptedTxs = std::map<uint256, CTxIndex>(),
         int                                recursionCount    = 0);
 
-    static int GetCurrentBlockHeight(CTxDB* txdb = nullptr);
+    static int GetCurrentBlockHeight(const ITxDB& txdb);
 };
 
 bool operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs)
@@ -211,7 +210,7 @@ bool operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs)
 
 template <typename ScriptType>
 void NTP1Transaction::__TransferTokens(
-    const std::shared_ptr<ScriptType>& scriptPtrD, const CTransaction& tx,
+    const ITxDB& txdb, const std::shared_ptr<ScriptType>& scriptPtrD, const CTransaction& tx,
     const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs, bool burnOutput31)
 {
     static_assert(std::is_same<ScriptType, NTP1Script_Transfer>::value ||
@@ -348,7 +347,8 @@ void NTP1Transaction::__TransferTokens(
             // check if the token is blacklisted
             int blacklistHeight = 0;
             if (Params().IsNTP1TokenBlacklisted(currentTokenId, blacklistHeight)) {
-                if (GetCurrentBlockHeight() >= blacklistHeight) {
+                const int currentHeight = GetCurrentBlockHeight(txdb);
+                if (currentHeight >= blacklistHeight) {
                     throw std::runtime_error("The NTP1 token " + currentTokenId +
                                              " is blacklisted and cannot be transferred or burned.");
                 }

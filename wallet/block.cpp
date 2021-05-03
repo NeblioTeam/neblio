@@ -2,7 +2,9 @@
 
 #include "NetworkForks.h"
 #include "blockindex.h"
+#include "blockindexlrucache.h"
 #include "blocklocator.h"
+#include "blockmetadata.h"
 #include "checkpoints.h"
 #include "kernel.h"
 #include "main.h"
@@ -15,6 +17,8 @@
 #include "work.h"
 #include <boost/algorithm/string.hpp>
 #include <boost/foreach.hpp>
+#include <boost/range/adaptor/reversed.hpp>
+#include <boost/scope_exit.hpp>
 #include <mutex>
 
 void CBlock::print() const
@@ -83,12 +87,12 @@ std::pair<COutPoint, unsigned int> CBlock::GetProofOfStake() const
                             : std::make_pair(COutPoint(), (unsigned int)0);
 }
 
-unsigned int CBlock::GetStakeEntropyBit() const
+unsigned int CBlock::GetStakeEntropyBit(const uint256& hash) const
 {
     // Take last bit of block hash as entropy bit
-    unsigned int nEntropyBit = ((GetHash().Get64()) & 1llu);
+    unsigned int nEntropyBit = ((hash.Get64()) & UINT64_C(1));
     if (fDebug)
-        NLog.write(b_sev::debug, "GetStakeEntropyBit: hashBlock={} nEntropyBit={}", GetHash().ToString(),
+        NLog.write(b_sev::debug, "GetStakeEntropyBit: hashBlock={} nEntropyBit={}", hash.ToString(),
                    nEntropyBit);
     return nEntropyBit;
 }
@@ -131,28 +135,39 @@ void CBlock::UpdateTime(const CBlockIndex* /*pindexPrev*/)
     nTime = std::max(GetBlockTime(), GetAdjustedTime());
 }
 
-bool CBlock::DisconnectBlock(CTxDB& txdb, CBlockIndexSmartPtr& pindex)
+bool CBlock::DisconnectBlock(CTxDB& txdb, const CBlockIndex& pindex)
 {
     // Disconnect in reverse order
     for (int i = vtx.size() - 1; i >= 0; i--)
         if (!vtx[i].DisconnectInputs(txdb))
             return false;
 
+    if (!txdb.EraseBlockHashOfHeight(pindex.nHeight))
+        return NLog.error("DisconnectBlock() : EraseBlockHashOfHeight failed");
+
     // Update block index on disk without changing it in memory.
     // The memory index structure will be changed after the db commits.
-    if (pindex->pprev) {
-        CDiskBlockIndex blockindexPrev(boost::atomic_load(&pindex->pprev).get());
-        blockindexPrev.hashNext = 0;
-        if (!txdb.WriteBlockIndex(blockindexPrev))
+    if (pindex.hashPrev != 0) {
+        boost::optional<CBlockIndex> blockindexPrev = pindex.getPrev(txdb);
+        if (!blockindexPrev) {
+            return NLog.error("DisconnectBlock() : ReadBlockIndex for hashPrev failed");
+        }
+        blockindexPrev->hashNext = 0;
+
+        if (!txdb.WriteBlockIndex(*blockindexPrev))
             return NLog.error("DisconnectBlock() : WriteBlockIndex failed");
 
         // we change the best hash. Remember this is within a transaction and will be reverted in case of
         // failure.
-        txdb.WriteHashBestChain(blockindexPrev.GetBlockHash());
+        txdb.WriteHashBestChain(blockindexPrev->GetBlockHash());
+
+        if (blockindexPrev->nHeight == 0) {
+            pindexGenesisBlock->hashNext = 0;
+        }
     }
 
     // ppcoin: clean up wallet after disconnecting coinstake
-    for (CTransaction& tx : vtx)
+    for (const CTransaction& tx : vtx)
         SyncWithWallets(txdb, tx, this);
 
     return true;
@@ -166,9 +181,15 @@ CBlock::GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const
     CommonAncestorSuccessorBlocks res;
 
     // fork part
-    CBlockIndexSmartPtr T             = nullptr;
-    const uint256       prevBlockHash = this->hashPrevBlock;
-    const auto          biTarget      = mapBlockIndex.get(prevBlockHash).value_or(nullptr);
+    boost::optional<CBlockIndex>       T             = boost::none;
+    const uint256                      prevBlockHash = this->hashPrevBlock;
+    const boost::optional<CBlockIndex> biTarget      = txdb.ReadBlockIndex(prevBlockHash);
+
+    if (!biTarget) {
+        throw std::runtime_error(fmt::format("CRITCAL ERROR: Failed to prev block index at the "
+                                             "beginning of VerifyInputsUnspent() for block with hash {}",
+                                             hashPrevBlock.ToString()));
+    }
 
     if (biTarget) {
         T = biTarget;
@@ -178,7 +199,17 @@ CBlock::GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const
             res.inFork.push_back(T->GetBlockHash());
             NLog.write(b_sev::trace, "Block in fork chain: {}\t{}", T->GetBlockHash().ToString(),
                        T->nHeight);
-            T = boost::atomic_load(&T->pprev);
+            if (T->hashPrev != 0) {
+                T = T->getPrev(txdb);
+                if (!T) {
+                    NLog.write(b_sev::err,
+                               "Failed to read prev block index for height {} and block index {}",
+                               T->nHeight, T->blockHash.ToString());
+                    break;
+                }
+            } else {
+                break;
+            }
         }
     } else {
         throw std::runtime_error("Failed to find target block " + prevBlockHash.ToString() +
@@ -188,8 +219,8 @@ CBlock::GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const
     // the fork should be in temporal order because it's to be spent in order later
     std::reverse(res.inFork.begin(), res.inFork.end());
 
-    assert(T != nullptr);
-    res.commonAncestor = T;
+    assert(T);
+    res.commonAncestor = *T;
     return res;
 }
 
@@ -280,8 +311,8 @@ CBlock::ChainReplaceTxs CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITx
                     continue;
                 }
 
-                uint256    spenderBlockHash = txindex.vSpent[outputNumInTx].nBlockPos;
-                const auto bi               = mapBlockIndex.get(spenderBlockHash).value_or(nullptr);
+                uint256 spenderBlockHash              = txindex.vSpent[outputNumInTx].nBlockPos;
+                const boost::optional<CBlockIndex> bi = txdb.ReadBlockIndex(spenderBlockHash);
                 if (!bi) {
                     throw std::runtime_error(
                         std::string(__PRETTY_FUNCTION__) + ": The input of transaction " +
@@ -303,7 +334,7 @@ CBlock::ChainReplaceTxs CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITx
                 }
 
                 // make sure that the spending transaction is in the main chain above the common ancestor
-                if (bi->nHeight > commonAncestory.commonAncestor->nHeight) {
+                if (bi->nHeight > commonAncestory.commonAncestor.nHeight) {
                     // unspend, which is equivalent to disconnecting the blockchain (without updating
                     // the database)
                     txindex.vSpent[outputNumInTx].SetNull();
@@ -381,7 +412,7 @@ CBlock::ChainReplaceTxs CBlock::GetAlternateChainTxsUpToCommonAncestor(const ITx
     return result;
 }
 
-bool CBlock::VerifyInputsUnspent(CTxDB& txdb) const
+bool CBlock::VerifyInputsUnspent(const CTxDB& txdb) const
 {
     // this function solves the problem in
     // https://medium.com/@dsl_uiuc/fake-stake-attacks-on-chain-based-proof-of-stake-cryptocurrencies-b8b05723f806
@@ -480,7 +511,7 @@ bool CBlock::VerifyInputsUnspent(CTxDB& txdb) const
     return true;
 }
 
-bool CBlock::CheckBIP30Attack(CTxDB& txdb, const uint256& hashTx)
+bool CBlock::CheckBIP30Attack(ITxDB& txdb, const uint256& hashTx)
 {
     // Do not allow blocks that contain transactions which 'overwrite' older transactions,
     // unless those are already completely spent.
@@ -504,12 +535,14 @@ bool CBlock::CheckBIP30Attack(CTxDB& txdb, const uint256& hashTx)
     return true;
 }
 
-bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool fJustCheck)
+bool CBlock::ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pindex, bool fJustCheck)
 {
-    NLog.write(b_sev::info, "Connecting block: {}", this->GetHash().ToString());
+    const uint256 blockHash = pindex->GetBlockHash();
+
+    NLog.write(b_sev::info, "Connecting block: {}", blockHash.ToString());
 
     // Check it again in case a previous version let a bad block in, but skip BlockSig checking
-    if (!CheckBlock(txdb, !fJustCheck, !fJustCheck, false))
+    if (!CheckBlock(txdb, blockHash, !fJustCheck, !fJustCheck, false))
         return false;
 
     //// issue here: it doesn't know the version
@@ -540,8 +573,8 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
     // this is used to prevent duplicate token names
     std::unordered_map<std::string, uint256> issuedTokensSymbolsInThisBlock;
 
-    for (CTransaction& tx : vtx) {
-        uint256 hashTx = tx.GetHash();
+    for (const CTransaction& tx : vtx) {
+        const uint256 hashTx = tx.GetHash();
 
         std::vector<std::pair<CTransaction, NTP1Transaction>> inputsWithNTP1;
 
@@ -557,7 +590,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
             return DoS(100, NLog.error("ConnectBlock() : too many sigops"));
         }
 
-        CDiskTxPos posThisTx(pindex->blockKeyInDB, nTxPos);
+        CDiskTxPos posThisTx(pindex->GetBlockHash(), nTxPos);
         if (!fJustCheck)
             nTxPos += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
 
@@ -596,7 +629,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
 
                         // write NTP1 transactions' data
                         NTP1Transaction ntp1tx;
-                        ntp1tx.readNTP1DataFromTx(tx, inputsWithNTP1);
+                        ntp1tx.readNTP1DataFromTx(txdb, tx, inputsWithNTP1);
                     }
                 } catch (std::exception& ex) {
                     return NLog.error(
@@ -642,7 +675,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
     }
 
     if (IsProofOfWork()) {
-        const CAmount nExpectedReward = GetProofOfWorkReward(nFees);
+        const CAmount nExpectedReward = GetProofOfWorkReward(txdb, nFees);
         const CAmount nRewardInBlock  = vtx[0].GetValueOut();
         // Check coinbase reward
         if (nRewardInBlock > nExpectedReward) {
@@ -659,7 +692,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
             return NLog.error("ConnectBlock() : {} unable to get coin age for coinstake",
                               vtx[1].GetHash().ToString());
 
-        const CAmount nCalculatedStakeReward = GetProofOfStakeReward(nCoinAge, nFees);
+        const CAmount nCalculatedStakeReward = GetProofOfStakeReward(txdb, nCoinAge, nFees);
 
         if (nStakeReward > nCalculatedStakeReward)
             return DoS(100,
@@ -667,14 +700,40 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
                                   nStakeReward, nCalculatedStakeReward));
     }
 
-    // ppcoin: track money supply and mint amount info
-    pindex->nMint        = nValueOut - nValueIn + nFees;
-    pindex->nMoneySupply = (pindex->pprev ? pindex->pprev->nMoneySupply : 0) + nValueOut - nValueIn;
-    if (!txdb.WriteBlockIndex(CDiskBlockIndex(pindex.get())))
-        return NLog.error("Connect() : WriteBlockIndex for pindex failed");
-
     if (fJustCheck)
         return true;
+
+    // ppcoin: track money supply and mint amount info
+    const CAmount                  nMint            = nValueOut - nValueIn + nFees;
+    const boost::optional<CAmount> nPrevMoneySupply = [&]() {
+        // genesis and block 1 have prev money supply = 0
+        if (pindex->hashPrev != 0 && pindex->nHeight > 1) {
+            const uint256 prevHash = pindex->hashPrev;
+
+            const boost::optional<BlockMetadata> blockMetadata = txdb.ReadBlockMetadata(prevHash);
+            if (blockMetadata) {
+                return boost::make_optional(blockMetadata->getMoneySupply());
+            } else {
+                return boost::optional<CAmount>();
+            }
+        }
+        return boost::make_optional<CAmount>(0);
+    }();
+    if (!nPrevMoneySupply) {
+        return NLog.error("Connect() : Failed to retrieve prev money supply from block metadata");
+    }
+
+    const CAmount nMoneySupply = *nPrevMoneySupply + nValueOut - nValueIn;
+
+    const BlockMetadata blockMetadata(blockHash, nMoneySupply, nMint);
+    if (!txdb.WriteBlockMetadata(blockMetadata))
+        return NLog.error("Connect() : WriteBlockMetadata for blockMetadata failed");
+
+    if (!txdb.WriteBlockIndex(*pindex))
+        return NLog.error("Connect() : WriteBlockIndex for pindex failed");
+
+    if (!txdb.WriteBlockHashOfHeight(pindex->nHeight, pindex->GetBlockHash()))
+        return NLog.error("Connect() : WriteBlockHashOfHeight for pindex failed");
 
     // Write queued txindex changes
     for (std::map<uint256, CTxIndex>::iterator mi = mapQueuedChanges.begin();
@@ -703,11 +762,17 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
 
     // Update block index on disk without changing it in memory.
     // The memory index structure will be changed after the db commits.
-    if (pindex->pprev) {
-        CDiskBlockIndex blockindexPrev(boost::atomic_load(&pindex->pprev).get());
-        blockindexPrev.hashNext = pindex->GetBlockHash();
-        if (!txdb.WriteBlockIndex(blockindexPrev))
+    if (pindex->hashPrev != 0) {
+        boost::optional<CBlockIndex> blockindexPrev = pindex->getPrev(txdb);
+        if (!blockindexPrev) {
+            return NLog.error("ConnectBlock() : ReadBlockIndex failed for hashPrev");
+        }
+        blockindexPrev->hashNext = pindex->GetBlockHash();
+        if (!txdb.WriteBlockIndex(*blockindexPrev))
             return NLog.error("ConnectBlock() : WriteBlockIndex failed");
+        if (blockindexPrev->nHeight == 0) {
+            pindexGenesisBlock->hashNext = pindex->GetBlockHash();
+        }
     }
 
     // we change the best hash. Remember this is within a transaction and will be reverted in case of
@@ -718,24 +783,24 @@ bool CBlock::ConnectBlock(CTxDB& txdb, const CBlockIndexSmartPtr& pindex, bool f
 }
 
 // Called from inside SetBestChain: attaches a block to the new best chain being built
-bool CBlock::SetBestChainInner(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
+bool CBlock::SetBestChainInner(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
                                const bool createDbTransaction)
 {
-    uint256 hash = GetHash();
+    const uint256 hash = pindexNew->GetBlockHash();
 
     // Adding to current best branch
     if (!ConnectBlock(txdb, pindexNew) || !txdb.WriteHashBestChain(hash)) {
         if (createDbTransaction) {
             txdb.TxnAbort();
         }
-        InvalidChainFound(pindexNew, txdb);
+        InvalidChainFound(*pindexNew, txdb);
         return false;
     }
     if (createDbTransaction && !txdb.TxnCommit())
         return NLog.error("SetBestChain() : TxnCommit failed");
 
     // Add to current best branch
-    pindexNew->pprev->pnext = pindexNew;
+    //    pindexNew->pprev->pnext = pindexNew;
 
     // Delete redundant memory transactions
     for (const CTransaction& tx : vtx)
@@ -744,35 +809,52 @@ bool CBlock::SetBestChainInner(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew
     return true;
 }
 
-bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
+bool CBlock::SetBestChain(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
                           const bool createDbTransaction)
 {
-    const uint256 hash = GetHash();
+    const uint256 hash = pindexNew->GetBlockHash();
 
     if (createDbTransaction && !txdb.TxnBegin())
         return NLog.error("SetBestChain() : TxnBegin failed");
 
     if (pindexGenesisBlock == nullptr && hash == Params().GenesisBlockHash()) {
         txdb.WriteHashBestChain(hash);
+        pindexGenesisBlock = boost::make_shared<CBlockIndex>(*pindexNew);
+        if (!txdb.WriteBlockIndex(*pindexGenesisBlock)) {
+            return NLog.error("Failed to write genesis block index");
+        }
+        if (!txdb.WriteBlockHashOfHeight(0, hash)) {
+            return NLog.error("Failed to write genesis block height");
+        }
         if (createDbTransaction && !txdb.TxnCommit())
             return NLog.error("SetBestChain() : TxnCommit failed");
-        pindexGenesisBlock = pindexNew;
     } else if (hashPrevBlock == txdb.GetBestBlockHash()) {
         if (!SetBestChainInner(txdb, pindexNew, createDbTransaction))
             return NLog.error("SetBestChain() : SetBestChainInner failed");
     } else {
         // the first block in the new chain that will cause it to become the new best chain
-        CBlockIndexSmartPtr pindexIntermediate = pindexNew;
+        boost::optional<CBlockIndex> pindexIntermediate = *pindexNew;
 
         // list of blocks that need to be connected afterwards
-        std::vector<CBlockIndexSmartPtr> vpindexSecondary;
+        std::vector<boost::optional<CBlockIndex>> vpindexSecondary;
 
         // Reorganize is costly in terms of db load, as it works in a single db transaction.
         // Try to limit how much needs to be done inside
-        while (pindexIntermediate->pprev &&
-               pindexIntermediate->pprev->nChainTrust > txdb.GetBestBlockIndex()->nChainTrust) {
+        const uint256 bestChainTrust = txdb.GetBestBlockIndex()->nChainTrust;
+        while (pindexIntermediate && pindexIntermediate->hashPrev != 0) {
+            boost::optional<CBlockIndex> prevIndex = pindexIntermediate->getPrev(txdb);
+            if (!prevIndex) {
+                return NLog.error(
+                    "CRITICAL: Even though hashPrev for block index {} with hash {} is not zero "
+                    "(hashPrev={}), it was not found in the database",
+                    pindexIntermediate->nHeight, pindexIntermediate->blockHash.ToString(),
+                    pindexIntermediate->hashPrev.ToString());
+            }
+            if (prevIndex->nChainTrust <= bestChainTrust) {
+                break;
+            }
             vpindexSecondary.push_back(pindexIntermediate);
-            pindexIntermediate = pindexIntermediate->pprev;
+            pindexIntermediate = prevIndex;
         }
 
         if (!vpindexSecondary.empty())
@@ -783,15 +865,15 @@ bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
             if (createDbTransaction) {
                 txdb.TxnAbort();
             }
-            InvalidChainFound(pindexNew, txdb);
+            InvalidChainFound(*pindexNew, txdb);
             return NLog.error("SetBestChain() : Reorganize failed");
         }
 
         // Connect further blocks
-        BOOST_REVERSE_FOREACH(CBlockIndexSmartPtr pindex, vpindexSecondary)
+        BOOST_REVERSE_FOREACH(const boost::optional<CBlockIndex>& pindex, vpindexSecondary)
         {
             CBlock block;
-            if (!block.ReadFromDisk(pindex.get(), txdb)) {
+            if (!block.ReadFromDisk(&*pindex, txdb)) {
                 NLog.write(b_sev::err, "SetBestChain() : ReadFromDisk failed");
                 break;
             }
@@ -806,9 +888,9 @@ bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
     }
 
     // Update best block in wallet (so we can detect restored wallets)
-    const bool fIsInitialDownload = IsInitialBlockDownload();
+    const bool fIsInitialDownload = IsInitialBlockDownload(txdb);
     if (!fIsInitialDownload) {
-        const CBlockLocator locator(pindexNew.get());
+        const CBlockLocator locator(&*pindexNew, txdb);
         ::SetBestChain(locator);
     }
 
@@ -816,10 +898,11 @@ bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
     nTimeLastBestBlockReceived = GetTime();
     nTransactionsUpdated++;
 
-    ConstCBlockIndexSmartPtr pindexBestPtr   = pindexNew;
-    uint256                  nBestBlockTrust = pindexBestPtr->nHeight != 0
-                                                   ? (pindexBestPtr->nChainTrust - pindexBestPtr->pprev->nChainTrust)
-                                                   : pindexBestPtr->nChainTrust;
+    const boost::optional<CBlockIndex>& pindexBestPtr = pindexNew;
+    uint256                             nBestBlockTrust =
+        pindexBestPtr->nHeight != 0
+                                        ? (pindexBestPtr->nChainTrust - pindexBestPtr->getPrev(txdb)->nChainTrust)
+                                        : pindexBestPtr->nChainTrust;
 
     NLog.write(b_sev::info, "SetBestChain: new best={}  height={}  trust={}  blocktrust={}  date={}",
                txdb.GetBestBlockHash().ToString(), txdb.GetBestChainHeight().value_or(0),
@@ -828,12 +911,26 @@ bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
 
     // Check the version of the last 100 blocks to see if we need to upgrade:
     if (!fIsInitialDownload) {
-        int                      nUpgraded = 0;
-        ConstCBlockIndexSmartPtr pindex    = txdb.GetBestBlockIndex();
-        for (int i = 0; i < 100 && pindex != nullptr; i++) {
-            if (pindex->nVersion > CBlock::CURRENT_VERSION)
+        using BlockVersionCacheType = BlockIndexLRUCache<int32_t>;
+
+        static thread_local typename BlockVersionCacheType::ExtractorFunc extractorFunc =
+            [](const CBlockIndex& bi) { return bi.nVersion; };
+
+        static thread_local BlockVersionCacheType blockIndexCache(1000, extractorFunc);
+
+        int     nUpgraded = 0;
+        uint256 hash      = txdb.GetBestBlockHash();
+        for (int i = 0; i < 100 && hash != 0; i++) {
+            const boost::optional<BlockVersionCacheType::BICacheEntry> blockIndexVersionData =
+                blockIndexCache.get(txdb, hash);
+            if (!blockIndexVersionData) {
+                NLog.write(b_sev::err, "CRITICAL: Error retrieving previous block of block {}",
+                           hash.ToString());
+                break;
+            }
+            if (blockIndexVersionData->value > CBlock::CURRENT_VERSION)
                 ++nUpgraded;
-            pindex = pindex->pprev;
+            hash = blockIndexVersionData->prevHash;
         }
         if (nUpgraded > 0)
             NLog.write(b_sev::info, "SetBestChain: {} of last 100 blocks above version {}", nUpgraded,
@@ -854,26 +951,13 @@ bool CBlock::SetBestChain(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
     return true;
 }
 
-bool CBlock::ReadFromDisk(const CBlockIndex* pindex, bool fReadTransactions)
-{
-    if (!fReadTransactions) {
-        *this = pindex->GetBlockHeader();
-        return true;
-    }
-    if (!ReadFromDisk(pindex->blockKeyInDB, fReadTransactions))
-        return false;
-    if (GetHash() != pindex->GetBlockHash())
-        return NLog.error("CBlock::ReadFromDisk() : GetHash() doesn't match index");
-    return true;
-}
-
 bool CBlock::ReadFromDisk(const CBlockIndex* pindex, const ITxDB& txdb, bool fReadTransactions)
 {
     if (!fReadTransactions) {
         *this = pindex->GetBlockHeader();
         return true;
     }
-    if (!ReadFromDisk(pindex->blockKeyInDB, txdb, fReadTransactions))
+    if (!ReadFromDisk(pindex->GetBlockHash(), txdb, fReadTransactions))
         return false;
     if (GetHash() != pindex->GetBlockHash())
         return NLog.error("CBlock::ReadFromDisk() : GetHash() doesn't match index");
@@ -882,44 +966,43 @@ bool CBlock::ReadFromDisk(const CBlockIndex* pindex, const ITxDB& txdb, bool fRe
 
 bool CBlock::IsProofOfStake() const { return (vtx.size() > 1 && vtx[1].IsCoinStake()); }
 
-CBlockIndexSmartPtr CBlock::FindBlockByHeight(int nHeight)
+boost::optional<CBlockIndex> CBlock::FindBlockByHeight(int nHeight)
 {
-    CBlockIndexSmartPtr pblockindex;
-    if (nHeight < CTxDB().GetBestChainHeight().value_or(0) / 2) {
-        pblockindex = boost::atomic_load(&pindexGenesisBlock);
-    } else {
-        pblockindex = CTxDB().GetBestBlockIndex();
+    const CTxDB              txdb;
+    boost::optional<uint256> hash = txdb.ReadBlockHashOfHeight(nHeight);
+    if (!hash) {
+        return boost::none;
     }
-    while (pblockindex->nHeight > nHeight) {
-        pblockindex = pblockindex->pprev;
-    }
-    while (pblockindex->nHeight < nHeight) {
-        pblockindex = pblockindex->pnext;
-    }
-    return pblockindex;
+    return txdb.ReadBlockIndex(*hash);
 }
 
-void CBlock::InvalidChainFound(const CBlockIndexSmartPtr& pindexNew, CTxDB& txdb)
+void CBlock::InvalidChainFound(const CBlockIndex& pindexNew, ITxDB& txdb)
 {
-    if (pindexNew->nChainTrust > nBestInvalidTrust) {
-        nBestInvalidTrust = pindexNew->nChainTrust;
+    if (pindexNew.nChainTrust > nBestInvalidTrust) {
+        nBestInvalidTrust = pindexNew.nChainTrust;
         txdb.WriteBestInvalidTrust(CBigNum(nBestInvalidTrust));
         uiInterface.NotifyBlocksChanged();
     }
 
-    uint256 nBestInvalidBlockTrust = pindexNew->nChainTrust - pindexNew->pprev->nChainTrust;
+    boost::optional<CBlockIndex> prevBI = pindexNew.getPrev(txdb);
+    if (!prevBI) {
+        NLog.write(b_sev::err,
+                   "CRITICAL CONSISTENCY FAILURE: Failed to get prev block for invalid chain trust");
+    }
+    uint256 nBestInvalidBlockTrust = pindexNew.nChainTrust - prevBI.value_or(CBlockIndex()).nChainTrust;
 
-    CBlockIndexSmartPtr pindexBestPtr = txdb.GetBestBlockIndex();
+    const boost::optional<CBlockIndex> pindexBestPtr = txdb.GetBestBlockIndex();
 
-    uint256 nBestBlockTrust = pindexBestPtr->nHeight != 0
-                                  ? (pindexBestPtr->nChainTrust - pindexBestPtr->pprev->nChainTrust)
-                                  : pindexBestPtr->nChainTrust;
+    uint256 nBestBlockTrust =
+        pindexBestPtr->nHeight != 0
+            ? (pindexBestPtr->nChainTrust - pindexBestPtr->getPrev(txdb)->nChainTrust)
+            : pindexBestPtr->nChainTrust;
 
     NLog.write(b_sev::err,
                "InvalidChainFound: invalid block={}  height={}  trust={}  blocktrust={} date={}",
-               pindexNew->GetBlockHash().ToString(), pindexNew->nHeight,
-               CBigNum(pindexNew->nChainTrust).ToString(), nBestInvalidBlockTrust.Get64(),
-               DateTimeStrFormat("%x %H:%M:%S", pindexNew->GetBlockTime()));
+               pindexNew.GetBlockHash().ToString(), pindexNew.nHeight,
+               CBigNum(pindexNew.nChainTrust).ToString(), nBestInvalidBlockTrust.Get64(),
+               DateTimeStrFormat("%x %H:%M:%S", pindexNew.GetBlockTime()));
     NLog.write(b_sev::err,
                "InvalidChainFound:  current best={}  height={}  trust={}  blocktrust={} date={}",
                txdb.GetBestBlockHash().ToString(), txdb.GetBestChainHeight().value_or(0),
@@ -927,35 +1010,35 @@ void CBlock::InvalidChainFound(const CBlockIndexSmartPtr& pindexNew, CTxDB& txdb
                DateTimeStrFormat("%x %H:%M:%S", pindexBestPtr->GetBlockTime()));
 }
 
-bool CBlock::Reorganize(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
+bool CBlock::Reorganize(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
                         const bool createDbTransaction)
 {
     NLog.write(b_sev::info, "REORGANIZE");
 
     // Find the fork
-    CBlockIndexSmartPtr pfork   = txdb.GetBestBlockIndex();
-    CBlockIndexSmartPtr plonger = pindexNew;
-    while (pfork != plonger) {
+    boost::optional<CBlockIndex> pfork   = txdb.GetBestBlockIndex();
+    boost::optional<CBlockIndex> plonger = pindexNew;
+    while (pfork->GetBlockHash() != plonger->GetBlockHash()) {
         while (plonger->nHeight > pfork->nHeight)
-            if (!(plonger = boost::atomic_load(&plonger->pprev)))
+            if (!(plonger = plonger->getPrev(txdb)))
                 return NLog.error("Reorganize() : plonger->pprev is null");
-        if (pfork == plonger)
+        if (pfork->GetBlockHash() == plonger->GetBlockHash())
             break;
-        if (!(pfork = pfork->pprev))
+        if (!(pfork = pfork->getPrev(txdb)))
             return NLog.error("Reorganize() : pfork->pprev is null");
     }
 
     // List of what to disconnect
-    std::vector<CBlockIndexSmartPtr> vDisconnect;
-    for (CBlockIndexSmartPtr pindex = txdb.GetBestBlockIndex(); pindex != pfork;
-         pindex                     = boost::atomic_load(&pindex->pprev)) {
+    std::vector<boost::optional<CBlockIndex>> vDisconnect;
+    for (boost::optional<CBlockIndex> pindex                     = txdb.GetBestBlockIndex();
+         pindex->GetBlockHash() != pfork->GetBlockHash(); pindex = pindex->getPrev(txdb)) {
         vDisconnect.push_back(pindex);
     }
 
     // List of what to connect
-    std::vector<CBlockIndexSmartPtr> vConnect;
-    for (CBlockIndexSmartPtr pindex = pindexNew; pindex != pfork;
-         pindex                     = boost::atomic_load(&pindex->pprev)) {
+    std::vector<boost::optional<CBlockIndex>> vConnect;
+    for (boost::optional<CBlockIndex> pindex                     = pindexNew;
+         pindex->GetBlockHash() != pfork->GetBlockHash(); pindex = pindex->getPrev(txdb)) {
         vConnect.push_back(pindex);
     }
     reverse(vConnect.begin(), vConnect.end());
@@ -967,11 +1050,11 @@ bool CBlock::Reorganize(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
 
     // Disconnect shorter branch
     std::list<CTransaction> vResurrect;
-    for (CBlockIndexSmartPtr& pindex : vDisconnect) {
+    for (boost::optional<CBlockIndex>& pindex : vDisconnect) {
         CBlock block;
-        if (!block.ReadFromDisk(pindex.get()))
+        if (!block.ReadFromDisk(&*pindex, txdb))
             return NLog.error("Reorganize() : ReadFromDisk for disconnect failed");
-        if (!block.DisconnectBlock(txdb, pindex))
+        if (!block.DisconnectBlock(txdb, *pindex))
             return NLog.error("Reorganize() : DisconnectBlock {} failed",
                               pindex->GetBlockHash().ToString());
 
@@ -987,9 +1070,9 @@ bool CBlock::Reorganize(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
     // Connect longer branch
     std::vector<CTransaction> vDelete;
     for (unsigned int i = 0; i < vConnect.size(); i++) {
-        CBlockIndexSmartPtr pindex = vConnect[i];
-        CBlock              block;
-        if (!block.ReadFromDisk(pindex.get(), txdb))
+        boost::optional<CBlockIndex> pindex = vConnect[i];
+        CBlock                       block;
+        if (!block.ReadFromDisk(&*pindex, txdb))
             return NLog.error("Reorganize() : ReadFromDisk for connect failed");
         // this is necessary to register in CBlockReject why a block was rejected
         CBlock* blockPtr = nullptr;
@@ -1015,15 +1098,15 @@ bool CBlock::Reorganize(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
     if (createDbTransaction && !txdb.TxnCommit())
         return NLog.error("Reorganize() : TxnCommit failed");
 
-    // Disconnect shorter branch
-    for (CBlockIndexSmartPtr& pindex : vDisconnect)
-        if (pindex->pprev)
-            pindex->pprev->pnext = nullptr;
+    //    // Disconnect shorter branch
+    //    for (boost::optional<CBlockIndex>& pindex : vDisconnect)
+    //        if (pindex->pprev)
+    //            pindex->pprev->pnext = nullptr;
 
-    // Connect longer branch
-    for (CBlockIndexSmartPtr& pindex : vConnect)
-        if (pindex->pprev)
-            pindex->pprev->pnext = pindex;
+    //    // Connect longer branch
+    //    for (boost::optional<CBlockIndex>& pindex : vConnect)
+    //        if (pindex->pprev)
+    //            pindex->pprev->pnext = pindex;
 
     // Resurrect memory transactions that were in the disconnected branch
     for (CTransaction& tx : vResurrect)
@@ -1040,91 +1123,72 @@ bool CBlock::Reorganize(CTxDB& txdb, const CBlockIndexSmartPtr& pindexNew,
     return true;
 }
 
-// ppcoin: total coin age spent in block, in the unit of coin-days.
-bool CBlock::GetCoinAge(uint64_t& nCoinAge) const
-{
-    nCoinAge = 0;
-
-    const CTxDB txdb;
-    for (const CTransaction& tx : vtx) {
-        uint64_t nTxCoinAge;
-        if (tx.GetCoinAge(txdb, nTxCoinAge))
-            nCoinAge += nTxCoinAge;
-        else
-            return false;
-    }
-
-    if (nCoinAge == 0) // block coin age minimum 1 coin-day
-        nCoinAge = 1;
-    if (fDebug)
-        NLog.write(b_sev::debug, "block coin age total nCoinDays={}", nCoinAge);
-    return true;
-}
-
-bool CBlock::AddToBlockIndex(uint256 nBlockPos, const uint256& hashProof, CTxDB& txdb,
-                             CBlockIndexSmartPtr* newBlockIdxPtr, const bool createDbTransaction)
+boost::optional<CBlockIndex> CBlock::AddToBlockIndex(const uint256&                      blockHash,
+                                                     const boost::optional<CBlockIndex>& prevBlockIndex,
+                                                     const uint256& hashProof, CTxDB& txdb,
+                                                     const bool createDbTransaction)
 {
     // Check for duplicate
-    uint256 hash = GetHash();
-    if (mapBlockIndex.exists(hash))
-        return NLog.error("AddToBlockIndex() : {} already exists", hash.ToString());
+    if (txdb.ReadBlockIndex(blockHash))
+        return NLog.errorn("AddToBlockIndex() : {} already exists", blockHash.ToString());
 
     // Construct new block index object
-    CBlockIndexSmartPtr pindexNew = boost::make_shared<CBlockIndex>(nBlockPos, *this);
-    if (!pindexNew)
-        return NLog.error("AddToBlockIndex() : new CBlockIndex failed");
-    pindexNew->phashBlock = hash;
-    const auto biPrev     = mapBlockIndex.get(hashPrevBlock).value_or(nullptr);
-    if (biPrev) {
-        pindexNew->pprev   = biPrev;
-        pindexNew->nHeight = pindexNew->pprev->nHeight + 1;
+    CBlockIndex pindexNew = CBlockIndex(blockHash, *this);
+
+    pindexNew.blockHash = blockHash;
+    if (prevBlockIndex) {
+        //        pindexNew.pprev    = biPrev;
+        pindexNew.hashPrev = hashPrevBlock;
+        pindexNew.nHeight  = prevBlockIndex->nHeight + 1;
     }
 
     // ppcoin: compute chain trust score
-    pindexNew->nChainTrust =
-        (pindexNew->pprev ? pindexNew->pprev->nChainTrust : 0) + pindexNew->GetBlockTrust();
+    pindexNew.nChainTrust =
+        (prevBlockIndex ? prevBlockIndex->nChainTrust : 0) + pindexNew.GetBlockTrust();
 
     // ppcoin: compute stake entropy bit for stake modifier
-    if (!pindexNew->SetStakeEntropyBit(GetStakeEntropyBit()))
-        return NLog.error("AddToBlockIndex() : SetStakeEntropyBit() failed");
+    if (!pindexNew.SetStakeEntropyBit(GetStakeEntropyBit(blockHash)))
+        return NLog.errorn("AddToBlockIndex() : SetStakeEntropyBit() failed");
 
     // Record proof hash value
-    pindexNew->hashProof = hashProof;
+    pindexNew.hashProof = hashProof;
 
     // ppcoin: compute stake modifier
     uint64_t nStakeModifier          = 0;
     bool     fGeneratedStakeModifier = false;
-    if (!ComputeNextStakeModifier(txdb, pindexNew->pprev.get(), nStakeModifier, fGeneratedStakeModifier))
-        return NLog.error("AddToBlockIndex() : ComputeNextStakeModifier() failed");
-    pindexNew->SetStakeModifier(nStakeModifier, fGeneratedStakeModifier);
-    pindexNew->nStakeModifierChecksum = GetStakeModifierChecksum(pindexNew.get());
-    if (!CheckStakeModifierCheckpoints(pindexNew->nHeight, pindexNew->nStakeModifierChecksum))
-        return NLog.error("AddToBlockIndex() : Rejected by stake modifier checkpoint height={}, "
-                          "modifier=0x{:016x}",
-                          pindexNew->nHeight, nStakeModifier);
+    if (!ComputeNextStakeModifier(txdb, prevBlockIndex ? &*prevBlockIndex : nullptr, nStakeModifier,
+                                  fGeneratedStakeModifier))
+        return NLog.errorn("AddToBlockIndex() : ComputeNextStakeModifier() failed");
+    pindexNew.SetStakeModifier(nStakeModifier, fGeneratedStakeModifier);
+    pindexNew.nStakeModifierChecksum = GetStakeModifierChecksum(&pindexNew, txdb);
+    if (!CheckStakeModifierCheckpoints(pindexNew.nHeight, pindexNew.nStakeModifierChecksum)) {
+        return NLog.errorn("AddToBlockIndex() : Rejected by stake modifier checkpoint height={}, "
+                           "modifier=0x{:016x}",
+                           pindexNew.nHeight, nStakeModifier);
+    }
     // return NLog.error("AddToBlockIndex() : Rejected by stake modifier checkpoint height={},
-    // checksum=0x{:016x}", pindexNew->nHeight, pindexNew->nStakeModifierChecksum);
+    // checksum=0x{:016x}", pindexNew.nHeight, pindexNew.nStakeModifierChecksum);
 
     // Add to mapBlockIndex
-    mapBlockIndex.set(hash, pindexNew);
-    if (pindexNew->IsProofOfStake())
-        setStakeSeen.insert(std::make_pair(pindexNew->prevoutStake, pindexNew->nStakeTime));
+    //    mapBlockIndex.set(hash, pindexNew);
+    if (pindexNew.IsProofOfStake())
+        txdb.WriteStakeSeen(std::make_pair(pindexNew.prevoutStake, pindexNew.nStakeTime));
 
     // Write to disk block index
     if (createDbTransaction && !txdb.TxnBegin())
-        return false;
-    txdb.WriteBlockIndex(CDiskBlockIndex(pindexNew.get()));
+        return boost::none;
+    txdb.WriteBlockIndex(pindexNew);
     if (createDbTransaction && !txdb.TxnCommit())
-        return false;
+        return boost::none;
 
     LOCK(cs_main);
 
     // New best
-    if (pindexNew->nChainTrust > txdb.GetBestChainTrust().value_or(0))
+    if (pindexNew.nChainTrust > txdb.GetBestChainTrust().value_or(0))
         if (!SetBestChain(txdb, pindexNew, createDbTransaction))
-            return false;
+            return boost::none;
 
-    if (pindexNew == txdb.GetBestBlockIndex()) {
+    if (pindexNew.GetBlockHash() == txdb.GetBestBlockHash()) {
         // Notify UI to display prev block's coinbase if it was ours
         static uint256 hashPrevBestCoinBase;
         UpdatedTransaction(hashPrevBestCoinBase);
@@ -1133,14 +1197,11 @@ bool CBlock::AddToBlockIndex(uint256 nBlockPos, const uint256& hashProof, CTxDB&
 
     uiInterface.NotifyBlocksChanged();
 
-    if (newBlockIdxPtr != nullptr) {
-        *newBlockIdxPtr = pindexNew;
-    }
-
-    return true;
+    return boost::make_optional(std::move(pindexNew));
 }
 
-bool CBlock::CheckBlock(const ITxDB& txdb, bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig)
+bool CBlock::CheckBlock(const ITxDB& txdb, const uint256& blockHash, bool fCheckPOW,
+                        bool fCheckMerkleRoot, bool fCheckSig)
 {
     // These are checks that are independent of context
     // that can be verified before saving an orphan block.
@@ -1154,7 +1215,7 @@ bool CBlock::CheckBlock(const ITxDB& txdb, bool fCheckPOW, bool fCheckMerkleRoot
     }
 
     // Check proof of work matches claimed amount
-    if (fCheckPOW && IsProofOfWork() && !CheckProofOfWork(GetPoWHash(), nBits)) {
+    if (fCheckPOW && IsProofOfWork() && !CheckProofOfWork(blockHash, nBits)) {
         reject = CBlockReject(REJECT_INVALID, "high-hash", this->GetHash());
         return DoS(50, NLog.error("CheckBlock() : proof of work failed"));
     }
@@ -1207,7 +1268,7 @@ bool CBlock::CheckBlock(const ITxDB& txdb, bool fCheckPOW, bool fCheckMerkleRoot
                                GetBlockTime(), vtx[1].nTime));
 
         // NovaCoin: check proof-of-stake block signature
-        if (fCheckSig && !CheckBlockSignature(txdb))
+        if (fCheckSig && !CheckBlockSignature(txdb, blockHash))
             return DoS(100, NLog.error("CheckBlock() : bad proof-of-stake block signature"));
     }
 
@@ -1267,60 +1328,48 @@ bool CBlock::CheckBlock(const ITxDB& txdb, bool fCheckPOW, bool fCheckMerkleRoot
     return true;
 }
 
-bool CBlock::AcceptBlock()
+bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& blockHash)
 {
     AssertLockHeld(cs_main);
+
+    assert(prevBlockIndex.GetBlockHash() == hashPrevBlock);
+
+    const CTxDB txdb;
 
     if (nVersion > CURRENT_VERSION)
         return DoS(100, NLog.error("AcceptBlock() : reject unknown block version {}", nVersion));
 
     // Check for duplicate
-    const uint256 hash = GetHash();
-    if (mapBlockIndex.exists(hash))
-        return NLog.error("AcceptBlock() : block already in mapBlockIndex");
+    if (txdb.ReadBlockIndex(blockHash))
+        return NLog.error("AcceptBlock() : block already in database");
 
     // protect against a possible attack where an attacker sends predecessors of very early blocks in the
     // blockchain, forcing a non-necessary scan of the whole blockchain
-    int64_t maxCheckpointBlockHeight = Checkpoints::GetLastCheckpointBlockHeight();
-    if (CTxDB().GetBestChainHeight().value_or(0) > maxCheckpointBlockHeight + 1) {
-        const uint256 prevBlockHash = this->hashPrevBlock;
-        const auto    bi            = mapBlockIndex.get(prevBlockHash).value_or(nullptr);
-        if (bi) {
-            int64_t newBlockPrevBlockHeight = bi->nHeight;
-            if (newBlockPrevBlockHeight + 1 < maxCheckpointBlockHeight) {
-                return DoS(
-                    25,
-                    NLog.error(
-                        "Prevblock of block {}, which is {}, is behind the latest checkpoint block "
-                        "height: {}",
-                        this->GetHash().ToString(), prevBlockHash.ToString(), maxCheckpointBlockHeight));
-            }
-        } else {
-            return NLog.error(
-                "The prevblock of {}, which is {}, is not in the blockindex. This should never "
-                "happen in AcceptBlock(), where this error occurred",
-                this->GetHash().ToString(), prevBlockHash.ToString());
+    const int64_t maxCheckpointBlockHeight = Checkpoints::GetLastCheckpointBlockHeight();
+    if (txdb.GetBestChainHeight().value_or(0) > maxCheckpointBlockHeight + 1) {
+        const uint256 prevBlockHash           = this->hashPrevBlock;
+        int64_t       newBlockPrevBlockHeight = prevBlockIndex.nHeight;
+        if (newBlockPrevBlockHeight + 1 < maxCheckpointBlockHeight) {
+            return DoS(
+                100,
+                NLog.error("Prevblock of block {}, which is {}, is behind the latest checkpoint block "
+                           "height: {}",
+                           blockHash.ToString(), prevBlockHash.ToString(), maxCheckpointBlockHeight));
         }
     }
 
     try {
-        CTxDB txdb;
         if (!VerifyInputsUnspent(txdb)) {
-            reject = CBlockReject(REJECT_INVALID, "bad-txns-inputs-missingorspent", this->GetHash());
-            return DoS(100, NLog.error("VerifyInputsUnspent() failed for block {}",
-                                       this->GetHash().ToString()));
+            reject = CBlockReject(REJECT_INVALID, "bad-txns-inputs-missingorspent", blockHash);
+            return DoS(100,
+                       NLog.error("VerifyInputsUnspent() failed for block {}", blockHash.ToString()));
         }
     } catch (std::exception& ex) {
         return NLog.error("VerifyInputsUnspent() threw an exception for block {}; with error: {}",
-                          this->GetHash().ToString(), ex.what());
+                          blockHash.ToString(), ex.what());
     }
 
-    // Get prev block index
-    const auto bi = mapBlockIndex.get(hashPrevBlock).value_or(nullptr);
-    if (!bi)
-        return DoS(10, NLog.error("AcceptBlock() : prev block not found"));
-    CBlockIndexSmartPtr pindexPrev = bi;
-    int                 nHeight    = pindexPrev->nHeight + 1;
+    const int nHeight = prevBlockIndex.nHeight + 1;
 
     if (IsProofOfWork() && nHeight > Params().LastPoWBlock())
         return DoS(100, NLog.error("AcceptBlock() : reject proof-of-work at height {}", nHeight));
@@ -1339,28 +1388,28 @@ bool CBlock::AcceptBlock()
     }
 
     // Check proof-of-work or proof-of-stake
-    if (nBits != GetNextTargetRequired(pindexPrev.get(), IsProofOfStake())) {
-        reject = CBlockReject(REJECT_INVALID, "bad-diffbits", this->GetHash());
+    if (nBits != GetNextTargetRequired(txdb, &prevBlockIndex, IsProofOfStake())) {
+        reject = CBlockReject(REJECT_INVALID, "bad-diffbits", blockHash);
         return DoS(100, NLog.error("AcceptBlock() : incorrect {}",
                                    IsProofOfWork() ? "proof-of-work" : "proof-of-stake"));
     }
 
     // Check timestamp against prev
-    if (GetBlockTime() <= pindexPrev->GetPastTimeLimit() ||
-        FutureDrift(GetBlockTime()) < pindexPrev->GetBlockTime()) {
-        reject = CBlockReject(REJECT_INVALID, "time-too-old", this->GetHash());
+    if (GetBlockTime() <= prevBlockIndex.GetPastTimeLimit(txdb) ||
+        FutureDrift(GetBlockTime()) < prevBlockIndex.GetBlockTime()) {
+        reject = CBlockReject(REJECT_INVALID, "time-too-old", blockHash);
         return NLog.error("AcceptBlock() : block's timestamp is too early");
     }
 
     // Check that all transactions are finalized
     for (const CTransaction& tx : vtx)
-        if (!IsFinalTx(tx, nHeight, GetBlockTime())) {
-            reject = CBlockReject(REJECT_INVALID, "bad-txns-nonfinal", this->GetHash());
+        if (!IsFinalTx(tx, txdb, nHeight, GetBlockTime())) {
+            reject = CBlockReject(REJECT_INVALID, "bad-txns-nonfinal", blockHash);
             return DoS(10, NLog.error("AcceptBlock() : contains a non-final transaction"));
         }
 
     // Check that the block chain matches the known block chain up to a checkpoint
-    if (!Checkpoints::CheckHardened(nHeight, hash))
+    if (!Checkpoints::CheckHardened(nHeight, blockHash))
         return DoS(100,
                    NLog.error("AcceptBlock() : rejected by hardened checkpoint lock-in at {}", nHeight));
 
@@ -1368,9 +1417,9 @@ bool CBlock::AcceptBlock()
     // Verify hash target and signature of coinstake tx
     if (IsProofOfStake()) {
         uint256 targetProofOfStake;
-        if (!CheckProofOfStake(vtx[1], nBits, hashProof, targetProofOfStake)) {
+        if (!CheckProofOfStake(txdb, vtx[1], nBits, hashProof, targetProofOfStake)) {
             NLog.write(b_sev::err, "WARNING: AcceptBlock(): check proof-of-stake failed for block {}",
-                       hash.ToString());
+                       blockHash.ToString());
             return false; // do not error here as we expect this during initial block download
         }
     }
@@ -1379,7 +1428,7 @@ bool CBlock::AcceptBlock()
         hashProof = GetPoWHash();
     }
 
-    bool cpSatisfies = Checkpoints::CheckSync(hash, pindexPrev.get());
+    const bool cpSatisfies = Checkpoints::CheckSync(txdb, blockHash, &prevBlockIndex);
 
     // Check that the block satisfies synchronized checkpoint
     if (CheckpointsMode == Checkpoints::CPMode_STRICT && !cpSatisfies)
@@ -1397,18 +1446,18 @@ bool CBlock::AcceptBlock()
     // Write block to history file
     if (!CheckDiskSpace(::GetSerializeSize(*this, SER_DISK, CLIENT_VERSION)))
         return NLog.error("AcceptBlock() : out of disk space");
-    uint256 nBlockPos = hash;
-    if (!WriteToDisk(nBlockPos, hashProof))
+
+    if (!WriteToDisk(prevBlockIndex, hashProof, blockHash))
         return NLog.error("AcceptBlock() : WriteToDisk failed");
 
     // Relay inventory, but don't relay old inventory during initial block download
     int nBlockEstimate = Checkpoints::GetTotalBlocksEstimate();
-    if (CTxDB().GetBestBlockHash() == hash) {
+    if (txdb.GetBestBlockHash() == blockHash) {
         LOCK(cs_vNodes);
         for (CNode* pnode : vNodes)
-            if (CTxDB().GetBestChainHeight().value_or(0) >
+            if (txdb.GetBestChainHeight().value_or(0) >
                 (pnode->nStartingHeight != -1 ? pnode->nStartingHeight - 2000 : nBlockEstimate))
-                pnode->PushInventory(CInv(MSG_BLOCK, hash));
+                pnode->PushInventory(CInv(MSG_BLOCK, blockHash));
     }
 
     return true;
@@ -1445,7 +1494,7 @@ bool CBlock::SignBlock(const CTxDB& txdb, const CWallet& wallet, int64_t nFees,
     if (IsProofOfStake())
         return true;
 
-    CBlockIndexSmartPtr                 pindexBestPtr = txdb.GetBestBlockIndex();
+    boost::optional<CBlockIndex>        pindexBestPtr = txdb.GetBestBlockIndex();
     const boost::optional<CTransaction> coinStake     = stakeMaker.CreateCoinStake(
         txdb, wallet, nBits, nFees, nReserveBalance, customInputs, extraPayoutForTest);
 
@@ -1454,7 +1503,7 @@ bool CBlock::SignBlock(const CTxDB& txdb, const CWallet& wallet, int64_t nFees,
     }
 
     const int64_t minTime =
-        std::max(pindexBestPtr->GetPastTimeLimit() + 1, PastDrift(pindexBestPtr->GetBlockTime()));
+        std::max(pindexBestPtr->GetPastTimeLimit(txdb) + 1, PastDrift(pindexBestPtr->GetBlockTime()));
 
     if (coinStake->nTime < minTime) {
         return false;
@@ -1463,7 +1512,7 @@ bool CBlock::SignBlock(const CTxDB& txdb, const CWallet& wallet, int64_t nFees,
     // make sure coinstake would meet timestamp protocol
     // as it would be the same as the block timestamp
     vtx[0].nTime = nTime = coinStake->nTime;
-    nTime                = std::max(pindexBestPtr->GetPastTimeLimit() + 1, GetMaxTransactionTime());
+    nTime                = std::max(pindexBestPtr->GetPastTimeLimit(txdb) + 1, GetMaxTransactionTime());
     nTime                = std::max(GetBlockTime(), PastDrift(pindexBestPtr->GetBlockTime()));
 
     // we have to make sure that we have no future timestamps in our transactions set
@@ -1492,8 +1541,8 @@ bool CBlock::SignBlock(const CTxDB& txdb, const CWallet& wallet, int64_t nFees,
     return key.Sign(GetHash(), vchBlockSig);
 }
 
-bool CBlock::SignBlockWithSpecificKey(const COutPoint& outputToStake, const CKey& keyOfOutput,
-                                      int64_t nFees)
+bool CBlock::SignBlockWithSpecificKey(const ITxDB& txdb, const COutPoint& outputToStake,
+                                      const CKey& keyOfOutput, int64_t nFees)
 {
     // if we are trying to sign
     //    something except proof-of-stake block template
@@ -1505,7 +1554,7 @@ bool CBlock::SignBlockWithSpecificKey(const COutPoint& outputToStake, const CKey
     if (IsProofOfStake())
         return true;
 
-    CBlockIndexSmartPtr                 pindexBestPtr = CTxDB().GetBestBlockIndex();
+    const boost::optional<CBlockIndex>  pindexBestPtr = txdb.GetBestBlockIndex();
     const boost::optional<CTransaction> coinStake =
         stakeMaker.CreateCoinStakeFromSpecificOutput(outputToStake, keyOfOutput, nBits, nFees);
 
@@ -1514,7 +1563,7 @@ bool CBlock::SignBlockWithSpecificKey(const COutPoint& outputToStake, const CKey
     }
 
     const int64_t minTime =
-        std::max(pindexBestPtr->GetPastTimeLimit() + 1, PastDrift(pindexBestPtr->GetBlockTime()));
+        std::max(pindexBestPtr->GetPastTimeLimit(txdb) + 1, PastDrift(pindexBestPtr->GetBlockTime()));
 
     if (coinStake->nTime < minTime) {
         return false;
@@ -1523,7 +1572,7 @@ bool CBlock::SignBlockWithSpecificKey(const COutPoint& outputToStake, const CKey
     // make sure coinstake would meet timestamp protocol
     // as it would be the same as the block timestamp
     vtx[0].nTime = nTime = coinStake->nTime;
-    nTime                = std::max(pindexBestPtr->GetPastTimeLimit() + 1, GetMaxTransactionTime());
+    nTime                = std::max(pindexBestPtr->GetPastTimeLimit(txdb) + 1, GetMaxTransactionTime());
     nTime                = std::max(GetBlockTime(), PastDrift(pindexBestPtr->GetBlockTime()));
 
     // we have to make sure that we have no future timestamps in our transactions set
@@ -1587,7 +1636,7 @@ Result<bool, CBlock::BlockColdStakingCheckError> CBlock::HasColdStaking(const IT
     return Ok(false);
 }
 
-bool CBlock::CheckBlockSignature(const ITxDB& txdb) const
+bool CBlock::CheckBlockSignature(const ITxDB& txdb, const uint256& blockHash) const
 {
     if (IsProofOfWork())
         return vchBlockSig.empty();
@@ -1607,14 +1656,14 @@ bool CBlock::CheckBlockSignature(const ITxDB& txdb) const
             return false;
         if (vchBlockSig.empty())
             return false;
-        return key.Verify(GetHash(), vchBlockSig);
+        return key.Verify(blockHash, vchBlockSig);
     } else if (whichType == TX_COLDSTAKE) {
         auto keyResult = ExtractColdStakePubKey(*this);
         if (keyResult.isErr()) {
             return NLog.error("CheckBlockSignature(): ColdStaking key extraction failed");
         }
         key = keyResult.unwrap(RESULT_PRE);
-        return key.Verify(GetHash(), vchBlockSig);
+        return key.Verify(blockHash, vchBlockSig);
     }
 
     const std::string sigTypeStr = [&]() {
@@ -1689,9 +1738,14 @@ bool CBlock::WriteBlockPubKeys(CTxDB& txdb)
     return success;
 }
 
-void UpdateWallets(const uint256& prevBestChain)
+void UpdateWallets(const uint256& prevBestChain, const ITxDB& txdb)
 {
-    const CTxDB txdb;
+    using BlockIndexCacheType = BlockIndexLRUCache<bool>;
+
+    static thread_local typename BlockIndexCacheType::ExtractorFunc extractorFunc =
+        [](const CBlockIndex&) -> int64_t { return false; };
+
+    static thread_local BlockIndexCacheType blockIndexCache(1000, extractorFunc);
 
     {
         /**
@@ -1703,30 +1757,39 @@ void UpdateWallets(const uint256& prevBestChain)
          */
         if (txdb.GetBestChainHeight().value_or(0) > 0) {
             // get the highest block in the previous check that's main chain
-            CBlockIndexSmartPtr ancestorOfPrevInMainChain =
-                mapBlockIndex.get(prevBestChain).value_or(nullptr);
+            boost::optional<CBlockIndex> ancestorOfPrevInMainChain = txdb.ReadBlockIndex(prevBestChain);
             assert(ancestorOfPrevInMainChain);
-            while (ancestorOfPrevInMainChain->pprev && !ancestorOfPrevInMainChain->IsInMainChain(txdb)) {
-                ancestorOfPrevInMainChain = ancestorOfPrevInMainChain->pprev;
+            while (ancestorOfPrevInMainChain->hashPrev != 0 &&
+                   !ancestorOfPrevInMainChain->IsInMainChain(txdb)) {
+                // we can't cache this because IsInMainChain() call can change over time
+                ancestorOfPrevInMainChain = ancestorOfPrevInMainChain->getPrev(txdb);
             }
+
+            std::vector<uint256> mainChain;
 
             // get the common ancestor between current chain and previous chain
-            CBlockIndexSmartPtr blocksInNewBranch = txdb.GetBestBlockIndex();
-            while (blocksInNewBranch->pprev &&
-                   blocksInNewBranch->GetBlockHash() != ancestorOfPrevInMainChain->GetBlockHash()) {
-                blocksInNewBranch = blocksInNewBranch->pprev;
+            uint256 mainChainCurrentHash = txdb.GetBestBlockHash();
+            while (mainChainCurrentHash != 0 &&
+                   mainChainCurrentHash != ancestorOfPrevInMainChain->GetBlockHash()) {
+                mainChain.push_back(mainChainCurrentHash);
+                boost::optional<BlockIndexCacheType::BICacheEntry> prev =
+                    blockIndexCache.get(txdb, mainChain.back());
+                if (!prev || prev->prevHash == ancestorOfPrevInMainChain->GetBlockHash()) {
+                    // we exclude the last block that matches the common ancestor since it's already in
+                    // the wallet
+                    break;
+                }
+                mainChainCurrentHash = prev->prevHash;
             }
 
-            // one step forward from common ancestor, since it matches the last block
-            // (which is synced with wallet)
-            blocksInNewBranch = blocksInNewBranch->pnext;
-
             // loop over all blocks from the common ancestor, to now, and sync these txs
-            while (blocksInNewBranch) {
+            for (const uint256& h : boost::adaptors::reverse(mainChain)) {
                 CBlock block;
-                if (!block.ReadFromDisk(blocksInNewBranch.get(), txdb)) {
+                if (!block.ReadFromDisk(h, txdb)) {
                     NLog.write(b_sev::err,
-                               "SetBestChain() : ReadFromDisk failed + couldn't sync with wallet");
+                               "SetBestChain() : CRITICAL ReadFromDisk failed + couldn't sync with "
+                               "wallet (block hash: {})",
+                               h.ToString());
                     continue;
                 }
 
@@ -1734,26 +1797,20 @@ void UpdateWallets(const uint256& prevBestChain)
                 for (CTransaction& tx : block.vtx) {
                     SyncWithWallets(txdb, tx, &block);
                 }
-
-                if (blocksInNewBranch->GetBlockHash() == txdb.GetBestBlockHash()) {
-                    break;
-                }
-
-                // pnext is always in the main chain
-                blocksInNewBranch = blocksInNewBranch->pnext;
             }
         } else {
             // this is for genesis
             // Watch for transactions paying to me
-            CBlock genesis = Params().GenesisBlock();
-            for (CTransaction& tx : genesis.vtx) {
+            const CBlock genesis = Params().GenesisBlock();
+            for (const CTransaction& tx : genesis.vtx) {
                 SyncWithWallets(txdb, tx, &genesis);
             }
         }
     }
 }
 
-bool CBlock::WriteToDisk(const uint256& nBlockPos, const uint256& hashProof)
+bool CBlock::WriteToDisk(const boost::optional<CBlockIndex>& prevBlockIndex, const uint256& hashProof,
+                         const uint256& blockHash)
 {
     /**
      * @brief txdb
@@ -1774,55 +1831,42 @@ bool CBlock::WriteToDisk(const uint256& nBlockPos, const uint256& hashProof)
     bool success = false;
 
     // this is an RAII hack to guarantee that the function will commit/abort the transaction on exit
-    auto txReverseFunctor = [&txdb, &success, this](bool*) {
+    auto txReverseFunctor = [&txdb, &success](bool*) {
         if (success) {
             txdb.TxnCommit();
         } else {
             txdb.TxnAbort();
-            // ensure that a block that is not added successfully doesn't exist in the block index
-            mapBlockIndex.erase(this->GetHash());
         }
     };
     std::unique_ptr<bool, decltype(txReverseFunctor)> txEnder(&success, txReverseFunctor);
 
-    if (!txdb.WriteBlock(this->GetHash(), *this)) {
-        return false;
+    if (!txdb.WriteBlock(blockHash, *this)) {
+        return NLog.error("WriteBlock failed");
     }
 
-    CBlockIndexSmartPtr pindexNew = nullptr;
+    const boost::optional<CBlockIndex> pindexNew =
+        AddToBlockIndex(blockHash, prevBlockIndex, hashProof, txdb, false);
 
     // database transactions are disabled in there because we already have a transaction around here
-    if (!AddToBlockIndex(nBlockPos, hashProof, txdb, &pindexNew, false)) {
-        return NLog.error("AcceptBlock() : AddToBlockIndex failed");
-    }
-
     if (!pindexNew) {
-        return NLog.error(
-            "Major Error: A nullptr CBlockIndex() was found in CBlock::WriteToDisk(), although "
-            "AddToBlockIndex() succeeded. This should never happen!");
+        return NLog.error("AddToBlockIndex failed");
     }
 
     if (!WriteBlockPubKeys(txdb)) {
         NLog.write(b_sev::err,
                    "Failed to write address vs public key values for some transactions in the block {}",
-                   this->GetHash().ToString());
+                   blockHash.ToString());
     }
 
-    uiInterface.NotifyBlockTip(IsInitialBlockDownload(), pindexNew);
+    uiInterface.NotifyBlockTip(IsInitialBlockDownload(txdb), *pindexNew);
 
     success = true;
     txEnder.reset();
 
     // after having (potentially) updated the best block, we sync with wallets
-    UpdateWallets(prevBestChain);
+    UpdateWallets(prevBestChain, txdb);
 
     return true;
-}
-
-bool CBlock::ReadFromDisk(const uint256& hash, bool fReadTransactions)
-{
-    SetNull();
-    return CTxDB().ReadBlock(hash, *this, fReadTransactions);
 }
 
 bool CBlock::ReadFromDisk(const uint256& hash, const ITxDB& txdb, bool fReadTransactions)

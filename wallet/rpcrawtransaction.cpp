@@ -82,7 +82,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry, bo
                     json_spirit::Value n = pair.second.getTxIn(i).getToken(t).exportDatabaseJsonData();
                     uint256            issuanceTxid = pair.second.getTxIn(i).getToken(t).getIssueTxId();
                     json_spirit::Value issuanceJson =
-                        NTP1Transaction::GetNTP1IssuanceMetadata(issuanceTxid);
+                        NTP1Transaction::GetNTP1IssuanceMetadata(txdb, issuanceTxid);
                     n.get_obj().push_back(json_spirit::Pair("metadataOfIssuance", issuanceJson));
                     tokens.push_back(n);
                 }
@@ -107,7 +107,8 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry, bo
             for (unsigned int t = 0; t < pair.second.getTxOut(i).tokenCount(); t++) {
                 json_spirit::Value n = pair.second.getTxOut(i).getToken(t).exportDatabaseJsonData();
                 uint256            issuanceTxid = pair.second.getTxOut(i).getToken(t).getIssueTxId();
-                json_spirit::Value issuanceJson = NTP1Transaction::GetNTP1IssuanceMetadata(issuanceTxid);
+                json_spirit::Value issuanceJson =
+                    NTP1Transaction::GetNTP1IssuanceMetadata(txdb, issuanceTxid);
                 n.get_obj().push_back(json_spirit::Pair("metadataOfIssuance", issuanceJson));
                 tokens.push_back(n);
             }
@@ -137,7 +138,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry, bo
 
     if (hashBlock != 0) {
         entry.push_back(Pair("blockhash", hashBlock.GetHex()));
-        const auto bi = mapBlockIndex.get(hashBlock).value_or(nullptr);
+        const auto bi = txdb.ReadBlockIndex(hashBlock);
         if (bi) {
             if (bi->IsInMainChain(txdb)) {
                 entry.push_back(
@@ -165,9 +166,9 @@ Value getrawtransaction(const Array& params, bool fHelp)
 
     LOCK(cs_main);
 
-    uint256      hash            = ParseHashV(params[0], "parameter 1");
-    bool         in_active_chain = true;
-    CBlockIndex* blockindex      = nullptr;
+    uint256                      hash            = ParseHashV(params[0], "parameter 1");
+    bool                         in_active_chain = true;
+    boost::optional<CBlockIndex> blockindex;
 
     if (hash == Params().GenesisBlock().hashMerkleRoot) {
         // Special exception for the genesis block coinbase transaction
@@ -188,12 +189,11 @@ Value getrawtransaction(const Array& params, bool fHelp)
         // if a specific block was mentioned, get it from the database and look for the tx in it
         CTxDB txdb;
         {
-            uint256    blockhash = ParseHashV(params[3], "parameter 3");
-            const auto bi        = mapBlockIndex.get(blockhash).value_or(nullptr);
-            if (!bi) {
+            uint256 blockhash = ParseHashV(params[3], "parameter 3");
+            blockindex        = txdb.ReadBlockIndex(blockhash);
+            if (!blockindex) {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block hash not found");
             }
-            blockindex      = bi.get();
             in_active_chain = blockindex->IsInMainChain(txdb);
         }
 
@@ -271,21 +271,23 @@ Value listunspent(const Array& params, bool fHelp)
         }
     }
 
+    const CTxDB txdb;
+
     Array           results;
     vector<COutput> vecOutputs;
-    pwalletMain->AvailableCoins(vecOutputs, false);
+    pwalletMain->AvailableCoins(txdb, vecOutputs, false);
     for (const COutput& out : vecOutputs) {
         if (out.nDepth < nMinDepth || out.nDepth > nMaxDepth)
             continue;
 
         std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs =
-            NTP1Transaction::GetAllNTP1InputsOfTx(static_cast<CTransaction>(*out.tx), false);
+            NTP1Transaction::GetAllNTP1InputsOfTx(static_cast<CTransaction>(*out.tx), txdb, false);
         NTP1Transaction ntp1tx;
-        ntp1tx.readNTP1DataFromTx(static_cast<CTransaction>(*out.tx), ntp1inputs);
+        ntp1tx.readNTP1DataFromTx(txdb, static_cast<CTransaction>(*out.tx), ntp1inputs);
 
         if (setAddress.size()) {
             CTxDestination address;
-            if (!ExtractDestination(out.tx->vout[out.i].scriptPubKey, address))
+            if (!ExtractDestination(txdb, out.tx->vout[out.i].scriptPubKey, address))
                 continue;
 
             if (!setAddress.count(address))
@@ -298,7 +300,7 @@ Value listunspent(const Array& params, bool fHelp)
         entry.push_back(Pair("txid", out.tx->GetHash().GetHex()));
         entry.push_back(Pair("vout", out.i));
         CTxDestination address;
-        if (ExtractDestination(out.tx->vout[out.i].scriptPubKey, address)) {
+        if (ExtractDestination(txdb, out.tx->vout[out.i].scriptPubKey, address)) {
             entry.push_back(Pair("address", CBitcoinAddress(address).ToString()));
             if (auto addrBookEntry = pwalletMain->mapAddressBook.get(address))
                 entry.push_back(Pair("account", addrBookEntry->name));
@@ -587,6 +589,7 @@ Value issuenewntp1token(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_TYPE_ERROR, "Amount can be either a string or integer");
     }();
 
+    const CTxDB               txdb;
     const std::string         recipientAddress(params[3].get_str());
     RawNTP1MetadataBeforeSend rawNTP1Data("", false);
     rawNTP1Data.metadata      = params.size() > 4 ? boost::algorithm::unhex(params[4].get_str()) : "";
@@ -703,9 +706,9 @@ Value issuenewntp1token(const Array& params, bool fHelp)
     if (verifyResultTx) {
         try {
             std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
-                NTP1Transaction::GetAllNTP1InputsOfTx(rawTx, false);
+                NTP1Transaction::GetAllNTP1InputsOfTx(rawTx, txdb, false);
             NTP1Transaction ntp1tx;
-            ntp1tx.readNTP1DataFromTx(rawTx, inputsTxs);
+            ntp1tx.readNTP1DataFromTx(txdb, rawTx, inputsTxs);
         } catch (const std::exception& ex) {
             NLog.write(b_sev::info,
                        "An invalid NTP1 transaction was created; an exception was thrown: {}",

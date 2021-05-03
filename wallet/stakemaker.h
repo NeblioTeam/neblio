@@ -45,7 +45,8 @@ class StakeMaker
                                              cachedSelectedOutputs;
     boost::atomic<boost::optional<uint64_t>> cachedStakeWeight;
 
-    void updateStakeWeight(const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins);
+    void updateStakeWeight(const ITxDB&                                               txdb,
+                           const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins);
 
 public:
     StakeMaker() = default;

@@ -123,19 +123,21 @@ extern BlockToCheckpointCache g_CheckpointsCache;
  */
 namespace Checkpoints {
 // Returns true if block passes checkpoint checks
-bool CheckHardened(int nHeight, const uint256& hash);
+bool CheckHardened(int nHeight, const uint256& hash,
+                   const MapCheckpoints& checkpoints = Params().Checkpoints());
 
 // Return conservative estimate of total number of blocks, 0 if unknown
-int GetTotalBlocksEstimate();
+int GetTotalBlocksEstimate(const MapCheckpoints& checkpoints = Params().Checkpoints());
 
-// Returns last CBlockIndex* in mapBlockIndex that is a checkpoint
-CBlockIndex* GetLastCheckpoint(const BlockIndexMapType &mapBlockIndex);
+// Returns last boost::opional<CBlockIndex> in mapBlockIndex that is a checkpoint
+boost::optional<CBlockIndex>
+GetLastCheckpoint(const ITxDB& txdb, const MapCheckpoints& checkpoints = Params().Checkpoints());
 
 CBlockIndex* GetLastSyncCheckpoint();
-bool    CheckSync(const uint256& blockHash, const CBlockIndex* pindexPrev, bool enableCaching = true,
-                  const MapCheckpoints&   checkpoints      = Params().Checkpoints(),
-                  BlockToCheckpointCache& checkpointsCache = g_CheckpointsCache);
-int64_t GetLastCheckpointBlockHeight();
+bool         CheckSync(const ITxDB& txdb, const uint256& blockHash, const CBlockIndex* pindexPrev,
+                       bool enableCaching = true, const MapCheckpoints& checkpoints = Params().Checkpoints(),
+                       BlockToCheckpointCache& checkpointsCache = g_CheckpointsCache);
+int64_t      GetLastCheckpointBlockHeight();
 } // namespace Checkpoints
 
 #endif

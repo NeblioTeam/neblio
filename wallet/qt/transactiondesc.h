@@ -1,8 +1,9 @@
 #ifndef TRANSACTIONDESC_H
 #define TRANSACTIONDESC_H
 
-#include <QString>
+#include "itxdb.h"
 #include <QObject>
+#include <QString>
 #include <string>
 
 class CWallet;
@@ -10,11 +11,12 @@ class CWalletTx;
 
 /** Provide a human-readable extended HTML description of a transaction.
  */
-class TransactionDesc: public QObject
+class TransactionDesc : public QObject
 {
     Q_OBJECT
 public:
-    static QString toHTML(CWallet *wallet, CWalletTx &wtx);
+    static QString toHTML(const ITxDB& txdb, CWallet* wallet, const CWalletTx& wtx);
+
 private:
     TransactionDesc() {}
 

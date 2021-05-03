@@ -63,16 +63,22 @@ void NTP1Wallet::__getOutputs()
         return;
     }
 
+    const CTxDB txdb;
+
+    const uint256 bestBlockHash = txdb.GetBestBlockHash();
+
     std::vector<COutput> vecOutputs;
-    std::atomic_load(&localWallet)->AvailableCoins(vecOutputs);
+    std::atomic_load(&localWallet)->AvailableCoins(txdb, vecOutputs);
 
     // remove outputs that are outside confirmation bounds
-    auto outputToRemoveIt =
-        std::remove_if(vecOutputs.begin(), vecOutputs.end(), [this](const COutput& output) {
-            if (maxConfirmations >= 0 && output.tx->GetDepthInMainChain() > maxConfirmations) {
+    auto outputToRemoveIt = std::remove_if(
+        vecOutputs.begin(), vecOutputs.end(), [this, &txdb, &bestBlockHash](const COutput& output) {
+            if (maxConfirmations >= 0 &&
+                output.tx->GetDepthInMainChain(txdb, bestBlockHash) > maxConfirmations) {
                 return true;
             }
-            if (minConfirmations >= 0 && output.tx->GetDepthInMainChain() < minConfirmations) {
+            if (minConfirmations >= 0 &&
+                output.tx->GetDepthInMainChain(txdb, bestBlockHash) < minConfirmations) {
                 return true;
             }
             return false;
@@ -119,17 +125,17 @@ void NTP1Wallet::__getOutputs()
         }
 
         // if output already exists, check if it's spent, if it's remove it
-        if (removeOutputIfSpent(output, neblTx))
+        if (removeOutputIfSpent(output, neblTx, bestBlockHash, txdb))
             continue;
 
         NTP1Transaction ntp1tx;
         try {
             std::vector<std::pair<CTransaction, NTP1Transaction>> prevTxs =
-                NTP1Transaction::GetAllNTP1InputsOfTx(neblTx, true);
-            ntp1tx.readNTP1DataFromTx(neblTx, prevTxs);
+                NTP1Transaction::GetAllNTP1InputsOfTx(neblTx, txdb, true);
+            ntp1tx.readNTP1DataFromTx(txdb, neblTx, prevTxs);
         } catch (std::exception& ex) {
             NLog.write(b_sev::err, "Unable to download transaction information. Error says: {}",
-                      ex.what());
+                       ex.what());
             failedRetrievals++;
             continue;
         }
@@ -158,9 +164,9 @@ void NTP1Wallet::__getOutputs()
                     }
 
                     std::vector<std::pair<CTransaction, NTP1Transaction>> issueTxInputs =
-                        NTP1Transaction::GetAllNTP1InputsOfTx(issueTx, true);
+                        NTP1Transaction::GetAllNTP1InputsOfTx(issueTx, txdb, true);
                     NTP1Transaction issueNTP1Tx;
-                    issueNTP1Tx.readNTP1DataFromTx(issueTx, issueTxInputs);
+                    issueNTP1Tx.readNTP1DataFromTx(txdb, issueTx, issueTxInputs);
 
                     // find the correct output in the issuance transaction that has the token in question
                     // issued
@@ -188,15 +194,15 @@ void NTP1Wallet::__getOutputs()
                     if (retrieveFullMetadata) {
                         try {
                             tokenInformation[tokenTx.getTokenId()] =
-                                NTP1Transaction::GetFullNTP1IssuanceMetadata(issueTxid);
+                                NTP1Transaction::GetFullNTP1IssuanceMetadata(txdb, issueTxid);
                         } catch (std::exception& ex) {
                             NLog.write(b_sev::err, "Failed to retrieve NTP1 token metadata. Error: {}",
-                                      ex.what());
+                                       ex.what());
                             tokenInformation[tokenTx.getTokenId()] =
                                 GetMinimalMetadataInfoFromTxData(tokenTx);
                         } catch (...) {
                             NLog.write(b_sev::err,
-                                      "Failed to retrieve NTP1 token metadata. Unknown exception.");
+                                       "Failed to retrieve NTP1 token metadata. Unknown exception.");
                             tokenInformation[tokenTx.getTokenId()] =
                                 GetMinimalMetadataInfoFromTxData(tokenTx);
                         }
@@ -213,7 +219,7 @@ void NTP1Wallet::__getOutputs()
         }
     }
 
-    scanSpentTransactions();
+    scanSpentTransactions(txdb, bestBlockHash);
 
     lastTxCount      = currTxCount - failedRetrievals;
     lastOutputsCount = currOutputsCount - failedRetrievals;
@@ -246,12 +252,13 @@ void NTP1Wallet::AddOutputToWalletBalance(const NTP1Transaction& tx, int outputI
     }
 }
 
-bool NTP1Wallet::removeOutputIfSpent(const NTP1OutPoint& output, const CWalletTx& neblTx)
+bool NTP1Wallet::removeOutputIfSpent(const NTP1OutPoint& output, const CWalletTx& neblTx,
+                                     const uint256& bestBlockHash, const ITxDB& txdb)
 {
     std::unordered_map<NTP1OutPoint, NTP1Transaction>::iterator outputIt =
         walletOutputsWithTokens.find(output);
     if (outputIt != walletOutputsWithTokens.end()) {
-        if (pwalletMain->IsSpent(neblTx.GetHash(), output.getIndex())) {
+        if (pwalletMain->IsSpent(neblTx.GetHash(), output.getIndex(), txdb, bestBlockHash)) {
             walletOutputsWithTokens.erase(outputIt);
         }
         return true;
@@ -259,7 +266,7 @@ bool NTP1Wallet::removeOutputIfSpent(const NTP1OutPoint& output, const CWalletTx
     return false;
 }
 
-void NTP1Wallet::scanSpentTransactions()
+void NTP1Wallet::scanSpentTransactions(const ITxDB& txdb, const uint256& bestBlockHash)
 {
     std::shared_ptr<CWallet> localWallet = std::atomic_load(&pwalletMain);
     if (localWallet == nullptr)
@@ -273,7 +280,7 @@ void NTP1Wallet::scanSpentTransactions()
         const uint256& txHash      = it->first.getHash();
         if (!localWallet->GetTransaction(txHash, neblTx))
             continue;
-        if (pwalletMain->IsSpent(neblTx.GetHash(), outputIndex)) {
+        if (pwalletMain->IsSpent(neblTx.GetHash(), outputIndex, txdb, bestBlockHash)) {
             // this, although the right way to do things, causes a crash. A safer plan is chosen
             // it = walletOutputsWithTokens.erase(it);
             toRemove.push_back(it->first);
@@ -284,9 +291,9 @@ void NTP1Wallet::scanSpentTransactions()
             walletOutputsWithTokens.erase(toRemove[i]);
         } else {
             NLog.write(b_sev::err,
-                      "Unable to find output {}:{}, although it was found before and marked for "
-                      "removal.",
-                      toRemove[i].getHash().ToString(), ToString(toRemove[i].getIndex()));
+                       "Unable to find output {}:{}, although it was found before and marked for "
+                       "removal.",
+                       toRemove[i].getHash().ToString(), ToString(toRemove[i].getIndex()));
             //            std::cerr<<"Unable to find output " << toRemove[i].getHash().ToString() <<
             //            ":"
             //            << ToString(toRemove[i].getIndex()) << ", although it was found before and
@@ -401,7 +408,7 @@ std::string NTP1Wallet::__downloadIcon(const std::string& IconURL)
         return cURLTools::GetFileFromHTTPS(IconURL, 30, false);
     } catch (std::exception& ex) {
         NLog.write(b_sev::err, "Error: Failed at downloading icon from {}. Error says: {}", IconURL,
-                  ex.what());
+                   ex.what());
         return ICON_ERROR_CONTENT;
     }
 }

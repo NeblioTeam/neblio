@@ -579,44 +579,6 @@ NTP1WalletPtr NTP1SendTxData::getWallet() const
 
 std::vector<IntermediaryTI> NTP1SendTxData::getIntermediaryTIs() const { return intermediaryTIs; }
 
-int64_t NTP1SendTxData::__addInputsThatCoversNeblAmount(uint64_t neblAmount)
-{
-
-    // get nebls that fulfill the fee (if required)
-
-    uint64_t currentTotalNeblsInSelectedInputs = CalculateTotalNeblsInInputs(tokenSourceInputs);
-
-    // check if the total amount in selected addresses is sufficient for the amount
-    if (neblAmount > currentTotalNeblsInSelectedInputs) {
-        std::vector<COutput> availableOutputs;
-        pwalletMain->AvailableCoins(availableOutputs);
-
-        {
-            std::random_device rd;
-            std::mt19937       g(rd());
-            // shuffle outputs to select randomly
-            std::shuffle(availableOutputs.begin(), availableOutputs.end(), g);
-        }
-
-        // add more outputs
-        for (const auto& output : availableOutputs) {
-            NTP1OutPoint outPoint(output.tx->GetHash(), output.i);
-            // skip if already in
-            if (std::find(tokenSourceInputs.begin(), tokenSourceInputs.end(), outPoint) !=
-                tokenSourceInputs.end()) {
-                continue;
-            }
-            tokenSourceInputs.push_back(outPoint);
-            currentTotalNeblsInSelectedInputs = CalculateTotalNeblsInInputs(tokenSourceInputs);
-            if (currentTotalNeblsInSelectedInputs >= neblAmount) {
-                break;
-            }
-        }
-    }
-
-    return currentTotalNeblsInSelectedInputs;
-}
-
 bool NTP1SendTxData::hasNTP1Tokens() const
 {
     uint64_t total =

@@ -28,6 +28,9 @@ class CRequestTracker;
 class CNode;
 class CBlockIndex;
 
+/** The maximum number of entries in a locator */
+static const unsigned int MAX_LOCATOR_SZ = 101;
+
 inline unsigned int ReceiveFloodSize() { return 1000 * GetArg("-maxreceivebuffer", 5 * 1000); }
 inline unsigned int SendBufferSize() { return 1000 * GetArg("-maxsendbuffer", 1 * 1000); }
 
@@ -242,7 +245,7 @@ public:
     std::map<uint256, CRequestTracker> mapRequests;
     CCriticalSection                   cs_mapRequests;
     uint256                            hashContinue;
-    CBlockIndex*                       pindexLastGetBlocksBegin;
+    const CBlockIndex*                 pindexLastGetBlocksBegin;
     uint256                            hashLastGetBlocksEnd;
     int                                nStartingHeight;
 
@@ -386,7 +389,7 @@ public:
 
         if (fDebugNet)
             NLog.write(b_sev::debug, "askfor {}   {} ({})", inv.ToString(), nRequestTime,
-                      DateTimeStrFormat("%H:%M:%S", nRequestTime / 1000000));
+                       DateTimeStrFormat("%H:%M:%S", nRequestTime / 1000000));
 
         // Make sure not to reuse time indexes to keep things in the same order
         int64_t        nNow = (GetTime() - 1) * 1000000;
@@ -637,7 +640,7 @@ public:
         PushMessage(pszCommand, hashReply, a1, a2);
     }
 
-    void PushGetBlocks(CBlockIndex* pindexBegin, uint256 hashEnd);
+    void PushGetBlocks(const CBlockIndex* pindexBegin, uint256 hashEnd);
     bool IsSubscribed(unsigned int nChannel);
     void Subscribe(unsigned int nChannel, unsigned int nHops = 0);
     void CancelSubscribe(unsigned int nChannel);

@@ -131,12 +131,13 @@ bool CTransaction::ReadFromDisk(const ITxDB& txdb, COutPoint prevout, CTxIndex& 
 {
     SetNull();
     if (!txdb.ReadTxIndex(prevout.hash, txindexRet))
-        return false;
+        return fDebug ? NLog.error("Tx index not found for tx {}", prevout.hash.ToString()) : false;
     if (!txdb.ReadTx(txindexRet.pos, *this))
-        return false;
+        return fDebug ? NLog.error("Tx not found for tx {}", prevout.hash.ToString()) : false;
     if (prevout.n >= vout.size()) {
         SetNull();
-        return false;
+        return fDebug ? NLog.error("Invalid prevout with n >= vout.size()", prevout.hash.ToString())
+                      : false;
     }
     return true;
 }
@@ -280,8 +281,8 @@ Result<void, TxValidationState> CTransaction::CheckTransaction(const ITxDB& txdb
         for (const CTxIn& txin : vin) {
             if (vInOutPoints.find(txin.prevout) != vInOutPoints.cend()) {
                 if (sourceBlockPtr) {
-                    sourceBlockPtr->reject = CBlock::CBlockReject(
-                        REJECT_INVALID, "bad-txns-inputs-duplicate", sourceBlockPtr->GetHash());
+                    sourceBlockPtr->reject = CBlockReject(REJECT_INVALID, "bad-txns-inputs-duplicate",
+                                                          sourceBlockPtr->GetHash());
                 }
                 return Err(
                     MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-txns-inputs-duplicate"));
@@ -294,7 +295,7 @@ Result<void, TxValidationState> CTransaction::CheckTransaction(const ITxDB& txdb
         if (vin[0].scriptSig.size() < 2 || vin[0].scriptSig.size() > 100) {
             if (sourceBlockPtr) {
                 sourceBlockPtr->reject =
-                    CBlock::CBlockReject(REJECT_INVALID, "bad-cb-length", sourceBlockPtr->GetHash());
+                    CBlockReject(REJECT_INVALID, "bad-cb-length", sourceBlockPtr->GetHash());
             }
             DoS(100, false);
             return Err(MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-cb-length"));
@@ -405,7 +406,7 @@ bool CTransaction::FetchInputs(const ITxDB& txdb, const std::map<uint256, CTxInd
         if (!fFound && (fBlock || fMiner))
             return fMiner ? false
                           : NLog.error("FetchInputs() : {} prev tx {} index entry not found",
-                                       GetHash().ToString().c_str(), prevout.hash.ToString());
+                                       GetHash().ToString(), prevout.hash.ToString());
 
         // Read txPrev
         CTransaction& txPrev = inputsRet[prevout.hash].second;
@@ -413,14 +414,14 @@ bool CTransaction::FetchInputs(const ITxDB& txdb, const std::map<uint256, CTxInd
             // Get prev tx from single transactions in memory
             if (!mempool.lookup(prevout.hash, txPrev))
                 return NLog.error("FetchInputs() : {} mempool Tx prev not found {}",
-                                  GetHash().ToString().c_str(), prevout.hash.ToString());
+                                  GetHash().ToString(), prevout.hash.ToString());
             if (!fFound)
                 txindex.vSpent.resize(txPrev.vout.size());
         } else {
             // Get prev tx from disk
             if (!txPrev.ReadFromDisk(txindex.pos, txdb))
                 return NLog.error("FetchInputs() : {} ReadFromDisk prev tx {} failed",
-                                  GetHash().ToString().c_str(), prevout.hash.ToString());
+                                  GetHash().ToString(), prevout.hash.ToString());
         }
     }
 
@@ -484,25 +485,27 @@ unsigned int CTransaction::GetP2SHSigOpCount(const MapPrevTx& inputs) const
     return nSigOps;
 }
 
-Result<void, TxValidationState> CTransaction::ConnectInputs(const ITxDB& txdb, MapPrevTx inputs,
-                                                            std::map<uint256, CTxIndex>&    mapTestPool,
-                                                            const CDiskTxPos&               posThisTx,
-                                                            const ConstCBlockIndexSmartPtr& pindexBlock,
-                                                            bool fBlock, bool fMiner,
-                                                            CBlock* sourceBlockPtr) const
+Result<void, TxValidationState>
+CTransaction::ConnectInputs(const ITxDB& txdb, MapPrevTx inputs,
+                            std::map<uint256, CTxIndex>& mapTestPool, const CDiskTxPos& posThisTx,
+                            const boost::optional<CBlockIndex>& pindexBlock, bool fBlock, bool fMiner,
+                            CBlock* sourceBlockPtr) const
 {
     // Take over previous transactions' spent pointers
     // fBlock is true when this is called from AcceptBlock when a new best-block is added to the
     // blockchain fMiner is true when called from the internal bitcoin miner
     // ... both are false when called from CTransaction::AcceptToMemoryPool
     if (!IsCoinBase()) {
-        CAmount nValueIn = 0;
-        CAmount nFees    = 0;
+        const int nCbM     = Params().CoinbaseMaturity(txdb);
+        CAmount   nValueIn = 0;
+        CAmount   nFees    = 0;
         for (unsigned int i = 0; i < vin.size(); i++) {
             COutPoint prevout = vin[i].prevout;
             assert(inputs.count(prevout.hash) > 0);
             CTxIndex&     txindex = inputs[prevout.hash].first;
             CTransaction& txPrev  = inputs[prevout.hash].second;
+            static_assert(std::is_same<uint256, decltype(txindex.pos.nBlockPos)>::value,
+                          "Expected same types");
 
             if (prevout.n >= txPrev.vout.size() || prevout.n >= txindex.vSpent.size()) {
                 DoS(100, false);
@@ -515,30 +518,43 @@ Result<void, TxValidationState> CTransaction::ConnectInputs(const ITxDB& txdb, M
             }
 
             // If prev is coinbase or coinstake, check that it's matured
-            int nCbM = Params().CoinbaseMaturity(txdb);
-            if (txPrev.IsCoinBase() || txPrev.IsCoinStake())
-                for (ConstCBlockIndexSmartPtr pindex = boost::atomic_load(&pindexBlock);
-                     pindex && pindexBlock->nHeight - pindex->nHeight < nCbM;
-                     pindex = boost::atomic_load(&pindex->pprev)) {
-                    static_assert(std::is_same<decltype(pindex->blockKeyInDB),
-                                               decltype(txindex.pos.nBlockPos)>::value,
-                                  "Expected same types");
-                    if (pindex->blockKeyInDB == txindex.pos.nBlockPos) {
-                        if (sourceBlockPtr) {
-                            sourceBlockPtr->reject = CBlock::CBlockReject(
-                                REJECT_INVALID, "bad-txns-premature-spend-of-coinbase/coinstake",
-                                sourceBlockPtr->GetHash());
-                        }
-                        const std::string msg = txPrev.IsCoinBase()
-                                                    ? "bad-txns-premature-spend-of-coinbase"
-                                                    : "bad-txns-premature-spend-of-coinstake";
-                        return Err(MakeInvalidTxState(
-                            TxValidationResult::TX_PREMATURE_SPEND, msg,
-                            fmt::format("ConnectInputs() : tried to spend {} at depth {}",
-                                        txPrev.IsCoinBase() ? "coinbase" : "coinstake",
-                                        pindexBlock->nHeight - pindex->nHeight)));
+            if (txPrev.IsCoinBase() || txPrev.IsCoinStake()) {
+                const boost::optional<CBlockIndex> inputIndex =
+                    txdb.ReadBlockIndex(txindex.pos.nBlockPos);
+                // failed to read/find block in db
+                if (!inputIndex) {
+                    if (sourceBlockPtr) {
+                        sourceBlockPtr->reject =
+                            CBlockReject(REJECT_INVALID,
+                                         "bad-txns-premature-spend-of-coinbase/coinstake-check-failed",
+                                         sourceBlockPtr->GetHash());
                     }
+                    const std::string msg =
+                        "bad-txns-premature-spend-of-coinbase/coinstake-check-failed";
+                    return Err(MakeInvalidTxState(
+                        TxValidationResult::TX_PREMATURE_SPEND_CHECK_ERROR, msg,
+                        fmt::format("ConnectInputs() : Failed to check coinbase/coinstake block "
+                                    "maturity for spend; reading block {} failed",
+                                    txindex.pos.nBlockPos.ToString())));
                 }
+
+                // check if spent before maturity
+                if (pindexBlock->nHeight - inputIndex->nHeight < nCbM) {
+                    if (sourceBlockPtr) {
+                        sourceBlockPtr->reject = CBlockReject(
+                            REJECT_INVALID, "bad-txns-premature-spend-of-coinbase/coinstake",
+                            sourceBlockPtr->GetHash());
+                    }
+                    const std::string msg = txPrev.IsCoinBase()
+                                                ? "bad-txns-premature-spend-of-coinbase"
+                                                : "bad-txns-premature-spend-of-coinstake";
+                    return Err(
+                        MakeInvalidTxState(TxValidationResult::TX_PREMATURE_SPEND, msg,
+                                           fmt::format("ConnectInputs() : tried to spend {} at depth {}",
+                                                       txPrev.IsCoinBase() ? "coinbase" : "coinstake",
+                                                       pindexBlock->nHeight - inputIndex->nHeight)));
+                }
+            }
 
             // ppcoin: check transaction timestamp
             if (txPrev.nTime > nTime) {
@@ -611,7 +627,7 @@ Result<void, TxValidationState> CTransaction::ConnectInputs(const ITxDB& txdb, M
 
                     if (sourceBlockPtr) {
                         sourceBlockPtr->reject =
-                            CBlock::CBlockReject(REJECT_INVALID, msg, sourceBlockPtr->GetHash());
+                            CBlockReject(REJECT_INVALID, msg, sourceBlockPtr->GetHash());
                     }
                     this->reject = CTransaction::CTxReject(REJECT_INVALID, msg, GetHash());
                     DoS(100, false);
@@ -634,8 +650,8 @@ Result<void, TxValidationState> CTransaction::ConnectInputs(const ITxDB& txdb, M
         if (!IsCoinStake()) {
             if (nValueIn < GetValueOut()) {
                 if (sourceBlockPtr) {
-                    sourceBlockPtr->reject = CBlock::CBlockReject(REJECT_INVALID, "bad-txns-in-belowout",
-                                                                  sourceBlockPtr->GetHash());
+                    sourceBlockPtr->reject =
+                        CBlockReject(REJECT_INVALID, "bad-txns-in-belowout", sourceBlockPtr->GetHash());
                 }
                 DoS(100, false);
                 return Err(
@@ -703,7 +719,7 @@ bool CTransaction::GetCoinAge(const ITxDB& txdb, uint64_t& nCoinAge) const
 
         // Read block header
         CBlock block;
-        if (!block.ReadFromDisk(txindex.pos.nBlockPos, false))
+        if (!block.ReadFromDisk(txindex.pos.nBlockPos, txdb, false))
             return false; // unable to read block of previous transaction
         if (block.GetBlockTime() + nSMA > nTime)
             continue; // only count coins meeting min age requirement
@@ -729,7 +745,7 @@ CTransaction CTransaction::FetchTxFromDisk(const uint256& txid)
     return FetchTxFromDisk(txid, txdb);
 }
 
-CTransaction CTransaction::FetchTxFromDisk(const uint256& txid, CTxDB& txdb)
+CTransaction CTransaction::FetchTxFromDisk(const uint256& txid, const ITxDB& txdb)
 {
     CTransaction result;
     CTxIndex     txPos;

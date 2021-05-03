@@ -43,6 +43,7 @@ SOURCES += \
     base64_tests.cpp      \
     bignum_tests.cpp      \
     bloom_tests.cpp       \
+    blockindexlru_tests.cpp \
     canonical_tests.cpp   \
     checkpoints_tests.cpp \
     compress_tests.cpp    \

@@ -3,7 +3,9 @@ project(Neblio)
 
 option(NEBLIO_CMAKE "Enable buildig with cmake (to ensure this is for development)" OFF)
 if(NOT NEBLIO_CMAKE)
-    message(FATAL_ERROR "This cmake file is only for development. Please use qmake to build the project.")
+    if(NOT DEFINED ENV{NEBLIO_CMAKE})
+        message(FATAL_ERROR "This cmake file is only for development. Please use qmake to build the project.")
+    endif()
 endif()
 
 cmake_host_system_information(RESULT hostname QUERY HOSTNAME)
@@ -632,6 +634,9 @@ add_library(core_lib STATIC
     wallet/itxdb.h
     wallet/coldstakedelegation.cpp
     wallet/udaddress.cpp
+    wallet/blockreject.cpp
+    wallet/blockmetadata.cpp
+    wallet/blockindexlrucache.cpp
     )
 
 target_link_libraries(core_lib

@@ -1,11 +1,11 @@
 #ifndef BLOCKLOCATOR_H
 #define BLOCKLOCATOR_H
 
-#include <vector>
-#include "uint256.h"
 #include "globals.h"
 #include "serialize.h"
-#include "boost/foreach.hpp"
+#include "uint256.h"
+#include <boost/foreach.hpp>
+#include <vector>
 
 class CBlockIndex;
 
@@ -21,27 +21,33 @@ protected:
 public:
     CBlockLocator() {}
 
-    explicit CBlockLocator(const CBlockIndex* pindex);
-
-    explicit CBlockLocator(uint256 hashBlock);
+    explicit CBlockLocator(const CBlockIndex* pindex, const ITxDB& txdb);
 
     CBlockLocator(const std::vector<uint256>& vHaveIn);
 
-    IMPLEMENT_SERIALIZE(if (!(nType & SER_GETHASH)) READWRITE(nVersion); READWRITE(vHave);)
+    // clang-format off
+    IMPLEMENT_SERIALIZE(
+        if (!(nType & SER_GETHASH))
+            READWRITE(nVersion);
+        READWRITE(vHave);
+    )
+    // clang-format on
 
     void SetNull();
 
     bool IsNull();
 
-    void Set(const CBlockIndex* pindex);
+    void Set(const CBlockIndex* pindex, const ITxDB& txdb);
 
-    int GetDistanceBack();
+    int GetDistanceBack(const ITxDB& txdb);
 
-    CBlockIndexSmartPtr GetBlockIndex();
+    boost::optional<CBlockIndex> GetBlockIndex(const ITxDB& txdb);
 
-    uint256 GetBlockHash();
+    uint256 GetBlockHash(const ITxDB& txdb);
 
-    int GetHeight();
+    int GetHeight(const ITxDB& txdb);
+
+    std::size_t size() const;
 };
 
 #endif // BLOCKLOCATOR_H
