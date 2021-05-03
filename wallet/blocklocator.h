@@ -1,10 +1,10 @@
 #ifndef BLOCKLOCATOR_H
 #define BLOCKLOCATOR_H
 
-#include "boost/foreach.hpp"
 #include "globals.h"
 #include "serialize.h"
 #include "uint256.h"
+#include <boost/foreach.hpp>
 #include <vector>
 
 class CBlockIndex;

@@ -145,7 +145,7 @@ int64_t CBlockIndex::GetMedianTimePast(const ITxDB& txdb) const
         const boost::optional<BlockTimeCacheType::BICacheEntry> blockTime =
             blockTimeCache.get(txdb, currHash);
         if (!blockTime) {
-            NLog.write(b_sev::err, "CRITICAL ERROR: block not found while calculating target");
+            NLog.write(b_sev::critical, "CRITICAL ERROR: block not found while calculating target");
             break;
         }
 

@@ -10,9 +10,13 @@
 
 #pragma once
 
+#include <boost/filesystem/path.hpp>
 #include <functional>
 #include <iostream>
 #include <type_traits>
+
+#define RESULT_PRE                                                                                      \
+    "[" + boost::filesystem::path(__FILE__).filename().string() + ":" + std::to_string(__LINE__) + "]"
 
 namespace types {
 template <typename T>
@@ -870,10 +874,11 @@ struct Result
 
     bool isErr() const { return !ok_; }
 
-    T expect(const char* str) const
+    T expect(const char* str, const std::string& caller_source) const
     {
         if (!isOk()) {
             std::cerr << str << std::endl;
+            std::cerr << caller_source << std::endl;
             std::terminate();
         }
         return expect_impl(std::is_same<T, void>());
@@ -929,23 +934,26 @@ struct Result
     }
 
     template <typename U = T>
-    typename std::enable_if<!std::is_same<U, void>::value, U>::type unwrap() const
+    typename std::enable_if<!std::is_same<U, void>::value, U>::type
+    unwrap(const std::string& caller_source) const
     {
         if (isOk()) {
             return storage().template get<U>();
         }
 
         std::cerr << "Attempting to unwrap an error Result" << std::endl;
+        std::cerr << caller_source << std::endl;
         std::terminate();
     }
 
-    E unwrapErr() const
+    E unwrapErr(const std::string& caller_source) const
     {
         if (isErr()) {
             return storage().template get<E>();
         }
 
         std::cerr << "Attempting to unwrapErr an ok Result" << std::endl;
+        std::cerr << caller_source << std::endl;
         std::terminate();
     }
 
