@@ -69,4 +69,4 @@ if (BUILD_GUI_DEPS)
         ARCHIVE DESTINATION ${lib_folder}
         LIBRARY DESTINATION ${lib_folder})
 endif()
-set_property(TARGET lmdb APPEND PROPERTY COMPILE_FLAGS "-fPIC")
+set_property(TARGET lmdb APPEND PROPERTY COMPILE_FLAGS "-fPIC -Wno-stringop-overflow")

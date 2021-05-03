@@ -24,8 +24,8 @@ struct AddressTableEntry
     QString address;
 
     AddressTableEntry() {}
-    AddressTableEntry(Type type, const QString& label, const QString& address)
-        : type(type), label(label), address(address)
+    AddressTableEntry(Type typeIn, const QString& labelIn, const QString& addressIn)
+        : type(typeIn), label(labelIn), address(addressIn)
     {
     }
 };
@@ -48,7 +48,7 @@ public:
     QList<AddressTableEntry> cachedAddressTable;
     AddressTableModel*       parent;
 
-    AddressTablePriv(CWallet* wallet, AddressTableModel* parent) : wallet(wallet), parent(parent) {}
+    AddressTablePriv(CWallet* walletIn, AddressTableModel* parentIn) : wallet(walletIn), parent(parentIn) {}
 
     void refreshAddressTable()
     {
@@ -131,11 +131,11 @@ public:
     }
 };
 
-AddressTableModel::AddressTableModel(CWallet* wallet, WalletModel* parent)
-    : QAbstractTableModel(parent), walletModel(parent), wallet(wallet), priv(0)
+AddressTableModel::AddressTableModel(CWallet* walletIn, WalletModel* parent)
+    : QAbstractTableModel(parent), walletModel(parent), wallet(walletIn), priv(0)
 {
     columns << tr("Label") << tr("Address");
-    priv = new AddressTablePriv(wallet, this);
+    priv = new AddressTablePriv(walletIn, this);
     priv->refreshAddressTable();
 }
 

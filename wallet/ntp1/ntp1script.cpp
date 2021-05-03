@@ -71,7 +71,7 @@ uint64_t NTP1Script::CalculateMetadataSize(const std::string& op_code_bin)
     if (op_code_bin.size() > 1) {
         throw std::runtime_error("Too large op_code");
     }
-    const uint8_t char1 = static_cast<const uint8_t>(op_code_bin[0]);
+    const uint8_t char1 = static_cast<uint8_t>(op_code_bin[0]);
     if (char1 == 0x01) {
         return 52;
     } else if (char1 == 0x02) {
@@ -114,7 +114,7 @@ uint64_t NTP1Script::CalculateMetadataSize(const std::string& op_code_bin)
 
 NTP1Script::TxType NTP1Script::CalculateTxType(const std::string& op_code_bin)
 {
-    uint8_t char1 = static_cast<const uint8_t>(op_code_bin[0]);
+    uint8_t char1 = static_cast<uint8_t>(op_code_bin[0]);
     if (char1 <= 0x0F) {
         return TxType::TxType_Issuance;
     } else if (char1 <= 0x1F) {
@@ -129,7 +129,7 @@ NTP1Script::TxType NTP1Script::CalculateTxType(const std::string& op_code_bin)
 
 NTP1Script::TxType NTP1Script::CalculateTxTypeNTP1v3(const std::string& op_code_bin)
 {
-    uint8_t char1 = static_cast<const uint8_t>(op_code_bin[0]);
+    uint8_t char1 = static_cast<uint8_t>(op_code_bin[0]);
     if (char1 == 0x01) {
         return TxType::TxType_Issuance;
     } else if (char1 == 0x10) {
@@ -176,7 +176,7 @@ std::string NTP1Script::ParseOpCodeFromLongEnoughString(const std::string& BinOp
     std::string result;
     for (unsigned i = 0; BinOpCodeStartsAtByte0.size(); i++) {
         const auto&   c  = BinOpCodeStartsAtByte0[i];
-        const uint8_t uc = static_cast<const uint8_t>(c);
+        const uint8_t uc = static_cast<uint8_t>(c);
         result.push_back(c);
         // byte value 0xFF means that more OP_CODE bytes are required
         if (uc != 255) {

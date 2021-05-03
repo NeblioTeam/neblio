@@ -62,12 +62,12 @@ void SendCoinsEntry::on_payTo_textChanged(const QString& address)
         ui->addAsLabel->setText(associatedLabel);
 }
 
-void SendCoinsEntry::setModel(WalletModel* model)
+void SendCoinsEntry::setModel(WalletModel* modelIn)
 {
-    this->model = model;
+    this->model = modelIn;
 
-    if (model && model->getOptionsModel())
-        connect(model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this,
+    if (modelIn && modelIn->getOptionsModel())
+        connect(modelIn->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this,
                 SLOT(updateDisplayUnit()));
 
     connect(ui->payAmount, SIGNAL(textChanged()), this, SIGNAL(payAmountChanged()));

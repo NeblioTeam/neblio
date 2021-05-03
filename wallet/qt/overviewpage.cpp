@@ -152,13 +152,13 @@ void OverviewPage::setUnknownBalance()
     ui->immature_title_label->setVisible(false);
 }
 
-void OverviewPage::setModel(WalletModel* model)
+void OverviewPage::setModel(WalletModel* modelIn)
 {
-    this->model = model;
-    if (model && model->getOptionsModel()) {
+    this->model = modelIn;
+    if (modelIn && modelIn->getOptionsModel()) {
         // Set up transaction list
         filter = new TransactionFilterProxy();
-        filter->setSourceModel(model->getTransactionTableModel());
+        filter->setSourceModel(modelIn->getTransactionTableModel());
         filter->setLimit(NUM_ITEMS);
         filter->setDynamicSortFilter(true);
         filter->setSortRole(Qt::EditRole);
@@ -170,11 +170,11 @@ void OverviewPage::setModel(WalletModel* model)
 
         // Keep up to date with wallet
         setUnknownBalance();          // we set balances to zero initially
-        model->checkBalanceChanged(); // then we trigger a check asynchronously
-        connect(model, SIGNAL(balanceChanged(qint64, qint64, qint64, qint64)), this,
+        modelIn->checkBalanceChanged(); // then we trigger a check asynchronously
+        connect(modelIn, SIGNAL(balanceChanged(qint64, qint64, qint64, qint64)), this,
                 SLOT(setBalance(qint64, qint64, qint64, qint64)));
 
-        connect(model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this,
+        connect(modelIn->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this,
                 SLOT(updateDisplayUnit()));
     }
 

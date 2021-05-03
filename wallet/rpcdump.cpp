@@ -99,13 +99,13 @@ public:
     bool         fSpent;
     CWalletTx*   ptx;
     int          nOut;
-    CTxDump(CWalletTx* ptx = NULL, int nOut = -1)
+    CTxDump(CWalletTx* ptxP = NULL, int nOutP = -1)
     {
         pindex     = NULL;
         nValue     = 0;
         fSpent     = false;
-        this->ptx  = ptx;
-        this->nOut = nOut;
+        this->ptx  = ptxP;
+        this->nOut = nOutP;
     }
 };
 

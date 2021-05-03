@@ -41,7 +41,7 @@ class TransactionTablePriv
 public slots:
 
 public:
-    TransactionTablePriv(CWallet* wallet, TransactionTableModel* parent) : wallet(wallet), parent(parent)
+    TransactionTablePriv(CWallet* walletIn, TransactionTableModel* parentIn) : wallet(walletIn), parent(parentIn)
     {
     }
 
@@ -195,9 +195,9 @@ public:
     }
 };
 
-TransactionTableModel::TransactionTableModel(CWallet* wallet, WalletModel* parent)
-    : QAbstractTableModel(parent), wallet(wallet), walletModel(parent),
-      priv(new TransactionTablePriv(wallet, this))
+TransactionTableModel::TransactionTableModel(CWallet* walletIn, WalletModel* parent)
+    : QAbstractTableModel(parent), wallet(walletIn), walletModel(parent),
+      priv(new TransactionTablePriv(walletIn, this))
 {
     columns << QString() << tr("Date") << tr("Type") << tr("Address") << tr("Amount");
 

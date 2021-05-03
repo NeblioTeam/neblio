@@ -18,8 +18,10 @@
 
 #include <boost/type_traits/is_fundamental.hpp>
 #include <boost/tuple/tuple.hpp>
+#include <boost/core/ignore_unused.hpp>
 
 #include "allocators.h"
+#include "compilerspecific.h"
 #include "ntp1/ntp1script.h"
 #include "version.h"
 
@@ -56,6 +58,8 @@ enum
 };
 
 #define IMPLEMENT_SERIALIZE(statements)    \
+    _Pragma(NEBLIO_DIAGNOSTIC_PUSH);       \
+    _Pragma(NEBLIO_HIDE_SHADOW_WARNING);   \
     unsigned int GetSerializeSize(int nType, int nVersion) const  \
     {                                           \
         CSerActionGetSerializeSize ser_action;  \
@@ -73,6 +77,7 @@ enum
     template<typename Stream>                   \
     void Serialize(Stream& s, int nType, int nVersion) const  \
     {                                           \
+        boost::ignore_unused(nVersion);         \
         CSerActionSerialize ser_action;         \
         const bool fGetSize = false;            \
         const bool fWrite = true;               \
@@ -84,6 +89,7 @@ enum
     template<typename Stream>                   \
     void Unserialize(Stream& s, int nType, int nVersion)  \
     {                                           \
+        boost::ignore_unused(nVersion);         \
         CSerActionUnserialize ser_action;       \
         const bool fGetSize = false;            \
         const bool fWrite = false;              \
@@ -91,7 +97,8 @@ enum
         unsigned int nSerSize = 0;              \
         assert(fGetSize||fWrite||fRead); /* suppress warning */ \
         {statements}                            \
-    }
+    }                                           \
+    _Pragma(NEBLIO_DIAGNOSTIC_POP);
 
 #define READWRITE(obj)      (nSerSize += ::SerReadWrite(s, (obj), nType, nVersion, ser_action))
 

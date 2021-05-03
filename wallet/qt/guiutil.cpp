@@ -251,8 +251,8 @@ void openDebugLogfile()
         QDesktopServices::openUrl(QUrl::fromLocalFile(QString::fromStdString(pathDebug.string())));
 }
 
-ToolTipToRichTextFilter::ToolTipToRichTextFilter(int size_threshold, QObject *parent) :
-    QObject(parent), size_threshold(size_threshold)
+ToolTipToRichTextFilter::ToolTipToRichTextFilter(int size_threshold_in, QObject *parent) :
+    QObject(parent), size_threshold(size_threshold_in)
 {
 
 }

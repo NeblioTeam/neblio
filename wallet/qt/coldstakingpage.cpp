@@ -149,10 +149,10 @@ ColdStakingPage::~ColdStakingPage()
 
 ColdStakingModel* ColdStakingPage::getTokenListModel() const { return model; }
 
-void ColdStakingPage::setModel(ColdStakingModel* model)
+void ColdStakingPage::setModel(ColdStakingModel* modelIn)
 {
-    if (model) {
-        filter->setSourceModel(model);
+    if (modelIn) {
+        filter->setSourceModel(modelIn);
         ui->listColdStakingView->setModel(filter);
     }
 }

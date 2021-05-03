@@ -26,7 +26,7 @@ class TransactionView : public QWidget
 public:
     explicit TransactionView(QWidget* parent = 0);
 
-    void setModel(WalletModel* model);
+    void setModel(WalletModel* modelIn);
 
     // Date ranges for filter
     enum DateEnum

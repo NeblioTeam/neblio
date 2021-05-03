@@ -58,8 +58,8 @@ TEST(ntp1_tests, parse_NTP1TxIn_from_json)
     EXPECT_EQ(tx_good.getSequence(), static_cast<uint64_t>(4294967295));
     EXPECT_EQ(tx_good.getNumOfTokens(), (unsigned long)1);
     EXPECT_EQ(tx_good.getToken(0).getTokenId(), "LaAGekc9oBLcxMUXWzzbMoHRsZXYwhw1Ciox3z");
-    EXPECT_EQ(tx_good.getToken(0).getDivisibility(), static_cast<unsigned>(7));
-    EXPECT_EQ(tx_good.getToken(0).getAmount(), static_cast<unsigned>(997000));
+    EXPECT_EQ(tx_good.getToken(0).getDivisibility(), 7u);
+    EXPECT_EQ(tx_good.getToken(0).getAmount(), 997000u);
     EXPECT_EQ(tx_good.getToken(0).getLockStatus(), true);
     EXPECT_EQ(tx_good.getToken(0).getAggregationPolicy(),
               NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str);
@@ -87,8 +87,8 @@ TEST(ntp1_tests, parse_NTP1TxOut_from_json)
     EXPECT_EQ(tx_good.getAddress(), "NZKTvgBXGBFDde73TizBmxVPzNauT1ivxV");
     EXPECT_EQ(tx_good.tokenCount(), (unsigned long)1);
     EXPECT_EQ(tx_good.getToken(0).getTokenId(), "LaAGekc9oBLcxMUXWzzbMoHRsZXYwhw1Ciox3z");
-    EXPECT_EQ(tx_good.getToken(0).getDivisibility(), static_cast<unsigned>(7));
-    EXPECT_EQ(tx_good.getToken(0).getAmount(), static_cast<unsigned>(1000));
+    EXPECT_EQ(tx_good.getToken(0).getDivisibility(), 7u);
+    EXPECT_EQ(tx_good.getToken(0).getAmount(), 1000u);
     EXPECT_EQ(tx_good.getToken(0).getLockStatus(), true);
     EXPECT_EQ(tx_good.getToken(0).getAggregationPolicy(),
               NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str);
@@ -106,8 +106,8 @@ TEST(ntp1_tests, parse_NTP1TokenData)
     EXPECT_NO_THROW(token_good.importJsonData(token_str));
     EXPECT_ANY_THROW(token_nogood.importJsonData(token_str.substr(0, token_str.size() - 1)));
     EXPECT_EQ(token_good.getTokenId(), "LaAGekc9oBLcxMUXWzzbMoHRsZXYwhw1Ciox3z");
-    EXPECT_EQ(token_good.getDivisibility(), static_cast<unsigned>(7));
-    EXPECT_EQ(token_good.getAmount(), static_cast<unsigned>(512345));
+    EXPECT_EQ(token_good.getDivisibility(), 7u);
+    EXPECT_EQ(token_good.getAmount(), 512345u);
     EXPECT_EQ(token_good.getLockStatus(), true);
     EXPECT_EQ(token_good.getAggregationPolicy(),
               NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str);
@@ -216,7 +216,7 @@ TEST(ntp1_tests, parse_NTP1Transaction)
 
     EXPECT_EQ(tx_good.getTxIn(0).getOutPoint().getHash().ToString(),
               "4f33e3a306619f7a860ca4d652a36c4816dc75f4809cacfeb51f219895d8be90");
-    EXPECT_EQ(tx_good.getTxIn(0).getOutPoint().getIndex(), static_cast<unsigned>(1));
+    EXPECT_EQ(tx_good.getTxIn(0).getOutPoint().getIndex(), 1u);
     EXPECT_EQ(tx_good.getTxIn(0).getScriptSigHex(),
               "483045022100975208417dc562459a5d65d8996edf7be7e8ba4f6c30a04a345c63a7cefc413b02202068896fc"
               "a8e916a85c10202e7bad783d756db9d33571cde646113f68aa99a7f012103f4db6a95b42b695ed59f3584c162"
@@ -225,7 +225,7 @@ TEST(ntp1_tests, parse_NTP1Transaction)
 
     EXPECT_EQ(tx_good.getTxIn(1).getOutPoint().getHash().ToString(),
               "4f33e3a306619f7a860ca4d652a36c4816dc75f4809cacfeb51f219895d8be90");
-    EXPECT_EQ(tx_good.getTxIn(1).getOutPoint().getIndex(), static_cast<unsigned>(3));
+    EXPECT_EQ(tx_good.getTxIn(1).getOutPoint().getIndex(), 3u);
     EXPECT_EQ(tx_good.getTxIn(1).getScriptSigHex(),
               "47304402200f4123e57d950f434605a845efce86c06af1d0017691c98f13c3dfe51881ac0802205768dedbe3b"
               "aaefafd65fd9d67e583cad6c96fdeb542d50f40022fef07d87a55012103f4db6a95b42b695ed59f3584c162e6"
@@ -234,8 +234,8 @@ TEST(ntp1_tests, parse_NTP1Transaction)
 
     EXPECT_EQ(tx_good.getTxIn(0).getToken(0).getAggregationPolicy(),
               NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str);
-    EXPECT_EQ(tx_good.getTxIn(0).getToken(0).getAmount(), static_cast<uint64_t>(997000));
-    EXPECT_EQ(tx_good.getTxIn(0).getToken(0).getDivisibility(), static_cast<uint64_t>(7));
+    EXPECT_EQ(tx_good.getTxIn(0).getToken(0).getAmount(), 997000u);
+    EXPECT_EQ(tx_good.getTxIn(0).getToken(0).getDivisibility(), 7u);
     EXPECT_EQ(tx_good.getTxIn(0).getToken(0).getIssueTxId().ToString(),
               "8e5b8361d16f166afd4f091d50554b93395dc44bd18a0904ac1e4f5532925d6b");
     EXPECT_EQ(tx_good.getTxIn(0).getToken(0).getLockStatus(), true);
@@ -252,8 +252,8 @@ TEST(ntp1_tests, parse_NTP1Transaction)
     EXPECT_EQ(tx_good.getTxOut(0).getValue(), 10000);
     EXPECT_EQ(tx_good.getTxOut(0).getToken(0).getAggregationPolicy(),
               NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str);
-    EXPECT_EQ(tx_good.getTxOut(0).getToken(0).getAmount(), static_cast<uint64_t>(1000));
-    EXPECT_EQ(tx_good.getTxOut(0).getToken(0).getDivisibility(), static_cast<uint64_t>(7));
+    EXPECT_EQ(tx_good.getTxOut(0).getToken(0).getAmount(), 1000u);
+    EXPECT_EQ(tx_good.getTxOut(0).getToken(0).getDivisibility(), 7u);
     EXPECT_EQ(tx_good.getTxOut(0).getToken(0).getIssueTxId().ToString(),
               "8e5b8361d16f166afd4f091d50554b93395dc44bd18a0904ac1e4f5532925d6b");
     EXPECT_EQ(tx_good.getTxOut(0).getToken(0).getTokenId(), "LaAGekc9oBLcxMUXWzzbMoHRsZXYwhw1Ciox3z");
@@ -266,8 +266,8 @@ TEST(ntp1_tests, parse_NTP1Transaction)
     EXPECT_EQ(tx_good.getTxOut(1).getValue(), 10000);
     EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getAggregationPolicy(),
               NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str);
-    EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getAmount(), static_cast<uint64_t>(996000));
-    EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getDivisibility(), static_cast<uint64_t>(7));
+    EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getAmount(), 996000u);
+    EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getDivisibility(), 7u);
     EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getIssueTxId().ToString(),
               "8e5b8361d16f166afd4f091d50554b93395dc44bd18a0904ac1e4f5532925d6b");
     EXPECT_EQ(tx_good.getTxOut(1).getToken(0).getTokenId(), "LaAGekc9oBLcxMUXWzzbMoHRsZXYwhw1Ciox3z");
@@ -308,7 +308,7 @@ TEST(ntp1_tests, token_meta_data)
     EXPECT_EQ(tokenMetaData.getAggregationPolicy(),
               NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str);
     EXPECT_EQ(tokenMetaData.getLockStatus(), true);
-    EXPECT_EQ(tokenMetaData.getDivisibility(), static_cast<unsigned>(7));
+    EXPECT_EQ(tokenMetaData.getDivisibility(), 7u);
     EXPECT_EQ(tokenMetaData.getIconImageType(), "image/png");
     EXPECT_EQ(
         tokenMetaData.getIconURL(),
@@ -320,7 +320,7 @@ TEST(ntp1_tests, token_meta_data)
     EXPECT_EQ(tokenMetaData.getTokenDescription(), "Trifid");
     EXPECT_EQ(tokenMetaData.getTokenName(), "TRIF");
     EXPECT_EQ(tokenMetaData.getTokenIssuer(), "TrifidTeam");
-    EXPECT_EQ(tokenMetaData.getTotalSupply(), static_cast<unsigned>(1607509562));
+    EXPECT_EQ(tokenMetaData.getTotalSupply(), 1607509562u);
 }
 
 TEST(ntp1_tests, token_meta_data_without_url)
@@ -342,7 +342,7 @@ TEST(ntp1_tests, token_meta_data_without_url)
     EXPECT_EQ(tokenMetaData.getAggregationPolicy(),
               NTP1Script::IssuanceFlags::AggregationPolicy_Aggregatable_Str);
     EXPECT_EQ(tokenMetaData.getLockStatus(), true);
-    EXPECT_EQ(tokenMetaData.getDivisibility(), static_cast<unsigned>(7));
+    EXPECT_EQ(tokenMetaData.getDivisibility(), 7u);
     EXPECT_EQ(tokenMetaData.getIconImageType(), "");
     EXPECT_EQ(tokenMetaData.getIconURL(), "");
     EXPECT_EQ(tokenMetaData.getIssuanceTxId().ToString(),
@@ -352,7 +352,7 @@ TEST(ntp1_tests, token_meta_data_without_url)
     EXPECT_EQ(tokenMetaData.getTokenDescription(), "Trifid");
     EXPECT_EQ(tokenMetaData.getTokenName(), "TRIF");
     EXPECT_EQ(tokenMetaData.getTokenIssuer(), "TrifidTeam");
-    EXPECT_EQ(tokenMetaData.getTotalSupply(), static_cast<unsigned>(1607509562));
+    EXPECT_EQ(tokenMetaData.getTotalSupply(), 1607509562u);
 
     // test database saving
     json_spirit::Value v = tokenMetaData.exportDatabaseJsonData();
@@ -458,17 +458,17 @@ TEST(ntp1_tests, script_transfer)
     std::shared_ptr<NTP1Script_Transfer> script_transfer =
         std::dynamic_pointer_cast<NTP1Script_Transfer>(script);
     EXPECT_EQ(script_transfer->getHeader(), boost::algorithm::unhex(toParse_transfer.substr(0, 6)));
-    EXPECT_EQ(script_transfer->getHexMetadata().size(), static_cast<unsigned>(0));
+    EXPECT_EQ(script_transfer->getHexMetadata().size(), 0u);
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getOpCodeBin()), "15");
     EXPECT_EQ(script_transfer->getTxType(), NTP1Script::TxType::TxType_Transfer);
 
-    EXPECT_EQ(script_transfer->getTransferInstructionsCount(), static_cast<unsigned>(1));
-    EXPECT_EQ(script_transfer->getTransferInstruction(0).amount, static_cast<uint64_t>(999901700));
+    EXPECT_EQ(script_transfer->getTransferInstructionsCount(), 1u);
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).amount, 999901700u);
     EXPECT_EQ(script_transfer->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, static_cast<unsigned>(0));
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, 0u);
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(0).rawAmount), "69892A92");
     EXPECT_EQ(script_transfer->getTransferInstruction(0).firstRawByte, 0);
-    EXPECT_EQ(script_transfer->getTransferInstruction(0).rawSize, 5);
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).rawSize, 5u);
 }
 
 TEST(ntp1_tests, script_issuance_allowed_chars_in_token_symbol)
@@ -595,8 +595,8 @@ TEST(ntp1_tests, script_issuance_allowed_chars_in_token_symbol)
         std::unordered_set<char> allChars;
         allChars.insert(invalid_chars.begin(), invalid_chars.end());
         allChars.insert(valid_chars.begin(), valid_chars.end());
-        EXPECT_EQ(invalid_chars.size() + valid_chars.size(), static_cast<unsigned>(256));
-        EXPECT_EQ(allChars.size(), static_cast<unsigned>(256));
+        EXPECT_EQ(invalid_chars.size() + valid_chars.size(), 256u);
+        EXPECT_EQ(allChars.size(), 256u);
     }
 }
 
@@ -627,10 +627,10 @@ TEST(ntp1_tests, script_issuance)
         EXPECT_EQ(script_issuance->getTokenSymbol(), "NIBBL");
         EXPECT_EQ(script_issuance->getTxType(), NTP1Script::TxType::TxType_Issuance);
 
-        EXPECT_EQ(script_issuance->getTransferInstructionsCount(), static_cast<unsigned>(1));
-        EXPECT_EQ(script_issuance->getTransferInstruction(0).amount, static_cast<uint64_t>(1000000000));
+        EXPECT_EQ(script_issuance->getTransferInstructionsCount(), 1u);
+        EXPECT_EQ(script_issuance->getTransferInstruction(0).amount, 1000000000u);
         EXPECT_EQ(script_issuance->getTransferInstruction(0).skipInput, false);
-        EXPECT_EQ(script_issuance->getTransferInstruction(0).outputIndex, static_cast<unsigned>(0));
+        EXPECT_EQ(script_issuance->getTransferInstruction(0).outputIndex, 0u);
         EXPECT_EQ(boost::algorithm::hex(script_issuance->getTransferInstruction(0).rawAmount), "2019");
         EXPECT_EQ(script_issuance->getTransferInstruction(0).firstRawByte, 0);
         EXPECT_EQ(script_issuance->getTokenID(
@@ -646,35 +646,35 @@ TEST(ntp1_tests, script_burn)
     std::shared_ptr<NTP1Script>      script       = NTP1Script::ParseScript(toParse_burn);
     std::shared_ptr<NTP1Script_Burn> script_burn  = std::dynamic_pointer_cast<NTP1Script_Burn>(script);
     EXPECT_EQ(script_burn->getHeader(), boost::algorithm::unhex(toParse_burn.substr(0, 6)));
-    EXPECT_EQ(script_burn->getHexMetadata().size(), static_cast<unsigned>(0));
+    EXPECT_EQ(script_burn->getHexMetadata().size(), 0u);
     EXPECT_EQ(boost::algorithm::hex(script_burn->getOpCodeBin()), "25");
     EXPECT_EQ(script_burn->getTxType(), NTP1Script::TxType::TxType_Burn);
 
-    EXPECT_EQ(script_burn->getTransferInstructionsCount(), static_cast<unsigned>(1));
-    EXPECT_EQ(script_burn->getTransferInstruction(0).amount, static_cast<uint64_t>(1000));
+    EXPECT_EQ(script_burn->getTransferInstructionsCount(), 1u);
+    EXPECT_EQ(script_burn->getTransferInstruction(0).amount, 1000u);
     EXPECT_EQ(script_burn->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(script_burn->getTransferInstruction(0).outputIndex, static_cast<unsigned>(31));
+    EXPECT_EQ(script_burn->getTransferInstruction(0).outputIndex, 31u);
     EXPECT_EQ(boost::algorithm::hex(script_burn->getTransferInstruction(0).rawAmount), "2013");
     EXPECT_EQ(script_burn->getTransferInstruction(0).firstRawByte, 31);
-    EXPECT_EQ(script_burn->getTransferInstruction(0).rawSize, 3);
+    EXPECT_EQ(script_burn->getTransferInstruction(0).rawSize, 3u);
 }
 
 TEST(ntp1_tests, script_get_amount_size)
 {
     EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("11"))[0]),
-              static_cast<unsigned>(1));
+              1u);
     EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("2012"))[0]),
-              static_cast<unsigned>(2));
+              2u);
     EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("4bb3c1"))[0]),
-              static_cast<unsigned>(3));
+              3u);
     EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("68c7e5b3"))[0]),
-              static_cast<unsigned>(4));
+              4u);
     EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("8029990f1a"))[0]),
-              static_cast<unsigned>(5));
+              5u);
     EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("a09c47f7b1a1"))[0]),
-              static_cast<unsigned>(6));
+              6u);
     EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("c0a60eea1aa8fd"))[0]),
-              static_cast<unsigned>(7));
+              7u);
 }
 
 static CTransaction TxFromHex(const std::string& hex)
@@ -728,10 +728,10 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_issuance)
     EXPECT_EQ(script_issuance->getTokenSymbol(), "NIBBL");
     EXPECT_EQ(script_issuance->getTxType(), NTP1Script::TxType::TxType_Issuance);
 
-    EXPECT_EQ(script_issuance->getTransferInstructionsCount(), static_cast<unsigned>(1));
+    EXPECT_EQ(script_issuance->getTransferInstructionsCount(), 1u);
     EXPECT_EQ(script_issuance->getTransferInstruction(0).amount, static_cast<uint64_t>(1000000000));
     EXPECT_EQ(script_issuance->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(script_issuance->getTransferInstruction(0).outputIndex, static_cast<unsigned>(0));
+    EXPECT_EQ(script_issuance->getTransferInstruction(0).outputIndex, 0u);
     EXPECT_EQ(boost::algorithm::hex(script_issuance->getTransferInstruction(0).rawAmount), "2019");
     EXPECT_EQ(script_issuance->getTransferInstruction(0).firstRawByte, 0);
     EXPECT_EQ(tx.GetHash().ToString(),
@@ -754,14 +754,14 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_issuance)
 
     NTP1Transaction ntp1tx;
     EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(*dbMock, tx, inputs));
-    EXPECT_EQ(ntp1tx.getTxInCount(), static_cast<unsigned>(1));
-    EXPECT_EQ(ntp1tx.getTxIn(0).getNumOfTokens(), static_cast<unsigned>(0));
-    EXPECT_EQ(ntp1tx.getTxOutCount(), static_cast<unsigned>(3));
-    EXPECT_EQ(ntp1tx.getTxOut(0).tokenCount(), static_cast<unsigned>(1));
-    EXPECT_EQ(ntp1tx.getTxOut(1).tokenCount(), static_cast<unsigned>(0));
-    EXPECT_EQ(ntp1tx.getTxOut(2).tokenCount(), static_cast<unsigned>(0));
-    EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), static_cast<unsigned>(1000000000));
-    EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getDivisibility(), static_cast<unsigned>(7));
+    EXPECT_EQ(ntp1tx.getTxInCount(), 1u);
+    EXPECT_EQ(ntp1tx.getTxIn(0).getNumOfTokens(), 0u);
+    EXPECT_EQ(ntp1tx.getTxOutCount(), 3u);
+    EXPECT_EQ(ntp1tx.getTxOut(0).tokenCount(), 1u);
+    EXPECT_EQ(ntp1tx.getTxOut(1).tokenCount(), 0u);
+    EXPECT_EQ(ntp1tx.getTxOut(2).tokenCount(), 0u);
+    EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), 1000000000u);
+    EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getDivisibility(), 7u);
     EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getIssueTxId().ToString(),
               "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
     EXPECT_TRUE(ntp1tx.getTxOut(0).getToken(0).getLockStatus());
@@ -772,7 +772,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_issuance)
 
     EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getHash().ToString(),
               "c55dd5271dd8a9aa35a7f6c393a0eb24bcc50116bf15b49f4e760d3e9a138120");
-    EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), static_cast<unsigned>(1));
+    EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), 1u);
 }
 
 TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
@@ -803,21 +803,21 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
     std::shared_ptr<NTP1Script_Transfer> script_transfer =
         std::dynamic_pointer_cast<NTP1Script_Transfer>(script);
     EXPECT_EQ(script_transfer->getHeader(), boost::algorithm::unhex(opReturnArg.substr(0, 6)));
-    EXPECT_EQ(script_transfer->getHexMetadata().size(), static_cast<unsigned>(0));
+    EXPECT_EQ(script_transfer->getHexMetadata().size(), 0u);
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getOpCodeBin()), "15");
     EXPECT_EQ(script_transfer->getTxType(), NTP1Script::TxType::TxType_Transfer);
 
-    EXPECT_EQ(script_transfer->getTransferInstructionsCount(), static_cast<unsigned>(2));
+    EXPECT_EQ(script_transfer->getTransferInstructionsCount(), 2u);
 
     EXPECT_EQ(script_transfer->getTransferInstruction(0).amount, static_cast<uint64_t>(100));
     EXPECT_EQ(script_transfer->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, static_cast<unsigned>(0));
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, 0u);
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(0).rawAmount), "2012");
     EXPECT_EQ(script_transfer->getTransferInstruction(0).firstRawByte, 0);
 
     EXPECT_EQ(script_transfer->getTransferInstruction(1).amount, static_cast<uint64_t>(999965200));
     EXPECT_EQ(script_transfer->getTransferInstruction(1).skipInput, false);
-    EXPECT_EQ(script_transfer->getTransferInstruction(1).outputIndex, static_cast<unsigned>(1));
+    EXPECT_EQ(script_transfer->getTransferInstruction(1).outputIndex, 1u);
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(1).rawAmount), "69895242");
     EXPECT_EQ(script_transfer->getTransferInstruction(1).firstRawByte, 1);
     EXPECT_EQ(tx.GetHash().ToString(),
@@ -960,24 +960,24 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
 
     NTP1Transaction ntp1tx;
     ASSERT_NO_THROW(ntp1tx.readNTP1DataFromTx(*dbMock, tx, inputs));
-    EXPECT_EQ(ntp1tx.getTxInCount(), static_cast<unsigned>(2));
+    EXPECT_EQ(ntp1tx.getTxInCount(), 2u);
     // inputs are unknown, so no more tests
-    EXPECT_EQ(ntp1tx.getTxOutCount(), static_cast<unsigned>(4));
-    EXPECT_EQ(ntp1tx.getTxOut(0).tokenCount(), static_cast<unsigned>(1));
+    EXPECT_EQ(ntp1tx.getTxOutCount(), 4u);
+    EXPECT_EQ(ntp1tx.getTxOut(0).tokenCount(), 1u);
     EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), static_cast<uint64_t>(100));
-    EXPECT_EQ(ntp1tx.getTxOut(1).tokenCount(), static_cast<unsigned>(1));
+    EXPECT_EQ(ntp1tx.getTxOut(1).tokenCount(), 1u);
     EXPECT_EQ(ntp1tx.getTxOut(1).getToken(0).getAmount(), static_cast<uint64_t>(999965200));
-    EXPECT_EQ(ntp1tx.getTxOut(2).tokenCount(), static_cast<unsigned>(0));
-    EXPECT_EQ(ntp1tx.getTxOut(3).tokenCount(), static_cast<unsigned>(0));
+    EXPECT_EQ(ntp1tx.getTxOut(2).tokenCount(), 0u);
+    EXPECT_EQ(ntp1tx.getTxOut(3).tokenCount(), 0u);
     EXPECT_EQ(ntp1tx.getTxHash().ToString(),
               "006bd375946e903aa20aced1b411d61d14175488650e1deab3cb5ff8f354467d");
 
     EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getHash().ToString(),
               "1766a9150953392de523f9420a2e32f993bb572e79f465de78ef96831494b347");
-    EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), static_cast<unsigned>(1));
+    EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), 1u);
     EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getHash().ToString(),
               "111481401fbd842c5aa1b9420db8c5ef7e94d9ac3b3d3b7e2b2cb6c7b0650612");
-    EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getIndex(), static_cast<unsigned>(3));
+    EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getIndex(), 3u);
 }
 
 TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
@@ -1008,21 +1008,21 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
     std::shared_ptr<NTP1Script_Transfer> script_transfer =
         std::dynamic_pointer_cast<NTP1Script_Transfer>(script);
     EXPECT_EQ(script_transfer->getHeader(), boost::algorithm::unhex(opReturnArg.substr(0, 6)));
-    EXPECT_EQ(script_transfer->getHexMetadata().size(), static_cast<unsigned>(0));
+    EXPECT_EQ(script_transfer->getHexMetadata().size(), 0u);
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getOpCodeBin()), "15");
     EXPECT_EQ(script_transfer->getTxType(), NTP1Script::TxType::TxType_Transfer);
 
-    EXPECT_EQ(script_transfer->getTransferInstructionsCount(), static_cast<unsigned>(2));
+    EXPECT_EQ(script_transfer->getTransferInstructionsCount(), 2u);
 
     EXPECT_EQ(script_transfer->getTransferInstruction(0).amount, static_cast<uint64_t>(100));
     EXPECT_EQ(script_transfer->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, static_cast<unsigned>(0));
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, 0u);
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(0).rawAmount), "2012");
     EXPECT_EQ(script_transfer->getTransferInstruction(0).firstRawByte, 0);
 
     EXPECT_EQ(script_transfer->getTransferInstruction(1).amount, static_cast<uint64_t>(999965200));
     EXPECT_EQ(script_transfer->getTransferInstruction(1).skipInput, false);
-    EXPECT_EQ(script_transfer->getTransferInstruction(1).outputIndex, static_cast<unsigned>(1));
+    EXPECT_EQ(script_transfer->getTransferInstruction(1).outputIndex, 1u);
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(1).rawAmount), "69895242");
     EXPECT_EQ(script_transfer->getTransferInstruction(1).firstRawByte, 1);
     EXPECT_EQ(tx.GetHash().ToString(),
@@ -1165,25 +1165,25 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
 
     NTP1Transaction ntp1tx;
     ASSERT_NO_THROW(ntp1tx.readNTP1DataFromTx(*dbMock, tx, inputs));
-    EXPECT_EQ(ntp1tx.getTxInCount(), static_cast<unsigned>(2));
+    EXPECT_EQ(ntp1tx.getTxInCount(), 2u);
     // inputs are unknown, so no more tests
-    EXPECT_EQ(ntp1tx.getTxOutCount(), static_cast<unsigned>(4));
-    EXPECT_EQ(ntp1tx.getTxOut(0).tokenCount(), static_cast<unsigned>(1));
+    EXPECT_EQ(ntp1tx.getTxOutCount(), 4u);
+    EXPECT_EQ(ntp1tx.getTxOut(0).tokenCount(), 1u);
     EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), static_cast<uint64_t>(100));
-    EXPECT_EQ(ntp1tx.getTxOut(1).tokenCount(), static_cast<unsigned>(1));
+    EXPECT_EQ(ntp1tx.getTxOut(1).tokenCount(), 1u);
     EXPECT_EQ(ntp1tx.getTxOut(1).getToken(0).getAmount(), static_cast<uint64_t>(999965200));
-    EXPECT_EQ(ntp1tx.getTxOut(2).tokenCount(), static_cast<unsigned>(0));
-    EXPECT_EQ(ntp1tx.getTxOut(3).tokenCount(), static_cast<unsigned>(1));
+    EXPECT_EQ(ntp1tx.getTxOut(2).tokenCount(), 0u);
+    EXPECT_EQ(ntp1tx.getTxOut(3).tokenCount(), 1u);
     EXPECT_EQ(ntp1tx.getTxOut(3).getToken(0).getAmount(), static_cast<uint64_t>(200));
     EXPECT_EQ(ntp1tx.getTxHash().ToString(),
               "006bd375946e903aa20aced1b411d61d14175488650e1deab3cb5ff8f354467d");
 
     EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getHash().ToString(),
               "1766a9150953392de523f9420a2e32f993bb572e79f465de78ef96831494b347");
-    EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), static_cast<unsigned>(1));
+    EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), 1u);
     EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getHash().ToString(),
               "111481401fbd842c5aa1b9420db8c5ef7e94d9ac3b3d3b7e2b2cb6c7b0650612");
-    EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getIndex(), static_cast<unsigned>(3));
+    EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getIndex(), 3u);
 }
 
 TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
@@ -1480,14 +1480,14 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
 
     NTP1Transaction ntp1tx;
     EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(*dbMock, tx, inputs));
-    EXPECT_EQ(ntp1tx.getTxInCount(), static_cast<unsigned>(4));
+    EXPECT_EQ(ntp1tx.getTxInCount(), 4u);
     // inputs are unknown, so no more tests
-    EXPECT_EQ(ntp1tx.getTxOutCount(), static_cast<unsigned>(3));
-    EXPECT_EQ(ntp1tx.getTxOut(0).tokenCount(), static_cast<unsigned>(1));
+    EXPECT_EQ(ntp1tx.getTxOutCount(), 3u);
+    EXPECT_EQ(ntp1tx.getTxOut(0).tokenCount(), 1u);
     EXPECT_EQ(ntp1tx.getTxOut(0).getToken(0).getAmount(), static_cast<uint64_t>(10));
-    EXPECT_EQ(ntp1tx.getTxOut(1).tokenCount(), static_cast<unsigned>(0));
-    EXPECT_EQ(ntp1tx.getTxOut(2).tokenCount(), static_cast<unsigned>(1));
-    EXPECT_EQ(ntp1tx.getTxOut(2).getToken(0).getAmount(), static_cast<unsigned>(999897350));
+    EXPECT_EQ(ntp1tx.getTxOut(1).tokenCount(), 0u);
+    EXPECT_EQ(ntp1tx.getTxOut(2).tokenCount(), 1u);
+    EXPECT_EQ(ntp1tx.getTxOut(2).getToken(0).getAmount(), 999897350u);
 
     EXPECT_EQ(ntp1tx.getTxHash().ToString(),
               "008d329611fcbdb82b4adb097c29f1d6a56707bfb232c8c124390756e80a9e44");
@@ -1495,16 +1495,16 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
     // inputs
     EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getHash().ToString(),
               "c0563ccccee98f68d519bcf9c595e459876c9f6fcfbd046f85e6fc56309735e9");
-    EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), static_cast<unsigned>(1));
+    EXPECT_EQ(ntp1tx.getTxIn(0).getPrevout().getIndex(), 1u);
     EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getHash().ToString(),
               "034849559c1ed8211644c7def3536688ec5766d3a7f7f977f190590d7bb7db05");
-    EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getIndex(), static_cast<unsigned>(3));
+    EXPECT_EQ(ntp1tx.getTxIn(1).getPrevout().getIndex(), 3u);
     EXPECT_EQ(ntp1tx.getTxIn(2).getPrevout().getHash().ToString(),
               "0132cf38f3a298403427e8c3203f030141efff9c0d3a3fb7fef10ab4452771df");
-    EXPECT_EQ(ntp1tx.getTxIn(2).getPrevout().getIndex(), static_cast<unsigned>(3));
+    EXPECT_EQ(ntp1tx.getTxIn(2).getPrevout().getIndex(), 3u);
     EXPECT_EQ(ntp1tx.getTxIn(3).getPrevout().getHash().ToString(),
               "0317c3f20338cd8ea142c389e65670554c676905d2024a58775f695fe88f1298");
-    EXPECT_EQ(ntp1tx.getTxIn(3).getPrevout().getIndex(), static_cast<unsigned>(3));
+    EXPECT_EQ(ntp1tx.getTxIn(3).getPrevout().getIndex(), 3u);
 }
 
 std::string GetRawTxURL(const std::string& txid, NetworkType netType)
@@ -2062,7 +2062,7 @@ void DownloadAndCreateTxData(NetworkType netType)
         }
         total_txs_count -= txs_per_thread[i];
     }
-    ASSERT_EQ(std::accumulate(txs_per_thread.cbegin(), txs_per_thread.cend(), 0), txids.size());
+    ASSERT_EQ(std::accumulate(txs_per_thread.cbegin(), txs_per_thread.cend(), 0u), txids.size());
 
     std::vector<boost::promise<void>>       promises(thread_count);
     std::vector<boost::unique_future<void>> futures;
@@ -2120,8 +2120,8 @@ void DownloadAndCreateTxData(NetworkType netType)
         rawNeblioTxsMap[txids[i]] = rawTx;
         ntp1TxsMap[txids[i]]      = ntp1tx_ref;
 
-        for (int i = 0; i < (int)tx.vin.size(); i++) {
-            std::string inputTxid = tx.vin[i].prevout.hash.ToString();
+        for (int j = 0; j < (int)tx.vin.size(); j++) {
+            std::string inputTxid = tx.vin[j].prevout.hash.ToString();
 
             // if the tx is already in there, skip it
             if (rawNeblioTxsMap.find(inputTxid) != rawNeblioTxsMap.cend()) {
@@ -2314,7 +2314,7 @@ TEST(ntp1_tests, amend_tx_1)
     auto inputs = GetNTP1InputsOnline(tx, NetworkType::Testnet);
     NTP1Transaction::AmendStdTxWithNTP1(*dbMock, tx, inputs, 1);
 
-    EXPECT_EQ(tx.vout.size(), static_cast<unsigned>(4));
+    EXPECT_EQ(tx.vout.size(), 4u);
     EXPECT_EQ(tx.vout[0], out0);
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue, out1.nValue);
     std::string opRetArg;
@@ -2325,10 +2325,10 @@ TEST(ntp1_tests, amend_tx_1)
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
     EXPECT_NE(scriptPtrD, nullptr);
 
-    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), static_cast<unsigned>(1));
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, static_cast<unsigned>(50));
+    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), 1u);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, 50u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, static_cast<unsigned>(3));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, 3u);
 }
 
 TEST(ntp1_tests, amend_tx_2)
@@ -2359,7 +2359,7 @@ TEST(ntp1_tests, amend_tx_2)
     auto inputs = GetNTP1InputsOnline(tx, NetworkType::Testnet);
     NTP1Transaction::AmendStdTxWithNTP1(*dbMock, tx, inputs, 1);
 
-    EXPECT_EQ(tx.vout.size(), static_cast<unsigned>(2));
+    EXPECT_EQ(tx.vout.size(), 2u);
     EXPECT_EQ(tx.vout[0], out0);
     EXPECT_EQ(tx.vout[1], out1);
     EXPECT_FALSE(NTP1Transaction::TxContainsOpReturn(&tx));
@@ -2396,7 +2396,7 @@ TEST(ntp1_tests, amend_tx_3)
     auto inputs = GetNTP1InputsOnline(tx, NetworkType::Testnet);
     NTP1Transaction::AmendStdTxWithNTP1(*dbMock, tx, inputs, 1);
 
-    EXPECT_EQ(tx.vout.size(), static_cast<unsigned>(4));
+    EXPECT_EQ(tx.vout.size(), 4u);
     EXPECT_EQ(tx.vout[0], out0);
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue, out1.nValue);
     std::string opRetArg;
@@ -2407,10 +2407,10 @@ TEST(ntp1_tests, amend_tx_3)
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
     EXPECT_NE(scriptPtrD, nullptr);
 
-    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), static_cast<unsigned>(1));
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, static_cast<unsigned>(50));
+    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), 1u);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, 50u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, static_cast<unsigned>(3));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, 3u);
 }
 
 TEST(ntp1_tests, amend_tx_4)
@@ -2447,7 +2447,7 @@ TEST(ntp1_tests, amend_tx_4)
     auto inputs = GetNTP1InputsOnline(tx, NetworkType::Testnet);
     NTP1Transaction::AmendStdTxWithNTP1(*dbMock, tx, inputs, 1);
 
-    ASSERT_EQ(tx.vout.size(), static_cast<unsigned>(5));
+    ASSERT_EQ(tx.vout.size(), 5u);
     EXPECT_EQ(tx.vout[0], out0);
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue + tx.vout[4].nValue,
               out1.nValue);
@@ -2459,15 +2459,15 @@ TEST(ntp1_tests, amend_tx_4)
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
     EXPECT_NE(scriptPtrD, nullptr);
 
-    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), static_cast<unsigned>(2));
+    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), 2u);
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, static_cast<unsigned>(50));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, 50u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, static_cast<unsigned>(3));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, 3u);
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).amount, static_cast<unsigned>(40));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).amount, 40u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(1).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).outputIndex, static_cast<unsigned>(4));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).outputIndex, 4u);
 }
 
 TEST(ntp1_tests, amend_tx_5)
@@ -2507,7 +2507,7 @@ TEST(ntp1_tests, amend_tx_5)
     auto inputs = GetNTP1InputsOnline(tx, NetworkType::Testnet);
     NTP1Transaction::AmendStdTxWithNTP1(*dbMock, tx, inputs, 1);
 
-    ASSERT_EQ(tx.vout.size(), static_cast<unsigned>(8));
+    ASSERT_EQ(tx.vout.size(), 8u);
     EXPECT_EQ(tx.vout[0], out0);
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue + tx.vout[4].nValue +
                   tx.vout[5].nValue + tx.vout[6].nValue + tx.vout[7].nValue,
@@ -2520,27 +2520,27 @@ TEST(ntp1_tests, amend_tx_5)
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
     EXPECT_NE(scriptPtrD, nullptr);
 
-    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), static_cast<unsigned>(5));
+    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), 5u);
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, static_cast<unsigned>(50));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, 50u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, static_cast<unsigned>(3));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, 3u);
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).amount, static_cast<unsigned>(40));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).amount, 40u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(1).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).outputIndex, static_cast<unsigned>(4));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).outputIndex, 4u);
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).amount, static_cast<unsigned>(1400));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).amount, 1400u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(2).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).outputIndex, static_cast<unsigned>(5));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).outputIndex, 5u);
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).amount, static_cast<unsigned>(3950));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).amount, 3950u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(3).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).outputIndex, static_cast<unsigned>(6));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).outputIndex, 6u);
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).amount, static_cast<unsigned>(25));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).amount, 25u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(4).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).outputIndex, static_cast<unsigned>(7));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).outputIndex, 7u);
 }
 
 TEST(ntp1_tests, amend_tx_6)
@@ -2581,7 +2581,7 @@ TEST(ntp1_tests, amend_tx_6)
     auto inputs = GetNTP1InputsOnline(tx, NetworkType::Testnet);
     NTP1Transaction::AmendStdTxWithNTP1(*dbMock, tx, inputs, 1);
 
-    ASSERT_EQ(tx.vout.size(), static_cast<unsigned>(8));
+    ASSERT_EQ(tx.vout.size(), 8u);
     EXPECT_EQ(tx.vout[0], out0);
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue + tx.vout[4].nValue +
                   tx.vout[5].nValue + tx.vout[6].nValue + tx.vout[7].nValue,
@@ -2594,45 +2594,45 @@ TEST(ntp1_tests, amend_tx_6)
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
     EXPECT_NE(scriptPtrD, nullptr);
 
-    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), static_cast<unsigned>(5));
+    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), 5u);
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, static_cast<unsigned>(50));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, 50u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, static_cast<unsigned>(3));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, 3u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(0).firstRawByte, 3);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).rawSize, 3);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).rawSize, 3u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(0).rawAmount,
               boost::algorithm::unhex(std::string("2051")));
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).amount, static_cast<unsigned>(40));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).amount, 40u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(1).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).outputIndex, static_cast<unsigned>(4));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).outputIndex, 4u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(1).firstRawByte, 4);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).rawSize, 3);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).rawSize, 3u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(1).rawAmount,
               boost::algorithm::unhex(std::string("2041")));
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).amount, static_cast<unsigned>(1400));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).amount, 1400u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(2).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).outputIndex, static_cast<unsigned>(5));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).outputIndex, 5u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(2).firstRawByte, 5);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).rawSize, 3);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).rawSize, 3u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(2).rawAmount,
               boost::algorithm::unhex(std::string("20e2")));
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).amount, static_cast<unsigned>(3950));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).amount, 3950u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(3).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).outputIndex, static_cast<unsigned>(6));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).outputIndex, 6u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(3).firstRawByte, 6);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).rawSize, 3);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).rawSize, 3u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(3).rawAmount,
               boost::algorithm::unhex(std::string("38b1")));
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).amount, static_cast<unsigned>(25));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).amount, 25u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(4).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).outputIndex, static_cast<unsigned>(7));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).outputIndex, 7u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(4).firstRawByte, 7);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).rawSize, 2);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).rawSize, 2u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(4).rawAmount,
               boost::algorithm::unhex(std::string("19")));
 }
@@ -2647,45 +2647,45 @@ TEST(ntp1_tests, some_transfer_instructions_test)
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
     EXPECT_NE(scriptPtrD, nullptr);
 
-    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), static_cast<unsigned>(5));
+    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), 5u);
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, static_cast<unsigned>(50));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, 50u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, static_cast<unsigned>(3));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, 3u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(0).firstRawByte, 3);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).rawSize, 3);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).rawSize, 3u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(0).rawAmount,
               boost::algorithm::unhex(std::string("2051")));
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).amount, static_cast<unsigned>(40));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).amount, 40u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(1).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).outputIndex, static_cast<unsigned>(4));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).outputIndex, 4u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(1).firstRawByte, 4);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).rawSize, 3);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).rawSize, 3u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(1).rawAmount,
               boost::algorithm::unhex(std::string("2041")));
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).amount, static_cast<unsigned>(1400));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).amount, 1400u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(2).skipInput, true);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).outputIndex, static_cast<unsigned>(5));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).outputIndex, 5u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(2).firstRawByte, 133);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).rawSize, 3);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(2).rawSize, 3u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(2).rawAmount,
               boost::algorithm::unhex(std::string("20e2")));
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).amount, static_cast<unsigned>(3950));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).amount, 3950u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(3).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).outputIndex, static_cast<unsigned>(6));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).outputIndex, 6u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(3).firstRawByte, 6);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).rawSize, 3);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(3).rawSize, 3u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(3).rawAmount,
               boost::algorithm::unhex(std::string("38b1")));
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).amount, static_cast<unsigned>(25));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).amount, 25u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(4).skipInput, true);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).outputIndex, static_cast<unsigned>(7));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).outputIndex, 7u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(4).firstRawByte, 135);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).rawSize, 2);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(4).rawSize, 2u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(4).rawAmount,
               boost::algorithm::unhex(std::string("19")));
 }
@@ -2702,21 +2702,21 @@ TEST(ntp1_tests, ntp1v3_burn_test)
     EXPECT_EQ(scriptPtrD->getHeader(), boost::algorithm::unhex(std::string("4e5403")));
     EXPECT_EQ(scriptPtrD->getRawMetadata(), "");
 
-    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), static_cast<unsigned>(2));
+    EXPECT_EQ(scriptPtrD->getTransferInstructionsCount(), 2u);
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, static_cast<unsigned>(8));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).amount, 8u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, static_cast<unsigned>(0));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).outputIndex, 0u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(0).firstRawByte, 0);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).rawSize, 2);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(0).rawSize, 2u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(0).rawAmount,
               boost::algorithm::unhex(std::string("08")));
 
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).amount, static_cast<unsigned>(2));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).amount, 2u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(1).skipInput, false);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).outputIndex, static_cast<unsigned>(31));
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).outputIndex, 31u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(1).firstRawByte, 31);
-    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).rawSize, 2);
+    EXPECT_EQ(scriptPtrD->getTransferInstruction(1).rawSize, 2u);
     EXPECT_EQ(scriptPtrD->getTransferInstruction(1).rawAmount,
               boost::algorithm::unhex(std::string("02")));
 }
@@ -2774,21 +2774,21 @@ TEST(ntp1_tests, op_return_NTP1v3_test1)
     std::shared_ptr<NTP1Script_Transfer> script_transfer =
         std::dynamic_pointer_cast<NTP1Script_Transfer>(script);
     EXPECT_EQ(script_transfer->getHeader(), boost::algorithm::unhex(opReturnArg.substr(0, 6)));
-    EXPECT_EQ(script_transfer->getHexMetadata().size(), static_cast<unsigned>(0));
+    EXPECT_EQ(script_transfer->getHexMetadata().size(), 0u);
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getOpCodeBin()), "10");
     EXPECT_EQ(script_transfer->getTxType(), NTP1Script::TxType::TxType_Transfer);
 
-    EXPECT_EQ(script_transfer->getTransferInstructionsCount(), static_cast<unsigned>(2));
+    EXPECT_EQ(script_transfer->getTransferInstructionsCount(), 2u);
 
     EXPECT_EQ(script_transfer->getTransferInstruction(0).amount, static_cast<uint64_t>(42));
     EXPECT_EQ(script_transfer->getTransferInstruction(0).skipInput, false);
-    EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, static_cast<unsigned>(0));
+    EXPECT_EQ(script_transfer->getTransferInstruction(0).outputIndex, 0u);
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(0).rawAmount), "22A0");
     EXPECT_EQ(script_transfer->getTransferInstruction(0).firstRawByte, 0);
 
     EXPECT_EQ(script_transfer->getTransferInstruction(1).amount, static_cast<uint64_t>(999958));
     EXPECT_EQ(script_transfer->getTransferInstruction(1).skipInput, false);
-    EXPECT_EQ(script_transfer->getTransferInstruction(1).outputIndex, static_cast<unsigned>(1));
+    EXPECT_EQ(script_transfer->getTransferInstruction(1).outputIndex, 1u);
     EXPECT_EQ(boost::algorithm::hex(script_transfer->getTransferInstruction(1).rawAmount), "60F42160");
     EXPECT_EQ(script_transfer->getTransferInstruction(1).firstRawByte, 1);
 }
@@ -2860,13 +2860,13 @@ TEST(ntp1_tests, metadata_decompression_issuance)
     ASSERT_EQ(pd->isLocked(), true);
     ASSERT_EQ(pd->getOpCodeBin(), boost::algorithm::unhex(std::string("01")));
     ASSERT_EQ(pd->getProtocolVersion(), 3);
-    ASSERT_EQ(pd->getTransferInstructionsCount(), 1);
+    ASSERT_EQ(pd->getTransferInstructionsCount(), 1u);
     ASSERT_EQ(pd->getTransferInstruction(0).amount, 1);
     ASSERT_EQ(pd->getTransferInstruction(0).firstRawByte, 0);
     ASSERT_EQ(pd->getTransferInstruction(0).rawAmount, boost::algorithm::unhex(std::string("01")));
     ASSERT_EQ(pd->getTransferInstruction(0).skipInput, false);
-    ASSERT_EQ(pd->getTransferInstruction(0).outputIndex, 0);
-    ASSERT_EQ(pd->getTransferInstruction(0).rawSize, 2);
+    ASSERT_EQ(pd->getTransferInstruction(0).outputIndex, 0u);
+    ASSERT_EQ(pd->getTransferInstruction(0).rawSize, 2u);
     ASSERT_EQ(pd->getTxType(), NTP1Script::TxType::TxType_Issuance);
     ASSERT_EQ(pd->getHeader(), boost::algorithm::unhex(std::string("4e5403")));
     ASSERT_EQ(pd->getAggregationPolicyStr(),
@@ -3132,7 +3132,7 @@ TEST(ntp1_tests, ntp1_metadata_parsing_1)
     EXPECT_EQ(metadataObj.getIconURL(), "");
     EXPECT_EQ(metadataObj.getIconImageType(), "");
     EXPECT_EQ(metadataObj.getTotalSupply(), NTP1Int("1000000"));
-    EXPECT_EQ(metadataObj.getDivisibility(), 7);
+    EXPECT_EQ(metadataObj.getDivisibility(), 7u);
     EXPECT_EQ(metadataObj.getLockStatus(), true);
     EXPECT_EQ(metadataObj.getAggregationPolicy(), "aggregatable");
     EXPECT_EQ(metadataObj.getIssuanceTxId(), tx.GetHash());
@@ -3191,7 +3191,7 @@ TEST(ntp1_tests, ntp1_metadata_parsing_2)
         "https://ntp1-icons.ams3.digitaloceanspaces.com/50aa59a0cecaed91b9e1fce937f14f363b2d222b.png");
     EXPECT_EQ(metadataObj.getIconImageType(), "image/png");
     EXPECT_EQ(metadataObj.getTotalSupply(), NTP1Int("100000000"));
-    EXPECT_EQ(metadataObj.getDivisibility(), 7);
+    EXPECT_EQ(metadataObj.getDivisibility(), 7u);
     EXPECT_EQ(metadataObj.getLockStatus(), true);
     EXPECT_EQ(metadataObj.getAggregationPolicy(), "aggregatable");
     EXPECT_EQ(metadataObj.getIssuanceTxId(), tx.GetHash());
@@ -3365,7 +3365,7 @@ TEST(ntp1_tests, ntp1_metadata_parsing_3)
         "https://ntp1-icons.ams3.digitaloceanspaces.com/0a0245f28b8ea8571a8165e37dc16e006426c4eb.png");
     EXPECT_EQ(metadataObj.getIconImageType(), "image/png");
     EXPECT_EQ(metadataObj.getTotalSupply(), NTP1Int("999998"));
-    EXPECT_EQ(metadataObj.getDivisibility(), 7);
+    EXPECT_EQ(metadataObj.getDivisibility(), 7u);
     EXPECT_EQ(metadataObj.getLockStatus(), true);
     EXPECT_EQ(metadataObj.getAggregationPolicy(), "aggregatable");
     EXPECT_EQ(metadataObj.getIssuanceTxId(), tx.GetHash());
@@ -3424,7 +3424,7 @@ TEST(ntp1_tests, ntp1_metadata_parsing_4)
         "https://ntp1-icons.ams3.digitaloceanspaces.com/a5709018231ada78143bd609f30633db7f81d0a4.png");
     EXPECT_EQ(metadataObj.getIconImageType(), "image/png");
     EXPECT_EQ(metadataObj.getTotalSupply(), NTP1Int("100000000"));
-    EXPECT_EQ(metadataObj.getDivisibility(), 7);
+    EXPECT_EQ(metadataObj.getDivisibility(), 7u);
     EXPECT_EQ(metadataObj.getLockStatus(), true);
     EXPECT_EQ(metadataObj.getAggregationPolicy(), "aggregatable");
     EXPECT_EQ(metadataObj.getIssuanceTxId(), tx.GetHash());
@@ -3483,7 +3483,7 @@ TEST(ntp1_tests, ntp1_metadata_parsing_5)
         "https://ntp1-icons.ams3.digitaloceanspaces.com/176c4dba9a03a235d0eb54e5b66e79af97592bb6.png");
     EXPECT_EQ(metadataObj.getIconImageType(), "image/png");
     EXPECT_EQ(metadataObj.getTotalSupply(), NTP1Int("1000000000"));
-    EXPECT_EQ(metadataObj.getDivisibility(), 7);
+    EXPECT_EQ(metadataObj.getDivisibility(), 7u);
     EXPECT_EQ(metadataObj.getLockStatus(), true);
     EXPECT_EQ(metadataObj.getAggregationPolicy(), "aggregatable");
     EXPECT_EQ(metadataObj.getIssuanceTxId(), tx.GetHash());
@@ -3553,7 +3553,7 @@ TEST(ntp1_tests, ntp1_metadata_parsing_6)
     EXPECT_EQ(metadataObj.getIconURL(), "");
     EXPECT_EQ(metadataObj.getIconImageType(), "");
     EXPECT_EQ(metadataObj.getTotalSupply(), NTP1Int("1000000"));
-    EXPECT_EQ(metadataObj.getDivisibility(), 7);
+    EXPECT_EQ(metadataObj.getDivisibility(), 7u);
     EXPECT_EQ(metadataObj.getLockStatus(), true);
     EXPECT_EQ(metadataObj.getAggregationPolicy(), "aggregatable");
     EXPECT_EQ(metadataObj.getIssuanceTxId(), tx.GetHash());
@@ -3866,7 +3866,7 @@ TEST(ntp1_tests, ntp1_metadata_parsing_7)
         "https://ntp1-icons.ams3.digitaloceanspaces.com/76bfced9e14befeb170bff5876d56e6aa7616349.gif");
     EXPECT_EQ(metadataObj.getIconImageType(), "image/gif");
     EXPECT_EQ(metadataObj.getTotalSupply(), NTP1Int("1000000"));
-    EXPECT_EQ(metadataObj.getDivisibility(), 7);
+    EXPECT_EQ(metadataObj.getDivisibility(), 7u);
     EXPECT_EQ(metadataObj.getLockStatus(), true);
     EXPECT_EQ(metadataObj.getAggregationPolicy(), "aggregatable");
     EXPECT_EQ(metadataObj.getIssuanceTxId(), tx.GetHash());
@@ -3925,7 +3925,7 @@ TEST(ntp1_tests, ntp1_metadata_parsing_8)
         "https://ntp1-icons.ams3.digitaloceanspaces.com/8dde92ea5fab1b98f793b67b7b0b2345230719a0.png");
     EXPECT_EQ(metadataObj.getIconImageType(), "image/png");
     EXPECT_EQ(metadataObj.getTotalSupply(), NTP1Int("1000000000"));
-    EXPECT_EQ(metadataObj.getDivisibility(), 7);
+    EXPECT_EQ(metadataObj.getDivisibility(), 7u);
     EXPECT_EQ(metadataObj.getLockStatus(), true);
     EXPECT_EQ(metadataObj.getAggregationPolicy(), "aggregatable");
     EXPECT_EQ(metadataObj.getIssuanceTxId(), tx.GetHash());

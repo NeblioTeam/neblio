@@ -8,14 +8,14 @@ QValidatedLineEdit::QValidatedLineEdit(QWidget *parent) :
     connect(this, SIGNAL(textChanged(QString)), this, SLOT(markValid()));
 }
 
-void QValidatedLineEdit::setValid(bool valid)
+void QValidatedLineEdit::setValid(bool validIn)
 {
-    if(valid == this->valid)
+    if(validIn == this->valid)
     {
         return;
     }
 
-    if(valid)
+    if(validIn)
     {
         setStyleSheet("");
     }
@@ -23,7 +23,7 @@ void QValidatedLineEdit::setValid(bool valid)
     {
         setStyleSheet(STYLE_INVALID);
     }
-    this->valid = valid;
+    this->valid = validIn;
 }
 
 void QValidatedLineEdit::focusInEvent(QFocusEvent *evt)

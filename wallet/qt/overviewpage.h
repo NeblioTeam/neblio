@@ -28,7 +28,7 @@ public:
     explicit OverviewPage(QWidget* parent = 0);
     ~OverviewPage();
 
-    void setModel(WalletModel* model);
+    void setModel(WalletModel* modelIn);
     void showOutOfSyncWarning(bool fShow);
 
 public slots:

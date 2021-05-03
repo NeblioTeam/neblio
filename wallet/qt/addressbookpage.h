@@ -34,11 +34,11 @@ public:
         ForEditing  /**< Open address book for editing */
     };
 
-    explicit AddressBookPage(Mode mode, Tabs tab, QWidget *parent = 0);
+    explicit AddressBookPage(Mode modeIn, Tabs tabIn, QWidget *parent = 0);
     ~AddressBookPage();
 
-    void setModel(AddressTableModel *model);
-    void setOptionsModel(OptionsModel *optionsModel);
+    void setModel(AddressTableModel *modelIn);
+    void setOptionsModel(OptionsModel *optionsModelIn);
     const QString &getReturnValue() const { return returnValue; }
 
 public slots:

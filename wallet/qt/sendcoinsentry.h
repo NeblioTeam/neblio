@@ -20,7 +20,7 @@ public:
 
     void updateNTP1TokensList();
 
-    void               setModel(WalletModel* model);
+    void               setModel(WalletModel* modelIn);
     bool               validate();
     SendCoinsRecipient getValue();
 

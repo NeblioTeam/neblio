@@ -56,7 +56,7 @@ class WalletModel : public QObject
     Q_OBJECT
 
 public:
-    explicit WalletModel(CWallet* wallet, OptionsModel* optionsModel, QObject* parent = 0);
+    explicit WalletModel(CWallet* walletIn, OptionsModel* optionsModelIn, QObject* parent = 0);
     ~WalletModel();
 
     enum StatusCode // Returned by sendCoins
@@ -103,8 +103,8 @@ public:
     // Return status record for SendCoins, contains error id + information
     struct SendCoinsReturn
     {
-        SendCoinsReturn(StatusCode status = Aborted, qint64 fee = 0, QString hex = QString())
-            : status(status), fee(fee), hex(hex)
+        SendCoinsReturn(StatusCode statusIn = Aborted, qint64 feeIn = 0, QString hexIn = QString())
+            : status(statusIn), fee(feeIn), hex(hexIn)
         {
         }
         StatusCode status;
@@ -133,7 +133,7 @@ public:
     class UnlockContext
     {
     public:
-        UnlockContext(WalletModel* wallet, bool valid, bool relock);
+        UnlockContext(WalletModel* walletIn, bool validIn, bool relockIn);
         ~UnlockContext();
 
         bool isValid() const { return valid; }

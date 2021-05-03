@@ -139,14 +139,14 @@ CoinControlDialog::CoinControlDialog(QWidget* parent)
 
 CoinControlDialog::~CoinControlDialog() { delete ui; }
 
-void CoinControlDialog::setModel(WalletModel* model)
+void CoinControlDialog::setModel(WalletModel* modelIn)
 {
-    this->model = model;
+    this->model = modelIn;
 
-    if (model && model->getOptionsModel() && model->getAddressTableModel()) {
+    if (modelIn && modelIn->getOptionsModel() && modelIn->getAddressTableModel()) {
         updateView();
         // updateLabelLocked();
-        CoinControlDialog::updateLabels(model, this);
+        CoinControlDialog::updateLabels(modelIn, this);
     }
 }
 

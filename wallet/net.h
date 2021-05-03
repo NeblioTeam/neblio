@@ -353,15 +353,15 @@ public:
 
     void Release() { nRefCount--; }
 
-    void AddAddressKnown(const CAddress& addr) { setAddrKnown.insert(addr); }
+    void AddAddressKnown(const CAddress& addrIn) { setAddrKnown.insert(addrIn); }
 
-    void PushAddress(const CAddress& addr)
+    void PushAddress(const CAddress& addrIn)
     {
         // Known checking here is only to save space from duplicates.
         // SendMessages will filter it again for knowns that were added
         // after addresses were pushed.
-        if (addr.IsValid() && !setAddrKnown.count(addr))
-            vAddrToSend.push_back(addr);
+        if (addrIn.IsValid() && !setAddrKnown.count(addrIn))
+            vAddrToSend.push_back(addrIn);
     }
 
     void AddInventoryKnown(const CInv& inv)

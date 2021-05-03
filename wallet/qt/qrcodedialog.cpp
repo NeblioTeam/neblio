@@ -37,12 +37,12 @@ QRCodeDialog::~QRCodeDialog()
     delete ui;
 }
 
-void QRCodeDialog::setModel(OptionsModel *model)
+void QRCodeDialog::setModel(OptionsModel *modelIn)
 {
-    this->model = model;
+    this->model = modelIn;
 
-    if (model)
-        connect(model, SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
+    if (modelIn)
+        connect(modelIn, SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
 
     // update the display unit, to not use the default ("BTC")
     updateDisplayUnit();

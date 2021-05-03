@@ -357,11 +357,11 @@ bool CDB::Rewrite(const string& strFile, const char* pszSkip)
                         while (fSuccess) {
                             CDataStream ssKey(SER_DISK, CLIENT_VERSION);
                             CDataStream ssValue(SER_DISK, CLIENT_VERSION);
-                            int         ret = db.ReadAtCursor(pcursor, ssKey, ssValue, DB_NEXT);
-                            if (ret == DB_NOTFOUND) {
+                            int         retP = db.ReadAtCursor(pcursor, ssKey, ssValue, DB_NEXT);
+                            if (retP == DB_NOTFOUND) {
                                 pcursor->close();
                                 break;
-                            } else if (ret != 0) {
+                            } else if (retP != 0) {
                                 pcursor->close();
                                 fSuccess = false;
                                 break;
@@ -406,12 +406,12 @@ bool CDB::Rewrite(const string& strFile, const char* pszSkip)
     return false;
 }
 
-void CDBEnv::Flush(bool fShutdown)
+void CDBEnv::Flush(bool fShutdownIn)
 {
     int64_t nStart = GetTimeMillis();
     // Flush log data to the actual data file
     //  on all files that are not in use
-    NLog.write(b_sev::info, "Flush({}){}", fShutdown, fDbEnvInit ? "" : " db not started");
+    NLog.write(b_sev::info, "Flush({}){}", fShutdownIn, fDbEnvInit ? "" : " db not started");
     if (!fDbEnvInit)
         return;
     {
@@ -434,9 +434,9 @@ void CDBEnv::Flush(bool fShutdown)
             } else
                 mi++;
         }
-        NLog.write(b_sev::info, "DBFlush({}){} ended {} ms", fShutdown,
+        NLog.write(b_sev::info, "DBFlush({}){} ended {} ms", fShutdownIn,
                   fDbEnvInit ? "" : " db not started", GetTimeMillis() - nStart);
-        if (fShutdown) {
+        if (fShutdownIn) {
             char** listp;
             if (mapFileUseCount.empty()) {
                 dbenv.log_archive(&listp, DB_ARCH_REMOVE);

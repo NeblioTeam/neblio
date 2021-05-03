@@ -366,8 +366,6 @@ QString TransactionDesc::toHTML(const ITxDB& txdb, CWallet* wallet, const CWalle
         strHTML += "<br><b>" + tr("Transaction") + ":</b><br>";
         strHTML += GUIUtil::HtmlEscape(wtx.ToString(), true);
 
-        const CTxDB txdb; // To fetch source txouts
-
         strHTML += "<br><b>" + tr("Inputs") + ":</b>";
         strHTML += "<ul>";
 

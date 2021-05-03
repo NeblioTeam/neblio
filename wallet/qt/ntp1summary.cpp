@@ -396,10 +396,10 @@ NTP1Summary::~NTP1Summary() { delete ui; }
 
 NTP1TokenListModel* NTP1Summary::getTokenListModel() const { return model; }
 
-void NTP1Summary::setModel(NTP1TokenListModel* model)
+void NTP1Summary::setModel(NTP1TokenListModel* modelIn)
 {
-    if (model) {
-        filter->setSourceModel(model);
+    if (modelIn) {
+        filter->setSourceModel(modelIn);
         ui->listTokens->setModel(filter);
     }
 }

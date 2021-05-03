@@ -532,7 +532,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
 
         // Track how many getdata requests this block gets
         {
-            LOCK(wallet.cs_wallet);
+            LOCKN(wallet.cs_wallet, walletLock);
             wallet.mapRequestCount[hashBlock] = 0;
         }
 
@@ -571,7 +571,7 @@ bool CheckStake(const ITxDB& txdb, CBlock* pblock, CWallet& wallet)
 
         // Track how many getdata requests this block gets
         {
-            LOCK(wallet.cs_wallet);
+            LOCKN(wallet.cs_wallet, walletLock);
             wallet.mapRequestCount[hashBlock] = 0;
         }
 

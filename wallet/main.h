@@ -227,6 +227,8 @@ public:
     {
     }
 
+    _Pragma(NEBLIO_DIAGNOSTIC_PUSH);
+    _Pragma(NEBLIO_HIDE_SHADOW_WARNING);
     unsigned int GetSerializeSize(int nType, int nVersion) const
     {
         return ::GetSerializeSize(VARINT(nHeight * 2 + (fCoinBase ? 1 : 0)), nType, nVersion) +
@@ -254,6 +256,7 @@ public:
             ::Unserialize(s, VARINT(this->nVersion), nType, nVersion);
         ::Unserialize(s, REF(CTxOutCompressor(REF(txout))), nType, nVersion);
     }
+    _Pragma(NEBLIO_DIAGNOSTIC_POP);
 };
 
 /** Undo information for a CTransaction */
@@ -262,7 +265,10 @@ class CTxUndo
 public:
     std::vector<CTxInUndo> vprevout;
 
+    _Pragma(NEBLIO_DIAGNOSTIC_PUSH);
+    _Pragma(NEBLIO_HIDE_SHADOW_WARNING);
     IMPLEMENT_SERIALIZE(READWRITE(vprevout);)
+    _Pragma(NEBLIO_DIAGNOSTIC_POP);
 };
 
 /** pruned version of CTransaction: only retains metadata and unspent transaction outputs
@@ -384,6 +390,8 @@ public:
 
     bool IsCoinBase() const { return fCoinBase; }
 
+    _Pragma(NEBLIO_DIAGNOSTIC_PUSH);
+    _Pragma(NEBLIO_HIDE_SHADOW_WARNING);
     unsigned int GetSerializeSize(int nType, int nVersion) const
     {
         unsigned int nSize     = 0;
@@ -474,6 +482,7 @@ public:
         ::Unserialize(s, VARINT(nHeight), nType, nVersion);
         Cleanup();
     }
+    _Pragma(NEBLIO_DIAGNOSTIC_POP);
 
     // mark an outpoint spent, and construct undo information
     bool Spend(const COutPoint& out, CTxInUndo& undo)

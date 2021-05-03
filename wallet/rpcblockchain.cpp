@@ -94,13 +94,16 @@ double GetPoSKernelPS()
     const CTxDB txdb;
 
     boost::optional<CBlockIndex> pindex          = txdb.GetBestBlockIndex();
-    boost::optional<CBlockIndex> pindexPrevStake = boost::none;
+    // we use a unique_ptr just because optional... triggers an uninitialized false positive warning
+    std::unique_ptr<CBlockIndex> pindexPrevStake;
 
     while (pindex && nStakesHandled < nPoSInterval) {
         if (pindex->IsProofOfStake()) {
             dStakeKernelsTriedAvg += GetDifficulty(&*pindex) * 4294967296.0;
-            nStakesTime += pindexPrevStake ? (pindexPrevStake->nTime - pindex->nTime) : 0;
-            pindexPrevStake = pindex;
+            if(pindexPrevStake) {
+                nStakesTime += pindexPrevStake->nTime - pindex->nTime;
+            }
+            pindexPrevStake = MakeUnique<CBlockIndex>(*pindex);
             nStakesHandled++;
         }
 
@@ -681,7 +684,7 @@ Value gettxout(const Array& params, bool fHelp)
     uint32_t                      nHeight = 0;
     CTxIndex                      txindex;
     if (fMempool) {
-        LOCK(mempool.cs);
+        LOCKN(mempool.cs, mempoolLock);
         if (mempool.isSpent(out)) {
             return Value();
         }

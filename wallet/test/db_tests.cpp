@@ -301,7 +301,7 @@ static void EnsureDBIsEmpty(IDB* db, IDB::Index dbindex)
 {
     auto m = db->readAll(dbindex);
     ASSERT_TRUE(m);
-    EXPECT_EQ(m->size(), 0);
+    EXPECT_EQ(m->size(), 0u);
 }
 
 static void TestReadWriteUnique(IDB* db, const std::map<std::string, std::string>& data)
@@ -373,13 +373,13 @@ static void TestReadWriteUnique(IDB* db, const std::map<std::string, std::string
 TEST(db_interface_impl_tests, read_write_unique)
 {
     static constexpr int MAX_ENTRIES = 20;
-    static constexpr int MAX_SIZE    = 500;
+    static constexpr int MAX_SIZE_P    = 500;
 
     std::map<std::string, std::string> data;
 
     for (int i = 0; i < MAX_ENTRIES; i++) {
-        const std::size_t keySize = static_cast<std::size_t>(1 + rand() % MAX_SIZE);
-        const std::size_t valSize = static_cast<std::size_t>(1 + rand() % MAX_SIZE);
+        const std::size_t keySize = static_cast<std::size_t>(1 + rand() % MAX_SIZE_P);
+        const std::size_t valSize = static_cast<std::size_t>(1 + rand() % MAX_SIZE_P);
         const std::string key     = GeneratePseudoRandomString(keySize);
         const std::string val     = GeneratePseudoRandomString(valSize);
 
@@ -399,13 +399,13 @@ TEST(db_interface_impl_tests, read_write_unique)
 TEST(db_interface_impl_tests, read_write_unique_with_transaction)
 {
     static constexpr int MAX_ENTRIES = 20;
-    static constexpr int MAX_SIZE    = 500;
+    static constexpr int MAX_SIZE_P    = 500;
 
     std::map<std::string, std::string> data;
 
     for (int i = 0; i < MAX_ENTRIES; i++) {
-        const std::size_t keySize = static_cast<std::size_t>(1 + rand() % MAX_SIZE);
-        const std::size_t valSize = static_cast<std::size_t>(1 + rand() % MAX_SIZE);
+        const std::size_t keySize = static_cast<std::size_t>(1 + rand() % MAX_SIZE_P);
+        const std::size_t valSize = static_cast<std::size_t>(1 + rand() % MAX_SIZE_P);
         const std::string key     = GeneratePseudoRandomString(keySize);
         const std::string val     = GeneratePseudoRandomString(valSize);
 
@@ -434,8 +434,8 @@ TEST(db_interface_impl_tests, read_write_unique_with_transaction)
     const boost::optional<std::map<std::string, std::vector<std::string>>> map =
         db->readAll(IDB::Index::DB_MAIN_INDEX);
     ASSERT_TRUE(map);
-    ASSERT_EQ(map->size(), 1);
-    ASSERT_EQ(map->count(someRandomKeyVal.first), 1);
+    ASSERT_EQ(map->size(), 1u);
+    ASSERT_EQ(map->count(someRandomKeyVal.first), 1u);
 }
 
 static void TestReadMultipleAndRealAll(IDB*                                                   db,
@@ -496,7 +496,7 @@ static void TestReadMultipleAndRealAll(IDB*                                     
             EXPECT_FALSE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key));
             auto v = db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key);
             ASSERT_TRUE(v);
-            EXPECT_EQ(v->size(), 0);
+            EXPECT_EQ(v->size(), 0u);
             const boost::optional<std::map<std::string, std::vector<std::string>>> m =
                 db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
             ASSERT_TRUE(m);
@@ -516,15 +516,15 @@ TEST(db_interface_impl_tests, read_write_multiple)
 {
     static constexpr int MAX_ENTRIES    = 5;
     static constexpr int MAX_SUBENTRIES = 3;
-    static constexpr int MAX_SIZE       = 500;
+    static constexpr int MAX_SIZE_P       = 500;
 
     std::map<std::string, std::vector<std::string>> data;
 
     for (int i = 0; i < MAX_ENTRIES; i++) {
-        const std::size_t keySize = static_cast<std::size_t>(1 + rand() % MAX_SIZE);
+        const std::size_t keySize = static_cast<std::size_t>(1 + rand() % MAX_SIZE_P);
         const std::string key     = GeneratePseudoRandomString(keySize);
         for (int j = 0; j < MAX_SUBENTRIES; j++) {
-            const std::size_t valSize = static_cast<std::size_t>(1 + rand() % MAX_SIZE);
+            const std::size_t valSize = static_cast<std::size_t>(1 + rand() % MAX_SIZE_P);
             const std::string val     = GeneratePseudoRandomString(valSize);
 
             data[key].push_back(val);
@@ -608,7 +608,7 @@ static void TestReadMultipleAndRealAllWithTx(IDB*                               
             EXPECT_FALSE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key));
             auto v = db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key);
             ASSERT_TRUE(v);
-            EXPECT_EQ(v->size(), 0);
+            EXPECT_EQ(v->size(), 0u);
             const boost::optional<std::map<std::string, std::vector<std::string>>> m =
                 db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
             ASSERT_TRUE(m);
@@ -623,8 +623,8 @@ static void TestReadMultipleAndRealAllWithTx(IDB*                               
     const boost::optional<std::map<std::string, std::vector<std::string>>> map =
         db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
     ASSERT_TRUE(map);
-    ASSERT_EQ(map->size(), 1);
-    ASSERT_EQ(map->count(someRandomKeyVal.first), 1);
+    ASSERT_EQ(map->size(), 1u);
+    ASSERT_EQ(map->count(someRandomKeyVal.first), 1u);
 
     EnsureDBIsEmpty(db, IDB::Index::DB_MAIN_INDEX);
     EnsureDBIsEmpty(db, IDB::Index::DB_BLOCKINDEX_INDEX);
@@ -638,15 +638,15 @@ TEST(db_interface_impl_tests, read_write_multiple_with_db_transaction)
 {
     static constexpr int MAX_ENTRIES    = 5;
     static constexpr int MAX_SUBENTRIES = 3;
-    static constexpr int MAX_SIZE       = 500;
+    static constexpr int MAX_SIZE_P       = 500;
 
     std::map<std::string, std::vector<std::string>> data;
 
     for (int i = 0; i < MAX_ENTRIES; i++) {
-        const std::size_t keySize = static_cast<std::size_t>(1 + rand() % MAX_SIZE);
+        const std::size_t keySize = static_cast<std::size_t>(1 + rand() % MAX_SIZE_P);
         const std::string key     = GeneratePseudoRandomString(keySize);
         for (int j = 0; j < MAX_SUBENTRIES; j++) {
-            const std::size_t valSize = static_cast<std::size_t>(1 + rand() % MAX_SIZE);
+            const std::size_t valSize = static_cast<std::size_t>(1 + rand() % MAX_SIZE_P);
             const std::string val     = GeneratePseudoRandomString(valSize);
 
             data[key].push_back(val);
