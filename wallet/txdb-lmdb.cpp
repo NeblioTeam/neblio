@@ -834,6 +834,7 @@ boost::optional<CBlockIndex> CTxDB::GetBestBlockIndex() const
     if (ReadHashBestChain(bestChainHash)) {
         return ReadBlockIndex(bestChainHash);
     }
+    NLog.write(b_sev::critical, "CRITICAL ERROR: best block index was unloadable from DB");
     return boost::none;
 }
 

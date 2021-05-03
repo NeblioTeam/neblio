@@ -32,7 +32,7 @@ static bool GetLastStakeModifier(const ITxDB& txdb, const CBlockIndex* pindex, u
         if (bi) {
             index = std::move(*bi);
         } else {
-            NLog.write(b_sev::err,
+            NLog.write(b_sev::critical,
                        "CRITICAL ERROR: failed to get prev block if {} even though it's not genesis",
                        index.hashPrev.ToString());
             break;
