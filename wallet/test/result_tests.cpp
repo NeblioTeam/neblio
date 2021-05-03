@@ -4,13 +4,9 @@
 
 TEST(result_tests, basic_result)
 {
-    Result<uint64_t, uint32_t> r1  = Ok(UINT64_C(3));
+    Result<uint64_t, uint32_t> r1 = Ok(UINT64_C(3));
 
-<<<<<<< HEAD
-    auto                       val = r1.expect("Failed to retrieve the value");
-=======
     auto val = r1.expect("Failed to retrieve the value", RESULT_PRE);
->>>>>>> FixWarnings
     EXPECT_EQ(val, 3u);
 }
 
