@@ -29,9 +29,9 @@ ifdef lmdb64
 MDB32D:=
 endif
 
+OPTIMIZEDSALSA:=-DOPTIMIZED_SALSA
 
-
-DEFS += $(addprefix -I,$(CURDIR) $(CURDIR)/obj $(BOOST_INCLUDE_PATH) $(BDB_INCLUDE_PATH) $(OPENSSL_INCLUDE_PATH) $(shell pkg-config libcurl --cflags)) $(MDB32D)
+DEFS += $(addprefix -I,$(CURDIR) $(CURDIR)/obj $(BOOST_INCLUDE_PATH) $(BDB_INCLUDE_PATH) $(OPENSSL_INCLUDE_PATH) $(shell pkg-config libcurl --cflags)) $(MDB32D) $(OPTIMIZEDSALSA)
 LIBS = $(addprefix -L,$(BOOST_LIB_PATH) $(BDB_LIB_PATH) $(OPENSSL_LIB_PATH))
 
 DEFS += $(addprefix -I,$(CURDIR)/spdlog/include)
