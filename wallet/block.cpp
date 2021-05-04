@@ -1337,10 +1337,11 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& block
         if (viuResult.isErr()) {
             reject = CBlockReject(REJECT_INVALID,
                                   fmt::format("bad-txns-inputs-missingorspent-{}",
-                                              VIUErrorToString(viuResult.unwrapErr())),
+                                              VIUErrorToString(viuResult.unwrapErr(RESULT_PRE))),
                                   blockHash);
-            return DoS(100, NLog.error("VerifyInputsUnspent() failed for block {} ({})",
-                                       blockHash.ToString(), VIUErrorToString(viuResult.unwrapErr())));
+            return DoS(100,
+                       NLog.error("VerifyInputsUnspent() failed for block {} ({})", blockHash.ToString(),
+                                  VIUErrorToString(viuResult.unwrapErr(RESULT_PRE))));
         }
     } catch (const std::exception& ex) {
         return NLog.critical("VerifyInputsUnspent() threw an exception for block {}; with error: {}",
