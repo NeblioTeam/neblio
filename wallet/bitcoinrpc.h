@@ -92,7 +92,7 @@ extern boost::atomic_bool fRpcListening;
 
 json_spirit::Object JSONRPCError(int code, const std::string& message);
 
-void ThreadRPCServer(void* parg);
+void ThreadRPCServer();
 int  CommandLineRPC(int argc, char* argv[]);
 
 bool IsRPCRunning();

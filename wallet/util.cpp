@@ -1102,17 +1102,6 @@ void RenameThread(const char* name)
 #endif
 }
 
-bool NewThread(void (*pfn)(void*), void* parg)
-{
-    try {
-        boost::thread(pfn, parg); // thread detaches when out of scope
-    } catch (boost::thread_resource_error& e) {
-        NLog.write(b_sev::err, "Error creating thread: {}", e.what());
-        return false;
-    }
-    return true;
-}
-
 string GeneratePseudoRandomString(const int len)
 {
     static const char alphanum[] = "0123456789"

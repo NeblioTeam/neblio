@@ -12,7 +12,7 @@
 extern std::shared_ptr<CWallet> pwalletMain;
 extern boost::atomic<bool>      appInitiated;
 void                            StartShutdown();
-void                            Shutdown(void* parg);
+void                            Shutdown();
 bool                            AppInit2();
 std::string                     HelpMessage();
 void                            InitLogging();

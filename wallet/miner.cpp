@@ -589,7 +589,7 @@ bool is_vNodesEmpty_safe()
     return vNodes.empty();
 }
 
-void StakeMiner(CWallet* pwallet)
+void StakeMiner(std::shared_ptr<CWallet> pwallet)
 {
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
 
@@ -642,7 +642,7 @@ void StakeMiner(CWallet* pwallet)
         // Create new block
         //
         CAmount                 nFees;
-        std::unique_ptr<CBlock> pblock = CreateNewBlock(pwallet, true, &nFees);
+        std::unique_ptr<CBlock> pblock = CreateNewBlock(pwallet.get(), true, &nFees);
         if (!pblock)
             return;
 

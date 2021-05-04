@@ -511,7 +511,18 @@ public:
     }
 };
 
-bool NewThread(void (*pfn)(void*), void* parg);
+template <typename Func, typename... Params>
+bool NewThread(Func&& func, Params&&... params)
+{
+    try {
+        std::thread t(std::forward<Func>(func), std::forward<Params...>(params)...);
+        t.detach();
+    } catch (const std::system_error& e) {
+        NLog.write(b_sev::err, "Error creating thread: {}", e.what());
+        return false;
+    }
+    return true;
+}
 
 bool RandomBytesToBuffer(unsigned char* buffer, std::size_t size);
 

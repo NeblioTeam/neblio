@@ -45,7 +45,7 @@ LockedVar<boost::signals2::signal<void()>> StopRPCRequests;
 // Shutdown
 //
 
-void ExitTimeout(void* /*parg*/)
+void ExitTimeout()
 {
 #ifdef WIN32
     MilliSleep(5000);
@@ -89,11 +89,11 @@ void StartShutdown()
     uiInterface.QueueShutdown();
 #else
     // Without UI, Shutdown() can simply be started in a new thread
-    NewThread(Shutdown, nullptr);
+    NewThread(Shutdown);
 #endif
 }
 
-void Shutdown(void* /*parg*/)
+void Shutdown()
 {
     static CCriticalSection cs_Shutdown;
     static bool             fTaken;
@@ -124,7 +124,7 @@ void Shutdown(void* /*parg*/)
         while (weakWallet.lock()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
-        NewThread(ExitTimeout, NULL);
+        NewThread(ExitTimeout);
         MilliSleep(50);
         NLog.write(b_sev::info, "neblio exited\n\n\n\n\n\n\n\n\n");
         NLog.flush();
@@ -210,7 +210,7 @@ bool AppInit(int argc, char* argv[])
         ParseParameters(argc, argv);
         if (!boost::filesystem::is_directory(GetDataDir(false))) {
             std::cerr << "Error: Specified directory does not exist" << std::endl;
-            Shutdown(nullptr);
+            Shutdown();
         }
         ReadConfigFile(mapArgs, mapMultiArgs);
 
@@ -256,7 +256,7 @@ bool AppInit(int argc, char* argv[])
         PrintException(NULL, "AppInit()");
     }
     if (!fRet)
-        Shutdown(NULL);
+        Shutdown();
     return fRet;
 }
 
@@ -998,11 +998,11 @@ bool AppInit2()
 
     // ********************************************************* Step 9: import blocks
 
-    std::vector<boost::filesystem::path>*     vPath         = new std::vector<boost::filesystem::path>();
+    std::vector<boost::filesystem::path>      vPath;
     boost::optional<std::vector<std::string>> loadBlockVals = mapMultiArgs.get("-loadblock");
     if (loadBlockVals) {
         for (const string& strFile : *loadBlockVals)
-            vPath->push_back(strFile);
+            vPath.push_back(strFile);
     }
     uiInterface.InitMessage(_("Importing blockchain data file."));
     NewThread(ThreadImport, vPath);
@@ -1036,11 +1036,11 @@ bool AppInit2()
     NLog.write(b_sev::info, "mapWallet.size() = {}", pwalletMain->mapWallet.size());
     NLog.write(b_sev::info, "mapAddressBook.size() = {}", pwalletMain->mapAddressBook.size());
 
-    if (!NewThread(StartNode, NULL))
+    if (!NewThread(StartNode))
         InitError(_("Error: could not start node"));
 
     if (fServer) {
-        NewThread(ThreadRPCServer, NULL);
+        NewThread(ThreadRPCServer);
     }
     DeleteAuthCookie(); // clear the cookie from the previous session, if it exists
 

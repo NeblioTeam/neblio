@@ -2376,7 +2376,7 @@ Value getwalletinfo(const Array& params, bool fHelp)
     return obj;
 }
 
-void ThreadTopUpKeyPool(void* /*parg*/)
+void ThreadTopUpKeyPool()
 {
     // Make this thread recognisable as the key-topping-up thread
     RenameThread("neblio-key-top");
@@ -2384,12 +2384,12 @@ void ThreadTopUpKeyPool(void* /*parg*/)
     pwalletMain->TopUpKeyPool();
 }
 
-void ThreadCleanWalletPassphrase(void* parg)
+void ThreadCleanWalletPassphrase(const int64_t pnSleepTimeInSeconds)
 {
     // Make this thread recognisable as the wallet relocking thread
     RenameThread("neblio-lock-wa");
 
-    int64_t nMyWakeTime = GetTimeMillis() + *((int64_t*)parg) * 1000;
+    const int64_t nMyWakeTime = GetTimeMillis() + pnSleepTimeInSeconds * 1000;
 
     ENTER_CRITICAL_SECTION(cs_nWalletUnlockTime);
 
@@ -2399,7 +2399,7 @@ void ThreadCleanWalletPassphrase(void* parg)
         do {
             if (nWalletUnlockTime == 0)
                 break;
-            int64_t nToSleep = nWalletUnlockTime - GetTimeMillis();
+            const int64_t nToSleep = nWalletUnlockTime - GetTimeMillis();
             if (nToSleep <= 0)
                 break;
 
@@ -2419,8 +2419,6 @@ void ThreadCleanWalletPassphrase(void* parg)
     }
 
     LEAVE_CRITICAL_SECTION(cs_nWalletUnlockTime);
-
-    delete (int64_t*)parg;
 }
 
 Value walletpassphrase(const Array& params, bool fHelp)
@@ -2466,12 +2464,12 @@ Value walletpassphrase(const Array& params, bool fHelp)
         throw runtime_error("walletpassphrase <passphrase> <timeout>\n"
                             "Stores the wallet decryption key in memory for <timeout> seconds.");
 
-    NewThread(ThreadTopUpKeyPool, NULL);
+    NewThread(ThreadTopUpKeyPool);
     if (params.size() >= 2) {
-        int64_t* pnSleepTime = new int64_t(params[1].get_int64());
+        int64_t pnSleepTime = params[1].get_int64();
 
-        if (*pnSleepTime > static_cast<int64_t>(std::numeric_limits<int32_t>::max()))
-            *pnSleepTime = static_cast<int64_t>(std::numeric_limits<int32_t>::max());
+        if (pnSleepTime > static_cast<int64_t>(std::numeric_limits<int32_t>::max()))
+            pnSleepTime = static_cast<int64_t>(std::numeric_limits<int32_t>::max());
 
         if (params[1].get_int64() > 0) {
             NewThread(ThreadCleanWalletPassphrase, pnSleepTime);
