@@ -50,33 +50,6 @@ class RawTransactionsTest(BitcoinTestFramework):
         super().setup_network()
         connect_nodes_bi(self.nodes,0,2)
 
-    def make_few_ntp1_tokens_data(self, count: int):
-        resulting_coins = []
-        symbols = {}  # used to ensure no duplicates exist
-        while len(resulting_coins) < count:
-            metadata_len = random.randint(0, 5)
-            metadata = bytes.fromhex(''.join(random.choices(string.hexdigits + string.digits,
-                                                            k=2*metadata_len)))
-            amount = str(random.randint(1, 100000))
-            token_symbol_length = random.randint(1, 5)
-            token_symbol = ''.join(random.choices(string.ascii_letters + string.digits,
-                                                  k=token_symbol_length))
-            if token_symbol in symbols:  # ensure no token symbol duplicates will ever exist
-                continue
-            symbols[token_symbol] = 0
-            resulting_coins.append({"metadata": metadata,
-                                    "amount": amount,
-                                    "symbol": token_symbol})
-        print("Issued coins:", resulting_coins)
-        return resulting_coins
-
-    def issue_ntp1_token(self, node_id: int, inputs: list, token_name: str, amount: str, destination: str, metadata: bytes):
-        issue_raw_tx = self.nodes[node_id].issuenewntp1token(inputs, token_name, amount, destination, metadata.hex())
-        signed_issue_raw_tx = self.nodes[node_id].signrawtransaction(issue_raw_tx)
-        assert signed_issue_raw_tx['complete'] is True
-        signed_issue_raw_tx_hash = self.nodes[node_id].sendrawtransaction(signed_issue_raw_tx['hex'])
-        return signed_issue_raw_tx_hash
-
     def get_spendable_outputs(self):
         self.nodes[0].generate(30)
         unspent_outputs = self.nodes[0].listunspent()
