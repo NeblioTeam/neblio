@@ -347,7 +347,7 @@ bool ReadKeyValue(const ITxDB& txdb, CWallet* pwallet, CDataStream& ssKey, CData
             if (wtx.nOrderPos == -1)
                 wss.fAnyUnordered = true;
 
-            pwallet->AddToWallet(txdb, wtx, true, nullptr);
+            pwallet->AddToWallet(txdb, wtx, true, nullptr, false);
 
             //// debug print
             // NLog.write(b_sev::debug, "LoadWallet  {}", wtx.GetHash().ToString());
