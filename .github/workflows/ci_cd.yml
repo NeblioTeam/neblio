@@ -2,6 +2,7 @@ name: CICD
 on:
   push:
   pull_request:
+  workflow_dispatch:
   schedule:
     - cron:  '15 0 * * *'
 
@@ -206,7 +207,7 @@ jobs:
 
   docker:
     # Only Build Docker on Daily Scheduled Runs and releases to save time (no cache)
-    if: github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Docker Files
@@ -231,7 +232,7 @@ jobs:
 
   rpi_docker:
     # Only Build RPi Docker on Daily Scheduled Runs and releases as it takes 5 Hours
-    if: github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Docker Files
@@ -256,7 +257,7 @@ jobs:
 
   rpi_wallet:
     # Only Build RPi on Daily Scheduled Runs and releases as it takes a long time
-    if: github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v1
@@ -289,7 +290,7 @@ jobs:
 
   rpi_wallet_test:
     # Only Build RPi on Daily Scheduled Runs and releases as it takes a long time
-    if: github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v1
@@ -317,7 +318,7 @@ jobs:
 
   rpi_daemon:
     # Only Build RPi on Daily Scheduled Runs and releases as it takes a long time
-    if: github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v1
