@@ -128,11 +128,17 @@ void WalletModel::pollBalanceChanged()
 void WalletModel::checkBalanceChanged()
 {
     if (isBalancesWorkerRunning) {
-        QTimer::singleShot(1000, this, &WalletModel::checkBalanceChanged);
+        if (!isBalanceWorkerScheduled) {
+            // this protects against accruing more and more singleShots which after a long block
+            // (importing a wallet, for example) will make them all fire together
+            QTimer::singleShot(1000, this, &WalletModel::checkBalanceChanged);
+            isBalanceWorkerScheduled = true;
+        }
         return;
     }
 
-    isBalancesWorkerRunning = true;
+    isBalancesWorkerRunning  = true;
+    isBalanceWorkerScheduled = false;
 
     QSharedPointer<BalancesWorker> worker = QSharedPointer<BalancesWorker>::create();
     worker->moveToThread(&balancesThread);

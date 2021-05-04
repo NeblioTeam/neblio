@@ -17,6 +17,7 @@
 #include "walletdb.h"
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/make_shared.hpp>
+#include <boost/scope_exit.hpp>
 
 using namespace std;
 
@@ -1081,12 +1082,36 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
 
     uint64_t blockCount = pindexStart->nHeight;
 
+    const auto calculateProgress = [](int blockHeight, int maxHeight) -> int {
+        if (maxHeight > 0) {
+            if (blockHeight > maxHeight) {
+                return 100;
+            } else {
+                const int progVal = static_cast<int>(float(100) * float(blockHeight) / float(maxHeight));
+                return progVal;
+            }
+        } else {
+            return 0;
+        }
+    };
+
     {
         CTxDB txdb;
         LOCK2(cs_main, cs_wallet);
         const int bestHeight = txdb.GetBestChainHeight().value_or(0);
+        uiInterface.WalletBlockchainRescanStarted();
+        BOOST_SCOPE_EXIT(void) { uiInterface.WalletBlockchainRescanEnded(); }
+        BOOST_SCOPE_EXIT_END
         NLog.write(b_sev::info, "Starting wallet rescan of {} blocks...", bestHeight);
+        int progressLast = 0;
+        int progressNow  = 0;
+        uiInterface.WalletBlockchainRescanAtHeight(0);
         while (pindex) {
+            progressNow = calculateProgress(pindex->nHeight, bestHeight);
+            if (progressNow != progressLast) {
+                uiInterface.WalletBlockchainRescanAtHeight(progressNow);
+                progressLast = progressNow;
+            }
             blockCount++;
 
             if (blockCount % 1000 == 0) {
@@ -1100,15 +1125,15 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
             if (nTimeFirstKey && (pindex->nTime < (nTimeFirstKey - 7200))) {
                 pindex = pindex->getNext(txdb);
                 continue;
+            } else {
+                CBlock block;
+                block.ReadFromDisk(&*pindex, txdb, true);
+                for (CTransaction& tx : block.vtx) {
+                    if (AddToWalletIfInvolvingMe(txdb, tx, &block, fUpdate, true))
+                        ret++;
+                }
+                pindex = pindex->getNext(txdb);
             }
-
-            CBlock block;
-            block.ReadFromDisk(&*pindex, txdb, true);
-            for (CTransaction& tx : block.vtx) {
-                if (AddToWalletIfInvolvingMe(txdb, tx, &block, fUpdate, true))
-                    ret++;
-            }
-            pindex = pindex->getNext(txdb);
         }
         uiInterface.InitMessage(_("Updating wallet on disk (do not shutdown)..."));
         FlushWalletDB(true, strWalletFile, nullptr);
