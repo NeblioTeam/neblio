@@ -260,7 +260,19 @@ class TestManager():
                         logger.error('Block rejected with %s instead of expected %s: %064x' % (c.block_reject_map[blockhash], outcome, blockhash))
                         return False
                 elif ((c.bestblockhash == blockhash) != outcome):
+                    if outcome is True and blockhash in c.block_reject_map:
+                        logger.error('Block in reject map even though it should be accepted. '
+                                     '(Block hash: {:064x} ; given reject reason: {}'.format(blockhash, c.block_reject_map[blockhash]))
                     return False
+
+                # added by Sam: We want to exactly pinpoint the reason for failure
+                # and distinguish between blocks that are rejected for being invalid
+                # and blocks that are simply not at the tip
+                if outcome is False:
+                    if blockhash in c.block_reject_map:
+                        logger.error('Block in reject map even though no reject reason given. '
+                                     '(Block hash: {:064x} ; expected reject reason: {}'.format(blockhash, c.block_reject_map[blockhash]))
+                        return False
             return True
 
     # Either check that the mempools all agree with each other, or that

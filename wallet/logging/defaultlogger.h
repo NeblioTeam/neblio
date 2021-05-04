@@ -105,6 +105,13 @@ public:
         return false;
     }
 
+    template <typename FormatString, typename... Args>
+    bool critical(const FormatString& fmt, Args&&... args)
+    {
+        logger->log(b_sev::critical, fmt, std::forward<Args>(args)...);
+        return false;
+    }
+
     template <typename T>
     bool add_stream(std::shared_ptr<T> sink, const b_sev& minimum_severity)
     {
@@ -174,6 +181,14 @@ public:
     bool error(const FormatString& fmtStr, Args&&... args)
     {
         LoggerSingleton::get().write(b_sev::err, "{}: {}", std::move(sourceInfo),
+                                     fmt::format(fmtStr, std::forward<Args>(args)...));
+        return false;
+    }
+
+    template <typename FormatString, typename... Args>
+    bool critical(const FormatString& fmtStr, Args&&... args)
+    {
+        LoggerSingleton::get().write(b_sev::critical, "{}: {}", std::move(sourceInfo),
                                      fmt::format(fmtStr, std::forward<Args>(args)...));
         return false;
     }

@@ -327,7 +327,7 @@ class FullBlockTest(ComparisonTestFramework):
         #                      \-> b3 (1) -> b4 (2)
         tip(5)
         block(7, spend=out[2])
-        yield rejected()
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent'))
 
         block(8, spend=out[4])
         yield rejected()
@@ -407,7 +407,7 @@ class FullBlockTest(ComparisonTestFramework):
         #                      \-> b3 (1) -> b4 (2)
         tip(13)
         block(18, spend=txout_b3)
-        yield rejected()
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent'))
 
         block(19, spend=out[6])
         yield rejected()
@@ -889,7 +889,7 @@ class FullBlockTest(ComparisonTestFramework):
         save_spendable_output()
 
         tip(57)
-        yield rejected()  #rejected because 57p2 seen first
+        yield rejected(RejectResult(16, b'bad-txns-duplicate'))  #rejected because 57p2 seen first
 
         # Test a few invalid tx types
         #
@@ -1338,7 +1338,7 @@ class FullBlockTest(ComparisonTestFramework):
         block("89a", spend=out[32])
         tx = create_tx(tx1, 0, 0, CScript([OP_TRUE]))
         update_block("89a", [tx])
-        yield rejected()
+        yield rejected(RejectResult(16, b'mandatory-script-verify-flag-failed (OP_RETURN was encountered)'))
 
 
         #  Test re-org of a week's worth of blocks (1088 blocks)
