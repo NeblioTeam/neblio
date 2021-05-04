@@ -604,7 +604,7 @@ void StakeMiner(CWallet* pwallet)
 
     // synchronize memory once
     fShutdown.load(boost::memory_order_seq_cst);
-    while (!fShutdown.load(boost::memory_order_relaxed)) {
+    while (!fShutdown.load(boost::memory_order_acquire)) {
         const CTxDB txdb;
 
         while (pwallet->IsLocked()) {
@@ -631,7 +631,8 @@ void StakeMiner(CWallet* pwallet)
                 LOCK(cs_vNodes);
                 vNodesSize = vNodes.size();
             }
-            if (vNodesSize < 3 || txdb.GetBestChainHeight().value_or(0) < GetNumBlocksOfPeers()) {
+            const int blockCountEstimate = GetNumBlocksOfPeers();
+            if (vNodesSize < 3 || txdb.GetBestChainHeight().value_or(0) < blockCountEstimate) {
                 MilliSleep(60000);
                 continue;
             }

@@ -41,7 +41,8 @@ class TransactionTablePriv
 public slots:
 
 public:
-    TransactionTablePriv(CWallet* walletIn, TransactionTableModel* parentIn) : wallet(walletIn), parent(parentIn)
+    TransactionTablePriv(CWallet* walletIn, TransactionTableModel* parentIn)
+        : wallet(walletIn), parent(parentIn)
     {
     }
 
@@ -757,7 +758,7 @@ void TxsRetrieverWorker::getTxs(CWallet* wallet, QSharedPointer<TxsRetrieverWork
             cachedWallet->append(TransactionRecord::decomposeTransaction(wallet, wtx));
         if (*limit != originalLimit)
             break; // if the value changes, we just stop because we'll refresh again
-        if (fShutdown.load(boost::memory_order_relaxed))
+        if (fShutdown.load(boost::memory_order_acquire))
             break;
     }
 

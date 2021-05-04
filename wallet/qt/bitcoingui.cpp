@@ -501,7 +501,8 @@ void BitcoinGUI::setWalletModel(WalletModel* walletModelIn)
         ntp1SummaryPage->ui->issueNewNTP1TokenDialog->setWalletModel(walletModelIn);
 
         setEncryptionStatus(walletModelIn->getEncryptionStatus());
-        connect(walletModelIn, SIGNAL(encryptionStatusChanged(int)), this, SLOT(setEncryptionStatus(int)));
+        connect(walletModelIn, SIGNAL(encryptionStatusChanged(int)), this,
+                SLOT(setEncryptionStatus(int)));
 
         // Balloon pop-up for new transaction
         connect(walletModelIn->getTransactionTableModel(), SIGNAL(rowsInserted(QModelIndex, int, int)),
@@ -1255,7 +1256,7 @@ void BitcoinGUI::updateStakingIcon()
     if (stakeMaker.IsStakingActive()) {
         uint64_t       nNetworkWeight = GetPoSKernelPS();
         unsigned int   nTS            = Params().TargetSpacing(txdb);
-        const uint64_t nWeightP        = stakeMaker.getLatestStakeWeight().value_or(0);
+        const uint64_t nWeightP       = stakeMaker.getLatestStakeWeight().value_or(0);
         unsigned       nEstimateTime  = !!nWeightP ? (nTS * nNetworkWeight / nWeightP) : -1;
 
         QString text;
@@ -1288,7 +1289,7 @@ void BitcoinGUI::updateStakingIcon()
             labelStakingIcon->setToolTip(tr("Not staking because wallet is locked"));
         else if (isvNodesEmpty)
             labelStakingIcon->setToolTip(tr("Not staking because wallet is offline"));
-        else if (IsInitialBlockDownload_tolerant(txdb)) {
+        else if (IsInitialBlockDownload(txdb)) {
             labelStakingIcon->setToolTip(tr("Not staking because wallet is syncing"));
         } else if (!nWeight)
             labelStakingIcon->setToolTip(tr("Not staking because you don't have mature tokens"));
