@@ -66,7 +66,7 @@ def setup_travis_or_gh_actions_env_vars():
 		# os.environ['CCACHE_COMPRESSLEVEL'] = "9"
 		#Test without ccache compression now that GitHub Actions compresses cahces automatically
 		os.environ['CCACHE_NOCOMPRESS'] = "1"
-		os.environ['CCACHE_MAXSIZE'] = "750M"
+		os.environ['CCACHE_MAXSIZE'] = "1024M"
 		os.environ['CPATH'] = '/Applications/Xcode_11.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include'
 
 
