@@ -51,7 +51,7 @@ nci.install_packages_debian(packages_to_install)
 nci.mkdir_p(deploy_dir)
 os.chdir(build_dir)
 
-os.environ['CCACHE_MAXSIZE'] = "3500M"
+os.environ['CCACHE_MAXSIZE'] = "4000M"
 nci.call_with_err_code('ccache -s')
 nci.call_with_err_code('ccache -z')
 
