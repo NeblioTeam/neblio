@@ -112,9 +112,10 @@ bool         IsInitialBlockDownload(const ITxDB& txdb);
 std::string  GetWarnings(std::string strFor);
 bool         GetTransaction(const uint256& hash, CTransaction& tx, uint256& hashBlock);
 uint256      WantedByOrphan(const CBlock* pblockOrphan);
-CBlockIndex  GetLastBlockIndex(CBlockIndex pindex, bool fProofOfStake, const ITxDB& txdb);
-void         StakeMiner(std::shared_ptr<CWallet> pwallet);
-void         ResendWalletTransactions(bool fForce = false);
+/// Given a block index object, find the last block that matches the consensus type (PoW/PoS)
+CBlockIndex GetLastBlockIndex(CBlockIndex pindex, bool fProofOfStake, const ITxDB& txdb);
+void        StakeMiner(std::shared_ptr<CWallet> pwallet);
+void        ResendWalletTransactions(bool fForce = false);
 
 void SetBestChain(const CBlockLocator& loc);
 void UpdatedTransaction(const uint256& hashTx);
