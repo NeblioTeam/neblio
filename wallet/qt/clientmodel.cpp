@@ -28,7 +28,12 @@ ClientModel::ClientModel(OptionsModel* optionsModelIn, QObject* parent)
 
     subscribeToCoreSignals();
 
-    setTipBlock(*pindexGenesisBlock, true);
+    const boost::optional<CBlockIndex> bi = CTxDB().GetBestBlockIndex();
+    if (bi) {
+        setTipBlock(*bi, true);
+    } else {
+        setTipBlock(*pindexGenesisBlock, true);
+    }
 }
 
 ClientModel::~ClientModel() { unsubscribeFromCoreSignals(); }
