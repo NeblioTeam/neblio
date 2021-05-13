@@ -671,15 +671,28 @@ unsigned int ComputeMinStake(unsigned int nBase, int64_t nTime, unsigned int /*n
 // ppcoin: find last block index up to pindex
 CBlockIndex GetLastBlockIndex(CBlockIndex index, bool fProofOfStake, const ITxDB& txdb)
 {
-    while (index.blockHash != Params().GenesisBlockHash() && index.hashPrev != 0 &&
-           index.IsProofOfStake() != fProofOfStake) {
+    // if we're looking for a PoW block, we start at the latest one,
+    // better than looping over the whole history
+    if (!fProofOfStake && index.nHeight > Params().LastPoWBlock()) {
+        const boost::optional<uint256> oHash = txdb.ReadBlockHashOfHeight(Params().LastPoWBlock());
+        if (oHash) {
+            if (auto bindex = txdb.ReadBlockIndex(*oHash)) {
+                index = std::move(*bindex);
+            } else {
+                NLog.write(b_sev::critical, "Failed to read last PoW block's block index");
+            }
+        }
+    }
+
+    while (index.hashPrev != 0 && index.IsProofOfStake() != fProofOfStake) {
         const boost::optional<CBlockIndex> bindex = index.getPrev(txdb);
         if (bindex) {
-            index = *bindex;
+            index = std::move(*bindex);
         } else if (index.blockHash == Params().GenesisBlockHash()) {
             return index;
         } else {
-            NLog.write(b_sev::err, "Failed to get prev block index, even though it's not genesis block");
+            NLog.write(b_sev::critical,
+                       "Failed to get prev block index, even though it's not genesis block");
             break;
         }
     }
