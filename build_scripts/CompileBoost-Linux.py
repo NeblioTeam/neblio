@@ -18,7 +18,7 @@ def get_boost_filename(ver):
 
 def get_boost_link(ver):
     dot_ver = ver.replace('_', '.')
-    link = "https://dl.bintray.com/boostorg/release/" + dot_ver + "/source/" + get_boost_filename(ver)
+    link = "https://boostorg.jfrog.io/artifactory/main/release/" + dot_ver + "/source/" + get_boost_filename(ver)
     print(link)
     return link
 
