@@ -176,7 +176,7 @@ uint64_t GetRand(uint64_t nMax)
     uint64_t nRange = (std::numeric_limits<uint64_t>::max() / nMax) * nMax;
     uint64_t nRand  = 0;
     do
-        RAND_bytes((unsigned char*)&nRand, sizeof(nRand));
+        randombytes_buf((unsigned char*)&nRand, sizeof(nRand));
     while (nRand >= nRange);
     return (nRand % nMax);
 }
@@ -186,7 +186,7 @@ int GetRandInt(int nMax) { return GetRand(nMax); }
 uint256 GetRandHash()
 {
     uint256 hash;
-    RAND_bytes((unsigned char*)&hash, sizeof(hash));
+    randombytes_buf((unsigned char*)&hash, sizeof(hash));
     return hash;
 }
 
@@ -1023,11 +1023,11 @@ void     seed_insecure_rand(bool fDeterministic)
     } else {
         uint32_t tmp;
         do {
-            RAND_bytes((unsigned char*)&tmp, 4);
+            randombytes_buf((unsigned char*)&tmp, 4);
         } while (tmp == 0 || tmp == 0x9068ffffU);
         insecure_rand_Rz = tmp;
         do {
-            RAND_bytes((unsigned char*)&tmp, 4);
+            randombytes_buf((unsigned char*)&tmp, 4);
         } while (tmp == 0 || tmp == 0x464fffffU);
         insecure_rand_Rw = tmp;
     }
@@ -1317,10 +1317,7 @@ string GetMimeTypeFromPath(const string& path)
 
 bool RandomBytesToBuffer(unsigned char* buffer, size_t size)
 {
-    if (RAND_bytes(buffer, size) != 1) {
-        NLog.write(b_sev::err, "Failed to generate random buffer with size {}", size);
-        return false;
-    }
+    randombytes_buf(buffer, size);
     return true;
 }
 

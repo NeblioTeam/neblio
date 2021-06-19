@@ -512,7 +512,7 @@ void CNode::PushVersion()
     int64_t  nTime   = (fInbound ? GetAdjustedTime() : GetTime());
     CAddress addrYou = (addr.IsRoutable() && !IsProxy(addr) ? addr : CAddress(CService("0.0.0.0", 0)));
     CAddress addrMe  = GetLocalAddress(&addr);
-    RAND_bytes((unsigned char*)&nLocalHostNonce, sizeof(nLocalHostNonce));
+    randombytes_buf((unsigned char*)&nLocalHostNonce, sizeof(nLocalHostNonce));
     const int bestHeight = CTxDB().GetBestChainHeight().value_or(0);
     NLog.write(b_sev::info, "send version message: version {}, blocks={}, us={}, them={}, peer={}",
                PROTOCOL_VERSION, bestHeight, addrMe.ToString(), addrYou.ToString(), addr.ToString());
