@@ -83,6 +83,11 @@ void QRCodeDialog::genCode()
 
 QString QRCodeDialog::getURI()
 {
+    if(ui->onlyAddress->isChecked())
+    {
+        return QString("%1").arg(address);
+    }
+
     QString ret = QString("neblio:%1").arg(address);
     int paramCount = 0;
 
@@ -157,6 +162,18 @@ void QRCodeDialog::on_chkReqPayment_toggled(bool fChecked)
     if (!fChecked)
         // if chkReqPayment is not active, don't display lnReqAmount as invalid
         ui->lnReqAmount->setValid(true);
+
+    genCode();
+}
+
+void QRCodeDialog::on_onlyAddress_toggled(bool fChecked)
+{
+    ui->chkReqPayment->setChecked(fChecked ? false : ui->chkReqPayment->isChecked());
+    ui->chkReqPayment->setEnabled(!fChecked);
+    ui->lnLabel->setEnabled(!fChecked);
+    ui->lnMessage->setEnabled(!fChecked);
+    ui->lnReqAmount->setEnabled(fChecked ? false : ui->chkReqPayment->isChecked());
+    on_chkReqPayment_toggled(ui->chkReqPayment->isChecked());
 
     genCode();
 }
