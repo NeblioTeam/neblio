@@ -709,7 +709,6 @@ add_library(core_lib STATIC
     wallet/block.cpp
     wallet/transaction.cpp
     wallet/globals.cpp
-    wallet/diskblockindex.cpp
     wallet/disktxpos.cpp
     wallet/txindex.cpp
     wallet/txin.cpp
@@ -803,7 +802,6 @@ add_library(db_lib STATIC
 add_library(txdb_lib STATIC
     wallet/txdb-lmdb.cpp
     wallet/SerializationTester.cpp
-    wallet/diskblockindex.cpp
     wallet/db/lmdb/lmdbtransaction.cpp
     )
 
