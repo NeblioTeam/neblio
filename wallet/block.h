@@ -1,6 +1,7 @@
 #ifndef BLOCK_H
 #define BLOCK_H
 
+#include "blockindex.h"
 #include "blockreject.h"
 #include "globals.h"
 #include "outpoint.h"

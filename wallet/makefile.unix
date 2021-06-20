@@ -198,7 +198,6 @@ OBJS= \
     obj/block.o                               \
     obj/transaction.o                         \
     obj/globals.o                             \
-    obj/diskblockindex.o                      \
     obj/disktxpos.o                           \
     obj/txindex.o                             \
     obj/txin.o                                \
