@@ -1117,7 +1117,7 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
             if (blockCount % 1000 == 0) {
                 uiInterface.InitMessage(_("Rescanning... ") + "(block: " + std::to_string(blockCount) +
                                         "/" + std::to_string(bestHeight) + ")");
-                NLog.write(b_sev::info, "Done scanning {} blocks", blockCount);
+                NLog.write(b_sev::info, "Done scanning {}/{} blocks", blockCount, bestHeight);
             }
 
             // no need to read and scan block, if block was created before

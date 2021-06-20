@@ -668,6 +668,7 @@ bool CTxDB::LoadBlockIndex()
         if (loadedCount % 100 == 0) {
             uiInterface.InitMessage("Verifying latest blocks (" + std::to_string(loadedCount) + "/" +
                                     std::to_string(nCheckDepth) + ")");
+            NLog.write(b_sev::info, "Done Verifying latest blocks {}/{}", loadedCount, nCheckDepth);
         }
         loadedCount++;
 
