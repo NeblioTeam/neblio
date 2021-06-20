@@ -262,6 +262,7 @@ extern json_spirit::Value listcoldutxos(const json_spirit::Array& params, bool f
 
 // in rcprawtransaction.cpp
 extern json_spirit::Value getrawtransaction(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value decodentp1script(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value listunspent(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value createrawtransaction(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value createrawntp1transaction(const json_spirit::Array& params, bool fHelp);
