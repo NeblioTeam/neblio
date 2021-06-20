@@ -370,7 +370,7 @@ endif()
 
 if(NOT WIN32)
     # for extra security against potential buffer overflows: enable GCCs Stack Smashing Protection
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector-all -Wstack-protector")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pie -fPIE -fstack-protector-all -Wstack-protector")
     # We need to exclude this for Windows cross compile with MinGW 4.2.x, as it will result in a non-working executable!
     # This can be enabled for Windows, when we switch to MinGW >= 4.4.x.
 endif()
