@@ -115,6 +115,7 @@ HEADERS += qt/bitcoingui.h \
     ntp1/ntp1script_burn.h \
     ntp1/ntp1tokenminimalmetadata.h \
     qt/ntp1/ntp1listelementtokendata.h \
+    qt/sociallinks.h \
     ntp1/ntp1sendtxdata.h \
     NetworkForks.h \
     ntp1/ntp1v1_issuance_static_data.h \
@@ -282,6 +283,7 @@ SOURCES += qt/bitcoin.cpp \
     ThreadSafeHashMap.cpp \
     ntp1/ntp1sendtokensonerecipientdata.cpp \
     qt/ntp1sendtokensfeewidget.cpp \
+    qt/sociallinks.cpp \
     ntp1/ntp1script_burn.cpp \
     ntp1/ntp1tokenminimalmetadata.cpp \
     ntp1/ntp1sendtxdata.cpp \
