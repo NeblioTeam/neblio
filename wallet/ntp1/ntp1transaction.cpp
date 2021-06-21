@@ -629,7 +629,7 @@ void NTP1Transaction::readNTP1DataFromTx(
 
         if (!scriptPtrD) {
             throw std::runtime_error(
-                "While parsing NTP1Transaction, casting script pointer to transfer type failed: " +
+                "While parsing NTP1Transaction, casting script pointer to issuance type failed: " +
                 opReturnArg);
         }
 

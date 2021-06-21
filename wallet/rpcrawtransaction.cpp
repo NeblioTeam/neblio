@@ -151,6 +151,102 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry, bo
     }
 }
 
+static Value NTP1TransferInstructionToJson(const NTP1Script::TransferInstruction& ti)
+{
+    static const std::string AmountKey      = "amount";
+    static const std::string RawAmountKey   = "raw_amount";
+    static const std::string OutputIndexKey = "output_index";
+    static const std::string SkipInputKey   = "skip_input";
+
+    Object result;
+
+    result.push_back(Pair(AmountKey, ti.amount.convert_to<std::string>()));
+    result.push_back(Pair(RawAmountKey, boost::algorithm::hex(ti.rawAmount)));
+    result.push_back(Pair(OutputIndexKey, static_cast<int32_t>(ti.outputIndex)));
+    result.push_back(Pair(SkipInputKey, ti.skipInput));
+
+    return result;
+}
+
+template <typename T>
+static Array NTP1TransferInstructionsToJson(const std::shared_ptr<T>& scriptPtr)
+{
+    Array transferInstructions;
+    for (unsigned i = 0; i < scriptPtr->getTransferInstructionsCount(); i++) {
+        const NTP1Script::TransferInstruction ti = scriptPtr->getTransferInstruction(i);
+
+        transferInstructions.push_back(NTP1TransferInstructionToJson(ti));
+    }
+    return transferInstructions;
+}
+
+static Object NTP1ScriptToJson(const std::string& ntp1scriptHex)
+{
+    Object result;
+
+    static const std::string ScriptTypeKey           = "type";
+    static const std::string ProtoVersionKey         = "protocol_version";
+    static const std::string AggregationPolicyKey    = "aggregation_policy";
+    static const std::string DivisibilityKey         = "divisibility";
+    static const std::string LockedKey               = "locked";
+    static const std::string MetadataHexKey          = "metadata_hex";
+    static const std::string TransferInstructionsKey = "transfer_instructions";
+
+    std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScript(ntp1scriptHex);
+    if (scriptPtr->getTxType() == NTP1Script::TxType::TxType_Issuance) {
+        result.push_back(Pair(ScriptTypeKey, "Issuance"));
+
+        const std::shared_ptr<NTP1Script_Issuance> scriptPtrD =
+            std::dynamic_pointer_cast<NTP1Script_Issuance>(scriptPtr);
+
+        if (!scriptPtrD) {
+            throw std::runtime_error(
+                "While parsing NTP1 script, casting script pointer to issuance type failed: " +
+                ntp1scriptHex);
+        }
+
+        result.push_back(
+            Pair(ProtoVersionKey, fmt::format("NTP1v{}", scriptPtrD->getProtocolVersion())));
+        result.push_back(Pair(AggregationPolicyKey, scriptPtrD->getAggregationPolicyStr()));
+        result.push_back(Pair(DivisibilityKey, 0));
+        result.push_back(Pair(LockedKey, scriptPtrD->isLocked()));
+        result.push_back(Pair(MetadataHexKey, scriptPtrD->getHexMetadata()));
+
+        result.push_back(Pair(TransferInstructionsKey, NTP1TransferInstructionsToJson(scriptPtrD)));
+
+    } else if (scriptPtr->getTxType() == NTP1Script::TxType::TxType_Transfer) {
+        result.push_back(Pair(ScriptTypeKey, "Transfer"));
+
+        const std::shared_ptr<NTP1Script_Transfer> scriptPtrD =
+            std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
+
+        if (!scriptPtrD) {
+            throw std::runtime_error(
+                "While parsing NTP1 script, casting script pointer to transfer type failed: " +
+                ntp1scriptHex);
+        }
+
+        result.push_back(Pair(TransferInstructionsKey, NTP1TransferInstructionsToJson(scriptPtrD)));
+    } else if (scriptPtr->getTxType() == NTP1Script::TxType::TxType_Burn) {
+        result.push_back(Pair(ScriptTypeKey, "Burn"));
+
+        const std::shared_ptr<NTP1Script_Burn> scriptPtrD =
+            std::dynamic_pointer_cast<NTP1Script_Burn>(scriptPtr);
+
+        if (!scriptPtrD) {
+            throw std::runtime_error(
+                "While parsing NTP1 script, casting script pointer to burn type failed: " +
+                ntp1scriptHex);
+        }
+
+        result.push_back(Pair(TransferInstructionsKey, NTP1TransferInstructionsToJson(scriptPtrD)));
+    } else {
+        throw std::runtime_error("Unknown script type found while parsing script: " + ntp1scriptHex);
+    }
+
+    return result;
+}
+
 Value getrawtransaction(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 4)
@@ -234,6 +330,25 @@ Value getrawtransaction(const Array& params, bool fHelp)
     }
     TxToJSON(tx, hashBlock, result, fIgnoreNTP1);
     return result;
+}
+
+Value decodentp1script(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error("decodentp1script <hex-script>\n"
+                            "Returns a json object of the decoded NTP1 script");
+
+    if (params[0].type() != str_type) {
+        throw runtime_error("decodentp1script error. Script type must be hex string");
+    }
+
+    const std::string script = params[0].get_str();
+
+    if (std::any_of(script.cbegin(), script.cend(), [](char c) { return !isxdigit(c); })) {
+        throw runtime_error("decodentp1script error. Script provided is not hex");
+    }
+
+    return NTP1ScriptToJson(script);
 }
 
 Value listunspent(const Array& params, bool fHelp)

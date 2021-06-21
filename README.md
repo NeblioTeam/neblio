@@ -209,6 +209,7 @@ createrawntp1transaction [{"txid":txid,"vout":n},...] {address:{tokenid/tokenNam
 createrawtransaction [{"txid":txid,"vout":n},...] {address:amount,...}
 decoderawtransaction <hex string> [ignoreNTP1=false]
 decodescript <hex string>
+decodentp1script <hex-script>
 delegatestake "stakingAddress" amount ("ownerAddress" ExternalOwner=false UseDelegated=false ForceNoEnabled=false)
 delegatoradd "Address" (addressLabel)
 delegatorremove "Address"
