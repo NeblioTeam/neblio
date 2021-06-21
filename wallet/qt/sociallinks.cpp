@@ -56,13 +56,13 @@ SocialLinks::SocialLinks(QWidget* parent) : QWidget(parent)
     youtubeLabel   = makeLabelOfLogo(":icons/youtube-logo", YoutubeLink);
 
     mainLayout->addWidget(discordLabel, 0, 0);
-    mainLayout->addWidget(facebookLabel, 0, 1);
-    mainLayout->addWidget(githubLabel, 0, 2);
-    mainLayout->addWidget(instagramLabel, 0, 3);
-    mainLayout->addWidget(redditLabel, 0, 4);
-    mainLayout->addWidget(telegramLabel, 0, 5);
-    mainLayout->addWidget(twitterLabel, 0, 6);
-    mainLayout->addWidget(youtubeLabel, 0, 7);
+    mainLayout->addWidget(telegramLabel, 0, 1);
+    mainLayout->addWidget(twitterLabel, 0, 2);
+    mainLayout->addWidget(facebookLabel, 0, 3);
+    mainLayout->addWidget(instagramLabel, 0, 4);
+    mainLayout->addWidget(redditLabel, 0, 5);
+    mainLayout->addWidget(youtubeLabel, 0, 6);
+    mainLayout->addWidget(githubLabel, 0, 7);
 
     this->setLayout(mainLayout);
 }
