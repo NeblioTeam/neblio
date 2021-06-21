@@ -136,7 +136,6 @@ HEADERS += qt/bitcoingui.h \
     block.h               \
     transaction.h         \
     globals.h             \
-    diskblockindex.h      \
     disktxpos.h           \
     txindex.h             \
     txin.h                \
@@ -305,7 +304,6 @@ SOURCES += qt/bitcoin.cpp \
     block.cpp             \
     transaction.cpp       \
     globals.cpp           \
-    diskblockindex.cpp    \
     disktxpos.cpp         \
     txindex.cpp           \
     txin.cpp              \

@@ -17,7 +17,6 @@
 
 class CAddress;
 class CAddrMan;
-class CDiskBlockIndex;
 class CDiskTxPos;
 class CMasterKey;
 class COutPoint;

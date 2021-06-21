@@ -18,7 +18,6 @@
 
 #include "db/lmdb/lmdb.h"
 #include "db/lmdb/lmdbtransaction.h"
-#include "diskblockindex.h"
 #include "disktxpos.h"
 #include "itxdb.h"
 #include "outpoint.h"
