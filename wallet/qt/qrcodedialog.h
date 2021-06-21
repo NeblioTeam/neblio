@@ -25,6 +25,7 @@ private slots:
     void on_lnMessage_textChanged();
     void on_btnSaveAs_clicked();
     void on_chkReqPayment_toggled(bool fChecked);
+    void on_onlyAddress_toggled(bool fChecked);
 
     void updateDisplayUnit();
 

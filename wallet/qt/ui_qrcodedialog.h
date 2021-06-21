@@ -38,6 +38,7 @@ public:
     QWidget *widget;
     QVBoxLayout *verticalLayout_2;
     QCheckBox *chkReqPayment;
+    QCheckBox *onlyAddress;
     QFormLayout *formLayout;
     QLabel *lblLabel;
     QLineEdit *lnLabel;
@@ -88,10 +89,15 @@ public:
         widget->setObjectName(QStringLiteral("widget"));
         verticalLayout_2 = new QVBoxLayout(widget);
         verticalLayout_2->setObjectName(QStringLiteral("verticalLayout_2"));
+
+        onlyAddress = new QCheckBox(widget);
+        onlyAddress->setObjectName(QStringLiteral("onlyAddress"));
+        onlyAddress->setEnabled(true);
+        verticalLayout_2->addWidget(onlyAddress);
+
         chkReqPayment = new QCheckBox(widget);
         chkReqPayment->setObjectName(QStringLiteral("chkReqPayment"));
         chkReqPayment->setEnabled(true);
-
         verticalLayout_2->addWidget(chkReqPayment);
 
         formLayout = new QFormLayout();
@@ -167,7 +173,7 @@ public:
 #endif // QT_NO_SHORTCUT
 
         retranslateUi(QRCodeDialog);
-        QObject::connect(chkReqPayment, SIGNAL(clicked(bool)), lnReqAmount, SLOT(setEnabled(bool)));
+        QObject::connect(chkReqPayment, &QCheckBox::clicked, lnReqAmount, &BitcoinAmountField::setEnabled);
 
         QMetaObject::connectSlotsByName(QRCodeDialog);
     } // setupUi
@@ -176,6 +182,7 @@ public:
     {
         QRCodeDialog->setWindowTitle(QApplication::translate("QRCodeDialog", "QR Code Dialog", Q_NULLPTR));
         chkReqPayment->setText(QApplication::translate("QRCodeDialog", "Request Payment", Q_NULLPTR));
+        onlyAddress->setText(QApplication::translate("QRCodeDialog", "Use only address without other URI data", Q_NULLPTR));
         lblLabel->setText(QApplication::translate("QRCodeDialog", "Label:", Q_NULLPTR));
         lblMessage->setText(QApplication::translate("QRCodeDialog", "Message:", Q_NULLPTR));
         lblAmount->setText(QApplication::translate("QRCodeDialog", "Amount:", Q_NULLPTR));
