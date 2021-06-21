@@ -382,7 +382,7 @@ public:
     CAddrMan() : vRandom(0), vvTried(ADDRMAN_TRIED_BUCKET_COUNT, std::vector<int>(0)), vvNew(ADDRMAN_NEW_BUCKET_COUNT, std::set<int>())
     {
          nKey.resize(32);
-         RAND_bytes(&nKey[0], 32);
+         randombytes_buf(&nKey[0], 32);
 
          nIdCount = 0;
          nTried = 0;

@@ -601,7 +601,7 @@ public:
     void PushRequest(const char* pszCommand, void (*fn)(void*, CDataStream&), void* param1)
     {
         uint256 hashReply;
-        RAND_bytes((unsigned char*)&hashReply, sizeof(hashReply));
+        randombytes_buf((unsigned char*)&hashReply, sizeof(hashReply));
 
         {
             LOCK(cs_mapRequests);
@@ -615,7 +615,7 @@ public:
     void PushRequest(const char* pszCommand, const T1& a1, void (*fn)(void*, CDataStream&), void* param1)
     {
         uint256 hashReply;
-        RAND_bytes((unsigned char*)&hashReply, sizeof(hashReply));
+        randombytes_buf((unsigned char*)&hashReply, sizeof(hashReply));
 
         {
             LOCK(cs_mapRequests);
@@ -630,7 +630,7 @@ public:
                      void* param1)
     {
         uint256 hashReply;
-        RAND_bytes((unsigned char*)&hashReply, sizeof(hashReply));
+        randombytes_buf((unsigned char*)&hashReply, sizeof(hashReply));
 
         {
             LOCK(cs_mapRequests);
