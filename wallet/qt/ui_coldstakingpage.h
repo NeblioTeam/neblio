@@ -18,6 +18,7 @@
 #include <QtWidgets/QWidget>
 
 #include "ClickableLabel.h"
+#include "sociallinks.h"
 #include <QMovie>
 
 QT_BEGIN_NAMESPACE
@@ -48,6 +49,8 @@ public:
     QLineEdit*   filter_lineEdit;
 
     ColdStakingListView* listColdStakingView;
+
+    SocialLinks* socialLinks;
 
     QWidget*     bottom_bar_widget;
     QLabel*      bottom_bar_logo_label;
@@ -84,6 +87,9 @@ public:
         logo_layout->setObjectName(QStringLiteral("verticalLayout_4"));
 
         left_logo_layout->addWidget(left_logo_label);
+
+        socialLinks = new SocialLinks;
+        left_logo_layout->addWidget(socialLinks);
 
         main_layout->addLayout(left_logo_layout, 0, 0, 1, 1);
 
@@ -163,8 +169,8 @@ public:
     void retranslateUi(QWidget* ColdStakingPage)
     {
         ColdStakingPage->setWindowTitle(QApplication::translate("Cold-staking", "Form", Q_NULLPTR));
-        upper_table_label->setText(QApplication::translate(
-            "NTP1Summary", "<b>Cold Staking Addresses</b>", Q_NULLPTR));
+        upper_table_label->setText(
+            QApplication::translate("NTP1Summary", "<b>Cold Staking Addresses</b>", Q_NULLPTR));
     } // retranslateUi
 };
 

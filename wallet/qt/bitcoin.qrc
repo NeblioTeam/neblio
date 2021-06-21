@@ -56,6 +56,14 @@
         <file alias="tx_input_cold">res/icons/tx_input_cold.png</file>
         <file alias="tx_output_cold">res/icons/tx_output_cold.png</file>
         <file alias="cold_delegate_add">res/icons/cold_delegate_add.png</file>
+        <file alias="discord-logo">res/icons/discord-logo-100.png</file>
+        <file alias="facebook-logo">res/icons/facebook-logo-100.png</file>
+        <file alias="github-logo">res/icons/github-logo-100.png</file>
+        <file alias="instagram-logo">res/icons/instagram-logo-100.png</file>
+        <file alias="reddit-logo">res/icons/reddit-logo-100.png</file>
+        <file alias="telegram-logo">res/icons/telegram-logo-100.png</file>
+        <file alias="twitter-logo">res/icons/twitter-logo-100.png</file>
+        <file alias="youtube-logo">res/icons/youtube-logo-100.png</file>
     </qresource>
     <qresource prefix="/images">
         <file alias="about">res/images/about.png</file>

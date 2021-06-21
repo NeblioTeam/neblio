@@ -17,6 +17,7 @@
 #include <QtWidgets/QWidget>
 
 #include "ClickableLabel.h"
+#include "sociallinks.h"
 #include <QMovie>
 
 #include "ntp1/issuenewntp1tokendialog.h"
@@ -50,6 +51,8 @@ public:
     QLabel*      upper_table_loading_label;
     QLineEdit*   filter_lineEdit;
     QLabel*      labelBlockchainSyncStatus;
+
+    SocialLinks* socialLinks;
 
     TokensListView* listTokens;
 
@@ -98,6 +101,9 @@ public:
         logo_layout->setObjectName(QStringLiteral("verticalLayout_4"));
 
         left_logo_layout->addWidget(left_logo_label);
+
+        socialLinks = new SocialLinks;
+        left_logo_layout->addWidget(socialLinks);
 
         main_layout->addLayout(left_logo_layout, 0, 0, 1, 1);
 

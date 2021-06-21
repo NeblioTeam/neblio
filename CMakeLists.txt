@@ -590,6 +590,7 @@ add_library(gui_lib STATIC
     wallet/qt/coldstakinglistitemdelegate.cpp
     wallet/qt/coldstakinglistfilterproxy.cpp
     wallet/qt/newstakedelegationdialog.cpp
+    wallet/qt/sociallinks.cpp
     ${QRCODE_SOURCES}
     )
 

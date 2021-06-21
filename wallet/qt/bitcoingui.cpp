@@ -1198,7 +1198,7 @@ void BitcoinGUI::unlockWallet()
         AskPassphraseDialog::Mode mode = sender() == unlockWalletAction
                                              ? AskPassphraseDialog::UnlockStaking
                                              : AskPassphraseDialog::Unlock;
-        AskPassphraseDialog       dlg(mode, this);
+        AskPassphraseDialog dlg(mode, this);
         dlg.setModel(walletModel);
         dlg.exec();
     }
@@ -1307,7 +1307,12 @@ void BitcoinGUI::updateCheckAnimation_frameChanged(int frameNumber)
 
 void BitcoinGUI::checkForNeblioUpdates()
 {
-    if (!isUpdateRunning && appInitiated) {
+    if (!appInitiated) {
+        QTimer::singleShot(100, this, &BitcoinGUI::checkForNeblioUpdates);
+        return;
+    }
+
+    if (!isUpdateRunning) {
         NLog.write(b_sev::debug, "Checking for updates...");
         updaterLabel->setToolTip("Checking for updates...");
         updaterLabel->setMovie(updaterSpinnerMovie);
