@@ -10,6 +10,7 @@
 
 #include "main.h"
 #include "txdb.h"
+#include "ui_interface.h"
 #include "uint256.h"
 
 namespace Checkpoints {
@@ -130,6 +131,103 @@ int64_t GetLastCheckpointBlockHeight()
     } else {
         return 0;
     }
+}
+
+bool ValidateCheckpointsInDB(const ITxDB& txdb)
+{
+    const boost::optional<CBlockIndex>& bestBlockIndex  = txdb.GetBestBlockIndex();
+    const uint256&                      bestBlockHash   = txdb.GetBestBlockHash();
+    const boost::optional<int>&         bestChainHeight = txdb.GetBestChainHeight();
+
+    if (!bestBlockIndex && bestBlockHash == 0 && !bestChainHeight) {
+        // we're at genesis
+        return true;
+    }
+
+    if (!bestBlockIndex) {
+        NLog.write(b_sev::critical, "Block index is inconsistent; it doesn't exist in the DB, while "
+                                    "block height and best block hash exist");
+        return false;
+    }
+
+    if (bestBlockHash == 0) {
+        NLog.write(b_sev::critical, "Best block hash is inconsistent; it doesn't exist in the DB, while "
+                                    "best block index exists");
+        return false;
+    }
+
+    if (!bestChainHeight) {
+        NLog.write(
+            b_sev::critical,
+            "Block height is inconsistent; it doesn't exist in the DB, while best block index exists");
+        return false;
+    }
+
+    if (bestBlockIndex->GetBlockHash() != bestBlockHash) {
+        NLog.write(b_sev::critical, "Block index is inconsistent; best block hash stored in best block "
+                                    "index doesn't match best block index in database");
+        return false;
+    }
+
+    if (bestBlockIndex->nHeight != bestChainHeight) {
+        NLog.write(b_sev::critical, "Block index is inconsistent; best block height doesn't match the "
+                                    "value in the best block index");
+        return false;
+    }
+
+    const std::size_t checkpointsMaxCount = Params().Checkpoints().size();
+    std::size_t       currentIndex        = 0;
+    for (const std::pair<int, uint256>& cp : Params().Checkpoints()) {
+        const int      cpBlockHeight = cp.first;
+        const uint256& cpBlockHash   = cp.second;
+
+        uiInterface.InitMessage(
+            fmt::format("Done Verifying latest blocks {}/{}", currentIndex, checkpointsMaxCount));
+        NLog.write(b_sev::info, "Done Verifying latest blocks {}/{}", currentIndex, checkpointsMaxCount);
+        currentIndex++;
+
+        if (cpBlockHeight > bestChainHeight) {
+            // we're still syncing, we don't have to validate this
+            continue;
+        }
+
+        const boost::optional<CBlockIndex> blockIndex = txdb.ReadBlockIndex(cpBlockHash);
+        if (!blockIndex) {
+            NLog.write(b_sev::critical,
+                       "Block index is inconsistent; Checkpoint of block height {} and block hash {} "
+                       "was unreadable from the block index",
+                       cpBlockHeight, cpBlockHash.ToString());
+            return false;
+        }
+
+        if (blockIndex->nHeight != cpBlockHeight) {
+            NLog.write(b_sev::critical,
+                       "Block index is inconsistent; While checkpoint of block hash {} "
+                       "was found, the checkpoint provided height {} doesn't match the stored height {}",
+                       cpBlockHash.ToString(), cpBlockHeight, blockIndex->nHeight);
+            return false;
+        }
+
+        const boost::optional<uint256> blockHashOfHeight = txdb.ReadBlockHashOfHeight(cpBlockHeight);
+        if (!blockHashOfHeight) {
+            NLog.write(b_sev::critical,
+                       "Database is inconsistent; While checkpoint of block hash {} of height {}"
+                       "was found, the block height was not found based on the block hash in the DB",
+                       cpBlockHash.ToString(), cpBlockHeight);
+            return false;
+        }
+
+        if (*blockHashOfHeight != cpBlockHash) {
+            NLog.write(
+                b_sev::critical,
+                "Database is inconsistent; While checkpoint of block hash {} "
+                "was found, the block hash based on height {} didn't match the value from block index",
+                cpBlockHash.ToString(), blockHashOfHeight->ToString());
+            return false;
+        }
+    }
+
+    return true;
 }
 
 } // namespace Checkpoints
