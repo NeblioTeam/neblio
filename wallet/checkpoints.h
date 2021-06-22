@@ -138,6 +138,7 @@ bool         CheckSync(const ITxDB& txdb, const uint256& blockHash, const CBlock
                        bool enableCaching = true, const MapCheckpoints& checkpoints = Params().Checkpoints(),
                        BlockToCheckpointCache& checkpointsCache = g_CheckpointsCache);
 int64_t      GetLastCheckpointBlockHeight();
+bool         ValidateCheckpointsInDB(const ITxDB& txdb);
 } // namespace Checkpoints
 
 #endif

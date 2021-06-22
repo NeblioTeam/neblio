@@ -40,8 +40,6 @@ ACTION_P(ReadBlockIndexAction, BlockIndexMap)
     const auto it = BlockIndexMap->find(hash);
     if (it != BlockIndexMap->cend()) {
         return it->second;
-    } else {
-        return boost::none;
     }
 
     boost::ignore_unused(args);
@@ -54,6 +52,8 @@ ACTION_P(ReadBlockIndexAction, BlockIndexMap)
     boost::ignore_unused(arg7);
     boost::ignore_unused(arg8);
     boost::ignore_unused(arg9);
+
+    return boost::none;
 }
 
 } // namespace

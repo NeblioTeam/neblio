@@ -651,6 +651,11 @@ bool CTxDB::LoadBlockIndex()
     ReadBestInvalidTrust(bnBestInvalidTrust);
     nBestInvalidTrust = bnBestInvalidTrust.getuint256();
 
+    if (!Checkpoints::ValidateCheckpointsInDB(*this)) {
+        NLog.write(b_sev::err, "Checkpoint validation failed.");
+        return false;
+    }
+
     // Verify blocks in the best chain
     int nCheckLevel = GetArg("-checklevel", 1);
     int nCheckDepth = GetArg("-checkblocks", 2500);
