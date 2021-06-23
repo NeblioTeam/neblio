@@ -56,7 +56,7 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
     }
 
     std::vector<std::string> urls;
-    for (auto urlObj : urlsObj) {
+    for (auto&& urlObj : urlsObj) {
         urls.push_back(urlObj.get_str());
     }
 
@@ -139,15 +139,29 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
         std::stringstream ss;
         ss.setf(std::ios::fixed);
         ss << "Downloading QuickSync file " << leaf << ": " << std::setprecision(2)
-           << progress.load(std::memory_order_relaxed) << " MB...";
+           << progress.load(std::memory_order_relaxed) << " / "
+           << static_cast<double>(fileSize) / static_cast<double>(1000000) << " MB...";
         uiInterface.InitMessage(ss.str());
     } while (downloadThreadFuture.wait_for(std::chrono::milliseconds(250)) != std::future_status::ready);
     downloadThread.join();
     downloadThreadFuture.get();
 
     uiInterface.InitMessage("Calculating hash to verify integrity...");
+    std::uintmax_t                            totalHashed = 0;
+    std::function<void(const std::uintmax_t)> hashProgressCalculator =
+        [&totalHashed, fileSize](const std::uintmax_t& current) {
+            totalHashed += current;
+            std::stringstream ss;
+            ss.setf(std::ios::fixed);
+            ss << "Calculating hash to verify integrity: "
+               << ": " << std::setprecision(2)
+               << static_cast<double>(totalHashed) / static_cast<double>(1000000) << " / "
+               << static_cast<double>(fileSize) / static_cast<double>(1000000) << " MB...";
+            uiInterface.InitMessage(ss.str());
+        };
     NLog.write(b_sev::info, "Done downloading {}", leaf);
-    std::string calculatedHash = CalculateHashOfFile<Sha256Calculator>(downloadTempTarget);
+    std::string calculatedHash =
+        CalculateHashOfFile<Sha256Calculator>(downloadTempTarget, 1 << 20, hashProgressCalculator);
     if (calculatedHash != sumBin) {
         throw std::runtime_error("The calculated checksum for the downloaded file: " +
                                  downloadTempTarget.string() + "; does not match the expected one.");
