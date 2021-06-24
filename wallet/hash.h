@@ -170,8 +170,10 @@ using Ripemd160HashCalculator = HashCalculator<RIPEMD160_CTX, RIPEMD160_Init, RI
                                                RIPEMD160_Final, RIPEMD160_DIGEST_LENGTH>;
 
 template <typename HashCalculatorClass>
-std::string CalculateHashOfFile(const boost::filesystem::path& PathToFile,
-                                const std::uintmax_t           ChunkSize = (1 << 20))
+std::string CalculateHashOfFile(const boost::filesystem::path&             PathToFile,
+                                const std::uintmax_t                       ChunkSize = (1 << 20),
+                                std::function<void(const std::uintmax_t&)> TotalSizeProcessedProgress =
+                                    [](const std::uintmax_t&) {})
 {
     if (!boost::filesystem::exists(PathToFile)) {
         throw std::runtime_error("While attempting to calculate hash of file, it does not exist: " +
@@ -190,6 +192,7 @@ std::string CalculateHashOfFile(const boost::filesystem::path& PathToFile,
         std::size_t sz = fileToRead.gcount();
         chunk.resize(sz);
         calculator.push_data(chunk);
+        TotalSizeProcessedProgress(static_cast<std::uintmax_t>(chunk.size()));
     }
     return calculator.getHashAndReset();
 }

@@ -229,7 +229,7 @@ void LMDB::openDatabase(const boost::filesystem::path& directory, bool clearDBBe
     }
 
     NLog.write(b_sev::info, "Opening the blockchain database...");
-    uiInterface.InitMessage("Opening the blockchain database...");
+    uiInterface.InitMessage("Opening the blockchain database...", 0);
 
     // open the database in the traditional way (whether quicksync succeeded or not)
     boost::filesystem::create_directories(directory);
@@ -355,7 +355,7 @@ void LMDB::openDatabase(const boost::filesystem::path& directory, bool clearDBBe
     boost::atomic_thread_fence(boost::memory_order_seq_cst);
 
     NLog.write(b_sev::info, "Done opening the database");
-    uiInterface.InitMessage("Done opening the database");
+    uiInterface.InitMessage("Done opening the database", 100);
 }
 
 void LMDB::doResize(uint64_t increase_size)

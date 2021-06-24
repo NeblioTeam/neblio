@@ -591,6 +591,7 @@ add_library(gui_lib STATIC
     wallet/qt/coldstakinglistfilterproxy.cpp
     wallet/qt/newstakedelegationdialog.cpp
     wallet/qt/sociallinks.cpp
+    wallet/qt/nebliosplash.cpp
     ${QRCODE_SOURCES}
     )
 

@@ -10,6 +10,7 @@
 
 #include "init.h"
 #include "main.h"
+#include "nebliosplash.h"
 #include "qtipcserver.h"
 #include "ui_interface.h"
 
@@ -37,8 +38,8 @@ Q_DECLARE_METATYPE(bool*)
 Q_DECLARE_METATYPE(CAmount)
 
 // Need a global reference for the notifications to find the GUI
-static BitcoinGUI*    guiref;
-static QSplashScreen* splashref;
+static BitcoinGUI*   guiref;
+static NeblioSplash* splashref;
 
 static void ThreadSafeMessageBox(const std::string& message, const std::string& caption, int style)
 {
@@ -79,11 +80,10 @@ static void ThreadSafeHandleURI(const std::string& strURI)
                               Q_ARG(QString, QString::fromStdString(strURI)));
 }
 
-static void InitMessage(const std::string& message)
+static void InitMessage(const std::string& message, int progress)
 {
     if (splashref) {
-        splashref->showMessage(QString::fromStdString(message) + " [Click to hide]",
-                               Qt::AlignBottom | Qt::AlignHCenter, QColor(11, 223, 212));
+        splashref->showMessage(QString::fromStdString(message), progress);
         QApplication::instance()->processEvents();
     }
 }
@@ -230,7 +230,7 @@ int main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
-    QSplashScreen splash(QPixmap(":/images/splash"), Qt::WindowFlags());
+    NeblioSplash splash;
     if (GetBoolArg("-splash", true) && !GetBoolArg("-min")) {
         splash.show();
         splashref = &splash;
@@ -252,8 +252,11 @@ int main(int argc, char* argv[])
                 // Put this in a block, so that the Model objects are cleaned up before
                 // calling Shutdown().
 
-                if (splashref)
-                    splash.finish(&window);
+                if (splashref) {
+                    splashref->close();
+                    splashref = nullptr;
+                    std::atomic_thread_fence(std::memory_order_seq_cst);
+                }
 
                 ClientModel clientModel(&optionsModel);
                 WalletModel walletModel(pwalletMain.get(), &optionsModel);
@@ -276,7 +279,7 @@ int main(int argc, char* argv[])
                 window.hide();
                 window.setClientModel(0);
                 window.setWalletModel(0);
-                guiref = 0;
+                guiref = nullptr;
             }
             // Shutdown the core and its threads, but don't exit Bitcoin-Qt here
             Shutdown();
