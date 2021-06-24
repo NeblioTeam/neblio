@@ -77,7 +77,7 @@ public:
     boost::signals2::signal<void(const std::string& strURI)> ThreadSafeHandleURI;
 
     /** Progress message during initialization. */
-    boost::signals2::signal<void(const std::string& message)> InitMessage;
+    boost::signals2::signal<void(const std::string& message, int progress)> InitMessage;
 
     /** Initiate client shutdown. */
     boost::signals2::signal<void()> QueueShutdown;

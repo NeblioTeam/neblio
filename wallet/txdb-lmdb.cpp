@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2009-2010 Satoshi Nakamoto
+// Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file license.txt or http://www.opensource.org/licenses/mit-license.php.
@@ -135,18 +135,20 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
         }
     });
 
+    const double fileSizeMB = static_cast<double>(fileSize) / static_cast<double>(1000000);
+
     do {
         std::stringstream ss;
         ss.setf(std::ios::fixed);
         ss << "Downloading QuickSync file " << leaf << ": " << std::setprecision(2)
-           << progress.load(std::memory_order_relaxed) << " / "
-           << static_cast<double>(fileSize) / static_cast<double>(1000000) << " MB...";
-        uiInterface.InitMessage(ss.str());
+           << progress.load(std::memory_order_relaxed) << " / " << fileSizeMB << " MB...";
+        uiInterface.InitMessage(ss.str(),
+                                static_cast<int>(100. * static_cast<double>(progress) / fileSizeMB));
     } while (downloadThreadFuture.wait_for(std::chrono::milliseconds(250)) != std::future_status::ready);
     downloadThread.join();
     downloadThreadFuture.get();
 
-    uiInterface.InitMessage("Calculating hash to verify integrity...");
+    uiInterface.InitMessage("Calculating hash to verify integrity...", 0);
     std::uintmax_t                            totalHashed = 0;
     std::function<void(const std::uintmax_t)> hashProgressCalculator =
         [&totalHashed, fileSize](const std::uintmax_t& current) {
@@ -157,7 +159,8 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
                << ": " << std::setprecision(2)
                << static_cast<double>(totalHashed) / static_cast<double>(1000000) << " / "
                << static_cast<double>(fileSize) / static_cast<double>(1000000) << " MB...";
-            uiInterface.InitMessage(ss.str());
+            uiInterface.InitMessage(ss.str(), static_cast<int>(100. * static_cast<double>(totalHashed) /
+                                                               static_cast<double>(fileSize)));
         };
     NLog.write(b_sev::info, "Done downloading {}", leaf);
     std::string calculatedHash =
@@ -176,7 +179,7 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
         }
     }
 
-    uiInterface.InitMessage("Download and verification of " + leaf + " is done.");
+    uiInterface.InitMessage("Download and verification of " + leaf + " is done.", 100);
 }
 
 void DoQuickSync(const filesystem::path& dbdir)
@@ -190,7 +193,7 @@ void DoQuickSync(const filesystem::path& dbdir)
         {
             std::string msg = "Attempting quicksync... (attempt " + std::to_string(failedAttempts + 1) +
                               " out of " + std::to_string(MAX_FAILED_ATTEMPTS) + ")";
-            uiInterface.InitMessage(msg);
+            uiInterface.InitMessage(msg, 0);
             NLog.write(b_sev::info, "{}", msg);
         }
         try {
@@ -229,13 +232,13 @@ void DoQuickSync(const filesystem::path& dbdir)
             if (failedAttempts < MAX_FAILED_ATTEMPTS) {
                 msg += "retrying in " + std::to_string(WAIT_TIME_SECONDS) + " seconds...";
             }
-            uiInterface.InitMessage(msg);
+            uiInterface.InitMessage(msg, 0);
             NLog.write(b_sev::err, "Quick sync failed (attempt {} of {}). Error: {}", failedAttempts,
                        MAX_FAILED_ATTEMPTS, ex.what());
             std::this_thread::sleep_for(std::chrono::seconds(WAIT_TIME_SECONDS));
         }
     }
-    uiInterface.InitMessage("QuickSync done");
+    uiInterface.InitMessage("QuickSync done", 100);
     if (!success) {
         throw std::runtime_error("QuickSync error: None of the files matched the correct settings or "
                                  "another error occurred.");
@@ -686,7 +689,9 @@ bool CTxDB::LoadBlockIndex()
 
         if (loadedCount % 100 == 0) {
             uiInterface.InitMessage("Verifying latest blocks (" + std::to_string(loadedCount) + "/" +
-                                    std::to_string(nCheckDepth) + ")");
+                                        std::to_string(nCheckDepth) + ")",
+                                    static_cast<int>(100. * static_cast<double>(loadedCount) /
+                                                     static_cast<double>(nCheckDepth)));
             NLog.write(b_sev::info, "Done Verifying latest blocks {}/{}", loadedCount, nCheckDepth);
         }
         loadedCount++;
@@ -802,7 +807,7 @@ bool CTxDB::LoadBlockIndex()
     }
 
     NLog.write(b_sev::info, "Verifying latest blocks done.");
-    uiInterface.InitMessage("Verifying latest blocks done");
+    uiInterface.InitMessage("Verifying latest blocks done", 100);
 
     if (pindexFork && !fRequestShutdown) {
         // Reorg back to the fork

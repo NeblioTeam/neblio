@@ -1115,8 +1115,11 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
             blockCount++;
 
             if (blockCount % 1000 == 0) {
-                uiInterface.InitMessage(_("Rescanning... ") + "(block: " + std::to_string(blockCount) +
-                                        "/" + std::to_string(bestHeight) + ")");
+                uiInterface.InitMessage(_("Rescanning blocks for wallet: ") +
+                                            std::to_string(blockCount) + "/" +
+                                            std::to_string(bestHeight) + ")",
+                                        static_cast<int>(100. * static_cast<double>(blockCount) /
+                                                         static_cast<double>(bestHeight)));
                 NLog.write(b_sev::info, "Done scanning {}/{} blocks", blockCount, bestHeight);
             }
 
@@ -1135,9 +1138,9 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
                 pindex = pindex->getNext(txdb);
             }
         }
-        uiInterface.InitMessage(_("Updating wallet on disk (do not shutdown)..."));
+        uiInterface.InitMessage(_("Updating wallet on disk (do not shutdown)..."), 50);
         FlushWalletDB(true, strWalletFile, nullptr);
-        uiInterface.InitMessage(_("Rescanning... ") + "(done)");
+        uiInterface.InitMessage(_("Rescanning... ") + "(done)", 100);
         NLog.write(b_sev::info, "Done rescanning wallet.");
     }
     return ret;
