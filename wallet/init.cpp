@@ -650,7 +650,7 @@ bool AppInit2()
 
     // ********************************************************* Step 5: verify database integrity
 
-    uiInterface.InitMessage(_("Verifying database integrity..."));
+    uiInterface.InitMessage(_("Verifying database integrity..."), 0);
 
     if (!OpenDBWalletTransient()) {
         string msg = fmt::format(_("Error initializing database environment {}!"
@@ -814,7 +814,7 @@ bool AppInit2()
         return false;
     }
 
-    uiInterface.InitMessage(_("Loading block index..."));
+    uiInterface.InitMessage(_("Loading block index..."), 0);
     NLog.write(b_sev::info, "Loading block index...");
     nStart = GetTimeMillis();
 
@@ -835,7 +835,7 @@ bool AppInit2()
             const std::string msg = "Loading block index failed. Assuming it is corrupt and attempting "
                                     "to resync (attempt: " +
                                     std::to_string(i + 1) + "/" + std::to_string(MAX_ATTEMPTS) + ")...";
-            uiInterface.InitMessage(msg);
+            uiInterface.InitMessage(msg, 0);
             NLog.write(b_sev::err, "{}", msg);
 
             // after failure, wait 3 seconds to try again
@@ -905,7 +905,7 @@ bool AppInit2()
 
     // ********************************************************* Step 8: load wallet
 
-    uiInterface.InitMessage(_("Loading wallet..."));
+    uiInterface.InitMessage(_("Loading wallet..."), 0);
     NLog.write(b_sev::info, "Loading wallet...");
     nStart         = GetTimeMillis();
     bool fFirstRun = true;
@@ -988,7 +988,7 @@ bool AppInit2()
     boost::optional<CBlockIndex> bestBlockIndex = txdb.GetBestBlockIndex();
     if (pindexRescan && bestBlockIndex->GetBlockHash() != pindexRescan->GetBlockHash() &&
         txdb.GetBestBlockIndex() && bestBlockIndex->nHeight > pindexRescan->nHeight) {
-        uiInterface.InitMessage(_("Rescanning..."));
+        uiInterface.InitMessage(_("Rescanning..."), 0);
         NLog.write(b_sev::info, "Rescanning last {} blocks (from block {})...",
                    bestBlockIndex->nHeight - pindexRescan->nHeight, pindexRescan->nHeight);
         nStart = GetTimeMillis();
@@ -1004,12 +1004,12 @@ bool AppInit2()
         for (const string& strFile : *loadBlockVals)
             vPath.push_back(strFile);
     }
-    uiInterface.InitMessage(_("Importing blockchain data file."));
+    uiInterface.InitMessage(_("Importing blockchain data file."), 0);
     NewThread(ThreadImport, vPath);
 
     // ********************************************************* Step 10: load peers
 
-    uiInterface.InitMessage(_("Loading addresses..."));
+    uiInterface.InitMessage(_("Loading addresses..."), 0);
     NLog.write(b_sev::info, "Loading addresses...");
     nStart = GetTimeMillis();
 
@@ -1045,7 +1045,7 @@ bool AppInit2()
     DeleteAuthCookie(); // clear the cookie from the previous session, if it exists
 
     // ********************************************************* Step 13: finished
-    uiInterface.InitMessage(_("Done loading"));
+    uiInterface.InitMessage(_("Done loading"), 100);
     NLog.write(b_sev::info, "Done loading");
 
     if (!strErrors.str().empty())
