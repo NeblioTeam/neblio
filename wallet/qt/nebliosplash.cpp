@@ -27,9 +27,14 @@ NeblioSplash::NeblioSplash(QWidget* parent) : QWidget(parent)
     mainLayout->addWidget(mainTextLabel, 2, 0);
 
     neblioLogoLabel->setMargin(0);
-    mainTextLabel->setMargin(3);
+    mainTextLabel->setMargin(5);
+    mainTextLabel->setStyleSheet("background-color:#291f3a; color:#0bdfd4");
     mainProgressBar->setContentsMargins(5, 0, 5, 0);
+    QString style = "QProgressBar {border: 0px; text-align: center; background-color: #291f3a; color:#ffffff; padding: 0px 10px 0px 10px;}";
+    style += "QProgressBar::chunk {background-color: #0bdfd4; width: 1px;}";
+    mainProgressBar->setStyleSheet(style);
     mainLayout->setMargin(0);
+    mainLayout->setSpacing(0);
 
     mainProgressBar->setValue(0);
 
