@@ -1138,9 +1138,9 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
                 pindex = pindex->getNext(txdb);
             }
         }
-        uiInterface.InitMessage(_("Updating wallet on disk (do not shutdown)..."), 50);
+        uiInterface.InitMessage(_("Updating wallet on disk (do not shutdown)..."), 0.5);
         FlushWalletDB(true, strWalletFile, nullptr);
-        uiInterface.InitMessage(_("Rescanning... ") + "(done)", 100);
+        uiInterface.InitMessage(_("Rescanning... ") + "(done)", 1);
         NLog.write(b_sev::info, "Done rescanning wallet.");
     }
     return ret;

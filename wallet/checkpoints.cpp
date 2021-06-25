@@ -183,8 +183,7 @@ bool ValidateCheckpointsInDB(const ITxDB& txdb)
 
         uiInterface.InitMessage(
             fmt::format("Done Verifying latest blocks {}/{}", currentIndex, checkpointsMaxCount),
-            static_cast<int>(100. * static_cast<double>(currentIndex) /
-                             static_cast<double>(checkpointsMaxCount)));
+            static_cast<double>(currentIndex) / static_cast<double>(checkpointsMaxCount));
         NLog.write(b_sev::info, "Done Verifying latest blocks {}/{}", currentIndex, checkpointsMaxCount);
         currentIndex++;
 
