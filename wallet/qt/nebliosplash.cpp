@@ -30,13 +30,15 @@ NeblioSplash::NeblioSplash(QWidget* parent) : QWidget(parent)
     mainTextLabel->setMargin(5);
     mainTextLabel->setStyleSheet("background-color:#291f3a; color:#0bdfd4");
     mainProgressBar->setContentsMargins(5, 0, 5, 0);
-    QString style = "QProgressBar {border: 0px; text-align: center; background-color: #291f3a; color:#ffffff; padding: 0px 10px 0px 10px;}";
-    style += "QProgressBar::chunk {background-color: #0bdfd4; width: 1px;}";
-    mainProgressBar->setStyleSheet(style);
+    const QString progressBarStyle = "QProgressBar {border: 0px; text-align: center; background-color: "
+                                     "#291f3a; color:#ffffff; padding: 0px 10px 0px 10px;} "
+                                     "QProgressBar::chunk {background-color: #0bdfd4; width: 1px;}";
+    mainProgressBar->setStyleSheet(progressBarStyle);
     mainLayout->setMargin(0);
     mainLayout->setSpacing(0);
 
     mainProgressBar->setValue(0);
+    mainProgressBar->setMaximum(std::numeric_limits<int>::max());
 
     setWindowFlags(Qt::Window | Qt::WindowTitleHint | Qt::CustomizeWindowHint | Qt::FramelessWindowHint);
 
@@ -48,10 +50,18 @@ NeblioSplash::NeblioSplash(QWidget* parent) : QWidget(parent)
     setMaximumSize(this->size());
 }
 
-void NeblioSplash::showMessage(const QString& message, int progress)
+void NeblioSplash::showMessage(const QString& message, double progressFromZeroToOne)
 {
     mainTextLabel->setText(message);
-    mainProgressBar->setValue(progress);
+    if (progressFromZeroToOne >= 1.) {
+        mainProgressBar->setValue(std::numeric_limits<int>::max());
+    } else if (progressFromZeroToOne <= 0.) {
+        mainProgressBar->setValue(0);
+    } else {
+        const int progress = static_cast<int>(static_cast<double>(std::numeric_limits<int>::max()) *
+                                              static_cast<double>(progressFromZeroToOne));
+        mainProgressBar->setValue(progress);
+    }
 }
 
 void NeblioSplash::mousePressEvent(QMouseEvent* event)

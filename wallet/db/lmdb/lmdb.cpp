@@ -355,7 +355,7 @@ void LMDB::openDatabase(const boost::filesystem::path& directory, bool clearDBBe
     boost::atomic_thread_fence(boost::memory_order_seq_cst);
 
     NLog.write(b_sev::info, "Done opening the database");
-    uiInterface.InitMessage("Done opening the database", 100);
+    uiInterface.InitMessage("Done opening the database", 1);
 }
 
 void LMDB::doResize(uint64_t increase_size)

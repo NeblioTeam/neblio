@@ -22,7 +22,7 @@ class NeblioSplash : public QWidget
 public:
     explicit NeblioSplash(QWidget* parent = nullptr);
 
-    void showMessage(const QString& message, int progress);
+    void showMessage(const QString& message, double progressFromZeroToOne);
 };
 
 #endif // NEBLIOSPLASH_H
