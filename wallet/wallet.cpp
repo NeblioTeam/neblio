@@ -1115,11 +1115,10 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
             blockCount++;
 
             if (blockCount % 1000 == 0) {
-                uiInterface.InitMessage(_("Rescanning blocks for wallet: ") +
-                                            std::to_string(blockCount) + "/" +
-                                            std::to_string(bestHeight) + ")",
-                                        static_cast<int>(100. * static_cast<double>(blockCount) /
-                                                         static_cast<double>(bestHeight)));
+                uiInterface.InitMessage(
+                    _("Rescanning blocks for wallet: ") + std::to_string(blockCount) + "/" +
+                        std::to_string(bestHeight) + ")",
+                    static_cast<double>(blockCount) / static_cast<double>(bestHeight));
                 NLog.write(b_sev::info, "Done scanning {}/{} blocks", blockCount, bestHeight);
             }
 
