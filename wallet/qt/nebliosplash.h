@@ -23,6 +23,8 @@ public:
     explicit NeblioSplash(QWidget* parent = nullptr);
 
     void showMessage(const QString& message, double progressFromZeroToOne);
+
+    void moveWidgetToScreenCenter();
 };
 
 #endif // NEBLIOSPLASH_H

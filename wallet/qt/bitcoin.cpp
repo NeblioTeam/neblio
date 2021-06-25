@@ -233,6 +233,7 @@ int main(int argc, char* argv[])
     NeblioSplash splash;
     if (GetBoolArg("-splash", true) && !GetBoolArg("-min")) {
         splash.show();
+        splash.moveWidgetToScreenCenter();
         splashref = &splash;
     }
 
