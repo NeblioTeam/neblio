@@ -142,8 +142,7 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
         ss.setf(std::ios::fixed);
         ss << "Downloading QuickSync file " << leaf << ": " << std::setprecision(2)
            << progress.load(std::memory_order_relaxed) << " / " << fileSizeMB << " MB...";
-        uiInterface.InitMessage(ss.str(),
-                                static_cast<int>(100. * static_cast<double>(progress) / fileSizeMB));
+        uiInterface.InitMessage(ss.str(), static_cast<double>(progress) / fileSizeMB);
     } while (downloadThreadFuture.wait_for(std::chrono::milliseconds(250)) != std::future_status::ready);
     downloadThread.join();
     downloadThreadFuture.get();
@@ -159,8 +158,8 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
                << ": " << std::setprecision(2)
                << static_cast<double>(totalHashed) / static_cast<double>(1000000) << " / "
                << static_cast<double>(fileSize) / static_cast<double>(1000000) << " MB...";
-            uiInterface.InitMessage(ss.str(), static_cast<int>(100. * static_cast<double>(totalHashed) /
-                                                               static_cast<double>(fileSize)));
+            uiInterface.InitMessage(ss.str(),
+                                    static_cast<double>(totalHashed) / static_cast<double>(fileSize));
         };
     NLog.write(b_sev::info, "Done downloading {}", leaf);
     std::string calculatedHash =
@@ -179,7 +178,7 @@ void DownloadQuickSyncFile(const json_spirit::Value& fileVal, const filesystem::
         }
     }
 
-    uiInterface.InitMessage("Download and verification of " + leaf + " is done.", 100);
+    uiInterface.InitMessage("Download and verification of " + leaf + " is done.", 1);
 }
 
 void DoQuickSync(const filesystem::path& dbdir)
@@ -238,7 +237,7 @@ void DoQuickSync(const filesystem::path& dbdir)
             std::this_thread::sleep_for(std::chrono::seconds(WAIT_TIME_SECONDS));
         }
     }
-    uiInterface.InitMessage("QuickSync done", 100);
+    uiInterface.InitMessage("QuickSync done", 1);
     if (!success) {
         throw std::runtime_error("QuickSync error: None of the files matched the correct settings or "
                                  "another error occurred.");
@@ -690,8 +689,7 @@ bool CTxDB::LoadBlockIndex()
         if (loadedCount % 100 == 0) {
             uiInterface.InitMessage("Verifying latest blocks (" + std::to_string(loadedCount) + "/" +
                                         std::to_string(nCheckDepth) + ")",
-                                    static_cast<int>(100. * static_cast<double>(loadedCount) /
-                                                     static_cast<double>(nCheckDepth)));
+                                    static_cast<double>(loadedCount) / static_cast<double>(nCheckDepth));
             NLog.write(b_sev::info, "Done Verifying latest blocks {}/{}", loadedCount, nCheckDepth);
         }
         loadedCount++;
@@ -807,7 +805,7 @@ bool CTxDB::LoadBlockIndex()
     }
 
     NLog.write(b_sev::info, "Verifying latest blocks done.");
-    uiInterface.InitMessage("Verifying latest blocks done", 100);
+    uiInterface.InitMessage("Verifying latest blocks done", 1);
 
     if (pindexFork && !fRequestShutdown) {
         // Reorg back to the fork
