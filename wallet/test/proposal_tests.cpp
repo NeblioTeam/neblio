@@ -34,6 +34,7 @@ TEST(proposal_tests, vote_creation)
         EXPECT_EQ(err, ProposalVoteCreationError::VoteValueOutOfRange);
     }
 }
+
 TEST(proposal_tests, votes_store)
 {
     AllStoredVotes storedVotes;
@@ -245,4 +246,19 @@ TEST(proposal_tests, votes_store)
             }
         }
     }
+}
+
+TEST(proposal_tests, serializationToUin32)
+{
+
+    const VoteValueAndID vote = VoteValueAndID::CreateVote(123, 1).UNWRAP();
+    EXPECT_EQ(vote.getProposalID(), 123u);
+    EXPECT_EQ(vote.getVoteValue(), 1u);
+
+    const uint32_t serialized = vote.serializeToUint32();
+
+    const VoteValueAndID deserializedVote = VoteValueAndID::CreateVoteFromUint32(serialized);
+
+    EXPECT_EQ(deserializedVote, vote) << " ERROR: failed for vote value " << vote.getVoteValue()
+                                      << " and proposal ID " << vote.getProposalID();
 }

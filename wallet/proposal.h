@@ -5,6 +5,7 @@
 #include <boost/icl/interval_map.hpp>
 #include <boost/optional/optional.hpp>
 #include <cinttypes>
+#include <mutex>
 #include <set>
 
 enum class AddVoteError
@@ -22,21 +23,37 @@ enum class ProposalVoteCreationError
     VoteValueOutOfRange,
 };
 
-class ProposalVote
+class VoteValueAndID
 {
-    int      firstBlockHeight;
-    int      lastBlockHeight;
     uint32_t proposalID;
     uint32_t voteValue;
 
 public:
-    static Result<ProposalVote, ProposalVoteCreationError>
+    [[nodiscard]] uint32_t getProposalID() const;
+    [[nodiscard]] uint32_t getVoteValue() const;
+    [[nodiscard]] uint32_t serializeToUint32() const;
+    [[nodiscard]] static Result<VoteValueAndID, ProposalVoteCreationError>
+                                        CreateVote(uint32_t ProposalID, uint32_t VoteValue);
+    [[nodiscard]] static VoteValueAndID CreateVoteFromUint32(uint32_t serialized);
+
+    bool operator==(const VoteValueAndID& other) const;
+};
+
+class ProposalVote
+{
+    int            firstBlockHeight;
+    int            lastBlockHeight;
+    VoteValueAndID valueAndID;
+
+public:
+    [[nodiscard]] static Result<ProposalVote, ProposalVoteCreationError>
     CreateVote(int FromBlock, int ToBlock, uint32_t ProposalID, uint32_t VoteValue);
 
-    uint32_t getProposalID() const;
-    int      getFirstBlockHeight() const;
-    int      getLastBlockHeight() const;
-    uint32_t getVoteValue() const;
+    [[nodiscard]] uint32_t       getProposalID() const;
+    [[nodiscard]] int            getFirstBlockHeight() const;
+    [[nodiscard]] int            getLastBlockHeight() const;
+    [[nodiscard]] uint32_t       getVoteValue() const;
+    [[nodiscard]] VoteValueAndID getVoteValueAndProposalID() const;
 
     bool operator==(const ProposalVote& other) const;
 };
@@ -44,6 +61,7 @@ public:
 class AllStoredVotes
 {
     boost::icl::interval_map<int, ProposalVote> votes;
+    mutable std::mutex                          mtx;
 
 public:
     [[nodiscard]] Result<void, AddVoteError>    addVote(const ProposalVote& vote);
