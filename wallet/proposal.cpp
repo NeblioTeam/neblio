@@ -67,7 +67,7 @@ Result<void, AddVoteError> AllStoredVotes::addVote(const ProposalVote& vote)
     return Ok();
 }
 
-void AllStoredVotes::removeAllVotesOfHeightRangeOfHeight(int someHeightInIt)
+void AllStoredVotes::removeAllVotesAdjacentToHeight(int someHeightInIt)
 {
     std::lock_guard<std::mutex> lg(mtx);
 

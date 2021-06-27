@@ -799,11 +799,47 @@ Value cancelallvotesofproposal(const Array& params, bool fHelp)
                                  "\nRemoves all the votes of a certain proposal ID (affects only blocks "
                                  "that are not staked yet).\n"
                                  "\nExamples:\n"
-                                 "\nRemove all the your votes that have the vote ID 123\n"
+                                 "\nRemove all your votes that have the vote ID 123\n"
                                  "cancelallvotesofproposal 123\n");
 
     const uint32_t proposalID = static_cast<uint32_t>(params[2].get_int());
 
     blockVotes.removeAllVotesOfProposal(proposalID);
+    return Value();
+}
+
+Value cancelvotesatblockheightrange(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 2)
+        throw std::runtime_error(
+            "cancelvotesatblockheightrange <first-height> <last-height>\n"
+            "\nRemoves all the votes of that fall under a certain range (affects only blocks "
+            "that are not staked yet).\n"
+            "\nExamples:\n"
+            "\nAssuming you added a vote of value 1 in block height range [100-1000], the following "
+            "removes all your votes for blocks 200-500 keeping only [100,199] and [501,1000]\n"
+            "cancelvotesatblockheightrange 200 500\n");
+
+    const int startHeight = params[0].get_int();
+    const int lastHeight  = params[1].get_int();
+
+    blockVotes.removeVotesAtHeightRange(startHeight, lastHeight);
+    return Value();
+}
+
+Value cancelvotesadjacenttoheight(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw std::runtime_error(
+            "cancelvotesadjacenttoheight <height>\n"
+            "\nRemoves all the votes of that are adjacent to a certain height.\n"
+            "\nExamples:\n"
+            "\nAssuming you added a vote of value 1 in block height range [100-1000], calling this "
+            "function with any height within this range will cancel the whole range\n"
+            "cancelvotesadjacenttoheight 150\n");
+
+    const int height = params[0].get_int();
+
+    blockVotes.removeAllVotesAdjacentToHeight(height);
     return Value();
 }

@@ -68,7 +68,7 @@ class AllStoredVotes
 
 public:
     [[nodiscard]] Result<void, AddVoteError> addVote(const ProposalVote& vote);
-    void                                     removeAllVotesOfHeightRangeOfHeight(int someHeightInIt);
+    void                                     removeAllVotesAdjacentToHeight(int someHeightInIt);
     void                                     removeVotesAtHeightRange(int startHeight, int lastHeight);
     void                                     removeAllVotesOfProposal(uint32_t proposalID);
     [[nodiscard]] boost::optional<ProposalVote> getProposalAtBlockHeight(int height) const;

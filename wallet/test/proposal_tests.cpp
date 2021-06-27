@@ -227,7 +227,7 @@ TEST(proposal_tests, votes_store)
                 EXPECT_EQ(storedVotes.getAllVotes().size(), 4u);
 
                 // erase the middle range
-                storedVotes.removeAllVotesOfHeightRangeOfHeight(someBlockInTheMiddle);
+                storedVotes.removeAllVotesAdjacentToHeight(someBlockInTheMiddle);
                 EXPECT_FALSE(storedVotes.empty());
                 EXPECT_EQ(storedVotes.getAllVotes().size(), 3u);
 
@@ -493,7 +493,7 @@ TEST(proposal_tests, interval_joining_and_cutting)
     }
 
     {
-        storedVotes.removeAllVotesOfHeightRangeOfHeight(25);
+        storedVotes.removeAllVotesAdjacentToHeight(25);
 
         EXPECT_FALSE(storedVotes.empty());
         EXPECT_EQ(storedVotes.voteCount(), 2u);

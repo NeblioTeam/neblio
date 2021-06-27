@@ -326,6 +326,8 @@ static const CRPCCommand vRPCCommands[] =
     { "listvotes",                 &listvotes,                 false,  false },
     { "castvote",                  &castvote,                  false,  false },
     { "cancelallvotesofproposal",  &cancelallvotesofproposal,  false,  false },
+    {"cancelvotesadjacenttoheight",&cancelvotesadjacenttoheight,false,  false },
+    {"cancelvotesatblockheightrange",&cancelvotesatblockheightrange,false,  false },
     { "getblock",                  &getblock,                  false,  false },
     { "getblockbynumber",          &getblockbynumber,          false,  false },
     { "getblockhash",              &getblockhash,              false,  false },
