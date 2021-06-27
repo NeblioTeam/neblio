@@ -593,3 +593,469 @@ TEST(proposal_tests, serializationToUin32)
     EXPECT_EQ(deserializedVote, vote) << " ERROR: failed for vote value " << vote.getVoteValue()
                                       << " and proposal ID " << vote.getProposalID();
 }
+
+TEST(proposal_tests, votesToAndFromJson)
+{
+    AllStoredVotes storedVotes;
+
+    EXPECT_TRUE(storedVotes.empty());
+    EXPECT_EQ(storedVotes.voteCount(), 0u);
+    EXPECT_EQ(storedVotes.getAllVotes().size(), 0u);
+
+    {
+        const uint32_t proposalID = 555u;
+        const int      firstBlock = 10;
+        const int      lastBlock  = 20;
+        const uint32_t voteValue  = 99;
+
+        const ProposalVote vote =
+            ProposalVote::CreateVote(firstBlock, lastBlock, proposalID, voteValue).UNWRAP();
+        EXPECT_EQ(vote.getProposalID(), proposalID);
+        EXPECT_EQ(vote.getVoteValue(), voteValue);
+        EXPECT_EQ(vote.getFirstBlockHeight(), firstBlock);
+        EXPECT_EQ(vote.getLastBlockHeight(), lastBlock);
+
+        const auto storeResult = storedVotes.addVote(vote);
+        EXPECT_TRUE(storeResult.isOk());
+
+        EXPECT_FALSE(storedVotes.empty());
+        EXPECT_EQ(storedVotes.voteCount(), 1u);
+        EXPECT_EQ(storedVotes.getAllVotes().size(), 1u);
+    }
+
+    {
+        const uint32_t proposalID = 555u;
+        const int      firstBlock = 30;
+        const int      lastBlock  = 40;
+        const uint32_t voteValue  = 99;
+
+        const ProposalVote vote =
+            ProposalVote::CreateVote(firstBlock, lastBlock, proposalID, voteValue).UNWRAP();
+        EXPECT_EQ(vote.getProposalID(), proposalID);
+        EXPECT_EQ(vote.getVoteValue(), voteValue);
+        EXPECT_EQ(vote.getFirstBlockHeight(), firstBlock);
+        EXPECT_EQ(vote.getLastBlockHeight(), lastBlock);
+
+        const auto storeResult = storedVotes.addVote(vote);
+        EXPECT_TRUE(storeResult.isOk());
+
+        EXPECT_FALSE(storedVotes.empty());
+        EXPECT_EQ(storedVotes.getAllVotes().size(), 2u);
+        EXPECT_EQ(storedVotes.getAllVotes().size(), 2u);
+    }
+
+    {
+        const uint32_t proposalID = 222u;
+        const int      firstBlock = 21;
+        const int      lastBlock  = 29;
+        const uint32_t voteValue  = 99;
+
+        const ProposalVote vote =
+            ProposalVote::CreateVote(firstBlock, lastBlock, proposalID, voteValue).UNWRAP();
+        EXPECT_EQ(vote.getProposalID(), proposalID);
+        EXPECT_EQ(vote.getVoteValue(), voteValue);
+        EXPECT_EQ(vote.getFirstBlockHeight(), firstBlock);
+        EXPECT_EQ(vote.getLastBlockHeight(), lastBlock);
+
+        const auto storeResult = storedVotes.addVote(vote);
+        EXPECT_TRUE(storeResult.isOk());
+
+        EXPECT_FALSE(storedVotes.empty());
+        EXPECT_EQ(storedVotes.getAllVotes().size(), 3u);
+        EXPECT_EQ(storedVotes.getAllVotes().size(), 3u);
+    }
+
+    const json_spirit::Array        jsonVotes           = storedVotes.getAllVotesAsJson();
+    const std::string               serializedJsonVotes = json_spirit::write_formatted(jsonVotes);
+    AllStoredVotes                  importedVotes;
+    const Result<void, std::string> importResult =
+        importedVotes.importVotesFromJson(serializedJsonVotes);
+    ASSERT_FALSE(importResult.isErr()) << " got error: " << importResult.UNWRAP_ERR();
+    EXPECT_EQ(storedVotes.getAllVotes(), importedVotes.getAllVotes());
+}
+
+TEST(proposal_tests, votesToAndFromJsonWithErrors_NoErrors)
+{
+    const std::string               serializedJsonVotes = R"(
+[
+    {
+        "FirstVoteBlock" : 10,
+        "LastVoteBlock" : 20,
+        "ProposalID" : 555,
+        "VoteValue" : 99
+    },
+    {
+        "FirstVoteBlock" : 21,
+        "LastVoteBlock" : 29,
+        "ProposalID" : 102,
+        "VoteValue" : 222
+    },
+    {
+        "FirstVoteBlock" : 30,
+        "LastVoteBlock" : 40,
+        "ProposalID" : 99,
+        "VoteValue" : 2
+    }
+]
+)";
+    AllStoredVotes                  importedVotes;
+    const Result<void, std::string> importResult =
+        importedVotes.importVotesFromJson(serializedJsonVotes);
+    ASSERT_FALSE(importResult.isErr()) << " got error: " << importResult.UNWRAP_ERR();
+    EXPECT_EQ(importedVotes.voteCount(), 3u);
+    const auto votesVec = importedVotes.getAllVotes();
+    EXPECT_EQ(votesVec[0].getFirstBlockHeight(), 10);
+    EXPECT_EQ(votesVec[0].getLastBlockHeight(), 20);
+    EXPECT_EQ(votesVec[0].getProposalID(), 555u);
+    EXPECT_EQ(votesVec[0].getVoteValue(), 99u);
+    EXPECT_EQ(votesVec[1].getFirstBlockHeight(), 21);
+    EXPECT_EQ(votesVec[1].getLastBlockHeight(), 29);
+    EXPECT_EQ(votesVec[1].getProposalID(), 102u);
+    EXPECT_EQ(votesVec[1].getVoteValue(), 222u);
+    EXPECT_EQ(votesVec[2].getFirstBlockHeight(), 30);
+    EXPECT_EQ(votesVec[2].getLastBlockHeight(), 40);
+    EXPECT_EQ(votesVec[2].getProposalID(), 99u);
+    EXPECT_EQ(votesVec[2].getVoteValue(), 2u);
+}
+
+TEST(proposal_tests, votesToAndFromJsonWithErrors_NegativeFirstHeight)
+{
+    const std::string               serializedJsonVotes = R"(
+[
+    {
+        "FirstVoteBlock" : 10,
+        "LastVoteBlock" : -10,
+        "ProposalID" : 555,
+        "VoteValue" : 99
+    },
+    {
+        "FirstVoteBlock" : 21,
+        "LastVoteBlock" : 29,
+        "ProposalID" : 102,
+        "VoteValue" : 222
+    },
+    {
+        "FirstVoteBlock" : 30,
+        "LastVoteBlock" : 40,
+        "ProposalID" : 99,
+        "VoteValue" : 2
+    }
+]
+)";
+    AllStoredVotes                  importedVotes;
+    const Result<void, std::string> importResult =
+        importedVotes.importVotesFromJson(serializedJsonVotes);
+    ASSERT_TRUE(importResult.isErr());
+    EXPECT_TRUE(boost::algorithm::icontains(importResult.UNWRAP_ERR(), "Last block"))
+        << "; instead error found: " << importResult.UNWRAP_ERR();
+    EXPECT_EQ(importedVotes.voteCount(), 2u);
+    const auto votesVec = importedVotes.getAllVotes();
+    EXPECT_EQ(votesVec[0].getFirstBlockHeight(), 21);
+    EXPECT_EQ(votesVec[0].getLastBlockHeight(), 29);
+    EXPECT_EQ(votesVec[0].getProposalID(), 102u);
+    EXPECT_EQ(votesVec[0].getVoteValue(), 222u);
+    EXPECT_EQ(votesVec[1].getFirstBlockHeight(), 30);
+    EXPECT_EQ(votesVec[1].getLastBlockHeight(), 40);
+    EXPECT_EQ(votesVec[1].getProposalID(), 99u);
+    EXPECT_EQ(votesVec[1].getVoteValue(), 2u);
+}
+
+TEST(proposal_tests, votesToAndFromJsonWithErrors_NegativeLastHeight)
+{
+    const std::string               serializedJsonVotes = R"(
+[
+    {
+        "FirstVoteBlock" : -10,
+        "LastVoteBlock" : 10,
+        "ProposalID" : 555,
+        "VoteValue" : 99
+    },
+    {
+        "FirstVoteBlock" : 21,
+        "LastVoteBlock" : 29,
+        "ProposalID" : 102,
+        "VoteValue" : 222
+    },
+    {
+        "FirstVoteBlock" : 30,
+        "LastVoteBlock" : 40,
+        "ProposalID" : 99,
+        "VoteValue" : 2
+    }
+]
+)";
+    AllStoredVotes                  importedVotes;
+    const Result<void, std::string> importResult =
+        importedVotes.importVotesFromJson(serializedJsonVotes);
+    ASSERT_TRUE(importResult.isErr());
+    EXPECT_TRUE(boost::algorithm::icontains(importResult.UNWRAP_ERR(), "First block"))
+        << "; instead error found: " << importResult.UNWRAP_ERR();
+    EXPECT_EQ(importedVotes.voteCount(), 2u);
+    const auto votesVec = importedVotes.getAllVotes();
+    EXPECT_EQ(votesVec[0].getFirstBlockHeight(), 21);
+    EXPECT_EQ(votesVec[0].getLastBlockHeight(), 29);
+    EXPECT_EQ(votesVec[0].getProposalID(), 102u);
+    EXPECT_EQ(votesVec[0].getVoteValue(), 222u);
+    EXPECT_EQ(votesVec[1].getFirstBlockHeight(), 30);
+    EXPECT_EQ(votesVec[1].getLastBlockHeight(), 40);
+    EXPECT_EQ(votesVec[1].getProposalID(), 99u);
+    EXPECT_EQ(votesVec[1].getVoteValue(), 2u);
+}
+
+TEST(proposal_tests, votesToAndFromJsonWithErrors_TooBigProposalID)
+{
+    const std::string               serializedJsonVotes = R"(
+[
+    {
+        "FirstVoteBlock" : 10,
+        "LastVoteBlock" : 20,
+        "ProposalID" : 555,
+        "VoteValue" : 99
+    },
+    {
+        "FirstVoteBlock" : 21,
+        "LastVoteBlock" : 29,
+        "ProposalID" : 33554432,
+        "VoteValue" : 222
+    },
+    {
+        "FirstVoteBlock" : 30,
+        "LastVoteBlock" : 40,
+        "ProposalID" : 99,
+        "VoteValue" : 2
+    }
+]
+)";
+    AllStoredVotes                  importedVotes;
+    const Result<void, std::string> importResult =
+        importedVotes.importVotesFromJson(serializedJsonVotes);
+    ASSERT_TRUE(importResult.isErr());
+    EXPECT_TRUE(boost::algorithm::icontains(importResult.UNWRAP_ERR(), "Proposal ID"))
+        << "; instead error found: " << importResult.UNWRAP_ERR();
+    EXPECT_EQ(importedVotes.voteCount(), 2u);
+    const auto votesVec = importedVotes.getAllVotes();
+    EXPECT_EQ(votesVec[0].getFirstBlockHeight(), 10);
+    EXPECT_EQ(votesVec[0].getLastBlockHeight(), 20);
+    EXPECT_EQ(votesVec[0].getProposalID(), 555u);
+    EXPECT_EQ(votesVec[0].getVoteValue(), 99u);
+    EXPECT_EQ(votesVec[1].getFirstBlockHeight(), 30);
+    EXPECT_EQ(votesVec[1].getLastBlockHeight(), 40);
+    EXPECT_EQ(votesVec[1].getProposalID(), 99u);
+    EXPECT_EQ(votesVec[1].getVoteValue(), 2u);
+}
+
+TEST(proposal_tests, votesToAndFromJsonWithErrors_LargeVoteValue)
+{
+    const std::string               serializedJsonVotes = R"(
+[
+    {
+        "FirstVoteBlock" : 10,
+        "LastVoteBlock" : 20,
+        "ProposalID" : 555,
+        "VoteValue" : 99
+    },
+    {
+        "FirstVoteBlock" : 21,
+        "LastVoteBlock" : 29,
+        "ProposalID" : 102,
+        "VoteValue" : 222
+    },
+    {
+        "FirstVoteBlock" : 30,
+        "LastVoteBlock" : 40,
+        "ProposalID" : 99,
+        "VoteValue" : 666
+    }
+]
+)";
+    AllStoredVotes                  importedVotes;
+    const Result<void, std::string> importResult =
+        importedVotes.importVotesFromJson(serializedJsonVotes);
+    ASSERT_TRUE(importResult.isErr());
+    EXPECT_TRUE(boost::algorithm::icontains(importResult.UNWRAP_ERR(), "Vote value"))
+        << "; instead error found: " << importResult.UNWRAP_ERR();
+    EXPECT_EQ(importedVotes.voteCount(), 2u);
+    const auto votesVec = importedVotes.getAllVotes();
+    EXPECT_EQ(votesVec[0].getFirstBlockHeight(), 10);
+    EXPECT_EQ(votesVec[0].getLastBlockHeight(), 20);
+    EXPECT_EQ(votesVec[0].getProposalID(), 555u);
+    EXPECT_EQ(votesVec[0].getVoteValue(), 99u);
+    EXPECT_EQ(votesVec[1].getFirstBlockHeight(), 21);
+    EXPECT_EQ(votesVec[1].getLastBlockHeight(), 29);
+    EXPECT_EQ(votesVec[1].getProposalID(), 102u);
+    EXPECT_EQ(votesVec[1].getVoteValue(), 222u);
+}
+
+TEST(proposal_tests, votesToAndFromJsonWithErrors_VoteValueMissing)
+{
+    const std::string               serializedJsonVotes = R"(
+[
+    {
+        "FirstVoteBlock" : 10,
+        "LastVoteBlock" : 20,
+        "ProposalID" : 555
+    },
+    {
+        "FirstVoteBlock" : 21,
+        "LastVoteBlock" : 29,
+        "ProposalID" : 102,
+        "VoteValue" : 222
+    },
+    {
+        "FirstVoteBlock" : 30,
+        "LastVoteBlock" : 40,
+        "ProposalID" : 99,
+        "VoteValue" : 2
+    }
+]
+)";
+    AllStoredVotes                  importedVotes;
+    const Result<void, std::string> importResult =
+        importedVotes.importVotesFromJson(serializedJsonVotes);
+    ASSERT_TRUE(importResult.isErr());
+    EXPECT_TRUE(boost::algorithm::icontains(importResult.UNWRAP_ERR(), "Vote value"))
+        << "; instead error found: " << importResult.UNWRAP_ERR();
+    EXPECT_EQ(importedVotes.voteCount(), 2u);
+    const auto votesVec = importedVotes.getAllVotes();
+    EXPECT_EQ(votesVec[0].getFirstBlockHeight(), 21);
+    EXPECT_EQ(votesVec[0].getLastBlockHeight(), 29);
+    EXPECT_EQ(votesVec[0].getProposalID(), 102u);
+    EXPECT_EQ(votesVec[0].getVoteValue(), 222u);
+    EXPECT_EQ(votesVec[1].getFirstBlockHeight(), 30);
+    EXPECT_EQ(votesVec[1].getLastBlockHeight(), 40);
+    EXPECT_EQ(votesVec[1].getProposalID(), 99u);
+    EXPECT_EQ(votesVec[1].getVoteValue(), 2u);
+}
+
+TEST(proposal_tests, votesToAndFromJsonWithErrors_ProposalIDMissing)
+{
+    const std::string               serializedJsonVotes = R"(
+[
+    {
+        "FirstVoteBlock" : 10,
+        "LastVoteBlock" : 20,
+        "ProposalID" : 555,
+        "VoteValue" : 99
+    },
+    {
+        "FirstVoteBlock" : 21,
+        "LastVoteBlock" : 29,
+        "VoteValue" : 222
+    },
+    {
+        "FirstVoteBlock" : 30,
+        "LastVoteBlock" : 40,
+        "ProposalID" : 99,
+        "VoteValue" : 2
+    }
+]
+)";
+    AllStoredVotes                  importedVotes;
+    const Result<void, std::string> importResult =
+        importedVotes.importVotesFromJson(serializedJsonVotes);
+    ASSERT_TRUE(importResult.isErr());
+    EXPECT_TRUE(boost::algorithm::icontains(importResult.UNWRAP_ERR(), "Proposal ID"))
+        << "; instead error found: " << importResult.UNWRAP_ERR();
+    EXPECT_EQ(importedVotes.voteCount(), 2u);
+    const auto votesVec = importedVotes.getAllVotes();
+    EXPECT_EQ(votesVec[0].getFirstBlockHeight(), 10);
+    EXPECT_EQ(votesVec[0].getLastBlockHeight(), 20);
+    EXPECT_EQ(votesVec[0].getProposalID(), 555u);
+    EXPECT_EQ(votesVec[0].getVoteValue(), 99u);
+    EXPECT_EQ(votesVec[1].getFirstBlockHeight(), 30);
+    EXPECT_EQ(votesVec[1].getLastBlockHeight(), 40);
+    EXPECT_EQ(votesVec[1].getProposalID(), 99u);
+    EXPECT_EQ(votesVec[1].getVoteValue(), 2u);
+}
+
+TEST(proposal_tests, votesToAndFromJsonWithErrors_FirstBlockMissing)
+{
+    const std::string               serializedJsonVotes = R"(
+[
+    {
+        "FirstVoteBlock" : 10,
+        "LastVoteBlock" : 20,
+        "ProposalID" : 555,
+        "VoteValue" : 99
+    },
+    {
+        "LastVoteBlock" : 29,
+        "ProposalID" : 102,
+        "VoteValue" : 222
+    },
+    {
+        "FirstVoteBlock" : 30,
+        "LastVoteBlock" : 40,
+        "ProposalID" : 99,
+        "VoteValue" : 2
+    }
+]
+)";
+    AllStoredVotes                  importedVotes;
+    const Result<void, std::string> importResult =
+        importedVotes.importVotesFromJson(serializedJsonVotes);
+    ASSERT_TRUE(importResult.isErr());
+    EXPECT_TRUE(boost::algorithm::icontains(importResult.UNWRAP_ERR(), "First block"))
+        << "; instead error found: " << importResult.UNWRAP_ERR();
+    EXPECT_EQ(importedVotes.voteCount(), 2u);
+    const auto votesVec = importedVotes.getAllVotes();
+    EXPECT_EQ(votesVec[0].getFirstBlockHeight(), 10);
+    EXPECT_EQ(votesVec[0].getLastBlockHeight(), 20);
+    EXPECT_EQ(votesVec[0].getProposalID(), 555u);
+    EXPECT_EQ(votesVec[0].getVoteValue(), 99u);
+    EXPECT_EQ(votesVec[1].getFirstBlockHeight(), 30);
+    EXPECT_EQ(votesVec[1].getLastBlockHeight(), 40);
+    EXPECT_EQ(votesVec[1].getProposalID(), 99u);
+    EXPECT_EQ(votesVec[1].getVoteValue(), 2u);
+}
+
+TEST(proposal_tests, votesToAndFromJsonWithErrors_LastBlockMissing)
+{
+    const std::string               serializedJsonVotes = R"(
+[
+    {
+        "FirstVoteBlock" : 10,
+        "LastVoteBlock" : 20,
+        "ProposalID" : 555,
+        "VoteValue" : 99
+    },
+    {
+        "FirstVoteBlock" : 21,
+        "ProposalID" : 102,
+        "VoteValue" : 222
+    },
+    {
+        "FirstVoteBlock" : 30,
+        "LastVoteBlock" : 40,
+        "ProposalID" : 99,
+        "VoteValue" : 2
+    }
+]
+)";
+    AllStoredVotes                  importedVotes;
+    const Result<void, std::string> importResult =
+        importedVotes.importVotesFromJson(serializedJsonVotes);
+    ASSERT_TRUE(importResult.isErr());
+    EXPECT_TRUE(boost::algorithm::icontains(importResult.UNWRAP_ERR(), "Last block"))
+        << "; instead error found: " << importResult.UNWRAP_ERR();
+    EXPECT_EQ(importedVotes.voteCount(), 2u);
+    const auto votesVec = importedVotes.getAllVotes();
+    EXPECT_EQ(votesVec[0].getFirstBlockHeight(), 10);
+    EXPECT_EQ(votesVec[0].getLastBlockHeight(), 20);
+    EXPECT_EQ(votesVec[0].getProposalID(), 555u);
+    EXPECT_EQ(votesVec[0].getVoteValue(), 99u);
+    EXPECT_EQ(votesVec[1].getFirstBlockHeight(), 30);
+    EXPECT_EQ(votesVec[1].getLastBlockHeight(), 40);
+    EXPECT_EQ(votesVec[1].getProposalID(), 99u);
+    EXPECT_EQ(votesVec[1].getVoteValue(), 2u);
+}
+
+TEST(proposal_tests, votesToAndFromJsonWithErrors_InvalidJson)
+{
+    const std::string               serializedJsonVotes = R"([sdsd])";
+    AllStoredVotes                  importedVotes;
+    const Result<void, std::string> importResult =
+        importedVotes.importVotesFromJson(serializedJsonVotes);
+    ASSERT_TRUE(importResult.isErr());
+    EXPECT_EQ(importedVotes.voteCount(), 0u);
+}

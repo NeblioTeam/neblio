@@ -50,13 +50,16 @@ public:
     [[nodiscard]] static Result<ProposalVote, ProposalVoteCreationError>
     CreateVote(int FromBlock, int ToBlock, uint32_t ProposalID, uint32_t VoteValue);
 
-    [[nodiscard]] uint32_t           getProposalID() const;
-    [[nodiscard]] int                getFirstBlockHeight() const;
-    [[nodiscard]] int                getLastBlockHeight() const;
-    [[nodiscard]] uint32_t           getVoteValue() const;
-    [[nodiscard]] VoteValueAndID     getVoteValueAndProposalID() const;
-    [[nodiscard]] json_spirit::Value asJson() const;
+    [[nodiscard]] uint32_t                                 getProposalID() const;
+    [[nodiscard]] int                                      getFirstBlockHeight() const;
+    [[nodiscard]] int                                      getLastBlockHeight() const;
+    [[nodiscard]] uint32_t                                 getVoteValue() const;
+    [[nodiscard]] VoteValueAndID                           getVoteValueAndProposalID() const;
+    [[nodiscard]] json_spirit::Value                       asJson() const;
+    [[nodiscard]] static Result<ProposalVote, std::string> FromJson(const json_spirit::Value& value);
     [[nodiscard]] static std::string ProposalVoteCreationErrorAsString(ProposalVoteCreationError error);
+
+    [[nodiscard]] bool operator==(const ProposalVote& other) const;
 };
 
 class AllStoredVotes
@@ -78,6 +81,7 @@ public:
     [[nodiscard]] bool                          empty() const;
     [[nodiscard]] std::size_t                   voteCount() const;
     void                                        clear();
+    [[nodiscard]] Result<void, std::string>     importVotesFromJson(const std::string& voteJsonData);
     [[nodiscard]] static std::string
     AddVoteErrorAsString(AddVoteError error, const boost::optional<int>& startHeight = boost::none,
                          const boost::optional<int>& lastHeight = boost::none);

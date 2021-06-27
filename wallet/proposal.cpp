@@ -1,6 +1,12 @@
 ﻿#include "proposal.h"
 
 #include "logging/logger.h"
+#include "ntp1/ntp1tools.h"
+
+static constexpr const char* FIRST_BLOCK_JSON_KEY = "FirstVoteBlock";
+static constexpr const char* LAST_BLOCK_JSON_KEY  = "LastVoteBlock";
+static constexpr const char* VOTE_VALUE_JSON_KEY  = "VoteValue";
+static constexpr const char* PROP_ID_JSON_KEY     = "ProposalID";
 
 Result<ProposalVote, ProposalVoteCreationError>
 ProposalVote::CreateVote(int FromBlock, int ToBlock, uint32_t ProposalID, uint32_t VoteValue)
@@ -37,12 +43,55 @@ json_spirit::Value ProposalVote::asJson() const
 {
     json_spirit::Object root;
 
-    root.push_back(json_spirit::Pair("FirstVoteBlock", getFirstBlockHeight()));
-    root.push_back(json_spirit::Pair("LastVoteBlock", getLastBlockHeight()));
-    root.push_back(json_spirit::Pair("VoteValue", std::to_string(getVoteValue())));
-    root.push_back(json_spirit::Pair("ProposalID", std::to_string(getProposalID())));
+    root.push_back(json_spirit::Pair(FIRST_BLOCK_JSON_KEY, getFirstBlockHeight()));
+    root.push_back(json_spirit::Pair(LAST_BLOCK_JSON_KEY, getLastBlockHeight()));
+    root.push_back(json_spirit::Pair(VOTE_VALUE_JSON_KEY, static_cast<int>(getVoteValue())));
+    root.push_back(json_spirit::Pair(PROP_ID_JSON_KEY, static_cast<int>(getProposalID())));
 
     return json_spirit::Value(std::move(root));
+}
+
+Result<void, std::string> JsonTypeOrError(const json_spirit::Value&     val,
+                                          const json_spirit::Value_type expected_type,
+                                          const StringViewT             objName)
+{
+    if (val.type() != expected_type) {
+        return Err(std::string(fmt::format("{} expected json type {}, found {}", objName.to_string(),
+                                           json_spirit::Value_type_name[expected_type],
+                                           json_spirit::Value_type_name[val.type()])));
+    }
+    return Ok();
+}
+
+Result<ProposalVote, std::string> ProposalVote::FromJson(const json_spirit::Value& value)
+{
+    if (value.type() != json_spirit::obj_type) {
+        return Err(std::string("Vote type is not a json object"));
+    }
+    const json_spirit::Object voteObj = value.get_obj();
+    json_spirit::Value        val;
+    val = json_spirit::find_value(voteObj, FIRST_BLOCK_JSON_KEY);
+    TRYV(JsonTypeOrError(val, json_spirit::int_type, "First block"));
+    const int firstBlock = val.get_int();
+    //////////
+    val = json_spirit::find_value(voteObj, LAST_BLOCK_JSON_KEY);
+    TRYV(JsonTypeOrError(val, json_spirit::int_type, "Last block"));
+    const int lastBlock = val.get_int();
+    //////////
+    val = json_spirit::find_value(voteObj, PROP_ID_JSON_KEY);
+    TRYV(JsonTypeOrError(val, json_spirit::int_type, "Proposal ID"));
+    const uint32_t proposalID = static_cast<uint32_t>(val.get_int());
+    //////////
+    val = json_spirit::find_value(voteObj, VOTE_VALUE_JSON_KEY);
+    TRYV(JsonTypeOrError(val, json_spirit::int_type, "Vote value"));
+    const uint32_t voteValue = static_cast<uint32_t>(val.get_int());
+    //////////
+    const Result<ProposalVote, ProposalVoteCreationError> voteCreateResult =
+        ProposalVote::CreateVote(firstBlock, lastBlock, proposalID, voteValue);
+    if (voteCreateResult.isErr()) {
+        return Err(ProposalVoteCreationErrorAsString(voteCreateResult.UNWRAP_ERR()));
+    }
+    return Ok(voteCreateResult.UNWRAP());
 }
 
 Result<void, AddVoteError> AllStoredVotes::addVote(const ProposalVote& vote)
@@ -176,6 +225,40 @@ std::size_t AllStoredVotes::voteCount() const
 
 void AllStoredVotes::clear() { votes.clear(); }
 
+Result<void, std::string> AllStoredVotes::importVotesFromJson(const std::string& voteJsonData)
+{
+    json_spirit::Value parsed;
+    try {
+        json_spirit::read_or_throw(voteJsonData, parsed);
+    } catch (const std::exception& ex) {
+        return Err(std::string(ex.what()));
+    }
+
+    if (parsed.type() != json_spirit::array_type) {
+        return Err(std::string("Outer type should be an array of objects"));
+    }
+
+    std::string errors;
+
+    const json_spirit::Array array = parsed.get_array();
+    for (const auto& el : array) {
+        const Result<ProposalVote, std::string> res = ProposalVote::FromJson(el);
+        if (res.isErr()) {
+            errors += res.UNWRAP_ERR();
+            continue;
+        }
+        const Result<void, AddVoteError> addRes = addVote(res.UNWRAP());
+        if (addRes.isErr()) {
+            errors += AddVoteErrorAsString(addRes.UNWRAP_ERR());
+        }
+    }
+
+    if (!errors.empty()) {
+        return Err(errors);
+    }
+    return Ok();
+}
+
 std::string AllStoredVotes::AddVoteErrorAsString(AddVoteError                error,
                                                  const boost::optional<int>& startHeight,
                                                  const boost::optional<int>& lastHeight)
@@ -185,7 +268,7 @@ std::string AllStoredVotes::AddVoteErrorAsString(AddVoteError                err
         return fmt::format("The start block height{} is already in another vote. Remove that vote first",
                            startHeight ? " " + std::to_string(*startHeight) : "");
     case AddVoteError::LastBlockAlreadyInAnotherVote:
-        return fmt::format("The last block height {} is already in another vote. Remove that vote first",
+        return fmt::format("The last block height{} is already in another vote. Remove that vote first",
                            lastHeight ? " " + std::to_string(*lastHeight) : " ");
     }
     return "Unknown error";
@@ -231,7 +314,7 @@ std::string ProposalVote::ProposalVoteCreationErrorAsString(ProposalVoteCreation
 {
     switch (error) {
     case ProposalVoteCreationError::InvalidStartBlockHeight:
-        return "The start block height has invalid value";
+        return "The first block height has invalid value";
     case ProposalVoteCreationError::InvalidEndBlockHeight:
         return "The last block height has invalid value";
     case ProposalVoteCreationError::InvalidBlockHeightRange:
@@ -243,6 +326,13 @@ std::string ProposalVote::ProposalVoteCreationErrorAsString(ProposalVoteCreation
         return "The vote value is invalid (out of allowed range)";
     }
     return "Unknown error";
+}
+
+bool ProposalVote::operator==(const ProposalVote& other) const
+{
+    return getFirstBlockHeight() == other.getFirstBlockHeight() &&
+           getLastBlockHeight() == other.getLastBlockHeight() &&
+           getVoteValueAndProposalID() == other.getVoteValueAndProposalID();
 }
 
 bool VoteValueAndID::operator==(const VoteValueAndID& other) const
