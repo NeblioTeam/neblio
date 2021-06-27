@@ -365,8 +365,6 @@ TEST(proposal_tests, interval_joining_and_cutting)
     // remove a range and expect it to split the current range
     {
         const uint32_t proposalID = 555u;
-        const int      firstBlock = 21;
-        const int      lastBlock  = 29;
         const uint32_t voteValue  = 99;
 
         storedVotes.removeVotesAtHeightRange(23, 32);
@@ -391,8 +389,6 @@ TEST(proposal_tests, interval_joining_and_cutting)
     // remove a range, part of which doesn't exist
     {
         const uint32_t proposalID = 555u;
-        const int      firstBlock = 21;
-        const int      lastBlock  = 29;
         const uint32_t voteValue  = 99;
 
         storedVotes.removeVotesAtHeightRange(27, 37);
