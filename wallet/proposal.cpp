@@ -61,13 +61,13 @@ Result<void, AddVoteError> AllStoredVotes::addVote(const ProposalVote& vote)
         }
     }
 
-    const auto interval =
-        boost::icl::interval<int>::closed(vote.getFirstBlockHeight(), vote.getLastBlockHeight());
+    const auto interval = boost::icl::discrete_interval<int>::closed(vote.getFirstBlockHeight(),
+                                                                     vote.getLastBlockHeight());
     votes.insert(std::make_pair(interval, vote.getVoteValueAndProposalID()));
     return Ok();
 }
 
-void AllStoredVotes::removeVoteRangeAtHeight(int someHeightInIt)
+void AllStoredVotes::removeAllVotesOfHeightRangeOfHeight(int someHeightInIt)
 {
     std::lock_guard<std::mutex> lg(mtx);
 
@@ -75,6 +75,12 @@ void AllStoredVotes::removeVoteRangeAtHeight(int someHeightInIt)
     if (it != votes.end()) {
         votes.erase(it->first);
     }
+}
+
+void AllStoredVotes::removeVotesAtHeightRange(int startHeight, int lastHeight)
+{
+    std::lock_guard<std::mutex> lg(mtx);
+    votes.erase(boost::icl::discrete_interval<int>::open(startHeight - 1, lastHeight + 1));
 }
 
 boost::optional<ProposalVote> AllStoredVotes::voteFromIterator(decltype(votes)::const_iterator it) const

@@ -227,7 +227,7 @@ TEST(proposal_tests, votes_store)
                 EXPECT_EQ(storedVotes.getAllVotes().size(), 4u);
 
                 // erase the middle range
-                storedVotes.removeVoteRangeAtHeight(someBlockInTheMiddle);
+                storedVotes.removeAllVotesOfHeightRangeOfHeight(someBlockInTheMiddle);
                 EXPECT_FALSE(storedVotes.empty());
                 EXPECT_EQ(storedVotes.getAllVotes().size(), 3u);
 
@@ -261,7 +261,7 @@ TEST(proposal_tests, votes_store)
     EXPECT_EQ(storedVotes.getAllVotes().size(), 0u);
 }
 
-TEST(proposal_tests, interval_joining)
+TEST(proposal_tests, interval_joining_and_cutting)
 {
     AllStoredVotes storedVotes;
 
@@ -332,7 +332,7 @@ TEST(proposal_tests, interval_joining)
     }
 
     {
-        storedVotes.removeVoteRangeAtHeight(25);
+        storedVotes.removeAllVotesOfHeightRangeOfHeight(25);
 
         EXPECT_FALSE(storedVotes.empty());
         EXPECT_EQ(storedVotes.voteCount(), 2u);
@@ -360,6 +360,32 @@ TEST(proposal_tests, interval_joining)
         EXPECT_FALSE(storedVotes.empty());
         EXPECT_EQ(storedVotes.voteCount(), 1u);
         EXPECT_EQ(storedVotes.getAllVotes().size(), 1u);
+    }
+
+    // remove a range
+    {
+        const uint32_t proposalID = 555u;
+        const int      firstBlock = 21;
+        const int      lastBlock  = 29;
+        const uint32_t voteValue  = 99;
+
+        storedVotes.removeVotesAtHeightRange(23, 32);
+
+        const std::vector<ProposalVote> votes = storedVotes.getAllVotes();
+
+        EXPECT_FALSE(storedVotes.empty());
+        EXPECT_EQ(storedVotes.voteCount(), 2u);
+        ASSERT_EQ(votes.size(), 2u);
+
+        EXPECT_EQ(votes[0].getFirstBlockHeight(), 10);
+        EXPECT_EQ(votes[0].getLastBlockHeight(), 22);
+        EXPECT_EQ(votes[0].getProposalID(), proposalID);
+        EXPECT_EQ(votes[0].getVoteValue(), voteValue);
+
+        EXPECT_EQ(votes[1].getFirstBlockHeight(), 33);
+        EXPECT_EQ(votes[1].getLastBlockHeight(), 40);
+        EXPECT_EQ(votes[1].getProposalID(), proposalID);
+        EXPECT_EQ(votes[1].getVoteValue(), voteValue);
     }
 
     {

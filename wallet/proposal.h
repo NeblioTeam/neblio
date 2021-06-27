@@ -1,4 +1,4 @@
-﻿#ifndef PROPOSAL_H
+#ifndef PROPOSAL_H
 #define PROPOSAL_H
 
 #include "json_spirit.h"
@@ -67,8 +67,9 @@ class AllStoredVotes
     boost::optional<ProposalVote> voteFromIterator(decltype(votes)::const_iterator it) const;
 
 public:
-    [[nodiscard]] Result<void, AddVoteError>    addVote(const ProposalVote& vote);
-    void                                        removeVoteRangeAtHeight(int someHeightInIt);
+    [[nodiscard]] Result<void, AddVoteError> addVote(const ProposalVote& vote);
+    void                                     removeAllVotesOfHeightRangeOfHeight(int someHeightInIt);
+    void                                     removeVotesAtHeightRange(int startHeight, int lastHeight);
     [[nodiscard]] boost::optional<ProposalVote> getProposalAtBlockHeight(int height) const;
     [[nodiscard]] std::vector<ProposalVote>     getAllVotes() const;
     [[nodiscard]] json_spirit::Array            getAllVotesAsJson() const;
