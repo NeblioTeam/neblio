@@ -791,3 +791,19 @@ Value castvote(const Array& params, bool fHelp)
     }
     return Value();
 }
+
+Value cancelallvotesofproposal(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw std::runtime_error("cancelallvotesofproposal <proposal-ID>\n"
+                                 "\nRemoves all the votes of a certain proposal ID (affects only blocks "
+                                 "that are not staked yet).\n"
+                                 "\nExamples:\n"
+                                 "\nRemove all the your votes that have the vote ID 123\n"
+                                 "cancelallvotesofproposal 123\n");
+
+    const uint32_t proposalID = static_cast<uint32_t>(params[2].get_int());
+
+    blockVotes.removeAllVotesOfProposal(proposalID);
+    return Value();
+}

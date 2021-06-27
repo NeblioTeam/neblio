@@ -64,7 +64,7 @@ class AllStoredVotes
     boost::icl::interval_map<int, VoteValueAndID> votes;
     mutable std::mutex                            mtx;
 
-    boost::optional<ProposalVote> voteFromIterator(decltype(votes)::const_iterator it) const;
+    boost::optional<ProposalVote> voteFromIterator_unsafe(decltype(votes)::const_iterator it) const;
 
 public:
     [[nodiscard]] Result<void, AddVoteError> addVote(const ProposalVote& vote);

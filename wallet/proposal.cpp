@@ -99,7 +99,8 @@ void AllStoredVotes::removeAllVotesOfProposal(uint32_t proposalID)
     }
 }
 
-boost::optional<ProposalVote> AllStoredVotes::voteFromIterator(decltype(votes)::const_iterator it) const
+boost::optional<ProposalVote>
+AllStoredVotes::voteFromIterator_unsafe(decltype(votes)::const_iterator it) const
 {
     const int                                             left  = it->first.lower();
     const int                                             right = it->first.upper();
@@ -122,7 +123,7 @@ boost::optional<ProposalVote> AllStoredVotes::getProposalAtBlockHeight(int heigh
 
     auto it = votes.find(height);
     if (it != votes.end()) {
-        return voteFromIterator(it);
+        return voteFromIterator_unsafe(it);
     }
     return boost::none;
 }
@@ -132,7 +133,7 @@ std::vector<ProposalVote> AllStoredVotes::getAllVotes() const
     std::lock_guard<std::mutex> lg(mtx);
     std::vector<ProposalVote>   result;
     for (auto it = votes.begin(); it != votes.end(); ++it) {
-        const auto& vote = voteFromIterator(it);
+        const auto& vote = voteFromIterator_unsafe(it);
         if (vote) {
             result.push_back(*vote);
         }
