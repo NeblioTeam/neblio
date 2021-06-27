@@ -362,7 +362,7 @@ TEST(proposal_tests, interval_joining_and_cutting)
         EXPECT_EQ(storedVotes.getAllVotes().size(), 1u);
     }
 
-    // remove a range
+    // remove a range and expect it to split the current range
     {
         const uint32_t proposalID = 555u;
         const int      firstBlock = 21;
@@ -383,6 +383,32 @@ TEST(proposal_tests, interval_joining_and_cutting)
         EXPECT_EQ(votes[0].getVoteValue(), voteValue);
 
         EXPECT_EQ(votes[1].getFirstBlockHeight(), 33);
+        EXPECT_EQ(votes[1].getLastBlockHeight(), 40);
+        EXPECT_EQ(votes[1].getProposalID(), proposalID);
+        EXPECT_EQ(votes[1].getVoteValue(), voteValue);
+    }
+
+    // remove a range, part of which doesn't exist
+    {
+        const uint32_t proposalID = 555u;
+        const int      firstBlock = 21;
+        const int      lastBlock  = 29;
+        const uint32_t voteValue  = 99;
+
+        storedVotes.removeVotesAtHeightRange(27, 37);
+
+        const std::vector<ProposalVote> votes = storedVotes.getAllVotes();
+
+        EXPECT_FALSE(storedVotes.empty());
+        EXPECT_EQ(storedVotes.voteCount(), 2u);
+        ASSERT_EQ(votes.size(), 2u);
+
+        EXPECT_EQ(votes[0].getFirstBlockHeight(), 10);
+        EXPECT_EQ(votes[0].getLastBlockHeight(), 22);
+        EXPECT_EQ(votes[0].getProposalID(), proposalID);
+        EXPECT_EQ(votes[0].getVoteValue(), voteValue);
+
+        EXPECT_EQ(votes[1].getFirstBlockHeight(), 38);
         EXPECT_EQ(votes[1].getLastBlockHeight(), 40);
         EXPECT_EQ(votes[1].getProposalID(), proposalID);
         EXPECT_EQ(votes[1].getVoteValue(), voteValue);
