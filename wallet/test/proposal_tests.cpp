@@ -246,11 +246,120 @@ TEST(proposal_tests, votes_store)
             }
         }
     }
+
+    storedVotes.clear();
+
+    EXPECT_TRUE(storedVotes.empty());
+    EXPECT_EQ(storedVotes.voteCount(), 0u);
+}
+
+TEST(proposal_tests, interval_joining)
+{
+    AllStoredVotes storedVotes;
+
+    EXPECT_TRUE(storedVotes.empty());
+    EXPECT_EQ(storedVotes.voteCount(), 0u);
+
+    {
+        const uint32_t proposalID = 555u;
+        const int      firstBlock = 10;
+        const int      lastBlock  = 20;
+        const uint32_t voteValue  = 99;
+
+        const ProposalVote vote =
+            ProposalVote::CreateVote(firstBlock, lastBlock, proposalID, voteValue).UNWRAP();
+        EXPECT_EQ(vote.getProposalID(), proposalID);
+        EXPECT_EQ(vote.getVoteValue(), voteValue);
+        EXPECT_EQ(vote.getFirstBlockHeight(), firstBlock);
+        EXPECT_EQ(vote.getLastBlockHeight(), lastBlock);
+
+        const auto storeResult = storedVotes.addVote(vote);
+        EXPECT_TRUE(storeResult.isOk());
+
+        EXPECT_FALSE(storedVotes.empty());
+        EXPECT_EQ(storedVotes.voteCount(), 1u);
+    }
+
+    {
+        const uint32_t proposalID = 555u;
+        const int      firstBlock = 30;
+        const int      lastBlock  = 40;
+        const uint32_t voteValue  = 99;
+
+        const ProposalVote vote =
+            ProposalVote::CreateVote(firstBlock, lastBlock, proposalID, voteValue).UNWRAP();
+        EXPECT_EQ(vote.getProposalID(), proposalID);
+        EXPECT_EQ(vote.getVoteValue(), voteValue);
+        EXPECT_EQ(vote.getFirstBlockHeight(), firstBlock);
+        EXPECT_EQ(vote.getLastBlockHeight(), lastBlock);
+
+        const auto storeResult = storedVotes.addVote(vote);
+        EXPECT_TRUE(storeResult.isOk());
+
+        EXPECT_FALSE(storedVotes.empty());
+        EXPECT_EQ(storedVotes.voteCount(), 2u);
+    }
+
+    // now we fill the middle with a different vote, nothing special happens
+    {
+        const uint32_t proposalID = 555u;
+        const int      firstBlock = 21;
+        const int      lastBlock  = 29;
+        const uint32_t voteValue  = 1;
+
+        const ProposalVote vote =
+            ProposalVote::CreateVote(firstBlock, lastBlock, proposalID, voteValue).UNWRAP();
+        EXPECT_EQ(vote.getProposalID(), proposalID);
+        EXPECT_EQ(vote.getVoteValue(), voteValue);
+        EXPECT_EQ(vote.getFirstBlockHeight(), firstBlock);
+        EXPECT_EQ(vote.getLastBlockHeight(), lastBlock);
+
+        const auto storeResult = storedVotes.addVote(vote);
+        EXPECT_TRUE(storeResult.isOk());
+
+        EXPECT_FALSE(storedVotes.empty());
+        EXPECT_EQ(storedVotes.voteCount(), 3u);
+    }
+
+    {
+        storedVotes.removeProposalAtHeight(25);
+
+        EXPECT_FALSE(storedVotes.empty());
+        EXPECT_EQ(storedVotes.voteCount(), 2u);
+    }
+
+    // now we add an interval that joins the one with the intervals on its sides,
+    // because all values are the same
+    {
+        const uint32_t proposalID = 555u;
+        const int      firstBlock = 21;
+        const int      lastBlock  = 29;
+        const uint32_t voteValue  = 99;
+
+        const ProposalVote vote =
+            ProposalVote::CreateVote(firstBlock, lastBlock, proposalID, voteValue).UNWRAP();
+        EXPECT_EQ(vote.getProposalID(), proposalID);
+        EXPECT_EQ(vote.getVoteValue(), voteValue);
+        EXPECT_EQ(vote.getFirstBlockHeight(), firstBlock);
+        EXPECT_EQ(vote.getLastBlockHeight(), lastBlock);
+
+        const auto storeResult = storedVotes.addVote(vote);
+        EXPECT_TRUE(storeResult.isOk());
+
+        EXPECT_FALSE(storedVotes.empty());
+        EXPECT_EQ(storedVotes.voteCount(), 1u);
+    }
+
+    {
+        storedVotes.clear();
+
+        EXPECT_TRUE(storedVotes.empty());
+        EXPECT_EQ(storedVotes.voteCount(), 0u);
+    }
 }
 
 TEST(proposal_tests, serializationToUin32)
 {
-
     const VoteValueAndID vote = VoteValueAndID::CreateVote(123, 1).UNWRAP();
     EXPECT_EQ(vote.getProposalID(), 123u);
     EXPECT_EQ(vote.getVoteValue(), 1u);

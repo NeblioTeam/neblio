@@ -1,5 +1,7 @@
 ﻿#include "proposal.h"
 
+#include "logging/logger.h"
+
 Result<ProposalVote, ProposalVoteCreationError>
 ProposalVote::CreateVote(int FromBlock, int ToBlock, uint32_t ProposalID, uint32_t VoteValue)
 {
@@ -31,12 +33,6 @@ uint32_t ProposalVote::getVoteValue() const { return valueAndID.getVoteValue(); 
 
 VoteValueAndID ProposalVote::getVoteValueAndProposalID() const { return valueAndID; }
 
-bool ProposalVote::operator==(const ProposalVote& other) const
-{
-    return firstBlockHeight == other.firstBlockHeight && lastBlockHeight == other.lastBlockHeight &&
-           valueAndID == other.valueAndID;
-}
-
 Result<void, AddVoteError> AllStoredVotes::addVote(const ProposalVote& vote)
 {
     std::lock_guard<std::mutex> lg(mtx);
@@ -55,7 +51,7 @@ Result<void, AddVoteError> AllStoredVotes::addVote(const ProposalVote& vote)
 
     const auto interval =
         boost::icl::interval<int>::closed(vote.getFirstBlockHeight(), vote.getLastBlockHeight());
-    votes.insert(std::make_pair(interval, vote));
+    votes.insert(std::make_pair(interval, vote.getVoteValueAndProposalID()));
     return Ok();
 }
 
@@ -65,7 +61,7 @@ void AllStoredVotes::removeProposalAtHeight(int someHeightInIt)
 
     auto it = votes.find(someHeightInIt);
     if (it != votes.end()) {
-        votes.erase(it->first.closed(it->second.getFirstBlockHeight(), it->second.getLastBlockHeight()));
+        votes.erase(it->first);
     }
 }
 
@@ -75,7 +71,19 @@ boost::optional<ProposalVote> AllStoredVotes::getProposalAtBlockHeight(int heigh
 
     auto it = votes.find(height);
     if (it != votes.end()) {
-        return boost::make_optional(it->second);
+        const int                                             left  = it->first.lower();
+        const int                                             right = it->first.upper();
+        const VoteValueAndID&                                 vote  = it->second;
+        const Result<ProposalVote, ProposalVoteCreationError> result =
+            ProposalVote::CreateVote(left, right, vote.getProposalID(), vote.getVoteValue());
+        if (result.isOk()) {
+            return boost::make_optional(result.UNWRAP());
+        } else {
+            NLog.critical("Failed to recreate vote from interval [{},{}]; it seems that insertion input "
+                          "validation failed and allowed an invalid vote in",
+                          left, right);
+            return boost::none;
+        }
     }
     return boost::none;
 }
@@ -102,6 +110,8 @@ std::size_t AllStoredVotes::voteCount() const
     std::lock_guard<std::mutex> lg(mtx);
     return std::distance(votes.begin(), votes.end());
 }
+
+void AllStoredVotes::clear() { votes.clear(); }
 
 uint32_t VoteValueAndID::getProposalID() const { return proposalID; }
 

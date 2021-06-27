@@ -1,4 +1,4 @@
-#ifndef PROPOSAL_H
+﻿#ifndef PROPOSAL_H
 #define PROPOSAL_H
 
 #include "result.h"
@@ -54,14 +54,12 @@ public:
     [[nodiscard]] int            getLastBlockHeight() const;
     [[nodiscard]] uint32_t       getVoteValue() const;
     [[nodiscard]] VoteValueAndID getVoteValueAndProposalID() const;
-
-    bool operator==(const ProposalVote& other) const;
 };
 
 class AllStoredVotes
 {
-    boost::icl::interval_map<int, ProposalVote> votes;
-    mutable std::mutex                          mtx;
+    boost::icl::interval_map<int, VoteValueAndID> votes;
+    mutable std::mutex                            mtx;
 
 public:
     [[nodiscard]] Result<void, AddVoteError>    addVote(const ProposalVote& vote);
@@ -70,6 +68,7 @@ public:
     [[nodiscard]] bool                          proposalExists(uint32_t proposalID) const;
     [[nodiscard]] bool                          empty() const;
     [[nodiscard]] std::size_t                   voteCount() const;
+    void                                        clear();
 };
 
 #endif // PROPOSAL_H
