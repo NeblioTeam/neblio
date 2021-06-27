@@ -83,6 +83,22 @@ void AllStoredVotes::removeVotesAtHeightRange(int startHeight, int lastHeight)
     votes.erase(boost::icl::discrete_interval<int>::open(startHeight - 1, lastHeight + 1));
 }
 
+void AllStoredVotes::removeAllVotesOfProposal(uint32_t proposalID)
+{
+    std::lock_guard<std::mutex> lg(mtx);
+
+    auto it = votes.begin();
+    while (it != votes.end()) {
+        if (it->second.getProposalID() == proposalID) {
+            votes.erase(it);
+            // the iterator is invalidated after erasure, so we start from the beginning again
+            it = votes.begin();
+        } else {
+            ++it;
+        }
+    }
+}
+
 boost::optional<ProposalVote> AllStoredVotes::voteFromIterator(decltype(votes)::const_iterator it) const
 {
     const int                                             left  = it->first.lower();

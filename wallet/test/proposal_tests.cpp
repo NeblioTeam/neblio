@@ -261,6 +261,167 @@ TEST(proposal_tests, votes_store)
     EXPECT_EQ(storedVotes.getAllVotes().size(), 0u);
 }
 
+TEST(proposal_tests, remove_votes_of_proposal_id)
+{
+    AllStoredVotes storedVotes;
+
+    EXPECT_TRUE(storedVotes.empty());
+    EXPECT_EQ(storedVotes.voteCount(), 0u);
+    EXPECT_EQ(storedVotes.getAllVotes().size(), 0u);
+
+    {
+        {
+            const uint32_t proposalID = 123u;
+            const int      firstBlock = 5;
+            const int      lastBlock  = 10;
+            const uint32_t voteValue  = 1;
+
+            {
+                const ProposalVote vote =
+                    ProposalVote::CreateVote(firstBlock, lastBlock, proposalID, voteValue).UNWRAP();
+                EXPECT_EQ(vote.getProposalID(), proposalID);
+                EXPECT_EQ(vote.getVoteValue(), voteValue);
+                EXPECT_EQ(vote.getFirstBlockHeight(), firstBlock);
+                EXPECT_EQ(vote.getLastBlockHeight(), lastBlock);
+
+                const auto storeResult = storedVotes.addVote(vote);
+                EXPECT_FALSE(storeResult.isErr());
+            }
+
+            EXPECT_TRUE(storedVotes.proposalExists(proposalID));
+            for (int i = firstBlock; i <= lastBlock; i++) {
+                const auto vote = storedVotes.getProposalAtBlockHeight(i);
+
+                ASSERT_TRUE(!!vote);
+
+                EXPECT_EQ(vote->getProposalID(), proposalID);
+                EXPECT_EQ(vote->getVoteValue(), voteValue);
+                EXPECT_EQ(vote->getFirstBlockHeight(), firstBlock);
+                EXPECT_EQ(vote->getLastBlockHeight(), lastBlock);
+            }
+
+            EXPECT_FALSE(storedVotes.empty());
+            EXPECT_EQ(storedVotes.voteCount(), 1u);
+            EXPECT_EQ(storedVotes.getAllVotes().size(), 1u);
+        }
+
+        {
+            const uint32_t proposalID = 123u;
+            const int      firstBlock = 12;
+            const int      lastBlock  = 50;
+            const uint32_t voteValue  = 1;
+
+            {
+                const ProposalVote vote =
+                    ProposalVote::CreateVote(firstBlock, lastBlock, proposalID, voteValue).UNWRAP();
+                EXPECT_EQ(vote.getProposalID(), proposalID);
+                EXPECT_EQ(vote.getVoteValue(), voteValue);
+                EXPECT_EQ(vote.getFirstBlockHeight(), firstBlock);
+                EXPECT_EQ(vote.getLastBlockHeight(), lastBlock);
+
+                const auto storeResult = storedVotes.addVote(vote);
+                EXPECT_FALSE(storeResult.isErr());
+            }
+
+            EXPECT_TRUE(storedVotes.proposalExists(proposalID));
+            for (int i = firstBlock; i <= lastBlock; i++) {
+                const auto vote = storedVotes.getProposalAtBlockHeight(i);
+
+                ASSERT_TRUE(!!vote);
+
+                EXPECT_EQ(vote->getProposalID(), proposalID);
+                EXPECT_EQ(vote->getVoteValue(), voteValue);
+                EXPECT_EQ(vote->getFirstBlockHeight(), firstBlock);
+                EXPECT_EQ(vote->getLastBlockHeight(), lastBlock);
+            }
+
+            EXPECT_FALSE(storedVotes.empty());
+            EXPECT_EQ(storedVotes.voteCount(), 2u);
+            EXPECT_EQ(storedVotes.getAllVotes().size(), 2u);
+        }
+
+        {
+            const uint32_t proposalID = 2222u;
+            const int      firstBlock = 51;
+            const int      lastBlock  = 100;
+            const uint32_t voteValue  = 1;
+
+            {
+                const ProposalVote vote =
+                    ProposalVote::CreateVote(firstBlock, lastBlock, proposalID, voteValue).UNWRAP();
+                EXPECT_EQ(vote.getProposalID(), proposalID);
+                EXPECT_EQ(vote.getVoteValue(), voteValue);
+                EXPECT_EQ(vote.getFirstBlockHeight(), firstBlock);
+                EXPECT_EQ(vote.getLastBlockHeight(), lastBlock);
+
+                const auto storeResult = storedVotes.addVote(vote);
+                EXPECT_FALSE(storeResult.isErr());
+            }
+
+            EXPECT_TRUE(storedVotes.proposalExists(proposalID));
+            for (int i = firstBlock; i <= lastBlock; i++) {
+                const auto vote = storedVotes.getProposalAtBlockHeight(i);
+
+                ASSERT_TRUE(!!vote);
+
+                EXPECT_EQ(vote->getProposalID(), proposalID);
+                EXPECT_EQ(vote->getVoteValue(), voteValue);
+                EXPECT_EQ(vote->getFirstBlockHeight(), firstBlock);
+                EXPECT_EQ(vote->getLastBlockHeight(), lastBlock);
+            }
+
+            EXPECT_FALSE(storedVotes.empty());
+            EXPECT_EQ(storedVotes.voteCount(), 3u);
+            EXPECT_EQ(storedVotes.getAllVotes().size(), 3u);
+        }
+
+        {
+            const uint32_t proposalID = 123u;
+            const int      firstBlock = 101;
+            const int      lastBlock  = 200;
+            const uint32_t voteValue  = 1;
+
+            {
+                const ProposalVote vote =
+                    ProposalVote::CreateVote(firstBlock, lastBlock, proposalID, voteValue).UNWRAP();
+                EXPECT_EQ(vote.getProposalID(), proposalID);
+                EXPECT_EQ(vote.getVoteValue(), voteValue);
+                EXPECT_EQ(vote.getFirstBlockHeight(), firstBlock);
+                EXPECT_EQ(vote.getLastBlockHeight(), lastBlock);
+
+                const auto storeResult = storedVotes.addVote(vote);
+                EXPECT_FALSE(storeResult.isErr());
+            }
+
+            EXPECT_TRUE(storedVotes.proposalExists(proposalID));
+            for (int i = firstBlock; i <= lastBlock; i++) {
+                const auto vote = storedVotes.getProposalAtBlockHeight(i);
+
+                ASSERT_TRUE(!!vote);
+
+                EXPECT_EQ(vote->getProposalID(), proposalID);
+                EXPECT_EQ(vote->getVoteValue(), voteValue);
+                EXPECT_EQ(vote->getFirstBlockHeight(), firstBlock);
+                EXPECT_EQ(vote->getLastBlockHeight(), lastBlock);
+            }
+
+            EXPECT_FALSE(storedVotes.empty());
+            EXPECT_EQ(storedVotes.voteCount(), 4u);
+            EXPECT_EQ(storedVotes.getAllVotes().size(), 4u);
+        }
+    }
+
+    storedVotes.removeAllVotesOfProposal(123);
+    EXPECT_FALSE(storedVotes.empty());
+    EXPECT_EQ(storedVotes.voteCount(), 1u);
+    EXPECT_EQ(storedVotes.getAllVotes().size(), 1u);
+
+    storedVotes.clear();
+    EXPECT_TRUE(storedVotes.empty());
+    EXPECT_EQ(storedVotes.voteCount(), 0u);
+    EXPECT_EQ(storedVotes.getAllVotes().size(), 0u);
+}
+
 TEST(proposal_tests, interval_joining_and_cutting)
 {
     AllStoredVotes storedVotes;

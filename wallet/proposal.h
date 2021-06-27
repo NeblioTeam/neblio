@@ -70,6 +70,7 @@ public:
     [[nodiscard]] Result<void, AddVoteError> addVote(const ProposalVote& vote);
     void                                     removeAllVotesOfHeightRangeOfHeight(int someHeightInIt);
     void                                     removeVotesAtHeightRange(int startHeight, int lastHeight);
+    void                                     removeAllVotesOfProposal(uint32_t proposalID);
     [[nodiscard]] boost::optional<ProposalVote> getProposalAtBlockHeight(int height) const;
     [[nodiscard]] std::vector<ProposalVote>     getAllVotes() const;
     [[nodiscard]] json_spirit::Array            getAllVotesAsJson() const;
