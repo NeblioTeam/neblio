@@ -68,7 +68,7 @@ class AllStoredVotes
 
 public:
     [[nodiscard]] Result<void, AddVoteError>    addVote(const ProposalVote& vote);
-    void                                        removeProposalAtHeight(int someHeightInIt);
+    void                                        removeVoteRangeAtHeight(int someHeightInIt);
     [[nodiscard]] boost::optional<ProposalVote> getProposalAtBlockHeight(int height) const;
     [[nodiscard]] std::vector<ProposalVote>     getAllVotes() const;
     [[nodiscard]] json_spirit::Array            getAllVotesAsJson() const;
