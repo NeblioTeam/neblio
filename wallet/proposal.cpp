@@ -120,7 +120,7 @@ uint32_t VoteValueAndID::getVoteValue() const { return voteValue; }
 uint32_t VoteValueAndID::serializeToUint32() const
 {
     uint32_t result = 0;
-    result |= voteValue & 0x00FFFFFF;
+    result |= voteValue & 0x000000FF;
     result |= proposalID << 8;
     return result;
 }
