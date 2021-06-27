@@ -41,6 +41,7 @@ TEST(proposal_tests, votes_store)
 
     EXPECT_TRUE(storedVotes.empty());
     EXPECT_EQ(storedVotes.voteCount(), 0u);
+    EXPECT_EQ(storedVotes.getAllVotes().size(), 0u);
 
     {
         {
@@ -75,6 +76,7 @@ TEST(proposal_tests, votes_store)
 
             EXPECT_FALSE(storedVotes.empty());
             EXPECT_EQ(storedVotes.voteCount(), 1u);
+            EXPECT_EQ(storedVotes.getAllVotes().size(), 1u);
         }
 
         {
@@ -96,6 +98,7 @@ TEST(proposal_tests, votes_store)
 
             EXPECT_FALSE(storedVotes.empty());
             EXPECT_EQ(storedVotes.voteCount(), 1u);
+            EXPECT_EQ(storedVotes.getAllVotes().size(), 1u);
         }
 
         {
@@ -117,6 +120,7 @@ TEST(proposal_tests, votes_store)
 
             EXPECT_FALSE(storedVotes.empty());
             EXPECT_EQ(storedVotes.voteCount(), 1u);
+            EXPECT_EQ(storedVotes.getAllVotes().size(), 1u);
         }
 
         {
@@ -153,6 +157,7 @@ TEST(proposal_tests, votes_store)
 
                 EXPECT_FALSE(storedVotes.empty());
                 EXPECT_EQ(storedVotes.voteCount(), 2u);
+                EXPECT_EQ(storedVotes.getAllVotes().size(), 2u);
 
                 // test consecutive assignment
                 firstBlock               = lastBlock + 1;
@@ -186,6 +191,7 @@ TEST(proposal_tests, votes_store)
 
                 EXPECT_FALSE(storedVotes.empty());
                 EXPECT_EQ(storedVotes.voteCount(), 3u);
+                EXPECT_EQ(storedVotes.getAllVotes().size(), 3u);
 
                 // test consecutive assignment, again
                 firstBlock = lastBlock + 1;
@@ -218,11 +224,12 @@ TEST(proposal_tests, votes_store)
 
                 EXPECT_FALSE(storedVotes.empty());
                 EXPECT_EQ(storedVotes.voteCount(), 4u);
+                EXPECT_EQ(storedVotes.getAllVotes().size(), 4u);
 
                 // erase the middle range
                 storedVotes.removeProposalAtHeight(someBlockInTheMiddle);
                 EXPECT_FALSE(storedVotes.empty());
-                EXPECT_EQ(storedVotes.voteCount(), 3u);
+                EXPECT_EQ(storedVotes.getAllVotes().size(), 3u);
 
                 // retrieve those votes and test they have the expected values
                 const auto vote1 = storedVotes.getProposalAtBlockHeight(8);
@@ -251,6 +258,7 @@ TEST(proposal_tests, votes_store)
 
     EXPECT_TRUE(storedVotes.empty());
     EXPECT_EQ(storedVotes.voteCount(), 0u);
+    EXPECT_EQ(storedVotes.getAllVotes().size(), 0u);
 }
 
 TEST(proposal_tests, interval_joining)
@@ -259,6 +267,7 @@ TEST(proposal_tests, interval_joining)
 
     EXPECT_TRUE(storedVotes.empty());
     EXPECT_EQ(storedVotes.voteCount(), 0u);
+    EXPECT_EQ(storedVotes.getAllVotes().size(), 0u);
 
     {
         const uint32_t proposalID = 555u;
@@ -278,6 +287,7 @@ TEST(proposal_tests, interval_joining)
 
         EXPECT_FALSE(storedVotes.empty());
         EXPECT_EQ(storedVotes.voteCount(), 1u);
+        EXPECT_EQ(storedVotes.getAllVotes().size(), 1u);
     }
 
     {
@@ -297,7 +307,7 @@ TEST(proposal_tests, interval_joining)
         EXPECT_TRUE(storeResult.isOk());
 
         EXPECT_FALSE(storedVotes.empty());
-        EXPECT_EQ(storedVotes.voteCount(), 2u);
+        EXPECT_EQ(storedVotes.getAllVotes().size(), 2u);
     }
 
     // now we fill the middle with a different vote, nothing special happens
@@ -318,7 +328,7 @@ TEST(proposal_tests, interval_joining)
         EXPECT_TRUE(storeResult.isOk());
 
         EXPECT_FALSE(storedVotes.empty());
-        EXPECT_EQ(storedVotes.voteCount(), 3u);
+        EXPECT_EQ(storedVotes.getAllVotes().size(), 3u);
     }
 
     {
@@ -326,6 +336,7 @@ TEST(proposal_tests, interval_joining)
 
         EXPECT_FALSE(storedVotes.empty());
         EXPECT_EQ(storedVotes.voteCount(), 2u);
+        EXPECT_EQ(storedVotes.getAllVotes().size(), 2u);
     }
 
     // now we add an interval that joins the one with the intervals on its sides,
@@ -348,6 +359,7 @@ TEST(proposal_tests, interval_joining)
 
         EXPECT_FALSE(storedVotes.empty());
         EXPECT_EQ(storedVotes.voteCount(), 1u);
+        EXPECT_EQ(storedVotes.getAllVotes().size(), 1u);
     }
 
     {
@@ -355,6 +367,7 @@ TEST(proposal_tests, interval_joining)
 
         EXPECT_TRUE(storedVotes.empty());
         EXPECT_EQ(storedVotes.voteCount(), 0u);
+        EXPECT_EQ(storedVotes.getAllVotes().size(), 0u);
     }
 }
 

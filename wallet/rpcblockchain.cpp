@@ -93,14 +93,14 @@ double GetPoSKernelPS()
 
     const CTxDB txdb;
 
-    boost::optional<CBlockIndex> pindex          = txdb.GetBestBlockIndex();
+    boost::optional<CBlockIndex> pindex = txdb.GetBestBlockIndex();
     // we use a unique_ptr just because optional... triggers an uninitialized false positive warning
     std::unique_ptr<CBlockIndex> pindexPrevStake;
 
     while (pindex && nStakesHandled < nPoSInterval) {
         if (pindex->IsProofOfStake()) {
             dStakeKernelsTriedAvg += GetDifficulty(&*pindex) * 4294967296.0;
-            if(pindexPrevStake) {
+            if (pindexPrevStake) {
                 nStakesTime += pindexPrevStake->nTime - pindex->nTime;
             }
             pindexPrevStake = MakeUnique<CBlockIndex>(*pindex);
@@ -749,4 +749,45 @@ Value gettxout(const Array& params, bool fHelp)
     ret.push_back(Pair("coinstake", tx->IsCoinStake()));
 
     return ret;
+}
+
+Value listvotes(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw std::runtime_error("listvotes \n"
+                                 "\nReturns a list of the votes stored in this node.\n"
+                                 "\nExamples:\n"
+                                 "listvotes");
+
+    return blockVotes.getAllVotesAsJson();
+}
+
+Value castvote(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 4)
+        throw std::runtime_error(
+            "castvote <start-block-height> <last-block-height> <proposal-ID> <vote-value>\n"
+            "\nCasts a vote for a given proposal ID at a certain block range.\n"
+            "\nExamples:\n"
+            "\nCast a vote for proposal with ID 450, of value 66, starting from "
+            "block 1000 to block 1100\n"
+            "castvote 1000 1100 450 66\n");
+
+    const int      startHeight = params[0].get_int();
+    const int      lastHeight  = params[1].get_int();
+    const uint32_t proposalID  = static_cast<uint32_t>(params[2].get_int());
+    const uint32_t voteValue   = static_cast<uint32_t>(params[3].get_int());
+
+    const Result<ProposalVote, ProposalVoteCreationError> voteResult =
+        ProposalVote::CreateVote(startHeight, lastHeight, proposalID, voteValue);
+
+    if (voteResult.isErr()) {
+        throw std::runtime_error(
+            ProposalVote::ProposalVoteCreationErrorAsString(voteResult.UNWRAP_ERR()));
+    }
+    const Result<void, AddVoteError> addVoteResult = blockVotes.addVote(voteResult.UNWRAP());
+    if (addVoteResult.isErr()) {
+        throw std::runtime_error(AllStoredVotes::AddVoteErrorAsString(addVoteResult.UNWRAP_ERR()));
+    }
+    return Value();
 }
