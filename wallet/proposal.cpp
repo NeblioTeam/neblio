@@ -2,11 +2,15 @@
 
 #include "logging/logger.h"
 #include "ntp1/ntp1tools.h"
+#include "stringmanip.h"
+#include "util.h"
 
 static constexpr const char* FIRST_BLOCK_JSON_KEY = "FirstVoteBlock";
 static constexpr const char* LAST_BLOCK_JSON_KEY  = "LastVoteBlock";
 static constexpr const char* VOTE_VALUE_JSON_KEY  = "VoteValue";
 static constexpr const char* PROP_ID_JSON_KEY     = "ProposalID";
+
+static constexpr const char* VOTES_DB_FILENAME = "votes.json";
 
 Result<ProposalVote, ProposalVoteCreationError>
 ProposalVote::CreateVote(int FromBlock, int ToBlock, uint32_t ProposalID, uint32_t VoteValue)
@@ -108,6 +112,30 @@ AllStoredVotes::AllStoredVotes(AllStoredVotes&& other)
     std::unique_lock<std::mutex> lock2(other.mtx, std::defer_lock);
     std::lock(lock1, lock2);
     votes = std::move(other.votes);
+}
+
+AllStoredVotes& AllStoredVotes::operator=(const AllStoredVotes& other)
+{
+    if (&other == this) {
+        return *this;
+    }
+    std::unique_lock<std::mutex> lock1(mtx, std::defer_lock);
+    std::unique_lock<std::mutex> lock2(other.mtx, std::defer_lock);
+    std::lock(lock1, lock2);
+    votes = other.votes;
+    return *this;
+}
+
+AllStoredVotes& AllStoredVotes::operator=(AllStoredVotes&& other)
+{
+    if (&other == this) {
+        return *this;
+    }
+    std::unique_lock<std::mutex> lock1(mtx, std::defer_lock);
+    std::unique_lock<std::mutex> lock2(other.mtx, std::defer_lock);
+    std::lock(lock1, lock2);
+    votes = std::move(other.votes);
+    return *this;
 }
 
 Result<void, AddVoteError> AllStoredVotes::addVote(const ProposalVote& vote)
@@ -275,11 +303,26 @@ Result<void, std::string> AllStoredVotes::importVotesFromJson(const std::string&
     return Ok();
 }
 
-Result<AllStoredVotes, std::string> AllStoredVotes::CreateFromJsonFile(const std::string& voteJsonData)
+Result<AllStoredVotes, std::string>
+AllStoredVotes::CreateFromJsonFileData(const std::string& voteJsonData)
 {
     AllStoredVotes result;
     TRYV(result.importVotesFromJson(voteJsonData));
     return Ok(std::move(result));
+}
+
+Result<AllStoredVotes, std::string> AllStoredVotes::CreateFromJsonFileFromWalletDir()
+{
+    const std::string filename = GetStorageVotesFileName();
+    std::string       filedata;
+    boost::filesystem::load_string_file(filename, filedata);
+    return CreateFromJsonFileData(filedata);
+}
+
+std::string AllStoredVotes::GetStorageVotesFileName()
+{
+    const boost::filesystem::path datadir = GetDataDir();
+    return PossiblyWideStringToString((datadir / VOTES_DB_FILENAME).native());
 }
 
 std::string AllStoredVotes::AddVoteErrorAsString(AddVoteError                error,

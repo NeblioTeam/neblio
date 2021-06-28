@@ -679,7 +679,7 @@ TEST(proposal_tests, votesToAndFromJson)
 
     {
         const Result<AllStoredVotes, std::string> importResultFromStatic =
-            AllStoredVotes::CreateFromJsonFile(serializedJsonVotes);
+            AllStoredVotes::CreateFromJsonFileData(serializedJsonVotes);
         ASSERT_FALSE(importResultFromStatic.isErr())
             << " got error: " << importResultFromStatic.UNWRAP_ERR();
         EXPECT_EQ(storedVotes.getAllVotes(), importedVotes.getAllVotes());

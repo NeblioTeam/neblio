@@ -73,6 +73,9 @@ public:
     AllStoredVotes() = default;
     AllStoredVotes(const AllStoredVotes& other);
     AllStoredVotes(AllStoredVotes&& other);
+    AllStoredVotes& operator=(const AllStoredVotes& other);
+    AllStoredVotes& operator=(AllStoredVotes&& other);
+
     [[nodiscard]] Result<void, AddVoteError> addVote(const ProposalVote& vote);
     void                                     removeAllVotesAdjacentToHeight(int someHeightInIt);
     void                                     removeVotesAtHeightRange(int startHeight, int lastHeight);
@@ -86,7 +89,9 @@ public:
     void                                        clear();
     [[nodiscard]] Result<void, std::string>     importVotesFromJson(const std::string& voteJsonData);
     [[nodiscard]] static Result<AllStoredVotes, std::string>
-    CreateFromJsonFile(const std::string& voteJsonData);
+                                                             CreateFromJsonFileData(const std::string& voteJsonData);
+    [[nodiscard]] static Result<AllStoredVotes, std::string> CreateFromJsonFileFromWalletDir();
+    [[nodiscard]] static std::string                         GetStorageVotesFileName();
     [[nodiscard]] static std::string
     AddVoteErrorAsString(AddVoteError error, const boost::optional<int>& startHeight = boost::none,
                          const boost::optional<int>& lastHeight = boost::none);
