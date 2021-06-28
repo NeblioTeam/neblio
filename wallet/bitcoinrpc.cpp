@@ -896,12 +896,13 @@ void ThreadRPCServer2()
         RPCListen(acceptor, context, fUseSSL);
         // Cancel outstanding listen-requests for this acceptor when shutting down
         StopRPCRequests.get().connect(signals2::slot<void()>([acceptor]() {
-                                          boost::system::error_code ec;
-                                          acceptor->cancel(ec);
-                                          acceptor->close(ec);
-                                          auto dead = boost::signals2::signal<void()>();
-                                          StopRPCRequests.get().swap(dead);
-                                      }).track(acceptor));
+                                          if (!StopRPCRequestsFlag.test_and_set()) {
+                                              boost::system::error_code ec;
+                                              acceptor->cancel(ec);
+                                              acceptor->close(ec);
+                                          }
+                                      })
+                                          .track(acceptor));
 
         fRpcListening.store(true);
     } catch (boost::system::system_error& e) {
@@ -926,12 +927,13 @@ void ThreadRPCServer2()
             RPCListen(acceptor, context, fUseSSL);
             // Cancel outstanding listen-requests for this acceptor when shutting down
             StopRPCRequests.get().connect(signals2::slot<void()>([acceptor]() {
-                                              boost::system::error_code ec;
-                                              acceptor->cancel(ec);
-                                              acceptor->close(ec);
-                                              auto dead = boost::signals2::signal<void()>();
-                                              StopRPCRequests.get().swap(dead);
-                                          }).track(acceptor));
+                                              if (!StopRPCRequestsFlag.test_and_set()) {
+                                                  boost::system::error_code ec;
+                                                  acceptor->cancel(ec);
+                                                  acceptor->close(ec);
+                                              }
+                                          })
+                                              .track(acceptor));
 
             fRpcListening.store(true);
         }
