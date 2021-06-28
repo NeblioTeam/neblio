@@ -360,6 +360,16 @@ uint32_t VoteValueAndID::serializeToUint32() const
     return result;
 }
 
+json_spirit::Value VoteValueAndID::toJson() const
+{
+    json_spirit::Object root;
+
+    root.push_back(json_spirit::Pair(VOTE_VALUE_JSON_KEY, static_cast<int>(getVoteValue())));
+    root.push_back(json_spirit::Pair(PROP_ID_JSON_KEY, static_cast<int>(getProposalID())));
+
+    return json_spirit::Value(std::move(root));
+}
+
 Result<VoteValueAndID, ProposalVoteCreationError> VoteValueAndID::CreateVote(uint32_t ProposalID,
                                                                              uint32_t VoteValue)
 {

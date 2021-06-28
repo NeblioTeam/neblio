@@ -677,6 +677,7 @@ bool CTxDB::LoadBlockIndex()
         auto votesObj = AllStoredVotes::CreateFromJsonFileFromWalletDir();
         if (votesObj.isErr()) {
             uiInterface.InitMessage("Failed to load votes data... check the logs.", 0.);
+            NLog.write(b_sev::err, "Failed to load votes: {}", votesObj.UNWRAP_ERR());
             std::this_thread::sleep_for(std::chrono::seconds(8));
         } else {
             blockVotes = votesObj.UNWRAP();

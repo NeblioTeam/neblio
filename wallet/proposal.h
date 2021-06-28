@@ -30,9 +30,10 @@ class VoteValueAndID
     uint32_t voteValue;
 
 public:
-    [[nodiscard]] uint32_t getProposalID() const;
-    [[nodiscard]] uint32_t getVoteValue() const;
-    [[nodiscard]] uint32_t serializeToUint32() const;
+    [[nodiscard]] uint32_t           getProposalID() const;
+    [[nodiscard]] uint32_t           getVoteValue() const;
+    [[nodiscard]] uint32_t           serializeToUint32() const;
+    [[nodiscard]] json_spirit::Value toJson() const;
     [[nodiscard]] static Result<VoteValueAndID, ProposalVoteCreationError>
                                         CreateVote(uint32_t ProposalID, uint32_t VoteValue);
     [[nodiscard]] static VoteValueAndID CreateVoteFromUint32(uint32_t serialized);

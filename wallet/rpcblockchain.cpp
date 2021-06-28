@@ -133,6 +133,12 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
         Pair("mint", blockMetadata ? ValueFromAmount(blockMetadata->getMint()) : "<ERROR>"));
     result.push_back(Pair("time", (int64_t)block.GetBlockTime()));
     result.push_back(Pair("nonce", (uint64_t)block.nNonce));
+    if (blockindex->nHeight > Params().LastPoWBlock() && block.nNonce > 0) {
+        const VoteValueAndID voteValueAndID = VoteValueAndID::CreateVoteFromUint32(block.nNonce);
+        result.push_back(Pair("votevalue", voteValueAndID.toJson()));
+    } else {
+        result.push_back(Pair("votevalue", json_spirit::Value()));
+    }
     result.push_back(Pair("bits", fmt::format("{:08x}", block.nBits)));
     result.push_back(Pair("difficulty", GetDifficulty(blockindex)));
     result.push_back(Pair("blocktrust", leftTrim(blockindex->GetBlockTrust().GetHex(), '0')));
