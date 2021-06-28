@@ -244,6 +244,14 @@ json_spirit::Array AllStoredVotes::getAllVotesAsJson() const
     return result;
 }
 
+void AllStoredVotes::writeAllVotesAsJsonToDataDir() const
+{
+    const std::string        votesFilename = GetStorageVotesFileName();
+    const json_spirit::Value votes         = getAllVotesAsJson();
+    const std::string        jsonData      = json_spirit::write_formatted(votes);
+    boost::filesystem::save_string_file(votesFilename, jsonData);
+}
+
 bool AllStoredVotes::proposalExists(uint32_t proposalID) const
 {
     std::lock_guard<std::mutex> lg(mtx);

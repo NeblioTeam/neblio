@@ -789,6 +789,7 @@ Value castvote(const Array& params, bool fHelp)
     if (addVoteResult.isErr()) {
         throw std::runtime_error(AllStoredVotes::AddVoteErrorAsString(addVoteResult.UNWRAP_ERR()));
     }
+    blockVotes.writeAllVotesAsJsonToDataDir();
     return Value();
 }
 
@@ -805,6 +806,7 @@ Value cancelallvotesofproposal(const Array& params, bool fHelp)
     const uint32_t proposalID = static_cast<uint32_t>(params[2].get_int());
 
     blockVotes.removeAllVotesOfProposal(proposalID);
+    blockVotes.writeAllVotesAsJsonToDataDir();
     return Value();
 }
 
@@ -824,6 +826,7 @@ Value cancelvotesatblockheightrange(const Array& params, bool fHelp)
     const int lastHeight  = params[1].get_int();
 
     blockVotes.removeVotesAtHeightRange(startHeight, lastHeight);
+    blockVotes.writeAllVotesAsJsonToDataDir();
     return Value();
 }
 
@@ -841,5 +844,6 @@ Value cancelvotesadjacenttoheight(const Array& params, bool fHelp)
     const int height = params[0].get_int();
 
     blockVotes.removeAllVotesAdjacentToHeight(height);
+    blockVotes.writeAllVotesAsJsonToDataDir();
     return Value();
 }

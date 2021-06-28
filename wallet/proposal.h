@@ -83,6 +83,7 @@ public:
     [[nodiscard]] boost::optional<ProposalVote> getProposalAtBlockHeight(int height) const;
     [[nodiscard]] std::vector<ProposalVote>     getAllVotes() const;
     [[nodiscard]] json_spirit::Array            getAllVotesAsJson() const;
+    void                                        writeAllVotesAsJsonToDataDir() const;
     [[nodiscard]] bool                          proposalExists(uint32_t proposalID) const;
     [[nodiscard]] bool                          empty() const;
     [[nodiscard]] std::size_t                   voteCount() const;
