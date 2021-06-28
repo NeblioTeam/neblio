@@ -70,6 +70,9 @@ class AllStoredVotes
     boost::optional<ProposalVote> voteFromIterator_unsafe(decltype(votes)::const_iterator it) const;
 
 public:
+    AllStoredVotes() = default;
+    AllStoredVotes(const AllStoredVotes& other);
+    AllStoredVotes(AllStoredVotes&& other);
     [[nodiscard]] Result<void, AddVoteError> addVote(const ProposalVote& vote);
     void                                     removeAllVotesAdjacentToHeight(int someHeightInIt);
     void                                     removeVotesAtHeightRange(int startHeight, int lastHeight);
@@ -82,6 +85,8 @@ public:
     [[nodiscard]] std::size_t                   voteCount() const;
     void                                        clear();
     [[nodiscard]] Result<void, std::string>     importVotesFromJson(const std::string& voteJsonData);
+    [[nodiscard]] static Result<AllStoredVotes, std::string>
+    CreateFromJsonFile(const std::string& voteJsonData);
     [[nodiscard]] static std::string
     AddVoteErrorAsString(AddVoteError error, const boost::optional<int>& startHeight = boost::none,
                          const boost::optional<int>& lastHeight = boost::none);

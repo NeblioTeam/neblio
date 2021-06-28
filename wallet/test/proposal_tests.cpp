@@ -665,13 +665,25 @@ TEST(proposal_tests, votesToAndFromJson)
         EXPECT_EQ(storedVotes.getAllVotes().size(), 3u);
     }
 
-    const json_spirit::Array        jsonVotes           = storedVotes.getAllVotesAsJson();
-    const std::string               serializedJsonVotes = json_spirit::write_formatted(jsonVotes);
-    AllStoredVotes                  importedVotes;
-    const Result<void, std::string> importResult =
-        importedVotes.importVotesFromJson(serializedJsonVotes);
-    ASSERT_FALSE(importResult.isErr()) << " got error: " << importResult.UNWRAP_ERR();
-    EXPECT_EQ(storedVotes.getAllVotes(), importedVotes.getAllVotes());
+    const json_spirit::Array jsonVotes           = storedVotes.getAllVotesAsJson();
+    const std::string        serializedJsonVotes = json_spirit::write_formatted(jsonVotes);
+    AllStoredVotes           importedVotes;
+
+    {
+        const Result<void, std::string> importResultFromMethod =
+            importedVotes.importVotesFromJson(serializedJsonVotes);
+        ASSERT_FALSE(importResultFromMethod.isErr())
+            << " got error: " << importResultFromMethod.UNWRAP_ERR();
+        EXPECT_EQ(storedVotes.getAllVotes(), importedVotes.getAllVotes());
+    }
+
+    {
+        const Result<AllStoredVotes, std::string> importResultFromStatic =
+            AllStoredVotes::CreateFromJsonFile(serializedJsonVotes);
+        ASSERT_FALSE(importResultFromStatic.isErr())
+            << " got error: " << importResultFromStatic.UNWRAP_ERR();
+        EXPECT_EQ(storedVotes.getAllVotes(), importedVotes.getAllVotes());
+    }
 }
 
 TEST(proposal_tests, votesToAndFromJsonWithErrors_NoErrors)

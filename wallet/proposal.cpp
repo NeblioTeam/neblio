@@ -94,6 +94,22 @@ Result<ProposalVote, std::string> ProposalVote::FromJson(const json_spirit::Valu
     return Ok(voteCreateResult.UNWRAP());
 }
 
+AllStoredVotes::AllStoredVotes(const AllStoredVotes& other)
+{
+    std::unique_lock<std::mutex> lock1(mtx, std::defer_lock);
+    std::unique_lock<std::mutex> lock2(other.mtx, std::defer_lock);
+    std::lock(lock1, lock2);
+    votes = other.votes;
+}
+
+AllStoredVotes::AllStoredVotes(AllStoredVotes&& other)
+{
+    std::unique_lock<std::mutex> lock1(mtx, std::defer_lock);
+    std::unique_lock<std::mutex> lock2(other.mtx, std::defer_lock);
+    std::lock(lock1, lock2);
+    votes = std::move(other.votes);
+}
+
 Result<void, AddVoteError> AllStoredVotes::addVote(const ProposalVote& vote)
 {
     std::lock_guard<std::mutex> lg(mtx);
@@ -257,6 +273,13 @@ Result<void, std::string> AllStoredVotes::importVotesFromJson(const std::string&
         return Err(errors);
     }
     return Ok();
+}
+
+Result<AllStoredVotes, std::string> AllStoredVotes::CreateFromJsonFile(const std::string& voteJsonData)
+{
+    AllStoredVotes result;
+    TRYV(result.importVotesFromJson(voteJsonData));
+    return Ok(std::move(result));
 }
 
 std::string AllStoredVotes::AddVoteErrorAsString(AddVoteError                error,
