@@ -39,6 +39,7 @@ enum Checkpoints::CPMode CheckpointsMode;
 boost::atomic<bool>      appInitiated{false};
 
 LockedVar<boost::signals2::signal<void()>> StopRPCRequests;
+boost::atomic_flag                         StopRPCRequestsFlag = BOOST_ATOMIC_FLAG_INIT;
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -124,6 +125,10 @@ void Shutdown()
         while (weakWallet.lock()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
+        // on certain platforms, signal2's destructor without disconnecting is causing a crash, this
+        // fixes it
+        StopRPCRequests.get().disconnect_all_slots();
+
         NewThread(ExitTimeout);
         MilliSleep(50);
         NLog.write(b_sev::info, "neblio exited\n\n\n\n\n\n\n\n\n");
