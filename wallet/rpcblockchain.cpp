@@ -809,7 +809,7 @@ Value cancelallvotesofproposal(const Array& params, bool fHelp)
                                  "\nRemove all your votes that have the vote ID 123\n"
                                  "cancelallvotesofproposal 123\n");
 
-    const uint32_t proposalID = static_cast<uint32_t>(params[2].get_int());
+    const uint32_t proposalID = static_cast<uint32_t>(params[0].get_int());
 
     blockVotes.removeAllVotesOfProposal(proposalID);
     blockVotes.writeAllVotesAsJsonToDataDir();

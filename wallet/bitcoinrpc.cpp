@@ -1401,6 +1401,14 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
         ConvertTo<int>(params[2]);
     if (strMethod == "castvote" && n > 3)
         ConvertTo<int>(params[3]);
+    if (strMethod == "cancelallvotesofproposal" && n > 0)
+        ConvertTo<int>(params[0]);
+    if (strMethod == "cancelvotesadjacenttoheight" && n > 0)
+        ConvertTo<int>(params[0]);
+    if (strMethod == "cancelvotesatblockheightrange" && n > 0)
+        ConvertTo<int>(params[0]);
+    if (strMethod == "cancelvotesatblockheightrange" && n > 1)
+        ConvertTo<int>(params[1]);
 
     return params;
 }
