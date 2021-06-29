@@ -80,10 +80,10 @@ static void ThreadSafeHandleURI(const std::string& strURI)
                               Q_ARG(QString, QString::fromStdString(strURI)));
 }
 
-static void InitMessage(const std::string& message, int progress)
+static void InitMessage(const std::string& message, double progressFromZeroToOne)
 {
     if (splashref) {
-        splashref->showMessage(QString::fromStdString(message), progress);
+        splashref->showMessage(QString::fromStdString(message), progressFromZeroToOne);
         QApplication::instance()->processEvents();
     }
 }

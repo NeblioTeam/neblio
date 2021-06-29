@@ -1045,7 +1045,7 @@ bool AppInit2()
     DeleteAuthCookie(); // clear the cookie from the previous session, if it exists
 
     // ********************************************************* Step 13: finished
-    uiInterface.InitMessage(_("Done loading"), 100);
+    uiInterface.InitMessage(_("Done loading"), 1);
     NLog.write(b_sev::info, "Done loading");
 
     if (!strErrors.str().empty())
