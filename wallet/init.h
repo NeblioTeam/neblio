@@ -18,5 +18,6 @@ std::string                     HelpMessage();
 void                            InitLogging();
 
 extern LockedVar<boost::signals2::signal<void()>> StopRPCRequests;
+extern boost::atomic_flag                         StopRPCRequestsFlag;
 
 #endif

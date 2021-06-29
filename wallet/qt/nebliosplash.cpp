@@ -46,7 +46,6 @@ NeblioSplash::NeblioSplash(QWidget* parent) : QWidget(parent)
 
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
-    move(pos() + QGuiApplication::primaryScreen()->geometry().center() - geometry().center());
     setMaximumSize(this->size());
 }
 
@@ -62,6 +61,11 @@ void NeblioSplash::showMessage(const QString& message, double progressFromZeroTo
                                               static_cast<double>(progressFromZeroToOne));
         mainProgressBar->setValue(progress);
     }
+}
+
+void NeblioSplash::moveWidgetToScreenCenter()
+{
+    move(pos() + QGuiApplication::primaryScreen()->geometry().center() - geometry().center());
 }
 
 void NeblioSplash::mousePressEvent(QMouseEvent* event)
