@@ -193,6 +193,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         for i in range(next_block_count_to_stake):
             hash = self.gen_pos_block(0)
 
+        # now we ensure that only the correct block range has the vote with the correct values
         blk_data = self.nodes[0].getblockbynumber(LAST_POW_BLOCK + block_count_to_stake + 1)
         assert_equal(blk_data['votevalue'], None)
         blk_data = self.nodes[0].getblockbynumber(LAST_POW_BLOCK + block_count_to_stake + 2)
