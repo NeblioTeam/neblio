@@ -16,7 +16,7 @@ Result<ProposalVote, ProposalVoteCreationError>
 ProposalVote::CreateVote(int FromBlock, int ToBlock, uint32_t ProposalID, uint32_t VoteValue)
 {
     TRYV(ValidateStartBlock(FromBlock));
-    TRYV(ValidateLastBlock(FromBlock));
+    TRYV(ValidateLastBlock(ToBlock));
 
     if (FromBlock > ToBlock) {
         return Err(ProposalVoteCreationError::InvalidBlockHeightRange);
@@ -454,7 +454,7 @@ Result<void, ProposalVoteCreationError> ProposalVote::ValidateProposalID(uint32_
 Result<void, ProposalVoteCreationError> ProposalVote::ValidateVoteValue(uint32_t value)
 {
     if (value > MAX_VOTE_VALUE) {
-        return Err(ProposalVoteCreationError::ProposalIDOutOfRange);
+        return Err(ProposalVoteCreationError::VoteValueOutOfRange);
     }
     return Ok();
 }
