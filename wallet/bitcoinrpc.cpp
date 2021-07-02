@@ -326,8 +326,6 @@ static const CRPCCommand vRPCCommands[] =
     { "listvotes",                 &listvotes,                 false,  false },
     { "castvote",                  &castvote,                  false,  false },
     { "cancelallvotesofproposal",  &cancelallvotesofproposal,  false,  false },
-    {"cancelvotesadjacenttoheight",&cancelvotesadjacenttoheight,false,  false },
-    {"cancelvotesatblockheightrange",&cancelvotesatblockheightrange,false,  false },
     { "getblock",                  &getblock,                  false,  false },
     { "getblockbynumber",          &getblockbynumber,          false,  false },
     { "getblockhash",              &getblockhash,              false,  false },
@@ -1403,12 +1401,6 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
         ConvertTo<int>(params[3]);
     if (strMethod == "cancelallvotesofproposal" && n > 0)
         ConvertTo<int>(params[0]);
-    if (strMethod == "cancelvotesadjacenttoheight" && n > 0)
-        ConvertTo<int>(params[0]);
-    if (strMethod == "cancelvotesatblockheightrange" && n > 0)
-        ConvertTo<int>(params[0]);
-    if (strMethod == "cancelvotesatblockheightrange" && n > 1)
-        ConvertTo<int>(params[1]);
 
     return params;
 }

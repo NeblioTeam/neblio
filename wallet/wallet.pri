@@ -163,6 +163,10 @@ HEADERS += qt/bitcoingui.h \
     qt/coldstakingmodel.h            \
     qt/coldstakingpage.h             \
     qt/newstakedelegationdialog.h    \
+    qt/votesdialog.h                 \
+    qt/votesdatamodel.h              \
+    qt/votesdataview.h               \
+    qt/votestablecelldelegate.h      \
     coldstakedelegation.h            \
     db/idb.h                         \
     db/lmdb/lmdb.h                   \
@@ -333,6 +337,10 @@ SOURCES += qt/bitcoin.cpp \
     qt/coldstakingmodel.cpp             \
     qt/coldstakingpage.cpp              \
     qt/newstakedelegationdialog.cpp     \
+    qt/votesdialog.cpp                  \
+    qt/votesdatamodel.cpp               \
+    qt/votesdataview.cpp                \
+    qt/votestablecelldelegate.cpp       \
     coldstakedelegation.cpp             \
     coldstakinglistfilterproxy.cpp      \
     db/lmdb/lmdb.cpp                    \

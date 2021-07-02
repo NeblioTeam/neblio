@@ -41,7 +41,7 @@ TEST(proposal_tests, votes_store)
 
     EXPECT_TRUE(storedVotes.empty());
     EXPECT_EQ(storedVotes.voteCount(), 0u);
-    EXPECT_EQ(storedVotes.getAllVotes().size(), 0u);
+    EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 0u);
 
     {
         {
@@ -76,7 +76,7 @@ TEST(proposal_tests, votes_store)
 
             EXPECT_FALSE(storedVotes.empty());
             EXPECT_EQ(storedVotes.voteCount(), 1u);
-            EXPECT_EQ(storedVotes.getAllVotes().size(), 1u);
+            EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 1u);
         }
 
         {
@@ -98,7 +98,7 @@ TEST(proposal_tests, votes_store)
 
             EXPECT_FALSE(storedVotes.empty());
             EXPECT_EQ(storedVotes.voteCount(), 1u);
-            EXPECT_EQ(storedVotes.getAllVotes().size(), 1u);
+            EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 1u);
         }
 
         {
@@ -120,7 +120,7 @@ TEST(proposal_tests, votes_store)
 
             EXPECT_FALSE(storedVotes.empty());
             EXPECT_EQ(storedVotes.voteCount(), 1u);
-            EXPECT_EQ(storedVotes.getAllVotes().size(), 1u);
+            EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 1u);
         }
 
         {
@@ -157,7 +157,7 @@ TEST(proposal_tests, votes_store)
 
                 EXPECT_FALSE(storedVotes.empty());
                 EXPECT_EQ(storedVotes.voteCount(), 2u);
-                EXPECT_EQ(storedVotes.getAllVotes().size(), 2u);
+                EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 2u);
 
                 // test consecutive assignment
                 firstBlock               = lastBlock + 1;
@@ -191,7 +191,7 @@ TEST(proposal_tests, votes_store)
 
                 EXPECT_FALSE(storedVotes.empty());
                 EXPECT_EQ(storedVotes.voteCount(), 3u);
-                EXPECT_EQ(storedVotes.getAllVotes().size(), 3u);
+                EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 3u);
 
                 // test consecutive assignment, again
                 firstBlock = lastBlock + 1;
@@ -224,12 +224,12 @@ TEST(proposal_tests, votes_store)
 
                 EXPECT_FALSE(storedVotes.empty());
                 EXPECT_EQ(storedVotes.voteCount(), 4u);
-                EXPECT_EQ(storedVotes.getAllVotes().size(), 4u);
+                EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 4u);
 
                 // erase the middle range
                 storedVotes.removeAllVotesAdjacentToHeight(someBlockInTheMiddle);
                 EXPECT_FALSE(storedVotes.empty());
-                EXPECT_EQ(storedVotes.getAllVotes().size(), 3u);
+                EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 3u);
 
                 // retrieve those votes and test they have the expected values
                 const auto vote1 = storedVotes.getProposalAtBlockHeight(8);
@@ -258,7 +258,7 @@ TEST(proposal_tests, votes_store)
 
     EXPECT_TRUE(storedVotes.empty());
     EXPECT_EQ(storedVotes.voteCount(), 0u);
-    EXPECT_EQ(storedVotes.getAllVotes().size(), 0u);
+    EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 0u);
 }
 
 TEST(proposal_tests, remove_votes_of_proposal_id)
@@ -267,7 +267,7 @@ TEST(proposal_tests, remove_votes_of_proposal_id)
 
     EXPECT_TRUE(storedVotes.empty());
     EXPECT_EQ(storedVotes.voteCount(), 0u);
-    EXPECT_EQ(storedVotes.getAllVotes().size(), 0u);
+    EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 0u);
 
     {
         {
@@ -302,7 +302,7 @@ TEST(proposal_tests, remove_votes_of_proposal_id)
 
             EXPECT_FALSE(storedVotes.empty());
             EXPECT_EQ(storedVotes.voteCount(), 1u);
-            EXPECT_EQ(storedVotes.getAllVotes().size(), 1u);
+            EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 1u);
         }
 
         {
@@ -337,7 +337,7 @@ TEST(proposal_tests, remove_votes_of_proposal_id)
 
             EXPECT_FALSE(storedVotes.empty());
             EXPECT_EQ(storedVotes.voteCount(), 2u);
-            EXPECT_EQ(storedVotes.getAllVotes().size(), 2u);
+            EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 2u);
         }
 
         {
@@ -372,7 +372,7 @@ TEST(proposal_tests, remove_votes_of_proposal_id)
 
             EXPECT_FALSE(storedVotes.empty());
             EXPECT_EQ(storedVotes.voteCount(), 3u);
-            EXPECT_EQ(storedVotes.getAllVotes().size(), 3u);
+            EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 3u);
         }
 
         {
@@ -407,19 +407,19 @@ TEST(proposal_tests, remove_votes_of_proposal_id)
 
             EXPECT_FALSE(storedVotes.empty());
             EXPECT_EQ(storedVotes.voteCount(), 4u);
-            EXPECT_EQ(storedVotes.getAllVotes().size(), 4u);
+            EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 4u);
         }
     }
 
     storedVotes.removeAllVotesOfProposal(123);
     EXPECT_FALSE(storedVotes.empty());
     EXPECT_EQ(storedVotes.voteCount(), 1u);
-    EXPECT_EQ(storedVotes.getAllVotes().size(), 1u);
+    EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 1u);
 
     storedVotes.clear();
     EXPECT_TRUE(storedVotes.empty());
     EXPECT_EQ(storedVotes.voteCount(), 0u);
-    EXPECT_EQ(storedVotes.getAllVotes().size(), 0u);
+    EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 0u);
 }
 
 TEST(proposal_tests, interval_joining_and_cutting)
@@ -428,7 +428,7 @@ TEST(proposal_tests, interval_joining_and_cutting)
 
     EXPECT_TRUE(storedVotes.empty());
     EXPECT_EQ(storedVotes.voteCount(), 0u);
-    EXPECT_EQ(storedVotes.getAllVotes().size(), 0u);
+    EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 0u);
 
     {
         const uint32_t proposalID = 555u;
@@ -448,7 +448,7 @@ TEST(proposal_tests, interval_joining_and_cutting)
 
         EXPECT_FALSE(storedVotes.empty());
         EXPECT_EQ(storedVotes.voteCount(), 1u);
-        EXPECT_EQ(storedVotes.getAllVotes().size(), 1u);
+        EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 1u);
     }
 
     {
@@ -468,7 +468,7 @@ TEST(proposal_tests, interval_joining_and_cutting)
         EXPECT_TRUE(storeResult.isOk());
 
         EXPECT_FALSE(storedVotes.empty());
-        EXPECT_EQ(storedVotes.getAllVotes().size(), 2u);
+        EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 2u);
     }
 
     // now we fill the middle with a different vote, nothing special happens
@@ -489,7 +489,7 @@ TEST(proposal_tests, interval_joining_and_cutting)
         EXPECT_TRUE(storeResult.isOk());
 
         EXPECT_FALSE(storedVotes.empty());
-        EXPECT_EQ(storedVotes.getAllVotes().size(), 3u);
+        EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 3u);
     }
 
     {
@@ -497,7 +497,7 @@ TEST(proposal_tests, interval_joining_and_cutting)
 
         EXPECT_FALSE(storedVotes.empty());
         EXPECT_EQ(storedVotes.voteCount(), 2u);
-        EXPECT_EQ(storedVotes.getAllVotes().size(), 2u);
+        EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 2u);
     }
 
     // now we add an interval that joins the one with the intervals on its sides,
@@ -520,7 +520,7 @@ TEST(proposal_tests, interval_joining_and_cutting)
 
         EXPECT_FALSE(storedVotes.empty());
         EXPECT_EQ(storedVotes.voteCount(), 1u);
-        EXPECT_EQ(storedVotes.getAllVotes().size(), 1u);
+        EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 1u);
     }
 
     // remove a range and expect it to split the current range
@@ -530,7 +530,7 @@ TEST(proposal_tests, interval_joining_and_cutting)
 
         storedVotes.removeVotesAtHeightRange(23, 32);
 
-        const std::vector<ProposalVote> votes = storedVotes.getAllVotes();
+        const std::vector<ProposalVote> votes = storedVotes.getAllVotes_unsafe();
 
         EXPECT_FALSE(storedVotes.empty());
         EXPECT_EQ(storedVotes.voteCount(), 2u);
@@ -554,7 +554,7 @@ TEST(proposal_tests, interval_joining_and_cutting)
 
         storedVotes.removeVotesAtHeightRange(27, 37);
 
-        const std::vector<ProposalVote> votes = storedVotes.getAllVotes();
+        const std::vector<ProposalVote> votes = storedVotes.getAllVotes_unsafe();
 
         EXPECT_FALSE(storedVotes.empty());
         EXPECT_EQ(storedVotes.voteCount(), 2u);
@@ -576,7 +576,7 @@ TEST(proposal_tests, interval_joining_and_cutting)
 
         EXPECT_TRUE(storedVotes.empty());
         EXPECT_EQ(storedVotes.voteCount(), 0u);
-        EXPECT_EQ(storedVotes.getAllVotes().size(), 0u);
+        EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 0u);
     }
 }
 
@@ -600,7 +600,7 @@ TEST(proposal_tests, votesToAndFromJson)
 
     EXPECT_TRUE(storedVotes.empty());
     EXPECT_EQ(storedVotes.voteCount(), 0u);
-    EXPECT_EQ(storedVotes.getAllVotes().size(), 0u);
+    EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 0u);
 
     {
         const uint32_t proposalID = 555u;
@@ -620,7 +620,7 @@ TEST(proposal_tests, votesToAndFromJson)
 
         EXPECT_FALSE(storedVotes.empty());
         EXPECT_EQ(storedVotes.voteCount(), 1u);
-        EXPECT_EQ(storedVotes.getAllVotes().size(), 1u);
+        EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 1u);
     }
 
     {
@@ -640,8 +640,8 @@ TEST(proposal_tests, votesToAndFromJson)
         EXPECT_TRUE(storeResult.isOk());
 
         EXPECT_FALSE(storedVotes.empty());
-        EXPECT_EQ(storedVotes.getAllVotes().size(), 2u);
-        EXPECT_EQ(storedVotes.getAllVotes().size(), 2u);
+        EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 2u);
+        EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 2u);
     }
 
     {
@@ -661,8 +661,8 @@ TEST(proposal_tests, votesToAndFromJson)
         EXPECT_TRUE(storeResult.isOk());
 
         EXPECT_FALSE(storedVotes.empty());
-        EXPECT_EQ(storedVotes.getAllVotes().size(), 3u);
-        EXPECT_EQ(storedVotes.getAllVotes().size(), 3u);
+        EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 3u);
+        EXPECT_EQ(storedVotes.getAllVotes_unsafe().size(), 3u);
     }
 
     const json_spirit::Array jsonVotes           = storedVotes.getAllVotesAsJson();
@@ -674,7 +674,7 @@ TEST(proposal_tests, votesToAndFromJson)
             importedVotes.importVotesFromJson(serializedJsonVotes);
         ASSERT_FALSE(importResultFromMethod.isErr())
             << " got error: " << importResultFromMethod.UNWRAP_ERR();
-        EXPECT_EQ(storedVotes.getAllVotes(), importedVotes.getAllVotes());
+        EXPECT_EQ(storedVotes.getAllVotes_unsafe(), importedVotes.getAllVotes_unsafe());
     }
 
     {
@@ -682,7 +682,7 @@ TEST(proposal_tests, votesToAndFromJson)
             AllStoredVotes::CreateFromJsonFileData(serializedJsonVotes);
         ASSERT_FALSE(importResultFromStatic.isErr())
             << " got error: " << importResultFromStatic.UNWRAP_ERR();
-        EXPECT_EQ(storedVotes.getAllVotes(), importedVotes.getAllVotes());
+        EXPECT_EQ(storedVotes.getAllVotes_unsafe(), importedVotes.getAllVotes_unsafe());
     }
 }
 
@@ -715,7 +715,7 @@ TEST(proposal_tests, votesToAndFromJsonWithErrors_NoErrors)
         importedVotes.importVotesFromJson(serializedJsonVotes);
     ASSERT_FALSE(importResult.isErr()) << " got error: " << importResult.UNWRAP_ERR();
     EXPECT_EQ(importedVotes.voteCount(), 3u);
-    const auto votesVec = importedVotes.getAllVotes();
+    const auto votesVec = importedVotes.getAllVotes_unsafe();
     EXPECT_EQ(votesVec[0].getFirstBlockHeight(), 10);
     EXPECT_EQ(votesVec[0].getLastBlockHeight(), 20);
     EXPECT_EQ(votesVec[0].getProposalID(), 555u);
@@ -761,7 +761,7 @@ TEST(proposal_tests, votesToAndFromJsonWithErrors_NegativeFirstHeight)
     EXPECT_TRUE(boost::algorithm::icontains(importResult.UNWRAP_ERR(), "Last block"))
         << "; instead error found: " << importResult.UNWRAP_ERR();
     EXPECT_EQ(importedVotes.voteCount(), 2u);
-    const auto votesVec = importedVotes.getAllVotes();
+    const auto votesVec = importedVotes.getAllVotes_unsafe();
     EXPECT_EQ(votesVec[0].getFirstBlockHeight(), 21);
     EXPECT_EQ(votesVec[0].getLastBlockHeight(), 29);
     EXPECT_EQ(votesVec[0].getProposalID(), 102u);
@@ -803,7 +803,7 @@ TEST(proposal_tests, votesToAndFromJsonWithErrors_NegativeLastHeight)
     EXPECT_TRUE(boost::algorithm::icontains(importResult.UNWRAP_ERR(), "First block"))
         << "; instead error found: " << importResult.UNWRAP_ERR();
     EXPECT_EQ(importedVotes.voteCount(), 2u);
-    const auto votesVec = importedVotes.getAllVotes();
+    const auto votesVec = importedVotes.getAllVotes_unsafe();
     EXPECT_EQ(votesVec[0].getFirstBlockHeight(), 21);
     EXPECT_EQ(votesVec[0].getLastBlockHeight(), 29);
     EXPECT_EQ(votesVec[0].getProposalID(), 102u);
@@ -845,7 +845,7 @@ TEST(proposal_tests, votesToAndFromJsonWithErrors_TooBigProposalID)
     EXPECT_TRUE(boost::algorithm::icontains(importResult.UNWRAP_ERR(), "Proposal ID"))
         << "; instead error found: " << importResult.UNWRAP_ERR();
     EXPECT_EQ(importedVotes.voteCount(), 2u);
-    const auto votesVec = importedVotes.getAllVotes();
+    const auto votesVec = importedVotes.getAllVotes_unsafe();
     EXPECT_EQ(votesVec[0].getFirstBlockHeight(), 10);
     EXPECT_EQ(votesVec[0].getLastBlockHeight(), 20);
     EXPECT_EQ(votesVec[0].getProposalID(), 555u);
@@ -887,7 +887,7 @@ TEST(proposal_tests, votesToAndFromJsonWithErrors_LargeVoteValue)
     EXPECT_TRUE(boost::algorithm::icontains(importResult.UNWRAP_ERR(), "Vote value"))
         << "; instead error found: " << importResult.UNWRAP_ERR();
     EXPECT_EQ(importedVotes.voteCount(), 2u);
-    const auto votesVec = importedVotes.getAllVotes();
+    const auto votesVec = importedVotes.getAllVotes_unsafe();
     EXPECT_EQ(votesVec[0].getFirstBlockHeight(), 10);
     EXPECT_EQ(votesVec[0].getLastBlockHeight(), 20);
     EXPECT_EQ(votesVec[0].getProposalID(), 555u);
@@ -928,7 +928,7 @@ TEST(proposal_tests, votesToAndFromJsonWithErrors_VoteValueMissing)
     EXPECT_TRUE(boost::algorithm::icontains(importResult.UNWRAP_ERR(), "Vote value"))
         << "; instead error found: " << importResult.UNWRAP_ERR();
     EXPECT_EQ(importedVotes.voteCount(), 2u);
-    const auto votesVec = importedVotes.getAllVotes();
+    const auto votesVec = importedVotes.getAllVotes_unsafe();
     EXPECT_EQ(votesVec[0].getFirstBlockHeight(), 21);
     EXPECT_EQ(votesVec[0].getLastBlockHeight(), 29);
     EXPECT_EQ(votesVec[0].getProposalID(), 102u);
@@ -969,7 +969,7 @@ TEST(proposal_tests, votesToAndFromJsonWithErrors_ProposalIDMissing)
     EXPECT_TRUE(boost::algorithm::icontains(importResult.UNWRAP_ERR(), "Proposal ID"))
         << "; instead error found: " << importResult.UNWRAP_ERR();
     EXPECT_EQ(importedVotes.voteCount(), 2u);
-    const auto votesVec = importedVotes.getAllVotes();
+    const auto votesVec = importedVotes.getAllVotes_unsafe();
     EXPECT_EQ(votesVec[0].getFirstBlockHeight(), 10);
     EXPECT_EQ(votesVec[0].getLastBlockHeight(), 20);
     EXPECT_EQ(votesVec[0].getProposalID(), 555u);
@@ -1010,7 +1010,7 @@ TEST(proposal_tests, votesToAndFromJsonWithErrors_FirstBlockMissing)
     EXPECT_TRUE(boost::algorithm::icontains(importResult.UNWRAP_ERR(), "First block"))
         << "; instead error found: " << importResult.UNWRAP_ERR();
     EXPECT_EQ(importedVotes.voteCount(), 2u);
-    const auto votesVec = importedVotes.getAllVotes();
+    const auto votesVec = importedVotes.getAllVotes_unsafe();
     EXPECT_EQ(votesVec[0].getFirstBlockHeight(), 10);
     EXPECT_EQ(votesVec[0].getLastBlockHeight(), 20);
     EXPECT_EQ(votesVec[0].getProposalID(), 555u);
@@ -1051,7 +1051,7 @@ TEST(proposal_tests, votesToAndFromJsonWithErrors_LastBlockMissing)
     EXPECT_TRUE(boost::algorithm::icontains(importResult.UNWRAP_ERR(), "Last block"))
         << "; instead error found: " << importResult.UNWRAP_ERR();
     EXPECT_EQ(importedVotes.voteCount(), 2u);
-    const auto votesVec = importedVotes.getAllVotes();
+    const auto votesVec = importedVotes.getAllVotes_unsafe();
     EXPECT_EQ(votesVec[0].getFirstBlockHeight(), 10);
     EXPECT_EQ(votesVec[0].getLastBlockHeight(), 20);
     EXPECT_EQ(votesVec[0].getProposalID(), 555u);

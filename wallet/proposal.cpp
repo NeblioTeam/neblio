@@ -15,12 +15,9 @@ static constexpr const char* VOTES_DB_FILENAME = "votes.json";
 Result<ProposalVote, ProposalVoteCreationError>
 ProposalVote::CreateVote(int FromBlock, int ToBlock, uint32_t ProposalID, uint32_t VoteValue)
 {
-    if (FromBlock < 0) {
-        return Err(ProposalVoteCreationError::InvalidStartBlockHeight);
-    }
-    if (ToBlock < 0) {
-        return Err(ProposalVoteCreationError::InvalidEndBlockHeight);
-    }
+    TRYV(ValidateStartBlock(FromBlock));
+    TRYV(ValidateLastBlock(FromBlock));
+
     if (FromBlock > ToBlock) {
         return Err(ProposalVoteCreationError::InvalidBlockHeightRange);
     }
@@ -173,6 +170,9 @@ void AllStoredVotes::removeAllVotesAdjacentToHeight(int someHeightInIt)
 void AllStoredVotes::removeVotesAtHeightRange(int startHeight, int lastHeight)
 {
     std::lock_guard<std::mutex> lg(mtx);
+
+    const std::size_t initialCount = voteCount_unsafe();
+
     votes.erase(boost::icl::discrete_interval<int>::open(startHeight - 1, lastHeight + 1));
 }
 
@@ -221,10 +221,9 @@ boost::optional<ProposalVote> AllStoredVotes::getProposalAtBlockHeight(int heigh
     return boost::none;
 }
 
-std::vector<ProposalVote> AllStoredVotes::getAllVotes() const
+std::vector<ProposalVote> AllStoredVotes::getAllVotes_unsafe() const
 {
-    std::lock_guard<std::mutex> lg(mtx);
-    std::vector<ProposalVote>   result;
+    std::vector<ProposalVote> result;
     for (auto it = votes.begin(); it != votes.end(); ++it) {
         const auto& vote = voteFromIterator_unsafe(it);
         if (vote) {
@@ -234,9 +233,15 @@ std::vector<ProposalVote> AllStoredVotes::getAllVotes() const
     return result;
 }
 
-json_spirit::Array AllStoredVotes::getAllVotesAsJson() const
+std::vector<ProposalVote> AllStoredVotes::getAllVotes() const
 {
-    const std::vector<ProposalVote> votes = getAllVotes();
+    std::lock_guard<std::mutex> lg(mtx);
+    return getAllVotes_unsafe();
+}
+
+json_spirit::Array AllStoredVotes::getAllVotesAsJson_unsafe() const
+{
+    const std::vector<ProposalVote> votes = getAllVotes_unsafe();
     json_spirit::Array              result;
     for (auto&& vote : votes) {
         result.push_back(vote.asJson());
@@ -244,11 +249,29 @@ json_spirit::Array AllStoredVotes::getAllVotesAsJson() const
     return result;
 }
 
+json_spirit::Array AllStoredVotes::getAllVotesAsJson() const
+{
+    std::lock_guard<std::mutex> lg(mtx);
+    return getAllVotesAsJson_unsafe();
+}
+
+boost::optional<ProposalVote> AllStoredVotes::getProposalAtIndex(std::size_t index) const
+{
+    std::lock_guard<std::mutex> lg(mtx);
+    auto                        it = votes.begin();
+    if (index >= voteCount_unsafe()) {
+        return boost::none;
+    }
+    std::advance(it, index);
+    return voteFromIterator_unsafe(it);
+}
+
 void AllStoredVotes::writeAllVotesAsJsonToDataDir() const
 {
-    const std::string        votesFilename = GetStorageVotesFileName();
-    const json_spirit::Value votes         = getAllVotesAsJson();
-    const std::string        jsonData      = json_spirit::write_formatted(votes);
+    std::lock_guard<std::mutex> lg(mtx);
+    const std::string           votesFilename = GetStorageVotesFileName();
+    const json_spirit::Value    votes         = getAllVotesAsJson_unsafe();
+    const std::string           jsonData      = json_spirit::write_formatted(votes);
     boost::filesystem::save_string_file(votesFilename, jsonData);
 }
 
@@ -272,6 +295,11 @@ bool AllStoredVotes::empty() const
 std::size_t AllStoredVotes::voteCount() const
 {
     std::lock_guard<std::mutex> lg(mtx);
+    return voteCount_unsafe();
+}
+
+std::size_t AllStoredVotes::voteCount_unsafe() const
+{
     return std::distance(votes.begin(), votes.end());
 }
 
@@ -343,7 +371,7 @@ std::string AllStoredVotes::AddVoteErrorAsString(AddVoteError                err
                            startHeight ? " " + std::to_string(*startHeight) : "");
     case AddVoteError::LastBlockAlreadyInAnotherVote:
         return fmt::format("The last block height{} is already in another vote. Remove that vote first",
-                           lastHeight ? " " + std::to_string(*lastHeight) : " ");
+                           lastHeight ? " " + std::to_string(*lastHeight) : "");
     }
     return "Unknown error";
 }
@@ -373,12 +401,8 @@ json_spirit::Value VoteValueAndID::toJson() const
 Result<VoteValueAndID, ProposalVoteCreationError> VoteValueAndID::CreateVote(uint32_t ProposalID,
                                                                              uint32_t VoteValue)
 {
-    if (ProposalID >= UINT32_C(1) << 24) {
-        return Err(ProposalVoteCreationError::ProposalIDOutOfRange);
-    }
-    if (VoteValue >= UINT32_C(1) << 8) {
-        return Err(ProposalVoteCreationError::VoteValueOutOfRange);
-    }
+    TRYV(ProposalVote::ValidateProposalID(ProposalID));
+    TRYV(ProposalVote::ValidateVoteValue(VoteValue));
 
     VoteValueAndID result;
     result.proposalID = ProposalID;
@@ -417,6 +441,38 @@ bool ProposalVote::operator==(const ProposalVote& other) const
     return getFirstBlockHeight() == other.getFirstBlockHeight() &&
            getLastBlockHeight() == other.getLastBlockHeight() &&
            getVoteValueAndProposalID() == other.getVoteValueAndProposalID();
+}
+
+Result<void, ProposalVoteCreationError> ProposalVote::ValidateProposalID(uint32_t value)
+{
+    if (value > MAX_PROPOSAL_ID) {
+        return Err(ProposalVoteCreationError::ProposalIDOutOfRange);
+    }
+    return Ok();
+}
+
+Result<void, ProposalVoteCreationError> ProposalVote::ValidateVoteValue(uint32_t value)
+{
+    if (value > MAX_VOTE_VALUE) {
+        return Err(ProposalVoteCreationError::ProposalIDOutOfRange);
+    }
+    return Ok();
+}
+
+Result<void, ProposalVoteCreationError> ProposalVote::ValidateStartBlock(int value)
+{
+    if (value < 0) {
+        return Err(ProposalVoteCreationError::InvalidStartBlockHeight);
+    }
+    return Ok();
+}
+
+Result<void, ProposalVoteCreationError> ProposalVote::ValidateLastBlock(int value)
+{
+    if (value < 0) {
+        return Err(ProposalVoteCreationError::InvalidEndBlockHeight);
+    }
+    return Ok();
 }
 
 bool VoteValueAndID::operator==(const VoteValueAndID& other) const

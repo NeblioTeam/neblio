@@ -61,6 +61,14 @@ public:
     [[nodiscard]] static std::string ProposalVoteCreationErrorAsString(ProposalVoteCreationError error);
 
     [[nodiscard]] bool operator==(const ProposalVote& other) const;
+
+    static constexpr const uint32_t MAX_PROPOSAL_ID = (UINT32_C(1) << 24) - 1;
+    static constexpr const uint32_t MAX_VOTE_VALUE  = (UINT32_C(1) << 8) - 1;
+
+    [[nodiscard]] static Result<void, ProposalVoteCreationError> ValidateProposalID(uint32_t value);
+    [[nodiscard]] static Result<void, ProposalVoteCreationError> ValidateVoteValue(uint32_t value);
+    [[nodiscard]] static Result<void, ProposalVoteCreationError> ValidateStartBlock(int value);
+    [[nodiscard]] static Result<void, ProposalVoteCreationError> ValidateLastBlock(int value);
 };
 
 class AllStoredVotes
@@ -82,14 +90,19 @@ public:
     void                                     removeVotesAtHeightRange(int startHeight, int lastHeight);
     void                                     removeAllVotesOfProposal(uint32_t proposalID);
     [[nodiscard]] boost::optional<ProposalVote> getProposalAtBlockHeight(int height) const;
+    [[nodiscard]] std::vector<ProposalVote>     getAllVotes_unsafe() const;
     [[nodiscard]] std::vector<ProposalVote>     getAllVotes() const;
+    [[nodiscard]] json_spirit::Array            getAllVotesAsJson_unsafe() const;
     [[nodiscard]] json_spirit::Array            getAllVotesAsJson() const;
+    [[nodiscard]] boost::optional<ProposalVote> getProposalAtIndex(std::size_t index) const;
     void                                        writeAllVotesAsJsonToDataDir() const;
     [[nodiscard]] bool                          proposalExists(uint32_t proposalID) const;
     [[nodiscard]] bool                          empty() const;
     [[nodiscard]] std::size_t                   voteCount() const;
-    void                                        clear();
+    [[nodiscard]] std::size_t                   voteCount_unsafe() const;
     [[nodiscard]] Result<void, std::string>     importVotesFromJson(const std::string& voteJsonData);
+    void                                        clear();
+
     [[nodiscard]] static Result<AllStoredVotes, std::string>
                                                              CreateFromJsonFileData(const std::string& voteJsonData);
     [[nodiscard]] static Result<AllStoredVotes, std::string> CreateFromJsonFileFromWalletDir();
