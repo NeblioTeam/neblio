@@ -1,4 +1,4 @@
-#include "votetablebuttondelegate.h"
+#include "votestablecelldelegate.h"
 
 #include "votesdatamodel.h"
 #include <QApplication>
