@@ -15,7 +15,7 @@ int VotesDataView::getMaxHeaderWidth() const
     for (int i = 0; i < model->columnCount(); i++) {
         const QString text =
             model->headerData(i, Qt::Orientation::Horizontal, Qt::DisplayRole).toString();
-        int val = this->horizontalHeader()->fontMetrics().horizontalAdvance(text);
+        int val = this->horizontalHeader()->fontMetrics().width(text);
 
         if (val > max) {
             max = val;
@@ -36,7 +36,7 @@ int VotesDataView::getTotalHeaderTextWidth() const
     for (int i = 0; i < model->columnCount(); i++) {
         const QString text =
             model->headerData(i, Qt::Orientation::Horizontal, Qt::DisplayRole).toString();
-        total += this->horizontalHeader()->fontMetrics().horizontalAdvance(text);
+        total += this->horizontalHeader()->fontMetrics().width(text);
     }
     return total;
 }
