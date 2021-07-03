@@ -241,9 +241,9 @@ std::vector<ProposalVote> AllStoredVotes::getAllVotes() const
 
 json_spirit::Array AllStoredVotes::getAllVotesAsJson_unsafe() const
 {
-    const std::vector<ProposalVote> votes = getAllVotes_unsafe();
+    const std::vector<ProposalVote> votesVec = getAllVotes_unsafe();
     json_spirit::Array              result;
-    for (auto&& vote : votes) {
+    for (auto&& vote : votesVec) {
         result.push_back(vote.asJson());
     }
     return result;
@@ -270,8 +270,8 @@ void AllStoredVotes::writeAllVotesAsJsonToDataDir() const
 {
     std::lock_guard<std::mutex> lg(mtx);
     const std::string           votesFilename = GetStorageVotesFileName();
-    const json_spirit::Value    votes         = getAllVotesAsJson_unsafe();
-    const std::string           jsonData      = json_spirit::write_formatted(votes);
+    const json_spirit::Value    votesValues         = getAllVotesAsJson_unsafe();
+    const std::string           jsonData      = json_spirit::write_formatted(votesValues);
     boost::filesystem::save_string_file(votesFilename, jsonData);
 }
 
