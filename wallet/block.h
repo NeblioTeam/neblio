@@ -68,7 +68,7 @@ public:
     // clang-format off
     IMPLEMENT_SERIALIZE(
         READWRITE(this->nVersion);
-        nVersion = this->nVersion;
+        nVersionIn = this->nVersion;
         READWRITE(hashPrevBlock);
         READWRITE(hashMerkleRoot);
         READWRITE(nTime);
