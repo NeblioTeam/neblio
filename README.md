@@ -183,7 +183,7 @@ Options:
   -checklevel=<n>        How thorough the block verification is (0-6, default: 1)
   -loadblock=<file>      Imports blocks from external blk000?.dat file
   -maxlogfilesize=<n>    Max size in bytes for 1 log file (default: 1073741824 (1GB))
-  -maxlogsfiles=<n>      Max number of log files to keep (default: 10 in debug mode, else 2)
+  -maxlogfiles=<n>       Max number of log files to keep (default: 10 in debug mode, else 2)
 
 Block creation options:
   -blockminsize=<n>      Set minimum block size in bytes (default: 0)
