@@ -163,23 +163,23 @@ void InitLogging()
 
     // max file size
     const std::size_t maxSize = [&]() {
-        const int64_t paramMaxLogFiles = GetArg("-maxlogfiles", -1);
-        if (paramMaxLogFiles <= 0) {
+        const int64_t paramMaxLogFileSize = GetArg("-maxlogfilesize", -1);
+        if (paramMaxLogFileSize <= 0) {
             // default values
             return static_cast<std::size_t>(isDebugMode ? 1 << 30 : 1 << 30);
         } else {
-            return static_cast<std::size_t>(paramMaxLogFiles);
+            return static_cast<std::size_t>(paramMaxLogFileSize);
         }
     }();
 
     // max rotated files
     const std::size_t maxFiles = [&]() {
-        const int64_t paramMaxLogFileSize = GetArg("-maxlogfilesize", -1);
-        if (paramMaxLogFileSize <= 0) {
+        const int64_t paramMaxLogFiles = GetArg("-maxlogfiles", -1);
+        if (paramMaxLogFiles <= 0) {
             // default values
             return static_cast<std::size_t>(isDebugMode ? 10 : 2);
         } else {
-            return static_cast<std::size_t>(paramMaxLogFileSize);
+            return static_cast<std::size_t>(paramMaxLogFiles);
         }
     }();
 
