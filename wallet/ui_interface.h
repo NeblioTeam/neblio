@@ -95,9 +95,9 @@ public:
     boost::signals2::signal<void(int newNumConnections)> NotifyNumConnectionsChanged;
 
     /** Functions for when rescanning blockchain */
-    boost::signals2::signal<void(void)>         WalletBlockchainRescanStarted;
-    boost::signals2::signal<void(void)>         WalletBlockchainRescanEnded;
-    boost::signals2::signal<void(int progress)> WalletBlockchainRescanAtHeight;
+    boost::signals2::signal<void(void)>            WalletBlockchainRescanStarted;
+    boost::signals2::signal<void(void)>            WalletBlockchainRescanEnded;
+    boost::signals2::signal<void(double progress)> WalletBlockchainRescanAtHeight;
 
     /**
      * New, updated or cancelled alert.

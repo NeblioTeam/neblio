@@ -112,12 +112,14 @@ OverviewPage::OverviewPage(QWidget* parent)
     showOutOfSyncWarning(true);
 
     showRescanControls(false);
-    walletBlockchainRescanStartedConnection =
-        uiInterface.WalletBlockchainRescanStarted.connect([this]() { this->startRescan(); });
-    walletBlockchainRescanEndedConnection =
-        uiInterface.WalletBlockchainRescanEnded.connect([this]() { this->endRescan(); });
-    walletBlockchainRescanAtHeightConnect = uiInterface.WalletBlockchainRescanAtHeight.connect(
-        [this](int progress) { this->setRescanProgress(progress); });
+    walletBlockchainRescanStartedConnection = uiInterface.WalletBlockchainRescanStarted.connect(
+        [this]() { QTimer::singleShot(0, this, [this]() { this->startRescan(); }); });
+    walletBlockchainRescanEndedConnection = uiInterface.WalletBlockchainRescanEnded.connect(
+        [this]() { QTimer::singleShot(0, this, [this]() { this->endRescan(); }); });
+    walletBlockchainRescanAtHeightConnect =
+        uiInterface.WalletBlockchainRescanAtHeight.connect([this](double progress) {
+            QTimer::singleShot(0, this, [this, progress]() { this->setRescanProgress(progress); });
+        });
 }
 
 void OverviewPage::handleTransactionClicked(const QModelIndex& index)
@@ -186,11 +188,10 @@ void OverviewPage::setModel(WalletModel* modelIn)
         // Keep up to date with wallet
         setUnknownBalance();            // we set balances to zero initially
         modelIn->checkBalanceChanged(); // then we trigger a check asynchronously
-        connect(modelIn, SIGNAL(balanceChanged(qint64, qint64, qint64, qint64)), this,
-                SLOT(setBalance(qint64, qint64, qint64, qint64)));
+        connect(modelIn, &WalletModel::balanceChanged, this, &OverviewPage::setBalance);
 
-        connect(modelIn->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this,
-                SLOT(updateDisplayUnit()));
+        connect(modelIn->getOptionsModel(), &OptionsModel::displayUnitChanged, this,
+                &OverviewPage::updateDisplayUnit);
     }
 
     // update the display unit, to not use the default ("BTC")
@@ -220,14 +221,24 @@ void OverviewPage::showOutOfSyncWarning(bool fShow)
 void OverviewPage::startRescan()
 {
     showRescanControls(true);
-    setRescanProgress(0);
+    setRescanProgress(0.);
+    ui->wallet_blockchain_rescan_progress->setMaximum(std::numeric_limits<int>::max());
+    emit rescanStarted();
 }
 
 void OverviewPage::endRescan() { showRescanControls(false); }
 
-void OverviewPage::setRescanProgress(int progress)
+void OverviewPage::setRescanProgress(double progressFromZeroToOne)
 {
-    ui->wallet_blockchain_rescan_progress->setValue(progress);
+    if (progressFromZeroToOne >= 1.) {
+        ui->wallet_blockchain_rescan_progress->setValue(std::numeric_limits<int>::max());
+    } else if (progressFromZeroToOne <= 0.) {
+        ui->wallet_blockchain_rescan_progress->setValue(0);
+    } else {
+        const int progress = static_cast<int>(static_cast<double>(std::numeric_limits<int>::max()) *
+                                              static_cast<double>(progressFromZeroToOne));
+        ui->wallet_blockchain_rescan_progress->setValue(progress);
+    }
 }
 
 void OverviewPage::showRescanControls(bool show)
