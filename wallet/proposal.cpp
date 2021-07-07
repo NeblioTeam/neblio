@@ -177,8 +177,6 @@ void AllStoredVotes::removeVotesAtHeightRange(int startHeight, int lastHeight)
 {
     std::lock_guard<std::mutex> lg(mtx);
 
-    const std::size_t initialCount = voteCount_unsafe();
-
     votes.erase(boost::icl::discrete_interval<int>::open(startHeight - 1, lastHeight + 1));
 }
 
