@@ -13,6 +13,7 @@ enum class AddVoteError
 {
     FirstBlockAlreadyInAnotherVote,
     LastBlockAlreadyInAnotherVote,
+    IntersectionIsNotEmpty,
 };
 
 enum class ProposalVoteCreationError

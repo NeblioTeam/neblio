@@ -153,6 +153,12 @@ Result<void, AddVoteError> AllStoredVotes::addVote(const ProposalVote& vote)
 
     const auto interval = boost::icl::discrete_interval<int>::closed(vote.getFirstBlockHeight(),
                                                                      vote.getLastBlockHeight());
+    {
+        auto it = votes.find(interval);
+        if (it != votes.end()) {
+            return Err(AddVoteError::IntersectionIsNotEmpty);
+        }
+    }
     votes.insert(std::make_pair(interval, vote.getVoteValueAndProposalID()));
     return Ok();
 }
@@ -270,7 +276,7 @@ void AllStoredVotes::writeAllVotesAsJsonToDataDir() const
 {
     std::lock_guard<std::mutex> lg(mtx);
     const std::string           votesFilename = GetStorageVotesFileName();
-    const json_spirit::Value    votesValues         = getAllVotesAsJson_unsafe();
+    const json_spirit::Value    votesValues   = getAllVotesAsJson_unsafe();
     const std::string           jsonData      = json_spirit::write_formatted(votesValues);
     boost::filesystem::save_string_file(votesFilename, jsonData);
 }
@@ -372,6 +378,12 @@ std::string AllStoredVotes::AddVoteErrorAsString(AddVoteError                err
     case AddVoteError::LastBlockAlreadyInAnotherVote:
         return fmt::format("The last block height{} is already in another vote. Remove that vote first",
                            lastHeight ? " " + std::to_string(*lastHeight) : "");
+    case AddVoteError::IntersectionIsNotEmpty:
+        std::string rangeString =
+            startHeight && lastHeight ? fmt::format(" {} -> {}") : std::string(" ");
+        return fmt::format("Within the provided range, a part of this range is already covered "
+                           "by another vote.",
+                           rangeString);
     }
     return "Unknown error";
 }
