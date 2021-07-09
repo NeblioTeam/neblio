@@ -3,6 +3,7 @@
 
 #include "amount.h"
 #include "chainparams.h"
+#include "proposal.h"
 #include "sync.h"
 #include "uint256.h"
 #include <ThreadSafeMap.h>
@@ -30,6 +31,8 @@ extern boost::atomic_int64_t nTimeLastBestBlockReceived;
 extern boost::atomic<uint256> nBestInvalidTrust;
 
 extern boost::atomic<uint32_t> nTransactionsUpdated;
+
+extern AllStoredVotes blockVotes;
 
 /** The maximum allowed size for a serialized block, in bytes (network rule) */
 static const unsigned int MAX_BLOCK_SIZE     = 8000000;
