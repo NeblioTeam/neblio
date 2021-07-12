@@ -35,7 +35,7 @@ public:
     // rescan wallet blockchain control
     void startRescan();
     void endRescan();
-    void setRescanProgress(int progress);
+    void setRescanProgress(double progressFromZeroToOne);
     void showRescanControls(bool show);
 
     boost::signals2::connection walletBlockchainRescanStartedConnection;
@@ -48,6 +48,7 @@ public slots:
 
 signals:
     void transactionClicked(const QModelIndex& index);
+    void rescanStarted();
 
 public:
     Ui::OverviewPage* ui;
