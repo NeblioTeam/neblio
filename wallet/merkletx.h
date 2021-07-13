@@ -33,9 +33,16 @@ public:
         fMerkleVerified = false;
     }
 
-    IMPLEMENT_SERIALIZE(nSerSize += SerReadWrite(s, *(CTransaction*)this, nType, nVersion, ser_action);
-                        nVersion = this->nVersion; READWRITE(hashBlock); READWRITE(vMerkleBranch);
-                        READWRITE(nIndex);)
+    // clang-format off
+    IMPLEMENT_SERIALIZE(
+        // first serialize base class, then this class
+        nSerSize += SerReadWrite(s, *(CTransaction*)this, nType, nVersionIn, ser_action);
+        nVersionIn = this->nVersion;
+        READWRITE(hashBlock);
+        READWRITE(vMerkleBranch);
+        READWRITE(nIndex);
+        )
+    // clang-format on
 
     int SetMerkleBranch(const ITxDB& txdb, const CBlock* pblock = nullptr);
 

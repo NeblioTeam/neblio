@@ -437,7 +437,13 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
         pblock->nTime = max(pblock->GetBlockTime(), PastDrift(pindexPrev->GetBlockTime()));
         if (!fProofOfStake)
             pblock->UpdateTime(&*pindexPrev);
-        pblock->nNonce = 0;
+
+        // we use the unused nonce number to store votes
+        if (const auto& vote = blockVotes.getProposalAtBlockHeight(pindexPrev->nHeight + 1)) {
+            pblock->nNonce = vote->getVoteValueAndProposalID().serializeToUint32();
+        } else {
+            pblock->nNonce = 0;
+        }
     }
 
     return pblock;

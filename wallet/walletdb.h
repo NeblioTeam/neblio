@@ -33,7 +33,7 @@ public:
     CKeyMetadata();
     CKeyMetadata(int64_t nCreateTime_);
 
-    IMPLEMENT_SERIALIZE(READWRITE(this->nVersion); nVersion = this->nVersion; READWRITE(nCreateTime);)
+    IMPLEMENT_SERIALIZE(READWRITE(this->nVersion); nVersionIn = this->nVersion; READWRITE(nCreateTime);)
 
     void SetNull();
 };

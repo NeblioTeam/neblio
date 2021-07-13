@@ -1523,7 +1523,7 @@ std::size_t GetFileSize(const std::string& filename)
     return static_cast<size_t>(file.tellg());
 }
 
-std::string ReadFileToString(const std::string& filename)
+static std::string ReadFileToString(const std::string& filename)
 {
     std::fstream fileObject(filename, std::ios::in | std::ios::binary);
     if (!fileObject.good()) {

@@ -361,7 +361,7 @@ namespace json_spirit
     template< typename Iter_type >
     void throw_error( Iter_type /*i*/, const std::string& reason )
     {
-       throw reason;
+        throw std::runtime_error("Json error: " + reason);
     }
 
     // the spirit grammer

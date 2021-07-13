@@ -100,7 +100,7 @@ public:
     // clang-format off
         IMPLEMENT_SERIALIZE(
             if (!(nType & SER_GETHASH))
-                READWRITE(nVersion);
+                READWRITE(nVersionIn);
 
             READWRITE(hashNext);
             READWRITE(nHeight);
