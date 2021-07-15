@@ -173,49 +173,6 @@ bool CBlock::DisconnectBlock(CTxDB& txdb, const CBlockIndex& pindex)
     return true;
 }
 
-/// returns all the blocks from the tip of the main chain up to the common ancestor (without the common
-/// ancestor)
-Result<CBlock::CommonAncestorSuccessorBlocks, CBlock::VIUError>
-CBlock::GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const
-{
-    CommonAncestorSuccessorBlocks res;
-
-    // fork part
-    boost::optional<CBlockIndex>       currBI        = boost::none;
-    const uint256                      prevBlockHash = this->hashPrevBlock;
-    const boost::optional<CBlockIndex> biTarget      = txdb.ReadBlockIndex(prevBlockHash);
-
-    if (!biTarget) {
-        NLog.write(b_sev::critical,
-                   "CRITCAL ERROR: Failed to prev block index at the "
-                   "beginning of VerifyInputsUnspent() for block with hash {}",
-                   hashPrevBlock.ToString());
-        return Err(VIUError::BlockIndexOfPrevBlockNotFound);
-    }
-
-    currBI = biTarget;
-    // keep stepping back from the orphan (new block) until we find the main chain
-    while (!currBI->IsInMainChain(txdb)) {
-        NLog.write(b_sev::trace, "Block in fork chain: {}\t{}", currBI->GetBlockHash().ToString(),
-                   currBI->nHeight);
-
-        // this map will be empty if the fork from main chain has only this block
-        res.inFork.push_back(currBI->GetBlockHash());
-        currBI = currBI->getPrev(txdb);
-        if (!currBI) {
-            NLog.write(b_sev::err, "Failed to read prev block index for height {} and block index {}",
-                       currBI->nHeight, currBI->blockHash.ToString());
-            return Err(VIUError::CommonAncestorSearchFailed);
-        }
-    }
-
-    // the fork should be in temporal order because it's to be spent in order later
-    std::reverse(res.inFork.begin(), res.inFork.end());
-
-    res.commonAncestor = *currBI;
-    return Ok(res);
-}
-
 static Result<boost::optional<CTxIndex>, CBlock::VIUError>
 GetTxIndexFromQueueThenDBThenForkIsNoneThenError(const ITxDB& txdb, const uint256& outputTxHash,
                                                  std::unordered_map<uint256, uint32_t>& forkTxsOutCount,
@@ -415,27 +372,52 @@ RespendBlock(const ITxDB& txdb, const CBlock& blk,
 Result<CBlock::SpendStateAtBlockTipInFork, CBlock::VIUError>
 CBlock::ReplaceMainChainWithForkUpToCommonAncestor(const ITxDB& txdb) const
 {
-    CommonAncestorSuccessorBlocks commonAncestory = TRY(GetBlocksUpToCommonAncestorInMainChain(txdb));
-    std::vector<CBlock>           forkChainBlocks; // to be reconnected
-    forkChainBlocks.reserve(commonAncestory.inFork.size() + 1);
+    // fork part
+    const uint256                      prevBlockHash     = this->hashPrevBlock;
+    const boost::optional<CBlockIndex> biTarget          = txdb.ReadBlockIndex(prevBlockHash);
+    boost::optional<CBlockIndex>       currBI            = biTarget;
+    const uint256                      currBestBlockHash = txdb.GetBestBlockHash();
 
-    // get all txs in the fork leading to this transaction (in order to test spending them later)
-    for (const uint256& bh : commonAncestory.inFork) {
-        CBlock blk;
-        //        std::cout << "In fork block hash: " << bh.ToString() << std::endl;
+    if (!biTarget) {
+        NLog.write(b_sev::critical,
+                   "CRITCAL ERROR: Failed to prev block index at the "
+                   "beginning of VerifyInputsUnspent() for block with hash {}",
+                   hashPrevBlock.ToString());
+        return Err(VIUError::BlockIndexOfPrevBlockNotFound);
+    }
+
+    // we get all the blocks that we need to read
+    std::vector<CBlock> forkChainBlocks;
+    forkChainBlocks.push_back(*this);
+
+    while (!currBI->IsInMainChain(currBestBlockHash)) {
+        NLog.write(b_sev::trace, "Block in fork chain: {}\t{}", currBI->GetBlockHash().ToString(),
+                   currBI->nHeight);
+
+        // this map will be empty if the fork from main chain has only this block
+        CBlock         blk;
+        const uint256& bh = currBI->GetBlockHash();
         if (!txdb.ReadBlock(bh, blk, true)) {
             NLog.write(b_sev::err, "In fork chain search, block {} was not found in the database",
                        bh.ToString());
             return Err(VIUError::BlockCannotBeReadFromDB);
         }
-        forkChainBlocks.push_back(blk);
+        forkChainBlocks.push_back(std::move(blk));
+
+        currBI = currBI->getPrev(txdb);
+        if (!currBI) {
+            NLog.write(b_sev::err, "Failed to read prev block index for height {} and block index {}",
+                       currBI->nHeight, currBI->blockHash.ToString());
+            return Err(VIUError::CommonAncestorSearchFailed);
+        }
     }
-    // we also include THIS block to process
-    forkChainBlocks.push_back(*this);
+
+    std::reverse(forkChainBlocks.begin(), forkChainBlocks.end());
 
     SpendStateAtBlockTipInFork result;
-    result.commonAncestorBlockIndex = commonAncestory.commonAncestor;
+    result.commonAncestorBlockIndex = *currBI;
     result.tipBlockHash             = GetHash();
+    result.bestBlockHash            = currBestBlockHash;
 
     // unspend/disconnect all inputs that are in the fork
     // we also need to unspend this block, so we add it and pop it later

@@ -147,15 +147,8 @@ public:
         std::unordered_map<uint256, uint32_t> forkTxsOutCount;
         // the common ancestor block between the new fork of the new block and the main chain
         CBlockIndex commonAncestorBlockIndex;
-    };
-
-    struct CommonAncestorSuccessorBlocks
-    {
-        // while finding the common ancestor, this is the part of this block's chain (excluding this
-        // block)
-        std::vector<uint256>
-                    inFork; // order matters here because we want to simulate respending these in order
-        CBlockIndex commonAncestor;
+        // best block hash when this was recorded
+        uint256 bestBlockHash;
     };
 
     enum class VIUError
@@ -174,9 +167,7 @@ public:
 
     static const char* VIUErrorToString(VIUError err);
 
-    Result<CommonAncestorSuccessorBlocks, VIUError>
-    GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const;
-    Result<SpendStateAtBlockTipInFork, VIUError>
+    Result<SpendStateAtBlockTipInFork, VIUError> 
     ReplaceMainChainWithForkUpToCommonAncestor(const ITxDB& txdb) const;
 
     bool DisconnectBlock(CTxDB& txdb, const CBlockIndex& pindex);
