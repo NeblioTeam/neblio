@@ -373,10 +373,10 @@ Result<CBlock::SpendStateAtBlockTipInFork, CBlock::VIUError>
 CBlock::ReplaceMainChainWithForkUpToCommonAncestor(const ITxDB& txdb) const
 {
     // fork part
+    const uint256                      currBestBlockHash = txdb.GetBestBlockHash();
     const uint256                      prevBlockHash     = this->hashPrevBlock;
     const boost::optional<CBlockIndex> biTarget          = txdb.ReadBlockIndex(prevBlockHash);
     boost::optional<CBlockIndex>       currBI            = biTarget;
-    const uint256                      currBestBlockHash = txdb.GetBestBlockHash();
 
     if (!biTarget) {
         NLog.write(b_sev::critical,
@@ -387,8 +387,7 @@ CBlock::ReplaceMainChainWithForkUpToCommonAncestor(const ITxDB& txdb) const
     }
 
     // we get all the blocks that we need to read
-    std::vector<CBlock> forkChainBlocks;
-    forkChainBlocks.push_back(*this);
+    std::vector<CBlock> forkChainBlocks(1, *this);
 
     while (!currBI->IsInMainChain(currBestBlockHash)) {
         NLog.write(b_sev::trace, "Block in fork chain: {}\t{}", currBI->GetBlockHash().ToString(),
