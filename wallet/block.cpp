@@ -217,7 +217,7 @@ CBlock::GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const
 }
 
 static Result<boost::optional<CTxIndex>, CBlock::VIUError>
-GetTxIndexFromQueueThenDBThenForkOrNoneThenError(const ITxDB& txdb, const uint256& outputTxHash,
+GetTxIndexFromQueueThenDBThenForkIsNoneThenError(const ITxDB& txdb, const uint256& outputTxHash,
                                                  std::unordered_map<uint256, uint32_t>& forkTxsOutCount,
                                                  std::unordered_map<uint256, CTxIndex>& queue)
 {
@@ -249,6 +249,36 @@ GetTxIndexFromQueueThenDBThenForkOrNoneThenError(const ITxDB& txdb, const uint25
     return Ok(boost::make_optional(std::move(txindex)));
 }
 
+static Result<CTxIndex, CBlock::VIUError> GetTxIndexFromQueueThenDBThenForkThenError(
+    const ITxDB& txdb, const uint256& outputTxHash, const uint256& blockHash,
+    std::unordered_map<uint256, uint32_t>& forkTxsOutCount, std::unordered_map<uint256, CTxIndex>& queue)
+{
+    CTxIndex txindex;
+
+    auto idxIt = queue.find(outputTxHash);
+    if (idxIt == queue.cend()) {
+        // Get prev txindex from disk
+        if (!txdb.ReadTxIndex(outputTxHash, txindex)) {
+            // the only place left is on the fork itself: the block is spending a tx on the
+            // fork
+            auto forkTxIt = forkTxsOutCount.find(outputTxHash);
+            if (forkTxIt != forkTxsOutCount.cend()) {
+                const uint32_t txOutCount = forkTxIt->second;
+                txindex                   = CTxIndex(CDiskTxPos(blockHash, 42), txOutCount);
+            } else {
+                NLog.write(b_sev::err,
+                           "ReadTxIndex failed for transaction {} and the transaction was "
+                           "not found in the fork itself (2)",
+                           outputTxHash.ToString());
+                return Err(CBlock::VIUError::TxNonExistent_ReadTxIndexFailed_Case2);
+            }
+        }
+    } else {
+        txindex = idxIt->second;
+    }
+    return Ok(std::move(txindex));
+}
+
 static Result<void, CBlock::VIUError>
 UnspendBlock(const ITxDB& txdb, const CBlock& blk, const CBlockIndex& commonAncestorBlockIndex,
              std::unordered_map<uint256, uint32_t>& forkTxsOutCount,
@@ -271,7 +301,7 @@ UnspendBlock(const ITxDB& txdb, const CBlock& blk, const CBlockIndex& commonAnce
             const uint256& outputTxHash  = txin.prevout.hash;
             const unsigned outputNumInTx = txin.prevout.n;
 
-            boost::optional<CTxIndex> txindex = TRY(GetTxIndexFromQueueThenDBThenForkOrNoneThenError(
+            boost::optional<CTxIndex> txindex = TRY(GetTxIndexFromQueueThenDBThenForkIsNoneThenError(
                 txdb, outputTxHash, forkTxsOutCount, spendingState));
 
             if (!txindex) {
@@ -321,35 +351,6 @@ UnspendBlock(const ITxDB& txdb, const CBlock& blk, const CBlockIndex& commonAnce
         }
     }
     return Ok();
-}
-
-static Result<CTxIndex, CBlock::VIUError> GetTxIndexFromQueueThenDBThenForkThenError(
-    const ITxDB& txdb, const uint256& outputTxHash, const uint256& blockHash,
-    std::unordered_map<uint256, uint32_t>& forkTxsOutCount, std::unordered_map<uint256, CTxIndex>& queue)
-{
-    CTxIndex txindex;
-    auto     idxIt = queue.find(outputTxHash);
-    if (idxIt == queue.cend()) {
-        // Get prev txindex from disk
-        if (!txdb.ReadTxIndex(outputTxHash, txindex)) {
-            // the only place left is on the fork itself: the block is spending a tx on the
-            // fork
-            auto forkTxIt = forkTxsOutCount.find(outputTxHash);
-            if (forkTxIt != forkTxsOutCount.cend()) {
-                const uint32_t txOutCount = forkTxIt->second;
-                txindex                   = CTxIndex(CDiskTxPos(blockHash, 42), txOutCount);
-            } else {
-                NLog.write(b_sev::err,
-                           "ReadTxIndex failed for transaction {} and the transaction was "
-                           "not found in the fork itself (2)",
-                           outputTxHash.ToString());
-                return Err(CBlock::VIUError::TxNonExistent_ReadTxIndexFailed_Case2);
-            }
-        }
-    } else {
-        txindex = idxIt->second;
-    }
-    return Ok(std::move(txindex));
 }
 
 static Result<void, CBlock::VIUError>
@@ -411,7 +412,7 @@ RespendBlock(const ITxDB& txdb, const CBlock& blk,
  * then, it'll unspend all the transactions in these blocks and return them in the map. This is necessary
  * to solve the problem of stake attack described in VerifyInputsUnspent()
  */
-Result<CBlock::ChainReplaceTxs, CBlock::VIUError>
+Result<CBlock::SpendStateAtBlockTipInFork, CBlock::VIUError>
 CBlock::ReplaceMainChainWithForkUpToCommonAncestor(const ITxDB& txdb) const
 {
     CommonAncestorSuccessorBlocks commonAncestory = TRY(GetBlocksUpToCommonAncestorInMainChain(txdb));
@@ -432,18 +433,15 @@ CBlock::ReplaceMainChainWithForkUpToCommonAncestor(const ITxDB& txdb) const
     // we also include THIS block to process
     forkChainBlocks.push_back(*this);
 
-    ChainReplaceTxs result;
+    SpendStateAtBlockTipInFork result;
     result.commonAncestorBlockIndex = commonAncestory.commonAncestor;
-
-    // since the fork can spend transactions from itself, we need to put them in such a way they're
-    // reachable in O(1)
-    std::unordered_map<uint256, uint32_t> forkTxsOutCount;
+    result.tipBlockHash             = GetHash();
 
     // unspend/disconnect all inputs that are in the fork
     // we also need to unspend this block, so we add it and pop it later
     for (const CBlock& blk : forkChainBlocks) {
-        TRYV(UnspendBlock(txdb, blk, commonAncestory.commonAncestor, forkTxsOutCount,
-                          result.modifiedOutputsTxs));
+        TRYV(UnspendBlock(txdb, blk, result.commonAncestorBlockIndex, result.forkTxsOutCount,
+                          result.txsWithModifiedOutputStates));
     }
 
     // at this point, all transactions from the fork that are spent in the main chain are now unspent
@@ -451,10 +449,8 @@ CBlock::ReplaceMainChainWithForkUpToCommonAncestor(const ITxDB& txdb) const
     // respend the transactions on the fork (to test whether this block is valid at this chain)
     // we respend everything except for *this block
     for (const CBlock& blk : forkChainBlocks) {
-        TRYV(RespendBlock(txdb, blk, forkTxsOutCount, result.modifiedOutputsTxs));
+        TRYV(RespendBlock(txdb, blk, result.forkTxsOutCount, result.txsWithModifiedOutputStates));
     }
-
-    result.forkTxsOutCount = std::move(forkTxsOutCount);
 
     return Ok(result);
 }
@@ -472,10 +468,9 @@ Result<void, CBlock::VIUError> CBlock::VerifyInputsUnspent(const CTxDB& txdb) co
     // queued transactions are the inputs that we already found (even from this block). The map stores
     // whether transactions are spent already. This solves the problem of spending an output in the same
     // block where it's created
-    CBlock::ChainReplaceTxs alternateChainTxs;
 
     try {
-        alternateChainTxs = TRY(ReplaceMainChainWithForkUpToCommonAncestor(txdb));
+        TRY(ReplaceMainChainWithForkUpToCommonAncestor(txdb));
     } catch (std::exception& ex) {
         NLog.error("Failed to verify unspent inputs for block {}; error: {}", this->GetHash().ToString(),
                    ex.what());

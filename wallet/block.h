@@ -130,14 +130,23 @@ public:
 
     static bool CheckBIP30Attack(ITxDB& txdb, const uint256& hashTx);
 
-    struct ChainReplaceTxs
+    /**
+     * @brief Assuming a tip block is a valid block that is related to the main chain through the common
+     * ancestor commonAncestorBlockIndex, this structure stores the tx outputs that were spent from the
+     * fork common ancestor (excluding the common ancestor) up to the tip (including the tip)
+     */
+    struct SpendStateAtBlockTipInFork
     {
+        uint256 tipBlockHash;
         // transactions that are being spent in the above ones
-        std::unordered_map<uint256, CTxIndex> modifiedOutputsTxs;
+        std::unordered_map<uint256, CTxIndex> txsWithModifiedOutputStates;
+        // this stores all the transactions in the fork vs their output count; since the fork can spend
+        // transactions from itself, we need to put them in such a way they're reachable in O(1); we need
+        // the number of outputs so that we can create CTxIndex with the correct number of outputs,
+        // without having to access the DB again to get that information
+        std::unordered_map<uint256, uint32_t> forkTxsOutCount;
         // the common ancestor block between the new fork of the new block and the main chain
         CBlockIndex commonAncestorBlockIndex;
-        // tx vs number of outputs, we don't care about the out count but we have it as a side effect
-        std::unordered_map<uint256, uint32_t> forkTxsOutCount;
     };
 
     struct CommonAncestorSuccessorBlocks
@@ -167,7 +176,7 @@ public:
 
     Result<CommonAncestorSuccessorBlocks, VIUError>
     GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const;
-    Result<ChainReplaceTxs, VIUError>
+    Result<SpendStateAtBlockTipInFork, VIUError>
     ReplaceMainChainWithForkUpToCommonAncestor(const ITxDB& txdb) const;
 
     bool DisconnectBlock(CTxDB& txdb, const CBlockIndex& pindex);

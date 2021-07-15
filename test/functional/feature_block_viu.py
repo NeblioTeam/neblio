@@ -22,13 +22,16 @@ from test_framework.script import *
 from test_framework.mininode import network_thread_start
 import struct
 
+
 class PreviousSpendableOutput():
-    def __init__(self, tx = CTransaction(), n = -1):
+    def __init__(self, tx=CTransaction(), n=-1):
         self.tx = tx
         self.n = n  # the output we're spending
 
 #  Use this class for tests that require behavior other than normal "mininode" behavior.
 #  For now, it is used to serialize a bloated varint (b64).
+
+
 class CBrokenBlock(CBlock):
     def __init__(self, header=None):
         super(CBrokenBlock, self).__init__(header)
@@ -57,6 +60,7 @@ class CBrokenBlock(CBlock):
 
 fee = min_fee
 
+
 class FullBlockTest(ComparisonTestFramework):
     # Can either run this test as 1 node with expected answers, or two and compare them.
     # Change the "outcome" variable from each TestInstance object to only do the comparison.
@@ -72,7 +76,8 @@ class FullBlockTest(ComparisonTestFramework):
 
     def add_options(self, parser):
         super().add_options(parser)
-        parser.add_option("--runbarelyexpensive", dest="runbarelyexpensive", default=True)
+        parser.add_option("--runbarelyexpensive",
+                          dest="runbarelyexpensive", default=True)
 
     def run_test(self):
         self.test = TestManager(self, self.options.tmpdir)
@@ -81,7 +86,7 @@ class FullBlockTest(ComparisonTestFramework):
         self.test.run()
 
     def add_transactions_to_block(self, block, tx_list):
-        [ tx.rehash() for tx in tx_list ]
+        [tx.rehash() for tx in tx_list]
         block.vtx.extend(tx_list)
 
     # this is a little handier to use than the version in blocktools.py
@@ -96,8 +101,10 @@ class FullBlockTest(ComparisonTestFramework):
         if (scriptPubKey[0] == OP_TRUE):  # an anyone-can-spend
             tx.vin[0].scriptSig = CScript()
             return
-        (sighash, err) = SignatureHash(spend_tx.vout[n].scriptPubKey, tx, 0, SIGHASH_ALL)
-        tx.vin[0].scriptSig = CScript([self.coinbase_key.sign(sighash) + bytes(bytearray([SIGHASH_ALL]))])
+        (sighash, err) = SignatureHash(
+            spend_tx.vout[n].scriptPubKey, tx, 0, SIGHASH_ALL)
+        tx.vin[0].scriptSig = CScript(
+            [self.coinbase_key.sign(sighash) + bytes(bytearray([SIGHASH_ALL]))])
 
     def create_and_sign_transaction(self, spend_tx, n, value, script=CScript([OP_TRUE])):
         tx = self.create_tx(spend_tx, n, value, script)
@@ -106,7 +113,8 @@ class FullBlockTest(ComparisonTestFramework):
         return tx
 
     def next_block(self, number, spend=None, additional_coinbase_value=0, script=CScript([OP_TRUE]), solve=True):
-        logger.info("Creating block:".format(number))  # useful marker for debugging, marks the last block that was created
+        # useful marker for debugging, marks the last block that was created
+        logger.info("Creating block:".format(number))
         if self.tip is None:
             base_block_hash = self.genesis_hash
             block_time = int(time.time()) + 1
@@ -126,7 +134,9 @@ class FullBlockTest(ComparisonTestFramework):
             block = create_block(base_block_hash, coinbase, block_time)
             # create a new transaction, but remove the fee from it
             amount_to_send = spend.tx.vout[spend.n].nValue - fee
-            tx = create_transaction(spend.tx, spend.n, b"", amount_to_send, script)  # spend 10000000 satoshi
+            # spend 10000000 satoshi
+            tx = create_transaction(
+                spend.tx, spend.n, b"", amount_to_send, script)
             self.sign_tx(tx, spend.tx, spend.n)
             self.add_transactions_to_block(block, [tx])
             block.hashMerkleRoot = block.calc_merkle_root()
@@ -137,10 +147,12 @@ class FullBlockTest(ComparisonTestFramework):
         if solve:
             # add neblio signature
             block.solve()
-            block.vchBlockSig = self.coinbase_key.sign(bytes.fromhex(block.hash)[::-1])
+            block.vchBlockSig = self.coinbase_key.sign(
+                bytes.fromhex(block.hash)[::-1])
         else:
             block.rehash()
-        logger.info("Created block number {} with hash {}".format(number, block.hash))
+        logger.info("Created block number {} with hash {}".format(
+            number, block.hash))
         self.tip = block
         self.block_heights[block.sha256] = height
         assert number not in self.blocks
@@ -176,7 +188,8 @@ class FullBlockTest(ComparisonTestFramework):
             # print("Block:", curr_hash, prev_hash, b)
             # find the prev node that contains the prev_hash
             prev_node = [label for label in gr.nodes() if prev_hash in label]
-            assert len(prev_node) == 1  # only one node with that hash should be found
+            # only one node with that hash should be found
+            assert len(prev_node) == 1
             gr.add_edge((curr_hash, prev_node[0]))
         return gr
 
@@ -192,14 +205,16 @@ class FullBlockTest(ComparisonTestFramework):
         Test that hashing of a block works fine
         Returns: nothing
         """
-        genesis_block_hex = self.nodes[0].getblock(self.nodes[0].getbestblockhash(), False)
+        genesis_block_hex = self.nodes[0].getblock(
+            self.nodes[0].getbestblockhash(), False)
         genesis_block = CBlock()
         genesis_block_raw_io = BytesIO(bytes.fromhex(genesis_block_hex))
         genesis_block.deserialize(genesis_block_raw_io)
         genesis_block.rehash()
         assert genesis_block.hash is not None
         assert_equal(genesis_block.hash, self.nodes[0].getblockhash(0))
-        assert_equal(genesis_block.hash, self.nodes[0].calculateblockhash(genesis_block.serialize().hex()))
+        assert_equal(genesis_block.hash, self.nodes[0].calculateblockhash(
+            genesis_block.serialize().hex()))
         assert_equal(genesis_block_hex, genesis_block.serialize().hex())
 
     def get_tests(self):
@@ -222,7 +237,7 @@ class FullBlockTest(ComparisonTestFramework):
 
         # returns a test case that asserts that the current tip was rejected
         # it DOESN'T mean the block is invalid. It means it's (still) not the new tip
-        def rejected(reject = None):
+        def rejected(reject=None):
             if reject is None:
                 return TestInstance([[self.tip, False]])
             else:
@@ -234,7 +249,8 @@ class FullBlockTest(ComparisonTestFramework):
 
         # adds transactions to the block and updates state
         def update_block(block_number, new_transactions, update_time=True):
-            logger.info("Updating block: {}".format(block_number))  # useful marker for debugging, marks the last block that was created
+            # useful marker for debugging, marks the last block that was created
+            logger.info("Updating block: {}".format(block_number))
             block = self.blocks[block_number]
             self.add_transactions_to_block(block, new_transactions)
             old_sha256 = block.sha256
@@ -242,14 +258,17 @@ class FullBlockTest(ComparisonTestFramework):
             if update_time:
                 block.fix_time_then_resolve(False)
             block.solve()
-            block.vchBlockSig = self.coinbase_key.sign(bytes.fromhex(block.hash)[::-1])
+            block.vchBlockSig = self.coinbase_key.sign(
+                bytes.fromhex(block.hash)[::-1])
             # Update the internal state just like in next_block
             self.tip = block
             if block.sha256 != old_sha256:
                 self.block_heights[block.sha256] = self.block_heights[old_sha256]
                 del self.block_heights[old_sha256]
             self.blocks[block_number] = block
-            logger.info("Updated block {} with hash {}".format(block_number, block.hash))  # useful marker for debugging, marks the last block that was created
+            # useful marker for debugging, marks the last block that was created
+            logger.info("Updated block {} with hash {}".format(
+                block_number, block.hash))
             return block
 
         def create_tx_manual(prevout_hash, n, value):
