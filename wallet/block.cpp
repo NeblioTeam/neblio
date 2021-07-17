@@ -381,7 +381,6 @@ Result<void, CBlock::VIUError> CBlock::VerifyInputsUnspent_Internal(const ITxDB&
         NLog.write(b_sev::trace, "Block in fork chain: {}\t{}",
                    commonAncestorBI->GetBlockHash().ToString(), commonAncestorBI->nHeight);
 
-        // this map will be empty if the fork from main chain has only this block
         CBlock         blk;
         const uint256& bh = commonAncestorBI->GetBlockHash();
         if (!txdb.ReadBlock(bh, blk, true)) {
