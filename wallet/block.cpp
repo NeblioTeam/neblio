@@ -186,6 +186,21 @@ class ForkSpendSimulator
     const uint256& commonAncestor;
     const int      commonAncestorHeight;
 
+    boost::optional<int> getBlockHeight(const uint256& blockHash)
+    {
+        using BlockIndexHeightCacheType = BlockIndexLRUCache<int>;
+        static thread_local typename BlockIndexHeightCacheType::ExtractorFunc extractorFunc =
+            [](const CBlockIndex& bi) -> int { return bi.nHeight; };
+        static thread_local BlockIndexHeightCacheType blockIndexCache(10000, extractorFunc);
+
+        const boost::optional<BlockIndexHeightCacheType::BICacheEntry> blockIndexHeight =
+            blockIndexCache.get(txdb, blockHash);
+        if (blockIndexHeight) {
+            return boost::make_optional(blockIndexHeight->value);
+        }
+        return boost::none;
+    }
+
     boost::optional<CTxIndex> getTxIndex(const uint256& txHash)
     {
         CTxIndex txindex;
@@ -299,14 +314,10 @@ public:
                         continue;
                     }
 
-                    using BlockIndexHeightCacheType = BlockIndexLRUCache<int>;
-                    static thread_local typename BlockIndexHeightCacheType::ExtractorFunc extractorFunc =
-                        [](const CBlockIndex& bi) -> int { return bi.nHeight; };
-                    static thread_local BlockIndexHeightCacheType blockIndexCache(10000, extractorFunc);
-
                     const uint256 spenderBlockHash = txindex->vSpent[outputNumInTx].nBlockPos;
-                    const boost::optional<BlockIndexHeightCacheType::BICacheEntry> blockIndexHeight =
-                        blockIndexCache.get(txdb, spenderBlockHash);
+
+                    const boost::optional<int> blockIndexHeight = getBlockHeight(spenderBlockHash);
+
                     if (!blockIndexHeight) {
                         NLog.write(
                             b_sev::err,
@@ -318,7 +329,7 @@ public:
                         return Err(CBlock::VIUError::ReadSpenderBlockIndexFailed);
                     }
 
-                    if (blockIndexHeight->value <= commonAncestorHeight) {
+                    if (*blockIndexHeight <= commonAncestorHeight) {
                         if (!txindex->vSpent[outputNumInTx].IsNull()) {
                             // double spend
                             NLog.error(
