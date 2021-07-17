@@ -233,9 +233,9 @@ class ForkSpendSimulator
         return Ok();
     }
 
-    Result<void, CBlock::VIUError>
-    unspentOrSpentAboveCommonAncestorOrError(const CTxIndex& txindex, const CTransaction& spenderTx,
-                                             const COutPoint& input)
+    Result<void, CBlock::VIUError> unspentOrSpentAboveCommonAncestorOrError(const CTxIndex& txindex,
+                                                                            const uint256& spenderTxHash,
+                                                                            const COutPoint& input)
     {
         if (!txindex.vSpent[input.n].IsNull()) {
             // if it's spent, we get the spender and check if it's above the common ancestor
@@ -250,7 +250,7 @@ class ForkSpendSimulator
                            "The input of transaction {} whose index {} and hash {} is found to be "
                            "in block {} but that block is not found in the block index. This "
                            "should never happen.",
-                           spenderTx.GetHash().ToString(), input.n, input.hash.ToString(),
+                           spenderTxHash.ToString(), input.n, input.hash.ToString(),
                            spenderBlockHash.ToString());
                 return Err(CBlock::VIUError::ReadSpenderBlockIndexFailed);
             }
@@ -261,7 +261,7 @@ class ForkSpendSimulator
                     NLog.error("Output number {} in tx {} which is an input to tx {} is "
                                "attempting to "
                                "double-spend in the same block",
-                               input.n, input.hash.ToString(), spenderTx.GetHash().ToString());
+                               input.n, input.hash.ToString(), spenderTxHash.ToString());
                     return Err(CBlock::VIUError::DoublespendAttempt_Case1);
                 }
             }
@@ -288,8 +288,8 @@ public:
      */
     Result<void, CBlock::VIUError> SimulateSpendingBlock(const CBlock& blockToSpend)
     {
-        for (const CTransaction& tx : blockToSpend.vtx) {
-            const uint256 spenderTxHash = tx.GetHash();
+        for (const CTransaction& spenderTx : blockToSpend.vtx) {
+            const uint256 spenderTxHash = spenderTx.GetHash();
 
             // we store the transactions of the fork by hash to be able to verify their spending later
             if (thisForkTxs.find(spenderTxHash) != thisForkTxs.cend()) {
@@ -298,18 +298,18 @@ public:
 
             // after having checked that the spending is OK for this tx, we add it to the txs of this
             // fork; we only need to store the output size... no other information is needed
-            const auto txStorer = [this, &spenderTxHash, &tx]() {
-                thisForkTxs.emplace(std::make_pair(spenderTxHash, tx.vout.size()));
+            const auto txStorer = [this, &spenderTxHash, &spenderTx]() {
+                thisForkTxs.emplace(std::make_pair(spenderTxHash, spenderTx.vout.size()));
             };
             BOOST_SCOPE_EXIT(&txStorer) { txStorer(); }
             BOOST_SCOPE_EXIT_END
 
             // coinbase doesn't spend anything
-            if (tx.IsCoinBase()) {
+            if (spenderTx.IsCoinBase()) {
                 continue;
             }
 
-            const std::vector<CTxIn>& vin = tx.vin;
+            const std::vector<CTxIn>& vin = spenderTx.vin;
             for (unsigned int inIdx = 0; inIdx < vin.size(); inIdx++) {
                 const CTxIn& txin = vin[inIdx];
 
@@ -344,7 +344,8 @@ public:
                     // tx index found, so we check if the output is spent only if it's before or at the
                     // common ancestor height
 
-                    TRYV(unspentOrSpentAboveCommonAncestorOrError(*txindex, tx, txin.prevout));
+                    TRYV(
+                        unspentOrSpentAboveCommonAncestorOrError(*txindex, spenderTxHash, txin.prevout));
                 }
 
                 TRYV(spendOutputVirtually(txin.prevout, spenderTxHash));
