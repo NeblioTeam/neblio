@@ -130,39 +130,16 @@ public:
 
     static bool CheckBIP30Attack(ITxDB& txdb, const uint256& hashTx);
 
-    /**
-     * @brief Assuming a tip block is a valid block that is related to the main chain through the common
-     * ancestor commonAncestorBlockIndex, this structure stores the tx outputs that were spent from the
-     * fork common ancestor (excluding the common ancestor) up to the tip (including the tip)
-     */
-    struct SpendStateAtBlockTipInFork
-    {
-        uint256 tipBlockHash;
-        // transactions that are being spent in the above ones
-        std::unordered_map<uint256, CTxIndex> txsWithModifiedOutputStates;
-        // this stores all the transactions in the fork vs their output count; since the fork can spend
-        // transactions from itself, we need to put them in such a way they're reachable in O(1); we need
-        // the number of outputs so that we can create CTxIndex with the correct number of outputs,
-        // without having to access the DB again to get that information
-        std::unordered_map<uint256, uint32_t> forkTxsOutCount;
-        // the common ancestor block between the new fork of the new block and the main chain
-        CBlockIndex commonAncestorBlockIndex;
-        // best block hash when this was recorded
-        uint256 bestBlockHash;
-    };
-
     enum class VIUError
     {
         UnknownErrorWhileCollectingTxs,
-        TxInputIndexOutOfRange_Case1,
-        TxInputIndexOutOfRange_Case2,
-        TxInputIndexOutOfRange_Case3,
-        DoublespendAttempt,
+        TxInputIndexOutOfRange_InMainChain,
+        TxInputIndexOutOfRange_InFork,
+        DoublespendAttempt_Case1,
+        DoublespendAttempt_Case2,
         BlockCannotBeReadFromDB,
-        TxNonExistent_ReadTxIndexFailed_Case1,
-        TxNonExistent_ReadTxIndexFailed_Case2,
-        TxNonExistent_ReadTxIndexFailed_Case3,
-        ReadBlockIndexFailed,
+        TxNonExistent_OutputNotFoundInMainchainOrFork,
+        ReadSpenderBlockIndexFailed,
         BlockIndexOfPrevBlockNotFound,
         CommonAncestorSearchFailed,
         TxAppearedTwiceInFork
@@ -170,8 +147,7 @@ public:
 
     static const char* VIUErrorToString(VIUError err);
 
-    Result<SpendStateAtBlockTipInFork, VIUError>
-    ReplaceMainChainWithForkUpToCommonAncestor(const ITxDB& txdb) const;
+    Result<void, VIUError> VerifyInputsUnspent_Internal(const ITxDB& txdb) const;
 
     bool DisconnectBlock(CTxDB& txdb, const CBlockIndex& pindex);
     bool ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pindex, bool fJustCheck = false);
