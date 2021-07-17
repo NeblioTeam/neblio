@@ -183,6 +183,7 @@ class ForkSpendSimulator
 
     std::unordered_map<uint256, const unsigned> thisForkTxs;
 
+    const uint256& newlyInsertedBlockHash;
     const uint256& commonAncestor;
     const int      commonAncestorHeight;
 
@@ -271,8 +272,10 @@ class ForkSpendSimulator
     }
 
 public:
-    ForkSpendSimulator(const ITxDB& txdbIn, const uint256& commonAncestorIn, int commonAncestorHeightIn)
-        : txdb(txdbIn), commonAncestor(commonAncestorIn), commonAncestorHeight(commonAncestorHeightIn)
+    ForkSpendSimulator(const ITxDB& txdbIn, const uint256& newlyInsertedBlockHashIn,
+                       const uint256& commonAncestorIn, int commonAncestorHeightIn)
+        : txdb(txdbIn), newlyInsertedBlockHash(newlyInsertedBlockHashIn),
+          commonAncestor(commonAncestorIn), commonAncestorHeight(commonAncestorHeightIn)
     {
     }
 
@@ -361,7 +364,7 @@ Result<void, CBlock::VIUError> CBlock::VerifyInputsUnspent_Internal(const ITxDB&
     const uint256                      currBestBlockHash = txdb.GetBestBlockHash();
     const uint256                      prevBlockHash     = this->hashPrevBlock;
     const boost::optional<CBlockIndex> biTarget          = txdb.ReadBlockIndex(prevBlockHash);
-    boost::optional<CBlockIndex>       currBI            = biTarget;
+    boost::optional<CBlockIndex>       commonAncestorBI  = biTarget;
 
     if (!biTarget) {
         NLog.write(b_sev::critical,
@@ -374,13 +377,13 @@ Result<void, CBlock::VIUError> CBlock::VerifyInputsUnspent_Internal(const ITxDB&
     // we get all the blocks that we need to read
     std::vector<CBlock> forkChainBlocks(1, *this);
 
-    while (!currBI->IsInMainChain(currBestBlockHash)) {
-        NLog.write(b_sev::trace, "Block in fork chain: {}\t{}", currBI->GetBlockHash().ToString(),
-                   currBI->nHeight);
+    while (!commonAncestorBI->IsInMainChain(currBestBlockHash)) {
+        NLog.write(b_sev::trace, "Block in fork chain: {}\t{}",
+                   commonAncestorBI->GetBlockHash().ToString(), commonAncestorBI->nHeight);
 
         // this map will be empty if the fork from main chain has only this block
         CBlock         blk;
-        const uint256& bh = currBI->GetBlockHash();
+        const uint256& bh = commonAncestorBI->GetBlockHash();
         if (!txdb.ReadBlock(bh, blk, true)) {
             NLog.write(b_sev::err, "In fork chain search, block {} was not found in the database",
                        bh.ToString());
@@ -388,10 +391,10 @@ Result<void, CBlock::VIUError> CBlock::VerifyInputsUnspent_Internal(const ITxDB&
         }
         forkChainBlocks.push_back(std::move(blk));
 
-        currBI = currBI->getPrev(txdb);
-        if (!currBI) {
+        commonAncestorBI = commonAncestorBI->getPrev(txdb);
+        if (!commonAncestorBI) {
             NLog.write(b_sev::err, "Failed to read prev block index for height {} and block index {}",
-                       currBI->nHeight, currBI->blockHash.ToString());
+                       commonAncestorBI->nHeight, commonAncestorBI->blockHash.ToString());
             return Err(VIUError::CommonAncestorSearchFailed);
         }
     }
@@ -399,7 +402,8 @@ Result<void, CBlock::VIUError> CBlock::VerifyInputsUnspent_Internal(const ITxDB&
     std::reverse(forkChainBlocks.begin(), forkChainBlocks.end());
 
     // we simulate spending transactions and ensure they're not double-spent/invalid
-    ForkSpendSimulator spender(txdb, currBI->GetBlockHash(), currBI->nHeight);
+    ForkSpendSimulator spender(txdb, this->GetHash(), commonAncestorBI->GetBlockHash(),
+                               commonAncestorBI->nHeight);
     for (const CBlock& blk : forkChainBlocks) {
         TRYV(spender.SimulateSpendingBlock(blk));
     }
