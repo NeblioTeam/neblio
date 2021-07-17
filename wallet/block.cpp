@@ -309,34 +309,35 @@ public:
                     // tx index found, so we check if the output is spent only if it's before or at the
                     // common ancestor height
 
-                    if (txindex->vSpent[outputNumInTx].IsNull()) {
-                        // this input is in the main chain and is not spent anyway yet
-                        continue;
-                    }
+                    if (!txindex->vSpent[outputNumInTx].IsNull()) {
+                        // if it's spent, we get the spender and check if it's above the common ancestor
+                        // it's OK to be above the commonAncestor and spent, because it's in another fork
 
-                    const uint256 spenderBlockHash = txindex->vSpent[outputNumInTx].nBlockPos;
+                        const uint256 spenderBlockHash = txindex->vSpent[outputNumInTx].nBlockPos;
 
-                    const boost::optional<int> blockIndexHeight = getBlockHeight(spenderBlockHash);
+                        const boost::optional<int> blockIndexHeight = getBlockHeight(spenderBlockHash);
 
-                    if (!blockIndexHeight) {
-                        NLog.write(
-                            b_sev::err,
-                            "The input of transaction {} whose index {} and hash {} is found to be "
-                            "in block {} but that block is not found in the block index. This "
-                            "should never happen.",
-                            tx.GetHash().ToString(), outputNumInTx, outputTxHash.ToString(),
-                            spenderBlockHash.ToString());
-                        return Err(CBlock::VIUError::ReadSpenderBlockIndexFailed);
-                    }
+                        if (!blockIndexHeight) {
+                            NLog.write(
+                                b_sev::err,
+                                "The input of transaction {} whose index {} and hash {} is found to be "
+                                "in block {} but that block is not found in the block index. This "
+                                "should never happen.",
+                                tx.GetHash().ToString(), outputNumInTx, outputTxHash.ToString(),
+                                spenderBlockHash.ToString());
+                            return Err(CBlock::VIUError::ReadSpenderBlockIndexFailed);
+                        }
 
-                    if (*blockIndexHeight <= commonAncestorHeight) {
-                        if (!txindex->vSpent[outputNumInTx].IsNull()) {
-                            // double spend
-                            NLog.error(
-                                "Output number {} in tx {} which is an input to tx {} is attempting to "
-                                "double-spend in the same block",
-                                outputNumInTx, outputTxHash.ToString(), tx.GetHash().ToString());
-                            return Err(CBlock::VIUError::DoublespendAttempt_Case1);
+                        if (*blockIndexHeight <= commonAncestorHeight) {
+                            if (!txindex->vSpent[outputNumInTx].IsNull()) {
+                                // double spend
+                                NLog.error("Output number {} in tx {} which is an input to tx {} is "
+                                           "attempting to "
+                                           "double-spend in the same block",
+                                           outputNumInTx, outputTxHash.ToString(),
+                                           tx.GetHash().ToString());
+                                return Err(CBlock::VIUError::DoublespendAttempt_Case1);
+                            }
                         }
                     }
                 }
