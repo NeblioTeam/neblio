@@ -206,9 +206,43 @@ GetTxIndexFromQueueThenDBThenForkIsNoneThenError(const ITxDB& txdb, const uint25
     return Ok(boost::make_optional(std::move(txindex)));
 }
 
-static Result<CTxIndex, CBlock::VIUError> GetTxIndexFromQueueThenDBThenForkThenError(
-    const ITxDB& txdb, const uint256& outputTxHash, const uint256& blockHash,
-    std::unordered_map<uint256, uint32_t>& forkTxsOutCount, std::unordered_map<uint256, CTxIndex>& queue)
+static Result<CTxIndex, CBlock::VIUError>
+GetTxIndexFromQueueThenDBThenForkThenError2(const ITxDB& txdb, const uint256& outputTxHash,
+                                            const uint256&                               blockHash,
+                                            const std::unordered_map<uint256, uint32_t>& forkTxsOutCount,
+                                            std::unordered_map<uint256, CTxIndex>&       txIndexQueue)
+{
+    CTxIndex txindex;
+
+    auto idxIt = txIndexQueue.find(outputTxHash);
+    if (idxIt == txIndexQueue.cend()) {
+        // Get prev txindex from disk
+        if (!txdb.ReadTxIndex(outputTxHash, txindex)) {
+            // the only place left is on the fork itself: the block is spending a tx on the
+            // fork
+            auto forkTxIt = forkTxsOutCount.find(outputTxHash);
+            if (forkTxIt != forkTxsOutCount.cend()) {
+                const uint32_t txOutCount = forkTxIt->second;
+                txindex                   = CTxIndex(CDiskTxPos(blockHash, 42), txOutCount);
+            } else {
+                NLog.write(b_sev::err,
+                           "ReadTxIndex failed for transaction {} and the transaction was "
+                           "not found in the fork itself (2)",
+                           outputTxHash.ToString());
+                return Err(CBlock::VIUError::TxNonExistent_ReadTxIndexFailed_Case2);
+            }
+        }
+    } else {
+        txindex = idxIt->second;
+    }
+    return Ok(std::move(txindex));
+}
+
+static Result<CTxIndex, CBlock::VIUError>
+GetTxIndexFromQueueThenDBThenForkThenError(const ITxDB& txdb, const uint256& outputTxHash,
+                                           const uint256&                               blockHash,
+                                           const std::unordered_map<uint256, uint32_t>& forkTxsOutCount,
+                                           std::unordered_map<uint256, CTxIndex>&       queue)
 {
     CTxIndex txindex;
 
@@ -312,8 +346,8 @@ UnspendBlock(const ITxDB& txdb, const CBlock& blk, const CBlockIndex& commonAnce
 
 static Result<void, CBlock::VIUError>
 RespendBlock(const ITxDB& txdb, const CBlock& blk,
-             std::unordered_map<uint256, uint32_t>& forkTxsOutCount,
-             std::unordered_map<uint256, CTxIndex>& spendingState)
+             const std::unordered_map<uint256, uint32_t>& forkTxsOutCount,
+             std::unordered_map<uint256, CTxIndex>&       spendingState)
 {
     for (const CTransaction& tx : blk.vtx) {
         if (tx.IsCoinBase()) {
@@ -361,6 +395,166 @@ RespendBlock(const ITxDB& txdb, const CBlock& blk,
     }
     return Ok();
 }
+
+class ForkSpendSimulator
+{
+    const ITxDB& txdb;
+
+    std::set<COutPoint> spent;
+
+    std::unordered_map<uint256, const CTxIndex> txIndexCache;
+
+    std::unordered_map<uint256, const unsigned> thisForkTxs;
+
+    const uint256& commonAncestor;
+    const int      commonAncestorHeight;
+
+    boost::optional<CTxIndex> getTxIndex(const uint256& txHash)
+    {
+        CTxIndex txindex;
+
+        auto idxIt = txIndexCache.find(txHash);
+        if (idxIt == txIndexCache.cend()) {
+            // Get prev txindex from disk
+            if (!txdb.ReadTxIndex(txHash, txindex)) {
+                return boost::none;
+            }
+        } else {
+            txindex = idxIt->second;
+            txIndexCache.emplace(std::make_pair(txHash, txindex));
+        }
+
+        return boost::make_optional(std::move(txindex));
+    }
+
+    Result<void, CBlock::VIUError> spendOutputVirtually(const COutPoint& output,
+                                                        const uint256&   spenderTx)
+    {
+        if (spent.find(output) != spent.cend()) {
+            NLog.error("Output number {} in tx {} which is an input to tx {} is attempting to "
+                       "double-spend in the same block",
+                       output.n, output.hash.ToString(), spenderTx.ToString());
+            return Err(CBlock::VIUError::DoublespendAttempt);
+        }
+
+        spent.insert(output);
+        return Ok();
+    }
+
+public:
+    ForkSpendSimulator(const ITxDB& txdbIn, const uint256& commonAncestorIn, int commonAncestorHeightIn)
+        : txdb(txdbIn), commonAncestor(commonAncestorIn), commonAncestorHeight(commonAncestorHeightIn)
+    {
+    }
+
+    /**
+     * @brief Attempts to virtually spend the block with the fork starting at the common ancestor given
+     * in the constructor and stores Because this function alters the caches, an invalid block will cause
+     * an invalid state of the caches, and will mean that for testing a certain block, a copy of this
+     * object must be made before calling the function, and only on success can be continue to be used,
+     * otherwise it should be disposed of
+     *
+     * @param blockToSpend
+     * @return Result<void, CBlock::VIUError>
+     */
+    Result<void, CBlock::VIUError> SimulateSpendingBlock(const CBlock& blockToSpend)
+    {
+        for (const CTransaction& tx : blockToSpend.vtx) {
+            const uint256 txHash = tx.GetHash();
+
+            // we store the transactions of the fork by hash to be able to verify their spending later
+            if (thisForkTxs.find(txHash) != thisForkTxs.cend()) {
+                return Err(CBlock::VIUError::TxAppearedTwiceInFork);
+            }
+
+            // after having checked that the spending is OK for this tx, we add it to the txs of this
+            // fork; we only need to store the output size... no other information is needed
+            const auto txStorer = [this, &txHash, &tx]() {
+                thisForkTxs.emplace(std::make_pair(txHash, tx.vout.size()));
+            };
+            BOOST_SCOPE_EXIT(&txStorer) { txStorer(); }
+            BOOST_SCOPE_EXIT_END
+
+            // coinbase doesn't spend anything
+            if (tx.IsCoinBase()) {
+                continue;
+            }
+
+            const std::vector<CTxIn>& vin = tx.vin;
+            for (unsigned int inIdx = 0; inIdx < vin.size(); inIdx++) {
+                const CTxIn&   txin          = vin[inIdx];
+                const uint256& outputTxHash  = txin.prevout.hash;
+                const unsigned outputNumInTx = txin.prevout.n;
+
+                const boost::optional<CTxIndex> txindex = getTxIndex(outputTxHash);
+                if (!txindex) {
+                    // the tx index was not found
+
+                    // the only place left for this tx is in the fork itself
+                    auto it = thisForkTxs.find(outputTxHash);
+                    if (it == thisForkTxs.cend()) {
+                        return Err(CBlock::VIUError::TxNonExistent_ReadTxIndexFailed_Case3);
+                    }
+                    if (outputNumInTx >= it->second) {
+                        return Err(CBlock::VIUError::TxInputIndexOutOfRange_Case3);
+                    }
+                }
+                // check output index compared to tx index available outputs
+                else if (outputNumInTx >= txindex->vSpent.size()) {
+                    // tx index found, but it shows that the output index is invalid
+
+                    NLog.write(b_sev::err, "prevout.n out of range for in transaction " +
+                                               txHash.ToString() + " which has input " +
+                                               outputTxHash.ToString() + " and out-of-range output " +
+                                               std::to_string(outputNumInTx) + " vs available size " +
+                                               std::to_string(txindex->vSpent.size()));
+                    return Err(CBlock::VIUError::TxInputIndexOutOfRange_Case1);
+                } else {
+                    // tx index found, so we check if the output is spent only if it's before or at the
+                    // common ancestor height
+
+                    if (txindex->vSpent[outputNumInTx].IsNull()) {
+                        // this input is in the main chain and is not spent anyway yet
+                        continue;
+                    }
+
+                    using BlockIndexHeightCacheType = BlockIndexLRUCache<int>;
+                    static thread_local typename BlockIndexHeightCacheType::ExtractorFunc extractorFunc =
+                        [](const CBlockIndex& bi) -> int { return bi.nHeight; };
+                    static thread_local BlockIndexHeightCacheType blockIndexCache(10000, extractorFunc);
+
+                    const uint256 spenderBlockHash = txindex->vSpent[outputNumInTx].nBlockPos;
+                    const boost::optional<BlockIndexHeightCacheType::BICacheEntry> blockIndexHeight =
+                        blockIndexCache.get(txdb, spenderBlockHash);
+                    if (!blockIndexHeight) {
+                        NLog.write(
+                            b_sev::err,
+                            "The input of transaction {} whose index {} and hash {} is found to be "
+                            "in block {} but that block is not found in the block index. This "
+                            "should never happen.",
+                            tx.GetHash().ToString(), outputNumInTx, outputTxHash.ToString(),
+                            spenderBlockHash.ToString());
+                        return Err(CBlock::VIUError::ReadBlockIndexFailed);
+                    }
+
+                    if (blockIndexHeight->value <= commonAncestorHeight) {
+                        if (!txindex->vSpent[outputNumInTx].IsNull()) {
+                            // double spend
+                            NLog.error(
+                                "Output number {} in tx {} which is an input to tx {} is attempting to "
+                                "double-spend in the same block",
+                                outputNumInTx, outputTxHash.ToString(), tx.GetHash().ToString());
+                            return Err(CBlock::VIUError::DoublespendAttempt);
+                        }
+                    }
+                }
+
+                TRYV(spendOutputVirtually(txin.prevout, txHash));
+            }
+        }
+        return Ok();
+    }
+};
 
 /**
  * @brief CBlock::GetAlternateChainTxsUpToCommonAncestor
@@ -418,19 +612,25 @@ CBlock::ReplaceMainChainWithForkUpToCommonAncestor(const ITxDB& txdb) const
     result.tipBlockHash             = GetHash();
     result.bestBlockHash            = currBestBlockHash;
 
-    // unspend/disconnect all inputs that are in the fork
-    // we also need to unspend this block, so we add it and pop it later
-    for (const CBlock& blk : forkChainBlocks) {
-        TRYV(UnspendBlock(txdb, blk, result.commonAncestorBlockIndex, result.forkTxsOutCount,
-                          result.txsWithModifiedOutputStates));
-    }
+    // // unspend/disconnect all inputs that are in the fork
+    // // we also need to unspend this block, so we add it and pop it later
+    // for (const CBlock& blk : forkChainBlocks) {
+    //     TRYV(UnspendBlock(txdb, blk, result.commonAncestorBlockIndex, result.forkTxsOutCount,
+    //                       result.txsWithModifiedOutputStates));
+    // }
 
-    // at this point, all transactions from the fork that are spent in the main chain are now unspent
+    // // at this point, all transactions from the fork that are spent in the main chain are now unspent
 
-    // respend the transactions on the fork (to test whether this block is valid at this chain)
-    // we respend everything except for *this block
+    // // respend the transactions on the fork (to test whether this block is valid at this chain)
+    // // we respend everything except for *this block
+    // for (const CBlock& blk : forkChainBlocks) {
+    //     TRYV(RespendBlock(txdb, blk, result.forkTxsOutCount, result.txsWithModifiedOutputStates));
+    // }
+
+    ForkSpendSimulator spender(txdb, currBI->GetBlockHash(), currBI->nHeight);
+
     for (const CBlock& blk : forkChainBlocks) {
-        TRYV(RespendBlock(txdb, blk, result.forkTxsOutCount, result.txsWithModifiedOutputStates));
+        TRYV(spender.SimulateSpendingBlock(blk));
     }
 
     return Ok(result);
@@ -1838,6 +2038,8 @@ const char* CBlock::VIUErrorToString(VIUError err)
         return "TxInputIndexOutOfRange_Case1";
     case VIUError::TxInputIndexOutOfRange_Case2:
         return "TxInputIndexOutOfRange_Case2";
+    case VIUError::TxInputIndexOutOfRange_Case3:
+        return "TxInputIndexOutOfRange_Case3";
     case VIUError::DoublespendAttempt:
         return "DoublespendAttempt";
     case VIUError::BlockCannotBeReadFromDB:
@@ -1846,12 +2048,16 @@ const char* CBlock::VIUErrorToString(VIUError err)
         return "TxNonExistent_ReadTxIndexFailed_Case1";
     case VIUError::TxNonExistent_ReadTxIndexFailed_Case2:
         return "TxNonExistent_ReadTxIndexFailed_Case2";
+    case VIUError::TxNonExistent_ReadTxIndexFailed_Case3:
+        return "TxNonExistent_ReadTxIndexFailed_Case3";
     case VIUError::ReadBlockIndexFailed:
         return "ReadBlockIndexFailed";
     case VIUError::BlockIndexOfPrevBlockNotFound:
         return "BlockIndexOfPrevBlockNotFound";
     case VIUError::CommonAncestorSearchFailed:
         return "CommonAncestorSearchFailed";
+    case VIUError::TxAppearedTwiceInFork:
+        return "TxAppearedTwiceInFork";
     }
     return "Unknown";
 }

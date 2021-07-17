@@ -156,18 +156,21 @@ public:
         UnknownErrorWhileCollectingTxs,
         TxInputIndexOutOfRange_Case1,
         TxInputIndexOutOfRange_Case2,
+        TxInputIndexOutOfRange_Case3,
         DoublespendAttempt,
         BlockCannotBeReadFromDB,
         TxNonExistent_ReadTxIndexFailed_Case1,
         TxNonExistent_ReadTxIndexFailed_Case2,
+        TxNonExistent_ReadTxIndexFailed_Case3,
         ReadBlockIndexFailed,
         BlockIndexOfPrevBlockNotFound,
-        CommonAncestorSearchFailed
+        CommonAncestorSearchFailed,
+        TxAppearedTwiceInFork
     };
 
     static const char* VIUErrorToString(VIUError err);
 
-    Result<SpendStateAtBlockTipInFork, VIUError> 
+    Result<SpendStateAtBlockTipInFork, VIUError>
     ReplaceMainChainWithForkUpToCommonAncestor(const ITxDB& txdb) const;
 
     bool DisconnectBlock(CTxDB& txdb, const CBlockIndex& pindex);

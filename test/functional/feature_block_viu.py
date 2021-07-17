@@ -379,7 +379,7 @@ class FullBlockTest(ComparisonTestFramework):
         self.tip = blk16c
         self.block_heights[blk16c.sha256] = height
         self.blocks["f16c"] = blk16c
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxNonExistent_ReadTxIndexFailed_Case1'))
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxNonExistent_ReadTxIndexFailed_Case3'))
 
         # make the alt chain longer, and try again
         tip("f16")
@@ -430,7 +430,7 @@ class FullBlockTest(ComparisonTestFramework):
         self.tip = blk36c
         self.block_heights[blk36c.sha256] = height
         self.blocks["f36c"] = blk36c
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxNonExistent_ReadTxIndexFailed_Case1'))
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxNonExistent_ReadTxIndexFailed_Case3'))
 
         # double-spend in same block
         tip("f35")
