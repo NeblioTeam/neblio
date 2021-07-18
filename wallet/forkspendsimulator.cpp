@@ -213,8 +213,8 @@ ForkSpendSimulator::createFromCacheObject(const ITxDB& txdb, const ForkSpendSimu
     }
 
     ForkSpendSimulator res(txdb, currentCommonAncestor->GetBlockHash(), currentCommonAncestor->nHeight);
-    res.spent        = obj.spentOutputs;
-    res.thisForkTxs  = obj.forkTxs;
+    res.spent = obj.spentOutputs;
+    res.thisForkTxs.insert(obj.forkTxs.cbegin(), obj.forkTxs.cend());
     res.tipBlockHash = obj.lastProcessedTipBlockHash;
     res.thisForkTxs.insert(std::make_move_iterator(newTransactionsToAdd.begin()),
                            std::make_move_iterator(newTransactionsToAdd.end()));
