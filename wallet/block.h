@@ -138,7 +138,7 @@ public:
         DoublespendAttempt_SpentAlreadyBeforeTheFork,
         DoublespendAttempt_WithinTheFork,
         BlockCannotBeReadFromDB,
-        TxNonExistent_OutputNotFoundInMainchainOrFork,
+        TxNonExistent_OutputNotFoundInMainChainOrFork,
         ReadSpenderBlockIndexFailed,
         BlockIndexOfPrevBlockNotFound,
         CommonAncestorSearchFailed,

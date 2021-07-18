@@ -228,8 +228,8 @@ class FullBlockTest(ComparisonTestFramework):
             spendable_outputs.append(self.tip)
 
         # get an output that we previously marked as spendable
-        def get_spendable_output():
-            return PreviousSpendableOutput(spendable_outputs.pop(0).vtx[0], 0)
+        def get_spendable_output(index=0):
+            return PreviousSpendableOutput(spendable_outputs.pop(index).vtx[0], 0)
 
         # returns a test case that asserts that the current tip was accepted
         def accepted():
@@ -376,7 +376,7 @@ class FullBlockTest(ComparisonTestFramework):
         self.tip = blk16c
         self.block_heights[blk16c.sha256] = height
         self.blocks["f16c"] = blk16c
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxNonExistent_OutputNotFoundInMainchainOrFork'))
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxNonExistent_OutputNotFoundInMainChainOrFork'))
 
         # make the alt chain longer, and try again
         tip("f16")
@@ -427,7 +427,7 @@ class FullBlockTest(ComparisonTestFramework):
         self.tip = blk36c
         self.block_heights[blk36c.sha256] = height
         self.blocks["f36c"] = blk36c
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxNonExistent_OutputNotFoundInMainchainOrFork'))
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxNonExistent_OutputNotFoundInMainChainOrFork'))
 
         # double-spend in same block
         tip("f35")
@@ -438,7 +438,7 @@ class FullBlockTest(ComparisonTestFramework):
         blk36d.hashPrevBlock = self.tip.sha256
         blk36d.nBits = 0x207fffff
         blk36d.vtx.append(coinbase)
-        tx1 = create_tx_manual(out[37].tx.sha256, out[17].n, 10000000)
+        tx1 = create_tx_manual(out[37].tx.sha256, out[37].n, 10000000)
         tx2 = create_tx_manual(tx1.sha256, 0, 5000000)
         tx3 = create_tx_manual(tx1.sha256, 0, 4000000)
         blk36d.vtx.append(tx1)
@@ -497,6 +497,26 @@ class FullBlockTest(ComparisonTestFramework):
         block("f37e", spend=out[5])
         save_spendable_output()
         yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_SpentAlreadyBeforeTheFork'))
+
+        # invalid input index - out of range within the fork
+        tip("f35")
+        height = self.block_heights[self.tip.sha256] + 1
+        coinbase = create_coinbase(height, self.coinbase_pubkey)
+        blk36f = CBlock()
+        blk36f.nTime = self.tip.nTime + 1
+        blk36f.hashPrevBlock = self.tip.sha256
+        blk36f.nBits = 0x207fffff
+        blk36f.vtx.append(coinbase)
+        # we pick one output from after the fork
+        out_to_spend = get_spendable_output(98)
+        tx1 = create_tx_manual(out_to_spend.tx.sha256, out_to_spend.n+10, 10000)
+        blk36f.vtx.append(tx1)
+        blk36f.hashMerkleRoot = blk36f.calc_merkle_root()
+        blk36f.fix_time_then_resolve()
+        self.tip = blk36f
+        self.block_heights[blk36f.sha256] = height
+        self.blocks["f36f"] = blk36f
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxInputIndexOutOfRange_InFork'))
 
 
 if __name__ == '__main__':

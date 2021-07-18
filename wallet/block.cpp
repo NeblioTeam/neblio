@@ -324,7 +324,7 @@ public:
                     // fork itself
                     auto it = thisForkTxs.find(txin.prevout.hash);
                     if (it == thisForkTxs.cend()) {
-                        return Err(CBlock::VIUError::TxNonExistent_OutputNotFoundInMainchainOrFork);
+                        return Err(CBlock::VIUError::TxNonExistent_OutputNotFoundInMainChainOrFork);
                     }
 
                     // ensure that the output index is valid
@@ -1818,8 +1818,8 @@ const char* CBlock::VIUErrorToString(VIUError err)
         return "DoublespendAttempt_WithinTheFork";
     case VIUError::BlockCannotBeReadFromDB:
         return "BlockCannotBeReadFromDB";
-    case VIUError::TxNonExistent_OutputNotFoundInMainchainOrFork:
-        return "TxNonExistent_OutputNotFoundInMainchainOrFork";
+    case VIUError::TxNonExistent_OutputNotFoundInMainChainOrFork:
+        return "TxNonExistent_OutputNotFoundInMainChainOrFork";
     case VIUError::ReadSpenderBlockIndexFailed:
         return "ReadSpenderBlockIndexFailed";
     case VIUError::BlockIndexOfPrevBlockNotFound:
