@@ -301,10 +301,10 @@ public:
 
             // after having checked that the spending is OK for this tx, we add it to the txs of this
             // fork; we only need to store the output size... no other information is needed
-            const auto txStorer = [this, &spenderTxHash, &spenderTx]() {
+            const auto StoreForkTx = [this, &spenderTxHash, &spenderTx]() {
                 thisForkTxs.emplace(std::make_pair(spenderTxHash, spenderTx.vout.size()));
             };
-            BOOST_SCOPE_EXIT(&txStorer) { txStorer(); }
+            BOOST_SCOPE_EXIT(&StoreForkTx) { StoreForkTx(); }
             BOOST_SCOPE_EXIT_END
 
             // coinbase doesn't spend anything
