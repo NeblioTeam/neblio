@@ -283,9 +283,6 @@ class FullBlockTest(ComparisonTestFramework):
         create_tx = self.create_tx
         create_and_sign_tx = self.create_and_sign_transaction
 
-        # these must be updated if consensus changes
-        MAX_BLOCK_SIGOPS = 20000
-
         # Create a new block
         block(0)
         save_spendable_output()
@@ -327,7 +324,7 @@ class FullBlockTest(ComparisonTestFramework):
         tip("f15")
         block("f16a", spend=out[15])
         save_spendable_output()
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt'))
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_WithinTheFork'))
 
         # create one valid transaction above the last tip as a template
         tip("f15")
@@ -394,7 +391,7 @@ class FullBlockTest(ComparisonTestFramework):
         tip("f35")
         block("f36a", spend=out[30])
         save_spendable_output()
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt'))
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_WithinTheFork'))
 
         # invalid input index - out of range
         tip("f35")
@@ -452,7 +449,7 @@ class FullBlockTest(ComparisonTestFramework):
         self.tip = blk36d
         self.block_heights[blk36d.sha256] = height
         self.blocks["f36d"] = blk36d
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt'))
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_WithinTheFork'))
 
         #############################################################
         # double spend a transaction in two blocks but that was created in the fork
@@ -492,14 +489,14 @@ class FullBlockTest(ComparisonTestFramework):
         self.tip = blk37a
         self.block_heights[blk37a.sha256] = height
         self.blocks["f37a"] = blk37a
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt'))
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_WithinTheFork'))
         #############################################################
 
         # Attempt to doublespend something from before the fork
         tip("f36e")
         block("f37e", spend=out[5])
         save_spendable_output()
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt'))
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_SpentAlreadyBeforeTheFork'))
 
 
 if __name__ == '__main__':

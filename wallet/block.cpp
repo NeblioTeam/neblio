@@ -227,7 +227,7 @@ class ForkSpendSimulator
             NLog.error("Output number {} in tx {} which is an input to tx {} is attempting to "
                        "double-spend in the same block",
                        output.n, output.hash.ToString(), spenderTx.ToString());
-            return Err(CBlock::VIUError::DoublespendAttempt_Case2);
+            return Err(CBlock::VIUError::DoublespendAttempt_WithinTheFork);
         }
 
         spent.insert(output);
@@ -263,7 +263,7 @@ class ForkSpendSimulator
                                "attempting to "
                                "double-spend in the same block",
                                input.n, input.hash.ToString(), spenderTxHash.ToString());
-                    return Err(CBlock::VIUError::DoublespendAttempt_Case1);
+                    return Err(CBlock::VIUError::DoublespendAttempt_SpentAlreadyBeforeTheFork);
                 }
             }
         }
@@ -1812,10 +1812,10 @@ const char* CBlock::VIUErrorToString(VIUError err)
         return "TxInputIndexOutOfRange_InMainChain";
     case VIUError::TxInputIndexOutOfRange_InFork:
         return "TxInputIndexOutOfRange_InFork";
-    case VIUError::DoublespendAttempt_Case1:
-        return "DoublespendAttempt_Case1";
-    case VIUError::DoublespendAttempt_Case2:
-        return "DoublespendAttempt_Case2";
+    case VIUError::DoublespendAttempt_SpentAlreadyBeforeTheFork:
+        return "DoublespendAttempt_SpentAlreadyBeforeTheFork";
+    case VIUError::DoublespendAttempt_WithinTheFork:
+        return "DoublespendAttempt_WithinTheFork";
     case VIUError::BlockCannotBeReadFromDB:
         return "BlockCannotBeReadFromDB";
     case VIUError::TxNonExistent_OutputNotFoundInMainchainOrFork:
