@@ -3,6 +3,7 @@
 
 #include "blockindex.h"
 #include "blockreject.h"
+#include "forkspendsimulator.h"
 #include "globals.h"
 #include "outpoint.h"
 #include "transaction.h"
@@ -130,29 +131,14 @@ public:
 
     static bool CheckBIP30Attack(ITxDB& txdb, const uint256& hashTx);
 
-    enum class VIUError
-    {
-        UnknownErrorWhileCollectingTxs,
-        TxInputIndexOutOfRange_InMainChain,
-        TxInputIndexOutOfRange_InFork,
-        DoublespendAttempt_SpentAlreadyBeforeTheFork,
-        DoublespendAttempt_WithinTheFork,
-        BlockCannotBeReadFromDB,
-        TxNonExistent_OutputNotFoundInMainChainOrFork,
-        ReadSpenderBlockIndexFailed,
-        BlockIndexOfPrevBlockNotFound,
-        CommonAncestorSearchFailed,
-        TxAppearedTwiceInFork
-    };
+    static const char* VIUErrorToString(ForkSpendSimulator::VIUError err);
 
-    static const char* VIUErrorToString(VIUError err);
-
-    Result<void, VIUError> VerifyInputsUnspent_Internal(const ITxDB& txdb) const;
+    Result<void, ForkSpendSimulator::VIUError> VerifyInputsUnspent_Internal(const ITxDB& txdb) const;
 
     bool DisconnectBlock(CTxDB& txdb, const CBlockIndex& pindex);
     bool ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pindex, bool fJustCheck = false);
-    Result<void, CBlock::VIUError> VerifyInputsUnspent(const CTxDB& txdb) const;
-    bool                           VerifyBlock(CTxDB& txdb);
+    Result<void, ForkSpendSimulator::VIUError> VerifyInputsUnspent(const CTxDB& txdb) const;
+    bool                                       VerifyBlock(CTxDB& txdb);
     bool ReadFromDisk(const CBlockIndex* pindex, const ITxDB& txdb, bool fReadTransactions = true);
     bool SetBestChain(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
                       const bool createDbTransaction = true);

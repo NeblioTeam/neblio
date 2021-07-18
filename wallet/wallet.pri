@@ -172,7 +172,8 @@ HEADERS += qt/bitcoingui.h \
     logging/logger.h                 \
     blockreject.h                    \
     blockmetadata.h                  \
-    blockindexlrucache.h
+    blockindexlrucache.h             \
+    forkspendsimulator.h
 
 
 
@@ -341,7 +342,8 @@ SOURCES += qt/bitcoin.cpp \
     logging/logger.cpp                  \
     blockreject.cpp                     \
     blockmetadata.cpp                   \
-    blockindexlrucache.cpp
+    blockindexlrucache.cpp              \
+    forkspendsimulator.cpp
 
 
 
