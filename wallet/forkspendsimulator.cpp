@@ -88,14 +88,8 @@ Result<void, ForkSpendSimulator::VIUError> ForkSpendSimulator::unspentOrSpentAbo
     return Ok();
 }
 
-ForkSpendSimulator::ForkSpendSimulator(const ITxDB& txdbIn, const uint256& commonAncestorIn,
-                                       int commonAncestorHeightIn)
-    : txdb(txdbIn), commonAncestor(commonAncestorIn), commonAncestorHeight(commonAncestorHeightIn)
-{
-}
-
 Result<void, ForkSpendSimulator::VIUError>
-ForkSpendSimulator::simulateSpendingBlock(const CBlock& blockToSpend)
+ForkSpendSimulator::simulateSpendingBlock_internal(const CBlock& blockToSpend)
 {
     for (const CTransaction& spenderTx : blockToSpend.vtx) {
         const uint256 spenderTxHash = spenderTx.GetHash();
@@ -160,6 +154,21 @@ ForkSpendSimulator::simulateSpendingBlock(const CBlock& blockToSpend)
         }
     }
 
+    return Ok();
+}
+
+ForkSpendSimulator::ForkSpendSimulator(const ITxDB& txdbIn, const uint256& commonAncestorIn,
+                                       int commonAncestorHeightIn)
+    : txdb(txdbIn), commonAncestor(commonAncestorIn), commonAncestorHeight(commonAncestorHeightIn)
+{
+}
+
+Result<void, ForkSpendSimulator::VIUError>
+ForkSpendSimulator::simulateSpendingBlock(const CBlock& blockToSpend)
+{
+
+    TRYV(simulateSpendingBlock_internal(blockToSpend));
+
     // update the internal state tip block
     tipBlockHash = blockToSpend.GetHash();
 
@@ -187,8 +196,9 @@ ForkSpendSimulator::createFromCacheObject(const ITxDB& txdb, const ForkSpendSimu
                                           const uint256& currentBestBlockHash)
 {
     // the common ancestor can potentially change
-    // if the common ancestor is not in the main chain anymore, we should add its transactions into
-    // forkTxs to be able to see whether they're double-spent
+    // if the common ancestor (and potentially few blocks before it) are not in the main chain anymore (a
+    // block before it is now common ancestor), we should add all the transactions starting from the new
+    // fork up to the old common ancestor into forkTxs to be able to see whether they're double-spent
     const boost::optional<CBlockIndex> formerCommonAncestorBI = txdb.ReadBlockIndex(obj.commonAncestor);
     if (!formerCommonAncestorBI) {
         return Err(VIUError::FormerCommonAncestorNotFound);
@@ -196,30 +206,48 @@ ForkSpendSimulator::createFromCacheObject(const ITxDB& txdb, const ForkSpendSimu
 
     std::unordered_map<uint256, const unsigned> newTransactionsToAdd;
 
+    std::vector<CBlock> blocksBetweenPrevMainChainAndFork;
+
     // get all tranactions from blocks that are now in the fork and were not in the mainchain when this
     // state was cached
     boost::optional<CBlockIndex> currentCommonAncestor = formerCommonAncestorBI;
     while (!formerCommonAncestorBI->IsInMainChain(currentBestBlockHash)) {
+        if (!currentCommonAncestor) {
+            return Err(VIUError::BlockIndexOfPrevBlockNotFound);
+        }
+
         {
             CBlock blk;
             if (!txdb.ReadBlock(currentCommonAncestor->GetBlockHash(), blk, true)) {
                 return Err(VIUError::BlockCannotBeReadFromDB);
             }
+
             for (const CTransaction& tx : blk.vtx) {
                 newTransactionsToAdd.emplace(tx.GetHash(), tx.vout.size());
             }
+
+            blocksBetweenPrevMainChainAndFork.push_back(std::move(blk));
         }
+
         currentCommonAncestor = currentCommonAncestor->getPrev(txdb);
     }
 
-    ForkSpendSimulator res(txdb, currentCommonAncestor->GetBlockHash(), currentCommonAncestor->nHeight);
-    res.spent = obj.spentOutputs;
-    res.thisForkTxs.insert(obj.forkTxs.cbegin(), obj.forkTxs.cend());
-    res.tipBlockHash = obj.lastProcessedTipBlockHash;
-    res.thisForkTxs.insert(std::make_move_iterator(newTransactionsToAdd.begin()),
-                           std::make_move_iterator(newTransactionsToAdd.end()));
+    std::reverse(blocksBetweenPrevMainChainAndFork.begin(), blocksBetweenPrevMainChainAndFork.end());
 
-    return Ok(res);
+    ForkSpendSimulator result(txdb, currentCommonAncestor->GetBlockHash(),
+                              currentCommonAncestor->nHeight);
+    // we spend the new blocks
+    for (const CBlock& blk : blocksBetweenPrevMainChainAndFork) {
+        TRYV(result.simulateSpendingBlock_internal(blk));
+    }
+    // then we add the blocks that come above the last blocks
+    result.spent.insert(obj.spentOutputs.begin(), obj.spentOutputs.end());
+    result.thisForkTxs.insert(obj.forkTxs.cbegin(), obj.forkTxs.cend());
+    result.thisForkTxs.insert(std::make_move_iterator(newTransactionsToAdd.begin()),
+                              std::make_move_iterator(newTransactionsToAdd.end()));
+    result.tipBlockHash = obj.lastProcessedTipBlockHash;
+
+    return Ok(std::move(result));
 }
 
 const char* ForkSpendSimulator::VIUErrorToString(VIUError err)

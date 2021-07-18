@@ -65,6 +65,8 @@ private:
                                                                     const uint256&   spenderTxHash,
                                                                     const COutPoint& input);
 
+    Result<void, VIUError> simulateSpendingBlock_internal(const CBlock& blockToSpend);
+
 public:
     ForkSpendSimulator(const ITxDB& txdbIn, const uint256& commonAncestorIn, int commonAncestorHeightIn);
 
