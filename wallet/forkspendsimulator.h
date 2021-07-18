@@ -11,6 +11,15 @@
 
 class CBlock;
 
+struct ForkSpendSimulatorCachedObj
+{
+    std::unordered_map<uint256, const unsigned> forkTxs;
+    std::set<COutPoint>                         spentOutputs;
+    uint256                                     lastProcessedTipBlockHash;
+    uint256                                     commonAncestor;
+    int                                         commonAncestorHeight;
+};
+
 class ForkSpendSimulator
 {
 public:
@@ -26,7 +35,8 @@ public:
         ReadSpenderBlockIndexFailed,
         BlockIndexOfPrevBlockNotFound,
         CommonAncestorSearchFailed,
-        TxAppearedTwiceInFork
+        TxAppearedTwiceInFork,
+        FormerCommonAncestorNotFound
     };
 
 private:
@@ -38,9 +48,12 @@ private:
 
     std::unordered_map<uint256, const unsigned> thisForkTxs;
 
-    const uint256& newlyInsertedBlockHash;
+    // the tip that the state in this class represents
+    boost::optional<uint256> tipBlockHash;
+
     const uint256& commonAncestor;
-    const int      commonAncestorHeight;
+
+    const int commonAncestorHeight;
 
     boost::optional<int> getBlockHeight(const uint256& blockHash);
 
@@ -53,8 +66,7 @@ private:
                                                                     const COutPoint& input);
 
 public:
-    ForkSpendSimulator(const ITxDB& txdbIn, const uint256& newlyInsertedBlockHashIn,
-                       const uint256& commonAncestorIn, int commonAncestorHeightIn);
+    ForkSpendSimulator(const ITxDB& txdbIn, const uint256& commonAncestorIn, int commonAncestorHeightIn);
 
     /**
      * @brief Attempts to virtually spend the block with the fork starting at the common ancestor given
@@ -63,10 +75,15 @@ public:
      * object must be made before calling the function, and only on success can be continue to be used,
      * otherwise it should be disposed of
      *
-     * @param blockToSpend
      * @return Result<void, CBlock::VIUError>
      */
     Result<void, VIUError> simulateSpendingBlock(const CBlock& blockToSpend);
+
+    boost::optional<ForkSpendSimulatorCachedObj> exportCacheObj() const;
+
+    static Result<ForkSpendSimulator, ForkSpendSimulator::VIUError>
+    createFromCacheObject(const ITxDB& txdb, const ForkSpendSimulatorCachedObj& obj,
+                          const uint256& currentBestBlockHash);
 
     static const char* VIUErrorToString(VIUError err);
 };

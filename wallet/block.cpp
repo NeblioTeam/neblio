@@ -216,8 +216,7 @@ Result<void, ForkSpendSimulator::VIUError> CBlock::VerifyInputsUnspent_Internal(
     std::reverse(forkChainBlocks.begin(), forkChainBlocks.end());
 
     // we simulate spending transactions and ensure they're not double-spent/invalid
-    ForkSpendSimulator spender(txdb, this->GetHash(), commonAncestorBI->GetBlockHash(),
-                               commonAncestorBI->nHeight);
+    ForkSpendSimulator spender(txdb, commonAncestorBI->GetBlockHash(), commonAncestorBI->nHeight);
     for (const CBlock& blk : forkChainBlocks) {
         TRYV(spender.simulateSpendingBlock(blk));
     }
@@ -640,8 +639,8 @@ bool CBlock::SetBestChain(CTxDB& txdb, const boost::optional<CBlockIndex>& pinde
     const boost::optional<CBlockIndex>& pindexBestPtr = pindexNew;
     uint256                             nBestBlockTrust =
         pindexBestPtr->nHeight != 0
-                                        ? (pindexBestPtr->nChainTrust - pindexBestPtr->getPrev(txdb)->nChainTrust)
-                                        : pindexBestPtr->nChainTrust;
+            ? (pindexBestPtr->nChainTrust - pindexBestPtr->getPrev(txdb)->nChainTrust)
+            : pindexBestPtr->nChainTrust;
 
     NLog.write(b_sev::info, "SetBestChain: new best={}  height={}  trust={}  blocktrust={}  date={}",
                txdb.GetBestBlockHash().ToString(), txdb.GetBestChainHeight().value_or(0),

@@ -88,10 +88,9 @@ Result<void, ForkSpendSimulator::VIUError> ForkSpendSimulator::unspentOrSpentAbo
     return Ok();
 }
 
-ForkSpendSimulator::ForkSpendSimulator(const ITxDB& txdbIn, const uint256& newlyInsertedBlockHashIn,
-                                       const uint256& commonAncestorIn, int commonAncestorHeightIn)
-    : txdb(txdbIn), newlyInsertedBlockHash(newlyInsertedBlockHashIn), commonAncestor(commonAncestorIn),
-      commonAncestorHeight(commonAncestorHeightIn)
+ForkSpendSimulator::ForkSpendSimulator(const ITxDB& txdbIn, const uint256& commonAncestorIn,
+                                       int commonAncestorHeightIn)
+    : txdb(txdbIn), commonAncestor(commonAncestorIn), commonAncestorHeight(commonAncestorHeightIn)
 {
 }
 
@@ -160,7 +159,67 @@ ForkSpendSimulator::simulateSpendingBlock(const CBlock& blockToSpend)
             TRYV(spendOutputVirtually(txin.prevout, spenderTxHash));
         }
     }
+
+    // update the internal state tip block
+    tipBlockHash = blockToSpend.GetHash();
+
     return Ok();
+}
+
+boost::optional<ForkSpendSimulatorCachedObj> ForkSpendSimulator::exportCacheObj() const
+{
+    if (tipBlockHash) {
+        ForkSpendSimulatorCachedObj res;
+        res.commonAncestor            = commonAncestor;
+        res.commonAncestorHeight      = commonAncestorHeight;
+        res.forkTxs                   = thisForkTxs;
+        res.lastProcessedTipBlockHash = *tipBlockHash;
+        res.spentOutputs              = spent;
+
+        return boost::make_optional(std::move(res));
+    } else {
+        return boost::none;
+    }
+}
+
+Result<ForkSpendSimulator, ForkSpendSimulator::VIUError>
+ForkSpendSimulator::createFromCacheObject(const ITxDB& txdb, const ForkSpendSimulatorCachedObj& obj,
+                                          const uint256& currentBestBlockHash)
+{
+    // the common ancestor can potentially change
+    // if the common ancestor is not in the main chain anymore, we should add its transactions into
+    // forkTxs to be able to see whether they're double-spent
+    const boost::optional<CBlockIndex> formerCommonAncestorBI = txdb.ReadBlockIndex(obj.commonAncestor);
+    if (!formerCommonAncestorBI) {
+        return Err(VIUError::FormerCommonAncestorNotFound);
+    }
+
+    std::unordered_map<uint256, const unsigned> newTransactionsToAdd;
+
+    // get all tranactions from blocks that are now in the fork and were not in the mainchain when this
+    // state was cached
+    boost::optional<CBlockIndex> currentCommonAncestor = formerCommonAncestorBI;
+    while (!formerCommonAncestorBI->IsInMainChain(currentBestBlockHash)) {
+        {
+            CBlock blk;
+            if (!txdb.ReadBlock(currentCommonAncestor->GetBlockHash(), blk, true)) {
+                return Err(VIUError::BlockCannotBeReadFromDB);
+            }
+            for (const CTransaction& tx : blk.vtx) {
+                newTransactionsToAdd.emplace(tx.GetHash(), tx.vout.size());
+            }
+        }
+        currentCommonAncestor = currentCommonAncestor->getPrev(txdb);
+    }
+
+    ForkSpendSimulator res(txdb, currentCommonAncestor->GetBlockHash(), currentCommonAncestor->nHeight);
+    res.spent        = obj.spentOutputs;
+    res.thisForkTxs  = obj.forkTxs;
+    res.tipBlockHash = obj.lastProcessedTipBlockHash;
+    res.thisForkTxs.insert(std::make_move_iterator(newTransactionsToAdd.begin()),
+                           std::make_move_iterator(newTransactionsToAdd.end()));
+
+    return Ok(res);
 }
 
 const char* ForkSpendSimulator::VIUErrorToString(VIUError err)
@@ -188,6 +247,8 @@ const char* ForkSpendSimulator::VIUErrorToString(VIUError err)
         return "CommonAncestorSearchFailed";
     case VIUError::TxAppearedTwiceInFork:
         return "TxAppearedTwiceInFork";
+    case VIUError::FormerCommonAncestorNotFound:
+        return "FormerCommonAncestorNotFound";
     }
     return "Unknown";
 }
