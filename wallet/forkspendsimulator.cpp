@@ -170,9 +170,9 @@ boost::optional<ForkSpendSimulatorCachedObj> ForkSpendSimulator::exportCacheObj(
 {
     if (tipBlockHash) {
         ForkSpendSimulatorCachedObj res;
-        res.commonAncestor            = commonAncestor;
-        res.commonAncestorHeight      = commonAncestorHeight;
-        res.forkTxs                   = thisForkTxs;
+        res.commonAncestor       = commonAncestor;
+        res.commonAncestorHeight = commonAncestorHeight;
+        res.forkTxs.insert(thisForkTxs.cbegin(), thisForkTxs.cend());
         res.lastProcessedTipBlockHash = *tipBlockHash;
         res.spentOutputs              = spent;
 
