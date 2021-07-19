@@ -22,6 +22,8 @@
 #include <mutex>
 
 VIUCache viuCache(200);
+// the probabilities should be small enough to cache only so many blocks to avoid consuming so much but
+// should be large enough to make a remote timing attack very hard
 unsigned VIUCachePushProbabilityNumerator   = 10;
 unsigned VIUCachePushProbabilityDenominator = 100;
 
