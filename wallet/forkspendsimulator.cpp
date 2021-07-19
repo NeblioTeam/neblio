@@ -217,7 +217,7 @@ ForkSpendSimulator::createFromCacheObject(const ITxDB& txdb, const ForkSpendSimu
     // get all tranactions from blocks that are now in the fork and were not in the mainchain when this
     // state was cached
     boost::optional<CBlockIndex> currentCommonAncestor = formerCommonAncestorBI;
-    while (!formerCommonAncestorBI->IsInMainChain(currentBestBlockHash)) {
+    while (!currentCommonAncestor->IsInMainChain(currentBestBlockHash)) {
         if (!currentCommonAncestor) {
             return Err(VIUError::BlockIndexOfPrevBlockNotFound);
         }
@@ -235,7 +235,12 @@ ForkSpendSimulator::createFromCacheObject(const ITxDB& txdb, const ForkSpendSimu
             blocksBetweenPrevMainChainAndFork.push_back(std::move(blk));
         }
 
-        currentCommonAncestor = currentCommonAncestor->getPrev(txdb);
+        boost::optional<CBlockIndex> prevBI = currentCommonAncestor->getPrev(txdb);
+        if (!prevBI) {
+            NLog.write(b_sev::critical, "Could not find previous block index for block {} of height {}",
+                       currentCommonAncestor->GetBlockHash().ToString(), currentCommonAncestor->nHeight);
+        }
+        currentCommonAncestor = std::move(prevBI);
     }
 
     std::reverse(blocksBetweenPrevMainChainAndFork.begin(), blocksBetweenPrevMainChainAndFork.end());
