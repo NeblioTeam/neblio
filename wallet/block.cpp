@@ -22,7 +22,7 @@
 #include <mutex>
 
 VIUCache viuCache(200);
-unsigned VIUCachePushProbabilityNumerator   = 5;
+unsigned VIUCachePushProbabilityNumerator   = 10;
 unsigned VIUCachePushProbabilityDenominator = 100;
 
 void CBlock::print() const
