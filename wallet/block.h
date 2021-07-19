@@ -9,12 +9,17 @@
 #include "transaction.h"
 #include "txindex.h"
 #include "uint256.h"
+#include "viucache.h"
 #include <unordered_map>
 #include <vector>
 
 class CBlockIndex;
 class CTxDB;
 class CWallet;
+
+extern VIUCache viuCache;
+extern unsigned VIUCachePushProbabilityNumerator;
+extern unsigned VIUCachePushProbabilityDenominator;
 
 /** Nodes collect new transactions into a block, hash them into a hash tree,
  * and scan through nonce values to make the block's hash satisfy proof-of-work

@@ -51,7 +51,7 @@ private:
     // the tip that the state in this class represents
     boost::optional<uint256> tipBlockHash;
 
-    const uint256& commonAncestor;
+    const uint256 commonAncestor;
 
     const int commonAncestorHeight;
 
@@ -87,7 +87,10 @@ public:
     createFromCacheObject(const ITxDB& txdb, const ForkSpendSimulatorCachedObj& obj,
                           const uint256& currentBestBlockHash);
 
-    static const char* VIUErrorToString(VIUError err);
+    static const char*       VIUErrorToString(VIUError err);
+    boost::optional<uint256> getTipBlockHash() const;
+    const uint256&           getCommonAncestor() const;
+    int                      getCommonAncestorHeight() const;
 };
 
 #endif // FORKSPENDSIMULATOR_H

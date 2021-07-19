@@ -5,6 +5,12 @@
 #include <blockindexlrucache.h>
 #include <boost/scope_exit.hpp>
 
+boost::optional<uint256> ForkSpendSimulator::getTipBlockHash() const { return tipBlockHash; }
+
+const uint256& ForkSpendSimulator::getCommonAncestor() const { return commonAncestor; }
+
+int ForkSpendSimulator::getCommonAncestorHeight() const { return commonAncestorHeight; }
+
 boost::optional<int> ForkSpendSimulator::getBlockHeight(const uint256& blockHash)
 {
     using BlockIndexHeightCacheType = BlockIndexLRUCache<int>;
