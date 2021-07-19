@@ -5,6 +5,7 @@
 #include "result.h"
 #include <cstdint>
 #include <map>
+#include <random>
 
 class VIUCache
 {
@@ -12,7 +13,11 @@ class VIUCache
 
     std::map<uint256, const ForkSpendSimulatorCachedObj> tipBlockVsCachedObj;
 
+    std::mt19937 randGen;
+
     void dropOneElement();
+
+    static int GetRandomSeed();
 
 public:
     VIUCache(const std::size_t maxSizeIn);

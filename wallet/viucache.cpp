@@ -1,5 +1,7 @@
 #include "viucache.h"
 
+#include "logging/logger.h"
+
 void VIUCache::dropOneElement()
 {
     if (tipBlockVsCachedObj.empty()) {
@@ -10,7 +12,16 @@ void VIUCache::dropOneElement()
     tipBlockVsCachedObj.erase(it);
 }
 
-VIUCache::VIUCache(const std::size_t maxSizeIn) : maxSize(maxSizeIn) {}
+int VIUCache::GetRandomSeed()
+{
+    const int seed = std::random_device{}();
+
+    NLog.write(b_sev::info, "Using seed for random VIU cache push probability: {}", seed);
+
+    return seed;
+}
+
+VIUCache::VIUCache(const std::size_t maxSizeIn) : maxSize(maxSizeIn), randGen(GetRandomSeed()) {}
 
 void VIUCache::push(const ForkSpendSimulatorCachedObj& obj)
 {
@@ -24,7 +35,7 @@ bool VIUCache::push_with_probability(const ForkSpendSimulatorCachedObj& obj,
                                      unsigned probability_numerator, unsigned probability_denominator)
 {
     assert(probability_denominator > 0);
-    const unsigned outcome = static_cast<unsigned>(rand()) % probability_denominator;
+    const unsigned outcome = static_cast<unsigned>(randGen()) % probability_denominator;
     if (outcome < probability_numerator) {
         push(obj);
         return true;
