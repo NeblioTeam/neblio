@@ -283,6 +283,9 @@ class FullBlockTest(ComparisonTestFramework):
         create_tx = self.create_tx
         create_and_sign_tx = self.create_and_sign_transaction
 
+        # disable caching
+        self.nodes[0].setviupushprobability(0, 100)
+
         # Create a new block
         block(0)
         save_spendable_output()
