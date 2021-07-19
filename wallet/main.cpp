@@ -1258,7 +1258,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
         mapOrphanBlocksByPrev.erase(hashPrev);
     }
 
-    NLog.write(b_sev::info, "ProcessBlock: ACCEPTED");
+    NLog.write(b_sev::info, "ProcessBlock: ACCEPTED: {}", hash.ToString());
 
     return true;
 }

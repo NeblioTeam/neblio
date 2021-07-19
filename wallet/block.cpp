@@ -21,6 +21,10 @@
 #include <boost/scope_exit.hpp>
 #include <mutex>
 
+VIUCache viuCache(200);
+unsigned VIUCachePushProbabilityNumerator   = 5;
+unsigned VIUCachePushProbabilityDenominator = 100;
+
 void CBlock::print() const
 {
     NLog.write(b_sev::info,
@@ -192,9 +196,23 @@ Result<void, ForkSpendSimulator::VIUError> CBlock::VerifyInputsUnspent_Internal(
     // we get all the blocks that we need to read
     std::vector<uint256> forkChainBlockHashes;
 
+    boost::optional<ForkSpendSimulatorCachedObj> cachedVIUObj;
+
     while (!commonAncestorBI->IsInMainChain(currBestBlockHash)) {
         NLog.write(b_sev::trace, "Block in fork chain: {}\t{}",
                    commonAncestorBI->GetBlockHash().ToString(), commonAncestorBI->nHeight);
+
+        // check if we have the spend state cached
+        cachedVIUObj = viuCache.get(commonAncestorBI->GetBlockHash());
+        if (cachedVIUObj) {
+            // since we found a cached object, no need to continue here, and we let the cache object take
+            // over later
+            commonAncestorBI = boost::none; // reset it to ensure it won't be used
+            break;
+        }
+
+        // if cached obj found, no need to push more blocks
+        CBlock blk;
 
         const uint256& bh = commonAncestorBI->GetBlockHash();
         forkChainBlockHashes.push_back(bh);
@@ -209,8 +227,18 @@ Result<void, ForkSpendSimulator::VIUError> CBlock::VerifyInputsUnspent_Internal(
 
     std::reverse(forkChainBlockHashes.begin(), forkChainBlockHashes.end());
 
+    const auto SpenderMaker = [&]() -> Result<ForkSpendSimulator, ForkSpendSimulator::VIUError> {
+        if (cachedVIUObj) {
+            return ForkSpendSimulator::createFromCacheObject(txdb, *cachedVIUObj, currBestBlockHash);
+        } else {
+            return Ok(
+                ForkSpendSimulator(txdb, commonAncestorBI->GetBlockHash(), commonAncestorBI->nHeight));
+        }
+    };
+
     // we simulate spending transactions and ensure they're not double-spent/invalid, up to *this
-    ForkSpendSimulator spender(txdb, commonAncestorBI->GetBlockHash(), commonAncestorBI->nHeight);
+    ForkSpendSimulator spender = TRY(SpenderMaker());
+
     for (const uint256& bh : forkChainBlockHashes) {
         CBlock blk;
         if (!txdb.ReadBlock(bh, blk, true)) {
@@ -218,9 +246,19 @@ Result<void, ForkSpendSimulator::VIUError> CBlock::VerifyInputsUnspent_Internal(
                        bh.ToString());
             return Err(ForkSpendSimulator::VIUError::BlockCannotBeReadFromDB);
         }
+
         TRYV(spender.simulateSpendingBlock(blk));
     }
     TRYV(spender.simulateSpendingBlock(*this));
+
+    boost::optional<ForkSpendSimulatorCachedObj> newCachedVIUObj = spender.exportCacheObj();
+    if (newCachedVIUObj) {
+        viuCache.push_with_probability(*newCachedVIUObj, VIUCachePushProbabilityNumerator,
+                                       VIUCachePushProbabilityDenominator);
+    } else {
+        NLog.write(b_sev::critical,
+                   "Failed to create VIU cache object, even though the spending simulator succeeded");
+    }
 
     return Ok();
 }

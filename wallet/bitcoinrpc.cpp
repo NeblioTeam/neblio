@@ -323,6 +323,7 @@ static const CRPCCommand vRPCCommands[] =
     { "getrawmempool",             &getrawmempool,             true,   false },
     { "calculateblockhash",        &calculateblockhash,        false,  false },
     { "gettxout",                  &gettxout,                  false,  false },
+    { "setviupushprobability",     &setviupushprobability,     false,  false },
     { "getblock",                  &getblock,                  false,  false },
     { "getblockbynumber",          &getblockbynumber,          false,  false },
     { "getblockhash",              &getblockhash,              false,  false },
@@ -1388,6 +1389,11 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
         ConvertTo<bool>(params[0]);
     if (strMethod == "listdelegators" && n > 0)
         ConvertTo<bool>(params[0]);
+
+    if (strMethod == "setviupushprobability" && n > 0)
+        ConvertTo<int32_t>(params[0]);
+    if (strMethod == "setviupushprobability" && n > 1)
+        ConvertTo<int32_t>(params[1]);
 
     return params;
 }
