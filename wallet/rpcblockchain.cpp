@@ -772,8 +772,8 @@ Value setviupushprobability(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_PARAMS, "Parameters should be integers");
     }
 
-    if (params[0].get_int() <= 0) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Numerator must be positive");
+    if (params[0].get_int() < 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Numerator must be zero or positive");
     }
 
     if (params[1].get_int() <= 0) {
