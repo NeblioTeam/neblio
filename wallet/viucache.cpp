@@ -8,7 +8,7 @@ void VIUCache::dropOneElement()
         return;
     }
     auto it = tipBlockVsCachedObj.begin();
-    std::advance(it, rand() % tipBlockVsCachedObj.size());
+    std::advance(it, randGen() % tipBlockVsCachedObj.size());
     tipBlockVsCachedObj.erase(it);
 }
 
