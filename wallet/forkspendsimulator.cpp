@@ -237,8 +237,16 @@ ForkSpendSimulator::createFromCacheObject(const ITxDB& txdb, const ForkSpendSimu
 
         boost::optional<CBlockIndex> prevBI = currentCommonAncestor->getPrev(txdb);
         if (!prevBI) {
-            NLog.write(b_sev::critical, "Could not find previous block index for block {} of height {}",
-                       currentCommonAncestor->GetBlockHash().ToString(), currentCommonAncestor->nHeight);
+            if (currentCommonAncestor->GetBlockHash() == Params().GenesisBlockHash()) {
+                NLog.write(
+                    b_sev::critical,
+                    "VIU caching: Could not find previous block index as genesis block was reached!!!");
+            } else {
+                NLog.write(b_sev::critical,
+                           "VIU caching: Could not find previous block index for block {} of height {}",
+                           currentCommonAncestor->GetBlockHash().ToString(),
+                           currentCommonAncestor->nHeight);
+            }
         }
         currentCommonAncestor = std::move(prevBI);
     }
