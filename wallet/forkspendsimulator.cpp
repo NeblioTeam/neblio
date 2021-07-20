@@ -228,10 +228,6 @@ ForkSpendSimulator::createFromCacheObject(const ITxDB& txdb, const ForkSpendSimu
                 return Err(VIUError::BlockCannotBeReadFromDB);
             }
 
-            for (const CTransaction& tx : blk.vtx) {
-                newTransactionsToAdd.emplace(tx.GetHash(), tx.vout.size());
-            }
-
             blocksBetweenPrevMainChainAndFork.push_back(std::move(blk));
         }
 
@@ -253,6 +249,7 @@ ForkSpendSimulator::createFromCacheObject(const ITxDB& txdb, const ForkSpendSimu
 
     std::reverse(blocksBetweenPrevMainChainAndFork.begin(), blocksBetweenPrevMainChainAndFork.end());
 
+    // we start from a new object, respend the new fork blocks, then merge the two
     ForkSpendSimulator result(txdb, currentCommonAncestor->GetBlockHash(),
                               currentCommonAncestor->nHeight);
     // we spend the new blocks
