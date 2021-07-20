@@ -190,20 +190,14 @@ Result<void, ForkSpendSimulator::VIUError> CBlock::VerifyInputsUnspent_Internal(
     }
 
     // we get all the blocks that we need to read
-    std::vector<CBlock> forkChainBlocks(1, *this);
+    std::vector<uint256> forkChainBlockHashes;
 
     while (!commonAncestorBI->IsInMainChain(currBestBlockHash)) {
         NLog.write(b_sev::trace, "Block in fork chain: {}\t{}",
                    commonAncestorBI->GetBlockHash().ToString(), commonAncestorBI->nHeight);
 
-        CBlock         blk;
         const uint256& bh = commonAncestorBI->GetBlockHash();
-        if (!txdb.ReadBlock(bh, blk, true)) {
-            NLog.write(b_sev::err, "In fork chain search, block {} was not found in the database",
-                       bh.ToString());
-            return Err(ForkSpendSimulator::VIUError::BlockCannotBeReadFromDB);
-        }
-        forkChainBlocks.push_back(std::move(blk));
+        forkChainBlockHashes.push_back(bh);
 
         commonAncestorBI = commonAncestorBI->getPrev(txdb);
         if (!commonAncestorBI) {
@@ -213,13 +207,20 @@ Result<void, ForkSpendSimulator::VIUError> CBlock::VerifyInputsUnspent_Internal(
         }
     }
 
-    std::reverse(forkChainBlocks.begin(), forkChainBlocks.end());
+    std::reverse(forkChainBlockHashes.begin(), forkChainBlockHashes.end());
 
-    // we simulate spending transactions and ensure they're not double-spent/invalid
+    // we simulate spending transactions and ensure they're not double-spent/invalid, up to *this
     ForkSpendSimulator spender(txdb, commonAncestorBI->GetBlockHash(), commonAncestorBI->nHeight);
-    for (const CBlock& blk : forkChainBlocks) {
+    for (const uint256& bh : forkChainBlockHashes) {
+        CBlock blk;
+        if (!txdb.ReadBlock(bh, blk, true)) {
+            NLog.write(b_sev::err, "In fork chain search, block {} was not found in the database",
+                       bh.ToString());
+            return Err(ForkSpendSimulator::VIUError::BlockCannotBeReadFromDB);
+        }
         TRYV(spender.simulateSpendingBlock(blk));
     }
+    TRYV(spender.simulateSpendingBlock(*this));
 
     return Ok();
 }
