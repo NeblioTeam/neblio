@@ -21,7 +21,7 @@
 #include <boost/scope_exit.hpp>
 #include <mutex>
 
-VIUCache viuCache(200);
+VIUCache viuCache(1000);
 // the probabilities should be small enough to cache only so many blocks to avoid consuming so much but
 // should be large enough to make a remote timing attack very hard
 unsigned VIUCachePushProbabilityNumerator   = 10;
