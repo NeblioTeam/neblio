@@ -512,7 +512,8 @@ class FullBlockTest(ComparisonTestFramework):
         blk36f.vtx.append(coinbase)
         # we pick one output from after the fork
         out_to_spend = get_spendable_output(98)
-        tx1 = create_tx_manual(out_to_spend.tx.sha256, out_to_spend.n+10, 10000)
+        tx1 = create_tx_manual(out_to_spend.tx.sha256,
+                               out_to_spend.n+10, 10000)
         blk36f.vtx.append(tx1)
         blk36f.hashMerkleRoot = blk36f.calc_merkle_root()
         blk36f.fix_time_then_resolve()
