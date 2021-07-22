@@ -227,8 +227,6 @@ Result<void, ForkSpendSimulator::VIUError> CBlock::VerifyInputsUnspent_Internal(
         }
     }
 
-    std::reverse(forkChainBlockHashes.begin(), forkChainBlockHashes.end());
-
     const auto SpenderMaker = [&]() -> Result<ForkSpendSimulator, ForkSpendSimulator::VIUError> {
         if (cachedVIUObj) {
             return ForkSpendSimulator::createFromCacheObject(txdb, *cachedVIUObj, currBestBlockHash);
@@ -241,7 +239,7 @@ Result<void, ForkSpendSimulator::VIUError> CBlock::VerifyInputsUnspent_Internal(
     // we simulate spending transactions and ensure they're not double-spent/invalid, up to *this
     ForkSpendSimulator spender = TRY(SpenderMaker());
 
-    for (const uint256& bh : forkChainBlockHashes) {
+    for (const uint256& bh : boost::adaptors::reverse(forkChainBlockHashes)) {
         CBlock blk;
         if (!txdb.ReadBlock(bh, blk, true)) {
             NLog.write(b_sev::err, "In fork chain search, block {} was not found in the database",

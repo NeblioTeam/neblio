@@ -3,6 +3,7 @@
 #include "block.h"
 #include "txdb.h"
 #include <blockindexlrucache.h>
+#include <boost/range/adaptor/reversed.hpp>
 #include <boost/scope_exit.hpp>
 
 boost::optional<uint256> ForkSpendSimulator::getTipBlockHash() const { return tipBlockHash; }
@@ -212,24 +213,13 @@ ForkSpendSimulator::createFromCacheObject(const ITxDB& txdb, const ForkSpendSimu
 
     std::unordered_map<uint256, const unsigned> newTransactionsToAdd;
 
-    std::vector<CBlock> blocksBetweenPrevMainChainAndFork;
+    std::vector<uint256> blockHashesBetweenPrevMainChainAndFork;
 
     // get all tranactions from blocks that are now in the fork and were not in the mainchain when this
     // state was cached
     boost::optional<CBlockIndex> currentCommonAncestor = formerCommonAncestorBI;
     while (!currentCommonAncestor->IsInMainChain(currentBestBlockHash)) {
-        if (!currentCommonAncestor) {
-            return Err(VIUError::BlockIndexOfPrevBlockNotFound);
-        }
-
-        {
-            CBlock blk;
-            if (!txdb.ReadBlock(currentCommonAncestor->GetBlockHash(), blk, true)) {
-                return Err(VIUError::BlockCannotBeReadFromDB);
-            }
-
-            blocksBetweenPrevMainChainAndFork.push_back(std::move(blk));
-        }
+        blockHashesBetweenPrevMainChainAndFork.push_back(currentCommonAncestor->GetBlockHash());
 
         boost::optional<CBlockIndex> prevBI = currentCommonAncestor->getPrev(txdb);
         if (!prevBI) {
@@ -243,19 +233,24 @@ ForkSpendSimulator::createFromCacheObject(const ITxDB& txdb, const ForkSpendSimu
                            currentCommonAncestor->GetBlockHash().ToString(),
                            currentCommonAncestor->nHeight);
             }
+            return Err(VIUError::BlockIndexOfPrevBlockNotFound);
         }
         currentCommonAncestor = std::move(prevBI);
     }
-
-    std::reverse(blocksBetweenPrevMainChainAndFork.begin(), blocksBetweenPrevMainChainAndFork.end());
 
     // we start from a new object, respend the new fork blocks, then merge the two
     ForkSpendSimulator result(txdb, currentCommonAncestor->GetBlockHash(),
                               currentCommonAncestor->nHeight);
     // we spend the new blocks
-    for (const CBlock& blk : blocksBetweenPrevMainChainAndFork) {
+    for (const uint256& bh : boost::adaptors::reverse(blockHashesBetweenPrevMainChainAndFork)) {
+        CBlock blk;
+        if (!txdb.ReadBlock(bh, blk, true)) {
+            return Err(VIUError::BlockCannotBeReadFromDB);
+        }
+
         TRYV(result.simulateSpendingBlock_internal(blk));
     }
+
     // then we add the blocks that come above the last blocks
     result.spent.insert(obj.spentOutputs.begin(), obj.spentOutputs.end());
     result.thisForkTxs.insert(obj.forkTxs.cbegin(), obj.forkTxs.cend());
