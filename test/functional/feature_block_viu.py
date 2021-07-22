@@ -316,7 +316,7 @@ class FullBlockTest(ComparisonTestFramework):
         tx1 = create_tx_manual(out[20].tx.sha256, out[20].n, 1000000)
         tx2 = create_tx_manual(tx1.sha256, 0, 500000)
         update_block("1", [tx2, tx1])
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent'))
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxNonExistent_OutputNotFoundInMainChainOrFork'))
 
         tip(15)
         block("f15", spend=out[15])
