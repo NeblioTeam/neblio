@@ -50,7 +50,7 @@ ForkSpendSimulator::spendOutputVirtually(const COutPoint& output, const uint256&
 {
     if (spent.find(output) != spent.cend()) {
         NLog.error("Output number {} in tx {} which is an input to tx {} is attempting to "
-                   "double-spend in the same block",
+                   "double-spend",
                    output.n, output.hash.ToString(), spenderTx.ToString());
         return Err(VIUError::DoublespendAttempt_WithinTheFork);
     }
@@ -84,8 +84,7 @@ Result<void, ForkSpendSimulator::VIUError> ForkSpendSimulator::unspentOrSpentAbo
             if (!txindex.vSpent[input.n].IsNull()) {
                 // double spend
                 NLog.error("Output number {} in tx {} which is an input to tx {} is "
-                           "attempting to "
-                           "double-spend in the same block",
+                           "attempting to double-spend",
                            input.n, input.hash.ToString(), spenderTxHash.ToString());
                 return Err(VIUError::DoublespendAttempt_SpentAlreadyBeforeTheFork);
             }
