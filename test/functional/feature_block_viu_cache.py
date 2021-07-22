@@ -12,7 +12,6 @@ each test.
 """
 from io import BytesIO
 
-from messages import COIN
 from test_framework.test_framework import ComparisonTestFramework
 from test_framework.util import *
 from test_framework.comptool import TestManager, TestInstance, RejectResult
