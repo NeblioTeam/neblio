@@ -60,7 +60,7 @@ BASE_SCRIPTS= [
     # vv Tests less than 5m vv
     'feature_block.py',
     'feature_block_viu.py',
-    'feature_block_viu_cache.py',
+    'feature_block_viu_cache_ca_shift_down.py',
     'feature_block_viu_cache_ca_shift_up.py',
     'feature_block_ntp1.py',
     'feature_pos.py',
