@@ -2,13 +2,9 @@
 # Copyright (c) 2015-2017 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""Test block processing.
-
-This reimplements tests from the bitcoinj/FullBlockTestGenerator used
-by the pull-tester.
-
-We use the testing framework in which we expect a particular answer from
-each test.
+"""
+Test VerifyInputsUnspent() with caching, where we ensure that changing the common ancestor
+doesn't affect adding new blocks to the same tip
 """
 from io import BytesIO
 
@@ -302,7 +298,7 @@ class FullBlockTest(ComparisonTestFramework):
 
         # Now we need that block to mature so we can spend the coinbase.
         test = TestInstance(sync_every_block=False)
-        for i in range(399):
+        for i in range(99):
             block(5000 + i)
             test.blocks_and_transactions.append([self.tip, True])
             save_spendable_output()
@@ -317,10 +313,11 @@ class FullBlockTest(ComparisonTestFramework):
         blocks_until_fork_count = 15
         height_before_fork_work = self.nodes[0].getblockcount()
 
-        def make_tx_custom(tx_to_spent_dict):
+        def make_tx_custom(tx_to_spent_dict, amount=1 * COIN):
             tx = create_transaction(
-                tx_to_spent_dict['tx'], tx_to_spent_dict['vout'], b"", 1 * COIN, CScript([OP_TRUE]))
+                tx_to_spent_dict['tx'], tx_to_spent_dict['vout'], b"", amount, CScript([OP_TRUE]))
             self.sign_tx(tx, tx_to_spent_dict['tx'], tx_to_spent_dict['vout'])
+            tx.rehash()
             return tx
 
         txs_before_old_fork = []
@@ -356,6 +353,9 @@ class FullBlockTest(ComparisonTestFramework):
 
             yield accepted()
 
+        tx_made_before_forks_and_unspent = txs_before_old_fork[3]
+        tx_made_in_new_fork_and_unspent = txs_before_old_fork[12]
+
         old_common_ancestor_height = get_block_height_from_label(15)
         assert_equal(old_common_ancestor_height, height_before_fork_work + blocks_until_fork_count)
 
@@ -387,7 +387,6 @@ class FullBlockTest(ComparisonTestFramework):
                 tx = make_tx_custom(tx_made_at_the_new_fork_and_spent_in_the_old_fork)
                 update_block(block_label, [tx])
 
-
             if i == 3:
                 # enable cache at one arbitrary block
                 self.nodes[0].setviupushprobability(100, 100)
@@ -400,6 +399,8 @@ class FullBlockTest(ComparisonTestFramework):
             assert_equal(get_block_height_from_label(block_label), old_common_ancestor_height + 1 + i)
             tip(block_label)
             old_fork_tip = block_label
+
+        tx_made_in_old_fork_and_unspent = txs_in_old_fork[3]
 
         self.nodes[0].setviupushprobability(0, 100)
 
@@ -479,6 +480,64 @@ class FullBlockTest(ComparisonTestFramework):
         block_label = "f_ds_6_{}".format(height)
         block(block_label.format(height))
         tx = make_tx_custom(tx_made_at_the_old_fork_and_spent_in_the_old_fork)
+        update_block(block_label, [tx])
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_WithinTheFork'))
+
+        # Try to spend from something unspent, made before the forks
+        tip(old_fork_tip)
+        height = self.block_heights[self.blocks[old_fork_tip].sha256]
+        block_label = "f_ds_7_{}".format(height)
+        block_label_unspent1 = block_label
+        block(block_label.format(height))
+        tx = make_tx_custom(tx_made_before_forks_and_unspent)
+        update_block(block_label, [tx])
+        yield rejected()
+
+        # Try to spend from something unspent, made before the forks
+        tip(block_label_unspent1)
+        height = self.block_heights[self.blocks[old_fork_tip].sha256]
+        block_label = "f_ds_7ds_{}".format(height)
+        block(block_label.format(height))
+        tx = make_tx_custom(tx_made_before_forks_and_unspent, 2*COIN)
+        update_block(block_label, [tx])
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_WithinTheFork'))
+
+        # Try to spend from something unspent, made in the old fork
+        tip(old_fork_tip)
+        height = self.block_heights[self.blocks[old_fork_tip].sha256]
+        block_label = "f_ds_8_{}".format(height)
+        block_label_unspent2 = block_label
+        block(block_label.format(height))
+        tx = make_tx_custom(tx_made_in_old_fork_and_unspent)
+        update_block(block_label, [tx])
+        yield rejected()
+
+        # Try to spend from something unspent, made in the old fork
+        tip(block_label_unspent2)
+        height = self.block_heights[self.blocks[old_fork_tip].sha256]
+        block_label = "f_ds_8ds_{}".format(height)
+        block(block_label.format(height))
+        tx = make_tx_custom(tx_made_in_old_fork_and_unspent, 2*COIN)
+        update_block(block_label, [tx])
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_WithinTheFork'))
+
+        # Try to spend from something unspent, made in the new fork
+        tip(old_fork_tip)
+        height = self.block_heights[self.blocks[old_fork_tip].sha256]
+        block_label = "f_ds_9_{}".format(height)
+        block_label_unspent3 = block_label
+        block(block_label.format(height))
+        tx = make_tx_custom(tx_made_in_new_fork_and_unspent)
+        print("TxHash {}".format(tx.hash))
+        update_block(block_label, [tx])
+        yield rejected()
+
+        # Try to spend from something unspent, made in the new fork
+        tip(block_label_unspent3)
+        height = self.block_heights[self.blocks[old_fork_tip].sha256]
+        block_label = "f_ds_9ds_{}".format(height)
+        block(block_label.format(height))
+        tx = make_tx_custom(tx_made_in_new_fork_and_unspent, 2*COIN)
         update_block(block_label, [tx])
         yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_WithinTheFork'))
 
