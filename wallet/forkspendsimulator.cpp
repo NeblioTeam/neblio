@@ -187,9 +187,14 @@ boost::optional<ForkSpendSimulatorCachedObj> ForkSpendSimulator::exportCacheObj(
         ForkSpendSimulatorCachedObj res;
         res.commonAncestor       = commonAncestor;
         res.commonAncestorHeight = commonAncestorHeight;
+
+        res.forkTxs.reserve(thisForkTxs.size());
         res.forkTxs.insert(thisForkTxs.cbegin(), thisForkTxs.cend());
+
         res.lastProcessedTipBlockHash = *tipBlockHash;
-        res.spentOutputs              = spent;
+
+        res.spentOutputs.reserve(spent.size());
+        res.spentOutputs.insert(spent.cbegin(), spent.cend());
 
         return boost::make_optional(std::move(res));
     } else {
@@ -209,8 +214,6 @@ ForkSpendSimulator::createFromCacheObject(const ITxDB& txdb, const ForkSpendSimu
     if (!formerCommonAncestorBI) {
         return Err(VIUError::FormerCommonAncestorNotFound);
     }
-
-    std::unordered_map<uint256, const unsigned> newTransactionsToAdd;
 
     std::vector<uint256> blockHashesBetweenPrevMainChainAndFork;
 
@@ -253,8 +256,6 @@ ForkSpendSimulator::createFromCacheObject(const ITxDB& txdb, const ForkSpendSimu
     // then we add the blocks that come above the last blocks
     result.spent.insert(obj.spentOutputs.begin(), obj.spentOutputs.end());
     result.thisForkTxs.insert(obj.forkTxs.cbegin(), obj.forkTxs.cend());
-    result.thisForkTxs.insert(std::make_move_iterator(newTransactionsToAdd.begin()),
-                              std::make_move_iterator(newTransactionsToAdd.end()));
     result.tipBlockHash = obj.lastProcessedTipBlockHash;
 
     return Ok(std::move(result));
