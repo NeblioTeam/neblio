@@ -2,14 +2,20 @@
 
 #include "logging/logger.h"
 
-void VIUCache::dropOneElement()
+void VIUCache::dropOneElement_unsafe()
 {
-    if (tipBlockVsCachedObj.empty()) {
+    if (size_unsafe() == 0) {
         return;
     }
     auto it = tipBlockVsCachedObj.begin();
     std::advance(it, randGen() % tipBlockVsCachedObj.size());
     tipBlockVsCachedObj.erase(it);
+}
+
+void VIUCache::dropOneElement()
+{
+    std::lock_guard<decltype(mtx)> lg(mtx);
+    dropOneElement_unsafe();
 }
 
 int VIUCache::GetRandomSeed()
@@ -25,8 +31,10 @@ VIUCache::VIUCache(const std::size_t maxSizeIn) : maxSize(maxSizeIn), randGen(Ge
 
 void VIUCache::push(const ForkSpendSimulatorCachedObj& obj)
 {
-    if (tipBlockVsCachedObj.size() + 1 > maxSize) {
-        dropOneElement();
+    std::lock_guard<decltype(mtx)> lg(mtx);
+
+    if (size_unsafe() + 1 > maxSize) {
+        dropOneElement_unsafe();
     }
     tipBlockVsCachedObj.emplace(std::make_pair(obj.lastProcessedTipBlockHash, obj));
 }
@@ -43,8 +51,18 @@ bool VIUCache::push_with_probability(const ForkSpendSimulatorCachedObj& obj,
     return false;
 }
 
+std::size_t VIUCache::size_unsafe() { return tipBlockVsCachedObj.size(); }
+
+std::size_t VIUCache::size()
+{
+    std::lock_guard<decltype(mtx)> lg(mtx);
+    return size_unsafe();
+}
+
 boost::optional<ForkSpendSimulatorCachedObj> VIUCache::get(uint256 tipBlockHash) const
 {
+    std::lock_guard<decltype(mtx)> lg(mtx);
+
     const auto it = tipBlockVsCachedObj.find(tipBlockHash);
     if (it == tipBlockVsCachedObj.cend()) {
         return boost::none;
