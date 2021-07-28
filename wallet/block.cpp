@@ -213,9 +213,6 @@ Result<void, ForkSpendSimulator::VIUError> CBlock::VerifyInputsUnspent_Internal(
             break;
         }
 
-        // if cached obj found, no need to push more blocks
-        CBlock blk;
-
         const uint256& bh = commonAncestorBI->GetBlockHash();
         forkChainBlockHashes.push_back(bh);
 
@@ -225,6 +222,15 @@ Result<void, ForkSpendSimulator::VIUError> CBlock::VerifyInputsUnspent_Internal(
                        commonAncestorBI->nHeight, commonAncestorBI->blockHash.ToString());
             return Err(ForkSpendSimulator::VIUError::CommonAncestorSearchFailed);
         }
+    }
+
+    // the outcome from the above loop should either be a cache object with information on the best chain
+    // or a block index from the mainchain
+    if (!(commonAncestorBI && commonAncestorBI->IsInMainChain(currBestBlockHash)) && !cachedVIUObj) {
+        NLog.write(
+            b_sev::critical,
+            "Invariant broken: the outcome from mainchain finder loop should either be a cache object "
+            "with information on the best chain or a block index from the mainchain");
     }
 
     const auto SpenderMaker = [&]() -> Result<ForkSpendSimulator, ForkSpendSimulator::VIUError> {

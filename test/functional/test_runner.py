@@ -62,6 +62,7 @@ BASE_SCRIPTS= [
     'feature_block_viu.py',
     'feature_block_viu_cache_ca_shift_down.py',
     'feature_block_viu_cache_ca_shift_up.py',
+    'feature_block_viu_cache_ca_shift_back_and_forth.py',
     'feature_block_ntp1.py',
     'feature_pos.py',
     'feature_pos_rpc.py',

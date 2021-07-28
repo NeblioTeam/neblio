@@ -210,8 +210,8 @@ ForkSpendSimulator::createFromCacheObject(const ITxDB& txdb, const ForkSpendSimu
     // if the common ancestor (and potentially few blocks before it) are not in the main chain anymore (a
     // block before it is now common ancestor), we should add all the transactions starting from the new
     // fork up to the old common ancestor into forkTxs to be able to see whether they're double-spent
-    const boost::optional<CBlockIndex> formerCommonAncestorBI = txdb.ReadBlockIndex(obj.commonAncestor);
-    if (!formerCommonAncestorBI) {
+    const boost::optional<CBlockIndex> cachedCommonAncestorBI = txdb.ReadBlockIndex(obj.commonAncestor);
+    if (!cachedCommonAncestorBI) {
         return Err(VIUError::FormerCommonAncestorNotFound);
     }
 
@@ -219,7 +219,7 @@ ForkSpendSimulator::createFromCacheObject(const ITxDB& txdb, const ForkSpendSimu
 
     // get all tranactions from blocks that are now in the fork and were not in the mainchain when this
     // state was cached
-    boost::optional<CBlockIndex> currentCommonAncestor = formerCommonAncestorBI;
+    boost::optional<CBlockIndex> currentCommonAncestor = cachedCommonAncestorBI;
     while (!currentCommonAncestor->IsInMainChain(currentBestBlockHash)) {
         blockHashesBetweenPrevMainChainAndFork.push_back(currentCommonAncestor->GetBlockHash());
 
