@@ -1389,7 +1389,7 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
     if (strMethod == "listdelegators" && n > 0)
         ConvertTo<bool>(params[0]);
     if (strMethod == "delegatestake" && n > 1)
-        ConvertTo<int64_t>(params[1]);
+        ConvertTo<double>(params[1]);
     if (strMethod == "delegatestake" && n > 3)
         ConvertTo<bool>(params[3]);
     if (strMethod == "delegatestake" && n > 4)
@@ -1397,7 +1397,7 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
     if (strMethod == "delegatestake" && n > 5)
         ConvertTo<bool>(params[5]);
     if (strMethod == "rawdelegatestake" && n > 1)
-        ConvertTo<int64_t>(params[1]);
+        ConvertTo<double>(params[1]);
     if (strMethod == "rawdelegatestake" && n > 3)
         ConvertTo<bool>(params[3]);
     if (strMethod == "rawdelegatestake" && n > 4)
