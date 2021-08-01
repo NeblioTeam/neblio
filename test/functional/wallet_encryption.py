@@ -26,19 +26,30 @@ class WalletEncryptionTest(BitcoinTestFramework):
         # Make sure the wallet isn't encrypted first
         address = self.nodes[0].getnewaddress()
         privkey = self.nodes[0].dumpprivkey(address)
-        assert_equal(privkey[:1], "c")
+        assert_equal(privkey[:1], "V")
         assert_equal(len(privkey), 52)
 
         # Encrypt the wallet
         self.nodes[0].node_encrypt_wallet(passphrase)
         self.start_node(0)
 
+        # test that help works
+        help_result = self.nodes[0].help()
+        # ensure that some RPC function names exist in the result
+        assert "uptime" in help_result
+        assert "signrawtransaction" in help_result
+        assert "sendrawtransaction" in help_result
+        assert "listunspent" in help_result
+        assert "importprivkey" in help_result
+        assert "dumpprivkey" in help_result
+
         # Test that the wallet is encrypted
         assert_raises_rpc_error(-13, "Please enter the wallet passphrase with walletpassphrase first", self.nodes[0].dumpprivkey, address)
 
         # Check that walletpassphrase works
         self.nodes[0].walletpassphrase(passphrase, 2)
-        assert_equal(privkey, self.nodes[0].dumpprivkey(address))
+        k = self.nodes[0].dumpprivkey(address)
+        assert_equal(privkey, k)
 
         # Check that the timeout is right
         time.sleep(2)
@@ -61,21 +72,20 @@ class WalletEncryptionTest(BitcoinTestFramework):
         self.nodes[0].walletlock()
 
         # Test timeout bounds
-        assert_raises_rpc_error(-8, "Timeout cannot be negative.", self.nodes[0].walletpassphrase, passphrase2, -10)
+        assert_raises_rpc_error(-1, "negative values not allowed", self.nodes[0].walletpassphrase, passphrase2, -10)
         # Check the timeout
         # Check a time less than the limit
-        MAX_VALUE = 100000000
+        MAX_VALUE = 99999999
         expected_time = int(time.time()) + MAX_VALUE - 600
         self.nodes[0].walletpassphrase(passphrase2, MAX_VALUE - 600)
         actual_time = self.nodes[0].getwalletinfo()['unlocked_until']
         assert_greater_than_or_equal(actual_time, expected_time)
-        assert_greater_than(expected_time + 5, actual_time) # 5 second buffer
+        assert_greater_than(expected_time + 5, actual_time)  # 5 second buffer
         # Check a time greater than the limit
-        expected_time = int(time.time()) + MAX_VALUE - 1
-        self.nodes[0].walletpassphrase(passphrase2, MAX_VALUE + 1000)
-        actual_time = self.nodes[0].getwalletinfo()['unlocked_until']
-        assert_greater_than_or_equal(actual_time, expected_time)
-        assert_greater_than(expected_time + 5, actual_time) # 5 second buffer
+        assert_raises_rpc_error(-1, "Maximum timeout value is 99999999 use timeout of 0 to never re-lock, "
+                                    "negative values not allowed",
+                                self.nodes[0].walletpassphrase, passphrase2, MAX_VALUE + 1000)
+
 
 if __name__ == '__main__':
     WalletEncryptionTest().main()
