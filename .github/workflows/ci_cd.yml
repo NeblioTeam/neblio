@@ -13,6 +13,7 @@ env:
   AWS_S3_BUCKET: 'neblio-build-staging'
   AWS_S3_ENDPOINT: 'https://ams3.digitaloceanspaces.com'
   GHAT2: ${{ secrets.GHAT2 }}
+  CACHE_VER: '1'
 
 jobs:
 
@@ -24,9 +25,9 @@ jobs:
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}-18.04-linux_daemon_cmake-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-linux_daemon_cmake-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
-          ${{ runner.OS }}-18.04-linux_daemon_cmake-
+          ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-linux_daemon_cmake-
     - name: Set target_v env var
       run: |
         echo "target_v=linux_daemon_cmake" >> $GITHUB_ENV
@@ -48,9 +49,9 @@ jobs:
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}-18.04-linux_daemon-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-linux_daemon-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
-          ${{ runner.OS }}-18.04-linux_daemon-
+          ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-linux_daemon-
     - name: Set target_v env var
       run: |
         echo "target_v=linux_daemon" >> $GITHUB_ENV
@@ -80,9 +81,9 @@ jobs:
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}-18.04-linux_wallet-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-linux_wallet-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
-          ${{ runner.OS }}-18.04-linux_wallet-
+          ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-linux_wallet-
     - name: Set target_v env var
       run: |
         echo "target_v=linux_wallet" >> $GITHUB_ENV
@@ -111,10 +112,10 @@ jobs:
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}-18.04-linux_wallet_test-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-linux_wallet_test-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
-          ${{ runner.OS }}-18.04-linux_wallet_test-
-          ${{ runner.OS }}-18.04-linux_wallet-
+          ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-linux_wallet_test-
+          ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-linux_wallet-
     - name: Set target_v env var
       run: |
         echo "target_v=linux_wallet_test" >> $GITHUB_ENV
@@ -131,9 +132,9 @@ jobs:
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}-18.04-windows_x86-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-windows_x86-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
-          ${{ runner.OS }}-18.04-windows_x86-
+          ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-windows_x86-
     - name: Build neblio-Qt for Windows x86
       run: |
         python -u ci_scripts/test_win_x86-gui_wallet.py
@@ -159,9 +160,9 @@ jobs:
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}--osx-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-osx-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
-          ${{ runner.OS }}--osx-
+          ${{ runner.OS }}-${{ env.CACHE_VER }}-osx-
     - name: Switch Xcode Version
       run: |
         sudo xcode-select -s /Applications/Xcode_11.2.1.app/Contents/Developer
@@ -193,10 +194,10 @@ jobs:
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}--osx_test-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-osx_test-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
-          ${{ runner.OS }}--osx_test-
-          ${{ runner.OS }}--osx-
+          ${{ runner.OS }}-${{ env.CACHE_VER }}-osx_test-
+          ${{ runner.OS }}-${{ env.CACHE_VER }}-osx-
     - name: Switch Xcode Version
       run: |
         sudo xcode-select -s /Applications/Xcode_11.2.1.app/Contents/Developer
@@ -265,9 +266,9 @@ jobs:
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}-18.04-rpi_wallet-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-rpi_wallet-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
-          ${{ runner.OS }}-18.04-rpi_wallet-
+          ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-rpi_wallet-
     - name: Set target_v env var
       run: |
         echo "target_v=rpi_wallet" >> $GITHUB_ENV
@@ -298,10 +299,10 @@ jobs:
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}-18.04-rpi_wallet_test-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-rpi_wallet_test-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
-          ${{ runner.OS }}-18.04-rpi_wallet_test-
-          ${{ runner.OS }}-18.04-rpi_wallet-
+          ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-rpi_wallet_test-
+          ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-rpi_wallet-
     - name: Set target_v env var
       run: |
         echo "target_v=rpi_wallet_test" >> $GITHUB_ENV
@@ -326,9 +327,9 @@ jobs:
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}-18.04-rpi_daemon-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-rpi_daemon-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
-          ${{ runner.OS }}-18.04-rpi_daemon-
+          ${{ runner.OS }}-${{ env.CACHE_VER }}-18.04-rpi_daemon-
     - name: Set target_v env var
       run: |
         echo "target_v=rpi_daemon" >> $GITHUB_ENV
