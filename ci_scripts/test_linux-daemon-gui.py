@@ -45,7 +45,7 @@ nci.call_with_err_code('sleep 15 && sudo docker kill $(sudo docker ps -q);exit 0
 # move .ccache folder back to ccache dir
 nci.call_with_err_code('mv ' + os.path.join(deploy_dir,'.ccache', '') + ' ' + os.path.join(working_dir,'.ccache', ''))
 
-file_name = '$(date +%Y-%m-%d)---' + os.environ['BRANCH'] + '-' + os.environ['COMMIT'][:7] + '---' + build_target_alt + '---ubuntu18.04.tar.gz'
+file_name = '$(date +%Y-%m-%d)---' + os.environ['BRANCH'] + '-' + os.environ['COMMIT'][:7] + '---' + build_target_alt + '---ubuntu16.04.tar.gz'
 
 # Check if binary exists before trying to package it.
 # If it does not exist we had a build timeout

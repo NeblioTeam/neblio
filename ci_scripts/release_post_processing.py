@@ -51,7 +51,7 @@ def check_assets():
                 # print(mac_q_str)
 
         global lin_q_str
-        if ("neblio-Qt---ubuntu18.04" in x.name and len(lin_q_str) == 0):
+        if ("neblio-Qt---ubuntu16.04" in x.name and len(lin_q_str) == 0):
             x.sha256 = download_and_checksum(x.browser_download_url)
             if len(x.sha256) == 64:
                 lin_q_str = '| ' + lin_icon + ' | [Download ' + rel.tag_name + '<br/>For Linux](' + x.browser_download_url + ') | `' + x.sha256 + '` |'
@@ -65,7 +65,7 @@ def check_assets():
                 # print(rpi_q_str)
 
         global lin_d_str
-        if ("nebliod---ubuntu18.04" in x.name and len(lin_d_str) == 0):
+        if ("nebliod---ubuntu16.04" in x.name and len(lin_d_str) == 0):
             x.sha256 = download_and_checksum(x.browser_download_url)
             if len(x.sha256) == 64:
                 lin_d_str = '| ' + lin_icon + ' | [Download ' + rel.tag_name + '<br/>For Linux](' + x.browser_download_url + ') | `' + x.sha256 + '` |'
@@ -80,7 +80,7 @@ def check_assets():
 
         # post docker nebliod build once regular nebliod build is done building, since we cannot easily tell when the docker builds are done
         global docker_d_str
-        if ("nebliod---ubuntu18.04" in x.name and len(docker_d_str) == 0):
+        if ("nebliod---ubuntu16.04" in x.name and len(docker_d_str) == 0):
             x.sha256 = download_and_checksum(x.browser_download_url)
             if len(x.sha256) == 64:
                 docker_d_str = '| ' + docker_icon + ' | [Download ' + rel.tag_name + '<br/>For Docker](' + 'https://hub.docker.com/r/neblioteam/nebliod/builds' + ') | `' + 'N/A' + '` |'

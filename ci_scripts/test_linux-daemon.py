@@ -60,7 +60,7 @@ os.environ['PATH'] = '/usr/lib/ccache:' + os.environ['PATH']
 nci.call_with_err_code('make "CXX=ccache g++" "STATIC=1" -B -w -f makefile.unix -j' + str(mp.cpu_count()))
 nci.call_with_err_code('strip ./nebliod')
 
-file_name = '$(date +%Y-%m-%d)---' + os.environ['BRANCH'] + '-' + os.environ['COMMIT'][:7] + '---nebliod---ubuntu18.04.tar.gz'
+file_name = '$(date +%Y-%m-%d)---' + os.environ['BRANCH'] + '-' + os.environ['COMMIT'][:7] + '---nebliod---ubuntu16.04.tar.gz'
 
 nci.call_with_err_code('tar -zcvf "' + file_name + '" ./nebliod')
 nci.call_with_err_code('mv ' + file_name + ' ' + deploy_dir)
