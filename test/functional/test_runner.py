@@ -120,7 +120,7 @@ BASE_SCRIPTS= [
 #    'wallet_bumpfee.py',
    'wallet_listsinceblock.py',
 #    'p2p_leak.py',
-#    'wallet_encryption.py',
+   'wallet_encryption.py',
 #    'feature_dersig.py',
 #    'feature_cltv.py',
    'rpc_uptime.py',
