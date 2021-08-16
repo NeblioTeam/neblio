@@ -24,7 +24,7 @@ jobs:
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}--linux_daemon_cmake-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-18.04-linux_daemon_cmake-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
           ${{ runner.OS }}--linux_daemon_cmake-
     - name: Set target_v env var
@@ -48,7 +48,7 @@ jobs:
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}--linux_daemon-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-18.04-linux_daemon-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
           ${{ runner.OS }}--linux_daemon-
     - name: Set target_v env var
@@ -80,7 +80,7 @@ jobs:
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}--linux_wallet-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-18.04-linux_wallet-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
           ${{ runner.OS }}--linux_wallet-
     - name: Set target_v env var
@@ -111,7 +111,7 @@ jobs:
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}--linux_wallet_test-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-18.04-linux_wallet_test-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
           ${{ runner.OS }}--linux_wallet_test-
           ${{ runner.OS }}--linux_wallet-
@@ -131,7 +131,7 @@ jobs:
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}--windows_x86-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-18.04-windows_x86-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
           ${{ runner.OS }}--windows_x86-
     - name: Build neblio-Qt for Windows x86
@@ -265,7 +265,7 @@ jobs:
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}--rpi_wallet-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-18.04-rpi_wallet-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
           ${{ runner.OS }}--rpi_wallet-
     - name: Set target_v env var
@@ -298,7 +298,7 @@ jobs:
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}--rpi_wallet_test-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-18.04-rpi_wallet_test-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
           ${{ runner.OS }}--rpi_wallet_test-
           ${{ runner.OS }}--rpi_wallet-
@@ -326,7 +326,7 @@ jobs:
       uses: actions/cache@v2
       with:
         path: .ccache
-        key: ${{ runner.OS }}--rpi_daemon-${{ github.sha }}-${{ github.run_id }}
+        key: ${{ runner.OS }}-18.04-rpi_daemon-${{ github.sha }}-${{ github.run_id }}
         restore-keys: |
           ${{ runner.OS }}--rpi_daemon-
     - name: Set target_v env var
