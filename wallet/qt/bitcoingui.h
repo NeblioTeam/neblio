@@ -16,6 +16,7 @@
 
 #include "neblioupdatedialog.h"
 #include "neblioupdater.h"
+#include "votesdialog.h"
 
 class TransactionTableModel;
 class ClientModel;
@@ -47,18 +48,19 @@ class BitcoinGUI : public QMainWindow
 {
     Q_OBJECT
 
-    ClickableLabel*            updaterLabel;
-    NeblioUpdater              neblioUpdater;
-    NeblioReleaseInfo          latestRelease;
-    boost::promise<bool>       updateAvailablePromise;
-    boost::unique_future<bool> updateAvailableFuture;
-    QTimer*                    updateConcluderTimer;
-    int                        updateConcluderTimeout;
-    QTimer*                    updateCheckTimer;
-    int                        updateCheckTimerTimeout;
-    QTimer*                    animationStopperTimer;
-    int                        animationStopperTimerTimeout;
-    NeblioUpdateDialog*        updateDialog;
+    ClickableLabel*              updaterLabel;
+    NeblioUpdater                neblioUpdater;
+    NeblioReleaseInfo            latestRelease;
+    boost::promise<bool>         updateAvailablePromise;
+    boost::unique_future<bool>   updateAvailableFuture;
+    QTimer*                      updateConcluderTimer;
+    int                          updateConcluderTimeout;
+    QTimer*                      updateCheckTimer;
+    int                          updateCheckTimerTimeout;
+    QTimer*                      animationStopperTimer;
+    int                          animationStopperTimerTimeout;
+    NeblioUpdateDialog*          updateDialog;
+    std::unique_ptr<VotesDialog> votesDialog;
 
     bool isUpdateRunning; // since update check is asynchronous, this is true while checking is running
     // The following are the images that can show up in the updater
@@ -141,6 +143,7 @@ private:
     QAction*  backupWalletAction;
     QAction*  importWalletAction;
     QAction*  changePassphraseAction;
+    QAction*  manageVotesAction;
     QAction*  unlockWalletAction;
     QAction*  lockWalletAction;
     QAction*  aboutQtAction;
@@ -286,6 +289,8 @@ private slots:
     void changePassphrase();
     /** Ask for passphrase to unlock wallet temporarily */
     void unlockWallet();
+
+    void showVotesDialog();
 
     void lockWallet();
 

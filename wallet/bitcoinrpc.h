@@ -295,6 +295,9 @@ extern json_spirit::Value gettxout(const json_spirit::Array& params, bool fHelp)
 extern json_spirit::Value setviupushprobability(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value exportblockchain(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value waitforblockheight(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value listvotes(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value castvote(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value cancelallvotesofproposal(const json_spirit::Array& params, bool fHelp);
 
 std::vector<NTP1SendTokensOneRecipientData>
      GetNTP1RecipientsVector(const json_spirit::Value& sendTo, boost::shared_ptr<NTP1Wallet> ntp1wallet,
