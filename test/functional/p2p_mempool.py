@@ -26,6 +26,7 @@ class P2PMempoolTests(BitcoinTestFramework):
 
         #request mempool
         self.nodes[0].p2p.send_message(msg_mempool())
+        self.nodes[0].p2p.peer_disconnect()
         self.nodes[0].p2p.wait_for_disconnect()
 
         #mininode must be disconnected at this point
