@@ -2458,7 +2458,7 @@ Value walletpassphrase(const Array& params, bool fHelp)
                             "Stores the wallet decryption key in memory for <timeout> seconds.");
 
     NewThread(ThreadTopUpKeyPool);
-    if (params.size() >= 2) {
+    if (params.size() > 1) {
         int64_t pnSleepTime = params[1].get_int64();
 
         if (pnSleepTime > static_cast<int64_t>(std::numeric_limits<int32_t>::max()))
