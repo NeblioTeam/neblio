@@ -272,6 +272,9 @@ static const CRPCCommand vRPCCommands[] =
     { "disconnectnode",            &disconnectnode,            true,   false },
     { "setmocktime",               &setmocktime,               false,  false },
     { "getpeerinfo",               &getpeerinfo,               true,   false },
+    { "clearbanned",               &clearbanned,               true,   false },
+    { "listbanned",                &listbanned,                true,   false },
+    { "setban",                    &setban,                    true,   false },
     { "getdifficulty",             &getdifficulty,             true,   false },
     { "getinfo",                   &getinfo,                   true,   false },
     { "getsubsidy",                &getsubsidy,                true,   false },
@@ -1421,6 +1424,11 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
         ConvertTo<int>(params[3]);
     if (strMethod == "cancelallvotesofproposal" && n > 0)
         ConvertTo<int>(params[0]);
+
+    if (strMethod == "setban" && n > 2)
+        ConvertTo<int64_t>(params[2]);
+    if (strMethod == "setban" && n > 3)
+        ConvertTo<bool>(params[3]);
 
     return params;
 }
