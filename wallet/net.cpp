@@ -577,7 +577,9 @@ std::map<CNetAddr, int64_t> CNode::GetBanned()
 
 bool CNode::Misbehaving(int howmuch)
 {
-    if (addr.IsLocal()) {
+    // we can skip this exception in case of regtest and the flag -notoleratelocal is enabled
+    if (addr.IsLocal() &&
+        !(Params().NetType() == NetworkType::Regtest && GetBoolArg("-notoleratelocal"))) {
         NLog.write(b_sev::warn, "Warning: Local node {} misbehaving (delta: {})!", addrName.get(),
                    howmuch);
         return false;
