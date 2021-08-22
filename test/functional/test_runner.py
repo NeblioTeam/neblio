@@ -107,7 +107,7 @@ BASE_SCRIPTS= [
 #    'interface_http.py',
    'rpc_users.py',
 #    'feature_proxy.py',
-#    'p2p_disconnect_ban.py',
+   'p2p_disconnect_ban.py',
    'rpc_decodescript.py',
    'rpc_blockchain.py',
 #    'wallet_disable.py',

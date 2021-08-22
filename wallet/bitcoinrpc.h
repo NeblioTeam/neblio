@@ -186,6 +186,9 @@ extern json_spirit::Value disconnectnode(const json_spirit::Array& params, bool 
 extern json_spirit::Value setmocktime(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value sendalert(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getpeerinfo(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value listbanned(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value setban(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value clearbanned(const json_spirit::Array& params, bool fHelp);
 
 // in rpcdump.cpp
 extern json_spirit::Value dumpwallet(const json_spirit::Array& params, bool fHelp);
