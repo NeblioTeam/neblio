@@ -24,7 +24,7 @@ ClientModel::ClientModel(OptionsModel* optionsModelIn, QObject* parent)
     pollTimer = new QTimer(this);
     pollTimer->setInterval(MODEL_UPDATE_DELAY);
     pollTimer->start();
-    connect(pollTimer, SIGNAL(timeout()), this, SLOT(updateTimer()));
+    connect(pollTimer, &QTimer::timeout, this, &ClientModel::updateTimer);
 
     subscribeToCoreSignals();
 
