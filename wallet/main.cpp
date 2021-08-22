@@ -1809,13 +1809,15 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         if (GetBoolArg("-synctime", true))
             AddTimeData(pfrom->addr, nTime);
 
+        const CTxDB txdb;
+
         // Change version
         pfrom->PushMessage("verack");
         pfrom->ssSend.SetVersion(min(pfrom->nVersion, PROTOCOL_VERSION));
 
         if (!pfrom->fInbound) {
             // Advertise our address
-            if (!fNoListen && !IsInitialBlockDownload(CTxDB())) {
+            if (!fNoListen && !IsInitialBlockDownload(txdb)) {
                 CAddress addr = GetLocalAddress(&pfrom->addr);
                 if (addr.IsRoutable())
                     pfrom->PushAddress(addr);
@@ -1839,7 +1841,6 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         // Ask the first connected node for block updates
         // For regtest, we need to sync immediately after connection; this is important for tests that
         // split and reconnect the network
-        CTxDB      txdb;
         static int nAskedForBlocks = 0;
         if ((!pfrom->fClient && !pfrom->fOneShot && !fImporting) &&
             (((pfrom->nStartingHeight > (txdb.GetBestChainHeight().value_or(0) - 144)) &&
