@@ -661,9 +661,12 @@ public:
     // between nodes running old code and nodes running
     // new code.
     static void ClearBanned(); // needed for unit testing
-    static bool IsBanned(CNetAddr ip);
-    bool        Misbehaving(int howmuch); // 1 == a little, 100 == a lot
-    void        copyStats(CNodeStats& stats);
+    static bool IsBanned(const CNetAddr& ip);
+    static void Ban(const CNetAddr& ip, int64_t ban_time_offset, bool since_unix_epoch);
+    static bool Unban(const CNetAddr& ip);
+    static std::map<CNetAddr, int64_t> GetBanned();
+    bool                               Misbehaving(int howmuch); // 1 == a little, 100 == a lot
+    void                               copyStats(CNodeStats& stats);
 };
 
 inline void RelayInventory(const CInv& inv)
