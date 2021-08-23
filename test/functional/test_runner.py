@@ -162,7 +162,7 @@ EXTENDED_SCRIPTS = [
 #    'rpc_bind.py',
     # vv Tests less than 30s vv
 #    'feature_assumevalid.py',
-#    'example_test.py',
+   'example_test.py',
 #    'wallet_txn_doublespend.py',
 #    'wallet_txn_clone.py --mineblock',
 #    'feature_notifications.py',
