@@ -142,7 +142,7 @@ class ExampleTest(BitcoinTestFramework):
         self.nodes[0].p2p.wait_for_verack()
 
         # Generating a block on one of the nodes will get us out of IBD
-        blocks = [int(self.nodes[0].generate(nblocks=1)[0], 16)]
+        blocks = [int(self.nodes[0].generate(1)[0], 16)]
         self.sync_all([self.nodes[0:1]])
 
         # Notice above how we called an RPC by calling a method with the same
@@ -166,7 +166,7 @@ class ExampleTest(BitcoinTestFramework):
         self.tip = int(self.nodes[0].getbestblockhash(), 16)
         self.block_time = self.nodes[0].getblock(self.nodes[0].getbestblockhash())['time'] + 1
 
-        height = 1
+        height = 2
 
         for i in range(10):
             # Use the mininode and blocktools functionality to manually build a block
@@ -187,6 +187,9 @@ class ExampleTest(BitcoinTestFramework):
 
         self.log.info("Connect node2 and node1")
         connect_nodes(self.nodes[1], 2)
+
+        self.log.info("Connect node0 and node2")
+        connect_nodes(self.nodes[0], 2)
 
         self.log.info("Add P2P connection to node2")
         # We can't add additional P2P connections once the network thread has started. Disconnect the connection
