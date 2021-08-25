@@ -10,7 +10,9 @@
 #include "init.h"
 #include "main.h"
 #include "messageboxwithtimer.h"
+#include "txdb.h"
 #include "wallet.h"
+#include "wallet_interface.h"
 #include <util.h>
 
 void NewStakeDelegationDialog::createWidgets()

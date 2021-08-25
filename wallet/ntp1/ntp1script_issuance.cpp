@@ -4,6 +4,7 @@
 #include "hash.h"
 #include "init.h"
 #include "main.h"
+#include "txdb.h"
 #include "util.h"
 #include <boost/algorithm/hex.hpp>
 

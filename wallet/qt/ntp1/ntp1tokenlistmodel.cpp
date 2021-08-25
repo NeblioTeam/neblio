@@ -1,5 +1,7 @@
 #include "ntp1tokenlistmodel.h"
 #include "boost/thread/future.hpp"
+#include "txdb.h"
+#include "wallet.h"
 #include <boost/atomic/atomic.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/shared_ptr.hpp>
@@ -65,14 +67,22 @@ void NTP1TokenListModel::UpdateWalletBalances(boost::shared_ptr<NTP1Wallet>     
             promise.set_exception(boost::current_exception());
         } catch (std::exception& ex) {
             NLog.write(b_sev::err,
-                      "Error: Setting promise exception failed for NTP1TokenListModel wallet: {}",
-                      ex.what());
+                       "Error: Setting promise exception failed for NTP1TokenListModel wallet: {}",
+                       ex.what());
         } catch (...) {
             NLog.write(
                 b_sev::err,
                 "Error: Setting promise exception failed for NTP1TokenListModel wallet (Unknown error)");
         }
     }
+}
+
+void NTP1TokenListModel::SetupNTP1WalletTxUpdaterToWallet()
+{
+    while (!std::atomic_load(&pwalletMain).get()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    std::atomic_load(&pwalletMain)->setFunctorOnTxInsert(ntp1WalletTxUpdater);
 }
 
 NTP1TokenListModel::NTP1TokenListModel()
@@ -243,4 +253,9 @@ void NTP1TokenListModel::loadWalletFromFile()
 boost::shared_ptr<NTP1Wallet> NTP1TokenListModel::getCurrentWallet() const
 {
     return boost::atomic_load(&ntp1wallet);
+}
+
+void NTP1TokenListModel::NTP1WalletTxUpdater::setReferenceBlockHeight()
+{
+    currentBlockHeight = NTP1Transaction::GetCurrentBlockHeight(CTxDB());
 }

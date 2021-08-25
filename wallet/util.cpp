@@ -5,6 +5,7 @@
 
 #include "util.h"
 #include "globals.h"
+#include "medianfilter.h"
 #include "sync.h"
 #include "ui_interface.h"
 #include "version.h"
@@ -16,6 +17,7 @@
 #include <boost/iostreams/filtering_stream.hpp>
 #include <future>
 #include <openssl/rand.h>
+#include <sodium/randombytes.h>
 
 // Work around clang compilation problem in Boost 1.46:
 // /usr/include/boost/program_options/detail/config_file.hpp:163:17: error: call to function
@@ -176,7 +178,7 @@ uint64_t GetRand(uint64_t nMax)
     uint64_t nRange = (std::numeric_limits<uint64_t>::max() / nMax) * nMax;
     uint64_t nRand  = 0;
     do
-        randombytes_buf((unsigned char*)&nRand, sizeof(nRand));
+        gen_random_bytes((unsigned char*)&nRand, sizeof(nRand));
     while (nRand >= nRange);
     return (nRand % nMax);
 }
@@ -186,7 +188,7 @@ int GetRandInt(int nMax) { return GetRand(nMax); }
 uint256 GetRandHash()
 {
     uint256 hash;
-    randombytes_buf((unsigned char*)&hash, sizeof(hash));
+    gen_random_bytes((unsigned char*)&hash, sizeof(hash));
     return hash;
 }
 
@@ -1035,11 +1037,11 @@ void     seed_insecure_rand(bool fDeterministic)
     } else {
         uint32_t tmp;
         do {
-            randombytes_buf((unsigned char*)&tmp, 4);
+            gen_random_bytes((unsigned char*)&tmp, 4);
         } while (tmp == 0 || tmp == 0x9068ffffU);
         insecure_rand_Rz = tmp;
         do {
-            randombytes_buf((unsigned char*)&tmp, 4);
+            gen_random_bytes((unsigned char*)&tmp, 4);
         } while (tmp == 0 || tmp == 0x464fffffU);
         insecure_rand_Rw = tmp;
     }
@@ -1329,7 +1331,7 @@ string GetMimeTypeFromPath(const string& path)
 
 bool RandomBytesToBuffer(unsigned char* buffer, size_t size)
 {
-    randombytes_buf(buffer, size);
+    gen_random_bytes(buffer, size);
     return true;
 }
 
@@ -1454,3 +1456,5 @@ bool ParseFixedPoint(const std::string& val, int decimals, int64_t* amount_out)
 
 // Obtain the application startup time (used for uptime calculation)
 int64_t GetStartupTime() { return nStartupTime; }
+
+void gen_random_bytes(void* const buf, const size_t size) { randombytes_buf(buf, size); }

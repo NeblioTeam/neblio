@@ -9,11 +9,14 @@
 #include "blockmetadata.h"
 #include "boost/make_shared.hpp"
 #include "coldstakedelegation.h"
+#include "consensus.h"
 #include "globals.h"
 #include "init.h"
 #include "main.h"
+#include "txdb.h"
 #include "udaddress.h"
 #include "wallet.h"
+#include "wallet_interface.h"
 #include "walletdb.h"
 
 using namespace json_spirit;

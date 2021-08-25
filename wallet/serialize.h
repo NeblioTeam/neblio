@@ -22,7 +22,7 @@
 
 #include "allocators.h"
 #include "compilerspecific.h"
-#include "ntp1/ntp1script.h"
+#include "ntp1/ntp1common.h"
 #include "version.h"
 
 class CAutoFile;

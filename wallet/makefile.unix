@@ -250,7 +250,15 @@ OBJS= \
     obj/blockindexlrucache.o                  \
     obj/forkspendsimulator.o                  \
     obj/viucache.o                            \
-    obj/proposal.o
+    obj/proposal.o                            \
+    obj/consensus.o                           \
+    obj/medianfilter.o                        \
+    obj/mempoolmisc.o                         \
+    obj/merkleblock.o                         \
+    obj/messaging.o                           \
+    obj/ntp1/ntp1common.o                     \
+    obj/partialmerkletree.o                   \
+    obj/wallet_interface.o
 
 
 ifdef NEBLIO_REST

@@ -9,7 +9,9 @@
 #include "bitcoinrpc.h"
 #include "init.h" // for pwalletMain
 #include "main.h"
+#include "txdb.h"
 #include "ui_interface.h"
+#include "wallet_interface.h"
 
 #include <boost/algorithm/string.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>

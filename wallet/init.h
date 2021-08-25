@@ -9,13 +9,12 @@
 #include "wallet.h"
 #include <memory>
 
-extern std::shared_ptr<CWallet> pwalletMain;
-extern boost::atomic<bool>      appInitiated;
-void                            StartShutdown();
-void                            Shutdown();
-bool                            AppInit2();
-std::string                     HelpMessage();
-void                            InitLogging();
+extern boost::atomic<bool> appInitiated;
+void                       StartShutdown();
+void                       Shutdown();
+bool                       AppInit2();
+std::string                HelpMessage();
+void                       InitLogging();
 
 extern LockedVar<boost::signals2::signal<void()>> StopRPCRequests;
 extern boost::atomic_flag                         StopRPCRequestsFlag;

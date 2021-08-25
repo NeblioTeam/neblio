@@ -10,6 +10,7 @@
 #include "ntp1/ntp1transaction.h"
 #include "txdb.h"
 #include "wallet.h"
+#include "wallet_interface.h"
 #include <QMessageBox>
 #include <QVariant>
 #include <util.h>

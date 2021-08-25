@@ -4,6 +4,7 @@
 
 #include "NetworkForks.h"
 #include "main.h"
+#include "medianfilter.h"
 #include "test/mocks/mtxdb.h"
 #include "util.h"
 #include "wallet.h"

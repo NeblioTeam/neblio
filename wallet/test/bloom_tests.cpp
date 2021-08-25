@@ -8,6 +8,7 @@
 #include "bloom.h"
 #include "key.h"
 #include "main.h"
+#include "merkleblock.h"
 #include "mocks/mtxdb.h"
 #include "ntp1/ntp1transaction.h"
 #include "util.h"

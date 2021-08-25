@@ -4,6 +4,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "bitcoinrpc.h"
+#include "consensus.h"
 #include "db.h"
 #include "init.h"
 #include "main.h"
@@ -11,6 +12,7 @@
 #include "script.h"
 #include "txdb.h"
 #include "txmempool.h"
+#include "wallet_interface.h"
 #include "work.h"
 #include <random>
 

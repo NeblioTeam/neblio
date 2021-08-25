@@ -3,7 +3,9 @@
 // the following is a necessary include for pwalletMain and CWalletTx objects
 #include "init.h"
 #include "main.h"
+#include "txdb.h"
 #include "txmempool.h"
+#include "wallet_interface.h"
 
 #include <boost/algorithm/hex.hpp>
 #include <boost/algorithm/string.hpp>

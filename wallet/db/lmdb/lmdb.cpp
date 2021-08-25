@@ -3,6 +3,7 @@
 #include "logging/logger.h"
 #include "stringmanip.h"
 #include "ui_interface.h"
+#include <boost/algorithm/hex.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/scope_exit.hpp>
 

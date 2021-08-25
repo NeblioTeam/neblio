@@ -64,7 +64,7 @@ bool CDBEnv::Open(boost::filesystem::path pathEnv_)
     filesystem::create_directory(pathLogDir);
     filesystem::path pathErrorFile = pathDataDir / "db.log";
     NLog.write(b_sev::info, "dbenv.open LogDir={} ErrorFile={}", pathLogDir.string(),
-              pathErrorFile.string());
+               pathErrorFile.string());
 
     unsigned int nEnvFlags = 0;
     if (GetBoolArg("-privdb", true))
@@ -93,7 +93,7 @@ bool CDBEnv::Open(boost::filesystem::path pathEnv_)
                          S_IRUSR | S_IWUSR);
     if (ret != 0)
         return NLog.error("CDB() : error {} ({}) opening database environment", DbEnv::strerror(ret),
-                         ret);
+                          ret);
 
     fDbEnvInit = true;
     fMockDb    = false;
@@ -435,7 +435,7 @@ void CDBEnv::Flush(bool fShutdownIn)
                 mi++;
         }
         NLog.write(b_sev::info, "DBFlush({}){} ended {} ms", fShutdownIn,
-                  fDbEnvInit ? "" : " db not started", GetTimeMillis() - nStart);
+                   fDbEnvInit ? "" : " db not started", GetTimeMillis() - nStart);
         if (fShutdownIn) {
             char** listp;
             if (mapFileUseCount.empty()) {
@@ -456,7 +456,7 @@ bool CAddrDB::Write(const CAddrMan& addr)
 {
     // Generate random temporary filename
     unsigned short randv = 0;
-    randombytes_buf((unsigned char*)&randv, sizeof(randv));
+    gen_random_bytes((unsigned char*)&randv, sizeof(randv));
     std::string tmpfn = fmt::format("peers.dat.{:04x}", randv);
 
     // serialize addresses, checksum data up to that point, then append csum

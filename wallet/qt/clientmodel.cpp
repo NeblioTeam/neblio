@@ -1,11 +1,11 @@
 #include "clientmodel.h"
 #include "addresstablemodel.h"
+#include "alert.h"
 #include "guiconstants.h"
+#include "main.h"
 #include "optionsmodel.h"
 #include "transactiontablemodel.h"
-
-#include "alert.h"
-#include "main.h"
+#include "txdb.h"
 #include "ui_interface.h"
 
 #include <QDateTime>

@@ -1,9 +1,9 @@
 #include "bitcoinamountfield.h"
 #include "bitcoinunits.h"
-#include "ntp1/ntp1listelementtokendata.h"
-#include "qvaluecombobox.h"
-
 #include "guiconstants.h"
+#include "ntp1/ntp1listelementtokendata.h"
+#include "ntp1/ntp1sendtxdata.h"
+#include "qvaluecombobox.h"
 
 #include <QApplication>
 #include <QComboBox>

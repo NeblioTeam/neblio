@@ -1,6 +1,9 @@
 #include "SerializationTester.h"
 
 #include "blocklocator.h"
+#include "main.h"
+#include "merkleblock.h"
+#include "partialmerkletree.h"
 
 void RunCrossPlatformSerializationTests()
 {

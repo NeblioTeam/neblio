@@ -26,6 +26,7 @@
 #include "transactiondescdialog.h"
 #include "transactiontablemodel.h"
 #include "transactionview.h"
+#include "txdb.h"
 #include "wallet.h"
 #include "walletmodel.h"
 

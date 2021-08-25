@@ -9,6 +9,9 @@ class CBlockIndex;
 
 struct mTxDB : public ITxDB
 {
+    MOCK_METHOD(bool, TxnBegin, (std::size_t required_size), (override));
+    MOCK_METHOD(bool, TxnCommit, (), (override));
+    MOCK_METHOD(bool, TxnAbort, (), (override));
     MOCK_METHOD(bool, WriteVersion, (int nVersion), (override));
     MOCK_METHOD(bool, ReadTxIndex, (const uint256& hash, CTxIndex& txindex), (const, override));
     MOCK_METHOD(bool, UpdateTxIndex, (const uint256& hash, const CTxIndex& txindex), (override));

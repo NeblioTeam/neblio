@@ -169,8 +169,8 @@ boost::optional<std::string> CTxMemPool::GetTokenSymbolIfIssuance(const CTransac
                     std::dynamic_pointer_cast<const NTP1Script_Issuance>(scriptPtr);
                 if (!scriptPtrD) {
                     NLog.write(b_sev::err,
-                              "ERROR: even though the type of the NTP1Script is issuance, dynamic cast "
-                              "failed. This SHOULD NEVER HAPPEN.");
+                               "ERROR: even though the type of the NTP1Script is issuance, dynamic cast "
+                               "failed. This SHOULD NEVER HAPPEN.");
                 }
                 return boost::make_optional(scriptPtrD->getTokenSymbol());
             }

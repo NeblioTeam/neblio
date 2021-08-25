@@ -9,6 +9,7 @@
 #include "main.h"
 #include "ntp1/ntp1transaction.h"
 #include "optionsmodel.h"
+#include "txdb.h"
 #include "walletmodel.h"
 
 #include <QApplication>
@@ -370,8 +371,8 @@ void CoinControlDialog::headerSectionClicked(int logicalIndex)
             sortColumn = logicalIndex;
             sortOrder  = ((sortColumn == COLUMN_AMOUNT_INT64 || sortColumn == COLUMN_PRIORITY_INT64 ||
                           sortColumn == COLUMN_DATE || sortColumn == COLUMN_CONFIRMATIONS)
-                              ? Qt::DescendingOrder
-                              : Qt::AscendingOrder); // if amount,date,conf,priority then default => desc,
+                             ? Qt::DescendingOrder
+                             : Qt::AscendingOrder); // if amount,date,conf,priority then default => desc,
                                                      // else default => asc
         }
 
