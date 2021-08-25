@@ -14,6 +14,7 @@
 #include "ntp1script_transfer.h"
 #include "ntp1sendtokensonerecipientdata.h"
 #include "transaction.h"
+#include "txdb.h"
 
 #include "script.h"
 

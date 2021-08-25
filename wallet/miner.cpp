@@ -6,6 +6,7 @@
 
 #include "miner.h"
 #include "block.h"
+#include "consensus.h"
 #include "kernel.h"
 #include "main.h"
 #include "txdb.h"

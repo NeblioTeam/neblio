@@ -2,6 +2,7 @@
 
 #include "init.h"
 #include "json_spirit.h"
+#include "txdb.h"
 
 json_spirit::Object CoinStakeDelegationResult::AddressesToJsonObject() const
 {

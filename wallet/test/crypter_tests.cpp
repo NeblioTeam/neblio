@@ -5,6 +5,7 @@
 #include "base58.h"
 #include "crypter.h"
 #include "crypto_highlevel.h"
+#include "ntp1/ntp1script.h"
 #include "transaction.h"
 #include "util.h"
 

@@ -16,6 +16,7 @@ using namespace boost;
 #include "main.h"
 #include "script.h"
 #include "sync.h"
+#include "txdb.h"
 #include "util.h"
 
 template <typename T>

@@ -6,10 +6,10 @@
 #include "optionsmodel.h"
 #include "transactiondesc.h"
 #include "transactionrecord.h"
-#include "walletmodel.h"
-
+#include "txdb.h"
 #include "ui_interface.h"
 #include "wallet.h"
+#include "walletmodel.h"
 
 #include <QColor>
 #include <QDateTime>

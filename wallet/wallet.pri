@@ -179,7 +179,15 @@ HEADERS += qt/bitcoingui.h \
     blockindexlrucache.h             \
     forkspendsimulator.h             \
     viucache.h                       \
-    proposal.h
+    proposal.h                       \
+    consensus.h                      \
+    medianfilter.h                   \
+    mempoolmisc.h                    \
+    merkleblock.h                    \
+    messaging.h                      \
+    ntp1/ntp1common.h                \
+    partialmerkletree.h              \
+    wallet_interface.h
 
 
 
@@ -355,7 +363,16 @@ SOURCES += qt/bitcoin.cpp \
     blockindexlrucache.cpp              \
     forkspendsimulator.cpp              \
     viucache.cpp                        \
-    proposal.cpp
+    proposal.cpp                        \
+    consensus.cpp                       \
+    medianfilter.cpp                    \
+    mempoolmisc.cpp                     \
+    merkleblock.cpp                     \
+    messaging.cpp                       \
+    ntp1/ntp1common.cpp                 \
+    partialmerkletree.cpp               \
+    wallet_interface.cpp
+
 
 
 

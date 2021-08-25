@@ -14,7 +14,7 @@
 #include <vector>
 
 class CBlockIndex;
-class CTxDB;
+class ITxDB;
 class CWallet;
 
 extern VIUCache viuCache;
@@ -128,7 +128,7 @@ public:
     bool WriteToDisk(const boost::optional<CBlockIndex>& prevBlockIndex, const uint256& hashProof,
                      const uint256& blockHash);
 
-    bool WriteBlockPubKeys(CTxDB& txdb);
+    bool WriteBlockPubKeys(ITxDB& txdb);
 
     bool ReadFromDisk(const uint256& hash, const ITxDB& txdb, bool fReadTransactions = true);
 
@@ -140,22 +140,22 @@ public:
 
     Result<void, ForkSpendSimulator::VIUError> VerifyInputsUnspent_Internal(const ITxDB& txdb) const;
 
-    bool DisconnectBlock(CTxDB& txdb, const CBlockIndex& pindex);
+    bool DisconnectBlock(ITxDB& txdb, const CBlockIndex& pindex);
     bool ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pindex, bool fJustCheck = false);
-    Result<void, ForkSpendSimulator::VIUError> VerifyInputsUnspent(const CTxDB& txdb) const;
-    bool                                       VerifyBlock(CTxDB& txdb);
+    Result<void, ForkSpendSimulator::VIUError> VerifyInputsUnspent(const ITxDB& txdb) const;
+    bool                                       VerifyBlock(ITxDB& txdb);
     bool ReadFromDisk(const CBlockIndex* pindex, const ITxDB& txdb, bool fReadTransactions = true);
-    bool SetBestChain(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
+    bool SetBestChain(ITxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
                       const bool createDbTransaction = true);
     boost::optional<CBlockIndex> AddToBlockIndex(const uint256&                      blockHash,
                                                  const boost::optional<CBlockIndex>& prevBlockIndex,
-                                                 const uint256& hashProof, CTxDB& txdb,
+                                                 const uint256& hashProof, ITxDB& txdb,
                                                  const bool createDbTransaction = true);
     bool CheckBlock(const ITxDB& txdb, const uint256& blockHash, bool fCheckPOW = true,
                     bool fCheckMerkleRoot = true, bool fCheckSig = true);
     bool AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& blockHash);
     bool
-         SignBlock(const CTxDB& txdb, const CWallet& keystore, int64_t nFees,
+         SignBlock(const ITxDB& txdb, const CWallet& keystore, int64_t nFees,
                    const boost::optional<std::set<std::pair<uint256, unsigned>>>& customInputs = boost::none,
                    CAmount                                                        extraPayoutForTest = 0);
     bool SignBlockWithSpecificKey(const ITxDB& txdb, const COutPoint& outputToStake,
@@ -168,11 +168,11 @@ public:
 
     static void InvalidChainFound(const CBlockIndex& pindexNew, ITxDB& txdb);
 
-    bool Reorganize(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
+    bool Reorganize(ITxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
                     const bool createDbTransaction = true);
 
 private:
-    bool SetBestChainInner(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
+    bool SetBestChainInner(ITxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
                            const bool createDbTransaction = true);
 };
 

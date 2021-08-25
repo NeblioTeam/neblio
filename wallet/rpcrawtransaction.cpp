@@ -11,10 +11,12 @@
 #include "climits"
 #include "init.h"
 #include "main.h"
+#include "mempoolmisc.h"
 #include "net.h"
 #include "ntp1/ntp1transaction.h"
 #include "txdb.h"
 #include "wallet.h"
+#include "wallet_interface.h"
 
 using namespace std;
 using namespace boost;

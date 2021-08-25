@@ -6,14 +6,18 @@
 #include "blocklocator.h"
 #include "blockmetadata.h"
 #include "checkpoints.h"
+#include "consensus.h"
 #include "kernel.h"
 #include "main.h"
+#include "mempoolmisc.h"
 #include "merkle.h"
 #include "ntp1/ntp1transaction.h"
+#include "txdb.h"
 #include "txmempool.h"
 #include "ui_interface.h"
 #include "util.h"
 #include "wallet.h"
+#include "wallet_interface.h"
 #include "work.h"
 #include <boost/algorithm/string.hpp>
 #include <boost/foreach.hpp>
@@ -141,7 +145,7 @@ void CBlock::UpdateTime(const CBlockIndex* /*pindexPrev*/)
     nTime = std::max(GetBlockTime(), GetAdjustedTime());
 }
 
-bool CBlock::DisconnectBlock(CTxDB& txdb, const CBlockIndex& pindex)
+bool CBlock::DisconnectBlock(ITxDB& txdb, const CBlockIndex& pindex)
 {
     // Disconnect in reverse order
     for (int i = vtx.size() - 1; i >= 0; i--)
@@ -269,7 +273,7 @@ Result<void, ForkSpendSimulator::VIUError> CBlock::VerifyInputsUnspent_Internal(
     return Ok();
 }
 
-Result<void, ForkSpendSimulator::VIUError> CBlock::VerifyInputsUnspent(const CTxDB& txdb) const
+Result<void, ForkSpendSimulator::VIUError> CBlock::VerifyInputsUnspent(const ITxDB& txdb) const
 {
     // this function solves the problem in
     // https://medium.com/@dsl_uiuc/fake-stake-attacks-on-chain-based-proof-of-stake-cryptocurrencies-b8b05723f806
@@ -566,7 +570,7 @@ bool CBlock::ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pinde
 }
 
 // Called from inside SetBestChain: attaches a block to the new best chain being built
-bool CBlock::SetBestChainInner(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
+bool CBlock::SetBestChainInner(ITxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
                                const bool createDbTransaction)
 {
     const uint256 hash = pindexNew->GetBlockHash();
@@ -592,7 +596,7 @@ bool CBlock::SetBestChainInner(CTxDB& txdb, const boost::optional<CBlockIndex>& 
     return true;
 }
 
-bool CBlock::SetBestChain(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
+bool CBlock::SetBestChain(ITxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
                           const bool createDbTransaction)
 {
     const uint256 hash = pindexNew->GetBlockHash();
@@ -793,7 +797,7 @@ void CBlock::InvalidChainFound(const CBlockIndex& pindexNew, ITxDB& txdb)
                DateTimeStrFormat("%x %H:%M:%S", pindexBestPtr->GetBlockTime()));
 }
 
-bool CBlock::Reorganize(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
+bool CBlock::Reorganize(ITxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
                         const bool createDbTransaction)
 {
     NLog.write(b_sev::info, "REORGANIZE");
@@ -908,7 +912,7 @@ bool CBlock::Reorganize(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexN
 
 boost::optional<CBlockIndex> CBlock::AddToBlockIndex(const uint256&                      blockHash,
                                                      const boost::optional<CBlockIndex>& prevBlockIndex,
-                                                     const uint256& hashProof, CTxDB& txdb,
+                                                     const uint256& hashProof, ITxDB& txdb,
                                                      const bool createDbTransaction)
 {
     // Check for duplicate
@@ -1251,7 +1255,7 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& block
     return true;
 }
 
-boost::optional<CKeyID> GetKeyIDFromOutput(const CTxDB& txdb, const CTxOut& txout)
+boost::optional<CKeyID> GetKeyIDFromOutput(const ITxDB& txdb, const CTxOut& txout)
 {
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
@@ -1268,7 +1272,7 @@ boost::optional<CKeyID> GetKeyIDFromOutput(const CTxDB& txdb, const CTxOut& txou
 }
 
 // novacoin: attempt to generate suitable proof-of-stake
-bool CBlock::SignBlock(const CTxDB& txdb, const CWallet& wallet, int64_t nFees,
+bool CBlock::SignBlock(const ITxDB& txdb, const CWallet& wallet, int64_t nFees,
                        const boost::optional<std::set<std::pair<uint256, unsigned>>>& customInputs,
                        const CAmount                                                  extraPayoutForTest)
 {
@@ -1467,7 +1471,7 @@ bool CBlock::CheckBlockSignature(const ITxDB& txdb, const uint256& blockHash) co
     return NLog.error("CheckBlockSignature(): Failed to verify block signature of type {}", sigTypeStr);
 }
 
-bool CBlock::WriteBlockPubKeys(CTxDB& txdb)
+bool CBlock::WriteBlockPubKeys(ITxDB& txdb)
 {
     bool success = true;
     for (const CTransaction& tx : vtx) {

@@ -5,10 +5,10 @@
 
 #include <chainparams.h>
 
-#include <amount.h>
-#include <util.h>
-
 #include "block.h"
+#include "txdb.h"
+#include "util.h"
+#include <amount.h>
 #include <assert.h>
 #include <boost/optional.hpp>
 #include <cinttypes>

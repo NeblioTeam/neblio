@@ -5,9 +5,8 @@
 #include <QTimer>
 #include <atomic>
 
-#include "init.h"
 #include "ntp1/ntp1wallet.h"
-#include "wallet.h"
+#include "wallet_interface.h"
 
 class NTP1TokenListModel : public QAbstractTableModel
 {
@@ -38,6 +37,8 @@ class NTP1TokenListModel : public QAbstractTableModel
     public:
         NTP1WalletTxUpdater(NTP1TokenListModel* Model) : model(Model), currentBlockHeight(-1) {}
 
+        static const int HEIGHT_OFFSET_TOLERANCE = 10;
+
         void run(uint256, int currentHeight) Q_DECL_OVERRIDE
         {
             if (currentBlockHeight < 0) {
@@ -52,20 +53,11 @@ class NTP1TokenListModel : public QAbstractTableModel
 
         // WalletNewTxUpdateFunctor interface
     public:
-        void setReferenceBlockHeight() Q_DECL_OVERRIDE
-        {
-            currentBlockHeight = NTP1Transaction::GetCurrentBlockHeight(CTxDB());
-        }
+        void setReferenceBlockHeight() Q_DECL_OVERRIDE;
     };
 
     boost::shared_ptr<NTP1WalletTxUpdater> ntp1WalletTxUpdater;
-    void                                   SetupNTP1WalletTxUpdaterToWallet()
-    {
-        while (!std::atomic_load(&pwalletMain).get()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
-        std::atomic_load(&pwalletMain)->setFunctorOnTxInsert(ntp1WalletTxUpdater);
-    }
+    void                                   SetupNTP1WalletTxUpdaterToWallet();
 
 public:
     static QString __getTokenName(int index, boost::shared_ptr<NTP1Wallet> theWallet);

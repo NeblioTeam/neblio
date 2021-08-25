@@ -9,8 +9,10 @@
 #include "init.h"
 #include "main.h"
 #include "sync.h"
+#include "txdb.h"
 #include "ui_interface.h"
 #include "util.h"
+#include "wallet_interface.h"
 
 #undef printf
 #include <boost/algorithm/string.hpp>

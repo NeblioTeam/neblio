@@ -7,7 +7,6 @@
 #include "bloom.h"
 #include "checkpoints.h"
 #include "crypter.h"
-#include "main.h"
 #include "ntp1/ntp1outpoint.h"
 #include "ntp1/ntp1script.h"
 #include "ntp1/ntp1tokentxdata.h"

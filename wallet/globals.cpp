@@ -15,9 +15,13 @@ boost::atomic<uint256> nBestInvalidTrust{0};
 
 boost::atomic<int64_t> NodeIDCounter{0};
 
+boost::atomic<bool> fImporting{false};
+
 AllStoredVotes blockVotes;
 
 std::string strSubVersion;
+
+unsigned int nNodeLifespan;
 
 std::string SanitizeString(const std::string& str, int rule)
 {
@@ -27,4 +31,13 @@ std::string SanitizeString(const std::string& str, int rule)
             strResult.push_back(str[i]);
     }
     return strResult;
+}
+
+unsigned int MaxBlockSize(const ITxDB& txdb)
+{
+    if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, txdb)) {
+        return MAX_BLOCK_SIZE;
+    } else {
+        return OLD_MAX_BLOCK_SIZE;
+    }
 }

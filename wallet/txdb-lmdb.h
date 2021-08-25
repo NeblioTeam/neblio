@@ -250,9 +250,9 @@ protected:
     }
 
 public:
-    bool TxnBegin(std::size_t required_size = 0);
-    bool TxnCommit();
-    bool TxnAbort();
+    bool TxnBegin(std::size_t required_size = 0) override;
+    bool TxnCommit() override;
+    bool TxnAbort() override;
 
     boost::optional<int> ReadVersion();
 
