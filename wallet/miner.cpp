@@ -82,9 +82,8 @@ public:
     }
 };
 
-uint64_t   nLastBlockTx   = 0;
-uint64_t   nLastBlockSize = 0;
-StakeMaker stakeMaker;
+uint64_t nLastBlockTx   = 0;
+uint64_t nLastBlockSize = 0;
 
 // We want to sort transactions by priority and fee, so:
 typedef boost::tuple<double, double, const CTransaction*> TxPriority;
