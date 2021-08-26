@@ -7,10 +7,9 @@
 
 #include "bignum.h"
 #include "globals.h"
-#include "net.h"
 #include "script.h"
-#include "stakemaker.h"
-
+#include "transaction.h"
+#include "txout.h"
 #include <atomic>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/make_shared.hpp>
@@ -34,8 +33,6 @@ extern uint64_t                             nLastBlockSize;
 extern const std::string                    strMessageMagic;
 extern boost::atomic_int64_t                nTimeBestReceived;
 extern std::unordered_map<uint256, CBlock*> mapOrphanBlocks;
-
-extern unsigned int nDerivationMethodIndex;
 
 // Minimum disk space required - used in CheckDiskSpace()
 static const std::uintmax_t nMinDiskSpace = 52428800;

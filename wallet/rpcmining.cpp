@@ -11,6 +11,7 @@
 #include "messaging.h"
 #include "miner.h"
 #include "script.h"
+#include "stakemaker.h"
 #include "txdb.h"
 #include "txmempool.h"
 #include "wallet_interface.h"

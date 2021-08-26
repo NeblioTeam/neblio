@@ -14,6 +14,7 @@
 #include "messaging.h"
 #include "ntp1/ntp1transaction.h"
 #include "scrypt.h"
+#include "stakemaker.h"
 #include "txdb.h"
 #include "txmempool.h"
 #include "ui_interface.h"
