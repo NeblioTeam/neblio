@@ -168,6 +168,16 @@ public:
 
     static void InvalidChainFound(const CBlockIndex& pindexNew, ITxDB& txdb);
 
+    static void WriteNTP1BlockTransactionsToDisk(const std::vector<CTransaction>& vtx, ITxDB& txdb);
+    static void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, ITxDB& txdb);
+    static void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, ITxDB& txdb);
+    static void AssertIssuanceUniquenessInBlock(
+        std::unordered_map<std::string, uint256>& issuedTokensSymbolsInThisBlock, const ITxDB& txdb,
+        const CTransaction& tx,
+        const std::map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>&
+                                           mapQueuedNTP1Inputs,
+        const std::map<uint256, CTxIndex>& queuedAcceptedTxs);
+
     bool Reorganize(ITxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
                     const bool createDbTransaction = true);
 
