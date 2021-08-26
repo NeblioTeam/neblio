@@ -41,8 +41,6 @@ class CNode;
 
 class CTxMemPool;
 
-inline int64_t PastDrift(int64_t nTime) { return nTime - 10 * 60; } // up to 10 minutes from the past
-
 extern CScript                              COINBASE_FLAGS;
 static constexpr const int64_t              TARGET_AVERAGE_BLOCK_COUNT = 100;
 extern uint64_t                             nLastBlockTx;
