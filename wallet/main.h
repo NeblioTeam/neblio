@@ -100,24 +100,8 @@ std::string  GetWarnings(std::string strFor);
 uint256      WantedByOrphan(const CBlock* pblockOrphan);
 void         StakeMiner(std::shared_ptr<CWallet> pwallet);
 
-void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, ITxDB& txdb);
-
-void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, ITxDB& txdb);
-
-void AssertIssuanceUniquenessInBlock(
-    std::unordered_map<std::string, uint256>& issuedTokensSymbolsInThisBlock, const ITxDB& txdb,
-    const CTransaction&                                                             tx,
-    const std::map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>& mapQueuedNTP1Inputs,
-    const std::map<uint256, CTxIndex>&                                              queuedAcceptedTxs);
-
-void WriteNTP1BlockTransactionsToDisk(const std::vector<CTransaction>& vtx, ITxDB& txdb);
-
 /** True if the transaction is in the main chain (can throw) */
 bool IsTxInMainChain(const ITxDB& txdb, const uint256& txHash);
-
-/** the condition for the first valid NTP1 transaction; transactions before this point are invalid in the
- * network*/
-bool PassedFirstValidNTP1Tx(const int bestHeight, const NetworkType isTestnet);
 
 /** Maximum size of a block */
 unsigned int MaxBlockSize(const ITxDB& txdb);

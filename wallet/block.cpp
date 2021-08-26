@@ -1666,3 +1666,94 @@ bool CBlock::ReadFromDisk(const uint256& hash, const ITxDB& txdb, bool fReadTran
     SetNull();
     return txdb.ReadBlock(hash, *this, fReadTransactions);
 }
+
+void CBlock::WriteNTP1BlockTransactionsToDisk(const std::vector<CTransaction>& vtx, ITxDB& txdb)
+{
+    if (Params().PassedFirstValidNTP1Tx(&txdb)) {
+        for (const CTransaction& tx : vtx) {
+            WriteNTP1TxToDiskFromRawTx(tx, txdb);
+        }
+    }
+}
+
+void CBlock::WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, ITxDB& txdb)
+{
+    if (Params().PassedFirstValidNTP1Tx(&txdb)) {
+        // read previous transactions (inputs) which are necessary to validate an NTP1
+        // transaction
+        std::string opReturnArg;
+        if (!NTP1Transaction::IsTxNTP1(&tx, &opReturnArg)) {
+            return;
+        }
+
+        std::vector<std::pair<CTransaction, NTP1Transaction>> inputsWithNTP1 =
+            NTP1Transaction::GetAllNTP1InputsOfTx(tx, txdb, true);
+
+        // write NTP1 transactions' data
+        NTP1Transaction ntp1tx;
+        ntp1tx.readNTP1DataFromTx(txdb, tx, inputsWithNTP1);
+
+        WriteNTP1TxToDbAndDisk(ntp1tx, txdb);
+    }
+}
+
+void CBlock::WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, ITxDB& txdb)
+{
+    if (ntp1tx.getTxType() == NTP1TxType_UNKNOWN) {
+        throw std::runtime_error(
+            "Attempted to write an NTP1 transaction to database with unknown type.");
+    }
+    if (!txdb.WriteNTP1Tx(ntp1tx.getTxHash(), ntp1tx)) {
+        throw std::runtime_error("Unable to write NTP1 transaction to database: " +
+                                 ntp1tx.getTxHash().ToString());
+    }
+    if (ntp1tx.getTxType() == NTP1TxType_ISSUANCE) {
+        if (ntp1tx.getTxInCount() <= 0) {
+            throw std::runtime_error(
+                "Unable to check for token id blacklisting because the size of the input is zero.");
+        }
+        NTP1OutPoint prevout = ntp1tx.getTxIn(0).getPrevout();
+        assert(!prevout.isNull());
+        std::string tokenId =
+            ntp1tx.getTokenIdIfIssuance(prevout.getHash().ToString(), prevout.getIndex());
+        if (!Params().IsNTP1TokenBlacklisted(tokenId)) {
+            if (!txdb.WriteNTP1TxWithTokenSymbol(ntp1tx.getTokenSymbolIfIssuance(), ntp1tx)) {
+                throw std::runtime_error("Unable to write NTP1 transaction to database: " +
+                                         ntp1tx.getTxHash().ToString());
+            }
+        }
+    }
+}
+
+void CBlock::AssertIssuanceUniquenessInBlock(
+    std::unordered_map<std::string, uint256>& issuedTokensSymbolsInThisBlock, const ITxDB& txdb,
+    const CTransaction&                                                             tx,
+    const std::map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>& mapQueuedNTP1Inputs,
+    const std::map<uint256, CTxIndex>&                                              queuedAcceptedTxs)
+{
+    std::string opRet;
+    if (NTP1Transaction::IsTxNTP1(&tx, &opRet)) {
+        auto script = NTP1Script::ParseScript(opRet);
+        if (script->getTxType() == NTP1Script::TxType_Issuance) {
+            std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
+                NTP1Transaction::GetAllNTP1InputsOfTx(tx, txdb, false, mapQueuedNTP1Inputs,
+                                                      queuedAcceptedTxs);
+
+            NTP1Transaction ntp1tx;
+            ntp1tx.readNTP1DataFromTx(txdb, tx, inputsTxs);
+            AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, txdb);
+            if (ntp1tx.getTxType() == NTP1TxType_ISSUANCE) {
+                std::string currSymbol = ntp1tx.getTokenSymbolIfIssuance();
+                // make sure that case doesn't matter by converting to upper case
+                std::transform(currSymbol.begin(), currSymbol.end(), currSymbol.begin(), ::toupper);
+                if (issuedTokensSymbolsInThisBlock.find(currSymbol) !=
+                    issuedTokensSymbolsInThisBlock.end()) {
+                    throw std::runtime_error(
+                        "The token name " + currSymbol +
+                        " already exists in the block: " /* + this->GetHash().ToString()*/);
+                }
+                issuedTokensSymbolsInThisBlock.insert(std::make_pair(currSymbol, ntp1tx.getTxHash()));
+            }
+        }
+    }
+}
