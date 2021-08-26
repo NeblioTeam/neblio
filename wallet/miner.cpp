@@ -10,6 +10,8 @@
 #include "kernel.h"
 #include "main.h"
 #include "messaging.h"
+#include "net.h"
+#include "stakemaker.h"
 #include "txdb.h"
 #include "txmempool.h"
 #include "work.h"

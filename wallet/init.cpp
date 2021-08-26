@@ -33,7 +33,6 @@ using namespace boost;
 
 CClientUIInterface       uiInterface;
 bool                     fConfChange;
-unsigned int             nDerivationMethodIndex;
 unsigned int             nMinerSleep;
 enum Checkpoints::CPMode CheckpointsMode;
 boost::atomic<bool>      appInitiated{false};

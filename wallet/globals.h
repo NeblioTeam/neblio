@@ -42,6 +42,8 @@ extern CAmount nTransactionFee;
 extern CAmount nReserveBalance;
 extern CAmount nMinimumInputValue;
 
+extern unsigned int nDerivationMethodIndex;
+
 /** The maximum allowed size for a serialized block, in bytes (network rule) */
 static const unsigned int MAX_BLOCK_SIZE     = 8000000;
 static const unsigned int OLD_MAX_BLOCK_SIZE = 1000000;

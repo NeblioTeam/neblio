@@ -9,7 +9,7 @@
 #include "coincontrol.h"
 #include "crypter.h"
 #include "kernel.h"
-#include "main.h"
+#include "net.h"
 #include "ntp1/ntp1transaction.h"
 #include "txdb.h"
 #include "txmempool.h"
