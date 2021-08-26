@@ -1,6 +1,6 @@
 #include "googletest/googletest/include/gtest/gtest.h"
 
-#include "main.h"
+#include "block.h"
 #include "partialmerkletree.h"
 #include "uint256.h"
 

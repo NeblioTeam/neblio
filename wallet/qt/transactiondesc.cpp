@@ -4,8 +4,8 @@
 #include "guiutil.h"
 
 #include "base58.h"
+#include "blockindex.h"
 #include "consensus.h"
-#include "main.h"
 #include "txdb.h"
 #include "ui_interface.h"
 #include "wallet.h"

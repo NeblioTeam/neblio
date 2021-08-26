@@ -6,17 +6,10 @@
 #define BITCOIN_MAIN_H
 
 #include "bignum.h"
-#include "block.h"
-#include "blockindex.h"
-#include "blockindexcatalog.h"
 #include "globals.h"
 #include "net.h"
-#include "outpoint.h"
 #include "script.h"
-#include "scrypt.h"
 #include "stakemaker.h"
-#include "sync.h"
-#include "transaction.h"
 
 #include <atomic>
 #include <boost/enable_shared_from_this.hpp>
@@ -29,17 +22,10 @@
 class CWallet;
 class CBlock;
 class CBlockIndex;
-class CKeyItem;
-class CReserveKey;
 class COutPoint;
-class CBlockLocator;
-
-class CAddress;
-class CInv;
-class CRequestTracker;
 class CNode;
-
 class CTxMemPool;
+class CTransaction;
 
 extern CScript                              COINBASE_FLAGS;
 static constexpr const int64_t              TARGET_AVERAGE_BLOCK_COUNT = 100;
@@ -47,24 +33,12 @@ extern uint64_t                             nLastBlockTx;
 extern uint64_t                             nLastBlockSize;
 extern const std::string                    strMessageMagic;
 extern boost::atomic_int64_t                nTimeBestReceived;
-extern CCriticalSection                     cs_setpwalletRegistered;
-extern std::set<std::shared_ptr<CWallet>>   setpwalletRegistered;
 extern std::unordered_map<uint256, CBlock*> mapOrphanBlocks;
 
-// Settings
-extern CAmount      nTransactionFee;
-extern CAmount      nReserveBalance;
-extern CAmount      nMinimumInputValue;
 extern unsigned int nDerivationMethodIndex;
-
-class NTP1Transaction;
 
 // Minimum disk space required - used in CheckDiskSpace()
 static const std::uintmax_t nMinDiskSpace = 52428800;
-
-class CReserveKey;
-class CTxDB;
-class CTxIndex;
 
 bool         ProcessBlock(CNode* pfrom, CBlock* pblock);
 bool         CheckDiskSpace(uintmax_t nAdditionalBytes = 0);
@@ -73,10 +47,8 @@ void         PrintBlockTree();
 bool         ProcessMessages(CNode* pfrom);
 bool         SendMessages(CNode* pto, bool fSendTrickle);
 void         ThreadImport(std::vector<boost::filesystem::path> vFiles);
-bool         CheckProofOfWork(const uint256& hash, unsigned int nBits, bool silent = false);
 unsigned int GetNextTargetRequired(const ITxDB& txdb, const CBlockIndex* pindexLast, bool fProofOfStake);
 int          GetNumBlocksOfPeers();
-bool         IsInitialBlockDownload(const ITxDB& txdb);
 std::string  GetWarnings(std::string strFor);
 uint256      WantedByOrphan(const CBlock* pblockOrphan);
 void         StakeMiner(std::shared_ptr<CWallet> pwallet);

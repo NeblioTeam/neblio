@@ -1,6 +1,7 @@
 #include "ntp1transaction.h"
 
 #include "base58.h"
+#include "block.h"
 #include "main.h"
 #include "ntp1/ntp1script.h"
 #include "ntp1/ntp1script_burn.h"

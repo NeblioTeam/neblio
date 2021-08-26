@@ -47,11 +47,6 @@ CScript COINBASE_FLAGS;
 
 const string strMessageMagic = "Neblio Signed Message:\n";
 
-// Settings
-CAmount nTransactionFee    = MIN_TX_FEE;
-CAmount nReserveBalance    = 0;
-CAmount nMinimumInputValue = 0;
-
 using BlockTimeCacheType = BlockIndexLRUCache<int64_t>;
 
 //////////////////////////////////////////////////////////////////////////////
@@ -276,32 +271,6 @@ unsigned int GetNextTargetRequired(const ITxDB& txdb, const CBlockIndex* pindexL
         return GetNextTargetRequiredV3(txdb, pindexLast, fProofOfStake, blockIndexBlockTimeCache);
     else
         return GetNextTargetRequiredV2(txdb, pindexLast, fProofOfStake);
-}
-
-bool CheckProofOfWork(const uint256& hash, unsigned int nBits, bool silent)
-{
-    CBigNum bnTarget;
-    bnTarget.SetCompact(nBits);
-
-    // Check range
-    if (bnTarget <= 0 || bnTarget > Params().PoWLimit()) {
-        if (silent) {
-            return false;
-        } else {
-            return NLog.error("CheckProofOfWork() : nBits below minimum work");
-        }
-    }
-
-    // Check proof of work matches claimed amount
-    if (hash > bnTarget.getuint256()) {
-        if (silent) {
-            return false;
-        } else {
-            return NLog.error("CheckProofOfWork() : hash doesn't match nBits");
-        }
-    }
-
-    return true;
 }
 
 // Return maximum amount of blocks that other nodes claim to have

@@ -6,8 +6,9 @@
 #include <map>
 #include <string>
 
+#include "block.h"
+#include "blockindex.h"
 #include "chainparams.h"
-#include "main.h"
 #include "mocks/mtxdb.h"
 #include "wallet.h"
 

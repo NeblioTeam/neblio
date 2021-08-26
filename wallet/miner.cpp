@@ -9,6 +9,7 @@
 #include "consensus.h"
 #include "kernel.h"
 #include "main.h"
+#include "messaging.h"
 #include "txdb.h"
 #include "txmempool.h"
 #include "work.h"

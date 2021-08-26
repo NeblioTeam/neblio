@@ -191,7 +191,6 @@ OBJS= \
     obj/scrypt-x86.o \
     obj/scrypt-x86_64.o \
     obj/SerializationTester.o \
-    obj/blockindexcatalog.o                   \
     obj/blockindex.o                          \
     obj/outpoint.o                            \
     obj/inpoint.o                             \
