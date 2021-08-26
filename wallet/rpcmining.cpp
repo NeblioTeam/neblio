@@ -8,6 +8,7 @@
 #include "db.h"
 #include "init.h"
 #include "main.h"
+#include "messaging.h"
 #include "miner.h"
 #include "script.h"
 #include "txdb.h"

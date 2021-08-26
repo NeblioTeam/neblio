@@ -2,21 +2,19 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <fstream>
-#include <iostream>
-
 #include "base58.h"
 #include "bitcoinrpc.h"
+#include "blockindex.h"
 #include "init.h" // for pwalletMain
-#include "main.h"
 #include "txdb.h"
 #include "ui_interface.h"
 #include "wallet_interface.h"
-
 #include <boost/algorithm/string.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/variant/get.hpp>
+#include <fstream>
+#include <iostream>
 
 #include <openssl/md5.h>
 

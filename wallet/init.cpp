@@ -4,6 +4,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #include "init.h"
 #include "bitcoinrpc.h"
+#include "block.h"
 #include "checkpoints.h"
 #include "consensus.h"
 #include "globals.h"

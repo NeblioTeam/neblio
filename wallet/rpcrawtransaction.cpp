@@ -7,10 +7,11 @@
 
 #include "base58.h"
 #include "bitcoinrpc.h"
+#include "block.h"
+#include "blockindex.h"
 #include "boost/make_shared.hpp"
 #include "climits"
 #include "init.h"
-#include "main.h"
 #include "mempoolmisc.h"
 #include "net.h"
 #include "ntp1/ntp1transaction.h"

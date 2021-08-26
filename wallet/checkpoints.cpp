@@ -5,10 +5,9 @@
 #include <boost/assign/list_of.hpp> // for 'map_list_of()'
 #include <boost/foreach.hpp>
 
+#include "blockindex.h"
 #include "chainparams.h"
 #include "checkpoints.h"
-
-#include "main.h"
 #include "txdb.h"
 #include "ui_interface.h"
 #include "uint256.h"

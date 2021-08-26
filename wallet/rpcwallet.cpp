@@ -6,6 +6,8 @@
 #include "NetworkForks.h"
 #include "base58.h"
 #include "bitcoinrpc.h"
+#include "block.h"
+#include "blockindex.h"
 #include "blockmetadata.h"
 #include "boost/make_shared.hpp"
 #include "coldstakedelegation.h"

@@ -709,7 +709,6 @@ add_library(core_lib STATIC
     wallet/ThreadSafeMap.cpp
     wallet/ThreadSafeHashMap.cpp
     wallet/NetworkForks.cpp
-    wallet/blockindexcatalog.cpp
     wallet/blockindex.cpp
     wallet/outpoint.cpp
     wallet/inpoint.cpp

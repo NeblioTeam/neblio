@@ -23,6 +23,11 @@ std::string strSubVersion;
 
 unsigned int nNodeLifespan;
 
+// Settings
+CAmount nTransactionFee    = MIN_TX_FEE;
+CAmount nReserveBalance    = 0;
+CAmount nMinimumInputValue = 0;
+
 std::string SanitizeString(const std::string& str, int rule)
 {
     std::string strResult;

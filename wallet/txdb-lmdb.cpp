@@ -14,10 +14,10 @@
 #include <future>
 #include <random>
 
+#include "block.h"
 #include "blockmetadata.h"
 #include "globals.h"
 #include "kernel.h"
-#include "main.h"
 #include "stringmanip.h"
 #include "txdb.h"
 #include "util.h"
