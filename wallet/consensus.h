@@ -11,6 +11,7 @@ class NTP1Transaction;
 class uint256;
 class CBlockIndex;
 
+inline int64_t PastDrift(int64_t nTime) { return nTime - 10 * 60; }   // up to 10 minutes from the past
 inline int64_t FutureDrift(int64_t nTime) { return nTime + 10 * 60; } // up to 10 minutes in the future
 
 bool IsFinalTx(const CTransaction& tx, const ITxDB& txdb, int nBlockHeight = 0, int64_t nBlockTime = 0);
