@@ -751,6 +751,7 @@ add_library(core_lib STATIC
     wallet/consensus.cpp
     wallet/partialmerkletree.cpp
     wallet/ntp1/ntp1common.cpp
+    wallet/bootstraptools.cpp
     )
 
 target_link_libraries(core_lib

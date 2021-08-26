@@ -258,6 +258,7 @@ OBJS= \
     obj/messaging.o                           \
     obj/ntp1/ntp1common.o                     \
     obj/partialmerkletree.o                   \
+    obj/bootstraptools.o                      \
     obj/wallet_interface.o
 
 

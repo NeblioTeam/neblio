@@ -6,6 +6,7 @@
 #include "amount.h"
 #include "bitcoinrpc.h"
 #include "blockmetadata.h"
+#include "bootstraptools.h"
 #include "consensus.h"
 #include "main.h"
 #include "merkletx.h"

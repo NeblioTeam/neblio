@@ -6,6 +6,8 @@
 #include "wallet.h"
 #include "work.h"
 
+StakeMaker stakeMaker;
+
 int64_t StakeMaker::getLastCoinStakeSearchInterval() const { return nLastCoinStakeSearchInterval; }
 
 int64_t StakeMaker::getLastCoinStakeSearchTime() const { return nLastCoinStakeSearchTime; }

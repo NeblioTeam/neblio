@@ -187,6 +187,7 @@ HEADERS += qt/bitcoingui.h \
     messaging.h                      \
     ntp1/ntp1common.h                \
     partialmerkletree.h              \
+    bootstraptools.h                 \
     wallet_interface.h
 
 
@@ -371,6 +372,7 @@ SOURCES += qt/bitcoin.cpp \
     messaging.cpp                       \
     ntp1/ntp1common.cpp                 \
     partialmerkletree.cpp               \
+    bootstraptools.cpp                  \
     wallet_interface.cpp
 
 
