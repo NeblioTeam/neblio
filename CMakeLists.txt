@@ -178,7 +178,7 @@ macro(ATOMIC_CHECK)
             # Before setting CMAKE_REQUIRED_FLAGS, we preserve the current state
             cmake_push_check_state()
 
-            set(CMAKE_REQUIRED_FLAGS "-L${atomic_lib_dir} -latomic")
+            set(CMAKE_REQUIRED_LIBRARIES "-L${atomic_lib_dir} -latomic")
             check_cxx_source_compiles("${ATOMIC32_TEST_CODE}" atomic32_test_with_atomic_linking)
             check_cxx_source_compiles("${ATOMIC64_TEST_CODE}" atomic64_test_with_atomic_linking)
 
@@ -192,8 +192,7 @@ macro(ATOMIC_CHECK)
                 message(FATAL_ERROR "Even after linking with the atomic library, atomic 64-bit compilation failed.")
             endif()
 
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L${atomic_lib_dir} -latomic")
-            set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -L${atomic_lib_dir} -latomic")
+            set(ATOMIC_LINKER_LIBS "-L${atomic_lib_dir} -latomic")
         else()
             message(FATAL_ERROR "Failed to find libatomic even though it seems to be required")
         endif()
@@ -760,6 +759,7 @@ target_link_libraries(core_lib
     sodium
     db_lib
     utils_lib
+    ${ATOMIC_LINKER_LIBS}
     )
 
 add_library(curltools_lib STATIC
