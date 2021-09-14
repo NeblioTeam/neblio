@@ -78,9 +78,9 @@ class LMDB : public IDB
     std::unique_ptr<LMDBTransaction> activeBatch;
 
 public:
-    LMDB(const boost::filesystem::path* const dbdir, bool startNewDatabase = false);
+    LMDB(const boost::filesystem::path* const dbdir, bool startNewDatabase);
 
-    void clearDBData();
+    void clearDBData() override;
 
     boost::optional<std::string> read(IDB::Index dbindex, const std::string& key, std::size_t offset,
                                       const boost::optional<std::size_t>& size) const override;

@@ -5,15 +5,15 @@
 #include "boost/scope_exit.hpp"
 #include "curltools.h"
 #include "db/lmdb/lmdb.h"
+#include "dbcache/inmemorydb.h"
 #include "hash.h"
 #include "ntp1/ntp1tools.h"
+#include "stdexcept"
 #include "txdb-lmdb.h"
 #include <boost/algorithm/string.hpp>
 #include <fstream>
 #include <unordered_map>
 #include <unordered_set>
-
-const std::string TempNTP1File("ntp1txout.bin");
 
 std::string RandomString(const int len)
 {
@@ -30,11 +30,39 @@ std::string RandomString(const int len)
     return s;
 }
 
-TEST(lmdb_tests, basic)
+enum class DBTypes : int
+{
+    DB_LMDB     = 0,
+    DB_InMemory = 1,
+
+    DBTypes_Last = 2
+};
+
+class DBTestsFixture : public ::testing::TestWithParam<DBTypes>
+{
+};
+
+static std::function<std::unique_ptr<IDB>(const boost::filesystem::path&, DBTypes)> DBMaker =
+    [](const boost::filesystem::path& p, DBTypes i) -> std::unique_ptr<IDB> {
+    switch (i) {
+    case DBTypes::DB_LMDB:
+        return MakeUnique<LMDB>(&p, true);
+    case DBTypes::DB_InMemory:
+        return MakeUnique<InMemoryDB>(&p, true);
+    case DBTypes::DBTypes_Last:
+        break;
+    }
+    throw std::domain_error("Invalid DB Type: " + std::to_string(static_cast<int>(i)));
+};
+
+INSTANTIATE_TEST_SUITE_P(DBTests, DBTestsFixture,
+                         ::testing::Values(DBTypes::DB_LMDB, DBTypes::DB_InMemory));
+
+TEST_P(DBTestsFixture, basic)
 {
     const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
-    std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
+    std::unique_ptr<IDB> db = DBMaker(p, GetParam());
 
     BOOST_SCOPE_EXIT(&db) { db->close(); }
     BOOST_SCOPE_EXIT_END
@@ -53,11 +81,11 @@ TEST(lmdb_tests, basic)
     EXPECT_FALSE(db->exists(IDB::Index::DB_MAIN_INDEX, k1));
 }
 
-TEST(lmdb_tests, basic_in_1_tx)
+TEST_P(DBTestsFixture, basic_in_1_tx)
 {
     const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
-    std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
+    std::unique_ptr<IDB> db = DBMaker(p, GetParam());
 
     BOOST_SCOPE_EXIT(&db) { db->close(); }
     BOOST_SCOPE_EXIT_END
@@ -80,11 +108,11 @@ TEST(lmdb_tests, basic_in_1_tx)
     EXPECT_FALSE(db->exists(IDB::Index::DB_MAIN_INDEX, k1));
 }
 
-TEST(lmdb_tests, many_inputs)
+TEST_P(DBTestsFixture, many_inputs)
 {
     const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
-    std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
+    std::unique_ptr<IDB> db = DBMaker(p, GetParam());
 
     BOOST_SCOPE_EXIT(&db) { db->close(); }
     BOOST_SCOPE_EXIT_END
@@ -120,11 +148,11 @@ TEST(lmdb_tests, many_inputs)
     }
 }
 
-TEST(lmdb_tests, many_inputs_one_tx)
+TEST_P(DBTestsFixture, many_inputs_one_tx)
 {
     const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
-    std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
+    std::unique_ptr<IDB> db = DBMaker(p, GetParam());
 
     BOOST_SCOPE_EXIT(&db) { db->close(); }
     BOOST_SCOPE_EXIT_END
@@ -166,11 +194,11 @@ TEST(lmdb_tests, many_inputs_one_tx)
     }
 }
 
-TEST(lmdb_tests, basic_multiple_read)
+TEST_P(DBTestsFixture, basic_multiple_read)
 {
     const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
-    std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
+    std::unique_ptr<IDB> db = DBMaker(p, GetParam());
 
     BOOST_SCOPE_EXIT(&db) { db->close(); }
     BOOST_SCOPE_EXIT_END
@@ -221,11 +249,11 @@ TEST(lmdb_tests, basic_multiple_read)
     EXPECT_FALSE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1));
 }
 
-TEST(lmdb_tests, basic_multiple_read_in_tx)
+TEST_P(DBTestsFixture, basic_multiple_read_in_tx)
 {
     const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
-    std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
+    std::unique_ptr<IDB> db = DBMaker(p, GetParam());
 
     BOOST_SCOPE_EXIT(&db) { db->close(); }
     BOOST_SCOPE_EXIT_END
@@ -256,11 +284,11 @@ TEST(lmdb_tests, basic_multiple_read_in_tx)
     EXPECT_EQ(outs, std::vector<std::string>({}));
 }
 
-TEST(lmdb_tests, basic_multiple_many_inputs)
+TEST_P(DBTestsFixture, basic_multiple_many_inputs)
 {
     const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
-    std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
+    std::unique_ptr<IDB> db = DBMaker(p, GetParam());
 
     BOOST_SCOPE_EXIT(&db) { db->close(); }
     BOOST_SCOPE_EXIT_END
@@ -370,10 +398,10 @@ static void TestReadWriteUnique(IDB* db, const std::map<std::string, std::string
     EnsureDBIsEmpty(db, IDB::Index::DB_ADDRSVSPUBKEYS_INDEX);
 }
 
-TEST(db_interface_impl_tests, read_write_unique)
+TEST_P(DBTestsFixture, read_write_unique)
 {
     static constexpr int MAX_ENTRIES = 20;
-    static constexpr int MAX_SIZE_P    = 500;
+    static constexpr int MAX_SIZE_P  = 500;
 
     std::map<std::string, std::string> data;
 
@@ -388,7 +416,7 @@ TEST(db_interface_impl_tests, read_write_unique)
 
     const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
-    std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
+    std::unique_ptr<IDB> db = DBMaker(p, GetParam());
 
     BOOST_SCOPE_EXIT(&db) { db->close(); }
     BOOST_SCOPE_EXIT_END
@@ -396,10 +424,10 @@ TEST(db_interface_impl_tests, read_write_unique)
     TestReadWriteUnique(db.get(), data);
 }
 
-TEST(db_interface_impl_tests, read_write_unique_with_transaction)
+TEST_P(DBTestsFixture, read_write_unique_with_transaction)
 {
     static constexpr int MAX_ENTRIES = 20;
-    static constexpr int MAX_SIZE_P    = 500;
+    static constexpr int MAX_SIZE_P  = 500;
 
     std::map<std::string, std::string> data;
 
@@ -414,7 +442,7 @@ TEST(db_interface_impl_tests, read_write_unique_with_transaction)
 
     const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
-    std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
+    std::unique_ptr<IDB> db = DBMaker(p, GetParam());
 
     BOOST_SCOPE_EXIT(&db) { db->close(); }
     BOOST_SCOPE_EXIT_END
@@ -512,11 +540,11 @@ static void TestReadMultipleAndRealAll(IDB*                                     
     EnsureDBIsEmpty(db, IDB::Index::DB_ADDRSVSPUBKEYS_INDEX);
 }
 
-TEST(db_interface_impl_tests, read_write_multiple)
+TEST_P(DBTestsFixture, read_write_multiple)
 {
     static constexpr int MAX_ENTRIES    = 5;
     static constexpr int MAX_SUBENTRIES = 3;
-    static constexpr int MAX_SIZE_P       = 500;
+    static constexpr int MAX_SIZE_P     = 500;
 
     std::map<std::string, std::vector<std::string>> data;
 
@@ -533,7 +561,7 @@ TEST(db_interface_impl_tests, read_write_multiple)
 
     const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
-    std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
+    std::unique_ptr<IDB> db = DBMaker(p, GetParam());
 
     BOOST_SCOPE_EXIT(&db) { db->close(); }
     BOOST_SCOPE_EXIT_END
@@ -634,11 +662,11 @@ static void TestReadMultipleAndRealAllWithTx(IDB*                               
     EnsureDBIsEmpty(db, IDB::Index::DB_ADDRSVSPUBKEYS_INDEX);
 }
 
-TEST(db_interface_impl_tests, read_write_multiple_with_db_transaction)
+TEST_P(DBTestsFixture, read_write_multiple_with_db_transaction)
 {
     static constexpr int MAX_ENTRIES    = 5;
     static constexpr int MAX_SUBENTRIES = 3;
-    static constexpr int MAX_SIZE_P       = 500;
+    static constexpr int MAX_SIZE_P     = 500;
 
     std::map<std::string, std::vector<std::string>> data;
 
@@ -655,7 +683,7 @@ TEST(db_interface_impl_tests, read_write_multiple_with_db_transaction)
 
     const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
-    std::unique_ptr<IDB> db = MakeUnique<LMDB>(&p, true);
+    std::unique_ptr<IDB> db = DBMaker(p, GetParam());
 
     BOOST_SCOPE_EXIT(&db) { db->close(); }
     BOOST_SCOPE_EXIT_END

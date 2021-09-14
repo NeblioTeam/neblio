@@ -69,7 +69,7 @@ boost::optional<std::string> SerializeSimple(const T& key)
 // Learn more: http://code.google.com/p/leveldb/
 class CTxDB : public ITxDB
 {
-    std::unique_ptr<LMDB> db;
+    std::unique_ptr<IDB> db;
 
 public:
     static boost::filesystem::path DB_DIR;

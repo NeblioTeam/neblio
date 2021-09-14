@@ -16,6 +16,8 @@
 
 #include "block.h"
 #include "blockmetadata.h"
+#include "dbcache/dbcachelayer.h"
+#include "dbcache/inmemorydb.h"
 #include "globals.h"
 #include "kernel.h"
 #include "stringmanip.h"
@@ -334,7 +336,7 @@ CTxDB::CTxDB()
 {
     static boost::filesystem::path DBDir = GetDataDir() / DB_DIR;
 
-    db = MakeUnique<LMDB>(&DBDir);
+    db = MakeUnique<LMDB>(&DBDir, false);
 }
 
 void CTxDB::Close() { db->close(); }

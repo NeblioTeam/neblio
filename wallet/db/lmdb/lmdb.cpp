@@ -226,7 +226,7 @@ static bool need_resize(uint64_t threshold_size = 0)
 void LMDB::openDatabase(const boost::filesystem::path& directory, bool clearDBBeforeOpen)
 {
     if (clearDBBeforeOpen) {
-        clearDBData();
+        LMDB::clearDBData();
     }
 
     NLog.write(b_sev::info, "Opening the blockchain database...");
@@ -436,7 +436,7 @@ LMDB::LMDB(const boost::filesystem::path* const dbdir, bool startNewDatabase) : 
 {
     assert(dbdir);
 
-    openDB(startNewDatabase);
+    LMDB::openDB(startNewDatabase);
 }
 
 boost::optional<std::string> LMDB::read(IDB::Index dbindex, const std::string& key, std::size_t offset,
@@ -998,6 +998,7 @@ MDB_dbi* LMDB::getDbByIndex(const IDB::Index index) const
         case IDB::Index::DB_BLOCKMETADATA_INDEX:  return dbPointers->db_blockMetadata.get();
         case IDB::Index::DB_BLOCKHEIGHTS_INDEX:   return dbPointers->db_blockHeights.get();
         case IDB::Index::DB_STAKES_INDEX:         return dbPointers->db_stakes.get();
+        case IDB::Index::Index_Last:              throw std::invalid_argument("Invalid DB Index");
     }
     // clang-format on
     throw std::runtime_error("Invalid db index provided in getDbByIndex");
@@ -1006,7 +1007,7 @@ MDB_dbi* LMDB::getDbByIndex(const IDB::Index index) const
 void LMDB::clearDBData()
 {
     // close the database before deleting
-    this->close();
+    LMDB::close();
 
     boost::filesystem::remove_all(*dbdir_); // remove directory
 }

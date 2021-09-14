@@ -20,8 +20,12 @@ public:
         DB_ADDRSVSPUBKEYS_INDEX = 6,
         DB_BLOCKMETADATA_INDEX  = 7,
         DB_BLOCKHEIGHTS_INDEX   = 8,
-        DB_STAKES_INDEX         = 9
+        DB_STAKES_INDEX         = 9,
+
+        Index_Last = 10
     };
+
+    static bool DuplicateKeysAllowed(Index idx) { return idx == Index::DB_NTP1TOKENNAMES_INDEX; }
 
     virtual boost::optional<std::string>
     read(IDB::Index dbindex, const std::string& key, std::size_t offset = 0,
@@ -71,6 +75,8 @@ public:
     virtual bool eraseAll(IDB::Index dbindex, const std::string& key) = 0;
 
     virtual bool exists(IDB::Index dbindex, const std::string& key) const = 0;
+
+    virtual void clearDBData() = 0;
 
     virtual bool beginDBTransaction(std::size_t expectedDataSize = 0) = 0;
 

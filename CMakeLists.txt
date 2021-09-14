@@ -820,6 +820,10 @@ add_library(txdb_lib STATIC
     wallet/txdb-lmdb.cpp
     wallet/SerializationTester.cpp
     wallet/db/lmdb/lmdbtransaction.cpp
+    wallet/dbcache/dbcachelayer.cpp
+    wallet/dbcache/inmemorydb.cpp
+    wallet/dbcache/hierarchicaldb.cpp
+    wallet/dbcache/transactionoperation.cpp
     )
 
 target_link_libraries(db_lib
