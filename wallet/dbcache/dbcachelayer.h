@@ -5,8 +5,6 @@
 #include "hierarchicaldb.h"
 #include "inmemorydb.h"
 
-extern std::unique_ptr<IDB> g_cached_db_instance;
-
 class DBCacheLayer : public IDB
 {
     std::unique_ptr<HierarchicalDB<hdb_dummy_mutex>> tx;
