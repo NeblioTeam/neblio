@@ -1,14 +1,24 @@
 #include "transactionoperation.h"
 
-TransactionOperation::TransactionOperation(TransactionOperation::OperationType operation,
-                                           std::string                         value)
+using namespace DBOperation;
+
+TransactionOperation::TransactionOperation(WriteOperationType operation, std::string value)
     : op(operation)
 {
-    if (op == OperationType::Append) {
+    if (op == WriteOperationType::Append) {
         relevantValues.push_back(value);
     }
-    if (op == OperationType::UniqueSet) {
+    if (op == WriteOperationType::UniqueSet) {
         relevantValues.push_back(value);
+    }
+}
+
+TransactionOperation::TransactionOperation(DBOperation::WriteOperationType operation,
+                                           std::vector<std::string>        value)
+    : op(operation)
+{
+    if (op == WriteOperationType::Append || op == WriteOperationType::UniqueSet) {
+        relevantValues = std::move(value);
     }
 }
 
@@ -16,11 +26,11 @@ void TransactionOperation::collapseOperations(TransactionOperation&       destin
                                               const TransactionOperation& source)
 {
     switch (source.getOpType()) {
-    case OperationType::Erase:
-    case OperationType::UniqueSet:
+    case WriteOperationType::Erase:
+    case WriteOperationType::UniqueSet:
         destination = source;
         return;
-    case OperationType::Append:
+    case WriteOperationType::Append:
         destination.getValues().insert(destination.getValues().end(), source.getValues().begin(),
                                        source.getValues().end());
         return;
@@ -30,3 +40,22 @@ void TransactionOperation::collapseOperations(TransactionOperation&       destin
 const std::vector<std::string>& TransactionOperation::getValues() const { return relevantValues; }
 
 std::vector<std::string>& TransactionOperation::getValues() { return relevantValues; }
+
+DBCachedRead::DBCachedRead(DBOperation::ReadOperationType operation, std::string value) : op(operation)
+{
+    if (op == ReadOperationType::ValueFound) {
+        relevantValues.push_back(value);
+    }
+}
+
+DBCachedRead::DBCachedRead(DBOperation::ReadOperationType operation, std::vector<std::string> value)
+    : op(operation)
+{
+    if (op == ReadOperationType::ValueFound) {
+        relevantValues = std::move(value);
+    }
+}
+
+const std::vector<std::string>& DBCachedRead::getValues() const { return relevantValues; }
+
+std::vector<std::string>& DBCachedRead::getValues() { return relevantValues; }

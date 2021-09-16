@@ -78,6 +78,10 @@ public:
 
     virtual void clearDBData() = 0;
 
+    /**
+     * Begin a transaction. Transactions are NOT thread safe. Once a transaction is opened, do not use
+     * the object in other threads until it's committed or aborted.
+     */
     virtual bool beginDBTransaction(std::size_t expectedDataSize = 0) = 0;
 
     virtual bool commitDBTransaction() = 0;

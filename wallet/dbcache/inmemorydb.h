@@ -17,10 +17,11 @@ private:
                      data;
     static MutexType mtx;
 
-    std::unique_ptr<HierarchicalDB> tx;
+    std::unique_ptr<HierarchicalDB<hdb_dummy_mutex>> tx;
 
 public:
     InMemoryDB(const boost::filesystem::path* const /*dbdir*/, bool startNewDatabase);
+    InMemoryDB(bool startNewDatabase);
 
     boost::optional<std::string> read(Index dbindex, const std::string& key, std::size_t offset,
                                       const boost::optional<std::size_t>& size) const override;

@@ -2,15 +2,17 @@
 
 #include <boost/range/adaptor/reversed.hpp>
 
+using namespace DBOperation;
+
 [[nodiscard]] static boost::optional<std::string>
 extractValueForUniqueGet(const TransactionOperation& operation, std::size_t offset,
                          const boost::optional<std::size_t>& size)
 {
     switch (operation.getOpType()) {
-    case TransactionOperation::OperationType::Erase:
+    case WriteOperationType::Erase:
         return boost::none;
-    case TransactionOperation::OperationType::Append:
-    case TransactionOperation::OperationType::UniqueSet:
+    case WriteOperationType::Append:
+    case WriteOperationType::UniqueSet:
         if (!operation.getValues().empty()) {
             if (size.is_initialized()) {
                 return operation.getValues().front().substr(offset, *size);
@@ -21,35 +23,39 @@ extractValueForUniqueGet(const TransactionOperation& operation, std::size_t offs
             return boost::none;
         }
     }
-    throw std::runtime_error("Unhandled OperationType: " + std::to_string(operation.getOpType()));
+    throw std::runtime_error("Unhandled OperationType: " +
+                             std::to_string(static_cast<int>(operation.getOpType())));
 }
 
 [[nodiscard]] static bool extractValueForExists(const TransactionOperation& operation)
 {
     switch (operation.getOpType()) {
-    case TransactionOperation::OperationType::UniqueSet:
-    case TransactionOperation::OperationType::Append:
+    case WriteOperationType::UniqueSet:
+    case WriteOperationType::Append:
         return true;
-    case TransactionOperation::OperationType::Erase:
+    case WriteOperationType::Erase:
         return false;
     }
-    throw std::runtime_error("Unhandled OperationType: " + std::to_string(operation.getOpType()));
+    throw std::runtime_error("Unhandled OperationType: " +
+                             std::to_string(static_cast<int>(operation.getOpType())));
 }
 
 [[nodiscard]] static std::vector<std::string>
 extractValueForMultiGetAllWithKey(const TransactionOperation& val)
 {
     switch (val.getOpType()) {
-    case TransactionOperation::OperationType::Append:
-    case TransactionOperation::OperationType::UniqueSet:
+    case WriteOperationType::Append:
+    case WriteOperationType::UniqueSet:
         return val.getValues();
-    case TransactionOperation::OperationType::Erase:
+    case WriteOperationType::Erase:
         return {};
     }
-    throw std::runtime_error("Unhandled OperationType: " + std::to_string(val.getOpType()));
+    throw std::runtime_error("Unhandled OperationType: " +
+                             std::to_string(static_cast<int>(val.getOpType())));
 }
 
-const char* HierarchicalDB::CommitErrorToString(HierarchicalDB::CommitError err)
+template <typename MutexType>
+const char* HierarchicalDB<MutexType>::CommitErrorToString(HierarchicalDB<MutexType>::CommitError err)
 {
     switch (err) {
     case CommitError::AlreadyCommitted:
@@ -62,8 +68,9 @@ const char* HierarchicalDB::CommitErrorToString(HierarchicalDB::CommitError err)
     return "Unknown";
 }
 
-std::pair<HierarchicalDB*, boost::optional<boost::unique_lock<HierarchicalDB::MutexType>>>
-HierarchicalDB::getLockedInstanceToModify()
+template <typename MutexType>
+std::pair<HierarchicalDB<MutexType>*, boost::optional<boost::unique_lock<MutexType>>>
+HierarchicalDB<MutexType>::getLockedInstanceToModify()
 {
     boost::optional<boost::unique_lock<decltype(mtx)>> lg1 =
         boost::make_optional(boost::unique_lock<decltype(mtx)>(mtx));
@@ -81,23 +88,27 @@ HierarchicalDB::getLockedInstanceToModify()
     return std::make_pair(instance, std::move(lg1));
 }
 
-std::size_t HierarchicalDB::calculateParentsCommittedTxsOnStart(const HierarchicalDB* parentDB)
+template <typename MutexType>
+std::size_t
+HierarchicalDB<MutexType>::calculateParentsCommittedTxsOnStart(const HierarchicalDB* parentDB)
 {
     if (parentDB) {
-        const std::vector<HierarchicalDB::Ptr>& parentsTxs = parentDB->committedTransactions;
+        const std::vector<HierarchicalDB<MutexType>::Ptr>& parentsTxs = parentDB->committedTransactions;
         return parentsTxs.empty() ? 0 : parentsTxs.size() - 1;
     }
     return 0;
 }
 
-std::map<std::string, TransactionOperation> HierarchicalDB::getAllOpsOfThisTx(int dbid) const
+template <typename MutexType>
+std::map<std::string, TransactionOperation> HierarchicalDB<MutexType>::getAllOpsOfThisTx(int dbid) const
 {
     return data[dbid];
 }
 
+template <typename MutexType>
 std::map<std::string, std::vector<TransactionOperation>>
-HierarchicalDB::getCommittedAllOpsMap(int dbid, bool lookIntoParent,
-                                      std::size_t lastCommittedTransaction) const
+HierarchicalDB<MutexType>::getCommittedAllOpsMap(int dbid, bool lookIntoParent,
+                                                 std::size_t lastCommittedTransaction) const
 {
     std::map<std::string, std::vector<TransactionOperation>> result;
 
@@ -142,8 +153,9 @@ struct skip
     auto end() -> decltype(std::end(t)) { return std::end(t); }
 };
 
-std::map<std::string, TransactionOperation>
-HierarchicalDB::collapseAllOpsMap(std::map<std::string, std::vector<TransactionOperation>>&& opsMap)
+template <typename MutexType>
+std::map<std::string, TransactionOperation> HierarchicalDB<MutexType>::collapseAllOpsMap(
+    std::map<std::string, std::vector<TransactionOperation>>&& opsMap)
 {
     std::map<std::string, TransactionOperation> result;
     for (auto&& opsPair : opsMap) {
@@ -160,16 +172,19 @@ HierarchicalDB::collapseAllOpsMap(std::map<std::string, std::vector<TransactionO
     return result;
 }
 
-std::map<std::string, TransactionOperation> HierarchicalDB::getCollapsedOpsForAll(int dbid) const
+template <typename MutexType>
+std::map<std::string, TransactionOperation>
+HierarchicalDB<MutexType>::getCollapsedOpsForAll(int dbid) const
 {
 
     std::map<std::string, std::vector<TransactionOperation>> allOps = getCommittedAllOpsMap(dbid, true);
     return collapseAllOpsMap(std::move(allOps));
 }
 
+template <typename MutexType>
 std::vector<TransactionOperation>
-HierarchicalDB::getCommittedOpVec(int dbid, const std::string& key, bool lookIntoParent,
-                                  std::size_t lastCommittedTransaction) const
+HierarchicalDB<MutexType>::getCommittedOpVec(int dbid, const std::string& key, bool lookIntoParent,
+                                             std::size_t lastCommittedTransaction) const
 {
     std::vector<TransactionOperation> result;
 
@@ -206,8 +221,9 @@ HierarchicalDB::getCommittedOpVec(int dbid, const std::string& key, bool lookInt
     return result;
 }
 
-boost::optional<TransactionOperation> HierarchicalDB::getOpOfThisTx(int                dbid,
-                                                                    const std::string& key) const
+template <typename MutexType>
+boost::optional<TransactionOperation>
+HierarchicalDB<MutexType>::getOpOfThisTx(int dbid, const std::string& key) const
 {
     const auto& kvMap = data[dbid];
     auto        it_kv = kvMap.find(key);
@@ -217,8 +233,9 @@ boost::optional<TransactionOperation> HierarchicalDB::getOpOfThisTx(int         
     return boost::make_optional(it_kv->second);
 }
 
+template <typename MutexType>
 boost::optional<TransactionOperation>
-HierarchicalDB::collapseOpsVec(std::vector<TransactionOperation>&& ops)
+HierarchicalDB<MutexType>::collapseOpsVec(std::vector<TransactionOperation>&& ops)
 {
     if (ops.empty()) {
         return boost::none;
@@ -233,27 +250,32 @@ HierarchicalDB::collapseOpsVec(std::vector<TransactionOperation>&& ops)
     return boost::make_optional(std::move(result));
 }
 
-boost::optional<TransactionOperation> HierarchicalDB::getCollapsedOps(int                dbid,
-                                                                      const std::string& key) const
+template <typename MutexType>
+boost::optional<TransactionOperation>
+HierarchicalDB<MutexType>::getCollapsedOps(int dbid, const std::string& key) const
 {
     std::vector<TransactionOperation> allOps = getCommittedOpVec(dbid, key, true);
     return collapseOpsVec(std::move(allOps));
 }
 
-HierarchicalDB::HierarchicalDB(const std::string& name, const std::shared_ptr<HierarchicalDB>& parentDB)
+template <typename MutexType>
+HierarchicalDB<MutexType>::HierarchicalDB(const std::string&                     name,
+                                          const std::shared_ptr<HierarchicalDB>& parentDB)
     : parent(parentDB), parentCommittedTxsOnStart(calculateParentsCommittedTxsOnStart(parentDB.get())),
       dbName(name)
 {
 }
 
-HierarchicalDB::~HierarchicalDB()
+template <typename MutexType>
+HierarchicalDB<MutexType>::~HierarchicalDB()
 {
     if (!committed) {
         cancel();
     }
 }
 
-bool HierarchicalDB::unique_set(int dbid, const std::string& key, const std::string& value)
+template <typename MutexType>
+bool HierarchicalDB<MutexType>::unique_set(int dbid, const std::string& key, const std::string& value)
 {
     assertNotCommitted();
 
@@ -261,14 +283,15 @@ bool HierarchicalDB::unique_set(int dbid, const std::string& key, const std::str
     HierarchicalDB* instance       = instanceLocked.first;
 
     instance->data[dbid].erase(key);
-    instance->data[dbid].insert(std::make_pair(
-        key, TransactionOperation(TransactionOperation::OperationType::UniqueSet, value)));
+    instance->data[dbid].insert(
+        std::make_pair(key, TransactionOperation(WriteOperationType::UniqueSet, value)));
     return true;
 }
 
-boost::optional<std::string> HierarchicalDB::unique_get(int dbid, const std::string& key,
-                                                        std::size_t                         offset,
-                                                        const boost::optional<std::size_t>& size) const
+template <typename MutexType>
+boost::optional<std::string>
+HierarchicalDB<MutexType>::unique_get(int dbid, const std::string& key, std::size_t offset,
+                                      const boost::optional<std::size_t>& size) const
 {
     const boost::optional<TransactionOperation>& resultOp = getCollapsedOps(dbid, key);
 
@@ -279,12 +302,15 @@ boost::optional<std::string> HierarchicalDB::unique_get(int dbid, const std::str
     return extractValueForUniqueGet(*resultOp, offset, size);
 }
 
-boost::optional<TransactionOperation> HierarchicalDB::getOp(int dbid, const std::string& key) const
+template <typename MutexType>
+boost::optional<TransactionOperation> HierarchicalDB<MutexType>::getOp(int                dbid,
+                                                                       const std::string& key) const
 {
     return getCollapsedOps(dbid, key);
 }
 
-bool HierarchicalDB::exists(int dbid, const std::string& key) const
+template <typename MutexType>
+bool HierarchicalDB<MutexType>::exists(int dbid, const std::string& key) const
 {
     const boost::optional<TransactionOperation>& resultOp = getCollapsedOps(dbid, key);
 
@@ -295,7 +321,8 @@ bool HierarchicalDB::exists(int dbid, const std::string& key) const
     return extractValueForExists(*resultOp);
 }
 
-bool HierarchicalDB::erase(int dbid, const std::string& key)
+template <typename MutexType>
+bool HierarchicalDB<MutexType>::erase(int dbid, const std::string& key)
 {
     assertNotCommitted();
 
@@ -304,11 +331,12 @@ bool HierarchicalDB::erase(int dbid, const std::string& key)
 
     instance->data[dbid].erase(key);
     instance->data[dbid].insert(
-        std::make_pair(key, TransactionOperation(TransactionOperation::OperationType::Erase, key)));
+        std::make_pair(key, TransactionOperation(WriteOperationType::Erase, key)));
     return true;
 }
 
-bool HierarchicalDB::multi_append(int dbid, const std::string& key, const std::string& value)
+template <typename MutexType>
+bool HierarchicalDB<MutexType>::multi_append(int dbid, const std::string& key, const std::string& value)
 {
     assertNotCommitted();
 
@@ -319,25 +347,27 @@ bool HierarchicalDB::multi_append(int dbid, const std::string& key, const std::s
     auto it = data[dbid].find(key);
     if (it == data[dbid].end()) {
         // key doesn't exist, let's add it
-        instance->data[dbid].insert(std::make_pair(
-            key, TransactionOperation(TransactionOperation::OperationType::Append, value)));
+        instance->data[dbid].insert(
+            std::make_pair(key, TransactionOperation(WriteOperationType::Append, value)));
         return true;
     }
 
     // the key exists, let's insert the value
     switch (it->second.getOpType()) {
-    case TransactionOperation::OperationType::Append:
+    case WriteOperationType::Append:
         it->second.getValues().push_back(value);
         break;
-    case TransactionOperation::OperationType::Erase:
-    case TransactionOperation::OperationType::UniqueSet:
-        instance->data[dbid].insert(std::make_pair(
-            key, TransactionOperation(TransactionOperation::OperationType::Append, value)));
+    case WriteOperationType::Erase:
+    case WriteOperationType::UniqueSet:
+        instance->data[dbid].insert(
+            std::make_pair(key, TransactionOperation(WriteOperationType::Append, value)));
     }
     return true;
 }
 
-std::vector<std::string> HierarchicalDB::multi_getAllWithKey(int dbid, const std::string& key) const
+template <typename MutexType>
+std::vector<std::string> HierarchicalDB<MutexType>::multi_getAllWithKey(int                dbid,
+                                                                        const std::string& key) const
 {
     assertNotCommitted();
     const boost::optional<TransactionOperation>& resultOp = getCollapsedOps(dbid, key);
@@ -349,7 +379,8 @@ std::vector<std::string> HierarchicalDB::multi_getAllWithKey(int dbid, const std
     return extractValueForMultiGetAllWithKey(*resultOp);
 }
 
-std::map<std::string, std::vector<std::string>> HierarchicalDB::multi_getAll(int dbid) const
+template <typename MutexType>
+std::map<std::string, std::vector<std::string>> HierarchicalDB<MutexType>::multi_getAll(int dbid) const
 {
     assertNotCommitted();
 
@@ -368,14 +399,16 @@ std::map<std::string, std::vector<std::string>> HierarchicalDB::multi_getAll(int
     return result;
 }
 
-void HierarchicalDB::revert()
+template <typename MutexType>
+void HierarchicalDB<MutexType>::revert()
 {
     for (auto&& m : data) {
         m.clear();
     }
 }
 
-Result<void, HierarchicalDB::CommitError> HierarchicalDB::commit()
+template <typename MutexType>
+Result<void, typename HierarchicalDB<MutexType>::CommitError> HierarchicalDB<MutexType>::commit()
 {
     if (committed) {
         return Err(CommitError::AlreadyCommitted);
@@ -388,8 +421,8 @@ Result<void, HierarchicalDB::CommitError> HierarchicalDB::commit()
     if (parent) {
         // we go through the parent txs since we started this tx, and we search for conflicts
         for (std::size_t i = parentCommittedTxsOnStart; i < parent->committedTransactions.size(); i++) {
-            const std::size_t          index       = parent->committedTransactions.size() - i - 1;
-            const HierarchicalDB::Ptr& committedTx = parent->committedTransactions[index];
+            const std::size_t                     index = parent->committedTransactions.size() - i - 1;
+            const HierarchicalDB<MutexType>::Ptr& committedTx = parent->committedTransactions[index];
 
             // for every commited after this, we search for the same keys, and ensure the same keys were
             // not changed
@@ -412,11 +445,12 @@ Result<void, HierarchicalDB::CommitError> HierarchicalDB::commit()
                 }
             }
         }
-        parent->committedTransactions.push_back(shared_from_this());
+        parent->committedTransactions.push_back(HierarchicalDB<MutexType>::shared_from_this());
 
         // we push another transaction on commit as the one to be modified in the parent when modifying
         // functions are called
-        auto separatorTransaction = HierarchicalDB::Make(dbName + "-Separator", shared_from_this());
+        auto separatorTransaction = HierarchicalDB<MutexType>::Make(
+            dbName + "-Separator", HierarchicalDB<MutexType>::shared_from_this());
         separatorTransaction->committed = true; // this transaction is already committed
         parent->committedTransactions.push_back(std::move(separatorTransaction));
 
@@ -425,7 +459,8 @@ Result<void, HierarchicalDB::CommitError> HierarchicalDB::commit()
     return Ok();
 }
 
-void HierarchicalDB::cancel()
+template <typename MutexType>
+void HierarchicalDB<MutexType>::cancel()
 {
     if (committed) {
         return;
@@ -438,7 +473,8 @@ void HierarchicalDB::cancel()
     committed = true;
 }
 
-bool HierarchicalDB::doesParentHaveUncommittedChildren() const
+template <typename MutexType>
+bool HierarchicalDB<MutexType>::doesParentHaveUncommittedChildren() const
 {
     // the db root is an exception because it doesn't need to be committed
     if (parent && openTransactions.load() > 1) {
@@ -447,32 +483,43 @@ bool HierarchicalDB::doesParentHaveUncommittedChildren() const
     return false;
 }
 
-std::shared_ptr<HierarchicalDB> HierarchicalDB::startDBTransaction(const std::string& txName)
+template <typename MutexType>
+std::shared_ptr<HierarchicalDB<MutexType>>
+HierarchicalDB<MutexType>::startDBTransaction(const std::string& txName)
 {
     openTransactions.fetch_add(1);
     // we push a new empty transaction to make all the changes from this instance after this point go to
     // this new transaction instead of the local data
-    //    committedTransactions.push_back(HierarchicalDB::Make(txName + "-StartSep",
+    //    committedTransactions.push_back(HierarchicalDB<MutexType>::Make(txName + "-StartSep",
     //    shared_from_this()));
-    return HierarchicalDB::Ptr(new HierarchicalDB(dbName + "-" + txName, shared_from_this()));
+    return HierarchicalDB<MutexType>::Ptr(
+        new HierarchicalDB(dbName + "-" + txName, HierarchicalDB<MutexType>::shared_from_this()));
 }
 
-void HierarchicalDB::assertNotCommitted() const
+template <typename MutexType>
+void HierarchicalDB<MutexType>::assertNotCommitted() const
 {
     if (committed) {
         throw std::runtime_error("This transaction is locked after having been committed");
     }
 }
 
-HierarchicalDB::Ptr HierarchicalDB::Make(const std::string&                     name,
-                                         const std::shared_ptr<HierarchicalDB>& parentDB)
+template <typename MutexType>
+typename HierarchicalDB<MutexType>::Ptr
+HierarchicalDB<MutexType>::Make(const std::string&                                name,
+                                const std::shared_ptr<HierarchicalDB<MutexType>>& parentDB)
 {
-    return HierarchicalDB::Ptr(new HierarchicalDB(name, parentDB));
+    return HierarchicalDB<MutexType>::Ptr(new HierarchicalDB(name, parentDB));
 }
 
-int_fast32_t HierarchicalDB::getOpenTransactionsCount() const { return openTransactions.load(); }
+template <typename MutexType>
+int_fast32_t HierarchicalDB<MutexType>::getOpenTransactionsCount() const
+{
+    return openTransactions.load();
+}
 
-std::map<std::string, TransactionOperation> HierarchicalDB::getAllDataForDB(int dbid) const
+template <typename MutexType>
+std::map<std::string, TransactionOperation> HierarchicalDB<MutexType>::getAllDataForDB(int dbid) const
 {
     return getCollapsedOpsForAll(dbid);
 }

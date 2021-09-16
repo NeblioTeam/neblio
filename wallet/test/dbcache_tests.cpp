@@ -11,7 +11,7 @@ int INDEX_MAIN  = 1;
 
 TEST(dbcache, testLowLevelDBUnique)
 {
-    auto db = HierarchicalDB::Make("Root");
+    auto db = HierarchicalDB<hdb_dummy_mutex>::Make("Root");
 
     ASSERT_TRUE(db->multi_append(INDEX_MULTI, "FromRootKey1", "FromRootKey1Val1"));
     {
@@ -133,7 +133,7 @@ TEST(dbcache, testLowLevelDBUnique)
 
 TEST(dbcache, testLowLevelDBTx)
 {
-    auto db = HierarchicalDB::Make("Root");
+    auto db = HierarchicalDB<hdb_dummy_mutex>::Make("Root");
 
     ASSERT_TRUE(db->multi_append(INDEX_MULTI, "FromRootKey1", "FromRootKey1Val1"));
     {
@@ -281,7 +281,7 @@ TEST(dbcache, testLowLevelDBTx)
 
 TEST(dbcache, testLowLevelDBTxMulti)
 {
-    auto db = HierarchicalDB::Make("Root");
+    auto db = HierarchicalDB<hdb_dummy_mutex>::Make("Root");
 
     ASSERT_TRUE(db->multi_append(INDEX_MULTI, "FromRootKey1", "FromRootKey1Val1"));
     {
@@ -691,7 +691,8 @@ TEST(dbcache, testLowLevelDBTxMulti)
 
     const auto commitTx1Res = tx1->commit();
     ASSERT_TRUE(commitTx1Res.isErr());
-    ASSERT_EQ(commitTx1Res.UNWRAP_ERR(), HierarchicalDB::CommitError::UncommittedChildren);
+    ASSERT_EQ(commitTx1Res.UNWRAP_ERR(),
+              HierarchicalDB<hdb_dummy_mutex>::CommitError::UncommittedChildren);
 
     {
         auto d = db->multi_getAll(INDEX_MULTI);
@@ -2017,5 +2018,5 @@ TEST(dbcache, testLowLevelDBTxMulti)
 
     const auto tx3CommitRes = tx3->commit();
     ASSERT_TRUE(tx3CommitRes.isErr());
-    ASSERT_EQ(tx3CommitRes.UNWRAP_ERR(), HierarchicalDB::CommitError::Conflict);
+    ASSERT_EQ(tx3CommitRes.UNWRAP_ERR(), HierarchicalDB<hdb_dummy_mutex>::CommitError::Conflict);
 }

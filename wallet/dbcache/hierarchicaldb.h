@@ -13,20 +13,20 @@
 #include <string>
 #include <vector>
 
-class HierarchicalDB : public std::enable_shared_from_this<HierarchicalDB>
+class hdb_dummy_mutex
 {
 public:
-    class dummy_mutex
-    {
-    public:
-        void lock() {}
-        bool try_lock() { return true; }
-        void unlock() {}
-    };
+    void lock() {}
+    bool try_lock() { return true; }
+    void unlock() {}
+};
 
-    using Ptr = std::shared_ptr<HierarchicalDB>;
-    //    using MutexType = boost::mutex;
-    using MutexType = dummy_mutex;
+template <typename MutexType>
+class HierarchicalDB : public std::enable_shared_from_this<HierarchicalDB<MutexType>>
+{
+public:
+    using Ptr    = std::shared_ptr<HierarchicalDB>;
+    using MutexT = MutexType;
 
     enum class CommitError : uint_fast16_t
     {
@@ -38,7 +38,6 @@ public:
     static const char* CommitErrorToString(HierarchicalDB::CommitError err);
 
 private:
-    // map<DB_ID, map<key, vector<values>>>
     std::array<std::map<std::string, TransactionOperation>,
                static_cast<std::size_t>(IDB::Index::Index_Last)>
         data;
@@ -57,7 +56,7 @@ private:
 
     std::string dbName;
 
-    std::pair<HierarchicalDB*, boost::optional<boost::unique_lock<HierarchicalDB::MutexType>>>
+    std::pair<HierarchicalDB*, boost::optional<boost::unique_lock<MutexType>>>
     getLockedInstanceToModify();
 
     [[nodiscard]] static std::size_t calculateParentsCommittedTxsOnStart(const HierarchicalDB* parentDB);
@@ -120,5 +119,8 @@ public:
     static HierarchicalDB::Ptr Make(const std::string&                     name,
                                     const std::shared_ptr<HierarchicalDB>& parentDB = nullptr);
 };
+
+template class HierarchicalDB<std::mutex>;
+template class HierarchicalDB<hdb_dummy_mutex>;
 
 #endif // HIERARCHICALDB_H

@@ -1,10 +1,11 @@
-﻿#include "googletest/googletest/include/gtest/gtest.h"
+#include "googletest/googletest/include/gtest/gtest.h"
 
 #include "environment.h"
 
 #include "boost/scope_exit.hpp"
 #include "curltools.h"
 #include "db/lmdb/lmdb.h"
+#include "dbcache/dbcachelayer.h"
 #include "dbcache/inmemorydb.h"
 #include "hash.h"
 #include "ntp1/ntp1tools.h"
@@ -32,10 +33,11 @@ std::string RandomString(const int len)
 
 enum class DBTypes : int
 {
-    DB_LMDB     = 0,
-    DB_InMemory = 1,
+    DB_LMDB           = 0,
+    DB_InMemory       = 1,
+    DB_Cached_NoFlush = 2,
 
-    DBTypes_Last = 2
+    DBTypes_Last = 3
 };
 
 class DBTestsFixture : public ::testing::TestWithParam<DBTypes>
@@ -49,6 +51,8 @@ static std::function<std::unique_ptr<IDB>(const boost::filesystem::path&, DBType
         return MakeUnique<LMDB>(&p, true);
     case DBTypes::DB_InMemory:
         return MakeUnique<InMemoryDB>(&p, true);
+    case DBTypes::DB_Cached_NoFlush:
+        return MakeUnique<DBCacheLayer>(&p, true);
     case DBTypes::DBTypes_Last:
         break;
     }
@@ -56,7 +60,8 @@ static std::function<std::unique_ptr<IDB>(const boost::filesystem::path&, DBType
 };
 
 INSTANTIATE_TEST_SUITE_P(DBTests, DBTestsFixture,
-                         ::testing::Values(DBTypes::DB_LMDB, DBTypes::DB_InMemory));
+                         ::testing::Values(DBTypes::DB_LMDB, DBTypes::DB_InMemory,
+                                           DBTypes::DB_Cached_NoFlush));
 
 TEST_P(DBTestsFixture, basic)
 {
@@ -69,11 +74,18 @@ TEST_P(DBTestsFixture, basic)
 
     std::string k1 = "key1";
     std::string v1 = "val1";
+    std::string v2 = "val2";
 
     EXPECT_TRUE(db->write(IDB::Index::DB_MAIN_INDEX, k1, v1));
     boost::optional<std::string> out;
     ASSERT_TRUE(out = db->read(IDB::Index::DB_MAIN_INDEX, k1));
     EXPECT_EQ(*out, v1);
+
+    EXPECT_TRUE(db->exists(IDB::Index::DB_MAIN_INDEX, k1));
+
+    EXPECT_TRUE(db->write(IDB::Index::DB_MAIN_INDEX, k1, v2));
+    ASSERT_TRUE(out = db->read(IDB::Index::DB_MAIN_INDEX, k1));
+    EXPECT_EQ(*out, v2);
 
     EXPECT_TRUE(db->exists(IDB::Index::DB_MAIN_INDEX, k1));
 
@@ -94,11 +106,18 @@ TEST_P(DBTestsFixture, basic_in_1_tx)
 
     std::string k1 = "key1";
     std::string v1 = "val1";
+    std::string v2 = "val2";
 
     EXPECT_TRUE(db->write(IDB::Index::DB_MAIN_INDEX, k1, v1));
     boost::optional<std::string> out;
     ASSERT_TRUE(out = db->read(IDB::Index::DB_MAIN_INDEX, k1));
     EXPECT_EQ(*out, v1);
+
+    EXPECT_TRUE(db->exists(IDB::Index::DB_MAIN_INDEX, k1));
+
+    EXPECT_TRUE(db->write(IDB::Index::DB_MAIN_INDEX, k1, v2));
+    ASSERT_TRUE(out = db->read(IDB::Index::DB_MAIN_INDEX, k1));
+    EXPECT_EQ(*out, v2);
 
     EXPECT_TRUE(db->exists(IDB::Index::DB_MAIN_INDEX, k1));
 
@@ -249,39 +268,137 @@ TEST_P(DBTestsFixture, basic_multiple_read)
     EXPECT_FALSE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1));
 }
 
-TEST_P(DBTestsFixture, basic_multiple_read_in_tx)
+static void TestMultipleReadInTx(IDB* db, bool commitTransaction, bool erase)
 {
-    const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
-
-    std::unique_ptr<IDB> db = DBMaker(p, GetParam());
 
     BOOST_SCOPE_EXIT(&db) { db->close(); }
     BOOST_SCOPE_EXIT_END
 
     db->beginDBTransaction(100);
 
-    std::string k1 = "key1";
-    std::string v1 = "val1";
-    std::string v2 = "val2";
-    std::string v3 = "val3";
+    const std::string k1 = "key1";
+    const std::string k2 = "key2";
+    const std::string v1 = "val1";
+    const std::string v2 = "val2";
+    const std::string v3 = "val3";
+    const std::string v4 = "val4";
+    const std::string v5 = "val5";
+    const std::string v6 = "val6";
 
     EXPECT_TRUE(db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1, v1));
     EXPECT_TRUE(db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1, v2));
     EXPECT_TRUE(db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1, v3));
-    boost::optional<std::vector<std::string>> outs;
-    ASSERT_TRUE(outs = db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1));
-    EXPECT_EQ(*outs, std::vector<std::string>({v1, v2, v3}));
+    EXPECT_TRUE(db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k2, v4));
+    EXPECT_TRUE(db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k2, v5));
+    EXPECT_TRUE(db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k2, v6));
+    boost::optional<std::vector<std::string>> outs1;
+    boost::optional<std::vector<std::string>> outs2;
+    EXPECT_TRUE(outs1 = db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1));
+    EXPECT_EQ(outs1, std::vector<std::string>({v1, v2, v3}));
+    EXPECT_TRUE(outs2 = db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k2));
+    EXPECT_EQ(outs2, std::vector<std::string>({v4, v5, v6}));
+
+    // realAll with key vs multiple values
+    boost::optional<std::map<std::string, std::vector<std::string>>> allValsMap;
+    ASSERT_TRUE(allValsMap = db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX));
+    EXPECT_EQ(*allValsMap, (std::map<std::string, std::vector<std::string>>(
+                               {{k1, std::vector<std::string>({v1, v2, v3})},
+                                {k2, std::vector<std::string>({v4, v5, v6})}})));
+
+    // readAllUnique with key vs unique values, we expect every key will find one random value
+    boost::optional<std::map<std::string, std::string>> allValsUniqueMap;
+    ASSERT_TRUE(allValsUniqueMap = db->readAllUnique(IDB::Index::DB_NTP1TOKENNAMES_INDEX));
+    ASSERT_TRUE(allValsUniqueMap->count(k1));
+    ASSERT_TRUE(allValsUniqueMap->count(k2));
+    EXPECT_TRUE(allValsUniqueMap->at(k1) == v1 || allValsUniqueMap->at(k1) == v2 ||
+                allValsUniqueMap->at(k1) == v3);
+    EXPECT_TRUE(allValsUniqueMap->at(k2) == v4 || allValsUniqueMap->at(k2) == v5 ||
+                allValsUniqueMap->at(k2) == v6);
 
     EXPECT_TRUE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1));
+    EXPECT_TRUE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k2));
 
-    EXPECT_TRUE(db->eraseAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1));
+    if (erase) {
+        EXPECT_TRUE(db->eraseAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1));
+        EXPECT_TRUE(db->eraseAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k2));
 
-    EXPECT_FALSE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1));
+        EXPECT_FALSE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1));
+        EXPECT_FALSE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k2));
+    }
 
-    db->abortDBTransaction();
+    if (commitTransaction) {
+        db->commitDBTransaction();
 
-    ASSERT_TRUE(outs = db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1));
-    EXPECT_EQ(outs, std::vector<std::string>({}));
+        if (!erase) {
+            EXPECT_TRUE(outs1 = db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1));
+            EXPECT_EQ(outs1, std::vector<std::string>({v1, v2, v3}));
+            EXPECT_TRUE(outs2 = db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k2));
+            EXPECT_EQ(outs2, std::vector<std::string>({v4, v5, v6}));
+
+            // realAll with key vs multiple values
+            ASSERT_TRUE(allValsMap = db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX));
+            EXPECT_EQ(*allValsMap, (std::map<std::string, std::vector<std::string>>(
+                                       {{k1, std::vector<std::string>({v1, v2, v3})},
+                                        {k2, std::vector<std::string>({v4, v5, v6})}})));
+
+            // readAllUnique with key vs unique values, we expect every key will find one random value
+            ASSERT_TRUE(allValsUniqueMap = db->readAllUnique(IDB::Index::DB_NTP1TOKENNAMES_INDEX));
+            ASSERT_TRUE(allValsUniqueMap->count(k1));
+            ASSERT_TRUE(allValsUniqueMap->count(k2));
+            EXPECT_TRUE(allValsUniqueMap->at(k1) == v1 || allValsUniqueMap->at(k1) == v2 ||
+                        allValsUniqueMap->at(k1) == v3);
+            EXPECT_TRUE(allValsUniqueMap->at(k2) == v4 || allValsUniqueMap->at(k2) == v5 ||
+                        allValsUniqueMap->at(k2) == v6);
+        } else {
+            ASSERT_TRUE(outs1 = db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1));
+            EXPECT_EQ(outs1, std::vector<std::string>({}));
+            ASSERT_TRUE(outs2 = db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1));
+            EXPECT_EQ(outs2, std::vector<std::string>({}));
+        }
+    } else {
+        db->abortDBTransaction();
+
+        ASSERT_TRUE(outs1 = db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1));
+        EXPECT_EQ(outs1, std::vector<std::string>({}));
+        ASSERT_TRUE(outs2 = db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1));
+        EXPECT_EQ(outs2, std::vector<std::string>({}));
+    }
+}
+
+TEST_P(DBTestsFixture, basic_multiple_read_in_tx_uncommitted_and_erase)
+{
+    const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
+
+    std::unique_ptr<IDB> db = DBMaker(p, GetParam());
+
+    TestMultipleReadInTx(db.get(), false, true);
+}
+
+TEST_P(DBTestsFixture, basic_multiple_read_in_tx_committed_and_erase)
+{
+    const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
+
+    std::unique_ptr<IDB> db = DBMaker(p, GetParam());
+
+    TestMultipleReadInTx(db.get(), true, true);
+}
+
+TEST_P(DBTestsFixture, basic_multiple_read_in_tx_uncommitted)
+{
+    const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
+
+    std::unique_ptr<IDB> db = DBMaker(p, GetParam());
+
+    TestMultipleReadInTx(db.get(), false, false);
+}
+
+TEST_P(DBTestsFixture, basic_multiple_read_in_tx_committed)
+{
+    const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
+
+    std::unique_ptr<IDB> db = DBMaker(p, GetParam());
+
+    TestMultipleReadInTx(db.get(), true, false);
 }
 
 TEST_P(DBTestsFixture, basic_multiple_many_inputs)
@@ -466,7 +583,7 @@ TEST_P(DBTestsFixture, read_write_unique_with_transaction)
     ASSERT_EQ(map->count(someRandomKeyVal.first), 1u);
 }
 
-static void TestReadMultipleAndRealAll(IDB*                                                   db,
+static void TestReadMultipleAndReadAll(IDB*                                                   db,
                                        const std::map<std::string, std::vector<std::string>>& data)
 {
     for (const auto& v : data) {
@@ -566,26 +683,14 @@ TEST_P(DBTestsFixture, read_write_multiple)
     BOOST_SCOPE_EXIT(&db) { db->close(); }
     BOOST_SCOPE_EXIT_END
 
-    TestReadMultipleAndRealAll(db.get(), data);
+    TestReadMultipleAndReadAll(db.get(), data);
 }
 
-static void TestReadMultipleAndRealAllWithTx(IDB*                                                   db,
-                                             const std::map<std::string, std::vector<std::string>>& data)
+static void
+TestMultipleDataInDB(IDB* db, const std::map<std::string, std::vector<std::string>>& data,
+                     const boost::optional<std::pair<std::string, std::string>>& oneMoreAdditionalValue)
 {
-    const std::pair<std::string, std::string> someRandomKeyVal =
-        std::make_pair(GeneratePseudoRandomString(100), GeneratePseudoRandomString(100));
-
-    db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, someRandomKeyVal.first, someRandomKeyVal.second);
-
-    db->beginDBTransaction();
-
-    ////////////////
-    for (const auto& v : data) {
-        for (const auto& e : v.second) {
-            db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, v.first, e);
-        }
-    }
-
+    // read all data and ensure it's valid and is equal to data map with readMultiple
     for (const auto& v : data) {
         std::vector<std::string>                  expected = v.second;
         boost::optional<std::vector<std::string>> r =
@@ -597,6 +702,7 @@ static void TestReadMultipleAndRealAllWithTx(IDB*                               
         EXPECT_EQ(expected, *r);
     }
 
+    // read all data and ensure it's valid and is equal to data map with readAll
     {
         std::map<std::string, std::vector<std::string>> expected = data;
         for (auto&& v : expected) {
@@ -610,22 +716,47 @@ static void TestReadMultipleAndRealAllWithTx(IDB*                               
         for (auto&& v : *r) {
             std::sort(v.second.begin(), v.second.end());
         }
-        r->erase(someRandomKeyVal.first);
+        if (oneMoreAdditionalValue) {
+            r->erase(oneMoreAdditionalValue->first);
+        }
         EXPECT_EQ(expected, r);
     }
 
+    // tests exists()
     for (const auto& v : data) {
         const std::string& key = v.first;
         EXPECT_TRUE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key));
     }
+}
 
-    {
+static void TestReadMultipleAndRealAllWithTx(IDB*                                                   db,
+                                             const std::map<std::string, std::vector<std::string>>& data,
+                                             bool commitTransaction, bool erase)
+{
+    const std::pair<std::string, std::string> someRandomKeyVal =
+        std::make_pair(GeneratePseudoRandomString(100), GeneratePseudoRandomString(100));
+
+    db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, someRandomKeyVal.first, someRandomKeyVal.second);
+
+    db->beginDBTransaction();
+
+    ////////////////
+    // write all data
+    for (const auto& v : data) {
+        for (const auto& e : v.second) {
+            db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, v.first, e);
+        }
+    }
+
+    TestMultipleDataInDB(db, data, someRandomKeyVal);
+
+    // if erase is enabled, erase all the new data
+    if (erase) {
         std::map<std::string, std::vector<std::string>> expected = data;
         while (!expected.empty()) {
-            std::size_t indexToDelete = rand() % expected.size();
-            auto        it            = expected.begin();
-            std::advance(it, indexToDelete);
-            const std::string key = it->first;
+            std::size_t       indexToDelete = rand() % expected.size();
+            auto              it            = std::next(expected.begin(), indexToDelete);
+            const std::string key           = it->first;
             EXPECT_TRUE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key));
 
             // erase the key
@@ -645,24 +776,60 @@ static void TestReadMultipleAndRealAllWithTx(IDB*                               
     }
 
     ////////////////
-    db->abortDBTransaction();
 
-    // after having aborted the transaction, we only have the value we committed
-    const boost::optional<std::map<std::string, std::vector<std::string>>> map =
-        db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
-    ASSERT_TRUE(map);
-    ASSERT_EQ(map->size(), 1u);
-    ASSERT_EQ(map->count(someRandomKeyVal.first), 1u);
+    if (commitTransaction) {
+        db->commitDBTransaction();
 
-    EnsureDBIsEmpty(db, IDB::Index::DB_MAIN_INDEX);
-    EnsureDBIsEmpty(db, IDB::Index::DB_BLOCKINDEX_INDEX);
-    EnsureDBIsEmpty(db, IDB::Index::DB_BLOCKS_INDEX);
-    EnsureDBIsEmpty(db, IDB::Index::DB_TX_INDEX);
-    EnsureDBIsEmpty(db, IDB::Index::DB_NTP1TX_INDEX);
-    EnsureDBIsEmpty(db, IDB::Index::DB_ADDRSVSPUBKEYS_INDEX);
+        if (erase) {
+            // after having aborted the transaction, we only have the value we committed
+            const boost::optional<std::map<std::string, std::vector<std::string>>> map =
+                db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
+            ASSERT_TRUE(map);
+            ASSERT_EQ(map->size(), 1u);
+            ASSERT_EQ(map->count(someRandomKeyVal.first), 1u);
+            ASSERT_EQ(map->at(someRandomKeyVal.first).size(), 1u);
+            ASSERT_EQ(map->at(someRandomKeyVal.first).front(), someRandomKeyVal.second);
+
+            EnsureDBIsEmpty(db, IDB::Index::DB_MAIN_INDEX);
+            EnsureDBIsEmpty(db, IDB::Index::DB_BLOCKINDEX_INDEX);
+            EnsureDBIsEmpty(db, IDB::Index::DB_BLOCKS_INDEX);
+            EnsureDBIsEmpty(db, IDB::Index::DB_TX_INDEX);
+            EnsureDBIsEmpty(db, IDB::Index::DB_NTP1TX_INDEX);
+            EnsureDBIsEmpty(db, IDB::Index::DB_ADDRSVSPUBKEYS_INDEX);
+        } else {
+            // after having aborted the transaction, we only have the value we committed
+            const boost::optional<std::map<std::string, std::vector<std::string>>> map =
+                db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
+            ASSERT_TRUE(map);
+            ASSERT_EQ(map->size(), 1u + data.size());
+            ASSERT_EQ(map->count(someRandomKeyVal.first), 1u);
+            ASSERT_EQ(map->at(someRandomKeyVal.first).size(), 1u);
+            ASSERT_EQ(map->at(someRandomKeyVal.first).front(), someRandomKeyVal.second);
+
+            TestMultipleDataInDB(db, data, someRandomKeyVal);
+        }
+    } else {
+        db->abortDBTransaction();
+
+        // after having aborted the transaction, we only have the value we committed
+        const boost::optional<std::map<std::string, std::vector<std::string>>> map =
+            db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
+        ASSERT_TRUE(map);
+        ASSERT_EQ(map->size(), 1u);
+        ASSERT_EQ(map->count(someRandomKeyVal.first), 1u);
+        ASSERT_EQ(map->at(someRandomKeyVal.first).size(), 1u);
+        ASSERT_EQ(map->at(someRandomKeyVal.first).front(), someRandomKeyVal.second);
+
+        EnsureDBIsEmpty(db, IDB::Index::DB_MAIN_INDEX);
+        EnsureDBIsEmpty(db, IDB::Index::DB_BLOCKINDEX_INDEX);
+        EnsureDBIsEmpty(db, IDB::Index::DB_BLOCKS_INDEX);
+        EnsureDBIsEmpty(db, IDB::Index::DB_TX_INDEX);
+        EnsureDBIsEmpty(db, IDB::Index::DB_NTP1TX_INDEX);
+        EnsureDBIsEmpty(db, IDB::Index::DB_ADDRSVSPUBKEYS_INDEX);
+    }
 }
 
-TEST_P(DBTestsFixture, read_write_multiple_with_db_transaction)
+std::map<std::string, std::vector<std::string>> GenerateMultipleData()
 {
     static constexpr int MAX_ENTRIES    = 5;
     static constexpr int MAX_SUBENTRIES = 3;
@@ -680,6 +847,12 @@ TEST_P(DBTestsFixture, read_write_multiple_with_db_transaction)
             data[key].push_back(val);
         }
     }
+    return data;
+}
+
+TEST_P(DBTestsFixture, read_write_multiple_with_db_transaction_aborted_and_erase)
+{
+    std::map<std::string, std::vector<std::string>> data = GenerateMultipleData();
 
     const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
@@ -688,7 +861,49 @@ TEST_P(DBTestsFixture, read_write_multiple_with_db_transaction)
     BOOST_SCOPE_EXIT(&db) { db->close(); }
     BOOST_SCOPE_EXIT_END
 
-    TestReadMultipleAndRealAllWithTx(db.get(), data);
+    TestReadMultipleAndRealAllWithTx(db.get(), data, false, true);
+}
+
+TEST_P(DBTestsFixture, read_write_multiple_with_db_transaction_committed_and_erase)
+{
+    std::map<std::string, std::vector<std::string>> data = GenerateMultipleData();
+
+    const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
+
+    std::unique_ptr<IDB> db = DBMaker(p, GetParam());
+
+    BOOST_SCOPE_EXIT(&db) { db->close(); }
+    BOOST_SCOPE_EXIT_END
+
+    TestReadMultipleAndRealAllWithTx(db.get(), data, true, true);
+}
+
+TEST_P(DBTestsFixture, read_write_multiple_with_db_transaction_aborted)
+{
+    std::map<std::string, std::vector<std::string>> data = GenerateMultipleData();
+
+    const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
+
+    std::unique_ptr<IDB> db = DBMaker(p, GetParam());
+
+    BOOST_SCOPE_EXIT(&db) { db->close(); }
+    BOOST_SCOPE_EXIT_END
+
+    TestReadMultipleAndRealAllWithTx(db.get(), data, false, false);
+}
+
+TEST_P(DBTestsFixture, read_write_multiple_with_db_transaction_committed)
+{
+    std::map<std::string, std::vector<std::string>> data = GenerateMultipleData();
+
+    const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
+
+    std::unique_ptr<IDB> db = DBMaker(p, GetParam());
+
+    BOOST_SCOPE_EXIT(&db) { db->close(); }
+    BOOST_SCOPE_EXIT_END
+
+    TestReadMultipleAndRealAllWithTx(db.get(), data, true, false);
 }
 
 TEST(db_quicksync_tests, download_index_file)

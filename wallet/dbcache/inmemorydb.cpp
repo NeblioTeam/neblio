@@ -1,5 +1,7 @@
 #include "inmemorydb.h"
 
+using namespace DBOperation;
+
 std::array<std::map<std::string, std::vector<std::string>>,
            static_cast<std::size_t>(IDB::Index::Index_Last)>
                       InMemoryDB::data({});
@@ -12,7 +14,16 @@ InMemoryDB::InMemoryDB(const boost::filesystem::path* const, bool startNewDataba
     }
 }
 
-std::map<IDB::Index, std::map<std::string, TransactionOperation>> GetAllTxData(HierarchicalDB* tx)
+InMemoryDB::InMemoryDB(bool startNewDatabase)
+{
+    if (startNewDatabase) {
+        InMemoryDB::clearDBData();
+    }
+}
+
+template <typename MutexType>
+static std::map<IDB::Index, std::map<std::string, TransactionOperation>>
+GetAllTxData(HierarchicalDB<MutexType>* tx)
 {
     if (!tx) {
         return {};
@@ -32,8 +43,8 @@ boost::optional<std::string> InMemoryDB::read(Index dbindex, const std::string& 
         const auto& op = tx->getOp(static_cast<int>(dbindex), key);
         if (op) {
             switch (op->getOpType()) {
-            case TransactionOperation::UniqueSet:
-            case TransactionOperation::Append:
+            case WriteOperationType::UniqueSet:
+            case WriteOperationType::Append:
                 if (!op->getValues().empty()) {
                     if (size) {
                         return op->getValues().front().substr(offset, *size);
@@ -42,7 +53,7 @@ boost::optional<std::string> InMemoryDB::read(Index dbindex, const std::string& 
                     }
                 }
                 break;
-            case TransactionOperation::Erase:
+            case WriteOperationType::Erase:
                 return boost::none;
             }
         }
@@ -80,11 +91,11 @@ boost::optional<std::vector<std::string>> InMemoryDB::readMultiple(Index        
         const auto& op = tx->getOp(static_cast<int>(dbindex), key);
         if (op) {
             switch (op->getOpType()) {
-            case TransactionOperation::UniqueSet:
-            case TransactionOperation::Append: {
+            case WriteOperationType::UniqueSet:
+            case WriteOperationType::Append: {
                 valuesToAppend = op->getValues();
                 break;
-            case TransactionOperation::Erase: {
+            case WriteOperationType::Erase: {
                 return std::vector<std::string>();
             }
             }
@@ -118,16 +129,16 @@ static void MergeTxDataWithData(std::map<std::string, std::vector<std::string>>&
         auto&& txOp = p.second;
 
         switch (txOp.getOpType()) {
-        case TransactionOperation::Append:
+        case WriteOperationType::Append:
             dataMap[key].insert(dataMap[key].end(), std::make_move_iterator(txOp.getValues().begin()),
                                 std::make_move_iterator(txOp.getValues().end()));
             break;
-        case TransactionOperation::UniqueSet:
+        case WriteOperationType::UniqueSet:
             if (!txOp.getValues().empty()) {
                 dataMap[key] = txOp.getValues();
             }
             break;
-        case TransactionOperation::Erase:
+        case WriteOperationType::Erase:
             dataMap.erase(key);
             break;
         }
@@ -163,13 +174,13 @@ static void MergeTxDataWithData(std::map<std::string, std::string>&           da
         auto&& txOp = p.second;
 
         switch (txOp.getOpType()) {
-        case TransactionOperation::Append:
-        case TransactionOperation::UniqueSet:
+        case WriteOperationType::Append:
+        case WriteOperationType::UniqueSet:
             if (!txOp.getValues().empty()) {
                 dataMap[key] = txOp.getValues().front();
             }
             break;
-        case TransactionOperation::Erase:
+        case WriteOperationType::Erase:
             dataMap.erase(key);
             break;
         }
@@ -281,13 +292,13 @@ bool InMemoryDB::exists(Index dbindex, const std::string& key) const
         const auto& op = tx->getOp(static_cast<int>(dbindex), key);
         if (op) {
             switch (op->getOpType()) {
-            case TransactionOperation::UniqueSet:
-            case TransactionOperation::Append:
+            case WriteOperationType::UniqueSet:
+            case WriteOperationType::Append:
                 if (!op->getValues().empty()) {
                     return true;
                 }
                 break;
-            case TransactionOperation::Erase:
+            case WriteOperationType::Erase:
                 return false;
             }
         }
@@ -320,7 +331,8 @@ bool InMemoryDB::beginDBTransaction(std::size_t /*expectedDataSize*/)
     if (tx) {
         return false;
     }
-    tx = std::unique_ptr<HierarchicalDB>(new HierarchicalDB(""));
+    tx = std::unique_ptr<HierarchicalDB<decltype(tx)::element_type::MutexT>>(
+        new HierarchicalDB<decltype(tx)::element_type::MutexT>(""));
     return true;
 }
 
@@ -330,7 +342,7 @@ bool InMemoryDB::commitDBTransaction()
         return false;
     }
 
-    std::unique_ptr<HierarchicalDB> movedTx = std::move(tx);
+    std::unique_ptr<HierarchicalDB<decltype(tx)::element_type::MutexT>> movedTx = std::move(tx);
     tx.reset();
 
     std::map<IDB::Index, std::map<std::string, TransactionOperation>> txData =
@@ -348,17 +360,17 @@ bool InMemoryDB::commitDBTransaction()
             const TransactionOperation& op  = kv_pair.second;
 
             switch (op.getOpType()) {
-            case TransactionOperation::Append:
+            case WriteOperationType::Append:
                 for (const auto& val : op.getValues()) {
                     result = result && write_unsafe(dbid, key, val);
                 }
                 break;
-            case TransactionOperation::UniqueSet:
+            case WriteOperationType::UniqueSet:
                 if (!op.getValues().empty()) {
                     result = result && write_unsafe(dbid, key, op.getValues().front());
                 }
                 break;
-            case TransactionOperation::Erase:
+            case WriteOperationType::Erase:
                 result = result && erase_unsafe(dbid, key);
                 break;
             }
