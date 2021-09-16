@@ -113,7 +113,6 @@ void Shutdown()
     if (fFirstThread) {
         fShutdown.store(true, boost::memory_order_seq_cst);
         nTransactionsUpdated++;
-        //        CTxDB().Close();
         FlushDBWalletTransient(false);
         StopNode();
         FlushDBWalletTransient(true);
@@ -126,6 +125,7 @@ void Shutdown()
         // on certain platforms, signal2's destructor without disconnecting is causing a crash, this
         // fixes it
         StopRPCRequests.get().disconnect_all_slots();
+        CTxDB().Close();
 
         NewThread(ExitTimeout);
         MilliSleep(50);

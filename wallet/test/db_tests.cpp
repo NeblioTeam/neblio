@@ -59,7 +59,7 @@ static std::function<std::unique_ptr<IDB>(const boost::filesystem::path&, DBType
     case DBTypes::DB_InMemory:
         return MakeUnique<InMemoryDB>(&p, true);
     case DBTypes::DB_Cached: {
-        const uint64_t cacheMaxSize = rand() % 5000;
+        const uint64_t cacheMaxSize = rand() % 500;
         std::cout << "Using cache layer size: " << cacheMaxSize << std::endl;
         return MakeUnique<DBCacheLayer>(&p, true, cacheMaxSize);
     }

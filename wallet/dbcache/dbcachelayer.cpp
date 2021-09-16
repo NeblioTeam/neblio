@@ -1,6 +1,7 @@
 ﻿#include "dbcachelayer.h"
 
 #include "db/lmdb/lmdb.h"
+#include "logging/logger.h"
 #include <boost/atomic.hpp>
 
 std::unique_ptr<IDB> g_cached_db_instance;
@@ -9,6 +10,7 @@ std::array<std::map<std::string, DBCachedRead>, static_cast<std::size_t>(IDB::In
 
 using MutexType = std::mutex;
 MutexType g_cached_db_read_cache_lock;
+MutexType g_cached_db_read_cache_flush_lock;
 
 boost::atomic_int64_t  approxCacheSize;
 boost::atomic_uint64_t flushCount;
@@ -512,6 +514,7 @@ bool DBCacheLayer::openDB(bool clearDataBeforeOpen)
 void DBCacheLayer::close()
 {
     tx.reset();
+    flush();
     g_cached_db_instance->close();
     g_cached_db_instance.reset();
     boost::atomic_thread_fence(boost::memory_order_seq_cst);
@@ -519,7 +522,9 @@ void DBCacheLayer::close()
 
 bool DBCacheLayer::flush()
 {
+    NLog.write(b_sev::info, "Starting flush to persisted DB");
     std::lock_guard<MutexType> lg(g_cached_db_read_cache_lock);
+    std::lock_guard<MutexType> flush_lg(g_cached_db_read_cache_flush_lock);
     g_cached_db_instance->beginDBTransaction(500000);
     bool result = true;
     for (std::size_t i = 0; i < g_cached_db_read_cache.size(); i++) {
@@ -544,7 +549,9 @@ bool DBCacheLayer::flush()
         }
         cacheMap.clear();
     }
+    NLog.write(b_sev::info, "About to flush to persisted DB");
     g_cached_db_instance->commitDBTransaction();
+    NLog.write(b_sev::info, "A flush() in cached DB finish");
     approxCacheSize.store(0, boost::memory_order_release);
     return true;
 }
@@ -555,7 +562,7 @@ boost::optional<bool> DBCacheLayer::flushOnSizePolicy()
         return boost::none;
     }
 
-    if (approxCacheSize.load(boost::memory_order_acquire)) {
+    if (approxCacheSize.load(boost::memory_order_acquire) > flushOnSizeReached) {
         bool res = flush();
         flushCount.fetch_add(res, boost::memory_order_release);
         return boost::make_optional(res);
