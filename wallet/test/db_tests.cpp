@@ -35,13 +35,20 @@ enum class DBTypes : int
 {
     DB_LMDB           = 0,
     DB_InMemory       = 1,
-    DB_Cached_NoFlush = 2,
+    DB_Cached         = 2,
+    DB_Cached_NoFlush = 3,
 
-    DBTypes_Last = 3
+    DBTypes_Last = 4
 };
 
 class DBTestsFixture : public ::testing::TestWithParam<DBTypes>
 {
+    void TearDown() override
+    {
+        if (GetParam() == DBTypes::DB_Cached) {
+            std::cout << "DBCacheLayer flush count: " << DBCacheLayer::GetFlushCount() << std::endl;
+        }
+    }
 };
 
 static std::function<std::unique_ptr<IDB>(const boost::filesystem::path&, DBTypes)> DBMaker =
@@ -51,8 +58,13 @@ static std::function<std::unique_ptr<IDB>(const boost::filesystem::path&, DBType
         return MakeUnique<LMDB>(&p, true);
     case DBTypes::DB_InMemory:
         return MakeUnique<InMemoryDB>(&p, true);
+    case DBTypes::DB_Cached: {
+        const uint64_t cacheMaxSize = rand() % 5000;
+        std::cout << "Using cache layer size: " << cacheMaxSize << std::endl;
+        return MakeUnique<DBCacheLayer>(&p, true, cacheMaxSize);
+    }
     case DBTypes::DB_Cached_NoFlush:
-        return MakeUnique<DBCacheLayer>(&p, true);
+        return MakeUnique<DBCacheLayer>(&p, true, 0);
     case DBTypes::DBTypes_Last:
         break;
     }
@@ -60,7 +72,7 @@ static std::function<std::unique_ptr<IDB>(const boost::filesystem::path&, DBType
 };
 
 INSTANTIATE_TEST_SUITE_P(DBTests, DBTestsFixture,
-                         ::testing::Values(DBTypes::DB_LMDB, DBTypes::DB_InMemory,
+                         ::testing::Values(DBTypes::DB_LMDB, DBTypes::DB_InMemory, DBTypes::DB_Cached,
                                            DBTypes::DB_Cached_NoFlush));
 
 TEST_P(DBTestsFixture, basic)

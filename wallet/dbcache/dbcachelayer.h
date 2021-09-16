@@ -8,9 +8,16 @@
 class DBCacheLayer : public IDB
 {
     std::unique_ptr<HierarchicalDB<hdb_dummy_mutex>> tx;
+    const int64_t                                    flushOnSizeReached;
 
 public:
-    DBCacheLayer(const boost::filesystem::path* const dbdir, bool startNewDatabase);
+    /**
+     * @brief DBCacheLayer
+     * @param dbdir
+     * @param startNewDatabase
+     * @param flushOnSize if 0, it's only in memory cache with no flushing
+     */
+    DBCacheLayer(const boost::filesystem::path* const dbdir, bool startNewDatabase, int64_t flushOnSize);
 
     boost::optional<std::string> read(Index dbindex, const std::string& key, std::size_t offset,
                                       const boost::optional<std::size_t>& size) const override;
@@ -31,8 +38,10 @@ public:
     bool                                     openDB(bool clearDataBeforeOpen) override;
     void                                     close() override;
 
-    bool flush();
-    void clearCache();
+    bool                  flush();
+    boost::optional<bool> flushOnSizePolicy();
+    void                  clearCache();
+    static uint64_t       GetFlushCount();
 };
 
 #endif // DBCACHELAYER_H

@@ -10,14 +10,21 @@ std::array<std::map<std::string, DBCachedRead>, static_cast<std::size_t>(IDB::In
 using MutexType = std::mutex;
 MutexType g_cached_db_read_cache_lock;
 
+boost::atomic_int64_t  approxCacheSize;
+boost::atomic_uint64_t flushCount;
+
 using namespace DBOperation;
 
-DBCacheLayer::DBCacheLayer(const boost::filesystem::path* const dbdir, bool startNewDatabase)
+DBCacheLayer::DBCacheLayer(const boost::filesystem::path* const dbdir, bool startNewDatabase,
+                           int64_t flushOnSize)
+    : flushOnSizeReached(flushOnSize)
 {
     if (startNewDatabase) {
         clearCache();
     }
     if (!g_cached_db_instance || startNewDatabase) {
+        approxCacheSize.store(0, boost::memory_order_seq_cst);
+        flushCount.store(0, boost::memory_order_seq_cst);
         g_cached_db_instance = std::unique_ptr<IDB>(new LMDB(dbdir, startNewDatabase));
         boost::atomic_thread_fence(boost::memory_order_seq_cst);
     }
@@ -74,6 +81,7 @@ boost::optional<std::string> DBCacheLayer::read(Index dbindex, const std::string
     if (dVal) {
         g_cached_db_read_cache[static_cast<std::size_t>(dbindex)].insert(
             std::make_pair(key, DBCachedRead(ReadOperationType::ValueFound, *dVal)));
+        approxCacheSize.fetch_add(dVal->size(), boost::memory_order_relaxed);
         if (size) {
             return dVal->substr(offset, *size);
         } else {
@@ -128,6 +136,9 @@ boost::optional<std::vector<std::string>> DBCacheLayer::readMultiple(Index      
     if (dVal) {
         g_cached_db_read_cache[static_cast<std::size_t>(dbindex)].insert(
             std::make_pair(key, DBCachedRead(ReadOperationType::ValueFound, *dVal)));
+        for (const auto& v : *dVal) {
+            approxCacheSize.fetch_add(v.size(), boost::memory_order_relaxed);
+        }
         dVal->insert(dVal->end(), std::make_move_iterator(valuesToAppend.begin()),
                      std::make_move_iterator(valuesToAppend.end()));
         return dVal;
@@ -278,6 +289,7 @@ void AppendValueToMap(IDB::Index dbindex, const std::string& key, const std::str
         case ReadOperationType::Erased:
             map.erase(key);
             map.insert(std::make_pair(key, DBCachedRead(ReadOperationType::ValueFound, value)));
+            approxCacheSize.fetch_add(value.size(), boost::memory_order_relaxed);
             break;
         }
     } else {
@@ -295,17 +307,21 @@ bool DBCacheLayer::write(Index dbindex, const std::string& key, const std::strin
         }
     }
 
-    std::lock_guard<MutexType> lg(g_cached_db_read_cache_lock);
+    {
+        std::lock_guard<MutexType> lg(g_cached_db_read_cache_lock);
 
-    if (IDB::DuplicateKeysAllowed(dbindex)) {
-        // for possible duplicates, if the key already exists and it's
-        AppendValueToMap(dbindex, key, value);
-    } else {
-        // if no duplicates are possible, we just overwrite
-        g_cached_db_read_cache[static_cast<std::size_t>(dbindex)].erase(key);
-        g_cached_db_read_cache[static_cast<std::size_t>(dbindex)].insert(
-            std::make_pair(key, DBCachedRead(ReadOperationType::ValueFound, value)));
+        if (IDB::DuplicateKeysAllowed(dbindex)) {
+            // for possible duplicates, if the key already exists and it's
+            AppendValueToMap(dbindex, key, value);
+        } else {
+            // if no duplicates are possible, we just overwrite
+            g_cached_db_read_cache[static_cast<std::size_t>(dbindex)].erase(key);
+            g_cached_db_read_cache[static_cast<std::size_t>(dbindex)].insert(
+                std::make_pair(key, DBCachedRead(ReadOperationType::ValueFound, value)));
+            approxCacheSize.fetch_add(value.size(), boost::memory_order_relaxed);
+        }
     }
+    flushOnSizePolicy();
     return true;
 }
 
@@ -433,37 +449,41 @@ bool DBCacheLayer::commitDBTransaction()
 
     bool result = true;
 
-    std::lock_guard<MutexType> lg(g_cached_db_read_cache_lock);
+    {
+        std::lock_guard<MutexType> lg(g_cached_db_read_cache_lock);
 
-    for (std::size_t i = 0; i < txData.size(); i++) {
-        const IDB::Index                             dbid    = static_cast<IDB::Index>(i);
-        std::map<std::string, TransactionOperation>& txOpMap = txData[i];
-        for (const auto& kv_pair : txOpMap) {
-            const std::string&          key = kv_pair.first;
-            const TransactionOperation& op  = kv_pair.second;
+        for (std::size_t i = 0; i < txData.size(); i++) {
+            const IDB::Index                             dbid    = static_cast<IDB::Index>(i);
+            std::map<std::string, TransactionOperation>& txOpMap = txData[i];
+            for (const auto& kv_pair : txOpMap) {
+                const std::string&          key = kv_pair.first;
+                const TransactionOperation& op  = kv_pair.second;
 
-            switch (op.getOpType()) {
-            case WriteOperationType::Append:
-                for (const auto& val : op.getValues()) {
-                    AppendValueToMap(dbid, key, val);
-                }
-                break;
-            case WriteOperationType::UniqueSet:
-                if (!op.getValues().empty()) {
+                switch (op.getOpType()) {
+                case WriteOperationType::Append:
+                    for (const auto& val : op.getValues()) {
+                        AppendValueToMap(dbid, key, val);
+                    }
+                    break;
+                case WriteOperationType::UniqueSet:
+                    if (!op.getValues().empty()) {
+                        g_cached_db_read_cache[static_cast<std::size_t>(dbid)].erase(key);
+                        approxCacheSize.fetch_add(op.getValues().front().size(),
+                                                  boost::memory_order_release);
+                        g_cached_db_read_cache[static_cast<std::size_t>(dbid)].insert(std::make_pair(
+                            key, DBCachedRead(ReadOperationType::ValueFound, op.getValues().front())));
+                    }
+                    break;
+                case WriteOperationType::Erase:
                     g_cached_db_read_cache[static_cast<std::size_t>(dbid)].erase(key);
-                    g_cached_db_read_cache[static_cast<std::size_t>(dbid)].insert(std::make_pair(
-                        key, DBCachedRead(ReadOperationType::ValueFound, op.getValues().front())));
+                    g_cached_db_read_cache[static_cast<std::size_t>(dbid)].insert(
+                        std::make_pair(key, DBCachedRead(ReadOperationType::Erased, "")));
+                    break;
                 }
-                break;
-            case WriteOperationType::Erase:
-                g_cached_db_read_cache[static_cast<std::size_t>(dbid)].erase(key);
-                g_cached_db_read_cache[static_cast<std::size_t>(dbid)].insert(
-                    std::make_pair(key, DBCachedRead(ReadOperationType::Erased, "")));
-                break;
             }
         }
     }
-
+    flushOnSizePolicy();
     return result;
 }
 
@@ -525,7 +545,23 @@ bool DBCacheLayer::flush()
         cacheMap.clear();
     }
     g_cached_db_instance->commitDBTransaction();
+    approxCacheSize.store(0, boost::memory_order_release);
     return true;
+}
+
+boost::optional<bool> DBCacheLayer::flushOnSizePolicy()
+{
+    if (flushOnSizeReached == 0) {
+        return boost::none;
+    }
+
+    if (approxCacheSize.load(boost::memory_order_acquire)) {
+        bool res = flush();
+        flushCount.fetch_add(res, boost::memory_order_release);
+        return boost::make_optional(res);
+    }
+
+    return boost::none;
 }
 
 void DBCacheLayer::clearCache()
@@ -534,4 +570,7 @@ void DBCacheLayer::clearCache()
     for (auto&& m : g_cached_db_read_cache) {
         m.clear();
     }
+    approxCacheSize.store(0, boost::memory_order_seq_cst);
 }
+
+uint64_t DBCacheLayer::GetFlushCount() { return flushCount; }
