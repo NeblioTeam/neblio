@@ -336,7 +336,13 @@ CTxDB::CTxDB()
 {
     static boost::filesystem::path DBDir = GetDataDir() / DB_DIR;
 
-    db = MakeUnique<LMDB>(&DBDir, false);
+    static bool DBCachingEnabled = GetBoolArg("-enabledbcache", false);
+
+    if (DBCachingEnabled) {
+        db = MakeUnique<DBCacheLayer>(&DBDir, false, 1 << 24);
+    } else {
+        db = MakeUnique<LMDB>(&DBDir, false);
+    }
 }
 
 void CTxDB::Close() { db->close(); }
