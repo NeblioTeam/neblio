@@ -10,7 +10,6 @@ std::array<std::map<std::string, DBCachedRead>, static_cast<std::size_t>(IDB::In
 
 using MutexType = std::mutex;
 MutexType g_cached_db_read_cache_lock;
-MutexType g_cached_db_read_cache_flush_lock;
 
 boost::atomic_int64_t  approxCacheSize;
 boost::atomic_uint64_t flushCount;
@@ -612,7 +611,6 @@ bool DBCacheLayer::flush()
 {
     NLog.write(b_sev::info, "Starting flush to persisted DB");
     std::lock_guard<MutexType> lg(g_cached_db_read_cache_lock);
-    std::lock_guard<MutexType> flush_lg(g_cached_db_read_cache_flush_lock);
 
     // 12 retries will increase the diskspace by 4096 times!
     static const int MAX_RETRIES = 12;
