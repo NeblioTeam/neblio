@@ -77,8 +77,12 @@ class LMDB : public IDB
     // field is non-NULL, writes/deletes go there instead of directly to disk.
     std::unique_ptr<LMDBTransaction> activeBatch;
 
+    mutable int lastError = 0;
+
 public:
     LMDB(const boost::filesystem::path* const dbdir, bool startNewDatabase);
+
+    int getLastError() { return lastError; }
 
     void clearDBData() override;
 

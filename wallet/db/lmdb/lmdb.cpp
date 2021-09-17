@@ -362,6 +362,7 @@ void LMDB::openDatabase(const boost::filesystem::path& directory, bool clearDBBe
 void LMDB::doResize(uint64_t increase_size)
 {
     NLog.write(b_sev::info, std::string(FUNCTIONSIG));
+    NLog.write(b_sev::info, "Requesting to increase LMDB size by {}", increase_size);
 
     if (increase_size != 0 && increase_size < MIN_MAP_SIZE_INCREASE) {
         // protect from having very small incremental changes in the DB size, which is not efficient
@@ -475,6 +476,7 @@ boost::optional<std::string> LMDB::read(IDB::Index dbindex, const std::string& k
             NLog.write(b_sev::err, "Failed to read lmdb key " + dbgKey +
                                        " with an unknown error of code " + std::to_string(ret) +
                                        "; and error: " + std::string(mdb_strerror(ret)));
+            lastError = ret;
         }
         return boost::none;
     }
@@ -542,6 +544,7 @@ boost::optional<std::vector<std::string>> LMDB::readMultiple(IDB::Index         
                                        " does not exist; with an error of code " +
                                        std::to_string(itemRes) +
                                        "; and error: " + std::string(mdb_strerror(itemRes)));
+            lastError = itemRes;
             return boost::none;
         }
     }
@@ -616,6 +619,7 @@ boost::optional<std::map<std::string, std::vector<std::string>>> LMDB::readAll(I
                 "LMDB::readAll: Cursor does not exist while reading all entries; with an error of "
                 "code " +
                     std::to_string(itemRes) + "; and error: " + std::string(mdb_strerror(itemRes)));
+            lastError = itemRes;
             return boost::none;
         }
     }
@@ -688,6 +692,7 @@ boost::optional<std::map<std::string, std::string>> LMDB::readAllUnique(IDB::Ind
                 "LMDB::readAll: Cursor does not exist while reading all entries; with an error of "
                 "code " +
                     std::to_string(itemRes) + "; and error: " + std::string(mdb_strerror(itemRes)));
+            lastError = itemRes;
             return boost::none;
         }
     }
@@ -749,10 +754,9 @@ bool LMDB::write(IDB::Index dbindex, const std::string& key, const std::string& 
         const std::string dbgKey = KeyAsString(key, key);
         if (ret == MDB_MAP_FULL) {
             if (need_resize()) {
-                NLog.write(b_sev::err,
+                NLog.write(b_sev::critical,
                            "Failed to write and LMDB memory map was found to need to be resized, doing "
                            "that now.");
-                doResize();
             }
             NLog.write(b_sev::err, "Failed to write key " + dbgKey + " with lmdb, MDB_MAP_FULL");
         } else {
@@ -760,6 +764,7 @@ bool LMDB::write(IDB::Index dbindex, const std::string& key, const std::string& 
                                        std::to_string(ret) +
                                        "; Error: " + std::string(mdb_strerror(ret)));
         }
+        lastError = ret;
         return false;
     }
     localTxn.commitIfValid("Tx while writing");
@@ -801,6 +806,7 @@ bool LMDB::erase(IDB::Index dbindex, const std::string& key)
         NLog.write(b_sev::err, "Failed to delete entry with key " + dbgKey + " with lmdb; Code " +
                                    std::to_string(ret) +
                                    "; Error message: " + std::string(mdb_strerror(ret)));
+        lastError = ret;
         return false;
     }
 
@@ -862,11 +868,14 @@ bool LMDB::eraseAll(IDB::Index dbindex, const std::string& key)
     }
 
     if (auto ret = mdb_cursor_del(cursorPtr.get(), MDB_NODUPDATA)) {
-        std::string dbgKey = KeyAsString(key, key);
-        NLog.write(b_sev::err, "Failed to delete entry with key " + dbgKey + " with lmdb; Code " +
-                                   std::to_string(ret) +
-                                   "; Error message: " + std::string(mdb_strerror(ret)));
-        return false;
+        if (ret != MDB_NOTFOUND) {
+            std::string dbgKey = KeyAsString(key, key);
+            NLog.write(b_sev::err, "Failed to delete entry with key " + dbgKey + " with lmdb; Code " +
+                                       std::to_string(ret) +
+                                       "; Error message: " + std::string(mdb_strerror(ret)));
+            lastError = ret;
+            return false;
+        }
     }
 
     cursorPtr.reset();
@@ -912,6 +921,7 @@ bool LMDB::exists(IDB::Index dbindex, const std::string& key) const
             NLog.write(b_sev::info, "Failed to check whether key " + dbgKey +
                                         " exists with an unknown error of code " + std::to_string(ret) +
                                         "; and error: " + std::string(mdb_strerror(ret)));
+            lastError = ret;
         }
         return false;
     } else {
@@ -932,6 +942,7 @@ bool LMDB::beginDBTransaction(std::size_t expectedDataSize)
                                    std::to_string(res) +
                                    "; with error: " + std::string(mdb_strerror(res)));
         activeBatch.reset();
+        lastError = res;
         return false;
     }
     return true;
@@ -1010,4 +1021,6 @@ void LMDB::clearDBData()
     LMDB::close();
 
     boost::filesystem::remove_all(*dbdir_); // remove directory
+
+    LMDB::openDB(false);
 }

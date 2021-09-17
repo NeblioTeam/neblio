@@ -247,7 +247,7 @@ void DoQuickSync(const filesystem::path& dbdir)
     NLog.write(b_sev::info, "QuickSync done");
 }
 
-bool ShouldQuickSyncBeDone(const filesystem::path& dbdir)
+bool ShouldQuickSyncBeDone(const filesystem::path& dbdir, bool forceClearDB)
 {
     if (CTxDB::QuickSyncHigherControl_Enabled == false) {
         return false;
@@ -257,7 +257,7 @@ bool ShouldQuickSyncBeDone(const filesystem::path& dbdir)
         return false;
     }
 
-    return (!filesystem::exists(dbdir) || !filesystem::exists(dbdir / "data.mdb") ||
+    return (forceClearDB || !filesystem::exists(dbdir) || !filesystem::exists(dbdir / "data.mdb") ||
             !filesystem::exists(dbdir / "lock.mdb")) &&
            Params().NetType() == NetworkType::Mainnet;
 }
@@ -297,7 +297,7 @@ void CTxDB::resyncIfNecessary(bool forceClearDB)
     // at this point, there's no database, so we attempt quicksync
     if (const auto dbdir = db->getDataDir()) {
         // if the directory doesn't exist, use quicksync
-        if (ShouldQuickSyncBeDone(*dbdir)) {
+        if (ShouldQuickSyncBeDone(*dbdir, forceClearDB)) {
             // close the database before running quicksync
             this->Close();
 

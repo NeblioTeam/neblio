@@ -1,10 +1,10 @@
-﻿#include "dbcachelayer.h"
+#include "dbcachelayer.h"
 
 #include "db/lmdb/lmdb.h"
 #include "logging/logger.h"
+#include "util.h"
 #include <boost/atomic.hpp>
 
-std::unique_ptr<IDB> g_cached_db_instance;
 std::array<std::map<std::string, DBCachedRead>, static_cast<std::size_t>(IDB::Index::Index_Last)>
     g_cached_db_read_cache;
 
@@ -19,17 +19,9 @@ using namespace DBOperation;
 
 DBCacheLayer::DBCacheLayer(const boost::filesystem::path* const dbdir, bool startNewDatabase,
                            int64_t flushOnSize)
-    : flushOnSizeReached(flushOnSize)
+    : flushOnSizeReached(flushOnSize), dbdir_(dbdir)
 {
-    if (startNewDatabase) {
-        clearCache();
-    }
-    if (!g_cached_db_instance || startNewDatabase) {
-        approxCacheSize.store(0, boost::memory_order_seq_cst);
-        flushCount.store(0, boost::memory_order_seq_cst);
-        g_cached_db_instance = std::unique_ptr<IDB>(new LMDB(dbdir, startNewDatabase));
-        boost::atomic_thread_fence(boost::memory_order_seq_cst);
-    }
+    DBCacheLayer::openDB(startNewDatabase);
 }
 
 boost::optional<std::string> DBCacheLayer::read(Index dbindex, const std::string& key,
@@ -79,7 +71,9 @@ boost::optional<std::string> DBCacheLayer::read(Index dbindex, const std::string
         }
     }
 
-    boost::optional<std::string> dVal = g_cached_db_instance->read(dbindex, key);
+    LMDB persistedDB(dbdir_, false);
+
+    boost::optional<std::string> dVal = persistedDB.read(dbindex, key, 0, boost::none);
     if (dVal) {
         g_cached_db_read_cache[static_cast<std::size_t>(dbindex)].insert(
             std::make_pair(key, DBCachedRead(ReadOperationType::ValueFound, *dVal)));
@@ -134,7 +128,9 @@ boost::optional<std::vector<std::string>> DBCacheLayer::readMultiple(Index      
         }
     }
 
-    boost::optional<std::vector<std::string>> dVal = g_cached_db_instance->readMultiple(dbindex, key);
+    LMDB persistedDB(dbdir_, false);
+
+    boost::optional<std::vector<std::string>> dVal = persistedDB.readMultiple(dbindex, key);
     if (dVal) {
         g_cached_db_read_cache[static_cast<std::size_t>(dbindex)].insert(
             std::make_pair(key, DBCachedRead(ReadOperationType::ValueFound, *dVal)));
@@ -187,7 +183,9 @@ DBCacheLayer::readAll(Index dbindex) const
         return g_cached_db_read_cache[static_cast<int>(dbindex)];
     }();
 
-    auto res = g_cached_db_instance->readAll(dbindex);
+    LMDB persistedDB(dbdir_, false);
+
+    auto res = persistedDB.readAll(dbindex);
     if (!res) {
         return boost::none;
     }
@@ -248,7 +246,9 @@ boost::optional<std::map<std::string, std::string>> DBCacheLayer::readAllUnique(
         return g_cached_db_read_cache[static_cast<int>(dbindex)];
     }();
 
-    auto res = g_cached_db_instance->readAllUnique(dbindex);
+    LMDB persistedDB(dbdir_, false);
+
+    auto res = persistedDB.readAllUnique(dbindex);
     if (!res) {
         return boost::none;
     }
@@ -323,7 +323,7 @@ bool DBCacheLayer::write(Index dbindex, const std::string& key, const std::strin
             approxCacheSize.fetch_add(value.size(), boost::memory_order_relaxed);
         }
     }
-    flushOnSizePolicy();
+    flushOnPolicy();
     return true;
 }
 
@@ -392,7 +392,9 @@ bool DBCacheLayer::exists(Index dbindex, const std::string& key) const
         }
     }
 
-    boost::optional<std::string> dVal = g_cached_db_instance->read(dbindex, key);
+    LMDB persistedDB(dbdir_, false);
+
+    boost::optional<std::string> dVal = persistedDB.read(dbindex, key, 0, boost::none);
     if (dVal) {
         g_cached_db_read_cache[static_cast<std::size_t>(dbindex)].insert(
             std::make_pair(key, DBCachedRead(ReadOperationType::ValueFound, *dVal)));
@@ -405,7 +407,7 @@ bool DBCacheLayer::exists(Index dbindex, const std::string& key) const
 void DBCacheLayer::clearDBData()
 {
     clearCache();
-    g_cached_db_instance->clearDBData();
+    LMDB persistedDB(dbdir_, true);
 }
 
 bool DBCacheLayer::beginDBTransaction(std::size_t /*expectedDataSize*/)
@@ -485,7 +487,7 @@ bool DBCacheLayer::commitDBTransaction()
             }
         }
     }
-    flushOnSizePolicy();
+    flushOnPolicy();
     return result;
 }
 
@@ -498,26 +500,112 @@ bool DBCacheLayer::abortDBTransaction()
     return true;
 }
 
-boost::optional<boost::filesystem::path> DBCacheLayer::getDataDir() const
-{
-    return g_cached_db_instance->getDataDir();
-}
+boost::optional<boost::filesystem::path> DBCacheLayer::getDataDir() const { return *dbdir_; }
 
 bool DBCacheLayer::openDB(bool clearDataBeforeOpen)
 {
     if (clearDataBeforeOpen) {
+        clearCache();
         DBCacheLayer::clearDBData();
+        approxCacheSize.store(0, boost::memory_order_seq_cst);
+        flushCount.store(0, boost::memory_order_seq_cst);
     }
-    return g_cached_db_instance->openDB(clearDataBeforeOpen);
+
+    LMDB persistedDB(dbdir_, clearDataBeforeOpen);
+    boost::atomic_thread_fence(boost::memory_order_seq_cst);
+
+    return true;
 }
 
 void DBCacheLayer::close()
 {
     tx.reset();
     flush();
-    g_cached_db_instance->close();
-    g_cached_db_instance.reset();
+    LMDB persistedDB(dbdir_, false);
+    persistedDB.close();
     boost::atomic_thread_fence(boost::memory_order_seq_cst);
+}
+
+std::uintmax_t CalculateTotalDataSize_unsafe()
+{
+    std::uintmax_t sizeToAdd = 0;
+    for (const auto& db : g_cached_db_read_cache) {
+        for (const auto& cacheMap : db) {
+            sizeToAdd += cacheMap.first.size();
+            const DBCachedRead& entry = cacheMap.second;
+            switch (entry.getOpType()) {
+            case ReadOperationType::Erased:
+            case ReadOperationType::NotFound:
+                break;
+            case ReadOperationType::ValueFound:
+                for (const std::string& data : entry.getValues()) {
+                    sizeToAdd += data.size();
+                }
+            }
+        }
+    }
+    return sizeToAdd;
+}
+
+enum PersistValueToCacheResult
+{
+    NoError,
+    RecoverableError,
+    UnrecoverableError,
+};
+
+#define ReturnIfError(db, action)                                                                       \
+    {                                                                                                   \
+        if (persistedDB.getLastError() != 0) {                                                          \
+            NLog.write(b_sev::err,                                                                      \
+                       "Encountered error {} while attempting persist data (in {} "                     \
+                       ") in DBID {}",                                                                  \
+                       persistedDB.getLastError(), action, i);                                          \
+            if (persistedDB.getLastError() == MDB_MAP_FULL ||                                           \
+                persistedDB.getLastError() == MDB_BAD_TXN) {                                            \
+                return PersistValueToCacheResult::RecoverableError;                                     \
+            } else {                                                                                    \
+                return PersistValueToCacheResult::UnrecoverableError;                                   \
+            }                                                                                           \
+        }                                                                                               \
+    }
+
+static PersistValueToCacheResult PersistValueToCache(LMDB& persistedDB, IDB::Index dbid,
+                                                     const std::string& key, const DBCachedRead& cache)
+{
+    const int i = static_cast<int>(dbid);
+    // in all cases, we keep checking if an error occurred. If that's the case, we retry
+    switch (cache.getOpType()) {
+    case ReadOperationType::ValueFound:
+        // we check if the data exists, if it does, we erase it before rewriting it
+        if (persistedDB.exists(dbid, key)) {
+            ReturnIfError(db, "exists check");
+            if (IDB::DuplicateKeysAllowed(dbid)) {
+                persistedDB.eraseAll(dbid, key);
+            } else {
+                persistedDB.erase(dbid, key);
+            }
+            ReturnIfError(db, "erase (1)");
+        }
+        // we rewrite the data
+        for (const auto& val : cache.getValues()) {
+            persistedDB.write(dbid, key, val);
+            ReturnIfError(db, "write");
+        }
+        break;
+    case ReadOperationType::Erased:
+        if (IDB::DuplicateKeysAllowed(dbid)) {
+            persistedDB.eraseAll(dbid, key);
+        } else {
+            persistedDB.erase(dbid, key);
+        }
+        ReturnIfError(db, "erase (2)");
+        break;
+    case ReadOperationType::NotFound:
+        break;
+    }
+
+    return PersistValueToCacheResult::NoError;
 }
 
 bool DBCacheLayer::flush()
@@ -525,55 +613,90 @@ bool DBCacheLayer::flush()
     NLog.write(b_sev::info, "Starting flush to persisted DB");
     std::lock_guard<MutexType> lg(g_cached_db_read_cache_lock);
     std::lock_guard<MutexType> flush_lg(g_cached_db_read_cache_flush_lock);
-    g_cached_db_instance->beginDBTransaction(500000);
-    bool result = true;
-    for (std::size_t i = 0; i < g_cached_db_read_cache.size(); i++) {
-        const IDB::Index                     dbid     = static_cast<IDB::Index>(i);
-        std::map<std::string, DBCachedRead>& cacheMap = g_cached_db_read_cache[i];
-        for (auto&& cachePair : cacheMap) {
-            auto&& key   = cachePair.first;
-            auto&& cache = cachePair.second;
-            switch (cache.getOpType()) {
-            case ReadOperationType::ValueFound:
-                g_cached_db_instance->eraseAll(dbid, key);
-                for (auto&& val : cache.getValues()) {
-                    result = result && g_cached_db_instance->write(dbid, key, std::move(val));
+
+    // 12 retries will increase the diskspace by 4096 times!
+    static const int MAX_RETRIES = 12;
+
+    PersistValueToCacheResult singlePersisResult = PersistValueToCacheResult::NoError;
+
+    const std::uintmax_t sizeToAdd = 2 * CalculateTotalDataSize_unsafe();
+    int64_t commitSize = 2 * std::max(static_cast<std::uintmax_t>(flushOnSizeReached), sizeToAdd);
+
+    for (int c = 0; c < MAX_RETRIES; c++) {
+        NLog.write(b_sev::info, "Attempt {} to persist data from cache to DB with size: {}", c,
+                   sizeToAdd);
+
+        LMDB persistedDB(dbdir_, false);
+
+        singlePersisResult = PersistValueToCacheResult::NoError;
+
+        persistedDB.beginDBTransaction(commitSize);
+
+        for (std::size_t i = 0; i < g_cached_db_read_cache.size(); i++) {
+            const IDB::Index                           dbid     = static_cast<IDB::Index>(i);
+            const std::map<std::string, DBCachedRead>& cacheMap = g_cached_db_read_cache[i];
+            for (auto&& cachePair : cacheMap) {
+                auto&& key   = cachePair.first;
+                auto&& cache = cachePair.second;
+
+                singlePersisResult = PersistValueToCache(persistedDB, dbid, key, cache);
+                if (singlePersisResult != PersistValueToCacheResult::NoError) {
+                    break;
                 }
-                break;
-            case ReadOperationType::Erased:
-                g_cached_db_instance->eraseAll(dbid, key);
-                break;
-            case ReadOperationType::NotFound:
+            }
+
+            if (singlePersisResult != PersistValueToCacheResult::NoError) {
                 break;
             }
         }
-        cacheMap.clear();
+
+        if (singlePersisResult == PersistValueToCacheResult::NoError) {
+            NLog.write(b_sev::info, "About to commit to persisted DB");
+            persistedDB.commitDBTransaction();
+            clearCache_unsafe();
+            NLog.write(b_sev::info, "A flush() in cached DB finish");
+            break;
+        } else if (singlePersisResult == PersistValueToCacheResult::RecoverableError) {
+            // grow the DB again and retry
+            persistedDB.abortDBTransaction();
+            static const int64_t IncrementFactor = 2;
+            if (commitSize > std::numeric_limits<decltype(commitSize)>::max() / IncrementFactor) {
+                NLog.flush();
+                throw std::runtime_error("Unable to resize DB more than " + std::to_string(commitSize) +
+                                         " as it will overflow. Failed to persist data in DB.");
+            }
+            commitSize *= IncrementFactor;
+            NLog.flush();
+            continue;
+        } else {
+            NLog.write(b_sev::err, "Canceling flushing to DB as an unrecoverable error occurred");
+            persistedDB.abortDBTransaction();
+        }
     }
-    NLog.write(b_sev::info, "About to flush to persisted DB");
-    g_cached_db_instance->commitDBTransaction();
-    NLog.write(b_sev::info, "A flush() in cached DB finish");
     approxCacheSize.store(0, boost::memory_order_release);
-    return true;
+    return singlePersisResult == PersistValueToCacheResult::NoError;
 }
 
-boost::optional<bool> DBCacheLayer::flushOnSizePolicy()
+boost::optional<bool> DBCacheLayer::flushOnPolicy()
 {
-    if (flushOnSizeReached == 0) {
-        return boost::none;
+    if (flushOnSizeReached > 0) {
+        if (approxCacheSize.load(boost::memory_order_acquire) > flushOnSizeReached) {
+            bool res = flush();
+            flushCount.fetch_add(res, boost::memory_order_release);
+            return boost::make_optional(res);
+        }
     }
-
-    if (approxCacheSize.load(boost::memory_order_acquire) > flushOnSizeReached) {
-        bool res = flush();
-        flushCount.fetch_add(res, boost::memory_order_release);
-        return boost::make_optional(res);
-    }
-
     return boost::none;
 }
 
 void DBCacheLayer::clearCache()
 {
     std::lock_guard<MutexType> lg(g_cached_db_read_cache_lock);
+    clearCache_unsafe();
+}
+
+void DBCacheLayer::clearCache_unsafe()
+{
     for (auto&& m : g_cached_db_read_cache) {
         m.clear();
     }

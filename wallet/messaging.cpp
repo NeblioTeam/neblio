@@ -13,11 +13,13 @@
 #include "wallet.h"
 #include "wallet_interface.h"
 #include "work.h"
+#include <boost/scope_exit.hpp>
 #include <cstdint>
 #include <map>
 #include <net.h>
 #include <protocol.h>
 #include <set>
+#include <thread>
 #include <txdb.h>
 #include <utility>
 #include <vector>
@@ -927,6 +929,14 @@ bool IsInitialBlockDownload(const ITxDB& txdb)
         return true;
     if (fImporting)
         return true;
+    static boost::atomic_flag spinLock;
+    while (spinLock.test_and_set(boost::memory_order_acquire)) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    BOOST_SCOPE_EXIT(&spinLock) { spinLock.clear(boost::memory_order_release); }
+    BOOST_SCOPE_EXIT_END
+
     static int64_t                      nLastUpdate;
     static boost::optional<CBlockIndex> pindexLastBest;
     const boost::optional<CBlockIndex>  pindexBestPtr = txdb.GetBestBlockIndex();
@@ -950,6 +960,7 @@ bool IsInitialBlockDownload(const ITxDB& txdb)
     if (tooNew) {
         latchToFalse.store(true, std::memory_order_seq_cst);
     }
+
     return tooNew;
 }
 

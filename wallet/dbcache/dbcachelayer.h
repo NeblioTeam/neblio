@@ -5,10 +5,13 @@
 #include "hierarchicaldb.h"
 #include "inmemorydb.h"
 
+class LMDB;
+
 class DBCacheLayer : public IDB
 {
     std::unique_ptr<HierarchicalDB<hdb_dummy_mutex>> tx;
     const int64_t                                    flushOnSizeReached;
+    const boost::filesystem::path* const             dbdir_;
 
 public:
     /**
@@ -39,8 +42,9 @@ public:
     void                                     close() override;
 
     bool                  flush();
-    boost::optional<bool> flushOnSizePolicy();
+    boost::optional<bool> flushOnPolicy();
     void                  clearCache();
+    void                  clearCache_unsafe();
     static uint64_t       GetFlushCount();
 };
 
