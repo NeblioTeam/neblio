@@ -28,8 +28,8 @@ LMDBTransaction::~LMDBTransaction()
         if (m_batch_txn) // this is a batch txn and should have been handled before this point for safety
         {
             NLog.write(b_sev::err,
-                      "WARNING: mdb_txn_safe: m_txn is a batch txn and it's not NULL in destructor - "
-                      "calling mdb_txn_abort()");
+                       "WARNING: mdb_txn_safe: m_txn is a batch txn and it's not NULL in destructor - "
+                       "calling mdb_txn_abort()");
         } else {
             // Example of when this occurs: a lookup fails, so a read-only txn is
             // aborted through this destructor. However, successful read-only txns
@@ -38,7 +38,7 @@ LMDBTransaction::~LMDBTransaction()
             // NOTE: not sure if this is ever reached for a non-batch write
             // transaction, but it's probably not ideal if it did.
             NLog.write(b_sev::err,
-                      "mdb_txn_safe: m_txn not NULL in destructor - calling mdb_txn_abort()");
+                       "mdb_txn_safe: m_txn not NULL in destructor - calling mdb_txn_abort()");
         }
     }
     mdb_txn_abort(m_txn);
@@ -71,7 +71,7 @@ void LMDBTransaction::uncheck()
     m_check = false;
 }
 
-void LMDBTransaction::commit(std::string message)
+int LMDBTransaction::commit(std::string message)
 {
     if (message.size() == 0) {
         message = "Failed to commit a transaction to the db";
@@ -79,9 +79,11 @@ void LMDBTransaction::commit(std::string message)
 
     if (auto result = mdb_txn_commit(m_txn)) {
         m_txn = nullptr;
-        throw std::runtime_error(message + ": " + std::to_string(result));
+        NLog.write(b_sev::err, "{}: {}", message, std::to_string(result));
+        return result;
     }
     m_txn = nullptr;
+    return MDB_SUCCESS;
 }
 
 void LMDBTransaction::commitIfValid(std::string message)

@@ -26,9 +26,9 @@ DBCacheLayer::DBCacheLayer(const boost::filesystem::path* const dbdir, bool star
     DBCacheLayer::openDB(startNewDatabase);
 }
 
-boost::optional<std::string> DBCacheLayer::read(Index dbindex, const std::string& key,
-                                                std::size_t                         offset,
-                                                const boost::optional<std::size_t>& size) const
+Result<boost::optional<std::string>, int>
+DBCacheLayer::read(Index dbindex, const std::string& key, std::size_t offset,
+                   const boost::optional<std::size_t>& size) const
 {
     if (tx) {
         boost::optional<TransactionOperation> txVal = tx->getOp(static_cast<int>(dbindex), key);
@@ -38,14 +38,15 @@ boost::optional<std::string> DBCacheLayer::read(Index dbindex, const std::string
             case WriteOperationType::UniqueSet:
                 if (!txVal->getValues().empty()) {
                     if (size) {
-                        return txVal->getValues().front().substr(offset, *size);
+                        return Ok(
+                            boost::make_optional(txVal->getValues().front().substr(offset, *size)));
                     } else {
-                        return txVal->getValues().front().substr(offset);
+                        return Ok(boost::make_optional(txVal->getValues().front().substr(offset)));
                     }
                 }
                 break;
             case WriteOperationType::Erase:
-                return boost::none;
+                return Ok(boost::optional<std::string>());
             }
         }
     }
@@ -62,17 +63,17 @@ boost::optional<std::string> DBCacheLayer::read(Index dbindex, const std::string
             const DBCachedRead& cache = it->second;
             switch (cache.getOpType()) {
             case ReadOperationType::Erased:
-                return boost::none;
+                return Ok(boost::optional<std::string>());
             case ReadOperationType::NotFound:
-                return boost::none;
+                return Ok(boost::optional<std::string>());
             case ReadOperationType::ValueFound:
                 // values should NEVER be empty... so if it's empty, we refresh the cache to fix the
                 // issue
                 if (!cache.getValues().empty()) {
                     if (size) {
-                        return cache.getValues().front().substr(offset, *size);
+                        return Ok(boost::make_optional(cache.getValues().front().substr(offset, *size)));
                     } else {
-                        return cache.getValues().front().substr(offset);
+                        return Ok(boost::make_optional(cache.getValues().front().substr(offset)));
                     }
                 }
             }
@@ -80,24 +81,27 @@ boost::optional<std::string> DBCacheLayer::read(Index dbindex, const std::string
 
         LMDB persistedDB(dbdir_, false);
 
-        boost::optional<std::string> dVal = persistedDB.read(dbindex, key, 0, boost::none);
-        if (dVal) {
-            g_cached_db_read_cache[static_cast<std::size_t>(dbindex)].insert(
-                std::make_pair(key, DBCachedRead(ReadOperationType::ValueFound, *dVal)));
-            approxCacheSize.fetch_add(dVal->size(), boost::memory_order_relaxed);
-            if (size) {
-                return dVal->substr(offset, *size);
-            } else {
-                return dVal->substr(offset);
+        Result<boost::optional<std::string>, int> rdVal = persistedDB.read(dbindex, key, 0, boost::none);
+        if (rdVal.isOk()) {
+            const boost::optional<std::string>& dVal = rdVal.UNWRAP();
+            if (dVal) {
+                g_cached_db_read_cache[static_cast<std::size_t>(dbindex)].insert(
+                    std::make_pair(key, DBCachedRead(ReadOperationType::ValueFound, *dVal)));
+                approxCacheSize.fetch_add(dVal->size(), boost::memory_order_relaxed);
+                if (size) {
+                    return Ok(boost::make_optional(dVal->substr(offset, *size)));
+                } else {
+                    return Ok(boost::make_optional(dVal->substr(offset)));
+                }
             }
         }
     }
 
-    return boost::none;
+    return Ok(boost::optional<std::string>());
 }
 
-boost::optional<std::vector<std::string>> DBCacheLayer::readMultiple(Index              dbindex,
-                                                                     const std::string& key) const
+Result<std::vector<std::string>, int> DBCacheLayer::readMultiple(Index              dbindex,
+                                                                 const std::string& key) const
 {
     std::vector<std::string> valuesToAppend;
     if (tx) {
@@ -111,7 +115,7 @@ boost::optional<std::vector<std::string>> DBCacheLayer::readMultiple(Index      
                 }
                 break;
             case WriteOperationType::Erase:
-                return boost::make_optional(std::move(valuesToAppend));
+                return Ok(std::move(valuesToAppend));
             }
         }
     }
@@ -128,34 +132,35 @@ boost::optional<std::vector<std::string>> DBCacheLayer::readMultiple(Index      
             const DBCachedRead& cache = it->second;
             switch (cache.getOpType()) {
             case ReadOperationType::Erased:
-                return boost::make_optional(std::move(valuesToAppend));
+                return Ok(std::move(valuesToAppend));
             case ReadOperationType::NotFound:
-                return boost::make_optional(std::move(valuesToAppend));
+                return Ok(std::move(valuesToAppend));
             case ReadOperationType::ValueFound: {
                 std::vector<std::string> result = cache.getValues();
                 result.insert(result.end(), std::make_move_iterator(valuesToAppend.begin()),
                               std::make_move_iterator(valuesToAppend.end()));
-                return result;
+                return Ok(std::move(result));
             }
             }
         }
 
         LMDB persistedDB(dbdir_, false);
 
-        boost::optional<std::vector<std::string>> dVal = persistedDB.readMultiple(dbindex, key);
-        if (dVal) {
+        Result<std::vector<std::string>, int> rdVal = persistedDB.readMultiple(dbindex, key);
+        if (rdVal.isOk()) {
+            std::vector<std::string>& dVal = rdVal.unwrap("");
             g_cached_db_read_cache[static_cast<std::size_t>(dbindex)].insert(
-                std::make_pair(key, DBCachedRead(ReadOperationType::ValueFound, *dVal)));
-            for (const auto& v : *dVal) {
+                std::make_pair(key, DBCachedRead(ReadOperationType::ValueFound, dVal)));
+            for (const auto& v : dVal) {
                 approxCacheSize.fetch_add(v.size(), boost::memory_order_relaxed);
             }
-            dVal->insert(dVal->end(), std::make_move_iterator(valuesToAppend.begin()),
-                         std::make_move_iterator(valuesToAppend.end()));
-            return dVal;
+            dVal.insert(dVal.end(), std::make_move_iterator(valuesToAppend.begin()),
+                        std::make_move_iterator(valuesToAppend.end()));
+            return Ok(std::move(dVal));
         }
     }
 
-    return boost::none;
+    return Err(1);
 }
 
 static void MergeTxDataWithData(std::map<std::string, std::vector<std::string>>& dataMap,
@@ -183,8 +188,7 @@ static void MergeTxDataWithData(std::map<std::string, std::vector<std::string>>&
     }
 }
 
-boost::optional<std::map<std::string, std::vector<std::string>>>
-DBCacheLayer::readAll(Index dbindex) const
+Result<std::map<std::string, std::vector<std::string>>, int> DBCacheLayer::readAll(Index dbindex) const
 {
     std::map<std::string, TransactionOperation> txOps;
     if (tx) {
@@ -193,10 +197,8 @@ DBCacheLayer::readAll(Index dbindex) const
 
     LMDB persistedDB(dbdir_, false);
 
-    auto res = persistedDB.readAll(dbindex);
-    if (!res) {
-        return boost::none;
-    }
+    auto                                             tRes = persistedDB.readAll(dbindex);
+    std::map<std::string, std::vector<std::string>>& res  = tRes.UNWRAP();
 
     BOOST_SCOPE_EXIT(this_) { this_->flushOnPolicy(); }
     BOOST_SCOPE_EXIT_END
@@ -211,11 +213,11 @@ DBCacheLayer::readAll(Index dbindex) const
             switch (cache.getOpType()) {
             case ReadOperationType::ValueFound:
                 if (!cache.getValues().empty()) {
-                    (*res)[key] = cache.getValues();
+                    res[key] = cache.getValues();
                 }
                 break;
             case ReadOperationType::Erased:
-                res->erase(key);
+                res.erase(key);
                 break;
             case ReadOperationType::NotFound:
                 break;
@@ -223,10 +225,10 @@ DBCacheLayer::readAll(Index dbindex) const
         }
 
         // then above it the results from the tx, if any
-        MergeTxDataWithData(*res, std::move(txOps));
+        MergeTxDataWithData(res, std::move(txOps));
     }
 
-    return res;
+    return Ok(std::move(res));
 }
 
 static void MergeTxDataWithData(std::map<std::string, std::string>&           dataMap,
@@ -250,7 +252,7 @@ static void MergeTxDataWithData(std::map<std::string, std::string>&           da
     }
 }
 
-boost::optional<std::map<std::string, std::string>> DBCacheLayer::readAllUnique(Index dbindex) const
+Result<std::map<std::string, std::string>, int> DBCacheLayer::readAllUnique(Index dbindex) const
 {
     std::map<std::string, TransactionOperation> txOps;
     if (tx) {
@@ -258,10 +260,10 @@ boost::optional<std::map<std::string, std::string>> DBCacheLayer::readAllUnique(
     }
 
     LMDB persistedDB(dbdir_, false);
-    auto res = persistedDB.readAllUnique(dbindex);
-    if (!res) {
-        return boost::none;
-    }
+
+    auto tRes = persistedDB.readAllUnique(dbindex);
+
+    std::map<std::string, std::string>& res = tRes.UNWRAP();
 
     BOOST_SCOPE_EXIT(this_) { this_->flushOnPolicy(); }
     BOOST_SCOPE_EXIT_END
@@ -276,11 +278,11 @@ boost::optional<std::map<std::string, std::string>> DBCacheLayer::readAllUnique(
             switch (cache.getOpType()) {
             case ReadOperationType::ValueFound:
                 if (!cache.getValues().empty()) {
-                    (*res)[key] = cache.getValues().front();
+                    res[key] = cache.getValues().front();
                 }
                 break;
             case ReadOperationType::Erased:
-                res->erase(key);
+                res.erase(key);
                 break;
             case ReadOperationType::NotFound:
                 break;
@@ -289,9 +291,9 @@ boost::optional<std::map<std::string, std::string>> DBCacheLayer::readAllUnique(
     }
 
     // then above it the results from the tx, if any
-    MergeTxDataWithData(*res, std::move(txOps));
+    MergeTxDataWithData(res, std::move(txOps));
 
-    return res;
+    return Ok(std::move(res));
 }
 
 void AppendValueToMap(IDB::Index dbindex, const std::string& key, const std::string& value)
@@ -317,13 +319,15 @@ void AppendValueToMap(IDB::Index dbindex, const std::string& key, const std::str
     }
 }
 
-bool DBCacheLayer::write(Index dbindex, const std::string& key, const std::string& value)
+Result<void, int> DBCacheLayer::write(Index dbindex, const std::string& key, const std::string& value)
 {
     if (tx) {
         if (IDB::DuplicateKeysAllowed(dbindex)) {
-            return tx->multi_append(static_cast<int>(dbindex), key, value);
+            return tx->multi_append(static_cast<int>(dbindex), key, value) ? Result<void, int>(Ok())
+                                                                           : Err(1);
         } else {
-            return tx->unique_set(static_cast<int>(dbindex), key, value);
+            return tx->unique_set(static_cast<int>(dbindex), key, value) ? Result<void, int>(Ok())
+                                                                         : Err(1);
         }
     }
 
@@ -345,13 +349,13 @@ bool DBCacheLayer::write(Index dbindex, const std::string& key, const std::strin
         }
     }
 
-    return true;
+    return Ok();
 }
 
-bool DBCacheLayer::erase(Index dbindex, const std::string& key)
+Result<void, int> DBCacheLayer::erase(Index dbindex, const std::string& key)
 {
     if (tx) {
-        return tx->erase(static_cast<int>(dbindex), key);
+        return tx->erase(static_cast<int>(dbindex), key) ? Result<void, int>(Ok()) : Err(1);
     }
 
     std::lock_guard<MutexType> lg(g_cached_db_read_cache_lock);
@@ -360,23 +364,23 @@ bool DBCacheLayer::erase(Index dbindex, const std::string& key)
     g_cached_db_read_cache[static_cast<std::size_t>(dbindex)].insert(
         std::make_pair(key, DBCachedRead(ReadOperationType::Erased, "")));
 
-    return true;
+    return Ok();
 }
 
-bool DBCacheLayer::eraseAll(Index dbindex, const std::string& key)
+Result<void, int> DBCacheLayer::eraseAll(Index dbindex, const std::string& key)
 {
     if (tx) {
-        return tx->erase(static_cast<int>(dbindex), key);
+        return tx->erase(static_cast<int>(dbindex), key) ? Result<void, int>(Ok()) : Err(1);
     }
 
     g_cached_db_read_cache[static_cast<std::size_t>(dbindex)].erase(key);
     g_cached_db_read_cache[static_cast<std::size_t>(dbindex)].insert(
         std::make_pair(key, DBCachedRead(ReadOperationType::Erased, "")));
 
-    return true;
+    return Ok();
 }
 
-bool DBCacheLayer::exists(Index dbindex, const std::string& key) const
+Result<bool, int> DBCacheLayer::exists(Index dbindex, const std::string& key) const
 {
     if (tx) {
         boost::optional<TransactionOperation> txVal = tx->getOp(static_cast<int>(dbindex), key);
@@ -385,11 +389,11 @@ bool DBCacheLayer::exists(Index dbindex, const std::string& key) const
             case WriteOperationType::Append:
             case WriteOperationType::UniqueSet:
                 if (!txVal->getValues().empty()) {
-                    return true;
+                    return Ok(true);
                 }
                 break;
             case WriteOperationType::Erase:
-                return false;
+                return Ok(false);
             }
         }
     }
@@ -406,30 +410,35 @@ bool DBCacheLayer::exists(Index dbindex, const std::string& key) const
             const DBCachedRead& cache = it->second;
             switch (cache.getOpType()) {
             case ReadOperationType::Erased:
-                return false;
+                return Ok(false);
             case ReadOperationType::NotFound:
-                return false;
+                return Ok(false);
             case ReadOperationType::ValueFound:
-                // values should NEVER be empty... so if it's empty, we refresh the cache to fix the
-                // issue
+                // values should never be empty unless duplicates allowed and the vector is empty... so
+                // if it's empty, we refresh the cache to fix the issue
                 if (!cache.getValues().empty()) {
-                    return true;
+                    return Ok(true);
                 }
             }
         }
 
         LMDB persistedDB(dbdir_, false);
 
-        boost::optional<std::string> dVal = persistedDB.read(dbindex, key, 0, boost::none);
-        if (dVal) {
-            g_cached_db_read_cache[static_cast<std::size_t>(dbindex)].insert(
-                std::make_pair(key, DBCachedRead(ReadOperationType::ValueFound, *dVal)));
-            approxCacheSize.fetch_add(dVal->size(), boost::memory_order_relaxed);
-            return true;
+        Result<boost::optional<std::string>, int> rdVal = persistedDB.read(dbindex, key, 0, boost::none);
+        if (rdVal.isOk()) {
+            const boost::optional<std::string>& dVal = rdVal.UNWRAP();
+            if (dVal) {
+                g_cached_db_read_cache[static_cast<std::size_t>(dbindex)].insert(
+                    std::make_pair(key, DBCachedRead(ReadOperationType::ValueFound, *dVal)));
+                approxCacheSize.fetch_add(dVal->size(), boost::memory_order_relaxed);
+                return Ok(true);
+            } else {
+                return Ok(false);
+            }
+        } else {
+            return Err(rdVal.UNWRAP_ERR());
         }
     }
-
-    return false;
 }
 
 void DBCacheLayer::clearDBData()
@@ -438,14 +447,14 @@ void DBCacheLayer::clearDBData()
     LMDB persistedDB(dbdir_, true);
 }
 
-bool DBCacheLayer::beginDBTransaction(std::size_t /*expectedDataSize*/)
+Result<void, int> DBCacheLayer::beginDBTransaction(std::size_t /*expectedDataSize*/)
 {
     if (tx) {
-        return false;
+        return Err(-1);
     }
     tx = std::unique_ptr<HierarchicalDB<decltype(tx)::element_type::MutexT>>(
         new HierarchicalDB<decltype(tx)::element_type::MutexT>(""));
-    return true;
+    return Ok();
 }
 
 template <typename MutexType>
@@ -466,10 +475,10 @@ GetAllTxData(HierarchicalDB<MutexType>* tx)
     return txData;
 }
 
-bool DBCacheLayer::commitDBTransaction()
+Result<void, int> DBCacheLayer::commitDBTransaction()
 {
     if (!tx) {
-        return false;
+        return Err(-1);
     }
 
     std::unique_ptr<HierarchicalDB<decltype(tx)::element_type::MutexT>> movedTx = std::move(tx);
@@ -519,14 +528,11 @@ bool DBCacheLayer::commitDBTransaction()
         }
     }
 
-    return result;
+    return result ? Result<void, int>(Ok()) : Err(-1);
 }
 
 bool DBCacheLayer::abortDBTransaction()
 {
-    if (!tx) {
-        return false;
-    }
     tx.reset();
     return true;
 }
@@ -585,13 +591,29 @@ enum PersistValueToCacheResult
     UnrecoverableError,
 };
 
-#define ReturnIfError(db, action)                                                                       \
+#define ReturnIfError2(db, action, dbidInt, res)                                                        \
+    {                                                                                                   \
+        if (res.isErr()) {                                                                              \
+            const int errVal = res.UNWRAP_ERR();                                                        \
+            NLog.write(b_sev::err,                                                                      \
+                       "Encountered error {} while attempting persist data (in {} "                     \
+                       ") in DBID {}",                                                                  \
+                       errVal, action, dbidInt);                                                        \
+            if (errVal == MDB_MAP_FULL || errVal == MDB_BAD_TXN || errVal == MDB_NOTFOUND) {            \
+                return PersistValueToCacheResult::RecoverableError;                                     \
+            } else {                                                                                    \
+                return PersistValueToCacheResult::UnrecoverableError;                                   \
+            }                                                                                           \
+        }                                                                                               \
+    }
+
+#define ReturnIfError(db, action, dbidInt)                                                              \
     {                                                                                                   \
         if (persistedDB.getLastError() != 0) {                                                          \
             NLog.write(b_sev::err,                                                                      \
                        "Encountered error {} while attempting persist data (in {} "                     \
                        ") in DBID {}",                                                                  \
-                       persistedDB.getLastError(), action, i);                                          \
+                       persistedDB.getLastError(), action, dbidInt);                                    \
             if (persistedDB.getLastError() == MDB_MAP_FULL ||                                           \
                 persistedDB.getLastError() == MDB_BAD_TXN ||                                            \
                 persistedDB.getLastError() == MDB_NOTFOUND) {                                           \
@@ -610,28 +632,33 @@ static PersistValueToCacheResult PersistValueToCache(LMDB& persistedDB, IDB::Ind
     switch (cache.getOpType()) {
     case ReadOperationType::ValueFound:
         // we check if the data exists, if it does, we erase it before rewriting it
-        if (persistedDB.exists(dbid, key)) {
-            ReturnIfError(db, "exists check");
-            if (IDB::DuplicateKeysAllowed(dbid)) {
-                persistedDB.eraseAll(dbid, key);
-            } else {
-                persistedDB.erase(dbid, key);
+        {
+            const Result<bool, int> keyExists = persistedDB.exists(dbid, key);
+            ReturnIfError2(db, "exists check", i, keyExists);
+            if (keyExists.UNWRAP()) {
+                if (IDB::DuplicateKeysAllowed(dbid)) {
+                    const Result<void, int> eraseRes = persistedDB.eraseAll(dbid, key);
+                    ReturnIfError2(db, "erase (1) check", i, eraseRes);
+                } else {
+                    const Result<void, int> eraseRes = persistedDB.erase(dbid, key);
+                    ReturnIfError2(db, "erase (2) check", i, eraseRes);
+                }
             }
-            ReturnIfError(db, "erase (1)");
+            // we rewrite the data
+            for (const auto& val : cache.getValues()) {
+                const Result<void, int> writeRes = persistedDB.write(dbid, key, val);
+                ReturnIfError2(db, "write", i, writeRes);
+            }
+            break;
         }
-        // we rewrite the data
-        for (const auto& val : cache.getValues()) {
-            persistedDB.write(dbid, key, val);
-            ReturnIfError(db, "write");
-        }
-        break;
     case ReadOperationType::Erased:
         if (IDB::DuplicateKeysAllowed(dbid)) {
-            persistedDB.eraseAll(dbid, key);
+            const Result<void, int> eraseRes = persistedDB.eraseAll(dbid, key);
+            ReturnIfError2(db, "erase (3) check", i, eraseRes);
         } else {
-            persistedDB.erase(dbid, key);
+            const Result<void, int> eraseRes = persistedDB.erase(dbid, key);
+            ReturnIfError2(db, "erase (4) check", i, eraseRes);
         }
-        ReturnIfError(db, "erase (2)");
         break;
     case ReadOperationType::NotFound:
         break;
@@ -705,7 +732,6 @@ bool DBCacheLayer::flush() const
             break;
         }
     }
-    approxCacheSize.store(0, boost::memory_order_release);
     return singlePersisResult == PersistValueToCacheResult::NoError;
 }
 

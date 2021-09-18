@@ -23,25 +23,25 @@ public:
     InMemoryDB(const boost::filesystem::path* const /*dbdir*/, bool startNewDatabase);
     InMemoryDB(bool startNewDatabase);
 
-    boost::optional<std::string> read(Index dbindex, const std::string& key, std::size_t offset,
-                                      const boost::optional<std::size_t>& size) const override;
-    boost::optional<std::vector<std::string>> readMultiple(Index              dbindex,
-                                                           const std::string& key) const override;
-    boost::optional<std::map<std::string, std::vector<std::string>>>
-                                                        readAll(Index dbindex) const override;
-    boost::optional<std::map<std::string, std::string>> readAllUnique(Index dbindex) const override;
-    bool write_in_tx(Index dbindex, const std::string& key, const std::string& value);
-    bool write_unsafe(Index dbindex, const std::string& key, const std::string& value);
-    bool write(Index dbindex, const std::string& key, const std::string& value) override;
-    bool erase_unsafe(Index dbindex, const std::string& key);
-    bool erase_in_tx(Index dbindex, const std::string& key);
-    bool erase(Index dbindex, const std::string& key) override;
-    bool eraseAll(Index dbindex, const std::string& key) override;
-    bool exists(Index dbindex, const std::string& key) const override;
-    void clearDBData() override;
-    bool beginDBTransaction(std::size_t expectedDataSize) override;
-    bool commitDBTransaction() override;
-    bool abortDBTransaction() override;
+    Result<boost::optional<std::string>, int>
+                                          read(Index dbindex, const std::string& key, std::size_t offset,
+                                               const boost::optional<std::size_t>& size) const override;
+    Result<std::vector<std::string>, int> readMultiple(Index              dbindex,
+                                                       const std::string& key) const override;
+    Result<std::map<std::string, std::vector<std::string>>, int> readAll(Index dbindex) const override;
+    Result<std::map<std::string, std::string>, int> readAllUnique(Index dbindex) const override;
+    bool              write_in_tx(Index dbindex, const std::string& key, const std::string& value);
+    Result<void, int> write_unsafe(Index dbindex, const std::string& key, const std::string& value);
+    Result<void, int> write(Index dbindex, const std::string& key, const std::string& value) override;
+    Result<void, int> erase_unsafe(Index dbindex, const std::string& key);
+    bool              erase_in_tx(Index dbindex, const std::string& key);
+    Result<void, int> erase(Index dbindex, const std::string& key) override;
+    Result<void, int> eraseAll(Index dbindex, const std::string& key) override;
+    Result<bool, int> exists(Index dbindex, const std::string& key) const override;
+    void              clearDBData() override;
+    Result<void, int> beginDBTransaction(std::size_t expectedDataSize) override;
+    Result<void, int> commitDBTransaction() override;
+    bool              abortDBTransaction() override;
     boost::optional<boost::filesystem::path> getDataDir() const override;
     bool                                     openDB(bool clearDataBeforeOpen) override;
     void                                     close() override;

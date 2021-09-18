@@ -440,8 +440,9 @@ LMDB::LMDB(const boost::filesystem::path* const dbdir, bool startNewDatabase) : 
     LMDB::openDB(startNewDatabase);
 }
 
-boost::optional<std::string> LMDB::read(IDB::Index dbindex, const std::string& key, std::size_t offset,
-                                        const boost::optional<std::size_t>& size) const
+Result<boost::optional<std::string>, int> LMDB::read(IDB::Index dbindex, const std::string& key,
+                                                     std::size_t                         offset,
+                                                     const boost::optional<std::size_t>& size) const
 {
     const MDB_dbi* dbPtr = getDbByIndex(dbindex);
 
@@ -472,13 +473,13 @@ boost::optional<std::string> LMDB::read(IDB::Index dbindex, const std::string& k
         std::string dbgKey = KeyAsString(key, key);
         if (ret == MDB_NOTFOUND) {
             NLog.write(b_sev::debug, "Failed to read lmdb key " + dbgKey + " as it doesn't exist");
+            return Ok(boost::optional<std::string>());
         } else {
             NLog.write(b_sev::err, "Failed to read lmdb key " + dbgKey +
                                        " with an unknown error of code " + std::to_string(ret) +
                                        "; and error: " + std::string(mdb_strerror(ret)));
-            lastError = ret;
         }
-        return boost::none;
+        return Err(ret);
     }
     assert(vS.mv_data != nullptr);
     // offset is never larger than the size
@@ -489,11 +490,11 @@ boost::optional<std::string> LMDB::read(IDB::Index dbindex, const std::string& k
     // the remaining size after the offset can't be larger the remaining string after the offset
     const std::size_t fSize = pSize > vS.mv_size - of ? vS.mv_size - of : pSize;
     std::string       result(static_cast<const char*>(vS.mv_data) + of, fSize);
-    return boost::make_optional(std::move(result));
+    return Ok(boost::make_optional(std::move(result)));
 }
 
-boost::optional<std::vector<std::string>> LMDB::readMultiple(IDB::Index         dbindex,
-                                                             const std::string& key) const
+Result<std::vector<std::string>, int> LMDB::readMultiple(IDB::Index         dbindex,
+                                                         const std::string& key) const
 {
     const MDB_dbi* dbPtr = getDbByIndex(dbindex);
 
@@ -525,7 +526,7 @@ boost::optional<std::vector<std::string>> LMDB::readMultiple(IDB::Index         
     if (auto rc = mdb_cursor_open((!activeBatch ? localTxn : *activeBatch), *dbPtr, &cursorRawPtr)) {
         NLog.write(b_sev::err, "readMultiple: Failed to open lmdb cursor with error code " +
                                    std::to_string(rc) + "; and error: " + std::string(mdb_strerror(rc)));
-        return boost::none;
+        return Err(rc);
     }
 
     std::unique_ptr<MDB_cursor, void (*)(MDB_cursor*)> cursorPtr(cursorRawPtr, [](MDB_cursor* p) {
@@ -544,8 +545,7 @@ boost::optional<std::vector<std::string>> LMDB::readMultiple(IDB::Index         
                                        " does not exist; with an error of code " +
                                        std::to_string(itemRes) +
                                        "; and error: " + std::string(mdb_strerror(itemRes)));
-            lastError = itemRes;
-            return boost::none;
+            return Err(itemRes);
         }
     }
     std::vector<std::string> result;
@@ -567,10 +567,10 @@ boost::optional<std::vector<std::string>> LMDB::readMultiple(IDB::Index         
     } while (itemRes == 0);
 
     cursorPtr.reset();
-    return boost::make_optional(std::move(result));
+    return Ok(std::move(result));
 }
 
-boost::optional<std::map<std::string, std::vector<std::string>>> LMDB::readAll(IDB::Index dbindex) const
+Result<std::map<std::string, std::vector<std::string>>, int> LMDB::readAll(IDB::Index dbindex) const
 {
     const MDB_dbi* dbPtr = getDbByIndex(dbindex);
 
@@ -600,7 +600,7 @@ boost::optional<std::map<std::string, std::vector<std::string>>> LMDB::readAll(I
     if (auto rc = mdb_cursor_open((!activeBatch ? localTxn : *activeBatch), *dbPtr, &cursorRawPtr)) {
         NLog.write(b_sev::err, "LMDB::readAll: Failed to open lmdb cursor with error code " +
                                    std::to_string(rc) + "; and error: " + std::string(mdb_strerror(rc)));
-        return boost::none;
+        return Err(rc);
     }
 
     std::unique_ptr<MDB_cursor, void (*)(MDB_cursor*)> cursorPtr(cursorRawPtr, [](MDB_cursor* p) {
@@ -612,16 +612,12 @@ boost::optional<std::map<std::string, std::vector<std::string>>> LMDB::readAll(I
 
     // read all items in that database
     itemRes = mdb_cursor_get(cursorPtr.get(), &kS, &vS, MDB_FIRST);
-    if (itemRes) {
-        if (itemRes != 0 && itemRes != MDB_NOTFOUND) {
-            NLog.write(
-                b_sev::err,
-                "LMDB::readAll: Cursor does not exist while reading all entries; with an error of "
-                "code " +
-                    std::to_string(itemRes) + "; and error: " + std::string(mdb_strerror(itemRes)));
-            lastError = itemRes;
-            return boost::none;
-        }
+    if (itemRes != 0 && itemRes != MDB_NOTFOUND) {
+        NLog.write(b_sev::err,
+                   "LMDB::readAll: Cursor does not exist while reading all entries; with an error of "
+                   "code " +
+                       std::to_string(itemRes) + "; and error: " + std::string(mdb_strerror(itemRes)));
+        return Err(itemRes);
     }
     std::map<std::string, std::vector<std::string>> result;
     do {
@@ -640,10 +636,10 @@ boost::optional<std::map<std::string, std::vector<std::string>>> LMDB::readAll(I
     } while (itemRes == 0);
 
     cursorPtr.reset();
-    return result;
+    return Ok(std::move(result));
 }
 
-boost::optional<std::map<std::string, std::string>> LMDB::readAllUnique(IDB::Index dbindex) const
+Result<std::map<std::string, std::string>, int> LMDB::readAllUnique(IDB::Index dbindex) const
 {
     const MDB_dbi* dbPtr = getDbByIndex(dbindex);
 
@@ -673,7 +669,7 @@ boost::optional<std::map<std::string, std::string>> LMDB::readAllUnique(IDB::Ind
     if (auto rc = mdb_cursor_open((!activeBatch ? localTxn : *activeBatch), *dbPtr, &cursorRawPtr)) {
         NLog.write(b_sev::err, "LMDB::readAll: Failed to open lmdb cursor with error code " +
                                    std::to_string(rc) + "; and error: " + std::string(mdb_strerror(rc)));
-        return boost::none;
+        return Err(rc);
     }
 
     std::unique_ptr<MDB_cursor, void (*)(MDB_cursor*)> cursorPtr(cursorRawPtr, [](MDB_cursor* p) {
@@ -692,8 +688,7 @@ boost::optional<std::map<std::string, std::string>> LMDB::readAllUnique(IDB::Ind
                 "LMDB::readAll: Cursor does not exist while reading all entries; with an error of "
                 "code " +
                     std::to_string(itemRes) + "; and error: " + std::string(mdb_strerror(itemRes)));
-            lastError = itemRes;
-            return boost::none;
+            return Err(itemRes);
         }
     }
     std::map<std::string, std::string> result;
@@ -713,10 +708,10 @@ boost::optional<std::map<std::string, std::string>> LMDB::readAllUnique(IDB::Ind
     } while (itemRes == 0);
 
     cursorPtr.reset();
-    return result;
+    return Ok(std::move(result));
 }
 
-bool LMDB::write(IDB::Index dbindex, const std::string& key, const std::string& value)
+Result<void, int> LMDB::write(IDB::Index dbindex, const std::string& key, const std::string& value)
 {
     const MDB_dbi* dbPtr = getDbByIndex(dbindex);
 
@@ -764,18 +759,15 @@ bool LMDB::write(IDB::Index dbindex, const std::string& key, const std::string& 
                                        std::to_string(ret) +
                                        "; Error: " + std::string(mdb_strerror(ret)));
         }
-        lastError = ret;
-        return false;
+        return Err(ret);
     }
     localTxn.commitIfValid("Tx while writing");
-    return true;
+    return Ok();
 }
 
-bool LMDB::erase(IDB::Index dbindex, const std::string& key)
+Result<void, int> LMDB::erase(IDB::Index dbindex, const std::string& key)
 {
     const MDB_dbi* dbPtr = getDbByIndex(dbindex);
-    if (!dbPtr)
-        return false;
 
     LMDBTransaction localTxn(false);
     if (!activeBatch) {
@@ -807,20 +799,17 @@ bool LMDB::erase(IDB::Index dbindex, const std::string& key)
             NLog.write(b_sev::err, "Failed to delete entry with key " + dbgKey + " with lmdb; Code " +
                                        std::to_string(ret) +
                                        "; Error message: " + std::string(mdb_strerror(ret)));
-            lastError = ret;
-            return false;
+            return Err(ret);
         }
     }
 
     localTxn.commitIfValid("Tx while erasing");
-    return true;
+    return Ok();
 }
 
-bool LMDB::eraseAll(IDB::Index dbindex, const std::string& key)
+Result<void, int> LMDB::eraseAll(IDB::Index dbindex, const std::string& key)
 {
     const MDB_dbi* dbPtr = getDbByIndex(dbindex);
-    if (!dbPtr)
-        return false;
 
     LMDBTransaction localTxn(false);
     if (!activeBatch) {
@@ -850,7 +839,7 @@ bool LMDB::eraseAll(IDB::Index dbindex, const std::string& key)
     if (auto rc = mdb_cursor_open((!activeBatch ? localTxn : *activeBatch), *dbPtr, &cursorRawPtr)) {
         NLog.write(b_sev::err, "EraseDup: Failed to open lmdb cursor with error code " +
                                    std::to_string(rc) + "; and error: " + std::string(mdb_strerror(rc)));
-        return false;
+        return Err(rc);
     }
 
     std::unique_ptr<MDB_cursor, void (*)(MDB_cursor*)> cursorPtr(cursorRawPtr, [](MDB_cursor* p) {
@@ -866,7 +855,7 @@ bool LMDB::eraseAll(IDB::Index dbindex, const std::string& key)
                                        std::to_string(itemRes) +
                                        "; and error: " + std::string(mdb_strerror(itemRes)));
         }
-        return false;
+        return Err(itemRes);
     }
 
     if (auto ret = mdb_cursor_del(cursorPtr.get(), MDB_NODUPDATA)) {
@@ -875,21 +864,18 @@ bool LMDB::eraseAll(IDB::Index dbindex, const std::string& key)
             NLog.write(b_sev::err, "Failed to delete entry with key " + dbgKey + " with lmdb; Code " +
                                        std::to_string(ret) +
                                        "; Error message: " + std::string(mdb_strerror(ret)));
-            lastError = ret;
-            return false;
+            return Err(ret);
         }
     }
 
     cursorPtr.reset();
     localTxn.commitIfValid("Tx while erasing");
-    return true;
+    return Ok();
 }
 
-bool LMDB::exists(IDB::Index dbindex, const std::string& key) const
+Result<bool, int> LMDB::exists(IDB::Index dbindex, const std::string& key) const
 {
     const MDB_dbi* dbPtr = getDbByIndex(dbindex);
-    if (!dbPtr)
-        return false;
 
     LMDBTransaction localTxn(false);
     if (!activeBatch) {
@@ -918,20 +904,19 @@ bool LMDB::exists(IDB::Index dbindex, const std::string& key) const
     if (auto ret = mdb_get((!activeBatch ? localTxn : *activeBatch), *dbPtr, &kS, &vS)) {
         std::string dbgKey = KeyAsString(key, key);
         if (ret == MDB_NOTFOUND) {
-            return false;
+            return Ok(false);
         } else {
             NLog.write(b_sev::info, "Failed to check whether key " + dbgKey +
                                         " exists with an unknown error of code " + std::to_string(ret) +
                                         "; and error: " + std::string(mdb_strerror(ret)));
-            lastError = ret;
         }
-        return false;
+        return Err(ret);
     } else {
-        return true;
+        return Ok(true);
     }
 }
 
-bool LMDB::beginDBTransaction(std::size_t expectedDataSize)
+Result<void, int> LMDB::beginDBTransaction(std::size_t expectedDataSize)
 {
     assert(activeBatch == nullptr);
     if (need_resize(expectedDataSize)) {
@@ -944,20 +929,22 @@ bool LMDB::beginDBTransaction(std::size_t expectedDataSize)
                                    std::to_string(res) +
                                    "; with error: " + std::string(mdb_strerror(res)));
         activeBatch.reset();
-        lastError = res;
-        return false;
+        return Err(res);
     }
-    return true;
+    return Ok();
 }
 
-bool LMDB::commitDBTransaction()
+Result<void, int> LMDB::commitDBTransaction()
 {
     assert(activeBatch);
     if (activeBatch) {
-        activeBatch->commit();
+        int commitResult = activeBatch->commit();
         activeBatch.reset();
+        if (commitResult != MDB_SUCCESS) {
+            return Err(commitResult);
+        }
     }
-    return true;
+    return Ok();
 }
 
 bool LMDB::abortDBTransaction()

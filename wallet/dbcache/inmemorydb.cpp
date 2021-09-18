@@ -36,8 +36,9 @@ GetAllTxData(HierarchicalDB<MutexType>* tx)
     return txData;
 }
 
-boost::optional<std::string> InMemoryDB::read(Index dbindex, const std::string& key, std::size_t offset,
-                                              const boost::optional<std::size_t>& size) const
+Result<boost::optional<std::string>, int>
+InMemoryDB::read(Index dbindex, const std::string& key, std::size_t offset,
+                 const boost::optional<std::size_t>& size) const
 {
     if (tx) {
         const auto& op = tx->getOp(static_cast<int>(dbindex), key);
@@ -47,14 +48,14 @@ boost::optional<std::string> InMemoryDB::read(Index dbindex, const std::string& 
             case WriteOperationType::Append:
                 if (!op->getValues().empty()) {
                     if (size) {
-                        return op->getValues().front().substr(offset, *size);
+                        return Ok(boost::make_optional(op->getValues().front().substr(offset, *size)));
                     } else {
-                        return op->getValues().front().substr(offset);
+                        return Ok(boost::make_optional(op->getValues().front().substr(offset)));
                     }
                 }
                 break;
             case WriteOperationType::Erase:
-                return boost::none;
+                return Ok(boost::optional<std::string>());
             }
         }
     }
@@ -66,24 +67,24 @@ boost::optional<std::string> InMemoryDB::read(Index dbindex, const std::string& 
 
     auto it_key = kvMap.find(key);
     if (it_key == kvMap.cend()) {
-        return boost::none;
+        return Ok(boost::optional<std::string>());
     }
 
     const std::vector<std::string>& vec = it_key->second;
 
     if (vec.empty()) {
-        return boost::none;
+        return Ok(boost::optional<std::string>());
     }
 
     if (size) {
-        return boost::make_optional(vec.front().substr(offset, *size));
+        return Ok(boost::make_optional(vec.front().substr(offset, *size)));
     } else {
-        return boost::make_optional(vec.front().substr(offset));
+        return Ok(boost::make_optional(vec.front().substr(offset)));
     }
 }
 
-boost::optional<std::vector<std::string>> InMemoryDB::readMultiple(Index              dbindex,
-                                                                   const std::string& key) const
+Result<std::vector<std::string>, int> InMemoryDB::readMultiple(Index              dbindex,
+                                                               const std::string& key) const
 {
     std::vector<std::string> valuesToAppend;
 
@@ -96,7 +97,7 @@ boost::optional<std::vector<std::string>> InMemoryDB::readMultiple(Index        
                 valuesToAppend = op->getValues();
                 break;
             case WriteOperationType::Erase: {
-                return std::vector<std::string>();
+                return Ok(std::vector<std::string>());
             }
             }
             }
@@ -110,7 +111,7 @@ boost::optional<std::vector<std::string>> InMemoryDB::readMultiple(Index        
 
     auto it_key = kvMap.find(key);
     if (it_key == kvMap.cend()) {
-        return boost::make_optional(valuesToAppend);
+        return Ok(std::move(valuesToAppend));
     }
 
     std::vector<std::string> vec = it_key->second;
@@ -118,7 +119,7 @@ boost::optional<std::vector<std::string>> InMemoryDB::readMultiple(Index        
     vec.insert(vec.end(), std::make_move_iterator(valuesToAppend.begin()),
                std::make_move_iterator(valuesToAppend.end()));
 
-    return boost::make_optional(std::move(vec));
+    return Ok(std::move(vec));
 }
 
 static void MergeTxDataWithData(std::map<std::string, std::vector<std::string>>& dataMap,
@@ -145,7 +146,7 @@ static void MergeTxDataWithData(std::map<std::string, std::vector<std::string>>&
     }
 }
 
-boost::optional<std::map<std::string, std::vector<std::string>>> InMemoryDB::readAll(Index dbindex) const
+Result<std::map<std::string, std::vector<std::string>>, int> InMemoryDB::readAll(Index dbindex) const
 {
     std::vector<std::string> valuesToAppend;
 
@@ -163,7 +164,7 @@ boost::optional<std::map<std::string, std::vector<std::string>>> InMemoryDB::rea
 
     MergeTxDataWithData(finalData, std::move(txData));
 
-    return boost::make_optional(std::move(finalData));
+    return Ok(std::move(finalData));
 }
 
 static void MergeTxDataWithData(std::map<std::string, std::string>&           dataMap,
@@ -187,7 +188,7 @@ static void MergeTxDataWithData(std::map<std::string, std::string>&           da
     }
 }
 
-boost::optional<std::map<std::string, std::string>> InMemoryDB::readAllUnique(Index dbindex) const
+Result<std::map<std::string, std::string>, int> InMemoryDB::readAllUnique(Index dbindex) const
 {
     std::map<std::string, TransactionOperation> txData;
     if (tx) {
@@ -209,7 +210,7 @@ boost::optional<std::map<std::string, std::string>> InMemoryDB::readAllUnique(In
 
     MergeTxDataWithData(finalData, std::move(txData));
 
-    return boost::make_optional(finalData);
+    return Ok(finalData);
 }
 
 bool InMemoryDB::write_in_tx(Index dbindex, const std::string& key, const std::string& value)
@@ -224,10 +225,11 @@ bool InMemoryDB::write_in_tx(Index dbindex, const std::string& key, const std::s
     return false;
 }
 
-bool InMemoryDB::write_unsafe(Index dbindex, const std::string& key, const std::string& value)
+Result<void, int> InMemoryDB::write_unsafe(Index dbindex, const std::string& key,
+                                           const std::string& value)
 {
     if (write_in_tx(dbindex, key, value)) {
-        return true;
+        return Ok();
     }
 
     if (IDB::DuplicateKeysAllowed(dbindex)) {
@@ -235,13 +237,13 @@ bool InMemoryDB::write_unsafe(Index dbindex, const std::string& key, const std::
     } else [[likely]] {
         data[static_cast<std::size_t>(dbindex)][key] = std::vector<std::string>(1, value);
     }
-    return true;
+    return Ok();
 }
 
-bool InMemoryDB::write(Index dbindex, const std::string& key, const std::string& value)
+Result<void, int> InMemoryDB::write(Index dbindex, const std::string& key, const std::string& value)
 {
     if (write_in_tx(dbindex, key, value)) {
-        return true;
+        return Ok();
     }
 
     std::lock_guard<MutexType> lg(mtx);
@@ -249,11 +251,11 @@ bool InMemoryDB::write(Index dbindex, const std::string& key, const std::string&
     return write_unsafe(dbindex, key, value);
 }
 
-bool InMemoryDB::erase_unsafe(Index dbindex, const std::string& key)
+Result<void, int> InMemoryDB::erase_unsafe(Index dbindex, const std::string& key)
 {
     data[static_cast<std::size_t>(dbindex)].erase(key);
 
-    return true;
+    return Ok();
 }
 
 bool InMemoryDB::erase_in_tx(Index dbindex, const std::string& key)
@@ -264,10 +266,10 @@ bool InMemoryDB::erase_in_tx(Index dbindex, const std::string& key)
     return false;
 }
 
-bool InMemoryDB::erase(Index dbindex, const std::string& key)
+Result<void, int> InMemoryDB::erase(Index dbindex, const std::string& key)
 {
     if (erase_in_tx(dbindex, key)) {
-        return true;
+        return Ok();
     }
 
     std::lock_guard<MutexType> lg(mtx);
@@ -275,10 +277,10 @@ bool InMemoryDB::erase(Index dbindex, const std::string& key)
     return erase_unsafe(dbindex, key);
 }
 
-bool InMemoryDB::eraseAll(Index dbindex, const std::string& key)
+Result<void, int> InMemoryDB::eraseAll(Index dbindex, const std::string& key)
 {
     if (erase_in_tx(dbindex, key)) {
-        return true;
+        return Ok();
     }
 
     std::lock_guard<MutexType> lg(mtx);
@@ -286,7 +288,7 @@ bool InMemoryDB::eraseAll(Index dbindex, const std::string& key)
     return erase_unsafe(dbindex, key);
 }
 
-bool InMemoryDB::exists(Index dbindex, const std::string& key) const
+Result<bool, int> InMemoryDB::exists(Index dbindex, const std::string& key) const
 {
     if (tx) {
         const auto& op = tx->getOp(static_cast<int>(dbindex), key);
@@ -295,11 +297,11 @@ bool InMemoryDB::exists(Index dbindex, const std::string& key) const
             case WriteOperationType::UniqueSet:
             case WriteOperationType::Append:
                 if (!op->getValues().empty()) {
-                    return true;
+                    return Ok(true);
                 }
                 break;
             case WriteOperationType::Erase:
-                return false;
+                return Ok(false);
             }
         }
     }
@@ -311,10 +313,10 @@ bool InMemoryDB::exists(Index dbindex, const std::string& key) const
 
     auto it_key = kvMap.find(key);
     if (it_key == kvMap.cend()) {
-        return false;
+        return Ok(false);
     }
 
-    return true;
+    return Ok(true);
 }
 
 void InMemoryDB::clearDBData()
@@ -326,20 +328,20 @@ void InMemoryDB::clearDBData()
     }
 }
 
-bool InMemoryDB::beginDBTransaction(std::size_t /*expectedDataSize*/)
+Result<void, int> InMemoryDB::beginDBTransaction(std::size_t /*expectedDataSize*/)
 {
     if (tx) {
-        return false;
+        return Err(-1);
     }
     tx = std::unique_ptr<HierarchicalDB<decltype(tx)::element_type::MutexT>>(
         new HierarchicalDB<decltype(tx)::element_type::MutexT>(""));
-    return true;
+    return Ok();
 }
 
-bool InMemoryDB::commitDBTransaction()
+Result<void, int> InMemoryDB::commitDBTransaction()
 {
     if (!tx) {
-        return false;
+        return Err(-1);
     }
 
     std::unique_ptr<HierarchicalDB<decltype(tx)::element_type::MutexT>> movedTx = std::move(tx);
@@ -362,28 +364,25 @@ bool InMemoryDB::commitDBTransaction()
             switch (op.getOpType()) {
             case WriteOperationType::Append:
                 for (const auto& val : op.getValues()) {
-                    result = result && write_unsafe(dbid, key, val);
+                    result = result && write_unsafe(dbid, key, val).isOk();
                 }
                 break;
             case WriteOperationType::UniqueSet:
                 if (!op.getValues().empty()) {
-                    result = result && write_unsafe(dbid, key, op.getValues().front());
+                    result = result && write_unsafe(dbid, key, op.getValues().front()).isOk();
                 }
                 break;
             case WriteOperationType::Erase:
-                result = result && erase_unsafe(dbid, key);
+                result = result && erase_unsafe(dbid, key).isOk();
                 break;
             }
         }
     }
-    return result;
+    return result ? Result<void, int>(Ok()) : Err(-1);
 }
 
 bool InMemoryDB::abortDBTransaction()
 {
-    if (!tx) {
-        return false;
-    }
     tx.reset();
     return true;
 }

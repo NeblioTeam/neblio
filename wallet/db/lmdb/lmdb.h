@@ -77,30 +77,28 @@ class LMDB : public IDB
     // field is non-NULL, writes/deletes go there instead of directly to disk.
     std::unique_ptr<LMDBTransaction> activeBatch;
 
-    mutable int lastError = 0;
-
 public:
     LMDB(const boost::filesystem::path* const dbdir, bool startNewDatabase);
 
-    int getLastError() { return lastError; }
-
     void clearDBData() override;
 
-    boost::optional<std::string> read(IDB::Index dbindex, const std::string& key, std::size_t offset,
-                                      const boost::optional<std::size_t>& size) const override;
-    boost::optional<std::vector<std::string>> readMultiple(IDB::Index         dbindex,
-                                                           const std::string& key) const override;
-    boost::optional<std::map<std::string, std::vector<std::string>>>
-                                                        readAll(IDB::Index dbindex) const override;
-    boost::optional<std::map<std::string, std::string>> readAllUnique(IDB::Index dbindex) const override;
-    bool write(IDB::Index dbindex, const std::string& key, const std::string& value) override;
-    bool erase(IDB::Index dbindex, const std::string& key) override;
-    bool eraseAll(IDB::Index dbindex, const std::string& key) override;
-    bool exists(IDB::Index dbindex, const std::string& key) const override;
-    bool beginDBTransaction(std::size_t expectedDataSize) override;
-    bool commitDBTransaction() override;
-    bool abortDBTransaction() override;
-    bool openDB(bool clearDataBeforeOpen) override;
+    Result<boost::optional<std::string>, int>
+    read(IDB::Index dbindex, const std::string& key, std::size_t offset,
+         const boost::optional<std::size_t>& size) const override;
+    Result<std::vector<std::string>, int> readMultiple(IDB::Index         dbindex,
+                                                       const std::string& key) const override;
+    Result<std::map<std::string, std::vector<std::string>>, int>
+                                                    readAll(IDB::Index dbindex) const override;
+    Result<std::map<std::string, std::string>, int> readAllUnique(IDB::Index dbindex) const override;
+    Result<void, int>                               write(IDB::Index dbindex, const std::string& key,
+                                                          const std::string& value) override;
+    Result<void, int> erase(IDB::Index dbindex, const std::string& key) override;
+    Result<void, int> eraseAll(IDB::Index dbindex, const std::string& key) override;
+    Result<bool, int> exists(IDB::Index dbindex, const std::string& key) const override;
+    Result<void, int> beginDBTransaction(std::size_t expectedDataSize) override;
+    Result<void, int> commitDBTransaction() override;
+    bool              abortDBTransaction() override;
+    bool              openDB(bool clearDataBeforeOpen) override;
 
     boost::optional<boost::filesystem::path> getDataDir() const override;
 

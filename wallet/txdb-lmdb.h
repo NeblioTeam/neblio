@@ -104,13 +104,21 @@ protected:
             return false;
         }
 
-        const boost::optional<std::string> res = db->read(dbindex, *ssKey, offset, boost::none);
-        if (!res) {
+        const Result<boost::optional<std::string>, int> res =
+            db->read(dbindex, *ssKey, offset, boost::none);
+
+        if (!res.isOk()) {
+            return false;
+        }
+
+        const boost::optional<std::string>& rVal = res.UNWRAP();
+
+        if (!rVal) {
             return false;
         }
 
         try {
-            CDataStream ssValue(res->c_str(), res->c_str() + res->size(),
+            CDataStream ssValue(rVal->c_str(), rVal->c_str() + rVal->size(),
                                 SER_DISK | serializationTypeModifiers, CLIENT_VERSION);
             ssValue >> value;
             return true;
@@ -135,11 +143,12 @@ protected:
             return false;
         }
 
-        const boost::optional<std::vector<std::string>> res = db->readMultiple(dbindex, *ssKey);
-        if (!res) {
+        const Result<std::vector<std::string>, int> res = db->readMultiple(dbindex, *ssKey);
+        if (res.isErr()) {
             return false;
         }
-        for (const auto& v : *res) {
+
+        for (const auto& v : res.UNWRAP()) {
             const std::string& valStr = v;
             try {
                 T value;
@@ -165,15 +174,14 @@ protected:
     template <typename K, typename T, template <typename, typename = std::allocator<T>> class Container>
     bool ReadMultipleWithKeys(std::map<K, Container<T>>& values, IDB::Index dbindex) const
     {
-        const boost::optional<std::map<std::string, std::vector<std::string>>> resStr =
-            db->readAll(dbindex);
+        const Result<std::map<std::string, std::vector<std::string>>, int> resStr = db->readAll(dbindex);
 
-        if (!resStr) {
+        if (!resStr.isOk()) {
             return false;
         }
 
         // deserialize retrieved values
-        for (const auto& r : *resStr) {
+        for (const auto& r : resStr.UNWRAP()) {
             const auto& key = r.first;
             for (const auto& v : r.second) {
                 const std::string& valStr = v;
@@ -213,7 +221,7 @@ protected:
             return false;
         }
 
-        return db->write(dbindex, *ssKey, *ssValue);
+        return db->write(dbindex, *ssKey, *ssValue).isOk();
     }
 
     template <typename K>
@@ -224,7 +232,7 @@ protected:
             return false;
         }
 
-        return db->erase(dbindex, *ssKey);
+        return db->erase(dbindex, *ssKey).isOk();
     }
 
     template <typename K>
@@ -235,7 +243,7 @@ protected:
             return false;
         }
 
-        return db->eraseAll(dbindex, *ssKey);
+        return db->eraseAll(dbindex, *ssKey).isOk();
     }
 
     template <typename K>
@@ -246,7 +254,7 @@ protected:
             return false;
         }
 
-        return db->exists(dbindex, *ssKey);
+        return db->exists(dbindex, *ssKey).unwrapOr(false);
     }
 
 public:
