@@ -5,8 +5,10 @@
 #include "util.h"
 #include <boost/atomic.hpp>
 
-std::array<std::map<std::string, DBCachedRead>, static_cast<std::size_t>(IDB::Index::Index_Last)>
-    g_cached_db_read_cache;
+using ReadCacheMapsType = std::array<std::unordered_map<std::string, DBCachedRead>,
+                                     static_cast<std::size_t>(IDB::Index::Index_Last)>;
+
+ReadCacheMapsType g_cached_db_read_cache;
 
 using MutexType = std::mutex;
 MutexType g_cached_db_read_cache_lock;
@@ -621,7 +623,7 @@ bool DBCacheLayer::flush()
     int64_t commitSize = 2 * std::max(static_cast<std::uintmax_t>(flushOnSizeReached), sizeToAdd);
 
     for (int c = 0; c < MAX_RETRIES; c++) {
-        NLog.write(b_sev::info, "Attempt {} to persist data from cache to DB with size: {}", c,
+        NLog.write(b_sev::info, "Attempt {} to persist da8ta from cache to DB with size: {}", c,
                    sizeToAdd);
 
         LMDB persistedDB(dbdir_, false);
@@ -631,8 +633,8 @@ bool DBCacheLayer::flush()
         persistedDB.beginDBTransaction(commitSize);
 
         for (std::size_t i = 0; i < g_cached_db_read_cache.size(); i++) {
-            const IDB::Index                           dbid     = static_cast<IDB::Index>(i);
-            const std::map<std::string, DBCachedRead>& cacheMap = g_cached_db_read_cache[i];
+            const IDB::Index                     dbid     = static_cast<IDB::Index>(i);
+            const ReadCacheMapsType::value_type& cacheMap = g_cached_db_read_cache[i];
             for (auto&& cachePair : cacheMap) {
                 auto&& key   = cachePair.first;
                 auto&& cache = cachePair.second;
@@ -667,8 +669,9 @@ bool DBCacheLayer::flush()
             NLog.flush();
             continue;
         } else {
-            NLog.write(b_sev::err, "Canceling flushing to DB as an unrecoverable error occurred");
+            NLog.write(b_sev::critical, "Canceling flushing to DB as an unrecoverable error occurred");
             persistedDB.abortDBTransaction();
+            break;
         }
     }
     approxCacheSize.store(0, boost::memory_order_release);
