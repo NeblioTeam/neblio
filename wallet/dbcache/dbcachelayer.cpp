@@ -563,7 +563,8 @@ enum PersistValueToCacheResult
                        ") in DBID {}",                                                                  \
                        persistedDB.getLastError(), action, i);                                          \
             if (persistedDB.getLastError() == MDB_MAP_FULL ||                                           \
-                persistedDB.getLastError() == MDB_BAD_TXN) {                                            \
+                persistedDB.getLastError() == MDB_BAD_TXN ||                                            \
+                persistedDB.getLastError() == MDB_NOTFOUND) {                                           \
                 return PersistValueToCacheResult::RecoverableError;                                     \
             } else {                                                                                    \
                 return PersistValueToCacheResult::UnrecoverableError;                                   \
