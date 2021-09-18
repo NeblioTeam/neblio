@@ -802,12 +802,14 @@ bool LMDB::erase(IDB::Index dbindex, const std::string& key)
     MDB_val vS{0, nullptr};
 
     if (auto ret = mdb_del((!activeBatch ? localTxn : *activeBatch), *dbPtr, &kS, &vS)) {
-        const std::string dbgKey = KeyAsString(key, key);
-        NLog.write(b_sev::err, "Failed to delete entry with key " + dbgKey + " with lmdb; Code " +
-                                   std::to_string(ret) +
-                                   "; Error message: " + std::string(mdb_strerror(ret)));
-        lastError = ret;
-        return false;
+        if (ret != MDB_NOTFOUND) {
+            const std::string dbgKey = KeyAsString(key, key);
+            NLog.write(b_sev::err, "Failed to delete entry with key " + dbgKey + " with lmdb; Code " +
+                                       std::to_string(ret) +
+                                       "; Error message: " + std::string(mdb_strerror(ret)));
+            lastError = ret;
+            return false;
+        }
     }
 
     localTxn.commitIfValid("Tx while erasing");
