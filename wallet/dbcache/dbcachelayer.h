@@ -41,10 +41,10 @@ public:
     bool                                     openDB(bool clearDataBeforeOpen) override;
     void                                     close() override;
 
-    bool                  flush();
-    boost::optional<bool> flushOnPolicy();
+    bool                  flush() const;
+    boost::optional<bool> flushOnPolicy() const;
     void                  clearCache();
-    void                  clearCache_unsafe();
+    void                  clearCache_unsafe() const;
     static uint64_t       GetFlushCount();
 };
 
