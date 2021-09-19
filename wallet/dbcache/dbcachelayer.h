@@ -41,7 +41,7 @@ public:
     bool                                     openDB(bool clearDataBeforeOpen) override;
     void                                     close() override;
 
-    bool                  flush() const;
+    bool                  flush(const boost::optional<uint64_t>& commitSizeIn = boost::none) const;
     boost::optional<bool> flushOnPolicy() const;
     void                  clearCache();
     void                  clearCache_unsafe() const;

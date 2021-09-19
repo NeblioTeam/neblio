@@ -48,6 +48,7 @@ class DBTestsFixture : public ::testing::TestWithParam<DBTypes>
         if (GetParam() == DBTypes::DB_Cached) {
             std::cout << "DBCacheLayer flush count: " << DBCacheLayer::GetFlushCount() << std::endl;
         }
+        NLog.flush();
     }
 };
 
@@ -956,6 +957,104 @@ TEST_P(DBTestsFixture, read_write_multiple_with_db_transaction_committed)
     BOOST_SCOPE_EXIT_END
 
     TestReadMultipleAndRealAllWithTx(db.get(), data, true, false);
+}
+
+void TestCachedVsUncachedDataEquality(DBCacheLayer* db, InMemoryDB* memdb)
+{
+    for (int i = 0; i < static_cast<int>(IDB::Index::Index_Last); i++) {
+        Result<std::map<std::string, std::vector<std::string>>, int> persistedData =
+            db->readAll(static_cast<IDB::Index>(i));
+        Result<std::map<std::string, std::vector<std::string>>, int> inMemData =
+            memdb->readAll(static_cast<IDB::Index>(i));
+
+        ASSERT_TRUE(persistedData.isOk());
+        ASSERT_TRUE(inMemData.isOk());
+        ASSERT_EQ(persistedData.UNWRAP().size(), inMemData.UNWRAP().size());
+
+        // compare every key/value pair of the retrieved data
+        for (auto&& kv : persistedData.UNWRAP()) {
+            // every key in persistedData is expected to be in inMemData
+            auto it = inMemData.UNWRAP().find(kv.first);
+            ASSERT_FALSE(it == inMemData.UNWRAP().cend());
+
+            // sort both data to make sure they're comparable
+            std::sort(it->second.begin(), it->second.end());
+            it->second.erase(std::unique(it->second.begin(), it->second.end()), it->second.end());
+            std::sort(kv.second.begin(), kv.second.end());
+            kv.second.erase(std::unique(kv.second.begin(), kv.second.end()), kv.second.end());
+
+            EXPECT_EQ(it->first, kv.first);
+            EXPECT_EQ(it->second, kv.second);
+        }
+    }
+}
+
+TEST(DBTestsFixture, big_cache_flush)
+{
+    const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
+
+    std::unique_ptr<DBCacheLayer> db    = MakeUnique<DBCacheLayer>(&p, true, 0);
+    std::unique_ptr<InMemoryDB>   memdb = MakeUnique<InMemoryDB>(&p, true);
+
+    BOOST_SCOPE_EXIT(&db) { db->close(); }
+    BOOST_SCOPE_EXIT_END
+
+    static const std::uintmax_t MaxDataSizeToWrite = 1 << 30;
+
+    std::uintmax_t TotalDataWritten = 0;
+
+    static const std::size_t MAX_ENTRIES_PER_KEY = 100;
+    static const std::size_t MAX_VALUE_LENGTH    = 10000;
+    static const std::size_t MAX_VALUE_LENGTH_FOR_DUP =
+        508; // bigger size seems to create error: MDB_BAD_VALSIZE
+    static const std::size_t MAX_KEY_LENGTH = 500;
+
+    while (TotalDataWritten < MaxDataSizeToWrite) {
+        const int        dbid_int = rand() % static_cast<int>(IDB::Index::Index_Last);
+        const IDB::Index dbid     = static_cast<IDB::Index>(dbid_int);
+
+        if (IDB::DuplicateKeysAllowed(dbid)) {
+            const std::size_t  entry_count_per_key = 1 + rand() % MAX_ENTRIES_PER_KEY;
+            const std::size_t  value_length        = 1 + rand() % MAX_VALUE_LENGTH_FOR_DUP;
+            const std::size_t  key_length          = 1 + rand() % MAX_KEY_LENGTH;
+            const std::string& key                 = RandomString(key_length);
+
+            TotalDataWritten += key.size();
+
+            for (std::size_t i = 0; i < entry_count_per_key; i++) {
+                const std::size_t val_length = 1 + rand() % value_length;
+                const std::string value      = RandomString(val_length);
+                ASSERT_TRUE(db->write(dbid, key, value).isOk());
+                ASSERT_TRUE(memdb->write(dbid, key, value).isOk());
+
+                TotalDataWritten += value.size();
+            }
+        } else {
+            const std::size_t  value_length = 1 + rand() % MAX_VALUE_LENGTH;
+            const std::size_t  key_length   = 1 + rand() % MAX_KEY_LENGTH;
+            const std::string& key          = RandomString(key_length);
+            const std::size_t  val_length   = rand() % value_length;
+            const std::string  value        = RandomString(val_length);
+            ASSERT_TRUE(db->write(dbid, key, value).isOk());
+            ASSERT_TRUE(memdb->write(dbid, key, value).isOk());
+
+            TotalDataWritten += key.size();
+            TotalDataWritten += value.size();
+        }
+    }
+
+    // ensure no flushes happened so far, because we'll flush later
+    ASSERT_EQ(db->GetFlushCount(), 0u);
+
+    TestCachedVsUncachedDataEquality(db.get(), memdb.get());
+
+    // we disable data size estimate to trigger multiple LMDB database resizes to test them
+    ASSERT_TRUE(db->flush(1 << 22));
+    ASSERT_EQ(db->GetFlushCount(), 1u);
+    db->clearCache(); // ensure nothing is left in the cache
+
+    // now we check again after the flush
+    TestCachedVsUncachedDataEquality(db.get(), memdb.get());
 }
 
 TEST(db_quicksync_tests, download_index_file)

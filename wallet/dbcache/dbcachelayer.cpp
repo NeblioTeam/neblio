@@ -591,7 +591,7 @@ enum PersistValueToCacheResult
     UnrecoverableError,
 };
 
-#define ReturnIfError2(db, action, dbidInt, res)                                                        \
+#define ReturnIfError(db, action, dbidInt, res)                                                         \
     {                                                                                                   \
         if (res.isErr()) {                                                                              \
             const int errVal = res.UNWRAP_ERR();                                                        \
@@ -600,23 +600,6 @@ enum PersistValueToCacheResult
                        ") in DBID {}",                                                                  \
                        errVal, action, dbidInt);                                                        \
             if (errVal == MDB_MAP_FULL || errVal == MDB_BAD_TXN || errVal == MDB_NOTFOUND) {            \
-                return PersistValueToCacheResult::RecoverableError;                                     \
-            } else {                                                                                    \
-                return PersistValueToCacheResult::UnrecoverableError;                                   \
-            }                                                                                           \
-        }                                                                                               \
-    }
-
-#define ReturnIfError(db, action, dbidInt)                                                              \
-    {                                                                                                   \
-        if (persistedDB.getLastError() != 0) {                                                          \
-            NLog.write(b_sev::err,                                                                      \
-                       "Encountered error {} while attempting persist data (in {} "                     \
-                       ") in DBID {}",                                                                  \
-                       persistedDB.getLastError(), action, dbidInt);                                    \
-            if (persistedDB.getLastError() == MDB_MAP_FULL ||                                           \
-                persistedDB.getLastError() == MDB_BAD_TXN ||                                            \
-                persistedDB.getLastError() == MDB_NOTFOUND) {                                           \
                 return PersistValueToCacheResult::RecoverableError;                                     \
             } else {                                                                                    \
                 return PersistValueToCacheResult::UnrecoverableError;                                   \
@@ -634,30 +617,30 @@ static PersistValueToCacheResult PersistValueToCache(LMDB& persistedDB, IDB::Ind
         // we check if the data exists, if it does, we erase it before rewriting it
         {
             const Result<bool, int> keyExists = persistedDB.exists(dbid, key);
-            ReturnIfError2(db, "exists check", i, keyExists);
+            ReturnIfError(db, "exists check", i, keyExists);
             if (keyExists.UNWRAP()) {
                 if (IDB::DuplicateKeysAllowed(dbid)) {
                     const Result<void, int> eraseRes = persistedDB.eraseAll(dbid, key);
-                    ReturnIfError2(db, "erase (1) check", i, eraseRes);
+                    ReturnIfError(db, "erase (1) check", i, eraseRes);
                 } else {
                     const Result<void, int> eraseRes = persistedDB.erase(dbid, key);
-                    ReturnIfError2(db, "erase (2) check", i, eraseRes);
+                    ReturnIfError(db, "erase (2) check", i, eraseRes);
                 }
             }
             // we rewrite the data
             for (const auto& val : cache.getValues()) {
                 const Result<void, int> writeRes = persistedDB.write(dbid, key, val);
-                ReturnIfError2(db, "write", i, writeRes);
+                ReturnIfError(db, "write", i, writeRes);
             }
             break;
         }
     case ReadOperationType::Erased:
         if (IDB::DuplicateKeysAllowed(dbid)) {
             const Result<void, int> eraseRes = persistedDB.eraseAll(dbid, key);
-            ReturnIfError2(db, "erase (3) check", i, eraseRes);
+            ReturnIfError(db, "erase (3) check", i, eraseRes);
         } else {
             const Result<void, int> eraseRes = persistedDB.erase(dbid, key);
-            ReturnIfError2(db, "erase (4) check", i, eraseRes);
+            ReturnIfError(db, "erase (4) check", i, eraseRes);
         }
         break;
     case ReadOperationType::NotFound:
@@ -667,7 +650,7 @@ static PersistValueToCacheResult PersistValueToCache(LMDB& persistedDB, IDB::Ind
     return PersistValueToCacheResult::NoError;
 }
 
-bool DBCacheLayer::flush() const
+bool DBCacheLayer::flush(const boost::optional<uint64_t>& commitSizeIn) const
 {
     NLog.write(b_sev::info, "Starting flush to persisted DB");
     std::lock_guard<MutexType> lg(g_cached_db_read_cache_lock);
@@ -677,18 +660,28 @@ bool DBCacheLayer::flush() const
 
     PersistValueToCacheResult singlePersisResult = PersistValueToCacheResult::NoError;
 
-    const std::uintmax_t sizeToAdd = 2 * CalculateTotalDataSize_unsafe();
+    const std::uintmax_t sizeToAdd = [&]() {
+        if (!commitSizeIn)
+            return 2 * CalculateTotalDataSize_unsafe();
+        else
+            return static_cast<std::uintmax_t>(*commitSizeIn);
+    }();
     int64_t commitSize = 2 * std::max(static_cast<std::uintmax_t>(flushOnSizeReached), sizeToAdd);
 
     for (int c = 0; c < MAX_RETRIES; c++) {
-        NLog.write(b_sev::info, "Attempt {} to persist da8ta from cache to DB with size: {}", c,
+        NLog.write(b_sev::info, "Attempt {} to persist data from cache to DB with size: {}", c,
                    sizeToAdd);
 
         LMDB persistedDB(dbdir_, false);
 
         singlePersisResult = PersistValueToCacheResult::NoError;
 
-        persistedDB.beginDBTransaction(commitSize);
+        const Result<void, int> dbBeginRes = persistedDB.beginDBTransaction(commitSize);
+        if (dbBeginRes.isErr()) {
+            NLog.write(b_sev::critical, "Failed to start DB transaction with error code: {}",
+                       dbBeginRes.UNWRAP_ERR());
+            continue;
+        }
 
         for (std::size_t i = 0; i < g_cached_db_read_cache.size(); i++) {
             const IDB::Index                     dbid     = static_cast<IDB::Index>(i);
@@ -732,6 +725,7 @@ bool DBCacheLayer::flush() const
             break;
         }
     }
+    flushCount.fetch_add(1, boost::memory_order_release);
     return singlePersisResult == PersistValueToCacheResult::NoError;
 }
 
@@ -740,7 +734,6 @@ boost::optional<bool> DBCacheLayer::flushOnPolicy() const
     if (flushOnSizeReached > 0) {
         if (approxCacheSize.load(boost::memory_order_acquire) > flushOnSizeReached) {
             bool res = flush();
-            flushCount.fetch_add(res, boost::memory_order_release);
             return boost::make_optional(res);
         }
     }
