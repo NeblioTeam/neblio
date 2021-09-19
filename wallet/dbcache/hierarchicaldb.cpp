@@ -344,8 +344,8 @@ bool HierarchicalDB<MutexType>::multi_append(int dbid, const std::string& key, c
     HierarchicalDB* instance       = instanceLocked.first;
 
     // we find the key
-    auto it = data[dbid].find(key);
-    if (it == data[dbid].end()) {
+    auto it = instance->data[dbid].find(key);
+    if (it == instance->data[dbid].end()) {
         // key doesn't exist, let's add it
         instance->data[dbid].insert(
             std::make_pair(key, TransactionOperation(WriteOperationType::Append, value)));
