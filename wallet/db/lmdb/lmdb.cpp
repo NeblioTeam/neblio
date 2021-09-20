@@ -165,6 +165,7 @@ int lmdb_txn_begin(MDB_env* env, MDB_txn* parent, unsigned int flags, LMDBTransa
     int res = mdb_txn_begin(env, parent, flags, txn);
     if (res == MDB_MAP_RESIZED) {
         {
+            NLog.write(b_sev::warn, "Warning: MDB_MAP_RESIZED detected.");
             LMDBTransaction::increment_txns(txn.isChecked() ? -1 : 0);
             BOOST_SCOPE_EXIT(&txn) { LMDBTransaction::increment_txns(txn.isChecked() ? 1 : 0); }
             BOOST_SCOPE_EXIT_END
