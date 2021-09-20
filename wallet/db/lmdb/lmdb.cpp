@@ -11,16 +11,16 @@ std::unique_ptr<MDB_env, void (*)(MDB_env*)> dbEnv(nullptr, [](MDB_env*) {});
 
 std::unique_ptr<__lmdb_db_pointers> glob_lmdb_db_pointers;
 
-const std::string LMDB_MAINDB           = "MainDb";
-const std::string LMDB_BLOCKINDEXDB     = "BlockIndexDb";
-const std::string LMDB_BLOCKSDB         = "BlocksDb";
-const std::string LMDB_TXDB             = "TxDb";
-const std::string LMDB_NTP1TXDB         = "Ntp1txDb";
-const std::string LMDB_NTP1TOKENNAMESDB = "Ntp1NamesDb";
-const std::string LMDB_ADDRSVSPUBKEYSDB = "AddrsVsPubKeysDb";
-const std::string LMDB_BLOCKMETADATADB  = "BlockMetadataDb";
-const std::string LMDB_BLOCKHEIGHTSDB   = "BlockHeightsDB";
-const std::string LMDB_STAKESDB         = "StakesDB";
+const char* LMDB_MAINDB           = "MainDb";
+const char* LMDB_BLOCKINDEXDB     = "BlockIndexDb";
+const char* LMDB_BLOCKSDB         = "BlocksDb";
+const char* LMDB_TXDB             = "TxDb";
+const char* LMDB_NTP1TXDB         = "Ntp1txDb";
+const char* LMDB_NTP1TOKENNAMESDB = "Ntp1NamesDb";
+const char* LMDB_ADDRSVSPUBKEYSDB = "AddrsVsPubKeysDb";
+const char* LMDB_BLOCKMETADATADB  = "BlockMetadataDb";
+const char* LMDB_BLOCKHEIGHTSDB   = "BlockHeightsDB";
+const char* LMDB_STAKESDB         = "StakesDB";
 
 namespace {
 
@@ -160,11 +160,16 @@ void lmdb_resized(MDB_env* env)
     NLog.write(b_sev::info, ss.str());
 }
 
-int lmdb_txn_begin(MDB_env* env, MDB_txn* parent, unsigned int flags, MDB_txn** txn)
+int lmdb_txn_begin(MDB_env* env, MDB_txn* parent, unsigned int flags, LMDBTransaction& txn)
 {
     int res = mdb_txn_begin(env, parent, flags, txn);
     if (res == MDB_MAP_RESIZED) {
-        lmdb_resized(env);
+        {
+            LMDBTransaction::increment_txns(txn.isChecked() ? -1 : 0);
+            BOOST_SCOPE_EXIT(&txn) { LMDBTransaction::increment_txns(txn.isChecked() ? 1 : 0); }
+            BOOST_SCOPE_EXIT_END
+            lmdb_resized(env);
+        }
         res = mdb_txn_begin(env, parent, flags, txn);
     }
     return res;
@@ -298,27 +303,26 @@ void LMDB::openDatabase(const boost::filesystem::path& directory, bool clearDBBe
     glob_lmdb_db_pointers->db_stakes         = DbSmartPtrType(new MDB_dbi, dbDeleter);
 
     // MDB_CREATE: Create the named database if it doesn't exist.
-    lmdb_db_open(txn, LMDB_MAINDB.c_str(), MDB_CREATE, *glob_lmdb_db_pointers->db_main,
+    lmdb_db_open(txn, LMDB_MAINDB, MDB_CREATE, *glob_lmdb_db_pointers->db_main,
                  "Failed to open db handle for db_main");
-    lmdb_db_open(txn, LMDB_BLOCKINDEXDB.c_str(), MDB_CREATE, *glob_lmdb_db_pointers->db_blockIndex,
+    lmdb_db_open(txn, LMDB_BLOCKINDEXDB, MDB_CREATE, *glob_lmdb_db_pointers->db_blockIndex,
                  "Failed to open db handle for db_blockIndex");
-    lmdb_db_open(txn, LMDB_BLOCKSDB.c_str(), MDB_CREATE, *glob_lmdb_db_pointers->db_blocks,
+    lmdb_db_open(txn, LMDB_BLOCKSDB, MDB_CREATE, *glob_lmdb_db_pointers->db_blocks,
                  "Failed to open db handle for db_blocks");
-    lmdb_db_open(txn, LMDB_TXDB.c_str(), MDB_CREATE, *glob_lmdb_db_pointers->db_tx,
+    lmdb_db_open(txn, LMDB_TXDB, MDB_CREATE, *glob_lmdb_db_pointers->db_tx,
                  "Failed to open db handle for db_tx");
-    lmdb_db_open(txn, LMDB_NTP1TXDB.c_str(), MDB_CREATE, *glob_lmdb_db_pointers->db_ntp1Tx,
+    lmdb_db_open(txn, LMDB_NTP1TXDB, MDB_CREATE, *glob_lmdb_db_pointers->db_ntp1Tx,
                  "Failed to open db handle for db_ntp1Tx");
-    lmdb_db_open(txn, LMDB_NTP1TOKENNAMESDB.c_str(), MDB_CREATE | MDB_DUPSORT,
+    lmdb_db_open(txn, LMDB_NTP1TOKENNAMESDB, MDB_CREATE | MDB_DUPSORT,
                  *glob_lmdb_db_pointers->db_ntp1tokenNames,
                  "Failed to open db handle for db_ntp1tokenNames");
-    lmdb_db_open(txn, LMDB_ADDRSVSPUBKEYSDB.c_str(), MDB_CREATE,
-                 *glob_lmdb_db_pointers->db_addrsVsPubKeys,
+    lmdb_db_open(txn, LMDB_ADDRSVSPUBKEYSDB, MDB_CREATE, *glob_lmdb_db_pointers->db_addrsVsPubKeys,
                  "Failed to open db handle for db_addrsVsPubKeys");
-    lmdb_db_open(txn, LMDB_BLOCKMETADATADB.c_str(), MDB_CREATE, *glob_lmdb_db_pointers->db_blockMetadata,
+    lmdb_db_open(txn, LMDB_BLOCKMETADATADB, MDB_CREATE, *glob_lmdb_db_pointers->db_blockMetadata,
                  "Failed to open db handle for db_blockMetadata");
-    lmdb_db_open(txn, LMDB_BLOCKHEIGHTSDB.c_str(), MDB_CREATE, *glob_lmdb_db_pointers->db_blockHeights,
+    lmdb_db_open(txn, LMDB_BLOCKHEIGHTSDB, MDB_CREATE, *glob_lmdb_db_pointers->db_blockHeights,
                  "Failed to open db handle for db_blockHeights");
-    lmdb_db_open(txn, LMDB_STAKESDB.c_str(), MDB_CREATE, *glob_lmdb_db_pointers->db_stakes,
+    lmdb_db_open(txn, LMDB_STAKESDB, MDB_CREATE, *glob_lmdb_db_pointers->db_stakes,
                  "Failed to open db handle for db_stakes");
 
     // commit the transaction

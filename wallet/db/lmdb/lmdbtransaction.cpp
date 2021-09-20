@@ -71,6 +71,8 @@ void LMDBTransaction::uncheck()
     m_check = false;
 }
 
+bool LMDBTransaction::isChecked() const { return m_check; }
+
 int LMDBTransaction::commit(std::string message)
 {
     if (message.size() == 0) {
@@ -110,7 +112,7 @@ void LMDBTransaction::abortIfValid()
     }
 }
 
-uint64_t LMDBTransaction::num_active_tx() const { return num_active_txns; }
+uint64_t LMDBTransaction::num_active_tx() { return num_active_txns; }
 
 void LMDBTransaction::prevent_new_txns()
 {
@@ -127,3 +129,9 @@ void LMDBTransaction::wait_no_active_txns()
 }
 
 void LMDBTransaction::allow_new_txns() { creation_gate.clear(); }
+
+void LMDBTransaction::increment_txns(int i)
+{
+    if (i) // why do an atomic operation if this is zero?
+        num_active_txns += i;
+}
