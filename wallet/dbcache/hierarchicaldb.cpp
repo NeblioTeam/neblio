@@ -69,19 +69,20 @@ const char* HierarchicalDB<MutexType>::CommitErrorToString(HierarchicalDB<MutexT
 }
 
 template <typename MutexType>
-std::pair<HierarchicalDB<MutexType>*, boost::optional<boost::unique_lock<MutexType>>>
+std::pair<HierarchicalDB<MutexType>*, std::unique_ptr<boost::unique_lock<MutexType>>>
 HierarchicalDB<MutexType>::getLockedInstanceToModify()
 {
-    boost::optional<boost::unique_lock<decltype(mtx)>> lg1 =
-        boost::make_optional(boost::unique_lock<decltype(mtx)>(mtx));
+    std::unique_ptr<boost::unique_lock<MutexType>> lg1 =
+        std::unique_ptr<boost::unique_lock<MutexType>>(new boost::unique_lock<MutexType>(mtx));
     HierarchicalDB* instance = nullptr;
 
     // if there's transactions committed, we use the last one, otherwise, this object
     instance = (committedTransactions.empty() ? this : committedTransactions.back().get());
 
-    boost::optional<boost::unique_lock<decltype(mtx)>> lg2;
+    std::unique_ptr<boost::unique_lock<MutexType>> lg2;
     if (instance != this) {
-        lg2 = boost::make_optional(boost::unique_lock<decltype(mtx)>(instance->mtx));
+        lg2 = std::unique_ptr<boost::unique_lock<MutexType>>(
+            new boost::unique_lock<MutexType>(instance->mtx));
         lg1->unlock();
         return std::make_pair(instance, std::move(lg2));
     }

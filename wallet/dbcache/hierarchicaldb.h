@@ -57,7 +57,7 @@ private:
 
     std::string dbName;
 
-    std::pair<HierarchicalDB*, boost::optional<boost::unique_lock<MutexType>>>
+    std::pair<HierarchicalDB*, std::unique_ptr<boost::unique_lock<MutexType>>>
     getLockedInstanceToModify();
 
     [[nodiscard]] static std::size_t calculateParentsCommittedTxsOnStart(const HierarchicalDB* parentDB);
