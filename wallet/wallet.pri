@@ -188,10 +188,10 @@ HEADERS += qt/bitcoingui.h \
     partialmerkletree.h              \
     bootstraptools.h                 \
     wallet_interface.h               \
-    dbcachelayer.cpp                 \
-    hierarchicaldb.cpp               \
-    inmemorydb.cpp                   \
-    transactionoperation.cpp
+    dbcache/dbcachelayer.cpp         \
+    dbcache/hierarchicaldb.cpp       \
+    dbcache/inmemorydb.cpp           \
+    dbcache/transactionoperation.cpp
 
 
 
@@ -376,10 +376,10 @@ SOURCES += qt/bitcoin.cpp \
     partialmerkletree.cpp               \
     bootstraptools.cpp                  \
     wallet_interface.cpp                \
-    dbcachelayer.cpp                    \
-    hierarchicaldb.cpp                  \
-    inmemorydb.cpp                      \
-    transactionoperation.cpp
+    dbcache/dbcachelayer.cpp            \
+    dbcache/hierarchicaldb.cpp          \
+    dbcache/inmemorydb.cpp              \
+    dbcache/transactionoperation.cpp
 
 
 
