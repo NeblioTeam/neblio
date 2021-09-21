@@ -241,6 +241,10 @@ OBJS= \
     obj/udaddress.o                           \
     obj/db/lmdb.o                             \
     obj/db/lmdbtransaction.o                  \
+    obj/db/dbcachelayer.o                     \
+    obj/db/inmemorydb.o                       \
+    obj/db/hierarchicaldb.o                   \
+    obj/db/transactionoperation.o             \
     obj/stringmanip.o                         \
     obj/defaultlogger.o                       \
     obj/logger.o                              \
@@ -326,6 +330,15 @@ obj/db/%.o: db/lmdb/%.cpp
 	  sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
 	      -e '/^$$/ d' -e 's/$$/ :/' < $(@:%.o=%.d) >> $(@:%.o=%.P); \
 	  rm -f $(@:%.o=%.d)
+
+obj/db/%.o: dbcache/%.cpp
+	${MKDIR_P} obj/db
+	$(CXX) -c $(xCXXFLAGS) -MMD -MF $(@:%.o=%.d) -o $@ $<
+	@cp $(@:%.o=%.d) $(@:%.o=%.P); \
+	  sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
+	      -e '/^$$/ d' -e 's/$$/ :/' < $(@:%.o=%.d) >> $(@:%.o=%.P); \
+	  rm -f $(@:%.o=%.d)
+
 
 nebliod: $(OBJS:obj/%=obj/%)
 	${MKDIR_P} obj obj/json
