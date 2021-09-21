@@ -187,7 +187,11 @@ HEADERS += qt/bitcoingui.h \
     ntp1/ntp1common.h                \
     partialmerkletree.h              \
     bootstraptools.h                 \
-    wallet_interface.h
+    wallet_interface.h               \
+    dbcachelayer.cpp                 \
+    hierarchicaldb.cpp               \
+    inmemorydb.cpp                   \
+    transactionoperation.cpp
 
 
 
@@ -371,7 +375,12 @@ SOURCES += qt/bitcoin.cpp \
     ntp1/ntp1common.cpp                 \
     partialmerkletree.cpp               \
     bootstraptools.cpp                  \
-    wallet_interface.cpp
+    wallet_interface.cpp                \
+    dbcachelayer.cpp                    \
+    hierarchicaldb.cpp                  \
+    inmemorydb.cpp                      \
+    transactionoperation.cpp
+
 
 
 
