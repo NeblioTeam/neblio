@@ -10,6 +10,7 @@
 #include <boost/thread/mutex.hpp>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
