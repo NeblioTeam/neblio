@@ -4,6 +4,7 @@
 #include "db/idb.h"
 #include "result.h"
 #include "transactionoperation.h"
+#include <array>
 #include <boost/atomic.hpp>
 #include <boost/optional.hpp>
 #include <boost/thread/lock_guard.hpp>
