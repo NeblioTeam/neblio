@@ -122,7 +122,7 @@ public:
                                     const std::shared_ptr<HierarchicalDB>& parentDB = nullptr);
 };
 
-template class HierarchicalDB<std::mutex>;
-template class HierarchicalDB<hdb_dummy_mutex>;
+extern template class HierarchicalDB<std::mutex>;
+extern template class HierarchicalDB<hdb_dummy_mutex>;
 
 #endif // HIERARCHICALDB_H

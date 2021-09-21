@@ -524,3 +524,6 @@ std::map<std::string, TransactionOperation> HierarchicalDB<MutexType>::getAllDat
 {
     return getCollapsedOpsForAll(dbid);
 }
+
+template class HierarchicalDB<std::mutex>;
+template class HierarchicalDB<hdb_dummy_mutex>;
