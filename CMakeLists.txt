@@ -178,7 +178,7 @@ macro(ATOMIC_CHECK)
             # Before setting CMAKE_REQUIRED_FLAGS, we preserve the current state
             cmake_push_check_state()
 
-            set(CMAKE_REQUIRED_LIBRARIES "-L${atomic_lib_dir} -latomic")
+            set(CMAKE_REQUIRED_LIBRARIES "-L${atomic_lib_dir}" "-latomic")
             check_cxx_source_compiles("${ATOMIC32_TEST_CODE}" atomic32_test_with_atomic_linking)
             check_cxx_source_compiles("${ATOMIC64_TEST_CODE}" atomic64_test_with_atomic_linking)
 
