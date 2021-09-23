@@ -39,11 +39,18 @@ class DefaultLogger
         std::make_shared<spdlog::sinks::dist_sink_mt>();
     std::shared_ptr<spdlog::logger> logger = std::make_shared<spdlog::logger>("", dist_sink);
 
+    // we start an empty logger to swap with it later on shutdown to prevent accessing an empty sink in
+    // case other threads try to log after stopping the logger
+    std::shared_ptr<spdlog::logger> emptyLogger = std::make_shared<spdlog::logger>("Empty");
+
+    std::atomic_flag shutdownFlag = ATOMIC_FLAG_INIT;
+
 public:
     DefaultLogger()
     {
         spdlog::register_logger(logger);
-        spdlog::flush_every(std::chrono::seconds(5));
+        spdlog::flush_every(std::chrono::seconds(1));
+        spdlog::flush_on(b_sev::critical);
     }
 
     static std::string severity_as_string(b_sev severity)
@@ -130,6 +137,18 @@ public:
     void flush() { logger->flush(); }
 
     spdlog::logger* getInternalLogger() { return logger.get(); }
+
+    void stopLogger()
+    {
+        if (!shutdownFlag.test_and_set()) {
+            logger->flush();
+            logger.swap(emptyLogger);
+            spdlog::shutdown();
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+    }
+
+    ~DefaultLogger() { stopLogger(); }
 };
 
 class LoggerSingleton
