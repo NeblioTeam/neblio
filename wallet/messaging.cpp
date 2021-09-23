@@ -929,20 +929,23 @@ bool IsInitialBlockDownload(const ITxDB& txdb)
         return true;
     if (fImporting)
         return true;
-    static boost::atomic_flag spinLock;
+
+    static boost::atomic_flag spinLock = BOOST_ATOMIC_FLAG_INIT;
     while (spinLock.test_and_set(boost::memory_order_acquire)) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
-    BOOST_SCOPE_EXIT(&spinLock) { spinLock.clear(boost::memory_order_release); }
+    BOOST_SCOPE_EXIT(void) { spinLock.clear(boost::memory_order_release); }
     BOOST_SCOPE_EXIT_END
 
     static int64_t                      nLastUpdate;
     static boost::optional<CBlockIndex> pindexLastBest;
     const boost::optional<CBlockIndex>  pindexBestPtr = txdb.GetBestBlockIndex();
     if (!pindexBestPtr) {
-        NLog.write(b_sev::critical, "CRITICAL ERROR: Best block index return none!");
-        return false;
+        NLog.write(b_sev::critical,
+                   "CRITICAL ERROR: Best block index returned none! This is OK only when "
+                   "the program is starting.");
+        return true;
     }
 
     if (!pindexLastBest || pindexBestPtr->GetBlockHash() != pindexLastBest->GetBlockHash()) {
