@@ -14,7 +14,8 @@ enum class WriteOperationType
 
 enum class ReadOperationType
 {
-    ValueFound,
+    ValueRead,
+    ValueWritten,
     NotFound,
     Erased,
 };
@@ -51,6 +52,7 @@ public:
     const std::vector<std::string>& getValues() const;
 
     std::vector<std::string>& getValues();
+    void                      switchOpToWrite();
 };
 
 #endif // TRANSACTIONOPERATION_H

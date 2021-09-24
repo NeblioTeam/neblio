@@ -66,15 +66,21 @@ DBCacheLayer::read(Index dbindex, const std::string& key, std::size_t offset,
                 return Ok(boost::optional<std::string>());
             case ReadOperationType::NotFound:
                 return Ok(boost::optional<std::string>());
-            case ReadOperationType::ValueFound:
-                // values should NEVER be empty... so if it's empty, we refresh the cache to fix the
-                // issue
+            case ReadOperationType::ValueRead:
+            case ReadOperationType::ValueWritten:
+                // single values should NEVER be empty... so if it's empty, we refresh the cache to fix
+                // the issue
                 if (!cache.getValues().empty()) {
                     if (size) {
                         return Ok(boost::make_optional(cache.getValues().front().substr(offset, *size)));
                     } else {
                         return Ok(boost::make_optional(cache.getValues().front().substr(offset)));
                     }
+                } else {
+                    NLog.write(b_sev::warn,
+                               "The value with dbid {} and key {} doesn't support "
+                               "duplicates, but was found to be empty.",
+                               dbindex, key);
                 }
             }
         }
@@ -86,7 +92,7 @@ DBCacheLayer::read(Index dbindex, const std::string& key, std::size_t offset,
             const boost::optional<std::string>& dVal = rdVal.UNWRAP();
             if (dVal) {
                 g_cached_db_read_cache[static_cast<std::size_t>(dbindex)].insert(
-                    std::make_pair(key, DBCachedRead(ReadOperationType::ValueFound, *dVal)));
+                    std::make_pair(key, DBCachedRead(ReadOperationType::ValueRead, *dVal)));
                 approxCacheSize.fetch_add(dVal->size(), boost::memory_order_relaxed);
                 if (size) {
                     return Ok(boost::make_optional(dVal->substr(offset, *size)));
@@ -135,7 +141,8 @@ Result<std::vector<std::string>, int> DBCacheLayer::readMultiple(Index          
                 return Ok(std::move(valuesToAppend));
             case ReadOperationType::NotFound:
                 return Ok(std::move(valuesToAppend));
-            case ReadOperationType::ValueFound: {
+            case ReadOperationType::ValueRead:
+            case ReadOperationType::ValueWritten: {
                 std::vector<std::string> result = cache.getValues();
                 result.insert(result.end(), std::make_move_iterator(valuesToAppend.begin()),
                               std::make_move_iterator(valuesToAppend.end()));
@@ -150,7 +157,7 @@ Result<std::vector<std::string>, int> DBCacheLayer::readMultiple(Index          
         if (rdVal.isOk()) {
             std::vector<std::string>& dVal = rdVal.unwrap("");
             g_cached_db_read_cache[static_cast<std::size_t>(dbindex)].insert(
-                std::make_pair(key, DBCachedRead(ReadOperationType::ValueFound, dVal)));
+                std::make_pair(key, DBCachedRead(ReadOperationType::ValueRead, dVal)));
             for (const auto& v : dVal) {
                 approxCacheSize.fetch_add(v.size(), boost::memory_order_relaxed);
             }
@@ -211,7 +218,8 @@ Result<std::map<std::string, std::vector<std::string>>, int> DBCacheLayer::readA
             auto&& key   = cachePair.first;
             auto&& cache = cachePair.second;
             switch (cache.getOpType()) {
-            case ReadOperationType::ValueFound:
+            case ReadOperationType::ValueRead:
+            case ReadOperationType::ValueWritten:
                 if (!cache.getValues().empty()) {
                     res[key] = cache.getValues();
                 }
@@ -223,10 +231,10 @@ Result<std::map<std::string, std::vector<std::string>>, int> DBCacheLayer::readA
                 break;
             }
         }
-
-        // then above it the results from the tx, if any
-        MergeTxDataWithData(res, std::move(txOps));
     }
+
+    // then above it the results from the tx, if any
+    MergeTxDataWithData(res, std::move(txOps));
 
     return Ok(std::move(res));
 }
@@ -276,7 +284,8 @@ Result<std::map<std::string, std::string>, int> DBCacheLayer::readAllUnique(Inde
             auto&& key   = cachePair.first;
             auto&& cache = cachePair.second;
             switch (cache.getOpType()) {
-            case ReadOperationType::ValueFound:
+            case ReadOperationType::ValueRead:
+            case ReadOperationType::ValueWritten:
                 if (!cache.getValues().empty()) {
                     res[key] = cache.getValues().front();
                 }
@@ -304,18 +313,20 @@ void AppendValueToMap(IDB::Index dbindex, const std::string& key, const std::str
     if (it != map.end()) {
         DBCachedRead& cache = it->second;
         switch (cache.getOpType()) {
-        case ReadOperationType::ValueFound:
+        case ReadOperationType::ValueRead:
+        case ReadOperationType::ValueWritten:
             cache.getValues().insert(cache.getValues().end(), value);
+            cache.switchOpToWrite();
             break;
         case ReadOperationType::NotFound:
         case ReadOperationType::Erased:
             map.erase(key);
-            map.insert(std::make_pair(key, DBCachedRead(ReadOperationType::ValueFound, value)));
+            map.insert(std::make_pair(key, DBCachedRead(ReadOperationType::ValueWritten, value)));
             approxCacheSize.fetch_add(value.size(), boost::memory_order_relaxed);
             break;
         }
     } else {
-        map.insert(std::make_pair(key, DBCachedRead(ReadOperationType::ValueFound, value)));
+        map.insert(std::make_pair(key, DBCachedRead(ReadOperationType::ValueWritten, value)));
     }
 }
 
@@ -344,7 +355,7 @@ Result<void, int> DBCacheLayer::write(Index dbindex, const std::string& key, con
             // if no duplicates are possible, we just overwrite
             g_cached_db_read_cache[static_cast<std::size_t>(dbindex)].erase(key);
             g_cached_db_read_cache[static_cast<std::size_t>(dbindex)].insert(
-                std::make_pair(key, DBCachedRead(ReadOperationType::ValueFound, value)));
+                std::make_pair(key, DBCachedRead(ReadOperationType::ValueWritten, value)));
             approxCacheSize.fetch_add(value.size(), boost::memory_order_relaxed);
         }
     }
@@ -413,7 +424,8 @@ Result<bool, int> DBCacheLayer::exists(Index dbindex, const std::string& key) co
                 return Ok(false);
             case ReadOperationType::NotFound:
                 return Ok(false);
-            case ReadOperationType::ValueFound:
+            case ReadOperationType::ValueRead:
+            case ReadOperationType::ValueWritten:
                 // values should never be empty unless duplicates allowed and the vector is empty... so
                 // if it's empty, we refresh the cache to fix the issue
                 if (!cache.getValues().empty()) {
@@ -429,7 +441,7 @@ Result<bool, int> DBCacheLayer::exists(Index dbindex, const std::string& key) co
             const boost::optional<std::string>& dVal = rdVal.UNWRAP();
             if (dVal) {
                 g_cached_db_read_cache[static_cast<std::size_t>(dbindex)].insert(
-                    std::make_pair(key, DBCachedRead(ReadOperationType::ValueFound, *dVal)));
+                    std::make_pair(key, DBCachedRead(ReadOperationType::ValueRead, *dVal)));
                 approxCacheSize.fetch_add(dVal->size(), boost::memory_order_relaxed);
                 return Ok(true);
             } else {
@@ -515,7 +527,7 @@ Result<void, int> DBCacheLayer::commitDBTransaction()
                         approxCacheSize.fetch_add(op.getValues().front().size(),
                                                   boost::memory_order_release);
                         g_cached_db_read_cache[static_cast<std::size_t>(dbid)].insert(std::make_pair(
-                            key, DBCachedRead(ReadOperationType::ValueFound, op.getValues().front())));
+                            key, DBCachedRead(ReadOperationType::ValueWritten, op.getValues().front())));
                     }
                     break;
                 case WriteOperationType::Erase:
@@ -574,7 +586,9 @@ std::uintmax_t CalculateTotalDataSize_unsafe()
             case ReadOperationType::Erased:
             case ReadOperationType::NotFound:
                 break;
-            case ReadOperationType::ValueFound:
+            case ReadOperationType::ValueRead:
+                break;
+            case ReadOperationType::ValueWritten:
                 for (const std::string& data : entry.getValues()) {
                     sizeToAdd += data.size();
                 }
@@ -613,7 +627,7 @@ static PersistValueToCacheResult PersistValueToCache(LMDB& persistedDB, IDB::Ind
     const int i = static_cast<int>(dbid);
     // in all cases, we keep checking if an error occurred. If that's the case, we retry
     switch (cache.getOpType()) {
-    case ReadOperationType::ValueFound:
+    case ReadOperationType::ValueWritten:
         // we check if the data exists, if it does, we erase it before rewriting it
         {
             const Result<bool, int> keyExists = persistedDB.exists(dbid, key);
@@ -634,6 +648,8 @@ static PersistValueToCacheResult PersistValueToCache(LMDB& persistedDB, IDB::Ind
             }
             break;
         }
+    case ReadOperationType::ValueRead:
+        break;
     case ReadOperationType::Erased:
         if (IDB::DuplicateKeysAllowed(dbid)) {
             const Result<void, int> eraseRes = persistedDB.eraseAll(dbid, key);

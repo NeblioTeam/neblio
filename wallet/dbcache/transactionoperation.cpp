@@ -43,7 +43,7 @@ std::vector<std::string>& TransactionOperation::getValues() { return relevantVal
 
 DBCachedRead::DBCachedRead(DBOperation::ReadOperationType operation, std::string value) : op(operation)
 {
-    if (op == ReadOperationType::ValueFound) {
+    if (op == ReadOperationType::ValueRead || op == ReadOperationType::ValueWritten) {
         relevantValues.push_back(value);
     }
 }
@@ -51,7 +51,7 @@ DBCachedRead::DBCachedRead(DBOperation::ReadOperationType operation, std::string
 DBCachedRead::DBCachedRead(DBOperation::ReadOperationType operation, std::vector<std::string> value)
     : op(operation)
 {
-    if (op == ReadOperationType::ValueFound) {
+    if (op == ReadOperationType::ValueRead || op == ReadOperationType::ValueWritten) {
         relevantValues = std::move(value);
     }
 }
@@ -59,3 +59,5 @@ DBCachedRead::DBCachedRead(DBOperation::ReadOperationType operation, std::vector
 const std::vector<std::string>& DBCachedRead::getValues() const { return relevantValues; }
 
 std::vector<std::string>& DBCachedRead::getValues() { return relevantValues; }
+
+void DBCachedRead::switchOpToWrite() { op = DBOperation::ReadOperationType::ValueWritten; }
