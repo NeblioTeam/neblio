@@ -12,10 +12,10 @@ using ReadCacheMapsType = std::array<std::unordered_map<std::string, DBCachedRea
 ReadCacheMapsType g_cached_db_read_cache;
 
 using MutexType = std::mutex;
-MutexType g_cached_db_read_cache_lock;
+static MutexType g_cached_db_read_cache_lock;
 
-boost::atomic_int64_t  approxCacheSize;
-boost::atomic_uint64_t flushCount;
+static boost::atomic_int64_t  approxCacheSize;
+static boost::atomic_uint64_t flushCount;
 
 using namespace DBOperation;
 
@@ -155,7 +155,7 @@ Result<std::vector<std::string>, int> DBCacheLayer::readMultiple(Index          
 
         Result<std::vector<std::string>, int> rdVal = persistedDB.readMultiple(dbindex, key);
         if (rdVal.isOk()) {
-            std::vector<std::string>& dVal = rdVal.unwrap("");
+            std::vector<std::string>& dVal = rdVal.UNWRAP();
             g_cached_db_read_cache[static_cast<std::size_t>(dbindex)].insert(
                 std::make_pair(key, DBCachedRead(ReadOperationType::ValueRead, dVal)));
             for (const auto& v : dVal) {
