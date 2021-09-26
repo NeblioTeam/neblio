@@ -245,6 +245,9 @@ OBJS= \
     obj/db/inmemorydb.o                       \
     obj/db/hierarchicaldb.o                   \
     obj/db/transactionoperation.o             \
+    obj/db/transactabledbentry.o              \
+    obj/db/dblrucachelayer.o                  \
+    obj/db/dblrucachestorage.o                \
     obj/stringmanip.o                         \
     obj/defaultlogger.o                       \
     obj/logger.o                              \

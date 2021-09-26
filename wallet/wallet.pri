@@ -191,7 +191,13 @@ HEADERS += qt/bitcoingui.h \
     dbcache/dbcachelayer.cpp         \
     dbcache/hierarchicaldb.cpp       \
     dbcache/inmemorydb.cpp           \
-    dbcache/transactionoperation.cpp
+    dbcache/transactionoperation.cpp \
+    dbcache/transactabledbentry.cpp  \
+    dbcache/dblrucachelayer.cpp      \
+    dbcache/dblrucachestorage.cpp    \
+    dbcache/transactabledbentry.cpp  \
+    dbcache/dblrucachelayer.cpp      \
+    dbcache/dblrucachestorage.cpp
 
 
 
