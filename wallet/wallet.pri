@@ -188,16 +188,13 @@ HEADERS += qt/bitcoingui.h \
     partialmerkletree.h              \
     bootstraptools.h                 \
     wallet_interface.h               \
-    dbcache/dbcachelayer.cpp         \
-    dbcache/hierarchicaldb.cpp       \
-    dbcache/inmemorydb.cpp           \
-    dbcache/transactionoperation.cpp \
-    dbcache/transactabledbentry.cpp  \
-    dbcache/dblrucachelayer.cpp      \
-    dbcache/dblrucachestorage.cpp    \
-    dbcache/transactabledbentry.cpp  \
-    dbcache/dblrucachelayer.cpp      \
-    dbcache/dblrucachestorage.cpp
+    dbcache/dbcachelayer.h           \
+    dbcache/hierarchicaldb.h         \
+    dbcache/inmemorydb.h             \
+    dbcache/transactionoperation.h   \
+    dbcache/transactabledbentry.h    \
+    dbcache/dblrucachelayer.h        \
+    dbcache/dblrucachestorage.h
 
 
 
@@ -385,7 +382,10 @@ SOURCES += qt/bitcoin.cpp \
     dbcache/dbcachelayer.cpp            \
     dbcache/hierarchicaldb.cpp          \
     dbcache/inmemorydb.cpp              \
-    dbcache/transactionoperation.cpp
+    dbcache/transactionoperation.cpp    \
+    dbcache/transactabledbentry.cpp     \
+    dbcache/dblrucachelayer.cpp         \
+    dbcache/dblrucachestorage.cpp       
 
 
 
