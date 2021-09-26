@@ -6,6 +6,7 @@
 #include "curltools.h"
 #include "db/lmdb/lmdb.h"
 #include "dbcache/dbcachelayer.h"
+#include "dbcache/dblrucachelayer.h"
 #include "dbcache/inmemorydb.h"
 #include "hash.h"
 #include "ntp1/ntp1tools.h"
@@ -37,8 +38,9 @@ enum class DBTypes : int
     DB_InMemory       = 1,
     DB_Cached         = 2,
     DB_Cached_NoFlush = 3,
+    DB_LRU_Cached     = 4,
 
-    DBTypes_Last = 4
+    DBTypes_Last = 5
 };
 
 class DBTestsFixture : public ::testing::TestWithParam<DBTypes>
@@ -66,6 +68,8 @@ static std::function<std::unique_ptr<IDB>(const boost::filesystem::path&, DBType
     }
     case DBTypes::DB_Cached_NoFlush:
         return MakeUnique<DBCacheLayer>(&p, true, 0);
+    case DBTypes::DB_LRU_Cached:
+        return MakeUnique<DBLRUCacheLayer>(&p, true, 0);
     case DBTypes::DBTypes_Last:
         break;
     }
@@ -74,7 +78,7 @@ static std::function<std::unique_ptr<IDB>(const boost::filesystem::path&, DBType
 
 INSTANTIATE_TEST_SUITE_P(DBTests, DBTestsFixture,
                          ::testing::Values(DBTypes::DB_LMDB, DBTypes::DB_InMemory, DBTypes::DB_Cached,
-                                           DBTypes::DB_Cached_NoFlush));
+                                           DBTypes::DB_Cached_NoFlush, DBTypes::DB_LRU_Cached));
 
 TEST_P(DBTestsFixture, basic)
 {
@@ -219,8 +223,8 @@ TEST_P(DBTestsFixture, many_inputs_one_tx)
 
     for (const auto& pair : entries) {
         boost::optional<std::string> out;
-        EXPECT_TRUE(out = db->read(IDB::Index::DB_MAIN_INDEX, pair.first).UNWRAP());
-        EXPECT_EQ(out, pair.second);
+        ASSERT_TRUE(out = db->read(IDB::Index::DB_MAIN_INDEX, pair.first).UNWRAP());
+        EXPECT_EQ(*out, pair.second);
 
         EXPECT_TRUE(db->exists(IDB::Index::DB_MAIN_INDEX, pair.first).UNWRAP());
     }
@@ -254,9 +258,9 @@ TEST_P(DBTestsFixture, basic_multiple_read)
         db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k1);
     const Result<std::vector<std::string>, int> outs2 =
         db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, k2);
-    EXPECT_TRUE(outs1.isOk());
+    ASSERT_TRUE(outs1.isOk());
     EXPECT_EQ(outs1.UNWRAP(), std::vector<std::string>({v1, v2, v3}));
-    EXPECT_TRUE(outs2.isOk());
+    ASSERT_TRUE(outs2.isOk());
     EXPECT_EQ(outs2.UNWRAP(), std::vector<std::string>({v4, v5, v6}));
 
     // realAll with key vs multiple values

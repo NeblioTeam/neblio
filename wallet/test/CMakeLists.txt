@@ -107,8 +107,8 @@ if(NEBLIO_FORCE_DISABLE_PREMADE_DATA_DOWNLOAD)
 endif()
 
 add_test(
-    NAME neblio-core-tests
-    COMMAND neblio-core-tests
+    NAME neblio-tests
+    COMMAND neblio-tests
     --datadir ${CMAKE_CURRENT_SOURCE_DIR}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )

@@ -824,6 +824,9 @@ add_library(txdb_lib STATIC
     wallet/dbcache/inmemorydb.cpp
     wallet/dbcache/hierarchicaldb.cpp
     wallet/dbcache/transactionoperation.cpp
+    wallet/dbcache/transactabledbentry.cpp
+    wallet/dbcache/dblrucachelayer.cpp
+    wallet/dbcache/dblrucachestorage.cpp
     )
 
 target_link_libraries(db_lib

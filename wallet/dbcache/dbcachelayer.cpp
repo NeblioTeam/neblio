@@ -204,8 +204,11 @@ Result<std::map<std::string, std::vector<std::string>>, int> DBCacheLayer::readA
 
     LMDB persistedDB(dbdir_, false);
 
-    auto                                             tRes = persistedDB.readAll(dbindex);
-    std::map<std::string, std::vector<std::string>>& res  = tRes.UNWRAP();
+    auto tRes = persistedDB.readAll(dbindex);
+    if (tRes.isErr()) {
+        return tRes;
+    }
+    std::map<std::string, std::vector<std::string>>& res = tRes.UNWRAP();
 
     BOOST_SCOPE_EXIT(this_) { this_->flushOnPolicy(); }
     BOOST_SCOPE_EXIT_END
@@ -270,7 +273,9 @@ Result<std::map<std::string, std::string>, int> DBCacheLayer::readAllUnique(Inde
     LMDB persistedDB(dbdir_, false);
 
     auto tRes = persistedDB.readAllUnique(dbindex);
-
+    if (tRes.isErr()) {
+        return tRes;
+    }
     std::map<std::string, std::string>& res = tRes.UNWRAP();
 
     BOOST_SCOPE_EXIT(this_) { this_->flushOnPolicy(); }

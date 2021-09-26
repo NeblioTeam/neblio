@@ -87,7 +87,8 @@ private:
     void assertNotCommitted() const;
 
 public:
-    HierarchicalDB(const std::string& name, const std::shared_ptr<HierarchicalDB>& parentDB = nullptr);
+    HierarchicalDB(const std::string&                     name     = "",
+                   const std::shared_ptr<HierarchicalDB>& parentDB = nullptr);
     ~HierarchicalDB();
 
     bool                         unique_set(int dbid, const std::string& key, const std::string& value);
