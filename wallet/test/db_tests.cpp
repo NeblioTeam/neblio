@@ -19,7 +19,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-std::string RandomString(const int len)
+static std::string RandomString(const int len)
 {
     static const char alphanum[] = "0123456789"
                                    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
