@@ -7,12 +7,14 @@
 #include "db/lmdb/lmdb.h"
 #include "dbcache/dbcachelayer.h"
 #include "dbcache/dblrucachelayer.h"
+#include "dbcache/dbreadcachelayer.h"
 #include "dbcache/inmemorydb.h"
 #include "hash.h"
 #include "ntp1/ntp1tools.h"
 #include "stdexcept"
 #include "txdb-lmdb.h"
 #include <boost/algorithm/string.hpp>
+#include <cstdint>
 #include <fstream>
 #include <unordered_map>
 #include <unordered_set>
@@ -39,8 +41,9 @@ enum class DBTypes : int
     DB_Cached         = 2,
     DB_Cached_NoFlush = 3,
     DB_LRU_Cached     = 4,
+    DB_Read_Cached    = 5,
 
-    DBTypes_Last = 5
+    DBTypes_Last = 6
 };
 
 class DBTestsFixture : public ::testing::TestWithParam<DBTypes>
@@ -55,8 +58,8 @@ class DBTestsFixture : public ::testing::TestWithParam<DBTypes>
 };
 
 static std::function<std::unique_ptr<IDB>(const boost::filesystem::path&, DBTypes)> DBMaker =
-    [](const boost::filesystem::path& p, DBTypes i) -> std::unique_ptr<IDB> {
-    switch (i) {
+    [](const boost::filesystem::path& p, DBTypes dbType) -> std::unique_ptr<IDB> {
+    switch (dbType) {
     case DBTypes::DB_LMDB:
         return MakeUnique<LMDB>(&p, true);
     case DBTypes::DB_InMemory:
@@ -70,15 +73,18 @@ static std::function<std::unique_ptr<IDB>(const boost::filesystem::path&, DBType
         return MakeUnique<DBCacheLayer>(&p, true, 0);
     case DBTypes::DB_LRU_Cached:
         return MakeUnique<DBLRUCacheLayer>(&p, true, 0);
+    case DBTypes::DB_Read_Cached:
+        return MakeUnique<DBReadCacheLayer>(&p, true, 0);
     case DBTypes::DBTypes_Last:
         break;
     }
-    throw std::domain_error("Invalid DB Type: " + std::to_string(static_cast<int>(i)));
+    throw std::domain_error("Invalid DB Type: " + std::to_string(static_cast<int>(dbType)));
 };
 
 INSTANTIATE_TEST_SUITE_P(DBTests, DBTestsFixture,
                          ::testing::Values(DBTypes::DB_LMDB, DBTypes::DB_InMemory, DBTypes::DB_Cached,
-                                           DBTypes::DB_Cached_NoFlush, DBTypes::DB_LRU_Cached));
+                                           DBTypes::DB_Cached_NoFlush, DBTypes::DB_LRU_Cached,
+                                           DBTypes::DB_Read_Cached));
 
 TEST_P(DBTestsFixture, basic)
 {
@@ -963,7 +969,8 @@ TEST_P(DBTestsFixture, read_write_multiple_with_db_transaction_committed)
     TestReadMultipleAndRealAllWithTx(db.get(), data, true, false);
 }
 
-void TestCachedVsUncachedDataEquality(DBCacheLayer* db, InMemoryDB* memdb)
+template <typename DBType>
+void TestCachedVsUncachedDataEquality(DBType* db, InMemoryDB* memdb)
 {
     for (int i = 0; i < static_cast<int>(IDB::Index::Index_Last); i++) {
         Result<std::map<std::string, std::vector<std::string>>, int> persistedData =
@@ -993,17 +1000,12 @@ void TestCachedVsUncachedDataEquality(DBCacheLayer* db, InMemoryDB* memdb)
     }
 }
 
-TEST(DBTestsFixture, big_cache_flush)
+template <typename DBType>
+void TestCacheBigFlush(std::unique_ptr<DBType>& db, const std::uintmax_t MaxDataSizeToWrite)
 {
     const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
-    std::unique_ptr<DBCacheLayer> db    = MakeUnique<DBCacheLayer>(&p, true, 0);
-    std::unique_ptr<InMemoryDB>   memdb = MakeUnique<InMemoryDB>(&p, true);
-
-    BOOST_SCOPE_EXIT(&db) { db->close(); }
-    BOOST_SCOPE_EXIT_END
-
-    static const std::uintmax_t MaxDataSizeToWrite = 1 << 30;
+    std::unique_ptr<InMemoryDB> memdb = MakeUnique<InMemoryDB>(&p, true);
 
     std::uintmax_t TotalDataWritten = 0;
 
@@ -1059,6 +1061,30 @@ TEST(DBTestsFixture, big_cache_flush)
 
     // now we check again after the flush
     TestCachedVsUncachedDataEquality(db.get(), memdb.get());
+}
+
+TEST(DBTestsFixture, big_rw_cache_flush)
+{
+    const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
+
+    std::unique_ptr<DBCacheLayer> db = MakeUnique<DBCacheLayer>(&p, true, 0);
+
+    TestCacheBigFlush(db, 1 << 30);
+
+    BOOST_SCOPE_EXIT(&db) { db->close(); }
+    BOOST_SCOPE_EXIT_END
+}
+
+TEST(DBTestsFixture, big_read_cache_flush)
+{
+    const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
+
+    std::unique_ptr<DBReadCacheLayer> db = MakeUnique<DBReadCacheLayer>(&p, true, 0);
+
+    TestCacheBigFlush(db, 1 << 24);
+
+    BOOST_SCOPE_EXIT(&db) { db->close(); }
+    BOOST_SCOPE_EXIT_END
 }
 
 TEST(db_quicksync_tests, download_index_file)

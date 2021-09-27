@@ -242,6 +242,7 @@ OBJS= \
     obj/db/lmdb.o                             \
     obj/db/lmdbtransaction.o                  \
     obj/db/dbcachelayer.o                     \
+    obj/db/dbreadcachelayer.o                 \
     obj/db/inmemorydb.o                       \
     obj/db/hierarchicaldb.o                   \
     obj/db/transactionoperation.o             \

@@ -827,6 +827,7 @@ add_library(txdb_lib STATIC
     wallet/dbcache/transactabledbentry.cpp
     wallet/dbcache/dblrucachelayer.cpp
     wallet/dbcache/dblrucachestorage.cpp
+    wallet/dbcache/dbreadcachelayer.cpp
     )
 
 target_link_libraries(db_lib

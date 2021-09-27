@@ -189,6 +189,7 @@ HEADERS += qt/bitcoingui.h \
     bootstraptools.h                 \
     wallet_interface.h               \
     dbcache/dbcachelayer.h           \
+    dbcache/dbreadcachelayer.h       \
     dbcache/hierarchicaldb.h         \
     dbcache/inmemorydb.h             \
     dbcache/transactionoperation.h   \
@@ -380,6 +381,7 @@ SOURCES += qt/bitcoin.cpp \
     bootstraptools.cpp                  \
     wallet_interface.cpp                \
     dbcache/dbcachelayer.cpp            \
+    dbcache/dbreadcachelayer.cpp        \
     dbcache/hierarchicaldb.cpp          \
     dbcache/inmemorydb.cpp              \
     dbcache/transactionoperation.cpp    \
