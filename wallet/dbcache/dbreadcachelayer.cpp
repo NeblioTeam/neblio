@@ -1,23 +1,61 @@
 #include "dbreadcachelayer.h"
 
+#include "concurrentmap/ConcurrentMap.h"
 #include "db/lmdb/lmdb.h"
 #include "logging/logger.h"
 #include "util.h"
 #include <boost/atomic.hpp>
+#include <boost/atomic/atomic.hpp>
+#include <boost/atomic/detail/atomic_flag_impl.hpp>
 #include <boost/scope_exit.hpp>
+#include <cstddef>
 
-using ReadCacheMapsType = std::array<std::unordered_map<std::string, DBCachedRead>,
-                                     static_cast<std::size_t>(IDB::Index::Index_Last)>;
+using ReadCacheMapType  = ConcurrentMap<std::string, DBCachedRead, 5000>;
+using ReadCacheMapsType = std::array<ReadCacheMapType, static_cast<std::size_t>(IDB::Index::Index_Last)>;
 
 ReadCacheMapsType g_db_read_cache;
-
-using MutexType = std::mutex;
-static MutexType g_db_read_cache_lock;
 
 static boost::atomic_int64_t  approxReadCacheSize;
 static boost::atomic_uint64_t readCacheFlushCount;
 
 using namespace DBOperation;
+
+static boost::atomic_uint_fast32_t ReadCacheRWCount{0};
+static boost::atomic_uint_fast32_t ReadCacheTxCount{0};
+static boost::atomic_flag          ReadCacheRaceGuard = BOOST_ATOMIC_FLAG_INIT;
+
+// the only guarding we do is protect that a tx and a read/write happen together, to ensure consistency
+#define GUARD_RW()                                                                                      \
+    {                                                                                                   \
+        while (ReadCacheRaceGuard.test_and_set()) {                                                     \
+        }                                                                                               \
+        BOOST_SCOPE_EXIT(void) { ReadCacheRaceGuard.clear(); }                                          \
+        BOOST_SCOPE_EXIT_END                                                                            \
+                                                                                                        \
+        while (ReadCacheTxCount > 0) {                                                                  \
+        }                                                                                               \
+        ReadCacheRWCount++;                                                                             \
+    }                                                                                                   \
+    BOOST_SCOPE_EXIT(void) { ReadCacheRWCount--; }                                                      \
+    BOOST_SCOPE_EXIT_END                                                                                \
+    do {                                                                                                \
+    } while (0)
+
+#define GUARD_TX()                                                                                      \
+    {                                                                                                   \
+        while (ReadCacheRaceGuard.test_and_set()) {                                                     \
+        }                                                                                               \
+        BOOST_SCOPE_EXIT(void) { ReadCacheRaceGuard.clear(); }                                          \
+        BOOST_SCOPE_EXIT_END                                                                            \
+                                                                                                        \
+        ReadCacheTxCount++;                                                                             \
+        while (ReadCacheRWCount > 0) {                                                                  \
+        }                                                                                               \
+    }                                                                                                   \
+    BOOST_SCOPE_EXIT(void) { ReadCacheTxCount--; }                                                      \
+    BOOST_SCOPE_EXIT_END                                                                                \
+    do {                                                                                                \
+    } while (0)
 
 DBReadCacheLayer::DBReadCacheLayer(const boost::filesystem::path* const dbdir, bool startNewDatabase,
                                    int64_t flushOnSize)
@@ -55,32 +93,36 @@ DBReadCacheLayer::read(Index dbindex, const std::string& key, std::size_t offset
     BOOST_SCOPE_EXIT_END
 
     {
-        std::lock_guard<MutexType> lg(g_db_read_cache_lock);
-        const auto&                map = g_db_read_cache[static_cast<std::size_t>(dbindex)];
 
-        auto it = map.find(key);
-        if (it != map.cend()) {
-            const DBCachedRead& cache = it->second;
-            switch (cache.getOpType()) {
-            case ReadOperationType::Erased:
-                return Ok(boost::optional<std::string>());
-            case ReadOperationType::NotFound:
-                return Ok(boost::optional<std::string>());
-            case ReadOperationType::ValueRead:
-            case ReadOperationType::ValueWritten:
-                // single values should NEVER be empty... so if it's empty, we refresh the cache to fix
-                // the issue
-                if (!cache.getValues().empty()) {
-                    if (size) {
-                        return Ok(boost::make_optional(cache.getValues().front().substr(offset, *size)));
+        {
+            GUARD_RW();
+
+            auto item = g_db_read_cache[static_cast<std::size_t>(dbindex)].get(key);
+
+            if (item) {
+                const DBCachedRead& cache = *item;
+                switch (cache.getOpType()) {
+                case ReadOperationType::Erased:
+                    return Ok(boost::optional<std::string>());
+                case ReadOperationType::NotFound:
+                    return Ok(boost::optional<std::string>());
+                case ReadOperationType::ValueRead:
+                case ReadOperationType::ValueWritten:
+                    // single values should NEVER be empty... so if it's empty, we refresh the cache to
+                    // fix the issue
+                    if (!cache.getValues().empty()) {
+                        if (size) {
+                            return Ok(
+                                boost::make_optional(cache.getValues().front().substr(offset, *size)));
+                        } else {
+                            return Ok(boost::make_optional(cache.getValues().front().substr(offset)));
+                        }
                     } else {
-                        return Ok(boost::make_optional(cache.getValues().front().substr(offset)));
+                        NLog.write(b_sev::warn,
+                                   "The value with dbid {} and key {} doesn't support "
+                                   "duplicates, but was found to be empty.",
+                                   dbindex, key);
                     }
-                } else {
-                    NLog.write(b_sev::warn,
-                               "The value with dbid {} and key {} doesn't support "
-                               "duplicates, but was found to be empty.",
-                               dbindex, key);
                 }
             }
         }
@@ -91,8 +133,8 @@ DBReadCacheLayer::read(Index dbindex, const std::string& key, std::size_t offset
         if (rdVal.isOk()) {
             const boost::optional<std::string>& dVal = rdVal.UNWRAP();
             if (dVal) {
-                g_db_read_cache[static_cast<std::size_t>(dbindex)].insert(
-                    std::make_pair(key, DBCachedRead(ReadOperationType::ValueRead, *dVal)));
+                g_db_read_cache[static_cast<std::size_t>(dbindex)].set(
+                    key, DBCachedRead(ReadOperationType::ValueRead, *dVal));
                 approxReadCacheSize.fetch_add(dVal->size(), boost::memory_order_relaxed);
                 if (size) {
                     return Ok(boost::make_optional(dVal->substr(offset, *size)));
@@ -130,24 +172,27 @@ Result<std::vector<std::string>, int> DBReadCacheLayer::readMultiple(Index      
     BOOST_SCOPE_EXIT_END
 
     {
-        std::lock_guard<MutexType> lg(g_db_read_cache_lock);
-        const auto&                map = g_db_read_cache[static_cast<std::size_t>(dbindex)];
+        {
+            GUARD_RW();
 
-        auto it = map.find(key);
-        if (it != map.cend()) {
-            const DBCachedRead& cache = it->second;
-            switch (cache.getOpType()) {
-            case ReadOperationType::Erased:
-                return Ok(std::move(valuesToAppend));
-            case ReadOperationType::NotFound:
-                return Ok(std::move(valuesToAppend));
-            case ReadOperationType::ValueRead:
-            case ReadOperationType::ValueWritten: {
-                std::vector<std::string> result = cache.getValues();
-                result.insert(result.end(), std::make_move_iterator(valuesToAppend.begin()),
-                              std::make_move_iterator(valuesToAppend.end()));
-                return Ok(std::move(result));
-            }
+            const auto& map = g_db_read_cache[static_cast<std::size_t>(dbindex)];
+
+            auto item = map.get(key);
+            if (item) {
+                const DBCachedRead& cache = *item;
+                switch (cache.getOpType()) {
+                case ReadOperationType::Erased:
+                    return Ok(std::move(valuesToAppend));
+                case ReadOperationType::NotFound:
+                    return Ok(std::move(valuesToAppend));
+                case ReadOperationType::ValueRead:
+                case ReadOperationType::ValueWritten: {
+                    std::vector<std::string> result = cache.getValues();
+                    result.insert(result.end(), std::make_move_iterator(valuesToAppend.begin()),
+                                  std::make_move_iterator(valuesToAppend.end()));
+                    return Ok(std::move(result));
+                }
+                }
             }
         }
 
@@ -156,8 +201,8 @@ Result<std::vector<std::string>, int> DBReadCacheLayer::readMultiple(Index      
         Result<std::vector<std::string>, int> rdVal = persistedDB.readMultiple(dbindex, key);
         if (rdVal.isOk()) {
             std::vector<std::string>& dVal = rdVal.UNWRAP();
-            g_db_read_cache[static_cast<std::size_t>(dbindex)].insert(
-                std::make_pair(key, DBCachedRead(ReadOperationType::ValueRead, dVal)));
+            g_db_read_cache[static_cast<std::size_t>(dbindex)].set(
+                key, DBCachedRead(ReadOperationType::ValueRead, dVal));
             for (const auto& v : dVal) {
                 approxReadCacheSize.fetch_add(v.size(), boost::memory_order_relaxed);
             }
@@ -205,6 +250,8 @@ DBReadCacheLayer::readAll(Index dbindex) const
 
     LMDB persistedDB(dbdir_, false);
 
+    GUARD_RW();
+
     auto tRes = persistedDB.readAll(dbindex);
     if (tRes.isErr()) {
         return tRes;
@@ -215,8 +262,7 @@ DBReadCacheLayer::readAll(Index dbindex) const
     BOOST_SCOPE_EXIT_END
 
     {
-        std::lock_guard<MutexType> lg(g_db_read_cache_lock);
-        const auto& cacheMap = [&]() { return g_db_read_cache[static_cast<int>(dbindex)]; }();
+        const auto& cacheMap = g_db_read_cache[static_cast<int>(dbindex)].getAllData();
 
         for (auto&& cachePair : cacheMap) {
             auto&& key   = cachePair.first;
@@ -273,6 +319,8 @@ Result<std::map<std::string, std::string>, int> DBReadCacheLayer::readAllUnique(
 
     LMDB persistedDB(dbdir_, false);
 
+    GUARD_RW();
+
     auto tRes = persistedDB.readAllUnique(dbindex);
     if (tRes.isErr()) {
         return tRes;
@@ -283,8 +331,7 @@ Result<std::map<std::string, std::string>, int> DBReadCacheLayer::readAllUnique(
     BOOST_SCOPE_EXIT_END
 
     {
-        std::lock_guard<MutexType> lg(g_db_read_cache_lock);
-        const auto& cacheMap = [&]() { return g_db_read_cache[static_cast<int>(dbindex)]; }();
+        const auto& cacheMap = g_db_read_cache[static_cast<int>(dbindex)].getAllData();
 
         for (auto&& cachePair : cacheMap) {
             auto&& key   = cachePair.first;
@@ -315,25 +362,27 @@ static void AppendValueToMap(IDB::Index dbindex, const std::string& key, const s
 {
     // for possible duplicates, if the key already exists and it's
     auto&& map = g_db_read_cache[static_cast<std::size_t>(dbindex)];
-    auto   it  = map.find(key);
-    if (it != map.end()) {
-        DBCachedRead& cache = it->second;
-        switch (cache.getOpType()) {
-        case ReadOperationType::ValueRead:
-        case ReadOperationType::ValueWritten:
-            cache.getValues().insert(cache.getValues().end(), value);
-            cache.switchOpToWrite();
-            break;
-        case ReadOperationType::NotFound:
-        case ReadOperationType::Erased:
-            map.erase(key);
-            map.insert(std::make_pair(key, DBCachedRead(ReadOperationType::ValueWritten, value)));
-            approxReadCacheSize.fetch_add(value.size(), boost::memory_order_relaxed);
-            break;
+    map.apply(key, [&](ReadCacheMapType::BucketMapType& m, const std::string& k) {
+        auto it = m.find(k);
+        if (it != m.end()) {
+            DBCachedRead& cache = it->second;
+            switch (cache.getOpType()) {
+            case ReadOperationType::ValueRead:
+            case ReadOperationType::ValueWritten:
+                cache.getValues().insert(cache.getValues().end(), value);
+                cache.switchOpToWrite();
+                break;
+            case ReadOperationType::NotFound:
+            case ReadOperationType::Erased:
+                m.erase(k);
+                m.insert(std::make_pair(k, DBCachedRead(ReadOperationType::ValueWritten, value)));
+                approxReadCacheSize.fetch_add(value.size(), boost::memory_order_relaxed);
+                break;
+            }
+        } else {
+            m.insert(std::make_pair(k, DBCachedRead(ReadOperationType::ValueWritten, value)));
         }
-    } else {
-        map.insert(std::make_pair(key, DBCachedRead(ReadOperationType::ValueWritten, value)));
-    }
+    });
 }
 
 Result<void, int> DBReadCacheLayer::write(Index dbindex, const std::string& key,
@@ -352,6 +401,8 @@ Result<void, int> DBReadCacheLayer::write(Index dbindex, const std::string& key,
     BOOST_SCOPE_EXIT(this_) { this_->flushOnPolicy(); }
     BOOST_SCOPE_EXIT_END
 
+    GUARD_RW();
+
     {
         // since this is a read-cache, we first apply the operation in the database, then we update the
         // cache
@@ -364,16 +415,13 @@ Result<void, int> DBReadCacheLayer::write(Index dbindex, const std::string& key,
     }
 
     {
-        std::lock_guard<MutexType> lg(g_db_read_cache_lock);
-
         if (IDB::DuplicateKeysAllowed(dbindex)) {
             // for possible duplicates, if the key already exists and it's
             AppendValueToMap(dbindex, key, value);
         } else {
             // if no duplicates are possible, we just overwrite
-            g_db_read_cache[static_cast<std::size_t>(dbindex)].erase(key);
-            g_db_read_cache[static_cast<std::size_t>(dbindex)].insert(
-                std::make_pair(key, DBCachedRead(ReadOperationType::ValueWritten, value)));
+            g_db_read_cache[static_cast<std::size_t>(dbindex)].set(
+                key, DBCachedRead(ReadOperationType::ValueWritten, value));
             approxReadCacheSize.fetch_add(value.size(), boost::memory_order_relaxed);
         }
     }
@@ -387,28 +435,21 @@ Result<void, int> DBReadCacheLayer::erase(Index dbindex, const std::string& key)
         return tx->erase(static_cast<int>(dbindex), key) ? Result<void, int>(Ok()) : Err(1);
     }
 
+    GUARD_RW();
+
     {
         // since this is a read-cache, we first apply the operation in the database, then we update the
         // cache
         LMDB persistedDB(dbdir_, false);
 
-        Result<void, int> eraseRes = [&]() {
-            if (IDB::DuplicateKeysAllowed(dbindex)) {
-                return persistedDB.erase(dbindex, key);
-            } else {
-                return persistedDB.erase(dbindex, key);
-            }
-        }();
+        Result<void, int> eraseRes = persistedDB.erase(dbindex, key);
         if (eraseRes.isErr()) {
             return eraseRes;
         }
     }
 
-    std::lock_guard<MutexType> lg(g_db_read_cache_lock);
-
-    g_db_read_cache[static_cast<std::size_t>(dbindex)].erase(key);
-    g_db_read_cache[static_cast<std::size_t>(dbindex)].insert(
-        std::make_pair(key, DBCachedRead(ReadOperationType::Erased, "")));
+    g_db_read_cache[static_cast<std::size_t>(dbindex)].set(key,
+                                                           DBCachedRead(ReadOperationType::Erased, ""));
 
     return Ok();
 }
@@ -419,9 +460,21 @@ Result<void, int> DBReadCacheLayer::eraseAll(Index dbindex, const std::string& k
         return tx->erase(static_cast<int>(dbindex), key) ? Result<void, int>(Ok()) : Err(1);
     }
 
-    g_db_read_cache[static_cast<std::size_t>(dbindex)].erase(key);
-    g_db_read_cache[static_cast<std::size_t>(dbindex)].insert(
-        std::make_pair(key, DBCachedRead(ReadOperationType::Erased, "")));
+    GUARD_RW();
+
+    {
+        // since this is a read-cache, we first apply the operation in the database, then we update the
+        // cache
+        LMDB persistedDB(dbdir_, false);
+
+        Result<void, int> eraseRes = persistedDB.eraseAll(dbindex, key);
+        if (eraseRes.isErr()) {
+            return eraseRes;
+        }
+    }
+
+    g_db_read_cache[static_cast<std::size_t>(dbindex)].set(key,
+                                                           DBCachedRead(ReadOperationType::Erased, ""));
 
     return Ok();
 }
@@ -448,12 +501,13 @@ Result<bool, int> DBReadCacheLayer::exists(Index dbindex, const std::string& key
     BOOST_SCOPE_EXIT_END
 
     {
-        std::lock_guard<MutexType> lg(g_db_read_cache_lock);
-        const auto&                map = g_db_read_cache[static_cast<std::size_t>(dbindex)];
+        GUARD_RW();
 
-        auto it = map.find(key);
-        if (it != map.cend()) {
-            const DBCachedRead& cache = it->second;
+        const auto& map = g_db_read_cache[static_cast<std::size_t>(dbindex)];
+
+        auto item = map.get(key);
+        if (item) {
+            const DBCachedRead& cache = *item;
             switch (cache.getOpType()) {
             case ReadOperationType::Erased:
                 return Ok(false);
@@ -475,8 +529,8 @@ Result<bool, int> DBReadCacheLayer::exists(Index dbindex, const std::string& key
         if (rdVal.isOk()) {
             const boost::optional<std::string>& dVal = rdVal.UNWRAP();
             if (dVal) {
-                g_db_read_cache[static_cast<std::size_t>(dbindex)].insert(
-                    std::make_pair(key, DBCachedRead(ReadOperationType::ValueRead, *dVal)));
+                g_db_read_cache[static_cast<std::size_t>(dbindex)].set(
+                    key, DBCachedRead(ReadOperationType::ValueRead, *dVal));
                 approxReadCacheSize.fetch_add(dVal->size(), boost::memory_order_relaxed);
                 return Ok(true);
             } else {
@@ -540,6 +594,8 @@ Result<void, int> DBReadCacheLayer::commitDBTransaction()
     BOOST_SCOPE_EXIT(this_) { this_->flushOnPolicy(); }
     BOOST_SCOPE_EXIT_END
 
+    GUARD_TX();
+
     LMDB persistedDB(dbdir_, false);
     persistedDB.beginDBTransaction(1 << 24);
 
@@ -570,9 +626,8 @@ Result<void, int> DBReadCacheLayer::commitDBTransaction()
                     }
                     break;
                 case WriteOperationType::Erase:
-                    g_db_read_cache[static_cast<std::size_t>(dbid)].erase(key);
-                    g_db_read_cache[static_cast<std::size_t>(dbid)].insert(
-                        std::make_pair(key, DBCachedRead(ReadOperationType::Erased, "")));
+                    g_db_read_cache[static_cast<std::size_t>(dbid)].set(
+                        key, DBCachedRead(ReadOperationType::Erased, ""));
                     break;
                 }
             }
@@ -588,8 +643,6 @@ Result<void, int> DBReadCacheLayer::commitDBTransaction()
     }
 
     {
-        std::lock_guard<MutexType> lg(g_db_read_cache_lock);
-
         for (std::size_t i = 0; i < txData.size(); i++) {
             const IDB::Index                             dbid    = static_cast<IDB::Index>(i);
             std::map<std::string, TransactionOperation>& txOpMap = txData[i];
@@ -605,17 +658,15 @@ Result<void, int> DBReadCacheLayer::commitDBTransaction()
                     break;
                 case WriteOperationType::UniqueSet:
                     if (!op.getValues().empty()) {
-                        g_db_read_cache[static_cast<std::size_t>(dbid)].erase(key);
                         approxReadCacheSize.fetch_add(op.getValues().front().size(),
                                                       boost::memory_order_release);
-                        g_db_read_cache[static_cast<std::size_t>(dbid)].insert(std::make_pair(
-                            key, DBCachedRead(ReadOperationType::ValueWritten, op.getValues().front())));
+                        g_db_read_cache[static_cast<std::size_t>(dbid)].set(
+                            key, DBCachedRead(ReadOperationType::ValueWritten, op.getValues().front()));
                     }
                     break;
                 case WriteOperationType::Erase:
-                    g_db_read_cache[static_cast<std::size_t>(dbid)].erase(key);
-                    g_db_read_cache[static_cast<std::size_t>(dbid)].insert(
-                        std::make_pair(key, DBCachedRead(ReadOperationType::Erased, "")));
+                    g_db_read_cache[static_cast<std::size_t>(dbid)].set(
+                        key, DBCachedRead(ReadOperationType::Erased, ""));
                     break;
                 }
             }
@@ -657,29 +708,6 @@ void DBReadCacheLayer::close()
     boost::atomic_thread_fence(boost::memory_order_seq_cst);
 }
 
-static std::uintmax_t CalculateTotalDataSize_unsafe()
-{
-    std::uintmax_t sizeToAdd = 0;
-    for (const auto& db : g_db_read_cache) {
-        for (const auto& cacheMap : db) {
-            sizeToAdd += cacheMap.first.size();
-            const DBCachedRead& entry = cacheMap.second;
-            switch (entry.getOpType()) {
-            case ReadOperationType::Erased:
-            case ReadOperationType::NotFound:
-                break;
-            case ReadOperationType::ValueRead:
-                break;
-            case ReadOperationType::ValueWritten:
-                for (const std::string& data : entry.getValues()) {
-                    sizeToAdd += data.size();
-                }
-            }
-        }
-    }
-    return sizeToAdd;
-}
-
 bool DBReadCacheLayer::flush(const boost::optional<uint64_t>&) const
 {
     NLog.write(b_sev::info, "Clearning cache");
@@ -703,7 +731,7 @@ boost::optional<bool> DBReadCacheLayer::flushOnPolicy() const
 
 void DBReadCacheLayer::clearCache() const
 {
-    std::lock_guard<MutexType> lg(g_db_read_cache_lock);
+    GUARD_RW();
     clearCache_unsafe();
 }
 
