@@ -5,8 +5,6 @@
 #include "logging/logger.h"
 #include "util.h"
 #include <boost/atomic.hpp>
-#include <boost/atomic/atomic.hpp>
-#include <boost/atomic/detail/atomic_flag_impl.hpp>
 #include <boost/scope_exit.hpp>
 #include <cstddef>
 
