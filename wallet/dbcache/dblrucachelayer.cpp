@@ -1,19 +1,27 @@
 #include "dblrucachelayer.h"
 
 #include "db/lmdb/lmdb.h"
+#include "dbcache/dbreadcachelayer.h"
 #include "dblrucachestorage.h"
 #include "logging/logger.h"
 #include "util.h"
 #include <boost/atomic.hpp>
 #include <boost/scope_exit.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
 #include <vector>
 
 using namespace DBOperation;
 
 static DBLRUCacheStorage g_db_lru_cache;
 
-static boost::atomic_int64_t  approxLRUCacheSize;
-static boost::atomic_uint64_t lruFlushCount;
+static boost::atomic_int64_t  cachedTxCount{0};
+static boost::atomic_uint64_t lruFlushCount{0};
+
+using PersistentDBType = LMDB;
+
+static const int DBCACHE_FLUSH_SIZE = 1 << 25;
 
 DBLRUCacheLayer::DBLRUCacheLayer(const boost::filesystem::path* const dbdir, bool startNewDatabase,
                                  int64_t flushOnSize)
@@ -71,7 +79,7 @@ DBLRUCacheLayer::read(Index dbindex, const std::string& key, std::size_t offset,
             }
         }
 
-        LMDB persistedDB(dbdir_, false);
+        PersistentDBType persistedDB(dbdir_, false);
 
         Result<boost::optional<std::string>, int> rdVal = persistedDB.read(dbindex, key, 0, boost::none);
         if (rdVal.isOk()) {
@@ -136,7 +144,7 @@ Result<std::vector<std::string>, int> DBLRUCacheLayer::readMultiple(Index       
     cachedWrites.insert(cachedWrites.end(), std::make_move_iterator(valuesToAppend.begin()),
                         std::make_move_iterator(valuesToAppend.end()));
 
-    LMDB persistedDB(dbdir_, false);
+    PersistentDBType persistedDB(dbdir_, false);
 
     Result<std::vector<std::string>, int> rdVal = persistedDB.readMultiple(dbindex, key);
     if (rdVal.isOk()) {
@@ -216,7 +224,7 @@ DBLRUCacheLayer::readAll(Index dbindex) const
     std::map<std::string, std::vector<DBLRUCacheStorage::StoredEntryResult>> allCachedWrites =
         g_db_lru_cache.getAll(static_cast<int>(dbindex));
 
-    LMDB persistedDB(dbdir_, false);
+    PersistentDBType persistedDB(dbdir_, false);
 
     auto tRes = persistedDB.readAll(dbindex);
     if (tRes.isErr()) {
@@ -291,7 +299,7 @@ Result<std::map<std::string, std::string>, int> DBLRUCacheLayer::readAllUnique(I
     std::map<std::string, std::vector<DBLRUCacheStorage::StoredEntryResult>> allCachedWrites =
         g_db_lru_cache.getAll(static_cast<int>(dbindex));
 
-    LMDB persistedDB(dbdir_, false);
+    PersistentDBType persistedDB(dbdir_, false);
 
     auto tRes = persistedDB.readAllUnique(dbindex);
     if (tRes.isErr()) {
@@ -329,7 +337,7 @@ Result<void, int> DBLRUCacheLayer::write(Index dbindex, const std::string& key, 
     {
         const int dbid = static_cast<int>(dbindex);
         g_db_lru_cache.add(TransactableDBEntry(TransactableDBEntry::SingleKeyValue(dbid, key, value)));
-        approxLRUCacheSize.fetch_add(value.size(), boost::memory_order_relaxed);
+        cachedTxCount.fetch_add(1, boost::memory_order_relaxed);
     }
 
     return Ok();
@@ -401,7 +409,7 @@ Result<bool, int> DBLRUCacheLayer::exists(Index dbindex, const std::string& key)
             }
         }
 
-        LMDB persistedDB(dbdir_, false);
+        PersistentDBType persistedDB(dbdir_, false);
 
         // TODO: this may be optimized, no need to read, instead maybe we can use exists()
         Result<boost::optional<std::string>, int> rdVal = persistedDB.read(dbindex, key, 0, boost::none);
@@ -422,7 +430,7 @@ void DBLRUCacheLayer::clearDBData()
 {
     // clearCache(); // TODO
     g_db_lru_cache.clear();
-    LMDB persistedDB(dbdir_, true);
+    PersistentDBType persistedDB(dbdir_, true);
 }
 
 Result<void, int> DBLRUCacheLayer::beginDBTransaction(std::size_t /*expectedDataSize*/)
@@ -470,6 +478,7 @@ Result<void, int> DBLRUCacheLayer::commitDBTransaction()
 
     auto&& dbEntry = TransactableDBEntry(std::move(movedTx));
     g_db_lru_cache.add(std::move(dbEntry));
+    cachedTxCount.fetch_add(1, boost::memory_order_relaxed);
 
     return result ? Result<void, int>(Ok()) : Err(-1);
 }
@@ -485,13 +494,13 @@ boost::optional<boost::filesystem::path> DBLRUCacheLayer::getDataDir() const { r
 bool DBLRUCacheLayer::openDB(bool clearDataBeforeOpen)
 {
     if (clearDataBeforeOpen) {
-        // clearCache(); // TODO
+        clearCache();
         DBLRUCacheLayer::clearDBData();
-        approxLRUCacheSize.store(0, boost::memory_order_seq_cst);
+        cachedTxCount.store(0, boost::memory_order_seq_cst);
         lruFlushCount.store(0, boost::memory_order_seq_cst);
     }
 
-    LMDB persistedDB(dbdir_, clearDataBeforeOpen);
+    PersistentDBType persistedDB(dbdir_, clearDataBeforeOpen);
     boost::atomic_thread_fence(boost::memory_order_seq_cst);
 
     return true;
@@ -500,11 +509,198 @@ bool DBLRUCacheLayer::openDB(bool clearDataBeforeOpen)
 void DBLRUCacheLayer::close()
 {
     tx.reset();
-    // flush(); // TODO
-    LMDB persistedDB(dbdir_, false);
+    flush();
+    PersistentDBType persistedDB(dbdir_, false);
     persistedDB.close();
     boost::atomic_thread_fence(boost::memory_order_seq_cst);
 }
 
-// TODO
-boost::optional<bool> DBLRUCacheLayer::flushOnPolicy() const { return boost::none; }
+boost::optional<bool> DBLRUCacheLayer::flushOnPolicy() const
+{
+    if (flushOnSizeReached > 0) {
+        if (cachedTxCount.load(boost::memory_order_acquire) > flushOnSizeReached) {
+            bool res = flush();
+            return boost::make_optional(res);
+        }
+    }
+    return boost::none;
+}
+
+std::uintmax_t CalculateDataSize(const std::vector<DBLRUCacheStorage::StoredEntryResult>& data)
+{
+    std::uintmax_t totalSize = 0;
+    for (const auto& d : data) {
+        totalSize += d.key.size();
+        totalSize += d.value.size();
+    }
+    return totalSize;
+}
+
+static std::vector<DBLRUCacheStorage::StoredEntryResult>
+CollectSomeDataToPersist(const uintmax_t ApproximateMaxSize)
+{
+    std::vector<DBLRUCacheStorage::StoredEntryResult> result;
+    std::uintmax_t                                    totalSize = 0;
+    while (totalSize < ApproximateMaxSize) {
+        boost::optional<std::vector<DBLRUCacheStorage::StoredEntryResult>> popped =
+            g_db_lru_cache.pop_one();
+        if (!popped) {
+            break;
+        }
+
+        std::vector<DBLRUCacheStorage::StoredEntryResult>& poppedVec = *popped;
+        totalSize += CalculateDataSize(poppedVec);
+
+        result.insert(result.end(), std::make_move_iterator(poppedVec.begin()),
+                      std::make_move_iterator(poppedVec.end()));
+    }
+    return result;
+}
+
+enum PersistValueToCacheResult
+{
+    NoError,
+    RecoverableError,
+    UnrecoverableError,
+};
+
+#define ReturnIfError(db, action, dbidInt, res)                                                         \
+    {                                                                                                   \
+        if (res.isErr()) {                                                                              \
+            const int errVal = res.UNWRAP_ERR();                                                        \
+            NLog.write(b_sev::err,                                                                      \
+                       "Encountered error {} while attempting persist data (in {} "                     \
+                       ") in DBID {}",                                                                  \
+                       errVal, action, dbidInt);                                                        \
+            if (errVal == MDB_MAP_FULL || errVal == MDB_BAD_TXN || errVal == MDB_NOTFOUND) {            \
+                return PersistValueToCacheResult::RecoverableError;                                     \
+            } else {                                                                                    \
+                return PersistValueToCacheResult::UnrecoverableError;                                   \
+            }                                                                                           \
+        }                                                                                               \
+    }
+
+static PersistValueToCacheResult PersistValueToCache(PersistentDBType& persistedDB, IDB::Index dbid,
+                                                     const std::string&                          key,
+                                                     const DBLRUCacheStorage::StoredEntryResult& cache)
+{
+    const int i = static_cast<int>(dbid);
+    // in all cases, we keep checking if an error occurred. If that's the case, we retry
+    switch (cache.op) {
+    case DBLRUCacheStorage::StoredOperationType::Write: {
+        Result<void, int> writeRes =
+            persistedDB.write(static_cast<IDB::Index>(cache.dbid), cache.key, cache.value);
+        ReturnIfError(db, "write", i, writeRes);
+        break;
+    }
+    case DBLRUCacheStorage::StoredOperationType::Erase:
+        const Result<void, int> eraseRes = persistedDB.erase(dbid, key);
+        ReturnIfError(db, "erase", i, eraseRes);
+        break;
+    }
+
+    return PersistValueToCacheResult::NoError;
+}
+
+static std::vector<std::vector<DBLRUCacheStorage::StoredEntryResult>>
+partition_data(const std::vector<DBLRUCacheStorage::StoredEntryResult>& v, std::size_t n)
+{
+    std::vector<std::vector<DBLRUCacheStorage::StoredEntryResult>> vec;
+
+    // determine the total number of sub-vectors of size `n`
+    std::size_t size = (v.size() - 1) / n + 1;
+
+    // each iteration of this loop process the next set of `n` elements
+    // and store it in a vector at k'th index in `vec`
+    for (std::size_t k = 0; k < size; ++k) {
+        // get range for the next set of `n` elements
+        auto start_itr = std::next(v.cbegin(), k * n);
+        auto end_itr   = std::next(v.cbegin(), k * n + n);
+
+        // allocate memory for the sub-vector
+        vec[k].resize(n);
+
+        // code to handle the last sub-vector as it might
+        // contain fewer elements
+        if (k * n + n > v.size()) {
+            end_itr = v.cend();
+            vec[k].resize(v.size() - k * n);
+        }
+
+        // copy elements from the input range to the sub-vector
+        std::copy(start_itr, end_itr, vec[k].begin());
+    }
+
+    return vec;
+}
+
+bool DBLRUCacheLayer::flush(const boost::optional<uint64_t>& commitSizeIn) const
+{
+    while (true) {
+        const std::vector<DBLRUCacheStorage::StoredEntryResult> dataToWrite =
+            CollectSomeDataToPersist(1 << 20);
+        if (dataToWrite.empty()) {
+            break;
+        }
+
+        int64_t commitSize = commitSizeIn ? *commitSizeIn : 1 << 24;
+
+        // 12 retries will increase the diskspace by 4096 times!
+        static const int MAX_RETRIES = 12;
+
+        PersistValueToCacheResult singlePersisResult = PersistValueToCacheResult::NoError;
+
+        for (int c = 0; c < MAX_RETRIES; c++) {
+
+            PersistentDBType persistedDB(dbdir_, false);
+
+            const Result<void, int> dbBeginRes = persistedDB.beginDBTransaction(commitSize);
+            if (dbBeginRes.isErr()) {
+                NLog.write(b_sev::critical, "Failed to start DB transaction with error code: {}",
+                           dbBeginRes.UNWRAP_ERR());
+                continue;
+            }
+
+            singlePersisResult = PersistValueToCacheResult::NoError;
+
+            for (const DBLRUCacheStorage::StoredEntryResult& data : dataToWrite) {
+                singlePersisResult =
+                    PersistValueToCache(persistedDB, static_cast<IDB::Index>(data.dbid), data.key, data);
+                if (singlePersisResult != PersistValueToCacheResult::NoError) {
+                    break;
+                }
+            }
+
+            if (singlePersisResult == PersistValueToCacheResult::NoError) {
+                NLog.write(b_sev::info, "About to commit to persisted DB");
+                persistedDB.commitDBTransaction();
+                NLog.write(b_sev::info, "A flush() in cached DB finish");
+                break;
+            } else if (singlePersisResult == PersistValueToCacheResult::RecoverableError) {
+                // grow the DB again and retry
+                persistedDB.abortDBTransaction();
+                static const int64_t IncrementFactor = 2;
+                if (commitSize > std::numeric_limits<decltype(commitSize)>::max() / IncrementFactor) {
+                    NLog.flush();
+                    throw std::runtime_error("Unable to resize DB more than " +
+                                             std::to_string(commitSize) +
+                                             " as it will overflow. Failed to persist data in DB.");
+                }
+                commitSize *= IncrementFactor;
+                NLog.flush();
+                continue;
+            } else {
+                NLog.write(b_sev::critical,
+                           "Canceling flushing to DB as an unrecoverable error occurred");
+                persistedDB.abortDBTransaction();
+                break;
+            }
+        }
+    }
+    lruFlushCount++;
+    return true;
+}
+
+void DBLRUCacheLayer::clearCache() { g_db_lru_cache.clear(); }
+
+uint64_t DBLRUCacheLayer::GetFlushCount() { return lruFlushCount; }

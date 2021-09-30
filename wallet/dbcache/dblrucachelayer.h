@@ -42,6 +42,9 @@ public:
     void                                     close() override;
 
     boost::optional<bool> flushOnPolicy() const;
+    bool                  flush(const boost::optional<uint64_t>& commitSizeIn = boost::none) const;
+    void                  clearCache();
+    static uint64_t       GetFlushCount();
 };
 
 #endif // DBLRUCACHELAYER_H

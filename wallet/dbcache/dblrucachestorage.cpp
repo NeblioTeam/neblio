@@ -59,15 +59,26 @@ void DBLRUCacheStorage::clear()
 {
     boost::unique_lock<DBLRUCacheStorage::MutexType> lg(dataLock);
     data.clear();
+    for (auto&& map : dataMap) {
+        map.clear();
+    }
+}
+
+std::size_t DBLRUCacheStorage::size() const
+{
+    boost::shared_lock<DBLRUCacheStorage::MutexType> lg(dataLock);
+    return data.size();
 }
 
 boost::shared_ptr<TransactableDBEntry> DBLRUCacheStorage::pop_internal()
 {
     boost::unique_lock<DBLRUCacheStorage::MutexType> lg(dataLock);
 
-    boost::shared_ptr<TransactableDBEntry> ptr;
+    if (data.empty()) {
+        return nullptr;
+    }
 
-    boost::atomic_exchange(&data.front(), ptr);
+    boost::shared_ptr<TransactableDBEntry> ptr = boost::atomic_load(&data.front());
     data.pop_front();
 
     return ptr;
@@ -81,12 +92,9 @@ boost::optional<std::vector<DBLRUCacheStorage::StoredEntryResult>> DBLRUCacheSto
         return boost::none;
     }
 
-    // this should never happen
-    assert(queuePtr);
+    const TransactableDBEntry& entry = *queuePtr;
 
     std::vector<DBLRUCacheStorage::StoredEntryResult> result;
-
-    const TransactableDBEntry& entry = *queuePtr;
 
     switch (entry.getOp()) {
     case TransactableDBEntry::EntryOperation::Erase: {

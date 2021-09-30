@@ -77,7 +77,8 @@ public:
     bool add(const TransactableDBEntry& entry);
     bool add(TransactableDBEntry&& entry);
 
-    void clear();
+    void        clear();
+    std::size_t size() const;
 
     boost::optional<std::vector<StoredEntryResult>> pop_one();
 
