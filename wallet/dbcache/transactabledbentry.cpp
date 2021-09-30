@@ -36,8 +36,7 @@ TransactableDBEntry::TransactableDBEntry(const TransactionValues& hdb)
 
 std::pair<int, std::string> TransactableDBEntry::GetKeyFromWrite(const SingleKeyValue& dbid_k_v)
 {
-    auto&& v = boost::get<SingleKeyValue>(dbid_k_v);
-    return std::make_pair(std::get<0>(v), std::get<1>(v));
+    return std::make_pair(std::get<0>(dbid_k_v), std::get<1>(dbid_k_v));
 }
 
 TransactableDBEntry::EntryOperation TransactableDBEntry::getOp() const { return op; }
@@ -56,8 +55,8 @@ std::vector<std::pair<int, std::string>> TransactableDBEntry::getAllKeys() const
         const TransactionValues& tx = boost::get<TransactionValues>(value);
 
         std::vector<std::pair<int, std::string>> result;
-        for (int i = 0; i < static_cast<int>(IDB::Index::DB_MAIN_INDEX); i++) {
-            const auto allTxData = tx->getAllDataForDB(0);
+        for (int i = 0; i < static_cast<int>(IDB::Index::Index_Last); i++) {
+            const auto allTxData = tx->getAllDataForDB(i);
 
             // get all keys of the map
             for (auto&& d : allTxData) {

@@ -751,6 +751,7 @@ add_library(core_lib STATIC
     wallet/partialmerkletree.cpp
     wallet/ntp1/ntp1common.cpp
     wallet/bootstraptools.cpp
+    wallet/concurrentmap/ConcurrentMap.cpp
     )
 
 target_link_libraries(core_lib

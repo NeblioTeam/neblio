@@ -119,6 +119,8 @@ public:
 
     std::map<std::string, TransactionOperation> getAllDataForDB(int dbid) const;
 
+    std::vector<std::pair<IDB::Index, std::map<std::string, TransactionOperation>>> getAllData() const;
+
     static HierarchicalDB::Ptr Make(const std::string&                     name,
                                     const std::shared_ptr<HierarchicalDB>& parentDB = nullptr);
 };

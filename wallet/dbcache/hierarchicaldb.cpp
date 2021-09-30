@@ -1,6 +1,8 @@
 ﻿#include "hierarchicaldb.h"
 
+#include <array>
 #include <boost/range/adaptor/reversed.hpp>
+#include <utility>
 
 using namespace DBOperation;
 
@@ -523,6 +525,20 @@ template <typename MutexType>
 std::map<std::string, TransactionOperation> HierarchicalDB<MutexType>::getAllDataForDB(int dbid) const
 {
     return getCollapsedOpsForAll(dbid);
+}
+
+template <typename MutexType>
+std::vector<std::pair<IDB::Index, std::map<std::string, TransactionOperation>>>
+HierarchicalDB<MutexType>::getAllData() const
+{
+    std::vector<std::pair<IDB::Index, std::map<std::string, TransactionOperation>>> result;
+    for (int dbid = 0; dbid < static_cast<int>(IDB::Index::Index_Last); dbid++) {
+        auto&& subRes = getAllDataForDB(dbid);
+        if (subRes.size() > 0) {
+            result.push_back(std::make_pair(static_cast<IDB::Index>(dbid), subRes));
+        }
+    }
+    return result;
 }
 
 template class HierarchicalDB<std::mutex>;

@@ -1,30 +1,173 @@
 #include "dblrucachestorage.h"
+#include "logging/logger.h"
 #include <algorithm>
+#include <boost/atomic.hpp>
+#include <boost/exception/exception.hpp>
 #include <boost/mpl/clear.hpp>
 #include <boost/range/adaptor/reversed.hpp>
+#include <boost/smart_ptr/make_shared_object.hpp>
+#include <boost/smart_ptr/shared_ptr.hpp>
+#include <boost/smart_ptr/weak_ptr.hpp>
+#include <boost/thread/lock_types.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <curl/curl.h>
+#include <deque>
+#include <memory>
 #include <set>
+#include <stdexcept>
+#include <type_traits>
 
 DBLRUCacheStorage::DBLRUCacheStorage() {}
 
-void DBLRUCacheStorage::add(const TransactableDBEntry& entry)
+template <typename T>
+boost::shared_ptr<typename std::decay<T>::type>
+DBLRUCacheStorage::AppendToCache(DBLRUCacheStorage& cache, T&& entry)
 {
-    // auto&& keys = entry.getAllKeys();
-    // for (auto&& key : keys) {
-    //     dataMap[key.first][key.second].push_back(data.size());
-    // }
-    data.push_back(entry);
+    boost::unique_lock<DBLRUCacheStorage::MutexType> lg(cache.dataLock);
+    auto ptr = boost::make_shared<typename std::decay<T>::type>(std::forward<T>(entry));
+    cache.data.push_back(nullptr);
+    boost::atomic_store(&cache.data.back(), ptr);
+    return ptr;
 }
 
-void DBLRUCacheStorage::add(TransactableDBEntry&& entry)
+bool DBLRUCacheStorage::add(const TransactableDBEntry& entry)
 {
-    // auto&& keys = entry.getAllKeys();
-    // for (auto&& key : keys) {
-    //     dataMap[key.first][key.second].push_back(data.size());
-    // }
-    data.push_back(std::move(entry));
+    auto ptr = AppendToCache(*this, entry);
+    assert(ptr);
+    auto&& keys = ptr->getAllKeys();
+    for (auto&& key : keys) {
+        dataMap[key.first].apply(
+            key.second, [&](MapType::BucketMapType& m, const std::string& k) { m[k].push_back(ptr); });
+    }
+    return true;
 }
 
-void DBLRUCacheStorage::clear() { data.clear(); }
+bool DBLRUCacheStorage::add(TransactableDBEntry&& entry)
+{
+    auto ptr = AppendToCache(*this, std::move(entry));
+    assert(ptr);
+    auto&& keys = ptr->getAllKeys();
+    for (auto&& key : keys) {
+        dataMap[key.first].apply(
+            key.second, [&](MapType::BucketMapType& m, const std::string& k) { m[k].push_back(ptr); });
+    }
+    return true;
+}
+
+void DBLRUCacheStorage::clear()
+{
+    boost::unique_lock<DBLRUCacheStorage::MutexType> lg(dataLock);
+    data.clear();
+}
+
+boost::shared_ptr<TransactableDBEntry> DBLRUCacheStorage::pop_internal()
+{
+    boost::unique_lock<DBLRUCacheStorage::MutexType> lg(dataLock);
+
+    boost::shared_ptr<TransactableDBEntry> ptr;
+
+    boost::atomic_exchange(&data.front(), ptr);
+    data.pop_front();
+
+    return ptr;
+}
+
+boost::optional<std::vector<DBLRUCacheStorage::StoredEntryResult>> DBLRUCacheStorage::pop_one()
+{
+    boost::shared_ptr<TransactableDBEntry> queuePtr = pop_internal();
+
+    if (!queuePtr) {
+        return boost::none;
+    }
+
+    // this should never happen
+    assert(queuePtr);
+
+    std::vector<DBLRUCacheStorage::StoredEntryResult> result;
+
+    const TransactableDBEntry& entry = *queuePtr;
+
+    switch (entry.getOp()) {
+    case TransactableDBEntry::EntryOperation::Erase: {
+        auto&&    kv         = boost::get<TransactableDBEntry::EraseKeyValue>(entry.getValue());
+        const int storedDbid = kv.first;
+        auto&&    storedKey  = kv.second;
+        result.push_back(StoredEntryResult::MakeErase(storedDbid, storedKey));
+        break;
+    }
+    case TransactableDBEntry::EntryOperation::Write: {
+        auto&& kv         = boost::get<TransactableDBEntry::SingleKeyValue>(entry.getValue());
+        auto&& storedDbid = std::get<0>(kv);
+        auto&& storedKey  = std::get<1>(kv);
+        auto&& storedVal  = std::get<2>(kv);
+        result.push_back(StoredEntryResult::MakeWrite(storedDbid, storedKey, storedVal));
+        break;
+    }
+    case TransactableDBEntry::EntryOperation::Transaction: {
+        const TransactableDBEntry::TransactionValues& tx =
+            boost::get<TransactableDBEntry::TransactionValues>(entry.getValue());
+        auto&& allData = tx->getAllData();
+        for (auto&& dbindexVsMap : allData) {
+            auto&&    dbindex = dbindexVsMap.first;
+            const int dbid    = static_cast<int>(dbindex);
+            auto&&    dbData  = dbindexVsMap.second;
+            for (auto&& kvOp : dbData) {
+                auto&& storedKey = kvOp.first;
+                auto&& storedOp  = kvOp.second;
+                switch (storedOp.getOpType()) {
+                case DBOperation::WriteOperationType::Append:
+                    for (const auto& val : boost::adaptors::reverse(storedOp.getValues())) {
+                        result.push_back(
+                            DBLRUCacheStorage::StoredEntryResult::MakeWrite(dbid, storedKey, val));
+                    }
+                    break;
+                case DBOperation::WriteOperationType::UniqueSet:
+                    if (!storedOp.getValues().empty()) {
+                        result.push_back(DBLRUCacheStorage::StoredEntryResult::MakeWrite(
+                            dbid, storedKey, storedOp.getValues().front()));
+                    }
+                    break;
+                case DBOperation::WriteOperationType::Erase:
+                    result.push_back(StoredEntryResult::MakeErase(dbid, storedKey));
+                    break;
+                }
+            }
+        }
+        break;
+    }
+    }
+
+    auto&& allKeys = queuePtr->getAllKeys();
+    for (auto&& key : allKeys) {
+        dataMap[key.first].apply(key.second, [&](MapType::BucketMapType& m, const std::string& k) {
+            auto it = m.find(k);
+            if (it == m.end()) {
+                NLog.write(b_sev::critical,
+                           "No keys were registered in the LRU cache storage for key {} in dbid {}", k,
+                           key.first);
+                return;
+            }
+            auto&& entries = it->second;
+            while (entries.size() > 0) {
+                // since entries are inserted in order, we expect them from the front to all point to the
+                // data we pushed to the queue
+                auto&& entryInMap = entries.front();
+                if (entryInMap.lock().get() == queuePtr.get()) {
+                    entries.erase(entries.begin());
+                } else {
+                    break;
+                }
+            }
+            // no more items left in that key, why keep it?
+            if (entries.empty()) {
+                m.erase(it);
+            }
+        });
+    }
+
+    return result;
+}
 
 std::vector<DBLRUCacheStorage::StoredEntryResult> ExtractValues(const TransactableDBEntry& entry,
                                                                 const int dbid, const std::string& key)
@@ -140,8 +283,18 @@ std::vector<DBLRUCacheStorage::StoredEntryResult> DBLRUCacheStorage::get(const i
                                                                          const std::string& key) const
 {
     std::vector<StoredEntryResult> result;
-    for (const TransactableDBEntry& entry : boost::adaptors::reverse(data)) {
-        std::vector<StoredEntryResult> subResult = ExtractValues(entry, dbid, key);
+
+    boost::optional<std::deque<boost::weak_ptr<TransactableDBEntry>>> els = dataMap[dbid].get(key);
+    if (!els) {
+        return {};
+    }
+
+    for (const auto& entryWeakPtr : boost::adaptors::reverse(*els)) {
+        auto entryPtr = entryWeakPtr.lock();
+        if (!entryPtr) {
+            break;
+        }
+        std::vector<StoredEntryResult> subResult = ExtractValues(*entryPtr, dbid, key);
         result.insert(result.end(), std::make_move_iterator(subResult.begin()),
                       std::make_move_iterator(subResult.end()));
         if (!result.empty() && result.back().op == DBLRUCacheStorage::StoredOperationType::Erase) {
@@ -157,13 +310,26 @@ std::vector<DBLRUCacheStorage::StoredEntryResult> DBLRUCacheStorage::get(const i
 boost::optional<DBLRUCacheStorage::StoredEntryResult>
 DBLRUCacheStorage::get_one(int dbid, const std::string& key) const
 {
-    for (const TransactableDBEntry& entry : boost::adaptors::reverse(data)) {
-        boost::optional<StoredEntryResult> subResult = ExtractSingleValue(entry, dbid, key);
-        if (subResult) {
-            return subResult;
-        }
+    boost::shared_ptr<TransactableDBEntry> el =
+        dataMap[dbid].produce(key,
+                              [&](const MapType::BucketMapType& m,
+                                  const std::string& k) -> boost::shared_ptr<TransactableDBEntry> {
+                                  auto it = m.find(k);
+                                  if (it != m.cend()) {
+                                      auto vec = it->second;
+                                      if (!vec.empty()) {
+                                          return vec.back().lock();
+                                      }
+                                  }
+                                  return boost::shared_ptr<TransactableDBEntry>();
+                              });
+    if (!el) {
+        // if everything is being popped in order, that means that all the elements before this one don't
+        // exist if this one was already popped
+        return boost::none;
     }
-    return boost::none;
+
+    return ExtractSingleValue(*el, dbid, key);
 }
 
 std::map<std::string, std::vector<DBLRUCacheStorage::StoredEntryResult>>
@@ -175,7 +341,15 @@ DBLRUCacheStorage::getAll(int dbid) const
 
     std::map<std::string, std::vector<DBLRUCacheStorage::StoredEntryResult>> result;
 
-    for (const TransactableDBEntry& entry : boost::adaptors::reverse(data)) {
+    // avoid locking for a long time... take a copy and unlock
+    const std::deque<boost::shared_ptr<TransactableDBEntry>> dataCopy = [this]() {
+        boost::shared_lock<DBLRUCacheStorage::MutexType> lg(dataLock);
+        return data;
+    }();
+
+    for (const boost::shared_ptr<TransactableDBEntry>& entryPtr : boost::adaptors::reverse(dataCopy)) {
+        assert(entryPtr);
+        const TransactableDBEntry& entry = *entryPtr;
         switch (entry.getOp()) {
         case TransactableDBEntry::EntryOperation::Erase: {
             auto&&    kv         = boost::get<TransactableDBEntry::EraseKeyValue>(entry.getValue());
