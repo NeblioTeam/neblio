@@ -37,15 +37,17 @@ static std::string RandomString(const int len)
 
 enum class DBTypes : int
 {
-    DB_LMDB                = 0,
-    DB_InMemory            = 1,
-    DB_Cached              = 2,
-    DB_Cached_NoFlush      = 3,
-    DB_Read_Cached         = 4,
-    DB_LRU_Cached_LMDB     = 5,
-    DB_LRU_Cached_WithRead = 6,
+    DB_LMDB                        = 0,
+    DB_InMemory                    = 1,
+    DB_Cached                      = 2,
+    DB_Cached_NoFlush              = 3,
+    DB_Read_Cached                 = 4,
+    DB_LRU_Cached_LMDB_NoFlush     = 5,
+    DB_LRU_Cached_WithRead_NoFlush = 6,
+    DB_LRU_Cached_LMDB             = 7,
+    DB_LRU_Cached_WithRead         = 8,
 
-    DBTypes_Last = 7
+    DBTypes_Last = 9
 };
 
 class DBTestsFixture : public ::testing::TestWithParam<DBTypes>
@@ -54,6 +56,14 @@ class DBTestsFixture : public ::testing::TestWithParam<DBTypes>
     {
         if (GetParam() == DBTypes::DB_Cached) {
             std::cout << "DBCacheLayer flush count: " << DBCacheLayer::GetFlushCount() << std::endl;
+        }
+        if (GetParam() == DBTypes::DB_LRU_Cached_LMDB) {
+            std::cout << "DB_LRU_Cached_LMDB flush count: " << DBCacheLayer::GetFlushCount()
+                      << std::endl;
+        }
+        if (GetParam() == DBTypes::DB_LRU_Cached_WithRead) {
+            std::cout << "DB_LRU_Cached_WithRead flush count: " << DBCacheLayer::GetFlushCount()
+                      << std::endl;
         }
         NLog.flush();
     }
@@ -75,10 +85,20 @@ static std::function<std::unique_ptr<IDB>(const boost::filesystem::path&, DBType
         return MakeUnique<DBCacheLayer>(&p, true, 0);
     case DBTypes::DB_Read_Cached:
         return MakeUnique<DBReadCacheLayer>(&p, true, 0);
-    case DBTypes::DB_LRU_Cached_LMDB:
+    case DBTypes::DB_LRU_Cached_LMDB_NoFlush:
         return MakeUnique<DBLRUCacheLayer<LMDB>>(&p, true, 0);
-    case DBTypes::DB_LRU_Cached_WithRead:
-        return MakeUnique<DBLRUCacheLayer<LMDB>>(&p, true, 0);
+    case DBTypes::DB_LRU_Cached_WithRead_NoFlush:
+        return MakeUnique<DBLRUCacheLayer<DBReadCacheLayer>>(&p, true, 0);
+    case DBTypes::DB_LRU_Cached_LMDB: {
+        const uint64_t cacheMaxSize = rand() % 100;
+        std::cout << "Using cache layer max size: " << cacheMaxSize << std::endl;
+        return MakeUnique<DBLRUCacheLayer<LMDB>>(&p, true, cacheMaxSize);
+    }
+    case DBTypes::DB_LRU_Cached_WithRead: {
+        const uint64_t cacheMaxSize = rand() % 100;
+        std::cout << "Using cache layer max size: " << cacheMaxSize << std::endl;
+        return MakeUnique<DBLRUCacheLayer<DBReadCacheLayer>>(&p, true, cacheMaxSize);
+    }
     case DBTypes::DBTypes_Last:
         break;
     }
@@ -88,6 +108,8 @@ static std::function<std::unique_ptr<IDB>(const boost::filesystem::path&, DBType
 INSTANTIATE_TEST_SUITE_P(DBTests, DBTestsFixture,
                          ::testing::Values(DBTypes::DB_LMDB, DBTypes::DB_InMemory, DBTypes::DB_Cached,
                                            DBTypes::DB_Cached_NoFlush, DBTypes::DB_Read_Cached,
+                                           DBTypes::DB_LRU_Cached_LMDB_NoFlush,
+                                           DBTypes::DB_LRU_Cached_WithRead_NoFlush,
                                            DBTypes::DB_LRU_Cached_LMDB,
                                            DBTypes::DB_LRU_Cached_WithRead));
 
