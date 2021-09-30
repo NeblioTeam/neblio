@@ -361,6 +361,9 @@ static void AppendValueToMap(IDB::Index dbindex, const std::string& key, const s
     // for possible duplicates, if the key already exists and it's
     auto&& map = g_db_read_cache[static_cast<std::size_t>(dbindex)];
     map.apply(key, [&](ReadCacheMapType::BucketMapType& m, const std::string& k) {
+        // append only if we have the key already, otherwise we won't be in sync with the
+        // permanent DB (either we read the db then append, or do nothing)
+
         auto it = m.find(k);
         if (it != m.end()) {
             DBCachedRead& cache = it->second;
@@ -378,7 +381,8 @@ static void AppendValueToMap(IDB::Index dbindex, const std::string& key, const s
                 break;
             }
         } else {
-            m.insert(std::make_pair(k, DBCachedRead(ReadOperationType::ValueWritten, value)));
+            // we don't do the insert because we should first read the value from the database then
+            // append to it
         }
     });
 }
@@ -414,7 +418,6 @@ Result<void, int> DBReadCacheLayer::write(Index dbindex, const std::string& key,
 
     {
         if (IDB::DuplicateKeysAllowed(dbindex)) {
-            // for possible duplicates, if the key already exists and it's
             AppendValueToMap(dbindex, key, value);
         } else {
             // if no duplicates are possible, we just overwrite
@@ -650,8 +653,15 @@ Result<void, int> DBReadCacheLayer::commitDBTransaction()
 
                 switch (op.getOpType()) {
                 case WriteOperationType::Append:
-                    for (const auto& val : op.getValues()) {
-                        AppendValueToMap(dbid, key, val);
+                    // append only if we have the key already, otherwise we won't be in sync with the
+                    // permanent DB (either we read the db then append, or do nothing)
+                    //
+                    // the next line is just an optimization in order not to rerun the function again and
+                    // again
+                    if (g_db_read_cache[static_cast<std::size_t>(dbid)].get(key)) {
+                        for (const auto& val : op.getValues()) {
+                            AppendValueToMap(dbid, key, val);
+                        }
                     }
                     break;
                 case WriteOperationType::UniqueSet:

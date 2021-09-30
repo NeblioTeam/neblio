@@ -440,7 +440,8 @@ void LMDB::doResize(uint64_t increase_size)
     NLog.write(b_sev::info, ss.str());
 }
 
-LMDB::LMDB(const boost::filesystem::path* const dbdir, bool startNewDatabase) : dbdir_(dbdir)
+LMDB::LMDB(const boost::filesystem::path* const dbdir, bool startNewDatabase, int64_t /*unused*/)
+    : dbdir_(dbdir)
 {
     assert(dbdir);
 

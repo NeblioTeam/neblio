@@ -5,7 +5,9 @@
 #include "transactabledbentry.h"
 
 class LMDB;
+class DBReadCacheLayer;
 
+template <typename BaseDB>
 class DBLRUCacheLayer : public IDB
 {
     std::unique_ptr<HierarchicalDB<hdb_dummy_mutex>> tx;
@@ -46,5 +48,8 @@ public:
     void                  clearCache();
     static uint64_t       GetFlushCount();
 };
+
+extern template class DBLRUCacheLayer<LMDB>;
+extern template class DBLRUCacheLayer<DBReadCacheLayer>;
 
 #endif // DBLRUCACHELAYER_H

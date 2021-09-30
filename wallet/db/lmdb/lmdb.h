@@ -5,6 +5,7 @@
 
 #include "liblmdb/lmdb.h"
 #include "lmdbtransaction.h"
+#include <cstdint>
 #include <memory>
 
 // global environment pointer
@@ -78,7 +79,7 @@ class LMDB : public IDB
     std::unique_ptr<LMDBTransaction> activeBatch;
 
 public:
-    LMDB(const boost::filesystem::path* const dbdir, bool startNewDatabase);
+    LMDB(const boost::filesystem::path* const dbdir, bool startNewDatabase, int64_t unused = 0);
 
     void clearDBData() override;
 

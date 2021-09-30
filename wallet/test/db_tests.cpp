@@ -16,6 +16,7 @@
 #include <boost/algorithm/string.hpp>
 #include <cstdint>
 #include <fstream>
+#include <sstream>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -36,14 +37,15 @@ static std::string RandomString(const int len)
 
 enum class DBTypes : int
 {
-    DB_LMDB           = 0,
-    DB_InMemory       = 1,
-    DB_Cached         = 2,
-    DB_Cached_NoFlush = 3,
-    DB_LRU_Cached     = 4,
-    DB_Read_Cached    = 5,
+    DB_LMDB                = 0,
+    DB_InMemory            = 1,
+    DB_Cached              = 2,
+    DB_Cached_NoFlush      = 3,
+    DB_Read_Cached         = 4,
+    DB_LRU_Cached_LMDB     = 5,
+    DB_LRU_Cached_WithRead = 6,
 
-    DBTypes_Last = 6
+    DBTypes_Last = 7
 };
 
 class DBTestsFixture : public ::testing::TestWithParam<DBTypes>
@@ -71,10 +73,12 @@ static std::function<std::unique_ptr<IDB>(const boost::filesystem::path&, DBType
     }
     case DBTypes::DB_Cached_NoFlush:
         return MakeUnique<DBCacheLayer>(&p, true, 0);
-    case DBTypes::DB_LRU_Cached:
-        return MakeUnique<DBLRUCacheLayer>(&p, true, 0);
     case DBTypes::DB_Read_Cached:
         return MakeUnique<DBReadCacheLayer>(&p, true, 0);
+    case DBTypes::DB_LRU_Cached_LMDB:
+        return MakeUnique<DBLRUCacheLayer<LMDB>>(&p, true, 0);
+    case DBTypes::DB_LRU_Cached_WithRead:
+        return MakeUnique<DBLRUCacheLayer<LMDB>>(&p, true, 0);
     case DBTypes::DBTypes_Last:
         break;
     }
@@ -83,8 +87,9 @@ static std::function<std::unique_ptr<IDB>(const boost::filesystem::path&, DBType
 
 INSTANTIATE_TEST_SUITE_P(DBTests, DBTestsFixture,
                          ::testing::Values(DBTypes::DB_LMDB, DBTypes::DB_InMemory, DBTypes::DB_Cached,
-                                           DBTypes::DB_Cached_NoFlush, DBTypes::DB_LRU_Cached,
-                                           DBTypes::DB_Read_Cached));
+                                           DBTypes::DB_Cached_NoFlush, DBTypes::DB_Read_Cached,
+                                           DBTypes::DB_LRU_Cached_LMDB,
+                                           DBTypes::DB_LRU_Cached_WithRead));
 
 TEST_P(DBTestsFixture, basic)
 {
@@ -973,20 +978,23 @@ template <typename DBType>
 void TestCachedVsUncachedDataEquality(DBType* db, InMemoryDB* memdb)
 {
     for (int i = 0; i < static_cast<int>(IDB::Index::Index_Last); i++) {
-        Result<std::map<std::string, std::vector<std::string>>, int> persistedData =
+        Result<std::map<std::string, std::vector<std::string>>, int> persistedDataR =
             db->readAll(static_cast<IDB::Index>(i));
-        Result<std::map<std::string, std::vector<std::string>>, int> inMemData =
+        Result<std::map<std::string, std::vector<std::string>>, int> inMemDataR =
             memdb->readAll(static_cast<IDB::Index>(i));
 
-        ASSERT_TRUE(persistedData.isOk());
-        ASSERT_TRUE(inMemData.isOk());
-        ASSERT_EQ(persistedData.UNWRAP().size(), inMemData.UNWRAP().size());
+        std::map<std::string, std::vector<std::string>>& persistedData = persistedDataR.UNWRAP();
+        std::map<std::string, std::vector<std::string>>& inMemData     = inMemDataR.UNWRAP();
+
+        ASSERT_TRUE(persistedDataR.isOk());
+        ASSERT_TRUE(inMemDataR.isOk());
+        ASSERT_EQ(persistedData.size(), inMemData.size());
 
         // compare every key/value pair of the retrieved data
-        for (auto&& kv : persistedData.UNWRAP()) {
+        for (auto&& kv : persistedData) {
             // every key in persistedData is expected to be in inMemData
-            auto it = inMemData.UNWRAP().find(kv.first);
-            ASSERT_FALSE(it == inMemData.UNWRAP().cend());
+            auto it = inMemData.find(kv.first);
+            ASSERT_FALSE(it == inMemData.cend());
 
             // sort both data to make sure they're comparable
             std::sort(it->second.begin(), it->second.end());
@@ -994,8 +1002,15 @@ void TestCachedVsUncachedDataEquality(DBType* db, InMemoryDB* memdb)
             std::sort(kv.second.begin(), kv.second.end());
             kv.second.erase(std::unique(kv.second.begin(), kv.second.end()), kv.second.end());
 
-            EXPECT_EQ(it->first, kv.first);
-            EXPECT_EQ(it->second, kv.second);
+            if (it->second.size() != kv.second.size()) {
+                std::cout << (it->second.size()) << std::endl;
+                std::cout << (kv.second.size()) << std::endl;
+                std::cout << std::endl;
+            }
+
+            ASSERT_EQ(it->first, kv.first) << "Comparison failed for dbid " << i;
+            ASSERT_EQ(it->second, kv.second)
+                << "Comparison failed for dbid " << i << " and key " << it->first;
         }
     }
 }
@@ -1015,6 +1030,10 @@ void TestCacheBigFlush(std::unique_ptr<DBType>& db, const std::uintmax_t MaxData
         508; // bigger size seems to create error: MDB_BAD_VALSIZE
     static const std::size_t MAX_KEY_LENGTH = 500;
 
+    std::array<std::map<std::string, std::vector<std::string>>,
+               static_cast<std::size_t>(IDB::Index::Index_Last)>
+        rawData;
+
     while (TotalDataWritten < MaxDataSizeToWrite) {
         const int        dbid_int = rand() % static_cast<int>(IDB::Index::Index_Last);
         const IDB::Index dbid     = static_cast<IDB::Index>(dbid_int);
@@ -1032,6 +1051,7 @@ void TestCacheBigFlush(std::unique_ptr<DBType>& db, const std::uintmax_t MaxData
                 const std::string value      = RandomString(val_length);
                 ASSERT_TRUE(db->write(dbid, key, value).isOk());
                 ASSERT_TRUE(memdb->write(dbid, key, value).isOk());
+                rawData[dbid_int][key].push_back(value);
 
                 TotalDataWritten += value.size();
             }
@@ -1043,10 +1063,18 @@ void TestCacheBigFlush(std::unique_ptr<DBType>& db, const std::uintmax_t MaxData
             const std::string  value        = RandomString(val_length);
             ASSERT_TRUE(db->write(dbid, key, value).isOk());
             ASSERT_TRUE(memdb->write(dbid, key, value).isOk());
+            rawData[dbid_int][key] = std::vector<std::string>(1, value);
 
             TotalDataWritten += key.size();
             TotalDataWritten += value.size();
         }
+    }
+
+    // ensure the in-memory data is sane
+    for (int i = 0; i < static_cast<int>(IDB::Index::Index_Last); i++) {
+        std::map<std::string, std::vector<std::string>> d =
+            memdb->readAll(static_cast<IDB::Index>(i)).UNWRAP();
+        ASSERT_EQ(rawData[i], d);
     }
 
     // ensure no flushes happened so far, because we'll flush later
@@ -1082,6 +1110,31 @@ TEST(DBTestsFixture, big_read_cache_flush)
     std::unique_ptr<DBReadCacheLayer> db = MakeUnique<DBReadCacheLayer>(&p, true, 0);
 
     TestCacheBigFlush(db, 1 << 24);
+
+    BOOST_SCOPE_EXIT(&db) { db->close(); }
+    BOOST_SCOPE_EXIT_END
+}
+
+TEST(DBTestsFixture, big_lru_cache_flush)
+{
+    const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
+
+    std::unique_ptr<DBLRUCacheLayer<LMDB>> db = MakeUnique<DBLRUCacheLayer<LMDB>>(&p, true, 0);
+
+    TestCacheBigFlush(db, 1 << 30);
+
+    BOOST_SCOPE_EXIT(&db) { db->close(); }
+    BOOST_SCOPE_EXIT_END
+}
+
+TEST(DBTestsFixture, big_lru_with_read_cache_flush)
+{
+    const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
+
+    std::unique_ptr<DBLRUCacheLayer<DBReadCacheLayer>> db =
+        MakeUnique<DBLRUCacheLayer<DBReadCacheLayer>>(&p, true, 0);
+
+    TestCacheBigFlush(db, 1 << 30);
 
     BOOST_SCOPE_EXIT(&db) { db->close(); }
     BOOST_SCOPE_EXIT_END
