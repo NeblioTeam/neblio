@@ -16,9 +16,16 @@
 #include <boost/algorithm/string.hpp>
 #include <cstdint>
 #include <fstream>
+#include <iostream>
+#include <random>
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
+
+static auto seed = std::random_device{}();
+// static unsigned seed = 1745960838;
+
+static std::mt19937 gen{seed};
 
 static std::string RandomString(const int len)
 {
@@ -29,7 +36,7 @@ static std::string RandomString(const int len)
     std::string s;
     s.resize(len);
     for (int i = 0; i < len; ++i) {
-        s[i] = alphanum[rand() % (sizeof(alphanum) - 1)];
+        s[i] = alphanum[gen() % (sizeof(alphanum) - 1)];
     }
 
     return s;
@@ -50,8 +57,14 @@ enum class DBTypes : int
     DBTypes_Last = 9
 };
 
-class DBTestsFixture : public ::testing::TestWithParam<DBTypes>
+class DBTestsWithDifferentDBsFixture : public ::testing::TestWithParam<DBTypes>
 {
+    void SetUp() override
+    {
+        gen = std::mt19937{seed}; // reset the generator
+        std::cout << "Using seed for random number generator: " << seed << std::endl;
+    }
+
     void TearDown() override
     {
         if (GetParam() == DBTypes::DB_Cached) {
@@ -69,6 +82,15 @@ class DBTestsFixture : public ::testing::TestWithParam<DBTypes>
     }
 };
 
+class DBTestsFixture : public ::testing::TestWithParam<DBTypes>
+{
+    void SetUp() override
+    {
+        gen = std::mt19937{seed}; // reset the generator
+        std::cout << "Using seed for random number generator: " << seed << std::endl;
+    }
+};
+
 static std::function<std::unique_ptr<IDB>(const boost::filesystem::path&, DBTypes)> DBMaker =
     [](const boost::filesystem::path& p, DBTypes dbType) -> std::unique_ptr<IDB> {
     switch (dbType) {
@@ -77,7 +99,7 @@ static std::function<std::unique_ptr<IDB>(const boost::filesystem::path&, DBType
     case DBTypes::DB_InMemory:
         return MakeUnique<InMemoryDB>(&p, true);
     case DBTypes::DB_Cached: {
-        const uint64_t cacheMaxSize = rand() % 5000;
+        const uint64_t cacheMaxSize = gen() % 5000;
         std::cout << "Using cache layer max size: " << cacheMaxSize << std::endl;
         return MakeUnique<DBCacheLayer>(&p, true, cacheMaxSize);
     }
@@ -90,12 +112,12 @@ static std::function<std::unique_ptr<IDB>(const boost::filesystem::path&, DBType
     case DBTypes::DB_LRU_Cached_WithRead_NoFlush:
         return MakeUnique<DBLRUCacheLayer<DBReadCacheLayer>>(&p, true, 0);
     case DBTypes::DB_LRU_Cached_LMDB: {
-        const uint64_t cacheMaxSize = rand() % 100;
+        const uint64_t cacheMaxSize = gen() % 50;
         std::cout << "Using cache layer max size: " << cacheMaxSize << std::endl;
         return MakeUnique<DBLRUCacheLayer<LMDB>>(&p, true, cacheMaxSize);
     }
     case DBTypes::DB_LRU_Cached_WithRead: {
-        const uint64_t cacheMaxSize = rand() % 100;
+        const uint64_t cacheMaxSize = gen() % 50;
         std::cout << "Using cache layer max size: " << cacheMaxSize << std::endl;
         return MakeUnique<DBLRUCacheLayer<DBReadCacheLayer>>(&p, true, cacheMaxSize);
     }
@@ -105,7 +127,7 @@ static std::function<std::unique_ptr<IDB>(const boost::filesystem::path&, DBType
     throw std::domain_error("Invalid DB Type: " + std::to_string(static_cast<int>(dbType)));
 };
 
-INSTANTIATE_TEST_SUITE_P(DBTests, DBTestsFixture,
+INSTANTIATE_TEST_SUITE_P(DBTests, DBTestsWithDifferentDBsFixture,
                          ::testing::Values(DBTypes::DB_LMDB, DBTypes::DB_InMemory, DBTypes::DB_Cached,
                                            DBTypes::DB_Cached_NoFlush, DBTypes::DB_Read_Cached,
                                            DBTypes::DB_LRU_Cached_LMDB_NoFlush,
@@ -113,7 +135,7 @@ INSTANTIATE_TEST_SUITE_P(DBTests, DBTestsFixture,
                                            DBTypes::DB_LRU_Cached_LMDB,
                                            DBTypes::DB_LRU_Cached_WithRead));
 
-TEST_P(DBTestsFixture, basic)
+TEST_P(DBTestsWithDifferentDBsFixture, basic)
 {
     const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
@@ -143,7 +165,7 @@ TEST_P(DBTestsFixture, basic)
     EXPECT_FALSE(db->exists(IDB::Index::DB_MAIN_INDEX, k1).UNWRAP());
 }
 
-TEST_P(DBTestsFixture, basic_in_1_tx)
+TEST_P(DBTestsWithDifferentDBsFixture, basic_in_1_tx)
 {
     const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
@@ -177,7 +199,7 @@ TEST_P(DBTestsFixture, basic_in_1_tx)
     EXPECT_FALSE(db->exists(IDB::Index::DB_MAIN_INDEX, k1).UNWRAP());
 }
 
-TEST_P(DBTestsFixture, many_inputs)
+TEST_P(DBTestsWithDifferentDBsFixture, many_inputs)
 {
     const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
@@ -217,7 +239,7 @@ TEST_P(DBTestsFixture, many_inputs)
     }
 }
 
-TEST_P(DBTestsFixture, many_inputs_one_tx)
+TEST_P(DBTestsWithDifferentDBsFixture, many_inputs_one_tx)
 {
     const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
@@ -263,7 +285,7 @@ TEST_P(DBTestsFixture, many_inputs_one_tx)
     }
 }
 
-TEST_P(DBTestsFixture, basic_multiple_read)
+TEST_P(DBTestsWithDifferentDBsFixture, basic_multiple_read)
 {
     const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
@@ -450,7 +472,7 @@ static void TestMultipleReadInTx(IDB* db, bool commitTransaction, bool erase)
     }
 }
 
-TEST_P(DBTestsFixture, basic_multiple_read_in_tx_uncommitted_and_erase)
+TEST_P(DBTestsWithDifferentDBsFixture, basic_multiple_read_in_tx_uncommitted_and_erase)
 {
     const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
@@ -459,7 +481,7 @@ TEST_P(DBTestsFixture, basic_multiple_read_in_tx_uncommitted_and_erase)
     TestMultipleReadInTx(db.get(), false, true);
 }
 
-TEST_P(DBTestsFixture, basic_multiple_read_in_tx_committed_and_erase)
+TEST_P(DBTestsWithDifferentDBsFixture, basic_multiple_read_in_tx_committed_and_erase)
 {
     const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
@@ -468,7 +490,7 @@ TEST_P(DBTestsFixture, basic_multiple_read_in_tx_committed_and_erase)
     TestMultipleReadInTx(db.get(), true, true);
 }
 
-TEST_P(DBTestsFixture, basic_multiple_read_in_tx_uncommitted)
+TEST_P(DBTestsWithDifferentDBsFixture, basic_multiple_read_in_tx_uncommitted)
 {
     const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
@@ -477,7 +499,7 @@ TEST_P(DBTestsFixture, basic_multiple_read_in_tx_uncommitted)
     TestMultipleReadInTx(db.get(), false, false);
 }
 
-TEST_P(DBTestsFixture, basic_multiple_read_in_tx_committed)
+TEST_P(DBTestsWithDifferentDBsFixture, basic_multiple_read_in_tx_committed)
 {
     const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
@@ -486,7 +508,7 @@ TEST_P(DBTestsFixture, basic_multiple_read_in_tx_committed)
     TestMultipleReadInTx(db.get(), true, false);
 }
 
-TEST_P(DBTestsFixture, basic_multiple_many_inputs)
+TEST_P(DBTestsWithDifferentDBsFixture, basic_multiple_many_inputs)
 {
     const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
 
@@ -554,9 +576,9 @@ static void TestReadWriteUnique(IDB* db, const std::map<std::string, std::string
     for (const auto& v : data) {
         const std::string expected = v.second;
         for (std::size_t sizeStep = 0; sizeStep <= MAX_SIZE_TESTS; sizeStep++) {
-            const std::size_t size = rand() % (MAX_SIZE + 1);
+            const std::size_t size = gen() % (MAX_SIZE + 1);
             for (std::size_t offsetStep = 0; offsetStep < MAX_OFFSET_TESTS; offsetStep++) {
-                const std::size_t offset = rand() % (expected.size() + 1);
+                const std::size_t offset = gen() % (expected.size() + 1);
                 // offset can't be larger than string size
                 const std::string subExpected = expected.substr(offset, size);
 
@@ -578,7 +600,7 @@ static void TestReadWriteUnique(IDB* db, const std::map<std::string, std::string
     {
         std::map<std::string, std::string> expected = data;
         while (!expected.empty()) {
-            std::size_t indexToDelete = rand() % expected.size();
+            std::size_t indexToDelete = gen() % expected.size();
             auto        it            = expected.begin();
             std::advance(it, indexToDelete);
             const std::string key = it->first;
@@ -602,7 +624,7 @@ static void TestReadWriteUnique(IDB* db, const std::map<std::string, std::string
     EnsureDBIsEmpty(db, IDB::Index::DB_ADDRSVSPUBKEYS_INDEX);
 }
 
-TEST_P(DBTestsFixture, read_write_unique)
+TEST_P(DBTestsWithDifferentDBsFixture, read_write_unique)
 {
     static constexpr int MAX_ENTRIES = 20;
     static constexpr int MAX_SIZE_P  = 500;
@@ -610,10 +632,10 @@ TEST_P(DBTestsFixture, read_write_unique)
     std::map<std::string, std::string> data;
 
     for (int i = 0; i < MAX_ENTRIES; i++) {
-        const std::size_t keySize = static_cast<std::size_t>(1 + rand() % MAX_SIZE_P);
-        const std::size_t valSize = static_cast<std::size_t>(1 + rand() % MAX_SIZE_P);
-        const std::string key     = GeneratePseudoRandomString(keySize);
-        const std::string val     = GeneratePseudoRandomString(valSize);
+        const std::size_t keySize = static_cast<std::size_t>(1 + gen() % MAX_SIZE_P);
+        const std::size_t valSize = static_cast<std::size_t>(1 + gen() % MAX_SIZE_P);
+        const std::string key     = RandomString(keySize);
+        const std::string val     = RandomString(valSize);
 
         data[key] = val;
     }
@@ -628,7 +650,7 @@ TEST_P(DBTestsFixture, read_write_unique)
     TestReadWriteUnique(db.get(), data);
 }
 
-TEST_P(DBTestsFixture, read_write_unique_with_transaction)
+TEST_P(DBTestsWithDifferentDBsFixture, read_write_unique_with_transaction)
 {
     static constexpr int MAX_ENTRIES = 20;
     static constexpr int MAX_SIZE_P  = 500;
@@ -636,10 +658,10 @@ TEST_P(DBTestsFixture, read_write_unique_with_transaction)
     std::map<std::string, std::string> data;
 
     for (int i = 0; i < MAX_ENTRIES; i++) {
-        const std::size_t keySize = static_cast<std::size_t>(1 + rand() % MAX_SIZE_P);
-        const std::size_t valSize = static_cast<std::size_t>(1 + rand() % MAX_SIZE_P);
-        const std::string key     = GeneratePseudoRandomString(keySize);
-        const std::string val     = GeneratePseudoRandomString(valSize);
+        const std::size_t keySize = static_cast<std::size_t>(1 + gen() % MAX_SIZE_P);
+        const std::size_t valSize = static_cast<std::size_t>(1 + gen() % MAX_SIZE_P);
+        const std::string key     = RandomString(keySize);
+        const std::string val     = RandomString(valSize);
 
         data[key] = val;
     }
@@ -652,7 +674,7 @@ TEST_P(DBTestsFixture, read_write_unique_with_transaction)
     BOOST_SCOPE_EXIT_END
 
     const std::pair<std::string, std::string> someRandomKeyVal =
-        std::make_pair(GeneratePseudoRandomString(100), GeneratePseudoRandomString(100));
+        std::make_pair(RandomString(100), RandomString(100));
 
     EXPECT_TRUE(
         db->write(IDB::Index::DB_MAIN_INDEX, someRandomKeyVal.first, someRandomKeyVal.second).isOk());
@@ -669,6 +691,18 @@ TEST_P(DBTestsFixture, read_write_unique_with_transaction)
     ASSERT_TRUE(map.isOk());
     ASSERT_EQ(map.UNWRAP().size(), 1u);
     ASSERT_EQ(map.UNWRAP().count(someRandomKeyVal.first), 1u);
+}
+
+static std::string print(const std::vector<std::string>& vec)
+{
+    std::stringstream ss;
+    ss << "{";
+    for (const auto& val : vec) {
+        ss << val << ", ";
+    }
+    ss.seekp(-2, std::ios_base::end);
+    ss << "}\n";
+    return ss.str();
 }
 
 static void TestReadMultipleAndReadAll(IDB*                                                   db,
@@ -715,7 +749,7 @@ static void TestReadMultipleAndReadAll(IDB*                                     
     {
         std::map<std::string, std::vector<std::string>> expected = data;
         while (!expected.empty()) {
-            std::size_t indexToDelete = rand() % expected.size();
+            std::size_t indexToDelete = gen() % expected.size();
             auto        it            = expected.begin();
             std::advance(it, indexToDelete);
             const std::string key = it->first;
@@ -729,7 +763,8 @@ static void TestReadMultipleAndReadAll(IDB*                                     
             EXPECT_FALSE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key).UNWRAP());
             auto v = db->readMultiple(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key);
             ASSERT_TRUE(v.isOk());
-            EXPECT_EQ(v.UNWRAP().size(), 0u);
+            EXPECT_EQ(v.UNWRAP().size(), 0u)
+                << "; instead found key: " << key << " and vals: " << print(v.UNWRAP());
             const Result<std::map<std::string, std::vector<std::string>>, int> m =
                 db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
             ASSERT_TRUE(m.isOk());
@@ -745,7 +780,7 @@ static void TestReadMultipleAndReadAll(IDB*                                     
     EnsureDBIsEmpty(db, IDB::Index::DB_ADDRSVSPUBKEYS_INDEX);
 }
 
-TEST_P(DBTestsFixture, read_write_multiple)
+TEST_P(DBTestsWithDifferentDBsFixture, read_write_multiple)
 {
     static constexpr int MAX_ENTRIES    = 5;
     static constexpr int MAX_SUBENTRIES = 3;
@@ -754,11 +789,11 @@ TEST_P(DBTestsFixture, read_write_multiple)
     std::map<std::string, std::vector<std::string>> data;
 
     for (int i = 0; i < MAX_ENTRIES; i++) {
-        const std::size_t keySize = static_cast<std::size_t>(1 + rand() % MAX_SIZE_P);
-        const std::string key     = GeneratePseudoRandomString(keySize);
+        const std::size_t keySize = static_cast<std::size_t>(1 + gen() % MAX_SIZE_P);
+        const std::string key     = RandomString(keySize);
         for (int j = 0; j < MAX_SUBENTRIES; j++) {
-            const std::size_t valSize = static_cast<std::size_t>(1 + rand() % MAX_SIZE_P);
-            const std::string val     = GeneratePseudoRandomString(valSize);
+            const std::size_t valSize = static_cast<std::size_t>(1 + gen() % MAX_SIZE_P);
+            const std::string val     = RandomString(valSize);
 
             data[key].push_back(val);
         }
@@ -822,7 +857,7 @@ static void TestReadMultipleAndRealAllWithTx(IDB*                               
                                              bool commitTransaction, bool erase)
 {
     const std::pair<std::string, std::string> someRandomKeyVal =
-        std::make_pair(GeneratePseudoRandomString(100), GeneratePseudoRandomString(100));
+        std::make_pair(RandomString(100), RandomString(100));
 
     EXPECT_TRUE(
         db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, someRandomKeyVal.first, someRandomKeyVal.second)
@@ -844,7 +879,7 @@ static void TestReadMultipleAndRealAllWithTx(IDB*                               
     if (erase) {
         std::map<std::string, std::vector<std::string>> expected = data;
         while (!expected.empty()) {
-            std::size_t       indexToDelete = rand() % expected.size();
+            std::size_t       indexToDelete = gen() % expected.size();
             auto              it            = std::next(expected.begin(), indexToDelete);
             const std::string key           = it->first;
             EXPECT_TRUE(db->exists(IDB::Index::DB_NTP1TOKENNAMES_INDEX, key).UNWRAP());
@@ -928,11 +963,11 @@ std::map<std::string, std::vector<std::string>> GenerateMultipleData()
     std::map<std::string, std::vector<std::string>> data;
 
     for (int i = 0; i < MAX_ENTRIES; i++) {
-        const std::size_t keySize = static_cast<std::size_t>(1 + rand() % MAX_SIZE_P);
-        const std::string key     = GeneratePseudoRandomString(keySize);
+        const std::size_t keySize = static_cast<std::size_t>(1 + gen() % MAX_SIZE_P);
+        const std::string key     = RandomString(keySize);
         for (int j = 0; j < MAX_SUBENTRIES; j++) {
-            const std::size_t valSize = static_cast<std::size_t>(1 + rand() % MAX_SIZE_P);
-            const std::string val     = GeneratePseudoRandomString(valSize);
+            const std::size_t valSize = static_cast<std::size_t>(1 + gen() % MAX_SIZE_P);
+            const std::string val     = RandomString(valSize);
 
             data[key].push_back(val);
         }
@@ -940,7 +975,7 @@ std::map<std::string, std::vector<std::string>> GenerateMultipleData()
     return data;
 }
 
-TEST_P(DBTestsFixture, read_write_multiple_with_db_transaction_aborted_and_erase)
+TEST_P(DBTestsWithDifferentDBsFixture, read_write_multiple_with_db_transaction_aborted_and_erase)
 {
     std::map<std::string, std::vector<std::string>> data = GenerateMultipleData();
 
@@ -954,7 +989,7 @@ TEST_P(DBTestsFixture, read_write_multiple_with_db_transaction_aborted_and_erase
     TestReadMultipleAndRealAllWithTx(db.get(), data, false, true);
 }
 
-TEST_P(DBTestsFixture, read_write_multiple_with_db_transaction_committed_and_erase)
+TEST_P(DBTestsWithDifferentDBsFixture, read_write_multiple_with_db_transaction_committed_and_erase)
 {
     std::map<std::string, std::vector<std::string>> data = GenerateMultipleData();
 
@@ -968,7 +1003,7 @@ TEST_P(DBTestsFixture, read_write_multiple_with_db_transaction_committed_and_era
     TestReadMultipleAndRealAllWithTx(db.get(), data, true, true);
 }
 
-TEST_P(DBTestsFixture, read_write_multiple_with_db_transaction_aborted)
+TEST_P(DBTestsWithDifferentDBsFixture, read_write_multiple_with_db_transaction_aborted)
 {
     std::map<std::string, std::vector<std::string>> data = GenerateMultipleData();
 
@@ -982,7 +1017,7 @@ TEST_P(DBTestsFixture, read_write_multiple_with_db_transaction_aborted)
     TestReadMultipleAndRealAllWithTx(db.get(), data, false, false);
 }
 
-TEST_P(DBTestsFixture, read_write_multiple_with_db_transaction_committed)
+TEST_P(DBTestsWithDifferentDBsFixture, read_write_multiple_with_db_transaction_committed)
 {
     std::map<std::string, std::vector<std::string>> data = GenerateMultipleData();
 
@@ -1057,19 +1092,19 @@ void TestCacheBigFlush(std::unique_ptr<DBType>& db, const std::uintmax_t MaxData
         rawData;
 
     while (TotalDataWritten < MaxDataSizeToWrite) {
-        const int        dbid_int = rand() % static_cast<int>(IDB::Index::Index_Last);
+        const int        dbid_int = gen() % static_cast<int>(IDB::Index::Index_Last);
         const IDB::Index dbid     = static_cast<IDB::Index>(dbid_int);
 
         if (IDB::DuplicateKeysAllowed(dbid)) {
-            const std::size_t  entry_count_per_key = 1 + rand() % MAX_ENTRIES_PER_KEY;
-            const std::size_t  value_length        = 1 + rand() % MAX_VALUE_LENGTH_FOR_DUP;
-            const std::size_t  key_length          = 1 + rand() % MAX_KEY_LENGTH;
+            const std::size_t  entry_count_per_key = 1 + gen() % MAX_ENTRIES_PER_KEY;
+            const std::size_t  value_length        = 1 + gen() % MAX_VALUE_LENGTH_FOR_DUP;
+            const std::size_t  key_length          = 1 + gen() % MAX_KEY_LENGTH;
             const std::string& key                 = RandomString(key_length);
 
             TotalDataWritten += key.size();
 
             for (std::size_t i = 0; i < entry_count_per_key; i++) {
-                const std::size_t val_length = 1 + rand() % value_length;
+                const std::size_t val_length = 1 + gen() % value_length;
                 const std::string value      = RandomString(val_length);
                 ASSERT_TRUE(db->write(dbid, key, value).isOk());
                 ASSERT_TRUE(memdb->write(dbid, key, value).isOk());
@@ -1078,10 +1113,10 @@ void TestCacheBigFlush(std::unique_ptr<DBType>& db, const std::uintmax_t MaxData
                 TotalDataWritten += value.size();
             }
         } else {
-            const std::size_t  value_length = 1 + rand() % MAX_VALUE_LENGTH;
-            const std::size_t  key_length   = 1 + rand() % MAX_KEY_LENGTH;
+            const std::size_t  value_length = 1 + gen() % MAX_VALUE_LENGTH;
+            const std::size_t  key_length   = 1 + gen() % MAX_KEY_LENGTH;
             const std::string& key          = RandomString(key_length);
-            const std::size_t  val_length   = rand() % value_length;
+            const std::size_t  val_length   = gen() % value_length;
             const std::string  value        = RandomString(val_length);
             ASSERT_TRUE(db->write(dbid, key, value).isOk());
             ASSERT_TRUE(memdb->write(dbid, key, value).isOk());

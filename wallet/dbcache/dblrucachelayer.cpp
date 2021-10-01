@@ -574,6 +574,7 @@ enum PersistValueToCacheResult
                        "Encountered error {} while attempting persist data (in {} "                     \
                        ") in DBID {}",                                                                  \
                        errVal, action, dbidInt);                                                        \
+            NLog.flush();                                                                               \
             if (errVal == MDB_MAP_FULL || errVal == MDB_BAD_TXN || errVal == MDB_NOTFOUND) {            \
                 return PersistValueToCacheResult::RecoverableError;                                     \
             } else {                                                                                    \
@@ -586,18 +587,22 @@ template <typename BaseDB>
 static PersistValueToCacheResult PersistValueToCache(BaseDB& persistedDB,
                                                      const DBLRUCacheStorage::StoredEntryResult& cache)
 {
+    const IDB::Index dbindex = static_cast<IDB::Index>(cache.dbid);
     // in all cases, we keep checking if an error occurred. If that's the case, we retry
     switch (cache.op) {
     case DBLRUCacheStorage::StoredOperationType::Write: {
-        Result<void, int> writeRes =
-            persistedDB.write(static_cast<IDB::Index>(cache.dbid), cache.key, cache.value);
+        Result<void, int> writeRes = persistedDB.write(dbindex, cache.key, cache.value);
         ReturnIfError(db, "write", cache.dbid, writeRes);
         break;
     }
     case DBLRUCacheStorage::StoredOperationType::Erase:
-        const Result<void, int> eraseRes =
-            persistedDB.erase(static_cast<IDB::Index>(cache.dbid), cache.key);
-        ReturnIfError(db, "erase", cache.dbid, eraseRes);
+        if (IDB::DuplicateKeysAllowed(dbindex)) {
+            const Result<void, int> eraseRes = persistedDB.eraseAll(dbindex, cache.key);
+            ReturnIfError(db, "erase (1)", cache.dbid, eraseRes);
+        } else {
+            const Result<void, int> eraseRes = persistedDB.erase(dbindex, cache.key);
+            ReturnIfError(db, "erase (2)", cache.dbid, eraseRes);
+        }
         break;
     }
 

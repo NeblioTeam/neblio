@@ -26,8 +26,7 @@ DBLRUCacheStorage::AppendToCache(DBLRUCacheStorage& cache, T&& entry)
 {
     boost::unique_lock<DBLRUCacheStorage::MutexType> lg(cache.dataLock);
     auto ptr = boost::make_shared<typename std::decay<T>::type>(std::forward<T>(entry));
-    cache.data.push_back(nullptr);
-    boost::atomic_store(&cache.data.back(), ptr);
+    cache.data.push_back(ptr);
     return ptr;
 }
 
