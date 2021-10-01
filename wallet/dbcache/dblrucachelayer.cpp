@@ -29,11 +29,59 @@ DBLRUCacheLayer<BaseDB>::DBLRUCacheLayer(const boost::filesystem::path* const db
     DBLRUCacheLayer<BaseDB>::openDB(startNewDatabase);
 }
 
+static boost::atomic_uint_fast32_t LRUCacheRWCount{0};
+static boost::atomic_uint_fast32_t LRUCacheFlushCount{0};
+static boost::atomic_flag          LRUCacheRaceGuard = BOOST_ATOMIC_FLAG_INIT;
+
+// the only guarding we do is protect that a flush and a read/write happen together, to ensure
+// consistency
+#define GUARD_RW()                                                                                      \
+    boost::atomic_thread_fence(boost::memory_order_acquire);                                            \
+    {                                                                                                   \
+        while (LRUCacheRaceGuard.test_and_set()) {                                                      \
+        }                                                                                               \
+        BOOST_SCOPE_EXIT(void) { LRUCacheRaceGuard.clear(); }                                           \
+        BOOST_SCOPE_EXIT_END                                                                            \
+                                                                                                        \
+        while (LRUCacheFlushCount > 0) {                                                                \
+        }                                                                                               \
+                                                                                                        \
+        LRUCacheRWCount++;                                                                              \
+    }                                                                                                   \
+    boost::atomic_thread_fence(boost::memory_order_release);                                            \
+    BOOST_SCOPE_EXIT(void) { LRUCacheRWCount--; }                                                       \
+    BOOST_SCOPE_EXIT_END                                                                                \
+    do {                                                                                                \
+    } while (0)
+
+#define GUARD_FLUSH()                                                                                   \
+    boost::atomic_thread_fence(boost::memory_order_acquire);                                            \
+    {                                                                                                   \
+        while (LRUCacheRaceGuard.test_and_set()) {                                                      \
+        }                                                                                               \
+        BOOST_SCOPE_EXIT(void) { LRUCacheRaceGuard.clear(); }                                           \
+        BOOST_SCOPE_EXIT_END                                                                            \
+                                                                                                        \
+        if (LRUCacheFlushCount > 0) {                                                                   \
+            return false;                                                                               \
+        }                                                                                               \
+                                                                                                        \
+        LRUCacheFlushCount++;                                                                           \
+        while (LRUCacheRWCount > 0) {                                                                   \
+        }                                                                                               \
+    }                                                                                                   \
+    boost::atomic_thread_fence(boost::memory_order_release);                                            \
+    BOOST_SCOPE_EXIT(void) { LRUCacheFlushCount--; }                                                    \
+    BOOST_SCOPE_EXIT_END                                                                                \
+    do {                                                                                                \
+    } while (0)
+
 template <typename BaseDB>
 Result<boost::optional<std::string>, int>
 DBLRUCacheLayer<BaseDB>::read(Index dbindex, const std::string& key, std::size_t offset,
                               const boost::optional<std::size_t>& size) const
 {
+
     if (tx) {
         boost::optional<TransactionOperation> txVal = tx->getOp(static_cast<int>(dbindex), key);
         if (txVal) {
@@ -58,36 +106,41 @@ DBLRUCacheLayer<BaseDB>::read(Index dbindex, const std::string& key, std::size_t
     BOOST_SCOPE_EXIT_ALL(this) { flushOnPolicy(); };
 
     {
-        const int                                                   dbid = static_cast<int>(dbindex);
-        const boost::optional<DBLRUCacheStorage::StoredEntryResult> okv =
-            g_db_lru_cache.get_one(dbid, key);
+        GUARD_RW();
 
-        if (okv) {
-            const DBLRUCacheStorage::StoredEntryResult& kv = *okv;
-            switch (kv.op) {
-            case DBLRUCacheStorage::StoredOperationType::Erase:
-                return Ok(boost::optional<std::string>());
-            case DBLRUCacheStorage::StoredOperationType::Write:
-                // single values should NEVER be empty... so if it's empty, we refresh the cache to fix
-                // the issue
-                if (size) {
-                    return Ok(boost::make_optional(kv.value.substr(offset, *size)));
-                } else {
-                    return Ok(boost::make_optional(kv.value.substr(offset)));
+        {
+            const int                                                   dbid = static_cast<int>(dbindex);
+            const boost::optional<DBLRUCacheStorage::StoredEntryResult> okv =
+                g_db_lru_cache.get_one(dbid, key);
+
+            if (okv) {
+                const DBLRUCacheStorage::StoredEntryResult& kv = *okv;
+                switch (kv.op) {
+                case DBLRUCacheStorage::StoredOperationType::Erase:
+                    return Ok(boost::optional<std::string>());
+                case DBLRUCacheStorage::StoredOperationType::Write:
+                    // single values should NEVER be empty... so if it's empty, we refresh the cache to
+                    // fix the issue
+                    if (size) {
+                        return Ok(boost::make_optional(kv.value.substr(offset, *size)));
+                    } else {
+                        return Ok(boost::make_optional(kv.value.substr(offset)));
+                    }
                 }
             }
-        }
 
-        BaseDB persistedDB(dbdir_, false, DBCACHE_FLUSH_SIZE);
+            BaseDB persistedDB(dbdir_, false, DBCACHE_FLUSH_SIZE);
 
-        Result<boost::optional<std::string>, int> rdVal = persistedDB.read(dbindex, key, 0, boost::none);
-        if (rdVal.isOk()) {
-            const boost::optional<std::string>& dVal = rdVal.UNWRAP();
-            if (dVal) {
-                if (size) {
-                    return Ok(boost::make_optional(dVal->substr(offset, *size)));
-                } else {
-                    return Ok(boost::make_optional(dVal->substr(offset)));
+            Result<boost::optional<std::string>, int> rdVal =
+                persistedDB.read(dbindex, key, 0, boost::none);
+            if (rdVal.isOk()) {
+                const boost::optional<std::string>& dVal = rdVal.UNWRAP();
+                if (dVal) {
+                    if (size) {
+                        return Ok(boost::make_optional(dVal->substr(offset, *size)));
+                    } else {
+                        return Ok(boost::make_optional(dVal->substr(offset)));
+                    }
                 }
             }
         }
@@ -120,39 +173,43 @@ Result<std::vector<std::string>, int> DBLRUCacheLayer<BaseDB>::readMultiple(Inde
 
     BOOST_SCOPE_EXIT_ALL(this) { flushOnPolicy(); };
 
-    std::vector<std::string> cachedWrites;
     {
-        const int                                               dbid = static_cast<int>(dbindex);
-        const std::vector<DBLRUCacheStorage::StoredEntryResult> okv  = g_db_lru_cache.get(dbid, key);
+        GUARD_RW();
 
-        for (const auto& kv : okv) {
-            switch (kv.op) {
-            case DBLRUCacheStorage::Erase:
-                // we short-circuit and exit if all following values are erased
-                cachedWrites.clear(); // all inserted values are to be erased now
-                // then we insert whatever we got from the tx before
-                cachedWrites.insert(cachedWrites.end(), std::make_move_iterator(valuesToAppend.begin()),
-                                    std::make_move_iterator(valuesToAppend.end()));
-                return Ok(std::move(cachedWrites));
-            case DBLRUCacheStorage::Write:
-                cachedWrites.push_back(kv.value);
+        std::vector<std::string> cachedWrites;
+        {
+            const int                                               dbid = static_cast<int>(dbindex);
+            const std::vector<DBLRUCacheStorage::StoredEntryResult> okv  = g_db_lru_cache.get(dbid, key);
+
+            for (const auto& kv : okv) {
+                switch (kv.op) {
+                case DBLRUCacheStorage::Erase:
+                    // we short-circuit and exit if all following values are erased
+                    cachedWrites.clear(); // all inserted values are to be erased now
+                    // then we insert whatever we got from the tx before
+                    cachedWrites.insert(cachedWrites.end(),
+                                        std::make_move_iterator(valuesToAppend.begin()),
+                                        std::make_move_iterator(valuesToAppend.end()));
+                    return Ok(std::move(cachedWrites));
+                case DBLRUCacheStorage::Write:
+                    cachedWrites.push_back(kv.value);
+                }
             }
         }
+
+        cachedWrites.insert(cachedWrites.end(), std::make_move_iterator(valuesToAppend.begin()),
+                            std::make_move_iterator(valuesToAppend.end()));
+
+        BaseDB persistedDB(dbdir_, false, DBCACHE_FLUSH_SIZE);
+
+        Result<std::vector<std::string>, int> rdVal = persistedDB.readMultiple(dbindex, key);
+        if (rdVal.isOk()) {
+            std::vector<std::string>& dVal = rdVal.UNWRAP();
+            dVal.insert(dVal.end(), std::make_move_iterator(cachedWrites.begin()),
+                        std::make_move_iterator(cachedWrites.end()));
+            return Ok(std::move(dVal));
+        }
     }
-
-    cachedWrites.insert(cachedWrites.end(), std::make_move_iterator(valuesToAppend.begin()),
-                        std::make_move_iterator(valuesToAppend.end()));
-
-    BaseDB persistedDB(dbdir_, false, DBCACHE_FLUSH_SIZE);
-
-    Result<std::vector<std::string>, int> rdVal = persistedDB.readMultiple(dbindex, key);
-    if (rdVal.isOk()) {
-        std::vector<std::string>& dVal = rdVal.UNWRAP();
-        dVal.insert(dVal.end(), std::make_move_iterator(cachedWrites.begin()),
-                    std::make_move_iterator(cachedWrites.end()));
-        return Ok(std::move(dVal));
-    }
-
     return Err(1);
 }
 
@@ -216,6 +273,7 @@ template <typename BaseDB>
 Result<std::map<std::string, std::vector<std::string>>, int>
 DBLRUCacheLayer<BaseDB>::readAll(Index dbindex) const
 {
+
     std::map<std::string, TransactionOperation> txOps;
     if (tx) {
         txOps = tx->getAllDataForDB(static_cast<int>(dbindex));
@@ -223,6 +281,8 @@ DBLRUCacheLayer<BaseDB>::readAll(Index dbindex) const
 
     std::map<std::string, std::vector<DBLRUCacheStorage::StoredEntryResult>> allCachedWrites =
         g_db_lru_cache.getAll(static_cast<int>(dbindex));
+
+    GUARD_RW();
 
     BaseDB persistedDB(dbdir_, false, DBCACHE_FLUSH_SIZE);
 
@@ -232,8 +292,6 @@ DBLRUCacheLayer<BaseDB>::readAll(Index dbindex) const
     }
 
     std::map<std::string, std::vector<std::string>>& res = tRes.UNWRAP();
-
-    BOOST_SCOPE_EXIT_ALL(this) { flushOnPolicy(); };
 
     // first we apply cached writes
     MergeCachedWritesWithData(res, std::move(allCachedWrites), IDB::DuplicateKeysAllowed(dbindex));
@@ -293,6 +351,7 @@ template <typename BaseDB>
 Result<std::map<std::string, std::string>, int>
 DBLRUCacheLayer<BaseDB>::readAllUnique(Index dbindex) const
 {
+
     std::map<std::string, TransactionOperation> txOps;
     if (tx) {
         txOps = tx->getAllDataForDB(static_cast<int>(dbindex));
@@ -301,6 +360,8 @@ DBLRUCacheLayer<BaseDB>::readAllUnique(Index dbindex) const
     std::map<std::string, std::vector<DBLRUCacheStorage::StoredEntryResult>> allCachedWrites =
         g_db_lru_cache.getAll(static_cast<int>(dbindex));
 
+    GUARD_RW();
+
     BaseDB persistedDB(dbdir_, false, DBCACHE_FLUSH_SIZE);
 
     auto tRes = persistedDB.readAllUnique(dbindex);
@@ -308,8 +369,6 @@ DBLRUCacheLayer<BaseDB>::readAllUnique(Index dbindex) const
         return tRes;
     }
     std::map<std::string, std::string>& res = tRes.UNWRAP();
-
-    BOOST_SCOPE_EXIT_ALL(this) { flushOnPolicy(); };
 
     // first we apply cached writes
     MergeCachedWritesWithData(res, std::move(allCachedWrites));
@@ -324,6 +383,7 @@ template <typename BaseDB>
 Result<void, int> DBLRUCacheLayer<BaseDB>::write(Index dbindex, const std::string& key,
                                                  const std::string& value)
 {
+
     if (tx) {
         if (IDB::DuplicateKeysAllowed(dbindex)) {
             return tx->multi_append(static_cast<int>(dbindex), key, value) ? Result<void, int>(Ok())
@@ -337,9 +397,14 @@ Result<void, int> DBLRUCacheLayer<BaseDB>::write(Index dbindex, const std::strin
     BOOST_SCOPE_EXIT_ALL(this) { flushOnPolicy(); };
 
     {
-        const int dbid = static_cast<int>(dbindex);
-        g_db_lru_cache.add(TransactableDBEntry(TransactableDBEntry::SingleKeyValue(dbid, key, value)));
-        cachedTxCount.fetch_add(1, boost::memory_order_relaxed);
+        GUARD_RW();
+
+        {
+            const int dbid = static_cast<int>(dbindex);
+            g_db_lru_cache.add(
+                TransactableDBEntry(TransactableDBEntry::SingleKeyValue(dbid, key, value)));
+            cachedTxCount.fetch_add(1, boost::memory_order_relaxed);
+        }
     }
 
     return Ok();
@@ -348,13 +413,18 @@ Result<void, int> DBLRUCacheLayer<BaseDB>::write(Index dbindex, const std::strin
 template <typename BaseDB>
 Result<void, int> DBLRUCacheLayer<BaseDB>::erase(Index dbindex, const std::string& key)
 {
+
     if (tx) {
         return tx->erase(static_cast<int>(dbindex), key) ? Result<void, int>(Ok()) : Err(1);
     }
 
     {
-        const int dbid = static_cast<int>(dbindex);
-        g_db_lru_cache.add(TransactableDBEntry(TransactableDBEntry::EraseKeyValue(dbid, key)));
+        GUARD_RW();
+
+        {
+            const int dbid = static_cast<int>(dbindex);
+            g_db_lru_cache.add(TransactableDBEntry(TransactableDBEntry::EraseKeyValue(dbid, key)));
+        }
     }
 
     return Ok();
@@ -363,21 +433,26 @@ Result<void, int> DBLRUCacheLayer<BaseDB>::erase(Index dbindex, const std::strin
 template <typename BaseDB>
 Result<void, int> DBLRUCacheLayer<BaseDB>::eraseAll(Index dbindex, const std::string& key)
 {
+
     if (tx) {
         return tx->erase(static_cast<int>(dbindex), key) ? Result<void, int>(Ok()) : Err(1);
     }
 
     {
-        const int dbid = static_cast<int>(dbindex);
-        g_db_lru_cache.add(TransactableDBEntry(TransactableDBEntry::EraseKeyValue(dbid, key)));
-    }
+        GUARD_RW();
 
+        {
+            const int dbid = static_cast<int>(dbindex);
+            g_db_lru_cache.add(TransactableDBEntry(TransactableDBEntry::EraseKeyValue(dbid, key)));
+        }
+    }
     return Ok();
 }
 
 template <typename BaseDB>
 Result<bool, int> DBLRUCacheLayer<BaseDB>::exists(Index dbindex, const std::string& key) const
 {
+
     if (tx) {
         boost::optional<TransactionOperation> txVal = tx->getOp(static_cast<int>(dbindex), key);
         if (txVal) {
@@ -397,23 +472,27 @@ Result<bool, int> DBLRUCacheLayer<BaseDB>::exists(Index dbindex, const std::stri
     BOOST_SCOPE_EXIT_ALL(this) { flushOnPolicy(); };
 
     {
-        const int                                                   dbid = static_cast<int>(dbindex);
-        const boost::optional<DBLRUCacheStorage::StoredEntryResult> okv =
-            g_db_lru_cache.get_one(dbid, key);
+        GUARD_RW();
 
-        if (okv) {
-            const DBLRUCacheStorage::StoredEntryResult& kv = *okv;
-            switch (kv.op) {
-            case DBLRUCacheStorage::StoredOperationType::Erase:
-                return Ok(false);
-            case DBLRUCacheStorage::StoredOperationType::Write:
-                return Ok(true);
+        {
+            const int                                                   dbid = static_cast<int>(dbindex);
+            const boost::optional<DBLRUCacheStorage::StoredEntryResult> okv =
+                g_db_lru_cache.get_one(dbid, key);
+
+            if (okv) {
+                const DBLRUCacheStorage::StoredEntryResult& kv = *okv;
+                switch (kv.op) {
+                case DBLRUCacheStorage::StoredOperationType::Erase:
+                    return Ok(false);
+                case DBLRUCacheStorage::StoredOperationType::Write:
+                    return Ok(true);
+                }
             }
+
+            BaseDB persistedDB(dbdir_, false, DBCACHE_FLUSH_SIZE);
+
+            return persistedDB.exists(dbindex, key);
         }
-
-        BaseDB persistedDB(dbdir_, false, DBCACHE_FLUSH_SIZE);
-
-        return persistedDB.exists(dbindex, key);
     }
 }
 
@@ -470,9 +549,15 @@ Result<void, int> DBLRUCacheLayer<BaseDB>::commitDBTransaction()
 
     bool result = true;
 
-    auto&& dbEntry = TransactableDBEntry(std::move(movedTx));
-    g_db_lru_cache.add(std::move(dbEntry));
-    cachedTxCount.fetch_add(1, boost::memory_order_relaxed);
+    BOOST_SCOPE_EXIT_ALL(this) { flushOnPolicy(); };
+
+    {
+        GUARD_RW();
+
+        auto&& dbEntry = TransactableDBEntry(std::move(movedTx));
+        g_db_lru_cache.add(std::move(dbEntry));
+        cachedTxCount.fetch_add(1, boost::memory_order_relaxed);
+    }
 
     return result ? Result<void, int>(Ok()) : Err(-1);
 }
@@ -644,6 +729,8 @@ partition_data(const std::vector<DBLRUCacheStorage::StoredEntryResult>& v, std::
 template <typename BaseDB>
 bool DBLRUCacheLayer<BaseDB>::flush(const boost::optional<uint64_t>& commitSizeIn) const
 {
+    GUARD_FLUSH();
+
     while (true) {
         const std::vector<DBLRUCacheStorage::StoredEntryResult> dataToWrite =
             CollectSomeDataToPersist(1 << 20);
@@ -717,6 +804,8 @@ bool DBLRUCacheLayer<BaseDB>::flush(const boost::optional<uint64_t>& commitSizeI
 template <typename BaseDB>
 void DBLRUCacheLayer<BaseDB>::clearCache()
 {
+    GUARD_RW();
+
     g_db_lru_cache.clear();
 }
 

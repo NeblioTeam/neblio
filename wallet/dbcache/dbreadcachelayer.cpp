@@ -24,6 +24,7 @@ static boost::atomic_flag          ReadCacheRaceGuard = BOOST_ATOMIC_FLAG_INIT;
 
 // the only guarding we do is protect that a tx and a read/write happen together, to ensure consistency
 #define GUARD_RW()                                                                                      \
+    boost::atomic_thread_fence(boost::memory_order_acquire);                                            \
     {                                                                                                   \
         while (ReadCacheRaceGuard.test_and_set()) {                                                     \
         }                                                                                               \
@@ -34,12 +35,14 @@ static boost::atomic_flag          ReadCacheRaceGuard = BOOST_ATOMIC_FLAG_INIT;
         }                                                                                               \
         ReadCacheRWCount++;                                                                             \
     }                                                                                                   \
+    boost::atomic_thread_fence(boost::memory_order_release);                                            \
     BOOST_SCOPE_EXIT(void) { ReadCacheRWCount--; }                                                      \
     BOOST_SCOPE_EXIT_END                                                                                \
     do {                                                                                                \
     } while (0)
 
 #define GUARD_TX()                                                                                      \
+    boost::atomic_thread_fence(boost::memory_order_acquire);                                            \
     {                                                                                                   \
         while (ReadCacheRaceGuard.test_and_set()) {                                                     \
         }                                                                                               \
@@ -50,6 +53,7 @@ static boost::atomic_flag          ReadCacheRaceGuard = BOOST_ATOMIC_FLAG_INIT;
         while (ReadCacheRWCount > 0) {                                                                  \
         }                                                                                               \
     }                                                                                                   \
+    boost::atomic_thread_fence(boost::memory_order_release);                                            \
     BOOST_SCOPE_EXIT(void) { ReadCacheTxCount--; }                                                      \
     BOOST_SCOPE_EXIT_END                                                                                \
     do {                                                                                                \
