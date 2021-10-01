@@ -72,6 +72,13 @@ private:
 
     boost::shared_ptr<TransactableDBEntry> pop_internal();
 
+    boost::optional<std::vector<DBLRUCacheStorage::StoredEntryResult>>
+    destroyPtr(const boost::shared_ptr<TransactableDBEntry>& ptr);
+
+    static std::vector<DBLRUCacheStorage::StoredEntryResult>
+         GetEntryData(const TransactableDBEntry& entry);
+    void removeAllEntryTracesFromMap(const boost::shared_ptr<TransactableDBEntry>& entryPtr);
+
 public:
     DBLRUCacheStorage();
     bool add(const TransactableDBEntry& entry);

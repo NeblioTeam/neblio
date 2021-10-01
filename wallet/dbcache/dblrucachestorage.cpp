@@ -83,16 +83,23 @@ boost::shared_ptr<TransactableDBEntry> DBLRUCacheStorage::pop_internal()
     return ptr;
 }
 
-boost::optional<std::vector<DBLRUCacheStorage::StoredEntryResult>> DBLRUCacheStorage::pop_one()
+boost::optional<std::vector<DBLRUCacheStorage::StoredEntryResult>>
+DBLRUCacheStorage::destroyPtr(const boost::shared_ptr<TransactableDBEntry>& ptr)
 {
-    boost::shared_ptr<TransactableDBEntry> queuePtr = pop_internal();
-
-    if (!queuePtr) {
+    if (!ptr) {
         return boost::none;
     }
 
-    const TransactableDBEntry& entry = *queuePtr;
+    auto result = GetEntryData(*ptr);
 
+    removeAllEntryTracesFromMap(ptr);
+
+    return boost::make_optional(std::move(result));
+}
+
+std::vector<DBLRUCacheStorage::StoredEntryResult>
+DBLRUCacheStorage::GetEntryData(const TransactableDBEntry& entry)
+{
     std::vector<DBLRUCacheStorage::StoredEntryResult> result;
 
     switch (entry.getOp()) {
@@ -145,7 +152,13 @@ boost::optional<std::vector<DBLRUCacheStorage::StoredEntryResult>> DBLRUCacheSto
     }
     }
 
-    auto&& allKeys = queuePtr->getAllKeys();
+    return result;
+}
+
+void DBLRUCacheStorage::removeAllEntryTracesFromMap(
+    const boost::shared_ptr<TransactableDBEntry>& entryPtr)
+{
+    auto&& allKeys = entryPtr->getAllKeys();
     for (auto&& key : allKeys) {
         dataMap[key.first].apply(key.second, [&](MapType::BucketMapType& m, const std::string& k) {
             auto it = m.find(k);
@@ -160,7 +173,7 @@ boost::optional<std::vector<DBLRUCacheStorage::StoredEntryResult>> DBLRUCacheSto
                 // since entries are inserted in order, we expect them from the front to all point to the
                 // data we pushed to the queue
                 auto&& entryInMap = entries.front();
-                if (entryInMap.lock().get() == queuePtr.get()) {
+                if (entryInMap.lock().get() == entryPtr.get()) {
                     entries.erase(entries.begin());
                 } else {
                     break;
@@ -172,8 +185,13 @@ boost::optional<std::vector<DBLRUCacheStorage::StoredEntryResult>> DBLRUCacheSto
             }
         });
     }
+}
 
-    return result;
+boost::optional<std::vector<DBLRUCacheStorage::StoredEntryResult>> DBLRUCacheStorage::pop_one()
+{
+    boost::shared_ptr<TransactableDBEntry> queuePtr = pop_internal();
+
+    return destroyPtr(queuePtr);
 }
 
 std::vector<DBLRUCacheStorage::StoredEntryResult> ExtractValues(const TransactableDBEntry& entry,
