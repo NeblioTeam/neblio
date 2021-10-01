@@ -724,9 +724,14 @@ bool DBCacheLayer::flush(const boost::optional<uint64_t>& commitSizeIn) const
 
         if (singlePersisResult == PersistValueToCacheResult::NoError) {
             NLog.write(b_sev::info, "About to commit to persisted DB");
-            persistedDB.commitDBTransaction();
+            Result<void, int> commitRes = persistedDB.commitDBTransaction();
+            if (commitRes.isErr()) {
+                NLog.write(b_sev::info, "Database flush() commit failed with error {}",
+                           commitRes.UNWRAP_ERR());
+                break;
+            }
             clearCache_unsafe();
-            NLog.write(b_sev::info, "A flush() in cached DB finish");
+            NLog.write(b_sev::info, "A flush() in cached DB finished successfully");
             break;
         } else if (singlePersisResult == PersistValueToCacheResult::RecoverableError) {
             // grow the DB again and retry

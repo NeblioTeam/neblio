@@ -680,8 +680,14 @@ bool DBLRUCacheLayer<BaseDB>::flush(const boost::optional<uint64_t>& commitSizeI
 
             if (singlePersisResult == PersistValueToCacheResult::NoError) {
                 NLog.write(b_sev::info, "About to commit to persisted DB");
-                persistedDB.commitDBTransaction();
-                NLog.write(b_sev::info, "A flush() in cached DB finish");
+                Result<void, int> commitRes = persistedDB.commitDBTransaction();
+                if (commitRes.isErr()) {
+                    NLog.write(b_sev::info, "Database flush() commit failed with error {}",
+                               commitRes.UNWRAP_ERR());
+                    break;
+                }
+                cachedTxCount.store(0, boost::memory_order_seq_cst);
+                NLog.write(b_sev::info, "A flush() in cached DB finished successfully");
                 break;
             } else if (singlePersisResult == PersistValueToCacheResult::RecoverableError) {
                 // grow the DB again and retry
