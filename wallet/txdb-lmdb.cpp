@@ -16,7 +16,7 @@
 
 #include "block.h"
 #include "blockmetadata.h"
-#include "dbcache/dbcachelayer.h"
+#include "dbcache/dblrucachelayer.h"
 #include "dbcache/inmemorydb.h"
 #include "globals.h"
 #include "kernel.h"
@@ -336,10 +336,11 @@ CTxDB::CTxDB()
 {
     static boost::filesystem::path DBDir = GetDataDir() / DB_DIR;
 
-    static bool DBCachingEnabled = GetBoolArg("-enabledbcache", false);
+    static const bool    DBCachingEnabled = GetBoolArg("-enabledbcache", false);
+    static const int64_t DBCachingSize    = GetBoolArg("-dbcachesize", 5000);
 
     if (DBCachingEnabled) {
-        db = MakeUnique<DBCacheLayer>(&DBDir, false, 1 << 24);
+        db = MakeUnique<DBLRUCacheLayer<DBReadCacheLayer>>(&DBDir, false, DBCachingSize);
     } else {
         db = MakeUnique<LMDB>(&DBDir, false);
     }
