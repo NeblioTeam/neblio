@@ -870,6 +870,8 @@ Result<void, int> LMDB::eraseAll(IDB::Index dbindex, const std::string& key)
                            itemRes, mdb_strerror(itemRes));
             }
             return Err(itemRes);
+        } else {
+            return Ok();
         }
     }
 
