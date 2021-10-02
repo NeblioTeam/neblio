@@ -736,14 +736,14 @@ bool DBLRUCacheLayer<BaseDB>::flush(const boost::optional<uint64_t>& commitSizeI
 {
     GUARD_FLUSH();
 
-    int64_t commitSize = commitSizeIn ? *commitSizeIn : 1 << 24;
-
     while (true) {
         const std::vector<DBLRUCacheStorage::StoredEntryResult> dataToWrite =
             CollectSomeDataToPersist(1 << 20);
         if (dataToWrite.empty()) {
             break;
         }
+
+        int64_t commitSize = commitSizeIn ? *commitSizeIn : 1 << 24;
 
         // 12 retries will increase the diskspace by 4096 times!
         static const int MAX_RETRIES = 12;

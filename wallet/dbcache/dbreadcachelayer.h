@@ -4,6 +4,8 @@
 #include "db/idb.h"
 #include "hierarchicaldb.h"
 #include "inmemorydb.h"
+#include <boost/optional.hpp>
+#include <cstddef>
 
 class LMDB;
 
@@ -12,6 +14,7 @@ class DBReadCacheLayer : public IDB
     std::unique_ptr<HierarchicalDB<hdb_dummy_mutex>> tx;
     const int64_t                                    flushOnSizeReached;
     const boost::filesystem::path* const             dbdir_;
+    boost::optional<std::size_t>                     commitDataSize;
 
 public:
     /**

@@ -553,11 +553,18 @@ void DBReadCacheLayer::clearDBData()
     LMDB persistedDB(dbdir_, true);
 }
 
-Result<void, int> DBReadCacheLayer::beginDBTransaction(std::size_t /*expectedDataSize*/)
+Result<void, int> DBReadCacheLayer::beginDBTransaction(std::size_t expectedDataSize)
 {
     if (tx) {
         return Err(-1);
     }
+
+    if (expectedDataSize > 0) {
+        commitDataSize = expectedDataSize;
+    } else {
+        commitDataSize = boost::none;
+    }
+
     tx = std::unique_ptr<HierarchicalDB<decltype(tx)::element_type::MutexT>>(
         new HierarchicalDB<decltype(tx)::element_type::MutexT>(""));
     return Ok();
@@ -596,13 +603,17 @@ Result<void, int> DBReadCacheLayer::commitDBTransaction()
 
     bool result = true;
 
-    BOOST_SCOPE_EXIT(this_) { this_->flushOnPolicy(); }
+    BOOST_SCOPE_EXIT(this_)
+    {
+        this_->flushOnPolicy();
+        this_->commitDataSize = boost::none;
+    }
     BOOST_SCOPE_EXIT_END
 
     GUARD_TX();
 
     LMDB persistedDB(dbdir_, false);
-    persistedDB.beginDBTransaction(1 << 24);
+    persistedDB.beginDBTransaction(commitDataSize ? *commitDataSize : 1 << 24);
 
     {
         for (std::size_t i = 0; i < txData.size(); i++) {
@@ -691,6 +702,7 @@ Result<void, int> DBReadCacheLayer::commitDBTransaction()
 bool DBReadCacheLayer::abortDBTransaction()
 {
     tx.reset();
+    commitDataSize = boost::none;
     return true;
 }
 
