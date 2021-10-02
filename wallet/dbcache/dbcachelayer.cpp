@@ -610,6 +610,15 @@ enum PersistValueToCacheResult
     UnrecoverableError,
 };
 
+static PersistValueToCacheResult MakeCacheErrorFromValue(const int errVal)
+{
+    if (errVal == MDB_MAP_FULL || errVal == MDB_BAD_TXN || errVal == MDB_NOTFOUND) {
+        return PersistValueToCacheResult::RecoverableError;
+    } else {
+        return PersistValueToCacheResult::UnrecoverableError;
+    }
+}
+
 #define ReturnIfError(db, action, dbidInt, res)                                                         \
     {                                                                                                   \
         if (res.isErr()) {                                                                              \
@@ -618,11 +627,8 @@ enum PersistValueToCacheResult
                        "Encountered error {} while attempting persist data (in {} "                     \
                        ") in DBID {}",                                                                  \
                        errVal, action, dbidInt);                                                        \
-            if (errVal == MDB_MAP_FULL || errVal == MDB_BAD_TXN || errVal == MDB_NOTFOUND) {            \
-                return PersistValueToCacheResult::RecoverableError;                                     \
-            } else {                                                                                    \
-                return PersistValueToCacheResult::UnrecoverableError;                                   \
-            }                                                                                           \
+            NLog.flush();                                                                               \
+            return MakeCacheErrorFromValue(errVal);                                                     \
         }                                                                                               \
     }
 
@@ -722,14 +728,19 @@ bool DBCacheLayer::flush(const boost::optional<uint64_t>& commitSizeIn) const
             }
         }
 
+        // since we're done writing, attempt to commit only if there's no errors
         if (singlePersisResult == PersistValueToCacheResult::NoError) {
             NLog.write(b_sev::info, "About to commit to persisted DB");
-            Result<void, int> commitRes = persistedDB.commitDBTransaction();
+            const Result<void, int> commitRes = persistedDB.commitDBTransaction();
             if (commitRes.isErr()) {
-                NLog.write(b_sev::info, "Database flush() commit failed with error {}",
+                NLog.write(b_sev::err, "Database flush() commit failed with error {}",
                            commitRes.UNWRAP_ERR());
-                break;
+                singlePersisResult = MakeCacheErrorFromValue(commitRes.UNWRAP_ERR());
             }
+        }
+
+        // committing done at this point, let's see how successful we've been
+        if (singlePersisResult == PersistValueToCacheResult::NoError) {
             clearCache_unsafe();
             NLog.write(b_sev::info, "A flush() in cached DB finished successfully");
             break;
@@ -748,6 +759,7 @@ bool DBCacheLayer::flush(const boost::optional<uint64_t>& commitSizeIn) const
         } else {
             NLog.write(b_sev::critical, "Canceling flushing to DB as an unrecoverable error occurred");
             persistedDB.abortDBTransaction();
+            NLog.flush();
             break;
         }
     }

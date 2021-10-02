@@ -758,8 +758,7 @@ Result<void, int> LMDB::write(IDB::Index dbindex, const std::string& key, const 
         if (ret == MDB_MAP_FULL) {
             if (need_resize()) {
                 NLog.write(b_sev::critical,
-                           "Failed to write and LMDB memory map was found to need to be resized, doing "
-                           "that now.");
+                           "Failed to write and LMDB memory map was found to need to be resized.");
             }
             NLog.write(b_sev::err,
                        "Failed to write key {} with dbid {} and data of size {} in lmdb, MDB_MAP_FULL",
