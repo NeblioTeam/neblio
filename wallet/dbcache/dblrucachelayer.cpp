@@ -766,7 +766,8 @@ bool DBLRUCacheLayer<BaseDB>::flush(const boost::optional<uint64_t>& commitSizeI
             }
 
             if (singlePersisResult == PersistValueToCacheResult::NoError) {
-                NLog.write(b_sev::info, "About to commit to persisted DB");
+                NLog.write(b_sev::info, "About to commit {} changes to persisted DB",
+                           dataToWrite.size());
                 Result<void, int> commitRes = persistedDB.commitDBTransaction();
                 if (commitRes.isErr()) {
                     NLog.write(b_sev::info, "Database flush() commit failed with error {}",

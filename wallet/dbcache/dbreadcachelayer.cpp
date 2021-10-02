@@ -8,7 +8,7 @@
 #include <boost/scope_exit.hpp>
 #include <cstddef>
 
-using ReadCacheMapType  = ConcurrentMap<std::string, DBCachedRead, 5000>;
+using ReadCacheMapType  = ConcurrentMap<std::string, DBCachedRead, 500>;
 using ReadCacheMapsType = std::array<ReadCacheMapType, static_cast<std::size_t>(IDB::Index::Index_Last)>;
 
 ReadCacheMapsType g_db_read_cache;

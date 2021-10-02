@@ -53,9 +53,7 @@ public:
         }
     };
 
-    using MapType = ConcurrentMap<std::string, std::deque<boost::weak_ptr<TransactableDBEntry>>, 5000>;
-
-    static const std::size_t QueueCapacity = 10000;
+    using MapType = ConcurrentMap<std::string, std::deque<boost::weak_ptr<TransactableDBEntry>>, 500>;
 
     using MutexType = boost::shared_mutex;
 
