@@ -23,7 +23,7 @@
 #include <unordered_set>
 
 static auto seed = std::random_device{}();
-// static unsigned seed = 1745960838;
+// static unsigned seed = 4155824264;
 
 static std::mt19937 gen{seed};
 
@@ -863,6 +863,18 @@ static void TestReadMultipleAndRealAllWithTx(IDB*                               
         db->write(IDB::Index::DB_NTP1TOKENNAMES_INDEX, someRandomKeyVal.first, someRandomKeyVal.second)
             .isOk());
 
+    {
+        const Result<std::map<std::string, std::vector<std::string>>, int> map =
+            db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
+        ASSERT_TRUE(map.isOk());
+        ASSERT_EQ(map.UNWRAP().size(), 1u);
+        auto it = map.UNWRAP().find(someRandomKeyVal.first);
+        ASSERT_NE(it, map.UNWRAP().cend());
+        ASSERT_EQ(it->first, someRandomKeyVal.first);
+        ASSERT_EQ(it->second.size(), 1u);
+        ASSERT_EQ(it->second.front(), someRandomKeyVal.second);
+    }
+
     ASSERT_TRUE(db->beginDBTransaction().isOk());
 
     ////////////////
@@ -906,7 +918,8 @@ static void TestReadMultipleAndRealAllWithTx(IDB*                               
         db->commitDBTransaction();
 
         if (erase) {
-            // after having aborted the transaction, we only have the value we committed
+            // after having committed the transaction and erased, we find only the value we committed
+
             const Result<std::map<std::string, std::vector<std::string>>, int> map =
                 db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
             ASSERT_TRUE(map.isOk());
@@ -922,7 +935,7 @@ static void TestReadMultipleAndRealAllWithTx(IDB*                               
             EnsureDBIsEmpty(db, IDB::Index::DB_NTP1TX_INDEX);
             EnsureDBIsEmpty(db, IDB::Index::DB_ADDRSVSPUBKEYS_INDEX);
         } else {
-            // after having aborted the transaction, we only have the value we committed
+            // after having committed the transaction and NOT erased, we find all values
             const Result<std::map<std::string, std::vector<std::string>>, int> map =
                 db->readAll(IDB::Index::DB_NTP1TOKENNAMES_INDEX);
             ASSERT_TRUE(map.isOk());

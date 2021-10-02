@@ -862,12 +862,15 @@ Result<void, int> LMDB::eraseAll(IDB::Index dbindex, const std::string& key)
 
     int itemRes = mdb_cursor_get(cursorPtr.get(), &kS, &vS, MDB_SET);
     if (itemRes) {
-        std::string dbgKey = KeyAsString(key, key);
-        if (itemRes != 0) {
-            NLog.write(b_sev::err, "Failed to erase lmdb key {} with an error of code {}; and error: {}",
-                       dbgKey, itemRes, mdb_strerror(itemRes));
+        if (itemRes != MDB_NOTFOUND) {
+            std::string dbgKey = KeyAsString(key, key);
+            if (itemRes != 0) {
+                NLog.write(b_sev::err,
+                           "Failed to erase lmdb key {} with an error of code {}; and error: {}", dbgKey,
+                           itemRes, mdb_strerror(itemRes));
+            }
+            return Err(itemRes);
         }
-        return Err(itemRes);
     }
 
     if (auto ret = mdb_cursor_del(cursorPtr.get(), MDB_NODUPDATA)) {
