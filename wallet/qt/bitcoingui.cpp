@@ -91,7 +91,7 @@ BitcoinGUI::BitcoinGUI(QWidget* parent)
     toolbar = NULL;
 
     // initialization for safety
-    overviewPage = NULL;
+    overviewPage = nullptr;
 
     // Accept D&D of URIs
     setAcceptDrops(true);
@@ -245,6 +245,9 @@ BitcoinGUI::BitcoinGUI(QWidget* parent)
     connect(addressBookPage, SIGNAL(verifyMessage(QString)), this, SLOT(gotoVerifyMessageTab(QString)));
     // Clicking on "Sign Message" in the receive coins page sends you to the sign message tab
     connect(receiveCoinsPage, SIGNAL(signMessage(QString)), this, SLOT(gotoSignMessageTab(QString)));
+
+    // we a rescan starts, switch to overview page to show the progress bar
+    connect(overviewPage, &OverviewPage::rescanStarted, this, &BitcoinGUI::gotoOverviewPage);
 
     gotoOverviewPage();
     QSize updaterIconSize(labelEncryptionIcon->height(), labelEncryptionIcon->height());

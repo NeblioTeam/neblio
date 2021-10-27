@@ -1082,12 +1082,12 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
 
     uint64_t blockCount = pindexStart->nHeight;
 
-    const auto calculateProgress = [](int blockHeight, int maxHeight) -> int {
+    const auto calculateProgress = [](int blockHeight, int maxHeight) -> double {
         if (maxHeight > 0) {
             if (blockHeight > maxHeight) {
-                return 100;
+                return 1.;
             } else {
-                const int progVal = static_cast<int>(float(100) * float(blockHeight) / float(maxHeight));
+                const double progVal = double(blockHeight) / double(maxHeight);
                 return progVal;
             }
         } else {
@@ -1103,24 +1103,19 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
         BOOST_SCOPE_EXIT(void) { uiInterface.WalletBlockchainRescanEnded(); }
         BOOST_SCOPE_EXIT_END
         NLog.write(b_sev::info, "Starting wallet rescan of {} blocks...", bestHeight);
-        int progressLast = 0;
-        int progressNow  = 0;
         uiInterface.WalletBlockchainRescanAtHeight(0);
         while (pindex) {
-            progressNow = calculateProgress(pindex->nHeight, bestHeight);
-            if (progressNow != progressLast) {
-                uiInterface.WalletBlockchainRescanAtHeight(progressNow);
-                progressLast = progressNow;
-            }
-            blockCount++;
-
             if (blockCount % 1000 == 0) {
+                const double progressNow = calculateProgress(pindex->nHeight, bestHeight);
+                uiInterface.WalletBlockchainRescanAtHeight(progressNow);
                 uiInterface.InitMessage(
                     _("Rescanning blocks for wallet: ") + std::to_string(blockCount) + "/" +
                         std::to_string(bestHeight),
                     static_cast<double>(blockCount) / static_cast<double>(bestHeight));
                 NLog.write(b_sev::info, "Done scanning {}/{} blocks", blockCount, bestHeight);
             }
+
+            blockCount++;
 
             // no need to read and scan block, if block was created before
             // our wallet birthday (as adjusted for block time variability)
