@@ -592,6 +592,10 @@ add_library(gui_lib STATIC
     wallet/qt/newstakedelegationdialog.cpp
     wallet/qt/sociallinks.cpp
     wallet/qt/nebliosplash.cpp
+    wallet/qt/votesdialog.cpp
+    wallet/qt/votesdatamodel.cpp
+    wallet/qt/votesdataview.cpp
+    wallet/qt/votestablecelldelegate.cpp
     ${QRCODE_SOURCES}
     )
 
@@ -736,6 +740,7 @@ add_library(core_lib STATIC
     wallet/blockreject.cpp
     wallet/blockmetadata.cpp
     wallet/blockindexlrucache.cpp
+    wallet/proposal.cpp
     )
 
 target_link_libraries(core_lib

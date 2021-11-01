@@ -672,6 +672,17 @@ bool CTxDB::LoadBlockIndex()
         return false;
     }
 
+    if (boost::filesystem::exists(AllStoredVotes::GetStorageVotesFileName())) {
+        auto votesObj = AllStoredVotes::CreateFromJsonFileFromWalletDir();
+        if (votesObj.isErr()) {
+            uiInterface.InitMessage("Failed to load votes data... check the logs.", 0.);
+            NLog.write(b_sev::err, "Failed to load votes: {}", votesObj.UNWRAP_ERR());
+            std::this_thread::sleep_for(std::chrono::seconds(8));
+        } else {
+            blockVotes = votesObj.UNWRAP();
+        }
+    }
+
     // Verify blocks in the best chain
     int nCheckLevel = GetArg("-checklevel", 1);
     int nCheckDepth = GetArg("-checkblocks", 2500);

@@ -207,6 +207,8 @@ addmultisigaddress <nrequired> <'["key","key"]'> [account]
 addnode "node" "add|remove|onetry"
 addredeemscript <redeemScript> [account]
 backupwallet <destination>
+cancelallvotesofproposal <proposal-id>
+castvote <start-block-height> <last-block-height> <proposal-id> <vote-value>
 createrawntp1transaction [{"txid":txid,"vout":n},...] {address:{tokenid/tokenName:tokenAmount},address:neblAmount,...} '{"userData":{"meta":[{"K1":"V1"},{},...]}}' [encrypt-metadata=false]
 createrawtransaction [{"txid":txid,"vout":n},...] {address:amount,...}
 decoderawtransaction <hex string> [ignoreNTP1=false]
@@ -272,6 +274,7 @@ listsinceblock [blockhash] [target-confirmations]
 liststakingaddresses
 listtransactions [account] [count=10] [from=0]
 listunspent [minconf=1] [maxconf=9999999] ["address",...]
+listvotes
 makekeypair [prefix]
 move <fromaccount> <toaccount> <amount> [minconf=1] [comment]
 rawdelegatestake "stakingAddress" amount ("ownerAddress" externalOwner=false useDelegated=false)

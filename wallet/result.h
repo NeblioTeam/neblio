@@ -18,6 +18,9 @@
 #define RESULT_PRE                                                                                      \
     "[" + boost::filesystem::path(__FILE__).filename().string() + ":" + std::to_string(__LINE__) + "]"
 
+#define UNWRAP() unwrap(RESULT_PRE)
+#define UNWRAP_ERR() unwrapErr(RESULT_PRE)
+
 namespace types {
 template <typename T>
 struct Ok
@@ -44,7 +47,7 @@ struct Err
 } // namespace types
 
 template <typename T, typename CleanT = typename std::decay<T>::type>
-types::Ok<CleanT> Ok(T&& val)
+[[nodiscard]] types::Ok<CleanT> Ok(T&& val)
 {
     return types::Ok<CleanT>(std::forward<T>(val));
 }
@@ -52,7 +55,7 @@ types::Ok<CleanT> Ok(T&& val)
 inline types::Ok<void> Ok() { return types::Ok<void>(); }
 
 template <typename E, typename CleanE = typename std::decay<E>::type>
-types::Err<CleanE> Err(E&& val)
+[[nodiscard]] types::Err<CleanE> Err(E&& val)
 {
     return types::Err<CleanE>(std::forward<E>(val));
 }
@@ -237,7 +240,7 @@ struct Map<Result<U, E>(Arg)>
 {
 
     template <typename T, typename Func>
-    static Result<U, E> map(const Result<T, E>& result, Func func)
+    [[nodiscard]] static Result<U, E> map(const Result<T, E>& result, Func func)
     {
         static_assert(std::is_same<T, Arg>::value || std::is_convertible<T, Arg>::value,
                       "Incompatible types detected");
@@ -257,7 +260,7 @@ struct Map<Result<U, E>(void)>
 {
 
     template <typename T, typename Func>
-    static Result<U, E> map(const Result<T, E>& result, Func func)
+    [[nodiscard]] static Result<U, E> map(const Result<T, E>& result, Func func)
     {
         static_assert(std::is_same<T, void>::value, "Can not call a void-callback on a non-void Result");
 
@@ -314,7 +317,7 @@ struct Map<Ret (Cls::*)(Arg) const>
                   "Can not map a callback returning a Result, use orElse instead");
 
     template <typename T, typename E, typename Func>
-    static Result<T, Ret> map(const Result<T, E>& result, Func func)
+    [[nodiscard]] static Result<T, Ret> map(const Result<T, E>& result, Func func)
     {
         if (result.isErr()) {
             auto res = func(result.storage().template get<E>());
@@ -325,7 +328,7 @@ struct Map<Ret (Cls::*)(Arg) const>
     }
 
     template <typename E, typename Func>
-    static Result<void, Ret> map(const Result<void, E>& result, Func func)
+    [[nodiscard]] static Result<void, Ret> map(const Result<void, E>& result, Func func)
     {
         if (result.isErr()) {
             auto res = func(result.storage().template get<E>());
@@ -374,7 +377,7 @@ struct Then<Ret(Arg)>
                   "then() should not return anything, use map() instead");
 
     template <typename T, typename E, typename Func>
-    static Result<T, E> then(const Result<T, E>& result, Func func)
+    [[nodiscard]] static Result<T, E> then(const Result<T, E>& result, Func func)
     {
         if (result.isOk()) {
             func(result.storage().template get<T>());
@@ -390,7 +393,7 @@ struct Then<Ret(void)>
                   "then() should not return anything, use map() instead");
 
     template <typename T, typename E, typename Func>
-    static Result<T, E> then(const Result<T, E>& result, Func func)
+    [[nodiscard]] static Result<T, E> then(const Result<T, E>& result, Func func)
     {
         static_assert(std::is_same<T, void>::value, "Can not call a void-callback on a non-void Result");
 
@@ -453,7 +456,7 @@ struct Else<Result<T, F>(Arg)>
 {
 
     template <typename E, typename Func>
-    static Result<T, F> orElse(const Result<T, E>& result, Func func)
+    [[nodiscard]] static Result<T, F> orElse(const Result<T, E>& result, Func func)
     {
         static_assert(std::is_same<E, Arg>::value || std::is_convertible<E, Arg>::value,
                       "Incompatible types detected");
@@ -467,7 +470,7 @@ struct Else<Result<T, F>(Arg)>
     }
 
     template <typename E, typename Func>
-    static Result<void, F> orElse(const Result<void, E>& result, Func func)
+    [[nodiscard]] static Result<void, F> orElse(const Result<void, E>& result, Func func)
     {
         if (result.isErr()) {
             auto res = func(result.storage().template get<E>());
@@ -483,7 +486,7 @@ struct Else<Result<T, F>(void)>
 {
 
     template <typename E, typename Func>
-    static Result<T, F> orElse(const Result<T, E>& result, Func func)
+    [[nodiscard]] static Result<T, F> orElse(const Result<T, E>& result, Func func)
     {
         static_assert(std::is_same<T, void>::value, "Can not call a void-callback on a non-void Result");
 
@@ -496,7 +499,7 @@ struct Else<Result<T, F>(void)>
     }
 
     template <typename E, typename Func>
-    static Result<void, F> orElse(const Result<void, E>& result, Func func)
+    [[nodiscard]] static Result<void, F> orElse(const Result<void, E>& result, Func func)
     {
         if (result.isErr()) {
             auto res = func();
@@ -600,7 +603,7 @@ struct Wise<Ret (Cls::*)(Args...) const> : public impl::Wise<Ret(Args...)>
 template <typename T, typename E, typename Func,
           typename Ret =
               Result<typename details::ResultOkType<typename details::result_of<Func>::type>::type, E>>
-Ret map(const Result<T, E>& result, Func func)
+[[nodiscard]] Ret map(const Result<T, E>& result, Func func)
 {
     return ok::Map<Func>::map(result, func);
 }
@@ -608,19 +611,19 @@ Ret map(const Result<T, E>& result, Func func)
 template <typename T, typename E, typename Func,
           typename Ret =
               Result<T, typename details::ResultErrType<typename details::result_of<Func>::type>::type>>
-Ret mapError(const Result<T, E>& result, Func func)
+[[nodiscard]] Ret mapError(const Result<T, E>& result, Func func)
 {
     return err::Map<Func>::map(result, func);
 }
 
 template <typename T, typename E, typename Func>
-Result<T, E> then(const Result<T, E>& result, Func func)
+[[nodiscard]] Result<T, E> then(const Result<T, E>& result, Func func)
 {
     return And::Then<Func>::then(result, func);
 }
 
 template <typename T, typename E, typename Func>
-Result<T, E> otherwise(const Result<T, E>& result, Func func)
+[[nodiscard]] Result<T, E> otherwise(const Result<T, E>& result, Func func)
 {
     return Other::Wise<Func>::otherwise(result, func);
 }
@@ -681,13 +684,13 @@ struct Storage
     }
 
     template <typename U>
-    const U& get() const
+    [[nodiscard]] const U& get() const
     {
         return *reinterpret_cast<const U*>(&storage_);
     }
 
     template <typename U>
-    U& get()
+    [[nodiscard]] U& get()
     {
         return *reinterpret_cast<U*>(&storage_);
     }
@@ -744,13 +747,13 @@ struct Storage<void, E>
     }
 
     template <typename U>
-    const U& get() const
+    [[nodiscard]] const U& get() const
     {
         return *reinterpret_cast<const U*>(&storage_);
     }
 
     template <typename U>
-    U& get()
+    [[nodiscard]] U& get()
     {
         return *reinterpret_cast<U*>(&storage_);
     }
@@ -870,11 +873,11 @@ struct Result
             storage_.destroy(details::err_tag());
     }
 
-    bool isOk() const { return ok_; }
+    [[nodiscard]] bool isOk() const { return ok_; }
 
-    bool isErr() const { return !ok_; }
+    [[nodiscard]] bool isErr() const { return !ok_; }
 
-    T expect(const char* str, const std::string& caller_source) const
+    [[nodiscard]] T expect(const char* str, const std::string& caller_source) const
     {
         if (!isOk()) {
             std::cerr << str << std::endl;
@@ -887,7 +890,7 @@ struct Result
     template <typename Func,
               typename Ret = Result<
                   typename details::ResultOkType<typename details::result_of<Func>::type>::type, E>>
-    Ret map(Func func) const
+    [[nodiscard]] Ret map(Func func) const
     {
         return details::map(*this, func);
     }
@@ -895,19 +898,19 @@ struct Result
     template <typename Func,
               typename Ret = Result<
                   T, typename details::ResultErrType<typename details::result_of<Func>::type>::type>>
-    Ret mapError(Func func) const
+    [[nodiscard]] Ret mapError(Func func) const
     {
         return details::mapError(*this, func);
     }
 
     template <typename Func>
-    Result<T, E> then(Func func) const
+    [[nodiscard]] Result<T, E> then(Func func) const
     {
         return details::then(*this, func);
     }
 
     template <typename Func>
-    Result<T, E> otherwise(Func func) const
+    [[nodiscard]] Result<T, E> otherwise(Func func) const
     {
         return details::otherwise(*this, func);
     }
@@ -915,17 +918,18 @@ struct Result
     template <typename Func,
               typename Ret = Result<
                   T, typename details::ResultErrType<typename details::result_of<Func>::type>::type>>
-    Ret orElse(Func func) const
+    [[nodiscard]] Ret orElse(Func func) const
     {
         return details::orElse(*this, func);
     }
 
-    storage_type& storage() { return storage_; }
+    [[nodiscard]] storage_type& storage() { return storage_; }
 
-    const storage_type& storage() const { return storage_; }
+    [[nodiscard]] const storage_type& storage() const { return storage_; }
 
     template <typename U = T>
-    typename std::enable_if<!std::is_same<U, void>::value, U>::type unwrapOr(const U& defaultValue) const
+    [[nodiscard]] typename std::enable_if<!std::is_same<U, void>::value, U>::type
+    unwrapOr(const U& defaultValue) const
     {
         if (isOk()) {
             return storage().template get<U>();
@@ -934,7 +938,7 @@ struct Result
     }
 
     template <typename U = T>
-    typename std::enable_if<!std::is_same<U, void>::value, U>::type
+    [[nodiscard]] typename std::enable_if<!std::is_same<U, void>::value, U>::type
     unwrap(const std::string& caller_source) const
     {
         if (isOk()) {
@@ -946,7 +950,7 @@ struct Result
         std::terminate();
     }
 
-    E unwrapErr(const std::string& caller_source) const
+    [[nodiscard]] E unwrapErr(const std::string& caller_source) const
     {
         if (isErr()) {
             return storage().template get<E>();
@@ -958,15 +962,15 @@ struct Result
     }
 
 private:
-    T expect_impl(std::true_type) const {}
-    T expect_impl(std::false_type) const { return storage_.template get<T>(); }
+    [[nodiscard]] T expect_impl(std::true_type) const {}
+    [[nodiscard]] T expect_impl(std::false_type) const { return storage_.template get<T>(); }
 
     bool         ok_;
     storage_type storage_;
 };
 
 template <typename T, typename E>
-bool operator==(const Result<T, E>& lhs, const Result<T, E>& rhs)
+[[nodiscard]] bool operator==(const Result<T, E>& lhs, const Result<T, E>& rhs)
 {
     static_assert(conceptsNS::EqualityComparable<T>::value,
                   "T must be EqualityComparable for Result to be comparable");
@@ -983,7 +987,7 @@ bool operator==(const Result<T, E>& lhs, const Result<T, E>& rhs)
 }
 
 template <typename T, typename E>
-bool operator==(const Result<T, E>& lhs, types::Ok<T> ok)
+[[nodiscard]] bool operator==(const Result<T, E>& lhs, types::Ok<T> ok)
 {
     static_assert(conceptsNS ::EqualityComparable<T>::value,
                   "T must be EqualityComparable for Result to be comparable");
@@ -995,13 +999,13 @@ bool operator==(const Result<T, E>& lhs, types::Ok<T> ok)
 }
 
 template <typename E>
-bool operator==(const Result<void, E>& lhs, types::Ok<void>)
+[[nodiscard]] bool operator==(const Result<void, E>& lhs, types::Ok<void>)
 {
     return lhs.isOk();
 }
 
 template <typename T, typename E>
-bool operator==(const Result<T, E>& lhs, types::Err<E> err)
+[[nodiscard]] bool operator==(const Result<T, E>& lhs, types::Err<E> err)
 {
     static_assert(conceptsNS ::EqualityComparable<E>::value,
                   "E must be EqualityComparable for Result to be comparable");
