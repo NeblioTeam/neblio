@@ -33,6 +33,7 @@ void TransactionOperation::collapseOperations(TransactionOperation&       destin
     case WriteOperationType::Append:
         destination.getValues().insert(destination.getValues().end(), source.getValues().begin(),
                                        source.getValues().end());
+        destination.op = WriteOperationType::Append;
         return;
     }
 }
