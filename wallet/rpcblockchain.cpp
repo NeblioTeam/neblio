@@ -788,6 +788,9 @@ Value setviupushprobability(const Array& params, bool fHelp)
 
     VIUCachePushProbabilityNumerator   = params[0].get_int();
     VIUCachePushProbabilityDenominator = params[1].get_int();
+  
+    return Value();
+}
 
 Value listvotes(const Array& params, bool fHelp)
 {
