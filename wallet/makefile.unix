@@ -249,7 +249,8 @@ OBJS= \
     obj/blockmetadata.o                       \
     obj/blockindexlrucache.o                  \
     obj/forkspendsimulator.o                  \
-    obj/viucache.o
+    obj/viucache.o                            \
+    obj/proposal.o
 
 
 ifdef NEBLIO_REST

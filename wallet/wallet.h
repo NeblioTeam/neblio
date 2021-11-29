@@ -72,7 +72,7 @@ public:
         vchPubKey = vchPubKeyIn;
     }
 
-    IMPLEMENT_SERIALIZE(if (!(nType & SER_GETHASH)) READWRITE(nVersion); READWRITE(nTime);
+    IMPLEMENT_SERIALIZE(if (!(nType & SER_GETHASH)) READWRITE(nVersionIn); READWRITE(nTime);
                         READWRITE(vchPubKey);)
 };
 
@@ -541,7 +541,8 @@ public:
                 pthis->mapValue["timesmart"] = fmt::format("{}", nTimeSmart);
         }
 
-        nSerSize += SerReadWrite(s, *(CMerkleTx*)this, nType, nVersion, ser_action);
+        // first serialize base class, then this class
+        nSerSize += SerReadWrite(s, *(CMerkleTx*)this, nType, nVersionIn, ser_action);
         // clang-format off
         READWRITE(vtxPrev);
         READWRITE(mapValue);
@@ -654,7 +655,7 @@ public:
         nTimeExpires = nExpires;
     }
 
-    IMPLEMENT_SERIALIZE(if (!(nType & SER_GETHASH)) READWRITE(nVersion); READWRITE(vchPrivKey);
+    IMPLEMENT_SERIALIZE(if (!(nType & SER_GETHASH)) READWRITE(nVersionIn); READWRITE(vchPrivKey);
                         READWRITE(nTimeCreated); READWRITE(nTimeExpires); READWRITE(strComment);)
 };
 
@@ -670,7 +671,7 @@ public:
 
     void SetNull() { vchPubKey = CPubKey(); }
 
-    IMPLEMENT_SERIALIZE(if (!(nType & SER_GETHASH)) READWRITE(nVersion); READWRITE(vchPubKey);)
+    IMPLEMENT_SERIALIZE(if (!(nType & SER_GETHASH)) READWRITE(nVersionIn); READWRITE(vchPubKey);)
 };
 
 /** Internal transfers.
@@ -702,7 +703,7 @@ public:
 
     IMPLEMENT_SERIALIZE(
         CAccountingEntry& me = *const_cast<CAccountingEntry*>(this);
-        if (!(nType & SER_GETHASH)) READWRITE(nVersion);
+        if (!(nType & SER_GETHASH)) READWRITE(nVersionIn);
         // Note: strAccount is serialized as part of the key, not here.
         READWRITE(nCreditDebit); READWRITE(nTime); READWRITE(strOtherAccount);
 
@@ -710,7 +711,7 @@ public:
             WriteOrderPos(nOrderPos, me.mapValue);
 
             if (!(mapValue.empty() && _ssExtra.empty())) {
-                CDataStream ss(nType, nVersion);
+                CDataStream ss(nType, nVersionIn);
                 ss.insert(ss.begin(), '\0');
                 ss << mapValue;
                 ss.insert(ss.end(), _ssExtra.begin(), _ssExtra.end());
@@ -724,7 +725,7 @@ public:
             me.mapValue.clear();
             if (std::string::npos != nSepPos) {
                 CDataStream ss(std::vector<char>(strComment.begin() + nSepPos + 1, strComment.end()),
-                               nType, nVersion);
+                               nType, nVersionIn);
                 ss >> me.mapValue;
                 me._ssExtra = std::vector<char>(ss.begin(), ss.end());
             }
