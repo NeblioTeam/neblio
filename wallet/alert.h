@@ -43,7 +43,7 @@ public:
     IMPLEMENT_SERIALIZE
     (
         READWRITE(this->nVersion);
-        nVersion = this->nVersion;
+        nVersionIn = this->nVersion;
         READWRITE(nRelayUntil);
         READWRITE(nExpiration);
         READWRITE(nID);

@@ -323,6 +323,9 @@ static const CRPCCommand vRPCCommands[] =
     { "getrawmempool",             &getrawmempool,             true,   false },
     { "calculateblockhash",        &calculateblockhash,        false,  false },
     { "gettxout",                  &gettxout,                  false,  false },
+    { "listvotes",                 &listvotes,                 false,  false },
+    { "castvote",                  &castvote,                  false,  false },
+    { "cancelallvotesofproposal",  &cancelallvotesofproposal,  false,  false },
     { "getblock",                  &getblock,                  false,  false },
     { "getblockbynumber",          &getblockbynumber,          false,  false },
     { "getblockhash",              &getblockhash,              false,  false },
@@ -1388,6 +1391,16 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
         ConvertTo<bool>(params[0]);
     if (strMethod == "listdelegators" && n > 0)
         ConvertTo<bool>(params[0]);
+    if (strMethod == "castvote" && n > 0)
+        ConvertTo<int>(params[0]);
+    if (strMethod == "castvote" && n > 1)
+        ConvertTo<int>(params[1]);
+    if (strMethod == "castvote" && n > 2)
+        ConvertTo<int>(params[2]);
+    if (strMethod == "castvote" && n > 3)
+        ConvertTo<int>(params[3]);
+    if (strMethod == "cancelallvotesofproposal" && n > 0)
+        ConvertTo<int>(params[0]);
 
     return params;
 }

@@ -31,6 +31,7 @@ add_executable(neblio-tests
     ntp1_selection_tests.cpp
     pmt_tests.cpp
     pos_tests.cpp
+    proposal_tests.cpp
     result_tests.cpp
     rpc_tests.cpp
     script_tests.cpp

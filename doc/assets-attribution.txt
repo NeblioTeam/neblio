@@ -18,7 +18,10 @@ wallet/qt/res/icons/cold.png: Snowflake by Kari Studio, ID from the Noun Project
 wallet/qt/res/icons/cold_delegate_1.png user okay by b farias from the Noun Project
 wallet/qt/res/icons/cold_delegate_0.png Add User by b farias from the Noun Project
 
-wallet/qt/res/icons/social/*: Social Icons by https://icons8.com
+wallet/qt/res/icons/social: All Social Icons by https://icons8.com
+wallet/qt/res/icons/minus-96.png: Minus by https://icons8.com
+wallet/qt/res/icons/plus-96.png: Plus by https://icons8.com
+wallet/qt/res/icons/true-false-96.png: True False by https://icons8.com
 
 
 Icons:

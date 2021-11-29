@@ -70,8 +70,8 @@ double GetPoSKernelPS();
 
 BitcoinGUI::BitcoinGUI(QWidget* parent)
     : QMainWindow(parent), clientModel(0), walletModel(0), encryptWalletAction(0),
-      changePassphraseAction(0), unlockWalletAction(0), lockWalletAction(0), aboutQtAction(0),
-      trayIcon(0), notificator(0), rpcConsole(0), nWeight(0)
+      changePassphraseAction(0), manageVotesAction(0), unlockWalletAction(0), lockWalletAction(0),
+      aboutQtAction(0), trayIcon(0), notificator(0), rpcConsole(0), nWeight(0)
 {
     setWindowTitle(tr("neblio") + " - " + tr("Wallet"));
     qApp->setStyleSheet("QMainWindow { background-color: white;border:none;font-family:'Open "
@@ -111,6 +111,8 @@ BitcoinGUI::BitcoinGUI(QWidget* parent)
     blockchainExporterProg = new QProgressDialog(this);
     blockchainExporterProg->close();
     blockchainExporterProg->setWindowTitle("Blockchain export progress");
+
+    votesDialog = MakeUnique<VotesDialog>(new VotesDialog);
 
     // Create tabs
     overviewPage    = new OverviewPage(this);
@@ -211,7 +213,7 @@ BitcoinGUI::BitcoinGUI(QWidget* parent)
     // Override style sheet for progress bar for styles that have a segmented progress bar,
     // as they make the text unreadable (workaround for issue #1071)
     // See https://qt-project.org/doc/qt-4.8/gallery.html
-    QString curStyle = qApp->style()->metaObject()->className();
+    //    QString curStyle = qApp->style()->metaObject()->className();
 
     progressBar->setStyleSheet("QProgressBar { background-color: #e8e8e8; border: 1px solid grey; "
                                "border-radius: 2px; padding: 1px; text-align: center; } "
@@ -353,6 +355,8 @@ void BitcoinGUI::createActions()
         tr("Import a wallet from another location that was backed up before"));
     changePassphraseAction = new QAction(QIcon(":/icons/key"), tr("&Change Passphrase..."), this);
     changePassphraseAction->setToolTip(tr("Change the passphrase used for wallet encryption"));
+    manageVotesAction = new QAction(QIcon(":/icons/votes-icon"), tr("&Manage votes..."), this);
+    manageVotesAction->setToolTip(tr("Change the passphrase used for wallet encryption"));
     unlockWalletAction = new QAction(QIcon(":/icons/lock_open"), tr("&Unlock Wallet..."), this);
     unlockWalletAction->setToolTip(tr("Unlock wallet"));
     lockWalletAction = new QAction(QIcon(":/icons/lock_closed"), tr("&Lock Wallet"), this);
@@ -378,6 +382,7 @@ void BitcoinGUI::createActions()
     connect(changePassphraseAction, SIGNAL(triggered()), this, SLOT(changePassphrase()));
     connect(unlockWalletAction, SIGNAL(triggered()), this, SLOT(unlockWallet()));
     connect(lockWalletAction, SIGNAL(triggered()), this, SLOT(lockWallet()));
+    connect(manageVotesAction, SIGNAL(triggered()), this, SLOT(showVotesDialog()));
     connect(signMessageAction, SIGNAL(triggered()), this, SLOT(gotoSignMessageTab()));
     connect(verifyMessageAction, SIGNAL(triggered()), this, SLOT(gotoVerifyMessageTab()));
     connect(exportBlockchainBootstrapAction, &QAction::triggered, this,
@@ -412,6 +417,8 @@ void BitcoinGUI::createMenuBar()
     settings->addAction(changePassphraseAction);
     settings->addAction(unlockWalletAction);
     settings->addAction(lockWalletAction);
+    settings->addSeparator();
+    settings->addAction(manageVotesAction);
     settings->addSeparator();
     settings->addAction(optionsAction);
 
@@ -1206,6 +1213,12 @@ void BitcoinGUI::unlockWallet()
         dlg.exec();
     }
     checkWhetherBackupIsMade();
+}
+
+void BitcoinGUI::showVotesDialog()
+{
+    votesDialog->reloadVotes();
+    votesDialog->open();
 }
 
 void BitcoinGUI::lockWallet()
