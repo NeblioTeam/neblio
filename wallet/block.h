@@ -3,6 +3,7 @@
 
 #include "blockindex.h"
 #include "blockreject.h"
+#include "forkspendsimulator.h"
 #include "globals.h"
 #include "outpoint.h"
 #include "transaction.h"
@@ -130,50 +131,14 @@ public:
 
     static bool CheckBIP30Attack(ITxDB& txdb, const uint256& hashTx);
 
-    struct ChainReplaceTxs
-    {
-        // transactions that are being spent in the above ones
-        std::unordered_map<uint256, CTxIndex> modifiedOutputsTxs;
-        // the common ancestor block between the new fork of the new block and the main chain
-        CBlockIndex commonAncestorBlockIndex;
-        // tx vs number of outputs, we don't care about the out count but we have it as a side effect
-        std::unordered_map<uint256, uint32_t> forkTxsOutCount;
-    };
+    static const char* VIUErrorToString(ForkSpendSimulator::VIUError err);
 
-    struct CommonAncestorSuccessorBlocks
-    {
-        // while finding the common ancestor, this is the part of this block's chain (excluding this
-        // block)
-        std::vector<uint256>
-                    inFork; // order matters here because we want to simulate respending these in order
-        CBlockIndex commonAncestor;
-    };
-
-    enum class VIUError
-    {
-        UnknownErrorWhileCollectingTxs,
-        TxInputIndexOutOfRange_Case1,
-        TxInputIndexOutOfRange_Case2,
-        DoublespendAttempt,
-        BlockCannotBeReadFromDB,
-        TxNonExistent_ReadTxIndexFailed_Case1,
-        TxNonExistent_ReadTxIndexFailed_Case2,
-        ReadBlockIndexFailed,
-        BlockIndexOfPrevBlockNotFound,
-        CommonAncestorSearchFailed
-    };
-
-    static const char* VIUErrorToString(VIUError err);
-
-    Result<CommonAncestorSuccessorBlocks, VIUError>
-    GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const;
-    Result<ChainReplaceTxs, VIUError>
-    ReplaceMainChainWithForkUpToCommonAncestor(const ITxDB& txdb) const;
+    Result<void, ForkSpendSimulator::VIUError> VerifyInputsUnspent_Internal(const ITxDB& txdb) const;
 
     bool DisconnectBlock(CTxDB& txdb, const CBlockIndex& pindex);
     bool ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pindex, bool fJustCheck = false);
-    Result<void, CBlock::VIUError> VerifyInputsUnspent(const CTxDB& txdb) const;
-    bool                           VerifyBlock(CTxDB& txdb);
+    Result<void, ForkSpendSimulator::VIUError> VerifyInputsUnspent(const CTxDB& txdb) const;
+    bool                                       VerifyBlock(CTxDB& txdb);
     bool ReadFromDisk(const CBlockIndex* pindex, const ITxDB& txdb, bool fReadTransactions = true);
     bool SetBestChain(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
                       const bool createDbTransaction = true);

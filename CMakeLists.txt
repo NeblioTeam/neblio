@@ -740,6 +740,7 @@ add_library(core_lib STATIC
     wallet/blockreject.cpp
     wallet/blockmetadata.cpp
     wallet/blockindexlrucache.cpp
+    wallet/forkspendsimulator.cpp
     wallet/proposal.cpp
     )
 
