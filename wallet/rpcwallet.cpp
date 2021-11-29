@@ -19,8 +19,7 @@
 using namespace json_spirit;
 using namespace std;
 
-int64_t                 nWalletUnlockTime;
-static CCriticalSection cs_nWalletUnlockTime;
+boost::atomic<int64_t> nWalletUnlockTime;
 
 extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, json_spirit::Object& entry,
                      bool ignoreNTP1);
@@ -133,7 +132,7 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("paytxfee", ValueFromAmount(nTransactionFee)));
     obj.push_back(Pair("mininput", ValueFromAmount(nMinimumInputValue)));
     if (pwalletMain->IsCrypted())
-        obj.push_back(Pair("unlocked_until", (int64_t)nWalletUnlockTime / 1000));
+        obj.push_back(Pair("unlocked_until", nWalletUnlockTime.load() / 1000));
     obj.push_back(Pair("errors", GetWarnings("statusbar")));
     return obj;
 }
@@ -2371,7 +2370,7 @@ Value getwalletinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("keypoololdest", pwalletMain->GetOldestKeyPoolTime()));
     obj.push_back(Pair("keypoolsize", (int)pwalletMain->GetKeyPoolSize()));
     if (pwalletMain->IsCrypted())
-        obj.push_back(Pair("unlocked_until", nWalletUnlockTime));
+        obj.push_back(Pair("unlocked_until", nWalletUnlockTime.load() / 1000));
     //    obj.push_back(Pair("paytxfee", ValueFromAmount(payTxFee.GetFeePerK())));
     return obj;
 }
@@ -2391,8 +2390,6 @@ void ThreadCleanWalletPassphrase(const int64_t pnSleepTimeInSeconds)
 
     const int64_t nMyWakeTime = GetTimeMillis() + pnSleepTimeInSeconds * 1000;
 
-    ENTER_CRITICAL_SECTION(cs_nWalletUnlockTime);
-
     if (nWalletUnlockTime == 0) {
         nWalletUnlockTime = nMyWakeTime;
 
@@ -2403,9 +2400,7 @@ void ThreadCleanWalletPassphrase(const int64_t pnSleepTimeInSeconds)
             if (nToSleep <= 0)
                 break;
 
-            LEAVE_CRITICAL_SECTION(cs_nWalletUnlockTime);
             MilliSleep(nToSleep);
-            ENTER_CRITICAL_SECTION(cs_nWalletUnlockTime);
 
         } while (1);
 
@@ -2417,8 +2412,6 @@ void ThreadCleanWalletPassphrase(const int64_t pnSleepTimeInSeconds)
         if (nWalletUnlockTime < nMyWakeTime)
             nWalletUnlockTime = nMyWakeTime;
     }
-
-    LEAVE_CRITICAL_SECTION(cs_nWalletUnlockTime);
 }
 
 Value walletpassphrase(const Array& params, bool fHelp)
@@ -2533,7 +2526,6 @@ Value walletlock(const Array& params, bool fHelp)
                            "Error: running with an unencrypted wallet, but walletlock was called.");
 
     {
-        LOCK(cs_nWalletUnlockTime);
         pwalletMain->Lock();
         nWalletUnlockTime = 0;
     }

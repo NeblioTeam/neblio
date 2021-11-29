@@ -203,7 +203,7 @@ endmacro()
 
 ATOMIC_CHECK()
 
-if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm") # 32-bit arm
+if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64") # 32-bit and 64-bit arm
 elseif(CMAKE_SIZEOF_VOID_P EQUAL "4") # 32-bit compiler + x86
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse2")
     set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   -msse2")
@@ -592,6 +592,10 @@ add_library(gui_lib STATIC
     wallet/qt/newstakedelegationdialog.cpp
     wallet/qt/sociallinks.cpp
     wallet/qt/nebliosplash.cpp
+    wallet/qt/votesdialog.cpp
+    wallet/qt/votesdatamodel.cpp
+    wallet/qt/votesdataview.cpp
+    wallet/qt/votestablecelldelegate.cpp
     ${QRCODE_SOURCES}
     )
 
@@ -737,6 +741,7 @@ add_library(core_lib STATIC
     wallet/blockmetadata.cpp
     wallet/blockindexlrucache.cpp
     wallet/forkspendsimulator.cpp
+    wallet/proposal.cpp
     )
 
 target_link_libraries(core_lib

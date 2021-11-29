@@ -63,6 +63,7 @@ BASE_SCRIPTS= [
     'feature_block_ntp1.py',
     'feature_pos.py',
     'feature_pos_rpc.py',
+    'feature_votes.py',
 #    'p2p_compactblocks.py',
 #    'feature_segwit.py',
     # vv Tests less than 2m vv
@@ -120,7 +121,7 @@ BASE_SCRIPTS= [
 #    'wallet_bumpfee.py',
    'wallet_listsinceblock.py',
 #    'p2p_leak.py',
-#    'wallet_encryption.py',
+   'wallet_encryption.py',
 #    'feature_dersig.py',
 #    'feature_cltv.py',
    'rpc_uptime.py',

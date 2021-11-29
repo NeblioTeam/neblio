@@ -60,7 +60,7 @@ enum
 #define IMPLEMENT_SERIALIZE(statements)    \
     _Pragma(NEBLIO_DIAGNOSTIC_PUSH);       \
     _Pragma(NEBLIO_HIDE_SHADOW_WARNING);   \
-    unsigned int GetSerializeSize(int nType, int nVersion) const  \
+    unsigned int GetSerializeSize(int nType, int nVersionIn) const  \
     {                                           \
         CSerActionGetSerializeSize ser_action;  \
         const bool fGetSize = true;             \
@@ -70,14 +70,14 @@ enum
         ser_streamplaceholder s;                \
         assert(fGetSize||fWrite||fRead); /* suppress warning */ \
         s.nType = nType;                        \
-        s.nVersion = nVersion;                  \
+        s.nVersion = nVersionIn;                  \
         {statements}                            \
         return nSerSize;                        \
     }                                           \
     template<typename Stream>                   \
-    void Serialize(Stream& s, int nType, int nVersion) const  \
+    void Serialize(Stream& s, int nType, int nVersionIn) const  \
     {                                           \
-        boost::ignore_unused(nVersion);         \
+        boost::ignore_unused(nVersionIn);       \
         CSerActionSerialize ser_action;         \
         const bool fGetSize = false;            \
         const bool fWrite = true;               \
@@ -87,9 +87,9 @@ enum
         {statements}                            \
     }                                           \
     template<typename Stream>                   \
-    void Unserialize(Stream& s, int nType, int nVersion)  \
+    void Unserialize(Stream& s, int nType, int nVersionIn)  \
     {                                           \
-        boost::ignore_unused(nVersion);         \
+        boost::ignore_unused(nVersionIn);       \
         CSerActionUnserialize ser_action;       \
         const bool fGetSize = false;            \
         const bool fWrite = false;              \
@@ -100,7 +100,7 @@ enum
     }                                           \
     _Pragma(NEBLIO_DIAGNOSTIC_POP);
 
-#define READWRITE(obj)      (nSerSize += ::SerReadWrite(s, (obj), nType, nVersion, ser_action))
+#define READWRITE(obj)      (nSerSize += ::SerReadWrite(s, (obj), nType, nVersionIn, ser_action))
 
 
 

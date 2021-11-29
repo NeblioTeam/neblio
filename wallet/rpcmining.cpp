@@ -165,7 +165,7 @@ Value getworkex(const Array& params, bool fHelp)
             if (pindexPrev->GetBlockHash() != bestBlockIndex->GetBlockHash()) {
                 // Deallocate old blocks since they're obsolete now
                 mapNewBlock.clear();
-                for (CBlock* pblockP: vNewBlock)
+                for (CBlock* pblockP : vNewBlock)
                     delete pblockP;
                 vNewBlock.clear();
             }
@@ -789,10 +789,6 @@ std::set<std::pair<uint256, unsigned>> ParseCustomInputs(const Value& inputsArra
 
 Value generatepos(const Array& params, bool fHelp)
 {
-    EnsureWalletIsUnlocked();
-
-    CWallet* const pwallet = pwalletMain.get();
-
     if (fHelp || params.size() < 1 || params.size() > 4) {
         throw std::runtime_error(
             "generate nblocks\n"
@@ -812,6 +808,10 @@ Value generatepos(const Array& params, bool fHelp)
             "\nGenerate 11 blocks\n"
             "generate 11");
     }
+
+    EnsureWalletIsUnlocked();
+
+    CWallet* const pwallet = pwalletMain.get();
 
     int num_generate = params[0].get_int();
 

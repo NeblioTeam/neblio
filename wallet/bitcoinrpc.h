@@ -158,11 +158,11 @@ public:
 
 extern const CRPCTable tableRPC;
 
-extern int64_t            nWalletUnlockTime;
-extern CAmount            AmountFromValue(const json_spirit::Value& value);
-NTP1Int                   NTP1AmountFromValue(const json_spirit::Value& value);
-extern json_spirit::Value ValueFromAmount(const CAmount& amount);
-extern double             GetDifficulty(const CBlockIndex* blockindex = NULL);
+extern boost::atomic<int64_t> nWalletUnlockTime;
+extern CAmount                AmountFromValue(const json_spirit::Value& value);
+NTP1Int                       NTP1AmountFromValue(const json_spirit::Value& value);
+extern json_spirit::Value     ValueFromAmount(const CAmount& amount);
+extern double                 GetDifficulty(const CBlockIndex* blockindex = NULL);
 
 extern double GetPoWMHashPS();
 extern double GetPoSKernelPS();
@@ -294,6 +294,9 @@ extern json_spirit::Value getblockbynumber(const json_spirit::Array& params, boo
 extern json_spirit::Value gettxout(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value exportblockchain(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value waitforblockheight(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value listvotes(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value castvote(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value cancelallvotesofproposal(const json_spirit::Array& params, bool fHelp);
 
 std::vector<NTP1SendTokensOneRecipientData>
      GetNTP1RecipientsVector(const json_spirit::Value& sendTo, boost::shared_ptr<NTP1Wallet> ntp1wallet,

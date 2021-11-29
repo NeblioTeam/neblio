@@ -30,19 +30,19 @@ class CBlock
 {
 public:
     // header
-    static const int CURRENT_VERSION = 6;
-    int              nVersion;
-    uint256          hashPrevBlock;
-    uint256          hashMerkleRoot;
-    unsigned int     nTime;
-    unsigned int     nBits;
-    unsigned int     nNonce;
+    static const int32_t CURRENT_VERSION = 6;
+    int32_t              nVersion;
+    uint256              hashPrevBlock;
+    uint256              hashMerkleRoot;
+    uint32_t             nTime;
+    uint32_t             nBits;
+    uint32_t             nNonce;
 
     // network and disk
     std::vector<CTransaction> vtx;
 
     // ppcoin: block signature - signed by one of the coin base txout[N]'s owner
-    std::vector<unsigned char> vchBlockSig;
+    std::vector<uint8_t> vchBlockSig;
 
     enum class BlockColdStakingCheckError
     {
@@ -69,7 +69,7 @@ public:
     // clang-format off
     IMPLEMENT_SERIALIZE(
         READWRITE(this->nVersion);
-        nVersion = this->nVersion;
+        nVersionIn = this->nVersion;
         READWRITE(hashPrevBlock);
         READWRITE(hashMerkleRoot);
         READWRITE(nTime);

@@ -20,7 +20,7 @@ public:
 
     CTxIndex(const CDiskTxPos& posIn, unsigned int nOutputs);
 
-    IMPLEMENT_SERIALIZE(if (!(nType & SER_GETHASH)) READWRITE(nVersion); READWRITE(pos);
+    IMPLEMENT_SERIALIZE(if (!(nType & SER_GETHASH)) READWRITE(nVersionIn); READWRITE(pos);
                         READWRITE(vSpent);)
 
     void SetNull();

@@ -64,6 +64,9 @@
         <file alias="telegram-logo">res/icons/telegram-logo-100.png</file>
         <file alias="twitter-logo">res/icons/twitter-logo-100.png</file>
         <file alias="youtube-logo">res/icons/youtube-logo-100.png</file>
+        <file alias="green-plus">res/icons/plus-96.png</file>
+        <file alias="red-minus">res/icons/minus-96.png</file>
+        <file alias="votes-icon">res/icons/true-false-96.png</file>
     </qresource>
     <qresource prefix="/images">
         <file alias="about">res/images/about.png</file>

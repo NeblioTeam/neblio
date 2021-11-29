@@ -15,6 +15,8 @@ boost::atomic<uint256> nBestInvalidTrust{0};
 
 boost::atomic<int64_t> NodeIDCounter{0};
 
+AllStoredVotes blockVotes;
+
 std::string strSubVersion;
 
 std::string SanitizeString(const std::string& str, int rule)

@@ -28,7 +28,7 @@ public:
     // clang-format off
     IMPLEMENT_SERIALIZE(
         if (!(nType & SER_GETHASH))
-            READWRITE(nVersion);
+            READWRITE(nVersionIn);
         READWRITE(vHave);
     )
     // clang-format on
