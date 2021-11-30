@@ -852,6 +852,13 @@ const boost::filesystem::path& GetDataDir(bool fNetSpecific)
     return path;
 }
 
+bool CheckDataDirOption()
+{
+    std::string datadir = GetArg("-datadir", "");
+    return datadir.empty() ||
+           boost::filesystem::is_directory(boost::filesystem::system_complete(datadir));
+}
+
 boost::filesystem::path GetConfigFile()
 {
     boost::filesystem::path pathConfigFile(GetArg("-conf", "neblio.conf"));
@@ -865,7 +872,7 @@ void ReadConfigFile(ThreadSafeHashMap<string, string>&         mapSettingsRet,
 {
     boost::filesystem::ifstream streamConfig(GetConfigFile());
     if (!streamConfig.good())
-        return; // No bitcoin.conf file is OK
+        return; // No neblio.conf file is OK
 
     set<string> setOptions;
     setOptions.insert("*");
@@ -885,6 +892,11 @@ void ReadConfigFile(ThreadSafeHashMap<string, string>&         mapSettingsRet,
             mapMultiSettingsRet.get(strKey).value_or(std::vector<std::string>());
         multimapValVec.push_back(it->value[0]);
         mapMultiSettingsRet.set(strKey, multimapValVec);
+    }
+
+    if (!CheckDataDirOption()) {
+        throw std::runtime_error(
+            "Error reading configuration file: specified data directory does not exist.");
     }
 }
 

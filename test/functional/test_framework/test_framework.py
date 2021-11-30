@@ -125,18 +125,18 @@ class BitcoinTestFramework():
             self.run_test()
             success = TestStatus.PASSED
         except JSONRPCException as e:
-            self.log.exception("JSONRPC error")
+            self.log.exception("JSONRPC error:", e)
         except SkipTest as e:
             self.log.warning("Test Skipped: %s" % e.message)
             success = TestStatus.SKIPPED
         except AssertionError as e:
-            self.log.exception("Assertion failed")
+            self.log.exception("Assertion failed:", e)
         except KeyError as e:
-            self.log.exception("Key error")
+            self.log.exception("Key error:", e)
         except Exception as e:
-            self.log.exception("Unexpected exception caught during testing")
+            self.log.exception("Unexpected exception caught during testing:", e)
         except KeyboardInterrupt as e:
-            self.log.warning("Exiting after keyboard interrupt")
+            self.log.warning("Exiting after keyboard interrupt:", e)
 
         if success == TestStatus.FAILED and self.options.pdbonfailure:
             print("Testcase failed. Attaching python debugger. Enter ? for help")
