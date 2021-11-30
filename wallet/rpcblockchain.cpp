@@ -788,7 +788,66 @@ Value setviupushprobability(const Array& params, bool fHelp)
 
     VIUCachePushProbabilityNumerator   = params[0].get_int();
     VIUCachePushProbabilityDenominator = params[1].get_int();
+  
+    return Value();
+}
 
+Value listvotes(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw std::runtime_error("listvotes \n"
+                                 "\nReturns a list of the votes stored in this node.\n"
+                                 "\nExamples:\n"
+                                 "listvotes");
+
+    return blockVotes.getAllVotesAsJson();
+}
+
+Value castvote(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 4)
+        throw std::runtime_error(
+            "castvote <start-block-height> <last-block-height> <proposal-ID> <vote-value>\n"
+            "\nCasts a vote for a given proposal ID at a certain block range.\n"
+            "\nExamples:\n"
+            "\nCast a vote for proposal with ID 450, of value 66, starting from "
+            "block 1000 to block 1100\n"
+            "castvote 1000 1100 450 66\n");
+
+    const int      startHeight = params[0].get_int();
+    const int      lastHeight  = params[1].get_int();
+    const uint32_t proposalID  = static_cast<uint32_t>(params[2].get_int());
+    const uint32_t voteValue   = static_cast<uint32_t>(params[3].get_int());
+
+    const Result<ProposalVote, ProposalVoteCreationError> voteResult =
+        ProposalVote::CreateVote(startHeight, lastHeight, proposalID, voteValue);
+
+    if (voteResult.isErr()) {
+        throw std::runtime_error(
+            ProposalVote::ProposalVoteCreationErrorAsString(voteResult.UNWRAP_ERR()));
+    }
+    const Result<void, AddVoteError> addVoteResult = blockVotes.addVote(voteResult.UNWRAP());
+    if (addVoteResult.isErr()) {
+        throw std::runtime_error(AllStoredVotes::AddVoteErrorAsString(addVoteResult.UNWRAP_ERR()));
+    }
+    blockVotes.writeAllVotesAsJsonToDataDir();
+    return Value();
+}
+
+Value cancelallvotesofproposal(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw std::runtime_error("cancelallvotesofproposal <proposal-ID>\n"
+                                 "\nRemoves all the votes of a certain proposal ID (affects only blocks "
+                                 "that are not staked yet).\n"
+                                 "\nExamples:\n"
+                                 "\nRemove all your votes that have the vote ID 123\n"
+                                 "cancelallvotesofproposal 123\n");
+
+    const uint32_t proposalID = static_cast<uint32_t>(params[0].get_int());
+
+    blockVotes.removeAllVotesOfProposal(proposalID);
+    blockVotes.writeAllVotesAsJsonToDataDir();
     return Value();
 }
 
