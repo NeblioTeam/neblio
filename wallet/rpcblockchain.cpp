@@ -757,6 +757,41 @@ Value gettxout(const Array& params, bool fHelp)
     return ret;
 }
 
+Value setviupushprobability(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 2)
+        throw std::runtime_error(
+            "Only for regtest"
+            "setviupushprobability <probability_numerator> <probability_denumerator>\n"
+            "The probability is set as a fraction"
+            "\nExamples:\n"
+            "\nSet the probability to 1%\n"
+            "setviupushprobability 1 100\n"
+            "\nSet the probability to 5/1000 or 0.5%\n"
+            "setviupushprobability 5 1000\n");
+
+    if (Params().NetType() != NetworkType::Regtest) {
+        throw std::runtime_error("This function is exclusively for regtest");
+    }
+
+    if (params[0].type() != Value_type::int_type || params[1].type() != Value_type::int_type) {
+        throw JSONRPCError(RPC_INVALID_PARAMS, "Parameters should be integers");
+    }
+
+    if (params[0].get_int() < 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Numerator must be zero or positive");
+    }
+
+    if (params[1].get_int() <= 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Denominator must be positive");
+    }
+
+    VIUCachePushProbabilityNumerator   = params[0].get_int();
+    VIUCachePushProbabilityDenominator = params[1].get_int();
+  
+    return Value();
+}
+
 Value listvotes(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)

@@ -5,19 +5,21 @@
 #include "result.h"
 #include "txindex.h"
 #include "uint256.h"
+#include <boost/container/flat_map.hpp>
+#include <boost/container/flat_set.hpp>
 #include <boost/optional.hpp>
+#include <map>
 #include <set>
-#include <unordered_map>
 
 class CBlock;
 
 struct ForkSpendSimulatorCachedObj
 {
-    std::unordered_map<uint256, const unsigned> forkTxs;
-    std::set<COutPoint>                         spentOutputs;
-    uint256                                     lastProcessedTipBlockHash;
-    uint256                                     commonAncestor;
-    int                                         commonAncestorHeight;
+    boost::container::flat_map<uint256, unsigned> forkTxs;
+    boost::container::flat_set<COutPoint>         spentOutputs;
+    uint256                                       lastProcessedTipBlockHash;
+    uint256                                       commonAncestor;
+    int                                           commonAncestorHeight;
 };
 
 class ForkSpendSimulator
@@ -44,14 +46,14 @@ private:
 
     std::set<COutPoint> spent;
 
-    std::unordered_map<uint256, const CTxIndex> txIndexCache;
+    std::map<uint256, const CTxIndex> txIndexCache;
 
-    std::unordered_map<uint256, const unsigned> thisForkTxs;
+    std::map<uint256, const unsigned> thisForkTxs;
 
     // the tip that the state in this class represents
     boost::optional<uint256> tipBlockHash;
 
-    const uint256& commonAncestor;
+    const uint256 commonAncestor;
 
     const int commonAncestorHeight;
 
@@ -87,7 +89,10 @@ public:
     createFromCacheObject(const ITxDB& txdb, const ForkSpendSimulatorCachedObj& obj,
                           const uint256& currentBestBlockHash);
 
-    static const char* VIUErrorToString(VIUError err);
+    static const char*       VIUErrorToString(VIUError err);
+    boost::optional<uint256> getTipBlockHash() const;
+    const uint256&           getCommonAncestor() const;
+    int                      getCommonAncestorHeight() const;
 };
 
 #endif // FORKSPENDSIMULATOR_H

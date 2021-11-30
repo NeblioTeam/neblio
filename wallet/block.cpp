@@ -21,6 +21,12 @@
 #include <boost/scope_exit.hpp>
 #include <mutex>
 
+VIUCache viuCache(1000);
+// the probabilities should be small enough to cache only so many blocks to avoid consuming so much but
+// should be large enough to make a remote timing attack very hard
+unsigned VIUCachePushProbabilityNumerator   = 10;
+unsigned VIUCachePushProbabilityDenominator = 100;
+
 void CBlock::print() const
 {
     NLog.write(b_sev::info,
@@ -192,9 +198,20 @@ Result<void, ForkSpendSimulator::VIUError> CBlock::VerifyInputsUnspent_Internal(
     // we get all the blocks that we need to read
     std::vector<uint256> forkChainBlockHashes;
 
+    boost::optional<ForkSpendSimulatorCachedObj> cachedVIUObj;
+
     while (!commonAncestorBI->IsInMainChain(currBestBlockHash)) {
         NLog.write(b_sev::trace, "Block in fork chain: {}\t{}",
                    commonAncestorBI->GetBlockHash().ToString(), commonAncestorBI->nHeight);
+
+        // check if we have the spend state cached
+        cachedVIUObj = viuCache.get(commonAncestorBI->GetBlockHash());
+        if (cachedVIUObj) {
+            // since we found a cached object, no need to continue here, and we let the cache object take
+            // over later
+            commonAncestorBI = boost::none; // reset it to ensure it won't be used
+            break;
+        }
 
         const uint256& bh = commonAncestorBI->GetBlockHash();
         forkChainBlockHashes.push_back(bh);
@@ -207,20 +224,47 @@ Result<void, ForkSpendSimulator::VIUError> CBlock::VerifyInputsUnspent_Internal(
         }
     }
 
-    std::reverse(forkChainBlockHashes.begin(), forkChainBlockHashes.end());
+    // the outcome from the above loop should either be a cache object with information on the best chain
+    // or a block index from the mainchain
+    if (!(commonAncestorBI && commonAncestorBI->IsInMainChain(currBestBlockHash)) && !cachedVIUObj) {
+        NLog.write(
+            b_sev::critical,
+            "Invariant broken: the outcome from mainchain finder loop should either be a cache object "
+            "with information on the best chain or a block index from the mainchain");
+    }
+
+    const auto SpenderMaker = [&]() -> Result<ForkSpendSimulator, ForkSpendSimulator::VIUError> {
+        if (cachedVIUObj) {
+            return ForkSpendSimulator::createFromCacheObject(txdb, *cachedVIUObj, currBestBlockHash);
+        } else {
+            return Ok(
+                ForkSpendSimulator(txdb, commonAncestorBI->GetBlockHash(), commonAncestorBI->nHeight));
+        }
+    };
 
     // we simulate spending transactions and ensure they're not double-spent/invalid, up to *this
-    ForkSpendSimulator spender(txdb, commonAncestorBI->GetBlockHash(), commonAncestorBI->nHeight);
-    for (const uint256& bh : forkChainBlockHashes) {
+    ForkSpendSimulator spender = TRY(SpenderMaker());
+
+    for (const uint256& bh : boost::adaptors::reverse(forkChainBlockHashes)) {
         CBlock blk;
         if (!txdb.ReadBlock(bh, blk, true)) {
             NLog.write(b_sev::err, "In fork chain search, block {} was not found in the database",
                        bh.ToString());
             return Err(ForkSpendSimulator::VIUError::BlockCannotBeReadFromDB);
         }
+
         TRYV(spender.simulateSpendingBlock(blk));
     }
     TRYV(spender.simulateSpendingBlock(*this));
+
+    boost::optional<ForkSpendSimulatorCachedObj> newCachedVIUObj = spender.exportCacheObj();
+    if (newCachedVIUObj) {
+        viuCache.push_with_probability(*newCachedVIUObj, VIUCachePushProbabilityNumerator,
+                                       VIUCachePushProbabilityDenominator);
+    } else {
+        NLog.write(b_sev::critical,
+                   "Failed to create VIU cache object, even though the spending simulator succeeded");
+    }
 
     return Ok();
 }

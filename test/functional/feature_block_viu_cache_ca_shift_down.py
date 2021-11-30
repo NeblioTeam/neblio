@@ -2,13 +2,18 @@
 # Copyright (c) 2015-2017 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""Test block processing.
+"""
+Test VerifyInputsUnspent() with caching, where we ensure that changing the common ancestor
+doesn't affect adding new blocks to the same tip
 
-This reimplements tests from the bitcoinj/FullBlockTestGenerator used
-by the pull-tester.
+Here, we create a long chain (50 blocks), then a fork, then before that fork point,
+we create another fork that's long enough to become mainchain. Between the last fork
+and the old fork, we cache. This is important because the status of that region changes
+from mainchain to fork, and we want to make sure it'll act sane.
 
-We use the testing framework in which we expect a particular answer from
-each test.
+Definitions:
+1. Old fork: The first fork that we created, which starts at the old common ancestor
+2. New fork: The second fork that we create, which starts at the new common ancestor
 """
 from io import BytesIO
 
@@ -112,9 +117,9 @@ class FullBlockTest(ComparisonTestFramework):
         tx.rehash()
         return tx
 
-    def next_block(self, number, spend=None, additional_coinbase_value=0, script=CScript([OP_TRUE]), solve=True):
+    def next_block(self, block_label, spend=None, additional_coinbase_value=0, script=CScript([OP_TRUE]), solve=True):
         # useful marker for debugging, marks the last block that was created
-        logger.info("Creating block:".format(number))
+        logger.info("Creating block: {}".format(block_label))
         if self.tip is None:
             base_block_hash = self.genesis_hash
             block_time = int(time.time()) + 1
@@ -152,11 +157,11 @@ class FullBlockTest(ComparisonTestFramework):
         else:
             block.rehash()
         logger.info("Created block number {} with hash {}".format(
-            number, block.hash))
+            block_label, block.hash))
         self.tip = block
         self.block_heights[block.sha256] = height
-        assert number not in self.blocks
-        self.blocks[number] = block
+        assert block_label not in self.blocks
+        self.blocks[block_label] = block
         return block
 
     def format_hash_to_str(self, hashPrevBlock):
@@ -185,7 +190,6 @@ class FullBlockTest(ComparisonTestFramework):
             prev_hash = self.format_prevblock_to_string(self.blocks[b])
             curr_hash = self.format_block_to_string(self.blocks[b], "b"+str(b))
             prev_hash = genesis_label if self.blocks[b].hashPrevBlock == self.genesis_hash else prev_hash
-            # print("Block:", curr_hash, prev_hash, b)
             # find the prev node that contains the prev_hash
             prev_node = [label for label in gr.nodes() if prev_hash in label]
             # only one node with that hash should be found
@@ -278,6 +282,16 @@ class FullBlockTest(ComparisonTestFramework):
             tx.calc_sha256()
             return tx
 
+        def get_block_hash_str_from_label(label):
+            return self.blocks[label].hash
+
+        def is_block_mainchain_from_label(label):
+            blk = self.nodes[0].getblock(get_block_hash_str_from_label(label))
+            return blk['confirmations'] != -1
+
+        def get_block_height_from_label(label):
+            return self.block_heights[self.blocks[label].sha256]
+
         # shorthand for functions
         block = self.next_block
         create_tx = self.create_tx
@@ -301,226 +315,240 @@ class FullBlockTest(ComparisonTestFramework):
 
         # collect spendable outputs now to avoid cluttering the code later on
         out = []
-        for i in range(60):
+        out_total_count = len(spendable_outputs)
+        for i in range(out_total_count):
             out.append(get_spendable_output())
 
+        blocks_until_fork_count = 15
+        height_before_fork_work = self.nodes[0].getblockcount()
+
+        def make_tx_custom(tx_to_spent_dict, amount=1 * COIN):
+            tx = create_transaction(
+                tx_to_spent_dict['tx'], tx_to_spent_dict['vout'], b"", amount, CScript([OP_TRUE]))
+            self.sign_tx(tx, tx_to_spent_dict['tx'], tx_to_spent_dict['vout'])
+            tx.rehash()
+            return tx
+
+        txs_before_old_fork = []
+        tx_made_and_spent_before_forks = None
+        tx_made_before_forks_and_spent_in_new_fork = None
+        tx_made_at_the_new_fork_and_spent_in_the_new_fork = None
         # Start by building a couple of blocks on top
         for i in range(50):
-            block(i+1, spend=out[i])
-            save_spendable_output()
+            block_label = i+1
+            if i < blocks_until_fork_count:
+                block(block_label, spend=out[i])
+                txs_before_old_fork.append({'tx': self.tip.vtx[1], 'vout': 0})
+            else:
+                block(block_label, spend=out[i])
+                save_spendable_output()
+
+            # the new fork starts at 10, old fork starts at 15, so here we're before both
+            if i == 2:
+                tx_made_and_spent_before_forks = txs_before_old_fork[0]
+                tx = make_tx_custom(tx_made_and_spent_before_forks)
+                update_block(block_label, [tx])
+
+            # 10-14 is expected to be the new fork (between the old and new common ancestors)
+            if i == 12:
+                tx_made_before_forks_and_spent_in_new_fork = txs_before_old_fork[1]
+                tx = make_tx_custom(tx_made_before_forks_and_spent_in_new_fork)
+                update_block(block_label, [tx])
+
+            if i == 12:
+                tx_made_at_the_new_fork_and_spent_in_the_new_fork = txs_before_old_fork[11]
+                tx = make_tx_custom(tx_made_at_the_new_fork_and_spent_in_the_new_fork)
+                update_block(block_label, [tx])
+
             yield accepted()
 
-        # spend a tx before its input is created
-        tip(0)
-        block("1")
-        tx1 = create_tx_manual(out[20].tx.sha256, out[20].n, 1000000)
-        tx2 = create_tx_manual(tx1.sha256, 0, 500000)
-        update_block("1", [tx2, tx1])
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxNonExistent_OutputNotFoundInMainChainOrFork'))
+        tx_made_before_forks_and_unspent = txs_before_old_fork[3]
+        tx_made_in_new_fork_and_unspent = txs_before_old_fork[12]
 
+        old_common_ancestor_height = get_block_height_from_label(15)
+        assert_equal(old_common_ancestor_height, height_before_fork_work + blocks_until_fork_count)
+
+        assert is_block_mainchain_from_label(15)
+
+        # build a fork
+        old_fork_tip = None
         tip(15)
-        block("f15", spend=out[15])
-        save_spendable_output()
-        yield rejected()
+        txs_in_old_fork = []
+        tx_made_before_forks_and_spent_in_old_fork = None
+        tx_made_at_the_new_fork_and_spent_in_the_old_fork = None
+        tx_made_at_the_old_fork_and_spent_in_the_old_fork = None
+        for i in range(10):
+            block_label = "f_oldfork_{}".format(i+1)
+            block(block_label.format(i), spend=out[blocks_until_fork_count+i])
+            txs_in_old_fork.append({'tx': self.tip.vtx[1], 'vout': 0})
+            if i == 4:  # spend in (4+1)th block, use from (1+1)th block in the array (see index below)
+                tx_made_at_the_old_fork_and_spent_in_the_old_fork = txs_in_old_fork[1]
+                tx = make_tx_custom(tx_made_at_the_old_fork_and_spent_in_the_old_fork)
+                update_block(block_label, [tx])
 
-        # here we attempt to spend the same output that was spent in "f15"
-        tip("f15")
-        block("f16a", spend=out[15])
-        save_spendable_output()
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_WithinTheFork'))
+            if i == 2:
+                tx_made_before_forks_and_spent_in_old_fork = txs_before_old_fork[2]
+                tx = make_tx_custom(tx_made_before_forks_and_spent_in_old_fork)
+                update_block(block_label, [tx])
 
-        # create one valid transaction above the last tip as a template
-        tip("f15")
-        height = self.block_heights[self.tip.sha256] + 1
-        coinbase = create_coinbase(height, self.coinbase_pubkey)
-        blk16 = CBlock()
-        blk16.nTime = self.tip.nTime + 1
-        blk16.hashPrevBlock = self.tip.sha256
-        blk16.nBits = 0x207fffff
-        blk16.vtx.append(coinbase)
-        blk16.hashMerkleRoot = blk16.calc_merkle_root()
-        blk16.fix_time_then_resolve()
-        self.tip = blk16
-        self.block_heights[blk16.sha256] = height
-        self.blocks["f16"] = blk16
-        yield rejected()
+            if i == 3:
+                tx_made_at_the_new_fork_and_spent_in_the_old_fork = txs_before_old_fork[13]
+                tx = make_tx_custom(tx_made_at_the_new_fork_and_spent_in_the_old_fork)
+                update_block(block_label, [tx])
 
-        # invalid input index - out of range
-        tip("f16")
-        height = self.block_heights[self.tip.sha256] + 1
-        coinbase = create_coinbase(height, self.coinbase_pubkey)
-        blk16b = CBlock()
-        blk16b.nTime = self.tip.nTime + 1
-        blk16b.hashPrevBlock = self.tip.sha256
-        blk16b.nBits = 0x207fffff
-        blk16b.vtx.append(coinbase)
-        tx1 = create_tx_manual(out[16].tx.sha256, out[16].n+10, 10000)
-        blk16b.vtx.append(tx1)
-        blk16b.hashMerkleRoot = blk16b.calc_merkle_root()
-        blk16b.fix_time_then_resolve()
-        self.tip = blk16b
-        self.block_heights[blk16b.sha256] = height
-        self.blocks["f16b"] = blk16b
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxInputIndexOutOfRange_InMainChain'))
+            if i == 3:
+                # enable cache at one arbitrary block
+                self.nodes[0].setviupushprobability(100, 100)
+            else:
+                self.nodes[0].setviupushprobability(0, 100)
 
-        # fake input transaction hash that doesn't exist
-        tip("f16")
-        height = self.block_heights[self.tip.sha256] + 1
-        coinbase = create_coinbase(height, self.coinbase_pubkey)
-        blk16c = CBlock()
-        blk16c.nTime = self.tip.nTime + 1
-        blk16c.hashPrevBlock = self.tip.sha256
-        blk16c.nBits = 0x207fffff
-        blk16c.vtx.append(coinbase)
-        tx1 = create_tx_manual(12345, 0, 10000)
-        blk16c.vtx.append(tx1)
-        blk16c.hashMerkleRoot = blk16c.calc_merkle_root()
-        blk16c.fix_time_then_resolve()
-        self.tip = blk16c
-        self.block_heights[blk16c.sha256] = height
-        self.blocks["f16c"] = blk16c
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxNonExistent_OutputNotFoundInMainChainOrFork'))
-
-        # make the alt chain longer, and try again
-        tip("f16")
-        for i in range(20):
-            block("f"+str(i+17), spend=out[i+16])
-            save_spendable_output()
+            # save_spendable_output()
             yield rejected()
+            assert not is_block_mainchain_from_label(block_label)
+            assert_equal(get_block_height_from_label(block_label), old_common_ancestor_height + 1 + i)
+            tip(block_label)
+            old_fork_tip = block_label
 
-        # let's test again
+        tx_made_in_old_fork_and_unspent = txs_in_old_fork[3]
 
-        # here we attempt to spend the same output that was spent in "f35"
-        tip("f35")
-        block("f36a", spend=out[30])
-        save_spendable_output()
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_WithinTheFork'))
+        self.nodes[0].setviupushprobability(0, 100)
 
-        # invalid input index - out of range
-        tip("f35")
-        height = self.block_heights[self.tip.sha256] + 1
-        coinbase = create_coinbase(height, self.coinbase_pubkey)
-        blk36b = CBlock()
-        blk36b.nTime = self.tip.nTime + 1
-        blk36b.hashPrevBlock = self.tip.sha256
-        blk36b.nBits = 0x207fffff
-        blk36b.vtx.append(coinbase)
-        tx1 = create_tx_manual(out[16].tx.sha256, out[16].n+10, 10000)
-        blk36b.vtx.append(tx1)
-        blk36b.hashMerkleRoot = blk36b.calc_merkle_root()
-        blk36b.fix_time_then_resolve()
-        self.tip = blk36b
-        self.block_heights[blk36b.sha256] = height
-        self.blocks["f36b"] = blk36b
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxInputIndexOutOfRange_InMainChain'))
+        blocks_until_new_common_ancestor = 10
 
-        # fake input transaction hash that doesn't exist
-        tip("f35")
-        height = self.block_heights[self.tip.sha256] + 1
-        coinbase = create_coinbase(height, self.coinbase_pubkey)
-        blk36c = CBlock()
-        blk36c.nTime = self.tip.nTime + 1
-        blk36c.hashPrevBlock = self.tip.sha256
-        blk36c.nBits = 0x207fffff
-        blk36c.vtx.append(coinbase)
-        tx1 = create_tx_manual(12345, 0, 10000)
-        blk36c.vtx.append(tx1)
-        blk36c.hashMerkleRoot = blk36c.calc_merkle_root()
-        blk36c.fix_time_then_resolve()
-        self.tip = blk36c
-        self.block_heights[blk36c.sha256] = height
-        self.blocks["f36c"] = blk36c
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxNonExistent_OutputNotFoundInMainChainOrFork'))
+        new_common_ancestor_height = get_block_height_from_label(10)
+        assert_equal(new_common_ancestor_height, height_before_fork_work + blocks_until_new_common_ancestor)
 
-        # double-spend in same block
-        tip("f35")
-        height = self.block_heights[self.tip.sha256] + 1
-        coinbase = create_coinbase(height, self.coinbase_pubkey)
-        blk36d = CBlock()
-        blk36d.nTime = self.tip.nTime + 1
-        blk36d.hashPrevBlock = self.tip.sha256
-        blk36d.nBits = 0x207fffff
-        blk36d.vtx.append(coinbase)
-        tx1 = create_tx_manual(out[37].tx.sha256, out[37].n, 10000000)
-        tx2 = create_tx_manual(tx1.sha256, 0, 5000000)
-        tx3 = create_tx_manual(tx1.sha256, 0, 4000000)
-        blk36d.vtx.append(tx1)
-        blk36d.vtx.append(tx2)
-        blk36d.vtx.append(tx3)
-        blk36d.hashMerkleRoot = blk36d.calc_merkle_root()
-        blk36d.fix_time_then_resolve()
-        self.tip = blk36d
-        self.block_heights[blk36d.sha256] = height
-        self.blocks["f36d"] = blk36d
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_WithinTheFork'))
+        # disable caching again
+        self.nodes[0].setviupushprobability(0, 100)
+        # build a fork that pushes more into the fork
+        tip(10)
+        for i in range(60):
+            block_label = "f_newfork_{}".format(i+1)
+            block(block_label.format(i), spend=out[10+i])
+            if i < 40:
+                # until the chain is longer
+                yield rejected()
+            else:
+                yield accepted()
+            assert_equal(get_block_height_from_label(block_label), new_common_ancestor_height + 1 + i)
+            tip(block_label)
 
-        #############################################################
-        # double spend a transaction in two blocks but that was created in the fork
-        # first, create a valid block with a new transaction
-        tip("f35")
-        height = self.block_heights[self.tip.sha256] + 1
-        coinbase = create_coinbase(height, self.coinbase_pubkey)
-        blk36e = CBlock()
-        blk36e.nTime = self.tip.nTime + 1
-        blk36e.hashPrevBlock = self.tip.sha256
-        blk36e.nBits = 0x207fffff
-        blk36e.vtx.append(coinbase)
-        tx1 = create_tx_manual(out[37].tx.sha256, out[17].n, 10000000)
-        tx2 = create_tx_manual(tx1.sha256, 0, 5000000)
-        blk36e.vtx.append(tx1)
-        blk36e.vtx.append(tx2)
-        blk36e.hashMerkleRoot = blk36e.calc_merkle_root()
-        blk36e.fix_time_then_resolve()
-        self.tip = blk36e
-        self.block_heights[blk36e.sha256] = height
-        self.blocks["f36e"] = blk36e
-        yield rejected()
+        for i in range(60):
+            block_label = "f_newfork_{}".format(i+1)
+            assert is_block_mainchain_from_label(block_label)
 
-        # now spend tx1 again from the last block
-        tip("f36e")
-        height = self.block_heights[self.tip.sha256] + 1
-        coinbase = create_coinbase(height, self.coinbase_pubkey)
-        blk37a = CBlock()
-        blk37a.nTime = self.tip.nTime + 1
-        blk37a.hashPrevBlock = self.tip.sha256
-        blk37a.nBits = 0x207fffff
-        blk37a.vtx.append(coinbase)
-        tx3 = create_tx_manual(tx1.sha256, 0, 4000000)
-        blk37a.vtx.append(tx3)
-        blk37a.hashMerkleRoot = blk37a.calc_merkle_root()
-        blk37a.fix_time_then_resolve()
-        self.tip = blk37a
-        self.block_heights[blk37a.sha256] = height
-        self.blocks["f37a"] = blk37a
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_WithinTheFork'))
-        #############################################################
-
-        # Attempt to doublespend something from before the fork
-        tip("f36e")
-        block("f37e", spend=out[5])
-        save_spendable_output()
+        # ### now we test that double-spending is not possible
+        # Try to spend from something already spent before the fork, but made before the forks
+        tip(old_fork_tip)
+        height = self.block_heights[self.blocks[old_fork_tip].sha256]
+        block_label = "f_ds_1_{}".format(height)
+        block(block_label.format(height))
+        tx = make_tx_custom(tx_made_and_spent_before_forks)
+        update_block(block_label, [tx])
         yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_SpentAlreadyBeforeTheFork'))
 
-        # invalid input index - out of range within the fork
-        tip("f35")
-        height = self.block_heights[self.tip.sha256] + 1
-        coinbase = create_coinbase(height, self.coinbase_pubkey)
-        blk36f = CBlock()
-        blk36f.nTime = self.tip.nTime + 1
-        blk36f.hashPrevBlock = self.tip.sha256
-        blk36f.nBits = 0x207fffff
-        blk36f.vtx.append(coinbase)
-        # we pick one output from after the fork
-        out_to_spend = get_spendable_output(98)
-        tx1 = create_tx_manual(out_to_spend.tx.sha256,
-                               out_to_spend.n+10, 10000)
-        blk36f.vtx.append(tx1)
-        blk36f.hashMerkleRoot = blk36f.calc_merkle_root()
-        blk36f.fix_time_then_resolve()
-        self.tip = blk36f
-        self.block_heights[blk36f.sha256] = height
-        self.blocks["f36f"] = blk36f
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxInputIndexOutOfRange_InFork'))
+        # Try to spend from something already spent in the new fork, but made before the forks
+        tip(old_fork_tip)
+        height = self.block_heights[self.blocks[old_fork_tip].sha256]
+        block_label = "f_ds_2_{}".format(height)
+        block(block_label.format(height))
+        tx = make_tx_custom(tx_made_before_forks_and_spent_in_new_fork)
+        update_block(block_label, [tx])
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_WithinTheFork'))
+
+        # Try to spend from something already spent in the old fork, but made before the forks
+        tip(old_fork_tip)
+        height = self.block_heights[self.blocks[old_fork_tip].sha256]
+        block_label = "f_ds_3_{}".format(height)
+        block(block_label.format(height))
+        tx = make_tx_custom(tx_made_before_forks_and_spent_in_old_fork)
+        update_block(block_label, [tx])
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_WithinTheFork'))
+
+        # Try to spend from something already spent in the new fork but made in the new fork
+        tip(old_fork_tip)
+        height = self.block_heights[self.blocks[old_fork_tip].sha256]
+        block_label = "f_ds_4_{}".format(height)
+        block(block_label.format(height))
+        tx = make_tx_custom(tx_made_at_the_new_fork_and_spent_in_the_new_fork)
+        update_block(block_label, [tx])
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_WithinTheFork'))
+
+        # Try to spend from something already spent in the old fork but made in the new fork
+        tip(old_fork_tip)
+        height = self.block_heights[self.blocks[old_fork_tip].sha256]
+        block_label = "f_ds_5_{}".format(height)
+        block(block_label.format(height))
+        tx = make_tx_custom(tx_made_at_the_new_fork_and_spent_in_the_old_fork)
+        update_block(block_label, [tx])
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_WithinTheFork'))
+
+        # Try to spend from something already spent in the old fork but made in the old fork
+        tip(old_fork_tip)
+        height = self.block_heights[self.blocks[old_fork_tip].sha256]
+        block_label = "f_ds_6_{}".format(height)
+        block(block_label.format(height))
+        tx = make_tx_custom(tx_made_at_the_old_fork_and_spent_in_the_old_fork)
+        update_block(block_label, [tx])
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_WithinTheFork'))
+
+        # Try to spend from something unspent, made before the forks
+        tip(old_fork_tip)
+        height = self.block_heights[self.blocks[old_fork_tip].sha256]
+        block_label = "f_ds_7_{}".format(height)
+        block_label_unspent1 = block_label
+        block(block_label.format(height))
+        tx = make_tx_custom(tx_made_before_forks_and_unspent)
+        update_block(block_label, [tx])
+        yield rejected()
+
+        # Try to spend from something unspent, made before the forks
+        tip(block_label_unspent1)
+        height = self.block_heights[self.blocks[block_label_unspent1].sha256]
+        block_label = "f_ds_7ds_{}".format(height)
+        block(block_label.format(height))
+        tx = make_tx_custom(tx_made_before_forks_and_unspent, 2*COIN)
+        update_block(block_label, [tx])
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_WithinTheFork'))
+
+        # Try to spend from something unspent, made in the old fork
+        tip(old_fork_tip)
+        height = self.block_heights[self.blocks[old_fork_tip].sha256]
+        block_label = "f_ds_8_{}".format(height)
+        block_label_unspent2 = block_label
+        block(block_label.format(height))
+        tx = make_tx_custom(tx_made_in_old_fork_and_unspent)
+        update_block(block_label, [tx])
+        yield rejected()
+
+        # Try to spend from something unspent, made in the old fork
+        tip(block_label_unspent2)
+        height = self.block_heights[self.blocks[block_label_unspent2].sha256]
+        block_label = "f_ds_8ds_{}".format(height)
+        block(block_label.format(height))
+        tx = make_tx_custom(tx_made_in_old_fork_and_unspent, 2*COIN)
+        update_block(block_label, [tx])
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_WithinTheFork'))
+
+        # Try to spend from something unspent, made in the new fork
+        tip(old_fork_tip)
+        height = self.block_heights[self.blocks[old_fork_tip].sha256]
+        block_label = "f_ds_9_{}".format(height)
+        block_label_unspent3 = block_label
+        block(block_label.format(height))
+        tx = make_tx_custom(tx_made_in_new_fork_and_unspent)
+        print("TxHash {}".format(tx.hash))
+        update_block(block_label, [tx])
+        yield rejected()
+
+        # Try to spend from something unspent, made in the new fork
+        tip(block_label_unspent3)
+        height = self.block_heights[self.blocks[block_label_unspent3].sha256]
+        block_label = "f_ds_9ds_{}".format(height)
+        block(block_label.format(height))
+        tx = make_tx_custom(tx_made_in_new_fork_and_unspent, 2*COIN)
+        update_block(block_label, [tx])
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_WithinTheFork'))
 
 
 if __name__ == '__main__':

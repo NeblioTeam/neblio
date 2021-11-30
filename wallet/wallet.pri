@@ -178,6 +178,7 @@ HEADERS += qt/bitcoingui.h \
     blockmetadata.h                  \
     blockindexlrucache.h             \
     forkspendsimulator.h             \
+    viucache.h                       \
     proposal.h
 
 
@@ -353,6 +354,7 @@ SOURCES += qt/bitcoin.cpp \
     blockmetadata.cpp                   \
     blockindexlrucache.cpp              \
     forkspendsimulator.cpp              \
+    viucache.cpp                        \
     proposal.cpp
 
 
