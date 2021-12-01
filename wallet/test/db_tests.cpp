@@ -53,8 +53,9 @@ enum class DBTypes : int
     DB_LRU_Cached_WithRead_NoFlush = 6,
     DB_LRU_Cached_LMDB             = 7,
     DB_LRU_Cached_WithRead         = 8,
+    DB_LRU_Cached_WithRead_Thin    = 9,
 
-    DBTypes_Last = 9
+    DBTypes_Last
 };
 
 class DBTestsWithDifferentDBsFixture : public ::testing::TestWithParam<DBTypes>
@@ -121,6 +122,11 @@ static std::function<std::unique_ptr<IDB>(const boost::filesystem::path&, DBType
         std::cout << "Using cache layer max size: " << cacheMaxSize << std::endl;
         return MakeUnique<DBLRUCacheLayer<DBReadCacheLayer>>(&p, true, cacheMaxSize);
     }
+    case DBTypes::DB_LRU_Cached_WithRead_Thin: {
+        const uint64_t cacheMaxSize = 1;
+        std::cout << "Using cache layer max size: " << cacheMaxSize << std::endl;
+        return MakeUnique<DBLRUCacheLayer<DBReadCacheLayer>>(&p, true, cacheMaxSize);
+    }
     case DBTypes::DBTypes_Last:
         break;
     }
@@ -132,8 +138,8 @@ INSTANTIATE_TEST_SUITE_P(DBTests, DBTestsWithDifferentDBsFixture,
                                            DBTypes::DB_Cached_NoFlush, DBTypes::DB_Read_Cached,
                                            DBTypes::DB_LRU_Cached_LMDB_NoFlush,
                                            DBTypes::DB_LRU_Cached_WithRead_NoFlush,
-                                           DBTypes::DB_LRU_Cached_LMDB,
-                                           DBTypes::DB_LRU_Cached_WithRead));
+                                           DBTypes::DB_LRU_Cached_LMDB, DBTypes::DB_LRU_Cached_WithRead,
+                                           DBTypes::DB_LRU_Cached_WithRead_Thin));
 
 TEST_P(DBTestsWithDifferentDBsFixture, basic)
 {
@@ -196,6 +202,45 @@ TEST_P(DBTestsWithDifferentDBsFixture, basic_in_1_tx)
     db->abortDBTransaction();
 
     // uncommitted data shouldn't exist
+    EXPECT_FALSE(db->exists(IDB::Index::DB_MAIN_INDEX, k1).UNWRAP());
+}
+
+TEST_P(DBTestsWithDifferentDBsFixture, basic_read_after_tx_erase)
+{
+    const boost::filesystem::path p = Environment::GetTestsDataDir() / "test-txdb";
+
+    std::unique_ptr<IDB> db = DBMaker(p, GetParam());
+
+    BOOST_SCOPE_EXIT(&db) { db->close(); }
+    BOOST_SCOPE_EXIT_END
+
+    std::string k1 = "key1";
+    std::string v1 = "val1";
+    std::string v2 = "val2";
+
+    EXPECT_TRUE(db->write(IDB::Index::DB_MAIN_INDEX, k1, v1).isOk());
+    boost::optional<std::string> out;
+    ASSERT_TRUE(out = db->read(IDB::Index::DB_MAIN_INDEX, k1).UNWRAP());
+    EXPECT_EQ(*out, v1);
+
+    EXPECT_TRUE(db->exists(IDB::Index::DB_MAIN_INDEX, k1).UNWRAP());
+
+    EXPECT_TRUE(db->write(IDB::Index::DB_MAIN_INDEX, k1, v2).isOk());
+    ASSERT_TRUE(out = db->read(IDB::Index::DB_MAIN_INDEX, k1).UNWRAP());
+    EXPECT_EQ(*out, v2);
+
+    EXPECT_TRUE(db->exists(IDB::Index::DB_MAIN_INDEX, k1).UNWRAP());
+
+    ASSERT_TRUE(db->beginDBTransaction().isOk());
+
+    // we erase then read, and make sure the value doesn't exist anymore
+    EXPECT_TRUE(db->erase(IDB::Index::DB_MAIN_INDEX, k1).isOk());
+    ASSERT_FALSE(out = db->read(IDB::Index::DB_MAIN_INDEX, k1).UNWRAP());
+
+    db->commitDBTransaction();
+
+    // after the last erase, this shouldn't be there
+    ASSERT_FALSE(out = db->read(IDB::Index::DB_MAIN_INDEX, k1).UNWRAP());
     EXPECT_FALSE(db->exists(IDB::Index::DB_MAIN_INDEX, k1).UNWRAP());
 }
 
@@ -346,7 +391,6 @@ TEST_P(DBTestsWithDifferentDBsFixture, basic_multiple_read)
 
 static void TestMultipleReadInTx(IDB* db, bool commitTransaction, bool erase)
 {
-
     BOOST_SCOPE_EXIT(&db) { db->close(); }
     BOOST_SCOPE_EXIT_END
 
