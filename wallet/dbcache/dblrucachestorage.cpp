@@ -294,6 +294,7 @@ ExtractSingleValue(const TransactableDBEntry& entry, const int dbid, const std::
                 }
                 break;
             case DBOperation::WriteOperationType::Erase:
+                return DBLRUCacheStorage::StoredEntryResult::MakeErase(dbid, key);
                 break;
             }
         }
