@@ -526,7 +526,7 @@ CCriticalSection            CNode::cs_setBanned;
 
 void CNode::ClearBanned() { setBanned.clear(); }
 
-bool CNode::IsBanned(CNetAddr ip)
+bool CNode::IsBanned(const CNetAddr& ip)
 {
     bool fResult = false;
     {
@@ -541,9 +541,45 @@ bool CNode::IsBanned(CNetAddr ip)
     return fResult;
 }
 
+void CNode::Ban(const CNetAddr& ip, int64_t ban_time_offset = 0, bool since_unix_epoch = false)
+{
+
+    int64_t normalized_ban_time_offset  = ban_time_offset;
+    bool    normalized_since_unix_epoch = since_unix_epoch;
+    if (ban_time_offset <= 0) {
+        normalized_ban_time_offset  = GetArg("-bantime", 60 * 60 * 24);
+        normalized_since_unix_epoch = false;
+    }
+
+    const int64_t banTime = (normalized_since_unix_epoch ? 0 : GetTime()) + normalized_ban_time_offset;
+
+    LOCK(cs_setBanned);
+    setBanned[ip] = banTime;
+}
+
+bool CNode::Unban(const CNetAddr& ip)
+{
+    LOCK(cs_setBanned);
+    auto it = setBanned.find(ip);
+    if (it == setBanned.end()) {
+        return false;
+    }
+    setBanned.erase(it);
+
+    return true;
+}
+
+std::map<CNetAddr, int64_t> CNode::GetBanned()
+{
+    LOCK(cs_setBanned);
+    return setBanned;
+}
+
 bool CNode::Misbehaving(int howmuch)
 {
-    if (addr.IsLocal()) {
+    // we can skip this exception in case of regtest and the flag -notoleratelocal is enabled
+    if (addr.IsLocal() &&
+        !(Params().NetType() == NetworkType::Regtest && GetBoolArg("-notoleratelocal"))) {
         NLog.write(b_sev::warn, "Warning: Local node {} misbehaving (delta: {})!", addrName.get(),
                    howmuch);
         return false;

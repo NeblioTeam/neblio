@@ -213,13 +213,13 @@ bool AppInit(int argc, char* argv[])
         //
         // If Qt is used, parameters/bitcoin.conf are parsed in qt/bitcoin.cpp's main()
         ParseParameters(argc, argv);
-        if (!boost::filesystem::is_directory(GetDataDir(false))) {
-            std::cerr << "Error: Specified directory does not exist" << std::endl;
+        if (!CheckDataDirOption()) {
+            std::cerr << "Error: Specified data directory does not exist" << std::endl;
             Shutdown();
         }
         ReadConfigFile(mapArgs, mapMultiArgs);
 
-        if (mapArgs.exists("-?") || mapArgs.exists("--help")) {
+        if (mapArgs.exists("-?") || mapArgs.exists("-h") || mapArgs.exists("--help")) {
             // First part of help message is specific to bitcoind / RPC client
             std::string strUsage =
                 _("neblio version") + " " + FormatFullVersion() + "\n\n" + _("Usage:") + "\n" +
@@ -231,7 +231,13 @@ bool AppInit(int argc, char* argv[])
             strUsage += "\n" + HelpMessage();
 
             std::cout << strUsage << std::endl;
-            return false;
+            return true;
+        }
+
+        if (mapArgs.exists("-version")) {
+            std::string strUsage = "version: " + FormatFullVersion() + "\n";
+            std::cout << strUsage << std::endl;
+            return true;
         }
 
         try {
@@ -268,17 +274,18 @@ bool AppInit(int argc, char* argv[])
 extern void noui_connect();
 int         main(int argc, char* argv[])
 {
-    bool fRet = false;
-
     // Connect bitcoind signal handlers
     noui_connect();
 
-    fRet = AppInit(argc, argv);
+    const bool fRet = AppInit(argc, argv);
 
-    if (fRet && fDaemon)
-        return 0;
+    //    if (fRet && fDaemon)
+    //        return EXIT_SUCCESS;
 
-    return 1;
+    if (fRet)
+        return EXIT_SUCCESS;
+
+    return EXIT_FAILURE;
 }
 #endif
 
