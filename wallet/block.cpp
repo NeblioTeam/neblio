@@ -318,9 +318,15 @@ bool CBlock::CheckBIP30Attack(ITxDB& txdb, const uint256& hashTx)
 
     CTxIndex txindexOld;
     if (txdb.ReadTxIndex(hashTx, txindexOld)) {
-        for (CDiskTxPos& pos : txindexOld.vSpent)
-            if (pos.IsNull())
+        for (CDiskTxPos& pos : txindexOld.vSpent) {
+            if (pos.IsNull()) {
+                NLog.write(
+                    b_sev::err,
+                    "BIP30 check failed for tx {} because it was found that it's already in block {}",
+                    hashTx.ToString(), pos.nBlockPos.ToString());
                 return false;
+            }
+        }
     }
     return true;
 }
@@ -369,6 +375,7 @@ bool CBlock::ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pinde
         std::vector<std::pair<CTransaction, NTP1Transaction>> inputsWithNTP1;
 
         if (!CheckBIP30Attack(txdb, hashTx)) {
+            reject = CBlockReject(REJECT_INVALID, "bad-txns-BIP30", this->GetHash());
             return NLog.error(
                 "Block {} was rejected as it seems that an attempt of BIP30 attack was attempted",
                 this->GetHash().ToString());
@@ -691,8 +698,8 @@ bool CBlock::SetBestChain(ITxDB& txdb, const boost::optional<CBlockIndex>& pinde
     const boost::optional<CBlockIndex>& pindexBestPtr = pindexNew;
     uint256                             nBestBlockTrust =
         pindexBestPtr->nHeight != 0
-            ? (pindexBestPtr->nChainTrust - pindexBestPtr->getPrev(txdb)->nChainTrust)
-            : pindexBestPtr->nChainTrust;
+                                        ? (pindexBestPtr->nChainTrust - pindexBestPtr->getPrev(txdb)->nChainTrust)
+                                        : pindexBestPtr->nChainTrust;
 
     NLog.write(b_sev::info, "SetBestChain: new best={}  height={}  trust={}  blocktrust={}  date={}",
                txdb.GetBestBlockHash().ToString(), txdb.GetBestChainHeight().value_or(0),
@@ -841,6 +848,7 @@ bool CBlock::Reorganize(ITxDB& txdb, const boost::optional<CBlockIndex>& pindexN
     // Disconnect shorter branch
     std::list<CTransaction> vResurrect;
     for (boost::optional<CBlockIndex>& pindex : vDisconnect) {
+        NLog.write(b_sev::info, "Disconnecting block: {}", pindex->GetBlockHash().ToString());
         CBlock block;
         if (!block.ReadFromDisk(&*pindex, txdb))
             return NLog.error("Reorganize() : ReadFromDisk for disconnect failed");
@@ -861,7 +869,8 @@ bool CBlock::Reorganize(ITxDB& txdb, const boost::optional<CBlockIndex>& pindexN
     std::vector<CTransaction> vDelete;
     for (unsigned int i = 0; i < vConnect.size(); i++) {
         boost::optional<CBlockIndex> pindex = vConnect[i];
-        CBlock                       block;
+        NLog.write(b_sev::info, "Connecting block: {}", pindex->GetBlockHash().ToString());
+        CBlock block;
         if (!block.ReadFromDisk(&*pindex, txdb))
             return NLog.error("Reorganize() : ReadFromDisk for connect failed");
         // this is necessary to register in CBlockReject why a block was rejected
@@ -995,6 +1004,11 @@ bool CBlock::CheckBlock(const ITxDB& txdb, const uint256& blockHash, bool fCheck
 {
     // These are checks that are independent of context
     // that can be verified before saving an orphan block.
+
+    for (unsigned i = 0; i < vtx.size(); i++) {
+        NLog.write(b_sev::debug, "Found tx no. {} with hash {} in block {}", i,
+                   vtx[i].GetHash().ToString(), this->GetHash().ToString());
+    }
 
     // Size limits
     const unsigned int nSizeLimit = MaxBlockSize(txdb);

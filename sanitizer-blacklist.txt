@@ -10,3 +10,4 @@ fun:*QCoreApplication*postEvent*
 fun:*boost*recursive_mutex*lock*
 fun:*DateTimeStrFormat*
 fun:*spdlog*details*
+fun:*ClientModel*setTipBlock*

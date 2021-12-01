@@ -748,7 +748,7 @@ bool DBLRUCacheLayer<BaseDB>::flush(const boost::optional<uint64_t>& commitSizeI
         // 12 retries will increase the diskspace by 4096 times!
         static const int MAX_RETRIES = 12;
 
-        PersistValueToCacheResult singlePersisResult = PersistValueToCacheResult::NoError;
+        PersistValueToCacheResult singlePersistResult = PersistValueToCacheResult::NoError;
 
         for (int c = 0; c < MAX_RETRIES; c++) {
 
@@ -761,33 +761,33 @@ bool DBLRUCacheLayer<BaseDB>::flush(const boost::optional<uint64_t>& commitSizeI
                 continue;
             }
 
-            singlePersisResult = PersistValueToCacheResult::NoError;
+            singlePersistResult = PersistValueToCacheResult::NoError;
 
             for (const DBLRUCacheStorage::StoredEntryResult& data : dataToWrite) {
-                singlePersisResult = PersistValueToCache(persistedDB, data);
-                if (singlePersisResult != PersistValueToCacheResult::NoError) {
+                singlePersistResult = PersistValueToCache(persistedDB, data);
+                if (singlePersistResult != PersistValueToCacheResult::NoError) {
                     break;
                 }
             }
 
             // since we're done writing, attempt to commit only if there's no errors
-            if (singlePersisResult == PersistValueToCacheResult::NoError) {
+            if (singlePersistResult == PersistValueToCacheResult::NoError) {
                 NLog.write(b_sev::info, "About to commit {} changes to persisted DB",
                            dataToWrite.size());
                 const Result<void, int> commitRes = persistedDB.commitDBTransaction();
                 if (commitRes.isErr()) {
                     NLog.write(b_sev::err, "Database flush() commit failed with error {}",
                                commitRes.UNWRAP_ERR());
-                    singlePersisResult = MakeCacheErrorFromValue(commitRes.UNWRAP_ERR());
+                    singlePersistResult = MakeCacheErrorFromValue(commitRes.UNWRAP_ERR());
                 }
             }
 
             // committing done at this point, let's see how successful we've been
-            if (singlePersisResult == PersistValueToCacheResult::NoError) {
+            if (singlePersistResult == PersistValueToCacheResult::NoError) {
                 cachedTxCount.store(0, boost::memory_order_seq_cst);
                 NLog.write(b_sev::info, "A flush() in cached DB finished successfully");
                 break;
-            } else if (singlePersisResult == PersistValueToCacheResult::RecoverableError) {
+            } else if (singlePersistResult == PersistValueToCacheResult::RecoverableError) {
                 // grow the DB again and retry
                 persistedDB.abortDBTransaction();
                 static const int64_t IncrementFactor = 2;
