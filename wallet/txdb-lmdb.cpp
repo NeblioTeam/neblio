@@ -337,7 +337,7 @@ CTxDB::CTxDB()
     static boost::filesystem::path DBDir = GetDataDir() / DB_DIR;
 
     static const bool    DBCachingEnabled = GetBoolArg("-enabledbcache", false);
-    static const int64_t DBCachingSize    = GetBoolArg("-dbcachesize", 5000);
+    static const int64_t DBCachingSize    = GetArg("-dbcachesize", 5000);
 
     if (DBCachingEnabled) {
         db = MakeUnique<DBLRUCacheLayer<DBReadCacheLayer>>(&DBDir, false, DBCachingSize);
