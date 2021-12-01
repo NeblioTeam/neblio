@@ -1,7 +1,6 @@
 #ifndef NETWORKFORKS_H
 #define NETWORKFORKS_H
 
-#include "itxdb.h"
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/atomic.hpp>

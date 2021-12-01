@@ -93,7 +93,7 @@ nci.call_with_err_code('brew unlink icu4c         && brew link --force --overwri
 nci.call_with_err_code('brew unlink node@14       && brew link --force --overwrite node@14')
 
 # debug icu4c linking issues
-#nci.call_with_err_code('ls -al /usr/local/opt/icu4c/lib/')
+nci.call_with_err_code('ls -al /usr/local/opt/icu4c/lib/')
 
 
 nci.call_with_err_code('ccache -s')

@@ -4,7 +4,7 @@
 
 #include "guiutil.h"
 #include "init.h"
-#include "main.h"
+#include "net.h"
 #include "walletdb.h"
 
 OptionsModel::OptionsModel(QObject* parent) : QAbstractListModel(parent) { Init(); }

@@ -2,6 +2,7 @@
 #include "ui_ntp1summary.h"
 
 #include "bitcoinunits.h"
+#include "blockindex.h"
 #include "guiconstants.h"
 #include "guiutil.h"
 #include "main.h"

@@ -3,9 +3,11 @@
 
 #include "amount.h"
 #include "chainparams.h"
+#include "mempoolmisc.h"
 #include "proposal.h"
 #include "sync.h"
 #include "uint256.h"
+#include "wallet_interface.h"
 #include <ThreadSafeMap.h>
 #include <boost/atomic.hpp>
 #include <boost/shared_ptr.hpp>
@@ -14,8 +16,6 @@ class CTxMemPool;
 class CBlockIndex;
 class BestChainState;
 
-// using CBlockIndexSmartPtr      = boost::shared_ptr<CBlockIndex>;
-// using ConstCBlockIndexSmartPtr = boost::shared_ptr<const CBlockIndex>;
 using BlockIndexMapType = ThreadSafeMap<uint256, CBlockIndex>;
 
 extern BestChainState bestChain;
@@ -32,7 +32,17 @@ extern boost::atomic<uint256> nBestInvalidTrust;
 
 extern boost::atomic<uint32_t> nTransactionsUpdated;
 
+extern boost::atomic<bool> fImporting;
+
 extern AllStoredVotes blockVotes;
+
+extern unsigned int nNodeLifespan;
+
+extern CAmount nTransactionFee;
+extern CAmount nReserveBalance;
+extern CAmount nMinimumInputValue;
+
+extern unsigned int nDerivationMethodIndex;
 
 /** The maximum allowed size for a serialized block, in bytes (network rule) */
 static const unsigned int MAX_BLOCK_SIZE     = 8000000;
@@ -63,6 +73,9 @@ static const int64_t COIN_YEAR_REWARD = 10 * CENT; // 10%
 static const unsigned int     MIN_PEER_PROTO_VERSION     = 60320; // v3.2.0+
 static const unsigned int     OLD_MIN_PEER_PROTO_VERSION = 60210; // v2.1+
 extern boost::atomic<int64_t> NodeIDCounter;
+
+/** Maximum size of a block */
+unsigned int MaxBlockSize(const ITxDB& txdb);
 
 /** Subversion as sent to the P2P network in `version` messages */
 extern std::string strSubVersion;

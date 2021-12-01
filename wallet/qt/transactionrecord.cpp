@@ -1,7 +1,9 @@
 #include "transactionrecord.h"
 
 #include "base58.h"
-#include "main.h"
+#include "blockindex.h"
+#include "consensus.h"
+#include "txdb.h"
 #include "txmempool.h"
 #include "wallet.h"
 

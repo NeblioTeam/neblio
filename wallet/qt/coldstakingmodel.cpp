@@ -2,6 +2,8 @@
 #include "addresstablemodel.h"
 #include "base58.h"
 #include "boost/thread/future.hpp"
+#include "txdb.h"
+#include "wallet_interface.h"
 #include <boost/atomic/atomic.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/shared_ptr.hpp>

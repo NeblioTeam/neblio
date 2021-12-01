@@ -2,8 +2,11 @@
 
 #include "block.h"
 #include "kernel.h"
+#include "txdb.h"
 #include "wallet.h"
 #include "work.h"
+
+StakeMaker stakeMaker;
 
 int64_t StakeMaker::getLastCoinStakeSearchInterval() const { return nLastCoinStakeSearchInterval; }
 

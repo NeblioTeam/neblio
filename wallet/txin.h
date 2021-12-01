@@ -1,7 +1,6 @@
 #ifndef TXIN_H
 #define TXIN_H
 
-#include "globals.h"
 #include "outpoint.h"
 #include "script.h"
 #include <string>

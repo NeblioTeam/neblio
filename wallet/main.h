@@ -6,18 +6,10 @@
 #define BITCOIN_MAIN_H
 
 #include "bignum.h"
-#include "block.h"
-#include "blockindex.h"
-#include "blockindexcatalog.h"
 #include "globals.h"
-#include "net.h"
-#include "outpoint.h"
 #include "script.h"
-#include "scrypt.h"
-#include "stakemaker.h"
-#include "sync.h"
 #include "transaction.h"
-
+#include "txout.h"
 #include <atomic>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/make_shared.hpp>
@@ -26,76 +18,25 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/breadth_first_search.hpp>
-#include <boost/graph/depth_first_search.hpp>
-
-using BlockIndexVertexType = uint256;
-using BlockIndexGraphType =
-    boost::adjacency_list<boost::vecS, boost::vecS, boost::directedS, BlockIndexVertexType>;
-using DescriptorType             = boost::graph_traits<BlockIndexGraphType>::vertex_descriptor;
-using VerticesDescriptorsMapType = std::map<uint256, DescriptorType>;
-
-enum GraphTraverseType
-{
-    BreadthFirst,
-    DepthFirst
-};
-
 class CWallet;
 class CBlock;
 class CBlockIndex;
-class CKeyItem;
-class CReserveKey;
 class COutPoint;
-class CBlockLocator;
-
-class CAddress;
-class CInv;
-class CRequestTracker;
 class CNode;
-
 class CTxMemPool;
-
-inline int64_t PastDrift(int64_t nTime) { return nTime - 10 * 60; }   // up to 10 minutes from the past
-inline int64_t FutureDrift(int64_t nTime) { return nTime + 10 * 60; } // up to 10 minutes in the future
+class CTransaction;
 
 extern CScript                              COINBASE_FLAGS;
 static constexpr const int64_t              TARGET_AVERAGE_BLOCK_COUNT = 100;
-extern unsigned int                         nNodeLifespan;
 extern uint64_t                             nLastBlockTx;
 extern uint64_t                             nLastBlockSize;
-extern StakeMaker                           stakeMaker;
 extern const std::string                    strMessageMagic;
 extern boost::atomic_int64_t                nTimeBestReceived;
-extern CCriticalSection                     cs_setpwalletRegistered;
-extern std::set<std::shared_ptr<CWallet>>   setpwalletRegistered;
 extern std::unordered_map<uint256, CBlock*> mapOrphanBlocks;
-extern boost::atomic<bool>                  fImporting;
-
-// Amount of blocks that other nodes claim to have
-extern CMedianFilter<int> cPeerBlockCounts;
-
-// Settings
-extern CAmount      nTransactionFee;
-extern CAmount      nReserveBalance;
-extern CAmount      nMinimumInputValue;
-extern unsigned int nDerivationMethodIndex;
-
-extern bool fEnforceCanonical;
-
-class NTP1Transaction;
 
 // Minimum disk space required - used in CheckDiskSpace()
 static const std::uintmax_t nMinDiskSpace = 52428800;
 
-class CReserveKey;
-class CTxDB;
-class CTxIndex;
-
-void         RegisterWallet(std::shared_ptr<CWallet> pwalletIn);
-void         UnregisterWallet(std::shared_ptr<CWallet> pwalletIn);
-void         SyncWithWallets(const ITxDB& txdb, const CTransaction& tx, const CBlock* pblock = NULL);
 bool         ProcessBlock(CNode* pfrom, CBlock* pblock);
 bool         CheckDiskSpace(uintmax_t nAdditionalBytes = 0);
 bool         LoadBlockIndex(bool fAllowNew = true);
@@ -103,79 +44,19 @@ void         PrintBlockTree();
 bool         ProcessMessages(CNode* pfrom);
 bool         SendMessages(CNode* pto, bool fSendTrickle);
 void         ThreadImport(std::vector<boost::filesystem::path> vFiles);
-bool         CheckProofOfWork(const uint256& hash, unsigned int nBits, bool silent = false);
 unsigned int GetNextTargetRequired(const ITxDB& txdb, const CBlockIndex* pindexLast, bool fProofOfStake);
-unsigned int ComputeMinWork(unsigned int nBase, int64_t nTime);
-unsigned int ComputeMinStake(unsigned int nBase, int64_t nTime, unsigned int nBlockTime);
 int          GetNumBlocksOfPeers();
-bool         IsInitialBlockDownload(const ITxDB& txdb);
 std::string  GetWarnings(std::string strFor);
-bool         GetTransaction(const uint256& hash, CTransaction& tx, uint256& hashBlock);
 uint256      WantedByOrphan(const CBlock* pblockOrphan);
-/// Given a block index object, find the last block that matches the consensus type (PoW/PoS)
-CBlockIndex GetLastBlockIndex(CBlockIndex pindex, bool fProofOfStake, const ITxDB& txdb);
-void        StakeMiner(std::shared_ptr<CWallet> pwallet);
-void        ResendWalletTransactions(bool fForce = false);
-
-void SetBestChain(const CBlockLocator& loc);
-void UpdatedTransaction(const uint256& hashTx);
-
-/** given a neblio tx, get the corresponding NTP1 tx */
-void FetchNTP1TxFromDisk(std::pair<CTransaction, NTP1Transaction>& txPair, const ITxDB& txdb,
-                         bool recoverProtection, unsigned recurseDepth = 0);
-void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, ITxDB& txdb);
-
-void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, ITxDB& txdb);
-
-void AssertIssuanceUniquenessInBlock(
-    std::unordered_map<std::string, uint256>& issuedTokensSymbolsInThisBlock, const ITxDB& txdb,
-    const CTransaction&                                                             tx,
-    const std::map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>& mapQueuedNTP1Inputs,
-    const std::map<uint256, CTxIndex>&                                              queuedAcceptedTxs);
-
-void WriteNTP1BlockTransactionsToDisk(const std::vector<CTransaction>& vtx, ITxDB& txdb);
-
-/// create a fake tx position that helps in marking an output as spent
-CDiskTxPos CreateFakeSpentTxPos(const uint256& blockhash);
-
-/** blacklisted tokens are tokens that are to be ignored and not used for historical reasons */
-bool IsIssuedTokenBlacklisted(std::pair<CTransaction, NTP1Transaction>& txPair);
-
-void AssertNTP1TokenNameIsNotAlreadyInMainChain(const std::string& sym, const uint256& txHash,
-                                                const ITxDB& txdb);
-void AssertNTP1TokenNameIsNotAlreadyInMainChain(const NTP1Transaction& ntp1tx, const ITxDB& txdb);
-
-/** this function solves the problem of blocks having inputs from the same block. To process transactions
- * in such a situation (or always, to be safe), first we pop the transactions from the leaves (the
- * inputs), and then process their parents. This function pops one transaction from the leaf of a least
- * of transactions from a block */
-CTransaction PopLeafTransaction(std::vector<CTransaction>& vtx);
+void         StakeMiner(std::shared_ptr<CWallet> pwallet);
 
 /** True if the transaction is in the main chain (can throw) */
 bool IsTxInMainChain(const ITxDB& txdb, const uint256& txHash);
 
-/** (try to) add transaction to memory pool **/
-Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTransaction& tx,
-                                                   const ITxDB* txdbPtr = nullptr);
-
-bool EnableEnforceUniqueTokenSymbols(const ITxDB& txdb);
-
-/** the condition for the first valid NTP1 transaction; transactions before this point are invalid in the
- * network*/
-bool PassedFirstValidNTP1Tx(const int bestHeight, const NetworkType isTestnet);
-
 /** Maximum size of a block */
 unsigned int MaxBlockSize(const ITxDB& txdb);
 
-/** Minimum Peer Protocol Version */
-int MinPeerVersion(const ITxDB& txdb);
-
 bool GetWalletFile(CWallet* pwallet, std::string& strWalletFileOut);
-
-/** Check for standard transaction types
-    @return True if all outputs (scriptPubKeys) use only standard transaction forms
-*/
-bool IsStandardTx(const ITxDB& txdb, const CTransaction& tx, std::string& reason);
 
 /** wrapper for CTxOut that provides a more compact serialization */
 class CTxOutCompressor
@@ -202,8 +83,6 @@ public:
                             READWRITE(cscript);
                         });)
 };
-
-bool IsFinalTx(const CTransaction& tx, const ITxDB& txdb, int nBlockHeight = 0, int64_t nBlockTime = 0);
 
 /** Undo information for a CTxIn
  *
@@ -523,98 +402,6 @@ public:
     }
 };
 
-/** Data structure that represents a partial merkle tree.
- *
- * It respresents a subset of the txid's of a known block, in a way that
- * allows recovery of the list of txid's and the merkle root, in an
- * authenticated way.
- *
- * The encoding works as follows: we traverse the tree in depth-first order,
- * storing a bit for each traversed node, signifying whether the node is the
- * parent of at least one matched leaf txid (or a matched txid itself). In
- * case we are at the leaf level, or this bit is 0, its merkle node hash is
- * stored, and its children are not explorer further. Otherwise, no hash is
- * stored, but we recurse into both (or the only) child branch. During
- * decoding, the same depth-first traversal is performed, consuming bits and
- * hashes as they written during encoding.
- *
- * The serialization is fixed and provides a hard guarantee about the
- * encoded size:
- *
- *   SIZE <= 10 + ceil(32.25*N)
- *
- * Where N represents the number of leaf nodes of the partial tree. N itself
- * is bounded by:
- *
- *   N <= total_transactions
- *   N <= 1 + matched_transactions*tree_height
- *
- * The serialization format:
- *  - uint32     total_transactions (4 bytes)
- *  - varint     number of hashes   (1-3 bytes)
- *  - uint256[]  hashes in depth-first order (<= 32*N bytes)
- *  - varint     number of bytes of flag bits (1-3 bytes)
- *  - byte[]     flag bits, packed per 8 in a byte, least significant bit first (<= 2*N-1 bits)
- * The size constraints follow from this.
- */
-class CPartialMerkleTree
-{
-protected:
-    // the total number of transactions in the block
-    unsigned int nTransactions;
-
-    // node-is-parent-of-matched-txid bits
-    std::vector<bool> vBits;
-
-    // txids and internal hashes
-    std::vector<uint256> vHash;
-
-    // flag set when encountering invalid data
-    bool fBad;
-
-    // helper function to efficiently calculate the number of nodes at given height in the merkle tree
-    unsigned int CalcTreeWidth(int height) { return (nTransactions + (1 << height) - 1) >> height; }
-
-    // calculate the hash of a node in the merkle tree (at leaf level: the txid's themself)
-    uint256 CalcHash(int height, unsigned int pos, const std::vector<uint256>& vTxid);
-
-    // recursive function that traverses tree nodes, storing the data as bits and hashes
-    void TraverseAndBuild(int height, unsigned int pos, const std::vector<uint256>& vTxid,
-                          const std::vector<bool>& vMatch);
-
-    // recursive function that traverses tree nodes, consuming the bits and hashes produced by
-    // TraverseAndBuild. it returns the hash of the respective node.
-    uint256 TraverseAndExtract(int height, unsigned int pos, unsigned int& nBitsUsed,
-                               unsigned int& nHashUsed, std::vector<uint256>& vMatch);
-
-public:
-    // serialization implementation
-    IMPLEMENT_SERIALIZE(
-        READWRITE(nTransactions); READWRITE(vHash); std::vector<unsigned char> vBytes; if (fRead) {
-            READWRITE(vBytes);
-            CPartialMerkleTree& us = *(const_cast<CPartialMerkleTree*>(this));
-            us.vBits.resize(vBytes.size() * 8);
-            for (unsigned int p = 0; p < us.vBits.size(); p++)
-                us.vBits[p] = (vBytes[p / 8] & (1 << (p % 8))) != 0;
-            us.fBad = false;
-        } else {
-            vBytes.resize((vBits.size() + 7) / 8);
-            for (unsigned int p = 0; p < vBits.size(); p++)
-                vBytes[p / 8] |= vBits[p] << (p % 8);
-            READWRITE(vBytes);
-        })
-
-    // Construct a partial merkle tree from a list of transaction id's, and a mask that selects a subset
-    // of them
-    CPartialMerkleTree(const std::vector<uint256>& vTxid, const std::vector<bool>& vMatch);
-
-    CPartialMerkleTree();
-
-    // extract the matching txid's represented by this partial merkle tree.
-    // returns the merkle root, or 0 in case of failure
-    uint256 ExtractMatches(std::vector<uint256>& vMatch);
-};
-
 struct CCoinsStats
 {
     int      nHeight;
@@ -725,34 +512,5 @@ public:
 
 /** Global variable that points to the active block tree (protected by cs_main) */
 extern ITxDB* pblocktree;
-
-/** Used to relay blocks as header + vector<merkle branch>
- * to filtered nodes.
- */
-class CMerkleBlock
-{
-public:
-    // Public only for unit testing
-    CBlock             header;
-    CPartialMerkleTree txn;
-
-public:
-    // Public only for unit testing and relay testing
-    // (not relayed)
-    std::vector<std::pair<unsigned int, uint256>> vMatchedTxn;
-
-    // Create from a CBlock, filtering transactions according to filter
-    // Note that this will call IsRelevantAndUpdate on the filter for each transaction,
-    // thus the filter will likely be modified.
-    CMerkleBlock(const CBlock& block, CBloomFilter& filter);
-
-    IMPLEMENT_SERIALIZE(READWRITE(header); READWRITE(txn);)
-};
-
-void ExportBootstrapBlockchain(const boost::filesystem::path& filename, std::atomic<bool>& stopped,
-                               std::atomic<double>& progress, boost::promise<void>& result);
-void ExportBootstrapBlockchainWithOrphans(const boost::filesystem::path& filename,
-                                          std::atomic<bool>& stopped, std::atomic<double>& progress,
-                                          boost::promise<void>& result, GraphTraverseType traverseType);
 
 #endif

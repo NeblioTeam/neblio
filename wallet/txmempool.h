@@ -1,11 +1,16 @@
 #ifndef TXMEMPOOL_H
 #define TXMEMPOOL_H
 
-#include "transaction.h"
-#include "util.h"
+#include "inpoint.h"
+#include "outpoint.h"
+#include "sync.h"
+#include "uint256.h"
 #include <map>
+#include <transaction.h>
 
 static const uint32_t MEMPOOL_HEIGHT = 0x7FFFFFFF;
+
+class CTransaction;
 
 class CTxMemPool
 {

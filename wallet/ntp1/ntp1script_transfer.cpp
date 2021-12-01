@@ -4,6 +4,7 @@
 
 #include "init.h"
 #include "main.h"
+#include "txdb.h"
 #include "util.h"
 
 NTP1Script_Transfer::NTP1Script_Transfer() {}

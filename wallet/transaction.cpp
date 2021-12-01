@@ -6,9 +6,11 @@
 #include "checkpoints.h"
 #include "init.h"
 #include "main.h"
+#include "txdb.h"
 #include "txindex.h"
 #include "txmempool.h"
 #include "util.h"
+#include "wallet_interface.h"
 #include <boost/foreach.hpp>
 
 void CTransaction::SetNull()
@@ -127,7 +129,7 @@ std::string CTransaction::ToString() const
 
 void CTransaction::print() const { NLog.write(b_sev::info, "{}", ToString()); }
 
-bool CTransaction::ReadFromDisk(const ITxDB& txdb, COutPoint prevout, CTxIndex& txindexRet)
+bool CTransaction::ReadFromDisk(const ITxDB& txdb, const COutPoint& prevout, CTxIndex& txindexRet)
 {
     SetNull();
     if (!txdb.ReadTxIndex(prevout.hash, txindexRet))
@@ -142,7 +144,7 @@ bool CTransaction::ReadFromDisk(const ITxDB& txdb, COutPoint prevout, CTxIndex& 
     return true;
 }
 
-bool CTransaction::ReadFromDisk(CTxDB& txdb, COutPoint prevout)
+bool CTransaction::ReadFromDisk(ITxDB& txdb, const COutPoint& prevout)
 {
     CTxIndex txindex;
     return ReadFromDisk(txdb, prevout, txindex);
@@ -341,9 +343,12 @@ CAmount CTransaction::GetMinFee(const ITxDB& txdb, unsigned int nBlockSize, enum
     return nMinFee;
 }
 
-bool CTransaction::ReadFromDisk(CDiskTxPos pos, const ITxDB& txdb) { return txdb.ReadTx(pos, *this); }
+bool CTransaction::ReadFromDisk(const CDiskTxPos& pos, const ITxDB& txdb)
+{
+    return txdb.ReadTx(pos, *this);
+}
 
-bool CTransaction::DisconnectInputs(CTxDB& txdb)
+bool CTransaction::DisconnectInputs(ITxDB& txdb)
 {
     // Relinquish previous transactions' spent pointers
     if (!IsCoinBase()) {

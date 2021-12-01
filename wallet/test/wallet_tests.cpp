@@ -1,6 +1,7 @@
 #include "googletest/googletest/include/gtest/gtest.h"
 
-#include "main.h"
+#include "block.h"
+#include "blockindex.h"
 #include "mocks/mtxdb.h"
 #include "wallet.h"
 

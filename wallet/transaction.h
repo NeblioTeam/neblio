@@ -1,20 +1,22 @@
 #ifndef TRANSACTION_H
 #define TRANSACTION_H
 
+#include "CustomTypes.h"
 #include "blockreject.h"
-#include "globals.h"
-#include "inpoint.h"
-#include "outpoint.h"
 #include "serialize.h"
-#include "txdb.h"
 #include "txin.h"
-#include "txindex.h"
 #include "txout.h"
 #include "uint256.h"
 #include "validation.h"
+#include <txindex.h>
 #include <vector>
 
-class CTransaction;
+class ITxDB;
+class COutPoint;
+class CDiskTxPos;
+class CBlockIndex;
+
+using MapPrevTx = std::map<uint256, std::pair<CTxIndex, CTransaction>>;
 
 enum GetMinFee_mode
 {
@@ -22,8 +24,6 @@ enum GetMinFee_mode
     GMF_RELAY,
     GMF_SEND,
 };
-
-using MapPrevTx = std::map<uint256, std::pair<CTxIndex, CTransaction>>;
 
 /** The basic transaction that is broadcasted on the network and contained in
  * blocks.  A transaction can contain multiple inputs and outputs.
@@ -128,7 +128,7 @@ public:
     int64_t GetMinFee(const ITxDB& txdb, unsigned int nBlockSize = 1,
                       enum GetMinFee_mode mode = GMF_BLOCK, unsigned int nBytes = 0) const;
 
-    bool ReadFromDisk(CDiskTxPos pos, const ITxDB& txdb);
+    bool ReadFromDisk(const CDiskTxPos& pos, const ITxDB& txdb);
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)
     {
@@ -144,9 +144,9 @@ public:
 
     void print() const;
 
-    bool ReadFromDisk(const ITxDB& txdb, COutPoint prevout, CTxIndex& txindexRet);
-    bool ReadFromDisk(CTxDB& txdb, COutPoint prevout);
-    bool DisconnectInputs(CTxDB& txdb);
+    bool ReadFromDisk(const ITxDB& txdb, const COutPoint& prevout, CTxIndex& txindexRet);
+    bool ReadFromDisk(ITxDB& txdb, const COutPoint& prevout);
+    bool DisconnectInputs(ITxDB& txdb);
 
     /** Fetch from memory and/or disk. inputsRet keys are transaction hashes.
 
@@ -173,9 +173,9 @@ public:
         @return Returns true if all checks succeed
         */
     Result<void, TxValidationState>
-    ConnectInputs(const ITxDB& txdb, MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTestPool,
-                  const CDiskTxPos& posThisTx, const boost::optional<CBlockIndex>& pindexBlock,
-                  bool fBlock, bool fMiner, CBlock* sourceBlockPtr = nullptr) const;
+                                    ConnectInputs(const ITxDB& txdb, MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTestPool,
+                                                  const CDiskTxPos& posThisTx, const boost::optional<CBlockIndex>& pindexBlock,
+                                                  bool fBlock, bool fMiner, CBlock* sourceBlockPtr = nullptr) const;
     Result<void, TxValidationState> CheckTransaction(const ITxDB& txdb,
                                                      CBlock*      sourceBlock = nullptr) const;
     bool GetCoinAge(const ITxDB& txdb, uint64_t& nCoinAge) const; // ppcoin: get transaction coin age
@@ -184,7 +184,7 @@ public:
     [[nodiscard]] static CTransaction FetchTxFromDisk(const uint256& txid, const ITxDB& txdb);
 
     [[nodiscard]] static std::vector<CKey>
-    GetThisWalletKeysOfTx(const uint256& txid, boost::optional<unsigned> outputNumber = boost::none);
+                                     GetThisWalletKeysOfTx(const uint256& txid, boost::optional<unsigned> outputNumber = boost::none);
     [[nodiscard]] static std::string DecryptMetadataOfTx(const StringViewT             metadataStr,
                                                          const uint256&                txid,
                                                          boost::optional<std::string>& error);
@@ -195,5 +195,7 @@ public:
 protected:
     const CTxOut& GetOutputFor(const CTxIn& input, const MapPrevTx& inputs) const;
 };
+
+bool GetTransaction(const uint256& hash, CTransaction& tx, uint256& hashBlock);
 
 #endif // TRANSACTION_H

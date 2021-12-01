@@ -6,6 +6,7 @@
 #include "main.h"
 #include "txdb.h"
 #include "txmempool.h"
+#include "wallet_interface.h"
 
 const uint256
     CMerkleTx::ABANDON_HASH(uint256("0000000000000000000000000000000000000000000000000000000000000001"));

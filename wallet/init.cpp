@@ -4,7 +4,9 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #include "init.h"
 #include "bitcoinrpc.h"
+#include "block.h"
 #include "checkpoints.h"
+#include "consensus.h"
 #include "globals.h"
 #include "logging/defaultlogger.h"
 #include "main.h"
@@ -13,6 +15,7 @@
 #include "txdb.h"
 #include "ui_interface.h"
 #include "util.h"
+#include "wallet_interface.h"
 #include "walletdb.h"
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
@@ -28,12 +31,8 @@
 using namespace std;
 using namespace boost;
 
-std::shared_ptr<CWallet> pwalletMain;
 CClientUIInterface       uiInterface;
 bool                     fConfChange;
-bool                     fEnforceCanonical;
-unsigned int             nNodeLifespan;
-unsigned int             nDerivationMethodIndex;
 unsigned int             nMinerSleep;
 enum Checkpoints::CPMode CheckpointsMode;
 boost::atomic<bool>      appInitiated{false};
@@ -119,7 +118,6 @@ void Shutdown()
         StopNode();
         FlushDBWalletTransient(true);
         boost::filesystem::remove(GetPidFile());
-        UnregisterWallet(pwalletMain);
         std::weak_ptr<CWallet> weakWallet = pwalletMain;
         pwalletMain.reset();
         while (weakWallet.lock()) {
@@ -427,6 +425,15 @@ bool InitSanityCheck(void)
     // TODO: remaining sanity checks, see #4081
 
     return true;
+}
+
+void CreateMainWallet(const std::string& strWalletFileName)
+{
+    const std::shared_ptr<CWallet> wlt = std::make_shared<CWallet>(strWalletFileName);
+    if (!wlt) {
+        throw std::runtime_error("Unable to create wallet object");
+    }
+    std::atomic_store(&pwalletMain, wlt);
 }
 
 /** Initialize bitcoin.
@@ -921,10 +928,9 @@ bool AppInit2()
     NLog.write(b_sev::info, "Loading wallet...");
     nStart         = GetTimeMillis();
     bool fFirstRun = true;
-    {
-        std::shared_ptr<CWallet> wlt = std::make_shared<CWallet>(strWalletFileName);
-        std::atomic_store(&pwalletMain, wlt);
-    }
+
+    CreateMainWallet(strWalletFileName);
+
     DBErrors nLoadWalletRet = LoadDBWalletTransient(fFirstRun);
     if (nLoadWalletRet != DB_LOAD_OK) {
         if (nLoadWalletRet == DB_CORRUPT)
@@ -980,8 +986,6 @@ bool AppInit2()
 
     NLog.write(b_sev::info, "{}", strErrors.str());
     NLog.write(b_sev::info, " wallet      {} ms", GetTimeMillis() - nStart);
-
-    RegisterWallet(pwalletMain);
 
     const CTxDB txdb;
 

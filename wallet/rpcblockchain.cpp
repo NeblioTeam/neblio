@@ -5,9 +5,15 @@
 
 #include "amount.h"
 #include "bitcoinrpc.h"
+#include "block.h"
+#include "blockindex.h"
 #include "blockmetadata.h"
+#include "bootstraptools.h"
+#include "consensus.h"
 #include "main.h"
 #include "merkletx.h"
+#include "messaging.h"
+#include "stakemaker.h"
 #include "txdb.h"
 #include "txmempool.h"
 #include <algorithm>

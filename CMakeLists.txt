@@ -695,6 +695,7 @@ add_library(core_lib STATIC
     wallet/rpcrawtransaction.cpp
     wallet/crypter.cpp
     wallet/protocol.cpp
+    wallet/messaging.cpp
     wallet/noui.cpp
     wallet/kernel.cpp
     wallet/scrypt-arm.S
@@ -708,7 +709,6 @@ add_library(core_lib STATIC
     wallet/ThreadSafeMap.cpp
     wallet/ThreadSafeHashMap.cpp
     wallet/NetworkForks.cpp
-    wallet/blockindexcatalog.cpp
     wallet/blockindex.cpp
     wallet/outpoint.cpp
     wallet/inpoint.cpp
@@ -743,6 +743,14 @@ add_library(core_lib STATIC
     wallet/forkspendsimulator.cpp
     wallet/viucache.cpp
     wallet/proposal.cpp
+    wallet/medianfilter.cpp
+    wallet/merkleblock.cpp
+    wallet/wallet_interface.cpp
+    wallet/mempoolmisc.cpp
+    wallet/consensus.cpp
+    wallet/partialmerkletree.cpp
+    wallet/ntp1/ntp1common.cpp
+    wallet/bootstraptools.cpp
     )
 
 target_link_libraries(core_lib

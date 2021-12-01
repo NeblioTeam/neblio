@@ -191,7 +191,6 @@ OBJS= \
     obj/scrypt-x86.o \
     obj/scrypt-x86_64.o \
     obj/SerializationTester.o \
-    obj/blockindexcatalog.o                   \
     obj/blockindex.o                          \
     obj/outpoint.o                            \
     obj/inpoint.o                             \
@@ -250,7 +249,16 @@ OBJS= \
     obj/blockindexlrucache.o                  \
     obj/forkspendsimulator.o                  \
     obj/viucache.o                            \
-    obj/proposal.o
+    obj/proposal.o                            \
+    obj/consensus.o                           \
+    obj/medianfilter.o                        \
+    obj/mempoolmisc.o                         \
+    obj/merkleblock.o                         \
+    obj/messaging.o                           \
+    obj/ntp1/ntp1common.o                     \
+    obj/partialmerkletree.o                   \
+    obj/bootstraptools.o                      \
+    obj/wallet_interface.o
 
 
 ifdef NEBLIO_REST

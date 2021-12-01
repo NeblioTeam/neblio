@@ -6,11 +6,11 @@
 #ifndef _BITCOINALERT_H_
 #define _BITCOINALERT_H_ 1
 
+#include "serialize.h"
+#include "sync.h"
+#include "uint256.h"
 #include <set>
 #include <string>
-
-#include "uint256.h"
-#include "util.h"
 
 class CNode;
 
@@ -93,5 +93,8 @@ public:
      */
     static CAlert getAlertByHash(const uint256& hash);
 };
+
+extern std::map<uint256, CAlert> mapAlerts;
+extern CCriticalSection          cs_mapAlerts;
 
 #endif

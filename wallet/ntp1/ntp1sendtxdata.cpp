@@ -1,10 +1,9 @@
 #include "ntp1sendtxdata.h"
 
-#include "ntp1sendtxdata.h"
-
 #include "init.h"
 #include "util.h"
 #include "wallet.h"
+#include "wallet_interface.h"
 #include "json/json_spirit.h"
 #include <algorithm>
 #include <random>

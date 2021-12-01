@@ -131,7 +131,6 @@ HEADERS += qt/bitcoingui.h \
     qt/ntp1/ntp1metadatapairswidget.h \
     qt/json/NTP1MetadataViewer.h \
     SerializationTester.h \
-    blockindexcatalog.h   \
     blockindex.h          \
     outpoint.h            \
     inpoint.h             \
@@ -179,7 +178,16 @@ HEADERS += qt/bitcoingui.h \
     blockindexlrucache.h             \
     forkspendsimulator.h             \
     viucache.h                       \
-    proposal.h
+    proposal.h                       \
+    consensus.h                      \
+    medianfilter.h                   \
+    mempoolmisc.h                    \
+    merkleblock.h                    \
+    messaging.h                      \
+    ntp1/ntp1common.h                \
+    partialmerkletree.h              \
+    bootstraptools.h                 \
+    wallet_interface.h
 
 
 
@@ -308,7 +316,6 @@ SOURCES += qt/bitcoin.cpp \
     qt/ntp1/ntp1custommetadatawidget.cpp \
     qt/ntp1/ntp1metadatapairswidget.cpp \
     SerializationTester.cpp \
-    blockindexcatalog.cpp \
     blockindex.cpp        \
     outpoint.cpp          \
     inpoint.cpp           \
@@ -355,7 +362,17 @@ SOURCES += qt/bitcoin.cpp \
     blockindexlrucache.cpp              \
     forkspendsimulator.cpp              \
     viucache.cpp                        \
-    proposal.cpp
+    proposal.cpp                        \
+    consensus.cpp                       \
+    medianfilter.cpp                    \
+    mempoolmisc.cpp                     \
+    merkleblock.cpp                     \
+    messaging.cpp                       \
+    ntp1/ntp1common.cpp                 \
+    partialmerkletree.cpp               \
+    bootstraptools.cpp                  \
+    wallet_interface.cpp
+
 
 
 
