@@ -908,8 +908,7 @@ void ThreadRPCServer2()
                                               acceptor->cancel(ec);
                                               acceptor->close(ec);
                                           }
-                                      })
-                                          .track(acceptor));
+                                      }).track(acceptor));
 
         fRpcListening.store(true);
     } catch (boost::system::system_error& e) {
@@ -939,8 +938,7 @@ void ThreadRPCServer2()
                                                   acceptor->cancel(ec);
                                                   acceptor->close(ec);
                                               }
-                                          })
-                                              .track(acceptor));
+                                          }).track(acceptor));
 
             fRpcListening.store(true);
         }

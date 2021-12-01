@@ -788,7 +788,7 @@ Value setviupushprobability(const Array& params, bool fHelp)
 
     VIUCachePushProbabilityNumerator   = params[0].get_int();
     VIUCachePushProbabilityDenominator = params[1].get_int();
-  
+
     return Value();
 }
 
@@ -848,5 +848,6 @@ Value cancelallvotesofproposal(const Array& params, bool fHelp)
 
     blockVotes.removeAllVotesOfProposal(proposalID);
     blockVotes.writeAllVotesAsJsonToDataDir();
+
     return Value();
 }
