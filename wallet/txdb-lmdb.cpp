@@ -16,6 +16,8 @@
 
 #include "block.h"
 #include "blockmetadata.h"
+#include "dbcache/dblrucachelayer.h"
+#include "dbcache/inmemorydb.h"
 #include "globals.h"
 #include "kernel.h"
 #include "stringmanip.h"
@@ -245,7 +247,7 @@ void DoQuickSync(const filesystem::path& dbdir)
     NLog.write(b_sev::info, "QuickSync done");
 }
 
-bool ShouldQuickSyncBeDone(const filesystem::path& dbdir)
+bool ShouldQuickSyncBeDone(const filesystem::path& dbdir, bool forceClearDB)
 {
     if (CTxDB::QuickSyncHigherControl_Enabled == false) {
         return false;
@@ -255,7 +257,7 @@ bool ShouldQuickSyncBeDone(const filesystem::path& dbdir)
         return false;
     }
 
-    return (!filesystem::exists(dbdir) || !filesystem::exists(dbdir / "data.mdb") ||
+    return (forceClearDB || !filesystem::exists(dbdir) || !filesystem::exists(dbdir / "data.mdb") ||
             !filesystem::exists(dbdir / "lock.mdb")) &&
            Params().NetType() == NetworkType::Mainnet;
 }
@@ -295,7 +297,7 @@ void CTxDB::resyncIfNecessary(bool forceClearDB)
     // at this point, there's no database, so we attempt quicksync
     if (const auto dbdir = db->getDataDir()) {
         // if the directory doesn't exist, use quicksync
-        if (ShouldQuickSyncBeDone(*dbdir)) {
+        if (ShouldQuickSyncBeDone(*dbdir, forceClearDB)) {
             // close the database before running quicksync
             this->Close();
 
@@ -334,14 +336,21 @@ CTxDB::CTxDB()
 {
     static boost::filesystem::path DBDir = GetDataDir() / DB_DIR;
 
-    db = MakeUnique<LMDB>(&DBDir);
+    static const bool    DBCachingEnabled = GetBoolArg("-enabledbcache", false);
+    static const int64_t DBCachingSize    = GetArg("-dbcachesize", 5000);
+
+    if (DBCachingEnabled) {
+        db = MakeUnique<DBLRUCacheLayer<DBReadCacheLayer>>(&DBDir, false, DBCachingSize);
+    } else {
+        db = MakeUnique<LMDB>(&DBDir, false);
+    }
 }
 
 void CTxDB::Close() { db->close(); }
 
-bool CTxDB::TxnBegin(size_t required_size) { return db->beginDBTransaction(required_size); }
+bool CTxDB::TxnBegin(size_t required_size) { return db->beginDBTransaction(required_size).isOk(); }
 
-bool CTxDB::TxnCommit() { return db->commitDBTransaction(); }
+bool CTxDB::TxnCommit() { return db->commitDBTransaction().isOk(); }
 
 bool CTxDB::TxnAbort() { return db->abortDBTransaction(); }
 
@@ -575,13 +584,13 @@ bool CTxDB::WriteBestInvalidTrust(const CBigNum& bnBestInvalidTrust)
 boost::optional<std::map<uint256, CBlockIndex>> CTxDB::ReadAllBlockIndexEntries() const
 {
     auto&& rawAll = db->readAllUnique(IDB::Index::DB_BLOCKINDEX_INDEX);
-    if (!rawAll) {
+    if (rawAll.isErr()) {
         return boost::none;
     }
 
     std::map<uint256, CBlockIndex> result;
-    while (!rawAll->empty()) {
-        const std::pair<const std::string, const std::string> p = *rawAll->begin();
+    while (!rawAll.UNWRAP().empty()) {
+        const std::pair<const std::string, const std::string> p = *rawAll.UNWRAP().cbegin();
 
         // Unpack keys and values.
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
@@ -598,7 +607,7 @@ boost::optional<std::map<uint256, CBlockIndex>> CTxDB::ReadAllBlockIndexEntries(
         result[blockHash] = diskindex;
 
         // delete the current loaded entry from the map
-        rawAll->erase(p.first);
+        rawAll.UNWRAP().erase(p.first);
     }
     return result;
 }

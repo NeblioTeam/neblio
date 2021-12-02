@@ -938,6 +938,13 @@ class FullBlockTest(ComparisonTestFramework):
         # b61 = update_block(61, [])
         # assert_equal(b60.vtx[18].serialize(), b61.vtx[18].serialize())
         # yield rejected(RejectResult(16, b'bad-txns-BIP30'))
+        # b61 = block(61, spend=out[18])
+        # b61.vtx[0].vin[0].scriptSig = b60.vtx[0].vin[0].scriptSig  # Equalize the coinbases
+        # b61.vtx[0].nTime = b60.vtx[0].nTime  # Equalize the time
+        # b61.vtx[0].rehash()
+        # b61 = update_block(61, [])
+        # assert_equal(b60.vtx[0].serialize(), b61.vtx[0].serialize())
+        # yield rejected(RejectResult(16, b'bad-txns-BIP30'))
 
 
         # Test tx.isFinal is properly rejected (not an exhaustive tx.isFinal test, that should be in data-driven transaction tests)

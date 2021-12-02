@@ -928,7 +928,17 @@ struct Result
     [[nodiscard]] const storage_type& storage() const { return storage_; }
 
     template <typename U = T>
-    [[nodiscard]] typename std::enable_if<!std::is_same<U, void>::value, U>::type
+    [[nodiscard]] typename std::enable_if<!std::is_same<U, void>::value, U&>::type
+    unwrapOr(U& defaultValue)
+    {
+        if (isOk()) {
+            return storage().template get<U>();
+        }
+        return defaultValue;
+    }
+
+    template <typename U = T>
+    [[nodiscard]] typename std::enable_if<!std::is_same<U, void>::value, const U&>::type
     unwrapOr(const U& defaultValue) const
     {
         if (isOk()) {
@@ -938,7 +948,20 @@ struct Result
     }
 
     template <typename U = T>
-    [[nodiscard]] typename std::enable_if<!std::is_same<U, void>::value, U>::type
+    [[nodiscard]] typename std::enable_if<!std::is_same<U, void>::value, U&>::type
+    unwrap(const std::string& caller_source)
+    {
+        if (isOk()) {
+            return storage().template get<U>();
+        }
+
+        std::cerr << "Attempting to unwrap an error Result" << std::endl;
+        std::cerr << caller_source << std::endl;
+        std::terminate();
+    }
+
+    template <typename U = T>
+    [[nodiscard]] typename std::enable_if<!std::is_same<U, void>::value, const U&>::type
     unwrap(const std::string& caller_source) const
     {
         if (isOk()) {
@@ -950,7 +973,18 @@ struct Result
         std::terminate();
     }
 
-    [[nodiscard]] E unwrapErr(const std::string& caller_source) const
+    [[nodiscard]] E& unwrapErr(const std::string& caller_source)
+    {
+        if (isErr()) {
+            return storage().template get<E>();
+        }
+
+        std::cerr << "Attempting to unwrapErr an ok Result" << std::endl;
+        std::cerr << caller_source << std::endl;
+        std::terminate();
+    }
+
+    [[nodiscard]] const E& unwrapErr(const std::string& caller_source) const
     {
         if (isErr()) {
             return storage().template get<E>();

@@ -113,7 +113,6 @@ void Shutdown()
     if (fFirstThread) {
         fShutdown.store(true, boost::memory_order_seq_cst);
         nTransactionsUpdated++;
-        //        CTxDB().Close();
         FlushDBWalletTransient(false);
         StopNode();
         FlushDBWalletTransient(true);
@@ -126,11 +125,13 @@ void Shutdown()
         // on certain platforms, signal2's destructor without disconnecting is causing a crash, this
         // fixes it
         StopRPCRequests.get().disconnect_all_slots();
+        CTxDB().Close();
 
         NewThread(ExitTimeout);
         MilliSleep(50);
         NLog.write(b_sev::info, "neblio exited\n\n\n\n\n\n\n\n\n");
         NLog.flush();
+        LoggerSingleton::get().stopLogger();
         fExit = true;
 #ifndef QT_GUI
         // ensure non-UI client gets exited here, but let Bitcoin-Qt reach 'return 0;' in bitcoin.cpp
@@ -346,6 +347,8 @@ std::string HelpMessage()
         "  -bind=<addr>           " + _("Bind to given address. Use [host]:port notation for IPv6") + "\n" +
         "  -dnsseed               " + _("Find peers using DNS lookup (default: 1)") + "\n" +
         "  -staking               " + _("Stake your coins to support network and gain reward (default: 1)") + "\n" +
+        "  -enabledbcache         " + _("Enable DB cache for this node (default: false)") + "\n" +
+        "  -dbcachesize           " + _("Number of records to store in DB cache (default: 5000)") + "\n" +
         "  -synctime              " + _("Sync time with other nodes. Disable if time on your system is precise e.g. syncing with NTP (default: 1)") + "\n" +
         "  -cppolicy              " + _("Sync checkpoints policy (default: strict)") + "\n" +
         "  -banscore=<n>          " + _("Threshold for disconnecting misbehaving peers (default: 100)") + "\n" +

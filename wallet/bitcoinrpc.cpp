@@ -26,6 +26,7 @@
 #include <boost/foreach.hpp>
 #include <boost/iostreams/concepts.hpp>
 #include <boost/iostreams/stream.hpp>
+#include <boost/scope_exit.hpp>
 #include <boost/shared_ptr.hpp>
 #include <chrono>
 #include <list>
@@ -761,17 +762,19 @@ void ThreadRPCServer()
     // Make this thread recognisable as the RPC listener
     RenameThread("neblio-rpclist");
 
+    vnThreadsRunning[THREAD_RPCLISTENER]++;
+
     try {
-        vnThreadsRunning[THREAD_RPCLISTENER]++;
         ThreadRPCServer2();
-        vnThreadsRunning[THREAD_RPCLISTENER]--;
     } catch (std::exception& e) {
-        vnThreadsRunning[THREAD_RPCLISTENER]--;
         PrintException(&e, "ThreadRPCServer()");
     } catch (...) {
-        vnThreadsRunning[THREAD_RPCLISTENER]--;
         PrintException(NULL, "ThreadRPCServer()");
     }
+
+    BOOST_SCOPE_EXIT(void) { vnThreadsRunning[THREAD_RPCLISTENER]--; }
+    BOOST_SCOPE_EXIT_END
+
     NLog.write(b_sev::info, "ThreadRPCServer exited");
 }
 
@@ -909,6 +912,7 @@ void ThreadRPCServer2()
                                               boost::system::error_code ec;
                                               acceptor->cancel(ec);
                                               acceptor->close(ec);
+                                              io_service.stop();
                                           }
                                       }).track(acceptor));
 
@@ -939,6 +943,7 @@ void ThreadRPCServer2()
                                                   boost::system::error_code ec;
                                                   acceptor->cancel(ec);
                                                   acceptor->close(ec);
+                                                  io_service.stop();
                                               }
                                           }).track(acceptor));
 
@@ -957,11 +962,9 @@ void ThreadRPCServer2()
         return;
     }
 
-    vnThreadsRunning[THREAD_RPCLISTENER]--;
     while (!fShutdown) {
         io_service.run_one();
     }
-    vnThreadsRunning[THREAD_RPCLISTENER]++;
     StopRPCRequests.get()();
 }
 

@@ -751,6 +751,7 @@ add_library(core_lib STATIC
     wallet/partialmerkletree.cpp
     wallet/ntp1/ntp1common.cpp
     wallet/bootstraptools.cpp
+    wallet/concurrentmap/ConcurrentMap.cpp
     )
 
 target_link_libraries(core_lib
@@ -820,6 +821,14 @@ add_library(txdb_lib STATIC
     wallet/txdb-lmdb.cpp
     wallet/SerializationTester.cpp
     wallet/db/lmdb/lmdbtransaction.cpp
+    wallet/dbcache/dbcachelayer.cpp
+    wallet/dbcache/inmemorydb.cpp
+    wallet/dbcache/hierarchicaldb.cpp
+    wallet/dbcache/transactionoperation.cpp
+    wallet/dbcache/transactabledbentry.cpp
+    wallet/dbcache/dblrucachelayer.cpp
+    wallet/dbcache/dblrucachestorage.cpp
+    wallet/dbcache/dbreadcachelayer.cpp
     )
 
 target_link_libraries(db_lib

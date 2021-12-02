@@ -6,7 +6,6 @@
 #include "txdb.h"
 #include "util.h"
 #include <boost/filesystem.hpp>
-#include <boost/range/adaptor/reversed.hpp>
 
 void ExportBootstrapBlockchain(const boost::filesystem::path& filename, std::atomic<bool>& stopped,
                                std::atomic<double>& progress, boost::promise<void>& result)
@@ -18,15 +17,6 @@ void ExportBootstrapBlockchain(const boost::filesystem::path& filename, std::ato
         std::vector<CBlockIndex> chainBlocksIndices;
 
         const CTxDB txdb;
-
-        {
-            boost::optional<CBlockIndex> pblockindex = txdb.GetBestBlockIndex();
-            chainBlocksIndices.push_back(*pblockindex);
-            while (pblockindex->nHeight > 0 && !stopped.load() && !fShutdown) {
-                pblockindex = pblockindex->getPrev(txdb);
-                chainBlocksIndices.push_back(*pblockindex);
-            }
-        }
 
         if (stopped.load() || fShutdown) {
             throw std::runtime_error("Operation was stopped.");
@@ -42,15 +32,25 @@ void ExportBootstrapBlockchain(const boost::filesystem::path& filename, std::ato
 
         CDataStream  serializedBlocks(SER_DISK, CLIENT_VERSION);
         size_t       written = 0;
-        const size_t total   = chainBlocksIndices.size();
-        for (const CBlockIndex& blockIndex : boost::adaptors::reverse(chainBlocksIndices)) {
+        const size_t total   = static_cast<size_t>(txdb.GetBestChainHeight().value_or(1));
+        CBlockIndex  bi      = [&]() {
+            boost::optional<CBlockIndex> obi = txdb.ReadBlockIndex(Params().GenesisBlockHash());
+            if (!obi) {
+                throw std::runtime_error(
+                    "Couldn't read genesis block index. This indicates a fatal failure in the database");
+            }
+            return *obi;
+        }();
+
+        while (!bi.hashNext.IsNull()) {
             progress.store(static_cast<double>(written) / static_cast<double>(total),
                            std::memory_order_relaxed);
             if (stopped.load() || fShutdown) {
                 throw std::runtime_error("Operation was stopped.");
             }
+
             CBlock block;
-            block.ReadFromDisk(&blockIndex, txdb, true);
+            block.ReadFromDisk(&bi, txdb, true);
 
             // every block starts with pchMessageStart
             unsigned int nSize = block.GetSerializeSize(SER_DISK, CLIENT_VERSION);
@@ -61,6 +61,14 @@ void ExportBootstrapBlockchain(const boost::filesystem::path& filename, std::ato
                 serializedBlocks.clear();
             }
             written++;
+
+            // this works because the loop will break if there's no next
+            boost::optional<CBlockIndex> obi = bi.getNext(txdb);
+            if (obi) {
+                bi = std::move(*obi);
+            } else {
+                break;
+            }
         }
         if (serializedBlocks.size() > 0) {
             outFile.write(serializedBlocks.str().c_str(), serializedBlocks.size());
@@ -145,8 +153,7 @@ std::pair<BlockIndexGraphType, VerticesDescriptorsMapType> GetBlockIndexAsGraph(
     // add edges, which are previous blocks connected to subsequent blocks
     for (const auto& bi : *tempBlockIndex) {
         if (bi.first != Params().GenesisBlockHash()) {
-            const CBlockIndex& prev = tempBlockIndex->at(bi.first);
-            boost::add_edge(verticesDescriptors.at(prev.blockHash), verticesDescriptors.at(bi.first),
+            boost::add_edge(verticesDescriptors.at(bi.second.hashPrev), verticesDescriptors.at(bi.first),
                             graph);
         }
     }

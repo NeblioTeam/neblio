@@ -899,7 +899,9 @@ void BitcoinGUI::exportBlockchainBootstrap()
     if (!filename.isEmpty()) {
         QMessageBox::StandardButton includeOrphanResult = QMessageBox::question(
             this, "Include ophans?",
-            "Would you like to include orphan blocks?\n\nIf you don't know what this means, select no.",
+            "Would you like to include orphan blocks?\n\nIf you don't know what this means, select "
+            "no.\n\n"
+            "Note: Exporting orphans will cost lots of memory",
             QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel, QMessageBox::No);
         if (includeOrphanResult != QMessageBox::Yes && includeOrphanResult != QMessageBox::No) {
             // this means cancel/escape was chosen
@@ -929,15 +931,17 @@ void BitcoinGUI::exportBlockchainBootstrap()
             }
         }
 
-        blockchainExporterProg->setValue(0);
-        blockchainExporterProg->reset();
-        blockchainExporterProg->setLabelText("Exporting... please wait.");
-        blockchainExporterProg->open();
-
         boost::promise<void>       finished;
         boost::unique_future<void> finished_future = finished.get_future();
         std::atomic<bool>          stopped{false};
         std::atomic<double>        progress{false};
+        static const int           PROGRESS_MAX = std::numeric_limits<int>::max();
+
+        blockchainExporterProg->setValue(0);
+        blockchainExporterProg->reset();
+        blockchainExporterProg->setLabelText("Exporting... please wait.");
+        blockchainExporterProg->open();
+        blockchainExporterProg->setMaximum(PROGRESS_MAX);
 
         if (includeOrphanResult == QMessageBox::Yes) {
             // with orphans
@@ -958,11 +962,12 @@ void BitcoinGUI::exportBlockchainBootstrap()
             if (blockchainExporterProg->wasCanceled()) {
                 stopped.store(true);
             } else {
-                blockchainExporterProg->setValue(static_cast<int>(progress * 100));
+                blockchainExporterProg->setValue(
+                    static_cast<int>(progress >= 1 ? PROGRESS_MAX : progress * PROGRESS_MAX));
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
         }
-        blockchainExporterProg->setValue(100);
+        blockchainExporterProg->setValue(PROGRESS_MAX);
         blockchainExporterProg->close();
         try {
             finished_future.get();
@@ -1212,7 +1217,7 @@ void BitcoinGUI::unlockWallet()
         AskPassphraseDialog::Mode mode = sender() == unlockWalletAction
                                              ? AskPassphraseDialog::UnlockStaking
                                              : AskPassphraseDialog::Unlock;
-        AskPassphraseDialog dlg(mode, this);
+        AskPassphraseDialog       dlg(mode, this);
         dlg.setModel(walletModel);
         dlg.exec();
     }
