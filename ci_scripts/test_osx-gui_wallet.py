@@ -37,9 +37,6 @@ nci.call_with_err_code('brew uninstall --ignore-dependencies libsodium || true')
 nci.call_with_err_code('brew uninstall --ignore-dependencies icu4c || true')
 nci.call_with_err_code('brew uninstall --ignore-dependencies node@14 || true')
 
-# debug icu4c linking issues
-nci.call_with_err_code('ls -al /usr/local/opt/icu4c/lib/')
-
 
 # pin dependencies we do not want to be auto-upgraded while installing the dependencies we need
 nci.call_retry_on_fail('brew pin php || true') # prevents cURL from updating PHP which breaks a bunch of things
