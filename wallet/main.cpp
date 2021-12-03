@@ -420,73 +420,72 @@ void PrintBlockTree()
     }
 }
 
-bool LoadExternalBlockFile(FILE* fileIn)
+void ReadMoreBuffer(CDataStream& dataQueue, std::vector<char>& fileBuffer,
+                    boost::filesystem::ifstream& fileIn)
 {
-    int64_t nStart = GetTimeMillis();
+    assert(!fileBuffer.empty());
+    fileIn.read(&fileBuffer.front(), fileBuffer.size());
+    const std::streamsize sizeRead = fileIn.gcount();
+    dataQueue.insert(dataQueue.end(), fileBuffer.begin(), fileBuffer.begin() + sizeRead);
+}
 
-    int nLoaded = 0;
-    {
-        try {
-            CAutoFile    blkdat(fileIn, SER_DISK, CLIENT_VERSION);
-            unsigned int nPos = 0;
-            while (nPos != (unsigned int)-1 && blkdat.good() && !fRequestShutdown && !fShutdown) {
-                unsigned char pchData[65536];
-                do {
-                    fseek(blkdat, nPos, SEEK_SET);
-                    int nRead = fread(pchData, 1, sizeof(pchData), blkdat);
-                    if (nRead <= 8) {
-                        nPos = (unsigned int)-1;
-                        break;
-                    }
-                    void* nFind = memchr(pchData, Params().MessageStart()[0],
-                                         nRead + 1 - CMessageHeader::MESSAGE_START_SIZE);
-                    if (nFind) {
-                        if (memcmp(nFind, Params().MessageStart(), CMessageHeader::MESSAGE_START_SIZE) ==
-                            0) {
-                            nPos +=
-                                ((unsigned char*)nFind - pchData) + CMessageHeader::MESSAGE_START_SIZE;
-                            break;
-                        }
-                        nPos += ((unsigned char*)nFind - pchData) + 1;
-                    } else
-                        nPos += sizeof(pchData) - CMessageHeader::MESSAGE_START_SIZE + 1;
-                } while (!fRequestShutdown && !fShutdown);
-                if (nPos == (unsigned int)-1)
-                    break;
-                unsigned int nSizeLimit = MaxBlockSize(CTxDB());
+bool LoadExternalBlockFile(boost::filesystem::ifstream& fileIn)
+{
+    const int64_t nStart = GetTimeMillis() / 1000;
 
-                fseek(blkdat, nPos, SEEK_SET);
+    int            nLoaded = 0;
+    std::streampos nPos    = 0;
 
-                unsigned int nSize;
-                blkdat >> nSize;
+    static const std::size_t CHUNK_SIZE = 1 << 25; // 32 MB
 
-                // this is just for debugging
-                // static const unsigned int fileStartFrom = 0;
-                // if (nPos < fileStartFrom) {
-                //     nPos += 4 + nSize;
-                //     NLog.write(b_sev::info, "Skipping block at file pos: {}", nPos);
-                //     continue;
-                // }
-
-                if (nSize > 0 && nSize <= nSizeLimit) {
-                    CBlock block;
-                    blkdat >> block;
-                    NLog.write(b_sev::info, "Reading block at file pos: {}", nPos);
-
-                    LOCK(cs_main);
-
-                    if (ProcessBlock(nullptr, &block)) {
-                        nLoaded++;
-                        nPos += 4 + nSize;
-                    }
-                }
+    try {
+        CDataStream       serializedBlockData(SER_DISK, CLIENT_VERSION);
+        std::vector<char> fileBuffer(CHUNK_SIZE);
+        while (fileIn.good() && !fRequestShutdown && !fShutdown) {
+            if (serializedBlockData.size() < 2 * sizeof(uint32_t)) {
+                ReadMoreBuffer(serializedBlockData, fileBuffer, fileIn);
             }
-        } catch (std::exception& e) {
-            NLog.write(b_sev::err, "{} : Deserialize or I/O error caught during load", FUNCTIONSIG);
+
+            uint32_t expectedBlockSize;
+            uint32_t tmpMessageStart;
+
+            static_assert(CMessageHeader::MESSAGE_START_SIZE == sizeof(tmpMessageStart), "Wrong sizes");
+
+            serializedBlockData >> tmpMessageStart;
+            serializedBlockData >> expectedBlockSize;
+
+            CMessageHeader::MessageStartChars pchMessageStart;
+            std::memcpy(pchMessageStart, &tmpMessageStart, sizeof(tmpMessageStart));
+            if (std::memcmp(pchMessageStart, Params().MessageStart(),
+                            CMessageHeader::MESSAGE_START_SIZE) != 0) {
+                throw std::runtime_error("Invalid magic bytes; block import failed.");
+            }
+
+            if (serializedBlockData.size() < expectedBlockSize) {
+                ReadMoreBuffer(serializedBlockData, fileBuffer, fileIn);
+            }
+
+            if (serializedBlockData.size() >= expectedBlockSize) {
+                CBlock block;
+                serializedBlockData >> block;
+                NLog.write(b_sev::info, "Reading block at file pos: {}", nPos);
+
+                LOCK(cs_main);
+
+                if (ProcessBlock(nullptr, &block)) {
+                    nLoaded++;
+                    nPos += 2 * sizeof(uint32_t) + expectedBlockSize;
+                }
+            } else {
+                throw std::runtime_error("Bootstrap file buffer ended unexpectedly");
+            }
         }
+    } catch (const std::exception& e) {
+        NLog.write(b_sev::err, "Deserialize or I/O error caught during load: {}", e.what());
     }
-    NLog.write(b_sev::info, "Loaded {} blocks from external file in {} ms", nLoaded,
-               GetTimeMillis() - nStart);
+
+    NLog.write(b_sev::info, "Loaded {} blocks from external file in {} seconds", nLoaded,
+               GetTimeMillis() / 1000 - nStart);
     return nLoaded > 0;
 }
 
@@ -515,9 +514,9 @@ void ThreadImport(const std::vector<boost::filesystem::path> vFiles)
     // -loadblock=
     // uiInterface.InitMessage(_("Starting block import..."));
     for (const boost::filesystem::path& path : vFiles) {
-        FILE* file = fopen(path.string().c_str(), "rb");
-        if (file)
-            LoadExternalBlockFile(file);
+        boost::filesystem::ifstream filestream(path, std::ios::binary);
+        if (filestream.good())
+            LoadExternalBlockFile(filestream);
     }
 
     // hardcoded $DATADIR/bootstrap.dat
@@ -525,10 +524,10 @@ void ThreadImport(const std::vector<boost::filesystem::path> vFiles)
     if (filesystem::exists(pathBootstrap)) {
         // uiInterface.InitMessage(_("Importing bootstrap blockchain data file."));
 
-        FILE* file = fopen(pathBootstrap.string().c_str(), "rb");
-        if (file) {
+        boost::filesystem::ifstream filestream(pathBootstrap, std::ios::binary);
+        if (filestream.good()) {
             filesystem::path pathBootstrapOld = GetDataDir() / "bootstrap.dat.old";
-            LoadExternalBlockFile(file);
+            LoadExternalBlockFile(filestream);
             RenameOver(pathBootstrap, pathBootstrapOld);
         }
     }
