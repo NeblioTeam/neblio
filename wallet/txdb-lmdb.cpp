@@ -341,6 +341,7 @@ CTxDB::CTxDB()
 
     if (DBCachingEnabled) {
         db = MakeUnique<DBLRUCacheLayer<DBReadCacheLayer>>(&DBDir, false, DBCachingSize);
+        NLog.write(b_sev::info, "Experimental DB Cache Enabled!");
     } else {
         db = MakeUnique<LMDB>(&DBDir, false);
     }
