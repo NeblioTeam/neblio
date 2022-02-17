@@ -11,11 +11,7 @@
 #include "txmempool.h"
 #include "util.h"
 #include "wallet_interface.h"
-#include <boost/foreach.hpp>
-#include <boost/regex.h>
-
-const std::string  OpReturnRegexStr = R"(^OP_RETURN\s+(.*)$)";
-const boost::regex OpReturnRegex(OpReturnRegexStr);
+#include <boost/algorithm/hex.hpp>
 
 void CTransaction::SetNull()
 {
@@ -87,40 +83,28 @@ boost::optional<std::string> CTransaction::GetColdStakeCmd() const
 
 bool CTransaction::ContainsOpReturn(std::string* opReturnArg) const
 {
-    boost::smatch opReturnArgMatch;
-
     for (unsigned long j = 0; j < this->vout.size(); j++) {
-        // if the string OP_RET_STR is found in scriptPubKey
-        std::string scriptPubKeyStr = this->vout[j].scriptPubKey.ToString();
-        if (boost::regex_match(scriptPubKeyStr, opReturnArgMatch, OpReturnRegex)) {
-            if (opReturnArg != nullptr && opReturnArgMatch[1].matched) {
-                *opReturnArg = std::string(opReturnArgMatch[1]);
-                return true;
-            }
-            return true; // could not retrieve OP_RETURN argument
+        if (IsOutputOpRet(&vout[j], opReturnArg)) {
+            return true;
         }
     }
     return false;
 }
 
-bool CTransaction::IsOutputOpRet(unsigned int index, std::string* opReturnArg)
+std::vector<uint8_t> GetOpRetData(const CScript& scriptPubKey)
 {
-    boost::smatch opReturnArgMatch;
-
-    // out of range index
-    if (index + 1 >= this->vout.size()) {
-        return false;
+    if (scriptPubKey.size() < 3) {
+        return {};
     }
 
-    std::string scriptPubKeyStr = this->vout[index].scriptPubKey.ToString();
-    if (boost::regex_match(scriptPubKeyStr, opReturnArgMatch, OpReturnRegex)) {
-        if (opReturnArg != nullptr && opReturnArgMatch[1].matched) {
-            *opReturnArg = std::string(opReturnArgMatch[1]);
-            return true;
-        }
-        return true; // could not retrieve OP_RETURN argument
+    std::vector<uint8_t>                 res;
+    opcodetype                           opcode;
+    std::vector<uint8_t>::const_iterator pc = scriptPubKey.begin() + 1; // skip OP_RETURN
+
+    if (!scriptPubKey.GetOp(pc, opcode, res)) {
+        return {};
     }
-    return false;
+    return res;
 }
 
 bool CTransaction::IsOutputOpRet(const CTxOut* output, std::string* opReturnArg)
@@ -129,15 +113,14 @@ bool CTransaction::IsOutputOpRet(const CTxOut* output, std::string* opReturnArg)
         return false;
     }
 
-    boost::smatch opReturnArgMatch;
-
-    std::string scriptPubKeyStr = output->scriptPubKey.ToString();
-    if (boost::regex_match(scriptPubKeyStr, opReturnArgMatch, OpReturnRegex)) {
-        if (opReturnArg != nullptr && opReturnArgMatch[1].matched) {
-            *opReturnArg = std::string(opReturnArgMatch[1]);
-            return true;
+    const CScript& scriptPubKey = output->scriptPubKey;
+    if (scriptPubKey.size() > 2 && scriptPubKey.at(0) == OP_RETURN) {
+        if (opReturnArg != nullptr) {
+            const std::vector<uint8_t> opRetData = GetOpRetData(scriptPubKey);
+            *opReturnArg = boost::algorithm::hex(std::string(opRetData.begin(), opRetData.end()));
+            std::transform(opReturnArg->begin(), opReturnArg->end(), opReturnArg->begin(), ::tolower);
         }
-        return true; // could not retrieve OP_RETURN argument
+        return true;
     }
     return false;
 }
@@ -216,7 +199,7 @@ bool CTransaction::HasP2CSOutputs() const
 CAmount CTransaction::GetValueOut() const
 {
     CAmount nValueOut = 0;
-    BOOST_FOREACH (const CTxOut& txout, vout) {
+    for (const CTxOut& txout : vout) {
         nValueOut += txout.nValue;
         if (!MoneyRange(txout.nValue) || !MoneyRange(nValueOut))
             throw std::runtime_error("CTransaction::GetValueOut() : value out of range");
