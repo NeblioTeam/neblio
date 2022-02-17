@@ -72,8 +72,8 @@ Value disconnectnode(const Array& params, bool fHelp)
                                  "\nImmediately disconnects from the specified node.\n"
 
                                  "\nArguments:\n"
-                                 "1. \"node\"     (string or int, required) The node identified by "
-                                 "address or node id (see getpeerinfo for nodes)\n"
+                                 "1. \"nodeid\"     (int, required) The node identified by "
+                                 "node id (see getpeerinfo for nodes)\n"
 
                                  "\nExamples:\n"
                                  "disconnectnode \"192.168.0.6:8333\""
@@ -81,9 +81,6 @@ Value disconnectnode(const Array& params, bool fHelp)
     }
 
     CNode* pNode = nullptr;
-    if (params[0].type() == Value_type::str_type) {
-        pNode = FindNode(params[0].get_str());
-    }
     if (params[0].type() == Value_type::int_type) {
         pNode = FindNode(params[0].get_int64());
     }
