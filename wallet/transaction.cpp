@@ -57,7 +57,32 @@ bool CTransaction::IsNewerThan(const CTransaction& old) const
 bool CTransaction::IsCoinStake() const
 {
     // ppcoin: the coin stake transaction is marked with the first output empty
-    return (vin.size() > 0 && (!vin[0].prevout.IsNull()) && vout.size() >= 2 && vout[0].IsEmpty());
+    return (vin.size() > 0 && !vin[0].prevout.IsNull() && vout.size() >= 2 && vout[0].IsEmpty());
+}
+
+bool CTransaction::IsColdCoinStake() const
+{
+    if (!IsCoinStake())
+        return false;
+
+    for (const auto& out : vout) {
+        if (out.scriptPubKey.IsPayToColdStaking()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+boost::optional<std::string> CTransaction::GetColdStakeCmd() const
+{
+    if (!IsColdCoinStake())
+        return boost::none;
+
+    std::string opRet;
+    if (ContainsOpReturn(&opRet)) {
+        return boost::make_optional(std::move(opRet));
+    }
+    return boost::none;
 }
 
 bool CTransaction::ContainsOpReturn(std::string* opReturnArg) const
@@ -153,6 +178,10 @@ bool CTransaction::CheckColdStakeWithGiveaway(const CScript& script) const
         return false;
 
     if (vin.empty())
+        return false;
+
+    std::string opRet;
+    if (!this->ContainsOpReturn(&opRet))
         return false;
 
     const boost::optional<std::vector<uint8_t>> firstPubKey =
