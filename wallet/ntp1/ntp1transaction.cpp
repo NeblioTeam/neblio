@@ -152,7 +152,7 @@ NTP1TransactionType NTP1Transaction::getTxType() const { return ntp1TransactionT
 std::string NTP1Transaction::getTokenSymbolIfIssuance() const
 {
     std::string                 script    = getNTP1OpReturnScriptHex();
-    std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScript(script);
+    std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScriptHex(script);
     if (scriptPtr->getTxType() != NTP1Script::TxType_Issuance) {
         throw std::runtime_error(
             "Attempted to get the token symbol of a non-issuance transaction. Txid: " +
@@ -172,7 +172,7 @@ std::string NTP1Transaction::getTokenSymbolIfIssuance() const
 std::string NTP1Transaction::getTokenIdIfIssuance(std::string input0txid, unsigned int input0index) const
 {
     std::string                 script    = getNTP1OpReturnScriptHex();
-    std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScript(script);
+    std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScriptHex(script);
     if (scriptPtr->getTxType() != NTP1Script::TxType_Issuance) {
         throw std::runtime_error("Attempted to get the token id of a non-issuance transaction. Txid: " +
                                  this->getTxHash().ToString() +
@@ -621,7 +621,7 @@ void NTP1Transaction::readNTP1DataFromTx(
     this->nTime     = tx.nTime;
     this->nLockTime = tx.nLockTime;
 
-    std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScript(opReturnArg);
+    std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScriptHex(opReturnArg);
     if (scriptPtr->getTxType() == NTP1Script::TxType::TxType_Issuance) {
         ntp1TransactionType = NTP1TxType_ISSUANCE;
 
@@ -760,7 +760,7 @@ json_spirit::Value NTP1Transaction::GetNTP1IssuanceMetadata(const ITxDB&   txdb,
         return json_spirit::Value();
     }
 
-    std::shared_ptr<NTP1Script>          s  = NTP1Script::ParseScript(opRet);
+    std::shared_ptr<NTP1Script>          s  = NTP1Script::ParseScriptHex(opRet);
     std::shared_ptr<NTP1Script_Issuance> sd = std::dynamic_pointer_cast<NTP1Script_Issuance>(s);
     if (!sd || s->getTxType() != NTP1Script::TxType_Issuance) {
         return json_spirit::Value();
@@ -798,7 +798,7 @@ NTP1TokenMetaData NTP1Transaction::GetFullNTP1IssuanceMetadata(const CTransactio
                                  ") to get NTP1 issuance metadata");
     }
 
-    std::shared_ptr<NTP1Script>          s  = NTP1Script::ParseScript(opRet);
+    std::shared_ptr<NTP1Script>          s  = NTP1Script::ParseScriptHex(opRet);
     std::shared_ptr<NTP1Script_Issuance> sd = std::dynamic_pointer_cast<NTP1Script_Issuance>(s);
     if (!sd || s->getTxType() != NTP1Script::TxType_Issuance) {
         throw std::runtime_error("A non-issuance NTP1 transaction was provided (txid: " +

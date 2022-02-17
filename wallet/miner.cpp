@@ -346,7 +346,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
             try {
                 std::string opRet;
                 if (NTP1Transaction::IsTxNTP1(&tx, &opRet)) {
-                    auto script = NTP1Script::ParseScript(opRet);
+                    auto script = NTP1Script::ParseScriptHex(opRet);
                     if (script->getTxType() == NTP1Script::TxType_Issuance) {
 
                         inputsTxs = NTP1Transaction::StdFetchedInputTxsToNTP1(

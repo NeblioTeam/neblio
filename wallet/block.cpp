@@ -511,7 +511,7 @@ bool CBlock::ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pinde
             if (blockMetadata) {
                 return boost::make_optional(blockMetadata->getMoneySupply());
             } else {
-                return boost::optional<CAmount>();
+                return boost::optional<CAmount>(boost::none);
             }
         }
         return boost::make_optional<CAmount>(0);
@@ -1698,8 +1698,7 @@ void CBlock::WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, ITxDB& txdb)
     if (Params().PassedFirstValidNTP1Tx(&txdb)) {
         // read previous transactions (inputs) which are necessary to validate an NTP1
         // transaction
-        std::string opReturnArg;
-        if (!NTP1Transaction::IsTxNTP1(&tx, &opReturnArg)) {
+        if (!NTP1Transaction::IsTxNTP1(&tx)) {
             return;
         }
 
@@ -1750,7 +1749,7 @@ void CBlock::AssertIssuanceUniquenessInBlock(
 {
     std::string opRet;
     if (NTP1Transaction::IsTxNTP1(&tx, &opRet)) {
-        auto script = NTP1Script::ParseScript(opRet);
+        auto script = NTP1Script::ParseScriptHex(opRet);
         if (script->getTxType() == NTP1Script::TxType_Issuance) {
             std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
                 NTP1Transaction::GetAllNTP1InputsOfTx(tx, txdb, false, mapQueuedNTP1Inputs,

@@ -35,7 +35,7 @@ json_spirit::Value GetNTP1TxMetadata(const CTransaction& tx) noexcept
     std::string opRet;
     bool        isNTP1 = NTP1Transaction::IsTxNTP1(&tx, &opRet);
     if (isNTP1) {
-        std::shared_ptr<NTP1Script> s  = NTP1Script::ParseScript(opRet);
+        std::shared_ptr<NTP1Script> s  = NTP1Script::ParseScriptHex(opRet);
         std::shared_ptr<T>          sd = std::dynamic_pointer_cast<T>(s);
         if (sd) {
             return NTP1Script::GetMetadataAsJson(sd.get(), tx);
@@ -123,7 +123,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry, bo
 
     {
         if (isNTP1 && !ignoreNTP1) {
-            std::shared_ptr<NTP1Script> s = NTP1Script::ParseScript(opRet);
+            std::shared_ptr<NTP1Script> s = NTP1Script::ParseScriptHex(opRet);
             if (s && s->getProtocolVersion() >= 3) {
                 if (s->getTxType() == NTP1Script::TxType_Issuance) {
                     entry.push_back(json_spirit::Pair("metadataOfUtxos",
@@ -195,7 +195,7 @@ static Object NTP1ScriptToJson(const std::string& ntp1scriptHex)
     static const std::string MetadataHexKey          = "metadata_hex";
     static const std::string TransferInstructionsKey = "transfer_instructions";
 
-    std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScript(ntp1scriptHex);
+    std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScriptHex(ntp1scriptHex);
     if (scriptPtr->getTxType() == NTP1Script::TxType::TxType_Issuance) {
         result.push_back(Pair(ScriptTypeKey, "Issuance"));
 

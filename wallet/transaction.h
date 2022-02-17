@@ -96,6 +96,10 @@ public:
 
     bool IsCoinStake() const;
 
+    bool IsColdCoinStake() const;
+
+    boost::optional<std::string> GetColdStakeCmd() const;
+
     bool HasP2CSOutputs() const;
 
     /** Check for standard transaction types
