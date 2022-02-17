@@ -661,14 +661,10 @@ TEST(ntp1_tests, script_burn)
 
 TEST(ntp1_tests, script_get_amount_size)
 {
-    EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("11"))[0]),
-              1u);
-    EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("2012"))[0]),
-              2u);
-    EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("4bb3c1"))[0]),
-              3u);
-    EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("68c7e5b3"))[0]),
-              4u);
+    EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("11"))[0]), 1u);
+    EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("2012"))[0]), 2u);
+    EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("4bb3c1"))[0]), 3u);
+    EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("68c7e5b3"))[0]), 4u);
     EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("8029990f1a"))[0]),
               5u);
     EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("a09c47f7b1a1"))[0]),
@@ -2318,7 +2314,7 @@ TEST(ntp1_tests, amend_tx_1)
     EXPECT_EQ(tx.vout[0], out0);
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue, out1.nValue);
     std::string opRetArg;
-    EXPECT_TRUE(NTP1Transaction::TxContainsOpReturn(&tx, &opRetArg));
+    EXPECT_TRUE(tx.ContainsOpReturn(&opRetArg));
     EXPECT_EQ(opRetArg, "4e54031001032051");
 
     auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
@@ -2362,7 +2358,7 @@ TEST(ntp1_tests, amend_tx_2)
     EXPECT_EQ(tx.vout.size(), 2u);
     EXPECT_EQ(tx.vout[0], out0);
     EXPECT_EQ(tx.vout[1], out1);
-    EXPECT_FALSE(NTP1Transaction::TxContainsOpReturn(&tx));
+    EXPECT_FALSE(tx.ContainsOpReturn());
 }
 
 TEST(ntp1_tests, amend_tx_3)
@@ -2400,7 +2396,7 @@ TEST(ntp1_tests, amend_tx_3)
     EXPECT_EQ(tx.vout[0], out0);
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue, out1.nValue);
     std::string opRetArg;
-    EXPECT_TRUE(NTP1Transaction::TxContainsOpReturn(&tx, &opRetArg));
+    EXPECT_TRUE(tx.ContainsOpReturn(&opRetArg));
     EXPECT_EQ(opRetArg, "4e54031001032051");
 
     auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
@@ -2452,7 +2448,7 @@ TEST(ntp1_tests, amend_tx_4)
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue + tx.vout[4].nValue,
               out1.nValue);
     std::string opRetArg;
-    EXPECT_TRUE(NTP1Transaction::TxContainsOpReturn(&tx, &opRetArg));
+    EXPECT_TRUE(tx.ContainsOpReturn(&opRetArg));
     EXPECT_EQ(opRetArg, "4e54031002032051042041");
 
     auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
@@ -2513,7 +2509,7 @@ TEST(ntp1_tests, amend_tx_5)
                   tx.vout[5].nValue + tx.vout[6].nValue + tx.vout[7].nValue,
               out1.nValue);
     std::string opRetArg;
-    EXPECT_TRUE(NTP1Transaction::TxContainsOpReturn(&tx, &opRetArg));
+    EXPECT_TRUE(tx.ContainsOpReturn(&opRetArg));
     EXPECT_EQ(opRetArg, "4e540310050320510420410520e20638b10719");
 
     auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
@@ -2587,7 +2583,7 @@ TEST(ntp1_tests, amend_tx_6)
                   tx.vout[5].nValue + tx.vout[6].nValue + tx.vout[7].nValue,
               out1.nValue);
     std::string opRetArg;
-    EXPECT_TRUE(NTP1Transaction::TxContainsOpReturn(&tx, &opRetArg));
+    EXPECT_TRUE(tx.ContainsOpReturn(&opRetArg));
     EXPECT_EQ(opRetArg, "4e540310050320510420410520e20638b10719");
 
     auto scriptPtr  = NTP1Script::ParseScript(opRetArg);

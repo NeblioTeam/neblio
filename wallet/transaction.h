@@ -25,6 +25,8 @@ enum GetMinFee_mode
     GMF_SEND,
 };
 
+extern const boost::regex NTP1OpReturnRegex;
+
 /** The basic transaction that is broadcasted on the network and contained in
  * blocks.  A transaction can contain multiple inputs and outputs.
  */
@@ -83,7 +85,14 @@ public:
 
     bool IsCoinBase() const { return (vin.size() == 1 && vin[0].prevout.IsNull() && vout.size() >= 1); }
 
+    bool ContainsOpReturn(std::string* opReturnArg = nullptr) const;
+
+    bool        IsOutputOpRet(unsigned int index, std::string* opReturnArg = nullptr);
+    static bool IsOutputOpRet(const CTxOut* output, std::string* opReturnArg = nullptr);
+
     bool CheckColdStake(const CScript& script) const;
+
+    bool CheckColdStakeWithGiveaway(const CScript& script) const;
 
     bool IsCoinStake() const;
 
@@ -173,9 +182,9 @@ public:
         @return Returns true if all checks succeed
         */
     Result<void, TxValidationState>
-                                    ConnectInputs(const ITxDB& txdb, MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTestPool,
-                                                  const CDiskTxPos& posThisTx, const boost::optional<CBlockIndex>& pindexBlock,
-                                                  bool fBlock, bool fMiner, CBlock* sourceBlockPtr = nullptr) const;
+    ConnectInputs(const ITxDB& txdb, MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTestPool,
+                  const CDiskTxPos& posThisTx, const boost::optional<CBlockIndex>& pindexBlock,
+                  bool fBlock, bool fMiner, CBlock* sourceBlockPtr = nullptr) const;
     Result<void, TxValidationState> CheckTransaction(const ITxDB& txdb,
                                                      CBlock*      sourceBlock = nullptr) const;
     bool GetCoinAge(const ITxDB& txdb, uint64_t& nCoinAge) const; // ppcoin: get transaction coin age
@@ -184,7 +193,7 @@ public:
     [[nodiscard]] static CTransaction FetchTxFromDisk(const uint256& txid, const ITxDB& txdb);
 
     [[nodiscard]] static std::vector<CKey>
-                                     GetThisWalletKeysOfTx(const uint256& txid, boost::optional<unsigned> outputNumber = boost::none);
+    GetThisWalletKeysOfTx(const uint256& txid, boost::optional<unsigned> outputNumber = boost::none);
     [[nodiscard]] static std::string DecryptMetadataOfTx(const StringViewT             metadataStr,
                                                          const uint256&                txid,
                                                          boost::optional<std::string>& error);

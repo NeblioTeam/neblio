@@ -12,6 +12,10 @@
 #include "util.h"
 #include "wallet_interface.h"
 #include <boost/foreach.hpp>
+#include <boost/regex.h>
+
+const std::string  OpReturnRegexStr = R"(^OP_RETURN\s+(.*)$)";
+const boost::regex OpReturnRegex(OpReturnRegexStr);
 
 void CTransaction::SetNull()
 {
@@ -56,7 +60,93 @@ bool CTransaction::IsCoinStake() const
     return (vin.size() > 0 && (!vin[0].prevout.IsNull()) && vout.size() >= 2 && vout[0].IsEmpty());
 }
 
+bool CTransaction::ContainsOpReturn(std::string* opReturnArg) const
+{
+    boost::smatch opReturnArgMatch;
+
+    for (unsigned long j = 0; j < this->vout.size(); j++) {
+        // if the string OP_RET_STR is found in scriptPubKey
+        std::string scriptPubKeyStr = this->vout[j].scriptPubKey.ToString();
+        if (boost::regex_match(scriptPubKeyStr, opReturnArgMatch, OpReturnRegex)) {
+            if (opReturnArg != nullptr && opReturnArgMatch[1].matched) {
+                *opReturnArg = std::string(opReturnArgMatch[1]);
+                return true;
+            }
+            return true; // could not retrieve OP_RETURN argument
+        }
+    }
+    return false;
+}
+
+bool CTransaction::IsOutputOpRet(unsigned int index, std::string* opReturnArg)
+{
+    boost::smatch opReturnArgMatch;
+
+    // out of range index
+    if (index + 1 >= this->vout.size()) {
+        return false;
+    }
+
+    std::string scriptPubKeyStr = this->vout[index].scriptPubKey.ToString();
+    if (boost::regex_match(scriptPubKeyStr, opReturnArgMatch, OpReturnRegex)) {
+        if (opReturnArg != nullptr && opReturnArgMatch[1].matched) {
+            *opReturnArg = std::string(opReturnArgMatch[1]);
+            return true;
+        }
+        return true; // could not retrieve OP_RETURN argument
+    }
+    return false;
+}
+
+bool CTransaction::IsOutputOpRet(const CTxOut* output, std::string* opReturnArg)
+{
+    if (!output) {
+        return false;
+    }
+
+    boost::smatch opReturnArgMatch;
+
+    std::string scriptPubKeyStr = output->scriptPubKey.ToString();
+    if (boost::regex_match(scriptPubKeyStr, opReturnArgMatch, OpReturnRegex)) {
+        if (opReturnArg != nullptr && opReturnArgMatch[1].matched) {
+            *opReturnArg = std::string(opReturnArgMatch[1]);
+            return true;
+        }
+        return true; // could not retrieve OP_RETURN argument
+    }
+    return false;
+}
+
 bool CTransaction::CheckColdStake(const CScript& script) const
+{
+    // tx is a coinstake tx
+    if (!IsCoinStake())
+        return false;
+
+    if (vin.empty())
+        return false;
+
+    const boost::optional<std::vector<uint8_t>> firstPubKey =
+        vin[0].scriptSig.GetPubKeyOfP2CSScriptSig();
+    if (!firstPubKey)
+        return false; // this is not P2CS
+
+    // all inputs must be P2CS and must be paying to the same pubkey
+    for (unsigned int i = 1; i < vin.size(); i++) {
+        if (vin[i].scriptSig.GetPubKeyOfP2CSScriptSig() != firstPubKey)
+            return false;
+    }
+
+    // all outputs except first (coinstake marker)
+    // have the same pubKeyScript and it matches the script we are spending
+    for (unsigned int i = 1; i < vout.size(); i++)
+        if (vout[i].scriptPubKey != script)
+            return false;
+
+    return true;
+}
+
+bool CTransaction::CheckColdStakeWithGiveaway(const CScript& script) const
 {
     // tx is a coinstake tx
     if (!IsCoinStake())
