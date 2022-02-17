@@ -1913,8 +1913,7 @@ void AddCoinsToInputsSet(const ITxDB& txdb, set<pair<const CWalletTx*, unsigned 
 void CWallet::SetTxNTP1OpRet(CTransaction& wtxNew, const std::shared_ptr<NTP1Script>& script)
 {
 
-    std::string opRetScriptBin = script->calculateScriptBin();
-    std::string opRetScriptHex = boost::algorithm::hex(opRetScriptBin);
+    const std::string opRetScriptBin = script->calculateScriptBin();
 
     // find OP_RETURN output
     auto it = std::find_if(wtxNew.vout.begin(), wtxNew.vout.end(), [](const CTxOut& o) {
@@ -1935,7 +1934,8 @@ void CWallet::SetTxNTP1OpRet(CTransaction& wtxNew, const std::shared_ptr<NTP1Scr
                                  ToString(Params().OpReturnMaxSize(CTxDB())) + " bytes).");
     }
 
-    it->scriptPubKey = CScript() << OP_RETURN << ParseHex(opRetScriptHex);
+    it->scriptPubKey = CScript() << OP_RETURN
+                                 << std::vector<uint8_t>(opRetScriptBin.begin(), opRetScriptBin.end());
 }
 
 void CWallet::SetTxNTP1OpRet(CTransaction&                                       wtxNew,
@@ -1947,7 +1947,7 @@ void CWallet::SetTxNTP1OpRet(CTransaction&                                      
         // no OP_RETURN, no NTP1 outputs
         return;
     }
-    for (NTP1Script::TransferInstruction ti : TIs) {
+    for (const NTP1Script::TransferInstruction& ti : TIs) {
         if (ti.outputIndex > 31) {
             throw std::runtime_error("Invalid output index was reached (" +
                                      std::to_string(ti.outputIndex) +
@@ -2969,8 +2969,8 @@ std::map<CTxDestination, CAmount> CWallet::GetAddressBalances(const ITxDB& txdb)
     {
         const uint256 bestBlockHash = txdb.GetBestBlockHash();
         LOCK(cs_wallet);
-        for (PAIRTYPE(uint256, CWalletTx) walletEntry : mapWallet) {
-            CWalletTx* pcoin = &walletEntry.second;
+        for (const auto& walletEntry : mapWallet) {
+            const CWalletTx* pcoin = &walletEntry.second;
 
             if (!IsFinalTx(*pcoin, txdb) || !pcoin->IsTrusted(txdb, bestBlockHash))
                 continue;
@@ -3012,13 +3012,13 @@ set<set<CTxDestination>> CWallet::GetAddressGroupings(const ITxDB& txdb)
     set<set<CTxDestination>> groupings;
     set<CTxDestination>      grouping;
 
-    for (PAIRTYPE(uint256, CWalletTx) walletEntry : mapWallet) {
-        CWalletTx* pcoin = &walletEntry.second;
+    for (const auto& walletEntry : mapWallet) {
+        const CWalletTx* pcoin = &walletEntry.second;
 
         if (pcoin->vin.size() > 0) {
             bool any_mine = false;
             // group all input addresses with each other
-            for (CTxIn txin : pcoin->vin) {
+            for (const CTxIn& txin : pcoin->vin) {
                 CTxDestination address;
                 if (IsMine(txin) == ISMINE_NO) /* If this input isn't mine, ignore it */
                     continue;
@@ -3032,7 +3032,7 @@ set<set<CTxDestination>> CWallet::GetAddressGroupings(const ITxDB& txdb)
 
             // group change with input addresses
             if (any_mine) {
-                for (CTxOut txout : pcoin->vout)
+                for (const CTxOut& txout : pcoin->vout)
                     if (IsChange(txdb, txout)) {
                         CWalletTx      tx = mapWallet.at(pcoin->vin[0].prevout.hash);
                         CTxDestination txoutAddr;
@@ -3061,11 +3061,11 @@ set<set<CTxDestination>> CWallet::GetAddressGroupings(const ITxDB& txdb)
 
     set<set<CTxDestination>*> uniqueGroupings;        // a set of pointers to groups of addresses
     map<CTxDestination, set<CTxDestination>*> setmap; // map addresses to the unique group containing it
-    for (set<CTxDestination> groupingP : groupings) {
+    for (const set<CTxDestination>& groupingP : groupings) {
         // make a set of all the groups hit by this new group
         set<set<CTxDestination>*>                           hits;
         map<CTxDestination, set<CTxDestination>*>::iterator it;
-        for (CTxDestination address : groupingP)
+        for (const CTxDestination& address : groupingP)
             if ((it = setmap.find(address)) != setmap.end())
                 hits.insert((*it).second);
 
@@ -3079,7 +3079,7 @@ set<set<CTxDestination>> CWallet::GetAddressGroupings(const ITxDB& txdb)
         uniqueGroupings.insert(merged);
 
         // update setmap
-        for (CTxDestination element : *merged)
+        for (const CTxDestination& element : *merged)
             setmap[element] = merged;
     }
 
