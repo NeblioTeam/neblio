@@ -20,8 +20,6 @@
 
 const std::string  NTP1OpReturnRegexStr = R"(^OP_RETURN\s+(4e54(?:01|03)[a-fA-F0-9]*)$)";
 const boost::regex NTP1OpReturnRegex(NTP1OpReturnRegexStr);
-const std::string  OpReturnRegexStr = R"(^OP_RETURN\s+(.*)$)";
-const boost::regex OpReturnRegex(OpReturnRegexStr);
 
 NTP1Transaction::NTP1Transaction() { setNull(); }
 
@@ -363,7 +361,7 @@ void NTP1Transaction::AmendStdTxWithNTP1(
 
     unsigned inputTokenKinds = CountTokenKindsInInputs(tx_, inputs);
 
-    bool txContainsOpReturn = TxContainsOpReturn(&tx_);
+    bool txContainsOpReturn = tx_.ContainsOpReturn();
 
     // if no inputs contain NTP1 AND no OP_RETURN argument exists, then this is a pure NEBL transaction
     // with no NTP1
@@ -849,28 +847,6 @@ NTP1TokenMetaData NTP1Transaction::GetFullNTP1IssuanceMetadata(const ITxDB&   tx
     return GetFullNTP1IssuanceMetadata(tx, ntp1tx);
 }
 
-bool NTP1Transaction::TxContainsOpReturn(const CTransaction* tx, std::string* opReturnArg)
-{
-    if (!tx) {
-        return false;
-    }
-
-    boost::smatch opReturnArgMatch;
-
-    for (unsigned long j = 0; j < tx->vout.size(); j++) {
-        // if the string OP_RET_STR is found in scriptPubKey
-        std::string scriptPubKeyStr = tx->vout[j].scriptPubKey.ToString();
-        if (boost::regex_match(scriptPubKeyStr, opReturnArgMatch, OpReturnRegex)) {
-            if (opReturnArg != nullptr && opReturnArgMatch[1].matched) {
-                *opReturnArg = std::string(opReturnArgMatch[1]);
-                return true;
-            }
-            return true; // could not retrieve OP_RETURN argument
-        }
-    }
-    return false;
-}
-
 std::vector<std::pair<CTransaction, NTP1Transaction>>
 NTP1Transaction::GetAllNTP1InputsOfTx(CTransaction tx, const ITxDB& txdb, bool recoverProtection,
                                       int recursionCount)
@@ -1026,50 +1002,6 @@ bool NTP1Transaction::IsTxOutputNTP1OpRet(const CTransaction* tx, unsigned int i
 
     std::string scriptPubKeyStr = tx->vout[index].scriptPubKey.ToString();
     if (boost::regex_match(scriptPubKeyStr, opReturnArgMatch, NTP1OpReturnRegex)) {
-        if (opReturnArg != nullptr && opReturnArgMatch[1].matched) {
-            *opReturnArg = std::string(opReturnArgMatch[1]);
-            return true;
-        }
-        return true; // could not retrieve OP_RETURN argument
-    }
-    return false;
-}
-
-bool NTP1Transaction::IsTxOutputOpRet(const CTransaction* tx, unsigned int index,
-                                      std::string* opReturnArg)
-{
-    if (!tx) {
-        return false;
-    }
-
-    boost::smatch opReturnArgMatch;
-
-    // out of range index
-    if (index + 1 >= tx->vout.size()) {
-        return false;
-    }
-
-    std::string scriptPubKeyStr = tx->vout[index].scriptPubKey.ToString();
-    if (boost::regex_match(scriptPubKeyStr, opReturnArgMatch, OpReturnRegex)) {
-        if (opReturnArg != nullptr && opReturnArgMatch[1].matched) {
-            *opReturnArg = std::string(opReturnArgMatch[1]);
-            return true;
-        }
-        return true; // could not retrieve OP_RETURN argument
-    }
-    return false;
-}
-
-bool NTP1Transaction::IsTxOutputOpRet(const CTxOut* output, std::string* opReturnArg)
-{
-    if (!output) {
-        return false;
-    }
-
-    boost::smatch opReturnArgMatch;
-
-    std::string scriptPubKeyStr = output->scriptPubKey.ToString();
-    if (boost::regex_match(scriptPubKeyStr, opReturnArgMatch, OpReturnRegex)) {
         if (opReturnArg != nullptr && opReturnArgMatch[1].matched) {
             *opReturnArg = std::string(opReturnArgMatch[1]);
             return true;

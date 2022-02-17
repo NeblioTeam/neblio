@@ -20,8 +20,7 @@
 
 #define DEBUG__INCLUDE_STR_HASH
 
-extern const std::string  NTP1OpReturnRegexStr;
-extern const boost::regex NTP1OpReturnRegex;
+extern const std::string NTP1OpReturnRegexStr;
 
 class CTxOut;
 class CTxIndex;
@@ -168,13 +167,9 @@ public:
     void readNTP1DataFromTx(const ITxDB& txdb, const CTransaction& tx,
                             const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs);
 
-    static bool TxContainsOpReturn(const CTransaction* tx, std::string* opReturnArg = nullptr);
     static bool IsTxNTP1(const CTransaction* tx, std::string* opReturnArg = nullptr);
     static bool IsTxOutputNTP1OpRet(const CTransaction* tx, unsigned int index,
                                     std::string* opReturnArg = nullptr);
-    static bool IsTxOutputOpRet(const CTransaction* tx, unsigned int index,
-                                std::string* opReturnArg = nullptr);
-    static bool IsTxOutputOpRet(const CTxOut* output, std::string* opReturnArg = nullptr);
 
     /** for a certain transaction, retrieve all NTP1 data from the database */
     static std::vector<std::pair<CTransaction, NTP1Transaction>>
