@@ -25,8 +25,6 @@ enum GetMinFee_mode
     GMF_SEND,
 };
 
-extern const boost::regex NTP1OpReturnRegex;
-
 /** The basic transaction that is broadcasted on the network and contained in
  * blocks.  A transaction can contain multiple inputs and outputs.
  */
@@ -87,7 +85,6 @@ public:
 
     bool ContainsOpReturn(std::string* opReturnArg = nullptr) const;
 
-    bool        IsOutputOpRet(unsigned int index, std::string* opReturnArg = nullptr);
     static bool IsOutputOpRet(const CTxOut* output, std::string* opReturnArg = nullptr);
 
     bool CheckColdStake(const CScript& script) const;
