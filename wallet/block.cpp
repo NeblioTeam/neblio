@@ -1187,8 +1187,8 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& block
     {
         const auto hasColdStakingResult = HasColdStaking(txdb);
         if (hasColdStakingResult.isErr()) {
-            return DoS(100,
-                       NLog.error("AcceptBlock() : reject cold-stake at height {} with error", nHeight));
+            return DoS(100, NLog.error("AcceptBlock() : Detecting cold-stake failed for block {}",
+                                       blockHash.ToString()));
         }
 
         if (hasColdStakingResult.unwrap(RESULT_PRE) && !Params().IsColdStakingEnabled(txdb)) {
