@@ -18,9 +18,7 @@
 #include <unordered_map>
 #include <vector>
 
-#define DEBUG__INCLUDE_STR_HASH
-
-extern const std::string NTP1OpReturnRegexStr;
+extern const std::array<uint8_t, 2> NTP1ScriptPrefix;
 
 class CTxOut;
 class CTxIndex;
@@ -42,18 +40,14 @@ bool AreTokenSymbolsEquivalent(std::string lhs, std::string rhs);
  */
 class NTP1Transaction
 {
-    static const int CURRENT_VERSION = 1;
-    int              nVersion;
-    uint256          txHash = 0;
-#ifdef DEBUG__INCLUDE_STR_HASH
-    std::string strHash;
-#endif
-    std::vector<unsigned char> txSerialized;
-    std::vector<NTP1TxIn>      vin;
-    std::vector<NTP1TxOut>     vout;
-    uint64_t                   nLockTime;
-    uint64_t                   nTime;
-    NTP1TransactionType        ntp1TransactionType = NTP1TxType_NOT_NTP1;
+    static const int       CURRENT_VERSION = 1;
+    int                    nVersion;
+    uint256                txHash = 0;
+    std::vector<NTP1TxIn>  vin;
+    std::vector<NTP1TxOut> vout;
+    uint64_t               nLockTime;
+    uint64_t               nTime;
+    NTP1TransactionType    ntp1TransactionType = NTP1TxType_NOT_NTP1;
 
     template <typename ScriptType>
     void __TransferTokens(const ITxDB& txdb, const std::shared_ptr<ScriptType>& scriptPtrD,
@@ -83,8 +77,6 @@ public:
     void                importJsonData(const std::string& data);
     json_spirit::Value  exportDatabaseJsonData() const;
     void                importDatabaseJsonData(const json_spirit::Value& data);
-    void                setHex(const std::string& Hex);
-    std::string         getHex() const;
     uint256             getTxHash() const;
     uint64_t            getLockTime() const;
     uint64_t            getTime() const;
@@ -95,7 +87,6 @@ public:
     NTP1TransactionType getTxType() const;
     std::string         getTokenSymbolIfIssuance() const;
     std::string         getTokenIdIfIssuance(std::string input0txid, unsigned int input0index) const;
-    void                updateDebugStrHash();
     friend inline bool  operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs);
 
     static std::unordered_map<std::string, TokenMinimalData>
@@ -149,11 +140,12 @@ public:
                                    const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputs,
                                    int changeIndex);
 
-    void __manualSet(int NVersion, uint256 TxHash, std::vector<unsigned char> TxSerialized,
-                     std::vector<NTP1TxIn> Vin, std::vector<NTP1TxOut> Vout, uint64_t NLockTime,
-                     uint64_t NTime, NTP1TransactionType Ntp1TransactionType);
+    void __manualSet(int NVersion, uint256 TxHash, std::vector<NTP1TxIn> Vin,
+                     std::vector<NTP1TxOut> Vout, uint64_t NLockTime, uint64_t NTime,
+                     NTP1TransactionType Ntp1TransactionType);
 
-    std::string getNTP1OpReturnScriptHex() const;
+    std::vector<uint8_t> getNTP1OpReturnScript() const;
+    std::string          getNTP1OpReturnScriptHex() const;
 
     /**
      * sets only shallow information from the source transaction (no token information)
@@ -168,8 +160,6 @@ public:
                             const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs);
 
     static bool IsTxNTP1(const CTransaction* tx, std::string* opReturnArg = nullptr);
-    static bool IsTxOutputNTP1OpRet(const CTransaction* tx, unsigned int index,
-                                    std::string* opReturnArg = nullptr);
 
     /** for a certain transaction, retrieve all NTP1 data from the database */
     static std::vector<std::pair<CTransaction, NTP1Transaction>>
@@ -201,9 +191,8 @@ public:
 
 bool operator==(const NTP1Transaction& lhs, const NTP1Transaction& rhs)
 {
-    return (lhs.nVersion == rhs.nVersion && lhs.txHash == rhs.txHash &&
-            lhs.txSerialized == rhs.txSerialized && lhs.vin == rhs.vin && lhs.vout == rhs.vout &&
-            lhs.nLockTime == rhs.nLockTime && lhs.nTime == rhs.nTime &&
+    return (lhs.nVersion == rhs.nVersion && lhs.txHash == rhs.txHash && lhs.vin == rhs.vin &&
+            lhs.vout == rhs.vout && lhs.nLockTime == rhs.nLockTime && lhs.nTime == rhs.nTime &&
             lhs.ntp1TransactionType == rhs.ntp1TransactionType);
 }
 

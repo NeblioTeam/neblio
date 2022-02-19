@@ -192,19 +192,6 @@ TEST(ntp1_tests, parse_NTP1Transaction)
     NTP1Transaction tx_good, tx_nogood;
     EXPECT_NO_THROW(tx_good.importJsonData(tx_str));
     EXPECT_ANY_THROW(tx_nogood.importJsonData(tx_str.substr(0, tx_str.size() - 1)));
-    std::string hex = tx_good.getHex();
-    std::transform(hex.begin(), hex.end(), hex.begin(), ::tolower);
-    EXPECT_EQ(hex, "010000001c4d9e5a0290bed89598211fb5feac9c80f475dc16486ca352d6a40c867a9f6106a3e3334f01"
-                   "0000006b483045022100975208417dc562459a5d65d8996edf7be7e8ba4f6c30a04a345c63a7cefc413b"
-                   "02202068896fca8e916a85c10202e7bad783d756db9d33571cde646113f68aa99a7f012103f4db6a95b4"
-                   "2b695ed59f3584c162e6fdd4e8e5223c2da74938a725ed7b0244a8ffffffff90bed89598211fb5feac9c"
-                   "80f475dc16486ca352d6a40c867a9f6106a3e3334f030000006a47304402200f4123e57d950f434605a8"
-                   "45efce86c06af1d0017691c98f13c3dfe51881ac0802205768dedbe3baaefafd65fd9d67e583cad6c96f"
-                   "deb542d50f40022fef07d87a55012103f4db6a95b42b695ed59f3584c162e6fdd4e8e5223c2da74938a7"
-                   "25ed7b0244a8ffffffff0410270000000000001976a914930b31797c0e6f0d4239909b044aaadfde3719"
-                   "9588ac10270000000000001976a9149e719d5db5e01bb357188f7ab25e336a9c2de11288ac1027000000"
-                   "0000000d6a0b4e54011500201301403e4390a1883b000000001976a9149e719d5db5e01bb357188f7ab2"
-                   "5e336a9c2de11288ac00000000");
     EXPECT_EQ(tx_good.getLockTime(), static_cast<uint64_t>(0));
     EXPECT_EQ(tx_good.getTime(), static_cast<uint64_t>(1520323876000));
     EXPECT_EQ(tx_good.getTxHash().ToString(),
@@ -878,11 +865,10 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
                            std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
     // inputs are not important
-    ntp1txVinA.__manualSet(1,
-                           uint256("1766a9150953392de523f9420a2e32f993bb572e79f465de78ef96831494b347"),
-                           std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
-                           std::vector<NTP1TxOut>{vinA_vout0, vinA_vout1, vinA_vout2, vinA_vout3}, 0,
-                           1520653825000, NTP1TxType_TRANSFER);
+    ntp1txVinA.__manualSet(
+        1, uint256("1766a9150953392de523f9420a2e32f993bb572e79f465de78ef96831494b347"),
+        std::vector<NTP1TxIn>{}, std::vector<NTP1TxOut>{vinA_vout0, vinA_vout1, vinA_vout2, vinA_vout3},
+        0, 1520653825000, NTP1TxType_TRANSFER);
 
     /// Input 1
 
@@ -938,11 +924,10 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
                            std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
     // inputs are not important
-    ntp1txVinB.__manualSet(1,
-                           uint256("111481401fbd842c5aa1b9420db8c5ef7e94d9ac3b3d3b7e2b2cb6c7b0650612"),
-                           std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
-                           std::vector<NTP1TxOut>{vinB_vout0, vinB_vout1, vinB_vout2, vinB_vout3}, 0,
-                           1520653825000, NTP1TxType_TRANSFER);
+    ntp1txVinB.__manualSet(
+        1, uint256("111481401fbd842c5aa1b9420db8c5ef7e94d9ac3b3d3b7e2b2cb6c7b0650612"),
+        std::vector<NTP1TxIn>{}, std::vector<NTP1TxOut>{vinB_vout0, vinB_vout1, vinB_vout2, vinB_vout3},
+        0, 1520653825000, NTP1TxType_TRANSFER);
 
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputs{std::make_pair(txVinA, ntp1txVinA),
                                                                  std::make_pair(txVinB, ntp1txVinB)};
@@ -1073,11 +1058,10 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
                            std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
     // inputs are not important
-    ntp1txVinA.__manualSet(1,
-                           uint256("1766a9150953392de523f9420a2e32f993bb572e79f465de78ef96831494b347"),
-                           std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
-                           std::vector<NTP1TxOut>{vinA_vout0, vinA_vout1, vinA_vout2, vinA_vout3}, 0,
-                           1520653825000, NTP1TxType_TRANSFER);
+    ntp1txVinA.__manualSet(
+        1, uint256("1766a9150953392de523f9420a2e32f993bb572e79f465de78ef96831494b347"),
+        std::vector<NTP1TxIn>{}, std::vector<NTP1TxOut>{vinA_vout0, vinA_vout1, vinA_vout2, vinA_vout3},
+        0, 1520653825000, NTP1TxType_TRANSFER);
 
     /// Input 1
 
@@ -1133,11 +1117,10 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
                            std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
     // inputs are not important
-    ntp1txVinB.__manualSet(1,
-                           uint256("111481401fbd842c5aa1b9420db8c5ef7e94d9ac3b3d3b7e2b2cb6c7b0650612"),
-                           std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
-                           std::vector<NTP1TxOut>{vinB_vout0, vinB_vout1, vinB_vout2, vinB_vout3}, 0,
-                           1520653825000, NTP1TxType_TRANSFER);
+    ntp1txVinB.__manualSet(
+        1, uint256("111481401fbd842c5aa1b9420db8c5ef7e94d9ac3b3d3b7e2b2cb6c7b0650612"),
+        std::vector<NTP1TxIn>{}, std::vector<NTP1TxOut>{vinB_vout0, vinB_vout1, vinB_vout2, vinB_vout3},
+        0, 1520653825000, NTP1TxType_TRANSFER);
 
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputs{std::make_pair(txVinB, ntp1txVinB),
                                                                  std::make_pair(txVinA, ntp1txVinA)};
@@ -1247,11 +1230,10 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
                            std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
     // inputs are not important
-    ntp1txVinA.__manualSet(1,
-                           uint256("c0563ccccee98f68d519bcf9c595e459876c9f6fcfbd046f85e6fc56309735e9"),
-                           std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
-                           std::vector<NTP1TxOut>{vinA_vout0, vinA_vout1, vinA_vout2, vinA_vout3}, 0,
-                           1520653825000, NTP1TxType_TRANSFER);
+    ntp1txVinA.__manualSet(
+        1, uint256("c0563ccccee98f68d519bcf9c595e459876c9f6fcfbd046f85e6fc56309735e9"),
+        std::vector<NTP1TxIn>{}, std::vector<NTP1TxOut>{vinA_vout0, vinA_vout1, vinA_vout2, vinA_vout3},
+        0, 1520653825000, NTP1TxType_TRANSFER);
 
     std::string vinB =
         "010000005764a35a02da1b4ac76bbcee52883fa9dca66badcf26419cbebad3649bad1716b07bfb9b42010000006"
@@ -1305,11 +1287,10 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
                            std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
     // inputs are not important
-    ntp1txVinB.__manualSet(1,
-                           uint256("034849559c1ed8211644c7def3536688ec5766d3a7f7f977f190590d7bb7db05"),
-                           std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
-                           std::vector<NTP1TxOut>{vinB_vout0, vinB_vout1, vinB_vout2, vinB_vout3}, 0,
-                           1520653825000, NTP1TxType_TRANSFER);
+    ntp1txVinB.__manualSet(
+        1, uint256("034849559c1ed8211644c7def3536688ec5766d3a7f7f977f190590d7bb7db05"),
+        std::vector<NTP1TxIn>{}, std::vector<NTP1TxOut>{vinB_vout0, vinB_vout1, vinB_vout2, vinB_vout3},
+        0, 1520653825000, NTP1TxType_TRANSFER);
 
     std::string vinC =
         "010000006066a35a02d5e4c9c957fdfc9a737a22bc0a28d2260476687eb5c9b0b9debc1dd281f84e0f010000006"
@@ -1363,11 +1344,10 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
                            std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
     // inputs are not important
-    ntp1txVinC.__manualSet(1,
-                           uint256("0132cf38f3a298403427e8c3203f030141efff9c0d3a3fb7fef10ab4452771df"),
-                           std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
-                           std::vector<NTP1TxOut>{vinC_vout0, vinC_vout1, vinC_vout2, vinC_vout3}, 0,
-                           1520653825000, NTP1TxType_TRANSFER);
+    ntp1txVinC.__manualSet(
+        1, uint256("0132cf38f3a298403427e8c3203f030141efff9c0d3a3fb7fef10ab4452771df"),
+        std::vector<NTP1TxIn>{}, std::vector<NTP1TxOut>{vinC_vout0, vinC_vout1, vinC_vout2, vinC_vout3},
+        0, 1520653825000, NTP1TxType_TRANSFER);
 
     std::string vinD =
         "01000000c87ba35a028ce101d93f5d2a443f368f91a8eff8c86d13be0779db72d8e6b5d53b051444e4010000006"
@@ -1421,11 +1401,10 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
                            std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
     // inputs are not important
-    ntp1txVinD.__manualSet(1,
-                           uint256("0317c3f20338cd8ea142c389e65670554c676905d2024a58775f695fe88f1298"),
-                           std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
-                           std::vector<NTP1TxOut>{vinD_vout0, vinD_vout1, vinD_vout2, vinD_vout3}, 0,
-                           1520653825000, NTP1TxType_TRANSFER);
+    ntp1txVinD.__manualSet(
+        1, uint256("0317c3f20338cd8ea142c389e65670554c676905d2024a58775f695fe88f1298"),
+        std::vector<NTP1TxIn>{}, std::vector<NTP1TxOut>{vinD_vout0, vinD_vout1, vinD_vout2, vinD_vout3},
+        0, 1520653825000, NTP1TxType_TRANSFER);
 
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputs{
         std::make_pair(txVinA, ntp1txVinA), std::make_pair(txVinB, ntp1txVinB),
@@ -1707,6 +1686,12 @@ void TestNTP1TxParsing(const CTransaction& tx, NetworkType netType)
 
     NTP1Transaction ntp1tx;
     ntp1tx.readNTP1DataFromTx(*dbMock, tx, inputs);
+
+    const std::vector<uint8_t> scriptBin = ntp1tx.getNTP1OpReturnScript();
+    const std::string          scriptHex = ntp1tx.getNTP1OpReturnScriptHex();
+    EXPECT_EQ(scriptHex, boost::algorithm::hex_lower(std::string(scriptBin.cbegin(), scriptBin.cend())));
+    // remove the prefix (in hex) and compare the script and make sure it's the same
+    EXPECT_EQ(scriptHex, OpReturnArg);
 
     EXPECT_EQ(ntp1tx.getTxOutCount(), ntp1tx_ref.getTxOutCount()) << "Failed tx: " << txid;
     for (int i = 0; i < (int)ntp1tx.getTxOutCount(); i++) {
@@ -3030,14 +3015,6 @@ TEST(ntp1_tests, ntp1_metadata_parsing)
     EXPECT_EQ(d1.getIconImageType(), "image/png");
 }
 
-std::string reserialize(const NTP1Transaction& ntp1tx)
-{
-    CDataStream ntp1tx_ds2(SER_NETWORK, PROTOCOL_VERSION);
-    ntp1tx_ds2 << ntp1tx;
-    std::string ntp1tx2 = boost::algorithm::hex(ntp1tx_ds2.str());
-    return ntp1tx2;
-}
-
 TEST(ntp1_tests, ntp1_metadata_parsing_1)
 {
     const std::string tx_hex =
@@ -3094,6 +3071,14 @@ TEST(ntp1_tests, ntp1_metadata_parsing_1)
     EXPECT_EQ(metadataObj.getAggregationPolicy(), "aggregatable");
     EXPECT_EQ(metadataObj.getIssuanceTxId(), tx.GetHash());
     EXPECT_EQ(metadataObj.getTokenId(), "La5hsvMU77nh1M7y7uH9rrrfqd85sTNXLohjMd");
+
+    std::string opReturnArg;
+    ntp1tx.IsTxNTP1(&tx, &opReturnArg);
+    const std::vector<uint8_t> scriptBin = ntp1tx.getNTP1OpReturnScript();
+    const std::string          scriptHex = ntp1tx.getNTP1OpReturnScriptHex();
+    EXPECT_EQ(scriptHex, boost::algorithm::hex_lower(std::string(scriptBin.cbegin(), scriptBin.cend())));
+    // remove the prefix (in hex) and compare the script and make sure it's the same
+    EXPECT_EQ(scriptHex, opReturnArg);
 }
 
 TEST(ntp1_tests, op_return_extraction)
@@ -3185,6 +3170,14 @@ TEST(ntp1_tests, ntp1_metadata_parsing_2)
     EXPECT_EQ(metadataObj.getAggregationPolicy(), "aggregatable");
     EXPECT_EQ(metadataObj.getIssuanceTxId(), tx.GetHash());
     EXPECT_EQ(metadataObj.getTokenId(), "La3NzpGLMZz7QQXx3ExHrrnGgPaXEAQc2wBEjz");
+
+    std::string opReturnArg;
+    ntp1tx.IsTxNTP1(&tx, &opReturnArg);
+    const std::vector<uint8_t> scriptBin = ntp1tx.getNTP1OpReturnScript();
+    const std::string          scriptHex = ntp1tx.getNTP1OpReturnScriptHex();
+    EXPECT_EQ(scriptHex, boost::algorithm::hex_lower(std::string(scriptBin.cbegin(), scriptBin.cend())));
+    // remove the prefix (in hex) and compare the script and make sure it's the same
+    EXPECT_EQ(scriptHex, opReturnArg);
 }
 
 TEST(ntp1_tests, ntp1_metadata_parsing_3)
@@ -3281,6 +3274,14 @@ TEST(ntp1_tests, ntp1_metadata_parsing_3)
     EXPECT_EQ(metadataObj.getAggregationPolicy(), "aggregatable");
     EXPECT_EQ(metadataObj.getIssuanceTxId(), tx.GetHash());
     EXPECT_EQ(metadataObj.getTokenId(), "La4YygP6o8Uszwj2Vmc4WGKn8NGCiswZfpsGdJ");
+
+    std::string opReturnArg;
+    ntp1tx.IsTxNTP1(&tx, &opReturnArg);
+    const std::vector<uint8_t> scriptBin = ntp1tx.getNTP1OpReturnScript();
+    const std::string          scriptHex = ntp1tx.getNTP1OpReturnScriptHex();
+    EXPECT_EQ(scriptHex, boost::algorithm::hex_lower(std::string(scriptBin.cbegin(), scriptBin.cend())));
+    // remove the prefix (in hex) and compare the script and make sure it's the same
+    EXPECT_EQ(scriptHex, opReturnArg);
 }
 
 TEST(ntp1_tests, ntp1_metadata_parsing_4)
@@ -3381,6 +3382,14 @@ TEST(ntp1_tests, ntp1_metadata_parsing_5)
     EXPECT_EQ(metadataObj.getAggregationPolicy(), "aggregatable");
     EXPECT_EQ(metadataObj.getIssuanceTxId(), tx.GetHash());
     EXPECT_EQ(metadataObj.getTokenId(), "La3t57xN4xA2jtgnzLW6HbviPZDgdTU1mvP6Yk");
+
+    std::string opReturnArg;
+    ntp1tx.IsTxNTP1(&tx, &opReturnArg);
+    const std::vector<uint8_t> scriptBin = ntp1tx.getNTP1OpReturnScript();
+    const std::string          scriptHex = ntp1tx.getNTP1OpReturnScriptHex();
+    EXPECT_EQ(scriptHex, boost::algorithm::hex_lower(std::string(scriptBin.cbegin(), scriptBin.cend())));
+    // remove the prefix (in hex) and compare the script and make sure it's the same
+    EXPECT_EQ(scriptHex, opReturnArg);
 }
 
 TEST(ntp1_tests, ntp1_metadata_parsing_6)
@@ -3439,6 +3448,14 @@ TEST(ntp1_tests, ntp1_metadata_parsing_6)
     EXPECT_EQ(metadataObj.getAggregationPolicy(), "aggregatable");
     EXPECT_EQ(metadataObj.getIssuanceTxId(), tx.GetHash());
     EXPECT_EQ(metadataObj.getTokenId(), "La3rtBsLSMCLw4vtoE8YXyPCEmnNkmLe2Z2EaK");
+
+    std::string opReturnArg;
+    ntp1tx.IsTxNTP1(&tx, &opReturnArg);
+    const std::vector<uint8_t> scriptBin = ntp1tx.getNTP1OpReturnScript();
+    const std::string          scriptHex = ntp1tx.getNTP1OpReturnScriptHex();
+    EXPECT_EQ(scriptHex, boost::algorithm::hex_lower(std::string(scriptBin.cbegin(), scriptBin.cend())));
+    // remove the prefix (in hex) and compare the script and make sure it's the same
+    EXPECT_EQ(scriptHex, opReturnArg);
 }
 
 TEST(ntp1_tests, ntp1_metadata_parsing_7)
@@ -3576,8 +3593,6 @@ TEST(ntp1_tests, ntp1_metadata_parsing_7)
     tx_ds >> tx;
     ntp1tx_ds >> ntp1tx;
 
-    std::cout << reserialize(ntp1tx) << std::endl;
-
     NTP1TokenMetaData metadataObj = NTP1Transaction::GetFullNTP1IssuanceMetadata(tx, ntp1tx);
 
     EXPECT_EQ(metadataObj.getTokenName(), "T42");
@@ -3593,6 +3608,14 @@ TEST(ntp1_tests, ntp1_metadata_parsing_7)
     EXPECT_EQ(metadataObj.getAggregationPolicy(), "aggregatable");
     EXPECT_EQ(metadataObj.getIssuanceTxId(), tx.GetHash());
     EXPECT_EQ(metadataObj.getTokenId(), "La8hreGMQjDmbhbC7assHJBvSBFS9dh7BRQMy3");
+
+    std::string opReturnArg;
+    ntp1tx.IsTxNTP1(&tx, &opReturnArg);
+    const std::vector<uint8_t> scriptBin = ntp1tx.getNTP1OpReturnScript();
+    const std::string          scriptHex = ntp1tx.getNTP1OpReturnScriptHex();
+    EXPECT_EQ(scriptHex, boost::algorithm::hex_lower(std::string(scriptBin.cbegin(), scriptBin.cend())));
+    // remove the prefix (in hex) and compare the script and make sure it's the same
+    EXPECT_EQ(scriptHex, opReturnArg);
 }
 
 TEST(ntp1_tests, ntp1_metadata_parsing_8)
@@ -3643,6 +3666,14 @@ TEST(ntp1_tests, ntp1_metadata_parsing_8)
     EXPECT_EQ(metadataObj.getAggregationPolicy(), "aggregatable");
     EXPECT_EQ(metadataObj.getIssuanceTxId(), tx.GetHash());
     EXPECT_EQ(metadataObj.getTokenId(), "La37utZFe8P1fPc789szDp2QL7TMC7hyWERxr5");
+
+    std::string opReturnArg;
+    ntp1tx.IsTxNTP1(&tx, &opReturnArg);
+    const std::vector<uint8_t> scriptBin = ntp1tx.getNTP1OpReturnScript();
+    const std::string          scriptHex = ntp1tx.getNTP1OpReturnScriptHex();
+    EXPECT_EQ(scriptHex, boost::algorithm::hex_lower(std::string(scriptBin.cbegin(), scriptBin.cend())));
+    // remove the prefix (in hex) and compare the script and make sure it's the same
+    EXPECT_EQ(scriptHex, opReturnArg);
 }
 
 // TEST(ntp1_tests, total_fee_calculator)
