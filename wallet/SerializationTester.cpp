@@ -503,9 +503,8 @@ void RunCrossPlatformSerializationTests()
     }
 
     NTP1Transaction ntp1Transaction;
-    ntp1Transaction.__manualSet(0x12345678, uint256v, {'a', 'b', 'c', 'd', 'e', 'f'}, {ntp1TxIn},
-                                {ntp1TxOut}, 0x1234567813572468, 0x1234567813572468,
-                                NTP1TxType_TRANSFER);
+    ntp1Transaction.__manualSet(0x12345678, uint256v, {ntp1TxIn}, {ntp1TxOut}, 0x1234567813572468,
+                                0x1234567813572468, NTP1TxType_TRANSFER);
     {
         CDataStream ss(SER_DISK, 0);
         ss << ntp1Transaction;
