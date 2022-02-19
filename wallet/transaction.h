@@ -202,6 +202,8 @@ public:
     [[nodiscard]] static boost::optional<CKey> GetPublicKeyFromScriptSig(const CScript& scriptSig);
     [[nodiscard]] static boost::optional<CKey> GetOnePublicKeyFromInputs(const CTransaction& tx);
 
+    static std::vector<uint8_t> ExtractOpRetData(const CScript& scriptPubKey);
+
 protected:
     const CTxOut& GetOutputFor(const CTxIn& input, const MapPrevTx& inputs) const;
 };

@@ -91,7 +91,7 @@ bool CTransaction::ContainsOpReturn(std::string* opReturnArg) const
     return false;
 }
 
-std::vector<uint8_t> GetOpRetData(const CScript& scriptPubKey)
+std::vector<uint8_t> CTransaction::ExtractOpRetData(const CScript& scriptPubKey)
 {
     if (scriptPubKey.size() < 3) {
         return {};
@@ -116,9 +116,8 @@ bool CTransaction::IsOutputOpRet(const CTxOut* output, std::string* opReturnArg)
     const CScript& scriptPubKey = output->scriptPubKey;
     if (scriptPubKey.size() > 2 && scriptPubKey.at(0) == OP_RETURN) {
         if (opReturnArg != nullptr) {
-            const std::vector<uint8_t> opRetData = GetOpRetData(scriptPubKey);
-            *opReturnArg = boost::algorithm::hex(std::string(opRetData.begin(), opRetData.end()));
-            std::transform(opReturnArg->begin(), opReturnArg->end(), opReturnArg->begin(), ::tolower);
+            const std::vector<uint8_t> opRetData = ExtractOpRetData(scriptPubKey);
+            *opReturnArg = boost::algorithm::hex_lower(std::string(opRetData.begin(), opRetData.end()));
         }
         return true;
     }
