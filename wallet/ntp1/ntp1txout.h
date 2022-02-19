@@ -52,10 +52,10 @@ public:
     void                   setScriptPubKey(const CScript& value);
     void                   __addToken(const NTP1TokenTxData& token);
 
-    void __manualSet(int64_t NValue, CScript ScriptPubKey, std::vector<NTP1TokenTxData> Tokens,
-                     std::string Address);
-    void __manualSet(int64_t NValue, std::string ScriptPubKeyHex, std::vector<NTP1TokenTxData> Tokens,
-                     std::string Address);
+    void __manualSet(int64_t NValue, const CScript& ScriptPubKey,
+                     const std::vector<NTP1TokenTxData>& Tokens, const std::string& Address);
+    void __manualSet(int64_t NValue, const std::string& ScriptPubKeyHex,
+                     const std::vector<NTP1TokenTxData>& Tokens, const std::string& Address);
 
     // clang-format off
     IMPLEMENT_SERIALIZE(

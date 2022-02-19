@@ -22,8 +22,8 @@ typename NTP1TxOut::OutputType NTP1TxOut::getType() const
 
 std::string NTP1TxOut::getScriptPubKeyAsm() const { return scriptPubKey.ToString(); }
 
-void NTP1TxOut::__manualSet(int64_t NValue, CScript ScriptPubKey, std::vector<NTP1TokenTxData> Tokens,
-                            std::string Address)
+void NTP1TxOut::__manualSet(int64_t NValue, const CScript& ScriptPubKey,
+                            const std::vector<NTP1TokenTxData>& Tokens, const std::string& Address)
 {
     nValue       = NValue;
     scriptPubKey = ScriptPubKey;
@@ -31,8 +31,8 @@ void NTP1TxOut::__manualSet(int64_t NValue, CScript ScriptPubKey, std::vector<NT
     address      = Address;
 }
 
-void NTP1TxOut::__manualSet(int64_t NValue, std::string ScriptPubKeyHex,
-                            std::vector<NTP1TokenTxData> Tokens, std::string Address)
+void NTP1TxOut::__manualSet(int64_t NValue, const std::string& ScriptPubKeyHex,
+                            const std::vector<NTP1TokenTxData>& Tokens, const std::string& Address)
 {
     const std::string scriptPubKeyBin = boost::algorithm::unhex(ScriptPubKeyHex);
     scriptPubKey.clear();
