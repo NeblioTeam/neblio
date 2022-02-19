@@ -353,15 +353,16 @@ NTP1Script::ParseNTP1v3TransferInstructionsFromLongEnoughString(
 std::shared_ptr<NTP1Script> NTP1Script::ParseScriptHex(const std::string& scriptHex)
 {
     try {
-        const std::string scriptBin = boost::algorithm::unhex(scriptHex);
+        const std::vector<uint8_t> scriptBin = ParseHex(scriptHex);
         return ParseScriptBin(scriptBin);
     } catch (std::exception& ex) {
         throw std::runtime_error("Unable to parse hex script: " + scriptHex + "; reason: " + ex.what());
     }
 }
 
-std::shared_ptr<NTP1Script> NTP1Script::ParseScriptBin(std::string scriptBin)
+std::shared_ptr<NTP1Script> NTP1Script::ParseScriptBin(const std::vector<uint8_t>& scriptBin_)
 {
+    std::string       scriptBin(scriptBin_.begin(), scriptBin_.end());
     const std::string scriptHex = boost::algorithm::hex(scriptBin);
     try {
         if (scriptBin.size() < 3) {

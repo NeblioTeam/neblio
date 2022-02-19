@@ -2263,11 +2263,11 @@ TEST(ntp1_tests, amend_tx_1)
     EXPECT_EQ(tx.vout.size(), 4u);
     EXPECT_EQ(tx.vout[0], out0);
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue, out1.nValue);
-    std::string opRetArg;
+    std::vector<uint8_t> opRetArg;
     EXPECT_TRUE(tx.ContainsOpReturn(&opRetArg));
-    EXPECT_EQ(opRetArg, "4e54031001032051");
+    EXPECT_EQ(opRetArg, ParseHex("4e54031001032051"));
 
-    auto scriptPtr  = NTP1Script::ParseScriptHex(opRetArg);
+    auto scriptPtr  = NTP1Script::ParseScriptBin(opRetArg);
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
     EXPECT_NE(scriptPtrD, nullptr);
 
@@ -2345,11 +2345,11 @@ TEST(ntp1_tests, amend_tx_3)
     EXPECT_EQ(tx.vout.size(), 4u);
     EXPECT_EQ(tx.vout[0], out0);
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue, out1.nValue);
-    std::string opRetArg;
+    std::vector<uint8_t> opRetArg;
     EXPECT_TRUE(tx.ContainsOpReturn(&opRetArg));
-    EXPECT_EQ(opRetArg, "4e54031001032051");
+    EXPECT_EQ(opRetArg, ParseHex("4e54031001032051"));
 
-    auto scriptPtr  = NTP1Script::ParseScriptHex(opRetArg);
+    auto scriptPtr  = NTP1Script::ParseScriptBin(opRetArg);
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
     EXPECT_NE(scriptPtrD, nullptr);
 
@@ -2397,11 +2397,11 @@ TEST(ntp1_tests, amend_tx_4)
     EXPECT_EQ(tx.vout[0], out0);
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue + tx.vout[4].nValue,
               out1.nValue);
-    std::string opRetArg;
+    std::vector<uint8_t> opRetArg;
     EXPECT_TRUE(tx.ContainsOpReturn(&opRetArg));
-    EXPECT_EQ(opRetArg, "4e54031002032051042041");
+    EXPECT_EQ(opRetArg, ParseHex("4e54031002032051042041"));
 
-    auto scriptPtr  = NTP1Script::ParseScriptHex(opRetArg);
+    auto scriptPtr  = NTP1Script::ParseScriptBin(opRetArg);
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
     EXPECT_NE(scriptPtrD, nullptr);
 
@@ -2458,11 +2458,11 @@ TEST(ntp1_tests, amend_tx_5)
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue + tx.vout[4].nValue +
                   tx.vout[5].nValue + tx.vout[6].nValue + tx.vout[7].nValue,
               out1.nValue);
-    std::string opRetArg;
+    std::vector<uint8_t> opRetArg;
     EXPECT_TRUE(tx.ContainsOpReturn(&opRetArg));
-    EXPECT_EQ(opRetArg, "4e540310050320510420410520e20638b10719");
+    EXPECT_EQ(opRetArg, ParseHex("4e540310050320510420410520e20638b10719"));
 
-    auto scriptPtr  = NTP1Script::ParseScriptHex(opRetArg);
+    auto scriptPtr  = NTP1Script::ParseScriptBin(opRetArg);
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
     EXPECT_NE(scriptPtrD, nullptr);
 
@@ -2532,11 +2532,11 @@ TEST(ntp1_tests, amend_tx_6)
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue + tx.vout[4].nValue +
                   tx.vout[5].nValue + tx.vout[6].nValue + tx.vout[7].nValue,
               out1.nValue);
-    std::string opRetArg;
+    std::vector<uint8_t> opRetArg;
     EXPECT_TRUE(tx.ContainsOpReturn(&opRetArg));
-    EXPECT_EQ(opRetArg, "4e540310050320510420410520e20638b10719");
+    EXPECT_EQ(opRetArg, ParseHex("4e540310050320510420410520e20638b10719"));
 
-    auto scriptPtr  = NTP1Script::ParseScriptHex(opRetArg);
+    auto scriptPtr  = NTP1Script::ParseScriptBin(opRetArg);
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
     EXPECT_NE(scriptPtrD, nullptr);
 
@@ -3101,24 +3101,26 @@ TEST(ntp1_tests, op_return_extraction)
     tx_ds >> tx;
 
     {
-        std::string opRet;
+        std::vector<uint8_t> opRet;
         EXPECT_TRUE(tx.ContainsOpReturn(&opRet));
-        EXPECT_EQ(opRet,
-                  "4e5403015433362020201601002016f000000054789cab564a492c4954b2aa562ac9cf4ecdf34bcc4d"
-                  "55b2520a313653d2514a492d4e2eca2c28c9cccf838b65161797a61601b97ea9493999f921a989b940"
-                  "d1d2e2d42217a839b9a9203a3ab6b6b6160084931e9a");
+        EXPECT_EQ(
+            opRet,
+            ParseHex("4e5403015433362020201601002016f000000054789cab564a492c4954b2aa562ac9cf4ecdf34bcc4d"
+                     "55b2520a313653d2514a492d4e2eca2c28c9cccf838b65161797a61601b97ea9493999f921a989b940"
+                     "d1d2e2d42217a839b9a9203a3ab6b6b6160084931e9a"));
     }
 
     {
         EXPECT_FALSE(CTransaction::IsOutputOpRet(&tx.vout[0]));
         EXPECT_FALSE(CTransaction::IsOutputOpRet(&tx.vout[2]));
 
-        std::string opRet;
+        std::vector<uint8_t> opRet;
         EXPECT_TRUE(CTransaction::IsOutputOpRet(&tx.vout[1], &opRet));
-        EXPECT_EQ(opRet,
-                  "4e5403015433362020201601002016f000000054789cab564a492c4954b2aa562ac9cf4ecdf34bcc4d"
-                  "55b2520a313653d2514a492d4e2eca2c28c9cccf838b65161797a61601b97ea9493999f921a989b940"
-                  "d1d2e2d42217a839b9a9203a3ab6b6b6160084931e9a");
+        EXPECT_EQ(
+            opRet,
+            ParseHex("4e5403015433362020201601002016f000000054789cab564a492c4954b2aa562ac9cf4ecdf34bcc4d"
+                     "55b2520a313653d2514a492d4e2eca2c28c9cccf838b65161797a61601b97ea9493999f921a989b940"
+                     "d1d2e2d42217a839b9a9203a3ab6b6b6160084931e9a"));
     }
 }
 
