@@ -69,19 +69,19 @@ bool CTransaction::IsColdCoinStake() const
     return false;
 }
 
-boost::optional<std::string> CTransaction::GetColdStakeCmd() const
+boost::optional<std::vector<uint8_t>> CTransaction::GetColdStakeCmd() const
 {
     if (!IsColdCoinStake())
         return boost::none;
 
-    std::string opRet;
+    std::vector<uint8_t> opRet;
     if (ContainsOpReturn(&opRet)) {
         return boost::make_optional(std::move(opRet));
     }
     return boost::none;
 }
 
-bool CTransaction::ContainsOpReturn(std::string* opReturnArg) const
+bool CTransaction::ContainsOpReturn(std::vector<uint8_t>* opReturnArg) const
 {
     for (unsigned long j = 0; j < this->vout.size(); j++) {
         if (IsOutputOpRet(&vout[j], opReturnArg)) {
@@ -107,7 +107,7 @@ std::vector<uint8_t> CTransaction::ExtractOpRetData(const CScript& scriptPubKey)
     return res;
 }
 
-bool CTransaction::IsOutputOpRet(const CTxOut* output, std::string* opReturnArg)
+bool CTransaction::IsOutputOpRet(const CTxOut* output, std::vector<uint8_t>* opReturnArg)
 {
     if (!output) {
         return false;
@@ -116,8 +116,7 @@ bool CTransaction::IsOutputOpRet(const CTxOut* output, std::string* opReturnArg)
     const CScript& scriptPubKey = output->scriptPubKey;
     if (scriptPubKey.size() > 2 && scriptPubKey.at(0) == OP_RETURN) {
         if (opReturnArg != nullptr) {
-            const std::vector<uint8_t> opRetData = ExtractOpRetData(scriptPubKey);
-            *opReturnArg = boost::algorithm::hex_lower(std::string(opRetData.begin(), opRetData.end()));
+            *opReturnArg = ExtractOpRetData(scriptPubKey);
         }
         return true;
     }
@@ -162,7 +161,7 @@ bool CTransaction::CheckColdStakeWithGiveaway(const CScript& script) const
     if (vin.empty())
         return false;
 
-    std::string opRet;
+    std::vector<uint8_t> opRet;
     if (!this->ContainsOpReturn(&opRet))
         return false;
 

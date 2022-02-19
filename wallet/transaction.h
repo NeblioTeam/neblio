@@ -83,9 +83,9 @@ public:
 
     bool IsCoinBase() const { return (vin.size() == 1 && vin[0].prevout.IsNull() && vout.size() >= 1); }
 
-    bool ContainsOpReturn(std::string* opReturnArg = nullptr) const;
+    bool ContainsOpReturn(std::vector<uint8_t>* opReturnArg = nullptr) const;
 
-    static bool IsOutputOpRet(const CTxOut* output, std::string* opReturnArg = nullptr);
+    static bool IsOutputOpRet(const CTxOut* output, std::vector<uint8_t>* opReturnArg = nullptr);
 
     bool CheckColdStake(const CScript& script) const;
 
@@ -95,7 +95,7 @@ public:
 
     bool IsColdCoinStake() const;
 
-    boost::optional<std::string> GetColdStakeCmd() const;
+    boost::optional<std::vector<uint8_t>> GetColdStakeCmd() const;
 
     bool HasP2CSOutputs() const;
 
