@@ -510,7 +510,7 @@ std::string NTP1Transaction::getNTP1OpReturnScriptHex() const
     std::string   opReturnArg;
 
     for (unsigned long j = 0; j < vout.size(); j++) {
-        std::string scriptPubKeyStr = vout[j].scriptPubKeyAsm;
+        std::string scriptPubKeyStr = vout[j].scriptPubKey.ToString();
         if (boost::regex_match(scriptPubKeyStr, opReturnArgMatch, NTP1OpReturnRegex)) {
             if (opReturnArgMatch[1].matched) {
                 opReturnArg = std::string(opReturnArgMatch[1]);
@@ -541,11 +541,8 @@ void NTP1Transaction::readNTP1DataFromTx_minimal(const ITxDB& txdb, const CTrans
     vout.clear();
     vout.resize(tx.vout.size());
     for (int i = 0; i < (int)tx.vout.size(); i++) {
-        vout[i].nValue = tx.vout[i].nValue;
-        vout[i].scriptPubKeyHex.clear();
-        boost::algorithm::hex(tx.vout[i].scriptPubKey.begin(), tx.vout[i].scriptPubKey.end(),
-                              std::back_inserter(vout[i].scriptPubKeyHex));
-        vout[i].scriptPubKeyAsm = tx.vout[i].scriptPubKey.ToString();
+        vout[i].nValue       = tx.vout[i].nValue;
+        vout[i].scriptPubKey = tx.vout[i].scriptPubKey;
         CTxDestination dest;
         if (ExtractDestination(txdb, tx.vout[i].scriptPubKey, dest)) {
             vout[i].setAddress(CBitcoinAddress(dest).ToString());

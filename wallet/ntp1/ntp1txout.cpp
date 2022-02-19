@@ -9,9 +9,9 @@ void NTP1TxOut::setAddress(const std::string& Address) { address = Address; }
 typename NTP1TxOut::OutputType NTP1TxOut::getType() const
 {
     NTP1TxOut::OutputType type;
-    if (scriptPubKeyAsm.empty()) {
+    if (scriptPubKey.empty()) {
         type = OutputType::NonStandard;
-    } else if (scriptPubKeyAsm.find("OP_RETURN") != std::string::npos) {
+    } else if (scriptPubKey[0] == OP_RETURN) {
         type = OutputType::OPReturn;
     } else {
         type = OutputType::NormalOutput;
@@ -20,38 +20,47 @@ typename NTP1TxOut::OutputType NTP1TxOut::getType() const
     return type;
 }
 
-std::string NTP1TxOut::getScriptPubKeyAsm() const { return scriptPubKeyAsm; }
+std::string NTP1TxOut::getScriptPubKeyAsm() const { return scriptPubKey.ToString(); }
 
-void NTP1TxOut::__manualSet(int64_t NValue, std::string ScriptPubKeyHex, std::string ScriptPubKeyAsm,
+void NTP1TxOut::__manualSet(int64_t NValue, CScript ScriptPubKey, std::vector<NTP1TokenTxData> Tokens,
+                            std::string Address)
+{
+    nValue       = NValue;
+    scriptPubKey = ScriptPubKey;
+    tokens       = Tokens;
+    address      = Address;
+}
+
+void NTP1TxOut::__manualSet(int64_t NValue, std::string ScriptPubKeyHex,
                             std::vector<NTP1TokenTxData> Tokens, std::string Address)
 {
-    nValue          = NValue;
-    scriptPubKeyHex = ScriptPubKeyHex;
-    scriptPubKeyAsm = ScriptPubKeyAsm;
-    tokens          = Tokens;
-    address         = Address;
+    const std::string scriptPubKeyBin = boost::algorithm::unhex(ScriptPubKeyHex);
+    scriptPubKey.clear();
+    std::copy(scriptPubKeyBin.begin(), scriptPubKeyBin.end(), std::back_inserter(scriptPubKey));
+
+    nValue  = NValue;
+    tokens  = Tokens;
+    address = Address;
 }
 
 void NTP1TxOut::setNValue(const int64_t& value) { nValue = value; }
 
-void NTP1TxOut::setScriptPubKeyHex(const std::string& value) { scriptPubKeyHex = value; }
-
-void NTP1TxOut::setScriptPubKeyAsm(const std::string& value) { scriptPubKeyAsm = value; }
+void NTP1TxOut::setScriptPubKey(const CScript& value) { scriptPubKey = value; }
 
 void NTP1TxOut::__addToken(const NTP1TokenTxData& token) { tokens.push_back(token); }
 
 NTP1TxOut::NTP1TxOut() { setNull(); }
 
-NTP1TxOut::NTP1TxOut(int64_t nValueIn, const std::string& scriptPubKeyIn)
+NTP1TxOut::NTP1TxOut(int64_t nValueIn, const CScript& scriptPubKeyIn)
 {
-    nValue          = nValueIn;
-    scriptPubKeyHex = scriptPubKeyIn;
+    nValue       = nValueIn;
+    scriptPubKey = scriptPubKeyIn;
 }
 
 void NTP1TxOut::setNull()
 {
     nValue = -1;
-    scriptPubKeyHex.clear();
+    scriptPubKey.clear();
     tokens.clear();
 }
 
@@ -75,8 +84,12 @@ void NTP1TxOut::importJsonData(const json_spirit::Value& parsedData)
         nValue = NTP1Tools::GetUint64Field(parsedData.get_obj(), "value");
         json_spirit::Object scriptPubKeyJsonObj =
             NTP1Tools::GetObjectField(parsedData.get_obj(), "scriptPubKey");
-        scriptPubKeyHex = NTP1Tools::GetStrField(scriptPubKeyJsonObj, "hex");
-        scriptPubKeyAsm = NTP1Tools::GetStrField(scriptPubKeyJsonObj, "asm");
+
+        std::string scriptPubKeyBin =
+            boost::algorithm::unhex(NTP1Tools::GetStrField(scriptPubKeyJsonObj, "hex"));
+        scriptPubKey.clear();
+        std::copy(scriptPubKeyBin.begin(), scriptPubKeyBin.end(), std::back_inserter(scriptPubKey));
+
         if (getType() == OutputType::NormalOutput) {
             json_spirit::Array addresses = NTP1Tools::GetArrayField(scriptPubKeyJsonObj, "addresses");
             if (addresses.size() != 1) {
@@ -105,8 +118,9 @@ json_spirit::Value NTP1TxOut::exportDatabaseJsonData() const
     json_spirit::Object root;
 
     root.push_back(json_spirit::Pair("value", nValue));
-    root.push_back(json_spirit::Pair("scriptPubKey", scriptPubKeyHex));
-    root.push_back(json_spirit::Pair("scriptPubKeyAsm", scriptPubKeyAsm));
+    root.push_back(json_spirit::Pair("scriptPubKey", boost::algorithm::hex_lower(std::string(
+                                                         scriptPubKey.begin(), scriptPubKey.end()))));
+    root.push_back(json_spirit::Pair("scriptPubKeyAsm", scriptPubKey.ToString()));
     root.push_back(json_spirit::Pair("address", address));
     json_spirit::Array tokensArray;
     for (long i = 0; i < static_cast<long>(tokens.size()); i++) {
@@ -121,9 +135,13 @@ void NTP1TxOut::importDatabaseJsonData(const json_spirit::Value& data)
 {
     setNull();
 
-    nValue                         = NTP1Tools::GetUint64Field(data.get_obj(), "value");
-    scriptPubKeyHex                = NTP1Tools::GetStrField(data.get_obj(), "scriptPubKey");
-    scriptPubKeyAsm                = NTP1Tools::GetStrField(data.get_obj(), "scriptPubKeyAsm");
+    nValue = NTP1Tools::GetUint64Field(data.get_obj(), "value");
+
+    std::string scriptPubKeyBin =
+        boost::algorithm::unhex(NTP1Tools::GetStrField(data.get_obj(), "scriptPubKey"));
+    scriptPubKey.clear();
+    std::copy(scriptPubKeyBin.begin(), scriptPubKeyBin.end(), std::back_inserter(scriptPubKey));
+
     address                        = NTP1Tools::GetStrField(data.get_obj(), "address");
     json_spirit::Array tokens_list = NTP1Tools::GetArrayField(data.get_obj(), "tokens");
     tokens.clear();
@@ -135,7 +153,10 @@ void NTP1TxOut::importDatabaseJsonData(const json_spirit::Value& data)
 
 int64_t NTP1TxOut::getValue() const { return nValue; }
 
-const std::string& NTP1TxOut::getScriptPubKeyHex() const { return scriptPubKeyHex; }
+std::string NTP1TxOut::getScriptPubKeyHex() const
+{
+    return boost::algorithm::hex_lower(std::string(scriptPubKey.begin(), scriptPubKey.end()));
+}
 
 const NTP1TokenTxData& NTP1TxOut::getToken(unsigned long index) const { return tokens[index]; }
 
