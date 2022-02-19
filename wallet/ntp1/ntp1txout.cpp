@@ -118,8 +118,7 @@ json_spirit::Value NTP1TxOut::exportDatabaseJsonData() const
     json_spirit::Object root;
 
     root.push_back(json_spirit::Pair("value", nValue));
-    root.push_back(json_spirit::Pair("scriptPubKey", boost::algorithm::hex_lower(std::string(
-                                                         scriptPubKey.begin(), scriptPubKey.end()))));
+    root.push_back(json_spirit::Pair("scriptPubKey", ToHex(scriptPubKey)));
     root.push_back(json_spirit::Pair("scriptPubKeyAsm", scriptPubKey.ToString()));
     root.push_back(json_spirit::Pair("address", address));
     json_spirit::Array tokensArray;
@@ -153,10 +152,7 @@ void NTP1TxOut::importDatabaseJsonData(const json_spirit::Value& data)
 
 int64_t NTP1TxOut::getValue() const { return nValue; }
 
-std::string NTP1TxOut::getScriptPubKeyHex() const
-{
-    return boost::algorithm::hex_lower(std::string(scriptPubKey.begin(), scriptPubKey.end()));
-}
+std::string NTP1TxOut::getScriptPubKeyHex() const { return ToHex(scriptPubKey); }
 
 const NTP1TokenTxData& NTP1TxOut::getToken(unsigned long index) const { return tokens[index]; }
 

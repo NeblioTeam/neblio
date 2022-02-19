@@ -1458,3 +1458,13 @@ bool ParseFixedPoint(const std::string& val, int decimals, int64_t* amount_out)
 int64_t GetStartupTime() { return nStartupTime; }
 
 void gen_random_bytes(void* const buf, const size_t size) { randombytes_buf(buf, size); }
+
+string ToHex(const std::vector<uint8_t>& data, bool lowercase)
+{
+    std::string result;
+    boost::algorithm::hex(data.begin(), data.end(), std::back_inserter(result));
+    if (lowercase) {
+        std::transform(result.begin(), result.end(), result.begin(), ::tolower);
+    }
+    return result;
+}

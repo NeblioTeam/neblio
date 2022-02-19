@@ -1689,7 +1689,7 @@ void TestNTP1TxParsing(const CTransaction& tx, NetworkType netType)
 
     const std::vector<uint8_t> scriptBin = ntp1tx.getNTP1OpReturnScript();
     const std::string          scriptHex = ntp1tx.getNTP1OpReturnScriptHex();
-    EXPECT_EQ(scriptHex, boost::algorithm::hex_lower(std::string(scriptBin.cbegin(), scriptBin.cend())));
+    EXPECT_EQ(scriptHex, ToHex(scriptBin));
     // remove the prefix (in hex) and compare the script and make sure it's the same
     EXPECT_EQ(scriptHex, OpReturnArg);
 
@@ -3076,7 +3076,7 @@ TEST(ntp1_tests, ntp1_metadata_parsing_1)
     ntp1tx.IsTxNTP1(&tx, &opReturnArg);
     const std::vector<uint8_t> scriptBin = ntp1tx.getNTP1OpReturnScript();
     const std::string          scriptHex = ntp1tx.getNTP1OpReturnScriptHex();
-    EXPECT_EQ(scriptHex, boost::algorithm::hex_lower(std::string(scriptBin.cbegin(), scriptBin.cend())));
+    EXPECT_EQ(scriptHex, ToHex(scriptBin));
     // remove the prefix (in hex) and compare the script and make sure it's the same
     EXPECT_EQ(scriptHex, opReturnArg);
 }
@@ -3177,7 +3177,7 @@ TEST(ntp1_tests, ntp1_metadata_parsing_2)
     ntp1tx.IsTxNTP1(&tx, &opReturnArg);
     const std::vector<uint8_t> scriptBin = ntp1tx.getNTP1OpReturnScript();
     const std::string          scriptHex = ntp1tx.getNTP1OpReturnScriptHex();
-    EXPECT_EQ(scriptHex, boost::algorithm::hex_lower(std::string(scriptBin.cbegin(), scriptBin.cend())));
+    EXPECT_EQ(scriptHex, ToHex(scriptBin));
     // remove the prefix (in hex) and compare the script and make sure it's the same
     EXPECT_EQ(scriptHex, opReturnArg);
 }
@@ -3281,7 +3281,7 @@ TEST(ntp1_tests, ntp1_metadata_parsing_3)
     ntp1tx.IsTxNTP1(&tx, &opReturnArg);
     const std::vector<uint8_t> scriptBin = ntp1tx.getNTP1OpReturnScript();
     const std::string          scriptHex = ntp1tx.getNTP1OpReturnScriptHex();
-    EXPECT_EQ(scriptHex, boost::algorithm::hex_lower(std::string(scriptBin.cbegin(), scriptBin.cend())));
+    EXPECT_EQ(scriptHex, ToHex(scriptBin));
     // remove the prefix (in hex) and compare the script and make sure it's the same
     EXPECT_EQ(scriptHex, opReturnArg);
 }
@@ -3389,7 +3389,7 @@ TEST(ntp1_tests, ntp1_metadata_parsing_5)
     ntp1tx.IsTxNTP1(&tx, &opReturnArg);
     const std::vector<uint8_t> scriptBin = ntp1tx.getNTP1OpReturnScript();
     const std::string          scriptHex = ntp1tx.getNTP1OpReturnScriptHex();
-    EXPECT_EQ(scriptHex, boost::algorithm::hex_lower(std::string(scriptBin.cbegin(), scriptBin.cend())));
+    EXPECT_EQ(scriptHex, ToHex(scriptBin));
     // remove the prefix (in hex) and compare the script and make sure it's the same
     EXPECT_EQ(scriptHex, opReturnArg);
 }
@@ -3455,7 +3455,7 @@ TEST(ntp1_tests, ntp1_metadata_parsing_6)
     ntp1tx.IsTxNTP1(&tx, &opReturnArg);
     const std::vector<uint8_t> scriptBin = ntp1tx.getNTP1OpReturnScript();
     const std::string          scriptHex = ntp1tx.getNTP1OpReturnScriptHex();
-    EXPECT_EQ(scriptHex, boost::algorithm::hex_lower(std::string(scriptBin.cbegin(), scriptBin.cend())));
+    EXPECT_EQ(scriptHex, ToHex(scriptBin));
     // remove the prefix (in hex) and compare the script and make sure it's the same
     EXPECT_EQ(scriptHex, opReturnArg);
 }
@@ -3615,7 +3615,7 @@ TEST(ntp1_tests, ntp1_metadata_parsing_7)
     ntp1tx.IsTxNTP1(&tx, &opReturnArg);
     const std::vector<uint8_t> scriptBin = ntp1tx.getNTP1OpReturnScript();
     const std::string          scriptHex = ntp1tx.getNTP1OpReturnScriptHex();
-    EXPECT_EQ(scriptHex, boost::algorithm::hex_lower(std::string(scriptBin.cbegin(), scriptBin.cend())));
+    EXPECT_EQ(scriptHex, ToHex(scriptBin));
     // remove the prefix (in hex) and compare the script and make sure it's the same
     EXPECT_EQ(scriptHex, opReturnArg);
 }
@@ -3673,7 +3673,7 @@ TEST(ntp1_tests, ntp1_metadata_parsing_8)
     ntp1tx.IsTxNTP1(&tx, &opReturnArg);
     const std::vector<uint8_t> scriptBin = ntp1tx.getNTP1OpReturnScript();
     const std::string          scriptHex = ntp1tx.getNTP1OpReturnScriptHex();
-    EXPECT_EQ(scriptHex, boost::algorithm::hex_lower(std::string(scriptBin.cbegin(), scriptBin.cend())));
+    EXPECT_EQ(scriptHex, ToHex(scriptBin));
     // remove the prefix (in hex) and compare the script and make sure it's the same
     EXPECT_EQ(scriptHex, opReturnArg);
 }

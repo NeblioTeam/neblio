@@ -486,11 +486,7 @@ std::vector<uint8_t> NTP1Transaction::getNTP1OpReturnScript() const
                              txHash.ToString());
 }
 
-std::string NTP1Transaction::getNTP1OpReturnScriptHex() const
-{
-    const std::vector<uint8_t> opRetData = getNTP1OpReturnScript();
-    return boost::algorithm::hex_lower(std::string(opRetData.begin(), opRetData.end()));
-}
+std::string NTP1Transaction::getNTP1OpReturnScriptHex() const { return ToHex(getNTP1OpReturnScript()); }
 
 void NTP1Transaction::readNTP1DataFromTx_minimal(const ITxDB& txdb, const CTransaction& tx)
 {
@@ -940,8 +936,7 @@ bool NTP1Transaction::IsTxNTP1(const CTransaction* tx, std::string* opReturnArg)
             if (ntp1Script.size() >= NTP1ScriptPrefix.size() &&
                 std::equal(NTP1ScriptPrefix.begin(), NTP1ScriptPrefix.end(), ntp1Script.begin())) {
                 if (opReturnArg) {
-                    *opReturnArg =
-                        boost::algorithm::hex_lower(std::string(ntp1Script.begin(), ntp1Script.end()));
+                    *opReturnArg = ToHex(ntp1Script);
                 }
                 return true;
             }
