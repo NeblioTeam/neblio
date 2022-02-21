@@ -13,7 +13,10 @@ message("Building on machine: " ${hostname})
 
 set(CMAKE_CXX_STANDARD 11)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-variable -Wno-unused-function -Wno-unused-private-field -Wno-class-memaccess -Wno-stringop-truncation")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-variable -Wno-unused-function -Wno-unused-private-field")
+if (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-class-memaccess -Wno-stringop-truncation")
+endif()
 
 if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-psabi")  # some ABI compatbility warnings... irrelevant: https://gcc.gnu.org/legacy-ml/gcc/2017-05/msg00073.html
