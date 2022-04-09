@@ -18,7 +18,8 @@
 
 #include <boost/algorithm/hex.hpp>
 
-const std::array<uint8_t, 2> NTP1ScriptPrefix{0x4e, 0x54};
+const std::array<std::array<uint8_t, 3>, 2> NTP1ScriptPrefixes{
+    std::array<uint8_t, 3>({0x4e, 0x54, 0x01}), std::array<uint8_t, 3>({0x4e, 0x54, 0x03})};
 
 NTP1Transaction::NTP1Transaction() { setNull(); }
 
@@ -469,21 +470,17 @@ void NTP1Transaction::__manualSet(int NVersion, uint256 TxHash, std::vector<NTP1
     ntp1TransactionType = Ntp1TransactionType;
 }
 
-std::vector<uint8_t> NTP1Transaction::getNTP1OpReturnScript() const
+bool IsValidNTP1ScriptPrefix(const std::vector<uint8_t>& script)
 {
-    for (unsigned long j = 0; j < vout.size(); j++) {
-        const CScript& scriptPubKey = vout[j].scriptPubKey;
-        if (scriptPubKey.size() > 2 && scriptPubKey.at(0) == OP_RETURN) {
-            std::vector<uint8_t> ntp1Script = CTransaction::ExtractOpRetData(scriptPubKey);
-            if (ntp1Script.size() < NTP1ScriptPrefix.size() ||
-                !std::equal(NTP1ScriptPrefix.begin(), NTP1ScriptPrefix.end(), ntp1Script.begin())) {
-                break;
-            }
-            return ntp1Script;
+    for (const auto& definedPrefix : NTP1ScriptPrefixes) {
+        if (script.size() < definedPrefix.size()) {
+            continue;
+        }
+        if (std::equal(definedPrefix.begin(), definedPrefix.end(), script.begin())) {
+            return true;
         }
     }
-    throw std::runtime_error("Could not extract NTP1 script from OP_RETURN for transaction " +
-                             txHash.ToString());
+    return false;
 }
 
 std::string NTP1Transaction::getNTP1OpReturnScriptHex() const { return ToHex(getNTP1OpReturnScript()); }
@@ -917,6 +914,22 @@ int NTP1Transaction::GetCurrentBlockHeight(const ITxDB& txdb)
     return txdb.GetBestChainHeight().value_or(0);
 }
 
+std::vector<uint8_t> NTP1Transaction::getNTP1OpReturnScript() const
+{
+    for (unsigned long j = 0; j < vout.size(); j++) {
+        const CScript& scriptPubKey = vout[j].scriptPubKey;
+        if (scriptPubKey.size() > 3 && scriptPubKey.at(0) == OP_RETURN) {
+            const std::vector<uint8_t> ntp1Script = CTransaction::ExtractOpRetData(scriptPubKey);
+            if (!IsValidNTP1ScriptPrefix(ntp1Script)) {
+                break;
+            }
+            return ntp1Script;
+        }
+    }
+    throw std::runtime_error("Could not extract NTP1 script from OP_RETURN for transaction " +
+                             txHash.ToString());
+}
+
 bool NTP1Transaction::IsTxNTP1(const CTransaction* tx, std::string* opReturnArg)
 {
     if (!tx) {
@@ -931,10 +944,9 @@ bool NTP1Transaction::IsTxNTP1(const CTransaction* tx, std::string* opReturnArg)
 
     for (unsigned long j = 0; j < tx->vout.size(); j++) {
         const CScript& scriptPubKey = tx->vout[j].scriptPubKey;
-        if (scriptPubKey.size() > 2 && scriptPubKey.at(0) == OP_RETURN) {
-            std::vector<uint8_t> ntp1Script = CTransaction::ExtractOpRetData(scriptPubKey);
-            if (ntp1Script.size() >= NTP1ScriptPrefix.size() &&
-                std::equal(NTP1ScriptPrefix.begin(), NTP1ScriptPrefix.end(), ntp1Script.begin())) {
+        if (scriptPubKey.size() > 3 && scriptPubKey.at(0) == OP_RETURN) {
+            const std::vector<uint8_t> ntp1Script = CTransaction::ExtractOpRetData(scriptPubKey);
+            if (IsValidNTP1ScriptPrefix(ntp1Script)) {
                 if (opReturnArg) {
                     *opReturnArg = ToHex(ntp1Script);
                 }

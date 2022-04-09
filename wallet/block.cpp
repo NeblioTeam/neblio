@@ -24,6 +24,7 @@
 #include "work.h"
 #include <boost/algorithm/string.hpp>
 #include <boost/foreach.hpp>
+#include <boost/integer/common_factor.hpp>
 #include <boost/range/adaptor/reversed.hpp>
 #include <boost/scope_exit.hpp>
 #include <mutex>
@@ -331,6 +332,91 @@ bool CBlock::CheckBIP30Attack(ITxDB& txdb, const uint256& hashTx)
     return true;
 }
 
+bool CBlock::CheckPoolColdStake(const ITxDB& txdb, const CTransaction& tx, const CAmount blockTxValueOut,
+                                const CAmount blockTxValueIn, const MapPrevTx& mapInputs)
+{
+    if (const boost::optional<std::vector<uint8_t>> poolColdStakeCmd = tx.GetPoolColdStakeCmd()) {
+
+        if (!DistributedColdStakeV1::CheckAllScriptsInInputsMatch(txdb, mapInputs, tx)) {
+            return NLog.error("Failed to check pool stake matching scripts {}", tx.GetHash().ToString());
+        }
+
+        const boost::optional<DistributedColdStakeV1> data =
+            DistributedColdStakeV1::FromData(*poolColdStakeCmd);
+        if (!data) {
+            return NLog.error("Failed to read distributed cold-stake data");
+        }
+        if (!data->validate()) {
+            return NLog.error("Cold-stake data validation failed");
+        }
+        const CAmount                          totalReward  = blockTxValueOut - blockTxValueIn;
+        const boost::optional<ColdStakeShares> rewardShares = data->distributeReward(totalReward);
+        if (!rewardShares) {
+            return NLog.error("Failed to calculate cold-stake shares in transaction {}",
+                              tx.GetHash().ToString());
+        }
+
+        const CAmount expectedOwnerValue  = rewardShares->ownerShare + blockTxValueIn;
+        const CAmount expectedStakerValue = rewardShares->stakerShare;
+
+        if (tx.vout.size() < 3 || tx.vout.size() > 6) {
+            // 3 or more outputs: stake marker, owner reward, staker reward(s)
+            return NLog.error(
+                "Invalid number of outputs ({}) for distributed cold-stake in transaction {}",
+                tx.vout.size(), tx.GetHash().ToString());
+        }
+
+        if (!tx.vout[0].IsEmpty()) {
+            return NLog.error("Invalid cold coin-stake in transaction {}", tx.GetHash().ToString());
+        }
+
+        if (!DistributedColdStakeV1::CheckAllowedOutputTypes(txdb, tx.vout)) {
+            return NLog.error("ConnectBlock() failed. Invalid cold stake type found in transaction {}",
+                              tx.GetHash().ToString());
+        }
+
+        const std::map<CScript, CAmount> destinationVsAmounts =
+            DistributedColdStakeV1::MakeDestinationVsAmountMap(tx.vout);
+        if (destinationVsAmounts.size() != 3) {
+            /**
+             * 1. OP_RETURN output
+             * 2. cold-stake output
+             * 3. pool share output
+             */
+            return NLog.error("ConnectBlock() failed. There must be 3 destinations in cold-stake in "
+                              "transaction {}",
+                              tx.GetHash().ToString());
+        }
+
+        if (destinationVsAmounts.find(data->getDestination()) == destinationVsAmounts.cend()) {
+            return NLog.error("ConnectBlock() Expected destination from OP_RETURN script not "
+                              "found in outputs {}",
+                              tx.GetHash().ToString());
+        }
+
+        const boost::optional<CAmount> totalForOwner =
+            DistributedColdStakeV1::GetTotalColdStakeOwnerAmount(txdb, destinationVsAmounts);
+        if (!totalForOwner) {
+            return NLog.error("ConnectBlock() Failed to get total cold-stake share in transaction {}",
+                              tx.GetHash().ToString());
+        }
+
+        const CAmount totalForPool = DistributedColdStakeV1::GetTotalColdStakePoolAmount(
+            destinationVsAmounts, data->getDestination());
+
+        if (totalForOwner != expectedOwnerValue) {
+            reject = CBlockReject(REJECT_INVALID, "bad-owner-stake-amount", this->GetHash());
+            return NLog.error("Owner stake discrepancy in transaction {}", tx.GetHash().ToString());
+        }
+
+        if (totalForPool != expectedStakerValue) {
+            reject = CBlockReject(REJECT_INVALID, "bad-pool-stake-amount", this->GetHash());
+            return NLog.error("Pool stake discrepancy in transaction {}", tx.GetHash().ToString());
+        }
+    }
+    return true;
+}
+
 bool CBlock::ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pindex, bool fJustCheck)
 {
     const uint256 blockHash = pindex->GetBlockHash();
@@ -408,14 +494,23 @@ bool CBlock::ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pinde
                 return DoS(100, NLog.error("ConnectBlock() : too many sigops"));
             }
 
-            CAmount nTxValueIn  = tx.GetValueIn(mapInputs);
-            CAmount nTxValueOut = tx.GetValueOut();
+            const CAmount nTxValueIn  = tx.GetValueIn(mapInputs);
+            const CAmount nTxValueOut = tx.GetValueOut();
             nValueIn += nTxValueIn;
             nValueOut += nTxValueOut;
             if (!tx.IsCoinStake())
                 nFees += nTxValueIn - nTxValueOut;
             if (tx.IsCoinStake())
                 nStakeReward = nTxValueOut - nTxValueIn;
+
+            const bool isAnyInputAPoolColdStake =
+                DistributedColdStakeV1::IsAnyInputAPoolColdStake(txdb, mapInputs, tx);
+            if (isAnyInputAPoolColdStake && tx.IsCoinStake()) {
+                if (!CheckPoolColdStake(txdb, tx, nTxValueOut, nTxValueIn, mapInputs)) {
+                    return NLog.error("PoolColdStake check failed for block {} and transaction {}",
+                                      this->GetHash().ToString(), tx.GetHash().ToString());
+                }
+            }
 
             if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, txdb)) {
                 try {
@@ -430,13 +525,14 @@ bool CBlock::ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pinde
                     }
                 } catch (std::exception& ex) {
                     return NLog.error(
-                        "Error while verifying NTP1Transaction validity in ConnectBlock(): "
+                        "Error while verifying NTP1Transaction validity (txhash: {}) in ConnectBlock(): "
                         "{}",
-                        ex.what());
+                        tx.GetHash().ToString(), ex.what());
                 } catch (...) {
                     return NLog.error(
-                        "Error while verifying NTP1Transaction validity in ConnectBlock(). "
-                        "Unknown exception thrown");
+                        "Error while verifying NTP1Transaction validity (txhash: {}) in ConnectBlock(). "
+                        "Unknown exception thrown",
+                        tx.GetHash().ToString());
                 }
             }
 
@@ -1772,4 +1868,283 @@ void CBlock::AssertIssuanceUniquenessInBlock(
             }
         }
     }
+}
+
+boost::optional<DistributedColdStakeV1>
+DistributedColdStakeV1::FromData(const std::vector<uint8_t>& data)
+{
+    if (data[0] != CURRENT_VERSION) {
+        return boost::none;
+    }
+
+    try {
+        CDataStream            ds(data, SER_NETWORK, PROTOCOL_VERSION);
+        DistributedColdStakeV1 result;
+        ds >> result;
+        if (!result.validate()) {
+            return boost::none;
+        }
+        return boost::make_optional(std::move(result));
+    } catch (const std::exception& ex) {
+        return NLog.errorn("Failed to parse cold-stake data");
+    }
+}
+
+DistributedColdStakeV1 DistributedColdStakeV1::Make(const uint16_t numerator, const uint16_t denominator,
+                                                    const CScript& destination)
+{
+    DistributedColdStakeV1 result;
+    result.denominator        = denominator;
+    result.numerator          = numerator;
+    result.allowedDestination = destination;
+    return result;
+}
+
+std::vector<uint8_t> DistributedColdStakeV1::toData() const
+{
+    std::vector<uint8_t> result;
+    result.push_back(uint8_t(CURRENT_VERSION));
+
+    const std::string ds_str = [&]() {
+        CDataStream ds(SER_NETWORK, PROTOCOL_VERSION);
+        ds << *this;
+        return ds.str();
+    }();
+
+    result.insert(result.end(), ds_str.cbegin(), ds_str.cend());
+    return result;
+}
+
+bool DistributedColdStakeV1::validate() const
+{
+    if (denominator == 0) {
+        return false;
+    }
+    if (numerator > denominator) {
+        return false;
+    }
+    if (numerator == 0) {
+        return false;
+    }
+    // we ensure GCD is minimal to make it more likely for compact serialization to happen and save space
+    if (boost::integer::gcd(numerator, denominator) != 1) {
+        return false;
+    }
+    if (allowedDestination.empty()) {
+        return false;
+    }
+    return true;
+}
+
+boost::optional<ColdStakeShares> DistributedColdStakeV1::distributeReward(CAmount total) const
+{
+    if (total <= 0) {
+        return boost::none;
+    }
+    static_assert(std::is_unsigned<decltype(denominator)>::value,
+                  "Denominator is tested only for unsigned");
+    if (denominator == 0) {
+        return NLog.errorn("Attempting to distribute cold-stake coins with zero denominator");
+    }
+
+    const CAmount unit        = total / static_cast<CAmount>(denominator);
+    const CAmount stakerShare = static_cast<CAmount>(numerator) * unit;
+    const CAmount ownerShare  = total - stakerShare;
+    if (stakerShare <= 0) {
+        return NLog.errorn("Staker share is too small");
+    }
+    if (ownerShare <= 0) {
+        return NLog.errorn("Owner share is too small");
+    }
+    return ColdStakeShares(stakerShare, ownerShare);
+}
+
+const CScript& DistributedColdStakeV1::getDestination() const { return allowedDestination; }
+
+bool DistributedColdStakeV1::CheckAllowedOutputTypes(const ITxDB&               txdb,
+                                                     const std::vector<CTxOut>& outputs)
+{
+    const std::set<txnouttype>& AllowedOutputTypes = GetAllowedOutputTypes();
+    for (const CTxOut& output : SkipIterator<decltype(outputs)>(outputs, 1)) {
+        txnouttype                              vouttype;
+        std::vector<std::vector<unsigned char>> solutions;
+        if (!Solver(txdb, output.scriptPubKey, vouttype, solutions)) {
+            if (AllowedOutputTypes.find(vouttype) != AllowedOutputTypes.cend()) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+std::map<CScript, CAmount>
+DistributedColdStakeV1::MakeDestinationVsAmountMap(const std::vector<CTxOut>& outputs)
+{
+    std::map<CScript, CAmount> destinationVsAmount;
+    // skip output 0, since it's stake marker
+    for (const CTxOut& txOut : SkipIterator<decltype(outputs)>(outputs, 1)) {
+        destinationVsAmount[txOut.scriptPubKey] += txOut.nValue;
+    }
+    return destinationVsAmount;
+}
+
+boost::optional<CAmount> DistributedColdStakeV1::GetTotalColdStakeOwnerAmount(
+    const ITxDB& txdb, const std::map<CScript, CAmount>& destinationVsAmounts)
+{
+    boost::optional<CAmount> total;
+    for (const auto& destVsAmount : destinationVsAmounts) {
+        const CScript&                          dest   = destVsAmount.first;
+        const CAmount&                          amount = destVsAmount.second;
+        txnouttype                              vouttype;
+        std::vector<std::vector<unsigned char>> solutions;
+        if (!Solver(txdb, dest, vouttype, solutions)) {
+            return NLog.errorn("Failed to solve for output with value > 0");
+        }
+        if (vouttype == txnouttype::TX_POOLCOLDSTAKE) {
+            total = total.value_or(0) + amount;
+        }
+    }
+    return total;
+}
+
+CAmount DistributedColdStakeV1::GetTotalColdStakePoolAmount(
+    const std::map<CScript, CAmount>& destinationVsAmounts, const CScript allowedDest)
+{
+    CAmount total = 0;
+    for (const auto& destVsAmount : destinationVsAmounts) {
+        const CScript& dest   = destVsAmount.first;
+        const CAmount& amount = destVsAmount.second;
+        if (allowedDest == dest) {
+            total += amount;
+        }
+    }
+    return total;
+}
+
+boost::optional<CScript>
+ExtractPoolColdStakeScriptFromAnyOutput(const ITxDB& txdb, const CTransaction& tx,
+                                        const std::set<std::vector<uint8_t>>& excludedScripts)
+{
+    boost::optional<CScript> coldStakeScript;
+    for (const CTxOut& out : tx.vout) {
+        if (excludedScripts.find(out.scriptPubKey) != excludedScripts.cend()) {
+            // OP_RETURN isn't solvable, so we skip it
+            continue;
+        }
+        txnouttype                              vouttype;
+        std::vector<std::vector<unsigned char>> solutions;
+        if (!Solver(txdb, out.scriptPubKey, vouttype, solutions)) {
+            continue;
+        }
+        if (vouttype == txnouttype::TX_POOLCOLDSTAKE) {
+            return out.scriptPubKey;
+        }
+    }
+    return boost::none;
+}
+
+bool DistributedColdStakeV1::CheckAllScriptsInInputsMatch(const ITxDB&        txdb,
+                                                          const MapPrevTx&    cachedInputs,
+                                                          const CTransaction& tx)
+{
+    /**
+     * All inputs of this transaction must have the same output scripts (both OP_RETURN and cold-stake
+     * scripts), so that the chain of staking can continue unchanged and no theft happens
+     */
+
+    std::vector<uint8_t> opRet;
+    if (!tx.ContainsOpReturn(&opRet)) {
+        return NLog.error(
+            "Failed to retrieve OP_RETURN script of transaction {} for pool cold-stake checking",
+            tx.GetHash().ToString());
+    }
+
+    for (const CTxIn& input : tx.vin) {
+        auto it = cachedInputs.find(input.prevout.hash);
+        if (it == cachedInputs.end()) {
+            return NLog.error("Failed to retrieve transaction of tx; the input has hash: {}",
+                              input.prevout.hash.ToString());
+        }
+        const CTransaction& txOfInput = it->second.second;
+
+        // check OP_RETURN
+        std::vector<uint8_t> inputOpRet;
+        if (!txOfInput.ContainsOpReturn(&inputOpRet)) {
+            return NLog.error("For pool cold-staking, OP_RETURN script of transaction {} was found, but "
+                              "its input {} didn't have an OP_RETURN",
+                              tx.GetHash().ToString());
+        }
+        if (inputOpRet != opRet) {
+            return NLog.error("For pool cold-staking, OP_RETURN script of transaction {} was found, but "
+                              "its input {} didn't have a matching OP_RETURN",
+                              tx.GetHash().ToString());
+        }
+
+        // check cold-stake script
+        const boost::optional<CScript> coldStakeScript =
+            ExtractPoolColdStakeScriptFromAnyOutput(txdb, txOfInput, {inputOpRet});
+
+        for (const CTxOut& out : txOfInput.vout) {
+            if (out.scriptPubKey == inputOpRet) {
+                // OP_RETURN isn't solvable, so we skip it
+                continue;
+            }
+            txnouttype                              vouttype;
+            std::vector<std::vector<unsigned char>> solutions;
+            if (!Solver(txdb, out.scriptPubKey, vouttype, solutions)) {
+                return NLog.error("Failed to solve for a script that's not OP_RETURN");
+            }
+            if (vouttype == txnouttype::TX_POOLCOLDSTAKE) {
+                if (coldStakeScript != out.scriptPubKey) {
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
+bool IsAnyOutputPoolColdStake(const ITxDB& txdb, const CTransaction& tx)
+{
+    for (const CTxOut& out : tx.vout) {
+        txnouttype                              vouttype;
+        std::vector<std::vector<unsigned char>> solutions;
+        if (!Solver(txdb, out.scriptPubKey, vouttype, solutions)) {
+            continue;
+        }
+        if (vouttype == txnouttype::TX_POOLCOLDSTAKE) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool DistributedColdStakeV1::IsAnyInputAPoolColdStake(const ITxDB& txdb, const MapPrevTx& cachedInputs,
+                                                      const CTransaction& tx)
+{
+    for (const CTxIn& input : tx.vin) {
+        auto it = cachedInputs.find(input.prevout.hash);
+        if (it == cachedInputs.end()) {
+            return NLog.error(
+                "Failed to retrieve input transaction of tx; the input has hash: {}, and tx hash is: {}",
+                input.prevout.hash.ToString(), tx.GetHash().ToString());
+        }
+        const CTransaction& txOfInput = it->second.second;
+
+        // pool cold stake either contain OP_RETURN that parse, or the script solves to TX_POOLCOLDSTAKE
+
+        // check OP_RETURN
+        std::vector<uint8_t> inputOpRet;
+        if (txOfInput.ContainsOpReturn(&inputOpRet)) {
+            if (DistributedColdStakeV1::FromData(inputOpRet)) {
+                return true;
+            }
+        }
+
+        // check cold-stake script
+        if (IsAnyOutputPoolColdStake(txdb, txOfInput)) {
+            return true;
+        }
+    }
+    return false;
 }

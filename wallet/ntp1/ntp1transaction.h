@@ -18,8 +18,6 @@
 #include <unordered_map>
 #include <vector>
 
-extern const std::array<uint8_t, 2> NTP1ScriptPrefix;
-
 class CTxOut;
 class CTxIndex;
 

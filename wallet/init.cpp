@@ -829,6 +829,10 @@ bool AppInit2()
         return InitError(msg);
     }
 
+    if (GetBoolArg("-enabledbcache", false)) {
+        NLog.write(b_sev::info, "Experimental DB Cache Enabled!");
+    }
+
     if (GetBoolArg("-loadblockindextest")) {
         CTxDB txdb;
         txdb.LoadBlockIndex();

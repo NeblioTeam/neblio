@@ -17,7 +17,8 @@ enum NetworkFork : uint16_t
     NETFORK__2_CONFS_CHANGE,
     NETFORK__3_TACHYON,
     NETFORK__4_RETARGET_CORRECTION,
-    NETFORK__5_COLD_STAKING
+    NETFORK__5_COLD_STAKING,
+    NETFORK__6_POOL_COLD_STAKING
 };
 
 boost::container::flat_map<std::string, NetworkFork>
@@ -26,11 +27,9 @@ InvertNetworkForkEnumToName(const boost::container::flat_map<NetworkFork, std::s
 boost::optional<NetworkFork> GetNetworkForkByName(const std::string& networkFork);
 
 const boost::container::flat_map<NetworkFork, std::string> NetworkForkEnumToName{
-    {NETFORK__1_FIRST_ONE, "first"},
-    {NETFORK__2_CONFS_CHANGE, "confs_changed"},
-    {NETFORK__3_TACHYON, "tachyon"},
-    {NETFORK__4_RETARGET_CORRECTION, "retarget_correction"},
-    {NETFORK__5_COLD_STAKING, "cold_staking"}};
+    {NETFORK__1_FIRST_ONE, "first"},           {NETFORK__2_CONFS_CHANGE, "confs_changed"},
+    {NETFORK__3_TACHYON, "tachyon"},           {NETFORK__4_RETARGET_CORRECTION, "retarget_correction"},
+    {NETFORK__5_COLD_STAKING, "cold_staking"}, {NETFORK__6_POOL_COLD_STAKING, "pool_cold_staking"}};
 
 const boost::container::flat_map<std::string, NetworkFork> NetworkForkNameToEnum =
     InvertNetworkForkEnumToName(NetworkForkEnumToName);

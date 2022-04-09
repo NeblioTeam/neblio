@@ -265,7 +265,7 @@ public:
 class CBitcoinAddress : public CBase58Data
 {
 public:
-    IMPLEMENT_SERIALIZE(READWRITE(vchData); READWRITE(nVersionIn);)
+    IMPLEMENT_SERIALIZE(READWRITE(vchData); READWRITE(nVersion);)
 
     bool Set(const CKeyID& id)
     {

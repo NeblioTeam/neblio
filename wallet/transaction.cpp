@@ -69,11 +69,21 @@ bool CTransaction::IsColdCoinStake() const
     return false;
 }
 
-boost::optional<std::vector<uint8_t>> CTransaction::GetColdStakeCmd() const
+bool CTransaction::IsColdCoinStakeForPool() const
 {
-    if (!IsColdCoinStake())
-        return boost::none;
+    if (!IsCoinStake())
+        return false;
 
+    for (const auto& out : vout) {
+        if (out.scriptPubKey.IsPayToColdStakingForPool()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+boost::optional<std::vector<uint8_t>> CTransaction::GetPoolColdStakeCmd() const
+{
     std::vector<uint8_t> opRet;
     if (ContainsOpReturn(&opRet)) {
         return boost::make_optional(std::move(opRet));
@@ -152,7 +162,7 @@ bool CTransaction::CheckColdStake(const CScript& script) const
     return true;
 }
 
-bool CTransaction::CheckColdStakeWithGiveaway(const CScript& script) const
+bool CTransaction::CheckPoolColdStake(const CScript& script) const
 {
     // tx is a coinstake tx
     if (!IsCoinStake())
@@ -177,10 +187,23 @@ bool CTransaction::CheckColdStakeWithGiveaway(const CScript& script) const
     }
 
     // all outputs except first (coinstake marker)
-    // have the same pubKeyScript and it matches the script we are spending
-    for (unsigned int i = 1; i < vout.size(); i++)
-        if (vout[i].scriptPubKey != script)
-            return false;
+    // must be one of three scripts:
+    // 1. The same cold staking script
+    // 2. The destination of the reward fraction
+    // 3. The OP_RETURN that controls
+    boost::optional<CScript>   poolDestScript;
+    const std::vector<CTxOut>& outputs = vout;
+    for (const CTxOut& output : SkipIterator<decltype(outputs)>(outputs, 1)) {
+        if (output.scriptPubKey != script) {
+            if (!poolDestScript) {
+                poolDestScript = output.scriptPubKey;
+            }
+            // there can be only one other destination, which will be checked when connecting the block
+            if (output.scriptPubKey != poolDestScript && output.scriptPubKey != opRet) {
+                return false;
+            }
+        }
+    }
 
     return true;
 }

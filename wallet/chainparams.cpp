@@ -96,7 +96,8 @@ public:
             // RetargetV3 upgrade. Approx June 15 2019
             {NetworkFork::NETFORK__4_RETARGET_CORRECTION, 1003125},
             // Enable cold-staking - unset placeholder
-            {NetworkFork::NETFORK__5_COLD_STAKING, 2730450}}));
+            {NetworkFork::NETFORK__5_COLD_STAKING, 2730450},
+            {NetworkFork::NETFORK__6_POOL_COLD_STAKING, 1000000000}}));
 
         consensus.nCoinbaseMaturityV1 = 30;
         consensus.nCoinbaseMaturityV2 = 10;
@@ -282,7 +283,8 @@ public:
             {NetworkFork::NETFORK__3_TACHYON, 110100},
             {NetworkFork::NETFORK__4_RETARGET_CORRECTION, 1163000},
             // Enable cold-staking
-            {NetworkFork::NETFORK__5_COLD_STAKING, 2386991}}));
+            {NetworkFork::NETFORK__5_COLD_STAKING, 2386991},
+            {NetworkFork::NETFORK__6_POOL_COLD_STAKING, 1000000000}}));
 
         pchMessageStart[0] = 0x1b;
         pchMessageStart[1] = 0xba;
@@ -457,7 +459,8 @@ public:
                 {NetworkFork::NETFORK__2_CONFS_CHANGE, 2000},
                 {NetworkFork::NETFORK__3_TACHYON, 3000},
                 {NetworkFork::NETFORK__4_RETARGET_CORRECTION, 4000},
-                {NetworkFork::NETFORK__5_COLD_STAKING, -1}};
+                {NetworkFork::NETFORK__5_COLD_STAKING, -1},
+                {NetworkFork::NETFORK__6_POOL_COLD_STAKING, 1000000000}};
 
             // replace the default fork heights
             for (const auto& f : customForks) {

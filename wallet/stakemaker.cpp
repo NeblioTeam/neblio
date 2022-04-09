@@ -411,6 +411,7 @@ StakeMaker::CalculateScriptPubKeyForStakeOutput(const ITxDB& txdb, const KeyGett
         return scriptPubKeyKernel;
     }
     case TX_COLDSTAKE: {
+    case TX_POOLCOLDSTAKE:
         const boost::optional<CKey> key = keyGetter(CKeyID(uint160(vSolutions[0])));
         if (!key) {
             NLog.write(

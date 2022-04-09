@@ -80,6 +80,7 @@ enum txnouttype
     TX_MULTISIG,
     TX_NULL_DATA,
     TX_COLDSTAKE,
+    TX_POOLCOLDSTAKE,
 };
 
 class CNoDestination
@@ -236,7 +237,8 @@ enum opcodetype
     OP_NOP10 = 0xb9,
 
     // cold staking
-    OP_CHECKCOLDSTAKEVERIFY = 0xd1,
+    OP_CHECKCOLDSTAKEVERIFY     = 0xd1,
+    OP_CHECKPOOLCOLDSTAKEVERIFY = 0xd2,
 
     // template matching params
     OP_SMALLDATA    = 0xf9,
@@ -536,6 +538,7 @@ public:
     bool IsPayToScriptHash() const;
 
     bool IsPayToColdStaking() const;
+    bool IsPayToColdStakingForPool() const;
 
     /**
      * Checks if the scriptSig is for P2CS; if yes, returns the public key; if no returns boost::none

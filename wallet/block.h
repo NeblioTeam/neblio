@@ -21,6 +21,65 @@ extern VIUCache viuCache;
 extern unsigned VIUCachePushProbabilityNumerator;
 extern unsigned VIUCachePushProbabilityDenominator;
 
+struct ColdStakeShares
+{
+    CAmount stakerShare;
+    CAmount ownerShare;
+    ColdStakeShares(CAmount StakerShare, CAmount OwnerShare)
+        : stakerShare(StakerShare), ownerShare(OwnerShare)
+    {
+    }
+};
+
+// TODO: write unit tests for this and all its static members
+class DistributedColdStakeV1
+{
+    static const uint8_t CURRENT_VERSION = 1;
+    uint16_t             numerator;
+    uint16_t             denominator;
+    CScript              allowedDestination;
+
+public:
+    static const std::set<txnouttype>& GetAllowedOutputTypes()
+    {
+        static const std::set<txnouttype> result{TX_POOLCOLDSTAKE, TX_PUBKEY, TX_PUBKEYHASH};
+        return result;
+    }
+
+    static boost::optional<DistributedColdStakeV1> FromData(const std::vector<uint8_t>& data);
+    static DistributedColdStakeV1                  Make(uint16_t numerator, uint16_t denominator,
+                                                        const CScript& destination);
+    std::vector<uint8_t>                           toData() const;
+    bool                                           validate() const;
+    boost::optional<ColdStakeShares>               distributeReward(CAmount total) const;
+    const CScript&                                 getDestination() const;
+
+    [[nodiscard]] static bool CheckAllowedOutputTypes(const ITxDB&               txdb,
+                                                      const std::vector<CTxOut>& outputs);
+
+    [[nodiscard]] static std::map<CScript, CAmount>
+    MakeDestinationVsAmountMap(const std::vector<CTxOut>& outputs);
+    [[nodiscard]] static boost::optional<CAmount>
+    GetTotalColdStakeOwnerAmount(const ITxDB&                      txdb,
+                                 const std::map<CScript, CAmount>& destinationVsAmounts);
+    [[nodiscard]] static CAmount
+    GetTotalColdStakePoolAmount(const std::map<CScript, CAmount>& destinationVsAmounts,
+                                const CScript                     allowedDest);
+    [[nodiscard]] static bool CheckAllScriptsInInputsMatch(const ITxDB&        txdb,
+                                                           const MapPrevTx&    cachedInputs,
+                                                           const CTransaction& tx);
+    [[nodiscard]] static bool IsAnyInputAPoolColdStake(const ITxDB& txdb, const MapPrevTx& cachedInputs,
+                                                       const CTransaction& tx);
+
+    // clang-format off
+    IMPLEMENT_SERIALIZE(
+        READWRITE(numerator);
+        READWRITE(denominator);
+        READWRITE(allowedDestination);
+        );
+    // clang-format on
+};
+
 /** Nodes collect new transactions into a block, hash them into a hash tree,
  * and scan through nonce values to make the block's hash satisfy proof-of-work
  * requirements.  When they solve the proof-of-work, they broadcast the block
@@ -140,8 +199,12 @@ public:
 
     Result<void, ForkSpendSimulator::VIUError> VerifyInputsUnspent_Internal(const ITxDB& txdb) const;
 
-    bool DisconnectBlock(ITxDB& txdb, const CBlockIndex& pindex);
-    bool ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pindex, bool fJustCheck = false);
+    [[nodiscard]] bool CheckPoolColdStake(const ITxDB& txdb, const CTransaction& tx,
+                                          const CAmount nTxValueOut, const CAmount nTxValueIn,
+                                          const MapPrevTx& mapInputs);
+    [[nodiscard]] bool DisconnectBlock(ITxDB& txdb, const CBlockIndex& pindex);
+    [[nodiscard]] bool ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pindex,
+                                    bool fJustCheck = false);
     Result<void, ForkSpendSimulator::VIUError> VerifyInputsUnspent(const ITxDB& txdb) const;
     bool                                       VerifyBlock(ITxDB& txdb);
     bool ReadFromDisk(const CBlockIndex* pindex, const ITxDB& txdb, bool fReadTransactions = true);

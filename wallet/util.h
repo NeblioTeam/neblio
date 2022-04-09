@@ -929,4 +929,14 @@ std::string FP_IntToDecimal(T amount, unsigned int N)
 
 void gen_random_bytes(void* const buf, const size_t size);
 
+template <typename T>
+struct SkipIterator
+{
+    T&&         t;
+    std::size_t n;
+    SkipIterator(T&& v, std::size_t s) : t(v), n(s) {}
+    auto begin() -> decltype(std::begin(t)) { return std::next(std::begin(t), n); }
+    auto end() -> decltype(std::end(t)) { return std::end(t); }
+};
+
 #endif

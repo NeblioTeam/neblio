@@ -127,6 +127,7 @@ const char* GetTxnOutputType(txnouttype t)
     case TX_MULTISIG: return "multisig";
     case TX_NULL_DATA: return "nulldata";
     case TX_COLDSTAKE: return "coldstake";
+    case TX_POOLCOLDSTAKE: return "poolcoldstake";
     }
     return nullptr;
     // clang-format on
@@ -268,6 +269,7 @@ const char* GetOpName(opcodetype opcode)
 
     case OP_INVALIDOPCODE          : return "OP_INVALIDOPCODE";
     case OP_CHECKCOLDSTAKEVERIFY   : return "OP_CHECKCOLDSTAKEVERIFY";
+    case OP_CHECKPOOLCOLDSTAKEVERIFY   : return "OP_CHECKPOOLCOLDSTAKEVERIFY";
 
     // Note:
     //  The template matching params etc are defined in opcodetype enum
@@ -1189,6 +1191,12 @@ Result<void, ScriptError> EvalScript(vector<vector<unsigned char>>& stack, const
                         return Err(SCRIPT_ERR_CHECKCOLDSTAKEVERIFY);
                     }
                 } break;
+                case OP_CHECKPOOLCOLDSTAKEVERIFY: {
+                    // check it is used in a valid cold stake transaction.
+                    if (!txTo.CheckPoolColdStake(script)) {
+                        return Err(SCRIPT_ERR_CHECKCOLDSTAKEVERIFY);
+                    }
+                } break;
 
                 default:
                     return Err(SCRIPT_ERR_BAD_OPCODE);
@@ -1381,6 +1389,13 @@ bool Solver(const ITxDB& txdb, const CScript& scriptPubKey, txnouttype& typeRet,
             TX_COLDSTAKE, CScript() << OP_DUP << OP_HASH160 << OP_ROT << OP_IF << OP_CHECKCOLDSTAKEVERIFY
                                     << OP_PUBKEYHASH << OP_ELSE << OP_PUBKEYHASH << OP_ENDIF
                                     << OP_EQUALVERIFY << OP_CHECKSIG));
+
+        // Cold Staking: sender provides P2CSP scripts, receiver provides signature, staking-flag and
+        // pubkey
+        mTemplates.insert(std::make_pair(
+            TX_POOLCOLDSTAKE, CScript() << OP_DUP << OP_HASH160 << OP_ROT << OP_IF
+                                        << OP_CHECKPOOLCOLDSTAKEVERIFY << OP_PUBKEYHASH << OP_ELSE
+                                        << OP_PUBKEYHASH << OP_ENDIF << OP_EQUALVERIFY << OP_CHECKSIG));
     }
 
     // Shortcut for pay-to-script-hash, which are more constrained than the other types:
@@ -1536,6 +1551,7 @@ bool Solver(const ITxDB& txdb, const CKeyStore& keystore, const CScript& scriptP
         return (SignN(vSolutions, keystore, hash, nHashType, scriptSigRet));
 
     case TX_COLDSTAKE:
+    case TX_POOLCOLDSTAKE:
         if (fColdStake) {
             // sign with the cold staker key
             keyID = CKeyID(uint160(vSolutions[0]));
@@ -1573,6 +1589,7 @@ int ScriptSigArgsExpected(txnouttype t, const std::vector<std::vector<unsigned c
     case TX_SCRIPTHASH:
         return 1; // doesn't include args needed by the script
     case TX_COLDSTAKE:
+    case TX_POOLCOLDSTAKE:
         return 3;
     }
     return -1;
@@ -1670,7 +1687,8 @@ isminetype IsMine(const CKeyStore& keystore, const CScript& scriptPubKey)
             return isminetype::ISMINE_SPENDABLE;
         break;
     }
-    case TX_COLDSTAKE: {
+    case TX_COLDSTAKE:
+    case TX_POOLCOLDSTAKE: {
         CKeyID stakeKeyID     = CKeyID(uint160(vSolutions[0]));
         bool   stakeKeyIsMine = keystore.HaveKey(stakeKeyID);
         CKeyID ownerKeyID     = CKeyID(uint160(vSolutions[1]));
@@ -1988,6 +2006,7 @@ static CScript CombineSignatures(CScript scriptPubKey, const CTransaction& txTo,
     case TX_PUBKEY:
     case TX_PUBKEYHASH:
     case TX_COLDSTAKE:
+    case TX_POOLCOLDSTAKE:
         // Signatures are bigger than placeholders or empty scripts:
         if (sigs1.empty() || sigs1[0].empty())
             return PushAll(sigs2);
@@ -2096,6 +2115,18 @@ bool CScript::IsPayToColdStaking() const
     return (this->size() == 51 &&
             this->at(2) == OP_ROT &&
             this->at(4) == OP_CHECKCOLDSTAKEVERIFY &&
+            this->at(5) == 0x14 &&
+            this->at(27) == 0x14 &&
+            this->at(49) == OP_EQUALVERIFY &&
+            this->at(50) == OP_CHECKSIG);
+}
+
+bool CScript::IsPayToColdStakingForPool() const
+{
+    // Extra-fast test for pay-to-cold-staking CScripts:
+    return (this->size() == 51 &&
+            this->at(2) == OP_ROT &&
+            this->at(4) == OP_CHECKPOOLCOLDSTAKEVERIFY &&
             this->at(5) == 0x14 &&
             this->at(27) == 0x14 &&
             this->at(49) == OP_EQUALVERIFY &&
@@ -2352,6 +2383,15 @@ CScript GetScriptForStakeDelegation(const CKeyID& stakingKey, const CKeyID& spen
 {
     CScript script;
     script << OP_DUP << OP_HASH160 << OP_ROT << OP_IF << OP_CHECKCOLDSTAKEVERIFY
+           << ToByteVector(stakingKey) << OP_ELSE << ToByteVector(spendingKey) << OP_ENDIF
+           << OP_EQUALVERIFY << OP_CHECKSIG;
+    return script;
+}
+
+CScript GetScriptForStakeDelegationForPool(const CKeyID& stakingKey, const CKeyID& spendingKey)
+{
+    CScript script;
+    script << OP_DUP << OP_HASH160 << OP_ROT << OP_IF << OP_CHECKPOOLCOLDSTAKEVERIFY
            << ToByteVector(stakingKey) << OP_ELSE << ToByteVector(spendingKey) << OP_ENDIF
            << OP_EQUALVERIFY << OP_CHECKSIG;
     return script;
