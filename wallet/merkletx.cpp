@@ -41,7 +41,7 @@ struct ExtractorFunctor
 {
     const uint256 bestBlockHash;
 
-    ExtractorFunctor(const uint256& bestBlockHashIn) : bestBlockHash(bestBlockHashIn) {}
+    explicit ExtractorFunctor(const uint256& bestBlockHashIn) : bestBlockHash(bestBlockHashIn) {}
 
     boost::optional<int> operator()(const CBlockIndex& bi)
     {
@@ -181,7 +181,7 @@ int CMerkleTx::SetMerkleBranch(const ITxDB& txdb, const CBlock* pblock)
 
     // Locate the transaction
     for (nIndex = 0; nIndex < (int)pblock->vtx.size(); nIndex++)
-        if (pblock->vtx[nIndex] == *(CTransaction*)this)
+        if (pblock->vtx[nIndex] == *static_cast<CTransaction*>(this))
             break;
     if (nIndex == (int)pblock->vtx.size()) {
         vMerkleBranch.clear();
