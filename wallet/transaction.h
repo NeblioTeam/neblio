@@ -89,13 +89,7 @@ public:
 
     bool CheckColdStake(const CScript& script) const;
 
-    bool CheckColdStakeWithGiveaway(const CScript& script) const;
-
     bool IsCoinStake() const;
-
-    bool IsColdCoinStake() const;
-
-    boost::optional<std::vector<uint8_t>> GetColdStakeCmd() const;
 
     bool HasP2CSOutputs() const;
 

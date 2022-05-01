@@ -56,31 +56,6 @@ bool CTransaction::IsCoinStake() const
     return (vin.size() > 0 && !vin[0].prevout.IsNull() && vout.size() >= 2 && vout[0].IsEmpty());
 }
 
-bool CTransaction::IsColdCoinStake() const
-{
-    if (!IsCoinStake())
-        return false;
-
-    for (const auto& out : vout) {
-        if (out.scriptPubKey.IsPayToColdStaking()) {
-            return true;
-        }
-    }
-    return false;
-}
-
-boost::optional<std::vector<uint8_t>> CTransaction::GetColdStakeCmd() const
-{
-    if (!IsColdCoinStake())
-        return boost::none;
-
-    std::vector<uint8_t> opRet;
-    if (ContainsOpReturn(&opRet)) {
-        return boost::make_optional(std::move(opRet));
-    }
-    return boost::none;
-}
-
 bool CTransaction::ContainsOpReturn(std::vector<uint8_t>* opReturnArg) const
 {
     for (unsigned long j = 0; j < this->vout.size(); j++) {
@@ -152,46 +127,10 @@ bool CTransaction::CheckColdStake(const CScript& script) const
     return true;
 }
 
-bool CTransaction::CheckColdStakeWithGiveaway(const CScript& script) const
-{
-    // tx is a coinstake tx
-    if (!IsCoinStake())
-        return false;
-
-    if (vin.empty())
-        return false;
-
-    std::vector<uint8_t> opRet;
-    if (!this->ContainsOpReturn(&opRet))
-        return false;
-
-    const boost::optional<std::vector<uint8_t>> firstPubKey =
-        vin[0].scriptSig.GetPubKeyOfP2CSScriptSig();
-    if (!firstPubKey)
-        return false; // this is not P2CS
-
-    // all inputs must be P2CS and must be paying to the same pubkey
-    for (unsigned int i = 1; i < vin.size(); i++) {
-        if (vin[i].scriptSig.GetPubKeyOfP2CSScriptSig() != firstPubKey)
-            return false;
-    }
-
-    // all outputs except first (coinstake marker)
-    // have the same pubKeyScript and it matches the script we are spending
-    for (unsigned int i = 1; i < vout.size(); i++)
-        if (vout[i].scriptPubKey != script)
-            return false;
-
-    return true;
-}
-
 bool CTransaction::HasP2CSOutputs() const
 {
-    for (const CTxOut& txout : vout) {
-        if (txout.scriptPubKey.IsPayToColdStaking())
-            return true;
-    }
-    return false;
+    return std::any_of(vout.cbegin(), vout.cend(),
+                       [](const CTxOut& txout) { return txout.scriptPubKey.IsPayToColdStaking(); });
 }
 
 CAmount CTransaction::GetValueOut() const
