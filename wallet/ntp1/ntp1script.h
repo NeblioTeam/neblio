@@ -173,7 +173,8 @@ public:
     std::string getOpCodeBin() const;
     TxType      getTxType() const;
 
-    static std::shared_ptr<NTP1Script> ParseScript(const std::string& scriptHex);
+    static std::shared_ptr<NTP1Script> ParseScriptHex(const std::string& scriptHex);
+    static std::shared_ptr<NTP1Script> ParseScriptBin(const std::vector<uint8_t>& scriptBin);
     std::string                        getParsedScriptHex() const;
     int                                getProtocolVersion() const;
 

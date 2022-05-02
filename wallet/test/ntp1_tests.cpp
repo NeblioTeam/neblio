@@ -192,19 +192,6 @@ TEST(ntp1_tests, parse_NTP1Transaction)
     NTP1Transaction tx_good, tx_nogood;
     EXPECT_NO_THROW(tx_good.importJsonData(tx_str));
     EXPECT_ANY_THROW(tx_nogood.importJsonData(tx_str.substr(0, tx_str.size() - 1)));
-    std::string hex = tx_good.getHex();
-    std::transform(hex.begin(), hex.end(), hex.begin(), ::tolower);
-    EXPECT_EQ(hex, "010000001c4d9e5a0290bed89598211fb5feac9c80f475dc16486ca352d6a40c867a9f6106a3e3334f01"
-                   "0000006b483045022100975208417dc562459a5d65d8996edf7be7e8ba4f6c30a04a345c63a7cefc413b"
-                   "02202068896fca8e916a85c10202e7bad783d756db9d33571cde646113f68aa99a7f012103f4db6a95b4"
-                   "2b695ed59f3584c162e6fdd4e8e5223c2da74938a725ed7b0244a8ffffffff90bed89598211fb5feac9c"
-                   "80f475dc16486ca352d6a40c867a9f6106a3e3334f030000006a47304402200f4123e57d950f434605a8"
-                   "45efce86c06af1d0017691c98f13c3dfe51881ac0802205768dedbe3baaefafd65fd9d67e583cad6c96f"
-                   "deb542d50f40022fef07d87a55012103f4db6a95b42b695ed59f3584c162e6fdd4e8e5223c2da74938a7"
-                   "25ed7b0244a8ffffffff0410270000000000001976a914930b31797c0e6f0d4239909b044aaadfde3719"
-                   "9588ac10270000000000001976a9149e719d5db5e01bb357188f7ab25e336a9c2de11288ac1027000000"
-                   "0000000d6a0b4e54011500201301403e4390a1883b000000001976a9149e719d5db5e01bb357188f7ab2"
-                   "5e336a9c2de11288ac00000000");
     EXPECT_EQ(tx_good.getLockTime(), static_cast<uint64_t>(0));
     EXPECT_EQ(tx_good.getTime(), static_cast<uint64_t>(1520323876000));
     EXPECT_EQ(tx_good.getTxHash().ToString(),
@@ -454,7 +441,7 @@ TEST(ntp1_tests, script_transfer)
 {
     // transfer some tokens
     const std::string                    toParse_transfer = "4e5401150069892a92";
-    std::shared_ptr<NTP1Script>          script           = NTP1Script::ParseScript(toParse_transfer);
+    std::shared_ptr<NTP1Script>          script           = NTP1Script::ParseScriptHex(toParse_transfer);
     std::shared_ptr<NTP1Script_Transfer> script_transfer =
         std::dynamic_pointer_cast<NTP1Script_Transfer>(script);
     EXPECT_EQ(script_transfer->getHeader(), boost::algorithm::unhex(toParse_transfer.substr(0, 6)));
@@ -479,25 +466,25 @@ TEST(ntp1_tests, script_issuance_allowed_chars_in_token_symbol)
         // NIBBL name 4e4942424c
         toParse_issuance = "4e5401014e4942424cab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
                            "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
-        EXPECT_NO_THROW(script = NTP1Script::ParseScript(toParse_issuance));
+        EXPECT_NO_THROW(script = NTP1Script::ParseScriptHex(toParse_issuance));
     }
     {
         // -IBBL name
         toParse_issuance = "4e5401012d4942424cab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
                            "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
-        EXPECT_THROW(script = NTP1Script::ParseScript(toParse_issuance), std::runtime_error);
+        EXPECT_THROW(script = NTP1Script::ParseScriptHex(toParse_issuance), std::runtime_error);
     }
     {
         // NI~BL name 4e497e424c
         toParse_issuance = "4e5401014e497e424cab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
                            "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
-        EXPECT_THROW(script = NTP1Script::ParseScript(toParse_issuance), std::runtime_error);
+        EXPECT_THROW(script = NTP1Script::ParseScriptHex(toParse_issuance), std::runtime_error);
     }
     {
         // NIBB. name 4e4942422e
         toParse_issuance = "4e5401014e4942422eab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
                            "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
-        EXPECT_THROW(script = NTP1Script::ParseScript(toParse_issuance), std::runtime_error);
+        EXPECT_THROW(script = NTP1Script::ParseScriptHex(toParse_issuance), std::runtime_error);
     }
 
     // a string of all invalid characters from the ascii table
@@ -553,12 +540,12 @@ TEST(ntp1_tests, script_issuance_allowed_chars_in_token_symbol)
 
             // No exception is thrown before replacing the char with an invalid char
             toParse_issuance = to_parse_prefix + tokenName + to_parse_suffix;
-            EXPECT_NO_THROW(script = NTP1Script::ParseScript(toParse_issuance));
+            EXPECT_NO_THROW(script = NTP1Script::ParseScriptHex(toParse_issuance));
 
             // Exception is thrown after replacing the char with an invalid char
             tokenName = boost::algorithm::hex(tokenNameRaw); // new name with one invalid character
             toParse_issuance = to_parse_prefix + tokenName + to_parse_suffix;
-            EXPECT_THROW(script = NTP1Script::ParseScript(toParse_issuance), std::runtime_error)
+            EXPECT_THROW(script = NTP1Script::ParseScriptHex(toParse_issuance), std::runtime_error)
                 << "The char \"" << boost::algorithm::hex(std::string(1, c))
                 << "\" in a token name didn't throw an exception";
         }
@@ -579,12 +566,12 @@ TEST(ntp1_tests, script_issuance_allowed_chars_in_token_symbol)
 
             // No exception is thrown before
             toParse_issuance = to_parse_prefix + tokenName + to_parse_suffix;
-            EXPECT_NO_THROW(script = NTP1Script::ParseScript(toParse_issuance));
+            EXPECT_NO_THROW(script = NTP1Script::ParseScriptHex(toParse_issuance));
 
             // No exception is thrown after putting in another valid char
             tokenName = boost::algorithm::hex(tokenNameRaw); // new name with one invalid character
             toParse_issuance = to_parse_prefix + tokenName + to_parse_suffix;
-            EXPECT_NO_THROW(script = NTP1Script::ParseScript(toParse_issuance))
+            EXPECT_NO_THROW(script = NTP1Script::ParseScriptHex(toParse_issuance))
                 << "The char \"" << boost::algorithm::hex(std::string(1, c))
                 << "\" in a token name didn't throw an exception";
         }
@@ -611,7 +598,7 @@ TEST(ntp1_tests, script_issuance)
         std::string toParse_issuance =
             "4e5401014e4942424cab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
             "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
-        std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScript(toParse_issuance);
+        std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScriptHex(toParse_issuance);
         std::shared_ptr<NTP1Script_Issuance> script_issuance =
             std::dynamic_pointer_cast<NTP1Script_Issuance>(script);
         EXPECT_NE(script_issuance.get(), nullptr);
@@ -643,7 +630,7 @@ TEST(ntp1_tests, script_burn)
 {
     // burn some tokens
     std::string                      toParse_burn = "4e5401251f2013";
-    std::shared_ptr<NTP1Script>      script       = NTP1Script::ParseScript(toParse_burn);
+    std::shared_ptr<NTP1Script>      script       = NTP1Script::ParseScriptHex(toParse_burn);
     std::shared_ptr<NTP1Script_Burn> script_burn  = std::dynamic_pointer_cast<NTP1Script_Burn>(script);
     EXPECT_EQ(script_burn->getHeader(), boost::algorithm::unhex(toParse_burn.substr(0, 6)));
     EXPECT_EQ(script_burn->getHexMetadata().size(), 0u);
@@ -661,14 +648,10 @@ TEST(ntp1_tests, script_burn)
 
 TEST(ntp1_tests, script_get_amount_size)
 {
-    EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("11"))[0]),
-              1u);
-    EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("2012"))[0]),
-              2u);
-    EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("4bb3c1"))[0]),
-              3u);
-    EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("68c7e5b3"))[0]),
-              4u);
+    EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("11"))[0]), 1u);
+    EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("2012"))[0]), 2u);
+    EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("4bb3c1"))[0]), 3u);
+    EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("68c7e5b3"))[0]), 4u);
     EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("8029990f1a"))[0]),
               5u);
     EXPECT_EQ(NTP1Script::CalculateAmountSize(boost::algorithm::unhex(std::string("a09c47f7b1a1"))[0]),
@@ -708,7 +691,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_issuance)
 
     std::string opReturnArg;
     EXPECT_TRUE(NTP1Transaction::IsTxNTP1(&tx, &opReturnArg));
-    std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScript(opReturnArg);
+    std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScriptHex(opReturnArg);
     std::shared_ptr<NTP1Script_Issuance> script_issuance =
         std::dynamic_pointer_cast<NTP1Script_Issuance>(script);
     EXPECT_NE(script_issuance.get(), nullptr);
@@ -799,7 +782,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
 
     std::string opReturnArg;
     EXPECT_TRUE(NTP1Transaction::IsTxNTP1(&tx, &opReturnArg));
-    std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScript(opReturnArg);
+    std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScriptHex(opReturnArg);
     std::shared_ptr<NTP1Script_Transfer> script_transfer =
         std::dynamic_pointer_cast<NTP1Script_Transfer>(script);
     EXPECT_EQ(script_transfer->getHeader(), boost::algorithm::unhex(opReturnArg.substr(0, 6)));
@@ -849,11 +832,14 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
     vinA_vout0_token0.setTokenId("LaA5grPQMDhwvciWFqxwG1ySDqNHAgms1yLrPp");
     vinA_vout0_token0.setTokenSymbol("NIBBL");
 
-    NTP1TxOut vinA_vout0;
-    vinA_vout0.__manualSet(
-        10000, "76a91486061d16eafa0ea7a6be8875fb5bbc09a5f210a588ac",
-        "OP_DUP OP_HASH160 86061d16eafa0ea7a6be8875fb5bbc09a5f210a5 OP_EQUALVERIFY OP_CHECKSIG",
-        std::vector<NTP1TokenTxData>({vinA_vout0_token0}), "NY8d4F6EZQH1y5KoqvdybTUgfwAMUYW3qF");
+    NTP1TxOut         vinA_vout0;
+    const std::string vinA_vout0ScriptBin =
+        boost::algorithm::unhex<std::string>("76a91486061d16eafa0ea7a6be8875fb5bbc09a5f210a588ac");
+    CScript vinA_vout0Script;
+    std::copy(vinA_vout0ScriptBin.begin(), vinA_vout0ScriptBin.end(),
+              std::back_inserter(vinA_vout0Script));
+    vinA_vout0.__manualSet(10000, vinA_vout0Script, std::vector<NTP1TokenTxData>({vinA_vout0_token0}),
+                           "NY8d4F6EZQH1y5KoqvdybTUgfwAMUYW3qF");
 
     NTP1TokenTxData vinA_vout1_token0;
     vinA_vout1_token0.setAggregationPolicy("aggregable");
@@ -866,27 +852,23 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
     vinA_vout1_token0.setTokenSymbol("NIBBL");
 
     NTP1TxOut vinA_vout1;
-    vinA_vout1.__manualSet(
-        10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
-        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
-        std::vector<NTP1TokenTxData>({vinA_vout1_token0}), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+    vinA_vout1.__manualSet(10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+                           std::vector<NTP1TokenTxData>({vinA_vout1_token0}),
+                           "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
     NTP1TxOut vinA_vout2;
-    vinA_vout2.__manualSet(10000, "6a0c4e5401150020120169895252", "OP_RETURN 4e5401150020120169895252",
-                           std::vector<NTP1TokenTxData>(), "");
+    vinA_vout2.__manualSet(10000, "6a0c4e5401150020120169895252", std::vector<NTP1TokenTxData>(), "");
 
     NTP1TxOut vinA_vout3;
-    vinA_vout3.__manualSet(
-        40000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
-        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
-        std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+    vinA_vout3.__manualSet(40000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+
+                           std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
     // inputs are not important
-    ntp1txVinA.__manualSet(1,
-                           uint256("1766a9150953392de523f9420a2e32f993bb572e79f465de78ef96831494b347"),
-                           std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
-                           std::vector<NTP1TxOut>{vinA_vout0, vinA_vout1, vinA_vout2, vinA_vout3}, 0,
-                           1520653825000, NTP1TxType_TRANSFER);
+    ntp1txVinA.__manualSet(
+        1, uint256("1766a9150953392de523f9420a2e32f993bb572e79f465de78ef96831494b347"),
+        std::vector<NTP1TxIn>{}, std::vector<NTP1TxOut>{vinA_vout0, vinA_vout1, vinA_vout2, vinA_vout3},
+        0, 1520653825000, NTP1TxType_TRANSFER);
 
     /// Input 1
 
@@ -915,10 +897,9 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
     vinB_vout0_token0.setTokenSymbol("NIBBL");
 
     NTP1TxOut vinB_vout0;
-    vinB_vout0.__manualSet(
-        10000, "76a9146732468b6fe071d7004a5d9bddaacc3a71423acd88ac",
-        "OP_DUP OP_HASH160 6732468b6fe071d7004a5d9bddaacc3a71423acd OP_EQUALVERIFY OP_CHECKSIG",
-        std::vector<NTP1TokenTxData>({vinB_vout0_token0}), "NVKd1iq2UF8RZThEN4MDGMBcKnFPnuPF6v");
+    vinB_vout0.__manualSet(10000, "76a9146732468b6fe071d7004a5d9bddaacc3a71423acd88ac",
+                           std::vector<NTP1TokenTxData>({vinB_vout0_token0}),
+                           "NVKd1iq2UF8RZThEN4MDGMBcKnFPnuPF6v");
 
     NTP1TokenTxData vinB_vout1_token0;
     vinB_vout1_token0.setAggregationPolicy("aggregable");
@@ -931,27 +912,22 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
     vinB_vout1_token0.setTokenSymbol("NIBBL");
 
     NTP1TxOut vinB_vout1;
-    vinB_vout1.__manualSet(
-        10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
-        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
-        std::vector<NTP1TokenTxData>({vinB_vout1_token0}), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+    vinB_vout1.__manualSet(10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+                           std::vector<NTP1TokenTxData>({vinB_vout1_token0}),
+                           "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
     NTP1TxOut vinB_vout2;
-    vinB_vout2.__manualSet(10000, "6a0c4e5401150020120169895c32", "OP_RETURN 4e5401150020120169895c32",
-                           std::vector<NTP1TokenTxData>(), "");
+    vinB_vout2.__manualSet(10000, "6a0c4e5401150020120169895c32", std::vector<NTP1TokenTxData>(), "");
 
     NTP1TxOut vinB_vout3;
-    vinB_vout3.__manualSet(
-        70000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
-        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
-        std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+    vinB_vout3.__manualSet(70000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+                           std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
     // inputs are not important
-    ntp1txVinB.__manualSet(1,
-                           uint256("111481401fbd842c5aa1b9420db8c5ef7e94d9ac3b3d3b7e2b2cb6c7b0650612"),
-                           std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
-                           std::vector<NTP1TxOut>{vinB_vout0, vinB_vout1, vinB_vout2, vinB_vout3}, 0,
-                           1520653825000, NTP1TxType_TRANSFER);
+    ntp1txVinB.__manualSet(
+        1, uint256("111481401fbd842c5aa1b9420db8c5ef7e94d9ac3b3d3b7e2b2cb6c7b0650612"),
+        std::vector<NTP1TxIn>{}, std::vector<NTP1TxOut>{vinB_vout0, vinB_vout1, vinB_vout2, vinB_vout3},
+        0, 1520653825000, NTP1TxType_TRANSFER);
 
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputs{std::make_pair(txVinA, ntp1txVinA),
                                                                  std::make_pair(txVinB, ntp1txVinB)};
@@ -1004,7 +980,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
 
     std::string opReturnArg;
     EXPECT_TRUE(NTP1Transaction::IsTxNTP1(&tx, &opReturnArg));
-    std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScript(opReturnArg);
+    std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScriptHex(opReturnArg);
     std::shared_ptr<NTP1Script_Transfer> script_transfer =
         std::dynamic_pointer_cast<NTP1Script_Transfer>(script);
     EXPECT_EQ(script_transfer->getHeader(), boost::algorithm::unhex(opReturnArg.substr(0, 6)));
@@ -1055,10 +1031,9 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
     vinA_vout0_token0.setTokenSymbol("NIBBL");
 
     NTP1TxOut vinA_vout0;
-    vinA_vout0.__manualSet(
-        10000, "76a91486061d16eafa0ea7a6be8875fb5bbc09a5f210a588ac",
-        "OP_DUP OP_HASH160 86061d16eafa0ea7a6be8875fb5bbc09a5f210a5 OP_EQUALVERIFY OP_CHECKSIG",
-        std::vector<NTP1TokenTxData>({vinA_vout0_token0}), "NY8d4F6EZQH1y5KoqvdybTUgfwAMUYW3qF");
+    vinA_vout0.__manualSet(10000, "76a91486061d16eafa0ea7a6be8875fb5bbc09a5f210a588ac",
+                           std::vector<NTP1TokenTxData>({vinA_vout0_token0}),
+                           "NY8d4F6EZQH1y5KoqvdybTUgfwAMUYW3qF");
 
     NTP1TokenTxData vinA_vout1_token0;
     vinA_vout1_token0.setAggregationPolicy("aggregable");
@@ -1071,27 +1046,22 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
     vinA_vout1_token0.setTokenSymbol("NIBBL");
 
     NTP1TxOut vinA_vout1;
-    vinA_vout1.__manualSet(
-        10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
-        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
-        std::vector<NTP1TokenTxData>({vinA_vout1_token0}), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+    vinA_vout1.__manualSet(10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+                           std::vector<NTP1TokenTxData>({vinA_vout1_token0}),
+                           "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
     NTP1TxOut vinA_vout2;
-    vinA_vout2.__manualSet(10000, "6a0c4e5401150020120169895252", "OP_RETURN 4e5401150020120169895252",
-                           std::vector<NTP1TokenTxData>(), "");
+    vinA_vout2.__manualSet(10000, "6a0c4e5401150020120169895252", std::vector<NTP1TokenTxData>(), "");
 
     NTP1TxOut vinA_vout3;
-    vinA_vout3.__manualSet(
-        40000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
-        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
-        std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+    vinA_vout3.__manualSet(40000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+                           std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
     // inputs are not important
-    ntp1txVinA.__manualSet(1,
-                           uint256("1766a9150953392de523f9420a2e32f993bb572e79f465de78ef96831494b347"),
-                           std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
-                           std::vector<NTP1TxOut>{vinA_vout0, vinA_vout1, vinA_vout2, vinA_vout3}, 0,
-                           1520653825000, NTP1TxType_TRANSFER);
+    ntp1txVinA.__manualSet(
+        1, uint256("1766a9150953392de523f9420a2e32f993bb572e79f465de78ef96831494b347"),
+        std::vector<NTP1TxIn>{}, std::vector<NTP1TxOut>{vinA_vout0, vinA_vout1, vinA_vout2, vinA_vout3},
+        0, 1520653825000, NTP1TxType_TRANSFER);
 
     /// Input 1
 
@@ -1120,10 +1090,9 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
     vinB_vout0_token0.setTokenSymbol("NIBBL");
 
     NTP1TxOut vinB_vout0;
-    vinB_vout0.__manualSet(
-        10000, "76a9146732468b6fe071d7004a5d9bddaacc3a71423acd88ac",
-        "OP_DUP OP_HASH160 6732468b6fe071d7004a5d9bddaacc3a71423acd OP_EQUALVERIFY OP_CHECKSIG",
-        std::vector<NTP1TokenTxData>({vinB_vout0_token0}), "NVKd1iq2UF8RZThEN4MDGMBcKnFPnuPF6v");
+    vinB_vout0.__manualSet(10000, "76a9146732468b6fe071d7004a5d9bddaacc3a71423acd88ac",
+                           std::vector<NTP1TokenTxData>({vinB_vout0_token0}),
+                           "NVKd1iq2UF8RZThEN4MDGMBcKnFPnuPF6v");
 
     NTP1TokenTxData vinB_vout1_token0;
     vinB_vout1_token0.setAggregationPolicy("aggregable");
@@ -1136,27 +1105,22 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
     vinB_vout1_token0.setTokenSymbol("NIBBL");
 
     NTP1TxOut vinB_vout1;
-    vinB_vout1.__manualSet(
-        10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
-        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
-        std::vector<NTP1TokenTxData>({vinB_vout1_token0}), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+    vinB_vout1.__manualSet(10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+                           std::vector<NTP1TokenTxData>({vinB_vout1_token0}),
+                           "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
     NTP1TxOut vinB_vout2;
-    vinB_vout2.__manualSet(10000, "6a0c4e5401150020120169895c32", "OP_RETURN 4e5401150020120169895c32",
-                           std::vector<NTP1TokenTxData>(), "");
+    vinB_vout2.__manualSet(10000, "6a0c4e5401150020120169895c32", std::vector<NTP1TokenTxData>(), "");
 
     NTP1TxOut vinB_vout3;
-    vinB_vout3.__manualSet(
-        70000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
-        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
-        std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+    vinB_vout3.__manualSet(70000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+                           std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
     // inputs are not important
-    ntp1txVinB.__manualSet(1,
-                           uint256("111481401fbd842c5aa1b9420db8c5ef7e94d9ac3b3d3b7e2b2cb6c7b0650612"),
-                           std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
-                           std::vector<NTP1TxOut>{vinB_vout0, vinB_vout1, vinB_vout2, vinB_vout3}, 0,
-                           1520653825000, NTP1TxType_TRANSFER);
+    ntp1txVinB.__manualSet(
+        1, uint256("111481401fbd842c5aa1b9420db8c5ef7e94d9ac3b3d3b7e2b2cb6c7b0650612"),
+        std::vector<NTP1TxIn>{}, std::vector<NTP1TxOut>{vinB_vout0, vinB_vout1, vinB_vout2, vinB_vout3},
+        0, 1520653825000, NTP1TxType_TRANSFER);
 
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputs{std::make_pair(txVinB, ntp1txVinB),
                                                                  std::make_pair(txVinA, ntp1txVinA)};
@@ -1239,10 +1203,9 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
     vinA_vout0_token0.setTokenSymbol("NIBBL");
 
     NTP1TxOut vinA_vout0;
-    vinA_vout0.__manualSet(
-        10000, "76a91486061d16eafa0ea7a6be8875fb5bbc09a5f210a588ac",
-        "OP_DUP OP_HASH160 86061d16eafa0ea7a6be8875fb5bbc09a5f210a5 OP_EQUALVERIFY OP_CHECKSIG",
-        std::vector<NTP1TokenTxData>({vinA_vout0_token0}), "NS8riWSXkBwWLK1wDDqReNHiLA5pTHeHbg");
+    vinA_vout0.__manualSet(10000, "76a91486061d16eafa0ea7a6be8875fb5bbc09a5f210a588ac",
+                           std::vector<NTP1TokenTxData>({vinA_vout0_token0}),
+                           "NS8riWSXkBwWLK1wDDqReNHiLA5pTHeHbg");
 
     NTP1TokenTxData vinA_vout1_token0;
     vinA_vout1_token0.setAggregationPolicy("aggregable");
@@ -1255,27 +1218,22 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
     vinA_vout1_token0.setTokenSymbol("NIBBL");
 
     NTP1TxOut vinA_vout1;
-    vinA_vout1.__manualSet(
-        10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
-        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
-        std::vector<NTP1TokenTxData>({vinA_vout1_token0}), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+    vinA_vout1.__manualSet(10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+                           std::vector<NTP1TokenTxData>({vinA_vout1_token0}),
+                           "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
     NTP1TxOut vinA_vout2;
-    vinA_vout2.__manualSet(10000, "6a0d4e54011500201201802fadc751",
-                           "OP_RETURN 4e54011500201201802fadc751", std::vector<NTP1TokenTxData>(), "");
+    vinA_vout2.__manualSet(10000, "6a0d4e54011500201201802fadc751", std::vector<NTP1TokenTxData>(), "");
 
     NTP1TxOut vinA_vout3;
-    vinA_vout3.__manualSet(
-        820000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
-        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
-        std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+    vinA_vout3.__manualSet(820000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+                           std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
     // inputs are not important
-    ntp1txVinA.__manualSet(1,
-                           uint256("c0563ccccee98f68d519bcf9c595e459876c9f6fcfbd046f85e6fc56309735e9"),
-                           std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
-                           std::vector<NTP1TxOut>{vinA_vout0, vinA_vout1, vinA_vout2, vinA_vout3}, 0,
-                           1520653825000, NTP1TxType_TRANSFER);
+    ntp1txVinA.__manualSet(
+        1, uint256("c0563ccccee98f68d519bcf9c595e459876c9f6fcfbd046f85e6fc56309735e9"),
+        std::vector<NTP1TxIn>{}, std::vector<NTP1TxOut>{vinA_vout0, vinA_vout1, vinA_vout2, vinA_vout3},
+        0, 1520653825000, NTP1TxType_TRANSFER);
 
     std::string vinB =
         "010000005764a35a02da1b4ac76bbcee52883fa9dca66badcf26419cbebad3649bad1716b07bfb9b42010000006"
@@ -1302,10 +1260,9 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
     vinB_vout0_token0.setTokenSymbol("NIBBL");
 
     NTP1TxOut vinB_vout0;
-    vinB_vout0.__manualSet(
-        10000, "76a91486061d16eafa0ea7a6be8875fb5bbc09a5f210a588ac",
-        "OP_DUP OP_HASH160 86061d16eafa0ea7a6be8875fb5bbc09a5f210a5 OP_EQUALVERIFY OP_CHECKSIG",
-        std::vector<NTP1TokenTxData>({vinB_vout0_token0}), "NMiqBPp9WkE7bZo3d1CLcVd1orGdapY1VN");
+    vinB_vout0.__manualSet(10000, "76a91486061d16eafa0ea7a6be8875fb5bbc09a5f210a588ac",
+                           std::vector<NTP1TokenTxData>({vinB_vout0_token0}),
+                           "NMiqBPp9WkE7bZo3d1CLcVd1orGdapY1VN");
 
     NTP1TokenTxData vinB_vout1_token0;
     vinB_vout1_token0.setAggregationPolicy("aggregable");
@@ -1318,27 +1275,22 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
     vinB_vout1_token0.setTokenSymbol("NIBBL");
 
     NTP1TxOut vinB_vout1;
-    vinB_vout1.__manualSet(
-        10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
-        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
-        std::vector<NTP1TokenTxData>({vinB_vout1_token0}), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+    vinB_vout1.__manualSet(10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+                           std::vector<NTP1TokenTxData>({vinB_vout1_token0}),
+                           "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
     NTP1TxOut vinB_vout2;
-    vinB_vout2.__manualSet(10000, "6a0c4e5401150020120169894ba2", "OP_RETURN 4e5401150020120169894ba2",
-                           std::vector<NTP1TokenTxData>(), "");
+    vinB_vout2.__manualSet(10000, "6a0c4e5401150020120169894ba2", std::vector<NTP1TokenTxData>(), "");
 
     NTP1TxOut vinB_vout3;
-    vinB_vout3.__manualSet(
-        10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
-        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
-        std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+    vinB_vout3.__manualSet(10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+                           std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
     // inputs are not important
-    ntp1txVinB.__manualSet(1,
-                           uint256("034849559c1ed8211644c7def3536688ec5766d3a7f7f977f190590d7bb7db05"),
-                           std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
-                           std::vector<NTP1TxOut>{vinB_vout0, vinB_vout1, vinB_vout2, vinB_vout3}, 0,
-                           1520653825000, NTP1TxType_TRANSFER);
+    ntp1txVinB.__manualSet(
+        1, uint256("034849559c1ed8211644c7def3536688ec5766d3a7f7f977f190590d7bb7db05"),
+        std::vector<NTP1TxIn>{}, std::vector<NTP1TxOut>{vinB_vout0, vinB_vout1, vinB_vout2, vinB_vout3},
+        0, 1520653825000, NTP1TxType_TRANSFER);
 
     std::string vinC =
         "010000006066a35a02d5e4c9c957fdfc9a737a22bc0a28d2260476687eb5c9b0b9debc1dd281f84e0f010000006"
@@ -1365,10 +1317,9 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
     vinC_vout0_token0.setTokenSymbol("NIBBL");
 
     NTP1TxOut vinC_vout0;
-    vinC_vout0.__manualSet(
-        10000, "76a914e1aa4fabe4db6c5f6d262c830571288a746a06df88ac",
-        "OP_DUP OP_HASH160 e1aa4fabe4db6c5f6d262c830571288a746a06df OP_EQUALVERIFY OP_CHECKSIG",
-        std::vector<NTP1TokenTxData>({vinC_vout0_token0}), "NgVBFMAt1moZrPS2LX7ud7zJGDd8rtNsvu");
+    vinC_vout0.__manualSet(10000, "76a914e1aa4fabe4db6c5f6d262c830571288a746a06df88ac",
+                           std::vector<NTP1TokenTxData>({vinC_vout0_token0}),
+                           "NgVBFMAt1moZrPS2LX7ud7zJGDd8rtNsvu");
 
     NTP1TokenTxData vinC_vout1_token0;
     vinC_vout1_token0.setAggregationPolicy("aggregable");
@@ -1381,27 +1332,22 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
     vinC_vout1_token0.setTokenSymbol("NIBBL");
 
     NTP1TxOut vinC_vout1;
-    vinC_vout1.__manualSet(
-        10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
-        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
-        std::vector<NTP1TokenTxData>({vinC_vout1_token0}), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+    vinC_vout1.__manualSet(10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+                           std::vector<NTP1TokenTxData>({vinC_vout1_token0}),
+                           "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
     NTP1TxOut vinC_vout2;
-    vinC_vout2.__manualSet(10000, "6a0c4e5401150020120169894a92", "OP_RETURN 4e5401150020120169894a92",
-                           std::vector<NTP1TokenTxData>(), "");
+    vinC_vout2.__manualSet(10000, "6a0c4e5401150020120169894a92", std::vector<NTP1TokenTxData>(), "");
 
     NTP1TxOut vinC_vout3;
-    vinC_vout3.__manualSet(
-        10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
-        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
-        std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+    vinC_vout3.__manualSet(10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+                           std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
     // inputs are not important
-    ntp1txVinC.__manualSet(1,
-                           uint256("0132cf38f3a298403427e8c3203f030141efff9c0d3a3fb7fef10ab4452771df"),
-                           std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
-                           std::vector<NTP1TxOut>{vinC_vout0, vinC_vout1, vinC_vout2, vinC_vout3}, 0,
-                           1520653825000, NTP1TxType_TRANSFER);
+    ntp1txVinC.__manualSet(
+        1, uint256("0132cf38f3a298403427e8c3203f030141efff9c0d3a3fb7fef10ab4452771df"),
+        std::vector<NTP1TxIn>{}, std::vector<NTP1TxOut>{vinC_vout0, vinC_vout1, vinC_vout2, vinC_vout3},
+        0, 1520653825000, NTP1TxType_TRANSFER);
 
     std::string vinD =
         "01000000c87ba35a028ce101d93f5d2a443f368f91a8eff8c86d13be0779db72d8e6b5d53b051444e4010000006"
@@ -1428,10 +1374,9 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
     vinD_vout0_token0.setTokenSymbol("NIBBL");
 
     NTP1TxOut vinD_vout0;
-    vinD_vout0.__manualSet(
-        10000, "76a9148a4b68e051ba56f5ef5fd101e23eabd6c5969c0488ac",
-        "OP_DUP OP_HASH160 8a4b68e051ba56f5ef5fd101e23eabd6c5969c04 OP_EQUALVERIFY OP_CHECKSIG",
-        std::vector<NTP1TokenTxData>({vinD_vout0_token0}), "NYXCmnTDhV8hBx7QB1QrqG6XqSutzxAgQ7");
+    vinD_vout0.__manualSet(10000, "76a9148a4b68e051ba56f5ef5fd101e23eabd6c5969c0488ac",
+                           std::vector<NTP1TokenTxData>({vinD_vout0_token0}),
+                           "NYXCmnTDhV8hBx7QB1QrqG6XqSutzxAgQ7");
 
     NTP1TokenTxData vinD_vout1_token0;
     vinD_vout1_token0.setAggregationPolicy("aggregable");
@@ -1444,27 +1389,22 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
     vinD_vout1_token0.setTokenSymbol("NIBBL");
 
     NTP1TxOut vinD_vout1;
-    vinD_vout1.__manualSet(
-        10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
-        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
-        std::vector<NTP1TokenTxData>({vinD_vout1_token0}), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+    vinD_vout1.__manualSet(10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+                           std::vector<NTP1TokenTxData>({vinD_vout1_token0}),
+                           "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
     NTP1TxOut vinD_vout2;
-    vinD_vout2.__manualSet(10000, "6a0c4e5401150020120169894032", "OP_RETURN 4e5401150020120169894032",
-                           std::vector<NTP1TokenTxData>(), "");
+    vinD_vout2.__manualSet(10000, "6a0c4e5401150020120169894032", std::vector<NTP1TokenTxData>(), "");
 
     NTP1TxOut vinD_vout3;
-    vinD_vout3.__manualSet(
-        10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
-        "OP_DUP OP_HASH160 3f7eb8c3da2cbe606fd5d46b11ab9211705770db OP_EQUALVERIFY OP_CHECKSIG",
-        std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
+    vinD_vout3.__manualSet(10000, "76a9143f7eb8c3da2cbe606fd5d46b11ab9211705770db88ac",
+                           std::vector<NTP1TokenTxData>(), "NRhhZd2hzHmtHWGtQLY8Kjnt5tabyeVSxw");
 
     // inputs are not important
-    ntp1txVinD.__manualSet(1,
-                           uint256("0317c3f20338cd8ea142c389e65670554c676905d2024a58775f695fe88f1298"),
-                           std::vector<unsigned char>(), std::vector<NTP1TxIn>{},
-                           std::vector<NTP1TxOut>{vinD_vout0, vinD_vout1, vinD_vout2, vinD_vout3}, 0,
-                           1520653825000, NTP1TxType_TRANSFER);
+    ntp1txVinD.__manualSet(
+        1, uint256("0317c3f20338cd8ea142c389e65670554c676905d2024a58775f695fe88f1298"),
+        std::vector<NTP1TxIn>{}, std::vector<NTP1TxOut>{vinD_vout0, vinD_vout1, vinD_vout2, vinD_vout3},
+        0, 1520653825000, NTP1TxType_TRANSFER);
 
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputs{
         std::make_pair(txVinA, ntp1txVinA), std::make_pair(txVinB, ntp1txVinB),
@@ -1472,7 +1412,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
 
     std::string opReturnArg;
     EXPECT_TRUE(NTP1Transaction::IsTxNTP1(&tx, &opReturnArg));
-    std::shared_ptr<NTP1Script>      scriptPtr  = NTP1Script::ParseScript(opReturnArg);
+    std::shared_ptr<NTP1Script>      scriptPtr  = NTP1Script::ParseScriptHex(opReturnArg);
     std::shared_ptr<NTP1Script_Burn> scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Burn>(scriptPtr);
     EXPECT_NE(scriptPtr.get(), nullptr);
     EXPECT_NE(scriptPtrD.get(), nullptr);
@@ -1707,7 +1647,7 @@ void TestScriptParsing(std::string OpReturnArg, const CTransaction& tx)
         h == "0a71b6db7994cc91d7e24302428e44dc0871eff23caddfd75099e76666374175")
         return;
 
-    std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScript(OpReturnArg);
+    std::shared_ptr<NTP1Script> scriptPtr = NTP1Script::ParseScriptHex(OpReturnArg);
     scriptPtr->setEnableOpReturnSizeCheck(false);
     std::string calculatedScript = boost::algorithm::hex(scriptPtr->calculateScriptBin());
     std::transform(OpReturnArg.begin(), OpReturnArg.end(), OpReturnArg.begin(), ::tolower);
@@ -1746,6 +1686,12 @@ void TestNTP1TxParsing(const CTransaction& tx, NetworkType netType)
 
     NTP1Transaction ntp1tx;
     ntp1tx.readNTP1DataFromTx(*dbMock, tx, inputs);
+
+    const std::vector<uint8_t> scriptBin = ntp1tx.getNTP1OpReturnScript();
+    const std::string          scriptHex = ntp1tx.getNTP1OpReturnScriptHex();
+    EXPECT_EQ(scriptHex, ToHex(scriptBin));
+    // remove the prefix (in hex) and compare the script and make sure it's the same
+    EXPECT_EQ(scriptHex, OpReturnArg);
 
     EXPECT_EQ(ntp1tx.getTxOutCount(), ntp1tx_ref.getTxOutCount()) << "Failed tx: " << txid;
     for (int i = 0; i < (int)ntp1tx.getTxOutCount(); i++) {
@@ -2238,7 +2184,7 @@ TEST(ntp1_tests, construct_scripts)
         std::string toParse_issuance =
             "4e5401014e4942424cab10c04e20e0aec73d58c8fbf2a9c26a6dc3ed666c7b80fef2"
             "15620c817703b1e5d8b1870211ce7cdf50718b4789245fb80f58992019002019f0";
-        std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScript(toParse_issuance);
+        std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScriptHex(toParse_issuance);
         std::shared_ptr<NTP1Script_Issuance> script_issuance =
             std::dynamic_pointer_cast<NTP1Script_Issuance>(script);
         ASSERT_NE(script_issuance.get(), nullptr);
@@ -2250,7 +2196,7 @@ TEST(ntp1_tests, construct_scripts)
     {
         // transfer some tokens
         const std::string                    toParse_transfer = "4e5401150069892a92";
-        std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScript(toParse_transfer);
+        std::shared_ptr<NTP1Script>          script = NTP1Script::ParseScriptHex(toParse_transfer);
         std::shared_ptr<NTP1Script_Transfer> script_transfer =
             std::dynamic_pointer_cast<NTP1Script_Transfer>(script);
         ASSERT_NE(script_transfer, nullptr);
@@ -2264,7 +2210,7 @@ TEST(ntp1_tests, construct_scripts)
     {
         // burn some tokens
         std::string                      toParse_burn = "4e5401251f2013";
-        std::shared_ptr<NTP1Script>      script       = NTP1Script::ParseScript(toParse_burn);
+        std::shared_ptr<NTP1Script>      script       = NTP1Script::ParseScriptHex(toParse_burn);
         std::shared_ptr<NTP1Script_Burn> script_burn =
             std::dynamic_pointer_cast<NTP1Script_Burn>(script);
         ASSERT_NE(script_burn, nullptr);
@@ -2317,11 +2263,11 @@ TEST(ntp1_tests, amend_tx_1)
     EXPECT_EQ(tx.vout.size(), 4u);
     EXPECT_EQ(tx.vout[0], out0);
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue, out1.nValue);
-    std::string opRetArg;
-    EXPECT_TRUE(NTP1Transaction::TxContainsOpReturn(&tx, &opRetArg));
-    EXPECT_EQ(opRetArg, "4e54031001032051");
+    std::vector<uint8_t> opRetArg;
+    EXPECT_TRUE(tx.ContainsOpReturn(&opRetArg));
+    EXPECT_EQ(opRetArg, ParseHex("4e54031001032051"));
 
-    auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
+    auto scriptPtr  = NTP1Script::ParseScriptBin(opRetArg);
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
     EXPECT_NE(scriptPtrD, nullptr);
 
@@ -2362,7 +2308,7 @@ TEST(ntp1_tests, amend_tx_2)
     EXPECT_EQ(tx.vout.size(), 2u);
     EXPECT_EQ(tx.vout[0], out0);
     EXPECT_EQ(tx.vout[1], out1);
-    EXPECT_FALSE(NTP1Transaction::TxContainsOpReturn(&tx));
+    EXPECT_FALSE(tx.ContainsOpReturn());
 }
 
 TEST(ntp1_tests, amend_tx_3)
@@ -2399,11 +2345,11 @@ TEST(ntp1_tests, amend_tx_3)
     EXPECT_EQ(tx.vout.size(), 4u);
     EXPECT_EQ(tx.vout[0], out0);
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue, out1.nValue);
-    std::string opRetArg;
-    EXPECT_TRUE(NTP1Transaction::TxContainsOpReturn(&tx, &opRetArg));
-    EXPECT_EQ(opRetArg, "4e54031001032051");
+    std::vector<uint8_t> opRetArg;
+    EXPECT_TRUE(tx.ContainsOpReturn(&opRetArg));
+    EXPECT_EQ(opRetArg, ParseHex("4e54031001032051"));
 
-    auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
+    auto scriptPtr  = NTP1Script::ParseScriptBin(opRetArg);
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
     EXPECT_NE(scriptPtrD, nullptr);
 
@@ -2451,11 +2397,11 @@ TEST(ntp1_tests, amend_tx_4)
     EXPECT_EQ(tx.vout[0], out0);
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue + tx.vout[4].nValue,
               out1.nValue);
-    std::string opRetArg;
-    EXPECT_TRUE(NTP1Transaction::TxContainsOpReturn(&tx, &opRetArg));
-    EXPECT_EQ(opRetArg, "4e54031002032051042041");
+    std::vector<uint8_t> opRetArg;
+    EXPECT_TRUE(tx.ContainsOpReturn(&opRetArg));
+    EXPECT_EQ(opRetArg, ParseHex("4e54031002032051042041"));
 
-    auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
+    auto scriptPtr  = NTP1Script::ParseScriptBin(opRetArg);
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
     EXPECT_NE(scriptPtrD, nullptr);
 
@@ -2512,11 +2458,11 @@ TEST(ntp1_tests, amend_tx_5)
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue + tx.vout[4].nValue +
                   tx.vout[5].nValue + tx.vout[6].nValue + tx.vout[7].nValue,
               out1.nValue);
-    std::string opRetArg;
-    EXPECT_TRUE(NTP1Transaction::TxContainsOpReturn(&tx, &opRetArg));
-    EXPECT_EQ(opRetArg, "4e540310050320510420410520e20638b10719");
+    std::vector<uint8_t> opRetArg;
+    EXPECT_TRUE(tx.ContainsOpReturn(&opRetArg));
+    EXPECT_EQ(opRetArg, ParseHex("4e540310050320510420410520e20638b10719"));
 
-    auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
+    auto scriptPtr  = NTP1Script::ParseScriptBin(opRetArg);
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
     EXPECT_NE(scriptPtrD, nullptr);
 
@@ -2586,11 +2532,11 @@ TEST(ntp1_tests, amend_tx_6)
     EXPECT_EQ(tx.vout[1].nValue + tx.vout[2].nValue + tx.vout[3].nValue + tx.vout[4].nValue +
                   tx.vout[5].nValue + tx.vout[6].nValue + tx.vout[7].nValue,
               out1.nValue);
-    std::string opRetArg;
-    EXPECT_TRUE(NTP1Transaction::TxContainsOpReturn(&tx, &opRetArg));
-    EXPECT_EQ(opRetArg, "4e540310050320510420410520e20638b10719");
+    std::vector<uint8_t> opRetArg;
+    EXPECT_TRUE(tx.ContainsOpReturn(&opRetArg));
+    EXPECT_EQ(opRetArg, ParseHex("4e540310050320510420410520e20638b10719"));
 
-    auto scriptPtr  = NTP1Script::ParseScript(opRetArg);
+    auto scriptPtr  = NTP1Script::ParseScriptBin(opRetArg);
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
     EXPECT_NE(scriptPtrD, nullptr);
 
@@ -2643,7 +2589,7 @@ TEST(ntp1_tests, some_transfer_instructions_test)
 
     const std::string script = "4e540310050320510420418520e20638b18719";
 
-    auto scriptPtr  = NTP1Script::ParseScript(script);
+    auto scriptPtr  = NTP1Script::ParseScriptHex(script);
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Transfer>(scriptPtr);
     EXPECT_NE(scriptPtrD, nullptr);
 
@@ -2694,7 +2640,7 @@ TEST(ntp1_tests, ntp1v3_burn_test)
 {
     const std::string script = "4e5403200200081f02";
 
-    auto scriptPtr  = NTP1Script::ParseScript(script);
+    auto scriptPtr  = NTP1Script::ParseScriptHex(script);
     auto scriptPtrD = std::dynamic_pointer_cast<NTP1Script_Burn>(scriptPtr);
     EXPECT_NE(scriptPtrD, nullptr);
 
@@ -2770,7 +2716,7 @@ std::vector<std::pair<CTransaction, int>> GetInputsOnline(const CTransaction& tx
 TEST(ntp1_tests, op_return_NTP1v3_test1)
 {
     std::string                          opReturnArg = "4e540310020022a00160f42160";
-    std::shared_ptr<NTP1Script>          script      = NTP1Script::ParseScript(opReturnArg);
+    std::shared_ptr<NTP1Script>          script      = NTP1Script::ParseScriptHex(opReturnArg);
     std::shared_ptr<NTP1Script_Transfer> script_transfer =
         std::dynamic_pointer_cast<NTP1Script_Transfer>(script);
     EXPECT_EQ(script_transfer->getHeader(), boost::algorithm::unhex(opReturnArg.substr(0, 6)));
@@ -2850,7 +2796,7 @@ TEST(ntp1_tests, metadata_decompression_issuance)
         "20ecb13889abc0569585f2a6f5a6da0b4cae0d0bf1f8f3d4fdebadff250aca2d6076dfb79dfff8faf5eb7f01d62e81a"
         "9";
 
-    std::shared_ptr<NTP1Script>          p  = NTP1Script::ParseScript(issuance_opRet);
+    std::shared_ptr<NTP1Script>          p  = NTP1Script::ParseScriptHex(issuance_opRet);
     std::shared_ptr<NTP1Script_Issuance> pd = std::dynamic_pointer_cast<NTP1Script_Issuance>(p);
     ASSERT_NE(pd, nullptr);
 
@@ -3020,7 +2966,7 @@ TEST(ntp1_tests, metadata_decompression_transfer)
         "e65d16fc026d06b5f90711648b7c6900ca2514b2ca719ad356d62fac0af8951daa8972a2e3e86670f22fcc310f64306"
         "5503a0ed9573ff8b2eaa20234cf1344fd7475a0e0f18f0fbfffebf7dfff07606de34b";
 
-    std::shared_ptr<NTP1Script>          p  = NTP1Script::ParseScript(transfer_opRet);
+    std::shared_ptr<NTP1Script>          p  = NTP1Script::ParseScriptHex(transfer_opRet);
     std::shared_ptr<NTP1Script_Transfer> pd = std::dynamic_pointer_cast<NTP1Script_Transfer>(p);
     ASSERT_NE(pd, nullptr);
 
@@ -3097,24 +3043,12 @@ TEST(ntp1_tests, ntp1_metadata_parsing_1)
         "64145424337383830423136443134324130323531343934433035443535454335414232374242373235423536363645"
         "43433839443946424330313231303236334239363636333246423539423237303233413144303830343245343130394"
         "33641343637424445413231323135314342304137433842423535353337343700000000000000000003102700000000"
-        "00003237364139313433413842343835333838374238343642453733353546334438443735393537334145464633303"
-        "63238384143554F505F445550204F505F48415348313630203361386234383533383837623834366265373335356633"
-        "6438643735393537336165666633303632204F505F455155414C564552494659204F505F434845434B5349470022544"
-        "64A6D3368706473554D796E3666656F44586F704E6573373151394E5A715942471027000000000000D6364134433638"
-        "34453534303330313534333333363230323032303136303130303230313646303030303030303534373839434142353"
-        "63441343932433439353442324141353632414339434634454344463334424343344435354232353230413331333635"
-        "33443235313441343932443445324543413243323843394343434638333842363531363137393741363136303142393"
-        "74541393439333939394639323141393839423934304431443245324434323231374138333942394139323033413341"
-        "423642364236313630303834393331453941DA4F505F52455455524E203465353430333031353433333336323032303"
-        "23031363031303032303136663030303030303035343738396361623536346134393263343935346232616135363261"
-        "63396366346563646633346263633464353562323532306133313336353364323531346134393264346532656361326"
-        "33238633963636366383338623635313631373937613631363031623937656139343933393939663932316139383962"
-        "39343064316432653264343232313761383339623961393230336133616236623662363136303038343933316539610"
-        "00050E63377000000003237364139313433413842343835333838374238343642453733353546334438443735393537"
-        "33414546463330363238384143554F505F445550204F505F48415348313630203361386234383533383837623834366"
-        "2653733353566336438643735393537336165666633303632204F505F455155414C564552494659204F505F43484543"
-        "4B534947002254464A6D3368706473554D796E3666656F44586F704E6573373151394E5A71594247000000000000000"
-        "001000000";
+        "00001976A9143A8B4853887B846BE7355F3D8D759573AEFF306288AC002254464A6D3368706473554D796E3666656F4"
+        "4586F704E6573373151394E5A7159424710270000000000006B6A4C684E5403015433362020201601002016F0000000"
+        "54789CAB564A492C4954B2AA562AC9CF4ECDF34BCC4D55B2520A313653D2514A492D4E2ECA2C28C9CCCF838B6516179"
+        "7A61601B97EA9493999F921A989B940D1D2E2D42217A839B9A9203A3AB6B6B6160084931E9A000050E6337700000000"
+        "1976A9143A8B4853887B846BE7355F3D8D759573AEFF306288AC002254464A6D3368706473554D796E3666656F44586"
+        "F704E6573373151394E5A71594247000000000000000001000000";
 
     CDataStream tx_ds(ParseHex(tx_hex), SER_NETWORK, PROTOCOL_VERSION);
     CDataStream ntp1tx_ds(ParseHex(ntp1tx_hex), SER_NETWORK, PROTOCOL_VERSION);
@@ -3137,6 +3071,57 @@ TEST(ntp1_tests, ntp1_metadata_parsing_1)
     EXPECT_EQ(metadataObj.getAggregationPolicy(), "aggregatable");
     EXPECT_EQ(metadataObj.getIssuanceTxId(), tx.GetHash());
     EXPECT_EQ(metadataObj.getTokenId(), "La5hsvMU77nh1M7y7uH9rrrfqd85sTNXLohjMd");
+
+    std::string opReturnArg;
+    ntp1tx.IsTxNTP1(&tx, &opReturnArg);
+    const std::vector<uint8_t> scriptBin = ntp1tx.getNTP1OpReturnScript();
+    const std::string          scriptHex = ntp1tx.getNTP1OpReturnScriptHex();
+    EXPECT_EQ(scriptHex, ToHex(scriptBin));
+    // remove the prefix (in hex) and compare the script and make sure it's the same
+    EXPECT_EQ(scriptHex, opReturnArg);
+}
+
+TEST(ntp1_tests, op_return_extraction)
+{
+    const std::string tx_hex =
+        "01000000AE37105C02C0ED46778E0CFD1BEEF47AE7B14CC6F34FAA73BC48B4516F7CD744FB0C272D8E000000006A473"
+        "044022059ECCAFA41B1EEE11F6B6DFF61AF0673156C08533F51AA2FB5DA5B7E77D3C15B02201A0A8168B1EFF400A7D5"
+        "69F6E49AD040FA39A68126050B6D688A07539BAD790C01210263B966632FB59B27023A1D08042E4109C6A467BDEA212"
+        "151CB0A7C8BB5553747FFFFFFFFC0ED46778E0CFD1BEEF47AE7B14CC6F34FAA73BC48B4516F7CD744FB0C272D8E0200"
+        "00006B483045022100D65293B354F32010421D47BA766E0962584F16823F0CD2FB652FBED6EBDCA01C02202747B696A"
+        "EBC7880B16D142A0251494C05D55EC5AB27BB725B5666ECC89D9FBC01210263B966632FB59B27023A1D08042E4109C6"
+        "A467BDEA212151CB0A7C8BB5553747FFFFFFFF0310270000000000001976A9143A8B4853887B846BE7355F3D8D75957"
+        "3AEFF306288AC10270000000000006B6A4C684E5403015433362020201601002016F000000054789CAB564A492C4954"
+        "B2AA562AC9CF4ECDF34BCC4D55B2520A313653D2514A492D4E2ECA2C28C9CCCF838B65161797A61601B97EA9493999F"
+        "921A989B940D1D2E2D42217A839B9A9203A3AB6B6B6160084931E9A50E63377000000001976A9143A8B4853887B846B"
+        "E7355F3D8D759573AEFF306288AC00000000";
+
+    CTransaction tx;
+    CDataStream  tx_ds(ParseHex(tx_hex), SER_NETWORK, PROTOCOL_VERSION);
+    tx_ds >> tx;
+
+    {
+        std::vector<uint8_t> opRet;
+        EXPECT_TRUE(tx.ContainsOpReturn(&opRet));
+        EXPECT_EQ(
+            opRet,
+            ParseHex("4e5403015433362020201601002016f000000054789cab564a492c4954b2aa562ac9cf4ecdf34bcc4d"
+                     "55b2520a313653d2514a492d4e2eca2c28c9cccf838b65161797a61601b97ea9493999f921a989b940"
+                     "d1d2e2d42217a839b9a9203a3ab6b6b6160084931e9a"));
+    }
+
+    {
+        EXPECT_FALSE(CTransaction::IsOutputOpRet(&tx.vout[0]));
+        EXPECT_FALSE(CTransaction::IsOutputOpRet(&tx.vout[2]));
+
+        std::vector<uint8_t> opRet;
+        EXPECT_TRUE(CTransaction::IsOutputOpRet(&tx.vout[1], &opRet));
+        EXPECT_EQ(
+            opRet,
+            ParseHex("4e5403015433362020201601002016f000000054789cab564a492c4954b2aa562ac9cf4ecdf34bcc4d"
+                     "55b2520a313653d2514a492d4e2eca2c28c9cccf838b65161797a61601b97ea9493999f921a989b940"
+                     "d1d2e2d42217a839b9a9203a3ab6b6b6160084931e9a"));
+    }
 }
 
 TEST(ntp1_tests, ntp1_metadata_parsing_2)
@@ -3157,21 +3142,12 @@ TEST(ntp1_tests, ntp1_metadata_parsing_2)
         "33537353134423836363144334130323230333233363843414441423338343846313239323842434533314241414137"
         "35413034384538453132343539454642433530323035343139333744304234374346303132313032363941423641454"
         "34230433334314338344236394135314236464439314531433431453634313232314435413732343132354243323246"
-        "45394234434144424300000000000000000003102700000000000032373641393134433342333238393232314432393"
-        "9433536363543453945443739393935423339333730323543413638384143554F505F445550204F505F484153483136"
-        "302063336233323839323231643239396335363635636539656437393939356233393337303235636136204F505F455"
-        "155414C564552494659204F505F434845434B534947002254546F79506365465A6A77775738384A3174556D62596850"
-        "7735794D69397248413310270000000000008A364134333445353430313031344435343332323032303037413037454"
-        "13441343532303543314534423531393445313245364130314337423344374142433946383134463244424634313831"
-        "44374543304244424530423039323741463231444330373731314135414241433732393531414244443031363331354"
-        "33630323031383030323031384630904F505F52455455524E2034653534303130313464353433323230323030376130"
-        "37656134613435323035633165346235313934653132653661303163376233643761626339663831346632646266343"
-        "13831643765633062646265306230393237616632316463303737313161356162616337323935316162646430313633"
-        "31356336303230313830303230313866300000D0A470180200000032373641393134433342333238393232314432393"
-        "9433536363543453945443739393935423339333730323543413638384143554F505F445550204F505F484153483136"
-        "302063336233323839323231643239396335363635636539656437393939356233393337303235636136204F505F455"
-        "155414C564552494659204F505F434845434B534947002254546F79506365465A6A77775738384A3174556D62596850"
-        "7735794D693972484133000000000000000001000000";
+        "4539423443414442430000000000000000000310270000000000001976A914C3B3289221D299C5665CE9ED79995B393"
+        "7025CA688AC002254546F79506365465A6A77775738384A3174556D625968507735794D693972484133102700000000"
+        "0000456A434E5401014D5432202007A07EA4A45205C1E4B5194E12E6A01C7B3D7ABC9F814F2DBF4181D7EC0BDBE0B09"
+        "27AF21DC07711A5ABAC72951ABDD016315C602018002018F00000D0A47018020000001976A914C3B3289221D299C566"
+        "5CE9ED79995B3937025CA688AC002254546F79506365465A6A77775738384A3174556D625968507735794D693972484"
+        "133000000000000000001000000";
 
     CDataStream tx_ds(ParseHex(tx_hex), SER_NETWORK, PROTOCOL_VERSION);
     CDataStream ntp1tx_ds(ParseHex(ntp1tx_hex), SER_NETWORK, PROTOCOL_VERSION);
@@ -3196,6 +3172,14 @@ TEST(ntp1_tests, ntp1_metadata_parsing_2)
     EXPECT_EQ(metadataObj.getAggregationPolicy(), "aggregatable");
     EXPECT_EQ(metadataObj.getIssuanceTxId(), tx.GetHash());
     EXPECT_EQ(metadataObj.getTokenId(), "La3NzpGLMZz7QQXx3ExHrrnGgPaXEAQc2wBEjz");
+
+    std::string opReturnArg;
+    ntp1tx.IsTxNTP1(&tx, &opReturnArg);
+    const std::vector<uint8_t> scriptBin = ntp1tx.getNTP1OpReturnScript();
+    const std::string          scriptHex = ntp1tx.getNTP1OpReturnScriptHex();
+    EXPECT_EQ(scriptHex, ToHex(scriptBin));
+    // remove the prefix (in hex) and compare the script and make sure it's the same
+    EXPECT_EQ(scriptHex, opReturnArg);
 }
 
 TEST(ntp1_tests, ntp1_metadata_parsing_3)
@@ -3239,113 +3223,35 @@ TEST(ntp1_tests, ntp1_metadata_parsing_3)
         "74133313832383833314632343341353032323036434441384530423346383430424130413742323443334231333645"
         "33383243333139304631463543314642353132323045363741444137393844353336363030313231303236334239363"
         "63633324642353942323730323341314430383034324534313039433641343637424445413231323135314342304137"
-        "43384242353535333734370000000000000000000310270000000000003237364139313433413842343835333838374"
-        "23834364245373335354633443844373539353733414546463330363238384143554F505F445550204F505F48415348"
-        "3136302033613862343835333838376238343662653733353566336438643735393537336165666633303632204F505"
-        "F455155414C564552494659204F505F434845434B534947002254464A6D3368706473554D796E3666656F44586F704E"
-        "6573373151394E5A715942471027000000000000FD1C093641344438413034344535343033303135363435353233333"
-        "23036304634323345303031303036304634323345304630303030303034373237383943454435394342384544423436"
-        "31304643393533314346354145443742424439303446303631433034374242313833363436313146304331463836363"
-        "43533314336423145434346343530304342444438374634464635304342353032463230353339463034344344414242"
-        "42424142414241464241303937414144353439353742423937324138353033463943464441353142354142424546454"
-        "63645373644423541393541453232363941323139394530423146394639463938463642463539353232363332394137"
-        "38363739413432383037353435423133394534393342454338454431373242354642464535324639363243413334373"
-        "83943423742314538353331413738373737394539443337303744323132374243443538453646423741444439394241"
-        "34364436383438374231453734343342433644383242424243443235373337373746374444434436334644343846414"
-        "63146454644423537454243374542384137444246373644373346443430353735373046373733373046434431444435"
-        "44424331454645314333313934374346463339304244334142444137344244393745464430314537344346314433313"
-        "24136323346393032444638313636354346433436333146353838363235333144423531444535453934373335303544"
-        "46353245433436414246303845424334394233454133354142413434313930314130323333423137304130343241374"
-        "44341434338323731333439373131384544343635393733323030353833384338443839323832393137413233373745"
-        "43463732393938373838394636414541344444334142323733434643313936363335393944343842393941393046393"
-        "63534344633414136324430454235353345304333443334363639444641413845433838413539443546343341334142"
-        "31343546463138344545343142353243364533433433304143383742343539384334463830444234344432383946303"
-        "33643344643313433394532303230333438423932303735433644334532384430333832314338363739323336303541"
-        "43303530354433344534444238443943453839413433414336313243334232333738464637423334364331324132323"
-        "43846353838353039353041353532443431453237463630433646383346423341433138354137424441353236383937"
-        "35363431414134423133384536314536303541353534423138384431453734364442334231333645413439413844323"
-        "84146314331314541373038373932413538313246373433303443313545433837354638374343383134434432343545"
-        "31364132313638463437384139393041414446363939384341384330324538304339304441463743393842364541354"
-        "23446334542333636373344453934304434374232423338323138324330313239393145333932413241333145433232"
-        "38303643323038364636453439384333433431453441363335333043384133313741303230393646334331333830433"
-        "73043393633454341303638303934423336384431424338313338383932353042423630304438344241323832393435"
-        "32323245373645423331303137353437393331384434423330323037323831343243343835423530393534324231453"
-        "54244333844304245343941333845343844443133423636333938363038434339383243363330373945343336383034"
-        "39423930454445324439384430393034313344393739443638394138333135413645313036314533323935343043304"
-        "23036343044453436363033423242423738313336394636333843343232384332433238343737464630453236324230"
-        "31414639303433373034353239333639323031343338373042343033423132383939413732434542323243324631443"
-        "74146313331334436413430343045413631304131383033333441303643434333343243333545383245394234333341"
-        "30323939363343453432413430304546303134373131383546374135344244443031393144424631313044363133363"
-        "83234414541303743314230343833314133373941424136413241333733364533453541363746363744394134353130"
-        "32313542343332344133373835313532363131323641364532434537444344374132414242454243383745383436364"
-        "64130333934363845343434373442333144363038424543304530313143313031313736433636393234443032423241"
-        "30333337353539353643353137413434343130364236453343423039433042463743334339413543463035374141414"
-        "34443433646414245334331304231423431394332333238444437324545344346333439344545304646343833454646"
-        "43433539343444393932393342434236313335393131393435433937424539304146393436413037334134364237394"
-        "23238394544423541453634343330363934343235323141323132384334383837434645433836304538353246324443"
-        "39314634414336443043364636393044383436374438313741413635434546344639323432374339374534394435413"
-        "23630363432343337394443433035434239383137323131454241383235333444433431344234313839384133334442"
-        "34364241443833314142313744393141364434313346343938373134433731324435413946463830453939433541353"
-        "53743363131313233464136324139424244324241333542463931363046383346393738413945334145334135453546"
-        "44314544413737454143423339304245414532323244374142433938383532303843413844343842424634354433313"
-        "03837364643314533344530443639334234423330333534383246313932364434453934343132443145373834303546"
-        "36434135434239343044333037323334333236394638394435414137443233413935443641394234344541353735324"
-        "14144353336393944344145423534354141374432334139354436413942343445413537353241414435333639394434"
-        "41454235343541413744323341393544364139423434454135464645443534444135363942324139353346453746453"
-        "4413832423737414644463146414641464132463535463132424345FD1E094F505F52455455524E2034653534303330"
-        "31353634353532333332303630663432336530303130303630663432336530663030303030303437323738396365643"
-        "53963623865646234363130666339353331636635616564376262643930346630363163303437626231383336343631"
-        "31663063316638363634353331633662316563636634353030636264643837663466663530636235303266323035333"
-        "96630343463646162626262616261626166626130393761616435343935376262393732613835303366396366646135"
-        "31623561626265666566366537366462356139356165323236396132313939653062316639663966393866366266353"
-        "93532323633323961373836373961343238303735343562313339653439336265633865643137326235666266653532"
-        "66393632636133343738396362376231653835333161373837373739653964333730376432313237626364353865366"
-        "66237616464393962613436643638343837623165373434336263366438326262626364323537333737376637646463"
-        "64363366643438666166316665666462353765626337656238613764626637366437336664343035373537306637373"
-        "33730666364316464356462633165666531633331393437636666333930626433616264613734626439376566643031"
-        "65373463663164333132613632336639303264663831363635636663343633316635383836323533316462353164653"
-        "56539343733353035646635326563343661626630386562633439623365613335616261343431393031613032333362"
-        "31373061303432613764636163633832373133343937313138656434363539373332303035383338633864383932383"
-        "23931376132333737656366373239393837383839663661656134646433616232373363666331393636333539396434"
-        "38623939613930663936353434663361613632643065623535336530633364333436363964666161386563383861353"
-        "96435663433613361623134356666313834656534316235326336653363343330616338376234353938633466383064"
-        "62343464323839663033366334666331343339653230323033343862393230373563366433653238643033383231633"
-        "83637393233363035616330353035643334653464623864396365383961343361633631326333623233373866663762"
-        "33343663313261323234386635383835303935306135353264343165323766363063366638336662336163313835613"
-        "76264613532363839373536343161613462313338653631653630356135353462313838643165373436646233623133"
-        "36656134396138643238616631633131656137303837393261353831326637343330346331356563383735663837636"
-        "33831346364323435653136613231363866343738613939306161646636393938636138633032653830633930646166"
-        "37633938623665613562346633656233363637336465393430643437623262333832313832633031323939316533393"
-        "26132613331656332323830366332303836663665343938633363343165346136333533306338613331376130323039"
-        "36663363313338306337306339363365636130363830393462333638643162633831333838393235306262363030643"
-        "83462613238323934353232326537366562333130313735343739333138643462333032303732383134326334383562"
-        "35303935343262316535626433386430626534396133386534386464313362363633393836303863633938326336333"
-        "03739653433363830343962393065646532643938643039303431336439373964363839613833313561366531303631"
-        "65333239353430633062303634306465343636303362326262373831333639663633386334323238633263323834373"
-        "76666306532363262303161663930343337303435323933363932303134333837306234303362313238393961373263"
-        "65623232633266316437616631333133643661343034306561363130613138303333346130366363633334326333356"
-        "53832653962343333613032393936336365343261343030656630313437313138356637613534626464303139316462"
-        "66313130643631333638323461656130376331623034383331613337396162613661326133373336653365356136376"
-        "63637643961343531303231356234333234613337383531353236313132366136653263653764636437613261626265"
-        "62633837653834363666613033393436386534343437346233316436303862656330653031316331303131373663363"
-        "63932346430326232613033333735353935366335313761343434313036623665336362303963306266376333633961"
-        "35636630353761616163646363366661626533633130623162343139633233323864643732656534636633343934656"
-        "53066663438336566666363353934346439393239336263623631333539313139343563393762653930616639343661"
-        "30373361343662373962323839656462356165363434333036393434323532316132313238633438383763666563383"
-        "63065383532663264633931663461633664306336663639306438343637643831376161363563656634663932343237"
-        "63393765343964356132363036343234333739646363303563623938313732313165626138323533346463343134623"
-        "43138393861333364623436626164383331616231376439316136643431336634393837313463373132643561396666"
-        "38306539396335613535376336313131323366613632613962626432626133356266393136306638336639373861396"
-        "53361653361356535666431656461373765616362333930626561653232326437616263393838353230386361386434"
-        "38626266343564333130383736666331653334653064363933623462333033353438326631393236643465393434313"
-        "26431653738343035663663613563623934306433303732333433323639663839643561613764323361393564366139"
-        "62343465613537353261616435333639396434616562353435616137643233613935643661396234346561353735326"
-        "16164353336393964346165623534356161376432336139356436613962343465613566666564353464613536396232"
-        "61393533666537666534613832623737616664663166616661666132663535663132626365000070FECEB2000000003"
-        "23736413931343341384234383533383837423834364245373335354633443844373539353733414546463330363238"
-        "384143554F505F445550204F505F4841534831363020336138623438353338383762383436626537333535663364386"
-        "43735393537336165666633303632204F505F455155414C564552494659204F505F434845434B534947002254464A6D"
-        "3368706473554D796E3666656F44586F704E6573373151394E5A71594247000000000000000001000000";
+        "43384242353535333734370000000000000000000310270000000000001976A9143A8B4853887B846BE7355F3D8D759"
+        "573AEFF306288AC002254464A6D3368706473554D796E3666656F44586F704E6573373151394E5A7159424710270000"
+        "00000000FD8E046A4D8A044E540301564552332060F423E0010060F423E0F000000472789CED59CB8EDB4610FC9531C"
+        "F5AED7BBD904F061C047BB18364611F0C1F8664531C6B1ECCF4500CBDD87F4FF50CB502F20539F044CDABBBBABABAFB"
+        "A097AAD54957BB972A8503F9CFDA51B5ABBEFEF6E76DB5A95AE2269A2199E0B1F9F9F98F6BF595226329A78679A4280"
+        "7545B139E493BEC8ED172B5FBFE52F962CA34789CB7B1E8531A787779E9D3707D2127BCD58E6FB7ADD99BA46D68487B"
+        "1E7443BC6D82BBBCD2573777F7DDCD63FD48FAF1FEFDB57EBC7EB8A7DBF76D73FD4057570F77370FCD1DD5DBC1EFE1C"
+        "31947CFF390BD3ABDA74BD97EFD01E74CF1D312A623F902DF81665CFC4631F58862531DB51DE5E9473505DF52EC46AB"
+        "F08EBC49B3EA35ABA441901A0233B170A042A7DCACC82713497118ED4659732005838C8D89282917A2377ECF7299878"
+        "89F6AEA4DD3AB273CFC19663599D48B99A90F96544F3AA62D0EB553E0C3D34669DFAA8EC88A59D5F43A3AB145FF184E"
+        "E41B52C6E3C430AC87B4598C4F80DB44D289F036C4FC1439E2020348B92075C6D3E28D03821C867923605AC0505D34E"
+        "4DB8D9CE89A43AC612C3B2378FF7B346C12A2248F58850950A552D41E27F60C6F83FB3AC185A7BDA5268975641AA4B1"
+        "38E61E605A554B188D1E746DB3B136EA49A8D28AF1C11EA708792A5812F74304C15EC875F87CC814CD245E16A2168F4"
+        "78A990AADF6998CA8C02E80C90DAF7C98B6EA5B4F3EB36673DE940D47B2B382182C012991E392A2A31EC22806C2086F"
+        "6E498C3C41E4A63530C8A317A02096F3C1380C70C963ECA068094B368D1BC813889250BB600D84BA282945222E76EB3"
+        "10175479318D4B3020728142C485B509542B1E5BD38D0BE49A38E48DD13B66398608CC982C63079E4368049B90EDE2D"
+        "98D090413D979D689A8315A6E1061E329540C0B0640DE46603B2BB781369F638C4228C2C28477FF0E262B01AF904370"
+        "452936920143870B403B12899A72CEB22C2F1D7AF1313D6A4040EA610A180334A06CCC342C35E82E9B433A029963CE4"
+        "2A400EF01471185F7A54BDD0191DBF110D6136824AEA07C1B04831A379ABA6A2A3736E3E5A67F67D9A4510215B4324A"
+        "378515261126A6E2CE7DCD7A2ABBEBC87E8466FA039468E44474B31D608BEC0E011C101176C66924D02B2A033755956"
+        "C517A444106B6E3CB09C0BF7C3C9A5CF057AAACDCC6FABE3C10B1B419C2328DD72EE4CF3494EE0FF483EFFCC5944D99"
+        "293BCB6135911945C97BE90AF946A073A46B79B289EDB5AE6443069442521A2128C4887CFEC860E852F2DC91F4AC6D0"
+        "C6F690D8467D817AA65CEF4F92427C97E49D5A2606424379DCC05CB9817211EBA82534DC414B41898A33DB46BAD831A"
+        "B17D91A6D413F498714C712D5A9FF80E99C5A557C611123FA62A9BBD2BA35BF9160F83F978A9E3AE3A5E5FD1EDA77EA"
+        "CB390BEAE222D7ABC9885208CA8D48BBF45D310876FC1E34E0D693B4B3035482F1926D4E94412D1E78405F6CA5CB940"
+        "D3072343269F89D5AA7D23A95D6A9B44EA5752AAD53699D4AEB545AA7D23A95D6A9B44EA5752AAD53699D4AEB545AA7"
+        "D23A95D6A9B44EA5FFED54DA569B2A953FE7FE4A82B77AFDF1FAFAFA2F55F12BCE000070FECEB2000000001976A9143"
+        "A8B4853887B846BE7355F3D8D759573AEFF306288AC002254464A6D3368706473554D796E3666656F44586F704E6573"
+        "373151394E5A71594247000000000000000001000000";
 
     CDataStream tx_ds(ParseHex(tx_hex), SER_NETWORK, PROTOCOL_VERSION);
     CDataStream ntp1tx_ds(ParseHex(ntp1tx_hex), SER_NETWORK, PROTOCOL_VERSION);
@@ -3370,6 +3276,14 @@ TEST(ntp1_tests, ntp1_metadata_parsing_3)
     EXPECT_EQ(metadataObj.getAggregationPolicy(), "aggregatable");
     EXPECT_EQ(metadataObj.getIssuanceTxId(), tx.GetHash());
     EXPECT_EQ(metadataObj.getTokenId(), "La4YygP6o8Uszwj2Vmc4WGKn8NGCiswZfpsGdJ");
+
+    std::string opReturnArg;
+    ntp1tx.IsTxNTP1(&tx, &opReturnArg);
+    const std::vector<uint8_t> scriptBin = ntp1tx.getNTP1OpReturnScript();
+    const std::string          scriptHex = ntp1tx.getNTP1OpReturnScriptHex();
+    EXPECT_EQ(scriptHex, ToHex(scriptBin));
+    // remove the prefix (in hex) and compare the script and make sure it's the same
+    EXPECT_EQ(scriptHex, opReturnArg);
 }
 
 TEST(ntp1_tests, ntp1_metadata_parsing_4)
@@ -3390,21 +3304,12 @@ TEST(ntp1_tests, ntp1_metadata_parsing_4)
         "63233373245364343324136304341463032323030453446343243344538364436384333424635464546413446393541"
         "46324334423931383730304431423138373741414143423030314645383346464436413530313231303236394142364"
         "14543423043333431433834423639413531423646443931453143343145363431323231443541373234313235424332"
-        "32464539423443414442430000000000000000000310270000000000003237364139313443334233323839323231443"
-        "23939433536363543453945443739393935423339333730323543413638384143554F505F445550204F505F48415348"
-        "3136302063336233323839323231643239396335363635636539656437393939356233393337303235636136204F505"
-        "F455155414C564552494659204F505F434845434B534947002254546F79506365465A6A77775738384A3174556D6259"
-        "68507735794D69397248413310270000000000008A36413433344535343031303134443534333332303230443146344"
-        "54136363535383431314634394141303235363236313936303731463036314536353338444138393730393846313334"
-        "42303631443345333835414341424143333631363136324239393541333642453538423835384333433432463036313"
-        "044383843323031383030323031384630904F505F52455455524E203465353430313031346435343333323032306431"
-        "66346561363635353834313166343961613032353632363139363037316630363165363533386461383937303938663"
-        "13334623036316433653338356163616261633336313631363262393935613336626535386238353863336334326630"
-        "363130643838633230313830303230313866300000A065D5DC010000003237364139313443334233323839323231443"
-        "23939433536363543453945443739393935423339333730323543413638384143554F505F445550204F505F48415348"
-        "3136302063336233323839323231643239396335363635636539656437393939356233393337303235636136204F505"
-        "F455155414C564552494659204F505F434845434B534947002254546F79506365465A6A77775738384A3174556D6259"
-        "68507735794D693972484133000000000000000001000000";
+        "32464539423443414442430000000000000000000310270000000000001976A914C3B3289221D299C5665CE9ED79995"
+        "B3937025CA688AC002254546F79506365465A6A77775738384A3174556D625968507735794D69397248413310270000"
+        "00000000456A434E5401014D54332020D1F4EA66558411F49AA025626196071F061E6538DA897098F134B061D3E385A"
+        "CABAC3616162B995A36BE58B858C3C42F0610D88C2018002018F00000A065D5DC010000001976A914C3B3289221D299"
+        "C5665CE9ED79995B3937025CA688AC002254546F79506365465A6A77775738384A3174556D625968507735794D69397"
+        "2484133000000000000000001000000";
 
     CDataStream tx_ds(ParseHex(tx_hex), SER_NETWORK, PROTOCOL_VERSION);
     CDataStream ntp1tx_ds(ParseHex(ntp1tx_hex), SER_NETWORK, PROTOCOL_VERSION);
@@ -3449,21 +3354,12 @@ TEST(ntp1_tests, ntp1_metadata_parsing_5)
         "43041303844423234453634363338333032323036303941343635424342343541414330333545333030323538383542"
         "38423830383741314533304430453045323435374144384330334138323333373345463630313231303236394142364"
         "14543423043333431433834423639413531423646443931453143343145363431323231443541373234313235424332"
-        "32464539423443414442430000000000000000000310270000000000003237364139313443334233323839323231443"
-        "23939433536363543453945443739393935423339333730323543413638384143554F505F445550204F505F48415348"
-        "3136302063336233323839323231643239396335363635636539656437393939356233393337303235636136204F505"
-        "F455155414C564552494659204F505F434845434B534947002254546F79506365465A6A77775738384A3174556D6259"
-        "68507735794D69397248413310270000000000008A36413433344535343031303134443534323032303230304446324"
-        "34439463933443931324339443146433142353641374339353832414234303744343838304143423245453539383342"
-        "37413332374146413133343235453730394139313935423434363032324441454532323630343033343430343032424"
-        "345443032323031393030323031394630904F505F52455455524E203465353430313031346435343230323032303064"
-        "66326364396639336439313263396431666331623536613763393538326162343037643438383061636232656535393"
-        "83362376133323761666131333432356537303961393139356234343630323264616565323236303430333434303430"
-        "326263656430323230313930303230313966300000C426F66A130000003237364139313443334233323839323231443"
-        "23939433536363543453945443739393935423339333730323543413638384143554F505F445550204F505F48415348"
-        "3136302063336233323839323231643239396335363635636539656437393939356233393337303235636136204F505"
-        "F455155414C564552494659204F505F434845434B534947002254546F79506365465A6A77775738384A3174556D6259"
-        "68507735794D693972484133000000000000000001000000";
+        "32464539423443414442430000000000000000000310270000000000001976A914C3B3289221D299C5665CE9ED79995"
+        "B3937025CA688AC002254546F79506365465A6A77775738384A3174556D625968507735794D69397248413310270000"
+        "00000000456A434E5401014D542020200DF2CD9F93D912C9D1FC1B56A7C9582AB407D4880ACB2EE5983B7A327AFA134"
+        "25E709A9195B446022DAEE2260403440402BCED022019002019F00000C426F66A130000001976A914C3B3289221D299"
+        "C5665CE9ED79995B3937025CA688AC002254546F79506365465A6A77775738384A3174556D625968507735794D69397"
+        "2484133000000000000000001000000";
 
     CDataStream tx_ds(ParseHex(tx_hex), SER_NETWORK, PROTOCOL_VERSION);
     CDataStream ntp1tx_ds(ParseHex(ntp1tx_hex), SER_NETWORK, PROTOCOL_VERSION);
@@ -3488,6 +3384,14 @@ TEST(ntp1_tests, ntp1_metadata_parsing_5)
     EXPECT_EQ(metadataObj.getAggregationPolicy(), "aggregatable");
     EXPECT_EQ(metadataObj.getIssuanceTxId(), tx.GetHash());
     EXPECT_EQ(metadataObj.getTokenId(), "La3t57xN4xA2jtgnzLW6HbviPZDgdTU1mvP6Yk");
+
+    std::string opReturnArg;
+    ntp1tx.IsTxNTP1(&tx, &opReturnArg);
+    const std::vector<uint8_t> scriptBin = ntp1tx.getNTP1OpReturnScript();
+    const std::string          scriptHex = ntp1tx.getNTP1OpReturnScriptHex();
+    EXPECT_EQ(scriptHex, ToHex(scriptBin));
+    // remove the prefix (in hex) and compare the script and make sure it's the same
+    EXPECT_EQ(scriptHex, opReturnArg);
 }
 
 TEST(ntp1_tests, ntp1_metadata_parsing_6)
@@ -3518,24 +3422,12 @@ TEST(ntp1_tests, ntp1_metadata_parsing_6)
         "63546434535424536363638333030464543364434314134434245423637463536373837423641353144334630393838"
         "30453632364643333730313231303236334239363636333246423539423237303233413144303830343245343130394"
         "33641343637424445413231323135314342304137433842423535353337343700000000000000000003102700000000"
-        "00003237364139313433413842343835333838374238343642453733353546334438443735393537334145464633303"
-        "63238384143554F505F445550204F505F48415348313630203361386234383533383837623834366265373335356633"
-        "6438643735393537336165666633303632204F505F455155414C564552494659204F505F434845434B5349470022544"
-        "64A6D3368706473554D796E3666656F44586F704E6573373151394E5A715942471027000000000000D6364134433638"
-        "34453534303330313534333333373230323032303136303130303230313646303030303030303534373839434142353"
-        "63441343932433439353442324141353632414339434634454344463334424343344435354232353230413331333635"
-        "37443235313441343932443445324543413243323843394343434638333842363531363137393741363136303142393"
-        "74541393439333939394639323141393839423934304431443245324434323231374138333942394139323033413341"
-        "423642364236313630303835303931453943DA4F505F52455455524E203465353430333031353433333337323032303"
-        "23031363031303032303136663030303030303035343738396361623536346134393263343935346232616135363261"
-        "63396366346563646633346263633464353562323532306133313336353764323531346134393264346532656361326"
-        "33238633963636366383338623635313631373937613631363031623937656139343933393939663932316139383962"
-        "39343064316432653264343232313761383339623961393230336133616236623662363136303038353039316539630"
-        "00030CE983B000000003237364139313433413842343835333838374238343642453733353546334438443735393537"
-        "33414546463330363238384143554F505F445550204F505F48415348313630203361386234383533383837623834366"
-        "2653733353566336438643735393537336165666633303632204F505F455155414C564552494659204F505F43484543"
-        "4B534947002254464A6D3368706473554D796E3666656F44586F704E6573373151394E5A71594247000000000000000"
-        "001000000";
+        "00001976A9143A8B4853887B846BE7355F3D8D759573AEFF306288AC002254464A6D3368706473554D796E3666656F4"
+        "4586F704E6573373151394E5A7159424710270000000000006B6A4C684E5403015433372020201601002016F0000000"
+        "54789CAB564A492C4954B2AA562AC9CF4ECDF34BCC4D55B2520A313657D2514A492D4E2ECA2C28C9CCCF838B6516179"
+        "7A61601B97EA9493999F921A989B940D1D2E2D42217A839B9A9203A3AB6B6B6160085091E9C000030CE983B00000000"
+        "1976A9143A8B4853887B846BE7355F3D8D759573AEFF306288AC002254464A6D3368706473554D796E3666656F44586"
+        "F704E6573373151394E5A71594247000000000000000001000000";
 
     CDataStream tx_ds(ParseHex(tx_hex), SER_NETWORK, PROTOCOL_VERSION);
     CDataStream ntp1tx_ds(ParseHex(ntp1tx_hex), SER_NETWORK, PROTOCOL_VERSION);
@@ -3558,6 +3450,14 @@ TEST(ntp1_tests, ntp1_metadata_parsing_6)
     EXPECT_EQ(metadataObj.getAggregationPolicy(), "aggregatable");
     EXPECT_EQ(metadataObj.getIssuanceTxId(), tx.GetHash());
     EXPECT_EQ(metadataObj.getTokenId(), "La3rtBsLSMCLw4vtoE8YXyPCEmnNkmLe2Z2EaK");
+
+    std::string opReturnArg;
+    ntp1tx.IsTxNTP1(&tx, &opReturnArg);
+    const std::vector<uint8_t> scriptBin = ntp1tx.getNTP1OpReturnScript();
+    const std::string          scriptHex = ntp1tx.getNTP1OpReturnScriptHex();
+    EXPECT_EQ(scriptHex, ToHex(scriptBin));
+    // remove the prefix (in hex) and compare the script and make sure it's the same
+    EXPECT_EQ(scriptHex, opReturnArg);
 }
 
 TEST(ntp1_tests, ntp1_metadata_parsing_7)
@@ -3629,224 +3529,63 @@ TEST(ntp1_tests, ntp1_metadata_parsing_7)
         "53434363441353130304537424237363032323030304632373246463341434438384135363637333034424133413046"
         "31314337353434393630383038414333334238313433353741373439463341344136343230313231303236334239363"
         "63633324642353942323730323341314430383034324534313039433641343637424445413231323135314342304137"
-        "43384242353535333734370000000000000000000310270000000000003237364139313433413842343835333838374"
-        "23834364245373335354633443844373539353733414546463330363238384143554F505F445550204F505F48415348"
-        "3136302033613862343835333838376238343662653733353566336438643735393537336165666633303632204F505"
-        "F455155414C564552494659204F505F434845434B534947002254464A6D3368706473554D796E3666656F44586F704E"
-        "6573373151394E5A715942471027000000000000FD5A133641344441393039344535343033303135343334333232303"
-        "23032303136303130303230313646303030303030393935373839434235353943424145314342373131464431353632"
-        "44363944353131344342353742314232333241433034333039303038304532433742313337384331453945364343363"
-        "54443324642314339303130343431464639453533324639323633303543383236303632344444334233443444423231"
-        "45413734453944413233453944323639464644453943444137353344453745304445423342424638344433394244334"
-        "64235373746334130444137323931433633384137423845444235413946433545333238323145314533424237303939"
-        "45334636334546383035344634423941384644333942374637443341414442323345384535384332384646314531333"
-        "94537464437384633453243353941463739373746413036463845423335463845414643453533424343354543453736"
-        "44304337453344373633463836453333433645434238424437344639374542313841363646433243423537393737303"
-        "04439373937414646463738423935454246464546334542413745394542413746304534464445424137393734463546"
-        "42444641453637433842353739434231433432354243464642384633413938424246383531374634463846333246333"
-        "84643303845394144464142363034464130394642374530443146414232423737334631373541463646373244383543"
-        "35433546443238384239424236373934424545383844394331393133433338423233363843333936343338454446433"
-        "13446373738384337314244423933304337374337364446383631354236453341353635443941364344434446313536"
-        "36364546433232443634443941384245423146384533463036374637314434453338423633314336433341443345364"
-        "63146344137303742433036464631353230453837343542303746433537373133464545453345453539323632353846"
-        "31373435423733333830363243333934363138393235433841353331434342384333353442333943454545454442363"
-        "83644313744323837453731353744383835333743423943353331433633433033313631314337304336334330374441"
-        "38333045304330353046353243383131423637433238463446363131393642333742353736363938434545453632413"
-        "73243313646333042324541433731423135334636333030354637454637324534364437304437383434383434354137"
-        "36304646334530464331434231374639363233454636354445344246363339373033344630363531414342443937444"
-        "24646323636423634313741444544363131354531344243313039373344413432393632424443373641343438444332"
-        "37324238334231303132303635394130343632323439373143433435394438353346363244344232434446343531354"
-        "44133423333323845344532454337373538433533353939314145454639323437373046443445453133454242394645"
-        "33444432463134463733393243383830454135323639303131304532393838333537333944323337333838443742303"
-        "44532453233394342343831424533313037434233433032424241353943363330363834323843433244394145413436"
-        "44444332323334343132443636463239364146303639363631303741313833443938383932454145303834354243383"
-        "73934424341364541314143413244374138453931353946314333423333464638443746414541434141393243433832"
-        "31443038324337334534354643393833443445303838384332334642313133303132313935394332383530454134363"
-        "44443304439464433353437353844343831303830314131314333423546364532353130384339334246343434323232"
-        "45373633444331323835454446313744323430423742343832393934363837423641433643464545314633453843343"
-        "84631303133373936424431434536384532433430444341364138333944313135384335324331423836363639384539"
-        "37393030303232414244354245334145394444333539303933343739384134423243353145444536303244324243323"
-        "74639393344344543393832444442393843313441414244434346374238464133344238363736343239383538344546"
-        "45333334343837323341413341393132423632393645353442333934423230363332463543374341383546334545304"
-        "54534333341433934313133314241433346374435393735314530413844384536384141333344324436344435424632"
-        "44384435314532383332444441434131454530364636393331463037383736334643324546353639463842303739353"
-        "14336444142333535453945434443343633394246433843413431443145364334433236313130393739443941313032"
-        "37383630393446334531313742384230344534433634424337303130353435303143423146443538443230313942323"
-        "44334454343423244463937423943424336434542393645384243343645314543464535363430363846464144433232"
-        "34363032384431373031303337434533383644324630394642353246453930463231313646323634313331373138373"
-        "93633453732304439324443443642323243314633393644384346463141353933463845363533394138363038354546"
-        "35373031323639333432433332453043303441333030444243303532383738323141434230374133333846374432333"
-        "84636313439373438323544423132433330393533363432313730373230363845443833373641413130314231424143"
-        "34333937413245413746303137323234373346393234443132333731384632443037433636304636383437324633383"
-        "33630323537334230393836344342303043303046414435383138334630303742313432384335313137353937394238"
-        "44313243443337344642313833443341304135313843353630424135444632423337353543423035343738443542443"
-        "93746334136453638443146354246363939413732414546394343453944323544374538304442303733354238353642"
-        "39334439444635444332323331313643363632373035313536443742313636354233334444413545364245434432354"
-        "54641303441304239353831384546333144323734394245373235464431394145324432333845363536304246374241"
-        "36313835393142303242424444454637443941363138374130304236463032413731304644434142323442413733313"
-        "83733363330414335373034333143343246343438454635434143303235433645383738463644464430413738363030"
-        "33384141424630343639374441464131423231443232323137343641314338464530383241373231363245383346323"
-        "13837393433303533453732344243423344324634413433313241413646304434313235393031344630443046313232"
-        "36463134423030363441433944414131383141323141333830383739353539453544383836303841394637433037313"
-        "63830384245383236323436413833443939343135423339353730384644363834353041463934343135353246374136"
-        "30413331433239394231363831304136334444454332453432454646374141463941454341323439363532464234443"
-        "43638384237303345423444463144393632343832373531443942393144434343304446383837363135353843393345"
-        "39324546453644443433363133363643334641413539454443343543353234333437463743344145453630364539393"
-        "74335373338393730363241353234424232384235444543334532414333353639353131304530334134393133414345"
-        "42353141434642373745394236443744343338374436314430433437323746443735344435313232333633423432393"
-        "53939333937374530343632334641384343343634303735343244363441343234373532433536463135384636304236"
-        "41324534413835374131413138443532463441444431384245463238393634333631303632423544443843363830363"
-        "83339323046364131454438464430303930444231313336393643394141303933334632323742344333354438393944"
-        "34424530373237373242433042394537343630384533373637464638424134464335464131324243443142343443413"
-        "94446394543374543414136333435424431314245373336303445413538353432424243303341313332453030344632"
-        "46413044324134414145353444353346374532364345463133433230413534423734333031373742383945383542383"
-        "34239423138363643423339353732303933433545303235353741454439453337313845314239414437314642363541"
-        "35443242303245304441434146393632434634303844383038333344364639343435414238434332353943303234353"
-        "63933424242384532373046394532384331384136344135424331323332413930383336323434384435323345373444"
-        "32363043344641384433333534324333343630414443354542424531343532373032314242344134463946434245343"
-        "14643383945423430453642433241453832343234443638414235353244423038413638324537383138383144463645"
-        "42314641383243343538383946373141413938434441353334383343374244434538344234413433353233393430413"
-        "93742333934313731354337383642383232413546333736343131384139323842423937443534383434394330394134"
-        "33313538384430393730434234313532453645423035384146363839363641454339444538373939353233393831343"
-        "63239314542413146333241313535364543324144353531314533414437443632333844414236383136354236353743"
-        "31353642424233353936413638443441364146343941414143393331463039343434374334433132363642393234344"
-        "63746303443373730443945334146333230304444373230323032313235434432303444384243313235433431394231"
-        "36353941303841463842343141373239303742443238313839343741413744384431363439444134363544303131374"
-        "23642363842344233323337433442443533313835343542394230313136423236393637303644373045454141393538"
-        "35413836323930363636423142333337343536364239373045353531454438453043374331363439393236343242334"
-        "53544393341304338353031334334353533363134373646314434343036453631363338353546423735364435383143"
-        "36384536364436353530343243424630333030363942333739323139303632384236353246333238463533323545333"
-        "13137353346453932414541333642383830453342463841343437313434424233423039363930383944353835373534"
-        "31424232414430463841423234453845443632303031413139304546353236344342383743423041324544374135303"
-        "54633343341393635323939373244363244384444354643354133314441453237353036363232314434363938343941"
-        "30334331414638454237423231373843424437423645324338324334363836344134394445453631463637384238323"
-        "74233354144313842303435333330364443334436433434353846454236343530454637383041324233373346354137"
-        "34413543313032323743433846343737373135303341333038443041304345454532324131363538444244313535353"
-        "64631373430333243334432343635463845334537363744323433413638464346324436413645423635333645324231"
-        "45454145303142354241313344373231394245344145454137463733414643344443324232354539334435324436453"
-        "13544363944333245323335343445413930354244374434323936313639434145373935414535353038354342323041"
-        "43383332314435464436304633413134453137374443373245374334393430304638323545463830384330353937463"
-        "33331373641374236443945384635464634464336363438303343443230373336344146374336443130314244343644"
-        "44363639304139353336363645424130323435333345313932303132353541363136364245374641313245423534424"
-        "14146333046314134303145434134364341424638414142393243393937353436384542343837313031343533413739"
-        "31423433364339383738424136303739373234414541343243394341383632424233304235453641303134433634384"
-        "23243363237324331434642364232383831313341423530453337303644413832324644423243443630393539394242"
-        "43423444313542464235413346344644433145383436314339313746384431343930314633364333444536353233313"
-        "53833323531423130463432413041353637313345303931373038393646323545313134413639463842333239443132"
-        "34354144354430374346354432354445313744424633454345354344414331344133364331323044374545333546344"
-        "13237393243373345324139343436354538433234453730353630313430343242304444374243413644424645383731"
-        "42454537393038364138443841453536313246373346444341453443423532444430363032373137383844444234353"
-        "24635354146463930303539454638333344383844334343463838304137314244303844323445373131413445353946"
-        "45393345364337344337383338374446454535463345374346464630313234314241324643FD5C134F505F524554555"
-        "24E20346535343033303135343334333232303230323031363031303032303136663030303030303939353738396362"
-        "35353963626165316362373131666431353632643639643531313463623537623162323332616330343330393030383"
-        "06532633762313337386331653965366363363564633266623163393031303434316666396535333266393236333035"
-        "63383236303632346464336233643464623231656137346539646132336539643236396666646539636461373533646"
-        "53765306465623362626638346433396264336662353737663361306461373239316336333861376238656462356139"
-        "66633565333238323165316533626237303939653366363365663830353466346239613866643339623766376433616"
-        "16462323365386535386332386666316531333965376664373866336532633539616637393737666130366638656233"
-        "35663865616663653533626363356563653736643063376533643736336638366533336336656362386264373466393"
-        "76562313861363666633263623537393737303064393739376166666637386239356562666665663365626137653965"
-        "62613766306534666465626137393734663566626466616536376338623537396362316334323562636666623866336"
-        "13938626266383531376634663866333266333866633038653961646661623630346661303966623765306431666162"
-        "32623737336631373561663666373264383563356335666432383862396262363739346265653838643963313931336"
-        "33338623233363863333936343338656466633134663737383863373162646239333063373763373664663836313562"
-        "36653361353635643961366364636466313536363665666332326436346439613862656231663865336630363766373"
-        "16434653338623633316336633361643365366631663461373037626330366666313532306538373435623037666335"
-        "37373133666565653365653539323632353866313734356237333338303632633339343631383932356338613533316"
-        "36362386333353462333963656565656462363836643137643238376537313537643838353337636239633533316336"
-        "33633033313631316337306336336330376461383330653063303530663532633831316236376332386634663631313"
-        "93662333762353736363938636565653632613732633136663330623265616337316231353366363330303566376566"
-        "37326534366437306437383434383434356137363066663365306663316362313766393632336566363564653462663"
-        "63339373033346630363531616362643937646266663236366236343137616465643631313565313462633130393733"
-        "64613432393632626463373661343438646332373262383362313031323036353961303436323234393731636334353"
-        "96438353366363264346232636466343531356461336233333238653465326563373735386335333539393161656566"
-        "39323437373066643465653133656262396665336464326631346637333932633838306561353236393031313065323"
-        "93838333537333964323337333838643762303465326532333963623438316265333130376362336330326262613539"
-        "63363330363834323863633264396165613436646463323233343431326436366632393661663036393636313037613"
-        "13833643938383932656165303834356263383739346263613665613161636132643761386539313539663163336233"
-        "33666638643766616561636161393263633832316430383263373365343566633938336434653038383863323366623"
-        "13133303132313935396332383530656134363464633064396664333534373538643438313038303161313163336235"
-        "66366532353130386339336266343434323232653736336463313238356564663137643234306237623438323939343"
-        "63837623661633663666565316633653863343866313031333739366264316365363865326334306463613661383339"
-        "64313135386335326331623836363639386539373930303032326162643562653361653964643335393039333437393"
-        "86134623263353165646536303264326263323766393933643465633938326464623938633134616162646363663762"
-        "38666133346238363736343239383538346566653333343438373233616133613931326236323936653534623339346"
-        "23230363332663563376361383566336565306565343333616339343131333162616333663764353937353165306138"
-        "64386536386161333364326436346435626632643864353165323833326464616361316565303666363933316630373"
-        "83736336663326566353639663862303739353163366461623335356539656364633436333962666338636134316431"
-        "65366334633236313130393739643961313032373836303934663365313137623862303465346336346263373031303"
-        "53435303163623166643538643230313962323463346563636232646639376239636263366365623936653862633436"
-        "65316563666535363430363866666164633232343630323864313730313033376365333836643266303966623532666"
-        "53930663231313666323634313331373138373936336537323064393264636436623232633166333936643863666631"
-        "61353933663865363533396138363038356566353730313236393334326333326530633034613330306462633035323"
-        "83738323161636230376133333866376432333866363134393734383235646231326333303935333634323137303732"
-        "30363865643833373661613130316231626163343339376132656137663031373232343733663932346431323337313"
-        "86632643037633636306636383437326633383336303235373362303938363463623030633030666164353831383366"
-        "30303762313432386335313137353937396238643132636433373466623138336433613061353138633536306261356"
-        "46632623337353563623035343738643562643937663361366536386431663562663639396137326165663963636539"
-        "64323564376538306462303733356238353662393364396466356463323233313136633636323730353135366437623"
-        "13636356233336464613565366265636432356566613034613062393538313865663331643237343962653732356664"
-        "31396165326432333865363536306266376261363138353931623032626264646566376439613631383761303062366"
-        "63032613731306664636162323462613733313837333633306163353730343331633432663434386566356361633032"
-        "35633665383738663664666430613738363030333861616266303436393764616661316232316432323231373436613"
-        "16338666530383261373231363265383366323138373934333035336537323462636233643266346134333132616136"
-        "66306434313235393031346630643066313232366631346230303634616339646161313831613231613338303837393"
-        "53539653564383836303861396637633037313638303862653832363234366138336439393431356233393537303866"
-        "64363834353061663934343135353266376136306133316332393962313638313061363364646563326534326566663"
-        "76161663961656361323439363532666234643436383862373033656234646631643936323438323735316439623931"
-        "64636363306466383837363135353863393365393265666536646434333631333636633366616135396564633435633"
-        "53234333437663763346165653630366539393763353733383937303632613532346262323862356465633365326163"
-        "33353639353131306530336134393133616365623531616366623737653962366437643433383764363164306334373"
-        "23766643735346435313232333633623432393539393339373765303436323366613863633436343037353432643634"
-        "61343234373532633536663135386636306236613265346138353761316131386435326634616464313862656632383"
-        "93634333631303632623564643863363830363833393230663661316564386664303039306462313133363936633961"
-        "61303933336632323762346333356438393964346265303732373732626330623965373436303865333736376666386"
-        "26134666335666131326263643162343463613964663965633765636161363334356264313162653733363034656135"
-        "38353432626263303361313332653030346632666130643261346161653534643533663765323663656631336332306"
-        "13534623734333031373762383965383562383362396231383636636233393537323039336335653032353537616564"
-        "39653337313865316239616437316662363561356432623032653064616361663936326366343038643830383333643"
-        "66639343435616238636332353963303234353639336262623865323730663965323863313861363461356263313233"
-        "32613930383336323434386435323365373464323630633466613864333335343263333436306164633565626265313"
-        "43532373032316262346134663966636265343166633839656234306536626332616538323432346436386162353532"
-        "64623038613638326537383138383164663665623166613832633435383839663731616139386364613533343833633"
-        "76264636538346234613433353233393430613937623339343137313563373836623832326135663337363431313861"
-        "39323862623937643534383434396330396134333135383864303937306362343135326536656230353861663638393"
-        "63661656339646538373939353233393831343632393165626131663332613135353665633261643535313165336164"
-        "37643632333864616236383136356236353763313536626262333539366136386434613661663439616161633933316"
-        "63039343434376334633132363662393234346637663034633737306439653361663332303064643732303230323132"
-        "35636432303464386263313235633431396231363539613038616638623431613732393037626432383138393437616"
-        "13764386431363439646134363564303131376236623638623462333233376334626435333138353435623962303131"
-        "36623236393637303664373065656161393538356138363239303636366231623333373435363662393730653535316"
-        "56438653063376331363439393236343262336535643933613063383530313363343535333631343736663164343430"
-        "36653631363338353566623735366435383163363865363664363535303432636266303330303639623337393231393"
-        "03632386236353266333238663533323565333131373533666539326165613336623838306533626638613434373134"
-        "34626233623039363930383964353835373534316262326164306638616232346538656436323030316131393065663"
-        "53236346362383763623061326564376135303566333433613936353239393732643632643864643566633561333164"
-        "61653237353036363232316434363938343961303363316166386562376232313738636264376236653263383263343"
-        "63836346134396465653631663637386238323762333561643138623034353333303664633364366334343538666562"
-        "36343530656637383061326233373366356137346135633130323237636338663437373731353033613330386430613"
-        "06365656532326131363538646264313535353666313734303332633364323436356638653365373637643234336136"
-        "38666366326436613665623635333665326231656561653031623562613133643732313962653461656561376637336"
-        "16663346463326232356539336435326436653135643639643332653233353434656139303562643764343239363136"
-        "39636165373935616535353038356362323061633833323164356664363066336131346531373764633732653763343"
-        "93430306638323565663830386330353937663333313736613762366439653866356666346663363634383033636432"
-        "30373336346166376336643130316264343664643636393061393533363636656261303234353333653139323031323"
-        "53561363136366265376661313265623534626161663330663161343031656361343663616266386161623932633939"
-        "37353436386562343837313031343533613739316234333663393837386261363037393732346165613432633963613"
-        "83632626233306235653661303134633634386232633632373263316366623662323838313133616235306533373036"
-        "64613832326664623263643630393539396262636234643135626662356133663466646331653834363163393137663"
-        "86431343930316633366333646536353233313538333235316231306634326130613536373133653039313730383936"
-        "66323565313134613639663862333239643132343561643564303763663564323564653137646266336563653563646"
-        "16331346133366331323064376565333566346132373932633733653261393434363565386332346537303536303134"
-        "30343262306464376263613664626665383731626565373930383661386438616535363132663733666463616534636"
-        "23532646430363032373137383864646234353266353561666639303035396566383333643838643363636638383061"
-        "37316264303864323465373131613465353966653933653663373463373833383764666565356633653763666666303"
-        "13234316261326663000080EA3177000000003237364139313433413842343835333838374238343642453733353546"
-        "33443844373539353733414546463330363238384143554F505F445550204F505F48415348313630203361386234383"
-        "5333838376238343662653733353566336438643735393537336165666633303632204F505F455155414C5645524946"
-        "59204F505F434845434B534947002254464A6D3368706473554D796E3666656F44586F704E6573373151394E5A71594"
-        "247000000000000000001000000";
+        "43384242353535333734370000000000000000000310270000000000001976A9143A8B4853887B846BE7355F3D8D759"
+        "573AEFF306288AC002254464A6D3368706473554D796E3666656F44586F704E6573373151394E5A7159424710270000"
+        "00000000FDAD096A4DA9094E5403015434322020201601002016F000000995789CB559CBAE1CB711FD1562D69D5114C"
+        "B57B1B232AC043090080E2C7B1378C1E9E6CC65DC2FB1C9010441FF9E532F926305C8260624DD3B3D4DB21EA74E9DA2"
+        "3E9D269FFDE9CDA753DE7E0DEB3BBF84D39BD3FB577F3A0DA7291C638A7B8EDB5A9FC5E32821E1E3BB7099E3F63EF80"
+        "54F4B9A8FD39B7F7D3AADB23E8E58C28FF1E139E7FD78F3E2C59AF7977FA06F8EB35F8EAFCE53BCC5ECE76D0C7E3D76"
+        "3F86E33C6ECB8BD74F97EB18A66FC2CB5797700D9797AFFF78B95EBFFEF3EBA7E9EBA7F0E4FDEBA7974F5FBDFAE67C8"
+        "B579CB1C425BCFFB8F3A98BBF8517F4F8F32F38FC08E9ADFAB604FA09FB7E0D1FAB2B773F175AF6F72D85C5C5FD288B"
+        "9BB6794BEE88D9C1913C38B2368C396438EDFC14F7788C71BDB930C77C76DF8615B6E3A565D9A6CDCDF15666EFC22D6"
+        "4D9A8BEB1F8E3F067F71D4E38B631C6C3AD3E6F1F4A707BC06FF1520E8745B07FC57713FEEE3EE5926258F1745B7338"
+        "062C394618925C8A531CCB8C354B39CEEEEDB686D17D287E7157D88537CB9C531C63C031611C70C63C07DA830E0C050"
+        "F52C811B67C28F4F61196B37B576698CEEE62A72C16F30B2EAC71B153F63005F7EF72E46D70D78448445A760FF3E0FC"
+        "1CB17F9623EF65DE4BF6397034F0651ACBD97DBFF266B6417ADED6115E14BC10973DA42962BDC76A448DC272B83B101"
+        "20659A046224971CC459D853F62D4B2CDF4515DA3B3328E4E2EC7758C535991AEEF924770FD4EE13EBB9FE3DD2F14F7"
+        "392C880EA52690110E298835739D237388D7B04E2E239CB481BE3107CB3C02BBA59C63068428CC2D9AEA46DDC223441"
+        "2D66F296AF06966107A183D98892EAE0845BC8794BCA6EA1ACA2D7A8E9159F1C3B33FF8D7FAEACAA92CC821D082C73E"
+        "45FC983D4E0888C23FB1130121959C2850EA464DC0D9FD354758D4810801A11C3B5F6E25108C93BF444222E763DC128"
+        "5EDF17D240B7B482994687B6AC6CFEE1F3E8C48F1013796BD1CE68E2C40DCA6A839D1158C52C1B866698E97900022AB"
+        "D5BE3AE9DD3590934798A4B2C51EDE602D2BC27F993D4EC982DDB98C14AABDCCF7B8FA34B86764298584EFE33448723"
+        "AA3A912B6296E54B394B20632F5C7CA85F3EE0EE433AC941131BAC3F7D59751E0A8D8E68AA33D2D64D5BF2D8D51E283"
+        "2DDACA1EE06F6931F078763FC2EF569F8B07951C6DAB355E9ECDC4639BFC8CA41D1E6C4C26110979D9A102786094F3E"
+        "117B8B04E4C64BC701054501CB1FD58D2019B24C4ECCB2DF97B9CBC6CEB96E8BC46E1ECFE564068FFADC2246028D170"
+        "1037CE386D2F09FB52FE90F2116F2641317187963E720D92DCD6B22C1F396D8CFF1A593F8E6539A86085EF570126934"
+        "2C32E0C04A300DBC05287821ACB07A338F7D238F614974825DB12C3095364217072068ED8376AA101B1BAC4397A2EA7"
+        "F01722473F924D123718F2D07C660F68472F383602573B09864CB00C00FAD58183F007B1428C51175979B8D12CD374F"
+        "B183D3A0A518C560BA5DF2B3755CB05478D5BD97F3A6E68D1F5BF699A72AEF9CCE9D25D7E80DB0735B856B93D9DF5DC"
+        "223116C662705156D7B1665B33DDA5E6BECD25EFA04A0B95818EF31D2749BE725FD19AE2D238E6560BF7BA618591B02"
+        "BBDDEF7D9A6187A00B6F02A710FDCAB24BA731873630AC570431C42F448EF5CAC025C6E878F6DFD0A7860038AABF046"
+        "97DAFA1B21D2221746A1C8FE082A72162E83F2187943053E724BCB3D2F4A4312AA6F0D41259014F0D0F1226F14B0064"
+        "AC9DAA181A21A380879559E5D88608A9F7C0716808BE826246A83D99415B395708FD68450AF9441552F7A60A31C299B"
+        "16810A63DDEC2E42EFF7AAF9AECA249652FB4D4688B703EB4DF1D962482751D9B91DCCC0DF88761558C93E92EFE6DD4"
+        "361366C3FAA59EDC45C524347F7C4AEE606E997C573897062A524BB28B5DEC3E2AC35695110E03A4913ACEB51ACFB77"
+        "E9B6D7D4387D61D0C4727FD754D5122363B4295993977E04623FA8CC46407542D64A424752C56F158F60B6A2E4A857A"
+        "1A18D52F4ADD18BEF28964361062B5DD8C680683920F6A1ED8FD0090DB113696C9AA0933F227B4C35D899D4BE072772"
+        "BC0B9E74608E3767FF8BA4FC5FA12BCD1B44CA9DF9EC7ECAA6345BD11BE73604EA58542BBC03A132E004F2FA0D2A4AA"
+        "E54D53F7E26CEF13C20A54B7430177B89E85B83B9B1866CB39572093C5E02557AED9E3718E1B9AD71FB65A5D2B02E0D"
+        "ACAF962CF408D80833D6F9445AB8CC259C0245693BBB8E270F9E28C18A64A5BC1232A908362448D523E74D260C4FA8D"
+        "33542C3460ADC5EBBE14527021BB4A4F9FCBE41FC89EB40E6BC2AE82424D68AB552DB08A682E781881DF6EB1FA82C45"
+        "889F71AA98CDA53483C7BDCE84B4A43523940A97B3941715C786B822A5F3764118A928BB97D548449C09A431588D097"
+        "0CB4152E6EB058AF68966AEC9DE879952398146291EBA1F32A1556EC2AD5511E3AD7D6238DAB68165B657C156BBB359"
+        "6A68D4A6AF49AAAC931F094447C4C1266B9244F7F04C770D9E3AF3200DD720202125CD204D8BC125C419B1659A08AF8"
+        "B41A72907BD2818947AA7D8D1649DA465D0117B6B68B4B3237C4BD5318545B9B0116B2696706D70EEAA9585A8629066"
+        "6B1B3374566B970E551ED8E0C7C164992642B3E5D93A0C85013C455361476F1D4406E6163855FB756D581C68E66D655"
+        "042CBF030069B3792190628B652F328F5325E311753FE92AEA36B880E3BF8A447144BB3B0969089D5857541BB2AD0F8"
+        "AB24E8ED62001A190EF5264CB87CB0A2ED7A505F343A96529972D62D8DD5FC5A31DAE275066221D469849A03C1AF8EB"
+        "7B2178CBD7B6E2C82C46864A49DEE61F678B827B35AD18B0453306DC3D6C4458FEB6450EF780A2B373F5A74A5C10227"
+        "CC8F47771503A308D0A0CEEE22A1658DBD15556F174032C3D2465F8E3E767D243A68FCF2D6A6EB6536E2B1EEAE01B5B"
+        "A13D7219BE4AEEA7F73AFC4DC2B25E93D52D6E15D69D32E23544EA905BD7D4296169CAE795AE55085CB20AC8321D5FD"
+        "60F3A14E177DC72E7C49400F825EF808C0597F33176A7B6D9E8F5FF4FC664803CD207364AF7C6D101BD46DD6690A953"
+        "666EBA024533E19201255A6166BE7FA12EB54BAAF30F1A401ECA46CABF8AAB92C9975468EB487101453A791B436C987"
+        "8BA6079724AEA42C9CA862BB30B5E6A014C648B2C6272C1CFB6B288113AB50E3706DA822FDB2CD609599BBCB4D15BFB"
+        "5A3F4FDC1E8461C917F8D14901F36C3DE65231583251B10F42A0A56713E09170896F25E114A69F8B329D1245AD5D07C"
+        "F5D25DE17DBF3ECE5CDAC14A36C120D7EE35F4A2792C73E2A94465E8C24E7056014042B0DD7BCA6DBFE871BEE79086A"
+        "8D8AE5612F73FDCAE4CB52DD060271788DDB452F55AFF90059EF833D88D3CCF880A71BD08D24E711A4E59FE93E6C74C"
+        "78387DFEE5F3E7CFFF01241BA2FC000080EA3177000000001976A9143A8B4853887B846BE7355F3D8D759573AEFF306"
+        "288AC002254464A6D3368706473554D796E3666656F44586F704E6573373151394E5A71594247000000000000000001"
+        "000000";
 
     CDataStream tx_ds(ParseHex(tx_hex), SER_NETWORK, PROTOCOL_VERSION);
     CDataStream ntp1tx_ds(ParseHex(ntp1tx_hex), SER_NETWORK, PROTOCOL_VERSION);
@@ -3871,6 +3610,14 @@ TEST(ntp1_tests, ntp1_metadata_parsing_7)
     EXPECT_EQ(metadataObj.getAggregationPolicy(), "aggregatable");
     EXPECT_EQ(metadataObj.getIssuanceTxId(), tx.GetHash());
     EXPECT_EQ(metadataObj.getTokenId(), "La8hreGMQjDmbhbC7assHJBvSBFS9dh7BRQMy3");
+
+    std::string opReturnArg;
+    ntp1tx.IsTxNTP1(&tx, &opReturnArg);
+    const std::vector<uint8_t> scriptBin = ntp1tx.getNTP1OpReturnScript();
+    const std::string          scriptHex = ntp1tx.getNTP1OpReturnScriptHex();
+    EXPECT_EQ(scriptHex, ToHex(scriptBin));
+    // remove the prefix (in hex) and compare the script and make sure it's the same
+    EXPECT_EQ(scriptHex, opReturnArg);
 }
 
 TEST(ntp1_tests, ntp1_metadata_parsing_8)
@@ -3891,21 +3638,12 @@ TEST(ntp1_tests, ntp1_metadata_parsing_8)
         "93736303136323046304539463832413032323030363532303945323938423334303738364545394246454639443434"
         "33444637303542394635374633314439423041324537333339303141443435434333384130313231303236394142364"
         "14543423043333431433834423639413531423646443931453143343145363431323231443541373234313235424332"
-        "32464539423443414442430000000000000000000310270000000000003237364139313443334233323839323231443"
-        "23939433536363543453945443739393935423339333730323543413638384143554F505F445550204F505F48415348"
-        "3136302063336233323839323231643239396335363635636539656437393939356233393337303235636136204F505"
-        "F455155414C564552494659204F505F434845434B534947002254546F79506365465A6A77775738384A3174556D6259"
-        "68507735794D69397248413310270000000000008A36413433344535343031303134443534333132303230393431393"
-        "03039373934353342383744444245374235303444464431433538343637343039333430313344334332394241414338"
-        "38453136393636443238413135343937464131443845423141333837384533373944414241433233463642383143374"
-        "333453733323031393030323031394630904F505F52455455524E203465353430313031346435343331323032303934"
-        "31393030393739343533623837646462653762353034646664316335383436373430393334303133643363323962616"
-        "16338386531363936366432386131353439376661316438656231613338373865333739646162616332336636623831"
-        "63376333653733323031393030323031396630000064A8BFF3120000003237364139313443334233323839323231443"
-        "23939433536363543453945443739393935423339333730323543413638384143554F505F445550204F505F48415348"
-        "3136302063336233323839323231643239396335363635636539656437393939356233393337303235636136204F505"
-        "F455155414C564552494659204F505F434845434B534947002254546F79506365465A6A77775738384A3174556D6259"
-        "68507735794D693972484133000000000000000001000000";
+        "32464539423443414442430000000000000000000310270000000000001976A914C3B3289221D299C5665CE9ED79995"
+        "B3937025CA688AC002254546F79506365465A6A77775738384A3174556D625968507735794D69397248413310270000"
+        "00000000456A434E5401014D54312020941900979453B87DDBE7B504DFD1C5846740934013D3C29BAAC88E16966D28A"
+        "15497FA1D8EB1A3878E379DABAC23F6B81C7C3E732019002019F0000064A8BFF3120000001976A914C3B3289221D299"
+        "C5665CE9ED79995B3937025CA688AC002254546F79506365465A6A77775738384A3174556D625968507735794D69397"
+        "2484133000000000000000001000000";
 
     CDataStream tx_ds(ParseHex(tx_hex), SER_NETWORK, PROTOCOL_VERSION);
     CDataStream ntp1tx_ds(ParseHex(ntp1tx_hex), SER_NETWORK, PROTOCOL_VERSION);
@@ -3930,6 +3668,14 @@ TEST(ntp1_tests, ntp1_metadata_parsing_8)
     EXPECT_EQ(metadataObj.getAggregationPolicy(), "aggregatable");
     EXPECT_EQ(metadataObj.getIssuanceTxId(), tx.GetHash());
     EXPECT_EQ(metadataObj.getTokenId(), "La37utZFe8P1fPc789szDp2QL7TMC7hyWERxr5");
+
+    std::string opReturnArg;
+    ntp1tx.IsTxNTP1(&tx, &opReturnArg);
+    const std::vector<uint8_t> scriptBin = ntp1tx.getNTP1OpReturnScript();
+    const std::string          scriptHex = ntp1tx.getNTP1OpReturnScriptHex();
+    EXPECT_EQ(scriptHex, ToHex(scriptBin));
+    // remove the prefix (in hex) and compare the script and make sure it's the same
+    EXPECT_EQ(scriptHex, opReturnArg);
 }
 
 // TEST(ntp1_tests, total_fee_calculator)

@@ -153,6 +153,8 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
         result.push_back(Pair("previousblockhash", o->GetBlockHash().GetHex()));
     if (const auto o = blockindex->getNext(txdb))
         result.push_back(Pair("nextblockhash", o->GetBlockHash().GetHex()));
+    result.push_back(Pair("proof-of-work", blockindex->IsProofOfWork()));
+    result.push_back(Pair("proof-of-stake", blockindex->IsProofOfStake()));
 
     result.push_back(Pair(
         "flags", fmt::format("{}{}", blockindex->IsProofOfStake() ? "proof-of-stake" : "proof-of-work",

@@ -83,6 +83,10 @@ public:
 
     bool IsCoinBase() const { return (vin.size() == 1 && vin[0].prevout.IsNull() && vout.size() >= 1); }
 
+    bool ContainsOpReturn(std::vector<uint8_t>* opReturnArg = nullptr) const;
+
+    static bool IsOutputOpRet(const CTxOut* output, std::vector<uint8_t>* opReturnArg = nullptr);
+
     bool CheckColdStake(const CScript& script) const;
 
     bool IsCoinStake() const;
@@ -173,9 +177,9 @@ public:
         @return Returns true if all checks succeed
         */
     Result<void, TxValidationState>
-                                    ConnectInputs(const ITxDB& txdb, MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTestPool,
-                                                  const CDiskTxPos& posThisTx, const boost::optional<CBlockIndex>& pindexBlock,
-                                                  bool fBlock, bool fMiner, CBlock* sourceBlockPtr = nullptr) const;
+    ConnectInputs(const ITxDB& txdb, MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTestPool,
+                  const CDiskTxPos& posThisTx, const boost::optional<CBlockIndex>& pindexBlock,
+                  bool fBlock, bool fMiner, CBlock* sourceBlockPtr = nullptr) const;
     Result<void, TxValidationState> CheckTransaction(const ITxDB& txdb,
                                                      CBlock*      sourceBlock = nullptr) const;
     bool GetCoinAge(const ITxDB& txdb, uint64_t& nCoinAge) const; // ppcoin: get transaction coin age
@@ -184,13 +188,15 @@ public:
     [[nodiscard]] static CTransaction FetchTxFromDisk(const uint256& txid, const ITxDB& txdb);
 
     [[nodiscard]] static std::vector<CKey>
-                                     GetThisWalletKeysOfTx(const uint256& txid, boost::optional<unsigned> outputNumber = boost::none);
+    GetThisWalletKeysOfTx(const uint256& txid, boost::optional<unsigned> outputNumber = boost::none);
     [[nodiscard]] static std::string DecryptMetadataOfTx(const StringViewT             metadataStr,
                                                          const uint256&                txid,
                                                          boost::optional<std::string>& error);
 
     [[nodiscard]] static boost::optional<CKey> GetPublicKeyFromScriptSig(const CScript& scriptSig);
     [[nodiscard]] static boost::optional<CKey> GetOnePublicKeyFromInputs(const CTransaction& tx);
+
+    static std::vector<uint8_t> ExtractOpRetData(const CScript& scriptPubKey);
 
 protected:
     const CTxOut& GetOutputFor(const CTxIn& input, const MapPrevTx& inputs) const;

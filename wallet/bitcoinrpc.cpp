@@ -1432,6 +1432,8 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
         ConvertTo<int64_t>(params[2]);
     if (strMethod == "setban" && n > 3)
         ConvertTo<bool>(params[3]);
+    if (strMethod == "disconnectnode" && n > 0)
+        ConvertTo<int64_t>(params[0]);
 
     return params;
 }

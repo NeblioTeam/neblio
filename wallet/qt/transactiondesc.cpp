@@ -90,7 +90,7 @@ QString TransactionDesc::toHTML(const ITxDB& txdb, CWallet* wallet, const CWalle
         if (nNet > 0) {
             // Credit
             for (const CTxOut& txout : wtx.vout) {
-                if (NTP1Transaction::IsTxOutputOpRet(&txout)) {
+                if (CTransaction::IsOutputOpRet(&txout)) {
                     continue;
                 }
                 if (wallet->IsMine(txout) != isminetype::ISMINE_NO) {
@@ -153,7 +153,7 @@ QString TransactionDesc::toHTML(const ITxDB& txdb, CWallet* wallet, const CWalle
         //
         int64_t nUnmatured = 0;
         for (const CTxOut& txout : wtx.vout) {
-            if (NTP1Transaction::IsTxOutputOpRet(&txout)) {
+            if (CTransaction::IsOutputOpRet(&txout)) {
                 continue;
             }
             nUnmatured += wallet->GetCredit(txout, static_cast<isminefilter>(isminetype::ISMINE_ALL));
@@ -201,7 +201,7 @@ QString TransactionDesc::toHTML(const ITxDB& txdb, CWallet* wallet, const CWalle
 
         bool fAllToMe = true;
         for (const CTxOut& txout : wtx.vout) {
-            if (NTP1Transaction::IsTxOutputOpRet(&txout)) {
+            if (CTransaction::IsOutputOpRet(&txout)) {
                 continue;
             }
             fAllToMe = fAllToMe && IsMineCheck(wallet->IsMine(txout), isminetype::ISMINE_SPENDABLE);
@@ -213,7 +213,7 @@ QString TransactionDesc::toHTML(const ITxDB& txdb, CWallet* wallet, const CWalle
             //
             for (int i = 0; i < (int)wtx.vout.size(); i++) {
                 const CTxOut& txout = wtx.vout[i];
-                if (NTP1Transaction::IsTxOutputOpRet(&txout)) {
+                if (CTransaction::IsOutputOpRet(&txout)) {
                     continue;
                 }
                 if (IsMineCheck(wallet->IsMine(txout), isminetype::ISMINE_SPENDABLE))
@@ -291,7 +291,7 @@ QString TransactionDesc::toHTML(const ITxDB& txdb, CWallet* wallet, const CWalle
                         "<br>";
             }
             for (const CTxOut& txout : wtx.vout) {
-                if (NTP1Transaction::IsTxOutputOpRet(&txout)) {
+                if (CTransaction::IsOutputOpRet(&txout)) {
                     continue;
                 }
                 if (wallet->IsMine(txout) != isminetype::ISMINE_NO)
@@ -344,7 +344,7 @@ QString TransactionDesc::toHTML(const ITxDB& txdb, CWallet* wallet, const CWalle
                     "<br>";
         for (int i = 0; i < (int)wtx.vout.size(); i++) {
             const CTxOut& txout = wtx.vout[i];
-            if (NTP1Transaction::IsTxOutputOpRet(&txout)) {
+            if (CTransaction::IsOutputOpRet(&txout)) {
                 continue;
             }
             if (wallet->IsMine(txout) != isminetype::ISMINE_NO) {

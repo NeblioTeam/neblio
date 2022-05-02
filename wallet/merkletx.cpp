@@ -41,7 +41,7 @@ struct ExtractorFunctor
 {
     const uint256 bestBlockHash;
 
-    ExtractorFunctor(const uint256& bestBlockHashIn) : bestBlockHash(bestBlockHashIn) {}
+    explicit ExtractorFunctor(const uint256& bestBlockHashIn) : bestBlockHash(bestBlockHashIn) {}
 
     boost::optional<int> operator()(const CBlockIndex& bi)
     {
@@ -53,6 +53,7 @@ static thread_local BlockIndexHeightIfMainChainCacheType
     blockIndexMainChainCache(2 * pwalletMain->getWalletTxsCount(), ExtractorFunctor(0));
 
 thread_local uint256 cachedBestHash = 0;
+
 /**
  * @brief GetBlockHeightIfMainChain
  * The BlockIndexLRUCache class is designed to only store values that are constants of blocks. However,
@@ -63,8 +64,7 @@ thread_local uint256 cachedBestHash = 0;
  * bestBlockhash is next block right after the previous block. If that's the case, that just means the
  * IsMainChain state hasn't chained, so we skip resetting the cache.
  */
-static boost::optional<int> GetBlockHeightIfMainChain(const ITxDB& txdb, const uint256& blockHash,
-                                                      const uint256& bestBlockHash)
+static bool UpdateCachedMainChainState(const ITxDB& txdb, const uint256& bestBlockHash)
 {
     if (cachedBestHash != bestBlockHash) {
         // read the current best to update the cache
@@ -73,7 +73,7 @@ static boost::optional<int> GetBlockHeightIfMainChain(const ITxDB& txdb, const u
             NLog.write(b_sev::critical,
                        "CRITICAL ERROR: Failed to read best block index indicated with hash: {}!",
                        bestBlockHash.ToString());
-            return boost::none;
+            return false;
         }
 
         // if the next block is just built upon the last best, then the state of "mainchain" is
@@ -83,10 +83,20 @@ static boost::optional<int> GetBlockHeightIfMainChain(const ITxDB& txdb, const u
             blockIndexMainChainCache.clear();
             blockIndexMainChainCache.updateCacheSize(2 * pwalletMain->getWalletTxsCount());
         }
-        // we just the new best height in the extractor
+        // now we just update the new best height in the extractor
         blockIndexMainChainCache.setExtractor(ExtractorFunctor(bestBlockHash));
         cachedBestHash = bestBlockHash;
     }
+    return true;
+}
+
+static boost::optional<int> GetBlockHeightIfMainChain(const ITxDB& txdb, const uint256& blockHash,
+                                                      const uint256& bestBlockHash)
+{
+    if (!UpdateCachedMainChainState(txdb, bestBlockHash)) {
+        return boost::none;
+    }
+
     const boost::optional<BlockIndexHeightIfMainChainCacheType::BICacheEntry> entry =
         blockIndexMainChainCache.get(txdb, blockHash);
     if (!entry) {
@@ -181,7 +191,7 @@ int CMerkleTx::SetMerkleBranch(const ITxDB& txdb, const CBlock* pblock)
 
     // Locate the transaction
     for (nIndex = 0; nIndex < (int)pblock->vtx.size(); nIndex++)
-        if (pblock->vtx[nIndex] == *(CTransaction*)this)
+        if (pblock->vtx[nIndex] == *static_cast<CTransaction*>(this))
             break;
     if (nIndex == (int)pblock->vtx.size()) {
         vMerkleBranch.clear();
@@ -195,11 +205,8 @@ int CMerkleTx::SetMerkleBranch(const ITxDB& txdb, const CBlock* pblock)
 
     // Is the tx in a block that's in the main chain
     const auto bi = txdb.ReadBlockIndex(hashBlock);
-    if (!bi)
-        return 0;
-    const boost::optional<CBlockIndex> pindex = bi;
-    if (!pindex || !pindex->IsInMainChain(txdb))
+    if (!bi || !bi->IsInMainChain(txdb))
         return 0;
 
-    return txdb.GetBestBlockIndex()->nHeight - pindex->nHeight + 1;
+    return txdb.GetBestBlockIndex()->nHeight - bi->nHeight + 1;
 }

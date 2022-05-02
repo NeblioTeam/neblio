@@ -163,7 +163,7 @@ boost::optional<std::string> CTxMemPool::GetTokenSymbolIfIssuance(const CTransac
     try {
         std::string opRet;
         if (NTP1Transaction::IsTxNTP1(&tx, &opRet)) {
-            auto scriptPtr = NTP1Script::ParseScript(opRet);
+            auto scriptPtr = NTP1Script::ParseScriptHex(opRet);
             if (scriptPtr->getTxType() == NTP1Script::TxType_Issuance) {
                 std::shared_ptr<const NTP1Script_Issuance> scriptPtrD =
                     std::dynamic_pointer_cast<const NTP1Script_Issuance>(scriptPtr);
