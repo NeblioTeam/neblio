@@ -345,7 +345,7 @@ bool CBlock::ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pinde
     NLog.write(b_sev::info, "Connecting block: {}", blockHash.ToString());
 
     // Check it again in case a previous version let a bad block in, but skip BlockSig checking
-    if (!CheckBlock(txdb, blockHash, !fJustCheck, !fJustCheck, false))
+    if (!CheckBlock(txdb, !fJustCheck, !fJustCheck, false))
         return false;
 
     //// issue here: it doesn't know the version
@@ -929,11 +929,12 @@ bool CBlock::Reorganize(ITxDB& txdb, const boost::optional<CBlockIndex>& pindexN
     return true;
 }
 
-boost::optional<CBlockIndex> CBlock::AddToBlockIndex(const uint256&                      blockHash,
-                                                     const boost::optional<CBlockIndex>& prevBlockIndex,
+boost::optional<CBlockIndex> CBlock::AddToBlockIndex(const boost::optional<CBlockIndex>& prevBlockIndex,
                                                      const uint256& hashProof, ITxDB& txdb,
                                                      const bool createDbTransaction)
 {
+    const uint256 blockHash = this->GetHash();
+
     // Check for duplicate
     if (txdb.ReadBlockIndex(blockHash))
         return NLog.errorn("AddToBlockIndex() : {} already exists", blockHash.ToString());
@@ -1006,9 +1007,10 @@ boost::optional<CBlockIndex> CBlock::AddToBlockIndex(const uint256&             
     return boost::make_optional(std::move(pindexNew));
 }
 
-bool CBlock::CheckBlock(const ITxDB& txdb, const uint256& blockHash, bool fCheckPOW,
-                        bool fCheckMerkleRoot, bool fCheckSig)
+bool CBlock::CheckBlock(const ITxDB& txdb, bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig)
 {
+    const uint256 blockHash = this->GetHash();
+
     // These are checks that are independent of context
     // that can be verified before saving an orphan block.
 
@@ -1661,7 +1663,7 @@ bool CBlock::WriteToDisk(const boost::optional<CBlockIndex>& prevBlockIndex, con
     }
 
     const boost::optional<CBlockIndex> pindexNew =
-        AddToBlockIndex(blockHash, prevBlockIndex, hashProof, txdb, false);
+        AddToBlockIndex(prevBlockIndex, hashProof, txdb, false);
 
     // database transactions are disabled in there because we already have a transaction around here
     if (!pindexNew) {

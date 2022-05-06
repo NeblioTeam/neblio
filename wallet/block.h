@@ -150,12 +150,11 @@ public:
     bool ReadFromDisk(const CBlockIndex* pindex, const ITxDB& txdb, bool fReadTransactions = true);
     bool SetBestChain(ITxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
                       const bool createDbTransaction = true);
-    boost::optional<CBlockIndex> AddToBlockIndex(const uint256&                      blockHash,
-                                                 const boost::optional<CBlockIndex>& prevBlockIndex,
+    boost::optional<CBlockIndex> AddToBlockIndex(const boost::optional<CBlockIndex>& prevBlockIndex,
                                                  const uint256& hashProof, ITxDB& txdb,
                                                  const bool createDbTransaction = true);
-    bool CheckBlock(const ITxDB& txdb, const uint256& blockHash, bool fCheckPOW = true,
-                    bool fCheckMerkleRoot = true, bool fCheckSig = true);
+    bool CheckBlock(const ITxDB& txdb, bool fCheckPOW = true, bool fCheckMerkleRoot = true,
+                    bool fCheckSig = true);
     bool AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& blockHash);
     bool
          SignBlock(const ITxDB& txdb, const CWallet& keystore, int64_t nFees,

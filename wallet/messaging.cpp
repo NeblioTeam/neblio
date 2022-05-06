@@ -1040,7 +1040,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
         }
 
         // Preliminary checks
-        if (!pblock->CheckBlock(txdb, hash))
+        if (!pblock->CheckBlock(txdb))
             return NLog.error("ProcessBlock() : CheckBlock FAILED");
 
         const boost::optional<CBlockIndex> checkpoint = Checkpoints::GetLastCheckpoint(txdb);

@@ -331,7 +331,7 @@ bool LoadBlockIndex(bool fAllowNew)
 
             assert(genesisBlock.hashMerkleRoot == Params().GenesisBlock().hashMerkleRoot);
             assert(genesisBlock.GetHash() == Params().GenesisBlockHash());
-            assert(genesisBlock.CheckBlock(txdb, Params().GenesisBlockHash()));
+            assert(genesisBlock.CheckBlock(txdb));
 
             // Start new block file
             if (!genesisBlock.WriteToDisk(boost::none, genesisBlock.GetHash(), genesisBlock.GetHash()))
