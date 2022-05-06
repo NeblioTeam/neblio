@@ -27,9 +27,9 @@ CBlockIndex::CBlockIndex()
     nNonce         = 0;
 }
 
-CBlockIndex::CBlockIndex(uint256 blockHashIn, const CBlock& block)
+CBlockIndex::CBlockIndex(const CBlock& block)
 {
-    blockHash              = blockHashIn;
+    blockHash              = block.GetHash();
     hashPrev               = 0;
     hashNext               = 0;
     nHeight                = 0;

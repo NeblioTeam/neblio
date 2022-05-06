@@ -940,7 +940,7 @@ boost::optional<CBlockIndex> CBlock::AddToBlockIndex(const boost::optional<CBloc
         return NLog.errorn("AddToBlockIndex() : {} already exists", blockHash.ToString());
 
     // Construct new block index object
-    CBlockIndex pindexNew = CBlockIndex(blockHash, *this);
+    CBlockIndex pindexNew = CBlockIndex(*this);
 
     pindexNew.blockHash = blockHash;
     if (prevBlockIndex) {
