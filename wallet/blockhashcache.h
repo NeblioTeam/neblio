@@ -1,6 +1,7 @@
 #ifndef BLOCKHASHCACHE_H
 #define BLOCKHASHCACHE_H
 
+#include <array>
 #include <boost/atomic.hpp>
 #include <boost/optional.hpp>
 #include <uint256.h>
