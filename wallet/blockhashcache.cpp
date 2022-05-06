@@ -49,6 +49,6 @@ uint256 BlockHashCache::GetBlockHash(const CBlock& block) const
         cachedBlockHash = block.GetHash(false);
         std::memcpy(cachedSerializedHeader.data(), &block.nVersion, HeaderSize);
     }
-    //    assert(!cachedBlockHash || *cachedBlockHash == GetPoWHash());
+    //    assert(*cachedBlockHash == GetPoWHash());
     return *cachedBlockHash;
 }
