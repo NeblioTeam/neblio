@@ -10,6 +10,7 @@
 #include "txindex.h"
 #include "uint256.h"
 #include "viucache.h"
+#include <blockhashcache.h>
 #include <unordered_map>
 #include <vector>
 
@@ -33,6 +34,10 @@ extern unsigned VIUCachePushProbabilityDenominator;
  */
 class CBlock
 {
+    BlockHashCache cachedBlockHash;
+
+    uint256 GetPoWHash() const;
+
 public:
     // header
     static const int32_t CURRENT_VERSION = 6;
@@ -97,9 +102,7 @@ public:
 
     bool IsNull() const;
 
-    uint256 GetHash() const;
-
-    uint256 GetPoWHash() const;
+    uint256 GetHash(bool UseCache = true) const;
 
     int64_t GetBlockTime() const;
 

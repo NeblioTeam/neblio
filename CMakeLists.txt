@@ -715,6 +715,7 @@ add_library(core_lib STATIC
     wallet/outpoint.cpp
     wallet/inpoint.cpp
     wallet/block.cpp
+    wallet/blockhashcache.cpp
     wallet/transaction.cpp
     wallet/globals.cpp
     wallet/disktxpos.cpp

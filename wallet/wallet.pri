@@ -135,6 +135,7 @@ HEADERS += qt/bitcoingui.h \
     outpoint.h            \
     inpoint.h             \
     block.h               \
+    blockhashcache.h      \
     transaction.h         \
     globals.h             \
     disktxpos.h           \
@@ -328,6 +329,7 @@ SOURCES += qt/bitcoin.cpp \
     outpoint.cpp          \
     inpoint.cpp           \
     block.cpp             \
+    blockhashcache.cpp    \
     transaction.cpp       \
     globals.cpp           \
     disktxpos.cpp         \

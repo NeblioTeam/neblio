@@ -139,7 +139,14 @@ uint256 CBlock::GetPoWHash() const { return scrypt_blockhash(CVOIDBEGIN(nVersion
 
 int64_t CBlock::GetBlockTime() const { return (int64_t)nTime; }
 
-uint256 CBlock::GetHash() const { return GetPoWHash(); }
+uint256 CBlock::GetHash(bool UseCache) const
+{
+    if (!UseCache) {
+        return GetPoWHash();
+    }
+
+    return cachedBlockHash.GetBlockHash(*this);
+}
 
 bool CBlock::IsNull() const { return (nBits == 0); }
 
