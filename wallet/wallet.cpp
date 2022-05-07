@@ -1096,7 +1096,7 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
     };
 
     {
-        CTxDB txdb;
+        const CTxDB txdb;
         LOCK2(cs_main, cs_wallet);
         const int bestHeight = txdb.GetBestChainHeight().value_or(0);
         uiInterface.WalletBlockchainRescanStarted();
