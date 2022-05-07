@@ -62,13 +62,15 @@ public:
         };
     };
 
+    static std::size_t MakeBucketIndex(const K& key) { return Hasher()(key) % BucketCount; }
+
     template <typename Func>
     void apply(const K& key, Func&& func)
     {
         static_assert(std::is_convertible<Func, std::function<void(BucketMapType&, const K&)>>::value,
                       "Invalid function signature");
 
-        std::size_t bucketIndex = Hasher()(key) % BucketCount;
+        const std::size_t bucketIndex = MakeBucketIndex(key);
 
         boost::unique_lock<boost::shared_mutex> lg(locks[bucketIndex]);
         func(buckets[bucketIndex], key);
@@ -80,7 +82,7 @@ public:
         static_assert(std::is_convertible<Func, std::function<Ret(BucketMapType&, const K&)>>::value,
                       "Invalid function signature");
 
-        std::size_t bucketIndex = Hasher()(key) % BucketCount;
+        const std::size_t bucketIndex = MakeBucketIndex(key);
 
         boost::unique_lock<boost::shared_mutex> lg(locks[bucketIndex]);
         return func(buckets[bucketIndex], key);
@@ -93,7 +95,7 @@ public:
             std::is_convertible<Func, std::function<Ret(const BucketMapType&, const K&)>>::value,
             "Invalid function signature");
 
-        std::size_t bucketIndex = Hasher()(key) % BucketCount;
+        const std::size_t bucketIndex = MakeBucketIndex(key);
 
         boost::shared_lock<boost::shared_mutex> lg(locks[bucketIndex]);
         return func(buckets[bucketIndex], key);
@@ -111,7 +113,7 @@ template <typename K, typename V, std::size_t C, typename Hasher>
 std::size_t ConcurrentMap<K, V, C, Hasher>::erase(const K& key)
 {
 
-    std::size_t bucketIndex = Hasher()(key) % C;
+    const std::size_t bucketIndex = MakeBucketIndex(key);
 
     boost::unique_lock<boost::shared_mutex> lg(locks[bucketIndex]);
     return buckets[bucketIndex].erase(key);
@@ -120,7 +122,7 @@ std::size_t ConcurrentMap<K, V, C, Hasher>::erase(const K& key)
 template <typename K, typename V, std::size_t C, typename Hasher>
 void ConcurrentMap<K, V, C, Hasher>::set(const K& key, const V& value)
 {
-    std::size_t bucketIndex = Hasher()(key) % C;
+    const std::size_t bucketIndex = MakeBucketIndex(key);
 
     boost::unique_lock<boost::shared_mutex> lg(locks[bucketIndex]);
 
@@ -135,7 +137,7 @@ void ConcurrentMap<K, V, C, Hasher>::set(const K& key, const V& value)
 template <typename K, typename V, std::size_t C, typename Hasher>
 bool ConcurrentMap<K, V, C, Hasher>::exists(const K& key) const
 {
-    std::size_t bucketIndex = Hasher()(key) % C;
+    const std::size_t bucketIndex = MakeBucketIndex(key);
 
     boost::shared_lock<boost::shared_mutex> lg(locks[bucketIndex]);
     return buckets[bucketIndex].count(key);
@@ -161,7 +163,7 @@ bool ConcurrentMap<K, V, C, Hasher>::empty() const
 template <typename K, typename V, std::size_t C, typename Hasher>
 boost::optional<V> ConcurrentMap<K, V, C, Hasher>::get(const K& key) const
 {
-    std::size_t bucketIndex = Hasher()(key) % C;
+    const std::size_t bucketIndex = MakeBucketIndex(key);
 
     boost::shared_lock<boost::shared_mutex> lg(locks[bucketIndex]);
 
