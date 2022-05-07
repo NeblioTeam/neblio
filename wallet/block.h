@@ -22,6 +22,32 @@ extern VIUCache viuCache;
 extern unsigned VIUCachePushProbabilityNumerator;
 extern unsigned VIUCachePushProbabilityDenominator;
 
+class CBlockHeader
+{
+    BlockHashCache cachedBlockHash;
+
+    uint256 GetPoWHash() const;
+
+public:
+    CBlockHeader();
+
+    void SetNull();
+
+    // header
+    static const int32_t CURRENT_VERSION = 6;
+    int32_t              nVersion;
+    uint256              hashPrevBlock;
+    uint256              hashMerkleRoot;
+    uint32_t             nTime;
+    uint32_t             nBits;
+    uint32_t             nNonce;
+
+    uint256 GetHash(bool UseCache = true) const;
+    int64_t GetBlockTime() const;
+    CBlock  IntoEmptyBlock() const;
+    void    UpdateTime(const CBlockIndex* /*pindexPrev*/);
+};
+
 /** Nodes collect new transactions into a block, hash them into a hash tree,
  * and scan through nonce values to make the block's hash satisfy proof-of-work
  * requirements.  When they solve the proof-of-work, they broadcast the block
@@ -32,22 +58,9 @@ extern unsigned VIUCachePushProbabilityDenominator;
  * Blocks are appended to blk0001.dat files on disk (not anymore, now they're in lmdb).
  * Their location on disk is indexed by CBlockIndex objects in memory.
  */
-class CBlock
+class CBlock : public CBlockHeader
 {
-    BlockHashCache cachedBlockHash;
-
-    uint256 GetPoWHash() const;
-
 public:
-    // header
-    static const int32_t CURRENT_VERSION = 6;
-    int32_t              nVersion;
-    uint256              hashPrevBlock;
-    uint256              hashMerkleRoot;
-    uint32_t             nTime;
-    uint32_t             nBits;
-    uint32_t             nNonce;
-
     // network and disk
     std::vector<CTransaction> vtx;
 
@@ -98,15 +111,9 @@ public:
 
     void SetNull();
 
-    CBlock GetBlockHeader() const;
+    CBlockHeader GetBlockHeader() const;
 
     bool IsNull() const;
-
-    uint256 GetHash(bool UseCache = true) const;
-
-    int64_t GetBlockTime() const;
-
-    void UpdateTime(const CBlockIndex* pindexPrev);
 
     // entropy bit for stake modifier if chosen by modifier
     unsigned int GetStakeEntropyBit(const uint256& hash) const;

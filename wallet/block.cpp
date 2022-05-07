@@ -110,36 +110,52 @@ unsigned int CBlock::GetStakeEntropyBit(const uint256& hash) const
     return nEntropyBit;
 }
 
-CBlock CBlock::GetBlockHeader() const
-{
-    CBlock block;
-    block.nVersion       = nVersion;
-    block.hashPrevBlock  = hashPrevBlock;
-    block.hashMerkleRoot = hashMerkleRoot;
-    block.nTime          = nTime;
-    block.nBits          = nBits;
-    block.nNonce         = nNonce;
-    return block;
-}
+CBlockHeader CBlock::GetBlockHeader() const { return *this; }
 
 void CBlock::SetNull()
 {
-    nVersion       = CBlock::CURRENT_VERSION;
-    hashPrevBlock  = 0;
-    hashMerkleRoot = 0;
-    nTime          = 0;
-    nBits          = 0;
-    nNonce         = 0;
+    CBlockHeader::SetNull();
     vtx.clear();
     vchBlockSig.clear();
     nDoS = 0;
 }
 
-uint256 CBlock::GetPoWHash() const { return scrypt_blockhash(CVOIDBEGIN(nVersion)); }
+uint256 CBlockHeader::GetPoWHash() const { return scrypt_blockhash(CVOIDBEGIN(nVersion)); }
 
-int64_t CBlock::GetBlockTime() const { return (int64_t)nTime; }
+CBlockHeader::CBlockHeader() { SetNull(); }
 
-uint256 CBlock::GetHash(bool UseCache) const
+void CBlockHeader::SetNull()
+{
+    nVersion       = CBlockHeader::CURRENT_VERSION;
+    hashPrevBlock  = 0;
+    hashMerkleRoot = 0;
+    nTime          = 0;
+    nBits          = 0;
+    nNonce         = 0;
+}
+
+int64_t CBlockHeader::GetBlockTime() const { return (int64_t)nTime; }
+
+CBlock CBlockHeader::IntoEmptyBlock() const
+{
+    CBlock result;
+
+    result.nVersion       = nVersion;
+    result.hashPrevBlock  = hashPrevBlock;
+    result.hashMerkleRoot = hashMerkleRoot;
+    result.nTime          = nTime;
+    result.nBits          = nBits;
+    result.nNonce         = nNonce;
+
+    return result;
+}
+
+void CBlockHeader::UpdateTime(const CBlockIndex*)
+{
+    nTime = std::max(GetBlockTime(), GetAdjustedTime());
+}
+
+uint256 CBlockHeader::GetHash(bool UseCache) const
 {
     if (!UseCache) {
         return GetPoWHash();
@@ -148,12 +164,7 @@ uint256 CBlock::GetHash(bool UseCache) const
     return cachedBlockHash.GetBlockHash(*this);
 }
 
-bool CBlock::IsNull() const { return (nBits == 0); }
-
-void CBlock::UpdateTime(const CBlockIndex* /*pindexPrev*/)
-{
-    nTime = std::max(GetBlockTime(), GetAdjustedTime());
-}
+bool CBlock::IsNull() const { return nBits == 0; }
 
 bool CBlock::DisconnectBlock(ITxDB& txdb, const CBlockIndex& pindex)
 {
@@ -1243,7 +1254,7 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& block
     }
     // PoW is checked in CheckBlock()
     if (IsProofOfWork()) {
-        hashProof = GetPoWHash();
+        hashProof = GetHash();
     }
 
     const bool cpSatisfies = Checkpoints::CheckSync(txdb, blockHash, &prevBlockIndex);

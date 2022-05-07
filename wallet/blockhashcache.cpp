@@ -38,7 +38,7 @@ BlockHashCache& BlockHashCache::operator=(BlockHashCache&& other)
     return *this;
 }
 
-uint256 BlockHashCache::GetBlockHash(const CBlock& block) const
+uint256 BlockHashCache::GetBlockHash(const CBlockHeader& block) const
 {
     while (cacheLockFlag.test_and_set()) {
     }

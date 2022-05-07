@@ -6,7 +6,7 @@
 
 CMerkleBlock::CMerkleBlock(const CBlock& block, CBloomFilter& filter)
 {
-    header = block.GetBlockHeader();
+    header = block.GetBlockHeader().IntoEmptyBlock();
 
     std::vector<bool>    vMatch;
     std::vector<uint256> vHashes;

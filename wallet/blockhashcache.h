@@ -6,7 +6,7 @@
 #include <boost/optional.hpp>
 #include <uint256.h>
 
-class CBlock;
+class CBlockHeader;
 
 class BlockHashCache
 {
@@ -27,7 +27,7 @@ public:
 
     BlockHashCache& operator=(BlockHashCache&& other);
 
-    uint256 GetBlockHash(const CBlock& block) const;
+    uint256 GetBlockHash(const CBlockHeader& block) const;
 };
 
 #endif // BLOCKHASHCACHE_H
