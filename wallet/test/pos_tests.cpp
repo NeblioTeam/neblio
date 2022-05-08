@@ -120,11 +120,11 @@ TEST(PoS_tests, kernel_scriptPubKey_basic_p2pkh)
     // solve for the kernel script to ensure it's sane
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
-    EXPECT_TRUE(Solver(*dbMock, kernelScript, whichType, vSolutions));
+    EXPECT_TRUE(Solver(dbMock->GetBestChainHeight().value(), kernelScript, whichType, vSolutions));
     EXPECT_EQ(whichType, txnouttype::TX_PUBKEYHASH);
 
     boost::optional<CScript> calcResult = StakeMaker::CalculateScriptPubKeyForStakeOutput(
-        *dbMock, StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
+        dbMock->GetBestChainHeight().value(), StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
     ASSERT_NE(calcResult, boost::none);
 
     EXPECT_EQ(calcResult, CScript() << key.GetPubKey() << OP_CHECKSIG);
@@ -153,11 +153,11 @@ TEST(PoS_tests, kernel_scriptPubKey_basic_p2pk)
     // solve for the kernel script to ensure it's sane
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
-    EXPECT_TRUE(Solver(*dbMock, kernelScript, whichType, vSolutions));
+    EXPECT_TRUE(Solver(dbMock->GetBestChainHeight().value(), kernelScript, whichType, vSolutions));
     EXPECT_EQ(whichType, txnouttype::TX_PUBKEY);
 
     boost::optional<CScript> calcResult = StakeMaker::CalculateScriptPubKeyForStakeOutput(
-        *dbMock, StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
+        dbMock->GetBestChainHeight().value(), StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
     ASSERT_NE(calcResult, boost::none);
 
     EXPECT_EQ(calcResult, CScript() << key.GetPubKey() << OP_CHECKSIG);
@@ -189,11 +189,11 @@ TEST(PoS_tests, kernel_scriptPubKey_basic_p2cs)
     // solve for the kernel script to ensure it's sane
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
-    EXPECT_TRUE(Solver(*dbMock, kernelScript, whichType, vSolutions));
+    EXPECT_TRUE(Solver(dbMock->GetBestChainHeight().value(), kernelScript, whichType, vSolutions));
     EXPECT_EQ(whichType, txnouttype::TX_COLDSTAKE);
 
     boost::optional<CScript> calcResult = StakeMaker::CalculateScriptPubKeyForStakeOutput(
-        *dbMock, StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
+        dbMock->GetBestChainHeight().value(), StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
     ASSERT_NE(calcResult, boost::none);
 
     EXPECT_EQ(calcResult, kernelScript);
@@ -225,11 +225,11 @@ TEST(PoS_tests, kernel_scriptPubKey_basic_p2cs__staker_key_does_not_exist_in_key
     // solve for the kernel script to ensure it's sane
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
-    EXPECT_TRUE(Solver(*dbMock, kernelScript, whichType, vSolutions));
+    EXPECT_TRUE(Solver(dbMock->GetBestChainHeight().value(), kernelScript, whichType, vSolutions));
     EXPECT_EQ(whichType, txnouttype::TX_COLDSTAKE);
 
     boost::optional<CScript> calcResult = StakeMaker::CalculateScriptPubKeyForStakeOutput(
-        *dbMock, StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
+        dbMock->GetBestChainHeight().value(), StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
     ASSERT_EQ(calcResult, boost::none);
 }
 
@@ -257,11 +257,11 @@ TEST(PoS_tests, kernel_scriptPubKey_p2pkh__key_does_not_exist_in_keystore)
     // solve for the kernel script to ensure it's sane
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
-    EXPECT_TRUE(Solver(*dbMock, kernelScript, whichType, vSolutions));
+    EXPECT_TRUE(Solver(dbMock->GetBestChainHeight().value(), kernelScript, whichType, vSolutions));
     EXPECT_EQ(whichType, txnouttype::TX_PUBKEYHASH);
 
     boost::optional<CScript> calcResult = StakeMaker::CalculateScriptPubKeyForStakeOutput(
-        *dbMock, StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
+        dbMock->GetBestChainHeight().value(), StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
     ASSERT_EQ(calcResult, boost::none);
 }
 
@@ -288,11 +288,11 @@ TEST(PoS_tests, kernel_scriptPubKey_p2pk__key_does_not_exist_in_keystore)
     // solve for the kernel script to ensure it's sane
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
-    EXPECT_TRUE(Solver(*dbMock, kernelScript, whichType, vSolutions));
+    EXPECT_TRUE(Solver(dbMock->GetBestChainHeight().value(), kernelScript, whichType, vSolutions));
     EXPECT_EQ(whichType, txnouttype::TX_PUBKEY);
 
     boost::optional<CScript> calcResult = StakeMaker::CalculateScriptPubKeyForStakeOutput(
-        *dbMock, StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
+        dbMock->GetBestChainHeight().value(), StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
     ASSERT_EQ(calcResult, boost::none);
 }
 
@@ -320,11 +320,11 @@ TEST(PoS_tests, kernel_scriptPubKey_unsolvable)
     // solve for the kernel script to ensure it's sane
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
-    EXPECT_FALSE(Solver(*dbMock, kernelScript, whichType, vSolutions));
+    EXPECT_FALSE(Solver(dbMock->GetBestChainHeight().value(), kernelScript, whichType, vSolutions));
     EXPECT_EQ(whichType, txnouttype::TX_NONSTANDARD);
 
     boost::optional<CScript> calcResult = StakeMaker::CalculateScriptPubKeyForStakeOutput(
-        *dbMock, StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
+        dbMock->GetBestChainHeight().value(), StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
     ASSERT_EQ(calcResult, boost::none);
 }
 

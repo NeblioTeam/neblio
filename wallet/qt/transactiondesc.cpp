@@ -53,7 +53,8 @@ QString TransactionDesc::toHTML(const ITxDB& txdb, CWallet* wallet, const CWalle
 {
     QString strHTML;
 
-    const uint256 bestBlockHash = txdb.GetBestBlockHash();
+    const uint256 bestBlockHash   = txdb.GetBestBlockHash();
+    const int     bestBlockHeight = txdb.GetBestChainHeight().value_or(0);
 
     LOCK2(cs_main, wallet->cs_wallet);
     strHTML.reserve(4000);
@@ -95,7 +96,7 @@ QString TransactionDesc::toHTML(const ITxDB& txdb, CWallet* wallet, const CWalle
                 }
                 if (wallet->IsMine(txout) != isminetype::ISMINE_NO) {
                     CTxDestination address;
-                    if (ExtractDestination(txdb, txout.scriptPubKey, address) &&
+                    if (ExtractDestination(bestBlockHeight, txout.scriptPubKey, address) &&
                         IsMineCheck(IsMine(*wallet, address), isminetype::ISMINE_SPENDABLE)) {
                         if (const auto entry = wallet->mapAddressBook.get(address)) {
                             strHTML += "<b>" + tr("From") + ":</b> " + tr("unknown") + "<br>";
@@ -121,7 +122,7 @@ QString TransactionDesc::toHTML(const ITxDB& txdb, CWallet* wallet, const CWalle
     try {
         std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs =
             NTP1Transaction::GetAllNTP1InputsOfTx(wtx, txdb, false);
-        ntp1tx.readNTP1DataFromTx(txdb, wtx, ntp1inputs);
+        ntp1tx.readNTP1DataFromTx(bestBlockHeight, wtx, ntp1inputs);
     } catch (std::exception& ex) {
         NLog.write(b_sev::err,
                    "(This doesn't have to be an error if the tx is not NTP1). For transaction details, "
@@ -222,7 +223,7 @@ QString TransactionDesc::toHTML(const ITxDB& txdb, CWallet* wallet, const CWalle
                 if (!wtx.mapValue.count("to") || wtx.mapValue.at("to").empty()) {
                     // Offline transaction
                     CTxDestination address;
-                    if (ExtractDestination(txdb, txout.scriptPubKey, address)) {
+                    if (ExtractDestination(bestBlockHeight, txout.scriptPubKey, address)) {
                         strHTML += "<b>" + tr("To") + ":</b> ";
                         const auto entry = wallet->mapAddressBook.get(address);
                         if (entry && !entry->name.empty())
@@ -379,7 +380,7 @@ QString TransactionDesc::toHTML(const ITxDB& txdb, CWallet* wallet, const CWalle
                     strHTML += "<li>";
                     const CTxOut&  vout = prev.vout[prevout.n];
                     CTxDestination address;
-                    if (ExtractDestination(txdb, vout.scriptPubKey, address)) {
+                    if (ExtractDestination(bestBlockHeight, vout.scriptPubKey, address)) {
                         const auto entry = wallet->mapAddressBook.get(address);
                         if (entry && !entry->name.empty())
                             strHTML += GUIUtil::HtmlEscape(entry->name) + " ";

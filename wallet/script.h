@@ -23,7 +23,6 @@
 typedef std::vector<unsigned char> valtype;
 
 class CTransaction;
-class ITxDB;
 
 static const unsigned int MAX_SCRIPT_ELEMENT_SIZE = 520; // bytes
 
@@ -683,18 +682,18 @@ Result<void, ScriptError> EvalScript(std::vector<std::vector<unsigned char>>& st
                                      const CScript& script, const CTransaction& txTo, unsigned int nIn,
                                      bool fStrictEncodings, int nHashType,
                                      ScriptError* serror = nullptr);
-bool                      Solver(const ITxDB& txdb, const CScript& scriptPubKey, txnouttype& typeRet,
+bool                      Solver(int blockHeight, const CScript& scriptPubKey, txnouttype& typeRet,
                                  std::vector<std::vector<unsigned char>>& vSolutionsRet);
 int  ScriptSigArgsExpected(txnouttype t, const std::vector<std::vector<unsigned char>>& vSolutions);
-bool IsStandard(const ITxDB& txdb, const CScript& scriptPubKey, txnouttype& whichType);
+bool IsStandard(const int blockHeight, const CScript& scriptPubKey, txnouttype& whichType);
 isminetype IsMine(const CKeyStore& keystore, const CScript& scriptPubKey);
 isminetype IsMine(const CKeyStore& keystore, const CTxDestination& dest);
 
-void ExtractAffectedKeys(const ITxDB& txdb, const CKeyStore& keystore, const CScript& scriptPubKey,
+void ExtractAffectedKeys(int blockHeight, const CKeyStore& keystore, const CScript& scriptPubKey,
                          std::vector<CKeyID>& vKeys);
-bool ExtractDestination(const ITxDB& txdb, const CScript& scriptPubKey, CTxDestination& addressRet,
+bool ExtractDestination(int blockHeight, const CScript& scriptPubKey, CTxDestination& addressRet,
                         bool fColdStake = false);
-bool ExtractDestinations(const ITxDB& txdb, const CScript& scriptPubKey, txnouttype& typeRet,
+bool ExtractDestinations(int blockHeight, const CScript& scriptPubKey, txnouttype& typeRet,
                          std::vector<CTxDestination>& addressRet, int& nRequiredRet);
 SignatureState SignSignature(const CKeyStore& keystore, const CScript& fromPubKey, CTransaction& txTo,
                              unsigned int nIn, int nHashType = SIGHASH_ALL, bool fColdStake = false);

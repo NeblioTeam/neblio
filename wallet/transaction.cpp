@@ -212,7 +212,7 @@ bool CTransaction::AreInputsStandard(const MapPrevTx& mapInputs) const
         txnouttype                              whichType;
         // get the scriptPubKey corresponding to this input:
         const CScript& prevScript = prev.scriptPubKey;
-        if (!Solver(CTxDB(), prevScript, whichType, vSolutions))
+        if (!Solver(CTxDB().GetBestChainHeight().value_or(0), prevScript, whichType, vSolutions))
             return false;
 
         // Transactions with extra stuff in their scriptSigs are
@@ -260,8 +260,8 @@ unsigned int CTransaction::GetLegacySigOpCount() const
     return nSigOps;
 }
 
-Result<void, TxValidationState> CTransaction::CheckTransaction(const ITxDB& txdb,
-                                                               CBlock*      sourceBlockPtr) const
+Result<void, TxValidationState> CTransaction::CheckTransaction(const int blockHeight,
+                                                               CBlock*   sourceBlockPtr) const
 {
     // Basic checks that don't depend on any context
     if (vin.empty()) {
@@ -274,7 +274,7 @@ Result<void, TxValidationState> CTransaction::CheckTransaction(const ITxDB& txdb
     }
 
     // Size limits
-    unsigned int nSizeLimit = MaxBlockSize(txdb);
+    unsigned int nSizeLimit = MaxBlockSize(blockHeight);
     if (::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > nSizeLimit) {
         DoS(100, false);
         return Err(MakeInvalidTxState(TxValidationResult::TX_CONSENSUS, "bad-txns-oversize"));
@@ -837,7 +837,7 @@ std::vector<CKey> CTransaction::GetThisWalletKeysOfTx(const uint256&            
         std::vector<std::vector<uint8_t>> vSolutions;
         // this solution can be improved later for multiple kinds of transactions, here we only support
         // P2PKH transactions, more in CScript class's source file
-        Solver(CTxDB(), out.scriptPubKey, outtype, vSolutions);
+        Solver(CTxDB().GetBestChainHeight().value(), out.scriptPubKey, outtype, vSolutions);
         if (outtype == TX_PUBKEYHASH) {
             CKeyID keyId = CKeyID(uint160(vSolutions[0]));
             if (!CBitcoinAddress(keyId).IsValid()) {

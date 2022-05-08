@@ -1001,7 +1001,7 @@ Value getreceivedbyaccount(const Array& params, bool fHelp)
 
         for (const CTxOut& txout : wtx.vout) {
             CTxDestination address;
-            if (ExtractDestination(CTxDB(), txout.scriptPubKey, address) &&
+            if (ExtractDestination(CTxDB().GetBestChainHeight().value(), txout.scriptPubKey, address) &&
                 IsMine(*pwalletMain, address) != isminetype::ISMINE_NO && setAddress.count(address))
                 if (wtx.GetDepthInMainChain(txdb, bestBlockHash) >= nMinDepth)
                     nAmount += txout.nValue;
@@ -1616,7 +1616,7 @@ Value sendmany(const Array& params, bool fHelp)
         std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
             NTP1Transaction::GetAllNTP1InputsOfTx(wtx, txdb, false);
         NTP1Transaction ntp1tx;
-        ntp1tx.readNTP1DataFromTx(CTxDB(), wtx, inputsTxs);
+        ntp1tx.readNTP1DataFromTx(CTxDB().GetBestChainHeight().value(), wtx, inputsTxs);
     } catch (std::exception& ex) {
         NLog.write(b_sev::info, "An invalid NTP1 transaction was created; an exception was thrown: {}",
                    ex.what());
@@ -1766,7 +1766,7 @@ Value ListReceived(const Array& params, bool fByAccounts)
 
         for (const CTxOut& txout : wtx.vout) {
             CTxDestination address;
-            if (!ExtractDestination(txdb, txout.scriptPubKey, address) ||
+            if (!ExtractDestination(txdb.GetBestChainHeight().value(), txout.scriptPubKey, address) ||
                 !IsMineCheck(IsMine(*pwalletMain, address), static_cast<isminetype>(filter)))
                 continue;
 
@@ -2595,7 +2595,8 @@ public:
         std::vector<CTxDestination> addresses;
         txnouttype                  whichType;
         int                         nRequired;
-        ExtractDestinations(CTxDB(), subscript, whichType, addresses, nRequired);
+        ExtractDestinations(CTxDB().GetBestChainHeight().value(), subscript, whichType, addresses,
+                            nRequired);
         obj.push_back(Pair("script", GetTxnOutputType(whichType)));
         obj.push_back(Pair("hex", HexStr(subscript.begin(), subscript.end())));
         Array a;
@@ -2806,7 +2807,8 @@ Value listcoldutxos(const Array& params, bool fHelp)
             txnouttype                  type;
             std::vector<CTxDestination> addresses;
             int                         nRequired;
-            if (!ExtractDestinations(CTxDB(), out.scriptPubKey, type, addresses, nRequired))
+            if (!ExtractDestinations(CTxDB().GetBestChainHeight().value(), out.scriptPubKey, type,
+                                     addresses, nRequired))
                 continue;
             const bool fWhitelisted = pwalletMain->mapAddressBook.exists(addresses[1]) > 0;
             if (fExcludeWhitelisted && fWhitelisted)

@@ -234,7 +234,7 @@ TEST(bloom_tests, bloom_match)
     EXPECT_CALL(*dbMock, GetBestChainHeight())
         .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
 
-    EXPECT_TRUE(tx.CheckTransaction(*dbMock).isOk())
+    EXPECT_TRUE(tx.CheckTransaction(dbMock->GetBestChainHeight().value()).isOk())
         << "Simple deserialized transaction should be valid.";
 
     string spendTransaction =
@@ -246,7 +246,7 @@ TEST(bloom_tests, bloom_match)
     CDataStream  spendStream(ParseHex(spendTransaction), SER_NETWORK, PROTOCOL_VERSION);
     CTransaction spendingTx;
     spendStream >> spendingTx;
-    EXPECT_TRUE(spendingTx.CheckTransaction(*dbMock).isOk())
+    EXPECT_TRUE(spendingTx.CheckTransaction(dbMock->GetBestChainHeight().value()).isOk())
         << "Simple deserialized of spending transaction should be valid.";
 
     CBloomFilter filter(10, 0.000001, 0, BLOOM_UPDATE_ALL);

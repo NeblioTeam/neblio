@@ -69,7 +69,7 @@ TEST(transaction_tests, tx_valid)
             EXPECT_CALL(*dbMock, GetBestChainHeight())
                 .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
 
-            EXPECT_TRUE(tx.CheckTransaction(*dbMock).isOk()) << strTest;
+            EXPECT_TRUE(tx.CheckTransaction(dbMock->GetBestChainHeight().value()).isOk()) << strTest;
 
             for (unsigned int i = 0; i < tx.vin.size(); i++) {
                 if (!mapprevOutScriptPubKeys.count(tx.vin[i].prevout)) {
@@ -135,7 +135,7 @@ TEST(transaction_tests, tx_invalid)
             EXPECT_CALL(*dbMock, GetBestChainHeight())
                 .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
 
-            fValid = tx.CheckTransaction(*dbMock).isOk();
+            fValid = tx.CheckTransaction(dbMock->GetBestChainHeight().value()).isOk();
 
             for (unsigned int i = 0; i < tx.vin.size() && fValid; i++) {
                 if (!mapprevOutScriptPubKeys.count(tx.vin[i].prevout)) {
@@ -169,14 +169,16 @@ TEST(transaction_tests, basic_transaction_tests)
     EXPECT_CALL(*dbMock, GetBestChainHeight())
         .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
 
-    EXPECT_TRUE(tx.CheckTransaction(*dbMock).isOk())
+    EXPECT_TRUE(tx.CheckTransaction(dbMock->GetBestChainHeight().value()).isOk())
         << "Simple deserialized transaction should be valid.";
 
     // Check that duplicate txins fail
     tx.vin.push_back(tx.vin[0]);
-    ASSERT_TRUE(tx.CheckTransaction(*dbMock).isErr())
+    ASSERT_TRUE(tx.CheckTransaction(dbMock->GetBestChainHeight().value()).isErr())
         << "Transaction with duplicate txins should be invalid.";
-    EXPECT_EQ(tx.CheckTransaction(*dbMock).unwrapErr(RESULT_PRE).GetRejectReason(),
+    EXPECT_EQ(tx.CheckTransaction(dbMock->GetBestChainHeight().value())
+                  .unwrapErr(RESULT_PRE)
+                  .GetRejectReason(),
               "bad-txns-inputs-duplicate")
         << "Transaction with duplicate has invalid rejection reason.";
 }
@@ -350,7 +352,7 @@ TEST(transaction_tests, test_Get)
     EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(boost::optional<int>(0)));
 
     std::string reason;
-    EXPECT_FALSE(IsStandardTx(*dbMock, t2, reason));
+    EXPECT_FALSE(IsStandardTx(dbMock->GetBestChainHeight().value(), t2, reason));
 
     t2.vin[0].prevout.hash = dummyTransactions[4].GetHash();
     t2.vin[0].scriptSig    = ParseScript(
@@ -412,20 +414,20 @@ void test_op_return_size(const ITxDB& txdb, NetworkType netType, unsigned int ex
         t.vout[0].scriptPubKey = GetScriptForDestination(key.GetPubKey().GetID());
 
         std::string reason;
-        EXPECT_TRUE(IsStandardTx(txdb, t, reason)) << reason;
+        EXPECT_TRUE(IsStandardTx(txdb.GetBestChainHeight().value(), t, reason)) << reason;
 
         t.vout[0].scriptPubKey = CScript() << OP_RETURN << ParseHex("");
-        EXPECT_TRUE(IsStandardTx(txdb, t, reason)) << reason;
+        EXPECT_TRUE(IsStandardTx(txdb.GetBestChainHeight().value(), t, reason)) << reason;
 
         // exactly the allowed data size
         t.vout[0].scriptPubKey = CScript()
                                  << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2 * allowedSize));
-        EXPECT_TRUE(IsStandardTx(txdb, t, reason)) << reason;
+        EXPECT_TRUE(IsStandardTx(txdb.GetBestChainHeight().value(), t, reason)) << reason;
 
         // 81 bytes (1-byte over the limit)
         t.vout[0].scriptPubKey = CScript() << OP_RETURN
                                            << ParseHex(GeneratePseudoRandomHex(2 * (allowedSize + 1)));
-        EXPECT_FALSE(IsStandardTx(txdb, t, reason)) << reason;
+        EXPECT_FALSE(IsStandardTx(txdb.GetBestChainHeight().value(), t, reason)) << reason;
 
         // Only one TX_NULL_DATA permitted in all cases
         t.vout.resize(2);
@@ -433,29 +435,29 @@ void test_op_return_size(const ITxDB& txdb, NetworkType netType, unsigned int ex
 
         t.vout[1].scriptPubKey = CScript()
                                  << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2 * allowedSize));
-        EXPECT_TRUE(IsStandardTx(txdb, t, reason)) << reason;
+        EXPECT_TRUE(IsStandardTx(txdb.GetBestChainHeight().value(), t, reason)) << reason;
 
         t.vout.resize(2);
         t.vout[0].scriptPubKey = CScript()
                                  << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2 * allowedSize));
         t.vout[1].scriptPubKey = GetScriptForDestination(key.GetPubKey().GetID());
 
-        EXPECT_TRUE(IsStandardTx(txdb, t, reason)) << reason;
+        EXPECT_TRUE(IsStandardTx(txdb.GetBestChainHeight().value(), t, reason)) << reason;
 
         t.vout[0].scriptPubKey = CScript()
                                  << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2 * allowedSize));
         t.vout[1].scriptPubKey = CScript()
                                  << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2 * allowedSize));
-        EXPECT_FALSE(IsStandardTx(txdb, t, reason)) << reason;
+        EXPECT_FALSE(IsStandardTx(txdb.GetBestChainHeight().value(), t, reason)) << reason;
 
         t.vout[0].scriptPubKey = CScript()
                                  << OP_RETURN << ParseHex(GeneratePseudoRandomHex(2 * allowedSize));
         t.vout[1].scriptPubKey = CScript() << OP_RETURN;
-        EXPECT_FALSE(IsStandardTx(txdb, t, reason)) << reason;
+        EXPECT_FALSE(IsStandardTx(txdb.GetBestChainHeight().value(), t, reason)) << reason;
 
         t.vout[0].scriptPubKey = CScript() << OP_RETURN;
         t.vout[1].scriptPubKey = CScript() << OP_RETURN;
-        EXPECT_FALSE(IsStandardTx(txdb, t, reason)) << reason;
+        EXPECT_FALSE(IsStandardTx(txdb.GetBestChainHeight().value(), t, reason)) << reason;
     }
 }
 

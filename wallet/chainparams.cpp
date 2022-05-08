@@ -563,6 +563,15 @@ int64_t CChainParams::StakeMinAge(const ITxDB& txdb) const
     }
 }
 
+int64_t CChainParams::StakeMinAge(const int blockHeight) const
+{
+    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, blockHeight)) {
+        return consensus.nStakeMinAgeV2;
+    } else {
+        return consensus.nStakeMinAgeV1;
+    }
+}
+
 int64_t CChainParams::StakeMaxAge() const { return consensus.nStakeMaxAge; }
 
 int64_t CChainParams::StakeModifierInterval() const { return consensus.nModifierInterval; }
@@ -580,6 +589,15 @@ int64_t CChainParams::TargetTimeSpan() const { return consensus.nTargetTimespan;
 unsigned int CChainParams::OpReturnMaxSize(const ITxDB& txdb) const
 {
     if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, txdb)) {
+        return consensus.nMaxOpReturnSizeV2;
+    } else {
+        return consensus.nMaxOpReturnSizeV1;
+    }
+}
+
+unsigned int CChainParams::OpReturnMaxSize(const int blockHeight) const
+{
+    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, blockHeight)) {
         return consensus.nMaxOpReturnSizeV2;
     } else {
         return consensus.nMaxOpReturnSizeV1;
@@ -630,9 +648,9 @@ int64_t CChainParams::StakeCombineThreshold() const { return nStakeCombineThresh
 
 unsigned int CChainParams::MaxInputsInStake() const { return nMaxInputsInStake; }
 
-bool CChainParams::IsColdStakingEnabled(const ITxDB& txdb) const
+bool CChainParams::IsColdStakingEnabled(const int blockHeight) const
 {
-    return consensus.forks->isForkActivated(NetworkFork::NETFORK__5_COLD_STAKING, txdb);
+    return consensus.forks->isForkActivated(NetworkFork::NETFORK__5_COLD_STAKING, blockHeight);
 }
 
 CAmount CChainParams::MinColdStakingAmount() const { return nMinColdStakingAmount; }

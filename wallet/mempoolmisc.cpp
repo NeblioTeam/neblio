@@ -26,7 +26,7 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTran
     }
     assert(txdb);
 
-    TRYV(tx.CheckTransaction(*txdb));
+    TRYV(tx.CheckTransaction(txdb->GetBestChainHeight().value_or(0)));
 
     // Coinbase is only valid in a block, not as a loose transaction
     if (tx.IsCoinBase()) {
@@ -42,7 +42,8 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTran
 
     // Rather not work on nonstandard transactions (unless -testnet)
     std::string reason;
-    if (Params().NetType() == NetworkType::Mainnet && !IsStandardTx(*txdb, tx, reason))
+    if (Params().NetType() == NetworkType::Mainnet &&
+        !IsStandardTx(txdb->GetBestChainHeight().value_or(0), tx, reason))
         return Err(MakeInvalidTxState(TxValidationResult::TX_NOT_STANDARD, reason, "non-standard-tx"));
 
     // Treat non-final transactions as invalid to prevent a specific type
@@ -188,7 +189,7 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTran
                     NTP1Transaction::StdFetchedInputTxsToNTP1(tx, mapInputs, *txdb, false, mapUnused2,
                                                               mapUnused);
                 NTP1Transaction ntp1tx;
-                ntp1tx.readNTP1DataFromTx(*txdb, tx, inputsTxs);
+                ntp1tx.readNTP1DataFromTx(txdb->GetBestChainHeight().value_or(0), tx, inputsTxs);
                 if (EnableEnforceUniqueTokenSymbols(*txdb)) {
                     AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, *txdb);
                 }

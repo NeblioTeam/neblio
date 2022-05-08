@@ -55,10 +55,12 @@ TestAndCreateStakeKernel(const CTxDB& txdb, const StakeMaker::KeyGetterFunctorTy
             return boost::none;
     }
 
+    const int newHeight = pindexPrev->nHeight + 1;
+
     const int64_t nSearchInterval = nCoinstakeInitialTxTime - lastCoinStakeSearchTime;
 
     const int          nMaxStakeSearchInterval = Params().MaxStakeSearchInterval();
-    const unsigned int nSMA                    = Params().StakeMinAge(txdb);
+    const unsigned int nSMA                    = Params().StakeMinAge(newHeight);
     if (kernelBlock.GetBlockTime() + nSMA > nCoinstakeInitialTxTime - nMaxStakeSearchInterval)
         return boost::none; // only count coins meeting min age requirement
 
@@ -83,7 +85,7 @@ TestAndCreateStakeKernel(const CTxDB& txdb, const StakeMaker::KeyGetterFunctorTy
         const CScript& kernelScriptPubKey = pcoin.first->vout[pcoin.second].scriptPubKey;
 
         const boost::optional<CScript> spkKernel =
-            StakeMaker::CalculateScriptPubKeyForStakeOutput(txdb, keyGetter, kernelScriptPubKey);
+            StakeMaker::CalculateScriptPubKeyForStakeOutput(newHeight, keyGetter, kernelScriptPubKey);
 
         if (!spkKernel) {
             if (fDebug)
@@ -151,16 +153,16 @@ StakeMaker::CreateCoinStake(const ITxDB& txdb, const CWallet& wallet, const unsi
 
     const bool fEnableColdStaking = GetBoolArg("-coldstaking", true);
 
-    const uint256 currentBestBlock = txdb.GetBestBlockHash();
+    const CBlockIndex currentBest = txdb.GetBestBlockIndex().value();
 
     // Choose coins to use
     const CAmount nBalance = [&]() {
-        boost::optional<CAmount> cachedBalanceValue = cachedBalance.getValue(currentBestBlock);
+        boost::optional<CAmount> cachedBalanceValue = cachedBalance.getValue(currentBest.GetBlockHash());
         if (cachedBalanceValue) {
             return *cachedBalanceValue;
         } else {
             const CAmount res = wallet.GetStakingBalance(txdb, fEnableColdStaking);
-            cachedBalance.update(currentBestBlock, res);
+            cachedBalance.update(currentBest.GetBlockHash(), res);
             return res;
         }
     }();
@@ -179,7 +181,7 @@ StakeMaker::CreateCoinStake(const ITxDB& txdb, const CWallet& wallet, const unsi
     // Select coins with suitable depth
     std::set<std::pair<const CWalletTx*, unsigned int>> setCoins;
     CAmount                                             nValueIn = 0;
-    const auto cachedOutputs = cachedSelectedOutputs.getValue(currentBestBlock);
+    const auto cachedOutputs = cachedSelectedOutputs.getValue(currentBest.GetBlockHash());
     if (cachedOutputs) {
         std::tie(nValueIn, setCoins) = *cachedOutputs;
     } else {
@@ -189,7 +191,7 @@ StakeMaker::CreateCoinStake(const ITxDB& txdb, const CWallet& wallet, const unsi
             cachedStakeWeight = boost::none;
             return boost::none;
         }
-        cachedSelectedOutputs.update(currentBestBlock, std::make_pair(nValueIn, setCoins));
+        cachedSelectedOutputs.update(currentBest.GetBlockHash(), std::make_pair(nValueIn, setCoins));
     }
 
     updateStakeWeight(txdb, setCoins);
@@ -360,13 +362,12 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStakeFromSpecificOutput(cons
     return stakeTx;
 }
 
-boost::optional<CScript>
-StakeMaker::CalculateScriptPubKeyForStakeOutput(const ITxDB& txdb, const KeyGetterFunctorType& keyGetter,
-                                                const CScript& scriptPubKeyKernel)
+boost::optional<CScript> StakeMaker::CalculateScriptPubKeyForStakeOutput(
+    const int newBlockHeight, const KeyGetterFunctorType& keyGetter, const CScript& scriptPubKeyKernel)
 {
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
-    if (!Solver(txdb, scriptPubKeyKernel, whichType, vSolutions)) {
+    if (!Solver(newBlockHeight, scriptPubKeyKernel, whichType, vSolutions)) {
         if (fDebug)
             NLog.write(b_sev::debug, "CalculateScriptPubKeyForStakeOutput : failed to parse kernel");
         return boost::none;
@@ -436,7 +437,7 @@ StakeMaker::CalculateScriptPubKeyForStakeOutput(const ITxDB& txdb, const KeyGett
     return boost::none;
 }
 
-bool StakeMaker::SignAndVerify(const CKeyStore& keystore, const CoinStakeInputsResult inputs,
+bool StakeMaker::SignAndVerify(const CKeyStore& keystore, const CoinStakeInputsResult& inputs,
                                CTransaction& stakeTx)
 {
     // Sign

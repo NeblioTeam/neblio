@@ -371,8 +371,8 @@ void CoinControlDialog::headerSectionClicked(int logicalIndex)
             sortColumn = logicalIndex;
             sortOrder  = ((sortColumn == COLUMN_AMOUNT_INT64 || sortColumn == COLUMN_PRIORITY_INT64 ||
                           sortColumn == COLUMN_DATE || sortColumn == COLUMN_CONFIRMATIONS)
-                             ? Qt::DescendingOrder
-                             : Qt::AscendingOrder); // if amount,date,conf,priority then default => desc,
+                              ? Qt::DescendingOrder
+                              : Qt::AscendingOrder); // if amount,date,conf,priority then default => desc,
                                                      // else default => asc
         }
 
@@ -506,7 +506,7 @@ void CoinControlDialog::updateLabels(WalletModel* model, QDialog* dialog)
                 NTP1Transaction                                       ntp1tx;
                 std::vector<std::pair<CTransaction, NTP1Transaction>> prevTxs =
                     NTP1Transaction::GetAllNTP1InputsOfTx(*out.tx, txdb, false);
-                ntp1tx.readNTP1DataFromTx(txdb, *out.tx, prevTxs);
+                ntp1tx.readNTP1DataFromTx(txdb.GetBestChainHeight().value(), *out.tx, prevTxs);
                 outputIsNTP1 = (ntp1tx.getTxOut(out.i).tokenCount() != 0);
 
             } catch (std::exception& ex) {
@@ -527,7 +527,8 @@ void CoinControlDialog::updateLabels(WalletModel* model, QDialog* dialog)
 
         // Bytes
         CTxDestination address;
-        if (ExtractDestination(txdb, out.tx->vout[out.i].scriptPubKey, address)) {
+        if (ExtractDestination(txdb.GetBestChainHeight().value(), out.tx->vout[out.i].scriptPubKey,
+                               address)) {
             CPubKey pubkey;
             CKeyID* keyid = boost::get<CKeyID>(&address);
             if (keyid && model->getPubKey(*keyid, pubkey))
@@ -672,9 +673,10 @@ void CoinControlDialog::updateView()
 
     const CTxDB txdb;
 
-    const uint256 bestBlockHash = txdb.GetBestBlockHash();
+    const uint256 bestBlockHash   = txdb.GetBestBlockHash();
+    const int     bestBlockHeight = txdb.GetBestChainHeight().value();
 
-    for (PAIRTYPE(QString, vector<COutput>) coins : mapCoins) {
+    for (const auto& coins : mapCoins) {
         QTreeWidgetItem* itemWalletAddress = new QTreeWidgetItem();
         QString          sWalletAddress    = coins.first;
         QString          sWalletLabel      = "";
@@ -720,7 +722,7 @@ void CoinControlDialog::updateView()
             // address
             CTxDestination outputAddress;
             QString        sAddress = "";
-            if (ExtractDestination(txdb, out.tx->vout[out.i].scriptPubKey, outputAddress)) {
+            if (ExtractDestination(bestBlockHeight, out.tx->vout[out.i].scriptPubKey, outputAddress)) {
                 sAddress = CBitcoinAddress(outputAddress).ToString().c_str();
 
                 // if listMode or change => show bitcoin address. In tree mode, address is not shown
@@ -759,7 +761,7 @@ void CoinControlDialog::updateView()
                     NTP1Transaction                                       ntp1tx;
                     std::vector<std::pair<CTransaction, NTP1Transaction>> prevTxs =
                         NTP1Transaction::GetAllNTP1InputsOfTx(*out.tx, txdb, false);
-                    ntp1tx.readNTP1DataFromTx(txdb, *out.tx, prevTxs);
+                    ntp1tx.readNTP1DataFromTx(bestBlockHeight, *out.tx, prevTxs);
                     bool considerNeblsToo = (out.tx->vout[out.i].nValue > MIN_TX_FEE);
                     if (considerNeblsToo) {
                         sTokenType += QString::fromStdString(CURRENCY_UNIT);

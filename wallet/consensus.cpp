@@ -25,7 +25,7 @@ bool IsFinalTx(const CTransaction& tx, const ITxDB& txdb, int nBlockHeight, int6
     return true;
 }
 
-bool IsStandardTx(const ITxDB& txdb, const CTransaction& tx, std::string& reason)
+bool IsStandardTx(const int blockHeight, const CTransaction& tx, std::string& reason)
 {
     if (tx.nVersion > CTransaction::CURRENT_VERSION) {
         reason = "version";
@@ -69,7 +69,7 @@ bool IsStandardTx(const ITxDB& txdb, const CTransaction& tx, std::string& reason
     unsigned int nDataOut = 0;
     txnouttype   whichType;
     for (const CTxOut& txout : tx.vout) {
-        if (!::IsStandard(txdb, txout.scriptPubKey, whichType)) {
+        if (!::IsStandard(blockHeight, txout.scriptPubKey, whichType)) {
             reason = "scriptpubkey";
             return false;
         }

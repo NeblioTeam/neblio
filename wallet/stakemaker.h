@@ -85,14 +85,14 @@ public:
     FindStakeKernel(const CKeyStore& keystore, unsigned int nBits, int64_t nCoinstakeInitialTxTime,
                     const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins);
     static boost::optional<CScript>
-                CalculateScriptPubKeyForStakeOutput(const ITxDB& txdb, const KeyGetterFunctorType& keyGetter,
-                                                    const CScript& scriptPubKeyKernel);
-    static bool SignAndVerify(const CKeyStore& keystore, const CoinStakeInputsResult inputs,
+    CalculateScriptPubKeyForStakeOutput(const int newBlockHeight, const KeyGetterFunctorType& keyGetter,
+                                        const CScript& scriptPubKeyKernel);
+    static bool SignAndVerify(const CKeyStore& keystore, const CoinStakeInputsResult& inputs,
                               CTransaction& stakeTx);
     static CoinStakeInputsResult
-                               CollectInputsForStake(const ITxDB& txdb, const StakeKernelData& kernelData,
-                                                     const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins,
-                                                     int64_t txTime, bool splitStake, CAmount nBalance, CAmount reservedBalance);
+    CollectInputsForStake(const ITxDB& txdb, const StakeKernelData& kernelData,
+                          const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins,
+                          int64_t txTime, bool splitStake, CAmount nBalance, CAmount reservedBalance);
     static std::vector<CTxOut> MakeStakeOutputs(const CScript& outputScriptPubKey, CAmount totalCredit,
                                                 bool splitStake);
     void                       UpdateStakeSearchTimes(int64_t nSearchTime);

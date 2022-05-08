@@ -351,7 +351,7 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
                         std::vector<std::pair<CTransaction, NTP1Transaction>> inputsP =
                             NTP1Transaction::GetAllNTP1InputsOfTx(tx, txdb, false);
                         NTP1Transaction ntp1tx;
-                        ntp1tx.readNTP1DataFromTx(txdb, tx, inputsP);
+                        ntp1tx.readNTP1DataFromTx(txdb.GetBestChainHeight().value(), tx, inputsP);
                         // if this output contains tokens, skip it to avoid burning them
                         if (ntp1tx.getTxOut(o.n).tokenCount() > 0) {
                             QMessageBox::warning(
@@ -430,7 +430,7 @@ void IssueNewNTP1TokenDialog::slot_doIssueToken()
             std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
                 NTP1Transaction::GetAllNTP1InputsOfTx(wtx, txdb, false);
             NTP1Transaction ntp1tx;
-            ntp1tx.readNTP1DataFromTx(txdb, wtx, inputsTxs);
+            ntp1tx.readNTP1DataFromTx(txdb.GetBestChainHeight().value(), wtx, inputsTxs);
         } catch (std::exception& ex) {
             NLog.write(b_sev::err,
                        "An invalid NTP1 transaction was created; an exception was thrown: {}",

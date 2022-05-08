@@ -1039,8 +1039,14 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
                               pblock->GetProofOfStake().second, hash.ToString());
         }
 
+        const boost::optional<CBlockIndex> prevBlockIndex = txdb.ReadBlockIndex(pblock->hashPrevBlock);
+
+        // we cannot know the height for orphan blocks, so we assume they're ahead in the future
+        const int assumedNewHeight =
+            prevBlockIndex ? prevBlockIndex->nHeight + 1 : txdb.GetBestChainHeight().value_or(0) + 1;
+
         // Preliminary checks
-        if (!pblock->CheckBlock(txdb))
+        if (!pblock->CheckBlock(assumedNewHeight))
             return NLog.error("ProcessBlock() : CheckBlock FAILED");
 
         const boost::optional<CBlockIndex> checkpoint = Checkpoints::GetLastCheckpoint(txdb);
@@ -1066,8 +1072,6 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
                                   pblock->IsProofOfStake() ? "proof-of-stake" : "proof-of-work");
             }
         }
-
-        const boost::optional<CBlockIndex> prevBlockIndex = txdb.ReadBlockIndex(pblock->hashPrevBlock);
 
         // If don't already have its previous block, shunt it off to holding area until we get it
         if (!prevBlockIndex) {

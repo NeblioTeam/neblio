@@ -132,9 +132,6 @@ public:
 
     [[nodiscard]] std::vector<uint256> GetMerkleBranch(int nIndex) const;
 
-    static uint256 CheckMerkleBranch(uint256 hash, const std::vector<uint256>& vMerkleBranch,
-                                     int nIndex);
-
     bool WriteToDisk(const boost::optional<CBlockIndex>& prevBlockIndex, const uint256& hashProof,
                      const uint256& blockHash);
 
@@ -160,7 +157,7 @@ public:
     boost::optional<CBlockIndex> AddToBlockIndex(const boost::optional<CBlockIndex>& prevBlockIndex,
                                                  const uint256& hashProof, ITxDB& txdb,
                                                  const bool createDbTransaction = true);
-    bool CheckBlock(const ITxDB& txdb, bool fCheckPOW = true, bool fCheckMerkleRoot = true,
+    bool CheckBlock(int blockHeight, bool fCheckPOW = true, bool fCheckMerkleRoot = true,
                     bool fCheckSig = true);
     bool AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& blockHash);
     bool
@@ -170,19 +167,20 @@ public:
     bool SignBlockWithSpecificKey(const ITxDB& txdb, const COutPoint& outputToStake,
                                   const CKey& keyOfOutput, int64_t nFees);
 
-    bool CheckBlockSignature(const ITxDB& txdb, const uint256& blockHash) const;
-    Result<bool, BlockColdStakingCheckError> HasColdStaking(const ITxDB& txdb) const;
+    bool CheckBlockSignature(const int blockHeight, const uint256& blockHash) const;
+    Result<bool, BlockColdStakingCheckError> HasColdStaking(int blockHeight) const;
 
     static boost::optional<CBlockIndex> FindBlockByHeight(int nHeight);
 
     static void InvalidChainFound(const CBlockIndex& pindexNew, ITxDB& txdb);
 
-    static void WriteNTP1BlockTransactionsToDisk(const std::vector<CTransaction>& vtx, ITxDB& txdb);
-    static void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, ITxDB& txdb);
+    static void WriteNTP1BlockTransactionsToDisk(int blockHeight, const std::vector<CTransaction>& vtx,
+                                                 ITxDB& txdb);
+    static void WriteNTP1TxToDiskFromRawTx(int blockHeight, const CTransaction& tx, ITxDB& txdb);
     static void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, ITxDB& txdb);
     static void AssertIssuanceUniquenessInBlock(
-        std::unordered_map<std::string, uint256>& issuedTokensSymbolsInThisBlock, const ITxDB& txdb,
-        const CTransaction& tx,
+        int blockHeight, std::unordered_map<std::string, uint256>& issuedTokensSymbolsInThisBlock,
+        const ITxDB& txdb, const CTransaction& tx,
         const std::map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>&
                                            mapQueuedNTP1Inputs,
         const std::map<uint256, CTxIndex>& queuedAcceptedTxs);

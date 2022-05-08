@@ -98,8 +98,8 @@ Value getstakinginfo(const Array& params, bool fHelp)
 
     const std::size_t stakableCoinsCount = [&]() {
         std::vector<COutput> vCoins;
-        bool                 fIncludeColdStaking =
-            Params().IsColdStakingEnabled(txdb) && GetBoolArg("-coldstaking", true);
+        bool fIncludeColdStaking = Params().IsColdStakingEnabled(txdb.GetBestChainHeight().value()) &&
+                                   GetBoolArg("-coldstaking", true);
         pwalletMain->AvailableCoinsForStaking(txdb, vCoins, GetAdjustedTime(), fIncludeColdStaking,
                                               false);
         return vCoins.size();

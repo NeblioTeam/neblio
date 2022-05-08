@@ -308,7 +308,8 @@ void NTP1Summary::slot_showMetadataAction()
             if (it == issuanceTxidVsMetadata.cend()) {
                 json_spirit::Value v;
                 try {
-                    v = NTP1Transaction::GetNTP1IssuanceMetadata(CTxDB(), issuanceTxid);
+                    v = NTP1Transaction::GetNTP1IssuanceMetadata(
+                        CTxDB().GetBestChainHeight().value_or(0), issuanceTxid);
                 } catch (std::exception& ex) {
                     QMessageBox::warning(this, "Failed to get issuance transaction",
                                          "Failed to retrieve issuance transaction with error: " +

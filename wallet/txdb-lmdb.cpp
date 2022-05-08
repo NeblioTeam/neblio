@@ -336,7 +336,7 @@ CTxDB::CTxDB()
 {
     static boost::filesystem::path DBDir = GetDataDir() / DB_DIR;
 
-    static const bool    DBCachingEnabled = GetBoolArg("-enabledbcache", false);
+    static const bool    DBCachingEnabled = GetBoolArg("-enabledbcache", true);
     static const int64_t DBCachingSize    = GetArg("-dbcachesize", 5000);
 
     if (DBCachingEnabled) {
@@ -724,7 +724,7 @@ bool CTxDB::LoadBlockIndex()
         }
         // check level 1: verify block validity
         // check level 7: verify block signature too
-        if (nCheckLevel > 0 && !block.CheckBlock(*this, true, true, (nCheckLevel > 6))) {
+        if (nCheckLevel > 0 && !block.CheckBlock(bestHeight, true, true, (nCheckLevel > 6))) {
             NLog.write(b_sev::warn, "LoadBlockIndex() : *** found bad block at {}, hash={}",
                        pindex->nHeight, pindex->GetBlockHash().ToString());
             pindexFork = pindex->getPrev(*this);
@@ -779,7 +779,7 @@ bool CTxDB::LoadBlockIndex()
                                             "of {}:{} from disk",
                                             hashTx.ToString(), nOutput);
                                         pindexFork = pindex->getPrev(*this);
-                                    } else if (txSpend.CheckTransaction(*this).isErr()) {
+                                    } else if (txSpend.CheckTransaction(bestHeight).isErr()) {
                                         NLog.write(b_sev::warn,
                                                    "LoadBlockIndex(): *** spending transaction of {}:{} "
                                                    "is invalid",

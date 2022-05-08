@@ -76,6 +76,7 @@ extern boost::atomic<int64_t> NodeIDCounter;
 
 /** Maximum size of a block */
 unsigned int MaxBlockSize(const ITxDB& txdb);
+unsigned int MaxBlockSize(int blockHeight);
 
 /** Subversion as sent to the P2P network in `version` messages */
 extern std::string strSubVersion;

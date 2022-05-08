@@ -48,3 +48,12 @@ unsigned int MaxBlockSize(const ITxDB& txdb)
         return OLD_MAX_BLOCK_SIZE;
     }
 }
+
+unsigned int MaxBlockSize(int blockHeight)
+{
+    if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, blockHeight)) {
+        return MAX_BLOCK_SIZE;
+    } else {
+        return OLD_MAX_BLOCK_SIZE;
+    }
+}

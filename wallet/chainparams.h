@@ -77,6 +77,7 @@ public:
 
     const NetworkForks& GetNetForks() const { return *consensus.forks; }
 
+    int64_t     StakeMinAge(int blockHeight) const;
     int64_t     StakeMinAge(const ITxDB& txdb) const;
     int64_t     StakeMaxAge() const;
     int64_t     StakeModifierInterval() const;
@@ -85,10 +86,10 @@ public:
     int64_t     TargetTimeSpan() const;
 
     unsigned int OpReturnMaxSize(const ITxDB& txdb) const;
+    unsigned int OpReturnMaxSize(const int blockHeight) const;
 
     unsigned int TargetSpacing(const ITxDB& txdb) const;
-
-    unsigned int TargetSpacing(int height) const;
+    unsigned int TargetSpacing(const int height) const;
 
     int CoinbaseMaturity(const ITxDB& txdb) const;
 
@@ -110,7 +111,7 @@ public:
      */
     unsigned int MaxInputsInStake() const;
 
-    bool IsColdStakingEnabled(const ITxDB& txdb) const;
+    bool IsColdStakingEnabled(const int blockHeight) const;
 
     CAmount MinColdStakingAmount() const;
 

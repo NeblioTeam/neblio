@@ -19,7 +19,7 @@ bool IsFinalTx(const CTransaction& tx, const ITxDB& txdb, int nBlockHeight = 0, 
 /** Check for standard transaction types
     @return True if all outputs (scriptPubKeys) use only standard transaction forms
 */
-bool IsStandardTx(const ITxDB& txdb, const CTransaction& tx, std::string& reason);
+bool IsStandardTx(const int blockHeight, const CTransaction& tx, std::string& reason);
 
 /** blacklisted tokens are tokens that are to be ignored and not used for historical reasons */
 bool IsIssuedTokenBlacklisted(std::pair<CTransaction, NTP1Transaction>& txPair);
