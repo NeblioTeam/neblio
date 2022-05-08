@@ -336,8 +336,10 @@ bool ReadKeyValue(const ITxDB& txdb, CWallet* pwallet, CDataStream& ssKey, CData
             ssKey >> hash;
             CWalletTx& wtx = pwallet->mapWallet[hash];
             ssValue >> wtx;
-            const boost::optional<int> txHeight = GetBlockHeightOfMainChainTx(txdb, wtx);
-            if (txHeight && wtx.CheckTransaction(*txHeight).isOk() && (wtx.GetHash() == hash))
+            const boost::optional<int> mainchainTxHeight = GetBlockHeightOfMainChainTx(txdb, wtx);
+            // chain either in a block or in a mempool (or in orphan block)
+            const int txHeight = mainchainTxHeight ? *mainchainTxHeight : txdb.GetBestChainHeight();
+            if (wtx.CheckTransaction(txHeight).isOk() && (wtx.GetHash() == hash))
                 wtx.BindWallet(pwallet);
             else {
                 pwallet->mapWallet.erase(hash);
