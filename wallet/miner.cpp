@@ -642,7 +642,7 @@ void StakeMiner(std::shared_ptr<CWallet> pwallet)
                 vNodesSize = vNodes.size();
             }
             const int blockCountEstimate = GetNumBlocksOfPeers();
-            if (vNodesSize < 3 || txdb.GetBestChainHeight().value_or(0) < blockCountEstimate) {
+            if (vNodesSize < 3 || txdb.GetBestChainHeight() < blockCountEstimate) {
                 MilliSleep(60000);
                 continue;
             }

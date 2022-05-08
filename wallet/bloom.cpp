@@ -121,8 +121,7 @@ bool CBloomFilter::IsRelevantAndUpdate(const CTransaction& tx)
                 else if ((nFlags & BLOOM_UPDATE_MASK) == BLOOM_UPDATE_P2PUBKEY_ONLY) {
                     txnouttype                    type;
                     vector<vector<unsigned char>> vSolutions;
-                    if (Solver(CTxDB().GetBestChainHeight().value(), txout.scriptPubKey, type,
-                               vSolutions) &&
+                    if (Solver(CTxDB().GetBestChainHeight(), txout.scriptPubKey, type, vSolutions) &&
                         (type == TX_PUBKEY || type == TX_MULTISIG))
                         insert(COutPoint(hash, i));
                 }

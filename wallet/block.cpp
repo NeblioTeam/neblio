@@ -707,7 +707,7 @@ bool CBlock::SetBestChain(ITxDB& txdb, const boost::optional<CBlockIndex>& pinde
                                         : pindexBestPtr->nChainTrust;
 
     NLog.write(b_sev::info, "SetBestChain: new best={}  height={}  trust={}  blocktrust={}  date={}",
-               txdb.GetBestBlockHash().ToString(), txdb.GetBestChainHeight().value_or(0),
+               txdb.GetBestBlockHash().ToString(), txdb.GetBestChainHeight(),
                CBigNum(txdb.GetBestChainTrust().value_or(0)).ToString(), nBestBlockTrust.Get64(),
                DateTimeStrFormat("%x %H:%M:%S", pindexBestPtr->GetBlockTime()));
 
@@ -807,7 +807,7 @@ void CBlock::InvalidChainFound(const CBlockIndex& pindexNew, ITxDB& txdb)
                DateTimeStrFormat("%x %H:%M:%S", pindexNew.GetBlockTime()));
     NLog.write(b_sev::err,
                "InvalidChainFound:  current best={}  height={}  trust={}  blocktrust={} date={}",
-               txdb.GetBestBlockHash().ToString(), txdb.GetBestChainHeight().value_or(0),
+               txdb.GetBestBlockHash().ToString(), txdb.GetBestChainHeight(),
                CBigNum(pindexBestPtr->nChainTrust).ToString(), nBestBlockTrust.Get64(),
                DateTimeStrFormat("%x %H:%M:%S", pindexBestPtr->GetBlockTime()));
 }
@@ -1159,7 +1159,7 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& block
     // protect against a possible attack where an attacker sends predecessors of very early blocks in the
     // blockchain, forcing a non-necessary scan of the whole blockchain
     const int64_t maxCheckpointBlockHeight = Checkpoints::GetLastCheckpointBlockHeight();
-    if (txdb.GetBestChainHeight().value_or(0) > maxCheckpointBlockHeight + 1) {
+    if (txdb.GetBestChainHeight() > maxCheckpointBlockHeight + 1) {
         const uint256 prevBlockHash = this->hashPrevBlock;
         if (newBlockHeight < maxCheckpointBlockHeight) {
             return DoS(
@@ -1272,7 +1272,7 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& block
     if (txdb.GetBestBlockHash() == blockHash) {
         LOCK(cs_vNodes);
         for (CNode* pnode : vNodes)
-            if (txdb.GetBestChainHeight().value_or(0) >
+            if (txdb.GetBestChainHeight() >
                 (pnode->nStartingHeight != -1 ? pnode->nStartingHeight - 2000 : nBlockEstimate))
                 pnode->PushInventory(CInv(MSG_BLOCK, blockHash));
     }
@@ -1284,7 +1284,7 @@ boost::optional<CKeyID> GetKeyIDFromOutput(const ITxDB& txdb, const CTxOut& txou
 {
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
-    if (!Solver(txdb.GetBestChainHeight().value(), txout.scriptPubKey, whichType, vSolutions))
+    if (!Solver(txdb.GetBestChainHeight(), txout.scriptPubKey, whichType, vSolutions))
         return boost::none;
     if (whichType == TX_PUBKEY) {
         return CPubKey(vSolutions[0]).GetID();
@@ -1572,7 +1572,7 @@ void UpdateWallets(const uint256& prevBestChain, const ITxDB& txdb)
          * Given that a reorg can occur, the call to SyncWithWallets() should happen only after all kinds
          * of reorgs happen (including ConnectBlock). Therefore, we do it at the very end. Here.
          */
-        if (txdb.GetBestChainHeight().value_or(0) > 0) {
+        if (txdb.GetBestChainHeight() > 0) {
             // get the highest block in the previous check that's main chain
             boost::optional<CBlockIndex> ancestorOfPrevInMainChain = txdb.ReadBlockIndex(prevBestChain);
             assert(ancestorOfPrevInMainChain);

@@ -842,22 +842,18 @@ bool CTxDB::LoadBlockIndex()
     return true;
 }
 
-boost::optional<int> CTxDB::GetBestChainHeight() const
+int CTxDB::GetBestChainHeight() const
 {
     if (auto v = GetBestBlockIndex()) {
-        if (v.is_initialized()) {
-            return v->nHeight;
-        }
+        return v->nHeight;
     }
-    return boost::none;
+    return 0;
 }
 
 boost::optional<uint256> CTxDB::GetBestChainTrust() const
 {
     if (auto v = GetBestBlockIndex()) {
-        if (v.is_initialized()) {
-            return v->nChainTrust;
-        }
+        return v->nChainTrust;
     }
     return boost::none;
 }

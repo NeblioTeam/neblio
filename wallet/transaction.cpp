@@ -212,7 +212,7 @@ bool CTransaction::AreInputsStandard(const MapPrevTx& mapInputs) const
         txnouttype                              whichType;
         // get the scriptPubKey corresponding to this input:
         const CScript& prevScript = prev.scriptPubKey;
-        if (!Solver(CTxDB().GetBestChainHeight().value_or(0), prevScript, whichType, vSolutions))
+        if (!Solver(CTxDB().GetBestChainHeight(), prevScript, whichType, vSolutions))
             return false;
 
         // Transactions with extra stuff in their scriptSigs are
@@ -644,8 +644,7 @@ CTransaction::ConnectInputs(const ITxDB& txdb, MapPrevTx inputs,
             // Skip ECDSA signature verification when connecting blocks (fBlock=true)
             // before the last blockchain checkpoint. This is safe because block merkle hashes are
             // still computed and checked, and any change will be caught at the next checkpoint.
-            if (!(fBlock &&
-                  (txdb.GetBestChainHeight().value_or(0) < Checkpoints::GetTotalBlocksEstimate()))) {
+            if (!(fBlock && (txdb.GetBestChainHeight() < Checkpoints::GetTotalBlocksEstimate()))) {
                 // Verify signature
                 bool       fStrictPayToScriptHash = true;
                 const auto verifyRes =
@@ -837,7 +836,7 @@ std::vector<CKey> CTransaction::GetThisWalletKeysOfTx(const uint256&            
         std::vector<std::vector<uint8_t>> vSolutions;
         // this solution can be improved later for multiple kinds of transactions, here we only support
         // P2PKH transactions, more in CScript class's source file
-        Solver(CTxDB().GetBestChainHeight().value(), out.scriptPubKey, outtype, vSolutions);
+        Solver(CTxDB().GetBestChainHeight(), out.scriptPubKey, outtype, vSolutions);
         if (outtype == TX_PUBKEYHASH) {
             CKeyID keyId = CKeyID(uint160(vSolutions[0]));
             if (!CBitcoinAddress(keyId).IsValid()) {

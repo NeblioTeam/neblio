@@ -315,7 +315,7 @@ void NTP1Transaction::AmendStdTxWithNTP1(const ITxDB& txdb, CTransaction& tx, in
 {
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputs = GetAllNTP1InputsOfTx(tx, txdb, false);
 
-    AmendStdTxWithNTP1(txdb.GetBestChainHeight().value_or(0), tx, inputs, changeIndex);
+    AmendStdTxWithNTP1(txdb.GetBestChainHeight(), tx, inputs, changeIndex);
 }
 
 void NTP1Transaction::AmendStdTxWithNTP1(
@@ -864,7 +864,7 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> NTP1Transaction::StdFetche
         return {};
     }
 
-    const int currentBlockHeight = txdb.GetBestChainHeight().value_or(0);
+    const int currentBlockHeight = txdb.GetBestChainHeight();
 
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputsWithNTP1;
     // put the input transactions in a vector with their corresponding NTP1 transactions
@@ -914,10 +914,7 @@ std::vector<std::pair<CTransaction, NTP1Transaction>> NTP1Transaction::StdFetche
     return inputsWithNTP1;
 }
 
-int NTP1Transaction::GetCurrentBlockHeight(const ITxDB& txdb)
-{
-    return txdb.GetBestChainHeight().value_or(0);
-}
+int NTP1Transaction::GetCurrentBlockHeight(const ITxDB& txdb) { return txdb.GetBestChainHeight(); }
 
 bool NTP1Transaction::IsTxNTP1(const CTransaction* tx, std::string* opReturnArg)
 {

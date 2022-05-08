@@ -1635,7 +1635,7 @@ isminetype IsMine(const CKeyStore& keystore, const CScript& scriptPubKey)
 {
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
-    if (!Solver(CTxDB().GetBestChainHeight().value_or(0), scriptPubKey, whichType, vSolutions))
+    if (!Solver(CTxDB().GetBestChainHeight(), scriptPubKey, whichType, vSolutions))
         return isminetype::ISMINE_NO;
 
     CKeyID keyID;
@@ -1856,7 +1856,7 @@ SignatureState SignSignature(const CKeyStore& keystore, const CScript& fromPubKe
 
     const CTxDB txdb;
 
-    const int currentBlockHeight = txdb.GetBestChainHeight().value_or(0);
+    const int currentBlockHeight = txdb.GetBestChainHeight();
 
     txnouttype whichType;
     if (!Solver(currentBlockHeight, keystore, fromPubKey, hash, nHashType, txin.scriptSig, whichType,
@@ -2009,7 +2009,7 @@ static CScript CombineSignatures(CScript scriptPubKey, const CTransaction& txTo,
 
             txnouttype                    txType2;
             vector<vector<unsigned char>> vSolutions2;
-            Solver(CTxDB().GetBestChainHeight().value_or(0), pubKey2, txType2, vSolutions2);
+            Solver(CTxDB().GetBestChainHeight(), pubKey2, txType2, vSolutions2);
             sigs1.pop_back();
             sigs2.pop_back();
             CScript result = CombineSignatures(pubKey2, txTo, nIn, txType2, vSolutions2, sigs1, sigs2);
@@ -2028,7 +2028,7 @@ CScript CombineSignatures(CScript scriptPubKey, const CTransaction& txTo, unsign
 {
     txnouttype                    txType;
     vector<vector<unsigned char>> vSolutions;
-    Solver(CTxDB().GetBestChainHeight().value_or(0), scriptPubKey, txType, vSolutions);
+    Solver(CTxDB().GetBestChainHeight(), scriptPubKey, txType, vSolutions);
 
     vector<valtype> stack1;
     EvalScript(stack1, scriptSig1, CTransaction(), 0, true, 0);

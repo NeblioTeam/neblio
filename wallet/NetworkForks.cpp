@@ -16,7 +16,7 @@ bool NetworkForks::isForkActivated(NetworkFork fork, const ITxDB& txdb) const
 {
     auto it = forksToBlockMap.find(fork);
     if (it != forksToBlockMap.cend()) {
-        return txdb.GetBestChainHeight().value_or(0) >= it->second;
+        return txdb.GetBestChainHeight() >= it->second;
     } else {
         throw std::runtime_error("Fork number " + std::to_string(fork) + " was not found");
     }

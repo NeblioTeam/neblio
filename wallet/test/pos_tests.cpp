@@ -49,8 +49,7 @@ public:
         CAmount nValueRet = 0;
 
         boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-        EXPECT_CALL(*dbMock, GetBestChainHeight())
-            .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+        EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
         ASSERT_TRUE(wallet.SelectCoinsMinConf(*dbMock, 115 * COIN, GetAdjustedTime(), 1, 6, vCoins,
                                               availableCoins, nValueRet, false));
@@ -114,17 +113,16 @@ TEST(PoS_tests, kernel_scriptPubKey_basic_p2pkh)
     kernelScript.SetDestination(CBitcoinAddress(key.GetPubKey().GetID()).Get()); // P2PKH
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     // solve for the kernel script to ensure it's sane
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
-    EXPECT_TRUE(Solver(dbMock->GetBestChainHeight().value(), kernelScript, whichType, vSolutions));
+    EXPECT_TRUE(Solver(dbMock->GetBestChainHeight(), kernelScript, whichType, vSolutions));
     EXPECT_EQ(whichType, txnouttype::TX_PUBKEYHASH);
 
     boost::optional<CScript> calcResult = StakeMaker::CalculateScriptPubKeyForStakeOutput(
-        dbMock->GetBestChainHeight().value(), StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
+        dbMock->GetBestChainHeight(), StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
     ASSERT_NE(calcResult, boost::none);
 
     EXPECT_EQ(calcResult, CScript() << key.GetPubKey() << OP_CHECKSIG);
@@ -147,17 +145,16 @@ TEST(PoS_tests, kernel_scriptPubKey_basic_p2pk)
     CScript kernelScript = CScript() << key.GetPubKey() << OP_CHECKSIG; // P2PK
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     // solve for the kernel script to ensure it's sane
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
-    EXPECT_TRUE(Solver(dbMock->GetBestChainHeight().value(), kernelScript, whichType, vSolutions));
+    EXPECT_TRUE(Solver(dbMock->GetBestChainHeight(), kernelScript, whichType, vSolutions));
     EXPECT_EQ(whichType, txnouttype::TX_PUBKEY);
 
     boost::optional<CScript> calcResult = StakeMaker::CalculateScriptPubKeyForStakeOutput(
-        dbMock->GetBestChainHeight().value(), StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
+        dbMock->GetBestChainHeight(), StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
     ASSERT_NE(calcResult, boost::none);
 
     EXPECT_EQ(calcResult, CScript() << key.GetPubKey() << OP_CHECKSIG);
@@ -183,17 +180,16 @@ TEST(PoS_tests, kernel_scriptPubKey_basic_p2cs)
         GetScriptForStakeDelegation(keyStaker.GetPubKey().GetID(), keyOwner.GetPubKey().GetID()); // P2CS
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     // solve for the kernel script to ensure it's sane
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
-    EXPECT_TRUE(Solver(dbMock->GetBestChainHeight().value(), kernelScript, whichType, vSolutions));
+    EXPECT_TRUE(Solver(dbMock->GetBestChainHeight(), kernelScript, whichType, vSolutions));
     EXPECT_EQ(whichType, txnouttype::TX_COLDSTAKE);
 
     boost::optional<CScript> calcResult = StakeMaker::CalculateScriptPubKeyForStakeOutput(
-        dbMock->GetBestChainHeight().value(), StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
+        dbMock->GetBestChainHeight(), StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
     ASSERT_NE(calcResult, boost::none);
 
     EXPECT_EQ(calcResult, kernelScript);
@@ -219,17 +215,16 @@ TEST(PoS_tests, kernel_scriptPubKey_basic_p2cs__staker_key_does_not_exist_in_key
         GetScriptForStakeDelegation(keyStaker.GetPubKey().GetID(), keyOwner.GetPubKey().GetID()); // P2CS
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     // solve for the kernel script to ensure it's sane
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
-    EXPECT_TRUE(Solver(dbMock->GetBestChainHeight().value(), kernelScript, whichType, vSolutions));
+    EXPECT_TRUE(Solver(dbMock->GetBestChainHeight(), kernelScript, whichType, vSolutions));
     EXPECT_EQ(whichType, txnouttype::TX_COLDSTAKE);
 
     boost::optional<CScript> calcResult = StakeMaker::CalculateScriptPubKeyForStakeOutput(
-        dbMock->GetBestChainHeight().value(), StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
+        dbMock->GetBestChainHeight(), StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
     ASSERT_EQ(calcResult, boost::none);
 }
 
@@ -251,17 +246,16 @@ TEST(PoS_tests, kernel_scriptPubKey_p2pkh__key_does_not_exist_in_keystore)
     kernelScript.SetDestination(CBitcoinAddress(key.GetPubKey().GetID()).Get());
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     // solve for the kernel script to ensure it's sane
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
-    EXPECT_TRUE(Solver(dbMock->GetBestChainHeight().value(), kernelScript, whichType, vSolutions));
+    EXPECT_TRUE(Solver(dbMock->GetBestChainHeight(), kernelScript, whichType, vSolutions));
     EXPECT_EQ(whichType, txnouttype::TX_PUBKEYHASH);
 
     boost::optional<CScript> calcResult = StakeMaker::CalculateScriptPubKeyForStakeOutput(
-        dbMock->GetBestChainHeight().value(), StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
+        dbMock->GetBestChainHeight(), StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
     ASSERT_EQ(calcResult, boost::none);
 }
 
@@ -282,17 +276,16 @@ TEST(PoS_tests, kernel_scriptPubKey_p2pk__key_does_not_exist_in_keystore)
     CScript kernelScript = CScript() << key.GetPubKey() << OP_CHECKSIG; // P2PK
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     // solve for the kernel script to ensure it's sane
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
-    EXPECT_TRUE(Solver(dbMock->GetBestChainHeight().value(), kernelScript, whichType, vSolutions));
+    EXPECT_TRUE(Solver(dbMock->GetBestChainHeight(), kernelScript, whichType, vSolutions));
     EXPECT_EQ(whichType, txnouttype::TX_PUBKEY);
 
     boost::optional<CScript> calcResult = StakeMaker::CalculateScriptPubKeyForStakeOutput(
-        dbMock->GetBestChainHeight().value(), StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
+        dbMock->GetBestChainHeight(), StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
     ASSERT_EQ(calcResult, boost::none);
 }
 
@@ -314,17 +307,16 @@ TEST(PoS_tests, kernel_scriptPubKey_unsolvable)
     CScript kernelScript = CScript() << key.GetPubKey() << OP_CHECKSIG << OP_HASH160;
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     // solve for the kernel script to ensure it's sane
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
-    EXPECT_FALSE(Solver(dbMock->GetBestChainHeight().value(), kernelScript, whichType, vSolutions));
+    EXPECT_FALSE(Solver(dbMock->GetBestChainHeight(), kernelScript, whichType, vSolutions));
     EXPECT_EQ(whichType, txnouttype::TX_NONSTANDARD);
 
     boost::optional<CScript> calcResult = StakeMaker::CalculateScriptPubKeyForStakeOutput(
-        dbMock->GetBestChainHeight().value(), StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
+        dbMock->GetBestChainHeight(), StakeMaker::DefaultKeyGetter(keyStore), kernelScript);
     ASSERT_EQ(calcResult, boost::none);
 }
 
@@ -402,8 +394,7 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_no_split)
                                          << stakePayee.GetPubKey() << OP_CHECKSIG << OP_HASH160;
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     CoinStakeInputsResult inputsResult = StakeMaker::CollectInputsForStake(
         *dbMock, kernelData, availableCoins, GetAdjustedTime(), false, balance, 0);
@@ -439,8 +430,7 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_with_split)
                                          << stakePayee.GetPubKey() << OP_CHECKSIG << OP_HASH160;
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     CoinStakeInputsResult inputsResult = StakeMaker::CollectInputsForStake(
         *dbMock, kernelData, availableCoins, GetAdjustedTime(), true, balance, 0);
@@ -462,8 +452,7 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_inputs)
     }
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     CAmount nValueRet = 0;
     ASSERT_TRUE(wallet.SelectCoinsMinConf(*dbMock, 20 * 50 * COIN, GetAdjustedTime(), 1, 6, vCoins,
@@ -506,8 +495,7 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_value)
     }
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     CAmount nValueRet = 0;
     ASSERT_TRUE(wallet.SelectCoinsMinConf(*dbMock, (20 * 500) * COIN, GetAdjustedTime(), 1, 6, vCoins,
@@ -550,8 +538,7 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_too_small_age)
     }
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     CAmount nValueRet = 0;
     ASSERT_TRUE(wallet.SelectCoinsMinConf(*dbMock, (20 * 500) * COIN, GetAdjustedTime(), 1, 6, vCoins,

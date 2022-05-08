@@ -191,7 +191,7 @@ boost::optional<ColdStakingCachedItem> ColdStakingModel::ParseColdStakingCachedI
     std::vector<CTxDestination> addresses;
     int                         nRequired;
 
-    if (!ExtractDestinations(CTxDB().GetBestChainHeight().value(), out.scriptPubKey, type, addresses,
+    if (!ExtractDestinations(CTxDB().GetBestChainHeight(), out.scriptPubKey, type, addresses,
                              nRequired) ||
         addresses.size() != 2) {
         NLog.write(b_sev::info, "{} : Error extracting P2CS destinations for utxo: {}-{}", FUNCTIONSIG,

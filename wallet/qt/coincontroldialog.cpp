@@ -506,7 +506,7 @@ void CoinControlDialog::updateLabels(WalletModel* model, QDialog* dialog)
                 NTP1Transaction                                       ntp1tx;
                 std::vector<std::pair<CTransaction, NTP1Transaction>> prevTxs =
                     NTP1Transaction::GetAllNTP1InputsOfTx(*out.tx, txdb, false);
-                ntp1tx.readNTP1DataFromTx(txdb.GetBestChainHeight().value(), *out.tx, prevTxs);
+                ntp1tx.readNTP1DataFromTx(txdb.GetBestChainHeight(), *out.tx, prevTxs);
                 outputIsNTP1 = (ntp1tx.getTxOut(out.i).tokenCount() != 0);
 
             } catch (std::exception& ex) {
@@ -527,8 +527,7 @@ void CoinControlDialog::updateLabels(WalletModel* model, QDialog* dialog)
 
         // Bytes
         CTxDestination address;
-        if (ExtractDestination(txdb.GetBestChainHeight().value(), out.tx->vout[out.i].scriptPubKey,
-                               address)) {
+        if (ExtractDestination(txdb.GetBestChainHeight(), out.tx->vout[out.i].scriptPubKey, address)) {
             CPubKey pubkey;
             CKeyID* keyid = boost::get<CKeyID>(&address);
             if (keyid && model->getPubKey(*keyid, pubkey))
@@ -674,7 +673,7 @@ void CoinControlDialog::updateView()
     const CTxDB txdb;
 
     const uint256 bestBlockHash   = txdb.GetBestBlockHash();
-    const int     bestBlockHeight = txdb.GetBestChainHeight().value();
+    const int     bestBlockHeight = txdb.GetBestChainHeight();
 
     for (const auto& coins : mapCoins) {
         QTreeWidgetItem* itemWalletAddress = new QTreeWidgetItem();

@@ -192,7 +192,7 @@ void TransactionRecord::readNTP1TxData()
         }
         std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs =
             NTP1Transaction::GetAllNTP1InputsOfTx(tx, txdb, false);
-        ntp1tx.readNTP1DataFromTx(txdb.GetBestChainHeight().value_or(0), tx, ntp1inputs);
+        ntp1tx.readNTP1DataFromTx(txdb.GetBestChainHeight(), tx, ntp1inputs);
         ntp1DataLoaded    = true;
         ntp1DataLoadError = false;
     } catch (std::exception& ex) {
@@ -224,7 +224,7 @@ void TransactionRecord::updateStatus(const CWalletTx& wtx)
         wtx.IsTrusted(txdb, bestBlockHash) && !(wtx.GetBlocksToMaturity(txdb, bestBlockHash) > 0);
     bool fConflicted      = false;
     status.depth          = wtx.GetDepthAndMempool(fConflicted, txdb, bestBlockHash);
-    const int bestHeight  = txdb.GetBestChainHeight().value_or(0);
+    const int bestHeight  = txdb.GetBestChainHeight();
     status.cur_num_blocks = bestHeight;
 
     if (!IsFinalTx(wtx, txdb, bestHeight + 1)) {
@@ -272,7 +272,7 @@ void TransactionRecord::updateStatus(const CWalletTx& wtx)
 bool TransactionRecord::statusUpdateNeeded(const ITxDB& txdb) const
 {
     // AssertLockHeld(cs_main);
-    return status.cur_num_blocks != txdb.GetBestChainHeight().value_or(0);
+    return status.cur_num_blocks != txdb.GetBestChainHeight();
 }
 
 std::string TransactionRecord::getTxID() const { return hash.ToString(); }

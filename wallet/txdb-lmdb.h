@@ -299,7 +299,7 @@ public:
     bool                  WriteStakeSeen(const std::pair<COutPoint, unsigned int>& stake) override;
     boost::optional<bool> WasStakeSeen(const std::pair<COutPoint, unsigned int>& stake) const override;
     bool                  LoadBlockIndex() override;
-    boost::optional<int>  GetBestChainHeight() const override;
+    int                   GetBestChainHeight() const override;
     boost::optional<uint256>     GetBestChainTrust() const override;
     boost::optional<CBlockIndex> GetBestBlockIndex() const override;
     uint256                      GetBestBlockHash() const override;

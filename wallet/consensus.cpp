@@ -13,7 +13,7 @@ bool IsFinalTx(const CTransaction& tx, const ITxDB& txdb, int nBlockHeight, int6
     if (tx.nLockTime == 0)
         return true;
     if (nBlockHeight == 0)
-        nBlockHeight = txdb.GetBestChainHeight().value_or(0);
+        nBlockHeight = txdb.GetBestChainHeight();
     if (nBlockTime == 0)
         nBlockTime = GetAdjustedTime();
     if ((int64_t)tx.nLockTime <

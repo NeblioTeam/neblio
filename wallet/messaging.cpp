@@ -225,7 +225,7 @@ MessageProcessResult handleMsg_version(CNode* pfrom, CDataStream& vRecv)
     const bool neverAskedForBlocksBefore = (nAskedForBlocks < 1 || vNodes.size() <= 1);
     const bool withinAllowedVersionRange =
         (pfrom->nVersion < NOBLKS_VERSION_START || pfrom->nVersion >= NOBLKS_VERSION_END);
-    const bool peerHasNewBlocks = (pfrom->nStartingHeight > txdb.GetBestChainHeight().value_or(0) - 144);
+    const bool peerHasNewBlocks = (pfrom->nStartingHeight > txdb.GetBestChainHeight() - 144);
 
     if (!fImporting && !pfrom->fClient && !pfrom->fOneShot &&
         ((peerHasNewBlocks && withinAllowedVersionRange && neverAskedForBlocksBefore) ||
@@ -925,7 +925,7 @@ bool IsInitialBlockDownload(const ITxDB& txdb)
     if (latchToFalse.load(std::memory_order_acquire))
         return false;
 
-    if (txdb.GetBestChainHeight().value_or(0) < Checkpoints::GetTotalBlocksEstimate())
+    if (txdb.GetBestChainHeight() < Checkpoints::GetTotalBlocksEstimate())
         return true;
     if (fImporting)
         return true;
@@ -1043,7 +1043,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
 
         // we cannot know the height for orphan blocks, so we assume they're ahead in the future
         const int assumedNewHeight =
-            prevBlockIndex ? prevBlockIndex->nHeight + 1 : txdb.GetBestChainHeight().value_or(0) + 1;
+            prevBlockIndex ? prevBlockIndex->nHeight + 1 : txdb.GetBestChainHeight() + 1;
 
         // Preliminary checks
         if (!pblock->CheckBlock(assumedNewHeight))

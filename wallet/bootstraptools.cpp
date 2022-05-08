@@ -32,7 +32,7 @@ void ExportBootstrapBlockchain(const boost::filesystem::path& filename, std::ato
 
         CDataStream  serializedBlocks(SER_DISK, CLIENT_VERSION);
         size_t       written = 0;
-        const size_t total   = static_cast<size_t>(txdb.GetBestChainHeight().value_or(1));
+        const size_t total   = static_cast<size_t>(txdb.GetBestChainHeight());
         CBlockIndex  bi      = [&]() {
             boost::optional<CBlockIndex> obi = txdb.ReadBlockIndex(Params().GenesisBlockHash());
             if (!obi) {
@@ -43,7 +43,7 @@ void ExportBootstrapBlockchain(const boost::filesystem::path& filename, std::ato
         }();
 
         while (!bi.hashNext.IsNull()) {
-            progress.store(static_cast<double>(written) / static_cast<double>(total),
+            progress.store(static_cast<double>(written) / static_cast<double>(total == 0 ? 1 : total),
                            std::memory_order_relaxed);
             if (stopped.load() || fShutdown) {
                 throw std::runtime_error("Operation was stopped.");

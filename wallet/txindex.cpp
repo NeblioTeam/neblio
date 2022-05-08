@@ -27,9 +27,7 @@ int CTxIndex::GetDepthInMainChain(const ITxDB& txdb) const
         return 0;
     // Find the block in the index
     const auto bi = txdb.ReadBlockIndex(block.GetHash());
-    if (!bi)
-        return 0;
     if (!bi || !bi->IsInMainChain(txdb))
         return 0;
-    return 1 + txdb.GetBestChainHeight().value_or(0) - bi->nHeight;
+    return 1 + txdb.GetBestChainHeight() - bi->nHeight;
 }

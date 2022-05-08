@@ -69,7 +69,7 @@ void SyncWithWallets(const ITxDB& txdb, const CTransaction& tx, const CBlock* pb
 
     // update NTP1 transactions
     if (pwalletMain && pwalletMain->walletNewTxUpdateFunctor) {
-        pwalletMain->walletNewTxUpdateFunctor->run(tx.GetHash(), txdb.GetBestChainHeight().value_or(0));
+        pwalletMain->walletNewTxUpdateFunctor->run(tx.GetHash(), txdb.GetBestChainHeight());
     }
 
     pwalletMain->SyncTransaction(txdb, tx, pblock);

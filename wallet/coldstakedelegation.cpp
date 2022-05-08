@@ -21,7 +21,7 @@ CreateColdStakeDelegation(const std::string& stakeAddress, CAmount nValue,
 
     const CTxDB txdb;
 
-    if (!Params().IsColdStakingEnabled(txdb.GetBestChainHeight().value()) && !fForceNotEnabled)
+    if (!Params().IsColdStakingEnabled(txdb.GetBestChainHeight()) && !fForceNotEnabled)
         return Err(ColdStakingDisabled);
 
     // Get Staking Address

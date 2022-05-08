@@ -98,8 +98,8 @@ Value getstakinginfo(const Array& params, bool fHelp)
 
     const std::size_t stakableCoinsCount = [&]() {
         std::vector<COutput> vCoins;
-        bool fIncludeColdStaking = Params().IsColdStakingEnabled(txdb.GetBestChainHeight().value()) &&
-                                   GetBoolArg("-coldstaking", true);
+        bool                 fIncludeColdStaking =
+            Params().IsColdStakingEnabled(txdb.GetBestChainHeight()) && GetBoolArg("-coldstaking", true);
         pwalletMain->AvailableCoinsForStaking(txdb, vCoins, GetAdjustedTime(), fIncludeColdStaking,
                                               false);
         return vCoins.size();
@@ -149,7 +149,7 @@ Value getworkex(const Array& params, bool fHelp)
     if (IsInitialBlockDownload(txdb))
         throw JSONRPCError(-10, "neblio is downloading blocks...");
 
-    if (txdb.GetBestChainHeight().value_or(0) >= Params().LastPoWBlock())
+    if (txdb.GetBestChainHeight() >= Params().LastPoWBlock())
         throw JSONRPCError(RPC_MISC_ERROR, "No more PoW blocks");
 
     typedef map<uint256, pair<CBlock*, CScript>> mapNewBlock_t;
@@ -419,7 +419,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
     if (IsInitialBlockDownload(txdb))
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "neblio is downloading blocks...");
 
-    if (txdb.GetBestChainHeight().value_or(0) >= Params().LastPoWBlock())
+    if (txdb.GetBestChainHeight() >= Params().LastPoWBlock())
         throw JSONRPCError(RPC_MISC_ERROR, "No more PoW blocks");
 
     static CReserveKey reservekey(pwalletMain.get());
@@ -579,9 +579,9 @@ Value generateBlocks(int nGenerate, uint64_t nMaxTries, CWallet* const pwallet,
 {
     static const int nInnerLoopCount = 0x10000;
     int              nHeightEnd      = 0;
-    int              nHeight         = CTxDB().GetBestChainHeight().value_or(0);
+    int              nHeight         = CTxDB().GetBestChainHeight();
 
-    nHeightEnd = CTxDB().GetBestChainHeight().value_or(0) + nGenerate;
+    nHeightEnd = CTxDB().GetBestChainHeight() + nGenerate;
 
     unsigned int       nExtraNonce = 0;
     json_spirit::Array blockHashes;
@@ -654,10 +654,8 @@ Value generatePOSBlocks(
 
     const CTxDB txdb;
 
-    int nHeightEnd = 0;
-    int nHeight    = txdb.GetBestChainHeight().value_or(0);
-
-    nHeightEnd = txdb.GetBestChainHeight().value_or(0) + nGenerate;
+    const int nHeightEnd = txdb.GetBestChainHeight() + nGenerate;
+    int       nHeight    = txdb.GetBestChainHeight();
 
     json_spirit::Array blockHashesOrSerializedData;
 

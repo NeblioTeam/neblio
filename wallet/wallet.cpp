@@ -564,7 +564,7 @@ void CWallet::MarkConflicted(const ITxDB& txdb, const uint256& hashBlock, const 
     assert(bi);
     int conflictconfirms = 0;
     if (bi->IsInMainChain(txdb)) {
-        conflictconfirms = -(txdb.GetBestChainHeight().value_or(0) - bi->nHeight + 1);
+        conflictconfirms = -(txdb.GetBestChainHeight() - bi->nHeight + 1);
     }
     //    assert(conflictconfirms < 0);
     if (conflictconfirms >= 0)
@@ -646,7 +646,7 @@ bool CWallet::AddToWallet(const ITxDB& txdb, const CWalletTx& wtxIn, bool fFromL
     // update NTP1 transactions
     if (walletNewTxUpdateFunctor) {
         walletNewTxUpdateFunctor->setReferenceBlockHeight();
-        walletNewTxUpdateFunctor->run(hash, txdb.GetBestChainHeight().value_or(0));
+        walletNewTxUpdateFunctor->run(hash, txdb.GetBestChainHeight());
     }
 
     if (fFromLoadWallet) {
@@ -846,7 +846,7 @@ bool CWallet::IsChange(const ITxDB& txdb, const CTxOut& txout) const
     // a better way of identifying which outputs are 'the send' and which are
     // 'the change' will need to be implemented (maybe extend CWalletTx to remember
     // which output, if any, was change).
-    if (ExtractDestination(txdb.GetBestChainHeight().value(), txout.scriptPubKey, address) &&
+    if (ExtractDestination(txdb.GetBestChainHeight(), txout.scriptPubKey, address) &&
         ::IsMine(*this, address) != ISMINE_NO) {
         if (!mapAddressBook.exists(address))
             return true;
@@ -1021,7 +1021,7 @@ void CWalletTx::GetAmounts(const ITxDB& txdb, list<pair<CTxDestination, CAmount>
 
         // In either case, we need to get the destination address
         CTxDestination address;
-        if (!ExtractDestination(txdb.GetBestChainHeight().value(), txout.scriptPubKey, address)) {
+        if (!ExtractDestination(txdb.GetBestChainHeight(), txout.scriptPubKey, address)) {
             NLog.write(b_sev::err, "CWalletTx::GetAmounts: Unknown transaction type found, txid {}",
                        this->GetHash().ToString());
             address = CNoDestination();
@@ -1099,7 +1099,7 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
     {
         const CTxDB txdb;
         LOCK2(cs_main, cs_wallet);
-        const int bestHeight = txdb.GetBestChainHeight().value_or(0);
+        const int bestHeight = txdb.GetBestChainHeight();
         uiInterface.WalletBlockchainRescanStarted();
         BOOST_SCOPE_EXIT(void) { uiInterface.WalletBlockchainRescanEnded(); }
         BOOST_SCOPE_EXIT_END
@@ -1221,7 +1221,7 @@ void CWallet::ResendWalletTransactions(const ITxDB& txdb, bool fForce)
         }
         for (PAIRTYPE(const unsigned int, CWalletTx*) & item : mapSorted) {
             CWalletTx& wtx = *item.second;
-            if (wtx.CheckTransaction(txdb.GetBestChainHeight().value()).isOk())
+            if (wtx.CheckTransaction(txdb.GetBestChainHeight()).isOk())
                 wtx.RelayWalletTransaction(txdb);
             else
                 NLog.write(b_sev::err,
@@ -1272,7 +1272,7 @@ CAmount CWallet::GetColdStakingBalance(const ITxDB& txdb) const
 CAmount CWallet::GetStakingBalance(const ITxDB& txdb, const bool fIncludeColdStaking) const
 {
     return GetBalance(txdb) +
-           (Params().IsColdStakingEnabled(txdb.GetBestChainHeight().value()) && fIncludeColdStaking
+           (Params().IsColdStakingEnabled(txdb.GetBestChainHeight()) && fIncludeColdStaking
                 ? GetColdStakingBalance(txdb)
                 : 0);
 }
@@ -1544,7 +1544,7 @@ void CWallet::AvailableCoinsForStaking(const ITxDB& txdb, vector<COutput>& vCoin
                         std::vector<std::pair<CTransaction, NTP1Transaction>> inputs =
                             NTP1Transaction::GetAllNTP1InputsOfTx(*tx, txdb, false);
                         NTP1Transaction ntp1tx;
-                        ntp1tx.readNTP1DataFromTx(txdb.GetBestChainHeight().value(), *tx, inputs);
+                        ntp1tx.readNTP1DataFromTx(txdb.GetBestChainHeight(), *tx, inputs);
                         // if this output contains tokens, skip it to avoid burning them
                         if (ntp1tx.getTxOut(i).tokenCount() > 0) {
                             continue;
@@ -1687,7 +1687,7 @@ bool CWallet::SelectCoinsMinConf(const ITxDB& txdb, CAmount nTargetValue, unsign
                     std::vector<std::pair<CTransaction, NTP1Transaction>> inputs =
                         NTP1Transaction::GetAllNTP1InputsOfTx(*tx, txdb, false);
                     NTP1Transaction ntp1tx;
-                    ntp1tx.readNTP1DataFromTx(txdb.GetBestChainHeight().value(), *tx, inputs);
+                    ntp1tx.readNTP1DataFromTx(txdb.GetBestChainHeight(), *tx, inputs);
                     // if this output contains tokens, skip it to avoid burning them
                     assert(i < static_cast<int>(pcoin->vout.size()));
                     if (ntp1tx.getTxOut(i).tokenCount() > 0) {
@@ -2538,7 +2538,7 @@ string CWallet::SendMoney(const ITxDB& txdb, CScript scriptPubKey, CAmount nValu
     }
 
     CTxDestination dest;
-    if (!ExtractDestination(txdb.GetBestChainHeight().value(), scriptPubKey, dest)) {
+    if (!ExtractDestination(txdb.GetBestChainHeight(), scriptPubKey, dest)) {
         throw std::runtime_error("Unable to extract address from scriptPubKey.");
     }
 
@@ -2743,7 +2743,7 @@ bool CWallet::HasAddressBookEntry(const CTxDestination& address) const
 bool CWallet::HasDelegator(const ITxDB& txdb, const CTxOut& out) const
 {
     CTxDestination delegator;
-    if (!ExtractDestination(txdb.GetBestChainHeight().value(), out.scriptPubKey, delegator, false))
+    if (!ExtractDestination(txdb.GetBestChainHeight(), out.scriptPubKey, delegator, false))
         return false;
     {
         const auto mi = mapAddressBook.get(delegator);
@@ -2992,8 +2992,7 @@ std::map<CTxDestination, CAmount> CWallet::GetAddressBalances(const ITxDB& txdb)
                 CTxDestination addr;
                 if (IsMine(pcoin->vout[i]) == ISMINE_NO)
                     continue;
-                if (!ExtractDestination(txdb.GetBestChainHeight().value(), pcoin->vout[i].scriptPubKey,
-                                        addr))
+                if (!ExtractDestination(txdb.GetBestChainHeight(), pcoin->vout[i].scriptPubKey, addr))
                     continue;
 
                 CAmount n =
@@ -3026,7 +3025,7 @@ set<set<CTxDestination>> CWallet::GetAddressGroupings(const ITxDB& txdb)
                 if (IsMine(txin) == ISMINE_NO) /* If this input isn't mine, ignore it */
                     continue;
                 if (!ExtractDestination(
-                        txdb.GetBestChainHeight().value(),
+                        txdb.GetBestChainHeight(),
                         mapWallet.at(txin.prevout.hash).vout.at(txin.prevout.n).scriptPubKey, address))
                     continue;
                 grouping.insert(address);
@@ -3039,7 +3038,7 @@ set<set<CTxDestination>> CWallet::GetAddressGroupings(const ITxDB& txdb)
                     if (IsChange(txdb, txout)) {
                         CWalletTx      tx = mapWallet.at(pcoin->vin[0].prevout.hash);
                         CTxDestination txoutAddr;
-                        if (!ExtractDestination(txdb.GetBestChainHeight().value(), txout.scriptPubKey,
+                        if (!ExtractDestination(txdb.GetBestChainHeight(), txout.scriptPubKey,
                                                 txoutAddr))
                             continue;
                         grouping.insert(txoutAddr);
@@ -3055,8 +3054,7 @@ set<set<CTxDestination>> CWallet::GetAddressGroupings(const ITxDB& txdb)
         for (unsigned int i = 0; i < pcoin->vout.size(); i++)
             if (IsMine(pcoin->vout[i]) != ISMINE_NO) {
                 CTxDestination address;
-                if (!ExtractDestination(txdb.GetBestChainHeight().value(), pcoin->vout[i].scriptPubKey,
-                                        address))
+                if (!ExtractDestination(txdb.GetBestChainHeight(), pcoin->vout[i].scriptPubKey, address))
                     continue;
                 grouping.insert(address);
                 groupings.insert(grouping);
@@ -3189,7 +3187,7 @@ void CWallet::GetKeyBirthTimes(const ITxDB& txdb, std::map<CKeyID, int64_t>& map
 
     // map in which we'll infer heights of other keys
     const boost::optional<CBlockIndex> pindexMax = CBlock::FindBlockByHeight(
-        std::max(0, txdb.GetBestChainHeight().value_or(0) -
+        std::max(0, txdb.GetBestChainHeight() -
                         144)); // the tip can be reorganised; use a 144-block safety margin
     std::map<CKeyID, boost::optional<CBlockIndex>> mapKeyFirstBlock;
     std::set<CKeyID>                               setKeys;

@@ -54,7 +54,7 @@ QString TransactionDesc::toHTML(const ITxDB& txdb, CWallet* wallet, const CWalle
     QString strHTML;
 
     const uint256 bestBlockHash   = txdb.GetBestBlockHash();
-    const int     bestBlockHeight = txdb.GetBestChainHeight().value_or(0);
+    const int     bestBlockHeight = txdb.GetBestChainHeight();
 
     LOCK2(cs_main, wallet->cs_wallet);
     strHTML.reserve(4000);

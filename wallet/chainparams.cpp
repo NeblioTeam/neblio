@@ -580,7 +580,7 @@ NetworkType CChainParams::NetType() const { return networkType; }
 
 bool CChainParams::PassedFirstValidNTP1Tx(const ITxDB* txdb) const
 {
-    return ((txdb ? txdb->GetBestChainHeight().value_or(0) : CTxDB().GetBestChainHeight().value_or(0)) >=
+    return ((txdb ? txdb->GetBestChainHeight() : CTxDB().GetBestChainHeight()) >=
             consensus.firstValidNTP1Height);
 }
 
