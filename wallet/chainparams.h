@@ -78,20 +78,17 @@ public:
     const NetworkForks& GetNetForks() const { return *consensus.forks; }
 
     int64_t     StakeMinAge(int blockHeight) const;
-    int64_t     StakeMinAge(const ITxDB& txdb) const;
     int64_t     StakeMaxAge() const;
     int64_t     StakeModifierInterval() const;
     NetworkType NetType() const;
-    bool        PassedFirstValidNTP1Tx(const ITxDB* txdb = nullptr) const;
+    bool        PassedFirstValidNTP1Tx(int blockHeight) const;
     int64_t     TargetTimeSpan() const;
 
-    unsigned int OpReturnMaxSize(const ITxDB& txdb) const;
-    unsigned int OpReturnMaxSize(const int blockHeight) const;
+    unsigned int OpReturnMaxSize(int blockHeight) const;
 
-    unsigned int TargetSpacing(const ITxDB& txdb) const;
-    unsigned int TargetSpacing(const int height) const;
+    unsigned int TargetSpacing(int blockHeight) const;
 
-    int CoinbaseMaturity(const ITxDB& txdb) const;
+    int CoinbaseMaturity(int blockHeight) const;
 
     const CBigNum& PoWLimit() const;
     const CBigNum& PoSLimit() const;

@@ -95,15 +95,6 @@ bool IsStandardTx(const int blockHeight, const CTransaction& tx, std::string& re
     return true;
 }
 
-bool EnableEnforceUniqueTokenSymbols(const ITxDB& txdb)
-{
-    if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, txdb)) {
-        return true;
-    } else {
-        return false;
-    }
-}
-
 bool EnableEnforceUniqueTokenSymbols(const int blockHeight)
 {
     if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, blockHeight)) {

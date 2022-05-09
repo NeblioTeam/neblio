@@ -466,7 +466,8 @@ bool CBlock::ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pinde
                 }
             }
 
-            if (tx.ConnectInputs(txdb, mapInputs, mapQueuedChanges, posThisTx, pindex, true, false, this)
+            if (tx.ConnectInputs(txdb, mapInputs, mapQueuedChanges, posThisTx, *pindex, true, false,
+                                 this)
                     .isErr()) {
                 return false;
             }
@@ -490,7 +491,7 @@ bool CBlock::ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pinde
     if (IsProofOfStake()) {
         // ppcoin: coin stake tx earns reward instead of paying fee
         uint64_t nCoinAge;
-        if (!vtx[1].GetCoinAge(txdb, nCoinAge))
+        if (!vtx[1].GetCoinAge(pindex->nHeight, txdb, nCoinAge))
             return NLog.error("ConnectBlock() : {} unable to get coin age for coinstake",
                               vtx[1].GetHash().ToString());
 
@@ -549,12 +550,14 @@ bool CBlock::ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pinde
         try {
             WriteNTP1BlockTransactionsToDisk(pindex->nHeight, vtx, txdb);
         } catch (std::exception& ex) {
-            if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, txdb)) {
+            if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON,
+                                                       pindex->nHeight)) {
                 return NLog.error("Unable to get NTP1 transaction written in ConnectBlock(). Error: {}",
                                   ex.what());
             }
         } catch (...) {
-            if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, txdb)) {
+            if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON,
+                                                       pindex->nHeight)) {
                 return NLog.error("Unable to get NTP1 transaction written in ConnectBlock(). An unknown "
                                   "exception was "
                                   "thrown");
@@ -1234,7 +1237,7 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& block
     // Verify hash target and signature of coinstake tx
     if (IsProofOfStake()) {
         uint256 targetProofOfStake;
-        if (!CheckProofOfStake(txdb, vtx[1], nBits, hashProof, targetProofOfStake)) {
+        if (!CheckProofOfStake(newBlockHeight, txdb, vtx[1], nBits, hashProof, targetProofOfStake)) {
             NLog.write(b_sev::err, "WARNING: AcceptBlock(): check proof-of-stake failed for block {}",
                        blockHash.ToString());
             return false; // do not error here as we expect this during initial block download
@@ -1695,7 +1698,7 @@ bool CBlock::ReadFromDisk(const uint256& hash, const ITxDB& txdb, bool fReadTran
 void CBlock::WriteNTP1BlockTransactionsToDisk(const int                        blockHeight,
                                               const std::vector<CTransaction>& vtx, ITxDB& txdb)
 {
-    if (Params().PassedFirstValidNTP1Tx(&txdb)) {
+    if (Params().PassedFirstValidNTP1Tx(blockHeight)) {
         for (const CTransaction& tx : vtx) {
             WriteNTP1TxToDiskFromRawTx(blockHeight, tx, txdb);
         }
@@ -1704,7 +1707,7 @@ void CBlock::WriteNTP1BlockTransactionsToDisk(const int                        b
 
 void CBlock::WriteNTP1TxToDiskFromRawTx(const int blockHeight, const CTransaction& tx, ITxDB& txdb)
 {
-    if (Params().PassedFirstValidNTP1Tx(&txdb)) {
+    if (Params().PassedFirstValidNTP1Tx(blockHeight)) {
         // read previous transactions (inputs) which are necessary to validate an NTP1
         // transaction
         if (!NTP1Transaction::IsTxNTP1(&tx)) {

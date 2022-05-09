@@ -46,8 +46,6 @@ class NetworkForks
 public:
     NetworkForks(const boost::container::flat_map<NetworkFork, int>& ForksToBlocks);
 
-    bool isForkActivated(NetworkFork fork, const ITxDB& txdb) const;
-
     bool isForkActivated(NetworkFork fork, int height) const;
 
     NetworkFork getForkAtBlockNumber(int blockNumber) const;
