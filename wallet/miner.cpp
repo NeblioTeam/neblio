@@ -111,7 +111,8 @@ public:
 };
 
 // CreateNewBlock: create new block (without proof-of-work/proof-of-stake)
-std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees,
+std::unique_ptr<CBlock> CreateNewBlock(const CBlockIndex& pindexPrev, const ITxDB& txdb,
+                                       CWallet* pwallet, bool fProofOfStake, int64_t* pFees,
                                        const boost::optional<CBitcoinAddress>& PoWDestination)
 {
     // Create new block
@@ -119,10 +120,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
     if (!pblock)
         return nullptr;
 
-    const CTxDB txdb;
-
-    const CBlockIndex pindexPrev     = txdb.GetBestBlockIndex().value();
-    const int         newBlockHeight = pindexPrev.nHeight + 1;
+    const int newBlockHeight = pindexPrev.nHeight + 1;
 
     // Create coinbase tx
     CTransaction coinbaseTx;
@@ -159,7 +157,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
     // Add our coinbase tx as first transaction
     pblock->vtx.push_back(coinbaseTx);
 
-    unsigned int nSizeLimit = MaxBlockSize(txdb);
+    unsigned int nSizeLimit = MaxBlockSize(newBlockHeight);
 
     // Largest block you're willing to create:
     unsigned int nBlockMaxSize = GetArg("-blockmaxsize", nSizeLimit);
@@ -554,7 +552,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
     return true;
 }
 
-bool CheckStake(const ITxDB& txdb, CBlock* pblock, CWallet& wallet)
+bool CheckStake(const int stakeBlockHeight, const ITxDB& txdb, CBlock* pblock, CWallet& wallet)
 {
     uint256 proofHash = 0, hashTarget = 0;
     uint256 hashBlock = pblock->GetHash();
@@ -563,7 +561,7 @@ bool CheckStake(const ITxDB& txdb, CBlock* pblock, CWallet& wallet)
         return NLog.error("CheckStake() : {} is not a proof-of-stake block", hashBlock.GetHex());
 
     // verify hash target and signature of coinstake tx
-    if (!CheckProofOfStake(txdb, pblock->vtx[1], pblock->nBits, proofHash, hashTarget))
+    if (!CheckProofOfStake(stakeBlockHeight, txdb, pblock->vtx[1], pblock->nBits, proofHash, hashTarget))
         return NLog.error("CheckStake() : proof-of-stake checking failed");
 
     //// debug print
@@ -648,18 +646,20 @@ void StakeMiner(std::shared_ptr<CWallet> pwallet)
             }
         }
 
+        const CBlockIndex pindexPrev = txdb.GetBestBlockIndex().value();
+
         //
         // Create new block
         //
         CAmount                 nFees;
-        std::unique_ptr<CBlock> pblock = CreateNewBlock(pwallet.get(), true, &nFees);
+        std::unique_ptr<CBlock> pblock = CreateNewBlock(pindexPrev, txdb, pwallet.get(), true, &nFees);
         if (!pblock)
             return;
 
         // Trying to sign a block
         if (pblock->SignBlock(txdb, *pwallet, nFees)) {
             SetThreadPriority(THREAD_PRIORITY_NORMAL);
-            CheckStake(txdb, pblock.get(), *pwallet);
+            CheckStake(pindexPrev.nHeight + 1, txdb, pblock.get(), *pwallet);
             SetThreadPriority(THREAD_PRIORITY_LOWEST);
             MilliSleep(500);
         } else {

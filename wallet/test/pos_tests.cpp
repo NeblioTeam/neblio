@@ -397,14 +397,15 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_no_split)
     EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     CoinStakeInputsResult inputsResult = StakeMaker::CollectInputsForStake(
-        *dbMock, kernelData, availableCoins, GetAdjustedTime(), false, balance, 0);
+        dbMock->GetBestChainHeight(), kernelData, availableCoins, GetAdjustedTime(), false, balance, 0);
     EXPECT_EQ(inputsResult.inputs.size(), 2u);
     EXPECT_EQ(inputsResult.inputsPrevouts.size(), 2u);
 
     // now do it again with reserve, ensure the
 
-    inputsResult = StakeMaker::CollectInputsForStake(*dbMock, kernelData, availableCoins,
-                                                     GetAdjustedTime(), false, balance, balance);
+    inputsResult =
+        StakeMaker::CollectInputsForStake(dbMock->GetBestChainHeight(), kernelData, availableCoins,
+                                          GetAdjustedTime(), false, balance, balance);
 
     // only the kernel will go through (since it's checked elsewhere when finding the stake)
     EXPECT_EQ(inputsResult.inputs.size(), 1u);
@@ -433,7 +434,7 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_with_split)
     EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     CoinStakeInputsResult inputsResult = StakeMaker::CollectInputsForStake(
-        *dbMock, kernelData, availableCoins, GetAdjustedTime(), true, balance, 0);
+        dbMock->GetBestChainHeight(), kernelData, availableCoins, GetAdjustedTime(), true, balance, 0);
     EXPECT_EQ(inputsResult.inputs.size(), 1u);
     EXPECT_EQ(inputsResult.inputsPrevouts.size(), 1u);
 }
@@ -474,7 +475,7 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_inputs)
                                          << stakePayee.GetPubKey() << OP_CHECKSIG << OP_HASH160;
 
     CoinStakeInputsResult inputsResult = StakeMaker::CollectInputsForStake(
-        *dbMock, kernelData, availableCoins, GetAdjustedTime(), false, balance, 0);
+        dbMock->GetBestChainHeight(), kernelData, availableCoins, GetAdjustedTime(), false, balance, 0);
 
     // we cannot have more than 10 inputs as per Params().MaxInputsInStake()
     EXPECT_EQ(inputsResult.inputs.size(), 10u);
@@ -517,7 +518,7 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_value)
                                          << stakePayee.GetPubKey() << OP_CHECKSIG << OP_HASH160;
 
     CoinStakeInputsResult inputsResult = StakeMaker::CollectInputsForStake(
-        *dbMock, kernelData, availableCoins, GetAdjustedTime(), false, balance, 0);
+        dbMock->GetBestChainHeight(), kernelData, availableCoins, GetAdjustedTime(), false, balance, 0);
 
     // we cannot have more than 2 inputs, since the max is 1000
     EXPECT_EQ(inputsResult.inputs.size(), 2u);
@@ -560,7 +561,7 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_too_small_age)
                                          << stakePayee.GetPubKey() << OP_CHECKSIG << OP_HASH160;
 
     CoinStakeInputsResult inputsResult = StakeMaker::CollectInputsForStake(
-        *dbMock, kernelData, availableCoins, GetAdjustedTime(), false, balance, 0);
+        dbMock->GetBestChainHeight(), kernelData, availableCoins, GetAdjustedTime(), false, balance, 0);
 
     // only the kernel will go in, because all other UTXOs' nTime is equal to current tx's time
     EXPECT_EQ(inputsResult.inputs.size(), 1u);
@@ -569,8 +570,9 @@ TEST_F(PoS_CollectInputsTestFixture, collecting_inputs_max_too_small_age)
     // now we call again, but we change the transaction time to make inputs feasible, and we'll get 2
     // again (the max that we can get due to max value in a stake)
     inputsResult = StakeMaker::CollectInputsForStake(
-        *dbMock, kernelData, availableCoins, GetAdjustedTime() + Params().StakeMinAge(*dbMock) + 60 * 60,
-        false, balance, 0);
+        dbMock->GetBestChainHeight(), kernelData, availableCoins,
+        GetAdjustedTime() + Params().StakeMinAge(dbMock->GetBestChainHeight()) + 60 * 60, false, balance,
+        0);
 
     EXPECT_EQ(inputsResult.inputs.size(), 2u);
     EXPECT_EQ(inputsResult.inputsPrevouts.size(), 2u);

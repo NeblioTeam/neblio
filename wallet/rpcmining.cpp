@@ -79,7 +79,7 @@ Value getstakinginfo(const Array& params, bool fHelp)
     const uint64_t     nNetworkWeight = GetPoSKernelPS();
     const bool         staking        = stakeMaker.IsStakingActive();
     const uint64_t     nWeight        = stakeMaker.getLatestStakeWeight().value_or(0);
-    const unsigned int nTS            = Params().TargetSpacing(CTxDB());
+    const unsigned int nTS            = Params().TargetSpacing(CTxDB().GetBestChainHeight());
     const int          nExpectedTime  = staking && !!nWeight ? (nTS * nNetworkWeight / nWeight) : -1;
 
     Object stakingCriteria;
@@ -163,7 +163,11 @@ Value getworkex(const Array& params, bool fHelp)
         static boost::optional<CBlockIndex> pindexPrev;
         static int64_t                      nStart;
         static CBlock*                      pblock;
-        auto                                bestBlockIndex = CTxDB().GetBestBlockIndex();
+        const boost::optional<CBlockIndex>  bestBlockIndex = txdb.GetBestBlockIndex();
+        if (!bestBlockIndex) {
+            throw JSONRPCError(RPC_MISC_ERROR, "Error: Failed to get best block index; fatal error");
+        }
+
         if (pindexPrev->GetBlockHash() != bestBlockIndex->GetBlockHash() ||
             (nTransactionsUpdated != nTransactionsUpdatedLast && GetTime() - nStart > 60)) {
             if (pindexPrev->GetBlockHash() != bestBlockIndex->GetBlockHash()) {
@@ -178,7 +182,7 @@ Value getworkex(const Array& params, bool fHelp)
             nStart                   = GetTime();
 
             // Create new block
-            pblock = CreateNewBlock(pwalletMain.get()).release();
+            pblock = CreateNewBlock(*bestBlockIndex, txdb, pwalletMain.get()).release();
             if (!pblock)
                 throw JSONRPCError(-7, "Out of memory");
             vNewBlock.push_back(pblock);
@@ -280,7 +284,11 @@ Value getwork(const Array& params, bool fHelp)
     if (IsInitialBlockDownload(txdb))
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "neblio is downloading blocks...");
 
-    auto bestBlockIndex = txdb.GetBestBlockIndex();
+    const boost::optional<CBlockIndex> bestBlockIndex = txdb.GetBestBlockIndex();
+    if (!bestBlockIndex) {
+        throw JSONRPCError(RPC_MISC_ERROR, "Error: Failed to get best block index; fatal error");
+    }
+
     if (bestBlockIndex->nHeight >= Params().LastPoWBlock())
         throw JSONRPCError(RPC_MISC_ERROR, "No more PoW blocks");
 
@@ -314,7 +322,7 @@ Value getwork(const Array& params, bool fHelp)
             nStart                                     = GetTime();
 
             // Create new block
-            pblock = CreateNewBlock(pwalletMain.get()).release();
+            pblock = CreateNewBlock(*bestBlockIndex, txdb, pwalletMain.get()).release();
             if (!pblock)
                 throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
             vNewBlock.push_back(pblock);
@@ -429,7 +437,11 @@ Value getblocktemplate(const Array& params, bool fHelp)
     static boost::optional<CBlockIndex> pindexPrev;
     static int64_t                      nStart;
     static CBlock*                      pblock;
-    auto                                bestBlockIndex = CTxDB().GetBestBlockIndex();
+    const boost::optional<CBlockIndex>  bestBlockIndex = txdb.GetBestBlockIndex();
+    if (!bestBlockIndex) {
+        throw JSONRPCError(RPC_MISC_ERROR, "Error: Failed to get best block index; fatal error");
+    }
+
     if (pindexPrev->GetBlockHash() != bestBlockIndex->GetBlockHash() ||
         (nTransactionsUpdated != nTransactionsUpdatedLast && GetTime() - nStart > 5)) {
         // Clear pindexPrev so future calls make a new block, despite any failures from here on
@@ -445,7 +457,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
             delete pblock;
             pblock = NULL;
         }
-        pblock = CreateNewBlock(pwalletMain.get()).release();
+        pblock = CreateNewBlock(*bestBlockIndex, txdb, pwalletMain.get()).release();
         if (!pblock)
             throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
 
@@ -520,7 +532,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
     result.push_back(Pair("mutable", aMutable));
     result.push_back(Pair("noncerange", "00000000ffffffff"));
     result.push_back(Pair("sigoplimit", (int64_t)MAX_BLOCK_SIGOPS));
-    result.push_back(Pair("sizelimit", (int64_t)MaxBlockSize(txdb)));
+    result.push_back(Pair("sizelimit", (int64_t)MaxBlockSize(txdb.GetBestChainHeight())));
     result.push_back(Pair("curtime", (int64_t)pblock->nTime));
     result.push_back(Pair("bits", fmt::format("{:08x}", pblock->nBits)));
     result.push_back(Pair("height", (int64_t)(pindexPrev->nHeight + 1)));
@@ -577,11 +589,14 @@ boost::optional<unsigned> MineBlock(CBlock block, uint64_t nMaxTries)
 Value generateBlocks(int nGenerate, uint64_t nMaxTries, CWallet* const pwallet,
                      const boost::optional<CBitcoinAddress>& destinationAddress = boost::none)
 {
+    const CTxDB txdb;
+    const int   bestHeight = txdb.GetBestChainHeight();
+
     static const int nInnerLoopCount = 0x10000;
     int              nHeightEnd      = 0;
-    int              nHeight         = CTxDB().GetBestChainHeight();
+    int              nHeight         = bestHeight;
 
-    nHeightEnd = CTxDB().GetBestChainHeight() + nGenerate;
+    nHeightEnd = bestHeight + nGenerate;
 
     unsigned int       nExtraNonce = 0;
     json_spirit::Array blockHashes;
@@ -604,12 +619,18 @@ Value generateBlocks(int nGenerate, uint64_t nMaxTries, CWallet* const pwallet,
     }();
 
     while (nHeight < nHeightEnd) {
-        std::unique_ptr<CBlock> pblock = CreateNewBlock(pwallet, false, 0, destination);
+        const boost::optional<CBlockIndex> bestBlockIndex = txdb.GetBestBlockIndex();
+        if (!bestBlockIndex) {
+            throw JSONRPCError(RPC_MISC_ERROR, "Error: Failed to get best block index; fatal error");
+        }
+
+        std::unique_ptr<CBlock> pblock =
+            CreateNewBlock(*bestBlockIndex, txdb, pwallet, false, 0, destination);
         if (!pblock)
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
         {
             LOCK(cs_main);
-            const boost::optional<CBlockIndex> best = CTxDB().GetBestBlockIndex();
+            const boost::optional<CBlockIndex> best = txdb.GetBestBlockIndex();
             IncrementExtraNonce(pblock.get(), &*best, nExtraNonce);
         }
 
@@ -654,19 +675,26 @@ Value generatePOSBlocks(
 
     const CTxDB txdb;
 
-    const int nHeightEnd = txdb.GetBestChainHeight() + nGenerate;
-    int       nHeight    = txdb.GetBestChainHeight();
+    const int bestHeight = txdb.GetBestChainHeight();
+
+    const int nHeightEnd = bestHeight + nGenerate;
+    int       nHeight    = bestHeight;
 
     json_spirit::Array blockHashesOrSerializedData;
 
     const auto BlockMaker = [&]() {
-        std::unique_ptr<CBlock> block = CreateNewBlock(pwallet, true, 0);
+        const boost::optional<CBlockIndex> bestBlockIndex = txdb.GetBestBlockIndex();
+        if (!bestBlockIndex) {
+            throw JSONRPCError(RPC_MISC_ERROR, "Error: Failed to get best block index; fatal error");
+        }
+
+        std::unique_ptr<CBlock> block = CreateNewBlock(*bestBlockIndex, txdb, pwallet, true, 0);
         if (!block)
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
 
         if (block->SignBlock(txdb, *pwallet, 0, customInputs, extraPayoutForTests)) {
             if (submitBlock) {
-                if (!CheckStake(txdb, block.get(), *pwallet))
+                if (!CheckStake(bestBlockIndex->nHeight + 1, txdb, block.get(), *pwallet))
                     throw JSONRPCError(RPC_INTERNAL_ERROR, "CheckStake, CheckStake failed");
             }
         } else {
@@ -945,7 +973,8 @@ Value generateblockwithkey(const Array& params, bool fHelp)
     }
 
     const auto BlockMaker = [&]() {
-        std::unique_ptr<CBlock> block = CreateNewBlock(nullptr, true, 0);
+        std::unique_ptr<CBlock> block =
+            CreateNewBlock(*txdb.GetBestBlockIndex(), txdb, nullptr, true, 0);
         if (!block)
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't assemble new block");
         block->vtx.insert(block->vtx.end(), txs.begin(), txs.end());

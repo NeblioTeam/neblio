@@ -107,7 +107,8 @@ unsigned int LimitOrphanTxSize(unsigned int nMaxOrphans)
 /** Minimum Peer Version */
 int MinPeerVersion(const ITxDB& txdb)
 {
-    if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__5_COLD_STAKING, txdb)) {
+    if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__5_COLD_STAKING,
+                                               txdb.GetBestChainHeight())) {
         return MIN_PEER_PROTO_VERSION;
     } else {
         return OLD_MIN_PEER_PROTO_VERSION;
@@ -508,7 +509,7 @@ MessageProcessResult handleMsg_getblocks(CNode* pfrom, CDataStream& vRecv)
         if (pindex->GetBlockHash() == hashStop) {
             NLog.write(b_sev::info, "  getblocks stopping at {} {}", pindex->nHeight,
                        pindex->GetBlockHash().ToString());
-            unsigned int nSMA = Params().StakeMinAge(txdb);
+            unsigned int nSMA = Params().StakeMinAge(txdb.GetBestChainHeight());
             // ppcoin: tell downloading node about the latest block if it's
             // without risk being rejected due to stake connection check
             uint256 bestBlockHash = txdb.GetBestBlockHash();

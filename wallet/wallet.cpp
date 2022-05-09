@@ -1483,7 +1483,7 @@ void CWallet::AvailableCoinsForStaking(const ITxDB& txdb, vector<COutput>& vCoin
         const uint256 bestBlockHash = txdb.GetBestBlockHash();
 
         LOCK2(cs_main, cs_wallet);
-        unsigned int nSMA = Params().StakeMinAge(txdb);
+        unsigned int nSMA = Params().StakeMinAge(txdb.GetBestChainHeight());
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end();
              ++it) {
             const CWalletTx* pcoin = &(*it).second;
@@ -1928,12 +1928,13 @@ void CWallet::SetTxNTP1OpRet(CTransaction& wtxNew, const std::shared_ptr<NTP1Scr
         throw std::runtime_error("Could not find OP_RETURN output to fix change output index");
     }
 
-    if (opRetScriptBin.size() > Params().OpReturnMaxSize(CTxDB())) {
+    if (opRetScriptBin.size() > Params().OpReturnMaxSize(CTxDB().GetBestChainHeight())) {
         // the blockchain consensus rules prevents OP_RETURN sizes larger than
         // DataSize(bestChain.getBestHeight())
         throw std::runtime_error("The data associated with the transaction is larger than the maximum "
                                  "allowed size for metadata (" +
-                                 ToString(Params().OpReturnMaxSize(CTxDB())) + " bytes).");
+                                 ToString(Params().OpReturnMaxSize(CTxDB().GetBestChainHeight())) +
+                                 " bytes).");
     }
 
     it->scriptPubKey = CScript() << OP_RETURN
@@ -2433,7 +2434,8 @@ bool CWallet::GetStakeWeight(const ITxDB&                                     tx
         return false;
 
     for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
-        const int64_t nTimeWeight = GetWeight(txdb, (int64_t)pcoin.first->nTime, (int64_t)GetTime());
+        const int64_t nTimeWeight =
+            GetWeight(txdb.GetBestChainHeight(), (int64_t)pcoin.first->nTime, (int64_t)GetTime());
         const CBigNum bnCoinDayWeight =
             CBigNum(pcoin.first->vout[pcoin.second].nValue) * nTimeWeight / COIN / (24 * 60 * 60);
 

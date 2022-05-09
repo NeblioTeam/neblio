@@ -176,13 +176,15 @@ public:
         @param[in] fMiner	true if called from CreateNewBlock
         @return Returns true if all checks succeed
         */
-    Result<void, TxValidationState>
-    ConnectInputs(const ITxDB& txdb, MapPrevTx inputs, std::map<uint256, CTxIndex>& mapTestPool,
-                  const CDiskTxPos& posThisTx, const boost::optional<CBlockIndex>& pindexBlock,
-                  bool fBlock, bool fMiner, CBlock* sourceBlockPtr = nullptr) const;
+    Result<void, TxValidationState> ConnectInputs(const ITxDB& txdb, MapPrevTx inputs,
+                                                  std::map<uint256, CTxIndex>& mapTestPool,
+                                                  const CDiskTxPos&            posThisTx,
+                                                  const CBlockIndex& pindexBlock, bool fBlock,
+                                                  bool fMiner, CBlock* sourceBlockPtr = nullptr) const;
     Result<void, TxValidationState> CheckTransaction(int     blockHeight,
                                                      CBlock* sourceBlock = nullptr) const;
-    bool GetCoinAge(const ITxDB& txdb, uint64_t& nCoinAge) const; // ppcoin: get transaction coin age
+    // ppcoin: get transaction coin age
+    bool GetCoinAge(const int spentAtHeight, const ITxDB& txdb, uint64_t& nCoinAge) const;
 
     [[nodiscard]] static CTransaction FetchTxFromDisk(const uint256& txid);
     [[nodiscard]] static CTransaction FetchTxFromDisk(const uint256& txid, const ITxDB& txdb);

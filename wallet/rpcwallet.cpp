@@ -130,8 +130,8 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("difficulty", diff));
 
     obj.push_back(Pair("testnet", Params().NetType() != NetworkType::Mainnet));
-    obj.push_back(
-        Pair("tachyon", Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, txdb)));
+    obj.push_back(Pair("tachyon", Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON,
+                                                                         txdb.GetBestChainHeight())));
     obj.push_back(Pair("keypoololdest", (int64_t)pwalletMain->GetOldestKeyPoolTime()));
     obj.push_back(Pair("keypoolsize", (int)pwalletMain->GetKeyPoolSize()));
     obj.push_back(Pair("paytxfee", ValueFromAmount(nTransactionFee)));

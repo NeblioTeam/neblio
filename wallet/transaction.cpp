@@ -370,7 +370,7 @@ CAmount CTransaction::GetMinFee(const ITxDB& txdb, unsigned int nBlockSize, enum
     }
 
     // Raise the price as the block approaches full
-    unsigned int nSizeLimit = MaxBlockSize(txdb);
+    unsigned int nSizeLimit = MaxBlockSize(txdb.GetBestChainHeight());
     if (nBlockSize != 1 && nNewBlockSize >= nSizeLimit / 2) {
         if (nNewBlockSize >= nSizeLimit)
             return MAX_MONEY;
@@ -529,18 +529,18 @@ unsigned int CTransaction::GetP2SHSigOpCount(const MapPrevTx& inputs) const
     return nSigOps;
 }
 
-Result<void, TxValidationState>
-CTransaction::ConnectInputs(const ITxDB& txdb, MapPrevTx inputs,
-                            std::map<uint256, CTxIndex>& mapTestPool, const CDiskTxPos& posThisTx,
-                            const boost::optional<CBlockIndex>& pindexBlock, bool fBlock, bool fMiner,
-                            CBlock* sourceBlockPtr) const
+Result<void, TxValidationState> CTransaction::ConnectInputs(const ITxDB& txdb, MapPrevTx inputs,
+                                                            std::map<uint256, CTxIndex>& mapTestPool,
+                                                            const CDiskTxPos&            posThisTx,
+                                                            const CBlockIndex& pindexBlock, bool fBlock,
+                                                            bool fMiner, CBlock* sourceBlockPtr) const
 {
     // Take over previous transactions' spent pointers
     // fBlock is true when this is called from AcceptBlock when a new best-block is added to the
     // blockchain fMiner is true when called from the internal bitcoin miner
     // ... both are false when called from CTransaction::AcceptToMemoryPool
     if (!IsCoinBase()) {
-        const int nCbM     = Params().CoinbaseMaturity(txdb);
+        const int nCbM     = Params().CoinbaseMaturity(pindexBlock.nHeight);
         CAmount   nValueIn = 0;
         CAmount   nFees    = 0;
         for (unsigned int i = 0; i < vin.size(); i++) {
@@ -583,7 +583,7 @@ CTransaction::ConnectInputs(const ITxDB& txdb, MapPrevTx inputs,
                 }
 
                 // check if spent before maturity
-                if (pindexBlock->nHeight - inputIndex->nHeight < nCbM) {
+                if (pindexBlock.nHeight - inputIndex->nHeight < nCbM) {
                     if (sourceBlockPtr) {
                         sourceBlockPtr->reject = CBlockReject(
                             REJECT_INVALID, "bad-txns-premature-spend-of-coinbase/coinstake",
@@ -596,7 +596,7 @@ CTransaction::ConnectInputs(const ITxDB& txdb, MapPrevTx inputs,
                         MakeInvalidTxState(TxValidationResult::TX_PREMATURE_SPEND, msg,
                                            fmt::format("ConnectInputs() : tried to spend {} at depth {}",
                                                        txPrev.IsCoinBase() ? "coinbase" : "coinstake",
-                                                       pindexBlock->nHeight - inputIndex->nHeight)));
+                                                       pindexBlock.nHeight - inputIndex->nHeight)));
                 }
             }
 
@@ -742,10 +742,10 @@ CTransaction::ConnectInputs(const ITxDB& txdb, MapPrevTx inputs,
 // guaranteed to be in main chain by sync-checkpoint. This rule is
 // introduced to help nodes establish a consistent view of the coin
 // age (trust score) of competing branches.
-bool CTransaction::GetCoinAge(const ITxDB& txdb, uint64_t& nCoinAge) const
+bool CTransaction::GetCoinAge(const int spentAtHeight, const ITxDB& txdb, uint64_t& nCoinAge) const
 {
     CBigNum      bnCentSecond = 0; // coin age in the unit of cent-seconds
-    unsigned int nSMA         = Params().StakeMinAge(txdb);
+    unsigned int nSMA         = Params().StakeMinAge(spentAtHeight);
     nCoinAge                  = 0;
 
     if (IsCoinBase())

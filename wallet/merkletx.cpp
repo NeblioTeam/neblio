@@ -135,7 +135,7 @@ int CMerkleTx::GetBlocksToMaturity(const ITxDB& txdb, const uint256& bestBlockHa
 {
     if (!(IsCoinBase() || IsCoinStake()))
         return 0;
-    int nCbM = Params().CoinbaseMaturity(txdb);
+    int nCbM = Params().CoinbaseMaturity(txdb.GetBestChainHeight());
     return std::max(0, (nCbM + 1) - GetDepthInMainChain(txdb, bestBlockHash));
 }
 

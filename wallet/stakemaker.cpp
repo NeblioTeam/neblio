@@ -72,9 +72,9 @@ TestAndCreateStakeKernel(const CTxDB& txdb, const StakeMaker::KeyGetterFunctorTy
         uint256       hashProofOfStake = 0, targetProofOfStake = 0;
         COutPoint     prevoutStake    = COutPoint(pcoin.first->GetHash(), pcoin.second);
         const int64_t txCoinstakeTime = nCoinstakeInitialTxTime - n;
-        if (!CheckStakeKernelHash(txdb, nBits, kernelBlock, txindex.pos.nBlockPos, txindex.pos.nTxPos,
-                                  *pcoin.first, prevoutStake, txCoinstakeTime, hashProofOfStake,
-                                  targetProofOfStake)) {
+        if (!CheckStakeKernelHash(newHeight, txdb, nBits, kernelBlock, txindex.pos.nBlockPos,
+                                  txindex.pos.nTxPos, *pcoin.first, prevoutStake, txCoinstakeTime,
+                                  hashProofOfStake, targetProofOfStake)) {
             continue;
         }
 
@@ -109,13 +109,14 @@ TestAndCreateStakeKernel(const CTxDB& txdb, const StakeMaker::KeyGetterFunctorTy
     return boost::none;
 }
 
-boost::optional<CAmount> CalculateStakeReward(const ITxDB& txdb, const CTransaction& stakeTx,
-                                              CAmount nFees, CAmount extraPayoutForTests = 0)
+boost::optional<CAmount> CalculateStakeReward(const int blockHeight, const ITxDB& txdb,
+                                              const CTransaction& stakeTx, CAmount nFees,
+                                              CAmount extraPayoutForTests = 0)
 {
     CAmount result = 0;
 
     uint64_t nCoinAge;
-    if (!stakeTx.GetCoinAge(txdb, nCoinAge)) {
+    if (!stakeTx.GetCoinAge(blockHeight, txdb, nCoinAge)) {
         NLog.write(b_sev::err, "CreateCoinStake : failed to calculate coin age");
         return boost::none;
     }
@@ -153,16 +154,22 @@ StakeMaker::CreateCoinStake(const ITxDB& txdb, const CWallet& wallet, const unsi
 
     const bool fEnableColdStaking = GetBoolArg("-coldstaking", true);
 
-    const CBlockIndex currentBest = txdb.GetBestBlockIndex().value();
+    const boost::optional<CBlockIndex> currentBest = txdb.GetBestBlockIndex();
+    if (!currentBest) {
+        return boost::none;
+    }
+
+    const int newHeight = currentBest->nHeight + 1;
 
     // Choose coins to use
     const CAmount nBalance = [&]() {
-        boost::optional<CAmount> cachedBalanceValue = cachedBalance.getValue(currentBest.GetBlockHash());
+        boost::optional<CAmount> cachedBalanceValue =
+            cachedBalance.getValue(currentBest->GetBlockHash());
         if (cachedBalanceValue) {
             return *cachedBalanceValue;
         } else {
             const CAmount res = wallet.GetStakingBalance(txdb, fEnableColdStaking);
-            cachedBalance.update(currentBest.GetBlockHash(), res);
+            cachedBalance.update(currentBest->GetBlockHash(), res);
             return res;
         }
     }();
@@ -181,7 +188,7 @@ StakeMaker::CreateCoinStake(const ITxDB& txdb, const CWallet& wallet, const unsi
     // Select coins with suitable depth
     std::set<std::pair<const CWalletTx*, unsigned int>> setCoins;
     CAmount                                             nValueIn = 0;
-    const auto cachedOutputs = cachedSelectedOutputs.getValue(currentBest.GetBlockHash());
+    const auto cachedOutputs = cachedSelectedOutputs.getValue(currentBest->GetBlockHash());
     if (cachedOutputs) {
         std::tie(nValueIn, setCoins) = *cachedOutputs;
     } else {
@@ -191,7 +198,7 @@ StakeMaker::CreateCoinStake(const ITxDB& txdb, const CWallet& wallet, const unsi
             cachedStakeWeight = boost::none;
             return boost::none;
         }
-        cachedSelectedOutputs.update(currentBest.GetBlockHash(), std::make_pair(nValueIn, setCoins));
+        cachedSelectedOutputs.update(currentBest->GetBlockHash(), std::make_pair(nValueIn, setCoins));
     }
 
     updateStakeWeight(txdb, setCoins);
@@ -233,11 +240,11 @@ StakeMaker::CreateCoinStake(const ITxDB& txdb, const CWallet& wallet, const unsi
     CTransaction stakeTx;
     stakeTx.nTime = kernelData->stakeTxTime;
 
-    const bool splitStake =
-        GetWeight(txdb, kernelData->kernelBlockTime, kernelData->stakeTxTime) < Params().StakeSplitAge();
+    const bool splitStake = GetWeight(newHeight, kernelData->kernelBlockTime, kernelData->stakeTxTime) <
+                            Params().StakeSplitAge();
 
     const CoinStakeInputsResult inputs = CollectInputsForStake(
-        txdb, *kernelData, setCoins, stakeTx.nTime, splitStake, nBalance, reservedBalance);
+        newHeight, *kernelData, setCoins, stakeTx.nTime, splitStake, nBalance, reservedBalance);
 
     stakeTx.vin = inputs.inputs;
 
@@ -245,7 +252,7 @@ StakeMaker::CreateCoinStake(const ITxDB& txdb, const CWallet& wallet, const unsi
     CAmount nFinalCredit = inputs.nInputsTotalCredit;
 
     const boost::optional<CAmount> oReward =
-        CalculateStakeReward(txdb, stakeTx, nFees, extraPayoutForTests);
+        CalculateStakeReward(newHeight, txdb, stakeTx, nFees, extraPayoutForTests);
     if (!oReward) {
         return boost::none;
     }
@@ -286,8 +293,14 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStakeFromSpecificOutput(cons
         return boost::none;
     }
 
-    const CTxDB                        txdb;
+    const CTxDB txdb;
+
     const boost::optional<CBlockIndex> pindexPrev = txdb.GetBestBlockIndex();
+    if (!pindexPrev) {
+        return boost::none;
+    }
+
+    const int newHeight = pindexPrev->nHeight + 1;
 
     const auto keyGetter = [&spendKeyOfOutput](const CKeyID&) {
         return boost::make_optional(spendKeyOfOutput);
@@ -322,8 +335,8 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStakeFromSpecificOutput(cons
     CTransaction stakeTx;
     stakeTx.nTime = kernelData->stakeTxTime;
 
-    const bool splitStake =
-        GetWeight(txdb, kernelData->kernelBlockTime, kernelData->stakeTxTime) < Params().StakeSplitAge();
+    const bool splitStake = GetWeight(newHeight, kernelData->kernelBlockTime, kernelData->stakeTxTime) <
+                            Params().StakeSplitAge();
 
     const CoinStakeInputsResult inputs = MakeInitialStakeInputsResult(*kernelData);
 
@@ -332,7 +345,7 @@ boost::optional<CTransaction> StakeMaker::CreateCoinStakeFromSpecificOutput(cons
     // Calculate coin age and reward
     CAmount nFinalCredit = inputs.nInputsTotalCredit;
 
-    const boost::optional<CAmount> oReward = CalculateStakeReward(txdb, stakeTx, nFees, 0);
+    const boost::optional<CAmount> oReward = CalculateStakeReward(newHeight, txdb, stakeTx, nFees, 0);
     if (!oReward) {
         return boost::none;
     }
@@ -499,7 +512,7 @@ StakeMaker::FindStakeKernel(const CKeyStore& keystore, const unsigned int nBits,
 }
 
 CoinStakeInputsResult
-StakeMaker::CollectInputsForStake(const ITxDB& txdb, const StakeKernelData& kernelData,
+StakeMaker::CollectInputsForStake(const int blockHeight, const StakeKernelData& kernelData,
                                   const std::set<std::pair<const CWalletTx*, unsigned int>>& setCoins,
                                   const int64_t txTime, const bool splitStake, const CAmount nBalance,
                                   const CAmount reservedBalance)
@@ -510,7 +523,7 @@ StakeMaker::CollectInputsForStake(const ITxDB& txdb, const StakeKernelData& kern
         // Attempt to add more inputs
         for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
             // Only add coins of the same key/address as kernel
-            const unsigned int nSMA    = Params().StakeMinAge(txdb);
+            const unsigned int nSMA    = Params().StakeMinAge(blockHeight);
             const CTxOut&      prevout = pcoin.first->vout[pcoin.second];
 
             const bool sameScriptPubKeyAsKernelOrStakeOutput =
@@ -522,7 +535,7 @@ StakeMaker::CollectInputsForStake(const ITxDB& txdb, const StakeKernelData& kern
 
             if (sameScriptPubKeyAsKernelOrStakeOutput && !isTheKernelWeAlreadyHave) {
 
-                const int64_t nTimeWeight = GetWeight(txdb, (int64_t)pcoin.first->nTime, txTime);
+                const int64_t nTimeWeight = GetWeight(blockHeight, (int64_t)pcoin.first->nTime, txTime);
 
                 // Stop adding more inputs if already too many inputs
                 if (result.inputs.size() >= Params().MaxInputsInStake())

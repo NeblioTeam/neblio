@@ -20,15 +20,15 @@ bool ComputeNextStakeModifier(const ITxDB& txdb, const CBlockIndex* const pindex
 
 // Check whether stake kernel meets hash target
 // Sets hashProofOfStake on success return
-bool CheckStakeKernelHash(const ITxDB& txdb, unsigned int nBits, const CBlock& blockFrom,
-                          const uint256& blockFromHash, unsigned int nTxPrevOffset,
-                          const CTransaction& txPrev, const COutPoint& prevout, unsigned int nTimeTx,
-                          uint256& hashProofOfStake, uint256& targetProofOfStake,
-                          bool fPrintProofOfStake = false);
+bool CheckStakeKernelHash(int blockHeight, const ITxDB& txdb, unsigned int nBits,
+                          const CBlock& blockFrom, const uint256& blockFromHash,
+                          unsigned int nTxPrevOffset, const CTransaction& txPrev,
+                          const COutPoint& prevout, unsigned int nTimeTx, uint256& hashProofOfStake,
+                          uint256& targetProofOfStake, bool fPrintProofOfStake = false);
 
 // Check kernel hash target and coinstake signature
 // Sets hashProofOfStake on success return
-bool CheckProofOfStake(const ITxDB& txdb, const CTransaction& tx, unsigned int nBits,
+bool CheckProofOfStake(int blockHeight, const ITxDB& txdb, const CTransaction& tx, unsigned int nBits,
                        uint256& hashProofOfStake, uint256& targetProofOfStake);
 
 // Check whether the coinstake timestamp meets protocol
@@ -41,6 +41,6 @@ unsigned int GetStakeModifierChecksum(const CBlockIndex* pindex, const ITxDB& tx
 bool CheckStakeModifierCheckpoints(int nHeight, unsigned int nStakeModifierChecksum);
 
 // Get time weight using supplied timestamps
-int64_t GetWeight(const ITxDB& txdb, int64_t nIntervalBeginning, int64_t nIntervalEnd);
+int64_t GetWeight(int blockHeight, int64_t nIntervalBeginning, int64_t nIntervalEnd);
 
 #endif // PPCOIN_KERNEL_H

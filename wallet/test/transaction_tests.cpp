@@ -388,7 +388,7 @@ void test_op_return_size(const ITxDB& txdb, NetworkType netType, unsigned int ex
 {
     SwitchNetworkTypeTemporarily state_holder(netType);
 
-    unsigned int allowedSize = Params().OpReturnMaxSize(txdb);
+    unsigned int allowedSize = Params().OpReturnMaxSize(txdb.GetBestChainHeight());
 
     EXPECT_EQ(allowedSize, expected_size);
 

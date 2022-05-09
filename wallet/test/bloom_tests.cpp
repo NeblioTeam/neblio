@@ -460,7 +460,7 @@ TEST(bloom_tests, merkle_block_2_and_serialize)
     EXPECT_EQ(merkleBlock.vMatchedTxn[0].first, (unsigned)2);
 
     vector<uint256> vMatched;
-    EXPECT_EQ(merkleBlock.txn.ExtractMatches(vMatched), block.hashMerkleRoot);
+    EXPECT_EQ(merkleBlock.txn.ExtractMatches(0, vMatched), block.hashMerkleRoot);
     EXPECT_EQ(vMatched.size(), merkleBlock.vMatchedTxn.size());
     for (unsigned int i = 0; i < vMatched.size(); i++)
         EXPECT_EQ(vMatched[i], merkleBlock.vMatchedTxn[i].second);

@@ -182,15 +182,16 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTran
         TRYV(tx.ConnectInputs(*txdb, mapInputs, mapUnused, CDiskTxPos(1, 1), *txdb->GetBestBlockIndex(),
                               false, false));
 
-        if (Params().PassedFirstValidNTP1Tx(txdb) &&
-            Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, *txdb)) {
+        if (Params().PassedFirstValidNTP1Tx(txdb->GetBestChainHeight()) &&
+            Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON,
+                                                   txdb->GetBestChainHeight())) {
             try {
                 std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
                     NTP1Transaction::StdFetchedInputTxsToNTP1(tx, mapInputs, *txdb, false, mapUnused2,
                                                               mapUnused);
                 NTP1Transaction ntp1tx;
                 ntp1tx.readNTP1DataFromTx(txdb->GetBestChainHeight(), tx, inputsTxs);
-                if (EnableEnforceUniqueTokenSymbols(*txdb)) {
+                if (EnableEnforceUniqueTokenSymbols(txdb->GetBestChainHeight())) {
                     AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, *txdb);
                 }
             } catch (std::exception& ex) {

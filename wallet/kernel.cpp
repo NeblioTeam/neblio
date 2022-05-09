@@ -11,12 +11,12 @@
 using namespace std;
 
 // Get time weight
-int64_t GetWeight(const ITxDB& txdb, int64_t nIntervalBeginning, int64_t nIntervalEnd)
+int64_t GetWeight(const int blockHeight, int64_t nIntervalBeginning, int64_t nIntervalEnd)
 {
     // Kernel hash weight starts from 0 at the min age
     // this change increases active coins participating the hash and helps
     // to secure the network when proof-of-stake difficulty is low
-    const unsigned int nSMA = Params().StakeMinAge(txdb);
+    const unsigned int nSMA = Params().StakeMinAge(blockHeight);
     return min(nIntervalEnd - nIntervalBeginning - nSMA, Params().StakeMaxAge());
 }
 
@@ -148,7 +148,7 @@ bool ComputeNextStakeModifier(const ITxDB& txdb, const CBlockIndex* const pindex
 
     // Sort candidate blocks by timestamp
     vector<pair<int64_t, uint256>> vSortedByTimestamp;
-    unsigned int                   nTS = Params().TargetSpacing(txdb);
+    const unsigned int             nTS = Params().TargetSpacing(pindexPrev->nHeight + 1);
     vSortedByTimestamp.reserve(64 * Params().StakeModifierInterval() / nTS);
     int64_t nSelectionInterval      = GetStakeModifierSelectionInterval();
     int64_t nSelectionIntervalStart = (pindexPrev->GetBlockTime() / Params().StakeModifierInterval()) *
@@ -227,9 +227,9 @@ bool ComputeNextStakeModifier(const ITxDB& txdb, const CBlockIndex* const pindex
 
 // The stake modifier used to hash for a stake kernel is chosen as the stake
 // modifier about a selection interval later than the coin generating the kernel
-static bool GetKernelStakeModifier(const ITxDB& txdb, uint256 hashBlockFrom, uint64_t& nStakeModifier,
-                                   int& nStakeModifierHeight, int64_t& nStakeModifierTime,
-                                   bool fPrintProofOfStake)
+static bool GetKernelStakeModifier(const int blockHeight, const ITxDB& txdb, uint256 hashBlockFrom,
+                                   uint64_t& nStakeModifier, int& nStakeModifierHeight,
+                                   int64_t& nStakeModifierTime, bool fPrintProofOfStake)
 {
     nStakeModifier = 0;
     const auto bi  = txdb.ReadBlockIndex(hashBlockFrom);
@@ -239,7 +239,7 @@ static bool GetKernelStakeModifier(const ITxDB& txdb, uint256 hashBlockFrom, uin
     nStakeModifierHeight                                         = pindexFrom.nHeight;
     nStakeModifierTime                                           = pindexFrom.GetBlockTime();
     static const int64_t         nStakeModifierSelectionInterval = GetStakeModifierSelectionInterval();
-    unsigned int                 nSMA                            = Params().StakeMinAge(txdb);
+    unsigned int                 nSMA                            = Params().StakeMinAge(blockHeight);
     boost::optional<CBlockIndex> pindex                          = pindexFrom;
     // loop to find the stake modifier later by a selection interval
     while (nStakeModifierTime < pindexFrom.GetBlockTime() + nStakeModifierSelectionInterval) {
@@ -291,17 +291,17 @@ static bool GetKernelStakeModifier(const ITxDB& txdb, uint256 hashBlockFrom, uin
 //   quantities so as to generate blocks faster, degrading the system back into
 //   a proof-of-work situation.
 //
-bool CheckStakeKernelHash(const ITxDB& txdb, unsigned int nBits, const CBlock& blockFrom,
-                          const uint256& blockFromHash, unsigned int nTxPrevOffset,
-                          const CTransaction& txPrev, const COutPoint& prevout, unsigned int nTimeTx,
-                          uint256& hashProofOfStake, uint256& targetProofOfStake,
-                          bool fPrintProofOfStake)
+bool CheckStakeKernelHash(const int blockHeight, const ITxDB& txdb, unsigned int nBits,
+                          const CBlock& blockFrom, const uint256& blockFromHash,
+                          unsigned int nTxPrevOffset, const CTransaction& txPrev,
+                          const COutPoint& prevout, unsigned int nTimeTx, uint256& hashProofOfStake,
+                          uint256& targetProofOfStake, bool fPrintProofOfStake)
 {
     if (nTimeTx < txPrev.nTime) // Transaction timestamp violation
         return NLog.error("CheckStakeKernelHash() : nTime violation");
 
     unsigned int nTimeBlockFrom = blockFrom.GetBlockTime();
-    unsigned int nSMA           = Params().StakeMinAge(txdb);
+    unsigned int nSMA           = Params().StakeMinAge(blockHeight);
     if (nTimeBlockFrom + nSMA > nTimeTx) // Min age requirement
         return NLog.error("CheckStakeKernelHash() : min age violation");
 
@@ -310,7 +310,7 @@ bool CheckStakeKernelHash(const ITxDB& txdb, unsigned int nBits, const CBlock& b
     int64_t nValueIn = txPrev.vout[prevout.n].nValue;
 
     CBigNum bnCoinDayWeight = CBigNum(nValueIn) *
-                              GetWeight(txdb, (int64_t)txPrev.nTime, (int64_t)nTimeTx) / COIN /
+                              GetWeight(blockHeight, (int64_t)txPrev.nTime, (int64_t)nTimeTx) / COIN /
                               (24 * 60 * 60);
 
     targetProofOfStake = (bnCoinDayWeight * bnTargetPerCoinDay).getuint256();
@@ -321,7 +321,7 @@ bool CheckStakeKernelHash(const ITxDB& txdb, unsigned int nBits, const CBlock& b
     int         nStakeModifierHeight = 0;
     int64_t     nStakeModifierTime   = 0;
 
-    if (!GetKernelStakeModifier(txdb, blockFromHash, nStakeModifier, nStakeModifierHeight,
+    if (!GetKernelStakeModifier(blockHeight, txdb, blockFromHash, nStakeModifier, nStakeModifierHeight,
                                 nStakeModifierTime, fPrintProofOfStake))
         return false;
     ss << nStakeModifier;
@@ -366,8 +366,8 @@ bool CheckStakeKernelHash(const ITxDB& txdb, unsigned int nBits, const CBlock& b
 }
 
 // Check kernel hash target and coinstake signature
-bool CheckProofOfStake(const ITxDB& txdb, const CTransaction& tx, unsigned int nBits,
-                       uint256& hashProofOfStake, uint256& targetProofOfStake)
+bool CheckProofOfStake(const int blockHeight, const ITxDB& txdb, const CTransaction& tx,
+                       unsigned int nBits, uint256& hashProofOfStake, uint256& targetProofOfStake)
 {
     if (!tx.IsCoinStake())
         return NLog.error("CheckProofOfStake() : called on non-coinstake {}", tx.GetHash().ToString());
@@ -397,8 +397,9 @@ bool CheckProofOfStake(const ITxDB& txdb, const CTransaction& tx, unsigned int n
         return fDebug ? NLog.error("CheckProofOfStake() : read block failed")
                       : false; // unable to read block of previous transaction
 
-    if (!CheckStakeKernelHash(txdb, nBits, block, txindex.pos.nBlockPos, txindex.pos.nTxPos, txPrev,
-                              txin.prevout, tx.nTime, hashProofOfStake, targetProofOfStake, fDebug))
+    if (!CheckStakeKernelHash(blockHeight, txdb, nBits, block, txindex.pos.nBlockPos, txindex.pos.nTxPos,
+                              txPrev, txin.prevout, tx.nTime, hashProofOfStake, targetProofOfStake,
+                              fDebug))
         return tx.DoS(
             1,
             NLog.error("CheckProofOfStake() : INFO: check kernel failed on coinstake {}, hashProof={}",

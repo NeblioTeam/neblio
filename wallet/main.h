@@ -53,9 +53,6 @@ void         StakeMiner(std::shared_ptr<CWallet> pwallet);
 /** True if the transaction is in the main chain (can throw) */
 bool IsTxInMainChain(const ITxDB& txdb, const uint256& txHash);
 
-/** Maximum size of a block */
-unsigned int MaxBlockSize(const ITxDB& txdb);
-
 bool GetWalletFile(CWallet* pwallet, std::string& strWalletFileOut);
 
 /** wrapper for CTxOut that provides a more compact serialization */

@@ -63,6 +63,8 @@ static unsigned int GetNextTargetRequiredV1(const CBlockIndex* pindexLast, bool 
     if (pindexLast == nullptr)
         return bnTargetLimit.GetCompact(); // genesis block
 
+    const int prevBlockHeight = pindexLast->nHeight + 1;
+
     const CBlockIndex pindexPrev = GetLastBlockIndex(*pindexLast, fProofOfStake, txdb);
     if (pindexPrev.hashPrev == 0)
         return bnTargetLimit.GetCompact(); // first block
@@ -82,7 +84,7 @@ static unsigned int GetNextTargetRequiredV1(const CBlockIndex* pindexLast, bool 
     // ppcoin: retarget with exponential moving toward target spacing
     CBigNum bnNew;
     bnNew.SetCompact(pindexPrev.nBits);
-    unsigned int nTS       = Params().TargetSpacing(CTxDB());
+    unsigned int nTS       = Params().TargetSpacing(prevBlockHeight);
     int64_t      nInterval = Params().TargetTimeSpan() / nTS;
     bnNew *= ((nInterval - 1) * nTS + nActualSpacing + nActualSpacing);
     bnNew /= ((nInterval + 1) * nTS);
