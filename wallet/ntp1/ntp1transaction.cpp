@@ -18,7 +18,8 @@
 
 #include <boost/algorithm/hex.hpp>
 
-const std::array<uint8_t, 2> NTP1ScriptPrefix{0x4e, 0x54};
+const std::array<std::array<uint8_t, 3>, 2> NTP1ScriptPrefixes{
+    std::array<uint8_t, 3>({0x4e, 0x54, 0x03}), std::array<uint8_t, 3>({0x4e, 0x54, 0x01})};
 
 NTP1Transaction::NTP1Transaction() { setNull(); }
 
@@ -469,17 +470,27 @@ void NTP1Transaction::__manualSet(int NVersion, uint256 TxHash, std::vector<NTP1
     ntp1TransactionType = Ntp1TransactionType;
 }
 
+bool NTP1Transaction::IsScriptNTP1(const std::vector<uint8_t>& opReturnScript)
+{
+    for (const std::array<uint8_t, 3>& prefix : NTP1ScriptPrefixes) {
+        if (opReturnScript.size() >= prefix.size() &&
+            std::equal(prefix.begin(), prefix.end(), opReturnScript.begin())) {
+            return true;
+        }
+    }
+    return false;
+}
+
 std::vector<uint8_t> NTP1Transaction::getNTP1OpReturnScript() const
 {
     for (unsigned long j = 0; j < vout.size(); j++) {
         const CScript& scriptPubKey = vout[j].scriptPubKey;
         if (scriptPubKey.size() > 2 && scriptPubKey.at(0) == OP_RETURN) {
-            std::vector<uint8_t> ntp1Script = CTransaction::ExtractOpRetData(scriptPubKey);
-            if (ntp1Script.size() < NTP1ScriptPrefix.size() ||
-                !std::equal(NTP1ScriptPrefix.begin(), NTP1ScriptPrefix.end(), ntp1Script.begin())) {
-                break;
+            const std::vector<uint8_t> opReturnScript = CTransaction::ExtractOpRetData(scriptPubKey);
+            if (IsScriptNTP1(opReturnScript)) {
+                return opReturnScript;
             }
-            return ntp1Script;
+            break; // only one script is allowed per transaction
         }
     }
     throw std::runtime_error("Could not extract NTP1 script from OP_RETURN for transaction " +
@@ -931,9 +942,8 @@ bool NTP1Transaction::IsTxNTP1(const CTransaction* tx, std::string* opReturnArg)
     for (unsigned long j = 0; j < tx->vout.size(); j++) {
         const CScript& scriptPubKey = tx->vout[j].scriptPubKey;
         if (scriptPubKey.size() > 2 && scriptPubKey.at(0) == OP_RETURN) {
-            std::vector<uint8_t> ntp1Script = CTransaction::ExtractOpRetData(scriptPubKey);
-            if (ntp1Script.size() >= NTP1ScriptPrefix.size() &&
-                std::equal(NTP1ScriptPrefix.begin(), NTP1ScriptPrefix.end(), ntp1Script.begin())) {
+            const std::vector<uint8_t> ntp1Script = CTransaction::ExtractOpRetData(scriptPubKey);
+            if (IsScriptNTP1(ntp1Script)) {
                 if (opReturnArg) {
                     *opReturnArg = ToHex(ntp1Script);
                 }

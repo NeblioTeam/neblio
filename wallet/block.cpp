@@ -434,18 +434,18 @@ bool CBlock::ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pinde
                         ntp1tx.readNTP1DataFromTx(pindex->nHeight, tx, inputsWithNTP1);
                     }
                 } catch (std::exception& ex) {
-                    return NLog.error(
-                        "Error while verifying NTP1Transaction validity in ConnectBlock(): "
-                        "{}",
-                        ex.what());
+                    return NLog.error("Error in transaction {} while verifying NTP1Transaction validity "
+                                      "in ConnectBlock(): "
+                                      "{}",
+                                      tx.GetHash().ToString(), ex.what());
                 } catch (...) {
-                    return NLog.error(
-                        "Error while verifying NTP1Transaction validity in ConnectBlock(). "
-                        "Unknown exception thrown");
+                    return NLog.error("Error in transaction {} while verifying NTP1Transaction validity "
+                                      "in ConnectBlock(). Unknown exception thrown",
+                                      tx.GetHash().ToString());
                 }
             }
 
-            if (EnableEnforceUniqueTokenSymbols(txdb)) {
+            if (EnableEnforceUniqueTokenSymbols(pindex->nHeight)) {
                 try {
                     AssertIssuanceUniquenessInBlock(pindex->nHeight, issuedTokensSymbolsInThisBlock,
                                                     txdb, tx, mapQueuedNTP1Inputs, mapQueuedChanges);

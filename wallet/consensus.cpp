@@ -104,6 +104,15 @@ bool EnableEnforceUniqueTokenSymbols(const ITxDB& txdb)
     }
 }
 
+bool EnableEnforceUniqueTokenSymbols(const int blockHeight)
+{
+    if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, blockHeight)) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
 bool IsIssuedTokenBlacklisted(std::pair<CTransaction, NTP1Transaction>& txPair)
 {
     const auto& prevout0      = txPair.first.vin[0].prevout;

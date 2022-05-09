@@ -1,8 +1,8 @@
 #ifndef MEMPOOLMISC_H
 #define MEMPOOLMISC_H
 
-#include "result.h"
 #include "consensus.h"
+#include "result.h"
 #include "validation.h"
 
 class CTxMemPool;
@@ -12,5 +12,6 @@ Result<void, TxValidationState> AcceptToMemoryPool(CTxMemPool& pool, const CTran
                                                    const ITxDB* txdbPtr = nullptr);
 
 bool EnableEnforceUniqueTokenSymbols(const ITxDB& txdb);
+bool EnableEnforceUniqueTokenSymbols(int blockHeight);
 
 #endif // MEMPOOLMISC_H

@@ -18,7 +18,7 @@
 #include <unordered_map>
 #include <vector>
 
-extern const std::array<uint8_t, 2> NTP1ScriptPrefix;
+extern const std::array<std::array<uint8_t, 3>, 2> NTP1ScriptPossiblePrefixes;
 
 class CTxOut;
 class CTxIndex;
@@ -143,6 +143,8 @@ public:
     void __manualSet(int NVersion, uint256 TxHash, std::vector<NTP1TxIn> Vin,
                      std::vector<NTP1TxOut> Vout, uint64_t NLockTime, uint64_t NTime,
                      NTP1TransactionType Ntp1TransactionType);
+
+    static bool IsScriptNTP1(const std::vector<uint8_t>& opReturnScript);
 
     std::vector<uint8_t> getNTP1OpReturnScript() const;
     std::string          getNTP1OpReturnScriptHex() const;
