@@ -86,9 +86,6 @@ public:
     // Destroys the underlying shared global state accessed by this TxDB.
     void Close();
 
-private:
-    int nVersion;
-
 protected:
     // Returns true and sets (value,false) if activeBatch contains the given key
     // or leaves value alone and sets deleted = true if activeBatch contains a

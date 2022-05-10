@@ -265,13 +265,16 @@ bool ShouldQuickSyncBeDone(const filesystem::path& dbdir, bool forceClearDB)
 void CTxDB::resyncIfNecessary(bool forceClearDB)
 {
 
-    nVersion = ReadVersion().value_or(0);
-    NLog.write(b_sev::info, "Transaction index version is {}", nVersion);
+    {
+        const int nVersion = ReadVersion().value_or(0);
+        NLog.write(b_sev::info, "Transaction index version is {}", nVersion);
 
-    if (nVersion != DATABASE_VERSION) {
-        NLog.write(b_sev::warn, "Required index version is {}, removing old database", DATABASE_VERSION);
+        if (nVersion != DATABASE_VERSION) {
+            NLog.write(b_sev::warn, "Required index version is {}, removing old database",
+                       DATABASE_VERSION);
 
-        forceClearDB = true;
+            forceClearDB = true;
+        }
     }
 
     NLog.write(b_sev::info, "Opened LMDB successfully");
@@ -323,7 +326,7 @@ void CTxDB::resyncIfNecessary(bool forceClearDB)
     WriteVersion(DATABASE_VERSION); // Save db schema version
 
     // ensure the correct version is now there
-    nVersion = ReadVersion().value_or(0);
+    const int nVersion = ReadVersion().value_or(0);
     if (nVersion != DATABASE_VERSION) {
         throw std::runtime_error(
             "Failed to persist database schema version number after clearing the database.");
@@ -357,6 +360,7 @@ bool CTxDB::TxnAbort() { return db->abortDBTransaction(); }
 
 boost::optional<int> CTxDB::ReadVersion()
 {
+    int nVersion = 0;
     return Read(std::string("version"), nVersion, IDB::Index::DB_MAIN_INDEX)
                ? boost::make_optional(nVersion)
                : boost::none;
