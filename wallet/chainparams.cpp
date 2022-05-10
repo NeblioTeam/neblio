@@ -6,7 +6,6 @@
 #include <chainparams.h>
 
 #include "block.h"
-#include "txdb.h"
 #include "util.h"
 #include <amount.h>
 #include <assert.h>
