@@ -1558,7 +1558,7 @@ bool CBlock::WriteBlockPubKeys(ITxDB& txdb)
     return success;
 }
 
-void UpdateWallets(const uint256& prevBestChain, const ITxDB& txdb)
+void UpdateWallets(const boost::optional<uint256>& prevBestChain, const ITxDB& txdb)
 {
     using BlockIndexCacheType = BlockIndexLRUCache<bool>;
 
@@ -1575,9 +1575,9 @@ void UpdateWallets(const uint256& prevBestChain, const ITxDB& txdb)
          * Given that a reorg can occur, the call to SyncWithWallets() should happen only after all kinds
          * of reorgs happen (including ConnectBlock). Therefore, we do it at the very end. Here.
          */
-        if (txdb.GetBestChainHeight() > 0) {
+        if (prevBestChain) {
             // get the highest block in the previous check that's main chain
-            boost::optional<CBlockIndex> ancestorOfPrevInMainChain = txdb.ReadBlockIndex(prevBestChain);
+            boost::optional<CBlockIndex> ancestorOfPrevInMainChain = txdb.ReadBlockIndex(*prevBestChain);
             assert(ancestorOfPrevInMainChain);
             while (ancestorOfPrevInMainChain->hashPrev != 0 &&
                    !ancestorOfPrevInMainChain->IsInMainChain(txdb)) {
@@ -1684,7 +1684,7 @@ bool CBlock::WriteToDisk(const boost::optional<CBlockIndex>& prevBlockIndex, con
     txEnder.reset();
 
     // after having (potentially) updated the best block, we sync with wallets
-    UpdateWallets(prevBestChain, txdb);
+    UpdateWallets(prevBestChain.IsNull() ? boost::none : boost::make_optional(prevBestChain), txdb);
 
     return true;
 }
