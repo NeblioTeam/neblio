@@ -722,7 +722,7 @@ void NTP1Transaction::readNTP1DataFromTx(
 json_spirit::Value NTP1Transaction::GetNTP1IssuanceMetadata(const int      blockHeight,
                                                             const uint256& issuanceTxid)
 {
-    CTransaction    tx = CTransaction::FetchTxFromDisk(issuanceTxid);
+    CTransaction    tx = CTransaction::FetchTxFromDisk(issuanceTxid, CTxDB());
     NTP1Transaction ntp1tx;
     ntp1tx.readNTP1DataFromTx_minimal(blockHeight, tx);
     std::string opRet;
@@ -810,7 +810,7 @@ NTP1TokenMetaData NTP1Transaction::GetFullNTP1IssuanceMetadata(const CTransactio
 NTP1TokenMetaData NTP1Transaction::GetFullNTP1IssuanceMetadata(const int      blockHeight,
                                                                const uint256& issuanceTxid)
 {
-    CTransaction    tx = CTransaction::FetchTxFromDisk(issuanceTxid);
+    CTransaction    tx = CTransaction::FetchTxFromDisk(issuanceTxid, CTxDB());
     NTP1Transaction ntp1tx;
     ntp1tx.readNTP1DataFromTx_minimal(blockHeight, tx);
     CDataStream ds1(SER_NETWORK, PROTOCOL_VERSION);

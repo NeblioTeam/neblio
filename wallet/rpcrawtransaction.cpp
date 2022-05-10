@@ -58,7 +58,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry, bo
     const int  assumedHeight = bi ? bi->nHeight : txdb.GetBestChainHeight();
 
     if (isNTP1 && !ignoreNTP1) {
-        pair = std::make_pair(CTransaction::FetchTxFromDisk(tx.GetHash()), NTP1Transaction());
+        pair = std::make_pair(CTransaction::FetchTxFromDisk(tx.GetHash(), txdb), NTP1Transaction());
         FetchNTP1TxFromDisk(pair, txdb, false);
         if (pair.second.isNull()) {
             isNTP1 = false;

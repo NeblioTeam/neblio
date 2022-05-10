@@ -782,12 +782,6 @@ bool CTransaction::GetCoinAge(const int spentAtHeight, const ITxDB& txdb, uint64
     return true;
 }
 
-CTransaction CTransaction::FetchTxFromDisk(const uint256& txid)
-{
-    CTxDB txdb;
-    return FetchTxFromDisk(txid, txdb);
-}
-
 CTransaction CTransaction::FetchTxFromDisk(const uint256& txid, const ITxDB& txdb)
 {
     CTransaction result;
@@ -822,7 +816,7 @@ std::vector<CKey> CTransaction::GetThisWalletKeysOfTx(const uint256&            
     // first we try to find it in the mempool, if not found, we look on disk
     bool foundInMempool = mempool.lookup(txid, tx);
     if (!foundInMempool) {
-        tx = CTransaction::FetchTxFromDisk(txid);
+        tx = CTransaction::FetchTxFromDisk(txid, CTxDB());
     }
 
     std::vector<CKey> keys;

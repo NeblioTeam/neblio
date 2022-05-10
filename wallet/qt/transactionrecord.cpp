@@ -188,7 +188,7 @@ void TransactionRecord::readNTP1TxData()
     const CTxDB txdb;
     try {
         if (!mempool.lookup(hash, tx)) {
-            tx = CTransaction::FetchTxFromDisk(hash);
+            tx = CTransaction::FetchTxFromDisk(hash, txdb);
         }
         std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs =
             NTP1Transaction::GetAllNTP1InputsOfTx(tx, txdb, false);

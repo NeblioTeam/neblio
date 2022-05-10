@@ -137,7 +137,7 @@ void AssertNTP1TokenNameIsNotAlreadyInMainChain(const std::string& sym, const ui
             if (!IsTxInMainChain(txdb, h)) {
                 continue;
             }
-            auto pair = std::make_pair(CTransaction::FetchTxFromDisk(h), NTP1Transaction());
+            auto pair = std::make_pair(CTransaction::FetchTxFromDisk(h, txdb), NTP1Transaction());
             FetchNTP1TxFromDisk(pair, txdb, false);
             std::string storedSymbol = pair.second.getTokenSymbolIfIssuance();
             // blacklisted tokens can be duplicated, since they won't be used ever again

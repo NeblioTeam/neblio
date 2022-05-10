@@ -186,7 +186,6 @@ public:
     // ppcoin: get transaction coin age
     bool GetCoinAge(const int spentAtHeight, const ITxDB& txdb, uint64_t& nCoinAge) const;
 
-    [[nodiscard]] static CTransaction FetchTxFromDisk(const uint256& txid);
     [[nodiscard]] static CTransaction FetchTxFromDisk(const uint256& txid, const ITxDB& txdb);
 
     [[nodiscard]] static std::vector<CKey>

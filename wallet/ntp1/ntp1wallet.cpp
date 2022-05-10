@@ -159,7 +159,7 @@ void NTP1Wallet::__getOutputs()
                     uint256      issueTxid = tokenTx.getIssueTxId();
                     CTransaction issueTx;
                     try {
-                        issueTx = CTransaction::FetchTxFromDisk(issueTxid);
+                        issueTx = CTransaction::FetchTxFromDisk(issueTxid, txdb);
                     } catch (const std::exception& ex) {
                         if (!mempool.lookup(issueTxid, issueTx)) {
                             throw std::runtime_error(
