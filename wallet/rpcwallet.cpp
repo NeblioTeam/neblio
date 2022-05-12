@@ -846,6 +846,9 @@ Value udtoneblioaddress(const Array& params, bool fHelp)
                                  "internet connectivity has a problem.");
     }
 
+    throw std::runtime_error("Unstoppable Domains removed support for public DNS queries. We are "
+                             "working with them on a new solution");
+
     return *neblAddress;
 }
 
