@@ -90,6 +90,13 @@ public:
 
     struct IssuanceFlags
     {
+        IssuanceFlags()
+        {
+            divisibility      = 0;
+            locked            = true;
+            aggregationPolicy = AggregationPolicy_Aggregatable;
+        }
+
         unsigned int divisibility;
         bool         locked; // no more issuing allowed
         enum AggregationPolicy

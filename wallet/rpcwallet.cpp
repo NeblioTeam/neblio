@@ -130,8 +130,8 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("difficulty", diff));
 
     obj.push_back(Pair("testnet", Params().NetType() != NetworkType::Mainnet));
-    obj.push_back(
-        Pair("tachyon", Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, txdb)));
+    obj.push_back(Pair("tachyon", Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON,
+                                                                         txdb.GetBestChainHeight())));
     obj.push_back(Pair("keypoololdest", (int64_t)pwalletMain->GetOldestKeyPoolTime()));
     obj.push_back(Pair("keypoolsize", (int)pwalletMain->GetKeyPoolSize()));
     obj.push_back(Pair("paytxfee", ValueFromAmount(nTransactionFee)));
@@ -832,6 +832,9 @@ Value udtoneblioaddress(const Array& params, bool fHelp)
             "udtoneblioaddress <unstoppable domain address>\n"
             "Returns the neblio address associated with the provided unstoppable domain");
 
+    throw std::runtime_error("Unstoppable Domains removed support for public DNS queries. We are "
+                             "working with them on a new solution");
+
     string strUDDomain;
     if (params.size() > 0)
         strUDDomain = params[0].get_str();
@@ -1001,7 +1004,7 @@ Value getreceivedbyaccount(const Array& params, bool fHelp)
 
         for (const CTxOut& txout : wtx.vout) {
             CTxDestination address;
-            if (ExtractDestination(CTxDB(), txout.scriptPubKey, address) &&
+            if (ExtractDestination(CTxDB().GetBestChainHeight(), txout.scriptPubKey, address) &&
                 IsMine(*pwalletMain, address) != isminetype::ISMINE_NO && setAddress.count(address))
                 if (wtx.GetDepthInMainChain(txdb, bestBlockHash) >= nMinDepth)
                     nAmount += txout.nValue;
@@ -1616,7 +1619,7 @@ Value sendmany(const Array& params, bool fHelp)
         std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
             NTP1Transaction::GetAllNTP1InputsOfTx(wtx, txdb, false);
         NTP1Transaction ntp1tx;
-        ntp1tx.readNTP1DataFromTx(CTxDB(), wtx, inputsTxs);
+        ntp1tx.readNTP1DataFromTx(CTxDB().GetBestChainHeight(), wtx, inputsTxs);
     } catch (std::exception& ex) {
         NLog.write(b_sev::info, "An invalid NTP1 transaction was created; an exception was thrown: {}",
                    ex.what());
@@ -1766,7 +1769,7 @@ Value ListReceived(const Array& params, bool fByAccounts)
 
         for (const CTxOut& txout : wtx.vout) {
             CTxDestination address;
-            if (!ExtractDestination(txdb, txout.scriptPubKey, address) ||
+            if (!ExtractDestination(txdb.GetBestChainHeight(), txout.scriptPubKey, address) ||
                 !IsMineCheck(IsMine(*pwalletMain, address), static_cast<isminetype>(filter)))
                 continue;
 
@@ -1896,7 +1899,7 @@ void ListTransactions(const ITxDB& txdb, const CWalletTx& wtx, const string& str
             entry.push_back(Pair("category", "send"));
             entry.push_back(Pair("amount", ValueFromAmount(-s.second)));
             entry.push_back(Pair("fee", ValueFromAmount(-nFee)));
-            entry.push_back(Pair("blockheight", txdb.GetBestChainHeight().value_or(0) -
+            entry.push_back(Pair("blockheight", txdb.GetBestChainHeight() -
                                                     wtx.GetDepthInMainChain(txdb, bestBlockHash)));
             if (fLong)
                 WalletTxToJSON(wtx, entry);
@@ -1932,7 +1935,7 @@ void ListTransactions(const ITxDB& txdb, const CWalletTx& wtx, const string& str
                     entry.push_back(Pair("amount", ValueFromAmount(-nFee)));
                     stop = true; // only one coinstake output
                 }
-                entry.push_back(Pair("blockheight", 1 + txdb.GetBestChainHeight().value_or(0) -
+                entry.push_back(Pair("blockheight", 1 + txdb.GetBestChainHeight() -
                                                         wtx.GetDepthInMainChain(txdb, bestBlockHash)));
                 if (fLong)
                     WalletTxToJSON(wtx, entry);
@@ -2139,7 +2142,7 @@ Value listsinceblock(const Array& params, bool fHelp)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter");
     }
 
-    const int currentHeight = txdb.GetBestChainHeight().value_or(0);
+    const int currentHeight = txdb.GetBestChainHeight();
 
     int depth = index ? (1 + currentHeight - index->nHeight) : -1;
 
@@ -2182,7 +2185,7 @@ Value listsinceblock(const Array& params, bool fHelp)
     if (target_confirms == 1) {
         lastblock = txdb.GetBestBlockHash();
     } else {
-        int target_height = txdb.GetBestChainHeight().value_or(0) + 1 - target_confirms;
+        int target_height = txdb.GetBestChainHeight() + 1 - target_confirms;
 
         boost::optional<CBlockIndex> block;
         for (block = txdb.GetBestBlockIndex(); block && block->nHeight > target_height;) {
@@ -2264,8 +2267,8 @@ Value gettransaction(const Array& params, bool fHelp)
                 const auto bi = txdb.ReadBlockIndex(hashBlock);
                 if (bi) {
                     if (bi->IsInMainChain(txdb))
-                        entry.push_back(Pair("confirmations",
-                                             1 + txdb.GetBestChainHeight().value_or(0) - bi->nHeight));
+                        entry.push_back(
+                            Pair("confirmations", 1 + txdb.GetBestChainHeight() - bi->nHeight));
                     else
                         entry.push_back(Pair("confirmations", 0));
                 }
@@ -2595,7 +2598,7 @@ public:
         std::vector<CTxDestination> addresses;
         txnouttype                  whichType;
         int                         nRequired;
-        ExtractDestinations(CTxDB(), subscript, whichType, addresses, nRequired);
+        ExtractDestinations(CTxDB().GetBestChainHeight(), subscript, whichType, addresses, nRequired);
         obj.push_back(Pair("script", GetTxnOutputType(whichType)));
         obj.push_back(Pair("hex", HexStr(subscript.begin(), subscript.end())));
         Array a;
@@ -2806,7 +2809,8 @@ Value listcoldutxos(const Array& params, bool fHelp)
             txnouttype                  type;
             std::vector<CTxDestination> addresses;
             int                         nRequired;
-            if (!ExtractDestinations(CTxDB(), out.scriptPubKey, type, addresses, nRequired))
+            if (!ExtractDestinations(CTxDB().GetBestChainHeight(), out.scriptPubKey, type, addresses,
+                                     nRequired))
                 continue;
             const bool fWhitelisted = pwalletMain->mapAddressBook.exists(addresses[1]) > 0;
             if (fExcludeWhitelisted && fWhitelisted)

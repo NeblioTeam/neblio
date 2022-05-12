@@ -336,7 +336,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(QList<SendCoinsRecipient>   
             std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
                 NTP1Transaction::GetAllNTP1InputsOfTx(wtx, txdb, false);
             NTP1Transaction ntp1tx;
-            ntp1tx.readNTP1DataFromTx(txdb, wtx, inputsTxs);
+            ntp1tx.readNTP1DataFromTx(txdb.GetBestChainHeight(), wtx, inputsTxs);
         } catch (const std::exception& ex) {
             NLog.write(b_sev::info,
                        "An invalid NTP1 transaction was created; an exception was thrown: {}",
@@ -582,7 +582,7 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput>>& mapCoins) c
         }
 
         CTxDestination address;
-        if (!ExtractDestination(txdb, cout.tx->vout[cout.i].scriptPubKey, address))
+        if (!ExtractDestination(txdb.GetBestChainHeight(), cout.tx->vout[cout.i].scriptPubKey, address))
             continue;
         mapCoins[CBitcoinAddress(address).ToString().c_str()].push_back(out);
     }

@@ -107,7 +107,8 @@ unsigned int LimitOrphanTxSize(unsigned int nMaxOrphans)
 /** Minimum Peer Version */
 int MinPeerVersion(const ITxDB& txdb)
 {
-    if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__5_COLD_STAKING, txdb)) {
+    if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__5_COLD_STAKING,
+                                               txdb.GetBestChainHeight())) {
         return MIN_PEER_PROTO_VERSION;
     } else {
         return OLD_MIN_PEER_PROTO_VERSION;
@@ -225,7 +226,7 @@ MessageProcessResult handleMsg_version(CNode* pfrom, CDataStream& vRecv)
     const bool neverAskedForBlocksBefore = (nAskedForBlocks < 1 || vNodes.size() <= 1);
     const bool withinAllowedVersionRange =
         (pfrom->nVersion < NOBLKS_VERSION_START || pfrom->nVersion >= NOBLKS_VERSION_END);
-    const bool peerHasNewBlocks = (pfrom->nStartingHeight > txdb.GetBestChainHeight().value_or(0) - 144);
+    const bool peerHasNewBlocks = (pfrom->nStartingHeight > txdb.GetBestChainHeight() - 144);
 
     if (!fImporting && !pfrom->fClient && !pfrom->fOneShot &&
         ((peerHasNewBlocks && withinAllowedVersionRange && neverAskedForBlocksBefore) ||
@@ -508,7 +509,7 @@ MessageProcessResult handleMsg_getblocks(CNode* pfrom, CDataStream& vRecv)
         if (pindex->GetBlockHash() == hashStop) {
             NLog.write(b_sev::info, "  getblocks stopping at {} {}", pindex->nHeight,
                        pindex->GetBlockHash().ToString());
-            unsigned int nSMA = Params().StakeMinAge(txdb);
+            unsigned int nSMA = Params().StakeMinAge(txdb.GetBestChainHeight());
             // ppcoin: tell downloading node about the latest block if it's
             // without risk being rejected due to stake connection check
             uint256 bestBlockHash = txdb.GetBestBlockHash();
@@ -925,7 +926,7 @@ bool IsInitialBlockDownload(const ITxDB& txdb)
     if (latchToFalse.load(std::memory_order_acquire))
         return false;
 
-    if (txdb.GetBestChainHeight().value_or(0) < Checkpoints::GetTotalBlocksEstimate())
+    if (txdb.GetBestChainHeight() < Checkpoints::GetTotalBlocksEstimate())
         return true;
     if (fImporting)
         return true;
@@ -1039,8 +1040,14 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
                               pblock->GetProofOfStake().second, hash.ToString());
         }
 
+        const boost::optional<CBlockIndex> prevBlockIndex = txdb.ReadBlockIndex(pblock->hashPrevBlock);
+
+        // we cannot know the height for orphan blocks, so we assume they're ahead in the future
+        const int assumedNewHeight =
+            prevBlockIndex ? prevBlockIndex->nHeight + 1 : txdb.GetBestChainHeight() + 1;
+
         // Preliminary checks
-        if (!pblock->CheckBlock(txdb, hash))
+        if (!pblock->CheckBlock(assumedNewHeight))
             return NLog.error("ProcessBlock() : CheckBlock FAILED");
 
         const boost::optional<CBlockIndex> checkpoint = Checkpoints::GetLastCheckpoint(txdb);
@@ -1066,8 +1073,6 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
                                   pblock->IsProofOfStake() ? "proof-of-stake" : "proof-of-work");
             }
         }
-
-        const boost::optional<CBlockIndex> prevBlockIndex = txdb.ReadBlockIndex(pblock->hashPrevBlock);
 
         // If don't already have its previous block, shunt it off to holding area until we get it
         if (!prevBlockIndex) {

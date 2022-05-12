@@ -128,7 +128,7 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
     int         confirmations = -1;
     // Only report confirmations if the block is on the main chain
     if (blockindex->IsInMainChain(txdb))
-        confirmations = txdb.GetBestChainHeight().value_or(0) - blockindex->nHeight + 1;
+        confirmations = txdb.GetBestChainHeight() - blockindex->nHeight + 1;
     result.push_back(Pair("confirmations", confirmations));
     result.push_back(Pair("size", (int)::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION)));
     result.push_back(Pair("height", blockindex->nHeight));
@@ -200,7 +200,7 @@ Value getblockcount(const Array& params, bool fHelp)
         throw runtime_error("getblockcount\n"
                             "Returns the number of blocks in the longest block chain.");
 
-    return CTxDB().GetBestChainHeight().value_or(0);
+    return CTxDB().GetBestChainHeight();
 }
 
 Value getdifficulty(const Array& params, bool fHelp)
@@ -252,7 +252,7 @@ Value getblockhash(const Array& params, bool fHelp)
                             "Returns hash of block in best-block-chain at <index>.");
 
     int nHeight = params[0].get_int();
-    if (nHeight < 0 || nHeight > CTxDB().GetBestChainHeight().value_or(0))
+    if (nHeight < 0 || nHeight > CTxDB().GetBestChainHeight())
         throw runtime_error("Block number out of range.");
 
     boost::optional<CBlockIndex> pblockindex = CBlock::FindBlockByHeight(nHeight);
@@ -334,7 +334,7 @@ Value getblockbynumber(const Array& params, bool fHelp)
                             "transaction is not in the blockchain.");
 
     int nHeight = params[0].get_int();
-    if (nHeight < 0 || nHeight > CTxDB().GetBestChainHeight().value_or(0))
+    if (nHeight < 0 || nHeight > CTxDB().GetBestChainHeight())
         throw runtime_error("Block number out of range.");
 
     const CTxDB txdb;
@@ -457,7 +457,7 @@ Value waitforblockheight(const Array& params, bool fHelp)
         NLog.write(b_sev::info, "Timeout set to: {}", timeout);
     }
 
-    const auto bestHeight = []() -> int { return CTxDB().GetBestChainHeight().value_or(0); };
+    const auto bestHeight = []() -> int { return CTxDB().GetBestChainHeight(); };
 
     int totalMilliSeconds = 0;
     while (totalMilliSeconds <= timeout && bestHeight() < height && IsRPCRunning()) {
@@ -530,7 +530,7 @@ Value getblockchaininfo(const Array& params, bool fHelp)
 
     Object obj;
     obj.push_back(Pair("chain", Params().NetworkIDString()));
-    obj.push_back(Pair("blocks", CTxDB().GetBestChainHeight().value_or(0)));
+    obj.push_back(Pair("blocks", CTxDB().GetBestChainHeight()));
     obj.push_back(Pair("headers", bestBlockIndex ? bestBlockIndex->nHeight : -1));
     obj.push_back(Pair("bestblockhash", bestBlockIndex->blockHash.GetHex()));
     obj.push_back(Pair("difficulty", (double)GetDifficulty()));
@@ -556,7 +556,7 @@ Value blockheaderToJSON(const CBlockIndex* blockindex)
     int confirmations = -1;
     // Only report confirmations if the block is on the main chain
     if (blockindex->IsInMainChain(txdb))
-        confirmations = txdb.GetBestChainHeight().value_or(0) - blockindex->nHeight + 1;
+        confirmations = txdb.GetBestChainHeight() - blockindex->nHeight + 1;
     result.push_back(Pair("confirmations", confirmations));
     result.push_back(Pair("height", blockindex->nHeight));
     result.push_back(Pair("version", blockindex->nVersion));

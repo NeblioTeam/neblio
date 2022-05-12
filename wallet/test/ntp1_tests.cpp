@@ -684,10 +684,9 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_issuance)
               "66216fa9cc0167568c3e5f8b66e7fe3690072f66a5f41df222327de7af10ff80");
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
-    EXPECT_TRUE(tx.CheckTransaction(*dbMock).isOk());
+    EXPECT_TRUE(tx.CheckTransaction(dbMock->GetBestChainHeight()).isOk());
 
     std::string opReturnArg;
     EXPECT_TRUE(NTP1Transaction::IsTxNTP1(&tx, &opReturnArg));
@@ -732,11 +731,11 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_issuance)
     ////////////////////////////////////////////////////
 
     for (auto&& input : inputs) {
-        input.second.readNTP1DataFromTx_minimal(*dbMock, input.first);
+        input.second.readNTP1DataFromTx_minimal(dbMock->GetBestChainHeight(), input.first);
     }
 
     NTP1Transaction ntp1tx;
-    EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(*dbMock, tx, inputs));
+    EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(dbMock->GetBestChainHeight(), tx, inputs));
     EXPECT_EQ(ntp1tx.getTxInCount(), 1u);
     EXPECT_EQ(ntp1tx.getTxIn(0).getNumOfTokens(), 0u);
     EXPECT_EQ(ntp1tx.getTxOutCount(), 3u);
@@ -774,11 +773,10 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
         "8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     CTransaction tx = TxFromHex(transaction);
-    EXPECT_TRUE(tx.CheckTransaction(*dbMock).isOk());
+    EXPECT_TRUE(tx.CheckTransaction(dbMock->GetBestChainHeight()).isOk());
 
     std::string opReturnArg;
     EXPECT_TRUE(NTP1Transaction::IsTxNTP1(&tx, &opReturnArg));
@@ -935,7 +933,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_1)
     ////////////////////////////////////////////
 
     NTP1Transaction ntp1tx;
-    ASSERT_NO_THROW(ntp1tx.readNTP1DataFromTx(*dbMock, tx, inputs));
+    ASSERT_NO_THROW(ntp1tx.readNTP1DataFromTx(dbMock->GetBestChainHeight(), tx, inputs));
     EXPECT_EQ(ntp1tx.getTxInCount(), 2u);
     // inputs are unknown, so no more tests
     EXPECT_EQ(ntp1tx.getTxOutCount(), 4u);
@@ -972,11 +970,10 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
         "8c3da2cbe606fd5d46b11ab9211705770db88ac00000000";
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     CTransaction tx = TxFromHex(transaction);
-    EXPECT_TRUE(tx.CheckTransaction(*dbMock).isOk());
+    EXPECT_TRUE(tx.CheckTransaction(dbMock->GetBestChainHeight()).isOk());
 
     std::string opReturnArg;
     EXPECT_TRUE(NTP1Transaction::IsTxNTP1(&tx, &opReturnArg));
@@ -1128,7 +1125,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_transfer_2_with_change)
     ////////////////////////////////////////////
 
     NTP1Transaction ntp1tx;
-    ASSERT_NO_THROW(ntp1tx.readNTP1DataFromTx(*dbMock, tx, inputs));
+    ASSERT_NO_THROW(ntp1tx.readNTP1DataFromTx(dbMock->GetBestChainHeight(), tx, inputs));
     EXPECT_EQ(ntp1tx.getTxInCount(), 2u);
     // inputs are unknown, so no more tests
     EXPECT_EQ(ntp1tx.getTxOutCount(), 4u);
@@ -1172,11 +1169,10 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
         "0db88ac00000000";
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     CTransaction tx = TxFromHex(transaction);
-    EXPECT_TRUE(tx.CheckTransaction(*dbMock).isOk());
+    EXPECT_TRUE(tx.CheckTransaction(dbMock->GetBestChainHeight()).isOk());
 
     std::string vinA =
         "010000005944185b0226d0e3af9cf2fa36d2cbecd53d54dc68e35489c85fae907e050165dc1a980413010000006"
@@ -1419,7 +1415,7 @@ TEST(ntp1_tests, parsig_ntp1_from_ctransaction_burn_with_transfer_1)
     EXPECT_EQ(scriptPtrD->getTxType(), NTP1Script::TxType::TxType_Burn);
 
     NTP1Transaction ntp1tx;
-    EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(*dbMock, tx, inputs));
+    EXPECT_NO_THROW(ntp1tx.readNTP1DataFromTx(dbMock->GetBestChainHeight(), tx, inputs));
     EXPECT_EQ(ntp1tx.getTxInCount(), 4u);
     // inputs are unknown, so no more tests
     EXPECT_EQ(ntp1tx.getTxOutCount(), 3u);
@@ -1631,11 +1627,10 @@ void TestNTP1TxParsing_onlyRead(const CTransaction& tx, NetworkType netType)
     }
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     NTP1Transaction ntp1tx;
-    ntp1tx.readNTP1DataFromTx(*dbMock, tx, inputs);
+    ntp1tx.readNTP1DataFromTx(dbMock->GetBestChainHeight(), tx, inputs);
 }
 
 void TestScriptParsing(std::string OpReturnArg, const CTransaction& tx)
@@ -1663,10 +1658,9 @@ void TestNTP1TxParsing(const CTransaction& tx, NetworkType netType)
     const NTP1Transaction ntp1tx_ref = NTP1APICalls::RetrieveData_TransactionInfo(txid, netType);
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
-    EXPECT_TRUE(tx.CheckTransaction(*dbMock).isOk()) << "Failed tx: " << txid;
+    EXPECT_TRUE(tx.CheckTransaction(dbMock->GetBestChainHeight()).isOk()) << "Failed tx: " << txid;
 
     std::vector<std::pair<CTransaction, NTP1Transaction>> inputs;
 
@@ -1685,7 +1679,7 @@ void TestNTP1TxParsing(const CTransaction& tx, NetworkType netType)
     }
 
     NTP1Transaction ntp1tx;
-    ntp1tx.readNTP1DataFromTx(*dbMock, tx, inputs);
+    ntp1tx.readNTP1DataFromTx(dbMock->GetBestChainHeight(), tx, inputs);
 
     const std::vector<uint8_t> scriptBin = ntp1tx.getNTP1OpReturnScript();
     const std::string          scriptHex = ntp1tx.getNTP1OpReturnScriptHex();
@@ -1780,12 +1774,11 @@ void TestSingleNTP1TxParsingLocally(const CTransaction&                       tx
     const std::string  ntp1tx_ref_str = ntp1txs_map.find(txid)->second;
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(10000000)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(10000000));
 
     NTP1Transaction ntp1tx_ref;
     ntp1tx_ref.importJsonData(ntp1tx_ref_str);
-    EXPECT_TRUE(tx.CheckTransaction(*dbMock).isOk()) << "Failed tx: " << txid;
+    EXPECT_TRUE(tx.CheckTransaction(dbMock->GetBestChainHeight()).isOk()) << "Failed tx: " << txid;
 
     std::string OpReturnArg;
     EXPECT_TRUE(NTP1Transaction::IsTxNTP1(&tx, &OpReturnArg));
@@ -1807,7 +1800,7 @@ void TestSingleNTP1TxParsingLocally(const CTransaction&                       tx
     }
 
     NTP1Transaction ntp1tx;
-    ntp1tx.readNTP1DataFromTx(*dbMock, tx, inputs);
+    ntp1tx.readNTP1DataFromTx(dbMock->GetBestChainHeight(), tx, inputs);
 
     EXPECT_EQ(ntp1tx.getTxOutCount(), ntp1tx_ref.getTxOutCount()) << "Failed tx: " << txid;
     for (int i = 0; i < (int)ntp1tx.getTxOutCount(); i++) {
@@ -2254,11 +2247,10 @@ TEST(ntp1_tests, amend_tx_1)
     tx.vout.push_back(out1);
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     auto inputs = GetNTP1InputsOnline(tx, NetworkType::Testnet);
-    NTP1Transaction::AmendStdTxWithNTP1(*dbMock, tx, inputs, 1);
+    NTP1Transaction::AmendStdTxWithNTP1(dbMock->GetBestChainHeight(), tx, inputs, 1);
 
     EXPECT_EQ(tx.vout.size(), 4u);
     EXPECT_EQ(tx.vout[0], out0);
@@ -2299,11 +2291,10 @@ TEST(ntp1_tests, amend_tx_2)
     tx.vout.push_back(out1);
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     auto inputs = GetNTP1InputsOnline(tx, NetworkType::Testnet);
-    NTP1Transaction::AmendStdTxWithNTP1(*dbMock, tx, inputs, 1);
+    NTP1Transaction::AmendStdTxWithNTP1(dbMock->GetBestChainHeight(), tx, inputs, 1);
 
     EXPECT_EQ(tx.vout.size(), 2u);
     EXPECT_EQ(tx.vout[0], out0);
@@ -2336,11 +2327,10 @@ TEST(ntp1_tests, amend_tx_3)
     tx.vout.push_back(out1);
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     auto inputs = GetNTP1InputsOnline(tx, NetworkType::Testnet);
-    NTP1Transaction::AmendStdTxWithNTP1(*dbMock, tx, inputs, 1);
+    NTP1Transaction::AmendStdTxWithNTP1(dbMock->GetBestChainHeight(), tx, inputs, 1);
 
     EXPECT_EQ(tx.vout.size(), 4u);
     EXPECT_EQ(tx.vout[0], out0);
@@ -2387,11 +2377,10 @@ TEST(ntp1_tests, amend_tx_4)
     tx.vout.push_back(out1);
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     auto inputs = GetNTP1InputsOnline(tx, NetworkType::Testnet);
-    NTP1Transaction::AmendStdTxWithNTP1(*dbMock, tx, inputs, 1);
+    NTP1Transaction::AmendStdTxWithNTP1(dbMock->GetBestChainHeight(), tx, inputs, 1);
 
     ASSERT_EQ(tx.vout.size(), 5u);
     EXPECT_EQ(tx.vout[0], out0);
@@ -2447,11 +2436,10 @@ TEST(ntp1_tests, amend_tx_5)
     tx.vout.push_back(out1);
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     auto inputs = GetNTP1InputsOnline(tx, NetworkType::Testnet);
-    NTP1Transaction::AmendStdTxWithNTP1(*dbMock, tx, inputs, 1);
+    NTP1Transaction::AmendStdTxWithNTP1(dbMock->GetBestChainHeight(), tx, inputs, 1);
 
     ASSERT_EQ(tx.vout.size(), 8u);
     EXPECT_EQ(tx.vout[0], out0);
@@ -2521,11 +2509,10 @@ TEST(ntp1_tests, amend_tx_6)
     tx.vout.push_back(out1);
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     auto inputs = GetNTP1InputsOnline(tx, NetworkType::Testnet);
-    NTP1Transaction::AmendStdTxWithNTP1(*dbMock, tx, inputs, 1);
+    NTP1Transaction::AmendStdTxWithNTP1(dbMock->GetBestChainHeight(), tx, inputs, 1);
 
     ASSERT_EQ(tx.vout.size(), 8u);
     EXPECT_EQ(tx.vout[0], out0);
@@ -2696,11 +2683,10 @@ TEST(ntp1_tests, amend_tx_with_op_return)
     tx.vout.push_back(out2);
 
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     auto inputs = GetNTP1InputsOnline(tx, NetworkType::Testnet);
-    EXPECT_ANY_THROW(NTP1Transaction::AmendStdTxWithNTP1(*dbMock, tx, inputs, 1));
+    EXPECT_ANY_THROW(NTP1Transaction::AmendStdTxWithNTP1(dbMock->GetBestChainHeight(), tx, inputs, 1));
 }
 
 std::vector<std::pair<CTransaction, int>> GetInputsOnline(const CTransaction& tx, NetworkType netType)

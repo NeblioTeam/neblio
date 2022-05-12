@@ -111,7 +111,8 @@ public:
 };
 
 // CreateNewBlock: create new block (without proof-of-work/proof-of-stake)
-std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees,
+std::unique_ptr<CBlock> CreateNewBlock(const CBlockIndex& pindexPrev, const ITxDB& txdb,
+                                       CWallet* pwallet, bool fProofOfStake, int64_t* pFees,
                                        const boost::optional<CBitcoinAddress>& PoWDestination)
 {
     // Create new block
@@ -119,9 +120,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
     if (!pblock)
         return nullptr;
 
-    const CTxDB txdb;
-
-    boost::optional<CBlockIndex> pindexPrev = txdb.GetBestBlockIndex();
+    const int newBlockHeight = pindexPrev.nHeight + 1;
 
     // Create coinbase tx
     CTransaction coinbaseTx;
@@ -144,7 +143,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
         }
     } else {
         // Height first in coinbase required for block.version=2
-        coinbaseTx.vin[0].scriptSig = (CScript() << pindexPrev->nHeight + 1) + COINBASE_FLAGS;
+        coinbaseTx.vin[0].scriptSig = (CScript() << newBlockHeight) + COINBASE_FLAGS;
         assert(coinbaseTx.vin[0].scriptSig.size() <= 100);
 
         coinbaseTx.vout[0].SetEmpty();
@@ -158,7 +157,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
     // Add our coinbase tx as first transaction
     pblock->vtx.push_back(coinbaseTx);
 
-    unsigned int nSizeLimit = MaxBlockSize(txdb);
+    unsigned int nSizeLimit = MaxBlockSize(newBlockHeight);
 
     // Largest block you're willing to create:
     unsigned int nBlockMaxSize = GetArg("-blockmaxsize", nSizeLimit);
@@ -187,7 +186,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
         ParseMoney(*minTxFee, nMinTxFee);
     }
 
-    pblock->nBits = GetNextTargetRequired(txdb, &*pindexPrev, fProofOfStake);
+    pblock->nBits = GetNextTargetRequired(txdb, &pindexPrev, fProofOfStake);
 
     // map of issued token names in this block vs token hashes
     // this is used to prevent duplicate token names
@@ -209,7 +208,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
         for (map<uint256, CTransaction>::const_iterator mi = mempool_.mapTx.cbegin();
              mi != mempool_.mapTx.cend(); ++mi) {
             const CTransaction& tx = (*mi).second;
-            if (tx.IsCoinBase() || tx.IsCoinStake() || !IsFinalTx(tx, txdb, pindexPrev->nHeight + 1))
+            if (tx.IsCoinBase() || tx.IsCoinStake() || !IsFinalTx(tx, txdb, newBlockHeight))
                 continue;
 
             COrphan* porphan        = nullptr;
@@ -353,7 +352,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
                             tx, mapInputs, txdb, false, mapQueuedNTP1InputsTmp, mapTestPoolTmp);
 
                         NTP1Transaction ntp1tx;
-                        ntp1tx.readNTP1DataFromTx(txdb, tx, inputsTxs);
+                        ntp1tx.readNTP1DataFromTx(newBlockHeight, tx, inputsTxs);
                         AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, txdb);
                         if (ntp1tx.getTxType() == NTP1TxType_ISSUANCE) {
                             std::string currSymbol = ntp1tx.getTokenSymbolIfIssuance();
@@ -435,14 +434,14 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
             *pFees = nFees;
 
         // Fill in header
-        pblock->hashPrevBlock = pindexPrev->GetBlockHash();
-        pblock->nTime = max(pindexPrev->GetPastTimeLimit(txdb) + 1, pblock->GetMaxTransactionTime());
-        pblock->nTime = max(pblock->GetBlockTime(), PastDrift(pindexPrev->GetBlockTime()));
+        pblock->hashPrevBlock = pindexPrev.GetBlockHash();
+        pblock->nTime = max(pindexPrev.GetPastTimeLimit(txdb) + 1, pblock->GetMaxTransactionTime());
+        pblock->nTime = max(pblock->GetBlockTime(), PastDrift(pindexPrev.GetBlockTime()));
         if (!fProofOfStake)
-            pblock->UpdateTime(&*pindexPrev);
+            pblock->UpdateTime(&pindexPrev);
 
         // we use the unused nonce number to store votes
-        if (const auto& vote = blockVotes.getProposalAtBlockHeight(pindexPrev->nHeight + 1)) {
+        if (const auto& vote = blockVotes.getProposalAtBlockHeight(newBlockHeight)) {
             pblock->nNonce = vote->getVoteValueAndProposalID().serializeToUint32();
         } else {
             pblock->nNonce = 0;
@@ -553,7 +552,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
     return true;
 }
 
-bool CheckStake(const ITxDB& txdb, CBlock* pblock, CWallet& wallet)
+bool CheckStake(const int stakeBlockHeight, const ITxDB& txdb, CBlock* pblock, CWallet& wallet)
 {
     uint256 proofHash = 0, hashTarget = 0;
     uint256 hashBlock = pblock->GetHash();
@@ -562,7 +561,7 @@ bool CheckStake(const ITxDB& txdb, CBlock* pblock, CWallet& wallet)
         return NLog.error("CheckStake() : {} is not a proof-of-stake block", hashBlock.GetHex());
 
     // verify hash target and signature of coinstake tx
-    if (!CheckProofOfStake(txdb, pblock->vtx[1], pblock->nBits, proofHash, hashTarget))
+    if (!CheckProofOfStake(stakeBlockHeight, txdb, pblock->vtx[1], pblock->nBits, proofHash, hashTarget))
         return NLog.error("CheckStake() : proof-of-stake checking failed");
 
     //// debug print
@@ -641,24 +640,26 @@ void StakeMiner(std::shared_ptr<CWallet> pwallet)
                 vNodesSize = vNodes.size();
             }
             const int blockCountEstimate = GetNumBlocksOfPeers();
-            if (vNodesSize < 3 || txdb.GetBestChainHeight().value_or(0) < blockCountEstimate) {
+            if (vNodesSize < 3 || txdb.GetBestChainHeight() < blockCountEstimate) {
                 MilliSleep(60000);
                 continue;
             }
         }
 
+        const CBlockIndex pindexPrev = txdb.GetBestBlockIndex().value();
+
         //
         // Create new block
         //
         CAmount                 nFees;
-        std::unique_ptr<CBlock> pblock = CreateNewBlock(pwallet.get(), true, &nFees);
+        std::unique_ptr<CBlock> pblock = CreateNewBlock(pindexPrev, txdb, pwallet.get(), true, &nFees);
         if (!pblock)
             return;
 
         // Trying to sign a block
         if (pblock->SignBlock(txdb, *pwallet, nFees)) {
             SetThreadPriority(THREAD_PRIORITY_NORMAL);
-            CheckStake(txdb, pblock.get(), *pwallet);
+            CheckStake(pindexPrev.nHeight + 1, txdb, pblock.get(), *pwallet);
             SetThreadPriority(THREAD_PRIORITY_LOWEST);
             MilliSleep(500);
         } else {

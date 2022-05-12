@@ -1,9 +1,9 @@
 #ifndef CPARTIALMERKLETREE_H
 #define CPARTIALMERKLETREE_H
 
-#include <vector>
-#include <uint256.h>
 #include <serialize.h>
+#include <uint256.h>
+#include <vector>
 
 /** Data structure that represents a partial merkle tree.
  *
@@ -71,8 +71,8 @@ protected:
 
 public:
     // serialization implementation
-    IMPLEMENT_SERIALIZE(READWRITE(nTransactions); READWRITE(vHash); std::vector<unsigned char> vBytes;
-        if (fRead) {
+    IMPLEMENT_SERIALIZE(
+        READWRITE(nTransactions); READWRITE(vHash); std::vector<unsigned char> vBytes; if (fRead) {
             READWRITE(vBytes);
             CPartialMerkleTree& us = *(const_cast<CPartialMerkleTree*>(this));
             us.vBits.resize(vBytes.size() * 8);
@@ -94,7 +94,7 @@ public:
 
     // extract the matching txid's represented by this partial merkle tree.
     // returns the merkle root, or 0 in case of failure
-    uint256 ExtractMatches(std::vector<uint256>& vMatch);
+    uint256 ExtractMatches(int blockHeight, std::vector<uint256>& vMatch);
 };
 
 #endif // CPARTIALMERKLETREE_H

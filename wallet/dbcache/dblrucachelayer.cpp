@@ -543,10 +543,6 @@ Result<void, int> DBLRUCacheLayer<BaseDB>::commitDBTransaction()
     std::unique_ptr<HierarchicalDB<typename decltype(tx)::element_type::MutexT>> movedTx = std::move(tx);
     tx.reset();
 
-    std::array<std::map<std::string, TransactionOperation>,
-               static_cast<std::size_t>(IDB::Index::Index_Last)>
-        txData = GetAllTxData(movedTx.get());
-
     bool result = true;
 
     BOOST_SCOPE_EXIT_ALL(this) { flushOnPolicy(); };
@@ -697,38 +693,6 @@ static PersistValueToCacheResult PersistValueToCache(BaseDB& persistedDB,
     }
 
     return PersistValueToCacheResult::NoError;
-}
-
-static std::vector<std::vector<DBLRUCacheStorage::StoredEntryResult>>
-partition_data(const std::vector<DBLRUCacheStorage::StoredEntryResult>& v, std::size_t n)
-{
-    std::vector<std::vector<DBLRUCacheStorage::StoredEntryResult>> vec;
-
-    // determine the total number of sub-vectors of size `n`
-    std::size_t size = (v.size() - 1) / n + 1;
-
-    // each iteration of this loop process the next set of `n` elements
-    // and store it in a vector at k'th index in `vec`
-    for (std::size_t k = 0; k < size; ++k) {
-        // get range for the next set of `n` elements
-        auto start_itr = std::next(v.cbegin(), k * n);
-        auto end_itr   = std::next(v.cbegin(), k * n + n);
-
-        // allocate memory for the sub-vector
-        vec[k].resize(n);
-
-        // code to handle the last sub-vector as it might
-        // contain fewer elements
-        if (k * n + n > v.size()) {
-            end_itr = v.cend();
-            vec[k].resize(v.size() - k * n);
-        }
-
-        // copy elements from the input range to the sub-vector
-        std::copy(start_itr, end_itr, vec[k].begin());
-    }
-
-    return vec;
 }
 
 template <typename BaseDB>

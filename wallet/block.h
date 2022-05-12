@@ -10,6 +10,7 @@
 #include "txindex.h"
 #include "uint256.h"
 #include "viucache.h"
+#include <blockhashcache.h>
 #include <unordered_map>
 #include <vector>
 
@@ -21,6 +22,32 @@ extern VIUCache viuCache;
 extern unsigned VIUCachePushProbabilityNumerator;
 extern unsigned VIUCachePushProbabilityDenominator;
 
+class CBlockHeader
+{
+    BlockHashCache cachedBlockHash;
+
+    uint256 GetPoWHash() const;
+
+public:
+    CBlockHeader();
+
+    void SetNull();
+
+    // header
+    static const int32_t CURRENT_VERSION = 6;
+    int32_t              nVersion;
+    uint256              hashPrevBlock;
+    uint256              hashMerkleRoot;
+    uint32_t             nTime;
+    uint32_t             nBits;
+    uint32_t             nNonce;
+
+    uint256 GetHash(bool UseCache = true) const;
+    int64_t GetBlockTime() const;
+    CBlock  IntoEmptyBlock() const;
+    void    UpdateTime(const CBlockIndex* /*pindexPrev*/);
+};
+
 /** Nodes collect new transactions into a block, hash them into a hash tree,
  * and scan through nonce values to make the block's hash satisfy proof-of-work
  * requirements.  When they solve the proof-of-work, they broadcast the block
@@ -31,18 +58,9 @@ extern unsigned VIUCachePushProbabilityDenominator;
  * Blocks are appended to blk0001.dat files on disk (not anymore, now they're in lmdb).
  * Their location on disk is indexed by CBlockIndex objects in memory.
  */
-class CBlock
+class CBlock : public CBlockHeader
 {
 public:
-    // header
-    static const int32_t CURRENT_VERSION = 6;
-    int32_t              nVersion;
-    uint256              hashPrevBlock;
-    uint256              hashMerkleRoot;
-    uint32_t             nTime;
-    uint32_t             nBits;
-    uint32_t             nNonce;
-
     // network and disk
     std::vector<CTransaction> vtx;
 
@@ -93,17 +111,9 @@ public:
 
     void SetNull();
 
-    CBlock GetBlockHeader() const;
+    CBlockHeader GetBlockHeader() const;
 
     bool IsNull() const;
-
-    uint256 GetHash() const;
-
-    uint256 GetPoWHash() const;
-
-    int64_t GetBlockTime() const;
-
-    void UpdateTime(const CBlockIndex* pindexPrev);
 
     // entropy bit for stake modifier if chosen by modifier
     unsigned int GetStakeEntropyBit(const uint256& hash) const;
@@ -121,9 +131,6 @@ public:
     [[nodiscard]] uint256 GetMerkleRoot(bool* fMutated = nullptr) const;
 
     [[nodiscard]] std::vector<uint256> GetMerkleBranch(int nIndex) const;
-
-    static uint256 CheckMerkleBranch(uint256 hash, const std::vector<uint256>& vMerkleBranch,
-                                     int nIndex);
 
     bool WriteToDisk(const boost::optional<CBlockIndex>& prevBlockIndex, const uint256& hashProof,
                      const uint256& blockHash);
@@ -147,12 +154,11 @@ public:
     bool ReadFromDisk(const CBlockIndex* pindex, const ITxDB& txdb, bool fReadTransactions = true);
     bool SetBestChain(ITxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
                       const bool createDbTransaction = true);
-    boost::optional<CBlockIndex> AddToBlockIndex(const uint256&                      blockHash,
-                                                 const boost::optional<CBlockIndex>& prevBlockIndex,
+    boost::optional<CBlockIndex> AddToBlockIndex(const boost::optional<CBlockIndex>& prevBlockIndex,
                                                  const uint256& hashProof, ITxDB& txdb,
                                                  const bool createDbTransaction = true);
-    bool CheckBlock(const ITxDB& txdb, const uint256& blockHash, bool fCheckPOW = true,
-                    bool fCheckMerkleRoot = true, bool fCheckSig = true);
+    bool CheckBlock(int blockHeight, bool fCheckPOW = true, bool fCheckMerkleRoot = true,
+                    bool fCheckSig = true);
     bool AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& blockHash);
     bool
          SignBlock(const ITxDB& txdb, const CWallet& keystore, int64_t nFees,
@@ -161,19 +167,20 @@ public:
     bool SignBlockWithSpecificKey(const ITxDB& txdb, const COutPoint& outputToStake,
                                   const CKey& keyOfOutput, int64_t nFees);
 
-    bool CheckBlockSignature(const ITxDB& txdb, const uint256& blockHash) const;
-    Result<bool, BlockColdStakingCheckError> HasColdStaking(const ITxDB& txdb) const;
+    bool CheckBlockSignature(const int blockHeight, const uint256& blockHash) const;
+    Result<bool, BlockColdStakingCheckError> HasColdStaking(int blockHeight) const;
 
     static boost::optional<CBlockIndex> FindBlockByHeight(int nHeight);
 
     static void InvalidChainFound(const CBlockIndex& pindexNew, ITxDB& txdb);
 
-    static void WriteNTP1BlockTransactionsToDisk(const std::vector<CTransaction>& vtx, ITxDB& txdb);
-    static void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, ITxDB& txdb);
+    static void WriteNTP1BlockTransactionsToDisk(int blockHeight, const std::vector<CTransaction>& vtx,
+                                                 ITxDB& txdb);
+    static void WriteNTP1TxToDiskFromRawTx(int blockHeight, const CTransaction& tx, ITxDB& txdb);
     static void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, ITxDB& txdb);
     static void AssertIssuanceUniquenessInBlock(
-        std::unordered_map<std::string, uint256>& issuedTokensSymbolsInThisBlock, const ITxDB& txdb,
-        const CTransaction& tx,
+        int blockHeight, std::unordered_map<std::string, uint256>& issuedTokensSymbolsInThisBlock,
+        const ITxDB& txdb, const CTransaction& tx,
         const std::map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>&
                                            mapQueuedNTP1Inputs,
         const std::map<uint256, CTxIndex>& queuedAcceptedTxs);

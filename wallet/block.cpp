@@ -56,20 +56,6 @@ void CBlock::print() const
     }
 }
 
-uint256 CBlock::CheckMerkleBranch(uint256 hash, const std::vector<uint256>& vMerkleBranch, int nIndex)
-{
-    if (nIndex == -1)
-        return 0;
-    for (const uint256& otherside : vMerkleBranch) {
-        if (nIndex & 1)
-            hash = Hash(BEGIN(otherside), END(otherside), BEGIN(hash), END(hash));
-        else
-            hash = Hash(BEGIN(hash), END(hash), BEGIN(otherside), END(otherside));
-        nIndex >>= 1;
-    }
-    return hash;
-}
-
 std::vector<uint256> CBlock::GetMerkleBranch(int nIndex) const
 {
     std::vector<uint256> vMerkleTree = BlockMerkleTree(*this);
@@ -110,43 +96,61 @@ unsigned int CBlock::GetStakeEntropyBit(const uint256& hash) const
     return nEntropyBit;
 }
 
-CBlock CBlock::GetBlockHeader() const
-{
-    CBlock block;
-    block.nVersion       = nVersion;
-    block.hashPrevBlock  = hashPrevBlock;
-    block.hashMerkleRoot = hashMerkleRoot;
-    block.nTime          = nTime;
-    block.nBits          = nBits;
-    block.nNonce         = nNonce;
-    return block;
-}
+CBlockHeader CBlock::GetBlockHeader() const { return *this; }
 
 void CBlock::SetNull()
 {
-    nVersion       = CBlock::CURRENT_VERSION;
-    hashPrevBlock  = 0;
-    hashMerkleRoot = 0;
-    nTime          = 0;
-    nBits          = 0;
-    nNonce         = 0;
+    CBlockHeader::SetNull();
     vtx.clear();
     vchBlockSig.clear();
     nDoS = 0;
 }
 
-uint256 CBlock::GetPoWHash() const { return scrypt_blockhash(CVOIDBEGIN(nVersion)); }
+uint256 CBlockHeader::GetPoWHash() const { return scrypt_blockhash(CVOIDBEGIN(nVersion)); }
 
-int64_t CBlock::GetBlockTime() const { return (int64_t)nTime; }
+CBlockHeader::CBlockHeader() { SetNull(); }
 
-uint256 CBlock::GetHash() const { return GetPoWHash(); }
+void CBlockHeader::SetNull()
+{
+    nVersion       = CBlockHeader::CURRENT_VERSION;
+    hashPrevBlock  = 0;
+    hashMerkleRoot = 0;
+    nTime          = 0;
+    nBits          = 0;
+    nNonce         = 0;
+}
 
-bool CBlock::IsNull() const { return (nBits == 0); }
+int64_t CBlockHeader::GetBlockTime() const { return (int64_t)nTime; }
 
-void CBlock::UpdateTime(const CBlockIndex* /*pindexPrev*/)
+CBlock CBlockHeader::IntoEmptyBlock() const
+{
+    CBlock result;
+
+    result.nVersion       = nVersion;
+    result.hashPrevBlock  = hashPrevBlock;
+    result.hashMerkleRoot = hashMerkleRoot;
+    result.nTime          = nTime;
+    result.nBits          = nBits;
+    result.nNonce         = nNonce;
+
+    return result;
+}
+
+void CBlockHeader::UpdateTime(const CBlockIndex*)
 {
     nTime = std::max(GetBlockTime(), GetAdjustedTime());
 }
+
+uint256 CBlockHeader::GetHash(bool UseCache) const
+{
+    if (!UseCache) {
+        return GetPoWHash();
+    }
+
+    return cachedBlockHash.GetBlockHash(*this);
+}
+
+bool CBlock::IsNull() const { return nBits == 0; }
 
 bool CBlock::DisconnectBlock(ITxDB& txdb, const CBlockIndex& pindex)
 {
@@ -338,7 +342,7 @@ bool CBlock::ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pinde
     NLog.write(b_sev::info, "Connecting block: {}", blockHash.ToString());
 
     // Check it again in case a previous version let a bad block in, but skip BlockSig checking
-    if (!CheckBlock(txdb, blockHash, !fJustCheck, !fJustCheck, false))
+    if (!CheckBlock(pindex->nHeight, !fJustCheck, !fJustCheck, false))
         return false;
 
     //// issue here: it doesn't know the version
@@ -417,7 +421,8 @@ bool CBlock::ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pinde
             if (tx.IsCoinStake())
                 nStakeReward = nTxValueOut - nTxValueIn;
 
-            if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, txdb)) {
+            if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON,
+                                                       pindex->nHeight)) {
                 try {
                     if (NTP1Transaction::IsTxNTP1(&tx)) {
                         // check if there are inputs already cached
@@ -426,24 +431,24 @@ bool CBlock::ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pinde
 
                         // write NTP1 transactions' data
                         NTP1Transaction ntp1tx;
-                        ntp1tx.readNTP1DataFromTx(txdb, tx, inputsWithNTP1);
+                        ntp1tx.readNTP1DataFromTx(pindex->nHeight, tx, inputsWithNTP1);
                     }
                 } catch (std::exception& ex) {
-                    return NLog.error(
-                        "Error while verifying NTP1Transaction validity in ConnectBlock(): "
-                        "{}",
-                        ex.what());
+                    return NLog.error("Error in transaction {} while verifying NTP1Transaction validity "
+                                      "in ConnectBlock(): "
+                                      "{}",
+                                      tx.GetHash().ToString(), ex.what());
                 } catch (...) {
-                    return NLog.error(
-                        "Error while verifying NTP1Transaction validity in ConnectBlock(). "
-                        "Unknown exception thrown");
+                    return NLog.error("Error in transaction {} while verifying NTP1Transaction validity "
+                                      "in ConnectBlock(). Unknown exception thrown",
+                                      tx.GetHash().ToString());
                 }
             }
 
-            if (EnableEnforceUniqueTokenSymbols(txdb)) {
+            if (EnableEnforceUniqueTokenSymbols(pindex->nHeight)) {
                 try {
-                    AssertIssuanceUniquenessInBlock(issuedTokensSymbolsInThisBlock, txdb, tx,
-                                                    mapQueuedNTP1Inputs, mapQueuedChanges);
+                    AssertIssuanceUniquenessInBlock(pindex->nHeight, issuedTokensSymbolsInThisBlock,
+                                                    txdb, tx, mapQueuedNTP1Inputs, mapQueuedChanges);
                 } catch (std::exception& ex) {
                     reject = CBlockReject(REJECT_INVALID, "ntp1-error-issuance-symbol-duplicate",
                                           this->GetHash());
@@ -461,7 +466,8 @@ bool CBlock::ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pinde
                 }
             }
 
-            if (tx.ConnectInputs(txdb, mapInputs, mapQueuedChanges, posThisTx, pindex, true, false, this)
+            if (tx.ConnectInputs(txdb, mapInputs, mapQueuedChanges, posThisTx, *pindex, true, false,
+                                 this)
                     .isErr()) {
                 return false;
             }
@@ -485,7 +491,7 @@ bool CBlock::ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pinde
     if (IsProofOfStake()) {
         // ppcoin: coin stake tx earns reward instead of paying fee
         uint64_t nCoinAge;
-        if (!vtx[1].GetCoinAge(txdb, nCoinAge))
+        if (!vtx[1].GetCoinAge(pindex->nHeight, txdb, nCoinAge))
             return NLog.error("ConnectBlock() : {} unable to get coin age for coinstake",
                               vtx[1].GetHash().ToString());
 
@@ -542,14 +548,16 @@ bool CBlock::ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pinde
     // This scope does NTP1 data writing
     {
         try {
-            WriteNTP1BlockTransactionsToDisk(vtx, txdb);
+            WriteNTP1BlockTransactionsToDisk(pindex->nHeight, vtx, txdb);
         } catch (std::exception& ex) {
-            if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, txdb)) {
+            if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON,
+                                                       pindex->nHeight)) {
                 return NLog.error("Unable to get NTP1 transaction written in ConnectBlock(). Error: {}",
                                   ex.what());
             }
         } catch (...) {
-            if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, txdb)) {
+            if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON,
+                                                       pindex->nHeight)) {
                 return NLog.error("Unable to get NTP1 transaction written in ConnectBlock(). An unknown "
                                   "exception was "
                                   "thrown");
@@ -702,7 +710,7 @@ bool CBlock::SetBestChain(ITxDB& txdb, const boost::optional<CBlockIndex>& pinde
                                         : pindexBestPtr->nChainTrust;
 
     NLog.write(b_sev::info, "SetBestChain: new best={}  height={}  trust={}  blocktrust={}  date={}",
-               txdb.GetBestBlockHash().ToString(), txdb.GetBestChainHeight().value_or(0),
+               txdb.GetBestBlockHash().ToString(), txdb.GetBestChainHeight(),
                CBigNum(txdb.GetBestChainTrust().value_or(0)).ToString(), nBestBlockTrust.Get64(),
                DateTimeStrFormat("%x %H:%M:%S", pindexBestPtr->GetBlockTime()));
 
@@ -802,7 +810,7 @@ void CBlock::InvalidChainFound(const CBlockIndex& pindexNew, ITxDB& txdb)
                DateTimeStrFormat("%x %H:%M:%S", pindexNew.GetBlockTime()));
     NLog.write(b_sev::err,
                "InvalidChainFound:  current best={}  height={}  trust={}  blocktrust={} date={}",
-               txdb.GetBestBlockHash().ToString(), txdb.GetBestChainHeight().value_or(0),
+               txdb.GetBestBlockHash().ToString(), txdb.GetBestChainHeight(),
                CBigNum(pindexBestPtr->nChainTrust).ToString(), nBestBlockTrust.Get64(),
                DateTimeStrFormat("%x %H:%M:%S", pindexBestPtr->GetBlockTime()));
 }
@@ -922,17 +930,18 @@ bool CBlock::Reorganize(ITxDB& txdb, const boost::optional<CBlockIndex>& pindexN
     return true;
 }
 
-boost::optional<CBlockIndex> CBlock::AddToBlockIndex(const uint256&                      blockHash,
-                                                     const boost::optional<CBlockIndex>& prevBlockIndex,
+boost::optional<CBlockIndex> CBlock::AddToBlockIndex(const boost::optional<CBlockIndex>& prevBlockIndex,
                                                      const uint256& hashProof, ITxDB& txdb,
                                                      const bool createDbTransaction)
 {
+    const uint256 blockHash = this->GetHash();
+
     // Check for duplicate
     if (txdb.ReadBlockIndex(blockHash))
         return NLog.errorn("AddToBlockIndex() : {} already exists", blockHash.ToString());
 
     // Construct new block index object
-    CBlockIndex pindexNew = CBlockIndex(blockHash, *this);
+    CBlockIndex pindexNew = CBlockIndex(*this);
 
     pindexNew.blockHash = blockHash;
     if (prevBlockIndex) {
@@ -999,9 +1008,10 @@ boost::optional<CBlockIndex> CBlock::AddToBlockIndex(const uint256&             
     return boost::make_optional(std::move(pindexNew));
 }
 
-bool CBlock::CheckBlock(const ITxDB& txdb, const uint256& blockHash, bool fCheckPOW,
-                        bool fCheckMerkleRoot, bool fCheckSig)
+bool CBlock::CheckBlock(const int blockHeight, bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig)
 {
+    const uint256 blockHash = this->GetHash();
+
     // These are checks that are independent of context
     // that can be verified before saving an orphan block.
 
@@ -1011,7 +1021,7 @@ bool CBlock::CheckBlock(const ITxDB& txdb, const uint256& blockHash, bool fCheck
     }
 
     // Size limits
-    const unsigned int nSizeLimit = MaxBlockSize(txdb);
+    const unsigned int nSizeLimit = MaxBlockSize(blockHeight);
     if (vtx.empty() || vtx.size() > nSizeLimit ||
         ::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > nSizeLimit) {
         reject = CBlockReject(REJECT_INVALID, "bad-blk-length", this->GetHash());
@@ -1072,7 +1082,7 @@ bool CBlock::CheckBlock(const ITxDB& txdb, const uint256& blockHash, bool fCheck
                                GetBlockTime(), vtx[1].nTime));
 
         // NovaCoin: check proof-of-stake block signature
-        if (fCheckSig && !CheckBlockSignature(txdb, blockHash))
+        if (fCheckSig && !CheckBlockSignature(blockHeight, blockHash))
             return DoS(100, NLog.error("CheckBlock() : bad proof-of-stake block signature"));
     }
 
@@ -1080,7 +1090,7 @@ bool CBlock::CheckBlock(const ITxDB& txdb, const uint256& blockHash, bool fCheck
     for (uint32_t i = 0; i < vtx.size(); i++) {
         const CTransaction& tx = vtx[i];
 
-        const auto checkTxResult = tx.CheckTransaction(txdb, this);
+        const auto checkTxResult = tx.CheckTransaction(blockHeight, this);
         if (checkTxResult.isErr())
             return DoS(tx.nDoS,
                        NLog.error("CheckBlock() : CheckTransaction failed: (Msg: {}) - (Debug: {})",
@@ -1140,6 +1150,8 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& block
 
     const CTxDB txdb;
 
+    const int newBlockHeight = prevBlockIndex.nHeight + 1;
+
     if (nVersion > CURRENT_VERSION)
         return DoS(100, NLog.error("AcceptBlock() : reject unknown block version {}", nVersion));
 
@@ -1150,10 +1162,9 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& block
     // protect against a possible attack where an attacker sends predecessors of very early blocks in the
     // blockchain, forcing a non-necessary scan of the whole blockchain
     const int64_t maxCheckpointBlockHeight = Checkpoints::GetLastCheckpointBlockHeight();
-    if (txdb.GetBestChainHeight().value_or(0) > maxCheckpointBlockHeight + 1) {
-        const uint256 prevBlockHash           = this->hashPrevBlock;
-        int64_t       newBlockPrevBlockHeight = prevBlockIndex.nHeight;
-        if (newBlockPrevBlockHeight + 1 < maxCheckpointBlockHeight) {
+    if (txdb.GetBestChainHeight() > maxCheckpointBlockHeight + 1) {
+        const uint256 prevBlockHash = this->hashPrevBlock;
+        if (newBlockHeight < maxCheckpointBlockHeight) {
             return DoS(
                 100,
                 NLog.error("Prevblock of block {}, which is {}, is behind the latest checkpoint block "
@@ -1185,13 +1196,13 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& block
         return DoS(100, NLog.error("AcceptBlock() : reject proof-of-work at height {}", nHeight));
 
     {
-        const auto hasColdStakingResult = HasColdStaking(txdb);
+        const auto hasColdStakingResult = HasColdStaking(newBlockHeight);
         if (hasColdStakingResult.isErr()) {
             return DoS(100, NLog.error("AcceptBlock() : Detecting cold-stake failed for block {}",
                                        blockHash.ToString()));
         }
 
-        if (hasColdStakingResult.unwrap(RESULT_PRE) && !Params().IsColdStakingEnabled(txdb)) {
+        if (hasColdStakingResult.unwrap(RESULT_PRE) && !Params().IsColdStakingEnabled(newBlockHeight)) {
             return DoS(100, NLog.error("AcceptBlock() : reject cold-staked at height {}", nHeight));
         }
     }
@@ -1226,7 +1237,7 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& block
     // Verify hash target and signature of coinstake tx
     if (IsProofOfStake()) {
         uint256 targetProofOfStake;
-        if (!CheckProofOfStake(txdb, vtx[1], nBits, hashProof, targetProofOfStake)) {
+        if (!CheckProofOfStake(newBlockHeight, txdb, vtx[1], nBits, hashProof, targetProofOfStake)) {
             NLog.write(b_sev::err, "WARNING: AcceptBlock(): check proof-of-stake failed for block {}",
                        blockHash.ToString());
             return false; // do not error here as we expect this during initial block download
@@ -1234,7 +1245,7 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& block
     }
     // PoW is checked in CheckBlock()
     if (IsProofOfWork()) {
-        hashProof = GetPoWHash();
+        hashProof = GetHash();
     }
 
     const bool cpSatisfies = Checkpoints::CheckSync(txdb, blockHash, &prevBlockIndex);
@@ -1264,7 +1275,7 @@ bool CBlock::AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& block
     if (txdb.GetBestBlockHash() == blockHash) {
         LOCK(cs_vNodes);
         for (CNode* pnode : vNodes)
-            if (txdb.GetBestChainHeight().value_or(0) >
+            if (txdb.GetBestChainHeight() >
                 (pnode->nStartingHeight != -1 ? pnode->nStartingHeight - 2000 : nBlockEstimate))
                 pnode->PushInventory(CInv(MSG_BLOCK, blockHash));
     }
@@ -1276,7 +1287,7 @@ boost::optional<CKeyID> GetKeyIDFromOutput(const ITxDB& txdb, const CTxOut& txou
 {
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
-    if (!Solver(txdb, txout.scriptPubKey, whichType, vSolutions))
+    if (!Solver(txdb.GetBestChainHeight(), txout.scriptPubKey, whichType, vSolutions))
         return boost::none;
     if (whichType == TX_PUBKEY) {
         return CPubKey(vSolutions[0]).GetID();
@@ -1417,7 +1428,7 @@ static Result<CKey, CBlock::ColdStakeKeyExtractionError> ExtractColdStakePubKey(
     return Ok(key);
 }
 
-Result<bool, CBlock::BlockColdStakingCheckError> CBlock::HasColdStaking(const ITxDB& txdb) const
+Result<bool, CBlock::BlockColdStakingCheckError> CBlock::HasColdStaking(const int blockHeight) const
 {
     if (IsProofOfWork())
         return Ok(false);
@@ -1427,7 +1438,7 @@ Result<bool, CBlock::BlockColdStakingCheckError> CBlock::HasColdStaking(const IT
 
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
-    if (!Solver(txdb, txout.scriptPubKey, whichType, vSolutions))
+    if (!Solver(blockHeight, txout.scriptPubKey, whichType, vSolutions))
         return Err(BlockColdStakingCheckError::SolverOnStakeTransactionFailed);
 
     if (whichType == TX_COLDSTAKE) {
@@ -1445,7 +1456,7 @@ Result<bool, CBlock::BlockColdStakingCheckError> CBlock::HasColdStaking(const IT
     return Ok(false);
 }
 
-bool CBlock::CheckBlockSignature(const ITxDB& txdb, const uint256& blockHash) const
+bool CBlock::CheckBlockSignature(const int blockHeight, const uint256& blockHash) const
 {
     if (IsProofOfWork())
         return vchBlockSig.empty();
@@ -1455,7 +1466,7 @@ bool CBlock::CheckBlockSignature(const ITxDB& txdb, const uint256& blockHash) co
 
     const CTxOut& txout = vtx[1].vout[1];
 
-    if (!Solver(txdb, txout.scriptPubKey, whichType, vSolutions))
+    if (!Solver(blockHeight, txout.scriptPubKey, whichType, vSolutions))
         return NLog.error("CheckBlockSignature(): Failed to solve for scriptPubKey type");
 
     CKey key;
@@ -1547,7 +1558,7 @@ bool CBlock::WriteBlockPubKeys(ITxDB& txdb)
     return success;
 }
 
-void UpdateWallets(const uint256& prevBestChain, const ITxDB& txdb)
+void UpdateWallets(const boost::optional<uint256>& prevBestChain, const ITxDB& txdb)
 {
     using BlockIndexCacheType = BlockIndexLRUCache<bool>;
 
@@ -1564,9 +1575,9 @@ void UpdateWallets(const uint256& prevBestChain, const ITxDB& txdb)
          * Given that a reorg can occur, the call to SyncWithWallets() should happen only after all kinds
          * of reorgs happen (including ConnectBlock). Therefore, we do it at the very end. Here.
          */
-        if (txdb.GetBestChainHeight().value_or(0) > 0) {
+        if (prevBestChain) {
             // get the highest block in the previous check that's main chain
-            boost::optional<CBlockIndex> ancestorOfPrevInMainChain = txdb.ReadBlockIndex(prevBestChain);
+            boost::optional<CBlockIndex> ancestorOfPrevInMainChain = txdb.ReadBlockIndex(*prevBestChain);
             assert(ancestorOfPrevInMainChain);
             while (ancestorOfPrevInMainChain->hashPrev != 0 &&
                    !ancestorOfPrevInMainChain->IsInMainChain(txdb)) {
@@ -1654,7 +1665,7 @@ bool CBlock::WriteToDisk(const boost::optional<CBlockIndex>& prevBlockIndex, con
     }
 
     const boost::optional<CBlockIndex> pindexNew =
-        AddToBlockIndex(blockHash, prevBlockIndex, hashProof, txdb, false);
+        AddToBlockIndex(prevBlockIndex, hashProof, txdb, false);
 
     // database transactions are disabled in there because we already have a transaction around here
     if (!pindexNew) {
@@ -1673,7 +1684,7 @@ bool CBlock::WriteToDisk(const boost::optional<CBlockIndex>& prevBlockIndex, con
     txEnder.reset();
 
     // after having (potentially) updated the best block, we sync with wallets
-    UpdateWallets(prevBestChain, txdb);
+    UpdateWallets(prevBestChain.IsNull() ? boost::none : boost::make_optional(prevBestChain), txdb);
 
     return true;
 }
@@ -1684,18 +1695,19 @@ bool CBlock::ReadFromDisk(const uint256& hash, const ITxDB& txdb, bool fReadTran
     return txdb.ReadBlock(hash, *this, fReadTransactions);
 }
 
-void CBlock::WriteNTP1BlockTransactionsToDisk(const std::vector<CTransaction>& vtx, ITxDB& txdb)
+void CBlock::WriteNTP1BlockTransactionsToDisk(const int                        blockHeight,
+                                              const std::vector<CTransaction>& vtx, ITxDB& txdb)
 {
-    if (Params().PassedFirstValidNTP1Tx(&txdb)) {
+    if (Params().PassedFirstValidNTP1Tx(blockHeight)) {
         for (const CTransaction& tx : vtx) {
-            WriteNTP1TxToDiskFromRawTx(tx, txdb);
+            WriteNTP1TxToDiskFromRawTx(blockHeight, tx, txdb);
         }
     }
 }
 
-void CBlock::WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, ITxDB& txdb)
+void CBlock::WriteNTP1TxToDiskFromRawTx(const int blockHeight, const CTransaction& tx, ITxDB& txdb)
 {
-    if (Params().PassedFirstValidNTP1Tx(&txdb)) {
+    if (Params().PassedFirstValidNTP1Tx(blockHeight)) {
         // read previous transactions (inputs) which are necessary to validate an NTP1
         // transaction
         if (!NTP1Transaction::IsTxNTP1(&tx)) {
@@ -1707,7 +1719,7 @@ void CBlock::WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, ITxDB& txdb)
 
         // write NTP1 transactions' data
         NTP1Transaction ntp1tx;
-        ntp1tx.readNTP1DataFromTx(txdb, tx, inputsWithNTP1);
+        ntp1tx.readNTP1DataFromTx(blockHeight, tx, inputsWithNTP1);
 
         WriteNTP1TxToDbAndDisk(ntp1tx, txdb);
     }
@@ -1742,8 +1754,8 @@ void CBlock::WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, ITxDB& txdb)
 }
 
 void CBlock::AssertIssuanceUniquenessInBlock(
-    std::unordered_map<std::string, uint256>& issuedTokensSymbolsInThisBlock, const ITxDB& txdb,
-    const CTransaction&                                                             tx,
+    const int blockHeight, std::unordered_map<std::string, uint256>& issuedTokensSymbolsInThisBlock,
+    const ITxDB& txdb, const CTransaction& tx,
     const std::map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>& mapQueuedNTP1Inputs,
     const std::map<uint256, CTxIndex>&                                              queuedAcceptedTxs)
 {
@@ -1756,7 +1768,7 @@ void CBlock::AssertIssuanceUniquenessInBlock(
                                                       queuedAcceptedTxs);
 
             NTP1Transaction ntp1tx;
-            ntp1tx.readNTP1DataFromTx(txdb, tx, inputsTxs);
+            ntp1tx.readNTP1DataFromTx(blockHeight, tx, inputsTxs);
             AssertNTP1TokenNameIsNotAlreadyInMainChain(ntp1tx, txdb);
             if (ntp1tx.getTxType() == NTP1TxType_ISSUANCE) {
                 std::string currSymbol = ntp1tx.getTokenSymbolIfIssuance();

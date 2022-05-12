@@ -195,6 +195,7 @@ OBJS= \
     obj/outpoint.o                            \
     obj/inpoint.o                             \
     obj/block.o                               \
+    obj/blockhashcache.o                      \
     obj/transaction.o                         \
     obj/globals.o                             \
     obj/disktxpos.o                           \

@@ -54,8 +54,7 @@ static bool equal_sets(CoinSet a, CoinSet b)
 TEST(wallet_tests, coin_selection_tests)
 {
     boost::shared_ptr<mTxDB> dbMock = boost::make_shared<mTxDB>();
-    EXPECT_CALL(*dbMock, GetBestChainHeight())
-        .WillRepeatedly(testing::Return(boost::make_optional<int>(0)));
+    EXPECT_CALL(*dbMock, GetBestChainHeight()).WillRepeatedly(testing::Return(0));
 
     static CoinSet setCoinsRet, setCoinsRet2;
     static int64_t nValueRet;

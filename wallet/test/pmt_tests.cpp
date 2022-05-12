@@ -75,7 +75,7 @@ TEST(pmt_tests, pmt_test1)
 
             // extract merkle root and matched txids from copy
             std::vector<uint256> vMatchTxid2;
-            uint256              merkleRoot2 = pmt2.ExtractMatches(vMatchTxid2);
+            uint256              merkleRoot2 = pmt2.ExtractMatches(0, vMatchTxid2);
 
             // check that it has the same merkle root as the original, and a valid one
             EXPECT_TRUE(merkleRoot1 == merkleRoot2);
@@ -89,7 +89,7 @@ TEST(pmt_tests, pmt_test1)
                 CPartialMerkleTreeTester pmt3(pmt2);
                 pmt3.Damage();
                 std::vector<uint256> vMatchTxid3;
-                uint256              merkleRoot3 = pmt3.ExtractMatches(vMatchTxid3);
+                uint256              merkleRoot3 = pmt3.ExtractMatches(0, vMatchTxid3);
                 EXPECT_TRUE(merkleRoot3 != merkleRoot1);
             }
         }

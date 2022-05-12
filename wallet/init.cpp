@@ -992,7 +992,7 @@ bool AppInit2()
 
     const CTxDB txdb;
 
-    boost::optional<CBlockIndex> pindexRescan = txdb.GetBestBlockIndex();
+    boost::optional<CBlockIndex> pindexRescan;
     if (GetBoolArg("-rescan") ||
         SC_CheckOperationOnRestartScheduleThenDeleteIt(SC_SCHEDULE_ON_RESTART_OPNAME__RESCAN))
         pindexRescan = *pindexGenesisBlock;

@@ -12,16 +12,6 @@ NetworkForks::NetworkForks(const boost::container::flat_map<NetworkFork, int>& F
     forksToBlockMap = ForksToBlocks;
 }
 
-bool NetworkForks::isForkActivated(NetworkFork fork, const ITxDB& txdb) const
-{
-    auto it = forksToBlockMap.find(fork);
-    if (it != forksToBlockMap.cend()) {
-        return txdb.GetBestChainHeight().value_or(0) >= it->second;
-    } else {
-        throw std::runtime_error("Fork number " + std::to_string(fork) + " was not found");
-    }
-}
-
 bool NetworkForks::isForkActivated(NetworkFork fork, int height) const
 {
     auto it = forksToBlockMap.find(fork);

@@ -21,7 +21,7 @@ CreateColdStakeDelegation(const std::string& stakeAddress, CAmount nValue,
 
     const CTxDB txdb;
 
-    if (!Params().IsColdStakingEnabled(txdb) && !fForceNotEnabled)
+    if (!Params().IsColdStakingEnabled(txdb.GetBestChainHeight()) && !fForceNotEnabled)
         return Err(ColdStakingDisabled);
 
     // Get Staking Address
@@ -101,7 +101,8 @@ std::string ColdStakeDelegationErrorStr(const ColdStakeDelegationErrorCode error
     case StakerAddressPubKeyHashError:
         return "Unable to get stake pubkey hash from stakingaddress";
     case InvalidAmount:
-        return fmt::format("Invalid amount. Min amount: {} NEBL", Params().MinColdStakingAmount() / 100000000);
+        return fmt::format("Invalid amount. Min amount: {} NEBL",
+                           Params().MinColdStakingAmount() / 100000000);
     case InsufficientBalance:
         return "Insufficient funds";
     case WalletLocked:

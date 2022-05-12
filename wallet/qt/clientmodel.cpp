@@ -52,7 +52,7 @@ int ClientModel::getNumBlocks() const
 {
     // The lock was removed after changing nBestHeight to atomic
     //    LOCK(cs_main);
-    return CTxDB().GetBestChainHeight().value_or(0);
+    return CTxDB().GetBestChainHeight();
 }
 
 int ClientModel::getNumBlocksAtStartup()

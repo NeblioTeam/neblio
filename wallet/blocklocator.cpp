@@ -74,9 +74,8 @@ boost::optional<CBlockIndex> CBlockLocator::GetBlockIndex(const ITxDB& txdb)
     // Find the first block the caller has in the main chain
     for (const uint256& hash : vHave) {
         const auto bi = txdb.ReadBlockIndex(hash);
-        if (bi) {
-            if (bi->IsInMainChain(txdb))
-                return bi;
+        if (bi && bi->IsInMainChain(txdb)) {
+            return bi;
         }
     }
     return boost::make_optional(*pindexGenesisBlock);

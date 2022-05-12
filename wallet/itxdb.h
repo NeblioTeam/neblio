@@ -62,12 +62,12 @@ public:
     virtual boost::optional<std::map<uint256, CBlockIndex>> ReadAllBlockIndexEntries() const        = 0;
     virtual bool WriteStakeSeen(const std::pair<COutPoint, unsigned int>& stake)                    = 0;
     virtual boost::optional<bool>
-                                         WasStakeSeen(const std::pair<COutPoint, unsigned int>& stake) const = 0;
-    virtual bool                         LoadBlockIndex()           = 0;
-    virtual boost::optional<int>         GetBestChainHeight() const = 0;
-    virtual boost::optional<uint256>     GetBestChainTrust() const  = 0;
-    virtual boost::optional<CBlockIndex> GetBestBlockIndex() const  = 0;
-    virtual uint256                      GetBestBlockHash() const   = 0;
+                 WasStakeSeen(const std::pair<COutPoint, unsigned int>& stake) const = 0;
+    virtual bool LoadBlockIndex()                                                    = 0;
+    virtual int  GetBestChainHeight() const                                          = 0;
+    virtual boost::optional<uint256>     GetBestChainTrust() const                   = 0;
+    virtual boost::optional<CBlockIndex> GetBestBlockIndex() const                   = 0;
+    virtual uint256                      GetBestBlockHash() const                    = 0;
 };
 
 #endif // ITXDB_H

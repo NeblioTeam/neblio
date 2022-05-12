@@ -4,6 +4,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "walletdb.h"
+#include "blockindex.h"
 #include "txdb.h"
 #include "wallet.h"
 #include <boost/filesystem.hpp>
@@ -290,6 +291,22 @@ public:
     }
 };
 
+boost::optional<int> GetBlockHeightOfMainChainTx(const ITxDB& txdb, const CWalletTx& wtx)
+{
+    CTxIndex txindex;
+    if (!txdb.ReadTxIndex(wtx.GetHash(), txindex)) {
+        return boost::none; // it's not in the mainchain
+    }
+    const boost::optional<CBlockIndex> bi = txdb.ReadBlockIndex(txindex.pos.nBlockPos);
+    if (!bi) {
+        NLog.critical(
+            "Failed to read block index of block {} which includes a mainchain transaction {} in your "
+            "wallet; there seems to be a database corruption",
+            txindex.pos.nBlockPos.ToString(), wtx.GetHash().ToString());
+    }
+    return boost::make_optional(bi->nHeight);
+}
+
 bool ReadKeyValue(const ITxDB& txdb, CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
                   CWalletScanState& wss, string& strType, string& strErr)
 {
@@ -319,7 +336,10 @@ bool ReadKeyValue(const ITxDB& txdb, CWallet* pwallet, CDataStream& ssKey, CData
             ssKey >> hash;
             CWalletTx& wtx = pwallet->mapWallet[hash];
             ssValue >> wtx;
-            if (wtx.CheckTransaction(CTxDB()).isOk() && (wtx.GetHash() == hash))
+            const boost::optional<int> mainchainTxHeight = GetBlockHeightOfMainChainTx(txdb, wtx);
+            // chain either in a block or in a mempool (or in orphan block)
+            const int txHeight = mainchainTxHeight ? *mainchainTxHeight : txdb.GetBestChainHeight();
+            if (wtx.CheckTransaction(txHeight).isOk() && (wtx.GetHash() == hash))
                 wtx.BindWallet(pwallet);
             else {
                 pwallet->mapWallet.erase(hash);

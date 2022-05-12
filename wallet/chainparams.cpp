@@ -6,7 +6,6 @@
 #include <chainparams.h>
 
 #include "block.h"
-#include "txdb.h"
 #include "util.h"
 #include <amount.h>
 #include <assert.h>
@@ -554,9 +553,9 @@ const CBlock& CChainParams::GenesisBlock() const
 
 const uint256& CChainParams::GenesisBlockHash() const { return consensus.hashGenesisBlock; }
 
-int64_t CChainParams::StakeMinAge(const ITxDB& txdb) const
+int64_t CChainParams::StakeMinAge(const int blockHeight) const
 {
-    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, txdb)) {
+    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, blockHeight)) {
         return consensus.nStakeMinAgeV2;
     } else {
         return consensus.nStakeMinAgeV1;
@@ -569,46 +568,36 @@ int64_t CChainParams::StakeModifierInterval() const { return consensus.nModifier
 
 NetworkType CChainParams::NetType() const { return networkType; }
 
-bool CChainParams::PassedFirstValidNTP1Tx(const ITxDB* txdb) const
+bool CChainParams::PassedFirstValidNTP1Tx(const int blockHeight) const
 {
-    return ((txdb ? txdb->GetBestChainHeight().value_or(0) : CTxDB().GetBestChainHeight().value_or(0)) >=
-            consensus.firstValidNTP1Height);
+    return blockHeight >= consensus.firstValidNTP1Height;
 }
 
 int64_t CChainParams::TargetTimeSpan() const { return consensus.nTargetTimespan; }
 
-unsigned int CChainParams::OpReturnMaxSize(const ITxDB& txdb) const
+unsigned int CChainParams::OpReturnMaxSize(const int blockHeight) const
 {
-    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, txdb)) {
+    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, blockHeight)) {
         return consensus.nMaxOpReturnSizeV2;
     } else {
         return consensus.nMaxOpReturnSizeV1;
     }
 }
 
-unsigned int CChainParams::TargetSpacing(const ITxDB& txdb) const
+unsigned int CChainParams::TargetSpacing(int blockHeight) const
 {
-    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, txdb)) {
+    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, blockHeight)) {
         return consensus.nStakeTargetSpacingV2;
     } else {
         return consensus.nStakeTargetSpacingV1;
     }
 }
 
-unsigned int CChainParams::TargetSpacing(int height) const
+int CChainParams::CoinbaseMaturity(int blockHeight) const
 {
-    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, height)) {
-        return consensus.nStakeTargetSpacingV2;
-    } else {
-        return consensus.nStakeTargetSpacingV1;
-    }
-}
-
-int CChainParams::CoinbaseMaturity(const ITxDB& txdb) const
-{
-    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, txdb)) {
+    if (GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, blockHeight)) {
         return consensus.nCoinbaseMaturityV3;
-    } else if (GetNetForks().isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE, txdb)) {
+    } else if (GetNetForks().isForkActivated(NetworkFork::NETFORK__2_CONFS_CHANGE, blockHeight)) {
         return consensus.nCoinbaseMaturityV2;
     } else {
         return consensus.nCoinbaseMaturityV1;
@@ -630,9 +619,9 @@ int64_t CChainParams::StakeCombineThreshold() const { return nStakeCombineThresh
 
 unsigned int CChainParams::MaxInputsInStake() const { return nMaxInputsInStake; }
 
-bool CChainParams::IsColdStakingEnabled(const ITxDB& txdb) const
+bool CChainParams::IsColdStakingEnabled(const int blockHeight) const
 {
-    return consensus.forks->isForkActivated(NetworkFork::NETFORK__5_COLD_STAKING, txdb);
+    return consensus.forks->isForkActivated(NetworkFork::NETFORK__5_COLD_STAKING, blockHeight);
 }
 
 CAmount CChainParams::MinColdStakingAmount() const { return nMinColdStakingAmount; }

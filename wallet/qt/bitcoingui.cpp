@@ -1280,7 +1280,7 @@ void BitcoinGUI::updateStakingIcon()
 
     if (stakeMaker.IsStakingActive()) {
         uint64_t       nNetworkWeight = GetPoSKernelPS();
-        unsigned int   nTS            = Params().TargetSpacing(txdb);
+        unsigned int   nTS            = Params().TargetSpacing(txdb.GetBestChainHeight());
         const uint64_t nWeightP       = stakeMaker.getLatestStakeWeight().value_or(0);
         unsigned       nEstimateTime  = !!nWeightP ? (nTS * nNetworkWeight / nWeightP) : -1;
 

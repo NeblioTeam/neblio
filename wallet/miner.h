@@ -20,7 +20,8 @@ struct CBlockTemplate
 
 /* Generate a new block, without valid proof-of-work */
 std::unique_ptr<CBlock>
-CreateNewBlock(CWallet* pwallet, bool fProofOfStake = false, int64_t* pFees = 0,
+CreateNewBlock(const CBlockIndex& pindexPrev, const ITxDB& txdb, CWallet* pwallet,
+               bool fProofOfStake = false, int64_t* pFees = 0,
                const boost::optional<CBitcoinAddress>& PoWDestination = boost::none);
 
 /** Modify the extranonce in a block */
@@ -33,7 +34,7 @@ void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash
 bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey);
 
 /** Check mined proof-of-stake block */
-bool CheckStake(const ITxDB& txdb, CBlock* pblock, CWallet& wallet);
+bool CheckStake(int stakeBlockHeight, const ITxDB& txdb, CBlock* pblock, CWallet& wallet);
 
 /** Base sha256 mining transform */
 void SHA256Transform(void* pstate, void* pinput, const void* pinit);

@@ -111,27 +111,6 @@ static boost::optional<int> GetBlockHeightIfMainChain(const ITxDB& txdb, const u
 
 CMerkleTx::CMerkleTx(const CTransaction& txIn) : CTransaction(txIn) { Init(); }
 
-int CMerkleTx::GetDepthInMainChain(boost::optional<CBlockIndex>& pindexRet, const ITxDB& txdb,
-                                   const uint256& bestBlockHash) const
-{
-    if (hashBlock == 0 || hashBlock == ABANDON_HASH)
-        return 0;
-    int nResult = 0;
-
-    // Find the block it claims to be in
-    const auto bi = txdb.ReadBlockIndex(hashBlock);
-    if (!bi || !bi->IsInMainChain(txdb)) {
-        nResult   = 0;
-        pindexRet = boost::none;
-    } else {
-        const int bestHeight = GetBestBlockHeight(txdb, bestBlockHash);
-        nResult              = ((nIndex == -1) ? (-1) : 1) * (bestHeight - bi->nHeight + 1);
-        pindexRet            = std::move(bi);
-    }
-
-    return nResult;
-}
-
 int CMerkleTx::GetDepthInMainChain(const ITxDB& txdb, const uint256& bestBlockHash) const
 {
     if (hashBlock == 0 || hashBlock == ABANDON_HASH)
@@ -156,7 +135,7 @@ int CMerkleTx::GetBlocksToMaturity(const ITxDB& txdb, const uint256& bestBlockHa
 {
     if (!(IsCoinBase() || IsCoinStake()))
         return 0;
-    int nCbM = Params().CoinbaseMaturity(txdb);
+    int nCbM = Params().CoinbaseMaturity(txdb.GetBestChainHeight());
     return std::max(0, (nCbM + 1) - GetDepthInMainChain(txdb, bestBlockHash));
 }
 

@@ -51,7 +51,7 @@ public:
 
     CBlockIndex();
 
-    CBlockIndex(uint256 blockHashIn, const CBlock& block);
+    CBlockIndex(const CBlock& block);
 
     CBlock GetBlockHeader() const;
 

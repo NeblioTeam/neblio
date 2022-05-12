@@ -273,11 +273,13 @@ std::string NTP1Script_Issuance::calculateScriptBin() const
         }
 
         const CTxDB txdb;
+        const int   currentHeight = txdb.GetBestChainHeight();
 
-        if (isOpReturnSizeCheckEnabled() && result.size() > Params().OpReturnMaxSize(txdb)) {
+        if (isOpReturnSizeCheckEnabled() && result.size() > Params().OpReturnMaxSize(currentHeight)) {
             throw std::runtime_error("Calculated script size (" + std::to_string(result.size()) +
                                      " bytes) is larger than the maximum allowed (" +
-                                     std::to_string(Params().OpReturnMaxSize(txdb)) + " bytes)");
+                                     std::to_string(Params().OpReturnMaxSize(currentHeight)) +
+                                     " bytes)");
         }
 
         return result;

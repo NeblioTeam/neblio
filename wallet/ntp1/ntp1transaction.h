@@ -18,7 +18,7 @@
 #include <unordered_map>
 #include <vector>
 
-extern const std::array<uint8_t, 2> NTP1ScriptPrefix;
+extern const std::array<std::array<uint8_t, 3>, 2> NTP1ScriptPossiblePrefixes;
 
 class CTxOut;
 class CTxIndex;
@@ -50,7 +50,7 @@ class NTP1Transaction
     NTP1TransactionType    ntp1TransactionType = NTP1TxType_NOT_NTP1;
 
     template <typename ScriptType>
-    void __TransferTokens(const ITxDB& txdb, const std::shared_ptr<ScriptType>& scriptPtrD,
+    void __TransferTokens(int blockHeight, const std::shared_ptr<ScriptType>& scriptPtrD,
                           const CTransaction&                                          tx,
                           const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs,
                           bool                                                         burnOutput31);
@@ -94,10 +94,10 @@ public:
     static std::unordered_map<std::string, TokenMinimalData>
     CalculateTotalOutputTokens(const NTP1Transaction& ntp1tx);
 
-    static json_spirit::Value GetNTP1IssuanceMetadata(const ITxDB& txdb, const uint256& issuanceTxid);
+    static json_spirit::Value GetNTP1IssuanceMetadata(int blockHeight, const uint256& issuanceTxid);
     static NTP1TokenMetaData  GetFullNTP1IssuanceMetadata(const CTransaction&    issuanceTx,
                                                           const NTP1Transaction& ntp1IssuanceTx);
-    static NTP1TokenMetaData GetFullNTP1IssuanceMetadata(const ITxDB& txdb, const uint256& issuanceTxid);
+    static NTP1TokenMetaData  GetFullNTP1IssuanceMetadata(int blockHeight, const uint256& issuanceTxid);
 
     static void
     ReorderTokenInputsToGoFirst(CTransaction&                                                tx,
@@ -136,13 +136,15 @@ public:
      * @param tx
      */
     static void AmendStdTxWithNTP1(const ITxDB& txdb, CTransaction& tx, int changeIndex);
-    static void AmendStdTxWithNTP1(const ITxDB& txdb, CTransaction& tx_,
+    static void AmendStdTxWithNTP1(const int blockHeight, CTransaction& tx_,
                                    const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputs,
                                    int changeIndex);
 
     void __manualSet(int NVersion, uint256 TxHash, std::vector<NTP1TxIn> Vin,
                      std::vector<NTP1TxOut> Vout, uint64_t NLockTime, uint64_t NTime,
                      NTP1TransactionType Ntp1TransactionType);
+
+    static bool IsScriptNTP1(const std::vector<uint8_t>& opReturnScript);
 
     std::vector<uint8_t> getNTP1OpReturnScript() const;
     std::string          getNTP1OpReturnScriptHex() const;
@@ -154,9 +156,9 @@ public:
      * @brief readNTP1DataFromTx_minimal
      * @param tx the source Neblio transcation
      */
-    void readNTP1DataFromTx_minimal(const ITxDB& txdb, const CTransaction& tx);
+    void readNTP1DataFromTx_minimal(int blockHeight, const CTransaction& tx);
 
-    void readNTP1DataFromTx(const ITxDB& txdb, const CTransaction& tx,
+    void readNTP1DataFromTx(int blockHeight, const CTransaction& tx,
                             const std::vector<std::pair<CTransaction, NTP1Transaction>>& inputsTxs);
 
     static bool IsTxNTP1(const CTransaction* tx, std::string* opReturnArg = nullptr);

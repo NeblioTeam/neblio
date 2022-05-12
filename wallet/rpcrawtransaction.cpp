@@ -53,8 +53,12 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry, bo
     bool                                     isNTP1 = NTP1Transaction::IsTxNTP1(&tx, &opRet);
 
     const CTxDB txdb;
+
+    const auto bi            = txdb.ReadBlockIndex(hashBlock);
+    const int  assumedHeight = bi ? bi->nHeight : txdb.GetBestChainHeight();
+
     if (isNTP1 && !ignoreNTP1) {
-        pair = std::make_pair(CTransaction::FetchTxFromDisk(tx.GetHash()), NTP1Transaction());
+        pair = std::make_pair(CTransaction::FetchTxFromDisk(tx.GetHash(), txdb), NTP1Transaction());
         FetchNTP1TxFromDisk(pair, txdb, false);
         if (pair.second.isNull()) {
             isNTP1 = false;
@@ -85,7 +89,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry, bo
                     json_spirit::Value n = pair.second.getTxIn(i).getToken(t).exportDatabaseJsonData();
                     uint256            issuanceTxid = pair.second.getTxIn(i).getToken(t).getIssueTxId();
                     json_spirit::Value issuanceJson =
-                        NTP1Transaction::GetNTP1IssuanceMetadata(txdb, issuanceTxid);
+                        NTP1Transaction::GetNTP1IssuanceMetadata(assumedHeight, issuanceTxid);
                     n.get_obj().push_back(json_spirit::Pair("metadataOfIssuance", issuanceJson));
                     tokens.push_back(n);
                 }
@@ -111,7 +115,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry, bo
                 json_spirit::Value n = pair.second.getTxOut(i).getToken(t).exportDatabaseJsonData();
                 uint256            issuanceTxid = pair.second.getTxOut(i).getToken(t).getIssueTxId();
                 json_spirit::Value issuanceJson =
-                    NTP1Transaction::GetNTP1IssuanceMetadata(txdb, issuanceTxid);
+                    NTP1Transaction::GetNTP1IssuanceMetadata(assumedHeight, issuanceTxid);
                 n.get_obj().push_back(json_spirit::Pair("metadataOfIssuance", issuanceJson));
                 tokens.push_back(n);
             }
@@ -141,11 +145,9 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry, bo
 
     if (hashBlock != 0) {
         entry.push_back(Pair("blockhash", hashBlock.GetHex()));
-        const auto bi = txdb.ReadBlockIndex(hashBlock);
         if (bi) {
             if (bi->IsInMainChain(txdb)) {
-                entry.push_back(
-                    Pair("confirmations", 1 + txdb.GetBestChainHeight().value_or(0) - bi->nHeight));
+                entry.push_back(Pair("confirmations", 1 + txdb.GetBestChainHeight() - bi->nHeight));
                 entry.push_back(Pair("time", (int64_t)bi->nTime));
                 entry.push_back(Pair("blocktime", (int64_t)bi->nTime));
             } else
@@ -401,11 +403,13 @@ Value listunspent(const Array& params, bool fHelp)
         std::vector<std::pair<CTransaction, NTP1Transaction>> ntp1inputs =
             NTP1Transaction::GetAllNTP1InputsOfTx(static_cast<CTransaction>(*out.tx), txdb, false);
         NTP1Transaction ntp1tx;
-        ntp1tx.readNTP1DataFromTx(txdb, static_cast<CTransaction>(*out.tx), ntp1inputs);
+        ntp1tx.readNTP1DataFromTx(txdb.GetBestChainHeight(), static_cast<CTransaction>(*out.tx),
+                                  ntp1inputs);
 
         if (setAddress.size()) {
             CTxDestination address;
-            if (!ExtractDestination(txdb, out.tx->vout[out.i].scriptPubKey, address))
+            if (!ExtractDestination(txdb.GetBestChainHeight(), out.tx->vout[out.i].scriptPubKey,
+                                    address))
                 continue;
 
             if (!setAddress.count(address))
@@ -418,7 +422,7 @@ Value listunspent(const Array& params, bool fHelp)
         entry.push_back(Pair("txid", out.tx->GetHash().GetHex()));
         entry.push_back(Pair("vout", out.i));
         CTxDestination address;
-        if (ExtractDestination(txdb, out.tx->vout[out.i].scriptPubKey, address)) {
+        if (ExtractDestination(txdb.GetBestChainHeight(), out.tx->vout[out.i].scriptPubKey, address)) {
             entry.push_back(Pair("address", CBitcoinAddress(address).ToString()));
             if (auto addrBookEntry = pwalletMain->mapAddressBook.get(address))
                 entry.push_back(Pair("account", addrBookEntry->name));
@@ -826,7 +830,7 @@ Value issuenewntp1token(const Array& params, bool fHelp)
             std::vector<std::pair<CTransaction, NTP1Transaction>> inputsTxs =
                 NTP1Transaction::GetAllNTP1InputsOfTx(rawTx, txdb, false);
             NTP1Transaction ntp1tx;
-            ntp1tx.readNTP1DataFromTx(txdb, rawTx, inputsTxs);
+            ntp1tx.readNTP1DataFromTx(txdb.GetBestChainHeight(), rawTx, inputsTxs);
         } catch (const std::exception& ex) {
             NLog.write(b_sev::info,
                        "An invalid NTP1 transaction was created; an exception was thrown: {}",

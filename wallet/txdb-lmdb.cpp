@@ -265,13 +265,16 @@ bool ShouldQuickSyncBeDone(const filesystem::path& dbdir, bool forceClearDB)
 void CTxDB::resyncIfNecessary(bool forceClearDB)
 {
 
-    nVersion = ReadVersion().value_or(0);
-    NLog.write(b_sev::info, "Transaction index version is {}", nVersion);
+    {
+        const int nVersion = ReadVersion().value_or(0);
+        NLog.write(b_sev::info, "Transaction index version is {}", nVersion);
 
-    if (nVersion != DATABASE_VERSION) {
-        NLog.write(b_sev::warn, "Required index version is {}, removing old database", DATABASE_VERSION);
+        if (nVersion != DATABASE_VERSION) {
+            NLog.write(b_sev::warn, "Required index version is {}, removing old database",
+                       DATABASE_VERSION);
 
-        forceClearDB = true;
+            forceClearDB = true;
+        }
     }
 
     NLog.write(b_sev::info, "Opened LMDB successfully");
@@ -323,7 +326,7 @@ void CTxDB::resyncIfNecessary(bool forceClearDB)
     WriteVersion(DATABASE_VERSION); // Save db schema version
 
     // ensure the correct version is now there
-    nVersion = ReadVersion().value_or(0);
+    const int nVersion = ReadVersion().value_or(0);
     if (nVersion != DATABASE_VERSION) {
         throw std::runtime_error(
             "Failed to persist database schema version number after clearing the database.");
@@ -336,7 +339,7 @@ CTxDB::CTxDB()
 {
     static boost::filesystem::path DBDir = GetDataDir() / DB_DIR;
 
-    static const bool    DBCachingEnabled = GetBoolArg("-enabledbcache", false);
+    static const bool    DBCachingEnabled = GetBoolArg("-enabledbcache", true);
     static const int64_t DBCachingSize    = GetArg("-dbcachesize", 5000);
 
     if (DBCachingEnabled) {
@@ -357,6 +360,7 @@ bool CTxDB::TxnAbort() { return db->abortDBTransaction(); }
 
 boost::optional<int> CTxDB::ReadVersion()
 {
+    int nVersion = 0;
     return Read(std::string("version"), nVersion, IDB::Index::DB_MAIN_INDEX)
                ? boost::make_optional(nVersion)
                : boost::none;
@@ -724,8 +728,7 @@ bool CTxDB::LoadBlockIndex()
         }
         // check level 1: verify block validity
         // check level 7: verify block signature too
-        if (nCheckLevel > 0 &&
-            !block.CheckBlock(*this, block.GetHash(), true, true, (nCheckLevel > 6))) {
+        if (nCheckLevel > 0 && !block.CheckBlock(bestHeight, true, true, (nCheckLevel > 6))) {
             NLog.write(b_sev::warn, "LoadBlockIndex() : *** found bad block at {}, hash={}",
                        pindex->nHeight, pindex->GetBlockHash().ToString());
             pindexFork = pindex->getPrev(*this);
@@ -780,7 +783,7 @@ bool CTxDB::LoadBlockIndex()
                                             "of {}:{} from disk",
                                             hashTx.ToString(), nOutput);
                                         pindexFork = pindex->getPrev(*this);
-                                    } else if (txSpend.CheckTransaction(*this).isErr()) {
+                                    } else if (txSpend.CheckTransaction(bestHeight).isErr()) {
                                         NLog.write(b_sev::warn,
                                                    "LoadBlockIndex(): *** spending transaction of {}:{} "
                                                    "is invalid",
@@ -843,22 +846,18 @@ bool CTxDB::LoadBlockIndex()
     return true;
 }
 
-boost::optional<int> CTxDB::GetBestChainHeight() const
+int CTxDB::GetBestChainHeight() const
 {
     if (auto v = GetBestBlockIndex()) {
-        if (v.is_initialized()) {
-            return v->nHeight;
-        }
+        return v->nHeight;
     }
-    return boost::none;
+    return 0;
 }
 
 boost::optional<uint256> CTxDB::GetBestChainTrust() const
 {
     if (auto v = GetBestBlockIndex()) {
-        if (v.is_initialized()) {
-            return v->nChainTrust;
-        }
+        return v->nChainTrust;
     }
     return boost::none;
 }

@@ -13,7 +13,7 @@ bool IsFinalTx(const CTransaction& tx, const ITxDB& txdb, int nBlockHeight, int6
     if (tx.nLockTime == 0)
         return true;
     if (nBlockHeight == 0)
-        nBlockHeight = txdb.GetBestChainHeight().value_or(0);
+        nBlockHeight = txdb.GetBestChainHeight();
     if (nBlockTime == 0)
         nBlockTime = GetAdjustedTime();
     if ((int64_t)tx.nLockTime <
@@ -25,7 +25,7 @@ bool IsFinalTx(const CTransaction& tx, const ITxDB& txdb, int nBlockHeight, int6
     return true;
 }
 
-bool IsStandardTx(const ITxDB& txdb, const CTransaction& tx, std::string& reason)
+bool IsStandardTx(const int blockHeight, const CTransaction& tx, std::string& reason)
 {
     if (tx.nVersion > CTransaction::CURRENT_VERSION) {
         reason = "version";
@@ -69,7 +69,7 @@ bool IsStandardTx(const ITxDB& txdb, const CTransaction& tx, std::string& reason
     unsigned int nDataOut = 0;
     txnouttype   whichType;
     for (const CTxOut& txout : tx.vout) {
-        if (!::IsStandard(txdb, txout.scriptPubKey, whichType)) {
+        if (!::IsStandard(blockHeight, txout.scriptPubKey, whichType)) {
             reason = "scriptpubkey";
             return false;
         }
@@ -95,9 +95,9 @@ bool IsStandardTx(const ITxDB& txdb, const CTransaction& tx, std::string& reason
     return true;
 }
 
-bool EnableEnforceUniqueTokenSymbols(const ITxDB& txdb)
+bool EnableEnforceUniqueTokenSymbols(const int blockHeight)
 {
-    if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, txdb)) {
+    if (Params().GetNetForks().isForkActivated(NetworkFork::NETFORK__3_TACHYON, blockHeight)) {
         return true;
     } else {
         return false;
@@ -137,7 +137,7 @@ void AssertNTP1TokenNameIsNotAlreadyInMainChain(const std::string& sym, const ui
             if (!IsTxInMainChain(txdb, h)) {
                 continue;
             }
-            auto pair = std::make_pair(CTransaction::FetchTxFromDisk(h), NTP1Transaction());
+            auto pair = std::make_pair(CTransaction::FetchTxFromDisk(h, txdb), NTP1Transaction());
             FetchNTP1TxFromDisk(pair, txdb, false);
             std::string storedSymbol = pair.second.getTokenSymbolIfIssuance();
             // blacklisted tokens can be duplicated, since they won't be used ever again

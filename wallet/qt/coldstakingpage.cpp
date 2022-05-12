@@ -124,9 +124,8 @@ void ColdStakingPage::slot_disableStaking(const QModelIndex& idx) { model->black
 
 void ColdStakingPage::slot_openNewColdStakeDialog()
 {
-    const int currentHeight =
-        std::max({cPeerBlockCounts.median(), CTxDB().GetBestChainHeight().value_or(0),
-                  Checkpoints::GetTotalBlocksEstimate()});
+    const int currentHeight = std::max({cPeerBlockCounts.median(), CTxDB().GetBestChainHeight(),
+                                        Checkpoints::GetTotalBlocksEstimate()});
     const int activationHeight =
         Params().GetNetForks().getFirstBlockOfFork(NetworkFork::NETFORK__5_COLD_STAKING);
 

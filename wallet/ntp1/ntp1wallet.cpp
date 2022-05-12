@@ -1,6 +1,7 @@
 #include "ntp1wallet.h"
 
 // the following is a necessary include for pwalletMain and CWalletTx objects
+#include "blockindex.h"
 #include "init.h"
 #include "main.h"
 #include "txdb.h"
@@ -67,7 +68,9 @@ void NTP1Wallet::__getOutputs()
 
     const CTxDB txdb;
 
-    const uint256 bestBlockHash = txdb.GetBestBlockHash();
+    const CBlockIndex bestBlockIndex  = txdb.GetBestBlockIndex().value();
+    const uint256     bestBlockHash   = bestBlockIndex.GetBlockHash();
+    const int         bestBlockHeight = bestBlockIndex.nHeight;
 
     std::vector<COutput> vecOutputs;
     std::atomic_load(&localWallet)->AvailableCoins(txdb, vecOutputs);
@@ -134,7 +137,7 @@ void NTP1Wallet::__getOutputs()
         try {
             std::vector<std::pair<CTransaction, NTP1Transaction>> prevTxs =
                 NTP1Transaction::GetAllNTP1InputsOfTx(neblTx, txdb, true);
-            ntp1tx.readNTP1DataFromTx(txdb, neblTx, prevTxs);
+            ntp1tx.readNTP1DataFromTx(bestBlockHeight, neblTx, prevTxs);
         } catch (std::exception& ex) {
             NLog.write(b_sev::err, "Unable to download transaction information. Error says: {}",
                        ex.what());
@@ -156,7 +159,7 @@ void NTP1Wallet::__getOutputs()
                     uint256      issueTxid = tokenTx.getIssueTxId();
                     CTransaction issueTx;
                     try {
-                        issueTx = CTransaction::FetchTxFromDisk(issueTxid);
+                        issueTx = CTransaction::FetchTxFromDisk(issueTxid, txdb);
                     } catch (const std::exception& ex) {
                         if (!mempool.lookup(issueTxid, issueTx)) {
                             throw std::runtime_error(
@@ -168,7 +171,7 @@ void NTP1Wallet::__getOutputs()
                     std::vector<std::pair<CTransaction, NTP1Transaction>> issueTxInputs =
                         NTP1Transaction::GetAllNTP1InputsOfTx(issueTx, txdb, true);
                     NTP1Transaction issueNTP1Tx;
-                    issueNTP1Tx.readNTP1DataFromTx(txdb, issueTx, issueTxInputs);
+                    issueNTP1Tx.readNTP1DataFromTx(bestBlockHeight, issueTx, issueTxInputs);
 
                     // find the correct output in the issuance transaction that has the token in question
                     // issued
@@ -196,7 +199,7 @@ void NTP1Wallet::__getOutputs()
                     if (retrieveFullMetadata) {
                         try {
                             tokenInformation[tokenTx.getTokenId()] =
-                                NTP1Transaction::GetFullNTP1IssuanceMetadata(txdb, issueTxid);
+                                NTP1Transaction::GetFullNTP1IssuanceMetadata(bestBlockHeight, issueTxid);
                         } catch (std::exception& ex) {
                             NLog.write(b_sev::err, "Failed to retrieve NTP1 token metadata. Error: {}",
                                        ex.what());

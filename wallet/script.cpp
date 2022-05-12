@@ -1355,7 +1355,7 @@ bool CheckSig(vector<unsigned char> vchSig, vector<unsigned char> vchPubKey, CSc
 //
 // Return public keys or hashes from scriptPubKey, for 'standard' transaction types.
 //
-bool Solver(const ITxDB& txdb, const CScript& scriptPubKey, txnouttype& typeRet,
+bool Solver(const int blockHeight, const CScript& scriptPubKey, txnouttype& typeRet,
             vector<vector<unsigned char>>& vSolutionsRet)
 {
     // Templates
@@ -1451,7 +1451,7 @@ bool Solver(const ITxDB& txdb, const CScript& scriptPubKey, txnouttype& typeRet,
                     break;
             } else if (opcode2 == OP_SMALLDATA) {
                 // small pushdata, <= 4096 bytes after hard fork, 80 before
-                if (vch1.size() > Params().OpReturnMaxSize(txdb))
+                if (vch1.size() > Params().OpReturnMaxSize(blockHeight))
                     break;
             } else if (opcode1 != opcode2 || vch1 != vch2) {
                 // Others must match exactly
@@ -1501,13 +1501,13 @@ bool SignN(const vector<valtype>& multisigdata, const CKeyStore& keystore, uint2
 // unless whichTypeRet is TX_SCRIPTHASH, in which case scriptSigRet is the redemption script.
 // Returns false if scriptPubKey could not be completely satisfied.
 //
-bool Solver(const ITxDB& txdb, const CKeyStore& keystore, const CScript& scriptPubKey, uint256 hash,
+bool Solver(const int blockHeight, const CKeyStore& keystore, const CScript& scriptPubKey, uint256 hash,
             int nHashType, CScript& scriptSigRet, txnouttype& whichTypeRet, bool fColdStake = false)
 {
     scriptSigRet.clear();
 
     vector<valtype> vSolutions;
-    if (!Solver(txdb, scriptPubKey, whichTypeRet, vSolutions))
+    if (!Solver(blockHeight, scriptPubKey, whichTypeRet, vSolutions))
         return false;
 
     CKeyID keyID;
@@ -1578,10 +1578,10 @@ int ScriptSigArgsExpected(txnouttype t, const std::vector<std::vector<unsigned c
     return -1;
 }
 
-bool IsStandard(const ITxDB& txdb, const CScript& scriptPubKey, txnouttype& whichType)
+bool IsStandard(const int blockHeight, const CScript& scriptPubKey, txnouttype& whichType)
 {
     vector<valtype> vSolutions;
-    if (!Solver(txdb, scriptPubKey, whichType, vSolutions))
+    if (!Solver(blockHeight, scriptPubKey, whichType, vSolutions))
         return false;
 
     if (whichType == TX_MULTISIG) {
@@ -1635,7 +1635,7 @@ isminetype IsMine(const CKeyStore& keystore, const CScript& scriptPubKey)
 {
     std::vector<valtype> vSolutions;
     txnouttype           whichType;
-    if (!Solver(CTxDB(), scriptPubKey, whichType, vSolutions))
+    if (!Solver(CTxDB().GetBestChainHeight(), scriptPubKey, whichType, vSolutions))
         return isminetype::ISMINE_NO;
 
     CKeyID keyID;
@@ -1688,12 +1688,12 @@ isminetype IsMine(const CKeyStore& keystore, const CScript& scriptPubKey)
     return isminetype::ISMINE_NO;
 }
 
-bool ExtractDestination(const ITxDB& txdb, const CScript& scriptPubKey, CTxDestination& addressRet,
+bool ExtractDestination(const int blockHeight, const CScript& scriptPubKey, CTxDestination& addressRet,
                         bool fColdStake)
 {
     vector<valtype> vSolutions;
     txnouttype      whichType;
-    if (!Solver(txdb, scriptPubKey, whichType, vSolutions))
+    if (!Solver(blockHeight, scriptPubKey, whichType, vSolutions))
         return false;
 
     if (whichType == TX_PUBKEY) {
@@ -1716,13 +1716,14 @@ bool ExtractDestination(const ITxDB& txdb, const CScript& scriptPubKey, CTxDesti
 class CAffectedKeysVisitor : public boost::static_visitor<void>
 {
 private:
-    const ITxDB&         txdb;
+    const int            blockHeight;
     const CKeyStore&     keystore;
     std::vector<CKeyID>& vKeys;
 
 public:
-    CAffectedKeysVisitor(const ITxDB& txdbIn, const CKeyStore& keystoreIn, std::vector<CKeyID>& vKeysIn)
-        : txdb(txdbIn), keystore(keystoreIn), vKeys(vKeysIn)
+    CAffectedKeysVisitor(const int blockHeightIn, const CKeyStore& keystoreIn,
+                         std::vector<CKeyID>& vKeysIn)
+        : blockHeight(blockHeightIn), keystore(keystoreIn), vKeys(vKeysIn)
     {
     }
 
@@ -1731,7 +1732,7 @@ public:
         txnouttype                  type;
         std::vector<CTxDestination> vDest;
         int                         nRequired;
-        if (ExtractDestinations(txdb, script, type, vDest, nRequired)) {
+        if (ExtractDestinations(blockHeight, script, type, vDest, nRequired)) {
             for (const CTxDestination& dest : vDest)
                 boost::apply_visitor(*this, dest);
         }
@@ -1753,19 +1754,19 @@ public:
     void operator()(const CNoDestination& /*none*/) {}
 };
 
-void ExtractAffectedKeys(const ITxDB& txdb, const CKeyStore& keystore, const CScript& scriptPubKey,
+void ExtractAffectedKeys(const int blockHeight, const CKeyStore& keystore, const CScript& scriptPubKey,
                          std::vector<CKeyID>& vKeys)
 {
-    CAffectedKeysVisitor(txdb, keystore, vKeys).Process(scriptPubKey);
+    CAffectedKeysVisitor(blockHeight, keystore, vKeys).Process(scriptPubKey);
 }
 
-bool ExtractDestinations(const ITxDB& txdb, const CScript& scriptPubKey, txnouttype& typeRet,
+bool ExtractDestinations(const int blockHeight, const CScript& scriptPubKey, txnouttype& typeRet,
                          vector<CTxDestination>& addressRet, int& nRequiredRet)
 {
     addressRet.clear();
     typeRet = TX_NONSTANDARD;
     vector<valtype> vSolutions;
-    if (!Solver(txdb, scriptPubKey, typeRet, vSolutions))
+    if (!Solver(blockHeight, scriptPubKey, typeRet, vSolutions))
         return false;
     if (typeRet == TX_NULL_DATA) {
         // This is data, not addresses
@@ -1789,7 +1790,7 @@ bool ExtractDestinations(const ITxDB& txdb, const CScript& scriptPubKey, txnoutt
     } else {
         nRequiredRet = 1;
         CTxDestination address;
-        if (!ExtractDestination(txdb, scriptPubKey, address))
+        if (!ExtractDestination(blockHeight, scriptPubKey, address))
             return false;
         addressRet.push_back(address);
     }
@@ -1855,8 +1856,11 @@ SignatureState SignSignature(const CKeyStore& keystore, const CScript& fromPubKe
 
     const CTxDB txdb;
 
+    const int currentBlockHeight = txdb.GetBestChainHeight();
+
     txnouttype whichType;
-    if (!Solver(txdb, keystore, fromPubKey, hash, nHashType, txin.scriptSig, whichType, fColdStake))
+    if (!Solver(currentBlockHeight, keystore, fromPubKey, hash, nHashType, txin.scriptSig, whichType,
+                fColdStake))
         return SignatureState::Failed;
 
     if (whichType == TX_SCRIPTHASH) {
@@ -1869,8 +1873,9 @@ SignatureState SignSignature(const CKeyStore& keystore, const CScript& fromPubKe
         uint256 hash2 = SignatureHash(subscript, txTo, nIn, nHashType);
 
         txnouttype subType;
-        bool fSolved = Solver(txdb, keystore, subscript, hash2, nHashType, txin.scriptSig, subType) &&
-                       subType != TX_SCRIPTHASH;
+        bool       fSolved =
+            Solver(currentBlockHeight, keystore, subscript, hash2, nHashType, txin.scriptSig, subType) &&
+            subType != TX_SCRIPTHASH;
         // Append serialized subscript whether or not it is completely signed:
         txin.scriptSig << static_cast<valtype>(subscript);
         if (!fSolved)
@@ -2004,7 +2009,7 @@ static CScript CombineSignatures(CScript scriptPubKey, const CTransaction& txTo,
 
             txnouttype                    txType2;
             vector<vector<unsigned char>> vSolutions2;
-            Solver(CTxDB(), pubKey2, txType2, vSolutions2);
+            Solver(CTxDB().GetBestChainHeight(), pubKey2, txType2, vSolutions2);
             sigs1.pop_back();
             sigs2.pop_back();
             CScript result = CombineSignatures(pubKey2, txTo, nIn, txType2, vSolutions2, sigs1, sigs2);
@@ -2023,7 +2028,7 @@ CScript CombineSignatures(CScript scriptPubKey, const CTransaction& txTo, unsign
 {
     txnouttype                    txType;
     vector<vector<unsigned char>> vSolutions;
-    Solver(CTxDB(), scriptPubKey, txType, vSolutions);
+    Solver(CTxDB().GetBestChainHeight(), scriptPubKey, txType, vSolutions);
 
     vector<valtype> stack1;
     EvalScript(stack1, scriptSig1, CTransaction(), 0, true, 0);

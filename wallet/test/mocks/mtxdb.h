@@ -59,7 +59,7 @@ struct mTxDB : public ITxDB
                 (const, override));
 
     MOCK_METHOD(bool, LoadBlockIndex, (), (override));
-    MOCK_METHOD(boost::optional<int>, GetBestChainHeight, (), (const, override));
+    MOCK_METHOD(int, GetBestChainHeight, (), (const, override));
     MOCK_METHOD(boost::optional<uint256>, GetBestChainTrust, (), (const, override));
     MOCK_METHOD(boost::optional<CBlockIndex>, GetBestBlockIndex, (), (const, override));
     MOCK_METHOD(uint256, GetBestBlockHash, (), (const, override));
