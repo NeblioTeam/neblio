@@ -832,6 +832,9 @@ Value udtoneblioaddress(const Array& params, bool fHelp)
             "udtoneblioaddress <unstoppable domain address>\n"
             "Returns the neblio address associated with the provided unstoppable domain");
 
+    throw std::runtime_error("Unstoppable Domains removed support for public DNS queries. We are "
+                             "working with them on a new solution");
+
     string strUDDomain;
     if (params.size() > 0)
         strUDDomain = params[0].get_str();
@@ -845,9 +848,6 @@ Value udtoneblioaddress(const Array& params, bool fHelp)
         throw std::runtime_error("Failed to get address from domain. Either the address is invalid or "
                                  "internet connectivity has a problem.");
     }
-
-    throw std::runtime_error("Unstoppable Domains removed support for public DNS queries. We are "
-                             "working with them on a new solution");
 
     return *neblAddress;
 }
