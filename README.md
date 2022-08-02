@@ -7,9 +7,6 @@
 # Open Source Repository for Neblio Nodes & Wallets
 More information here: https://nebl.io
 
-Alpha Builds for commits that pass testing can be found here:
-https://builds.nebl.io
-
 Pull Requests Welcome
 
 
