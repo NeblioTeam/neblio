@@ -60,10 +60,6 @@ jobs:
         echo "GITHUB_REF=$(echo ${GITHUB_REF})" >> $GITHUB_ENV
         python -u ci_scripts/test_linux-daemon-gui.py
         echo "RELEASE_TAG=$(echo ${GITHUB_REF:10})" >> $GITHUB_ENV
-    - name: Build Upload to S3
-      uses: jakejarvis/s3-sync-action@v0.5.0
-      with:
-        args: --acl public-read
     - name: If Release, Upload Release
       if: startsWith(github.ref, 'refs/tags/v')
       uses: AButler/upload-release-assets@v1.0
@@ -91,10 +87,6 @@ jobs:
       run: |
         python -u ci_scripts/test_linux-daemon-gui.py
         echo "RELEASE_TAG=$(echo ${GITHUB_REF:10})" >> $GITHUB_ENV
-    - name: Build Upload to S3
-      uses: jakejarvis/s3-sync-action@v0.5.0
-      with:
-        args: --acl public-read
     - name: If Release, Upload Release
       if: startsWith(github.ref, 'refs/tags/v')
       uses: AButler/upload-release-assets@v1.0
@@ -139,10 +131,6 @@ jobs:
       run: |
         python -u ci_scripts/test_win_x86-gui_wallet.py
         echo "RELEASE_TAG=$(echo ${GITHUB_REF:10})" >> $GITHUB_ENV
-    - name: Build Upload to S3
-      uses: jakejarvis/s3-sync-action@v0.5.0
-      with:
-        args: --acl public-read
     - name: If Release, Upload Release
       if: startsWith(github.ref, 'refs/tags/v')
       uses: AButler/upload-release-assets@v1.0
@@ -170,13 +158,6 @@ jobs:
       run: |
         python -u ci_scripts/test_osx-gui_wallet.py
         echo "RELEASE_TAG=$(echo ${GITHUB_REF:10})" >> $GITHUB_ENV
-    - name: Build Upload to S3
-      run: |
-        brew fetch --retry s3cmd
-        brew install s3cmd --force
-        brew unlink s3cmd
-        brew link --force --overwrite s3cmd
-        s3cmd --access_key=$AWS_ACCESS_KEY_ID --secret_key=$AWS_SECRET_ACCESS_KEY --acl-public --host=ams3.digitaloceanspaces.com --host-bucket='%(bucket)s.ams3.digitaloceanspaces.com' --no-preserve put $SOURCE_PATH s3://neblio-build-staging
     - name: If Release, Upload Release
       if: startsWith(github.ref, 'refs/tags/v')
       uses: AButler/upload-release-assets@v1.0
@@ -276,10 +257,6 @@ jobs:
       run: |
         python -u ci_scripts/test_rpi-daemon-gui.py
         echo "RELEASE_TAG=$(echo ${GITHUB_REF:10})" >> $GITHUB_ENV
-    - name: Build Upload to S3
-      uses: jakejarvis/s3-sync-action@v0.5.0
-      with:
-        args: --acl public-read
     - name: If Release, Upload Release
       if: startsWith(github.ref, 'refs/tags/v')
       uses: AButler/upload-release-assets@v1.0
@@ -337,10 +314,6 @@ jobs:
       run: |
         python -u ci_scripts/test_rpi-daemon-gui.py
         echo "RELEASE_TAG=$(echo ${GITHUB_REF:10})" >> $GITHUB_ENV
-    - name: Build Upload to S3
-      uses: jakejarvis/s3-sync-action@v0.5.0
-      with:
-        args: --acl public-read
     - name: If Release, Upload Release
       if: startsWith(github.ref, 'refs/tags/v')
       uses: AButler/upload-release-assets@v1.0
