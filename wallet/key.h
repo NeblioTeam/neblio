@@ -84,6 +84,8 @@ public:
 
     IMPLEMENT_SERIALIZE(READWRITE(vchPubKey);)
 
+    void SetRaw(std::vector<unsigned char> rawKey) {vchPubKey = rawKey;}
+
     CKeyID GetID() const { return CKeyID(Hash160(vchPubKey)); }
 
     uint256 GetHash() const { return Hash(vchPubKey.begin(), vchPubKey.end()); }

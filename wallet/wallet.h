@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2009-2010 Satoshi Nakamoto
+// Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -426,6 +426,57 @@ public:
     CBitcoinAddress getNewAddress(const std::string& label);
     CBitcoinAddress getNewStakingAddress(const std::string& label);
     CAmount         GetStakingBalance(const ITxDB& txdb, bool fIncludeColdStaking) const;
+
+    mutable CCriticalSection cs_LedgerKeyStore;
+
+    // TODO GK - LedgerKeyStore class? (this is copied from keystore)
+    std::map<CKeyID, CPubKey> ledgerKeys;
+    bool HaveLedgerKey(const CKeyID &address) const
+    {
+        bool result;
+        {
+            LOCK(cs_LedgerKeyStore);
+            result = (ledgerKeys.count(address) > 0);
+        }
+        return result;
+    }
+
+    bool AddLedgerKey(const CPubKey& key)
+    {
+        {
+            LOCK(cs_LedgerKeyStore);
+            ledgerKeys[key.GetID()] = key;
+        }
+        return true;
+    }
+
+    void GetLedgerKeys(std::set<CKeyID> &setAddress) const
+    {
+        setAddress.clear();
+        {
+            LOCK(cs_LedgerKeyStore);
+            std::map<CKeyID, CPubKey> ::const_iterator mi = ledgerKeys.begin();
+            while (mi != ledgerKeys.end())
+            {
+                setAddress.insert((*mi).first);
+                mi++;
+            }
+        }
+    }
+
+    bool GetLedgerKey(const CKeyID &address, CPubKey &pubKeyOut) const
+    {
+        {
+            LOCK(cs_LedgerKeyStore);
+            std::map<CKeyID, CPubKey> ::const_iterator mi = ledgerKeys.find(address);
+            if (mi != ledgerKeys.end())
+            {
+                pubKeyOut.SetRaw((*mi).second.Raw());
+                return true;
+            }
+        }
+        return false;
+    }
 };
 
 /** A key allocated from the key pool. */
