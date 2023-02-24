@@ -18,11 +18,11 @@ mac {
 	QMAKE_INFO_PLIST = $${NEBLIO_ROOT}/wallet/qt/res/Info.plist
 }
 
-_BOOST_PATH = /home/vacuumlabs/projects/vl/neblio/neblio/boost_1_65_1
+_BOOST_PATH = $${NEBLIO_ROOT}/boost_1_65_1
 INCLUDEPATH += "$${_BOOST_PATH}"
 LIBS += -L$${_BOOST_PATH}/stage/lib
 
-_OPENSSL_PATH = /home/vacuumlabs/projects/vl/neblio/neblio/openssl_build
+_OPENSSL_PATH = $${NEBLIO_ROOT}/openssl_build
 INCLUDEPATH += "$${_OPENSSL_PATH}/include"
 LIBS += -L$${_OPENSSL_PATH}/lib
 
