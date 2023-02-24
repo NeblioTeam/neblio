@@ -18,6 +18,18 @@ mac {
 	QMAKE_INFO_PLIST = $${NEBLIO_ROOT}/wallet/qt/res/Info.plist
 }
 
+_BOOST_PATH = /home/vacuumlabs/projects/vl/neblio/neblio/boost_1_65_1
+INCLUDEPATH += "$${_BOOST_PATH}"
+LIBS += -L$${_BOOST_PATH}/stage/lib
+
+_OPENSSL_PATH = /home/vacuumlabs/projects/vl/neblio/neblio/openssl_build
+INCLUDEPATH += "$${_OPENSSL_PATH}/include"
+LIBS += -L$${_OPENSSL_PATH}/lib
+
+_HIDAPI_PATH = /usr/local/
+INCLUDEPATH += "$${_HIDAPI_PATH}/include/hidapi"
+LIBS += -L$${_HIDAPI_PATH}/lib/libhidapi-libusb.so
+LIBS += -lhidapi-libusb
 
 # use: qmake "NEBLIO_REST=1"
 contains(NEBLIO_REST, 1) {
