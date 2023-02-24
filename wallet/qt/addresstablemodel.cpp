@@ -11,7 +11,8 @@
 
 const QString AddressTableModel::Send    = "S";
 const QString AddressTableModel::Receive = "R";
-const QString AddressTableModel::ReceiveLedger = "RL";
+const QString AddressTableModel::ReceiveLedger = "RL"; // TODO DM this is accidentally matched by
+// proxyModel->setFilterFixedString(AddressTableModel::Receive);
 
 struct AddressTableEntry
 {
@@ -202,6 +203,8 @@ QVariant AddressTableModel::data(const QModelIndex& index, int role) const
             return Send;
         case AddressTableEntry::Receiving:
             return Receive;
+        case AddressTableEntry::ReceivingLedger:
+            return ReceiveLedger;
         default:
             break;
         }
@@ -297,7 +300,7 @@ Qt::ItemFlags AddressTableModel::flags(const QModelIndex& index) const
     // Can edit address and label for sending addresses,
     // and only label for receiving addresses.
     if (rec->type == AddressTableEntry::Sending ||
-        (rec->type == AddressTableEntry::Receiving && index.column() == Label)) {
+        (rec->type == AddressTableEntry::Receiving && index.column() == Label)) { // TODO DM?
         retval |= Qt::ItemIsEditable;
     }
     return retval;
@@ -398,7 +401,7 @@ bool AddressTableModel::removeRows(int row, int count, const QModelIndex& parent
 {
     Q_UNUSED(parent);
     AddressTableEntry* rec = priv->index(row);
-    if (count != 1 || !rec || rec->type == AddressTableEntry::Receiving) {
+    if (count != 1 || !rec || rec->type == AddressTableEntry::Receiving) { // TODO DM?
         // Can only remove one row at a time, and cannot remove rows not in model.
         // Also refuse to remove receiving addresses.
         return false;
