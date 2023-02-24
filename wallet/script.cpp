@@ -17,6 +17,7 @@ using namespace boost;
 #include "script.h"
 #include "sync.h"
 #include "util.h"
+#include "wallet.h"
 
 template <typename T>
 std::vector<unsigned char> ToByteVector(const T& in)
@@ -1625,9 +1626,31 @@ public:
     }
 };
 
+class CWalletIsMineVisitor : public boost::static_visitor<isminetype>
+{
+private:
+    const CWallet* wallet;
+
+public:
+    CWalletIsMineVisitor(const CWallet* walletIn): wallet(walletIn){};
+    isminetype operator()(const CNoDestination& /*dest*/) const { return isminetype::ISMINE_NO; }
+    isminetype operator()(const CKeyID& keyID) const
+    {
+        return wallet->HaveLedgerKey(keyID) ? isminetype::ISMINE_SPENDABLE : isminetype::ISMINE_NO;
+    }
+    isminetype operator()(const CScriptID& scriptID) const    {return isminetype::ISMINE_NO;    }
+};
+
 isminetype IsMine(const CKeyStore& keystore, const CTxDestination& dest)
 {
-    return boost::apply_visitor(CKeyStoreIsMineVisitor(&keystore), dest);
+    auto isMineKey = boost::apply_visitor(CKeyStoreIsMineVisitor(&keystore), dest);
+    if (isMineKey != isminetype::ISMINE_NO)
+    {
+        return isMineKey;
+    }
+
+    const CWallet *wallet = (CWallet*) &keystore;
+    return boost::apply_visitor(CWalletIsMineVisitor(wallet), dest);
 }
 
 isminetype IsMine(const CKeyStore& keystore, const CScript& scriptPubKey)

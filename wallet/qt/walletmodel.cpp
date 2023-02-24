@@ -194,11 +194,11 @@ void WalletModel::updateNumTransactions()
     }
 }
 
-void WalletModel::updateAddressBook(const QString& address, const QString& label, bool isMine,
+void WalletModel::updateAddressBook(const QString& address, const QString& label, uint isMine,
                                     const QString& purpose, int status)
 {
     if (addressTableModel)
-        addressTableModel->updateEntry(address, label, isMine, purpose, status);
+        addressTableModel->updateEntry(address, label, (isminetype) isMine, purpose, status);
 }
 
 bool WalletModel::validateAddress(const QString& address)
@@ -439,14 +439,14 @@ static void NotifyKeyStoreStatusChanged(WalletModel* walletmodel, CCryptoKeyStor
 
 static void NotifyAddressBookChanged(WalletModel*          walletmodel, CWallet* /*wallet*/,
                                      const CTxDestination& address, const std::string& label,
-                                     bool isMine, const std::string& purpose, ChangeType status)
+                                     uint isMine, const std::string& purpose, ChangeType status)
 {
     NLog.write(b_sev::info, "NotifyAddressBookChanged {} {} isMine={} purpose={} status={}",
                CBitcoinAddress(address).ToString(), label.c_str(), isMine, purpose, status);
     QMetaObject::invokeMethod(
         walletmodel, "updateAddressBook", Qt::QueuedConnection,
         Q_ARG(QString, QString::fromStdString(CBitcoinAddress(address).ToString())),
-        Q_ARG(QString, QString::fromStdString(label)), Q_ARG(bool, isMine),
+        Q_ARG(QString, QString::fromStdString(label)), Q_ARG(uint, isMine),
         Q_ARG(QString, QString::fromStdString(purpose)), Q_ARG(int, status));
 }
 

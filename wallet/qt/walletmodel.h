@@ -214,7 +214,7 @@ public slots:
     /**/
     void updateNumTransactions();
     /* New, updated or removed address book entry */
-    void updateAddressBook(const QString& address, const QString& label, bool isMine,
+    void updateAddressBook(const QString& address, const QString& label, uint isMine,
                            const QString& purpose, int status);
     /* Current, immature or unconfirmed balance might have changed - emit 'balanceChanged' if so */
     void pollBalanceChanged();

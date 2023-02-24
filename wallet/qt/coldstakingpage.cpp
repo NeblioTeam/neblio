@@ -1,4 +1,4 @@
-﻿#include "coldstakingpage.h"
+#include "coldstakingpage.h"
 
 #include "bitcoinunits.h"
 #include "checkpoints.h"
@@ -167,7 +167,7 @@ void ColdStakingPage::setWalletModel(WalletModel* wModel)
 
     notifyWalletConnection = model->getWalletModel()->getWallet()->NotifyAddressBookChanged.connect(
         [this](CWallet* /*wallet*/, const CTxDestination& /*address*/, const std::string& /*label*/,
-               bool /*isMine*/, const std::string& /*purpose*/,
+               uint /*isMine*/, const std::string& /*purpose*/,
                ChangeType /*status*/) { refreshData(); });
 }
 

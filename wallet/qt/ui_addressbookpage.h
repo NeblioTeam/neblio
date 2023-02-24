@@ -33,6 +33,7 @@ public:
     QTableView *tableView;
     QHBoxLayout *horizontalLayout;
     QPushButton *newAddressButton;
+    QPushButton *newLedgerAddressButton;
     QPushButton *copyToClipboard;
     QPushButton *showQRCode;
     QPushButton *signMessage;
@@ -76,6 +77,14 @@ public:
         newAddressButton->setIcon(icon);
 
         horizontalLayout->addWidget(newAddressButton);
+        
+        newLedgerAddressButton = new QPushButton(AddressBookPage);
+        newLedgerAddressButton->setObjectName(QStringLiteral("newLedgerAddressButton"));
+        QIcon icon100;
+        icon.addFile(QStringLiteral(":/icons/add"), QSize(), QIcon::Normal, QIcon::Off);
+        newLedgerAddressButton->setIcon(icon100);
+
+        horizontalLayout->addWidget(newLedgerAddressButton);
 
         copyToClipboard = new QPushButton(AddressBookPage);
         copyToClipboard->setObjectName(QStringLiteral("copyToClipboard"));
@@ -152,6 +161,10 @@ public:
         newAddressButton->setToolTip(QApplication::translate("AddressBookPage", "Create a new address", Q_NULLPTR));
 #endif // QT_NO_TOOLTIP
         newAddressButton->setText(QApplication::translate("AddressBookPage", "&New Address", Q_NULLPTR));
+#ifndef QT_NO_TOOLTIP
+        newLedgerAddressButton->setToolTip(QApplication::translate("AddressBookPage", "Create a new Ledger address", Q_NULLPTR));
+#endif // QT_NO_TOOLTIP
+        newLedgerAddressButton->setText(QApplication::translate("AddressBookPage", "&New Ledger Address", Q_NULLPTR));
 #ifndef QT_NO_TOOLTIP
         copyToClipboard->setToolTip(QApplication::translate("AddressBookPage", "Copy the currently selected address to the system clipboard", Q_NULLPTR));
 #endif // QT_NO_TOOLTIP

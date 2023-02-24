@@ -3,6 +3,7 @@
 
 #include <QAbstractTableModel>
 #include <QStringList>
+#include "wallet_ismine.h"
 
 class AddressTablePriv;
 class CWallet;
@@ -20,8 +21,9 @@ public:
 
     enum ColumnIndex
     {
-        Label   = 0, /**< User specified label */
-        Address = 1  /**< Bitcoin address */
+        IsLedger = 0,
+        Label   = 1, /**< User specified label */
+        Address = 2  /**< Bitcoin address */
     };
 
     enum RoleIndex
@@ -42,6 +44,7 @@ public:
 
     static const QString Send;    /**< Specifies send address */
     static const QString Receive; /**< Specifies receive address */
+    static const QString ReceiveLedger; /**< Specifies Ledger address */
 
     /** @name Methods overridden from QAbstractTableModel
         @{*/
@@ -91,7 +94,7 @@ signals:
 public slots:
     /* Update address list from core.
      */
-    void updateEntry(const QString& address, const QString& label, bool isMine, const QString& purpose,
+    void updateEntry(const QString& address, const QString& label, isminetype isMine, const QString& purpose,
                      int status);
 
     friend class AddressTablePriv;

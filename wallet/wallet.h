@@ -1,4 +1,4 @@
-// Copyright (c) 2009-2010 Satoshi Nakamoto
+﻿// Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -367,7 +367,7 @@ public:
      * @note called with lock cs_wallet held.
      */
     boost::signals2::signal<void(CWallet* wallet, const CTxDestination& address,
-                                 const std::string& label, bool isMine, const std::string& purpose,
+                                 const std::string& label, uint isMine, const std::string& purpose,
                                  ChangeType status)>
         NotifyAddressBookChanged;
 

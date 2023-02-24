@@ -2694,7 +2694,7 @@ bool CWallet::SetAddressBookEntry(const CTxDestination& address, const string& s
             d.purpose = strPurpose;
         mapAddressBook.set(address, d);
     }
-    NotifyAddressBookChanged(this, address, strName, ::IsMine(*this, address) != ISMINE_NO, strPurpose,
+    NotifyAddressBookChanged(this, address, strName, ::IsMine(*this, address), strPurpose,
                              (fUpdated ? CT_UPDATED : CT_NEW));
     if (!fFileBacked)
         return false;
@@ -2715,7 +2715,7 @@ bool CWallet::DelAddressBookName(const CTxDestination& address)
         mapAddressBook.erase(address);
     }
 
-    NotifyAddressBookChanged(this, address, "", ::IsMine(*this, address) != ISMINE_NO, purpose,
+    NotifyAddressBookChanged(this, address, "", ::IsMine(*this, address), purpose,
                              CT_DELETED);
 
     if (!fFileBacked)

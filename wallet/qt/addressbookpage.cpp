@@ -227,6 +227,19 @@ void AddressBookPage::on_newAddressButton_clicked()
     }
 }
 
+void AddressBookPage::on_newLedgerAddressButton_clicked()
+{
+    if(!model)
+        return;
+    // TODO GK - hide button in sending tab
+    EditAddressDialog dlg(EditAddressDialog::NewReceivingLedgerAddress, this);
+    dlg.setModel(model);
+    if(dlg.exec())
+    {
+        newAddressToSelect = dlg.getAddress();
+    }
+}
+
 void AddressBookPage::on_deleteButton_clicked()
 {
     QTableView *table = ui->tableView;

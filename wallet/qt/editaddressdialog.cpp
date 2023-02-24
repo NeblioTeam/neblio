@@ -20,6 +20,10 @@ EditAddressDialog::EditAddressDialog(Mode modeIn, QWidget *parent) :
         setWindowTitle(tr("New receiving address"));
         ui->addressEdit->setEnabled(false);
         break;
+    case NewReceivingLedgerAddress:
+        setWindowTitle(tr("New receiving Ledger address"));
+        ui->addressEdit->setEnabled(false);
+        break;
     case NewSendingAddress:
         setWindowTitle(tr("New sending address"));
         break;
@@ -65,9 +69,20 @@ bool EditAddressDialog::saveCurrentRow()
     switch(mode)
     {
     case NewReceivingAddress:
+        address = model->addRow(
+                AddressTableModel::Receive,
+                ui->labelEdit->text(),
+                ui->addressEdit->text());
+        break;
     case NewSendingAddress:
         address = model->addRow(
-                mode == NewSendingAddress ? AddressTableModel::Send : AddressTableModel::Receive,
+                AddressTableModel::Send,
+                ui->labelEdit->text(),
+                ui->addressEdit->text());
+        break;
+    case NewReceivingLedgerAddress:
+        address = model->addRow(
+                AddressTableModel::ReceiveLedger,
                 ui->labelEdit->text(),
                 ui->addressEdit->text());
         break;
