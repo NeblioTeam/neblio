@@ -17,6 +17,8 @@ wallet/leveldb/build_config.mk
 debug
 .neblio
 release/
+.qtc_clangd
+.vscode
 
 #compilation and Qt preprocessor part
 *.qm
