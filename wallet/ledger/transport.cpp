@@ -7,7 +7,7 @@ Transport::Transport(TransportType type)
 {
     switch (type) {
     case TransportType::HID:
-        comm_ = std::unique_ptr<HID>();
+        comm_ = std::unique_ptr<HID>(new HID());
         break;
     }
 }
