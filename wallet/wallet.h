@@ -447,6 +447,19 @@ public:
             LOCK(cs_LedgerKeyStore);
             ledgerKeys[key.GetID()] = key;
         }
+        if (!fFileBacked)
+            return true;
+
+        // TODO DM do we need the lock here?
+        return CWalletDB(strWalletFile).WriteLedgerKey(key);
+    }
+
+    bool LoadLedgerKey(const CPubKey& key)
+    {
+        {
+            LOCK(cs_LedgerKeyStore);
+            ledgerKeys[key.GetID()] = key;
+        }
         return true;
     }
 
