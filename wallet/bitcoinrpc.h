@@ -32,7 +32,7 @@ enum HTTPStatusCode
     HTTP_NOT_FOUND             = 404,
     HTTP_INTERNAL_SERVER_ERROR = 500,
 };
-
+ 
 // Bitcoin RPC error codes
 enum RPCErrorCode
 {
@@ -184,7 +184,6 @@ extern json_spirit::Value getconnectioncount(const json_spirit::Array& params, b
 extern json_spirit::Value addnode(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value disconnectnode(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value setmocktime(const json_spirit::Array& params, bool fHelp);
-extern json_spirit::Value sendalert(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getpeerinfo(const json_spirit::Array& params, bool fHelp);
 
 // in rpcdump.cpp
