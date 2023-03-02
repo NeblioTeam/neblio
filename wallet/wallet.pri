@@ -12,7 +12,6 @@ HEADERS += qt/bitcoingui.h \
     qt/aboutdialog.h \
     qt/editaddressdialog.h \
     qt/bitcoinaddressvalidator.h \
-    alert.h \
     addrman.h \
     base58.h \
     bignum.h \
@@ -212,7 +211,6 @@ SOURCES += qt/bitcoin.cpp \
     qt/aboutdialog.cpp \
     qt/editaddressdialog.cpp \
     qt/bitcoinaddressvalidator.cpp \
-    alert.cpp \
     version.cpp \
     sync.cpp \
     util.cpp \
