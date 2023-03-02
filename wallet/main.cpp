@@ -4,7 +4,6 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "main.h"
-#include "alert.h"
 #include "block.h"
 #include "blockindexlrucache.h"
 #include "checkpoints.h"
