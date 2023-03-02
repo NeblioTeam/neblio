@@ -4,7 +4,6 @@
 #include "optionsmodel.h"
 #include "transactiontablemodel.h"
 
-#include "alert.h"
 #include "main.h"
 #include "ui_interface.h"
 
@@ -155,13 +154,6 @@ static void NotifyNumConnectionsChanged(ClientModel* clientmodel, int newNumConn
                               Q_ARG(int, newNumConnections));
 }
 
-static void NotifyAlertChanged(ClientModel* clientmodel, const uint256& hash, ChangeType status)
-{
-    NLog.write(b_sev::info, "NotifyAlertChanged {} status={}", hash.GetHex().c_str(), status);
-    QMetaObject::invokeMethod(clientmodel, "updateAlert", Qt::QueuedConnection,
-                              Q_ARG(QString, QString::fromStdString(hash.GetHex())), Q_ARG(int, status));
-}
-
 void ClientModel::subscribeToCoreSignals()
 {
     using namespace boost::placeholders;
@@ -169,7 +161,6 @@ void ClientModel::subscribeToCoreSignals()
     // Connect signals to client
     uiInterface.NotifyBlockTip.connect(boost::bind(BlockTipChanged, this, _1, _2));
     uiInterface.NotifyNumConnectionsChanged.connect(boost::bind(NotifyNumConnectionsChanged, this, _1));
-    uiInterface.NotifyAlertChanged.connect(boost::bind(NotifyAlertChanged, this, _1, _2));
 }
 
 void ClientModel::unsubscribeFromCoreSignals()
@@ -180,5 +171,4 @@ void ClientModel::unsubscribeFromCoreSignals()
     uiInterface.NotifyBlockTip.disconnect(boost::bind(BlockTipChanged, this, _1, _2));
     uiInterface.NotifyNumConnectionsChanged.disconnect(
         boost::bind(NotifyNumConnectionsChanged, this, _1));
-    uiInterface.NotifyAlertChanged.disconnect(boost::bind(NotifyAlertChanged, this, _1, _2));
 }
