@@ -365,7 +365,6 @@ static const CRPCCommand vRPCCommands[] =
     { "reservebalance",            &reservebalance,            false,  true  },
     { "resendtx",                  &resendtx,                  false,  true  },
     { "makekeypair",               &makekeypair,               false,  true  },
-    { "sendalert",                 &sendalert,                 false,  false },
     { "exportblockchain",          &exportblockchain,          false,  false },
     { "getblockchaininfo",         &getblockchaininfo,         false,  false },
     { "getblockheader",            &getblockheader,            false,  false },
@@ -1317,17 +1316,6 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
         ConvertTo<Object>(params[0]);
     if (strMethod == "listsinceblock" && n > 1)
         ConvertTo<int64_t>(params[1]);
-
-    if (strMethod == "sendalert" && n > 2)
-        ConvertTo<int64_t>(params[2]);
-    if (strMethod == "sendalert" && n > 3)
-        ConvertTo<int64_t>(params[3]);
-    if (strMethod == "sendalert" && n > 4)
-        ConvertTo<int64_t>(params[4]);
-    if (strMethod == "sendalert" && n > 5)
-        ConvertTo<int64_t>(params[5]);
-    if (strMethod == "sendalert" && n > 6)
-        ConvertTo<int64_t>(params[6]);
 
     if (strMethod == "sendmany" && n > 1)
         ConvertTo<Object>(params[1]);
