@@ -99,7 +99,6 @@ xCXXFLAGS=-O2 $(EXT_OPTIONS) -pthread -Wall -Wextra -Wno-ignored-qualifiers -Wfo
 xLDFLAGS=$(LDHARDENING) $(LDFLAGS)
 
 OBJS= \
-    obj/alert.o \
     obj/version.o \
     obj/checkpoints.o \
     obj/netbase.o \

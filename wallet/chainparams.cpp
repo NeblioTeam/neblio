@@ -112,8 +112,6 @@ public:
         pchMessageStart[2] = 0x6f;
         pchMessageStart[3] = 0x86;
 
-        vAlertPubKey = ParseHex("046df586b596db22eda44a90b08fbaab100dff97612d3eb32cee236ea385cb09e5e05fc"
-                                "0b0d2ec278ac0ac97daba8201508be27b4de780be06d447217037c6d082");
         nDefaultPort = 6325;
 
         genesis = std::unique_ptr<CBlock>(
@@ -288,8 +286,6 @@ public:
         pchMessageStart[1] = 0xba;
         pchMessageStart[2] = 0x63;
         pchMessageStart[3] = 0xc5;
-        vAlertPubKey = ParseHex("04da59da7f2e1c9d0f575187065930361ad09751f7a8ccae25f0ab9ebbd479c0cda65a8"
-                                "ae0415a4a64bac46f79a4cd67bdb0925871855db3227969005361beaf21");
         nDefaultPort = 16325;
 
         genesis = std::unique_ptr<CBlock>(
@@ -471,8 +467,6 @@ public:
         pchMessageStart[1] = 0xf3;
         pchMessageStart[2] = 0xe0;
         pchMessageStart[3] = 0xee;
-        vAlertPubKey = ParseHex("04da59da7f2e1c9d0f575187065930361ad09751f7a8ccae25f0ab9ebbd479c0cda65a8"
-                                "ae0415a4a64bac46f79a4cd67bdb0925871855db3227969005361beaf21");
         nDefaultPort = 26325;
 
         genesis = std::unique_ptr<CBlock>(
