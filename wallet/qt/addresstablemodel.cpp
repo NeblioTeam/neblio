@@ -365,7 +365,7 @@ QString AddressTableModel::addRow(const QString& type, const QString& label, con
             return QString();
         }
 
-        auto result = l.get_public_key(0, true);
+        auto result = l.get_public_key(0, 0, true);
         if (std::get<0>(result) != ledger::Error::SUCCESS) {
             // TODO GK - handle error
             return QString();

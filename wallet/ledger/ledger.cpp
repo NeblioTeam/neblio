@@ -9,15 +9,17 @@ Ledger::~Ledger() { transport_->close(); }
 
 Error Ledger::open() { return transport_->open(); }
 
-std::tuple<ledger::Error, std::vector<uint8_t>> Ledger::get_public_key(uint32_t account, bool confirm)
+std::tuple<ledger::Error, std::vector<uint8_t>> Ledger::get_public_key(uint32_t account, uint32_t index, bool confirm)
 {
     auto payload = std::vector<uint8_t>();
     // path length
-    payload.push_back(3);
-    // m/44'/146'/[account]' derivation path
+    payload.push_back(5);
+    // m/44'/146'/[account]'/0/[index] derivation path
     utils::append_vector(payload, utils::int_to_bytes(utils::hardened(44), 4));
     utils::append_vector(payload, utils::int_to_bytes(utils::hardened(146), 4));
     utils::append_vector(payload, utils::int_to_bytes(utils::hardened(account), 4));
+    utils::append_vector(payload, utils::int_to_bytes(0, 4));
+    utils::append_vector(payload, utils::int_to_bytes(index, 4));
 
     auto [err, buffer] = transport_->exchange(APDU::CLA, APDU::INS_GET_PUBLIC_KEY, confirm, 0x00, payload);
     if (err != Error::SUCCESS)

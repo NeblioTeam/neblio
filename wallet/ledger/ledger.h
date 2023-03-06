@@ -20,7 +20,7 @@ public:
 
     Error open();
 
-    std::tuple<Error, std::vector<uint8_t>> get_public_key(uint32_t account, bool confirm = false);
+    std::tuple<Error, std::vector<uint8_t>> get_public_key(uint32_t account, uint32_t index, bool confirm = false);
     std::tuple<Error, std::vector<uint8_t>> sign(uint32_t account, const std::vector<uint8_t>& msg);
 
     void close();
