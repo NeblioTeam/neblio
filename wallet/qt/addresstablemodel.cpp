@@ -26,10 +26,14 @@ struct AddressTableEntry
     Type    type;
     QString label;
     QString address;
+    uint32_t ledgerAccount;
+    uint32_t ledgerIndex;
 
     AddressTableEntry() {}
-    AddressTableEntry(Type typeIn, const QString& labelIn, const QString& addressIn)
-        : type(typeIn), label(labelIn), address(addressIn)
+    AddressTableEntry(Type typeIn, const QString& labelIn, const QString& addressIn,
+                      uint32_t ledgerAccountIn, uint32_t ledgerIndexIn)
+        : type(typeIn), label(labelIn), address(addressIn), ledgerAccount(ledgerAccountIn),
+          ledgerIndex(ledgerIndexIn)
     {
     }
 };
@@ -75,12 +79,26 @@ public:
         {
             const auto addressBookMap = wallet->mapAddressBook.getInternalMap();
             for (const auto& item : addressBookMap) {
-                const CBitcoinAddress& address = item.first;
-                const std::string&     strName = item.second.name;
-                isminetype fMine   = IsMine(*wallet, address.Get());
+                const CBitcoinAddress&  address = item.first;
+                const std::string&      strName = item.second.name;
+                isminetype              fMine   = IsMine(*wallet, address.Get());
+                AddressTableEntry::Type type = GetEntryType(fMine);
+
+                CKeyID ledgerKedId;
+                CLedgerKey ledgerKey;
+                if (type == AddressTableEntry::ReceivingLedger)
+                {
+                    address.GetKeyID(ledgerKedId);
+                    wallet->GetLedgerKey(ledgerKedId, ledgerKey);
+                }
+
                 cachedAddressTable.append(AddressTableEntry(
-                    GetEntryType(fMine),
-                    QString::fromStdString(strName), QString::fromStdString(address.ToString())));
+                    type,
+                    QString::fromStdString(strName),
+                    QString::fromStdString(address.ToString()),
+                    ledgerKey.account,
+                    ledgerKey.index
+                ));
             }
         }
         // qLowerBound() and qUpperBound() require our cachedAddressTable list to be sorted in asc order
@@ -108,9 +126,21 @@ public:
                           "already in model");
                 break;
             }
-            parent->beginInsertRows(QModelIndex(), lowerIndex, lowerIndex);
-            cachedAddressTable.insert(lowerIndex, AddressTableEntry(newEntryType, label, address));
-            parent->endInsertRows();
+            {
+                CKeyID ledgerKeyId;
+                CLedgerKey ledgerKey;
+                if (newEntryType == AddressTableEntry::ReceivingLedger)
+                {
+                    CBitcoinAddress(address.toStdString()).GetKeyID(ledgerKeyId);
+                    wallet->GetLedgerKey(ledgerKeyId, ledgerKey);
+                }
+
+                parent->beginInsertRows(QModelIndex(), lowerIndex, lowerIndex);
+                cachedAddressTable.insert(
+                    lowerIndex,
+                    AddressTableEntry(newEntryType, label, address, ledgerKey.account, ledgerKey.index));
+                parent->endInsertRows();
+            }
             break;
         case CT_UPDATED:
             if (!inModel) {
@@ -152,7 +182,7 @@ public:
 AddressTableModel::AddressTableModel(CWallet* walletIn, WalletModel* parent)
     : QAbstractTableModel(parent), walletModel(parent), wallet(walletIn), priv(0)
 {
-    columns << tr("Is ledger") << tr("Label") << tr("Address");
+    columns << tr("Label") << tr("Address") << tr("Is Ledger") << tr("Account") << tr("Index");
     priv = new AddressTablePriv(walletIn, this);
     priv->refreshAddressTable();
 }
@@ -179,9 +209,8 @@ QVariant AddressTableModel::data(const QModelIndex& index, int role) const
     AddressTableEntry* rec = static_cast<AddressTableEntry*>(index.internalPointer());
 
     if (role == Qt::DisplayRole || role == Qt::EditRole) {
+        bool isLedger = rec->type == AddressTableEntry::ReceivingLedger;
         switch (index.column()) {
-        case IsLedger:
-            return rec->type == AddressTableEntry::ReceivingLedger ? tr("Ledger") : "";
         case Label:
             if (rec->label.isEmpty() && role == Qt::DisplayRole) {
                 return tr("(no label)");
@@ -190,6 +219,12 @@ QVariant AddressTableModel::data(const QModelIndex& index, int role) const
             }
         case Address:
             return rec->address;
+        case IsLedger:
+            return isLedger ? "Yes" : "";
+        case LedgerAccount:
+            return isLedger ? QString::number(rec->ledgerAccount) : "";
+        case LedgerIndex:
+            return isLedger ? QString::number(rec->ledgerIndex) : "";
         }
     } else if (role == Qt::FontRole) {
         QFont font;
@@ -324,7 +359,8 @@ void AddressTableModel::updateEntry(const QString& address, const QString& label
     priv->updateEntry(address, label, isMine, purpose, status);
 }
 
-QString AddressTableModel::addRow(const QString& type, const QString& label, const QString& address)
+QString AddressTableModel::addRow(const QString& type, const QString& label, const QString& address,
+                                  uint32_t ledgerAccount, uint32_t ledgerIndex)
 {
     std::string strLabel   = label.toStdString();
     std::string strAddress = address.toStdString();
@@ -365,7 +401,7 @@ QString AddressTableModel::addRow(const QString& type, const QString& label, con
             return QString();
         }
 
-        auto result = l.get_public_key(0, 0, true);
+        auto result = l.get_public_key(ledgerAccount, ledgerIndex, true);
         if (std::get<0>(result) != ledger::Error::SUCCESS) {
             // TODO GK - handle error
             return QString();
@@ -383,7 +419,8 @@ QString AddressTableModel::addRow(const QString& type, const QString& label, con
         auto myKeyStr = std::string(pubKey.begin(), pubKey.end());
 
         CPubKey cpubkey(pubKey);
-        wallet->AddLedgerKey(cpubkey);
+        CLedgerKey ledgerKey(cpubkey, ledgerAccount, ledgerIndex);
+        wallet->AddLedgerKey(ledgerKey);
         strAddress = CBitcoinAddress(cpubkey.GetID()).ToString();
     } else {
         return QString();

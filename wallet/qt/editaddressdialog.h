@@ -21,7 +21,6 @@ class EditAddressDialog : public QDialog
 public:
     enum Mode {
         NewReceivingAddress,
-        NewReceivingLedgerAddress,
         NewSendingAddress,
         EditReceivingAddress,
         EditSendingAddress,
@@ -38,6 +37,8 @@ public:
 
 public slots:
     void accept();
+
+    void on_ledgerCheckBox_toggled(bool checked);
 
 private:
     bool saveCurrentRow();

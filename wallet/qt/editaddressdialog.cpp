@@ -14,30 +14,40 @@ EditAddressDialog::EditAddressDialog(Mode modeIn, QWidget *parent) :
 
     GUIUtil::setupAddressWidget(ui->addressEdit, this);
 
+    bool ledgerItemsEnabled = true;
     switch(modeIn)
     {
     case NewReceivingAddress:
         setWindowTitle(tr("New receiving address"));
         ui->addressEdit->setEnabled(false);
         break;
-    case NewReceivingLedgerAddress:
-        setWindowTitle(tr("New receiving Ledger address"));
-        ui->addressEdit->setEnabled(false);
-        break;
     case NewSendingAddress:
         setWindowTitle(tr("New sending address"));
+        ledgerItemsEnabled = false;
         break;
     case EditReceivingAddress:
         setWindowTitle(tr("Edit receiving address"));
         ui->addressEdit->setEnabled(false);
+        ledgerItemsEnabled = false;
         break;
     case EditSendingAddress:
         setWindowTitle(tr("Edit sending address"));
+        ledgerItemsEnabled = false;
         break;
+    }
+
+    if (!ledgerItemsEnabled) {
+        ui->ledgerCheckBox->setEnabled(false);
+        ui->ledgerAccountEdit->setEnabled(false);
+        ui->ledgerIndexEdit->setEnabled(false);
     }
 
     mapper = new QDataWidgetMapper(this);
     mapper->setSubmitPolicy(QDataWidgetMapper::ManualSubmit);
+
+    // Ledger submenu collapsed by default
+    ui->ledgerWidget->setVisible(false);
+    ui->ledgerInfoLabel->setVisible(false);
 }
 
 EditAddressDialog::~EditAddressDialog()
@@ -54,6 +64,9 @@ void EditAddressDialog::setModel(AddressTableModel *modelIn)
     mapper->setModel(modelIn);
     mapper->addMapping(ui->labelEdit, AddressTableModel::Label);
     mapper->addMapping(ui->addressEdit, AddressTableModel::Address);
+    mapper->addMapping(ui->ledgerCheckBox, AddressTableModel::IsLedger);
+    mapper->addMapping(ui->ledgerAccountEdit, AddressTableModel::LedgerAccount);
+    mapper->addMapping(ui->ledgerIndexEdit, AddressTableModel::LedgerIndex);
 }
 
 void EditAddressDialog::loadRow(int row)
@@ -66,25 +79,26 @@ bool EditAddressDialog::saveCurrentRow()
     if(!model)
         return false;
 
+    bool isLedger = ui->ledgerCheckBox->isChecked();
     switch(mode)
     {
     case NewReceivingAddress:
         address = model->addRow(
-                AddressTableModel::Receive,
+                isLedger ? AddressTableModel::ReceiveLedger : AddressTableModel::Receive,
                 ui->labelEdit->text(),
-                ui->addressEdit->text());
+                ui->addressEdit->text(),
+                ui->ledgerAccountEdit->text().toUInt(),
+                ui->ledgerIndexEdit->text().toUInt()
+            );
         break;
     case NewSendingAddress:
         address = model->addRow(
                 AddressTableModel::Send,
                 ui->labelEdit->text(),
-                ui->addressEdit->text());
-        break;
-    case NewReceivingLedgerAddress:
-        address = model->addRow(
-                AddressTableModel::ReceiveLedger,
-                ui->labelEdit->text(),
-                ui->addressEdit->text());
+                ui->addressEdit->text(),
+                ui->ledgerAccountEdit->text().toUInt(),
+                ui->ledgerIndexEdit->text().toUInt()
+            );
         break;
     case EditReceivingAddress:
     case EditSendingAddress:
@@ -137,6 +151,15 @@ void EditAddressDialog::accept()
         return;
     }
     QDialog::accept();
+}
+
+void EditAddressDialog::on_ledgerCheckBox_toggled(bool checked)
+{
+    ui->ledgerWidget->setVisible(checked);
+    ui->ledgerInfoLabel->setVisible(checked);
+
+    // reset dialog height after hiding ledger items
+    setFixedHeight(sizeHint().height());
 }
 
 QString EditAddressDialog::getAddress() const

@@ -430,7 +430,7 @@ public:
     mutable CCriticalSection cs_LedgerKeyStore;
 
     // TODO GK - LedgerKeyStore class? (this is copied from keystore)
-    std::map<CKeyID, CPubKey> ledgerKeys;
+    std::map<CKeyID, CLedgerKey> ledgerKeys;
     bool HaveLedgerKey(const CKeyID &address) const
     {
         bool result;
@@ -441,24 +441,24 @@ public:
         return result;
     }
 
-    bool AddLedgerKey(const CPubKey& key)
+    bool AddLedgerKey(const CLedgerKey& ledgerKey)
     {
         {
             LOCK(cs_LedgerKeyStore);
-            ledgerKeys[key.GetID()] = key;
+            ledgerKeys[ledgerKey.vchPubKey.GetID()] = ledgerKey;
         }
         if (!fFileBacked)
             return true;
 
         // TODO DM do we need the lock here?
-        return CWalletDB(strWalletFile).WriteLedgerKey(key);
+        return CWalletDB(strWalletFile).WriteLedgerKey(ledgerKey);
     }
 
-    bool LoadLedgerKey(const CPubKey& key)
+    bool LoadLedgerKey(const CLedgerKey& ledgerKey)
     {
         {
             LOCK(cs_LedgerKeyStore);
-            ledgerKeys[key.GetID()] = key;
+            ledgerKeys[ledgerKey.vchPubKey.GetID()] = ledgerKey;
         }
         return true;
     }
@@ -468,7 +468,7 @@ public:
         setAddress.clear();
         {
             LOCK(cs_LedgerKeyStore);
-            std::map<CKeyID, CPubKey> ::const_iterator mi = ledgerKeys.begin();
+            std::map<CKeyID, CLedgerKey> ::const_iterator mi = ledgerKeys.begin();
             while (mi != ledgerKeys.end())
             {
                 setAddress.insert((*mi).first);
@@ -477,14 +477,14 @@ public:
         }
     }
 
-    bool GetLedgerKey(const CKeyID &address, CPubKey &pubKeyOut) const
+    bool GetLedgerKey(const CKeyID &address, CLedgerKey &ledgerKeyOut) const
     {
         {
             LOCK(cs_LedgerKeyStore);
-            std::map<CKeyID, CPubKey> ::const_iterator mi = ledgerKeys.find(address);
+            std::map<CKeyID, CLedgerKey> ::const_iterator mi = ledgerKeys.find(address);
             if (mi != ledgerKeys.end())
             {
-                pubKeyOut.SetRaw((*mi).second.Raw());
+                ledgerKeyOut = (*mi).second;
                 return true;
             }
         }

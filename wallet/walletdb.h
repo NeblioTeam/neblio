@@ -38,6 +38,21 @@ public:
     void SetNull();
 };
 
+class CLedgerKey
+{
+public:
+    CPubKey vchPubKey;
+    uint32_t account;
+    uint32_t index;
+
+    CLedgerKey() {}
+
+    CLedgerKey(const CPubKey& vchPubKeyIn, uint32_t accountIn, uint32_t indexIn) :
+        vchPubKey(vchPubKeyIn), account(accountIn), index(indexIn) {};
+
+    IMPLEMENT_SERIALIZE(READWRITE(vchPubKey); READWRITE(account); READWRITE(index);)
+};
+
 /** Access to the wallet database (wallet.dat) */
 class CWalletDB : public CDB
 {
@@ -62,7 +77,7 @@ public:
 
     bool WriteKey(const CPubKey& vchPubKey, const CPrivKey& vchPrivKey, const CKeyMetadata& keyMeta);
 
-    bool WriteLedgerKey(const CPubKey& vchPubKey);
+    bool WriteLedgerKey(const CLedgerKey& ledgerKey);
 
     bool WriteCryptedKey(const CPubKey& vchPubKey, const std::vector<unsigned char>& vchCryptedSecret,
                          const CKeyMetadata& keyMeta);

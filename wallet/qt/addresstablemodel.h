@@ -21,9 +21,11 @@ public:
 
     enum ColumnIndex
     {
-        IsLedger = 0,
-        Label   = 1, /**< User specified label */
-        Address = 2  /**< Bitcoin address */
+        Label   = 0, /**< User specified label */
+        Address = 1,  /**< Bitcoin address */
+        IsLedger = 2,
+        LedgerAccount = 3,
+        LedgerIndex = 4,
     };
 
     enum RoleIndex
@@ -61,7 +63,7 @@ public:
     /* Add an address to the model.
        Returns the added address on success, and an empty string otherwise.
      */
-    QString addRow(const QString& type, const QString& label, const QString& address);
+    QString addRow(const QString& type, const QString& label, const QString& address, const uint32_t ledgerAccount, const uint32_t ledgerIndex);
 
     /* Look up label for address in address book, if not found return empty string.
      */

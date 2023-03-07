@@ -61,9 +61,10 @@ bool CWalletDB::WriteKey(const CPubKey& vchPubKey, const CPrivKey& vchPrivKey,
     return Write(std::make_pair(std::string("key"), vchPubKey.Raw()), vchPrivKey, false);
 }
 
-bool CWalletDB::WriteLedgerKey(const CPubKey& vchPubKey)
+bool CWalletDB::WriteLedgerKey(const CLedgerKey& ledgerKey)
 {
-    return Write(std::make_pair(std::string("ledgerkey"), vchPubKey.Raw()), vchPubKey, false);
+    nWalletDBUpdated++;
+    return Write(std::make_pair(std::string("ledgerkey"), ledgerKey.vchPubKey.Raw()), ledgerKey, false);
 }
 
 // TODO DM: EraseLedgerKey?
@@ -462,13 +463,13 @@ bool ReadKeyValue(const ITxDB& txdb, CWallet* pwallet, CDataStream& ssKey, CData
                 return false;
             }
         } else if (strType == "ledgerkey") {
-            CPubKey vchPubKey;
-            ssValue >> vchPubKey;
-            if (!vchPubKey.IsValid()) {
+            CLedgerKey ledgerKey;
+            ssValue >> ledgerKey;
+            if (!ledgerKey.vchPubKey.IsValid()) {
                 strErr = "Error reading wallet database: Ledger Key corrupt";
                 return false;
             }
-            if (!pwallet->LoadLedgerKey(vchPubKey)) {
+            if (!pwallet->LoadLedgerKey(ledgerKey)) {
                 strErr = "Error reading wallet database: LoadLedgerKey failed";
                 return false;
             }
