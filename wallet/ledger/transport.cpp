@@ -1,59 +1,68 @@
-#include "transport.h"
 #include "error.h"
 #include "hid_device.h"
+#include "transport.h"
+#include "utils.h"
 
-namespace ledger {
-Transport::Transport(TransportType type)
+namespace ledger
 {
-    switch (type) {
-    case TransportType::HID:
-        comm_ = std::unique_ptr<HID>(new HID());
-        break;
-    }
-}
+	Transport::Transport(TransportType type)
+	{
+		switch (type)
+		{
+		case TransportType::HID:
+			comm_ = std::unique_ptr<HID>(new HID());
+			break;
+		}
+	}
 
-Error Transport::open() { return comm_->open(); }
+	Error Transport::open()
+	{
+		return comm_->open();
+	}
 
-std::tuple<ledger::Error, std::vector<uint8_t>>
-Transport::exchange(uint8_t cla, uint8_t ins, uint8_t p1, uint8_t p2, const std::vector<uint8_t>& cdata)
-{
-    int length = this->send(cla, ins, p1, p2, cdata);
-    if (length < 0)
-        return {Error::DEVICE_DATA_SEND_FAIL, {}};
+	std::tuple<ledger::Error, bytes> Transport::exchange(uint8_t cla, uint8_t ins, uint8_t p1, uint8_t p2, const bytes &cdata)
+	{
+		int length = this->send(cla, ins, p1, p2, cdata);
+		if (length < 0)
+			return {Error::DEVICE_DATA_SEND_FAIL, {}};
 
-    std::vector<uint8_t> buffer;
-    int                  sw = this->recv(buffer);
-    if (sw < 0)
-        return {Error::DEVICE_DATA_RECV_FAIL, {}};
+		bytes buffer;
+		int sw = this->recv(buffer);
+		if (sw < 0)
+			return {Error::DEVICE_DATA_RECV_FAIL, {}};
 
-    if (sw != 0x9000)
-        return {Error::APDU_INVALID_CMD, {}};
+		if (sw != 0x9000)
+			return {Error::APDU_INVALID_CMD, {}};
 
-    return {Error::SUCCESS, buffer};
-}
+		return {Error::SUCCESS, buffer};
+	}
 
-void Transport::close() noexcept { return comm_->close(); }
+	void Transport::close() noexcept
+	{
+		return comm_->close();
+	}
 
-int Transport::send(uint8_t cla, uint8_t ins, uint8_t p1, uint8_t p2, const std::vector<uint8_t>& cdata)
-{
-    if (!comm_->is_open())
-        return -1;
+	int Transport::send(uint8_t cla, uint8_t ins, uint8_t p1, uint8_t p2, const bytes &cdata)
+	{
+		if (!comm_->is_open())
+			return -1;
 
-    auto header = apdu_header(cla, ins, p1, p2, cdata.size());
-    header.insert(header.end(), cdata.begin(), cdata.end());
-    return comm_->send(header);
-}
+		auto header = apdu_header(cla, ins, p1, p2, cdata.size());
+		header.insert(header.end(), cdata.begin(), cdata.end());
 
-int Transport::recv(std::vector<uint8_t>& rdata)
-{
-    if (!comm_->is_open())
-        return -1;
+		return comm_->send(header);
+	}
 
-    return comm_->recv(rdata);
-}
+	int Transport::recv(bytes &rdata)
+	{
+		if (!comm_->is_open())
+			return -1;
 
-std::vector<uint8_t> Transport::apdu_header(uint8_t cla, uint8_t ins, uint8_t p1, uint8_t p2, uint8_t lc)
-{
-    return std::vector<uint8_t>{cla, ins, p1, p2, lc};
-}
+		return comm_->recv(rdata);
+	}
+
+	bytes Transport::apdu_header(uint8_t cla, uint8_t ins, uint8_t p1, uint8_t p2, uint8_t lc)
+	{
+		return bytes{cla, ins, p1, p2, lc};
+	}
 } // namespace ledger

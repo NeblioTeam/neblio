@@ -1,6 +1,7 @@
 #include "addresstablemodel.h"
 #include "guiutil.h"
 #include "ledger/ledger.h"
+#include "ledger/utils.h"
 #include "walletmodel.h"
 
 #include "base58.h"
@@ -396,27 +397,16 @@ QString AddressTableModel::addRow(const QString& type, const QString& label, con
     } else if (type == ReceiveLedger) {
         ledger::Ledger l;
         auto           e = l.open();
-        if (e != ledger::Error::SUCCESS) {
-            // TODO GK - handle error
-            return QString();
-        }
 
-        auto result = l.get_public_key(ledgerAccount, ledgerIndex, true);
-        if (std::get<0>(result) != ledger::Error::SUCCESS) {
-            // TODO GK - handle error
-            return QString();
-        }
-        auto resultData = std::get<1>(result);
+        std::stringstream pathSS;
+        pathSS << "m/44'/146'/" << ledgerAccount << "/0/" <<  ledgerIndex;
+        auto path = pathSS.str();
 
-        auto pubKeyLen  = (int)resultData[0] * 16;
+        auto result = l.GetPublicKey(path, true);
+        
+        l.close();
 
-        auto pubKeyStart = resultData.begin();
-        auto pubKeyEnd   = pubKeyStart + pubKeyLen + 1;
-
-        std::vector<uint8_t> pubKey(pubKeyLen + 1);
-        copy(pubKeyStart, pubKeyEnd, pubKey.begin());
-
-        auto myKeyStr = std::string(pubKey.begin(), pubKey.end());
+        auto pubKey = ledger::utils::CompressPubKey(std::get<0>(result));
 
         CPubKey cpubkey(pubKey);
         CLedgerKey ledgerKey(cpubkey, ledgerAccount, ledgerIndex);
