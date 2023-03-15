@@ -11,7 +11,7 @@
 
 namespace ledger
 {
-	Ledger::Ledger() { this->transport_ = std::unique_ptr<Transport>(new Transport(Transport::TransportType::HID)); }
+	Ledger::Ledger(Transport::TransportType transportType) { this->transport_ = std::unique_ptr<Transport>(new Transport(transportType)); }
 
 	Ledger::~Ledger() { transport_->close(); }
 

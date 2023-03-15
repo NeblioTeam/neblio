@@ -1,5 +1,6 @@
 #include "error.h"
 #include "hid_device.h"
+#include "speculos.h"
 #include "transport.h"
 #include "utils.h"
 
@@ -11,6 +12,9 @@ namespace ledger
 		{
 		case TransportType::HID:
 			comm_ = std::unique_ptr<HID>(new HID());
+			break;
+		case TransportType::SPECULOS:
+			comm_ = std::unique_ptr<Speculos>(new Speculos());
 			break;
 		}
 	}

@@ -9,7 +9,7 @@ mkdir ~/.neblio
 cat <<EOT > ~/.neblio/neblio.conf
 regtest=1
 server=1
-port=9999
+port=10000
 rpcport=6326
 listenonion=0
 rpcuser=user

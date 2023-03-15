@@ -21,7 +21,7 @@ namespace ledger
 		};
 
 	public:
-		Ledger();
+		Ledger(Transport::TransportType transportType = Transport::TransportType::HID);
 		~Ledger();
 
 		Error open();

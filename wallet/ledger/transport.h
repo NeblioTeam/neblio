@@ -13,6 +13,7 @@ namespace ledger
 		enum class TransportType : int
 		{
 			HID = 0,
+			SPECULOS = 1,
 		};
 
 		Transport(TransportType type);
