@@ -399,7 +399,7 @@ QString AddressTableModel::addRow(const QString& type, const QString& label, con
         auto           e = l.open();
 
         std::stringstream pathSS;
-        pathSS << "m/44'/146'/" << ledgerAccount << "/0/" <<  ledgerIndex;
+        pathSS << "m/44'/146'/" << ledgerAccount << "'/0/" <<  ledgerIndex;
         auto path = pathSS.str();
 
         auto result = l.GetPublicKey(path, true);
