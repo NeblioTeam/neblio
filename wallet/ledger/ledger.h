@@ -27,19 +27,19 @@ namespace ledger
 		Error open();
 
 		std::tuple<bytes, std::string, bytes> GetPublicKey(const std::string &path, bool confirm);
-		std::vector<std::tuple<int, bytes>> SignTransaction(const std::string &address, uint64_t amount, uint64_t fees, const std::string &changePath, const std::vector<std::string> &signPaths, const std::vector<std::tuple<bytes, uint32_t>> &rawUtxos, uint32_t locktime);
+        std::vector<std::tuple<int, bytes>> SignTransaction(const Tx &tx,const std::string& changePath,  const std::vector<std::string> &signPaths, const std::vector<Utxo> &utxos);
 
 		void close();
 
 	private:
 		std::unique_ptr<Transport> transport_;
 
-		std::tuple<Error, bytes> ProcessScriptBlocks(const bytes &script, uint32_t sequence);
-		std::tuple<Error, bytes> GetTrustedInput(uint32_t indexLookup, Tx tx);
-		std::tuple<Error, bytes> GetTrustedInput(uint32_t indexLookup, const bytes &serializedTransaction);
-		std::tuple<Error, bytes> GetTrustedInputRaw(bool firstRound, uint32_t indexLookup, const bytes &data);
-		void UntrustedHashTxInputFinalize(Tx tx, const std::string &changePath);
-		void UntrustedHashTxInputStart(Tx tx, const std::vector<TrustedInput> &trustedInputs, int inputIndex, bytes script, bool isNewTransaction);
+		bytes ProcessScriptBlocks(const bytes &script, uint32_t sequence);
+		bytes GetTrustedInput(const Tx &utxoTx, uint32_t indexLookup);
+		bytes GetTrustedInput(const bytes &serializedTransaction, uint32_t indexLookup);
+		bytes GetTrustedInputRaw(bool firstRound, uint32_t indexLookup, const bytes &data);
+		void UntrustedHashTxInputFinalize(const Tx &tx, const std::string &changePath);
+		void UntrustedHashTxInputStart(const Tx &tx, const std::vector<TrustedInput> &trustedInputs, int inputIndex, bytes script, bool isNewTransaction);
 		TrustedInput DeserializeTrustedInput(const bytes &serializedTrustedInput);
 	};
 }

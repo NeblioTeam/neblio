@@ -2233,6 +2233,7 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
 
                 CKeyID changeKeyID;
 
+                // TODO GK - handle change differently for Ledger
                 if (nChange > 0 || ntp1TokenChangeExists) {
                     // Fill a vout to ourself
                     // TODO: pass in scriptChange instead of reservekey so
@@ -2333,6 +2334,16 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                     return false;
                 }
 
+                auto isLedgerTx = false;
+                for (const PAIRTYPE(const CWalletTx*, unsigned int) & coin : setCoins) {
+                    if (IsMineCheck(::IsMine(*this, coin.first->vout[coin.second].scriptPubKey), ISMINE_LEDGER)) {
+                        isLedgerTx = true;
+                        break;
+                    }
+                }
+
+                std::vector<ledgerbridge::LedgerBridgeUtxo> ledgerBridgeUtxos;
+
                 // Sign
                 for (const PAIRTYPE(const CWalletTx*, unsigned int) & coin : setCoins) {
                     // find the output from the set in the list of inputs of the new tx
@@ -2349,8 +2360,29 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                         return false;
                     }
                     int nIn = std::distance(wtxNew.vin.begin(), it);
-                    if (SignSignature(*this, *coin.first, wtxNew, nIn) != SignatureState::Verified) {
-                        CreateErrorMsg(errorMsg, "Error while signing transactions inputs.");
+
+                    if (isLedgerTx) {
+                        ledgerBridgeUtxos.push_back({(CTransaction) *coin.first, coin.second, coin.first->vout[coin.second].scriptPubKey});
+                    } else {
+                        if (SignSignature(*this, *coin.first, wtxNew, nIn) != SignatureState::Verified) {
+                            CreateErrorMsg(errorMsg, "Error while signing transactions inputs.");
+                            return false;
+                        }
+                    }
+                }
+
+                if (isLedgerTx) {
+                    // TODO GK - ledger fee
+                    if (nFeeRet == 0) {
+                        nFeeRet = 20000;
+                        continue;
+                    }
+                    
+                    try {
+                        ledgerbridge::LedgerBridge ledgerBridge;
+                        ledgerBridge.SignTransaction(wtxNew, ledgerBridgeUtxos);
+                    } catch (const std::exception& ex) {
+                        CreateErrorMsg(errorMsg, "Error while signing Ledger transaction.");
                         return false;
                     }
                 }
@@ -2370,7 +2402,7 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                 CAmount nPayFee = nTransactionFee * (1 + (CAmount)nBytes / 1000) + NTP1Fee;
                 CAmount nMinFee = wtxNew.GetMinFee(txdb, 1, GMF_SEND, nBytes) + NTP1Fee;
 
-                if (nFeeRet < max(nPayFee, nMinFee)) {
+                if (!isLedgerTx && nFeeRet < max(nPayFee, nMinFee)) {
                     nFeeRet = max(nPayFee, nMinFee);
                     continue;
                 }

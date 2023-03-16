@@ -5,9 +5,15 @@
 
 namespace ledger
 {
+    struct TxPrevout
+    {
+        bytes hash;
+        uint32_t index;
+    };
+
     struct TxInput
     {
-        bytes prevout;
+        TxPrevout prevout;
         bytes script;
         uint32_t sequence;
     };
@@ -55,11 +61,11 @@ namespace ledger
 
     struct Utxo
     {
-        bytes raw;
-        uint32_t index;
         Tx tx;
+        uint32_t outputIndex;
     };
 
+    bytes SerializeTransaction(const Tx &tx);
     Tx DeserializeTransaction(const bytes &transaction);
     TrustedInput DeserializeTrustedInput(const bytes &serializedTrustedInput);
 }

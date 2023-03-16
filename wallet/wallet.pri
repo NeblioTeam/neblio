@@ -190,7 +190,8 @@ HEADERS += qt/bitcoingui.h \
     blockreject.h                    \
     blockmetadata.h                  \
     blockindexlrucache.h             \
-    proposal.h
+    proposal.h                       \
+    ledgerBridge.h
 
 
 
@@ -372,7 +373,8 @@ SOURCES += qt/bitcoin.cpp \
     blockreject.cpp                     \
     blockmetadata.cpp                   \
     blockindexlrucache.cpp              \
-    proposal.cpp
+    proposal.cpp                        \
+    ledgerBridge.cpp
 
 
 

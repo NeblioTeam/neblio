@@ -7,6 +7,7 @@
 #include "tx.h"
 
 #include <algorithm>
+#include <cassert>
 #include <iostream>
 
 namespace ledger
@@ -21,7 +22,8 @@ namespace ledger
 		auto openError = transport_->open();
 		if (openError != ledger::Error::SUCCESS)
 		{
-			throw ledger::error_message(openError);
+			// TODO GK - what should we be throwing? (in the whole file)
+			throw openError;
 		}
 		std::cout << "Ledger connection opened." << std::endl;
 	}
@@ -59,46 +61,24 @@ namespace ledger
 		return {pubKey, std::string(address.begin(), address.end()), chainCode};
 	}
 
-	std::tuple<Error, bytes> Ledger::GetTrustedInputRaw(bool firstRound, uint32_t indexLookup, const bytes &transactionData)
+	bytes Ledger::GetTrustedInputRaw(bool firstRound, uint32_t indexLookup, const bytes &transactionData)
 	{
+        // TODO GK - refactor transport to throw instead of returning error
 		auto result = transport_->exchange(APDU::CLA, APDU::INS_GET_TRUSTED_INPUT, firstRound ? 0x00 : 0x80, 0x00, transactionData);
 		auto err = std::get<0>(result);
 		auto buffer = std::get<1>(result);
 		if (err != Error::SUCCESS)
-			return {err, {}};
+			throw err;
 
-		return {err, bytes(buffer.begin(), buffer.end())};
+        return buffer;
 	}
 
-	std::tuple<Error, bytes> Ledger::GetTrustedInput(uint32_t indexLookup, Tx tx)
+	bytes Ledger::GetTrustedInput(const Tx& utxoTx, uint32_t indexLookup)
 	{
-		bytes serializedTransaction;
-		utils::AppendUint32(serializedTransaction, tx.version, true);
-		utils::AppendUint32(serializedTransaction, tx.time, true);
-
-		utils::AppendVector(serializedTransaction, utils::CreateVarint(tx.inputs.size()));
-		for (auto input : tx.inputs)
-		{
-			utils::AppendVector(serializedTransaction, input.prevout);
-			utils::AppendVector(serializedTransaction, utils::CreateVarint(input.script.size()));
-			utils::AppendVector(serializedTransaction, input.script);
-			utils::AppendUint32(serializedTransaction, input.sequence);
-		}
-
-		utils::AppendVector(serializedTransaction, utils::CreateVarint(tx.outputs.size()));
-		for (auto output : tx.outputs)
-		{
-			utils::AppendUint64(serializedTransaction, output.amount, true);
-			utils::AppendVector(serializedTransaction, utils::CreateVarint(output.script.size()));
-			utils::AppendVector(serializedTransaction, output.script);
-		}
-
-		utils::AppendUint32(serializedTransaction, tx.locktime);
-
-		return GetTrustedInput(indexLookup, serializedTransaction);
+		return GetTrustedInput(SerializeTransaction(utxoTx), indexLookup);
 	}
 
-	std::tuple<Error, bytes> Ledger::GetTrustedInput(uint32_t indexLookup, const bytes &serializedTransaction)
+	bytes Ledger::GetTrustedInput(const bytes &serializedTransaction, uint32_t indexLookup)
 	{
 		auto MAX_CHUNK_SIZE = 255;
 		std::vector<bytes> chunks;
@@ -119,21 +99,15 @@ namespace ledger
 		auto isFirst = true;
 		bytes finalResults;
 		for (auto &chunk : chunks)
-		{
-			auto result = GetTrustedInputRaw(isFirst, 0, chunk);
-			if (std::get<0>(result) != Error::SUCCESS)
-			{
-				return {std::get<0>(result), {}};
-			}
-
-			isFirst = false;
-			finalResults = std::get<1>(result);
+        {
+			finalResults = GetTrustedInputRaw(isFirst, 0, chunk);
+            isFirst = false;
 		}
 
-		return {Error::SUCCESS, finalResults};
+		return finalResults;
 	}
 
-	void Ledger::UntrustedHashTxInputFinalize(Tx tx, const std::string &changePath)
+	void Ledger::UntrustedHashTxInputFinalize(const Tx &tx, const std::string &changePath)
 	{
 		auto ins = APDU::INS_UNTRUSTED_HASH_TRANSACTION_INPUT_FINALIZE;
 		auto p2 = 0x00;
@@ -187,11 +161,11 @@ namespace ledger
 		}
 	}
 
-	void Ledger::UntrustedHashTxInputStart(Tx tx, const std::vector<TrustedInput> &trustedInputs, int inputIndex, bytes script, bool isNewTransaction)
+	void Ledger::UntrustedHashTxInputStart(const Tx &tx, const std::vector<TrustedInput> &trustedInputs, int inputIndex, bytes script, bool isNewTransaction)
 	{
 		auto ins = APDU::INS_UNTRUSTED_HASH_TRANSACTION_INPUT_START;
 		auto p1 = 0x00;
-		auto p2 = isNewTransaction ? 0x02 : 0x80;
+		auto p2 = isNewTransaction ? 0x00 : 0x80;
 
 		bytes data;
 		utils::AppendUint32(data, tx.version, true);
@@ -224,7 +198,7 @@ namespace ledger
 
 			bytes scriptData;
 			utils::AppendVector(scriptData, _script);
-			utils::AppendUint32(scriptData, 0xfffffffd, true);
+			utils::AppendUint32(scriptData, 0xffffffff, true);
 
 			result = transport_->exchange(APDU::CLA, ins, p1, p2, scriptData);
 			err = std::get<0>(result);
@@ -234,30 +208,10 @@ namespace ledger
 		}
 	}
 
-	std::vector<std::tuple<int, bytes>> Ledger::SignTransaction(const std::string &address, uint64_t amount, uint64_t fees, const std::string &changePath, const std::vector<std::string> &signPaths, const std::vector<std::tuple<bytes, uint32_t>> &rawUtxos, uint32_t locktime)
-	{
-		Tx tx;
-		tx.version = 2;
-		tx.time = 0;
-		tx.locktime = locktime;
-
-		// build UTxOs and count amount available
-		std::vector<Utxo> utxos;
-		uint64_t amountAvailable = 0;
-		for (const auto &rawUtxo : rawUtxos)
-		{
-			Utxo utxo;
-			utxo.raw = std::get<0>(rawUtxo);
-			utxo.index = std::get<1>(rawUtxo);
-
-			auto utxoTx = ledger::DeserializeTransaction(utxo.raw);
-			utxo.tx = utxoTx;
-
-			utxos.push_back(utxo);
-
-			auto amount = utxoTx.outputs[utxo.index].amount;
-			amountAvailable += amount;
-		}
+    std::vector<std::tuple<int, bytes>> Ledger::SignTransaction(const Tx &tx, const std::string& changePath, const std::vector<std::string> &signPaths, const std::vector<Utxo> &utxos)
+	{		
+		assert(tx.inputs.size() == signPaths.size());
+		assert(tx.inputs.size() == utxos.size());
 
 		// get trusted inputs
 		std::vector<TrustedInput> trustedInputs;
@@ -265,97 +219,33 @@ namespace ledger
 		{
 			const auto &utxo = utxos[i];
 
-			const auto serializedTrustedInputResult = GetTrustedInput(utxo.index, utxo.tx);
-			auto trustedInput = ledger::DeserializeTrustedInput(std::get<1>(serializedTrustedInputResult));
+			const auto serializedTrustedInput = GetTrustedInput(utxo.tx, utxo.outputIndex);
+			const auto trustedInput = ledger::DeserializeTrustedInput(serializedTrustedInput);
 
-			TxInput txInput;
-			txInput.prevout = trustedInput.prevTxId;
-
-			auto publicKeyResult = GetPublicKey(signPaths[i], false);
-			auto publicKey = utils::CompressPubKey(std::get<0>(publicKeyResult));
-
-			auto pubKeyHash = Hash160(publicKey);
-			bytes pubKeyHashVector(pubKeyHash.begin(), pubKeyHash.end());
-
-			bytes finalScriptPubKey;
-			finalScriptPubKey.push_back(0x76);
-			finalScriptPubKey.push_back(0xa9);
-			finalScriptPubKey.push_back(0x14);
-			utils::AppendVector(finalScriptPubKey, pubKeyHashVector);
-			finalScriptPubKey.push_back(0x88);
-			finalScriptPubKey.push_back(0xac);
-
-			txInput.script = finalScriptPubKey;
-			txInput.sequence = 0xfffffffd;
+            assert(trustedInput.prevTxId == tx.inputs[i].prevout.hash);
 
 			trustedInputs.push_back(trustedInput);
-			tx.inputs.push_back(txInput);
 		}
 
-		// create change output
-		if (amountAvailable - fees > amount)
-		{
-			auto publicKeyResult = GetPublicKey(changePath, false);
-			auto publicKey = utils::CompressPubKey(std::get<0>(publicKeyResult));
-			auto publicKeyHash = Hash160(publicKey);
-
-			// TODO GK - other key structures?
-			bytes changeScriptPublicKey;
-			changeScriptPublicKey.push_back(0x76);
-			changeScriptPublicKey.push_back(0xa9);
-			changeScriptPublicKey.push_back(0x14);
-			utils::AppendVector(changeScriptPublicKey, bytes(publicKeyHash.begin(), publicKeyHash.end()));
-			changeScriptPublicKey.push_back(0x88);
-			changeScriptPublicKey.push_back(0xac);
-
-			TxOutput txChangeOutput;
-			// TODO GK - fix amount
-			txChangeOutput.amount = amount - fees;
-			txChangeOutput.script = changeScriptPublicKey;
-			tx.outputs.push_back(txChangeOutput);
-		}
-
-		// create output to address
-		// TODO GK - other key structures?
-		bytes scriptPublicKey;
-		scriptPublicKey.push_back(0x76);
-		scriptPublicKey.push_back(0xa9);
-		scriptPublicKey.push_back(0x14);
-		auto addressDecoded = Base58Decode(address);
-		utils::AppendVector(scriptPublicKey, bytes(addressDecoded.begin() + 1, addressDecoded.end() - 4));
-		scriptPublicKey.push_back(0x88);
-		scriptPublicKey.push_back(0xac);
-
-		TxOutput txOutput;
-		txOutput.amount = amount;
-		txOutput.script = scriptPublicKey;
-		tx.outputs.push_back(txOutput);
-
+        std::vector<std::tuple<int, bytes>> signatures;
 		for (auto i = 0; i < tx.inputs.size(); i++)
 		{
-			UntrustedHashTxInputStart(tx, trustedInputs, i, tx.inputs[i].script, i == 0);
-		}
+			auto &script = utxos[i].tx.outputs[utxos[i].outputIndex].script;
+            UntrustedHashTxInputStart(tx, trustedInputs, i, script, i == 0);
 
-		UntrustedHashTxInputFinalize(tx, changePath);
-
-		std::vector<std::tuple<int, bytes>> signatures;
-		for (auto i = 0; i < tx.inputs.size(); i++)
-		{
-			UntrustedHashTxInputStart(tx, {trustedInputs[i]}, 0, tx.inputs[i].script, false);
-
-			auto amount = tx.outputs[i].amount;
+        	UntrustedHashTxInputFinalize(tx, changePath);
 
 			auto ins = INS_UNTRUSTED_HASH_SIGN;
 			auto p1 = 0x00;
 			auto p2 = 0x00;
 
-			auto serializedChangePath = bip32::ParseHDKeypath(signPaths[i]);
+			auto serializedSignPath = bip32::ParseHDKeypath(signPaths[i]);
 
 			bytes data;
-			data.push_back(serializedChangePath.size() / 4);
-			utils::AppendVector(data, serializedChangePath);
+			data.push_back(serializedSignPath.size() / 4);
+			utils::AppendVector(data, serializedSignPath);
 			data.push_back(0x00);
-			utils::AppendUint32(data, locktime);
+			utils::AppendUint32(data, tx.locktime);
 			data.push_back(0x01);
 
 			auto result = transport_->exchange(APDU::CLA, ins, p1, p2, data);
@@ -369,11 +259,11 @@ namespace ledger
 				bytes data;
 				data.push_back(0x30);
 				utils::AppendVector(data, bytes(buffer.begin() + 1, buffer.end()));
-				signatures.push_back({{1}, data});
+				signatures.push_back({1, data});
 			}
 			else
 			{
-				signatures.push_back({{0}, buffer});
+				signatures.push_back({0, buffer});
 			}
 		}
 

@@ -1660,6 +1660,8 @@ isminetype IsMine(const CKeyStore& keystore, const CScript& scriptPubKey)
     if (!Solver(CTxDB(), scriptPubKey, whichType, vSolutions))
         return isminetype::ISMINE_NO;
 
+    // TODO GK - refactor
+    const CWallet *wallet = (CWallet*) &keystore;
     CKeyID keyID;
     switch (whichType) {
     case TX_NONSTANDARD:
@@ -1674,6 +1676,8 @@ isminetype IsMine(const CKeyStore& keystore, const CScript& scriptPubKey)
         keyID = CKeyID(uint160(vSolutions[0]));
         if (keystore.HaveKey(keyID))
             return isminetype::ISMINE_SPENDABLE;
+        if (wallet->HaveLedgerKey(keyID))
+            return isminetype::ISMINE_LEDGER;
         break;
     case TX_SCRIPTHASH: {
         CScript subscript;
