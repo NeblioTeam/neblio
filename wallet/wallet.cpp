@@ -18,6 +18,9 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/scope_exit.hpp>
+#include "ledger/ledger.h"
+#include "ledger/utils.h"
+#include "ledgerBridge.h"
 
 using namespace std;
 

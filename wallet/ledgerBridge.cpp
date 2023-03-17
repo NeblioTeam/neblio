@@ -1,5 +1,6 @@
 #include "ledger/ledger.h"
 #include "ledger/tx.h"
+#include "ledger/utils.h"
 #include "ledgerBridge.h"
 
 #include <string>
