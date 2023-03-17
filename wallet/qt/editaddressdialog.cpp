@@ -2,9 +2,11 @@
 #include "ui_editaddressdialog.h"
 #include "addresstablemodel.h"
 #include "guiutil.h"
+#include "ledger/utils.h"
 
 #include <QDataWidgetMapper>
 #include <QMessageBox>
+#include <QtGui/QIntValidator>
 
 EditAddressDialog::EditAddressDialog(Mode modeIn, QWidget *parent) :
     QDialog(parent),
@@ -48,6 +50,12 @@ EditAddressDialog::EditAddressDialog(Mode modeIn, QWidget *parent) :
     // Ledger submenu collapsed by default
     ui->ledgerWidget->setVisible(false);
     ui->ledgerInfoLabel->setVisible(false);
+
+    // Ledger account and index defaults and validators
+    ui->ledgerAccountEdit->setText("0");
+    ui->ledgerIndexEdit->setText("0");
+    GUIUtil::setupIntWidget(ui->ledgerAccountEdit, this, 0, ledger::utils::MAX_RECOMMENDED_ACCOUNT);
+    GUIUtil::setupIntWidget(ui->ledgerIndexEdit, this, 0, ledger::utils::MAX_RECOMMENDED_INDEX);
 }
 
 EditAddressDialog::~EditAddressDialog()
@@ -87,8 +95,8 @@ bool EditAddressDialog::saveCurrentRow()
                 isLedger ? AddressTableModel::ReceiveLedger : AddressTableModel::Receive,
                 ui->labelEdit->text(),
                 ui->addressEdit->text(),
-                ui->ledgerAccountEdit->text().toUInt(),
-                ui->ledgerIndexEdit->text().toUInt()
+                ui->ledgerAccountEdit->text(),
+                ui->ledgerIndexEdit->text()
             );
         break;
     case NewSendingAddress:
@@ -96,8 +104,8 @@ bool EditAddressDialog::saveCurrentRow()
                 AddressTableModel::Send,
                 ui->labelEdit->text(),
                 ui->addressEdit->text(),
-                ui->ledgerAccountEdit->text().toUInt(),
-                ui->ledgerIndexEdit->text().toUInt()
+                ui->ledgerAccountEdit->text(),
+                ui->ledgerIndexEdit->text()
             );
         break;
     case EditReceivingAddress:
@@ -134,6 +142,16 @@ void EditAddressDialog::accept()
         case AddressTableModel::DUPLICATE_ADDRESS:
             QMessageBox::warning(this, windowTitle(),
                 tr("The entered address \"%1\" is already in the address book.").arg(ui->addressEdit->text()),
+                QMessageBox::Ok, QMessageBox::Ok);
+            break;
+        case AddressTableModel::INVALID_LEDGER_ACCOUNT:
+            QMessageBox::warning(this, windowTitle(),
+                tr("The entered Ledger account \"%1\" is not in the recommended range (0-%2).").arg(ui->ledgerAccountEdit->text()).arg(ledger::utils::MAX_RECOMMENDED_ACCOUNT),
+                QMessageBox::Ok, QMessageBox::Ok);
+            break;
+        case AddressTableModel::INVALID_LEDGER_INDEX:
+            QMessageBox::warning(this, windowTitle(),
+                tr("The entered Ledger address index \"%1\" is not in the recommended range (0-%2).").arg(ui->ledgerIndexEdit->text()).arg(ledger::utils::MAX_RECOMMENDED_INDEX),
                 QMessageBox::Ok, QMessageBox::Ok);
             break;
         case AddressTableModel::WALLET_UNLOCK_FAILURE:

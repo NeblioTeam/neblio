@@ -36,12 +36,14 @@ public:
     /** Return status of edit/insert operation */
     enum EditStatus
     {
-        OK,                    /**< Everything ok */
-        NO_CHANGES,            /**< No changes were made during edit operation */
-        INVALID_ADDRESS,       /**< Unparseable address */
-        DUPLICATE_ADDRESS,     /**< Address already in address book */
-        WALLET_UNLOCK_FAILURE, /**< Wallet could not be unlocked to create new receiving address */
-        KEY_GENERATION_FAILURE /**< Generating a new public key for a receiving address failed */
+        OK,                     /**< Everything ok */
+        NO_CHANGES,             /**< No changes were made during edit operation */
+        INVALID_ADDRESS,        /**< Unparseable address */
+        DUPLICATE_ADDRESS,      /**< Address already in address book */
+        INVALID_LEDGER_ACCOUNT, /**< Ledger account outside of recommended range */
+        INVALID_LEDGER_INDEX,   /**< Ledger index outside of recommended range */
+        WALLET_UNLOCK_FAILURE,  /**< Wallet could not be unlocked to create new receiving address */
+        KEY_GENERATION_FAILURE  /**< Generating a new public key for a receiving address failed */
     };
 
     static const QString Send;    /**< Specifies send address */
@@ -63,7 +65,7 @@ public:
     /* Add an address to the model.
        Returns the added address on success, and an empty string otherwise.
      */
-    QString addRow(const QString& type, const QString& label, const QString& address, const uint32_t ledgerAccount, const uint32_t ledgerIndex);
+    QString addRow(const QString& type, const QString& label, const QString& address, const QString& ledgerAccount, const QString& ledgerIndex);
 
     /* Look up label for address in address book, if not found return empty string.
      */
@@ -89,6 +91,8 @@ private:
 
     /** Notify listeners that data changed. */
     void emitDataChanged(int index);
+
+    bool validateLedgerPathItem(uint32_t value, uint32_t top) const;
 
 signals:
     void defaultAddressChanged(const QString& address);

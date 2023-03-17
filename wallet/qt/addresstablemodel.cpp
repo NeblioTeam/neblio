@@ -361,7 +361,7 @@ void AddressTableModel::updateEntry(const QString& address, const QString& label
 }
 
 QString AddressTableModel::addRow(const QString& type, const QString& label, const QString& address,
-                                  uint32_t ledgerAccount, uint32_t ledgerIndex)
+                                  const QString& ledgerAccount, const QString& ledgerIndex)
 {
     std::string strLabel   = label.toStdString();
     std::string strAddress = address.toStdString();
@@ -395,21 +395,35 @@ QString AddressTableModel::addRow(const QString& type, const QString& label, con
         }
         strAddress = CBitcoinAddress(newKey.GetID()).ToString();
     } else if (type == ReceiveLedger) {
+        bool accountOk = true;
+        uint32_t account = ledgerAccount.toUInt(&accountOk);
+        if (!accountOk || !validateLedgerPathItem(account, ledger::utils::MAX_RECOMMENDED_ACCOUNT)) {
+            editStatus = INVALID_LEDGER_ACCOUNT;
+            return QString();
+        }
+
+        bool indexOk = true;
+        uint32_t index = ledgerIndex.toUInt(&indexOk);
+        if (!indexOk || !validateLedgerPathItem(index, ledger::utils::MAX_RECOMMENDED_INDEX)) {
+            editStatus = INVALID_LEDGER_INDEX;
+            return QString();
+        }
+
         ledger::Ledger l;
         auto           e = l.open();
 
         std::stringstream pathSS;
-        pathSS << "m/44'/146'/" << ledgerAccount << "'/0/" <<  ledgerIndex;
+        pathSS << "m/44'/146'/" << account << "'/0/" <<  index;
         auto path = pathSS.str();
 
         auto result = l.GetPublicKey(path, true);
-        
+
         l.close();
 
         auto pubKey = ledger::utils::CompressPubKey(std::get<0>(result));
 
         CPubKey cpubkey(pubKey);
-        CLedgerKey ledgerKey(cpubkey, ledgerAccount, ledgerIndex);
+        CLedgerKey ledgerKey(cpubkey, account, index);
         wallet->AddLedgerKey(ledgerKey);
         strAddress = CBitcoinAddress(cpubkey.GetID()).ToString();
     } else {
@@ -469,4 +483,9 @@ int AddressTableModel::lookupAddress(const QString& address) const
 void AddressTableModel::emitDataChanged(int idx)
 {
     emit dataChanged(index(idx, 0, QModelIndex()), index(idx, columns.length() - 1, QModelIndex()));
+}
+
+bool AddressTableModel::validateLedgerPathItem(uint32_t value, uint32_t top) const
+{
+    return 0 <= value && value <= top;
 }

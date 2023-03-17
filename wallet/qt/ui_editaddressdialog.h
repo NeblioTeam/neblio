@@ -21,8 +21,6 @@
 #include <QtWidgets/QLineEdit>
 #include <QtWidgets/QVBoxLayout>
 #include <QtWidgets/QCheckBox>
-#include <QtGui/QIntValidator>
-#include "ledger/utils.h"
 
 QT_BEGIN_NAMESPACE
 
@@ -99,8 +97,6 @@ public:
 
         ledgerAccountEdit = new QLineEdit(EditAddressDialog);
         ledgerAccountEdit->setObjectName(QStringLiteral("ledgerAccountEdit"));
-        ledgerAccountEdit->setValidator(new QIntValidator(0, ledger::utils::MAX_RECOMMENDED_ACCOUNT));
-        ledgerAccountEdit->setText("0");
         ledgerFormLayout->setWidget(0, QFormLayout::FieldRole, ledgerAccountEdit);
 
         ledgerIndexLabel = new QLabel(EditAddressDialog);
@@ -109,8 +105,6 @@ public:
 
         ledgerIndexEdit = new QLineEdit(EditAddressDialog);
         ledgerIndexEdit->setObjectName(QStringLiteral("ledgerIndexEdit"));
-        ledgerIndexEdit->setValidator(new QIntValidator(0, ledger::utils::MAX_RECOMMENDED_INDEX));
-        ledgerIndexEdit->setText("0");
         ledgerFormLayout->setWidget(1, QFormLayout::FieldRole, ledgerIndexEdit);
 
         verticalLayout->addWidget(ledgerWidget);

@@ -79,6 +79,12 @@ void setupAmountWidget(QLineEdit *widget, QWidget *parent)
     widget->setAlignment(Qt::AlignRight|Qt::AlignVCenter);
 }
 
+void setupIntWidget(QLineEdit *widget, QWidget *parent, int bottom, int top)
+{
+    QIntValidator *intValidator = new QIntValidator(bottom, top, parent);
+    widget->setValidator(intValidator);
+}
+
 bool parseBitcoinURI(const QUrl &uri, SendCoinsRecipient *out)
 {
     // NovaCoin: check prefix
@@ -460,4 +466,3 @@ void HelpMessageBox::showOrPrint()
 }
 
 } // namespace GUIUtil
-
