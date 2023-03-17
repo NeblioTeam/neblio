@@ -3,6 +3,7 @@
 
 #include <QAbstractTableModel>
 #include <QStringList>
+#include "ledger/error.h"
 #include "wallet_ismine.h"
 
 class AddressTablePriv;
@@ -44,7 +45,8 @@ public:
         INVALID_LEDGER_ACCOUNT, /**< Ledger account outside of recommended range */
         INVALID_LEDGER_INDEX,   /**< Ledger index outside of recommended range */
         WALLET_UNLOCK_FAILURE,  /**< Wallet could not be unlocked to create new receiving address */
-        KEY_GENERATION_FAILURE  /**< Generating a new public key for a receiving address failed */
+        KEY_GENERATION_FAILURE, /**< Generating a new public key for a receiving address failed */
+        LEDGER_ERROR            /**< Ledger operation error */
     };
 
     static const QString Send;    /**< Specifies send address */
@@ -79,6 +81,8 @@ public:
 
     EditStatus getEditStatus() const { return editStatus; }
 
+    std::string getLedgerErrorMessage() const;
+
     std::string purposeForAddress(const std::string& address) const;
 
     bool isWhitelisted(const std::string& address) const;
@@ -89,6 +93,7 @@ private:
     AddressTablePriv* priv;
     QStringList       columns;
     EditStatus        editStatus;
+    ledger::Error     ledgerError;
 
     /** Notify listeners that data changed. */
     void emitDataChanged(int index);

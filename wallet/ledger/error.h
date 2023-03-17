@@ -10,6 +10,7 @@ namespace ledger {
 		DEVICE_DATA_SEND_FAIL,
 		DEVICE_DATA_RECV_FAIL,
 		APDU_INVALID_CMD,
+		UNRECOGNIZED_ERROR = 999,
 	};
 
 	std::string error_message(Error code);

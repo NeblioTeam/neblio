@@ -7,6 +7,21 @@
 #include <QDataWidgetMapper>
 #include <QMessageBox>
 #include <QtGui/QIntValidator>
+#include <QThread>
+#include <QTimer>
+
+void AddLedgerRowWorker::addRow(Ui::EditAddressDialog *ui, AddressTableModel *model, QSharedPointer<AddLedgerRowWorker> workerPtr) {
+    auto address = model->addRow(
+        AddressTableModel::ReceiveLedger,
+        ui->labelEdit->text(),
+        ui->addressEdit->text(),
+        ui->ledgerAccountEdit->text(),
+        ui->ledgerIndexEdit->text()
+    );
+
+    emit resultReady(address);
+    workerPtr.reset();
+}
 
 EditAddressDialog::EditAddressDialog(Mode modeIn, QWidget *parent) :
     QDialog(parent),
@@ -96,13 +111,38 @@ bool EditAddressDialog::saveCurrentRow()
     switch(mode)
     {
     case NewReceivingAddress:
-        address = model->addRow(
-                isLedger ? AddressTableModel::ReceiveLedger : AddressTableModel::Receive,
+        if (isLedger)
+        {
+            QThread addRowThread;
+            QSharedPointer<AddLedgerRowWorker> worker = QSharedPointer<AddLedgerRowWorker>::create();
+            worker->moveToThread(&addRowThread);
+
+            connect(worker.data(), SIGNAL(resultReady(QString)), &addRowThread, SLOT(quit()));
+            connect(&addRowThread, SIGNAL(finished()), &addRowThread, SLOT(deleteLater()));
+
+            QMessageBox msgBox(this);
+            msgBox.setIcon(QMessageBox::Icon::Information);
+            msgBox.setWindowTitle(windowTitle());
+            msgBox.setText("Please confirm or cancel the action on your Ledger device.");
+            msgBox.setStandardButtons(QMessageBox::StandardButton::NoButton);
+
+            connect(worker.data(), SIGNAL(resultReady(QString)), this, SLOT(setAddress(QString)));
+            connect(worker.data(), SIGNAL(resultReady(QString)), &msgBox, SLOT(accept()));
+
+            addRowThread.start();
+            QTimer::singleShot(0, worker.data(), [this, worker]() { worker->addRow(ui, model, worker); });
+            msgBox.exec();
+
+            addRowThread.wait(); // to make sure that the thread is finished
+        } else {
+            address = model->addRow(
+                AddressTableModel::Receive,
                 ui->labelEdit->text(),
                 ui->addressEdit->text(),
                 ui->ledgerAccountEdit->text(),
                 ui->ledgerIndexEdit->text()
             );
+        }
         break;
     case NewSendingAddress:
         address = model->addRow(
@@ -169,6 +209,11 @@ void EditAddressDialog::accept()
                 tr("New key generation failed."),
                 QMessageBox::Ok, QMessageBox::Ok);
             break;
+        case AddressTableModel::LEDGER_ERROR:
+            QMessageBox::critical(this, windowTitle(),
+                tr("A Ledger error occured: %1\n\nIf you did not cancel the operation intentionally, make sure that your device is connected and the Neblio app is opened on the device.").arg(QString::fromStdString(model->getLedgerErrorMessage())),
+                QMessageBox::Ok, QMessageBox::Ok);
+            break;
 
         }
         return;
@@ -183,6 +228,11 @@ void EditAddressDialog::updateLedgerPathLabel()
         ui->ledgerIndexEdit->text().toStdString()
     );
     ui->ledgerPathLabel->setText(tr("Ledger path: %1").arg(QString::fromStdString(path)));
+}
+
+void EditAddressDialog::setAddress(QString addressIn)
+{
+    this->address = addressIn;
 }
 
 void EditAddressDialog::on_ledgerCheckBox_toggled(bool checked)
@@ -200,7 +250,7 @@ QString EditAddressDialog::getAddress() const
     return address;
 }
 
-void EditAddressDialog::setAddress(const QString &addressIn)
+void EditAddressDialog::setAddressEditValue(const QString &addressIn)
 {
     this->address = addressIn;
     ui->addressEdit->setText(addressIn);

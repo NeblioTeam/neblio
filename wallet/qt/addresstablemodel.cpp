@@ -1,5 +1,6 @@
 #include "addresstablemodel.h"
 #include "guiutil.h"
+#include "ledger/error.h"
 #include "ledger/ledger.h"
 #include "ledger/utils.h"
 #include "walletmodel.h"
@@ -423,15 +424,20 @@ QString AddressTableModel::addRow(const QString& type, const QString& label, con
             return QString();
         }
 
-        ledger::Ledger l;
-        auto e = l.open();
+        ledger::bytes pubKey;
 
-        std::string path = ledger::utils::GetBip32Path(account, index);
-        auto result = l.GetPublicKey(path, true);
-
-        l.close();
-
-        auto pubKey = ledger::utils::CompressPubKey(std::get<0>(result));
+        try {
+            ledger::Ledger l;
+            l.open();
+            std::string path = ledger::utils::GetBip32Path(account, index);
+            auto result = l.GetPublicKey(path, true);
+            l.close();
+            auto pubKey = ledger::utils::CompressPubKey(std::get<0>(result));
+        } catch (const ledger::Error& e) {
+            editStatus = LEDGER_ERROR;
+            ledgerError = e;
+            return QString();
+        }
 
         CPubKey cpubkey(pubKey);
         CLedgerKey ledgerKey(cpubkey, account, index);
@@ -489,6 +495,14 @@ int AddressTableModel::lookupAddress(const QString& address) const
     } else {
         return lst.at(0).row();
     }
+}
+
+std::string AddressTableModel::getLedgerErrorMessage() const {
+    if (editStatus != LEDGER_ERROR)
+        return "";
+    if (ledgerError == ledger::Error::SUCCESS)
+        return "Unknown error";
+    return ledger::error_message(ledgerError);
 }
 
 void AddressTableModel::emitDataChanged(int idx)

@@ -24,7 +24,7 @@ namespace ledger
 		Ledger(Transport::TransportType transportType = Transport::TransportType::HID);
 		~Ledger();
 
-		Error open();
+		void open();
 
 		std::tuple<bytes, std::string, bytes> GetPublicKey(const std::string &path, bool confirm);
         std::vector<std::tuple<int, bytes>> SignTransaction(const Tx &tx,const std::string& changePath,  const std::vector<std::string> &signPaths, const std::vector<Utxo> &utxos);

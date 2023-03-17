@@ -397,7 +397,7 @@ void TransactionView::editLabel()
             // Add sending address
             EditAddressDialog dlg(EditAddressDialog::NewSendingAddress, this);
             dlg.setModel(addressBook);
-            dlg.setAddress(address);
+            dlg.setAddressEditValue(address);
             dlg.exec();
         }
     }

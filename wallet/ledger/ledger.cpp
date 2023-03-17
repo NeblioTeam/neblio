@@ -16,7 +16,7 @@ namespace ledger
 
 	Ledger::~Ledger() { transport_->close(); }
 
-	Error Ledger::open()
+	void Ledger::open()
 	{
 		std::cout << "Opening Ledger connection." << std::endl;
 		auto openError = transport_->open();
@@ -40,7 +40,7 @@ namespace ledger
 		auto err = std::get<0>(result);
 		auto buffer = std::get<1>(result);
 		if (err != Error::SUCCESS)
-			throw error_message(err);
+			throw err;
 
 		auto offset = 1;
 		auto pubKeyLen = (int)buffer[offset] * 16 + 1;
@@ -56,7 +56,7 @@ namespace ledger
 		offset += 32;
 
 		if (offset != buffer.size())
-			throw "Something went wrong";
+			throw Error::UNRECOGNIZED_ERROR;
 
 		return {pubKey, std::string(address.begin(), address.end()), chainCode};
 	}
@@ -209,7 +209,7 @@ namespace ledger
 	}
 
     std::vector<std::tuple<int, bytes>> Ledger::SignTransaction(const Tx &tx, const std::string& changePath, const std::vector<std::string> &signPaths, const std::vector<Utxo> &utxos)
-	{		
+	{
 		assert(tx.inputs.size() == signPaths.size());
 		assert(tx.inputs.size() == utxos.size());
 

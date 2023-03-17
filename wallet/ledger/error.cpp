@@ -18,6 +18,7 @@ namespace ledger
 			return "Failed to receive data from Ledger";
 		case Error::APDU_INVALID_CMD:
 			return "Invalid Ledger data";
+		case Error::UNRECOGNIZED_ERROR:
 		default:
 			return "Unrecognized error";
 		}
