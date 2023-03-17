@@ -52,7 +52,7 @@ QString dateTimeStr(qint64 nTime)
     return dateTimeStr(QDateTime::fromTime_t((qint32)nTime));
 }
 
-QFont bitcoinAddressFont()
+QFont monospaceFont()
 {
     QFont font("Monospace");
 #if QT_VERSION >= 0x040800
@@ -67,7 +67,7 @@ void setupAddressWidget(QLineEdit *widget, QWidget *parent)
 {
     widget->setMaxLength(BitcoinAddressValidator::MaxAddressLength);
     widget->setValidator(new BitcoinAddressValidator(parent));
-    widget->setFont(bitcoinAddressFont());
+    widget->setFont(monospaceFont());
 }
 
 void setupAmountWidget(QLineEdit *widget, QWidget *parent)

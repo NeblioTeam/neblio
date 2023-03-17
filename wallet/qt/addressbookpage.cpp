@@ -133,11 +133,18 @@ void AddressBookPage::setModel(AddressTableModel *modelIn)
     ui->tableView->setModel(proxyModel);
     ui->tableView->sortByColumn(0, Qt::AscendingOrder);
 
+    // Hide unwanted columns
+    ui->tableView->hideColumn(AddressTableModel::IsLedger);
+    ui->tableView->hideColumn(AddressTableModel::LedgerAccount);
+    ui->tableView->hideColumn(AddressTableModel::LedgerIndex);
+
     // Set column widths
+    ui->tableView->horizontalHeader()->setSectionResizeMode(
+            AddressTableModel::Label, QHeaderView::Stretch);
     ui->tableView->horizontalHeader()->resizeSection(
             AddressTableModel::Address, 320);
     ui->tableView->horizontalHeader()->setSectionResizeMode(
-            AddressTableModel::Label, QHeaderView::Stretch);
+            AddressTableModel::LedgerPath, QHeaderView::ResizeToContents);
 
     connect(ui->tableView->selectionModel(), SIGNAL(selectionChanged(QItemSelection,QItemSelection)),
             this, SLOT(selectionChanged()));

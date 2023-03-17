@@ -26,6 +26,7 @@ public:
         IsLedger = 2,
         LedgerAccount = 3,
         LedgerIndex = 4,
+        LedgerPath = 5,
     };
 
     enum RoleIndex

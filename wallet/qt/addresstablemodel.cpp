@@ -183,7 +183,7 @@ public:
 AddressTableModel::AddressTableModel(CWallet* walletIn, WalletModel* parent)
     : QAbstractTableModel(parent), walletModel(parent), wallet(walletIn), priv(0)
 {
-    columns << tr("Label") << tr("Address") << tr("Is Ledger") << tr("Account") << tr("Index");
+    columns << tr("Label") << tr("Address") << tr("Is Ledger") << tr("Ledger Account") << tr("Ledger Index") << tr("Ledger Path");
     priv = new AddressTablePriv(walletIn, this);
     priv->refreshAddressTable();
 }
@@ -221,18 +221,32 @@ QVariant AddressTableModel::data(const QModelIndex& index, int role) const
         case Address:
             return rec->address;
         case IsLedger:
-            return isLedger ? "Yes" : "";
+            return isLedger ? tr("Yes") : "";
         case LedgerAccount:
             return isLedger ? QString::number(rec->ledgerAccount) : "";
         case LedgerIndex:
             return isLedger ? QString::number(rec->ledgerIndex) : "";
+        case LedgerPath:
+            {
+                // IsLedger, LedgerAccount and LedgerIndex are hidden, we display the info here
+                // (however, they still need to be above due to EditAddressDialog data mapping)
+                std::string path = ledger::utils::GetBip32Path(rec->ledgerAccount, rec->ledgerIndex);
+                return isLedger ? QString::fromStdString(path) : "-";
+            }
         }
     } else if (role == Qt::FontRole) {
-        QFont font;
         if (index.column() == Address) {
-            font = GUIUtil::bitcoinAddressFont();
+            return GUIUtil::monospaceFont();
         }
-        return font;
+        if (index.column() == LedgerPath) {
+            return GUIUtil::monospaceFont();
+        }
+        return QVariant();
+    } else if (role == Qt::TextAlignmentRole) {
+        if (index.column() == LedgerPath) {
+            return Qt::AlignCenter;
+        }
+        return QVariant();
     } else if (role == TypeRole) {
         switch (rec->type) {
         case AddressTableEntry::Sending:
