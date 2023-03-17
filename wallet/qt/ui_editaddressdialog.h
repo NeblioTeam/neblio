@@ -42,6 +42,7 @@ public:
     QLineEdit *ledgerAccountEdit;
     QLabel *ledgerIndexLabel;
     QLineEdit *ledgerIndexEdit;
+    QLabel *ledgerPathLabel;
     QLabel *ledgerInfoLabel;
 
     void setupUi(QDialog *EditAddressDialog)
@@ -108,6 +109,10 @@ public:
         ledgerFormLayout->setWidget(1, QFormLayout::FieldRole, ledgerIndexEdit);
 
         verticalLayout->addWidget(ledgerWidget);
+
+        ledgerPathLabel = new QLabel(EditAddressDialog);
+        ledgerPathLabel->setObjectName(QStringLiteral("ledgerPathLabel"));
+        verticalLayout->addWidget(ledgerPathLabel);
 
         ledgerInfoLabel = new QLabel(EditAddressDialog);
         ledgerInfoLabel->setObjectName(QStringLiteral("ledgerInfoLabel"));

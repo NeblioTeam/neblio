@@ -38,6 +38,8 @@ public:
 public slots:
     void accept();
 
+    void updateLedgerPathLabel();
+
     void on_ledgerCheckBox_toggled(bool checked);
 
 private:

@@ -49,6 +49,7 @@ EditAddressDialog::EditAddressDialog(Mode modeIn, QWidget *parent) :
 
     // Ledger submenu collapsed by default
     ui->ledgerWidget->setVisible(false);
+    ui->ledgerPathLabel->setVisible(false);
     ui->ledgerInfoLabel->setVisible(false);
 
     // Ledger account and index defaults and validators
@@ -56,6 +57,10 @@ EditAddressDialog::EditAddressDialog(Mode modeIn, QWidget *parent) :
     ui->ledgerIndexEdit->setText("0");
     GUIUtil::setupIntWidget(ui->ledgerAccountEdit, this, 0, ledger::utils::MAX_RECOMMENDED_ACCOUNT);
     GUIUtil::setupIntWidget(ui->ledgerIndexEdit, this, 0, ledger::utils::MAX_RECOMMENDED_INDEX);
+
+    connect(this->ui->ledgerAccountEdit, SIGNAL(textChanged(QString)), this, SLOT(updateLedgerPathLabel()));
+    connect(this->ui->ledgerIndexEdit, SIGNAL(textChanged(QString)), this, SLOT(updateLedgerPathLabel()));
+    updateLedgerPathLabel();
 }
 
 EditAddressDialog::~EditAddressDialog()
@@ -171,9 +176,19 @@ void EditAddressDialog::accept()
     QDialog::accept();
 }
 
+void EditAddressDialog::updateLedgerPathLabel()
+{
+    std::string path = ledger::utils::GetBip32Path(
+        ui->ledgerAccountEdit->text().toStdString(),
+        ui->ledgerIndexEdit->text().toStdString()
+    );
+    ui->ledgerPathLabel->setText(tr("Ledger path: %1").arg(QString::fromStdString(path)));
+}
+
 void EditAddressDialog::on_ledgerCheckBox_toggled(bool checked)
 {
     ui->ledgerWidget->setVisible(checked);
+    ui->ledgerPathLabel->setVisible(checked);
     ui->ledgerInfoLabel->setVisible(checked);
 
     // reset dialog height after hiding ledger items
