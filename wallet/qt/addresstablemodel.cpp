@@ -410,12 +410,9 @@ QString AddressTableModel::addRow(const QString& type, const QString& label, con
         }
 
         ledger::Ledger l;
-        auto           e = l.open();
+        auto e = l.open();
 
-        std::stringstream pathSS;
-        pathSS << "m/44'/146'/" << account << "'/0/" <<  index;
-        auto path = pathSS.str();
-
+        std::string path = ledger::utils::GetBip32Path(account, index);
         auto result = l.GetPublicKey(path, true);
 
         l.close();

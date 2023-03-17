@@ -200,4 +200,11 @@ namespace ledger::utils
 
 		return compressedPubKey;
 	}
+
+	std::string GetBip32Path(uint32_t account, uint32_t index)
+	{
+		std::stringstream ss;
+		ss << "m/44'/146'/" << account << "'/0/" << index;
+		return ss.str();
+	}
 } // namespace ledger::utils

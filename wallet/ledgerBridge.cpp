@@ -9,12 +9,12 @@
 namespace ledgerbridge
 {
     LedgerBridge::LedgerBridge() {}
-    
+
     LedgerBridge::~LedgerBridge() {}
 
     void LedgerBridge::SignTransaction(CWalletTx &wtxNew, const std::vector<LedgerBridgeUtxo> &utxos) {
         // TODO GK - proper paths
-        auto changePath = "44'/146'/0'/0/0";
+        std::string changePath = ledger::utils::GetBip32Path(0, 0);
         std::vector<std::string> sigPaths = {changePath};
 
         // transform wallet tx
@@ -34,13 +34,13 @@ namespace ledgerbridge
         // add signatures to tx and verify
         for (auto sigIndex = 0; sigIndex < signTxResults.size(); sigIndex++) {
             auto signature = std::get<1>(signTxResults[sigIndex]);
-            
+
             auto pubKeyResult = ledger.GetPublicKey(sigPaths[sigIndex], false);
             auto pubKey = CPubKey(ledger::utils::CompressPubKey(std::get<0>(pubKeyResult)));
 
             // hash type
             signature.push_back(0x01);
-            
+
             auto txIn = &wtxNew.vin[sigIndex];
             txIn->scriptSig << signature;
             txIn->scriptSig << pubKey;
@@ -58,14 +58,14 @@ namespace ledgerbridge
         ledger::Tx ledgerTx;
         ledgerTx.version = tx.nVersion;
         ledgerTx.time = tx.nTime;
-        
+
         for (auto i = 0; i < tx.vin.size();i++){
             const auto& input = tx.vin[i];
-            
+
             ledger::TxPrevout prevout = {
-                .hash = ledger::bytes(input.prevout.hash.begin(), input.prevout.hash.end()), 
+                .hash = ledger::bytes(input.prevout.hash.begin(), input.prevout.hash.end()),
                 .index = input.prevout.n
-            };         
+            };
 
             ledgerTx.inputs.push_back({
                 prevout,
