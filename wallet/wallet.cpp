@@ -839,7 +839,7 @@ CAmount CWallet::GetCredit(const CTxOut& txout, const isminefilter& filter) cons
     return ((IsMine(txout) & filter) ? txout.nValue : 0);
 }
 
-bool CWallet::IsChange(const ITxDB& txdb, const CTxOut& txout) const
+bool CWallet::IsChange(const ITxDB& txdb, const CTransaction& tx, const CTxOut& txout) const
 {
     CTxDestination address;
 
@@ -853,15 +853,36 @@ bool CWallet::IsChange(const ITxDB& txdb, const CTxOut& txout) const
     if (ExtractDestination(txdb, txout.scriptPubKey, address) && ::IsMine(*this, address) != ISMINE_NO) {
         if (!mapAddressBook.exists(address))
             return true;
+    } 
+
+    // for Ledger consider any outputs sent to the same address as change
+    {
+        LOCK(cs_wallet);
+
+        for (const auto& txin : tx.vin) {
+            map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(txin.prevout.hash);
+            if (mi != mapWallet.end()) {
+                const CWalletTx& prev = (*mi).second;
+                auto previousOutput = prev.vout[txin.prevout.n];
+
+                CTxDestination outputAddress;
+                if (ExtractDestination(txdb, previousOutput.scriptPubKey, outputAddress)
+                        && ::IsMine(*this, outputAddress) == ISMINE_LEDGER
+                        && outputAddress == address) {
+                    return true;
+                }
+            }
+        }
     }
+
     return false;
 }
 
-CAmount CWallet::GetChange(const ITxDB& txdb, const CTxOut& txout) const
+CAmount CWallet::GetChange(const ITxDB& txdb, const CTransaction& tx, const CTxOut& txout) const
 {
     if (!MoneyRange(txout.nValue))
         throw std::runtime_error("CWallet::GetChange() : value out of range");
-    return (IsChange(txdb, txout) ? txout.nValue : 0);
+    return (IsChange(txdb, tx, txout) ? txout.nValue : 0);
 }
 
 bool CWallet::IsMine(const CTransaction& tx) const
@@ -907,7 +928,7 @@ CAmount CWallet::GetChange(const ITxDB& txdb, const CTransaction& tx) const
 {
     CAmount nChange = 0;
     for (const CTxOut& txout : tx.vout) {
-        nChange += GetChange(txdb, txout);
+        nChange += GetChange(txdb, tx, txout);
         if (!MoneyRange(nChange))
             throw std::runtime_error("CWallet::GetChange() : value out of range");
     }
@@ -1016,7 +1037,7 @@ void CWalletTx::GetAmounts(const ITxDB& txdb, list<pair<CTxDestination, CAmount>
         //   2) the output is to us (received)
         if (nDebit > 0) {
             // Don't report 'change' txouts
-            if (pwallet->IsChange(txdb, txout))
+            if (pwallet->IsChange(txdb, *this, txout))
                 continue;
             fIsMine = pwallet->IsMine(txout);
         } else if (!IsMineCheck((fIsMine = pwallet->IsMine(txout)), ISMINE_SPENDABLE_AVAILABLE))
@@ -3080,7 +3101,7 @@ set<set<CTxDestination>> CWallet::GetAddressGroupings(const ITxDB& txdb)
             // group change with input addresses
             if (any_mine) {
                 for (CTxOut txout : pcoin->vout)
-                    if (IsChange(txdb, txout)) {
+                    if (IsChange(txdb, (CTransaction&) pcoin, txout)) {
                         CWalletTx      tx = mapWallet.at(pcoin->vin[0].prevout.hash);
                         CTxDestination txoutAddr;
                         if (!ExtractDestination(txdb, txout.scriptPubKey, txoutAddr))

@@ -322,8 +322,8 @@ public:
     CAmount    GetDebit(const CTxIn& txin, const isminefilter& filter) const;
     isminetype IsMine(const CTxOut& txout) const;
     CAmount    GetCredit(const CTxOut& txout, const isminefilter& filter) const;
-    bool       IsChange(const ITxDB& txdb, const CTxOut& txout) const;
-    CAmount    GetChange(const ITxDB& txdb, const CTxOut& txout) const;
+    bool       IsChange(const ITxDB& txdb, const CTransaction& tx, const CTxOut& txout) const;
+    CAmount    GetChange(const ITxDB& txdb, const CTransaction& tx, const CTxOut& txout) const;
     bool       IsMine(const CTransaction& tx) const;
     bool       IsFromMe(const CTransaction& tx) const;
     CAmount    GetDebit(const CTransaction& tx, const isminefilter& filter) const;

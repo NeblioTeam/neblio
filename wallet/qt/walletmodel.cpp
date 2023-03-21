@@ -572,7 +572,7 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput>>& mapCoins) c
     for (const COutput& out : vCoins) {
         COutput cout = out;
 
-        while (wallet->IsChange(txdb, cout.tx->vout[cout.i]) && cout.tx->vin.size() > 0 &&
+        while (wallet->IsChange(txdb, (CTransaction&) cout.tx, cout.tx->vout[cout.i]) && cout.tx->vin.size() > 0 &&
                IsMineCheck(wallet->IsMine(cout.tx->vin[0]), isminetype::ISMINE_SPENDABLE_ALL)) {
             if (!wallet->mapWallet.count(cout.tx->vin[0].prevout.hash))
                 break;
