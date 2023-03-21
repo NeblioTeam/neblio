@@ -1671,6 +1671,8 @@ isminetype IsMine(const CKeyStore& keystore, const CScript& scriptPubKey)
         keyID = CPubKey(vSolutions[0]).GetID();
         if (keystore.HaveKey(keyID))
             return isminetype::ISMINE_SPENDABLE;
+        if (wallet->HaveLedgerKey(keyID))
+            return isminetype::ISMINE_LEDGER;
         break;
     case TX_PUBKEYHASH:
         keyID = CKeyID(uint160(vSolutions[0]));

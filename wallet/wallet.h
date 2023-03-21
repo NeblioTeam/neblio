@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2009-2010 Satoshi Nakamoto
+// Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2012 The Bitcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -573,6 +573,8 @@ public:
     mutable boost::optional<CAmount> c_DelegatedDebitCached;
     mutable boost::optional<CAmount> c_DelegatedCreditCached;
     mutable boost::optional<CAmount> c_ImmatureCreditCached;
+    mutable boost::optional<CAmount> c_LedgerCreditCached;
+    mutable boost::optional<CAmount> c_LedgerDebitCached;
 
     CWalletTx() { Init(nullptr); }
 

@@ -3410,6 +3410,14 @@ CAmount CWalletTx::GetDebit(const isminefilter& filter) const
             debit += *c_DelegatedDebitCached;
         }
     }
+    if (filter & ISMINE_LEDGER) {
+        if (c_LedgerDebitCached)
+            debit += *c_LedgerDebitCached;
+        else {
+            c_LedgerDebitCached = pwallet->GetDebit(*this, ISMINE_LEDGER);
+            debit += *c_LedgerDebitCached;
+        }
+    }
     return debit;
 }
 
@@ -3436,6 +3444,9 @@ void CWalletTx::Init(const CWallet* pwalletIn)
 
     c_DelegatedDebitCached  = boost::none;
     c_DelegatedCreditCached = boost::none;
+
+    c_LedgerDebitCached  = boost::none;
+    c_LedgerCreditCached = boost::none;
 
     c_DebitCached           = boost::none;
     c_CreditCached          = boost::none;
@@ -3485,6 +3496,10 @@ CAmount CWalletTx::GetUnspentCredit(const ITxDB& txdb, const uint256& bestBlockH
     }
     if (filter & ISMINE_SPENDABLE_DELEGATED) {
         const auto f = ISMINE_SPENDABLE_DELEGATED;
+        credit += pwallet->GetCredit(bestBlockHash, txdb, *this, f, true);
+    }
+    if (filter & ISMINE_LEDGER) {
+        const auto f = ISMINE_LEDGER;
         credit += pwallet->GetCredit(bestBlockHash, txdb, *this, f, true);
     }
     return credit;
@@ -3559,6 +3574,14 @@ CAmount CWalletTx::GetCredit(const uint256& bestBlockHash, const ITxDB& txdb,
             credit += *c_DelegatedCreditCached;
         }
     }
+    if (filter & ISMINE_LEDGER) {
+        if (c_LedgerCreditCached)
+            credit += *c_LedgerCreditCached;
+        else {
+            c_LedgerCreditCached = pwallet->GetCredit(bestBlockHash, txdb, *this, ISMINE_LEDGER, false);
+            credit += *c_LedgerCreditCached;
+        }
+    }
     return credit;
 }
 
@@ -3576,6 +3599,8 @@ void CWalletTx::MarkDirty()
     c_ColdCreditCached           = boost::none;
     c_DelegatedDebitCached       = boost::none;
     c_DelegatedCreditCached      = boost::none;
+    c_LedgerDebitCached          = boost::none;
+    c_LedgerCreditCached         = boost::none;
 }
 
 void CWalletTx::BindWallet(CWallet* pwalletIn)
