@@ -1276,7 +1276,7 @@ Value getbalance(const Array& params, bool fHelp)
         nMinDepth = params[1].get_int();
     if (params.size() > 1)
         nMinDepth = params[1].get_int();
-    isminefilter filter = static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE);
+    isminefilter filter = static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_AVAILABLE);
     if (params.size() > 2 && params[2].get_bool())
         filter = filter | static_cast<isminefilter>(isminetype::ISMINE_WATCH_ONLY);
     if (!(params.size() > 3) || params[3].get_bool())
@@ -1973,7 +1973,7 @@ Value listtransactions(const Array& params, bool fHelp)
     if (params.size() > 2)
         nFrom = params[2].get_int();
 
-    isminefilter filter = static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE);
+    isminefilter filter = static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_AVAILABLE);
     if (params.size() > 3 && params[3].get_bool())
         filter = filter | static_cast<isminefilter>(isminetype::ISMINE_WATCH_ONLY);
     if (!(params.size() > 4) || params[4].get_bool())
@@ -2039,7 +2039,7 @@ Value listaccounts(const Array& params, bool fHelp)
     if (params.size() > 0)
         nMinDepth = params[0].get_int();
 
-    isminefilter includeWatchonly = static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE);
+    isminefilter includeWatchonly = static_cast<isminefilter>(isminetype::ISMINE_SPENDABLE_AVAILABLE);
     if (params.size() > 1 && params[1].get_bool())
         includeWatchonly = includeWatchonly | static_cast<isminefilter>(isminetype::ISMINE_WATCH_ONLY);
 

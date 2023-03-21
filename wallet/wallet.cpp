@@ -1018,7 +1018,7 @@ void CWalletTx::GetAmounts(const ITxDB& txdb, list<pair<CTxDestination, CAmount>
             if (pwallet->IsChange(txdb, txout))
                 continue;
             fIsMine = pwallet->IsMine(txout);
-        } else if (!IsMineCheck((fIsMine = pwallet->IsMine(txout)), ISMINE_SPENDABLE))
+        } else if (!IsMineCheck((fIsMine = pwallet->IsMine(txout)), ISMINE_SPENDABLE_AVAILABLE))
             continue;
 
         // In either case, we need to get the destination address
@@ -3351,7 +3351,7 @@ bool CWalletTx::IsTrusted(const ITxDB& txdb, const uint256& bestBlockHash) const
         if (parent == nullptr)
             return false;
         const CTxOut& parentOut = parent->vout[txin.prevout.n];
-        if (pwallet->IsMine(parentOut) != ISMINE_SPENDABLE)
+        if (pwallet->IsMine(parentOut) != ISMINE_SPENDABLE_AVAILABLE)
             return false;
     }
 
