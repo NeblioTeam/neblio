@@ -2,6 +2,7 @@
 #include "ui_editaddressdialog.h"
 #include "addresstablemodel.h"
 #include "guiutil.h"
+#include "ledger/bip32.h"
 #include "ledger/utils.h"
 
 #include <QDataWidgetMapper>
@@ -223,7 +224,7 @@ void EditAddressDialog::accept()
 
 void EditAddressDialog::updateLedgerPathLabel()
 {
-    std::string path = ledger::utils::GetBip32Path(
+    std::string path = ledger::bip32::GetBip32Path(
         ui->ledgerAccountEdit->text().toStdString(),
         ui->ledgerIndexEdit->text().toStdString()
     );

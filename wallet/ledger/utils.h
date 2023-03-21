@@ -27,8 +27,6 @@ namespace ledger::utils
 	void AppendUint64(bytes &vector, uint64_t n, bool littleEndian = false);
 	bytes Splice(const bytes &vec, int start, int length);
 	bytes CompressPubKey(const bytes &pubKey);
-	std::string GetBip32Path(const std::string &account, const std::string &index);
-	std::string GetBip32Path(uint32_t account, uint32_t index);
 
 const uint32_t MAX_RECOMMENDED_ACCOUNT = 100;
 const uint32_t MAX_RECOMMENDED_INDEX = 50000;

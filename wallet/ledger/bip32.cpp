@@ -55,4 +55,16 @@ namespace ledger::bip32
         }
         return keypath;
     }
+
+	std::string GetBip32Path(const std::string &account, const std::string &index)
+	{
+		std::stringstream ss;
+		ss << "m/44'/146'/" << account << "/0/" << index;
+		return ss.str();
+	}
+
+	std::string GetBip32Path(uint32_t account, uint32_t index)
+	{
+		return GetBip32Path(std::to_string(account), std::to_string(index));
+	}
 } // namespace ledger::utils

@@ -1,5 +1,6 @@
 #include "addresstablemodel.h"
 #include "guiutil.h"
+#include "ledger/bip32.h"
 #include "ledger/error.h"
 #include "ledger/ledger.h"
 #include "ledger/utils.h"
@@ -231,7 +232,7 @@ QVariant AddressTableModel::data(const QModelIndex& index, int role) const
             {
                 // IsLedger, LedgerAccount and LedgerIndex are hidden, we display the info here
                 // (however, they still need to be above due to EditAddressDialog data mapping)
-                std::string path = ledger::utils::GetBip32Path(rec->ledgerAccount, rec->ledgerIndex);
+                std::string path = ledger::bip32::GetBip32Path(rec->ledgerAccount, rec->ledgerIndex);
                 return isLedger ? QString::fromStdString(path) : "-";
             }
         }
@@ -429,7 +430,7 @@ QString AddressTableModel::addRow(const QString& type, const QString& label, con
         try {
             ledger::Ledger l;
             l.open();
-            std::string path = ledger::utils::GetBip32Path(account, index);
+            std::string path = ledger::bip32::GetBip32Path(account, index);
             auto result = l.GetPublicKey(path, true);
             l.close();
             auto pubKey = ledger::utils::CompressPubKey(std::get<0>(result));
