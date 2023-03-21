@@ -1543,6 +1543,7 @@ void CWallet::AvailableCoinsForStaking(const ITxDB& txdb, vector<COutput>& vCoin
                 if (IsSpent(pcoin->GetHash(), i, txdb, bestBlockHash))
                     continue;
 
+                // TODO GK: ledger?
                 if (!(mine & ISMINE_SPENDABLE_STAKEABLE) && !(mine & ISMINE_SPENDABLE))
                     continue;
 
@@ -2193,10 +2194,19 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                     return false;
                 }
 
+                std::vector<CScript> ledgerKeys;
+                auto isLedgerTx = false;
                 for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
                     CAmount nCredit = pcoin.first->vout[pcoin.second].nValue;
                     dPriority += (double)nCredit * pcoin.first->GetDepthInMainChain(txdb, bestBlockHash);
+
+                    if (IsMineCheck(::IsMine(*this, pcoin.first->vout[pcoin.second].scriptPubKey), ISMINE_LEDGER)) {
+                        isLedgerTx = true;
+                        ledgerKeys.push_back(pcoin.first->vout[pcoin.second].scriptPubKey);
+                    }
                 }
+
+                // TODO GK - assert that if ledger transaction then only ledger inputs are used
 
                 // select NTP1 tokens to determine change (this may be superfluous the first time this is
                 // called since it's already called before this whole function, but that's fine; it's
@@ -2267,9 +2277,10 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                     nFeeRet += nMoveToFee;
                 }
 
+                // TODO GK - assert no ntp1 token with Ledger tx
+
                 CKeyID changeKeyID;
 
-                // TODO GK - handle change differently for Ledger
                 if (nChange > 0 || ntp1TokenChangeExists) {
                     // Fill a vout to ourself
                     // TODO: pass in scriptChange instead of reservekey so
@@ -2280,8 +2291,15 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                     if (coinControl && !boost::get<CNoDestination>(&coinControl->destChange)) {
                         scriptChange.SetDestination(coinControl->destChange);
                         changeKeyID = boost::get<CKeyID>(coinControl->destChange);
+                    } else if (isLedgerTx) {
+                        CTxDestination destChange;
+                        if (!ExtractDestination(txdb, ledgerKeys[0], destChange)) {
+                            // TODO GK - log?
+                            return false;
+                        }
+                        scriptChange.SetDestination(destChange);
+                        changeKeyID = boost::get<CKeyID>(destChange);
                     }
-
                     // no coin control: send change to newly generated address
                     else {
                         // Note: We use a new key here to keep it from being obvious which side is the
@@ -2370,15 +2388,7 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                     return false;
                 }
 
-                auto isLedgerTx = false;
-                for (const PAIRTYPE(const CWalletTx*, unsigned int) & coin : setCoins) {
-                    if (IsMineCheck(::IsMine(*this, coin.first->vout[coin.second].scriptPubKey), ISMINE_LEDGER)) {
-                        isLedgerTx = true;
-                        break;
-                    }
-                }
-
-                std::vector<ledgerbridge::LedgerBridgeUtxo> ledgerBridgeUtxos;
+                std::vector<ledgerbridge::LedgerBridgeUtxo> ledgerBridgeUtxos(wtxNew.vin.size());
 
                 // Sign
                 for (const PAIRTYPE(const CWalletTx*, unsigned int) & coin : setCoins) {
@@ -2397,8 +2407,9 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                     }
                     int nIn = std::distance(wtxNew.vin.begin(), it);
 
-                    if (isLedgerTx) {
-                        ledgerBridgeUtxos.push_back({(CTransaction) *coin.first, coin.second, coin.first->vout[coin.second].scriptPubKey});
+                    if (isLedgerTx) {       
+                        // assign to a specific position in the vector since inputs and utxos need to be aligned for Ledger                 
+                        ledgerBridgeUtxos[nIn] = {*coin.first, coin.second, coin.first->vout[coin.second].scriptPubKey};
                     } else {
                         if (SignSignature(*this, *coin.first, wtxNew, nIn) != SignatureState::Verified) {
                             CreateErrorMsg(errorMsg, "Error while signing transactions inputs.");
@@ -2416,7 +2427,7 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                     
                     try {
                         ledgerbridge::LedgerBridge ledgerBridge;
-                        ledgerBridge.SignTransaction(wtxNew, ledgerBridgeUtxos);
+                        ledgerBridge.SignTransaction(txdb, *this, wtxNew, ledgerBridgeUtxos);
                     } catch (const std::exception& ex) {
                         CreateErrorMsg(errorMsg, "Error while signing Ledger transaction.");
                         return false;

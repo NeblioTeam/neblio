@@ -1,6 +1,7 @@
 #include "ledger/tx.h"
 #include "ledger/bytes.h"
 
+#include "itxdb.h"
 #include "wallet.h"
 #include "script.h"
 
@@ -21,7 +22,7 @@ namespace ledgerbridge
             LedgerBridge();
             ~LedgerBridge();
             
-            void SignTransaction(CWalletTx &wtxNew, const std::vector<LedgerBridgeUtxo> &utxos);
+            void SignTransaction(const ITxDB& txdb, const CWallet& wallet, CWalletTx &wtxNew, const std::vector<LedgerBridgeUtxo> &utxos);
         private:
             ledger::Tx ToLedgerTx(const CTransaction& tx);
     };
