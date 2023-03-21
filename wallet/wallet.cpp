@@ -21,6 +21,7 @@
 #include "ledger/ledger.h"
 #include "ledger/utils.h"
 #include "ledgerBridge.h"
+#include "script.h"
 
 using namespace std;
 
@@ -1357,7 +1358,7 @@ CAmount CWallet::GetImmatureBalance(const ITxDB& txdb) const
 // populate vCoins with vector of spendable COutputs
 void CWallet::AvailableCoins(const ITxDB& txdb, vector<COutput>& vCoins, bool fOnlyConfirmed,
                              bool fIncludeColdStaking, bool fIncludeDelegated,
-                             const CCoinControl* coinControl) const
+                             const CCoinControl* coinControl, const std::string& addressFrom) const
 {
 
     vCoins.clear();
@@ -1413,6 +1414,17 @@ void CWallet::AvailableCoins(const ITxDB& txdb, vector<COutput>& vCoins, bool fO
                 if (mine == ISMINE_SPENDABLE_STAKEABLE && !fIncludeColdStaking && !fIncludeDelegated)
                     continue;
 
+                // if addressFrom is set skip coins from other accounts
+                if (addressFrom != "") {
+                    auto scriptPubKey = pcoin->vout[i].scriptPubKey;
+                    
+                    CTxDestination destination;
+                    if (ExtractDestination(txdb, scriptPubKey, destination)) {                    
+                        const auto entry = this->mapAddressBook.get(destination);
+                        if (!entry || !entry.is_initialized() || entry->name != addressFrom)
+                                continue;
+                    }
+                }
                 // bool fIsValid =
                 //     (((mine &
                 //        ISMINE_SPENDABLE) !=
@@ -1810,10 +1822,10 @@ bool CWallet::IsSpent(const uint256& hash, unsigned int n, const ITxDB& txdb,
 bool CWallet::SelectCoins(const ITxDB& txdb, CAmount nTargetValue, unsigned int nSpendTime,
                           set<pair<const CWalletTx*, unsigned int>>& setCoinsRet, CAmount& nValueRet,
                           const CCoinControl* coinControl, bool fIncludeColdStaking,
-                          bool fIncludeDelegated, bool avoidNTP1Outputs) const
+                          bool fIncludeDelegated, bool avoidNTP1Outputs, const std::string& accountFrom) const
 {
     vector<COutput> vCoins;
-    AvailableCoins(txdb, vCoins, true, fIncludeColdStaking, fIncludeDelegated, coinControl);
+    AvailableCoins(txdb, vCoins, true, fIncludeColdStaking, fIncludeDelegated, coinControl, accountFrom);
 
     // coin control -> return all selected outputs (we want all selected to go into the transaction for
     // sure)
@@ -2152,7 +2164,7 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                 set<pair<const CWalletTx*, unsigned int>> setCoins;
                 CAmount                                   nValueIn = 0;
                 if (!SelectCoins(txdb, nTotalValue, wtxNew.nTime, setCoins, nValueIn, coinControl, false,
-                                 fIncludeDelegated, isNTP1Issuance)) {
+                                 fIncludeDelegated, isNTP1Issuance, wtxNew.strFromAccount)) {
                     CreateErrorMsg(errorMsg,
                                    "Failed to collect nebls for the transaction. You may have chosen to "
                                    "spend balance you do not have. For example, you chose to spend "

@@ -1741,6 +1741,21 @@ bool ExtractDestination(const ITxDB& txdb, const CScript& scriptPubKey, CTxDesti
     return false;
 }
 
+bool ExtractKeyID(const ITxDB& txdb, const CScript& scriptPubKey, CKeyID& addressRet)
+{
+    vector<valtype> vSolutions;
+    txnouttype      whichType;
+    if (!Solver(txdb, scriptPubKey, whichType, vSolutions))
+        return false;
+
+    if (whichType == TX_PUBKEYHASH) {
+        addressRet = CKeyID(uint160(vSolutions[0]));
+        return true;
+    }
+
+    return false;
+}
+
 class CAffectedKeysVisitor : public boost::static_visitor<void>
 {
 private:
