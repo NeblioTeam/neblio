@@ -12,7 +12,7 @@ bytes SerializeTransaction(const Tx& tx) {
     for (auto input : tx.inputs)
     {
         utils::AppendVector(serializedTransaction, input.prevout.hash);
-        utils::AppendUint32(serializedTransaction, input.prevout.index);
+        utils::AppendUint32(serializedTransaction, input.prevout.index, true);
         utils::AppendVector(serializedTransaction, utils::CreateVarint(input.script.size()));
         utils::AppendVector(serializedTransaction, input.script);
         utils::AppendUint32(serializedTransaction, input.sequence);
