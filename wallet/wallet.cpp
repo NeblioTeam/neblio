@@ -2440,6 +2440,7 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                     }
                     int nIn = std::distance(wtxNew.vin.begin(), it);
 
+                    // Ledger transactions are signed below
                     if (isLedgerTx) {       
                         // assign to a specific position in the vector since inputs and utxos need to be aligned for Ledger                 
                         ledgerBridgeUtxos[nIn] = {*coin.first, coin.second, coin.first->vout[coin.second].scriptPubKey};
@@ -2448,22 +2449,6 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                             CreateErrorMsg(errorMsg, "Error while signing transactions inputs.");
                             return false;
                         }
-                    }
-                }
-
-                if (isLedgerTx) {
-                    // TODO GK - ledger fee
-                    if (nFeeRet == 0) {
-                        nFeeRet = 20000;
-                        continue;
-                    }
-                    
-                    try {
-                        ledgerbridge::LedgerBridge ledgerBridge;
-                        ledgerBridge.SignTransaction(txdb, *this, wtxNew, ledgerBridgeUtxos);
-                    } catch (const std::exception& ex) {
-                        CreateErrorMsg(errorMsg, "Error while signing Ledger transaction.");
-                        return false;
                     }
                 }
 
@@ -2480,11 +2465,21 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                 // Check that enough fee is included
                 CAmount NTP1Fee = ntp1TxData.getRequiredNeblsForOutputs();
                 CAmount nPayFee = nTransactionFee * (1 + (CAmount)nBytes / 1000) + NTP1Fee;
-                CAmount nMinFee = wtxNew.GetMinFee(txdb, 1, GMF_SEND, nBytes) + NTP1Fee;
+                CAmount nMinFee = wtxNew.GetMinFee(txdb, 1, GMF_SEND, nBytes, !isLedgerTx) + NTP1Fee;
 
-                if (!isLedgerTx && nFeeRet < max(nPayFee, nMinFee)) {
+                if (nFeeRet < max(nPayFee, nMinFee)) {
                     nFeeRet = max(nPayFee, nMinFee);
                     continue;
+                }
+
+                if (isLedgerTx) {                    
+                    try {
+                        ledgerbridge::LedgerBridge ledgerBridge;
+                        ledgerBridge.SignTransaction(txdb, *this, wtxNew, ledgerBridgeUtxos);
+                    } catch (const std::exception& ex) {
+                        CreateErrorMsg(errorMsg, "Error while signing Ledger transaction.");
+                        return false;
+                    }
                 }
 
                 wtxNew.fTimeReceivedIsTxTime = true;
