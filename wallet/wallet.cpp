@@ -2194,19 +2194,51 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                     return false;
                 }
 
-                std::vector<CScript> ledgerKeys;
-                auto isLedgerTx = false;
                 for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
                     CAmount nCredit = pcoin.first->vout[pcoin.second].nValue;
                     dPriority += (double)nCredit * pcoin.first->GetDepthInMainChain(txdb, bestBlockHash);
+                }
 
-                    if (IsMineCheck(::IsMine(*this, pcoin.first->vout[pcoin.second].scriptPubKey), ISMINE_LEDGER)) {
-                        isLedgerTx = true;
-                        ledgerKeys.push_back(pcoin.first->vout[pcoin.second].scriptPubKey);
+                auto hasNonLedgerInputKeys = false;
+                boost::optional<CScript> ledgerInputKey;
+                for (PAIRTYPE(const CWalletTx*, unsigned int) pcoin : setCoins) {
+                    if (!IsMineCheck(::IsMine(*this, pcoin.first->vout[pcoin.second].scriptPubKey), ISMINE_LEDGER)) {
+                        hasNonLedgerInputKeys = true;
+                        continue;
+                    }
+
+                    if (!ledgerInputKey) {
+                        ledgerInputKey = pcoin.first->vout[pcoin.second].scriptPubKey;
+                        continue;
+                    }
+
+                    if (ledgerInputKey != pcoin.first->vout[pcoin.second].scriptPubKey) {
+                        NLog.write(b_sev::err,
+                                   "Ledger transactions can only contain inputs belonging to one address.");
+                        CreateErrorMsg(errorMsg,
+                                       "Ledger transactions can only contain inputs belonging to one address.");
+                        return false;
                     }
                 }
 
-                // TODO GK - assert that if ledger transaction then only ledger inputs are used
+                auto isLedgerTx = !!ledgerInputKey;
+                if (isLedgerTx) {                    
+                    if (hasNonLedgerInputKeys) {
+                        NLog.write(b_sev::err,
+                                   "Ledger transactions can not contain non-ledger inputs.");
+                        CreateErrorMsg(errorMsg,
+                                       "Ledger transactions can not contain non-ledger inputs.");
+                        return false;
+                    }
+
+                    if (ntp1TxData.getTotalTokensInInputs().size()) {
+                        NLog.write(b_sev::err,
+                                   "Ledger transactions can not contain NTP1 tokens.");
+                        CreateErrorMsg(errorMsg,
+                                       "Ledger transactions can not contain NTP1 tokens.");
+                        return false;
+                    }
+                }
 
                 // select NTP1 tokens to determine change (this may be superfluous the first time this is
                 // called since it's already called before this whole function, but that's fine; it's
@@ -2277,8 +2309,6 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                     nFeeRet += nMoveToFee;
                 }
 
-                // TODO GK - assert no ntp1 token with Ledger tx
-
                 CKeyID changeKeyID;
 
                 if (nChange > 0 || ntp1TokenChangeExists) {
@@ -2293,8 +2323,11 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                         changeKeyID = boost::get<CKeyID>(coinControl->destChange);
                     } else if (isLedgerTx) {
                         CTxDestination destChange;
-                        if (!ExtractDestination(txdb, ledgerKeys[0], destChange)) {
-                            // TODO GK - log?
+                        if (!ExtractDestination(txdb, ledgerInputKey.get(), destChange)) {
+                            NLog.write(b_sev::err,
+                                       "Invalid Ledger destination.");
+                            CreateErrorMsg(errorMsg,
+                                           "Invalid Ledger destination.");
                             return false;
                         }
                         scriptChange.SetDestination(destChange);
