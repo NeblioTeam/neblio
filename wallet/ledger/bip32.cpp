@@ -59,7 +59,7 @@ namespace ledger::bip32
 	std::string GetBip32Path(const std::string &account, const std::string &index)
 	{
 		std::stringstream ss;
-		ss << "m/44'/146'/" << account << "/0/" << index;
+        ss << "m/44'/146'/" << account << "'/0/" << index;
 		return ss.str();
 	}
 
