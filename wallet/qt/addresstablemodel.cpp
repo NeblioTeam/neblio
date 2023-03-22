@@ -433,7 +433,7 @@ QString AddressTableModel::addRow(const QString& type, const QString& label, con
             std::string path = ledger::bip32::GetBip32Path(account, index);
             auto result = l.GetPublicKey(path, true);
             l.close();
-            auto pubKey = ledger::utils::CompressPubKey(std::get<0>(result));
+            pubKey = ledger::utils::CompressPubKey(std::get<0>(result));
         } catch (const ledger::Error& e) {
             editStatus = LEDGER_ERROR;
             ledgerError = e;
