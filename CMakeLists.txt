@@ -670,7 +670,6 @@ set_source_files_properties(wallet/scrypt-x86_64.S PROPERTIES LANGUAGE CXX)
 
 add_library(core_lib STATIC
     ${CMAKE_BINARY_DIR}/build/build.h
-    wallet/alert.cpp
     wallet/version.cpp
     wallet/sync.cpp
     wallet/util.cpp

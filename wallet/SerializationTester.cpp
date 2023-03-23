@@ -154,40 +154,6 @@ void RunCrossPlatformSerializationTests()
                       __LINE__);
     }
 
-    CUnsignedAlert cUnsignedAlert;
-    cUnsignedAlert.nVersion     = 0x12345678;
-    cUnsignedAlert.nRelayUntil  = 0x1234567824681357;
-    cUnsignedAlert.nExpiration  = 0x1234567824681357;
-    cUnsignedAlert.nID          = 0x12345678;
-    cUnsignedAlert.nCancel      = 0x12345678;
-    cUnsignedAlert.setCancel    = {0x12345678, 0x13572468};
-    cUnsignedAlert.nMinVer      = 0x12345678;
-    cUnsignedAlert.nMaxVer      = 0x12345678;
-    cUnsignedAlert.setSubVer    = {"ABCDEFG", "XXYYZZ"};
-    cUnsignedAlert.nPriority    = 0x12345678;
-    cUnsignedAlert.strComment   = "ABCDEFG";
-    cUnsignedAlert.strStatusBar = "ABCDEFG";
-    cUnsignedAlert.strReserved  = "ABCDEFG";
-    {
-        CDataStream ss(SER_DISK, 0);
-        ss << cUnsignedAlert;
-        TEST_EQUALITY(boost::algorithm::hex(ss.str()),
-                      "7856341257136824785634125713682478563412785634127856"
-                      "3412027856341268245713785634127856341202074142434445"
-                      "464706585859595A5A7856341207414243444546470741424344"
-                      "4546470741424344454647",
-                      __LINE__);
-    }
-
-    CAlert cAlert;
-    cAlert.vchMsg = {'a', 'b', 'c', 'd', 'e', 'f'};
-    cAlert.vchSig = {'a', 'b', 'c', 'd', 'e', 'f'};
-    {
-        CDataStream ss(SER_DISK, 0);
-        ss << cAlert;
-        TEST_EQUALITY(boost::algorithm::hex(ss.str()), "0661626364656606616263646566", __LINE__);
-    }
-
     CBloomFilter cBloomFilter(0x7, 0.24133253664357, 0x3, 0x5);
     cBloomFilter.insert(uint256("12345678135724681122334455667788123456781357246812345678135724"));
     {

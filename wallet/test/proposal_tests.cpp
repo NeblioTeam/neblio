@@ -1071,3 +1071,22 @@ TEST(proposal_tests, votesToAndFromJsonWithErrors_InvalidJson)
     ASSERT_TRUE(importResult.isErr());
     EXPECT_EQ(importedVotes.voteCount(), 0u);
 }
+
+TEST(proposal_tests, superset_over_subset)
+{
+    const Result<ProposalVote, ProposalVoteCreationError> vote1 =
+        ProposalVote::CreateVote(1000, 1001, 1, 0);
+    ASSERT_TRUE(vote1.isOk());
+    const Result<ProposalVote, ProposalVoteCreationError> vote2 =
+        ProposalVote::CreateVote(995, 1005, 2, 1);
+    ASSERT_TRUE(vote2.isOk());
+    AllStoredVotes                   store;
+    const Result<void, AddVoteError> add1 = store.addVote(vote1.UNWRAP());
+    ASSERT_TRUE(add1.isOk());
+    const Result<void, AddVoteError> add2 = store.addVote(vote2.UNWRAP());
+    ASSERT_TRUE(add2.isErr());
+    EXPECT_EQ(add2.UNWRAP_ERR(), AddVoteError::IntersectionIsNotEmpty);
+    const std::vector<ProposalVote> allVotes = store.getAllVotes();
+    EXPECT_FALSE(allVotes.empty());
+    EXPECT_EQ(allVotes.size(), 1u);
+}

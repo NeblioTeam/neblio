@@ -3,7 +3,6 @@
 
 #include "CustomTypes.h"
 #include "addrman.h"
-#include "alert.h"
 #include "bloom.h"
 #include "checkpoints.h"
 #include "crypter.h"

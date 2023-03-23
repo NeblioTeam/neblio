@@ -1,6 +1,5 @@
 #include "clientmodel.h"
 #include "addresstablemodel.h"
-#include "alert.h"
 #include "block.h"
 #include "blockindex.h"
 #include "guiconstants.h"
@@ -10,6 +9,8 @@
 #include "optionsmodel.h"
 #include "transactiontablemodel.h"
 #include "txdb.h"
+
+#include "main.h"
 #include "ui_interface.h"
 
 #include <QDateTime>
@@ -100,23 +101,6 @@ void ClientModel::updateNumConnections(int numConnections)
     emit numConnectionsChanged(numConnections);
 }
 
-void ClientModel::updateAlert(const QString& hash, int status)
-{
-    // Show error message notification for new alert
-    if (status == CT_NEW) {
-        uint256 hash_256;
-        hash_256.SetHex(hash.toStdString());
-        CAlert alert = CAlert::getAlertByHash(hash_256);
-        if (!alert.IsNull()) {
-            emit error(tr("Network Alert"), QString::fromStdString(alert.strStatusBar), false);
-        }
-    }
-
-    // Emit a numBlocksChanged when the status message changes,
-    // so that the view recomputes and updates the status bar.
-    emit numBlocksChanged(getNumBlocks(), getNumBlocksOfPeers());
-}
-
 bool ClientModel::isTestNet() const { return Params().NetType() != NetworkType::Mainnet; }
 
 bool ClientModel::inInitialBlockDownload() const { return IsInitialBlockDownload(CTxDB()); }
@@ -176,13 +160,6 @@ static void NotifyNumConnectionsChanged(ClientModel* clientmodel, int newNumConn
                               Q_ARG(int, newNumConnections));
 }
 
-static void NotifyAlertChanged(ClientModel* clientmodel, const uint256& hash, ChangeType status)
-{
-    NLog.write(b_sev::info, "NotifyAlertChanged {} status={}", hash.GetHex().c_str(), status);
-    QMetaObject::invokeMethod(clientmodel, "updateAlert", Qt::QueuedConnection,
-                              Q_ARG(QString, QString::fromStdString(hash.GetHex())), Q_ARG(int, status));
-}
-
 void ClientModel::subscribeToCoreSignals()
 {
     using namespace boost::placeholders;
@@ -190,7 +167,6 @@ void ClientModel::subscribeToCoreSignals()
     // Connect signals to client
     uiInterface.NotifyBlockTip.connect(boost::bind(BlockTipChanged, this, _1, _2));
     uiInterface.NotifyNumConnectionsChanged.connect(boost::bind(NotifyNumConnectionsChanged, this, _1));
-    uiInterface.NotifyAlertChanged.connect(boost::bind(NotifyAlertChanged, this, _1, _2));
 }
 
 void ClientModel::unsubscribeFromCoreSignals()
@@ -201,5 +177,4 @@ void ClientModel::unsubscribeFromCoreSignals()
     uiInterface.NotifyBlockTip.disconnect(boost::bind(BlockTipChanged, this, _1, _2));
     uiInterface.NotifyNumConnectionsChanged.disconnect(
         boost::bind(NotifyNumConnectionsChanged, this, _1));
-    uiInterface.NotifyAlertChanged.disconnect(boost::bind(NotifyAlertChanged, this, _1, _2));
 }

@@ -5,7 +5,6 @@
 
 #include "main.h"
 #include "NetworkForks.h"
-#include "alert.h"
 #include "block.h"
 #include "blockindexlrucache.h"
 #include "checkpoints.h"
@@ -550,19 +549,6 @@ string GetWarnings(string strFor)
         strStatusBar = strMiscWarning;
     }
 
-    // Alerts
-    {
-        LOCK(cs_mapAlerts);
-        for (PAIRTYPE(const uint256, CAlert) & item : mapAlerts) {
-            const CAlert& alert = item.second;
-            if (alert.AppliesToMe() && alert.nPriority > nPriority) {
-                nPriority    = alert.nPriority;
-                strStatusBar = alert.strStatusBar;
-                if (nPriority > 1000)
-                    strRPC = strStatusBar;
-            }
-        }
-    }
 
     if (strFor == "statusbar")
         return strStatusBar;

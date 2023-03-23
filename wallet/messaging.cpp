@@ -1,6 +1,5 @@
 #include "messaging.h"
 
-#include "alert.h"
 #include "block.h"
 #include "blockindex.h"
 #include "checkpoints.h"
@@ -235,12 +234,6 @@ MessageProcessResult handleMsg_version(CNode* pfrom, CDataStream& vRecv)
         pfrom->PushGetBlocks(&*best, uint256(0));
     }
 
-    // Relay alerts
-    {
-        LOCK(cs_mapAlerts);
-        for (const auto& item : mapAlerts)
-            item.second.RelayTo(pfrom);
-    }
 
     pfrom->fSuccessfullyConnected = true;
 
@@ -729,34 +722,7 @@ MessageProcessResult handleMsg_ping(CNode* pfrom, CDataStream& vRecv)
     return MessageProcessResult::DoNothing;
 }
 
-MessageProcessResult handleMsg_alert(CNode* pfrom, CDataStream& vRecv)
-{
-    CAlert alert;
-    vRecv >> alert;
 
-    uint256 alertHash = alert.GetHash();
-    if (pfrom->setKnown.count(alertHash) == 0) {
-        if (alert.ProcessAlert()) {
-            // Relay
-            pfrom->setKnown.insert(alertHash);
-            {
-                LOCK(cs_vNodes);
-                for (CNode* pnode : vNodes)
-                    alert.RelayTo(pnode);
-            }
-        } else {
-            // Small DoS penalty so peers that send us lots of
-            // duplicate/expired/invalid-signature/whatever alerts
-            // eventually get banned.
-            // This isn't a Misbehaving(100) (immediate ban) because the
-            // peer might be an older or different implementation with
-            // a different signature key, etc.
-            pfrom->Misbehaving(10);
-        }
-    }
-
-    return MessageProcessResult::DoNothing;
-}
 
 MessageProcessResult handleMsg_filterload(CNode* pfrom, CDataStream& vRecv)
 {
@@ -884,10 +850,6 @@ bool ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vR
         ACT_ON_MSG_PROCESS_RETURN(res);
     }
 
-    else if (strCommand == "alert") {
-        const auto res = handleMsg_alert(pfrom, vRecv);
-        ACT_ON_MSG_PROCESS_RETURN(res);
-    }
 
     else if (strCommand == "filterload") {
         const auto res = handleMsg_filterload(pfrom, vRecv);
