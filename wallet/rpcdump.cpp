@@ -378,6 +378,74 @@ Value dumpwallet(const Array& params, bool fHelp)
     return reply;
 }
 
+
+Value importaddress(const Array& params, bool fHelp) {
+
+    if (fHelp || params.size() > 1)
+        throw std::runtime_error(
+                "importaddress,"
+                "\nAdds an address or script (in hex) that can be watched as if it were "
+                "in your wallet but cannot be used to spend. Requires a new wallet backup.\n"
+                "\nNote: This call can take over an hour to complete if rescan is true, during that time, other rpc calls\n"
+                "may report that the imported address exists but related transactions are still missing, "
+                "leading to temporarily incorrect/bogus balances and unspent outputs until rescan completes.\n");
+
+    if (!pwalletMain)
+        throw JSONRPCError(RPC_WALLET_ERROR, "There is no active wallet");
+
+    CWallet* const pwallet = pwalletMain.get();
+
+    std::string strLabel;
+    if (!params[1].is_null())
+        strLabel = params[1].get_str();
+
+    // Whether to perform rescan after import
+    bool fRescan = true;
+    if (!params[2].is_null())
+        fRescan = params[2].get_bool();
+
+    bool rescanInProgress = false;
+    if (fRescan && rescanInProgress) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Wallet is currently rescanning. Abort existing rescan or wait.");
+    }
+
+    bool fP2SH = false;
+    if (!params[3].is_null())
+        fP2SH = params[3].get_bool();
+
+    std::string strAddress = params[0].get_str();
+    CBitcoinAddress addr(strAddress);
+    CTxDestination dest = addr.Get();
+
+    {
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+        if (!addr.IsScript()) {
+            if (fP2SH)
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Cannot use the p2sh flag with an address - use a script instead");
+
+            pwallet->MarkDirty();
+        } else {
+            std::vector<unsigned char> data(ParseHex(strAddress));
+            CScript redeem_script(data.begin(), data.end());
+
+            std::set<CScript> scripts = {redeem_script};
+            pwallet->ImportScripts(scripts, 0 /* timestamp */);
+
+            if (fP2SH) {
+                scripts.insert(GetScriptForDestination(ScriptHash(redeem_script)));
+            }
+        }
+    }
+
+    if (fRescan)
+    {
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+    }
+
+    return Object{};
+}
+
+
 void _RescanBlockchain(int64_t earliestTime, const ITxDB& txdb)
 {
     auto bestBlockIndex = txdb.GetBestBlockIndex();

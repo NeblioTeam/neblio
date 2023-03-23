@@ -196,6 +196,8 @@ extern json_spirit::Value importwallet(const json_spirit::Array& params, bool fH
 extern json_spirit::Value dumpprivkey(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value dumppubkey(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value importprivkey(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value importaddress(const json_spirit::Array& params, bool fHelp);
+
 
 // in rpcmining.cpp
 extern json_spirit::Value getsubsidy(const json_spirit::Array& params, bool fHelp);
@@ -262,7 +264,6 @@ extern json_spirit::Value getnewpubkey(const json_spirit::Array& params, bool fH
 extern json_spirit::Value delegatestake(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value rawdelegatestake(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value listcoldutxos(const json_spirit::Array& params, bool fHelp);
-
 // in rcprawtransaction.cpp
 extern json_spirit::Value getrawtransaction(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value decodentp1script(const json_spirit::Array& params, bool fHelp);

@@ -376,6 +376,7 @@ static const CRPCCommand vRPCCommands[] =
     { "exportblockchain",          &exportblockchain,          false,  false },
     { "getblockchaininfo",         &getblockchaininfo,         false,  false },
     { "getblockheader",            &getblockheader,            false,  false },
+    { "importaddresss",            &importaddress,             false,  false },
     { "syncwithvalidationinterfacequeue", &syncwithvalidationinterfacequeue, true, false },
 };
 // clang-format on
