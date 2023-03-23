@@ -61,7 +61,7 @@ namespace ledger
 		return {pubKey, std::string(address.begin(), address.end()), chainCode};
 	}
 
-	bytes Ledger::GetTrustedInputRaw(bool firstRound, uint32_t indexLookup, const bytes &transactionData)
+	bytes Ledger::GetTrustedInputRaw(bool firstRound, const bytes &transactionData)
 	{
         // TODO GK - refactor transport to throw instead of returning error
 		auto result = transport_->exchange(APDU::CLA, APDU::INS_GET_TRUSTED_INPUT, firstRound ? 0x00 : 0x80, 0x00, transactionData);
@@ -75,36 +75,46 @@ namespace ledger
 
 	bytes Ledger::GetTrustedInput(const Tx& utxoTx, uint32_t indexLookup)
 	{
-		return GetTrustedInput(SerializeTransaction(utxoTx), indexLookup);
-	}
+		bytes firstRoundData;
+		utils::AppendUint32(firstRoundData, indexLookup);
+		utils::AppendUint32(firstRoundData, utxoTx.version, true);
+		utils::AppendUint32(firstRoundData, utxoTx.time, true);
+    	utils::AppendVector(firstRoundData, utils::CreateVarint(utxoTx.inputs.size()));
 
-	bytes Ledger::GetTrustedInput(const bytes &serializedTransaction, uint32_t indexLookup)
-	{
-		auto MAX_CHUNK_SIZE = 255;
-		std::vector<bytes> chunks;
-		auto offset = 0;
+		GetTrustedInputRaw(true, firstRoundData);
 
-		bytes data;
-		utils::AppendUint32(data, indexLookup);
-
-		utils::AppendVector(data, serializedTransaction);
-
-		while (offset != data.size())
+		for (auto input : utxoTx.inputs)
 		{
-			auto chunkSize = data.size() - offset > MAX_CHUNK_SIZE ? MAX_CHUNK_SIZE : data.size() - offset;
-			chunks.push_back(utils::Splice(data, offset, chunkSize));
-			offset += chunkSize;
+			bytes inputData;
+			utils::AppendVector(inputData, input.prevout.hash);
+			utils::AppendUint32(inputData, input.prevout.index, true);
+			utils::AppendVector(inputData, utils::CreateVarint(input.script.size()));
+
+			GetTrustedInputRaw(false, inputData);
+
+			bytes inputScriptData;
+			utils::AppendVector(inputScriptData, input.script);
+			utils::AppendUint32(inputScriptData, input.sequence);
+
+			GetTrustedInputRaw(false, inputScriptData);
 		}
 
-		auto isFirst = true;
-		bytes finalResults;
-		for (auto &chunk : chunks)
-        {
-			finalResults = GetTrustedInputRaw(isFirst, 0, chunk);
-            isFirst = false;
+		GetTrustedInputRaw(false, utils::CreateVarint(utxoTx.outputs.size()));
+
+		for (auto output : utxoTx.outputs)
+		{
+			bytes outputData;
+			utils::AppendUint64(outputData, output.amount, true);
+			utils::AppendVector(outputData, utils::CreateVarint(output.script.size()));
+			GetTrustedInputRaw(false, outputData);
+
+			bytes outputScriptData;
+			utils::AppendVector(outputScriptData, output.script);
+
+			GetTrustedInputRaw(false, outputScriptData);
 		}
 
-		return finalResults;
+		return GetTrustedInputRaw(false, utils::IntToBytes(utxoTx.locktime, 4));
 	}
 
 	void Ledger::UntrustedHashTxInputFinalize(const Tx &tx, const std::string &changePath)

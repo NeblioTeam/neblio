@@ -36,8 +36,7 @@ namespace ledger
 
 		bytes ProcessScriptBlocks(const bytes &script, uint32_t sequence);
 		bytes GetTrustedInput(const Tx &utxoTx, uint32_t indexLookup);
-		bytes GetTrustedInput(const bytes &serializedTransaction, uint32_t indexLookup);
-		bytes GetTrustedInputRaw(bool firstRound, uint32_t indexLookup, const bytes &data);
+		bytes GetTrustedInputRaw(bool firstRound, const bytes &data);
 		void UntrustedHashTxInputFinalize(const Tx &tx, const std::string &changePath);
 		void UntrustedHashTxInputStart(const Tx &tx, const std::vector<TrustedInput> &trustedInputs, int inputIndex, bytes script, bool isNewTransaction);
 		TrustedInput DeserializeTrustedInput(const bytes &serializedTrustedInput);
