@@ -61,6 +61,11 @@ AddressBookPage::AddressBookPage(Mode modeIn, Tabs tabIn, QWidget *parent) :
         ui->signMessage->setVisible(true);
         ui->verifyMessage->setVisible(false);
         break;
+    case LedgerTab:
+        ui->deleteButton->setVisible(false);
+        ui->signMessage->setVisible(false);
+        ui->verifyMessage->setVisible(false);
+        break;
     }
 
     // Context menu actions
@@ -130,6 +135,11 @@ void AddressBookPage::setModel(AddressTableModel *modelIn)
         // Send filter
         proxyModel->setFilterRole(AddressTableModel::TypeRole);
         proxyModel->setFilterFixedString(AddressTableModel::Send);
+        break;
+    case LedgerTab:
+        // Ledger filter
+        proxyModel->setFilterRole(AddressTableModel::TypeRole);
+        proxyModel->setFilterFixedString(AddressTableModel::ReceiveLedger);
         break;
     }
     ui->tableView->setModel(proxyModel);
@@ -262,22 +272,22 @@ void AddressBookPage::selectionChanged()
         case SendingTab:
             // In sending tab, allow deletion of selection
             ui->deleteButton->setEnabled(true);
-            ui->deleteButton->setVisible(true);
             deleteAction->setEnabled(true);
             ui->signMessage->setEnabled(false);
-            ui->signMessage->setVisible(false);
             ui->verifyMessage->setEnabled(true);
-            ui->verifyMessage->setVisible(true);
             break;
         case ReceivingTab:
             // Deleting receiving addresses, however, is not allowed
             ui->deleteButton->setEnabled(false);
-            ui->deleteButton->setVisible(false);
             deleteAction->setEnabled(false);
             ui->signMessage->setEnabled(true);
-            ui->signMessage->setVisible(true);
             ui->verifyMessage->setEnabled(false);
-            ui->verifyMessage->setVisible(false);
+            break;
+        case LedgerTab:
+            ui->deleteButton->setEnabled(false);
+            deleteAction->setEnabled(false);
+            ui->signMessage->setEnabled(false);
+            ui->verifyMessage->setEnabled(false);
             break;
         }
         ui->copyToClipboard->setEnabled(true);
@@ -303,15 +313,16 @@ void AddressBookPage::done(int retval)
         return;
 
     // Figure out which address was selected, and return it
-    QModelIndexList indexes = table->selectionModel()->selectedRows(AddressTableModel::Address);
+    QModelIndexList addressIndexes = table->selectionModel()->selectedRows(AddressTableModel::Address);
+    QModelIndexList labelIndexes = table->selectionModel()->selectedRows(AddressTableModel::Label);
 
-    foreach (QModelIndex index, indexes)
+    if (!addressIndexes.isEmpty())
     {
-        QVariant address = table->model()->data(index);
-        returnValue = address.toString();
+        returnAddress = addressIndexes.at(0).data().toString();
+        returnLabel = labelIndexes.at(0).data().toString();
     }
 
-    if(returnValue.isEmpty())
+    if(returnAddress.isEmpty())
     {
         // If no address entry selected, return rejected
         retval = Rejected;

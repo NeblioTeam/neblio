@@ -6,7 +6,6 @@
 #include "init.h"
 #include "walletmodel.h"
 
-#include "addressbookpage.h"
 #include "askpassphrasedialog.h"
 #include "bitcoinunits.h"
 #include "guiutil.h"
@@ -86,6 +85,10 @@ SendCoinsDialog::SendCoinsDialog(QWidget* parent)
     ui->labelCoinControlChange->addAction(clipboardChangeAction);
 
     fNewRecipientAllowed = true;
+
+    // Ledger submenu
+    ui->ledgerWidget->setVisible(false);
+    GUIUtil::setupAddressWidget(ui->ledgerPayFromAddressEdit, this);
 }
 
 void SendCoinsDialog::setModel(WalletModel* modelIn)
@@ -120,8 +123,38 @@ void SendCoinsDialog::setModel(WalletModel* modelIn)
 
 SendCoinsDialog::~SendCoinsDialog() { delete ui; }
 
+void SendCoinsDialog::on_ledgerCheckBox_toggled(bool checked)
+{
+    if (checked) {
+        ui->ledgerWidget->setVisible(true);
+        ui->editMetadataButton->setDisabled(true);
+        ui->sendButton->setText(tr("Sign and s&end"));
+    } else {
+        ui->ledgerWidget->setVisible(false);
+        ui->editMetadataButton->setDisabled(false);
+        ui->sendButton->setText(tr("S&end"));
+    }
+}
+
+void SendCoinsDialog::on_ledgerAddressBookButton_clicked()
+{
+    if (!model)
+        return;
+    AddressBookPage dlg(AddressBookPage::ForSending, AddressBookPage::LedgerTab, this);
+    dlg.setModel(model->getAddressTableModel());
+    if (dlg.exec()) {
+        ui->ledgerPayFromAddressEdit->setText(dlg.getReturnAddress());
+        ui->ledgerPayFromLabelEdit->setText(dlg.getReturnLabel());
+    }
+}
+
 void SendCoinsDialog::on_sendButton_clicked()
 {
+    // TODO Ledger
+    if (ui->ledgerCheckBox->isChecked()) {
+        throw "Spending from Ledger not implemented";
+    }
+
     QList<SendCoinsRecipient> recipients;
     bool                      valid                  = true;
     const bool                fSpendDelegatedOutputs = ui->allowSpendingDelegatedCoins->isChecked();

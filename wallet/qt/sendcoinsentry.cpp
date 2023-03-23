@@ -47,7 +47,7 @@ void SendCoinsEntry::on_addressBookButton_clicked()
     AddressBookPage dlg(AddressBookPage::ForSending, AddressBookPage::SendingTab, this);
     dlg.setModel(model->getAddressTableModel());
     if (dlg.exec()) {
-        ui->payTo->setText(dlg.getReturnValue());
+        ui->payTo->setText(dlg.getReturnAddress());
         ui->payAmount->setFocus();
     }
 }

@@ -9,6 +9,7 @@
 #ifndef UI_SENDCOINSDIALOG_H
 #define UI_SENDCOINSDIALOG_H
 
+#include "qvalidatedlineedit.h"
 #include "ntp1/ntp1createmetadatadialog.h"
 #include <QtCore/QVariant>
 #include <QtWidgets/QAction>
@@ -25,6 +26,7 @@
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QScrollArea>
 #include <QtWidgets/QSpacerItem>
+#include <QtWidgets/QToolButton>
 #include <QtWidgets/QVBoxLayout>
 #include <QtWidgets/QWidget>
 
@@ -88,6 +90,16 @@ public:
     QSpacerItem*              horizontalSpacer;
     QPushButton*              sendButton;
     NTP1CreateMetadataDialog* editMetadataDialog;
+
+    QCheckBox*                ledgerCheckBox;
+    QWidget*                  ledgerWidget;
+    QGridLayout*              ledgerGridLayout;
+    QLabel*                   ledgerPayFromLabel;
+    QHBoxLayout*              ledgerPayFromLayout;
+    QValidatedLineEdit*       ledgerPayFromAddressEdit;
+    QToolButton*              ledgerAddressBookButton;
+    QLabel*                   ledgerPayFromLabel2;
+    QValidatedLineEdit*       ledgerPayFromLabelEdit;
 
     void setupUi(QDialog* SendCoinsDialog)
     {
@@ -400,6 +412,66 @@ public:
 
         verticalLayout->addWidget(frameCoinControl);
 
+        ledgerCheckBox = new QCheckBox();
+        ledgerCheckBox->setObjectName(QStringLiteral("ledgerCheckBox"));
+        ledgerCheckBox->setText("&Pay from a Ledger address");
+
+        verticalLayout->addWidget(ledgerCheckBox);
+
+        ledgerWidget = new QWidget();
+        ledgerWidget->setObjectName(QStringLiteral("ledgerWidget"));
+
+        verticalLayout->addWidget(ledgerWidget);
+
+        ledgerGridLayout = new QGridLayout();
+        ledgerGridLayout->setObjectName(QStringLiteral("ledgerGridLayout"));
+        ledgerGridLayout->setSpacing(12);
+
+        ledgerWidget->setLayout(ledgerGridLayout);
+
+        ledgerPayFromLabel = new QLabel();
+        ledgerPayFromLabel->setObjectName(QStringLiteral("ledgerPayFromLabel"));
+        ledgerPayFromLabel->setAlignment(Qt::AlignRight | Qt::AlignTrailing | Qt::AlignVCenter);
+
+        ledgerGridLayout->addWidget(ledgerPayFromLabel, 0, 0, 1, 1);
+
+        ledgerPayFromLayout = new QHBoxLayout();
+        ledgerPayFromLayout->setObjectName(QStringLiteral("ledgerPayFromLayout"));
+        ledgerPayFromLayout->setSpacing(0);
+
+        ledgerGridLayout->addLayout(ledgerPayFromLayout, 0, 1, 1, 1);
+
+        ledgerPayFromAddressEdit = new QValidatedLineEdit();
+        ledgerPayFromAddressEdit->setObjectName(QStringLiteral("ledgerPayFromAddressEdit"));
+        ledgerPayFromAddressEdit->setMaxLength(34);
+        ledgerPayFromAddressEdit->setDisabled(true); // should not be typed in manually
+        ledgerPayFromLabel->setBuddy(ledgerPayFromAddressEdit);
+
+        ledgerPayFromLayout->addWidget(ledgerPayFromAddressEdit);
+
+        ledgerAddressBookButton = new QToolButton();
+        ledgerAddressBookButton->setObjectName(QStringLiteral("ledgerAddressBookButton"));
+        QIcon icon10;
+        icon10.addFile(QStringLiteral(":/icons/address-book"), QSize(), QIcon::Normal, QIcon::Off);
+        ledgerAddressBookButton->setIcon(icon10);
+
+        ledgerPayFromLayout->addWidget(ledgerAddressBookButton);
+
+        ledgerPayFromLabel2 = new QLabel();
+        ledgerPayFromLabel2->setObjectName(QStringLiteral("ledgerPayFromLabel2"));
+        ledgerPayFromLabel2->setAlignment(Qt::AlignRight | Qt::AlignTrailing | Qt::AlignVCenter);
+
+        ledgerGridLayout->addWidget(ledgerPayFromLabel2, 1, 0, 1, 1);
+
+        ledgerPayFromLabelEdit = new QValidatedLineEdit();
+        ledgerPayFromLabelEdit->setObjectName(QStringLiteral("ledgerPayFromLabelEdit"));
+        ledgerPayFromLabelEdit->setDisabled(true); // should not be typed in manually
+        ledgerPayFromLabel2->setBuddy(ledgerPayFromLabelEdit);
+
+        ledgerGridLayout->addWidget(ledgerPayFromLabelEdit, 1, 1, 1, 1);
+
+        verticalLayout->addSpacing(10);
+
         scrollArea = new QScrollArea(SendCoinsDialog);
         scrollArea->setObjectName(QStringLiteral("scrollArea"));
         scrollArea->setWidgetResizable(true);
@@ -555,6 +627,20 @@ public:
         checkBoxCoinControlChange->setText(
             QApplication::translate("SendCoinsDialog", "custom change address", Q_NULLPTR));
         labelCoinControlChangeLabel->setText(QString());
+        ledgerCheckBox->setText(
+            QApplication::translate("SendCoinsDialog", "&Pay from a Ledger address", Q_NULLPTR));
+#ifndef QT_NO_TOOLTIP
+        ledgerCheckBox->setToolTip(
+            QApplication::translate("SendCoinsDialog", "If you choose to pay from a Ledger address, only a single source address will be used.", Q_NULLPTR));
+#endif // QT_NO_TOOLTIP
+        ledgerPayFromLabel->setText(
+            QApplication::translate("SendCoinsDialog", "Pay from:", Q_NULLPTR));
+        ledgerPayFromAddressEdit->setPlaceholderText(
+            QApplication::translate("SendCoinsDialog", "Enter a neblio address owned by your Ledger device", Q_NULLPTR));
+        ledgerPayFromLabel2->setText(
+            QApplication::translate("SendCoinsDialog", "Label:", Q_NULLPTR));
+        ledgerPayFromLabelEdit->setPlaceholderText(
+            QApplication::translate("SendCoinsDialog", "A label for the Ledger address", Q_NULLPTR));
 #ifndef QT_NO_TOOLTIP
         addButton->setToolTip(QApplication::translate("SendCoinsDialog",
                                                       "Send to multiple recipients at once", Q_NULLPTR));

@@ -25,12 +25,13 @@ class AddressBookPage : public QDialog
 
 public:
     enum Tabs {
-        SendingTab = 0,
-        ReceivingTab = 1
+        SendingTab = 0,   /**< Tab for destination addresses */
+        ReceivingTab = 1, /**< Tab for addresses controlled by the app or Ledger device */
+        LedgerTab = 2,    /**< Tab for source addresses controlled by Ledger device */
     };
 
     enum Mode {
-        ForSending, /**< Open address book to pick address for sending */
+        ForSending, /**< Open address book to pick a destination address */
         ForEditing  /**< Open address book for editing */
     };
 
@@ -39,7 +40,8 @@ public:
 
     void setModel(AddressTableModel *modelIn);
     void setOptionsModel(OptionsModel *optionsModelIn);
-    const QString &getReturnValue() const { return returnValue; }
+    const QString &getReturnAddress() const { return returnAddress; }
+    const QString &getReturnLabel() const { return returnLabel; }
 
 public slots:
     void done(int retval);
@@ -51,7 +53,8 @@ private:
     OptionsModel *optionsModel;
     Mode mode;
     Tabs tab;
-    QString returnValue;
+    QString returnAddress;
+    QString returnLabel;
     QSortFilterProxyModel *proxyModel;
     QMenu *contextMenu;
     QAction *deleteAction;

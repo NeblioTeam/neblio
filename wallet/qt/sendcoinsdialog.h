@@ -53,6 +53,8 @@ private:
     bool                 fNewRecipientAllowed;
 
 private slots:
+    void on_ledgerCheckBox_toggled(bool checked);
+    void on_ledgerAddressBookButton_clicked();
     void on_sendButton_clicked();
     void removeEntry(SendCoinsEntry* entry);
     void updateDisplayUnit();

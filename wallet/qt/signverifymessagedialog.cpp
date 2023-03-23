@@ -90,7 +90,7 @@ void SignVerifyMessageDialog::on_addressBookButton_SM_clicked()
         dlg.setModel(model->getAddressTableModel());
         if (dlg.exec())
         {
-            setAddress_SM(dlg.getReturnValue());
+            setAddress_SM(dlg.getReturnAddress());
         }
     }
 }
@@ -179,7 +179,7 @@ void SignVerifyMessageDialog::on_addressBookButton_VM_clicked()
         dlg.setModel(model->getAddressTableModel());
         if (dlg.exec())
         {
-            setAddress_VM(dlg.getReturnValue());
+            setAddress_VM(dlg.getReturnAddress());
         }
     }
 }
