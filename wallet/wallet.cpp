@@ -18,6 +18,7 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/scope_exit.hpp>
+#include "ledger/error.h"
 #include "ledger/ledger.h"
 #include "ledger/utils.h"
 #include "ledgerBridge.h"
@@ -853,7 +854,7 @@ bool CWallet::IsChange(const ITxDB& txdb, const CTransaction& tx, const CTxOut& 
     if (ExtractDestination(txdb, txout.scriptPubKey, address) && ::IsMine(*this, address) != ISMINE_NO) {
         if (!mapAddressBook.exists(address))
             return true;
-    } 
+    }
 
     // for Ledger consider any outputs sent to the same address as change
     {
@@ -1438,9 +1439,9 @@ void CWallet::AvailableCoins(const ITxDB& txdb, vector<COutput>& vCoins, bool fO
                 // if accountFrom is set skip coins from other accounts
                 if (accountFrom != "") {
                     auto scriptPubKey = pcoin->vout[i].scriptPubKey;
-                    
+
                     CTxDestination destination;
-                    if (ExtractDestination(txdb, scriptPubKey, destination)) {                    
+                    if (ExtractDestination(txdb, scriptPubKey, destination)) {
                         const auto entry = this->mapAddressBook.get(destination);
                         if (!entry || !entry.is_initialized() || entry->name != accountFrom)
                                 continue;
@@ -2222,7 +2223,7 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                 }
 
                 auto isLedgerTx = !!ledgerInputKey;
-                if (isLedgerTx) {                    
+                if (isLedgerTx) {
                     if (hasNonLedgerInputKeys) {
                         NLog.write(b_sev::err,
                                    "Ledger transactions can not contain non-ledger inputs.");
@@ -2441,8 +2442,8 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                     int nIn = std::distance(wtxNew.vin.begin(), it);
 
                     // Ledger transactions are signed below
-                    if (isLedgerTx) {       
-                        // assign to a specific position in the vector since inputs and utxos need to be aligned for Ledger                 
+                    if (isLedgerTx) {
+                        // assign to a specific position in the vector since inputs and utxos need to be aligned for Ledger
                         ledgerBridgeUtxos[nIn] = {*coin.first, coin.second, coin.first->vout[coin.second].scriptPubKey};
                     } else {
                         if (SignSignature(*this, *coin.first, wtxNew, nIn) != SignatureState::Verified) {
@@ -2472,12 +2473,12 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                     continue;
                 }
 
-                if (isLedgerTx) {                    
+                if (isLedgerTx) {
                     try {
                         ledgerbridge::LedgerBridge ledgerBridge;
                         ledgerBridge.SignTransaction(txdb, *this, wtxNew, ledgerBridgeUtxos);
-                    } catch (const std::exception& ex) {
-                        CreateErrorMsg(errorMsg, "Error while signing Ledger transaction.");
+                    } catch (const ledger::Error e) {
+                        CreateErrorMsg(errorMsg, "Error while signing Ledger transaction: " + ledger::error_message(e));
                         return false;
                     }
                 }
