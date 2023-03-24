@@ -1379,7 +1379,7 @@ CAmount CWallet::GetImmatureBalance(const ITxDB& txdb) const
 // populate vCoins with vector of spendable COutputs
 void CWallet::AvailableCoins(const ITxDB& txdb, vector<COutput>& vCoins, bool fOnlyConfirmed,
                              bool fIncludeColdStaking, bool fIncludeDelegated,
-                             const CCoinControl* coinControl, const std::string& addressFrom) const
+                             const CCoinControl* coinControl, const std::string& accountFrom) const
 {
 
     vCoins.clear();
@@ -1435,14 +1435,14 @@ void CWallet::AvailableCoins(const ITxDB& txdb, vector<COutput>& vCoins, bool fO
                 if (mine == ISMINE_SPENDABLE_STAKEABLE && !fIncludeColdStaking && !fIncludeDelegated)
                     continue;
 
-                // if addressFrom is set skip coins from other accounts
-                if (addressFrom != "") {
+                // if accountFrom is set skip coins from other accounts
+                if (accountFrom != "") {
                     auto scriptPubKey = pcoin->vout[i].scriptPubKey;
                     
                     CTxDestination destination;
                     if (ExtractDestination(txdb, scriptPubKey, destination)) {                    
                         const auto entry = this->mapAddressBook.get(destination);
-                        if (!entry || !entry.is_initialized() || entry->name != addressFrom)
+                        if (!entry || !entry.is_initialized() || entry->name != accountFrom)
                                 continue;
                     }
                 }

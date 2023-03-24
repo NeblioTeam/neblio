@@ -194,7 +194,7 @@ public:
                                   bool fIncludeDelegated = false) const;
     void AvailableCoins(const ITxDB& txdb, std::vector<COutput>& vCoins, bool fOnlyConfirmed = true,
                         bool fIncludeColdStaking = false, bool fIncludeDelegated = true,
-                        const CCoinControl* coinControl = nullptr, const std::string& addressFrom = "") const;
+                        const CCoinControl* coinControl = nullptr, const std::string& accountFrom = "") const;
 
     // Get available p2cs utxo
     bool GetAvailableP2CSCoins(const ITxDB& txdb, std::vector<COutput>& vCoins) const;

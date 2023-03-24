@@ -217,7 +217,8 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(QList<SendCoinsRecipient>   
                                                     boost::shared_ptr<NTP1Wallet>    ntp1wallet,
                                                     const RawNTP1MetadataBeforeSend& ntp1metadata,
                                                     bool                             fSpendDelegated,
-                                                    const CCoinControl*              coinControl)
+                                                    const CCoinControl*              coinControl,
+                                                    const std::string&               accountFrom)
 {
     qint64  total = 0;
     QString hex;
@@ -257,7 +258,7 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(QList<SendCoinsRecipient>   
 
     int64_t              nBalance = 0;
     std::vector<COutput> vCoins;
-    wallet->AvailableCoins(txdb, vCoins, true, coinControl);
+    wallet->AvailableCoins(txdb, vCoins, true, false, false, coinControl, accountFrom);
 
     for (const COutput& out : vCoins) {
         nBalance += out.tx->vout[out.i].nValue;
@@ -314,6 +315,8 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(QList<SendCoinsRecipient>   
         }
 
         CWalletTx   wtx;
+        wtx.strFromAccount = accountFrom;
+
         CReserveKey keyChange(wallet);
         int64_t     nFeeRequired = 0;
         std::string errorMsg;

@@ -150,11 +150,6 @@ void SendCoinsDialog::on_ledgerAddressBookButton_clicked()
 
 void SendCoinsDialog::on_sendButton_clicked()
 {
-    // TODO Ledger
-    if (ui->ledgerCheckBox->isChecked()) {
-        throw "Spending from Ledger not implemented";
-    }
-
     QList<SendCoinsRecipient> recipients;
     bool                      valid                  = true;
     const bool                fSpendDelegatedOutputs = ui->allowSpendingDelegatedCoins->isChecked();
@@ -259,13 +254,17 @@ void SendCoinsDialog::on_sendButton_clicked()
         return;
     }
 
-    WalletModel::SendCoinsReturn sendstatus;
 
-    if (!model->getOptionsModel() || !model->getOptionsModel()->getCoinControlFeatures())
-        sendstatus = model->sendCoins(recipients, ntp1wallet, ntp1metadata, fSpendDelegatedOutputs);
-    else
-        sendstatus = model->sendCoins(recipients, ntp1wallet, ntp1metadata, fSpendDelegatedOutputs,
-                                      CoinControlDialog::coinControl);
+    CCoinControl* coinControl = nullptr;
+    if (model->getOptionsModel() && model->getOptionsModel()->getCoinControlFeatures())
+        coinControl = CoinControlDialog::coinControl;
+
+    std::string accountFrom = "";
+    if (ui->ledgerCheckBox->isChecked())
+        accountFrom = ui->ledgerPayFromLabelEdit->text().toStdString();
+    
+    auto sendstatus = model->sendCoins(recipients, ntp1wallet, ntp1metadata, fSpendDelegatedOutputs,
+                                  coinControl, accountFrom);
 
     switch (sendstatus.status) {
     case WalletModel::InvalidAddress:
