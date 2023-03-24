@@ -36,7 +36,8 @@ namespace ledger
 		payload.push_back(pathBytes.size() / 4);
 		utils::AppendVector(payload, pathBytes);
 
-		auto result = transport_->exchange(APDU::CLA, APDU::INS_GET_PUBLIC_KEY, confirm, 0x02, payload);
+		// 0x00 = P2_LEGACY (base58)
+		auto result = transport_->exchange(APDU::CLA, APDU::INS_GET_PUBLIC_KEY, confirm, 0x00, payload);
 		auto err = std::get<0>(result);
 		auto buffer = std::get<1>(result);
 		if (err != Error::SUCCESS)
