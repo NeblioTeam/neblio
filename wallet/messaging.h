@@ -1,10 +1,11 @@
 #ifndef MESSAGING_H
 #define MESSAGING_H
 
-#include "alert.h"
 #include "medianfilter.h"
 #include "sync.h"
 #include <string>
+#include "uint256.h"
+#include "serialize.h"
 
 class CNode;
 class ITxDB;
