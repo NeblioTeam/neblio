@@ -383,7 +383,8 @@ public:
             {uint256("d68305e8a8efc4535185c3e6923006fcd81c007a96022f08d556ab7832fd6f83"), 0},
             {uint256("1cfb6af9299854257b0697264ce2f574ae37b543dc8c2b2c60182bcf570ba60c"), 0},
             {uint256("834c4809152fb9a964f3b2ba76d281868044114661285913cead8cabb69f91e9"), 0},
-            {uint256("95c6f2b978160ab0d51545a13a7ee7b931713a52bd1c9f12807f4cd77ff7536b"), 0}});
+            {uint256("95c6f2b978160ab0d51545a13a7ee7b931713a52bd1c9f12807f4cd77ff7536b"), 0},
+            {uint256("7cebca4bb3551d5d209b13a90fd171d8617a8992ff6a8b757c91c0061bc70a3d"), 0}});
 
         // token id vs max block to take transactions from these tokens due to bugs
         ntp1BlacklistedTokenIds = MapBlacklistedTokens{
