@@ -144,7 +144,7 @@ void SendCoinsDialog::on_ledgerAddressBookButton_clicked()
     dlg.setModel(model->getAddressTableModel());
     if (dlg.exec()) {
         ui->ledgerPayFromAddressEdit->setText(dlg.getReturnAddress());
-        ui->ledgerPayFromLabelEdit->setText(dlg.getReturnLabel());
+        ui->ledgerPayFromNameEdit->setText(dlg.getReturnLabel());
     }
 }
 
@@ -261,8 +261,8 @@ void SendCoinsDialog::on_sendButton_clicked()
 
     std::string accountFrom = "";
     if (ui->ledgerCheckBox->isChecked())
-        accountFrom = ui->ledgerPayFromLabelEdit->text().toStdString();
-    
+        accountFrom = ui->ledgerPayFromNameEdit->text().toStdString();
+
     auto sendstatus = model->sendCoins(recipients, ntp1wallet, ntp1metadata, fSpendDelegatedOutputs,
                                   coinControl, accountFrom);
 
