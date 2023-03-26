@@ -41,6 +41,7 @@ nci.call_with_err_code('brew uninstall --ignore-dependencies node@14 || true')
 # pin dependencies we do not want to be auto-upgraded while installing the dependencies we need
 nci.call_retry_on_fail('brew pin php || true') # prevents cURL from updating PHP which breaks a bunch of things
 nci.call_retry_on_fail('brew pin postgresql || true')
+nci.call_retry_on_fail('brew pin node@16 || true') # prevents GitHub from installing node@16 which installs incompatible version of icu4c
 
 # Install High Seirra Versions of Depeendencies, due to that being the minimum version we support
 #ccache https://bintray.com/homebrew/bottles/download_file?file_path=ccache-3.7.6.high_sierra.bottle.tar.gz
@@ -76,7 +77,6 @@ nci.call_retry_on_fail('brew pin qrencode')
 #libsodium https://bintray.com/homebrew/bottles/download_file?file_path=libsodium-1.0.18_1.high_sierra.bottle.tar.gz
 nci.call_retry_on_fail('brew install --force https://assets.nebl.io/dependencies/macos/libsodium-1.0.18_1.high_sierra.bottle.tar.gz')
 nci.call_retry_on_fail('brew pin libsodium')
-
 
 
 # force relinking

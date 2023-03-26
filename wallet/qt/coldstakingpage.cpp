@@ -8,6 +8,7 @@
 #include "guiconstants.h"
 #include "guiutil.h"
 #include "main.h"
+#include "messaging.h"
 #include "newstakedelegationdialog.h"
 #include "optionsmodel.h"
 #include "qt/coldstakingmodel.h"

@@ -341,7 +341,7 @@ public:
     void SetRecvVersion(int nVersionIn)
     {
         nRecvVersion = nVersionIn;
-        BOOST_FOREACH (CNetMessage& msg, vRecvMsg)
+        for (CNetMessage& msg : vRecvMsg)
             msg.SetVersion(nVersionIn);
     }
 
@@ -601,7 +601,7 @@ public:
     void PushRequest(const char* pszCommand, void (*fn)(void*, CDataStream&), void* param1)
     {
         uint256 hashReply;
-        randombytes_buf((unsigned char*)&hashReply, sizeof(hashReply));
+        gen_random_bytes((unsigned char*)&hashReply, sizeof(hashReply));
 
         {
             LOCK(cs_mapRequests);
@@ -615,7 +615,7 @@ public:
     void PushRequest(const char* pszCommand, const T1& a1, void (*fn)(void*, CDataStream&), void* param1)
     {
         uint256 hashReply;
-        randombytes_buf((unsigned char*)&hashReply, sizeof(hashReply));
+        gen_random_bytes((unsigned char*)&hashReply, sizeof(hashReply));
 
         {
             LOCK(cs_mapRequests);
@@ -630,7 +630,7 @@ public:
                      void* param1)
     {
         uint256 hashReply;
-        randombytes_buf((unsigned char*)&hashReply, sizeof(hashReply));
+        gen_random_bytes((unsigned char*)&hashReply, sizeof(hashReply));
 
         {
             LOCK(cs_mapRequests);
@@ -661,9 +661,12 @@ public:
     // between nodes running old code and nodes running
     // new code.
     static void ClearBanned(); // needed for unit testing
-    static bool IsBanned(CNetAddr ip);
-    bool        Misbehaving(int howmuch); // 1 == a little, 100 == a lot
-    void        copyStats(CNodeStats& stats);
+    static bool IsBanned(const CNetAddr& ip);
+    static void Ban(const CNetAddr& ip, int64_t ban_time_offset, bool since_unix_epoch);
+    static bool Unban(const CNetAddr& ip);
+    static std::map<CNetAddr, int64_t> GetBanned();
+    bool                               Misbehaving(int howmuch); // 1 == a little, 100 == a lot
+    void                               copyStats(CNodeStats& stats);
 };
 
 inline void RelayInventory(const CInv& inv)

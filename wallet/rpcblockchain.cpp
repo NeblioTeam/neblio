@@ -5,9 +5,15 @@
 
 #include "amount.h"
 #include "bitcoinrpc.h"
+#include "block.h"
+#include "blockindex.h"
 #include "blockmetadata.h"
+#include "bootstraptools.h"
+#include "consensus.h"
 #include "main.h"
 #include "merkletx.h"
+#include "messaging.h"
+#include "stakemaker.h"
 #include "txdb.h"
 #include "txmempool.h"
 #include <algorithm>
@@ -147,6 +153,8 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool fPri
         result.push_back(Pair("previousblockhash", o->GetBlockHash().GetHex()));
     if (const auto o = blockindex->getNext(txdb))
         result.push_back(Pair("nextblockhash", o->GetBlockHash().GetHex()));
+    result.push_back(Pair("proof-of-work", blockindex->IsProofOfWork()));
+    result.push_back(Pair("proof-of-stake", blockindex->IsProofOfStake()));
 
     result.push_back(Pair(
         "flags", fmt::format("{}{}", blockindex->IsProofOfStake() ? "proof-of-stake" : "proof-of-work",
@@ -757,6 +765,41 @@ Value gettxout(const Array& params, bool fHelp)
     return ret;
 }
 
+Value setviupushprobability(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 2)
+        throw std::runtime_error(
+            "Only for regtest"
+            "setviupushprobability <probability_numerator> <probability_denumerator>\n"
+            "The probability is set as a fraction"
+            "\nExamples:\n"
+            "\nSet the probability to 1%\n"
+            "setviupushprobability 1 100\n"
+            "\nSet the probability to 5/1000 or 0.5%\n"
+            "setviupushprobability 5 1000\n");
+
+    if (Params().NetType() != NetworkType::Regtest) {
+        throw std::runtime_error("This function is exclusively for regtest");
+    }
+
+    if (params[0].type() != Value_type::int_type || params[1].type() != Value_type::int_type) {
+        throw JSONRPCError(RPC_INVALID_PARAMS, "Parameters should be integers");
+    }
+
+    if (params[0].get_int() < 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Numerator must be zero or positive");
+    }
+
+    if (params[1].get_int() <= 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Denominator must be positive");
+    }
+
+    VIUCachePushProbabilityNumerator   = params[0].get_int();
+    VIUCachePushProbabilityDenominator = params[1].get_int();
+
+    return Value();
+}
+
 Value listvotes(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
@@ -813,5 +856,6 @@ Value cancelallvotesofproposal(const Array& params, bool fHelp)
 
     blockVotes.removeAllVotesOfProposal(proposalID);
     blockVotes.writeAllVotesAsJsonToDataDir();
+
     return Value();
 }

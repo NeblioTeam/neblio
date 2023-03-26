@@ -190,7 +190,6 @@ OBJS= \
     obj/scrypt-x86.o \
     obj/scrypt-x86_64.o \
     obj/SerializationTester.o \
-    obj/blockindexcatalog.o                   \
     obj/blockindex.o                          \
     obj/outpoint.o                            \
     obj/inpoint.o                             \
@@ -241,13 +240,32 @@ OBJS= \
     obj/udaddress.o                           \
     obj/db/lmdb.o                             \
     obj/db/lmdbtransaction.o                  \
+    obj/db/dbcachelayer.o                     \
+    obj/db/dbreadcachelayer.o                 \
+    obj/db/inmemorydb.o                       \
+    obj/db/hierarchicaldb.o                   \
+    obj/db/transactionoperation.o             \
+    obj/db/transactabledbentry.o              \
+    obj/db/dblrucachelayer.o                  \
+    obj/db/dblrucachestorage.o                \
     obj/stringmanip.o                         \
     obj/defaultlogger.o                       \
     obj/logger.o                              \
     obj/blockreject.o                         \
     obj/blockmetadata.o                       \
     obj/blockindexlrucache.o                  \
-    obj/proposal.o
+    obj/forkspendsimulator.o                  \
+    obj/viucache.o                            \
+    obj/proposal.o                            \
+    obj/consensus.o                           \
+    obj/medianfilter.o                        \
+    obj/mempoolmisc.o                         \
+    obj/merkleblock.o                         \
+    obj/messaging.o                           \
+    obj/ntp1/ntp1common.o                     \
+    obj/partialmerkletree.o                   \
+    obj/bootstraptools.o                      \
+    obj/wallet_interface.o
 
 
 ifdef NEBLIO_REST
@@ -315,6 +333,15 @@ obj/db/%.o: db/lmdb/%.cpp
 	  sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
 	      -e '/^$$/ d' -e 's/$$/ :/' < $(@:%.o=%.d) >> $(@:%.o=%.P); \
 	  rm -f $(@:%.o=%.d)
+
+obj/db/%.o: dbcache/%.cpp
+	${MKDIR_P} obj/db
+	$(CXX) -c $(xCXXFLAGS) -MMD -MF $(@:%.o=%.d) -o $@ $<
+	@cp $(@:%.o=%.d) $(@:%.o=%.P); \
+	  sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
+	      -e '/^$$/ d' -e 's/$$/ :/' < $(@:%.o=%.d) >> $(@:%.o=%.P); \
+	  rm -f $(@:%.o=%.d)
+
 
 nebliod: $(OBJS:obj/%=obj/%)
 	${MKDIR_P} obj obj/json

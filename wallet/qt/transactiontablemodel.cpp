@@ -6,10 +6,10 @@
 #include "optionsmodel.h"
 #include "transactiondesc.h"
 #include "transactionrecord.h"
-#include "walletmodel.h"
-
+#include "txdb.h"
 #include "ui_interface.h"
 #include "wallet.h"
+#include "walletmodel.h"
 
 #include <QColor>
 #include <QDateTime>
@@ -658,7 +658,7 @@ QVariant TransactionTableModel::data(const QModelIndex& index, int role) const
     case NTP1MetadataRole: {
         try {
             std::string                 opRet = rec->ntp1tx.getNTP1OpReturnScriptHex();
-            std::shared_ptr<NTP1Script> s     = NTP1Script::ParseScript(opRet);
+            std::shared_ptr<NTP1Script> s     = NTP1Script::ParseScriptHex(opRet);
             return QString::fromStdString(s->GetMetadataAsString(s.get(), rec->tx));
         } catch (...) {
         }
@@ -666,7 +666,7 @@ QVariant TransactionTableModel::data(const QModelIndex& index, int role) const
     case NTP1MetadataHexRole: {
         try {
             std::string                 opRet = rec->ntp1tx.getNTP1OpReturnScriptHex();
-            std::shared_ptr<NTP1Script> s     = NTP1Script::ParseScript(opRet);
+            std::shared_ptr<NTP1Script> s     = NTP1Script::ParseScriptHex(opRet);
             return QString::fromStdString(
                 boost::algorithm::hex(s->GetMetadataAsString(s.get(), rec->tx)));
         } catch (...) {

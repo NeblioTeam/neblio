@@ -1,20 +1,22 @@
 #ifndef TRANSACTION_H
 #define TRANSACTION_H
 
+#include "CustomTypes.h"
 #include "blockreject.h"
-#include "globals.h"
-#include "inpoint.h"
-#include "outpoint.h"
 #include "serialize.h"
-#include "txdb.h"
 #include "txin.h"
-#include "txindex.h"
 #include "txout.h"
 #include "uint256.h"
 #include "validation.h"
+#include <txindex.h>
 #include <vector>
 
-class CTransaction;
+class ITxDB;
+class COutPoint;
+class CDiskTxPos;
+class CBlockIndex;
+
+using MapPrevTx = std::map<uint256, std::pair<CTxIndex, CTransaction>>;
 
 enum GetMinFee_mode
 {
@@ -22,8 +24,6 @@ enum GetMinFee_mode
     GMF_RELAY,
     GMF_SEND,
 };
-
-using MapPrevTx = std::map<uint256, std::pair<CTxIndex, CTransaction>>;
 
 /** The basic transaction that is broadcasted on the network and contained in
  * blocks.  A transaction can contain multiple inputs and outputs.
@@ -65,7 +65,7 @@ public:
     // clang-format off
     IMPLEMENT_SERIALIZE(
                         READWRITE(this->nVersion);
-                        nVersion = this->nVersion;
+                        nVersionIn = this->nVersion;
                         READWRITE(nTime);
                         READWRITE(vin);
                         READWRITE(vout);
@@ -82,6 +82,10 @@ public:
     bool IsNewerThan(const CTransaction& old) const;
 
     bool IsCoinBase() const { return (vin.size() == 1 && vin[0].prevout.IsNull() && vout.size() >= 1); }
+
+    bool ContainsOpReturn(std::vector<uint8_t>* opReturnArg = nullptr) const;
+
+    static bool IsOutputOpRet(const CTxOut* output, std::vector<uint8_t>* opReturnArg = nullptr);
 
     bool CheckColdStake(const CScript& script) const;
 
@@ -128,7 +132,7 @@ public:
     int64_t GetMinFee(const ITxDB& txdb, unsigned int nBlockSize = 1,
                       enum GetMinFee_mode mode = GMF_BLOCK, unsigned int nBytes = 0) const;
 
-    bool ReadFromDisk(CDiskTxPos pos, const ITxDB& txdb);
+    bool ReadFromDisk(const CDiskTxPos& pos, const ITxDB& txdb);
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)
     {
@@ -144,9 +148,9 @@ public:
 
     void print() const;
 
-    bool ReadFromDisk(const ITxDB& txdb, COutPoint prevout, CTxIndex& txindexRet);
-    bool ReadFromDisk(CTxDB& txdb, COutPoint prevout);
-    bool DisconnectInputs(CTxDB& txdb);
+    bool ReadFromDisk(const ITxDB& txdb, const COutPoint& prevout, CTxIndex& txindexRet);
+    bool ReadFromDisk(ITxDB& txdb, const COutPoint& prevout);
+    bool DisconnectInputs(ITxDB& txdb);
 
     /** Fetch from memory and/or disk. inputsRet keys are transaction hashes.
 
@@ -192,8 +196,12 @@ public:
     [[nodiscard]] static boost::optional<CKey> GetPublicKeyFromScriptSig(const CScript& scriptSig);
     [[nodiscard]] static boost::optional<CKey> GetOnePublicKeyFromInputs(const CTransaction& tx);
 
+    static std::vector<uint8_t> ExtractOpRetData(const CScript& scriptPubKey);
+
 protected:
     const CTxOut& GetOutputFor(const CTxIn& input, const MapPrevTx& inputs) const;
 };
+
+bool GetTransaction(const uint256& hash, CTransaction& tx, uint256& hashBlock);
 
 #endif // TRANSACTION_H

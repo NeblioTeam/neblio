@@ -13,7 +13,10 @@ message("Building on machine: " ${hostname})
 
 set(CMAKE_CXX_STANDARD 11)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-variable -Wno-unused-function -Wno-unused-private-field -Wno-class-memaccess -Wno-stringop-truncation")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-variable -Wno-unused-function -Wno-unused-private-field")
+if (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-class-memaccess -Wno-stringop-truncation")
+endif()
 
 if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-psabi")  # some ABI compatbility warnings... irrelevant: https://gcc.gnu.org/legacy-ml/gcc/2017-05/msg00073.html
@@ -693,6 +696,7 @@ add_library(core_lib STATIC
     wallet/rpcrawtransaction.cpp
     wallet/crypter.cpp
     wallet/protocol.cpp
+    wallet/messaging.cpp
     wallet/noui.cpp
     wallet/kernel.cpp
     wallet/scrypt-arm.S
@@ -706,7 +710,6 @@ add_library(core_lib STATIC
     wallet/ThreadSafeMap.cpp
     wallet/ThreadSafeHashMap.cpp
     wallet/NetworkForks.cpp
-    wallet/blockindexcatalog.cpp
     wallet/blockindex.cpp
     wallet/outpoint.cpp
     wallet/inpoint.cpp
@@ -738,7 +741,18 @@ add_library(core_lib STATIC
     wallet/blockreject.cpp
     wallet/blockmetadata.cpp
     wallet/blockindexlrucache.cpp
+    wallet/forkspendsimulator.cpp
+    wallet/viucache.cpp
     wallet/proposal.cpp
+    wallet/medianfilter.cpp
+    wallet/merkleblock.cpp
+    wallet/wallet_interface.cpp
+    wallet/mempoolmisc.cpp
+    wallet/consensus.cpp
+    wallet/partialmerkletree.cpp
+    wallet/ntp1/ntp1common.cpp
+    wallet/bootstraptools.cpp
+    wallet/concurrentmap/ConcurrentMap.cpp
     )
 
 target_link_libraries(core_lib
@@ -809,6 +823,14 @@ add_library(txdb_lib STATIC
     wallet/txdb-lmdb.cpp
     wallet/SerializationTester.cpp
     wallet/db/lmdb/lmdbtransaction.cpp
+    wallet/dbcache/dbcachelayer.cpp
+    wallet/dbcache/inmemorydb.cpp
+    wallet/dbcache/hierarchicaldb.cpp
+    wallet/dbcache/transactionoperation.cpp
+    wallet/dbcache/transactabledbentry.cpp
+    wallet/dbcache/dblrucachelayer.cpp
+    wallet/dbcache/dblrucachestorage.cpp
+    wallet/dbcache/dbreadcachelayer.cpp
     )
 
 target_link_libraries(db_lib

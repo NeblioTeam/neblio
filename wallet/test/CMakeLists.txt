@@ -19,6 +19,7 @@ add_executable(neblio-tests
     checkpoints_tests.cpp
     crypter_tests.cpp
     db_tests.cpp
+    dbcache_tests.cpp
     fixedpoint_tests.cpp
     getarg_tests.cpp
     hash_tests.cpp
@@ -106,8 +107,8 @@ if(NEBLIO_FORCE_DISABLE_PREMADE_DATA_DOWNLOAD)
 endif()
 
 add_test(
-    NAME neblio-core-tests
-    COMMAND neblio-core-tests
+    NAME neblio-tests
+    COMMAND neblio-tests
     --datadir ${CMAKE_CURRENT_SOURCE_DIR}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )

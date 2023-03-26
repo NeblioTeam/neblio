@@ -185,6 +185,9 @@ extern json_spirit::Value addnode(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value disconnectnode(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value setmocktime(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getpeerinfo(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value listbanned(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value setban(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value clearbanned(const json_spirit::Array& params, bool fHelp);
 
 // in rpcdump.cpp
 extern json_spirit::Value dumpwallet(const json_spirit::Array& params, bool fHelp);
@@ -291,6 +294,7 @@ extern json_spirit::Value calculateblockhash(const json_spirit::Array& params, b
 extern json_spirit::Value getblock(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getblockbynumber(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value gettxout(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value setviupushprobability(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value exportblockchain(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value waitforblockheight(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value listvotes(const json_spirit::Array& params, bool fHelp);

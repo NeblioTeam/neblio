@@ -52,7 +52,7 @@ class WalletEncryptionTest(BitcoinTestFramework):
         assert_equal(privkey, k)
 
         # Check that the timeout is right
-        time.sleep(2)
+        time.sleep(3)
         assert_raises_rpc_error(-13, "Please enter the wallet passphrase with walletpassphrase first", self.nodes[0].dumpprivkey, address)
 
         # Test wrong passphrase
@@ -78,6 +78,7 @@ class WalletEncryptionTest(BitcoinTestFramework):
         MAX_VALUE = 99999999
         expected_time = int(time.time()) + MAX_VALUE - 600
         self.nodes[0].walletpassphrase(passphrase2, MAX_VALUE - 600)
+        time.sleep(5)  # since cleaning runs in a parallel thread, give it time to happen
         actual_time = self.nodes[0].getwalletinfo()['unlocked_until']
         assert_greater_than_or_equal(actual_time, expected_time)
         assert_greater_than(expected_time + 5, actual_time)  # 5 second buffer

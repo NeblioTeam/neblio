@@ -6,8 +6,12 @@
 
 #include "miner.h"
 #include "block.h"
+#include "consensus.h"
 #include "kernel.h"
 #include "main.h"
+#include "messaging.h"
+#include "net.h"
+#include "stakemaker.h"
 #include "txdb.h"
 #include "txmempool.h"
 #include "work.h"
@@ -81,9 +85,8 @@ public:
     }
 };
 
-uint64_t   nLastBlockTx   = 0;
-uint64_t   nLastBlockSize = 0;
-StakeMaker stakeMaker;
+uint64_t nLastBlockTx   = 0;
+uint64_t nLastBlockSize = 0;
 
 // We want to sort transactions by priority and fee, so:
 typedef boost::tuple<double, double, const CTransaction*> TxPriority;
@@ -343,7 +346,7 @@ std::unique_ptr<CBlock> CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int
             try {
                 std::string opRet;
                 if (NTP1Transaction::IsTxNTP1(&tx, &opRet)) {
-                    auto script = NTP1Script::ParseScript(opRet);
+                    auto script = NTP1Script::ParseScriptHex(opRet);
                     if (script->getTxType() == NTP1Script::TxType_Issuance) {
 
                         inputsTxs = NTP1Transaction::StdFetchedInputTxsToNTP1(

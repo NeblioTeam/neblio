@@ -6,14 +6,19 @@
 #include "NetworkForks.h"
 #include "base58.h"
 #include "bitcoinrpc.h"
+#include "block.h"
+#include "blockindex.h"
 #include "blockmetadata.h"
 #include "boost/make_shared.hpp"
 #include "coldstakedelegation.h"
+#include "consensus.h"
 #include "globals.h"
 #include "init.h"
 #include "main.h"
+#include "txdb.h"
 #include "udaddress.h"
 #include "wallet.h"
+#include "wallet_interface.h"
 #include "walletdb.h"
 
 using namespace json_spirit;
@@ -2458,7 +2463,7 @@ Value walletpassphrase(const Array& params, bool fHelp)
                             "Stores the wallet decryption key in memory for <timeout> seconds.");
 
     NewThread(ThreadTopUpKeyPool);
-    if (params.size() >= 2) {
+    if (params.size() > 1) {
         int64_t pnSleepTime = params[1].get_int64();
 
         if (pnSleepTime > static_cast<int64_t>(std::numeric_limits<int32_t>::max()))

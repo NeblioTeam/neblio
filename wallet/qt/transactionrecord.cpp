@@ -1,7 +1,9 @@
 #include "transactionrecord.h"
 
 #include "base58.h"
-#include "main.h"
+#include "blockindex.h"
+#include "consensus.h"
+#include "txdb.h"
 #include "txmempool.h"
 #include "wallet.h"
 
@@ -41,7 +43,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
         // Credit
         //
         for (const CTxOut& txout : wtx.vout) {
-            if (NTP1Transaction::IsTxOutputOpRet(&txout, nullptr)) {
+            if (CTransaction::IsOutputOpRet(&txout, nullptr)) {
                 continue;
             }
             if (wallet->IsMine(txout) != isminetype::ISMINE_NO) {
@@ -113,7 +115,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
         bool fAllToMe = true;
         for (const CTxOut& txout : wtx.vout) {
             // OP_RETURN is not to decide whether an output is mine
-            if (NTP1Transaction::IsTxOutputOpRet(&txout, nullptr)) {
+            if (CTransaction::IsOutputOpRet(&txout, nullptr)) {
                 continue;
             }
             fAllToMe = fAllToMe && IsMineCheck(wallet->IsMine(txout), isminetype::ISMINE_SPENDABLE);
@@ -133,7 +135,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet* 
 
             for (unsigned int nOut = 0; nOut < wtx.vout.size(); nOut++) {
                 const CTxOut& txout = wtx.vout[nOut];
-                if (NTP1Transaction::IsTxOutputOpRet(&txout, nullptr)) {
+                if (CTransaction::IsOutputOpRet(&txout, nullptr)) {
                     continue;
                 }
                 TransactionRecord sub(hash, nTime);

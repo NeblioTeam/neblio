@@ -48,15 +48,6 @@ enum WalletFeature
     FEATURE_LATEST = 60000
 };
 
-class WalletNewTxUpdateFunctor : public boost::enable_shared_from_this<WalletNewTxUpdateFunctor>
-{
-    // reload balances if the current height less than the registered height plus this next value
-public:
-    static const int HEIGHT_OFFSET_TOLERANCE = 10;
-    virtual void     run(uint256 /*txhash*/, int /*CurrentBlockHeight*/) {}
-    virtual void     setReferenceBlockHeight() {}
-};
-
 /** A key pool entry */
 class CKeyPool
 {
@@ -72,7 +63,7 @@ public:
         vchPubKey = vchPubKeyIn;
     }
 
-    IMPLEMENT_SERIALIZE(if (!(nType & SER_GETHASH)) READWRITE(nVersion); READWRITE(nTime);
+    IMPLEMENT_SERIALIZE(if (!(nType & SER_GETHASH)) READWRITE(nVersionIn); READWRITE(nTime);
                         READWRITE(vchPubKey);)
 };
 
@@ -520,29 +511,29 @@ public:
 
     void Init(const CWallet* pwalletIn);
 
-    IMPLEMENT_SERIALIZE(
-        CWalletTx* pthis  = const_cast<CWalletTx*>(this); if (fRead) pthis->Init(nullptr);
-        char       fSpent = false;
+    IMPLEMENT_SERIALIZE(CWalletTx* pthis = const_cast<CWalletTx*>(this); if (fRead) pthis->Init(nullptr);
+                        char       fSpent = false;
 
-        if (!fRead) {
-            pthis->mapValue["fromaccount"] = pthis->strFromAccount;
+                        if (!fRead) {
+                            pthis->mapValue["fromaccount"] = pthis->strFromAccount;
 
-            std::string str;
-            for (char f : vfSpent) {
-                str += (f ? '1' : '0');
-                if (f)
-                    fSpent = true;
-            }
-            pthis->mapValue["spent"] = str;
+                            std::string str;
+                            for (char f : vfSpent) {
+                                str += (f ? '1' : '0');
+                                if (f)
+                                    fSpent = true;
+                            }
+                            pthis->mapValue["spent"] = str;
 
-            WriteOrderPos(pthis->nOrderPos, pthis->mapValue);
+                            WriteOrderPos(pthis->nOrderPos, pthis->mapValue);
 
-            if (nTimeSmart)
-                pthis->mapValue["timesmart"] = fmt::format("{}", nTimeSmart);
-        }
+                            if (nTimeSmart)
+                                pthis->mapValue["timesmart"] = fmt::format("{}", nTimeSmart);
+                        }
 
-        nSerSize += SerReadWrite(s, *(CMerkleTx*)this, nType, nVersion, ser_action);
-        // clang-format off
+                        // first serialize base class, then this class
+                        nSerSize += SerReadWrite(s, *(CMerkleTx*)this, nType, nVersionIn, ser_action);
+                        // clang-format off
         READWRITE(vtxPrev);
         READWRITE(mapValue);
         READWRITE(vOrderForm);
@@ -550,26 +541,27 @@ public:
         READWRITE(nTimeReceived);
         READWRITE(fFromMe);
         READWRITE(fSpent);
-        // clang-format on
+                        // clang-format on
 
-        if (fRead) {
-            pthis->strFromAccount = pthis->mapValue["fromaccount"];
+                        if (fRead) {
+                            pthis->strFromAccount = pthis->mapValue["fromaccount"];
 
-            if (mapValue.count("spent"))
-                for (char c : pthis->mapValue["spent"])
-                    pthis->vfSpent.push_back(c != '0');
-            else
-                pthis->vfSpent.assign(vout.size(), fSpent);
+                            if (mapValue.count("spent"))
+                                for (char c : pthis->mapValue["spent"])
+                                    pthis->vfSpent.push_back(c != '0');
+                            else
+                                pthis->vfSpent.assign(vout.size(), fSpent);
 
-            ReadOrderPos(pthis->nOrderPos, pthis->mapValue);
+                            ReadOrderPos(pthis->nOrderPos, pthis->mapValue);
 
-            pthis->nTimeSmart =
-                mapValue.count("timesmart") ? (unsigned int)atoi64(pthis->mapValue["timesmart"]) : 0;
-        }
+                            pthis->nTimeSmart = mapValue.count("timesmart")
+                                                    ? (unsigned int)atoi64(pthis->mapValue["timesmart"])
+                                                    : 0;
+                        }
 
-        pthis->mapValue.erase("fromaccount");
-        pthis->mapValue.erase("version"); pthis->mapValue.erase("spent"); pthis->mapValue.erase("n");
-        pthis->mapValue.erase("timesmart");)
+                        pthis->mapValue.erase("fromaccount");
+                        pthis->mapValue.erase("version"); pthis->mapValue.erase("spent");
+                        pthis->mapValue.erase("n"); pthis->mapValue.erase("timesmart");)
 
     // make sure balances are recalculated
     void MarkDirty();
@@ -654,7 +646,7 @@ public:
         nTimeExpires = nExpires;
     }
 
-    IMPLEMENT_SERIALIZE(if (!(nType & SER_GETHASH)) READWRITE(nVersion); READWRITE(vchPrivKey);
+    IMPLEMENT_SERIALIZE(if (!(nType & SER_GETHASH)) READWRITE(nVersionIn); READWRITE(vchPrivKey);
                         READWRITE(nTimeCreated); READWRITE(nTimeExpires); READWRITE(strComment);)
 };
 
@@ -670,7 +662,7 @@ public:
 
     void SetNull() { vchPubKey = CPubKey(); }
 
-    IMPLEMENT_SERIALIZE(if (!(nType & SER_GETHASH)) READWRITE(nVersion); READWRITE(vchPubKey);)
+    IMPLEMENT_SERIALIZE(if (!(nType & SER_GETHASH)) READWRITE(nVersionIn); READWRITE(vchPubKey);)
 };
 
 /** Internal transfers.
@@ -700,38 +692,38 @@ public:
         nOrderPos = -1;
     }
 
-    IMPLEMENT_SERIALIZE(
-        CAccountingEntry& me = *const_cast<CAccountingEntry*>(this);
-        if (!(nType & SER_GETHASH)) READWRITE(nVersion);
-        // Note: strAccount is serialized as part of the key, not here.
-        READWRITE(nCreditDebit); READWRITE(nTime); READWRITE(strOtherAccount);
+    IMPLEMENT_SERIALIZE(CAccountingEntry& me = *const_cast<CAccountingEntry*>(this);
+                        if (!(nType & SER_GETHASH)) READWRITE(nVersionIn);
+                        // Note: strAccount is serialized as part of the key, not here.
+                        READWRITE(nCreditDebit); READWRITE(nTime); READWRITE(strOtherAccount);
 
-        if (!fRead) {
-            WriteOrderPos(nOrderPos, me.mapValue);
+                        if (!fRead) {
+                            WriteOrderPos(nOrderPos, me.mapValue);
 
-            if (!(mapValue.empty() && _ssExtra.empty())) {
-                CDataStream ss(nType, nVersion);
-                ss.insert(ss.begin(), '\0');
-                ss << mapValue;
-                ss.insert(ss.end(), _ssExtra.begin(), _ssExtra.end());
-                me.strComment.append(ss.str());
-            }
-        }
+                            if (!(mapValue.empty() && _ssExtra.empty())) {
+                                CDataStream ss(nType, nVersionIn);
+                                ss.insert(ss.begin(), '\0');
+                                ss << mapValue;
+                                ss.insert(ss.end(), _ssExtra.begin(), _ssExtra.end());
+                                me.strComment.append(ss.str());
+                            }
+                        }
 
-        READWRITE(strComment);
+                        READWRITE(strComment);
 
-        size_t nSepPos = strComment.find("\0", 0, 1); if (fRead) {
-            me.mapValue.clear();
-            if (std::string::npos != nSepPos) {
-                CDataStream ss(std::vector<char>(strComment.begin() + nSepPos + 1, strComment.end()),
-                               nType, nVersion);
-                ss >> me.mapValue;
-                me._ssExtra = std::vector<char>(ss.begin(), ss.end());
-            }
-            ReadOrderPos(me.nOrderPos, me.mapValue);
-        } if (std::string::npos != nSepPos) me.strComment.erase(nSepPos);
+                        size_t nSepPos = strComment.find("\0", 0, 1); if (fRead) {
+                            me.mapValue.clear();
+                            if (std::string::npos != nSepPos) {
+                                CDataStream ss(std::vector<char>(strComment.begin() + nSepPos + 1,
+                                                                 strComment.end()),
+                                               nType, nVersionIn);
+                                ss >> me.mapValue;
+                                me._ssExtra = std::vector<char>(ss.begin(), ss.end());
+                            }
+                            ReadOrderPos(me.nOrderPos, me.mapValue);
+                        } if (std::string::npos != nSepPos) me.strComment.erase(nSepPos);
 
-        me.mapValue.erase("n");)
+                        me.mapValue.erase("n");)
 
 private:
     std::vector<char> _ssExtra;

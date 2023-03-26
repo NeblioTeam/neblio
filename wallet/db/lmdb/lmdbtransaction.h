@@ -1,9 +1,9 @@
 #ifndef LMDBTRANSACTION_H
 #define LMDBTRANSACTION_H
 
-#include <string>
-#include <liblmdb/lmdb.h>
 #include <atomic>
+#include <liblmdb/lmdb.h>
+#include <string>
 
 struct LMDBTransaction
 {
@@ -15,7 +15,7 @@ struct LMDBTransaction
     LMDBTransaction(LMDBTransaction&& other);
     LMDBTransaction& operator=(LMDBTransaction&& other);
 
-    void commit(std::string message = "");
+    int  commit(std::string message = "");
     void commitIfValid(std::string message = "");
 
     // This should only be needed for batch transaction which must be ensured to
@@ -32,11 +32,13 @@ struct LMDBTransaction
 
     MDB_txn* rawPtr() const { return m_txn; }
 
-    uint64_t num_active_tx() const;
+    bool isChecked() const;
 
-    static void prevent_new_txns();
-    static void wait_no_active_txns();
-    static void allow_new_txns();
+    static uint64_t num_active_tx();
+    static void     prevent_new_txns();
+    static void     wait_no_active_txns();
+    static void     allow_new_txns();
+    static void     increment_txns(int i);
 
     MDB_txn*                     m_txn;
     bool                         m_batch_txn = false;
@@ -46,6 +48,5 @@ struct LMDBTransaction
     // could use a mutex here, but this should be sufficient.
     static std::atomic_flag creation_gate;
 };
-
 
 #endif // LMDBTRANSACTION_H

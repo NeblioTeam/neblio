@@ -22,13 +22,16 @@ from test_framework.script import *
 from test_framework.mininode import network_thread_start
 import struct
 
+
 class PreviousSpendableOutput():
-    def __init__(self, tx = CTransaction(), n = -1):
+    def __init__(self, tx=CTransaction(), n=-1):
         self.tx = tx
         self.n = n  # the output we're spending
 
 #  Use this class for tests that require behavior other than normal "mininode" behavior.
 #  For now, it is used to serialize a bloated varint (b64).
+
+
 class CBrokenBlock(CBlock):
     def __init__(self, header=None):
         super(CBrokenBlock, self).__init__(header)
@@ -57,6 +60,7 @@ class CBrokenBlock(CBlock):
 
 fee = min_fee
 
+
 class FullBlockTest(ComparisonTestFramework):
     # Can either run this test as 1 node with expected answers, or two and compare them.
     # Change the "outcome" variable from each TestInstance object to only do the comparison.
@@ -72,7 +76,8 @@ class FullBlockTest(ComparisonTestFramework):
 
     def add_options(self, parser):
         super().add_options(parser)
-        parser.add_option("--runbarelyexpensive", dest="runbarelyexpensive", default=True)
+        parser.add_option("--runbarelyexpensive",
+                          dest="runbarelyexpensive", default=True)
 
     def run_test(self):
         self.test = TestManager(self, self.options.tmpdir)
@@ -81,7 +86,7 @@ class FullBlockTest(ComparisonTestFramework):
         self.test.run()
 
     def add_transactions_to_block(self, block, tx_list):
-        [ tx.rehash() for tx in tx_list ]
+        [tx.rehash() for tx in tx_list]
         block.vtx.extend(tx_list)
 
     # this is a little handier to use than the version in blocktools.py
@@ -96,8 +101,10 @@ class FullBlockTest(ComparisonTestFramework):
         if (scriptPubKey[0] == OP_TRUE):  # an anyone-can-spend
             tx.vin[0].scriptSig = CScript()
             return
-        (sighash, err) = SignatureHash(spend_tx.vout[n].scriptPubKey, tx, 0, SIGHASH_ALL)
-        tx.vin[0].scriptSig = CScript([self.coinbase_key.sign(sighash) + bytes(bytearray([SIGHASH_ALL]))])
+        (sighash, err) = SignatureHash(
+            spend_tx.vout[n].scriptPubKey, tx, 0, SIGHASH_ALL)
+        tx.vin[0].scriptSig = CScript(
+            [self.coinbase_key.sign(sighash) + bytes(bytearray([SIGHASH_ALL]))])
 
     def create_and_sign_transaction(self, spend_tx, n, value, script=CScript([OP_TRUE])):
         tx = self.create_tx(spend_tx, n, value, script)
@@ -106,7 +113,8 @@ class FullBlockTest(ComparisonTestFramework):
         return tx
 
     def next_block(self, number, spend=None, additional_coinbase_value=0, script=CScript([OP_TRUE]), solve=True):
-        logger.info("Creating block:".format(number))  # useful marker for debugging, marks the last block that was created
+        # useful marker for debugging, marks the last block that was created
+        logger.info("Creating block:".format(number))
         if self.tip is None:
             base_block_hash = self.genesis_hash
             block_time = int(time.time()) + 1
@@ -126,7 +134,9 @@ class FullBlockTest(ComparisonTestFramework):
             block = create_block(base_block_hash, coinbase, block_time)
             # create a new transaction, but remove the fee from it
             amount_to_send = spend.tx.vout[spend.n].nValue - fee
-            tx = create_transaction(spend.tx, spend.n, b"", amount_to_send, script)  # spend 10000000 satoshi
+            # spend 10000000 satoshi
+            tx = create_transaction(
+                spend.tx, spend.n, b"", amount_to_send, script)
             self.sign_tx(tx, spend.tx, spend.n)
             self.add_transactions_to_block(block, [tx])
             block.hashMerkleRoot = block.calc_merkle_root()
@@ -137,10 +147,12 @@ class FullBlockTest(ComparisonTestFramework):
         if solve:
             # add neblio signature
             block.solve()
-            block.vchBlockSig = self.coinbase_key.sign(bytes.fromhex(block.hash)[::-1])
+            block.vchBlockSig = self.coinbase_key.sign(
+                bytes.fromhex(block.hash)[::-1])
         else:
             block.rehash()
-        logger.info("Created block number {} with hash {}".format(number, block.hash))
+        logger.info("Created block number {} with hash {}".format(
+            number, block.hash))
         self.tip = block
         self.block_heights[block.sha256] = height
         assert number not in self.blocks
@@ -176,7 +188,8 @@ class FullBlockTest(ComparisonTestFramework):
             # print("Block:", curr_hash, prev_hash, b)
             # find the prev node that contains the prev_hash
             prev_node = [label for label in gr.nodes() if prev_hash in label]
-            assert len(prev_node) == 1  # only one node with that hash should be found
+            # only one node with that hash should be found
+            assert len(prev_node) == 1
             gr.add_edge((curr_hash, prev_node[0]))
         return gr
 
@@ -192,14 +205,16 @@ class FullBlockTest(ComparisonTestFramework):
         Test that hashing of a block works fine
         Returns: nothing
         """
-        genesis_block_hex = self.nodes[0].getblock(self.nodes[0].getbestblockhash(), False)
+        genesis_block_hex = self.nodes[0].getblock(
+            self.nodes[0].getbestblockhash(), False)
         genesis_block = CBlock()
         genesis_block_raw_io = BytesIO(bytes.fromhex(genesis_block_hex))
         genesis_block.deserialize(genesis_block_raw_io)
         genesis_block.rehash()
         assert genesis_block.hash is not None
         assert_equal(genesis_block.hash, self.nodes[0].getblockhash(0))
-        assert_equal(genesis_block.hash, self.nodes[0].calculateblockhash(genesis_block.serialize().hex()))
+        assert_equal(genesis_block.hash, self.nodes[0].calculateblockhash(
+            genesis_block.serialize().hex()))
         assert_equal(genesis_block_hex, genesis_block.serialize().hex())
 
     def get_tests(self):
@@ -213,8 +228,8 @@ class FullBlockTest(ComparisonTestFramework):
             spendable_outputs.append(self.tip)
 
         # get an output that we previously marked as spendable
-        def get_spendable_output():
-            return PreviousSpendableOutput(spendable_outputs.pop(0).vtx[0], 0)
+        def get_spendable_output(index=0):
+            return PreviousSpendableOutput(spendable_outputs.pop(index).vtx[0], 0)
 
         # returns a test case that asserts that the current tip was accepted
         def accepted():
@@ -222,7 +237,7 @@ class FullBlockTest(ComparisonTestFramework):
 
         # returns a test case that asserts that the current tip was rejected
         # it DOESN'T mean the block is invalid. It means it's (still) not the new tip
-        def rejected(reject = None):
+        def rejected(reject=None):
             if reject is None:
                 return TestInstance([[self.tip, False]])
             else:
@@ -234,7 +249,8 @@ class FullBlockTest(ComparisonTestFramework):
 
         # adds transactions to the block and updates state
         def update_block(block_number, new_transactions, update_time=True):
-            logger.info("Updating block: {}".format(block_number))  # useful marker for debugging, marks the last block that was created
+            # useful marker for debugging, marks the last block that was created
+            logger.info("Updating block: {}".format(block_number))
             block = self.blocks[block_number]
             self.add_transactions_to_block(block, new_transactions)
             old_sha256 = block.sha256
@@ -242,14 +258,17 @@ class FullBlockTest(ComparisonTestFramework):
             if update_time:
                 block.fix_time_then_resolve(False)
             block.solve()
-            block.vchBlockSig = self.coinbase_key.sign(bytes.fromhex(block.hash)[::-1])
+            block.vchBlockSig = self.coinbase_key.sign(
+                bytes.fromhex(block.hash)[::-1])
             # Update the internal state just like in next_block
             self.tip = block
             if block.sha256 != old_sha256:
                 self.block_heights[block.sha256] = self.block_heights[old_sha256]
                 del self.block_heights[old_sha256]
             self.blocks[block_number] = block
-            logger.info("Updated block {} with hash {}".format(block_number, block.hash))  # useful marker for debugging, marks the last block that was created
+            # useful marker for debugging, marks the last block that was created
+            logger.info("Updated block {} with hash {}".format(
+                block_number, block.hash))
             return block
 
         def create_tx_manual(prevout_hash, n, value):
@@ -264,8 +283,8 @@ class FullBlockTest(ComparisonTestFramework):
         create_tx = self.create_tx
         create_and_sign_tx = self.create_and_sign_transaction
 
-        # these must be updated if consensus changes
-        MAX_BLOCK_SIGOPS = 20000
+        # disable caching
+        self.nodes[0].setviupushprobability(0, 100)
 
         # Create a new block
         block(0)
@@ -297,7 +316,7 @@ class FullBlockTest(ComparisonTestFramework):
         tx1 = create_tx_manual(out[20].tx.sha256, out[20].n, 1000000)
         tx2 = create_tx_manual(tx1.sha256, 0, 500000)
         update_block("1", [tx2, tx1])
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent'))
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxNonExistent_OutputNotFoundInMainChainOrFork'))
 
         tip(15)
         block("f15", spend=out[15])
@@ -308,7 +327,7 @@ class FullBlockTest(ComparisonTestFramework):
         tip("f15")
         block("f16a", spend=out[15])
         save_spendable_output()
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt'))
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_WithinTheFork'))
 
         # create one valid transaction above the last tip as a template
         tip("f15")
@@ -342,7 +361,7 @@ class FullBlockTest(ComparisonTestFramework):
         self.tip = blk16b
         self.block_heights[blk16b.sha256] = height
         self.blocks["f16b"] = blk16b
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxInputIndexOutOfRange_Case1'))
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxInputIndexOutOfRange_InMainChain'))
 
         # fake input transaction hash that doesn't exist
         tip("f16")
@@ -360,7 +379,7 @@ class FullBlockTest(ComparisonTestFramework):
         self.tip = blk16c
         self.block_heights[blk16c.sha256] = height
         self.blocks["f16c"] = blk16c
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxNonExistent_ReadTxIndexFailed_Case1'))
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxNonExistent_OutputNotFoundInMainChainOrFork'))
 
         # make the alt chain longer, and try again
         tip("f16")
@@ -375,7 +394,7 @@ class FullBlockTest(ComparisonTestFramework):
         tip("f35")
         block("f36a", spend=out[30])
         save_spendable_output()
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt'))
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_WithinTheFork'))
 
         # invalid input index - out of range
         tip("f35")
@@ -393,7 +412,7 @@ class FullBlockTest(ComparisonTestFramework):
         self.tip = blk36b
         self.block_heights[blk36b.sha256] = height
         self.blocks["f36b"] = blk36b
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxInputIndexOutOfRange_Case1'))
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxInputIndexOutOfRange_InMainChain'))
 
         # fake input transaction hash that doesn't exist
         tip("f35")
@@ -411,7 +430,7 @@ class FullBlockTest(ComparisonTestFramework):
         self.tip = blk36c
         self.block_heights[blk36c.sha256] = height
         self.blocks["f36c"] = blk36c
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxNonExistent_ReadTxIndexFailed_Case1'))
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxNonExistent_OutputNotFoundInMainChainOrFork'))
 
         # double-spend in same block
         tip("f35")
@@ -422,7 +441,7 @@ class FullBlockTest(ComparisonTestFramework):
         blk36d.hashPrevBlock = self.tip.sha256
         blk36d.nBits = 0x207fffff
         blk36d.vtx.append(coinbase)
-        tx1 = create_tx_manual(out[37].tx.sha256, out[17].n, 10000000)
+        tx1 = create_tx_manual(out[37].tx.sha256, out[37].n, 10000000)
         tx2 = create_tx_manual(tx1.sha256, 0, 5000000)
         tx3 = create_tx_manual(tx1.sha256, 0, 4000000)
         blk36d.vtx.append(tx1)
@@ -433,7 +452,7 @@ class FullBlockTest(ComparisonTestFramework):
         self.tip = blk36d
         self.block_heights[blk36d.sha256] = height
         self.blocks["f36d"] = blk36d
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt'))
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_WithinTheFork'))
 
         #############################################################
         # double spend a transaction in two blocks but that was created in the fork
@@ -473,14 +492,35 @@ class FullBlockTest(ComparisonTestFramework):
         self.tip = blk37a
         self.block_heights[blk37a.sha256] = height
         self.blocks["f37a"] = blk37a
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt'))
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_WithinTheFork'))
         #############################################################
 
         # Attempt to doublespend something from before the fork
         tip("f36e")
         block("f37e", spend=out[5])
         save_spendable_output()
-        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt'))
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-DoublespendAttempt_SpentAlreadyBeforeTheFork'))
+
+        # invalid input index - out of range within the fork
+        tip("f35")
+        height = self.block_heights[self.tip.sha256] + 1
+        coinbase = create_coinbase(height, self.coinbase_pubkey)
+        blk36f = CBlock()
+        blk36f.nTime = self.tip.nTime + 1
+        blk36f.hashPrevBlock = self.tip.sha256
+        blk36f.nBits = 0x207fffff
+        blk36f.vtx.append(coinbase)
+        # we pick one output from after the fork
+        out_to_spend = get_spendable_output(98)
+        tx1 = create_tx_manual(out_to_spend.tx.sha256,
+                               out_to_spend.n+10, 10000)
+        blk36f.vtx.append(tx1)
+        blk36f.hashMerkleRoot = blk36f.calc_merkle_root()
+        blk36f.fix_time_then_resolve()
+        self.tip = blk36f
+        self.block_heights[blk36f.sha256] = height
+        self.blocks["f36f"] = blk36f
+        yield rejected(RejectResult(16, b'bad-txns-inputs-missingorspent-TxInputIndexOutOfRange_InFork'))
 
 
 if __name__ == '__main__':

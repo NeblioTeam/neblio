@@ -71,8 +71,8 @@ Value disconnectnode(const Array& params, bool fHelp)
                                  "\nImmediately disconnects from the specified node.\n"
 
                                  "\nArguments:\n"
-                                 "1. \"node\"     (string or int, required) The node identified by "
-                                 "address or node id (see getpeerinfo for nodes)\n"
+                                 "1. \"nodeid\"     (int, required) The node identified by "
+                                 "node id (see getpeerinfo for nodes)\n"
 
                                  "\nExamples:\n"
                                  "disconnectnode \"192.168.0.6:8333\""
@@ -80,9 +80,6 @@ Value disconnectnode(const Array& params, bool fHelp)
     }
 
     CNode* pNode = nullptr;
-    if (params[0].type() == Value_type::str_type) {
-        pNode = FindNode(params[0].get_str());
-    }
     if (params[0].type() == Value_type::int_type) {
         pNode = FindNode(params[0].get_int64());
     }
@@ -120,7 +117,7 @@ Value getpeerinfo(const Array& params, bool fHelp)
 
     Array ret;
 
-    BOOST_FOREACH (const CNodeStats& stats, vstats) {
+    for (const CNodeStats& stats : vstats) {
         Object obj;
 
         obj.push_back(Pair("id", stats.nodeid));
@@ -161,6 +158,102 @@ Value setmocktime(const Array& params, bool fHelp)
     LOCK(cs_main);
 
     SetMockTime(params[0].get_int64());
+
+    return Value();
+}
+
+Value listbanned(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw std::runtime_error("List all banned IPs.");
+
+    const std::map<CNetAddr, int64_t> banMap = CNode::GetBanned();
+
+    Array bannedAddresses;
+    for (const auto& entry : banMap) {
+        Object rec;
+        rec.push_back(Pair("address", entry.first.ToString()));
+        rec.push_back(Pair("banned_until", entry.second));
+        // rec.push_back(Pair("ban_created", banEntry.nCreateTime));
+
+        bannedAddresses.push_back(rec);
+    }
+
+    return bannedAddresses;
+}
+
+Value setban(const Array& params, bool fHelp)
+{
+    // clang-format off
+    if (fHelp || params.size() < 2 || params.size() > 4)
+        throw std::runtime_error("setban <ip-address> <command> <bantime> <absolute>\n"
+                                 "\n"
+                                 "ip: The IP (see getpeerinfo for nodes IP) with an optional netmask\n"
+                                 "command: 'add' to add an IP to the list, 'remove' to remove an IP/Subnet from the list\n"
+                                 "bantime: (default: 0) time in seconds how long (or until when if [absolute] is set) the IP is banned (0 or empty means using the default time of 24h which can also be overwritten by the -bantime startup argument)"
+                                 "absolute: (default: false) If set, the bantime must be an absolute timestamp expressed in UNIX epoch time\n"
+                                 "Attempts to add or remove an IP/Subnet from the banned list.\n"
+                                 "\n");
+    // clang-format on
+
+    std::string strCommand;
+    if (!params[1].is_null())
+        strCommand = params[1].get_str();
+    if (strCommand != "add" && strCommand != "remove") {
+        throw std::runtime_error("Command can be 'add' or 'remove'");
+    }
+
+    CNetAddr netAddr;
+
+    std::vector<CNetAddr> allResolved;
+    LookupHost(params[0].get_str().c_str(), allResolved, 1, false);
+    if (allResolved.empty()) {
+        throw std::runtime_error("Resolution of address " + params[0].get_str() +
+                                 " failed - Invalid IP/Subnet");
+    }
+    netAddr = allResolved.front();
+
+    if (!netAddr.IsValid())
+        throw JSONRPCError(RPC_CLIENT_INVALID_IP_OR_SUBNET, "Error: Invalid IP/Subnet");
+
+    if (strCommand == "add") {
+        if (CNode::IsBanned(netAddr)) {
+            throw JSONRPCError(RPC_CLIENT_NODE_ALREADY_ADDED, "Error: IP/Subnet already banned");
+        }
+
+        int64_t banTime = 0; // use standard bantime if not specified
+        if (params.size() > 2 && !params[2].is_null())
+            banTime = params[2].get_int64();
+
+        bool absolute = params.size() > 3 && params[3].get_bool();
+
+        CNode::Ban(netAddr, banTime, absolute);
+        {
+            while (true) {
+                CNode* pNode = FindNode(netAddr);
+                if (pNode == nullptr) {
+                    break;
+                }
+                pNode->CloseSocketDisconnect();
+            }
+        }
+    } else if (strCommand == "remove") {
+        if (!CNode::Unban(netAddr)) {
+            throw JSONRPCError(
+                RPC_CLIENT_INVALID_IP_OR_SUBNET,
+                "Error: Unban failed. Requested address/subnet was not previously manually banned.");
+        }
+    }
+
+    return Value();
+}
+
+Value clearbanned(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw std::runtime_error("Clear all banned IPs and persistent DOS counters.");
+
+    CNode::ClearBanned();
 
     return Value();
 }

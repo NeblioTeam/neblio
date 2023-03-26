@@ -9,8 +9,10 @@
 #include "globals.h"
 #include "init.h"
 #include "main.h"
+#include "txdb.h"
 #include "ui_interface.h"
-
+#include "wallet_interface.h"
+#include <boost/scope_exit.hpp>
 #include <chrono>
 #include <thread>
 
@@ -512,7 +514,7 @@ void CNode::PushVersion()
     int64_t  nTime   = (fInbound ? GetAdjustedTime() : GetTime());
     CAddress addrYou = (addr.IsRoutable() && !IsProxy(addr) ? addr : CAddress(CService("0.0.0.0", 0)));
     CAddress addrMe  = GetLocalAddress(&addr);
-    randombytes_buf((unsigned char*)&nLocalHostNonce, sizeof(nLocalHostNonce));
+    gen_random_bytes((unsigned char*)&nLocalHostNonce, sizeof(nLocalHostNonce));
     const int bestHeight = CTxDB().GetBestChainHeight().value_or(0);
     NLog.write(b_sev::info, "send version message: version {}, blocks={}, us={}, them={}, peer={}",
                PROTOCOL_VERSION, bestHeight, addrMe.ToString(), addrYou.ToString(), addr.ToString());
@@ -526,7 +528,7 @@ CCriticalSection            CNode::cs_setBanned;
 
 void CNode::ClearBanned() { setBanned.clear(); }
 
-bool CNode::IsBanned(CNetAddr ip)
+bool CNode::IsBanned(const CNetAddr& ip)
 {
     bool fResult = false;
     {
@@ -541,9 +543,45 @@ bool CNode::IsBanned(CNetAddr ip)
     return fResult;
 }
 
+void CNode::Ban(const CNetAddr& ip, int64_t ban_time_offset = 0, bool since_unix_epoch = false)
+{
+
+    int64_t normalized_ban_time_offset  = ban_time_offset;
+    bool    normalized_since_unix_epoch = since_unix_epoch;
+    if (ban_time_offset <= 0) {
+        normalized_ban_time_offset  = GetArg("-bantime", 60 * 60 * 24);
+        normalized_since_unix_epoch = false;
+    }
+
+    const int64_t banTime = (normalized_since_unix_epoch ? 0 : GetTime()) + normalized_ban_time_offset;
+
+    LOCK(cs_setBanned);
+    setBanned[ip] = banTime;
+}
+
+bool CNode::Unban(const CNetAddr& ip)
+{
+    LOCK(cs_setBanned);
+    auto it = setBanned.find(ip);
+    if (it == setBanned.end()) {
+        return false;
+    }
+    setBanned.erase(it);
+
+    return true;
+}
+
+std::map<CNetAddr, int64_t> CNode::GetBanned()
+{
+    LOCK(cs_setBanned);
+    return setBanned;
+}
+
 bool CNode::Misbehaving(int howmuch)
 {
-    if (addr.IsLocal()) {
+    // we can skip this exception in case of regtest and the flag -notoleratelocal is enabled
+    if (addr.IsLocal() &&
+        !(Params().NetType() == NetworkType::Regtest && GetBoolArg("-notoleratelocal"))) {
         NLog.write(b_sev::warn, "Warning: Local node {} misbehaving (delta: {})!", addrName.get(),
                    howmuch);
         return false;
@@ -707,17 +745,18 @@ void ThreadSocketHandler()
     // Make this thread recognisable as the networking thread
     RenameThread("neblio-net");
 
+    vnThreadsRunning[THREAD_SOCKETHANDLER]++;
     try {
-        vnThreadsRunning[THREAD_SOCKETHANDLER]++;
         ThreadSocketHandler2();
-        vnThreadsRunning[THREAD_SOCKETHANDLER]--;
     } catch (std::exception& e) {
-        vnThreadsRunning[THREAD_SOCKETHANDLER]--;
         PrintException(&e, "ThreadSocketHandler()");
     } catch (...) {
-        vnThreadsRunning[THREAD_SOCKETHANDLER]--;
         throw; // support pthread_cancel()
     }
+
+    BOOST_SCOPE_EXIT(void) { vnThreadsRunning[THREAD_SOCKETHANDLER]--; }
+    BOOST_SCOPE_EXIT_END
+
     NLog.write(b_sev::info, "ThreadSocketHandler exited");
 }
 
@@ -990,17 +1029,18 @@ void ThreadMapPort(void* parg)
     // Make this thread recognisable as the UPnP thread
     RenameThread("neblio-UPnP");
 
+    vnThreadsRunning[THREAD_UPNP]++;
     try {
-        vnThreadsRunning[THREAD_UPNP]++;
         ThreadMapPort2(parg);
-        vnThreadsRunning[THREAD_UPNP]--;
     } catch (std::exception& e) {
-        vnThreadsRunning[THREAD_UPNP]--;
         PrintException(&e, "ThreadMapPort()");
     } catch (...) {
-        vnThreadsRunning[THREAD_UPNP]--;
         PrintException(nullptr, "ThreadMapPort()");
     }
+
+    BOOST_SCOPE_EXIT(void) { vnThreadsRunning[THREAD_UPNP]--; }
+    BOOST_SCOPE_EXIT_END
+
     NLog.write(b_sev::info, "ThreadMapPort exited");
 }
 
@@ -1129,17 +1169,18 @@ void ThreadDNSAddressSeed()
     // Make this thread recognisable as the DNS seeding thread
     RenameThread("neblio-dnsseed");
 
+    vnThreadsRunning[THREAD_DNSSEED]++;
     try {
-        vnThreadsRunning[THREAD_DNSSEED]++;
         ThreadDNSAddressSeed2();
-        vnThreadsRunning[THREAD_DNSSEED]--;
     } catch (std::exception& e) {
-        vnThreadsRunning[THREAD_DNSSEED]--;
         PrintException(&e, "ThreadDNSAddressSeed()");
     } catch (...) {
-        vnThreadsRunning[THREAD_DNSSEED]--;
         throw; // support pthread_cancel()
     }
+
+    BOOST_SCOPE_EXIT(void) { vnThreadsRunning[THREAD_DNSSEED]--; }
+    BOOST_SCOPE_EXIT_END
+
     NLog.write(b_sev::info, "ThreadDNSAddressSeed exited");
 }
 
@@ -1220,17 +1261,18 @@ void ThreadOpenConnections()
     // Make this thread recognisable as the connection opening thread
     RenameThread("neblio-opencon");
 
+    vnThreadsRunning[THREAD_OPENCONNECTIONS]++;
     try {
-        vnThreadsRunning[THREAD_OPENCONNECTIONS]++;
         ThreadOpenConnections2();
-        vnThreadsRunning[THREAD_OPENCONNECTIONS]--;
     } catch (std::exception& e) {
-        vnThreadsRunning[THREAD_OPENCONNECTIONS]--;
         PrintException(&e, "ThreadOpenConnections()");
     } catch (...) {
-        vnThreadsRunning[THREAD_OPENCONNECTIONS]--;
         PrintException(nullptr, "ThreadOpenConnections()");
     }
+
+    BOOST_SCOPE_EXIT(void) { vnThreadsRunning[THREAD_OPENCONNECTIONS]--; }
+    BOOST_SCOPE_EXIT_END
+
     NLog.write(b_sev::info, "ThreadOpenConnections exited");
 }
 
@@ -1255,17 +1297,20 @@ void static ProcessOneShot()
 void static ThreadStakeMiner(std::shared_ptr<CWallet> pwallet)
 {
     NLog.write(b_sev::info, "ThreadStakeMiner started");
+
+    vnThreadsRunning[THREAD_STAKE_MINER]++;
+
     try {
-        vnThreadsRunning[THREAD_STAKE_MINER]++;
         StakeMiner(pwallet);
-        vnThreadsRunning[THREAD_STAKE_MINER]--;
     } catch (std::exception& e) {
-        vnThreadsRunning[THREAD_STAKE_MINER]--;
         PrintException(&e, "ThreadStakeMiner()");
     } catch (...) {
-        vnThreadsRunning[THREAD_STAKE_MINER]--;
         PrintException(nullptr, "ThreadStakeMiner()");
     }
+
+    BOOST_SCOPE_EXIT(void) { vnThreadsRunning[THREAD_STAKE_MINER]--; }
+    BOOST_SCOPE_EXIT_END
+
     std::string threadsRemainingStr = "{";
     {
         for (unsigned i = 0; i < vnThreadsRunning.size(); i++) {
@@ -1276,6 +1321,7 @@ void static ThreadStakeMiner(std::shared_ptr<CWallet> pwallet)
         }
         threadsRemainingStr += "}";
     }
+
     NLog.write(b_sev::info, "ThreadStakeMiner exiting, {} threads remaining", threadsRemainingStr);
 }
 
@@ -1404,17 +1450,17 @@ void ThreadOpenAddedConnections()
     // Make this thread recognisable as the connection opening thread
     RenameThread("neblio-opencon");
 
+    vnThreadsRunning[THREAD_ADDEDCONNECTIONS]++;
     try {
-        vnThreadsRunning[THREAD_ADDEDCONNECTIONS]++;
         ThreadOpenAddedConnections2();
-        vnThreadsRunning[THREAD_ADDEDCONNECTIONS]--;
     } catch (std::exception& e) {
-        vnThreadsRunning[THREAD_ADDEDCONNECTIONS]--;
         PrintException(&e, "ThreadOpenAddedConnections()");
     } catch (...) {
-        vnThreadsRunning[THREAD_ADDEDCONNECTIONS]--;
         PrintException(nullptr, "ThreadOpenAddedConnections()");
     }
+    BOOST_SCOPE_EXIT(void) { vnThreadsRunning[THREAD_ADDEDCONNECTIONS]--; }
+    BOOST_SCOPE_EXIT_END
+
     NLog.write(b_sev::info, "ThreadOpenAddedConnections exited");
 }
 
@@ -1574,17 +1620,17 @@ void ThreadMessageHandler()
     // Make this thread recognisable as the message handling thread
     RenameThread("neblio-msghand");
 
+    vnThreadsRunning[THREAD_MESSAGEHANDLER]++;
     try {
-        vnThreadsRunning[THREAD_MESSAGEHANDLER]++;
         ThreadMessageHandler2();
-        vnThreadsRunning[THREAD_MESSAGEHANDLER]--;
     } catch (std::exception& e) {
-        vnThreadsRunning[THREAD_MESSAGEHANDLER]--;
         PrintException(&e, "ThreadMessageHandler()");
     } catch (...) {
-        vnThreadsRunning[THREAD_MESSAGEHANDLER]--;
         PrintException(nullptr, "ThreadMessageHandler()");
     }
+    BOOST_SCOPE_EXIT(void) { vnThreadsRunning[THREAD_MESSAGEHANDLER]--; }
+    BOOST_SCOPE_EXIT_END
+
     NLog.write(b_sev::info, "ThreadMessageHandler exited");
 }
 
@@ -1870,6 +1916,9 @@ bool StopNode()
     NLog.write(b_sev::debug, "StopNode()");
     fShutdown = true;
     nTransactionsUpdated++;
+
+    StopRPCRequests.get()();
+
     int64_t nStart = GetTime();
     if (semOutbound)
         for (int i = 0; i < MAX_OUTBOUND_CONNECTIONS; i++)

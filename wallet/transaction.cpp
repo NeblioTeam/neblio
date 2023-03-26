@@ -6,10 +6,12 @@
 #include "checkpoints.h"
 #include "init.h"
 #include "main.h"
+#include "txdb.h"
 #include "txindex.h"
 #include "txmempool.h"
 #include "util.h"
-#include <boost/foreach.hpp>
+#include "wallet_interface.h"
+#include <boost/algorithm/hex.hpp>
 
 void CTransaction::SetNull()
 {
@@ -51,7 +53,49 @@ bool CTransaction::IsNewerThan(const CTransaction& old) const
 bool CTransaction::IsCoinStake() const
 {
     // ppcoin: the coin stake transaction is marked with the first output empty
-    return (vin.size() > 0 && (!vin[0].prevout.IsNull()) && vout.size() >= 2 && vout[0].IsEmpty());
+    return (vin.size() > 0 && !vin[0].prevout.IsNull() && vout.size() >= 2 && vout[0].IsEmpty());
+}
+
+bool CTransaction::ContainsOpReturn(std::vector<uint8_t>* opReturnArg) const
+{
+    for (unsigned long j = 0; j < this->vout.size(); j++) {
+        if (IsOutputOpRet(&vout[j], opReturnArg)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::vector<uint8_t> CTransaction::ExtractOpRetData(const CScript& scriptPubKey)
+{
+    if (scriptPubKey.size() < 3) {
+        return {};
+    }
+
+    std::vector<uint8_t>                 res;
+    opcodetype                           opcode;
+    std::vector<uint8_t>::const_iterator pc = scriptPubKey.begin() + 1; // skip OP_RETURN
+
+    if (!scriptPubKey.GetOp(pc, opcode, res)) {
+        return {};
+    }
+    return res;
+}
+
+bool CTransaction::IsOutputOpRet(const CTxOut* output, std::vector<uint8_t>* opReturnArg)
+{
+    if (!output) {
+        return false;
+    }
+
+    const CScript& scriptPubKey = output->scriptPubKey;
+    if (scriptPubKey.size() > 2 && scriptPubKey.at(0) == OP_RETURN) {
+        if (opReturnArg != nullptr) {
+            *opReturnArg = ExtractOpRetData(scriptPubKey);
+        }
+        return true;
+    }
+    return false;
 }
 
 bool CTransaction::CheckColdStake(const CScript& script) const
@@ -85,17 +129,14 @@ bool CTransaction::CheckColdStake(const CScript& script) const
 
 bool CTransaction::HasP2CSOutputs() const
 {
-    for (const CTxOut& txout : vout) {
-        if (txout.scriptPubKey.IsPayToColdStaking())
-            return true;
-    }
-    return false;
+    return std::any_of(vout.cbegin(), vout.cend(),
+                       [](const CTxOut& txout) { return txout.scriptPubKey.IsPayToColdStaking(); });
 }
 
 CAmount CTransaction::GetValueOut() const
 {
     CAmount nValueOut = 0;
-    BOOST_FOREACH (const CTxOut& txout, vout) {
+    for (const CTxOut& txout : vout) {
         nValueOut += txout.nValue;
         if (!MoneyRange(txout.nValue) || !MoneyRange(nValueOut))
             throw std::runtime_error("CTransaction::GetValueOut() : value out of range");
@@ -127,7 +168,7 @@ std::string CTransaction::ToString() const
 
 void CTransaction::print() const { NLog.write(b_sev::info, "{}", ToString()); }
 
-bool CTransaction::ReadFromDisk(const ITxDB& txdb, COutPoint prevout, CTxIndex& txindexRet)
+bool CTransaction::ReadFromDisk(const ITxDB& txdb, const COutPoint& prevout, CTxIndex& txindexRet)
 {
     SetNull();
     if (!txdb.ReadTxIndex(prevout.hash, txindexRet))
@@ -142,7 +183,7 @@ bool CTransaction::ReadFromDisk(const ITxDB& txdb, COutPoint prevout, CTxIndex& 
     return true;
 }
 
-bool CTransaction::ReadFromDisk(CTxDB& txdb, COutPoint prevout)
+bool CTransaction::ReadFromDisk(ITxDB& txdb, const COutPoint& prevout)
 {
     CTxIndex txindex;
     return ReadFromDisk(txdb, prevout, txindex);
@@ -341,9 +382,12 @@ CAmount CTransaction::GetMinFee(const ITxDB& txdb, unsigned int nBlockSize, enum
     return nMinFee;
 }
 
-bool CTransaction::ReadFromDisk(CDiskTxPos pos, const ITxDB& txdb) { return txdb.ReadTx(pos, *this); }
+bool CTransaction::ReadFromDisk(const CDiskTxPos& pos, const ITxDB& txdb)
+{
+    return txdb.ReadTx(pos, *this);
+}
 
-bool CTransaction::DisconnectInputs(CTxDB& txdb)
+bool CTransaction::DisconnectInputs(ITxDB& txdb)
 {
     // Relinquish previous transactions' spent pointers
     if (!IsCoinBase()) {

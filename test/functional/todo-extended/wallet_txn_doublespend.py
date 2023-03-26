@@ -10,6 +10,7 @@ from test_framework.util import *
 class TxnMallTest(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 4
+        self.extra_args = [['-enableaccounts=1']] * 4
 
     def add_options(self, parser):
         parser.add_option("--mineblock", dest="mine_block", default=False, action="store_true",
@@ -23,9 +24,14 @@ class TxnMallTest(BitcoinTestFramework):
 
     def run_test(self):
         # All nodes should start with 1,250 BTC:
-        starting_balance = 1250
+        starting_balance = Decimal("124098000.00000000")
         for i in range(4):
-            assert_equal(self.nodes[i].getbalance(), starting_balance)
+            if i == 0:
+                assert_equal(self.nodes[i].getbalance(), starting_balance)
+            elif i == 3:
+                assert_equal(self.nodes[i].getbalance(), Decimal('80000'))
+            else:
+                assert_equal(self.nodes[i].getbalance(), Decimal('100000'))
             self.nodes[i].getnewaddress("")  # bug workaround, coins generated assigned to first getnewaddress!
         
         # Assign coins to foo and bar accounts:
@@ -37,8 +43,8 @@ class TxnMallTest(BitcoinTestFramework):
         fund_bar_txid = self.nodes[0].sendfrom("", node0_address_bar, 29)
         fund_bar_tx = self.nodes[0].gettransaction(fund_bar_txid)
 
-        assert_equal(self.nodes[0].getbalance(""),
-                     starting_balance - 1219 - 29 + fund_foo_tx["fee"] + fund_bar_tx["fee"])
+        assert_approx_equal(self.nodes[0].getbalance(""),
+                     starting_balance - 1219 - 29 + fund_foo_tx["fee"] + fund_bar_tx["fee"], Decimal('0.00001'))
 
         # Coins are sent to node1_address
         node1_address = self.nodes[1].getnewaddress("from0")

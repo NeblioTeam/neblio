@@ -9,8 +9,10 @@
 #include "init.h"
 #include "main.h"
 #include "sync.h"
+#include "txdb.h"
 #include "ui_interface.h"
 #include "util.h"
+#include "wallet_interface.h"
 
 #undef printf
 #include <boost/algorithm/string.hpp>
@@ -24,6 +26,7 @@
 #include <boost/foreach.hpp>
 #include <boost/iostreams/concepts.hpp>
 #include <boost/iostreams/stream.hpp>
+#include <boost/scope_exit.hpp>
 #include <boost/shared_ptr.hpp>
 #include <chrono>
 #include <list>
@@ -272,6 +275,9 @@ static const CRPCCommand vRPCCommands[] =
     { "disconnectnode",            &disconnectnode,            true,   false },
     { "setmocktime",               &setmocktime,               false,  false },
     { "getpeerinfo",               &getpeerinfo,               true,   false },
+    { "clearbanned",               &clearbanned,               true,   false },
+    { "listbanned",                &listbanned,                true,   false },
+    { "setban",                    &setban,                    true,   false },
     { "getdifficulty",             &getdifficulty,             true,   false },
     { "getinfo",                   &getinfo,                   true,   false },
     { "getsubsidy",                &getsubsidy,                true,   false },
@@ -323,6 +329,7 @@ static const CRPCCommand vRPCCommands[] =
     { "getrawmempool",             &getrawmempool,             true,   false },
     { "calculateblockhash",        &calculateblockhash,        false,  false },
     { "gettxout",                  &gettxout,                  false,  false },
+    { "setviupushprobability",     &setviupushprobability,     false,  false },
     { "listvotes",                 &listvotes,                 false,  false },
     { "castvote",                  &castvote,                  false,  false },
     { "cancelallvotesofproposal",  &cancelallvotesofproposal,  false,  false },
@@ -754,17 +761,19 @@ void ThreadRPCServer()
     // Make this thread recognisable as the RPC listener
     RenameThread("neblio-rpclist");
 
+    vnThreadsRunning[THREAD_RPCLISTENER]++;
+
     try {
-        vnThreadsRunning[THREAD_RPCLISTENER]++;
         ThreadRPCServer2();
-        vnThreadsRunning[THREAD_RPCLISTENER]--;
     } catch (std::exception& e) {
-        vnThreadsRunning[THREAD_RPCLISTENER]--;
         PrintException(&e, "ThreadRPCServer()");
     } catch (...) {
-        vnThreadsRunning[THREAD_RPCLISTENER]--;
         PrintException(NULL, "ThreadRPCServer()");
     }
+
+    BOOST_SCOPE_EXIT(void) { vnThreadsRunning[THREAD_RPCLISTENER]--; }
+    BOOST_SCOPE_EXIT_END
+
     NLog.write(b_sev::info, "ThreadRPCServer exited");
 }
 
@@ -902,9 +911,9 @@ void ThreadRPCServer2()
                                               boost::system::error_code ec;
                                               acceptor->cancel(ec);
                                               acceptor->close(ec);
+                                              io_service.stop();
                                           }
-                                      })
-                                          .track(acceptor));
+                                      }).track(acceptor));
 
         fRpcListening.store(true);
     } catch (boost::system::system_error& e) {
@@ -933,9 +942,9 @@ void ThreadRPCServer2()
                                                   boost::system::error_code ec;
                                                   acceptor->cancel(ec);
                                                   acceptor->close(ec);
+                                                  io_service.stop();
                                               }
-                                          })
-                                              .track(acceptor));
+                                          }).track(acceptor));
 
             fRpcListening.store(true);
         }
@@ -952,11 +961,9 @@ void ThreadRPCServer2()
         return;
     }
 
-    vnThreadsRunning[THREAD_RPCLISTENER]--;
     while (!fShutdown) {
         io_service.run_one();
     }
-    vnThreadsRunning[THREAD_RPCLISTENER]++;
     StopRPCRequests.get()();
 }
 
@@ -1393,6 +1400,11 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
         ConvertTo<bool>(params[3]);
     if (strMethod == "rawdelegatestake" && n > 4)
         ConvertTo<bool>(params[4]);
+
+    if (strMethod == "setviupushprobability" && n > 0)
+        ConvertTo<int32_t>(params[0]);
+    if (strMethod == "setviupushprobability" && n > 1)
+        ConvertTo<int32_t>(params[1]);
     if (strMethod == "castvote" && n > 0)
         ConvertTo<int>(params[0]);
     if (strMethod == "castvote" && n > 1)
@@ -1403,6 +1415,13 @@ Array RPCConvertValues(const std::string& strMethod, const std::vector<std::stri
         ConvertTo<int>(params[3]);
     if (strMethod == "cancelallvotesofproposal" && n > 0)
         ConvertTo<int>(params[0]);
+
+    if (strMethod == "setban" && n > 2)
+        ConvertTo<int64_t>(params[2]);
+    if (strMethod == "setban" && n > 3)
+        ConvertTo<bool>(params[3]);
+    if (strMethod == "disconnectnode" && n > 0)
+        ConvertTo<int64_t>(params[0]);
 
     return params;
 }

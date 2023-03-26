@@ -100,7 +100,7 @@ def serialize_script_num(value):
     return r
 
 def get_pow_reward(height):
-    if height == 0:
+    if height == 1:
         return 124000000 * COIN
     elif 0 < height <= 500:
         return 2000 * COIN

@@ -5,10 +5,10 @@
 
 #include <chainparams.h>
 
-#include <amount.h>
-#include <util.h>
-
 #include "block.h"
+#include "txdb.h"
+#include "util.h"
+#include <amount.h>
 #include <assert.h>
 #include <boost/optional.hpp>
 #include <cinttypes>
@@ -383,7 +383,49 @@ public:
             {uint256("d68305e8a8efc4535185c3e6923006fcd81c007a96022f08d556ab7832fd6f83"), 0},
             {uint256("1cfb6af9299854257b0697264ce2f574ae37b543dc8c2b2c60182bcf570ba60c"), 0},
             {uint256("834c4809152fb9a964f3b2ba76d281868044114661285913cead8cabb69f91e9"), 0},
-            {uint256("95c6f2b978160ab0d51545a13a7ee7b931713a52bd1c9f12807f4cd77ff7536b"), 0}});
+            {uint256("95c6f2b978160ab0d51545a13a7ee7b931713a52bd1c9f12807f4cd77ff7536b"), 0},
+            {uint256("7cebca4bb3551d5d209b13a90fd171d8617a8992ff6a8b757c91c0061bc70a3d"), 0},
+            {uint256("840ba172f257f3d4fb56385e1b666853984d3d753d46f31fb8547d13aca90aab"), 0},
+            {uint256("b134471fffd61d13cd402469596f39896299c6a82a898087e7ed18fbdffbbe04"), 0},
+            {uint256("984dde0536bbb1219261fe856f4c22aac4e3a7e51347eac7011818d2667578ab"), 0},
+            {uint256("112f122f28e77d8238e8287845e9f5f448642a3242400baaf78f8617789bdd31"), 0},
+            {uint256("daaf54f70e67a9850b370f458fcf202cdef66fa3ab0cd4d6dae098650d63895f"), 0},
+            {uint256("6ecc0eb5ffaf4d32ac9d04701c46a392896dbdd32e017865621347d8f924b1d3"), 0},
+            {uint256("f72a1957e3570d7b1d68b847351fef41d5b7be79d99c4b66c1c48e9449c24478"), 0},
+            {uint256("6ee66691c6174386abfd9a7e3595436548de7e2eb4512264060b0b3d6ed91cac"), 0},
+            {uint256("30ec87d0a742ec2487bb91f25b0887e3044129fa8cdb9f84d8cb1251bd21d950"), 0},
+            {uint256("067ee4a961a275c96fb2d26e6d4af283c185ba3de9d55c92dcc6e26b96c75c0f"), 0},
+            {uint256("2f02c658622d13c4d10cd369da723ef0f7a6fe89329241b362739c819049d260"), 0},
+            {uint256("ef644834e9961ad5209d2ccbea73458c72bc7e8e1815782cd6ae18dadbe912fa"), 0},
+            {uint256("2b071b88343b49ad28a9ba5c4bdbaa2e7cd65b6f1ec71e7a76f94ec52920a02d"), 0},
+            {uint256("b6a62ab021c718a50344fe6723252e3791123a6515506fa2c0cf260b84fba168"), 0},
+            {uint256("1b677942de9c60b7f68b0c307ca99dafca5d0619caf9c427f30ae531200b7e84"), 0},
+            {uint256("46ea1580b7ae46e21009805f5362ec6034d15440978c9d597d974a8eb03ec61b"), 0},
+            {uint256("81ae0ad936c2b4a48adf556c521ec6740d5763427442ebdf34cfc8adbdb8fd54"), 0},
+            {uint256("798cff813b15844e7e3f63ef655586092e90c9318f70eaabcb0cc35110e11885"), 0},
+            {uint256("d3940f05ffa0b71b25c5ba6829140bbb14af68c81692081a3f9a737f9bf4d590"), 0},
+            {uint256("b675c0085308d236d35a8a56c6d0611ef74064c2602dbc58897e6ce3cf8ca39c"), 0},
+            {uint256("e2b93bc36edc1aee29f7badf0ca571c122bf2d3ec59d12405a3a679f77897c1b"), 0},
+            {uint256("acc6a220780f93eb95255e363f37c8433333312dd3ed7810439d8d493e276f9b"), 0},
+            {uint256("376df216e157a75480a72855d2f33d332dc4ea782b8c6e2ed4ec47d2b8d64849"), 0},
+            {uint256("64af6af9c676fa107fdd6bae690eaeea7518118a54f52fbc7d9fe2432645ff66"), 0},
+            {uint256("76026d652692fe8c3884b7a6a086ef5f381d322da12ba06fe492235020fb7afc"), 0},
+            {uint256("bbc168f58811a76d3ff2c3c474cd3150e827a65b119376edfc53f5a9fc5a1dd2"), 0},
+            {uint256("c92e1bad27989c582302de625c4eb166ca94e4e7871186bdd0790e6b7b651917"), 0},
+            {uint256("47f83b6e89fd5fbd03b8868ba15c7df0f8f0b785c01a68d169465aaed9b0451c"), 0},
+            {uint256("3476d59851c1bd734ca8cd0521423261caf67276c23d6d4b4e90e2f989819467"), 0},
+            {uint256("d57fe9365fc72c9dd694693078b426a27df94dcf20c522609e1520b14c6100ed"), 0},
+            {uint256("9da10d83727c3145cf61ce870f8b2858a68037d0a684f51754d2603dba19f2c4"), 0},
+            {uint256("da59c836d93231107eb305aedc0de8178bb112cf71c0fec3e036c17e1f52d8b7"), 0},
+            {uint256("d54654bd3072c4b7a0f3ea9368faf17f8e40c237e2a097dc66897794b917f7df"), 0},
+            {uint256("6c18bde29d48ce646ec868a23d12f9eaca5b2ce0a41325e464ca0830e6e62270"), 0},
+            {uint256("f52619b7a4e8ffa6fd38b3b1679e19dc206f9d94b1e32a923e236e1a5d17b213"), 0},
+            {uint256("edc978d4008ca26643d0783e5b68cb807a2f012101535289f49ab87931e8d91c"), 0},
+            {uint256("ee89c4d009cf366e446e3a3e17d57465b11fee24437a332bb8585c5b474b1562"), 0},
+            {uint256("1ffc739090b1d7f84b45da1387799b98d0e5bedbf527ef94bbd69419b21a51c4"), 0},
+            {uint256("34589737adcf733e5b3f054694a1807d1844d90a288c52491a3b5f2975c73a3e"), 0},
+            {uint256("23f971611a32512bc15a7c274e47a650d94210f11f6f6d2e851613e20c092312"), 0},
+            {uint256("f5743ea59618d5980ceb3e24fde2f874dd889a7c592638c39dc20a93f22fb4d5"), 0}});
 
         // token id vs max block to take transactions from these tokens due to bugs
         ntp1BlacklistedTokenIds = MapBlacklistedTokens{

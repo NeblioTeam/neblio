@@ -5,6 +5,7 @@
 #include <string>
 
 #include "ntp1tokentxdata.h"
+#include "script.h"
 
 /**
  * @brief The NTP1TxOut class
@@ -22,8 +23,7 @@ public:
 
 private:
     int64_t                      nValue;
-    std::string                  scriptPubKeyHex;
-    std::string                  scriptPubKeyAsm;
+    CScript                      scriptPubKey;
     std::vector<NTP1TokenTxData> tokens;
     std::string                  address;
 
@@ -31,7 +31,7 @@ private:
 
 public:
     NTP1TxOut();
-    NTP1TxOut(int64_t nValueIn, const std::string& scriptPubKeyIn);
+    NTP1TxOut(int64_t nValueIn, const CScript& scriptPubKeyIn);
     void                   setNull();
     bool                   isNull() const;
     void                   importJsonData(const std::string& data);
@@ -39,7 +39,7 @@ public:
     json_spirit::Value     exportDatabaseJsonData() const;
     void                   importDatabaseJsonData(const json_spirit::Value& data);
     int64_t                getValue() const;
-    const std::string&     getScriptPubKeyHex() const;
+    std::string            getScriptPubKeyHex() const;
     const NTP1TokenTxData& getToken(unsigned long index) const;
     NTP1TokenTxData&       getToken(unsigned long index);
     unsigned long          tokenCount() const;
@@ -49,18 +49,18 @@ public:
     OutputType             getType() const;
     std::string            getScriptPubKeyAsm() const;
     void                   setNValue(const int64_t& value);
-    void                   setScriptPubKeyHex(const std::string& value);
-    void                   setScriptPubKeyAsm(const std::string& value);
+    void                   setScriptPubKey(const CScript& value);
     void                   __addToken(const NTP1TokenTxData& token);
 
-    void __manualSet(int64_t NValue, std::string ScriptPubKeyHex, std::string ScriptPubKeyAsm,
-                     std::vector<NTP1TokenTxData> Tokens, std::string Address);
+    void __manualSet(int64_t NValue, const CScript& ScriptPubKey,
+                     const std::vector<NTP1TokenTxData>& Tokens, const std::string& Address);
+    void __manualSet(int64_t NValue, const std::string& ScriptPubKeyHex,
+                     const std::vector<NTP1TokenTxData>& Tokens, const std::string& Address);
 
     // clang-format off
     IMPLEMENT_SERIALIZE(
                         READWRITE(nValue);
-                        READWRITE(scriptPubKeyHex);
-                        READWRITE(scriptPubKeyAsm);
+                        READWRITE(scriptPubKey);
                         READWRITE(tokens);
                         READWRITE(address);
                        )
@@ -69,9 +69,8 @@ public:
 
 bool operator==(const NTP1TxOut& lhs, const NTP1TxOut& rhs)
 {
-    return (lhs.nValue == rhs.nValue && lhs.scriptPubKeyHex == rhs.scriptPubKeyHex &&
-            lhs.scriptPubKeyAsm == rhs.scriptPubKeyAsm && lhs.tokens == rhs.tokens &&
-            lhs.address == rhs.address);
+    return (lhs.nValue == rhs.nValue && lhs.scriptPubKey == rhs.scriptPubKey &&
+            lhs.tokens == rhs.tokens && lhs.address == rhs.address);
 }
 
 #endif // NTP1TXOUT_H

@@ -3,7 +3,9 @@
 #include <vector>
 
 #include "NetworkForks.h"
-#include "main.h"
+#include "block.h"
+#include "blockindex.h"
+#include "medianfilter.h"
 #include "test/mocks/mtxdb.h"
 #include "util.h"
 #include "wallet.h"

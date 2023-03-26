@@ -4,6 +4,7 @@
 #include <QObject>
 
 #include "ntp1/ntp1transaction.h"
+#include "transaction.h"
 #include "uint256.h"
 
 #include <QList>
@@ -98,10 +99,10 @@ public:
         readNTP1TxData();
     }
 
-    TransactionRecord(uint256 hashIn, int64_t timeIn, Type typeIn, const std::string& addressIn, int64_t debitIn,
-                      int64_t creditIn)
-        : hash(hashIn), time(timeIn), type(typeIn), address(addressIn), debit(debitIn), credit(creditIn), idx(0),
-          ntp1DataLoaded(false), ntp1DataLoadError(false)
+    TransactionRecord(uint256 hashIn, int64_t timeIn, Type typeIn, const std::string& addressIn,
+                      int64_t debitIn, int64_t creditIn)
+        : hash(hashIn), time(timeIn), type(typeIn), address(addressIn), debit(debitIn), credit(creditIn),
+          idx(0), ntp1DataLoaded(false), ntp1DataLoadError(false)
     {
         readNTP1TxData();
     }

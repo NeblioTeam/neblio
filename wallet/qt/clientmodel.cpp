@@ -1,8 +1,14 @@
 #include "clientmodel.h"
 #include "addresstablemodel.h"
+#include "block.h"
+#include "blockindex.h"
 #include "guiconstants.h"
+#include "main.h"
+#include "messaging.h"
+#include "net.h"
 #include "optionsmodel.h"
 #include "transactiontablemodel.h"
+#include "txdb.h"
 
 #include "main.h"
 #include "ui_interface.h"
@@ -23,7 +29,7 @@ ClientModel::ClientModel(OptionsModel* optionsModelIn, QObject* parent)
     pollTimer = new QTimer(this);
     pollTimer->setInterval(MODEL_UPDATE_DELAY);
     pollTimer->start();
-    connect(pollTimer, SIGNAL(timeout()), this, SLOT(updateTimer()));
+    connect(pollTimer, &QTimer::timeout, this, &ClientModel::updateTimer);
 
     subscribeToCoreSignals();
 

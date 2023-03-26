@@ -4,7 +4,9 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #include "init.h"
 #include "bitcoinrpc.h"
+#include "block.h"
 #include "checkpoints.h"
+#include "consensus.h"
 #include "globals.h"
 #include "logging/defaultlogger.h"
 #include "main.h"
@@ -13,6 +15,7 @@
 #include "txdb.h"
 #include "ui_interface.h"
 #include "util.h"
+#include "wallet_interface.h"
 #include "walletdb.h"
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
@@ -28,12 +31,8 @@
 using namespace std;
 using namespace boost;
 
-std::shared_ptr<CWallet> pwalletMain;
 CClientUIInterface       uiInterface;
 bool                     fConfChange;
-bool                     fEnforceCanonical;
-unsigned int             nNodeLifespan;
-unsigned int             nDerivationMethodIndex;
 unsigned int             nMinerSleep;
 enum Checkpoints::CPMode CheckpointsMode;
 boost::atomic<bool>      appInitiated{false};
@@ -114,12 +113,10 @@ void Shutdown()
     if (fFirstThread) {
         fShutdown.store(true, boost::memory_order_seq_cst);
         nTransactionsUpdated++;
-        //        CTxDB().Close();
         FlushDBWalletTransient(false);
         StopNode();
         FlushDBWalletTransient(true);
         boost::filesystem::remove(GetPidFile());
-        UnregisterWallet(pwalletMain);
         std::weak_ptr<CWallet> weakWallet = pwalletMain;
         pwalletMain.reset();
         while (weakWallet.lock()) {
@@ -128,11 +125,13 @@ void Shutdown()
         // on certain platforms, signal2's destructor without disconnecting is causing a crash, this
         // fixes it
         StopRPCRequests.get().disconnect_all_slots();
+        CTxDB().Close();
 
         NewThread(ExitTimeout);
         MilliSleep(50);
         NLog.write(b_sev::info, "neblio exited\n\n\n\n\n\n\n\n\n");
         NLog.flush();
+        LoggerSingleton::get().stopLogger();
         fExit = true;
 #ifndef QT_GUI
         // ensure non-UI client gets exited here, but let Bitcoin-Qt reach 'return 0;' in bitcoin.cpp
@@ -213,13 +212,13 @@ bool AppInit(int argc, char* argv[])
         //
         // If Qt is used, parameters/bitcoin.conf are parsed in qt/bitcoin.cpp's main()
         ParseParameters(argc, argv);
-        if (!boost::filesystem::is_directory(GetDataDir(false))) {
-            std::cerr << "Error: Specified directory does not exist" << std::endl;
+        if (!CheckDataDirOption()) {
+            std::cerr << "Error: Specified data directory does not exist" << std::endl;
             Shutdown();
         }
         ReadConfigFile(mapArgs, mapMultiArgs);
 
-        if (mapArgs.exists("-?") || mapArgs.exists("--help")) {
+        if (mapArgs.exists("-?") || mapArgs.exists("-h") || mapArgs.exists("--help")) {
             // First part of help message is specific to bitcoind / RPC client
             std::string strUsage =
                 _("neblio version") + " " + FormatFullVersion() + "\n\n" + _("Usage:") + "\n" +
@@ -231,7 +230,13 @@ bool AppInit(int argc, char* argv[])
             strUsage += "\n" + HelpMessage();
 
             std::cout << strUsage << std::endl;
-            return false;
+            return true;
+        }
+
+        if (mapArgs.exists("-version")) {
+            std::string strUsage = "version: " + FormatFullVersion() + "\n";
+            std::cout << strUsage << std::endl;
+            return true;
         }
 
         try {
@@ -268,17 +273,18 @@ bool AppInit(int argc, char* argv[])
 extern void noui_connect();
 int         main(int argc, char* argv[])
 {
-    bool fRet = false;
-
     // Connect bitcoind signal handlers
     noui_connect();
 
-    fRet = AppInit(argc, argv);
+    const bool fRet = AppInit(argc, argv);
 
-    if (fRet && fDaemon)
-        return 0;
+    //    if (fRet && fDaemon)
+    //        return EXIT_SUCCESS;
 
-    return 1;
+    if (fRet)
+        return EXIT_SUCCESS;
+
+    return EXIT_FAILURE;
 }
 #endif
 
@@ -341,6 +347,8 @@ std::string HelpMessage()
         "  -bind=<addr>           " + _("Bind to given address. Use [host]:port notation for IPv6") + "\n" +
         "  -dnsseed               " + _("Find peers using DNS lookup (default: 1)") + "\n" +
         "  -staking               " + _("Stake your coins to support network and gain reward (default: 1)") + "\n" +
+        "  -enabledbcache         " + _("Enable DB cache for this node (default: false)") + "\n" +
+        "  -dbcachesize           " + _("Number of records to store in DB cache (default: 5000)") + "\n" +
         "  -synctime              " + _("Sync time with other nodes. Disable if time on your system is precise e.g. syncing with NTP (default: 1)") + "\n" +
         "  -cppolicy              " + _("Sync checkpoints policy (default: strict)") + "\n" +
         "  -banscore=<n>          " + _("Threshold for disconnecting misbehaving peers (default: 100)") + "\n" +
@@ -419,6 +427,15 @@ bool InitSanityCheck(void)
     // TODO: remaining sanity checks, see #4081
 
     return true;
+}
+
+void CreateMainWallet(const std::string& strWalletFileName)
+{
+    const std::shared_ptr<CWallet> wlt = std::make_shared<CWallet>(strWalletFileName);
+    if (!wlt) {
+        throw std::runtime_error("Unable to create wallet object");
+    }
+    std::atomic_store(&pwalletMain, wlt);
 }
 
 /** Initialize bitcoin.
@@ -913,10 +930,9 @@ bool AppInit2()
     NLog.write(b_sev::info, "Loading wallet...");
     nStart         = GetTimeMillis();
     bool fFirstRun = true;
-    {
-        std::shared_ptr<CWallet> wlt = std::make_shared<CWallet>(strWalletFileName);
-        std::atomic_store(&pwalletMain, wlt);
-    }
+
+    CreateMainWallet(strWalletFileName);
+
     DBErrors nLoadWalletRet = LoadDBWalletTransient(fFirstRun);
     if (nLoadWalletRet != DB_LOAD_OK) {
         if (nLoadWalletRet == DB_CORRUPT)
@@ -972,8 +988,6 @@ bool AppInit2()
 
     NLog.write(b_sev::info, "{}", strErrors.str());
     NLog.write(b_sev::info, " wallet      {} ms", GetTimeMillis() - nStart);
-
-    RegisterWallet(pwalletMain);
 
     const CTxDB txdb;
 

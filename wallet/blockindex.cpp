@@ -116,7 +116,7 @@ uint256 CBlockIndex::GetBlockTrust() const
 
 bool CBlockIndex::IsInMainChain(const ITxDB& txdb) const
 {
-    return (hashNext != 0 || blockHash == txdb.GetBestBlockHash());
+    return hashNext != 0 || blockHash == txdb.GetBestBlockHash();
 }
 
 bool CBlockIndex::IsInMainChain(const uint256& bestBlockHash) const

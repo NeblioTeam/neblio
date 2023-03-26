@@ -13,6 +13,7 @@
 #include "netbase.h"
 #include "serialize.h"
 #include "uint256.h"
+#include <boost/optional.hpp>
 #include <string>
 
 /** Message header.
@@ -76,9 +77,9 @@ public:
     void Init();
 
     IMPLEMENT_SERIALIZE(CAddress* pthis = const_cast<CAddress*>(this); CService* pip = (CService*)pthis;
-                        if (fRead) pthis->Init(); if (nType & SER_DISK) READWRITE(nVersion);
-                        if ((nType & SER_DISK) ||
-                            (nVersion >= CADDR_TIME_VERSION && !(nType & SER_GETHASH))) READWRITE(nTime);
+                        if (fRead) pthis->Init(); if (nType & SER_DISK) READWRITE(nVersionIn);
+                        if ((nType & SER_DISK) || (nVersionIn >= CADDR_TIME_VERSION &&
+                                                   !(nType & SER_GETHASH))) READWRITE(nTime);
                         READWRITE(nServices); READWRITE(*pip);)
 
     void print() const;

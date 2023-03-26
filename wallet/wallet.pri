@@ -130,7 +130,6 @@ HEADERS += qt/bitcoingui.h \
     qt/ntp1/ntp1metadatapairswidget.h \
     qt/json/NTP1MetadataViewer.h \
     SerializationTester.h \
-    blockindexcatalog.h   \
     blockindex.h          \
     outpoint.h            \
     inpoint.h             \
@@ -176,7 +175,26 @@ HEADERS += qt/bitcoingui.h \
     blockreject.h                    \
     blockmetadata.h                  \
     blockindexlrucache.h             \
-    proposal.h
+    forkspendsimulator.h             \
+    viucache.h                       \
+    proposal.h                       \
+    consensus.h                      \
+    medianfilter.h                   \
+    mempoolmisc.h                    \
+    merkleblock.h                    \
+    messaging.h                      \
+    ntp1/ntp1common.h                \
+    partialmerkletree.h              \
+    bootstraptools.h                 \
+    wallet_interface.h               \
+    dbcache/dbcachelayer.h           \
+    dbcache/dbreadcachelayer.h       \
+    dbcache/hierarchicaldb.h         \
+    dbcache/inmemorydb.h             \
+    dbcache/transactionoperation.h   \
+    dbcache/transactabledbentry.h    \
+    dbcache/dblrucachelayer.h        \
+    dbcache/dblrucachestorage.h
 
 
 
@@ -304,7 +322,6 @@ SOURCES += qt/bitcoin.cpp \
     qt/ntp1/ntp1custommetadatawidget.cpp \
     qt/ntp1/ntp1metadatapairswidget.cpp \
     SerializationTester.cpp \
-    blockindexcatalog.cpp \
     blockindex.cpp        \
     outpoint.cpp          \
     inpoint.cpp           \
@@ -349,7 +366,28 @@ SOURCES += qt/bitcoin.cpp \
     blockreject.cpp                     \
     blockmetadata.cpp                   \
     blockindexlrucache.cpp              \
-    proposal.cpp
+    forkspendsimulator.cpp              \
+    viucache.cpp                        \
+    proposal.cpp                        \
+    consensus.cpp                       \
+    medianfilter.cpp                    \
+    mempoolmisc.cpp                     \
+    merkleblock.cpp                     \
+    messaging.cpp                       \
+    ntp1/ntp1common.cpp                 \
+    partialmerkletree.cpp               \
+    bootstraptools.cpp                  \
+    wallet_interface.cpp                \
+    dbcache/dbcachelayer.cpp            \
+    dbcache/dbreadcachelayer.cpp        \
+    dbcache/hierarchicaldb.cpp          \
+    dbcache/inmemorydb.cpp              \
+    dbcache/transactionoperation.cpp    \
+    dbcache/transactabledbentry.cpp     \
+    dbcache/dblrucachelayer.cpp         \
+    dbcache/dblrucachestorage.cpp       
+
+
 
 
 

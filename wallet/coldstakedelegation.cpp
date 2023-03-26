@@ -2,6 +2,7 @@
 
 #include "init.h"
 #include "json_spirit.h"
+#include "txdb.h"
 
 json_spirit::Object CoinStakeDelegationResult::AddressesToJsonObject() const
 {
@@ -100,7 +101,7 @@ std::string ColdStakeDelegationErrorStr(const ColdStakeDelegationErrorCode error
     case StakerAddressPubKeyHashError:
         return "Unable to get stake pubkey hash from stakingaddress";
     case InvalidAmount:
-        return fmt::format("Invalid amount. Min amount: {}", Params().MinColdStakingAmount());
+        return fmt::format("Invalid amount. Min amount: {} NEBL", Params().MinColdStakingAmount() / 100000000);
     case InsufficientBalance:
         return "Insufficient funds";
     case WalletLocked:

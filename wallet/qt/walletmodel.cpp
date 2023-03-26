@@ -1,14 +1,15 @@
 #include "walletmodel.h"
 #include "addresstablemodel.h"
+#include "base58.h"
+#include "blockindex.h"
 #include "coincontrol.h"
 #include "guiconstants.h"
-#include "main.h"
 #include "optionsmodel.h"
 #include "transactiontablemodel.h"
-
-#include "base58.h"
+#include "txdb.h"
 #include "ui_interface.h"
 #include "wallet.h"
+#include "wallet_interface.h"
 #include "walletdb.h" // for BackupWallet
 
 #include <QSet>

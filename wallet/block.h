@@ -3,17 +3,23 @@
 
 #include "blockindex.h"
 #include "blockreject.h"
+#include "forkspendsimulator.h"
 #include "globals.h"
 #include "outpoint.h"
 #include "transaction.h"
 #include "txindex.h"
 #include "uint256.h"
+#include "viucache.h"
 #include <unordered_map>
 #include <vector>
 
 class CBlockIndex;
-class CTxDB;
+class ITxDB;
 class CWallet;
+
+extern VIUCache viuCache;
+extern unsigned VIUCachePushProbabilityNumerator;
+extern unsigned VIUCachePushProbabilityDenominator;
 
 /** Nodes collect new transactions into a block, hash them into a hash tree,
  * and scan through nonce values to make the block's hash satisfy proof-of-work
@@ -68,7 +74,7 @@ public:
     // clang-format off
     IMPLEMENT_SERIALIZE(
         READWRITE(this->nVersion);
-        nVersion = this->nVersion;
+        nVersionIn = this->nVersion;
         READWRITE(hashPrevBlock);
         READWRITE(hashMerkleRoot);
         READWRITE(nTime);
@@ -122,7 +128,7 @@ public:
     bool WriteToDisk(const boost::optional<CBlockIndex>& prevBlockIndex, const uint256& hashProof,
                      const uint256& blockHash);
 
-    bool WriteBlockPubKeys(CTxDB& txdb);
+    bool WriteBlockPubKeys(ITxDB& txdb);
 
     bool ReadFromDisk(const uint256& hash, const ITxDB& txdb, bool fReadTransactions = true);
 
@@ -130,62 +136,26 @@ public:
 
     static bool CheckBIP30Attack(ITxDB& txdb, const uint256& hashTx);
 
-    struct ChainReplaceTxs
-    {
-        // transactions that are being spent in the above ones
-        std::unordered_map<uint256, CTxIndex> modifiedOutputsTxs;
-        // the common ancestor block between the new fork of the new block and the main chain
-        CBlockIndex commonAncestorBlockIndex;
-        // tx vs number of outputs, we don't care about the out count but we have it as a side effect
-        std::unordered_map<uint256, uint32_t> forkTxsOutCount;
-    };
+    static const char* VIUErrorToString(ForkSpendSimulator::VIUError err);
 
-    struct CommonAncestorSuccessorBlocks
-    {
-        // while finding the common ancestor, this is the part of this block's chain (excluding this
-        // block)
-        std::vector<uint256>
-                    inFork; // order matters here because we want to simulate respending these in order
-        CBlockIndex commonAncestor;
-    };
+    Result<void, ForkSpendSimulator::VIUError> VerifyInputsUnspent_Internal(const ITxDB& txdb) const;
 
-    enum class VIUError
-    {
-        UnknownErrorWhileCollectingTxs,
-        TxInputIndexOutOfRange_Case1,
-        TxInputIndexOutOfRange_Case2,
-        DoublespendAttempt,
-        BlockCannotBeReadFromDB,
-        TxNonExistent_ReadTxIndexFailed_Case1,
-        TxNonExistent_ReadTxIndexFailed_Case2,
-        ReadBlockIndexFailed,
-        BlockIndexOfPrevBlockNotFound,
-        CommonAncestorSearchFailed
-    };
-
-    static const char* VIUErrorToString(VIUError err);
-
-    Result<CommonAncestorSuccessorBlocks, VIUError>
-    GetBlocksUpToCommonAncestorInMainChain(const ITxDB& txdb) const;
-    Result<ChainReplaceTxs, VIUError>
-    ReplaceMainChainWithForkUpToCommonAncestor(const ITxDB& txdb) const;
-
-    bool DisconnectBlock(CTxDB& txdb, const CBlockIndex& pindex);
+    bool DisconnectBlock(ITxDB& txdb, const CBlockIndex& pindex);
     bool ConnectBlock(ITxDB& txdb, const boost::optional<CBlockIndex>& pindex, bool fJustCheck = false);
-    Result<void, CBlock::VIUError> VerifyInputsUnspent(const CTxDB& txdb) const;
-    bool                           VerifyBlock(CTxDB& txdb);
+    Result<void, ForkSpendSimulator::VIUError> VerifyInputsUnspent(const ITxDB& txdb) const;
+    bool                                       VerifyBlock(ITxDB& txdb);
     bool ReadFromDisk(const CBlockIndex* pindex, const ITxDB& txdb, bool fReadTransactions = true);
-    bool SetBestChain(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
+    bool SetBestChain(ITxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
                       const bool createDbTransaction = true);
     boost::optional<CBlockIndex> AddToBlockIndex(const uint256&                      blockHash,
                                                  const boost::optional<CBlockIndex>& prevBlockIndex,
-                                                 const uint256& hashProof, CTxDB& txdb,
+                                                 const uint256& hashProof, ITxDB& txdb,
                                                  const bool createDbTransaction = true);
     bool CheckBlock(const ITxDB& txdb, const uint256& blockHash, bool fCheckPOW = true,
                     bool fCheckMerkleRoot = true, bool fCheckSig = true);
     bool AcceptBlock(const CBlockIndex& prevBlockIndex, const uint256& blockHash);
     bool
-         SignBlock(const CTxDB& txdb, const CWallet& keystore, int64_t nFees,
+         SignBlock(const ITxDB& txdb, const CWallet& keystore, int64_t nFees,
                    const boost::optional<std::set<std::pair<uint256, unsigned>>>& customInputs = boost::none,
                    CAmount                                                        extraPayoutForTest = 0);
     bool SignBlockWithSpecificKey(const ITxDB& txdb, const COutPoint& outputToStake,
@@ -198,11 +168,21 @@ public:
 
     static void InvalidChainFound(const CBlockIndex& pindexNew, ITxDB& txdb);
 
-    bool Reorganize(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
+    static void WriteNTP1BlockTransactionsToDisk(const std::vector<CTransaction>& vtx, ITxDB& txdb);
+    static void WriteNTP1TxToDiskFromRawTx(const CTransaction& tx, ITxDB& txdb);
+    static void WriteNTP1TxToDbAndDisk(const NTP1Transaction& ntp1tx, ITxDB& txdb);
+    static void AssertIssuanceUniquenessInBlock(
+        std::unordered_map<std::string, uint256>& issuedTokensSymbolsInThisBlock, const ITxDB& txdb,
+        const CTransaction& tx,
+        const std::map<uint256, std::vector<std::pair<CTransaction, NTP1Transaction>>>&
+                                           mapQueuedNTP1Inputs,
+        const std::map<uint256, CTxIndex>& queuedAcceptedTxs);
+
+    bool Reorganize(ITxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
                     const bool createDbTransaction = true);
 
 private:
-    bool SetBestChainInner(CTxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
+    bool SetBestChainInner(ITxDB& txdb, const boost::optional<CBlockIndex>& pindexNew,
                            const bool createDbTransaction = true);
 };
 
