@@ -62,6 +62,9 @@ public:
 
     bool WriteKey(const CPubKey& vchPubKey, const CPrivKey& vchPrivKey, const CKeyMetadata& keyMeta);
 
+    bool WriteWatchOnly(const CScript& dest, const CKeyMetadata& keyMeta);
+    bool EraseWatchOnly(const CScript& dest);
+
     bool WriteCryptedKey(const CPubKey& vchPubKey, const std::vector<unsigned char>& vchCryptedSecret,
                          const CKeyMetadata& keyMeta);
 

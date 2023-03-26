@@ -104,6 +104,19 @@ bool CWalletDB::WriteOrderPosNext(int64_t nOrderPosNext)
     return Write(std::string("orderposnext"), nOrderPosNext);
 }
 
+bool CWalletDB::EraseWatchOnly(const CScript& dest)
+{
+    nWalletDBUpdated++;
+    return Erase(std::make_pair(std::string("watchmeta"), dest));
+}
+
+bool CWalletDB::WriteWatchOnly(const CScript& dest, const CKeyMetadata& keyMeta)
+{
+    nWalletDBUpdated++;
+    return Write(std::make_pair(std::string("watchmeta"), dest), keyMeta);
+}
+
+
 bool CWalletDB::ReadPool(int64_t nPool, CKeyPool& keypool)
 {
     return Read(std::make_pair(std::string("pool"), nPool), keypool);
@@ -480,6 +493,8 @@ bool ReadKeyValue(const ITxDB& txdb, CWallet* pwallet, CDataStream& ssKey, CData
             if (!pwallet->LoadCScript(script)) {
                 strErr = "Error reading wallet database: LoadCScript failed";
                 return false;
+            } else if (strType == "watchmeta") {
+
             }
         } else if (strType == "orderposnext") {
             ssValue >> pwallet->nOrderPosNext;

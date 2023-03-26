@@ -1631,6 +1631,17 @@ isminetype IsMine(const CKeyStore& keystore, const CTxDestination& dest)
     return boost::apply_visitor(CKeyStoreIsMineVisitor(&keystore), dest);
 }
 
+bool ExtractPubKey(const CScript& dest, CPubKey& pubKeyOut)
+{
+    std::vector<std::vector<unsigned char>> solutions;
+    txnouttype whichType;
+    if (!Solver(CTxDB(), dest, whichType, solutions))
+        return false;
+
+    return whichType == txnouttype::TX_PUBKEY &&
+        (pubKeyOut = CPubKey(solutions[0])).IsValid();
+}
+
 isminetype IsMine(const CKeyStore& keystore, const CScript& scriptPubKey)
 {
     std::vector<valtype> vSolutions;

@@ -131,12 +131,19 @@ public:
 
     std::set<int64_t>              setKeyPool;
     std::map<CKeyID, CKeyMetadata> mapKeyMetadata;
+    // Map from Script ID to key metadata (for watch-only keys).
+    std::map<CScriptID, CKeyMetadata> mapKeyWatchOnlyMetadata;
 
     static const boost::filesystem::path BackupHashFilename;
 
     typedef std::map<unsigned int, CMasterKey> MasterKeyMap;
+    using WatchOnlySet = std::set<CScript>; // In memory watch only set
+    using WatchKeyMap = std::map<CKeyID, CPubKey>;
+
     MasterKeyMap                               mapMasterKeys;
     unsigned int                               nMasterKeyMaxID;
+    WatchOnlySet                               setWatchOnly;
+    WatchKeyMap                                mapWatchKeys;
 
     CWallet() { SetNull(); }
     CWallet(std::string strWalletFileIn)
@@ -156,6 +163,8 @@ public:
         nOrderPosNext       = 0;
         nTimeFirstKey       = 0;
     }
+
+    bool ImportScriptPubKeys(std::string& label, const std::set<CScript>& scripts, bool solvable, bool applyLabel, const int64_t timestamp);
 
     std::map<uint256, CWalletTx> mapWallet;
     std::list<CAccountingEntry>  laccentries;
@@ -226,6 +235,9 @@ public:
 
     /* Mark a transaction (and it in-wallet descendants) as abandoned so its inputs may be respent. */
     bool AbandonTransaction(const ITxDB& txdb, const uint256& hashTx);
+
+    bool AddWatchOnly(const CScript& dest, int64_t createTime);
+    bool RemoveWatchOnly(const CScript& dest);
 
     /** Increment the next transaction order id
         @return next transaction order id

@@ -113,6 +113,59 @@ bool CWallet::AddKey(const CKey& key)
     return true;
 }
 
+
+bool CWallet::AddWatchOnly(const CScript& dest, int64_t createTime)
+{
+    AssertLockHeld(cs_wallet);
+    // Add watch only in memory
+    setWatchOnly.insert(dest);
+    CPubKey pubKey;
+    if (ExtractPubKey(dest, pubKey)) {
+        mapWatchKeys[pubKey.GetID()] = pubKey;
+    }
+
+    CKeyMetadata meta;
+    meta.nCreateTime = createTime;
+    mapKeyWatchOnlyMetadata[dest.GetID()] = meta;
+
+    return CWalletDB(strWalletFile).WriteWatchOnly(dest, meta);
+}
+
+bool CWallet::RemoveWatchOnly(const CScript& dest)
+{
+    AssertLockHeld(cs_wallet);
+    setWatchOnly.erase(dest);
+    CPubKey pubKey;
+    if (ExtractPubKey(dest, pubKey)) {
+        mapWatchKeys.erase(pubKey.GetID());
+    }
+    return CWalletDB(strWalletFile).EraseWatchOnly(dest);
+}
+
+
+bool CWallet::ImportScriptPubKeys(std::string& label, const std::set<CScript>& scripts, bool solvable, bool applyLabel, const int64_t timestamp) {
+
+    for (const CScript& script : scripts) {
+        bool fisMine = ::IsMine(*pwalletMain, script) == isminetype::ISMINE_NO;
+        if (!solvable || !fisMine) {
+            if (!AddWatchOnly(script, timestamp)) {
+                return false;
+            }
+        }
+    }
+
+    if (applyLabel) {
+        for (const CScript& script : scripts) {
+            CTxDestination dest;
+            ExtractDestination(CTxDB(), script, dest);
+            if (dest.which() != 0) {
+                SetAddressBookEntry(dest, label, AddressBook::AddressBookPurpose::RECEIVE);
+            }
+        }
+    }
+    return true;
+}
+
 bool CWallet::AddCryptedKey(const CPubKey& vchPubKey, const vector<unsigned char>& vchCryptedSecret)
 {
     if (!CCryptoKeyStore::AddCryptedKey(vchPubKey, vchCryptedSecret))

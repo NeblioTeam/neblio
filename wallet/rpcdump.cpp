@@ -416,30 +416,40 @@ Value importaddress(const Array& params, bool fHelp) {
     std::string strAddress = params[0].get_str();
     CBitcoinAddress addr(strAddress);
     CTxDestination dest = addr.Get();
+    CTxDB db;
 
     {
         LOCK2(cs_main, pwalletMain->cs_wallet);
-        if (!addr.IsScript()) {
+
+        if (dest.which() != 0) {
             if (fP2SH)
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Cannot use the p2sh flag with an address - use a script instead");
 
             pwallet->MarkDirty();
-        } else {
+            pwallet->ImportScriptPubKeys(strLabel, {GetScriptForDestination(dest)}, /*have_solving_data=*/false, /*apply_label=*/true, /*timestamp=*/1);
+        } else if (IsHex(strAddress)) {
             std::vector<unsigned char> data(ParseHex(strAddress));
-            CScript redeem_script(data.begin(), data.end());
+            CScript redeemScript(data.begin(), data.end());
 
-            std::set<CScript> scripts = {redeem_script};
-            pwallet->ImportScripts(scripts, 0 /* timestamp */);
+            std::set<CScript> scripts = {redeemScript};
+           // pwallet->ImportScripts(scripts, /*timestamp=*/0);
 
             if (fP2SH) {
-                scripts.insert(GetScriptForDestination(ScriptHash(redeem_script)));
+                CTxDestination scriptDes;
+                ExtractDestination(db, redeemScript, scriptDes);
+                scripts.insert(GetScriptForDestination(scriptDes));
             }
+
+            pwallet->ImportScriptPubKeys(strLabel, scripts, /*have_solving_data=*/false, /*apply_label=*/true, /*timestamp=*/1);
+        } else {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Neblio address or script");
         }
     }
 
     if (fRescan)
     {
         LOCK2(cs_main, pwalletMain->cs_wallet);
+        pwallet->ReacceptWalletTransactions(db);
     }
 
     return Object{};
