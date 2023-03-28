@@ -313,14 +313,14 @@ Result<void, TxValidationState> CTransaction::CheckTransaction(const ITxDB& txdb
 }
 
 CAmount CTransaction::GetMinFee(const ITxDB& txdb, unsigned int nBlockSize, enum GetMinFee_mode mode,
-                                unsigned int nBytes, bool sigsIncluded) const
+                                unsigned int nBytes, bool fSigsIncluded) const
 {
     // Base fee is either MIN_TX_FEE or MIN_RELAY_TX_FEE
     CAmount nBaseFee = (mode == GMF_RELAY) ? MIN_RELAY_TX_FEE : MIN_TX_FEE;
 
     // for Ledger the transaction doesn't contain signatures when calculating the fee
     // so we need to add the size of the signatures to nBytes
-    if (!sigsIncluded) {
+    if (!fSigsIncluded) {
         const int SCRIPT_SIG_MAX_SIZE = 108;
         nBytes += SCRIPT_SIG_MAX_SIZE * vin.size();
     }

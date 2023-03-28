@@ -1520,6 +1520,10 @@ Value sendfrom(const Array& params, bool fHelp)
     if (params.size() > 5 && params[5].type() != null_type && !params[5].get_str().empty())
         wtx.mapValue["to"] = params[5].get_str();
 
+    set<CTxDestination> accountAddresses;
+    GetAccountAddresses(strAccount, accountAddresses);
+    wtx.fLedgerTx = ::IsMine(*pwalletMain, *accountAddresses.begin()) == ISMINE_LEDGER;
+
     EnsureWalletIsUnlocked();
 
     // Check funds

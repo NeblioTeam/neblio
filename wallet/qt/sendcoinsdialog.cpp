@@ -259,12 +259,14 @@ void SendCoinsDialog::on_sendButton_clicked()
     if (model->getOptionsModel() && model->getOptionsModel()->getCoinControlFeatures())
         coinControl = CoinControlDialog::coinControl;
 
-    std::string accountFrom = "";
-    if (ui->ledgerCheckBox->isChecked())
-        accountFrom = ui->ledgerPayFromNameEdit->text().toStdString();
+    auto fLedgerTx = ui->ledgerCheckBox->isChecked();
 
+    std::string strFromAccount = "";
+    if (fLedgerTx)
+        strFromAccount = ui->ledgerPayFromNameEdit->text().toStdString();
+    
     auto sendstatus = model->sendCoins(recipients, ntp1wallet, ntp1metadata, fSpendDelegatedOutputs,
-                                  coinControl, accountFrom);
+                                  coinControl, strFromAccount, fLedgerTx);
 
     switch (sendstatus.status) {
     case WalletModel::InvalidAddress:

@@ -120,7 +120,7 @@ public:
                               boost::shared_ptr<NTP1Wallet>    ntp1wallet,
                               const RawNTP1MetadataBeforeSend& ntp1metadata, bool fSpendDelegated,
                               const CCoinControl* coinControl = nullptr,
-                              const std::string& accountFrom = "");
+                              const std::string& strFromAccount = "", bool fLedgerTx = false);
 
     // Wallet encryption
     bool setWalletEncrypted(bool encrypted, const SecureString& passphrase);

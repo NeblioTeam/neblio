@@ -1380,7 +1380,8 @@ CAmount CWallet::GetImmatureBalance(const ITxDB& txdb) const
 // populate vCoins with vector of spendable COutputs
 void CWallet::AvailableCoins(const ITxDB& txdb, vector<COutput>& vCoins, bool fOnlyConfirmed,
                              bool fIncludeColdStaking, bool fIncludeDelegated,
-                             const CCoinControl* coinControl, const std::string& accountFrom) const
+                             const CCoinControl* coinControl, const std::string& strFromAccount,
+                             bool fIncludeLedgerCoins) const
 {
 
     vCoins.clear();
@@ -1435,15 +1436,18 @@ void CWallet::AvailableCoins(const ITxDB& txdb, vector<COutput>& vCoins, bool fO
                 // skip auto-delegated coins
                 if (mine == ISMINE_SPENDABLE_STAKEABLE && !fIncludeColdStaking && !fIncludeDelegated)
                     continue;
+                // skip Ledger coins for non-ledger transactions
+                if (mine == ISMINE_LEDGER && !fIncludeLedgerCoins)
+                    continue;
 
                 // if accountFrom is set skip coins from other accounts
-                if (accountFrom != "") {
+                if (strFromAccount != "") {
                     auto scriptPubKey = pcoin->vout[i].scriptPubKey;
 
                     CTxDestination destination;
                     if (ExtractDestination(txdb, scriptPubKey, destination)) {
                         const auto entry = this->mapAddressBook.get(destination);
-                        if (!entry || !entry.is_initialized() || entry->name != accountFrom)
+                        if (!entry || !entry.is_initialized() || entry->name != strFromAccount)
                                 continue;
                     }
                 }
@@ -1845,10 +1849,11 @@ bool CWallet::IsSpent(const uint256& hash, unsigned int n, const ITxDB& txdb,
 bool CWallet::SelectCoins(const ITxDB& txdb, CAmount nTargetValue, unsigned int nSpendTime,
                           set<pair<const CWalletTx*, unsigned int>>& setCoinsRet, CAmount& nValueRet,
                           const CCoinControl* coinControl, bool fIncludeColdStaking,
-                          bool fIncludeDelegated, bool avoidNTP1Outputs, const std::string& accountFrom) const
+                          bool fIncludeDelegated, bool avoidNTP1Outputs, const std::string& strFromAccount,
+                          bool fIncludeLedgerCoins) const
 {
     vector<COutput> vCoins;
-    AvailableCoins(txdb, vCoins, true, fIncludeColdStaking, fIncludeDelegated, coinControl, accountFrom);
+    AvailableCoins(txdb, vCoins, true, fIncludeColdStaking, fIncludeDelegated, coinControl, strFromAccount, fIncludeLedgerCoins);
 
     // coin control -> return all selected outputs (we want all selected to go into the transaction for
     // sure)
@@ -1925,10 +1930,11 @@ std::size_t CWallet::getWalletTxsCount()
 }
 
 void AddCoinsToInputsSet(const ITxDB& txdb, set<pair<const CWalletTx*, unsigned int>>& setInputs,
-                         const NTP1OutPoint& input)
+                         const NTP1OutPoint& input, const std::string& strFromAccount,
+                         bool fIncludeLedgerCoins)
 {
     std::vector<COutput> coins;
-    pwalletMain->AvailableCoins(txdb, coins);
+    pwalletMain->AvailableCoins(txdb, coins, true, false, true, nullptr, strFromAccount, fIncludeLedgerCoins);
     auto itCoin = std::find_if(coins.begin(), coins.end(), [&input](const COutput& o) {
         return (o.tx->GetHash() == input.getHash() && o.i == (int)input.getIndex());
     });
@@ -2100,12 +2106,12 @@ int CWallet::AddNTP1TokenOutputsToTx(CTransaction& wtxNew, const NTP1SendTxData&
     return tokenOutputsOffset;
 }
 
-uint64_t GetTotalNeblsInInputs(const ITxDB& txdb, const std::vector<NTP1OutPoint>& inputs)
+uint64_t GetTotalNeblsInInputs(const ITxDB& txdb, const std::vector<NTP1OutPoint>& inputs, const std::string &strFromAccount, bool fIncludeLedgerCoins = false)
 {
     uint64_t total = 0;
 
     std::vector<COutput> avOutputs;
-    pwalletMain->AvailableCoins(txdb, avOutputs);
+    pwalletMain->AvailableCoins(txdb, avOutputs, true, false, true, nullptr, strFromAccount, fIncludeLedgerCoins);
 
     for (const auto& input : inputs) {
         // find the output (now input) in the list of available coins
@@ -2187,7 +2193,7 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                 set<pair<const CWalletTx*, unsigned int>> setCoins;
                 CAmount                                   nValueIn = 0;
                 if (!SelectCoins(txdb, nTotalValue, wtxNew.nTime, setCoins, nValueIn, coinControl, false,
-                                 fIncludeDelegated, isNTP1Issuance, wtxNew.strFromAccount)) {
+                                 fIncludeDelegated, isNTP1Issuance, wtxNew.strFromAccount, wtxNew.fLedgerTx)) {
                     CreateErrorMsg(errorMsg,
                                    "Failed to collect nebls for the transaction. You may have chosen to "
                                    "spend balance you do not have. For example, you chose to spend "
@@ -2222,8 +2228,15 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                     }
                 }
 
-                auto isLedgerTx = !!ledgerInputKey;
-                if (isLedgerTx) {
+                if (!!ledgerInputKey && !wtxNew.fLedgerTx) {
+                        NLog.write(b_sev::err,
+                                   "Non-Ledger transactions can not contain ledger inputs.");
+                        CreateErrorMsg(errorMsg,
+                                       "Non-Ledger transactions can not contain ledger inputs.");
+                        return false;
+                }
+
+                if (wtxNew.fLedgerTx) {                    
                     if (hasNonLedgerInputKeys) {
                         NLog.write(b_sev::err,
                                    "Ledger transactions can not contain non-ledger inputs.");
@@ -2272,7 +2285,7 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                         // calculated is basically legacy and will be remove in the future)
                         std::vector<NTP1OutPoint> usedInputs = ntp1TxData.getUsedInputs();
 
-                        nValueIn = GetTotalNeblsInInputs(txdb, usedInputs);
+                        nValueIn = GetTotalNeblsInInputs(txdb, usedInputs, wtxNew.strFromAccount, wtxNew.fLedgerTx);
 
                     } catch (std::exception& ex) {
                         NLog.write(b_sev::err, "Failed to select NTP1 tokens with error: {}", ex.what());
@@ -2322,7 +2335,7 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                     if (coinControl && !boost::get<CNoDestination>(&coinControl->destChange)) {
                         scriptChange.SetDestination(coinControl->destChange);
                         changeKeyID = boost::get<CKeyID>(coinControl->destChange);
-                    } else if (isLedgerTx) {
+                    } else if (wtxNew.fLedgerTx) {
                         CTxDestination destChange;
                         if (!ExtractDestination(txdb, ledgerInputKey.get(), destChange)) {
                             NLog.write(b_sev::err,
@@ -2387,7 +2400,7 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                             }
                             continue;
                         }
-                        AddCoinsToInputsSet(txdb, setCoins, iti.input);
+                        AddCoinsToInputsSet(txdb, setCoins, iti.input, wtxNew.strFromAccount, wtxNew.fLedgerTx);
                     }
                 } catch (const std::exception& ex) {
                     NLog.write(b_sev::err, "Error in CreateTransaction() while adding NTP1 inputs: {}",
@@ -2442,8 +2455,8 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                     int nIn = std::distance(wtxNew.vin.begin(), it);
 
                     // Ledger transactions are signed below
-                    if (isLedgerTx) {
-                        // assign to a specific position in the vector since inputs and utxos need to be aligned for Ledger
+                    if (wtxNew.fLedgerTx) {       
+                        // assign to a specific position in the vector since inputs and utxos need to be aligned for Ledger                 
                         ledgerBridgeUtxos[nIn] = {*coin.first, coin.second, coin.first->vout[coin.second].scriptPubKey};
                     } else {
                         if (SignSignature(*this, *coin.first, wtxNew, nIn) != SignatureState::Verified) {
@@ -2466,14 +2479,14 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                 // Check that enough fee is included
                 CAmount NTP1Fee = ntp1TxData.getRequiredNeblsForOutputs();
                 CAmount nPayFee = nTransactionFee * (1 + (CAmount)nBytes / 1000) + NTP1Fee;
-                CAmount nMinFee = wtxNew.GetMinFee(txdb, 1, GMF_SEND, nBytes, !isLedgerTx) + NTP1Fee;
+                CAmount nMinFee = wtxNew.GetMinFee(txdb, 1, GMF_SEND, nBytes, !wtxNew.fLedgerTx) + NTP1Fee;
 
                 if (nFeeRet < max(nPayFee, nMinFee)) {
                     nFeeRet = max(nPayFee, nMinFee);
                     continue;
                 }
 
-                if (isLedgerTx) {
+                if (wtxNew.fLedgerTx) {                    
                     try {
                         ledgerbridge::LedgerBridge ledgerBridge;
                         ledgerBridge.SignTransaction(txdb, *this, wtxNew, ledgerBridgeUtxos);
@@ -3504,6 +3517,7 @@ void CWalletTx::Init(const CWallet* pwalletIn)
     nTimeReceived         = 0;
     nTimeSmart            = 0;
     fFromMe               = false;
+    fLedgerTx             = false;
     strFromAccount.clear();
     vfSpent.clear();
 

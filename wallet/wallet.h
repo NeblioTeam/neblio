@@ -86,7 +86,8 @@ private:
                      std::set<std::pair<const CWalletTx*, unsigned int>>& setCoinsRet,
                      CAmount& nValueRet, const CCoinControl* coinControl = nullptr,
                      bool fIncludeColdStaking = false, bool fIncludeDelegated = true,
-                     bool avoidNTP1Outputs = false, const std::string& addressFrom = "") const;
+                     bool avoidNTP1Outputs = false, const std::string& strFromAccount = "",
+                     bool fIncludeLedgerCoins = false) const;
 
     CWalletDB* pwalletdbEncryption;
 
@@ -194,7 +195,8 @@ public:
                                   bool fIncludeDelegated = false) const;
     void AvailableCoins(const ITxDB& txdb, std::vector<COutput>& vCoins, bool fOnlyConfirmed = true,
                         bool fIncludeColdStaking = false, bool fIncludeDelegated = true,
-                        const CCoinControl* coinControl = nullptr, const std::string& accountFrom = "") const;
+                        const CCoinControl* coinControl = nullptr, const std::string& strFromAccount = "",
+                        bool fIncludeLedgerCoins = false) const;
 
     // Get available p2cs utxo
     bool GetAvailableP2CSCoins(const ITxDB& txdb, std::vector<COutput>& vCoins) const;
@@ -555,6 +557,7 @@ public:
     std::string                                      strFromAccount;
     std::vector<char>                                vfSpent;   // which outputs are already spent
     int64_t                                          nOrderPos; // position in ordered transaction list
+    bool                                             fLedgerTx;
 
     // memory only
     mutable boost::optional<CAmount> c_WatchDebitCached;
