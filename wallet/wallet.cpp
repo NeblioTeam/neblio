@@ -120,7 +120,7 @@ bool CWallet::AddWatchOnly(const CScript& dest, int64_t createTime)
     // Add watch only in memory
     setWatchOnly.insert(dest);
     CPubKey pubKey;
-    if (ExtractPubKey(dest, pubKey)) {
+    if (ExtractPubKeyP2PK(dest, pubKey)) {
         mapWatchKeys[pubKey.GetID()] = pubKey;
     }
 
@@ -136,14 +136,27 @@ bool CWallet::RemoveWatchOnly(const CScript& dest)
     AssertLockHeld(cs_wallet);
     setWatchOnly.erase(dest);
     CPubKey pubKey;
-    if (ExtractPubKey(dest, pubKey)) {
+    if (ExtractPubKeyP2PK(dest, pubKey)) {
         mapWatchKeys.erase(pubKey.GetID());
     }
     return CWalletDB(strWalletFile).EraseWatchOnly(dest);
 }
 
 
-bool CWallet::ImportScriptPubKeys(std::string& label, const std::set<CScript>& scripts, bool solvable, bool applyLabel, const int64_t timestamp) {
+bool CWallet::LoadWatchOnly(const CScript& script, const CKeyMetadata& meta)
+{
+    // Add watchonly addr in memory
+    AssertLockHeld(cs_wallet);
+    setWatchOnly.insert(script);
+    CPubKey pubKey;
+    if (ExtractPubKeyP2PK(script, pubKey)) {
+        mapWatchKeys[pubKey.GetID()] = pubKey;
+    }
+    mapKeyWatchOnlyMetadata[script.GetID()] = meta;
+    return true;
+}
+
+bool CWallet::ImportScriptPubKeys(const std::string& label, const std::set<CScript>& scripts, bool solvable, bool applyLabel, const int64_t timestamp) {
 
     for (const CScript& script : scripts) {
         bool fisMine = ::IsMine(*pwalletMain, script) == isminetype::ISMINE_NO;
@@ -165,6 +178,26 @@ bool CWallet::ImportScriptPubKeys(std::string& label, const std::set<CScript>& s
     }
     return true;
 }
+
+bool CWallet::ImportScripts(const std::set<CScript> scripts, int64_t timestamp)
+{
+    for (const auto& entry : scripts) {
+        if (HaveCScript(entry.GetID())) {
+            NLog.write(b_sev::warn, "Wallet already have script {}, skipping\n", HexStr(entry));
+            continue;
+        }
+
+        if (!CWalletDB(strWalletFile).WriteCScript(Hash160(entry), entry)) {
+            return false;
+        }
+
+        if (timestamp > 0) {
+            mapKeyWatchOnlyMetadata[entry.GetID()].nCreateTime = timestamp;
+        }
+    }
+    return true;
+}
+
 
 bool CWallet::AddCryptedKey(const CPubKey& vchPubKey, const vector<unsigned char>& vchCryptedSecret)
 {

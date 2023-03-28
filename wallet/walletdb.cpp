@@ -494,7 +494,12 @@ bool ReadKeyValue(const ITxDB& txdb, CWallet* pwallet, CDataStream& ssKey, CData
                 strErr = "Error reading wallet database: LoadCScript failed";
                 return false;
             } else if (strType == "watchmeta") {
-
+                CScript wscript;
+                ssKey >> wscript;
+                CKeyMetadata keyMeta;
+                ssValue >> keyMeta;
+                wss.nKeyMeta++;
+                pwallet->LoadWatchOnly(wscript, keyMeta);
             }
         } else if (strType == "orderposnext") {
             ssValue >> pwallet->nOrderPosNext;

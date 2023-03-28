@@ -164,7 +164,8 @@ public:
         nTimeFirstKey       = 0;
     }
 
-    bool ImportScriptPubKeys(std::string& label, const std::set<CScript>& scripts, bool solvable, bool applyLabel, const int64_t timestamp);
+    bool ImportScriptPubKeys(const std::string& label, const std::set<CScript>& scripts, bool solvable, bool applyLabel, const int64_t timestamp);
+    bool ImportScripts(const std::set<CScript> scripts, int64_t timestamp);
 
     std::map<uint256, CWalletTx> mapWallet;
     std::list<CAccountingEntry>  laccentries;
@@ -238,6 +239,7 @@ public:
 
     bool AddWatchOnly(const CScript& dest, int64_t createTime);
     bool RemoveWatchOnly(const CScript& dest);
+    bool LoadWatchOnly(const CScript& script, const CKeyMetadata& meta);
 
     /** Increment the next transaction order id
         @return next transaction order id

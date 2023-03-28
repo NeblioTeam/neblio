@@ -1631,7 +1631,7 @@ isminetype IsMine(const CKeyStore& keystore, const CTxDestination& dest)
     return boost::apply_visitor(CKeyStoreIsMineVisitor(&keystore), dest);
 }
 
-bool ExtractPubKey(const CScript& dest, CPubKey& pubKeyOut)
+bool ExtractPubKeyP2PK(const CScript& dest, CPubKey& pubKeyOut)
 {
     std::vector<std::vector<unsigned char>> solutions;
     txnouttype whichType;
@@ -1648,7 +1648,7 @@ isminetype IsMine(const CKeyStore& keystore, const CScript& scriptPubKey)
     txnouttype           whichType;
     if (!Solver(CTxDB(), scriptPubKey, whichType, vSolutions))
         return isminetype::ISMINE_NO;
-
+        
     CKeyID keyID;
     switch (whichType) {
     case TX_NONSTANDARD:

@@ -432,7 +432,7 @@ Value importaddress(const Array& params, bool fHelp) {
             CScript redeemScript(data.begin(), data.end());
 
             std::set<CScript> scripts = {redeemScript};
-           // pwallet->ImportScripts(scripts, /*timestamp=*/0);
+            pwallet->ImportScripts(scripts, /*timestamp=*/0);
 
             if (fP2SH) {
                 CTxDestination scriptDes;
