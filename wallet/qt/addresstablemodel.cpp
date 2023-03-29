@@ -2,8 +2,8 @@
 #include "guiutil.h"
 #include "ledger/bip32.h"
 #include "ledger/error.h"
-#include "ledger/ledger.h"
 #include "ledger/utils.h"
+#include "ledgerBridge.h"
 #include "walletmodel.h"
 
 #include "base58.h"
@@ -428,12 +428,8 @@ QString AddressTableModel::addRow(const QString& type, const QString& label, con
         ledger::bytes pubKey;
 
         try {
-            ledger::Ledger l;
-            l.open();
-            std::string path = ledger::bip32::GetBip32Path(account, index);
-            auto result = l.GetPublicKey(path, true);
-            l.close();
-            pubKey = ledger::utils::CompressPubKey(std::get<0>(result));
+            ledgerbridge::LedgerBridge ledgerBridge;
+            pubKey = ledgerBridge.GetPublicKey(account, index, true);
         } catch (const ledger::Error& e) {
             editStatus = LEDGER_ERROR;
             ledgerError = e;

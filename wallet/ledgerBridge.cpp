@@ -11,10 +11,28 @@
 #include <vector>
 
 namespace ledgerbridge
-{
+{   
+    const ledger::Transport::TransportType TRANSPORT_TYPE = ledger::Transport::TransportType::SPECULOS;    
+
     LedgerBridge::LedgerBridge() {}
 
     LedgerBridge::~LedgerBridge() {}
+
+    ledger::bytes LedgerBridge::GetPublicKey(const std::string& path, bool display) {
+        ledger::Ledger ledger(TRANSPORT_TYPE);
+        ledger.open();
+
+        auto result = ledger.GetPublicKey(path, display);
+
+        ledger.close();
+
+        return ledger::utils::CompressPubKey(std::get<0>(result));
+    }
+
+    ledger::bytes LedgerBridge::GetPublicKey(int account, int index, bool display) {
+        std::string path = ledger::bip32::GetBip32Path(account, index);
+        return GetPublicKey(path, display);
+    }
 
     void LedgerBridge::SignTransaction(const ITxDB& txdb, const CWallet& wallet, CWalletTx &wtxNew, const std::vector<LedgerBridgeUtxo> &utxos) 
     {
@@ -45,7 +63,7 @@ namespace ledgerbridge
 
         auto changePath = signaturePaths[0];
 
-        ledger::Ledger ledger(ledger::Transport::TransportType::SPECULOS);
+        ledger::Ledger ledger(TRANSPORT_TYPE);
         ledger.open();
 
         // sign tx
@@ -54,9 +72,8 @@ namespace ledgerbridge
         // add signatures to tx and verify
         for (auto sigIndex = 0; sigIndex < signTxResults.size(); sigIndex++) {
             auto signature = std::get<1>(signTxResults[sigIndex]);
-            
-            auto pubKeyResult = ledger.GetPublicKey(signaturePaths[sigIndex], false);
-            auto pubKey = CPubKey(ledger::utils::CompressPubKey(std::get<0>(pubKeyResult)));
+
+            auto pubKey = CPubKey(GetPublicKey(signaturePaths[sigIndex], false));
 
             // hash type
             signature.push_back(0x01);
