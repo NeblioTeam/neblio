@@ -420,6 +420,27 @@ bool _AddKeyToLocalWallet(const CKey& Key, const std::string& strLabel, int64_t 
     return true;
 }
 
+bool _AddLedgerKeyToLocalWallet(const CLedgerKey& ledgerKey, const std::string& strLabel, bool addInAddressBook)
+{
+    CKeyID keyid = ledgerKey.vchPubKey.GetID();
+    NLog.write(b_sev::info, "Importing ledger address {}...", CBitcoinAddress(keyid).ToString());
+
+    // if key exists already in the local wallet, don't add it
+    if (pwalletMain->HaveLedgerKey(keyid)) {
+        return false;
+    }
+
+    // attempt to add the key
+    if (!pwalletMain->AddLedgerKey(ledgerKey)) {
+        return false;
+    }
+
+    if (addInAddressBook) {
+        pwalletMain->SetAddressBookEntry(keyid, strLabel);
+    }
+    return true;
+}
+
 CBitcoinAddress GetAddressFromKey(const CKey& key)
 {
     CBitcoinAddress a;
@@ -487,6 +508,11 @@ std::pair<long, long> ImportBackupWallet(const std::string& Src, std::string& Pa
 
     std::set<CKeyID> allKeyIDsSet;
     backupWallet.GetKeys(allKeyIDsSet);
+    std::set<CKeyID> ledgerKeyIDsSet;
+    backupWallet.GetLedgerKeys(ledgerKeyIDsSet);
+
+    allKeyIDsSet.insert(ledgerKeyIDsSet.begin(),ledgerKeyIDsSet.end());
+
     // deque to simply elements access
     const std::deque<CKeyID> allKeyIDs(allKeyIDsSet.begin(), allKeyIDsSet.end());
     using AddressBookIt = std::map<CTxDestination, AddressBook::CAddressBookData>::const_iterator;
@@ -500,29 +526,37 @@ std::pair<long, long> ImportBackupWallet(const std::string& Src, std::string& Pa
     for (long i = 0; i < static_cast<long>(allKeyIDs.size()); i++) {
         AddressBookIt it                    = addrBook.find(allKeyIDs[i]);
         bool          foundKeyInAddressBook = (it != addrBook.end());
-
-        // retrieve key using key ID
-        CKey key;
-        bool getKeySucceeded = backupWallet.GetKey(allKeyIDs[i], key);
-        if (!getKeySucceeded)
-            continue;
-
-        // add the key, whether to the address book or simply to reserve
-        if (foundKeyInAddressBook) {
-            // import from address book
-            bool addSucceeded = _AddKeyToLocalWallet(
-                key, it->second.name,
-                backupWallet.mapKeyMetadata.at(boost::get<CKeyID>(it->first)).nCreateTime, earliestTime,
-                true);
-            if (addSucceeded)
-                succeessfullyAddedOutOfTotal.first++;
-        } else {
-            // import reserve keys
-            bool addSucceeded =
-                _AddKeyToLocalWallet(key, "", backupWallet.mapKeyMetadata.at(allKeyIDs[i]).nCreateTime,
-                                     earliestTime, importReserveToAddressBook);
-            if (addSucceeded)
-                succeessfullyAddedOutOfTotal.first++;
+        
+        CKey key;        
+        CLedgerKey ledgerKey;        
+        if (backupWallet.GetKey(allKeyIDs[i], key)) {
+            // add the key, whether to the address book or simply to reserve
+            if (foundKeyInAddressBook) {
+                // import from address book
+                bool addSucceeded = _AddKeyToLocalWallet(
+                    key, it->second.name,
+                    backupWallet.mapKeyMetadata.at(boost::get<CKeyID>(it->first)).nCreateTime, earliestTime,
+                    true);
+                if (addSucceeded)
+                    succeessfullyAddedOutOfTotal.first++;
+            } else {
+                // import reserve keys
+                bool addSucceeded =
+                    _AddKeyToLocalWallet(key, "", backupWallet.mapKeyMetadata.at(allKeyIDs[i]).nCreateTime,
+                                        earliestTime, importReserveToAddressBook);
+                if (addSucceeded)
+                    succeessfullyAddedOutOfTotal.first++;
+            }
+        } else if (backupWallet.GetLedgerKey(allKeyIDs[i], ledgerKey)) {
+            // all Ledger keys should currently be in the address book
+            if (foundKeyInAddressBook) {
+                bool addSucceeded = _AddLedgerKeyToLocalWallet(ledgerKey, it->second.name, true);
+                if (addSucceeded)
+                    succeessfullyAddedOutOfTotal.first++;
+            } else {
+                // TODO GK - check after change outputs are implemented
+                throw std::runtime_error("Ledger key not found in address book.");
+            }
         }
     }
     _RescanBlockchain(earliestTime, txdb);
@@ -572,6 +606,12 @@ std::string GetCurrentWalletHash()
 {
     std::set<CKeyID> allKeyIDsSet;
     pwalletMain->GetKeys(allKeyIDsSet);
+    
+    std::set<CKeyID> ledgerKeyIDsSet;
+    pwalletMain->GetLedgerKeys(ledgerKeyIDsSet);
+
+    allKeyIDsSet.insert(ledgerKeyIDsSet.begin(),ledgerKeyIDsSet.end());
+
     // deque to simply elements access
     const std::deque<CKeyID> allKeyIDs(allKeyIDsSet.begin(), allKeyIDsSet.end());
 
@@ -580,12 +620,15 @@ std::string GetCurrentWalletHash()
     for (long i = 0; i < static_cast<long>(allKeyIDs.size()); i++) {
         // retrieve key using key ID
         CKey key;
-        bool getKeySucceeded = pwalletMain->GetKey(allKeyIDs[i], key);
-        if (!getKeySucceeded) {
+        CLedgerKey ledgerKey;      
+        if (pwalletMain->GetKey(allKeyIDs[i], key)) {
+            finalStringToHash += key.GetPubKey().GetHash().ToString();
+        } else if (pwalletMain->GetLedgerKey(allKeyIDs[i], ledgerKey)) {
+            finalStringToHash += ledgerKey.vchPubKey.GetHash().ToString();
+        } else {
             NLog.write(b_sev::err, "Failed to get key number {}", i);
             continue;
         }
-        finalStringToHash += key.GetPubKey().GetHash().ToString();
     }
     if (finalStringToHash.empty()) {
         throw std::runtime_error("Error: Backup public keys hash is empty. This should not happen.");
