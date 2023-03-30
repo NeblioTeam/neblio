@@ -1,3 +1,4 @@
+#include "ledger/bip32.h"
 #include "ledger/tx.h"
 #include "ledger/bytes.h"
 
@@ -22,8 +23,8 @@ namespace ledgerbridge
             LedgerBridge();
             ~LedgerBridge();
             
-            ledger::bytes GetPublicKey(const std::string& path, bool display);
-            ledger::bytes GetPublicKey(int account, int index, bool display);
+            ledger::bytes GetPublicKey(const ledger::Bip32Path path, bool display);
+            ledger::bytes GetPublicKey(int account, bool isChange, int index, bool display);
             void SignTransaction(const ITxDB& txdb, const CWallet& wallet, CWalletTx &wtxNew, const std::vector<LedgerBridgeUtxo> &utxos);
         private:
             ledger::Tx ToLedgerTx(const CTransaction& tx);

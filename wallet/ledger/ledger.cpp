@@ -28,11 +28,11 @@ namespace ledger
 		std::cout << "Ledger connection opened." << std::endl;
 	}
 
-	std::tuple<bytes, std::string, bytes> Ledger::GetPublicKey(const std::string &path, bool confirm)
+	std::tuple<bytes, std::string, bytes> Ledger::GetPublicKey(const Bip32Path path, bool confirm)
 	{
 		auto payload = bytes();
 
-		auto pathBytes = bip32::ParseHDKeypath(path);
+		auto pathBytes = path.Serialize();
 		payload.push_back(pathBytes.size() / 4);
 		utils::AppendVector(payload, pathBytes);
 
@@ -118,15 +118,15 @@ namespace ledger
 		return GetTrustedInputRaw(false, utils::IntToBytes(utxoTx.locktime, 4));
 	}
 
-	void Ledger::UntrustedHashTxInputFinalize(const Tx &tx, const std::string &changePath)
+	void Ledger::UntrustedHashTxInputFinalize(const Tx &tx, bool hasChange, const Bip32Path changePath)
 	{
 		auto ins = APDU::INS_UNTRUSTED_HASH_TRANSACTION_INPUT_FINALIZE;
 		auto p2 = 0x00;
 
 		auto p1 = 0xFF;
-		if (changePath.length() > 0)
+		if (hasChange)
 		{
-			auto serializedChangePath = bip32::ParseHDKeypath(changePath);
+			auto serializedChangePath = changePath.Serialize();
 
 			bytes changePathData;
 			changePathData.push_back(serializedChangePath.size() / 4);
@@ -219,7 +219,7 @@ namespace ledger
 		}
 	}
 
-    std::vector<std::tuple<int, bytes>> Ledger::SignTransaction(const Tx &tx, const std::string& changePath, const std::vector<std::string> &signPaths, const std::vector<Utxo> &utxos)
+    std::vector<std::tuple<int, bytes>> Ledger::SignTransaction(const Tx &tx, bool hasChange, const Bip32Path changePath, const std::vector<Bip32Path>& signPaths, const std::vector<Utxo> &utxos)
 	{
 		assert(tx.inputs.size() == signPaths.size());
 		assert(tx.inputs.size() == utxos.size());
@@ -244,13 +244,13 @@ namespace ledger
 			auto &script = utxos[i].tx.outputs[utxos[i].outputIndex].script;
             UntrustedHashTxInputStart(tx, trustedInputs, i, script, i == 0);
 
-        	UntrustedHashTxInputFinalize(tx, changePath);
+        	UntrustedHashTxInputFinalize(tx, hasChange, changePath);
 
 			auto ins = INS_UNTRUSTED_HASH_SIGN;
 			auto p1 = 0x00;
 			auto p2 = 0x00;
 
-			auto serializedSignPath = bip32::ParseHDKeypath(signPaths[i]);
+			auto serializedSignPath = signPaths[i].Serialize();
 
 			bytes data;
 			data.push_back(serializedSignPath.size() / 4);

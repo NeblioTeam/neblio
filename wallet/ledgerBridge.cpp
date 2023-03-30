@@ -18,7 +18,8 @@ namespace ledgerbridge
 
     LedgerBridge::~LedgerBridge() {}
 
-    ledger::bytes LedgerBridge::GetPublicKey(const std::string& path, bool display) {
+    ledger::bytes LedgerBridge::GetPublicKey(const ledger::Bip32Path path, bool display)
+    {
         ledger::Ledger ledger(TRANSPORT_TYPE);
         ledger.open();
 
@@ -29,14 +30,14 @@ namespace ledgerbridge
         return ledger::utils::CompressPubKey(std::get<0>(result));
     }
 
-    ledger::bytes LedgerBridge::GetPublicKey(int account, int index, bool display) {
-        std::string path = ledger::bip32::GetBip32Path(account, index);
-        return GetPublicKey(path, display);
+    ledger::bytes LedgerBridge::GetPublicKey(int account, bool isChange, int index, bool display)
+    {
+        return GetPublicKey(ledger::Bip32Path(account, isChange, index), display);
     }
 
     void LedgerBridge::SignTransaction(const ITxDB& txdb, const CWallet& wallet, CWalletTx &wtxNew, const std::vector<LedgerBridgeUtxo> &utxos) 
     {
-        std::vector<std::string> signaturePaths;
+        std::vector<ledger::Bip32Path> signaturePaths;
 
         // transform wallet tx to ledger tx
         ledger::Tx tx = ToLedgerTx(wtxNew);        
@@ -58,16 +59,18 @@ namespace ledgerbridge
                 throw "Ledger key was not found in wallet";
             }
 
-            signaturePaths.push_back(ledger::bip32::GetBip32Path(ledgerKey.account, ledgerKey.index));
+            signaturePaths.push_back(ledger::Bip32Path(ledgerKey.account, ledgerKey.isChange, ledgerKey.index));
         }
 
+        // TODO GK - the transaction might not have any change
         auto changePath = signaturePaths[0];
 
         ledger::Ledger ledger(TRANSPORT_TYPE);
         ledger.open();
 
+        // TODO GK - the transaction might not have any change
         // sign tx
-        auto signTxResults = ledger.SignTransaction(tx, changePath, signaturePaths, ledgerUtxos);
+        auto signTxResults = ledger.SignTransaction(tx, true, changePath, signaturePaths, ledgerUtxos);
 
         // add signatures to tx and verify
         for (auto sigIndex = 0; sigIndex < signTxResults.size(); sigIndex++) {

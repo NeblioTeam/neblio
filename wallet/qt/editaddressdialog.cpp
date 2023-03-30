@@ -224,10 +224,12 @@ void EditAddressDialog::accept()
 
 void EditAddressDialog::updateLedgerPathLabel()
 {
-    std::string path = ledger::bip32::GetBip32Path(
+    auto path = (new ledger::Bip32Path(
         ui->ledgerAccountEdit->text().toStdString(),
+        false,
         ui->ledgerIndexEdit->text().toStdString()
-    );
+    ))->ToString();
+
     ui->ledgerPathLabel->setText(tr("Ledger path: %1").arg(QString::fromStdString(path)));
 }
 

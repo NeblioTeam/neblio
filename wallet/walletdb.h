@@ -43,14 +43,15 @@ class CLedgerKey
 public:
     CPubKey vchPubKey;
     uint32_t account;
+    bool isChange;
     uint32_t index;
 
     CLedgerKey() {}
 
-    CLedgerKey(const CPubKey& vchPubKeyIn, uint32_t accountIn, uint32_t indexIn) :
-        vchPubKey(vchPubKeyIn), account(accountIn), index(indexIn) {};
+    CLedgerKey(const CPubKey& vchPubKeyIn, uint32_t accountIn, bool isChange, uint32_t indexIn) :
+        vchPubKey(vchPubKeyIn), account(accountIn), isChange(isChange), index(indexIn) {};
 
-    IMPLEMENT_SERIALIZE(READWRITE(vchPubKey); READWRITE(account); READWRITE(index);)
+    IMPLEMENT_SERIALIZE(READWRITE(vchPubKey); READWRITE(account); READWRITE(isChange); READWRITE(index);)
 };
 
 /** Access to the wallet database (wallet.dat) */

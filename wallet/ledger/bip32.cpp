@@ -3,19 +3,26 @@
 
 #include <sstream>
 
-namespace ledger::bip32
+namespace ledger
 {
-    uint32_t Harden(uint32_t n)
+    uint32_t Bip32Path::Harden(uint32_t n) const
     {
         return n | 0x80000000;
     }
 
-    // copied from https://github.com/bitcoin/bitcoin/blob/master/src/util/bip32.cpp#L13
-    // and adjusted for uint8_t instead of uint32_t vector
-    bytes ParseHDKeypath(const std::string &keypath_str)
+    uint32_t Bip32Path::Unharden(uint32_t n) const
     {
-        bytes keypath;
-        std::stringstream ss(keypath_str);
+        return n & ~(0x80000000);
+    }
+
+    bool Bip32Path::IsHardened(uint32_t n) const
+    {
+        return n == Harden(n);
+    }
+
+    Bip32Path::Bip32Path(const std::string &keyPathStr) {
+        std::vector<uint32_t> components;
+        std::stringstream ss(keyPathStr);
         std::string item;
         bool first = true;
         while (std::getline(ss, item, '/'))
@@ -49,22 +56,70 @@ namespace ledger::bip32
                 throw std::runtime_error("Invalid keypath");
             }
 
-            utils::AppendUint32(keypath, std::stoul(item) | path);
+            // utils::AppendUint32(keypath, std::stoul(item) | path);
+            components.push_back(std::stoul(item) | path);
 
             first = false;
         }
-        return keypath;
+
+        if (components.size() != 5)
+        {
+            throw std::runtime_error("Invalid keypath size");
+        }
+
+        if (components[0] != Harden(BIP32_PURPOSE))
+        {
+            throw std::runtime_error("Invalid keypath purpose");
+        }
+
+        if (components[1] != Harden(BIP32_COIN_TYPE))
+        {
+            throw std::runtime_error("Invalid keypath coin type");
+        }
+
+        if (!IsHardened(components[2]))
+        {
+            throw std::runtime_error("Invalid keypath account");
+        }
+
+        if (IsHardened(components[3]))
+        {
+            throw std::runtime_error("Invalid keypath change");
+        }
+
+        if (IsHardened(components[4]))
+        {
+            throw std::runtime_error("Invalid keypath index");
+        }
+
+        account = Unharden(components[2]);
+        isChange = components[3] == 1;
+        index = components[4];
     }
 
-	std::string GetBip32Path(const std::string &account, const std::string &index)
-	{
-		std::stringstream ss;
-        ss << "m/44'/146'/" << account << "'/0/" << index;
-		return ss.str();
-	}
+	Bip32Path::Bip32Path(const std::string &account, bool isChange, const std::string &index)
+        : Bip32Path(std::stoul(account), isChange, std::stoul(index)) {};
 
-	std::string GetBip32Path(uint32_t account, uint32_t index)
-	{
-		return GetBip32Path(std::to_string(account), std::to_string(index));
-	}
-} // namespace ledger::utils
+    Bip32Path::Bip32Path(uint32_t account, bool isChange, uint32_t index)
+        : purpose(BIP32_PURPOSE), coinType(BIP32_COIN_TYPE), account(account), isChange(isChange), index(index) {};
+
+    bytes Bip32Path::Serialize() const
+    {
+        bytes serializedKeyPath;
+        
+        utils::AppendUint32(serializedKeyPath, Harden(purpose));
+        utils::AppendUint32(serializedKeyPath, Harden(coinType));
+        utils::AppendUint32(serializedKeyPath, Harden(account));
+        utils::AppendUint32(serializedKeyPath, isChange ? 1 : 0);
+        utils::AppendUint32(serializedKeyPath, index);
+        
+        return serializedKeyPath;
+    }
+
+    std::string Bip32Path::ToString() const 
+    { 
+        std::stringstream ss;
+        ss << "m/" << purpose << "'/" << coinType << "'/" << account << "'/" << (isChange ? 1 : 0) << "/" << index;
+        return ss.str();
+     }
+} // namespace ledger

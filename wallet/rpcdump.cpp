@@ -548,14 +548,14 @@ std::pair<long, long> ImportBackupWallet(const std::string& Src, std::string& Pa
                     succeessfullyAddedOutOfTotal.first++;
             }
         } else if (backupWallet.GetLedgerKey(allKeyIDs[i], ledgerKey)) {
-            // all Ledger keys should currently be in the address book
             if (foundKeyInAddressBook) {
                 bool addSucceeded = _AddLedgerKeyToLocalWallet(ledgerKey, it->second.name, true);
                 if (addSucceeded)
                     succeessfullyAddedOutOfTotal.first++;
             } else {
-                // TODO GK - check after change outputs are implemented
-                throw std::runtime_error("Ledger key not found in address book.");
+                bool addSucceeded = _AddLedgerKeyToLocalWallet(ledgerKey, "", importReserveToAddressBook);
+                if (addSucceeded)
+                    succeessfullyAddedOutOfTotal.first++;
             }
         }
     }

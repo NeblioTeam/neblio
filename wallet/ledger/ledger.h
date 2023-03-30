@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bip32.h"
 #include "bytes.h"
 #include "transport.h"
 #include "tx.h"
@@ -26,8 +27,8 @@ namespace ledger
 
 		void open();
 
-		std::tuple<bytes, std::string, bytes> GetPublicKey(const std::string &path, bool confirm);
-        std::vector<std::tuple<int, bytes>> SignTransaction(const Tx &tx,const std::string& changePath,  const std::vector<std::string> &signPaths, const std::vector<Utxo> &utxos);
+		std::tuple<bytes, std::string, bytes> GetPublicKey(const Bip32Path path, bool confirm);
+        std::vector<std::tuple<int, bytes>> SignTransaction(const Tx &tx, bool hasChange, const Bip32Path changePath,  const std::vector<Bip32Path> &signPaths, const std::vector<Utxo> &utxos);
 
 		void close();
 
@@ -37,7 +38,7 @@ namespace ledger
 		bytes ProcessScriptBlocks(const bytes &script, uint32_t sequence);
 		bytes GetTrustedInput(const Tx &utxoTx, uint32_t indexLookup);
 		bytes GetTrustedInputRaw(bool firstRound, const bytes &data);
-		void UntrustedHashTxInputFinalize(const Tx &tx, const std::string &changePath);
+		void UntrustedHashTxInputFinalize(const Tx &tx, bool hasChange, const Bip32Path changePath);
 		void UntrustedHashTxInputStart(const Tx &tx, const std::vector<TrustedInput> &trustedInputs, int inputIndex, bytes script, bool isNewTransaction);
 		TrustedInput DeserializeTrustedInput(const bytes &serializedTrustedInput);
 	};

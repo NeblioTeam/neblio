@@ -232,7 +232,7 @@ QVariant AddressTableModel::data(const QModelIndex& index, int role) const
             {
                 // IsLedger, LedgerAccount and LedgerIndex are hidden, we display the info here
                 // (however, they still need to be above due to EditAddressDialog data mapping)
-                std::string path = ledger::bip32::GetBip32Path(rec->ledgerAccount, rec->ledgerIndex);
+                std::string path = ledger::Bip32Path(rec->ledgerAccount, false, rec->ledgerIndex).ToString();
                 return isLedger ? QString::fromStdString(path) : "-";
             }
         }
@@ -429,7 +429,7 @@ QString AddressTableModel::addRow(const QString& type, const QString& label, con
 
         try {
             ledgerbridge::LedgerBridge ledgerBridge;
-            pubKey = ledgerBridge.GetPublicKey(account, index, true);
+            pubKey = ledgerBridge.GetPublicKey(account, false, index, true);
         } catch (const ledger::Error& e) {
             editStatus = LEDGER_ERROR;
             ledgerError = e;
@@ -437,7 +437,7 @@ QString AddressTableModel::addRow(const QString& type, const QString& label, con
         }
 
         CPubKey cpubkey(pubKey);
-        CLedgerKey ledgerKey(cpubkey, account, index);
+        CLedgerKey ledgerKey(cpubkey, account, false, index);
         wallet->AddLedgerKey(ledgerKey);
         strAddress = CBitcoinAddress(cpubkey.GetID()).ToString();
     } else {
