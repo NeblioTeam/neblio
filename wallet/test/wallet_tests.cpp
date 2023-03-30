@@ -173,17 +173,14 @@ TEST_F(WalletTestFixture, import_scripts_pub_key) {
 
      CTxDestination dest;
      ExtractDestination(CTxDB(), script, dest);
-     boost::optional<AddressBook::CAddressBookData> v = wallet.mapAddressBook.get(dest);
+     boost::optional<AddressBook::CAddressBookData> v = wallet_->mapAddressBook.get(dest);
 
      if (v.is_initialized()) {
-         std::cout << "Initialized ...\n";
          auto p = v.get();
          EXPECT_EQ(p.purpose, "receive");
          EXPECT_EQ(p.name, "testLabel");
      }
 }
-
-
 
 TEST_F(WalletTestFixture, watch_only_addresses) {
     CKey key;
