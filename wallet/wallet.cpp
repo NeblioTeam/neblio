@@ -114,6 +114,21 @@ bool CWallet::AddKey(const CKey& key)
 }
 
 
+bool CWallet::HaveWatchOnly(const CScript& dest) {
+    return setWatchOnly.count(dest) > 0;
+}
+
+bool CWallet::GetWatchPubKey(const CKeyID& address, CPubKey& out) const
+{
+    LOCK(cs_wallet);
+    WatchKeyMap::const_iterator it = mapWatchKeys.find(address);
+    if (it != mapWatchKeys.end()) {
+        out = it->second;
+        return true;
+    }
+    return false;
+}
+
 bool CWallet::AddWatchOnly(const CScript& dest, int64_t createTime)
 {
     AssertLockHeld(cs_wallet);
@@ -159,7 +174,7 @@ bool CWallet::LoadWatchOnly(const CScript& script, const CKeyMetadata& meta)
 bool CWallet::ImportScriptPubKeys(const std::string& label, const std::set<CScript>& scripts, bool solvable, bool applyLabel, const int64_t timestamp) {
 
     for (const CScript& script : scripts) {
-        bool fisMine = ::IsMine(*pwalletMain, script) == isminetype::ISMINE_NO;
+        bool fisMine = ::IsMine(*this, script) == isminetype::ISMINE_NO;
         if (!solvable || !fisMine) {
             if (!AddWatchOnly(script, timestamp)) {
                 return false;
@@ -2760,7 +2775,7 @@ DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
 
     // This wallet is in its first run if all of these are empty
     fFirstRunRet = mapKeys.empty() && /*mapCryptedKeys.empty() &&*/ mapMasterKeys.empty() &&
-                   /*setWatchOnly.empty() &&*/ mapScripts.empty();
+                   setWatchOnly.empty() && mapScripts.empty();
 
     if (nLoadWalletRet != DB_LOAD_OK)
         return nLoadWalletRet;

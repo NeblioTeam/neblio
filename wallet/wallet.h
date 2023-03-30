@@ -239,7 +239,9 @@ public:
 
     bool AddWatchOnly(const CScript& dest, int64_t createTime);
     bool RemoveWatchOnly(const CScript& dest);
+    bool HaveWatchOnly(const CScript& key);
     bool LoadWatchOnly(const CScript& script, const CKeyMetadata& meta);
+    bool GetWatchPubKey(const CKeyID& address, CPubKey& out) const;
 
     /** Increment the next transaction order id
         @return next transaction order id
