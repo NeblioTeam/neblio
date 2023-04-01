@@ -396,12 +396,12 @@ Value importaddress(const Array& params, bool fHelp) {
     CWallet* const pwallet = pwalletMain.get();
 
     std::string strLabel;
-    if (!params[1].is_null())
+    if (params.size() >= 2)
         strLabel = params[1].get_str();
 
     // Whether to perform rescan after import
     bool fRescan = true;
-    if (!params[2].is_null())
+    if (params.size() >= 3)
         fRescan = params[2].get_bool();
 
     bool rescanInProgress = false;
@@ -410,7 +410,7 @@ Value importaddress(const Array& params, bool fHelp) {
     }
 
     bool fP2SH = false;
-    if (!params[3].is_null())
+    if (params.size() > 3)
         fP2SH = params[3].get_bool();
 
     std::string strAddress = params[0].get_str();
@@ -426,7 +426,7 @@ Value importaddress(const Array& params, bool fHelp) {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Cannot use the p2sh flag with an address - use a script instead");
 
             pwallet->MarkDirty();
-            pwallet->ImportScriptPubKeys(strLabel, {GetScriptForDestination(dest)}, /*have_solving_data=*/false, /*apply_label=*/true, /*timestamp=*/1);
+            pwallet->ImportScriptPubKeys(strLabel, {GetScriptForDestination(dest)}, /*solvable=*/false, /*apply_label=*/true, /*timestamp=*/1);
         } else if (IsHex(strAddress)) {
             std::vector<unsigned char> data(ParseHex(strAddress));
             CScript redeemScript(data.begin(), data.end());
@@ -440,7 +440,7 @@ Value importaddress(const Array& params, bool fHelp) {
                 scripts.insert(GetScriptForDestination(scriptDes));
             }
 
-            pwallet->ImportScriptPubKeys(strLabel, scripts, /*have_solving_data=*/false, /*apply_label=*/true, /*timestamp=*/1);
+            pwallet->ImportScriptPubKeys(strLabel, scripts, /*solvable=*/false, /*apply_label=*/true, /*timestamp=*/1);
         } else {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Neblio address or script");
         }
