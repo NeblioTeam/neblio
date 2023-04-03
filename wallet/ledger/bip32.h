@@ -30,6 +30,8 @@ namespace ledger
             uint32_t Unharden(uint32_t n) const;
             bool IsHardened(uint32_t n) const;
 
+            Bip32Path ToChangePath() const;
+
             bytes Serialize() const;
             std::string ToString() const;
 

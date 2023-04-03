@@ -2341,7 +2341,20 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                                            "Invalid Ledger destination.");
                             return false;
                         }
-                        scriptChange.SetDestination(destChange);
+                         
+                        auto destinationKeyID = boost::get<CKeyID>(destChange);
+                        if (IsLedgerChangeKey(destinationKeyID)) {
+                            scriptChange.SetDestination(destChange);
+                        } else {
+                            CLedgerKey changeKey;
+                            if (!this->GetOtherLedgerKey(destinationKeyID, changeKey, false)) {
+                                NLog.write(b_sev::err, "Ledger change key not found!");
+                                CreateErrorMsg(errorMsg, "Ledger change key not found!");
+                                return false;
+                            }
+
+                            scriptChange.SetDestination(changeKey.vchPubKey.GetID());
+                        }
                     }
                     // no coin control: send change to newly generated address
                     else {

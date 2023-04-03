@@ -20,6 +20,15 @@ namespace ledger
         return n == Harden(n);
     }
 
+    Bip32Path Bip32Path::ToChangePath() const
+    { 
+        if (components.size() == 3) {
+            throw std::runtime_error("Account keypath cannot be converted to change path!");
+        }
+
+        return Bip32Path(components[ACCOUNT_INDEX], true, components[ADDRESS_INDEX_INDEX]);
+     }
+
     Bip32Path::Bip32Path(const std::string &keyPathStr) {
         std::vector<uint32_t> _components;
         std::stringstream ss(keyPathStr);

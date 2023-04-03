@@ -492,6 +492,46 @@ public:
         }
         return false;
     }
+
+    bool GetOtherLedgerKey(const CKeyID &address, CLedgerKey &ledgerKeyOut, bool isChange) const
+    {
+        std::cout << "Address: " << address.GetHex() << std::endl;
+        {
+            LOCK(cs_LedgerKeyStore);
+            std::map<CKeyID, CLedgerKey> ::const_iterator mi = ledgerKeys.find(address);
+            if (mi != ledgerKeys.end())
+            {
+                auto key = (*mi).second;
+                if (key.isChange != isChange) {
+                    throw std::runtime_error("Function called with wrong isChange parameter");
+                }
+
+                auto it = std::find_if(ledgerKeys.begin(), ledgerKeys.end(),
+                    [&key](const std::pair<CKeyID, CLedgerKey>& entry) {
+                        auto candidateKey = entry.second;
+                        return candidateKey.isChange != key.isChange
+                            && candidateKey.accountPubKeyID == key.accountPubKeyID                            
+                            && candidateKey.index == key.index;
+                    });
+
+                if (it != ledgerKeys.end()) {
+                    ledgerKeyOut = it->second;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    bool IsLedgerChangeKey(const CKeyID &address) 
+    {
+        CLedgerKey ledgerKey;
+        if (GetLedgerKey(address, ledgerKey))
+        {
+            return ledgerKey.isChange;
+        }
+        return false;
+    }
 };
 
 /** A key allocated from the key pool. */

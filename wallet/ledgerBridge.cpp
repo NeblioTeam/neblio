@@ -68,7 +68,7 @@ namespace ledgerbridge
         }
 
         // TODO GK - the transaction might not have any change
-        auto changePath = signaturePaths[0];
+        auto changePath = signaturePaths[0].ToChangePath();
 
         ledger::Ledger ledger(TRANSPORT_TYPE);
         ledger.open();
