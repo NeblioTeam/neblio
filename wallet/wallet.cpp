@@ -2236,7 +2236,7 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                         return false;
                 }
 
-                if (wtxNew.fLedgerTx) {                    
+                if (wtxNew.fLedgerTx) {
                     if (hasNonLedgerInputKeys) {
                         NLog.write(b_sev::err,
                                    "Ledger transactions can not contain non-ledger inputs.");
@@ -2455,8 +2455,8 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                     int nIn = std::distance(wtxNew.vin.begin(), it);
 
                     // Ledger transactions are signed below
-                    if (wtxNew.fLedgerTx) {       
-                        // assign to a specific position in the vector since inputs and utxos need to be aligned for Ledger                 
+                    if (wtxNew.fLedgerTx) {
+                        // assign to a specific position in the vector since inputs and utxos need to be aligned for Ledger
                         ledgerBridgeUtxos[nIn] = {*coin.first, coin.second, coin.first->vout[coin.second].scriptPubKey};
                     } else {
                         if (SignSignature(*this, *coin.first, wtxNew, nIn) != SignatureState::Verified) {
@@ -2486,7 +2486,7 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                     continue;
                 }
 
-                if (wtxNew.fLedgerTx) {                    
+                if (wtxNew.fLedgerTx) {
                     try {
                         ledgerbridge::LedgerBridge ledgerBridge;
                         ledgerBridge.SignTransaction(txdb, *this, wtxNew, ledgerBridgeUtxos);
