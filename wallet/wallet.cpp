@@ -1447,8 +1447,31 @@ void CWallet::AvailableCoins(const ITxDB& txdb, vector<COutput>& vCoins, bool fO
                     CTxDestination destination;
                     if (ExtractDestination(txdb, scriptPubKey, destination)) {
                         const auto entry = this->mapAddressBook.get(destination);
-                        if (!entry || !entry.is_initialized() || entry->name != strFromAccount)
+                        if (!entry || !entry.is_initialized() || entry->name != strFromAccount) {
+                            // We only store Ledger payment keys in the address book.
+                            // That's why if the current coin is a Ledger change key
+                            // (i.e. we have its UTxOs but the key is not in the address book)
+                            // we have to also check if the corresponding payment key
+                            // for the given change key is strFromAccount.
+                            if (mine != ISMINE_LEDGER || !fIncludeLedgerCoins) {
                                 continue;
+                            }
+
+                            CKeyID changeLedgerKeyID;
+                            ((CBitcoinAddress)destination).GetKeyID(changeLedgerKeyID);
+
+                            CLedgerKey ledgerPaymentKey;
+                            if (!this->GetOtherLedgerKey(changeLedgerKeyID, ledgerPaymentKey, true)) {
+                                continue;
+                            }
+
+                            const auto ledgerPaymentKeyEntry = this->mapAddressBook.get(ledgerPaymentKey.vchPubKey.GetID());
+                            if (!ledgerPaymentKeyEntry
+                                || !ledgerPaymentKeyEntry.is_initialized()
+                                || ledgerPaymentKeyEntry->name != strFromAccount) {
+                                continue;
+                            }
+                        }
                     }
                 }
                 // bool fIsValid =
