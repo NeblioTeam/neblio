@@ -21,7 +21,7 @@ namespace ledger
     }
 
     Bip32Path::Bip32Path(const std::string &keyPathStr) {
-        std::vector<uint32_t> components;
+        std::vector<uint32_t> _components;
         std::stringstream ss(keyPathStr);
         std::string item;
         bool first = true;
@@ -57,61 +57,72 @@ namespace ledger
             }
 
             // utils::AppendUint32(keypath, std::stoul(item) | path);
-            components.push_back(std::stoul(item) | path);
+            _components.push_back(std::stoul(item) | path);
 
             first = false;
         }
 
-        if (components.size() != 5)
+        if (_components.size() != 3 || _components.size() != 5)
         {
             throw std::runtime_error("Invalid keypath size");
         }
 
-        if (components[0] != Harden(BIP32_PURPOSE))
+        if (_components[0] != Harden(BIP32_PURPOSE))
         {
             throw std::runtime_error("Invalid keypath purpose");
         }
 
-        if (components[1] != Harden(BIP32_COIN_TYPE))
+        if (_components[1] != Harden(BIP32_COIN_TYPE))
         {
             throw std::runtime_error("Invalid keypath coin type");
         }
 
-        if (!IsHardened(components[2]))
+        if (!IsHardened(_components[2]))
         {
             throw std::runtime_error("Invalid keypath account");
         }
 
-        if (IsHardened(components[3]))
+        if (_components.size() == 5 && IsHardened(_components[3]))
         {
             throw std::runtime_error("Invalid keypath change");
         }
 
-        if (IsHardened(components[4]))
+        if (_components.size() == 5 && IsHardened(_components[4]))
         {
             throw std::runtime_error("Invalid keypath index");
         }
-
-        account = Unharden(components[2]);
-        isChange = components[3] == 1;
-        index = components[4];
+        
+        components.push_back(BIP32_PURPOSE);
+        components.push_back(BIP32_COIN_TYPE);
+        components.push_back(_components[ACCOUNT_INDEX]);
+        components.push_back(_components[CHANGE_INDEX]);
+        components.push_back(_components[ADDRESS_INDEX_INDEX]);
+    }
+    
+    Bip32Path::Bip32Path(uint32_t account) {
+        components.push_back(BIP32_PURPOSE);
+        components.push_back(BIP32_COIN_TYPE);
+        components.push_back(account);
     }
 
 	Bip32Path::Bip32Path(const std::string &account, bool isChange, const std::string &index)
         : Bip32Path(std::stoul(account), isChange, std::stoul(index)) {};
 
     Bip32Path::Bip32Path(uint32_t account, bool isChange, uint32_t index)
-        : purpose(BIP32_PURPOSE), coinType(BIP32_COIN_TYPE), account(account), isChange(isChange), index(index) {};
+        : Bip32Path(account) {
+        components.push_back(isChange ? 1 : 0);
+        components.push_back(index);
+    };
 
     bytes Bip32Path::Serialize() const
     {
         bytes serializedKeyPath;
         
-        utils::AppendUint32(serializedKeyPath, Harden(purpose));
-        utils::AppendUint32(serializedKeyPath, Harden(coinType));
-        utils::AppendUint32(serializedKeyPath, Harden(account));
-        utils::AppendUint32(serializedKeyPath, isChange ? 1 : 0);
-        utils::AppendUint32(serializedKeyPath, index);
+        utils::AppendUint32(serializedKeyPath, Harden(components[PURPOSE_INDEX]));
+        utils::AppendUint32(serializedKeyPath, Harden(components[COIN_TYPE_INDEX]));
+        utils::AppendUint32(serializedKeyPath, Harden(components[ACCOUNT_INDEX]));
+        utils::AppendUint32(serializedKeyPath, components[CHANGE_INDEX]);
+        utils::AppendUint32(serializedKeyPath, components[ADDRESS_INDEX_INDEX]);
         
         return serializedKeyPath;
     }
@@ -119,7 +130,17 @@ namespace ledger
     std::string Bip32Path::ToString() const 
     { 
         std::stringstream ss;
-        ss << "m/" << purpose << "'/" << coinType << "'/" << account << "'/" << (isChange ? 1 : 0) << "/" << index;
+        
+        ss << "m/" << components[PURPOSE_INDEX] << "'/" << components[COIN_TYPE_INDEX] << "'/" << components[ACCOUNT_INDEX];
+        
+        if (components.size() > 3) {
+            ss << "/" << components[CHANGE_INDEX];
+        }
+        
+        if (components.size() > 4) {
+            ss << "/" << components[ADDRESS_INDEX_INDEX];
+        }
+        
         return ss.str();
      }
 } // namespace ledger
