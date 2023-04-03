@@ -64,9 +64,10 @@ EditAddressDialog::EditAddressDialog(Mode modeIn, QWidget *parent) :
     mapper->setSubmitPolicy(QDataWidgetMapper::ManualSubmit);
 
     // Ledger submenu collapsed by default
-    ui->ledgerWidget->setVisible(false);
-    ui->ledgerPathLabel->setVisible(false);
-    ui->ledgerInfoLabel->setVisible(false);
+    ledgerItemsVisible = false;
+    ui->ledgerWidget->setVisible(ledgerItemsVisible);
+    ui->ledgerPathLabel->setVisible(ledgerItemsVisible);
+    ui->ledgerInfoLabel->setVisible(ledgerItemsVisible);
 
     // Ledger account and index defaults and validators
     ui->ledgerAccountEdit->setText("0");
@@ -224,6 +225,10 @@ void EditAddressDialog::accept()
 
 void EditAddressDialog::updateLedgerPathLabel()
 {
+    if (!ledgerItemsVisible) {
+        return;
+    }
+
     auto path = (new ledger::Bip32Path(
         ui->ledgerAccountEdit->text().toStdString(),
         false,
@@ -240,9 +245,11 @@ void EditAddressDialog::setAddress(QString addressIn)
 
 void EditAddressDialog::on_ledgerCheckBox_toggled(bool checked)
 {
-    ui->ledgerWidget->setVisible(checked);
-    ui->ledgerPathLabel->setVisible(checked);
-    ui->ledgerInfoLabel->setVisible(checked);
+    ledgerItemsVisible = checked;
+
+    ui->ledgerWidget->setVisible(ledgerItemsVisible);
+    ui->ledgerPathLabel->setVisible(ledgerItemsVisible);
+    ui->ledgerInfoLabel->setVisible(ledgerItemsVisible);
 
     // reset dialog height after hiding ledger items
     setFixedHeight(sizeHint().height());

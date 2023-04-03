@@ -63,6 +63,7 @@ private:
     QDataWidgetMapper *mapper;
     Mode mode;
     AddressTableModel *model;
+    bool ledgerItemsVisible;
 
     QString address;
 };
