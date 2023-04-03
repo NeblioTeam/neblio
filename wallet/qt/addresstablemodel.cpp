@@ -425,21 +425,31 @@ QString AddressTableModel::addRow(const QString& type, const QString& label, con
             return QString();
         }
 
-        ledger::bytes pubKey;
+        ledger::bytes accountPubKeyBytes;
+        ledger::bytes paymentPubKeyBytes;
+        ledger::bytes changePubKeyBytes;
 
         try {
             ledgerbridge::LedgerBridge ledgerBridge;
-            pubKey = ledgerBridge.GetPublicKey(account, false, index, true);
+            accountPubKeyBytes = ledgerBridge.GetPublicKey(account, false);
+            paymentPubKeyBytes = ledgerBridge.GetPublicKey(account, false, index, true);
+            changePubKeyBytes = ledgerBridge.GetPublicKey(account, true, index, false);
         } catch (const ledger::Error& e) {
             editStatus = LEDGER_ERROR;
             ledgerError = e;
             return QString();
         }
 
-        CPubKey cpubkey(pubKey);
-        CLedgerKey ledgerKey(cpubkey, account, false, index);
-        wallet->AddLedgerKey(ledgerKey);
-        strAddress = CBitcoinAddress(cpubkey.GetID()).ToString();
+        CPubKey accountPubKey(accountPubKeyBytes);
+
+        CPubKey paymentPubKey(paymentPubKeyBytes);
+        CLedgerKey paymentLedgerKey(paymentPubKey, accountPubKey.GetID(), account, false, index);
+        wallet->AddLedgerKey(paymentLedgerKey);
+        strAddress = CBitcoinAddress(paymentPubKey.GetID()).ToString();
+
+        CPubKey changePubKey(changePubKeyBytes);
+        CLedgerKey changeLedgerKey(changePubKey, accountPubKey.GetID(), account, true, index);
+        wallet->AddLedgerKey(changeLedgerKey);
     } else {
         return QString();
     }

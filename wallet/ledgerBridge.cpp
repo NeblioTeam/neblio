@@ -35,6 +35,11 @@ namespace ledgerbridge
         return GetPublicKey(ledger::Bip32Path(account, isChange, index), display);
     }
 
+    ledger::bytes LedgerBridge::GetAccountPublicKey(int account, bool display)
+    {
+        return GetPublicKey(ledger::Bip32Path(account), display);
+    }
+
     void LedgerBridge::SignTransaction(const ITxDB& txdb, const CWallet& wallet, CWalletTx &wtxNew, const std::vector<LedgerBridgeUtxo> &utxos) 
     {
         std::vector<ledger::Bip32Path> signaturePaths;

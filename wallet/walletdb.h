@@ -42,16 +42,17 @@ class CLedgerKey
 {
 public:
     CPubKey vchPubKey;
+    CKeyID accountPubKeyID;
     uint32_t account;
     bool isChange;
     uint32_t index;
 
     CLedgerKey() {}
 
-    CLedgerKey(const CPubKey& vchPubKeyIn, uint32_t accountIn, bool isChange, uint32_t indexIn) :
-        vchPubKey(vchPubKeyIn), account(accountIn), isChange(isChange), index(indexIn) {};
+    CLedgerKey(const CPubKey& vchPubKeyIn, const CKeyID& accountPubKeyIDIn, uint32_t accountIn, bool isChangeIn, uint32_t indexIn) :
+        vchPubKey(vchPubKeyIn), accountPubKeyID(accountPubKeyIDIn), account(accountIn), isChange(isChangeIn), index(indexIn) {};
 
-    IMPLEMENT_SERIALIZE(READWRITE(vchPubKey); READWRITE(account); READWRITE(isChange); READWRITE(index);)
+    IMPLEMENT_SERIALIZE(READWRITE(vchPubKey); READWRITE(accountPubKeyID); READWRITE(account); READWRITE(isChange); READWRITE(index);)
 };
 
 /** Access to the wallet database (wallet.dat) */
