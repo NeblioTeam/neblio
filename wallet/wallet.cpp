@@ -2323,8 +2323,6 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                     nFeeRet += nMoveToFee;
                 }
 
-                CKeyID changeKeyID;
-
                 if (nChange > 0 || ntp1TokenChangeExists) {
                     // Fill a vout to ourself
                     // TODO: pass in scriptChange instead of reservekey so
@@ -2334,7 +2332,6 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                     // coin control: send change to custom address
                     if (coinControl && !boost::get<CNoDestination>(&coinControl->destChange)) {
                         scriptChange.SetDestination(coinControl->destChange);
-                        changeKeyID = boost::get<CKeyID>(coinControl->destChange);
                     } else if (wtxNew.fLedgerTx) {
                         CTxDestination destChange;
                         if (!ExtractDestination(txdb, ledgerInputKey.get(), destChange)) {
@@ -2345,7 +2342,6 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                             return false;
                         }
                         scriptChange.SetDestination(destChange);
-                        changeKeyID = boost::get<CKeyID>(destChange);
                     }
                     // no coin control: send change to newly generated address
                     else {
@@ -2365,8 +2361,6 @@ bool CWallet::CreateTransaction(const ITxDB& txdb, const vector<pair<CScript, CA
                         assert(r); // should never fail, as we just unlocked
 
                         scriptChange.SetDestination(vchPubKey.GetID());
-
-                        changeKeyID = vchPubKey.GetID();
                     }
 
                     // create change for NEBLs, if that exists
