@@ -3,12 +3,11 @@
 #include "addresstablemodel.h"
 #include "guiutil.h"
 #include "ledger/bip32.h"
+#include <ledger/messagebox.h>
 #include "ledger/utils.h"
 
 #include <QDataWidgetMapper>
-#include <QMessageBox>
 #include <QtGui/QIntValidator>
-#include <QThread>
 #include <QTimer>
 
 void AddLedgerRowWorker::addRow(Ui::EditAddressDialog *ui, AddressTableModel *model, QSharedPointer<AddLedgerRowWorker> workerPtr) {
@@ -115,27 +114,12 @@ bool EditAddressDialog::saveCurrentRow()
     case NewReceivingAddress:
         if (isLedger)
         {
-            QThread addRowThread;
             QSharedPointer<AddLedgerRowWorker> worker = QSharedPointer<AddLedgerRowWorker>::create();
-            worker->moveToThread(&addRowThread);
-
-            connect(worker.data(), SIGNAL(resultReady(QString)), &addRowThread, SLOT(quit()));
-            connect(&addRowThread, SIGNAL(finished()), &addRowThread, SLOT(deleteLater()));
-
-            QMessageBox msgBox(this);
-            msgBox.setIcon(QMessageBox::Icon::Information);
-            msgBox.setWindowTitle(windowTitle());
-            msgBox.setText("Please confirm or cancel the action on your Ledger device.");
-            msgBox.setStandardButtons(QMessageBox::StandardButton::NoButton);
-
+            ledger::MessageBox msgBox(this, worker);
             connect(worker.data(), SIGNAL(resultReady(QString)), this, SLOT(setAddress(QString)));
-            connect(worker.data(), SIGNAL(resultReady(QString)), &msgBox, SLOT(accept()));
-
-            addRowThread.start();
+            connect(worker.data(), SIGNAL(resultReady(QString)), &msgBox, SLOT(quit()));
             QTimer::singleShot(0, worker.data(), [this, worker]() { worker->addRow(ui, model, worker); });
             msgBox.exec();
-
-            addRowThread.wait(); // to make sure that the thread is finished
         } else {
             address = model->addRow(
                 AddressTableModel::Receive,
@@ -213,7 +197,7 @@ void EditAddressDialog::accept()
             break;
         case AddressTableModel::LEDGER_ERROR:
             QMessageBox::critical(this, windowTitle(),
-                tr("A Ledger error occured: %1\n\nIf you did not cancel the operation intentionally, make sure that your device is connected and the Neblio app is opened on the device.").arg(QString::fromStdString(model->getLedgerErrorMessage())),
+                tr("A Ledger error occured: %1\n\nIf you did not cancel the operation intentionally, make sure that your device is connected to the computer and the Neblio app is opened on the device.").arg(QString::fromStdString(model->getLedgerErrorMessage())),
                 QMessageBox::Ok, QMessageBox::Ok);
             break;
 

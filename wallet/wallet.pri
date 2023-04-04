@@ -9,6 +9,7 @@ HEADERS += qt/bitcoingui.h \
     ledger/hash.h \
     ledger/hid.h \
     ledger/ledger.h \
+    ledger/messagebox.h \
     ledger/speculos.h \
     ledger/transport.h \
     ledger/tx.h \
@@ -218,6 +219,7 @@ SOURCES += qt/bitcoin.cpp \
     ledger/error.cpp \
     ledger/hid.cpp \
     ledger/ledger.cpp \
+    ledger/messagebox.cpp \
     ledger/speculos.cpp \
     ledger/transport.cpp \
     ledger/tx.cpp \

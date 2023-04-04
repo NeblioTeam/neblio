@@ -24,9 +24,29 @@
 #include "ntp1/ntp1tokenlistmodel.h"
 #include "ntp1/ntp1tools.h"
 
+#include "ledger/messagebox.h"
+
+void LedgerSignTxWorker::signTx(
+    WalletModel*                       model,
+    QList<SendCoinsRecipient>          recipients,
+    boost::shared_ptr<NTP1Wallet>      ntp1wallet,
+    const RawNTP1MetadataBeforeSend&   ntp1metadata,
+    bool                               fSpendDelegated,
+    const CCoinControl*                coinControl,
+    const std::string&                 strFromAccount,
+    QSharedPointer<LedgerSignTxWorker> workerPtr
+) {
+    auto sendStatus = model->sendCoins(recipients, ntp1wallet, ntp1metadata, fSpendDelegated, coinControl, strFromAccount, true);
+
+    emit resultReady(sendStatus);
+    workerPtr.reset();
+}
+
 SendCoinsDialog::SendCoinsDialog(QWidget* parent)
     : QDialog(parent), ui(new Ui::SendCoinsDialog), model(0)
 {
+    qRegisterMetaType<WalletModel::SendCoinsReturn>("WalletModel::SendCoinsReturn");
+
     ui->setupUi(this);
 
 #ifdef Q_OS_MAC // Icons on push buttons are very uncommon on Mac
@@ -264,11 +284,19 @@ void SendCoinsDialog::on_sendButton_clicked()
     std::string strFromAccount = "";
     if (fLedgerTx)
         strFromAccount = ui->ledgerPayFromNameEdit->text().toStdString();
-    
-    auto sendstatus = model->sendCoins(recipients, ntp1wallet, ntp1metadata, fSpendDelegatedOutputs,
-                                  coinControl, strFromAccount, fLedgerTx);
 
-    switch (sendstatus.status) {
+    if (fLedgerTx) {
+            QSharedPointer<LedgerSignTxWorker> worker = QSharedPointer<LedgerSignTxWorker>::create();
+            ledger::MessageBox msgBox(this, worker);
+            connect(worker.data(), SIGNAL(resultReady(WalletModel::SendCoinsReturn)), this, SLOT(setSendStatus(WalletModel::SendCoinsReturn)));
+            connect(worker.data(), SIGNAL(resultReady(WalletModel::SendCoinsReturn)), &msgBox, SLOT(quit()));
+            QTimer::singleShot(0, worker.data(), [&]() { worker->signTx(model, recipients, ntp1wallet, ntp1metadata, fSpendDelegatedOutputs, coinControl, strFromAccount, worker); });
+            msgBox.exec();
+    } else {
+        sendStatus = model->sendCoins(recipients, ntp1wallet, ntp1metadata, fSpendDelegatedOutputs, coinControl, strFromAccount, fLedgerTx);
+    }
+
+    switch (sendStatus.status) {
     case WalletModel::InvalidAddress:
         QMessageBox::warning(this, tr("Send Coins"),
                              tr("The recipient address is not valid, please recheck."), QMessageBox::Ok,
@@ -286,7 +314,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         QMessageBox::warning(
             this, tr("Send Coins"),
             tr("The total exceeds your balance when the %1 transaction fee is included.")
-                .arg(BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, sendstatus.fee)),
+                .arg(BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, sendStatus.fee)),
             QMessageBox::Ok, QMessageBox::Ok);
         break;
     case WalletModel::DuplicateAddress:
@@ -297,7 +325,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         break;
     case WalletModel::TransactionCreationFailed:
         QMessageBox::warning(this, tr("Send Coins"),
-                             tr("Error: Transaction creation failed. ") + sendstatus.msg,
+                             tr("Error: Transaction creation failed. ") + sendStatus.msg,
                              QMessageBox::Ok, QMessageBox::Ok);
         break;
     case WalletModel::TransactionCommitFailed:
@@ -317,7 +345,7 @@ void SendCoinsDialog::on_sendButton_clicked()
             "You should NOT send NEBL from these addresses or the NTP1 tokens could be permanently "
             "burned. "
             "This address contains NTP1 tokens: " +
-                sendstatus.address +
+                sendStatus.address +
                 "\n\n"
                 "You have the following options:\n"
                 "1. Use coin control and choose addresses that do not contain NTP1 tokens.\n"
@@ -330,7 +358,7 @@ void SendCoinsDialog::on_sendButton_clicked()
         QMessageBox::warning(
             this, tr("Send Coins - NTP1 tokens problem"),
             "Error: Unable to check whether your addresses contain NTP1 tokens (for address: " +
-                sendstatus.address +
+                sendStatus.address +
                 ")\n"
                 "Sending NEBL from an address that contains NTP1 tokens could result in those tokens "
                 "being permanently burned. "
@@ -380,7 +408,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     case WalletModel::NTP1TokenCalculationsFailed:
         QMessageBox::warning(this, tr("Send Coins - NTP1 calculations failed"),
                              "Unable to calculate reserve tokens to be spent in this transaction. " +
-                                 sendstatus.msg,
+                                 sendStatus.msg,
                              QMessageBox::Ok, QMessageBox::Ok);
         break;
     case WalletModel::OK:
