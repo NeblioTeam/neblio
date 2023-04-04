@@ -1,5 +1,5 @@
 #include "error.h"
-#include "hid_device.h"
+#include "hid.h"
 #include "utils.h"
 
 #include <cassert>

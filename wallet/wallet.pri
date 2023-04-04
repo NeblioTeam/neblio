@@ -7,7 +7,7 @@ HEADERS += qt/bitcoingui.h \
     ledger/comm.h \
     ledger/error.h \
     ledger/hash.h \
-    ledger/hid_device.h \
+    ledger/hid.h \
     ledger/ledger.h \
     ledger/speculos.h \
     ledger/transport.h \
@@ -216,7 +216,7 @@ HEADERS +=                 \
 SOURCES += qt/bitcoin.cpp \
     ledger/bip32.cpp \
     ledger/error.cpp \
-    ledger/hid_device.cpp \
+    ledger/hid.cpp \
     ledger/ledger.cpp \
     ledger/speculos.cpp \
     ledger/transport.cpp \
